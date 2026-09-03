@@ -88,7 +88,6 @@ export interface WorkspaceSlice {
   changesTreeRefreshing: Record<string, boolean>;
   /** Changes 面板「刷新全部」进行中标记 */
   refreshingAllChanges: boolean;
-  workspaceContextMode: 'workspace' | 'global';
 
   setAppInfo: (appInfo: AppInfo | undefined) => void;
   setRecentWorkspaces: (workspaces: RecentWorkspaceEntry[]) => void;
@@ -105,7 +104,6 @@ export interface WorkspaceSlice {
   setWorkspaceChangesTreeErrors: (errors: Record<string, string | undefined>) => void;
   setChangesTreeRefreshing: (refreshing: Record<string, boolean>) => void;
   setRefreshingAllChanges: (refreshing: boolean) => void;
-  setWorkspaceContextMode: (mode: 'workspace' | 'global') => void;
 }
 
 /**
@@ -131,7 +129,6 @@ export const createWorkspaceSlice = (
     workspaceChangesTreeErrors: {},
     changesTreeRefreshing: {},
     refreshingAllChanges: false,
-    workspaceContextMode: 'workspace',
 
     setAppInfo: (appInfo) => set({ appInfo }),
     setRecentWorkspaces: (workspaces) => set({ recentWorkspaces: workspaces }),
@@ -154,6 +151,5 @@ export const createWorkspaceSlice = (
     setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),
     setChangesTreeRefreshing: (refreshing) => set({ changesTreeRefreshing: refreshing }),
     setRefreshingAllChanges: (refreshing) => set({ refreshingAllChanges: refreshing }),
-    setWorkspaceContextMode: (mode) => set({ workspaceContextMode: mode }),
   };
 };

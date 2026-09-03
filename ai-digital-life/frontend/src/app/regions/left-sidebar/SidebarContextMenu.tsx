@@ -1,43 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { IconFolder, IconFolderOpen } from '../../icons';
 import type { SidebarMenuItem } from './SidebarContextMenu.utils';
-
-export function StatusLamp({ status, title }: { status: string; title: string }) {
-  return (
-    <span className={`adl-status-lamp adl-status-lamp--${status}`} role="img" aria-label={title} />
-  );
-}
-
-export function WorkspaceDirectoryIcon({
-  expanded,
-  status,
-  title,
-}: {
-  expanded: boolean;
-  status: string;
-  title: string;
-}) {
-  if (expanded) {
-    return (
-      <span
-        className="adl-workspace-row__kind adl-workspace-row__kind--expanded"
-        aria-hidden="true"
-      >
-        <IconFolderOpen size={12} decorative />
-      </span>
-    );
-  }
-
-  return (
-    <span
-      className={`adl-workspace-row__kind adl-workspace-row__kind--collapsed adl-workspace-row__kind--${status}`}
-      role="img"
-      aria-label={title}
-    >
-      <IconFolder size={12} decorative />
-    </span>
-  );
-}
 
 export function SidebarContextMenu({
   items,

@@ -19,10 +19,22 @@ import {
   persistActiveWorkspacePath,
 } from './preview-storage';
 import { repoMapEntriesToTree } from '../shared/repoMapFromEntries';
-import type { PreviewContext, PreviewWorkspaceOpenPayload } from './preview-context';
+
+/** Preview bridge shared mutable context (subset previously exported by preview-context). */
+export interface PreviewWorkspaceContext {
+  recentWorkspaces: RecentWorkspaceEntry[];
+  currentWorkspace: WorkspaceMeta | undefined;
+  retrievalStatus: RetrievalSnapshot | undefined;
+}
+
+export interface PreviewWorkspaceOpenPayload {
+  meta: WorkspaceMeta;
+  recent: RecentWorkspaceEntry;
+  retrieval: RetrievalSnapshot;
+}
 
 export function createPreviewWorkspaceBridge(
-  ctx: PreviewContext,
+  ctx: PreviewWorkspaceContext,
   setMockActiveWorkspace: (ws: WorkspaceMeta | undefined) => void,
 ) {
   const applyOpenedWorkspace = (payload: PreviewWorkspaceOpenPayload) => {
@@ -31,12 +43,6 @@ export function createPreviewWorkspaceBridge(
     setMockActiveWorkspace(payload.meta);
     ctx.recentWorkspaces = updateRecentWorkspaces(ctx.recentWorkspaces, payload.recent);
     persistActiveWorkspacePath(payload.meta.rootPath);
-    ctx.appInfo.recentLogs.unshift({
-      timestamp: Date.now(),
-      level: 'info',
-      scope: 'workspace',
-      message: `Preview mode: opened real local workspace ${payload.meta.rootPath}`,
-    });
   };
 
   const openWorkspaceFromPreviewApi = async (

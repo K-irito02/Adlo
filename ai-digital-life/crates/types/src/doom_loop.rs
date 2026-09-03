@@ -1,13 +1,10 @@
-use crate::permission_types::PermissionDecision;
-use crate::types::agent::AgentRunStatus;
-
 /// Check for doom loop pattern (repeated failures).
-/// Returns Ask if the same command has failed more than 3 times in a row.
-pub fn doom_loop_check(recent_failures: &[String], command: &str) -> PermissionDecision {
+/// Returns true if the same command has failed more than 3 times in a row.
+pub fn doom_loop_check(recent_failures: &[String], command: &str) -> bool {
     let consecutive_failures =
         recent_failures.iter().rev().take_while(|c| c.as_str() == command).count();
 
-    if consecutive_failures >= 3 { PermissionDecision::Ask } else { PermissionDecision::Allow }
+    consecutive_failures >= 3
 }
 
 /// Check if a path is external to the workspace.
@@ -42,9 +39,8 @@ impl DoomLoopState {
     /// Any non-`"failed"` status at index `i` breaks the streak; earlier
     /// failures (indices > i) are ignored. Empty input yields `0`.
     pub fn from_recent_statuses(statuses: &[&str]) -> Self {
-        let failed_str = AgentRunStatus::Failed.as_status_str();
         let consecutive_failures =
-            statuses.iter().copied().take_while(|status| *status == failed_str).count() as u32;
+            statuses.iter().copied().take_while(|status| *status == "failed").count() as u32;
         Self { consecutive_failures }
     }
 
@@ -61,14 +57,14 @@ mod tests {
     #[test]
     fn doom_loop_allows_under_threshold() {
         let failures = vec!["npm install".to_string(), "npm install".to_string()];
-        assert_eq!(doom_loop_check(&failures, "npm install"), PermissionDecision::Allow);
+        assert!(!doom_loop_check(&failures, "npm install"));
     }
 
     #[test]
     fn doom_loop_asks_at_threshold() {
         let failures =
             vec!["npm install".to_string(), "npm install".to_string(), "npm install".to_string()];
-        assert_eq!(doom_loop_check(&failures, "npm install"), PermissionDecision::Ask);
+        assert!(doom_loop_check(&failures, "npm install"));
     }
 
     #[test]
@@ -79,7 +75,7 @@ mod tests {
             "npm install".to_string(),
             "git status".to_string(),
         ];
-        assert_eq!(doom_loop_check(&failures, "npm install"), PermissionDecision::Allow);
+        assert!(!doom_loop_check(&failures, "npm install"));
     }
 
     #[test]

@@ -5,7 +5,6 @@ pub(crate) mod browser_webview_setup;
 pub mod download_commands;
 pub mod platform;
 pub mod port_scan;
-pub mod provider;
 pub mod reserved;
 pub mod workspace;
 

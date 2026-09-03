@@ -1,13 +1,6 @@
 import type { StoreState } from '../StoreState';
-import type {
-  ConversationMessageRecord,
-  ConversationBlock,
-  RecentWorkspaceEntry,
-} from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
-import { createEditorTab } from '@utils/editorTabs';
-import { loadConversationState } from '../loaders';
-import { workspaceContextModeFromInfo } from '../conversationUtils';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
@@ -22,12 +15,6 @@ const SCOPE = 'general';
  *
  * 首次调用时从当前 store 状态浅拷贝初始化 batch 字段，
  * 后续调用直接在已初始化的 batch 字段上追加，避免每次都展开整个 Record。
- *
- * @param batch - 累积变更的 Partial<StoreState> 对象
- * @param get - Zustand store 的 get 函数，用于读取当前状态
- * @param key - StoreState 中类型为 Record<string, V> 的字段名
- * @param id - 要写入的 Record key
- * @param value - 要写入的 Record value
  */
 export function accumulateBatch<K extends keyof StoreState>(
   batch: Partial<StoreState>,
@@ -45,12 +32,8 @@ export function accumulateBatch<K extends keyof StoreState>(
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
-     * [bootstrap - 启动应用，获取工作区信息、会话、Git 状态和补丁]
-     * @reads — 无（冷启动）
-     * @writes workspaceSlice.appInfo, workspaceSlice.modelHealth, workspaceSlice.recentWorkspaces, sessionSlice.sessions, sessionSlice.activeSessionId, sessionSlice.sessionDetails, workspaceSlice.workspaceContextMode, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, editorSlice.externalFileChange, editorSlice.changePreview, editorSlice.changePreviewLoading, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, commandSlice.commandHistory, searchSlice.searchQuery, searchSlice.searchResults
-     * @see shared/ipc.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
-     * @see mock-bridge.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
-     * @see preview-bridge/index.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
+     * [bootstrap - 启动应用，获取工作区、Git 状态和补丁]
+     * @writes workspaceSlice.appInfo, workspaceSlice.recentWorkspaces, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, searchSlice.searchQuery, searchSlice.searchResults
      */
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
@@ -60,10 +43,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         }, 0);
       };
 
-      const [appInfoResult, recentResult, modelHealthResult] = await Promise.all([
+      const [appInfoResult, recentResult] = await Promise.all([
         window.digitalLife.app.getInfo(),
         window.digitalLife.workspace.listRecent(),
-        window.digitalLife.app.getModelHealth(),
       ]);
       if (requestSeq !== workspaceRequestSeq) {
         return;
@@ -80,11 +62,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         appInfoResult.data.config.themeMode,
       );
 
-      const conversationState = await loadConversationState();
-      if (requestSeq !== workspaceRequestSeq) {
-        return;
-      }
-
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
       // 为右侧面板设置默认展开所有可见工作区
       const visibleWorkspaces = recentWorkspaces.filter(
@@ -94,14 +71,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       const nextState: Partial<StoreState> = {
         isTauri: isTauriShell(),
         appInfo: appInfoResult.data,
-        modelHealth: modelHealthResult.ok ? modelHealthResult.data : undefined,
         recentWorkspaces,
-        sessions: conversationState.sessions,
-        activeSessionId: conversationState.activeSessionId,
-        sessionDetails: conversationState.detail
-          ? { [conversationState.detail.session.id]: conversationState.detail }
-          : {},
-        workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
         loading: false,
         dirtyEditorPaths: [],
       };
@@ -115,34 +85,11 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       syncNewWorkspacesToNaturalOrder();
 
       if (appInfoResult.data.currentWorkspace) {
-        const patchBlock = conversationState.detail?.messages.length
-          ? conversationState.detail.messages
-              .flatMap((message: ConversationMessageRecord) => message.blocks)
-              .find((block: ConversationBlock) => block.type === 'patch-summary')
-          : undefined;
-
-        const patchResult =
-          patchBlock?.type === 'patch-summary'
-            ? await window.digitalLife.patch.getPatchSet(patchBlock.patchSetId)
-            : null;
-
         set({
           ...nextState,
           workspaceTrees: {},
           dirtyEditorPaths: [],
         });
-
-        if (patchResult?.ok) {
-          const initialPath = patchResult.data?.filePatches[0]?.relativePath;
-          set({
-            activePatchSet: patchResult.data,
-            selectedFilePath: initialPath,
-            selectedChangePreviewPath: undefined,
-            changePreview: undefined,
-            changePreviewLoading: false,
-            openTabs: initialPath ? [createEditorTab(initialPath)] : [],
-          });
-        }
 
         // Defer git status to low priority (it can take ~400ms)
         queueLowPriorityRefresh(async () => {
@@ -165,7 +112,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           if (requestSeq !== workspaceRequestSeq) {
             return;
           }
-          await Promise.allSettled([get().fetchCommandHistory(), get().fetchGitBranches()]);
+          await Promise.allSettled([get().fetchGitBranches()]);
 
           if (visibleWorkspaces.length > 0) {
             const appInfo_ = get().appInfo;
@@ -292,7 +239,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         outline: [],
         indexingStatus: undefined,
         repoMap: [],
-        commandHistory: [],
         gitSnapshot: undefined,
         gitSnapshots: {},
         gitBranches: [],
@@ -304,12 +250,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
     },
 
     /**
-     * [updatePreferences - 更新应用偏好设置（主题、语言、模型选择等）]
-     * @reads workspaceSlice.appInfo
-     * @writes workspaceSlice.appInfo, sessionSlice.sessions, workspaceSlice.modelHealth (如有模型变更)
-     * @see shared/ipc.ts → app.updatePreferences, app.getModelHealth
-     * @see mock-bridge.ts → app.updatePreferences, app.getModelHealth
-     * @see preview-bridge/index.ts → app.updatePreferences, app.getModelHealth
+     * [updatePreferences - 更新应用偏好设置（主题、语言等）]
+     * @writes workspaceSlice.appInfo
      */
     updatePreferences: async (patch: AppPreferencePatch): Promise<boolean> => {
       const key = 'updatePreferences';
@@ -329,13 +271,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         // (build_app_info hardcodes Theme::Light for ThemeMode::System).
         // Fix it here for store consistency; useThemeSync 会通过 appInfo 变化触发 setTheme。
         result.data.config.resolvedTheme = resolveCurrentTheme(responseMode);
-        set((state: StoreState) => ({
-          appInfo: result.data,
-          sessions: state.sessions,
-        }));
-        if (patch.modelPreferences) {
-          await get().refreshModelHealth();
-        }
+        set({ appInfo: result.data });
         return true;
       } catch (error) {
         captureError(get, error, SCOPE);

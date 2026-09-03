@@ -1,9 +1,6 @@
 import type { RetrievalBridge } from "../shared/ipc/retrieval";
 import type { RepoMapNode } from "@ai-digital-life/kernel";
-import {
-  currentWorkspaceMeta,
-  modelHealth,
-} from "./mock-shared";
+import { currentWorkspaceMeta } from "./mock-shared";
 
 export const mockRetrieval: RetrievalBridge = {
   getStatus: async () => ({

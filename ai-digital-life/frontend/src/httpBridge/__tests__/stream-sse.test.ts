@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { SseWireEvent } from '../../app/features/part-stream/partStoreTypes';
+import type { SseWireEvent } from '../../httpBridge';
 
 /**
  * Task 8 TDD — SSE event bridge over EventSource.

@@ -11,33 +11,50 @@ export type {
 };
 
 import type { PtyOutputEvent } from './pty';
-import type { SseWireEvent } from '../../app/features/part-stream/partStoreTypes';
 import type { WindowBridge } from './window';
 import type { AppBridge } from './app';
 import type { WorkspaceBridge } from './workspace';
 import type { RetrievalBridge } from './retrieval';
-import type { ConversationBridge } from './conversation';
-import type { AgentBridge } from './agent';
-import type { SubagentBridge } from './subagent';
 import type { PatchBridge } from './patch';
-import type { CommandBridge } from './command';
 import type { PtyBridge } from './pty';
-import type { RunActivityBridge } from './run-activity';
 import type { BrowserBridge } from './browser';
 import type { GitHubBridge } from './github';
 import type { McpBridge } from './mcp';
-import type { ProviderBridge } from './provider';
 import type { SnapshotBridge } from './snapshot';
 import type { WebToolsBridge } from './web_tools';
-import type { CommandsConfigBridge } from './commands_config';
-import type { PermissionBridge } from './permission';
-import type { CompactionBridge } from './compaction';
-import type { SessionForkBridge } from './session_fork';
 import type { LspBridge } from './lsp';
 import type { ReferenceBridge } from './reference';
-import type { CustomAgentBridge } from './custom_agent';
 import type { DurableBridge } from './durable';
 import type { ReservedBridge } from './reserved';
+
+/** SSE wire event type (formerly in part-stream/partStoreTypes) */
+export type SseWireEvent =
+  | { type: 'message.created'; sessionID: string; info: { id: string } & Record<string, unknown> }
+  | { type: 'message.updated'; sessionID: string; info: { id: string } & Record<string, unknown> }
+  | {
+      type: 'message.part.updated';
+      sessionID: string;
+      messageID: string;
+      partID: string;
+      part: Record<string, unknown>;
+    }
+  | {
+      type: 'message.part.delta';
+      sessionID: string;
+      messageID: string;
+      partID: string;
+      field: string;
+      delta: string;
+    }
+  | { type: 'session.status'; sessionID: string; status: string }
+  | {
+      type: 'question.asked';
+      sessionID: string;
+      requestID: string;
+      questions: unknown[];
+      tool?: unknown;
+    }
+  | { type: 'question.replied'; sessionID: string; requestID: string; answers: unknown[] };
 
 /**
  * Digital Life 全局桥接接口 - 汇总所有子能力
@@ -122,40 +139,20 @@ export interface DigitalLifeBridge {
   workspace: WorkspaceBridge;
   /** 内容索引与检索子模块 */
   retrieval: RetrievalBridge;
-  /** 对话会话管理子模块 */
-  conversation: ConversationBridge;
-  /** Agent 运行控制子模块 */
-  agent: AgentBridge;
-  /** 子代理 (Sub-agent) 管理子模块 */
-  subagent: SubagentBridge;
-  /** MCP 服务器管理子模块 */
-  mcp: McpBridge;
   /** 补丁管理子模块 */
   patch: PatchBridge;
-  /** Provider API 密钥管理子模块 */
-  provider: ProviderBridge;
-  /** 命令执行子模块 */
-  command: CommandBridge;
   /** PTY 终端子模块 */
   pty: PtyBridge;
-  /** 运行活动日志子模块 */
-  runActivity: RunActivityBridge;
   /** 浏览器预览子模块 */
   browser: BrowserBridge;
   /** GitHub 集成子模块 (GitHub + CI 状态共用同一接口) */
   github: GitHubBridge;
+  /** MCP 服务器管理子模块 */
+  mcp: McpBridge;
   /** 快照管理子模块 */
   snapshot: SnapshotBridge;
   /** Web 工具子模块 (网页抓取/搜索) */
   webTools: WebToolsBridge;
-  /** 自定义命令管理子模块 */
-  commandsConfig: CommandsConfigBridge;
-  /** 权限规则管理子模块 */
-  permission: PermissionBridge;
-  /** 会话压缩管理子模块 */
-  compaction: CompactionBridge;
-  /** 会话分叉管理子模块 */
-  sessionFork: SessionForkBridge;
   /** 语言服务器 (LSP) 子模块 */
   lsp: LspBridge;
   /** 参考代码仓库管理子模块 */
@@ -164,6 +161,4 @@ export interface DigitalLifeBridge {
   durable: DurableBridge;
   /** 预留功能 IPC 存根子模块 */
   reserved: ReservedBridge;
-  /** 自定义 Agent 管理子模块 */
-  customAgent: CustomAgentBridge;
 }

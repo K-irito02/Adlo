@@ -8,7 +8,6 @@ import type { TerminalNavigatorMode } from './useTerminalPanel';
 
 interface UseTerminalViewportParams {
   terminalTabs: ReturnType<typeof terminalSelectors.useTerminalTabs>;
-  commandHistory: string[];
 }
 
 /**
@@ -17,11 +16,11 @@ interface UseTerminalViewportParams {
  * 职责：
  * - 导航器模式（sessions / history）切换
  * - 导航器折叠状态与宽度（来自 store selector）
- * - 最近命令列表派生（基于 commandHistory 或 terminalTabs）
+ * - 最近命令列表派生（基于 terminalTabs）
  * - 导航器标题与计数派生
  * - 导航器折叠/展开切换与宽度调整（委托 useNavigatorResize）
  */
-export function useTerminalViewport({ terminalTabs, commandHistory }: UseTerminalViewportParams) {
+export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams) {
   const { t } = useTCopy();
   const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>('sessions');
 
@@ -35,22 +34,17 @@ export function useTerminalViewport({ terminalTabs, commandHistory }: UseTermina
     })),
   );
 
-  const recentCommands = useMemo(() => {
-    if (commandHistory.length > 0) {
-      return commandHistory.map((entry, index) => ({
-        id: `history-${index}`,
-        label: entry,
-        title: entry.split(' ')[0] || t.terminalCommandHistory,
-      }));
-    }
-    return terminalTabs
-      .map((tab) => ({
-        id: tab.id,
-        label: tab.title,
-        title: tab.title,
-      }))
-      .filter((entry) => entry.label);
-  }, [commandHistory, t.terminalCommandHistory, terminalTabs]);
+  const recentCommands = useMemo(
+    () =>
+      terminalTabs
+        .map((tab) => ({
+          id: tab.id,
+          label: tab.title,
+          title: tab.title,
+        }))
+        .filter((entry) => entry.label),
+    [terminalTabs],
+  );
 
   const navigatorTitle =
     navigatorMode === 'sessions' ? t.terminalSessions : t.terminalRecentCommands;

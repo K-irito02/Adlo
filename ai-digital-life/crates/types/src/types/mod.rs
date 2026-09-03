@@ -1,25 +1,21 @@
-pub mod agent;
 pub mod ci;
-pub mod command;
 pub mod commands;
 pub mod config;
 pub mod conversation;
 pub mod git_visualization;
-pub mod model;
+pub mod patch_types;
 pub mod part;
 pub mod reference;
 pub mod reserved;
 pub mod session;
 pub mod workspace;
 
-pub use agent::*;
 pub use ci::*;
-pub use command::*;
 pub use commands::{CommandConfig, CommandHint};
 pub use config::*;
 pub use conversation::*;
 pub use git_visualization::*;
-pub use model::*;
+pub use patch_types::*;
 pub use part::*;
 pub use reference::{ReferenceConfig, ReferenceSource};
 pub use reserved::{AcpConfig, CodeModeConfig, HttpApiConfig};
@@ -120,7 +116,6 @@ mod tests {
                 terminal_log_mode: LogMode::default(),
                 debug_log_mode: LogMode::default(),
                 max_recent_workspaces: 10,
-                model_preferences: ModelPreferences::default(),
                 keybinds: std::collections::BTreeMap::new(),
                 fonts: FontPreferences::default(),
                 max_concurrent_workspaces: 6,

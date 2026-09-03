@@ -13,7 +13,6 @@ import type { StoreState } from './StoreState';
 
 // 重新导出领域特定的 selector
 export { workspaceSelectors } from './workspaceSelectors';
-export { sessionSelectors } from './sessionSelectors';
 export { editorSelectors } from './editorSelectors';
 export { terminalSelectors } from './terminalSelectors';
 export { browserSelectors } from './browserSelectors';
@@ -39,57 +38,6 @@ export const patchSelectors = {
 
   hasActivePatchSet: (state: StoreState) => Boolean(state.activePatchSet),
   useHasActivePatchSet: () => useAppStore((s) => Boolean(s.activePatchSet)),
-};
-
-// ============================================
-// 运行相关的选择器
-// ============================================
-export const runSelectors = {
-  getActiveRun: (state: StoreState) => state.activeRun,
-  useActiveRun: () => useAppStore(useShallow((s) => s.activeRun)),
-
-  getStreamingAssistantText: (state: StoreState) => state.streamingAssistantText,
-  useStreamingAssistantText: () => useAppStore((s) => s.streamingAssistantText),
-
-  getStreamingActiveRunId: (state: StoreState) => state.streamingActiveRunId,
-  useStreamingActiveRunId: () => useAppStore((s) => s.streamingActiveRunId),
-
-  getRunActivityByRunId: (state: StoreState) => state.runActivityByRunId,
-  useRunActivityByRunId: () => useAppStore(useShallow((s) => s.runActivityByRunId)),
-
-  getRunUsageByRunId: (state: StoreState) => state.runUsageByRunId,
-  useRunUsageByRunId: () => useAppStore(useShallow((s) => s.runUsageByRunId)),
-
-  hasActiveRun: (state: StoreState) => Boolean(state.activeRun),
-  useHasActiveRun: () => useAppStore((s) => Boolean(s.activeRun)),
-
-  isStreaming: (state: StoreState) => Boolean(state.streamingActiveRunId),
-  useIsStreaming: () => useAppStore((s) => Boolean(s.streamingActiveRunId)),
-};
-
-// ============================================
-// 模型健康相关的选择器
-// ============================================
-export const modelSelectors = {
-  getModelHealth: (state: StoreState) => state.modelHealth,
-  useModelHealth: () => useAppStore(useShallow((s) => s.modelHealth)),
-
-  hasModelHealth: (state: StoreState) => Boolean(state.modelHealth),
-  useHasModelHealth: () => useAppStore((s) => Boolean(s.modelHealth)),
-};
-
-// ============================================
-// 命令相关的选择器
-// ============================================
-export const commandSelectors = {
-  getCommandHistory: (state: StoreState) => state.commandHistory,
-  useCommandHistory: () => useAppStore(useShallow((s) => s.commandHistory)),
-
-  getLatestCommandRun: (state: StoreState) => state.latestCommandRun,
-  useLatestCommandRun: () => useAppStore(useShallow((s) => s.latestCommandRun)),
-
-  hasCommandHistory: (state: StoreState) => state.commandHistory.length > 0,
-  useHasCommandHistory: () => useAppStore((s) => s.commandHistory.length > 0),
 };
 
 // ============================================

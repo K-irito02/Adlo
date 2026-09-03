@@ -5,7 +5,7 @@ use adl_errors::AppError;
 use adl_types::{
     APP_NAME, AppInfo, AppPreferencePatch, ConfigSnapshot, EventDiagnostics, HealthComponent,
     HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
-    ModelGatewayHealthSnapshot, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot,
+    RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot,
     WorkspaceMeta, now_ms,
 };
 use adl_workspace::strip_verbatim_prefix;
@@ -142,48 +142,6 @@ pub fn app_get_diagnostics(
 }
 
 #[tauri::command]
-pub async fn app_get_model_health(
-    state: tauri::State<'_, AppState>,
-) -> Result<IpcResult<ModelGatewayHealthSnapshot>, CommandError> {
-    // Snapshot config + registry, then run health (which does per-provider
-    // credential reads) on a blocking thread so keyring I/O never stalls the
-    // async runtime.
-    let config = state
-        .config
-        .read()
-        .map_err(|_| AppError::Internal("config lock poisoned".into()))?
-        .model_preferences
-        .clone();
-    let registry = state.provider_registry.clone();
-    let result = tokio::task::spawn_blocking(move || {
-        let gateway = adl_model_gateway::ModelGateway::new(config, registry)?;
-        Ok::<ModelGatewayHealthSnapshot, AppError>(gateway.health())
-    })
-    .await
-    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?;
-    Ok(ipc(result))
-}
-
-/// 将单个 provider 的 preference patch 合并到已有配置；`None` 字段保持原值不变。
-fn apply_model_patch(
-    entry: &mut adl_types::ModelProviderPreference,
-    patch: adl_types::ModelProviderPreferencePatch,
-) {
-    if let Some(enabled) = patch.enabled {
-        entry.enabled = enabled;
-    }
-    if let Some(priority) = patch.priority {
-        entry.priority = priority;
-    }
-    if let Some(model_id) = patch.model_id {
-        entry.model_id = model_id;
-    }
-    if let Some(enabled_models) = patch.enabled_models {
-        entry.enabled_models = enabled_models;
-    }
-}
-
-#[tauri::command]
 pub async fn app_update_preferences(
     app: tauri::AppHandle,
     patch: AppPreferencePatch,
@@ -208,21 +166,6 @@ pub async fn app_update_preferences(
         if let Some(mode) = patch.debug_log_mode {
             config.debug_log_mode = mode;
             let _ = state.log_manager.set_mode(adl_logging::LogTarget::Debug, mode);
-        }
-        if let Some(model_preferences) = patch.model_preferences {
-            for (provider, patch) in model_preferences {
-                let provider_id = provider.clone();
-                let entry =
-                    config.model_preferences.providers.entry(provider).or_insert_with(|| {
-                        adl_types::ModelProviderPreference {
-                            enabled: true,
-                            priority: 10,
-                            model_id: provider_id.clone(),
-                            enabled_models: None,
-                        }
-                    });
-                apply_model_patch(entry, patch);
-            }
         }
         if let Some(keybinds) = patch.keybinds {
             config.keybinds = keybinds;
@@ -294,7 +237,6 @@ pub fn build_app_info(
             terminal_log_mode: config.terminal_log_mode,
             debug_log_mode: config.debug_log_mode,
             max_recent_workspaces: config.max_recent_workspaces,
-            model_preferences: config.model_preferences.clone(),
             keybinds: config.keybinds.clone(),
             fonts: config.fonts.clone(),
             max_concurrent_workspaces: config.max_concurrent_workspaces,
@@ -476,7 +418,6 @@ mod workspace_loading_tests {
             "terminalLogMode": "overwrite",
             "debugLogMode": "overwrite",
             "maxRecentWorkspaces": 10,
-            "modelPreferences": { "providers": {} },
             "keybinds": {},
             "fonts": {}
         }"#;
@@ -498,7 +439,6 @@ mod workspace_loading_tests {
             terminal_log_mode: adl_types::LogMode::Overwrite,
             debug_log_mode: adl_types::LogMode::Overwrite,
             max_recent_workspaces: 10,
-            model_preferences: adl_types::ModelPreferences::default(),
             keybinds: std::collections::BTreeMap::new(),
             fonts: adl_types::types::config::FontPreferences::default(),
             max_concurrent_workspaces: 4,
@@ -565,108 +505,5 @@ mod ad_server_fetch_tests {
             tokio::time::timeout(Duration::from_secs(1), client.get(url.as_str()).send()).await;
         assert!(outcome.is_err(), "no-timeout client should not resolve on a stalled server");
         assert!(start.elapsed() < Duration::from_secs(10));
-    }
-}
-
-#[cfg(test)]
-mod model_preference_patch_tests {
-    use super::*;
-    use adl_types::{ModelProviderPreference, ModelProviderPreferencePatch};
-
-    fn entry() -> ModelProviderPreference {
-        ModelProviderPreference {
-            enabled: true,
-            priority: 5,
-            model_id: "default".into(),
-            enabled_models: Some(vec!["old".into()]),
-        }
-    }
-
-    #[test]
-    fn enabled_models_some_replaces_list_entirely() {
-        let mut entry = entry();
-        apply_model_patch(
-            &mut entry,
-            ModelProviderPreferencePatch {
-                enabled: None,
-                priority: None,
-                model_id: None,
-                enabled_models: Some(Some(vec!["a".into(), "b".into()])),
-            },
-        );
-        assert_eq!(entry.enabled_models, Some(vec!["a".to_string(), "b".to_string()]));
-        assert!(entry.enabled);
-        assert_eq!(entry.priority, 5);
-        assert_eq!(entry.model_id, "default");
-    }
-
-    #[test]
-    fn enabled_models_some_empty_clears_list() {
-        let mut entry = entry();
-        apply_model_patch(
-            &mut entry,
-            ModelProviderPreferencePatch {
-                enabled: None,
-                priority: None,
-                model_id: None,
-                enabled_models: Some(Some(vec![])),
-            },
-        );
-        assert_eq!(entry.enabled_models, Some(vec![]));
-        assert!(entry.enabled);
-        assert_eq!(entry.priority, 5);
-        assert_eq!(entry.model_id, "default");
-    }
-
-    #[test]
-    fn enabled_models_none_leaves_list_unchanged() {
-        let mut entry = entry();
-        apply_model_patch(
-            &mut entry,
-            ModelProviderPreferencePatch {
-                enabled: None,
-                priority: None,
-                model_id: None,
-                enabled_models: None,
-            },
-        );
-        assert_eq!(entry.enabled_models, Some(vec!["old".to_string()]));
-        assert!(entry.enabled);
-        assert_eq!(entry.priority, 5);
-        assert_eq!(entry.model_id, "default");
-    }
-
-    #[test]
-    fn other_fields_apply_independently_alongside_enabled_models() {
-        let mut entry = entry();
-        apply_model_patch(
-            &mut entry,
-            ModelProviderPreferencePatch {
-                enabled: Some(false),
-                priority: Some(99),
-                model_id: Some("gpt-4".into()),
-                enabled_models: Some(Some(vec!["gpt-4".into()])),
-            },
-        );
-        assert!(!entry.enabled);
-        assert_eq!(entry.priority, 99);
-        assert_eq!(entry.model_id, "gpt-4");
-        assert_eq!(entry.enabled_models, Some(vec!["gpt-4".to_string()]));
-    }
-
-    #[test]
-    fn enabled_models_explicit_none_sets_all_enabled() {
-        let mut entry = entry();
-        apply_model_patch(
-            &mut entry,
-            ModelProviderPreferencePatch {
-                enabled: None,
-                priority: None,
-                model_id: None,
-                enabled_models: Some(None),
-            },
-        );
-        assert!(entry.enabled_models.is_none());
-        assert_eq!(entry.enabled_models, None);
     }
 }

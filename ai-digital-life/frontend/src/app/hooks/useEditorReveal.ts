@@ -1,7 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { DiagnosticSummary } from '@ai-digital-life/kernel';
-import type { CopyDict, Locale } from '../i18n';
-import { buildSelectionPrompt } from '../utils/selectionPrompt';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
 
 export function useEditorReveal(
@@ -9,14 +7,10 @@ export function useEditorReveal(
   activeDiagnostic: DiagnosticSummary | undefined,
   fileLastModifiedAt: number | undefined,
   actions: {
-    sendMessage: (content: string) => Promise<void>;
     openFile: (relativePath: string) => Promise<void>;
   },
-  locale: Locale,
-  setEditorHint: (hint: string | undefined) => void,
   pendingRevealRef: React.MutableRefObject<{ path: string; line: number } | null>,
   setPendingReveal: (path: string, line: number) => void,
-  t: CopyDict,
 ) {
   const standardEditorRef = useRef<EditorRef | null>(null);
   const diffEditorRef = useRef<EditorRef | DiffEditorRef | null>(null);
@@ -56,26 +50,6 @@ export function useEditorReveal(
     pendingRevealRef.current = null;
   }, [fileLastModifiedAt, selectedFilePath, pendingRevealRef]);
 
-  const handleSendSelection = useCallback(async () => {
-    const raw = diffEditorRef.current ?? standardEditorRef.current;
-    const editor =
-      raw && 'getModifiedEditor' in raw ? (raw as DiffEditorRef).getModifiedEditor() : raw;
-    const selection = editor?.getSelection();
-    const model = editor?.getModel();
-    if (!selection || !model || !selectedFilePath) {
-      setEditorHint(t.noSelection);
-      return;
-    }
-    const selectedText = model.getValueInRange(selection).trim();
-    if (!selectedText) {
-      setEditorHint(t.noSelection);
-      return;
-    }
-    setEditorHint(undefined);
-    const prompt = await buildSelectionPrompt(locale, selectedFilePath, selectedText);
-    await actions.sendMessage(prompt);
-  }, [locale, selectedFilePath, actions, t.noSelection, setEditorHint]);
-
   const handleOpenFileAtLine = useCallback(
     (relativePath: string, line: number) => {
       setPendingReveal(relativePath, line);
@@ -92,7 +66,6 @@ export function useEditorReveal(
     standardEditorRef,
     diffEditorRef,
     handleOpenFileAtLine,
-    handleSendSelection,
     handleDiffMount,
   };
 }

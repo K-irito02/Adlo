@@ -50,7 +50,7 @@ pub async fn rebuild_index(State(state): State<ServerState>) -> impl IntoRespons
     let workspace_id_for_blocking = workspace_id.clone();
     let root_path = workspace.root_path.clone();
     let db = state.db.clone();
-    let result = crate::agent_loop::run_blocking(move || -> Result<serde_json::Value, AppError> {
+    let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
         let snapshot = adl_workspace::build_retrieval_snapshot(
             &workspace_id_for_blocking,
             PathBuf::from(&root_path).as_path(),
@@ -66,9 +66,10 @@ pub async fn rebuild_index(State(state): State<ServerState>) -> impl IntoRespons
         Ok(serde_json::to_value(&snapshot)?)
     })
     .await;
-    if let Err(e) = result {
-        return ipc::to_response(Err(e));
-    }
+    let _result = match result {
+        Ok(inner) => inner,
+        Err(e) => return ipc::to_response(Err(AppError::Internal(format!("spawn_blocking failed: {e}")))),
+    };
 
     state.event_bus.emit(AppEvent::RetrievalStatusChanged(workspace_id.clone()));
     tracing::warn!(

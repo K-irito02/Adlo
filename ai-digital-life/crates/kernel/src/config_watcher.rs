@@ -80,11 +80,8 @@ mod tests {
             terminal_log_mode: LogMode::Overwrite,
             debug_log_mode: LogMode::Overwrite,
             max_recent_workspaces: 10,
-            model_preferences: Default::default(),
             commands: vec![],
-            permissions: Default::default(),
             references: vec![],
-            custom_agents: vec![],
             keybinds: std::collections::BTreeMap::new(),
             fonts: adl_types::types::config::FontPreferences::default(),
             max_concurrent_workspaces: 6,
@@ -92,7 +89,6 @@ mod tests {
             workspace_deferred_ids: vec![],
             workspace_natural_order: vec![],
             browser_inactive_tab_suspend_ms: 3_600_000,
-            custom_providers: vec![],
         }
     }
 

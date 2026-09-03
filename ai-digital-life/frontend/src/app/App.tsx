@@ -1,6 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
-import type { CopyDict, Locale } from './i18n';
 import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './hooks/useAppActions';
@@ -16,12 +15,10 @@ import { CenterPane } from './regions/CenterPane';
 const RightPanel = lazy(() =>
   import('./regions/RightPanel').then((m) => ({ default: m.RightPanel })),
 );
-import { NewSessionDialog } from './components/NewSessionDialog';
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
 import { ToastContainer } from './components/Toast';
 import { ToastRegion } from './components/ToastRegion';
 import { ConflictModal } from './components/ConflictModal';
-import { asSessionID } from '../shared/branded';
 import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 
 export function App() {
@@ -57,11 +54,7 @@ export function App() {
   const { locale, t } = useAppStartup(appInfo);
 
   // All hooks MUST be called unconditionally (React Hooks Rule).
-  // Deconstruct after guard so downstream types are non-null.
-  const patchReview = usePatchReviewWithEditor(
-    (locale ?? 'zh-CN') as Locale,
-    (t ?? {}) as CopyDict,
-  );
+  const patchReview = usePatchReviewWithEditor();
   const {
     standardEditorRef,
     selectedPatchFilePath,
@@ -70,7 +63,6 @@ export function App() {
     patchReviewFilter,
     handleOpenFileAtLine,
     handleDiffMount,
-    handleSendSelection,
     handleSelectPatchFile,
     handleSelectPatchHunk,
     handleTogglePatchHunkCollapse,
@@ -94,7 +86,6 @@ export function App() {
   );
 
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
-  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
 
   const handleTriggerCreateWorkspace = useCallback(() => {
     setCreateWorkspaceModalOpen(true);
@@ -113,7 +104,6 @@ export function App() {
   }, [setActiveRightTool]);
 
   useKeyboardShortcuts({
-    openNewSessionDialog: () => setNewSessionDialogOpen(true),
     openCreateWorkspaceDialog: () => setCreateWorkspaceModalOpen(true),
     openWorkspace: handleOpenFolder,
     openSettings: handleOpenSettings,
@@ -123,7 +113,6 @@ export function App() {
     setActiveRightTool('files');
   }, [setActiveRightTool]);
 
-  const activeSessionId = useAppStore((s) => s.activeSessionId);
   const setStartupOverlayHidden = useAppStore((s) => s.setStartupOverlayHidden);
   const [overlayHidden, setOverlayHidden] = useState(false);
   const startedAt = useRef(0);
@@ -191,7 +180,6 @@ export function App() {
             <ErrorBoundary t={t}>
               <LeftSidebar
                 collapsed={leftCollapsed}
-                onCreateSession={() => setNewSessionDialogOpen(true)}
                 onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
               />
             </ErrorBoundary>
@@ -211,7 +199,6 @@ export function App() {
                   patchReviewFilter={patchReviewFilter}
                   onOpenFileAtLine={handleOpenFileAtLine}
                   onDiffMount={handleDiffMount}
-                  onSendSelection={() => void handleSendSelection()}
                   onSelectPatchFile={handleSelectPatchFile}
                   onSelectPatchHunk={handleSelectPatchHunk}
                   onTogglePatchHunkCollapse={handleTogglePatchHunkCollapse}
@@ -228,21 +215,6 @@ export function App() {
             onPickWorkspaceDirectory={actions.pickWorkspaceDirectory}
             onOpenWorkspace={actions.openWorkspace}
             onClose={() => setCreateWorkspaceModalOpen(false)}
-          />
-
-          <NewSessionDialog
-            open={newSessionDialogOpen}
-            onCreate={async (name) => {
-              await actions.createSession();
-              if (name) {
-                const currentId = activeSessionId;
-                if (currentId) {
-                  await actions.renameSession(asSessionID(currentId), name);
-                }
-              }
-              setNewSessionDialogOpen(false);
-            }}
-            onCancel={() => setNewSessionDialogOpen(false)}
           />
         </main>
         <ToastContainer toasts={toasts} onRemove={removeToast} />

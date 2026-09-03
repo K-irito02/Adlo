@@ -185,10 +185,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     recentCommands,
     toggleNavigator,
     handleNavigatorResizeStart,
-  } = useTerminalViewport({
-    terminalTabs,
-    commandHistory: props.commandHistory,
-  });
+  } = useTerminalViewport({ terminalTabs });
 
   return {
     terminalState: {

@@ -1,4 +1,3 @@
-import { ConfirmDialog } from '@components/ConfirmDialog';
 import { useTCopy } from '@i18n/useTCopy';
 
 export interface ChangesConfirmDialogsProps {
@@ -16,15 +15,20 @@ export function ChangesConfirmDialogs({
   return (
     <>
       {changesDeleteConfirmPath ? (
-        <ConfirmDialog
-          title={t.fileDeleteConfirm as string}
-          message={t.fileDeleteMessage as string}
-          confirmLabel={t.fileDeleteAction as string}
-          cancelLabel={t.cancel as string}
-          danger
-          onConfirm={onDeleteConfirm}
-          onCancel={onDeleteCancel}
-        />
+        <div className="adl-dialog-overlay" role="dialog" aria-modal="true">
+          <div className="adl-dialog">
+            <h3>{t.fileDeleteConfirm as string}</h3>
+            <p>{t.fileDeleteMessage as string}</p>
+            <div className="adl-dialog__actions">
+              <button type="button" onClick={onDeleteConfirm}>
+                {t.fileDeleteAction as string}
+              </button>
+              <button type="button" onClick={onDeleteCancel}>
+                {t.cancel as string}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </>
   );

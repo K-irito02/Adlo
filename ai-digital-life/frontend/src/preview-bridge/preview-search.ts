@@ -1,8 +1,20 @@
-import type { WorkspaceSearchHit, FileOutlineItem } from '@ai-digital-life/kernel';
+import type {
+  WorkspaceSearchHit,
+  FileOutlineItem,
+  RecentWorkspaceEntry,
+  RetrievalSnapshot,
+  WorkspaceMeta,
+} from '@ai-digital-life/kernel';
 import { requestPreviewApi } from './preview-api';
-import type { PreviewContext } from './preview-context';
 
-export function createPreviewSearchBridge(ctx: PreviewContext) {
+/** Preview bridge shared mutable context (subset previously exported by preview-context). */
+export interface PreviewSearchContext {
+  recentWorkspaces: RecentWorkspaceEntry[];
+  currentWorkspace: WorkspaceMeta | undefined;
+  retrievalStatus: RetrievalSnapshot | undefined;
+}
+
+export function createPreviewSearchBridge(ctx: PreviewSearchContext) {
   return {
     search: async (query: string) => {
       if (!ctx.currentWorkspace) {

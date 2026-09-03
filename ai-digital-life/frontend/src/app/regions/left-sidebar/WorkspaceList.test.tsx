@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { cleanup, fireEvent, render } from '@testing-library/react';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import type { CopyDict } from '../../i18n/types';
-import type { SidebarWorkspaceItem } from '../../utils/sidebarViewModel';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import { WorkspaceList } from './WorkspaceList';
 
 // DOM containers must be cleaned up between tests — otherwise
@@ -28,49 +28,41 @@ function TestProvider({ children }: { children: ReactNode }) {
   );
 }
 
-// Build a minimal SidebarWorkspaceItem. Only the fields WorkspaceList reads.
-function buildItem(id: string, isPinned = false, isCurrent = false): SidebarWorkspaceItem {
+// Build a minimal RecentWorkspaceEntry. Only the fields WorkspaceList reads.
+function buildItem(
+  id: string,
+  overrides: Partial<RecentWorkspaceEntry> = {},
+): RecentWorkspaceEntry {
   return {
-    workspace: {
-      id,
-      path: `/path/${id}`,
-      rootPath: `/path/${id}`,
-      name: id,
-      lastOpenedAt: Date.now(),
-      isPinned,
-      pinnedOrder: 0,
-      unpinnedOrder: 0,
-      removedFromSidebar: false,
-      available: true,
-      hiddenFromRightPanels: false,
-    },
-    isCurrent,
-    sessions: [],
-    archivedSessions: [],
-    rollupStatus: 'read',
-    statusCounts: { processing: 0, abnormal: 0, completed: 0, read: 0 },
+    id,
+    path: `/path/${id}`,
+    rootPath: `/path/${id}`,
+    name: id,
+    lastOpenedAt: Date.now(),
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    removedFromSidebar: false,
+    available: true,
+    hiddenFromRightPanels: false,
+    ...overrides,
   };
 }
 
 function buildProps(overrides: Partial<Parameters<typeof WorkspaceList>[0]> = {}) {
   return {
-    workspaceItems: [] as SidebarWorkspaceItem[],
-    expandedSessionWorkspaces: {},
-    toggleSessionWorkspace: vi.fn(),
+    workspaceItems: [] as RecentWorkspaceEntry[],
+    currentWorkspace: undefined,
     onReorderWorkspaces: vi.fn(),
     onPinWorkspace: vi.fn(),
     onUnpinWorkspace: vi.fn(),
-    onCreateSession: vi.fn(),
     onTriggerCreateWorkspace: vi.fn(),
-    onSelectSession: vi.fn(),
     onContextMenu: vi.fn(),
-    renderSessionRows: () => null,
-    workspaceToolbarRef: { current: null },
     ...overrides,
   };
 }
 
-describe('WorkspaceList localOrder sync', () => {
+describe('WorkspaceList rendering', () => {
   it('renders items in workspaceItems order on initial mount', () => {
     const items = [buildItem('a'), buildItem('b'), buildItem('c')];
     render(
@@ -86,6 +78,63 @@ describe('WorkspaceList localOrder sync', () => {
     expect(ids).toEqual(['a', 'b', 'c']);
   });
 
+  it('filters out entries removed from the sidebar', () => {
+    const items = [buildItem('a'), buildItem('b', { removedFromSidebar: true }), buildItem('c')];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items })} />
+      </TestProvider>,
+    );
+    const ids = Array.from(document.querySelectorAll('li[data-ws-id]')).map((el) =>
+      el.getAttribute('data-ws-id'),
+    );
+    expect(ids).toEqual(['a', 'c']);
+  });
+
+  it('shows an empty hint when there are no visible workspaces', () => {
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps()} />
+      </TestProvider>,
+    );
+    expect(document.querySelector('.adl-empty-hint')).not.toBeNull();
+  });
+
+  it('marks the current workspace row as current by id', () => {
+    const items = [buildItem('a'), buildItem('b')];
+    render(
+      <TestProvider>
+        <WorkspaceList
+          {...buildProps({
+            workspaceItems: items,
+            currentWorkspace: { id: 'b', path: '/path/b' },
+          })}
+        />
+      </TestProvider>,
+    );
+    const rows = Array.from(document.querySelectorAll('li[data-ws-id]'));
+    expect(rows[0]!.className).not.toContain('is-current');
+    expect(rows[1]!.className).toContain('is-current');
+  });
+
+  it('marks the current workspace row as current by normalized path', () => {
+    const items = [buildItem('legacy', { path: 'E:\\Live-Workspace' })];
+    render(
+      <TestProvider>
+        <WorkspaceList
+          {...buildProps({
+            workspaceItems: items,
+            currentWorkspace: { id: 'workspace_live', path: 'E:/live-workspace' },
+          })}
+        />
+      </TestProvider>,
+    );
+    const row = document.querySelector('li[data-ws-id]');
+    expect(row!.className).toContain('is-current');
+  });
+});
+
+describe('WorkspaceList localOrder sync', () => {
   it('preserves current order when an item is removed externally', () => {
     const items = [buildItem('a'), buildItem('b'), buildItem('c')];
     const { rerender } = render(
@@ -132,7 +181,7 @@ describe('WorkspaceList localOrder sync', () => {
   });
 
   it('re-syncs order when an item is unpinned externally and workspaceItems re-sorts', () => {
-    const items = [buildItem('p1', true), buildItem('u1', false)];
+    const items = [buildItem('p1', { isPinned: true }), buildItem('u1')];
     const { rerender } = render(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: items })} />
@@ -140,7 +189,7 @@ describe('WorkspaceList localOrder sync', () => {
     );
 
     // Backend re-sorts on unpin: p1 becomes unpinned, moves after u1.
-    const nextItems = [buildItem('u1', false), buildItem('p1', false)];
+    const nextItems = [buildItem('u1'), buildItem('p1')];
     rerender(
       <TestProvider>
         <WorkspaceList {...buildProps({ workspaceItems: nextItems })} />
@@ -155,6 +204,85 @@ describe('WorkspaceList localOrder sync', () => {
   });
 });
 
+describe('WorkspaceList workspace row actions', () => {
+  it('calls onPinWorkspace when unpinned row pin is clicked', () => {
+    const onPin = vi.fn();
+    const items = [buildItem('a', { isPinned: false })];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, onPinWorkspace: onPin })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(document.querySelector('.adl-workspace-row__pin')!);
+
+    expect(onPin).toHaveBeenCalledWith('a');
+  });
+
+  it('calls onUnpinWorkspace when pinned row pin is clicked', () => {
+    const onUnpin = vi.fn();
+    const items = [buildItem('a', { isPinned: true })];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, onUnpinWorkspace: onUnpin })} />
+      </TestProvider>,
+    );
+
+    fireEvent.click(document.querySelector('.adl-workspace-row__pin')!);
+
+    expect(onUnpin).toHaveBeenCalledWith('a');
+  });
+
+  it('opens the context menu when a row is right-clicked', () => {
+    const onContextMenu = vi.fn();
+    const items = [buildItem('a')];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, onContextMenu })} />
+      </TestProvider>,
+    );
+
+    fireEvent.contextMenu(document.querySelector('.adl-workspace-row')!, {
+      clientX: 11,
+      clientY: 22,
+    });
+
+    expect(onContextMenu).toHaveBeenCalledWith('a', 11, 22);
+  });
+
+  it('opens the context menu when the row more button is clicked', () => {
+    const onContextMenu = vi.fn();
+    const items = [buildItem('a')];
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ workspaceItems: items, onContextMenu })} />
+      </TestProvider>,
+    );
+
+    const button = document.querySelector('.adl-workspace-row__actions .adl-icon-btn');
+    expect(button).not.toBeNull();
+    fireEvent.click(button!);
+
+    expect(onContextMenu).toHaveBeenCalledTimes(1);
+    expect(onContextMenu.mock.calls[0]![0]).toBe('a');
+  });
+
+  it('triggers create workspace from the toolbar plus button', () => {
+    const onTriggerCreateWorkspace = vi.fn();
+    render(
+      <TestProvider>
+        <WorkspaceList {...buildProps({ onTriggerCreateWorkspace })} />
+      </TestProvider>,
+    );
+
+    const button = document.querySelector('.adl-workspace-toolbar .adl-icon-btn');
+    expect(button).not.toBeNull();
+    fireEvent.click(button!);
+
+    expect(onTriggerCreateWorkspace).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('WorkspaceList mouseup persistence', () => {
   it('does not call onReorderWorkspaces when no drag happened', () => {
     const onReorder = vi.fn();
@@ -166,140 +294,5 @@ describe('WorkspaceList mouseup persistence', () => {
     // Simulate a stray pointerup with no preceding mousedown (hook listens on window).
     fireEvent.pointerUp(window, { pointerId: 1 });
     expect(onReorder).not.toHaveBeenCalled();
-  });
-});
-
-describe('WorkspaceList expand/collapse on click', () => {
-  it('toggles the session list when clicking a non-current workspace row', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('a', false, false)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    fireEvent.click(document.querySelector('.adl-workspace-row')!);
-
-    expect(toggle).toHaveBeenCalledWith('/path/a', false);
-  });
-
-  it('toggles the session list when clicking the current workspace row', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('b', false, true)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    fireEvent.click(document.querySelector('.adl-workspace-row')!);
-
-    expect(toggle).toHaveBeenCalledWith('/path/b', true);
-  });
-
-  it('toggles when clicking the workspace name label', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('c', false, false)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    fireEvent.click(document.querySelector('.adl-workspace-row__label')!);
-
-    expect(toggle).toHaveBeenCalledWith('/path/c', false);
-  });
-});
-
-describe('WorkspaceList expand/collapse toolbar', () => {
-  function toolbarButton(): HTMLElement {
-    const btn = document.querySelector('.adl-section-toolbar__title button') as HTMLElement;
-    expect(btn).not.toBeNull();
-    return btn;
-  }
-
-  it('expands all collapsed workspaces', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('a', false, false), buildItem('b', false, false)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    fireEvent.click(toolbarButton());
-
-    expect(toggle).toHaveBeenCalledWith('/path/a', false);
-    expect(toggle).toHaveBeenCalledWith('/path/b', false);
-  });
-
-  it('collapses all expanded workspaces', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('a', false, true), buildItem('b', false, true)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    fireEvent.click(toolbarButton());
-
-    expect(toggle).toHaveBeenCalledWith('/path/a', true);
-    expect(toggle).toHaveBeenCalledWith('/path/b', true);
-  });
-
-  it('expands collapsed workspaces and skips already-expanded ones in mixed state', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('a', false, false), buildItem('b', false, true)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    fireEvent.click(toolbarButton());
-
-    expect(toggle).toHaveBeenCalledTimes(1);
-    expect(toggle).toHaveBeenCalledWith('/path/a', false);
-  });
-});
-
-describe('WorkspaceList drag then click suppression', () => {
-  it('does not toggle the workspace after a real drag (>4px) ends with a click', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('a', false, false)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    const label = document.querySelector('.adl-workspace-row__label') as HTMLElement;
-    fireEvent.mouseDown(label, { button: 0, clientY: 10 });
-    fireEvent.mouseMove(document, { clientY: 50 });
-    fireEvent.pointerUp(window, { pointerId: 1, clientY: 50 });
-    fireEvent.click(label);
-
-    expect(toggle).not.toHaveBeenCalled();
-  });
-
-  it('still toggles when movement stays within the drag threshold', () => {
-    const toggle = vi.fn();
-    const items = [buildItem('a', false, false)];
-    render(
-      <TestProvider>
-        <WorkspaceList {...buildProps({ workspaceItems: items, toggleSessionWorkspace: toggle })} />
-      </TestProvider>,
-    );
-
-    const label = document.querySelector('.adl-workspace-row__label') as HTMLElement;
-    fireEvent.mouseDown(label, { button: 0, clientY: 10 });
-    fireEvent.mouseMove(document, { clientY: 12 });
-    fireEvent.pointerUp(window, { pointerId: 1, clientY: 12 });
-    fireEvent.click(label);
-
-    expect(toggle).toHaveBeenCalledWith('/path/a', false);
   });
 });

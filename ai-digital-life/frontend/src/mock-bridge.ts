@@ -21,29 +21,19 @@ import {
 // Domain imports — all split into per-domain files
 import { mockWorkspace } from './mock/mock-workspace';
 import { mockRetrieval } from './mock/mock-retrieval';
-import { mockConversation } from './mock/mock-conversation';
 import { mockPatch } from './mock/mock-patch';
 import { mockPty } from './mock/mock-terminal';
 import { mockWindow } from './mock/mock-window';
 import { mockApp } from './mock/mock-app';
-import { mockAgent, mockSubagent } from './mock/mock-agent';
 import { mockBrowser } from './mock/mock-browser';
 import { mockGithub } from './mock/mock-ci';
 import { mockMcp } from './mock/mock-mcp';
-import { mockProvider } from './mock/mock-provider';
 import { mockSnapshot } from './mock/mock-snapshot';
-import { mockCommand } from './mock/mock-command';
-import { mockRunActivity } from './mock/mock-run-activity';
 import { mockWebTools } from './mock/mock-web-tools';
-import { mockCommandsConfig } from './mock/mock-commands-config';
-import { mockPermission } from './mock/mock-permission';
-import { mockCompaction } from './mock/mock-compaction';
-import { mockSessionFork } from './mock/mock-session-fork';
 import { mockLsp } from './mock/mock-lsp';
 import { mockReference } from './mock/mock-reference';
 import { mockDurable } from './mock/mock-durable';
 import { mockReserved } from './mock/mock-reserved';
-import { mockCustomAgent } from './mock/mock-custom-agent';
 
 const MOCK_BRIDGE_STORAGE_KEY = 'ai-digital-life-mock-bridge-state';
 let persistenceEnabled = false;
@@ -131,28 +121,17 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   app: mockApp,
   workspace: mockWorkspace,
   retrieval: mockRetrieval,
-  conversation: mockConversation,
-  agent: mockAgent,
-  subagent: mockSubagent,
   patch: mockPatch,
-  command: mockCommand,
   pty: mockPty,
-  runActivity: mockRunActivity,
   browser: mockBrowser,
   github: mockGithub,
   mcp: mockMcp,
-  provider: mockProvider,
   snapshot: mockSnapshot,
   webTools: mockWebTools,
-  commandsConfig: mockCommandsConfig,
-  permission: mockPermission,
-  compaction: mockCompaction,
-  sessionFork: mockSessionFork,
   lsp: mockLsp,
   reference: mockReference,
   durable: mockDurable,
   reserved: mockReserved,
-  customAgent: mockCustomAgent,
 };
 
 export function setupMockBridge(): void {

@@ -7,6 +7,8 @@ import type {
   GitVisBranchGraph,
   GitVisFileHotspots,
   IpcResult,
+  RecentWorkspaceEntry,
+  RetrievalSnapshot,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -14,10 +16,16 @@ import type {
 } from '@ai-digital-life/kernel';
 import { IpcErrorCode } from '../shared/ipc/shared';
 import { requestPreviewApi } from './preview-api';
-import type { PreviewContext } from './preview-context';
+
+/** Preview bridge shared mutable context (subset previously exported by preview-context). */
+export interface PreviewGitContext {
+  recentWorkspaces: RecentWorkspaceEntry[];
+  currentWorkspace: WorkspaceMeta | undefined;
+  retrievalStatus: RetrievalSnapshot | undefined;
+}
 
 export function createPreviewGitBridge(
-  ctx: PreviewContext,
+  ctx: PreviewGitContext,
   setMockActiveWorkspace: (ws: WorkspaceMeta | undefined) => void,
 ) {
   const requireWorkspace = () => {

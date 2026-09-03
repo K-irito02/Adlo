@@ -4,7 +4,6 @@ import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyWsClient } from '../shared/ipc/pty-ws';
 import { createTauriAppBridge } from './tauri-app';
 import { createTauriBrowserBridge } from './tauri-browser';
-import { createTauriProviderBridge } from './tauri-provider';
 import { createTauriReservedBridge } from './tauri-reserved';
 import { createTauriWindowBridge } from './tauri-window';
 import { createTauriWorkspaceBridge } from './tauri-workspace';
@@ -16,8 +15,8 @@ import { invokeIpc } from './tauri-shared';
  * `ad-server` (the desktop's base URL is discovered via `app_get_server_info`),
  * while the system/shell capabilities stay on Tauri invoke: `window`, `app`,
  * `browser`, `reserved`, `workspace.pickDirectory` / `revealInFileManager` /
- * `onFileChanged`, `provider.getProviderApiKey` / `hasProviderApiKey` and
- * `setLogMode`. The stream subscriptions use the httpBridge SSE `/event`
+ * `onFileChanged` and `setLogMode`. The stream subscriptions use the httpBridge
+ * SSE `/event`
  * (the three v1-mapped `subscribe*` plus the raw `subscribeSessionPartEvents`
  * for the S2 PartStore) and the shared `/pty` WebSocket client — identical to
  * the browser preview.
@@ -28,22 +27,12 @@ import { invokeIpc } from './tauri-shared';
 export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
   const resolvedBaseUrl = baseUrl ?? resolveAdlServerBaseUrl();
   const http = createHttpBridge({ baseUrl: resolvedBaseUrl });
-  const tauriProvider = createTauriProviderBridge();
   const tauriWorkspace = createTauriWorkspaceBridge();
   // Shared `/pty` WebSocket client — both `pty` RPC and `subscribePtyOutput`
   // share one socket (matches the preview `createPtyBridge`).
   const ptyWs = createPtyWsClient(resolvedBaseUrl);
   return {
     ...http,
-
-    // Provider domain stays on httpBridge except the credential read-back:
-    // `getProviderApiKey` / `hasProviderApiKey` go through the Tauri invoke
-    // channel so the desktop settings key input can be re-filled after restart.
-    provider: {
-      ...http.provider,
-      getProviderApiKey: tauriProvider.getProviderApiKey,
-      hasProviderApiKey: tauriProvider.hasProviderApiKey,
-    },
 
     // `workspace.pickDirectory` (native folder dialog), `workspace.revealInFileManager`
     // (OS file-manager reveal) and `workspace.onFileChanged` (a Tauri channel

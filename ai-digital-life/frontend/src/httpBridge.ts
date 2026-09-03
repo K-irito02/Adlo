@@ -28,8 +28,6 @@ import type {
   AppInfo,
   AppPreferencePatch,
   CiStatusSnapshot,
-  CommandRequest,
-  CommandRunResult,
   FileOutlineItem,
   HealthSnapshot,
   IpcResult,
@@ -39,20 +37,9 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from './shared/ipc/digital-life';
 import type { AppBridge } from './shared/ipc/app';
-import type { AgentConfig } from './shared/ipc/agent';
 import type { PtyOutputEvent, PtySessionInfo } from './shared/ipc/pty';
 import type { AcpConfig, CodeModeConfig, HttpApiConfig } from './shared/ipc/reserved';
 import type {
-  ConnectionTestResult,
-  FetchModelsResult,
-  ProviderInfo,
-  ProviderStatus,
-} from './shared/ipc/provider';
-import type {
-  AgentRunDetail,
-  ConversationDetail,
-  ConversationSendResult,
-  ConversationSessionRecord,
   DigitalLifeModelStreamEventV1,
   DigitalLifeRunActivityEventV1,
   DigitalLifeTerminalStreamEventV1,
@@ -66,10 +53,8 @@ import type {
   PatchApplicationResult,
   PatchSet,
   RecentWorkspaceEntry,
-  ReorderSessionsInput,
   RepoMapNode,
   RetrievalSnapshot,
-  SessionMessagesPayload,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
@@ -80,22 +65,13 @@ import type {
   WorkspaceSearchHit,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
-import type { CommandsConfigBridge, ConversationBridge, WorkspaceBridge } from './shared/ipc';
-import type { CommandConfig } from './shared/ipc/commands_config';
-import type { CompactSessionInput, CompactSessionResult } from './shared/ipc/compaction';
+import type { WorkspaceBridge } from './shared/ipc';
 import type { McpCatalog, McpServerConfig, McpServerInfo } from './shared/ipc/mcp';
 import type { SnapshotRecord, RevertResult } from './shared/ipc/snapshot';
 import type { WebFetchResult, WebSearchResult } from './shared/ipc/web_tools';
 import type { ReferenceConfig } from './shared/ipc/reference';
-import type {
-  PermissionDecision,
-  PermissionRule,
-  PermissionRulesetConfig,
-} from './shared/ipc/permission';
-import type { SubagentTask, TaskToolInput, TaskToolOutput } from './shared/ipc/subagent';
 import type { SymbolInfo, DiagnosticInfo } from './shared/ipc/lsp';
 import type { DurableSessionState } from './shared/ipc/durable';
-import type { SseWireEvent } from './app/features/part-stream/partStoreTypes';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 import {
   subscribeEventSource,
@@ -103,6 +79,35 @@ import {
   type EventSourceFactory,
 } from './httpBridge/event-source';
 import { createPtyWsClient, type PtyWsClient, type PtyWsClientOptions } from './shared/ipc/pty-ws';
+
+/** SSE wire event type (formerly in part-stream/partStoreTypes) */
+export type SseWireEvent =
+  | { type: 'message.created'; sessionID: string; info: { id: string } & Record<string, unknown> }
+  | { type: 'message.updated'; sessionID: string; info: { id: string } & Record<string, unknown> }
+  | {
+      type: 'message.part.updated';
+      sessionID: string;
+      messageID: string;
+      partID: string;
+      part: Record<string, unknown>;
+    }
+  | {
+      type: 'message.part.delta';
+      sessionID: string;
+      messageID: string;
+      partID: string;
+      field: string;
+      delta: string;
+    }
+  | { type: 'session.status'; sessionID: string; status: string }
+  | {
+      type: 'question.asked';
+      sessionID: string;
+      requestID: string;
+      questions: unknown[];
+      tool?: unknown;
+    }
+  | { type: 'question.replied'; sessionID: string; requestID: string; answers: unknown[] };
 
 /** Default ad-server address until the dev-script port injection (Task 9). */
 export const DEFAULT_ADL_SERVER_BASE_URL = 'http://127.0.0.1:61234';
@@ -185,59 +190,9 @@ const jsonBody = (body: unknown): string => JSON.stringify(body ?? {});
 
 const GET = (): RequestInit => ({ method: 'GET' });
 const POST = (body: unknown): RequestInit => ({ method: 'POST', body: jsonBody(body) });
-const PATCH = (body: unknown): RequestInit => ({ method: 'PATCH', body: jsonBody(body) });
-const DELETE = (): RequestInit => ({ method: 'DELETE' });
 
 const taskNotSupported = <T>(what: string): Promise<IpcResult<T>> =>
   Promise.resolve(notSupported<T>(what));
-
-/**
- * POST a JSON body and decode `IpcResult<T>` from the response, tolerating an
- * EMPTY success body. The question-reply route (`POST /question/{id}/reply`,
- * `crates/server/src/sse_server.rs`) is an axum `Result<(), _>` handler whose
- * 200 response carries no JSON — `call` would choke on `resp.json()`. This
- * variant treats any 2xx with an empty body as `{ ok: true }` (the caller maps
- * it to `data: true`).
- */
-async function callEmptyOk<T>(
-  baseUrl: string,
-  path: string,
-  init: RequestInit,
-  f: typeof fetch = fetch,
-): Promise<IpcResult<T>> {
-  try {
-    const resp = await f(`${baseUrl}${path}`, {
-      ...init,
-      headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },
-    });
-    if (!resp.ok) {
-      try {
-        const json = (await resp.json()) as IpcResult<T>;
-        if (json && typeof json === 'object' && 'ok' in json) {
-          return json;
-        }
-      } catch {
-        // non-JSON error body — fall through to the generic HTTP error
-      }
-      return {
-        ok: false,
-        error: { code: HTTP_ERROR_CODE, message: `HTTP ${resp.status}` },
-      };
-    }
-    const text = await resp.text();
-    if (text.length === 0) {
-      return { ok: true, data: true as T };
-    }
-    try {
-      return JSON.parse(text) as IpcResult<T>;
-    } catch {
-      return { ok: true, data: true as T };
-    }
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { ok: false, error: { code: NETWORK_ERROR_CODE, message } };
-  }
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Task 8 — SSE `/event` → v1 stream mapping.
@@ -957,103 +912,7 @@ export function createHttpBridge({
       rebuildIndex: () => call<boolean>(baseUrl, '/retrieval/rebuild', POST({})),
     },
 
-    // ── Conversation domain (session CRUD + messaging).
-    conversation: {
-      createSession: (title?: string, workspaceId?: string) =>
-        call<ConversationSessionRecord>(baseUrl, '/session', POST({ title, workspaceId })),
-      listSessions: () => call<ConversationSessionRecord[]>(baseUrl, '/sessions', GET()),
-      getSession: (sessionId: string) =>
-        call<ConversationDetail | undefined>(baseUrl, `/session/${sessionId}`, GET()),
-      getSessionMessages: (sessionId: string) =>
-        call<SessionMessagesPayload | undefined>(baseUrl, `/session/${sessionId}/message`, GET()),
-      renameSession: (input: { sessionId: string; title: string }) =>
-        call<ConversationSessionRecord>(
-          baseUrl,
-          `/session/${input.sessionId}`,
-          PATCH({ title: input.title }),
-        ),
-      pinSession: (sessionId: string) =>
-        call<ConversationSessionRecord>(baseUrl, `/session/${sessionId}`, PATCH({ pinned: true })),
-      unpinSession: (sessionId: string) =>
-        call<ConversationSessionRecord>(baseUrl, `/session/${sessionId}`, PATCH({ pinned: false })),
-      reorderSessions: (input: ReorderSessionsInput) =>
-        call<ConversationSessionRecord[]>(baseUrl, '/sessions/reorder', POST(input)),
-      markSessionRead: (input: { sessionId: string; readAt?: number }) =>
-        call<ConversationSessionRecord>(
-          baseUrl,
-          `/session/${input.sessionId}`,
-          PATCH({ read: true, readAt: input.readAt }),
-        ),
-      markSessionUnread: (sessionId: string) =>
-        call<ConversationSessionRecord>(baseUrl, `/session/${sessionId}`, PATCH({ unread: true })),
-      archiveSession: (sessionId: string) =>
-        call<ConversationSessionRecord>(baseUrl, `/session/${sessionId}`, PATCH({ archive: true })),
-      archiveAllInWorkspace: () =>
-        call<ConversationSessionRecord[]>(baseUrl, '/sessions/archive-all', POST({})),
-      deleteSession: (sessionId: string) =>
-        call<boolean>(baseUrl, `/session/${sessionId}`, DELETE()),
-      sendMessage: (input: {
-        sessionId: string;
-        content: string;
-        scenario?: 'chat' | 'plan' | 'code-edit';
-        providerId?: string;
-        modelId?: string;
-      }) =>
-        call<ConversationSendResult>(baseUrl, `/session/${input.sessionId}/message`, POST(input)),
-      // The frontend passes a *run id*; the run-id abort route
-      // `/agent/run/:run_id/abort` is the faithful HTTP equivalent of the Tauri
-      // `conversation_cancel_message` (the `/session/:id/cancel` route is keyed
-      // by session id and would miss the run record).
-      cancelMessage: (runId: string) =>
-        call<AgentRunDetail | undefined>(baseUrl, `/agent/run/${runId}/abort`, POST({})),
-      // Question reply (AskCard → `question.asked` → POST /question/{id}/reply).
-      // The route returns a bare 200 (no JSON body), so it uses the empty-ok
-      // tolerant variant and reports the unit response as `data: true`.
-      replyToQuestion: (requestId: string, answers: string[]) =>
-        callEmptyOk<boolean>(
-          baseUrl,
-          `/question/${encodeURIComponent(requestId)}/reply`,
-          POST({ answers }),
-        ).then((res) => (res.ok ? { ok: true as const, data: true } : res)),
-    } satisfies ConversationBridge,
-
-    // ── Agent domain (run CRUD, listing, scenario selection, Plan Mode).
-    agent: {
-      startRun: (input: {
-        sessionId: string;
-        prompt: string;
-        scenario?: 'chat' | 'plan' | 'code-edit';
-      }) => call<ConversationSendResult>(baseUrl, '/agent/start-run', POST(input)),
-      getRun: (runId: string) =>
-        call<AgentRunDetail | undefined>(baseUrl, `/agent/run/${runId}`, GET()),
-      retryRun: (runId: string) =>
-        call<AgentRunDetail | undefined>(baseUrl, `/agent/run/${runId}/retry`, POST({})),
-      abortRun: (runId: string) =>
-        call<AgentRunDetail | undefined>(baseUrl, `/agent/run/${runId}/abort`, POST({})),
-      listAgents: () => call<AgentConfig[]>(baseUrl, '/agent/list', GET()),
-      selectAgent: (scenario: string, userPrompt: string) =>
-        call<AgentConfig>(baseUrl, '/agent/select', POST({ scenario, userPrompt })),
-      enterPlanMode: (workspaceId: string, workspaceRoot: string) =>
-        call<string>(baseUrl, '/agent/plan-mode/enter', POST({ workspaceId, workspaceRoot })),
-      exitPlanMode: (workspaceId: string) =>
-        call<string | null>(baseUrl, '/agent/plan-mode/exit', POST({ workspaceId })),
-      getPlanModeState: (workspaceId: string) =>
-        call<boolean>(baseUrl, '/agent/plan-mode/state', POST({ workspaceId })),
-    },
-
-    // ── Sub-agent domain.
-    subagent: {
-      spawnSubagent: (parentSessionId: string, input: TaskToolInput) =>
-        call<TaskToolOutput>(baseUrl, '/subagent/spawn', POST({ parentSessionId, input })),
-      getSubagentTask: (taskId: string) =>
-        call<SubagentTask | null>(baseUrl, '/subagent/get', POST({ taskId })),
-      listActiveSubagents: (workspaceId: string) =>
-        call<SubagentTask[]>(baseUrl, '/subagent/list-active', POST({ workspaceId })),
-      cancelSubagent: (taskId: string) =>
-        call<boolean>(baseUrl, '/subagent/cancel', POST({ taskId })),
-    },
-
-    // ── Patch domain.
+    // ── Workspace domain (workspace_* + sidebar + git + git-vis).
     patch: {
       getPatchSet: (patchSetId: string) =>
         call<PatchSet | undefined>(baseUrl, `/patch/${patchSetId}`, GET()),
@@ -1067,28 +926,6 @@ export function createHttpBridge({
       rollbackPatchSet: (patchSetId: string) =>
         call<PatchSet>(baseUrl, '/patch/rollback', POST({ patchSetId })),
     },
-
-    // ── Command domain (custom slash-command execution + recent history).
-    command: {
-      run: (input: { command: string; args: string[]; shell?: boolean }) =>
-        call<CommandRunResult>(baseUrl, '/command/run', POST(input)),
-      listRecent: (limit?: number) =>
-        call<CommandRequest[]>(baseUrl, '/command/recent', POST({ limit })),
-    },
-
-    // ── Commands-config domain (custom slash-command config CRUD).
-    commandsConfig: {
-      listCustomCommands: (dataDir: string) =>
-        call<CommandConfig[]>(baseUrl, '/commands-config/list', POST({ dataDir })),
-      addCustomCommand: (dataDir: string, command: CommandConfig) =>
-        call<CommandConfig[]>(baseUrl, '/commands-config/add', POST({ dataDir, command })),
-      updateCustomCommand: (dataDir: string, name: string, command: CommandConfig) =>
-        call<CommandConfig[]>(baseUrl, '/commands-config/update', POST({ dataDir, name, command })),
-      deleteCustomCommand: (dataDir: string, name: string) =>
-        call<CommandConfig[]>(baseUrl, '/commands-config/delete', POST({ dataDir, name })),
-      renderCommandTemplate: (template: string, args: string[], workspace: string) =>
-        call<string>(baseUrl, '/commands-config/render', POST({ template, args, workspace })),
-    } satisfies CommandsConfigBridge,
 
     // ── Snapshot domain.
     snapshot: {
@@ -1110,12 +947,6 @@ export function createHttpBridge({
         call<number>(baseUrl, '/snapshot/prune', POST({ workspaceId, workspaceRoot })),
     },
 
-    // ── Compaction domain.
-    compaction: {
-      compactSession: (input: CompactSessionInput) =>
-        call<CompactSessionResult>(baseUrl, '/compaction/session', POST(input)),
-    },
-
     // ── MCP domain.
     mcp: {
       listMcpServers: () => call<McpServerInfo[]>(baseUrl, '/mcp/list', POST({})),
@@ -1125,54 +956,6 @@ export function createHttpBridge({
       disconnectMcpServer: (name: string) => call<void>(baseUrl, '/mcp/disconnect', POST({ name })),
       getMcpCatalog: () => call<McpCatalog>(baseUrl, '/mcp/catalog', POST({})),
       loadMcpConfig: (path: string) => call<number>(baseUrl, '/mcp/load-config', POST({ path })),
-    },
-
-    // ── Provider domain. API keys travel in request bodies only; the server
-    // credential store is write-only — `getProviderApiKey` never reads a key
-    // back over HTTP (it maps to the presence check and returns null). The
-    // desktop shell overrides `getProviderApiKey`/`hasProviderApiKey` in
-    // `tauri-bridge/index.ts` to the Tauri invoke channel so the settings key
-    // input can be re-filled after a restart — that is IPC, not HTTP.
-    provider: {
-      setProviderApiKey: (provider: string, apiKey: string) =>
-        call<boolean>(baseUrl, '/provider/api-key', POST({ providerId: provider, apiKey })),
-      clearProviderApiKey: (provider: string) =>
-        call<boolean>(baseUrl, '/provider/api-key/clear', POST({ providerId: provider })),
-      hasProviderApiKey: (provider: string) =>
-        call<boolean>(baseUrl, '/provider/api-key/has', POST({ providerId: provider })),
-      getProviderApiKey: async (provider: string) => {
-        const res = await call<boolean>(
-          baseUrl,
-          '/provider/api-key/has',
-          POST({ providerId: provider }),
-        );
-        return res.ok ? { ok: true as const, data: null } : res;
-      },
-      listSupportedProviders: () => call<ProviderInfo[]>(baseUrl, '/provider/supported', GET()),
-      listProviders: () => call<ProviderStatus[]>(baseUrl, '/provider/list', GET()),
-      saveProviderConfig: (providerId: string, config: Record<string, unknown>) =>
-        call<void>(baseUrl, '/provider/config', POST({ providerId, config })),
-      testProviderConnection: (providerId: string, apiKey?: string) =>
-        call<ConnectionTestResult>(
-          baseUrl,
-          '/provider/test-connection',
-          POST({ providerId, apiKey }),
-        ),
-      fetchProviderModels: (providerId: string, apiKey?: string) =>
-        call<FetchModelsResult>(baseUrl, '/provider/fetch-models', POST({ providerId, apiKey })),
-      addCustomProvider: (
-        name: string,
-        providerBaseUrl: string,
-        apiKey: string,
-        models: string[],
-      ) =>
-        call<boolean>(
-          baseUrl,
-          '/provider/custom',
-          POST({ name, baseUrl: providerBaseUrl, apiKey, models }),
-        ),
-      removeCustomProvider: (providerId: string) =>
-        call<boolean>(baseUrl, '/provider/custom/remove', POST({ providerId })),
     },
 
     // ── GitHub / CI domain (token is write-only — set/clear/has only).
@@ -1188,60 +971,12 @@ export function createHttpBridge({
         call<Record<number, string>>(baseUrl, '/ci/job-logs', POST({ config, runId })),
     },
 
-    // ── Run-activity domain (history read).
-    runActivity: {
-      listByRunId: (runId: string, limit?: number) =>
-        call<DigitalLifeRunActivityEventV1[]>(
-          baseUrl,
-          '/run-activity/list',
-          POST({ runId, limit }),
-        ),
-    },
-
     // ── Web-tools domain.
     webTools: {
       webFetch: (url: string, format?: string) =>
         call<WebFetchResult>(baseUrl, '/web-tools/fetch', POST({ url, format })),
       webSearch: (query: string) =>
         call<WebSearchResult>(baseUrl, '/web-tools/search', POST({ query })),
-    },
-
-    // ── Permission ruleset domain.
-    permission: {
-      listPermissionRules: (dataDir: string) =>
-        call<PermissionRulesetConfig>(baseUrl, '/permission/list', POST({ dataDir })),
-      addPermissionRule: (dataDir: string, rule: PermissionRule) =>
-        call<PermissionRulesetConfig>(baseUrl, '/permission/add', POST({ dataDir, rule })),
-      deletePermissionRule: (dataDir: string, index: number) =>
-        call<PermissionRulesetConfig>(baseUrl, '/permission/delete', POST({ dataDir, index })),
-      setPermissionIncludeDefaults: (dataDir: string, include: boolean) =>
-        call<PermissionRulesetConfig>(
-          baseUrl,
-          '/permission/include-defaults',
-          POST({ dataDir, include }),
-        ),
-      evaluatePermission: (dataDir: string, toolName: string, command: string, args: string[]) =>
-        call<PermissionDecision>(
-          baseUrl,
-          '/permission/evaluate',
-          POST({ dataDir, toolName, command, args }),
-        ),
-    },
-
-    // ── Session-fork domain.
-    sessionFork: {
-      forkSession: (parentSession: ConversationSessionRecord, forkMessageId: string) =>
-        call<ConversationSessionRecord>(
-          baseUrl,
-          '/session-fork',
-          POST({ parentSession, forkMessageId }),
-        ),
-      listSessionForks: (workspaceId: string, parentSessionId: string) =>
-        call<ConversationSessionRecord[]>(
-          baseUrl,
-          '/session-fork/list',
-          POST({ workspaceId, parentSessionId }),
-        ),
     },
 
     // ── LSP domain.
@@ -1283,16 +1018,6 @@ export function createHttpBridge({
       findCrashedSessions: () => call<DurableSessionState[]>(baseUrl, '/durable/crashed', POST({})),
       recoverSession: (sessionId: string) =>
         call<boolean>(baseUrl, '/durable/recover', POST({ sessionId })),
-    },
-
-    // ── Custom-agent registry domain.
-    customAgent: {
-      listCustomAgents: (dataDir: string) =>
-        call<AgentConfig[]>(baseUrl, '/custom-agent/list', POST({ dataDir })),
-      addCustomAgent: (dataDir: string, agent: AgentConfig) =>
-        call<AgentConfig[]>(baseUrl, '/custom-agent/add', POST({ dataDir, agent })),
-      deleteCustomAgent: (dataDir: string, name: string) =>
-        call<AgentConfig[]>(baseUrl, '/custom-agent/delete', POST({ dataDir, name })),
     },
   };
 }

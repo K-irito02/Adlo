@@ -2,7 +2,6 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::TimestampMs;
-use super::agent::{AgentRunDetail, PatchSet};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
@@ -355,16 +354,6 @@ pub struct ConversationMessageRecord {
 pub struct ConversationDetail {
     pub session: ConversationSessionRecord,
     pub messages: Vec<ConversationMessageRecord>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct ConversationSendResult {
-    pub session: ConversationSessionRecord,
-    pub user_message: ConversationMessageRecord,
-    pub assistant_message: ConversationMessageRecord,
-    pub run_detail: AgentRunDetail,
-    pub patch_set: Option<PatchSet>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

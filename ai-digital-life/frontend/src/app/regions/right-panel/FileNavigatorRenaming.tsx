@@ -1,6 +1,5 @@
 import React from 'react';
 import type { CopyDict } from '@i18n';
-import { ConfirmDialog } from '@components/ConfirmDialog';
 import { RenameDialog } from '@components/RenameDialog';
 
 interface FileNavigatorRenamingProps {
@@ -33,15 +32,20 @@ const FileNavigatorRenaming = React.memo(function FileNavigatorRenaming({
   return (
     <>
       {deleteConfirmPath ? (
-        <ConfirmDialog
-          title={t.fileDeleteConfirm as string}
-          message={deleteMessage}
-          confirmLabel={t.fileDeleteAction as string}
-          cancelLabel={t.cancel as string}
-          danger
-          onConfirm={onConfirmDelete}
-          onCancel={onCancelDelete}
-        />
+        <div className="adl-dialog-overlay" role="dialog" aria-modal="true">
+          <div className="adl-dialog">
+            <h3>{t.fileDeleteConfirm as string}</h3>
+            <p>{deleteMessage}</p>
+            <div className="adl-dialog__actions">
+              <button type="button" onClick={onConfirmDelete}>
+                {t.fileDeleteAction as string}
+              </button>
+              <button type="button" onClick={onCancelDelete}>
+                {t.cancel as string}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
       {renameDialogOpen && renamingPath ? (
         <RenameDialog

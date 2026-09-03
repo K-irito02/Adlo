@@ -13,10 +13,6 @@ const filesPanelSource = readFileSync(
   new URL('./regions/right-panel/panels/FilesPanel.tsx', import.meta.url),
   'utf8',
 );
-const sidebarViewModelSource = readFileSync(
-  new URL('./utils/sidebarViewModel.ts', import.meta.url),
-  'utf8',
-);
 const lazyPreviewsSource = readFileSync(
   new URL('./features/preview/LazyPreviews.tsx', import.meta.url),
   'utf8',
@@ -63,9 +59,6 @@ describe('loading and switching performance guards', () => {
   });
 
   it('keeps hot sidebar and file search paths allocation conscious', () => {
-    expect(sidebarViewModelSource).not.toContain(
-      'sessionItems.filter((item) => item.session.workspaceId === workspace.id)',
-    );
     expect(filesPanelSource).not.toContain('new RegExp(searchPattern.source, searchPattern.flags)');
   });
 

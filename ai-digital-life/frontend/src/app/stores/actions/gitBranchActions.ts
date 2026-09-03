@@ -44,7 +44,7 @@ export function createGitBranchActions(
 
     /**
      * [switchGitBranch - 切换 Git 分支]
-     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot, workspaceSlice.workspaceContextMode
+     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot
      * @see shared/ipc.ts → workspace.switchGitBranch
      * @see mock-bridge.ts → workspace.switchGitBranch
      * @see preview-bridge/index.ts → workspace.switchGitBranch
@@ -66,7 +66,6 @@ export function createGitBranchActions(
           : state.appInfo,
         gitSnapshot: gitSnapshot,
         gitStashRestored: hasRestored,
-        workspaceContextMode: 'workspace' as const,
       }));
       if (!hasRestored && gitSnapshot.conflicts.length > 0) {
         const summary = `检测到 ${gitSnapshot.conflicts.length} 个文件的合并冲突`;
@@ -90,7 +89,7 @@ export function createGitBranchActions(
 
     /**
      * [createGitBranch - 创建并切换到新 Git 分支]
-     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot, workspaceSlice.workspaceContextMode
+     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot
      * @see shared/ipc.ts → workspace.createGitBranch
      * @see mock-bridge.ts → workspace.createGitBranch
      * @see preview-bridge/index.ts → workspace.createGitBranch
@@ -110,7 +109,6 @@ export function createGitBranchActions(
             }
           : state.appInfo,
         gitSnapshot: result.data.gitSnapshot,
-        workspaceContextMode: 'workspace' as const,
       }));
       await refreshAfterBranchChange(get);
     },

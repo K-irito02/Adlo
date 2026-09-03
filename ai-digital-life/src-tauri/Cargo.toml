@@ -14,7 +14,6 @@ adl-kernel = { path = "../crates/kernel" }
 adl-types = { path = "../crates/types" }
 adl-errors = { path = "../crates/errors" }
 adl-workspace = { path = "../crates/workspace" }
-adl-model-gateway = { path = "../crates/model-gateway" }
 adl-browser = { path = "../crates/browser" }
 adl-logging = { path = "../crates/adl-logging" }
 adl-storage = { path = "../crates/storage" }

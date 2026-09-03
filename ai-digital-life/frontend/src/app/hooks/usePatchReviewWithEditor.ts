@@ -1,12 +1,11 @@
 import { useCallback, useRef } from 'react';
-import type { CopyDict, Locale } from '../i18n';
 import { useAppStore } from '../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './useAppActions';
 import { usePatchReview } from './usePatchReview';
 import { useEditorReveal } from './useEditorReveal';
 
-export function usePatchReviewWithEditor(locale: Locale, t: CopyDict) {
+export function usePatchReviewWithEditor() {
   const { selectedFilePath, fileLastModifiedAt } = useAppStore(
     useShallow((s) => ({
       selectedFilePath: s.selectedFilePath,
@@ -25,7 +24,6 @@ export function usePatchReviewWithEditor(locale: Locale, t: CopyDict) {
     selectedPatchHunkId,
     collapsedPatchHunkIds,
     patchReviewFilter,
-    setEditorHint,
     activeDiagnostic,
     setPatchReviewFilter,
     handleSelectPatchFile,
@@ -35,18 +33,14 @@ export function usePatchReviewWithEditor(locale: Locale, t: CopyDict) {
     handleJumpPatchHunk,
   } = usePatchReview(setPendingReveal);
 
-  const { standardEditorRef, handleOpenFileAtLine, handleSendSelection, handleDiffMount } =
-    useEditorReveal(
-      selectedFilePath,
-      activeDiagnostic,
-      fileLastModifiedAt,
-      { sendMessage: actions.sendMessage, openFile: actions.openFile },
-      locale,
-      setEditorHint,
-      pendingRevealRef,
-      setPendingReveal,
-      t,
-    );
+  const { standardEditorRef, handleOpenFileAtLine, handleDiffMount } = useEditorReveal(
+    selectedFilePath,
+    activeDiagnostic,
+    fileLastModifiedAt,
+    { openFile: actions.openFile },
+    pendingRevealRef,
+    setPendingReveal,
+  );
 
   return {
     standardEditorRef,
@@ -56,7 +50,6 @@ export function usePatchReviewWithEditor(locale: Locale, t: CopyDict) {
     patchReviewFilter,
     handleOpenFileAtLine,
     handleDiffMount,
-    handleSendSelection,
     handleSelectPatchFile,
     handleSelectPatchHunk,
     handleTogglePatchHunkCollapse,

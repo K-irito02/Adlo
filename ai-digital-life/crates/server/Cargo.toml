@@ -9,12 +9,8 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-adl-agent-runtime = { path = "../agent-runtime" }
 adl-change-engine = { path = "../change-engine" }
 adl-ci-status = { path = "../ci-status" }
-adl-command = { path = "../command" }
-adl-context = { path = "../context" }
-adl-conversation = { path = "../conversation" }
 adl-credential = { path = "../credential" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
@@ -23,11 +19,8 @@ adl-logging = { path = "../adl-logging" }
 adl-lsp-client = { path = "../lsp-client" }
 adl-mcp-client = { path = "../mcp-client" }
 adl-migration = { path = "../migration" }
-adl-model-gateway = { path = "../model-gateway" }
 adl-pty = { path = "../pty" }
 adl-storage = { path = "../storage" }
-adl-subagent = { path = "../subagent" }
-adl-task = { path = "../task" }
 adl-tools = { path = "../tools" }
 adl-types = { path = "../types" }
 adl-workspace = { path = "../workspace" }

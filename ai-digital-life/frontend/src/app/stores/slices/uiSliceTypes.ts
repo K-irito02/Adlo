@@ -2,13 +2,7 @@
  * UI 切片类型和常量
  * 从 uiSlice.ts 提取，供 uiSlice.ts 和消费者使用
  */
-import type {
-  ChatMode,
-  ToolId,
-  FilesNavigatorMode,
-  ChangesNavigatorMode,
-  ContextChip,
-} from '../types';
+import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
 
 // ════════════════════════════════════════════════════════
@@ -71,7 +65,6 @@ export const CHART_COLOR_PRESET_KEY = 'adl-ui:chart-color-preset';
 
 export interface UISlice {
   activeRightTool: ToolId;
-  chatMode: ChatMode;
   leftCollapsed: boolean;
   rightCollapsed: boolean;
   rightPanelWidth: number;
@@ -92,9 +85,6 @@ export interface UISlice {
   activeWorkspaceTab: string;
   chartColorPreset: ChartColorPreset;
   startupOverlayHidden: boolean;
-  expandedSessionWorkspaces: Record<string, boolean>;
-  contextChips: ContextChip[];
-  contextMenuOpen: boolean;
   fileMenuOpen: boolean;
   viewMenuOpen: boolean;
   helpMenuOpen: boolean;
@@ -103,7 +93,6 @@ export interface UISlice {
   navigatorCollapsedByTool: Record<ToolId, boolean>;
 
   setActiveRightTool: (tool: ToolId) => void;
-  setChatMode: (mode: ChatMode) => void;
   setLeftCollapsed: (collapsed: boolean) => void;
   setRightCollapsed: (collapsed: boolean) => void;
   toggleLeft: () => void;
@@ -134,11 +123,6 @@ export interface UISlice {
   toggleChangesTreePath: (path: string) => void;
   expandChangesTreePathChain: (path: string) => void;
   collapseAllChangesTreePaths: () => void;
-  toggleSessionWorkspace: (workspaceId: string, currentlyExpanded: boolean) => void;
-  addContextChip: (chip: ContextChip) => void;
-  removeContextChip: (id: string) => void;
-  clearContextChips: () => void;
-  setContextMenuOpen: (open: boolean) => void;
   setFileMenuOpen: (open: boolean) => void;
   setViewMenuOpen: (open: boolean) => void;
   setHelpMenuOpen: (open: boolean) => void;

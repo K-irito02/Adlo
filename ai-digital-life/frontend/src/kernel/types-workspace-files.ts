@@ -1,5 +1,5 @@
 import type { PatchSet } from './types-patch';
-import type { CommandExecutionResult } from './types-command';
+import type { CommandExecutionResult } from './types-legacy';
 
 // ════════════════════════════════════════════════════════
 // Validation / Diagnostics

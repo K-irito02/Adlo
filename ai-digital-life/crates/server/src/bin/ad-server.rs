@@ -1,15 +1,5 @@
 #![allow(linker_messages)]
 
-//! `ad-server` — standalone HTTP engine for the AI Digital Life app.
-//!
-//! Usage: `ad-server [--port <u16>] [--data-dir <path>]`
-//!
-//! After binding, the real bound port is printed to stdout as the
-//! machine-parseable line `AD_SERVER_PORT=<port>` (then flushed), and the
-//! process serves until killed. Tracing is owned by `LogManager` (installed
-//! during `init_server_state`); stdout keeps the machine line reachable even
-//! though the log layer also writes there.
-
 use ad_server::engine::{init_server_state, serve};
 use std::io::Write;
 use std::path::PathBuf;
@@ -53,8 +43,6 @@ async fn main() {
 
     let bound = serve(state, port).await;
     println!("AD_SERVER_PORT={bound}");
-    // stdout to a pipe is block-buffered; flush so the parent/probe sees the
-    // port line immediately.
     std::io::stdout().flush().ok();
 
     loop {

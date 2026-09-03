@@ -9,7 +9,6 @@ import {
   IconUnfoldVertical,
 } from '@icons';
 import { useState } from 'react';
-import { ConfirmDialog } from '@components/ConfirmDialog';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
@@ -405,18 +404,33 @@ export function BrowserNavigator() {
         onPointerDown={handleNavigatorResizeStart}
       />
       {deleteBookmarksConfirmOpen ? (
-        <ConfirmDialog
-          title={t.browserDeleteAllBookmarksConfirmTitle as string}
-          message={t.browserDeleteAllBookmarksConfirmMessage as string}
-          confirmLabel={t.browserDeleteAllBookmarksConfirmAction as string}
-          cancelLabel={t.cancel as string}
-          danger
-          onConfirm={() => {
-            setDeleteBookmarksConfirmOpen(false);
-            handleClearTabDirectories();
-          }}
-          onCancel={() => setDeleteBookmarksConfirmOpen(false)}
-        />
+        <div
+          className="adl-dialog-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="browser-delete-bookmarks-confirm-title"
+        >
+          <div className="adl-dialog">
+            <h3 id="browser-delete-bookmarks-confirm-title">
+              {t.browserDeleteAllBookmarksConfirmTitle as string}
+            </h3>
+            <p>{t.browserDeleteAllBookmarksConfirmMessage as string}</p>
+            <div className="adl-dialog__actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteBookmarksConfirmOpen(false);
+                  handleClearTabDirectories();
+                }}
+              >
+                {t.browserDeleteAllBookmarksConfirmAction as string}
+              </button>
+              <button type="button" onClick={() => setDeleteBookmarksConfirmOpen(false)}>
+                {t.cancel as string}
+              </button>
+            </div>
+          </div>
+        </div>
       ) : null}
     </aside>
   );

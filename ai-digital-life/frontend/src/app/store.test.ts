@@ -16,20 +16,6 @@ describe('store utility functions', () => {
     });
   });
 
-  describe('workspaceContextModeFromInfo', () => {
-    it("returns 'workspace' when currentWorkspace exists", () => {
-      const appInfo = { currentWorkspace: { id: 'ws-1' } } as any;
-      const result = appInfo?.currentWorkspace ? 'workspace' : 'global';
-      expect(result).toBe('workspace');
-    });
-
-    it("returns 'global' when currentWorkspace is undefined", () => {
-      const appInfo = undefined as any;
-      const result = appInfo?.currentWorkspace ? 'workspace' : 'global';
-      expect(result).toBe('global');
-    });
-  });
-
   describe('hasConversationMessages', () => {
     it('returns true when messages exist', () => {
       const detail = { messages: [{ id: '1' }, { id: '2' }] } as any;

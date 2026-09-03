@@ -1,15 +1,11 @@
 /**
  * UI 展开状态切片
- * 管理文件树/变更树/会话标签的展开状态
+ * 管理文件树/变更树的展开状态
  */
 import type { StoreState } from '../StoreState';
-import { makePersistedWriter, writeJson } from '../shared';
+import { makePersistedWriter } from '../shared';
 import type { TreeExpansionState, UISlice } from './uiSliceTypes';
-import {
-  FILE_TREE_EXPANDED_KEY,
-  CHANGES_TREE_EXPANDED_KEY,
-  SESSION_TABS_EXPANDED_KEY,
-} from './uiSliceTypes';
+import { FILE_TREE_EXPANDED_KEY, CHANGES_TREE_EXPANDED_KEY } from './uiSliceTypes';
 
 const writeFileTreeExpanded = makePersistedWriter(FILE_TREE_EXPANDED_KEY);
 const writeChangesTreeExpanded = makePersistedWriter(CHANGES_TREE_EXPANDED_KEY);
@@ -55,7 +51,6 @@ export type UIExpansionSlice = Pick<
   UISlice,
   | 'expandedFileTreePaths'
   | 'expandedChangesTreePaths'
-  | 'expandedSessionWorkspaces'
   | 'setFileTreePathExpanded'
   | 'toggleFileTreePath'
   | 'expandFileTreePathChain'
@@ -64,7 +59,6 @@ export type UIExpansionSlice = Pick<
   | 'toggleChangesTreePath'
   | 'expandChangesTreePathChain'
   | 'collapseAllChangesTreePaths'
-  | 'toggleSessionWorkspace'
 >;
 
 export function createUIExpansionSlice(
@@ -74,7 +68,6 @@ export function createUIExpansionSlice(
   return {
     expandedFileTreePaths: {},
     expandedChangesTreePaths: {},
-    expandedSessionWorkspaces: {},
 
     setFileTreePathExpanded: (workspaceId, path, expanded) =>
       set((state) => {
@@ -140,11 +133,5 @@ export function createUIExpansionSlice(
       writeChangesTreeExpanded({});
       set({ expandedChangesTreePaths: {} });
     },
-    toggleSessionWorkspace: (workspaceId, currentlyExpanded) =>
-      set((state) => {
-        const next = { ...state.expandedSessionWorkspaces, [workspaceId]: !currentlyExpanded };
-        writeJson(SESSION_TABS_EXPANDED_KEY, next);
-        return { expandedSessionWorkspaces: next };
-      }),
   };
 }

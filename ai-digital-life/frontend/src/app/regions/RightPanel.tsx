@@ -50,7 +50,6 @@ export interface RightPanelProps {
   patchReviewFilter: PatchReviewFilter;
   onOpenFileAtLine: (relativePath: string, line: number) => void;
   onDiffMount: (editor: EditorRef | DiffEditorRef) => void;
-  onSendSelection: () => void;
   onSelectPatchFile: (
     relativePath: string,
     options?: { activateTool?: boolean; line?: number; hunkId?: string },

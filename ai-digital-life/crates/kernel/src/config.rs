@@ -1,10 +1,8 @@
 use adl_errors::AppError;
 use adl_logging::LogMode;
 use adl_types::CommandConfig;
-use adl_types::permission_types::PermissionRulesetConfig;
-use adl_types::types::agent::AgentConfig;
 use adl_types::types::reference::ReferenceConfig;
-use adl_types::types::{ModelPreferences, ThemeMode};
+use adl_types::types::ThemeMode;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ts_rs::TS;
@@ -34,22 +32,13 @@ pub struct AppConfig {
     #[serde(default)]
     pub debug_log_mode: LogMode,
     pub max_recent_workspaces: usize,
-    #[serde(default)]
-    pub model_preferences: ModelPreferences,
     /// User-defined slash commands.
     #[serde(default)]
     pub commands: Vec<CommandConfig>,
-    /// Permission ruleset configuration.
-    #[serde(default)]
-    pub permissions: PermissionRulesetConfig,
     /// Reference directories (extra accessible paths).
     #[serde(default)]
     #[ts(skip)]
     pub references: Vec<ReferenceConfig>,
-    /// User-defined custom agent configurations.
-    #[serde(default)]
-    #[ts(skip)]
-    pub custom_agents: Vec<AgentConfig>,
     /// User-defined keyboard shortcuts (command ID → keybinding string).
     #[serde(default)]
     pub keybinds: std::collections::BTreeMap<String, String>,
@@ -72,11 +61,6 @@ pub struct AppConfig {
     /// Browser 标签页空闲挂起阈值（毫秒）。默认 1 小时，供 tab suspend 调度器读取。
     #[serde(default = "default_browser_inactive_tab_suspend_ms")]
     pub browser_inactive_tab_suspend_ms: u64,
-    /// User-defined custom OpenAI-compatible providers (persisted across restarts).
-    /// API Keys are stored separately in the credential store.
-    #[serde(default)]
-    #[ts(skip)]
-    pub custom_providers: Vec<adl_types::types::config::CustomProviderConfig>,
 }
 
 impl AppConfig {
@@ -101,11 +85,8 @@ impl Default for AppConfig {
             terminal_log_mode: LogMode::default(),
             debug_log_mode: LogMode::default(),
             max_recent_workspaces: DEFAULT_MAX_RECENT_WORKSPACES,
-            model_preferences: ModelPreferences::default(),
             commands: Vec::new(),
-            permissions: PermissionRulesetConfig::default(),
             references: Vec::new(),
-            custom_agents: Vec::new(),
             keybinds: std::collections::BTreeMap::new(),
             fonts: adl_types::types::config::FontPreferences::default(),
             max_concurrent_workspaces: default_max_concurrent_workspaces(),
@@ -113,7 +94,6 @@ impl Default for AppConfig {
             workspace_deferred_ids: Vec::new(),
             workspace_natural_order: Vec::new(),
             browser_inactive_tab_suspend_ms: default_browser_inactive_tab_suspend_ms(),
-            custom_providers: Vec::new(),
         }
     }
 }
@@ -181,50 +161,12 @@ mod tests {
 #[cfg(test)]
 mod config_extension_tests {
     use super::*;
-    use adl_types::types::agent::AgentId;
-    use adl_types::types::commands::CommandConfig;
     use std::env::temp_dir;
 
     #[test]
     fn app_config_has_commands_field() {
         let config = AppConfig::default();
         assert!(config.commands.is_empty());
-        assert!(config.permissions.include_defaults);
-    }
-
-    #[test]
-    fn app_config_with_custom_commands() {
-        let config = AppConfig {
-            language: "en-US".into(),
-            theme_mode: adl_types::types::config::ThemeMode::Light,
-            log_level: "debug".into(),
-            terminal_log_mode: adl_logging::LogMode::Overwrite,
-            debug_log_mode: adl_logging::LogMode::Overwrite,
-            max_recent_workspaces: 10,
-            model_preferences: adl_types::types::config::ModelPreferences::default(),
-            commands: vec![CommandConfig {
-                name: "deploy".to_string(),
-                description: "Deploy to production".to_string(),
-                agent: AgentId::Build,
-                model: None,
-                template: "Deploy $ARGUMENTS to production".to_string(),
-                subtask: false,
-                hints: vec![],
-            }],
-            permissions: adl_types::permission_types::PermissionRulesetConfig::default(),
-            references: vec![],
-            custom_agents: vec![],
-            keybinds: std::collections::BTreeMap::new(),
-            fonts: adl_types::types::config::FontPreferences::default(),
-            max_concurrent_workspaces: 6,
-            workspace_priority_ids: vec![],
-            workspace_deferred_ids: vec![],
-            workspace_natural_order: vec![],
-            browser_inactive_tab_suspend_ms: 3_600_000,
-            custom_providers: vec![],
-        };
-        assert_eq!(config.commands.len(), 1);
-        assert_eq!(config.commands[0].name, "deploy");
     }
 
     #[test]
@@ -269,11 +211,8 @@ mod config_extension_tests {
             "terminal_log_mode": "overwrite",
             "debug_log_mode": "overwrite",
             "max_recent_workspaces": 10,
-            "model_preferences": { "providers": {} },
             "commands": [],
-            "permissions": { "include_defaults": true, "rules": [] },
             "references": [],
-            "custom_agents": [],
             "keybinds": {},
             "fonts": {}
         }"#;

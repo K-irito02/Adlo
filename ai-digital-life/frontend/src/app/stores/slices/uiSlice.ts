@@ -25,7 +25,6 @@ import {
   CHANGES_NAVIGATOR_MODE_KEY,
   FILE_TREE_EXPANDED_KEY,
   CHANGES_TREE_EXPANDED_KEY,
-  SESSION_TABS_EXPANDED_KEY,
 } from './uiSliceTypes';
 import { readRightTool } from './uiSliceWidths';
 import { createUIWidthSlice } from './uiSliceWidths';
@@ -119,10 +118,6 @@ function hydrateUIDefaults(
     const activeHeatmapTab = readJson<HeatmapTab>(ACTIVE_HEATMAP_TAB_KEY, 'calendar');
     const activeWorkspaceTab = readJson<string>(ACTIVE_WORKSPACE_TAB_KEY, 'workspace-1');
     const chartColorPreset = readJson<ChartColorPreset>(CHART_COLOR_PRESET_KEY, 'bklit-default');
-    const expandedSessionWorkspaces = readJson<Record<string, boolean>>(
-      SESSION_TABS_EXPANDED_KEY,
-      {},
-    );
     const navigatorCollapsedByTool = {
       ...defaultNavigatorCollapsed(),
       ...readJson<Record<ToolId, boolean>>(
@@ -143,7 +138,6 @@ function hydrateUIDefaults(
       activeHeatmapTab,
       activeWorkspaceTab,
       chartColorPreset,
-      expandedSessionWorkspaces,
       navigatorCollapsedByTool,
     });
   };
@@ -207,7 +201,6 @@ export const createUISlice = (
     ...createUIWidthSlice(set, _get),
     ...createUIExpansionSlice(set, _get),
 
-    chatMode: 'ask',
     isFetching: {},
     filesNavigatorMode: 'tree',
     changesNavigatorMode: 'tree',
@@ -218,8 +211,6 @@ export const createUISlice = (
     activeWorkspaceTab: 'workspace-1',
     chartColorPreset: 'bklit-default',
     startupOverlayHidden: false,
-    contextChips: [],
-    contextMenuOpen: false,
     fileMenuOpen: false,
     viewMenuOpen: false,
     helpMenuOpen: false,
@@ -227,7 +218,6 @@ export const createUISlice = (
     settingsSearchQuery: '',
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
 
-    setChatMode: (mode) => set({ chatMode: mode }),
     setIsFetching: (key, value) => {
       set((state) => ({
         isFetching: { ...state.isFetching, [key]: value },
@@ -285,44 +275,29 @@ export const createUISlice = (
       set({ changesNavigatorMode: mode });
     },
 
-    addContextChip: (chip) =>
-      set((state) => {
-        if (state.contextChips.some((candidate) => candidate.id === chip.id)) {
-          return state;
-        }
-        return { contextChips: [...state.contextChips, chip] };
-      }),
-    removeContextChip: (id) =>
-      set((state) => ({ contextChips: state.contextChips.filter((chip) => chip.id !== id) })),
-    clearContextChips: () => set({ contextChips: [] }),
-    setContextMenuOpen: (open) => set({ contextMenuOpen: open }),
     setFileMenuOpen: (open) =>
       set({
         fileMenuOpen: open,
         viewMenuOpen: false,
         helpMenuOpen: false,
-        contextMenuOpen: false,
       }),
     setViewMenuOpen: (open) =>
       set({
         viewMenuOpen: open,
         fileMenuOpen: false,
         helpMenuOpen: false,
-        contextMenuOpen: false,
       }),
     setHelpMenuOpen: (open) =>
       set({
         helpMenuOpen: open,
         fileMenuOpen: false,
         viewMenuOpen: false,
-        contextMenuOpen: false,
       }),
     closeAllMenus: () =>
       set({
         fileMenuOpen: false,
         viewMenuOpen: false,
         helpMenuOpen: false,
-        contextMenuOpen: false,
       }),
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),

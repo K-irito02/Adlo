@@ -5,7 +5,6 @@ import type {
   FilePatch,
   WorkspaceChangePreview,
   GitSnapshot,
-  ModelGatewayHealthSnapshot,
   PatchApplicationResult,
   PatchSet,
   RecentWorkspaceEntry,
@@ -87,7 +86,6 @@ export interface RightPanelViewProps {
   onSearch: (query: string) => void;
   onSearchChange: (query: string) => void;
   onRefreshWorkspaceTree: () => void;
-  onSendSelection: () => void;
   onSetDiffLayout: (sideBySide: boolean) => void;
   activePatchSet?: PatchSet;
   activePatchSets: Record<string, PatchSet | undefined>;
@@ -115,13 +113,10 @@ export interface RightPanelViewProps {
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
   onSetPatchReviewFilter: (filter: PatchReviewFilter) => void;
   onJumpPatchHunk: (direction: PatchDirection) => void;
-  modelHealth?: ModelGatewayHealthSnapshot;
-  onRefreshModelHealth: () => void;
   settings: SettingItem[];
   gitSnapshot?: GitSnapshot;
   gitSnapshots: Record<string, GitSnapshot>;
   workspaceChangesExpanded: Record<string, boolean>;
-  commandHistory: string[];
   onChangeSetting: (id: string, value: string | boolean | number) => void;
 }
 
@@ -220,9 +215,7 @@ export interface BrowserPanelProps {
   isVisible: boolean;
 }
 
-export type TerminalPanelProps = Pick<RightPanelViewProps, 'commandHistory' | 'appInfo'>;
-
-export type ModelPanelProps = Pick<RightPanelViewProps, 'modelHealth' | 'onRefreshModelHealth'>;
+export type TerminalPanelProps = Pick<RightPanelViewProps, 'appInfo'>;
 
 export type SettingsPanelProps = Pick<RightPanelViewProps, 'settings' | 'onChangeSetting'>;
 

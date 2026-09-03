@@ -33,11 +33,10 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
 
     /**
      * [applyPatchSet - 应用补丁集，将变更写入文件系统]
-     * @reads sessionSlice.activeSessionId
-     * @writes patchSlice.activePatchSet, patchSlice.latestPatchApplication, commandSlice.latestCommandRun, editorSlice.openTabs, sessionSlice.sessionDetails
-     * @see shared/ipc.ts → patch.applyPatchSet, conversation.getSession, agent.getRun
-     * @see mock-bridge.ts → patch.applyPatchSet, conversation.getSession, agent.getRun
-     * @see preview-bridge/index.ts → patch.applyPatchSet, conversation.getSession, agent.getRun
+     * @writes patchSlice.activePatchSet, patchSlice.latestPatchApplication, editorSlice.openTabs
+     * @see shared/ipc.ts → patch.applyPatchSet
+     * @see mock-bridge.ts → patch.applyPatchSet
+     * @see preview-bridge/index.ts → patch.applyPatchSet
      */
     applyPatchSet: async (patchSetId: string) => {
       clearError(get, SCOPE);
@@ -49,40 +48,14 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       set({
         activePatchSet: result.data.repairPatchSet ?? result.data.patchSet,
         latestPatchApplication: result.data,
-        latestCommandRun: result.data.commandResult
-          ? {
-              status: 'completed',
-              taskId: result.data.commandResult.request.id,
-              request: result.data.commandResult.request,
-              result: result.data.commandResult,
-            }
-          : undefined,
         openTabs: (result.data.repairPatchSet ?? result.data.patchSet).filePatches.map(
           mapPatchToEditorTab,
         ),
       });
-      const detail = get().activeSessionId
-        ? await window.digitalLife.conversation.getSession(get().activeSessionId!)
-        : undefined;
-      if (detail?.ok && detail.data && get().activeSessionId) {
-        set((state: StoreState) => ({
-          sessionDetails: {
-            ...state.sessionDetails,
-            [get().activeSessionId!]: detail.data!,
-          },
-        }));
-      }
       const filePath = (result.data.repairPatchSet ?? result.data.patchSet).filePatches[0]
         ?.relativePath;
       if (filePath) {
         await get().openFile(filePath);
-      }
-      const runId = result.data.patchSet.runId;
-      if (runId) {
-        const run = await window.digitalLife.agent.getRun(runId);
-        if (run.ok) {
-          set({ activeRun: run.data });
-        }
       }
       await postMutationRefresh(get);
     },
@@ -90,9 +63,9 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
     /**
      * [rollbackPatchSet - 回滚补丁集，撤销文件变更]
      * @writes patchSlice.activePatchSet, editorSlice.openTabs
-     * @see shared/ipc.ts → patch.rollbackPatchSet, agent.getRun
-     * @see mock-bridge.ts → patch.rollbackPatchSet, agent.getRun
-     * @see preview-bridge/index.ts → patch.rollbackPatchSet, agent.getRun
+     * @see shared/ipc.ts → patch.rollbackPatchSet
+     * @see mock-bridge.ts → patch.rollbackPatchSet
+     * @see preview-bridge/index.ts → patch.rollbackPatchSet
      */
     rollbackPatchSet: async (patchSetId: string) => {
       clearError(get, SCOPE);
@@ -108,13 +81,6 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
       const filePath = result.data.filePatches[0]?.relativePath;
       if (filePath) {
         await get().openFile(filePath);
-      }
-      const runId = result.data.runId;
-      if (runId) {
-        const run = await window.digitalLife.agent.getRun(runId);
-        if (run.ok) {
-          set({ activeRun: run.data });
-        }
       }
       await get().fetchGitStatus();
     },

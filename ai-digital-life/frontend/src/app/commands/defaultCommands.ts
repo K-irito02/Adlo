@@ -11,12 +11,6 @@ export interface CommandMeta {
 
 export const DEFAULT_COMMANDS: CommandMeta[] = [
   {
-    id: 'session.new',
-    titleKey: 'commandSessionNew',
-    group: 'session',
-    defaultKeybind: 'mod+shift+n',
-  },
-  {
     id: 'workspace.new',
     titleKey: 'commandWorkspaceNew',
     group: 'navigation',

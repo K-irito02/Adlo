@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import type { SidebarWorkspaceItem } from '../../utils/sidebarViewModel';
+import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 export interface WorkspacePinResult {
   handleTogglePin: (workspaceId: string) => void;
@@ -8,12 +8,12 @@ export interface WorkspacePinResult {
 }
 
 export function useWorkspacePin(
-  workspaceItems: SidebarWorkspaceItem[],
+  workspaceItems: RecentWorkspaceEntry[],
   onPinWorkspace: (id: string) => void,
   onUnpinWorkspace: (id: string) => void,
 ): WorkspacePinResult {
   const pinnedIds = useMemo(
-    () => new Set(workspaceItems.filter((w) => w.workspace.isPinned).map((w) => w.workspace.id)),
+    () => new Set(workspaceItems.filter((w) => w.isPinned).map((w) => w.id)),
     [workspaceItems],
   );
 

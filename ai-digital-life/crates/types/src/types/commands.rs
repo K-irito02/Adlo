@@ -1,6 +1,15 @@
-use super::agent::AgentId;
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
+
+/// Agent identifier for slash commands.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "snake_case")]
+pub enum AgentId {
+    #[default]
+    Build,
+    Plan,
+    General,
+}
 
 /// Configuration for a user-defined slash command.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

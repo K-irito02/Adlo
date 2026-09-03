@@ -1,6 +1,6 @@
-use adl_command::{build_request, run_command};
 use adl_errors::AppError;
 use std::path::Path;
+use tokio::process::Command;
 
 use crate::ToolOutput;
 
@@ -50,21 +50,31 @@ pub async fn execute(
             }),
         });
     }
-    let request = build_request("", None, program.to_string(), args, false);
-    let result =
-        run_command(workspace_root, request, Some(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS)))
+
+    let timeout = std::time::Duration::from_secs(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS));
+
+    let result = tokio::time::timeout(timeout, async {
+        Command::new(program)
+            .args(&args)
+            .current_dir(workspace_root)
+            .output()
             .await
-            .map_err(|e| AppError::Terminal(format!("bash tool failed: {e}")))?;
-    let stdout = result.stdout;
-    let stderr = result.stderr;
+    })
+    .await
+    .map_err(|_| AppError::Terminal(format!("bash tool timed out after {timeout:?}")))?
+    .map_err(|e| AppError::Terminal(format!("bash tool failed: {e}")))?;
+
+    let stdout = String::from_utf8_lossy(&result.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&result.stderr).to_string();
     let truncated = stdout.len() >= 60_000 || stderr.len() >= 60_000;
+    let success = result.status.success();
     Ok(ToolOutput {
         output: format!("{stdout}{stderr}"),
-        success: result.success,
+        success,
         metadata: serde_json::json!({
             "command": command,
             "output": stdout,
-            "exitCode": result.exit_code,
+            "exitCode": result.status.code(),
             "truncated": truncated,
         }),
     })

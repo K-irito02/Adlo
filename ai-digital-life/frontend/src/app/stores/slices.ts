@@ -25,9 +25,6 @@ export { type WorkspaceSlice, createWorkspaceSlice } from './slices/workspaceSli
 // Git 切片
 export { type GitSlice, createGitSlice } from './slices/gitSlice';
 
-// 会话切片
-export { type SessionSlice, createSessionSlice } from './slices/sessionSlice';
-
 // 编辑器切片
 export { type EditorSlice, createEditorSlice } from './slices/editorSlice';
 
@@ -39,9 +36,6 @@ export { type SearchSlice, createSearchSlice } from './slices/searchSlice';
 
 // 诊断切片
 export { type DiagnosticSlice, createDiagnosticSlice } from './slices/diagnosticSlice';
-
-// 命令切片
-export { type CommandSlice, createCommandSlice } from './slices/commandSlice';
 
 // 剪贴板切片
 export { type ClipboardSlice, createClipboardSlice } from './slices/clipboardSlice';
@@ -122,35 +116,14 @@ export {
 // GitHub 切片（CI 配置 + CI 状态、分支/提交/远程操作）
 export { type GitHubSlice, type GitHubSection, createGitHubSlice } from './slices/githubSlice';
 
-// Agent 切片（多 Agent 系统）
-export { type AgentSlice, createAgentSlice } from './slices/agentSlice';
-
-// 自定义命令切片
-export { type CustomCommandSlice, createCustomCommandSlice } from './slices/customCommandSlice';
-
-// 权限切片
-export { type PermissionSlice, createPermissionSlice } from './slices/permissionSlice';
-
-// 压缩切片
-export { type CompactionSlice, createCompactionSlice } from './slices/compactionSlice';
-
 // MCP 切片
 export { type McpSlice, createMcpSlice } from './slices/mcpSlice';
-
-// Provider 切片
-export { type ProviderSlice, createProviderSlice } from './slices/providerSlice';
 
 // Web Tools 切片
 export { type WebToolsSlice, createWebToolsSlice } from './slices/webToolsSlice';
 
 // Reference 切片
 export { type ReferenceSlice, createReferenceSlice } from './slices/referenceSlice';
-
-// Durable 切片
-export { type DurableSlice, createDurableSlice } from './slices/durableSlice';
-
-// Part 渲染切片（S2 渲染内核）
-export { type PartStreamSlice, createPartStreamSlice } from './slices/partStreamSlice';
 
 // Toast 切片（全局通知）
 export { type ToastSlice, createToastSlice } from './slices/toastSlice';

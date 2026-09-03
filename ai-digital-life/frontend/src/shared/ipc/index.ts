@@ -14,9 +14,5 @@
 
 export * from './app';
 export * from './workspace';
-export * from './conversation';
-export * from './agent';
 export * from './patch';
 export * from './mcp';
-export * from './commands_config';
-export * from './compaction';

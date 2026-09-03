@@ -5,14 +5,12 @@ import type { CommandMeta } from '../commands/defaultCommands';
 import { normalizeKey, signatures, EMPTY_KEYBINDS } from '../../shared/keybinds';
 
 export interface ActionCallbacks {
-  openNewSessionDialog: () => void;
   openCreateWorkspaceDialog: () => void;
   openWorkspace: () => void;
   openSettings: () => void;
 }
 
 const COMMAND_HANDLERS: Record<string, (callbacks: ActionCallbacks) => void> = {
-  'session.new': (cb) => cb.openNewSessionDialog(),
   'workspace.new': (cb) => cb.openCreateWorkspaceDialog(),
   'workspace.open': (cb) => cb.openWorkspace(),
   'settings.open': (cb) => cb.openSettings(),

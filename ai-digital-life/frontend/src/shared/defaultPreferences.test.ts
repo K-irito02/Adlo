@@ -68,7 +68,6 @@ describe('defaultPreferences', () => {
   });
 
   it('DEFAULT_KEYBINDS includes expected command defaults', () => {
-    expect(DEFAULT_KEYBINDS['session.new']).toBe('mod+shift+n');
     expect(DEFAULT_KEYBINDS['workspace.new']).toBe('mod+n');
     expect(DEFAULT_KEYBINDS['workspace.open']).toBe('mod+o');
     expect(DEFAULT_KEYBINDS['settings.open']).toBe('mod+shift+comma');
@@ -77,13 +76,13 @@ describe('defaultPreferences', () => {
   it('getDefaultPreferences returns fresh copies (no shared mutation)', () => {
     const first = getDefaultPreferences();
     if (first.keybinds) {
-      first.keybinds['session.new'] = 'mutated';
+      first.keybinds['workspace.open'] = 'mutated';
     }
     if (first.fonts) {
       first.fonts.uiFont = 'mutated';
     }
     const second = getDefaultPreferences();
-    expect(second.keybinds?.['session.new']).toBe('mod+shift+n');
+    expect(second.keybinds?.['workspace.open']).toBe('mod+o');
     expect(second.fonts?.uiFont).toBe('');
   });
 });

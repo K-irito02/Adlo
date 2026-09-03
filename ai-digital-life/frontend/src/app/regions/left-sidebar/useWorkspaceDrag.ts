@@ -1,7 +1,6 @@
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
-import type { SidebarWorkspaceItem } from '../../utils/sidebarViewModel';
+import type { RecentWorkspaceEntry, ReorderWorkspacesInput } from '@ai-digital-life/kernel';
 import { computeReorderedList, mergeOrderPreserving } from '../../utils/dragUtils';
 
 interface DragSession {
@@ -22,7 +21,7 @@ export interface WorkspaceDragResult {
 }
 
 export function useWorkspaceDrag(
-  workspaceItems: SidebarWorkspaceItem[],
+  workspaceItems: RecentWorkspaceEntry[],
   onReorderWorkspaces: (input: ReorderWorkspacesInput) => void,
 ): WorkspaceDragResult {
   const [dragActiveId, setDragActiveId] = useState<string | null>(null);
@@ -32,9 +31,7 @@ export function useWorkspaceDrag(
   const targetPosRef = useRef<'before' | 'after'>('after');
   const suppressClickRef = useRef(false);
 
-  const [localOrder, setLocalOrder] = useState<string[]>(() =>
-    workspaceItems.map((w) => w.workspace.id),
-  );
+  const [localOrder, setLocalOrder] = useState<string[]>(() => workspaceItems.map((w) => w.id));
   const localOrderRef = useRef<string[]>(localOrder);
   localOrderRef.current = localOrder;
 
@@ -48,9 +45,8 @@ export function useWorkspaceDrag(
   const prevPinnedSetRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
-    const externalIds = workspaceItems.map((w) => w.workspace.id);
-    const isPinnedById = (id: string) =>
-      workspaceItems.find((w) => w.workspace.id === id)?.workspace.isPinned ?? false;
+    const externalIds = workspaceItems.map((w) => w.id);
+    const isPinnedById = (id: string) => workspaceItems.find((w) => w.id === id)?.isPinned ?? false;
 
     const newPinnedSet = new Set(externalIds.filter((id) => isPinnedById(id)));
     const prevPinnedSet = prevPinnedSetRef.current;
@@ -152,11 +148,11 @@ export function useWorkspaceDrag(
       }
 
       const wsItems = workspaceItemsRef.current;
-      const targetItem = wsItems.find((w) => w.workspace.id === foundId);
+      const targetItem = wsItems.find((w) => w.id === foundId);
       if (!targetItem) {
         return;
       }
-      if (targetItem.workspace.isPinned !== session.isPinned) {
+      if (targetItem.isPinned !== session.isPinned) {
         return;
       }
 
@@ -166,8 +162,7 @@ export function useWorkspaceDrag(
       targetIdRef.current = foundId;
       targetPosRef.current = foundPos;
 
-      const isPinnedById = (id: string) =>
-        wsItems.find((w) => w.workspace.id === id)?.workspace.isPinned ?? false;
+      const isPinnedById = (id: string) => wsItems.find((w) => w.id === id)?.isPinned ?? false;
       const newOrder = computeReorderedList(
         localOrderRef.current,
         session.draggedId,
@@ -259,8 +254,7 @@ export function useWorkspaceDrag(
 
         if (orderChanged) {
           const items = workspaceItemsRef.current;
-          const isPinnedById = (id: string) =>
-            items.find((w) => w.workspace.id === id)?.workspace.isPinned ?? false;
+          const isPinnedById = (id: string) => items.find((w) => w.id === id)?.isPinned ?? false;
           const pinnedIds = currentOrder.filter((id) => isPinnedById(id));
           const unpinnedIds = currentOrder.filter((id) => !isPinnedById(id));
           onReorderRef.current({ pinnedIds, unpinnedIds });

@@ -11,7 +11,6 @@ describe('commandRegistry', () => {
     const all = commandRegistry.getAll();
     expect(all.length).toBeGreaterThan(0);
     expect(commandRegistry.getById('settings.open')).toBeDefined();
-    expect(commandRegistry.getById('session.new')).toBeDefined();
     expect(commandRegistry.getById('workspace.new')).toBeDefined();
     expect(commandRegistry.getById('workspace.open')).toBeDefined();
   });

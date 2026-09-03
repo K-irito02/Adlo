@@ -14,7 +14,6 @@ pub mod glob;
 pub mod grep;
 pub mod question;
 pub mod read;
-pub mod task;
 pub mod webfetch;
 pub mod websearch;
 pub mod write;

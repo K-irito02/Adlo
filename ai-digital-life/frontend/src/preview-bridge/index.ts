@@ -1,24 +1,13 @@
 import type { AudioStatePayload, BrowserBridge, PageMeta } from '../shared/ipc/browser';
 import type { AppBridge } from '../shared/ipc/app';
 import type { WorkspaceBridge } from '../shared/ipc/workspace';
-import type { ConversationBridge } from '../shared/ipc/conversation';
-import type { AgentBridge } from '../shared/ipc/agent';
-import type { SubagentBridge } from '../shared/ipc/subagent';
 import type { PatchBridge } from '../shared/ipc/patch';
 import type { McpBridge } from '../shared/ipc/mcp';
-import type { CommandsConfigBridge } from '../shared/ipc/commands_config';
-import type { CompactionBridge } from '../shared/ipc/compaction';
-import type { CommandBridge } from '../shared/ipc/command';
-import type { CustomAgentBridge } from '../shared/ipc/custom_agent';
 import type { DurableBridge } from '../shared/ipc/durable';
 import type { GitHubBridge } from '../shared/ipc/github';
 import type { LspBridge } from '../shared/ipc/lsp';
-import type { PermissionBridge } from '../shared/ipc/permission';
-import type { ProviderBridge } from '../shared/ipc/provider';
 import type { ReferenceBridge } from '../shared/ipc/reference';
 import type { RetrievalBridge } from '../shared/ipc/retrieval';
-import type { RunActivityBridge } from '../shared/ipc/run-activity';
-import type { SessionForkBridge } from '../shared/ipc/session_fork';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
 import type { WebToolsBridge } from '../shared/ipc/web_tools';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
@@ -26,18 +15,13 @@ import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyBridge } from './preview-pty-bridge';
 import { loadRecentWorkspaces } from './preview-storage';
-import type { PreviewContext } from './preview-context';
-import { createBaseAppInfo, createPreviewModelBridge } from './preview-model';
 import { createPreviewWorkspaceBridge } from './preview-workspace';
 import { createPreviewGitBridge } from './preview-git';
 import { createPreviewSearchBridge } from './preview-search';
 import { createPreviewEventsBridge } from './preview-events';
 import { createPreviewWindowBridge } from './preview-window';
 import { createPreviewDiagnosticBridge } from './preview-diagnostic';
-import { createPreviewTaskBridge } from './preview-task';
-import { createPreviewConversationBridge } from './preview-conversation';
 import { createPreviewPatchBridge } from './preview-patch';
-import { createPreviewCommandBridge } from './preview-command';
 import { BrowserAudioMonitor } from './preview-browser-audio';
 import { isAdServerReachable } from './preview-reachability';
 
@@ -113,32 +97,36 @@ export function setupPreviewBridge(): void {
   const adlServerBaseUrl = resolveAdlServerBaseUrl();
   const http = createHttpBridge({ baseUrl: adlServerBaseUrl });
 
-  const ctx: PreviewContext = {
-    appInfo: createBaseAppInfo(),
-    recentWorkspaces: loadRecentWorkspaces(),
-    currentWorkspace: undefined,
-    retrievalStatus: undefined,
-  };
-
   setMockActiveWorkspace(undefined);
 
   const ptyBridge = createPtyBridge();
   const audioMonitor = new BrowserAudioMonitor();
   window.__adlAudioMonitor = audioMonitor;
-  const { workspace, retrieval, ensureCurrentWorkspaceRestored } = createPreviewWorkspaceBridge(
-    ctx,
+  const { workspace, retrieval } = createPreviewWorkspaceBridge(
+    {
+      recentWorkspaces: loadRecentWorkspaces(),
+      currentWorkspace: undefined,
+      retrievalStatus: undefined,
+    },
     setMockActiveWorkspace,
   );
-  const gitBridge = createPreviewGitBridge(ctx, setMockActiveWorkspace);
-  const searchBridge = createPreviewSearchBridge(ctx);
+  const gitBridge = createPreviewGitBridge(
+    {
+      recentWorkspaces: loadRecentWorkspaces(),
+      currentWorkspace: undefined,
+      retrievalStatus: undefined,
+    },
+    setMockActiveWorkspace,
+  );
+  const searchBridge = createPreviewSearchBridge({
+    recentWorkspaces: loadRecentWorkspaces(),
+    currentWorkspace: undefined,
+    retrievalStatus: undefined,
+  });
   const eventsBridge = createPreviewEventsBridge();
-  const modelBridge = createPreviewModelBridge(ctx, ensureCurrentWorkspaceRestored);
   const windowBridge = createPreviewWindowBridge();
   const diagnosticBridge = createPreviewDiagnosticBridge();
-  const taskBridge = createPreviewTaskBridge();
-  const conversationBridge = createPreviewConversationBridge();
   const patchBridge = createPreviewPatchBridge();
-  const commandBridge = createPreviewCommandBridge();
 
   const workspacePreview: WorkspaceBridge = {
     ...workspace,
@@ -168,8 +156,8 @@ export function setupPreviewBridge(): void {
     window: windowBridge.window,
     app: {
       ...diagnosticBridge,
-      getInfo: modelBridge.app.getInfo,
-      updatePreferences: modelBridge.app.updatePreferences,
+      getInfo: http.app.getInfo,
+      updatePreferences: http.app.updatePreferences,
     } satisfies AppBridge,
     workspace: preferHttpWhenReachable<WorkspaceBridge>(
       adlServerBaseUrl,
@@ -188,23 +176,7 @@ export function setupPreviewBridge(): void {
       http.retrieval,
       retrieval,
     ),
-    conversation: preferHttpWhenReachable<ConversationBridge>(
-      adlServerBaseUrl,
-      http.conversation,
-      conversationBridge,
-    ),
-    agent: preferHttpWhenReachable<AgentBridge>(
-      adlServerBaseUrl,
-      http.agent,
-      mockDigitalLifeBridge.agent,
-    ),
-    subagent: preferHttpWhenReachable<SubagentBridge>(
-      adlServerBaseUrl,
-      http.subagent,
-      mockDigitalLifeBridge.subagent,
-    ),
     patch: preferHttpWhenReachable<PatchBridge>(adlServerBaseUrl, http.patch, patchBridge),
-    command: preferHttpWhenReachable<CommandBridge>(adlServerBaseUrl, http.command, commandBridge),
     browser: {
       createForTab: (_tabId: string, _url: string, _colorScheme?: 'light' | 'dark') =>
         Promise.resolve(null),
@@ -238,11 +210,10 @@ export function setupPreviewBridge(): void {
       clearCookies: (_tabId: string) => Promise.resolve(),
       clearCache: (_tabId: string) => Promise.resolve(),
     } satisfies BrowserBridge,
-    github: preferHttpWhenReachable<GitHubBridge>(adlServerBaseUrl, http.github, taskBridge.github),
-    provider: preferHttpWhenReachable<ProviderBridge>(
+    github: preferHttpWhenReachable<GitHubBridge>(
       adlServerBaseUrl,
-      http.provider,
-      modelBridge.provider,
+      http.github,
+      mockDigitalLifeBridge.github,
     ),
     mcp: preferHttpWhenReachable<McpBridge>(adlServerBaseUrl, http.mcp, mockDigitalLifeBridge.mcp),
     snapshot: preferHttpWhenReachable<SnapshotBridge>(
@@ -254,26 +225,6 @@ export function setupPreviewBridge(): void {
       adlServerBaseUrl,
       http.webTools,
       mockDigitalLifeBridge.webTools,
-    ),
-    commandsConfig: preferHttpWhenReachable<CommandsConfigBridge>(
-      adlServerBaseUrl,
-      http.commandsConfig,
-      mockDigitalLifeBridge.commandsConfig,
-    ),
-    permission: preferHttpWhenReachable<PermissionBridge>(
-      adlServerBaseUrl,
-      http.permission,
-      mockDigitalLifeBridge.permission,
-    ),
-    compaction: preferHttpWhenReachable<CompactionBridge>(
-      adlServerBaseUrl,
-      http.compaction,
-      mockDigitalLifeBridge.compaction,
-    ),
-    sessionFork: preferHttpWhenReachable<SessionForkBridge>(
-      adlServerBaseUrl,
-      http.sessionFork,
-      mockDigitalLifeBridge.sessionFork,
     ),
     lsp: preferHttpWhenReachable<LspBridge>(adlServerBaseUrl, http.lsp, mockDigitalLifeBridge.lsp),
     reference: preferHttpWhenReachable<ReferenceBridge>(
@@ -292,16 +243,6 @@ export function setupPreviewBridge(): void {
     // browser keeps the preview/mock impl unconditionally (never wrapped in
     // preferHttpWhenReachable).
     reserved: mockDigitalLifeBridge.reserved,
-    customAgent: preferHttpWhenReachable<CustomAgentBridge>(
-      adlServerBaseUrl,
-      http.customAgent,
-      mockDigitalLifeBridge.customAgent,
-    ),
-    runActivity: preferHttpWhenReachable<RunActivityBridge>(
-      adlServerBaseUrl,
-      http.runActivity,
-      mockDigitalLifeBridge.runActivity,
-    ),
     subscribeModelStream: http.subscribeModelStream,
     subscribeRunActivity: http.subscribeRunActivity,
     subscribeTerminalStream: http.subscribeTerminalStream,

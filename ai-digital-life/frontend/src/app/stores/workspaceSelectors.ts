@@ -22,9 +22,6 @@ export const workspaceSelectors = {
   getGitBranches: (state: StoreState) => state.gitBranches,
   useGitBranches: () => useAppStore(useShallow((s) => s.gitBranches)),
 
-  getWorkspaceContextMode: (state: StoreState) => state.workspaceContextMode,
-  useWorkspaceContextMode: () => useAppStore(useShallow((s) => s.workspaceContextMode)),
-
   getIndexingStatus: (state: StoreState) => state.indexingStatus,
   useIndexingStatus: () => useAppStore(useShallow((s) => s.indexingStatus)),
 

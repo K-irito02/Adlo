@@ -74,13 +74,11 @@ describe('KeybindSettings', () => {
     );
 
     // Command titles
-    expect(screen.getByText('commandSessionNew')).toBeDefined();
     expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
     expect(screen.getByText('commandWorkspaceOpen')).toBeDefined();
     expect(screen.getByText('commandSettingsOpen')).toBeDefined();
 
-    // Group labels (session.new → session group, workspace.new/open → navigation group, settings.open → general group)
-    expect(screen.getByText('settingsShortcutsGroupSession')).toBeDefined();
+    // Group labels (workspace.new/open → navigation group, settings.open → general group)
     expect(screen.getByText('settingsShortcutsGroupNavigation')).toBeDefined();
     expect(screen.getByText('settingsShortcutsGroupGeneral')).toBeDefined();
   });
@@ -105,12 +103,10 @@ describe('KeybindSettings', () => {
 
     const search = screen.getByPlaceholderText('settingsShortcutsSearch') as HTMLInputElement;
     act(() => {
-      fireEvent.change(search, { target: { value: 'commandSession' } });
+      fireEvent.change(search, { target: { value: 'commandWorkspace' } });
     });
 
-    expect(screen.getByText('commandSessionNew')).toBeDefined();
-    expect(screen.queryByText('commandWorkspaceNew')).toBeNull();
-    expect(screen.queryByText('commandWorkspaceOpen')).toBeNull();
+    expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
     expect(screen.queryByText('commandSettingsOpen')).toBeNull();
   });
 
@@ -128,7 +124,7 @@ describe('KeybindSettings', () => {
           debugLogMode: 'overwrite',
           maxRecentWorkspaces: 5,
           modelPreferences: { providers: {} },
-          keybinds: { 'session.new': 'none' },
+          keybinds: { 'settings.open': 'none' },
           fonts: { uiFont: '', codeFont: '', terminalFont: '' },
           maxConcurrentWorkspaces: 6,
           workspacePriorityIds: [],
@@ -210,22 +206,18 @@ describe('KeybindSettings', () => {
     const showToastSpy = vi.spyOn(useAppStore.getState(), 'showToast').mockReturnValue('id');
 
     // Initial state: no keybind overrides - all defaults are in effect.
-    // workspace.open has default 'mod+o'. session.new has default 'mod+shift+n'.
-    // Try to set workspace.open to 'mod+shift+n' - should conflict with session.new.
+    // workspace.new has default 'mod+n'. Try to set workspace.open to 'mod+n' -
+    // should conflict with workspace.new.
     render(
       <TestProvider>
         <KeybindSettings />
       </TestProvider>,
     );
 
-    // Find workspace.open's button (it shows "Ctrl+Shift+N" via formatKeybind, but we use mock t so it's the formatted string)
-    // Use the workspace.open command title to locate its row.
+    // Find workspace.open's button. To be robust: find a button that is NOT the search
+    // input and click it, then press mod+n which conflicts with workspace.new's default.
     const allButtons = screen.getAllByRole('button');
-    // Click the second button (workspace.open's keybind button). The exact index may vary by group order.
-    // To be robust: find a button that is NOT the search input and click it.
     const keybindButtons = allButtons.filter((b) => b.tagName === 'BUTTON');
-    // We want to click the workspace.open keybind (which is in the navigation group, after session group)
-    // Find by clicking each button until recording mode starts.
     let clicked = false;
     for (const btn of keybindButtons) {
       act(() => {
@@ -238,12 +230,11 @@ describe('KeybindSettings', () => {
     }
     expect(clicked).toBe(true);
 
-    // Press mod+shift+n (conflicts with session.new's default)
+    // Press mod+n (conflicts with workspace.new's default)
     await act(async () => {
       const event = new KeyboardEvent('keydown', {
         key: 'n',
         ctrlKey: true,
-        shiftKey: true,
         bubbles: true,
         cancelable: true,
       });

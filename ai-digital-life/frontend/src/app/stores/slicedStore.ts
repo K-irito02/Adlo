@@ -10,12 +10,10 @@ import {
   createUISlice,
   createWorkspaceSlice,
   createGitSlice,
-  createSessionSlice,
   createEditorSlice,
   createPatchSlice,
   createSearchSlice,
   createDiagnosticSlice,
-  createCommandSlice,
   createClipboardSlice,
   createTerminalSlice,
   createBrowserTabsSlice,
@@ -30,20 +28,13 @@ import {
   createGitHubRepoSlice,
   createGitHubTreeSlice,
   createGitHubSlice,
-  createAgentSlice,
   createMcpSlice,
-  createProviderSlice,
-  createCustomCommandSlice,
-  createPermissionSlice,
-  createCompactionSlice,
   createWebToolsSlice,
   createReferenceSlice,
-  createDurableSlice,
   createToastSlice,
   createErrorToastSlice,
   createNotificationSlice,
   createFileOpNoticeSlice,
-  createPartStreamSlice,
   createBrowserDownloadsSlice,
 } from './slices';
 import { createGitVisSlice } from './slices/gitVisSlice';
@@ -52,28 +43,16 @@ import type { StoreState as FullStoreState } from './StoreState';
 
 import {
   createWorkspaceActions,
-  createSessionActions,
   createEditorActions,
   createPatchActions,
   createGitActions,
   createSearchActions,
   createFetchActions,
-  createStreamActions,
   createGeneralActions,
-  createCommandActions,
-  createAgentActions,
   createMcpActions,
-  createProviderActions,
-  createCustomCommandActions,
-  createPermissionActions,
-  createCompactionActions,
-  createSnapshotActions,
   createWebToolsActions,
-  createSessionForkActions,
   createLspActions,
   createReferenceActions,
-  createCustomAgentActions,
-  createDurableActions,
 } from './actions';
 
 export {
@@ -94,12 +73,10 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createUISlice(set, get), // UI 状态（侧边栏、工具栏、聊天模式）
   ...createWorkspaceSlice(set, get), // 工作区状态（appInfo, workspaceTree）
   ...createGitSlice(set, get), // Git 状态（snapshot, branches）
-  ...createSessionSlice(set, get), // 会话状态（sessions, activeSessionId）
   ...createEditorSlice(set, get), // 编辑器（openTabs, selectedFilePath）
   ...createPatchSlice(set, get), // 补丁状态（activePatchSet）
   ...createSearchSlice(set, get), // 搜索状态（searchQuery, results）
   ...createDiagnosticSlice(set, get), // 诊断/索引（indexingStatus, repoMap）
-  ...createCommandSlice(set, get), // 命令执行（latestCommandRun）
   ...createClipboardSlice(set, get), // 剪贴板
   ...createTerminalSlice(set, get), // 终端会话管理
   ...createBrowserTabsSlice(set, get), // 浏览器标签页
@@ -114,21 +91,14 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createGitHubRepoSlice(set, get), // GitHub 仓库 CRUD（工作区配置、CI 目录管理、Pin/Unpin）
   ...createGitHubTreeSlice(set, get), // GitHub 树导航（展开/折叠、路径选择）
   ...createGitHubSlice(set, get), // GitHub CI 配置 + 状态（分支/提交/远程操作）
-  ...createAgentSlice(set, get), // Agent 状态（多 Agent 系统、Plan 模式、子代理任务）
   ...createMcpSlice(set, get), // MCP 状态（服务器列表、目录）
-  ...createProviderSlice(set, get), // Provider 状态（API 密钥配置）
-  ...createCustomCommandSlice(set, get), // 自定义命令状态（内置 + 自定义斜杠命令）
-  ...createPermissionSlice(set, get), // 权限配置状态
-  ...createCompactionSlice(set, get), // 压缩状态
   ...createWebToolsSlice(set, get), // Web 工具（抓取/搜索）
   ...createReferenceSlice(set, get), // 参考代码仓库管理
-  ...createDurableSlice(set, get), // 持久化会话管理
   ...createToastSlice(set, get), // 全局 Toast 通知
   ...createErrorToastSlice(set, get), // 报错 Toast 队列（右下角持久）
   ...createNotificationSlice(set, get), // 通知系统
   ...createFileOpNoticeSlice(set, get), // 文件操作提示卡片（右下角警告）
   ...createGitVisSlice(set, get), // Git 可视化数据缓存
-  ...createPartStreamSlice(set, get), // Part 渲染状态（S2：messages/parts/status）
   ...createBrowserDownloadsSlice(set, get), // 浏览器下载管理
 
   // ════════════════════════════════════════════════════════
@@ -145,34 +115,16 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   // 跨切片 Actions（10 个领域模块）
   // ════════════════════════════════════════════════════════
   ...createWorkspaceActions(set, get), // 工作区操作
-  ...createSessionActions(set, get), // 会话操作（createSession 等）
   ...createEditorActions(set, get), // 编辑器操作
   ...createPatchActions(set, get), // 补丁操作
   ...createGitActions(set, get), // Git 操作
   ...createSearchActions(set, get), // 搜索操作
   ...createFetchActions(set, get), // 数据拉取（indexStatus, repoMap）
-  ...createStreamActions(set, get), // 流式消息（sendMessage, cancel）
   ...createGeneralActions(set, get), // 通用操作（bootstrap, updatePreferences）
-  ...createCommandActions(set, get), // 命令操作（runCommand）
-  ...createAgentActions(set, get), // Agent 操作（fetchAgents、Plan 模式）
   ...createMcpActions(set, get), // MCP 操作（服务器管理、连接）
-  ...createProviderActions(set, get), // Provider 操作（API 密钥管理）
-  ...createCustomCommandActions(set, get), // 自定义命令操作（CRUD）
-  ...createPermissionActions(set, get), // 权限操作（CRUD）
-  ...createCompactionActions(set, get), // 压缩操作
-  ...createSnapshotActions(set, get), // 快照操作
   ...createWebToolsActions(set, get), // Web 工具操作
-  ...createSessionForkActions(set, get), // 会话分叉操作
   ...createLspActions(set, get), // LSP 操作
   ...createReferenceActions(set, get), // 参考代码仓库操作
-  ...createCustomAgentActions(set, get), // 自定义 Agent 操作
-  ...createDurableActions(set, get), // 持久化会话操作
-
-  // ════════════════════════════════════════════════════════
-  // 自定义 Agent 状态
-  // ════════════════════════════════════════════════════════
-  customAgents: [],
-  isFetchingCustomAgents: false,
 }));
 
 // 显式 hydration：在 store 创建后从 localStorage 恢复 GitHub Repo slice 的持久化状态

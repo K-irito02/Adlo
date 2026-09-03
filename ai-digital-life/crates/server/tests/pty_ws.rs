@@ -1,11 +1,4 @@
-//! Integration tests for the `/pty` WebSocket endpoint: a real `ad-server` is
-//! spawned on an ephemeral port and the WS protocol (create → created →
-//! output/error frames) is exercised with `tokio-tungstenite`.
-//!
-//! All frame awaits are wrapped in `tokio::time::timeout` so a server hang
-//! fails the test instead of blocking the runtime forever.
-
-use ad_server::engine::init_server_state;
+use ad_server::engine::{init_server_state, serve};
 use futures::{SinkExt, StreamExt};
 use serde_json::Value;
 use tokio_tungstenite::MaybeTlsStream;
@@ -15,20 +8,16 @@ use tokio_tungstenite::tungstenite::Message as WsMessage;
 
 type Sock = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 
-/// Spawn the real `ad-server` HTTP surface on an ephemeral port and open a WS
-/// connection to its `/pty` endpoint.
 async fn connect_pty_socket() -> (Sock, u16) {
     let dir = std::env::temp_dir().join(format!("adl-ptyws-{}", uuid::Uuid::new_v4()));
     let state = init_server_state(&dir).await.expect("init_server_state should succeed");
-    let port = ad_server::sse_server::spawn_http_server(&state).await;
+    let port = serve(state, 0).await;
     let url = format!("ws://127.0.0.1:{port}/pty");
     let (sock, _) = connect_async(&url).await.expect("ws connect to /pty should succeed");
     let _ = std::fs::remove_dir_all(&dir);
     (sock, port)
 }
 
-/// Read frames until one of `kind` arrives (skipping e.g. `output` frames that
-/// race the `created` reply), or fail after the timeout.
 async fn recv_kind(sock: &mut Sock, kind: &str) -> Value {
     tokio::time::timeout(std::time::Duration::from_secs(10), async {
         loop {
@@ -47,7 +36,6 @@ async fn recv_kind(sock: &mut Sock, kind: &str) -> Value {
     .expect("a frame of the requested kind should arrive within the timeout")
 }
 
-/// Read output frames until one contains `needle`.
 async fn recv_output_containing(sock: &mut Sock, needle: &str) -> Value {
     tokio::time::timeout(std::time::Duration::from_secs(10), async {
         loop {
@@ -98,15 +86,6 @@ async fn pty_ws_input_on_unknown_session_yields_error_frame() {
     assert!(err["message"].as_str().is_some(), "error frame carries a message: {err}");
 }
 
-// The two "create a real PTY" cases below are `#[ignore]`d. They exercise the full
-// ConPTY path: `portable_pty` calls `CreatePseudoConsole`, which can fail with
-// `HRESULT -2147024890` (ERROR_INVALID_HANDLE) when run from the non-interactive
-// `cargo test` process on Windows. That is an OS/third-party environment limitation,
-// not an `ad-server` defect; the Tauri app opens PTYs fine because its process has a
-// real console context. Default `cargo test` must stay free of failures caused by
-// third-party factors, so these stay ignored unless run explicitly on a ConPTY-capable
-// environment. The 3 protocol/error-frame cases above cover the /pty error contract.
-
 #[tokio::test]
 #[ignore = "ConPTY CreatePseudoConsole returns ERROR_INVALID_HANDLE from the non-interactive test process (third-party/OS env limitation)"]
 async fn pty_ws_create_returns_session_id() {
@@ -131,7 +110,5 @@ async fn pty_ws_echo_round_trip() {
     .await
     .expect("send input");
 
-    // `echo` works across cmd/powershell/bash and the PTY also echoes the typed
-    // command, so "PING_MARKER" must show up in the output stream.
     recv_output_containing(&mut sock, "PING_MARKER").await;
 }

@@ -62,46 +62,6 @@ describe('resolveTauriServerBaseUrl (Task 10 baseUrl discovery)', () => {
   });
 });
 
-describe('createTauriBridge provider domain', () => {
-  it('getProviderApiKey reads the persisted key via Tauri invoke (desktop prefill)', async () => {
-    mockInvoke.mockResolvedValue(okResult('sk-persisted'));
-    const bridge = createTauriBridge('http://127.0.0.1:9999');
-    const res = await bridge.provider.getProviderApiKey('openai');
-
-    expect(mockInvoke).toHaveBeenCalledWith('get_provider_api_key', {
-      providerId: 'openai',
-    });
-    expect(res).toEqual({ ok: true, data: 'sk-persisted' });
-  });
-
-  it('hasProviderApiKey checks presence via Tauri invoke', async () => {
-    mockInvoke.mockResolvedValue(okResult(true));
-    const bridge = createTauriBridge('http://127.0.0.1:9999');
-    const res = await bridge.provider.hasProviderApiKey('openai');
-
-    expect(mockInvoke).toHaveBeenCalledWith('has_provider_api_key', {
-      providerId: 'openai',
-    });
-    expect(res).toEqual({ ok: true, data: true });
-  });
-
-  it('keeps the remaining provider methods on the httpBridge (write-only over HTTP)', async () => {
-    const fetchMock = vi.mocked(globalThis.fetch).mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: async () => ({ ok: true, data: true }),
-    } as Response);
-    const bridge = createTauriBridge('http://127.0.0.1:9999');
-    const res = await bridge.provider.setProviderApiKey('openai', 'sk-new');
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      'http://127.0.0.1:9999/provider/api-key',
-      expect.objectContaining({ method: 'POST' }),
-    );
-    expect(res).toEqual({ ok: true, data: true });
-  });
-});
-
 describe('createTauriBridge workspace domain', () => {
   it('workspace.onFileChanged subscribes to the Tauri file-change channel (desktop)', () => {
     const bridge = createTauriBridge('http://127.0.0.1:9999');
