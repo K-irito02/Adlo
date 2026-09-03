@@ -1,46 +1,8 @@
 # 未来路线图
 
-本文档记录 AI 数字生命项目的远期规划与待实现功能。当前 **Phase 2（Agent 生态）已完成**，Phase 3+ 功能按优先级分层。
+本文档记录 AI 数字生命项目的远期规划与待实现功能。
 
 ---
-
-## Phase 2 已完成功能
-
-以下为 Phase 2（5 个子阶段 2-A 至 2-E）已完成的 18 项缺失能力 + Phase 2 增强（6 项）：
-
-### Phase 2 核心（2-A ~ 2-E）
-
-| 功能 | 说明 | 子阶段 |
-|------|------|--------|
-| 多 Agent 系统 | Agent 注册表 + 路由（build/plan/general/explore/compaction/title/summary）| 2-A |
-| Sub-agent / Task 工具 | Sub-agent 生命周期管理 + 后台执行 + 恢复 | 2-A |
-| Plan Mode | 只读计划模式 + plan_enter/plan_exit + 工具门控 | 2-A |
-| MCP 完整集成 | Stdio/SSE/StreamableHTTP 传输 + OAuth + 工具适配 | 2-B |
-| 多 LLM Provider | OpenAI/Anthropic/Google/Ollama/OpenRouter 适配器 | 2-B |
-| Provider-specific Prompts | 按 Provider 定制的系统提示模板 | 2-B |
-| Compaction | Token-aware 会话压缩（PRUNE_MINIMUM=20000）| 2-C |
-| Snapshot / Revert | Message-level git 快照 + 回滚 | 2-C |
-| WebFetch / WebSearch | 网络获取 + Tavily 搜索工具 | 2-C |
-| 自定义命令 | 可配置斜杠命令（$1/$ARGUMENTS/$WORKSPACE 模板）| 2-D |
-| 权限 Ruleset | Allow/Ask/Deny 三态 + 通配匹配 + doom_loop 检测 | 2-D |
-| Session Fork | 会话分支（父/子关系）| 2-E |
-| LSP 集成 | rust-analyzer/ts-server/pylsp/gopls 支持 | 2-E |
-| Plugin 系统 | Plugin trait + 7 种 Hook + 启禁用管理 | 2-E |
-| Reference 系统 | 外部目录引用 + 上下文注入 | 2-E |
-| 自定义 Agent 配置 | 用户自定义 Agent 注册 | 2-E |
-| Hot Reload Config | notify 文件监听 + watch channel 热加载 | 2-E |
-| Durable Session | 心跳检测 + 崩溃恢复 + 重试 | 2-E |
-
-### Phase 2 增强
-
-| 功能 | 说明 |
-|------|------|
-| Provider 动态注册系统 | `ProviderRegistry` + `runtime_register`/`list_providers` 运行时注册/查询 |
-| (provider, model) 对路由 | 模型请求路由到 `(provider, model)` 精确匹配，支持权重负载均衡 |
-| SSE 真实流式传输 | 基于 `tracing_subscriber::fmt::MakeWriter` + `tokio::sync::broadcast` 的 SSE 管道 |
-| ModelPicker UI | 前端 Provider+Model 选择器，支持搜索与编辑 |
-| ProviderManager 管理面板 | 功能面板中的 Provider 配置管理 |
-| 动态模型获取 | 通过 Provider API 动态拉取可用模型列表 |
 
 ## Phase 3+ 待实现功能
 
@@ -90,7 +52,6 @@
 | 项目 | 说明 | 触发条件 |
 |------|------|----------|
 | 多存储后端 | SQLite → 可插拔存储 | 数据量增长 |
-| 分布式 Agent | 单机 → 分布式 | 多项目并行 |
 | 云端同步 | 本地 → 云端同步 | 用户需求 |
 
 ### 性能优化路线
@@ -99,49 +60,6 @@
 |------|------|
 | 近中期 | 向量检索优化、增量索引 |
 | 远期 | 分布式计算、模型缓存层 |
-
----
-
-## 功能开关策略
-
-以下功能将在 Phase 2+ 分阶段启用：
-
-```typescript
-// Feature flags — Phase 2 all features completed + Phase 2 增强
-const FEATURE_FLAGS = {
-  multiAgent: true,         // Phase 2-A — completed
-  subagent: true,           // Phase 2-A — completed
-  planMode: true,           // Phase 2-A — completed
-  mcp: true,                // Phase 2-B — completed
-  multiProvider: true,      // Phase 2-B — completed
-  compaction: true,         // Phase 2-C — completed
-  snapshotRevert: true,     // Phase 2-C — completed
-  webFetch: true,           // Phase 2-C — completed
-  customCommands: true,     // Phase 2-D — completed
-  permissionRuleset: true,  // Phase 2-D — completed
-  sessionFork: true,        // Phase 2-E — completed
-  lsp: true,                // Phase 2-E — completed
-  pluginSystem: true,       // Phase 2-E — completed
-  referenceSystem: true,    // Phase 2-E — completed
-  customAgent: true,        // Phase 2-E — completed
-  hotReload: true,          // Phase 2-E — completed
-  durableSession: true,     // Phase 2-E — completed
-  providerRegistry: true,   // Phase 2 增强 — completed
-  modelPicker: true,        // Phase 2 增强 — completed
-  providerManager: true,    // Phase 2 增强 — completed
-  sseStreaming: true,       // Phase 2 增强 — completed
-  dynamicModels: true,      // Phase 2 增强 — completed
-  acp: false,               // Phase 3+ — interface only
-  httpApi: false,           // Phase 3+ — interface only
-  codeMode: false,          // Phase 3+ — interface only
-  sandbox: false,           // Phase 3+
-  cloudSync: false,         // Phase 3
-  browserAutomation: false, // Phase 3+
-  plugins: false,           // Phase 3+ (marketplace)
-  collaboration: false,     // Phase 3+
-  multimodal: false,        // Phase 3+
-}
-```
 
 ---
 
@@ -168,4 +86,3 @@ const FEATURE_FLAGS = {
 
 - [AGENTS.md](./AGENTS.md)
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)
-- [phase-boundary.md](./.agents/rules/phase-boundary.md)

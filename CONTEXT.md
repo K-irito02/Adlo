@@ -1,13 +1,13 @@
 # 项目领域术语表
 
-本文档记录 AI 数字生命项目的核心领域概念、架构术语和关键术语定义。帮助贡献者和 AI 代理统一理解项目上下文。
+本文档记录 AI 数字生命项目的核心领域概念、架构术语和关键术语定义。帮助贡献者统一理解项目上下文。
 
 ---
 
 ## 参考项目
 
 ### OpenCode
-本项目的主要参考开源项目（MIT 许可），由 SST/Anomaly 团队开发。终端优先的 AI 编码代理，支持 TUI/Web/Desktop 多客户端。本地副本位于 `references/opencode/`，源码地图见 [docs/analysis/opencode/](./docs/analysis/opencode/)。
+本项目的主要参考开源项目（MIT 许可），由 SST/Anomaly 团队开发。终端优先的 AI 编码助手，支持 TUI/Web/Desktop 多客户端。本地副本位于 `references/opencode/`，源码地图见 [docs/analysis/opencode/](./docs/analysis/opencode/)。
 
 > 本项目的架构设计、编码模式与功能实现多处借鉴 OpenCode，包括但不限于：命名空间投影、Service+Layer 依赖注入、Schema 驱动类型系统、三态权限引擎、ConfigTransform 可重放配置变换。
 
@@ -26,12 +26,12 @@
 ## 架构模式
 
 ### 命名空间投影 (Namespace Projection)
-模块通过自己的导出命名空间暴露类型，消费者通过命名空间限定符访问：`import { Agent } from "./agent"` 后通过 `Agent.ID`、`Agent.Info` 引用。避免扁平化导入导致的命名冲突。对应本项目：`kernel/types/` 中 `AgentConfig`、`ConversationConfig` 等类型的组织方式。
+模块通过自己的导出命名空间暴露类型，消费者通过命名空间限定符访问：`import { Config } from "./config"` 后通过 `Config.ID`、`Config.Info` 引用。避免扁平化导入导致的命名冲突。对应本项目：`kernel/types/` 中 `Config`、`ConversationConfig` 等类型的组织方式。
 
 ### Global 节点 vs Location 节点
 服务生命周期管理策略：
 - **Global 节点**：进程级单例，如 Database、Git、全局配置
-- **Location 节点**：每工作目录独立实例，如 Agent、Config、Permission、Skill
+- **Location 节点**：每工作目录独立实例，如 Config、Permission
 
 对应本项目：进程级服务（`adl-logging`、`errors` crate）vs 工作区级服务（`workspace`、`pty` crate）。
 
@@ -62,7 +62,7 @@ Tauri 的 IPC 调用机制。前端通过 `invoke()` 调用 Rust 后端函数，
 `storage` crate 中的宏，用于自动生成 SQLite CRUD 操作代码，减少样板代码。
 
 ### Layer (adl-logging crate)
-Tracing 日志系统的配置层，支持文件输出和结构化字段。通过 manager 管理多 session 日志。
+Tracing 日志系统的配置层，支持文件输出和结构化字段。
 
 ### Sidecar
 桌面端启动的独立后端子进程（当前 Tauri 模式）。未来移动端可通过 SSH/Sidecar 连接桌面端或服务器。
@@ -85,8 +85,8 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。通过
 
 ### Branded Types（标记类型）
 编译时名义类型（nominal typing）模式，定义在 `frontend/src/shared/branded.ts`。使用 TypeScript `unique symbol` 交叉类型实现零运行时开销的类型安全：
-- `WorkspaceID`、`SessionID`、`TerminalSessionID`、`AgentRunID` 等 ID 类型
-- 赋值时必须显式转型（`asWorkspaceID(str)` / `asSessionID(str)`），防止 ID 类型间混用
+- `WorkspaceID`、`TerminalSessionID` 等 ID 类型
+- 赋值时必须显式转型（`asWorkspaceID(str)`），防止 ID 类型间混用
 - 桥接层保持使用 `string` 传输，前端边界处通过 `as string` 剥离品牌
 
 ### Typed Error Classes（类型化错误类）
@@ -94,7 +94,7 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。通过
 
 ### EventBuffer（事件缓冲区）
 前端定义在 `frontend/src/shared/eventBuffer.ts`，泛型缓冲区类，用于收集高频事件
-（模型流、终端输出）后批量刷出，减少 React re-render 次数：
+（终端输出）后批量刷出，减少 React re-render 次数：
 - `flush()` — 清空并返回所有缓冲事件
 - `drainWithReconciliation(mergeKey, reducer)` — 按 key 去重合并
 - `scheduleFlush(callback)` — 微任务级批量刷新
@@ -110,23 +110,9 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。通过
 Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allow 三态模型：
 - `PermissionDecision` 枚举：`Allow < Ask < Deny`（PartialOrd 优先级）
 - `PermissionRule` 结构：`pattern` 支持 `*`（单段）和 `**`（多段）通配符
-- 无规则匹配时回退到 `RiskLevel` 映射：Low→Allow, Medium→Ask, High→Deny
 
 ### Design Token
 设计系统的基础原子值，定义在 `frontend/src/design-system/tokens.ts`。包含 ShadowToken、ColorToken、SpacingToken 等类型。
-
----
-
-## AI 代理概念
-
-### 规则文件 (Rules)
-位于 `.agents/rules/`（真源）、`.opencode/rules/` 和 `.trae/rules/`（同步副本）目录的 Markdown 文件，以 YAML frontmatter 标记元数据。通过 `alwaysApply` 或 `globs` 控制应用范围。
-
-### 技能系统 (Skills)
-基于 Superpowers 框架的 AI 代理能力包，位于 `.opencode/skills/` 目录。共 26 个技能（14 Superpowers 核心 + 12 项目定制），分布在三个 IDE 目录中（`.opencode/skills/` 真源、`.agents/skills/` 同步备份、`.trae/skills/` 同步备份）。
-
-### 强制验收流程
-代码变更完成后自动触发的质量检测流程，包括 Lint、类型检查、测试执行。按变更层级（L1/L2/L3）确定检测范围。
 
 ---
 
@@ -136,10 +122,7 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 已完成。包括 Rust crate 架构、Tauri 壳层、安全边界（capability 权限策略）、SQLite 持久化、日志系统。
 
 ### Phase 1 - 交互式 MVP
-已完成。包括模型接入（model-gateway）、会话/消息管理、上下文管理、变更预览/应用/回滚。
-
-### Phase 2 - Agent 生态
-已完成（2026-07-06）。包括 18 项缺失能力：多 Agent 系统、Sub-agent/Task 工具、Plan Mode、MCP 完整集成、多 LLM Provider、Provider-specific Prompts、Compaction、Snapshot/Revert、WebFetch/WebSearch、自定义命令、权限 Ruleset、Session Fork、LSP 集成、Plugin 系统、Reference 系统、自定义 Agent 配置、Hot Reload Config、Durable Session。
+已完成。包括变更预览/应用/回滚。
 
 ### Phase 3+ - 生态与规模化
 规划中。包括 ACP、HTTP API、CodeMode 沙箱、插件市场、浏览器自动化运行时、云服务集成、多模态输入、CI/CD 集成等。
@@ -163,9 +146,6 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 ### 变更引擎 (Change Engine)
 代码变更预览、应用、回滚、checkpoint 管理。位于 `crates/change-engine/`。
 
-### 模型网关 (Model Gateway)
-多模型/多 Provider 路由层，支持 DeepSeek、MiniMax 等模型流式接入。位于 `crates/model-gateway/`。
-
 ---
 
 ## 数据库
@@ -174,17 +154,7 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 本地持久化存储，通过 `r2d2` 连接池管理，`WAL` 模式。`sql/` 目录包含 schema 和索引 SQL 文件。
 
 ### Storage Layer
-位于 `crates/storage/`，提供 CRUD 抽象、实体表宏、session 管理、数据清理。
-
----
-
-## 技能系统
-
-### Superpowers
-基于 opencode.json 安装的 AI 代理框架，提供 14 个核心技能。插件路径：`~/.config/opencode/node_modules/superpowers`。
-
-### 真源目录
-技能文件的源目录为 `.opencode/skills/`，同步备份到 `.agents/skills/` 和 `.trae/skills/` 以兼容不同 IDE。
+位于 `crates/storage/`，提供 CRUD 抽象、实体表宏、数据清理。
 
 ---
 

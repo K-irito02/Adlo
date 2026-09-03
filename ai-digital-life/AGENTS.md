@@ -20,30 +20,16 @@
 
 ## 当前阶段
 
-**Phase 0 底座** + **Phase 2 完成 — 全功能交互式 MVP**：
+**Phase 0 底座**：
 
 - Tauri 桌面壳、SQLite 状态
-- 工作区与对话、补丁预览/应用/回滚
-- 模型网关（含流式与取消）
-- 命令治理与终端流式输出
+- 工作区管理、补丁预览/应用/回滚
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 4模式导航栏（open/tabs/list/search）+ SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效 + 已打开标签过滤（filterTabIds）+ 多 iframe 状态保持（activatedTabIdsRef）+ 悬停关闭按钮（danger-hover）+ Flat 模式 ::after 渐变蒙版 + text-overflow: clip + 网站元数据持久化缓存（favicon data-URI + 标题，三层：Rust SQLite `site_meta_cache.rs` / preview JSON `.adl-cache/` / 前端 `siteMetaCache.ts`，预载门控 + 成功才写 + 引用计数删除）+ 标签加载状态（favicon 加载中 spinner + 标题未结算时"新建标签页"扫光动效，`titleResolved` 状态机 + `isRealTitle` 统一判定）+ 跨域重定向 favicon/标题兜底（方案 A 历史 URL 回写 `browserUpdateHistoryUrl` + 方案 B 会话级 `redirectMap`，`expectedNavigationUrlRef={url,at,tabId}` 显式导航检测 + 10s 新鲜度 + 发起 tab 绑定，参考 Chrome/Edge 重定向链消化语义 + Chromium `page_url_type`））
 - Zustand 切片模式（35 切片 + 31 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（13 领域 / 936 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
-
-### Phase 2 完整功能（18 项缺失能力）
-
-| 子阶段 | 新增能力 |
-|--------|---------|
-| **2-A** | 多 Agent 系统（Agent 注册表 + 路由）、Sub-agent / Task 工具、Plan Mode |
-| **2-B** | MCP 完整集成（Stdio/SSE/StreamableHTTP 独立 transport + OAuth + 自动重连 ClientHandler）、多 LLM Provider（OpenAI/Anthropic/Google/Ollama/OpenRouter）、Provider-specific Prompts |
-| **2-B 增强** | Provider 动态注册系统（ProviderRegistry 取代 ModelProviderId enum）、(provider, model) 对路由、SSE 真实流式传输（取代 post-hoc chunking）、ModelPicker UI 组件、ProviderManager 管理面板、动态模型获取 (fetch_models) |
-| **模型设置（2026-08-05~06）** | 设置页"模型"两区式（供应商卡片 + 已启用模型列表）、per-model 三态启用（`enabledModels: string[] | null`：null=全部启用 / []=全部关闭 / [ids]=白名单）、乐观本地补丁 + updatePreferences 串行化、网关路由层 per-model 强校验（含流式路径）、供应商搜索/整卡展开/自定义供应商居中弹窗（复用 adl-prompt-modal）、移除右面板 models 工具与 setDefaultModel |
-| **2-C** | Token-aware Compaction（PRUNE_MINIMUM=20000 触发 / PRUNE_PROTECT=40000 保护区）、Snapshot/Revert（message-level git 快照）、WebFetch / WebSearch 工具（WebFetch: 5MB 限制 + 30s 超时 + HTML→Markdown + 格式选择 text/markdown/html） |
-| **2-D** | 自定义命令配置（模板变量 $1/$ARGUMENTS/$WORKSPACE）、权限系统升级为 Ruleset（Allow/Ask/Deny + 通配匹配 + doom_loop 检测） |
-| **2-E** | Session Fork、LSP 集成（rust-analyzer/ts-server/pylsp/gopls）、Plugin 系统（trait + hooks 链式传播 + Vec 有序注册 + registry）、Reference 系统、自定义 Agent 配置、Hot Reloadable Config、Durable Session Execution、ACP/HTTP API/CodeMode 预留接口 |
 
 > 截至 2026-08-07：工具链 rustc 1.97.1，629 Rust 测试通过、1260 前端测试通过。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
 >
@@ -81,7 +67,7 @@
 | Tooltip | 自定义 Tooltip 组件与原生 `title` 均可使用，具体方案开发时由用户决策 |
 | 窗口 | 最小宽度 640px |
 
-详见 [docs/design-system/](../docs/design-system/) 和 [UI 模式速查](../.agents/rules/ui-patterns.md)
+详见 [docs/design-system/](../docs/design-system/)
 
 ## Stores 架构（Zustand 切片合并模式）
 
@@ -96,9 +82,8 @@ app/stores/
 ├── selectors.ts                 # 性能选择器（useShallow）
 ├── slices/                      # 35 个独立切片（含 5 浏览器 + 3 GitHub + 7 Phase 2 增强切片）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
-│   ├── sessionSlice.ts / editorSlice.ts / patchSlice.ts
-│   ├── searchSlice.ts / diagnosticSlice.ts / taskSlice.ts
-│   ├── providerSlice.ts             # 提供商与模型选择状态（selectedProviderId/selectedModelId）
+│   ├── editorSlice.ts / patchSlice.ts
+│   ├── searchSlice.ts / diagnosticSlice.ts
 │   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
 │   ├── ciSlice.ts                   # CI 状态（轮询、快照、Section 切换）
 │   ├── communicateSlice.ts          # 通信面板共享状态
@@ -112,11 +97,10 @@ app/stores/
 │   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
 │   └── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
 └── actions/                     # 31 个跨切片 action 模块
-    ├── workspaceActions.ts（448 行） / sessionActions.ts / editorActions.ts
+    ├── workspaceActions.ts（448 行） / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
     ├── streamActions.ts / generalActions.ts / searchActions.ts
-    ├── providerActions.ts            # 提供商管理（setApiKey/testConnection/fetchModels/selectModel）
-    ├── taskActions.ts / commandActions.ts / browserCleanupActions.ts（112 行）
+    ├── commandActions.ts / browserCleanupActions.ts（112 行）
 ```
 
 ### 关键文件
@@ -127,7 +111,6 @@ app/stores/
 | `frontend/src/app/stores/StoreState.ts` | 完整类型接口 |
 | `frontend/src/app/stores/slices/browserFoldersSlice.ts` | `BookmarkTabItem`（`TabFolderState.tabs` 元素类型：`{ tabId, url, title }`） |
 | `frontend/src/app/stores/selectors.ts` | 性能选择器（useShallow） |
-| `frontend/src/shared/preferencesMerger.ts` | 模型配置合并共享函数（桥接层使用） |
 
 ## 文档入口
 
@@ -150,7 +133,7 @@ app/stores/
 
 ## 问题排查规范
 
-排查问题时**先定位根本原因**，不急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查规范) 和 [dev-rules.md](../.agents/rules/dev-rules.md#问题排查规范)。
+排查问题时**先定位根本原因**，不急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查规范)。
 
 ## 未发布阶段禁止兼容性代码
 
@@ -158,14 +141,12 @@ app/stores/
 
 ## 相关文件
 
-- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则（含 Superpowers 技能系统、参考项目 OpenCode / Pi）
-- [技能系统入口](../.opencode/skills/using-superpowers/SKILL.md) — using-superpowers 入口技能（共 28 个技能：14 Superpowers 核心 + 14 项目定制）
+- [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
 - [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
 - [references/pi/](../references/pi/) — 参考项目 Pi 本地源码（MIT 许可）
 - [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 源码地图
 - [docs/analysis/ai-digital-life/](../docs/analysis/ai-digital-life/) — ADL 源码地图（本项目的渐进式索引）
-- [技能：codegraph-knowledge-graph](../.opencode/skills/codegraph-knowledge-graph/SKILL.md) — 三份本地 CodeGraph 知识图谱查询指南（本应用、pi、opencode，MCP / CLI 双通道）
 
 ## 磁盘空间管理
 

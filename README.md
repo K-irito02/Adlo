@@ -1,6 +1,6 @@
 # AI 数字生命
 
-AI 数字生命桌面应用的规划与治理仓库。当前 **Phase 2（Agent 生态）已完成**，为全功能交互式 MVP；远期规划支持**移动端远程控制**桌面端/服务器。
+AI 数字生命桌面应用的规划与治理仓库。远期规划支持**移动端远程控制**桌面端/服务器。
 
 项目参考了 [OpenCode](https://github.com/anomalyco/opencode)（MIT 许可）开源项目，在架构设计、编码模式与功能实现上借鉴与复用。本地副本位于 `references/opencode/`。
 
@@ -13,10 +13,6 @@ AI 数字生命桌面应用的规划与治理仓库。当前 **Phase 2（Agent �
 | [docs/analysis/opencode/](./docs/analysis/opencode/) | OpenCode 源码地图（渐进式索引） |
 | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/) | AI Digital Life 源码地图（渐进式索引） |
 | [references/](./references/) | 外部参考源码（OpenCode 等） |
-| [.agents/rules/](./.agents/rules/) | AI 代理规则源目录（同步到 `.opencode/rules/` 和 `.trae/rules/`） |
-| [.opencode/rules/](./.opencode/rules/) | AI 代理规则副本（由 `.agents/rules/` 同步） |
-| [.trae/rules/](./.trae/rules/) | AI 代理规则副本（由 `.agents/rules/` 同步） |
-| [.opencode/skills/](./.opencode/skills/) | AI 代理技能包（28 个，含 Superpowers 核心） |
 
 ## 技术栈
 
@@ -37,7 +33,7 @@ AI 数字生命桌面应用的规划与治理仓库。当前 **Phase 2（Agent �
 
 ## 快速入口
 
-- [AGENTS.md](./AGENTS.md) — 项目治理规则、Phase 划分、编码规范、禁止项、技能系统
+- [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
 - [SECURITY.md](./SECURITY.md) — 安全策略
@@ -47,4 +43,3 @@ AI 数字生命桌面应用的规划与治理仓库。当前 **Phase 2（Agent �
 - [docs/knowledge-base/README.md](./docs/knowledge-base/README.md) — 经验教训索引
 - [docs/analysis/opencode/README.md](./docs/analysis/opencode/README.md) — OpenCode 源码地图（渐进式索引）
 - [docs/analysis/ai-digital-life/README.md](./docs/analysis/ai-digital-life/README.md) — ADL 源码地图（渐进式索引）
-- [.opencode/skills/using-superpowers/SKILL.md](./.opencode/skills/using-superpowers/SKILL.md) — 技能系统入口

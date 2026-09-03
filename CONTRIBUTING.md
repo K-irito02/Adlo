@@ -47,16 +47,10 @@ pnpm run dev:both
 ### 目录结构
 
 ```
-├── AGENTS.md            # 项目治理规则、编码规范、技能系统
+├── AGENTS.md            # 项目治理规则、编码规范
 ├── CONTEXT.md           # 领域术语表
 ├── SECURITY.md          # 安全策略
 ├── FUTURE-ROADMAP.md    # 远期规划
-├── .agents/rules/       # AI 代理规则真源（同步到 .opencode/rules/ 和 .trae/rules/）
-├── .opencode/rules/     # AI 代理规则副本
-├── .trae/rules/         # AI 代理规则副本
-├── .opencode/skills/    # 技能真源（同步到 .agents/skills/ 和 .trae/skills/）
-├── .agents/skills/      # 技能同步备份
-├── .trae/skills/        # 技能同步备份
 ├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
 ├── references/          # 外部参考源码（OpenCode 等）
 └── docs/                # 架构、设计、知识库
@@ -119,7 +113,7 @@ pnpm run dev:both
 
 ## 相关文档
 
-- [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范、技能系统
+- [AGENTS.md](./AGENTS.md) — 项目治理规则、编码规范
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
 - [SECURITY.md](./SECURITY.md) — 安全策略
 - [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
