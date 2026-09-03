@@ -417,7 +417,7 @@ export type SettingsGroupId =
   | 'general'
   | 'workspace'
   | 'shortcuts'
-  | 'mcp'
+
   | 'commands'
   | 'permissions'
   | 'references'

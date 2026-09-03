@@ -8,7 +8,6 @@ import { TooltipSimple } from '../Tooltip';
 import { SettingsNav } from './SettingsNav';
 import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
-import { McpSettings } from '../../features/mcp/McpSettings';
 import { CommandSettings } from '../../features/command-editor/CommandSettings';
 import { PermissionSettings } from '../../features/permission-settings/PermissionSettings';
 import { ReferenceSettings } from '../../features/reference-manager/ReferenceSettings';
@@ -29,7 +28,6 @@ interface SettingsPanelProps {
 
 const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>> = {
   shortcuts: KeybindSettings,
-  mcp: McpSettings,
   commands: CommandSettings,
   permissions: PermissionSettings,
   references: ReferenceSettings,

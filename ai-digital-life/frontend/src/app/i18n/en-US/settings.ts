@@ -10,7 +10,6 @@ export const settingsEn = {
   settingsGeneral: 'General',
   settingsWorkspace: 'Workspace',
   settingsShortcuts: 'Shortcuts',
-  settingsMcp: 'MCP Servers',
   settingsModels: 'Models',
   settingsCommands: 'Custom Commands',
   settingsPermissions: 'Permission Rules',

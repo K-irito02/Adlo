@@ -10,7 +10,6 @@ export const settingsZh = {
   settingsGeneral: '通用',
   settingsWorkspace: '工作区',
   settingsShortcuts: '快捷键',
-  settingsMcp: 'MCP 服务器',
   settingsModels: '模型',
   settingsCommands: '自定义命令',
   settingsPermissions: '权限规则',
