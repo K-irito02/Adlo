@@ -6,7 +6,7 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import { createEditorTab } from '@utils/editorTabs';
-import { loadConversationState, loadTaskCenterState } from '../loaders';
+import { loadConversationState } from '../loaders';
 import { workspaceContextModeFromInfo } from '../conversationUtils';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
@@ -45,12 +45,12 @@ export function accumulateBatch<K extends keyof StoreState>(
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
-     * [bootstrap - 启动应用，获取工作区信息、会话、任务中心、Git 状态和补丁]
+     * [bootstrap - 启动应用，获取工作区信息、会话、Git 状态和补丁]
      * @reads — 无（冷启动）
-     * @writes workspaceSlice.appInfo, workspaceSlice.modelHealth, workspaceSlice.recentWorkspaces, sessionSlice.sessions, sessionSlice.activeSessionId, sessionSlice.sessionDetails, taskSlice.taskCenter, workspaceSlice.workspaceContextMode, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, editorSlice.externalFileChange, editorSlice.changePreview, editorSlice.changePreviewLoading, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, commandSlice.commandHistory, searchSlice.searchQuery, searchSlice.searchResults
-     * @see shared/ipc.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
-     * @see mock-bridge.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
-     * @see preview-bridge/index.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, task.listAuditEntries, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
+     * @writes workspaceSlice.appInfo, workspaceSlice.modelHealth, workspaceSlice.recentWorkspaces, sessionSlice.sessions, sessionSlice.activeSessionId, sessionSlice.sessionDetails, workspaceSlice.workspaceContextMode, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, editorSlice.externalFileChange, editorSlice.changePreview, editorSlice.changePreviewLoading, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, commandSlice.commandHistory, searchSlice.searchQuery, searchSlice.searchResults
+     * @see shared/ipc.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
+     * @see mock-bridge.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
+     * @see preview-bridge/index.ts → app.getInfo, workspace.listRecent, app.getModelHealth, workspace.getGitStatus, patch.getPatchSet, retrieval.getStatus, retrieval.getRepoMap, command.listRecent, workspace.listTree, workspace.listGitStatusForWorkspace
      */
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
@@ -80,10 +80,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         appInfoResult.data.config.themeMode,
       );
 
-      const [conversationState, taskCenter] = await Promise.all([
-        loadConversationState(),
-        loadTaskCenterState(),
-      ]);
+      const conversationState = await loadConversationState();
       if (requestSeq !== workspaceRequestSeq) {
         return;
       }
@@ -104,7 +101,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         sessionDetails: conversationState.detail
           ? { [conversationState.detail.session.id]: conversationState.detail }
           : {},
-        taskCenter,
         workspaceContextMode: workspaceContextModeFromInfo(appInfoResult.data),
         loading: false,
         dirtyEditorPaths: [],
@@ -169,11 +165,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           if (requestSeq !== workspaceRequestSeq) {
             return;
           }
-          await Promise.allSettled([
-            get().fetchAuditEntries(40),
-            get().fetchCommandHistory(),
-            get().fetchGitBranches(),
-          ]);
+          await Promise.allSettled([get().fetchCommandHistory(), get().fetchGitBranches()]);
 
           if (visibleWorkspaces.length > 0) {
             const appInfo_ = get().appInfo;
@@ -300,7 +292,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         outline: [],
         indexingStatus: undefined,
         repoMap: [],
-        auditEntries: [],
         commandHistory: [],
         gitSnapshot: undefined,
         gitSnapshots: {},

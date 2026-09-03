@@ -111,25 +111,6 @@ export interface RunActivityEventRecord {
   createdAt: number;
 }
 
-export interface ModelCallAuditRecord {
-  id: string;
-  requestId: string;
-  workspaceId: string;
-  sessionId: string;
-  runId?: string;
-  providerId: ModelProviderId;
-  modelId: string;
-  scenario: ConversationScenario;
-  // eslint-disable-next-line @typescript-eslint/consistent-type-imports
-  routeMeta: import('./types-model').ModelRouteDecision;
-  promptTokens?: number | null;
-  completionTokens?: number | null;
-  latencyMs: number;
-  error?: string;
-  streamed: boolean;
-  createdAt: number;
-}
-
 // ════════════════════════════════════════════════════════
 // Agent Run / Plan Steps
 // ════════════════════════════════════════════════════════

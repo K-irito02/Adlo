@@ -26,10 +26,8 @@ import { useTCopy } from '@i18n/useTCopy';
 
 export function TerminalPanel(props: TerminalPanelProps) {
   const { t } = useTCopy();
-  const { latestCommandRun } = props;
 
   const {
-    setActiveRightTool,
     recentWorkspaces,
     terminalWorkspaceExpanded,
     setTerminalWorkspaceExpanded,
@@ -39,7 +37,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
     hideWorkspaceFromRightPanels,
   } = useAppStore(
     useShallow((s) => ({
-      setActiveRightTool: s.setActiveRightTool,
       recentWorkspaces: s.recentWorkspaces,
       terminalWorkspaceExpanded: s.terminalWorkspaceExpanded,
       setTerminalWorkspaceExpanded: s.setTerminalWorkspaceExpanded,
@@ -311,18 +308,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
                   onData={terminalActions.handleXtermData}
                   onResize={terminalActions.handleXtermResize}
                 />
-                {latestCommandRun?.status === 'waiting-approval' && (
-                  <div className="adl-terminal-approval-hint">
-                    <span>{t.terminalNeedsApproval}</span>
-                    <button
-                      type="button"
-                      className="adl-btn adl-btn--primary adl-btn--xs"
-                      onClick={() => setActiveRightTool('audit')}
-                    >
-                      {t.terminalGoToApproval}
-                    </button>
-                  </div>
-                )}
                 {activeTab?.status === 'terminated' && !activeTab?.sessionId && (
                   <div className="adl-terminal-error-note">
                     <span>{'\u26A0'}</span>

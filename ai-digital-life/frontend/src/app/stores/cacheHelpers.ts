@@ -226,19 +226,16 @@ export function createDebouncedSearch(ms: number) {
 }
 
 export async function postMutationRefresh(get: () => StoreState): Promise<void> {
-  await Promise.allSettled([
-    get().refreshTaskCenter(),
-    get().fetchAuditEntries(40),
-    get().fetchCommandHistory(),
-    get().fetchGitStatus(),
-  ]).then((results) => {
-    const errors = results
-      .filter((r) => r.status === 'rejected')
-      .map((r) => (r as PromiseRejectedResult).reason);
-    if (errors.length > 0) {
-      /* some refreshes failed */
-    }
-  });
+  await Promise.allSettled([get().fetchCommandHistory(), get().fetchGitStatus()]).then(
+    (results) => {
+      const errors = results
+        .filter((r) => r.status === 'rejected')
+        .map((r) => (r as PromiseRejectedResult).reason);
+      if (errors.length > 0) {
+        /* some refreshes failed */
+      }
+    },
+  );
 }
 
 export async function batchExpandAll(

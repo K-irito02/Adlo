@@ -30,7 +30,6 @@ export const workspaceEn = {
   sessionMenuRevealFolder: 'Open in Explorer',
   showInRightPanels: 'Show in right panel',
   statusProcessing: 'Processing',
-  statusPendingApproval: 'Pending approval',
   statusAbnormal: 'Error',
   statusCompleted: 'Completed',
   statusRead: 'Read',

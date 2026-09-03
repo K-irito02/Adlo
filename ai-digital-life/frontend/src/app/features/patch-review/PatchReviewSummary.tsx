@@ -56,7 +56,7 @@ export function PatchReviewSummary({
               onClick={() => onSetPatchReviewFilter(filter)}
             >
               {filter === 'all'
-                ? t.auditFilterAll
+                ? t.changesAll
                 : filter === 'pending'
                   ? t.approvalPendingCount
                   : filter === 'accepted'

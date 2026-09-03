@@ -30,7 +30,6 @@ export const workspaceZh = {
   sessionMenuRevealFolder: '在文件管理器中打开',
   showInRightPanels: '在右侧面板显示',
   statusProcessing: '处理中',
-  statusPendingApproval: '待审核',
   statusAbnormal: '异常',
   statusCompleted: '已完成',
   statusRead: '已读',

@@ -20,7 +20,6 @@ import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { RunActivityBridge } from '../shared/ipc/run-activity';
 import type { SessionForkBridge } from '../shared/ipc/session_fork';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
-import type { TaskBridge } from '../shared/ipc/task';
 import type { WebToolsBridge } from '../shared/ipc/web_tools';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
@@ -297,11 +296,6 @@ export function setupPreviewBridge(): void {
       adlServerBaseUrl,
       http.customAgent,
       mockDigitalLifeBridge.customAgent,
-    ),
-    task: preferHttpWhenReachable<TaskBridge>(
-      adlServerBaseUrl,
-      http.task,
-      mockDigitalLifeBridge.task,
     ),
     runActivity: preferHttpWhenReachable<RunActivityBridge>(
       adlServerBaseUrl,

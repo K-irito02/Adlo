@@ -116,8 +116,6 @@ export function createPatchActions(set: StoreApi<StoreState>['setState'], get: (
           set({ activeRun: run.data });
         }
       }
-      await get().refreshTaskCenter();
-      await get().fetchAuditEntries(40);
       await get().fetchGitStatus();
     },
 

@@ -260,7 +260,7 @@ async fn execute_subagent_llm_call(
     messages.push(ModelChatMessage { role: ConversationRole::User, content: prompt.to_string() });
 
     let gateway = adl_model_gateway::ModelGateway::new(model_preferences, provider_registry)?;
-    let (response, _audit) =
+    let response =
         gateway.chat(workspace_id, session_id, None, ConversationScenario::Chat, messages).await;
 
     if response.synthetic {

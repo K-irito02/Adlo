@@ -24,7 +24,6 @@ export function useRightPanelViewProps() {
   const browserTabs = useAppStore(useShallow((state) => state.browserTabs));
   const terminalTabs = useAppStore(useShallow((state) => state.terminalTabs));
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
-  const auditEntries = useAppStore(useShallow((s) => s.auditEntries));
   const gitSnapshot = useAppStore(useShallow((s) => s.gitSnapshot));
   const appInfoForBadges = useAppStore(useShallow((s) => s.appInfo));
 
@@ -53,9 +52,7 @@ export function useRightPanelViewProps() {
       changes: countGitChanges(gitSnapshot ?? appInfoForBadges?.currentWorkspace?.gitSnapshot),
       browser: browserTabs.length,
       terminal: terminalTabs.length,
-      audit: auditEntries.length,
       settings: 0,
-      ci: 0,
       communicate: communicateBadge,
     }),
     [
@@ -64,7 +61,6 @@ export function useRightPanelViewProps() {
       appInfoForBadges?.currentWorkspace?.gitSnapshot,
       browserTabs.length,
       terminalTabs.length,
-      auditEntries.length,
       communicateBadge,
     ],
   );

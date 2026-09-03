@@ -24,7 +24,6 @@ import { mockRetrieval } from './mock/mock-retrieval';
 import { mockConversation } from './mock/mock-conversation';
 import { mockPatch } from './mock/mock-patch';
 import { mockPty } from './mock/mock-terminal';
-import { mockTask } from './mock/mock-task';
 import { mockWindow } from './mock/mock-window';
 import { mockApp } from './mock/mock-app';
 import { mockAgent, mockSubagent } from './mock/mock-agent';
@@ -138,7 +137,6 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   patch: mockPatch,
   command: mockCommand,
   pty: mockPty,
-  task: mockTask,
   runActivity: mockRunActivity,
   browser: mockBrowser,
   github: mockGithub,

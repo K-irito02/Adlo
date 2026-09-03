@@ -284,7 +284,7 @@ export function RunSummaryBlock({
               })}
             </div>
           ) : (
-            <p className="adl-empty-hint">{t.auditEmpty}</p>
+            <p className="adl-empty-hint">{t.noContent}</p>
           )}
         </div>
       ) : null}

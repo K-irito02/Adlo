@@ -1,8 +1,6 @@
 import type {
   AppInfo,
-  AuditEntry,
   CiStatusSnapshot,
-  CommandRunResult,
   FileOutlineItem,
   FilePatch,
   WorkspaceChangePreview,
@@ -119,14 +117,12 @@ export interface RightPanelViewProps {
   onJumpPatchHunk: (direction: PatchDirection) => void;
   modelHealth?: ModelGatewayHealthSnapshot;
   onRefreshModelHealth: () => void;
-  auditEntries: AuditEntry[];
   settings: SettingItem[];
   gitSnapshot?: GitSnapshot;
   gitSnapshots: Record<string, GitSnapshot>;
   workspaceChangesExpanded: Record<string, boolean>;
   commandHistory: string[];
   onChangeSetting: (id: string, value: string | boolean | number) => void;
-  latestCommandRun?: CommandRunResult;
 }
 
 export type FilesPanelProps = Pick<
@@ -224,12 +220,7 @@ export interface BrowserPanelProps {
   isVisible: boolean;
 }
 
-export type TerminalPanelProps = Pick<
-  RightPanelViewProps,
-  'latestCommandRun' | 'commandHistory' | 'appInfo'
->;
-
-export type AuditPanelProps = Pick<RightPanelViewProps, 'auditEntries'>;
+export type TerminalPanelProps = Pick<RightPanelViewProps, 'commandHistory' | 'appInfo'>;
 
 export type ModelPanelProps = Pick<RightPanelViewProps, 'modelHealth' | 'onRefreshModelHealth'>;
 

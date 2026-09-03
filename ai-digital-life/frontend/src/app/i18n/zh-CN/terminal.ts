@@ -31,7 +31,6 @@ export const terminalZh = {
   terminalExpandAll: '展开全部',
   terminalCollapseOutput: '收起输出',
   terminalNeedsApproval: '需要审批',
-  terminalGoToApproval: '前往审批',
   terminalCommandHistory: '命令历史',
   terminalViewFullOutput: '查看完整输出',
   commandBlockPrefix: '$',

@@ -80,15 +80,6 @@ export interface ApprovalRecord {
   expiresAt?: number;
 }
 
-export interface AuditRecord {
-  id: string;
-  entityType: 'task' | 'approval' | 'workspace' | 'session';
-  entityId: string;
-  action: string;
-  detail: string;
-  createdAt: number;
-}
-
 export interface CheckpointRecord {
   id: string;
   sessionId: string;

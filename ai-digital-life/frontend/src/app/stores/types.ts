@@ -1,12 +1,4 @@
-export type ToolId =
-  | 'files'
-  | 'changes'
-  | 'browser'
-  | 'terminal'
-  | 'audit'
-  | 'settings'
-  | 'ci'
-  | 'communicate';
+export type ToolId = 'files' | 'changes' | 'browser' | 'terminal' | 'settings' | 'communicate';
 export type ChatMode = 'plan' | 'debug' | 'ask';
 export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
 export type FilesNavigatorMode = 'tree' | 'search' | 'outline';

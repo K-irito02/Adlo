@@ -80,11 +80,11 @@ async fn command_run_low_risk_executes() {
     assert!(body["data"]["approvalRequest"].is_null(), "no approval for low risk: {body}");
 }
 
-/// POST /command/run with a medium-risk command returns
-/// status:"waiting-approval" (persists the request, task + approval, audit)
-/// without executing anything.
+/// POST /command/run with a medium-risk command is denied — the approval flow
+/// that once gated it is removed (host / dsh owns approvals), so nothing
+/// executes and nothing is persisted as a pending approval.
 #[tokio::test]
-async fn command_run_medium_risk_waits_for_approval() {
+async fn command_run_medium_risk_is_denied() {
     let state = state().await;
     open_workspace(state.clone()).await;
 
@@ -95,27 +95,21 @@ async fn command_run_medium_risk_waits_for_approval() {
         Some(json!({ "command": "npm", "args": ["install"], "shell": false })),
     )
     .await;
-    assert_eq!(status, StatusCode::OK, "run body: {body}");
-    assert_eq!(body["ok"], true, "run body: {body}");
-    assert_eq!(body["data"]["status"], "waiting-approval", "body: {body}");
-    let task_id = body["data"]["taskId"].as_str().expect("task id").to_string();
-    assert!(!task_id.is_empty());
-    assert!(body["data"]["result"].is_null(), "command must NOT execute: {body}");
-    let approval = body["data"]["approvalRequest"].as_object().expect("approval request");
-    assert!(approval.contains_key("id"), "approval request id: {approval:?}");
-    assert!(approval.contains_key("taskId"), "approval request taskId: {approval:?}");
+    assert_eq!(status, StatusCode::BAD_REQUEST, "run body: {body}");
+    assert_eq!(body["ok"], false, "medium-risk run denied: {body}");
+    assert_eq!(body["error"]["code"], "SECURITY_ERROR", "body: {body}");
 
-    // The request is persisted and addressable by listRecent.
+    // Nothing is persisted for the denied run.
     let (status, recent) =
         send(state, Method::POST, "/command/recent", Some(json!({ "limit": 10 }))).await;
     assert_eq!(status, StatusCode::OK, "recent body: {recent}");
     assert!(
-        recent["data"]
+        !recent["data"]
             .as_array()
             .unwrap()
             .iter()
             .any(|r| r["command"] == "npm" && r["args"][0] == "install"),
-        "request should be persisted: {recent}"
+        "denied request must not be persisted: {recent}"
     );
 }
 

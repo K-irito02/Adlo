@@ -31,7 +31,6 @@ export const terminalEn = {
   terminalExpandAll: 'Expand all',
   terminalCollapseOutput: 'Collapse output',
   terminalNeedsApproval: 'Needs approval',
-  terminalGoToApproval: 'Go to approval',
   terminalCommandHistory: 'Command history',
   terminalViewFullOutput: 'View full output',
   commandBlockPrefix: '$',

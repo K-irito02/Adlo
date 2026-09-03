@@ -23,7 +23,6 @@ interface MessageStreamProps {
 type StreamItem =
   | { type: 'message'; message: ConversationMessageRecord }
   | { type: 'run-summary'; messageId: string; runId: string }
-  | { type: 'approval-hint' }
   | { type: 'streaming-message' }
   | { type: 'streaming-run-summary'; runId: string };
 
@@ -91,12 +90,6 @@ const RowComponent = React.memo(
               usage={runUsageByRunId[item.runId]}
               defaultExpanded={false}
             />
-          );
-        case 'approval-hint':
-          return (
-            <div className="adl-center__approval-hint">
-              <span>{t.approvalWaitingHint}</span>
-            </div>
           );
         case 'streaming-message':
           return (
@@ -186,11 +179,6 @@ const RowComponent = React.memo(
           prevProps.runUsageByRunId === nextProps.runUsageByRunId
         );
 
-      case 'approval-hint':
-        // approval-hint row uses: locale (checked above, via t.approvalWaitingHint)
-        // activeRun only affects whether the item EXISTS in streamItems (already checked via type comparison)
-        return true;
-
       default:
         // Unknown type — re-render to be safe
         return false;
@@ -237,10 +225,6 @@ export function MessageStream({
       }
     }
 
-    if (activeRun?.run.status === 'waiting-approval') {
-      items.push({ type: 'approval-hint' });
-    }
-
     if (isStreaming && streamingText) {
       items.push({ type: 'streaming-message' });
     }
@@ -250,7 +234,7 @@ export function MessageStream({
     }
 
     return items;
-  }, [visibleMessages, activeRun, isStreaming, streamingText, streamingActiveRunId]);
+  }, [visibleMessages, isStreaming, streamingText, streamingActiveRunId]);
 
   const rowProps = useMemo(
     (): RowProps => ({

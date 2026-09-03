@@ -23,9 +23,7 @@ const badges: Record<ToolId, number> = {
   changes: 0,
   browser: 0,
   terminal: 0,
-  audit: 0,
   settings: 0,
-  ci: 0,
   communicate: 0,
 };
 
@@ -59,7 +57,6 @@ describe('ToolSwitcher', () => {
       'toolChanges',
       'toolBrowser',
       'toolTerminal',
-      'toolAudit',
       'toolSettings',
       'toolCommunicate',
     ];

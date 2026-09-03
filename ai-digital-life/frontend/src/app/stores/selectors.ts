@@ -42,20 +42,6 @@ export const patchSelectors = {
 };
 
 // ============================================
-// 任务相关的选择器
-// ============================================
-export const taskSelectors = {
-  getTaskCenter: (state: StoreState) => state.taskCenter,
-  useTaskCenter: () => useAppStore(useShallow((s) => s.taskCenter)),
-
-  getAuditEntries: (state: StoreState) => state.auditEntries,
-  useAuditEntries: () => useAppStore(useShallow((s) => s.auditEntries)),
-
-  hasTaskCenter: (state: StoreState) => Boolean(state.taskCenter),
-  useHasTaskCenter: () => useAppStore((s) => Boolean(s.taskCenter)),
-};
-
-// ============================================
 // 运行相关的选择器
 // ============================================
 export const runSelectors = {

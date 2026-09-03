@@ -1,5 +1,4 @@
 import type { APPROVAL_POLICY_MODE, APP_STATE_SCHEMA_VERSION } from './constants';
-import type { RiskLevel } from './types-task';
 
 // ════════════════════════════════════════════════════════
 // Config / Preferences
@@ -395,22 +394,6 @@ export interface RepoMapNode {
   fileCount: number;
   primaryLanguage?: string;
   children: RepoMapNode[];
-}
-
-export interface AuditEntry {
-  id: string;
-  timestamp: number;
-  operationType:
-    | 'command'
-    | 'file-write'
-    | 'file-delete'
-    | 'patch-apply'
-    | 'patch-rollback'
-    | 'approval';
-  summary: string;
-  riskLevel: RiskLevel;
-  decision?: 'approved' | 'rejected' | 'auto';
-  detail?: string;
 }
 
 export type SettingsGroupId = 'general' | 'workspace' | 'shortcuts' | 'browser';

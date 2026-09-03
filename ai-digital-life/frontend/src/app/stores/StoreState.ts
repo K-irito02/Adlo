@@ -14,7 +14,6 @@
  * | PatchSlice        | activePatchSet               | slices/patchSlice.ts   |
  * | SearchSlice       | searchQuery, searchResults   | slices/searchSlice.ts  |
  * | DiagnosticSlice   | indexingStatus, repoMap      | slices/diagnosticSlice.ts|
- * | TaskSlice         | taskCenter                   | slices/taskSlice.ts    |
  * | CommandSlice      | latestCommandRun             | slices/commandSlice.ts |
  * | ClipboardSlice    | clipboardItems               | slices/clipboardSlice.ts|
  * | TerminalSlice     | terminalSessions             | slices/terminalSlice.ts|
@@ -28,7 +27,6 @@
  * | GitActions         | loadGitSnapshot, switchBranch| actions/gitActions.ts       |
  * | PatchActions       | applyPatchSet, setHunkDecision| actions/patchActions.ts    |
  * | SearchActions      | searchFiles                  | actions/searchActions.ts    |
- * | TaskActions        | refreshTaskCenter            | (内联在 StoreState.ts)      |
  * | CommandActions     | runCommand                   | (内联在 StoreState.ts)      |
  * | DataFetchActions   | bootstrap, updatePreferences | actions/generalActions.ts   |
  * | ProviderActions    | fetchProviders, setApiKey    | actions/providerActions.ts  |
@@ -47,7 +45,6 @@ import type { EditorSlice } from './slices/editorSlice';
 import type { PatchSlice } from './slices/patchSlice';
 import type { SearchSlice } from './slices/searchSlice';
 import type { DiagnosticSlice } from './slices/diagnosticSlice';
-import type { TaskSlice } from './slices/taskSlice';
 import type { CommandSlice } from './slices/commandSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
@@ -128,7 +125,6 @@ type AllSlices = [
   PatchSlice,
   SearchSlice,
   DiagnosticSlice,
-  TaskSlice,
   CommandSlice,
   ClipboardSlice,
   TerminalSlice,
@@ -272,17 +268,10 @@ interface PatchActions {
   rollbackPatchSet: (patchSetId: string) => Promise<void>;
   acceptAllHunks: () => Promise<void>;
   rejectAllHunks: () => Promise<void>;
-  restoreCheckpoint: (checkpointId: string) => Promise<void>;
 }
 
 interface SearchActions {
   searchFiles: (query: string) => Promise<void>;
-}
-
-interface TaskActions {
-  refreshTaskCenter: () => Promise<void>;
-  decideApproval: (approvalId: string, decision: 'approved' | 'rejected') => Promise<void>;
-  fetchRunActivityByRunId: (runId: AgentRunID, limit?: number) => Promise<void>;
 }
 
 interface CommandActions {
@@ -324,7 +313,7 @@ interface DataFetchActions {
   updatePreferences: (patch: AppPreferencePatch) => Promise<boolean>;
   fetchIndexStatus: () => Promise<void>;
   fetchRepoMap: () => Promise<void>;
-  fetchAuditEntries: (limit?: number) => Promise<void>;
+  fetchRunActivityByRunId: (runId: AgentRunID, limit?: number) => Promise<void>;
 }
 
 interface AgentActions {
@@ -416,7 +405,6 @@ type AllActions = [
   GitActions,
   PatchActions,
   SearchActions,
-  TaskActions,
   CommandActions,
   CustomCommandActions,
   PermissionActions,

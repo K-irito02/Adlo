@@ -6,7 +6,6 @@ import {
   IconPanelRight,
   IconPanelRightClose,
   IconTerminal,
-  IconShield,
   IconSettings,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
@@ -52,12 +51,6 @@ const TAB_META: {
     shortcut: 'Ctrl+Shift+`',
     icon: <IconTerminal size={16} decorative />,
     labelKey: 'toolTerminal',
-  },
-  {
-    id: 'audit',
-    shortcut: 'Ctrl+Shift+A',
-    icon: <IconShield size={16} decorative />,
-    labelKey: 'toolAudit',
   },
   {
     id: 'settings',

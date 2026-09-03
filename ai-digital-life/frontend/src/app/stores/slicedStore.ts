@@ -15,7 +15,6 @@ import {
   createPatchSlice,
   createSearchSlice,
   createDiagnosticSlice,
-  createTaskSlice,
   createCommandSlice,
   createClipboardSlice,
   createTerminalSlice,
@@ -61,7 +60,6 @@ import {
   createFetchActions,
   createStreamActions,
   createGeneralActions,
-  createTaskActions,
   createCommandActions,
   createAgentActions,
   createMcpActions,
@@ -101,7 +99,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createPatchSlice(set, get), // 补丁状态（activePatchSet）
   ...createSearchSlice(set, get), // 搜索状态（searchQuery, results）
   ...createDiagnosticSlice(set, get), // 诊断/索引（indexingStatus, repoMap）
-  ...createTaskSlice(set, get), // 任务中心
   ...createCommandSlice(set, get), // 命令执行（latestCommandRun）
   ...createClipboardSlice(set, get), // 剪贴板
   ...createTerminalSlice(set, get), // 终端会话管理
@@ -156,7 +153,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createFetchActions(set, get), // 数据拉取（indexStatus, repoMap）
   ...createStreamActions(set, get), // 流式消息（sendMessage, cancel）
   ...createGeneralActions(set, get), // 通用操作（bootstrap, updatePreferences）
-  ...createTaskActions(set, get), // 任务操作（decideApproval, restoreCheckpoint）
   ...createCommandActions(set, get), // 命令操作（runCommand）
   ...createAgentActions(set, get), // Agent 操作（fetchAgents、Plan 模式）
   ...createMcpActions(set, get), // MCP 操作（服务器管理、连接）

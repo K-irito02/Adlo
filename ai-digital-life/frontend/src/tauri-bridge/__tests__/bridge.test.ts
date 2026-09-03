@@ -168,7 +168,7 @@ describe('createTauriBridge workspace domain', () => {
   });
 });
 
-describe('createTauriBridge system-capability domains stay on Tauri (audit)', () => {
+describe('createTauriBridge system-capability domains stay on Tauri', () => {
   it('app domain uses Tauri invoke, not the httpBridge NOT_SUPPORTED stubs', async () => {
     mockInvoke.mockResolvedValue(okResult({ name: 'adl' }));
     const bridge = createTauriBridge('http://127.0.0.1:9999');

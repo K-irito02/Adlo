@@ -2,15 +2,9 @@ import type {
   AppInfo,
   ConversationSessionRecord,
   RecentWorkspaceEntry,
-  TaskCenterSnapshot,
 } from '@ai-digital-life/kernel';
 
-export type SessionVisualStatus =
-  | 'processing'
-  | 'pending-approval'
-  | 'abnormal'
-  | 'completed'
-  | 'read';
+export type SessionVisualStatus = 'processing' | 'abnormal' | 'completed' | 'read';
 
 export interface SidebarSessionItem {
   session: ConversationSessionRecord;
@@ -49,13 +43,7 @@ function pathDedupKey(path: string): string {
   return trimmed.length > 0 ? trimmed : normalized;
 }
 
-const STATUS_PRIORITY: SessionVisualStatus[] = [
-  'abnormal',
-  'pending-approval',
-  'processing',
-  'completed',
-  'read',
-];
+const STATUS_PRIORITY: SessionVisualStatus[] = ['abnormal', 'processing', 'completed', 'read'];
 
 function isSessionUnread(session: ConversationSessionRecord): boolean {
   if (session.manualUnread) {
@@ -70,13 +58,9 @@ function isSessionUnread(session: ConversationSessionRecord): boolean {
 export function computeSessionVisualStatus(
   session: ConversationSessionRecord,
   streamingActiveRunId: string | undefined,
-  hasPendingApproval: boolean,
 ): SessionVisualStatus {
   if (session.status === 'archived') {
     return 'read';
-  }
-  if (hasPendingApproval && isSessionUnread(session)) {
-    return 'pending-approval';
   }
   if (streamingActiveRunId && session.status === 'active') {
     return 'processing';
@@ -90,7 +74,6 @@ export function computeSessionVisualStatus(
 function emptyStatusCounts(): Record<SessionVisualStatus, number> {
   return {
     processing: 0,
-    'pending-approval': 0,
     abnormal: 0,
     completed: 0,
     read: 0,
@@ -102,7 +85,6 @@ export function buildSidebarViewModel(input: {
   recentWorkspaces: RecentWorkspaceEntry[];
   sessions: ConversationSessionRecord[];
   streamingActiveRunId?: string;
-  taskCenter?: TaskCenterSnapshot;
 }): SidebarViewModel {
   const currentWorkspace = input.appInfo?.currentWorkspace;
   const entries = [...input.recentWorkspaces];
@@ -131,7 +113,6 @@ export function buildSidebarViewModel(input: {
     });
   }
 
-  const hasPendingApproval = (input.taskCenter?.pendingApprovals.length ?? 0) > 0;
   const visibleEntries = entries.filter((entry) => !entry.removedFromSidebar);
   const knownWorkspaceIds = new Set(visibleEntries.map((entry) => entry.id));
 
@@ -156,7 +137,7 @@ export function buildSidebarViewModel(input: {
   for (const session of input.sessions) {
     const item: SidebarSessionItem = {
       session,
-      status: computeSessionVisualStatus(session, input.streamingActiveRunId, hasPendingApproval),
+      status: computeSessionVisualStatus(session, input.streamingActiveRunId),
       isUnread: isSessionUnread(session),
     };
     const bucket = knownWorkspaceIds.has(session.workspaceId)

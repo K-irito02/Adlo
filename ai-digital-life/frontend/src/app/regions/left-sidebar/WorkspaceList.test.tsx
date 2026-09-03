@@ -48,7 +48,7 @@ function buildItem(id: string, isPinned = false, isCurrent = false): SidebarWork
     sessions: [],
     archivedSessions: [],
     rollupStatus: 'read',
-    statusCounts: { processing: 0, 'pending-approval': 0, abnormal: 0, completed: 0, read: 0 },
+    statusCounts: { processing: 0, abnormal: 0, completed: 0, read: 0 },
   };
 }
 

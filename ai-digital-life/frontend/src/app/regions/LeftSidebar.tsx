@@ -41,7 +41,6 @@ const LeftSidebar = React.memo(function LeftSidebar({
     sessions,
     activeSessionId,
     streamingActiveRunId,
-    taskCenter,
     expandedSessionWorkspaces,
     toggleSessionWorkspace,
   } = useAppStore(
@@ -51,7 +50,6 @@ const LeftSidebar = React.memo(function LeftSidebar({
       sessions: s.sessions,
       activeSessionId: s.activeSessionId,
       streamingActiveRunId: s.streamingActiveRunId,
-      taskCenter: s.taskCenter,
       expandedSessionWorkspaces: s.expandedSessionWorkspaces,
       toggleSessionWorkspace: s.toggleSessionWorkspace,
     })),
@@ -71,9 +69,8 @@ const LeftSidebar = React.memo(function LeftSidebar({
         recentWorkspaces,
         sessions,
         streamingActiveRunId,
-        taskCenter,
       }),
-    [appInfo, recentWorkspaces, sessions, streamingActiveRunId, taskCenter],
+    [appInfo, recentWorkspaces, sessions, streamingActiveRunId],
   );
   const workspaceItems = sidebarViewModel.workspaces;
   const displayStandaloneSessions = sidebarViewModel.standaloneSessions;

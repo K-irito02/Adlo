@@ -82,7 +82,7 @@ async fn compact_session_inner(
             )?
         };
 
-        let (response, _audit) = gateway
+        let response = gateway
             .chat(
                 &input.session_id,
                 &input.session_id,

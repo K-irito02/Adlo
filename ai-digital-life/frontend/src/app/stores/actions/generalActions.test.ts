@@ -249,10 +249,6 @@ describe('workspace load cascade ordering', () => {
         setEditorDirtyPaths: vi.fn().mockResolvedValue({ ok: true }),
       },
       patch: { getPatchSet: vi.fn().mockResolvedValue({ ok: true, data: null }) },
-      task: {
-        listAuditEntries: vi.fn().mockResolvedValue({ ok: true, data: [] }),
-        getSnapshot: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
-      },
       command: { listRecent: vi.fn().mockResolvedValue({ ok: true, data: [] }) },
       retrieval: {
         getStatus: vi.fn().mockResolvedValue({ ok: true, data: null }),

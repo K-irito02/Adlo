@@ -10,7 +10,6 @@ pub mod registry;
 pub mod stream_adapter;
 pub use adl_types::config::ModelDefinition;
 pub use registry::{ApiType, AuthType, ModelSource, ProviderDefinition, ProviderRegistry};
-mod audit;
 mod fallback;
 pub mod pricing;
 pub mod prompts;
@@ -24,13 +23,11 @@ pub use secret::{clear_provider_secret, get_provider_secret, set_provider_secret
 use crate::adapter::StreamReader;
 use adl_errors::AppError;
 use adl_types::{
-    ConversationScenario, ModelCallAuditRecord, ModelChatMessage, ModelGatewayHealthSnapshot,
+    ConversationScenario, ModelChatMessage, ModelGatewayHealthSnapshot,
     ModelPreferences, ModelResponse, ModelRouteDecision, ProviderHealthStatus, create_id, now_ms,
 };
-use audit::{AuditInput, audit_record};
 use fallback::{deterministic_fallback, estimate_usage};
 use std::sync::{Arc, RwLock};
-use std::time::Instant;
 
 #[derive(Clone)]
 pub struct ModelGateway {
@@ -52,61 +49,20 @@ impl ModelGateway {
 
     pub async fn chat(
         &self,
-        workspace_id: &str,
-        session_id: &str,
-        run_id: Option<&str>,
-        scenario: ConversationScenario,
+        _workspace_id: &str,
+        _session_id: &str,
+        _run_id: Option<&str>,
+        _scenario: ConversationScenario,
         messages: Vec<ModelChatMessage>,
-    ) -> (ModelResponse, ModelCallAuditRecord) {
-        let started = Instant::now();
+    ) -> ModelResponse {
         let route = route::route_chain(&self.preferences);
-        let route_meta = ModelRouteDecision {
-            reason: "provider priority and enabled state".into(),
-            chain: route.clone(),
-            synthetic: None,
-        };
 
         match route::select_provider(self, &route, &messages).await {
             Ok((
                 _provider_id,
-                model_id,
-                ModelResponse {
-                    usage,
-                    model_id: resp_model_id,
-                    provider_id: resp_provider_id,
-                    content,
-                    reasoning,
-                    synthetic,
-                    request_id,
-                    route: resp_route,
-                },
-            )) => {
-                let audit = audit_record(AuditInput {
-                    workspace_id,
-                    session_id,
-                    run_id,
-                    provider_id: resp_provider_id.clone(),
-                    model_id,
-                    scenario,
-                    route_meta,
-                    started,
-                    usage: usage.clone(),
-                    error: None,
-                });
-                (
-                    ModelResponse {
-                        provider_id: resp_provider_id,
-                        model_id: resp_model_id,
-                        content,
-                        reasoning,
-                        synthetic,
-                        request_id,
-                        usage,
-                        route: resp_route,
-                    },
-                    audit,
-                )
-            },
+                _model_id,
+                response,
+            )) => response,
             Err(last_error) => {
                 let provider = "deepseek".to_string();
                 let model_id = "synthetic-local".to_string();
@@ -117,29 +73,16 @@ impl ModelGateway {
                     chain: vec!["synthetic-local".into()],
                     synthetic: Some(true),
                 };
-                let response = ModelResponse {
-                    provider_id: provider.clone(),
-                    model_id: model_id.clone(),
+                ModelResponse {
+                    provider_id: provider,
+                    model_id,
                     content,
                     reasoning: None,
                     synthetic: true,
                     request_id: Some(create_id("modelreq")),
-                    usage: usage.clone(),
-                    route: Some(route.clone()),
-                };
-                let audit = audit_record(AuditInput {
-                    workspace_id,
-                    session_id,
-                    run_id,
-                    provider_id: provider,
-                    model_id,
-                    scenario,
-                    route_meta: route,
-                    started,
                     usage,
-                    error: last_error,
-                });
-                (response, audit)
+                    route: Some(route),
+                }
             },
         }
     }
@@ -151,63 +94,26 @@ impl ModelGateway {
         provider_id: &str,
         model_id: &str,
         messages: Vec<ModelChatMessage>,
-    ) -> (ModelResponse, ModelCallAuditRecord) {
-        let started = Instant::now();
-
+    ) -> ModelResponse {
         match route::select_provider_for_model(self, provider_id, model_id, &messages).await {
-            Ok((_pid, _mid, response)) => {
-                let audit = audit_record(AuditInput {
-                    workspace_id: "",
-                    session_id: "",
-                    run_id: None,
-                    provider_id: response.provider_id.clone(),
-                    model_id: response.model_id.clone(),
-                    scenario: ConversationScenario::CodeEdit,
-                    route_meta: ModelRouteDecision {
-                        reason: format!("direct dispatch to {provider_id}/{model_id}"),
-                        chain: vec![provider_id.to_string()],
-                        synthetic: None,
-                    },
-                    started,
-                    usage: response.usage.clone(),
-                    error: None,
-                });
-                (response, audit)
-            },
+            Ok((_pid, _mid, response)) => response,
             Err(last_error) => {
                 let content = deterministic_fallback(&messages, last_error.as_deref());
                 let usage = Some(estimate_usage(&messages));
-                let response = ModelResponse {
+                ModelResponse {
                     provider_id: provider_id.to_string(),
                     model_id: model_id.to_string(),
                     content,
                     reasoning: None,
                     synthetic: true,
                     request_id: Some(create_id("modelreq")),
-                    usage: usage.clone(),
+                    usage,
                     route: Some(ModelRouteDecision {
                         reason: "direct dispatch failed; used local deterministic fallback".into(),
                         chain: vec![provider_id.to_string()],
                         synthetic: Some(true),
                     }),
-                };
-                let audit = audit_record(AuditInput {
-                    workspace_id: "",
-                    session_id: "",
-                    run_id: None,
-                    provider_id: provider_id.to_string(),
-                    model_id: model_id.to_string(),
-                    scenario: ConversationScenario::CodeEdit,
-                    route_meta: ModelRouteDecision {
-                        reason: "direct dispatch failed; used local deterministic fallback".into(),
-                        chain: vec!["synthetic-local".into()],
-                        synthetic: Some(true),
-                    },
-                    started,
-                    usage,
-                    error: last_error,
-                });
-                (response, audit)
+                }
             },
         }
     }

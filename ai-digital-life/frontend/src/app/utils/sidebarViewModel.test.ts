@@ -55,11 +55,6 @@ describe('buildSidebarViewModel', () => {
     const viewModel = buildSidebarViewModel({
       recentWorkspaces,
       sessions,
-      taskCenter: {
-        tasks: [],
-        pendingApprovals: [],
-        policy: { mode: 'manual', summary: '', highRiskRules: [] },
-      },
     });
 
     expect(viewModel.workspaces).toHaveLength(1);

@@ -51,8 +51,6 @@ export function useAppActions() {
       rollbackPatchSet: state.rollbackPatchSet,
       acceptAllHunks: state.acceptAllHunks,
       rejectAllHunks: state.rejectAllHunks,
-      refreshTaskCenter: state.refreshTaskCenter,
-      decideApproval: state.decideApproval,
       markExternalFileChange: state.markExternalFileChange,
       notifyEditorBufferDirty: state.notifyEditorBufferDirty,
       runCommand: state.runCommand,

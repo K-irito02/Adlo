@@ -22,7 +22,6 @@ import type { SubagentBridge } from './subagent';
 import type { PatchBridge } from './patch';
 import type { CommandBridge } from './command';
 import type { PtyBridge } from './pty';
-import type { TaskBridge } from './task';
 import type { RunActivityBridge } from './run-activity';
 import type { BrowserBridge } from './browser';
 import type { GitHubBridge } from './github';
@@ -139,8 +138,6 @@ export interface DigitalLifeBridge {
   command: CommandBridge;
   /** PTY 终端子模块 */
   pty: PtyBridge;
-  /** 任务中心与审批子模块 */
-  task: TaskBridge;
   /** 运行活动日志子模块 */
   runActivity: RunActivityBridge;
   /** 浏览器预览子模块 */

@@ -49,12 +49,6 @@ import type {
   ProviderStatus,
 } from './shared/ipc/provider';
 import type {
-  ApprovalRequestSummary,
-  AuditEntry,
-  CheckpointPayloadPreview,
-  TaskCenterSnapshot,
-} from '@ai-digital-life/kernel';
-import type {
   AgentRunDetail,
   ConversationDetail,
   ConversationSendResult,
@@ -1289,28 +1283,6 @@ export function createHttpBridge({
       findCrashedSessions: () => call<DurableSessionState[]>(baseUrl, '/durable/crashed', POST({})),
       recoverSession: (sessionId: string) =>
         call<boolean>(baseUrl, '/durable/recover', POST({ sessionId })),
-    },
-
-    // ── Task-center / approval domain.
-    task: {
-      getSnapshot: () => call<TaskCenterSnapshot>(baseUrl, '/task/snapshot', POST({})),
-      listPendingApprovals: () =>
-        call<ApprovalRequestSummary[]>(baseUrl, '/task/pending-approvals', POST({})),
-      getCheckpointPreview: (checkpointId: string) =>
-        call<CheckpointPayloadPreview | undefined>(
-          baseUrl,
-          '/task/checkpoint-preview',
-          POST({ checkpointId }),
-        ),
-      restoreCheckpoint: (checkpointId: string) =>
-        call<TaskCenterSnapshot>(baseUrl, '/task/restore-checkpoint', POST({ checkpointId })),
-      decideApproval: (input: {
-        approvalId: string;
-        decision: 'approved' | 'rejected';
-        reason?: string;
-      }) => call<TaskCenterSnapshot>(baseUrl, '/task/decide-approval', POST(input)),
-      listAuditEntries: (limit?: number) =>
-        call<AuditEntry[]>(baseUrl, '/task/audit-entries', POST({ limit })),
     },
 
     // ── Custom-agent registry domain.

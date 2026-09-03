@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow';
 import type { Locale } from '../i18n';
 import { useTCopy } from '../i18n/useTCopy';
-import { ApprovalCard } from '../components/approval/ApprovalCard';
 import { MessageStream } from '../components/MessageStream';
 import { useAppStore } from '../stores/slicedStore';
 import { useAppActions } from '../hooks/useAppActions';
@@ -47,16 +46,14 @@ const CenterPane = React.memo(function CenterPane() {
         modelHealth: s.modelHealth,
       })),
     );
-  const { taskCenter, gitSnapshot, gitBranches, recentWorkspaces, fetchRunActivityByRunId } =
-    useAppStore(
-      useShallow((s) => ({
-        taskCenter: s.taskCenter,
-        gitSnapshot: s.gitSnapshot,
-        gitBranches: s.gitBranches,
-        recentWorkspaces: s.recentWorkspaces,
-        fetchRunActivityByRunId: s.fetchRunActivityByRunId,
-      })),
-    );
+  const { gitSnapshot, gitBranches, recentWorkspaces, fetchRunActivityByRunId } = useAppStore(
+    useShallow((s) => ({
+      gitSnapshot: s.gitSnapshot,
+      gitBranches: s.gitBranches,
+      recentWorkspaces: s.recentWorkspaces,
+      fetchRunActivityByRunId: s.fetchRunActivityByRunId,
+    })),
+  );
   const locale = (appInfo?.config.language ?? 'zh-CN') as Locale;
   const hasWorkspace = !!appInfo?.currentWorkspace;
   const activeDetail = activeSessionId ? sessionDetails[activeSessionId] : undefined;
@@ -344,14 +341,6 @@ const CenterPane = React.memo(function CenterPane() {
 
   return (
     <section className="adl-center" aria-label={t.conversation}>
-      {taskCenter?.pendingApprovals?.length ? (
-        <div className="adl-center__approvals">
-          {taskCenter.pendingApprovals.map((approval) => (
-            <ApprovalCard key={approval.id} approval={approval} onDecide={actions.decideApproval} />
-          ))}
-        </div>
-      ) : null}
-
       {/* Region 8 / 9: Main stream area */}
       <div className={`adl-center__body${!hasMessages ? ' adl-center__body--empty' : ''}`}>
         {!hasMessages ? (

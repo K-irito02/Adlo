@@ -4,7 +4,6 @@ import type { CopyDict, Locale } from '../i18n/types';
 import { loadLocale } from '../i18n/i18nLoader';
 import { useAppActions } from './useAppActions';
 import { useThemeSync } from './useThemeSync';
-import { useTaskCenterPolling } from './useTaskCenterPolling';
 import { initSiteMetaCache } from '@utils/siteMetaCache';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { collectWarmupUrls } from '@utils/warmupUrls';
@@ -15,7 +14,6 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   const [locale, setLocale] = useState<Locale>('zh-CN');
 
   useThemeSync(appInfo);
-  useTaskCenterPolling(appInfo);
 
   useEffect(() => {
     if (!appInfo) {

@@ -153,13 +153,10 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/custom-agent/add", post(handlers::custom_agent::add_agent))
         .route("/custom-agent/delete", post(handlers::custom_agent::delete_agent))
         .route("/custom-agent/update", post(handlers::custom_agent::update_agent))
-        // Task-center / approval domain (`task_*` tauri commands).
+        // Task-center domain (`task_*` tauri commands).
         .route("/task/snapshot", post(handlers::task::snapshot))
-        .route("/task/pending-approvals", post(handlers::task::list_pending_approvals))
-        .route("/task/audit-entries", post(handlers::task::list_audit_entries))
         .route("/task/checkpoint-preview", post(handlers::task::checkpoint_preview))
         .route("/task/restore-checkpoint", post(handlers::task::restore_checkpoint))
-        .route("/task/decide-approval", post(handlers::task::decide_approval))
         // Durable-session domain (`durable_*` tauri commands).
         .route("/durable/register", post(handlers::durable::register))
         .route("/durable/heartbeat", post(handlers::durable::heartbeat))
@@ -197,8 +194,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // Web-tools domain (`web_fetch` / `web_search` tauri commands).
         .route("/web-tools/fetch", post(handlers::web_tools::web_fetch))
         .route("/web-tools/search", post(handlers::web_tools::web_search))
-        // Audit domain (`audit_*` tauri helpers — read surface).
-        .route("/audit/list", post(handlers::audit::list_audit_entries))
         // CI / GitHub domain (`ci_*` tauri commands). The access token is
         // write-only: set/clear/has only — never read back over HTTP.
         .route("/ci/status", post(handlers::ci::get_status))

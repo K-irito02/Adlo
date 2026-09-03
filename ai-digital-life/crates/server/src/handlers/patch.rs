@@ -16,14 +16,13 @@
 use crate::ServerState;
 use crate::agent_loop;
 use crate::handlers::agent as agent_handlers;
-use crate::handlers::audit::save_audit_entry_with_db;
 use crate::handlers::workspace::current_workspace;
 use crate::ipc;
 use adl_change_engine;
 use adl_command::{run_command, validation_command};
 use adl_errors::AppError;
 use adl_storage::EntityTable;
-use adl_types::{CommandRequest, PatchHunkDecision, PatchSet, PatchSetStatus, RiskLevel, now_ms};
+use adl_types::{CommandRequest, PatchHunkDecision, PatchSet, PatchSetStatus, now_ms};
 use axum::extract::{Path, State};
 use axum::response::IntoResponse;
 use std::collections::HashSet;
@@ -112,18 +111,6 @@ async fn apply_patch_set_inner(
                 &checkpoint,
             )?;
             save_patch_set_with_db(&db, &patch_set)?;
-            if let Err(e) = save_audit_entry_with_db(
-                &db,
-                &workspace_id_for_apply,
-                Some(&patch_set.session_id),
-                "patch-apply",
-                RiskLevel::Medium,
-                format!("Applied accepted hunks for {}.", patch_set.title),
-                Some("auto"),
-                Some(&format!("checkpointId={}", checkpoint.id)),
-            ) {
-                tracing::warn!(error = %e, "failed to save audit entry for patch apply");
-            }
             let command_req = validation_command(
                 &root_for_apply,
                 &workspace_id_for_apply,
@@ -182,34 +169,10 @@ async fn apply_patch_set_inner(
                 Some(&validation.status),
                 &validation,
             )?;
-            if let Err(e) = save_audit_entry_with_db(
-                &db,
-                &workspace_id_for_verify,
-                Some(&patch_set_for_verify.session_id),
-                "command",
-                RiskLevel::Low,
-                validation.summary.clone(),
-                Some("auto"),
-                Some(&format!("validationStatus={}", validation.status)),
-            ) {
-                tracing::warn!(error = %e, "failed to save validation audit entry");
-            }
             let (mut patch_set, mut rolled_back) = (patch_set_for_verify, false);
             if validation.status == "failed" {
                 patch_set = adl_change_engine::rollback_patch_set(patch_set, &root_for_verify)?;
                 rolled_back = true;
-                if let Err(e) = save_audit_entry_with_db(
-                    &db,
-                    &workspace_id_for_verify,
-                    Some(&patch_set.session_id),
-                    "patch-rollback",
-                    RiskLevel::Medium,
-                    format!("Rolled back {} after failed validation.", patch_set.title),
-                    Some("auto"),
-                    Some(&validation.summary),
-                ) {
-                    tracing::warn!(error = %e, "failed to save rollback audit entry");
-                }
             } else {
                 patch_set.status = PatchSetStatus::Applied;
             }
@@ -288,24 +251,11 @@ pub async fn rollback_patch_set(
         Err(e) => return ipc::to_response(Err(e)),
     };
     let root = PathBuf::from(&workspace.root_path);
-    let workspace_id = workspace.id.clone();
     let db = state.db.clone();
     let patch_set_id_for_db = input.patch_set_id.clone();
     let result = agent_loop::run_blocking(move || -> Result<serde_json::Value, AppError> {
         let mut patch_set = require_patch_set_with_db(&db, &patch_set_id_for_db)?;
         patch_set = adl_change_engine::rollback_patch_set(patch_set, std::path::Path::new(&root))?;
-        if let Err(e) = save_audit_entry_with_db(
-            &db,
-            &workspace_id,
-            Some(&patch_set.session_id),
-            "patch-rollback",
-            RiskLevel::Medium,
-            format!("Rolled back {} on user request.", patch_set.title),
-            Some("approved"),
-            None,
-        ) {
-            tracing::warn!(error = %e, "failed to save audit entry for patch rollback");
-        }
         if let Some(run_id) = &patch_set.run_id {
             let Some(mut detail) = agent_handlers::load_run_detail(&db, run_id)? else {
                 return Ok(serde_json::to_value(&patch_set)?);

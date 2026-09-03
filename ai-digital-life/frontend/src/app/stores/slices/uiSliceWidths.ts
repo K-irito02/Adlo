@@ -44,7 +44,6 @@ export function readRightTool(): ToolId {
       raw === 'changes' ||
       raw === 'browser' ||
       raw === 'terminal' ||
-      raw === 'audit' ||
       raw === 'settings'
     ) {
       return raw;

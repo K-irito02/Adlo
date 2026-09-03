@@ -9,7 +9,6 @@
    ========================================================================== */
 
 @import './components/plan-card.css';
-@import './components/approval-card.css';
 @import './components/reference-popover.css';
 @import './components/terminal-output.css';
 @import './components/workspace-status.css';

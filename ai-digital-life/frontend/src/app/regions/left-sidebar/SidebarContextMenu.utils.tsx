@@ -21,7 +21,6 @@ export type SidebarMenuState =
 
 export const STATUS_LABEL: Record<SessionVisualStatus, keyof CopyDict> = {
   processing: 'statusProcessing',
-  'pending-approval': 'statusPendingApproval',
   abnormal: 'statusAbnormal',
   completed: 'statusCompleted',
   read: 'statusRead',
@@ -29,7 +28,6 @@ export const STATUS_LABEL: Record<SessionVisualStatus, keyof CopyDict> = {
 
 const WORKSPACE_STATUS_ORDER: SessionVisualStatus[] = [
   'abnormal',
-  'pending-approval',
   'processing',
   'completed',
   'read',

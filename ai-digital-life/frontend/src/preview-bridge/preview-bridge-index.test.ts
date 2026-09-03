@@ -141,7 +141,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     expect(res.ok).toBe(true);
   });
 
-  it('reserved domain stays on the preview/mock impl, not the httpBridge NOT_SUPPORTED stubs (audit)', async () => {
+  it('reserved domain stays on the preview/mock impl, not the httpBridge NOT_SUPPORTED stubs', async () => {
     const { bridge } = await setupBridge();
     const res = await bridge.reserved.acpGetConfig();
 

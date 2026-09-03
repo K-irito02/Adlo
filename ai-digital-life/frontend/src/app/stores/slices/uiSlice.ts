@@ -86,9 +86,7 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
     changes: false,
     browser: false,
     terminal: false,
-    audit: false,
     settings: false,
-    ci: false,
     communicate: false,
   };
 }

@@ -40,9 +40,6 @@ export { type SearchSlice, createSearchSlice } from './slices/searchSlice';
 // 诊断切片
 export { type DiagnosticSlice, createDiagnosticSlice } from './slices/diagnosticSlice';
 
-// 任务切片
-export { type TaskSlice, createTaskSlice } from './slices/taskSlice';
-
 // 命令切片
 export { type CommandSlice, createCommandSlice } from './slices/commandSlice';
 
