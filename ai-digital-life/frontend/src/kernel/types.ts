@@ -417,7 +417,6 @@ export type SettingsGroupId =
   | 'general'
   | 'workspace'
   | 'shortcuts'
-  | 'permissions'
   | 'references'
   | 'lsp'
   | 'browser';
