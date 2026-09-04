@@ -370,11 +370,13 @@ name = "ai-digital-life"
 version = "0.1.0"
 dependencies = [
  "adl-browser",
+ "adl-clipboard",
  "adl-errors",
  "adl-kernel",
  "adl-logging",
  "adl-migration",
  "adl-storage",
+ "adl-sysmon",
  "adl-types",
  "adl-workspace",
  "anyhow",

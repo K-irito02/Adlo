@@ -18,6 +18,8 @@ adl-browser = { path = "../crates/browser" }
 adl-logging = { path = "../crates/adl-logging" }
 adl-storage = { path = "../crates/storage" }
 adl-migration = { path = "../crates/migration" }
+adl-clipboard = { path = "../crates/clipboard" }
+adl-sysmon = { path = "../crates/sysmon" }
 
 tauri = { workspace = true, features = ["unstable"] }
 tauri-plugin-dialog.workspace = true

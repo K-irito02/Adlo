@@ -57,10 +57,22 @@ fn main() {
             let t0 = std::time::Instant::now();
             let data_dir = setup::resolve_data_dir(app)?;
             info!("[ADL-PERF] resolve_data_dir: {}ms", t0.elapsed().as_millis());
-            let app_state = setup::init_app_state(data_dir)?;
+            let app_state = setup::init_app_state(data_dir.clone())?;
             info!("[ADL-PERF] setup COMPLETE: {}ms", t0.elapsed().as_millis());
+
+            // 剪贴板/系统监控 managed state（桌面端）。剪贴板 store 与监听线程共享同一
+            // r2d2 连接池（Arc），供 clipboard_* 命令读写；监听后台线程把新条目经
+            // `clipboard-changed` 事件推给前端，并同步到内核 EventBus 供诊断。
+            let clipboard_store = std::sync::Arc::new(setup::open_clipboard_store(&data_dir)?);
+            let event_bus = app_state.event_bus.clone();
+            app.manage(commands::clipboard::ManagedClipboard(clipboard_store.clone()));
+            app.manage(commands::sysmon::ManagedSysmon(std::sync::Mutex::new(
+                adl_sysmon::SystemMonitor::new(),
+            )));
+
             setup::start_background_tasks(&app_state);
             app.manage(app_state);
+            setup::start_clipboard_monitor(app.handle().clone(), clipboard_store, event_bus);
             Ok(())
         })
         .on_page_load(|webview, payload| {
@@ -115,6 +127,10 @@ fn main() {
             commands::app::write_debug_logs_to_project,
             commands::app::app_set_log_mode,
             commands::app::app_get_server_info,
+            commands::clipboard::clipboard_list,
+            commands::clipboard::clipboard_remove,
+            commands::clipboard::clipboard_clear,
+            commands::sysmon::sysmon_snapshot,
             commands::workspace::workspace_pick_directory,
             commands::platform::workspace_reveal_in_file_manager,
             commands::browser::browser_create_for_tab,

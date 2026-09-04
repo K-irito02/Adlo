@@ -6,7 +6,7 @@
 //! 调用 `crate::read::read_current` 读取并入库，新条目对外广播 `Some(id)`，去重合并广播
 //! `None`。
 
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::thread::{self, JoinHandle};
 
 use clipboard_win::monitor::{Monitor, Shutdown};
@@ -36,7 +36,7 @@ impl ClipboardMonitor {
     /// `ClipboardStore` 是 `Send + Sync`）。
     ///
     /// 返回句柄；调用 `ClipboardMonitorHandle::stop()`（或让其 Drop）可请求停止并回收线程。
-    pub fn spawn(self, store: ClipboardStore) -> ClipboardMonitorHandle {
+    pub fn spawn(self, store: Arc<ClipboardStore>) -> ClipboardMonitorHandle {
         let tx = self.tx;
         let (stop_tx, stop_rx) = mpsc::channel::<Shutdown>();
 
@@ -153,7 +153,7 @@ mod tests {
     fn spawn_can_be_stopped_without_hanging() {
         let store = temp_store("stop");
         let monitor = ClipboardMonitor::new();
-        let handle = monitor.spawn(store);
+        let handle = monitor.spawn(Arc::new(store));
         // 给监听线程一点时间创建消息窗口并进入 recv。
         thread::sleep(Duration::from_millis(50));
         handle.stop(); // 不应挂起（存在收敛的 Shutdown / join）
@@ -166,7 +166,7 @@ mod tests {
     fn handle_drop_signals_shutdown() {
         let store = temp_store("drop");
         let monitor = ClipboardMonitor::new();
-        let handle = monitor.spawn(store);
+        let handle = monitor.spawn(Arc::new(store));
         thread::sleep(Duration::from_millis(30));
         drop(handle); // Drop 应触发 request_stop，不挂起
         let dir = std::env::temp_dir().join("clip-monitor-data-drop");
@@ -179,7 +179,7 @@ mod tests {
         // 编译期确认 ClipboardStore 可跨线程共享（监听线程持有其引用）。
         fn assert_send<T: Send>() {}
         fn assert_sync<T: Sync>() {}
-        assert_send::<ClipboardStore>();
-        assert_sync::<ClipboardStore>();
+        assert_send::<Arc<ClipboardStore>>();
+        assert_sync::<Arc<ClipboardStore>>();
     }
 }
