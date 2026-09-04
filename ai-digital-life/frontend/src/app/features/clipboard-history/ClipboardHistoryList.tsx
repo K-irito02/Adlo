@@ -13,12 +13,15 @@ function matchesQuery(item: ClipboardItem, normalizedQuery: string): boolean {
   );
 }
 
+const REFRESH_INTERVAL_MS = 2000;
+
 /**
  * 剪贴板历史主列表容器。
  * - 顶部渲染 ClipboardHistoryHeader
  * - 下方渲染按 clipboardSearch 过滤后的条目列表
  * - 空状态使用 EmptyRow（居中、无句号）
  * - 挂载时触发 fetchClipboardHistory()
+ * - 以 2s 间隔轮询刷新；页面隐藏（document.hidden）时暂停、恢复可见时立即刷新并恢复轮询
  */
 export function ClipboardHistoryList() {
   const { t } = useTCopy();
@@ -28,7 +31,26 @@ export function ClipboardHistoryList() {
   const fetchClipboardHistory = useAppStore((s) => s.fetchClipboardHistory);
 
   useEffect(() => {
-    void fetchClipboardHistory();
+    let timerId: number;
+    const poll = () => {
+      void fetchClipboardHistory();
+    };
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        window.clearInterval(timerId);
+        return;
+      }
+      poll();
+      timerId = window.setInterval(poll, REFRESH_INTERVAL_MS);
+    };
+
+    poll();
+    timerId = window.setInterval(poll, REFRESH_INTERVAL_MS);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => {
+      window.clearInterval(timerId);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
   }, [fetchClipboardHistory]);
 
   const filtered = useMemo(() => {
