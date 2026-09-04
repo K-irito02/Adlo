@@ -16,9 +16,6 @@ export const workspaceSelectors = {
   getRecentWorkspaces: (state: StoreState) => state.recentWorkspaces,
   useRecentWorkspaces: () => useAppStore(useShallow((s) => s.recentWorkspaces)),
 
-  getGitSnapshot: (state: StoreState) => state.gitSnapshot,
-  useGitSnapshot: () => useAppStore(useShallow((s) => s.gitSnapshot)),
-
   getGitBranches: (state: StoreState) => state.gitBranches,
   useGitBranches: () => useAppStore(useShallow((s) => s.gitBranches)),
 

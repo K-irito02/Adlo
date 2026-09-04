@@ -131,6 +131,9 @@ vi.mock('@stores/slicedStore', () => ({
           'file-hotspots': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
         },
       },
+      gitSnapshots: {
+        'workspace-1': { isRepo: true, branches: [], conflicts: [] },
+      },
       setGitVisData: vi.fn(),
       setGitVisLoading: vi.fn(),
       setGitVisError: vi.fn(),

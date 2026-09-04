@@ -13,7 +13,6 @@ export interface GitSlice {
   setGitSnapshot: (snapshot: GitSnapshot | undefined) => void;
   setGitBranches: (branches: GitBranchSummary[]) => void;
   setGitStashRestored: (restored: boolean) => void;
-  clearGitState: () => void;
 }
 
 export const createGitSlice = (
@@ -25,6 +24,4 @@ export const createGitSlice = (
   setGitSnapshot: (snapshot) => set({ gitSnapshot: snapshot }),
   setGitBranches: (branches) => set({ gitBranches: branches }),
   setGitStashRestored: (restored) => set({ gitStashRestored: restored }),
-  clearGitState: () =>
-    set({ gitSnapshot: undefined, gitBranches: [], gitStashRestored: undefined }),
 });
