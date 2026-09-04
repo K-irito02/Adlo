@@ -40,7 +40,9 @@ pub enum AppEvent {
     TerminalStream(String),
     ModelStream(String),
     ConfigChanged,
-    FileChanged { path: String },
+    FileChanged {
+        path: String,
+    },
     /// 剪贴板历史新增/变更，携带最新条目 id。
     ClipboardChanged(String),
 }
