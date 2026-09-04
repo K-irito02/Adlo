@@ -11,27 +11,38 @@
 ## Global Constraints
 
 - 所有 UI 文本必须走 i18n（新增 key 到 `zh-CN/utilities.ts` 和 `en-US/utilities.ts`），禁止硬编码。
+
 - 新增 slice 按 `slices/` 目录、actions 按 `actions/` 目录，命名符合既有 pattern。
+
 - 新增 IPC 必须同时更新 tauri-bridge、preview-bridge、mock-bridge 三处实现（三桥一致性）。
+
 - 错误用 `clearError`/`captureTypedError`，加载状态用 `isFetching` 字段。
+
 - 空状态用 `EmptyRow` 组件，文案无句号且居中。
+
 - TypeScript 禁止 `any`，用精确类型。
+
 - CSS 用现有 `adl-*` class 命名，复用设计系统 token，不破坏样式结构。
+
 - 执行完必须过 `pnpm --dir frontend run lint:fix`、`pnpm --dir frontend run format`、`pnpm --dir frontend run typecheck`，全部通过。
+
 - 新增 action/方法必须附带标准 JSDoc（`@reads`/`@writes`/`@see`）。
 
 > ⚠️ 本计划为**前端计划**；后端（Rust crate、数据库表、Tauri command、HTTP handler）见配套向后端计划（`docs/superpowers/plans/2026-09-04-system-utilities-backend.md`）。
 
----
+***
 
-### Task 1: IPC 接口定义 — clipboard.ts + system_monitor.ts
+### Task 1: IPC 接口定义 — clipboard.ts + system\_monitor.ts
 
 **Files:**
+
 - Create: `ai-digital-life/frontend/src/shared/ipc/clipboard.ts`
+
 - Create: `ai-digital-life/frontend/src/shared/ipc/system_monitor.ts`
+
 - Modify: `ai-digital-life/frontend/src/shared/ipc/index.ts`（barrel 导出）
 
-**Interfaces（产出三桥接接口契约，与后端 Task 2 共享类型匹配，`@command`/`@see` JSDoc 规范对齐）：**
+**Interfaces（产出三桥接接口契约，与后端 Task 2 共享类型匹配，`@command`/`@see`** **JSDoc 规范对齐）：**
 
 ```ts
 // clipboard.ts
@@ -104,9 +115,12 @@ export * from './clipboard';
 export * from './system_monitor';
 ```
 
-- [ ] **Step 1: Create `clipboard.ts` 如上述**
-- [ ] **Step 2: Create `system_monitor.ts` 如上述**
-- [ ] **Step 3: Modify `index.ts` 追加两行 `export`**
+- [ ] **Step 1: Create** **`clipboard.ts`** **如上述**
+
+- [ ] **Step 2: Create** **`system_monitor.ts`** **如上述**
+
+- [ ] **Step 3: Modify** **`index.ts`** **追加两行** **`export`**
+
 - [ ] **Step 4: 类型检查**
 
 ```bash
@@ -123,18 +137,21 @@ git add ai-digital-life/frontend/src/shared/ipc
 git commit -m "feat(shared): clipboard / system-monitor IPC 接口定义"
 ```
 
----
+***
 
 ### Task 2: 三桥接实现 — tauri-bridge / preview-bridge / mock-bridge
 
 **Files:**
+
 - Modify: `ai-digital-life/frontend/src/tauri-bridge/index.ts`
+
 - Modify: `ai-digital-life/frontend/src/preview-bridge/index.ts`
+
 - Modify: `ai-digital-life/frontend/src/mock-bridge.ts`（若实际路径在 `src/mock/` 下按现有 barrel 汇入）
 
 **Contracts（来自 Task 1）：** `ClipboardBridge`、`SystemMonitorBridge`
 
-**tauri-bridge/index.ts 追加（仿现有 `createAppBridge`/域桥的注入方式；若无统一注入，则新增独立导出函数）：**
+**tauri-bridge/index.ts 追加（仿现有** **`createAppBridge`/域桥的注入方式；若无统一注入，则新增独立导出函数）：**
 
 ```ts
 const clipboardBridge: ClipboardBridge = {
@@ -212,8 +229,11 @@ export const systemMonitor: SystemMonitorBridge = {
 ```
 
 - [ ] **Step 1: 实现 tauri-bridge/index.ts 两个桥接**（先读现有调用写法再写）
+
 - [ ] **Step 2: 实现 preview-bridge/index.ts 两个桥接**（先读现有 http helper）
+
 - [ ] **Step 3: 实现 mock-bridge.ts 两个桥接**
+
 - [ ] **Step 4: 类型检查**
 
 ```bash
@@ -227,12 +247,14 @@ git add ai-digital-life/frontend/src/tauri-bridge ai-digital-life/frontend/src/p
 git commit -m "feat(ipc): 剪贴板/系统监控三桥接实现"
 ```
 
----
+***
 
 ### Task 3: 新增图标 — 剪贴板 / CPU / 内存
 
 **Files:**
+
 - Modify: `ai-digital-life/frontend/src/app/icons/status.tsx`
+
 - Modify: `ai-digital-life/frontend/src/app/icons/index.ts`
 
 按 svg-icon-domain-split-organization 模式用 `make()` 工厂。在 `status.tsx` 末尾追加（可自行选用更优的 Heroicons/Mingcute 风格 SVG path；以下为占位示例，落地时用合法 path）：
@@ -253,7 +275,9 @@ export const IconMemory = make(
 ```
 
 - [ ] **Step 1:** 在 status.tsx 追加三个图标（clipboard/cpu/memory，`make()` 工厂）。落地时用真实合法 SVG path（可参考 lucide/mingcute 的开源图标 path），替换上面示例 path —— 示例仅示意 `make(<path/>)` 用法，不允许 Lint 报错。
+
 - [ ] **Step 2:** index.ts 导出这三个图标
+
 - [ ] **Step 3:** 类型检查 + ESLint
 
 ```bash
@@ -268,13 +292,16 @@ git add ai-digital-life/frontend/src/app/icons
 git commit -m "feat(icons): 剪贴板/CPU/内存图标"
 ```
 
----
+***
 
 ### Task 4: i18n — 新增 utilities.ts（剪贴板 + 系统监控文案）
 
 **Files:**
+
 - Create: `ai-digital-life/frontend/src/app/i18n/zh-CN/utilities.ts`
+
 - Create: `ai-digital-life/frontend/src/app/i18n/en-US/utilities.ts`
+
 - Modify: `ai-digital-life/frontend/src/app/i18n/index.ts`（barrel 导出）
 
 **zh-CN/utilities.ts：**
@@ -329,6 +356,7 @@ export { default as utilitiesEn } from './en-US/utilities';
 ```
 
 - [ ] **Step 1/V2/V3:** create zh + en + update barrel
+
 - [ ] **Step 4: 类型检查**
 
 ```bash
@@ -342,16 +370,22 @@ git add ai-digital-life/frontend/src/app/i18n
 git commit -m "feat(i18n): 剪贴板历史 / 系统监控 中英文文案"
 ```
 
----
+***
 
 ### Task 5: Zustand — 新增 clipboardHistorySlice + systemMonitorSlice 与 actions
 
 **Files:**
+
 - Create: `ai-digital-life/frontend/src/app/stores/slices/clipboardHistorySlice.ts`
+
 - Create: `ai-digital-life/frontend/src/app/stores/slices/systemMonitorSlice.ts`
+
 - Modify: `ai-digital-life/frontend/src/app/stores/slices/index.ts`
+
 - Create: `ai-digital-life/frontend/src/app/stores/actions/utilitiesActions.ts`
+
 - Modify: `ai-digital-life/frontend/src/app/stores/actions/index.ts`
+
 - Modify: `ai-digital-life/frontend/src/app/stores/slicedStore.ts`
 
 **Interfaces（由 Task 1 + kernel types）：** `ClipboardItem`、`SystemSnapshot`。
@@ -415,7 +449,7 @@ export const createSystemMonitorSlice = (
 });
 ```
 
-**utilitiesActions.ts（须带 JSDoc `@reads/@writes/@see`，遵循 store-action-jsdoc 规则；调用经 `getBridge()` 或现有桥接获取实例，写法对齐现有 actions）：**
+**utilitiesActions.ts（须带 JSDoc** **`@reads/@writes/@see`，遵循 store-action-jsdoc 规则；调用经** **`getBridge()`** **或现有桥接获取实例，写法对齐现有 actions）：**
 
 ```ts
 import type { StoreState } from '../StoreState';
@@ -495,10 +529,15 @@ export async function fetchSystemSnapshot(this: StoreState) {
 > 注意：`this.setClipboardHistoryLoading`、`this.setClipboardHistory` 等来自 slice；务必在 `StoreState` 接口里把新 slice 的字段/方法合并（看 `StoreState.ts` 如何聚合 slices）。`getBridge()` 与 `res.error.code/message` 形状按现有 actions 实例为准。
 
 - [ ] **Step 1/V2:** 写两个 slice
+
 - [ ] **Step 3:** 更新 `slices/index.ts` 导出两个 creator
+
 - [ ] **Step 4:** 写 `utilitiesActions.ts`（带 JSDoc）
+
 - [ ] **Step 5:** 更新 `actions/index.ts` 导出 utilities actions
+
 - [ ] **Step 6:** 更新 `slicedStore.ts` 合并两个新 slices
+
 - [ ] **Step 7: 类型检查**
 
 ```bash
@@ -512,26 +551,36 @@ git add ai-digital-life/frontend/src/app/stores
 git commit -m "feat(stores): 剪贴板历史 / 系统监控 slice 与 actions"
 ```
 
----
+***
 
 ### Task 6: 功能组件 — features/clipboard-history
 
 **Files:**
+
 - Create: `ai-digital-life/frontend/src/app/features/clipboard-history/ClipboardHistoryList.tsx`
+
 - Create: `ai-digital-life/frontend/src/app/features/clipboard-history/ClipboardItemRow.tsx`
+
 - Create: `ai-digital-life/frontend/src/app/features/clipboard-history/ClipboardHistoryHeader.tsx`
 
 **职责：**
+
 - `ClipboardHistoryList`：读 `clipboardHistory`/`clipboardSearch`，filter 后渲染列表；空状态 `<EmptyRow message={t.clipboardEmpty} />`；挂载时触发 `fetchClipboardHistory`。
+
 - `ClipboardItemRow`：`text` 显示截断预览（多行省略），`image` 显示缩略图；整行点击回写系统剪贴板（`navigator.clipboard.writeText/write`）并 toast；悬停显示删除按钮 → `removeClipboardItem(id)`。
+
 - `ClipboardHistoryHeader`：搜索框（`setClipboardSearch`）+ "清空全部"按钮（`Dialog` 二次确认 → `clearAllClipboard`）+ 底部本地存储提示。
 
 > UI 采用既有侧边栏风格（复用 `.adl-list-row` 等），Tailwind + i18n 全覆盖，参考现有 `features` 目录里的 component 写法（如 terminal/patch-review）。
 
 - [ ] **Step 1:** create 目录与三组件（实现如职责描述）
+
 - [ ] **Step 2:** 实现 Header（搜索 + 二次确认清空）
+
 - [ ] **Step 3:** 实现 ItemRow（文本/图片、点击回写、删除）
+
 - [ ] **Step 4:** 实现 List 入口（含空状态 EmptyRow）
+
 - [ ] **Step 5:** 类型检查
 
 ```bash
@@ -545,24 +594,32 @@ git add ai-digital-life/frontend/src/app/features/clipboard-history
 git commit -m "feat(features): 剪贴板历史列表组件"
 ```
 
----
+***
 
 ### Task 7: 功能组件 — features/system-monitor
 
 **Files:**
+
 - Create: `ai-digital-life/frontend/src/app/features/system-monitor/SystemMonitorPanel.tsx`
+
 - Create: `ai-digital-life/frontend/src/app/features/system-monitor/CpuMemoryMini.tsx`
+
 - Create: `ai-digital-life/frontend/src/app/features/system-monitor/ProcessTable.tsx`
 
 **职责：**
+
 - `SystemMonitorPanel`：读 `sysmonCollapsed`；默认折叠仅渲染 `CpuMemoryMini`，点击标题展开完整面板。展开后每秒 `fetchSystemSnapshot`（`useEffect` + `setInterval` 1000ms）。
+
 - `CpuMemoryMini`：折叠态两个迷你进度条 + 百分比。
+
 - `ProcessTable`：进程 Top-N 只读表格（`{t.sysProcessTopN}`）。
 
 > GPU 不做、无占位。展开内容含 CPU（总 + 每核心）、内存进度条、磁盘列表、网络速率列表、进程表。
 
 - [ ] **Step 1/V2/V3:** create 目录与三组件
+
 - [ ] **Step 4:** 实现 Panel（折叠逻辑 + 1s 轮询）
+
 - [ ] **Step 5: 类型检查**
 
 ```bash
@@ -576,14 +633,16 @@ git add ai-digital-life/frontend/src/app/features/system-monitor
 git commit -m "feat(features): 系统监控面板（可折叠）"
 ```
 
----
+***
 
 ### Task 8: LeftSidebar 重构
 
 **Files:**
+
 - Modify: `ai-digital-life/frontend/src/app/regions/LeftSidebar.tsx`
 
 **变更点：**
+
 1. 删除 `WorkspaceList` import 与渲染（`./left-sidebar/WorkspaceList`）。
 2. 删除快速访问区（两 disabled 按钮 Skills/MCP）。
 3. 删除 WorkspaceList 部分 props 与 `menuState`/右键菜单渲染。
@@ -610,8 +669,11 @@ return (
 > ⚠️ **风险点**：移除 WorkspaceList 会导致 `StoreState` 里大量 workspace 相关字段/actions 暂时无用（如 `recentWorkspaces`、`reorderWorkspaces`、`pinWorkspace`）。按 spec（§7）约定，**只移除侧边栏 UI 引用，不动 workspace store 后端与 store slice**，避免破坏 dsh 集成。因此新 `LeftSidebar` 不再消费这些即可，无需删 store。
 
 - [ ] **Step 1:** 删除旧区块（快速访问/WorkspaceList/右键菜单）
+
 - [ ] **Step 2:** 导入并替换新组件，调整 props
+
 - [ ] **Step 3:** 调整布局 CSS（`LeftSidebar.module.css` 或对应样式文件）
+
 - [ ] **Step 4: 类型检查**
 
 ```bash
@@ -623,6 +685,7 @@ pnpm --dir ai-digital-life/frontend run typecheck
 ```bash
 cd ai-digital-life && pnpm run dev:browser
 ```
+
 确认：剪贴板历史在上占高区、系统监控折叠小卡片在下，折叠宽度正常。
 
 - [ ] **Step 6: 提交**
@@ -632,14 +695,15 @@ git add ai-digital-life/frontend/src/app/regions/LeftSidebar.tsx
 git commit -m "refactor(left-sidebar): 移除 WorkspaceList/SkillsMCP，接入剪贴板与监控"
 ```
 
----
+***
 
 ### Task 9: 桌面端事件实时刷新 + 浏览器端轮询
 
 **Files:**
+
 - Modify: `ai-digital-life/frontend/src/app/features/clipboard-history/ClipboardHistoryList.tsx`
 
-**后端（Tauri）会 emit `clipboard-changed` 事件；前端监听它刷新列表。**
+**后端（Tauri）会 emit** **`clipboard-changed`** **事件；前端监听它刷新列表。**
 
 ```ts
 useEffect(() => {
@@ -655,7 +719,9 @@ useEffect(() => {
 **浏览器端：** 无事件，改 2s 轮询 `fetchClipboardHistory`（与 preview-pty-bridge 同策略）。
 
 - [ ] **Step 1: 添加桌面端 Tauri 事件监听**
+
 - [ ] **Step 2: 添加浏览器端 2s 轮询**
+
 - [ ] **Step 3: 类型检查**
 
 ```bash
@@ -669,10 +735,13 @@ git add ai-digital-life/frontend/src/app/features/clipboard-history
 git commit -m "feat(clipboard): 桌面事件推送 / 浏览器轮询实时刷新"
 ```
 
----
+***
 
 ### Self-Review
 
 - **Spec 覆盖**：移除快速访问+WorkspaceList（Task 8）、剪贴板列表/搜索/删除/清空/回写（Task 6 + actions Task 5）、系统监控可折叠+实时+Top-N（Task 7 + actions Task 5）、三桥接（Task 1/2）、i18n（Task 4）、图标（Task 3）、实时性（Task 9）。完整覆盖 spec 前端要求。
+
 - **占位符扫描**：各处组件/接口/actions 均有实际实现框架；仅「SVG path」「`httpGet`/`invoke` 写法」「`getBridge()` 获取实例」按现有代码真实签名落地（已标注照抄现有实现），不臆造。
+
 - **一致性**：`ClipboardItem`/`SystemSnapshot` 字段与后端一致（`createdAt`/`cpuTotal` camelCase）；三桥接接口命名一致；slice/actions/i18n 均符合项目既有 pattern。
+
