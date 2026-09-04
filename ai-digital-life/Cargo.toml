@@ -19,6 +19,7 @@ members = [
     "crates/mcp-client",
     "crates/lsp-client",
     "crates/clipboard",
+    "crates/sysmon",
     "crates/server",
     "src-tauri",
 ]

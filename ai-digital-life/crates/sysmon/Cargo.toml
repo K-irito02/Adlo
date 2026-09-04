@@ -1,0 +1,11 @@
+[package]
+name = "adl-sysmon"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+adl-types = { path = "../types" }
+sysinfo = "0.39"
