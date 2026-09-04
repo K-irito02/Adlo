@@ -4,8 +4,8 @@ use futures::stream::{self, StreamExt};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
 
-use crate::error::CommandError;
 use super::ipc;
+use crate::error::CommandError;
 use adl_errors::AppError;
 use adl_types::IpcResult;
 
@@ -26,18 +26,15 @@ async fn scan_single_port(port: u16) -> ScannedPort {
     let addr = format!("127.0.0.1:{port}");
     let timeout = std::time::Duration::from_millis(SCAN_TIMEOUT_MS);
 
-    let is_open = tokio::time::timeout(timeout, TcpStream::connect(&addr))
-        .await
-        .is_ok_and(|r| r.is_ok());
+    let is_open =
+        tokio::time::timeout(timeout, TcpStream::connect(&addr)).await.is_ok_and(|r| r.is_ok());
 
     ScannedPort { port, is_open, response_time_ms: start.elapsed().as_millis() as u64 }
 }
 
 fn validate_ports(ports: &[u16]) -> Result<(), CommandError> {
     if ports.is_empty() {
-        return Err(CommandError::from(AppError::Internal(
-            "port list is empty".to_string(),
-        )));
+        return Err(CommandError::from(AppError::Internal("port list is empty".to_string())));
     }
     if ports.len() > MAX_PORTS_PER_SCAN {
         return Err(CommandError::from(AppError::Internal(format!(
@@ -61,7 +58,9 @@ fn validate_ports(ports: &[u16]) -> Result<(), CommandError> {
 /// Deduplicates and sorts input ports. Returns results sorted by port number.
 /// Each port is probed with a 300ms timeout, up to 10 concurrent connections.
 #[tauri::command]
-pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<IpcResult<Vec<ScannedPort>>, CommandError> {
+pub async fn browser_scan_ports(
+    ports: Vec<u16>,
+) -> Result<IpcResult<Vec<ScannedPort>>, CommandError> {
     let scan_start = Instant::now();
 
     validate_ports(&ports)?;
@@ -71,11 +70,7 @@ pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<IpcResult<Vec<Scanned
     unique_ports.sort();
 
     let port_count = unique_ports.len();
-    tracing::debug!(
-        port_count,
-        unique_count = port_count,
-        "browser_scan_ports: starting scan"
-    );
+    tracing::debug!(port_count, unique_count = port_count, "browser_scan_ports: starting scan");
 
     let mut results: Vec<ScannedPort> = stream::iter(unique_ports)
         .map(scan_single_port)
@@ -87,12 +82,7 @@ pub async fn browser_scan_ports(ports: Vec<u16>) -> Result<IpcResult<Vec<Scanned
 
     let elapsed_ms = scan_start.elapsed().as_millis() as u64;
     let open_count = results.iter().filter(|p| p.is_open).count();
-    tracing::debug!(
-        port_count,
-        open_count,
-        elapsed_ms,
-        "browser_scan_ports: completed"
-    );
+    tracing::debug!(port_count, open_count, elapsed_ms, "browser_scan_ports: completed");
 
     Ok(ipc(Ok(results)))
 }
@@ -118,11 +108,10 @@ pub struct PortDetails {
 
 #[cfg(target_os = "windows")]
 async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, CommandError> {
-    let output = tokio::process::Command::new("netstat")
-        .args(["-ano"])
-        .output()
-        .await
-        .map_err(|e| CommandError::from(AppError::Internal(format!("failed to run netstat: {e}"))))?;
+    let output =
+        tokio::process::Command::new("netstat").args(["-ano"]).output().await.map_err(|e| {
+            CommandError::from(AppError::Internal(format!("failed to run netstat: {e}")))
+        })?;
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     let mut pids = Vec::new();
@@ -152,11 +141,7 @@ async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, Comman
                 let parts: Vec<&str> = line.split(',').collect();
                 if parts.len() >= 2 {
                     let name = parts[0].trim_matches('"').to_string();
-                    processes.push(PortProcessInfo {
-                        pid: *pid,
-                        name,
-                        command: String::new(),
-                    });
+                    processes.push(PortProcessInfo { pid: *pid, name, command: String::new() });
                 }
             }
         }
@@ -182,11 +167,7 @@ async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, Comman
             let name = parts[0].to_string();
             if let Ok(pid) = parts[1].parse::<u32>() {
                 if !processes.iter().any(|p: &PortProcessInfo| p.pid == pid) {
-                    processes.push(PortProcessInfo {
-                        pid,
-                        name,
-                        command: String::new(),
-                    });
+                    processes.push(PortProcessInfo { pid, name, command: String::new() });
                 }
             }
         }
@@ -212,11 +193,7 @@ async fn get_port_process_info(port: u16) -> Result<Vec<PortProcessInfo>, Comman
             let name = parts[0].to_string();
             if let Ok(pid) = parts[1].parse::<u32>() {
                 if !processes.iter().any(|p: &PortProcessInfo| p.pid == pid) {
-                    processes.push(PortProcessInfo {
-                        pid,
-                        name,
-                        command: String::new(),
-                    });
+                    processes.push(PortProcessInfo { pid, name, command: String::new() });
                 }
             }
         }
@@ -235,9 +212,7 @@ pub async fn browser_get_port_details(port: u16) -> Result<IpcResult<PortDetails
     let is_open = {
         let addr = format!("127.0.0.1:{port}");
         let timeout = std::time::Duration::from_millis(SCAN_TIMEOUT_MS);
-        tokio::time::timeout(timeout, TcpStream::connect(&addr))
-            .await
-            .is_ok_and(|r| r.is_ok())
+        tokio::time::timeout(timeout, TcpStream::connect(&addr)).await.is_ok_and(|r| r.is_ok())
     };
 
     let (processes, process_error) = if is_open {
@@ -388,10 +363,7 @@ mod tests {
         };
         let json = serde_json::to_string(&details).unwrap();
         assert!(json.contains("is_open") || json.contains("isOpen"), "json: {json}");
-        assert!(
-            json.contains("localAddress") || json.contains("local_address"),
-            "json: {json}"
-        );
+        assert!(json.contains("localAddress") || json.contains("local_address"), "json: {json}");
         assert!(json.contains("processError") || json.contains("process_error"), "json: {json}");
     }
 

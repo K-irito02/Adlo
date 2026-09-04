@@ -99,12 +99,7 @@ async fn apply_patch_set_inner(
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
 
-    let result = adl_change_engine::application_result(
-        patch_set,
-        None,
-        None,
-        false,
-    );
+    let result = adl_change_engine::application_result(patch_set, None, None, false);
     Ok(serde_json::to_value(result)?)
 }
 

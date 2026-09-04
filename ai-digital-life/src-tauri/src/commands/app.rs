@@ -5,8 +5,7 @@ use adl_errors::AppError;
 use adl_types::{
     APP_NAME, AppInfo, AppPreferencePatch, ConfigSnapshot, EventDiagnostics, HealthComponent,
     HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
-    RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot,
-    WorkspaceMeta, now_ms,
+    RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, WorkspaceMeta, now_ms,
 };
 use adl_workspace::strip_verbatim_prefix;
 use serde::Serialize;

@@ -68,7 +68,9 @@ pub async fn rebuild_index(State(state): State<ServerState>) -> impl IntoRespons
     .await;
     let _result = match result {
         Ok(inner) => inner,
-        Err(e) => return ipc::to_response(Err(AppError::Internal(format!("spawn_blocking failed: {e}")))),
+        Err(e) => {
+            return ipc::to_response(Err(AppError::Internal(format!("spawn_blocking failed: {e}"))));
+        },
     };
 
     state.event_bus.emit(AppEvent::RetrievalStatusChanged(workspace_id.clone()));

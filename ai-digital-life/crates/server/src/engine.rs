@@ -74,13 +74,8 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
 pub async fn serve(state: ServerState, port: u16) -> u16 {
     let app = crate::router::app_router(state.clone()).with_state(state.clone());
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("failed to bind TCP listener");
-    let bound_port = listener
-        .local_addr()
-        .expect("failed to get local address")
-        .port();
+    let listener = tokio::net::TcpListener::bind(addr).await.expect("failed to bind TCP listener");
+    let bound_port = listener.local_addr().expect("failed to get local address").port();
     state.server_port.store(bound_port, std::sync::atomic::Ordering::Relaxed);
     println!("AD_SERVER_PORT={bound_port}");
     let _ = std::io::stdout().flush();

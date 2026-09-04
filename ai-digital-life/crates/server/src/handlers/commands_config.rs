@@ -4,9 +4,7 @@ use adl_types::CommandConfig;
 use axum::response::IntoResponse;
 use std::path::PathBuf;
 
-pub async fn list_commands(
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn list_commands(body: axum::body::Bytes) -> impl IntoResponse {
     let input: DataDirBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
@@ -23,9 +21,7 @@ pub async fn list_commands(
     }
 }
 
-pub async fn add_command(
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn add_command(body: axum::body::Bytes) -> impl IntoResponse {
     let input: AddCommandBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
@@ -51,9 +47,7 @@ pub async fn add_command(
     }
 }
 
-pub async fn update_command(
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn update_command(body: axum::body::Bytes) -> impl IntoResponse {
     let input: UpdateCommandBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
@@ -79,9 +73,7 @@ pub async fn update_command(
     }
 }
 
-pub async fn delete_command(
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn delete_command(body: axum::body::Bytes) -> impl IntoResponse {
     let input: DeleteCommandBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
@@ -101,9 +93,7 @@ pub async fn delete_command(
     }
 }
 
-pub async fn render_template(
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn render_template(body: axum::body::Bytes) -> impl IntoResponse {
     let input: RenderTemplateBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),

@@ -1,8 +1,8 @@
 use adl_errors::AppError;
 use adl_logging::LogMode;
 use adl_types::CommandConfig;
-use adl_types::types::reference::ReferenceConfig;
 use adl_types::types::ThemeMode;
+use adl_types::types::reference::ReferenceConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ts_rs::TS;

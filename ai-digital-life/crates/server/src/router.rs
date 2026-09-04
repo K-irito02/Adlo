@@ -1,5 +1,5 @@
-use crate::handlers::{self, health};
 use crate::ServerState;
+use crate::handlers::{self, health};
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, StatusCode, header};

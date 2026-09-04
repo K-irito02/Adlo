@@ -54,11 +54,7 @@ pub async fn execute(
     let timeout = std::time::Duration::from_secs(timeout_secs.unwrap_or(DEFAULT_TIMEOUT_SECS));
 
     let result = tokio::time::timeout(timeout, async {
-        Command::new(program)
-            .args(&args)
-            .current_dir(workspace_root)
-            .output()
-            .await
+        Command::new(program).args(&args).current_dir(workspace_root).output().await
     })
     .await
     .map_err(|_| AppError::Terminal(format!("bash tool timed out after {timeout:?}")))?
