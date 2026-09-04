@@ -255,6 +255,7 @@ interface UtilitiesActions {
   fetchClipboardHistory: () => Promise<void>;
   removeClipboardItem: (id: string) => Promise<void>;
   clearAllClipboard: () => Promise<void>;
+  writeClipboardItem: (id: string) => Promise<boolean>;
   fetchSystemSnapshot: () => Promise<void>;
 }
 

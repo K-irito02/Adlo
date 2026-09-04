@@ -65,6 +65,26 @@ export function createUtilitiesActions(
     },
 
     /**
+     * [writeClipboardItem - 把单条剪贴板历史写回系统剪贴板]
+     * 图片条目走后端 `/clipboard/write-image`；返回是否写入成功，供 UI 展示 toast。
+     * @reads 无
+     * @writes 无
+     * @see shared/ipc.ts → clipboard.writeImage
+     * @see mock-bridge.ts → clipboard.writeImage
+     * @see preview-bridge/index.ts → clipboard.writeImage
+     */
+    writeClipboardItem: async (id: string) => {
+      const result = await window.digitalLife.clipboard.writeImage(id);
+      if (result.ok && result.data === true) {
+        return true;
+      }
+      if (!result.ok) {
+        captureError(get, result.error, SCOPE);
+      }
+      return false;
+    },
+
+    /**
      * [fetchSystemSnapshot - 拉取最新系统资源快照]
      * @reads 无
      * @writes systemMonitorSlice.sysmonSnapshot

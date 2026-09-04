@@ -243,6 +243,7 @@ export function setupPreviewBridge(): void {
       adlServerBaseUrl,
       http.clipboard,
       mockDigitalLifeBridge.clipboard,
+      ['getThumbUrl'],
     ),
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
       adlServerBaseUrl,
