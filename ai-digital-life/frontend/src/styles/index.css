@@ -20,6 +20,7 @@
 @import './regions/leftbar-workspace.css';
 @import './regions/leftbar-session.css';
 @import './regions/leftbar-clipboard.css';
+@import './regions/system-monitor.css';
 @import './regions/center.css';
 @import './regions/rightpanel.css';
 @import './regions/titlebar.css';
