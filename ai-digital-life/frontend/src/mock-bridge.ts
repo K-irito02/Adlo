@@ -34,6 +34,8 @@ import { mockLsp } from './mock/mock-lsp';
 import { mockReference } from './mock/mock-reference';
 import { mockDurable } from './mock/mock-durable';
 import { mockReserved } from './mock/mock-reserved';
+import { mockClipboard } from './mock/mock-clipboard';
+import { mockSystemMonitor } from './mock/mock-system-monitor';
 
 const MOCK_BRIDGE_STORAGE_KEY = 'ai-digital-life-mock-bridge-state';
 let persistenceEnabled = false;
@@ -132,6 +134,8 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   reference: mockReference,
   durable: mockDurable,
   reserved: mockReserved,
+  clipboard: mockClipboard,
+  systemMonitor: mockSystemMonitor,
 };
 
 export function setupMockBridge(): void {

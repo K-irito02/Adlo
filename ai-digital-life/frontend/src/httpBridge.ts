@@ -28,12 +28,14 @@ import type {
   AppInfo,
   AppPreferencePatch,
   CiStatusSnapshot,
+  ClipboardItem,
   FileOutlineItem,
   HealthSnapshot,
   IpcResult,
   ModelGatewayHealthSnapshot,
   ModelTokenUsage,
   RuntimeDiagnosticsSnapshot,
+  SystemSnapshot,
 } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from './shared/ipc/digital-life';
 import type { AppBridge } from './shared/ipc/app';
@@ -72,6 +74,8 @@ import type { WebFetchResult, WebSearchResult } from './shared/ipc/web_tools';
 import type { ReferenceConfig } from './shared/ipc/reference';
 import type { SymbolInfo, DiagnosticInfo } from './shared/ipc/lsp';
 import type { DurableSessionState } from './shared/ipc/durable';
+import type { ClipboardBridge } from './shared/ipc/clipboard';
+import type { SystemMonitorBridge } from './shared/ipc/system_monitor';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 import {
   subscribeEventSource,
@@ -1019,5 +1023,22 @@ export function createHttpBridge({
       recoverSession: (sessionId: string) =>
         call<boolean>(baseUrl, '/durable/recover', POST({ sessionId })),
     },
+
+    // ── Clipboard domain.
+    clipboard: {
+      list: (limit?: number) =>
+        call<ClipboardItem[]>(
+          baseUrl,
+          '/clipboard/list' + (limit != null ? `?limit=${limit}` : ''),
+          GET(),
+        ),
+      remove: (id: string) => call<boolean>(baseUrl, '/clipboard/remove', POST({ id })),
+      clear: () => call<number>(baseUrl, '/clipboard/clear', POST({})),
+    } satisfies ClipboardBridge,
+
+    // ── System-monitor domain.
+    systemMonitor: {
+      snapshot: () => call<SystemSnapshot>(baseUrl, '/sysmon/snapshot', GET()),
+    } satisfies SystemMonitorBridge,
   };
 }

@@ -10,6 +10,8 @@ import type { ReferenceBridge } from '../shared/ipc/reference';
 import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
 import type { WebToolsBridge } from '../shared/ipc/web_tools';
+import type { ClipboardBridge } from '../shared/ipc/clipboard';
+import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
@@ -236,6 +238,16 @@ export function setupPreviewBridge(): void {
       adlServerBaseUrl,
       http.durable,
       mockDigitalLifeBridge.durable,
+    ),
+    clipboard: preferHttpWhenReachable<ClipboardBridge>(
+      adlServerBaseUrl,
+      http.clipboard,
+      mockDigitalLifeBridge.clipboard,
+    ),
+    systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
+      adlServerBaseUrl,
+      http.systemMonitor,
+      mockDigitalLifeBridge.systemMonitor,
     ),
     // `reserved` (ACP/HTTP-API/CodeMode) has NO ad-server HTTP routes — the
     // httpBridge implementations are all `NOT_SUPPORTED` stubs. The desktop
