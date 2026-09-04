@@ -24,6 +24,7 @@ import { durableZh } from './durable';
 import { settingsZh } from './settings';
 import { notificationZh } from './notification';
 import { errorsZh } from './errors';
+import { utilitiesZh } from './utilities';
 export const zhCN = {
   ...menuZh,
   ...workspaceZh,
@@ -51,4 +52,5 @@ export const zhCN = {
   ...settingsZh,
   ...notificationZh,
   ...errorsZh,
+  ...utilitiesZh,
 } as const;

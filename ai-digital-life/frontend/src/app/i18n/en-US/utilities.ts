@@ -1,0 +1,17 @@
+export const utilitiesEn = {
+  clipboardHistory: 'Clipboard History',
+  clipboardClearAll: 'Clear all',
+  clipboardClearConfirm: 'Clear all clipboard history? This cannot be undone',
+  clipboardDeleteOne: 'Delete',
+  clipboardEmpty: 'No clipboard history',
+  clipboardLocalNote: 'Clipboard data is stored locally and can be cleared anytime',
+  clipboardSearchPlaceholder: 'Search clipboard',
+  systemMonitor: 'System Monitor',
+  sysCpu: 'CPU',
+  sysMemory: 'Memory',
+  sysDisks: 'Disks',
+  sysNetwork: 'Network',
+  sysProcesses: 'Processes',
+  sysProcessTopN: 'CPU Top-25',
+  sysUptime: 'Uptime',
+} as const;

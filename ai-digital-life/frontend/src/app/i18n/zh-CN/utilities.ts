@@ -1,0 +1,17 @@
+export const utilitiesZh = {
+  clipboardHistory: '剪贴板历史',
+  clipboardClearAll: '清空全部',
+  clipboardClearConfirm: '确定清空全部剪贴板历史？此操作不可恢复',
+  clipboardDeleteOne: '删除本条',
+  clipboardEmpty: '暂无剪贴板历史',
+  clipboardLocalNote: '剪贴板数据仅本地存储，可随时清空',
+  clipboardSearchPlaceholder: '搜索剪贴板',
+  systemMonitor: '系统监控',
+  sysCpu: 'CPU',
+  sysMemory: '内存',
+  sysDisks: '磁盘',
+  sysNetwork: '网络',
+  sysProcesses: '进程',
+  sysProcessTopN: 'CPU 占用 Top-25',
+  sysUptime: '开机时长',
+} as const;

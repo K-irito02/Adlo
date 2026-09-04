@@ -24,6 +24,7 @@ import { durableEn } from './durable';
 import { settingsEn } from './settings';
 import { notificationEn } from './notification';
 import { errorsEn } from './errors';
+import { utilitiesEn } from './utilities';
 export const enUS = {
   ...menuEn,
   ...workspaceEn,
@@ -51,4 +52,5 @@ export const enUS = {
   ...settingsEn,
   ...notificationEn,
   ...errorsEn,
+  ...utilitiesEn,
 } as const;
