@@ -247,4 +247,39 @@ mod tests {
 
         let _ = std::fs::remove_file(temp_dir().join("adl-storage-purge-empty.db"));
     }
+
+    #[test]
+    fn clear_entity_table_wipes_only_target_table() {
+        let db = temp_db("clear-entity");
+        // 直接写入标准实体列（剪贴板历史全局，不归属工作区/会话）
+        let insert = |db: &Database, table: &EntityTable, id: &str| {
+            let sql = format!(
+                "INSERT INTO {t} (id, workspace_id, session_id, status, updated_at, json) VALUES (?1, NULL, NULL, NULL, ?2, ?3)",
+                t = table.as_str()
+            );
+            let json = format!(r#"{{"id":"{id}"}}"#);
+            db.execute(&sql, &[&id as &dyn rusqlite::types::ToSql, &0i64, &json]).unwrap();
+        };
+        insert(&db, &EntityTable::ClipboardItems, "c-1");
+        insert(&db, &EntityTable::ClipboardItems, "c-2");
+        insert(&db, &EntityTable::Tasks, "t-1");
+
+        assert_eq!(
+            db.list_entities_with_limit::<serde_json::Value>(EntityTable::ClipboardItems, 100)
+                .unwrap()
+                .len(),
+            2
+        );
+
+        let removed = db.clear_entity_table(EntityTable::ClipboardItems).unwrap();
+        assert_eq!(removed, 2);
+        // 只清目标表，Tasks 不受影响
+        assert_eq!(
+            db.list_entities::<serde_json::Value>(EntityTable::ClipboardItems).unwrap().len(),
+            0
+        );
+        assert_eq!(db.list_entities::<serde_json::Value>(EntityTable::Tasks).unwrap().len(), 1);
+
+        let _ = std::fs::remove_file(temp_dir().join("adl-storage-clear-entity.db"));
+    }
 }

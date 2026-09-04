@@ -178,6 +178,14 @@ impl Database {
         Ok(changed)
     }
 
+    /// 清空整张实体表的所有行（用于剪贴板历史「一键清空」等一删到底场景）。
+    pub fn clear_entity_table(&self, table: EntityTable) -> Result<usize, AppError> {
+        let sql = format!("DELETE FROM {}", table.table_name());
+        let changed =
+            self.conn()?.execute(&sql, []).map_err(|e| AppError::Storage(e.to_string()))?;
+        Ok(changed)
+    }
+
     fn list_entities_filtered<T: DeserializeOwned>(
         &self,
         table: EntityTable,
