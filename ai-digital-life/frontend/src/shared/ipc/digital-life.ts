@@ -11,6 +11,8 @@ export type {
 };
 
 import type { PtyOutputEvent } from './pty';
+import type { ClipboardBridge } from './clipboard';
+import type { SystemMonitorBridge } from './system_monitor';
 import type { WindowBridge } from './window';
 import type { AppBridge } from './app';
 import type { WorkspaceBridge } from './workspace';
@@ -161,4 +163,8 @@ export interface DigitalLifeBridge {
   durable: DurableBridge;
   /** 预留功能 IPC 存根子模块 */
   reserved: ReservedBridge;
+  /** 系统剪贴板历史子模块 */
+  clipboard: ClipboardBridge;
+  /** 系统状态监控子模块 */
+  systemMonitor: SystemMonitorBridge;
 }
