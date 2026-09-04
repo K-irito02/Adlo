@@ -41,6 +41,8 @@ pub enum AppEvent {
     ModelStream(String),
     ConfigChanged,
     FileChanged { path: String },
+    /// 剪贴板历史新增/变更，携带最新条目 id。
+    ClipboardChanged(String),
 }
 
 #[derive(Clone)]
@@ -98,6 +100,7 @@ impl AppEvent {
             Self::ModelStream(_) => "model.stream",
             Self::ConfigChanged => "config.changed",
             Self::FileChanged { .. } => "workspace.file-changed",
+            Self::ClipboardChanged(_) => "clipboard.changed",
         }
     }
 }
