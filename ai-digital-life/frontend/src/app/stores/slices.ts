@@ -40,6 +40,15 @@ export { type DiagnosticSlice, createDiagnosticSlice } from './slices/diagnostic
 // 剪贴板切片
 export { type ClipboardSlice, createClipboardSlice } from './slices/clipboardSlice';
 
+// 剪贴板历史切片
+export {
+  type ClipboardHistorySlice,
+  createClipboardHistorySlice,
+} from './slices/clipboardHistorySlice';
+
+// 系统监控切片
+export { type SystemMonitorSlice, createSystemMonitorSlice } from './slices/systemMonitorSlice';
+
 // 终端切片
 export { type TerminalSlice, createTerminalSlice } from './slices/terminalSlice';
 

@@ -14,6 +14,8 @@ import type { PatchSlice } from './slices/patchSlice';
 import type { SearchSlice } from './slices/searchSlice';
 import type { DiagnosticSlice } from './slices/diagnosticSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
+import type { ClipboardHistorySlice } from './slices/clipboardHistorySlice';
+import type { SystemMonitorSlice } from './slices/systemMonitorSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
 import type { BrowserTabsSlice } from './slices/browserTabsSlice';
 import type { BrowserBookmarkSlice } from './slices/browserBookmarkSlice';
@@ -90,6 +92,8 @@ type AllSlices = [
   SearchSlice,
   DiagnosticSlice,
   ClipboardSlice,
+  ClipboardHistorySlice,
+  SystemMonitorSlice,
   TerminalSlice,
   BrowserTabsSlice,
   BrowserBookmarkSlice,
@@ -247,6 +251,13 @@ interface ReferenceActions {
   removeReference: (dataDir: string, name: string) => Promise<void>;
 }
 
+interface UtilitiesActions {
+  fetchClipboardHistory: () => Promise<void>;
+  removeClipboardItem: (id: string) => Promise<void>;
+  clearAllClipboard: () => Promise<void>;
+  fetchSystemSnapshot: () => Promise<void>;
+}
+
 type AllActions = [
   WorkspaceActions,
   EditorActions,
@@ -258,6 +269,7 @@ type AllActions = [
   WebToolsActions,
   LspActions,
   ReferenceActions,
+  UtilitiesActions,
 ];
 
 export type StoreState = StoreStateRootFields &
