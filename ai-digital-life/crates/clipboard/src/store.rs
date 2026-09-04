@@ -38,6 +38,9 @@ impl ClipboardStore {
                 && prev.digest == item.digest
                 && (item.created_at.saturating_sub(prev.created_at)) <= 3000
             {
+                // 去重命中：旧条目被 merged 顶替，先删除旧条目引用的图片文件，
+                // 避免其成为孤儿文件（新条目 image_path 每次复制都不同）。
+                self.delete_files(&prev);
                 // 覆盖旧行：保留旧行 id，避免同内容累积为新行导致去重失效
                 let mut merged = item.clone();
                 merged.id = prev.id.clone();
@@ -204,12 +207,19 @@ mod tests {
         let store = temp_store("img-dedup");
         let now = now_ms();
         // 同一张图：image_path（文件名/UUID）每次都不同，但像素 digest 相同 + 时间窗内 → 重复
+        // 为 path-1 造真实物理文件，用于后续断言去重顶替后已被删除
+        let path1 = store.images_dir().join("path-1.png");
+        std::fs::write(&path1, b"png-1-bytes").unwrap();
+        assert!(path1.exists());
         let mut img1 = item("img-1", "image", now);
         img1.content = None;
         img1.digest = Some("deadbeef".into());
-        img1.image_path = Some("path-1.png".into());
+        img1.image_path = Some(path1.to_string_lossy().into_owned());
         assert!(store.insert_or_bump(&img1).unwrap());
 
+        // 为 path-2 造真实物理文件（merged 引用的新文件，去重后应保留）
+        let path2 = store.images_dir().join("path-2.png");
+        std::fs::write(&path2, b"png-2-bytes").unwrap();
         let mut img2 = item("img-2", "image", now + 1);
         img2.content = None;
         img2.digest = Some("deadbeef".into());
@@ -220,6 +230,10 @@ mod tests {
         // 覆盖旧行生效：保留首次插入 id，内容用新条目（含新的 image_path）
         assert_eq!(rows[0].id, "img-1");
         assert_eq!(rows[0].image_path.as_deref(), Some("path-2.png"));
+        // 旧条目的物理文件在去重顶替时已被删除，避免孤儿文件累积
+        assert!(!path1.exists());
+        // merged 引用的新文件保留，不被误删
+        assert!(path2.exists());
 
         // 不同 digest 的同 kind 图片 → 判定为新条目
         let mut img3 = item("img-3", "image", now + 2);
