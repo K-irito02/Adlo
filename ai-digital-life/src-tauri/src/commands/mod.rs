@@ -2,12 +2,10 @@ pub mod app;
 pub mod browser;
 pub mod browser_memory;
 pub(crate) mod browser_webview_setup;
-pub mod clipboard;
 pub mod download_commands;
 pub mod platform;
 pub mod port_scan;
 pub mod reserved;
-pub mod sysmon;
 pub mod workspace;
 
 use crate::error::CommandError;

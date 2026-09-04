@@ -7,7 +7,7 @@ use anyhow::Context;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use tracing::{info, warn};
 
 fn resolve_project_root() -> PathBuf {
@@ -162,41 +162,4 @@ pub fn start_background_tasks(state: &AppState) {
 pub fn save_config_to_dir(data_dir: &Path, config: &adl_config::AppConfig) -> anyhow::Result<()> {
     adl_config::save(data_dir, config)?;
     Ok(())
-}
-
-/// Open (and initialize schema for) the clipboard history database in `data_dir`,
-/// then build a `ClipboardStore` backed by it. Mirrors the `downloads.db`
-/// pattern: the shell owns this per-app DB directly (independent of the ad-server's
-/// business DB). Clipboard history is global, so it does not need migration.
-pub fn open_clipboard_store(data_dir: &Path) -> anyhow::Result<adl_clipboard::ClipboardStore> {
-    let db_path = data_dir.join("clipboard.db");
-    let db = adl_storage::Database::open(&db_path)
-        .map_err(|e| anyhow::anyhow!("failed to open clipboard database: {e}"))?;
-    db.init_schema().map_err(|e| anyhow::anyhow!("failed to init clipboard schema: {e}"))?;
-    Ok(adl_clipboard::ClipboardStore::new(db, data_dir))
-}
-
-/// Start the desktop clipboard listener and forward new entries to the frontend.
-/// Listens on the monitor's broadcast channel: `Some(id)` (new entry) is emitted
-/// to the webview as `clipboard-changed` and mirrored to the kernel `EventBus`
-/// for `app_get_diagnostics`; `None` (dedup merge) only updates storage, no push.
-pub fn start_clipboard_monitor(
-    app: tauri::AppHandle,
-    store: std::sync::Arc<adl_clipboard::ClipboardStore>,
-    event_bus: adl_kernel::events::EventBus,
-) {
-    let monitor = adl_clipboard::ClipboardMonitor::new();
-    let mut rx = monitor.subscribe();
-    // 句柄必须存活至应用生命周期，否则 Drop 会触发监听线程立即退出，导致
-    // `clipboard-changed` 事件链路不可达。将句柄移入前向转发线程持有。
-    let handle = monitor.spawn(store);
-    std::thread::spawn(move || {
-        let _handle = handle; // 前向转发线程存活期间保持监听存活
-        while let Ok(change) = rx.blocking_recv() {
-            if let Some(id) = change {
-                let _ = app.emit("clipboard-changed", &id);
-                event_bus.emit(adl_kernel::events::AppEvent::ClipboardChanged(id));
-            }
-        }
-    });
 }
