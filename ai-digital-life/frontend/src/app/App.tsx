@@ -178,10 +178,7 @@ export function App() {
             style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
           >
             <ErrorBoundary t={t}>
-              <LeftSidebar
-                collapsed={leftCollapsed}
-                onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
-              />
+              <LeftSidebar collapsed={leftCollapsed} />
             </ErrorBoundary>
 
             <ErrorBoundary t={t}>
