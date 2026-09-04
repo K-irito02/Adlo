@@ -46,3 +46,11 @@ Step 2 结论: 0 critical/high 未解决（唯一 high H1 已修复）；medium 
 - Step 4 结论: 更新 2 个规则文件（codebase-map 真源+同步）
 
 ## Step 5 项目清理
+- 移除 `.review-diffs/`（4 个审查产物: closing-rev1.diff + 3 报告）
+- 移除 `.adl-logs/` 的 debug-logs.txt / terminal-logs.txt（空文件）
+- 移除空 `.review-diffs/` 目录
+- Step 5 结论: 已清理
+- 收尾相关文档已提交: commit 8f719751
+
+## Step 6 最终总结
+（见对话输出）
