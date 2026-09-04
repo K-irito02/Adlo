@@ -1,0 +1,14 @@
+[package]
+name = "adl-clipboard"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+adl-errors = { path = "../errors" }
+adl-storage = { path = "../storage" }
+adl-types = { path = "../types" }
+serde.workspace = true
+image = { version = "0.25", default-features = false, features = ["png"] }
