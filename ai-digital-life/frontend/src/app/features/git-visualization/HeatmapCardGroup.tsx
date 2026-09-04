@@ -20,6 +20,7 @@ import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
 import { resolveTimeRangeForFetch } from './timeRangeUtils';
+import { GitNotRepoHint } from './GitNotRepoHint';
 
 const TAB_TIME_RANGE_KEY = 'adl-git-vis:tab-time-range';
 
@@ -58,6 +59,10 @@ interface HeatmapCardGroupProps {
   contributorModuleAllPaths?: string[];
   contributorModuleStatus?: ChartStatus;
   yearBounds?: { min: number; max: number } | null;
+  /** Whether the current workspace is a Git repository */
+  isGitRepo?: boolean;
+  /** Whether a workspace is selected */
+  hasWorkspace?: boolean;
 }
 
 export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
@@ -69,6 +74,8 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   contributorModuleAllPaths,
   contributorModuleStatus,
   yearBounds,
+  isGitRepo = true,
+  hasWorkspace = true,
 }: HeatmapCardGroupProps) {
   const { t } = useTCopy();
   const loadingLabel = t.gitVisLoadingChart;
@@ -294,43 +301,51 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           aria-labelledby={`heatmap-tab-${activeHeatmapTab}`}
           style={{ overflowX: 'auto', overflowY: 'auto' }}
         >
-          {activeHeatmapTab === 'calendar' && (
-            <CalendarHeatmap
-              data={commitStats?.dailyCommits}
-              status={commitStatsStatus}
-              loadingLabel={loadingLabel}
-              year={
-                displayRange.since && displayRange.since.length >= 4
-                  ? parseInt(displayRange.since.substring(0, 4), 10) || undefined
-                  : undefined
-              }
-            />
-          )}
-          {activeHeatmapTab === 'clock' && (
-            <ClockHeatmap
-              data={commitStats?.hourlyDistribution}
-              status={commitStatsStatus}
-              loadingLabel={loadingLabel}
-            />
-          )}
-          {activeHeatmapTab === 'activity' && (
-            <ContributorActivityHeatmap
-              data={commitStats?.contributorActivity}
-              since={displayRange.since}
-              until={displayRange.until}
-              status={commitStatsStatus}
-              loadingLabel={loadingLabel}
-            />
-          )}
-          {activeHeatmapTab === 'module' && (
-            <ContributorModuleHeatmap
-              data={contributorModules}
-              allPaths={contributorModuleAllPaths}
-              status={contributorModuleStatus || 'ready'}
-              loadingLabel={loadingLabel}
-              drillPath={moduleDrillPath}
-              onDrillPathChange={setModuleDrillPath}
-            />
+          {!hasWorkspace ? (
+            <GitNotRepoHint message={t.gitVisNoWorkspace} />
+          ) : !isGitRepo ? (
+            <GitNotRepoHint />
+          ) : (
+            <>
+              {activeHeatmapTab === 'calendar' && (
+                <CalendarHeatmap
+                  data={commitStats?.dailyCommits}
+                  status={commitStatsStatus}
+                  loadingLabel={loadingLabel}
+                  year={
+                    displayRange.since && displayRange.since.length >= 4
+                      ? parseInt(displayRange.since.substring(0, 4), 10) || undefined
+                      : undefined
+                  }
+                />
+              )}
+              {activeHeatmapTab === 'clock' && (
+                <ClockHeatmap
+                  data={commitStats?.hourlyDistribution}
+                  status={commitStatsStatus}
+                  loadingLabel={loadingLabel}
+                />
+              )}
+              {activeHeatmapTab === 'activity' && (
+                <ContributorActivityHeatmap
+                  data={commitStats?.contributorActivity}
+                  since={displayRange.since}
+                  until={displayRange.until}
+                  status={commitStatsStatus}
+                  loadingLabel={loadingLabel}
+                />
+              )}
+              {activeHeatmapTab === 'module' && (
+                <ContributorModuleHeatmap
+                  data={contributorModules}
+                  allPaths={contributorModuleAllPaths}
+                  status={contributorModuleStatus || 'ready'}
+                  loadingLabel={loadingLabel}
+                  drillPath={moduleDrillPath}
+                  onDrillPathChange={setModuleDrillPath}
+                />
+              )}
+            </>
           )}
         </div>
         <div className="adl-git-vis__heatmap-legend">

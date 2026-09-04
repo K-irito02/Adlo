@@ -249,4 +249,8 @@ export const changesEn = {
   gitVisBranchGraphHelpTableTitle: 'Commit table',
   gitVisBranchGraphHelpTable:
     'The table lists commits newest-first: hash (click to copy), message, author and date. Hovering a row enlarges the matching lane node to locate the commit in the graph.',
+  gitVisNotGitRepo:
+    'Current workspace is not a Git repository, Git visualization charts are unavailable',
+  gitVisNoWorkspace: 'Please select a Git workspace',
+  gitVisWorkspaceError: 'Workspace error: {message}',
 } as const;

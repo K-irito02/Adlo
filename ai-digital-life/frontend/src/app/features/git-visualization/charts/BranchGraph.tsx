@@ -931,6 +931,10 @@ interface BranchGraphProps {
   data?: RawBranchGraph;
   status?: ChartStatus;
   loadingLabel?: string;
+  /** Whether the current workspace is a Git repository */
+  isGitRepo?: boolean;
+  /** Whether a workspace is selected */
+  hasWorkspace?: boolean;
 }
 
 /** Rank for ordering branch labels: mainline first, then master, then rest. */
@@ -944,7 +948,13 @@ function branchRank(name: string): number {
   return 2;
 }
 
-export function BranchGraph({ data, status = 'ready', loadingLabel }: BranchGraphProps) {
+export function BranchGraph({
+  data,
+  status = 'ready',
+  loadingLabel,
+  isGitRepo = true,
+  hasWorkspace = true,
+}: BranchGraphProps) {
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
   const theme = useBklitTheme();
@@ -1191,6 +1201,22 @@ export function BranchGraph({ data, status = 'ready', loadingLabel }: BranchGrap
   const onRowHover = useCallback((id: string | null) => {
     setHoveredRowId(id);
   }, []);
+
+  if (!hasWorkspace) {
+    return (
+      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
+        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNoWorkspace}</p>
+      </div>
+    );
+  }
+
+  if (!isGitRepo) {
+    return (
+      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
+        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
+      </div>
+    );
+  }
 
   if (status === 'loading') {
     return <BranchGraphLoading label={loadingLabel} />;

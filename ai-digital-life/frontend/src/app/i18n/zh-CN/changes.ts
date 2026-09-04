@@ -249,4 +249,7 @@ export const changesZh = {
   gitVisBranchGraphHelpTableTitle: '提交表格',
   gitVisBranchGraphHelpTable:
     '右侧表格按时间倒序列出提交：哈希（可点击复制）、提交信息、作者与日期。悬停行时左侧对应节点会放大，可辅助定位提交在泳道中的位置。',
+  gitVisNotGitRepo: '当前工作区不是 Git 仓库，无法显示 Git 可视化图表',
+  gitVisNoWorkspace: '请选择一个 Git 工作区',
+  gitVisWorkspaceError: '工作区错误: {message}',
 } as const;

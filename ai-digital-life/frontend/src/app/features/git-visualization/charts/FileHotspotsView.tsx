@@ -2,12 +2,17 @@ import React from 'react';
 import { FileHotspotsLeaderboard } from './FileHotspotsLeaderboard';
 import type { GitVisFileHotspots } from '@/shared/ipc/workspace';
 import type { ChartStatus } from '@/components/charts/chart-phase';
+import { useTCopy } from '@i18n/useTCopy';
 
 export interface FileHotspotsViewProps {
   data?: GitVisFileHotspots;
   scrollContainerRef?: React.RefObject<HTMLElement | null>;
   status?: ChartStatus;
   loadingLabel?: string;
+  /** Whether the current workspace is a Git repository */
+  isGitRepo?: boolean;
+  /** Whether a workspace is selected */
+  hasWorkspace?: boolean;
 }
 
 export const FileHotspotsView = React.memo(function FileHotspotsView({
@@ -15,7 +20,27 @@ export const FileHotspotsView = React.memo(function FileHotspotsView({
   scrollContainerRef,
   status = 'ready',
   loadingLabel,
+  isGitRepo = true,
+  hasWorkspace = true,
 }: FileHotspotsViewProps) {
+  const { t } = useTCopy();
+
+  if (!hasWorkspace) {
+    return (
+      <div className="adl-file-hotspots-view adl-git-vis__not-repo-hint">
+        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNoWorkspace}</p>
+      </div>
+    );
+  }
+
+  if (!isGitRepo) {
+    return (
+      <div className="adl-file-hotspots-view adl-git-vis__not-repo-hint">
+        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="adl-file-hotspots-view">
       <FileHotspotsLeaderboard

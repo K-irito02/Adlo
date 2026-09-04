@@ -29,13 +29,20 @@ interface CommitTimelineProps {
   data?: { days: { date: string; count: number; cumulative: number }[] };
   status?: ChartStatus;
   loadingLabel?: string;
+  /** Whether the current workspace is a Git repository */
+  isGitRepo?: boolean;
+  /** Whether a workspace is selected */
+  hasWorkspace?: boolean;
 }
 
 export const CommitTimeline = React.memo(function CommitTimeline({
   data,
   status = 'ready',
   loadingLabel,
+  isGitRepo = true,
+  hasWorkspace = true,
 }: CommitTimelineProps) {
+  const { t } = useTCopy();
   const days = useMemo(() => data?.days ?? [], [data]);
 
   const dayRows = useMemo(() => aggregateCommitTimeline(days, 'day'), [days]);
@@ -71,6 +78,22 @@ export const CommitTimeline = React.memo(function CommitTimeline({
     }
     return [new Date(stripData[0].date + 'T00:00:00Z'), fullRange.end];
   }, [stripData, fullRange.end]);
+
+  if (!hasWorkspace) {
+    return (
+      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
+        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNoWorkspace}</p>
+      </div>
+    );
+  }
+
+  if (!isGitRepo) {
+    return (
+      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
+        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
+      </div>
+    );
+  }
 
   if (status === 'loading') {
     return (

@@ -2,6 +2,7 @@ import React, { Component, useCallback, useEffect, useMemo, useRef } from 'react
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
+import { workspaceSelectors } from '@stores/workspaceSelectors';
 import { determinePhases } from '@stores/actions/gitVisActions';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
 import {
@@ -86,6 +87,10 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
   headerExtra,
   titleExtra,
 }: TimeRangeAwareCardProps) {
+  const { t } = useTCopy();
+  const formatT = useCallback((template: string, vars: Record<string, string>) => {
+    return template.replace(/\{(\w+)\}/g, (_, name: string) => vars[name] ?? `{${name}}`);
+  }, []);
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
@@ -104,7 +109,11 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
         ) : null}
         {headerExtra}
       </div>
-      {timeRange.error && <div className="adl-git-vis__error">{timeRange.error}</div>}
+      {timeRange.error && (
+        <div className="adl-git-vis__error">
+          {formatT(t.gitVisWorkspaceError, { message: timeRange.error })}
+        </div>
+      )}
       {children}
       {desc ? <p className="adl-git-vis__card-desc">{desc}</p> : null}
     </div>
@@ -120,12 +129,17 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const appInfo = useAppStore((s) => s.appInfo);
   const setGitVisLoadedPhases = useAppStore((s) => s.setGitVisLoadedPhases);
+  const gitSnapshot = workspaceSelectors.useGitSnapshot();
 
   const activeWs = useMemo(
     () => recentWorkspaces.find((w) => w.id === activeWorkspaceTab),
     [recentWorkspaces, activeWorkspaceTab],
   );
   const rootPath = activeWs?.rootPath || '';
+
+  // Check if current workspace is a Git repository
+  const isGitRepo = gitSnapshot?.isRepo ?? false;
+  const hasWorkspace = Boolean(activeWs);
 
   // The persisted active tab id may not match any workspace (e.g. the default
   // 'workspace-1' on first run). Auto-select the current app workspace, falling
@@ -372,15 +386,33 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 }
               | undefined
           }
-          commitStatsStatus={heatmapData.loading ? 'loading' : 'ready'}
+          commitStatsStatus={
+            !hasWorkspace
+              ? 'ready'
+              : !isGitRepo
+                ? 'ready'
+                : heatmapData.loading
+                  ? 'loading'
+                  : 'ready'
+          }
           contributorModules={
             (contributorModulesData.data as RawContributorModules | undefined)?.matrix
           }
           contributorModuleAllPaths={
             (contributorModulesData.data as RawContributorModules | undefined)?.allPaths
           }
-          contributorModuleStatus={contributorModulesData.loading ? 'loading' : 'ready'}
+          contributorModuleStatus={
+            !hasWorkspace
+              ? 'ready'
+              : !isGitRepo
+                ? 'ready'
+                : contributorModulesData.loading
+                  ? 'loading'
+                  : 'ready'
+          }
           yearBounds={yearBounds}
+          isGitRepo={isGitRepo}
+          hasWorkspace={hasWorkspace}
         />
         <TimeRangeAwareCard
           title={t.gitVisBranchGraph}
@@ -422,8 +454,18 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                   }
                 | undefined
             }
-            status={branchGraphData.loading ? 'loading' : 'ready'}
+            status={
+              !hasWorkspace
+                ? 'ready'
+                : !isGitRepo
+                  ? 'ready'
+                  : branchGraphData.loading
+                    ? 'loading'
+                    : 'ready'
+            }
             loadingLabel={t.gitVisLoadingChart}
+            isGitRepo={isGitRepo}
+            hasWorkspace={hasWorkspace}
           />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
@@ -447,8 +489,18 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 | undefined
             }
             visible={codeLineEvoVis.visible}
-            status={codeLineEvoData.loading ? 'loading' : 'ready'}
+            status={
+              !hasWorkspace
+                ? 'ready'
+                : !isGitRepo
+                  ? 'ready'
+                  : codeLineEvoData.loading
+                    ? 'loading'
+                    : 'ready'
+            }
             loadingLabel={t.gitVisLoadingChart}
+            isGitRepo={isGitRepo}
+            hasWorkspace={hasWorkspace}
           />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
@@ -464,8 +516,18 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               days:
                 (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
             }}
-            status={commitTimelineData.loading ? 'loading' : 'ready'}
+            status={
+              !hasWorkspace
+                ? 'ready'
+                : !isGitRepo
+                  ? 'ready'
+                  : commitTimelineData.loading
+                    ? 'loading'
+                    : 'ready'
+            }
             loadingLabel={t.gitVisLoadingChart}
+            isGitRepo={isGitRepo}
+            hasWorkspace={hasWorkspace}
           />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
@@ -478,8 +540,18 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           <FileHotspotsView
             data={fileHotspotsData.data as GitVisFileHotspots | undefined}
             scrollContainerRef={containerRef}
-            status={fileHotspotsData.loading ? 'loading' : 'ready'}
+            status={
+              !hasWorkspace
+                ? 'ready'
+                : !isGitRepo
+                  ? 'ready'
+                  : fileHotspotsData.loading
+                    ? 'loading'
+                    : 'ready'
+            }
             loadingLabel={t.gitVisLoadingChart}
+            isGitRepo={isGitRepo}
+            hasWorkspace={hasWorkspace}
           />
         </TimeRangeAwareCard>
       </div>

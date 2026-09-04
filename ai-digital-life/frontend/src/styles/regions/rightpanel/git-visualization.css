@@ -85,6 +85,20 @@
   color: var(--text-secondary);
 }
 
+.adl-git-vis__not-repo-hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  padding: var(--space-4);
+}
+
+.adl-git-vis__not-repo-hint-text {
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 .adl-git-vis__card-desc {
   font-size: 0.8rem;
   color: var(--text-secondary);
