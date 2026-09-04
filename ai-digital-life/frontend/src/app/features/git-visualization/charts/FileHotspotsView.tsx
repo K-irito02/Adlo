@@ -27,7 +27,7 @@ export const FileHotspotsView = React.memo(function FileHotspotsView({
 
   if (!hasWorkspace) {
     return (
-      <div className="adl-file-hotspots-view adl-git-vis__not-repo-hint">
+      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
         <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNoWorkspace}</p>
       </div>
     );
@@ -35,7 +35,7 @@ export const FileHotspotsView = React.memo(function FileHotspotsView({
 
   if (!isGitRepo) {
     return (
-      <div className="adl-file-hotspots-view adl-git-vis__not-repo-hint">
+      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
         <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
       </div>
     );

@@ -2,7 +2,6 @@ import React, { Component, useCallback, useEffect, useMemo, useRef } from 'react
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
-import { workspaceSelectors } from '@stores/workspaceSelectors';
 import { determinePhases } from '@stores/actions/gitVisActions';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
 import {
@@ -129,7 +128,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const appInfo = useAppStore((s) => s.appInfo);
   const setGitVisLoadedPhases = useAppStore((s) => s.setGitVisLoadedPhases);
-  const gitSnapshot = workspaceSelectors.useGitSnapshot();
+  const gitSnapshots = useAppStore(useShallow((s) => s.gitSnapshots));
 
   const activeWs = useMemo(
     () => recentWorkspaces.find((w) => w.id === activeWorkspaceTab),
@@ -138,7 +137,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const rootPath = activeWs?.rootPath || '';
 
   // Check if current workspace is a Git repository
-  const isGitRepo = gitSnapshot?.isRepo ?? false;
+  const isGitRepo = gitSnapshots[activeWorkspaceTab]?.isRepo ?? false;
   const hasWorkspace = Boolean(activeWs);
 
   // The persisted active tab id may not match any workspace (e.g. the default
@@ -164,6 +163,13 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const { refreshWorkspace, refreshChart } = useGitVisRefresh(activeWorkspaceTab, rootPath);
 
   const { yearBounds } = useYearBounds(rootPath);
+
+  // Helper to resolve chart status based on workspace and git repo state
+  const resolveChartStatus = useCallback(
+    (loading: boolean): 'loading' | 'ready' =>
+      !hasWorkspace || !isGitRepo ? 'ready' : loading ? 'loading' : 'ready',
+    [hasWorkspace, isGitRepo],
+  );
 
   const heatmapData = useChartData(CHART_IDS.HEATMAP);
   const contributorModulesData = useChartData(CHART_IDS.CONTRIBUTOR_MODULES);
@@ -386,30 +392,14 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 }
               | undefined
           }
-          commitStatsStatus={
-            !hasWorkspace
-              ? 'ready'
-              : !isGitRepo
-                ? 'ready'
-                : heatmapData.loading
-                  ? 'loading'
-                  : 'ready'
-          }
+          commitStatsStatus={resolveChartStatus(heatmapData.loading)}
           contributorModules={
             (contributorModulesData.data as RawContributorModules | undefined)?.matrix
           }
           contributorModuleAllPaths={
             (contributorModulesData.data as RawContributorModules | undefined)?.allPaths
           }
-          contributorModuleStatus={
-            !hasWorkspace
-              ? 'ready'
-              : !isGitRepo
-                ? 'ready'
-                : contributorModulesData.loading
-                  ? 'loading'
-                  : 'ready'
-          }
+          contributorModuleStatus={resolveChartStatus(contributorModulesData.loading)}
           yearBounds={yearBounds}
           isGitRepo={isGitRepo}
           hasWorkspace={hasWorkspace}
@@ -454,15 +444,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                   }
                 | undefined
             }
-            status={
-              !hasWorkspace
-                ? 'ready'
-                : !isGitRepo
-                  ? 'ready'
-                  : branchGraphData.loading
-                    ? 'loading'
-                    : 'ready'
-            }
+            status={resolveChartStatus(branchGraphData.loading)}
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
@@ -489,15 +471,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 | undefined
             }
             visible={codeLineEvoVis.visible}
-            status={
-              !hasWorkspace
-                ? 'ready'
-                : !isGitRepo
-                  ? 'ready'
-                  : codeLineEvoData.loading
-                    ? 'loading'
-                    : 'ready'
-            }
+            status={resolveChartStatus(codeLineEvoData.loading)}
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
@@ -516,15 +490,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
               days:
                 (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
             }}
-            status={
-              !hasWorkspace
-                ? 'ready'
-                : !isGitRepo
-                  ? 'ready'
-                  : commitTimelineData.loading
-                    ? 'loading'
-                    : 'ready'
-            }
+            status={resolveChartStatus(commitTimelineData.loading)}
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
@@ -540,15 +506,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           <FileHotspotsView
             data={fileHotspotsData.data as GitVisFileHotspots | undefined}
             scrollContainerRef={containerRef}
-            status={
-              !hasWorkspace
-                ? 'ready'
-                : !isGitRepo
-                  ? 'ready'
-                  : fileHotspotsData.loading
-                    ? 'loading'
-                    : 'ready'
-            }
+            status={resolveChartStatus(fileHotspotsData.loading)}
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
