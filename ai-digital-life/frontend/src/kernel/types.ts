@@ -444,6 +444,8 @@ export interface ClipboardItem {
   id: string;
   kind: string;
   content?: string;
+  /** 内容指纹：图片为像素哈希（去重），文本为 null */
+  digest?: string | null;
   imagePath?: string;
   thumbPath?: string;
   imageWidth?: number;

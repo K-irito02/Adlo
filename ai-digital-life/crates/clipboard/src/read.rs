@@ -69,6 +69,7 @@ fn build_text_item(store: &ClipboardStore, text: &str) -> Result<ClipboardItem, 
         id: Uuid::new_v4().to_string(),
         kind: "text".into(),
         content: Some(text.to_string()),
+        digest: None,
         image_path: None,
         thumb_path: None,
         image_width: None,
@@ -83,6 +84,7 @@ fn build_text_item(store: &ClipboardStore, text: &str) -> Result<ClipboardItem, 
 fn build_image_item(store: &ClipboardStore, bmp: &[u8]) -> Result<ClipboardItem, AppError> {
     let rgba = bitmap_to_rgba(bmp)?;
     let (width, height) = (rgba.width(), rgba.height());
+    let digest = compute_digest(&rgba);
 
     let id = Uuid::new_v4().to_string();
     let original_path = store.images_dir().join(format!("{id}.png"));
@@ -101,6 +103,7 @@ fn build_image_item(store: &ClipboardStore, bmp: &[u8]) -> Result<ClipboardItem,
         id,
         kind: "image".into(),
         content: None,
+        digest: Some(digest),
         image_path: Some(original_path.to_string_lossy().into_owned()),
         thumb_path: Some(thumb_path.to_string_lossy().into_owned()),
         image_width: Some(width),
@@ -115,6 +118,18 @@ fn build_image_item(store: &ClipboardStore, bmp: &[u8]) -> Result<ClipboardItem,
 pub(crate) fn bitmap_to_rgba(bmp: &[u8]) -> Result<RgbaImage, AppError> {
     let img = image::load_from_memory(bmp).map_err(|e| AppError::Io(format!("bmp decode: {e}")))?;
     Ok(img.to_rgba8())
+}
+
+/// 对解码后像素字节计算 FNV-1a 64-bit 指纹，作为图片内容指纹（用于去重）。
+/// 同一张图即使文件名（image_path）每次不同，像素内容相同 → 指纹相同 → 可去重；
+/// 不同尺寸/内容 → 指纹不同 → 正确区分。文本条目不使用此函数（digest 为 None）。
+fn compute_digest(rgba: &RgbaImage) -> String {
+    let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in rgba.as_raw() {
+        hash ^= u64::from(b);
+        hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
+    }
+    format!("{hash:016x}")
 }
 
 #[cfg(test)]
@@ -212,6 +227,7 @@ mod tests {
         assert_eq!(item.kind, "image");
         assert_eq!(item.image_width, Some(2));
         assert_eq!(item.image_height, Some(2));
+        assert!(item.digest.is_some());
         let orig = std::path::Path::new(item.image_path.as_deref().unwrap());
         let thumb = std::path::Path::new(item.thumb_path.as_deref().unwrap());
         assert!(orig.exists());
@@ -219,6 +235,16 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&data_dir);
         let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn compute_digest_distinguishes_content() {
+        let a: RgbaImage = ImageBuffer::from_raw(2, 2, vec![0u8; 16]).unwrap();
+        let mut b: RgbaImage = ImageBuffer::from_raw(2, 2, vec![0u8; 16]).unwrap();
+        b.get_pixel_mut(0, 0).0 = [255, 0, 0, 255];
+        assert_eq!(compute_digest(&a), compute_digest(&a));
+        assert_ne!(compute_digest(&a), compute_digest(&b));
+        assert!(!compute_digest(&a).is_empty());
     }
 
     #[test]

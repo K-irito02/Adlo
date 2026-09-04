@@ -7,6 +7,8 @@ pub struct ClipboardItem {
     pub id: String,
     pub kind: String,
     pub content: Option<String>,
+    /// 内容指纹：图片为像素哈希（用于去重，相同图片不同文件名仍可识别），文本为 None
+    pub digest: Option<String>,
     pub image_path: Option<String>,
     pub thumb_path: Option<String>,
     pub image_width: Option<u32>,

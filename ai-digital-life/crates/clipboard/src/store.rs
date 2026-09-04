@@ -30,9 +30,12 @@ impl ClipboardStore {
 
     pub fn insert_or_bump(&self, item: &ClipboardItem) -> Result<bool, AppError> {
         if let Some(prev) = self.latest()? {
+            // 去重：同 kind 且内容/指纹相同 + 时间窗内即判定重复。
+            // 文本比较 content；图片每次复制文件名不同（image_path 恒变），
+            // 故按像素指纹 digest 比较，同一张图可正确去重。
             if prev.kind == item.kind
                 && prev.content == item.content
-                && prev.image_path == item.image_path
+                && prev.digest == item.digest
                 && (item.created_at.saturating_sub(prev.created_at)) <= 3000
             {
                 // 覆盖旧行：保留旧行 id，避免同内容累积为新行导致去重失效
@@ -117,6 +120,7 @@ mod tests {
             id: id.into(),
             kind: kind.into(),
             content: Some(format!("content-{id}")),
+            digest: None,
             image_path: None,
             thumb_path: None,
             image_width: None,
@@ -193,5 +197,39 @@ mod tests {
         assert_eq!(rows[0].id, "1");
         let _ = std::fs::remove_dir_all(temp_dir().join("clip-data-dedup"));
         let _ = std::fs::remove_file(temp_dir().join("clip-dedup.db"));
+    }
+
+    #[test]
+    fn dedup_image_by_digest_ignores_path() {
+        let store = temp_store("img-dedup");
+        let now = now_ms();
+        // 同一张图：image_path（文件名/UUID）每次都不同，但像素 digest 相同 + 时间窗内 → 重复
+        let mut img1 = item("img-1", "image", now);
+        img1.content = None;
+        img1.digest = Some("deadbeef".into());
+        img1.image_path = Some("path-1.png".into());
+        assert!(store.insert_or_bump(&img1).unwrap());
+
+        let mut img2 = item("img-2", "image", now + 1);
+        img2.content = None;
+        img2.digest = Some("deadbeef".into());
+        img2.image_path = Some("path-2.png".into());
+        assert!(!store.insert_or_bump(&img2).unwrap());
+        let rows = store.list(10).unwrap();
+        assert_eq!(rows.len(), 1);
+        // 覆盖旧行生效：保留首次插入 id，内容用新条目（含新的 image_path）
+        assert_eq!(rows[0].id, "img-1");
+        assert_eq!(rows[0].image_path.as_deref(), Some("path-2.png"));
+
+        // 不同 digest 的同 kind 图片 → 判定为新条目
+        let mut img3 = item("img-3", "image", now + 2);
+        img3.content = None;
+        img3.digest = Some("cafebabe".into());
+        img3.image_path = Some("path-3.png".into());
+        assert!(store.insert_or_bump(&img3).unwrap());
+        assert_eq!(store.list(10).unwrap().len(), 2);
+
+        let _ = std::fs::remove_dir_all(temp_dir().join("clip-data-img-dedup"));
+        let _ = std::fs::remove_file(temp_dir().join("clip-img-dedup.db"));
     }
 }
