@@ -46,6 +46,9 @@ export const ClipboardItemRow = memo(function ClipboardItemRow({ item }: Clipboa
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.target !== e.currentTarget) {
+      return;
+    }
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       void handleCopy();
