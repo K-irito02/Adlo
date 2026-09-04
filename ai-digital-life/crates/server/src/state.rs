@@ -1,3 +1,4 @@
+use adl_clipboard::ClipboardStore;
 use adl_kernel::config::AppConfig;
 use adl_kernel::events::EventBus;
 use adl_lsp_client::LspClient;
@@ -5,6 +6,7 @@ use adl_mcp_client::McpClient;
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
+use adl_sysmon::SystemMonitor;
 use adl_types::WorkspaceMeta;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -26,4 +28,6 @@ pub struct ServerState {
     pub server_port: Arc<AtomicU16>,
     pub lsp_clients: Arc<AsyncMutex<HashMap<String, Arc<LspClient>>>>,
     pub mcp_client: McpClient,
+    pub clipboard_store: Arc<ClipboardStore>,
+    pub sysmon: Arc<StdMutex<SystemMonitor>>,
 }

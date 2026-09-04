@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "adl-change-engine",
  "adl-ci-status",
+ "adl-clipboard",
  "adl-credential",
  "adl-errors",
  "adl-fs-ops",
@@ -18,6 +19,7 @@ dependencies = [
  "adl-migration",
  "adl-pty",
  "adl-storage",
+ "adl-sysmon",
  "adl-tools",
  "adl-types",
  "adl-workspace",

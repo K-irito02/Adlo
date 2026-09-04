@@ -1,4 +1,5 @@
 use crate::state::ServerState;
+use adl_clipboard::ClipboardMonitor;
 use adl_errors::AppError;
 use adl_kernel::{config as adl_config, events::EventBus};
 use adl_logging::LogManager;
@@ -8,7 +9,7 @@ use adl_storage::durable::DurableSessionManager;
 use adl_types::now_ms;
 use std::io::Write;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tracing::info;
 
 fn resolve_log_dir() -> PathBuf {
@@ -55,6 +56,19 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     let mcp_client = adl_mcp_client::McpClient::new();
     eprintln!("[ad-server] init_server_state complete");
 
+    // 剪贴板/系统监控（浏览器预览端，等价桌面能力）。剪贴板 store 与监听线程共享同一
+    // db（r2d2 连接池，Arc），供 clipboard_* handler 读写；监听后台线程持续把系统剪贴板
+    // 变化写入 store。浏览器前端靠 since_id 轮询读取，无需事件推送。
+    let clipboard_store = Arc::new(adl_clipboard::ClipboardStore::new(db.clone(), data_dir));
+    let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
+    // 启动剪贴板监听。句柄必须存续至进程生命周期，否则 Drop 会触发监听线程立即退出；
+    // 放入独立 thread，持句柄阻塞保活（与桌面端 setup::start_clipboard_monitor 同思路）。
+    let monitor_handle = ClipboardMonitor::new().spawn(clipboard_store.clone());
+    std::thread::spawn(move || {
+        let _handle = monitor_handle; // 保持监听线程存活
+        std::thread::park();
+    });
+
     Ok(ServerState {
         data_dir: data_dir.to_path_buf(),
         db,
@@ -68,6 +82,8 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         server_port,
         lsp_clients,
         mcp_client,
+        clipboard_store,
+        sysmon,
     })
 }
 

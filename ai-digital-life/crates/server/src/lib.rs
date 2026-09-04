@@ -6,4 +6,7 @@ pub mod pty_ws;
 pub mod router;
 pub mod state;
 
+#[cfg(test)]
+pub mod test_util;
+
 pub use state::ServerState;

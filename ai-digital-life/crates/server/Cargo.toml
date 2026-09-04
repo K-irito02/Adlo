@@ -11,6 +11,7 @@ workspace = true
 [dependencies]
 adl-change-engine = { path = "../change-engine" }
 adl-ci-status = { path = "../ci-status" }
+adl-clipboard = { path = "../clipboard" }
 adl-credential = { path = "../credential" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
@@ -21,6 +22,7 @@ adl-mcp-client = { path = "../mcp-client" }
 adl-migration = { path = "../migration" }
 adl-pty = { path = "../pty" }
 adl-storage = { path = "../storage" }
+adl-sysmon = { path = "../sysmon" }
 adl-tools = { path = "../tools" }
 adl-types = { path = "../types" }
 adl-workspace = { path = "../workspace" }

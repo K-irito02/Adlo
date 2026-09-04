@@ -94,6 +94,12 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         // Retrieval domain
         .route("/retrieval/status", get(handlers::retrieval::get_status))
         .route("/retrieval/rebuild", post(handlers::retrieval::rebuild_index))
+        // Clipboard domain
+        .route("/clipboard/list", get(handlers::clipboard::list))
+        .route("/clipboard/remove", post(handlers::clipboard::remove))
+        .route("/clipboard/clear", post(handlers::clipboard::clear))
+        // System-monitor domain
+        .route("/sysmon/snapshot", get(handlers::system_monitor::snapshot))
         // Web-tools domain
         .route("/web-tools/fetch", post(handlers::web_tools::web_fetch))
         .route("/web-tools/search", post(handlers::web_tools::web_search))
