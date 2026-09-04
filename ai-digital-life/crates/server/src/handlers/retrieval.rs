@@ -69,7 +69,9 @@ pub async fn rebuild_index(State(state): State<ServerState>) -> impl IntoRespons
     let _result = match result {
         Ok(inner) => inner,
         Err(e) => {
-            return ipc::to_response(Err(AppError::Internal(format!("spawn_blocking failed: {e}"))));
+            return ipc::to_response(Err(AppError::Internal(format!(
+                "spawn_blocking failed: {e}"
+            ))));
         },
     };
 

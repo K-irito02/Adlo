@@ -20,9 +20,14 @@ use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-async fn state() -> ad_server::ServerState {
+/// Build a fresh `ServerState` over an isolated temp `data_dir`, and return the
+/// dir path as `String` (the handler routes on `body.dataDir`; each test passes
+/// its own temp dir so config.json is never shared at the crate cwd).
+async fn state() -> (ad_server::ServerState, String) {
     let dir = std::env::temp_dir().join(format!("adl-cc-api-{}", uuid::Uuid::new_v4()));
-    init_server_state(&dir).await.unwrap()
+    let state = init_server_state(&dir).await.unwrap();
+    let data_dir = dir.to_string_lossy().into_owned();
+    (state, data_dir)
 }
 
 fn app(state: ad_server::ServerState) -> axum::Router {
@@ -34,12 +39,19 @@ async fn send(
     method: Method,
     uri: &str,
     body: Option<Value>,
+    data_dir: &str,
 ) -> (StatusCode, Value) {
+    // Inject the per-test isolated temp dir into every body so the handlers
+    // read/write `<temp>/config/config.json` instead of the crate cwd.
+    let mut body_obj = body.unwrap_or_else(|| json!({}));
+    if let Some(obj) = body_obj.as_object_mut() {
+        obj.insert("dataDir".to_string(), Value::String(data_dir.to_string()));
+    }
     let mut builder = Request::builder().method(method).uri(uri);
-    if body.is_some() {
+    if !body_obj.is_null() {
         builder = builder.header("content-type", "application/json");
     }
-    let body_bytes = body.map(|v| Body::from(v.to_string())).unwrap_or_else(Body::empty);
+    let body_bytes = Body::from(body_obj.to_string());
     let req = builder.body(body_bytes).unwrap();
     let resp = app(state).oneshot(req).await.unwrap();
     let status = resp.status();
@@ -63,8 +75,9 @@ fn command(name: &str, template: &str) -> Value {
 /// `CommandsConfigBridge.listCustomCommands`).
 #[tokio::test]
 async fn list_custom_commands_returns_empty() {
-    let state = state().await;
-    let (status, body) = send(state, Method::POST, "/commands-config/list", Some(json!({}))).await;
+    let (state, data_dir) = state().await;
+    let (status, body) =
+        send(state, Method::POST, "/commands-config/list", Some(json!({})), &data_dir).await;
     assert_eq!(status, StatusCode::OK, "list body: {body}");
     assert_eq!(body["ok"], true);
     assert!(body["data"].as_array().unwrap().is_empty(), "fresh list empty: {body}");
@@ -74,12 +87,13 @@ async fn list_custom_commands_returns_empty() {
 /// persists it to disk — covers `addCustomCommand`.
 #[tokio::test]
 async fn add_custom_command_persists_and_returns_list() {
-    let state = state().await;
+    let (state, data_dir) = state().await;
     let (status, body) = send(
         state.clone(),
         Method::POST,
         "/commands-config/add",
         Some(json!({ "command": command("refactor", "Refactor $1") })),
+        &data_dir,
     )
     .await;
     assert_eq!(status, StatusCode::OK, "add body: {body}");
@@ -89,7 +103,8 @@ async fn add_custom_command_persists_and_returns_list() {
     assert_eq!(commands[0]["template"], "Refactor $1");
 
     // Persisted across a fresh load.
-    let (_, body) = send(state, Method::POST, "/commands-config/list", Some(json!({}))).await;
+    let (_, body) =
+        send(state, Method::POST, "/commands-config/list", Some(json!({})), &data_dir).await;
     let commands = body["data"].as_array().unwrap();
     assert_eq!(commands.len(), 1, "command persisted: {body}");
     assert_eq!(commands[0]["name"], "refactor");
@@ -99,12 +114,13 @@ async fn add_custom_command_persists_and_returns_list() {
 /// (faithful to the Tauri `add_custom_command` duplicate guard).
 #[tokio::test]
 async fn add_custom_command_duplicate_name_returns_400() {
-    let state = state().await;
+    let (state, data_dir) = state().await;
     let (status, body) = send(
         state.clone(),
         Method::POST,
         "/commands-config/add",
         Some(json!({ "command": command("dup", "one") })),
+        &data_dir,
     )
     .await;
     assert_eq!(status, StatusCode::OK, "add body: {body}");
@@ -114,6 +130,7 @@ async fn add_custom_command_duplicate_name_returns_400() {
         Method::POST,
         "/commands-config/add",
         Some(json!({ "command": command("dup", "two") })),
+        &data_dir,
     )
     .await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "dup body: {body}");
@@ -125,12 +142,13 @@ async fn add_custom_command_duplicate_name_returns_400() {
 /// persists; unknown name → 404 (covers `updateCustomCommand`).
 #[tokio::test]
 async fn update_custom_command_updates_by_name() {
-    let state = state().await;
+    let (state, data_dir) = state().await;
     let (_, add) = send(
         state.clone(),
         Method::POST,
         "/commands-config/add",
         Some(json!({ "command": command("old", "before") })),
+        &data_dir,
     )
     .await;
     assert_eq!(add["data"].as_array().unwrap().len(), 1);
@@ -140,6 +158,7 @@ async fn update_custom_command_updates_by_name() {
         Method::POST,
         "/commands-config/update",
         Some(json!({ "name": "old", "command": command("new", "after") })),
+        &data_dir,
     )
     .await;
     assert_eq!(status, StatusCode::OK, "update body: {body}");
@@ -152,12 +171,13 @@ async fn update_custom_command_updates_by_name() {
 /// POST /commands-config/update with an unknown name → 404 NOT_FOUND.
 #[tokio::test]
 async fn update_custom_command_unknown_name_returns_404() {
-    let state = state().await;
+    let (state, data_dir) = state().await;
     let (status, body) = send(
         state,
         Method::POST,
         "/commands-config/update",
         Some(json!({ "name": "ghost", "command": command("x", "y") })),
+        &data_dir,
     )
     .await;
     assert_eq!(status, StatusCode::NOT_FOUND, "body: {body}");
@@ -168,12 +188,13 @@ async fn update_custom_command_unknown_name_returns_404() {
 /// `deleteCustomCommand`).
 #[tokio::test]
 async fn delete_custom_command_removes_and_persists() {
-    let state = state().await;
+    let (state, data_dir) = state().await;
     let (_, add) = send(
         state.clone(),
         Method::POST,
         "/commands-config/add",
         Some(json!({ "command": command("keep", "k") })),
+        &data_dir,
     )
     .await;
     assert_eq!(add["data"].as_array().unwrap().len(), 1);
@@ -183,12 +204,14 @@ async fn delete_custom_command_removes_and_persists() {
         Method::POST,
         "/commands-config/delete",
         Some(json!({ "name": "keep" })),
+        &data_dir,
     )
     .await;
     assert_eq!(status, StatusCode::OK, "delete body: {body}");
     assert!(body["data"].as_array().unwrap().is_empty(), "removed: {body}");
 
-    let (_, body) = send(state, Method::POST, "/commands-config/list", Some(json!({}))).await;
+    let (_, body) =
+        send(state, Method::POST, "/commands-config/list", Some(json!({})), &data_dir).await;
     assert!(body["data"].as_array().unwrap().is_empty(), "persisted: {body}");
 }
 
@@ -196,7 +219,7 @@ async fn delete_custom_command_removes_and_persists() {
 /// `CommandsConfigBridge.renderCommandTemplate`).
 #[tokio::test]
 async fn render_command_template_substitutes() {
-    let state = state().await;
+    let (state, data_dir) = state().await;
     let (status, body) = send(
         state,
         Method::POST,
@@ -206,6 +229,7 @@ async fn render_command_template_substitutes() {
             "args": ["auth.rs"],
             "workspace": "/ws/demo"
         })),
+        &data_dir,
     )
     .await;
     assert_eq!(status, StatusCode::OK, "render body: {body}");
@@ -215,8 +239,9 @@ async fn render_command_template_substitutes() {
 /// POST /commands-config/add with a malformed body → 400.
 #[tokio::test]
 async fn add_custom_command_invalid_body_returns_400() {
-    let state = state().await;
-    let (status, body) = send(state, Method::POST, "/commands-config/add", Some(json!({}))).await;
+    let (state, data_dir) = state().await;
+    let (status, body) =
+        send(state, Method::POST, "/commands-config/add", Some(json!({})), &data_dir).await;
     assert_eq!(status, StatusCode::BAD_REQUEST, "body: {body}");
     assert_eq!(body["error"]["code"], "INVALID_INPUT", "body: {body}");
 }

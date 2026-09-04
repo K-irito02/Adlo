@@ -59,3 +59,6 @@ ms-playwright/
 
 # Git worktree isolation
 /.worktrees/
+
+# ad-server config/test pollution (generated config for commands-config at crate cwd)
+/crates/server/config/
