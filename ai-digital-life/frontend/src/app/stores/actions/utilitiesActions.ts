@@ -16,8 +16,10 @@ export function createUtilitiesActions(
      * @see mock-bridge.ts → clipboard.list
      * @see preview-bridge/index.ts → clipboard.list
      */
-    fetchClipboardHistory: async () => {
-      set({ clipboardHistoryLoading: true });
+    fetchClipboardHistory: async (background = false) => {
+      if (!background) {
+        set({ clipboardHistoryLoading: true });
+      }
       try {
         const result = await window.digitalLife.clipboard.list(200);
         if (result.ok) {
@@ -26,7 +28,9 @@ export function createUtilitiesActions(
           captureError(get, result.error, SCOPE);
         }
       } finally {
-        set({ clipboardHistoryLoading: false });
+        if (!background) {
+          set({ clipboardHistoryLoading: false });
+        }
       }
     },
 

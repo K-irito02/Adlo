@@ -33,7 +33,7 @@ export function ClipboardHistoryList() {
   useEffect(() => {
     let timerId: number;
     const poll = () => {
-      void fetchClipboardHistory();
+      void fetchClipboardHistory(true);
     };
     const onVisibilityChange = () => {
       if (document.hidden) {
@@ -44,7 +44,7 @@ export function ClipboardHistoryList() {
       timerId = window.setInterval(poll, REFRESH_INTERVAL_MS);
     };
 
-    poll();
+    void fetchClipboardHistory();
     timerId = window.setInterval(poll, REFRESH_INTERVAL_MS);
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {

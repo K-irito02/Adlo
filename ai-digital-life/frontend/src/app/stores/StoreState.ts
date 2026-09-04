@@ -252,7 +252,7 @@ interface ReferenceActions {
 }
 
 interface UtilitiesActions {
-  fetchClipboardHistory: () => Promise<void>;
+  fetchClipboardHistory: (background?: boolean) => Promise<void>;
   removeClipboardItem: (id: string) => Promise<void>;
   clearAllClipboard: () => Promise<void>;
   writeClipboardItem: (id: string) => Promise<boolean>;
