@@ -98,6 +98,8 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/clipboard/list", get(handlers::clipboard::list))
         .route("/clipboard/remove", post(handlers::clipboard::remove))
         .route("/clipboard/clear", post(handlers::clipboard::clear))
+        .route("/clipboard/write-image", post(handlers::clipboard::write_image))
+        .route("/clipboard/thumb/:filename", get(handlers::clipboard::thumb))
         // System-monitor domain
         .route("/sysmon/snapshot", get(handlers::system_monitor::snapshot))
         // Web-tools domain

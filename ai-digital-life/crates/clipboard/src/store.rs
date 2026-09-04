@@ -24,6 +24,11 @@ impl ClipboardStore {
         self.db.list_entities_with_limit(EntityTable::ClipboardItems, limit)
     }
 
+    /// 按 id 加载单条剪贴板条目（不存在返回 `None`）。
+    pub fn get(&self, id: &str) -> Result<Option<ClipboardItem>, AppError> {
+        self.db.load_entity(EntityTable::ClipboardItems, id)
+    }
+
     pub fn latest(&self) -> Result<Option<ClipboardItem>, AppError> {
         Ok(self.list(1)?.into_iter().next())
     }

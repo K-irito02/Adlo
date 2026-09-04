@@ -38,6 +38,11 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     eprintln!("[ad-server] opening database at {}...", db_path.display());
     let db = Database::open(&db_path)
         .map_err(|e| AppError::Internal(format!("Database open failed: {e}")))?;
+    // 确保 schema（包括 durable_session_state、clipboard_items 等）就绪。生产环境
+    // 由内核在 spawn 前迁移过 data.db，但此处幂等（CREATE TABLE IF NOT EXISTS），
+    // 使本函数在全新 data_dir 上也能自给自足（测试直接构造 state 时同样可用）。
+    db.init_schema()
+        .map_err(|e| AppError::Internal(format!("Database init_schema failed: {e}")))?;
     eprintln!("[ad-server] database opened");
 
     eprintln!("[ad-server] loading config...");
@@ -57,17 +62,11 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     eprintln!("[ad-server] init_server_state complete");
 
     // 剪贴板/系统监控（浏览器预览端，等价桌面能力）。剪贴板 store 与监听线程共享同一
-    // db（r2d2 连接池，Arc），供 clipboard_* handler 读写；监听后台线程持续把系统剪贴板
-    // 变化写入 store。浏览器前端靠 since_id 轮询读取，无需事件推送。
+    // db（r2d2 连接池，Arc），供 clipboard_* handler 读写。监听线程在 `serve()` 里
+    // 通过 `start_background_services` 启动（不在 `init_server_state` 启动，避免测试
+    // 直接构造 state 时泄漏监听线程）。
     let clipboard_store = Arc::new(adl_clipboard::ClipboardStore::new(db.clone(), data_dir));
     let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
-    // 启动剪贴板监听。句柄必须存续至进程生命周期，否则 Drop 会触发监听线程立即退出；
-    // 放入独立 thread，持句柄阻塞保活（与桌面端 setup::start_clipboard_monitor 同思路）。
-    let monitor_handle = ClipboardMonitor::new().spawn(clipboard_store.clone());
-    std::thread::spawn(move || {
-        let _handle = monitor_handle; // 保持监听线程存活
-        std::thread::park();
-    });
 
     Ok(ServerState {
         data_dir: data_dir.to_path_buf(),
@@ -87,7 +86,22 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     })
 }
 
+/// Start the ad-server background services tied to the process lifetime: the
+/// clipboard listener (writes history to `data.db`) plus a parked keep-alive
+/// thread that holds the listener handle alive. Called from `serve()` so tests
+/// that build `ServerState` directly (`init_server_state`) never spawn these.
+pub fn start_background_services(state: &ServerState) {
+    // 启动剪贴板监听。句柄必须存续至进程生命周期，否则 Drop 会触发监听线程立即退出；
+    // 放入独立 thread，持句柄阻塞保活（与桌面端 setup::start_clipboard_monitor 同思路）。
+    let monitor_handle = ClipboardMonitor::new().spawn(state.clipboard_store.clone());
+    std::thread::spawn(move || {
+        let _handle = monitor_handle; // 保持监听线程存活
+        std::thread::park();
+    });
+}
+
 pub async fn serve(state: ServerState, port: u16) -> u16 {
+    start_background_services(&state);
     let app = crate::router::app_router(state.clone()).with_state(state.clone());
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await.expect("failed to bind TCP listener");

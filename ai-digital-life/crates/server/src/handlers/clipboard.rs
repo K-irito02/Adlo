@@ -9,9 +9,12 @@
 
 use crate::ServerState;
 use crate::ipc;
+use adl_clipboard::write_image_to_clipboard;
 use adl_errors::AppError;
 use axum::extract::{Query, State};
-use axum::response::IntoResponse;
+use axum::http::{StatusCode, header};
+use axum::response::{IntoResponse, Response};
+use std::path::Path;
 
 /// Run a blocking closure on `spawn_blocking` and collapse a join error into
 /// `AppError::Internal`, keeping the `impl IntoResponse` signature a plain
@@ -81,6 +84,66 @@ pub async fn clear(State(state): State<ServerState>) -> impl IntoResponse {
     })
     .await;
     ipc::to_response(result)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WriteImageBody {
+    id: String,
+}
+
+/// POST `/clipboard/write-image` — body `{ "id": string }`. Loads the image
+/// `ClipboardItem` by id, reads its stored PNG (`image_path`), and writes it
+/// back to the system clipboard as a bitmap (via `adl_clipboard`). Returns
+/// `true` on success. This is the image write-back path — text items are not
+/// routed here (the frontend uses `navigator.clipboard.writeText`).
+pub async fn write_image(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: WriteImageBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let store = state.clipboard_store.clone();
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let item = store
+            .get(&input.id)?
+            .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
+        if item.kind != "image" {
+            return Err(AppError::InvalidInput("clipboard item is not an image".into()));
+        }
+        let path = item
+            .image_path
+            .ok_or_else(|| AppError::InvalidInput("image item has no stored file".into()))?;
+        write_image_to_clipboard(Path::new(&path))?;
+        Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// GET `/clipboard/thumb/:filename` — serves a stored thumbnail image (PNG) from
+/// the clipboard store's `thumbs_dir`, for the frontend `<img src>` in the
+/// clipboard history panel. `filename` is sanitised to its basename to prevent
+/// path traversal; unknown files return 404.
+pub async fn thumb(
+    State(state): State<ServerState>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Response {
+    let thumbs_dir = state.clipboard_store.thumbs_dir().to_path_buf();
+    let safe = Path::new(&filename)
+        .file_name()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    if safe.is_empty() {
+        return (StatusCode::NOT_FOUND, "not found").into_response();
+    }
+    let path = thumbs_dir.join(safe);
+    match tokio::fs::read(path).await {
+        Ok(bytes) => ([(header::CONTENT_TYPE, "image/png")], bytes).into_response(),
+        Err(_) => (StatusCode::NOT_FOUND, "not found").into_response(),
+    }
 }
 
 #[cfg(test)]
@@ -179,5 +242,83 @@ mod tests {
         assert_eq!(body["ok"], serde_json::json!(true));
         assert_eq!(body["data"], serde_json::json!(2));
         assert_eq!(state.clipboard_store.list(10).unwrap().len(), 0);
+    }
+
+    #[tokio::test]
+    async fn write_image_unknown_id_returns_not_found() {
+        let state = test_server_state();
+        let app = app_router(state.clone()).with_state(state.clone());
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/clipboard/write-image")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"id":"ghost"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::NOT_FOUND);
+        let body = body_json(resp).await;
+        assert_eq!(body["ok"], serde_json::json!(false));
+        assert_eq!(body["error"]["code"], "NOT_FOUND");
+    }
+
+    #[tokio::test]
+    async fn write_image_on_text_item_returns_invalid_input() {
+        let state = test_server_state();
+        state.clipboard_store.insert_or_bump(&sample_item("c-1", "hello")).unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/clipboard/write-image")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"id":"c-1"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), axum::http::StatusCode::BAD_REQUEST);
+        let body = body_json(resp).await;
+        assert_eq!(body["ok"], serde_json::json!(false));
+        assert_eq!(body["error"]["code"], "INVALID_INPUT");
+    }
+
+    #[tokio::test]
+    async fn thumb_serves_stored_thumbnail_and_404s_unknown() {
+        let state = test_server_state();
+        // 写一张真实缩略图到 store 的 thumbs_dir
+        let thumb_path = state.clipboard_store.thumbs_dir().join("thumb-x.png");
+        std::fs::write(&thumb_path, b"\x89PNG-fake-bytes").unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+
+        let ok = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/thumb/thumb-x.png")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(ok.status().is_success());
+
+        let missing = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/thumb/does-not-exist.png")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), axum::http::StatusCode::NOT_FOUND);
+        let _ = std::fs::remove_file(&thumb_path);
     }
 }
