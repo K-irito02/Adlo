@@ -306,12 +306,22 @@ export function createLazyLoader<T>(
         return;
       }
       set(getInitialState(get_, workspaceId));
-      const result = await fetchFn(workspacePath);
-      if (!result.ok) {
-        set(getErrorState(get_, workspaceId, result.error.message));
-        return;
+      try {
+        const result = await fetchFn(workspacePath);
+        if (!result.ok) {
+          set(getErrorState(get_, workspaceId, result.error.message));
+          return;
+        }
+        set(getSuccessState(get_, workspaceId, result.data));
+      } catch (err) {
+        // A rejecting IPC (bridge not attached, transport error) must still clear
+        // the loading flag and surface an error. Otherwise the loader's guard
+        // (isLoading) would stay true forever and any dependent lazy-load
+        // effect would never re-fire — a permanent loading state. Aligned with
+        // error-handling.md (never silently swallow rejections).
+        const message = err instanceof Error ? err.message : String(err);
+        set(getErrorState(get_, workspaceId, message));
       }
-      set(getSuccessState(get_, workspaceId, result.data));
     };
   };
 }

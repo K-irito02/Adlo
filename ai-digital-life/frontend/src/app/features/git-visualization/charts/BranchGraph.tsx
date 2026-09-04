@@ -18,6 +18,7 @@ import type { RawBranchGraph } from '../adapters/chartDataAdapters';
 import type { CommitNode, CommitEdge } from '../types/gitGraph';
 import type { ChartStatus } from '@/components/charts/chart-phase';
 import { ChartLoadingLabel } from '@/components/charts/chart-loading-label';
+import { GitNotRepoHint } from '../GitNotRepoHint';
 
 // ── Constants ──
 const emptyArr: never[] = [];
@@ -1206,19 +1207,11 @@ export function BranchGraph({
   }, []);
 
   if (!hasWorkspace) {
-    return (
-      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
-        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNoWorkspace}</p>
-      </div>
-    );
+    return <GitNotRepoHint className="adl-git-vis__chart" message={t.gitVisNoWorkspace} />;
   }
 
   if (!isGitRepo && isGitSnapshotLoaded) {
-    return (
-      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
-        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
-      </div>
-    );
+    return <GitNotRepoHint className="adl-git-vis__chart" />;
   }
 
   if (status === 'loading' || !isGitSnapshotLoaded) {

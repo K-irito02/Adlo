@@ -22,6 +22,7 @@ import {
   resolveGranularity,
   type Granularity,
 } from '../adapters/chartDataAdapters';
+import { GitNotRepoHint } from '../GitNotRepoHint';
 
 interface CodeLineEvoProps {
   data?: { days: { date: string; additions: number; deletions: number }[] };
@@ -171,19 +172,11 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
   }, [stripData, fullRange.end]);
 
   if (!hasWorkspace) {
-    return (
-      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
-        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNoWorkspace}</p>
-      </div>
-    );
+    return <GitNotRepoHint className="adl-git-vis__chart" message={t.gitVisNoWorkspace} />;
   }
 
   if (!isGitRepo && isGitSnapshotLoaded) {
-    return (
-      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
-        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
-      </div>
-    );
+    return <GitNotRepoHint className="adl-git-vis__chart" />;
   }
 
   if (status === 'loading' || !isGitSnapshotLoaded) {

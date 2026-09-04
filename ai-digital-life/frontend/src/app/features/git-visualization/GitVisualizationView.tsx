@@ -1,6 +1,7 @@
 import React, { Component, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { determinePhases } from '@stores/actions/gitVisActions';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
@@ -73,6 +74,17 @@ interface TimeRangeAwareCardProps {
   headerExtra?: React.ReactNode;
   /** Rendered immediately after the card title (e.g. a help trigger). */
   titleExtra?: React.ReactNode;
+  /**
+   * True when a workspace is selected. When false the chart body renders the
+   * "no workspace" hint, so a raw fetch error banner above it is suppressed.
+   */
+  hasWorkspace: boolean;
+  /**
+   * True when the selected workspace is a git repo. When false the chart body
+   * renders the "not a git repo" hint, so a raw fetch error banner (e.g. a
+   * backend `git log --all failed`) is suppressed instead of duplicating the hint.
+   */
+  isGitRepo: boolean;
 }
 
 const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
@@ -85,11 +97,15 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
   yearBounds,
   headerExtra,
   titleExtra,
+  hasWorkspace,
+  isGitRepo,
 }: TimeRangeAwareCardProps) {
   const { t } = useTCopy();
-  const formatT = useCallback((template: string, vars: Record<string, string>) => {
-    return template.replace(/\{(\w+)\}/g, (_, name: string) => vars[name] ?? `{${name}}`);
-  }, []);
+  // Show the workspace-level fetch error only while a workspace IS selected and
+  // IS a git repo: when there is no workspace or the snapshot says "not a git
+  // repo", the chart body already renders the matching static hint and a raw
+  // backend error banner above it would duplicate / contradict that message.
+  const showError = Boolean(timeRange.error && hasWorkspace && isGitRepo);
   return (
     <div className="adl-git-vis__card">
       <div className="adl-git-vis__card-header">
@@ -108,9 +124,9 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
         ) : null}
         {headerExtra}
       </div>
-      {timeRange.error && (
+      {showError && (
         <div className="adl-git-vis__error">
-          {formatT(t.gitVisWorkspaceError, { message: timeRange.error })}
+          {formatT(t, 'gitVisWorkspaceError', { message: timeRange.error ?? '' })}
         </div>
       )}
       {children}
@@ -128,7 +144,8 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const recentWorkspaces = useAppStore(useShallow((s) => s.recentWorkspaces));
   const appInfo = useAppStore((s) => s.appInfo);
   const setGitVisLoadedPhases = useAppStore((s) => s.setGitVisLoadedPhases);
-  const gitSnapshots = useAppStore(useShallow((s) => s.gitSnapshots));
+  const loadGitSnapshot = useAppStore((s) => s.loadGitSnapshot);
+  const setActiveWorkspaceTab = useAppStore((s) => s.setActiveWorkspaceTab);
 
   const activeWs = useMemo(
     () => recentWorkspaces.find((w) => w.id === activeWorkspaceTab),
@@ -136,20 +153,36 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   );
   const rootPath = activeWs?.rootPath || '';
 
+  // Subscribe to only the active workspace's snapshot slot (not the whole map):
+  // an unrelated workspace's stage/unstage/branch change must not re-render the
+  // entire visualization. Zustand re-runs only when this slot's reference changes.
+  const activeWsGitSnapshot = useAppStore((s) => s.gitSnapshots[s.activeWorkspaceTab]);
+  // Snapshot load bookkeeping lives on the changes-tree keys (loadGitSnapshot /
+  // refreshGitSnapshot use workspaceChangesTreeLoading/Errors); a missing slot
+  // with no loader in flight means we should trigger a lazy load ourselves.
+  const snapshotLoading = useAppStore((s) => !!s.workspaceChangesTreeLoading[s.activeWorkspaceTab]);
+  const snapshotError = useAppStore((s) => s.workspaceChangesTreeErrors[s.activeWorkspaceTab]);
+
   // Check if current workspace is a Git repository
   // gitSnapshots[activeWorkspaceTab] is initially undefined until bootstrap() loads
   // the Git status asynchronously. During this loading window, we show a loading
   // state rather than incorrectly displaying "not a Git repository".
-  const gitSnapshotForActiveWs = gitSnapshots[activeWorkspaceTab];
+  const gitSnapshotForActiveWs = activeWsGitSnapshot;
   const isGitSnapshotLoaded = gitSnapshotForActiveWs !== undefined;
   const isGitRepo = gitSnapshotForActiveWs?.isRepo ?? false;
   const hasWorkspace = Boolean(activeWs);
+  // The active workspace's snapshot failed to load and we have nothing cached:
+  // without this flag the charts would spin on a permanent skeleton. Surface a
+  // recoverable error instead of an endless loading state.
+  const snapshotFailed = Boolean(hasWorkspace && snapshotError && !isGitSnapshotLoaded);
+  // The persisted active tab id does not match any known workspace yet (default
+  // 'workspace-1' on first run, or the workspace was removed). The auto-select
+  // effect below fixes the tab right after commit; until then render a neutral
+  // loading region instead of flashing the "请选择一个 Git 工作区" empty-state.
+  const workspaceTabUnresolved = recentWorkspaces.length > 0 && !activeWs;
 
-  // The persisted active tab id may not match any workspace (e.g. the default
-  // 'workspace-1' on first run). Auto-select the current app workspace, falling
-  // back to the first available one, so the charts can load without requiring a
-  // manual tab click.
-  const setActiveWorkspaceTab = useAppStore((s) => s.setActiveWorkspaceTab);
+  // Auto-select the current app workspace, falling back to the first available
+  // one, so the charts can load without requiring a manual tab click.
   useEffect(() => {
     if (recentWorkspaces.length === 0) {
       return;
@@ -164,6 +197,31 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       setActiveWorkspaceTab(current.id);
     }
   }, [recentWorkspaces, activeWorkspaceTab, appInfo?.currentWorkspace?.id, setActiveWorkspaceTab]);
+
+  // Lazy-load the active workspace's git snapshot when it is missing. bootstrap()
+  // only preloads visible workspaces; a tab whose snapshot never loaded (hidden /
+  // removed-from-sidebar / previously failed) must not render a permanent loading
+  // skeleton. loadGitSnapshot is itself a lazy loader (hasData/isLoading guard),
+  // so this effect only fires while there is genuinely nothing cached and no
+  // request in flight. A failed load is NOT retried here (snapshotFailed renders
+  // a recoverable error with its own retry action) to avoid a hot retry loop.
+  useEffect(() => {
+    if (!activeWs || !rootPath) {
+      return;
+    }
+    if (isGitSnapshotLoaded || snapshotLoading || snapshotFailed) {
+      return;
+    }
+    void loadGitSnapshot(activeWorkspaceTab, rootPath);
+  }, [
+    activeWs,
+    rootPath,
+    activeWorkspaceTab,
+    isGitSnapshotLoaded,
+    snapshotLoading,
+    snapshotFailed,
+    loadGitSnapshot,
+  ]);
 
   const { refreshWorkspace, refreshChart } = useGitVisRefresh(activeWorkspaceTab, rootPath);
 
@@ -387,149 +445,183 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
         data-chart-preset={chartColorPreset}
       >
         <WorkspaceTabBar rightExtra={rightExtra} />
-        <HeatmapCardGroup
-          onRefresh={handleRefreshHeatmap}
-          onRefreshContributorModules={handleRefreshContributorModules}
-          commitStats={
-            heatmapData.data as
-              | {
-                  dailyCommits: { date: string; count: number }[];
-                  hourlyDistribution: { day: number; hour: number; count: number }[];
-                  contributorActivity: {
-                    author: string;
-                    authorEmail: string;
-                    totalCommits: number;
-                    periods: { period: string; month: number; count: number }[];
-                  }[];
-                  commitTimeline: { date: string; count: number; cumulative: number }[];
-                }
-              | undefined
-          }
-          commitStatsStatus={resolveChartStatus(heatmapData.loading)}
-          contributorModules={
-            (contributorModulesData.data as RawContributorModules | undefined)?.matrix
-          }
-          contributorModuleAllPaths={
-            (contributorModulesData.data as RawContributorModules | undefined)?.allPaths
-          }
-          contributorModuleStatus={resolveChartStatus(contributorModulesData.loading)}
-          yearBounds={yearBounds}
-          isGitRepo={isGitRepo}
-          hasWorkspace={hasWorkspace}
-          isGitSnapshotLoaded={isGitSnapshotLoaded}
-        />
-        <TimeRangeAwareCard
-          title={t.gitVisBranchGraph}
-          desc={t.gitVisBranchGraphDesc}
-          onRefresh={handleRefreshBranchGraph}
-          refreshLabel={t.gitVisRefreshChart}
-          timeRange={branchGraphData}
-          yearBounds={yearBounds}
-          titleExtra={
-            <HintCardTrigger content={<BranchGraphHelpCard />}>
+        {workspaceTabUnresolved ? (
+          <div className="adl-git-vis__not-repo-hint">
+            <p className="adl-git-vis__not-repo-hint-text">{t.gitVisLoadingChart}</p>
+          </div>
+        ) : snapshotFailed ? (
+          <div className="adl-git-vis__card adl-git-vis__snapshot-error">
+            <div className="adl-git-vis__error">
+              {formatT(t, 'gitVisWorkspaceError', { message: snapshotError ?? '' })}
+            </div>
+            <div className="adl-git-vis__snapshot-error-retry">
               <button
                 type="button"
-                className="adl-icon-button adl-icon-button--info adl-branch-graph__help-trigger"
-                tabIndex={-1}
-                aria-label={t.gitVisBranchGraphHelpAria}
+                className="adl-git-vis__refresh-btn adl-git-vis__refresh-btn--lg"
+                onClick={() => {
+                  void loadGitSnapshot(activeWorkspaceTab, rootPath);
+                }}
               >
-                <IconCircleHelp size={16} />
+                {t.gitVisRetry}
               </button>
-            </HintCardTrigger>
-          }
-        >
-          <BranchGraph
-            data={
-              branchGraphData.data as
-                | {
-                    nodes: {
-                      hash: string;
-                      shortHash: string;
-                      parentHashes: string[];
-                      branch: string;
-                      date: string;
-                      message: string;
-                      author: string;
-                      authorEmail: string;
-                      tag?: string;
-                    }[];
-                    edges: { from: string; to: string }[];
-                    branches: string[];
-                  }
-                | undefined
-            }
-            status={resolveChartStatus(branchGraphData.loading)}
-            loadingLabel={t.gitVisLoadingChart}
-            isGitRepo={isGitRepo}
-            hasWorkspace={hasWorkspace}
-            isGitSnapshotLoaded={isGitSnapshotLoaded}
-          />
-        </TimeRangeAwareCard>
-        <TimeRangeAwareCard
-          title={t.gitVisCodeLineEvo}
-          desc={t.gitVisCodeLineEvoDesc}
-          onRefresh={handleRefreshCodeLineEvo}
-          refreshLabel={t.gitVisRefreshChart}
-          timeRange={codeLineEvoData}
-          yearBounds={yearBounds}
-          headerExtra={
-            <CodeLineEvoSeriesToggle
-              visible={codeLineEvoVis.visible}
-              onToggle={codeLineEvoVis.toggleSeries}
+            </div>
+          </div>
+        ) : (
+          <>
+            <HeatmapCardGroup
+              onRefresh={handleRefreshHeatmap}
+              onRefreshContributorModules={handleRefreshContributorModules}
+              commitStats={
+                heatmapData.data as
+                  | {
+                      dailyCommits: { date: string; count: number }[];
+                      hourlyDistribution: { day: number; hour: number; count: number }[];
+                      contributorActivity: {
+                        author: string;
+                        authorEmail: string;
+                        totalCommits: number;
+                        periods: { period: string; month: number; count: number }[];
+                      }[];
+                      commitTimeline: { date: string; count: number; cumulative: number }[];
+                    }
+                  | undefined
+              }
+              commitStatsStatus={resolveChartStatus(heatmapData.loading)}
+              contributorModules={
+                (contributorModulesData.data as RawContributorModules | undefined)?.matrix
+              }
+              contributorModuleAllPaths={
+                (contributorModulesData.data as RawContributorModules | undefined)?.allPaths
+              }
+              contributorModuleStatus={resolveChartStatus(contributorModulesData.loading)}
+              yearBounds={yearBounds}
+              isGitRepo={isGitRepo}
+              hasWorkspace={hasWorkspace}
+              isGitSnapshotLoaded={isGitSnapshotLoaded}
             />
-          }
-        >
-          <CodeLineEvo
-            data={
-              codeLineEvoData.data as
-                | { days: { date: string; additions: number; deletions: number }[] }
-                | undefined
-            }
-            visible={codeLineEvoVis.visible}
-            status={resolveChartStatus(codeLineEvoData.loading)}
-            loadingLabel={t.gitVisLoadingChart}
-            isGitRepo={isGitRepo}
-            hasWorkspace={hasWorkspace}
-            isGitSnapshotLoaded={isGitSnapshotLoaded}
-          />
-        </TimeRangeAwareCard>
-        <TimeRangeAwareCard
-          title={t.gitVisCommitTimeline}
-          desc={t.gitVisCommitTimelineDesc}
-          onRefresh={handleRefreshCommitTimeline}
-          refreshLabel={t.gitVisRefreshChart}
-          timeRange={commitTimelineData}
-          yearBounds={yearBounds}
-        >
-          <CommitTimeline
-            data={{
-              days:
-                (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ?? [],
-            }}
-            status={resolveChartStatus(commitTimelineData.loading)}
-            loadingLabel={t.gitVisLoadingChart}
-            isGitRepo={isGitRepo}
-            hasWorkspace={hasWorkspace}
-            isGitSnapshotLoaded={isGitSnapshotLoaded}
-          />
-        </TimeRangeAwareCard>
-        <TimeRangeAwareCard
-          title={t.gitVisFileHotspotsTitle}
-          onRefresh={handleRefreshFileHotspots}
-          refreshLabel={t.gitVisRefreshChart}
-          timeRange={fileHotspotsData}
-          yearBounds={yearBounds}
-        >
-          <FileHotspotsView
-            data={fileHotspotsData.data as GitVisFileHotspots | undefined}
-            scrollContainerRef={containerRef}
-            status={resolveChartStatus(fileHotspotsData.loading)}
-            loadingLabel={t.gitVisLoadingChart}
-            isGitRepo={isGitRepo}
-            hasWorkspace={hasWorkspace}
-            isGitSnapshotLoaded={isGitSnapshotLoaded}
-          />
-        </TimeRangeAwareCard>
+            <TimeRangeAwareCard
+              title={t.gitVisBranchGraph}
+              desc={t.gitVisBranchGraphDesc}
+              onRefresh={handleRefreshBranchGraph}
+              refreshLabel={t.gitVisRefreshChart}
+              timeRange={branchGraphData}
+              yearBounds={yearBounds}
+              hasWorkspace={hasWorkspace}
+              isGitRepo={isGitRepo}
+              titleExtra={
+                <HintCardTrigger content={<BranchGraphHelpCard />}>
+                  <button
+                    type="button"
+                    className="adl-icon-button adl-icon-button--info adl-branch-graph__help-trigger"
+                    tabIndex={-1}
+                    aria-label={t.gitVisBranchGraphHelpAria}
+                  >
+                    <IconCircleHelp size={16} />
+                  </button>
+                </HintCardTrigger>
+              }
+            >
+              <BranchGraph
+                data={
+                  branchGraphData.data as
+                    | {
+                        nodes: {
+                          hash: string;
+                          shortHash: string;
+                          parentHashes: string[];
+                          branch: string;
+                          date: string;
+                          message: string;
+                          author: string;
+                          authorEmail: string;
+                          tag?: string;
+                        }[];
+                        edges: { from: string; to: string }[];
+                        branches: string[];
+                      }
+                    | undefined
+                }
+                status={resolveChartStatus(branchGraphData.loading)}
+                loadingLabel={t.gitVisLoadingChart}
+                isGitRepo={isGitRepo}
+                hasWorkspace={hasWorkspace}
+                isGitSnapshotLoaded={isGitSnapshotLoaded}
+              />
+            </TimeRangeAwareCard>
+            <TimeRangeAwareCard
+              title={t.gitVisCodeLineEvo}
+              desc={t.gitVisCodeLineEvoDesc}
+              onRefresh={handleRefreshCodeLineEvo}
+              refreshLabel={t.gitVisRefreshChart}
+              timeRange={codeLineEvoData}
+              yearBounds={yearBounds}
+              hasWorkspace={hasWorkspace}
+              isGitRepo={isGitRepo}
+              headerExtra={
+                <CodeLineEvoSeriesToggle
+                  visible={codeLineEvoVis.visible}
+                  onToggle={codeLineEvoVis.toggleSeries}
+                />
+              }
+            >
+              <CodeLineEvo
+                data={
+                  codeLineEvoData.data as
+                    | { days: { date: string; additions: number; deletions: number }[] }
+                    | undefined
+                }
+                visible={codeLineEvoVis.visible}
+                status={resolveChartStatus(codeLineEvoData.loading)}
+                loadingLabel={t.gitVisLoadingChart}
+                isGitRepo={isGitRepo}
+                hasWorkspace={hasWorkspace}
+                isGitSnapshotLoaded={isGitSnapshotLoaded}
+              />
+            </TimeRangeAwareCard>
+            <TimeRangeAwareCard
+              title={t.gitVisCommitTimeline}
+              desc={t.gitVisCommitTimelineDesc}
+              onRefresh={handleRefreshCommitTimeline}
+              refreshLabel={t.gitVisRefreshChart}
+              timeRange={commitTimelineData}
+              yearBounds={yearBounds}
+              hasWorkspace={hasWorkspace}
+              isGitRepo={isGitRepo}
+            >
+              <CommitTimeline
+                data={{
+                  days:
+                    (commitTimelineData.data as GitVisCommitStats | undefined)?.commitTimeline ??
+                    [],
+                }}
+                status={resolveChartStatus(commitTimelineData.loading)}
+                loadingLabel={t.gitVisLoadingChart}
+                isGitRepo={isGitRepo}
+                hasWorkspace={hasWorkspace}
+                isGitSnapshotLoaded={isGitSnapshotLoaded}
+              />
+            </TimeRangeAwareCard>
+            <TimeRangeAwareCard
+              title={t.gitVisFileHotspotsTitle}
+              onRefresh={handleRefreshFileHotspots}
+              refreshLabel={t.gitVisRefreshChart}
+              timeRange={fileHotspotsData}
+              yearBounds={yearBounds}
+              hasWorkspace={hasWorkspace}
+              isGitRepo={isGitRepo}
+            >
+              <FileHotspotsView
+                data={fileHotspotsData.data as GitVisFileHotspots | undefined}
+                scrollContainerRef={containerRef}
+                status={resolveChartStatus(fileHotspotsData.loading)}
+                loadingLabel={t.gitVisLoadingChart}
+                isGitRepo={isGitRepo}
+                hasWorkspace={hasWorkspace}
+                isGitSnapshotLoaded={isGitSnapshotLoaded}
+              />
+            </TimeRangeAwareCard>
+          </>
+        )}
       </div>
     </VisErrorBoundary>
   );

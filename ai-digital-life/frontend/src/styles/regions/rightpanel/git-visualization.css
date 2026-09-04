@@ -99,6 +99,22 @@
   font-size: 0.9rem;
 }
 
+/* Snapshot load failure — recoverable block replacing the chart area when the
+   active workspace's git snapshot could not be loaded (nothing cached to render). */
+.adl-git-vis__snapshot-error {
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  gap: var(--space-2);
+}
+
+.adl-git-vis__snapshot-error-retry {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding-bottom: var(--space-3);
+}
+
 .adl-git-vis__card-desc {
   font-size: 0.8rem;
   color: var(--text-secondary);

@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
+import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
 import { runWithConcurrency } from '../../shared/asyncUtils';
@@ -101,10 +102,17 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             return;
           }
           if (gitResult.ok && appInfoResult.data.currentWorkspace) {
-            set({
-              gitSnapshot: gitResult.data,
-              gitSnapshots: { [appInfoResult.data.currentWorkspace.id]: gitResult.data },
-            });
+            const currentWsId = appInfoResult.data.currentWorkspace.id;
+            // Merge the current workspace snapshot into B instead of replacing
+            // the whole map: bootstrap also fires a low-priority cascade that
+            // writes OTHER workspaces' slots, and a replace here would wipe those
+            // slots. The sync helper also keeps A/C in lockstep.
+            set((state: StoreState) =>
+              buildGitSnapshotSyncPatch(state, {
+                workspaceId: currentWsId,
+                snapshot: gitResult.data,
+              }),
+            );
           }
         });
 

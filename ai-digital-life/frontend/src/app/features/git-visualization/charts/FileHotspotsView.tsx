@@ -3,6 +3,7 @@ import { FileHotspotsLeaderboard } from './FileHotspotsLeaderboard';
 import type { GitVisFileHotspots } from '@/shared/ipc/workspace';
 import type { ChartStatus } from '@/components/charts/chart-phase';
 import { useTCopy } from '@i18n/useTCopy';
+import { GitNotRepoHint } from '../GitNotRepoHint';
 
 export interface FileHotspotsViewProps {
   data?: GitVisFileHotspots;
@@ -29,27 +30,27 @@ export const FileHotspotsView = React.memo(function FileHotspotsView({
   const { t } = useTCopy();
 
   if (!hasWorkspace) {
-    return (
-      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
-        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNoWorkspace}</p>
-      </div>
-    );
+    return <GitNotRepoHint className="adl-git-vis__chart" message={t.gitVisNoWorkspace} />;
   }
 
   if (!isGitRepo && isGitSnapshotLoaded) {
-    return (
-      <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
-        <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
-      </div>
-    );
+    return <GitNotRepoHint className="adl-git-vis__chart" />;
   }
+
+  // The leaderboard renders its own loading affordance from `status`; fold the
+  // not-yet-loaded snapshot state into it so this component's guard is symmetric
+  // with BranchGraph / CodeLineEvo / CommitTimeline (which treat
+  // `!isGitSnapshotLoaded` as loading). Otherwise a future caller passing
+  // status='ready' before the snapshot resolves would render an empty list.
+  const effectiveStatus: ChartStatus =
+    status === 'loading' || !isGitSnapshotLoaded ? 'loading' : status;
 
   return (
     <div className="adl-file-hotspots-view">
       <FileHotspotsLeaderboard
         data={data}
         scrollContainerRef={scrollContainerRef}
-        status={status}
+        status={effectiveStatus}
         loadingLabel={loadingLabel}
       />
     </div>

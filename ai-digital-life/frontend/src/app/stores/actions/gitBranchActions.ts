@@ -5,6 +5,7 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError, postMutationRefresh } from '../shared';
+import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 const SCOPE = 'git';
 
 async function refreshAfterBranchChange(get: () => StoreState) {
@@ -44,7 +45,7 @@ export function createGitBranchActions(
 
     /**
      * [switchGitBranch - 切换 Git 分支]
-     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot
+     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot, workspaceSlice.gitSnapshots (经 buildGitSnapshotSyncPatch)
      * @see shared/ipc.ts → workspace.switchGitBranch
      * @see mock-bridge.ts → workspace.switchGitBranch
      * @see preview-bridge/index.ts → workspace.switchGitBranch
@@ -57,20 +58,16 @@ export function createGitBranchActions(
         return;
       }
       const { hasRestored, gitSnapshot, previousBranch, currentBranch } = result.data;
-      const workspaceId = get().appInfo?.currentWorkspace?.id;
       set((state: StoreState) => ({
-        appInfo: state.appInfo
-          ? {
-              ...state.appInfo,
-              currentWorkspace: result.data.workspace,
-            }
-          : state.appInfo,
-        gitSnapshot: gitSnapshot,
-        // Update per-workspace snapshot so multi-workspace views (file tree,
-        // changes tree) reflect the branch change immediately.
-        gitSnapshots: workspaceId
-          ? { ...state.gitSnapshots, [workspaceId]: gitSnapshot }
-          : state.gitSnapshots,
+        // result.data.workspace.id is the authoritative workspace id — the backend
+        // branch operation always targets the current_workspace it operated on,
+        // whereas reading currentWorkspace.id after the await races a mid-flight
+        // workspace switch. Passing workspaceMeta also refreshes C via the sync helper.
+        ...buildGitSnapshotSyncPatch(state, {
+          workspaceId: result.data.workspace.id,
+          snapshot: gitSnapshot,
+          workspaceMeta: result.data.workspace,
+        }),
         gitStashRestored: hasRestored,
       }));
       if (!hasRestored && gitSnapshot.conflicts.length > 0) {
@@ -95,7 +92,7 @@ export function createGitBranchActions(
 
     /**
      * [createGitBranch - 创建并切换到新 Git 分支]
-     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot
+     * @writes workspaceSlice.appInfo, gitSlice.gitSnapshot, workspaceSlice.gitSnapshots (经 buildGitSnapshotSyncPatch)
      * @see shared/ipc.ts → workspace.createGitBranch
      * @see mock-bridge.ts → workspace.createGitBranch
      * @see preview-bridge/index.ts → workspace.createGitBranch
@@ -107,20 +104,13 @@ export function createGitBranchActions(
         captureError(get, result.error, SCOPE);
         return;
       }
-      const workspaceId = get().appInfo?.currentWorkspace?.id;
       set((state: StoreState) => ({
-        appInfo: state.appInfo
-          ? {
-              ...state.appInfo,
-              currentWorkspace: result.data.workspace,
-            }
-          : state.appInfo,
-        gitSnapshot: result.data.gitSnapshot,
-        // Update per-workspace snapshot so multi-workspace views (file tree,
-        // changes tree) reflect the new branch immediately.
-        gitSnapshots: workspaceId
-          ? { ...state.gitSnapshots, [workspaceId]: result.data.gitSnapshot }
-          : state.gitSnapshots,
+        // Authoritative workspace id comes from the backend response (see switchGitBranch).
+        ...buildGitSnapshotSyncPatch(state, {
+          workspaceId: result.data.workspace.id,
+          snapshot: result.data.gitSnapshot,
+          workspaceMeta: result.data.workspace,
+        }),
       }));
       await refreshAfterBranchChange(get);
     },

@@ -71,6 +71,11 @@ function hydrateWorkspaceDefaults(
 }
 
 export interface WorkspaceSlice {
+  /**
+   * 应用元数据。`appInfo.currentWorkspace.gitSnapshot` 是 Git 快照的 Source C
+   * （后端 workspace metadata 兜底，供 badge/header 使用），由
+   * buildGitSnapshotSyncPatch() 在同步 A/B 时一并维护（详见 gitSlice.ts 文件头）。
+   */
   appInfo?: AppInfo;
   recentWorkspaces: RecentWorkspaceEntry[];
   workspaceTrees: Record<string, WorkspaceTreeNode[]>;
@@ -80,20 +85,24 @@ export interface WorkspaceSlice {
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
   refreshingAllWorkspaces: boolean;
   /**
-   * 所有工作区的 Git 快照映射表
+   * 所有工作区的 Git 快照映射表（Source B）
    * 用途：多工作区视图（文件树、变更树、Git 可视化）需要按工作区 ID 获取快照
-   * 更新时机：bootstrap()、loadGitSnapshot()、refreshGitSnapshot()、
-   *          switchGitBranch()、createGitBranch()、applyGitOperation()
-   * 特点：Record<workspaceId, GitSnapshot> 格式，支持按工作区独立刷新
+   * 更新时机：bootstrap()、loadGitSnapshot()、refreshGitSnapshot()、fetchGitStatus()、
+   *           switchGitBranch()、createGitBranch()、applyGitOperation()
+   * 特点：Record<workspaceId, GitSnapshot>，支持按工作区独立刷新；写入均为合并写
+   * （唯一例外：bootstrap 无当前工作区的复位分支会整体清空）
    *
    * 设计说明：
-   * 与 gitSlice.gitSnapshot 并存，支持用户便利性和性能稳定性：
+   * 与 gitSlice.gitSnapshot（Source A）及 appInfo.currentWorkspace.gitSnapshot（Source C）
+   * 冗余并存，支持用户便利性和性能稳定性：
    * - 每个工作区相当于一个 tab 页面，可以独立刷新
    * - 每个工作区内有"刷新全部图表"按钮，只刷新当前工作区的图表
    * - 每个图表有单独的"刷新"按钮，只刷新当前图表
    * - 避免同时并发刷新所有工作区和图表
    *
-   * 注意：更新此字段时，应同步更新 gitSlice.gitSnapshot（如果是当前工作区），反之亦然。
+   * 同步不变量：完整快照写入经 stores/gitSnapshotSync.ts 的 buildGitSnapshotSyncPatch()
+   * 统一执行，保证 B 与（当前工作区时的）A/C 一致。例外：bootstrap 复位/loadBatch 级联
+   * 批量写 B（详见 gitSlice.ts 文件头）。禁止手工整表替换 B 或直写单例 A。
    */
   gitSnapshots: Record<string, GitSnapshot>;
   workspaceChangesExpanded: Record<string, boolean>;
@@ -113,7 +122,6 @@ export interface WorkspaceSlice {
   setWorkspaceTreeErrors: (errors: Record<string, string | undefined>) => void;
   setWorkspaceTreeExpandedInFileNav: (expanded: Record<string, boolean>) => void;
   setRefreshingAllWorkspaces: (refreshing: boolean) => void;
-  setGitSnapshots: (snapshots: Record<string, GitSnapshot>) => void;
   setWorkspaceChangesExpanded: (expanded: Record<string, boolean>) => void;
   setWorkspaceChangesTreeData: (data: Record<string, WorkspaceTreeNode[]>) => void;
   setWorkspaceChangesTreeLoading: (loading: Record<string, boolean>) => void;
@@ -157,7 +165,6 @@ export const createWorkspaceSlice = (
       set({ workspaceTreeExpandedInFileNav: expanded });
     },
     setRefreshingAllWorkspaces: (refreshing) => set({ refreshingAllWorkspaces: refreshing }),
-    setGitSnapshots: (snapshots) => set({ gitSnapshots: snapshots }),
     setWorkspaceChangesExpanded: (expanded) => {
       scheduleWrite(WORKSPACE_CHANGES_EXPANDED_KEY, expanded);
       set({ workspaceChangesExpanded: expanded });
