@@ -35,13 +35,16 @@ impl ClipboardStore {
                 && prev.image_path == item.image_path
                 && (item.created_at.saturating_sub(prev.created_at)) <= 3000
             {
+                // 覆盖旧行：保留旧行 id，避免同内容累积为新行导致去重失效
+                let mut merged = item.clone();
+                merged.id = prev.id.clone();
                 self.db.save_entity(
                     EntityTable::ClipboardItems,
-                    &item.id,
+                    &merged.id,
                     None,
                     None,
-                    Some(&item.kind),
-                    item,
+                    Some(&merged.kind),
+                    &merged,
                 )?;
                 return Ok(false);
             }
@@ -138,12 +141,56 @@ mod tests {
     }
 
     #[test]
+    fn image_remove_clear_deletes_files() {
+        let store = temp_store("image");
+        // 用 write_image_files 生成两张真实 PNG（原图 + 缩略图）
+        let orig = store.images_dir().join("img-1.png");
+        let thumb = store.thumbs_dir().join("thumb-1.png");
+        let rgba = vec![0xFFu8; 32 * 24 * 4];
+        crate::image::write_image_files(&rgba, 32, 24, &orig, &thumb, 16).unwrap();
+        assert!(orig.exists());
+        assert!(thumb.exists());
+
+        let mut im = item("img-1", "image", now_ms());
+        im.image_path = Some(orig.to_string_lossy().into_owned());
+        im.thumb_path = Some(thumb.to_string_lossy().into_owned());
+        assert!(store.insert_or_bump(&im).unwrap());
+        assert!(store.list(10).unwrap().len() == 1);
+
+        // remove 后物理文件应被删除
+        assert!(store.remove("img-1").unwrap());
+        assert!(!orig.exists());
+        assert!(!thumb.exists());
+        assert_eq!(store.list(10).unwrap().len(), 0);
+
+        // 重新写入两张图，clear 后 images/thumbs 目录文件应被清空
+        let orig2 = store.images_dir().join("img-2.png");
+        let thumb2 = store.thumbs_dir().join("thumb-2.png");
+        crate::image::write_image_files(&rgba, 32, 24, &orig2, &thumb2, 16).unwrap();
+        let mut im2 = item("img-2", "image", now_ms());
+        im2.image_path = Some(orig2.to_string_lossy().into_owned());
+        im2.thumb_path = Some(thumb2.to_string_lossy().into_owned());
+        assert!(store.insert_or_bump(&im2).unwrap());
+        assert_eq!(store.clear().unwrap(), 1);
+        assert!(std::fs::read_dir(store.images_dir()).unwrap().next().is_none());
+        assert!(std::fs::read_dir(store.thumbs_dir()).unwrap().next().is_none());
+
+        let _ = std::fs::remove_dir_all(temp_dir().join("clip-data-image"));
+        let _ = std::fs::remove_file(temp_dir().join("clip-image.db"));
+    }
+
+    #[test]
     fn dedup_consecutive_same_content() {
         let store = temp_store("dedup");
         assert!(store.insert_or_bump(&item("1", "text", now_ms())).unwrap());
-        // 相同内容、紧邻时间 → 判定重复，返回 false，不新增行
-        assert!(!store.insert_or_bump(&item("1", "text", now_ms() + 1)).unwrap());
-        assert_eq!(store.list(10).unwrap().len(), 1);
+        // 模拟真实读取：内容相同但每次生成新 id，紧邻时间 → 判定重复，覆盖旧行
+        let mut dup = item("2", "text", now_ms() + 1);
+        dup.content = Some("content-1".into());
+        assert!(!store.insert_or_bump(&dup).unwrap());
+        let rows = store.list(10).unwrap();
+        assert_eq!(rows.len(), 1);
+        // 覆盖旧行生效：保留首次插入的 id（"1"），而非新 id（"2"）
+        assert_eq!(rows[0].id, "1");
         let _ = std::fs::remove_dir_all(temp_dir().join("clip-data-dedup"));
         let _ = std::fs::remove_file(temp_dir().join("clip-dedup.db"));
     }
