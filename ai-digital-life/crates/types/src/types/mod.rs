@@ -1,4 +1,5 @@
 pub mod ci;
+pub mod clipboard;
 pub mod commands;
 pub mod config;
 pub mod conversation;
@@ -8,9 +9,11 @@ pub mod part;
 pub mod reference;
 pub mod reserved;
 pub mod session;
+pub mod system_monitor;
 pub mod workspace;
 
 pub use ci::*;
+pub use clipboard::*;
 pub use commands::{CommandConfig, CommandHint};
 pub use config::*;
 pub use conversation::*;
@@ -19,6 +22,7 @@ pub use patch_types::*;
 pub use part::*;
 pub use reference::{ReferenceConfig, ReferenceSource};
 pub use reserved::{AcpConfig, CodeModeConfig, HttpApiConfig};
+pub use system_monitor::*;
 pub use workspace::*;
 
 use serde::{Deserialize, Serialize};

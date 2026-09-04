@@ -435,3 +435,51 @@ export interface ReferenceItem {
   path?: string;
   line?: number;
 }
+
+// ════════════════════════════════════════════════════════
+// Clipboard / System Monitor
+// ════════════════════════════════════════════════════════
+
+export interface ClipboardItem {
+  id: string;
+  kind: string;
+  content?: string;
+  imagePath?: string;
+  thumbPath?: string;
+  imageWidth?: number;
+  imageHeight?: number;
+  sourceApp?: string;
+  createdAt: number;
+}
+
+export interface DiskStat {
+  mount: string;
+  total: number;
+  available: number;
+}
+
+export interface NetStat {
+  name: string;
+  rxBps: number;
+  txBps: number;
+}
+
+export interface ProcessStat {
+  pid: number;
+  name: string;
+  cpuUsage: number;
+  memory: number;
+}
+
+export interface SystemSnapshot {
+  cpuTotal: number;
+  cpuPerCore: number[];
+  memoryUsed: number;
+  memoryTotal: number;
+  swapUsed: number;
+  swapTotal: number;
+  disks: DiskStat[];
+  networks: NetStat[];
+  processes: ProcessStat[];
+  uptimeSecs: number;
+}
