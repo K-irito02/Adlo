@@ -32,6 +32,8 @@ interface CodeLineEvoProps {
   isGitRepo?: boolean;
   /** Whether a workspace is selected */
   hasWorkspace?: boolean;
+  /** Whether the git snapshot has been loaded (false during initial async load) */
+  isGitSnapshotLoaded?: boolean;
 }
 
 export interface SeriesVisibility {
@@ -113,6 +115,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
   loadingLabel,
   isGitRepo = true,
   hasWorkspace = true,
+  isGitSnapshotLoaded = true,
 }: CodeLineEvoProps) {
   const { t } = useTCopy();
   const days = useMemo(() => data?.days ?? [], [data]);
@@ -175,7 +178,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
     );
   }
 
-  if (!isGitRepo) {
+  if (!isGitRepo && isGitSnapshotLoaded) {
     return (
       <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
         <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
@@ -183,7 +186,7 @@ export const CodeLineEvo = React.memo(function CodeLineEvo({
     );
   }
 
-  if (status === 'loading') {
+  if (status === 'loading' || !isGitSnapshotLoaded) {
     // Mirror the ready chart's structure: added rises above the zero line
     // (positive), deleted hangs below it (negative, fill from the top down),
     // and net spans the center (it can be both positive and negative). All

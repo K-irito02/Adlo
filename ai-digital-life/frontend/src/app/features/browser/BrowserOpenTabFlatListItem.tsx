@@ -11,7 +11,6 @@ interface BrowserOpenTabFlatListItemProps {
   tab: BrowserTabState;
   isActive: boolean;
   isEvicted: boolean;
-  isLoading?: boolean;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
 }
@@ -20,7 +19,6 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
   tab,
   isActive,
   isEvicted,
-  isLoading = false,
   onSelectTab,
   onCloseTab,
 }: BrowserOpenTabFlatListItemProps) {

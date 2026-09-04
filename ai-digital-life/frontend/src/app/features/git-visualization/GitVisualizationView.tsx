@@ -137,7 +137,12 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const rootPath = activeWs?.rootPath || '';
 
   // Check if current workspace is a Git repository
-  const isGitRepo = gitSnapshots[activeWorkspaceTab]?.isRepo ?? false;
+  // gitSnapshots[activeWorkspaceTab] is initially undefined until bootstrap() loads
+  // the Git status asynchronously. During this loading window, we show a loading
+  // state rather than incorrectly displaying "not a Git repository".
+  const gitSnapshotForActiveWs = gitSnapshots[activeWorkspaceTab];
+  const isGitSnapshotLoaded = gitSnapshotForActiveWs !== undefined;
+  const isGitRepo = gitSnapshotForActiveWs?.isRepo ?? false;
   const hasWorkspace = Boolean(activeWs);
 
   // The persisted active tab id may not match any workspace (e.g. the default
@@ -165,10 +170,18 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const { yearBounds } = useYearBounds(rootPath);
 
   // Helper to resolve chart status based on workspace and git repo state
+  // When git snapshot is still loading (isGitSnapshotLoaded === false), we show
+  // loading state to avoid briefly flashing "not a Git repository" messages.
   const resolveChartStatus = useCallback(
     (loading: boolean): 'loading' | 'ready' =>
-      !hasWorkspace || !isGitRepo ? 'ready' : loading ? 'loading' : 'ready',
-    [hasWorkspace, isGitRepo],
+      !hasWorkspace || !isGitRepo
+        ? isGitSnapshotLoaded
+          ? 'ready'
+          : 'loading'
+        : loading
+          ? 'loading'
+          : 'ready',
+    [hasWorkspace, isGitRepo, isGitSnapshotLoaded],
   );
 
   const heatmapData = useChartData(CHART_IDS.HEATMAP);
@@ -403,6 +416,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
           yearBounds={yearBounds}
           isGitRepo={isGitRepo}
           hasWorkspace={hasWorkspace}
+          isGitSnapshotLoaded={isGitSnapshotLoaded}
         />
         <TimeRangeAwareCard
           title={t.gitVisBranchGraph}
@@ -448,6 +462,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
+            isGitSnapshotLoaded={isGitSnapshotLoaded}
           />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
@@ -475,6 +490,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
+            isGitSnapshotLoaded={isGitSnapshotLoaded}
           />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
@@ -494,6 +510,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
+            isGitSnapshotLoaded={isGitSnapshotLoaded}
           />
         </TimeRangeAwareCard>
         <TimeRangeAwareCard
@@ -510,6 +527,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
             loadingLabel={t.gitVisLoadingChart}
             isGitRepo={isGitRepo}
             hasWorkspace={hasWorkspace}
+            isGitSnapshotLoaded={isGitSnapshotLoaded}
           />
         </TimeRangeAwareCard>
       </div>

@@ -33,6 +33,8 @@ interface CommitTimelineProps {
   isGitRepo?: boolean;
   /** Whether a workspace is selected */
   hasWorkspace?: boolean;
+  /** Whether the git snapshot has been loaded (false during initial async load) */
+  isGitSnapshotLoaded?: boolean;
 }
 
 export const CommitTimeline = React.memo(function CommitTimeline({
@@ -41,6 +43,7 @@ export const CommitTimeline = React.memo(function CommitTimeline({
   loadingLabel,
   isGitRepo = true,
   hasWorkspace = true,
+  isGitSnapshotLoaded = true,
 }: CommitTimelineProps) {
   const { t } = useTCopy();
   const days = useMemo(() => data?.days ?? [], [data]);
@@ -87,7 +90,7 @@ export const CommitTimeline = React.memo(function CommitTimeline({
     );
   }
 
-  if (!isGitRepo) {
+  if (!isGitRepo && isGitSnapshotLoaded) {
     return (
       <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
         <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
@@ -95,7 +98,7 @@ export const CommitTimeline = React.memo(function CommitTimeline({
     );
   }
 
-  if (status === 'loading') {
+  if (status === 'loading' || !isGitSnapshotLoaded) {
     return (
       <div className="adl-git-vis__chart" style={{ position: 'relative', overflow: 'hidden' }}>
         <ComposedChart

@@ -935,6 +935,8 @@ interface BranchGraphProps {
   isGitRepo?: boolean;
   /** Whether a workspace is selected */
   hasWorkspace?: boolean;
+  /** Whether the git snapshot has been loaded (false during initial async load) */
+  isGitSnapshotLoaded?: boolean;
 }
 
 /** Rank for ordering branch labels: mainline first, then master, then rest. */
@@ -954,6 +956,7 @@ export function BranchGraph({
   loadingLabel,
   isGitRepo = true,
   hasWorkspace = true,
+  isGitSnapshotLoaded = true,
 }: BranchGraphProps) {
   const { t } = useTCopy();
   const locale = navigator.language || 'en-US';
@@ -1210,7 +1213,7 @@ export function BranchGraph({
     );
   }
 
-  if (!isGitRepo) {
+  if (!isGitRepo && isGitSnapshotLoaded) {
     return (
       <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
         <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>
@@ -1218,7 +1221,7 @@ export function BranchGraph({
     );
   }
 
-  if (status === 'loading') {
+  if (status === 'loading' || !isGitSnapshotLoaded) {
     return <BranchGraphLoading label={loadingLabel} />;
   }
 

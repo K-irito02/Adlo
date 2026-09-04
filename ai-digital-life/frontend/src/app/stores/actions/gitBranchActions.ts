@@ -57,6 +57,7 @@ export function createGitBranchActions(
         return;
       }
       const { hasRestored, gitSnapshot, previousBranch, currentBranch } = result.data;
+      const workspaceId = get().appInfo?.currentWorkspace?.id;
       set((state: StoreState) => ({
         appInfo: state.appInfo
           ? {
@@ -65,6 +66,11 @@ export function createGitBranchActions(
             }
           : state.appInfo,
         gitSnapshot: gitSnapshot,
+        // Update per-workspace snapshot so multi-workspace views (file tree,
+        // changes tree) reflect the branch change immediately.
+        gitSnapshots: workspaceId
+          ? { ...state.gitSnapshots, [workspaceId]: gitSnapshot }
+          : state.gitSnapshots,
         gitStashRestored: hasRestored,
       }));
       if (!hasRestored && gitSnapshot.conflicts.length > 0) {
@@ -101,6 +107,7 @@ export function createGitBranchActions(
         captureError(get, result.error, SCOPE);
         return;
       }
+      const workspaceId = get().appInfo?.currentWorkspace?.id;
       set((state: StoreState) => ({
         appInfo: state.appInfo
           ? {
@@ -109,6 +116,11 @@ export function createGitBranchActions(
             }
           : state.appInfo,
         gitSnapshot: result.data.gitSnapshot,
+        // Update per-workspace snapshot so multi-workspace views (file tree,
+        // changes tree) reflect the new branch immediately.
+        gitSnapshots: workspaceId
+          ? { ...state.gitSnapshots, [workspaceId]: result.data.gitSnapshot }
+          : state.gitSnapshots,
       }));
       await refreshAfterBranchChange(get);
     },

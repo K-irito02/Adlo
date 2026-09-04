@@ -63,6 +63,8 @@ interface HeatmapCardGroupProps {
   isGitRepo?: boolean;
   /** Whether a workspace is selected */
   hasWorkspace?: boolean;
+  /** Whether the git snapshot has been loaded (false during initial async load) */
+  isGitSnapshotLoaded?: boolean;
 }
 
 export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
@@ -76,6 +78,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
   yearBounds,
   isGitRepo = true,
   hasWorkspace = true,
+  isGitSnapshotLoaded = true,
 }: HeatmapCardGroupProps) {
   const { t } = useTCopy();
   const loadingLabel = t.gitVisLoadingChart;
@@ -303,7 +306,7 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
         >
           {!hasWorkspace ? (
             <GitNotRepoHint message={t.gitVisNoWorkspace} />
-          ) : !isGitRepo ? (
+          ) : !isGitRepo && isGitSnapshotLoaded ? (
             <GitNotRepoHint />
           ) : (
             <>

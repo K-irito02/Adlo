@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { computePosition } from './hintCardPosition';
-import type { Placement } from './hintCardPosition';
 
 function makeRect(left: number, top: number, w: number = 16, h: number = 16): DOMRect {
   return {

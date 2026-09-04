@@ -46,7 +46,6 @@ export function BrowserNavigator() {
     browserTabs,
     browserTabFolders,
     tabTreeExpanded,
-    loadingTabId,
   } = useBrowserPanelState();
 
   const activeTabId = activeTab?.id ?? '';
@@ -244,7 +243,6 @@ export function BrowserNavigator() {
           browserTabs={browserTabs}
           activeTabId={activeTabId}
           evictedTabIds={evictedTabIds}
-          loadingTabId={loadingTabId}
           onSelectTab={(tabId) => {
             browserSelectTab(tabId);
           }}

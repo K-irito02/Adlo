@@ -79,6 +79,22 @@ export interface WorkspaceSlice {
   workspaceTreeErrors: Record<string, string | undefined>;
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
   refreshingAllWorkspaces: boolean;
+  /**
+   * 所有工作区的 Git 快照映射表
+   * 用途：多工作区视图（文件树、变更树、Git 可视化）需要按工作区 ID 获取快照
+   * 更新时机：bootstrap()、loadGitSnapshot()、refreshGitSnapshot()、
+   *          switchGitBranch()、createGitBranch()、applyGitOperation()
+   * 特点：Record<workspaceId, GitSnapshot> 格式，支持按工作区独立刷新
+   *
+   * 设计说明：
+   * 与 gitSlice.gitSnapshot 并存，支持用户便利性和性能稳定性：
+   * - 每个工作区相当于一个 tab 页面，可以独立刷新
+   * - 每个工作区内有"刷新全部图表"按钮，只刷新当前工作区的图表
+   * - 每个图表有单独的"刷新"按钮，只刷新当前图表
+   * - 避免同时并发刷新所有工作区和图表
+   *
+   * 注意：更新此字段时，应同步更新 gitSlice.gitSnapshot（如果是当前工作区），反之亦然。
+   */
   gitSnapshots: Record<string, GitSnapshot>;
   workspaceChangesExpanded: Record<string, boolean>;
   workspaceChangesTreeData: Record<string, WorkspaceTreeNode[]>;

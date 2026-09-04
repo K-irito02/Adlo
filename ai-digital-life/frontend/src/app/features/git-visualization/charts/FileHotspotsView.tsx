@@ -13,6 +13,8 @@ export interface FileHotspotsViewProps {
   isGitRepo?: boolean;
   /** Whether a workspace is selected */
   hasWorkspace?: boolean;
+  /** Whether the git snapshot has been loaded (false during initial async load) */
+  isGitSnapshotLoaded?: boolean;
 }
 
 export const FileHotspotsView = React.memo(function FileHotspotsView({
@@ -22,6 +24,7 @@ export const FileHotspotsView = React.memo(function FileHotspotsView({
   loadingLabel,
   isGitRepo = true,
   hasWorkspace = true,
+  isGitSnapshotLoaded = true,
 }: FileHotspotsViewProps) {
   const { t } = useTCopy();
 
@@ -33,7 +36,7 @@ export const FileHotspotsView = React.memo(function FileHotspotsView({
     );
   }
 
-  if (!isGitRepo) {
+  if (!isGitRepo && isGitSnapshotLoaded) {
     return (
       <div className="adl-git-vis__chart adl-git-vis__not-repo-hint">
         <p className="adl-git-vis__not-repo-hint-text">{t.gitVisNotGitRepo}</p>

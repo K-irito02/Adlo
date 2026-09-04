@@ -5,7 +5,6 @@ export interface BrowserNavOpenModeProps {
   browserTabs: BrowserTabState[];
   activeTabId: string;
   evictedTabIds?: ReadonlySet<string>;
-  loadingTabId?: string | null;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
 }
@@ -14,7 +13,6 @@ export function BrowserNavOpenMode({
   browserTabs,
   activeTabId,
   evictedTabIds,
-  loadingTabId,
   onSelectTab,
   onCloseTab,
 }: BrowserNavOpenModeProps) {
@@ -25,7 +23,6 @@ export function BrowserNavOpenMode({
       onSelectTab={onSelectTab}
       onCloseTab={onCloseTab}
       evictedTabIds={evictedTabIds}
-      loadingTabId={loadingTabId}
     />
   );
 }
