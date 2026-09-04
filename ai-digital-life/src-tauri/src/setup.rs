@@ -187,8 +187,11 @@ pub fn start_clipboard_monitor(
 ) {
     let monitor = adl_clipboard::ClipboardMonitor::new();
     let mut rx = monitor.subscribe();
-    monitor.spawn(store);
+    // 句柄必须存活至应用生命周期，否则 Drop 会触发监听线程立即退出，导致
+    // `clipboard-changed` 事件链路不可达。将句柄移入前向转发线程持有。
+    let handle = monitor.spawn(store);
     std::thread::spawn(move || {
+        let _handle = handle; // 前向转发线程存活期间保持监听存活
         while let Ok(change) = rx.blocking_recv() {
             if let Some(id) = change {
                 let _ = app.emit("clipboard-changed", &id);
