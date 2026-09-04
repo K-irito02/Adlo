@@ -6,6 +6,8 @@ export const utilitiesEn = {
   clipboardEmpty: 'No clipboard history',
   clipboardLocalNote: 'Clipboard data is stored locally and can be cleared anytime',
   clipboardSearchPlaceholder: 'Search clipboard',
+  clipboardText: 'Text',
+  clipboardImage: 'Image',
   systemMonitor: 'System Monitor',
   sysCpu: 'CPU',
   sysMemory: 'Memory',

@@ -6,6 +6,8 @@ export const utilitiesZh = {
   clipboardEmpty: '暂无剪贴板历史',
   clipboardLocalNote: '剪贴板数据仅本地存储，可随时清空',
   clipboardSearchPlaceholder: '搜索剪贴板',
+  clipboardText: '文本',
+  clipboardImage: '图片',
   systemMonitor: '系统监控',
   sysCpu: 'CPU',
   sysMemory: '内存',
