@@ -239,12 +239,17 @@ export function setupPreviewBridge(): void {
       http.durable,
       mockDigitalLifeBridge.durable,
     ),
-    clipboard: preferHttpWhenReachable<ClipboardBridge>(
-      adlServerBaseUrl,
-      http.clipboard,
-      mockDigitalLifeBridge.clipboard,
-      ['getThumbUrl'],
-    ),
+    clipboard: {
+      ...preferHttpWhenReachable<ClipboardBridge>(
+        adlServerBaseUrl,
+        http.clipboard,
+        mockDigitalLifeBridge.clipboard,
+      ),
+      // getThumbUrl 是纯 URL 构造器（无网络副作用），始终走 http 实现拼接
+      // ad-server base URL。不能放进 syncReturnMethods / mock fallback，
+      // 否则 mock 的 getThumbUrl 恒返回 ''，导致预览模式缩略图渲染为图标占位。
+      getThumbUrl: http.clipboard.getThumbUrl,
+    },
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
       adlServerBaseUrl,
       http.systemMonitor,
