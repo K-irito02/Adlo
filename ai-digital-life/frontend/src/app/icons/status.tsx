@@ -357,6 +357,20 @@ export const IconDatabase = make(
   </>,
 );
 
+export const IconMemory = make(
+  <>
+    <rect x="2" y="5" width="20" height="14" rx="2" />
+    <path d="M6 9v6" />
+    <path d="M10 9v6" />
+    <path d="M14 9v6" />
+    <path d="M18 9v6" />
+    <path d="M2 9h2" />
+    <path d="M2 13h2" />
+    <path d="M20 9h2" />
+    <path d="M20 13h2" />
+  </>,
+);
+
 export const IconBookOpen = make(
   <>
     <path d="M12 7v14" />

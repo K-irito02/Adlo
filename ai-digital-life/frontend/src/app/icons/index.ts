@@ -132,6 +132,7 @@ export {
   IconGitBranch,
   IconGitFork,
   IconCpu,
+  IconMemory,
   IconDatabase,
   IconBookOpen,
   IconBrain,
