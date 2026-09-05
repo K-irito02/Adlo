@@ -1,16 +1,6 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-/// Agent identifier for slash commands.
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "snake_case")]
-pub enum AgentId {
-    #[default]
-    Build,
-    Plan,
-    General,
-}
-
 /// Configuration for a user-defined slash command.
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 
@@ -20,24 +10,14 @@ pub struct CommandConfig {
     /// Human-readable description shown in the command palette.
     #[serde(default)]
     pub description: String,
-    /// The agent to use for this command.
-    #[serde(default = "default_agent_id")]
-    pub agent: AgentId,
     /// Optional model override for this command.
     #[serde(default)]
     pub model: Option<String>,
     /// The prompt template with variables ($1, $ARGUMENTS, $WORKSPACE).
     pub template: String,
-    /// Whether this command runs as a subtask (hidden from main conversation).
-    #[serde(default)]
-    pub subtask: bool,
     /// Hints extracted from the template (auto-generated).
     #[serde(default)]
     pub hints: Vec<CommandHint>,
-}
-
-fn default_agent_id() -> AgentId {
-    AgentId::Build
 }
 
 /// A hint about a command parameter.
@@ -163,15 +143,12 @@ mod tests {
         let config = CommandConfig {
             name: "refactor".to_string(),
             description: "Refactor selected code".to_string(),
-            agent: AgentId::Build,
             model: None,
             template: "Refactor $ARGUMENTS following best practices".to_string(),
-            subtask: false,
             hints: vec![],
         };
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: CommandConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(deserialized.name, "refactor");
-        assert_eq!(deserialized.agent, AgentId::Build);
     }
 }

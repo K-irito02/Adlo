@@ -2,114 +2,29 @@ use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
 use super::TimestampMs;
-use super::conversation::{ConversationScenario, DiagnosticSummary, RiskLevel};
 
-// ─── Agent types ──────────────────────────────────────────────────────────────
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TS)]
-#[serde(rename_all = "lowercase")]
-pub enum AgentId {
-    #[default]
-    Build,
-    Plan,
-    General,
-    Explore,
-    Compaction,
-    Title,
-    Summary,
-    Custom,
-}
-
-impl AgentId {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            AgentId::Build => "build",
-            AgentId::Plan => "plan",
-            AgentId::General => "general",
-            AgentId::Explore => "explore",
-            AgentId::Compaction => "compaction",
-            AgentId::Title => "title",
-            AgentId::Summary => "summary",
-            AgentId::Custom => "custom",
-        }
-    }
-}
-
-impl std::fmt::Display for AgentId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+// ─── Shared patch-flow types ──────────────────────────────────────────────────
+// Retained: command risk level and validation diagnostics serve the patch flow
+// (CommandRequest / ValidationResult below) and host crates (change-engine).
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
-#[serde(rename_all = "kebab-case")]
-pub enum AgentRunStatus {
-    Draft,
-    Planning,
-    Ready,
-    Executing,
-    WaitingApproval,
-    Applying,
-    Verifying,
-    Succeeded,
-    Failed,
-    RolledBack,
-    Aborted,
-}
-
-impl AgentRunStatus {
-    pub fn as_status_str(&self) -> &'static str {
-        match self {
-            Self::Draft => "draft",
-            Self::Planning => "planning",
-            Self::Ready => "ready",
-            Self::Executing => "executing",
-            Self::WaitingApproval => "waiting-approval",
-            Self::Applying => "applying",
-            Self::Verifying => "verifying",
-            Self::Succeeded => "succeeded",
-            Self::Failed => "failed",
-            Self::RolledBack => "rolled-back",
-            Self::Aborted => "aborted",
-        }
-    }
+#[serde(rename_all = "lowercase")]
+pub enum RiskLevel {
+    Low,
+    Medium,
+    High,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
-pub struct AgentRunRecord {
+pub struct DiagnosticSummary {
     pub id: String,
-    pub workspace_id: String,
-    pub session_id: String,
-    pub prompt: String,
-    pub scenario: ConversationScenario,
-    pub status: AgentRunStatus,
-    pub summary: Option<String>,
-    pub patch_set_id: Option<String>,
-    pub created_at: TimestampMs,
-    pub updated_at: TimestampMs,
-    pub completed_at: Option<TimestampMs>,
-    #[serde(default)]
-    pub agent_id: AgentId,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct AgentPlanStep {
-    pub id: String,
-    pub run_id: String,
-    pub title: String,
-    pub detail: Option<String>,
-    pub status: String,
-    pub created_at: TimestampMs,
-    pub updated_at: TimestampMs,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(rename_all = "camelCase")]
-pub struct AgentRunDetail {
-    pub run: AgentRunRecord,
-    pub steps: Vec<AgentPlanStep>,
+    pub source: String,
+    pub severity: String,
+    pub message: String,
+    pub path: Option<String>,
+    pub line: Option<usize>,
+    pub column: Option<usize>,
 }
 
 // ─── Command types ────────────────────────────────────────────────────────────
