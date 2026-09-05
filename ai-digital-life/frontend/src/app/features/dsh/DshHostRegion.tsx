@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
@@ -8,12 +8,15 @@ import { isTauriShell } from '@shared/env';
  * - 浏览器模式：用 `<iframe>` 显示 dsh 进程 URL（悬浮层天然置顶）。
  * - Tauri 桌面：由独立 WebView2 子窗口承载，此处渲染占位容器。
  * - 若 iframe 加载被拒（X-Frame-Options / CSP），退化为"在外部浏览器打开"按钮。
+ *   注：onError 不会为 X-Frame-Options/CSP 拦截触发，使用 load 事件 + 超时检测。
  */
 export function DshHostRegion() {
   const { t } = useTCopy();
   const url = useAppStore((s) => s.url);
   const isTauri = useMemo(() => isTauriShell(), []);
   const [iframeBlocked, setIframeBlocked] = useState(false);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const loadDetected = useRef(false);
 
   const handleOpenExternal = useCallback(() => {
     if (url) {
@@ -21,8 +24,38 @@ export function DshHostRegion() {
     }
   }, [url]);
 
-  const handleIframeError = useCallback(() => {
-    setIframeBlocked(true);
+  // 检测 iframe 是否被 CSP/X-Frame-Options 拦截：
+  // load 事件触发后，尝试访问 contentDocument；若跨域则为 blocked。
+  useEffect(() => {
+    if (!url || isTauri || iframeBlocked) {
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (loadDetected.current) {
+        return;
+      }
+      // load 事件未在 3 秒内触发 → 可能被拦截
+      setIframeBlocked(true);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [url, isTauri, iframeBlocked]);
+
+  const handleIframeLoad = useCallback(() => {
+    loadDetected.current = true;
+    const iframe = iframeRef.current;
+    if (!iframe) {
+      return;
+    }
+    // 尝试访问 contentDocument；跨域时抛出 SecurityError → 被拦截
+    try {
+      const doc = iframe.contentDocument;
+      if (!doc || !doc.body || doc.body.innerHTML === '') {
+        setIframeBlocked(true);
+      }
+    } catch {
+      // SecurityError: 跨域 → iframe 被 CSP/X-Frame-Options 拦截
+      setIframeBlocked(true);
+    }
   }, []);
 
   if (!url) {
@@ -79,10 +112,11 @@ export function DshHostRegion() {
   return (
     <section className="adl-app-host" data-shell="browser" aria-label={t.dshTitle}>
       <iframe
+        ref={iframeRef}
         src={url}
         title={t.dshTitle}
         className="adl-app-host__frame"
-        onError={handleIframeError}
+        onLoad={handleIframeLoad}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
       />
     </section>

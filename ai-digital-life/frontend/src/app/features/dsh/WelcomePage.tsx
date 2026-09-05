@@ -375,7 +375,7 @@ export function WelcomePage() {
       setShowVersionMenu(false);
       try {
         await actions.revertDsh(version);
-        showToast(`${t.dshRevert} → ${version}`, 'success');
+        showToast(t.dshRevertedTo.replace('{version}', version), 'success');
       } catch {
         showToast(t.dshRevert, 'error');
       } finally {
@@ -504,7 +504,7 @@ export function WelcomePage() {
                             <div className="adl-app-welcome__version-menu-item-badges">
                               {isInstalled ? (
                                 <span className="adl-app-welcome__version-menu-item-installed">
-                                  已装
+                                  {t.dshInstalledVersions}
                                 </span>
                               ) : null}
                               {isCurrent ? (
@@ -513,13 +513,14 @@ export function WelcomePage() {
                                 </span>
                               ) : null}
                               {isInstalled && !isCurrent ? (
-                                <span
-                                  role="button"
+                                <button
+                                  type="button"
                                   className="adl-app-welcome__version-menu-item-uninstall"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     void handleUninstallVersion(v);
                                   }}
+                                  disabled={uninstallingVersion === v}
                                   title={t.dshUninstall}
                                 >
                                   {uninstallingVersion === v ? (
@@ -527,7 +528,7 @@ export function WelcomePage() {
                                   ) : (
                                     <TrashIcon />
                                   )}
-                                </span>
+                                </button>
                               ) : null}
                             </div>
                           </button>
@@ -621,7 +622,7 @@ export function WelcomePage() {
               <button
                 type="button"
                 className="adl-btn adl-btn--primary"
-                onClick={() => void actions.updateDsh()}
+                onClick={handleDownloadUpdate}
               >
                 {t.dshUpdate}
               </button>

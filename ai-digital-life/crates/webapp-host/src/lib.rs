@@ -19,7 +19,7 @@ pub struct HostedProcess {
 /// 从桌面启动的 GUI 进程 PATH 可能不含 Node.js 直接路径，
 /// 但 `.cmd` 扩展名会通过 PATHEXT 被自动查找——前提是目录在 PATH 上。
 /// 若 `npx` 本身找不到，尝试 `npx.cmd` 作为回退。
-async fn try_spawn(program: &str, args: &[String]) -> Result<tokio::process::Child, AppError> {
+fn try_spawn(program: &str, args: &[String]) -> Result<tokio::process::Child, AppError> {
     // 先尝试原始程序名
     match tokio::process::Command::new(program)
         .args(args)
@@ -66,7 +66,7 @@ pub async fn spawn_and_wait_ready(
 ) -> Result<HostedProcess, AppError> {
     let port = pick_free_port()?;
     let url = format!("http://127.0.0.1:{port}");
-    let mut child = try_spawn(program, args).await?;
+    let mut child = try_spawn(program, args)?;
 
     let client = reqwest::Client::new();
     let deadline = tokio::time::Instant::now() + timeout;
