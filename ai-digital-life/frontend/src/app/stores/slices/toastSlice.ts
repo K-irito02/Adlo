@@ -21,7 +21,7 @@ export const createToastSlice = (
   showToast: (message, type = 'warning', source, duration) => {
     const id = createUiId('toast');
     const entry: ToastData = { id, message, type, source, duration };
-    set((state) => ({ toasts: [...state.toasts, entry] }));
+    set(() => ({ toasts: [entry] }));
     return id;
   },
   removeToast: (id) => {

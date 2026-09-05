@@ -157,6 +157,12 @@ select:focus-visible {
   transition: var(--theme-transition);
 }
 
+.adl-center--dsh-placeholder {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
 .adl-center__body {
   grid-row: 2;
 }

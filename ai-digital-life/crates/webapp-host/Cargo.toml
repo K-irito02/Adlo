@@ -10,3 +10,4 @@ workspace = true
 adl-errors = { path = "../errors" }
 tokio = { workspace = true }
 reqwest = { workspace = true }
+tracing.workspace = true

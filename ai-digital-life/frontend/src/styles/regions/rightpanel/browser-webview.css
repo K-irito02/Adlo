@@ -285,16 +285,18 @@
   height: 100%;
 }
 
-.adl-spinner--slow {
-  animation: adl-spinner-spin 2s linear infinite;
-}
-
-.adl-spinner--normal {
+.adl-spinner--slow .adl-spinner__svg,
+.adl-spinner--normal .adl-spinner__svg,
+.adl-spinner--fast .adl-spinner__svg {
   animation: adl-spinner-spin 1s linear infinite;
 }
 
-.adl-spinner--fast {
-  animation: adl-spinner-spin 0.5s linear infinite;
+.adl-spinner--slow .adl-spinner__svg {
+  animation-duration: 2s;
+}
+
+.adl-spinner--fast .adl-spinner__svg {
+  animation-duration: 0.5s;
 }
 
 @keyframes adl-spinner-spin {

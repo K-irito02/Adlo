@@ -21,6 +21,7 @@
 @import './regions/leftbar-clipboard.css';
 @import './regions/system-monitor.css';
 @import './regions/center.css';
+@import './regions/dsh.css';
 @import './regions/rightpanel.css';
 @import './regions/titlebar.css';
 @import './regions/statusbar.css';

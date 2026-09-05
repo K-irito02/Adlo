@@ -265,6 +265,7 @@ dependencies = [
  "adl-errors",
  "reqwest",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -153,10 +153,10 @@ export const ToastCard = forwardRef<HTMLDivElement, ToastCardProps>(function Toa
       className={`toast-card toast-card--${tone}${className ? ` ${className}` : ''}`}
       role={role}
       aria-live={ariaLive}
+      layout
       initial={{ opacity: 0, y: 12, scale: 0.98 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 12, scale: 0.98 }}
-      transition={{ duration: 0.2 }}
+      transition={{ duration: 0.15 }}
     >
       <span className="toast-card__icon" dangerouslySetInnerHTML={{ __html: iconHtml(icon) }} />
       <div ref={bodyRef} className="toast-card__body">

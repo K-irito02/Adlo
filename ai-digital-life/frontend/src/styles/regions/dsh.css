@@ -1,0 +1,435 @@
+/* ==========================================================================
+   Regions: DSH / Third-party App Host
+   --------------------------------------------------------------------------
+   - Generic app welcome page (adl-app-welcome) for any hosted web app
+   - DSH-specific extensions
+   - Host region iframe container
+   - Confirm dialog stacked footer
+   ========================================================================== */
+
+/* -------- Generic app welcome page -------- */
+.adl-app-welcome {
+  width: min(100%, 640px);
+  max-width: 640px;
+  margin: 0 auto;
+  min-width: 0;
+  padding: clamp(var(--space-4), 3vw, var(--space-6)) clamp(var(--space-2), 2vw, var(--space-4));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+}
+
+/* Top action bar: CTA left, icon buttons right */
+.adl-app-welcome__topbar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+/* Primary CTA button — matches page background, no border */
+.adl-app-welcome__cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  background: transparent;
+  color: var(--text-primary);
+  border: none;
+  cursor: pointer;
+  transition: var(--theme-transition);
+  height: 36px;
+}
+
+.adl-app-welcome__cta:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.adl-app-welcome__cta:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-app-welcome__cta svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+/* Icon button group (right side of topbar) */
+.adl-app-welcome__icon-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Icon-only button — no border, transparent background */
+.adl-btn--icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  border: none !important;
+  cursor: pointer;
+  transition: var(--theme-transition);
+  flex-shrink: 0;
+}
+
+.adl-btn--icon:hover:not(:disabled) {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-btn--icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-btn--icon svg {
+  flex-shrink: 0;
+  width: 20px !important;
+  height: 20px !important;
+  min-width: 20px;
+  min-height: 20px;
+}
+
+/* Accent variant for download update icon */
+.adl-btn--accent {
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.adl-btn--accent:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* App info card — no border */
+.adl-app-welcome__card {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: none;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Version info section */
+.adl-app-welcome__version {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* Version row (label + badge) */
+.adl-app-welcome__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* Status badge — no border */
+.adl-app-welcome__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+  line-height: var(--leading-none);
+  min-height: 20px;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.adl-app-welcome__badge--update {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+
+/* Action buttons row — no border separator */
+.adl-app-welcome__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Installed versions list — no border separator */
+.adl-app-welcome__installed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adl-app-welcome__installed-label {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.adl-app-welcome__installed-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* Installed item — no border */
+.adl-app-welcome__installed-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-family: var(--font-mono);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border: none;
+}
+
+.adl-app-welcome__installed-item--current {
+  background: var(--text-primary);
+  color: var(--bg);
+}
+
+/* Hint banner (e.g., uninstall current version warning) */
+.adl-app-welcome__hint {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--warning-soft);
+  color: var(--warning);
+  font-size: var(--text-xs);
+  line-height: var(--leading-relaxed);
+}
+
+/* -------- Host region (iframe / WebView container) -------- */
+.adl-app-host {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.adl-app-host__frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+/* Fallback: open in external browser */
+.adl-app-host__fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.adl-app-host__fallback-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-muted);
+}
+
+.adl-app-host__fallback-title {
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.adl-app-host__fallback-desc {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 40ch;
+  line-height: var(--leading-relaxed);
+}
+
+/* -------- Confirm dialog: stacked footer -------- */
+.adl-confirm-dialog__footer--stacked {
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adl-confirm-dialog__footer--stacked .adl-btn {
+  width: 100%;
+  justify-content: center;
+}
+
+/* -------- Version dropdown menu -------- */
+.adl-app-welcome__version-menu-anchor {
+  position: relative;
+}
+
+.adl-app-welcome__version-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--z-overlay);
+  min-width: 280px;
+  max-width: 340px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.adl-app-welcome__version-menu-list {
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+  padding: var(--space-1) 0;
+}
+
+.adl-app-welcome__version-menu-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.adl-app-welcome__version-menu-list::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+.adl-app-welcome__version-menu-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.adl-app-welcome__version-menu-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.adl-app-welcome__version-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.adl-app-welcome__version-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.adl-app-welcome__version-menu-item--current {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.adl-app-welcome__version-menu-item--disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.adl-app-welcome__version-menu-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adl-app-welcome__version-menu-item-version {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+}
+
+.adl-app-welcome__version-menu-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.adl-app-welcome__version-menu-item-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.adl-app-welcome__version-menu-item-check {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.adl-app-welcome__version-menu-item-installed {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--font-semibold);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.adl-app-welcome__version-menu-item-uninstall {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--theme-transition);
+}
+
+.adl-app-welcome__version-menu-item-uninstall:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.adl-app-welcome__version-menu-item-uninstall:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-app-welcome__version-menu-item-uninstall svg {
+  width: 14px;
+  height: 14px;
+}
