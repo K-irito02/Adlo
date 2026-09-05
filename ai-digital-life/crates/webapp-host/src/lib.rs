@@ -1,10 +1,9 @@
-pub mod port;
-
-pub use port::pick_free_port;
-
 use std::time::Duration;
 
 use adl_errors::AppError;
+use port::pick_free_port;
+
+pub mod port;
 
 /// 一个已被宿主拉起、就绪的 Web 应用进程句柄。
 pub struct HostedProcess {

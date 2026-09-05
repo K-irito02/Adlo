@@ -21,6 +21,5 @@ mod tests {
     fn picks_a_port_in_valid_range() {
         let port = pick_free_port().expect("port should be picked");
         assert!(port > 0, "port must be > 0");
-        assert!(port <= 65535, "port must be <= 65535");
     }
 }
