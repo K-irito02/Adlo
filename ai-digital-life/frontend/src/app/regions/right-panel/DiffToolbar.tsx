@@ -5,13 +5,11 @@ interface DiffToolbarProps {
   diffSideBySide: boolean;
   lineNumbersEnabled: boolean;
   wordWrapEnabled: boolean;
-  agentAnnotationsEnabled: boolean;
   hasCollapsedHunks: boolean;
   activePatchRelativePath: string | undefined;
   onSetDiffLayout: (sideBySide: boolean) => void;
   onToggleLineNumbers: () => void;
   onToggleWordWrap: () => void;
-  onToggleAgentAnnotations: () => void;
   onJumpPatchHunk: (direction: 'previous' | 'next') => void;
   onSetAllPatchHunksCollapsed: (collapsed: boolean, relativePath?: string) => void;
 }
@@ -20,13 +18,11 @@ function DiffToolbar({
   diffSideBySide,
   lineNumbersEnabled,
   wordWrapEnabled,
-  agentAnnotationsEnabled,
   hasCollapsedHunks,
   activePatchRelativePath,
   onSetDiffLayout,
   onToggleLineNumbers,
   onToggleWordWrap,
-  onToggleAgentAnnotations,
   onJumpPatchHunk,
   onSetAllPatchHunksCollapsed,
 }: DiffToolbarProps) {
@@ -67,13 +63,6 @@ function DiffToolbar({
           onClick={onToggleWordWrap}
         >
           <span>{t.fileWordWrap as string}</span>
-        </button>
-        <button
-          type="button"
-          className={`adl-diff-toolbar__toggle${agentAnnotationsEnabled ? ' is-active' : ''}`}
-          onClick={onToggleAgentAnnotations}
-        >
-          <span>{t.agentChangeAnnotations as string}</span>
         </button>
       </div>
       <div className="adl-diff-toolbar__group">

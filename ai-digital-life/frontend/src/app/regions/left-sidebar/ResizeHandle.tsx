@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { writeConversationPanelHeight, clampConversationPanelHeight } from './ResizeHandle.utils';
 import { useTCopy } from '../../i18n/useTCopy';
 
 export function ResizeHandle() {
@@ -89,100 +88,6 @@ export function ResizeHandle() {
       role="separator"
       aria-orientation="vertical"
       aria-label={t.resizeSidebar}
-    />
-  );
-}
-
-interface ConversationResizeHandleProps {
-  conversationPanelHeight: number;
-  onHeightChange: (height: number) => void;
-  getMaxHeight: () => number;
-}
-
-export function ConversationResizeHandle({
-  conversationPanelHeight,
-  onHeightChange,
-  getMaxHeight,
-}: ConversationResizeHandleProps) {
-  const { t } = useTCopy();
-  const conversationResizeCleanupRef = useRef<(() => void) | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (conversationResizeCleanupRef.current) {
-        conversationResizeCleanupRef.current();
-        conversationResizeCleanupRef.current = null;
-      }
-    };
-  }, []);
-
-  const handleMouseDown = useCallback(
-    (event: React.MouseEvent) => {
-      event.preventDefault();
-      event.stopPropagation();
-      const shellBody = document.querySelector('.adl-shell__body');
-      if (!shellBody) {
-        return;
-      }
-      shellBody.classList.add('is-resizing');
-      const startY = event.clientY;
-      const startHeight = conversationPanelHeight;
-      const maxHeight = getMaxHeight();
-      let rafId = 0;
-
-      const onMouseMove = (moveEvent: MouseEvent) => {
-        if ((moveEvent.buttons & 1) === 0) {
-          cleanup();
-          return;
-        }
-        if (rafId) {
-          return;
-        }
-        rafId = requestAnimationFrame(() => {
-          rafId = 0;
-          const delta = startY - moveEvent.clientY;
-          const nextHeight = clampConversationPanelHeight(startHeight + delta, maxHeight);
-          onHeightChange(nextHeight);
-          writeConversationPanelHeight(nextHeight);
-        });
-      };
-
-      const cleanup = () => {
-        shellBody.classList.remove('is-resizing');
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-          rafId = 0;
-        }
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-        window.removeEventListener('blur', onBlur);
-        window.removeEventListener('mouseleave', onBlur);
-        document.body.style.cursor = '';
-        document.body.style.userSelect = '';
-        conversationResizeCleanupRef.current = null;
-      };
-
-      const onMouseUp = () => cleanup();
-      const onBlur = () => cleanup();
-
-      conversationResizeCleanupRef.current = cleanup;
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-      window.addEventListener('blur', onBlur);
-      window.addEventListener('mouseleave', onBlur);
-      document.body.style.cursor = 'row-resize';
-      document.body.style.userSelect = 'none';
-    },
-    [conversationPanelHeight, getMaxHeight, onHeightChange],
-  );
-
-  return (
-    <div
-      className="adl-leftbar__conversation-resize"
-      onMouseDown={handleMouseDown}
-      role="separator"
-      aria-orientation="horizontal"
-      aria-label={t.resizeConversation}
     />
   );
 }

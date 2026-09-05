@@ -21,10 +21,6 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('commandBinary');
   });
 
-  it('includes conversation domain keys', () => {
-    expect(enUS).toHaveProperty('conversation');
-  });
-
   it('includes file domain keys', () => {
     expect(enUS).toHaveProperty('filePreview');
   });
@@ -45,20 +41,8 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('modelLabel');
   });
 
-  it('includes provider domain keys', () => {
-    expect(enUS).toHaveProperty('providerTitle');
-  });
-
   it('includes approval domain keys', () => {
     expect(enUS).toHaveProperty('approvals');
-  });
-
-  it('includes agent domain keys', () => {
-    expect(enUS).toHaveProperty('agentSelectorTitle');
-  });
-
-  it('includes mcp domain keys', () => {
-    expect(enUS).toHaveProperty('mcpTitle');
   });
 
   it('includes ci domain keys', () => {
@@ -69,20 +53,8 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('toolCommunicate');
   });
 
-  it('includes commands domain keys', () => {
-    expect(enUS).toHaveProperty('commandsEditorTitle');
-  });
-
-  it('includes permission domain keys', () => {
-    expect(enUS).toHaveProperty('permissionTitle');
-  });
-
   it('includes webSearch domain keys', () => {
     expect(enUS).toHaveProperty('webFetchPlaceholder');
-  });
-
-  it('includes sessionFork domain keys', () => {
-    expect(enUS).toHaveProperty('sessionFork');
   });
 
   it('includes lsp domain keys', () => {
@@ -120,12 +92,6 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('notifTitle');
   });
 
-  it('includes token usage cost keys', () => {
-    expect(enUS).toHaveProperty('tokenUsageCacheRead');
-    expect(enUS).toHaveProperty('tokenUsageCacheWrite');
-    expect(enUS).toHaveProperty('tokenUsageCost');
-  });
-
   it('includes error toast domain keys', () => {
     expect(enUS).toHaveProperty('errorsGenericTitle');
     expect(enUS).toHaveProperty('errorsWorkspace');
@@ -160,45 +126,6 @@ describe('i18n zh-CN mirror', () => {
       msg.push(`extra in zh-CN: ${extraInZh.slice(0, 10).join(', ')}`);
     }
     expect(msg.join('; '), msg.join('; ')).toBe('');
-  });
-});
-
-describe('i18n part-stream keys (S2 part renderers)', () => {
-  const partStreamKeys = [
-    'partToolPending',
-    'partToolRunning',
-    'partToolCompleted',
-    'partToolError',
-    'partContextGroup',
-    'partDiffPanel',
-    'partAskCard',
-    'partAskPrompt',
-    'partTurnCompleted',
-    'partTurnError',
-    'partTurnCancelled',
-    'partTurnRunning',
-    'partDocks',
-    'partSessionFileTabs',
-    'partSessionSidePanel',
-    'partSessionFiles',
-    'partSessionPatches',
-  ] as const;
-
-  it('every part-stream key exists in both locales with identical key sets', () => {
-    const missingInEn = partStreamKeys.filter((k) => !(k in enUS));
-    const missingInZh = partStreamKeys.filter((k) => !(k in zhCN));
-    expect(missingInEn).toEqual([]);
-    expect(missingInZh).toEqual([]);
-    const zhKeys = Object.keys(zhCN).filter((k) => partStreamKeys.includes(k as never));
-    const enKeys = Object.keys(enUS).filter((k) => partStreamKeys.includes(k as never));
-    expect(zhKeys.sort()).toEqual(enKeys.sort());
-  });
-
-  it('renders non-empty strings in both locales', () => {
-    for (const k of partStreamKeys) {
-      expect(enUS[k]).toBeTruthy();
-      expect(zhCN[k]).toBeTruthy();
-    }
   });
 });
 

@@ -112,7 +112,7 @@ export const commonZh = {
   defaultNewDir: '默认目录/my-project',
   // ======== Resize Handles ========
   resizeSidebar: '调整侧边栏宽度',
-  resizeConversation: '调整对话区域高度',
+
   // ======== Tree/List common actions ========
   collapseAll: '全部折叠',
   expandAll: '全部展开',
@@ -133,13 +133,13 @@ export const commonZh = {
   clearAllOpenTabs: '清空所有已打开标签',
   deleteAllTabDirs: '删除工作区与非工作区全部标签 （保留目录结构）',
   newTabPage: '新建标签页',
-  conversationMessageStream: '对话消息流',
+
   jobCount: '{count} 个 Job',
   debugCopyLogs: '复制调试日志',
   debugCopied: '已复制!',
   debugCopyFailed: '复制失败',
   appMenu: '应用菜单',
-  conversationStatus: '对话状态',
+
   options: '选项',
   panelControls: '面板控制',
   remove: '移除',
@@ -149,4 +149,10 @@ export const commonZh = {
   toolPanel: '工作区工具面板',
   voice: '语音',
   windowControls: '窗口控制',
+  currentTask: '当前运行',
+  validationSummary: '验证摘要',
+  validationErrors: '错误',
+  validationWarnings: '警告',
+  validationPassed: '通过',
+  browserNewFolderName: '新建目录',
 } as const;

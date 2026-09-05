@@ -151,13 +151,11 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
           diffSideBySide={diffSideBySide}
           lineNumbersEnabled={editorOptions.lineNumbersEnabled}
           wordWrapEnabled={editorOptions.wordWrapEnabled}
-          agentAnnotationsEnabled={editorOptions.agentAnnotationsEnabled}
           hasCollapsedHunks={hasCollapsedHunks}
           activePatchRelativePath={activeFilePatch?.relativePath}
           onSetDiffLayout={props.onSetDiffLayout}
           onToggleLineNumbers={() => editorOptions.setLineNumbersEnabled((v) => !v)}
           onToggleWordWrap={() => editorOptions.setWordWrapEnabled((v) => !v)}
-          onToggleAgentAnnotations={() => editorOptions.setAgentAnnotationsEnabled((v) => !v)}
           onJumpPatchHunk={props.onJumpPatchHunk}
           onSetAllPatchHunksCollapsed={props.onSetAllPatchHunksCollapsed}
         />

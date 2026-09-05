@@ -103,7 +103,7 @@ export const commonEn = {
   mainContentAria: 'Main content area',
   defaultNewDir: 'default-dir/my-project',
   resizeSidebar: 'Resize the sidebar width',
-  resizeConversation: 'Resize the conversation area height',
+
   collapseAll: 'Collapse all',
   expandAll: 'Expand all',
   collapse: 'Collapse',
@@ -123,13 +123,13 @@ export const commonEn = {
   clearAllOpenTabs: 'Clear all open tabs',
   deleteAllTabDirs: 'Delete all workspace and custom directory tabs (keep directory structure)',
   newTabPage: 'New tab page',
-  conversationMessageStream: 'Conversation message stream',
+
   jobCount: '{count} jobs',
   debugCopyLogs: 'Copy Debug Logs',
   debugCopied: 'Copied!',
   debugCopyFailed: 'Copy Failed',
   appMenu: 'Application menu',
-  conversationStatus: 'Conversation status',
+
   options: 'Options',
   panelControls: 'Panel controls',
   remove: 'Remove',
@@ -139,4 +139,10 @@ export const commonEn = {
   toolPanel: 'Workspace tool panel',
   voice: 'Voice',
   windowControls: 'Window controls',
+  currentTask: 'Current Run',
+  validationSummary: 'Validation summary',
+  validationErrors: 'Errors',
+  validationWarnings: 'Warnings',
+  validationPassed: 'Passed',
+  browserNewFolderName: 'New folder',
 } as const;

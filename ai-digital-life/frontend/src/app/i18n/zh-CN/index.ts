@@ -1,6 +1,5 @@
 import { menuZh } from './menu';
 import { workspaceZh } from './workspace';
-import { conversationZh } from './conversation';
 import { fileZh } from './file';
 import { changesZh } from './changes';
 import { terminalZh } from './terminal';
@@ -10,13 +9,8 @@ import { modelsZh } from './models';
 import { commonZh } from './common';
 import { ciZh } from './ci';
 import { communicateZh } from './communicate';
-import { agentZh } from './agent';
 import { mcpZh } from './mcp';
-import { providerZh } from './provider';
-import { commandsZh } from './commands';
-import { permissionZh } from './permission';
 import { webSearchZh } from './webSearch';
-import { sessionForkZh } from './sessionFork';
 import { lspZh } from './lsp';
 import { referenceZh } from './reference';
 import { customAgentZh } from './customAgent';
@@ -29,7 +23,6 @@ import { utilitiesZh } from './utilities';
 export const zhCN = {
   ...menuZh,
   ...workspaceZh,
-  ...conversationZh,
   ...fileZh,
   ...changesZh,
   ...terminalZh,
@@ -39,13 +32,8 @@ export const zhCN = {
   ...commonZh,
   ...ciZh,
   ...communicateZh,
-  ...agentZh,
   ...mcpZh,
-  ...providerZh,
-  ...commandsZh,
-  ...permissionZh,
   ...webSearchZh,
-  ...sessionForkZh,
   ...lspZh,
   ...referenceZh,
   ...customAgentZh,

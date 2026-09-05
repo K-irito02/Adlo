@@ -3,13 +3,6 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
 import { EditorState, type Extension } from '@codemirror/state';
 
-export const AGENT_DECO_INSERT_CLASS = 'adl-cm-agent-insert';
-export const AGENT_DECO_MODIFY_CLASS = 'adl-cm-agent-modify';
-export const AGENT_DECO_DELETE_CLASS = 'adl-cm-agent-delete';
-export const AGENT_DECO_INSERT_BLOCK_CLASS = 'adl-cm-agent-block-insert';
-export const AGENT_DECO_MODIFY_BLOCK_CLASS = 'adl-cm-agent-block-modify';
-export const AGENT_DECO_DELETE_BLOCK_CLASS = 'adl-cm-agent-block-delete';
-
 function normalizeHexColor(value: string): string | undefined {
   const normalized = value.trim();
   const match = normalized.match(/^#([0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i);

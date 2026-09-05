@@ -1,7 +1,6 @@
 export const workspaceEn = {
   projects: 'Workspaces',
   workspaces: 'Workspaces',
-  conversations: 'Temporary Chats',
   sessions: 'Sessions',
   newSession: 'New Session',
   newConversation: 'New Temporary Chat',
@@ -12,7 +11,6 @@ export const workspaceEn = {
   sessionFallback: 'Single Agent Session',
   workspaceEmpty: 'Click + above to create a workspace',
   sessionEmpty: 'Create a new session in this workspace',
-  conversationEmpty: 'Click + above to create a new temporary chat',
   showMoreSessions: 'Show more',
   collapseSessions: 'Collapse',
   expand: 'Expand',
@@ -26,7 +24,6 @@ export const workspaceEn = {
   sessionMenuRemove: 'Remove from sidebar',
   sessionMenuDelete: 'Delete',
   sessionMenuCopyId: 'Copy session ID',
-  sessionMenuExport: 'Export conversation',
   sessionMenuRevealFolder: 'Open in Explorer',
   showInRightPanels: 'Show in right panel',
   statusProcessing: 'Processing',

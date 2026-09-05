@@ -1,7 +1,6 @@
 export const workspaceZh = {
   projects: '工作空间',
   workspaces: '工作空间',
-  conversations: '临时会话',
   sessions: '会话',
   newSession: '新建会话',
   newConversation: '新建临时会话',
@@ -12,7 +11,6 @@ export const workspaceZh = {
   sessionFallback: '单 Agent 会话',
   workspaceEmpty: '点击上方 + 号创建工作空间',
   sessionEmpty: '在此工作空间下新建一个会话',
-  conversationEmpty: '点击上方 + 号新建临时会话',
   showMoreSessions: '展开更多',
   collapseSessions: '收起',
   expand: '展开',
@@ -26,7 +24,6 @@ export const workspaceZh = {
   sessionMenuRemove: '从侧边栏移除',
   sessionMenuDelete: '删除',
   sessionMenuCopyId: '复制会话 ID',
-  sessionMenuExport: '导出对话',
   sessionMenuRevealFolder: '在文件管理器中打开',
   showInRightPanels: '在右侧面板显示',
   statusProcessing: '处理中',

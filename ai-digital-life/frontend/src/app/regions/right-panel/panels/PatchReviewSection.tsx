@@ -166,15 +166,11 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
                 diffSideBySide={diffSideBySide}
                 lineNumbersEnabled={changesEditorOptions.lineNumbersEnabled}
                 wordWrapEnabled={changesEditorOptions.wordWrapEnabled}
-                agentAnnotationsEnabled={changesEditorOptions.agentAnnotationsEnabled}
                 hasCollapsedHunks={!!activePatchFileSummary.hunks.some((h) => h.isCollapsed)}
                 activePatchRelativePath={selectedPatchFilePath}
                 onSetDiffLayout={() => {}}
                 onToggleLineNumbers={() => changesEditorOptions.setLineNumbersEnabled((v) => !v)}
                 onToggleWordWrap={() => changesEditorOptions.setWordWrapEnabled((v) => !v)}
-                onToggleAgentAnnotations={() =>
-                  changesEditorOptions.setAgentAnnotationsEnabled((v) => !v)
-                }
                 onJumpPatchHunk={onJumpPatchHunk}
                 onSetAllPatchHunksCollapsed={onSetAllPatchHunksCollapsed}
               />

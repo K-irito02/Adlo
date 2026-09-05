@@ -19,8 +19,6 @@ interface UseEditorOptionsResult {
   setWordWrapEnabled: (value: boolean | ((prev: boolean) => boolean)) => void;
   lineNumbersEnabled: boolean;
   setLineNumbersEnabled: (value: boolean | ((prev: boolean) => boolean)) => void;
-  agentAnnotationsEnabled: boolean;
-  setAgentAnnotationsEnabled: (value: boolean | ((prev: boolean) => boolean)) => void;
   standardOptions: ReturnType<typeof buildEditorOptions>;
   diffOptions: ReturnType<typeof buildEditorOptions>;
 }
@@ -28,7 +26,6 @@ interface UseEditorOptionsResult {
 function useEditorOptions(): UseEditorOptionsResult {
   const [wordWrapEnabled, setWordWrapEnabled] = useState(false);
   const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
-  const [agentAnnotationsEnabled, setAgentAnnotationsEnabled] = useState(true);
 
   const standardOptions = useMemo(
     () =>
@@ -56,12 +53,10 @@ function useEditorOptions(): UseEditorOptionsResult {
       setWordWrapEnabled,
       lineNumbersEnabled,
       setLineNumbersEnabled,
-      agentAnnotationsEnabled,
-      setAgentAnnotationsEnabled,
       standardOptions,
       diffOptions,
     }),
-    [wordWrapEnabled, lineNumbersEnabled, agentAnnotationsEnabled, standardOptions, diffOptions],
+    [wordWrapEnabled, lineNumbersEnabled, standardOptions, diffOptions],
   );
 }
 
