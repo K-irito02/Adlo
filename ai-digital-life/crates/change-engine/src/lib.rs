@@ -86,10 +86,9 @@ mod tests {
             summary: "summary".into(),
         });
         let root = std::env::temp_dir().join(format!("adl-change-{}", now_ms()));
-        let checkpoints = root.join("checkpoints");
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("README.md"), "before").unwrap();
-        let error = apply_patch_set(patch, &root, &checkpoints).unwrap_err();
+        let error = apply_patch_set(patch, &root).unwrap_err();
         assert!(error.to_string().contains("No patch hunks were accepted"));
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -114,7 +113,6 @@ mod tests {
     #[test]
     fn apply_patch_set_updates_file_content() {
         let root = std::env::temp_dir().join(format!("adl-change-apply-{}", now_ms()));
-        let checkpoints = root.join("checkpoints");
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("config.txt"), "original content").unwrap();
 
@@ -131,7 +129,7 @@ mod tests {
         let hunk_id = patch.file_patches[0].hunks[0].id.clone();
         patch = set_hunk_decision(patch, &hunk_id, PatchHunkDecision::Accepted).unwrap();
 
-        let (updated_patch, _checkpoint) = apply_patch_set(patch, &root, &checkpoints).unwrap();
+        let updated_patch = apply_patch_set(patch, &root).unwrap();
         assert_eq!(updated_patch.status, PatchSetStatus::Applied);
 
         let content = std::fs::read_to_string(root.join("config.txt")).unwrap();
@@ -143,7 +141,6 @@ mod tests {
     #[test]
     fn apply_patch_set_rejects_if_file_changed() {
         let root = std::env::temp_dir().join(format!("adl-change-conflict-{}", now_ms()));
-        let checkpoints = root.join("checkpoints");
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("data.txt"), "original content").unwrap();
 
@@ -162,7 +159,7 @@ mod tests {
 
         std::fs::write(root.join("data.txt"), "someone else changed this").unwrap();
 
-        let error = apply_patch_set(patch, &root, &checkpoints).unwrap_err();
+        let error = apply_patch_set(patch, &root).unwrap_err();
         assert!(error.to_string().contains("file changed since patch creation"));
 
         let _ = std::fs::remove_dir_all(&root);
@@ -171,7 +168,6 @@ mod tests {
     #[test]
     fn rollback_patch_set_restores_original_content() {
         let root = std::env::temp_dir().join(format!("adl-change-rollback-{}", now_ms()));
-        let checkpoints = root.join("checkpoints");
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(root.join("sample.txt"), "original content").unwrap();
 
@@ -188,7 +184,7 @@ mod tests {
         let hunk_id = patch.file_patches[0].hunks[0].id.clone();
         patch = set_hunk_decision(patch, &hunk_id, PatchHunkDecision::Accepted).unwrap();
 
-        apply_patch_set(patch.clone(), &root, &checkpoints).unwrap();
+        apply_patch_set(patch.clone(), &root).unwrap();
 
         let rolled_back = rollback_patch_set(patch, &root).unwrap();
         assert_eq!(rolled_back.status, PatchSetStatus::RolledBack);

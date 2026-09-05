@@ -57,9 +57,6 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     let pty_sessions = Arc::new(std::sync::Mutex::new(SessionManager::new()));
     let durable_manager = DurableSessionManager::new(db.clone());
     let server_port = Arc::new(std::sync::atomic::AtomicU16::new(0));
-    let lsp_clients = Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new()));
-
-    let mcp_client = adl_mcp_client::McpClient::new();
     eprintln!("[ad-server] init_server_state complete");
 
     // 剪贴板/系统监控（浏览器预览端，等价桌面能力）。剪贴板 store 与监听线程共享同一
@@ -81,8 +78,6 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         started_at: now_ms(),
         durable_manager,
         server_port,
-        lsp_clients,
-        mcp_client,
         clipboard_store,
         sysmon,
         dsh_state,

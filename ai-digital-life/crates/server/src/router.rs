@@ -52,12 +52,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/duplicate", post(handlers::workspace::duplicate_file))
         .route("/workspace/absolute-path", post(handlers::workspace::get_absolute_path))
         .route("/workspace/move", post(handlers::workspace::move_file))
-        // Commands-config domain
-        .route("/commands-config/list", post(handlers::commands_config::list_commands))
-        .route("/commands-config/add", post(handlers::commands_config::add_command))
-        .route("/commands-config/update", post(handlers::commands_config::update_command))
-        .route("/commands-config/delete", post(handlers::commands_config::delete_command))
-        .route("/commands-config/render", post(handlers::commands_config::render_template))
         // Snapshot domain
         .route("/snapshot/create", post(handlers::snapshot::create))
         .route("/snapshot/list", post(handlers::snapshot::list))
@@ -73,20 +67,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/durable/heartbeat", post(handlers::durable::heartbeat))
         .route("/durable/crashed", post(handlers::durable::crashed))
         .route("/durable/recover", post(handlers::durable::recover))
-        // LSP domain
-        .route("/lsp/start", post(handlers::lsp::start_server))
-        .route("/lsp/stop", post(handlers::lsp::stop_server))
-        .route("/lsp/symbols", post(handlers::lsp::get_symbols))
-        .route("/lsp/diagnostics", post(handlers::lsp::get_diagnostics))
-        .route("/lsp/goto-definition", post(handlers::lsp::goto_definition))
-        // MCP domain
-        .route("/mcp/list", post(handlers::mcp::list_servers))
-        .route("/mcp/add", post(handlers::mcp::add_server))
-        .route("/mcp/remove", post(handlers::mcp::remove_server))
-        .route("/mcp/connect", post(handlers::mcp::connect_server))
-        .route("/mcp/disconnect", post(handlers::mcp::disconnect_server))
-        .route("/mcp/catalog", post(handlers::mcp::catalog))
-        .route("/mcp/load-config", post(handlers::mcp::load_config))
         // Reference domain
         .route("/reference/list", post(handlers::reference::list))
         .route("/reference/add", post(handlers::reference::add))
@@ -110,9 +90,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/dsh/revert", post(handlers::dsh::revert))
         .route("/dsh/uninstall", post(handlers::dsh::uninstall))
         .route("/dsh/reinstall", post(handlers::dsh::reinstall))
-        // Web-tools domain
-        .route("/web-tools/fetch", post(handlers::web_tools::web_fetch))
-        .route("/web-tools/search", post(handlers::web_tools::web_search))
         // CI / GitHub domain
         .route("/ci/status", post(handlers::ci::get_status))
         .route("/ci/status-without-token", post(handlers::ci::get_status_without_token))

@@ -8,12 +8,11 @@ use crate::state::ServerState;
 use adl_clipboard::ClipboardStore;
 use adl_kernel::config::AppConfig;
 use adl_kernel::events::EventBus;
-use adl_mcp_client::McpClient;
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
 use adl_sysmon::SystemMonitor;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
@@ -39,8 +38,6 @@ pub fn test_server_state() -> ServerState {
         started_at: 0,
         durable_manager: DurableSessionManager::new(db.clone()),
         server_port: Arc::new(AtomicU16::new(0)),
-        lsp_clients: Arc::new(AsyncMutex::new(HashMap::new())),
-        mcp_client: McpClient::new(),
         clipboard_store: Arc::new(ClipboardStore::new(db, dir)),
         sysmon: Arc::new(StdMutex::new(SystemMonitor::new())),
         dsh_state: Arc::new(AsyncMutex::new(None)),

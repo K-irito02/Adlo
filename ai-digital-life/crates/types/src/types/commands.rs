@@ -10,9 +10,6 @@ pub struct CommandConfig {
     /// Human-readable description shown in the command palette.
     #[serde(default)]
     pub description: String,
-    /// Optional model override for this command.
-    #[serde(default)]
-    pub model: Option<String>,
     /// The prompt template with variables ($1, $ARGUMENTS, $WORKSPACE).
     pub template: String,
     /// Hints extracted from the template (auto-generated).
@@ -143,7 +140,6 @@ mod tests {
         let config = CommandConfig {
             name: "refactor".to_string(),
             description: "Refactor selected code".to_string(),
-            model: None,
             template: "Refactor $ARGUMENTS following best practices".to_string(),
             hints: vec![],
         };

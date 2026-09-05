@@ -42,7 +42,6 @@ async fn apply_patch_set_inner(
 ) -> Result<serde_json::Value, AppError> {
     let workspace = current_workspace(state)?;
     let root = PathBuf::from(&workspace.root_path);
-    let workspace_id = workspace.id.clone();
 
     // Snapshot the editor dirty-path set (in-memory) so the blocking closure
     // does not borrow `state`.
@@ -71,28 +70,16 @@ async fn apply_patch_set_inner(
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))??;
 
-    // Phase 2 (blocking): apply the patch set (files + checkpoint) and persist
-    // checkpoint / patch set.
+    // Phase 2 (blocking): apply the patch set (files) and persist it.
     let db = state.db.clone();
-    let workspace_id_for_apply = workspace_id.clone();
     let root_for_apply = root.clone();
-    let checkpoints_dir = state.data_dir.join("state").join("checkpoints");
     let patch_set = tokio::task::spawn_blocking(move || -> Result<PatchSet, AppError> {
         tracing::warn!(
             "patch_apply: legacy 'digital-life://run-activity' (patch phase) UI emit has no \
              SSE equivalent; the patch apply progress is not streamed — S1 bridge must poll \
              patch_set status"
         );
-        let (patch_set, _checkpoint) =
-            adl_change_engine::apply_patch_set(patch_set, &root_for_apply, &checkpoints_dir)?;
-        db.save_entity(
-            EntityTable::Checkpoints,
-            &_checkpoint.id,
-            Some(&workspace_id_for_apply),
-            Some(&patch_set.session_id),
-            Some("created"),
-            &_checkpoint,
-        )?;
+        let patch_set = adl_change_engine::apply_patch_set(patch_set, &root_for_apply)?;
         save_patch_set_with_db(&db, &patch_set)?;
         Ok(patch_set)
     })

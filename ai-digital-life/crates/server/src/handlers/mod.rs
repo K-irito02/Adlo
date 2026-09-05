@@ -1,17 +1,13 @@
 pub mod ci;
 pub mod clipboard;
-pub mod commands_config;
 pub mod dsh;
 pub mod durable;
 pub mod health;
-pub mod lsp;
-pub mod mcp;
 pub mod patch;
 pub mod reference;
 pub mod retrieval;
 pub mod snapshot;
 pub mod system_monitor;
-pub mod web_tools;
 pub mod workspace;
 pub mod workspace_git;
 pub mod workspace_git_vis;

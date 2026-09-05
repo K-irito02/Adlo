@@ -188,12 +188,10 @@ async fn apply_patch_set_applies_file_and_persists() {
     let state = state().await;
     let ws_dir = open_bare_workspace(&state).await;
     std::fs::write(ws_dir.join("app.txt"), "before").unwrap();
-    // Open a workspace + session so the patch set links to them.
+    // Open a workspace; the patch set links to it with a synthetic session id
+    // (the agent-era `/session` endpoint is gone — host flow needs no session).
     let ws_meta = state.current_workspace.read().unwrap().clone().unwrap();
-    let (_, sess) =
-        send(state.clone(), Method::POST, "/session", Some(json!({ "title": "apply" }))).await;
-    let session_id = sess["data"]["id"].as_str().unwrap().to_string();
-    persist_patch_set(&state, &ws_meta.id, &session_id, "before", "after", None);
+    persist_patch_set(&state, &ws_meta.id, "s-apply", "before", "after", None);
 
     let (status, body) =
         send(state.clone(), Method::POST, "/patch/apply", Some(json!({ "patchSetId": "pset-1" })))
@@ -202,8 +200,7 @@ async fn apply_patch_set_applies_file_and_persists() {
     assert_eq!(body["ok"], true, "body: {body}");
     assert_eq!(body["data"]["patchSet"]["status"], "applied", "body: {body}");
     assert_eq!(body["data"]["rolledBack"], false, "body: {body}");
-    let validation = &body["data"]["validation"];
-    assert_eq!(validation["status"], "skipped", "no validation command: {body}");
+    assert!(body["data"]["validation"].is_null(), "no validation in host flow: {body}");
     assert!(body["data"]["commandResult"].is_null(), "nothing executed: {body}");
 
     // File on disk was updated.
@@ -233,10 +230,7 @@ async fn rollback_patch_set_reverts_file_and_persists() {
     let ws_dir = open_bare_workspace(&state).await;
     std::fs::write(ws_dir.join("app.txt"), "before").unwrap();
     let ws_meta = state.current_workspace.read().unwrap().clone().unwrap();
-    let (_, sess) =
-        send(state.clone(), Method::POST, "/session", Some(json!({ "title": "rollback" }))).await;
-    let session_id = sess["data"]["id"].as_str().unwrap().to_string();
-    persist_patch_set(&state, &ws_meta.id, &session_id, "before", "after", None);
+    persist_patch_set(&state, &ws_meta.id, "s-rollback", "before", "after", None);
 
     let (status, body) =
         send(state.clone(), Method::POST, "/patch/apply", Some(json!({ "patchSetId": "pset-1" })))

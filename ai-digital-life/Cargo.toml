@@ -65,11 +65,6 @@ async-trait = "0.1"
 futures = "0.3"
 tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-util = { version = "0.7", features = ["rt"] }
-tokenizers = { version = "0.21", default-features = false, features = ["onig"] }
-rmcp = { version = "1", features = ["client", "server", "transport-child-process", "transport-streamable-http-client", "transport-streamable-http-client-reqwest"] }
-rmcp-macros = "2"
-lsp-server = "0.7"
-lsp-types = "0.97"
 indexmap = "2"
 
 [profile.dev]
