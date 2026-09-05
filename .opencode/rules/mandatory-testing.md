@@ -106,6 +106,28 @@ Agent 在触发验收时，先评估变更范围，确定测试层级：
     （覆盖率仅收集数据供参考，不设硬性门禁）
 ```
 
+### 受影响测试优先执行
+
+日常开发中无需执行全量测试，优先执行受影响的测试：
+
+```
+Rust 受影响测试：
+├── cargo test -p <crate>              # 仅运行指定 crate 的测试
+├── cargo test -p adl-server --test reference_retrieval  # 运行指定集成测试文件
+└── cargo test <test_name>             # 运行匹配名称的测试（模糊匹配）
+
+前端受影响测试：
+├── pnpm --dir frontend run test -- <test-file-pattern>   # 运行匹配的测试文件
+├── pnpm --dir frontend run test -- --reporter=verbose    # 详细输出定位失败
+└── pnpm --dir frontend run test:watch                    # 开发时 watch 模式
+```
+
+**执行策略**：
+1. **L1 变更**（文案/样式）：仅 lint + format，跳过测试
+2. **L2 变更**（单模块）：仅运行受影响 crate/vitest 文件
+3. **L3 变更**（架构/跨模块）：执行全量测试
+4. **合并前**：必须执行全量测试确认无回归
+
 ### 关于修复
 
 ESLint、Prettier、Clippy、rustfmt 四个工具先**检测并自动修复**（写入文件），然后再次运行验证修复结果。修复后如果产生了代码变更，重新执行步骤 1 中的类型检查和编译检查。

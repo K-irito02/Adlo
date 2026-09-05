@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SiteMetaBackend } from '../../utils/siteMetaBackends/types';
 
+vi.mock('@tauri-apps/api/core', () => ({ invoke: vi.fn() }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
+
 describe('removeSiteMetaIfUnreferenced', () => {
   beforeEach(() => {
     vi.resetModules();

@@ -31,7 +31,7 @@
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（13 领域 / 936 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
-> 截至 2026-08-07：工具链 rustc 1.97.1，629 Rust 测试通过、1260 前端测试通过。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
+> 截至 2026-09-06：工具链 rustc 1.97.1，629 Rust 测试通过、1753 前端测试通过。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
 >
 > 质量检查：`cargo clippy --workspace --all-targets -- -D warnings`（0 警告）、`pnpm --dir frontend run lint`（0 errors，若干 pre-existing warnings）。
 

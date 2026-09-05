@@ -233,5 +233,5 @@ turbo.json                          # Turbo 构建
 frontend/src/**/*.test.ts            # 前端 Vitest 测试
 crates/*/tests/                      # Rust 集成测试
 crates/*/src/**/*.rs (测试模块)      # Rust 单元测试
-frontend/e2e/                        # Playwright E2E 测试
+crates/server/tests/common/mod.rs    # Rust 集成测试共享 helpers
 ```

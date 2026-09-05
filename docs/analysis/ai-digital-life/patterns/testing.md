@@ -6,23 +6,24 @@
 
 ```
 双层测试架构:
-├── 前端: Vitest 3 + @testing-library/react + jsdom
-├── Rust: cargo test（单元测试 + 集成测试）
-└── E2E: Playwright（frontend/e2e/）
+├── 前端: Vitest 3 + @testing-library/react + jsdom（独立 vitest.config.ts）
+└── Rust: cargo test（单元测试 + 集成测试，共享 common/mod.rs helpers）
 ```
 
 ## 前端测试（Vitest）
 
 ### 配置
 
-测试框架配置于 `frontend/vite.config.ts`（Vite 原生集成 Vitest）。
+测试框架配置于 `frontend/vitest.config.ts`（独立配置，不合并 vite.config.ts）。
 
 | 设置 | 值 |
 |------|-----|
 | 运行器 | Vitest 3 |
+| 池模式 | forks（每 worker 独立 jsdom 环境） |
 | 环境 | jsdom（DOM 模拟） |
 | React 测试库 | `@testing-library/react` |
 | 测试文件匹配 | `**/*.test.ts` / `**/*.test.tsx` |
+| Coverage | `@vitest/coverage-v8`（lcov + text，无门禁） |
 
 ### 测试命令
 
@@ -36,8 +37,9 @@ pnpm --dir frontend run test:watch
 # 覆盖率
 pnpm --dir frontend run coverage
 
-# E2E 测试
-pnpm --dir frontend run test:e2e
+# 受影响测试优先（开发时推荐）
+pnpm --dir frontend run test -- src/app/features/browser
+pnpm --dir frontend run test -- --reporter=verbose
 ```
 
 ### Mock 策略（mock-bridge）
@@ -69,7 +71,6 @@ const mockWorkspace: WorkspaceBridge = {
 | 单元测试 | `{module}.test.ts` | 与被测文件同目录 |
 | 单元测试 | `__tests__/{module}.test.ts` | `__tests__/` 子目录 |
 | 组件测试 | `{Component}.test.tsx` | 与被测组件同目录 |
-| E2E 测试 | `*.spec.ts` | `frontend/e2e/` |
 
 ### 测试用例设计
 
@@ -204,57 +205,46 @@ cargo llvm-cov --workspace
 - 输出格式：lcov + html
 - **不设硬性门禁**，仅作参考
 
-## E2E 测试（Playwright）
+## Rust 集成测试
 
-### 配置
+### 测试结构
 
-E2E 测试在 `frontend/e2e/` 目录，使用 Playwright。
+集成测试位于 `crates/server/tests/`，通过共享 `common/mod.rs` 模块复用 helper：
 
-| 设置 | 值 |
-|------|-----|
-| 框架 | Playwright |
-| 测试文件 | `frontend/e2e/*.spec.ts` |
-| 运行命令 | `pnpm run test:e2e` |
+| 文件 | 测试数 | 说明 |
+|------|--------|------|
+| `workspace_all.rs` | 17 | 工作区生命周期 + 侧边栏 |
+| `workspace_git_all.rs` | 19 | Git 操作 + 可视化 |
+| `ci_durable.rs` | 12 | CI Token + 持久会话 |
+| `reference_retrieval.rs` | 7 | 引用管理 + 检索 |
+| `engine_health.rs` | 3 | 初始化 + 健康检查 |
+| `patch.rs` | 6 | 补丁集 CRUD |
+| `snapshot.rs` | 1 (4 ignored) | 快照管理 |
+| `pty_ws.rs` | 3 (2 ignored) | PTY WebSocket |
+| `binary_smoke.rs` | 1 | 二进制烟测 |
 
-```typescript
-// frontend/e2e/basic-ui.spec.ts
-import { test, expect } from '@playwright/test';
+### 受影响测试优先执行
 
-test('should display the app', async ({ page }) => {
-  await page.goto('http://localhost:5173/');
-  await expect(page.locator('text=AI Digital Life')).toBeVisible();
-});
+```powershell
+# 仅指定 crate
+cargo test -p adl-server
+
+# 仅指定集成测试文件
+cargo test -p adl-server --test workspace_all
+
+# 模糊匹配测试名称
+cargo test reference_list
 ```
-
-## 结束验收流程
-
-任何代码变更完成后，必须按以下流程自动验证：
-
-```
-步骤 1（并行）:
-├── 前端: lint:fix → format → typecheck
-└── Rust:  cargo fmt → cargo clippy → cargo check
-
-步骤 2（并行）:
-├── 前端: vitest run
-└── Rust:  cargo test --workspace
-```
-
-过程规则：
-- ESLint/Prettier/Clippy/rustfmt 先自动修复，再验证
-- 修复后若产生代码变更，重新执行类型检查
-- 测试失败的区分"实现 bug"与"测试过时"
-- 3 次修复仍失败则向用户报告
 
 ## 文件参考
 
 | 路径 | 职责 |
 |------|------|
-| `frontend/vite.config.ts` | Vite + Vitest 配置 |
-| `frontend/package.json` | 测试命令定义（test/test:watch/coverage/test:e2e） |
-| `frontend/src/mock-bridge.ts` | 前端测试 mock 桥接（纯内存模拟） |
-| `frontend/src/shared/__tests__/` | 共享模块测试 |
+| `frontend/vitest.config.ts` | Vitest 配置（独立，不合并 vite.config.ts） |
+| `frontend/src/test-setup.ts` | 全局测试 setup（polyfills + cleanup） |
+| `frontend/package.json` | 测试命令定义（test/test:watch/coverage） |
+| `frontend/src/mock/` | 前端测试 mock 模块（mock-bridge 模式） |
 | `frontend/src/app/**/*.test.ts` | 前端组件/工具测试 |
-| `frontend/e2e/` | Playwright E2E 测试 |
-| `crates/*/tests/` | Rust 集成测试 |
+| `crates/server/tests/common/mod.rs` | Rust 集成测试共享 helpers |
+| `crates/server/tests/*.rs` | Rust 集成测试 |
 | `Cargo.toml` | Rust 工作区配置 |

@@ -30,10 +30,34 @@ alwaysApply: true
 
 | 命令 | 用途 |
 |------|------|
-| `pnpm --dir frontend run test` | 前端单元测试（Vitest） |
-| `pnpm --dir frontend run test:e2e` | 前端 E2E 测试（Playwright） |
+| `pnpm --dir frontend run test` | 前端单元/组件测试（Vitest，jsdom 环境） |
+| `pnpm --dir frontend run test:watch` | 前端测试 watch 模式（开发时使用） |
+| `pnpm --dir frontend run coverage` | 前端覆盖率收集 |
 | `pnpm --dir frontend run typecheck` | 前端类型检查 |
-| `cargo test --workspace` | Rust 测试 |
+| `cargo test --workspace` | Rust 全量测试 |
+| `cargo test -p <crate>` | Rust 指定 crate 测试 |
+| `cargo test <test_name>` | Rust 模糊匹配测试名称 |
+
+### 受影响测试优先执行
+
+日常开发中无需执行全量测试，优先运行受影响的测试：
+
+```powershell
+# Rust — 仅指定 crate
+cargo test -p adl-server
+
+# Rust — 仅指定集成测试文件
+cargo test -p adl-server --test workspace_all
+
+# Rust — 模糊匹配测试名称
+cargo test reference_list
+
+# 前端 — 仅指定测试文件
+pnpm --dir frontend run test -- src/app/features/browser
+
+# 前端 — watch 模式（开发时）
+pnpm --dir frontend run test:watch
+```
 
 ## 终端调试
 

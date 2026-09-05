@@ -40,14 +40,6 @@ Thumbs.db
 # TypeScript incremental build cache
 *.tsbuildinfo
 
-# Playwright test results
-/frontend/test-results/
-/frontend/playwright-report/
-/frontend/blob-report/
-
-# Playwright browsers
-ms-playwright/
-
 # Compiled picker binary (regenerated from FolderPicker.cs)
 /frontend/dev/picker/*.exe
 

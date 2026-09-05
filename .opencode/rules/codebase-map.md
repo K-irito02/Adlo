@@ -57,6 +57,8 @@ ai-digital-life/
 | `change-engine` | patch 预览、应用、回滚、checkpoint |
 | `browser` | Tauri child WebView 生命周期管理（create/destroy/navigate/goBack/goForward/reload/setBounds/eval） |
 | `ci-status` | GitHub Actions CI 状态轮询、缓存、解析 |
+| `clipboard` | 系统剪贴板监听（clipboard-win monitor，写 `data.db` 的 `clipboard_items` 表，图片 PNG 落盘 + 缩略图 + digest 去重 + 硬删） |
+| `sysmon` | 系统资源快照（sysinfo：CPU/内存/磁盘/网络/进程 Top-N） |
 
 ## 前端关键目录
 

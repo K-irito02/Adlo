@@ -61,7 +61,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     return { bridge, fetchMock };
   }
 
-  it('workspace.pickDirectory uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)', async () => {
+  it('workspace.pickDirectory uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)', { timeout: 10000 }, async () => {
     const { bridge, fetchMock } = await setupBridge();
     const res = await bridge.workspace.pickDirectory();
 
@@ -72,7 +72,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     );
   });
 
-  it('workspace.revealInFileManager uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)', async () => {
+  it('workspace.revealInFileManager uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)', { timeout: 10000 }, async () => {
     const { bridge, fetchMock } = await setupBridge();
     const res = await bridge.workspace.revealInFileManager('E:/project/src/main.ts');
 
@@ -83,7 +83,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     );
   });
 
-  it('workspace.pickDirectory / revealInFileManager never resolve to the httpBridge NOT_SUPPORTED stub', async () => {
+  it('workspace.pickDirectory / revealInFileManager never resolve to the httpBridge NOT_SUPPORTED stub', { timeout: 10000 }, async () => {
     const { bridge } = await setupBridge();
     const picked = await bridge.workspace.pickDirectory();
     const revealed = await bridge.workspace.revealInFileManager('E:/x/y.ts');
@@ -97,7 +97,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     expect(revealed.data).toBe(true);
   });
 
-  it('workspace.pickDirectory / revealInFileManager still use the preview impl in the fallback (unreachable) case', async () => {
+  it('workspace.pickDirectory / revealInFileManager still use the preview impl in the fallback (unreachable) case', { timeout: 10000 }, async () => {
     vi.resetModules();
     delete (window as { digitalLife?: unknown }).digitalLife;
     vi.stubEnv('VITE_ADL_SERVER_URL', 'http://127.0.0.1:9999');

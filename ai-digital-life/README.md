@@ -40,15 +40,15 @@ ai-digital-life/
 | [docs/architecture/](../docs/architecture/) | 系统架构、技术栈对齐、国际化、主题 |
 | [docs/design-system/](../docs/design-system/) | 设计 Token、主题、组件、可访问性 |
 
-## 浏览器测试
+## 测试
 
 ```bash
-pnpm run dev:browser                        # 启动浏览器预览
-pnpm --dir frontend run test:e2e            # Playwright 全量测试
-pnpm --dir frontend run test:e2e:workspace  # 验证工作区恢复
+pnpm --dir frontend run test     # 前端单元/组件测试（Vitest）
+cargo test --workspace           # Rust 全量测试
+cargo test -p adl-server         # 仅测试指定 crate
 ```
 
-详细说明见 [AGENTS.md](./AGENTS.md#双端一致性) 和前端 `frontend/e2e/` 目录。
+详见 [AGENTS.md](./AGENTS.md) 和 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 端口扫描功能
 

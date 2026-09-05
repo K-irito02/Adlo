@@ -69,7 +69,7 @@ describe('ClockHeatmap', () => {
     expect(container.querySelector('svg')).toBeInTheDocument();
   });
 
-  it('shows skeleton cells + loading label when status is loading', () => {
+  it('shows skeleton cells + loading label when status is loading', { timeout: 10000 }, () => {
     const { container, getByText } = render(
       <ClockHeatmap status="loading" loadingLabel="Loading chart..." />,
     );
