@@ -14,6 +14,7 @@ import type { PatchSlice } from './slices/patchSlice';
 import type { SearchSlice } from './slices/searchSlice';
 import type { DiagnosticSlice } from './slices/diagnosticSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
+import type { DshSlice } from './slices/dshSlice';
 import type { ClipboardHistorySlice } from './slices/clipboardHistorySlice';
 import type { SystemMonitorSlice } from './slices/systemMonitorSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
@@ -92,6 +93,7 @@ type AllSlices = [
   SearchSlice,
   DiagnosticSlice,
   ClipboardSlice,
+  DshSlice,
   ClipboardHistorySlice,
   SystemMonitorSlice,
   TerminalSlice,
@@ -259,6 +261,16 @@ interface UtilitiesActions {
   fetchSystemSnapshot: () => Promise<void>;
 }
 
+interface DshActions {
+  openDsh: () => Promise<string | null>;
+  closeDsh: (keep: boolean) => Promise<void>;
+  fetchDshVersionStatus: () => Promise<void>;
+  updateDsh: () => Promise<void>;
+  revertDsh: (version: string) => Promise<void>;
+  uninstallDsh: (version: string) => Promise<void>;
+  reinstallDsh: () => Promise<void>;
+}
+
 type AllActions = [
   WorkspaceActions,
   EditorActions,
@@ -271,6 +283,7 @@ type AllActions = [
   LspActions,
   ReferenceActions,
   UtilitiesActions,
+  DshActions,
 ];
 
 export type StoreState = StoreStateRootFields &

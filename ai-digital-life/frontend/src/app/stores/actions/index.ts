@@ -10,3 +10,4 @@ export { createWebToolsActions } from './webToolsActions';
 export { createLspActions } from './lspActions';
 export { createReferenceActions } from './referenceActions';
 export { createUtilitiesActions } from './utilitiesActions';
+export { createDshActions } from './dshActions';

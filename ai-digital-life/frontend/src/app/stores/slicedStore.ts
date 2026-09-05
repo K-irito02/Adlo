@@ -16,6 +16,7 @@ import {
   createDiagnosticSlice,
   createClipboardSlice,
   createClipboardHistorySlice,
+  createDshSlice,
   createSystemMonitorSlice,
   createTerminalSlice,
   createBrowserTabsSlice,
@@ -56,6 +57,7 @@ import {
   createLspActions,
   createReferenceActions,
   createUtilitiesActions,
+  createDshActions,
 } from './actions';
 
 export {
@@ -81,6 +83,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createSearchSlice(set, get), // 搜索状态（searchQuery, results）
   ...createDiagnosticSlice(set, get), // 诊断/索引（indexingStatus, repoMap）
   ...createClipboardSlice(set, get), // 剪贴板
+  ...createDshSlice(set, get), // dsh 宿主壳
   ...createClipboardHistorySlice(set, get), // 剪贴板历史（系统剪贴板）
   ...createSystemMonitorSlice(set, get), // 系统监控（CPU/内存/磁盘/网络/进程）
   ...createTerminalSlice(set, get), // 终端会话管理
@@ -131,6 +134,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createLspActions(set, get), // LSP 操作
   ...createReferenceActions(set, get), // 参考代码仓库操作
   ...createUtilitiesActions(set, get), // 系统工具操作（剪贴板历史、系统监控）
+  ...createDshActions(set, get), // dsh 宿主壳操作（打开/关闭/版本管理）
 }));
 
 // 显式 hydration：在 store 创建后从 localStorage 恢复 GitHub Repo slice 的持久化状态

@@ -40,6 +40,9 @@ export { type DiagnosticSlice, createDiagnosticSlice } from './slices/diagnostic
 // 剪贴板切片
 export { type ClipboardSlice, createClipboardSlice } from './slices/clipboardSlice';
 
+// dsh 宿主壳切片
+export { type DshSlice, createDshSlice } from './slices/dshSlice';
+
 // 剪贴板历史切片
 export {
   type ClipboardHistorySlice,
