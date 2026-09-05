@@ -11,7 +11,14 @@ type Sock = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 async fn connect_pty_socket() -> (Sock, u16) {
     let dir = std::env::temp_dir().join(format!("adl-ptyws-{}", uuid::Uuid::new_v4()));
     let state = init_server_state(&dir).await.expect("init_server_state should succeed");
-    let port = serve(state, 0).await;
+    let state_clone = state.clone();
+    tokio::spawn(async move { serve(state_clone, 0).await });
+    // Wait for the server to bind and store its port
+    let port = loop {
+        let p = state.server_port.load(std::sync::atomic::Ordering::Relaxed);
+        if p != 0 { break p; }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    };
     let url = format!("ws://127.0.0.1:{port}/pty");
     let (sock, _) = connect_async(&url).await.expect("ws connect to /pty should succeed");
     let _ = std::fs::remove_dir_all(&dir);

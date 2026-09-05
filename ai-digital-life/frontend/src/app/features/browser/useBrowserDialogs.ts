@@ -243,7 +243,7 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
         // D4：显式导航——就地在当前标签打开并真正 Navigate 已入池 WebView
         navigateTabExplicit(state.browserActiveTabId, url);
       } else {
-        browserOpenTab(url, undefined, folderId ? undefined : workspaceId, undefined);
+        browserOpenTab(url, undefined, folderId ? undefined : workspaceId, folderId || undefined);
       }
       // 收藏记录写"用户填的自定义标题"（标签标题仍由页面抓取，互不影响）
       const bookmarked = await bookmarkNewTab(workspaceId, folderId, title);

@@ -140,7 +140,7 @@ pub async fn browser_create_dsh_view(
             // digital-life://browser-url-changed with tabId "dsh", which the tab UI
             // ignores because no such tab exists.)
             let webview_builder = build_webview_builder(
-                &DSH_VIEW_LABEL,
+                DSH_VIEW_LABEL,
                 "dsh",
                 blank_url,
                 app_inner.clone(),

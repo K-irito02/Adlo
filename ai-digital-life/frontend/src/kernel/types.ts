@@ -1,4 +1,4 @@
-import type { APPROVAL_POLICY_MODE, APP_STATE_SCHEMA_VERSION } from './constants';
+import type { APP_STATE_SCHEMA_VERSION } from './constants';
 
 // ════════════════════════════════════════════════════════
 // Config / Preferences
@@ -227,17 +227,6 @@ export interface SessionSummary {
   lastCheckpointId?: string;
   lastTaskId?: string;
   notes?: string[];
-}
-
-export interface SessionMeta {
-  id: string;
-  workspaceId: string;
-  status: SessionStatus;
-  approvalMode: typeof APPROVAL_POLICY_MODE;
-  currentTaskId?: string;
-  summary: SessionSummary;
-  createdAt: number;
-  updatedAt: number;
 }
 
 export interface AppStateV1 {

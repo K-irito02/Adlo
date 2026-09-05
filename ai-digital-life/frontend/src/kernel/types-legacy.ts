@@ -1,125 +1,9 @@
-import type { ModelProviderId, SessionMeta } from './types';
+import type { ModelProviderId } from './types';
 
 // ════════════════════════════════════════════════════════
-// Task / Approval / Audit / Checkpoint (from types-task.ts)
+// Model Types (retained: ModelTokenUsage, ModelGatewayHealthSnapshot,
+//   DigitalLifeModelStreamEventV1, ContextEntry — used by httpBridge/bridge)
 // ════════════════════════════════════════════════════════
-
-export type TaskStatus =
-  | 'pending'
-  | 'waiting-approval'
-  | 'approved'
-  | 'running'
-  | 'completed'
-  | 'failed'
-  | 'rejected'
-  | 'rolled-back';
-
-export type RiskLevel = 'low' | 'medium' | 'high';
-
-export interface TaskOperation {
-  kind: string;
-  target?: string;
-  params: Record<string, unknown>;
-  riskLevel: RiskLevel;
-  reversible: boolean;
-}
-
-export interface TaskRecord {
-  id: string;
-  workspaceId: string;
-  sessionId: string;
-  type: string;
-  description: string;
-  status: TaskStatus;
-  priority: 'low' | 'medium' | 'high' | 'critical';
-  operations: TaskOperation[];
-  approvalId?: string;
-  checkpointId?: string;
-  resultJson?: string;
-  errorJson?: string;
-  createdAt: number;
-  updatedAt: number;
-  startedAt?: number;
-  completedAt?: number;
-}
-
-export interface TaskSummary {
-  id: string;
-  title: string;
-  description: string;
-  status: TaskStatus;
-  riskLevel: RiskLevel;
-  updatedAt: number;
-  detail: string;
-}
-
-export interface ApprovalRequestSummary {
-  id: string;
-  taskId: string;
-  title: string;
-  description: string;
-  riskLevel: RiskLevel;
-  impact: string[];
-  reversible: boolean;
-  createdAt: number;
-  expiresAt?: number;
-}
-
-export interface ApprovalRecord {
-  id: string;
-  taskId: string;
-  workspaceId: string;
-  runId?: string;
-  riskLevel: RiskLevel;
-  request: ApprovalRequestSummary;
-  decision?: 'approved' | 'rejected' | 'timeout';
-  reason?: string;
-  approvedBy?: string;
-  createdAt: number;
-  decidedAt?: number;
-  expiresAt?: number;
-}
-
-export interface CheckpointRecord {
-  id: string;
-  sessionId: string;
-  workspaceId: string;
-  type: 'approval-anchor' | 'workspace-open' | 'retrieval-anchor';
-  description: string;
-  manifest: Record<string, unknown>;
-  createdAt: number;
-}
-
-export interface ApprovalPolicySummary {
-  mode: 'manual';
-  summary: string;
-  highRiskRules: string[];
-}
-
-export interface TaskCenterSnapshot {
-  tasks: TaskSummary[];
-  pendingApprovals: ApprovalRequestSummary[];
-  policy: ApprovalPolicySummary;
-  currentSession?: SessionMeta;
-  latestCheckpoint?: CheckpointRecord;
-}
-
-// ════════════════════════════════════════════════════════
-// Model Types (from types-model.ts)
-// ════════════════════════════════════════════════════════
-
-export interface ModelDescriptor {
-  providerId: ModelProviderId;
-  modelId: string;
-  displayName: string;
-  priority: number;
-  capabilities: ('chat' | 'stream' | 'code')[];
-}
-
-export interface ModelChatMessage {
-  role: string;
-  content: string;
-}
 
 export interface ModelTokenUsage {
   promptTokens?: number;
@@ -139,20 +23,15 @@ export interface ModelUsageCost {
   totalCost?: number;
 }
 
-export interface ModelRouteDecision {
-  reason: string;
-  chain: string[];
-  synthetic?: boolean;
+export interface ProviderHealthStatus {
+  providerId: ModelProviderId;
+  healthy: boolean;
+  detail: string;
 }
 
-export interface ModelResponse {
-  providerId: ModelProviderId;
-  modelId: string;
-  content: string;
-  synthetic: boolean;
-  requestId?: string;
-  usage?: ModelTokenUsage;
-  route?: ModelRouteDecision;
+export interface ModelGatewayHealthSnapshot {
+  checkedAt: number;
+  providers: ProviderHealthStatus[];
 }
 
 /** Main → Renderer: versioned model stream envelope (no secrets). */
@@ -171,23 +50,6 @@ export type DigitalLifeModelStreamEventV1 =
   | { v: 1; runId: string; seq: number; type: 'error'; message: string }
   | { v: 1; runId: string; seq: number; type: 'done' };
 
-export interface ProviderHealthStatus {
-  providerId: ModelProviderId;
-  healthy: boolean;
-  detail: string;
-}
-
-export interface ModelGatewayHealthSnapshot {
-  checkedAt: number;
-  providers: ProviderHealthStatus[];
-}
-
-export interface PromptRule {
-  id: string;
-  kind: 'platform' | 'project' | 'session' | 'workflow-phase' | 'tool-contract' | 'output-contract';
-  content: string;
-}
-
 export interface ContextEntry {
   id: string;
   type: 'file' | 'search-hit' | 'outline' | 'diagnostic' | 'message';
@@ -198,7 +60,7 @@ export interface ContextEntry {
 }
 
 // ════════════════════════════════════════════════════════
-// Command Types (from types-command.ts)
+// Command Types (retained: CommandExecutionResult — used by patch system)
 // ════════════════════════════════════════════════════════
 
 export type CommandProfile = 'build' | 'test' | 'lint' | 'install' | 'custom';
@@ -211,7 +73,7 @@ export interface CommandRequest {
   command: string;
   args: string[];
   shell: boolean;
-  riskLevel: RiskLevel;
+  riskLevel: string;
   createdAt: number;
 }
 
@@ -225,14 +87,6 @@ export interface CommandExecutionResult {
   success: boolean;
   startedAt: number;
   completedAt: number;
-}
-
-export interface CommandRunResult {
-  status: 'completed' | 'waiting-approval';
-  taskId: string;
-  request: CommandRequest;
-  result?: CommandExecutionResult;
-  approvalRequest?: ApprovalRequestSummary;
 }
 
 /** Main → Renderer: versioned terminal stream (no env vars or secrets). */
@@ -251,17 +105,8 @@ export type DigitalLifeTerminalStreamEventV1 =
     }
   | { v: 1; executionId: string; seq: number; type: 'error'; message: string };
 
-export type CommandRunStreamStart =
-  | {
-      mode: 'waiting-approval';
-      taskId: string;
-      request: CommandRequest;
-      approvalRequest: ApprovalRequestSummary;
-    }
-  | { mode: 'started'; executionId: string; taskId: string; request: CommandRequest };
-
 // ════════════════════════════════════════════════════════
-// Agent Run / Plan Steps (from types-agent.ts)
+// Agent Run / Plan Steps (retained: used by httpBridge + mock system)
 // ════════════════════════════════════════════════════════
 
 export type AgentRunStatus =
@@ -397,17 +242,6 @@ export type DigitalLifeRunActivityEventV1 =
     }
   | { v: 1; runId: string; seq: number; ts: number; type: 'error'; message: string }
   | { v: 1; runId: string; seq: number; ts: number; type: 'run-done'; status: AgentRunStatus };
-
-export interface RunActivityEventRecord {
-  id: string;
-  workspaceId: string;
-  sessionId: string;
-  runId: string;
-  seq: number;
-  ts: number;
-  event: DigitalLifeRunActivityEventV1;
-  createdAt: number;
-}
 
 // ════════════════════════════════════════════════════════
 // Host sidebar ordering (retained: workspace drag-reorder)
