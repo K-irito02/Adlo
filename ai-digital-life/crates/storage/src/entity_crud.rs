@@ -225,3 +225,20 @@ impl Database {
         rows.into_iter().map(|json| serde_json::from_str(&json).map_err(AppError::from)).collect()
     }
 }
+
+#[cfg(test)]
+pub(crate) mod test_helpers {
+    use crate::connection::Database;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static TEST_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    pub(crate) fn open_test_db(prefix: &str) -> Database {
+        let id = TEST_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("{prefix}-{id}.db"));
+        let _ = std::fs::remove_file(&path);
+        let db = Database::open(&path).expect("test db should open");
+        db.init_schema().expect("schema should init");
+        db
+    }
+}

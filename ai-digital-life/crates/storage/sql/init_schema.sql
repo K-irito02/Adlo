@@ -69,30 +69,6 @@ CREATE TABLE IF NOT EXISTS checkpoints (
     updated_at INTEGER NOT NULL,
     json TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS conversation_messages (
-    id TEXT PRIMARY KEY,
-    workspace_id TEXT,
-    session_id TEXT,
-    status TEXT,
-    updated_at INTEGER NOT NULL,
-    json TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS agent_runs (
-    id TEXT PRIMARY KEY,
-    workspace_id TEXT,
-    session_id TEXT,
-    status TEXT,
-    updated_at INTEGER NOT NULL,
-    json TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS agent_steps (
-    id TEXT PRIMARY KEY,
-    workspace_id TEXT,
-    session_id TEXT,
-    status TEXT,
-    updated_at INTEGER NOT NULL,
-    json TEXT NOT NULL
-);
 CREATE TABLE IF NOT EXISTS tool_invocations (
     id TEXT PRIMARY KEY,
     workspace_id TEXT,
@@ -142,14 +118,6 @@ CREATE TABLE IF NOT EXISTS command_executions (
     json TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS validation_results (
-    id TEXT PRIMARY KEY,
-    workspace_id TEXT,
-    session_id TEXT,
-    status TEXT,
-    updated_at INTEGER NOT NULL,
-    json TEXT NOT NULL
-);
-CREATE TABLE IF NOT EXISTS model_preferences (
     id TEXT PRIMARY KEY,
     workspace_id TEXT,
     session_id TEXT,

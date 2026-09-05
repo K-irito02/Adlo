@@ -1,5 +1,4 @@
 mod connection;
-mod crud;
 pub mod durable;
 mod entity_crud;
 mod entity_table;
@@ -7,8 +6,6 @@ mod part_crud;
 mod purge;
 pub mod repository;
 mod session;
-mod session_crud;
-mod task_crud;
 
 pub use connection::Database;
 pub use entity_table::EntityTable;
@@ -84,9 +81,6 @@ mod tests {
             "approvals",
             "audit_records",
             "checkpoints",
-            "conversation_messages",
-            "agent_runs",
-            "agent_steps",
             "tool_invocations",
             "patch_sets",
             "file_patches",
@@ -94,7 +88,6 @@ mod tests {
             "command_requests",
             "command_executions",
             "validation_results",
-            "model_preferences",
             "model_call_audit",
             "run_activity_events",
         ];
@@ -105,19 +98,19 @@ mod tests {
         // Seed B with 1 row in tasks (must NOT be deleted)
         seed_workspace_child(&db, "tasks", "b-task-1", "ws-b");
 
-        // Sanity: A has 18 child rows, B has 1
+        // Sanity: A has 14 child rows, B has 1
         assert_eq!(count_rows(&db, "tasks", "ws-a"), 1);
         assert_eq!(count_rows(&db, "tasks", "ws-b"), 1);
 
         let report = db.purge_workspace("ws-a", Some("/tmp/ws-a")).unwrap();
         assert!(report.workspaces_row_deleted);
         assert!(report.recent_workspaces_row_deleted);
-        assert_eq!(report.per_table.len(), 18, "all 18 child tables should be touched");
-        assert_eq!(report.total_rows_deleted, 18 + 1 + 1);
+        assert_eq!(report.per_table.len(), 14, "all 14 child tables should be touched");
+        assert_eq!(report.total_rows_deleted, 14 + 1 + 1);
 
         // A is gone everywhere
         assert_eq!(count_rows(&db, "tasks", "ws-a"), 0);
-        assert_eq!(count_rows(&db, "agent_runs", "ws-a"), 0);
+        assert_eq!(count_rows(&db, "tool_invocations", "ws-a"), 0);
         // B is untouched
         assert_eq!(count_rows(&db, "tasks", "ws-b"), 1);
 

@@ -242,7 +242,7 @@ impl Database {
 
 #[cfg(test)]
 mod tests {
-    use crate::crud::test_helpers::open_test_db;
+    use crate::entity_crud::test_helpers::open_test_db;
     use adl_types::{MessageRecord, PartRecord, PartType};
 
     fn sample_message(id: &str) -> MessageRecord {

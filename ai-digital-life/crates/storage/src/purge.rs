@@ -21,9 +21,6 @@ const WORKSPACE_SCOPED_TABLES: &[EntityTable] = &[
     EntityTable::Approvals,
     EntityTable::AuditRecords,
     EntityTable::Checkpoints,
-    EntityTable::ConversationMessages,
-    EntityTable::AgentRuns,
-    EntityTable::AgentSteps,
     EntityTable::ToolInvocations,
     EntityTable::PatchSets,
     EntityTable::FilePatches,
@@ -31,7 +28,6 @@ const WORKSPACE_SCOPED_TABLES: &[EntityTable] = &[
     EntityTable::CommandRequests,
     EntityTable::CommandExecutions,
     EntityTable::ValidationResults,
-    EntityTable::ModelPreferences,
     EntityTable::ModelCallAudit,
     EntityTable::RunActivityEvents,
 ];
