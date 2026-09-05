@@ -1,0 +1,12 @@
+[package]
+name = "adl-webapp-host"
+version.workspace = true
+edition.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+adl-errors = { path = "../errors" }
+tokio = { workspace = true }
+reqwest = { workspace = true }

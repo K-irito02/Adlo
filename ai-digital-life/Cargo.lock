@@ -303,6 +303,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "adl-webapp-host"
+version = "0.1.0"
+dependencies = [
+ "adl-errors",
+ "reqwest",
+ "tokio",
+]
+
+[[package]]
 name = "adl-workspace"
 version = "0.1.0"
 dependencies = [
