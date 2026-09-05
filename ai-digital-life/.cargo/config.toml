@@ -25,19 +25,11 @@ opt-level = 1
 # 白名单：自己的 crate 保留全量调试信息（debug=2，可断点调试查变量类型）
 [profile.dev.package.ad-server]
 debug = 2
-[profile.dev.package.adl-agent-runtime]
-debug = 2
 [profile.dev.package.adl-browser]
 debug = 2
 [profile.dev.package.adl-change-engine]
 debug = 2
 [profile.dev.package.adl-ci-status]
-debug = 2
-[profile.dev.package.adl-command]
-debug = 2
-[profile.dev.package.adl-context]
-debug = 2
-[profile.dev.package.adl-conversation]
 debug = 2
 [profile.dev.package.adl-credential]
 debug = 2
@@ -49,25 +41,13 @@ debug = 2
 debug = 2
 [profile.dev.package.adl-logging]
 debug = 2
-[profile.dev.package.adl-lsp-client]
-debug = 2
-[profile.dev.package.adl-mcp-client]
-debug = 2
 [profile.dev.package.adl-migration]
-debug = 2
-[profile.dev.package.adl-model-gateway]
 debug = 2
 [profile.dev.package.adl-outline]
 debug = 2
 [profile.dev.package.adl-pty]
 debug = 2
 [profile.dev.package.adl-storage]
-debug = 2
-[profile.dev.package.adl-subagent]
-debug = 2
-[profile.dev.package.adl-task]
-debug = 2
-[profile.dev.package.adl-tools]
 debug = 2
 [profile.dev.package.adl-types]
 debug = 2

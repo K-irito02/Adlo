@@ -1,7 +1,6 @@
-//! File system operations: path scoping, atomic writes, and checkpoint payloads.
+//! File system operations: path scoping and atomic writes.
 
 use adl_errors::AppError;
-use adl_types::{CheckpointPayloadAsset, CheckpointPayloadPreview};
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Component, Path, PathBuf};
@@ -104,87 +103,6 @@ pub fn file_hash(root: &Path, relative_path: &str) -> Result<String, AppError> {
 
 pub fn looks_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(4096).any(|byte| *byte == 0)
-}
-
-pub fn create_checkpoint_payload(
-    checkpoints_dir: &Path,
-    checkpoint_id: &str,
-    root: &Path,
-    relative_paths: &[String],
-) -> Result<CheckpointPayloadPreview, AppError> {
-    let checkpoint_dir = checkpoints_dir.join(checkpoint_id);
-    let files_dir = checkpoint_dir.join("files");
-    fs::create_dir_all(&files_dir)?;
-
-    let mut assets = Vec::new();
-    for relative_path in relative_paths {
-        let source = resolve_workspace_path(root, relative_path)?;
-        let snapshot_path = files_dir.join(relative_path.replace(['\\', '/'], "__"));
-        if source.exists() && source.is_file() {
-            fs::copy(&source, &snapshot_path)?;
-            let size = fs::metadata(&source).ok().map(|meta| meta.len());
-            assets.push(CheckpointPayloadAsset {
-                path: relative_path.clone(),
-                kind: "file".into(),
-                status: "captured".into(),
-                size,
-                snapshot_path: Some(snapshot_path.to_string_lossy().to_string()),
-            });
-        } else {
-            assets.push(CheckpointPayloadAsset {
-                path: relative_path.clone(),
-                kind: "file".into(),
-                status: "missing".into(),
-                size: None,
-                snapshot_path: None,
-            });
-        }
-    }
-
-    let preview = CheckpointPayloadPreview {
-        checkpoint_id: checkpoint_id.to_string(),
-        manifest_path: checkpoint_dir.join("manifest.json").to_string_lossy().to_string(),
-        root_path: Some(root.to_string_lossy().to_string()),
-        asset_count: assets.len(),
-        assets,
-    };
-    fs::write(&preview.manifest_path, serde_json::to_string_pretty(&preview)?)?;
-    Ok(preview)
-}
-
-pub fn read_checkpoint_preview(
-    checkpoints_dir: &Path,
-    checkpoint_id: &str,
-) -> Result<Option<CheckpointPayloadPreview>, AppError> {
-    let path = checkpoints_dir.join(checkpoint_id).join("manifest.json");
-    if !path.exists() {
-        return Ok(None);
-    }
-    let content = fs::read_to_string(path)?;
-    serde_json::from_str(&content).map_err(AppError::from).map(Some)
-}
-
-pub fn restore_checkpoint_payload(
-    checkpoints_dir: &Path,
-    checkpoint_id: &str,
-) -> Result<CheckpointPayloadPreview, AppError> {
-    let preview = read_checkpoint_preview(checkpoints_dir, checkpoint_id)?
-        .ok_or_else(|| AppError::NotFound(format!("checkpoint payload {checkpoint_id}")))?;
-    let root = preview
-        .root_path
-        .as_ref()
-        .ok_or_else(|| AppError::InvalidInput("checkpoint has no root path".into()))?;
-    let root = Path::new(root);
-    for asset in preview.assets.iter().filter(|asset| asset.status == "captured") {
-        if let Some(snapshot_path) = &asset.snapshot_path {
-            let target = resolve_workspace_path(root, &asset.path)?;
-            if let Some(parent) = target.parent() {
-                fs::create_dir_all(parent)?;
-            }
-            fs::copy(snapshot_path, target)?;
-        }
-    }
-    Ok(preview)
 }
 
 #[cfg(test)]

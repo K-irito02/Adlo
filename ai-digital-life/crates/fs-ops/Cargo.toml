@@ -7,7 +7,5 @@ edition.workspace = true
 workspace = true
 
 [dependencies]
-adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }
-serde_json.workspace = true
 sha2.workspace = true
