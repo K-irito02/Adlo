@@ -15,7 +15,6 @@
 @import './base.css';
 @import './layout.css';
 @import './components.css';
-@import './part-stream.css';
 @import './regions/leftbar.css';
 @import './regions/leftbar-workspace.css';
 @import './regions/leftbar-session.css';
