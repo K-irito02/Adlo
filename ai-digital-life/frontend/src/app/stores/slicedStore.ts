@@ -31,8 +31,6 @@ import {
   createGitHubRepoSlice,
   createGitHubTreeSlice,
   createGitHubSlice,
-  createMcpSlice,
-  createWebToolsSlice,
   createReferenceSlice,
   createToastSlice,
   createErrorToastSlice,
@@ -52,9 +50,6 @@ import {
   createSearchActions,
   createFetchActions,
   createGeneralActions,
-  createMcpActions,
-  createWebToolsActions,
-  createLspActions,
   createReferenceActions,
   createUtilitiesActions,
   createDshActions,
@@ -99,8 +94,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createGitHubRepoSlice(set, get), // GitHub 仓库 CRUD（工作区配置、CI 目录管理、Pin/Unpin）
   ...createGitHubTreeSlice(set, get), // GitHub 树导航（展开/折叠、路径选择）
   ...createGitHubSlice(set, get), // GitHub CI 配置 + 状态（分支/提交/远程操作）
-  ...createMcpSlice(set, get), // MCP 状态（服务器列表、目录）
-  ...createWebToolsSlice(set, get), // Web 工具（抓取/搜索）
   ...createReferenceSlice(set, get), // 参考代码仓库管理
   ...createToastSlice(set, get), // 全局 Toast 通知
   ...createErrorToastSlice(set, get), // 报错 Toast 队列（右下角持久）
@@ -115,8 +108,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   loading: true,
   appReady: false,
   isFetching: {},
-  lspActiveServers: [],
-  lspDiagnostics: [],
   isTauri: false,
 
   // ════════════════════════════════════════════════════════
@@ -129,9 +120,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createSearchActions(set, get), // 搜索操作
   ...createFetchActions(set, get), // 数据拉取（indexStatus, repoMap）
   ...createGeneralActions(set, get), // 通用操作（bootstrap, updatePreferences）
-  ...createMcpActions(set, get), // MCP 操作（服务器管理、连接）
-  ...createWebToolsActions(set, get), // Web 工具操作
-  ...createLspActions(set, get), // LSP 操作
   ...createReferenceActions(set, get), // 参考代码仓库操作
   ...createUtilitiesActions(set, get), // 系统工具操作（剪贴板历史、系统监控）
   ...createDshActions(set, get), // dsh 宿主壳操作（打开/关闭/版本管理）

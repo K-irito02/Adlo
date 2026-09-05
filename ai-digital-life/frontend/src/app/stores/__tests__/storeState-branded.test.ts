@@ -23,7 +23,7 @@ describe('StoreState composition', () => {
     expectTypeOf<Pick<StoreState, 'loadGitSnapshot' | 'switchGitBranch'>>().toBeObject();
   });
 
-  it('should include mcp actions', () => {
-    expectTypeOf<Pick<StoreState, 'fetchMcpServers' | 'addMcpServer'>>().toBeObject();
+  it('should include reference actions', () => {
+    expectTypeOf<Pick<StoreState, 'fetchReferences' | 'addReference'>>().toBeObject();
   });
 });

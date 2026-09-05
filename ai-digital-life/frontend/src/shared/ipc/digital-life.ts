@@ -22,10 +22,7 @@ import type { PatchBridge } from './patch';
 import type { PtyBridge } from './pty';
 import type { BrowserBridge } from './browser';
 import type { GitHubBridge } from './github';
-import type { McpBridge } from './mcp';
 import type { SnapshotBridge } from './snapshot';
-import type { WebToolsBridge } from './web_tools';
-import type { LspBridge } from './lsp';
 import type { ReferenceBridge } from './reference';
 import type { DurableBridge } from './durable';
 import type { ReservedBridge } from './reserved';
@@ -152,14 +149,8 @@ export interface DigitalLifeBridge {
   browser: BrowserBridge;
   /** GitHub 集成子模块 (GitHub + CI 状态共用同一接口) */
   github: GitHubBridge;
-  /** MCP 服务器管理子模块 */
-  mcp: McpBridge;
   /** 快照管理子模块 */
   snapshot: SnapshotBridge;
-  /** Web 工具子模块 (网页抓取/搜索) */
-  webTools: WebToolsBridge;
-  /** 语言服务器 (LSP) 子模块 */
-  lsp: LspBridge;
   /** 参考代码仓库管理子模块 */
   reference: ReferenceBridge;
   /** 持久化会话管理子模块 */

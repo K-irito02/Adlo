@@ -30,16 +30,12 @@ import type { CommunicateSlice } from './slices/communicateSlice';
 import type { GitHubRepoSlice } from './slices/githubRepoSlice';
 import type { GitHubTreeSlice } from './slices/githubTreeSlice';
 import type { GitHubSlice as GitHubSliceType } from './slices/githubSlice';
-import type { McpSlice } from './slices/mcpSlice';
-import type { WebToolsSlice } from './slices/webToolsSlice';
 import type { ReferenceSlice } from './slices/referenceSlice';
 import type { ToastSlice } from './slices/toastSlice';
 import type { ErrorToastSlice } from './slices/errorToastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
 import type { FileOpNoticeSlice } from './slices/fileOpNoticeSlice';
 import type { BrowserDownloadsSlice } from './slices/browserDownloadsSlice';
-import type { DiagnosticInfo, SymbolInfo } from '@shared/ipc/lsp';
-import type { McpServerConfig } from '@shared/ipc/mcp';
 import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import type { WorkspaceID } from '../../shared/branded';
 
@@ -78,8 +74,6 @@ interface StoreStateRootFields {
   appReady: boolean;
   isFetching: Record<string, boolean>;
   isTauri: boolean;
-  lspActiveServers: string[];
-  lspDiagnostics: DiagnosticInfo[];
   bootstrap: () => Promise<void>;
 }
 
@@ -109,8 +103,6 @@ type AllSlices = [
   GitHubRepoSlice,
   GitHubTreeSlice,
   GitHubSliceType,
-  WebToolsSlice,
-  McpSlice,
   ReferenceSlice,
   ToastSlice,
   ErrorToastSlice,
@@ -224,29 +216,6 @@ interface DataFetchActions {
   fetchRepoMap: () => Promise<void>;
 }
 
-interface McpActions {
-  fetchMcpServers: () => Promise<void>;
-  fetchMcpCatalog: () => Promise<void>;
-  addMcpServer: (config: McpServerConfig) => Promise<void>;
-  removeMcpServer: (name: string) => Promise<void>;
-  connectMcpServer: (name: string) => Promise<void>;
-  disconnectMcpServer: (name: string) => Promise<void>;
-  loadMcpConfig: (path: string) => Promise<void>;
-}
-
-interface WebToolsActions {
-  webFetch: (url: string) => Promise<void>;
-  webSearch: (query: string) => Promise<void>;
-  clearWebResults: () => void;
-}
-
-interface LspActions {
-  lspStartServer: (workspaceId: string, workspaceRoot: string, server: string) => Promise<void>;
-  lspStopServer: (workspaceId: string, server: string) => Promise<void>;
-  lspGetSymbols: (workspaceId: string, filePath: string) => Promise<SymbolInfo[]>;
-  lspGetDiagnostics: (workspaceId: string, filePath?: string) => Promise<DiagnosticInfo[]>;
-}
-
 interface ReferenceActions {
   fetchReferences: (dataDir: string) => Promise<void>;
   addReference: (dataDir: string, reference: ReferenceConfig) => Promise<void>;
@@ -278,9 +247,6 @@ type AllActions = [
   PatchActions,
   SearchActions,
   DataFetchActions,
-  McpActions,
-  WebToolsActions,
-  LspActions,
   ReferenceActions,
   UtilitiesActions,
   DshActions,

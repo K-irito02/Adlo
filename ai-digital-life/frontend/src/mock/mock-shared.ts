@@ -3,7 +3,6 @@
 //  Domain-specific state lives in sibling modules:
 //    mock-shared-pty.ts          PTY / terminal
 //    mock-shared-workspace.ts    Workspace, documents, git, app, model
-//    mock-shared-conversation.ts Conversation sessions & messages
 //    mock-shared-patch.ts        Patch sets, agent runs, send
 // ────────────────────────────────────────────────────
 
@@ -41,15 +40,6 @@ export {
   modelHealth,
 } from "./mock-shared-workspace";
 
-// Conversation sessions & messages
-export {
-  sessions,
-  messagesBySession,
-  listScopedSessions,
-  ensureSession,
-  ensureConversationDetail,
-} from "./mock-shared-conversation";
-
 // Patch sets, agent runs, send
 export {
   activePatchSet,
@@ -57,5 +47,4 @@ export {
   setActivePatchSet,
   setActiveRun,
   createPatchSet,
-  createSendResult,
 } from "./mock-shared-patch";

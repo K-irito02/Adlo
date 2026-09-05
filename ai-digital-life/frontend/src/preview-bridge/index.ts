@@ -2,14 +2,11 @@ import type { AudioStatePayload, BrowserBridge, PageMeta } from '../shared/ipc/b
 import type { AppBridge } from '../shared/ipc/app';
 import type { WorkspaceBridge } from '../shared/ipc/workspace';
 import type { PatchBridge } from '../shared/ipc/patch';
-import type { McpBridge } from '../shared/ipc/mcp';
 import type { DurableBridge } from '../shared/ipc/durable';
 import type { GitHubBridge } from '../shared/ipc/github';
-import type { LspBridge } from '../shared/ipc/lsp';
 import type { ReferenceBridge } from '../shared/ipc/reference';
 import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
-import type { WebToolsBridge } from '../shared/ipc/web_tools';
 import type { ClipboardBridge } from '../shared/ipc/clipboard';
 import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
@@ -218,18 +215,11 @@ export function setupPreviewBridge(): void {
       http.github,
       mockDigitalLifeBridge.github,
     ),
-    mcp: preferHttpWhenReachable<McpBridge>(adlServerBaseUrl, http.mcp, mockDigitalLifeBridge.mcp),
     snapshot: preferHttpWhenReachable<SnapshotBridge>(
       adlServerBaseUrl,
       http.snapshot,
       mockDigitalLifeBridge.snapshot,
     ),
-    webTools: preferHttpWhenReachable<WebToolsBridge>(
-      adlServerBaseUrl,
-      http.webTools,
-      mockDigitalLifeBridge.webTools,
-    ),
-    lsp: preferHttpWhenReachable<LspBridge>(adlServerBaseUrl, http.lsp, mockDigitalLifeBridge.lsp),
     reference: preferHttpWhenReachable<ReferenceBridge>(
       adlServerBaseUrl,
       http.reference,

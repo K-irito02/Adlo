@@ -128,12 +128,6 @@ export {
 // GitHub 切片（CI 配置 + CI 状态、分支/提交/远程操作）
 export { type GitHubSlice, type GitHubSection, createGitHubSlice } from './slices/githubSlice';
 
-// MCP 切片
-export { type McpSlice, createMcpSlice } from './slices/mcpSlice';
-
-// Web Tools 切片
-export { type WebToolsSlice, createWebToolsSlice } from './slices/webToolsSlice';
-
 // Reference 切片
 export { type ReferenceSlice, createReferenceSlice } from './slices/referenceSlice';
 

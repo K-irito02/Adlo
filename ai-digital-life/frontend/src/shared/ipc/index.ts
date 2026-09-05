@@ -18,4 +18,3 @@ export * from './dsh';
 export * from './system_monitor';
 export * from './workspace';
 export * from './patch';
-export * from './mcp';

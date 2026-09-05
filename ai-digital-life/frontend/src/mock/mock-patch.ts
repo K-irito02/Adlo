@@ -5,8 +5,6 @@ import {
   activeRun,
   activeWorkspaceScopeId,
   documents,
-  messagesBySession,
-  sessions,
   setActivePatchSet,
 } from "./mock-shared";
 
@@ -36,39 +34,6 @@ export const mockPatch: PatchBridge = {
         updatedAt: Date.now()
       };
       setActivePatchSet(updated);
-      const targetSessionId = activePatchSet.sessionId;
-      const sessionMessages = messagesBySession.get(targetSessionId) ?? [];
-      sessionMessages.push({
-        id: `message-validation-${Date.now()}`,
-        sessionId: targetSessionId,
-        role: "assistant",
-        content: "Patch applied and validation completed.",
-        blocks: [
-          {
-            id: `block-tool-${Date.now()}`,
-            type: "tool-call",
-            toolName: "terminal.run",
-            summary: "npm run test",
-            status: "completed"
-          },
-          {
-            id: `block-validation-${Date.now()}`,
-            type: "validation-result",
-            summary: "Validation command completed successfully.",
-            status: "passed",
-            diagnostics: []
-          },
-          {
-            id: `block-final-${Date.now()}`,
-            type: "final-summary",
-            summary: "补丁已应用并完成验证。"
-          }
-        ],
-        runId: activeRun?.run.id,
-        createdAt: Date.now()
-      });
-      const firstSessionId = sessions[0]?.id ?? targetSessionId;
-      messagesBySession.set(firstSessionId, sessionMessages);
     }
     return {
       ok: true,

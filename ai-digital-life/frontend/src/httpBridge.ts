@@ -68,12 +68,9 @@ import type {
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 import type { WorkspaceBridge } from './shared/ipc';
-import type { McpCatalog, McpServerConfig, McpServerInfo } from './shared/ipc/mcp';
 import type { SnapshotRecord, RevertResult } from './shared/ipc/snapshot';
-import type { WebFetchResult, WebSearchResult } from './shared/ipc/web_tools';
 import type { ReferenceConfig } from './shared/ipc/reference';
 import type { DshVersionStatus } from './shared/ipc/dsh';
-import type { SymbolInfo, DiagnosticInfo } from './shared/ipc/lsp';
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { ClipboardBridge } from './shared/ipc/clipboard';
 import type { SystemMonitorBridge } from './shared/ipc/system_monitor';
@@ -963,17 +960,6 @@ export function createHttpBridge({
         call<number>(baseUrl, '/snapshot/prune', POST({ workspaceId, workspaceRoot })),
     },
 
-    // ── MCP domain.
-    mcp: {
-      listMcpServers: () => call<McpServerInfo[]>(baseUrl, '/mcp/list', POST({})),
-      addMcpServer: (config: McpServerConfig) => call<void>(baseUrl, '/mcp/add', POST(config)),
-      removeMcpServer: (name: string) => call<void>(baseUrl, '/mcp/remove', POST({ name })),
-      connectMcpServer: (name: string) => call<void>(baseUrl, '/mcp/connect', POST({ name })),
-      disconnectMcpServer: (name: string) => call<void>(baseUrl, '/mcp/disconnect', POST({ name })),
-      getMcpCatalog: () => call<McpCatalog>(baseUrl, '/mcp/catalog', POST({})),
-      loadMcpConfig: (path: string) => call<number>(baseUrl, '/mcp/load-config', POST({ path })),
-    },
-
     // ── GitHub / CI domain (token is write-only — set/clear/has only).
     github: {
       getStatus: (config) => call<CiStatusSnapshot>(baseUrl, '/ci/status', POST(config)),
@@ -985,32 +971,6 @@ export function createHttpBridge({
       hasAccessToken: () => call<boolean>(baseUrl, '/ci/access-token/has', POST({})),
       getJobLogs: (config, runId) =>
         call<Record<number, string>>(baseUrl, '/ci/job-logs', POST({ config, runId })),
-    },
-
-    // ── Web-tools domain.
-    webTools: {
-      webFetch: (url: string, format?: string) =>
-        call<WebFetchResult>(baseUrl, '/web-tools/fetch', POST({ url, format })),
-      webSearch: (query: string) =>
-        call<WebSearchResult>(baseUrl, '/web-tools/search', POST({ query })),
-    },
-
-    // ── LSP domain.
-    lsp: {
-      startServer: (workspaceId: string, workspaceRoot: string, server: string) =>
-        call<void>(baseUrl, '/lsp/start', POST({ workspaceId, workspaceRoot, server })),
-      stopServer: (workspaceId: string, server: string) =>
-        call<void>(baseUrl, '/lsp/stop', POST({ workspaceId, server })),
-      getSymbols: (workspaceId: string, filePath: string) =>
-        call<SymbolInfo[]>(baseUrl, '/lsp/symbols', POST({ workspaceId, filePath })),
-      getDiagnostics: (workspaceId: string, filePath: string) =>
-        call<DiagnosticInfo[]>(baseUrl, '/lsp/diagnostics', POST({ workspaceId, filePath })),
-      gotoDefinition: (workspaceId: string, filePath: string, line: number, column: number) =>
-        call<SymbolInfo | null>(
-          baseUrl,
-          '/lsp/goto-definition',
-          POST({ workspaceId, filePath, line, column }),
-        ),
     },
 
     // ── Reference domain.

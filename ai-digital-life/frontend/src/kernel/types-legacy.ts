@@ -305,8 +305,6 @@ export interface AgentRunDetail {
   steps: AgentPlanStep[];
 }
 
-export type AgentStepType = 'analyze' | 'search' | 'read' | 'edit' | 'command' | 'verify';
-
 // Run Activity Stream
 
 /** Main → Renderer: versioned agent run activity stream (debug/audit friendly; no chain-of-thought). */
