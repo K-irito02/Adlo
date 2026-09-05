@@ -21,6 +21,7 @@ import { lspZh } from './lsp';
 import { referenceZh } from './reference';
 import { customAgentZh } from './customAgent';
 import { durableZh } from './durable';
+import { dshZh } from './dsh';
 import { settingsZh } from './settings';
 import { notificationZh } from './notification';
 import { errorsZh } from './errors';
@@ -49,6 +50,7 @@ export const zhCN = {
   ...referenceZh,
   ...customAgentZh,
   ...durableZh,
+  ...dshZh,
   ...settingsZh,
   ...notificationZh,
   ...errorsZh,
