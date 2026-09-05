@@ -178,6 +178,7 @@ export function setupPreviewBridge(): void {
       http.retrieval,
       retrieval,
     ),
+    dsh: http.dsh,
     patch: preferHttpWhenReachable<PatchBridge>(adlServerBaseUrl, http.patch, patchBridge),
     browser: {
       createForTab: (_tabId: string, _url: string, _colorScheme?: 'light' | 'dark') =>

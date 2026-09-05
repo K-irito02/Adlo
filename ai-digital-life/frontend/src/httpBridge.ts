@@ -72,6 +72,7 @@ import type { McpCatalog, McpServerConfig, McpServerInfo } from './shared/ipc/mc
 import type { SnapshotRecord, RevertResult } from './shared/ipc/snapshot';
 import type { WebFetchResult, WebSearchResult } from './shared/ipc/web_tools';
 import type { ReferenceConfig } from './shared/ipc/reference';
+import type { DshVersionStatus } from './shared/ipc/dsh';
 import type { SymbolInfo, DiagnosticInfo } from './shared/ipc/lsp';
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { ClipboardBridge } from './shared/ipc/clipboard';
@@ -914,6 +915,17 @@ export function createHttpBridge({
         return { ok: true, data: repoMapEntriesToTree(snapshot.data?.repoMap ?? []) };
       },
       rebuildIndex: () => call<boolean>(baseUrl, '/retrieval/rebuild', POST({})),
+    },
+
+    // ── dsh 宿主壳 domain (/dsh/*, crates/server handlers/dsh.rs).
+    dsh: {
+      open: () => call<string | null>(baseUrl, '/dsh/open', POST({})),
+      close: (keep: boolean) => call<boolean>(baseUrl, '/dsh/close', POST({ keep })),
+      getVersionStatus: () => call<DshVersionStatus>(baseUrl, '/dsh/get-version-status', POST({})),
+      update: () => call<string>(baseUrl, '/dsh/update', POST({})),
+      revert: (version: string) => call<string>(baseUrl, '/dsh/revert', POST({ version })),
+      uninstall: (version: string) => call<boolean>(baseUrl, '/dsh/uninstall', POST({ version })),
+      reinstall: () => call<string>(baseUrl, '/dsh/reinstall', POST({})),
     },
 
     // ── Workspace domain (workspace_* + sidebar + git + git-vis).

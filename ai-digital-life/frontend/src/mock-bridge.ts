@@ -33,6 +33,7 @@ import { mockWebTools } from './mock/mock-web-tools';
 import { mockLsp } from './mock/mock-lsp';
 import { mockReference } from './mock/mock-reference';
 import { mockDurable } from './mock/mock-durable';
+import { mockDsh } from './mock/mock-dsh';
 import { mockReserved } from './mock/mock-reserved';
 import { mockClipboard } from './mock/mock-clipboard';
 import { mockSystemMonitor } from './mock/mock-system-monitor';
@@ -123,6 +124,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   app: mockApp,
   workspace: mockWorkspace,
   retrieval: mockRetrieval,
+  dsh: mockDsh,
   patch: mockPatch,
   pty: mockPty,
   browser: mockBrowser,
