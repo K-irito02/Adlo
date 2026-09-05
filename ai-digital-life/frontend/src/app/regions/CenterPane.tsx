@@ -17,10 +17,7 @@ const CenterPane = React.memo(function CenterPane() {
   const isDshOpen = useAppStore((s) => s.isOpen);
 
   return (
-    <section
-      className="adl-center adl-center--dsh-placeholder"
-      aria-label={t.conversation}
-    >
+    <section className="adl-center adl-center--dsh-placeholder" aria-label={t.conversation}>
       <CloseDshDialog />
       {isDshOpen ? <DshHostRegion /> : <WelcomePage />}
     </section>

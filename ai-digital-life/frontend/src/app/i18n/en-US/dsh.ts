@@ -21,6 +21,7 @@ export const dshEn = {
   dshCloseTerminate: 'Terminate',
   dshCloseTerminateHint: 'Stop the dsh process, need to restart it to reopen',
   dshCloseCancel: 'Cancel',
-  dshUninstallCurrentHint: 'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
+  dshUninstallCurrentHint:
+    'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
   dshWelcomeEmpty: 'Open DeepSeek Harness to get started',
 } as const;

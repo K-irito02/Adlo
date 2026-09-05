@@ -3,10 +3,7 @@ import type { StoreState } from '../StoreState';
 import { captureError } from '../shared';
 const SCOPE = 'dsh';
 
-export function createDshActions(
-  set: StoreApi<StoreState>['setState'],
-  get: () => StoreState,
-) {
+export function createDshActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
      * [openDsh - 打开中间区 dsh 宿主，拉起 dsh 进程并返回就绪 URL]

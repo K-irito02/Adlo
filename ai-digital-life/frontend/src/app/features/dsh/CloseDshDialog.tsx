@@ -57,7 +57,12 @@ export function CloseDshDialog() {
           <p className="adl-confirm-dialog__message">{t.dshCloseDialogDesc}</p>
         </div>
         <div className="adl-confirm-dialog__footer adl-confirm-dialog__footer--stacked">
-          <button ref={keepRef} type="button" className="adl-btn adl-btn--primary" onClick={handleKeep}>
+          <button
+            ref={keepRef}
+            type="button"
+            className="adl-btn adl-btn--primary"
+            onClick={handleKeep}
+          >
             {t.dshCloseKeep}
           </button>
           <button type="button" className="adl-btn adl-btn--danger" onClick={handleTerminate}>
