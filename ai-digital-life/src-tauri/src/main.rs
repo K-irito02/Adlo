@@ -9,7 +9,7 @@ use tauri::Manager;
 use tauri::webview::PageLoadEvent;
 use tracing::info;
 
-mod ad_server;
+mod adl_server;
 mod commands;
 mod error;
 mod setup;
@@ -60,7 +60,7 @@ fn main() {
             let app_state = setup::init_app_state(data_dir.clone())?;
             info!("[ADL-PERF] setup COMPLETE: {}ms", t0.elapsed().as_millis());
 
-            // 剪贴板/系统监控全走 ad-server HTTP（ad-server 的 init_server_state 已启动
+            // 剪贴板/系统监控全走 adl-server HTTP（adl-server 的 init_server_state 已启动
             // 唯一剪贴板监听并写 data.db；桌面/浏览器前端均读 data.db），桌面壳不注入
             // Managed 剪贴板/系统监控 state，也不启动重复监听。
             setup::start_background_tasks(&app_state);

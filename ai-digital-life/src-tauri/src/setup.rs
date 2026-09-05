@@ -1,4 +1,4 @@
-use crate::ad_server::AdServerHandle;
+use crate::adl_server::AdServerHandle;
 use crate::state::AppState;
 use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus};
@@ -26,8 +26,8 @@ pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
 }
 
 /// Build the system-only shell state. Business (DB, workspace, providers,
-/// durable sessions, SSE) lives in the spawned `ad-server` process — the shell
-/// keeps config + log manager + browser manager, then spawns the ad-server child.
+/// durable sessions, SSE) lives in the spawned `adl-server` process — the shell
+/// keeps config + log manager + browser manager, then spawns the adl-server child.
 pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
     let t0 = std::time::Instant::now();
 
@@ -67,10 +67,10 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     let config_arc = Arc::new(RwLock::new(config));
 
-    // Spawn the ad-server child (business engine). Graceful: a missing binary or
+    // Spawn the adl-server child (business engine). Graceful: a missing binary or
     // failed spawn leaves `base_url: None` and the shell runs system-only.
     let ad_server = AdServerHandle::spawn(&data_dir);
-    info!("[ADL-PERF] ad-server spawn: {}ms", t0.elapsed().as_millis());
+    info!("[ADL-PERF] adl-server spawn: {}ms", t0.elapsed().as_millis());
 
     info!("[ADL-PERF] init_app_state TOTAL: {}ms", t0.elapsed().as_millis());
 
@@ -102,7 +102,7 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
 /// Start background tasks for the system shell: hot-reload `config.json` into
 /// the shell's in-memory config (used by the kept app commands). The in-process
-/// SSE server and durable-session recovery now live in the ad-server process —
+/// SSE server and durable-session recovery now live in the adl-server process —
 /// this shell no longer runs them.
 pub fn start_background_tasks(state: &AppState) {
     let data_dir = state.data_dir.clone();

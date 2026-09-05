@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { CommandGroup, CommandMeta } from '../../commands/defaultCommands';
-import { useCommandRegistry } from '../../commands/useCommandRegistry';
+import { DEFAULT_COMMANDS } from '../../commands/defaultCommands';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -29,7 +29,7 @@ const GROUP_LABEL_KEY: Record<CommandGroup, CopyKey> = {
 
 export function KeybindSettings() {
   const { t, formatT } = useTCopy();
-  const commands = useCommandRegistry();
+  const commands = DEFAULT_COMMANDS;
   const { keybinds, updatePreferences, showToast } = useAppStore(
     useShallow((s) => ({
       keybinds: s.appInfo?.config?.keybinds ?? EMPTY_KEYBINDS,

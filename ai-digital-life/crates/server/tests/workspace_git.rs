@@ -10,25 +10,25 @@
 // clippy's `allow-unwrap-in-tests`, so permit them at the crate level.
 #![allow(clippy::unwrap_used)]
 
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
 use std::path::Path;
 use tower::ServiceExt;
 
-async fn state() -> ad_server::ServerState {
+async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-ws-git-api-{}", uuid::Uuid::new_v4()));
     init_server_state(&dir).await.unwrap()
 }
 
-fn app(state: ad_server::ServerState) -> axum::Router {
+fn app(state: adl_server::ServerState) -> axum::Router {
     app_router(state.clone()).with_state(state)
 }
 
 async fn send(
-    state: ad_server::ServerState,
+    state: adl_server::ServerState,
     uri: &str,
     body: Option<Value>,
 ) -> (StatusCode, Value) {
@@ -68,7 +68,7 @@ fn init_git_repo(dir: &Path) {
 
 /// Open a temp workspace via POST /workspace/open (used by the branch ops that
 /// require an active workspace).
-async fn open_workspace(state: ad_server::ServerState, name: &str) -> String {
+async fn open_workspace(state: adl_server::ServerState, name: &str) -> String {
     let dir = temp_dir(name);
     let (status, body) =
         send(state, "/workspace/open", Some(json!({ "workspacePath": dir.to_string_lossy() })))

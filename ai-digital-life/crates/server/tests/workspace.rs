@@ -6,25 +6,25 @@
 // clippy's `allow-unwrap-in-tests`, so permit them at the crate level.
 #![allow(clippy::unwrap_used)]
 
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
 use std::path::PathBuf;
 use tower::ServiceExt;
 
-async fn state() -> ad_server::ServerState {
+async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-ws-api-{}", uuid::Uuid::new_v4()));
     init_server_state(&dir).await.unwrap()
 }
 
-fn app(state: ad_server::ServerState) -> axum::Router {
+fn app(state: adl_server::ServerState) -> axum::Router {
     app_router(state.clone()).with_state(state)
 }
 
 async fn send(
-    state: ad_server::ServerState,
+    state: adl_server::ServerState,
     method: Method,
     uri: &str,
     body: Option<Value>,
@@ -47,7 +47,7 @@ fn make_workspace() -> PathBuf {
     let dir = std::env::temp_dir().join(format!("adl-ws-src-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("package.json"), "{}").unwrap();
-    std::fs::write(dir.join("notes.txt"), "hello ad-server\nsecond line").unwrap();
+    std::fs::write(dir.join("notes.txt"), "hello adl-server\nsecond line").unwrap();
     dir
 }
 
@@ -298,7 +298,7 @@ async fn read_file_with_explicit_workspace_path() {
     )
     .await;
     assert_eq!(status, StatusCode::OK, "body: {body}");
-    assert_eq!(body["data"]["content"], "hello ad-server\nsecond line");
+    assert_eq!(body["data"]["content"], "hello adl-server\nsecond line");
     let _ = std::fs::remove_dir_all(ws);
 }
 

@@ -1,5 +1,5 @@
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use tower::ServiceExt;
@@ -23,7 +23,7 @@ async fn health_returns_ok_with_port() {
 }
 
 /// The browser preview loads from the Vite dev server on a different port, so
-/// the ad-server must answer cross-origin requests with
+/// the adl-server must answer cross-origin requests with
 /// `Access-Control-Allow-Origin: *` (no credentials). Both a plain response and
 /// an OPTIONS preflight (triggered by the httpBridge's `content-type: json`)
 /// must carry the header.

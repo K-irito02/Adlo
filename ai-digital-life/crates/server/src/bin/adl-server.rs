@@ -1,6 +1,6 @@
 #![allow(linker_messages)]
 
-use ad_server::engine::{init_server_state, serve};
+use adl_server::engine::{init_server_state, serve};
 use std::io::Write;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -29,14 +29,14 @@ async fn main() {
     }
 
     if let Err(e) = std::fs::create_dir_all(&data_dir) {
-        eprintln!("[ad-server] failed to create data dir {}: {e}", data_dir.display());
+        eprintln!("[adl-server] failed to create data dir {}: {e}", data_dir.display());
         std::process::exit(1);
     }
 
     let state = match init_server_state(&data_dir).await {
         Ok(state) => state,
         Err(e) => {
-            eprintln!("[ad-server] init failed: {e:#}");
+            eprintln!("[adl-server] init failed: {e:#}");
             std::process::exit(1);
         },
     };

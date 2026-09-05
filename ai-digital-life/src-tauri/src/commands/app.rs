@@ -18,7 +18,7 @@ pub struct ServerInfo {
     pub running: bool,
 }
 
-/// Task 10 — the desktop shell spawns the `ad-server` child and exposes its
+/// Task 10 — the desktop shell spawns the `adl-server` child and exposes its
 /// discovered base URL so the frontend `httpBridge` (desktop) connects to the
 /// real engine over HTTP/SSE/WS. `baseUrl` is `None` when the engine could not
 /// start (system-only desktop); the frontend falls back to its default URL.
@@ -42,32 +42,32 @@ fn parse_current_workspace_wire(wire: &serde_json::Value) -> Option<WorkspaceMet
     serde_json::from_value(data.clone()).ok()
 }
 
-/// Bounded timeout for ad-server HTTP fetches from the desktop shell. A hung
-/// `ad-server` child (e.g. a DB lock) must degrade to `None` instead of stalling
+/// Bounded timeout for adl-server HTTP fetches from the desktop shell. A hung
+/// `adl-server` child (e.g. a DB lock) must degrade to `None` instead of stalling
 /// the desktop bootstrap (`app_get_info` / `app_update_preferences`).
 const AD_SERVER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(3);
 
-/// Build an HTTP client with a bounded timeout for ad-server fetches. `reqwest`
+/// Build an HTTP client with a bounded timeout for adl-server fetches. `reqwest`
 /// `Client::new()`/`reqwest::get` carry no default timeout; a hung child would
 /// otherwise block the async shell indefinitely.
-fn ad_server_http_client() -> reqwest::Client {
+fn adl_server_http_client() -> reqwest::Client {
     reqwest::Client::builder()
         .timeout(AD_SERVER_FETCH_TIMEOUT)
         .build()
-        .expect("failed to build ad-server HTTP client")
+        .expect("failed to build adl-server HTTP client")
 }
 
-/// Fetch the active workspace from the spawned ad-server (`GET /workspace/current`).
-/// The shell no longer owns the DB; the ad-server is the single source of truth
+/// Fetch the active workspace from the spawned adl-server (`GET /workspace/current`).
+/// The shell no longer owns the DB; the adl-server is the single source of truth
 /// for workspace state. Returns `None` when the engine is not running (graceful
 /// system-only degradation).
 async fn fetch_current_workspace(state: &AppState) -> Option<WorkspaceMeta> {
     let base_url = state.ad_server.base_url()?;
-    fetch_current_workspace_with_client(&ad_server_http_client(), &base_url).await
+    fetch_current_workspace_with_client(&adl_server_http_client(), &base_url).await
 }
 
 /// Fetch with an explicit client (injectable for tests; production uses
-/// [`ad_server_http_client`], which applies the bounded [`AD_SERVER_FETCH_TIMEOUT`]).
+/// [`adl_server_http_client`], which applies the bounded [`AD_SERVER_FETCH_TIMEOUT`]).
 async fn fetch_current_workspace_with_client(
     client: &reqwest::Client,
     base_url: &str,
@@ -103,7 +103,7 @@ pub fn app_get_health(_state: tauri::State<'_, AppState>) -> IpcResult<HealthSna
             HealthComponent {
                 name: "storage".into(),
                 status: HealthStatus::Healthy,
-                detail: "Business storage runs in the ad-server process.".into(),
+                detail: "Business storage runs in the adl-server process.".into(),
                 updated_at: now,
             },
             HealthComponent {
@@ -456,14 +456,14 @@ mod workspace_loading_tests {
 }
 
 #[cfg(test)]
-mod ad_server_fetch_tests {
+mod adl_server_fetch_tests {
     use super::*;
     use std::io::Read;
     use std::net::TcpListener;
     use std::time::{Duration, Instant};
 
     /// A server that accepts a connection, reads the request bytes, then stalls
-    /// without responding — simulating a hung ad-server child (e.g. a DB lock).
+    /// without responding — simulating a hung adl-server child (e.g. a DB lock).
     /// Returns the base URL to point the client at.
     fn spawn_stalling_server() -> String {
         let listener = TcpListener::bind("127.0.0.1:0").unwrap();
@@ -481,7 +481,7 @@ mod ad_server_fetch_tests {
     #[tokio::test]
     async fn hung_server_degrades_to_none_within_bounded_timeout() {
         let url = spawn_stalling_server();
-        let client = ad_server_http_client();
+        let client = adl_server_http_client();
         let start = Instant::now();
         let result = fetch_current_workspace_with_client(&client, &url).await;
         assert!(result.is_none());

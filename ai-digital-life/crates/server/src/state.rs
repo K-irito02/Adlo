@@ -28,7 +28,7 @@ pub struct ServerState {
     pub clipboard_store: Arc<ClipboardStore>,
     pub sysmon: Arc<StdMutex<SystemMonitor>>,
     /// dsh 宿主壳运行时状态：当前被拉起的 dsh 进程（`None` 表示未运行）。
-    /// 仿 `lsp_clients` 用 tokio AsyncMutex 共享，`HostedProcess` 内含
+    /// 用 tokio AsyncMutex 共享，`HostedProcess` 内含
     /// `tokio::process::Child` 不能 Clone，故整体包在 Option 中由锁保护。
     pub dsh_state: Arc<AsyncMutex<Option<HostedProcess>>>,
 }

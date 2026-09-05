@@ -13,8 +13,8 @@
 // clippy's `allow-unwrap-in-tests`, so permit them at the crate level.
 #![allow(clippy::unwrap_used)]
 
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
@@ -25,17 +25,17 @@ use tower::ServiceExt;
 /// two token-writing tests must not run concurrently (they share the slot).
 static TOKEN_TEST_MUTEX: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
-async fn state() -> ad_server::ServerState {
+async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-ci-api-{}", uuid::Uuid::new_v4()));
     init_server_state(&dir).await.unwrap()
 }
 
-fn app(state: ad_server::ServerState) -> axum::Router {
+fn app(state: adl_server::ServerState) -> axum::Router {
     app_router(state.clone()).with_state(state)
 }
 
 async fn send(
-    state: ad_server::ServerState,
+    state: adl_server::ServerState,
     uri: &str,
     body: Option<Value>,
 ) -> (StatusCode, Value) {
@@ -53,7 +53,7 @@ async fn send(
 
 /// Poll POST /ci/access-token/has until it settles on `expected`, bounded to
 /// 20s (Windows Credential Manager is eventually consistent for fresh writes).
-async fn poll_has_token(state: ad_server::ServerState, expected: bool, uri: &str) -> Value {
+async fn poll_has_token(state: adl_server::ServerState, expected: bool, uri: &str) -> Value {
     let deadline = Instant::now() + Duration::from_secs(20);
     loop {
         let (_, body) = send(state.clone(), uri, Some(json!({}))).await;

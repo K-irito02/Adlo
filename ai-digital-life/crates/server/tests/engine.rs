@@ -1,4 +1,4 @@
-use ad_server::engine::init_server_state;
+use adl_server::engine::init_server_state;
 
 #[tokio::test]
 async fn engine_init_creates_workable_state() {

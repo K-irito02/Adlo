@@ -3,44 +3,6 @@
 version = 4
 
 [[package]]
-name = "ad-server"
-version = "0.1.0"
-dependencies = [
- "adl-change-engine",
- "adl-ci-status",
- "adl-clipboard",
- "adl-credential",
- "adl-dsh-version",
- "adl-errors",
- "adl-fs-ops",
- "adl-kernel",
- "adl-logging",
- "adl-migration",
- "adl-pty",
- "adl-storage",
- "adl-sysmon",
- "adl-types",
- "adl-webapp-host",
- "adl-workspace",
- "async-trait",
- "axum",
- "dirs 5.0.1",
- "futures",
- "reqwest",
- "rusqlite",
- "serde",
- "serde_json",
- "tokio",
- "tokio-stream",
- "tokio-tungstenite",
- "tokio-util",
- "tower",
- "tracing",
- "url",
- "uuid",
-]
-
-[[package]]
 name = "adl-browser"
 version = "0.1.0"
 dependencies = [
@@ -221,6 +183,44 @@ dependencies = [
  "serde",
  "static_assertions",
  "tracing",
+]
+
+[[package]]
+name = "adl-server"
+version = "0.1.0"
+dependencies = [
+ "adl-change-engine",
+ "adl-ci-status",
+ "adl-clipboard",
+ "adl-credential",
+ "adl-dsh-version",
+ "adl-errors",
+ "adl-fs-ops",
+ "adl-kernel",
+ "adl-logging",
+ "adl-migration",
+ "adl-pty",
+ "adl-storage",
+ "adl-sysmon",
+ "adl-types",
+ "adl-webapp-host",
+ "adl-workspace",
+ "async-trait",
+ "axum",
+ "dirs 5.0.1",
+ "futures",
+ "reqwest",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-stream",
+ "tokio-tungstenite",
+ "tokio-util",
+ "tower",
+ "tracing",
+ "url",
+ "uuid",
 ]
 
 [[package]]

@@ -9,25 +9,25 @@
 // clippy's `allow-unwrap-in-tests`, so permit them at the crate level.
 #![allow(clippy::unwrap_used)]
 
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use adl_types::WorkspaceMeta;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-async fn state() -> ad_server::ServerState {
+async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-sidebar-api-{}", uuid::Uuid::new_v4()));
     init_server_state(&dir).await.unwrap()
 }
 
-fn app(state: ad_server::ServerState) -> axum::Router {
+fn app(state: adl_server::ServerState) -> axum::Router {
     app_router(state.clone()).with_state(state)
 }
 
 async fn send(
-    state: ad_server::ServerState,
+    state: adl_server::ServerState,
     uri: &str,
     body: Option<Value>,
 ) -> (StatusCode, Value) {
@@ -52,7 +52,7 @@ fn make_workspace_dir(name: &str) -> std::path::PathBuf {
 }
 
 /// Open a temp workspace via POST /workspace/open and return its id.
-async fn open_workspace(state: ad_server::ServerState, name: &str) -> String {
+async fn open_workspace(state: adl_server::ServerState, name: &str) -> String {
     let dir = make_workspace_dir(name);
     let (status, body) =
         send(state, "/workspace/open", Some(json!({ "workspacePath": dir.to_string_lossy() })))
@@ -63,7 +63,7 @@ async fn open_workspace(state: ad_server::ServerState, name: &str) -> String {
 
 /// Seed a workspace row directly in the DB (no sidebar upsert) so restore can
 /// re-add a previously-purged workspace.
-async fn seed_workspace_row(state: ad_server::ServerState, id: &str) {
+async fn seed_workspace_row(state: adl_server::ServerState, id: &str) {
     let now = adl_types::now_ms();
     let meta = WorkspaceMeta {
         id: id.to_string(),

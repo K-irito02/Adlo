@@ -8,24 +8,24 @@
 // clippy's `allow-unwrap-in-tests`, so permit them at the crate level.
 #![allow(clippy::unwrap_used)]
 
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-async fn state() -> ad_server::ServerState {
+async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-retrieval-api-{}", uuid::Uuid::new_v4()));
     init_server_state(&dir).await.unwrap()
 }
 
-fn app(state: ad_server::ServerState) -> axum::Router {
+fn app(state: adl_server::ServerState) -> axum::Router {
     app_router(state.clone()).with_state(state)
 }
 
 async fn send(
-    state: ad_server::ServerState,
+    state: adl_server::ServerState,
     method: &str,
     uri: &str,
     body: Option<Value>,
@@ -55,7 +55,7 @@ fn make_workspace_dir() -> std::path::PathBuf {
 
 /// Open a temp workspace through the workspace domain, returning the workspace
 /// id from the response. Used to seed the active-workspace + snapshot row.
-async fn open_temp_workspace(state: ad_server::ServerState) -> String {
+async fn open_temp_workspace(state: adl_server::ServerState) -> String {
     let dir = make_workspace_dir();
     let (status, body) = send(
         state,

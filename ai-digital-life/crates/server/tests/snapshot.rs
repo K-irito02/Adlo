@@ -8,8 +8,8 @@
 // clippy's `allow-unwrap-in-tests`, so permit them at the crate level.
 #![allow(clippy::unwrap_used)]
 
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use axum::body::Body;
 use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
@@ -18,17 +18,17 @@ use std::hash::{Hash, Hasher};
 use std::path::PathBuf;
 use tower::ServiceExt;
 
-async fn state() -> ad_server::ServerState {
+async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-snap-api-{}", uuid::Uuid::new_v4()));
     init_server_state(&dir).await.unwrap()
 }
 
-fn app(state: ad_server::ServerState) -> axum::Router {
+fn app(state: adl_server::ServerState) -> axum::Router {
     app_router(state.clone()).with_state(state)
 }
 
 async fn send(
-    state: ad_server::ServerState,
+    state: adl_server::ServerState,
     method: Method,
     uri: &str,
     body: Option<Value>,
@@ -79,7 +79,7 @@ fn make_workspace() -> (PathBuf, String) {
 /// app). When `cargo test` runs inside a sandbox that forbids writes outside
 /// the workspace (e.g. the Trae/agent test sandbox), creating that directory
 /// fails with os error 5 access denied — a third-party/environment limitation,
-/// not a `ad-server` defect. These are therefore `#[ignore]`d to keep the
+/// not a `adl-server` defect. These are therefore `#[ignore]`d to keep the
 /// default `cargo test` free of environment-induced failures; run them outside
 /// the sandbox (or with `cargo test -- --ignored`) where AppData is writable.
 #[tokio::test]

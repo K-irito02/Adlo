@@ -3,14 +3,14 @@
 //! `patch_rollback_patch_set`). Each test drives `app_router` over a fresh
 //! `ServerState` via `tower::ServiceExt::oneshot` — no sockets, no
 //! subprocesses (the apply workspace has no Cargo.toml/package.json, so the
-//! validation command is skipped and nothing executes).
+//! no validation command runs).
 
 // Integration-test crate: unwraps in helpers (not `#[test]` fns) fall outside
 // clippy's `allow-unwrap-in-tests`, so permit them at the crate level.
 #![allow(clippy::unwrap_used)]
 
-use ad_server::engine::init_server_state;
-use ad_server::router::app_router;
+use adl_server::engine::init_server_state;
+use adl_server::router::app_router;
 use adl_fs_ops::content_hash;
 use adl_storage::EntityTable;
 use adl_types::{FilePatch, PatchHunk, PatchHunkDecision, PatchSet, PatchSetStatus, now_ms};
@@ -19,17 +19,17 @@ use axum::http::{Method, Request, StatusCode};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-async fn state() -> ad_server::ServerState {
+async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-patch-api-{}", uuid::Uuid::new_v4()));
     init_server_state(&dir).await.unwrap()
 }
 
-fn app(state: ad_server::ServerState) -> axum::Router {
+fn app(state: adl_server::ServerState) -> axum::Router {
     app_router(state.clone()).with_state(state)
 }
 
 async fn send(
-    state: ad_server::ServerState,
+    state: adl_server::ServerState,
     method: Method,
     uri: &str,
     body: Option<Value>,
@@ -47,8 +47,8 @@ async fn send(
 }
 
 /// Open a bare temp workspace (no Cargo.toml/package.json → no validation
-/// command → validation is "skipped" and nothing executes).
-async fn open_bare_workspace(state: &ad_server::ServerState) -> std::path::PathBuf {
+/// command → no validation command runs).
+async fn open_bare_workspace(state: &adl_server::ServerState) -> std::path::PathBuf {
     let dir = std::env::temp_dir().join(format!("adl-patch-ws-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
     let (status, body) = send(
@@ -65,7 +65,7 @@ async fn open_bare_workspace(state: &ad_server::ServerState) -> std::path::PathB
 /// Build a ready PatchSet editing `app.txt` from `before` to `after` with one
 /// accepted hunk, and persist it into the DB.
 fn persist_patch_set(
-    state: &ad_server::ServerState,
+    state: &adl_server::ServerState,
     workspace_id: &str,
     session_id: &str,
     before: &str,
@@ -181,8 +181,8 @@ async fn set_hunk_decision_unknown_hunk_returns_404() {
 }
 
 /// POST /patch/apply applies the accepted hunk to the workspace file, persists
-/// the applied patch set + skipped validation (no validation command in a bare
-/// workspace), and does NOT execute anything.
+/// the applied patch set + no validation command (bare workspace), and does NOT
+/// execute anything.
 #[tokio::test]
 async fn apply_patch_set_applies_file_and_persists() {
     let state = state().await;

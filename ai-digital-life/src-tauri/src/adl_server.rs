@@ -1,7 +1,7 @@
-//! `ad-server` child-process manager for the narrowed Tauri shell.
+//! `adl-server` child-process manager for the narrowed Tauri shell.
 //!
-//! Task 10 makes the desktop spawn the standalone `ad-server` binary at
-//! startup (`crates/server`, bin `ad-server`) with `--data-dir <app data dir>`
+//! Task 10 makes the desktop spawn the standalone `adl-server` binary at
+//! startup (`crates/server`, bin `adl-server`) with `--data-dir <app data dir>`
 //! and `--port 0` (ephemeral). The bound port is read from the child's stdout
 //! line `AD_SERVER_PORT=<port>`, and the resulting `http://127.0.0.1:<port>`
 //! base URL is exposed to the frontend via the `app_get_server_info` command so
@@ -23,8 +23,8 @@ use std::time::Duration;
 
 /// Time to wait for the child's `AD_SERVER_PORT=` stdout line before giving up.
 const PORT_LINE_TIMEOUT: Duration = Duration::from_secs(60);
-/// Machine-parseable prefix the ad-server prints after binding (see
-/// `crates/server/src/bin/ad-server.rs`).
+/// Machine-parseable prefix the adl-server prints after binding (see
+/// `crates/server/src/bin/adl-server.rs`).
 const AD_SERVER_PORT_PREFIX: &str = "AD_SERVER_PORT=";
 
 /// Extract the bound port from a child stdout line, e.g.
@@ -34,13 +34,13 @@ pub fn parse_ad_server_port_line(line: &str) -> Option<u16> {
     trimmed.strip_prefix(AD_SERVER_PORT_PREFIX)?.trim().parse().ok()
 }
 
-/// Resolve the `ad-server` binary path for the current build profile. Dev uses
+/// Resolve the `adl-server` binary path for the current build profile. Dev uses
 /// the workspace `target/debug`; release uses `target/release`. Returns `None`
 /// (→ graceful system-only shell) when the binary has not been built yet.
 fn resolve_ad_server_binary() -> Option<PathBuf> {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent()?; // src-tauri → workspace
     let profile = if cfg!(debug_assertions) { "debug" } else { "release" };
-    let exe = if cfg!(target_os = "windows") { "ad-server.exe" } else { "ad-server" };
+    let exe = if cfg!(target_os = "windows") { "adl-server.exe" } else { "adl-server" };
     let candidate = workspace_root.join("target").join(profile).join(exe);
     if candidate.exists() { Some(candidate) } else { None }
 }
@@ -82,7 +82,7 @@ fn kill_child_tree(child: &mut Child) {
     let _ = child.wait();
 }
 
-/// Owns the spawned `ad-server` child + its discovered base URL. `Drop` kills
+/// Owns the spawned `adl-server` child + its discovered base URL. `Drop` kills
 /// the child tree, so storing this in managed `AppState` reaps the engine on
 /// app exit.
 pub struct AdServerHandle {
@@ -91,14 +91,14 @@ pub struct AdServerHandle {
 }
 
 impl AdServerHandle {
-    /// Spawn `ad-server` for `data_dir`, wait for its ephemeral port, and store
+    /// Spawn `adl-server` for `data_dir`, wait for its ephemeral port, and store
     /// the base URL. Returns a handle with `base_url: None` (system-only) on any
     /// failure — never panics, never blocks setup beyond [`PORT_LINE_TIMEOUT`].
     pub fn spawn(data_dir: &Path) -> Arc<Self> {
         let Some(binary) = resolve_ad_server_binary() else {
             tracing::warn!(
-                "[adl-shell] ad-server binary not found; desktop runs system-only (business over HTTP unavailable). \
-                 Build it with `cargo build -p ad-server`."
+                "[adl-shell] adl-server binary not found; desktop runs system-only (business over HTTP unavailable). \
+                 Build it with `cargo build -p adl-server`."
             );
             return Arc::new(Self { child: RwLock::new(None), base_url: RwLock::new(None) });
         };
@@ -107,7 +107,7 @@ impl AdServerHandle {
         cmd.arg("--data-dir").arg(data_dir).arg("--port").arg("0");
         cmd.stdout(Stdio::piped()).stderr(Stdio::inherit());
         tracing::info!(
-            "[adl-shell] spawning ad-server: {} --data-dir {} --port 0",
+            "[adl-shell] spawning adl-server: {} --data-dir {} --port 0",
             binary.display(),
             data_dir.display()
         );
@@ -115,7 +115,7 @@ impl AdServerHandle {
         let mut child = match cmd.spawn() {
             Ok(c) => c,
             Err(e) => {
-                tracing::error!("[adl-shell] failed to spawn ad-server: {e}");
+                tracing::error!("[adl-shell] failed to spawn adl-server: {e}");
                 return Arc::new(Self { child: RwLock::new(None), base_url: RwLock::new(None) });
             },
         };
@@ -123,7 +123,7 @@ impl AdServerHandle {
         let rx = match child.stdout.take() {
             Some(stdout) => read_bound_port(stdout),
             None => {
-                tracing::error!("[adl-shell] ad-server stdout not piped; killing child");
+                tracing::error!("[adl-shell] adl-server stdout not piped; killing child");
                 kill_child_tree(&mut child);
                 return Arc::new(Self { child: RwLock::new(None), base_url: RwLock::new(None) });
             },
@@ -133,7 +133,7 @@ impl AdServerHandle {
         match port {
             Some(port) => {
                 let base_url = format!("http://127.0.0.1:{port}");
-                tracing::info!("[adl-shell] ad-server bound at {base_url}");
+                tracing::info!("[adl-shell] adl-server bound at {base_url}");
                 Arc::new(Self {
                     child: RwLock::new(Some(child)),
                     base_url: RwLock::new(Some(base_url)),
@@ -141,7 +141,7 @@ impl AdServerHandle {
             },
             None => {
                 tracing::warn!(
-                    "[adl-shell] ad-server did not report AD_SERVER_PORT within {PORT_LINE_TIMEOUT:?}; \
+                    "[adl-shell] adl-server did not report AD_SERVER_PORT within {PORT_LINE_TIMEOUT:?}; \
                      killing child and running system-only"
                 );
                 kill_child_tree(&mut child);
@@ -150,13 +150,13 @@ impl AdServerHandle {
         }
     }
 
-    /// The discovered ad-server base URL (`http://127.0.0.1:<port>`), or `None`
+    /// The discovered adl-server base URL (`http://127.0.0.1:<port>`), or `None`
     /// when the engine did not start.
     pub fn base_url(&self) -> Option<String> {
         self.base_url.read().map(|b| b.clone()).unwrap_or(None)
     }
 
-    /// Whether an ad-server is running (base URL known and child alive).
+    /// Whether an adl-server is running (base URL known and child alive).
     pub fn is_running(&self) -> bool {
         if self.base_url().is_none() {
             return false;
@@ -175,7 +175,7 @@ impl Drop for AdServerHandle {
     fn drop(&mut self) {
         if let Ok(mut guard) = self.child.write() {
             if let Some(mut child) = guard.take() {
-                tracing::info!("[adl-shell] shutting down ad-server (pid {})", child.id());
+                tracing::info!("[adl-shell] shutting down adl-server (pid {})", child.id());
                 kill_child_tree(&mut child);
             }
         }
