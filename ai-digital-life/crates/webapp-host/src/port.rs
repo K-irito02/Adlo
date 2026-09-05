@@ -6,10 +6,8 @@ use adl_errors::AppError;
 pub fn pick_free_port() -> Result<u16, AppError> {
     let listener = TcpListener::bind("127.0.0.1:0")
         .map_err(|e| AppError::Io(format!("bind ephemeral port failed: {e}")))?;
-    let port = listener
-        .local_addr()
-        .map_err(|e| AppError::Io(format!("local_addr failed: {e}")))?
-        .port();
+    let port =
+        listener.local_addr().map_err(|e| AppError::Io(format!("local_addr failed: {e}")))?.port();
     Ok(port)
 }
 

@@ -60,8 +60,10 @@ async fn run_open(
     }
     // npx 固定版本：当前先用 @latest；将来版本号可从
     // `adl_dsh_version::read_selected` 读取代入选中的 `<version>`（spec §8 待细化）。
-    let args =
-        vec!["@deepseek-ai/dsh@latest", "--profile", "web"].into_iter().map(String::from).collect::<Vec<_>>();
+    let args = vec!["@deepseek-ai/dsh@latest", "--profile", "web"]
+        .into_iter()
+        .map(String::from)
+        .collect::<Vec<_>>();
     let hp = spawn_and_wait_ready("npx", &args, std::time::Duration::from_secs(60)).await?;
     let url = hp.url.clone();
     *guard = Some(hp);
@@ -70,10 +72,7 @@ async fn run_open(
 
 /// POST `/dsh/close` — 关闭 dsh 进程。`keep=true`（缺省）：保留进程运行；
 /// `keep=false`：kill 子进程并置 `dsh_state` 为 `None`。返回 `true`。
-pub async fn close(
-    State(state): State<ServerState>,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn close(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
     let input: CloseInput = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
@@ -163,10 +162,7 @@ mod tests {
     async fn close_without_process_is_ok() {
         let dir = std::env::temp_dir().join(format!(
             "adl-dsh-close-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         let state = crate::engine::init_server_state(&dir).await.unwrap();
         let result = close_inner(&state, true).await.unwrap();

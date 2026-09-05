@@ -34,13 +34,8 @@ pub async fn spawn_and_wait_ready(
     let deadline = tokio::time::Instant::now() + timeout;
     loop {
         if tokio::time::Instant::now() >= deadline {
-            child
-                .kill()
-                .await
-                .map_err(|e| AppError::Io(format!("timeout kill failed: {e}")))?;
-            return Err(AppError::Timeout(format!(
-                "{program} not ready within {timeout:?}"
-            )));
+            child.kill().await.map_err(|e| AppError::Io(format!("timeout kill failed: {e}")))?;
+            return Err(AppError::Timeout(format!("{program} not ready within {timeout:?}")));
         }
         let is_up = client
             .get(&url)
