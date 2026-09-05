@@ -1,7 +1,8 @@
 use std::time::Duration;
 
 use adl_errors::AppError;
-use port::pick_free_port;
+
+pub use port::pick_free_port;
 
 pub mod port;
 
