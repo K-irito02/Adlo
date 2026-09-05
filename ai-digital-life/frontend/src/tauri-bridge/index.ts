@@ -4,6 +4,7 @@ import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyWsClient } from '../shared/ipc/pty-ws';
 import { createTauriAppBridge } from './tauri-app';
 import { createTauriBrowserBridge } from './tauri-browser';
+import { createTauriDshBridge } from './tauri-dsh';
 import { createTauriReservedBridge } from './tauri-reserved';
 import { createTauriWindowBridge } from './tauri-window';
 import { createTauriWorkspaceBridge } from './tauri-workspace';
@@ -53,6 +54,11 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     setLogMode: async (target: 'terminal' | 'debug', mode: 'overwrite' | 'append' | 'multi') => {
       await invoke('app_set_log_mode', { target, mode });
     },
+
+    // The dsh host runs in a standalone WebView2 sub-window (Task 7) that the
+    // native bridge creates/destroys alongside the HTTP dsh.open / dsh.close
+    // business routes. Browser-preview keeps the httpBridge iframe.
+    dsh: createTauriDshBridge(http.dsh),
 
     window: createTauriWindowBridge(),
     app: createTauriAppBridge(),

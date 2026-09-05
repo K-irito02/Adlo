@@ -25,10 +25,18 @@ export function DshHostRegion() {
     );
   }
 
-  // Tauri 桌面：WebView2 子窗口由 Task 7 承载到这个 .dsh-host-region 容器，
-  // 前端不渲染 iframe。容器保持存在以提供 WebView 定位锚点。
+  // Tauri 桌面：由 Task 7 的独立 WebView2 子窗口（adl-dsh-view-main）承载，
+  // 前端不渲染 iframe。此容器提供 WebView 定位锚点（后端创建时按主窗口中央区域
+  // 定位，如偏离此处布局可在后续以前端 DOM rect 精确校准）。
   if (isTauri) {
-    return <section className="dsh-host-region" data-shell="tauri" aria-label={t.dshTitle} />;
+    return (
+      <section
+        id="dsh-host-region"
+        className="dsh-host-region"
+        data-shell="tauri"
+        aria-label={t.dshTitle}
+      />
+    );
   }
 
   return (

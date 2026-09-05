@@ -146,6 +146,8 @@ fn main() {
             commands::browser::browser_page_meta_warmup,
             commands::browser::browser_page_meta_get_silent,
             commands::browser::browser_memory_pressure,
+            commands::browser::browser_create_dsh_view,
+            commands::browser::browser_destroy_dsh_view,
             commands::reserved::acp_get_status,
             commands::reserved::acp_get_config,
             commands::reserved::http_api_get_status,
