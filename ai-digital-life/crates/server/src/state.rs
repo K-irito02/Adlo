@@ -8,6 +8,7 @@ use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
 use adl_sysmon::SystemMonitor;
 use adl_types::WorkspaceMeta;
+use adl_webapp_host::HostedProcess;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::atomic::AtomicU16;
@@ -30,4 +31,8 @@ pub struct ServerState {
     pub mcp_client: McpClient,
     pub clipboard_store: Arc<ClipboardStore>,
     pub sysmon: Arc<StdMutex<SystemMonitor>>,
+    /// dsh 宿主壳运行时状态：当前被拉起的 dsh 进程（`None` 表示未运行）。
+    /// 仿 `lsp_clients` 用 tokio AsyncMutex 共享，`HostedProcess` 内含
+    /// `tokio::process::Child` 不能 Clone，故整体包在 Option 中由锁保护。
+    pub dsh_state: Arc<AsyncMutex<Option<HostedProcess>>>,
 }

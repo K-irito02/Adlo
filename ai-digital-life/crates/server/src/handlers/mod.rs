@@ -1,6 +1,7 @@
 pub mod ci;
 pub mod clipboard;
 pub mod commands_config;
+pub mod dsh;
 pub mod durable;
 pub mod health;
 pub mod lsp;

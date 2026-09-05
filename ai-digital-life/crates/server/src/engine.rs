@@ -10,6 +10,7 @@ use adl_types::now_ms;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
+use tokio::sync::Mutex as AsyncMutex;
 use tracing::info;
 
 fn resolve_log_dir() -> PathBuf {
@@ -67,6 +68,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     // 直接构造 state 时泄漏监听线程）。
     let clipboard_store = Arc::new(adl_clipboard::ClipboardStore::new(db.clone(), data_dir));
     let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
+    let dsh_state = Arc::new(AsyncMutex::new(None));
 
     Ok(ServerState {
         data_dir: data_dir.to_path_buf(),
@@ -83,6 +85,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         mcp_client,
         clipboard_store,
         sysmon,
+        dsh_state,
     })
 }
 

@@ -43,5 +43,6 @@ pub fn test_server_state() -> ServerState {
         mcp_client: McpClient::new(),
         clipboard_store: Arc::new(ClipboardStore::new(db, dir)),
         sysmon: Arc::new(StdMutex::new(SystemMonitor::new())),
+        dsh_state: Arc::new(AsyncMutex::new(None)),
     }
 }

@@ -13,6 +13,7 @@ adl-change-engine = { path = "../change-engine" }
 adl-ci-status = { path = "../ci-status" }
 adl-clipboard = { path = "../clipboard" }
 adl-credential = { path = "../credential" }
+adl-dsh-version = { path = "../dsh-version" }
 adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
 adl-kernel = { path = "../kernel" }
@@ -25,6 +26,7 @@ adl-storage = { path = "../storage" }
 adl-sysmon = { path = "../sysmon" }
 adl-tools = { path = "../tools" }
 adl-types = { path = "../types" }
+adl-webapp-host = { path = "../webapp-host" }
 adl-workspace = { path = "../workspace" }
 async-trait.workspace = true
 axum = { version = "0.7", features = ["ws"] }

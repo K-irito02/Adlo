@@ -102,6 +102,14 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/clipboard/thumb/:filename", get(handlers::clipboard::thumb))
         // System-monitor domain
         .route("/sysmon/snapshot", get(handlers::system_monitor::snapshot))
+        // Dsh-harness domain
+        .route("/dsh/open", post(handlers::dsh::open))
+        .route("/dsh/close", post(handlers::dsh::close))
+        .route("/dsh/get-version-status", post(handlers::dsh::get_version_status))
+        .route("/dsh/update", post(handlers::dsh::update))
+        .route("/dsh/revert", post(handlers::dsh::revert))
+        .route("/dsh/uninstall", post(handlers::dsh::uninstall))
+        .route("/dsh/reinstall", post(handlers::dsh::reinstall))
         // Web-tools domain
         .route("/web-tools/fetch", post(handlers::web_tools::web_fetch))
         .route("/web-tools/search", post(handlers::web_tools::web_search))
