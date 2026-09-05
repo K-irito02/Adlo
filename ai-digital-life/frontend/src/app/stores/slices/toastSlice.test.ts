@@ -25,19 +25,19 @@ describe('toastSlice', () => {
     expect(toasts[0].type).toBe('warning');
   });
 
-  it('showToast appends without removing existing toasts', () => {
+  it('showToast replaces existing toasts (no overlap)', () => {
     useAppStore.getState().showToast('first');
     useAppStore.getState().showToast('second');
-    expect(useAppStore.getState().toasts).toHaveLength(2);
+    const toasts = useAppStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toBe('second');
   });
 
   it('removeToast removes the toast with matching id', () => {
     const id1 = useAppStore.getState().showToast('one');
-    const id2 = useAppStore.getState().showToast('two');
     useAppStore.getState().removeToast(id1);
     const toasts = useAppStore.getState().toasts;
-    expect(toasts).toHaveLength(1);
-    expect(toasts[0].id).toBe(id2);
+    expect(toasts).toHaveLength(0);
   });
 
   it('removeToast is a no-op when id does not match', () => {
