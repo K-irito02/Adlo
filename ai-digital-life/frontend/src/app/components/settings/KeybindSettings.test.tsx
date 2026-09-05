@@ -4,7 +4,6 @@ import { render, screen, fireEvent, cleanup, act } from '@testing-library/react'
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
-import { commandRegistry } from '../../commands/commandRegistry';
 import { KeybindSettings } from './KeybindSettings';
 
 const mockT = new Proxy({} as Record<string, string>, {
@@ -25,7 +24,6 @@ describe('KeybindSettings', () => {
   beforeEach(() => {
     originalPlatform = navigator.platform;
     Object.defineProperty(navigator, 'platform', { value: 'Win32', configurable: true });
-    commandRegistry.reset();
     useAppStore.setState({
       appInfo: {
         appName: 'test',

@@ -1,6 +1,5 @@
-import React, { lazy, Suspense, useCallback, useMemo } from 'react';
+import React, { lazy, Suspense, useCallback } from 'react';
 import { EditorView } from '@codemirror/view';
-import { getAgentDecorationExtensions } from './editor-support/agentDecorations';
 import { FilePreviewRenderers } from './FilePreviewRenderers';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { useAppStore } from '@stores/slicedStore';
@@ -8,7 +7,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { StickyContext } from './editor-support/stickyContextView';
 import { DiffToolbar } from './DiffToolbar';
 import type { PatchHunkSummary } from '@features/patch-review';
-import { useStickyContext, useWrapColumn, useAgentDecorations, useEditorStateCache } from './hooks';
+import { useStickyContext, useWrapColumn, useEditorStateCache } from './hooks';
 import type { UseEditorOptionsResult } from './hooks';
 import { IconChevronDown, IconChevronRight } from '@icons';
 import type { RightPanelViewProps } from './types';
@@ -86,7 +85,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     hasActivePatch,
     activeFilePatch,
     activeFilePatchSummary,
-    agentHunkDecorations,
     stickyContextInput,
   } = useDiffStickyRanges({
     selectedFilePath,
@@ -104,10 +102,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     diffSideBySide,
   });
 
-  const editorExtensions = useMemo(() => [...getAgentDecorationExtensions()], []);
-
-  const diffEditorExtensions = useMemo(() => [...getAgentDecorationExtensions()], []);
-
   const stickyContextModel = useStickyContext(stickyContextInput);
 
   useWrapColumn({
@@ -115,13 +109,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     wordWrapEnabled: editorOptions.wordWrapEnabled,
     diffSideBySide,
     selectedFilePath,
-  });
-
-  useAgentDecorations({
-    cmViewRef,
-    agentAnnotationsEnabled: editorOptions.agentAnnotationsEnabled,
-    agentHunkDecorations,
-    hasActivePatch,
   });
 
   useEditorStateCache(cmViewRef, selectedFilePath);
@@ -266,7 +253,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
               lineNumbers={editorOptions.diffOptions.lineNumbers}
               wordWrap={editorOptions.diffOptions.wordWrap}
               onMount={handleDiffEditorMount}
-              extensions={diffEditorExtensions}
             />
           </Suspense>
         </div>
@@ -306,7 +292,6 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
           fileKey={selectedFilePath}
           onChange={props.onEditorChange}
           onMount={handleStandardEditorMount}
-          extensions={editorExtensions}
         />
       </Suspense>
     </div>

@@ -1,11 +1,5 @@
-import { useSyncExternalStore } from 'react';
-import { commandRegistry } from './commandRegistry';
-import type { CommandMeta } from './defaultCommands';
+import { DEFAULT_COMMANDS, type CommandMeta } from './defaultCommands';
 
 export function useCommandRegistry(): CommandMeta[] {
-  return useSyncExternalStore(
-    (listener) => commandRegistry.subscribe(listener),
-    () => commandRegistry.getAll(),
-    () => commandRegistry.getAll(),
-  );
+  return DEFAULT_COMMANDS;
 }

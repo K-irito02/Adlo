@@ -1,5 +1,3 @@
-export { useAgentDecorations } from './useAgentDecorations';
-export type { UseAgentDecorationsInput } from './useAgentDecorations';
 export { useEditorOptions } from './useEditorOptions';
 export type { UseEditorOptionsResult } from './useEditorOptions';
 export { useEditorStateCache } from './useEditorStateCache';

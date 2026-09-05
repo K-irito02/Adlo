@@ -1,16 +1,11 @@
 import { useMemo } from 'react';
 import type { FileOutlineItem, FilePatch, PatchSet } from '@ai-digital-life/kernel';
-import {
-  derivePatchHunkChangeKind,
-  summarizePatchFile,
-  type PatchFileSummary,
-} from '@features/patch-review';
+import { summarizePatchFile, type PatchFileSummary } from '@features/patch-review';
 import type { PreviewDiffVisualRange } from '@features/diff-viewer';
 import type { EditorRef } from '@stores/types';
 import type { FilePreviewModeState } from '@stores/slices/uiSlice';
 import type { FileCategory } from './fileTypeRouter';
 import { categorizeFile } from './fileTypeRouter';
-import type { AgentHunkDecoration } from './editor-support/agentDecorations';
 import type { UseStickyContextInput } from './hooks';
 
 export interface UseDiffStickyRangesInput {
@@ -36,7 +31,6 @@ export interface UseDiffStickyRangesOutput {
   activeFilePatch: FilePatch | undefined;
   activeFilePatchSummary: PatchFileSummary | undefined;
   stickyDiffRanges: PreviewDiffVisualRange[] | undefined;
-  agentHunkDecorations: AgentHunkDecoration[];
   stickyContextContent: string;
   stickyContextInput: UseStickyContextInput;
 }
@@ -97,7 +91,6 @@ export function useDiffStickyRanges(input: UseDiffStickyRangesInput): UseDiffSti
     activePatchSet,
     selectedPatchFilePath,
     collapsedPatchHunkIds,
-    selectedPatchHunkId,
     outline,
     getStickySourceEditor,
     editorSurfaceRef,
@@ -134,30 +127,6 @@ export function useDiffStickyRanges(input: UseDiffStickyRangesInput): UseDiffSti
     [activeFilePatchSummary],
   );
 
-  const agentHunkDecorations = useMemo<AgentHunkDecoration[]>(() => {
-    if (!activeFilePatch || !selectedFilePath) {
-      return [];
-    }
-    return activeFilePatch.hunks.map((hunk) => {
-      const changeKind = derivePatchHunkChangeKind(hunk);
-      const startLine = Math.max(1, hunk.newStart || hunk.oldStart || 1);
-      const lineSpan = Math.max(1, hunk.newLines || hunk.oldLines || 1);
-      const endLine = startLine + lineSpan - 1;
-      return {
-        startLine,
-        endLine,
-        changeKind,
-        decision: (hunk.decision === 'accepted'
-          ? 'accepted'
-          : hunk.decision === 'rejected'
-            ? 'rejected'
-            : 'pending') as 'accepted' | 'rejected' | 'pending',
-        isSelected: selectedPatchHunkId === hunk.id,
-        hunkId: hunk.id,
-      };
-    });
-  }, [activeFilePatch, selectedPatchHunkId, selectedFilePath]);
-
   const stickyContextContent =
     filePatch && filePatch.relativePath === selectedFilePath
       ? (filePatch.afterContent ?? '')
@@ -193,7 +162,6 @@ export function useDiffStickyRanges(input: UseDiffStickyRangesInput): UseDiffSti
     activeFilePatch,
     activeFilePatchSummary,
     stickyDiffRanges,
-    agentHunkDecorations,
     stickyContextContent,
     stickyContextInput,
   };

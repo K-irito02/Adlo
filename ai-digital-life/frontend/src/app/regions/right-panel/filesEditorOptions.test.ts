@@ -12,9 +12,10 @@ const useWrapColumnSource = readFileSync(
 );
 
 describe('files panel editor options', () => {
-  it('uses CodeMirror editor with agent decoration extensions', () => {
+  it('uses CodeMirror editor without agent decoration extensions', () => {
     expect(editorSurfaceShellSource).toContain('CodeEditor');
-    expect(editorSurfaceShellSource).toContain('getAgentDecorationExtensions');
+    expect(editorSurfaceShellSource).not.toContain('getAgentDecorationExtensions');
+    expect(editorSurfaceShellSource).not.toContain('agentDecorations');
   });
 
   it('uses the shared custom CodeMirror fold gutter marker and tooltip overlay', () => {

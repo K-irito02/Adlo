@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../stores/slicedStore';
-import { commandRegistry } from '../commands/commandRegistry';
+import { DEFAULT_COMMANDS } from '../commands/defaultCommands';
 import type { CommandMeta } from '../commands/defaultCommands';
 import { normalizeKey, signatures, EMPTY_KEYBINDS } from '../../shared/keybinds';
 
@@ -54,7 +54,7 @@ export function useKeyboardShortcuts(callbacks: ActionCallbacks): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const commands = commandRegistry.getAll();
+      const commands = DEFAULT_COMMANDS;
       const match = findMatchingCommand(event, commands, keybinds);
       if (!match) {
         return;
