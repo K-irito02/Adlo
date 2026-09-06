@@ -151,6 +151,99 @@ pub async fn spawn_and_wait_ready(
     }
 }
 
+/// 直接通过 node.js 启动 dsh（使用内置包路径）。
+///
+/// 与 `spawn_and_wait_ready` 类似，但专门用于 `node <script_path> [extra_args...]` 场景。
+/// 构建参数时将 `script_path` 作为第一参数，`extra_args` 追加其后。
+/// 轮询两个端口：`pick_free_port()` 返回的临时端口和 `DSH_DEFAULT_PORT` (3080)。
+pub async fn spawn_node_direct(
+    node_bin: &str,
+    script_path: &str,
+    extra_args: &[String],
+    timeout: Duration,
+) -> Result<HostedProcess, AppError> {
+    let port = pick_free_port()?;
+    let url = format!("http://127.0.0.1:{port}");
+    let default_url = format!("http://127.0.0.1:{DSH_DEFAULT_PORT}");
+
+    let mut args = vec![script_path.to_string()];
+    args.extend_from_slice(extra_args);
+
+    tracing::info!(?node_bin, ?script_path, ?port, ?url, "spawn_node_direct: starting process");
+    let mut child = try_spawn(node_bin, &args)?;
+
+    if let Some(pid) = child.id() {
+        tracing::info!(?node_bin, ?pid, "spawn_node_direct: child process started");
+    }
+
+    let deadline = tokio::time::Instant::now() + timeout;
+    let mut check_count = 0;
+
+    loop {
+        if tokio::time::Instant::now() >= deadline {
+            tracing::error!(?node_bin, ?port, ?check_count, "spawn_node_direct: timeout");
+            if let Some(mut stdout) = child.stdout.take() {
+                use tokio::io::AsyncReadExt;
+                let mut output = String::new();
+                if tokio::time::timeout(Duration::from_secs(2), stdout.read_to_string(&mut output))
+                    .await
+                    .is_ok()
+                {
+                    tracing::error!(?node_bin, "spawn_node_direct: stdout: {}", output);
+                }
+            }
+            if let Some(mut stderr) = child.stderr.take() {
+                use tokio::io::AsyncReadExt;
+                let mut output = String::new();
+                if tokio::time::timeout(Duration::from_secs(2), stderr.read_to_string(&mut output))
+                    .await
+                    .is_ok()
+                {
+                    tracing::error!(?node_bin, "spawn_node_direct: stderr: {}", output);
+                }
+            }
+            if let Err(e) = child.kill().await {
+                tracing::error!(?node_bin, "spawn_node_direct: failed to kill on timeout: {e}");
+            }
+            return Err(AppError::Timeout(format!("{node_bin} not ready within {timeout:?}")));
+        }
+        check_count += 1;
+
+        if check_port(&default_url).await {
+            tracing::info!(
+                ?node_bin,
+                default_url,
+                ?check_count,
+                "spawn_node_direct: process is ready on default port"
+            );
+            return Ok(HostedProcess { child, url: default_url, port: DSH_DEFAULT_PORT });
+        }
+
+        if check_port(&url).await {
+            tracing::info!(
+                ?node_bin,
+                ?port,
+                ?check_count,
+                "spawn_node_direct: process is ready on specified port"
+            );
+            return Ok(HostedProcess { child, url, port });
+        }
+
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+}
+
+/// 检查指定 URL 是否可达（HTTP 2xx）。
+async fn check_port(url: &str) -> bool {
+    reqwest::Client::new()
+        .get(url)
+        .timeout(Duration::from_secs(1))
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
