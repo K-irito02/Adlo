@@ -11,6 +11,7 @@ export const settingsEn = {
   settingsWorkspace: 'Workspace',
   settingsShortcuts: 'Shortcuts',
   settingsBrowser: 'Browser',
+  settingsDsh: 'DeepSeek Harness',
 
   // Common settings
   settingsLanguage: 'Language',

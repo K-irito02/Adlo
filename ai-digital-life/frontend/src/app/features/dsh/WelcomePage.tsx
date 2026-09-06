@@ -3,8 +3,6 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { Spinner } from '@components/Spinner';
-import { DownloadSettingsModal } from './DownloadSettingsModal';
-import { SourceStatusCard } from './SourceStatusCard';
 
 /** 模拟版本发布时间线数据（按版本号从新到旧排列） */
 const MOCK_VERSION_TIMELINE: Record<string, string> = {
@@ -252,7 +250,6 @@ export function WelcomePage() {
   const [showDownloadIcon, setShowDownloadIcon] = useState(false);
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const [uninstallingVersion, setUninstallingVersion] = useState<string | null>(null);
-  const [settingsVisible, setSettingsVisible] = useState(false);
   const checkingRef = useRef(false);
   const openingRef = useRef(false);
   const downloadingRef = useRef(false);
@@ -505,10 +502,6 @@ export function WelcomePage() {
     void actions.fetchDshVersionStatus();
   }, [actions]);
 
-  useEffect(() => {
-    void actions.fetchSourceStatus();
-  }, [actions]);
-
   return (
     <>
       <section className="adl-center adl-center--dsh-placeholder" aria-label={t.dshTitle}>
@@ -720,10 +713,8 @@ export function WelcomePage() {
               ) : null}
             </div>
           </div>
-          <SourceStatusCard onOpenSettings={() => setSettingsVisible(true)} />
         </div>
       </section>
-      <DownloadSettingsModal visible={settingsVisible} onClose={() => setSettingsVisible(false)} />
     </>
   );
 }

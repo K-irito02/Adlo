@@ -11,6 +11,7 @@ export const settingsZh = {
   settingsWorkspace: '工作区',
   settingsShortcuts: '快捷键',
   settingsBrowser: '浏览器',
+  settingsDsh: 'DeepSeek Harness',
 
   // 通用设置项
   settingsLanguage: '语言',

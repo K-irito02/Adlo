@@ -385,7 +385,7 @@ export interface RepoMapNode {
   children: RepoMapNode[];
 }
 
-export type SettingsGroupId = 'general' | 'workspace' | 'shortcuts' | 'browser';
+export type SettingsGroupId = 'general' | 'workspace' | 'shortcuts' | 'browser' | 'dsh';
 
 export interface SettingItem {
   id: string;
