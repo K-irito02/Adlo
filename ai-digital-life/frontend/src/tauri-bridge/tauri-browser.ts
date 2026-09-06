@@ -19,6 +19,8 @@ export function createTauriBrowserBridge(): BrowserBridge {
       tabId: string,
       bounds: { x: number; y: number; width: number; height: number },
     ) => invokeIpc<void>('browser_set_tab_bounds', { tabId, bounds }).then(() => undefined),
+    setDshBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
+      invokeIpc<void>('browser_set_dsh_bounds', { bounds }).then(() => undefined),
     memoryPressure: () =>
       invokeIpc<boolean>('browser_memory_pressure').then((r) => r.ok && !!r.data),
     goBackTab: (tabId: string) =>

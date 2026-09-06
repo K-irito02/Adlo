@@ -148,6 +148,7 @@ fn main() {
             commands::browser::browser_memory_pressure,
             commands::browser::browser_create_dsh_view,
             commands::browser::browser_destroy_dsh_view,
+            commands::browser::browser_set_dsh_bounds,
             commands::reserved::acp_get_status,
             commands::reserved::acp_get_config,
             commands::reserved::http_api_get_status,

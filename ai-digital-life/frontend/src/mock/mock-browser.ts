@@ -10,6 +10,9 @@ export const mockBrowser: BrowserBridge = {
     _tabId: string,
     _bounds: { x: number; y: number; width: number; height: number }
   ) => Promise.resolve(),
+  setDshBounds: (
+    _bounds: { x: number; y: number; width: number; height: number }
+  ) => Promise.resolve(),
   memoryPressure: () => Promise.resolve(false),
   goBackTab: (_tabId: string) => Promise.resolve(false),
   goForwardTab: (_tabId: string) => Promise.resolve(false),

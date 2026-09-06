@@ -159,7 +159,6 @@ pub async fn browser_create_dsh_view(
 
             if let Some(webview) = window.get_webview(DSH_VIEW_LABEL) {
                 apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url);
-                set_webview_bounds(&window, DSH_VIEW_LABEL, dsh_central_bounds(&window)?)?;
             }
             Ok(())
         })();
@@ -196,6 +195,38 @@ pub async fn browser_destroy_dsh_view(
     Ok(ipc(rx.await.map_err(|e| AppError::Internal(format!("destroy channel: {e}")))?))
 }
 
+/// Reposition / resize the standalone dsh WebView2 sub-window.
+///
+/// Called by the frontend's `useDshWebViewBounds` hook whenever the center-pane
+/// container changes size (window resize, sidebar drag, etc.).  Uses
+/// `set_webview_bounds` directly because the dsh view is never registered with
+/// `BrowserManager`.
+#[tauri::command]
+pub async fn browser_set_dsh_bounds(
+    app: tauri::AppHandle,
+    bounds: Bounds,
+) -> Result<IpcResult<()>, CommandError> {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let app_inner = app.clone();
+
+    app.run_on_main_thread(move || {
+        let result = (|| -> Result<(), AppError> {
+            let window = app_inner
+                .get_window("main")
+                .ok_or_else(|| AppError::Internal("main window not found".into()))?;
+            set_webview_bounds(&window, DSH_VIEW_LABEL, bounds)?;
+            Ok(())
+        })();
+        let _ = tx.send(result);
+    })
+    .map_err(|e| AppError::Internal(format!("main thread dispatch: {e}")))?;
+
+    Ok(ipc(
+        rx.await
+            .map_err(|e| AppError::Internal(format!("set dsh bounds channel: {e}")))?,
+    ))
+}
+
 /// Close the dsh webview for the given main window by its fixed label (no-op if
 /// absent). Returns the close error surfaced for logging.
 fn destroy_dsh_webview(window: &tauri::Window<tauri::Wry>) -> Result<(), AppError> {
@@ -230,23 +261,6 @@ fn set_webview_bounds(
         )),
     };
     webview.set_bounds(rect).map_err(|e| AppError::Internal(format!("failed to set bounds: {e}")))
-}
-
-/// Approximate central-region bounds for the dsh view from the main window's
-/// current inner size.
-///
-/// The exact left-sidebar / right-panel widths are a frontend concern and are
-/// unknown to the backend; here we approximate the middle region (between the two
-/// side columns) as a horizontally centered band (70% width starting at 15% from
-/// the left, full height). Validated visually during GUI verification; a future
-/// frontend-driven bounds command could layer exact placement on top.
-fn dsh_central_bounds(window: &tauri::Window<tauri::Wry>) -> Result<Bounds, AppError> {
-    let size = window
-        .inner_size()
-        .map_err(|e| AppError::Internal(format!("failed to read window inner size: {e}")))?;
-    let w = size.width as f64;
-    let h = size.height as f64;
-    Ok(Bounds { x: w * 0.15, y: 0.0, width: w * 0.70, height: h })
 }
 
 /// Attach a child WebView to the main window at an off-screen position and set

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
+import { useDshWebViewBounds } from './useDshWebViewBounds';
 
 /**
  * 中间区 dsh 宿主渲染层。
@@ -17,12 +18,20 @@ export function DshHostRegion() {
   const [iframeBlocked, setIframeBlocked] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadDetected = useRef(false);
+  const { containerRef, updateBounds } = useDshWebViewBounds();
 
   const handleOpenExternal = useCallback(() => {
     if (url) {
       window.open(url, '_blank', 'noopener,noreferrer');
     }
   }, [url]);
+
+  // Tauri 模式：挂载后立即同步一次精确 bounds（ ResizeObserver 首次回调可能延迟）
+  useEffect(() => {
+    if (isTauri && url) {
+      updateBounds();
+    }
+  }, [isTauri, url, updateBounds]);
 
   // 检测 iframe 是否被 CSP/X-Frame-Options 拦截：
   // load 事件触发后，尝试访问 contentDocument；若跨域则为 blocked。
@@ -72,6 +81,7 @@ export function DshHostRegion() {
   if (isTauri) {
     return (
       <section
+        ref={containerRef}
         id="dsh-host-region"
         className="adl-app-host"
         data-shell="tauri"
