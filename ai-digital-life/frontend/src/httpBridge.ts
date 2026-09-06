@@ -70,7 +70,13 @@ import type {
 import type { WorkspaceBridge } from './shared/ipc';
 import type { SnapshotRecord, RevertResult } from './shared/ipc/snapshot';
 import type { ReferenceConfig } from './shared/ipc/reference';
-import type { DshOpenResult, DshVersionStatus } from './shared/ipc/dsh';
+import type {
+  DshOpenResult,
+  DshVersionStatus,
+  DshSourceStatus,
+  DshSourceConfig,
+  DshTestResult,
+} from './shared/ipc/dsh';
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { ClipboardBridge } from './shared/ipc/clipboard';
 import type { SystemMonitorBridge } from './shared/ipc/system_monitor';
@@ -923,6 +929,11 @@ export function createHttpBridge({
       revert: (version: string) => call<string>(baseUrl, '/dsh/revert', POST({ version })),
       uninstall: (version: string) => call<boolean>(baseUrl, '/dsh/uninstall', POST({ version })),
       reinstall: () => call<string>(baseUrl, '/dsh/reinstall', POST({})),
+      getSourceStatus: () => call<DshSourceStatus>(baseUrl, '/dsh/source-status', POST({})),
+      saveSourceConfig: (config: DshSourceConfig) =>
+        call<boolean>(baseUrl, '/dsh/source-config', POST(config)),
+      testSource: (url: string) =>
+        call<DshTestResult>(baseUrl, '/dsh/test-source', POST({ url })),
     },
 
     // ── Workspace domain (workspace_* + sidebar + git + git-vis).

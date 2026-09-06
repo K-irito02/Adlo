@@ -3,6 +3,43 @@ import type { IpcResult } from '@ai-digital-life/kernel';
 export type { IpcResult };
 
 /**
+ * dsh 下载源状态（bundled / system / running / config）
+ */
+export interface DshSourceStatus {
+  bundled: { version: string; path: string } | null;
+  system: { path: string; version: string | null } | null;
+  running: { url: string; port: number } | null;
+  config: {
+    npm_registry: string;
+    dsh_mirror: string | null;
+    proxy_mode: string;
+  };
+}
+
+/**
+ * dsh 下载源配置（可选字段，PATCH 语义）
+ */
+export interface DshSourceConfig {
+  npm_registry?: string;
+  dsh_mirror?: string | null;
+  proxy?: {
+    mode?: 'auto' | 'manual' | 'none';
+    http_proxy?: string | null;
+    https_proxy?: string | null;
+    no_proxy?: string | null;
+  };
+}
+
+/**
+ * 下载源可达性测试结果
+ */
+export interface DshTestResult {
+  reachable: boolean;
+  latency_ms: number | null;
+  error: string | null;
+}
+
+/**
  * dsh（DeepSeek Harness）宿主壳桥接能力。
  * 业务逻辑位于 `crates/server` 的 `/dsh/*` HTTP handler（httpBridge 直连）。
  * 用于: 拉起/关闭 dsh 进程、查询/升级/回退/卸载/重装 dsh cli 版本。
@@ -44,6 +81,21 @@ export interface DshBridge {
    * @see httpBridge.ts → dsh.reinstall (/dsh/reinstall)
    */
   reinstall: () => Promise<IpcResult<string>>;
+  /**
+   * 获取 dsh 下载源状态（bundled / system / running / config）
+   * @see httpBridge.ts → dsh.getSourceStatus (/dsh/source-status)
+   */
+  getSourceStatus: () => Promise<IpcResult<DshSourceStatus>>;
+  /**
+   * 保存 dsh 下载源配置（npm registry / mirror / proxy）
+   * @see httpBridge.ts → dsh.saveSourceConfig (/dsh/source-config)
+   */
+  saveSourceConfig: (config: DshSourceConfig) => Promise<IpcResult<boolean>>;
+  /**
+   * 测试指定下载源 URL 的可达性和延迟
+   * @see httpBridge.ts → dsh.testSource (/dsh/test-source)
+   */
+  testSource: (url: string) => Promise<IpcResult<DshTestResult>>;
 }
 
 /**

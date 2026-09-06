@@ -1,6 +1,6 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
-import type { DshOpenResult } from '../../../shared/ipc/dsh';
+import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../../shared/ipc/dsh';
 import { captureError, clearError } from '../shared';
 const SCOPE = 'dsh';
 
@@ -149,6 +149,63 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       }
       await refreshVersionStatusSilently(get);
       return true;
+    },
+
+    /**
+     * [fetchSourceStatus - 拉取 dsh 下载源状态（bundled / system / running / config）]
+     * @returns true=成功；false=失败（已记录全局错误卡片）
+     * @reads 无
+     * @writes dshSlice.sourceStatus
+     * @see httpBridge.ts → dsh.getSourceStatus (/dsh/source-status)
+     */
+    fetchSourceStatus: async (): Promise<boolean> => {
+      clearError(get, SCOPE);
+      const result = await window.digitalLife.dsh.getSourceStatus();
+      if (result.ok) {
+        get().setDshSourceStatus(result.data);
+        return true;
+      }
+      captureError(get, result.error, SCOPE);
+      return false;
+    },
+
+    /**
+     * [saveSourceConfig - 保存 dsh 下载源配置（npm registry / mirror / proxy）]
+     * @returns true=成功；false=失败（已记录全局错误卡片）
+     * @reads 无
+     * @writes dshSlice.sourceStatus（保存后自动刷新）
+     * @see httpBridge.ts → dsh.saveSourceConfig (/dsh/source-config)
+     */
+    saveSourceConfig: async (config: DshSourceConfig): Promise<boolean> => {
+      clearError(get, SCOPE);
+      const result = await window.digitalLife.dsh.saveSourceConfig(config);
+      if (!result.ok) {
+        captureError(get, result.error, SCOPE);
+        return false;
+      }
+      // 保存成功后自动刷新源状态
+      const statusResult = await window.digitalLife.dsh.getSourceStatus();
+      if (statusResult.ok) {
+        get().setDshSourceStatus(statusResult.data);
+      }
+      return true;
+    },
+
+    /**
+     * [testSource - 测试指定下载源 URL 的可达性和延迟]
+     * @returns DshTestResult | null（null 表示请求失败已记录错误卡片）
+     * @reads 无
+     * @writes 无
+     * @see httpBridge.ts → dsh.testSource (/dsh/test-source)
+     */
+    testSource: async (url: string): Promise<DshTestResult | null> => {
+      clearError(get, SCOPE);
+      const result = await window.digitalLife.dsh.testSource(url);
+      if (result.ok) {
+        return result.data;
+      }
+      captureError(get, result.error, SCOPE);
+      return null;
     },
   };
 }
