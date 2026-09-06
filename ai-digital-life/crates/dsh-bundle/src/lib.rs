@@ -40,23 +40,15 @@ pub fn detect(data_dir: &Path) -> Result<Option<BundledDsh>, AppError> {
         return Ok(None);
     }
 
-    let manifest_content = std::fs::read_to_string(&manifest_path).map_err(|e| {
-        AppError::Io(format!(
-            "Failed to read {}: {e}",
-            manifest_path.display()
-        ))
-    })?;
+    let manifest_content = std::fs::read_to_string(&manifest_path)
+        .map_err(|e| AppError::Io(format!("Failed to read {}: {e}", manifest_path.display())))?;
     let manifest: BundleManifest = serde_json::from_str(&manifest_content).map_err(|e| {
         AppError::Config(format!("Failed to parse {}: {e}", manifest_path.display()))
     })?;
 
     let version = bundled_version(data_dir)?.unwrap_or_else(|| manifest.version.clone());
 
-    Ok(Some(BundledDsh {
-        version,
-        path: dir.join(PACKAGE_DIR),
-        manifest,
-    }))
+    Ok(Some(BundledDsh { version, path: dir.join(PACKAGE_DIR), manifest }))
 }
 
 /// Read the bundled version string from `data_dir/dsh-bundle/version.txt`.
@@ -65,9 +57,8 @@ pub fn bundled_version(data_dir: &Path) -> Result<Option<String>, AppError> {
     if !path.exists() {
         return Ok(None);
     }
-    let content = std::fs::read_to_string(&path).map_err(|e| {
-        AppError::Io(format!("Failed to read {}: {e}", path.display()))
-    })?;
+    let content = std::fs::read_to_string(&path)
+        .map_err(|e| AppError::Io(format!("Failed to read {}: {e}", path.display())))?;
     Ok(Some(content.trim().to_string()))
 }
 
@@ -95,10 +86,7 @@ mod tests {
     fn setup() -> PathBuf {
         let tmp = std::env::temp_dir().join(format!(
             "adl_dsh_bundle_{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
         tmp
     }
@@ -135,11 +123,8 @@ mod tests {
             npm_registry: "https://registry.npmjs.org".into(),
             package_hash: None,
         };
-        fs::write(
-            dir.join(MANIFEST_FILE),
-            serde_json::to_string_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
+        fs::write(dir.join(MANIFEST_FILE), serde_json::to_string_pretty(&manifest).unwrap())
+            .unwrap();
         assert!(detect(&tmp).unwrap().is_none());
         teardown(&tmp);
     }
@@ -157,11 +142,8 @@ mod tests {
             npm_registry: "https://registry.npmjs.org".into(),
             package_hash: Some("abc123".into()),
         };
-        fs::write(
-            dir.join(MANIFEST_FILE),
-            serde_json::to_string_pretty(&manifest).unwrap(),
-        )
-        .unwrap();
+        fs::write(dir.join(MANIFEST_FILE), serde_json::to_string_pretty(&manifest).unwrap())
+            .unwrap();
         fs::write(pkg.join(BIN_JS), "console.log('dsh')").unwrap();
 
         let bundled = detect(&tmp).unwrap().unwrap();
@@ -184,10 +166,7 @@ mod tests {
         let dir = tmp.join("dsh-bundle");
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join(VERSION_FILE), "  3.1.4  \n").unwrap();
-        assert_eq!(
-            bundled_version(&tmp).unwrap().unwrap(),
-            "3.1.4"
-        );
+        assert_eq!(bundled_version(&tmp).unwrap().unwrap(), "3.1.4");
         teardown(&tmp);
     }
 

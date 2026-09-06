@@ -932,8 +932,7 @@ export function createHttpBridge({
       getSourceStatus: () => call<DshSourceStatus>(baseUrl, '/dsh/source-status', POST({})),
       saveSourceConfig: (config: DshSourceConfig) =>
         call<boolean>(baseUrl, '/dsh/source-config', POST(config)),
-      testSource: (url: string) =>
-        call<DshTestResult>(baseUrl, '/dsh/test-source', POST({ url })),
+      testSource: (url: string) => call<DshTestResult>(baseUrl, '/dsh/test-source', POST({ url })),
     },
 
     // ── Workspace domain (workspace_* + sidebar + git + git-vis).

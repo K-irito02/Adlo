@@ -158,7 +158,9 @@ export function DownloadSettingsModal({ visible, onClose }: Props) {
             {t.dshSettingsSource}
           </legend>
           <div className="adl-download-settings__sources">
-            <label className={`adl-download-settings__source${sourceType === 'npmjs' ? ' is-selected' : ''}`}>
+            <label
+              className={`adl-download-settings__source${sourceType === 'npmjs' ? ' is-selected' : ''}`}
+            >
               <input
                 type="radio"
                 name="dsh-source"
@@ -168,7 +170,9 @@ export function DownloadSettingsModal({ visible, onClose }: Props) {
               />
               <span>{t.dshSettingsSourceNpmjs}</span>
             </label>
-            <label className={`adl-download-settings__source${sourceType === 'npmmirror' ? ' is-selected' : ''}`}>
+            <label
+              className={`adl-download-settings__source${sourceType === 'npmmirror' ? ' is-selected' : ''}`}
+            >
               <input
                 type="radio"
                 name="dsh-source"
@@ -178,7 +182,9 @@ export function DownloadSettingsModal({ visible, onClose }: Props) {
               />
               <span>{t.dshSettingsSourceNpmmirror}</span>
             </label>
-            <label className={`adl-download-settings__source${sourceType === 'custom' ? ' is-selected' : ''}`}>
+            <label
+              className={`adl-download-settings__source${sourceType === 'custom' ? ' is-selected' : ''}`}
+            >
               <input
                 type="radio"
                 name="dsh-source"

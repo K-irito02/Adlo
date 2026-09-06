@@ -41,12 +41,7 @@ pub struct ProxyConfig {
 
 impl Default for ProxyConfig {
     fn default() -> Self {
-        Self {
-            mode: ProxyMode::Auto,
-            http_proxy: None,
-            https_proxy: None,
-            no_proxy: None,
-        }
+        Self { mode: ProxyMode::Auto, http_proxy: None, https_proxy: None, no_proxy: None }
     }
 }
 
@@ -107,7 +102,7 @@ pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Clien
     match config.proxy.mode {
         ProxyMode::None => {
             builder = builder.no_proxy();
-        }
+        },
         ProxyMode::Manual => {
             let http_proxy = config.proxy.http_proxy.clone();
             let https_proxy = config.proxy.https_proxy.clone();
@@ -118,10 +113,7 @@ pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Clien
                     let host = url.host_str().unwrap_or("");
                     let skip = no_proxy
                         .as_ref()
-                        .map(|np| {
-                            np.split(',')
-                                .any(|p| !p.is_empty() && host.contains(p.trim()))
-                        })
+                        .map(|np| np.split(',').any(|p| !p.is_empty() && host.contains(p.trim())))
                         .unwrap_or(false);
                     if skip {
                         None
@@ -134,8 +126,8 @@ pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Clien
                 builder = builder.proxy(proxy);
             } else {
                 if let Some(ref url) = http_proxy {
-                    let proxy =
-                        reqwest::Proxy::http(url).map_err(|e| AppError::Config(format!("Invalid http_proxy: {e}")))?;
+                    let proxy = reqwest::Proxy::http(url)
+                        .map_err(|e| AppError::Config(format!("Invalid http_proxy: {e}")))?;
                     builder = builder.proxy(proxy);
                 }
                 if let Some(ref url) = https_proxy {
@@ -144,10 +136,10 @@ pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Clien
                     builder = builder.proxy(proxy);
                 }
             }
-        }
+        },
         ProxyMode::Auto => {
             // reqwest with system-proxy feature will use system proxy by default
-        }
+        },
     }
 
     builder
@@ -157,10 +149,7 @@ pub fn build_http_client(config: &DownloadSourceConfig) -> Result<reqwest::Clien
 }
 
 pub async fn test_source(url: &str, timeout: Duration) -> SourceStatus {
-    let client = match reqwest::Client::builder()
-        .timeout(timeout)
-        .build()
-    {
+    let client = match reqwest::Client::builder().timeout(timeout).build() {
         Ok(c) => c,
         Err(e) => {
             return SourceStatus {
@@ -168,7 +157,7 @@ pub async fn test_source(url: &str, timeout: Duration) -> SourceStatus {
                 latency_ms: None,
                 error: Some(format!("Failed to build client: {e}")),
             };
-        }
+        },
     };
 
     let start = std::time::Instant::now();
@@ -179,18 +168,10 @@ pub async fn test_source(url: &str, timeout: Duration) -> SourceStatus {
             SourceStatus {
                 reachable,
                 latency_ms: Some(latency),
-                error: if reachable {
-                    None
-                } else {
-                    Some(format!("HTTP {}", resp.status()))
-                },
+                error: if reachable { None } else { Some(format!("HTTP {}", resp.status())) },
             }
-        }
-        Err(e) => SourceStatus {
-            reachable: false,
-            latency_ms: None,
-            error: Some(e.to_string()),
         },
+        Err(e) => SourceStatus { reachable: false, latency_ms: None, error: Some(e.to_string()) },
     }
 }
 
@@ -246,15 +227,9 @@ mod tests {
         }"#;
         let config: DownloadSourceConfig = serde_json::from_str(json).unwrap();
         assert_eq!(config.version, 1);
-        assert_eq!(
-            config.dsh_mirror.as_deref(),
-            Some("https://mirror.example.com")
-        );
+        assert_eq!(config.dsh_mirror.as_deref(), Some("https://mirror.example.com"));
         assert_eq!(config.proxy.mode, ProxyMode::Manual);
-        assert_eq!(
-            config.proxy.http_proxy.as_deref(),
-            Some("http://proxy:8080")
-        );
+        assert_eq!(config.proxy.http_proxy.as_deref(), Some("http://proxy:8080"));
         assert!(!config.prefer_offline);
     }
 

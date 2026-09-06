@@ -62,9 +62,7 @@ export function SourceStatusCard({ onOpenSettings }: Props) {
       <div className="adl-app-welcome__source-row">
         <span className={`status-dot${mirrorName ? ' is-connected' : ''}`} />
         <span>
-          {mirrorName
-            ? t.dshStatusMirror.replace('{name}', mirrorName)
-            : t.dshStatusMirrorNone}
+          {mirrorName ? t.dshStatusMirror.replace('{name}', mirrorName) : t.dshStatusMirrorNone}
         </span>
       </div>
       <button

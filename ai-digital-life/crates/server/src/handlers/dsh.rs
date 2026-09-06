@@ -286,16 +286,8 @@ async fn run_open(
         },
         adl_dsh_version::DshSource::System { info } => {
             tracing::info!(path = %info.path.display(), version = ?info.version, "dsh::run_open: using system dsh");
-            let args = vec![
-                "--profile".to_string(),
-                "web".to_string(),
-                "--no-open".to_string(),
-            ];
-            spawn_and_wait_ready(
-                &info.path.to_string_lossy(),
-                &args,
-                timeout,
-            ).await?
+            let args = vec!["--profile".to_string(), "web".to_string(), "--no-open".to_string()];
+            spawn_and_wait_ready(&info.path.to_string_lossy(), &args, timeout).await?
         },
         adl_dsh_version::DshSource::Bundled { bundled } => {
             tracing::info!(version = %bundled.version, path = %bundled.path.display(), "dsh::run_open: using bundled dsh");
@@ -310,7 +302,12 @@ async fn run_open(
                 None => "@deepseek-ai/dsh@latest".to_string(),
             };
             let registry = adl_download_source::resolve_registry(&download_config);
-            tracing::info!(?package_spec, ?registry, ?version, "dsh::run_open: using download source");
+            tracing::info!(
+                ?package_spec,
+                ?registry,
+                ?version,
+                "dsh::run_open: using download source"
+            );
             let mut args = Vec::new();
             // 传递注册表配置给 npx（必须在 package spec 之前）
             if registry != "https://registry.npmjs.org" {
@@ -407,40 +404,34 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
 }
 
 /// POST `/dsh/source-status` — 获取下载源状态（bundled/system/running/config）。
-pub async fn get_source_status(
-    State(state): State<ServerState>,
-) -> impl IntoResponse {
+pub async fn get_source_status(State(state): State<ServerState>) -> impl IntoResponse {
     let result = get_source_status_inner(&state).await;
     ipc::to_response(result)
 }
 
-async fn get_source_status_inner(
-    state: &ServerState,
-) -> Result<serde_json::Value, AppError> {
+async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
     let data_dir = &state.data_dir;
 
     let bundled = adl_dsh_bundle::detect(data_dir)?
         .map(|b| serde_json::json!({ "version": b.version, "path": b.path }));
 
-    let system = adl_dsh_version::detect_system_dsh()
-        .map(|info| {
-            serde_json::json!({
-                "path": info.path,
-                "version": info.version,
-            })
-        });
+    let system = adl_dsh_version::detect_system_dsh().map(|info| {
+        serde_json::json!({
+            "path": info.path,
+            "version": info.version,
+        })
+    });
 
-    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT)
-        .map(|info| {
-            serde_json::json!({
-                "url": info.url,
-                "port": info.port,
-            })
-        });
+    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).map(|info| {
+        serde_json::json!({
+            "url": info.url,
+            "port": info.port,
+        })
+    });
 
     let config = adl_download_source::load(data_dir)?;
-    let config_value = serde_json::to_value(&config)
-        .map_err(|e| AppError::Internal(e.to_string()))?;
+    let config_value =
+        serde_json::to_value(&config).map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(serde_json::json!({
         "bundled": bundled,
@@ -463,8 +454,8 @@ async fn save_source_config_inner(
     state: &ServerState,
     body: axum::body::Bytes,
 ) -> Result<serde_json::Value, AppError> {
-    let input: serde_json::Value = serde_json::from_slice(&body)
-        .map_err(|e| AppError::InvalidInput(e.to_string()))?;
+    let input: serde_json::Value =
+        serde_json::from_slice(&body).map_err(|e| AppError::InvalidInput(e.to_string()))?;
 
     let mut config = adl_download_source::load(&state.data_dir)?;
 
@@ -503,27 +494,21 @@ async fn save_source_config_inner(
 }
 
 /// POST `/dsh/test-source` — 测试下载源连通性。
-pub async fn test_source(
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn test_source(body: axum::body::Bytes) -> impl IntoResponse {
     let result = test_source_inner(body).await;
     ipc::to_response(result)
 }
 
-async fn test_source_inner(
-    body: axum::body::Bytes,
-) -> Result<serde_json::Value, AppError> {
-    let input: serde_json::Value = serde_json::from_slice(&body)
-        .map_err(|e| AppError::InvalidInput(e.to_string()))?;
+async fn test_source_inner(body: axum::body::Bytes) -> Result<serde_json::Value, AppError> {
+    let input: serde_json::Value =
+        serde_json::from_slice(&body).map_err(|e| AppError::InvalidInput(e.to_string()))?;
 
-    let url = input.get("url")
+    let url = input
+        .get("url")
         .and_then(|v| v.as_str())
         .ok_or_else(|| AppError::InvalidInput("missing 'url' field".into()))?;
 
-    let status = adl_download_source::test_source(
-        url,
-        std::time::Duration::from_secs(10),
-    ).await;
+    let status = adl_download_source::test_source(url, std::time::Duration::from_secs(10)).await;
 
     Ok(serde_json::json!({
         "reachable": status.reachable,
