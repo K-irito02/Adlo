@@ -26,5 +26,6 @@ export const dshEn = {
   dshCloseCancel: 'Cancel',
   dshUninstallCurrentHint:
     'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
+  dshUninstallSuccess: 'Uninstalled version {version}',
   dshWelcomeEmpty: 'Open DeepSeek Harness to get started',
 } as const;

@@ -40,6 +40,8 @@ commands.allow = [
   "browser_page_meta_report",
   "browser_page_meta_refresh",
   "browser_page_meta_warmup",
+  "browser_create_dsh_view",
+  "browser_destroy_dsh_view",
   "download_list",
   "download_get_settings",
   "download_update_settings",

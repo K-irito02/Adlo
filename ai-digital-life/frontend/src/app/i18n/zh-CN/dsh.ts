@@ -25,5 +25,6 @@ export const dshZh = {
   dshCloseTerminateHint: '停止 dsh 进程，再次打开需重新启动',
   dshCloseCancel: '取消',
   dshUninstallCurrentHint: '该版本为当前选中版本，卸载后需重装或切换其他版本后再使用',
+  dshUninstallSuccess: '已卸载版本 {version}',
   dshWelcomeEmpty: '打开 DeepSeek Harness 开始使用',
 } as const;

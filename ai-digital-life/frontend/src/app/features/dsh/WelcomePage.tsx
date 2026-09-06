@@ -395,7 +395,7 @@ export function WelcomePage() {
       setUninstallingVersion(version);
       try {
         await actions.uninstallDsh(version);
-        showToast(`${t.dshUninstall} → ${version}`, 'success');
+        showToast(t.dshUninstallSuccess.replace('{version}', version), 'success');
       } catch {
         showToast(t.dshUninstall, 'error');
       } finally {

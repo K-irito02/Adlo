@@ -47,23 +47,37 @@ struct VersionInput {
 
 /// POST `/dsh/open` — 拉起 dsh 进程（若已运行返回已有 URL）。返回就绪 URL。
 pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
-    let result = run_open(state.dsh_state.clone()).await;
+    let result = run_open(state.dsh_state.clone(), &state.data_dir).await;
     ipc::to_response(result)
 }
 
 async fn run_open(
     dsh_guard: Arc<AsyncMutex<Option<HostedProcess>>>,
+    data_dir: &Path,
 ) -> Result<serde_json::Value, AppError> {
     let mut guard = dsh_guard.lock().await;
     if let Some(ref hp) = *guard {
         return Ok(serde_json::json!(hp.url));
     }
-    // npx 固定版本：当前先用 @latest；将来版本号可从
-    // `adl_dsh_version::read_selected` 读取代入选中的 `<version>`（spec §8 待细化）。
-    let args = vec!["@deepseek-ai/dsh@latest", "--profile", "web"]
-        .into_iter()
-        .map(String::from)
-        .collect::<Vec<_>>();
+    
+    // 读取选中的版本，如果未选中则使用 @latest
+    let root = dsh_root_dir(data_dir);
+    let selected_version = adl_dsh_version::read_selected(&root)?;
+    let package_spec = match selected_version {
+        Some(version) => format!("@deepseek-ai/dsh@{version}"),
+        None => "@deepseek-ai/dsh@latest".to_string(),
+    };
+    
+    let args = vec![
+        package_spec,
+        "--profile".to_string(),
+        "web".to_string(),
+        "--no-open".to_string(),
+    ]
+    .into_iter()
+    .collect::<Vec<_>>();
+    
+    tracing::info!(?args, "dsh::run_open: starting dsh process");
     let hp = spawn_and_wait_ready("npx", &args, std::time::Duration::from_secs(60)).await?;
     let url = hp.url.clone();
     *guard = Some(hp);

@@ -27,7 +27,8 @@ fn installed_dir(root: &Path) -> PathBuf {
     root.join("installed")
 }
 
-fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
+/// 读取当前选中的版本号。
+pub fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
     let p = selected_file(root);
     if !p.exists() {
         return Ok(None);
