@@ -84,11 +84,10 @@ mod tests {
     use std::fs;
 
     fn setup() -> PathBuf {
-        let tmp = std::env::temp_dir().join(format!(
+        std::env::temp_dir().join(format!(
             "adl_dsh_bundle_{}",
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
-        ));
-        tmp
+        ))
     }
 
     fn teardown(dir: &Path) {

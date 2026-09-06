@@ -197,8 +197,10 @@ mod tests {
 
     #[test]
     fn resolve_registry_prefers_mirror() {
-        let mut config = DownloadSourceConfig::default();
-        config.dsh_mirror = Some("https://mirror.example.com".to_string());
+        let config = DownloadSourceConfig {
+            dsh_mirror: Some("https://mirror.example.com".to_string()),
+            ..Default::default()
+        };
         assert_eq!(resolve_registry(&config), "https://mirror.example.com");
     }
 
@@ -245,8 +247,10 @@ mod tests {
         let tmp = std::env::temp_dir().join("adl_download_source_test");
         let _ = std::fs::remove_dir_all(&tmp);
 
-        let mut config = DownloadSourceConfig::default();
-        config.dsh_mirror = Some("https://mirror.test".to_string());
+        let config = DownloadSourceConfig {
+            dsh_mirror: Some("https://mirror.test".to_string()),
+            ..Default::default()
+        };
 
         save(&tmp, &config).unwrap();
         let loaded = load(&tmp).unwrap();
