@@ -26,5 +26,12 @@ export const dshZh = {
   dshCloseCancel: '取消',
   dshUninstallCurrentHint: '该版本为当前选中版本，卸载后需重装或切换其他版本后再使用',
   dshUninstallSuccess: '已卸载版本 {version}',
+  dshCheckUpdateFailed: '检查更新失败',
+  dshUpdateFailed: '升级失败',
+  dshRevertFailed: '回退版本失败',
+  dshUninstallFailed: '卸载版本失败',
+  dshReinstallFailed: '重新安装失败',
+  dshOpenFailed: '打开失败',
+  dshPortFreed: '检测到 3080 端口被残留的 dsh 进程占用，已自动释放并重新启动',
   dshWelcomeEmpty: '打开 DeepSeek Harness 开始使用',
 } as const;

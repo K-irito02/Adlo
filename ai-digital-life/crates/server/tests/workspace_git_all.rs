@@ -244,12 +244,9 @@ async fn discard_file_non_git_dir_returns_error() {
 async fn commit_stats_non_git_dir_returns_error() {
     let state = state("git-vis-api").await;
     let dir = temp_dir("commit-stats");
-    let (status, body) = send_post(
-        state,
-        "/workspace/git-vis/commit-stats",
-        Some(common::root_path_body(&dir)),
-    )
-    .await;
+    let (status, body) =
+        send_post(state, "/workspace/git-vis/commit-stats", Some(common::root_path_body(&dir)))
+            .await;
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
 }
@@ -294,12 +291,9 @@ async fn first_commit_year_in_git_repo_returns_year() {
 async fn code_evolution_non_git_dir_returns_error() {
     let state = state("git-vis-api").await;
     let dir = temp_dir("code-evolution");
-    let (status, body) = send_post(
-        state,
-        "/workspace/git-vis/code-evolution",
-        Some(common::root_path_body(&dir)),
-    )
-    .await;
+    let (status, body) =
+        send_post(state, "/workspace/git-vis/code-evolution", Some(common::root_path_body(&dir)))
+            .await;
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
 }
@@ -325,12 +319,9 @@ async fn contributor_modules_non_git_dir_returns_error() {
 async fn branch_graph_non_git_dir_returns_error() {
     let state = state("git-vis-api").await;
     let dir = temp_dir("branch-graph");
-    let (status, body) = send_post(
-        state,
-        "/workspace/git-vis/branch-graph",
-        Some(common::root_path_body(&dir)),
-    )
-    .await;
+    let (status, body) =
+        send_post(state, "/workspace/git-vis/branch-graph", Some(common::root_path_body(&dir)))
+            .await;
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
 }
@@ -340,12 +331,9 @@ async fn branch_graph_non_git_dir_returns_error() {
 async fn file_hotspots_non_git_dir_returns_error() {
     let state = state("git-vis-api").await;
     let dir = temp_dir("hotspots");
-    let (status, body) = send_post(
-        state,
-        "/workspace/git-vis/file-hotspots",
-        Some(common::root_path_body(&dir)),
-    )
-    .await;
+    let (status, body) =
+        send_post(state, "/workspace/git-vis/file-hotspots", Some(common::root_path_body(&dir)))
+            .await;
     assert!(status.is_client_error(), "non-git dir -> error: {status} {body}");
     assert_eq!(body["ok"], false, "body: {body}");
 }

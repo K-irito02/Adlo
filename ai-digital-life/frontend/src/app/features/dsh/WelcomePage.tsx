@@ -239,16 +239,20 @@ export function WelcomePage() {
   const versionStatus = useAppStore((s) => s.versionStatus);
   const appReady = useAppStore((s) => s.appReady);
   const showToast = useAppStore((s) => s.showToast);
+  const reportError = useAppStore((s) => s.reportError);
 
   const [uninstallConfirm, setUninstallConfirm] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [reinstalling, setReinstalling] = useState(false);
   const [reverting, setReverting] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [opening, setOpening] = useState(false);
   const [showDownloadIcon, setShowDownloadIcon] = useState(false);
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const [uninstallingVersion, setUninstallingVersion] = useState<string | null>(null);
   const checkingRef = useRef(false);
+  const openingRef = useRef(false);
+  const downloadingRef = useRef(false);
   const reinstallingRef = useRef(false);
   const revertingRef = useRef(false);
   const uninstallingRef = useRef<string | null>(null);
@@ -274,9 +278,11 @@ export function WelcomePage() {
     return [...current, ...installedOthers, ...notInstalled];
   })();
 
-  // 有更新时自动显示下载图标
+  // 有更新时自动显示下载图标（刻意只在 hasUpdate 翻转时评估一次：下载中/已显示
+  // 不重复触发；通过 ref 读取最新状态，避免把 downloading/showDownloadIcon 加入
+  // 依赖造成下载结束后图标循环重现）。
   useEffect(() => {
-    if (hasUpdate && !showDownloadIcon && !downloading) {
+    if (hasUpdate && !downloadingRef.current && downloadTimerRef.current === null) {
       setShowDownloadIcon(true);
       downloadTimerRef.current = setTimeout(() => {
         setShowDownloadIcon(false);
@@ -308,9 +314,26 @@ export function WelcomePage() {
     return () => document.removeEventListener('mousedown', handleClickOutside, true);
   }, [showVersionMenu]);
 
-  const handleOpen = useCallback(() => {
-    void actions.openDsh();
-  }, [actions]);
+  const handleOpen = useCallback(async () => {
+    if (openingRef.current) {
+      return;
+    }
+    openingRef.current = true;
+    setOpening(true);
+    try {
+      const result = await actions.openDsh();
+      // 固定 3080 端口被残留 dsh 占用时后端自动释放并重启 → 弹右下角 info 卡片。
+      if (result?.freedPort) {
+        reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
+      }
+    } catch {
+      // 意外异常兜底；常规失败（openDsh 返回 null）已由 action 记录全局错误卡片。
+      showToast(t.dshOpenFailed, 'error');
+    } finally {
+      openingRef.current = false;
+      setOpening(false);
+    }
+  }, [actions, reportError, showToast, t]);
 
   const handleCheckUpdate = useCallback(async () => {
     if (checkingRef.current) {
@@ -324,9 +347,12 @@ export function WelcomePage() {
       downloadTimerRef.current = null;
     }
     try {
-      await actions.fetchDshVersionStatus();
-      const state = useAppStore.getState();
-      const hasNewUpdate = state.versionStatus?.hasUpdate;
+      const ok = await actions.fetchDshVersionStatus();
+      if (!ok) {
+        // 失败已由 action 记录全局错误卡片，不再重复弹 toast。
+        return;
+      }
+      const hasNewUpdate = useAppStore.getState().versionStatus?.hasUpdate;
       if (hasNewUpdate) {
         showToast(t.dshHasUpdate, 'success');
         setShowDownloadIcon(true);
@@ -338,7 +364,7 @@ export function WelcomePage() {
         showToast(t.dshNoUpdate, 'success');
       }
     } catch {
-      showToast(t.dshCheckUpdate, 'error');
+      showToast(t.dshCheckUpdateFailed, 'error');
     } finally {
       checkingRef.current = false;
       setCheckingUpdate(false);
@@ -346,9 +372,10 @@ export function WelcomePage() {
   }, [actions, showToast, t]);
 
   const handleDownloadUpdate = useCallback(async () => {
-    if (downloading) {
+    if (downloadingRef.current) {
       return;
     }
+    downloadingRef.current = true;
     setDownloading(true);
     setShowDownloadIcon(false);
     if (downloadTimerRef.current) {
@@ -356,14 +383,18 @@ export function WelcomePage() {
       downloadTimerRef.current = null;
     }
     try {
-      await actions.updateDsh();
-      showToast(t.dshUpdate, 'success');
+      const ok = await actions.updateDsh();
+      if (ok) {
+        showToast(t.dshUpdate, 'success');
+      }
     } catch {
-      showToast(t.dshUpdate, 'error');
+      // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
+      showToast(t.dshUpdateFailed, 'error');
     } finally {
+      downloadingRef.current = false;
       setDownloading(false);
     }
-  }, [actions, downloading, showToast, t]);
+  }, [actions, showToast, t]);
 
   const handleRevertToVersion = useCallback(
     async (version: string) => {
@@ -374,10 +405,13 @@ export function WelcomePage() {
       setReverting(true);
       setShowVersionMenu(false);
       try {
-        await actions.revertDsh(version);
-        showToast(t.dshRevertedTo.replace('{version}', version), 'success');
+        const ok = await actions.revertDsh(version);
+        if (ok) {
+          showToast(t.dshRevertedTo.replace('{version}', version), 'success');
+        }
       } catch {
-        showToast(t.dshRevert, 'error');
+        // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
+        showToast(t.dshRevertFailed, 'error');
       } finally {
         revertingRef.current = false;
         setReverting(false);
@@ -394,10 +428,13 @@ export function WelcomePage() {
       uninstallingRef.current = version;
       setUninstallingVersion(version);
       try {
-        await actions.uninstallDsh(version);
-        showToast(t.dshUninstallSuccess.replace('{version}', version), 'success');
+        const ok = await actions.uninstallDsh(version);
+        if (ok) {
+          showToast(t.dshUninstallSuccess.replace('{version}', version), 'success');
+        }
       } catch {
-        showToast(t.dshUninstall, 'error');
+        // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
+        showToast(t.dshUninstallFailed, 'error');
       } finally {
         uninstallingRef.current = null;
         setUninstallingVersion(null);
@@ -413,17 +450,20 @@ export function WelcomePage() {
     reinstallingRef.current = true;
     setReinstalling(true);
     try {
-      await actions.reinstallDsh();
-      showToast(t.dshReinstall, 'success');
+      const ok = await actions.reinstallDsh();
+      if (ok) {
+        showToast(t.dshReinstall, 'success');
+      }
     } catch {
-      showToast(t.dshReinstall, 'error');
+      // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
+      showToast(t.dshReinstallFailed, 'error');
     } finally {
       reinstallingRef.current = false;
       setReinstalling(false);
     }
   }, [actions, showToast, t]);
 
-  const handleUninstall = useCallback(() => {
+  const handleUninstall = useCallback(async () => {
     if (!currentSelected) {
       return;
     }
@@ -431,16 +471,32 @@ export function WelcomePage() {
       setUninstallConfirm(true);
       return;
     }
-    void actions.uninstallDsh(currentSelected);
-  }, [actions, currentSelected, isCurrentSelected]);
+    try {
+      const ok = await actions.uninstallDsh(currentSelected);
+      if (ok) {
+        showToast(t.dshUninstallSuccess.replace('{version}', currentSelected), 'success');
+      }
+    } catch {
+      // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
+      showToast(t.dshUninstallFailed, 'error');
+    }
+  }, [actions, currentSelected, isCurrentSelected, showToast, t]);
 
-  const handleConfirmUninstall = useCallback(() => {
+  const handleConfirmUninstall = useCallback(async () => {
     if (!currentSelected) {
       return;
     }
     setUninstallConfirm(false);
-    void actions.uninstallDsh(currentSelected);
-  }, [actions, currentSelected]);
+    try {
+      const ok = await actions.uninstallDsh(currentSelected);
+      if (ok) {
+        showToast(t.dshUninstallSuccess.replace('{version}', currentSelected), 'success');
+      }
+    } catch {
+      // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
+      showToast(t.dshUninstallFailed, 'error');
+    }
+  }, [actions, currentSelected, showToast, t]);
 
   useEffect(() => {
     void actions.fetchDshVersionStatus();
@@ -456,9 +512,10 @@ export function WelcomePage() {
               type="button"
               className="adl-app-welcome__cta"
               onClick={handleOpen}
+              disabled={opening}
               title={t.dshOpenButtonHint}
             >
-              <DeepSeekIcon />
+              {opening ? <Spinner size="sm" speed="normal" /> : <DeepSeekIcon />}
               {t.dshOpenButton}
             </button>
           ) : null}

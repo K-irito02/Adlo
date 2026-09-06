@@ -66,6 +66,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     let clipboard_store = Arc::new(adl_clipboard::ClipboardStore::new(db.clone(), data_dir));
     let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
     let dsh_state = Arc::new(AsyncMutex::new(None));
+    let dsh_start_lock = Arc::new(AsyncMutex::new(()));
 
     Ok(ServerState {
         data_dir: data_dir.to_path_buf(),
@@ -81,6 +82,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         clipboard_store,
         sysmon,
         dsh_state,
+        dsh_start_lock,
     })
 }
 

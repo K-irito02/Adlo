@@ -10,6 +10,7 @@
 use crate::ServerState;
 use crate::ipc;
 use adl_errors::AppError;
+use adl_webapp_host::DSH_DEFAULT_PORT;
 use adl_webapp_host::HostedProcess;
 use adl_webapp_host::spawn_and_wait_ready;
 use axum::extract::State;
@@ -45,21 +46,222 @@ struct VersionInput {
     version: String,
 }
 
-/// POST `/dsh/open` — 拉起 dsh 进程（若已运行返回已有 URL）。返回就绪 URL。
+/// POST `/dsh/open` — 拉起 dsh 进程（若已运行返回已有 URL）。返回 `{ url, freedPort }`。
 pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
-    let result = run_open(state.dsh_state.clone(), &state.data_dir).await;
+    let result =
+        run_open(state.dsh_state.clone(), state.dsh_start_lock.clone(), &state.data_dir).await;
     ipc::to_response(result)
+}
+
+/// 端口是否已被占用：尝试绑定 127.0.0.1:port，成功（可绑）即视为空闲。
+async fn is_port_occupied(port: u16) -> bool {
+    match tokio::net::TcpListener::bind(("127.0.0.1", port)).await {
+        Ok(listener) => {
+            drop(listener);
+            false
+        },
+        Err(_) => true,
+    }
+}
+
+/// 进程命令行是否指向 dsh 残留（@deepseek-ai/dsh 包 / dsh lib bin.js）。
+fn is_dsh_cmdline(cmdline: &str) -> bool {
+    let lower = cmdline.to_lowercase();
+    lower.contains("@deepseek-ai/dsh")
+        || lower.contains("@deepseek-ai\\dsh")
+        || lower.contains("\\dsh\\lib\\bin.js")
+}
+
+/// 从 `netstat -ano` 输出解析在 `port` 上 LISTENING 的 PID 列表。
+///
+/// 本地地址 token（如 `0.0.0.0:3080` / `[::]:3080`）最后一个 `:` 之后必须恰好等于
+/// `port`，避免 `:30800` 之类的相似端口被误匹配。
+fn parse_netstat_listening_pids(text: &str, port: u16) -> Vec<u32> {
+    let port_token = port.to_string();
+    text.lines()
+        .filter(|l| {
+            let mut tokens = l.split_whitespace();
+            let local = tokens.nth(1).unwrap_or_default();
+            local.rsplit(':').next() == Some(&port_token) && l.contains("LISTENING")
+        })
+        .filter_map(|l| l.split_whitespace().next_back()?.parse::<u32>().ok())
+        .collect()
+}
+
+/// 查询占用端口的进程 PID 列表（平台命令实现）。
+#[cfg(target_os = "windows")]
+async fn pids_listening_on(port: u16) -> Result<Vec<u32>, AppError> {
+    let out = tokio::process::Command::new("netstat")
+        .args(["-ano"])
+        .output()
+        .await
+        .map_err(|e| AppError::Io(format!("netstat failed: {e}")))?;
+    let text = String::from_utf8_lossy(&out.stdout);
+    Ok(parse_netstat_listening_pids(&text, port))
+}
+
+/// 非 Windows：尝试 lsof 解析占用端口的 PID；lsof 缺失则视为无法识别占用者（返回空）。
+#[cfg(not(target_os = "windows"))]
+async fn pids_listening_on(port: u16) -> Result<Vec<u32>, AppError> {
+    let out = match tokio::process::Command::new("lsof")
+        .args(["-ti", &format!("tcp:{port}")])
+        .output()
+        .await
+    {
+        Ok(out) => out,
+        Err(_) => {
+            tracing::warn!("lsof not available; cannot identify process on port {port}");
+            return Ok(Vec::new());
+        },
+    };
+    Ok(String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .filter_map(|l| l.trim().parse::<u32>().ok())
+        .collect())
+}
+
+/// 查询进程命令行。
+#[cfg(target_os = "windows")]
+async fn process_cmdline(pid: u32) -> Option<String> {
+    let script =
+        format!("(Get-CimInstance Win32_Process -Filter \"ProcessId = {pid}\").CommandLine");
+    let out = tokio::process::Command::new("powershell")
+        .args(["-NoProfile", "-NonInteractive", "-Command", &script])
+        .output()
+        .await
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
+}
+
+/// 非 Windows：读取 /proc/<pid>/cmdline（NUL 分隔拼成空格串）。
+#[cfg(not(target_os = "windows"))]
+async fn process_cmdline(pid: u32) -> Option<String> {
+    let raw = std::fs::read(format!("/proc/{pid}/cmdline")).ok()?;
+    Some(
+        raw.split(|b| *b == 0)
+            .filter(|s| !s.is_empty())
+            .map(|s| String::from_utf8_lossy(s).into_owned())
+            .collect::<Vec<_>>()
+            .join(" "),
+    )
+}
+
+/// 终止指定 PID 进程。失败（含工具报非零退出）返回 `Err`。
+#[cfg(target_os = "windows")]
+async fn kill_pid(pid: u32) -> Result<(), AppError> {
+    let out = tokio::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .output()
+        .await
+        .map_err(|e| AppError::Io(format!("taskkill failed: {e}")))?;
+    if !out.status.success() {
+        return Err(AppError::Io(format!(
+            "taskkill pid {pid} failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        )));
+    }
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+async fn kill_pid(pid: u32) -> Result<(), AppError> {
+    let out = tokio::process::Command::new("kill")
+        .args(["-9", &pid.to_string()])
+        .output()
+        .await
+        .map_err(|e| AppError::Io(format!("kill failed: {e}")))?;
+    if !out.status.success() {
+        return Err(AppError::Io(format!(
+            "kill pid {pid} failed: {}",
+            String::from_utf8_lossy(&out.stderr).trim()
+        )));
+    }
+    Ok(())
+}
+
+/// 若 dsh 默认端口被残留 dsh 进程占用则释放之。
+///
+/// - 端口空闲：返回 `Ok(false)`（无需释放）。
+/// - 被 dsh 残留占用：kill 后返回 `Ok(true)`（已释放）。
+/// - 被其它（非 dsh）进程占用：返回 `Err`，交由调用方提示用户手动处理。
+async fn free_stale_dsh_on_default_port() -> Result<bool, AppError> {
+    let port = DSH_DEFAULT_PORT;
+    if !is_port_occupied(port).await {
+        return Ok(false);
+    }
+    tracing::warn!(?port, "dsh default port occupied; checking for stale dsh residue");
+    let pids = pids_listening_on(port).await?;
+    // netstat 对同一监听可能输出多行（0.0.0.0 与 [::] 双栈），先按 PID 去重，
+    // 避免对已终止的重复 PID 二次 taskkill 报错。
+    let mut seen = std::collections::HashSet::new();
+    let mut freed_any = false;
+    for pid in pids {
+        if !seen.insert(pid) {
+            continue;
+        }
+        let Some(cmdline) = process_cmdline(pid).await else { continue };
+        if !is_dsh_cmdline(&cmdline) {
+            continue;
+        }
+        tracing::warn!(?pid, ?cmdline, "killing stale dsh residue on dsh default port");
+        // 单个 PID 失败（如已在 netstat 与 kill 之间退出）不中断清理：记录后继续，
+        // 最终以端口是否释放为准。
+        if let Err(e) = kill_pid(pid).await {
+            tracing::warn!(?pid, error = %e, "killing stale dsh pid failed; continuing");
+        }
+        freed_any = true;
+    }
+    if freed_any {
+        // 轮询等待端口真正释放，避免紧接着 spawn 撞上 EADDRINUSE。
+        for _ in 0..10 {
+            if !is_port_occupied(port).await {
+                return Ok(true);
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+        return Err(AppError::Io(format!(
+            "killed stale dsh process but port {port} is still in use"
+        )));
+    }
+    // 兜底重查：若占用进程在我们探测期间恰好退出，端口已空闲则无需报错。
+    if !is_port_occupied(port).await {
+        return Ok(false);
+    }
+    Err(AppError::Io(format!(
+        "dsh default port {port} is in use by another process; close it and retry"
+    )))
 }
 
 async fn run_open(
     dsh_guard: Arc<AsyncMutex<Option<HostedProcess>>>,
+    start_lock: Arc<AsyncMutex<()>>,
     data_dir: &Path,
 ) -> Result<serde_json::Value, AppError> {
-    let mut guard = dsh_guard.lock().await;
-    if let Some(ref hp) = *guard {
-        return Ok(serde_json::json!(hp.url));
+    // 快速路径：已运行则直接返回（不加 start_lock）。
+    {
+        let guard = dsh_guard.lock().await;
+        if let Some(ref hp) = *guard {
+            return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
+        }
     }
-    
+
+    // 串行化启动：free_stale + spawn 持独立锁，close/revert/uninstall 不被阻塞。
+    // 锁内再次检查 dsh_state，避免等待期间另一个 open 已启动进程造成重复 spawn，
+    // 也避免本 open 的 free-stale 误杀并发方刚启动的 dsh。
+    let _start_guard = start_lock.lock().await;
+    {
+        let guard = dsh_guard.lock().await;
+        if let Some(ref hp) = *guard {
+            return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
+        }
+    }
+
+    // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
+    let freed = free_stale_dsh_on_default_port().await?;
+
     // 读取选中的版本，如果未选中则使用 @latest
     let root = dsh_root_dir(data_dir);
     let selected_version = adl_dsh_version::read_selected(&root)?;
@@ -67,21 +269,18 @@ async fn run_open(
         Some(version) => format!("@deepseek-ai/dsh@{version}"),
         None => "@deepseek-ai/dsh@latest".to_string(),
     };
-    
-    let args = vec![
-        package_spec,
-        "--profile".to_string(),
-        "web".to_string(),
-        "--no-open".to_string(),
-    ]
-    .into_iter()
-    .collect::<Vec<_>>();
-    
-    tracing::info!(?args, "dsh::run_open: starting dsh process");
+
+    let args =
+        vec![package_spec, "--profile".to_string(), "web".to_string(), "--no-open".to_string()];
+
+    tracing::info!(?args, ?freed, "dsh::run_open: starting dsh process");
     let hp = spawn_and_wait_ready("npx", &args, std::time::Duration::from_secs(60)).await?;
+
+    // 持锁写入（start_lock 已保证串行，无并发方抢先写入）。
+    let mut guard = dsh_guard.lock().await;
     let url = hp.url.clone();
     *guard = Some(hp);
-    Ok(serde_json::json!(url))
+    Ok(serde_json::json!({ "url": url, "freedPort": freed }))
 }
 
 /// POST `/dsh/close` — 关闭 dsh 进程。`keep=true`（缺省）：保留进程运行；
@@ -193,5 +392,36 @@ mod tests {
     fn version_input_camelcase_deserializes() {
         let v: VersionInput = serde_json::from_str(r#"{ "version": "1.2.3" }"#).unwrap();
         assert_eq!(v.version, "1.2.3");
+    }
+
+    /// is_dsh_cmdline 识别 dsh 残留进程命令行（npm 规范名 / Windows 路径两种写法）。
+    #[test]
+    fn dsh_cmdline_detection() {
+        // npm registry 包名（npx 解析后 node 实际执行的 bin.js 路径含 @deepseek-ai\dsh）。
+        assert!(is_dsh_cmdline(
+            r"C:\Users\u\.npm\_npx\abc\node_modules\@deepseek-ai\dsh\lib\bin.js --profile web"
+        ));
+        assert!(is_dsh_cmdline(
+            "node /home/u/.npm/_npx/abc/node_modules/@deepseek-ai/dsh/lib/bin.js --profile web"
+        ));
+        // 非 dsh 进程不得误判。
+        assert!(!is_dsh_cmdline("C:\\Windows\\System32\\svchost.exe -k netsvcs"));
+        assert!(!is_dsh_cmdline("node build/server.js --port 3080"));
+    }
+
+    /// netstat 解析：只收集指定端口（LISTENING）行，排除相似前缀端口（如 30800）。
+    #[test]
+    fn netstat_parsing_matches_exact_port_only() {
+        let text = "\n\
+            Proto  Local Address          Foreign Address        State           PID\n\
+            TCP    0.0.0.0:3080           0.0.0.0:0              LISTENING       1234\n\
+            TCP    0.0.0.0:30800          0.0.0.0:0              LISTENING       5678\n\
+            TCP    127.0.0.1:3080         0.0.0.0:0              LISTENING       9012\n\
+            TCP    [::]:3080              [::]:0                 LISTENING       3456\n\
+            TCP    0.0.0.0:80             0.0.0.0:0              LISTENING       1111\n\
+            TCP    0.0.0.0:3080           0.0.0.0:0              TIME_WAIT       2222\n\
+        ";
+        let pids = parse_netstat_listening_pids(text, 3080);
+        assert_eq!(pids, vec![1234, 9012, 3456]);
     }
 }

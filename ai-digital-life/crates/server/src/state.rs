@@ -31,4 +31,8 @@ pub struct ServerState {
     /// 用 tokio AsyncMutex 共享，`HostedProcess` 内含
     /// `tokio::process::Child` 不能 Clone，故整体包在 Option 中由锁保护。
     pub dsh_state: Arc<AsyncMutex<Option<HostedProcess>>>,
+    /// 串行化 dsh 启动（free_stale + spawn）的独立锁：与 `dsh_state` 分离，
+    /// 使 close/revert/uninstall 在启动期间不被阻塞，同时避免两个并发
+    /// `/dsh/open` 各自 spawn、或第二个的 free-stale 误杀第一个刚起的进程。
+    pub dsh_start_lock: Arc<AsyncMutex<()>>,
 }

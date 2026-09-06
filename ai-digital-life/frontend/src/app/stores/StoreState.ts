@@ -38,6 +38,7 @@ import type { FileOpNoticeSlice } from './slices/fileOpNoticeSlice';
 import type { BrowserDownloadsSlice } from './slices/browserDownloadsSlice';
 import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import type { WorkspaceID } from '../../shared/branded';
+import type { DshOpenResult } from '../../shared/ipc/dsh';
 
 interface ReorderWorkspacesInput {
   pinnedIds: string[];
@@ -231,13 +232,13 @@ interface UtilitiesActions {
 }
 
 interface DshActions {
-  openDsh: () => Promise<string | null>;
-  closeDsh: (keep: boolean) => Promise<void>;
-  fetchDshVersionStatus: () => Promise<void>;
-  updateDsh: () => Promise<void>;
-  revertDsh: (version: string) => Promise<void>;
-  uninstallDsh: (version: string) => Promise<void>;
-  reinstallDsh: () => Promise<void>;
+  openDsh: () => Promise<DshOpenResult | null>;
+  closeDsh: (keep: boolean) => Promise<boolean>;
+  fetchDshVersionStatus: () => Promise<boolean>;
+  updateDsh: () => Promise<boolean>;
+  revertDsh: (version: string) => Promise<boolean>;
+  uninstallDsh: (version: string) => Promise<boolean>;
+  reinstallDsh: () => Promise<boolean>;
 }
 
 type AllActions = [

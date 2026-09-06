@@ -30,11 +30,11 @@ fn installed_dir(root: &Path) -> PathBuf {
 /// 读取当前选中的版本号。
 pub fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
     let p = selected_file(root);
-    if !p.exists() {
-        return Ok(None);
-    }
-    let raw = std::fs::read_to_string(&p)
-        .map_err(|e| AppError::Io(format!("read {}: {e}", p.display())))?;
+    let raw = match std::fs::read_to_string(&p) {
+        Ok(s) => s,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(AppError::Io(format!("read {}: {e}", p.display()))),
+    };
     let v = raw.trim().to_string();
     Ok((!v.is_empty()).then_some(v))
 }
@@ -46,7 +46,13 @@ fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
     }
     let mut versions: Vec<String> = std::fs::read_dir(&dir)
         .map_err(|e| AppError::Io(format!("read dir {}: {e}", dir.display())))?
-        .filter_map(|e| e.ok())
+        .filter_map(|e| match e {
+            Ok(entry) => Some(entry),
+            Err(e) => {
+                tracing::warn!(path = %dir.display(), error = %e, "dsh-version: failed to read dir entry");
+                None
+            }
+        })
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .filter(|v| semver::Version::parse(v).is_ok())
         .collect();

@@ -9,11 +9,11 @@ export type { IpcResult };
  */
 export interface DshBridge {
   /**
-   * 拉起 dsh 进程并返回就绪 URL（已运行时返回已有 URL）
-   * @returns dsh web 界面 URL，如 http://127.0.0.1:<port>
+   * 拉起 dsh 进程并返回就绪信息（已运行时返回已有 URL）
+   * @returns 就绪 URL + 是否释放过被残留 dsh 占用的默认端口，如 http://127.0.0.1:<port>
    * @see httpBridge.ts → dsh.open (/dsh/open)
    */
-  open: () => Promise<IpcResult<string | null>>;
+  open: () => Promise<IpcResult<DshOpenResult>>;
   /**
    * 关闭 dsh。keep=true 保留进程运行；keep=false 停进程
    * @see httpBridge.ts → dsh.close (/dsh/close)
@@ -44,6 +44,14 @@ export interface DshBridge {
    * @see httpBridge.ts → dsh.reinstall (/dsh/reinstall)
    */
   reinstall: () => Promise<IpcResult<string>>;
+}
+
+/**
+ * `/dsh/open` 结果：就绪 URL + 是否因端口被残留 dsh 占用而自动释放过进程。
+ */
+export interface DshOpenResult {
+  url: string | null;
+  freedPort: boolean;
 }
 
 /**

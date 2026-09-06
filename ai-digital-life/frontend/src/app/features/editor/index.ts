@@ -9,11 +9,7 @@ export {
   createDiffEditorRef,
 } from './editorAdapters';
 
-export {
-  getThemeExtension,
-  rebuildThemes,
-  getPhrasesExtension,
-} from './cmTheme';
+export { getThemeExtension, rebuildThemes, getPhrasesExtension } from './cmTheme';
 export type { CmPhrases } from './cmTheme';
 
 export { getLanguageExtension } from './cmLanguages';

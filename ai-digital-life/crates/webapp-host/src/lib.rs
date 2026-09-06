@@ -6,6 +6,9 @@ pub use port::pick_free_port;
 
 pub mod port;
 
+/// dsh web profile 默认监听端口（`@deepseek-ai/dsh` 启动时不传 `--port` 的默认值）。
+pub const DSH_DEFAULT_PORT: u16 = 3080;
+
 /// 一个已被宿主拉起、就绪的 Web 应用进程句柄。
 pub struct HostedProcess {
     pub child: tokio::process::Child,
@@ -21,11 +24,7 @@ pub struct HostedProcess {
 /// 若 `npx` 本身找不到，尝试 `npx.cmd` 作为回退。
 fn try_spawn(program: &str, args: &[String]) -> Result<tokio::process::Child, AppError> {
     // 先尝试原始程序名
-    match tokio::process::Command::new(program)
-        .args(args)
-        .kill_on_drop(true)
-        .spawn()
-    {
+    match tokio::process::Command::new(program).args(args).kill_on_drop(true).spawn() {
         Ok(child) => Ok(child),
         Err(e) => {
             // Windows 上回退到 .cmd 后缀
@@ -51,7 +50,7 @@ fn try_spawn(program: &str, args: &[String]) -> Result<tokio::process::Child, Ap
                 }
             }
             Err(AppError::Io(format!("spawn {program} failed: {e}")))
-        }
+        },
     }
 }
 
@@ -68,7 +67,7 @@ pub async fn spawn_and_wait_ready(
     let url = format!("http://127.0.0.1:{port}");
     tracing::info!(?program, ?args, ?port, ?url, "spawn_and_wait_ready: starting process");
     let mut child = try_spawn(program, args)?;
-    
+
     // 记录子进程PID
     if let Some(pid) = child.id() {
         tracing::info!(?program, ?pid, "spawn_and_wait_ready: child process started");
@@ -77,9 +76,10 @@ pub async fn spawn_and_wait_ready(
     let client = reqwest::Client::new();
     let deadline = tokio::time::Instant::now() + timeout;
     let mut check_count = 0;
-    
-    // 首先尝试检查默认端口3080
-    let default_url = "http://127.0.0.1:3080";
+
+    // 宿主先探测一个空闲端口作为健康检查兜底，但被托管的 web 应用可能忽略 --port
+    // 而绑定自己的固定默认端口（如 dsh 默认 3080），因此同时探测该默认端口。
+    let default_url = format!("http://127.0.0.1:{DSH_DEFAULT_PORT}");
     loop {
         if tokio::time::Instant::now() >= deadline {
             tracing::error!(?program, ?port, ?check_count, "spawn_and_wait_ready: timeout");
@@ -87,41 +87,48 @@ pub async fn spawn_and_wait_ready(
             if let Some(mut stdout) = child.stdout.take() {
                 use tokio::io::AsyncReadExt;
                 let mut output = String::new();
-                if let Ok(_) = tokio::time::timeout(
-                    Duration::from_secs(2),
-                    stdout.read_to_string(&mut output),
-                ).await {
+                if tokio::time::timeout(Duration::from_secs(2), stdout.read_to_string(&mut output))
+                    .await
+                    .is_ok()
+                {
                     tracing::error!(?program, "spawn_and_wait_ready: stdout: {}", output);
                 }
             }
             if let Some(mut stderr) = child.stderr.take() {
                 use tokio::io::AsyncReadExt;
                 let mut output = String::new();
-                if let Ok(_) = tokio::time::timeout(
-                    Duration::from_secs(2),
-                    stderr.read_to_string(&mut output),
-                ).await {
+                if tokio::time::timeout(Duration::from_secs(2), stderr.read_to_string(&mut output))
+                    .await
+                    .is_ok()
+                {
                     tracing::error!(?program, "spawn_and_wait_ready: stderr: {}", output);
                 }
             }
-            child.kill().await.map_err(|e| AppError::Io(format!("timeout kill failed: {e}")))?;
+            if let Err(e) = child.kill().await {
+                tracing::error!(?program, "spawn_and_wait_ready: failed to kill on timeout: {e}");
+            }
             return Err(AppError::Timeout(format!("{program} not ready within {timeout:?}")));
         }
         check_count += 1;
-        
+
         // 检查默认端口3080
         let is_up_default = client
-            .get(default_url)
+            .get(&default_url)
             .timeout(Duration::from_millis(500))
             .send()
             .await
             .map(|r| r.status().is_success())
             .unwrap_or(false);
         if is_up_default {
-            tracing::info!(?program, default_url, ?check_count, "spawn_and_wait_ready: process is ready on default port");
-            return Ok(HostedProcess { child, url: default_url.to_string(), port: 3080 });
+            tracing::info!(
+                ?program,
+                default_url,
+                ?check_count,
+                "spawn_and_wait_ready: process is ready on default port"
+            );
+            return Ok(HostedProcess { child, url: default_url, port: DSH_DEFAULT_PORT });
         }
-        
+
         // 检查指定端口
         let is_up = client
             .get(&url)
@@ -131,10 +138,15 @@ pub async fn spawn_and_wait_ready(
             .map(|r| r.status().is_success())
             .unwrap_or(false);
         if is_up {
-            tracing::info!(?program, ?port, ?check_count, "spawn_and_wait_ready: process is ready on specified port");
+            tracing::info!(
+                ?program,
+                ?port,
+                ?check_count,
+                "spawn_and_wait_ready: process is ready on specified port"
+            );
             return Ok(HostedProcess { child, url, port });
         }
-        
+
         tokio::time::sleep(Duration::from_millis(200)).await;
     }
 }

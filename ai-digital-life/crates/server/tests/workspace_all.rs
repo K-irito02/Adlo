@@ -77,18 +77,13 @@ async fn get_current_returns_active_workspace() {
         common::send_request(state.clone(), Method::GET, "/workspace/current", None).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert_eq!(body["data"]["id"], id, "body: {body}");
-    assert_eq!(
-        body["data"]["rootPath"],
-        ws.to_string_lossy().to_string(),
-        "body: {body}"
-    );
+    assert_eq!(body["data"]["rootPath"], ws.to_string_lossy().to_string(), "body: {body}");
 
     let (status, body) =
         common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
     assert_eq!(status, axum::http::StatusCode::OK, "clear body: {body}");
 
-    let (status, body) =
-        common::send_request(state, Method::GET, "/workspace/current", None).await;
+    let (status, body) = common::send_request(state, Method::GET, "/workspace/current", None).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert!(body["data"].is_null(), "body: {body}");
     let _ = std::fs::remove_dir_all(ws);
@@ -113,19 +108,13 @@ async fn open_workspace_returns_meta_and_activates() {
     assert!(!id.is_empty());
 
     // Active workspace: tree resolves without an explicit workspacePath.
-    let (status, tree) = common::send_request(
-        state,
-        Method::POST,
-        "/workspace/tree",
-        Some(serde_json::json!({})),
-    )
-    .await;
+    let (status, tree) =
+        common::send_request(state, Method::POST, "/workspace/tree", Some(serde_json::json!({})))
+            .await;
     assert_eq!(status, axum::http::StatusCode::OK, "tree body: {tree}");
     let nodes = tree["data"].as_array().expect("tree array");
     assert!(
-        nodes
-            .iter()
-            .any(|n| n["path"] == "notes.txt" || n["name"] == "notes.txt"),
+        nodes.iter().any(|n| n["path"] == "notes.txt" || n["name"] == "notes.txt"),
         "tree should contain notes.txt: {nodes:?}"
     );
     let _ = std::fs::remove_dir_all(ws);
@@ -139,18 +128,14 @@ async fn open_workspace_nonexistent_returns_error() {
         state,
         Method::POST,
         "/workspace/open",
-        Some(serde_json::json!({ "workspacePath": "Z:/definitely/not/a/real/path/adl-ws-missing" })),
+        Some(
+            serde_json::json!({ "workspacePath": "Z:/definitely/not/a/real/path/adl-ws-missing" }),
+        ),
     )
     .await;
-    assert!(
-        !status.is_success(),
-        "expected error status, got {status}: {body}"
-    );
+    assert!(!status.is_success(), "expected error status, got {status}: {body}");
     assert_eq!(body["ok"], false);
-    assert!(
-        body["error"]["code"].as_str().is_some(),
-        "error code expected in body: {body}"
-    );
+    assert!(body["error"]["code"].as_str().is_some(), "error code expected in body: {body}");
 }
 
 /// POST /workspace/clear-current clears the active workspace; a subsequent tree
@@ -173,13 +158,9 @@ async fn clear_current_clears_active_workspace() {
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert_eq!(body["data"], true);
 
-    let (status, body) = common::send_request(
-        state,
-        Method::POST,
-        "/workspace/tree",
-        Some(serde_json::json!({})),
-    )
-    .await;
+    let (status, body) =
+        common::send_request(state, Method::POST, "/workspace/tree", Some(serde_json::json!({})))
+            .await;
     assert_eq!(status, axum::http::StatusCode::NOT_FOUND, "body: {body}");
     assert_eq!(body["error"]["code"], "NOT_FOUND");
     let _ = std::fs::remove_dir_all(ws);
@@ -240,11 +221,7 @@ async fn file_crud_round_trip() {
         Some(serde_json::json!({ "relativePath": "docs/b.md", "newPath": "docs/c.md" })),
     )
     .await;
-    assert_eq!(
-        status,
-        axum::http::StatusCode::OK,
-        "duplicate body: {body}"
-    );
+    assert_eq!(status, axum::http::StatusCode::OK, "duplicate body: {body}");
     assert_eq!(body["data"], true);
 
     // move
@@ -257,10 +234,7 @@ async fn file_crud_round_trip() {
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "move body: {body}");
     assert_eq!(body["data"], true);
-    assert!(
-        ws.join("docs/sub/d.md").exists(),
-        "moved file should exist on disk"
-    );
+    assert!(ws.join("docs/sub/d.md").exists(), "moved file should exist on disk");
 
     // delete
     let (status, body) = common::send_request(
@@ -272,10 +246,7 @@ async fn file_crud_round_trip() {
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "delete body: {body}");
     assert_eq!(body["data"], true);
-    assert!(
-        !ws.join("docs/sub/d.md").exists(),
-        "deleted file should be gone"
-    );
+    assert!(!ws.join("docs/sub/d.md").exists(), "deleted file should be gone");
     let _ = std::fs::remove_dir_all(ws);
 }
 
@@ -302,10 +273,7 @@ async fn search_outline_and_folder() {
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "search body: {body}");
     let hits = body["data"].as_array().expect("search hits");
-    assert!(
-        hits.iter().any(|h| h["path"] == "notes.txt"),
-        "hits: {hits:?}"
-    );
+    assert!(hits.iter().any(|h| h["path"] == "notes.txt"), "hits: {hits:?}");
 
     let (status, body) = common::send_request(
         state.clone(),
@@ -314,11 +282,7 @@ async fn search_outline_and_folder() {
         Some(serde_json::json!({ "relativePath": "notes.txt" })),
     )
     .await;
-    assert_eq!(
-        status,
-        axum::http::StatusCode::OK,
-        "outline body: {body}"
-    );
+    assert_eq!(status, axum::http::StatusCode::OK, "outline body: {body}");
     assert!(body["data"].is_array());
 
     let (status, body) = common::send_request(
@@ -374,10 +338,7 @@ async fn absolute_path_and_editor_dirty_paths() {
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "abs body: {body}");
     let abs = body["data"].as_str().expect("absolute path");
-    assert!(
-        abs.ends_with("notes.txt"),
-        "absolute path should end with notes.txt: {abs}"
-    );
+    assert!(abs.ends_with("notes.txt"), "absolute path should end with notes.txt: {abs}");
 
     let (status, body) = common::send_request(
         state.clone(),
@@ -413,11 +374,7 @@ async fn change_preview_and_emit_file_changed() {
         Some(serde_json::json!({ "relativePath": "notes.txt" })),
     )
     .await;
-    assert_eq!(
-        status,
-        axum::http::StatusCode::BAD_REQUEST,
-        "preview body: {body}"
-    );
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "preview body: {body}");
     assert_eq!(body["error"]["code"], "WORKSPACE_ERROR");
 
     let (status, body) = common::send_request(
@@ -444,10 +401,7 @@ async fn list_recent_empty_on_fresh_state() {
     let (status, body) = common::send_post(state, "/sidebar/list", None).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert_eq!(body["ok"], true, "body: {body}");
-    assert!(
-        body["data"].as_array().unwrap().is_empty(),
-        "fresh recent list: {body}"
-    );
+    assert!(body["data"].as_array().unwrap().is_empty(), "fresh recent list: {body}");
 }
 
 /// Opening a workspace upserts it into the sidebar recent list (completes the
@@ -479,11 +433,7 @@ async fn pin_unknown_workspace_returns_404() {
         Some(serde_json::json!({ "workspaceId": "nope" })),
     )
     .await;
-    assert_eq!(
-        status,
-        axum::http::StatusCode::NOT_FOUND,
-        "body: {body}"
-    );
+    assert_eq!(status, axum::http::StatusCode::NOT_FOUND, "body: {body}");
     assert_eq!(body["ok"], false, "body: {body}");
     assert_eq!(body["error"]["code"], "NOT_FOUND", "body: {body}");
 }
@@ -502,28 +452,15 @@ async fn pin_unpin_round_trip() {
     )
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|e| e["id"] == wid)
-        .unwrap();
+    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
     assert_eq!(entry["isPinned"], true, "body: {body}");
     assert_eq!(entry["pinnedOrder"], 0, "first pinned: {body}");
 
-    let (status, body) = common::send_post(
-        state,
-        "/sidebar/unpin",
-        Some(serde_json::json!({ "workspaceId": wid })),
-    )
-    .await;
+    let (status, body) =
+        common::send_post(state, "/sidebar/unpin", Some(serde_json::json!({ "workspaceId": wid })))
+            .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|e| e["id"] == wid)
-        .unwrap();
+    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
     assert_eq!(entry["isPinned"], false, "body: {body}");
 }
 
@@ -570,14 +507,9 @@ async fn remove_marks_removed_and_purges() {
     );
 
     // The workspace row is purged too.
-    let remaining: Vec<WorkspaceMeta> = state
-        .db
-        .list_entities(adl_storage::EntityTable::Workspaces)
-        .unwrap();
-    assert!(
-        !remaining.iter().any(|w| w.id == wid),
-        "workspace row purged"
-    );
+    let remaining: Vec<WorkspaceMeta> =
+        state.db.list_entities(adl_storage::EntityTable::Workspaces).unwrap();
+    assert!(!remaining.iter().any(|w| w.id == wid), "workspace row purged");
 }
 
 /// POST /sidebar/restore on an unknown workspace returns 404 NOT_FOUND.
@@ -590,11 +522,7 @@ async fn restore_unknown_workspace_returns_404() {
         Some(serde_json::json!({ "workspaceId": "nope" })),
     )
     .await;
-    assert_eq!(
-        status,
-        axum::http::StatusCode::NOT_FOUND,
-        "body: {body}"
-    );
+    assert_eq!(status, axum::http::StatusCode::NOT_FOUND, "body: {body}");
     assert_eq!(body["error"]["code"], "NOT_FOUND", "body: {body}");
 }
 
@@ -624,9 +552,7 @@ async fn restore_re_adds_existing_workspace() {
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     let entries = body["data"].as_array().unwrap();
     assert!(
-        entries
-            .iter()
-            .any(|e| e["id"] == wid && e["removedFromSidebar"] == false),
+        entries.iter().any(|e| e["id"] == wid && e["removedFromSidebar"] == false),
         "restored workspace presentable: {body}"
     );
 }
@@ -645,26 +571,13 @@ async fn hide_show_right_panels_round_trip() {
     )
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|e| e["id"] == wid)
-        .unwrap();
+    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
     assert_eq!(entry["hiddenFromRightPanels"], true, "body: {body}");
 
-    let (status, body) = common::send_post(
-        state,
-        "/sidebar/show",
-        Some(serde_json::json!({ "workspaceId": wid })),
-    )
-    .await;
+    let (status, body) =
+        common::send_post(state, "/sidebar/show", Some(serde_json::json!({ "workspaceId": wid })))
+            .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .find(|e| e["id"] == wid)
-        .unwrap();
+    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
     assert_eq!(entry["hiddenFromRightPanels"], false, "body: {body}");
 }

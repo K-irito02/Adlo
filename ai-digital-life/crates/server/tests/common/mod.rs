@@ -1,4 +1,6 @@
-#![allow(clippy::unwrap_used)]
+// 共享测试工具模块：被各集成测试 binary（`mod common;`）独立编译并按需引用，
+// 单个 binary 未用到的 helper 会被 dead_code 误报，故在此整体豁免。
+#![allow(clippy::unwrap_used, dead_code)]
 
 use adl_server::engine::init_server_state;
 use adl_server::router::app_router;

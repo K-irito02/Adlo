@@ -18,6 +18,7 @@ const ERROR_LEVEL_BY_CODE: Record<string, ErrorToastLevel> = {
   INVALID_INPUT: 'warning',
   APPROVAL_REQUIRED: 'warning',
   WORKSPACE_ERROR: 'warning',
+  DSH_FREED_PORT: 'info',
 };
 
 const NON_GIT_REPO_MARKER = 'not a git repository';

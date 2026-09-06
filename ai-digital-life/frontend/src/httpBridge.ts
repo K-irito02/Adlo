@@ -70,7 +70,7 @@ import type {
 import type { WorkspaceBridge } from './shared/ipc';
 import type { SnapshotRecord, RevertResult } from './shared/ipc/snapshot';
 import type { ReferenceConfig } from './shared/ipc/reference';
-import type { DshVersionStatus } from './shared/ipc/dsh';
+import type { DshOpenResult, DshVersionStatus } from './shared/ipc/dsh';
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { ClipboardBridge } from './shared/ipc/clipboard';
 import type { SystemMonitorBridge } from './shared/ipc/system_monitor';
@@ -916,7 +916,7 @@ export function createHttpBridge({
 
     // ── dsh 宿主壳 domain (/dsh/*, crates/server handlers/dsh.rs).
     dsh: {
-      open: () => call<string | null>(baseUrl, '/dsh/open', POST({})),
+      open: () => call<DshOpenResult>(baseUrl, '/dsh/open', POST({})),
       close: (keep: boolean) => call<boolean>(baseUrl, '/dsh/close', POST({ keep })),
       getVersionStatus: () => call<DshVersionStatus>(baseUrl, '/dsh/get-version-status', POST({})),
       update: () => call<string>(baseUrl, '/dsh/update', POST({})),

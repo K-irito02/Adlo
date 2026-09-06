@@ -41,5 +41,6 @@ pub fn test_server_state() -> ServerState {
         clipboard_store: Arc::new(ClipboardStore::new(db, dir)),
         sysmon: Arc::new(StdMutex::new(SystemMonitor::new())),
         dsh_state: Arc::new(AsyncMutex::new(None)),
+        dsh_start_lock: Arc::new(AsyncMutex::new(())),
     }
 }

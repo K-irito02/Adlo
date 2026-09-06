@@ -16,7 +16,9 @@ async fn connect_pty_socket() -> (Sock, u16) {
     // Wait for the server to bind and store its port
     let port = loop {
         let p = state.server_port.load(std::sync::atomic::Ordering::Relaxed);
-        if p != 0 { break p; }
+        if p != 0 {
+            break p;
+        }
         tokio::time::sleep(std::time::Duration::from_millis(10)).await;
     };
     let url = format!("ws://127.0.0.1:{port}/pty");

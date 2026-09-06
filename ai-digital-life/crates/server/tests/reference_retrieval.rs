@@ -35,7 +35,8 @@ fn local_reference(name: &str, path: &Path) -> Value {
 #[tokio::test]
 async fn list_references_returns_empty() {
     let state = common::state("ref-api").await;
-    let (status, body) = common::send_post(state.clone(), "/reference/list", Some(data_dir_body(&state))).await;
+    let (status, body) =
+        common::send_post(state.clone(), "/reference/list", Some(data_dir_body(&state))).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert!(body["data"].as_array().unwrap().is_empty(), "fresh list: {body}");
 }
@@ -49,8 +50,12 @@ async fn add_reference_persists_and_returns_list() {
     std::fs::create_dir_all(&dir).unwrap();
     let reference = local_reference("opencode", &dir);
 
-    let (status, body) =
-        common::send_post(state.clone(), "/reference/add", Some(json!({ "reference": reference, "dataDir": state.data_dir.to_string_lossy() }))).await;
+    let (status, body) = common::send_post(
+        state.clone(),
+        "/reference/add",
+        Some(json!({ "reference": reference, "dataDir": state.data_dir.to_string_lossy() })),
+    )
+    .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     let refs = body["data"].as_array().unwrap();
     assert_eq!(refs.len(), 1, "one reference: {body}");
@@ -59,7 +64,8 @@ async fn add_reference_persists_and_returns_list() {
     assert_eq!(refs[0]["enabled"], true, "body: {body}");
 
     // Persisted across a fresh load.
-    let (_, body) = common::send_post(state.clone(), "/reference/list", Some(data_dir_body(&state))).await;
+    let (_, body) =
+        common::send_post(state.clone(), "/reference/list", Some(data_dir_body(&state))).await;
     let refs = body["data"].as_array().unwrap();
     assert_eq!(refs.len(), 1, "persisted: {body}");
     assert_eq!(refs[0]["name"], "opencode", "body: {body}");
@@ -74,16 +80,25 @@ async fn remove_reference_removes_and_persists() {
     std::fs::create_dir_all(&dir).unwrap();
     let reference = local_reference("opencode", &dir);
 
-    let (_, body) =
-        common::send_post(state.clone(), "/reference/add", Some(json!({ "reference": reference, "dataDir": state.data_dir.to_string_lossy() }))).await;
+    let (_, body) = common::send_post(
+        state.clone(),
+        "/reference/add",
+        Some(json!({ "reference": reference, "dataDir": state.data_dir.to_string_lossy() })),
+    )
+    .await;
     assert_eq!(body["data"].as_array().unwrap().len(), 1);
 
-    let (status, body) =
-        common::send_post(state.clone(), "/reference/remove", Some(json!({ "name": "opencode", "dataDir": state.data_dir.to_string_lossy() }))).await;
+    let (status, body) = common::send_post(
+        state.clone(),
+        "/reference/remove",
+        Some(json!({ "name": "opencode", "dataDir": state.data_dir.to_string_lossy() })),
+    )
+    .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert!(body["data"].as_array().unwrap().is_empty(), "removed: {body}");
 
-    let (_, body) = common::send_post(state.clone(), "/reference/list", Some(data_dir_body(&state))).await;
+    let (_, body) =
+        common::send_post(state.clone(), "/reference/list", Some(data_dir_body(&state))).await;
     assert!(body["data"].as_array().unwrap().is_empty(), "persisted: {body}");
 }
 
@@ -139,7 +154,8 @@ async fn rebuild_index_rebuilds_snapshot() {
     let state = common::state("retrieval-api").await;
     let wid = open_temp_workspace(state.clone()).await;
 
-    let (status, body) = common::send_request(state.clone(), Method::POST, "/retrieval/rebuild", None).await;
+    let (status, body) =
+        common::send_request(state.clone(), Method::POST, "/retrieval/rebuild", None).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert_eq!(body["ok"], true, "body: {body}");
     assert_eq!(body["data"], true, "rebuild returns true: {body}");
@@ -154,7 +170,8 @@ async fn rebuild_index_rebuilds_snapshot() {
 #[tokio::test]
 async fn rebuild_index_without_active_workspace_returns_404() {
     let state = common::state("retrieval-api").await;
-    let (status, body) = common::send_request(state, Method::POST, "/retrieval/rebuild", None).await;
+    let (status, body) =
+        common::send_request(state, Method::POST, "/retrieval/rebuild", None).await;
     assert_eq!(status, axum::http::StatusCode::NOT_FOUND, "body: {body}");
     assert_eq!(body["ok"], false, "body: {body}");
     assert_eq!(body["error"]["code"], "NOT_FOUND", "body: {body}");

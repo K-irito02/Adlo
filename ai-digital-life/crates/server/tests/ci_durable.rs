@@ -88,21 +88,13 @@ async fn set_access_token_empty_clears() {
     let state = common::state("ci-api").await;
     let (_, _) = common::send_post(state.clone(), "/ci/access-token/clear", Some(json!({}))).await;
 
-    let (status, body) = common::send_post(
-        state.clone(),
-        "/ci/access-token",
-        Some(json!({ "token": "t" })),
-    )
-    .await;
+    let (status, body) =
+        common::send_post(state.clone(), "/ci/access-token", Some(json!({ "token": "t" }))).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     let _ = poll_has_token(state.clone(), true, "/ci/access-token/has").await;
 
-    let (status, body) = common::send_post(
-        state.clone(),
-        "/ci/access-token",
-        Some(json!({ "token": "  " })),
-    )
-    .await;
+    let (status, body) =
+        common::send_post(state.clone(), "/ci/access-token", Some(json!({ "token": "  " }))).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     let _ = poll_has_token(state, false, "/ci/access-token/has").await;
 }
@@ -209,9 +201,12 @@ async fn heartbeat_durable_session_ok() {
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
 
-    let (status, body) =
-        common::send_post(state.clone(), "/durable/heartbeat", Some(json!({ "sessionId": "sess-1" })))
-            .await;
+    let (status, body) = common::send_post(
+        state.clone(),
+        "/durable/heartbeat",
+        Some(json!({ "sessionId": "sess-1" })),
+    )
+    .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert_eq!(body["ok"], true, "body: {body}");
 

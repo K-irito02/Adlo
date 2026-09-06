@@ -33,8 +33,12 @@ async fn engine_init_creates_workable_state() {
 async fn health_returns_ok_with_port() {
     let state = common::state("health").await;
     let app = common::app(state.clone());
-    let resp =
-        app.oneshot(axum::http::Request::builder().uri("/health").body(axum::body::Body::empty()).unwrap()).await.unwrap();
+    let resp = app
+        .oneshot(
+            axum::http::Request::builder().uri("/health").body(axum::body::Body::empty()).unwrap(),
+        )
+        .await
+        .unwrap();
     assert_eq!(resp.status(), axum::http::StatusCode::OK);
     let bytes = axum::body::to_bytes(resp.into_body(), 4096).await.unwrap();
     let body: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
@@ -55,7 +59,9 @@ async fn cors_headers_on_every_response_and_preflight() {
 
     let resp = app
         .clone()
-        .oneshot(axum::http::Request::builder().uri("/health").body(axum::body::Body::empty()).unwrap())
+        .oneshot(
+            axum::http::Request::builder().uri("/health").body(axum::body::Body::empty()).unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(resp.status(), axum::http::StatusCode::OK);

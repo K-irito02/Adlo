@@ -18,9 +18,9 @@ export function createTauriDshBridge(httpDsh: DshBridge): DshBridge {
   return {
     open: async () => {
       const result = await httpDsh.open();
-      if (result.ok && result.data) {
+      if (result.ok && result.data?.url) {
         const created = await invokeIpc<undefined>('browser_create_dsh_view', {
-          url: result.data,
+          url: result.data.url,
         });
         if (!created.ok) {
           // The dsh process is up but the WebView creation failed — surface the

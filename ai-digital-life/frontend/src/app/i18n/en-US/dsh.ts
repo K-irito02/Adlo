@@ -27,5 +27,12 @@ export const dshEn = {
   dshUninstallCurrentHint:
     'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
   dshUninstallSuccess: 'Uninstalled version {version}',
+  dshCheckUpdateFailed: 'Failed to check for updates',
+  dshUpdateFailed: 'Failed to upgrade',
+  dshRevertFailed: 'Failed to revert version',
+  dshUninstallFailed: 'Failed to uninstall version',
+  dshReinstallFailed: 'Failed to reinstall',
+  dshOpenFailed: 'Failed to open',
+  dshPortFreed: 'Port 3080 was occupied by a stale dsh process; it has been released and restarted',
   dshWelcomeEmpty: 'Open DeepSeek Harness to get started',
 } as const;

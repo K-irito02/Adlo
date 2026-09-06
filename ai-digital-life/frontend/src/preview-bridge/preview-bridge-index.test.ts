@@ -61,74 +61,90 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     return { bridge, fetchMock };
   }
 
-  it('workspace.pickDirectory uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)', { timeout: 10000 }, async () => {
-    const { bridge, fetchMock } = await setupBridge();
-    const res = await bridge.workspace.pickDirectory();
+  it(
+    'workspace.pickDirectory uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)',
+    { timeout: 10000 },
+    async () => {
+      const { bridge, fetchMock } = await setupBridge();
+      const res = await bridge.workspace.pickDirectory();
 
-    expect(res).toEqual({ ok: true, data: '/picked/path' });
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/__adl_preview_api__/workspace/pick-directory'),
-      expect.anything(),
-    );
-  });
+      expect(res).toEqual({ ok: true, data: '/picked/path' });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/__adl_preview_api__/workspace/pick-directory'),
+        expect.anything(),
+      );
+    },
+  );
 
-  it('workspace.revealInFileManager uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)', { timeout: 10000 }, async () => {
-    const { bridge, fetchMock } = await setupBridge();
-    const res = await bridge.workspace.revealInFileManager('E:/project/src/main.ts');
+  it(
+    'workspace.revealInFileManager uses the real preview impl when the ad-server is reachable (not the NOT_SUPPORTED stub)',
+    { timeout: 10000 },
+    async () => {
+      const { bridge, fetchMock } = await setupBridge();
+      const res = await bridge.workspace.revealInFileManager('E:/project/src/main.ts');
 
-    expect(res).toEqual({ ok: true, data: true });
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/__adl_preview_api__/workspace/reveal'),
-      expect.anything(),
-    );
-  });
+      expect(res).toEqual({ ok: true, data: true });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/__adl_preview_api__/workspace/reveal'),
+        expect.anything(),
+      );
+    },
+  );
 
-  it('workspace.pickDirectory / revealInFileManager never resolve to the httpBridge NOT_SUPPORTED stub', { timeout: 10000 }, async () => {
-    const { bridge } = await setupBridge();
-    const picked = await bridge.workspace.pickDirectory();
-    const revealed = await bridge.workspace.revealInFileManager('E:/x/y.ts');
+  it(
+    'workspace.pickDirectory / revealInFileManager never resolve to the httpBridge NOT_SUPPORTED stub',
+    { timeout: 10000 },
+    async () => {
+      const { bridge } = await setupBridge();
+      const picked = await bridge.workspace.pickDirectory();
+      const revealed = await bridge.workspace.revealInFileManager('E:/x/y.ts');
 
-    expect(picked.ok).toBe(true);
-    expect(revealed.ok).toBe(true);
-    if (!picked.ok || !revealed.ok) {
-      return;
-    }
-    expect(picked.data).toBe('/picked/path');
-    expect(revealed.data).toBe(true);
-  });
-
-  it('workspace.pickDirectory / revealInFileManager still use the preview impl in the fallback (unreachable) case', { timeout: 10000 }, async () => {
-    vi.resetModules();
-    delete (window as { digitalLife?: unknown }).digitalLife;
-    vi.stubEnv('VITE_ADL_SERVER_URL', 'http://127.0.0.1:9999');
-    const fetchMock = vi.fn((input: RequestInfo | URL) => {
-      const url = String(input);
-      if (url.includes('/health')) {
-        return Promise.resolve(notOkJson(503));
+      expect(picked.ok).toBe(true);
+      expect(revealed.ok).toBe(true);
+      if (!picked.ok || !revealed.ok) {
+        return;
       }
-      if (url.includes('/__adl_preview_api__/workspace/pick-directory')) {
-        return Promise.resolve(okJson({ ok: true, data: '/picked/path' }));
-      }
-      if (url.includes('/__adl_preview_api__/workspace/reveal')) {
-        return Promise.resolve(okJson({ ok: true, data: true }));
-      }
-      return Promise.resolve(okJson({ ok: true, data: null }));
-    });
-    vi.stubGlobal('fetch', fetchMock);
-    const { setupPreviewBridge } = await import('./index');
-    setupPreviewBridge();
-    const bridge = (window as { digitalLife: DigitalLifeBridge }).digitalLife;
+      expect(picked.data).toBe('/picked/path');
+      expect(revealed.data).toBe(true);
+    },
+  );
 
-    const picked = await bridge.workspace.pickDirectory();
-    const revealed = await bridge.workspace.revealInFileManager('E:/x/y.ts');
+  it(
+    'workspace.pickDirectory / revealInFileManager still use the preview impl in the fallback (unreachable) case',
+    { timeout: 10000 },
+    async () => {
+      vi.resetModules();
+      delete (window as { digitalLife?: unknown }).digitalLife;
+      vi.stubEnv('VITE_ADL_SERVER_URL', 'http://127.0.0.1:9999');
+      const fetchMock = vi.fn((input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes('/health')) {
+          return Promise.resolve(notOkJson(503));
+        }
+        if (url.includes('/__adl_preview_api__/workspace/pick-directory')) {
+          return Promise.resolve(okJson({ ok: true, data: '/picked/path' }));
+        }
+        if (url.includes('/__adl_preview_api__/workspace/reveal')) {
+          return Promise.resolve(okJson({ ok: true, data: true }));
+        }
+        return Promise.resolve(okJson({ ok: true, data: null }));
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      const { setupPreviewBridge } = await import('./index');
+      setupPreviewBridge();
+      const bridge = (window as { digitalLife: DigitalLifeBridge }).digitalLife;
 
-    expect(picked).toEqual({ ok: true, data: '/picked/path' });
-    expect(revealed).toEqual({ ok: true, data: true });
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('/__adl_preview_api__/workspace/pick-directory'),
-      expect.anything(),
-    );
-  });
+      const picked = await bridge.workspace.pickDirectory();
+      const revealed = await bridge.workspace.revealInFileManager('E:/x/y.ts');
+
+      expect(picked).toEqual({ ok: true, data: '/picked/path' });
+      expect(revealed).toEqual({ ok: true, data: true });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/__adl_preview_api__/workspace/pick-directory'),
+        expect.anything(),
+      );
+    },
+  );
 
   it('keeps the remaining business workspace RPCs on the httpBridge (HTTP routes) when reachable', async () => {
     const { bridge, fetchMock } = await setupBridge();

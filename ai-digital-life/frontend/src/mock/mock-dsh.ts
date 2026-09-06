@@ -11,7 +11,7 @@ const MOCK_STATUS: DshVersionStatus = {
 };
 
 export const mockDsh: DshBridge = {
-  open: async () => ({ ok: true, data: "http://127.0.0.1:61234" }),
+  open: async () => ({ ok: true, data: { url: "http://127.0.0.1:61234", freedPort: false } }),
   close: async (keep) => ({ ok: true, data: keep }),
   getVersionStatus: async () => ({ ok: true, data: MOCK_STATUS }),
   update: async () => ({ ok: true, data: MOCK_VERSION }),
