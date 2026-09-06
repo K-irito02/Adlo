@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
@@ -11,6 +11,7 @@ export function DshSettings() {
   const { t } = useTCopy();
   const actions = useAppActions();
   const sourceStatus = useAppStore((s) => s.sourceStatus);
+  const showToast = useAppStore((s) => s.showToast);
 
   const [sourceType, setSourceType] = useState<SourceType>('npmjs');
   const [customUrl, setCustomUrl] = useState('');
@@ -21,12 +22,14 @@ export function DshSettings() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
+  const initializedRef = useRef(false);
 
-  // Sync initial state from sourceStatus on mount
+  // Sync initial state from sourceStatus on mount (only once)
   useEffect(() => {
-    if (!sourceStatus) {
+    if (!sourceStatus || initializedRef.current) {
       return;
     }
+    initializedRef.current = true;
     const { config } = sourceStatus;
     const registry = config.npm_registry;
     if (registry === 'https://registry.npmjs.org') {
@@ -40,12 +43,11 @@ export function DshSettings() {
     }
     const mode = config.proxy.mode as ProxyMode;
     setProxyMode(mode === 'manual' ? 'manual' : mode === 'none' ? 'none' : 'auto');
+    // Sync proxy fields from saved config
+    setHttpProxy(config.proxy.http_proxy ?? '');
+    setHttpsProxy(config.proxy.https_proxy ?? '');
+    setNoProxy(config.proxy.no_proxy ?? '');
   }, [sourceStatus]);
-
-  // Fetch source status on mount
-  useEffect(() => {
-    void actions.fetchSourceStatus();
-  }, [actions]);
 
   const resolveTestUrl = useCallback((): string => {
     if (sourceType === 'custom') {
@@ -106,11 +108,14 @@ export function DshSettings() {
       const ok = await actions.saveSourceConfig(config);
       if (ok) {
         setTestResult(null);
+        showToast(t.dshSettingsSaveSuccess, 'success');
+      } else {
+        showToast(t.dshSettingsSaveFailed, 'error');
       }
     } finally {
       setSaving(false);
     }
-  }, [sourceType, customUrl, proxyMode, httpProxy, httpsProxy, noProxy, actions]);
+  }, [sourceType, customUrl, proxyMode, httpProxy, httpsProxy, noProxy, actions, showToast, t]);
 
   return (
     <div className="adl-dsh-settings">
@@ -125,7 +130,10 @@ export function DshSettings() {
               name="dsh-source"
               value="npmjs"
               checked={sourceType === 'npmjs'}
-              onChange={() => setSourceType('npmjs')}
+              onChange={() => {
+                setSourceType('npmjs');
+                setTestResult(null);
+              }}
             />
             <span>{t.dshSettingsSourceNpmjs}</span>
           </label>
@@ -137,7 +145,10 @@ export function DshSettings() {
               name="dsh-source"
               value="npmmirror"
               checked={sourceType === 'npmmirror'}
-              onChange={() => setSourceType('npmmirror')}
+              onChange={() => {
+                setSourceType('npmmirror');
+                setTestResult(null);
+              }}
             />
             <span>{t.dshSettingsSourceNpmmirror}</span>
           </label>
@@ -149,7 +160,10 @@ export function DshSettings() {
               name="dsh-source"
               value="custom"
               checked={sourceType === 'custom'}
-              onChange={() => setSourceType('custom')}
+              onChange={() => {
+                setSourceType('custom');
+                setTestResult(null);
+              }}
             />
             <span>{t.dshSettingsSourceCustom}</span>
           </label>
@@ -206,7 +220,7 @@ export function DshSettings() {
               <input
                 type="text"
                 className="adl-settings-input"
-                placeholder="localhost,127.0.0.1"
+                placeholder={t.dshSettingsProxyNoProxyPlaceholder}
                 value={noProxy}
                 onChange={(e) => setNoProxy(e.target.value)}
               />

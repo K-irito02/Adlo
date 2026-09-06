@@ -55,7 +55,6 @@ export function useAppActions() {
       setDshOpen: state.setDshOpen,
       setDshUrl: state.setDshUrl,
       setDshCloseDialogVisible: state.setDshCloseDialogVisible,
-      setSettingsModalVisible: state.setSettingsModalVisible,
     })),
   );
 }
