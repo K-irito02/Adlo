@@ -258,6 +258,11 @@ pub fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
         return None;
     }
 
+    let body = resp.text().ok()?;
+    if body.is_empty() {
+        return None;
+    }
+
     Some(RunningDshInfo { url, port, pid: None })
 }
 
