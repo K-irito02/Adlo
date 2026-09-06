@@ -262,22 +262,26 @@ async fn run_open(
     }
 
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
-    let freed = free_stale_dsh_on_default_port().await?;
-
     // 加载配置与检测 bundled
     let download_config = adl_download_source::load(data_dir)?;
     let bundled = adl_dsh_bundle::detect(data_dir)?;
 
-    // 智能选择 dsh 来源
+    // 智能选择 dsh 来源（在 free_stale 之前，避免误杀用户正在运行的 dsh）
     let source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+
+    // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
+    // 仅在需要启动新进程时才执行 free_stale（ReuseRunning 跳过）
+    let freed = match &source {
+        adl_dsh_version::DshSource::ReuseRunning { .. } => false,
+        _ => free_stale_dsh_on_default_port().await?,
+    };
 
     let timeout = std::time::Duration::from_secs(60);
     let hp = match source {
         adl_dsh_version::DshSource::ReuseRunning { url, port } => {
             tracing::info!(?url, ?port, "dsh::run_open: reusing running instance");
-            // 已有进程运行中，包装为 HostedProcess 占位（child 不需要真实持有）。
-            // 由于无法从外部获取已运行进程的 Child，构造一个"空壳"占位。
-            // 这里直接返回 URL，不写入 dsh_guard（进程非我们启动）。
+            // 已有进程运行中，直接返回 URL。不写入 dsh_guard（进程非我们启动，无法持有 Child）。
+            // close 操作对复用的进程无意义（我们没有 Child handle），保持原样即可。
             return Ok(serde_json::json!({ "url": url, "freedPort": freed }));
         },
         adl_dsh_version::DshSource::System { info } => {
