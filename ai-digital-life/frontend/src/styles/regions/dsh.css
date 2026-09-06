@@ -433,3 +433,93 @@
   width: 14px;
   height: 14px;
 }
+
+/* 下载设置模态框 */
+.adl-download-settings {
+  max-width: 480px;
+  width: 100%;
+}
+
+/* 源选择列表 */
+.adl-download-settings__sources {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.adl-download-settings__source {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--bg-elevated);
+  cursor: pointer;
+  transition: var(--transition-colors), var(--transition-shadow);
+}
+
+.adl-download-settings__source:hover {
+  border-color: var(--border-default);
+  box-shadow: var(--shadow);
+}
+
+.adl-download-settings__source.is-selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.adl-download-settings__source input[type='radio'] {
+  accent-color: var(--accent);
+}
+
+/* 代理配置区域 */
+.adl-download-settings__proxy {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* 欢迎页下载源状态卡片 */
+.adl-app-welcome__source-status {
+  width: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-3) var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.adl-app-welcome__source-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.adl-app-welcome__source-settings-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  background: transparent;
+  color: var(--accent);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: var(--transition-colors);
+  align-self: flex-end;
+}
+
+.adl-app-welcome__source-settings-btn:hover {
+  background: var(--accent-soft);
+}
+
+.adl-app-welcome__source-settings-btn .icon {
+  width: var(--icon-sm);
+  height: var(--icon-sm);
+}
