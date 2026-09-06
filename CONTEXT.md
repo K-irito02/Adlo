@@ -67,6 +67,18 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。
 ### Sidecar
 桌面端启动的独立后端子进程（当前 Tauri 模式）。未来移动端可通过 SSH/Sidecar 连接桌面端或服务器。
 
+### DSH (DeepSeek Shell)
+DeepSeek Harness 的简称，一个基于 npm 的 Web 应用，通过 WebView2 子窗口嵌入到应用中间区域。启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。
+
+### DSH Bundle
+内置的 DSH 预安装包，位于 `<data_dir>/dsh-bundle/`。包含 `manifest.json`（版本元数据）和 `package/` 目录（实际 dsh 代码）。离线环境下可直接使用，无需 npm 下载。
+
+### DSH Version
+DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列表、版本切换、npm 仓库查询，并提供智能源选择（优先级：已运行 > 系统安装 > 内置 > 下载）。
+
+### Download Source
+可配置的下载源系统，位于 `crates/download-source/`。支持 npm 仓库地址、镜像源（如 npmmirror）、代理设置。配置文件为 `<data_dir>/config/download-sources.json`。
+
 ---
 
 ## 前端概念

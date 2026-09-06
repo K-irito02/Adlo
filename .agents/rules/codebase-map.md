@@ -59,6 +59,9 @@ ai-digital-life/
 | `ci-status` | GitHub Actions CI 状态轮询、缓存、解析 |
 | `clipboard` | 系统剪贴板监听（clipboard-win monitor，写 `data.db` 的 `clipboard_items` 表，图片 PNG 落盘 + 缩略图 + digest 去重 + 硬删） |
 | `sysmon` | 系统资源快照（sysinfo：CPU/内存/磁盘/网络/进程 Top-N） |
+| `dsh-version` | DSH 版本管理（已安装版本列表、版本切换、npm 仓库查询、系统 dsh 检测、智能源选择） |
+| `dsh-bundle` | 内置 DSH 包管理（manifest 检测、版本查询、启动命令构建） |
+| `download-source` | 下载源配置（npm 仓库/镜像源、代理设置、连通性测试） |
 
 ## 前端关键目录
 
