@@ -44,7 +44,7 @@ export function DownloadSettingsModal({ visible, onClose }: Props) {
       setSourceType('custom');
       setCustomUrl(registry);
     }
-    const mode = config.proxy_mode as ProxyMode;
+    const mode = config.proxy.mode as ProxyMode;
     setProxyMode(mode === 'manual' ? 'manual' : mode === 'none' ? 'none' : 'auto');
     setTestResult(null);
   }, [visible, sourceStatus]);

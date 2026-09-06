@@ -63,6 +63,10 @@
   margin-right: var(--space-1-5);
 }
 
+.status-dot.is-connected {
+  background: var(--success);
+}
+
 /* -------- Eyebrow -------- */
 .eyebrow {
   display: inline-flex;

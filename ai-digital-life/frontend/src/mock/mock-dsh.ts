@@ -21,7 +21,12 @@ const MOCK_SOURCE_STATUS: DshSourceStatus = {
   config: {
     npm_registry: "https://registry.npmjs.org",
     dsh_mirror: null,
-    proxy_mode: "auto",
+    proxy: {
+      mode: "auto",
+      http_proxy: null,
+      https_proxy: null,
+      no_proxy: null,
+    },
   },
 };
 

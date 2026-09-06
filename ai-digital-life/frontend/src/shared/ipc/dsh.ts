@@ -12,7 +12,12 @@ export interface DshSourceStatus {
   config: {
     npm_registry: string;
     dsh_mirror: string | null;
-    proxy_mode: string;
+    proxy: {
+      mode: string;
+      http_proxy: string | null;
+      https_proxy: string | null;
+      no_proxy: string | null;
+    };
   };
 }
 

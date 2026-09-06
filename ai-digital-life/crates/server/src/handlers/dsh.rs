@@ -307,16 +307,15 @@ async fn run_open(
             };
             let registry = adl_download_source::resolve_registry(&download_config);
             tracing::info!(?package_spec, ?registry, ?version, "dsh::run_open: using download source");
-            let mut args = vec![
-                package_spec,
-                "--profile".to_string(),
-                "web".to_string(),
-                "--no-open".to_string(),
-            ];
-            // 传递注册表配置给 npx（必须在 package spec 之后）
+            let mut args = Vec::new();
+            // 传递注册表配置给 npx（必须在 package spec 之前）
             if registry != "https://registry.npmjs.org" {
                 args.push(format!("--registry={registry}"));
             }
+            args.push(package_spec);
+            args.push("--profile".to_string());
+            args.push("web".to_string());
+            args.push("--no-open".to_string());
             spawn_and_wait_ready("npx", &args, timeout).await?
         },
     };
