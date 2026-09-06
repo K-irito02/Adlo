@@ -313,8 +313,10 @@ async fn run_open(
                 "web".to_string(),
                 "--no-open".to_string(),
             ];
-            // 传递注册表配置给 npx
-            args.insert(0, format!("--registry={registry}"));
+            // 传递注册表配置给 npx（必须在 package spec 之后）
+            if registry != "https://registry.npmjs.org" {
+                args.push(format!("--registry={registry}"));
+            }
             spawn_and_wait_ready("npx", &args, timeout).await?
         },
     };

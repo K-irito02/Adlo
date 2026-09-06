@@ -275,7 +275,7 @@ const DSH_DEFAULT_PORT: u16 = 3080;
 /// 3. Bundled (via `adl-dsh-bundle`)
 /// 4. Download (fallback — no local copy available)
 pub fn select_dsh_source(
-    _data_dir: &Path,
+    data_dir: &Path,
     bundled: Option<&adl_dsh_bundle::BundledDsh>,
 ) -> DshSource {
     if let Some(running) = detect_running_dsh(DSH_DEFAULT_PORT) {
@@ -290,7 +290,10 @@ pub fn select_dsh_source(
         return DshSource::Bundled { bundled: b.clone() };
     }
 
-    DshSource::Download { version: None }
+    // Read selected version from dsh-versions directory
+    let root = data_dir.join("dsh-versions");
+    let version = read_selected(&root).ok().flatten();
+    DshSource::Download { version }
 }
 
 #[cfg(test)]
