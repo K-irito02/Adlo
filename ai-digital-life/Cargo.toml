@@ -21,6 +21,7 @@ members = [
     "crates/server",
     "crates/webapp-host",
     "crates/download-source",
+    "crates/dsh-bundle",
     "src-tauri",
 ]
 
