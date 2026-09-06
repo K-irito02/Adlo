@@ -108,11 +108,10 @@ pub const DSH_VIEW_LABEL: &str = "adl-dsh-view-main";
 /// `browser_create_for_tab` (via `attach_webview_child` and
 /// `apply_theme_and_navigate_for_platform`), but gives the view its own label
 /// (`adl-dsh-view-main`) and does **not** register it with `BrowserManager`, so it
-/// stays fully outside the browser tab slice. After creation it is positioned to
-/// the approximate central region of the main window
-/// (`dsh_central_bounds`). The frontend's `.dsh-host-region` container exists as
-/// an anchor; exact frontend-side placement (e.g. a dedicated bounds command)
-/// can be layered on later if the approximation is misaligned.
+/// stays fully outside the browser tab slice. After creation, the webview is
+/// positioned off-screen. The frontend's `useDshWebViewBounds` hook reads the
+/// container's precise DOM bounds and calls `browser_set_dsh_bounds` to position
+/// the webview.
 #[tauri::command]
 pub async fn browser_create_dsh_view(
     app: tauri::AppHandle,
