@@ -38,7 +38,7 @@ import type { FileOpNoticeSlice } from './slices/fileOpNoticeSlice';
 import type { BrowserDownloadsSlice } from './slices/browserDownloadsSlice';
 import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import type { WorkspaceID } from '../../shared/branded';
-import type { DshOpenResult } from '../../shared/ipc/dsh';
+import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../shared/ipc/dsh';
 
 interface ReorderWorkspacesInput {
   pinnedIds: string[];
@@ -239,6 +239,9 @@ interface DshActions {
   revertDsh: (version: string) => Promise<boolean>;
   uninstallDsh: (version: string) => Promise<boolean>;
   reinstallDsh: () => Promise<boolean>;
+  fetchSourceStatus: () => Promise<boolean>;
+  saveSourceConfig: (config: DshSourceConfig) => Promise<boolean>;
+  testSource: (url: string) => Promise<DshTestResult | null>;
 }
 
 type AllActions = [

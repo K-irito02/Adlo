@@ -49,9 +49,13 @@ export function useAppActions() {
       revertDsh: state.revertDsh,
       uninstallDsh: state.uninstallDsh,
       reinstallDsh: state.reinstallDsh,
+      fetchSourceStatus: state.fetchSourceStatus,
+      saveSourceConfig: state.saveSourceConfig,
+      testSource: state.testSource,
       setDshOpen: state.setDshOpen,
       setDshUrl: state.setDshUrl,
       setDshCloseDialogVisible: state.setDshCloseDialogVisible,
+      setSettingsModalVisible: state.setSettingsModalVisible,
     })),
   );
 }
