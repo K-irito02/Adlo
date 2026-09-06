@@ -9,10 +9,14 @@
 
 use crate::ServerState;
 use crate::ipc;
+use adl_download_source;
+use adl_dsh_bundle;
+use adl_dsh_version;
 use adl_errors::AppError;
 use adl_webapp_host::DSH_DEFAULT_PORT;
 use adl_webapp_host::HostedProcess;
 use adl_webapp_host::spawn_and_wait_ready;
+use adl_webapp_host::spawn_node_direct;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use std::path::{Path, PathBuf};
@@ -249,8 +253,6 @@ async fn run_open(
     }
 
     // 串行化启动：free_stale + spawn 持独立锁，close/revert/uninstall 不被阻塞。
-    // 锁内再次检查 dsh_state，避免等待期间另一个 open 已启动进程造成重复 spawn，
-    // 也避免本 open 的 free-stale 误杀并发方刚启动的 dsh。
     let _start_guard = start_lock.lock().await;
     {
         let guard = dsh_guard.lock().await;
@@ -262,19 +264,60 @@ async fn run_open(
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
     let freed = free_stale_dsh_on_default_port().await?;
 
-    // 读取选中的版本，如果未选中则使用 @latest
-    let root = dsh_root_dir(data_dir);
-    let selected_version = adl_dsh_version::read_selected(&root)?;
-    let package_spec = match selected_version {
-        Some(version) => format!("@deepseek-ai/dsh@{version}"),
-        None => "@deepseek-ai/dsh@latest".to_string(),
+    // 加载配置与检测 bundled
+    let download_config = adl_download_source::load(data_dir)?;
+    let bundled = adl_dsh_bundle::detect(data_dir)?;
+
+    // 智能选择 dsh 来源
+    let source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+
+    let timeout = std::time::Duration::from_secs(60);
+    let hp = match source {
+        adl_dsh_version::DshSource::ReuseRunning { url, port } => {
+            tracing::info!(?url, ?port, "dsh::run_open: reusing running instance");
+            // 已有进程运行中，包装为 HostedProcess 占位（child 不需要真实持有）。
+            // 由于无法从外部获取已运行进程的 Child，构造一个"空壳"占位。
+            // 这里直接返回 URL，不写入 dsh_guard（进程非我们启动）。
+            return Ok(serde_json::json!({ "url": url, "freedPort": freed }));
+        },
+        adl_dsh_version::DshSource::System { info } => {
+            tracing::info!(path = %info.path.display(), version = ?info.version, "dsh::run_open: using system dsh");
+            let args = vec![
+                "--profile".to_string(),
+                "web".to_string(),
+                "--no-open".to_string(),
+            ];
+            spawn_and_wait_ready(
+                &info.path.to_string_lossy(),
+                &args,
+                timeout,
+            ).await?
+        },
+        adl_dsh_version::DshSource::Bundled { bundled } => {
+            tracing::info!(version = %bundled.version, path = %bundled.path.display(), "dsh::run_open: using bundled dsh");
+            let (node_bin, script_args) = adl_dsh_bundle::launch_command(&bundled);
+            spawn_node_direct(&node_bin, &script_args[0], &script_args[1..], timeout).await?
+        },
+        adl_dsh_version::DshSource::Download { version } => {
+            let root = dsh_root_dir(data_dir);
+            let selected_version = adl_dsh_version::read_selected(&root)?;
+            let package_spec = match selected_version {
+                Some(v) => format!("@deepseek-ai/dsh@{v}"),
+                None => "@deepseek-ai/dsh@latest".to_string(),
+            };
+            let registry = adl_download_source::resolve_registry(&download_config);
+            tracing::info!(?package_spec, ?registry, ?version, "dsh::run_open: using download source");
+            let mut args = vec![
+                package_spec,
+                "--profile".to_string(),
+                "web".to_string(),
+                "--no-open".to_string(),
+            ];
+            // 传递注册表配置给 npx
+            args.insert(0, format!("--registry={registry}"));
+            spawn_and_wait_ready("npx", &args, timeout).await?
+        },
     };
-
-    let args =
-        vec![package_spec, "--profile".to_string(), "web".to_string(), "--no-open".to_string()];
-
-    tracing::info!(?args, ?freed, "dsh::run_open: starting dsh process");
-    let hp = spawn_and_wait_ready("npx", &args, std::time::Duration::from_secs(60)).await?;
 
     // 持锁写入（start_lock 已保证串行，无并发方抢先写入）。
     let mut guard = dsh_guard.lock().await;
@@ -356,6 +399,132 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
     let result = adl_dsh_version::reinstall(&root).await.map(|v| serde_json::json!(v));
     ipc::to_response(result)
+}
+
+/// POST `/dsh/source-status` — 获取下载源状态（bundled/system/running/config）。
+pub async fn get_source_status(
+    State(state): State<ServerState>,
+) -> impl IntoResponse {
+    let result = get_source_status_inner(&state).await;
+    ipc::to_response(result)
+}
+
+async fn get_source_status_inner(
+    state: &ServerState,
+) -> Result<serde_json::Value, AppError> {
+    let data_dir = &state.data_dir;
+
+    let bundled = adl_dsh_bundle::detect(data_dir)?
+        .map(|b| serde_json::json!({ "version": b.version, "path": b.path }));
+
+    let system = adl_dsh_version::detect_system_dsh()
+        .map(|info| {
+            serde_json::json!({
+                "path": info.path,
+                "version": info.version,
+            })
+        });
+
+    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT)
+        .map(|info| {
+            serde_json::json!({
+                "url": info.url,
+                "port": info.port,
+            })
+        });
+
+    let config = adl_download_source::load(data_dir)?;
+    let config_value = serde_json::to_value(&config)
+        .map_err(|e| AppError::Internal(e.to_string()))?;
+
+    Ok(serde_json::json!({
+        "bundled": bundled,
+        "system": system,
+        "running": running,
+        "config": config_value,
+    }))
+}
+
+/// POST `/dsh/source-config` — 保存下载源配置。
+pub async fn save_source_config(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let result = save_source_config_inner(&state, body).await;
+    ipc::to_response(result)
+}
+
+async fn save_source_config_inner(
+    state: &ServerState,
+    body: axum::body::Bytes,
+) -> Result<serde_json::Value, AppError> {
+    let input: serde_json::Value = serde_json::from_slice(&body)
+        .map_err(|e| AppError::InvalidInput(e.to_string()))?;
+
+    let mut config = adl_download_source::load(&state.data_dir)?;
+
+    if let Some(registry) = input.get("npm_registry").and_then(|v| v.as_str()) {
+        config.npm_registry = registry.to_string();
+    }
+    if let Some(mirror) = input.get("dsh_mirror") {
+        config.dsh_mirror = match mirror {
+            serde_json::Value::String(s) => Some(s.clone()),
+            serde_json::Value::Null => None,
+            _ => return Err(AppError::InvalidInput("dsh_mirror must be string or null".into())),
+        };
+    }
+    if let Some(proxy) = input.get("proxy") {
+        if let Some(mode_str) = proxy.get("mode").and_then(|v| v.as_str()) {
+            config.proxy.mode = match mode_str {
+                "auto" => adl_download_source::ProxyMode::Auto,
+                "manual" => adl_download_source::ProxyMode::Manual,
+                "none" => adl_download_source::ProxyMode::None,
+                _ => return Err(AppError::InvalidInput(format!("invalid proxy mode: {mode_str}"))),
+            };
+        }
+        if let Some(v) = proxy.get("http_proxy").and_then(|v| v.as_str()) {
+            config.proxy.http_proxy = Some(v.to_string());
+        }
+        if let Some(v) = proxy.get("https_proxy").and_then(|v| v.as_str()) {
+            config.proxy.https_proxy = Some(v.to_string());
+        }
+        if let Some(v) = proxy.get("no_proxy").and_then(|v| v.as_str()) {
+            config.proxy.no_proxy = Some(v.to_string());
+        }
+    }
+
+    adl_download_source::save(&state.data_dir, &config)?;
+    Ok(serde_json::json!(true))
+}
+
+/// POST `/dsh/test-source` — 测试下载源连通性。
+pub async fn test_source(
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let result = test_source_inner(body).await;
+    ipc::to_response(result)
+}
+
+async fn test_source_inner(
+    body: axum::body::Bytes,
+) -> Result<serde_json::Value, AppError> {
+    let input: serde_json::Value = serde_json::from_slice(&body)
+        .map_err(|e| AppError::InvalidInput(e.to_string()))?;
+
+    let url = input.get("url")
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| AppError::InvalidInput("missing 'url' field".into()))?;
+
+    let status = adl_download_source::test_source(
+        url,
+        std::time::Duration::from_secs(10),
+    ).await;
+
+    Ok(serde_json::json!({
+        "reachable": status.reachable,
+        "latencyMs": status.latency_ms,
+        "error": status.error,
+    }))
 }
 
 #[cfg(test)]

@@ -90,6 +90,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/dsh/revert", post(handlers::dsh::revert))
         .route("/dsh/uninstall", post(handlers::dsh::uninstall))
         .route("/dsh/reinstall", post(handlers::dsh::reinstall))
+        .route("/dsh/source-status", post(handlers::dsh::get_source_status))
+        .route("/dsh/source-config", post(handlers::dsh::save_source_config))
+        .route("/dsh/test-source", post(handlers::dsh::test_source))
         // CI / GitHub domain
         .route("/ci/status", post(handlers::ci::get_status))
         .route("/ci/status-without-token", post(handlers::ci::get_status_without_token))
