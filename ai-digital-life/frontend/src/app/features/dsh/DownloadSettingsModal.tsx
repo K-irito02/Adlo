@@ -153,63 +153,42 @@ export function DownloadSettingsModal({ visible, onClose }: Props) {
         <h2 className="modal__title">{t.dshSettingsTitle}</h2>
 
         {/* Source selection */}
-        <fieldset
-          style={{ border: 'none', padding: 0, margin: 0, display: 'grid', gap: 'var(--space-3)' }}
-        >
+        <fieldset style={{ border: 'none', padding: 0, margin: 0 }}>
           <legend style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--text-sm)' }}>
             {t.dshSettingsSource}
           </legend>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              cursor: 'pointer',
-            }}
-          >
-            <input
-              type="radio"
-              name="dsh-source"
-              value="npmjs"
-              checked={sourceType === 'npmjs'}
-              onChange={() => setSourceType('npmjs')}
-            />
-            <span>{t.dshSettingsSourceNpmjs}</span>
-          </label>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              cursor: 'pointer',
-            }}
-          >
-            <input
-              type="radio"
-              name="dsh-source"
-              value="npmmirror"
-              checked={sourceType === 'npmmirror'}
-              onChange={() => setSourceType('npmmirror')}
-            />
-            <span>{t.dshSettingsSourceNpmmirror}</span>
-          </label>
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 'var(--space-2)',
-              cursor: 'pointer',
-            }}
-          >
-            <input
-              type="radio"
-              name="dsh-source"
-              value="custom"
-              checked={sourceType === 'custom'}
-              onChange={() => setSourceType('custom')}
-            />
-            <span>{t.dshSettingsSourceCustom}</span>
-          </label>
+          <div className="adl-download-settings__sources">
+            <label className={`adl-download-settings__source${sourceType === 'npmjs' ? ' is-selected' : ''}`}>
+              <input
+                type="radio"
+                name="dsh-source"
+                value="npmjs"
+                checked={sourceType === 'npmjs'}
+                onChange={() => setSourceType('npmjs')}
+              />
+              <span>{t.dshSettingsSourceNpmjs}</span>
+            </label>
+            <label className={`adl-download-settings__source${sourceType === 'npmmirror' ? ' is-selected' : ''}`}>
+              <input
+                type="radio"
+                name="dsh-source"
+                value="npmmirror"
+                checked={sourceType === 'npmmirror'}
+                onChange={() => setSourceType('npmmirror')}
+              />
+              <span>{t.dshSettingsSourceNpmmirror}</span>
+            </label>
+            <label className={`adl-download-settings__source${sourceType === 'custom' ? ' is-selected' : ''}`}>
+              <input
+                type="radio"
+                name="dsh-source"
+                value="custom"
+                checked={sourceType === 'custom'}
+                onChange={() => setSourceType('custom')}
+              />
+              <span>{t.dshSettingsSourceCustom}</span>
+            </label>
+          </div>
           {sourceType === 'custom' ? (
             <input
               type="text"
@@ -223,9 +202,7 @@ export function DownloadSettingsModal({ visible, onClose }: Props) {
         </fieldset>
 
         {/* Proxy settings */}
-        <fieldset
-          style={{ border: 'none', padding: 0, margin: 0, display: 'grid', gap: 'var(--space-3)' }}
-        >
+        <fieldset className="adl-download-settings__proxy">
           <legend style={{ fontWeight: 'var(--font-semibold)', fontSize: 'var(--text-sm)' }}>
             {t.dshSettingsProxy}
           </legend>
