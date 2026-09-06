@@ -1,4 +1,6 @@
+use std::net::TcpStream;
 use std::path::{Path, PathBuf};
+use std::process::Command as StdCommand;
 
 use serde::{Deserialize, Serialize};
 
@@ -174,6 +176,116 @@ pub async fn reinstall(root: &Path) -> Result<String, AppError> {
         return Err(AppError::NotFound("no selected version".into()));
     }
     update(root).await
+}
+
+// ---------------------------------------------------------------------------
+// System detection & smart source selection
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Clone)]
+pub struct SystemDshInfo {
+    pub path: PathBuf,
+    pub version: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct RunningDshInfo {
+    pub url: String,
+    pub port: u16,
+    pub pid: Option<u32>,
+}
+
+#[derive(Debug, Clone)]
+pub enum DshSource {
+    ReuseRunning { url: String, port: u16 },
+    System { info: SystemDshInfo },
+    Bundled { bundled: adl_dsh_bundle::BundledDsh },
+    Download { version: Option<String> },
+}
+
+/// Scan the system PATH for a `dsh` command.
+///
+/// - Windows: `where dsh`
+/// - Unix: `which dsh`
+///
+/// On success, attempts `dsh --version` to obtain the version string.
+pub fn detect_system_dsh() -> Option<SystemDshInfo> {
+    let which_result = if cfg!(target_os = "windows") {
+        StdCommand::new("where").arg("dsh").output()
+    } else {
+        StdCommand::new("which").arg("dsh").output()
+    };
+
+    let output = match which_result {
+        Ok(o) if o.status.success() => o,
+        _ => return None,
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let first_line = stdout.lines().next()?.trim();
+    let path = PathBuf::from(first_line);
+
+    let version = StdCommand::new(&path)
+        .arg("--version")
+        .output()
+        .ok()
+        .filter(|o| o.status.success())
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .filter(|v| !v.is_empty());
+
+    Some(SystemDshInfo { path, version })
+}
+
+/// Detect whether a dsh server is already running on `port`.
+///
+/// 1. Probe `TcpStream::connect` to confirm the port is listening.
+/// 2. HTTP GET `http://127.0.0.1:{port}/` and check for a dsh-related response
+///    (status 200 and body not empty).
+pub fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
+    let addr = format!("127.0.0.1:{port}");
+    if TcpStream::connect(&addr).is_err() {
+        return None;
+    }
+
+    let url = format!("http://{addr}/");
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .ok()?;
+
+    let resp = client.get(&url).send().ok()?;
+    if !resp.status().is_success() {
+        return None;
+    }
+
+    Some(RunningDshInfo { url, port, pid: None })
+}
+
+const DSH_DEFAULT_PORT: u16 = 3080;
+
+/// Select the best available dsh source, in priority order:
+///
+/// 1. Already running (port 3080)
+/// 2. System-installed (`dsh` on PATH)
+/// 3. Bundled (via `adl-dsh-bundle`)
+/// 4. Download (fallback — no local copy available)
+pub fn select_dsh_source(
+    _data_dir: &Path,
+    bundled: Option<&adl_dsh_bundle::BundledDsh>,
+) -> DshSource {
+    if let Some(running) = detect_running_dsh(DSH_DEFAULT_PORT) {
+        return DshSource::ReuseRunning { url: running.url, port: running.port };
+    }
+
+    if let Some(info) = detect_system_dsh() {
+        return DshSource::System { info };
+    }
+
+    if let Some(b) = bundled {
+        return DshSource::Bundled { bundled: b.clone() };
+    }
+
+    DshSource::Download { version: None }
 }
 
 #[cfg(test)]
