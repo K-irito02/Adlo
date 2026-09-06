@@ -20,6 +20,7 @@ members = [
     "crates/sysmon",
     "crates/server",
     "crates/webapp-host",
+    "crates/download-source",
     "src-tauri",
 ]
 
