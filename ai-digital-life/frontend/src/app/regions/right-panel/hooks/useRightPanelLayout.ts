@@ -1,8 +1,56 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX } from '@stores/slices/uiSlice';
+import {
+  RIGHT_PANEL_MODE_KEY,
+  RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY,
+} from '@stores/slices/uiSliceTypes';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { deriveRightPanelOverlayState, type RightPanelMode } from '../rightPanelLayout';
+
+function readPersistedRightPanelMode(): RightPanelMode {
+  try {
+    const raw = window.localStorage.getItem(RIGHT_PANEL_MODE_KEY);
+    if (raw === 'docked' || raw === 'overlay_partial' || raw === 'overlay_full') {
+      return raw;
+    }
+  } catch {
+    // localStorage unavailable
+  }
+  return 'docked';
+}
+
+function writePersistedRightPanelMode(mode: RightPanelMode): void {
+  try {
+    console.error('[ADL-DEBUG] writePersistedRightPanelMode:', { mode, key: RIGHT_PANEL_MODE_KEY });
+    window.localStorage.setItem(RIGHT_PANEL_MODE_KEY, mode);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+function readPersistedLastRestorableWidth(fallback: number): number {
+  try {
+    const raw = window.localStorage.getItem(RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    if (Number.isFinite(parsed) && parsed > 0) {
+      return parsed;
+    }
+  } catch {
+    // localStorage unavailable
+  }
+  return fallback;
+}
+
+function writePersistedLastRestorableWidth(width: number): void {
+  try {
+    window.localStorage.setItem(RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY, String(width));
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+export { writePersistedLastRestorableWidth };
 
 interface RightPanelLayoutMetrics {
   shellBody: HTMLElement | null;
@@ -25,10 +73,12 @@ export function useRightPanelLayout(collapsed: boolean) {
   const resizeFrameRef = useRef<number | null>(null);
   const syncFrameRef = useRef<number | null>(null);
   const draggingRef = useRef(false);
-  const lastRestorableWidthRef = useRef(rightPanelWidth);
+  const initialLastRestorable = readPersistedLastRestorableWidth(rightPanelWidth);
+  const lastRestorableWidthRef = useRef(initialLastRestorable);
   const overlayAnchorWidthRef = useRef<number | undefined>(undefined);
-  const rightPanelModeRef = useRef<RightPanelMode>('docked');
-  const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>('docked');
+  const initialMode = readPersistedRightPanelMode();
+  const rightPanelModeRef = useRef<RightPanelMode>(initialMode);
+  const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>(initialMode);
 
   const syncOverlayClasses = useCallback(
     (mode: RightPanelMode, shellBody?: HTMLElement | null) => {
@@ -150,6 +200,7 @@ export function useRightPanelLayout(collapsed: boolean) {
 
       if (options?.commitRestorable && nextMode !== 'overlay_full') {
         lastRestorableWidthRef.current = nextWidth;
+        writePersistedLastRestorableWidth(nextWidth);
       }
 
       return { nextWidth, nextMode, effectiveAnchorWidth };
@@ -281,6 +332,10 @@ export function useRightPanelLayout(collapsed: boolean) {
       panel.classList.remove('adl-rightpanel--overlay-expanded');
     };
   }, [rightPanelMode, syncOverlayClasses]);
+
+  useEffect(() => {
+    writePersistedRightPanelMode(rightPanelMode);
+  }, [rightPanelMode]);
 
   return {
     panelRef,

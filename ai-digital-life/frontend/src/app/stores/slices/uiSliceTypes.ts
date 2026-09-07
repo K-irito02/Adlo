@@ -27,6 +27,8 @@ export const ACTIVE_RIGHT_TOOL_KEY = 'adl-ui:active-right-tool';
 export const SHOW_GIT_VISUALIZATION_KEY = 'adl-ui:show-git-visualization';
 export const ACTIVE_HEATMAP_TAB_KEY = 'adl-ui:active-heatmap-tab';
 export const ACTIVE_WORKSPACE_TAB_KEY = 'adl-ui:active-workspace-tab';
+export const RIGHT_PANEL_MODE_KEY = 'adl-ui:right-panel-mode';
+export const RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY = 'adl-ui:right-panel-last-restorable-width';
 
 // ════════════════════════════════════════════════════════
 // 面板宽度常量
