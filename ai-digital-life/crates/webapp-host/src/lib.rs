@@ -145,8 +145,8 @@ pub async fn spawn_and_wait_ready(
             "spawn_and_wait_ready: check failed, sleeping"
         );
 
-        // 使用更短的轮询间隔（50ms）提高响应速度
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        // 使用 100ms 轮询间隔，平衡响应速度与 CPU 占用
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 }
 
@@ -243,13 +243,13 @@ pub async fn spawn_node_direct(
             "spawn_node_direct: check failed, sleeping"
         );
 
-        // 使用更短的轮询间隔（50ms）提高响应速度
-        tokio::time::sleep(Duration::from_millis(50)).await;
+        // 使用 100ms 轮询间隔，平衡响应速度与 CPU 占用
+        tokio::time::sleep(Duration::from_millis(100)).await;
     }
 }
 
 /// 快速检查端口是否可达（TCP 连接检查，带超时）。
-async fn check_port_fast(port: u16) -> bool {
+pub async fn check_port_fast(port: u16) -> bool {
     use tokio::net::TcpStream;
     tokio::time::timeout(
         Duration::from_millis(100),

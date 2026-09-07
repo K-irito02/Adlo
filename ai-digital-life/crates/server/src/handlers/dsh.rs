@@ -276,16 +276,54 @@ async fn run_open(
     // 智能选择 dsh 来源（在 free_stale 之前，避免误杀用户正在运行的 dsh）
     // 优先使用缓存的来源，避免重复检测
     let source = {
-        let cache = dsh_source_cache.read().expect("dsh_source_cache read lock poisoned");
-        if let Some(ref cached_source) = *cache {
-            tracing::info!(
-                elapsed_ms = config_start.elapsed().as_millis(),
-                source = ?cached_source,
-                "dsh::run_open: source cache HIT — reusing detected source"
-            );
-            cached_source.clone()
+        // 先读缓存，提取数据后立即释放锁，避免跨 await 持有 RwLockReadGuard
+        let cached = dsh_source_cache.read().ok().and_then(|cache| cache.clone());
+        if let Some(ref cached_source) = cached {
+            // 缓存命中：如果是 ReuseRunning，验证进程是否仍在运行
+            match cached_source {
+                adl_dsh_version::DshSource::ReuseRunning { url, port } => {
+                    // 快速 TCP 检查验证端口是否仍在监听（锁已释放，可安全 await）
+                    if adl_webapp_host::check_port_fast(*port).await {
+                        tracing::info!(
+                            elapsed_ms = config_start.elapsed().as_millis(),
+                            url = %url,
+                            port = *port,
+                            "dsh::run_open: source cache HIT — reusing running instance (verified alive)"
+                        );
+                        cached_source.clone()
+                    } else {
+                        // 进程已死，清除缓存并重新检测
+                        tracing::warn!(
+                            url = %url,
+                            port = *port,
+                            "dsh::run_open: cached ReuseRunning but port not listening — clearing cache"
+                        );
+                        if let Ok(mut cache) = dsh_source_cache.write() {
+                            *cache = None;
+                        }
+                        let detect_start = std::time::Instant::now();
+                        let new_source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+                        tracing::info!(
+                            detect_ms = detect_start.elapsed().as_millis(),
+                            source = ?new_source,
+                            "dsh::run_open: source re-detected after stale cache"
+                        );
+                        if let Ok(mut cache) = dsh_source_cache.write() {
+                            *cache = Some(new_source.clone());
+                        }
+                        new_source
+                    }
+                }
+                _ => {
+                    tracing::info!(
+                        elapsed_ms = config_start.elapsed().as_millis(),
+                        source = ?cached_source,
+                        "dsh::run_open: source cache HIT — reusing detected source"
+                    );
+                    cached_source.clone()
+                }
+            }
         } else {
-            drop(cache);
             let detect_start = std::time::Instant::now();
             let new_source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
             tracing::info!(
@@ -293,8 +331,9 @@ async fn run_open(
                 source = ?new_source,
                 "dsh::run_open: source cache MISS — fresh detection completed"
             );
-            let mut cache = dsh_source_cache.write().expect("dsh_source_cache write lock poisoned");
-            *cache = Some(new_source.clone());
+            if let Ok(mut cache) = dsh_source_cache.write() {
+                *cache = Some(new_source.clone());
+            }
             tracing::info!(elapsed_ms = config_start.elapsed().as_millis(), "dsh::run_open: source cached for future calls");
             new_source
         }

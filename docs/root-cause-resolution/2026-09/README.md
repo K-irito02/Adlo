@@ -8,3 +8,4 @@
 - [progress-2026-09-06-140000.md](./progress-2026-09-06-140000.md) — DSH 欢迎页 UI/UX 全面改进: 按钮颜色/图标/布局、版本选择下拉菜单、Spinner动画、Toast重叠/残影修复、npx启动修复
 - [progress-2026-09-06-034300.md](./progress-2026-09-06-034300.md) — 点击"打开 DeepSeek Harness"按钮无反应: 端口冲突修复、Tauri命令权限登记、调试日志清理、i18n一致性修复
 - [progress-2026-09-07-150000.md](./progress-2026-09-07-150000.md) — DSH WebView 2 窗口布局修复: TitleBar侵占、窗口缩放不跟随
+- [progress-2026-09-07-162716.md](./progress-2026-09-07-162716.md) — DeepSeek Harness 打开速度优化: 来源缓存机制、预启动设计、TCP快速检查、跳过--version
