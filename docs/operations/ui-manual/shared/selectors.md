@@ -131,10 +131,8 @@ a[aria-label="帮助"]
 | 元素        | 选择器                                                     |
 | ----------- | ---------------------------------------------------------- |
 | 标题栏容器  | `.adl-titlebar`                                            |
-| 品牌 Logo   | `.adl-titlebar__brand`                                     |
-| 文件菜单    | `[aria-label="文件"]` 或 `.adl-menu[data-menu-id="file"]`  |
-| 视图菜单    | `[aria-label="视图"]` 或 `.adl-menu[data-menu-id="view"]`  |
-| 帮助菜单    | `[aria-label="帮助"]` 或 `.adl-menu[data-menu-id="help"]`  |
+| 汉堡菜单    | `.adl-hamburger__trigger`                                  |
+| 汉堡下拉    | `.adl-hamburger__dropdown`                                 |
 | 主题按钮    | `button[aria-label="主题"]`                                |
 | 语言按钮    | `button[aria-label*="语言"]`                               |
 | 设置按钮    | `button[aria-label="设置"]`                                |

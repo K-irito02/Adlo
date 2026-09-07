@@ -158,7 +158,7 @@ frontend/src/app/
 
 ```
 App.tsx
-├── TitleBar                # 自定义标题栏（含 titleBarMenus）
+├── TitleBar                # 自定义标题栏（含 HamburgerMenu + titleBarMenus）
 ├── LeftSidebar             # 左侧边栏
 │   ├── ConversationPanel   # 会话列表
 │   ├── SessionList         # 会话行

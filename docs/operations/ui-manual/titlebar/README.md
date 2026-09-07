@@ -1,12 +1,12 @@
 # 标题栏区域
 
-> 标题栏包含品牌标识、应用菜单、操作按钮和窗口控制。
+> 标题栏包含汉堡菜单、操作按钮和窗口控制。
 
 ## 布局结构
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ [1] Brand   [2] App Menus    [3] Cmd    │  [9] Drag Region  │[4][5][6] [7][8]│
+│ [1] Hamburger Menu                    │  [9] Drag Region  │[4][5][6] [7][8]│
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -14,9 +14,7 @@
 
 | 编号 | 名称 | 文档 | 说明 |
 |------|------|------|------|
-| [1] | Brand | [brand.md](./brand.md) | 品牌 Logo |
-| [2] | App Menus | [menus.md](./menus/) | 应用菜单（文件/视图/帮助） |
-| [3] | Command Palette | [menus.md](./menus/#命令面板) | 命令面板触发按钮 |
+| [1] | Hamburger Menu | [hamburger-menu.md](./hamburger-menu.md) | 汉堡菜单（文件/视图/帮助/命令面板） |
 | [4] | Theme Toggle | [actions.md](./actions.md#主题切换) | 主题切换按钮 |
 | [5] | Language Toggle | [actions.md](./actions.md#语言切换) | 语言切换按钮 |
 | [6] | Settings | [actions.md](./actions.md#设置按钮) | 设置按钮 |
@@ -29,7 +27,7 @@
 | 选择器 | 说明 |
 |--------|------|
 | `.adl-titlebar` | 标题栏容器 |
-| `.adl-titlebar__left` | 左侧区域（Brand + Menus） |
+| `.adl-titlebar__left` | 左侧区域（Hamburger Menu） |
 | `.adl-titlebar__right` | 右侧区域（Actions + Panels + Window） |
 | `.adl-titlebar__drag` | 拖拽区域（不可交互） |
 
@@ -37,21 +35,20 @@
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-titlebar__brand-slot` | Brand 容器 |
-| `.adl-titlebar__menus` | 菜单区域 |
+| `.adl-hamburger` | 汉堡菜单容器 |
 | `.adl-titlebar__action-group` | 操作按钮组（主题/语言/设置） |
 | `.adl-titlebar__panel-group` | 面板控制组 |
 | `.adl-titlebar__window-group` | 窗口控制组 |
 
 ## 快速操作
 
-### 打开文件菜单
+### 打开汉堡菜单
 
 ```javascript
-// 点击文件菜单
-await page.click('.adl-menu[data-menu-id="file"] .adl-menu__trigger');
+// 点击汉堡菜单图标
+await page.click('.adl-hamburger__trigger');
 // 等待下拉菜单出现
-await page.waitForSelector('.adl-menu[data-menu-id="file"] .adl-menu__dropdown');
+await page.waitForSelector('.adl-hamburger__dropdown');
 ```
 
 ### 切换主题
