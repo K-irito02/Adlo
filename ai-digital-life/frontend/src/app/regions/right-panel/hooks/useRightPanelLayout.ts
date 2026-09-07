@@ -22,7 +22,6 @@ function readPersistedRightPanelMode(): RightPanelMode {
 
 function writePersistedRightPanelMode(mode: RightPanelMode): void {
   try {
-    console.error('[ADL-DEBUG] writePersistedRightPanelMode:', { mode, key: RIGHT_PANEL_MODE_KEY });
     window.localStorage.setItem(RIGHT_PANEL_MODE_KEY, mode);
   } catch {
     // localStorage unavailable
@@ -49,8 +48,6 @@ function writePersistedLastRestorableWidth(width: number): void {
     // localStorage unavailable
   }
 }
-
-export { writePersistedLastRestorableWidth };
 
 interface RightPanelLayoutMetrics {
   shellBody: HTMLElement | null;

@@ -34,7 +34,6 @@ import type { EditorRef, DiffEditorRef } from '../stores/types';
 import type { ToolId } from '../stores/types';
 import {
   useRightPanelLayout,
-  writePersistedLastRestorableWidth,
 } from './right-panel/hooks/useRightPanelLayout';
 import { useRightPanelViewProps } from './right-panel/hooks/useRightPanelViewProps';
 import { useFilesPanelProps } from './right-panel/hooks/useFilesPanelProps';
@@ -196,7 +195,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
         ? rightPanelWidth
         : clampPanelWidthToShell(rightPanelWidth);
     lastRestorableWidthRef.current = clampPanelWidthToShell(entryWidth);
-    writePersistedLastRestorableWidth(lastRestorableWidthRef.current);
     const { nextWidth } = applyPanelGeometry(metrics.rightMaxWidth);
     setRightPanelWidth(nextWidth);
   }, [
