@@ -52,8 +52,13 @@ struct VersionInput {
 
 /// POST `/dsh/open` — 拉起 dsh 进程（若已运行返回已有 URL）。返回 `{ url, freedPort }`。
 pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
-    let result =
-        run_open(state.dsh_state.clone(), state.dsh_start_lock.clone(), &state.data_dir, state.dsh_source_cache.clone()).await;
+    let result = run_open(
+        state.dsh_state.clone(),
+        state.dsh_start_lock.clone(),
+        &state.data_dir,
+        state.dsh_source_cache.clone(),
+    )
+    .await;
     ipc::to_response(result)
 }
 
@@ -246,12 +251,15 @@ async fn run_open(
     dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
 ) -> Result<serde_json::Value, AppError> {
     let start_time = std::time::Instant::now();
-    
+
     // 快速路径：已运行则直接返回（不加 start_lock）。
     {
         let guard = dsh_guard.lock().await;
         if let Some(ref hp) = *guard {
-            tracing::info!(elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: fast path - already running");
+            tracing::info!(
+                elapsed_ms = start_time.elapsed().as_millis(),
+                "dsh::run_open: fast path - already running"
+            );
             return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
         }
     }
@@ -261,7 +269,10 @@ async fn run_open(
     {
         let guard = dsh_guard.lock().await;
         if let Some(ref hp) = *guard {
-            tracing::info!(elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: acquired lock - already running");
+            tracing::info!(
+                elapsed_ms = start_time.elapsed().as_millis(),
+                "dsh::run_open: acquired lock - already running"
+            );
             return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
         }
     }
@@ -302,7 +313,8 @@ async fn run_open(
                             *cache = None;
                         }
                         let detect_start = std::time::Instant::now();
-                        let new_source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+                        let new_source =
+                            adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
                         tracing::info!(
                             detect_ms = detect_start.elapsed().as_millis(),
                             source = ?new_source,
@@ -313,7 +325,7 @@ async fn run_open(
                         }
                         new_source
                     }
-                }
+                },
                 _ => {
                     tracing::info!(
                         elapsed_ms = config_start.elapsed().as_millis(),
@@ -321,7 +333,7 @@ async fn run_open(
                         "dsh::run_open: source cache HIT — reusing detected source"
                     );
                     cached_source.clone()
-                }
+                },
             }
         } else {
             let detect_start = std::time::Instant::now();
@@ -334,7 +346,10 @@ async fn run_open(
             if let Ok(mut cache) = dsh_source_cache.write() {
                 *cache = Some(new_source.clone());
             }
-            tracing::info!(elapsed_ms = config_start.elapsed().as_millis(), "dsh::run_open: source cached for future calls");
+            tracing::info!(
+                elapsed_ms = config_start.elapsed().as_millis(),
+                "dsh::run_open: source cached for future calls"
+            );
             new_source
         }
     };
@@ -346,7 +361,10 @@ async fn run_open(
         adl_dsh_version::DshSource::ReuseRunning { .. } => false,
         _ => free_stale_dsh_on_default_port().await?,
     };
-    tracing::info!(elapsed_ms = freed_start.elapsed().as_millis(), "dsh::run_open: free_stale completed");
+    tracing::info!(
+        elapsed_ms = freed_start.elapsed().as_millis(),
+        "dsh::run_open: free_stale completed"
+    );
 
     let timeout = std::time::Duration::from_secs(60);
     let spawn_start = std::time::Instant::now();
@@ -393,7 +411,10 @@ async fn run_open(
             spawn_and_wait_ready("npx", &args, timeout).await?
         },
     };
-    tracing::info!(elapsed_ms = spawn_start.elapsed().as_millis(), "dsh::run_open: spawn completed");
+    tracing::info!(
+        elapsed_ms = spawn_start.elapsed().as_millis(),
+        "dsh::run_open: spawn completed"
+    );
 
     // 持锁写入（start_lock 已保证串行，无并发方抢先写入）。
     let mut guard = dsh_guard.lock().await;
@@ -413,7 +434,9 @@ pub async fn pre_start_dsh(state: &ServerState) {
         state.dsh_start_lock.clone(),
         &state.data_dir,
         state.dsh_source_cache.clone(),
-    ).await {
+    )
+    .await
+    {
         Ok(val) => {
             let url = val.get("url").and_then(|v| v.as_str()).unwrap_or("unknown");
             tracing::info!(
@@ -421,14 +444,14 @@ pub async fn pre_start_dsh(state: &ServerState) {
                 url,
                 "dsh::pre_start: dsh ready"
             );
-        }
+        },
         Err(e) => {
             tracing::warn!(
                 elapsed_ms = start.elapsed().as_millis(),
                 error = %e,
                 "dsh::pre_start: dsh spawn failed — will retry on user click"
             );
-        }
+        },
     }
 }
 
@@ -471,7 +494,8 @@ pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoRe
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result = adl_dsh_version::update(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
+    let result =
+        adl_dsh_version::update(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 
@@ -507,7 +531,8 @@ pub async fn uninstall(
 /// POST `/dsh/reinstall` — 按当前选中版本重装最新可用版本，返回新版本串。
 pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result = adl_dsh_version::reinstall(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
+    let result =
+        adl_dsh_version::reinstall(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 

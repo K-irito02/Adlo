@@ -220,10 +220,7 @@ pub async fn browser_set_dsh_bounds(
     })
     .map_err(|e| AppError::Internal(format!("main thread dispatch: {e}")))?;
 
-    Ok(ipc(
-        rx.await
-            .map_err(|e| AppError::Internal(format!("set dsh bounds channel: {e}")))?,
-    ))
+    Ok(ipc(rx.await.map_err(|e| AppError::Internal(format!("set dsh bounds channel: {e}")))?))
 }
 
 /// Close the dsh webview for the given main window by its fixed label (no-op if
