@@ -43,16 +43,6 @@
   height: 100%;
 }
 
-.adl-titlebar__menus {
-  --adl-iconstrip-height: var(--titlebar-height);
-  --adl-iconstrip-button-size: 36px;
-  display: flex;
-  align-items: center;
-  gap: 0;
-  align-self: stretch;
-  height: 100%;
-}
-
 .adl-menu {
   position: relative;
   display: flex;

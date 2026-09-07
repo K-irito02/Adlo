@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { CopyDict } from '../i18n/types';
 import type { MenuItem } from './titleBarMenus';
@@ -48,6 +48,10 @@ export function HamburgerMenu({
 
   useEffect(() => {
     if (!hamburgerOpen) {
+      if (hoverTimeoutRef.current) {
+        clearTimeout(hoverTimeoutRef.current);
+        hoverTimeoutRef.current = null;
+      }
       return;
     }
     const handler = (event: MouseEvent) => {
@@ -57,6 +61,19 @@ export function HamburgerMenu({
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, [hamburgerOpen, closeAllMenus]);
+
+  useEffect(() => {
+    if (!hamburgerOpen) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeAllMenus();
+      }
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [hamburgerOpen, closeAllMenus]);
 
   useEffect(() => {
@@ -97,12 +114,15 @@ export function HamburgerMenu({
     }, HOVER_DELAY_MS);
   }, [setHoveredMenuCategory]);
 
-  const categories: CategoryItem[] = [
-    { id: 'file', label: t.menuFile, items: fileItems },
-    { id: 'view', label: t.menuView, items: viewItems },
-    { id: 'help', label: t.menuHelp, items: helpItems },
-    { id: 'command', label: t.menuCommandPalette, action: onOpenCommandPalette },
-  ];
+  const categories: CategoryItem[] = useMemo(
+    () => [
+      { id: 'file', label: t.menuFile, items: fileItems },
+      { id: 'view', label: t.menuView, items: viewItems },
+      { id: 'help', label: t.menuHelp, items: helpItems },
+      { id: 'command', label: t.menuCommandPalette, action: onOpenCommandPalette },
+    ],
+    [t, fileItems, viewItems, helpItems, onOpenCommandPalette],
+  );
 
   return (
     <div ref={containerRef} className="adl-hamburger">
@@ -151,7 +171,9 @@ export function HamburgerMenu({
               >
                 <button
                   type="button"
-                  role={hasSubmenu ? undefined : 'menuitem'}
+                  role="menuitem"
+                  aria-haspopup={hasSubmenu ? 'true' : undefined}
+                  aria-expanded={hasSubmenu ? hoveredMenuCategory === cat.id : undefined}
                   className={`adl-hamburger__item${hoveredMenuCategory === cat.id ? ' is-hovered' : ''}`}
                   onClick={() => {
                     if (cat.action) {
