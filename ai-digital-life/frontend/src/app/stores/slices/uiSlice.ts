@@ -211,9 +211,8 @@ export const createUISlice = (
     activeWorkspaceTab: 'workspace-1',
     chartColorPreset: 'bklit-default',
     startupOverlayHidden: false,
-    fileMenuOpen: false,
-    viewMenuOpen: false,
-    helpMenuOpen: false,
+    hamburgerOpen: false,
+    hoveredMenuCategory: null,
     activeSettingsGroup: 'general',
     settingsSearchQuery: '',
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
@@ -275,29 +274,19 @@ export const createUISlice = (
       set({ changesNavigatorMode: mode });
     },
 
-    setFileMenuOpen: (open) =>
+    setHamburgerOpen: (open) =>
       set({
-        fileMenuOpen: open,
-        viewMenuOpen: false,
-        helpMenuOpen: false,
+        hamburgerOpen: open,
+        hoveredMenuCategory: null,
       }),
-    setViewMenuOpen: (open) =>
+    setHoveredMenuCategory: (category) =>
       set({
-        viewMenuOpen: open,
-        fileMenuOpen: false,
-        helpMenuOpen: false,
-      }),
-    setHelpMenuOpen: (open) =>
-      set({
-        helpMenuOpen: open,
-        fileMenuOpen: false,
-        viewMenuOpen: false,
+        hoveredMenuCategory: category,
       }),
     closeAllMenus: () =>
       set({
-        fileMenuOpen: false,
-        viewMenuOpen: false,
-        helpMenuOpen: false,
+        hamburgerOpen: false,
+        hoveredMenuCategory: null,
       }),
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),

@@ -85,9 +85,8 @@ export interface UISlice {
   activeWorkspaceTab: string;
   chartColorPreset: ChartColorPreset;
   startupOverlayHidden: boolean;
-  fileMenuOpen: boolean;
-  viewMenuOpen: boolean;
-  helpMenuOpen: boolean;
+  hamburgerOpen: boolean;
+  hoveredMenuCategory: 'file' | 'view' | 'help' | null;
   activeSettingsGroup: SettingsGroupId;
   settingsSearchQuery: string;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
@@ -123,9 +122,8 @@ export interface UISlice {
   toggleChangesTreePath: (path: string) => void;
   expandChangesTreePathChain: (path: string) => void;
   collapseAllChangesTreePaths: () => void;
-  setFileMenuOpen: (open: boolean) => void;
-  setViewMenuOpen: (open: boolean) => void;
-  setHelpMenuOpen: (open: boolean) => void;
+  setHamburgerOpen: (open: boolean) => void;
+  setHoveredMenuCategory: (category: 'file' | 'view' | 'help' | null) => void;
   closeAllMenus: () => void;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;

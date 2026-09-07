@@ -12,14 +12,12 @@ import {
   IconPanelLeftClose,
   IconPanelRight,
   IconPanelRightClose,
-  IconSearch,
   IconSun,
 } from '../icons';
-import logoUrl from '/logo-chatgpt.png?url';
 import { useAppStore } from '../stores/slicedStore';
 import { TooltipSimple } from '../components/Tooltip';
 import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
-import { MenuDropdown } from './MenuDropdown';
+import { HamburgerMenu } from './HamburgerMenu';
 import { WindowControls } from './WindowControls';
 import { TitleBarNotifications } from './TitleBarNotifications';
 
@@ -65,37 +63,17 @@ const TitleBar = React.memo(function TitleBar({
 }: TitleBarProps) {
   const { t } = useTCopy();
 
-  const {
-    leftCollapsed,
-    rightCollapsed,
-    toggleLeft,
-    toggleRight,
-    toggleBoth,
-    fileMenuOpen,
-    viewMenuOpen,
-    helpMenuOpen,
-    setFileMenuOpen,
-    setViewMenuOpen,
-    setHelpMenuOpen,
-    closeAllMenus,
-    setActiveRightTool,
-  } = useAppStore(
-    useShallow((state) => ({
-      leftCollapsed: state.leftCollapsed,
-      rightCollapsed: state.rightCollapsed,
-      toggleLeft: state.toggleLeft,
-      toggleRight: state.toggleRight,
-      toggleBoth: state.toggleBoth,
-      fileMenuOpen: state.fileMenuOpen,
-      viewMenuOpen: state.viewMenuOpen,
-      helpMenuOpen: state.helpMenuOpen,
-      setFileMenuOpen: state.setFileMenuOpen,
-      setViewMenuOpen: state.setViewMenuOpen,
-      setHelpMenuOpen: state.setHelpMenuOpen,
-      closeAllMenus: state.closeAllMenus,
-      setActiveRightTool: state.setActiveRightTool,
-    })),
-  );
+  const { leftCollapsed, rightCollapsed, toggleLeft, toggleRight, toggleBoth, setActiveRightTool } =
+    useAppStore(
+      useShallow((state) => ({
+        leftCollapsed: state.leftCollapsed,
+        rightCollapsed: state.rightCollapsed,
+        toggleLeft: state.toggleLeft,
+        toggleRight: state.toggleRight,
+        toggleBoth: state.toggleBoth,
+        setActiveRightTool: state.setActiveRightTool,
+      })),
+    );
   const language = appInfo?.config.language ?? 'zh-CN';
   const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
 
@@ -128,54 +106,13 @@ const TitleBar = React.memo(function TitleBar({
   return (
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
-        <div className="adl-titlebar__brand-slot" data-tauri-drag-region>
-          <h1 className="adl-titlebar__brand">
-            <TooltipSimple content={t.brandHoverName} placement="bottom">
-              <img
-                src={logoUrl}
-                alt={t.landingTitle}
-                className="adl-titlebar__logo"
-                draggable={false}
-              />
-            </TooltipSimple>
-          </h1>
-        </div>
-        <nav className="adl-titlebar__menus adl-iconstrip" aria-label={t.appMenu}>
-          <MenuDropdown
-            id="file"
-            label={t.menuFile}
-            open={fileMenuOpen}
-            items={fileItems}
-            onToggle={() => setFileMenuOpen(!fileMenuOpen)}
-            onClose={closeAllMenus}
-          />
-          <MenuDropdown
-            id="view"
-            label={t.menuView}
-            open={viewMenuOpen}
-            items={viewItems}
-            onToggle={() => setViewMenuOpen(!viewMenuOpen)}
-            onClose={closeAllMenus}
-          />
-          <MenuDropdown
-            id="help"
-            label={t.menuHelp}
-            open={helpMenuOpen}
-            items={helpItems}
-            onToggle={() => setHelpMenuOpen(!helpMenuOpen)}
-            onClose={closeAllMenus}
-          />
-          <TooltipSimple content={t.menuCommandPalette} placement="bottom">
-            <button
-              type="button"
-              className="adl-icon-btn adl-iconstrip__button"
-              onClick={onOpenCommandPalette}
-              aria-label={t.menuCommandPalette}
-            >
-              <IconSearch size={16} decorative />
-            </button>
-          </TooltipSimple>
-        </nav>
+        <HamburgerMenu
+          t={t}
+          fileItems={fileItems}
+          viewItems={viewItems}
+          helpItems={helpItems}
+          onOpenCommandPalette={onOpenCommandPalette}
+        />
       </div>
       <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">
