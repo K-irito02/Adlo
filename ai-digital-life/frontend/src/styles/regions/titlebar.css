@@ -412,6 +412,11 @@
   flex-direction: column;
 }
 
+.adl-hamburger__submenu--flip {
+  top: auto;
+  bottom: 0;
+}
+
 .adl-hamburger__subitem {
   display: flex;
   align-items: center;
