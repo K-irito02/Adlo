@@ -33,7 +33,8 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-search-engine-popover');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-download-menu');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-confirm-overlay');
-    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.tooltip');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-hamburger__dropdown');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-hamburger__submenu');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.hint-card');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-prompt-modal');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-toast');
@@ -47,7 +48,7 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
 
   it('以逗号分隔的合法 querySelectorAll 格式', () => {
     const parts = WEBVIEW_OVERLAY_SELECTOR.split(',').map((s) => s.trim());
-    expect(parts.length).toBe(16);
+    expect(parts.length).toBe(17);
     expect(parts.every((s) => s.startsWith('.'))).toBe(true);
   });
 });
