@@ -10,3 +10,4 @@
 - [progress-2026-09-07-150000.md](./progress-2026-09-07-150000.md) — DSH WebView 2 窗口布局修复: TitleBar侵占、窗口缩放不跟随
 - [progress-2026-09-07-162716.md](./progress-2026-09-07-162716.md) — DeepSeek Harness 打开速度优化: 来源缓存机制、预启动设计、TCP快速检查、跳过--version
 - [progress-2026-09-08-015500.md](./progress-2026-09-08-015500.md) — DSH WebView2 遮挡悬浮层: 集中式OverlayManager、17选择器、activeRef Bug修复、替代方案调研(C/D)
+- [progress-2026-09-08-150000.md](./progress-2026-09-08-150000.md) — 右侧面板tooltip文本修正, 跨session状态持久化修复(mode+lastRestorableWidth)
