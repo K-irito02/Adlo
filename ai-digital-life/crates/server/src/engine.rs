@@ -67,6 +67,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
     let dsh_state = Arc::new(AsyncMutex::new(None));
     let dsh_start_lock = Arc::new(AsyncMutex::new(()));
+    let dsh_source_cache = Arc::new(RwLock::new(None));
 
     Ok(ServerState {
         data_dir: data_dir.to_path_buf(),
@@ -83,6 +84,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         sysmon,
         dsh_state,
         dsh_start_lock,
+        dsh_source_cache,
     })
 }
 
@@ -102,6 +104,14 @@ pub fn start_background_services(state: &ServerState) {
 
 pub async fn serve(state: ServerState, port: u16) -> u16 {
     start_background_services(&state);
+
+    // Pre-start dsh in background — by the time the splash screen ends (~3.5-8s),
+    // dsh should already be running, making the user's click instant.
+    let pre_start_state = state.clone();
+    tokio::spawn(async move {
+        crate::handlers::dsh::pre_start_dsh(&pre_start_state).await;
+    });
+
     let app = crate::router::app_router(state.clone()).with_state(state.clone());
     let addr = std::net::SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await.expect("failed to bind TCP listener");

@@ -114,6 +114,7 @@ dependencies = [
 name = "adl-dsh-version"
 version = "0.1.0"
 dependencies = [
+ "adl-download-source",
  "adl-dsh-bundle",
  "adl-errors",
  "reqwest",

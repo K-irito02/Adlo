@@ -73,9 +73,9 @@ pub async fn spawn_and_wait_ready(
         tracing::info!(?program, ?pid, "spawn_and_wait_ready: child process started");
     }
 
-    let client = reqwest::Client::new();
     let deadline = tokio::time::Instant::now() + timeout;
     let mut check_count = 0;
+    let spawn_start = std::time::Instant::now();
 
     // 宿主先探测一个空闲端口作为健康检查兜底，但被托管的 web 应用可能忽略 --port
     // 而绑定自己的固定默认端口（如 dsh 默认 3080），因此同时探测该默认端口。
@@ -111,43 +111,42 @@ pub async fn spawn_and_wait_ready(
         }
         check_count += 1;
 
-        // 检查默认端口3080
-        let is_up_default = client
-            .get(&default_url)
-            .timeout(Duration::from_millis(500))
-            .send()
-            .await
-            .map(|r| r.status().is_success())
-            .unwrap_or(false);
-        if is_up_default {
+        let check_start = std::time::Instant::now();
+        // 快速检查默认端口3080（TCP 连接检查，比 HTTP 请求更快）
+        if check_port_fast(DSH_DEFAULT_PORT).await {
             tracing::info!(
                 ?program,
                 default_url,
                 ?check_count,
+                elapsed_ms = check_start.elapsed().as_millis(),
+                total_elapsed_ms = spawn_start.elapsed().as_millis(),
                 "spawn_and_wait_ready: process is ready on default port"
             );
             return Ok(HostedProcess { child, url: default_url, port: DSH_DEFAULT_PORT });
         }
 
-        // 检查指定端口
-        let is_up = client
-            .get(&url)
-            .timeout(Duration::from_millis(500))
-            .send()
-            .await
-            .map(|r| r.status().is_success())
-            .unwrap_or(false);
-        if is_up {
+        // 检查指定端口（TCP 连接检查）
+        if check_port_fast(port).await {
             tracing::info!(
                 ?program,
                 ?port,
                 ?check_count,
+                elapsed_ms = check_start.elapsed().as_millis(),
+                total_elapsed_ms = spawn_start.elapsed().as_millis(),
                 "spawn_and_wait_ready: process is ready on specified port"
             );
             return Ok(HostedProcess { child, url, port });
         }
 
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        tracing::debug!(
+            ?program,
+            ?check_count,
+            elapsed_ms = check_start.elapsed().as_millis(),
+            "spawn_and_wait_ready: check failed, sleeping"
+        );
+
+        // 使用更短的轮询间隔（50ms）提高响应速度
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
 
@@ -178,6 +177,7 @@ pub async fn spawn_node_direct(
 
     let deadline = tokio::time::Instant::now() + timeout;
     let mut check_count = 0;
+    let spawn_start = std::time::Instant::now();
 
     loop {
         if tokio::time::Instant::now() >= deadline {
@@ -209,39 +209,54 @@ pub async fn spawn_node_direct(
         }
         check_count += 1;
 
-        if check_port(&default_url).await {
+        let check_start = std::time::Instant::now();
+        // 快速检查默认端口3080（TCP 连接检查，比 HTTP 请求更快）
+        if check_port_fast(DSH_DEFAULT_PORT).await {
             tracing::info!(
                 ?node_bin,
                 default_url,
                 ?check_count,
+                elapsed_ms = check_start.elapsed().as_millis(),
+                total_elapsed_ms = spawn_start.elapsed().as_millis(),
                 "spawn_node_direct: process is ready on default port"
             );
             return Ok(HostedProcess { child, url: default_url, port: DSH_DEFAULT_PORT });
         }
 
-        if check_port(&url).await {
+        // 检查指定端口（TCP 连接检查）
+        if check_port_fast(port).await {
             tracing::info!(
                 ?node_bin,
                 ?port,
                 ?check_count,
+                elapsed_ms = check_start.elapsed().as_millis(),
+                total_elapsed_ms = spawn_start.elapsed().as_millis(),
                 "spawn_node_direct: process is ready on specified port"
             );
             return Ok(HostedProcess { child, url, port });
         }
 
-        tokio::time::sleep(Duration::from_millis(200)).await;
+        tracing::debug!(
+            ?node_bin,
+            ?check_count,
+            elapsed_ms = check_start.elapsed().as_millis(),
+            "spawn_node_direct: check failed, sleeping"
+        );
+
+        // 使用更短的轮询间隔（50ms）提高响应速度
+        tokio::time::sleep(Duration::from_millis(50)).await;
     }
 }
 
-/// 检查指定 URL 是否可达（HTTP 2xx）。
-async fn check_port(url: &str) -> bool {
-    reqwest::Client::new()
-        .get(url)
-        .timeout(Duration::from_secs(1))
-        .send()
-        .await
-        .map(|r| r.status().is_success())
-        .unwrap_or(false)
+/// 快速检查端口是否可达（TCP 连接检查，带超时）。
+async fn check_port_fast(port: u16) -> bool {
+    use tokio::net::TcpStream;
+    tokio::time::timeout(
+        Duration::from_millis(100),
+        TcpStream::connect(format!("127.0.0.1:{port}")),
+    )
+    .await
+    .is_ok()
 }
 
 #[cfg(test)]

@@ -91,8 +91,10 @@ fn latest_is_newer(cur: &[u64], latest: &[u64]) -> bool {
 }
 
 /// 只读查询 npm registry 返回 dsh 最新可用版本（不下载）。
-pub async fn latest_available() -> Result<Option<String>, AppError> {
-    let resp = reqwest::Client::new()
+pub async fn latest_available(data_dir: &Path) -> Result<Option<String>, AppError> {
+    let download_config = adl_download_source::load(data_dir)?;
+    let client = adl_download_source::build_http_client(&download_config)?;
+    let resp = client
         .get(REGISTRY_LATEST)
         .timeout(std::time::Duration::from_secs(10))
         .send()
@@ -106,10 +108,10 @@ pub async fn latest_available() -> Result<Option<String>, AppError> {
 }
 
 /// 聚合查询版本目录状态（当前选中、已装列表、最新可用、是否有更新）。
-pub async fn get_version_status(root: &Path) -> Result<VersionStatus, AppError> {
+pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionStatus, AppError> {
     let current_selected = read_selected(root)?;
     let installed = list_installed(root)?;
-    let latest = latest_available().await?;
+    let latest = latest_available(data_dir).await?;
     let has_update = match (&current_selected, &latest) {
         (Some(cur), Some(latest)) => {
             let cur_tokens = ver_tokens(cur);
@@ -126,8 +128,8 @@ pub async fn get_version_status(root: &Path) -> Result<VersionStatus, AppError> 
 ///
 /// 边界说明：实际的 dsh cli 二进制下载/安装格式由 spec §8 待后续细化，
 /// 本实现只"登记版本目录 + 记账"（创建 installed/<version>/ 目录并写入 selected）。
-pub async fn update(root: &Path) -> Result<String, AppError> {
-    let latest = latest_available()
+pub async fn update(root: &Path, data_dir: &Path) -> Result<String, AppError> {
+    let latest = latest_available(data_dir)
         .await?
         .ok_or_else(|| AppError::Network("no latest version available".into()))?;
     let dir = installed_dir(root).join(&latest);
@@ -171,11 +173,11 @@ pub async fn uninstall(root: &Path, version: &str) -> Result<(), AppError> {
 }
 
 /// 重装：按当前选中版本重新安装最新可用版本。
-pub async fn reinstall(root: &Path) -> Result<String, AppError> {
+pub async fn reinstall(root: &Path, data_dir: &Path) -> Result<String, AppError> {
     if read_selected(root)?.is_none() {
         return Err(AppError::NotFound("no selected version".into()));
     }
-    update(root).await
+    update(root, data_dir).await
 }
 
 // ---------------------------------------------------------------------------
@@ -225,15 +227,8 @@ pub fn detect_system_dsh() -> Option<SystemDshInfo> {
     let first_line = stdout.lines().next()?.trim();
     let path = PathBuf::from(first_line);
 
-    let version = StdCommand::new(&path)
-        .arg("--version")
-        .output()
-        .ok()
-        .filter(|o| o.status.success())
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .filter(|v| !v.is_empty());
-
-    Some(SystemDshInfo { path, version })
+    // 跳过 --version 检测（耗时 ~1.5s），仅用于日志，非功能必需
+    Some(SystemDshInfo { path, version: None })
 }
 
 /// Detect whether a dsh server is already running on `port`.
@@ -249,7 +244,7 @@ pub fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
 
     let url = format!("http://{addr}/");
     let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(2))
+        .timeout(std::time::Duration::from_millis(500))
         .build()
         .ok()?;
 
@@ -364,10 +359,12 @@ mod tests {
     #[tokio::test]
     async fn get_version_status_offline_error_path() {
         let root = fresh_root("status_err");
+        let data_dir = fresh_root("status_err_data");
         std::fs::create_dir_all(selected_file(&root)).expect("make selected a dir");
-        let err = get_version_status(&root).await.expect_err("should error offline");
+        let err = get_version_status(&root, &data_dir).await.expect_err("should error offline");
         assert!(matches!(err, AppError::Io(_)));
         let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&data_dir);
     }
 
     #[test]

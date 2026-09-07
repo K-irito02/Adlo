@@ -35,4 +35,6 @@ pub struct ServerState {
     /// 使 close/revert/uninstall 在启动期间不被阻塞，同时避免两个并发
     /// `/dsh/open` 各自 spawn、或第二个的 free-stale 误杀第一个刚起的进程。
     pub dsh_start_lock: Arc<AsyncMutex<()>>,
+    /// dsh 来源缓存：避免每次打开 dsh 时都重新检测来源
+    pub dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
 }

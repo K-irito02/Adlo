@@ -15,3 +15,4 @@ serde_json = { workspace = true }
 semver = "1"
 tracing.workspace = true
 adl-dsh-bundle = { path = "../dsh-bundle" }
+adl-download-source = { path = "../download-source" }

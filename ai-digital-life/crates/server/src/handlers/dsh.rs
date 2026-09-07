@@ -20,7 +20,7 @@ use adl_webapp_host::spawn_node_direct;
 use axum::extract::State;
 use axum::response::IntoResponse;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 
 /// dsh 版本目录 root（宿主持有的版本目录位置）。
@@ -53,7 +53,7 @@ struct VersionInput {
 /// POST `/dsh/open` — 拉起 dsh 进程（若已运行返回已有 URL）。返回 `{ url, freedPort }`。
 pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
     let result =
-        run_open(state.dsh_state.clone(), state.dsh_start_lock.clone(), &state.data_dir).await;
+        run_open(state.dsh_state.clone(), state.dsh_start_lock.clone(), &state.data_dir, state.dsh_source_cache.clone()).await;
     ipc::to_response(result)
 }
 
@@ -243,11 +243,15 @@ async fn run_open(
     dsh_guard: Arc<AsyncMutex<Option<HostedProcess>>>,
     start_lock: Arc<AsyncMutex<()>>,
     data_dir: &Path,
+    dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
 ) -> Result<serde_json::Value, AppError> {
+    let start_time = std::time::Instant::now();
+    
     // 快速路径：已运行则直接返回（不加 start_lock）。
     {
         let guard = dsh_guard.lock().await;
         if let Some(ref hp) = *guard {
+            tracing::info!(elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: fast path - already running");
             return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
         }
     }
@@ -257,26 +261,56 @@ async fn run_open(
     {
         let guard = dsh_guard.lock().await;
         if let Some(ref hp) = *guard {
+            tracing::info!(elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: acquired lock - already running");
             return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
         }
     }
 
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
     // 加载配置与检测 bundled
+    let config_start = std::time::Instant::now();
     let download_config = adl_download_source::load(data_dir)?;
     let bundled = adl_dsh_bundle::detect(data_dir)?;
+    tracing::info!(elapsed_ms = config_start.elapsed().as_millis(), "dsh::run_open: config loaded");
 
     // 智能选择 dsh 来源（在 free_stale 之前，避免误杀用户正在运行的 dsh）
-    let source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+    // 优先使用缓存的来源，避免重复检测
+    let source = {
+        let cache = dsh_source_cache.read().expect("dsh_source_cache read lock poisoned");
+        if let Some(ref cached_source) = *cache {
+            tracing::info!(
+                elapsed_ms = config_start.elapsed().as_millis(),
+                source = ?cached_source,
+                "dsh::run_open: source cache HIT — reusing detected source"
+            );
+            cached_source.clone()
+        } else {
+            drop(cache);
+            let detect_start = std::time::Instant::now();
+            let new_source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+            tracing::info!(
+                detect_ms = detect_start.elapsed().as_millis(),
+                source = ?new_source,
+                "dsh::run_open: source cache MISS — fresh detection completed"
+            );
+            let mut cache = dsh_source_cache.write().expect("dsh_source_cache write lock poisoned");
+            *cache = Some(new_source.clone());
+            tracing::info!(elapsed_ms = config_start.elapsed().as_millis(), "dsh::run_open: source cached for future calls");
+            new_source
+        }
+    };
 
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
     // 仅在需要启动新进程时才执行 free_stale（ReuseRunning 跳过）
+    let freed_start = std::time::Instant::now();
     let freed = match &source {
         adl_dsh_version::DshSource::ReuseRunning { .. } => false,
         _ => free_stale_dsh_on_default_port().await?,
     };
+    tracing::info!(elapsed_ms = freed_start.elapsed().as_millis(), "dsh::run_open: free_stale completed");
 
     let timeout = std::time::Duration::from_secs(60);
+    let spawn_start = std::time::Instant::now();
     let hp = match source {
         adl_dsh_version::DshSource::ReuseRunning { url, port } => {
             tracing::info!(?url, ?port, "dsh::run_open: reusing running instance");
@@ -320,12 +354,43 @@ async fn run_open(
             spawn_and_wait_ready("npx", &args, timeout).await?
         },
     };
+    tracing::info!(elapsed_ms = spawn_start.elapsed().as_millis(), "dsh::run_open: spawn completed");
 
     // 持锁写入（start_lock 已保证串行，无并发方抢先写入）。
     let mut guard = dsh_guard.lock().await;
     let url = hp.url.clone();
     *guard = Some(hp);
+    tracing::info!(total_elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: completed");
     Ok(serde_json::json!({ "url": url, "freedPort": freed }))
+}
+
+/// Pre-start dsh in background. Called from `serve()` after server is ready.
+/// Errors are logged but non-fatal — user can still open dsh manually later.
+pub async fn pre_start_dsh(state: &ServerState) {
+    tracing::info!("dsh::pre_start: spawning dsh in background");
+    let start = std::time::Instant::now();
+    match run_open(
+        state.dsh_state.clone(),
+        state.dsh_start_lock.clone(),
+        &state.data_dir,
+        state.dsh_source_cache.clone(),
+    ).await {
+        Ok(val) => {
+            let url = val.get("url").and_then(|v| v.as_str()).unwrap_or("unknown");
+            tracing::info!(
+                elapsed_ms = start.elapsed().as_millis(),
+                url,
+                "dsh::pre_start: dsh ready"
+            );
+        }
+        Err(e) => {
+            tracing::warn!(
+                elapsed_ms = start.elapsed().as_millis(),
+                error = %e,
+                "dsh::pre_start: dsh spawn failed — will retry on user click"
+            );
+        }
+    }
 }
 
 /// POST `/dsh/close` — 关闭 dsh 进程。`keep=true`（缺省）：保留进程运行；
@@ -346,6 +411,10 @@ async fn close_inner(state: &ServerState, keep: bool) -> Result<serde_json::Valu
         if let Some(mut hp) = guard.take() {
             let _ = hp.child.kill().await;
         }
+        // 清除来源缓存，下次 open 时重新检测
+        if let Ok(mut cache) = state.dsh_source_cache.write() {
+            *cache = None;
+        }
     }
     Ok(serde_json::json!(true))
 }
@@ -353,7 +422,7 @@ async fn close_inner(state: &ServerState, keep: bool) -> Result<serde_json::Valu
 /// POST `/dsh/get-version-status` — 查询 dsh 版本目录状态（`VersionStatus`）。
 pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result = match adl_dsh_version::get_version_status(&root).await {
+    let result = match adl_dsh_version::get_version_status(&root, &state.data_dir).await {
         Ok(v) => serde_json::to_value(&v).map_err(|e| AppError::Internal(e.to_string())),
         Err(e) => Err(e),
     };
@@ -363,7 +432,7 @@ pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoRe
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result = adl_dsh_version::update(&root).await.map(|v| serde_json::json!(v));
+    let result = adl_dsh_version::update(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 
@@ -399,7 +468,7 @@ pub async fn uninstall(
 /// POST `/dsh/reinstall` — 按当前选中版本重装最新可用版本，返回新版本串。
 pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result = adl_dsh_version::reinstall(&root).await.map(|v| serde_json::json!(v));
+    let result = adl_dsh_version::reinstall(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 
