@@ -32,9 +32,7 @@ import type {
 import type { PatchDirection, PatchReviewFilter } from '../features/patch-review';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
 import type { ToolId } from '../stores/types';
-import {
-  useRightPanelLayout,
-} from './right-panel/hooks/useRightPanelLayout';
+import { useRightPanelLayout } from './right-panel/hooks/useRightPanelLayout';
 import { useRightPanelViewProps } from './right-panel/hooks/useRightPanelViewProps';
 import { useFilesPanelProps } from './right-panel/hooks/useFilesPanelProps';
 import { useChangesPanelProps } from './right-panel/hooks/useChangesPanelProps';
