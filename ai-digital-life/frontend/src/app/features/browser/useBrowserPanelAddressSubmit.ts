@@ -16,6 +16,8 @@ interface UseBrowserPanelAddressSubmitParams {
   expectedNavigationUrlRef: ExpectedNavigationRef;
   navigateBrowser: (url: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
+  navigateTabInPool: (tabId: string, url: string) => Promise<void>;
+  isTabInPool: (tabId: string) => boolean;
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   handlePageMeta: (meta: PageMeta, source?: MetaSource) => void;
@@ -33,6 +35,8 @@ export function useBrowserPanelAddressSubmit({
   expectedNavigationUrlRef,
   navigateBrowser,
   browserNavigateActiveTab,
+  navigateTabInPool,
+  isTabInPool,
   setIframeLoadError,
   setIframeBlockedDetected,
   handlePageMeta,
@@ -137,6 +141,15 @@ export function useBrowserPanelAddressSubmit({
         finalUrl,
         searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined,
       );
+      // Directly navigate the existing WebView if the tab is already in the pool.
+      // This ensures the WebView navigates immediately without waiting for the
+      // lifecycle effect to re-fire (which may be blocked by overlay state).
+      const activeTabId = useAppStore.getState().browserActiveTabId;
+      if (activeTabId && isTabInPool(activeTabId)) {
+        await navigateTabInPool(activeTabId, finalUrl).catch((err) => {
+          console.warn('[addressSubmit] navigateTabInPool failed:', err);
+        });
+      }
       // O3：无活动 tab 时初始期望 tabId 为 null（任意 tab 事件都可能消费）。
       // browserNavigateActiveTab 已同步创建 tab 并设为活动，回读新 id 重绑期望，
       // 避免后台 tab 事件在窗口内抢先消费（与树点击 F7 的行为一致）。
@@ -174,6 +187,8 @@ export function useBrowserPanelAddressSubmit({
     expectedNavigationUrlRef,
     navigateBrowser,
     browserNavigateActiveTab,
+    navigateTabInPool,
+    isTabInPool,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta,

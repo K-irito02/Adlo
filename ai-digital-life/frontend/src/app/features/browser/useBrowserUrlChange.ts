@@ -224,6 +224,13 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         return;
       }
 
+      // Filter out non-browser WebView events (e.g. DSH standalone WebView2
+      // sub-window). These WebViews are not registered with BrowserManager and
+      // should never trigger browser tab creation.
+      if (tabId && !tabId.startsWith('adl-browser-view')) {
+        return;
+      }
+
       const normalizedUrl = normalizeUrlForCompare(url);
       markUrlSeen(normalizedUrl);
 

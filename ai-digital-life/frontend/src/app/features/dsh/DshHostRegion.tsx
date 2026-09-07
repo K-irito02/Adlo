@@ -21,10 +21,31 @@ export function DshHostRegion() {
   const loadDetected = useRef(false);
   const { containerRef, updateBounds } = useDshWebViewBounds();
 
+  // Detect when center area is obscured by right panel overlay expansion.
+  // When the parent .adl-shell__body gets class 'is-rightpanel-overlay-expanded',
+  // the center area becomes opacity:0 and the DSH WebView should be hidden.
+  const [centerAreaHidden, setCenterAreaHidden] = useState(false);
+  useEffect(() => {
+    if (!isTauri) {
+      return;
+    }
+    const el = containerRef.current?.closest('.adl-shell__body');
+    if (!el) {
+      return;
+    }
+    const check = () => {
+      setCenterAreaHidden(el.classList.contains('is-rightpanel-overlay-expanded'));
+    };
+    check();
+    const observer = new MutationObserver(check);
+    observer.observe(el, { attributes: true, attributeFilter: ['class'] });
+    return () => observer.disconnect();
+  }, [isTauri, containerRef]);
+
   useDshWebViewVisibility({
     containerRef,
     isVisible: isTauri && !!url,
-    overlayActive: false,
+    overlayActive: centerAreaHidden,
     updateBounds,
   });
 

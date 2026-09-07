@@ -356,6 +356,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     expectedNavigationUrlRef,
     navigateBrowser,
     browserNavigateActiveTab: navigateActiveTabExplicit,
+    navigateTabInPool,
+    isTabInPool,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta: _handlePageMeta,
