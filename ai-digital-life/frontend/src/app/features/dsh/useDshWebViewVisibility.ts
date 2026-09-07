@@ -38,6 +38,12 @@ export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions)
     overlayActiveRef.current = overlayActive;
   }, [overlayActive]);
 
+  // Sync activeRef with isVisible — mirrors useWebViewLifecycle setting
+  // webViewActiveRef.current = true after WebView activation
+  useEffect(() => {
+    activeRef.current = isVisible;
+  }, [isVisible]);
+
   const hideDshWebView = useCallback(() => {
     if (!isTauriShell()) {
       return;

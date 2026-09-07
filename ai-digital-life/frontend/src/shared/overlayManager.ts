@@ -5,6 +5,16 @@ const OVERLAY_SELECTORS = [
   '.adl-search-engine-popover',
   '.adl-download-menu',
   '.adl-confirm-overlay',
+  '.tooltip',
+  '.hint-card',
+  '.adl-prompt-modal',
+  '.adl-toast',
+  '.toast-card',
+  '.toast-card-region',
+  '.adl-statusbar__menu',
+  '.adl-statusbar__model-menu',
+  '.adl-conflict-modal-overlay',
+  '.adl-notif-dropdown',
 ] as const;
 
 export const WEBVIEW_OVERLAY_SELECTOR = OVERLAY_SELECTORS.join(', ');

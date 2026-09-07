@@ -33,11 +33,21 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-search-engine-popover');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-download-menu');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-confirm-overlay');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.tooltip');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.hint-card');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-prompt-modal');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-toast');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.toast-card');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.toast-card-region');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-statusbar__menu');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-statusbar__model-menu');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-conflict-modal-overlay');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-notif-dropdown');
   });
 
   it('以逗号分隔的合法 querySelectorAll 格式', () => {
     const parts = WEBVIEW_OVERLAY_SELECTOR.split(',').map((s) => s.trim());
-    expect(parts.length).toBe(6);
+    expect(parts.length).toBe(16);
     expect(parts.every((s) => s.startsWith('.'))).toBe(true);
   });
 });
