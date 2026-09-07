@@ -1,6 +1,9 @@
 import { useCallback, useEffect } from 'react';
 import { isTauriShell } from '@shared/env';
+import { getOverlayManager } from '@shared/overlayManager';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+
+export { WEBVIEW_OVERLAY_SELECTOR } from '@shared/overlayManager';
 
 /**
  * Offscreen coordinate used to hide a WebView by moving it far outside the
@@ -8,20 +11,6 @@ import type { BrowserTabState } from '@stores/slices/browserSlice';
  * offscreen" without unloading the page (preserves SPA state).
  */
 const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
-
-/**
- * DOM 悬浮层选择器：当这些悬浮层（菜单、下拉、确认对话框等，多经 portal 渲染到
- * body）与 WebView 区域相交时，需将原生 WebView 移出屏幕，否则原生 HWND 会盖在
- * HTML 悬浮层之上。此为「WebView2 窗口遮挡悬浮层」问题的统一处理方案。
- */
-export const WEBVIEW_OVERLAY_SELECTOR = [
-  '.adl-sidebar-menu',
-  '.adl-multitree-entry__menu',
-  '.adl-menu__dropdown',
-  '.adl-search-engine-popover',
-  '.adl-download-menu',
-  '.adl-confirm-overlay',
-].join(', ');
 
 interface UseWebViewVisibilityOptions {
   isVisible: boolean;
@@ -41,7 +30,7 @@ interface UseWebViewVisibilityOptions {
  *
  * 职责：
  * - hideAllWebViews：将活动 Tab 的 WebView 移出屏幕（用于 overlay 隐藏）
- * - DOM overlay 检测：MutationObserver 监听菜单元素与 WebView 的重叠
+ * - DOM overlay 检测：委托 OverlayManager 单例监听菜单元素与 WebView 的重叠
  * - overlay 状态驱动隐藏：overlayActive 变化时隐藏/恢复 WebView
  * - 可见性变化：isVisible 变化时隐藏（移至 32767 屏外）或恢复边界
  */
@@ -78,41 +67,17 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     }
   }, [isTabInPool, activeTabRef]);
 
-  // DOM overlay detection with overlap check — only hide webview when menu
-  // elements (context menus, tree dropdowns portaled to body) actually
-  // intersect the webview area
+  // DOM overlay detection — delegated to OverlayManager singleton
   useEffect(() => {
     if (!isTauriShell()) {
       return;
     }
+    const primaryEl = primaryRef.current;
+    if (!primaryEl) {
+      return;
+    }
 
-    let rafId: number | null = null;
-
-    const checkDomOverlay = () => {
-      const overlays = document.querySelectorAll(WEBVIEW_OVERLAY_SELECTOR);
-      const primaryEl = primaryRef.current;
-
-      let hasOverlap = false;
-      if (primaryEl && overlays.length > 0) {
-        const webviewRect = primaryEl.getBoundingClientRect();
-
-        for (const el of overlays) {
-          const menuRect = el.getBoundingClientRect();
-          const overlaps =
-            menuRect.left < webviewRect.right &&
-            menuRect.right > webviewRect.left &&
-            menuRect.top < webviewRect.bottom &&
-            menuRect.bottom > webviewRect.top;
-
-          if (overlaps) {
-            hasOverlap = true;
-            break;
-          }
-        }
-      } else if (overlays.length > 0) {
-        hasOverlap = true;
-      }
-
+    return getOverlayManager().subscribe(primaryEl, (hasOverlap) => {
       if (hasOverlap === hideWebViewRequestedRef.current) {
         return;
       }
@@ -127,28 +92,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
       } else if (!overlayActiveRef.current) {
         updateWebViewBoundsRef.current();
       }
-    };
-
-    const scheduleCheck = () => {
-      if (rafId !== null) {
-        return;
-      }
-      rafId = requestAnimationFrame(() => {
-        rafId = null;
-        checkDomOverlay();
-      });
-    };
-
-    const observer = new MutationObserver(scheduleCheck);
-    observer.observe(document.body, { childList: true, subtree: true });
-    checkDomOverlay();
-
-    return () => {
-      observer.disconnect();
-      if (rafId !== null) {
-        cancelAnimationFrame(rafId);
-      }
-    };
+    });
   }, [
     hideAllWebViews,
     hideWebViewRequestedRef,

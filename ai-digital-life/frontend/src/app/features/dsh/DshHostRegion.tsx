@@ -3,6 +3,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
 import { useDshWebViewBounds } from './useDshWebViewBounds';
+import { useDshWebViewVisibility } from './useDshWebViewVisibility';
 
 /**
  * 中间区 dsh 宿主渲染层。
@@ -19,6 +20,13 @@ export function DshHostRegion() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadDetected = useRef(false);
   const { containerRef, updateBounds } = useDshWebViewBounds();
+
+  useDshWebViewVisibility({
+    containerRef,
+    isVisible: isTauri && !!url,
+    overlayActive: false,
+    updateBounds,
+  });
 
   const handleOpenExternal = useCallback(() => {
     if (url) {

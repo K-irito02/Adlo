@@ -5,6 +5,13 @@ import { isTauriShell } from '@shared/env';
  * DSH WebView 边界同步 Hook：监听 DSH host 容器尺寸变化，将精确 bounds
  * 同步到后端原生 WebView2 子窗口。
  *
+ * 职责（单一）：
+ * - ResizeObserver 监听容器尺寸变化
+ * - getBoundingClientRect 读取精确坐标
+ * - 调用 browser_set_dsh_bounds IPC 更新原生 WebView 位置
+ *
+ * 不负责：悬浮层检测与 hide/show 控制（由 useDshWebViewVisibility 处理）
+ *
  * 解决两个问题：
  * 1. 旧 `dsh_central_bounds` 使用近似百分比定位，y=0 侵占 TitleBar 区域
  * 2. bounds 仅在创建时计算一次，窗口/侧栏缩放后不跟随变化
