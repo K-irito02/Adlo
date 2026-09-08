@@ -12,3 +12,5 @@
 - [progress-2026-09-08-015500.md](./progress-2026-09-08-015500.md) — DSH WebView2 遮挡悬浮层: 集中式OverlayManager、17选择器、activeRef Bug修复、替代方案调研(C/D)
 - [progress-2026-09-08-203000.md](./progress-2026-09-08-203000.md) — DSH/浏览器面板4项Bug: DSH创建浏览器tab、DSH不跟随resize、汉堡菜单遮挡、地址栏导航失效
 - [progress-2026-09-08-150000.md](./progress-2026-09-08-150000.md) — 右侧面板tooltip文本修正, 跨session状态持久化修复(mode+lastRestorableWidth)
+- [progress-2026-09-08-160000.md](./progress-2026-09-08-160000.md) — 浏览器面板WebView2不跟随resize、地址栏回车不显示内容、DSH界面重叠
+- [progress-2026-09-08-200254.md](./progress-2026-09-08-200254.md) — dsh WebView2 在右侧面板扩大覆盖中间主内容区时未正确隐藏
