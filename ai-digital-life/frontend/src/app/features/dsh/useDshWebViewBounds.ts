@@ -2,13 +2,6 @@ import { useCallback, useEffect, useRef } from 'react';
 import { isTauriShell } from '@shared/env';
 
 /**
- * Offscreen coordinate used to hide the DSH WebView by moving it far outside
- * the viewport. `32767` is `Int16.MAX_VALUE` — WebView2 treats this as "way
- * offscreen" without unloading the page (preserves SPA state).
- */
-const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
-
-/**
  * DSH WebView 边界同步 Hook：监听 DSH host 容器尺寸变化，将精确 bounds
  * 同步到后端原生 WebView2 子窗口。
  *
