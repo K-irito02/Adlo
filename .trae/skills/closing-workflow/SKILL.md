@@ -9,7 +9,7 @@ description: End-of-work mandatory closing procedures. Invoke when all developme
 
 所有开发任务完成后，执行标准收尾流程，确保工作质量与项目整洁。
 
-**流程：** 前置检查 → 日志审查 → 代码审查（多Agent并行 + 强制修复） → 质量检测 → 文档同步 → 项目清理 → 最终总结；全程自动记录，测试分级执行。
+**流程：** 前置检查 → 日志审查 → 代码审查（多Agent并行 + 强制修复） → 质量检测 → 文档同步 → 项目清理 → 最终总结；全程自动记录，测试分级执行（只执行受影响的测试）。
 
 ## When to Invoke
 
@@ -259,20 +259,25 @@ Write your complete review report to .review-diffs/<task>-rev<N>-report.md (inpu
 
 ## Step 3: 代码质量检测
 
-> 与 `mandatory-testing.md` 的关系：该规则每次代码变更后自动触发（轻量级，按变更层级选择测试范围）；本 Step 3 在收尾时执行**全量**质量检测（确保累计变更无回归）。若本轮对话已完整执行过全量检测（Lint + Format + Typecheck + Tests 全部通过），则跳过；否则运行全部。
+> 与 `mandatory-testing.md` 的关系：该规则每次代码变更后自动触发（轻量级，按变更层级选择测试范围）；本 Step 3 在收尾时执行质量检测（确保累计变更无回归）。若本轮对话已完整执行过全量检测（Lint + Format + Typecheck + Tests 全部通过），则跳过；否则运行全部。
 
-**分级验证（避免冗余全量测试）：**
+**分级验证（只执行受影响的测试）：**
 
-> **前端或后端的全量测试只在子 Agent 循环代码审查完整结束后执行（Step 2 审查循环通过后，Step 3 全量一次）；其它所有情况只测试对应的部分。**
+> **所有阶段只执行受影响的测试，不固定执行全量测试。** 根据变更内容定位受影响的测试文件或 crate，仅运行这些测试。
 
 | 时机 | 执行范围 |
 |------|---------|
-| Step 2 循环内每轮修复后 | 只跑受影响部分：Rust `cargo test -p <受影响crate>`（通过 `git diff --name-only` 定位变更文件所属 crate）、前端 `vitest run <受影响测试文件>`（匹配 `__tests__/` 目录）；保持 clippy/tsc 通过即可，**不跑全量** |
-| 子 Agent 循环代码审查完整结束后（仅一次） | 全量质量检测：见下方"执行" |
+| Step 2 循环内每轮修复后 | 只跑受影响部分：Rust `cargo test -p <受影响crate>`（通过 `git diff --name-only` 定位变更文件所属 crate）、前端 `vitest run <受影响测试文件>`（匹配 `__tests__/` 目录）；保持 clippy/tsc 通过即可 |
+| Step 3 质量检测 | 只跑受影响部分：根据变更范围定位受影响的测试，不执行全量测试 |
 
 ### 执行（前后端并行）
 
 > **并行执行：** 在同一条消息中发两个命令（前端一组、后端一组），等待全部返回，禁止顺序串行执行。
+
+**受影响测试定位方法：**
+- 通过 `git diff --name-only` 获取变更文件列表
+- Rust：根据变更文件路径判断所属 crate，运行 `cargo test -p <crate>`
+- 前端：根据变更文件匹配相关测试文件（`__tests__/` 目录下同名或相关文件）
 
 **前端：**
 ```powershell
@@ -383,7 +388,7 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 | 0 | 环境 PATH + 工作区状态 + 磁盘空间 + **任务类型分类** | `git branch`/`git status` | 环境就绪，任务已分类并记录 |
 | 1 | 检查日志（**用 LS/Read，只看最新日志**） | LS/Read | 无 P0/P1 问题 |
 | 2 | 采集变更（两类）→ 生成 diff 快照 → 按任务并行审查（**子代理写报告文件**）→ 合并 → 主 Agent 问题验证 → 强制修复循环（每轮重新生成快照） | `git diff` + Task（N 并行） + AskUserQuestion | 所有 Agent 零问题 |
-| 3 | Lint/Format/Typecheck/Tests（**前后端并行**，循环内定向测试、子 Agent 审查结束后全量一次） | ESLint/Prettier/Clippy/rustfmt/tsc/vitest/cargo test | 零警告零错误 |
+| 3 | Lint/Format/Typecheck/Tests（**前后端并行**，所有阶段只跑受影响测试） | ESLint/Prettier/Clippy/rustfmt/tsc/vitest/cargo test | 零警告零错误 |
 | 4 | **强制**文档同步，提取规则与设计规范 | Write/Edit + 同步 | 逐项检查完成，列出具体文件 |
 | 5 | 清理临时/调试文件（按 LastWriteTime 判断年龄） | DeleteFile + PowerShell | 目录干净 |
 | 6 | 读取收尾记录文件，输出收尾总结表格 | 文本输出 | 用户已了解结果 |
@@ -427,7 +432,7 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 - 非本次变更引入的问题未修复（审查范围内的问题无论是否本次引入都要修复）
 - 测试失败未分析根因直接重试
 - 修复后未重新检查
-- 子 Agent 循环未结束就运行全量测试
+- 跑全量测试而非只测受影响部分
 
 ### 文档同步
 - 跳过 Step 4 文档同步
