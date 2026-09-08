@@ -25,7 +25,7 @@ export function DshHostRegion() {
   // the center area becomes opacity:0 and the DSH WebView should be hidden.
   const [centerAreaHidden, setCenterAreaHidden] = useState(false);
 
-  const { containerRef, updateBounds } = useDshWebViewBounds({ enabled: !centerAreaHidden });
+  const { containerRef, updateBounds } = useDshWebViewBounds({ webViewDisabled: centerAreaHidden });
 
   // MutationObserver for class changes on shell body
   useEffect(() => {
@@ -47,21 +47,6 @@ export function DshHostRegion() {
     observer.observe(el, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, [isTauri, containerRef]);
-
-  // Also check class state when component becomes visible (catches missed observer events)
-  useEffect(() => {
-    if (!isTauri || !url) {
-      return;
-    }
-    const el = containerRef.current?.closest('.adl-shell__body');
-    if (!el) {
-      return;
-    }
-    const hidden =
-      el.classList.contains('is-rightpanel-overlay-expanded') ||
-      el.classList.contains('is-rightpanel-overlay-active');
-    setCenterAreaHidden(hidden);
-  }, [isTauri, url]);
 
   useDshWebViewVisibility({
     containerRef,

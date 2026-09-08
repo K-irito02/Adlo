@@ -19,14 +19,14 @@ import { isTauriShell } from '@shared/env';
  * 原理与 `useWebViewBounds` 一致：ResizeObserver 监听容器 → getBoundingClientRect
  * 读取精确坐标 → 调用 `browser_set_dsh_bounds` IPC 更新原生 WebView 位置。
  */
-export function useDshWebViewBounds(options?: { enabled?: boolean }) {
+export function useDshWebViewBounds(options?: { webViewDisabled?: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const enabledRef = useRef(options?.enabled ?? true);
+  const webViewDisabledRef = useRef(options?.webViewDisabled ?? false);
 
-  // Sync enabledRef with options.enabled
+  // Sync webViewDisabledRef with options.webViewDisabled
   useEffect(() => {
-    enabledRef.current = options?.enabled ?? true;
-  }, [options?.enabled]);
+    webViewDisabledRef.current = options?.webViewDisabled ?? false;
+  }, [options?.webViewDisabled]);
 
   const updateBounds = useCallback(() => {
     if (!containerRef.current || !isTauriShell()) {
@@ -57,7 +57,7 @@ export function useDshWebViewBounds(options?: { enabled?: boolean }) {
       return;
     }
     const observer = new ResizeObserver(() => {
-      if (!enabledRef.current) {
+      if (webViewDisabledRef.current) {
         return;
       }
       updateBoundsRef.current();
