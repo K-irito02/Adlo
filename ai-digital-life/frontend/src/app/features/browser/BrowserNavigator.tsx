@@ -11,6 +11,7 @@ import {
 import { useState } from 'react';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
+import { ConfirmDialog } from '@components/ConfirmDialog';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { resolveFolderWorkspaceId } from './browserPanelHelpers';
 import { BrowserNavUtilityButtons } from './BrowserNavUtilityButtons';
@@ -401,35 +402,18 @@ export function BrowserNavigator() {
         currentWidth={browserNavigatorWidth}
         onPointerDown={handleNavigatorResizeStart}
       />
-      {deleteBookmarksConfirmOpen ? (
-        <div
-          className="adl-dialog-overlay"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="browser-delete-bookmarks-confirm-title"
-        >
-          <div className="adl-dialog">
-            <h3 id="browser-delete-bookmarks-confirm-title">
-              {t.browserDeleteAllBookmarksConfirmTitle as string}
-            </h3>
-            <p>{t.browserDeleteAllBookmarksConfirmMessage as string}</p>
-            <div className="adl-dialog__actions">
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteBookmarksConfirmOpen(false);
-                  handleClearTabDirectories();
-                }}
-              >
-                {t.browserDeleteAllBookmarksConfirmAction as string}
-              </button>
-              <button type="button" onClick={() => setDeleteBookmarksConfirmOpen(false)}>
-                {t.cancel as string}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      <ConfirmDialog
+        open={deleteBookmarksConfirmOpen}
+        title={t.browserDeleteAllBookmarksConfirmTitle as string}
+        message={t.browserDeleteAllBookmarksConfirmMessage as string}
+        confirmLabel={t.browserDeleteAllBookmarksConfirmAction as string}
+        cancelLabel={t.cancel as string}
+        onConfirm={() => {
+          setDeleteBookmarksConfirmOpen(false);
+          handleClearTabDirectories();
+        }}
+        onCancel={() => setDeleteBookmarksConfirmOpen(false)}
+      />
     </aside>
   );
 }
