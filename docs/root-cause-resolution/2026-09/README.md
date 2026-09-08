@@ -14,3 +14,4 @@
 - [progress-2026-09-08-150000.md](./progress-2026-09-08-150000.md) — 右侧面板tooltip文本修正, 跨session状态持久化修复(mode+lastRestorableWidth)
 - [progress-2026-09-08-160000.md](./progress-2026-09-08-160000.md) — 浏览器面板WebView2不跟随resize、地址栏回车不显示内容、DSH界面重叠
 - [progress-2026-09-08-200254.md](./progress-2026-09-08-200254.md) — dsh WebView2 在右侧面板扩大覆盖中间主内容区时未正确隐藏
+- [progress-2026-0909-070300.md](./progress-2026-0909-070300.md) — 确认对话框无UI样式且被局限于树形区域: ConfirmDialog组件创建、3处迁移、WebView2隐藏名单
