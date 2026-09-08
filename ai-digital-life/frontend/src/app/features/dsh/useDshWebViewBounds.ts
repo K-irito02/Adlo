@@ -2,6 +2,13 @@ import { useCallback, useEffect, useRef } from 'react';
 import { isTauriShell } from '@shared/env';
 
 /**
+ * Offscreen coordinate used to hide the DSH WebView by moving it far outside
+ * the viewport. `32767` is `Int16.MAX_VALUE` — WebView2 treats this as "way
+ * offscreen" without unloading the page (preserves SPA state).
+ */
+const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
+
+/**
  * DSH WebView 边界同步 Hook：监听 DSH host 容器尺寸变化，将精确 bounds
  * 同步到后端原生 WebView2 子窗口。
  *
@@ -19,8 +26,14 @@ import { isTauriShell } from '@shared/env';
  * 原理与 `useWebViewBounds` 一致：ResizeObserver 监听容器 → getBoundingClientRect
  * 读取精确坐标 → 调用 `browser_set_dsh_bounds` IPC 更新原生 WebView 位置。
  */
-export function useDshWebViewBounds() {
+export function useDshWebViewBounds(options?: { enabled?: boolean }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const enabledRef = useRef(options?.enabled ?? true);
+
+  // Sync enabledRef with options.enabled
+  useEffect(() => {
+    enabledRef.current = options?.enabled ?? true;
+  }, [options?.enabled]);
 
   const updateBounds = useCallback(() => {
     if (!containerRef.current || !isTauriShell()) {
@@ -51,6 +64,9 @@ export function useDshWebViewBounds() {
       return;
     }
     const observer = new ResizeObserver(() => {
+      if (!enabledRef.current) {
+        return;
+      }
       updateBoundsRef.current();
     });
     observer.observe(containerRef.current);

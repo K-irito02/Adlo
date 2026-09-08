@@ -19,12 +19,15 @@ export function DshHostRegion() {
   const [iframeBlocked, setIframeBlocked] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const loadDetected = useRef(false);
-  const { containerRef, updateBounds } = useDshWebViewBounds();
 
   // Detect when center area is obscured by right panel overlay expansion.
   // When the parent .adl-shell__body gets class 'is-rightpanel-overlay-expanded',
   // the center area becomes opacity:0 and the DSH WebView should be hidden.
   const [centerAreaHidden, setCenterAreaHidden] = useState(false);
+
+  const { containerRef, updateBounds } = useDshWebViewBounds({ enabled: !centerAreaHidden });
+
+  // MutationObserver for class changes on shell body
   useEffect(() => {
     if (!isTauri) {
       return;
@@ -34,13 +37,31 @@ export function DshHostRegion() {
       return;
     }
     const check = () => {
-      setCenterAreaHidden(el.classList.contains('is-rightpanel-overlay-expanded'));
+      const hidden =
+        el.classList.contains('is-rightpanel-overlay-expanded') ||
+        el.classList.contains('is-rightpanel-overlay-active');
+      setCenterAreaHidden(hidden);
     };
     check();
     const observer = new MutationObserver(check);
     observer.observe(el, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, [isTauri, containerRef]);
+
+  // Also check class state when component becomes visible (catches missed observer events)
+  useEffect(() => {
+    if (!isTauri || !url) {
+      return;
+    }
+    const el = containerRef.current?.closest('.adl-shell__body');
+    if (!el) {
+      return;
+    }
+    const hidden =
+      el.classList.contains('is-rightpanel-overlay-expanded') ||
+      el.classList.contains('is-rightpanel-overlay-active');
+    setCenterAreaHidden(hidden);
+  }, [isTauri, url]);
 
   useDshWebViewVisibility({
     containerRef,

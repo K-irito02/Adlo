@@ -56,7 +56,7 @@ export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions)
         height: 1,
       })
       .catch((err) => {
-        console.warn('dsh overlay hide set bounds failed', err);
+        console.warn('dsh set bounds failed', err);
       });
   }, []);
 
