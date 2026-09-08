@@ -82,12 +82,13 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     // The CSS transition on .adl-rightpanel__content has a delay that causes
     // getBoundingClientRect() to return the pre-expansion offset position.
     // Force transform to 0 so WebView2 bounds are based on the final layout.
+    let rafId: number | undefined;
     if (isVisible) {
       const content = primaryRef.current.closest('.adl-rightpanel__content') as HTMLElement | null;
       if (content) {
         content.style.transform = 'translateX(0)';
       }
-      requestAnimationFrame(() => updateWebViewBounds());
+      rafId = requestAnimationFrame(() => updateWebViewBounds());
     }
 
     const handleUpdate = () => {
@@ -103,6 +104,9 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     window.addEventListener('resize', onWindowResize);
 
     return () => {
+      if (rafId !== undefined) {
+        cancelAnimationFrame(rafId);
+      }
       observer.disconnect();
       window.removeEventListener('resize', onWindowResize);
     };

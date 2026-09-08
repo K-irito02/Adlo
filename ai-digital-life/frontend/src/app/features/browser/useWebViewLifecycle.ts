@@ -68,6 +68,9 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     // hideWebViewRequestedRef (DOM overlay detection). DOM overlays are
     // handled by the visibility hook's MutationObserver; the lifecycle must
     // still run to create/activate/bounds-update the WebView.
+    // Historical: hideWebViewRequestedRef was previously checked here to
+    // prevent hide↔show ping-pong (flickering) — this is now avoided by
+    // the MutationObserver-based approach in useWebViewVisibility.
     if (tab?.id != null && tab.id === prevActiveTabIdRef.current && overlayActiveRef.current) {
       return;
     }

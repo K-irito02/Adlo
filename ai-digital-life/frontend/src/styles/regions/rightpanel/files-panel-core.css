@@ -109,7 +109,10 @@
   transition-delay: 0ms;
 }
 
-/* Remove expand transition delay so WebView2 bounds are measured at final position */
+/* Panel content transitions use 0ms delay in both collapse and expand states
+   to prevent WebView2 bounds measurement misalignment during panel toggle.
+   The base rule's --panel-content-delay (55ms) is intentionally overridden.
+   See: fix-browser-gap commit fb60f887 */
 .adl-rightpanel:not(.adl-rightpanel--collapsed) .adl-rightpanel__content {
   transition-delay: 0ms;
 }
