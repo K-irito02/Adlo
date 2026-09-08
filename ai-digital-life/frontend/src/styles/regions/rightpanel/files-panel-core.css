@@ -109,6 +109,11 @@
   transition-delay: 0ms;
 }
 
+/* Remove expand transition delay so WebView2 bounds are measured at final position */
+.adl-rightpanel:not(.adl-rightpanel--collapsed) .adl-rightpanel__content {
+  transition-delay: 0ms;
+}
+
 .adl-rightpanel__tool {
   flex: 1;
   min-width: 0;

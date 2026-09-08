@@ -110,9 +110,20 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     if (overlayActive) {
       hideAllWebViews();
     } else {
+      // When the React overlay state transitions to inactive, reset the DOM
+      // overlay guard.  The MutationObserver may not have fired yet (e.g.
+      // toast element still in DOM but invisible), leaving
+      // hideWebViewRequestedRef stuck at true and blocking bounds updates.
+      hideWebViewRequestedRef.current = false;
       updateWebViewBounds();
     }
-  }, [overlayActive, hideAllWebViews, updateWebViewBounds, webViewActiveRef]);
+  }, [
+    overlayActive,
+    hideAllWebViews,
+    updateWebViewBounds,
+    webViewActiveRef,
+    hideWebViewRequestedRef,
+  ]);
 
   // Visibility change
   useEffect(() => {

@@ -65,7 +65,6 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     activateTabInPool,
     webViewActiveRef,
     overlayActiveRef,
-    hideWebViewRequestedRef,
     updateWebViewBounds,
   });
 

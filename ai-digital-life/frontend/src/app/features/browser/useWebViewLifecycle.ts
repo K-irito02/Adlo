@@ -16,7 +16,6 @@ interface UseWebViewLifecycleOptions {
   activateTabInPool: (tabId: string) => Promise<void>;
   webViewActiveRef: React.RefObject<boolean>;
   overlayActiveRef: React.RefObject<boolean>;
-  hideWebViewRequestedRef: React.RefObject<boolean>;
   updateWebViewBounds: () => void;
 }
 
@@ -39,7 +38,6 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     activateTabInPool,
     webViewActiveRef,
     overlayActiveRef,
-    hideWebViewRequestedRef,
     updateWebViewBounds,
   } = options;
 
@@ -66,11 +64,11 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     // while the tab ID hasn't changed and an overlay is active, skip entirely.
     // Otherwise activateTabInPool would call webview.show() in Rust, undoing
     // the overlay-hide mechanism (setTabBounds off-screen).
-    if (
-      tab?.id != null &&
-      tab.id === prevActiveTabIdRef.current &&
-      (hideWebViewRequestedRef.current || overlayActiveRef.current)
-    ) {
+    // Note: only check overlayActiveRef (React overlay state), NOT
+    // hideWebViewRequestedRef (DOM overlay detection). DOM overlays are
+    // handled by the visibility hook's MutationObserver; the lifecycle must
+    // still run to create/activate/bounds-update the WebView.
+    if (tab?.id != null && tab.id === prevActiveTabIdRef.current && overlayActiveRef.current) {
       return;
     }
 
@@ -141,17 +139,10 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
         await activateTabInPool(currentTabId);
         webViewActiveRef.current = true;
         tabUrlMapRef.current.set(currentTabId, tab.url);
-        // Don't reset hide guard or reposition WebView if an overlay is
-        // currently active — doing so would undo the overlay-detection
-        // mechanism and cause a hide↔show ping-pong cycle (observed as
-        // flickering when the tab change effect re-fires due to a store
-        // update while a menu/dialog is open).
-        if (!hideWebViewRequestedRef.current && !overlayActiveRef.current) {
+        if (!overlayActiveRef.current) {
           // Clear loadingTabId AFTER updateWebViewBounds runs, so the
           // loading overlay stays visible until the WebView is correctly
-          // positioned. Clearing too early (e.g. in a finally block)
-          // causes the overlay to disappear before the WebView is moved
-          // on-screen, producing a brief flash of stale content.
+          // positioned.
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               updateWebViewBounds();
@@ -177,7 +168,6 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     createWebViewForTab,
     activateTabInPool,
     updateWebViewBounds,
-    hideWebViewRequestedRef,
     overlayActiveRef,
     webViewActiveRef,
   ]);

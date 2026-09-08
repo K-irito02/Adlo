@@ -72,21 +72,41 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     updateWebViewBoundsRef.current = updateWebViewBounds;
   }, [updateWebViewBounds]);
 
-  // ResizeObserver
+  // ResizeObserver + window resize fallback
   useEffect(() => {
     if (!isTauriShell() || !primaryRef.current) {
       return;
     }
 
-    const observer = new ResizeObserver(() => {
-      if (webViewActiveRef.current && isVisible && !hideWebViewRequestedRef.current) {
+    // Reset content transform immediately when panel becomes visible.
+    // The CSS transition on .adl-rightpanel__content has a delay that causes
+    // getBoundingClientRect() to return the pre-expansion offset position.
+    // Force transform to 0 so WebView2 bounds are based on the final layout.
+    if (isVisible) {
+      const content = primaryRef.current.closest('.adl-rightpanel__content') as HTMLElement | null;
+      if (content) {
+        content.style.transform = 'translateX(0)';
+      }
+      requestAnimationFrame(() => updateWebViewBounds());
+    }
+
+    const handleUpdate = () => {
+      if (webViewActiveRef.current && isVisible) {
         updateWebViewBounds();
       }
-    });
+    };
+
+    const observer = new ResizeObserver(handleUpdate);
     observer.observe(primaryRef.current);
 
-    return () => observer.disconnect();
-  }, [updateWebViewBounds, isVisible, webViewActiveRef, hideWebViewRequestedRef]);
+    const onWindowResize = () => handleUpdate();
+    window.addEventListener('resize', onWindowResize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', onWindowResize);
+    };
+  }, [updateWebViewBounds, isVisible, webViewActiveRef]);
 
   return {
     primaryRef,
