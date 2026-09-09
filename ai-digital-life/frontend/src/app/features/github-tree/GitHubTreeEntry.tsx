@@ -154,7 +154,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     gitHubDeleteFolderConfigRecursive,
     gitHubDeleteFolderDataRecursive,
     gitHubDeleteFolderConfigAndDataRecursive,
-    hideWorkspaceFromRightPanels: (wsId: string) =>
+    removeWorkspaceFromSidebar: (wsId: string) =>
       void removeWorkspaceFromSidebar(asWorkspaceID(wsId)),
   });
 

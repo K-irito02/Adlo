@@ -787,21 +787,12 @@ export function createHttpBridge({
         call<WorkspaceMeta>(baseUrl, '/workspace/open', POST({ workspacePath })),
       clearCurrent: () => call<boolean>(baseUrl, '/workspace/clear-current', POST({})),
       pickDirectory: () => taskNotSupported<string | undefined>('workspace.pickDirectory'),
-      pin: (workspaceId: string) =>
-        call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/pin', POST({ workspaceId })),
-      unpin: (workspaceId: string) =>
-        call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/unpin', POST({ workspaceId })),
-      reorder: (input) => call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/reorder', POST(input)),
       removeFromSidebar: (workspaceId: string) =>
         call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/remove', POST({ workspaceId })),
-      restoreToSidebar: (workspaceId: string) =>
-        call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/restore', POST({ workspaceId })),
       listTreeForWorkspace: (workspacePath: string) =>
         call<WorkspaceTreeNode[]>(baseUrl, '/workspace/tree', POST({ workspacePath })),
       listGitStatusForWorkspace: (workspacePath: string) =>
         call<GitSnapshot>(baseUrl, '/workspace/git/status', POST({ workspacePath })),
-      showInRightPanels: (workspaceId: string) =>
-        call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/show', POST({ workspaceId })),
       revealInFileManager: (_workspacePath: string) =>
         taskNotSupported<boolean>('workspace.revealInFileManager'),
       createFile: (relativePath: string, content = '', workspacePath?: string) =>

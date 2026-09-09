@@ -17,7 +17,6 @@ export const commonEn = {
   windowClose: 'Close',
   quickSkills: 'Skills',
   quickMcp: 'MCP Servers',
-  quickNewWorkspace: 'New workspace',
   quickSkillsComingSoon: 'Coming soon',
   language: 'Language',
   theme: 'Theme',

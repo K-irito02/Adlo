@@ -1,6 +1,5 @@
 import type { StoreState } from '../StoreState';
-import type { ReorderWorkspacesInput } from '@ai-digital-life/kernel';
-import { asWorkspaceID, type WorkspaceID } from '../../../shared/branded';
+import { asWorkspaceID } from '../../../shared/branded';
 import { clearError, captureError } from '../shared';
 import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
@@ -236,57 +235,6 @@ export function createWorkspaceActions(
     },
 
     /**
-     * [pinWorkspace - 置顶工作区]
-     * @writes workspaceSlice.recentWorkspaces
-     * @see shared/ipc.ts → workspace.pin
-     * @see mock-bridge.ts → workspace.pin
-     * @see preview-bridge/index.ts → workspace.pin
-     */
-    pinWorkspace: async (workspaceId: WorkspaceID) => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.pin(workspaceId as string);
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
-      }
-      set({ recentWorkspaces: result.data });
-    },
-
-    /**
-     * [unpinWorkspace - 取消置顶工作区]
-     * @writes workspaceSlice.recentWorkspaces
-     * @see shared/ipc.ts → workspace.unpin
-     * @see mock-bridge.ts → workspace.unpin
-     * @see preview-bridge/index.ts → workspace.unpin
-     */
-    unpinWorkspace: async (workspaceId: WorkspaceID) => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.unpin(workspaceId as string);
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
-      }
-      set({ recentWorkspaces: result.data });
-    },
-
-    /**
-     * [reorderWorkspaces - 重新排序工作区列表]
-     * @writes workspaceSlice.recentWorkspaces
-     * @see shared/ipc.ts → workspace.reorder
-     * @see mock-bridge.ts → workspace.reorder
-     * @see preview-bridge/index.ts → workspace.reorder
-     */
-    reorderWorkspaces: async (input: ReorderWorkspacesInput) => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.reorder(input);
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
-      }
-      set({ recentWorkspaces: result.data });
-    },
-
-    /**
      * [revealWorkspaceInFileManager - 在系统文件管理器中显示工作区目录]
      * @reads — 无
      * @writes — 无
@@ -326,23 +274,6 @@ export function createWorkspaceActions(
           },
         });
       }
-    },
-
-    /**
-     * [showWorkspaceInRightPanels - 在右侧面板显示工作区]
-     * @writes workspaceSlice.recentWorkspaces
-     * @see shared/ipc.ts → workspace.showFromRightPanels
-     * @see mock-bridge.ts → workspace.showFromRightPanels
-     * @see preview-bridge/index.ts → workspace.showFromRightPanels
-     */
-    showWorkspaceInRightPanels: async (workspaceId: WorkspaceID) => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.showInRightPanels(workspaceId as string);
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
-      }
-      set({ recentWorkspaces: result.data });
     },
   };
 }

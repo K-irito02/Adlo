@@ -2,7 +2,6 @@ import type {
   GitSnapshot,
   IpcResult,
   RecentWorkspaceEntry,
-  ReorderWorkspacesInput,
   RepoMapNode,
   RetrievalSnapshot,
   WorkspaceChangePreview,
@@ -119,67 +118,11 @@ export function createPreviewWorkspaceBridge(
       }
       return { ok: true as const, data: result.data };
     },
-    pin: async (workspaceId: string) => {
-      const ws = ctx.recentWorkspaces.find((w) => w.id === workspaceId);
-      if (!ws) {
-        return {
-          ok: false as const,
-          error: { code: IpcErrorCode.NOT_FOUND, message: 'workspace not found' },
-        };
-      }
-      const pinnedCount = ctx.recentWorkspaces.filter((w) => w.isPinned).length;
-      ctx.recentWorkspaces = ctx.recentWorkspaces.map((w) =>
-        w.id === workspaceId ? { ...w, isPinned: true, pinnedOrder: pinnedCount } : w,
-      );
-      persistRecentWorkspaces(ctx.recentWorkspaces);
-      return { ok: true as const, data: ctx.recentWorkspaces };
-    },
-    unpin: async (workspaceId: string) => {
-      const ws = ctx.recentWorkspaces.find((w) => w.id === workspaceId);
-      if (!ws) {
-        return {
-          ok: false as const,
-          error: { code: IpcErrorCode.NOT_FOUND, message: 'workspace not found' },
-        };
-      }
-      ctx.recentWorkspaces = ctx.recentWorkspaces.map((w) =>
-        w.id === workspaceId ? { ...w, isPinned: false, pinnedOrder: 0 } : w,
-      );
-      const pinnedWorkspaces = ctx.recentWorkspaces
-        .filter((w) => w.isPinned)
-        .sort((a, b) => a.pinnedOrder - b.pinnedOrder);
-      const unpinnedWorkspaces = ctx.recentWorkspaces
-        .filter((w) => !w.isPinned)
-        .sort((a, b) => a.unpinnedOrder - b.unpinnedOrder);
-      ctx.recentWorkspaces = [...pinnedWorkspaces, ...unpinnedWorkspaces];
-      persistRecentWorkspaces(ctx.recentWorkspaces);
-      return { ok: true as const, data: ctx.recentWorkspaces };
-    },
-    reorder: async (input: ReorderWorkspacesInput) => {
-      const { pinnedIds, unpinnedIds } = input;
-      ctx.recentWorkspaces = ctx.recentWorkspaces.map((w) => {
-        const pinnedIndex = pinnedIds.indexOf(w.id);
-        const unpinnedIndex = unpinnedIds.indexOf(w.id);
-        if (pinnedIndex !== -1) {
-          return { ...w, isPinned: true, pinnedOrder: pinnedIndex };
-        }
-        if (unpinnedIndex !== -1) {
-          return { ...w, isPinned: false, unpinnedOrder: unpinnedIndex };
-        }
-        return w;
-      });
-      persistRecentWorkspaces(ctx.recentWorkspaces);
-      return { ok: true as const, data: ctx.recentWorkspaces };
-    },
     removeFromSidebar: async (workspaceId: string) => {
       ctx.recentWorkspaces = ctx.recentWorkspaces.filter((entry) => entry.id !== workspaceId);
       persistRecentWorkspaces(ctx.recentWorkspaces);
       return { ok: true as const, data: ctx.recentWorkspaces };
     },
-    restoreToSidebar: async (_workspaceId: string) => ({
-      ok: true as const,
-      data: ctx.recentWorkspaces,
-    }),
     listTreeForWorkspace: async (workspacePath: string) => {
       const params = new URLSearchParams({ rootPath: workspacePath });
       return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
@@ -187,14 +130,6 @@ export function createPreviewWorkspaceBridge(
     listGitStatusForWorkspace: async (workspacePath: string) => {
       const params = new URLSearchParams({ rootPath: workspacePath });
       return requestPreviewApi<GitSnapshot>(`/workspace/git-status?${params.toString()}`);
-    },
-    showInRightPanels: async (workspaceId: string) => {
-      const entry = ctx.recentWorkspaces.find((item) => item.id === workspaceId);
-      if (entry) {
-        entry.hiddenFromRightPanels = false;
-      }
-      persistRecentWorkspaces(ctx.recentWorkspaces);
-      return { ok: true as const, data: ctx.recentWorkspaces };
     },
     revealInFileManager: async (workspacePath: string) =>
       requestPreviewApi<boolean>('/workspace/reveal', {

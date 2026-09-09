@@ -3,7 +3,6 @@ import type { WorkspaceBridge } from "../shared/ipc";
 import type {
   GitBranchSummary,
   GitSnapshot,
-  ReorderWorkspacesInput,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceGitBranchChangeResult,
@@ -62,41 +61,11 @@ export const mockWorkspace: WorkspaceBridge = {
     ok: false,
     error: { code: IpcErrorCode.INTERNAL_ERROR, message: "Directory picker is unavailable in the mock bridge." }
   }),
-  pin: async (workspaceId: string) => {
-    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
-    if (entry) {
-      entry.isPinned = true;
-    }
-    return { ok: true, data: recentWorkspaces };
-  },
-  unpin: async (workspaceId: string) => {
-    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
-    if (entry) {
-      entry.isPinned = false;
-    }
-    return { ok: true, data: recentWorkspaces };
-  },
-  reorder: async (input: ReorderWorkspacesInput) => {
-    const { pinnedIds, unpinnedIds } = input;
-    const allIds = [...pinnedIds, ...unpinnedIds];
-    const map = new Map(recentWorkspaces.map((w) => [w.id, w]));
-    recentWorkspaces.splice(0, recentWorkspaces.length,
-      ...allIds.map((id) => map.get(id)).filter((w): w is NonNullable<typeof w> => !!w)
-    );
-    return { ok: true as const, data: recentWorkspaces };
-  },
   removeFromSidebar: async (workspaceId: string) => {
     const entry = recentWorkspaces.find((item) => item.id === workspaceId);
     if (entry) {
       entry.removedFromSidebar = true;
       entry.hiddenFromRightPanels = true;
-    }
-    return { ok: true, data: recentWorkspaces };
-  },
-  restoreToSidebar: async (workspaceId: string) => {
-    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
-    if (entry) {
-      entry.removedFromSidebar = false;
     }
     return { ok: true, data: recentWorkspaces };
   },
@@ -108,13 +77,6 @@ export const mockWorkspace: WorkspaceBridge = {
     ok: true,
     data: { isRepo: true, branch: "main", staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: Date.now() }
   }),
-  showInRightPanels: async (workspaceId: string) => {
-    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
-    if (entry) {
-      entry.hiddenFromRightPanels = false;
-    }
-    return { ok: true, data: recentWorkspaces };
-  },
   revealInFileManager: async () => ({ ok: true, data: true }),
   createFile: async (relativePath: string, content = "", _workspacePath?: string) => {
     documents.set(relativePath, content);

@@ -40,10 +40,6 @@ import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import type { WorkspaceID } from '../../shared/branded';
 import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../shared/ipc/dsh';
 
-interface ReorderWorkspacesInput {
-  pinnedIds: string[];
-  unpinnedIds: string[];
-}
 
 interface ReferenceConfig {
   name: string;
@@ -116,10 +112,7 @@ interface WorkspaceActions {
   openWorkspace: (workspacePath: string) => Promise<{ ok: boolean; error?: string }>;
   clearWorkspaceContext: () => Promise<void>;
   pickWorkspaceDirectory: () => Promise<string | undefined>;
-  pinWorkspace: (workspaceId: WorkspaceID) => Promise<void>;
-  unpinWorkspace: (workspaceId: WorkspaceID) => Promise<void>;
   removeWorkspaceFromSidebar: (workspaceId: WorkspaceID) => Promise<void>;
-  reorderWorkspaces: (input: ReorderWorkspacesInput) => Promise<void>;
   revealWorkspaceInFileManager: (workspacePath: string) => Promise<void>;
   createWorkspaceFile: (
     relativePath: string,
@@ -141,7 +134,6 @@ interface WorkspaceActions {
   expandWorkspaceTreeInFileNav: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
   refreshAllWorkspaceTrees: () => Promise<void>;
   cleanupRemovedWorkspaceTree: (workspaceId: WorkspaceID) => void;
-  showWorkspaceInRightPanels: (workspaceId: WorkspaceID) => Promise<void>;
   expandAllWorkspaceTreesInFileNav: () => Promise<void>;
   collapseAllWorkspaceTreesInFileNav: () => void;
   renameWorkspaceFile: (

@@ -11,7 +11,6 @@ import type {
   GitVisFileHotspots,
   IpcResult,
   RecentWorkspaceEntry,
-  ReorderWorkspacesInput,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
@@ -36,7 +35,6 @@ export type {
   GitVisFileHotspots,
   IpcResult,
   RecentWorkspaceEntry,
-  ReorderWorkspacesInput,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
@@ -93,36 +91,6 @@ export interface WorkspaceBridge {
    */
   pickDirectory: () => Promise<IpcResult<string | undefined>>;
   /**
-   * 置顶工作区
-   * @param workspaceId 工作区 ID
-   * @returns 更新后的最近工作区列表
-   * @command workspace_pin
-   * @see tauri-bridge.ts → workspace.pin
-   * @see mock-bridge.ts → workspace.pin
-   * @see preview-bridge/index.ts → workspace.pin
-   */
-  pin: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
-  /**
-   * 取消置顶工作区
-   * @param workspaceId 工作区 ID
-   * @returns 更新后的最近工作区列表
-   * @command workspace_unpin
-   * @see tauri-bridge.ts → workspace.unpin
-   * @see mock-bridge.ts → workspace.unpin
-   * @see preview-bridge/index.ts → workspace.unpin
-   */
-  unpin: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
-  /**
-   * 对工作区列表进行重排序
-   * @param input 置顶/非置顶工作区的 ID 顺序数组
-   * @returns 重排序后的最近工作区列表
-   * @command workspace_reorder
-   * @see tauri-bridge.ts → workspace.reorder
-   * @see mock-bridge.ts → workspace.reorder
-   * @see preview-bridge/index.ts → workspace.reorder
-   */
-  reorder: (input: ReorderWorkspacesInput) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
-  /**
    * 从侧边栏移除工作区
    * @param workspaceId 工作区 ID
    * @returns 更新后的最近工作区列表
@@ -132,16 +100,6 @@ export interface WorkspaceBridge {
    * @see preview-bridge/index.ts → workspace.removeFromSidebar
    */
   removeFromSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
-  /**
-   * 将工作区恢复显示到侧边栏
-   * @param workspaceId 工作区 ID
-   * @returns 更新后的最近工作区列表
-   * @command workspace_restore_to_sidebar
-   * @see tauri-bridge.ts → workspace.restoreToSidebar
-   * @see mock-bridge.ts → workspace.restoreToSidebar
-   * @see preview-bridge/index.ts → workspace.restoreToSidebar
-   */
-  restoreToSidebar: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
   /**
    * 获取指定工作区的文件目录树
    * @param workspacePath 工作区的绝对路径
@@ -162,16 +120,6 @@ export interface WorkspaceBridge {
    * @see preview-bridge/index.ts → workspace.listGitStatusForWorkspace
    */
   listGitStatusForWorkspace: (workspacePath: string) => Promise<IpcResult<GitSnapshot>>;
-  /**
-   * 恢复右侧面板显示工作区
-   * @param workspaceId 工作区 ID
-   * @returns 更新后的最近工作区列表
-   * @command workspace_show_in_right_panels
-   * @see tauri-bridge.ts → workspace.showInRightPanels
-   * @see mock-bridge.ts → workspace.showInRightPanels
-   * @see preview-bridge/index.ts → workspace.showInRightPanels
-   */
-  showInRightPanels: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
   /**
    * 在系统文件管理器中显示路径
    * @param workspacePath 要显示的绝对路径

@@ -27,7 +27,7 @@ export interface MenuBuilderParams {
   gitHubDeleteFolderConfigRecursive: (folderId: string) => void;
   gitHubDeleteFolderDataRecursive: (folderId: string) => void;
   gitHubDeleteFolderConfigAndDataRecursive: (folderId: string) => void;
-  hideWorkspaceFromRightPanels: (workspaceId: string) => void;
+  removeWorkspaceFromSidebar: (workspaceId: string) => void;
 }
 
 export function buildRefreshMenuItems(params: MenuBuilderParams): MainMenuItem[] {
@@ -137,7 +137,7 @@ export function buildSettingsMenuItems(params: MenuBuilderParams): MainMenuItem[
 }
 
 export function buildHideMenuItems(params: MenuBuilderParams): MainMenuItem[] {
-  const { node, workspaceId, t, hideWorkspaceFromRightPanels } = params;
+  const { node, workspaceId, t, removeWorkspaceFromSidebar } = params;
   const items: MainMenuItem[] = [];
 
   if (node.nodeType === 'workspace') {
@@ -148,7 +148,7 @@ export function buildHideMenuItems(params: MenuBuilderParams): MainMenuItem[] {
       hint: t.workspaceRemoveEntryHint,
       action: () => {
         if (workspaceId) {
-          hideWorkspaceFromRightPanels(workspaceId);
+          removeWorkspaceFromSidebar(workspaceId);
         }
       },
     });

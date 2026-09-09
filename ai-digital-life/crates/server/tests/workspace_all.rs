@@ -14,38 +14,6 @@ mod common;
 use adl_types::WorkspaceMeta;
 use axum::http::Method;
 
-// ---------------------------------------------------------------------------
-// Sidebar-specific helper: seed a workspace row directly in the DB (no sidebar
-// upsert) so restore can re-add a previously-purged workspace.
-// ---------------------------------------------------------------------------
-
-async fn seed_workspace_row(state: adl_server::ServerState, id: &str) {
-    let now = adl_types::now_ms();
-    let meta = WorkspaceMeta {
-        id: id.to_string(),
-        path: format!("E:/seed/{id}"),
-        root_path: format!("E:/seed/{id}"),
-        name: format!("seed-{id}"),
-        r#type: adl_types::WorkspaceType::Unknown,
-        status: adl_types::WorkspaceStatus::Ready,
-        git_snapshot: None,
-        created_at: now,
-        updated_at: now,
-        last_opened_at: now,
-    };
-    state
-        .db
-        .save_entity(
-            adl_storage::EntityTable::Workspaces,
-            &meta.id,
-            Some(&meta.id),
-            None,
-            Some("ready"),
-            &meta,
-        )
-        .unwrap();
-}
-
 // ===========================================================================
 // Workspace core tests (workspace.rs)
 // ===========================================================================
@@ -423,69 +391,6 @@ async fn open_workspace_then_list_recent_includes_it() {
     assert_eq!(entry["isPinned"], false, "body: {body}");
 }
 
-/// POST /sidebar/pin on an unknown workspace returns 404 NOT_FOUND.
-#[tokio::test]
-async fn pin_unknown_workspace_returns_404() {
-    let state = common::state("sidebar-api").await;
-    let (status, body) = common::send_post(
-        state,
-        "/sidebar/pin",
-        Some(serde_json::json!({ "workspaceId": "nope" })),
-    )
-    .await;
-    assert_eq!(status, axum::http::StatusCode::NOT_FOUND, "body: {body}");
-    assert_eq!(body["ok"], false, "body: {body}");
-    assert_eq!(body["error"]["code"], "NOT_FOUND", "body: {body}");
-}
-
-/// POST /sidebar/pin / unpin toggle the pinned flag and return the updated list
-/// (covers `WorkspaceBridge.pin` / `unpin`).
-#[tokio::test]
-async fn pin_unpin_round_trip() {
-    let state = common::state("sidebar-api").await;
-    let wid = common::open_workspace_via_api(state.clone(), "pin").await;
-
-    let (status, body) = common::send_post(
-        state.clone(),
-        "/sidebar/pin",
-        Some(serde_json::json!({ "workspaceId": wid })),
-    )
-    .await;
-    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
-    assert_eq!(entry["isPinned"], true, "body: {body}");
-    assert_eq!(entry["pinnedOrder"], 0, "first pinned: {body}");
-
-    let (status, body) =
-        common::send_post(state, "/sidebar/unpin", Some(serde_json::json!({ "workspaceId": wid })))
-            .await;
-    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
-    assert_eq!(entry["isPinned"], false, "body: {body}");
-}
-
-/// POST /sidebar/reorder applies pinned/unpinned orderings (covers
-/// `WorkspaceBridge.reorder`).
-#[tokio::test]
-async fn reorder_applies_pinning_order() {
-    let state = common::state("sidebar-api").await;
-    let wid_a = common::open_workspace_via_api(state.clone(), "ra").await;
-    let wid_b = common::open_workspace_via_api(state.clone(), "rb").await;
-
-    let (status, body) = common::send_post(
-        state.clone(),
-        "/sidebar/reorder",
-        Some(serde_json::json!({ "pinnedIds": [wid_a], "unpinnedIds": [wid_b] })),
-    )
-    .await;
-    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entries = body["data"].as_array().unwrap();
-    let a = entries.iter().find(|e| e["id"] == wid_a).unwrap();
-    let b = entries.iter().find(|e| e["id"] == wid_b).unwrap();
-    assert_eq!(a["isPinned"], true, "body: {body}");
-    assert_eq!(b["isPinned"], false, "body: {body}");
-}
-
 /// POST /sidebar/remove marks the workspace removed and purges its data
 /// (covers `WorkspaceBridge.removeFromSidebar`).
 #[tokio::test]
@@ -510,49 +415,4 @@ async fn remove_marks_removed_and_purges() {
     let remaining: Vec<WorkspaceMeta> =
         state.db.list_entities(adl_storage::EntityTable::Workspaces).unwrap();
     assert!(!remaining.iter().any(|w| w.id == wid), "workspace row purged");
-}
-
-/// POST /sidebar/restore on an unknown workspace returns 404 NOT_FOUND.
-#[tokio::test]
-async fn restore_unknown_workspace_returns_404() {
-    let state = common::state("sidebar-api").await;
-    let (status, body) = common::send_post(
-        state,
-        "/sidebar/restore",
-        Some(serde_json::json!({ "workspaceId": "nope" })),
-    )
-    .await;
-    assert_eq!(status, axum::http::StatusCode::NOT_FOUND, "body: {body}");
-    assert_eq!(body["error"]["code"], "NOT_FOUND", "body: {body}");
-}
-
-/// POST /sidebar/restore re-adds a workspace row that exists in the DB but was
-/// removed from the sidebar (covers `WorkspaceBridge.restoreToSidebar`).
-#[tokio::test]
-async fn restore_re_adds_existing_workspace() {
-    let state = common::state("sidebar-api").await;
-    let wid = common::open_workspace_via_api(state.clone(), "rest").await;
-    let (_, _) = common::send_post(
-        state.clone(),
-        "/sidebar/remove",
-        Some(serde_json::json!({ "workspaceId": wid })),
-    )
-    .await;
-
-    // The purge removed the row; re-create it directly to simulate a re-added
-    // workspace (as a later open would).
-    seed_workspace_row(state.clone(), &wid).await;
-
-    let (status, body) = common::send_post(
-        state,
-        "/sidebar/restore",
-        Some(serde_json::json!({ "workspaceId": wid })),
-    )
-    .await;
-    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entries = body["data"].as_array().unwrap();
-    assert!(
-        entries.iter().any(|e| e["id"] == wid && e["removedFromSidebar"] == false),
-        "restored workspace presentable: {body}"
-    );
 }

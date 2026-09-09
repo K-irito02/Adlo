@@ -102,12 +102,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/ci/job-logs", post(handlers::ci::get_job_logs))
         // Workspace-sidebar domain
         .route("/sidebar/list", post(handlers::workspace_sidebar::list_recent))
-        .route("/sidebar/pin", post(handlers::workspace_sidebar::pin))
-        .route("/sidebar/unpin", post(handlers::workspace_sidebar::unpin))
-        .route("/sidebar/reorder", post(handlers::workspace_sidebar::reorder))
         .route("/sidebar/remove", post(handlers::workspace_sidebar::remove_from_sidebar))
-        .route("/sidebar/restore", post(handlers::workspace_sidebar::restore_to_sidebar))
-        .route("/sidebar/show", post(handlers::workspace_sidebar::show_in_right_panels))
         // Workspace-git domain
         .route("/workspace/git/status", post(handlers::workspace_git::get_git_status))
         .route("/workspace/git/branches", post(handlers::workspace_git::list_git_branches))

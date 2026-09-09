@@ -16,7 +16,6 @@ export const commonZh = {
   windowClose: '关闭',
   quickSkills: '技能',
   quickMcp: 'MCP 服务',
-  quickNewWorkspace: '新建工作空间',
   quickSkillsComingSoon: '即将推出',
   language: '语言',
   theme: '主题',
