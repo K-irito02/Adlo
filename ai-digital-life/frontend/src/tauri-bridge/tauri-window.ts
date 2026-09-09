@@ -1,27 +1,34 @@
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import type { UnlistenFn } from '@tauri-apps/api/event';
-import { open } from '@tauri-apps/plugin-shell';
 import type { WindowBridge } from '../shared/ipc/window';
 
+async function getWin() {
+  const { getCurrentWindow } = await import('@tauri-apps/api/window');
+  return getCurrentWindow();
+}
+
 export function createTauriWindowBridge(): WindowBridge {
-  const win = () => getCurrentWindow();
   return {
-    minimize: () => win().minimize(),
-    maximize: () => win().toggleMaximize(),
-    close: () => win().close(),
-    isMaximized: () => win().isMaximized(),
-    setTitle: (title: string) => win().setTitle(title),
-    show: () => win().show(),
-    openExternal: (url: string) => open(url),
+    minimize: () => getWin().then((w) => w.minimize()),
+    maximize: () => getWin().then((w) => w.toggleMaximize()),
+    close: () => getWin().then((w) => w.close()),
+    isMaximized: () => getWin().then((w) => w.isMaximized()),
+    setTitle: (title: string) => getWin().then((w) => w.setTitle(title)),
+    show: () => getWin().then((w) => w.show()),
+    openExternal: async (url: string) => {
+      const { open } = await import('@tauri-apps/plugin-shell');
+      return open(url);
+    },
     onResized: (listener: () => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;
-      void win()
-        .onResized(() => {
-          if (active) {
-            listener();
-          }
-        })
+      void getWin()
+        .then((w) =>
+          w.onResized(() => {
+            if (active) {
+              listener();
+            }
+          }),
+        )
         .then((unlisten) => {
           if (active) {
             ul = unlisten;

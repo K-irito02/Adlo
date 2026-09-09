@@ -1,6 +1,5 @@
 import { createRoot } from 'react-dom/client';
 import type { DigitalLifeBridge } from './shared/ipc/digital-life';
-import { setupPreviewBridge } from './preview-bridge';
 import { createTauriBridge, isTauriShell, resolveTauriServerBaseUrl } from './tauri-bridge';
 import { App } from './app/App';
 import './app/utils/debugLogCollector'; // 调试日志收集器
@@ -38,6 +37,7 @@ async function boot(): Promise<void> {
       window.digitalLife = createTauriBridge(baseUrl);
       document.documentElement.dataset.shell = 'tauri';
     } else {
+      const { setupPreviewBridge } = await import('./preview-bridge');
       setupPreviewBridge();
       document.documentElement.dataset.shell = 'browser';
     }

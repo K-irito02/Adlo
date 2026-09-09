@@ -160,11 +160,15 @@ export default defineConfig({
     emptyOutDir: true,
     target: "esnext",
     sourcemap: false,
+    chunkSizeWarningLimit: 950,
     rollupOptions: {
       output: {
         manualChunks(id: string) {
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';
-          if (id.includes('@codemirror')) return 'vendor-codemirror';
+          if (id.includes('@codemirror')) {
+            if (id.includes('/merge') || id.includes('/autocomplete')) return 'vendor-codemirror-addons';
+            return 'vendor-codemirror';
+          }
           if (id.includes('@xterm')) return 'vendor-xterm';
           if (id.includes('zustand')) return 'vendor-zustand';
           if (id.includes('markdown-it') || id.includes('react-markdown') || id.includes('remark-gfm')) return 'vendor-markdown';
