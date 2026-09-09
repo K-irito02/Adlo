@@ -37,8 +37,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      * @writes workspaceSlice.appInfo, workspaceSlice.recentWorkspaces, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, searchSlice.searchQuery, searchSlice.searchResults
      */
     bootstrap: async () => {
-      const tBootstrapStart = performance.now();
-      console.log('[ADL-DEBUG] bootstrap: enter');
       const requestSeq = workspaceRequestSeq;
       const completeStartup = () => {
         setTimeout(() => {
@@ -50,10 +48,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         window.digitalLife.app.getInfo(),
         window.digitalLife.workspace.listRecent(),
       ]);
-      console.log(
-        '[ADL-DEBUG] bootstrap: getInfo+listRecent resolved elapsedMs=',
-        (performance.now() - tBootstrapStart).toFixed(1),
-      );
       if (requestSeq !== workspaceRequestSeq) {
         return;
       }
@@ -84,16 +78,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       };
 
       void window.digitalLife.workspace.setEditorDirtyPaths([]);
-
-      // 方案 A 验证：记录 currentWorkspace 是否由后端恢复（重启后应为非空）
-      console.log(
-        '[ADL-DEBUG] bootstrap: currentWorkspace=',
-        appInfoResult.data.currentWorkspace
-          ? `${appInfoResult.data.currentWorkspace.name} (${appInfoResult.data.currentWorkspace.id})`
-          : 'none',
-        'visibleWorkspaces=',
-        visibleWorkspaces.map((w) => w.name),
-      );
 
       // 尽早渲染 UI，不等 getGitStatus
       set(nextState);
@@ -145,13 +129,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           items: RecentWorkspaceEntry[],
           concurrency: number,
         ): Promise<PromiseSettledResult<{ id: string; tree: unknown; snapshot: unknown }>[]> {
-          const batchStart = performance.now();
-          console.log(
-            '[ADL-DEBUG] bootstrap: loadBatch enter phaseItems=',
-            items.map((w) => w.name),
-            'concurrency=',
-            concurrency,
-          );
           const tasks = items.map((w) => ({
             id: w.id,
             treeLoader: () =>
@@ -174,34 +151,9 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             set(loadingBatch);
           }
           const results = await runWithConcurrency(tasks, concurrency, async (task) => {
-            const tItem = performance.now();
             const [tree, snapshot] = await Promise.all([task.treeLoader(), task.snapshotLoader()]);
-            console.log(
-              '[ADL-DEBUG] bootstrap: workspace load resolved name=',
-              items.find((w) => w.id === task.id)?.name ?? task.id,
-              'treeBytes=',
-              tree === undefined
-                ? 'undefined'
-                : (() => {
-                    try {
-                      return JSON.stringify(tree).length;
-                    } catch {
-                      return '?';
-                    }
-                  })(),
-              'snapshotOk=',
-              snapshot !== undefined,
-              'elapsedMs=',
-              (performance.now() - tItem).toFixed(1),
-            );
             return { id: task.id, tree, snapshot };
           });
-          console.log(
-            '[ADL-DEBUG] bootstrap: loadBatch done phaseItems=',
-            items.map((w) => w.name),
-            'batchElapsedMs=',
-            (performance.now() - batchStart).toFixed(1),
-          );
           const batch_: Partial<StoreState> = {};
           for (const r of results) {
             if (r.status === 'fulfilled') {
@@ -230,13 +182,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
         // === Stage 1: priority blocks first screen ===
         if (phases.priority.length > 0) {
-          const tPriority = performance.now();
           const results = await loadBatch(phases.priority, maxConcurrent);
           logRejected(results, 'priority');
-          console.log(
-            '[ADL-DEBUG] bootstrap: priority phase completed elapsedMs=',
-            (performance.now() - tPriority).toFixed(1),
-          );
         }
 
         // === First screen ready ===
@@ -247,29 +194,15 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           try {
             if (phases.deferred.length > 0) {
               const deferredConcurrency = Math.min(2, maxConcurrent);
-              const tDeferred = performance.now();
               const results = await loadBatch(phases.deferred, deferredConcurrency);
               logRejected(results, 'deferred');
-              console.log(
-                '[ADL-DEBUG] bootstrap: deferred phase completed elapsedMs=',
-                (performance.now() - tDeferred).toFixed(1),
-              );
             }
 
             if (phases.natural.length > 0) {
               const naturalConcurrency = Math.min(2, maxConcurrent);
-              const tNatural = performance.now();
               const results = await loadBatch(phases.natural, naturalConcurrency);
               logRejected(results, 'natural');
-              console.log(
-                '[ADL-DEBUG] bootstrap: natural phase completed elapsedMs=',
-                (performance.now() - tNatural).toFixed(1),
-              );
             }
-            console.log(
-              '[ADL-DEBUG] bootstrap: all background phases done totalElapsedMs=',
-              (performance.now() - tBootstrapStart).toFixed(1),
-            );
           } catch (err) {
             console.warn('[workspace load] background cascade failed', err);
           }
@@ -340,9 +273,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
       // 方案 B：即使没有当前工作区，也在后台预加载所有可见工作区树，
       // 使重启后点击任一工作区不再触发全量扫描。
-      console.log(
-        '[ADL-DEBUG] bootstrap: no currentWorkspace, preloading visible workspaces (方案 B)',
-      );
       queueLowPriorityRefresh(() => runWorkspaceLoadCascade());
     },
 

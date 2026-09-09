@@ -373,30 +373,6 @@ pub async fn restore_to_sidebar(
     ipc::to_response(result)
 }
 
-/// POST `/sidebar/hide` — hide a workspace from the right panels (covers
-/// `WorkspaceBridge.hideFromRightPanels`).
-pub async fn hide_from_right_panels(
-    State(state): State<ServerState>,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
-    let input: WorkspaceIdBody = match ipc::json_body(body).await {
-        Ok(v) => v,
-        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
-    };
-    let db = state.db.clone();
-    let workspace_id = input.workspace_id;
-    let result = run_sidebar_op(db, move |db| {
-        let mut all = load_or_seed_sidebar_with_db(db)?;
-        if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
-            e.hidden_from_right_panels = true;
-        }
-        save_sidebar_entries_with_db(db, &all)?;
-        presentable_recent_list_with_db(db)
-    })
-    .await;
-    ipc::to_response(result)
-}
-
 /// POST `/sidebar/show` — show a workspace in the right panels (covers
 /// `WorkspaceBridge.showInRightPanels`).
 pub async fn show_in_right_panels(

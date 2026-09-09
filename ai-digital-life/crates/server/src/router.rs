@@ -107,7 +107,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/sidebar/reorder", post(handlers::workspace_sidebar::reorder))
         .route("/sidebar/remove", post(handlers::workspace_sidebar::remove_from_sidebar))
         .route("/sidebar/restore", post(handlers::workspace_sidebar::restore_to_sidebar))
-        .route("/sidebar/hide", post(handlers::workspace_sidebar::hide_from_right_panels))
         .route("/sidebar/show", post(handlers::workspace_sidebar::show_in_right_panels))
         // Workspace-git domain
         .route("/workspace/git/status", post(handlers::workspace_git::get_git_status))

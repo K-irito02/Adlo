@@ -32,13 +32,6 @@ export function createWorkspaceLifecycleActions(
      * @see preview-bridge/index.ts → workspace.open
      */
     openWorkspace: async (workspacePath: string) => {
-      const tStart = performance.now();
-      console.log(
-        '[ADL-DEBUG] openWorkspace: enter path=',
-        workspacePath,
-        't0=',
-        tStart.toFixed(1),
-      );
       const requestSeq = getNextWorkspaceRequestSeq();
       clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
       getNextFileRequestSeq();
@@ -46,14 +39,6 @@ export function createWorkspaceLifecycleActions(
       getNextSessionRequestSeq();
       clearError(get, SCOPE);
       const result = await window.digitalLife.workspace.open(workspacePath);
-      console.log(
-        '[ADL-DEBUG] openWorkspace: workspace.open IPC resolved path=',
-        workspacePath,
-        'elapsedMs=',
-        (performance.now() - tStart).toFixed(1),
-        'ok=',
-        result.ok,
-      );
       if (requestSeq !== workspaceRequestSeq) {
         return { ok: false, error: 'Request superseded' };
       }
@@ -62,12 +47,6 @@ export function createWorkspaceLifecycleActions(
         return { ok: false, error: result.error.message };
       }
       await get().bootstrap();
-      console.log(
-        '[ADL-DEBUG] openWorkspace: bootstrap completed path=',
-        workspacePath,
-        'totalElapsedMs=',
-        (performance.now() - tStart).toFixed(1),
-      );
 
       return { ok: true };
     },

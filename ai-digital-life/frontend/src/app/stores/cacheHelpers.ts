@@ -272,14 +272,6 @@ export async function expandSingle(
   hasData: boolean,
   loadData: () => Promise<void>,
 ): Promise<void> {
-  console.log(
-    '[ADL-DEBUG] expandSingle: workspaceId=',
-    workspaceId,
-    'wasExpanded=',
-    !!currentExpanded[workspaceId],
-    'hasData=',
-    hasData,
-  );
   if (currentExpanded[workspaceId]) {
     setExpanded({
       ...currentExpanded,
@@ -310,39 +302,12 @@ export function createLazyLoader<T>(
     return async (workspaceId: string, workspacePath: string) => {
       const state = get_();
       const guard = getGuardState(state, workspaceId);
-      const tLazyStart = performance.now();
-      console.log(
-        '[ADL-DEBUG] lazyLoad: enter workspaceId=',
-        workspaceId,
-        'path=',
-        workspacePath,
-        'hasData=',
-        guard.hasData,
-        'isLoading=',
-        guard.isLoading,
-      );
       if (guard.hasData || guard.isLoading) {
-        console.log(
-          '[ADL-DEBUG] lazyLoad: skipped workspaceId=',
-          workspaceId,
-          'hasData=',
-          guard.hasData,
-          'isLoading=',
-          guard.isLoading,
-        );
         return;
       }
       set(getInitialState(get_, workspaceId));
       try {
         const result = await fetchFn(workspacePath);
-        console.log(
-          '[ADL-DEBUG] lazyLoad: resolved workspaceId=',
-          workspaceId,
-          'ok=',
-          result.ok,
-          'elapsedMs=',
-          (performance.now() - tLazyStart).toFixed(1),
-        );
         if (!result.ok) {
           set(getErrorState(get_, workspaceId, result.error.message));
           return;
@@ -350,14 +315,6 @@ export function createLazyLoader<T>(
         set(getSuccessState(get_, workspaceId, result.data));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        console.log(
-          '[ADL-DEBUG] lazyLoad: rejected workspaceId=',
-          workspaceId,
-          'msg=',
-          message,
-          'elapsedMs=',
-          (performance.now() - tLazyStart).toFixed(1),
-        );
         set(getErrorState(get_, workspaceId, message));
       }
     };
