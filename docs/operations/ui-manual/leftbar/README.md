@@ -1,37 +1,33 @@
 # 左侧边栏区域
 
-> 左侧边栏包含快捷操作、工作区列表、会话列表和独立对话列表。
+> 左侧边栏当前包含剪切看板和系统资源查看两个模块。
 
 ## 布局结构
 
 ```
 ┌──────────────┐
-│  [10] Quick  │
-│   Actions    │
+│ 剪切看板      │
+│ Clipboard    │
+│ HistoryList  │
 ├──────────────┤
-│  [11] Work-  │
-│  spaces &    │
-│   Sessions   │
-│              │
-│              │
+│ 系统资源查看  │
+│ SystemMonitor│
+│  Panel       │
 ├──────────────┤
-│  [12] Con-   │
-│ versations   │
-│              │
-├──────────────┤
-│ [13] Resize  │
-│    Handle    │
+│ [Resize]     │
+│   Handle     │
 └──────────────┘
 ```
 
 ## 元素索引
 
-| 编号 | 名称                  | 文档                                   | 说明                      |
-| ---- | --------------------- | -------------------------------------- | ------------------------- |
-| [10] | Quick Actions         | [quick-actions.md](./quick-actions.md) | 快捷操作按钮（技能、MCP） |
-| [11] | Workspaces & Sessions | [workspaces.md](./workspaces.md)       | 工作区列表与会话列表      |
-| [12] | Conversations         | [conversations.md](./conversations.md) | 独立对话列表              |
-| [13] | Resize Handle         | -                                      | 宽度调整手柄              |
+| 模块 | 文档 | 说明 |
+| ---- | ---- | ---- |
+| 剪切看板 | - | `ClipboardHistoryList`，剪贴板历史列表 |
+| 系统资源查看 | - | `SystemMonitorPanel`，系统资源监控 |
+| Resize Handle | - | 宽度调整手柄 |
+
+> 注：历史版本的"工作区列表 / 会话列表 / 独立对话列表"已随左侧边栏改版移除（会话与工作区管理迁移至顶部标题栏「添加工作区」与右侧面板工作区多树）。原 `workspaces.md` / `sessions.md` / `conversations.md` 不再适用。
 
 ## 容器选择器
 
@@ -40,67 +36,6 @@
 | `.adl-leftbar`            | 左侧边栏容器       |
 | `.adl-leftbar__content`   | 内容区域（可滚动） |
 | `.adl-leftbar--collapsed` | 折叠状态           |
-
-## 子区域选择器
-
-| 选择器                              | 说明                  |
-| ----------------------------------- | --------------------- |
-| `.adl-leftbar__quick`               | 快捷操作区            |
-| `.adl-leftbar__nav`                 | 导航区（工作区/对话） |
-| `.adl-leftbar__conversation-resize` | 对话区域高度调整手柄  |
-
-## 快速操作
-
-### 展开左侧边栏
-
-```javascript
-// 如果左侧边栏已折叠，点击切换按钮
-const isCollapsed = await page.evaluate(() => {
-  return document.querySelector('.adl-leftbar')?.classList.contains('adl-leftbar--collapsed');
-});
-
-if (isCollapsed) {
-  await page.click('button[aria-label="切换左侧边栏"]');
-  await page.waitForSelector('.adl-leftbar:not(.adl-leftbar--collapsed)');
-}
-```
-
-### 创建新会话
-
-```javascript
-// 找到当前工作区旁的新建按钮
-const newSessionBtn = await page.waitForSelector(
-  '.adl-workspace-item.is-current .adl-icon-btn[aria-label="新建会话"]'
-);
-await newSessionBtn.click();
-```
-
-### 切换会话
-
-```javascript
-// 点击会话项
-await page.click('.adl-session-item:not(.is-active)');
-// 等待激活状态变化
-await page.waitForSelector('.adl-session-item.is-active');
-```
-
-### 调整侧边栏宽度
-
-> ⚠️ **有效拖拽区域**：仅手柄元素最右侧 3px 范围可拖拽。中间区域
-> `pointer-events: none`，点击会穿透到下方的自定义滚动条。
-
-```javascript
-// 拖拽调整手柄（必须点击最右侧 3px 区域）
-const handle = await page.waitForSelector('.adl-leftbar__resize-handle');
-const box = await handle.boundingBox();
-// 点击最右侧 3px（右边缘 - 1.5px）
-const grabX = box.x + box.width - 1.5;
-const centerY = box.y + box.height / 2;
-await page.mouse.move(grabX, centerY);
-await page.mouse.down();
-await page.mouse.move(box.x + 100, centerY); // 向右移动 100px
-await page.mouse.up();
-```
 
 ## 状态
 
@@ -122,7 +57,4 @@ await page.mouse.up();
 ## 注意事项
 
 1. **折叠状态**：折叠时内容不可见，但 DOM 仍存在
-2. **异步加载**：工作区和会话列表可能需要等待加载
-3. **拖拽排序**：会话项支持拖拽排序，拖拽时有 `.is-dragging` 类
-4. **右键菜单**：工作区和会话项支持右键上下文菜单
-5. **双击重命名**：会话项支持双击进入重命名模式
+2. **宽度调整**：拖拽手柄调整左侧边栏宽度

@@ -210,13 +210,16 @@ Rust Command
 ```typescript
 // 接口定义（shared/ipc/workspace.ts）
 interface WorkspaceBridge {
-  reorder(input: ReorderWorkspacesInput): Promise<IpcResult<WorkspaceSummary[]>>;
+  listTreeForWorkspace(
+    workspacePath: string,
+    options?: { force?: boolean },
+  ): Promise<IpcResult<WorkspaceTreeNode[]>>;
 }
 
 // 三个实现都必须使用相同参数类型
-// tauri-bridge.ts:     invoke('reorder_workspaces', { input })
-// preview-bridge.ts:   HTTP POST /api/reorder-workspaces
-// mock-bridge.ts:      内存排序后返回
+// tauri-bridge.ts:     经 httpBridge 转发 HTTP /workspace/tree
+// preview-bridge.ts:   GET /workspace/tree?rootPath=...
+// mock-bridge.ts:      内存树构建返回
 // ❌ 不允许不同桥接层使用不同参数签名
 ```
 

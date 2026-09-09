@@ -147,16 +147,9 @@ a[aria-label="帮助"]
 | 元素         | 选择器                              |
 | ------------ | ----------------------------------- | ------------------------------------- |
 | 左侧边栏容器 | `.adl-leftbar`                      |
-| 快捷操作区   | `.adl-leftbar__quick`               |
-| 技能按钮     | `.adl-quick-btn` (包含 "技能" 文本) |
-| MCP 按钮     | `.adl-quick-btn` (包含 "MCP" 文本)  |
-| 工作区列表   | `.adl-workspace-list`               |
-| 工作区项     | `.adl-workspace-item`               |
-| 当前工作区   | `.adl-workspace-item.is-current`    |
-| 会话列表     | `.adl-session-list`                 |
-| 会话项       | `.adl-session-item`                 |
-| 激活会话     | `.adl-session-item.is-active`       |
-| 归档区       | `.adl-archive`                      |
+| 剪切看板     | `.adl-clipboard-history` / ClipboardHistoryList |
+| 系统资源查看 | `.adl-system-monitor` / SystemMonitorPanel |
+| 右侧工具面板 | `.adl-rightpanel`                   |
 | 调整手柄     | `.adl-leftbar__resize-handle`       | ⚠️ 仅最右侧 3px `::before` 区域可拖拽 |
 
 ### 中心面板

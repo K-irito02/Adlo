@@ -46,18 +46,22 @@ await page.click('button[aria-label="添加工作区"]');
 ### 状态变化
 
 - 系统目录选择器弹出
-- 选中目录后加载为当前工作区（与菜单「打开文件夹」行为一致）
+- 选中目录后按钮进入**加载中**状态（`aria-label` 切换为"加载中"、图标变为 `Spinner`、按钮 `disabled`）
+- 工作区加载完成后按钮恢复图标（`aria-label` 恢复为"添加工作区"）
 
 ### 预期结果
 
 - 用户可通过系统资源管理器任意选择目录
 - 选择后右侧工具面板加载并激活该工作区
+- 加载期间按钮显示 loading 动画，防止重复点击
 
 ### 等待条件
 
 ```javascript
-// 等待目录选择结果（工作区加载）
-await page.waitForSelector('.adl-workspace-list li[data-ws-id]');
+// 等待目录选择结果（工作区加载完成，按钮恢复可点击）
+await page.waitForSelector(
+  'button[aria-label="添加工作区"]:not([disabled])'
+);
 ```
 
 ---

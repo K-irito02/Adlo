@@ -132,10 +132,13 @@ interface WorkspaceBridge {
   open(input: { path: string }): Promise<IpcResult<WorkspaceSummary>>;
   close(input: { id: string }): Promise<IpcResult<void>>;
   list(): Promise<IpcResult<WorkspaceSummary[]>>;
-  reorder(input: ReorderWorkspacesInput): Promise<IpcResult<WorkspaceSummary[]>>;
+  listTreeForWorkspace(
+    workspacePath: string,
+    options?: { force?: boolean },
+  ): Promise<IpcResult<WorkspaceTreeNode[]>>;
+  removeFromSidebar(input: { workspaceId: string }): Promise<IpcResult<WorkspaceSummary[]>>;
   rename(input: { id: string; name: string }): Promise<IpcResult<void>>;
   remove(input: { id: string }): Promise<IpcResult<void>>;
-  listTree(input: { workspaceId: string; root: string }): Promise<IpcResult<WorkspaceTreeNode[]>>;
   readFile(input: { workspaceId: string; root: string; path: string }): Promise<IpcResult<WorkspaceFileDocument>>;
   search(input: SearchInput): Promise<IpcResult<SearchResult[]>>;
   // ... 更多方法
@@ -246,15 +249,9 @@ GitSlice {
 | `frontend/src/app/features/workspace-changes-tree/WorkspaceChangesEntry.tsx` | 工作区变更条目 |
 | `frontend/src/app/features/workspace-browser/multiworkspacebrowser.tsx` | 工作区浏览器 |
 | `frontend/src/app/features/multi-workspace/MultiWorkspaceContainer.tsx` | 多工作区容器 |
-| `frontend/src/app/components/workspace/CheckpointTimeline.tsx` | 检查点时间线 |
-| `frontend/src/app/components/workspace/ConflictBanner.tsx` | 冲突横幅 |
-| `frontend/src/app/components/workspace/GitSummary.tsx` | Git 摘要 |
-| `frontend/src/app/components/workspace/IndexStatus.tsx` | 索引状态 |
-| `frontend/src/app/components/workspace/RepoMapView.tsx` | 仓库地图 |
-| `frontend/src/app/components/workspace/ValidationSummaryBar.tsx` | 验证摘要栏 |
 | `frontend/src/app/regions/StatusBarGitInfo.tsx` | 状态栏 Git 信息 |
-| `frontend/src/app/regions/left-sidebar/WorkspaceList.tsx` | 侧边栏工作区列表 |
 | `frontend/src/app/components/CreateWorkspaceModal.tsx` | 新建工作区弹窗 |
 | `frontend/src/app/components/WorkspaceSplitButton.tsx` | 工作区分割按钮 |
+| `frontend/src/app/components/WorkspaceRemoveConfirmDialog.tsx` | 「移出该工作区」确认对话框 |
 | `frontend/src/hooks/useDragDropWorkspace.ts` | 工作区拖放 Hook |
 | `frontend/src/shared/ipc/workspace.ts` | 工作区 IPC 接口定义 |

@@ -160,10 +160,8 @@ frontend/src/app/
 App.tsx
 ├── TitleBar                # 自定义标题栏（含 HamburgerMenu + titleBarMenus）
 ├── LeftSidebar             # 左侧边栏
-│   ├── ConversationPanel   # 会话列表
-│   ├── SessionList         # 会话行
-│   ├── WorkspaceList       # 工作区列表
-│   ├── SidebarContextMenu  # 侧边栏右键菜单
+│   ├── ClipboardHistoryList # 剪切看板
+│   ├── SystemMonitorPanel   # 系统资源查看
 │   └── ResizeHandle        # 拖拽调整宽度
 ├── CenterPane              # 中央窗格
 │   ├── WelcomeState        # 欢迎页（无会话时）
