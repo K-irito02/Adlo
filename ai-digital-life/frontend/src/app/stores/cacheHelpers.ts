@@ -321,11 +321,14 @@ export function createLazyLoader<T>(
         'isLoading=',
         guard.isLoading,
       );
-      if (guard.hasData && !guard.isLoading) {
+      if (guard.hasData || guard.isLoading) {
         console.log(
-          '[ADL-DEBUG] lazyLoad: skipped (hasData) workspaceId=',
+          '[ADL-DEBUG] lazyLoad: skipped workspaceId=',
           workspaceId,
-          'elapsedMs=0',
+          'hasData=',
+          guard.hasData,
+          'isLoading=',
+          guard.isLoading,
         );
         return;
       }
