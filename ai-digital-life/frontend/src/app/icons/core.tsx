@@ -197,7 +197,7 @@ export const IconWindowMaximize = make(<rect x="6" y="6" width="12" height="12" 
 export const IconWindowRestore = make(
   <>
     <rect x="4" y="8" width="10" height="10" />
-    <path d="M6 4h10a2 2 0 0 1 2 2v10" />
+    <rect x="8" y="4" width="10" height="10" fill="none" stroke="currentColor" />
   </>,
 );
 
