@@ -13,8 +13,8 @@ export function createBrowserCleanupActions(
   return {
     /**
      * [cleanupRemovedWorkspaceTree - 清理已移除工作区的状态缓存]
-     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks
-     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks
+     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.recentWorkspaces, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab
+     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab
      * @see — 无桥接调用 (本地内存清理)
      */
     cleanupRemovedWorkspaceTree: (workspaceId: WorkspaceID) => {

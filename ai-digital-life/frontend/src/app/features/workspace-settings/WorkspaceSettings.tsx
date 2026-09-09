@@ -51,7 +51,7 @@ export function WorkspaceSettings() {
   const visibleWorkspaces = useMemo<DraggableWorkspace[]>(
     () =>
       recentWorkspaces
-        .filter((w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available)
+        .filter((w) => !w.removedFromSidebar && w.available)
         .map((w) => ({ id: w.id, name: w.name })),
     [recentWorkspaces],
   );

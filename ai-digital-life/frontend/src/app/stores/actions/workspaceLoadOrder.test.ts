@@ -14,7 +14,6 @@ function makeWs(id: string): RecentWorkspaceEntry {
     unpinnedOrder: 0,
     removedFromSidebar: false,
     available: true,
-    hiddenFromRightPanels: false,
   } as RecentWorkspaceEntry;
 }
 

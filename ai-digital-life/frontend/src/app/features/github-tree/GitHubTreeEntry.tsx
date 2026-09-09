@@ -4,6 +4,7 @@ import { IconSettings, IconRefreshCw, IconMoreVertical } from '@icons';
 import { GitHubEntrySubEntries } from './GitHubEntrySubEntries';
 import { TooltipSimple } from '@components/Tooltip';
 import { RenameDialog } from '@components/RenameDialog';
+import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { useTCopy } from '@i18n/useTCopy';
 import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 import { useAppStore } from '@stores/slicedStore';
@@ -81,6 +82,22 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     folderId: string;
     folderName: string;
   } | null>(null);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const [confirmRemoveWorkspaceId, setConfirmRemoveWorkspaceId] = useState<string | null>(null);
+
+  const handleRequestRemove = useCallback((wsId: string) => {
+    setMenuOpen(false);
+    setConfirmRemoveWorkspaceId(wsId);
+    setConfirmRemoveOpen(true);
+  }, []);
+
+  const handleConfirmRemove = useCallback(() => {
+    setConfirmRemoveOpen(false);
+    if (confirmRemoveWorkspaceId) {
+      void removeWorkspaceFromSidebar(asWorkspaceID(confirmRemoveWorkspaceId));
+    }
+    setConfirmRemoveWorkspaceId(null);
+  }, [confirmRemoveWorkspaceId, removeWorkspaceFromSidebar]);
 
   const handleStartRename = useCallback((folderId: string, folderName: string) => {
     setRenameFolderState({ folderId, folderName });
@@ -154,8 +171,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     gitHubDeleteFolderConfigRecursive,
     gitHubDeleteFolderDataRecursive,
     gitHubDeleteFolderConfigAndDataRecursive,
-    removeWorkspaceFromSidebar: (wsId: string) =>
-      void removeWorkspaceFromSidebar(asWorkspaceID(wsId)),
+    removeWorkspaceFromSidebar: handleRequestRemove,
   });
 
   const handleExpandBtnClick = useCallback(
@@ -283,41 +299,49 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       : null;
 
   return (
-    <MultiTreeEntryShell
-      label={node.name}
-      isExpanded={isExpanded}
-      isSelected={isSelected}
-      count={count}
-      onHeaderClick={handleHeaderClick}
-      onHeaderContextMenu={handleHeaderContextMenu}
-      onExpandBtnClick={handleExpandBtnClick}
-      onNameKeyDown={handleNameKeyDown}
-      expandLabel={t.expand}
-      collapseLabel={t.collapse}
-      emptyText={t.noContent}
-      actionButtonsSlot={actionButtonsSlot}
-      entryMenuSlot={entryMenuSlot}
-      hasChildren={node.children.length > 0}
-      extraContent={
-        <RenameDialog
-          open={!!renameFolderState}
-          initialValue={renameFolderState?.folderName ?? ''}
-          title={t.changesRenameDir}
-          onConfirm={handleConfirmRename}
-          onCancel={handleCancelRename}
+    <>
+      <MultiTreeEntryShell
+        label={node.name}
+        isExpanded={isExpanded}
+        isSelected={isSelected}
+        count={count}
+        onHeaderClick={handleHeaderClick}
+        onHeaderContextMenu={handleHeaderContextMenu}
+        onExpandBtnClick={handleExpandBtnClick}
+        onNameKeyDown={handleNameKeyDown}
+        expandLabel={t.expand}
+        collapseLabel={t.collapse}
+        emptyText={t.noContent}
+        actionButtonsSlot={actionButtonsSlot}
+        entryMenuSlot={entryMenuSlot}
+        hasChildren={node.children.length > 0}
+        extraContent={
+          <RenameDialog
+            open={!!renameFolderState}
+            initialValue={renameFolderState?.folderName ?? ''}
+            title={t.changesRenameDir}
+            onConfirm={handleConfirmRename}
+            onCancel={handleCancelRename}
+          />
+        }
+      >
+        <GitHubEntrySubEntries
+          node={node}
+          categoryType={categoryType}
+          expandedPaths={expandedPaths}
+          selectedTreePath={selectedTreePath}
+          onSelectTreePath={onSelectTreePath}
+          onTogglePath={onTogglePath}
+          callbacks={callbacks}
+          onStartRename={handleStartRename}
         />
-      }
-    >
-      <GitHubEntrySubEntries
-        node={node}
-        categoryType={categoryType}
-        expandedPaths={expandedPaths}
-        selectedTreePath={selectedTreePath}
-        onSelectTreePath={onSelectTreePath}
-        onTogglePath={onTogglePath}
-        callbacks={callbacks}
-        onStartRename={handleStartRename}
+      </MultiTreeEntryShell>
+      <WorkspaceRemoveConfirmDialog
+        open={confirmRemoveOpen}
+        workspaceName={node.name}
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setConfirmRemoveOpen(false)}
       />
-    </MultiTreeEntryShell>
+    </>
   );
 });

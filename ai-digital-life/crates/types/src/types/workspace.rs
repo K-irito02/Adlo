@@ -104,7 +104,6 @@ pub struct RecentWorkspaceEntry {
     pub unpinned_order: i32,
     pub removed_from_sidebar: bool,
     pub available: bool,
-    pub hidden_from_right_panels: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]

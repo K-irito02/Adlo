@@ -14,7 +14,6 @@ function ws(id: string, path: string): RecentWorkspaceEntry {
     unpinnedOrder: 0,
     removedFromSidebar: false,
     available: true,
-    hiddenFromRightPanels: false,
   };
 }
 

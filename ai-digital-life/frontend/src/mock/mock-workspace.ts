@@ -65,11 +65,10 @@ export const mockWorkspace: WorkspaceBridge = {
     const entry = recentWorkspaces.find((item) => item.id === workspaceId);
     if (entry) {
       entry.removedFromSidebar = true;
-      entry.hiddenFromRightPanels = true;
     }
     return { ok: true, data: recentWorkspaces };
   },
-  listTreeForWorkspace: async (workspacePath: string) => ({
+  listTreeForWorkspace: async (_workspacePath: string, _options?: { force?: boolean }) => ({
     ok: true,
     data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
   }),
@@ -94,7 +93,7 @@ export const mockWorkspace: WorkspaceBridge = {
     emptyDirectories.add(relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""));
     return { ok: true, data: true };
   },
-  listTree: async () => ({
+  listTree: async (_options?: { force?: boolean }) => ({
     ok: true,
     data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
   }),

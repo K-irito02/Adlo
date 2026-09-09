@@ -123,7 +123,7 @@ export function createPreviewWorkspaceBridge(
       persistRecentWorkspaces(ctx.recentWorkspaces);
       return { ok: true as const, data: ctx.recentWorkspaces };
     },
-    listTreeForWorkspace: async (workspacePath: string) => {
+    listTreeForWorkspace: async (workspacePath: string, _options?: { force?: boolean }) => {
       const params = new URLSearchParams({ rootPath: workspacePath });
       return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
     },
@@ -180,7 +180,7 @@ export function createPreviewWorkspaceBridge(
         `/workspace/change-preview?${params.toString()}`,
       );
     },
-    listTree: async () => {
+    listTree: async (_options?: { force?: boolean }) => {
       if (!ctx.currentWorkspace) {
         return { ok: true as const, data: [] as WorkspaceTreeNode[] };
       }

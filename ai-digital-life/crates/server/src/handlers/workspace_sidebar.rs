@@ -32,7 +32,6 @@ fn entry_from_workspace(meta: WorkspaceMeta, max_order: i32) -> RecentWorkspaceE
         unpinned_order: max_order + 1,
         removed_from_sidebar: false,
         available: true,
-        hidden_from_right_panels: false,
     }
 }
 
@@ -172,7 +171,6 @@ pub(crate) fn upsert_sidebar_after_open(
         all[i].name = meta.name.clone();
         all[i].last_opened_at = meta.last_opened_at;
         all[i].removed_from_sidebar = false;
-        all[i].hidden_from_right_panels = false;
         all[i].available = true;
         let workspace_ids = std::collections::HashSet::from([meta.id.clone()]);
         all = dedup_entries_by_path(all, &workspace_ids);
@@ -235,7 +233,6 @@ pub async fn remove_from_sidebar(
         let mut all = load_or_seed_sidebar_with_db(db)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
             e.removed_from_sidebar = true;
-            e.hidden_from_right_panels = true;
         }
         save_sidebar_entries_with_db(db, &all)?;
         presentable_recent_list_with_db(db)

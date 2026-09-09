@@ -30,12 +30,31 @@ struct CachedTree {
 
 static TREE_CACHE: OnceLock<Mutex<HashMap<String, CachedTree>>> = OnceLock::new();
 
+/// 每个 root 的失效代际计数器：`invalidate_tree_cache` 自增，扫描开始时读取，
+/// 扫描结束写入前校验是否一致，避免"扫描与写操作并发"导致的过期数据回填缓存。
+static TREE_CACHE_GENERATIONS: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
+
 fn tree_cache() -> &'static Mutex<HashMap<String, CachedTree>> {
     TREE_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
 }
 
+fn tree_generations() -> &'static Mutex<HashMap<String, u64>> {
+    TREE_CACHE_GENERATIONS.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
 fn normalize_cache_key(root: &Path) -> String {
     root.to_string_lossy().replace('\\', "/")
+}
+
+/// 读取 root 的当前失效代际。
+fn generation_get(key: &str) -> u64 {
+    tree_generations().lock().unwrap_or_else(|e| e.into_inner()).get(key).copied().unwrap_or(0)
+}
+
+/// root 的失效代际自增。
+fn generation_bump(key: &str) {
+    let mut gens = tree_generations().lock().unwrap_or_else(|e| e.into_inner());
+    *gens.entry(key.to_string()).or_insert(0) += 1;
 }
 
 /// 返回 root 对应的缓存树（若命中且未过期）。过期条目会被移除。
@@ -56,11 +75,17 @@ fn tree_cache_get(root: &Path) -> Option<Vec<WorkspaceTreeNode>> {
     }
 }
 
-fn tree_cache_put(root: &Path, tree: Vec<WorkspaceTreeNode>) {
+/// 写入缓存。若 `expected_generation` 与当前代际不一致（期间发生过失效），
+/// 说明扫描结果已过期，丢弃本次写入，避免并发写操作的回填竞态。
+fn tree_cache_put(root: &Path, tree: Vec<WorkspaceTreeNode>, expected_generation: u64) {
     let key = normalize_cache_key(root);
+    if generation_get(&key) != expected_generation {
+        debug!(root = %key, "workspace tree scan stale, cache put dropped");
+        return;
+    }
     let mut cache = tree_cache().lock().unwrap_or_else(|e| e.into_inner());
     if cache.len() >= TREE_CACHE_MAX_ENTRIES {
-        // 简单淘汰：移除最先插入的一条（HashMap 迭代顺序不稳定，仅用于控制内存上限）
+        // 简单淘汰：移除任意一条以控制内存上限（HashMap 迭代顺序不稳定，仅用于限流）
         if let Some(oldest_key) = cache.keys().next().cloned() {
             cache.remove(&oldest_key);
         }
@@ -68,31 +93,46 @@ fn tree_cache_put(root: &Path, tree: Vec<WorkspaceTreeNode>) {
     cache.insert(key, CachedTree { tree, captured_at: now_ms() });
 }
 
-/// 清除 root 的文件树缓存。任何文件系统写操作后必须调用，防止树过期。
+/// 清除 root 的文件树缓存并递增其失效代际。任何文件系统写操作后必须调用，
+/// 防止树过期；代际自增使"扫描中发生写操作"的并发窗口不会回填过期数据。
 pub fn invalidate_tree_cache(root: &Path) {
     let key = normalize_cache_key(root);
     let mut cache = tree_cache().lock().unwrap_or_else(|e| e.into_inner());
     if cache.remove(&key).is_some() {
         debug!(root = %key, "workspace tree cache invalidated");
     }
+    drop(cache);
+    generation_bump(&key);
 }
 
 /// 带进程内缓存的树加载（方案 C 入口）。命中则直接返回克隆的树，
 /// 未命中则全量扫描并缓存。
 pub fn list_tree_cached(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
     if let Some(cached) = tree_cache_get(root) {
-        info!(
+        debug!(
             root = %root.to_string_lossy(),
             nodes = cached.len(),
             "workspace tree cache hit"
         );
         return Ok(cached);
     }
+    let key = normalize_cache_key(root);
+    let generation = generation_get(&key);
     let tree = list_tree(root)?;
-    tree_cache_put(root, tree.clone());
+    tree_cache_put(root, tree.clone(), generation);
     Ok(tree)
 }
 
+/// 绕过缓存强制重新扫描（显式"刷新"用）。先失效旧条目再全量扫描并缓存，
+/// 使外部改动（IDE/终端/补丁）立即反映。
+pub fn list_tree_force(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
+    invalidate_tree_cache(root);
+    let key = normalize_cache_key(root);
+    let generation = generation_get(&key);
+    let tree = list_tree(root)?;
+    tree_cache_put(root, tree.clone(), generation);
+    Ok(tree)
+}
 
 fn ignored_dirs() -> &'static HashSet<&'static str> {
     static IGNORED_DIRS: OnceLock<HashSet<&'static str>> = OnceLock::new();

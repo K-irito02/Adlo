@@ -32,7 +32,6 @@ function makeWorkspace(id: string, name: string, path: string): RecentWorkspaceE
     unpinnedOrder: 0,
     removedFromSidebar: false,
     available: true,
-    hiddenFromRightPanels: false,
   };
 }
 

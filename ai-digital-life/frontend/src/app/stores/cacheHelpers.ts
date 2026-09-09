@@ -244,9 +244,7 @@ export async function batchExpandAll(
   loadedCheck: (workspaceId: string) => boolean,
   concurrency = 3,
 ): Promise<void> {
-  const visibleEntries = recentWorkspaces.filter(
-    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
-  );
+  const visibleEntries = recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
   const expandedAll: Record<string, boolean> = {};
   for (const entry of visibleEntries) {
     expandedAll[entry.id] = true;
@@ -302,6 +300,8 @@ export function createLazyLoader<T>(
     return async (workspaceId: string, workspacePath: string) => {
       const state = get_();
       const guard = getGuardState(state, workspaceId);
+      // 已有数据或正在加载时都跳过：避免与 bootstrap loadBatch/其它懒加载并发重复扫描。
+      // 需要强制刷新时请走显式 refresh 路径（refreshOneWorkspaceTree 带 force）。
       if (guard.hasData || guard.isLoading) {
         return;
       }

@@ -217,6 +217,7 @@ export function useTerminalMenu({
     showSubMenu,
     hideSubMenuDelayed,
     handleMoreClick,
+    closeMenu,
     handleHideFromRightPanels,
     handleSelectDefaultProfile,
     handleRefreshClick,

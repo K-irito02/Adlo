@@ -128,10 +128,17 @@ pub async fn revert(
         Err(e) => return ipc::to_response(Err(e)),
     };
     let root = PathBuf::from(&input.workspace_root);
+    let root_for_invalidate = root.clone();
+    let root_for_closure = root.clone();
     let snapshot_id = input.snapshot_id;
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let reverted =
-            adl_change_engine::revert::revert_to_snapshot(&manager, &snapshot_id, &root)?;
+        let reverted = adl_change_engine::revert::revert_to_snapshot(
+            &manager,
+            &snapshot_id,
+            &root_for_closure,
+        )?;
+        // 快照回滚会重写工作区文件：FS 变更成功后立即失效文件树缓存。
+        adl_workspace::invalidate_tree_cache(&root_for_invalidate);
         Ok(serde_json::to_value(reverted)?)
     })
     .await;

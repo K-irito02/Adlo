@@ -71,10 +71,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
   const visibleWorkspaces = useMemo(
-    () =>
-      recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
-      ),
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available),
     [recentWorkspaces],
   );
 

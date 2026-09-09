@@ -49,7 +49,6 @@ export interface RecentWorkspaceEntry {
   unpinnedOrder: number;
   removedFromSidebar: boolean;
   available: boolean;
-  hiddenFromRightPanels: boolean;
 }
 
 export type WorkspaceType = 'node' | 'python' | 'java' | 'go' | 'rust' | 'unknown';

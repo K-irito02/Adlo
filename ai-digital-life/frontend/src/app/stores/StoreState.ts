@@ -40,7 +40,6 @@ import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import type { WorkspaceID } from '../../shared/branded';
 import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../shared/ipc/dsh';
 
-
 interface ReferenceConfig {
   name: string;
   source: 'local' | 'git';

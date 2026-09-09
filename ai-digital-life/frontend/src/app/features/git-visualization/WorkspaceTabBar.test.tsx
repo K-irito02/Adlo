@@ -15,7 +15,6 @@ const mockRecentWorkspaces: {
   unpinnedOrder: number;
   removedFromSidebar: boolean;
   available: boolean;
-  hiddenFromRightPanels: boolean;
 }[] = Array.from({ length: 27 }, (_, i) => ({
   id: `workspace-${i + 1}`,
   name: `Workspace ${i + 1}`,
@@ -27,7 +26,6 @@ const mockRecentWorkspaces: {
   unpinnedOrder: i,
   removedFromSidebar: false,
   available: true,
-  hiddenFromRightPanels: false,
 }));
 
 vi.mock('@stores/slicedStore', () => ({

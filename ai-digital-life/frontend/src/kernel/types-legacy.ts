@@ -242,12 +242,3 @@ export type DigitalLifeRunActivityEventV1 =
     }
   | { v: 1; runId: string; seq: number; ts: number; type: 'error'; message: string }
   | { v: 1; runId: string; seq: number; ts: number; type: 'run-done'; status: AgentRunStatus };
-
-// ════════════════════════════════════════════════════════
-// Host sidebar ordering (retained: workspace drag-reorder)
-// ════════════════════════════════════════════════════════
-
-export interface ReorderWorkspacesInput {
-  pinnedIds: string[];
-  unpinnedIds: string[];
-}

@@ -80,6 +80,9 @@ async fn apply_patch_set_inner(
              patch_set status"
         );
         let patch_set = adl_change_engine::apply_patch_set(patch_set, &root_for_apply)?;
+        // 补丁可能新增/删除文件：FS 变更成功后立即失效文件树缓存，
+        // 即使后续 DB 持久化失败也能让右侧面板反映最新内容。
+        adl_workspace::invalidate_tree_cache(&root_for_apply);
         save_patch_set_with_db(&db, &patch_set)?;
         Ok(patch_set)
     })
@@ -150,11 +153,18 @@ pub async fn rollback_patch_set(
         Err(e) => return ipc::to_response(Err(e)),
     };
     let root = PathBuf::from(&workspace.root_path);
+    let root_for_invalidate = root.clone();
+    let root_for_closure = root.clone();
     let db = state.db.clone();
     let patch_set_id_for_db = input.patch_set_id.clone();
     let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
         let mut patch_set = require_patch_set_with_db(&db, &patch_set_id_for_db)?;
-        patch_set = adl_change_engine::rollback_patch_set(patch_set, std::path::Path::new(&root))?;
+        patch_set = adl_change_engine::rollback_patch_set(
+            patch_set,
+            std::path::Path::new(&root_for_closure),
+        )?;
+        // 回滚可能新增/删除文件：FS 变更成功后立即失效文件树缓存。
+        adl_workspace::invalidate_tree_cache(&root_for_invalidate);
         save_patch_set_with_db(&db, &patch_set)?;
         Ok(serde_json::to_value(&patch_set)?)
     })

@@ -66,7 +66,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
       // 为右侧面板设置默认展开所有可见工作区
       const visibleWorkspaces = recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
+        (w) => !w.removedFromSidebar && w.available,
       );
 
       const nextState: Partial<StoreState> = {
@@ -155,7 +155,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             return { id: task.id, tree, snapshot };
           });
           const batch_: Partial<StoreState> = {};
-          for (const r of results) {
+          for (let i = 0; i < results.length; i += 1) {
+            const r = results[i];
             if (r.status === 'fulfilled') {
               const { id, tree, snapshot } = r.value;
               if (tree !== undefined) {
@@ -169,6 +170,14 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
                 accumulateBatch(batch_, get, 'gitSnapshots', id, snapshot);
                 accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
               } else {
+                accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
+              }
+            } else {
+              // runWithConcurrency 保证 results[i] 与 items[i] 对齐；rejected 时同样
+              // 清除 loading 标记，避免该工作区永久 loading 且被新 guard 卡住无法重试。
+              const id = items[i]?.id;
+              if (id) {
+                accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
                 accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
               }
             }

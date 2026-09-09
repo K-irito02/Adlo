@@ -96,7 +96,9 @@ export function createWorkspaceTreeActions(
         });
       }
       try {
-        const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath);
+        const result = await window.digitalLife.workspace.listTreeForWorkspace(workspacePath, {
+          force: true,
+        });
         if (!result.ok) {
           // 静默刷新失败同样记录错误，与 refreshGitSnapshot 的 silent 行为对齐，
           // 避免 create/rename/delete 后的校准刷新失败被静默吞掉（乐观结果可能失真）。

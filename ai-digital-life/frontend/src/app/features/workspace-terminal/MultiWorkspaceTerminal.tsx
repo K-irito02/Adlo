@@ -58,7 +58,6 @@ export function MultiWorkspaceTerminal({
     rootPath: '',
     available: true,
     removedFromSidebar: false,
-    hiddenFromRightPanels: false,
     lastOpenedAt: 0,
     isPinned: false,
     pinnedOrder: 0,

@@ -33,7 +33,7 @@ export function useBrowserPanelState(
     const v = valueRef.current;
     const navigatorCollapsed = storeValues.navigatorCollapsedByTool.browser ?? false;
     const visibleWorkspaces = storeValues.recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
+      (w) => !w.removedFromSidebar && w.available,
     );
     const isEmbedPending =
       !storeValues.isTauri &&

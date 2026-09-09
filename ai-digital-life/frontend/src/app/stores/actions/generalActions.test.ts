@@ -213,7 +213,6 @@ describe('workspace load cascade ordering', () => {
               unpinnedOrder: 0,
               removedFromSidebar: false,
               available: true,
-              hiddenFromRightPanels: false,
             },
             {
               id: 'ws-2',
@@ -226,7 +225,6 @@ describe('workspace load cascade ordering', () => {
               unpinnedOrder: 0,
               removedFromSidebar: false,
               available: true,
-              hiddenFromRightPanels: false,
             },
             {
               id: 'ws-3',
@@ -239,7 +237,6 @@ describe('workspace load cascade ordering', () => {
               unpinnedOrder: 0,
               removedFromSidebar: false,
               available: true,
-              hiddenFromRightPanels: false,
             },
           ],
         }),
@@ -329,7 +326,6 @@ describe('workspace load cascade ordering', () => {
               unpinnedOrder: 0,
               removedFromSidebar: false,
               available: true,
-              hiddenFromRightPanels: false,
             },
           ],
         }),
@@ -361,5 +357,100 @@ describe('workspace load cascade ordering', () => {
     expect(useAppStore.getState().appReady).toBe(true);
     expect(mockListTreeForWorkspace).toHaveBeenCalledTimes(1);
     expect(mockListGitStatusForWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it('M2: clears loading flags for rejected workspace loads so they can retry', async () => {
+    const mockListTreeForWorkspace = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, data: [] })
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockResolvedValue({ ok: true, data: [] });
+    const mockListGitStatusForWorkspace = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      app: {
+        getInfo: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            appName: 'test',
+            version: '0.0.0',
+            config: {
+              themeMode: 'light',
+              resolvedTheme: 'light',
+              maxRecentWorkspaces: 10,
+              modelPreferences: { providers: {} },
+              keybinds: {},
+              fonts: {},
+              maxConcurrentWorkspaces: 6,
+              workspacePriorityIds: ['ws-ok', 'ws-boom'],
+              workspaceDeferredIds: [],
+              workspaceNaturalOrder: [],
+            },
+            recentLogs: [],
+            currentWorkspace: { id: 'ws-ok', path: '/fake', rootPath: '/fake', name: 'ws-ok' },
+          },
+        }),
+        getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      },
+      workspace: {
+        listRecent: vi.fn().mockResolvedValue({
+          ok: true,
+          data: [
+            {
+              id: 'ws-ok',
+              path: '/fake/ok',
+              rootPath: '/fake/ok',
+              name: 'ws-ok',
+              lastOpenedAt: 0,
+              isPinned: false,
+              pinnedOrder: 0,
+              unpinnedOrder: 0,
+              removedFromSidebar: false,
+              available: true,
+            },
+            {
+              id: 'ws-boom',
+              path: '/fake/boom',
+              rootPath: '/fake/boom',
+              name: 'ws-boom',
+              lastOpenedAt: 0,
+              isPinned: false,
+              pinnedOrder: 0,
+              unpinnedOrder: 1,
+              removedFromSidebar: false,
+              available: true,
+            },
+          ],
+        }),
+        getGitStatus: vi.fn().mockResolvedValue({ ok: true, data: { branch: 'main' } }),
+        listTreeForWorkspace: mockListTreeForWorkspace,
+        listGitStatusForWorkspace: mockListGitStatusForWorkspace,
+        setEditorDirtyPaths: vi.fn().mockResolvedValue({ ok: true }),
+      },
+      patch: { getPatchSet: vi.fn().mockResolvedValue({ ok: true, data: null }) },
+      command: { listRecent: vi.fn().mockResolvedValue({ ok: true, data: [] }) },
+      retrieval: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: null }),
+        getRepoMap: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      },
+      conversation: {
+        listSessions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        getSession: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+
+    const store = useAppStore.getState();
+    useAppStore.setState({
+      appReady: false,
+      workspaceTreeLoading: {},
+      workspaceChangesTreeLoading: {},
+    });
+    await store.bootstrap();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // rejected 的 ws-boom 必须清除两个 loading 标记，否则新 guard（hasData||isLoading）会永久卡住它
+    expect(useAppStore.getState().workspaceTreeLoading['ws-boom']).toBe(false);
+    expect(useAppStore.getState().workspaceChangesTreeLoading['ws-boom']).toBe(false);
+    expect(useAppStore.getState().workspaceTreeLoading['ws-ok']).toBe(false);
   });
 });

@@ -74,9 +74,7 @@ export function computeChangesMenuItems(
 }
 
 export function computeVisibleWorkspaces(recentWorkspaces: RecentWorkspaceEntry[]) {
-  return recentWorkspaces.filter(
-    (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
-  );
+  return recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
 }
 
 export function computeAllChangesExpanded(

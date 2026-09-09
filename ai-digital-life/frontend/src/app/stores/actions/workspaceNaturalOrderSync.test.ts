@@ -15,7 +15,6 @@ function makeWorkspace(
   id: string,
   overrides: Partial<{
     removedFromSidebar: boolean;
-    hiddenFromRightPanels: boolean;
     available: boolean;
   }> = {},
 ) {
@@ -30,7 +29,6 @@ function makeWorkspace(
     unpinnedOrder: 0,
     removedFromSidebar: overrides.removedFromSidebar ?? false,
     available: overrides.available ?? true,
-    hiddenFromRightPanels: overrides.hiddenFromRightPanels ?? false,
   };
 }
 

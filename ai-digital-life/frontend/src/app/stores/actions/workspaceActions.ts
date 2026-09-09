@@ -260,7 +260,7 @@ export function createWorkspaceActions(
      */
     refreshWorkspaceTree: async () => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.listTree();
+      const result = await window.digitalLife.workspace.listTree({ force: true });
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
         return;

@@ -98,6 +98,8 @@ export function App() {
         setIsOpeningWorkspace(true);
         try {
           await actions.openWorkspace(picked);
+        } catch {
+          // openWorkspace 内部会 captureError；此处仅保证 loading 复位
         } finally {
           setIsOpeningWorkspace(false);
         }

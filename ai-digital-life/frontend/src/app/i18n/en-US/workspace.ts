@@ -57,21 +57,7 @@ export const workspaceEn = {
   branchStashConfirmTitle: 'Uncommitted changes detected',
   branchStashConfirmBody:
     'Proceeding will stash local changes first, then switch or create the branch.',
-  indexingInProgress: 'Indexing…',
-  indexingCompleted: 'Indexed',
-  indexingError: 'Index error',
-  indexingIdle: 'Not indexed',
-  indexingFiles: 'files',
-  indexLastTime: 'Last indexed',
-  indexCoverage: 'Coverage',
-  indexExcluded: 'Excluded',
-  indexRebuild: 'Rebuild index',
-  indexRebuildConfirm: 'Confirm rebuild index?',
-  repoMap: 'Repo Map',
-  repoMapSearch: 'Search modules…',
   fileTreeView: 'File Tree',
-  repoMapView: 'Repo Map',
-  addToFileTree: 'Show in file tree',
   addWorkspace: 'Add workspace',
   createSession: 'Create session',
   sessionEmptyList: 'No sessions yet',
@@ -82,6 +68,9 @@ export const workspaceEn = {
   workspaceRemoveEntry: 'Remove workspace',
   workspaceRemoveEntryHint:
     'This workspace will be removed from every right panel simultaneously, and you will need to re-add it later. This also permanently clears related data (e.g., bookmarks saved under this workspace in the browser panel).',
+  workspaceRemoveConfirmTitle: 'Remove workspace',
+  workspaceRemoveConfirmMessage:
+    'Remove workspace "{name}"? All right panels will remove it and permanently clear its data (including bookmarks saved under this workspace in the browser panel). If it is the current workspace, open editors and unsaved changes may be lost. This action cannot be undone; you will need to re-add the workspace later.',
 
   // Workspace loading settings
   settingsWorkspaceLoad: 'Workspace Loading',

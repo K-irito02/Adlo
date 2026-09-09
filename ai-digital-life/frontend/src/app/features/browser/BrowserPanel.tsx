@@ -1,8 +1,9 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
 import { isRealTitle } from '@utils/browserDisplayUtils';
+import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { useBrowserTabs } from './useBrowserTabs';
 import { useBrowserWebView } from './useBrowserWebView';
 import { useBrowserSearch } from './useBrowserSearch';
@@ -49,6 +50,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     browserNavigateInPlace,
     browserSelectTab,
     startupOverlayHidden,
+    recentWorkspaces,
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
@@ -60,6 +62,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       browserNavigateInPlace: state.browserNavigateInPlace,
       browserSelectTab: state.browserSelectTab,
       startupOverlayHidden: state.startupOverlayHidden,
+      recentWorkspaces: state.recentWorkspaces,
     })),
   );
 
@@ -250,6 +253,24 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleRemoveBookmarkTab,
   } = useBrowserTreeActions({ navigateTabExplicit });
 
+  const [pendingRemoveWorkspace, setPendingRemoveWorkspace] = useState<string | null>(null);
+  const pendingRemoveWorkspaceName = useMemo(
+    () =>
+      pendingRemoveWorkspace
+        ? (recentWorkspaces.find((w) => w.id === pendingRemoveWorkspace)?.name ?? '')
+        : '',
+    [pendingRemoveWorkspace, recentWorkspaces],
+  );
+  const handleRequestRemoveFromArea = useCallback((workspaceId: string) => {
+    setPendingRemoveWorkspace(workspaceId);
+  }, []);
+  const handleConfirmRemoveFromArea = useCallback(() => {
+    if (pendingRemoveWorkspace) {
+      handleRemoveFromArea(pendingRemoveWorkspace);
+    }
+    setPendingRemoveWorkspace(null);
+  }, [pendingRemoveWorkspace, handleRemoveFromArea]);
+
   const {
     browserMenuOpen,
     setBrowserMenuOpen,
@@ -432,7 +453,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
       handleDeleteAllChildTabs,
       handleDeleteOwnChildTabs,
       handleOpenAllInNewTabs,
-      handleRemoveFromArea,
+      handleRemoveFromArea: handleRequestRemoveFromArea,
       handleDeleteDirectory,
       handleDeleteHistoryLevel,
       handleExpandAllTree,
@@ -609,6 +630,12 @@ export function BrowserPanel(props: BrowserPanelProps) {
           removeToast={removeToast}
         />
       </BrowserPanelActionsCtx.Provider>
+      <WorkspaceRemoveConfirmDialog
+        open={pendingRemoveWorkspace !== null}
+        workspaceName={pendingRemoveWorkspaceName}
+        onConfirm={handleConfirmRemoveFromArea}
+        onCancel={() => setPendingRemoveWorkspace(null)}
+      />
     </BrowserPanelStateCtx.Provider>
   );
 }

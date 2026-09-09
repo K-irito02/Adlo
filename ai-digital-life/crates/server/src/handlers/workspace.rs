@@ -246,6 +246,9 @@ struct PathPairBody {
 struct TreeBody {
     #[serde(default)]
     workspace_path: Option<String>,
+    /// 为 true 时绕过进程内缓存强制重新扫描（显式"刷新"用）。
+    #[serde(default)]
+    force: bool,
 }
 
 #[derive(serde::Deserialize)]
@@ -379,13 +382,19 @@ pub async fn list_tree(
     };
     let t_start = std::time::Instant::now();
     let display_path = path.display().to_string();
+    let force = input.force;
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let tree: Vec<WorkspaceTreeNode> = adl_workspace::list_tree_cached(path.as_path())?;
+        let tree: Vec<WorkspaceTreeNode> = if force {
+            adl_workspace::list_tree_force(path.as_path())?
+        } else {
+            adl_workspace::list_tree_cached(path.as_path())?
+        };
         Ok(serde_json::to_value(tree)?)
     })
     .await;
     tracing::debug!(
         elapsed_ms = t_start.elapsed().as_millis(),
+        force = force,
         root = %display_path,
         "workspace_list_tree: done"
     );

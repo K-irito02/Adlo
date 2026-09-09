@@ -144,7 +144,6 @@ export function determinePhases(
     unpinnedOrder: 0,
     removedFromSidebar: false,
     available: true,
-    hiddenFromRightPanels: false,
   });
 
   const phases = computeLoadPhases(

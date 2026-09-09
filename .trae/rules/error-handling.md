@@ -79,12 +79,15 @@ alwaysApply: true
 ```ts
 // 接口定义（shared/ipc/workspace.ts）
 interface WorkspaceBridge {
-  reorder(input: ReorderWorkspacesInput): Promise<IpcResult<WorkspaceSummary[]>>;
+  listTreeForWorkspace(
+    workspacePath: string,
+    options?: { force?: boolean },
+  ): Promise<IpcResult<WorkspaceTreeNode[]>>;
 }
 
 // 三个实现都必须使用相同参数类型
-// 不允许：reorder(input: { pinnedIds: string[]; unpinnedIds: string[] })
-// 必须使用：reorder(input: ReorderWorkspacesInput)
+// 不允许：listTreeForWorkspace(workspacePath: string, force: boolean)
+// 必须使用：listTreeForWorkspace(workspacePath, { force })
 ```
 
 ## 禁止项

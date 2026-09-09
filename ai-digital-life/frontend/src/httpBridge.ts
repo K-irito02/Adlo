@@ -789,8 +789,12 @@ export function createHttpBridge({
       pickDirectory: () => taskNotSupported<string | undefined>('workspace.pickDirectory'),
       removeFromSidebar: (workspaceId: string) =>
         call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/remove', POST({ workspaceId })),
-      listTreeForWorkspace: (workspacePath: string) =>
-        call<WorkspaceTreeNode[]>(baseUrl, '/workspace/tree', POST({ workspacePath })),
+      listTreeForWorkspace: (workspacePath: string, options?: { force?: boolean }) =>
+        call<WorkspaceTreeNode[]>(
+          baseUrl,
+          '/workspace/tree',
+          POST(options?.force ? { workspacePath, force: true } : { workspacePath }),
+        ),
       listGitStatusForWorkspace: (workspacePath: string) =>
         call<GitSnapshot>(baseUrl, '/workspace/git/status', POST({ workspacePath })),
       revealInFileManager: (_workspacePath: string) =>
@@ -819,7 +823,12 @@ export function createHttpBridge({
           '/workspace/change-preview',
           POST({ workspacePath, relativePath }),
         ),
-      listTree: () => call<WorkspaceTreeNode[]>(baseUrl, '/workspace/tree', POST({})),
+      listTree: (options?: { force?: boolean }) =>
+        call<WorkspaceTreeNode[]>(
+          baseUrl,
+          '/workspace/tree',
+          POST(options?.force ? { force: true } : {}),
+        ),
       search: (query: string) =>
         call<WorkspaceSearchHit[]>(baseUrl, '/workspace/search', POST({ query })),
       outline: (relativePath: string) =>

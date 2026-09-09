@@ -154,10 +154,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   );
 
   const visibleWorkspaces = useMemo(
-    () =>
-      recentWorkspaces.filter(
-        (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
-      ),
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available),
     [recentWorkspaces],
   );
 

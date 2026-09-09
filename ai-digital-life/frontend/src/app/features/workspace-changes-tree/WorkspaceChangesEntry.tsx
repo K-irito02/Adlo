@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
@@ -12,6 +12,7 @@ import {
 import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
+import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { useWorkspaceChangesActions } from './WorkspaceChangesActions';
 import { WorkspaceChangesMenu } from './WorkspaceChangesMenu';
 
@@ -104,6 +105,16 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     onWorkspaceRootClick,
   });
 
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const handleRequestRemove = useCallback(() => {
+    closeMenu();
+    setConfirmRemoveOpen(true);
+  }, [closeMenu]);
+  const handleConfirmRemove = useCallback(() => {
+    setConfirmRemoveOpen(false);
+    handleHideFromRightPanels();
+  }, [handleHideFromRightPanels]);
+
   const effectiveSelectedPath = useMemo(() => {
     if (selectedChangePreviewWorkspaceId === workspace.id) {
       return selectedChangePreviewPath;
@@ -194,11 +205,18 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
         gitSnapshot={gitSnapshot}
         currentBranch={currentBranch}
         t={t}
-        onHideFromRightPanels={handleHideFromRightPanels}
+        onHideFromRightPanels={handleRequestRemove}
         onRevealInFileManager={handleRevealInFileManager}
         onCopyFullPath={handleCopyFullPath}
         onCopyRelativePath={handleCopyRelativePath}
         onClose={closeMenu}
+      />
+
+      <WorkspaceRemoveConfirmDialog
+        open={confirmRemoveOpen}
+        workspaceName={workspace.name}
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setConfirmRemoveOpen(false)}
       />
 
       {isExpanded ? (

@@ -155,8 +155,7 @@ export const recentWorkspaces: RecentWorkspaceEntry[] = [
     pinnedOrder: 0,
     unpinnedOrder: 0,
     removedFromSidebar: false,
-    available: true,
-    hiddenFromRightPanels: false
+    available: true
   }
 ];
 
@@ -238,7 +237,6 @@ export function ensureRecentWorkspace(meta: WorkspaceMeta): void {
     existing.lastOpenedAt = Date.now();
     existing.available = true;
     existing.removedFromSidebar = false;
-    existing.hiddenFromRightPanels = false;
     return;
   }
   recentWorkspaces.unshift({
@@ -251,8 +249,7 @@ export function ensureRecentWorkspace(meta: WorkspaceMeta): void {
     pinnedOrder: 0,
     unpinnedOrder: recentWorkspaces.filter((entry) => !entry.isPinned).length,
     removedFromSidebar: false,
-    available: true,
-    hiddenFromRightPanels: false
+    available: true
   });
 }
 

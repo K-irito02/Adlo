@@ -24,9 +24,7 @@ export function useBrowserFolderReorder() {
   );
 
   const allTreeExpanded = useMemo(() => {
-    const visible = recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
-    );
+    const visible = recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
     const wsPaths = visible.map((w) => `workspace:${w.id}`);
     const folderPaths = browserTabFolders.filter((f) => !f.parentId).map((f) => `folder:${f.id}`);
     const allEntryPaths = [...wsPaths, ...folderPaths];
@@ -49,9 +47,7 @@ export function useBrowserFolderReorder() {
   const handleExpandAllTree = useCallback(() => {
     const state = useAppStore.getState();
     const paths: string[] = [];
-    const workspaces = state.recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
-    );
+    const workspaces = state.recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
     for (const ws of workspaces) {
       paths.push(`workspace:${ws.id}`);
     }

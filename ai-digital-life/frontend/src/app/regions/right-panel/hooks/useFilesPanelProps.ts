@@ -51,9 +51,7 @@ export function useFilesPanelProps(
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
 
   const allExpanded = useMemo(() => {
-    const visible = recentWorkspaces.filter(
-      (w) => !w.removedFromSidebar && !w.hiddenFromRightPanels && w.available,
-    );
+    const visible = recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
     return visible.length > 0 && visible.every((w) => workspaceTreeExpandedInFileNav[w.id]);
   }, [recentWorkspaces, workspaceTreeExpandedInFileNav]);
 

@@ -54,21 +54,7 @@ export const workspaceZh = {
   branchCreateAction: '创建并切换',
   branchStashConfirmTitle: '检测到未提交修改',
   branchStashConfirmBody: '继续后会先自动 stash 当前修改，再切换或创建分支。',
-  indexingInProgress: '索引中…',
-  indexingCompleted: '已索引',
-  indexingError: '索引异常',
-  indexingIdle: '未索引',
-  indexingFiles: '文件',
-  indexLastTime: '上次索引',
-  indexCoverage: '覆盖范围',
-  indexExcluded: '已排除',
-  indexRebuild: '重建索引',
-  indexRebuildConfirm: '确认重建索引？',
-  repoMap: '仓库地图',
-  repoMapSearch: '搜索模块…',
   fileTreeView: '文件树',
-  repoMapView: '仓库地图',
-  addToFileTree: '在文件树中显示',
   addWorkspace: '添加工作区',
   createSession: '创建会话',
   sessionEmptyList: '暂无会话',
@@ -79,6 +65,9 @@ export const workspaceZh = {
   workspaceRemoveEntry: '移出该工作区',
   workspaceRemoveEntryHint:
     '右侧每个面板都将同步移出该工作区，后续需要你重新添加该工作区。这也会彻底清理相关数据（例如：浏览器面板该工作区下收藏的书签等）。',
+  workspaceRemoveConfirmTitle: '移出工作区',
+  workspaceRemoveConfirmMessage:
+    '确定要移出工作区「{name}」吗？所有右侧面板将同步移出该工作区并彻底清理其数据（包括浏览器面板下收藏的书签等）。若该工作区是当前工作区，正在编辑的文件与未保存更改可能丢失。此操作不可撤销，后续需要你重新添加该工作区。',
 
   // Workspace loading settings
   settingsWorkspaceLoad: '工作区加载',

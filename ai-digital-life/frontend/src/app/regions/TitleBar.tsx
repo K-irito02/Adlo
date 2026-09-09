@@ -121,13 +121,16 @@ const TitleBar = React.memo(function TitleBar({
       <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">
         <div className="adl-titlebar__action-group">
-          <TooltipSimple content={isOpeningWorkspace ? (t.loading as string) : t.addWorkspace} placement="bottom">
+          <TooltipSimple
+            content={isOpeningWorkspace ? t.loading : t.addWorkspace}
+            placement="bottom"
+          >
             <button
               type="button"
               className="adl-icon-btn adl-iconstrip__button"
               onClick={onOpenFolder}
               disabled={isOpeningWorkspace}
-              aria-label={t.addWorkspace}
+              aria-label={isOpeningWorkspace ? t.loading : t.addWorkspace}
             >
               {isOpeningWorkspace ? (
                 <Spinner size="sm" speed="fast" />

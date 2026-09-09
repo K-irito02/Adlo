@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
@@ -17,6 +17,7 @@ import {
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
+import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { TerminalTabBar } from '../terminal/TerminalTabBar';
 import { formatT } from '@i18n/formatT';
 import { useTerminalMenu } from './useTerminalMenu';
@@ -75,6 +76,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     showSubMenu,
     hideSubMenuDelayed,
     handleMoreClick,
+    closeMenu,
     handleHideFromRightPanels,
     handleSelectDefaultProfile,
     handleRefreshClick,
@@ -89,6 +91,16 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     onCloseAllTabs,
     onCreateTab,
   });
+
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  const handleRequestRemove = useCallback(() => {
+    closeMenu();
+    setConfirmRemoveOpen(true);
+  }, [closeMenu]);
+  const handleConfirmRemove = useCallback(() => {
+    setConfirmRemoveOpen(false);
+    handleHideFromRightPanels();
+  }, [handleHideFromRightPanels]);
 
   return (
     <div
@@ -190,7 +202,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                   <MenuHintItem
                     label={t.workspaceRemoveEntry}
                     hint={t.workspaceRemoveEntryHint}
-                    onClick={handleHideFromRightPanels}
+                    onClick={handleRequestRemove}
                     icon={<IconEyeOff size={14} />}
                   />
                 )}
@@ -284,6 +296,13 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
           )}
         </div>
       ) : null}
+
+      <WorkspaceRemoveConfirmDialog
+        open={confirmRemoveOpen}
+        workspaceName={workspace.name}
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setConfirmRemoveOpen(false)}
+      />
     </div>
   );
 });

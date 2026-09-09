@@ -118,7 +118,6 @@ const mockRecentWorkspaces = [
     unpinnedOrder: 0,
     removedFromSidebar: false,
     available: true,
-    hiddenFromRightPanels: false,
   },
 ];
 

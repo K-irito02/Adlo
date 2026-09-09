@@ -17,6 +17,7 @@ import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { useAppStore } from '@stores/slicedStore';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
 import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
+import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { joinPathSegments } from '@app/utils/workspacePaths';
 
 export interface WorkspaceFileTreeEntryProps {
@@ -89,6 +90,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   const menuRef = useRef<HTMLDivElement | null>(null);
   const menuId = `ws-menu-${workspace.id}`;
   const [branchSubOpen, setBranchSubOpen] = useState(false);
+  const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const gitSnapshot = useAppStore((s) => s.gitSnapshots[workspace.id]);
   const currentBranch = gitSnapshot?.branch ?? '';
 
@@ -280,10 +282,15 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
     await window.digitalLife.workspace.revealInFileManager(workspace.path);
   }, [workspace.path, closeMenu]);
 
-  const handleHideFromRightPanels = useCallback(() => {
+  const handleRequestRemove = useCallback(() => {
     closeMenu();
+    setConfirmRemoveOpen(true);
+  }, [closeMenu]);
+
+  const handleConfirmRemove = useCallback(() => {
+    setConfirmRemoveOpen(false);
     onHideFromRightPanels(workspace.id);
-  }, [onHideFromRightPanels, workspace.id, closeMenu]);
+  }, [onHideFromRightPanels, workspace.id]);
 
   const handleRefreshClick = useCallback(
     (e: React.MouseEvent) => {
@@ -400,7 +407,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               <MenuHintItem
                 label={t.workspaceRemoveEntry}
                 hint={t.workspaceRemoveEntryHint}
-                onClick={handleHideFromRightPanels}
+                onClick={handleRequestRemove}
                 icon={<IconEyeOff size={14} />}
               />
               <button
@@ -435,6 +442,13 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
             document.body,
           )
         : null}
+
+      <WorkspaceRemoveConfirmDialog
+        open={confirmRemoveOpen}
+        workspaceName={workspace.name}
+        onConfirm={handleConfirmRemove}
+        onCancel={() => setConfirmRemoveOpen(false)}
+      />
 
       {isExpanded ? (
         <div className="adl-multitree-entry__tree">

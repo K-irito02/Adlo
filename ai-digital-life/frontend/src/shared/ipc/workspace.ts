@@ -103,13 +103,17 @@ export interface WorkspaceBridge {
   /**
    * 获取指定工作区的文件目录树
    * @param workspacePath 工作区的绝对路径
+   * @param options.force 为 true 时绕过服务端进程内缓存强制重新扫描（显式"刷新"用）
    * @returns 文件目录树节点数组
    * @command workspace_list_tree
    * @see tauri-bridge.ts → workspace.listTreeForWorkspace
    * @see mock-bridge.ts → workspace.listTreeForWorkspace
    * @see preview-bridge/index.ts → workspace.listTreeForWorkspace
    */
-  listTreeForWorkspace: (workspacePath: string) => Promise<IpcResult<WorkspaceTreeNode[]>>;
+  listTreeForWorkspace: (
+    workspacePath: string,
+    options?: { force?: boolean },
+  ) => Promise<IpcResult<WorkspaceTreeNode[]>>;
   /**
    * 获取指定工作区的 Git 状态快照
    * @param workspacePath 工作区的绝对路径
@@ -205,13 +209,14 @@ export interface WorkspaceBridge {
   ) => Promise<IpcResult<WorkspaceChangePreview>>;
   /**
    * 获取当前工作区的文件目录树
+   * @param options.force 为 true 时绕过服务端进程内缓存强制重新扫描（显式"刷新"用）
    * @returns 文件目录树节点数组
    * @command workspace_list_tree
    * @see tauri-bridge.ts → workspace.listTree
    * @see mock-bridge.ts → workspace.listTree
    * @see preview-bridge/index.ts → workspace.listTree
    */
-  listTree: () => Promise<IpcResult<WorkspaceTreeNode[]>>;
+  listTree: (options?: { force?: boolean }) => Promise<IpcResult<WorkspaceTreeNode[]>>;
   /**
    * 在当前工作区中搜索文件/内容
    * @param query 搜索关键词
