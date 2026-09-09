@@ -2,6 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import {
+  IconAddWorkspace,
   IconChevronLeft,
   IconChevronRight,
   IconChevronDown,
@@ -55,5 +56,28 @@ describe('chevron icon family geometry', () => {
     expect(paths.length).toBe(2);
     expect(paths[0]?.getAttribute('d')).toBe('M14 17L19 12L14 7');
     expect(paths[1]?.getAttribute('d')).toBe('M6 17L11 12L6 7');
+  });
+});
+
+describe('IconAddWorkspace geometry', () => {
+  it('renders a horizontal and a vertical crosshair path (24x24 plus sign)', () => {
+    const { container } = render(<IconAddWorkspace size={16} decorative />);
+    const paths = container.querySelectorAll('path');
+    expect(paths.length).toBe(2);
+    expect(paths[0]?.getAttribute('d')).toBe('M6 12H18');
+    expect(paths[1]?.getAttribute('d')).toBe('M12 18V6');
+  });
+
+  it('dims the horizontal path to 0.4 opacity', () => {
+    const { container } = render(<IconAddWorkspace size={16} decorative />);
+    const paths = container.querySelectorAll('path');
+    expect(paths[0]?.getAttribute('opacity')).toBe('0.4');
+    expect(paths[1]?.getAttribute('opacity')).toBeNull();
+  });
+
+  it('applies a 1.5 stroke width', () => {
+    const { container } = render(<IconAddWorkspace size={16} decorative />);
+    const svg = container.querySelector('svg');
+    expect(svg?.getAttribute('stroke-width')).toBe('1.5');
   });
 });

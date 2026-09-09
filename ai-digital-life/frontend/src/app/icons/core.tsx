@@ -1,4 +1,4 @@
-import { make } from './helper';
+import { make, makeThin } from './helper';
 
 export const IconLogo = make(
   <>
@@ -202,3 +202,11 @@ export const IconWindowRestore = make(
 );
 
 export const IconWindowClose = make(<path d="M7 7l10 10M17 7L7 17" />);
+
+export const IconAddWorkspace = makeThin(
+  <>
+    <path opacity="0.4" d="M6 12H18" />
+    <path d="M12 18V6" />
+  </>,
+  1.5,
+);

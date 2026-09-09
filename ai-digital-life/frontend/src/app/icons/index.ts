@@ -33,6 +33,7 @@ export {
   IconWindowMaximize,
   IconWindowRestore,
   IconWindowClose,
+  IconAddWorkspace,
 } from './core';
 export {
   IconFolder,

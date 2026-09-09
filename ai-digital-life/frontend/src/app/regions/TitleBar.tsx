@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
 import {
+  IconAddWorkspace,
   IconEye,
   IconLangEn,
   IconLangZh,
@@ -117,6 +118,17 @@ const TitleBar = React.memo(function TitleBar({
       <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">
         <div className="adl-titlebar__action-group">
+          <TooltipSimple content={t.addWorkspace} placement="bottom">
+            <button
+              type="button"
+              className="adl-icon-btn adl-iconstrip__button"
+              onClick={onOpenFolder}
+              aria-label={t.addWorkspace}
+            >
+              <IconAddWorkspace size={16} decorative />
+            </button>
+          </TooltipSimple>
+          <span className="adl-titlebar__action-divider" aria-hidden="true" />
           <TooltipSimple content={t.theme} placement="bottom">
             <button
               type="button"

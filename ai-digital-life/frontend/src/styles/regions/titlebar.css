@@ -146,6 +146,14 @@
   height: 100%;
 }
 
+/* 添加工作区按钮与右侧操作按钮组之间的自然分界线（与区域边缘同款：整高 + 细微边框色） */
+.adl-titlebar__action-divider {
+  align-self: stretch;
+  width: 1px;
+  background: var(--border-subtle);
+  pointer-events: none;
+}
+
 .adl-titlebar__window-group {
   --adl-iconstrip-height: var(--titlebar-height);
   --adl-iconstrip-button-size: 36px;
