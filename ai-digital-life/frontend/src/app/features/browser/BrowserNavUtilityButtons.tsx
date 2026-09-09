@@ -1,4 +1,4 @@
-import { IconPlus, IconDelete } from '@icons';
+import { IconPlus, IconDelete, IconBookmarkPlus } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 
 interface BrowserNavUtilityButtonsProps {
@@ -28,7 +28,11 @@ export function BrowserNavUtilityButtons({
       onClick={onAlwaysNewTab}
       aria-label={plusLabel}
     >
-      <IconPlus size={14} decorative />
+      {navigatorMode === 'tabs' ? (
+        <IconBookmarkPlus size={14} decorative />
+      ) : (
+        <IconPlus size={14} decorative />
+      )}
     </button>
   );
   return (

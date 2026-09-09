@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  IconFolderPlus,
+  IconNewFolder,
   IconPlus,
   IconDelete,
   IconRefreshCw,
@@ -22,7 +22,7 @@ interface BrowserMenuDropdownProps {
 }
 
 const menuItemIcons: Record<string, React.ReactNode> = {
-  'new-tab-folder': <IconFolderPlus size={14} decorative />,
+  'new-tab-folder': <IconNewFolder size={14} decorative />,
   'new-tab': <IconPlus size={14} decorative />,
   'clear-history': <IconDelete size={14} decorative />,
   'clear-cookies': <IconDelete size={14} decorative />,

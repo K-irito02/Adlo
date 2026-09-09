@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import { IconClose, IconCopy, IconMinus, IconSquare } from '../icons';
+import {
+  IconWindowClose,
+  IconWindowMaximize,
+  IconWindowMinimize,
+  IconWindowRestore,
+} from '../icons';
 import { isTauriShell } from '../../tauri-bridge';
 import { TooltipSimple } from '../components/Tooltip';
 import type { CopyDict } from '../i18n';
@@ -67,7 +72,7 @@ export function WindowControls({ t, onClose }: WindowControlsProps) {
           onClick={handleMinimize}
           aria-label={t.windowMinimize}
         >
-          <IconMinus size={14} decorative />
+          <IconWindowMinimize size={14} decorative />
         </button>
       </TooltipSimple>
       <TooltipSimple content={isMaximized ? t.windowRestore : t.windowMaximize} placement="bottom">
@@ -77,7 +82,11 @@ export function WindowControls({ t, onClose }: WindowControlsProps) {
           onClick={handleMaximize}
           aria-label={isMaximized ? t.windowRestore : t.windowMaximize}
         >
-          {isMaximized ? <IconCopy size={14} decorative /> : <IconSquare size={12} decorative />}
+          {isMaximized ? (
+            <IconWindowRestore size={14} decorative />
+          ) : (
+            <IconWindowMaximize size={14} decorative />
+          )}
         </button>
       </TooltipSimple>
       <TooltipSimple content={t.windowClose} placement="bottom">
@@ -87,7 +96,7 @@ export function WindowControls({ t, onClose }: WindowControlsProps) {
           onClick={onClose}
           aria-label={t.windowClose}
         >
-          <IconClose size={14} decorative />
+          <IconWindowClose size={14} decorative />
         </button>
       </TooltipSimple>
     </div>

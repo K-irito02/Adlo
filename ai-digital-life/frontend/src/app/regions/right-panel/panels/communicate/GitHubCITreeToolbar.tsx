@@ -7,7 +7,7 @@ import {
   IconDelete,
   IconFiles,
   IconList,
-  IconFolderPlus,
+  IconNewFolder,
 } from '@app/icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@app/i18n/useTCopy';
@@ -193,7 +193,7 @@ export function GitHubCITreeToolbar({
               onClick={onCreateFolder}
               aria-label={t.communicateNewDir}
             >
-              <IconFolderPlus size={14} decorative />
+              <IconNewFolder size={14} decorative />
             </button>
           </TooltipSimple>
           <button

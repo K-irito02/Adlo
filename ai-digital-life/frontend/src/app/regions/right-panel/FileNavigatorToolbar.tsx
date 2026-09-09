@@ -2,10 +2,10 @@ import React from 'react';
 import type { FileOutlineItem } from '@ai-digital-life/kernel';
 import { useTCopy } from '@i18n/useTCopy';
 import {
-  IconFilePlus,
+  IconNewFile,
   IconFiles,
   IconFoldVertical,
-  IconFolderPlus,
+  IconNewFolder,
   IconList,
   IconRefreshCw,
   IconUnfoldVertical,
@@ -119,7 +119,7 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
               onClick={() => fileCreation.startCreate('file')}
               aria-label={t.fileNewFile as string}
             >
-              <IconFilePlus size={14} decorative />
+              <IconNewFile size={14} decorative />
             </button>
           </TooltipSimple>
           <TooltipSimple content={t.fileNewFolder} placement="top">
@@ -129,7 +129,7 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
               onClick={() => fileCreation.startCreate('folder')}
               aria-label={t.fileNewFolder as string}
             >
-              <IconFolderPlus size={14} decorative />
+              <IconNewFolder size={14} decorative />
             </button>
           </TooltipSimple>
         </div>

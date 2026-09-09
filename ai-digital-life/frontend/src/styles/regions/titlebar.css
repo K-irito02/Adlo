@@ -209,8 +209,8 @@
   border-radius: 0;
 }
 
-.adl-window-btn--close:hover:not(:disabled) {
-  background: var(--danger);
+.adl-titlebar .adl-window-btn--close:hover:not(:disabled) {
+  background: rgb(232, 17, 35) !important;
   color: var(--text-inverse);
 }
 

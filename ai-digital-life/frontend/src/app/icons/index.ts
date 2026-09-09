@@ -1,5 +1,5 @@
 export type { IconSize, IconProps, IconComponent } from './helper';
-export { make, makeFilled } from './helper';
+export { make, makeThin, makeFilled } from './helper';
 export {
   IconLogo,
   IconMenu,
@@ -16,10 +16,10 @@ export {
   IconCollapseRows,
   IconChevronLeft,
   IconChevronRight,
-  IconChevronDown,
-  IconChevronUp,
   IconChevronsLeft,
   IconChevronsRight,
+  IconChevronDown,
+  IconChevronUp,
   IconArrowLeft,
   IconArrowRight,
   IconReturn,
@@ -30,6 +30,10 @@ export {
   IconList,
   IconHierarchy,
   IconNewTabPage,
+  IconWindowMinimize,
+  IconWindowMaximize,
+  IconWindowRestore,
+  IconWindowClose,
 } from './core';
 export {
   IconFolder,
@@ -52,6 +56,8 @@ export {
   IconImagePlus,
   IconFileBadge,
   IconFileTree,
+  IconNewFile,
+  IconNewFolder,
 } from './file';
 export {
   IconPlus,
@@ -91,6 +97,7 @@ export {
   IconSlash,
   IconAlignLeft,
   IconLayoutList,
+  IconBookmarkPlus,
 } from './actions';
 export {
   IconCheckCircle,

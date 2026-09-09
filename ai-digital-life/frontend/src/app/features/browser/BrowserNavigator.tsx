@@ -1,5 +1,5 @@
 import {
-  IconFolderPlus,
+  IconNewFolder,
   IconFolder,
   IconDelete,
   IconSearch,
@@ -219,7 +219,7 @@ export function BrowserNavigator() {
                 }}
                 aria-label={t.browserCreateDir}
               >
-                <IconFolderPlus size={14} decorative />
+                <IconNewFolder size={14} decorative />
               </button>
             </TooltipSimple>
           </span>

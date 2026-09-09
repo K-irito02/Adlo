@@ -189,3 +189,17 @@ export const IconHierarchy = make(
     <path d="M11 18v.01" />
   </>,
 );
+
+// Windows 原生风格窗口控制图标（全部使用 rect 元素保证清晰度）
+export const IconWindowMinimize = make(<rect x="6" y="11" width="12" height="2" />);
+
+export const IconWindowMaximize = make(<rect x="6" y="6" width="12" height="12" />);
+
+export const IconWindowRestore = make(
+  <>
+    <rect x="4" y="8" width="10" height="10" />
+    <path d="M6 4h10a2 2 0 0 1 2 2v10" />
+  </>,
+);
+
+export const IconWindowClose = make(<path d="M7 7l10 10M17 7L7 17" />);

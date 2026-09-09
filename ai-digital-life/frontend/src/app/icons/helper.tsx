@@ -38,6 +38,16 @@ export const make = (path: React.ReactNode): IconComponent =>
     return <svg {...iconProps(size, rest)}>{path}</svg>;
   };
 
+export const makeThin = (path: React.ReactNode, strokeWidthValue: number = 1.5): IconComponent =>
+  function IconFn({ size = 16, ...rest }: IconProps) {
+    const { strokeWidth: _, ...restWithoutStrokeWidth } = rest;
+    return (
+      <svg {...iconProps(size, restWithoutStrokeWidth)} strokeWidth={strokeWidthValue}>
+        {path}
+      </svg>
+    );
+  };
+
 export const makeFilled = (viewBox: string, path: React.ReactNode): IconComponent =>
   function IconFn({ size = 16, ...rest }: IconProps) {
     const { title, decorative, className, ...other } = rest;

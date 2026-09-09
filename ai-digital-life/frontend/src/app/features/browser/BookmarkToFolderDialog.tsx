@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import {
   IconChevronDown,
   IconChevronRight,
-  IconFolderPlus,
+  IconNewFolder,
   IconFolder,
   IconFolderOpen,
   IconClose,
@@ -300,7 +300,7 @@ export function BookmarkToFolderDialog({
             onClick={handleCreateDir}
           >
             <span className="adl-bookmark-dir-toolbar__btn-label">
-              <IconFolderPlus size={14} decorative />
+              <IconNewFolder size={14} decorative />
               <span>{t.browserCreateDir as string}</span>
             </span>
             <HintCardTrigger content={(t.browserCreateDirHint ?? '') as string}>
