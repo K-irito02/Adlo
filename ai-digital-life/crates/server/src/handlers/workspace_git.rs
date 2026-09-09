@@ -42,7 +42,13 @@ pub async fn get_git_status(
         Ok(r) => r,
         Err(e) => return ipc::to_response(Err(e)),
     };
+    let t_start = std::time::Instant::now();
     let snapshot = adl_workspace::capture_git_snapshot_async(root.as_path()).await;
+    tracing::debug!(
+        elapsed_ms = t_start.elapsed().as_millis(),
+        root = %root.display(),
+        "workspace_get_git_status: done"
+    );
     match serde_json::to_value(&snapshot) {
         Ok(v) => ipc::to_response(Ok(v)),
         Err(e) => ipc::to_response(Err(AppError::from(e))),

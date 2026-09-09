@@ -3,15 +3,97 @@ use adl_types::{
     RepoMapEntry, RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1, WorkspaceTreeNode,
     now_ms,
 };
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 use tracing::{debug, info};
 
 const MAX_TREE_DEPTH: usize = 64;
 const MAX_TREE_NODES: usize = 200_000;
 const MAX_COLLECTED_FILES: usize = 50_000;
+
+/// 进程内文件树缓存（方案 C）：避免对同一工作区目录在短时间内重复全量扫描。
+///
+/// - 键：规范化后的工作区 root 路径
+/// - 命中条件：缓存存在且未超过 `TREE_CACHE_TTL_MS`
+/// - 失效：文件系统写操作（create/rename/delete/duplicate/move）通过
+///   `invalidate_tree_cache` 显式清除对应条目；缓存本身也带 TTL 兜底，
+///   避免外部改动（IDE 外部编辑、git checkout 等）导致的过期数据长期残留。
+const TREE_CACHE_TTL_MS: i64 = 10_000;
+const TREE_CACHE_MAX_ENTRIES: usize = 64;
+
+struct CachedTree {
+    tree: Vec<WorkspaceTreeNode>,
+    captured_at: i64,
+}
+
+static TREE_CACHE: OnceLock<Mutex<HashMap<String, CachedTree>>> = OnceLock::new();
+
+fn tree_cache() -> &'static Mutex<HashMap<String, CachedTree>> {
+    TREE_CACHE.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn normalize_cache_key(root: &Path) -> String {
+    root.to_string_lossy().replace('\\', "/")
+}
+
+/// 返回 root 对应的缓存树（若命中且未过期）。过期条目会被移除。
+fn tree_cache_get(root: &Path) -> Option<Vec<WorkspaceTreeNode>> {
+    let key = normalize_cache_key(root);
+    let now = now_ms();
+    let mut cache = tree_cache().lock().unwrap_or_else(|e| e.into_inner());
+    match cache.get(&key) {
+        Some(entry) if now.saturating_sub(entry.captured_at) < TREE_CACHE_TTL_MS => {
+            Some(entry.tree.clone())
+        },
+        Some(_) => {
+            // 过期：移除旧条目，返回 None 触发重扫
+            cache.remove(&key);
+            None
+        },
+        None => None,
+    }
+}
+
+fn tree_cache_put(root: &Path, tree: Vec<WorkspaceTreeNode>) {
+    let key = normalize_cache_key(root);
+    let mut cache = tree_cache().lock().unwrap_or_else(|e| e.into_inner());
+    if cache.len() >= TREE_CACHE_MAX_ENTRIES {
+        // 简单淘汰：移除最先插入的一条（HashMap 迭代顺序不稳定，仅用于控制内存上限）
+        if let Some(oldest_key) = cache.keys().next().cloned() {
+            cache.remove(&oldest_key);
+        }
+    }
+    cache.insert(key, CachedTree { tree, captured_at: now_ms() });
+}
+
+/// 清除 root 的文件树缓存。任何文件系统写操作后必须调用，防止树过期。
+pub fn invalidate_tree_cache(root: &Path) {
+    let key = normalize_cache_key(root);
+    let mut cache = tree_cache().lock().unwrap_or_else(|e| e.into_inner());
+    if cache.remove(&key).is_some() {
+        debug!(root = %key, "workspace tree cache invalidated");
+    }
+}
+
+/// 带进程内缓存的树加载（方案 C 入口）。命中则直接返回克隆的树，
+/// 未命中则全量扫描并缓存。
+pub fn list_tree_cached(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
+    if let Some(cached) = tree_cache_get(root) {
+        info!(
+            root = %root.to_string_lossy(),
+            nodes = cached.len(),
+            "workspace tree cache hit"
+        );
+        return Ok(cached);
+    }
+    let tree = list_tree(root)?;
+    tree_cache_put(root, tree.clone());
+    Ok(tree)
+}
+
+
 fn ignored_dirs() -> &'static HashSet<&'static str> {
     static IGNORED_DIRS: OnceLock<HashSet<&'static str>> = OnceLock::new();
     IGNORED_DIRS.get_or_init(|| {
@@ -500,6 +582,62 @@ mod is_text_file_tests {
         let tmp = unique_tmp_dir("tree-test-noext");
         std::fs::write(tmp.join("README"), b"readme content").unwrap();
         assert!(is_text_file(&tmp, "README", 1024 * 1024));
+        cleanup(&tmp);
+    }
+}
+
+#[cfg(test)]
+mod tree_cache_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static CACHE_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_tmp_dir(prefix: &str) -> std::path::PathBuf {
+        let id = CACHE_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("{prefix}-{id}"));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("temp dir creation should succeed");
+        path
+    }
+
+    fn cleanup(path: &std::path::Path) {
+        // 清理缓存条目，避免全局缓存污染后续测试
+        invalidate_tree_cache(path);
+        let _ = std::fs::remove_dir_all(path);
+    }
+
+    /// 方案 C：首次调用为 cache miss（全量扫描并缓存），第二次调用命中缓存且结果一致。
+    #[test]
+    fn list_tree_cached_hits_after_first_scan() {
+        let tmp = unique_tmp_dir("cache-hit");
+        std::fs::write(tmp.join("a.txt"), b"a").unwrap();
+        std::fs::create_dir_all(tmp.join("sub")).unwrap();
+        std::fs::write(tmp.join("sub/b.txt"), b"b").unwrap();
+
+        let first = list_tree_cached(&tmp).unwrap();
+        let second = list_tree_cached(&tmp).unwrap();
+
+        assert_eq!(first.len(), second.len(), "cache hit must return same tree");
+        assert!(first.iter().any(|n| n.path == "a.txt"));
+        assert!(first.iter().any(|n| n.path == "sub"));
+        cleanup(&tmp);
+    }
+
+    /// 方案 C：写操作（create_file）后缓存被失效，再次调用反映新增文件。
+    #[test]
+    fn list_tree_cached_reflects_file_creation_after_invalidation() {
+        let tmp = unique_tmp_dir("cache-invalidate");
+        std::fs::write(tmp.join("a.txt"), b"a").unwrap();
+
+        let before = list_tree_cached(&tmp).unwrap();
+        assert!(!before.iter().any(|n| n.path == "new.txt"));
+
+        // 走 crate 的 create_file（内部会 invalidate_tree_cache）
+        crate::fs::create_file(&tmp, "new.txt", "content").unwrap();
+
+        let after = list_tree_cached(&tmp).unwrap();
+        assert!(after.iter().any(|n| n.path == "new.txt"), "tree must reflect newly created file");
         cleanup(&tmp);
     }
 }

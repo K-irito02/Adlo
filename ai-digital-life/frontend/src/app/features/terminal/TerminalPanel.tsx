@@ -34,7 +34,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
     terminalSelectTab,
     terminalCloseTab,
     terminalTogglePin,
-    hideWorkspaceFromRightPanels,
+    removeWorkspaceFromSidebar,
   } = useAppStore(
     useShallow((s) => ({
       recentWorkspaces: s.recentWorkspaces,
@@ -43,7 +43,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
       terminalSelectTab: s.terminalSelectTab,
       terminalCloseTab: s.terminalCloseTab,
       terminalTogglePin: s.terminalTogglePin,
-      hideWorkspaceFromRightPanels: s.hideWorkspaceFromRightPanels,
+      removeWorkspaceFromSidebar: s.removeWorkspaceFromSidebar,
     })),
   );
 
@@ -138,10 +138,10 @@ export function TerminalPanel(props: TerminalPanelProps) {
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
       if (ws) {
-        hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
+        void removeWorkspaceFromSidebar(asWorkspaceID(workspaceId));
       }
     },
-    [recentWorkspaces, hideWorkspaceFromRightPanels],
+    [recentWorkspaces, removeWorkspaceFromSidebar],
   );
 
   return (

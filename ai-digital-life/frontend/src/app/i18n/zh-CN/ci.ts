@@ -216,9 +216,6 @@ export const ciZh = {
   ciDeleteNestedAllHint: '递归删除此目录及其所有嵌套子目录的CI配置及数据。',
   ciUnpin: '取消置顶',
   ciPin: '置顶',
-  ciRemoveFromView: '从此区域移除不显示',
-  ciRemoveFromViewHint:
-    '将此工作区从工作区目录分类中移除，嵌套的子目录也将一并移除。不会删除任何数据，可在左侧边栏中恢复显示。',
   ciDeleteAllNewDirs: '删除全部新建目录',
   ciDeleteAllNewDirsHint:
     '删除所有通过"新建目录"创建的目录节点及其CI配置和数据。工作区目录不受影响。',

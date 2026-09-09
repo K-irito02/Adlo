@@ -93,7 +93,7 @@ export function useChangesPanelProps(
 
   const handleHideFromRightPanels = useCallback(
     (workspaceId: string) => {
-      void actions.hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
+      void actions.removeWorkspaceFromSidebar(asWorkspaceID(workspaceId));
     },
     [actions],
   );

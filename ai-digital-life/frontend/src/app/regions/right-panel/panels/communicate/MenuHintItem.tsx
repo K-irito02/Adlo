@@ -5,9 +5,10 @@ interface MenuHintItemProps {
   hint: string;
   onClick: () => void;
   danger?: boolean;
+  icon?: React.ReactNode;
 }
 
-export function MenuHintItem({ label, hint, onClick, danger }: MenuHintItemProps) {
+export function MenuHintItem({ label, hint, onClick, danger, icon }: MenuHintItemProps) {
   const { hintState, showHint: showHintCard, scheduleHide, hintCardProps } = useHintCard();
 
   return (
@@ -18,6 +19,7 @@ export function MenuHintItem({ label, hint, onClick, danger }: MenuHintItemProps
         role="menuitem"
         onClick={onClick}
       >
+        {icon}
         <span>{label}</span>
         <span
           className={`adl-menu-item__hint${danger ? ' is-danger' : ''}`}

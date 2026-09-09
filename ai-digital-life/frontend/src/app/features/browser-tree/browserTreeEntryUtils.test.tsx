@@ -117,7 +117,8 @@ function makeCallbacks() {
 const t = {
   browserContextCreateBookmark: '新建书签',
   browserContextOpenAllNewTabs: '全部打开',
-  browserContextRemoveFromView: '移除',
+  workspaceRemoveEntry: '移出该工作区',
+  workspaceRemoveEntryHint: 'h',
   browserContextRename: '重命名',
   browserContextMore: '更多',
   browserContextDeleteAllTabs: '删除全部',

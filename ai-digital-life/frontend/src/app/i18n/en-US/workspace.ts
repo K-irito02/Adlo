@@ -89,6 +89,9 @@ export const workspaceEn = {
   toggleSessions: 'Toggle sessions',
   toggleWorkspaces: 'Toggle workspaces',
   workspaceEmptyList: 'No workspaces yet',
+  workspaceRemoveEntry: 'Remove workspace',
+  workspaceRemoveEntryHint:
+    'This workspace will be removed from every right panel simultaneously, and you will need to re-add it later. This also permanently clears related data (e.g., bookmarks saved under this workspace in the browser panel).',
 
   // Workspace loading settings
   settingsWorkspaceLoad: 'Workspace Loading',

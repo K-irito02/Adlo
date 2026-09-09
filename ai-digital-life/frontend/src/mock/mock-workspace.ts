@@ -108,13 +108,6 @@ export const mockWorkspace: WorkspaceBridge = {
     ok: true,
     data: { isRepo: true, branch: "main", staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: Date.now() }
   }),
-  hideFromRightPanels: async (workspaceId: string) => {
-    const entry = recentWorkspaces.find((item) => item.id === workspaceId);
-    if (entry) {
-      entry.hiddenFromRightPanels = true;
-    }
-    return { ok: true, data: recentWorkspaces };
-  },
   showInRightPanels: async (workspaceId: string) => {
     const entry = recentWorkspaces.find((item) => item.id === workspaceId);
     if (entry) {

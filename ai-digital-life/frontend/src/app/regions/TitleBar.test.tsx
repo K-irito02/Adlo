@@ -24,6 +24,7 @@ function renderTitleBar(overrides: Partial<Parameters<typeof TitleBar>[0]> = {})
     onOpenSettings: vi.fn(),
     onTriggerCreateWorkspace: vi.fn(),
     onOpenFolder: vi.fn(),
+    isOpeningWorkspace: false,
     onOpenCommandPalette: vi.fn(),
     onCycleTheme: vi.fn(),
     onSelectLanguage: vi.fn(),

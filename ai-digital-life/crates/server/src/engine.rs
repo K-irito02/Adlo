@@ -6,7 +6,7 @@ use adl_logging::LogManager;
 use adl_pty::SessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
-use adl_types::now_ms;
+use adl_types::{WorkspaceMeta, now_ms};
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
@@ -46,13 +46,25 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         .map_err(|e| AppError::Internal(format!("Database init_schema failed: {e}")))?;
     eprintln!("[ad-server] database opened");
 
+    // 方案 A：从 DB 恢复上次激活的工作区（current_workspace），使重启后前端
+    // bootstrap 能走"有当前工作区"分支并预加载其文件树，避免每次点击都触发
+    // 全量扫描。`open` 把 meta 以 JSON 字符串写入 app_state["current_workspace"]，
+    // `clear_current` 写入字面量 "null"。此处读取并解析，缺失/null → None。
+    let restored_current_workspace = restore_current_workspace(&db)?;
+    if restored_current_workspace.is_some() {
+        eprintln!(
+            "[ad-server] restored current workspace: {}",
+            restored_current_workspace.as_ref().map(|w| w.name.as_str()).unwrap_or("")
+        );
+    }
+
     eprintln!("[ad-server] loading config...");
     let config = adl_config::load(data_dir)
         .map_err(|e| AppError::Internal(format!("Config load failed: {e}")))?;
     eprintln!("[ad-server] config loaded");
 
     let event_bus = EventBus::new(256);
-    let current_workspace = Arc::new(RwLock::new(None));
+    let current_workspace = Arc::new(RwLock::new(restored_current_workspace));
     let editor_dirty_paths = Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
     let pty_sessions = Arc::new(std::sync::Mutex::new(SessionManager::new()));
     let durable_manager = DurableSessionManager::new(db.clone());
@@ -123,4 +135,31 @@ pub async fn serve(state: ServerState, port: u16) -> u16 {
 
     let _ = axum::serve(listener, app).await;
     bound_port
+}
+
+/// 从 DB `app_state["current_workspace"]` 恢复上次激活的工作区元数据。
+///
+/// - 键不存在 → None（从未打开过任何工作区）
+/// - 值为 JSON 字符串 `"null"` → None（上次执行了 clear-current）
+/// - 值为 WorkspaceMeta 的 JSON → 解析返回 Some(meta)
+///
+/// 解析失败时按 None 处理（不阻塞启动），记录告警供诊断。
+fn restore_current_workspace(db: &Database) -> Result<Option<WorkspaceMeta>, AppError> {
+    let raw = match db.get_state("current_workspace")? {
+        Some(v) => v,
+        None => return Ok(None),
+    };
+    if raw.trim() == "null" || raw.trim().is_empty() {
+        return Ok(None);
+    }
+    match serde_json::from_str::<WorkspaceMeta>(&raw) {
+        Ok(meta) => {
+            tracing::info!(workspace_id = %meta.id, root = %meta.root_path, "restored current_workspace from db");
+            Ok(Some(meta))
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to deserialize persisted current_workspace; starting with none");
+            Ok(None)
+        },
+    }
 }

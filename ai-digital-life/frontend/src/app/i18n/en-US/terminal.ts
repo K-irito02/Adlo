@@ -47,7 +47,6 @@ export const terminalEn = {
   terminalLabel: 'Terminal',
   terminalCreate: 'Create terminal',
   terminalDefaultProfile: 'Default {profile} terminal',
-  terminalRemoveFromView: 'Remove from this view',
   terminalCopyFullPath: 'Copy full path',
   terminalCopyRelativePath: 'Copy rel. path',
   terminalCollapseAll: 'Collapse all',

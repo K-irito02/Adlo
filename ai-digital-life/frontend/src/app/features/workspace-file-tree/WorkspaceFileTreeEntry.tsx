@@ -16,6 +16,7 @@ import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { useAppStore } from '@stores/slicedStore';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
+import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 import { joinPathSegments } from '@app/utils/workspacePaths';
 
 export interface WorkspaceFileTreeEntryProps {
@@ -396,15 +397,12 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
                 isRepo={gitSnapshot?.isRepo ?? false}
               />
               <div className="adl-multitree-entry__menu-sep" role="separator" />
-              <button
-                type="button"
-                className="adl-multitree-entry__menu-item"
-                role="menuitem"
+              <MenuHintItem
+                label={t.workspaceRemoveEntry}
+                hint={t.workspaceRemoveEntryHint}
                 onClick={handleHideFromRightPanels}
-              >
-                <IconEyeOff size={14} />
-                {t.fileRemoveFromView}
-              </button>
+                icon={<IconEyeOff size={14} />}
+              />
               <button
                 type="button"
                 className="adl-multitree-entry__menu-item"

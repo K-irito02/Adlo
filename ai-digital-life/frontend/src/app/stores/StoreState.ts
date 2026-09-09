@@ -141,7 +141,6 @@ interface WorkspaceActions {
   expandWorkspaceTreeInFileNav: (workspaceId: WorkspaceID, workspacePath: string) => Promise<void>;
   refreshAllWorkspaceTrees: () => Promise<void>;
   cleanupRemovedWorkspaceTree: (workspaceId: WorkspaceID) => void;
-  hideWorkspaceFromRightPanels: (workspaceId: WorkspaceID) => Promise<void>;
   showWorkspaceInRightPanels: (workspaceId: WorkspaceID) => Promise<void>;
   expandAllWorkspaceTreesInFileNav: () => Promise<void>;
   collapseAllWorkspaceTreesInFileNav: () => void;

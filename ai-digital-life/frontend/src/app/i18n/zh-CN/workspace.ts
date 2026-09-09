@@ -86,6 +86,9 @@ export const workspaceZh = {
   toggleSessions: '切换会话',
   toggleWorkspaces: '切换工作区',
   workspaceEmptyList: '暂无工作区',
+  workspaceRemoveEntry: '移出该工作区',
+  workspaceRemoveEntryHint:
+    '右侧每个面板都将同步移出该工作区，后续需要你重新添加该工作区。这也会彻底清理相关数据（例如：浏览器面板该工作区下收藏的书签等）。',
 
   // Workspace loading settings
   settingsWorkspaceLoad: '工作区加载',

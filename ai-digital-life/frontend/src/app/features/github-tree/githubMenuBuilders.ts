@@ -143,9 +143,9 @@ export function buildHideMenuItems(params: MenuBuilderParams): MainMenuItem[] {
   if (node.nodeType === 'workspace') {
     items.push({
       id: 'hide-from-area',
-      label: t.ciRemoveFromView,
+      label: t.workspaceRemoveEntry,
       hasHint: true,
-      hint: t.ciRemoveFromViewHint,
+      hint: t.workspaceRemoveEntryHint,
       action: () => {
         if (workspaceId) {
           hideWorkspaceFromRightPanels(workspaceId);

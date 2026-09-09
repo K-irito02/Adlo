@@ -377,11 +377,18 @@ pub async fn list_tree(
             Err(e) => return ipc::to_response(Err(e)),
         },
     };
+    let t_start = std::time::Instant::now();
+    let display_path = path.display().to_string();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let tree: Vec<WorkspaceTreeNode> = adl_workspace::list_tree(path.as_path())?;
+        let tree: Vec<WorkspaceTreeNode> = adl_workspace::list_tree_cached(path.as_path())?;
         Ok(serde_json::to_value(tree)?)
     })
     .await;
+    tracing::debug!(
+        elapsed_ms = t_start.elapsed().as_millis(),
+        root = %display_path,
+        "workspace_list_tree: done"
+    );
     ipc::to_response(result)
 }
 

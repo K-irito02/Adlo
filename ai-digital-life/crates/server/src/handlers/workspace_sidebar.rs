@@ -172,6 +172,7 @@ pub(crate) fn upsert_sidebar_after_open(
         all[i].name = meta.name.clone();
         all[i].last_opened_at = meta.last_opened_at;
         all[i].removed_from_sidebar = false;
+        all[i].hidden_from_right_panels = false;
         all[i].available = true;
         let workspace_ids = std::collections::HashSet::from([meta.id.clone()]);
         all = dedup_entries_by_path(all, &workspace_ids);

@@ -15,6 +15,7 @@ import {
   IconPanelRightClose,
   IconSun,
 } from '../icons';
+import { Spinner } from '../components/Spinner';
 import { useAppStore } from '../stores/slicedStore';
 import { TooltipSimple } from '../components/Tooltip';
 import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
@@ -27,6 +28,7 @@ interface TitleBarProps {
   onOpenSettings: () => void;
   onTriggerCreateWorkspace: () => void;
   onOpenFolder: () => void;
+  isOpeningWorkspace: boolean;
   onOpenCommandPalette: () => void;
   onCycleTheme: () => void;
   onSelectLanguage: (language: AppInfo['config']['language']) => void;
@@ -58,6 +60,7 @@ const TitleBar = React.memo(function TitleBar({
   onOpenSettings,
   onTriggerCreateWorkspace,
   onOpenFolder,
+  isOpeningWorkspace,
   onOpenCommandPalette,
   onCycleTheme,
   onSelectLanguage,
@@ -118,14 +121,19 @@ const TitleBar = React.memo(function TitleBar({
       <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">
         <div className="adl-titlebar__action-group">
-          <TooltipSimple content={t.addWorkspace} placement="bottom">
+          <TooltipSimple content={isOpeningWorkspace ? (t.loading as string) : t.addWorkspace} placement="bottom">
             <button
               type="button"
               className="adl-icon-btn adl-iconstrip__button"
               onClick={onOpenFolder}
+              disabled={isOpeningWorkspace}
               aria-label={t.addWorkspace}
             >
-              <IconAddWorkspace size={16} decorative />
+              {isOpeningWorkspace ? (
+                <Spinner size="sm" speed="fast" />
+              ) : (
+                <IconAddWorkspace size={16} decorative />
+              )}
             </button>
           </TooltipSimple>
           <span className="adl-titlebar__action-divider" aria-hidden="true" />

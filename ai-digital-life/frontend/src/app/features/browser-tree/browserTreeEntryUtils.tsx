@@ -174,7 +174,8 @@ export function getEntryMoreMenuItems(
     const wsId = nodePath.startsWith('workspace:') ? nodePath.slice('workspace:'.length) : '';
     items.push({
       id: 'remove-from-area',
-      label: t.browserContextRemoveFromView,
+      label: t.workspaceRemoveEntry,
+      hint: t.workspaceRemoveEntryHint,
       action: () => callbacks.onRemoveFromArea(wsId),
     });
   }

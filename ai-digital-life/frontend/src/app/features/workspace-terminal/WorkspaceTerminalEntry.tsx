@@ -16,6 +16,7 @@ import {
   IconChevronRight,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
+import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 import { TerminalTabBar } from '../terminal/TerminalTabBar';
 import { formatT } from '@i18n/formatT';
 import { useTerminalMenu } from './useTerminalMenu';
@@ -186,15 +187,12 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 style={{ top: menuPosition.top, left: menuPosition.left }}
               >
                 {!isIndependent && (
-                  <button
-                    type="button"
-                    className="adl-multitree-entry__menu-item"
-                    role="menuitem"
+                  <MenuHintItem
+                    label={t.workspaceRemoveEntry}
+                    hint={t.workspaceRemoveEntryHint}
                     onClick={handleHideFromRightPanels}
-                  >
-                    <IconEyeOff size={14} />
-                    {t.terminalRemoveFromView}
-                  </button>
+                    icon={<IconEyeOff size={14} />}
+                  />
                 )}
                 {!isIndependent && (
                   <div className="adl-multitree-entry__menu-sep" role="separator" />

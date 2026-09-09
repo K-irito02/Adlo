@@ -163,16 +163,6 @@ export interface WorkspaceBridge {
    */
   listGitStatusForWorkspace: (workspacePath: string) => Promise<IpcResult<GitSnapshot>>;
   /**
-   * 隐藏右侧面板显示工作区
-   * @param workspaceId 工作区 ID
-   * @returns 更新后的最近工作区列表
-   * @command workspace_hide_from_right_panels
-   * @see tauri-bridge.ts → workspace.hideFromRightPanels
-   * @see mock-bridge.ts → workspace.hideFromRightPanels
-   * @see preview-bridge/index.ts → workspace.hideFromRightPanels
-   */
-  hideFromRightPanels: (workspaceId: string) => Promise<IpcResult<RecentWorkspaceEntry[]>>;
-  /**
    * 恢复右侧面板显示工作区
    * @param workspaceId 工作区 ID
    * @returns 更新后的最近工作区列表

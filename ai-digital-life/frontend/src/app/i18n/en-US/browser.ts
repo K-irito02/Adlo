@@ -153,7 +153,6 @@ export const browserEn = {
     'Only delete "month" directories, including nested sub-directories (day) and tags under "day" directories.',
   browserDeleteHistoryDayHint: 'Only delete "day" directories, including tags under them.',
   browserContextOpenAllNewTabs: 'Open all in new tabs',
-  browserContextRemoveFromView: 'Remove from this view',
   browserContextDeleteDir: 'Delete this directory',
   browserCannotOpenEmbedded:
     'This site cannot be displayed in the embedded view. Try opening it in an external browser.',

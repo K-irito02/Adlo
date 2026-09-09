@@ -800,8 +800,6 @@ export function createHttpBridge({
         call<WorkspaceTreeNode[]>(baseUrl, '/workspace/tree', POST({ workspacePath })),
       listGitStatusForWorkspace: (workspacePath: string) =>
         call<GitSnapshot>(baseUrl, '/workspace/git/status', POST({ workspacePath })),
-      hideFromRightPanels: (workspaceId: string) =>
-        call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/hide', POST({ workspaceId })),
       showInRightPanels: (workspaceId: string) =>
         call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/show', POST({ workspaceId })),
       revealInFileManager: (_workspacePath: string) =>

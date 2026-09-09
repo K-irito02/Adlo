@@ -28,6 +28,7 @@ pub fn create_file(
         )));
     }
     adl_fs_ops::atomic_write(root, relative_path, content)?;
+    crate::tree::invalidate_tree_cache(root);
     Ok(WorkspaceFileDocument {
         path: relative_path.replace('\\', "/"),
         content: content.to_string(),
@@ -41,6 +42,7 @@ pub fn create_folder(root: &Path, relative_path: &str) -> Result<bool, AppError>
         return Err(AppError::InvalidInput(format!("path already exists: {relative_path}")));
     }
     fs::create_dir_all(path)?;
+    crate::tree::invalidate_tree_cache(root);
     Ok(true)
 }
 
@@ -61,6 +63,7 @@ pub fn rename_entry(root: &Path, relative_path: &str, new_name: &str) -> Result<
         return Err(AppError::InvalidInput(format!("target already exists: {}", new_name)));
     }
     fs::rename(&src, &dst)?;
+    crate::tree::invalidate_tree_cache(root);
     Ok(true)
 }
 
@@ -71,6 +74,7 @@ pub fn delete_entry(root: &Path, relative_path: &str) -> Result<bool, AppError> 
     }
     trash::delete(&path)
         .map_err(|e| AppError::InvalidInput(format!("failed to move to trash: {e}")))?;
+    crate::tree::invalidate_tree_cache(root);
     Ok(true)
 }
 
@@ -124,6 +128,7 @@ pub fn duplicate_entry(
     } else {
         fs::copy(&src, &dst)?;
     }
+    crate::tree::invalidate_tree_cache(root);
     Ok(true)
 }
 
@@ -144,6 +149,7 @@ pub fn move_entry(
         fs::create_dir_all(parent)?;
     }
     fs::rename(&src, &dst)?;
+    crate::tree::invalidate_tree_cache(root);
     Ok(true)
 }
 

@@ -4,6 +4,7 @@ import type { GitSnapshot, RecentWorkspaceEntry } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import { IconCopy, IconEyeOff, IconFolderOpen } from '@icons';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
+import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 
 export interface WorkspaceChangesMenuProps {
   menuOpen: boolean;
@@ -111,15 +112,12 @@ export const WorkspaceChangesMenu = React.memo(function WorkspaceChangesMenu({
         {t.changesDiscardAll}
       </button>
       <div className="adl-multitree-entry__menu-sep" role="separator" />
-      <button
-        type="button"
-        className="adl-multitree-entry__menu-item"
-        role="menuitem"
+      <MenuHintItem
+        label={t.workspaceRemoveEntry}
+        hint={t.workspaceRemoveEntryHint}
         onClick={onHideFromRightPanels}
-      >
-        <IconEyeOff size={14} />
-        {t.fileRemoveFromView}
-      </button>
+        icon={<IconEyeOff size={14} />}
+      />
       <button
         type="button"
         className="adl-multitree-entry__menu-item"

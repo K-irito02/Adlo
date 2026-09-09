@@ -47,7 +47,6 @@ export const terminalZh = {
   terminalLabel: '终端',
   terminalCreate: '创建终端',
   terminalDefaultProfile: '默认为{profile}终端',
-  terminalRemoveFromView: '从此区域移除不显示',
   terminalCopyFullPath: '复制完整路径',
   terminalCopyRelativePath: '复制相对路径',
   terminalCollapseAll: '折叠全部',

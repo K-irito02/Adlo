@@ -235,9 +235,6 @@ export const ciEn = {
     'Recursively delete CI config and data for this directory and all nested subdirectories.',
   ciUnpin: 'Unpin',
   ciPin: 'Pin',
-  ciRemoveFromView: 'Remove from this view',
-  ciRemoveFromViewHint:
-    'Remove this workspace from the workspace directory category. Nested subdirectories will also be removed. No data will be deleted, and it can be restored in the left sidebar.',
   ciDeleteAllNewDirs: 'Delete all new directories',
   ciDeleteAllNewDirsHint:
     'Delete all directory nodes created via "New Directory" and their CI config and data. Workspace directories are not affected.',

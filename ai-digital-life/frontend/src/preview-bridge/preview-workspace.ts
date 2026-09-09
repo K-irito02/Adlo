@@ -188,14 +188,6 @@ export function createPreviewWorkspaceBridge(
       const params = new URLSearchParams({ rootPath: workspacePath });
       return requestPreviewApi<GitSnapshot>(`/workspace/git-status?${params.toString()}`);
     },
-    hideFromRightPanels: async (workspaceId: string) => {
-      const entry = ctx.recentWorkspaces.find((item) => item.id === workspaceId);
-      if (entry) {
-        entry.hiddenFromRightPanels = true;
-      }
-      persistRecentWorkspaces(ctx.recentWorkspaces);
-      return { ok: true as const, data: ctx.recentWorkspaces };
-    },
     showInRightPanels: async (workspaceId: string) => {
       const entry = ctx.recentWorkspaces.find((item) => item.id === workspaceId);
       if (entry) {

@@ -86,15 +86,21 @@ export function App() {
   );
 
   const [createWorkspaceModalOpen, setCreateWorkspaceModalOpen] = useState(false);
+  const [isOpeningWorkspace, setIsOpeningWorkspace] = useState(false);
 
   const handleTriggerCreateWorkspace = useCallback(() => {
     setCreateWorkspaceModalOpen(true);
   }, []);
 
   const handleOpenFolder = useCallback(() => {
-    void actions.pickWorkspaceDirectory().then((picked) => {
+    void actions.pickWorkspaceDirectory().then(async (picked) => {
       if (picked) {
-        void actions.openWorkspace(picked);
+        setIsOpeningWorkspace(true);
+        try {
+          await actions.openWorkspace(picked);
+        } finally {
+          setIsOpeningWorkspace(false);
+        }
       }
     });
   }, [actions]);
@@ -168,6 +174,7 @@ export function App() {
             onOpenSettings={handleOpenSettings}
             onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
             onOpenFolder={handleOpenFolder}
+            isOpeningWorkspace={isOpeningWorkspace}
             onOpenCommandPalette={handleOpenCommandPalette}
             onCycleTheme={handleCycleTheme}
             onSelectLanguage={handleSelectLanguage}

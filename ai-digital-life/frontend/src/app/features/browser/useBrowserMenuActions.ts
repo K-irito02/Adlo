@@ -12,7 +12,7 @@ export function useBrowserMenuActions() {
   );
 
   const handleRemoveFromArea = useCallback((workspaceId: string) => {
-    useAppStore.getState().hideWorkspaceFromRightPanels(asWorkspaceID(workspaceId));
+    useAppStore.getState().removeWorkspaceFromSidebar(asWorkspaceID(workspaceId));
   }, []);
 
   const handleDeleteHistoryLevel = useCallback(

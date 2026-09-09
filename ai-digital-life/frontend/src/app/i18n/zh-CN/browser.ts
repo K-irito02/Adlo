@@ -144,7 +144,6 @@ export const browserZh = {
     '仅删除所有"月"目录，但包括"月"目录下的嵌套子目录（日），以及包括"日"目录下的子标签。',
   browserDeleteHistoryDayHint: '仅删除所有"日"目录，但包括"日"目录下的子标签。',
   browserContextOpenAllNewTabs: '全部在新标签打开',
-  browserContextRemoveFromView: '从此区域移除不显示',
   browserContextDeleteDir: '删除此目录',
   browserCannotOpenEmbedded: '该网站无法在嵌入式视图中显示，请尝试在外部浏览器中打开。',
   browserConnectionFailed: '无法连接到该网站，请检查网址是否正确或尝试在外部浏览器中打开。',

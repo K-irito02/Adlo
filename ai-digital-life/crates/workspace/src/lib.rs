@@ -22,7 +22,10 @@ pub use git::{
 };
 pub use preview::read_change_preview;
 pub use search::{search_text, search_text_async};
-pub use tree::{build_retrieval_snapshot, build_retrieval_snapshot_async, list_tree};
+pub use tree::{
+    build_retrieval_snapshot, build_retrieval_snapshot_async, invalidate_tree_cache, list_tree,
+    list_tree_cached,
+};
 
 use adl_errors::AppError;
 use adl_types::FileOutlineItem;

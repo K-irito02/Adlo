@@ -284,4 +284,82 @@ describe('workspace load cascade ordering', () => {
     expect(mockListTreeForWorkspace).toHaveBeenCalledTimes(3);
     expect(mockListGitStatusForWorkspace).toHaveBeenCalledTimes(3);
   });
+
+  it('方案 B: preloads all visible workspaces even when currentWorkspace is none', async () => {
+    const mockListTreeForWorkspace = vi.fn().mockResolvedValue({ ok: true, data: [] });
+    const mockListGitStatusForWorkspace = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      app: {
+        getInfo: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            appName: 'test',
+            version: '0.0.0',
+            config: {
+              themeMode: 'light',
+              resolvedTheme: 'light',
+              maxRecentWorkspaces: 10,
+              modelPreferences: { providers: {} },
+              keybinds: {},
+              fonts: {},
+              maxConcurrentWorkspaces: 6,
+              workspacePriorityIds: [],
+              workspaceDeferredIds: [],
+              workspaceNaturalOrder: [],
+            },
+            recentLogs: [],
+            currentWorkspace: null,
+          },
+        }),
+        getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      },
+      workspace: {
+        listRecent: vi.fn().mockResolvedValue({
+          ok: true,
+          data: [
+            {
+              id: 'ws-a',
+              path: '/fake/a',
+              rootPath: '/fake/a',
+              name: 'ws-a',
+              lastOpenedAt: 0,
+              isPinned: false,
+              pinnedOrder: 0,
+              unpinnedOrder: 0,
+              removedFromSidebar: false,
+              available: true,
+              hiddenFromRightPanels: false,
+            },
+          ],
+        }),
+        getGitStatus: vi.fn().mockResolvedValue({ ok: true, data: { branch: 'main' } }),
+        listTreeForWorkspace: mockListTreeForWorkspace,
+        listGitStatusForWorkspace: mockListGitStatusForWorkspace,
+        setEditorDirtyPaths: vi.fn().mockResolvedValue({ ok: true }),
+      },
+      patch: { getPatchSet: vi.fn().mockResolvedValue({ ok: true, data: null }) },
+      command: { listRecent: vi.fn().mockResolvedValue({ ok: true, data: [] }) },
+      retrieval: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: null }),
+        getRepoMap: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      },
+      conversation: {
+        listSessions: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        getSession: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+
+    const store = useAppStore.getState();
+    useAppStore.setState({ appReady: false });
+    await store.bootstrap();
+
+    // Allow the background cascade to flush
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // 方案 B：无 currentWorkspace 时也必须预加载可见工作区树
+    expect(useAppStore.getState().appReady).toBe(true);
+    expect(mockListTreeForWorkspace).toHaveBeenCalledTimes(1);
+    expect(mockListGitStatusForWorkspace).toHaveBeenCalledTimes(1);
+  });
 });

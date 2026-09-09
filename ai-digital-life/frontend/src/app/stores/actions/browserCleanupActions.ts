@@ -46,6 +46,17 @@ export function createBrowserCleanupActions(
         cleaned.browserWorkspaceBookmarks,
       );
 
+      // 彻底移出工作区：同时清理 Git 可视化该工作区的数据缓存，
+      // 并重置 activeWorkspaceTab（若仍指向被移出的工作区），避免残留 tab。
+      const activeWorkspaceTab =
+        state.activeWorkspaceTab === workspaceId
+          ? (state.recentWorkspaces.find((w) => w.id !== workspaceId)?.id ?? '')
+          : state.activeWorkspaceTab;
+      get().clearWorkspaceGitVisData(workspaceId as string);
+      if (activeWorkspaceTab !== state.activeWorkspaceTab) {
+        get().setActiveWorkspaceTab(activeWorkspaceTab);
+      }
+
       set({
         workspaceTrees: restTrees,
         workspaceTreeLoading: restLoading,
@@ -81,24 +92,6 @@ export function createBrowserCleanupActions(
       if (appInfo?.currentWorkspace?.id === workspaceId) {
         await get().clearWorkspaceContext();
       }
-    },
-
-    /**
-     * [hideWorkspaceFromRightPanels - 从右侧面板隐藏工作区]
-     * @writes workspaceSlice.recentWorkspaces, workspaceSlice.workspaceTrees (通过 cleanupRemovedWorkspaceTree), browserSlice.browserTabs (通过 cleanupRemovedWorkspaceTree)
-     * @see shared/ipc.ts → workspace.hideFromRightPanels
-     * @see mock-bridge.ts → workspace.hideFromRightPanels
-     * @see preview-bridge/index.ts → workspace.hideFromRightPanels
-     */
-    hideWorkspaceFromRightPanels: async (workspaceId: WorkspaceID) => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.workspace.hideFromRightPanels(workspaceId as string);
-      if (!result.ok) {
-        captureError(get, result.error, SCOPE);
-        return;
-      }
-      set({ recentWorkspaces: result.data });
-      get().cleanupRemovedWorkspaceTree(workspaceId);
     },
   };
 }

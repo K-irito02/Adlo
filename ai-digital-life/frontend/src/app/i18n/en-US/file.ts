@@ -70,7 +70,6 @@ export const fileEn = {
   searchPanelMatchWholeWord: 'Match whole word',
   searchPanelUseRegex: 'Use regex',
   searchPanelReplaceAction: 'Replace',
-  fileRemoveFromView: 'Remove from this view',
   fileCollapse: 'Collapse',
   fileExpand: 'Expand',
   fileCopyBranchName: 'Copy branch name',

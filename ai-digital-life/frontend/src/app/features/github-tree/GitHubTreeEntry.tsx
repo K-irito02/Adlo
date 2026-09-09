@@ -57,7 +57,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     gitHubCiFolders,
     recentWorkspaces,
     clearCiState,
-    hideWorkspaceFromRightPanels,
+    removeWorkspaceFromSidebar,
   } = useAppStore(
     useShallow((s) => ({
       gitHubDeleteFolderConfig: s.gitHubDeleteFolderConfig,
@@ -73,7 +73,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
       gitHubCiFolders: s.gitHubCiFolders,
       recentWorkspaces: s.recentWorkspaces,
       clearCiState: s.clearCiState,
-      hideWorkspaceFromRightPanels: s.hideWorkspaceFromRightPanels,
+      removeWorkspaceFromSidebar: s.removeWorkspaceFromSidebar,
     })),
   );
 
@@ -155,7 +155,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
     gitHubDeleteFolderDataRecursive,
     gitHubDeleteFolderConfigAndDataRecursive,
     hideWorkspaceFromRightPanels: (wsId: string) =>
-      hideWorkspaceFromRightPanels(asWorkspaceID(wsId)),
+      void removeWorkspaceFromSidebar(asWorkspaceID(wsId)),
   });
 
   const handleExpandBtnClick = useCallback(
