@@ -10,7 +10,6 @@ import type { SnapshotBridge } from '../shared/ipc/snapshot';
 import type { ClipboardBridge } from '../shared/ipc/clipboard';
 import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
-import { mockDigitalLifeBridge, setMockActiveWorkspace } from '../mock-bridge';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyBridge } from './preview-pty-bridge';
 import { loadRecentWorkspaces } from './preview-storage';
@@ -88,10 +87,12 @@ function preferHttpWhenReachable<T extends object>(
   return proxy as unknown as T;
 }
 
-export function setupPreviewBridge(): void {
+export async function setupPreviewBridge(): Promise<void> {
   if (typeof window === 'undefined' || (window as { digitalLife?: unknown }).digitalLife) {
     return;
   }
+
+  const { mockDigitalLifeBridge, setMockActiveWorkspace } = await import('../mock-bridge');
 
   const adlServerBaseUrl = resolveAdlServerBaseUrl();
   const http = createHttpBridge({ baseUrl: adlServerBaseUrl });
@@ -123,9 +124,9 @@ export function setupPreviewBridge(): void {
     retrievalStatus: undefined,
   });
   const eventsBridge = createPreviewEventsBridge();
-  const windowBridge = createPreviewWindowBridge();
-  const diagnosticBridge = createPreviewDiagnosticBridge();
-  const patchBridge = createPreviewPatchBridge();
+  const windowBridge = await createPreviewWindowBridge();
+  const diagnosticBridge = await createPreviewDiagnosticBridge();
+  const patchBridge = await createPreviewPatchBridge();
 
   const workspacePreview: WorkspaceBridge = {
     ...workspace,

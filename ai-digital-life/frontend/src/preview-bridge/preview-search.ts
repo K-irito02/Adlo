@@ -5,7 +5,7 @@ import type {
   RetrievalSnapshot,
   WorkspaceMeta,
 } from '@ai-digital-life/kernel';
-import { requestPreviewApi } from './preview-api';
+import { requestPreviewApi } from '../shared/ipc/preview-api';
 
 /** Preview bridge shared mutable context (subset previously exported by preview-context). */
 export interface PreviewSearchContext {

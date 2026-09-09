@@ -1,6 +1,6 @@
-import { mockDigitalLifeBridge } from '../mock-bridge';
 import type { PatchBridge } from '../shared/ipc';
 
-export function createPreviewPatchBridge(): PatchBridge {
+export async function createPreviewPatchBridge(): Promise<PatchBridge> {
+  const { mockDigitalLifeBridge } = await import('../mock-bridge');
   return mockDigitalLifeBridge.patch;
 }

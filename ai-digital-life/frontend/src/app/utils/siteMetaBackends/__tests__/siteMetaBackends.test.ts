@@ -10,7 +10,7 @@ vi.mock('../../../../preview-bridge/preview-api', () => ({
 }));
 
 import { invokeIpc } from '../../../../tauri-bridge/tauri-shared';
-import { requestPreviewApi } from '../../../../preview-bridge/preview-api';
+import { requestPreviewApi } from '../../../../shared/ipc/preview-api';
 import { tauriSiteMetaBackend } from '../tauri';
 import { previewSiteMetaBackend } from '../preview';
 import type { SiteMetaCacheEntry } from '../types';

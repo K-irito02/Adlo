@@ -1,7 +1,7 @@
-import { mockDigitalLifeBridge } from '../mock-bridge';
 import type { WindowBridge } from '../shared/ipc/window';
 
-export function createPreviewWindowBridge() {
+export async function createPreviewWindowBridge() {
+  const { mockDigitalLifeBridge } = await import('../mock-bridge');
   return {
     window: {
       ...mockDigitalLifeBridge.window,

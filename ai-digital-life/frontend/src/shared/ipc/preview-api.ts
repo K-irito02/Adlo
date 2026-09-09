@@ -1,7 +1,7 @@
 export const PREVIEW_API_PREFIX = '/__adl_preview_api__';
 
 import type { IpcResult } from '@ai-digital-life/kernel';
-import { IpcErrorCode } from '../shared/ipc/shared';
+import { IpcErrorCode } from './shared';
 
 export async function requestPreviewApi<T>(
   pathname: string,

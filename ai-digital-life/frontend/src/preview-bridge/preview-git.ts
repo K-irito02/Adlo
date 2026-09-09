@@ -15,7 +15,7 @@ import type {
   WorkspaceMeta,
 } from '@ai-digital-life/kernel';
 import { IpcErrorCode } from '../shared/ipc/shared';
-import { requestPreviewApi } from './preview-api';
+import { requestPreviewApi } from '../shared/ipc/preview-api';
 
 /** Preview bridge shared mutable context (subset previously exported by preview-context). */
 export interface PreviewGitContext {

@@ -1,4 +1,4 @@
-import { requestPreviewApi } from '../../../preview-bridge/preview-api';
+import { requestPreviewApi } from '../../../shared/ipc/preview-api';
 import type { SiteMetaBackend, SiteMetaCacheEntry } from './types';
 
 const PREFIX = '/browser/site-meta-cache';

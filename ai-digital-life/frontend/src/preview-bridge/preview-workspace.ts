@@ -11,7 +11,7 @@ import type {
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 import { IpcErrorCode } from '../shared/ipc/shared';
-import { requestPreviewApi } from './preview-api';
+import { requestPreviewApi } from '../shared/ipc/preview-api';
 import {
   persistRecentWorkspaces,
   updateRecentWorkspaces,

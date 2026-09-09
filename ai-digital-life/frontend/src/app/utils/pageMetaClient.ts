@@ -1,6 +1,6 @@
 import { isTauriShell, invokeIpc } from '../../tauri-bridge/tauri-shared';
 import { listen } from '@tauri-apps/api/event';
-import { requestPreviewApi } from '../../preview-bridge/preview-api';
+import { requestPreviewApi } from '../../shared/ipc/preview-api';
 import type { PageMeta, PageMetaUpdatedPayload, MetaSource } from '../../shared/ipc/browser';
 import type { SiteMetaCacheEntry } from './siteMetaBackends/types';
 import { applyBroadcastUpdate, getCachedSiteMeta } from './siteMetaCache';

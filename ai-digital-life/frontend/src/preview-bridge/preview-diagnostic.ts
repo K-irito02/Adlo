@@ -1,6 +1,5 @@
-import { mockDigitalLifeBridge } from '../mock-bridge';
-
-export function createPreviewDiagnosticBridge() {
+export async function createPreviewDiagnosticBridge() {
+  const { mockDigitalLifeBridge } = await import('../mock-bridge');
   return {
     getHealth: mockDigitalLifeBridge.app.getHealth,
     getDiagnostics: mockDigitalLifeBridge.app.getDiagnostics,
