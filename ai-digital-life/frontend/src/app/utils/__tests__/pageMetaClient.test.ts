@@ -9,7 +9,7 @@ vi.mock('../../../tauri-bridge/tauri-shared', () => ({
   isTauriShell: () => shell.isTauri,
 }));
 vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn(() => Promise.resolve(() => {})) }));
-vi.mock('../../../preview-bridge/preview-api', () => ({
+vi.mock('../../../shared/ipc/preview-api', () => ({
   requestPreviewApi: shell.requestPreviewApi,
 }));
 

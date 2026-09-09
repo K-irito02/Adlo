@@ -5,7 +5,7 @@ vi.mock('../../../../tauri-bridge/tauri-shared', () => ({
   isTauriShell: () => false,
 }));
 
-vi.mock('../../../../preview-bridge/preview-api', () => ({
+vi.mock('../../../../shared/ipc/preview-api', () => ({
   requestPreviewApi: vi.fn(),
 }));
 

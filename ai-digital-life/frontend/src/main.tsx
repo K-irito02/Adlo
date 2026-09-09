@@ -38,7 +38,7 @@ async function boot(): Promise<void> {
       document.documentElement.dataset.shell = 'tauri';
     } else {
       const { setupPreviewBridge } = await import('./preview-bridge');
-      setupPreviewBridge();
+      await setupPreviewBridge();
       document.documentElement.dataset.shell = 'browser';
     }
   }

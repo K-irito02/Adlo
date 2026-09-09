@@ -56,7 +56,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
     });
     vi.stubGlobal('fetch', fetchMock);
     const { setupPreviewBridge } = await import('./index');
-    setupPreviewBridge();
+    await setupPreviewBridge();
     const bridge = (window as { digitalLife: DigitalLifeBridge }).digitalLife;
     return { bridge, fetchMock };
   }
@@ -131,7 +131,7 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
       });
       vi.stubGlobal('fetch', fetchMock);
       const { setupPreviewBridge } = await import('./index');
-      setupPreviewBridge();
+      await setupPreviewBridge();
       const bridge = (window as { digitalLife: DigitalLifeBridge }).digitalLife;
 
       const picked = await bridge.workspace.pickDirectory();
@@ -184,7 +184,7 @@ describe('preview-bridge browser workspace.onFileChanged sync unsubscribe (Task 
   ): Promise<DigitalLifeBridge> {
     vi.stubGlobal('fetch', vi.fn(fetchImpl));
     const { setupPreviewBridge } = await import('./index');
-    setupPreviewBridge();
+    await setupPreviewBridge();
     return (window as { digitalLife: DigitalLifeBridge }).digitalLife;
   }
 
