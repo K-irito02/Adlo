@@ -15,3 +15,4 @@
 - [progress-2026-09-08-160000.md](./progress-2026-09-08-160000.md) — 浏览器面板WebView2不跟随resize、地址栏回车不显示内容、DSH界面重叠
 - [progress-2026-09-08-200254.md](./progress-2026-09-08-200254.md) — dsh WebView2 在右侧面板扩大覆盖中间主内容区时未正确隐藏
 - [progress-2026-0909-070300.md](./progress-2026-0909-070300.md) — 确认对话框无UI样式且被局限于树形区域: ConfirmDialog组件创建、3处迁移、WebView2隐藏名单
+- [progress-2026-09-09-120000.md](./progress-2026-09-09-120000.md) — 构建警告修复: INEFFECTIVE_DYNAMIC_IMPORT(2项) + chunk大小超500kB, preview-bridge懒加载, vendor-codemirror拆分
