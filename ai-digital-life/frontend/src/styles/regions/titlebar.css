@@ -210,7 +210,7 @@
 }
 
 .adl-titlebar .adl-window-btn--close:hover:not(:disabled) {
-  background: rgb(232, 17, 35) !important;
+  background: var(--window-close-hover);
   color: var(--text-inverse);
 }
 

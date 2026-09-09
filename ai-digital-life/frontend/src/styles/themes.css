@@ -179,7 +179,11 @@ html:not(.no-transition) [data-theme] {
   --danger-soft: rgba(233, 150, 122, 0.12);
   --danger-subtle: rgba(233, 150, 122, 0.08);
   --danger-muted: #e9967a;
-  --purple: #7c3aed;
+
+  /* === Window Controls === */
+  --window-close-hover: rgb(232, 17, 35);
+
+  /* === Purple === */
   --purple-soft: rgba(124, 58, 237, 0.1);
   --purple-subtle: rgba(124, 58, 237, 0.06);
 
@@ -421,6 +425,9 @@ html:not(.no-transition) [data-theme] {
   --danger-soft: rgba(233, 150, 122, 0.12);
   --danger-subtle: rgba(233, 150, 122, 0.08);
   --danger-muted: #e9967a;
+
+  /* === Window Controls (dark) === */
+  --window-close-hover: rgb(232, 17, 35);
 
   /* === Error Toast Severity (dark) === */
   --error-toast-error: #e9967a;
