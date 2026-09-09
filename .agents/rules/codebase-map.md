@@ -139,23 +139,19 @@ frontend/src/
 ├── tauri-bridge/           # Tauri 桥接子模块（27 个子文件，tauri-*.ts 按 IPC 域拆分）
 ├── mock-bridge.ts          # 纯内存回退入口（委托到 mock/ 子模块）
 ├── mock/                   # mock 桥接子模块（31 个文件，mock-*.ts + mock-shared-*.ts 可变状态）
-└── preview-bridge/         # 浏览器模式桥接模块（16 个子模块 + index.ts 组合入口）
-    ├── preview-api.ts           # 请求封装（requestPreviewApi）
+└── preview-bridge/         # 浏览器模式桥接模块（13 个子模块 + index.ts 组合入口）
     ├── preview-pty-bridge.ts    # PTY 轮询（1000ms：/pty/list + /pty/output-since）
     ├── preview-workspace.ts     # 工作区核心 + 文件 CRUD + 检索
     ├── preview-git.ts           # Git 操作
     ├── preview-search.ts        # 搜索 + 大纲
     ├── preview-events.ts        # 事件订阅
-    ├── preview-model.ts         # 模型流 + App 信息
     ├── preview-window.ts        # 窗口控制 + 浏览器导航
     ├── preview-diagnostic.ts    # 健康检查/诊断
-    ├── preview-task.ts          # CI/GitHub 集成
-    ├── preview-conversation.ts  # 会话（mock 代理）
     ├── preview-patch.ts         # 补丁（mock 代理）
-    ├── preview-command.ts       # 命令（mock 代理）
     ├── preview-storage.ts       # 存储层 re-export
     ├── preview-browser-audio.ts # 浏览器标签音频指示
-    └── preview-context.ts       # 共享类型（PreviewContext）
+    ├── preview-reachability.ts  # ad-server 可达性检测
+    └── preview-api.ts           # 已迁移至 shared/ipc/preview-api.ts
 ```
 
 ### 切片职责说明

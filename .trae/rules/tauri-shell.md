@@ -144,7 +144,7 @@ pub async fn workspace_list_tree(
 ### Bridge 文件组织
 - 命名约定：`<bridge>-<domain>.ts`（`index.ts` 作为目录入口豁免）
 - Tauri Bridge: `index.ts`(组合) + per-domain `tauri-<domain>.ts`（如 `tauri-workspace.ts`、`tauri-shared.ts`）
-- Preview Bridge: `index.ts`(组合) + `preview-api.ts`(HTTP) + `preview-storage.ts`(localStorage) + `preview-pty-bridge.ts`(轮询/SSE) + per-domain `preview-<domain>.ts`
+- Preview Bridge: `index.ts`(组合) + `preview-storage.ts`(localStorage) + `preview-pty-bridge.ts`(轮询/SSE) + per-domain `preview-<domain>.ts`（`preview-api.ts` 已迁移至 `shared/ipc/preview-api.ts`）
 - Mock Bridge: `mock-bridge.ts`(组合) + `mock-shared.ts`(共享状态) + per-domain `mock-<domain>.ts`（如 `mock-workspace.ts`、`mock-conversation.ts`）
 - 单个 bridge 文件 > 600 行时，按上述模式拆分
 
