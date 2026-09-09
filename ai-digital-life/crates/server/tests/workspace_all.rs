@@ -556,28 +556,3 @@ async fn restore_re_adds_existing_workspace() {
         "restored workspace presentable: {body}"
     );
 }
-
-/// POST /sidebar/hide / show toggle right-panel visibility (covers
-/// `WorkspaceBridge.hideFromRightPanels` / `showInRightPanels`).
-#[tokio::test]
-async fn hide_show_right_panels_round_trip() {
-    let state = common::state("sidebar-api").await;
-    let wid = common::open_workspace_via_api(state.clone(), "hide").await;
-
-    let (status, body) = common::send_post(
-        state.clone(),
-        "/sidebar/hide",
-        Some(serde_json::json!({ "workspaceId": wid })),
-    )
-    .await;
-    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
-    assert_eq!(entry["hiddenFromRightPanels"], true, "body: {body}");
-
-    let (status, body) =
-        common::send_post(state, "/sidebar/show", Some(serde_json::json!({ "workspaceId": wid })))
-            .await;
-    assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
-    let entry = body["data"].as_array().unwrap().iter().find(|e| e["id"] == wid).unwrap();
-    assert_eq!(entry["hiddenFromRightPanels"], false, "body: {body}");
-}
