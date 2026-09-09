@@ -124,9 +124,9 @@ export async function setupPreviewBridge(): Promise<void> {
     retrievalStatus: undefined,
   });
   const eventsBridge = createPreviewEventsBridge();
-  const windowBridge = await createPreviewWindowBridge();
-  const diagnosticBridge = await createPreviewDiagnosticBridge();
-  const patchBridge = await createPreviewPatchBridge();
+  const windowBridge = createPreviewWindowBridge(mockDigitalLifeBridge.window);
+  const diagnosticBridge = createPreviewDiagnosticBridge(mockDigitalLifeBridge.app);
+  const patchBridge = createPreviewPatchBridge(mockDigitalLifeBridge.patch);
 
   const workspacePreview: WorkspaceBridge = {
     ...workspace,
