@@ -1,8 +1,17 @@
 import type { UnlistenFn } from '@tauri-apps/api/event';
+import type { Window } from '@tauri-apps/api/window';
 import type { WindowBridge } from '../shared/ipc/window';
 
-let windowModule: typeof import('@tauri-apps/api/window') | undefined;
-let shellModule: typeof import('@tauri-apps/plugin-shell') | undefined;
+interface TauriWindowModule {
+  getCurrentWindow(): Window;
+}
+
+interface TauriShellModule {
+  open(path: string, openWith?: string): Promise<void>;
+}
+
+let windowModule: TauriWindowModule | undefined;
+let shellModule: TauriShellModule | undefined;
 
 async function getWin() {
   windowModule ??= await import('@tauri-apps/api/window');

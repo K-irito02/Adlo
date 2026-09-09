@@ -29,7 +29,6 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     activeTabRef,
     overlayActiveRef,
     webViewActiveRef,
-    hideWebViewRequestedRef,
   } = options;
 
   const primaryRef = useRef<HTMLDivElement | null>(null);

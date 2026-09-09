@@ -202,7 +202,7 @@ export function useRightPanelLayout(collapsed: boolean) {
 
       return { nextWidth, nextMode, effectiveAnchorWidth };
     },
-    [deriveRightPanelMode, readLayoutMetrics, syncOverlayClasses, collapsed],
+    [deriveRightPanelMode, readLayoutMetrics, syncOverlayClasses],
   );
 
   const handleResizeStart = useCallback(
