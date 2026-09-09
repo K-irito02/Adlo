@@ -87,6 +87,13 @@ function preferHttpWhenReachable<T extends object>(
   return proxy as unknown as T;
 }
 
+/**
+ * Set up the browser-mode DigitalLifeBridge on `window.digitalLife`.
+ *
+ * @returns {Promise<void>} Must be `await`-ed by the caller. Skipping the
+ *   `await` causes a race condition where React renders before the bridge is
+ *   ready.
+ */
 export async function setupPreviewBridge(): Promise<void> {
   if (typeof window === 'undefined' || (window as { digitalLife?: unknown }).digitalLife) {
     return;

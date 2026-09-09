@@ -2,6 +2,7 @@ import type { UnlistenFn } from '@tauri-apps/api/event';
 import type { WindowBridge } from '../shared/ipc/window';
 
 let windowModule: typeof import('@tauri-apps/api/window') | undefined;
+let shellModule: typeof import('@tauri-apps/plugin-shell') | undefined;
 
 async function getWin() {
   windowModule ??= await import('@tauri-apps/api/window');
@@ -17,8 +18,8 @@ export function createTauriWindowBridge(): WindowBridge {
     setTitle: (title: string) => getWin().then((w) => w.setTitle(title)),
     show: () => getWin().then((w) => w.show()),
     openExternal: async (url: string) => {
-      const { open } = await import('@tauri-apps/plugin-shell');
-      return open(url);
+      shellModule ??= await import('@tauri-apps/plugin-shell');
+      return shellModule.open(url);
     },
     onResized: (listener: () => void) => {
       let active = true;
