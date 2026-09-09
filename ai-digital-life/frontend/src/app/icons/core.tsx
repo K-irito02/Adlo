@@ -16,7 +16,6 @@ export const IconMenu = make(
 );
 
 export const IconMinus = make(<path d="M5 12h14" />);
-export const IconSquare = make(<rect x="4" y="4" width="16" height="16" rx="2" />);
 
 /**
  * 新标签页图标（browser/page/website/web/interface 语义）：圆角窗口 + 标题栏两点。

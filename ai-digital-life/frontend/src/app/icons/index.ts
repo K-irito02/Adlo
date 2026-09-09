@@ -4,7 +4,6 @@ export {
   IconLogo,
   IconMenu,
   IconMinus,
-  IconSquare,
   IconClose,
   IconPanelLeft,
   IconPanelRight,
