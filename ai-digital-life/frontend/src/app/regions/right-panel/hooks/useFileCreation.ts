@@ -113,11 +113,20 @@ function useFileCreation(input: UseFileCreationInput): UseFileCreationResult {
     return () => window.clearTimeout(timer);
   }, [createTarget]);
 
-  const startCreate = useCallback((target: 'file' | 'folder') => {
-    // 对话框不预填任何路径，仅需用户输入名称。
-    setCreateTarget(target);
-    setCreatePathValue('');
-  }, []);
+  const startCreate = useCallback(
+    (target: 'file' | 'folder') => {
+      // 检查是否有可用的工作区：如果没有可用的工作区，直接显示提示而不是打开对话框。
+      const targetWorkspaceId = resolveTargetWorkspaceId(input);
+      if (!targetWorkspaceId) {
+        useAppStore.getState().showToast(t.fileNoWorkspace as string, 'warning');
+        return;
+      }
+      // 对话框不预填任何路径，仅需用户输入名称。
+      setCreateTarget(target);
+      setCreatePathValue('');
+    },
+    [input, t],
+  );
 
   const cancelCreate = useCallback(() => {
     setCreateTarget(null);

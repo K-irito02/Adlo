@@ -64,6 +64,44 @@ describe('useFileCreation default creation value', () => {
 
     expect(result.current.createPathValue).toBe('');
   });
+
+  it('does not open dialog when there is no workspace', () => {
+    const { result } = renderHook(
+      () =>
+        useFileCreation(
+          makeInput({
+            selectedFilePath: undefined,
+            activeWorkspaceId: undefined,
+            recentWorkspaces: [],
+          }),
+        ),
+      { wrapper },
+    );
+
+    act(() => result.current.startCreate('file'));
+
+    expect(result.current.createTarget).toBeNull();
+    expect(result.current.createPathValue).toBe('');
+  });
+
+  it('does not open dialog when there is no workspace for folder creation', () => {
+    const { result } = renderHook(
+      () =>
+        useFileCreation(
+          makeInput({
+            selectedFilePath: undefined,
+            activeWorkspaceId: undefined,
+            recentWorkspaces: [],
+          }),
+        ),
+      { wrapper },
+    );
+
+    act(() => result.current.startCreate('folder'));
+
+    expect(result.current.createTarget).toBeNull();
+    expect(result.current.createPathValue).toBe('');
+  });
 });
 
 describe('useFileCreation submit target workspace', () => {

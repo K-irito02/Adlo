@@ -18,3 +18,4 @@
 - [progress-2026-09-09-120000.md](./progress-2026-09-09-120000.md) — 构建警告修复: INEFFECTIVE_DYNAMIC_IMPORT(2项) + chunk大小超500kB, preview-bridge懒加载, vendor-codemirror拆分
 - [progress-2026-09-09-140000.md](./progress-2026-09-09-140000.md) — preview-api跨目录依赖修复, mock-bridge动态导入, chunk阈值调整
 - [progress-2026-09-09-193050.md](./progress-2026-09-09-193050.md) — 工作区加载优化: DB恢复currentWorkspace、无currentWorkspace预加载、进程内树缓存、右键菜单语义变更、loading动画、竞态修复、调试日志清理
+- [progress-2026-09-10-100413.md](./progress-2026-09-10-100413.md) — 文件面板"新建文件/文件夹"按钮在没有选择目录时仍弹出对话框修复
