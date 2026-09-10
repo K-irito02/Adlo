@@ -87,6 +87,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
       xtermRef.current?.clear();
       terminalCreateTab(finalProfile, workspaceId ?? '');
+      // 捕获新标签 id：create await 期间用户可能切换标签，
+      // 用固定 id 而非"当前活动标签"挂载 sessionId，避免挂错标签
+      const createdTabId = useAppStore.getState().terminalActiveTabId;
 
       let cwd: string | undefined;
       if (workspaceId) {
@@ -112,10 +115,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           const sessionId = result.data.sessionId;
           // 与 handleSelectTab 一致：回放窗口内抑制 live 输出，避免重复显示
           restoringSessionRef.current = sessionId;
-          terminalUpdateActiveTab({ sessionId, status: 'running' });
+          terminalUpdateTab(createdTabId, { sessionId, status: 'running' });
 
           setTimeout(() => {
-            // 已被更新的切换/创建覆盖，或当前活动标签已不是该会话时，丢弃过期回放
+            // 已被更新的切换/创建覆盖，或当前活动标签已不是该会话时，丢弃过期回放。
+            // 注意：此处不清 restoringSessionRef —— 共享守卫可能已被更新的切换占用，
+            // 清除会误伤紧随的切换回放；守卫残留对非活动会话无实际影响（下次切换会覆盖）。
             if (restoringSessionRef.current !== sessionId || !isActiveSession(sessionId)) {
               return;
             }
@@ -131,7 +136,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           /* terminal creation failed */
           const errorMsg = result.error?.message || 'Unknown error';
           console.error('Terminal creation failed:', errorMsg);
-          terminalUpdateActiveTab({ status: 'terminated' });
+          terminalUpdateTab(createdTabId, { status: 'terminated' });
           setTimeout(() => {
             xtermRef.current?.write(
               `\r\n\x1b[31mError: Failed to start ${finalProfile} terminal.\x1b[0m\r\n`,
@@ -147,7 +152,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       } catch (err) {
         /* terminal creation error */
         console.error('Terminal creation error:', err);
-        terminalUpdateActiveTab({ status: 'terminated' });
+        terminalUpdateTab(createdTabId, { status: 'terminated' });
         setTimeout(() => {
           xtermRef.current?.write(
             `\r\n\x1b[31mError: Failed to start ${finalProfile} terminal.\x1b[0m\r\n`,
@@ -158,7 +163,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         }, 50);
       }
     },
-    [terminalCreateTab, terminalUpdateActiveTab, recentWorkspaces],
+    [terminalCreateTab, terminalUpdateTab, recentWorkspaces],
   );
 
   const handleSelectTab = useCallback(
@@ -171,7 +176,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         restoringSessionRef.current = sessionId;
         xtermRef.current?.clear();
         setTimeout(() => {
-          // 已被更新的切换覆盖，或当前活动标签已不是该会话时，丢弃过期回放
+          // 已被更新的切换覆盖，或当前活动标签已不是该会话时，丢弃过期回放。
+          // 此处不清 restoringSessionRef（见 handleCreateTab 同款注释）。
           if (restoringSessionRef.current !== sessionId || !isActiveSession(sessionId)) {
             return;
           }

@@ -1,11 +1,13 @@
-use crate::traits::{PtySession, PtyStatus, PtySystem};
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use rust_pty::{
     NativePtySystem, PtyConfig, PtySystem as RustPtySystem, WindowsPtyChild, WindowsPtyMaster,
 };
-use std::sync::Arc;
 use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
+
+use crate::traits::{PtySession, PtyStatus, PtySystem};
 
 /// 发往 reader task 的 PTY 命令。
 ///
@@ -34,7 +36,7 @@ impl PtySystem for RustPtySystemImpl {
         cols: u16,
         rows: u16,
     ) -> Result<Self::Session, std::io::Error> {
-        tracing::info!(
+        tracing::debug!(
             program = %program,
             args = ?args,
             cwd = %cwd,

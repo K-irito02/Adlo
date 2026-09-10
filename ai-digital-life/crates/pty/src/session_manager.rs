@@ -91,6 +91,8 @@ impl AsyncSessionManager {
         let reader_task = tokio::spawn(async move {
             tracing::debug!(session_id = %sid, "Reader task started");
             let mut buf = [0u8; 4096];
+            // 跨读边界保留不完整的 UTF-8 尾字节，避免 from_utf8_lossy 产生乱码
+            let mut carry: Vec<u8> = Vec::new();
             loop {
                 tokio::select! {
                     read_result = session_clone.read(&mut buf) => {
@@ -101,8 +103,42 @@ impl AsyncSessionManager {
                             },
                             Ok(n) => {
                                 tracing::trace!(session_id = %sid, bytes = n, "Reader task: read output");
-                                let data = String::from_utf8_lossy(&buf[..n]).to_string();
-                                emitter.emit_output(&sid, &data).await;
+                                carry.extend_from_slice(&buf[..n]);
+                                // 将 carry 切分为可发射部分，仅保留末尾不完整的 UTF-8 尾字节。
+                                // 无效序列（如中文 Windows cmd 的 GBK 输出）逐字节 lossy，
+                                // 但本次读的发射内容累积后一次性发出，避免产生大量单字符 WS 帧。
+                                let mut to_emit = String::new();
+                                loop {
+                                    match std::str::from_utf8(&carry) {
+                                        Ok(_) => {
+                                            to_emit.push_str(&String::from_utf8_lossy(&carry));
+                                            carry.clear();
+                                            break;
+                                        },
+                                        Err(e) => {
+                                            let valid_len = e.valid_up_to();
+                                            if valid_len > 0 {
+                                                to_emit.push_str(
+                                                    &String::from_utf8_lossy(&carry[..valid_len]),
+                                                );
+                                                carry.drain(..valid_len);
+                                                continue;
+                                            }
+                                            match e.error_len() {
+                                                // 末尾不完整序列：保留待下一次读补齐
+                                                None => break,
+                                                // 无效字节：以替换符累积，本次读末统一发射
+                                                Some(_) => {
+                                                    to_emit.push('\u{FFFD}');
+                                                    carry.drain(..1);
+                                                },
+                                            }
+                                        },
+                                    }
+                                }
+                                if !to_emit.is_empty() {
+                                    emitter.emit_output(&sid, &to_emit).await;
+                                }
                             },
                             Err(e) => {
                                 tracing::warn!(error = %e, session_id = %sid, "Reader task: read error");
@@ -117,9 +153,28 @@ impl AsyncSessionManager {
                                 let mut master = master_handle.lock().await;
                                 match master.as_mut() {
                                     Some(m) => {
-                                        if let Err(e) = m.write_all(&data).await {
-                                            tracing::warn!(error = %e, session_id = %sid, "Reader task: master write failed");
-                                            break;
+                                        // rust-pty 的 poll_write 为同步阻塞 WriteFile（4KB 字节模式管道），
+                                        // 且不返回 Pending（timeout 无法中断，仅尽力而为）。
+                                        // 分块 ≤4KB 限制单次阻塞时长；子进程长期不读输入时，
+                                        // 写超时（若有）后丢弃余量，避免读循环饿死。
+                                        for chunk in data.chunks(4096) {
+                                            match tokio::time::timeout(
+                                                std::time::Duration::from_secs(5),
+                                                m.write(chunk),
+                                            )
+                                            .await
+                                            {
+                                                Ok(Ok(0)) => break,
+                                                Ok(Ok(_)) => {},
+                                                Ok(Err(e)) => {
+                                                    tracing::warn!(error = %e, session_id = %sid, "Reader task: master write failed");
+                                                    break;
+                                                },
+                                                Err(_) => {
+                                                    tracing::warn!(session_id = %sid, "Reader task: master write timed out, dropping remaining input");
+                                                    break;
+                                                },
+                                            }
                                         }
                                     },
                                     None => break,
@@ -157,7 +212,14 @@ impl AsyncSessionManager {
         });
 
         let mut sessions = self.sessions.write().await;
-        sessions.insert(session_id.clone(), PtySessionHandle { session, reader_task });
+        let handle = PtySessionHandle { session, reader_task };
+        // 竞态防护：若会话在插入前已快速退出（如 `cmd /c exit`，reader 自清理先于插入），
+        // 则不保留僵尸条目，避免 list() 永久显示 Running。
+        if handle.reader_task.is_finished() {
+            tracing::warn!(session_id = %session_id, "PTY session exited before registration, discarding");
+            return Err(AppError::Terminal("PTY session exited immediately".to_string()));
+        }
+        sessions.insert(session_id.clone(), handle);
 
         tracing::info!(session_id = %session_id, shell = %shell, "pty session created successfully");
         Ok(session_id)

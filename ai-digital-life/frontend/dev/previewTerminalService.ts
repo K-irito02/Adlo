@@ -123,6 +123,11 @@ function createId(): string {
   return `pty-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** 空 cwd 时解析用户主目录（与 crates/server pty_ws.rs default_terminal_cwd 对齐） */
+function defaultCwd(): string {
+  return process.env.USERPROFILE || process.env.HOME || process.cwd();
+}
+
 /* ---- /pty WebSocket protocol ---- */
 
 /**
@@ -172,9 +177,14 @@ export function setupPreviewTerminalWs(httpServer: HttpServer): void {
       }
 
       const kind = frame.kind;
+      if (kind === 'ping') {
+        // 心跳保活：连接层处理，与 ad-server 行为一致
+        send({ kind: 'pong' });
+        return;
+      }
       if (kind === 'create') {
         const shell = frame.shell && frame.shell !== '' ? frame.shell : 'powershell';
-        const cwd = frame.cwd && frame.cwd !== '' ? frame.cwd : process.cwd();
+        const cwd = frame.cwd && frame.cwd !== '' ? frame.cwd : defaultCwd();
         const cols = frame.cols ?? 80;
         const rows = frame.rows ?? 24;
         const sessionId = createId();
@@ -210,6 +220,7 @@ export function setupPreviewTerminalWs(httpServer: HttpServer): void {
         ptyProcess.onData((data: string) => send({ kind: 'output', sessionId, data }));
         ptyProcess.onExit(() => {
           sessions.delete(sessionId);
+          send({ kind: 'terminated', sessionId });
         });
         send({ kind: 'created', sessionId });
         return;
@@ -246,6 +257,7 @@ export function setupPreviewTerminalWs(httpServer: HttpServer): void {
       if (kind === 'kill') {
         const session = frame.sessionId ? sessions.get(frame.sessionId) : undefined;
         if (session) {
+          // kill 触发进程退出 → onExit 回调统一发送 terminated，避免重复帧
           session.process.kill();
           sessions.delete(frame.sessionId as string);
         }

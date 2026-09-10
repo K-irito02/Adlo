@@ -14,7 +14,8 @@ import type { PtyOutputEvent, PtySessionInfo } from './pty';
  *                    `{kind:"ping"}` (connection-layer heartbeat)
  *   server → client: `{kind:"created",sessionId}`,
  *                    `{kind:"output",sessionId,data}`,
- *                    `{kind:"terminated",sessionId}` (shell exited / killed),
+ *                    `{kind:"terminated",sessionId}` (shell 自然退出：EOF/错误；
+ *                    显式 kill 由客户端乐观更新标签状态，服务端不补发),
  *                    `{kind:"error",sessionId?,message}`,
  *                    `{kind:"pong"}` (reply to `ping`)
  *
@@ -61,6 +62,8 @@ const WS_CONNECTING = 0;
 const WS_OPEN = 1;
 
 const CREATE_TIMEOUT_MS = 30_000;
+/** 心跳超时阈值：超过该时长未收到 pong 才判定连接失效（60s，宽松阈值避免误杀活跃会话） */
+const HEARTBEAT_TIMEOUT_MS = 60_000;
 
 interface CreateResolver {
   input: { shell?: string; cwd?: string; cols: number; rows: number };
@@ -112,16 +115,28 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       clearInterval(heartbeatTimer);
     }
     lastPongTime = Date.now();
+    // 连续漏检计数：睡眠唤醒/后台节流后首次 tick 可能出现超大 gap，
+    // 但下一次 ping 通常已收到 pong（本地服务毫秒级响应），不会误杀会话。
+    let consecutiveMisses = 0;
     heartbeatTimer = setInterval(() => {
+      // 先无条件 ping：即使处于漏检状态也保持探测，确保 pong 能刷新 lastPongTime 自愈
+      sendFrame({ kind: 'ping' });
+      // 窗口隐藏时定时器被节流（interval 可能 1 次/分钟），据此判死会误杀会话
+      if (document.hidden) {
+        consecutiveMisses = 0;
+        return;
+      }
       const timeSinceLastPong = Date.now() - lastPongTime;
-      if (timeSinceLastPong > 15000) {
-        // No pong received for 15 seconds, connection might be dead.
-        // 重连统一由 onclose 调度，避免双重新连计时器。
-        console.warn(`PTY heartbeat: no pong for ${timeSinceLastPong}ms, reconnecting`);
-        socket?.close();
+      if (timeSinceLastPong > HEARTBEAT_TIMEOUT_MS) {
+        consecutiveMisses += 1;
+        // 连续 2 次漏检才判定连接失效，规避瞬时抖动/后台节流误杀活跃会话
+        if (consecutiveMisses >= 2) {
+          console.warn(`PTY heartbeat: no pong for ${timeSinceLastPong}ms, reconnecting`);
+          // 重连统一由 onclose 调度，避免双重新连计时器
+          socket?.close();
+        }
       } else {
-        // Send ping
-        sendFrame({ kind: 'ping' });
+        consecutiveMisses = 0;
       }
     }, 5000);
   }
@@ -246,6 +261,8 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
         return;
       }
       // Dead socket (CLOSED) whose `onclose` has not run yet — replace it.
+      // 先停掉旧心跳，避免替换后双心跳 interval 泄漏
+      stopHeartbeat();
       socket = null;
     }
     const wsUrl = toWsUrl(baseUrl);

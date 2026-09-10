@@ -52,11 +52,14 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
     // Spawn a sender task that reads from send_rx and writes to sink
     let sender_task = tokio::spawn(async move {
         tracing::trace!("pty_ws sender: task started");
+        // 连续发送超时计数：客户端半死时避免逐消息 5s 死等（排空阶段最多 ~10s）
+        let mut consecutive_timeouts = 0u32;
         while let Some(msg) = send_rx.recv().await {
             tracing::trace!("pty_ws sender: sending message");
             // Use timeout to avoid blocking forever on slow clients
             match tokio::time::timeout(std::time::Duration::from_secs(5), sink.send(msg)).await {
                 Ok(Ok(())) => {
+                    consecutive_timeouts = 0;
                     tracing::trace!("pty_ws sender: message sent");
                 },
                 Ok(Err(e)) => {
@@ -64,8 +67,12 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
                     break;
                 },
                 Err(_) => {
+                    consecutive_timeouts += 1;
                     tracing::warn!("pty_ws sender: send timed out, dropping message");
-                    // Continue processing next messages instead of breaking
+                    // 连续超时视为客户端已死，结束排空以尽快进入清理（kill 会话）
+                    if consecutive_timeouts >= 2 {
+                        break;
+                    }
                 },
             }
         }
@@ -163,8 +170,16 @@ async fn dispatch_frame(
                 .filter(|s| !s.is_empty())
                 .map(ToOwned::to_owned)
                 .unwrap_or_else(default_terminal_cwd);
-            let cols = value.get("cols").and_then(|c| c.as_u64()).unwrap_or(80) as u16;
-            let rows = value.get("rows").and_then(|c| c.as_u64()).unwrap_or(24) as u16;
+            let cols = value
+                .get("cols")
+                .and_then(|c| c.as_u64())
+                .and_then(|c| u16::try_from(c).ok())
+                .unwrap_or(80);
+            let rows = value
+                .get("rows")
+                .and_then(|c| c.as_u64())
+                .and_then(|c| u16::try_from(c).ok())
+                .unwrap_or(24);
 
             tracing::info!(
                 shell = %shell,
@@ -200,8 +215,16 @@ async fn dispatch_frame(
             let Some(sid) = value.get("sessionId").and_then(|s| s.as_str()) else {
                 return (Some(error_message(None, "resize frame missing sessionId")), None);
             };
-            let cols = value.get("cols").and_then(|c| c.as_u64()).unwrap_or(80) as u16;
-            let rows = value.get("rows").and_then(|c| c.as_u64()).unwrap_or(24) as u16;
+            let cols = value
+                .get("cols")
+                .and_then(|c| c.as_u64())
+                .and_then(|c| u16::try_from(c).ok())
+                .unwrap_or(80);
+            let rows = value
+                .get("rows")
+                .and_then(|c| c.as_u64())
+                .and_then(|c| u16::try_from(c).ok())
+                .unwrap_or(24);
             match state.pty_sessions.resize(sid, cols, rows).await {
                 Ok(()) => (None, None),
                 Err(e) => (Some(error_message(Some(sid), &e.to_string())), None),

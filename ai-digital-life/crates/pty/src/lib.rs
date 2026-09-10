@@ -1,5 +1,3 @@
-#[cfg(any(test, feature = "mock"))]
-pub mod mock;
 pub mod rust_pty_impl;
 pub mod session_manager;
 pub mod shell_resolver;
