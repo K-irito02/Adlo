@@ -22,7 +22,7 @@
 }
 
 .adl-tool-panel--changes .adl-file-context__dropdown .adl-menu__item {
-  justify-content: flex-start;
+  justify-content: space-between;
   width: 100%;
 }
 
