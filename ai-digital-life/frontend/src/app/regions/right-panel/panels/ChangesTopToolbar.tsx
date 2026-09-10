@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconEye, IconMoreVertical, IconPanelLeft, IconPanelLeftClose } from '@icons';
+import { IconCheck, IconEye, IconMoreVertical, IconPanelLeft, IconPanelLeftClose } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -150,7 +150,11 @@ export function ChangesTopToolbar({
                     }}
                   >
                     <span>{item.label}</span>
-                    {item.checked ? <span className="adl-menu__check">√</span> : null}
+                    {item.checked ? (
+                      <span className="adl-menu__check">
+                        <IconCheck size={14} decorative />
+                      </span>
+                    ) : null}
                   </button>
                 ),
               )}

@@ -194,13 +194,15 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       { id: 'sep-2', separator: true },
       {
         id: 'line-numbers',
-        label: `${t.fileLineNumbers} ${editorOptions.lineNumbersEnabled ? '✔' : ''}`.trim(),
+        label: t.fileLineNumbers as string,
+        checked: editorOptions.lineNumbersEnabled,
         action: () => editorOptions.setLineNumbersEnabled((v) => !v),
       },
       {
         id: 'word-wrap',
-        label: `${t.fileWordWrap} ${editorOptions.wordWrapEnabled ? '✔' : ''}`.trim(),
+        label: t.fileWordWrap as string,
         shortcut: t.fileWordWrapShortcut as string,
+        checked: editorOptions.wordWrapEnabled,
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },
     ],
@@ -271,13 +273,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
               <IconEye size={14} decorative />
             </button>
           </TooltipSimple>
-          <FileContextMenu
-            menuItems={fileMenuItems}
-            checkState={{
-              lineNumbersEnabled: editorOptions.lineNumbersEnabled,
-              wordWrapEnabled: editorOptions.wordWrapEnabled,
-            }}
-          />
+          <FileContextMenu menuItems={fileMenuItems} />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { IconMoreVertical } from '@icons';
+import { IconCheck, IconMoreVertical } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -8,6 +8,7 @@ interface FileMenuItem {
   label: string;
   shortcut?: string;
   disabled?: boolean;
+  checked?: boolean;
   action?: () => void;
 }
 
@@ -20,13 +21,9 @@ type FileMenuEntry = FileMenuItem | FileMenuDivider;
 
 interface FileContextMenuProps {
   menuItems: FileMenuEntry[];
-  checkState: {
-    lineNumbersEnabled: boolean;
-    wordWrapEnabled: boolean;
-  };
 }
 
-function FileContextMenu({ menuItems, checkState }: FileContextMenuProps) {
+function FileContextMenu({ menuItems }: FileContextMenuProps) {
   const { t } = useTCopy();
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
@@ -67,17 +64,9 @@ function FileContextMenu({ menuItems, checkState }: FileContextMenuProps) {
               <button
                 key={item.id}
                 type="button"
-                role="menuitemcheckbox"
+                role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
                 aria-checked={
-                  item.id === 'line-numbers'
-                    ? checkState.lineNumbersEnabled
-                      ? 'true'
-                      : 'false'
-                    : item.id === 'word-wrap'
-                      ? checkState.wordWrapEnabled
-                        ? 'true'
-                        : 'false'
-                      : undefined
+                  item.checked === undefined ? undefined : item.checked ? 'true' : 'false'
                 }
                 className="adl-menu__item"
                 disabled={item.disabled}
@@ -90,6 +79,11 @@ function FileContextMenu({ menuItems, checkState }: FileContextMenuProps) {
               >
                 <span>{item.label}</span>
                 {item.shortcut ? <span className="adl-menu__shortcut">{item.shortcut}</span> : null}
+                {item.checked ? (
+                  <span className="adl-menu__check">
+                    <IconCheck size={14} decorative />
+                  </span>
+                ) : null}
               </button>
             ),
           )}

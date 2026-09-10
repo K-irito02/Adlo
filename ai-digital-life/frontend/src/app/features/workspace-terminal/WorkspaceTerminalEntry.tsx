@@ -5,6 +5,7 @@ import type { CopyDict } from '@i18n';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import type { TerminalProfile } from '@stores/types';
 import {
+  IconCheck,
   IconRefreshCw,
   IconDelete,
   IconPlus,
@@ -247,7 +248,9 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                         {profileLabels[profile]}
                       </span>
                       {profile === currentProfile ? (
-                        <span className="adl-multitree-entry__menu-item-check">√</span>
+                        <span className="adl-multitree-entry__menu-item-check">
+                          <IconCheck size={12} decorative />
+                        </span>
                       ) : null}
                     </button>
                   ))}
