@@ -19,3 +19,4 @@
 - [progress-2026-09-09-140000.md](./progress-2026-09-09-140000.md) — preview-api跨目录依赖修复, mock-bridge动态导入, chunk阈值调整
 - [progress-2026-09-09-193050.md](./progress-2026-09-09-193050.md) — 工作区加载优化: DB恢复currentWorkspace、无currentWorkspace预加载、进程内树缓存、右键菜单语义变更、loading动画、竞态修复、调试日志清理
 - [progress-2026-09-10-100413.md](./progress-2026-09-10-100413.md) — 文件面板"新建文件/文件夹"按钮在没有选择目录时仍弹出对话框修复
+- [progress-2026-09-10-193847.md](./progress-2026-09-10-193847.md) — 终端面板新建终端失败(PTY锁竞争/WS冻结/重连风暴), 标签切换无效, 默认终端目录路径

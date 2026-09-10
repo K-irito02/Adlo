@@ -64,10 +64,6 @@ export function TerminalPanel() {
     contextMenu,
   } = terminalState;
 
-  console.log(
-    `[ADL-DEBUG] TerminalPanel rendered: hasActiveTab=${hasActiveTab}, activeTab=${activeTab ? JSON.stringify({ id: activeTab.id, sessionId: activeTab.sessionId, status: activeTab.status }) : 'undefined'}, terminalTabs.length=${terminalTabs.length}`,
-  );
-
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
   const visibleWorkspaces = useMemo(
@@ -293,9 +289,6 @@ export function TerminalPanel() {
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
             {hasActiveTab ? (
               <>
-                {console.log(
-                  `[ADL-DEBUG] Rendering XtermTerminal: xtermRef exists=${!!xtermRef}, activeTab.sessionId=${activeTab?.sessionId}`,
-                )}
                 <XtermTerminal
                   ref={xtermRef}
                   className="adl-terminal-canvas"

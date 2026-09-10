@@ -7,26 +7,6 @@ pub enum PtyStatus {
     Terminated,
 }
 
-/// 退出状态
-#[derive(Debug, Clone, Copy)]
-pub enum ExitStatus {
-    Exited(u32),
-    Signaled(i32),
-}
-
-impl ExitStatus {
-    pub fn success(&self) -> bool {
-        matches!(self, ExitStatus::Exited(0))
-    }
-
-    pub fn exit_code(&self) -> u32 {
-        match self {
-            ExitStatus::Exited(code) => *code,
-            ExitStatus::Signaled(sig) => *sig as u32,
-        }
-    }
-}
-
 /// PTY 会话 trait
 #[async_trait]
 pub trait PtySession: Send + Sync {
@@ -56,12 +36,6 @@ pub trait PtySession: Send + Sync {
 
     /// 终止会话
     async fn kill(&self) -> std::result::Result<(), std::io::Error>;
-
-    /// 等待会话结束
-    async fn wait(&self) -> std::result::Result<ExitStatus, std::io::Error>;
-
-    /// 非阻塞检查退出状态
-    fn try_wait(&self) -> std::result::Result<Option<ExitStatus>, std::io::Error>;
 }
 
 /// PTY 系统 trait

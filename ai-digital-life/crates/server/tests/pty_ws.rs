@@ -96,7 +96,7 @@ async fn pty_ws_input_on_unknown_session_yields_error_frame() {
 }
 
 #[tokio::test]
-#[ignore = "ConPTY CreatePseudoConsole returns ERROR_INVALID_HANDLE from the non-interactive test process (third-party/OS env limitation)"]
+#[ignore = "ConPTY CreatePseudoConsole returns ERROR_INVALID_HANDLE in the non-interactive test process (verified with rust-pty 0.6: 'failed to create pseudo console (code: 2147942406)'); OS env limitation — run manually in an interactive session"]
 async fn pty_ws_create_returns_session_id() {
     let (mut sock, _port) = connect_pty_socket().await;
     sock.send(WsMessage::Text(create_frame().into())).await.expect("send create");
@@ -106,7 +106,7 @@ async fn pty_ws_create_returns_session_id() {
 }
 
 #[tokio::test]
-#[ignore = "ConPTY CreatePseudoConsole returns ERROR_INVALID_HANDLE from the non-interactive test process (third-party/OS env limitation)"]
+#[ignore = "ConPTY CreatePseudoConsole returns ERROR_INVALID_HANDLE in the non-interactive test process (verified with rust-pty 0.6); OS env limitation — run manually in an interactive session"]
 async fn pty_ws_echo_round_trip() {
     let (mut sock, _port) = connect_pty_socket().await;
     sock.send(WsMessage::Text(create_frame().into())).await.expect("send create");

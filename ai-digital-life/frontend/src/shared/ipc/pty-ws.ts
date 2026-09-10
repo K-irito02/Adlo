@@ -10,10 +10,15 @@ import type { PtyOutputEvent, PtySessionInfo } from './pty';
  *   client → server: `{kind:"create",shell?,cwd?,cols,rows}`,
  *                    `{kind:"input",sessionId,data}`,
  *                    `{kind:"resize",sessionId,cols,rows}`,
- *                    `{kind:"kill",sessionId}`
+ *                    `{kind:"kill",sessionId}`,
+ *                    `{kind:"ping"}` (connection-layer heartbeat)
  *   server → client: `{kind:"created",sessionId}`,
  *                    `{kind:"output",sessionId,data}`,
- *                    `{kind:"error",sessionId?,message}`
+ *                    `{kind:"terminated",sessionId}` (shell exited / killed),
+ *                    `{kind:"error",sessionId?,message}`,
+ *                    `{kind:"pong"}` (reply to `ping`)
+ *
+ * ping/pong 由连接层处理（`handleMessage` 提前拦截），不进入业务分发。
  *
  * The client keeps a single socket, queues outbound frames while it is
  * (re)connecting, reconnects with exponential backoff, resolves `create` when
@@ -92,16 +97,12 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
 
   function sendFrame(frame: unknown): void {
     if (closed) {
-      console.log(`[ADL-DEBUG] PTY sendFrame: closed, not sending`);
       return;
     }
     const text = JSON.stringify(frame);
-    console.log(`[ADL-DEBUG] PTY sendFrame: readyState=${socket?.readyState}, text=${text.substring(0, 100)}`);
     if (socket !== null && socket.readyState === WS_OPEN) {
       socket.send(text);
-      console.log(`[ADL-DEBUG] PTY sendFrame: sent`);
     } else {
-      console.log(`[ADL-DEBUG] PTY sendFrame: queuing in outbox`);
       outbox.push(text);
     }
   }
@@ -114,19 +115,10 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     heartbeatTimer = setInterval(() => {
       const timeSinceLastPong = Date.now() - lastPongTime;
       if (timeSinceLastPong > 15000) {
-        // No pong received for 15 seconds, connection might be dead
-        console.warn(`[ADL-DEBUG] PTY heartbeat: no pong for ${timeSinceLastPong}ms, reconnecting`);
-        if (socket !== null) {
-          socket.close();
-          socket = null;
-        }
-        if (!closed) {
-          reconnectTimer = setTimeout(() => {
-            reconnectTimer = null;
-            ensureConnected();
-          }, reconnectDelay);
-          reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelayMs);
-        }
+        // No pong received for 15 seconds, connection might be dead.
+        // 重连统一由 onclose 调度，避免双重新连计时器。
+        console.warn(`PTY heartbeat: no pong for ${timeSinceLastPong}ms, reconnecting`);
+        socket?.close();
       } else {
         // Send ping
         sendFrame({ kind: 'ping' });
@@ -174,7 +166,11 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     } catch {
       return;
     }
-    console.log(`[ADL-DEBUG] PTY WebSocket message: kind=${frame.kind}, sessionId=${frame.sessionId}`);
+    // 心跳 pong 响应：仅刷新最后 pong 时间
+    if (frame.kind === 'pong') {
+      lastPongTime = Date.now();
+      return;
+    }
     switch (frame.kind) {
       case 'output': {
         if (frame.sessionId === undefined) {
@@ -186,7 +182,6 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       }
       case 'created': {
         const sessionId = frame.sessionId ?? '';
-        console.log(`[ADL-DEBUG] PTY session created: ${sessionId}`);
         if (sessionId !== '') {
           const input = pendingCreate?.input;
           knownSessions.set(sessionId, {
@@ -201,19 +196,22 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
         resolveCreate({ ok: true, data: { sessionId } });
         return;
       }
+      case 'terminated': {
+        const sessionId = frame.sessionId ?? '';
+        if (sessionId !== '') {
+          knownSessions.delete(sessionId);
+          listeners.forEach((fn) => fn({ sessionId, data: '', terminated: true }));
+        }
+        return;
+      }
       case 'error': {
         const message = frame.message ?? 'PTY server error';
-        console.error(`[ADL-DEBUG] PTY server error: ${message}`);
         if (pendingCreate !== null) {
+          console.error(`PTY create failed: ${message}`);
           resolveCreate(ptyError(message));
         } else {
           console.warn('[pty-ws] server error:', message);
         }
-        return;
-      }
-      case 'ping': {
-        // Server ping, respond with pong
-        sendFrame({ kind: 'pong' });
         return;
       }
       default:
@@ -234,30 +232,26 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
         ws.close();
       } catch {
         // already closing / never opened
+        console.warn('PTY closeSocket: ws.close() threw (already closing / never opened)');
       }
     }
   }
 
   function ensureConnected(): void {
     if (closed || reconnectTimer !== null) {
-      console.log(`[ADL-DEBUG] PTY ensureConnected: closed=${closed}, reconnectTimer=${reconnectTimer !== null}`);
       return;
     }
     if (socket !== null) {
       if (socket.readyState === WS_OPEN || socket.readyState === WS_CONNECTING) {
-        console.log(`[ADL-DEBUG] PTY ensureConnected: socket exists, readyState=${socket.readyState}`);
         return;
       }
       // Dead socket (CLOSED) whose `onclose` has not run yet — replace it.
-      console.log(`[ADL-DEBUG] PTY ensureConnected: dead socket, readyState=${socket.readyState}, replacing`);
       socket = null;
     }
     const wsUrl = toWsUrl(baseUrl);
-    console.log(`[ADL-DEBUG] PTY WebSocket connecting to: ${wsUrl}`);
     const ws = (wsFactory ?? (() => new WebSocket(wsUrl)))();
     socket = ws;
     ws.onopen = () => {
-      console.log(`[ADL-DEBUG] PTY WebSocket connected`);
       reconnectDelay = reconnectDelayMs;
       lastPongTime = Date.now();
       startHeartbeat();
@@ -265,36 +259,26 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     };
     ws.onmessage = (event) => {
       if (typeof event.data === 'string') {
-        // Handle pong response
-        try {
-          const frame = JSON.parse(event.data);
-          if (frame.kind === 'pong') {
-            lastPongTime = Date.now();
-            console.log(`[ADL-DEBUG] PTY pong received`);
-            return;
-          }
-        } catch {
-          // Not JSON, continue to normal handling
-        }
         handleMessage(event.data);
       }
     };
-    ws.onclose = (event) => {
-      console.log(`[ADL-DEBUG] PTY WebSocket closed: code=${event.code}, reason=${event.reason}`);
-      stopHeartbeat();
+    ws.onclose = () => {
+      // 仅处理属于当前 socket 的关闭事件（替换旧 CLOSED socket 后，
+      // 旧 onclose 不得停掉新连接的心跳或调度重连）
       if (socket === ws) {
+        stopHeartbeat();
         socket = null;
-      }
-      if (!closed) {
-        reconnectTimer = setTimeout(() => {
-          reconnectTimer = null;
-          ensureConnected();
-        }, reconnectDelay);
-        reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelayMs);
+        if (!closed) {
+          reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            ensureConnected();
+          }, reconnectDelay);
+          reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelayMs);
+        }
       }
     };
     ws.onerror = (event) => {
-      console.error(`[ADL-DEBUG] PTY WebSocket error:`, event);
+      console.error('PTY WebSocket error:', event);
       // `onclose` always follows an error; nothing else to do here.
     };
   }
@@ -305,21 +289,18 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     cols: number;
     rows: number;
   }): Promise<IpcResult<{ sessionId: string }>> {
-    console.log(`[ADL-DEBUG] PTY create called: shell=${input.shell}, cwd=${input.cwd}, cols=${input.cols}, rows=${input.rows}`);
-    console.log(`[ADL-DEBUG] PTY connection state: closed=${closed}, socket=${socket !== null}, readyState=${socket?.readyState}`);
     if (closed) {
-      console.error(`[ADL-DEBUG] PTY create failed: connection closed`);
+      console.error('PTY create failed: connection closed');
       return Promise.resolve(ptyError('PTY connection closed'));
     }
     ensureConnected();
-    console.log(`[ADL-DEBUG] PTY after ensureConnected: socket=${socket !== null}, readyState=${socket?.readyState}`);
     return new Promise((resolve) => {
       pendingCreate = {
         input,
         resolve,
         timer: setTimeout(() => {
           if (pendingCreate !== null) {
-            console.error(`[ADL-DEBUG] PTY create timed out after ${CREATE_TIMEOUT_MS}ms`);
+            console.error(`PTY create timed out after ${CREATE_TIMEOUT_MS}ms`);
             pendingCreate = null;
             resolve(ptyError('PTY create timed out'));
           }
@@ -332,7 +313,6 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
         cols: input.cols,
         rows: input.rows,
       };
-      console.log(`[ADL-DEBUG] PTY sending create frame:`, JSON.stringify(frame));
       sendFrame(frame);
     });
   }

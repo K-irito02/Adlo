@@ -10,21 +10,6 @@ use crate::shell_resolver::ShellResolver;
 use crate::traits::{PtySession, PtyStatus, PtySystem};
 use adl_errors::AppError;
 
-/// 同步 SessionManager（保留向后兼容）
-pub struct SessionManager;
-
-impl Default for SessionManager {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl SessionManager {
-    pub fn new() -> Self {
-        Self
-    }
-}
-
 /// PTY 事件发射器 trait
 #[async_trait::async_trait]
 pub trait PtyEventEmitter: Send + Sync + 'static {
@@ -43,7 +28,7 @@ pub struct PtySessionHandle {
 
 /// 异步 SessionManager
 pub struct AsyncSessionManager {
-    sessions: RwLock<HashMap<String, PtySessionHandle>>,
+    sessions: Arc<RwLock<HashMap<String, PtySessionHandle>>>,
     pty_system: RustPtySystemImpl,
 }
 
@@ -55,7 +40,7 @@ impl Default for AsyncSessionManager {
 
 impl AsyncSessionManager {
     pub fn new() -> Self {
-        Self { sessions: RwLock::new(HashMap::new()), pty_system: RustPtySystemImpl }
+        Self { sessions: Arc::new(RwLock::new(HashMap::new())), pty_system: RustPtySystemImpl }
     }
 
     /// 创建新的 PTY 会话
@@ -67,24 +52,15 @@ impl AsyncSessionManager {
         cols: u16,
         rows: u16,
     ) -> Result<String, AppError> {
-        tracing::info!(
-            shell = %shell,
-            cwd = %cwd,
-            cols = cols,
-            rows = rows,
-            "AsyncSessionManager::create called"
-        );
-
         let resolution =
             ShellResolver::resolve(shell).map_err(|e| AppError::Terminal(e.message()))?;
 
-        tracing::info!(
+        tracing::trace!(
             program = %resolution.program,
             args = ?resolution.args,
             "Shell resolved"
         );
 
-        tracing::debug!("Calling pty_system.spawn");
         let mut session = self
             .pty_system
             .spawn(&resolution.program, &resolution.args, cwd, cols, rows)
@@ -100,7 +76,7 @@ impl AsyncSessionManager {
         let session_id = session.id().to_string();
         let session = Arc::from(session);
 
-        tracing::info!(session_id = %session_id, "PTY session spawned, starting reader task");
+        tracing::debug!(session_id = %session_id, "PTY session spawned, starting reader task");
 
         // Spawn reader task as a separate tokio task. The reader task runs a
         // select loop over the PTY read and the command channel: writes/resizes
@@ -110,6 +86,7 @@ impl AsyncSessionManager {
         // previously starved writes and, via the sessions RwLock, blocked
         // create()/kill() — the root cause of "PTY create timed out".
         let session_clone = Arc::clone(&session);
+        let sessions = Arc::clone(&self.sessions);
         let sid = session_id.clone();
         let reader_task = tokio::spawn(async move {
             tracing::debug!(session_id = %sid, "Reader task started");
@@ -119,7 +96,7 @@ impl AsyncSessionManager {
                     read_result = session_clone.read(&mut buf) => {
                         match read_result {
                             Ok(0) => {
-                                tracing::debug!(session_id = %sid, "Reader task: EOF received");
+                                tracing::trace!(session_id = %sid, "Reader task: EOF received");
                                 break;
                             },
                             Ok(n) => {
@@ -136,7 +113,7 @@ impl AsyncSessionManager {
                     cmd = command_rx.recv() => {
                         match cmd {
                             Some(PtyCommand::Write(data)) => {
-                                tracing::debug!(session_id = %sid, bytes = data.len(), "Reader task: applying write");
+                                tracing::trace!(session_id = %sid, bytes = data.len(), "Reader task: applying write");
                                 let mut master = master_handle.lock().await;
                                 match master.as_mut() {
                                     Some(m) => {
@@ -149,7 +126,7 @@ impl AsyncSessionManager {
                                 }
                             },
                             Some(PtyCommand::Resize(cols, rows)) => {
-                                tracing::debug!(session_id = %sid, cols = cols, rows = rows, "Reader task: applying resize");
+                                tracing::trace!(session_id = %sid, cols = cols, rows = rows, "Reader task: applying resize");
                                 let master = master_handle.lock().await;
                                 match master.as_ref() {
                                     Some(m) => {
@@ -161,12 +138,19 @@ impl AsyncSessionManager {
                                 }
                             },
                             None => {
-                                tracing::debug!(session_id = %sid, "Reader task: command channel closed");
+                                tracing::trace!(session_id = %sid, "Reader task: command channel closed");
                                 break;
                             },
                         }
                     }
                 }
+            }
+
+            // 会话自然退出（EOF/错误）：从会话表移除自身并结束子进程，
+            // 避免死标签与 list() 永久显示 Running。
+            sessions.write().await.remove(&sid);
+            if let Err(e) = session_clone.kill().await {
+                tracing::warn!(error = %e, session_id = %sid, "Reader task: kill child failed");
             }
             tracing::debug!(session_id = %sid, "Reader task finished, emitting terminated");
             emitter.emit_terminated(&sid).await;

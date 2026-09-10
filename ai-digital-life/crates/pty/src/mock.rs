@@ -1,7 +1,8 @@
-use crate::traits::{ExitStatus, PtySession, PtyStatus};
+use crate::traits::{PtySession, PtyStatus};
 use async_trait::async_trait;
 use std::sync::Arc;
-use tokio::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::{Mutex, Notify};
 
 /// Mock PTY 会话，用于测试
 pub struct MockPtySession {
@@ -11,6 +12,8 @@ pub struct MockPtySession {
     cols: u16,
     rows: u16,
     output_buffer: Arc<Mutex<Vec<u8>>>,
+    notify: Arc<Notify>,
+    closed: Arc<AtomicBool>,
     status: PtyStatus,
 }
 
@@ -23,6 +26,8 @@ impl MockPtySession {
             cols,
             rows,
             output_buffer: Arc::new(Mutex::new(Vec::new())),
+            notify: Arc::new(Notify::new()),
+            closed: Arc::new(AtomicBool::new(false)),
             status: PtyStatus::Running,
         }
     }
@@ -31,6 +36,8 @@ impl MockPtySession {
     pub async fn push_output(&self, data: &[u8]) {
         let mut buf = self.output_buffer.lock().await;
         buf.extend_from_slice(data);
+        drop(buf);
+        self.notify.notify_waiters();
     }
 }
 
@@ -57,14 +64,22 @@ impl PtySession for MockPtySession {
     }
 
     async fn read(&self, buf: &mut [u8]) -> std::result::Result<usize, std::io::Error> {
-        let mut output = self.output_buffer.lock().await;
-        if output.is_empty() {
-            return Ok(0);
+        loop {
+            let mut output = self.output_buffer.lock().await;
+            if !output.is_empty() {
+                let n = std::cmp::min(buf.len(), output.len());
+                buf[..n].copy_from_slice(&output[..n]);
+                output.drain(..n);
+                return Ok(n);
+            }
+            // 空缓冲：等待 push_output 或 kill（与真实 shell 空闲时阻塞一致），
+            // 避免把空缓冲误判为 EOF 导致会话创建即终止。
+            if self.closed.load(Ordering::SeqCst) {
+                return Ok(0);
+            }
+            drop(output);
+            self.notify.notified().await;
         }
-        let n = std::cmp::min(buf.len(), output.len());
-        buf[..n].copy_from_slice(&output[..n]);
-        output.drain(..n);
-        Ok(n)
     }
 
     async fn write(&self, _data: &[u8]) -> std::result::Result<(), std::io::Error> {
@@ -76,15 +91,9 @@ impl PtySession for MockPtySession {
     }
 
     async fn kill(&self) -> std::result::Result<(), std::io::Error> {
+        self.closed.store(true, Ordering::SeqCst);
+        self.notify.notify_waiters();
         Ok(())
-    }
-
-    async fn wait(&self) -> std::result::Result<ExitStatus, std::io::Error> {
-        Ok(ExitStatus::Exited(0))
-    }
-
-    fn try_wait(&self) -> std::result::Result<Option<ExitStatus>, std::io::Error> {
-        Ok(Some(ExitStatus::Exited(0)))
     }
 }
 

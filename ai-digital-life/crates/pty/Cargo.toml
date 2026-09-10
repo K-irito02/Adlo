@@ -6,6 +6,10 @@ edition.workspace = true
 [lints]
 workspace = true
 
+[features]
+# 测试用 Mock PTY（仅注入/单测场景启用，默认不编译进生产构建）
+mock = []
+
 [dependencies]
 adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }

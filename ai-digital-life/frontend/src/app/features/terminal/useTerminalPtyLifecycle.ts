@@ -6,6 +6,13 @@ import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 
 const MAX_SESSION_OUTPUT_BYTES = 100 * 1024;
 
+/** 判断某会话是否为当前活动标签的会话（回放校验用） */
+function isActiveSession(sessionId: string): boolean {
+  const state = useAppStore.getState();
+  const activeTab = state.terminalTabs.find((t) => t.id === state.terminalActiveTabId);
+  return activeTab?.sessionId === sessionId;
+}
+
 interface PtyLifecycleParams {
   activeTab: { sessionId?: string } | undefined;
 }
@@ -19,6 +26,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     terminalSelectTab,
     terminalCloseTab,
     terminalUpdateActiveTab,
+    terminalUpdateTab,
     terminalCloseAllTabs,
     recentWorkspaces,
     activeRightTool,
@@ -28,11 +36,16 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       terminalSelectTab: state.terminalSelectTab,
       terminalCloseTab: state.terminalCloseTab,
       terminalUpdateActiveTab: state.terminalUpdateActiveTab,
+      terminalUpdateTab: state.terminalUpdateTab,
       terminalCloseAllTabs: state.terminalCloseAllTabs,
       recentWorkspaces: state.recentWorkspaces,
       activeRightTool: state.activeRightTool,
     })),
   );
+
+  // 标签切换回放期间的守卫：回放窗口内的 live 输出不再单独写入 xterm，
+  // 避免与回放的完整缓冲重复显示。
+  const restoringSessionRef = useRef<string | null>(null);
 
   const handleXtermData = useCallback(
     (data: string) => {
@@ -54,9 +67,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
   const handleCreateTab = useCallback(
     async (profile?: TerminalProfile, workspaceId?: string) => {
-      console.log(
-        `[ADL-DEBUG] handleCreateTab called: profile=${profile}, workspaceId=${workspaceId}, xtermRef.current exists=${!!xtermRef.current}`,
-      );
       const shellMap: Record<TerminalProfile, string> = {
         powershell: 'powershell',
         bash: 'bash',
@@ -75,11 +85,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         finalProfile = currentDefault;
       }
 
-      console.log(
-        `[ADL-DEBUG] handleCreateTab: finalProfile=${finalProfile}, calling xtermRef.current?.clear()`,
-      );
       xtermRef.current?.clear();
-      console.log(`[ADL-DEBUG] handleCreateTab: calling terminalCreateTab`);
       terminalCreateTab(finalProfile, workspaceId ?? '');
 
       let cwd: string | undefined;
@@ -96,45 +102,35 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const rows = 24;
 
       try {
-        console.log(
-          `[ADL-DEBUG] Creating terminal: profile=${finalProfile}, shell=${shellMap[finalProfile]}, cwd=${cwd}`,
-        );
         const result = await window.digitalLife.pty.create({
           shell: shellMap[finalProfile],
           cwd,
           cols,
           rows,
         });
-        console.log(`[ADL-DEBUG] PTY create result:`, result);
         if (result.ok) {
-          console.log(
-            `[ADL-DEBUG] Terminal created successfully: sessionId=${result.data.sessionId}`,
-          );
-          terminalUpdateActiveTab({ sessionId: result.data.sessionId, status: 'running' });
-          console.log(
-            `[ADL-DEBUG] terminalUpdateActiveTab called with sessionId=${result.data.sessionId}`,
-          );
+          const sessionId = result.data.sessionId;
+          // 与 handleSelectTab 一致：回放窗口内抑制 live 输出，避免重复显示
+          restoringSessionRef.current = sessionId;
+          terminalUpdateActiveTab({ sessionId, status: 'running' });
 
           setTimeout(() => {
-            console.log(
-              `[ADL-DEBUG] setTimeout callback: checking sessionOutputsRef for sessionId=${result.data.sessionId}`,
-            );
-            const stored = sessionOutputsRef.current.get(result.data.sessionId) ?? '';
-            console.log(`[ADL-DEBUG] stored output length: ${stored.length}`);
+            // 已被更新的切换/创建覆盖，或当前活动标签已不是该会话时，丢弃过期回放
+            if (restoringSessionRef.current !== sessionId || !isActiveSession(sessionId)) {
+              return;
+            }
+            const stored = sessionOutputsRef.current.get(sessionId) ?? '';
             if (stored) {
-              console.log(`[ADL-DEBUG] Writing stored output to xterm`);
               xtermRef.current?.write(stored);
             }
-            console.log(`[ADL-DEBUG] Calling xtermRef.current?.resize()`);
             xtermRef.current?.resize();
-            console.log(`[ADL-DEBUG] Calling xtermRef.current?.focus()`);
             xtermRef.current?.focus();
-            console.log(`[ADL-DEBUG] setTimeout callback completed`);
+            restoringSessionRef.current = null;
           }, 50);
         } else {
           /* terminal creation failed */
           const errorMsg = result.error?.message || 'Unknown error';
-          console.error(`[ADL-DEBUG] Terminal creation failed:`, errorMsg);
+          console.error('Terminal creation failed:', errorMsg);
           terminalUpdateActiveTab({ status: 'terminated' });
           setTimeout(() => {
             xtermRef.current?.write(
@@ -150,7 +146,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         }
       } catch (err) {
         /* terminal creation error */
-        console.error(`[ADL-DEBUG] Terminal creation error:`, err);
+        console.error('Terminal creation error:', err);
         terminalUpdateActiveTab({ status: 'terminated' });
         setTimeout(() => {
           xtermRef.current?.write(
@@ -167,29 +163,27 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
   const handleSelectTab = useCallback(
     (tabId: string) => {
-      console.log(`[ADL-DEBUG] handleSelectTab called: tabId=${tabId}`);
       terminalSelectTab(tabId);
       const tabs = useAppStore.getState().terminalTabs;
       const tab = tabs.find((t) => t.id === tabId);
       if (tab?.sessionId) {
         const sessionId = tab.sessionId;
-        console.log(`[ADL-DEBUG] handleSelectTab: clearing xterm for sessionId=${sessionId}`);
+        restoringSessionRef.current = sessionId;
         xtermRef.current?.clear();
         setTimeout(() => {
+          // 已被更新的切换覆盖，或当前活动标签已不是该会话时，丢弃过期回放
+          if (restoringSessionRef.current !== sessionId || !isActiveSession(sessionId)) {
+            return;
+          }
           const stored = sessionOutputsRef.current.get(sessionId) ?? '';
-          console.log(
-            `[ADL-DEBUG] handleSelectTab: stored output length=${stored.length} for sessionId=${sessionId}`,
-          );
           if (stored) {
             xtermRef.current?.write(stored);
           }
           xtermRef.current?.resize();
           xtermRef.current?.scrollToBottom();
           xtermRef.current?.focus();
-          console.log(`[ADL-DEBUG] handleSelectTab: content restored`);
+          restoringSessionRef.current = null;
         }, 50);
-      } else {
-        console.log(`[ADL-DEBUG] handleSelectTab: tab has no sessionId yet, skipping restore`);
       }
     },
     [terminalSelectTab],
@@ -228,19 +222,21 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
   useEffect(() => {
     if (activeRightTool !== 'terminal') {
-      console.log(
-        `[ADL-DEBUG] subscribePtyOutput effect: activeRightTool is not terminal, skipping`,
-      );
       return;
     }
 
-    console.log(
-      `[ADL-DEBUG] subscribePtyOutput effect: setting up subscription for activeTab?.sessionId=${activeTab?.sessionId}`,
-    );
     const unsub = window.digitalLife.subscribePtyOutput((event) => {
-      console.log(
-        `[ADL-DEBUG] subscribePtyOutput: received event for sessionId=${event.sessionId}, data length=${event.data.length}`,
-      );
+      if (event.terminated) {
+        // 会话已退出：将对应标签置为 terminated，并清理其输出缓冲
+        const tabs = useAppStore.getState().terminalTabs;
+        const tab = tabs.find((t) => t.sessionId === event.sessionId);
+        if (tab) {
+          terminalUpdateTab(tab.id, { status: 'terminated' });
+        }
+        sessionOutputsRef.current.delete(event.sessionId);
+        return;
+      }
+
       const outputs = sessionOutputsRef.current;
       let previous = outputs.get(event.sessionId) ?? '';
       previous += event.data;
@@ -248,22 +244,16 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
       }
       outputs.set(event.sessionId, previous);
-      console.log(
-        `[ADL-DEBUG] subscribePtyOutput: stored output for sessionId=${event.sessionId}, total length=${previous.length}`,
-      );
-      if (event.sessionId === activeTab?.sessionId) {
-        console.log(
-          `[ADL-DEBUG] subscribePtyOutput: writing to xterm for activeTab sessionId=${activeTab?.sessionId}`,
-        );
+
+      if (
+        event.sessionId === activeTab?.sessionId &&
+        restoringSessionRef.current !== event.sessionId
+      ) {
         xtermRef.current?.write(event.data);
-      } else {
-        console.log(
-          `[ADL-DEBUG] subscribePtyOutput: event sessionId=${event.sessionId} does not match activeTab sessionId=${activeTab?.sessionId}, not writing to xterm`,
-        );
       }
     });
     return () => unsub();
-  }, [activeTab?.sessionId, activeRightTool]);
+  }, [activeTab?.sessionId, activeRightTool, terminalUpdateTab]);
 
   return {
     xtermRef,

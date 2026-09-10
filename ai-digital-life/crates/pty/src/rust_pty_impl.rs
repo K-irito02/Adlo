@@ -1,4 +1,4 @@
-use crate::traits::{ExitStatus, PtySession, PtyStatus, PtySystem};
+use crate::traits::{PtySession, PtyStatus, PtySystem};
 use async_trait::async_trait;
 use rust_pty::{
     NativePtySystem, PtyConfig, PtySystem as RustPtySystem, WindowsPtyChild, WindowsPtyMaster,
@@ -12,7 +12,6 @@ use tokio::sync::Mutex;
 /// 写入输入 / 调整尺寸不再直接持有 master Mutex（reader task 在阻塞读期间
 /// 独占该锁），而是通过无界通道排队，由 reader task 在 select 循环中消费并
 /// 应用到 master，从而避免 WS 处理循环被 PTY 锁阻塞。
-#[derive(Debug)]
 pub enum PtyCommand {
     /// 写入终端输入
     Write(Vec<u8>),
@@ -50,14 +49,12 @@ impl PtySystem for RustPtySystemImpl {
             ..Default::default()
         };
 
-        tracing::debug!("rust-pty: calling NativePtySystem::spawn");
         let result =
             NativePtySystem::spawn(program, args.iter().map(|s| s.as_str()), &config).await;
 
         match result {
             Ok((master, child)) => {
                 let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel::<PtyCommand>();
-                tracing::info!("rust-pty: PTY session created successfully");
                 Ok(RustPtySessionImpl {
                     id: adl_types::create_id("pty"),
                     shell: program.to_string(),
@@ -151,23 +148,5 @@ impl PtySession for RustPtySessionImpl {
             Some(c) => c.kill().map_err(std::io::Error::other),
             None => Ok(()),
         }
-    }
-
-    async fn wait(&self) -> Result<ExitStatus, std::io::Error> {
-        let mut child = self.child.lock().await;
-        match child.as_mut() {
-            Some(c) => {
-                let status = c.wait().await.map_err(std::io::Error::other)?;
-                match status {
-                    rust_pty::ExitStatus::Exited(code) => Ok(ExitStatus::Exited(code as u32)),
-                    rust_pty::ExitStatus::Terminated(sig) => Ok(ExitStatus::Signaled(sig as i32)),
-                }
-            },
-            None => Ok(ExitStatus::Exited(0)),
-        }
-    }
-
-    fn try_wait(&self) -> Result<Option<ExitStatus>, std::io::Error> {
-        Ok(None)
     }
 }

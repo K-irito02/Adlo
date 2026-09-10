@@ -30,7 +30,7 @@ impl PtyEventEmitter for WsEmitter {
         // UnboundedSender::send is infallible (only fails if receiver is dropped)
         let _ = self.tx.send(Message::Text(frame.to_string()));
     }
-    
+
     async fn emit_terminated(&self, session_id: &str) {
         let frame = serde_json::json!({
             "kind": "terminated",
@@ -48,16 +48,16 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
 
     // Split into two tasks: one for receiving, one for sending
     let (send_tx, mut send_rx) = mpsc::unbounded_channel::<Message>();
-    
+
     // Spawn a sender task that reads from send_rx and writes to sink
     let sender_task = tokio::spawn(async move {
-        tracing::debug!("pty_ws sender: task started");
+        tracing::trace!("pty_ws sender: task started");
         while let Some(msg) = send_rx.recv().await {
-            tracing::debug!("pty_ws sender: sending message");
+            tracing::trace!("pty_ws sender: sending message");
             // Use timeout to avoid blocking forever on slow clients
             match tokio::time::timeout(std::time::Duration::from_secs(5), sink.send(msg)).await {
                 Ok(Ok(())) => {
-                    tracing::debug!("pty_ws sender: message sent");
+                    tracing::trace!("pty_ws sender: message sent");
                 },
                 Ok(Err(e)) => {
                     tracing::warn!(error = %e, "pty_ws sender: failed to send");
@@ -69,35 +69,15 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
                 },
             }
         }
-        tracing::debug!("pty_ws sender: task ended");
+        tracing::trace!("pty_ws sender: task ended");
     });
 
-    let mut heartbeat = tokio::time::interval(std::time::Duration::from_secs(5));
-    let mut iteration_count = 0u64;
-
     loop {
-        iteration_count += 1;
-        tracing::debug!("pty_ws: === loop iteration {} ===", iteration_count);
         tokio::select! {
-            biased;
-            _ = heartbeat.tick() => {
-                tracing::debug!("pty_ws: heartbeat - loop still alive (iteration {})", iteration_count);
-            }
             incoming = stream.next() => {
-                tracing::debug!("pty_ws: stream.next() returned in iteration {}", iteration_count);
                 match incoming {
                     Some(Ok(Message::Text(text))) => {
-                        tracing::debug!(text = %text, "pty_ws: received text frame");
-                        // Handle ping directly — send pong immediately without
-                        // going through the reply channel to avoid delays.
-                        if let Ok(val) = serde_json::from_str::<Value>(&text) {
-                            if val.get("kind").and_then(|k| k.as_str()) == Some("ping") {
-                                if send_tx.send(Message::Text(serde_json::json!({"kind":"pong"}).to_string())).is_err() {
-                                    tracing::warn!("pty_ws: failed to queue pong");
-                                }
-                                continue;
-                            }
-                        }
+                        tracing::trace!(text = %text, "pty_ws: received text frame");
                         let (reply, new_session) = dispatch_frame(&state, &emitter, &text).await;
                         if let Some(sid) = new_session {
                             created.push(sid);
@@ -128,7 +108,6 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
                 }
             }
             outgoing = rx.recv() => {
-                tracing::debug!("pty_ws: rx.recv() returned in iteration {}", iteration_count);
                 match outgoing {
                     Some(msg) => {
                         // Forward to sender task
@@ -147,7 +126,7 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
     drop(send_tx);
     drop(emitter);
     let _ = sender_task.await;
-    
+
     // Kill sessions created by this connection
     if !created.is_empty() {
         for sid in &created {
@@ -170,6 +149,8 @@ async fn dispatch_frame(
     };
 
     match kind {
+        // ping/pong 由连接层处理：即时回 pong，不进入业务分发
+        "ping" => (Some(Message::Text(serde_json::json!({"kind": "pong"}).to_string())), None),
         "create" => {
             let shell = value
                 .get("shell")
@@ -195,7 +176,6 @@ async fn dispatch_frame(
 
             match state.pty_sessions.create(emitter.clone(), shell, &cwd, cols, rows).await {
                 Ok(sid) => {
-                    tracing::info!(session_id = %sid, "pty_ws: session created successfully");
                     let reply =
                         serde_json::json!({"kind": "created", "sessionId": sid}).to_string();
                     (Some(Message::Text(reply)), Some(sid))
@@ -235,9 +215,6 @@ async fn dispatch_frame(
                 Ok(()) => (None, None),
                 Err(e) => (Some(error_message(Some(sid), &e.to_string())), None),
             }
-        },
-        "ping" => {
-            (Some(Message::Text(serde_json::json!({"kind": "pong"}).to_string())), None)
         },
         _ => (Some(error_message(None, &format!("unknown frame kind: {kind}"))), None),
     }

@@ -9,12 +9,13 @@ export interface PtySessionInfo {
   cols: number;
   rows: number;
   status: 'Running' | 'Terminated';
-  output?: string;
 }
 
 export interface PtyOutputEvent {
   sessionId: string;
   data: string;
+  /** 会话已终止（EOF/退出/被杀）；为 true 时 data 为空 */
+  terminated?: boolean;
 }
 
 /**
