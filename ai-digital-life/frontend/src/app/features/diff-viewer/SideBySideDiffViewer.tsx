@@ -312,7 +312,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   return (
     <div
       ref={wrapperRef}
-      className={`adl-cm-diff-viewer-wrapper${wordWrap ? ' adl-cm-word-wrap' : ' adl-cm-no-word-wrap'}`}
+      className={`adl-cm-diff-viewer-wrapper${wordWrap ? ' adl-cm-word-wrap' : ' adl-cm-no-word-wrap'}${!lineNumbersEnabled ? ' adl-cm-no-gutters' : ''}`}
       data-fold-marker-state={foldMarkerState}
       style={{ position: 'relative', width: '100%', height: '100%' }}
     >
