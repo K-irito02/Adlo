@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useFileCreation, type UseFileCreationInput } from './useFileCreation';
+import { useAppStore } from '@stores/slicedStore';
 
 const mockT = {
   fileNameRequired: 'Please enter a name to create the file or folder',
@@ -9,6 +10,15 @@ const mockT = {
   fileNoWorkspace: 'No workspace available to create',
   fileNoWorkspacePath: 'Target workspace path is missing',
 } as Record<string, string>;
+
+const mockShowToast = vi.fn();
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.spyOn(useAppStore, 'getState').mockReturnValue({
+    showToast: mockShowToast,
+  } as any);
+});
 
 function wrapper({ children }: { children: React.ReactNode }) {
   return (
@@ -82,6 +92,7 @@ describe('useFileCreation default creation value', () => {
 
     expect(result.current.createTarget).toBeNull();
     expect(result.current.createPathValue).toBe('');
+    expect(mockShowToast).toHaveBeenCalledWith('No workspace available to create', 'warning');
   });
 
   it('does not open dialog when there is no workspace for folder creation', () => {
@@ -101,6 +112,7 @@ describe('useFileCreation default creation value', () => {
 
     expect(result.current.createTarget).toBeNull();
     expect(result.current.createPathValue).toBe('');
+    expect(mockShowToast).toHaveBeenCalledWith('No workspace available to create', 'warning');
   });
 });
 
