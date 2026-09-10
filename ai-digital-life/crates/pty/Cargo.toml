@@ -9,7 +9,9 @@ workspace = true
 [dependencies]
 adl-types = { path = "../types" }
 adl-errors = { path = "../errors" }
-portable-pty.workspace = true
+rust-pty.workspace = true
+async-trait.workspace = true
+tokio = { version = "1", features = ["full"] }
 serde.workspace = true
 tracing.workspace = true
 dirs.workspace = true

@@ -1,9 +1,24 @@
 use crate::traits::{ExitStatus, PtySession, PtyStatus, PtySystem};
 use async_trait::async_trait;
-use rust_pty::{NativePtySystem, PtyConfig, PtyMaster, PtySystem as RustPtySystem, WindowSize, WindowsPtyChild, WindowsPtyMaster};
+use rust_pty::{
+    NativePtySystem, PtyConfig, PtySystem as RustPtySystem, WindowsPtyChild, WindowsPtyMaster,
+};
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
+
+/// 发往 reader task 的 PTY 命令。
+///
+/// 写入输入 / 调整尺寸不再直接持有 master Mutex（reader task 在阻塞读期间
+/// 独占该锁），而是通过无界通道排队，由 reader task 在 select 循环中消费并
+/// 应用到 master，从而避免 WS 处理循环被 PTY 锁阻塞。
+#[derive(Debug)]
+pub enum PtyCommand {
+    /// 写入终端输入
+    Write(Vec<u8>),
+    /// 调整终端尺寸
+    Resize(u16, u16),
+}
 
 /// rust-pty 的 PTY 系统实现
 pub struct RustPtySystemImpl;
@@ -20,29 +35,46 @@ impl PtySystem for RustPtySystemImpl {
         cols: u16,
         rows: u16,
     ) -> Result<Self::Session, std::io::Error> {
+        tracing::info!(
+            program = %program,
+            args = ?args,
+            cwd = %cwd,
+            cols = cols,
+            rows = rows,
+            "rust-pty: spawning PTY session"
+        );
+
         let config = PtyConfig {
             window_size: (cols, rows),
             working_directory: Some(cwd.into()),
             ..Default::default()
         };
 
-        let (master, child) = NativePtySystem::spawn(
-            program,
-            args.iter().map(|s| s.as_str()),
-            &config,
-        )
-        .await
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        tracing::debug!("rust-pty: calling NativePtySystem::spawn");
+        let result =
+            NativePtySystem::spawn(program, args.iter().map(|s| s.as_str()), &config).await;
 
-        Ok(RustPtySessionImpl {
-            id: adl_types::create_id("pty"),
-            shell: program.to_string(),
-            cwd: cwd.to_string(),
-            cols,
-            rows,
-            master: Arc::new(Mutex::new(Some(master))),
-            child: Arc::new(Mutex::new(Some(child))),
-        })
+        match result {
+            Ok((master, child)) => {
+                let (command_tx, command_rx) = tokio::sync::mpsc::unbounded_channel::<PtyCommand>();
+                tracing::info!("rust-pty: PTY session created successfully");
+                Ok(RustPtySessionImpl {
+                    id: adl_types::create_id("pty"),
+                    shell: program.to_string(),
+                    cwd: cwd.to_string(),
+                    cols,
+                    rows,
+                    master: Arc::new(Mutex::new(Some(master))),
+                    child: Arc::new(Mutex::new(Some(child))),
+                    command_tx,
+                    command_rx: Some(command_rx),
+                })
+            },
+            Err(e) => {
+                tracing::error!(error = %e, "rust-pty: failed to create PTY session");
+                Err(std::io::Error::other(e))
+            },
+        }
     }
 }
 
@@ -55,6 +87,20 @@ pub struct RustPtySessionImpl {
     rows: u16,
     master: Arc<Mutex<Option<WindowsPtyMaster>>>,
     child: Arc<Mutex<Option<WindowsPtyChild>>>,
+    command_tx: tokio::sync::mpsc::UnboundedSender<PtyCommand>,
+    command_rx: Option<tokio::sync::mpsc::UnboundedReceiver<PtyCommand>>,
+}
+
+impl RustPtySessionImpl {
+    /// 取出命令接收端（由 reader task 独占消费，只能调用一次）
+    pub fn take_command_rx(&mut self) -> Option<tokio::sync::mpsc::UnboundedReceiver<PtyCommand>> {
+        self.command_rx.take()
+    }
+
+    /// 获取 master 句柄（reader task 直接写入/调整尺寸用）
+    pub fn master_handle(&self) -> Arc<Mutex<Option<WindowsPtyMaster>>> {
+        Arc::clone(&self.master)
+    }
 }
 
 #[async_trait]
@@ -88,37 +134,21 @@ impl PtySession for RustPtySessionImpl {
     }
 
     async fn write(&self, data: &[u8]) -> Result<(), std::io::Error> {
-        let mut master = self.master.lock().await;
-        match master.as_mut() {
-            Some(m) => m.write_all(data).await,
-            None => Err(std::io::Error::new(
-                std::io::ErrorKind::BrokenPipe,
-                "PTY session closed",
-            )),
-        }
+        self.command_tx
+            .send(PtyCommand::Write(data.to_vec()))
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::BrokenPipe, "PTY session closed"))
     }
 
     async fn resize(&self, cols: u16, rows: u16) -> Result<(), std::io::Error> {
-        let master = self.master.lock().await;
-        match master.as_ref() {
-            Some(m) => {
-                m.resize(WindowSize::new(cols, rows))
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                Ok(())
-            }
-            None => Err(std::io::Error::new(
-                std::io::ErrorKind::BrokenPipe,
-                "PTY session closed",
-            )),
-        }
+        self.command_tx
+            .send(PtyCommand::Resize(cols, rows))
+            .map_err(|_| std::io::Error::new(std::io::ErrorKind::BrokenPipe, "PTY session closed"))
     }
 
     async fn kill(&self) -> Result<(), std::io::Error> {
         let mut child = self.child.lock().await;
         match child.as_mut() {
-            Some(c) => c
-                .kill()
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e)),
+            Some(c) => c.kill().map_err(std::io::Error::other),
             None => Ok(()),
         }
     }
@@ -127,15 +157,12 @@ impl PtySession for RustPtySessionImpl {
         let mut child = self.child.lock().await;
         match child.as_mut() {
             Some(c) => {
-                let status = c
-                    .wait()
-                    .await
-                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                let status = c.wait().await.map_err(std::io::Error::other)?;
                 match status {
                     rust_pty::ExitStatus::Exited(code) => Ok(ExitStatus::Exited(code as u32)),
                     rust_pty::ExitStatus::Terminated(sig) => Ok(ExitStatus::Signaled(sig as i32)),
                 }
-            }
+            },
             None => Ok(ExitStatus::Exited(0)),
         }
     }

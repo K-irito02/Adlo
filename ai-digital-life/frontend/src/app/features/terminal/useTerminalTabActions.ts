@@ -5,7 +5,6 @@ import { useTerminalPtyLifecycle } from './useTerminalPtyLifecycle';
 
 interface UseTerminalTabActionsParams {
   activeTab: { id: string; title: string; sessionId?: string } | undefined;
-  rootPath: string | undefined;
 }
 
 /**
@@ -16,7 +15,7 @@ interface UseTerminalTabActionsParams {
  * - xterm 实例引用与数据/尺寸回调（委托 useTerminalPtyLifecycle）
  * - 标签双击重命名的内联编辑状态与回调
  */
-export function useTerminalTabActions({ activeTab, rootPath }: UseTerminalTabActionsParams) {
+export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams) {
   const [editingTabId, setEditingTabId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState('');
 
@@ -38,7 +37,7 @@ export function useTerminalTabActions({ activeTab, rootPath }: UseTerminalTabAct
     handleCloseTab,
     handleCloseAllTabs,
     handleKill,
-  } = useTerminalPtyLifecycle({ activeTab, rootPath });
+  } = useTerminalPtyLifecycle({ activeTab });
 
   const handleDoubleClick = useCallback((tabId: string, title: string) => {
     setEditValue(title);

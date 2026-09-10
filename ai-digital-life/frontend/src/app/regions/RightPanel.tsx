@@ -26,7 +26,6 @@ import type {
   FilesPanelProps,
   ChangesPanelProps,
   BrowserPanelProps,
-  TerminalPanelProps,
   SettingsPanelProps,
 } from './right-panel/types';
 import type { PatchDirection, PatchReviewFilter } from '../features/patch-review';
@@ -37,7 +36,6 @@ import { useRightPanelViewProps } from './right-panel/hooks/useRightPanelViewPro
 import { useFilesPanelProps } from './right-panel/hooks/useFilesPanelProps';
 import { useChangesPanelProps } from './right-panel/hooks/useChangesPanelProps';
 import { useBrowserPanelProps } from './right-panel/hooks/useBrowserPanelProps';
-import { useTerminalPanelProps } from './right-panel/hooks/useTerminalPanelProps';
 
 import { useSettingsPanelProps } from './right-panel/hooks/useSettingsPanelProps';
 
@@ -72,7 +70,6 @@ interface ActiveToolPanelProps {
   filesProps: FilesPanelProps;
   changesProps: ChangesPanelProps;
   browserProps: BrowserPanelProps;
-  terminalProps: TerminalPanelProps;
   settingsProps: SettingsPanelProps;
 }
 
@@ -86,7 +83,6 @@ function areActiveToolPanelPropsEqual(
     prevProps.filesProps === nextProps.filesProps &&
     prevProps.changesProps === nextProps.changesProps &&
     prevProps.browserProps === nextProps.browserProps &&
-    prevProps.terminalProps === nextProps.terminalProps &&
     prevProps.settingsProps === nextProps.settingsProps
   );
 }
@@ -101,7 +97,6 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
   filesProps,
   changesProps,
   browserProps,
-  terminalProps,
   settingsProps,
 }: ActiveToolPanelProps) {
   const panelId = `${idBase}-${activeTool}-panel`;
@@ -131,7 +126,7 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
       </div>
       <div hidden={activeTool !== 'terminal'} style={{ height: '100%', minHeight: 0 }}>
         <Suspense fallback={<PanelSkeleton />}>
-          <TerminalPanel {...terminalProps} />
+          <TerminalPanel />
         </Suspense>
       </div>
       <div hidden={activeTool !== 'settings'} style={{ height: '100%', minHeight: 0 }}>
@@ -175,7 +170,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
     panelProps,
     activeRightTool === 'browser' && !collapsed,
   );
-  const terminalProps = useTerminalPanelProps(panelProps);
   const settingsProps = useSettingsPanelProps(panelProps);
 
   const panelIdBase = useId();
@@ -233,7 +227,6 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
           filesProps={filesProps}
           changesProps={changesProps}
           browserProps={browserProps}
-          terminalProps={terminalProps}
           settingsProps={settingsProps}
         />
       </div>

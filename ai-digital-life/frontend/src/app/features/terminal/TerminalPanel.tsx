@@ -14,7 +14,6 @@ import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { asWorkspaceID } from '@shared/branded';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
-import type { TerminalPanelProps } from '@regions/right-panel/types';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
 import { TerminalShellSelector } from './TerminalShellSelector';
@@ -23,14 +22,13 @@ import { TerminalContextMenu } from './TerminalContextMenu';
 import { MultiWorkspaceTerminal } from '../workspace-terminal';
 import { useTCopy } from '@i18n/useTCopy';
 
-export function TerminalPanel(props: TerminalPanelProps) {
+export function TerminalPanel() {
   const { t } = useTCopy();
 
   const {
     recentWorkspaces,
     terminalWorkspaceExpanded,
     setTerminalWorkspaceExpanded,
-    terminalSelectTab,
     terminalCloseTab,
     terminalTogglePin,
     removeWorkspaceFromSidebar,
@@ -39,14 +37,13 @@ export function TerminalPanel(props: TerminalPanelProps) {
       recentWorkspaces: s.recentWorkspaces,
       terminalWorkspaceExpanded: s.terminalWorkspaceExpanded,
       setTerminalWorkspaceExpanded: s.setTerminalWorkspaceExpanded,
-      terminalSelectTab: s.terminalSelectTab,
       terminalCloseTab: s.terminalCloseTab,
       terminalTogglePin: s.terminalTogglePin,
       removeWorkspaceFromSidebar: s.removeWorkspaceFromSidebar,
     })),
   );
 
-  const { terminalState, terminalActions } = useTerminalPanel(props);
+  const { terminalState, terminalActions } = useTerminalPanel();
   const {
     activeTab,
     hasActiveTab,
@@ -66,6 +63,10 @@ export function TerminalPanel(props: TerminalPanelProps) {
     xtermRef,
     contextMenu,
   } = terminalState;
+
+  console.log(
+    `[ADL-DEBUG] TerminalPanel rendered: hasActiveTab=${hasActiveTab}, activeTab=${activeTab ? JSON.stringify({ id: activeTab.id, sessionId: activeTab.sessionId, status: activeTab.status }) : 'undefined'}, terminalTabs.length=${terminalTabs.length}`,
+  );
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
@@ -273,7 +274,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
             activeTabId={terminalActiveTabId}
             onToggleExpand={toggleTerminalWorkspaceExpanded}
             onCreateTab={(wsId) => terminalActions.handleCreateTab(undefined, wsId)}
-            onSelectTab={terminalSelectTab}
+            onSelectTab={terminalActions.handleSelectTab}
             onCloseTab={terminalCloseTab}
             onTogglePin={terminalTogglePin}
             onHideFromRightPanels={handleHideTerminalWorkspace}
@@ -292,6 +293,9 @@ export function TerminalPanel(props: TerminalPanelProps) {
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
             {hasActiveTab ? (
               <>
+                {console.log(
+                  `[ADL-DEBUG] Rendering XtermTerminal: xtermRef exists=${!!xtermRef}, activeTab.sessionId=${activeTab?.sessionId}`,
+                )}
                 <XtermTerminal
                   ref={xtermRef}
                   className="adl-terminal-canvas"

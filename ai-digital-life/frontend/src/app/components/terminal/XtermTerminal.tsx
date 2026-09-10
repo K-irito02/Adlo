@@ -36,6 +36,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
         write(data: string) {
           const sanitized = data.replace(/\x7f/g, '');
           const terminal = terminalRef.current;
+          console.log(`[ADL-DEBUG] XtermTerminal.write called: data length=${sanitized.length}, terminal exists=${!!terminal}`);
           if (terminal) {
             terminal.write(sanitized);
             setTimeout(() => {
@@ -90,11 +91,14 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
     );
 
     useEffect(() => {
+      console.log(`[ADL-DEBUG] XtermTerminal useEffect: container exists=${!!containerRef.current}`);
       const container = containerRef.current;
       if (!container) {
+        console.log(`[ADL-DEBUG] XtermTerminal useEffect: container is null, returning`);
         return;
       }
 
+      console.log(`[ADL-DEBUG] XtermTerminal useEffect: creating terminal`);
       const fitAddon = new FitAddon();
       fitAddonRef.current = fitAddon;
 
@@ -132,17 +136,20 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
 
       terminal.loadAddon(fitAddon);
       terminal.loadAddon(webLinksAddon);
+      console.log(`[ADL-DEBUG] XtermTerminal useEffect: calling terminal.open(container)`);
       terminal.open(container);
 
       const initialFit = () => {
         try {
+          console.log(`[ADL-DEBUG] XtermTerminal initialFit: calling fitAddon.fit()`);
           fitAddon.fit();
           const dims = fitAddon.proposeDimensions();
+          console.log(`[ADL-DEBUG] XtermTerminal initialFit: dims=`, dims);
           if (dims) {
             onResizeRef.current?.(dims.cols, dims.rows);
           }
-        } catch {
-          /* initial fit failed */
+        } catch (e) {
+          console.error(`[ADL-DEBUG] XtermTerminal initialFit failed:`, e);
         }
       };
 
@@ -160,6 +167,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       });
 
       terminalRef.current = terminal;
+      console.log(`[ADL-DEBUG] XtermTerminal useEffect: terminalRef.current set`);
 
       let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -188,6 +196,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
         const entry = entries[0];
         if (entry) {
           const { width, height } = entry.contentRect;
+          console.log(`[ADL-DEBUG] XtermTerminal resizeObserver: width=${width}, height=${height}`);
           if (width > 0 && height > 0) {
             handleResize();
           }
@@ -218,6 +227,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       });
 
       return () => {
+        console.log(`[ADL-DEBUG] XtermTerminal useEffect cleanup`);
         if (resizeTimeout) {
           clearTimeout(resizeTimeout);
         }

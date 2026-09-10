@@ -215,8 +215,6 @@ export interface BrowserPanelProps {
   isVisible: boolean;
 }
 
-export type TerminalPanelProps = Pick<RightPanelViewProps, 'appInfo'>;
-
 export type SettingsPanelProps = Pick<RightPanelViewProps, 'settings' | 'onChangeSetting'>;
 
 export interface CIPanelProps {

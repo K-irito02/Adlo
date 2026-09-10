@@ -1,14 +1,11 @@
 use rust_pty::PtyConfig;
-use rust_pty::traits::{PtySystem as RustPtySystem, PtyMaster};
+use rust_pty::traits::{PtyMaster, PtySystem as RustPtySystem};
 use std::time::Duration;
 use tokio::io::AsyncReadExt;
 
-async fn read_all_output(
-    mut master: impl PtyMaster + 'static,
-    timeout: Duration,
-) -> Vec<u8> {
+async fn read_all_output(mut master: impl PtyMaster + 'static, timeout: Duration) -> Vec<u8> {
     let (tx, rx) = tokio::sync::oneshot::channel();
-    
+
     tokio::spawn(async move {
         let mut result = Vec::new();
         let mut buf = [0u8; 8192];
@@ -21,7 +18,7 @@ async fn read_all_output(
         }
         let _ = tx.send(result);
     });
-    
+
     match tokio::time::timeout(timeout, rx).await {
         Ok(Ok(data)) => data,
         _ => {
@@ -41,74 +38,73 @@ async fn read_all_output(
 #[cfg(target_os = "windows")]
 mod windows_pty_tests {
     use super::*;
-    
+
     fn should_run_pty_tests() -> bool {
         std::env::var("ADL_PTY_TEST").map(|v| v == "1").unwrap_or(false)
     }
-    
+
     #[tokio::test]
     async fn test_cmd_echo_utf8() {
         if !should_run_pty_tests() {
             eprintln!("Skipping test_cmd_echo_utf8: set ADL_PTY_TEST=1 to run");
             return;
         }
-        
-        let config = PtyConfig {
-            window_size: (120, 40),
-            ..Default::default()
-        };
-        
-        let (master, mut child) = rust_pty::WindowsPtySystem::spawn(
-            "cmd",
-            &["/c", "echo", "你好 world 🎉"],
-            &config,
-        ).await.expect("spawn failed");
-        
+
+        let config = PtyConfig { window_size: (120, 40), ..Default::default() };
+
+        let (master, mut child) =
+            rust_pty::WindowsPtySystem::spawn("cmd", &["/c", "echo", "你好 world 🎉"], &config)
+                .await
+                .expect("spawn failed");
+
         let output = tokio::time::timeout(
             Duration::from_secs(10),
             read_all_output(master, Duration::from_secs(5)),
-        ).await.unwrap_or_default();
-        
+        )
+        .await
+        .unwrap_or_default();
+
         let output_str = String::from_utf8_lossy(&output);
         assert!(
             output_str.contains("你好 world 🎉"),
             "Expected UTF-8 in output, got: {:?}",
             output_str,
         );
-        
+
         child.wait().await.expect("wait failed");
     }
-    
+
     #[tokio::test]
     async fn test_powershell_echo() {
         if !should_run_pty_tests() {
             eprintln!("Skipping test_powershell_echo: set ADL_PTY_TEST=1 to run");
             return;
         }
-        
-        let config = PtyConfig {
-            window_size: (120, 40),
-            ..Default::default()
-        };
-        
+
+        let config = PtyConfig { window_size: (120, 40), ..Default::default() };
+
         let (master, mut child) = rust_pty::WindowsPtySystem::spawn(
             "powershell",
             &["-Command", "Write-Output 'Hello from PowerShell'"],
             &config,
-        ).await.expect("spawn failed");
-        
+        )
+        .await
+        .expect("spawn failed");
+
         let output = tokio::time::timeout(
             Duration::from_secs(10),
             read_all_output(master, Duration::from_secs(5)),
-        ).await.unwrap_or_default();
-        
+        )
+        .await
+        .unwrap_or_default();
+
         let output_str = String::from_utf8_lossy(&output);
         assert!(
             output_str.contains("Hello from PowerShell"),
             "Expected PowerShell output, got: {:?}",
             output_str,
         );
-        
+
         child.wait().await.expect("wait failed");
     }
 }

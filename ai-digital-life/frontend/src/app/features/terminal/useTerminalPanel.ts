@@ -6,7 +6,6 @@ import { useTerminalDragDrop } from './useTerminalDragDrop';
 import { useTerminalTabActions } from './useTerminalTabActions';
 import { useTerminalShellManagement } from './useTerminalShellManagement';
 import { useTerminalViewport } from './useTerminalViewport';
-import type { TerminalPanelProps } from '@regions/right-panel/types';
 import type { TerminalProfile } from '@stores/types';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 
@@ -107,7 +106,7 @@ export interface UseTerminalPanelReturn {
   };
 }
 
-export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelReturn {
+export function useTerminalPanel(): UseTerminalPanelReturn {
   const terminalTabs = terminalSelectors.useTerminalTabs();
   const terminalActiveTabId = terminalSelectors.useTerminalActiveTabId();
 
@@ -123,8 +122,6 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
   );
 
   const hasActiveTab = activeTab != null;
-
-  const rootPath = props.appInfo?.currentWorkspace?.rootPath;
 
   const { isDragging, dragOverTabId, handleDragStart, handleDragEnd, handleDragOver, handleDrop } =
     useTerminalDragDrop(terminalTabs, terminalReorderTabs);
@@ -146,7 +143,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     handleDoubleClick,
     handleEditSubmit,
     handleEditKeyDown,
-  } = useTerminalTabActions({ activeTab, rootPath });
+  } = useTerminalTabActions({ activeTab });
 
   const {
     defaultTerminalProfile,

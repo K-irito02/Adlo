@@ -16,7 +16,6 @@ export { useRightPanelViewProps } from './useRightPanelViewProps';
 export { useFilesPanelProps } from './useFilesPanelProps';
 export { useChangesPanelProps } from './useChangesPanelProps';
 export { useBrowserPanelProps } from './useBrowserPanelProps';
-export { useTerminalPanelProps } from './useTerminalPanelProps';
 export { useSettingsPanelProps } from './useSettingsPanelProps';
 export { useCIPanelProps } from './useCIPanelProps';
 export { useCommunicationPanelProps } from './useCommunicationPanelProps';

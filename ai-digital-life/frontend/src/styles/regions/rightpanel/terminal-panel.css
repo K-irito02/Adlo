@@ -95,7 +95,7 @@
 }
 
 .adl-terminal-canvas .xterm canvas {
-  background: transparent !important;
+  background: var(--bg);
 }
 
 .adl-terminal-canvas .xterm-scroll-area {

@@ -27,6 +27,7 @@ impl PtyEventEmitter for WsEmitter {
             "sessionId": session_id,
             "data": data
         });
+        // UnboundedSender::send is infallible (only fails if receiver is dropped)
         let _ = self.tx.send(Message::Text(frame.to_string()));
     }
     
@@ -45,31 +46,94 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
     let (mut sink, mut stream) = socket.split();
     let mut created: Vec<String> = Vec::new();
 
+    // Split into two tasks: one for receiving, one for sending
+    let (send_tx, mut send_rx) = mpsc::unbounded_channel::<Message>();
+    
+    // Spawn a sender task that reads from send_rx and writes to sink
+    let sender_task = tokio::spawn(async move {
+        tracing::debug!("pty_ws sender: task started");
+        while let Some(msg) = send_rx.recv().await {
+            tracing::debug!("pty_ws sender: sending message");
+            // Use timeout to avoid blocking forever on slow clients
+            match tokio::time::timeout(std::time::Duration::from_secs(5), sink.send(msg)).await {
+                Ok(Ok(())) => {
+                    tracing::debug!("pty_ws sender: message sent");
+                },
+                Ok(Err(e)) => {
+                    tracing::warn!(error = %e, "pty_ws sender: failed to send");
+                    break;
+                },
+                Err(_) => {
+                    tracing::warn!("pty_ws sender: send timed out, dropping message");
+                    // Continue processing next messages instead of breaking
+                },
+            }
+        }
+        tracing::debug!("pty_ws sender: task ended");
+    });
+
+    let mut heartbeat = tokio::time::interval(std::time::Duration::from_secs(5));
+    let mut iteration_count = 0u64;
+
     loop {
+        iteration_count += 1;
+        tracing::debug!("pty_ws: === loop iteration {} ===", iteration_count);
         tokio::select! {
+            biased;
+            _ = heartbeat.tick() => {
+                tracing::debug!("pty_ws: heartbeat - loop still alive (iteration {})", iteration_count);
+            }
             incoming = stream.next() => {
+                tracing::debug!("pty_ws: stream.next() returned in iteration {}", iteration_count);
                 match incoming {
                     Some(Ok(Message::Text(text))) => {
+                        tracing::debug!(text = %text, "pty_ws: received text frame");
+                        // Handle ping directly — send pong immediately without
+                        // going through the reply channel to avoid delays.
+                        if let Ok(val) = serde_json::from_str::<Value>(&text) {
+                            if val.get("kind").and_then(|k| k.as_str()) == Some("ping") {
+                                if send_tx.send(Message::Text(serde_json::json!({"kind":"pong"}).to_string())).is_err() {
+                                    tracing::warn!("pty_ws: failed to queue pong");
+                                }
+                                continue;
+                            }
+                        }
                         let (reply, new_session) = dispatch_frame(&state, &emitter, &text).await;
                         if let Some(sid) = new_session {
                             created.push(sid);
                         }
+                        // Send reply through the channel instead of directly
                         if let Some(reply) = reply {
-                            if sink.send(reply).await.is_err() {
+                            if send_tx.send(reply).is_err() {
+                                tracing::warn!("pty_ws: failed to queue reply");
                                 break;
                             }
                         }
                     },
-                    Some(Ok(Message::Close(_))) | Some(Err(_)) | None => break,
+                    Some(Ok(Message::Close(_))) => {
+                        tracing::debug!("pty_ws: received close frame");
+                        break;
+                    },
+                    Some(Err(e)) => {
+                        tracing::error!(error = %e, "pty_ws: received error");
+                        break;
+                    },
+                    None => {
+                        tracing::debug!("pty_ws: stream ended");
+                        break;
+                    },
                     Some(Ok(Message::Binary(_)))
                     | Some(Ok(Message::Ping(_)))
                     | Some(Ok(Message::Pong(_))) => {},
                 }
             }
             outgoing = rx.recv() => {
+                tracing::debug!("pty_ws: rx.recv() returned in iteration {}", iteration_count);
                 match outgoing {
                     Some(msg) => {
-                        if sink.send(msg).await.is_err() {
+                        // Forward to sender task
+                        if send_tx.send(msg).is_err() {
+                            tracing::warn!("pty_ws: failed to forward outgoing message");
                             break;
                         }
                     },
@@ -79,6 +143,12 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
         }
     }
 
+    // Clean up
+    drop(send_tx);
+    drop(emitter);
+    let _ = sender_task.await;
+    
+    // Kill sessions created by this connection
     if !created.is_empty() {
         for sid in &created {
             let _ = state.pty_sessions.kill(sid).await;
@@ -101,22 +171,39 @@ async fn dispatch_frame(
 
     match kind {
         "create" => {
-            let shell = value.get("shell").and_then(|s| s.as_str())
-                .filter(|s| !s.is_empty()).unwrap_or("powershell");
-            let cwd = value.get("cwd").and_then(|s| s.as_str())
-                .filter(|s| !s.is_empty()).map(ToOwned::to_owned)
-                .unwrap_or_else(|| std::env::current_dir()
-                    .unwrap_or_else(|_| std::path::PathBuf::from("."))
-                    .to_string_lossy().to_string());
+            let shell = value
+                .get("shell")
+                .and_then(|s| s.as_str())
+                .filter(|s| !s.is_empty())
+                .unwrap_or("powershell");
+            let cwd = value
+                .get("cwd")
+                .and_then(|s| s.as_str())
+                .filter(|s| !s.is_empty())
+                .map(ToOwned::to_owned)
+                .unwrap_or_else(default_terminal_cwd);
             let cols = value.get("cols").and_then(|c| c.as_u64()).unwrap_or(80) as u16;
             let rows = value.get("rows").and_then(|c| c.as_u64()).unwrap_or(24) as u16;
-            
+
+            tracing::info!(
+                shell = %shell,
+                cwd = %cwd,
+                cols = cols,
+                rows = rows,
+                "pty_ws: received create request"
+            );
+
             match state.pty_sessions.create(emitter.clone(), shell, &cwd, cols, rows).await {
                 Ok(sid) => {
-                    let reply = serde_json::json!({"kind": "created", "sessionId": sid}).to_string();
+                    tracing::info!(session_id = %sid, "pty_ws: session created successfully");
+                    let reply =
+                        serde_json::json!({"kind": "created", "sessionId": sid}).to_string();
                     (Some(Message::Text(reply)), Some(sid))
                 },
-                Err(e) => (Some(error_message(None, &e.to_string())), None),
+                Err(e) => {
+                    tracing::error!(error = %e, "pty_ws: session creation failed");
+                    (Some(error_message(None, &e.to_string())), None)
+                },
             }
         },
         "input" => {
@@ -149,6 +236,9 @@ async fn dispatch_frame(
                 Err(e) => (Some(error_message(Some(sid), &e.to_string())), None),
             }
         },
+        "ping" => {
+            (Some(Message::Text(serde_json::json!({"kind": "pong"}).to_string())), None)
+        },
         _ => (Some(error_message(None, &format!("unknown frame kind: {kind}"))), None),
     }
 }
@@ -159,4 +249,14 @@ fn error_message(sid: Option<&str>, message: &str) -> Message {
         frame["sessionId"] = Value::String(sid.to_string());
     }
     Message::Text(frame.to_string())
+}
+
+/// 未指定 cwd 时解析用户主目录（Windows `USERPROFILE` / Unix `HOME`），
+/// 供"默认终端目录"等独立终端使用，避免跟随服务进程的当前目录。
+fn default_terminal_cwd() -> String {
+    std::env::var_os("USERPROFILE")
+        .or_else(|| std::env::var_os("HOME"))
+        .or_else(|| std::env::current_dir().ok().map(|p| p.into_os_string()))
+        .map(|p| p.to_string_lossy().to_string())
+        .unwrap_or_else(|| ".".to_string())
 }
