@@ -6,7 +6,6 @@ import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import type { TerminalProfile } from '@stores/types';
 import {
   IconCheck,
-  IconRefreshCw,
   IconDelete,
   IconPlus,
   IconMoreVertical,
@@ -35,7 +34,6 @@ export interface WorkspaceTerminalEntryProps {
   onCloseTab: (tabId: string) => void;
   onTogglePin: (tabId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onRefreshTree: () => void;
   onCloseAllTabs: () => void;
   isIndependent?: boolean;
   t: CopyDict;
@@ -52,7 +50,6 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
   onSelectTab,
   onCloseTab,
   onHideFromRightPanels,
-  onRefreshTree,
   onCloseAllTabs,
   isIndependent = false,
   t,
@@ -80,7 +77,6 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     closeMenu,
     handleHideFromRightPanels,
     handleSelectDefaultProfile,
-    handleRefreshClick,
     handleCloseAllTabsClick,
     handleCreateTabClick,
   } = useTerminalMenu({
@@ -88,7 +84,6 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     isIndependent,
     onToggleExpand,
     onHideFromRightPanels,
-    onRefreshTree,
     onCloseAllTabs,
     onCreateTab,
   });
@@ -143,34 +138,22 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
           <span className="adl-multitree-entry__count">{tabCount}</span>
 
           <div className="adl-multitree-entry__actions">
-            {!isIndependent && (
-              <TooltipSimple content={t.fileRefresh} placement="top">
-                <button
-                  type="button"
-                  className="adl-icon-btn adl-icon-btn--xs"
-                  onClick={handleRefreshClick}
-                  aria-label={t.fileRefresh}
-                >
-                  <IconRefreshCw size={12} decorative />
-                </button>
-              </TooltipSimple>
-            )}
-            <TooltipSimple content={t.deleteAll} placement="top">
+            <TooltipSimple content={t.terminalClearTerminals} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={handleCloseAllTabsClick}
-                aria-label={t.deleteAll}
+                aria-label={t.terminalClearTerminals}
               >
                 <IconDelete size={12} decorative />
               </button>
             </TooltipSimple>
-            <TooltipSimple content={t.terminalCreate} placement="top">
+            <TooltipSimple content={t.terminalNewTerminal} placement="top">
               <button
                 type="button"
                 className="adl-icon-btn adl-icon-btn--xs"
                 onClick={handleCreateTabClick}
-                aria-label={t.terminalCreate}
+                aria-label={t.terminalNewTerminal}
               >
                 <IconPlus size={12} decorative />
               </button>
@@ -210,6 +193,27 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 {!isIndependent && (
                   <div className="adl-multitree-entry__menu-sep" role="separator" />
                 )}
+                <button
+                  type="button"
+                  className="adl-multitree-entry__menu-item"
+                  onClick={() => onCloseAllTabs()}
+                >
+                  <IconDelete size={14} />
+                  <span className="adl-multitree-entry__menu-item-content">
+                    {t.terminalClearTerminals}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  className="adl-multitree-entry__menu-item"
+                  onClick={() => onCreateTab()}
+                >
+                  <IconPlus size={14} />
+                  <span className="adl-multitree-entry__menu-item-content">
+                    {t.terminalNewTerminal}
+                  </span>
+                </button>
+                <div className="adl-multitree-entry__menu-sep" role="separator" />
                 <div
                   ref={subMenuTriggerRef}
                   className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"

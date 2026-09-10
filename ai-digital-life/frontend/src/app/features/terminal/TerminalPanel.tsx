@@ -2,12 +2,11 @@ import { useCallback, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
-  IconFiles,
-  IconFileCode,
+  IconTerminalDirectory,
+  IconTerminalCommandHistory,
   IconFoldVertical,
   IconPanelLeft,
   IconPanelLeftClose,
-  IconRefreshCw,
   IconDelete,
   IconUnfoldVertical,
 } from '@icons';
@@ -113,14 +112,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
     return count;
   }, [visibleWorkspaces, terminalTabs]);
 
-  const handleRefreshAllTerminal = useCallback(() => {
-    const newExpanded: Record<string, boolean> = {};
-    for (const ws of visibleWorkspaces) {
-      newExpanded[ws.id] = true;
-    }
-    setTerminalWorkspaceExpanded(newExpanded);
-  }, [visibleWorkspaces, setTerminalWorkspaceExpanded]);
-
   const toggleTerminalWorkspaceExpanded = useCallback(
     (workspaceId: string) => {
       setTerminalWorkspaceExpanded({
@@ -222,16 +213,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
               {visibleWorkspaces.length > 0 ? (
                 <span className="adl-tool-navigator__context-count">{visibleTabCount}</span>
               ) : null}
-              <TooltipSimple content={t.communicateRefreshAll} placement="top">
-                <button
-                  type="button"
-                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={handleRefreshAllTerminal}
-                  aria-label={t.communicateRefreshAll}
-                >
-                  <IconRefreshCw size={14} decorative />
-                </button>
-              </TooltipSimple>
             </div>
           </div>
           <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
@@ -244,7 +225,7 @@ export function TerminalPanel(props: TerminalPanelProps) {
                   aria-label={t.terminalLabel}
                   aria-pressed={navigatorMode === 'sessions' ? 'true' : 'false'}
                 >
-                  <IconFiles size={14} decorative />
+                  <IconTerminalDirectory size={14} decorative />
                 </button>
               </TooltipSimple>
               <TooltipSimple content={t.terminalCommandHistory} placement="top">
@@ -255,17 +236,26 @@ export function TerminalPanel(props: TerminalPanelProps) {
                   aria-label={t.terminalCommandHistory}
                   aria-pressed={navigatorMode === 'history' ? 'true' : 'false'}
                 >
-                  <IconFileCode size={14} decorative />
+                  <IconTerminalCommandHistory size={14} decorative />
                 </button>
               </TooltipSimple>
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              <TooltipSimple content={t.deleteAll} placement="top">
+              <TooltipSimple
+                content={
+                  navigatorMode === 'sessions' ? t.terminalClearAllTabs : t.terminalClearAllHistory
+                }
+                placement="top"
+              >
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={terminalActions.handleCloseAllTabs}
-                  aria-label={t.deleteAll}
+                  aria-label={
+                    navigatorMode === 'sessions'
+                      ? t.terminalClearAllTabs
+                      : t.terminalClearAllHistory
+                  }
                 >
                   <IconDelete size={14} decorative />
                 </button>
@@ -283,7 +273,6 @@ export function TerminalPanel(props: TerminalPanelProps) {
             onCloseTab={terminalCloseTab}
             onTogglePin={terminalTogglePin}
             onHideFromRightPanels={handleHideTerminalWorkspace}
-            onRefreshTree={handleRefreshAllTerminal}
             onCloseAllTabs={terminalActions.handleCloseAllTabs}
           />
           <NavigatorResizeHandle

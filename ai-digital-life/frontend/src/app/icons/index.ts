@@ -148,3 +148,4 @@ export {
   IconBell,
   IconPendingCommit,
 } from './status';
+export { IconTerminalDirectory, IconTerminalCommandHistory } from './terminal-nav';

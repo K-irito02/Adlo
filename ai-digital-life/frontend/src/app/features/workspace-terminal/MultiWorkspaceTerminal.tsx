@@ -16,7 +16,6 @@ export interface MultiWorkspaceTerminalProps {
   onCloseTab: (tabId: string) => void;
   onTogglePin: (tabId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onRefreshTree?: () => void;
   onCloseAllTabs?: (workspaceId: string) => void;
 }
 
@@ -33,7 +32,6 @@ export function MultiWorkspaceTerminal({
   onCloseTab,
   onTogglePin,
   onHideFromRightPanels,
-  onRefreshTree,
   onCloseAllTabs,
 }: MultiWorkspaceTerminalProps) {
   const { t } = useTCopy();
@@ -86,7 +84,6 @@ export function MultiWorkspaceTerminal({
         onCloseTab={onCloseTab}
         onTogglePin={onTogglePin}
         onHideFromRightPanels={() => {}}
-        onRefreshTree={() => {}}
         onCloseAllTabs={() => onCloseAllTabs?.('')}
         isIndependent
         t={t}
@@ -110,7 +107,6 @@ export function MultiWorkspaceTerminal({
               onCloseTab={onCloseTab}
               onTogglePin={onTogglePin}
               onHideFromRightPanels={onHideFromRightPanels}
-              onRefreshTree={() => onRefreshTree?.()}
               onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
               t={t}
             />

@@ -10,7 +10,6 @@ export interface UseTerminalMenuParams {
   isIndependent: boolean;
   onToggleExpand: () => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onRefreshTree: () => void;
   onCloseAllTabs: () => void;
   onCreateTab: () => void;
 }
@@ -20,7 +19,6 @@ export function useTerminalMenu({
   isIndependent,
   onToggleExpand,
   onHideFromRightPanels,
-  onRefreshTree,
   onCloseAllTabs,
   onCreateTab,
 }: UseTerminalMenuParams) {
@@ -173,14 +171,6 @@ export function useTerminalMenu({
     [handleNameClick],
   );
 
-  const handleRefreshClick = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      onRefreshTree();
-    },
-    [onRefreshTree],
-  );
-
   const handleCloseAllTabsClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
@@ -220,7 +210,6 @@ export function useTerminalMenu({
     closeMenu,
     handleHideFromRightPanels,
     handleSelectDefaultProfile,
-    handleRefreshClick,
     handleCloseAllTabsClick,
     handleCreateTabClick,
   };

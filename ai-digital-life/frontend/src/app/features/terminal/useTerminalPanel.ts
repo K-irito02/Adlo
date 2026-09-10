@@ -121,7 +121,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     [terminalActiveTabId, terminalTabs],
   );
 
-  const hasActiveTab = activeTab !== null;
+  const hasActiveTab = activeTab != null;
 
   const rootPath = props.appInfo?.currentWorkspace?.rootPath;
 
