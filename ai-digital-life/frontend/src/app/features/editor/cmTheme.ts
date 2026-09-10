@@ -105,7 +105,6 @@ interface ThemeColors {
   bg: string;
   fg: string;
   gutterBg: string;
-  gutterBorder: string;
   lineNumber: string;
   lineNumberActive: string;
   cursor: string;
@@ -146,9 +145,6 @@ function readColors(theme: 'light' | 'dark'): ThemeColors {
     (theme === 'dark' ? '#d4d4d4' : '#1e1e1e');
   const gutterBg =
     readThemeColor(theme, '--editor-gutter-bg') ?? (theme === 'dark' ? '#141414' : '#f8f8f8');
-  const gutterBorder =
-    readThemeColor(theme, '--editor-gutter-border') ??
-    (theme === 'dark' ? 'rgba(255,255,255,0.15)' : 'rgba(34,34,34,0.15)');
   const lineNumber =
     readThemeColor(theme, '--editor-lineNumber') ??
     readThemeColor(theme, '--text-muted') ??
@@ -218,7 +214,6 @@ function readColors(theme: 'light' | 'dark'): ThemeColors {
     bg,
     fg,
     gutterBg,
-    gutterBorder,
     lineNumber,
     lineNumberActive,
     cursor,
@@ -279,7 +274,6 @@ function buildEditorTheme(c: ThemeColors, theme: 'light' | 'dark'): Extension {
       '.cm-gutters': {
         backgroundColor: c.gutterBg,
         color: c.lineNumber,
-        borderRight: `1px solid ${c.gutterBorder}`,
         paddingRight: '0',
       },
       '.cm-activeLineGutter': {

@@ -286,7 +286,6 @@ html:not(.no-transition) [data-theme] {
   --editor-syntax-emphasis: #a626a4;
   --editor-syntax-link: #1d4ed8;
   --editor-gutter-bg: var(--bg-elevated);
-  --editor-gutter-border: rgba(34, 34, 34, 0.15);
   --editor-lineHighlight-border: rgba(0, 0, 0, 0.06);
   --editor-fold-placeholder: rgba(0, 0, 0, 0.08);
   --md-hljs-default: #1e1e1e;
@@ -531,7 +530,6 @@ html:not(.no-transition) [data-theme] {
   --editor-syntax-emphasis: #c678dd;
   --editor-syntax-link: #61afef;
   --editor-gutter-bg: var(--bg-elevated);
-  --editor-gutter-border: rgba(255, 255, 255, 0.15);
   --editor-lineHighlight-border: rgba(255, 255, 255, 0.07);
   --editor-fold-placeholder: rgba(255, 255, 255, 0.1);
   --md-hljs-default: #d4d4d4;
