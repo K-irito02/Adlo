@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
@@ -67,7 +67,7 @@ export interface UseTerminalPanelReturn {
     currentProfileLabel: string;
     navigatorTitle: string;
     navigatorCount: number;
-    recentCommands: { id: string; label: string; title: string }[];
+    commandHistory: { id: string; command: string; timestamp: number }[];
     shellMenuItems: TerminalShellMenuItem[];
     shellTypeItems: (TerminalShellMenuItem & { label: string; profile: TerminalProfile })[];
     terminalMenuItems: TerminalMenuItem[];
@@ -77,6 +77,7 @@ export interface UseTerminalPanelReturn {
     handleSelectTab: (tabId: string) => void;
     handleCloseTab: (tabId: string) => void;
     handleCloseAllTabs: () => void;
+    handleClearCommandHistory: () => void;
     handleTogglePin: () => void;
     handleDoubleClick: (tabId: string, title: string) => void;
     handleEditSubmit: () => void;
@@ -182,10 +183,20 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
     terminalNavigatorWidth,
     navigatorTitle,
     navigatorCount,
-    recentCommands,
+    commandHistory,
     toggleNavigator,
     handleNavigatorResizeStart,
   } = useTerminalViewport({ terminalTabs });
+
+  const { clearCommandHistory } = useAppStore(
+    useShallow((state) => ({
+      clearCommandHistory: state.clearCommandHistory,
+    })),
+  );
+
+  const handleClearCommandHistory = useCallback(() => {
+    clearCommandHistory();
+  }, [clearCommandHistory]);
 
   return {
     terminalState: {
@@ -213,7 +224,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
       currentProfileLabel,
       navigatorTitle,
       navigatorCount,
-      recentCommands,
+      commandHistory,
       shellMenuItems,
       shellTypeItems,
       terminalMenuItems,
@@ -223,6 +234,7 @@ export function useTerminalPanel(props: TerminalPanelProps): UseTerminalPanelRet
       handleSelectTab,
       handleCloseTab,
       handleCloseAllTabs,
+      handleClearCommandHistory,
       handleTogglePin,
       handleDoubleClick,
       handleEditSubmit,

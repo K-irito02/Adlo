@@ -4,7 +4,7 @@
  */
 import type { StoreState } from '../StoreState';
 import type { TerminalProfile, ToolId } from '../types';
-import type { TerminalTabState } from './terminalSliceTypes';
+import type { TerminalTabState, CommandHistoryEntry } from './terminalSliceTypes';
 import {
   TERMINAL_TABS_KEY,
   TERMINAL_ACTIVE_TAB_KEY,
@@ -13,12 +13,13 @@ import {
   TERMINAL_NAVIGATOR_WIDTH_KEY,
   TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
+  TERMINAL_COMMAND_HISTORY_KEY,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
 } from './terminalSliceTypes';
 
-export type { TerminalTabState };
+export type { TerminalTabState, CommandHistoryEntry };
 export {
   TERMINAL_TABS_KEY,
   TERMINAL_ACTIVE_TAB_KEY,
@@ -27,6 +28,7 @@ export {
   TERMINAL_NAVIGATOR_WIDTH_KEY,
   TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
+  TERMINAL_COMMAND_HISTORY_KEY,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
@@ -84,6 +86,7 @@ const writeWorkspaceDefaultProfiles = makePersistedWriter(TERMINAL_WORKSPACE_DEF
 const writeNavigatorCollapsed = makePersistedWriter(TERMINAL_NAVIGATOR_COLLAPSED_KEY);
 const writeWorkspaceExpanded = makePersistedWriter(TERMINAL_WORKSPACE_EXPANDED_KEY);
 const writeNavigatorWidth = makePersistedNumberWriter(TERMINAL_NAVIGATOR_WIDTH_KEY);
+const writeCommandHistory = makePersistedWriter(TERMINAL_COMMAND_HISTORY_KEY);
 
 // Lazy localStorage hydration — reads persisted values in idle time
 let _defaultsHydrated = false;
@@ -119,12 +122,14 @@ function hydrateTerminalDefaults(
       TERMINAL_WORKSPACE_EXPANDED_KEY,
       {},
     );
+    const commandHistory = readJson<CommandHistoryEntry[]>(TERMINAL_COMMAND_HISTORY_KEY, []);
     set({
       defaultTerminalProfile: profile,
       workspaceDefaultProfiles: workspaceProfiles,
       terminalNavigatorWidth: width,
       navigatorCollapsedByTool: collapsed,
       terminalWorkspaceExpanded: workspaceExpanded,
+      commandHistory,
     });
   };
   if (typeof requestIdleCallback === 'function') {
@@ -135,6 +140,7 @@ function hydrateTerminalDefaults(
 }
 
 const initialTerminalTabs: TerminalTabState[] = [];
+const initialCommandHistory: CommandHistoryEntry[] = [];
 
 // Type and slice definition
 export interface TerminalSlice {
@@ -148,6 +154,7 @@ export interface TerminalSlice {
   terminalWorkspaceExpanded: Record<string, boolean>;
   terminalPersisted: boolean;
   terminalWorkspaceId: string;
+  commandHistory: CommandHistoryEntry[];
 
   terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   terminalSelectTab: (tabId: string) => void;
@@ -157,6 +164,8 @@ export interface TerminalSlice {
   terminalTogglePin: (tabId: string) => void;
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
   terminalCloseAllTabs: () => void;
+  addCommandHistory: (command: string) => void;
+  clearCommandHistory: () => void;
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
   setWorkspaceDefaultTerminalProfile: (workspaceId: string, profile: TerminalProfile) => void;
   setTerminalNavigatorWidth: (width: number) => void;
@@ -183,6 +192,7 @@ export const createTerminalSlice = (
     terminalWorkspaceExpanded: {},
     terminalPersisted: false,
     terminalWorkspaceId: '',
+    commandHistory: initialCommandHistory,
 
     terminalCreateTab: (profile: TerminalProfile | undefined, workspaceId = '') =>
       set((state) => {
@@ -305,6 +315,23 @@ export const createTerminalSlice = (
       writeTerminalTabs([]);
       writeTerminalActiveTab('');
       set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: '' });
+    },
+
+    addCommandHistory: (command: string) =>
+      set((state) => {
+        const entry: CommandHistoryEntry = {
+          id: createUiId('cmd'),
+          command,
+          timestamp: Date.now(),
+        };
+        const nextHistory = [entry, ...state.commandHistory].slice(0, 200);
+        writeCommandHistory(nextHistory);
+        return { commandHistory: nextHistory };
+      }),
+
+    clearCommandHistory: () => {
+      writeCommandHistory([]);
+      set({ commandHistory: [] });
     },
 
     setDefaultTerminalProfile: (profile) => {

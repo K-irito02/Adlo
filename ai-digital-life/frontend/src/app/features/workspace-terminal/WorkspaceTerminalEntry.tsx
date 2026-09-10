@@ -196,7 +196,10 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 <button
                   type="button"
                   className="adl-multitree-entry__menu-item"
-                  onClick={() => onCloseAllTabs()}
+                  onClick={() => {
+                    closeMenu();
+                    onCloseAllTabs();
+                  }}
                 >
                   <IconDelete size={14} />
                   <span className="adl-multitree-entry__menu-item-content">
@@ -206,14 +209,16 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 <button
                   type="button"
                   className="adl-multitree-entry__menu-item"
-                  onClick={() => onCreateTab()}
+                  onClick={() => {
+                    closeMenu();
+                    onCreateTab();
+                  }}
                 >
                   <IconPlus size={14} />
                   <span className="adl-multitree-entry__menu-item-content">
                     {t.terminalNewTerminal}
                   </span>
                 </button>
-                <div className="adl-multitree-entry__menu-sep" role="separator" />
                 <div
                   ref={subMenuTriggerRef}
                   className="adl-multitree-entry__menu-item adl-multitree-entry__menu-item--with-sub"

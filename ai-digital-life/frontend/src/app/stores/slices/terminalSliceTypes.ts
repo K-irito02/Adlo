@@ -16,6 +16,12 @@ export interface TerminalTabState {
   sortOrder: number;
 }
 
+export interface CommandHistoryEntry {
+  id: string;
+  command: string;
+  timestamp: number;
+}
+
 // Local storage keys
 export const TERMINAL_TABS_KEY = 'adl-ui:terminal-tabs';
 export const TERMINAL_ACTIVE_TAB_KEY = 'adl-ui:terminal-active-tab';
@@ -24,6 +30,7 @@ export const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = 'adl-ui:terminal-workspac
 export const TERMINAL_NAVIGATOR_WIDTH_KEY = 'adl-ui:terminal-navigator-width';
 export const TERMINAL_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
 export const TERMINAL_WORKSPACE_EXPANDED_KEY = 'adl-ui:terminal-workspace-expanded';
+export const TERMINAL_COMMAND_HISTORY_KEY = 'adl-ui:terminal-command-history';
 
 // Constants
 export const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;

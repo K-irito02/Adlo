@@ -16,7 +16,7 @@ export interface MultiWorkspaceTerminalProps {
   onCloseTab: (tabId: string) => void;
   onTogglePin: (tabId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onCloseAllTabs?: (workspaceId: string) => void;
+  onCloseAllTabs: (workspaceId: string) => void;
 }
 
 const INDEPENDENT_WORKSPACE_ID = '__independent__';
@@ -84,7 +84,7 @@ export function MultiWorkspaceTerminal({
         onCloseTab={onCloseTab}
         onTogglePin={onTogglePin}
         onHideFromRightPanels={() => {}}
-        onCloseAllTabs={() => onCloseAllTabs?.('')}
+        onCloseAllTabs={() => onCloseAllTabs('')}
         isIndependent
         t={t}
       />
@@ -107,7 +107,7 @@ export function MultiWorkspaceTerminal({
               onCloseTab={onCloseTab}
               onTogglePin={onTogglePin}
               onHideFromRightPanels={onHideFromRightPanels}
-              onCloseAllTabs={() => onCloseAllTabs?.(workspace.id)}
+              onCloseAllTabs={() => onCloseAllTabs(workspace.id)}
               t={t}
             />
           )}

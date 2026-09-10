@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
@@ -16,7 +16,7 @@ interface UseTerminalViewportParams {
  * 职责：
  * - 导航器模式（sessions / history）切换
  * - 导航器折叠状态与宽度（来自 store selector）
- * - 最近命令列表派生（基于 terminalTabs）
+ * - 命令历史列表（来自独立持久化存储）
  * - 导航器标题与计数派生
  * - 导航器折叠/展开切换与宽度调整（委托 useNavigatorResize）
  */
@@ -26,6 +26,7 @@ export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams)
 
   const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
   const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
+  const commandHistory = terminalSelectors.useCommandHistory();
 
   const { setTerminalNavigatorWidth, toggleTerminalNavigator } = useAppStore(
     useShallow((state) => ({
@@ -34,21 +35,9 @@ export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams)
     })),
   );
 
-  const recentCommands = useMemo(
-    () =>
-      terminalTabs
-        .map((tab) => ({
-          id: tab.id,
-          label: tab.title,
-          title: tab.title,
-        }))
-        .filter((entry) => entry.label),
-    [terminalTabs],
-  );
-
   const navigatorTitle =
     navigatorMode === 'sessions' ? t.terminalSessions : t.terminalRecentCommands;
-  const navigatorCount = navigatorMode === 'sessions' ? terminalTabs.length : recentCommands.length;
+  const navigatorCount = navigatorMode === 'sessions' ? terminalTabs.length : commandHistory.length;
 
   const toggleNavigator = useCallback(
     (tool: string) => {
@@ -72,7 +61,7 @@ export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams)
     terminalNavigatorWidth,
     navigatorTitle,
     navigatorCount,
-    recentCommands,
+    commandHistory,
     toggleNavigator,
     handleNavigatorResizeStart,
   };

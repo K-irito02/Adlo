@@ -250,7 +250,11 @@ export function TerminalPanel(props: TerminalPanelProps) {
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={terminalActions.handleCloseAllTabs}
+                  onClick={
+                    navigatorMode === 'sessions'
+                      ? terminalActions.handleCloseAllTabs
+                      : terminalActions.handleClearCommandHistory
+                  }
                   aria-label={
                     navigatorMode === 'sessions'
                       ? t.terminalClearAllTabs
