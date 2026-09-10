@@ -190,6 +190,7 @@ Perform a comprehensive review covering:
 2. Correctness: logic errors, edge cases, race conditions, type safety, error handling paths
 3. Security & Performance: vulnerabilities, unsafe ops (unwrap/any), N+1 queries, resource leaks
 4. Standards: project coding rules (.agents/rules/), i18n, error handling, loading states, Promise handling, IPC bridge consistency
+5. Optimization & Improvement: are there opportunities to optimize, adjust, or improve the code (including pre-existing code, user's special designs)? Even items judged as "no fix needed" must be checked for improvement opportunities
 
 For each issue, report: file + line range, severity (critical/high/medium/low), category, description, suggested fix.
 
@@ -206,10 +207,12 @@ Write your complete review report to .review-diffs/<task>-rev<N>-report.md (inpu
 
 ```
 逐个分析问题
-  ├─ 主 Agent 问题验证（真实性 + 特殊情况判断，结果记入收尾记录文件）
+  ├─ 主 Agent 问题验证（真实性 + 特殊情况判断 + 优化检查，结果记入收尾记录文件）
   │     ├─ 真实存在且应修复 → 需 AskUserQuestion？ → YES → 弹出询问卡片，等用户决策后修复
   │     │                                            └→ NO → 直接修复
-  │     └─ 误报 / 用户特殊设计 / 正当用途 → 不修复，记录理由
+  │     ├─ 用户特殊设计/正当防御性代码/合理兼容处理 → 仍需检查优化/改进空间 → 有改进之处 → 优化
+  │     │                                                           └→ 无改进之处 → 不修复，记录理由
+  │     └─ 误报 → 不修复，记录理由
 全部处理完 → 重新执行 2b 多Agent审查
   ├─ 仍有问题 → 重复循环
   └─ 无问题 → 审查通过
@@ -224,15 +227,15 @@ Write your complete review report to .review-diffs/<task>-rev<N>-report.md (inpu
 
 | 情形 | 判定 | 处理 |
 |------|------|------|
-| **用户特殊设计** | 刻意为之的行为/命名/结构或已知取舍（有注释、文档、历史提交佐证） | 不修复，记录理由；无法确认时询问用户 |
-| **正当防御性代码** | 系统边界验证、生产调试用的错误处理/日志、有意的性能取舍 | 保留 |
+| **用户特殊设计** | 刻意为之的行为/命名/结构或已知取舍（有注释、文档、历史提交佐证） | **仍需检查是否有优化/调整/改进空间**；确认无任何可改进之处后才不修复并记录理由；无法确认时询问用户 |
+| **正当防御性代码** | 系统边界验证、生产调试用的错误处理/日志、有意的性能取舍 | **仍需检查是否有优化/调整/改进空间**；确认无任何可改进之处后才保留并记录理由 |
 | **无用/不必要的防御性代码** | 根因修复后不再需要、冗余守卫、多重检查、不必要的预防措施 | **修复并清理删除** |
-| **合理兼容处理** | 合理、符合长期演进收益、非偷懒性兼容 | 保留 |
+| **合理兼容处理** | 合理、符合长期演进收益、非偷懒性兼容 | **仍需检查是否有优化/调整/改进空间**；确认无任何可改进之处后才保留并记录理由 |
 | **不合理兼容处理** | 不合理、不利于长期演进、**偷懒性兼容**（为省事绕开重构） | **修复** |
 | **误报** | 子代理误报 / 过期快照假阳性 | 不修复，记录理由 |
 | **非本次变更引入** | 只要在审查范围内发现，无论是否本次变更引入 | **同样修复解决** |
 
-**整体原则：** 保证代码的准确性、一致性，所有相关代码高度吻合、完美契合。尽量不引入兼容性代码，反对"A 兼容 B、B 兼容 C"式的相互兼容层；发现此类兼容一律修复为统一、一致的正确实现。
+**整体原则：** 保证代码的准确性、一致性，所有相关代码高度吻合、完美契合。尽量不引入兼容性代码，反对"A 兼容 B、B 兼容 C"式的相互兼容层；发现此类兼容一律修复为统一、一致的正确实现。**对于所有审查范围内的代码（包括预存代码、用户特殊设计、正当防御性代码、合理兼容处理），即使判定为"不修复"，也必须逐项检查是否存在可优化、调整、改进的内容，确认无任何可改进之处后才不修复。不得偷懒跳过优化检查。**
 
 3. **复审联动：** "不修复"判定及理由写入收尾记录文件，并随下一轮审查 prompt 提供给子代理；子代理可提出异议，异议成立则重新评估，循环直到一致。
 
@@ -430,6 +433,7 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 - 未验证问题真实性就直接修复（子代理误报/过期快照假阳性被误改）
 - 未判断防御性代码/兼容处理是否正当就保留（无用防御性代码、不合理/偷懒性兼容须修复）
 - 非本次变更引入的问题未修复（审查范围内的问题无论是否本次引入都要修复）
+- 判定"不修复"后未检查优化/改进空间（即使判定为用户特殊设计/正当防御性代码/合理兼容处理，也必须逐项检查是否有可优化、调整、改进的内容，确认无任何可改进之处后才不修复）
 - 测试失败未分析根因直接重试
 - 修复后未重新检查
 - 跑全量测试而非只测受影响部分
