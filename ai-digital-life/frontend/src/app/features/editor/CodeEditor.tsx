@@ -23,6 +23,7 @@ import { FoldTooltipOverlay } from './FoldTooltipOverlay';
 import { scrollLeftSyncExtension } from './cmScrollSync';
 import { useFoldMarkerAutoHide } from './useFoldMarkerAutoHide';
 import { useTCopy } from '@app/i18n/useTCopy';
+import { cn } from '@/lib/utils';
 
 export interface CodeEditorProps {
   value: string;
@@ -156,7 +157,11 @@ export function CodeEditor({
   return (
     <div
       ref={wrapperRef}
-      className={`adl-cm-editor-wrapper${wordWrap ? ' adl-cm-word-wrap' : ' adl-cm-no-word-wrap'}${!lineNumbersEnabled ? ' adl-cm-no-gutters' : ''}`}
+      className={cn(
+        'adl-cm-editor-wrapper',
+        wordWrap ? 'adl-cm-word-wrap' : 'adl-cm-no-word-wrap',
+        !lineNumbersEnabled && 'adl-cm-no-gutters',
+      )}
       data-fold-marker-state={foldMarkerState}
       style={{ position: 'relative', width: '100%', height: '100%' }}
     >

@@ -391,7 +391,8 @@
   cursor: pointer;
 }
 
-/* Hide entire gutter area when line numbers are disabled */
-.adl-cm-no-gutters .cm-gutters {
+/* Hide entire gutter area when line numbers are disabled
+   Use :scope > to target only direct children, avoiding hidden gutters in nested CodeMirror instances */
+.adl-cm-no-gutters > .cm-gutters {
   display: none !important;
 }
