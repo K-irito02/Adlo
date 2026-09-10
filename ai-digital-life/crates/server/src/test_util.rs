@@ -8,7 +8,7 @@ use crate::state::ServerState;
 use adl_clipboard::ClipboardStore;
 use adl_kernel::config::AppConfig;
 use adl_kernel::events::EventBus;
-use adl_pty::SessionManager;
+use adl_pty::AsyncSessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
 use adl_sysmon::SystemMonitor;
@@ -34,7 +34,7 @@ pub fn test_server_state() -> ServerState {
         event_bus: EventBus::new(256),
         current_workspace: Arc::new(RwLock::new(None)),
         editor_dirty_paths: Arc::new(StdMutex::new(HashSet::new())),
-        pty_sessions: Arc::new(StdMutex::new(SessionManager::new())),
+        pty_sessions: Arc::new(AsyncSessionManager::new()),
         started_at: 0,
         durable_manager: DurableSessionManager::new(db.clone()),
         server_port: Arc::new(AtomicU16::new(0)),

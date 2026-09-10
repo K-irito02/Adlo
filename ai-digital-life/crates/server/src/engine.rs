@@ -3,7 +3,7 @@ use adl_clipboard::ClipboardMonitor;
 use adl_errors::AppError;
 use adl_kernel::{config as adl_config, events::EventBus};
 use adl_logging::LogManager;
-use adl_pty::SessionManager;
+use adl_pty::AsyncSessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
 use adl_types::{WorkspaceMeta, now_ms};
@@ -66,7 +66,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     let event_bus = EventBus::new(256);
     let current_workspace = Arc::new(RwLock::new(restored_current_workspace));
     let editor_dirty_paths = Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
-    let pty_sessions = Arc::new(std::sync::Mutex::new(SessionManager::new()));
+    let pty_sessions = Arc::new(AsyncSessionManager::new());
     let durable_manager = DurableSessionManager::new(db.clone());
     let server_port = Arc::new(std::sync::atomic::AtomicU16::new(0));
     eprintln!("[ad-server] init_server_state complete");

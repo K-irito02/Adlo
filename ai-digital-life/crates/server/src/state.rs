@@ -1,7 +1,7 @@
 use adl_clipboard::ClipboardStore;
 use adl_kernel::config::AppConfig;
 use adl_kernel::events::EventBus;
-use adl_pty::SessionManager;
+use adl_pty::AsyncSessionManager;
 use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
 use adl_sysmon::SystemMonitor;
@@ -21,7 +21,7 @@ pub struct ServerState {
     pub event_bus: EventBus,
     pub current_workspace: Arc<RwLock<Option<WorkspaceMeta>>>,
     pub editor_dirty_paths: Arc<StdMutex<HashSet<String>>>,
-    pub pty_sessions: Arc<StdMutex<SessionManager>>,
+    pub pty_sessions: Arc<AsyncSessionManager>,
     pub started_at: i64,
     pub durable_manager: DurableSessionManager,
     pub server_port: Arc<AtomicU16>,
