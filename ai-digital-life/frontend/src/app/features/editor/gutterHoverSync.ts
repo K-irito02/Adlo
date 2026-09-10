@@ -36,6 +36,11 @@ export function gutterHoverSync(): Extension {
         return;
       }
 
+      // Skip if gutters are hidden (line numbers disabled)
+      if (getComputedStyle(gutters).display === 'none') {
+        return;
+      }
+
       // First, remove any existing overlay
       const existingOverlay = gutters.querySelector('.adl-gutter-hover-overlay');
       if (existingOverlay) {
