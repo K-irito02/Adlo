@@ -10,7 +10,7 @@ export interface UseTerminalMenuParams {
   isIndependent: boolean;
   onToggleExpand: () => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onCloseAllTabs: () => void;
+  onCloseAllTabs: (workspaceId: string) => void;
   onCreateTab: () => void;
 }
 
@@ -174,9 +174,9 @@ export function useTerminalMenu({
   const handleCloseAllTabsClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      onCloseAllTabs();
+      onCloseAllTabs(workspace.id);
     },
-    [onCloseAllTabs],
+    [onCloseAllTabs, workspace.id],
   );
 
   const handleCreateTabClick = useCallback(

@@ -249,7 +249,7 @@ export function TerminalPanel() {
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
                   onClick={
                     navigatorMode === 'sessions'
-                      ? terminalActions.handleCloseAllTabs
+                      ? () => terminalActions.handleCloseAllTabs()
                       : terminalActions.handleClearCommandHistory
                   }
                   aria-label={

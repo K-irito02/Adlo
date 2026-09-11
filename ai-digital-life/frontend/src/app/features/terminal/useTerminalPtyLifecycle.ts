@@ -168,6 +168,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
   const handleSelectTab = useCallback(
     (tabId: string) => {
+      const currentActiveTabId = useAppStore.getState().terminalActiveTabId;
+      if (tabId === currentActiveTabId) {
+        return;
+      }
       terminalSelectTab(tabId);
       const tabs = useAppStore.getState().terminalTabs;
       const tab = tabs.find((t) => t.id === tabId);
@@ -208,16 +212,22 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     [terminalCloseTab],
   );
 
-  const handleCloseAllTabs = useCallback(() => {
-    const tabs = useAppStore.getState().terminalTabs;
-    tabs.forEach((tab) => {
-      if (tab.sessionId) {
-        window.digitalLife.pty.kill(tab.sessionId);
-        sessionOutputsRef.current.delete(tab.sessionId);
-      }
-    });
-    terminalCloseAllTabs();
-  }, [terminalCloseAllTabs]);
+  const handleCloseAllTabs = useCallback(
+    (workspaceId?: string) => {
+      const tabs = useAppStore.getState().terminalTabs;
+      const tabsToClose = workspaceId
+        ? tabs.filter((tab) => tab.workspaceId === workspaceId)
+        : tabs;
+      tabsToClose.forEach((tab) => {
+        if (tab.sessionId) {
+          window.digitalLife.pty.kill(tab.sessionId);
+          sessionOutputsRef.current.delete(tab.sessionId);
+        }
+      });
+      terminalCloseAllTabs(workspaceId);
+    },
+    [terminalCloseAllTabs],
+  );
 
   const handleKill = useCallback(() => {
     if (activeTab?.sessionId) {

@@ -141,7 +141,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
           >
-            <span className="adl-split-pill__workspace-label" title={boundWorkspaceLabel}>
+            <span className="adl-split-pill__workspace-label">
               {boundWorkspaceLabel.length > 12
                 ? boundWorkspaceLabel.substring(0, 12) + '...'
                 : boundWorkspaceLabel}
@@ -211,6 +211,11 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
                 }}
               >
                 <span>{item.label}</span>
+                {item.profile && item.profile === currentProfile && (
+                  <span className="adl-menu__check">
+                    <IconCheck size={14} decorative />
+                  </span>
+                )}
               </button>
             ),
           )}

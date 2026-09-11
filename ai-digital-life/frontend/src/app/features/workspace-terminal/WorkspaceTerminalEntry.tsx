@@ -34,7 +34,7 @@ export interface WorkspaceTerminalEntryProps {
   onCloseTab: (tabId: string) => void;
   onTogglePin: (tabId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onCloseAllTabs: () => void;
+  onCloseAllTabs: (workspaceId: string) => void;
   isIndependent?: boolean;
   t: CopyDict;
 }
@@ -198,7 +198,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                   className="adl-multitree-entry__menu-item"
                   onClick={() => {
                     closeMenu();
-                    onCloseAllTabs();
+                    onCloseAllTabs(workspace.id);
                   }}
                 >
                   <IconDelete size={14} />
@@ -302,7 +302,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
                 onClick={onCreateTab}
               >
                 <IconPlus size={12} decorative />
-                {t.terminalCreate}
+                {t.terminalNewTerminal}
               </button>
             </div>
           )}

@@ -15,7 +15,7 @@ interface UseTerminalShellManagementParams {
  * 终端 Shell 管理 Hook：组合菜单逻辑与默认 profile 派生。
  *
  * 职责：
- * - 默认 shell profile 与当前 profile 标签派生
+ * - 复合按钮的独立 shell profile 与当前 profile 标签派生
  * - 终端菜单/Shell 菜单/右键菜单状态与项（委托 useTerminalMenus）
  * - 复制/粘贴/清屏/杀进程/Pin/切换 profile 等菜单动作
  */
@@ -27,6 +27,7 @@ export function useTerminalShellManagement({
   handleKill,
 }: UseTerminalShellManagementParams) {
   const defaultTerminalProfile = terminalSelectors.useDefaultTerminalProfile();
+  const shellSelectorProfile = terminalSelectors.useShellSelectorProfile();
 
   const {
     terminalMenuOpen,
@@ -53,7 +54,7 @@ export function useTerminalShellManagement({
     handleKill,
   });
 
-  const currentProfile: TerminalProfile = defaultTerminalProfile;
+  const currentProfile: TerminalProfile = shellSelectorProfile;
   const currentProfileLabel =
     currentProfile === 'powershell' ? 'PowerShell' : currentProfile === 'bash' ? 'Bash' : 'CMD';
 

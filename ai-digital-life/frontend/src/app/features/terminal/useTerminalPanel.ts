@@ -75,7 +75,7 @@ export interface UseTerminalPanelReturn {
     handleCreateTab: (profile?: TerminalProfile, workspaceId?: string) => Promise<void>;
     handleSelectTab: (tabId: string) => void;
     handleCloseTab: (tabId: string) => void;
-    handleCloseAllTabs: () => void;
+    handleCloseAllTabs: (workspaceId?: string) => void;
     handleClearCommandHistory: () => void;
     handleTogglePin: () => void;
     handleDoubleClick: (tabId: string, title: string) => void;

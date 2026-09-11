@@ -35,10 +35,10 @@ export function useTerminalMenus({
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
 
   const terminalTabs = terminalSelectors.useTerminalTabs();
-  const { terminalTogglePin, setDefaultTerminalProfile, recentWorkspaces } = useAppStore(
+  const { terminalTogglePin, setShellSelectorProfile, recentWorkspaces } = useAppStore(
     useShallow((state) => ({
       terminalTogglePin: state.terminalTogglePin,
-      setDefaultTerminalProfile: state.setDefaultTerminalProfile,
+      setShellSelectorProfile: state.setShellSelectorProfile,
       recentWorkspaces: state.recentWorkspaces,
     })),
   );
@@ -79,9 +79,9 @@ export function useTerminalMenus({
 
   const updateProfile = useCallback(
     (profile: TerminalProfile) => {
-      setDefaultTerminalProfile(profile);
+      setShellSelectorProfile(profile);
     },
-    [setDefaultTerminalProfile],
+    [setShellSelectorProfile],
   );
 
   useEffect(() => {

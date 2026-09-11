@@ -163,7 +163,7 @@ export interface TerminalSlice {
   terminalUpdateTab: (tabId: string, patch: Partial<Omit<TerminalTabState, 'id'>>) => void;
   terminalTogglePin: (tabId: string) => void;
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
-  terminalCloseAllTabs: () => void;
+  terminalCloseAllTabs: (workspaceId?: string) => void;
   addCommandHistory: (command: string) => void;
   clearCommandHistory: () => void;
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
@@ -174,6 +174,8 @@ export interface TerminalSlice {
   setTerminalWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
   setTerminalPersisted: (persisted: boolean) => void;
   setTerminalWorkspaceId: (workspaceId: string) => void;
+  shellSelectorProfile: TerminalProfile;
+  setShellSelectorProfile: (profile: TerminalProfile) => void;
 }
 
 export const createTerminalSlice = (
@@ -193,6 +195,7 @@ export const createTerminalSlice = (
     terminalPersisted: false,
     terminalWorkspaceId: '',
     commandHistory: initialCommandHistory,
+    shellSelectorProfile: 'powershell',
 
     terminalCreateTab: (profile: TerminalProfile | undefined, workspaceId = '') =>
       set((state) => {
@@ -311,11 +314,25 @@ export const createTerminalSlice = (
         };
       }),
 
-    terminalCloseAllTabs: () => {
-      writeTerminalTabs([]);
-      writeTerminalActiveTab('');
-      set({ terminalTabs: [], terminalTabsById: {}, terminalActiveTabId: '' });
-    },
+    terminalCloseAllTabs: (workspaceId?: string) =>
+      set((state) => {
+        const filtered =
+          workspaceId !== undefined
+            ? state.terminalTabs.filter((tab) => tab.workspaceId !== workspaceId)
+            : [];
+        const nextTabs = sortTabs(filtered);
+        const nextActive =
+          nextTabs.find((tab) => tab.id === state.terminalActiveTabId) !== undefined
+            ? state.terminalActiveTabId
+            : (nextTabs[nextTabs.length - 1]?.id ?? '');
+        writeTerminalTabs(nextTabs);
+        writeTerminalActiveTab(nextActive);
+        return {
+          terminalTabs: nextTabs,
+          terminalTabsById: buildTabsById(nextTabs),
+          terminalActiveTabId: nextActive,
+        };
+      }),
 
     addCommandHistory: (command: string) =>
       set((state) => {
@@ -391,5 +408,7 @@ export const createTerminalSlice = (
     setTerminalPersisted: (persisted) => set({ terminalPersisted: persisted }),
 
     setTerminalWorkspaceId: (workspaceId) => set({ terminalWorkspaceId: workspaceId }),
+
+    setShellSelectorProfile: (profile) => set({ shellSelectorProfile: profile }),
   };
 };
