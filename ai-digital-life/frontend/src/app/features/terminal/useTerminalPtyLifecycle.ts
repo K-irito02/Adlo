@@ -21,6 +21,35 @@ interface PtyLifecycleParams {
 export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const xtermRef = useRef<XtermTerminalHandle | null>(null);
   const sessionOutputsRef = useRef<Map<string, string>>(new Map());
+  const hydratedRef = useRef(false);
+
+  // 启动时从持久化存储恢复终端输出到内存 Map
+  useEffect(() => {
+    if (hydratedRef.current) {
+      return;
+    }
+    hydratedRef.current = true;
+    const tabs = useAppStore.getState().terminalTabs;
+    const sessionIds = tabs.filter((t) => t.sessionId).map((t) => t.sessionId!);
+    if (sessionIds.length === 0) {
+      return;
+    }
+    // 并行加载所有有 sessionId 的标签的输出
+    Promise.all(
+      sessionIds.map(async (sid) => {
+        const output = await terminalOutputStore.load(sid);
+        return { sid, output };
+      }),
+    ).then((results) => {
+      const map = sessionOutputsRef.current;
+      for (const { sid, output } of results) {
+        if (output && !map.has(sid)) {
+          map.set(sid, output);
+        }
+      }
+
+    });
+  }, []);
 
   const {
     terminalCreateTab,
@@ -178,17 +207,16 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const tab = tabs.find((t) => t.id === tabId);
       if (tab?.sessionId) {
         const sessionId = tab.sessionId;
+        const stored = sessionOutputsRef.current.get(sessionId) ?? '';
         restoringSessionRef.current = sessionId;
         xtermRef.current?.clear();
         setTimeout(() => {
-          // 已被更新的切换覆盖，或当前活动标签已不是该会话时，丢弃过期回放。
-          // 此处不清 restoringSessionRef（见 handleCreateTab 同款注释）。
           if (restoringSessionRef.current !== sessionId || !isActiveSession(sessionId)) {
             return;
           }
-          const stored = sessionOutputsRef.current.get(sessionId) ?? '';
-          if (stored) {
-            xtermRef.current?.write(stored);
+          const replay = sessionOutputsRef.current.get(sessionId) ?? '';
+          if (replay) {
+            xtermRef.current?.write(replay);
           }
           xtermRef.current?.resize();
           xtermRef.current?.scrollToBottom();

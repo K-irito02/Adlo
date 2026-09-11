@@ -42,7 +42,9 @@ pub async fn save(
 ) -> impl IntoResponse {
     let input: SaveBody = match ipc::json_body(body).await {
         Ok(v) => v,
-        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+        Err((_, msg)) => {
+            return ipc::to_response(Err(AppError::InvalidInput(msg)));
+        }
     };
     let db = state.db.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -66,7 +68,9 @@ pub async fn load(
 ) -> impl IntoResponse {
     let input: SessionIdBody = match ipc::json_body(body).await {
         Ok(v) => v,
-        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+        Err((_, msg)) => {
+            return ipc::to_response(Err(AppError::InvalidInput(msg)));
+        }
     };
     let db = state.db.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -95,7 +99,9 @@ pub async fn delete(
 ) -> impl IntoResponse {
     let input: SessionIdBody = match ipc::json_body(body).await {
         Ok(v) => v,
-        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+        Err((_, msg)) => {
+            return ipc::to_response(Err(AppError::InvalidInput(msg)));
+        }
     };
     let db = state.db.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
