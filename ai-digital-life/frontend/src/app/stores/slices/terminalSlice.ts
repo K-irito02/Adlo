@@ -100,6 +100,8 @@ function hydrateTerminalDefaults(
   }
   _defaultsHydrated = true;
   const doHydrate = () => {
+    const tabs = readJson<TerminalTabState[]>(TERMINAL_TABS_KEY, []);
+    const activeTabId = readJson<string>(TERMINAL_ACTIVE_TAB_KEY, '');
     const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, 'powershell');
     const workspaceProfiles = readJson<Record<string, TerminalProfile>>(
       TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
@@ -124,6 +126,9 @@ function hydrateTerminalDefaults(
     );
     const commandHistory = readJson<CommandHistoryEntry[]>(TERMINAL_COMMAND_HISTORY_KEY, []);
     set({
+      terminalTabs: tabs,
+      terminalTabsById: buildTabsById(tabs),
+      terminalActiveTabId: activeTabId,
       defaultTerminalProfile: profile,
       shellSelectorProfile: profile,
       workspaceDefaultProfiles: workspaceProfiles,
