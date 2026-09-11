@@ -27,6 +27,9 @@ export interface WorkspaceTerminalEntryProps {
   isExpanded: boolean;
   tabs: TerminalTabState[];
   activeTabId: string | undefined;
+  editingTabId: string | null;
+  editValue: string;
+  editInputRef: React.RefObject<HTMLInputElement | null>;
   tabCount: number;
   onToggleExpand: () => void;
   onCreateTab: () => void;
@@ -36,6 +39,10 @@ export interface WorkspaceTerminalEntryProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onCloseAllTabs: (workspaceId: string) => void;
   isIndependent?: boolean;
+  onDoubleClick: (tabId: string, title: string) => void;
+  onEditChange: (value: string) => void;
+  onEditSubmit: () => void;
+  onEditKeyDown: (e: React.KeyboardEvent) => void;
   t: CopyDict;
 }
 
@@ -44,6 +51,9 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
   isExpanded,
   tabs,
   activeTabId,
+  editingTabId,
+  editValue,
+  editInputRef,
   tabCount,
   onToggleExpand,
   onCreateTab,
@@ -52,6 +62,10 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
   onHideFromRightPanels,
   onCloseAllTabs,
   isIndependent = false,
+  onDoubleClick,
+  onEditChange,
+  onEditSubmit,
+  onEditKeyDown,
   t,
 }: WorkspaceTerminalEntryProps) {
   const {
@@ -276,9 +290,9 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
             <TerminalTabBar
               tabs={tabs}
               activeTabId={activeTabId ?? ''}
-              editingTabId={null}
-              editValue=""
-              editInputRef={{ current: null }}
+              editingTabId={editingTabId}
+              editValue={editValue}
+              editInputRef={editInputRef}
               isDragging={false}
               dragOverTabId={null}
               onSelectTab={onSelectTab}
@@ -288,10 +302,10 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
               onDragOver={() => {}}
               onDrop={() => {}}
               onContextMenu={() => {}}
-              onDoubleClick={() => {}}
-              onEditChange={() => {}}
-              onEditSubmit={() => {}}
-              onEditKeyDown={() => {}}
+              onDoubleClick={onDoubleClick}
+              onEditChange={onEditChange}
+              onEditSubmit={onEditSubmit}
+              onEditKeyDown={onEditKeyDown}
               t={t}
             />
           ) : (

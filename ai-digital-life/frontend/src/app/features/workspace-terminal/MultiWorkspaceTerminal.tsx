@@ -10,6 +10,9 @@ export interface MultiWorkspaceTerminalProps {
   expandedStates: Record<string, boolean>;
   terminalTabs: TerminalTabState[];
   activeTabId: string | undefined;
+  editingTabId: string | null;
+  editValue: string;
+  editInputRef: React.RefObject<HTMLInputElement | null>;
   onToggleExpand: (workspaceId: string) => void;
   onCreateTab: (workspaceId: string) => void;
   onSelectTab: (tabId: string) => void;
@@ -17,6 +20,10 @@ export interface MultiWorkspaceTerminalProps {
   onTogglePin: (tabId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
   onCloseAllTabs: (workspaceId?: string) => void;
+  onDoubleClick: (tabId: string, title: string) => void;
+  onEditChange: (value: string) => void;
+  onEditSubmit: () => void;
+  onEditKeyDown: (e: React.KeyboardEvent) => void;
 }
 
 const INDEPENDENT_WORKSPACE_ID = '__independent__';
@@ -26,6 +33,9 @@ export function MultiWorkspaceTerminal({
   expandedStates,
   terminalTabs,
   activeTabId,
+  editingTabId,
+  editValue,
+  editInputRef,
   onToggleExpand,
   onCreateTab,
   onSelectTab,
@@ -33,6 +43,10 @@ export function MultiWorkspaceTerminal({
   onTogglePin,
   onHideFromRightPanels,
   onCloseAllTabs,
+  onDoubleClick,
+  onEditChange,
+  onEditSubmit,
+  onEditKeyDown,
 }: MultiWorkspaceTerminalProps) {
   const { t } = useTCopy();
   const tabsByWorkspace = useMemo(() => {
@@ -77,6 +91,9 @@ export function MultiWorkspaceTerminal({
         isExpanded={expandedStates[INDEPENDENT_WORKSPACE_ID] !== false}
         tabs={independentTabs}
         activeTabId={activeTabId}
+        editingTabId={editingTabId}
+        editValue={editValue}
+        editInputRef={editInputRef}
         tabCount={independentTabs.length}
         onToggleExpand={() => onToggleExpand(INDEPENDENT_WORKSPACE_ID)}
         onCreateTab={handleCreateIndependentTab}
@@ -86,6 +103,10 @@ export function MultiWorkspaceTerminal({
         onHideFromRightPanels={() => {}}
         onCloseAllTabs={() => onCloseAllTabs('')}
         isIndependent
+        onDoubleClick={onDoubleClick}
+        onEditChange={onEditChange}
+        onEditSubmit={onEditSubmit}
+        onEditKeyDown={onEditKeyDown}
         t={t}
       />
       {workspaces.length > 0 && (
@@ -100,6 +121,9 @@ export function MultiWorkspaceTerminal({
               isExpanded={isExpanded}
               tabs={tabsByWorkspace[workspace.id] ?? []}
               activeTabId={activeTabId}
+              editingTabId={editingTabId}
+              editValue={editValue}
+              editInputRef={editInputRef}
               tabCount={(tabsByWorkspace[workspace.id] ?? []).length}
               onToggleExpand={() => onToggleExpand(workspace.id)}
               onCreateTab={() => onCreateTab(workspace.id)}
@@ -108,6 +132,10 @@ export function MultiWorkspaceTerminal({
               onTogglePin={onTogglePin}
               onHideFromRightPanels={onHideFromRightPanels}
               onCloseAllTabs={() => onCloseAllTabs(workspace.id)}
+              onDoubleClick={onDoubleClick}
+              onEditChange={onEditChange}
+              onEditSubmit={onEditSubmit}
+              onEditKeyDown={onEditKeyDown}
               t={t}
             />
           )}

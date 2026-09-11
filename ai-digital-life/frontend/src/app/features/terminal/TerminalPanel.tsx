@@ -62,6 +62,9 @@ export function TerminalPanel() {
     terminalActiveTabId,
     xtermRef,
     contextMenu,
+    editingTabId,
+    editValue,
+    editInputRef,
   } = terminalState;
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
@@ -268,6 +271,9 @@ export function TerminalPanel() {
             expandedStates={terminalWorkspaceExpanded}
             terminalTabs={terminalTabs}
             activeTabId={terminalActiveTabId}
+            editingTabId={editingTabId}
+            editValue={editValue}
+            editInputRef={editInputRef}
             onToggleExpand={toggleTerminalWorkspaceExpanded}
             onCreateTab={(wsId) => terminalActions.handleCreateTab(undefined, wsId)}
             onSelectTab={terminalActions.handleSelectTab}
@@ -275,6 +281,10 @@ export function TerminalPanel() {
             onTogglePin={terminalTogglePin}
             onHideFromRightPanels={handleHideTerminalWorkspace}
             onCloseAllTabs={terminalActions.handleCloseAllTabs}
+            onDoubleClick={terminalActions.handleDoubleClick}
+            onEditChange={terminalActions.setEditValue}
+            onEditSubmit={terminalActions.handleEditSubmit}
+            onEditKeyDown={terminalActions.handleEditKeyDown}
           />
           <NavigatorResizeHandle
             label="Resize terminal navigator"
