@@ -171,7 +171,6 @@ pub const MIGRATIONS: &[Migration] = &[
         sql: "CREATE TABLE IF NOT EXISTS terminal_output (
             session_id TEXT PRIMARY KEY,
             output     BLOB NOT NULL,
-            byte_size  INTEGER NOT NULL DEFAULT 0,
             updated_at INTEGER NOT NULL DEFAULT (unixepoch())
         );",
     },

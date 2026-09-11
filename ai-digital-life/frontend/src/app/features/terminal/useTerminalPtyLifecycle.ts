@@ -22,6 +22,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const xtermRef = useRef<XtermTerminalHandle | null>(null);
   const sessionOutputsRef = useRef<Map<string, string>>(new Map());
   const hydratedRef = useRef(false);
+  const saveDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // 启动时从持久化存储恢复终端输出到内存 Map
   useEffect(() => {
@@ -290,7 +291,21 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
       }
       outputs.set(event.sessionId, previous);
-      terminalOutputStore.save(event.sessionId, outputs.get(event.sessionId) ?? '');
+      // 防抖保存：合并高频输出事件，每 500ms 最多写入一次持久化存储
+      const existing = saveDebounceRef.current.get(event.sessionId);
+      if (existing) {
+        clearTimeout(existing);
+      }
+      saveDebounceRef.current.set(
+        event.sessionId,
+        setTimeout(() => {
+          saveDebounceRef.current.delete(event.sessionId);
+          const latest = sessionOutputsRef.current.get(event.sessionId);
+          if (latest) {
+            terminalOutputStore.save(event.sessionId, latest);
+          }
+        }, 500),
+      );
 
       if (
         event.sessionId === activeTab?.sessionId &&
