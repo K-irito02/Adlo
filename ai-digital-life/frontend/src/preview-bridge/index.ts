@@ -251,6 +251,7 @@ export async function setupPreviewBridge(): Promise<void> {
       // 否则 mock 的 getThumbUrl 恒返回 ''，导致预览模式缩略图渲染为图标占位。
       getThumbUrl: http.clipboard.getThumbUrl,
     },
+    terminalOutput: http.terminalOutput,
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
       adlServerBaseUrl,
       http.systemMonitor,

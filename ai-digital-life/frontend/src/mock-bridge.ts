@@ -132,6 +132,11 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
   reserved: mockReserved,
   clipboard: mockClipboard,
   systemMonitor: mockSystemMonitor,
+  terminalOutput: {
+    save: async () => ({ ok: true as const, data: undefined as void }),
+    load: async () => ({ ok: true as const, data: null as string | null }),
+    delete: async () => ({ ok: true as const, data: undefined as void }),
+  },
 };
 
 export function setupMockBridge(): void {

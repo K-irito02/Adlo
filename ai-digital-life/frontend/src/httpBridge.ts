@@ -1031,5 +1031,15 @@ export function createHttpBridge({
     systemMonitor: {
       snapshot: () => call<SystemSnapshot>(baseUrl, '/sysmon/snapshot', GET()),
     } satisfies SystemMonitorBridge,
+
+    // ── Terminal-output domain.
+    terminalOutput: {
+      save: (sessionId: string, output: string) =>
+        call<void>(baseUrl, '/terminal/save', POST({ sessionId, output })),
+      load: (sessionId: string) =>
+        call<string | null>(baseUrl, '/terminal/load', POST({ sessionId })),
+      delete: (sessionId: string) =>
+        call<void>(baseUrl, '/terminal/delete', POST({ sessionId })),
+    },
   };
 }
