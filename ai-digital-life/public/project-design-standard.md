@@ -268,17 +268,19 @@ Rust 侧 `Result<T, AppError>` 结构化传播，前端 `captureTypedError` 统�
 
 ### 决策 13 · 双端一致性（项目硬规则）
 
-**选择**：Tauri 桌面 / 浏览器模式行为一致
+**选择**：Tauri 桌面 / 浏览器模式**功能行为一致**，实现策略可因环境而异
 
-所有功能必须在 Tauri 桌面应用和浏览器模式中保持一致。新增 IPC 方法必须同步实现 `tauri-bridge.ts` / `preview-bridge` / `mock-bridge`。
+所有功能必须在 Tauri 桌面应用和浏览器模式中保持**功能行为一致**。由于两种模式的运行环境不同（Tauri 有 Rust 后端 + SQLite + 系统 API，浏览器仅有 WebView + Web API），实现策略可以因环境而异，通过统一接口抽象隔离差异。新增 IPC 方法必须同步实现 `tauri-bridge.ts` / `preview-bridge` / `mock-bridge`。
 
 | 覆盖范围 | 实现约束 |
 |----------|----------|
 | UI 展示与交互一致 | tauri-bridge / preview-bridge / mock-bridge |
 | IPC 桥接三端对齐 | 功能不能只在单一模式可用 |
 | 功能双端可用 | WebView URL 变化不被动触发 Tauri |
+| 存储后端可不同 | Tauri: SQLite/文件系统；浏览器: IndexedDB/localStorage |
+| 系统能力可降级 | 浏览器模式无法使用的能力应有 Web API 替代 |
 
-**为什么这样选**：这是项目治理硬规则（见 AGENTS.md 双端一致性）。浏览器预览承担高频开发与测试职能，若与桌面端行为不一致，将导致大量"仅桌面/仅浏览器"的隐性缺陷，也无法用浏览器自动化覆盖桌面场景。
+**为什么这样选**：这是项目治理硬规则（见 AGENTS.md 双端一致性）。浏览器预览承担高频开发与测试职能，若与桌面端行为不一致，将导致大量"仅桌面/仅浏览器"的隐性缺陷，也无法用浏览器自动化覆盖桌面场景。但两种环境的本质差异（系统 API vs Web API、SQLite vs IndexedDB）决定了某些功能的实现策略必须因环境而异，关键是通过统一接口确保功能行为一致。
 
 ---
 

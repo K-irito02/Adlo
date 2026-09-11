@@ -80,7 +80,14 @@
 
 ## 双端一致性
 
-所有功能必须在 **Tauri 桌面应用** 和 **浏览器模式** 中保持一致。新增 IPC 方法必须同步实现 `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts`。
+所有功能必须在 **Tauri 桌面应用** 和 **浏览器模式** 中保持**功能行为一致**。由于两种模式的运行环境不同（Tauri 有 Rust 后端 + SQLite + 系统 API，浏览器仅有 WebView + Web API），实现策略可以因环境而异：
+
+- **功能行为必须一致**：用户可感知的输入→输出、交互流程、数据结果在两种模式下相同
+- **实现策略可以不同**：存储后端（SQLite vs IndexedDB）、系统能力（原生对话框 vs Web API）、性能特征等可因环境采取不同技术方案
+- **统一接口抽象**：通过接口（如 `TerminalOutputStore`、`PreviewBridge`）隔离环境差异，消费端不感知底层实现
+- **新增 IPC 方法必须同步实现** `tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts`
+
+> **示例**：终端输出持久化 — Tauri 模式使用 SQLite，浏览器模式使用 IndexedDB，两者通过统一的 `TerminalOutputStore` 接口提供相同的功能行为。
 
 ## 编码规范
 
