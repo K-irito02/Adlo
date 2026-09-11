@@ -43,7 +43,7 @@
   height: 100%;
   overflow: hidden;
   position: relative;
-  background: var(--bg);
+  background: var(--bg-terminal);
 }
 
 .adl-tool-context__group--terminal-actions {
@@ -65,7 +65,7 @@
   overflow: hidden;
   border: 0;
   outline: 0;
-  background: var(--bg);
+  background: var(--bg-terminal);
   padding: var(--space-1);
   box-sizing: border-box;
 }
@@ -95,7 +95,7 @@
 }
 
 .adl-terminal-canvas .xterm canvas {
-  background: var(--bg);
+  background: var(--bg-terminal);
 }
 
 .adl-terminal-canvas .xterm-scroll-area {

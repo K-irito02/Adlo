@@ -121,6 +121,7 @@ html:not(.no-transition) [data-theme] {
   --bg-active: rgba(34, 34, 34, 0.1);
   --bg-occlusion: #ebebeb;
   --bg-occlusion-active: #e2e2e2;
+  --bg-terminal: #f8f8f8;
 
   /* === Surface System === */
   --surface: #f8f8f8;
@@ -366,6 +367,7 @@ html:not(.no-transition) [data-theme] {
   --bg-active: rgba(255, 255, 255, 0.12);
   --bg-occlusion: #262626;
   --bg-occlusion-active: #313131;
+  --bg-terminal: #0c0c0c;
 
   /* === Surface System === */
   --surface: #141414;

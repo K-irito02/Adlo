@@ -108,7 +108,8 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           'Cascadia Code, Fira Code, Consolas, monospace',
         theme: {
           background:
-            getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#1e1e1e',
+            getComputedStyle(document.documentElement).getPropertyValue('--bg-terminal').trim() ||
+            '#0c0c0c',
           foreground:
             getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() ||
             '#d4d4d4',
@@ -198,7 +199,8 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
 
       const themeObserver = new MutationObserver(() => {
         const bg =
-          getComputedStyle(document.documentElement).getPropertyValue('--bg').trim() || '#1e1e1e';
+          getComputedStyle(document.documentElement).getPropertyValue('--bg-terminal').trim() ||
+          '#0c0c0c';
         const fg =
           getComputedStyle(document.documentElement).getPropertyValue('--text-primary').trim() ||
           '#d4d4d4';
