@@ -215,9 +215,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const handleCloseAllTabs = useCallback(
     (workspaceId?: string) => {
       const tabs = useAppStore.getState().terminalTabs;
-      const tabsToClose = workspaceId
-        ? tabs.filter((tab) => tab.workspaceId === workspaceId)
-        : tabs;
+      const tabsToClose =
+        workspaceId !== undefined ? tabs.filter((tab) => tab.workspaceId === workspaceId) : tabs;
       tabsToClose.forEach((tab) => {
         if (tab.sessionId) {
           window.digitalLife.pty.kill(tab.sessionId);

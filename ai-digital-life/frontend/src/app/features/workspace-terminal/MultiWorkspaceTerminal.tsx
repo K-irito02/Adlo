@@ -16,7 +16,7 @@ export interface MultiWorkspaceTerminalProps {
   onCloseTab: (tabId: string) => void;
   onTogglePin: (tabId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
-  onCloseAllTabs: (workspaceId: string) => void;
+  onCloseAllTabs: (workspaceId?: string) => void;
 }
 
 const INDEPENDENT_WORKSPACE_ID = '__independent__';

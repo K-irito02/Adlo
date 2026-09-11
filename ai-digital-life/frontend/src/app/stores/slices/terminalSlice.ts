@@ -125,6 +125,7 @@ function hydrateTerminalDefaults(
     const commandHistory = readJson<CommandHistoryEntry[]>(TERMINAL_COMMAND_HISTORY_KEY, []);
     set({
       defaultTerminalProfile: profile,
+      shellSelectorProfile: profile,
       workspaceDefaultProfiles: workspaceProfiles,
       terminalNavigatorWidth: width,
       navigatorCollapsedByTool: collapsed,

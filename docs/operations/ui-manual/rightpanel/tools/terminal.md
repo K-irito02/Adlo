@@ -37,7 +37,7 @@
 │   │   │   └── .adl-multitree-entry__actions                # 悬浮按钮组
 │   │   └── .adl-multitree-entry__tree                       # 子节点容器（含竖连接线）
 │   │       ├── .adl-tool-list__item--terminal-tab           # 终端标签（类似文件节点）
-│   │       └── .adl-multitree-entry__empty-btn              # 空状态"创建终端"按钮
+│   │       └── .adl-multitree-entry__empty-btn              # 空状态"新建终端"按钮
 ```
 
 ### 终端标签项
@@ -54,7 +54,7 @@
 
 ```javascript
 // 从工作区头部行点击新建按钮
-await page.click('.adl-multitree-entry__actions button[aria-label="创建终端"]');
+await page.click('.adl-multitree-entry__actions button[aria-label="新建终端"]');
 // 从 Shell 选择器下拉
 await page.click('button[aria-label="新建终端"]');
 ```
@@ -74,7 +74,7 @@ await page.click('.adl-tool-list__item-close');
 #### 关闭所有标签
 
 ```javascript
-await page.click('button[aria-label="删除全部"]');
+await page.click('button[aria-label="清空全部终端"]');
 ```
 
 #### 双击重命名
@@ -108,7 +108,7 @@ await source.dragTo(target);
 
 - 工作区头部行 hover 显示灰色背景，从导航器左边缘到右边缘全宽
 - 终端标签采用 14px 左缩进，hover/激活时灰色背景覆盖缩进区域
-- 空状态"创建终端"按钮同样 14px 缩进，hover 全宽灰色背景
+- 空状态"新建终端"按钮同样 14px 缩进，hover 全宽灰色背景
 - 标签间距紧凑（1px），无 border-bottom 分隔线
 - 树连接线（`::before`，通过 `--adl-trunk-height` 变量溢出实现动态高度）从工作区头部延伸至最后一个标签
 
@@ -155,7 +155,7 @@ await source.dragTo(target);
 | 树状列表 | `.adl-multitree--terminal` | 终端树状列表根容器 |
 | 终端标签 | `.adl-tool-list__item--terminal-tab` | 单个终端会话标签 |
 | xterm 容器 | `.adl-terminal-canvas` | xterm.js 挂载容器 |
-| 关闭全部 | `button[aria-label="删除全部"]` | 一键关闭所有终端 |
+| 关闭全部 | `button[aria-label="清空全部终端"]` | 一键关闭所有终端 |
 
 ## 注意事项
 
