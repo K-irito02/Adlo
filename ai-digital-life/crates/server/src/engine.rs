@@ -44,6 +44,24 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     // 使本函数在全新 data_dir 上也能自给自足（测试直接构造 state 时同样可用）。
     db.init_schema()
         .map_err(|e| AppError::Internal(format!("Database init_schema failed: {e}")))?;
+    eprintln!("[ad-server] init_schema done");
+    // 运行待处理的 schema 迁移（如 terminal_output 表等）
+    adl_migration::run_pending(&db)
+        .map_err(|e| AppError::Internal(format!("Database migration failed: {e}")))?;
+    eprintln!("[ad-server] migration done");
+    // 验证 terminal_output 表存在
+    {
+        let conn = db.conn().map_err(|e| AppError::Internal(format!("db conn failed: {e}")))?;
+        let check: Result<String, _> = conn.query_row(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='terminal_output'",
+            [],
+            |row| row.get(0),
+        );
+        match check {
+            Ok(name) => eprintln!("[ad-server] terminal_output table verified: {name}"),
+            Err(e) => eprintln!("[ad-server] terminal_output table NOT found: {e}"),
+        }
+    }
     eprintln!("[ad-server] database opened");
 
     // 方案 A：从 DB 恢复上次激活的工作区（current_workspace），使重启后前端
