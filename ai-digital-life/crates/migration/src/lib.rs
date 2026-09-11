@@ -165,6 +165,16 @@ pub const MIGRATIONS: &[Migration] = &[
             ALTER TABLE download_history ADD COLUMN last_modified TEXT;
         "#,
     },
+    Migration {
+        version: 9,
+        description: "add terminal_output table for session persistence",
+        sql: "CREATE TABLE IF NOT EXISTS terminal_output (
+            session_id TEXT PRIMARY KEY,
+            output     BLOB NOT NULL,
+            byte_size  INTEGER NOT NULL DEFAULT 0,
+            updated_at INTEGER NOT NULL DEFAULT (unixepoch())
+        );",
+    },
 ];
 
 pub fn current_version(db: &Database) -> Result<i64, AppError> {
@@ -240,7 +250,7 @@ mod tests {
         let result = run_pending(&db);
         assert!(result.is_ok());
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 8);
+        assert_eq!(version, 9);
         let _ = std::fs::remove_file(&path);
     }
 
@@ -254,13 +264,13 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 8);
+        assert_eq!(version, 9);
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
     fn migration_records_have_correct_structure() {
-        assert_eq!(MIGRATIONS.len(), 8);
+        assert_eq!(MIGRATIONS.len(), 9);
         let m1 = &MIGRATIONS[0];
         assert_eq!(m1.version, 1);
         assert_eq!(m1.description, "Initial schema");
@@ -304,7 +314,7 @@ mod tests {
         db.init_schema().unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 8);
+        assert_eq!(version, 9);
 
         let conn = db.conn().unwrap();
         let count: i64 = conn
@@ -328,7 +338,7 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
-        assert_eq!(version, 8);
+        assert_eq!(version, 9);
         let _ = std::fs::remove_file(&path);
     }
 }
