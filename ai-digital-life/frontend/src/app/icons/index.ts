@@ -149,3 +149,4 @@ export {
   IconPendingCommit,
 } from './status';
 export { IconTerminalDirectory, IconTerminalCommandHistory } from './terminal-nav';
+export { IconProfilePowerShell, IconProfileBash, IconProfileCmd } from './terminal-profiles';

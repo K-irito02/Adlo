@@ -3,6 +3,7 @@ import { IconClose } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import type { CopyDict } from '@i18n';
+import { TerminalProfileIcon } from './TerminalProfileIcon';
 
 interface TerminalTabBarProps {
   tabs: TerminalTabState[];
@@ -76,11 +77,12 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
               style={{
                 flex: 1,
                 background: 'var(--surface)',
-                border: '1px solid var(--accent)',
+                border: '1px solid var(--border)',
                 color: 'var(--text-primary)',
                 borderRadius: 'var(--radius-sm)',
                 outline: 'none',
                 minWidth: 0,
+                boxShadow: '0 0 0 2px var(--surface-hover)',
               }}
             />
           ) : (
@@ -91,6 +93,7 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
                 onClick={() => onSelectTab(tab.id)}
                 onDoubleClick={() => onDoubleClick(tab.id, tab.title)}
               >
+                <TerminalProfileIcon profile={tab.profile} size={14} />
                 <span className="adl-tool-list__title">{tab.title}</span>
               </button>
               <TooltipSimple content={t.close} placement="top">
