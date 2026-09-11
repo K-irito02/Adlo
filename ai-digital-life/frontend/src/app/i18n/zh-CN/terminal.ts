@@ -45,7 +45,6 @@ export const terminalZh = {
   delete: '删除',
   terminalHistory: '终端历史',
   terminalLabel: '终端目录',
-  terminalCreate: '创建终端',
   terminalDefaultProfile: '默认为{profile}终端',
   terminalCopyFullPath: '复制完整路径',
   terminalCopyRelativePath: '复制相对路径',

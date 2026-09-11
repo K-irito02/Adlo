@@ -57,7 +57,6 @@ export interface UseTerminalPanelReturn {
     dragOverTabId: string | null;
     terminalTabs: ReturnType<typeof terminalSelectors.useTerminalTabs>;
     terminalActiveTabId: string;
-    defaultTerminalProfile: TerminalProfile;
     terminalNavigatorWidth: number;
     navigatorCollapsed: boolean;
     activeTab?: ReturnType<typeof terminalSelectors.useActiveTerminalTab>;
@@ -146,7 +145,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   } = useTerminalTabActions({ activeTab });
 
   const {
-    defaultTerminalProfile,
     currentProfile,
     currentProfileLabel,
     terminalMenuOpen,
@@ -212,7 +210,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       dragOverTabId,
       terminalTabs,
       terminalActiveTabId,
-      defaultTerminalProfile,
       terminalNavigatorWidth,
       navigatorCollapsed,
       activeTab,

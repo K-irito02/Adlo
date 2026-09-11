@@ -20,7 +20,7 @@ export function MenuHintItem({ label, hint, onClick, danger, icon }: MenuHintIte
         onClick={onClick}
       >
         {icon}
-        <span>{label}</span>
+        <span className="adl-multitree-entry__menu-item-content">{label}</span>
         <span
           className={`adl-menu-item__hint${danger ? ' is-danger' : ''}`}
           onMouseEnter={(e) => {

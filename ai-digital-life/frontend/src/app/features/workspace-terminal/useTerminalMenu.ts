@@ -37,12 +37,14 @@ export function useTerminalMenu({
     workspaceDefaultProfiles,
     setDefaultTerminalProfile,
     setWorkspaceDefaultTerminalProfile,
+    setShellSelectorProfile,
   } = useAppStore(
     useShallow((state) => ({
       defaultTerminalProfile: state.defaultTerminalProfile,
       workspaceDefaultProfiles: state.workspaceDefaultProfiles,
       setDefaultTerminalProfile: state.setDefaultTerminalProfile,
       setWorkspaceDefaultTerminalProfile: state.setWorkspaceDefaultTerminalProfile,
+      setShellSelectorProfile: state.setShellSelectorProfile,
     })),
   );
   const subHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -155,11 +157,18 @@ export function useTerminalMenu({
       } else {
         setWorkspaceDefaultTerminalProfile(workspace.id, profile);
       }
+      setShellSelectorProfile(profile);
       requestAnimationFrame(() => {
         setRenderKey((prev) => prev + 1);
       });
     },
-    [isIndependent, workspace.id, setDefaultTerminalProfile, setWorkspaceDefaultTerminalProfile],
+    [
+      isIndependent,
+      workspace.id,
+      setDefaultTerminalProfile,
+      setWorkspaceDefaultTerminalProfile,
+      setShellSelectorProfile,
+    ],
   );
 
   const handleNameKeyDown = useCallback(

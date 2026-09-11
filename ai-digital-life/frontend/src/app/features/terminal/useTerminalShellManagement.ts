@@ -26,7 +26,6 @@ export function useTerminalShellManagement({
   handleDoubleClick,
   handleKill,
 }: UseTerminalShellManagementParams) {
-  const defaultTerminalProfile = terminalSelectors.useDefaultTerminalProfile();
   const shellSelectorProfile = terminalSelectors.useShellSelectorProfile();
 
   const {
@@ -59,7 +58,6 @@ export function useTerminalShellManagement({
     currentProfile === 'powershell' ? 'PowerShell' : currentProfile === 'bash' ? 'Bash' : 'CMD';
 
   return {
-    defaultTerminalProfile,
     currentProfile,
     currentProfileLabel,
     terminalMenuOpen,

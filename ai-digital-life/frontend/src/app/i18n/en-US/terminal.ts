@@ -45,7 +45,6 @@ export const terminalEn = {
   delete: 'Delete',
   terminalHistory: 'Terminal history',
   terminalLabel: 'Terminal Directory',
-  terminalCreate: 'Create terminal',
   terminalDefaultProfile: 'Default {profile} terminal',
   terminalCopyFullPath: 'Copy full path',
   terminalCopyRelativePath: 'Copy rel. path',
