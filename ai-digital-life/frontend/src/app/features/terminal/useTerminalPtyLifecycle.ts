@@ -3,6 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { TerminalProfile } from '@stores/types';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
+import { terminalOutputStore } from './terminalOutputStore';
 
 const MAX_SESSION_OUTPUT_BYTES = 100 * 1024;
 
@@ -206,6 +207,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       if (tab?.sessionId) {
         window.digitalLife.pty.kill(tab.sessionId);
         sessionOutputsRef.current.delete(tab.sessionId);
+        terminalOutputStore.delete(tab.sessionId);
       }
       terminalCloseTab(tabId);
     },
@@ -221,6 +223,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         if (tab.sessionId) {
           window.digitalLife.pty.kill(tab.sessionId);
           sessionOutputsRef.current.delete(tab.sessionId);
+          terminalOutputStore.delete(tab.sessionId);
         }
       });
       terminalCloseAllTabs(workspaceId);
@@ -242,13 +245,13 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
     const unsub = window.digitalLife.subscribePtyOutput((event) => {
       if (event.terminated) {
-        // 会话已退出：将对应标签置为 terminated，并清理其输出缓冲
+        // 会话已退出：仅将对应标签置为 terminated，保留输出供用户回看
         const tabs = useAppStore.getState().terminalTabs;
         const tab = tabs.find((t) => t.sessionId === event.sessionId);
         if (tab) {
           terminalUpdateTab(tab.id, { status: 'terminated' });
         }
-        sessionOutputsRef.current.delete(event.sessionId);
+        // 不删除输出 — 用户仍可滚动查看历史，关闭标签时再清理
         return;
       }
 
@@ -259,6 +262,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
       }
       outputs.set(event.sessionId, previous);
+      terminalOutputStore.save(event.sessionId, outputs.get(event.sessionId) ?? '');
 
       if (
         event.sessionId === activeTab?.sessionId &&
