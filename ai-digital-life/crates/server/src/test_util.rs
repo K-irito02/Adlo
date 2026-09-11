@@ -26,6 +26,7 @@ pub fn test_server_state() -> ServerState {
     std::fs::create_dir_all(&dir).ok();
     let db = Database::open(&dir.join("test.db")).expect("open test db");
     db.init_schema().expect("init test schema");
+    adl_migration::run_pending(&db).expect("run pending migrations");
 
     ServerState {
         data_dir: dir.clone(),
