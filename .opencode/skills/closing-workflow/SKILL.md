@@ -159,18 +159,24 @@ powershell -File "ai-digital-life\.cargo\clean-target.ps1"
 - 根据对话记录回顾本次修改的文件，与上述命令交叉验证变更集
 - 两类均无变更 → 跳过 Step 2
 
-**Diff 快照预生成：** 合并后的变更一次性写入快照文件，供子代理直接读取，**不在终端重复执行 git 命令**：
+**Diff 快照预生成：** 按文件拆分快照，供子代理直接读取，**不在终端重复执行 git 命令**：
 
 1. 在仓库根创建临时目录 `.review-diffs/`（已加入 `.gitignore`，Step 5 清理时删除）
-2. 生成合并快照（合并两类变更，去重）：
+2. **获取变更文件列表并按文件拆分快照**：
    ```powershell
-   git diff HEAD > .review-diffs/rev<N>.diff
-   git diff origin/HEAD..HEAD >> .review-diffs/rev<N>.diff
+   # 获取所有变更文件（去重）
+   git diff --name-only HEAD > .review-diffs/changed-files-rev<N>.txt
+   git diff --name-only origin/HEAD..HEAD >> .review-diffs/changed-files-rev<N>.txt
+   Sort-Object -Unique .review-diffs/changed-files-rev<N>.txt > .review-diffs/changed-files-unique-rev<N>.txt
+   
+   # 为每个变更文件生成独立快照
+   git diff HEAD -- <文件路径> > .review-diffs/<文件名>-rev<N>.diff
+   git diff origin/HEAD..HEAD -- <文件路径> >> .review-diffs/<文件名>-rev<N>.diff
    ```
-3. 每个任务从完整快照中提取相关变更子集，生成独立快照：`.review-diffs/<task>-rev<N>.diff`
-4. 子代理 prompt 中直接给出快照文件路径，令其 Read 该文件，而非自行 `git diff`
-5. 每轮修复后重新生成快照（rev 递增，如 `rev1` → `rev2`），供下一轮复审使用
-6. 子代理将审查报告写入 `.review-diffs/<task>-rev<N>-report.md`；主代理读取该文件并**转写 + 索引**到收尾记录文件
+   - 文件名中的路径分隔符替换为下划线（如 `src/main.rs` → `src_main.rs-rev1.diff`）
+3. 子代理 prompt 中给出相关文件的快照路径列表，令其按需 Read 各文件快照，而非自行 `git diff`
+4. 每轮修复后重新生成所有快照（rev 递增，如 `rev1` → `rev2`），供下一轮复审使用
+5. 子代理将审查报告写入 `.review-diffs/<task>-rev<N>-report.md`；主代理读取该文件并**转写 + 索引**到收尾记录文件
 
 ### 2b. 多Agent并行审查
 

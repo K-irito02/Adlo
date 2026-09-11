@@ -504,14 +504,15 @@ Phase 2A 中已添加日志则跳过此步。若未添加，按以下格式在�
 
 #### Diff 快照预生成（审查前置）
 
-调度任何子代理之前，先为每个问题生成独立的 diff 快照文件，子代理直接读取文件，**不在终端重复执行 git 命令**：
+调度任何子代理之前，先按文件生成独立的 diff 快照文件，子代理直接读取文件，**不在终端重复执行 git 命令**：
 
 1. 在仓库根创建临时目录 `.review-diffs/`（加入 `.gitignore`，Phase 4 完成后删除）
-2. 每个问题一个快照文件，命名为 `issue-<序号>-rev<轮次>.diff`：
-   - 生成当前完整变更：`git diff > .review-diffs/issue-1-rev1.diff`
-   - 多问题修改同一文件时，给完整 diff 但按问题拆分文件，并在子代理 prompt 中明确审查范围
-3. 子代理 prompt 中直接给出快照文件路径，令其 Read 该文件，而非自行 `git diff`
-4. 每轮主代理修复后，**重新生成该问题的新快照**（rev 递增，如 `rev2`），供下一轮复审使用
+2. **按变更文件拆分快照**（每个变更文件一个独立快照）：
+   - 先获取变更文件列表：`git diff --name-only > .review-diffs/changed-files-rev<N>.txt`
+   - 为每个变更文件生成独立快照：`git diff -- <文件路径> > .review-diffs/<文件名>-rev<N>.diff`
+   - 文件名中的路径分隔符替换为下划线（如 `src/main.rs` → `src_main.rs-rev1.diff`）
+3. 子代理 prompt 中给出相关文件的快照路径列表，令其按需 Read 各文件快照，而非自行 `git diff`
+4. 每轮主代理修复后，**重新生成所有快照**（rev 递增，如 `rev2`），供下一轮复审使用
 5. 子代理将审查报告写入 `.review-diffs/review-issue-<序号>-rev<轮次>.md`；主代理读取该文件并转写索引到进度文件
 
 #### 子代理 A：根因验证
