@@ -46,13 +46,22 @@ pub async fn save(
             return ipc::to_response(Err(AppError::InvalidInput(msg)));
         }
     };
+    // 服务端大小限制：最大 200KB
+    const MAX_OUTPUT_BYTES: usize = 200 * 1024;
+    if input.output.len() > MAX_OUTPUT_BYTES {
+        return ipc::to_response(Err(AppError::InvalidInput(format!(
+            "output too large: {} bytes (max {})",
+            input.output.len(),
+            MAX_OUTPUT_BYTES
+        ))));
+    }
     let db = state.db.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let conn = db.conn()?;
         conn.execute(
-            "INSERT OR REPLACE INTO terminal_output (session_id, output, byte_size, updated_at)
-             VALUES (?1, ?2, ?3, unixepoch())",
-            params![input.session_id, input.output.as_bytes(), input.output.len() as i64],
+            "INSERT OR REPLACE INTO terminal_output (session_id, output, updated_at)
+             VALUES (?1, ?2, unixepoch())",
+            params![input.session_id, input.output.as_bytes()],
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
         Ok(serde_json::json!(null))

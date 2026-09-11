@@ -7,7 +7,7 @@ export const terminalOutputStore = {
     try {
       await window.digitalLife.terminalOutput.save(sessionId, output);
     } catch (err) {
-      console.warn('[ADL-DEBUG] terminalOutputStore.save FAILED:', err);
+      console.warn('terminalOutputStore: save failed:', err);
     }
   },
 
@@ -19,7 +19,7 @@ export const terminalOutputStore = {
       }
       return null;
     } catch (err) {
-      console.warn('[ADL-DEBUG] terminalOutputStore.load FAILED:', err);
+      console.warn('terminalOutputStore: load failed:', err);
       return null;
     }
   },
@@ -28,7 +28,7 @@ export const terminalOutputStore = {
     try {
       await window.digitalLife.terminalOutput.delete(sessionId);
     } catch (err) {
-      console.warn('[ADL-DEBUG] terminalOutputStore.delete FAILED:', err);
+      console.warn('terminalOutputStore: delete failed:', err);
     }
   },
 };

@@ -53,7 +53,6 @@ define_entity_table! {
     ModelCallAudit => "model_call_audit",
     RunActivityEvents => "run_activity_events",
     ClipboardItems => "clipboard_items",
-    TerminalOutput => "terminal_output",
 }
 
 pub(crate) fn get_insert_sql(table: EntityTable) -> &'static str {
