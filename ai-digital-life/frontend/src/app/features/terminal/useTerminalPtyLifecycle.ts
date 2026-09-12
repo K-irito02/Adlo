@@ -31,8 +31,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const loadPromisesRef = useRef<Map<string, Promise<string | null>>>(new Map());
   // 已完成加载的会话（含加载结果为空的，避免反复重试）
   const loadedSessionIdsRef = useRef<Set<string>>(new Set());
-  // 已将持久化输出写入 xterm 的会话（区别于 loaded：loaded 是数据在内存，written 是已显示）
-  const writtenHistoryToXtermRef = useRef<Set<string>>(new Set());
   // PTY 刚创建的会话（屏蔽 shell 启动时的清屏序列，避免覆盖已写入的历史内容）
   const ptyStartingUpRef = useRef<Set<string>>(new Set());
   // 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」）
@@ -238,35 +236,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         createdSessionIdsRef.current.add(sessionId);
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
-
-        // 在更新 tab 前捕获旧 sessionId（用于历史 buffer 迁移）
-        const currentTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
-        const oldSessionId = currentTab?.sessionId;
-
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
 
-        // 迁移历史 buffer：activateTab 将历史内容写入了旧 sessionId 的 pool entry，
-        // 但 PTY 使用新 sessionId。需要将旧 entry 的 terminal buffer 迁移到新 entry。
-        if (oldSessionId && oldSessionId !== sessionId) {
-          const oldEntry = terminalXtermPool.get(oldSessionId);
-          const newEntry = terminalXtermPool.get(sessionId);
-          if (oldEntry && newEntry) {
-            // 读取旧 entry 的完整 buffer（含历史内容），写入新 entry
-            const historyBuffer = oldEntry.terminal.buffer.active;
-            const lines: string[] = [];
-            for (let i = 0; i < historyBuffer.length; i++) {
-              lines.push(historyBuffer.getLine(i)?.translateToString(true) ?? '');
-            }
-            const historyText = lines.join('\r\n');
-            if (historyText) {
-              newEntry.terminal.write(historyText);
-              newEntry.terminal.scrollToBottom();
-            }
-          }
-        }
-
         // 屏蔽 shell 启动输出：PTY 创建后 shell 会发送清屏序列（ESC[2J ESC[H），
-        // 会擦除已迁移的历史内容。屏蔽 500ms 等待启动序列结束。
+        // 会擦除 activateTab 随后写入的历史内容。屏蔽 500ms 等待启动序列结束。
         ptyStartingUpRef.current.add(sessionId);
         setTimeout(() => {
           ptyStartingUpRef.current.delete(sessionId);
@@ -315,55 +288,51 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
 
       // PTY 已死亡（应用重启后的恢复标签）：
-      // 先加载 persisted output 到 pool xterm，再创建新 PTY。
-      // shell 启动输出会追加在历史内容之后。
-      // pool entry 可能尚未创建（XtermTerminal 未 mount），需要等待。
-      let pooled = terminalXtermPool.get(sessionId);
-      console.log(
-        `[ADL-DEBUG] activateTab dead — tab=${tabId} session=${sessionId} poolEntry=${pooled ? 'exists' : 'null'} poolSize=${terminalXtermPool.size} written=${writtenHistoryToXtermRef.current.has(sessionId)}`,
-      );
-      if (!pooled) {
-        for (let frame = 0; frame < 30; frame++) {
-          await new Promise<void>((r) => requestAnimationFrame(() => r()));
-          pooled = terminalXtermPool.get(sessionId);
-          if (pooled) {
-            break;
-          }
-        }
-        console.log(
-          `[ADL-DEBUG] activateTab dead after wait — poolEntry=${pooled ? 'exists' : 'null'}`,
-        );
-      }
-      if (pooled && !writtenHistoryToXtermRef.current.has(sessionId)) {
-        const output = await ensureLoaded(sessionId);
-        console.log(
-          `[ADL-DEBUG] activateTab dead load — session=${sessionId} outputBytes=${(output ?? '').length}`,
-        );
-        if (output) {
-          const cleaned = stripConptyRepaintBursts(output);
-          if (cleaned.text) {
-            pooled.terminal.write(cleaned.text);
-            pooled.terminal.scrollToBottom();
-            writtenHistoryToXtermRef.current.add(sessionId);
-            console.log(
-              `[ADL-DEBUG] activateTab dead wrote history — session=${sessionId} bytes=${cleaned.text.length}`,
-            );
-          }
-        }
-      }
+      // 1) 加载持久化输出到内存
+      // 2) 创建新 PTY（新 sessionId）
+      // 3) 等待新 pool entry 就绪
+      // 4) 写入历史到新 session 的 pool entry
+      // 5) ptyStartingUpRef 屏蔽 shell 启动清屏，保护历史内容
 
+      // 步骤 1：加载持久化输出到内存
+      const output = await ensureLoaded(sessionId);
+      const historyText = output ? stripConptyRepaintBursts(output).text : '';
+
+      // 步骤 2：创建新 PTY
       ensureTabCwdsLoaded();
       const rememberedCwd = tabCwdRef.current.get(tabId);
       await attachSession(tabId, tab.profile, tab.workspaceId, {
         cwdOverride: rememberedCwd,
       });
 
+      // 步骤 3：获取新 sessionId（attachSession 已更新 tab）
+      const updatedTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
+      const newSessionId = updatedTab?.sessionId;
+      if (!newSessionId) {
+        return;
+      }
+
+      // 步骤 4：等待新 pool entry 就绪，然后写入历史
+      let newPooled = terminalXtermPool.get(newSessionId);
+      if (!newPooled) {
+        for (let frame = 0; frame < 30; frame++) {
+          await new Promise<void>((r) => requestAnimationFrame(() => r()));
+          newPooled = terminalXtermPool.get(newSessionId);
+          if (newPooled) {
+            break;
+          }
+        }
+      }
+      if (newPooled && historyText) {
+        newPooled.terminal.write(historyText);
+        newPooled.terminal.scrollToBottom();
+      }
+
+      // 步骤 5：shell 启动清屏已在 attachSession 中被 ptyStartingUpRef 屏蔽
+
       // 补发 PTY 创建前缓冲的输入
       const pending = pendingInputRef.current;
       pendingInputRef.current = '';
-      const newSessionId = useAppStore
-        .getState()
-        .terminalTabs.find((t) => t.id === tabId)?.sessionId;
       if (pending && newSessionId) {
         window.digitalLife.pty.input(newSessionId, pending);
       }
@@ -481,7 +450,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         terminalXtermPool.release(tab.sessionId);
         liveSessionIdsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
-        writtenHistoryToXtermRef.current.delete(tab.sessionId);
         ptyStartingUpRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
         sessionOutputsRef.current.delete(tab.sessionId);
@@ -509,7 +477,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           liveSessionIdsRef.current.delete(tab.sessionId);
           ptyDimsRef.current.delete(tab.sessionId);
           createdSessionIdsRef.current.delete(tab.sessionId);
-          writtenHistoryToXtermRef.current.delete(tab.sessionId);
           ptyStartingUpRef.current.delete(tab.sessionId);
           sessionOutputsRef.current.delete(tab.sessionId);
           loadedSessionIdsRef.current.delete(tab.sessionId);
