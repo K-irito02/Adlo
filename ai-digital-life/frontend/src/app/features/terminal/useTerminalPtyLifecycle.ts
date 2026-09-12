@@ -18,17 +18,6 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
   cmd: 'cmd',
 };
 
-/**
- * 过滤 shell 启动时的清屏/光标归位/设备属性查询序列，保护已写入的历史内容。
- * 保留所有可打印字符和其他控制序列（如颜色、光标移动等）。
- */
-function filterStartupClearSequences(data: string): string {
-  // 过滤：ESC[2J（清屏）、ESC[c（设备属性查询）、ESC[?25l（隐藏光标）
-  // 保留：ESC[H / ESC[1;1H（光标归位）— shell 用它定位提示符到新行
-  // eslint-disable-next-line no-control-regex
-  return data.replace(/\x1b\[(?:2J|c|\?25l)/g, '');
-}
-
 interface PtyLifecycleParams {
   activeTab: { id: string; sessionId?: string } | undefined;
 }
@@ -517,9 +506,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
       const data = event.data;
 
-      // 过滤 shell 启动时的清屏序列（ESC[2J、ESC[H 等），保护已写入的历史内容。
-      // 不屏蔽整个输出流：提示符和用户输入仍正常通过和累积。
-      const filteredData = filterStartupClearSequences(data);
+      // 直接使用原始输出，不过滤 shell 启动序列。
+      // shell 的清屏（ESC[2J）和光标归位（ESC[H）是正常行为：
+      // 历史内容写入 xterm 后进入 scrollback，shell 清屏显示新提示符，
+      // 用户可向上滚动查看历史。这是 VS Code 等产品的标准行为。
 
       // OSC 9;9: 按标签记住 shell 上报的当前目录
       const oscScan = scanOsc99((oscCarryRef.current.get(event.sessionId) ?? '') + event.data);
@@ -542,10 +532,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         }
       }
 
-      // 累积过滤后的输出到内存缓冲（用于持久化保存）
+      // 累积输出到内存缓冲（用于持久化保存）
       const outputs = sessionOutputsRef.current;
       let previous = outputs.get(event.sessionId) ?? '';
-      previous += filteredData;
+      previous += data;
       if (previous.length > MAX_SESSION_OUTPUT_BYTES) {
         previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
       }
@@ -554,10 +544,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
-        pooled.terminal.write(filteredData);
+        pooled.terminal.write(data);
       } else {
         console.log(
-          `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${filteredData.length} poolSize=${terminalXtermPool.size}`,
+          `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${data.length} poolSize=${terminalXtermPool.size}`,
         );
       }
 
