@@ -18,6 +18,17 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
   cmd: 'cmd',
 };
 
+/**
+ * 过滤 shell 启动时的清屏/光标归位/设备属性查询序列，保护已写入的历史内容。
+ * 保留所有可打印字符和其他控制序列（如颜色、光标移动等）。
+ */
+function filterStartupClearSequences(data: string): string {
+  // 匹配：ESC[2J（清屏）、ESC[H/ESC[1;1H（光标归位）、ESC[c（设备属性查询）
+  // 以及 ESC[?25l（隐藏光标）— 这些是 shell 启动时常见的序列
+  // eslint-disable-next-line no-control-regex
+  return data.replace(/\x1b\[(?:2J|[Hc]|\?25l|\d*;1H)/g, '');
+}
+
 interface PtyLifecycleParams {
   activeTab: { id: string; sessionId?: string } | undefined;
 }
@@ -31,8 +42,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const loadPromisesRef = useRef<Map<string, Promise<string | null>>>(new Map());
   // 已完成加载的会话（含加载结果为空的，避免反复重试）
   const loadedSessionIdsRef = useRef<Set<string>>(new Set());
-  // PTY 刚创建的会话（屏蔽 shell 启动时的清屏序列，避免覆盖已写入的历史内容）
-  const ptyStartingUpRef = useRef<Set<string>>(new Set());
   // 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」）
   const createdSessionIdsRef = useRef<Set<string>>(new Set());
   // 当前仍然存活的 PTY 会话（应用重启后恢复的标签不在其中 → 需要重建）
@@ -237,13 +246,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
-
-        // 屏蔽 shell 启动输出：PTY 创建后 shell 会发送清屏序列（ESC[2J ESC[H），
-        // 会擦除 activateTab 随后写入的历史内容。屏蔽 500ms 等待启动序列结束。
-        ptyStartingUpRef.current.add(sessionId);
-        setTimeout(() => {
-          ptyStartingUpRef.current.delete(sessionId);
-        }, 500);
       } catch (err) {
         console.error('Terminal creation error:', err);
         terminalUpdateTab(tabId, { status: 'terminated' });
@@ -450,7 +452,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         terminalXtermPool.release(tab.sessionId);
         liveSessionIdsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
-        ptyStartingUpRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
         sessionOutputsRef.current.delete(tab.sessionId);
         loadedSessionIdsRef.current.delete(tab.sessionId);
@@ -477,7 +478,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           liveSessionIdsRef.current.delete(tab.sessionId);
           ptyDimsRef.current.delete(tab.sessionId);
           createdSessionIdsRef.current.delete(tab.sessionId);
-          ptyStartingUpRef.current.delete(tab.sessionId);
           sessionOutputsRef.current.delete(tab.sessionId);
           loadedSessionIdsRef.current.delete(tab.sessionId);
           loadPromisesRef.current.delete(tab.sessionId);
@@ -517,10 +517,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
       const data = event.data;
 
-      // PTY 刚创建时 shell 发送清屏序列，跳过以保护已写入的历史内容
-      if (ptyStartingUpRef.current.has(event.sessionId)) {
-        return;
-      }
+      // 过滤 shell 启动时的清屏序列（ESC[2J、ESC[H 等），保护已写入的历史内容。
+      // 不屏蔽整个输出流：提示符和用户输入仍正常通过和累积。
+      const filteredData = filterStartupClearSequences(data);
 
       // OSC 9;9: 按标签记住 shell 上报的当前目录
       const oscScan = scanOsc99((oscCarryRef.current.get(event.sessionId) ?? '') + event.data);
@@ -543,10 +542,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         }
       }
 
-      // 累积输出到内存缓冲（用于持久化保存）
+      // 累积过滤后的输出到内存缓冲（用于持久化保存）
       const outputs = sessionOutputsRef.current;
       let previous = outputs.get(event.sessionId) ?? '';
-      previous += data;
+      previous += filteredData;
       if (previous.length > MAX_SESSION_OUTPUT_BYTES) {
         previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
       }
@@ -555,10 +554,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
-        pooled.terminal.write(data);
+        pooled.terminal.write(filteredData);
       } else {
         console.log(
-          `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${data.length} poolSize=${terminalXtermPool.size}`,
+          `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${filteredData.length} poolSize=${terminalXtermPool.size}`,
         );
       }
 
