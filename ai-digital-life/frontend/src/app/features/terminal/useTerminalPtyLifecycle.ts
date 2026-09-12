@@ -169,11 +169,23 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       );
 
       try {
-        const pooled = terminalXtermPool.get(
-          useAppStore.getState().terminalTabs.find((t) => t.id === tabId)?.sessionId ?? '',
-        );
-        const cols = pooled?.terminal.cols || 80;
-        const rows = pooled?.terminal.rows || 24;
+        // Measure dimensions by creating a temporary xterm against the container.
+        // The real xterm (by XtermTerminal component) doesn't exist yet for new tabs
+        // because the tab's sessionId isn't set until after this function creates the PTY.
+        const container = document.querySelector('.adl-terminal-canvas');
+        let cols = 80;
+        let rows = 24;
+        const pendingKey = `__pending-${tabId}__`;
+        if (container) {
+          const tempEntry = terminalXtermPool.acquire(pendingKey, container as HTMLDivElement);
+          tempEntry.fitAddon.fit();
+          const dims = tempEntry.fitAddon.proposeDimensions();
+          if (dims && dims.cols > 0 && dims.rows > 0) {
+            cols = dims.cols;
+            rows = dims.rows;
+          }
+          terminalXtermPool.release(pendingKey);
+        }
         console.log(
           `[ADL-DEBUG] attachSession creating PTY — tab=${tabId} cols=${cols} rows=${rows} t=${Math.round(performance.now())}`,
         );
@@ -187,14 +199,20 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           const errorMsg = result.error?.message || 'Unknown error';
           console.error('Terminal creation failed:', errorMsg);
           terminalUpdateTab(tabId, { status: 'terminated' });
-          pooled?.terminal.write(
-            `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`,
-          );
-          pooled?.terminal.write(`\x1b[31m${errorMsg}\x1b[0m\r\n\r\n`);
-          if (profile === 'bash') {
-            pooled?.terminal.write(
-              '\x1b[33mHint: Make sure Git for Windows or WSL is installed.\x1b[0m\r\n',
+          // Display error in a temporary xterm so the user sees feedback
+          const errContainer = document.querySelector('.adl-terminal-canvas');
+          if (errContainer) {
+            const errEntry = terminalXtermPool.acquire('__error__', errContainer as HTMLDivElement);
+            errEntry.terminal.write(
+              `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`,
             );
+            errEntry.terminal.write(`\x1b[31m${errorMsg}\x1b[0m\r\n\r\n`);
+            if (profile === 'bash') {
+              errEntry.terminal.write(
+                '\x1b[33mHint: Make sure Git for Windows or WSL is installed.\x1b[0m\r\n',
+              );
+            }
+            terminalXtermPool.release('__error__');
           }
           return;
         }
@@ -207,15 +225,17 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       } catch (err) {
         console.error('Terminal creation error:', err);
         terminalUpdateTab(tabId, { status: 'terminated' });
-        const pooled = terminalXtermPool.get(
-          useAppStore.getState().terminalTabs.find((t) => t.id === tabId)?.sessionId ?? '',
-        );
-        pooled?.terminal.write(
-          `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`,
-        );
-        pooled?.terminal.write(
-          `\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`,
-        );
+        const errContainer = document.querySelector('.adl-terminal-canvas');
+        if (errContainer) {
+          const errEntry = terminalXtermPool.acquire('__error__', errContainer as HTMLDivElement);
+          errEntry.terminal.write(
+            `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`,
+          );
+          errEntry.terminal.write(
+            `\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`,
+          );
+          terminalXtermPool.release('__error__');
+        }
       }
     },
     [ensureTabCwdsLoaded, recentWorkspaces, terminalUpdateTab],
@@ -367,8 +387,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
       terminalCreateTab(finalProfile, workspaceId ?? '');
       const createdTabId = useAppStore.getState().terminalActiveTabId;
-      // 等待 React 渲染出新的 xterm 容器，再由 XtermTerminal 组件 acquire 到 pool
-      await new Promise((r) => setTimeout(r, 0));
+      // attachSession now measures dimensions directly via a temporary pool entry,
+      // so no setTimeout or waitForTerminal is needed here.
       await attachSession(createdTabId, finalProfile, workspaceId ?? '');
     },
     [attachSession, terminalCreateTab],
