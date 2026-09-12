@@ -238,16 +238,39 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         createdSessionIdsRef.current.add(sessionId);
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
+
+        // 在更新 tab 前捕获旧 sessionId（用于历史 buffer 迁移）
+        const currentTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
+        const oldSessionId = currentTab?.sessionId;
+
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
 
-        // 屏蔽 shell 启动输出：PTY 创建后 shell 会发送清屏序列（ESC[2J ESC[H），
-        // 会擦除 activateTab 刚写入的历史内容。屏蔽 500ms 等待启动序列结束。
-        if (writtenHistoryToXtermRef.current.has(sessionId)) {
-          ptyStartingUpRef.current.add(sessionId);
-          setTimeout(() => {
-            ptyStartingUpRef.current.delete(sessionId);
-          }, 500);
+        // 迁移历史 buffer：activateTab 将历史内容写入了旧 sessionId 的 pool entry，
+        // 但 PTY 使用新 sessionId。需要将旧 entry 的 terminal buffer 迁移到新 entry。
+        if (oldSessionId && oldSessionId !== sessionId) {
+          const oldEntry = terminalXtermPool.get(oldSessionId);
+          const newEntry = terminalXtermPool.get(sessionId);
+          if (oldEntry && newEntry) {
+            // 读取旧 entry 的完整 buffer（含历史内容），写入新 entry
+            const historyBuffer = oldEntry.terminal.buffer.active;
+            const lines: string[] = [];
+            for (let i = 0; i < historyBuffer.length; i++) {
+              lines.push(historyBuffer.getLine(i)?.translateToString(true) ?? '');
+            }
+            const historyText = lines.join('\r\n');
+            if (historyText) {
+              newEntry.terminal.write(historyText);
+              newEntry.terminal.scrollToBottom();
+            }
+          }
         }
+
+        // 屏蔽 shell 启动输出：PTY 创建后 shell 会发送清屏序列（ESC[2J ESC[H），
+        // 会擦除已迁移的历史内容。屏蔽 500ms 等待启动序列结束。
+        ptyStartingUpRef.current.add(sessionId);
+        setTimeout(() => {
+          ptyStartingUpRef.current.delete(sessionId);
+        }, 500);
       } catch (err) {
         console.error('Terminal creation error:', err);
         terminalUpdateTab(tabId, { status: 'terminated' });
