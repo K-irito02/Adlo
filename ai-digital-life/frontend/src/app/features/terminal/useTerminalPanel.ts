@@ -43,7 +43,6 @@ export interface ContextMenuState {
 export interface UseTerminalPanelReturn {
   terminalState: {
     xtermRef: React.RefObject<XtermTerminalHandle | null>;
-    sessionOutputsRef: React.RefObject<Map<string, string>>;
     editInputRef: React.RefObject<HTMLInputElement | null>;
     shellMenuRef: React.RefObject<HTMLDivElement | null>;
     terminalMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -127,7 +126,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
 
   const {
     xtermRef,
-    sessionOutputsRef,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,
@@ -196,7 +194,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   return {
     terminalState: {
       xtermRef,
-      sessionOutputsRef,
       editInputRef,
       shellMenuRef,
       terminalMenuRef,

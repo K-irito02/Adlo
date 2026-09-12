@@ -29,7 +29,6 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
 
   const {
     xtermRef,
-    sessionOutputsRef,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,
@@ -73,7 +72,6 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
 
   return {
     xtermRef,
-    sessionOutputsRef,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,
