@@ -34,7 +34,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const pendingInputRef = useRef('');
   // PTY 创建时间戳：启动窗口内过滤 shell 清屏序列，保护已写入的序列化状态
   const ptyCreatedAtRef = useRef<Map<string, number>>(new Map());
-  const STARTUP_WINDOW_MS = 2000;
+  const STARTUP_WINDOW_MS = 5000;
   // 每个会话当前实际生效的 PTY 尺寸：同尺寸的 resize 直接跳过，
   // 否则 ConPTY 每次都会重发整屏（约 250 字节的 `\x1b[K\r\n` 片段）污染输出缓冲，
   // 表现为「每切换一次标签缓冲涨 256 字节」、回放时画面被这些垃圾片段扰动。
