@@ -287,17 +287,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
 
       // PTY 已死亡（应用重启后的恢复标签）：
-      // 1) 加载持久化输出到内存
-      // 2) 创建新 PTY（新 sessionId）
-      // 3) 等待新 pool entry 就绪
-      // 4) 写入历史到新 session 的 pool entry
-      // 5) ptyStartingUpRef 屏蔽 shell 启动清屏，保护历史内容
-
-      // 步骤 1：加载持久化输出到内存
-      const output = await ensureLoaded(sessionId);
-      const historyText = output ? stripConptyRepaintBursts(output).text : '';
-
-      // 步骤 2：创建新 PTY
+      // 直接创建新 PTY，不写入持久化输出。
+      // 持久化输出包含前一次会话的启动 banner，重启后新 PTY 也会输出自己的 banner，
+      // 两份 banner 叠加导致显示错乱。新 PTY 自然显示当前 shell 状态。
       ensureTabCwdsLoaded();
       const rememberedCwd = tabCwdRef.current.get(tabId);
       await attachSession(tabId, tab.profile, tab.workspaceId, {
@@ -305,39 +297,17 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         revived: true,
       });
 
-      // 步骤 3：获取新 sessionId（attachSession 已更新 tab）
-      const updatedTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
-      const newSessionId = updatedTab?.sessionId;
-      if (!newSessionId) {
-        return;
-      }
-
-      // 步骤 4：等待新 pool entry 就绪，然后写入历史
-      let newPooled = terminalXtermPool.get(newSessionId);
-      if (!newPooled) {
-        for (let frame = 0; frame < 30; frame++) {
-          await new Promise<void>((r) => requestAnimationFrame(() => r()));
-          newPooled = terminalXtermPool.get(newSessionId);
-          if (newPooled) {
-            break;
-          }
-        }
-      }
-      if (newPooled && historyText) {
-        newPooled.terminal.write(historyText);
-        newPooled.terminal.scrollToBottom();
-      }
-
-      // 步骤 5：shell 启动清屏已在 attachSession 中被 ptyStartingUpRef 屏蔽
-
       // 补发 PTY 创建前缓冲的输入
       const pending = pendingInputRef.current;
       pendingInputRef.current = '';
+      const newSessionId = useAppStore
+        .getState()
+        .terminalTabs.find((t) => t.id === tabId)?.sessionId;
       if (pending && newSessionId) {
         window.digitalLife.pty.input(newSessionId, pending);
       }
     },
-    [attachSession, ensureLoaded, ensureTabCwdsLoaded],
+    [attachSession, ensureTabCwdsLoaded],
   );
 
   // 全量预热：标签集合（含会话）就绪后，后台并行加载所有会话的持久化输出。
