@@ -200,7 +200,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     }
     if (!hiddenForRestoreRef.current) {
       hiddenForRestoreRef.current = true;
-      xtermRef.current?.setHidden(true);
       console.log(`[ADL-DEBUG] hide for restore — tab=${tabId}`);
     }
     // 兜底：即使新 shell 一个字节都不输出，也不能让画面一直黑着
@@ -208,7 +207,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       restoreUnhideTimerRef.current = null;
       if (hiddenForRestoreRef.current) {
         hiddenForRestoreRef.current = false;
-        xtermRef.current?.setHidden(false);
         console.log(`[ADL-DEBUG] unhide (timeout) — tab=${tabId}`);
       }
     }, 900);
@@ -222,7 +220,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     }
     if (hiddenForRestoreRef.current) {
       hiddenForRestoreRef.current = false;
-      xtermRef.current?.setHidden(false);
       console.log(`[ADL-DEBUG] unhide — reason=${reason}`);
     }
   }, []);
@@ -308,40 +305,101 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const startedAt = performance.now();
       const awaitedLoad = !loadedSessionIdsRef.current.has(sessionId);
       restoringSessionRef.current = sessionId;
-      const output = await ensureLoaded(sessionId);
-      await waitForTerminal();
-      // 先等 xterm 完成首帧自适应（挂载时由 setTimeout 触发的 initialFit），
-      // 再按最终尺寸 fit、最后写入历史：避免「先写入、后 fit」触发整屏重排，
-      // 导致历史内容整体跳动/上移（重启首屏的闪烁即由此产生）。
-      await nextFrame();
-      if (restoringSessionRef.current !== sessionId || !isActiveSession(sessionId)) {
-        console.log(
-          `[ADL-DEBUG] replay aborted — session=${sessionId} awaitedLoad=${awaitedLoad} elapsedMs=${Math.round(performance.now() - startedAt)}`,
-        );
-        return;
-      }
-      xtermRef.current?.resize();
-      xtermRef.current?.clear();
-      const replayRaw = output ?? sessionOutputsRef.current.get(sessionId) ?? '';
-      // 回放线性化：剥离缓冲里混入的 ConPTY 重绘爆发（尺寸变化时产生），
-      // 否则回放会出现空行游程滚动画面、banner/提示符重复、CUP 跳位
-      const replay = stripConptyRepaintBursts(replayRaw);
-      if (replay.bursts > 0) {
-        console.log(
-          `[ADL-DEBUG] repaint bursts cleaned on replay — session=${sessionId} bursts=${replay.bursts} bytesRemoved=${replay.bytesRemoved}`,
-        );
-      }
-      if (replay.text) {
-        xtermRef.current?.write(replay.text);
-      }
-      xtermRef.current?.scrollToBottom();
-      if (options?.focus !== false) {
-        xtermRef.current?.focus();
-      }
-      restoringSessionRef.current = null;
       console.log(
-        `[ADL-DEBUG] replay done — session=${sessionId} bytes=${replay.text.length} rawBytes=${replayRaw.length} bursts=${replay.bursts} awaitedLoad=${awaitedLoad} elapsedMs=${Math.round(performance.now() - startedAt)}`,
+        `[ADL-DEBUG] replaySession START — session=${sessionId} awaitedLoad=${awaitedLoad} t=${Math.round(performance.now())}`,
       );
+      try {
+        const output = await ensureLoaded(sessionId);
+        console.log(
+          `[ADL-DEBUG] replaySession loaded — session=${sessionId} bytes=${(output ?? '').length} t=${Math.round(performance.now())}`,
+        );
+        await waitForTerminal();
+        // 先等 xterm 完成首帧自适应（挂载时由 setTimeout 触发的 initialFit），
+        // 再按最终尺寸 fit、最后写入历史：避免「先写入、后 fit」触发整屏重排，
+        // 导致历史内容整体跳动/上移（重启首屏的闪烁即由此产生）。
+        await nextFrame();
+        const el = document.querySelector('.adl-terminal-canvas');
+        const containerW = el?.clientWidth ?? 0;
+        const containerH = el?.clientHeight ?? 0;
+        const xtermDims = xtermRef.current?.getDims();
+        console.log(
+          `[ADL-DEBUG] replaySession pre-fit — container=${containerW}x${containerH} xtermDims=${xtermDims ? `${xtermDims.cols}x${xtermDims.rows}` : 'null'} t=${Math.round(performance.now())}`,
+        );
+        if (restoringSessionRef.current !== sessionId || !isActiveSession(sessionId)) {
+          console.log(
+            `[ADL-DEBUG] replay aborted — session=${sessionId} awaitedLoad=${awaitedLoad} elapsedMs=${Math.round(performance.now() - startedAt)}`,
+          );
+          return;
+        }
+        xtermRef.current?.resize();
+        const postResizeDims = xtermRef.current?.getDims();
+        console.log(
+          `[ADL-DEBUG] replaySession post-resize — xtermDims=${postResizeDims ? `${postResizeDims.cols}x${postResizeDims.rows}` : 'null'} t=${Math.round(performance.now())}`,
+        );
+        xtermRef.current?.clear();
+        const replayRaw = output ?? sessionOutputsRef.current.get(sessionId) ?? '';
+        // 回放线性化：剥离缓冲里混入的 ConPTY 重绘爆发（尺寸变化时产生），
+        // 否则回放会出现空行游程滚动画面、banner/提示符重复、CUP 跳位
+        const replay = stripConptyRepaintBursts(replayRaw);
+        if (replay.bursts > 0) {
+          console.log(
+            `[ADL-DEBUG] repaint bursts cleaned on replay — session=${sessionId} bursts=${replay.bursts} bytesRemoved=${replay.bytesRemoved}`,
+          );
+        }
+        if (replay.text) {
+          xtermRef.current?.write(replay.text);
+        }
+        xtermRef.current?.scrollToBottom();
+        if (options?.focus !== false) {
+          xtermRef.current?.focus();
+        }
+        console.log(
+          `[ADL-DEBUG] replay done — session=${sessionId} bytes=${replay.text.length} rawBytes=${replayRaw.length} bursts=${replay.bursts} awaitedLoad=${awaitedLoad} elapsedMs=${Math.round(performance.now() - startedAt)}`,
+        );
+      } finally {
+        // 回放结束：捕获 sessionId
+        const replayedSession = restoringSessionRef.current;
+
+        // 检测 PTY 尺寸是否过期：回放期间跳过了 PTY resize，
+        // 但回放结束后容器尺寸可能已变化（窗口 resize），ResizeObserver
+        // 不会再触发（容器尺寸未变），需要主动补一次 PTY resize。
+        if (replayedSession && liveSessionIdsRef.current.has(replayedSession)) {
+          const dims = xtermRef.current?.getDims();
+          const ptyHas = ptyDimsRef.current.get(replayedSession);
+          if (
+            dims &&
+            dims.cols > 0 &&
+            dims.rows > 0 &&
+            (!ptyHas || ptyHas.cols !== dims.cols || ptyHas.rows !== dims.rows)
+          ) {
+            console.log(
+              `[ADL-DEBUG] pty resize after replay — session=${replayedSession} ptyHas=${ptyHas ? `${ptyHas.cols}x${ptyHas.rows}` : 'none'} → ${dims.cols}x${dims.rows} t=${Math.round(performance.now())}`,
+            );
+            ptyDimsRef.current.set(replayedSession, { cols: dims.cols, rows: dims.rows });
+            window.digitalLife.pty.resize(replayedSession, dims.cols, dims.rows);
+          }
+        }
+
+        // 延迟 300ms 清除 restoringSessionRef：PTY resize 会触发 ConPTY 异步
+        // 重绘（整屏重发），该重绘通过 PTY 数据流到达 handleXtermData。
+        // 如果此时 restoringSessionRef 已清除，重绘数据会写入 xterm 覆盖
+        // 刚回放的内容。保持守卫300ms 可过滤该异步重绘。
+        // 代价：此窗口内的 PTY 输出（用户输入的 shell 响应）也会被过滤，
+        // 但用户刚切换完标签，300ms 内几乎不会有交互。
+        if (replayedSession) {
+          await new Promise<void>((resolve) => {
+            setTimeout(() => {
+              console.log(
+                `[ADL-DEBUG] replay guard cleared — session=${replayedSession} t=${Math.round(performance.now())}`,
+              );
+              restoringSessionRef.current = null;
+              resolve();
+            }, 300);
+          });
+        } else {
+          restoringSessionRef.current = null;
+        }
+      }
     },
     [ensureLoaded, waitForTerminal],
   );
@@ -407,6 +465,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         const realDims = terminalReady ? xtermRef.current?.getDims() : undefined;
         const cols = realDims && realDims.cols > 0 ? realDims.cols : 80;
         const rows = realDims && realDims.rows > 0 ? realDims.rows : 24;
+        console.log(
+          `[ADL-DEBUG] attachSession creating PTY — tab=${tabId} cols=${cols} rows=${rows} realDims=${realDims ? `${realDims.cols}x${realDims.rows}` : 'null'} terminalReady=${terminalReady} t=${Math.round(performance.now())}`,
+        );
         const result = await window.digitalLife.pty.create({
           shell: SHELL_MAP[profile],
           cwd,
@@ -499,15 +560,28 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const tab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
       const sessionId = tab?.sessionId;
       if (!tab || !sessionId) {
+        console.log(
+          `[ADL-DEBUG] activateTab — tab=${tabId} NOT FOUND (tab=${!!tab} sessionId=${!!sessionId}) t=${Math.round(performance.now())}`,
+        );
         return;
       }
-      if (liveSessionIdsRef.current.has(sessionId)) {
+      const isLive = liveSessionIdsRef.current.has(sessionId);
+      console.log(
+        `[ADL-DEBUG] activateTab — tab=${tabId} session=${sessionId} isLive=${isLive} t=${Math.round(performance.now())}`,
+      );
+      if (isLive) {
         await replaySession(sessionId);
         return;
       }
       if (revivingTabIdsRef.current.has(tabId)) {
+        console.log(
+          `[ADL-DEBUG] activateTab — tab=${tabId} ALREADY REVIVING, skip t=${Math.round(performance.now())}`,
+        );
         return;
       }
+      console.log(
+        `[ADL-DEBUG] activateTab REVIVE path — tab=${tabId} session=${sessionId} t=${Math.round(performance.now())}`,
+      );
       revivingTabIdsRef.current.add(tabId);
       try {
         // 0) 整个「回放历史 + 重建会话 + 落屏」期间隐藏画面，
@@ -634,23 +708,38 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const sig = `${cols}x${rows}`;
       const previousDims = lastDimsRef.current;
       lastDimsRef.current = sig;
+
+      // 回放期间 restoringSessionRef 指向正在回放的 session（可能是非活动标签），
+      // 此时 activeTab 仍指向前一个标签。必须用 restoringSessionRef 路由到
+      // 正确的 PTY，否则去重检查会命中前一个 session 的尺寸而跳过 resize，
+      // 导致被切换到的标签 PTY 仍以旧尺寸运行 → 内容错位。
+      const targetSession = restoringSessionRef.current ?? activeTab?.sessionId;
       console.log(
-        `[ADL-DEBUG] xterm dims reported — ${previousDims || '(init)'} → ${sig} changed=${previousDims !== '' && previousDims !== sig} restoring=${restoringSessionRef.current ?? 'none'} t=${Math.round(performance.now())}`,
+        `[ADL-DEBUG] xterm dims reported — ${previousDims || '(init)'} → ${sig} changed=${previousDims !== '' && previousDims !== sig} restoring=${restoringSessionRef.current ?? 'none'} target=${targetSession ?? 'none'} t=${Math.round(performance.now())}`,
       );
-      const sessionId = activeTab?.sessionId;
-      if (sessionId && liveSessionIdsRef.current.has(sessionId)) {
-        const effective = ptyDimsRef.current.get(sessionId);
+      if (targetSession && liveSessionIdsRef.current.has(targetSession)) {
+        const effective = ptyDimsRef.current.get(targetSession);
         if (effective && effective.cols === cols && effective.rows === rows) {
           // 同尺寸重复上报（挂载 initialFit / 回放前 fit / 切回标签都会触发）：
           // 直接跳过。ConPTY 哪怕收到同尺寸 resize 也会重发整屏片段，
           // 既污染输出缓冲（每次约 +256 字节），回放时还会扰动画面。
           console.log(
-            `[ADL-DEBUG] pty resize skipped (unchanged) — session=${sessionId} dims=${cols}x${rows}`,
+            `[ADL-DEBUG] pty resize skipped (unchanged) — session=${targetSession} dims=${cols}x${rows}`,
           );
           return;
         }
-        ptyDimsRef.current.set(sessionId, { cols, rows });
-        window.digitalLife.pty.resize(sessionId, cols, rows);
+        // 回放期间跳过 PTY resize：回放内容是在旧尺寸下生成的，
+        // resize 会触发 ConPTY 重绘整个屏幕（用当前 shell 状态），
+        // 覆盖刚回放的历史内容 → 内容被裁剪/消失。
+        // resize 延迟到回放结束后由 ResizeObserver 自然触发。
+        if (restoringSessionRef.current !== null) {
+          console.log(
+            `[ADL-DEBUG] pty resize skipped (replaying) — session=${targetSession} dims=${cols}x${rows} ptyHas=${effective ? `${effective.cols}x${effective.rows}` : 'none'}`,
+          );
+          return;
+        }
+        ptyDimsRef.current.set(targetSession, { cols, rows });
+        window.digitalLife.pty.resize(targetSession, cols, rows);
       }
     },
     [activeTab?.sessionId],

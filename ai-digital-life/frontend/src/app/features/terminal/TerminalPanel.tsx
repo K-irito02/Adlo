@@ -303,6 +303,7 @@ export function TerminalPanel() {
               <>
                 <XtermTerminal
                   ref={xtermRef}
+                  sessionId={activeTab?.sessionId ?? null}
                   className="adl-terminal-canvas"
                   onData={terminalActions.handleXtermData}
                   onResize={terminalActions.handleXtermResize}
