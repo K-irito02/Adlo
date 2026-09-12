@@ -511,6 +511,51 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     return () => unsub();
   }, [activeRightTool, persistTabCwds, terminalUpdateTab]);
 
+  useEffect(() => {
+    const container = document.querySelector('.adl-tool-primary__scroll--terminal');
+    if (!container) {
+      return;
+    }
+
+    let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) {
+        return;
+      }
+      const { width, height } = entry.contentRect;
+      if (width <= 0 || height <= 0) {
+        return;
+      }
+
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      resizeTimeout = setTimeout(() => {
+        terminalXtermPool.fitAll();
+      }, 150);
+    });
+
+    observer.observe(container);
+    return () => {
+      if (resizeTimeout) {
+        clearTimeout(resizeTimeout);
+      }
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      terminalXtermPool.syncTheme();
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+    return () => observer.disconnect();
+  }, []);
+
   return {
     xtermRef,
     sessionOutputsRef,
