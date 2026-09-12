@@ -282,10 +282,17 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 加载并写入序列化状态
       if (pooled) {
         const serialized = await terminalOutputStore.load(sessionId);
+        console.log(
+          `[ADL-DEBUG] activateTab restore — session=${sessionId} serializedBytes=${(serialized ?? '').length} poolEntry=exists`,
+        );
         if (serialized) {
           pooled.terminal.write(serialized);
           pooled.terminal.scrollToBottom();
         }
+      } else {
+        console.log(
+          `[ADL-DEBUG] activateTab restore — session=${sessionId} poolEntry=null (skipped write)`,
+        );
       }
 
       // 创建新 PTY
@@ -494,6 +501,11 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const inStartupWindow = createdAt !== undefined && Date.now() - createdAt < STARTUP_WINDOW_MS;
       // eslint-disable-next-line no-control-regex
       const filteredData = inStartupWindow ? data.replace(/\x1b\[(?:2J|3J|H|1;1H)/g, '') : data;
+      if (inStartupWindow && data !== filteredData) {
+        console.log(
+          `[ADL-DEBUG] startup filter — session=${event.sessionId} filtered ${data.length - filteredData.length} bytes of clear sequences`,
+        );
+      }
 
       // OSC 9;9: 按标签记住 shell 上报的当前目录
       const oscScan = scanOsc99((oscCarryRef.current.get(event.sessionId) ?? '') + event.data);
