@@ -178,7 +178,6 @@ export const createBrowserLandingSlice = (
   browserSetPortScanning: (scanning) => set({ browserPortScanning: scanning }),
 
   browserScanPorts: async (ports) => {
-    console.log('[ADL-DEBUG] browserScanPorts: starting scan, configured ports:', ports);
     set({ browserPortScanning: true });
     try {
       const result = await invokeIpc<{ port: number; isOpen: boolean; responseTimeMs: number }[]>(
@@ -186,29 +185,10 @@ export const createBrowserLandingSlice = (
         { ports },
       );
       if (!result.ok) {
-        console.warn('[ADL-DEBUG] browserScanPorts: IPC error:', result.error);
         return;
       }
-      console.log('[ADL-DEBUG] browserScanPorts: scan result:', result.data);
       const openPorts = result.data.filter((p) => p.isOpen);
-      const closedPorts = result.data.filter((p) => !p.isOpen);
-      console.log(
-        '[ADL-DEBUG] browserScanPorts: open ports:',
-        openPorts.map((p) => p.port),
-        'closed ports:',
-        closedPorts.map((p) => p.port),
-      );
       const current = _get().browserLocalPorts;
-      console.log(
-        '[ADL-DEBUG] browserScanPorts: current local ports:',
-        current.map((p) => ({
-          id: p.id,
-          host: p.host,
-          port: p.port,
-          healthy: p.healthy,
-          lastAliveAt: p.lastAliveAt,
-        })),
-      );
       const existingKeys = new Set(current.map((p) => `${p.host}:${p.port}`));
       const maxSortOrder = current.length > 0 ? Math.max(...current.map((p) => p.sortOrder)) : 0;
 
@@ -216,9 +196,6 @@ export const createBrowserLandingSlice = (
       const openPortSet = new Set(openPorts.map((p) => p.port));
       const updatedCurrent = current.map((p) => {
         const isHealthy = openPortSet.has(p.port);
-        console.log(
-          `[ADL-DEBUG] browserScanPorts: port ${p.port} health check: isHealthy=${isHealthy}, previous healthy=${p.healthy}`,
-        );
         return { ...p, healthy: isHealthy, lastAliveAt: isHealthy ? Date.now() : p.lastAliveAt };
       });
 
@@ -236,14 +213,10 @@ export const createBrowserLandingSlice = (
         }));
 
       const next = [...updatedCurrent, ...newPorts];
-      console.log(
-        '[ADL-DEBUG] browserScanPorts: final ports state:',
-        next.map((p) => ({ port: p.port, healthy: p.healthy, lastAliveAt: p.lastAliveAt })),
-      );
       writeLocalPorts(next);
       set({ browserLocalPorts: next });
-    } catch (e) {
-      console.warn('[ADL-DEBUG] browserScanPorts: failed:', e);
+    } catch {
+      // scan failed — leave previous state
     } finally {
       set({ browserPortScanning: false });
     }

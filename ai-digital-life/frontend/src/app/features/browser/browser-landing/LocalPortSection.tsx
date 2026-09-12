@@ -39,12 +39,7 @@ export function LocalPortSection({
   const scanningRef = useRef(false);
 
   const sortedPorts = useMemo(() => {
-    const sorted = [...browserLocalPorts].sort((a, b) => a.sortOrder - b.sortOrder);
-    console.log(
-      '[ADL-DEBUG] LocalPortSection: sorted ports:',
-      sorted.map((p) => ({ port: p.port, healthy: p.healthy, lastAliveAt: p.lastAliveAt })),
-    );
-    return sorted;
+    return [...browserLocalPorts].sort((a, b) => a.sortOrder - b.sortOrder);
   }, [browserLocalPorts]);
 
   const scanPorts = useCallback(async () => {
@@ -59,14 +54,12 @@ export function LocalPortSection({
       if (store.isTauri) {
         await store.browserScanPorts(store.browserConfiguredPorts);
       } else {
-        console.log('[ADL-DEBUG] scanPorts (browser mode): starting scan');
         browserSetPortScanning(true);
         const response = await fetch(SCAN_API);
         if (response.ok) {
           const result = await response.json();
           if (result.ok && Array.isArray(result.data)) {
             const discovered: { host: string; port: number }[] = result.data;
-            console.log('[ADL-DEBUG] scanPorts (browser mode): discovered ports:', discovered);
             const existingKeys = new Set(browserLocalPorts.map((p) => `${p.host}:${p.port}`));
             const maxSortOrder =
               browserLocalPorts.length > 0
@@ -77,9 +70,6 @@ export function LocalPortSection({
             const discoveredPortSet = new Set(discovered.map((p) => p.port));
             const updatedCurrent = browserLocalPorts.map((p) => {
               const isHealthy = discoveredPortSet.has(p.port);
-              console.log(
-                `[ADL-DEBUG] scanPorts (browser mode): port ${p.port} health check: isHealthy=${isHealthy}, previous healthy=${p.healthy}`,
-              );
               return {
                 ...p,
                 healthy: isHealthy,
@@ -101,16 +91,12 @@ export function LocalPortSection({
               }));
 
             const next = [...updatedCurrent, ...newPorts];
-            console.log(
-              '[ADL-DEBUG] scanPorts (browser mode): final ports state:',
-              next.map((p) => ({ port: p.port, healthy: p.healthy })),
-            );
             browserSetLocalPorts(next);
           }
         }
       }
-    } catch (e) {
-      console.warn('[ADL-DEBUG] scanPorts: failed:', e);
+    } catch {
+      // scan failed — leave previous state
     } finally {
       scanningRef.current = false;
       browserSetPortScanning(false);

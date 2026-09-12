@@ -57,7 +57,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     for (const [tabId, cwd] of Object.entries(stored)) {
       tabCwdRef.current.set(tabId, cwd);
     }
-    console.log(`[ADL-DEBUG] terminal cwd store hydrated — tabs=${Object.keys(stored).length}`);
   }, []);
 
   /** 持久化整个「标签 → 目录」映射（写入在 store 内去抖） */
@@ -92,7 +91,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     if (inflight) {
       return inflight;
     }
-    const startedAt = performance.now();
     const promise = terminalOutputStore
       .load(sessionId)
       .then((output) => {
@@ -100,25 +98,16 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         if (output && !sessionOutputsRef.current.has(sessionId)) {
           // 存量清洗：旧版本缓冲里可能混有 ConPTY 重绘爆发，加载时统一剥离
           const cleaned = stripConptyRepaintBursts(output);
-          if (cleaned.bursts > 0) {
-            console.log(
-              `[ADL-DEBUG] repaint bursts cleaned on load — session=${sessionId} bursts=${cleaned.bursts} bytesRemoved=${cleaned.bytesRemoved}`,
-            );
-          }
           sessionOutputsRef.current.set(sessionId, cleaned.text);
         }
         return output;
       })
-      .catch((err) => {
-        console.warn(`[ADL-DEBUG] terminal output load failed — session=${sessionId}`, err);
+      .catch(() => {
         return null;
       })
       .then((output) => {
         loadPromisesRef.current.delete(sessionId);
         loadedSessionIdsRef.current.add(sessionId);
-        console.log(
-          `[ADL-DEBUG] terminal output loaded — session=${sessionId} bytes=${output?.length ?? 0} elapsedMs=${Math.round(performance.now() - startedAt)}`,
-        );
         return sessionOutputsRef.current.get(sessionId) ?? output;
       });
     loadPromisesRef.current.set(sessionId, promise);
@@ -164,9 +153,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         : undefined;
       ensureTabCwdsLoaded();
       const cwd = cwdOverride ?? (workspaceId ? (workspace?.path ?? undefined) : undefined);
-      console.log(
-        `[ADL-DEBUG] attach session — tab=${tabId} profile=${profile} workspaceId=${workspaceId || '(independent)'} cwd=${cwd ?? '(user home)'} cwdSource=${cwdOverride ? 'remembered' : workspaceId ? 'workspace' : 'home'}`,
-      );
 
       try {
         // Measure dimensions by creating a temporary xterm against the container.
@@ -186,9 +172,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           }
           terminalXtermPool.release(pendingKey);
         }
-        console.log(
-          `[ADL-DEBUG] attachSession creating PTY — tab=${tabId} cols=${cols} rows=${rows} t=${Math.round(performance.now())}`,
-        );
         const result = await window.digitalLife.pty.create({
           shell: SHELL_MAP[profile],
           cwd,
@@ -250,15 +233,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const tab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
       const sessionId = tab?.sessionId;
       if (!tab || !sessionId) {
-        console.log(
-          `[ADL-DEBUG] activateTab — tab=${tabId} NOT FOUND (tab=${!!tab} sessionId=${!!sessionId}) t=${Math.round(performance.now())}`,
-        );
         return;
       }
       const isLive = liveSessionIdsRef.current.has(sessionId);
-      console.log(
-        `[ADL-DEBUG] activateTab — tab=${tabId} session=${sessionId} isLive=${isLive} t=${Math.round(performance.now())}`,
-      );
 
       // 从 pool 获取 xterm 并加载持久化输出
       const pooled = terminalXtermPool.get(sessionId);
@@ -283,9 +260,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // PTY 已死亡：创建新 PTY
       ensureTabCwdsLoaded();
       const rememberedCwd = tabCwdRef.current.get(tabId);
-      console.log(
-        `[ADL-DEBUG] activateTab REVIVE path — tab=${tabId} session=${sessionId} rememberedCwd=${rememberedCwd ?? '(none)'}`,
-      );
       await attachSession(tabId, tab.profile, tab.workspaceId, {
         cwdOverride: rememberedCwd,
       });
@@ -311,7 +285,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     if (sessionIds.length === 0) {
       return;
     }
-    console.log(`[ADL-DEBUG] terminal output warm-up — sessions=${sessionIds.length}`);
     for (const sessionId of sessionIds) {
       void ensureLoaded(sessionId);
     }
@@ -333,7 +306,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     if (createdSessionIdsRef.current.has(sessionId)) {
       return;
     }
-    console.log(`[ADL-DEBUG] startup activate restored tab — tab=${tabId} session=${sessionId}`);
     void activateTab(tabId);
   }, [activeTab, activateTab]);
 

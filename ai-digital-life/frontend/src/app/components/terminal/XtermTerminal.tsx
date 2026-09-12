@@ -82,12 +82,8 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           if (!entry) {
             return;
           }
-          const before = `${entry.terminal.cols}x${entry.terminal.rows}`;
           entry.fitAddon.fit();
           const dims = entry.fitAddon.proposeDimensions();
-          console.log(
-            `[ADL-DEBUG] xterm fit(resize) — ${before} → ${dims ? `${dims.cols}x${dims.rows}` : 'n/a'} t=${Math.round(performance.now())}`,
-          );
           if (dims) {
             onResizeRef.current?.(dims.cols, dims.rows);
           }
@@ -102,9 +98,6 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           }
           const dims = entry.fitAddon.proposeDimensions();
           if (dims) {
-            console.log(
-              `[ADL-DEBUG] xterm reportSize(no fit) — ${dims.cols}x${dims.rows} t=${Math.round(performance.now())}`,
-            );
             onResizeRef.current?.(dims.cols, dims.rows);
           }
         },
