@@ -31,6 +31,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const loadPromisesRef = useRef<Map<string, Promise<string | null>>>(new Map());
   // 已完成加载的会话（含加载结果为空的，避免反复重试）
   const loadedSessionIdsRef = useRef<Set<string>>(new Set());
+  // PTY 刚创建的会话：屏蔽 shell 启动输出写入 xterm（不阻止累积，仍持久化）
+  const ptyStartingUpRef = useRef<Set<string>>(new Set());
   // 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」）
   const createdSessionIdsRef = useRef<Set<string>>(new Set());
   // 当前仍然存活的 PTY 会话（应用重启后恢复的标签不在其中 → 需要重建）
@@ -235,6 +237,14 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
+
+        // 屏蔽 shell 启动输出写入 xterm（不阻止累积）：PTY 创建后 shell 会发送
+        // 清屏（ESC[2J）和 scrollback 清除（ESC[3J），会擦除已写入的历史内容。
+        // 屏蔽 500ms 等待启动序列结束，之后 shell 提示符正常显示。
+        ptyStartingUpRef.current.add(sessionId);
+        setTimeout(() => {
+          ptyStartingUpRef.current.delete(sessionId);
+        }, 500);
       } catch (err) {
         console.error('Terminal creation error:', err);
         terminalUpdateTab(tabId, { status: 'terminated' });
@@ -441,6 +451,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         terminalXtermPool.release(tab.sessionId);
         liveSessionIdsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
+        ptyStartingUpRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
         sessionOutputsRef.current.delete(tab.sessionId);
         loadedSessionIdsRef.current.delete(tab.sessionId);
@@ -467,6 +478,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           liveSessionIdsRef.current.delete(tab.sessionId);
           ptyDimsRef.current.delete(tab.sessionId);
           createdSessionIdsRef.current.delete(tab.sessionId);
+          ptyStartingUpRef.current.delete(tab.sessionId);
           sessionOutputsRef.current.delete(tab.sessionId);
           loadedSessionIdsRef.current.delete(tab.sessionId);
           loadPromisesRef.current.delete(tab.sessionId);
@@ -506,11 +518,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
       const data = event.data;
 
-      // 直接使用原始输出，不过滤 shell 启动序列。
-      // shell 的清屏（ESC[2J）和光标归位（ESC[H）是正常行为：
-      // 历史内容写入 xterm 后进入 scrollback，shell 清屏显示新提示符，
-      // 用户可向上滚动查看历史。这是 VS Code 等产品的标准行为。
-
       // OSC 9;9: 按标签记住 shell 上报的当前目录
       const oscScan = scanOsc99((oscCarryRef.current.get(event.sessionId) ?? '') + event.data);
       if (oscScan.carry) {
@@ -542,10 +549,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       outputs.set(event.sessionId, previous);
 
       // 写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）
+      // PTY 刚创建时 shell 发送清屏/scrollback 清除序列，跳过写入以保护历史内容。
+      // 累积不受影响（上方已累积），持久化正常工作。
       const pooled = terminalXtermPool.get(event.sessionId);
-      if (pooled) {
+      if (pooled && !ptyStartingUpRef.current.has(event.sessionId)) {
         pooled.terminal.write(data);
-      } else {
+      } else if (!pooled) {
         console.log(
           `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${data.length} poolSize=${terminalXtermPool.size}`,
         );
