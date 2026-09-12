@@ -166,6 +166,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           const tempEntry = terminalXtermPool.acquire(pendingKey, container as HTMLDivElement);
           tempEntry.fitAddon.fit();
           const dims = tempEntry.fitAddon.proposeDimensions();
+          console.log(
+            `[ADL-DEBUG] attachSession dims — container=${(container as HTMLElement).clientWidth}x${(container as HTMLElement).clientHeight} tempPoolSize=${terminalXtermPool.size} dims=${dims ? `${dims.cols}x${dims.rows}` : 'null'}`,
+          );
           if (dims && dims.cols > 0 && dims.rows > 0) {
             cols = dims.cols;
             rows = dims.rows;
@@ -248,9 +251,21 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         return;
       }
 
-      // PTY 已死亡（应用重启后的恢复标签）：创建新 PTY。
-      // shell 启动时会输出提示符和状态，自然填充终端。
-      // 不需要加载 persisted output — 新 PTY 的输出即为当前状态。
+      // PTY 已死亡（应用重启后的恢复标签）：
+      // 先加载 persisted output 到 pool xterm，再创建新 PTY。
+      // shell 启动输出会追加在历史内容之后。
+      const pooled = terminalXtermPool.get(sessionId);
+      if (pooled && !loadedSessionIdsRef.current.has(sessionId)) {
+        const output = await ensureLoaded(sessionId);
+        if (output) {
+          const cleaned = stripConptyRepaintBursts(output);
+          if (cleaned.text) {
+            pooled.terminal.write(cleaned.text);
+            pooled.terminal.scrollToBottom();
+          }
+        }
+      }
+
       ensureTabCwdsLoaded();
       const rememberedCwd = tabCwdRef.current.get(tabId);
       await attachSession(tabId, tab.profile, tab.workspaceId, {
@@ -267,7 +282,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         window.digitalLife.pty.input(newSessionId, pending);
       }
     },
-    [attachSession, ensureTabCwdsLoaded],
+    [attachSession, ensureLoaded, ensureTabCwdsLoaded],
   );
 
   // 全量预热：标签集合（含会话）就绪后，后台并行加载所有会话的持久化输出。
@@ -479,6 +494,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
         pooled.terminal.write(data);
+      } else {
+        console.log(
+          `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${data.length} poolSize=${terminalXtermPool.size}`,
+        );
       }
 
       // 防抖保存：合并高频输出事件，每 500ms 最多写入一次持久化存储
