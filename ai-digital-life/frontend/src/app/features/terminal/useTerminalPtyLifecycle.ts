@@ -31,6 +31,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const loadPromisesRef = useRef<Map<string, Promise<string | null>>>(new Map());
   // 已完成加载的会话（含加载结果为空的，避免反复重试）
   const loadedSessionIdsRef = useRef<Set<string>>(new Set());
+  // 已将持久化输出写入 xterm 的会话（区别于 loaded：loaded 是数据在内存，written 是已显示）
+  const writtenHistoryToXtermRef = useRef<Set<string>>(new Set());
   // 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」）
   const createdSessionIdsRef = useRef<Set<string>>(new Set());
   // 当前仍然存活的 PTY 会话（应用重启后恢复的标签不在其中 → 需要重建）
@@ -284,7 +286,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // pool entry 可能尚未创建（XtermTerminal 未 mount），需要等待。
       let pooled = terminalXtermPool.get(sessionId);
       console.log(
-        `[ADL-DEBUG] activateTab dead — tab=${tabId} session=${sessionId} poolEntry=${pooled ? 'exists' : 'null'} poolSize=${terminalXtermPool.size} loaded=${loadedSessionIdsRef.current.has(sessionId)}`,
+        `[ADL-DEBUG] activateTab dead — tab=${tabId} session=${sessionId} poolEntry=${pooled ? 'exists' : 'null'} poolSize=${terminalXtermPool.size} written=${writtenHistoryToXtermRef.current.has(sessionId)}`,
       );
       if (!pooled) {
         for (let frame = 0; frame < 30; frame++) {
@@ -298,7 +300,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           `[ADL-DEBUG] activateTab dead after wait — poolEntry=${pooled ? 'exists' : 'null'}`,
         );
       }
-      if (pooled && !loadedSessionIdsRef.current.has(sessionId)) {
+      if (pooled && !writtenHistoryToXtermRef.current.has(sessionId)) {
         const output = await ensureLoaded(sessionId);
         console.log(
           `[ADL-DEBUG] activateTab dead load — session=${sessionId} outputBytes=${(output ?? '').length}`,
@@ -308,6 +310,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           if (cleaned.text) {
             pooled.terminal.write(cleaned.text);
             pooled.terminal.scrollToBottom();
+            writtenHistoryToXtermRef.current.add(sessionId);
             console.log(
               `[ADL-DEBUG] activateTab dead wrote history — session=${sessionId} bytes=${cleaned.text.length}`,
             );
@@ -444,6 +447,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         terminalXtermPool.release(tab.sessionId);
         liveSessionIdsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
+        writtenHistoryToXtermRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
         sessionOutputsRef.current.delete(tab.sessionId);
         loadedSessionIdsRef.current.delete(tab.sessionId);
@@ -470,6 +474,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           liveSessionIdsRef.current.delete(tab.sessionId);
           ptyDimsRef.current.delete(tab.sessionId);
           createdSessionIdsRef.current.delete(tab.sessionId);
+          writtenHistoryToXtermRef.current.delete(tab.sessionId);
           sessionOutputsRef.current.delete(tab.sessionId);
           loadedSessionIdsRef.current.delete(tab.sessionId);
           loadPromisesRef.current.delete(tab.sessionId);
