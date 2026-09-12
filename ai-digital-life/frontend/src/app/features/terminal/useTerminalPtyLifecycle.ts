@@ -71,6 +71,21 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     terminalCwdStore.saveAll(snapshot);
   }, []);
 
+  const serializeSession = useCallback((sessionId: string) => {
+    const entry = terminalXtermPool.get(sessionId);
+    if (!entry) {
+      return;
+    }
+    try {
+      const state = entry.serializeAddon.serialize({ scrollback: 1000 });
+      if (state) {
+        terminalOutputStore.save(sessionId, state);
+      }
+    } catch (err) {
+      console.warn('serializeSession failed:', err);
+    }
+  }, []);
+
   const terminalTabs = terminalSelectors.useTerminalTabs();
   const sessionIdsKey = useMemo(
     () =>
@@ -323,6 +338,27 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     }
   }, [sessionIdsKey, ensureLoaded]);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const sessionIds = sessionIdsKey ? sessionIdsKey.split('|') : [];
+      for (const sessionId of sessionIds) {
+        serializeSession(sessionId);
+      }
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [sessionIdsKey, serializeSession]);
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const sessionIds = sessionIdsKey ? sessionIdsKey.split('|') : [];
+      for (const sessionId of sessionIds) {
+        serializeSession(sessionId);
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [sessionIdsKey, serializeSession]);
+
   // 启动激活：恢复的标签其会话必然已不存在（应用退出时会话被 kill），
   // 因此在启动时对「上一次运行遗留的活动标签」走一次激活（回放历史 + 重建会话）。
   const startupHandledRef = useRef(false);
@@ -543,19 +579,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         event.sessionId,
         setTimeout(() => {
           saveDebounceRef.current.delete(event.sessionId);
-          const latest = sessionOutputsRef.current.get(event.sessionId);
-          if (latest) {
-            const cleaned = stripConptyRepaintBursts(latest);
-            if (cleaned.bursts > 0) {
-              sessionOutputsRef.current.set(event.sessionId, cleaned.text);
-            }
-            terminalOutputStore.save(event.sessionId, cleaned.text);
-          }
+          serializeSession(event.sessionId);
         }, 500),
       );
     });
     return () => unsub();
-  }, [activeRightTool, persistTabCwds, terminalUpdateTab]);
+  }, [activeRightTool, persistTabCwds, serializeSession, terminalUpdateTab]);
 
   useEffect(() => {
     const container = document.querySelector('.adl-tool-primary__scroll--terminal');
