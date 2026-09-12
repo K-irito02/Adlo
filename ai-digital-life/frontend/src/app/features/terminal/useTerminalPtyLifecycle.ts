@@ -23,10 +23,10 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
  * 保留所有可打印字符和其他控制序列（如颜色、光标移动等）。
  */
 function filterStartupClearSequences(data: string): string {
-  // 匹配：ESC[2J（清屏）、ESC[H/ESC[1;1H（光标归位）、ESC[c（设备属性查询）
-  // 以及 ESC[?25l（隐藏光标）— 这些是 shell 启动时常见的序列
+  // 过滤：ESC[2J（清屏）、ESC[c（设备属性查询）、ESC[?25l（隐藏光标）
+  // 保留：ESC[H / ESC[1;1H（光标归位）— shell 用它定位提示符到新行
   // eslint-disable-next-line no-control-regex
-  return data.replace(/\x1b\[(?:2J|[Hc]|\?25l|\d*;1H)/g, '');
+  return data.replace(/\x1b\[(?:2J|c|\?25l)/g, '');
 }
 
 interface PtyLifecycleParams {
