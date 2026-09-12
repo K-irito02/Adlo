@@ -32,6 +32,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const liveSessionIdsRef = useRef<Set<string>>(new Set());
   // 重建期间缓冲的用户输入（PTY 创建前收到的按键，PTY 就绪后补发）
   const pendingInputRef = useRef('');
+  // PTY 创建时间戳：启动窗口内过滤 shell 清屏序列，保护已写入的序列化状态
+  const ptyCreatedAtRef = useRef<Map<string, number>>(new Map());
+  const STARTUP_WINDOW_MS = 2000;
   // 每个会话当前实际生效的 PTY 尺寸：同尺寸的 resize 直接跳过，
   // 否则 ConPTY 每次都会重发整屏（约 250 字节的 `\x1b[K\r\n` 片段）污染输出缓冲，
   // 表现为「每切换一次标签缓冲涨 256 字节」、回放时画面被这些垃圾片段扰动。
@@ -210,6 +213,11 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
+
+        // 记录 PTY 创建时间：启动窗口内过滤清屏序列，保护序列化的历史内容
+        if (options?.revived) {
+          ptyCreatedAtRef.current.set(sessionId, Date.now());
+        }
       } catch (err) {
         console.error('Terminal creation error:', err);
         terminalUpdateTab(tabId, { status: 'terminated' });
@@ -417,6 +425,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         terminalXtermPool.release(tab.sessionId);
         liveSessionIdsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
+        ptyCreatedAtRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
         sessionOutputsRef.current.delete(tab.sessionId);
         terminalOutputStore.delete(tab.sessionId);
@@ -441,6 +450,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           liveSessionIdsRef.current.delete(tab.sessionId);
           ptyDimsRef.current.delete(tab.sessionId);
           createdSessionIdsRef.current.delete(tab.sessionId);
+          ptyCreatedAtRef.current.delete(tab.sessionId);
           sessionOutputsRef.current.delete(tab.sessionId);
           terminalOutputStore.delete(tab.sessionId);
         }
@@ -478,6 +488,13 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
       const data = event.data;
 
+      // 启动窗口内过滤 shell 清屏/scrollback 清除/光标归位序列，
+      // 保护已写入的序列化历史内容，同时确保持久化输出不含这些序列。
+      const createdAt = ptyCreatedAtRef.current.get(event.sessionId);
+      const inStartupWindow = createdAt !== undefined && Date.now() - createdAt < STARTUP_WINDOW_MS;
+      // eslint-disable-next-line no-control-regex
+      const filteredData = inStartupWindow ? data.replace(/\x1b\[(?:2J|3J|H|1;1H)/g, '') : data;
+
       // OSC 9;9: 按标签记住 shell 上报的当前目录
       const oscScan = scanOsc99((oscCarryRef.current.get(event.sessionId) ?? '') + event.data);
       if (oscScan.carry) {
@@ -502,7 +519,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 累积过滤后的输出到内存缓冲（用于持久化保存）
       const outputs = sessionOutputsRef.current;
       let previous = outputs.get(event.sessionId) ?? '';
-      previous += data;
+      previous += filteredData;
       if (previous.length > MAX_SESSION_OUTPUT_BYTES) {
         previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
       }
@@ -511,7 +528,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
-        pooled.terminal.write(data);
+        pooled.terminal.write(filteredData);
       } else {
         console.log(
           `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${data.length} poolSize=${terminalXtermPool.size}`,
