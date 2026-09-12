@@ -283,6 +283,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // shell 启动输出会追加在历史内容之后。
       // pool entry 可能尚未创建（XtermTerminal 未 mount），需要等待。
       let pooled = terminalXtermPool.get(sessionId);
+      console.log(
+        `[ADL-DEBUG] activateTab dead — tab=${tabId} session=${sessionId} poolEntry=${pooled ? 'exists' : 'null'} poolSize=${terminalXtermPool.size} loaded=${loadedSessionIdsRef.current.has(sessionId)}`,
+      );
       if (!pooled) {
         for (let frame = 0; frame < 30; frame++) {
           await new Promise<void>((r) => requestAnimationFrame(() => r()));
@@ -291,14 +294,23 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
             break;
           }
         }
+        console.log(
+          `[ADL-DEBUG] activateTab dead after wait — poolEntry=${pooled ? 'exists' : 'null'}`,
+        );
       }
       if (pooled && !loadedSessionIdsRef.current.has(sessionId)) {
         const output = await ensureLoaded(sessionId);
+        console.log(
+          `[ADL-DEBUG] activateTab dead load — session=${sessionId} outputBytes=${(output ?? '').length}`,
+        );
         if (output) {
           const cleaned = stripConptyRepaintBursts(output);
           if (cleaned.text) {
             pooled.terminal.write(cleaned.text);
             pooled.terminal.scrollToBottom();
+            console.log(
+              `[ADL-DEBUG] activateTab dead wrote history — session=${sessionId} bytes=${cleaned.text.length}`,
+            );
           }
         }
       }
