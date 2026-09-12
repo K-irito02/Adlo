@@ -1,10 +1,12 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
+import { SerializeAddon } from '@xterm/addon-serialize';
 
 export interface PooledXterm {
   terminal: Terminal;
   fitAddon: FitAddon;
+  serializeAddon: SerializeAddon;
   hostEl: HTMLDivElement;
   sessionId: string;
   createdAt: number;
@@ -44,6 +46,8 @@ export class TerminalXtermPool {
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(new WebLinksAddon());
+    const serializeAddon = new SerializeAddon();
+    terminal.loadAddon(serializeAddon);
     terminal.open(hostEl);
 
     container.appendChild(hostEl);
@@ -51,6 +55,7 @@ export class TerminalXtermPool {
     const entry: PooledXterm = {
       terminal,
       fitAddon,
+      serializeAddon,
       hostEl,
       sessionId,
       createdAt: Date.now(),
