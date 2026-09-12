@@ -302,11 +302,33 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
 
       // PTY 已死亡（应用重启后的恢复标签）：
-      // 直接创建新 PTY，不写入持久化输出。
-      // 持久化输出包含前一次会话的启动 banner，重启后新 PTY 也会输出自己的 banner，
-      // 两份 banner 叠加导致显示错乱。新 PTY 自然显示当前 shell 状态。
+      // 1) 加载序列化状态并写入 xterm（精确还原终端视觉状态）
+      // 2) 创建新 PTY（shell 提示符自然出现在底部）
       ensureTabCwdsLoaded();
       const rememberedCwd = tabCwdRef.current.get(tabId);
+
+      // 等待 pool entry 就绪
+      let pooled = terminalXtermPool.get(sessionId);
+      if (!pooled) {
+        for (let frame = 0; frame < 30; frame++) {
+          await new Promise<void>((r) => requestAnimationFrame(() => r()));
+          pooled = terminalXtermPool.get(sessionId);
+          if (pooled) {
+            break;
+          }
+        }
+      }
+
+      // 加载并写入序列化状态
+      if (pooled) {
+        const serialized = await terminalOutputStore.load(sessionId);
+        if (serialized) {
+          pooled.terminal.write(serialized);
+          pooled.terminal.scrollToBottom();
+        }
+      }
+
+      // 创建新 PTY
       await attachSession(tabId, tab.profile, tab.workspaceId, {
         cwdOverride: rememberedCwd,
         revived: true,
