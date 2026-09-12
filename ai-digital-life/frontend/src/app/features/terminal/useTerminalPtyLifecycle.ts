@@ -155,26 +155,53 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const cwd = cwdOverride ?? (workspaceId ? (workspace?.path ?? undefined) : undefined);
 
       try {
-        // Measure dimensions by creating a temporary xterm against the container.
-        // The real xterm (by XtermTerminal component) doesn't exist yet for new tabs
-        // because the tab's sessionId isn't set until after this function creates the PTY.
-        const container = document.querySelector('.adl-terminal-canvas');
+        // 等待容器出现：React batching 可能导致 XtermTerminal 尚未 mount，
+        // document.querySelector 返回 null。轮询最多等 30 帧（~500ms）。
+        let container: HTMLElement | null = null;
+        for (let frame = 0; frame < 30; frame++) {
+          container = document.querySelector('.adl-terminal-canvas');
+          if (container) {
+            break;
+          }
+          await new Promise<void>((r) => requestAnimationFrame(() => r()));
+        }
+
         let cols = 80;
         let rows = 24;
-        const pendingKey = `__pending-${tabId}__`;
         if (container) {
-          const tempEntry = terminalXtermPool.acquire(pendingKey, container as HTMLDivElement);
-          tempEntry.fitAddon.fit();
-          const dims = tempEntry.fitAddon.proposeDimensions();
+          // 直接测量容器尺寸，不创建临时 pool entry
+          // （临时 entry 会导致 DOM 中有两个重叠的 hostEl，干扰布局）
+          const tempDiv = document.createElement('div');
+          tempDiv.style.cssText =
+            'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;visibility:hidden;';
+          container.appendChild(tempDiv);
+
+          const { Terminal } = await import('@xterm/xterm');
+          const { FitAddon } = await import('@xterm/addon-fit');
+          const tempTerminal = new Terminal({
+            fontSize: 13,
+            fontFamily:
+              getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() ||
+              'Cascadia Code, Fira Code, Consolas, monospace',
+            rows: 24,
+            cols: 80,
+          });
+          const tempFit = new FitAddon();
+          tempTerminal.loadAddon(tempFit);
+          tempTerminal.open(tempDiv);
+          tempFit.fit();
+          const dims = tempFit.proposeDimensions();
           console.log(
-            `[ADL-DEBUG] attachSession dims — container=${(container as HTMLElement).clientWidth}x${(container as HTMLElement).clientHeight} tempPoolSize=${terminalXtermPool.size} dims=${dims ? `${dims.cols}x${dims.rows}` : 'null'}`,
+            `[ADL-DEBUG] attachSession dims — container=${container.clientWidth}x${container.clientHeight} dims=${dims ? `${dims.cols}x${dims.rows}` : 'null'}`,
           );
           if (dims && dims.cols > 0 && dims.rows > 0) {
             cols = dims.cols;
             rows = dims.rows;
           }
-          terminalXtermPool.release(pendingKey);
+          tempTerminal.dispose();
+          tempDiv.remove();
         }
+
         const result = await window.digitalLife.pty.create({
           shell: SHELL_MAP[profile],
           cwd,
@@ -254,7 +281,17 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // PTY 已死亡（应用重启后的恢复标签）：
       // 先加载 persisted output 到 pool xterm，再创建新 PTY。
       // shell 启动输出会追加在历史内容之后。
-      const pooled = terminalXtermPool.get(sessionId);
+      // pool entry 可能尚未创建（XtermTerminal 未 mount），需要等待。
+      let pooled = terminalXtermPool.get(sessionId);
+      if (!pooled) {
+        for (let frame = 0; frame < 30; frame++) {
+          await new Promise<void>((r) => requestAnimationFrame(() => r()));
+          pooled = terminalXtermPool.get(sessionId);
+          if (pooled) {
+            break;
+          }
+        }
+      }
       if (pooled && !loadedSessionIdsRef.current.has(sessionId)) {
         const output = await ensureLoaded(sessionId);
         if (output) {
