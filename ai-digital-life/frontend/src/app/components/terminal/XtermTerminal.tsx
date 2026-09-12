@@ -9,7 +9,13 @@ export interface XtermTerminalHandle {
   clear(): void;
   focus(): void;
   getSelection(): string;
+  /** 读取当前建议尺寸（只测量，不 fit、不触发重排），供创建 PTY 时对齐真实尺寸 */
+  getDims(): { cols: number; rows: number } | null;
   resize(): void;
+  /** 仅把当前尺寸上报给 PTY，不做 fit（不会触发整屏重排） */
+  reportSize(): void;
+  /** 恢复历史期间隐藏画面，避免用户看到「回放 → 清屏 → banner」的中间态 */
+  setHidden(hidden: boolean): void;
   scrollToBottom(): void;
 }
 
@@ -65,18 +71,56 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           const terminal = terminalRef.current;
           return terminal?.getSelection() ?? '';
         },
+        getDims() {
+          const addon = fitAddonRef.current;
+          const terminal = terminalRef.current;
+          if (!addon || !terminal) {
+            return null;
+          }
+          // proposeDimensions 只按容器实测尺寸计算，不会应用 fit、不会触发重排；
+          // 测量失败（容器尚未布局）时回退到 xterm 当前 dims。
+          const proposed = addon.proposeDimensions();
+          if (proposed && proposed.cols > 0 && proposed.rows > 0) {
+            return { cols: proposed.cols, rows: proposed.rows };
+          }
+          return { cols: terminal.cols, rows: terminal.rows };
+        },
         resize() {
           const addon = fitAddonRef.current;
           const terminal = terminalRef.current;
           if (addon && terminal) {
+            const before = `${terminal.cols}x${terminal.rows}`;
             addon.fit();
             const dims = addon.proposeDimensions();
+            console.log(
+              `[ADL-DEBUG] xterm fit(resize) — ${before} → ${dims ? `${dims.cols}x${dims.rows}` : 'n/a'} t=${Math.round(performance.now())}`,
+            );
             if (dims) {
               onResizeRef.current?.(dims.cols, dims.rows);
             }
             setTimeout(() => {
               terminal.scrollToBottom();
             }, 0);
+          }
+        },
+        reportSize() {
+          // 只上报尺寸、不 fit：fit 在尺寸变化时会按新宽度重排整个缓冲，
+          // 若发生在历史回放之后，用户就会看到「历史瞬间跳动上移」。
+          const dims = fitAddonRef.current?.proposeDimensions();
+          if (dims) {
+            console.log(
+              `[ADL-DEBUG] xterm reportSize(no fit) — ${dims.cols}x${dims.rows} t=${Math.round(performance.now())}`,
+            );
+            onResizeRef.current?.(dims.cols, dims.rows);
+          }
+        },
+        setHidden(hidden: boolean) {
+          const el = containerRef.current;
+          if (el) {
+            el.style.visibility = hidden ? 'hidden' : 'visible';
+            console.log(
+              `[ADL-DEBUG] xterm visibility — hidden=${hidden} t=${Math.round(performance.now())}`,
+            );
           }
         },
         scrollToBottom() {
@@ -173,8 +217,12 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
             const addon = fitAddonRef.current;
             const term = terminalRef.current;
             if (addon && term) {
+              const before = `${term.cols}x${term.rows}`;
               addon.fit();
               const dims = addon.proposeDimensions();
+              console.log(
+                `[ADL-DEBUG] xterm fit(resizeObserver) — ${before} → ${dims ? `${dims.cols}x${dims.rows}` : 'n/a'} t=${Math.round(performance.now())}`,
+              );
               if (dims) {
                 onResizeRef.current?.(dims.cols, dims.rows);
               }

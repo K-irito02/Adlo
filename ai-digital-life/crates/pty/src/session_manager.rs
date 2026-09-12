@@ -93,6 +93,9 @@ impl AsyncSessionManager {
             let mut buf = [0u8; 4096];
             // 跨读边界保留不完整的 UTF-8 尾字节，避免 from_utf8_lossy 产生乱码
             let mut carry: Vec<u8> = Vec::new();
+            // [ADL-DEBUG] 编码探针：每会话只记录一次「首个含非 ASCII 字节的输出块」的原始十六进制，
+            // 用于验证 PowerShell 是否已按 UTF-8 输出（中文 UTF-8 为 e4 b8 ad e6 96 87，GBK 为 d6 d0 ce c4）。
+            let mut encoding_probe_logged = false;
             loop {
                 tokio::select! {
                     read_result = session_clone.read(&mut buf) => {
@@ -103,6 +106,24 @@ impl AsyncSessionManager {
                             },
                             Ok(n) => {
                                 tracing::trace!(session_id = %sid, bytes = n, "Reader task: read output");
+                                if !encoding_probe_logged && buf[..n].iter().any(|b| *b >= 0x80) {
+                                    encoding_probe_logged = true;
+                                    let sample_len = n.min(96);
+                                    let raw = &buf[..sample_len];
+                                    let hex = raw
+                                        .iter()
+                                        .map(|b| format!("{b:02x}"))
+                                        .collect::<Vec<_>>()
+                                        .join(" ");
+                                    tracing::debug!(
+                                        session_id = %sid,
+                                        shell = %session_clone.shell(),
+                                        bytes = n,
+                                        hex = %hex,
+                                        lossy = %String::from_utf8_lossy(raw),
+                                        "[ADL-DEBUG] pty first non-ASCII output sample (verify UTF-8)"
+                                    );
+                                }
                                 carry.extend_from_slice(&buf[..n]);
                                 // 将 carry 切分为可发射部分，仅保留末尾不完整的 UTF-8 尾字节。
                                 // 无效序列（如中文 Windows cmd 的 GBK 输出）逐字节 lossy，

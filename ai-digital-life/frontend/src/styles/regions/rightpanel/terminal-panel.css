@@ -46,6 +46,11 @@
   background: var(--bg-terminal);
 }
 
+/* 无任何终端标签时，主内容区底色与当前主题背景一致（有标签时保留终端底色） */
+.adl-tool-primary__scroll--terminal.is-empty {
+  background: var(--bg);
+}
+
 .adl-tool-context__group--terminal-actions {
   display: flex;
   align-items: center;

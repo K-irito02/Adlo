@@ -170,6 +170,20 @@ async fn dispatch_frame(
                 .filter(|s| !s.is_empty())
                 .map(ToOwned::to_owned)
                 .unwrap_or_else(default_terminal_cwd);
+            // 前端可能传入「上次所在目录」（由 shell 通过 OSC 9;9 上报后持久化）。
+            // 该目录可能已被删除或改名，直接交给 spawn 会导致会话创建失败，
+            // 因此这里校验一次，无效则回退到默认目录，保证终端总能起来。
+            let cwd = if std::path::Path::new(&cwd).is_dir() {
+                cwd
+            } else {
+                let fallback = default_terminal_cwd();
+                tracing::warn!(
+                    requested = %cwd,
+                    fallback = %fallback,
+                    "pty_ws: requested cwd does not exist, falling back to default"
+                );
+                fallback
+            };
             let cols = value
                 .get("cols")
                 .and_then(|c| c.as_u64())
@@ -208,7 +222,12 @@ async fn dispatch_frame(
             let data = value.get("data").and_then(|d| d.as_str()).unwrap_or("");
             match state.pty_sessions.write(sid, data).await {
                 Ok(()) => (None, None),
-                Err(e) => (Some(error_message(Some(sid), &e.to_string())), None),
+                Err(e) => {
+                    // 会话不存在通常意味着前端持有了失效的 sessionId（如应用重启后点击恢复的旧标签）。
+                    // 记录 WARN，便于定位"终端输入无反应"类问题。
+                    tracing::warn!(session_id = %sid, error = %e, "pty_ws: input write failed");
+                    (Some(error_message(Some(sid), &e.to_string())), None)
+                },
             }
         },
         "resize" => {
@@ -227,7 +246,10 @@ async fn dispatch_frame(
                 .unwrap_or(24);
             match state.pty_sessions.resize(sid, cols, rows).await {
                 Ok(()) => (None, None),
-                Err(e) => (Some(error_message(Some(sid), &e.to_string())), None),
+                Err(e) => {
+                    tracing::warn!(session_id = %sid, error = %e, "pty_ws: resize failed");
+                    (Some(error_message(Some(sid), &e.to_string())), None)
+                },
             }
         },
         "kill" => {

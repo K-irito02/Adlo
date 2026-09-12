@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+use std::ffi::OsString;
 use std::sync::Arc;
 
 use async_trait::async_trait;
@@ -8,6 +10,32 @@ use tokio::io::AsyncReadExt;
 use tokio::sync::Mutex;
 
 use crate::traits::{PtySession, PtyStatus, PtySystem};
+
+/// 注入给所有终端会话的环境变量。
+///
+/// 1. `LANG`：MSYS/Git for Windows 工具（如 `ls`）会依据 locale 的字符集决定如何输出非
+///    ASCII 文件名：未设置 `LANG`/`LC_*` 时按 C locale 处理，把中文文件名转义成
+///    `$'\344\270\264...'`（八进制字节转义）形式。注入 UTF-8 locale 后按 UTF-8 原样输出。
+/// 2. 壳层集成（`shell_integration_env`）：cmd / bash 通过环境变量注入 OSC 9;9
+///    当前目录上报（PowerShell 走启动参数），供重启后恢复「上次所在目录」。
+///
+/// 仅使用 `env_add`（与继承环境合并），不覆盖用户已有环境。
+fn terminal_env(program: &str) -> HashMap<OsString, OsString> {
+    let mut env = HashMap::new();
+    env.insert(OsString::from("LANG"), OsString::from("en_US.UTF-8"));
+    let injected = crate::shell_resolver::shell_integration_env(program);
+    if !injected.is_empty() {
+        tracing::debug!(
+            program = %program,
+            keys = ?injected.iter().map(|(k, _)| *k).collect::<Vec<_>>(),
+            "rust-pty: injecting shell integration env (OSC 9;9 cwd reporting)"
+        );
+    }
+    for (key, value) in injected {
+        env.insert(OsString::from(key), OsString::from(value));
+    }
+    env
+}
 
 /// 发往 reader task 的 PTY 命令。
 ///
@@ -48,6 +76,7 @@ impl PtySystem for RustPtySystemImpl {
         let config = PtyConfig {
             window_size: (cols, rows),
             working_directory: Some(cwd.into()),
+            env_add: terminal_env(program),
             ..Default::default()
         };
 

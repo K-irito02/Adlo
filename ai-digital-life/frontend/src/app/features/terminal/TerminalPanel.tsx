@@ -296,7 +296,9 @@ export function TerminalPanel() {
         </aside>
 
         <div className="adl-tool-primary">
-          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
+          <div
+            className={`adl-tool-primary__scroll adl-tool-primary__scroll--terminal${hasActiveTab ? '' : ' is-empty'}`}
+          >
             {hasActiveTab ? (
               <>
                 <XtermTerminal

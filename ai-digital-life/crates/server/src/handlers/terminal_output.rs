@@ -7,8 +7,8 @@ use crate::ipc;
 use adl_errors::AppError;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use rusqlite::params;
 use rusqlite::OptionalExtension;
+use rusqlite::params;
 
 /// Run a blocking closure and collapse the `spawn_blocking` join error into an
 /// `AppError::Internal`.
@@ -36,15 +36,12 @@ struct SessionIdBody {
 }
 
 /// POST `/terminal/save` — upsert terminal output for a session.
-pub async fn save(
-    State(state): State<ServerState>,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn save(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
     let input: SaveBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => {
             return ipc::to_response(Err(AppError::InvalidInput(msg)));
-        }
+        },
     };
     // 服务端大小限制：最大 200KB
     const MAX_OUTPUT_BYTES: usize = 200 * 1024;
@@ -58,12 +55,19 @@ pub async fn save(
     let db = state.db.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let conn = db.conn()?;
+        let sid_for_log = input.session_id.clone();
         conn.execute(
             "INSERT OR REPLACE INTO terminal_output (session_id, output, updated_at)
              VALUES (?1, ?2, unixepoch())",
             params![input.session_id, input.output.as_bytes()],
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
+        // [ADL-DEBUG] 持久化写入轨迹：用于核对"历史迁移/消失"类问题
+        tracing::debug!(
+            session_id = %sid_for_log,
+            bytes = input.output.len(),
+            "[ADL-DEBUG] terminal_output: saved"
+        );
         Ok(serde_json::json!(null))
     })
     .await;
@@ -71,15 +75,12 @@ pub async fn save(
 }
 
 /// POST `/terminal/load` — load terminal output for a session.
-pub async fn load(
-    State(state): State<ServerState>,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
+pub async fn load(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
     let input: SessionIdBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => {
             return ipc::to_response(Err(AppError::InvalidInput(msg)));
-        }
+        },
     };
     let db = state.db.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -95,6 +96,13 @@ pub async fn load(
             )
             .optional()
             .map_err(|e| AppError::Storage(e.to_string()))?;
+        // [ADL-DEBUG] 持久化读取轨迹
+        tracing::debug!(
+            session_id = %input.session_id,
+            found = output.is_some(),
+            bytes = output.as_ref().map_or(0, String::len),
+            "[ADL-DEBUG] terminal_output: loaded"
+        );
         Ok(serde_json::json!(output))
     })
     .await;
@@ -110,7 +118,7 @@ pub async fn delete(
         Ok(v) => v,
         Err((_, msg)) => {
             return ipc::to_response(Err(AppError::InvalidInput(msg)));
-        }
+        },
     };
     let db = state.db.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
@@ -120,6 +128,11 @@ pub async fn delete(
             params![input.session_id],
         )
         .map_err(|e| AppError::Storage(e.to_string()))?;
+        // [ADL-DEBUG] 持久化删除轨迹：历史迁移后清理旧记录时核对
+        tracing::debug!(
+            session_id = %input.session_id,
+            "[ADL-DEBUG] terminal_output: deleted"
+        );
         Ok(serde_json::json!(null))
     })
     .await;
