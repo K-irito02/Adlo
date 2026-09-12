@@ -237,19 +237,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
       const isLive = liveSessionIdsRef.current.has(sessionId);
 
-      // 从 pool 获取 xterm 并加载持久化输出
-      const pooled = terminalXtermPool.get(sessionId);
-      if (pooled) {
-        const output = await ensureLoaded(sessionId);
-        const cleaned = stripConptyRepaintBursts(output ?? '');
-        if (cleaned.text) {
-          pooled.terminal.write(cleaned.text);
-        }
-        pooled.terminal.focus();
-      }
-
       if (isLive) {
-        // PTY 存活：同步尺寸并确保输出已加载到 pool xterm
+        // PTY 存活：pool entry 已有完整 buffer（PTY 输出持续写入），
+        // 只需 fit 和 focus
+        const pooled = terminalXtermPool.get(sessionId);
         if (pooled) {
           pooled.fitAddon.fit();
           pooled.terminal.focus();
@@ -257,7 +248,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         return;
       }
 
-      // PTY 已死亡：创建新 PTY
+      // PTY 已死亡（应用重启后的恢复标签）：创建新 PTY。
+      // shell 启动时会输出提示符和状态，自然填充终端。
+      // 不需要加载 persisted output — 新 PTY 的输出即为当前状态。
       ensureTabCwdsLoaded();
       const rememberedCwd = tabCwdRef.current.get(tabId);
       await attachSession(tabId, tab.profile, tab.workspaceId, {
@@ -274,7 +267,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         window.digitalLife.pty.input(newSessionId, pending);
       }
     },
-    [attachSession, ensureLoaded, ensureTabCwdsLoaded],
+    [attachSession, ensureTabCwdsLoaded],
   );
 
   // 全量预热：标签集合（含会话）就绪后，后台并行加载所有会话的持久化输出。

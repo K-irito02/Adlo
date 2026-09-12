@@ -125,7 +125,8 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
 
       return () => {
         disposable.dispose();
-        terminalXtermPool.release(sessionId);
+        // 不释放 pool entry — 保留 xterm 实例和 buffer，切换标签时不丢失内容。
+        // pool entry 仅在标签关闭时由 handleCloseTab 释放。
         entryRef.current = undefined;
       };
     }, [sessionId]);
