@@ -13,6 +13,8 @@ export interface XtermTerminalHandle {
   /** 仅把当前尺寸上报给 PTY，不做 fit（不会触发整屏重排） */
   reportSize(): void;
   scrollToBottom(): void;
+  /** 序列化终端状态为可写入字符串 */
+  serialize(): string | null;
 }
 
 interface XtermTerminalProps {
@@ -105,6 +107,17 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
           const entry = entryRef.current;
           if (entry) {
             entry.terminal.scrollToBottom();
+          }
+        },
+        serialize() {
+          const entry = entryRef.current;
+          if (!entry) {
+            return null;
+          }
+          try {
+            return entry.serializeAddon.serialize({ scrollback: 1000 });
+          } catch {
+            return null;
           }
         },
       }),
