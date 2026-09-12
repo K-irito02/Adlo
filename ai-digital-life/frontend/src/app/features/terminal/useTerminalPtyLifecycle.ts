@@ -147,7 +147,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       tabId: string,
       profile: TerminalProfile,
       workspaceId: string,
-      options?: { cwdOverride?: string },
+      options?: { cwdOverride?: string; revived?: boolean },
     ): Promise<void> => {
       const cwdOverride = options?.cwdOverride;
       const workspace = workspaceId
@@ -238,13 +238,14 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         ptyDimsRef.current.set(sessionId, { cols, rows });
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
 
-        // 屏蔽 shell 启动输出写入 xterm（不阻止累积）：PTY 创建后 shell 会发送
-        // 清屏（ESC[2J）和 scrollback 清除（ESC[3J），会擦除已写入的历史内容。
-        // 屏蔽 500ms 等待启动序列结束，之后 shell 提示符正常显示。
-        ptyStartingUpRef.current.add(sessionId);
-        setTimeout(() => {
-          ptyStartingUpRef.current.delete(sessionId);
-        }, 500);
+        // 仅对恢复的标签（有历史内容需要保护）屏蔽 shell 启动输出。
+        // 新终端不需要此守卫 — shell 提示符是其唯一内容。
+        if (options?.revived) {
+          ptyStartingUpRef.current.add(sessionId);
+          setTimeout(() => {
+            ptyStartingUpRef.current.delete(sessionId);
+          }, 500);
+        }
       } catch (err) {
         console.error('Terminal creation error:', err);
         terminalUpdateTab(tabId, { status: 'terminated' });
@@ -304,6 +305,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const rememberedCwd = tabCwdRef.current.get(tabId);
       await attachSession(tabId, tab.profile, tab.workspaceId, {
         cwdOverride: rememberedCwd,
+        revived: true,
       });
 
       // 步骤 3：获取新 sessionId（attachSession 已更新 tab）
