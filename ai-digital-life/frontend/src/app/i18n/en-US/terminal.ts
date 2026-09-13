@@ -58,4 +58,5 @@ export const terminalEn = {
   terminalViewSingle: 'Single',
   terminalViewDual: 'Dual',
   terminalSwapAreas: 'Swap history and live terminal',
+  terminalDividerLabel: 'Drag to resize the history area',
 } as const;

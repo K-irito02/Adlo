@@ -32,8 +32,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const createdSessionIdsRef = useRef<Set<string>>(new Set());
   // 当前仍然存活的 PTY 会话（应用重启后恢复的标签不在其中 → 需要重建）
   const liveSessionIdsRef = useRef<Set<string>>(new Set());
-  // 重建期间缓冲的用户输入（PTY 创建前收到的按键，PTY 就绪后补发）
-  const pendingInputRef = useRef('');
+  // 重建期间缓冲的用户输入（PTY 创建前收到的按键，PTY 就绪后补发）。
+  // 按「标签」隔离：并发激活多个标签时，各标签的按键不得串到别的标签。
+  const pendingInputRef = useRef<Map<string, string>>(new Map());
   // 每个标签「正在进行的激活」：并发触发（启动效应 + 键入补触发 + 聚焦上报）必须汇流成一次，
   // 否则会为同一标签创建多个 PTY（已被日志证实过）。
   const activatingRef = useRef<Map<string, Promise<void>>>(new Map());
@@ -98,6 +99,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   /** 删除某标签的全部历史（关闭标签/关闭全部时调用），同时清掉各段快照 */
   const clearHistoryForTab = useCallback(
     (tabId: string) => {
+      // 先确保索引已加载：否则「启动后立刻关闭上次遗留标签」时 ref 还是空的，
+      // 会提前 return，持久化里的索引与各段快照就成了孤儿数据。
+      ensureHistoryIndexLoaded();
       const segments = historyIndexRef.current.get(tabId);
       if (!segments) {
         return;
@@ -108,7 +112,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       historyIndexRef.current.delete(tabId);
       persistHistoryIndex();
     },
-    [persistHistoryIndex],
+    [ensureHistoryIndexLoaded, persistHistoryIndex],
   );
 
   /** 懒加载持久化的「标签 → 目录」映射（只需一次） */
@@ -219,12 +223,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       ensureTabCwdsLoaded();
       const cwd = cwdOverride ?? (workspaceId ? (workspace?.path ?? undefined) : undefined);
 
-      // 防止重复创建 PTY：如果该标签已有存活的 PTY，跳过创建
+      // 双保险：activateTab 已用 activatingRef 汇流并发激活，这里再拦一次
+      // 「该标签已有存活 PTY」的调用（attachSession 也可能被 handleCreateTab 等路径直接调用）。
       const existingTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
       if (existingTab?.sessionId && liveSessionIdsRef.current.has(existingTab.sessionId)) {
-        console.debug(
-          `[ADL-DEBUG] attachSession SKIP — tab=${tabId} session=${existingTab.sessionId} already live`,
-        );
         return;
       }
 
@@ -263,9 +265,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           tempTerminal.open(tempDiv);
           tempFit.fit();
           const dims = tempFit.proposeDimensions();
-          console.debug(
-            `[ADL-DEBUG] attachSession dims — container=${container.clientWidth}x${container.clientHeight} dims=${dims ? `${dims.cols}x${dims.rows}` : 'null'}`,
-          );
           if (dims && dims.cols > 0 && dims.rows > 0) {
             cols = dims.cols;
             rows = dims.rows;
@@ -293,10 +292,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
-
-        console.debug(
-          `[ADL-DEBUG] attachSession PTY CREATED — tabId=${tabId} newSession=${sessionId} t=${Math.round(performance.now())}`,
-        );
       } catch (err) {
         console.error('Terminal creation error:', err);
         // 失败反馈由 TerminalPanel 的 .adl-terminal-error-note 呈现
@@ -351,12 +346,16 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
             cwdOverride: rememberedCwd,
           });
 
-          // 补发 PTY 创建前缓冲的输入
-          const pending = pendingInputRef.current;
-          pendingInputRef.current = '';
-          const currentTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
-          if (pending && currentTab?.sessionId) {
-            window.digitalLife.pty.input(currentTab.sessionId, pending);
+          // 补发 PTY 创建前缓冲的输入。
+          // 只补发给「本次新建、且确实存活」的会话：attachSession 失败时 tab.sessionId
+          // 仍是恢复前的旧（已死）会话 id，向它补发既无效又有误导性。
+          const pending = pendingInputRef.current.get(tabId) ?? '';
+          pendingInputRef.current.delete(tabId);
+          const liveSessionId = useAppStore
+            .getState()
+            .terminalTabs.find((t) => t.id === tabId)?.sessionId;
+          if (pending && liveSessionId && liveSessionIdsRef.current.has(liveSessionId)) {
+            window.digitalLife.pty.input(liveSessionId, pending);
           }
         } catch (err) {
           console.error('Terminal activation failed:', err);
@@ -429,7 +428,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         // eslint-disable-next-line no-control-regex
         const userInput = data.replace(/\x1b\[[IO]/g, '');
         if (userInput) {
-          pendingInputRef.current += userInput;
+          const buffered = pendingInputRef.current.get(tab.id) ?? '';
+          pendingInputRef.current.set(tab.id, buffered + userInput);
         }
         void activateTab(tab.id);
         return;
@@ -496,8 +496,11 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         ptyDimsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
+        pendingInputRef.current.delete(tabId);
         clearHistoryForTab(tabId);
         terminalOutputStore.delete(tab.sessionId);
+      } else {
+        pendingInputRef.current.delete(tabId);
       }
       if (tabCwdRef.current.delete(tabId)) {
         persistTabCwds();
@@ -515,6 +518,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       tabsToClose.forEach((tab) => {
         clearHistoryForTab(tab.id);
         tabCwdRef.current.delete(tab.id);
+        pendingInputRef.current.delete(tab.id);
         if (tab.sessionId) {
           window.digitalLife.pty.kill(tab.sessionId);
           terminalXtermPool.release(tab.sessionId);

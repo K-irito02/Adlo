@@ -9,7 +9,6 @@ export interface PooledXterm {
   serializeAddon: SerializeAddon;
   hostEl: HTMLDivElement;
   sessionId: string;
-  createdAt: number;
 }
 
 export class TerminalXtermPool {
@@ -65,7 +64,6 @@ export class TerminalXtermPool {
       serializeAddon,
       hostEl,
       sessionId,
-      createdAt: Date.now(),
     };
     this.pool.set(sessionId, entry);
 
@@ -95,21 +93,11 @@ export class TerminalXtermPool {
     return this.pool.get(sessionId);
   }
 
-  disposeAll(): void {
-    for (const [id] of this.pool) {
-      this.release(id);
-    }
-  }
-
   syncTheme(): void {
     const theme = readTerminalTheme();
     for (const entry of this.pool.values()) {
       entry.terminal.options.theme = theme;
     }
-  }
-
-  get size(): number {
-    return this.pool.size;
   }
 }
 

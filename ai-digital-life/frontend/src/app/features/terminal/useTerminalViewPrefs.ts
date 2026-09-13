@@ -22,6 +22,15 @@ export function useTerminalViewPrefs({ containerRef }: UseTerminalViewPrefsParam
   const prefsRef = useRef(prefs);
   prefsRef.current = prefs;
   const rafRef = useRef(0);
+  // 拖拽进行中的清理函数；组件卸载时也要执行，否则 body 上的 resizing 类会泄漏
+  const detachDragRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      detachDragRef.current?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     terminalViewPrefsStore.save(prefs);
@@ -73,7 +82,9 @@ export function useTerminalViewPrefs({ containerRef }: UseTerminalViewPrefsParam
         });
       };
 
-      const handleUp = () => {
+      // 拖拽收尾：handleUp 与「拖拽中组件被卸载」共用同一条清理路径，
+      // 保证 pointer 监听 / rAF / body 上的 resizing 类一定被回收。
+      const detach = () => {
         if (rafRef.current) {
           window.cancelAnimationFrame(rafRef.current);
           rafRef.current = 0;
@@ -83,10 +94,17 @@ export function useTerminalViewPrefs({ containerRef }: UseTerminalViewPrefsParam
         target.removeEventListener('pointerup', handleUp);
         target.removeEventListener('pointercancel', handleUp);
         target.removeEventListener('lostpointercapture', handleUp);
-        // 提交到状态：与拖拽期间写的 CSS 变量同值，因此不会跳变
+        detachDragRef.current = null;
+      };
+
+      const handleUp = () => {
+        detach();
+        // 提交到状态：与拖拽期间写的 CSS 变量同值，因此不会跳变。
+        // 卸载路径只会调 detach，不会在卸载后 setState。
         setHistoryRatio(latestRatio);
       };
 
+      detachDragRef.current = detach;
       target.addEventListener('pointermove', handleMove);
       target.addEventListener('pointerup', handleUp);
       target.addEventListener('pointercancel', handleUp);

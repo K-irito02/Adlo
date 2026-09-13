@@ -64,3 +64,23 @@ describe('ratioFromPointer', () => {
     expect(ratio).toBeLessThanOrEqual(HISTORY_RATIO_MAX);
   });
 });
+
+describe('ratioFromPointer 边界补充', () => {
+  it('historyFirst=false 时同样被夹紧到上下限', () => {
+    expect(ratioFromPointer({ pointerMain: 594, mainSize: 600, historyFirst: false })).toBe(
+      HISTORY_RATIO_MIN,
+    );
+    expect(ratioFromPointer({ pointerMain: 6, mainSize: 600, historyFirst: false })).toBe(
+      HISTORY_RATIO_MAX,
+    );
+  });
+
+  it('mainSize 低于两个像素下限之和时落入包络区间（比例仍合法）', () => {
+    for (const mainSize of [150, 130, 100]) {
+      const ratio = ratioFromPointer({ pointerMain: mainSize / 2, mainSize, historyFirst: true });
+      expect(ratio).toBeGreaterThanOrEqual(HISTORY_RATIO_MIN);
+      expect(ratio).toBeLessThanOrEqual(HISTORY_RATIO_MAX);
+      expect(Number.isFinite(ratio)).toBe(true);
+    }
+  });
+});

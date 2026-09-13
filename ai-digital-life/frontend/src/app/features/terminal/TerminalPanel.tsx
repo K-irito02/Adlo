@@ -18,6 +18,7 @@ import { XtermTerminal } from '@components/terminal/XtermTerminal';
 import { TerminalHistoryView } from '@components/terminal/TerminalHistoryView';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
+import { HISTORY_RATIO_MAX, HISTORY_RATIO_MIN } from './terminalViewPrefs';
 import { TerminalShellSelector } from './TerminalShellSelector';
 import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
@@ -364,7 +365,10 @@ export function TerminalPanel() {
                     className="adl-terminal-divider"
                     role="separator"
                     aria-orientation={isDual ? 'vertical' : 'horizontal'}
-                    aria-label={t.terminalViewLayoutLabel}
+                    aria-label={t.terminalDividerLabel}
+                    aria-valuemin={HISTORY_RATIO_MIN}
+                    aria-valuemax={HISTORY_RATIO_MAX}
+                    aria-valuenow={Math.round(viewPrefs.historyRatio * 100) / 100}
                     onPointerDown={terminalActions.handleDividerPointerDown}
                   />
                 ) : null}

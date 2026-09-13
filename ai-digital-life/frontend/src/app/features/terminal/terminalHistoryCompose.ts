@@ -13,6 +13,8 @@
 export function historySeparator(at: number): string {
   const d = new Date(at);
   const pad = (n: number) => String(n).padStart(2, '0');
+  // 日期/时间格式为用户在需求中明确指定的固定样式 `─── HH:MM:SS YYYY-MM-DD ───`，
+  // 不随 locale 变化（审查复审已确认保留；如需本地化须先与用户确认，勿擅自改动）。
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   // 注意不要加前导 `\r\n`：调用方已把光标推进到内容最后一行的下一行，
@@ -42,6 +44,9 @@ export function newlinesToAdvance(cursorRow: number, lastContentRow: number | nu
  *
  * 必须区分「光标所在行本身有内容」（需再下移一行）与「光标下方什么都没有」（不需下移）——
  * 否则调用方会一行一行地空转下移（线上事故：分隔条被写到内容下方上千行处）。
+ *
+ * `rowText` 由调用方用 `line.translateToString(true)`（右去空白）提供，
+ * 这里再 `trim()` 补上左去空白：两端都去掉才能把「只有空白字符的行」正确判为空行。
  */
 export function findLastContentRow(
   cursorRow: number,

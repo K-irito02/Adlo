@@ -24,9 +24,37 @@ export const MAX_HISTORY_SEGMENTS = 5;
 
 const scheduleWrite = makePersistedWriter(TERMINAL_HISTORY_INDEX_KEY);
 
+/**
+ * 归一化持久化读出的索引：丢弃结构非法的标签条目与段条目。
+ *
+ * 索引来自 localStorage，可能被手改/损坏；`archivedAt` 非有限数字会让
+ * 分隔条渲染成 `NaN:NaN:NaN`，`sessionId` 非字符串则会打错快照 —— 一律在边界挡掉。
+ */
+export function normalizeHistoryIndex(raw: unknown): Record<string, TerminalHistorySegment[]> {
+  const source = (raw ?? {}) as Record<string, unknown>;
+  const result: Record<string, TerminalHistorySegment[]> = {};
+  for (const [tabId, value] of Object.entries(source)) {
+    if (!Array.isArray(value)) {
+      continue;
+    }
+    const segments = value.filter(
+      (segment): segment is TerminalHistorySegment =>
+        !!segment &&
+        typeof segment === 'object' &&
+        typeof (segment as TerminalHistorySegment).sessionId === 'string' &&
+        typeof (segment as TerminalHistorySegment).archivedAt === 'number' &&
+        Number.isFinite((segment as TerminalHistorySegment).archivedAt),
+    );
+    if (segments.length > 0) {
+      result[tabId] = segments;
+    }
+  }
+  return result;
+}
+
 export const terminalHistoryStore = {
   loadAll(): Record<string, TerminalHistorySegment[]> {
-    return readJson<Record<string, TerminalHistorySegment[]>>(TERMINAL_HISTORY_INDEX_KEY, {});
+    return normalizeHistoryIndex(readJson<unknown>(TERMINAL_HISTORY_INDEX_KEY, {}));
   },
   saveAll(map: Record<string, TerminalHistorySegment[]>): void {
     scheduleWrite(map);

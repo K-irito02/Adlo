@@ -80,7 +80,9 @@ export function ratioFromPointer({
     return DEFAULT_TERMINAL_VIEW_PREFS.historyRatio;
   }
   const size = historyFirst ? pointerMain : mainSize - pointerMain;
-  // 像素下限换算成比例后与固定上下限取交（面板极短时两者可能互相矛盾，取包络区间兜底）
+  // 像素下限换算成比例后与固定上下限取交。注意：mainSize < HISTORY_MIN_PX + LIVE_MIN_PX（184px）时
+  // 两个像素下限互相矛盾、不可能同时满足，此时取二者的包络区间兜底 —— 比例仍合法，只是极小面板下
+  // 不再保证「历史 ≥64px 且 实时 ≥120px」同时成立。
   const minRatio = clamp(HISTORY_MIN_PX / mainSize, HISTORY_RATIO_MIN, HISTORY_RATIO_MAX);
   const maxRatio = clamp((mainSize - LIVE_MIN_PX) / mainSize, HISTORY_RATIO_MIN, HISTORY_RATIO_MAX);
   return clamp(size / mainSize, Math.min(minRatio, maxRatio), Math.max(minRatio, maxRatio));

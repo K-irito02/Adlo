@@ -50,8 +50,11 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
       // 只读视图：光标颜色与底色相同 → 不可见
       theme: { ...theme, cursor: theme.background, cursorAccent: theme.background },
       allowProposedApi: true,
-      // 历史是跨多次重启累积的，scrollback 必须留足，否则较早的段会被裁掉
-      scrollback: 20000,
+      // 历史是跨多次重启累积的，scrollback 必须留足，否则较早的段会被裁掉。
+      // 上界推导：MAX_HISTORY_SEGMENTS(5) × 单段快照上限（serialize scrollback 1000 + 一屏行数）
+      // ≈ 5300 行，取 8000 留出余量。再大只是白白增加常驻内存（xterm 会为 scrollback 预分配行缓冲），
+      // 若调大 MAX_HISTORY_SEGMENTS 或 serialize 的 scrollback，需同步上调此值。
+      scrollback: 8000,
       disableStdin: true,
       cursorBlink: false,
       cursorStyle: 'bar',
@@ -76,35 +79,42 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
       });
 
     void (async () => {
-      for (const segment of segments) {
-        const snapshot = await terminalOutputStore.load(segment.sessionId);
-        if (cancelled) {
-          return;
-        }
-        if (snapshot) {
-          await write('\r');
-          await write(snapshot);
-          // 把光标推进到本段内容最末行的下一行，避免下一段覆盖本段。
-          // findLastContentRow 返回 null 时（光标下方已无内容）newlinesToAdvance 为 0，
-          // 循环最多走两轮即退出——不能再出现「逐行空转」把分隔条顶下去的情况。
-          for (let guard = 0; guard < 20; guard += 1) {
-            const buffer = terminal.buffer.active;
-            const cursorRow = buffer.baseY + buffer.cursorY;
-            const lastContentRow = findLastContentRow(cursorRow, buffer.length, (row) => {
-              const line = buffer.getLine(row);
-              return line ? line.translateToString(true) : '';
-            });
-            const newlines = newlinesToAdvance(cursorRow, lastContentRow);
-            if (newlines === 0) {
-              break;
-            }
-            await write('\n'.repeat(newlines));
+      try {
+        for (const segment of segments) {
+          const snapshot = await terminalOutputStore.load(segment.sessionId);
+          if (cancelled) {
+            return;
           }
+          if (snapshot) {
+            // 防御性回列首：正常路径里上段分隔条与首段起点都已把光标放在列 0，
+            // 这里再兜一次，避免快照首行被写到非 0 列造成整段错位。
+            await write('\r');
+            await write(snapshot);
+            // 把光标推进到本段内容最末行的下一行，避免下一段覆盖本段。
+            // findLastContentRow 返回 null 时（光标下方已无内容）newlinesToAdvance 为 0，
+            // 循环最多走两轮即退出——不能再出现「逐行空转」把分隔条顶下去的情况。
+            for (let guard = 0; guard < 20; guard += 1) {
+              const buffer = terminal.buffer.active;
+              const cursorRow = buffer.baseY + buffer.cursorY;
+              const lastContentRow = findLastContentRow(cursorRow, buffer.length, (row) => {
+                const line = buffer.getLine(row);
+                return line ? line.translateToString(true) : '';
+              });
+              const newlines = newlinesToAdvance(cursorRow, lastContentRow);
+              if (newlines === 0) {
+                break;
+              }
+              await write('\n'.repeat(newlines));
+            }
+          }
+          await write(historySeparator(segment.archivedAt));
         }
-        await write(historySeparator(segment.archivedAt));
-      }
-      if (!cancelled) {
-        terminal.scrollToBottom();
+        if (!cancelled) {
+          terminal.scrollToBottom();
+        }
+      } catch (err) {
+        // 异步回放边界：存储/解析异常时不要让 unhandled rejection 静默吞掉问题
+        console.error('Terminal history replay failed:', err);
       }
     })();
 
