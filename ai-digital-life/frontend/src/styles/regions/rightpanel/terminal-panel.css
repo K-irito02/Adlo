@@ -152,7 +152,8 @@
 .adl-terminal-divider:hover,
 .adl-terminal-divider:active {
   /* 中性提示色：与其它拖拽手柄一致使用 --text-secondary（亮 #767676 / 暗 #9a9a9a），
-     在终端底色（亮 #f8f8f8 / 暗 #0c0c0c）下均可见；禁用 --accent 蓝色，避免与选中/焦点语义混淆 */
+     在终端底色（亮 #f8f8f8 / 暗 #0c0c0c）下对比度亮 ≈4.3:1 / 暗 ≈7.0:1，
+     按非文本指示器 ≥3:1 满足可见；禁用 --accent 蓝色，避免与选中/焦点语义混淆 */
   background: var(--text-secondary);
 }
 

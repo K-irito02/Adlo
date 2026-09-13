@@ -110,7 +110,11 @@ function hydrateTerminalDefaults(
   const doHydrate = () => {
     const tabs = readJson<TerminalTabState[]>(TERMINAL_TABS_KEY, []);
     const activeTabId = readJson<string>(TERMINAL_ACTIVE_TAB_KEY, '');
-    const profile = readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, 'powershell');
+    // 全局默认同样可能脏读：先归一化再作为选择器回退，避免一处损坏污染两个字段
+    const profile = normalizeTerminalShellProfile(
+      readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, 'powershell'),
+      'powershell',
+    );
     const workspaceProfiles = readJson<Record<string, TerminalProfile>>(
       TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
       {},

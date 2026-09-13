@@ -16,6 +16,15 @@ interface TerminalHistoryViewProps {
 }
 
 /**
+ * 只读历史主题：颜色跟随主题，但光标保持不可见（cursor = background）。
+ * 与实时终端的可见光标有意分叉（见 terminalXtermPool.syncTheme），初始化与刷新共用此处。
+ */
+function readHistoryTheme() {
+  const theme = readTerminalTheme();
+  return { ...theme, cursor: theme.background, cursorAccent: theme.background };
+}
+
+/**
  * 重启前的**只读历史**视图。
  *
  * 为什么独立于实时终端：ConPTY 只认自己那块 rows 行的屏幕、从第 1 行算坐标。
@@ -43,12 +52,11 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
     hostEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
     container.appendChild(hostEl);
 
-    const theme = readTerminalTheme();
+    const theme = readHistoryTheme();
     const terminal = new Terminal({
       fontSize: 13,
       fontFamily: readTerminalFontFamily(),
-      // 只读视图：光标颜色与底色相同 → 不可见
-      theme: { ...theme, cursor: theme.background, cursorAccent: theme.background },
+      theme,
       allowProposedApi: true,
       // 历史是跨多次重启累积的，scrollback 必须留足，否则较早的段会被裁掉。
       // 上界推导：MAX_HISTORY_SEGMENTS(5) × 单段快照上限（serialize scrollback 1000 + 一屏行数）
@@ -140,12 +148,7 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
       if (cancelled) {
         return;
       }
-      const next = readTerminalTheme();
-      terminal.options.theme = {
-        ...next,
-        cursor: next.background,
-        cursorAccent: next.background,
-      };
+      terminal.options.theme = readHistoryTheme();
     };
     const themeObserver = new MutationObserver(applyTheme);
     themeObserver.observe(document.documentElement, {

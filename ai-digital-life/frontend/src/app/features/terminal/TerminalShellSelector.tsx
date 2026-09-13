@@ -9,6 +9,19 @@ import { useTCopy } from '@i18n/useTCopy';
 
 /** 无悬停 2s 后自动关闭菜单卡片（三区各自计时） */
 const AUTO_CLOSE_MS = 2000;
+/** 右半 toggle 悬停意图延迟：过滤路过误触 */
+const HOVER_OPEN_DELAY_MS = 120;
+/** 子卡片显隐延迟：管 activeSubMenuId，与 2s 整单自动关闭职责分离 */
+const SUBMENU_LEAVE_DELAY_MS = 200;
+
+/** 是否允许悬停超时关闭：仅悬停设备启用；未知环境默认可关闭（stuck-open 比误关更差） */
+function canHoverDismiss(): boolean {
+  return (
+    typeof window === 'undefined' ||
+    typeof window.matchMedia !== 'function' ||
+    window.matchMedia('(hover: hover)').matches
+  );
+}
 
 interface TerminalShellSelectorProps {
   currentProfile: TerminalProfile;
@@ -49,7 +62,11 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
     if (!terminalWorkspaceId) {
       return null;
     }
-    return recentWorkspaces.find((w) => w.id === terminalWorkspaceId);
+    // 与菜单子卡片（useTerminalMenus）、导航分组（TerminalPanel）同谓词：
+    // 已从侧栏移除或不可用的工作区视为孤儿，显示与建 tab 统一回退为独立
+    return recentWorkspaces.find(
+      (w) => w.id === terminalWorkspaceId && !w.removedFromSidebar && w.available,
+    );
   }, [terminalWorkspaceId, recentWorkspaces]);
 
   const boundWorkspaceLabel = useMemo(() => {
@@ -80,12 +97,14 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
 
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // menuOpen 的新鲜镜像：延迟开门回调触发时用它判断，避免闭包拿到过期值
-  //（hover 后 120ms 内若已通过点击开门，回调不再 toggle，保证语义恒为 open）
+  // menuOpen/onClose 的新鲜镜像：延迟回调读新鲜值，避免闭包拿到过期值
+  //（hover 后 120ms 内若已通过点击开门，开门回调不再 toggle，保证语义恒为 open）
   const menuOpenRef = useRef(menuOpen);
-  menuOpenRef.current = menuOpen;
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => {
+    menuOpenRef.current = menuOpen;
+    onCloseRef.current = onClose;
+  }, [menuOpen, onClose]);
 
   // 三区独立自动关闭：右半 toggle / 菜单卡片 / 子卡片各持一个 2s 计时器。
   // 触发时检查实时悬停位：任一区仍被悬停则跳过 —— 子卡片 DOM 嵌套在菜单容器内，
@@ -95,17 +114,19 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
   const menuCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const subCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const canHoverDismiss = () =>
-    typeof window === 'undefined' ||
-    typeof window.matchMedia !== 'function' ||
-    window.matchMedia('(hover: hover)').matches;
-
-  const fireAutoClose = useCallback(() => {
-    const zones = hoverZonesRef.current;
-    if (!zones.toggle && !zones.menu && !zones.sub) {
-      onCloseRef.current();
-    }
-  }, []);
+  const fireAutoClose = useCallback(
+    (timerRef: { current: ReturnType<typeof setTimeout> | null }) => {
+      timerRef.current = null;
+      const zones = hoverZonesRef.current;
+      if (!zones.toggle && !zones.menu && !zones.sub) {
+        onCloseRef.current();
+      } else if (canHoverDismiss()) {
+        // 跳过即重排：指针静止悬停时保持 2s 轮询，否则"计时器耗尽 + 指针不动"= 永久不关
+        timerRef.current = setTimeout(() => fireAutoClose(timerRef), AUTO_CLOSE_MS);
+      }
+    },
+    [],
+  );
 
   const cancelAutoClose = useCallback(
     (timerRef: { current: ReturnType<typeof setTimeout> | null }) => {
@@ -123,10 +144,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
         return;
       }
       cancelAutoClose(timerRef);
-      timerRef.current = setTimeout(() => {
-        timerRef.current = null;
-        fireAutoClose();
-      }, AUTO_CLOSE_MS);
+      timerRef.current = setTimeout(() => fireAutoClose(timerRef), AUTO_CLOSE_MS);
     },
     [cancelAutoClose, fireAutoClose],
   );
@@ -162,7 +180,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
     leaveTimerRef.current = setTimeout(() => {
       setActiveSubMenuId(null);
       leaveTimerRef.current = null;
-    }, 200);
+    }, SUBMENU_LEAVE_DELAY_MS);
   }, []);
 
   const handleMouseEnterSubMenuContent = useCallback(() => {
@@ -214,7 +232,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
     }
   }, [menuOpen]);
 
-  // 右半 toggle 的悬停开门：120ms 意图延迟过滤路过误触，离开即取消；
+  // 右半 toggle 的悬停开门：意图延迟过滤路过误触，离开即取消；
   // 无悬停能力设备（触屏）保持纯点击，避免 tap 的 mouseEnter+click 双触发把菜单闪关。
   const handleToggleMouseEnter = useCallback(() => {
     hoverZonesRef.current.toggle = true;
@@ -233,7 +251,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
       if (!menuOpenRef.current) {
         onToggle();
       }
-    }, 120);
+    }, HOVER_OPEN_DELAY_MS);
   }, [onToggle, cancelAutoClose]);
 
   const handleToggleMouseLeave = useCallback(() => {

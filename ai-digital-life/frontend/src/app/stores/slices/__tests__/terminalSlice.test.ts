@@ -1,6 +1,36 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, beforeAll, afterEach } from 'vitest';
 import { createTerminalSlice } from '../terminalSlice';
 import type { TerminalSlice } from '../terminalSlice';
+import {
+  TERMINAL_WORKSPACE_ID_KEY,
+  TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
+  TERMINAL_DEFAULT_PROFILE_KEY,
+} from '../terminalSliceTypes';
+import { STORAGE_HYDRATION_DELAY_MS } from '../../constants';
+
+// 本文件跑在 node 环境（无 window）：给一个内存 localStorage，
+// 让 setter 直写与惰性水合走真实读写路径（断言确定性），同时消除去抖 flush 的噪音告警
+function createMemoryStorage(): Storage {
+  let data: Record<string, string> = {};
+  return {
+    get length() {
+      return Object.keys(data).length;
+    },
+    key: (index: number) => Object.keys(data)[index] ?? null,
+    getItem: (key: string) => data[key] ?? null,
+    setItem: (key: string, value: string) => {
+      data[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete data[key];
+    },
+    clear: () => {
+      data = {};
+    },
+  };
+}
+
+vi.stubGlobal('window', { localStorage: createMemoryStorage() });
 
 function createMockStore() {
   let state: Record<string, unknown> = {};
@@ -229,11 +259,83 @@ describe('terminalSlice', () => {
     expect((get() as unknown as TerminalSlice).terminalWorkspaceId).toBe('ws-1');
   });
 
+  it('setTerminalWorkspaceId writes through to localStorage synchronously', () => {
+    window.localStorage.clear();
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).setTerminalWorkspaceId('ws-9');
+    expect(window.localStorage.getItem(TERMINAL_WORKSPACE_ID_KEY)).toBe(JSON.stringify('ws-9'));
+  });
+
+  it('setShellSelectorProfile writes through to localStorage synchronously', () => {
+    window.localStorage.clear();
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).setShellSelectorProfile('cmd');
+    expect(window.localStorage.getItem(TERMINAL_SHELL_SELECTOR_PROFILE_KEY)).toBe(
+      JSON.stringify('cmd'),
+    );
+  });
+
   it('setShellSelectorProfile sets the selector profile without touching default profile', () => {
     const { get } = createMockStore();
     (get() as unknown as TerminalSlice).setShellSelectorProfile('bash');
     const state = get() as unknown as TerminalSlice;
     expect(state.shellSelectorProfile).toBe('bash');
     expect(state.defaultTerminalProfile).toBe('powershell');
+  });
+});
+
+describe('hydrateTerminalDefaults', () => {
+  beforeAll(async () => {
+    // 放干主 describe 遗留的去抖写（真时钟 50ms 调度）：否则它们会在 fake 计时推进中
+    // 意外落盘覆盖种子值 —— 这正是 F9 水合竞态在测试中的镜像，生产侧已记 backlog
+    await new Promise((r) => setTimeout(r, 150));
+  });
+
+  beforeEach(() => {
+    vi.resetModules();
+    window.localStorage.clear();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function createIsolatedStore() {
+    let state: Record<string, unknown> = {};
+    const get = () => state;
+    const set = (partial: unknown) => {
+      if (typeof partial === 'function') {
+        const next = (partial as (s: Record<string, unknown>) => Record<string, unknown>)(state);
+        state = { ...state, ...next };
+      } else {
+        state = { ...state, ...(partial as Record<string, unknown>) };
+      }
+    };
+    return { get, set };
+  }
+
+  it('dirty default profile key falls back to powershell instead of poisoning both fields', async () => {
+    window.localStorage.setItem(TERMINAL_DEFAULT_PROFILE_KEY, JSON.stringify('zsh'));
+    window.localStorage.setItem(TERMINAL_SHELL_SELECTOR_PROFILE_KEY, JSON.stringify('oops'));
+    const { createTerminalSlice: createIsolated } = await import('../terminalSlice');
+    const { get, set } = createIsolatedStore();
+    createIsolated(set as never, get as never);
+    await vi.advanceTimersByTimeAsync(STORAGE_HYDRATION_DELAY_MS + 100);
+    const hydrated = get() as unknown as TerminalSlice;
+    expect(hydrated.defaultTerminalProfile).toBe('powershell');
+    expect(hydrated.shellSelectorProfile).toBe('powershell');
+  });
+
+  it('restores persisted workspace id and selector profile', async () => {
+    window.localStorage.setItem(TERMINAL_WORKSPACE_ID_KEY, JSON.stringify('ws-7'));
+    window.localStorage.setItem(TERMINAL_SHELL_SELECTOR_PROFILE_KEY, JSON.stringify('bash'));
+    const { createTerminalSlice: createIsolated } = await import('../terminalSlice');
+    const { get, set } = createIsolatedStore();
+    createIsolated(set as never, get as never);
+    await vi.advanceTimersByTimeAsync(STORAGE_HYDRATION_DELAY_MS + 100);
+    const hydrated = get() as unknown as TerminalSlice;
+    expect(hydrated.terminalWorkspaceId).toBe('ws-7');
+    expect(hydrated.shellSelectorProfile).toBe('bash');
   });
 });

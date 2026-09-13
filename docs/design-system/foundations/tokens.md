@@ -1,6 +1,6 @@
 # Design Tokens
 
-Source of truth: `[frontend/src/styles/tokens.css](../../frontend/src/styles/tokens.css)`.
+Source of truth: `[frontend/src/styles/tokens.css](../../frontend/src/styles/tokens.css)`（除行级 Source 另注者外；Hint 节 token 定义于 `themes.css`）。
 
 Tokens are the only acceptable way to express atomic design decisions in the codebase. Components MUST refer to them via CSS custom properties — `color: #fff` is forbidden, `color: var(--text-on-accent)` is required.
 
@@ -89,10 +89,16 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 |-------|-------|------|--------|
 | `--text-secondary`（提示色首选） | `#767676` | `#9a9a9a` | `themes.css` |
 
-- 终端底色亮 `#f8f8f8` / 暗 `#0c0c0c` 下均清晰可见；需更强对比时可升级为 `--text-primary`，不得引入彩色。
+- 终端底色亮 `#f8f8f8` / 暗 `#0c0c0c` 下对比度亮 ≈4.3:1 / 暗 ≈7.0:1（非文本指示器 ≥3:1 即满足位置提示要求）；需更强对比时可升级为 `--text-primary`，不得引入彩色。
 - 明度变化只走中性灰阶（白 → 灰 → 黑方向）。
-- 适用：`.adl-terminal-divider`、`.adl-tool-navigator__resize-handle`、`.adl-rightpanel__resize-handle`、`.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`、`.adl-settings-nav__resize-handle`、`.adl-cm-diff-viewer .adl-cm-diff-resizer`。
-- 规则真源见 [.agents/rules/hint-color-usage.md](../../../.agents/rules/hint-color-usage.md)（同步到 `.opencode/rules/`、`.trae/rules/`）。
+- 适用（完整清单见真源规则，hover/active/拖拽态均为 `--text-secondary`）：
+  - `.adl-terminal-divider`
+  - `.adl-tool-navigator__resize-handle`
+  - `.adl-rightpanel__resize-handle`
+  - `.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`
+  - `.adl-settings-nav__resize-handle`
+  - `.adl-cm-diff-viewer .adl-cm-diff-resizer`（拖拽中为 `--dragging` 类，同色）
+- 规则真源见 [.agents/rules/hint-color-usage.md](../../../.agents/rules/hint-color-usage.md)（同步到 `.opencode/rules/`、`.trae/rules/`；改 docs 侧数值前先读真源规则）。
 
 ## Focus
 

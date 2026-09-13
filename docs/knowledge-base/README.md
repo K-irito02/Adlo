@@ -251,6 +251,12 @@
 | [welcome-statusbar-path-layout-fix-2026-08-07.md](./interaction/2026-08/welcome-statusbar-path-layout-fix-2026-08-07.md) | 2026-08-07 最近工作区名称/路径布局修复 | 6 条经验：`justify-self: end`+`overflow:hidden` 是长路径重叠根因（改 `stretch`）、`minmax(0,45%)` 统一比例上限（不随名称变化）、`align-self: baseline` 对齐混合字号文本、原生 `title` 展示完整名称+路径、卡片纵向堆叠+单行省略（不加宽）、纯 CSS 用调试日志数值化排查 |
 | [error-toast-severity-scope-popLayout-2026-08-12.md](./interaction/2026-08/error-toast-severity-scope-popLayout-2026-08-12.md) | 2026-08-12 持久错误通知实现与优化 | 3 类经验：三级分级（error/warning/info 按 code 语义 + 亮暗主题独立对比度验证 + info 用 role=status/polite + errorsInfo 标题）；模块作用域清除（scope 用 !== undefined 判断 + 脚本批量替换后 tsc 兜底 + 队列上限 50）；popLayout 让位动画（退出元素脱离布局流、摘要不动、forwardRef 是硬性要求非防御代码） |
 
+#### 2026-09
+
+| 文件 | 来源 | 说明 |
+|------|------|------|
+| [terminal-shell-menu-hover-lessons-2026-09-13.md](./interaction/2026-09/terminal-shell-menu-hover-lessons-2026-09-13.md) | 2026-09-13 终端复合按钮悬停菜单 + closing-workflow 复审 | 2 条经验：子菜单卸载不触发 mouseleave（悬停位须在关闭动作处同步清理）；去抖写污染水合测试读数（播种前先放干悬置 flush，单例守卫用 resetModules 隔离） |
+
 ### CI monitoring
 
 | 文件 | 来源 | 说明 |

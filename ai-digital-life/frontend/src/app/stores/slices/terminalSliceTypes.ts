@@ -34,8 +34,17 @@ export const TERMINAL_COMMAND_HISTORY_KEY = 'adl-ui:terminal-command-history';
 export const TERMINAL_WORKSPACE_ID_KEY = 'adl-ui:terminal-workspace-id';
 export const TERMINAL_SHELL_SELECTOR_PROFILE_KEY = 'adl-ui:terminal-shell-selector-profile';
 
-/** 与 TerminalProfile 联合类型单源绑定：新增终端类型时只改此处 */
-const TERMINAL_PROFILES: readonly TerminalProfile[] = ['powershell', 'bash', 'cmd'];
+/**
+ * TerminalProfile 合法值表：Record key 受联合类型约束，新增终端类型时
+ * 若不同步补 key 会编译报错，防止合法值表与类型漂移。
+ */
+const TERMINAL_PROFILE_SET: Record<TerminalProfile, true> = {
+  powershell: true,
+  bash: true,
+  cmd: true,
+};
+
+const TERMINAL_PROFILES = Object.keys(TERMINAL_PROFILE_SET) as TerminalProfile[];
 
 export function isTerminalProfile(value: unknown): value is TerminalProfile {
   return typeof value === 'string' && (TERMINAL_PROFILES as readonly string[]).includes(value);

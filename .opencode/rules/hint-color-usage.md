@@ -23,11 +23,11 @@ alwaysApply: false
 |-------|-------|------|
 | `--text-secondary` | `#767676` | `#9a9a9a` |
 
-- 亮主题终端底色 `#f8f8f8` 配 `#767676`，暗主题终端底色 `#0c0c0c` 配 `#9a9a9a`，对比度满足位置提示的可辨识要求。
+- 终端底色亮 `#f8f8f8` / 暗 `#0c0c0c` 下对比度亮 ≈4.3:1 / 暗 ≈7.0:1，作为 1–3px 非文本位置指示器按 WCAG 非文本 ≥3:1 即满足要求。
 - 需更强对比时可升级为 `var(--text-primary)`（亮 `#222222` / 暗 `#d8d8d8`），不得降级为 `--text-muted` 以下。
 - 明度变化只走中性灰阶（白 → 灰 → 黑方向），不得引入彩色（蓝/绿/红）与语义色混淆。
 
-## 适用选择器（已统一，hover/active 均为 `var(--text-secondary)`）
+## 适用选择器（已统一，hover/active（拖拽态含 `--dragging` 类）均为 `var(--text-secondary)`）
 
 - `.adl-terminal-divider`（只读历史区 / 实时终端分界线）
 - `.adl-tool-navigator__resize-handle`
