@@ -43,7 +43,114 @@
   height: 100%;
   overflow: hidden;
   position: relative;
+  display: flex;
   background: var(--bg-terminal);
+  /* 只读历史区占主轴长度的比例；由分界线拖拽更新并持久化 */
+  --adl-terminal-history-ratio: 0.32;
+}
+
+/* 视图模式：单列 = 上下布局，双列 = 左右布局 */
+.adl-tool-primary__scroll--terminal.is-single {
+  flex-direction: column;
+}
+
+.adl-tool-primary__scroll--terminal.is-dual {
+  flex-direction: row;
+}
+
+/* 只读历史区：独立滚动；主轴长度由比例决定，交叉轴占满 */
+.adl-terminal-history {
+  flex: 0 0 auto;
+  order: 0;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg-terminal);
+}
+
+.is-single .adl-terminal-history {
+  height: calc(var(--adl-terminal-history-ratio) * 100%);
+}
+
+.is-dual .adl-terminal-history {
+  width: calc(var(--adl-terminal-history-ratio) * 100%);
+  height: 100%;
+}
+
+.adl-terminal-history__canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  padding: var(--space-1);
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* 实时终端区：占满剩余空间，保持全高/全宽可用（vim/less 等不受影响） */
+.adl-terminal-live {
+  position: relative;
+  flex: 1 1 auto;
+  order: 2;
+  min-width: 0;
+  min-height: 0;
+}
+
+.is-dual .adl-terminal-live {
+  height: 100%;
+}
+
+/* 交换位置：只读历史区排到主轴末位 */
+.is-history-last .adl-terminal-history {
+  order: 2;
+}
+
+.is-history-last .adl-terminal-live {
+  order: 0;
+}
+
+/* 可拖拽分界线：视觉上是一条细线，命中区域向两侧各外扩 4px */
+.adl-terminal-divider {
+  flex: 0 0 auto;
+  order: 1;
+  position: relative;
+  z-index: 3;
+  background: var(--border-subtle);
+  touch-action: none;
+  transition: background-color var(--duration-150) var(--ease-default);
+}
+
+.adl-terminal-divider::before {
+  content: '';
+  position: absolute;
+}
+
+.is-single .adl-terminal-divider {
+  height: 1px;
+  cursor: row-resize;
+}
+
+.is-single .adl-terminal-divider::before {
+  left: 0;
+  right: 0;
+  top: -4px;
+  bottom: -4px;
+}
+
+.is-dual .adl-terminal-divider {
+  width: 1px;
+  cursor: col-resize;
+}
+
+.is-dual .adl-terminal-divider::before {
+  top: 0;
+  bottom: 0;
+  left: -4px;
+  right: -4px;
+}
+
+.adl-terminal-divider:hover {
+  background: var(--accent);
 }
 
 /* 无任何终端标签时，主内容区底色与当前主题背景一致（有标签时保留终端底色） */
@@ -131,6 +238,17 @@
   color: var(--text-warning, #ffa726);
   font-size: 12px;
   border-top: 1px solid var(--border-warning, #5a3e00);
+  /* 作为主内容区的 flex 子项排在最后；双列视图下贴底覆盖在实时终端上 */
+  order: 3;
+  flex: 0 0 auto;
+}
+
+.is-dual .adl-terminal-error-note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 4;
 }
 
 .adl-tool-navigator__context--search {

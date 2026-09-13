@@ -9,11 +9,13 @@ import {
   IconPanelLeftClose,
   IconDelete,
   IconUnfoldVertical,
+  IconAreaSwap,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { asWorkspaceID } from '@shared/branded';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
+import { TerminalHistoryView } from '@components/terminal/TerminalHistoryView';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
 import { TerminalShellSelector } from './TerminalShellSelector';
@@ -61,12 +63,17 @@ export function TerminalPanel() {
     terminalMenuItems,
     terminalActiveTabId,
     xtermRef,
+    viewContainerRef,
+    viewPrefs,
+    historySegments,
     contextMenu,
     editingTabId,
     editValue,
     editInputRef,
   } = terminalState;
 
+  const hasHistory = historySegments.length > 0;
+  const isDual = viewPrefs.mode === 'dual';
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
   const visibleWorkspaces = useMemo(
@@ -167,6 +174,46 @@ export function TerminalPanel() {
           </div>
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <TooltipSimple content={t.terminalViewLayoutLabel} placement="top">
+            <div
+              className="adl-tool-context__diff-view"
+              role="group"
+              aria-label={t.terminalViewLayoutLabel}
+            >
+              <button
+                type="button"
+                className={`adl-tool-context__toggle-btn${isDual ? '' : ' is-active'}`}
+                aria-pressed={isDual ? 'false' : 'true'}
+                onClick={() => terminalActions.setViewMode('single')}
+              >
+                {t.terminalViewSingle}
+              </button>
+              <button
+                type="button"
+                className={`adl-tool-context__toggle-btn${isDual ? ' is-active' : ''}`}
+                aria-pressed={isDual ? 'true' : 'false'}
+                onClick={() => terminalActions.setViewMode('dual')}
+              >
+                {t.terminalViewDual}
+              </button>
+            </div>
+          </TooltipSimple>
+          <TooltipSimple content={t.terminalSwapAreas} placement="top">
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn"
+              onClick={terminalActions.swapAreas}
+              aria-label={t.terminalSwapAreas}
+              disabled={!hasHistory}
+            >
+              <IconAreaSwap
+                size={14}
+                decorative
+                orientation={isDual ? 'horizontal' : 'vertical'}
+                firstSolid={viewPrefs.historyFirst}
+              />
+            </button>
+          </TooltipSimple>
           <TerminalMenuDropdown
             menuOpen={terminalMenuOpen}
             menuRef={terminalMenuRef}
@@ -297,17 +344,39 @@ export function TerminalPanel() {
 
         <div className="adl-tool-primary">
           <div
-            className={`adl-tool-primary__scroll adl-tool-primary__scroll--terminal${hasActiveTab ? '' : ' is-empty'}`}
+            ref={viewContainerRef}
+            className={`adl-tool-primary__scroll adl-tool-primary__scroll--terminal${isDual ? ' is-dual' : ' is-single'}${viewPrefs.historyFirst ? '' : ' is-history-last'}${hasActiveTab ? '' : ' is-empty'}`}
+            style={
+              {
+                '--adl-terminal-history-ratio': `${viewPrefs.historyRatio}`,
+              } as React.CSSProperties
+            }
           >
             {hasActiveTab ? (
               <>
-                <XtermTerminal
-                  ref={xtermRef}
-                  sessionId={activeTab?.sessionId ?? null}
-                  className="adl-terminal-canvas"
-                  onData={terminalActions.handleXtermData}
-                  onResize={terminalActions.handleXtermResize}
-                />
+                {hasHistory ? (
+                  <div className="adl-terminal-history">
+                    <TerminalHistoryView segments={historySegments} />
+                  </div>
+                ) : null}
+                {hasHistory ? (
+                  <div
+                    className="adl-terminal-divider"
+                    role="separator"
+                    aria-orientation={isDual ? 'vertical' : 'horizontal'}
+                    aria-label={t.terminalViewLayoutLabel}
+                    onPointerDown={terminalActions.handleDividerPointerDown}
+                  />
+                ) : null}
+                <div className="adl-terminal-live">
+                  <XtermTerminal
+                    ref={xtermRef}
+                    sessionId={activeTab?.sessionId ?? null}
+                    className="adl-terminal-canvas"
+                    onData={terminalActions.handleXtermData}
+                    onResize={terminalActions.handleXtermResize}
+                  />
+                </div>
                 {activeTab?.status === 'terminated' && !activeTab?.sessionId && (
                   <div className="adl-terminal-error-note">
                     <span>{'\u26A0'}</span>

@@ -1,0 +1,131 @@
+import { useEffect, useMemo, useRef } from 'react';
+import { Terminal } from '@xterm/xterm';
+import { FitAddon } from '@xterm/addon-fit';
+import { terminalOutputStore } from '@features/terminal/terminalOutputStore';
+import {
+  findLastContentRow,
+  historySeparator,
+  newlinesToAdvance,
+} from '@features/terminal/terminalHistoryCompose';
+import type { TerminalHistorySegment } from '@features/terminal/terminalHistoryStore';
+import { readTerminalFontFamily, readTerminalTheme } from '@features/terminal/terminalXtermPool';
+import '@xterm/xterm/css/xterm.css';
+
+interface TerminalHistoryViewProps {
+  segments: TerminalHistorySegment[];
+}
+
+/**
+ * 重启前的**只读历史**视图。
+ *
+ * 为什么独立于实时终端：ConPTY 只认自己那块 rows 行的屏幕、从第 1 行算坐标。
+ * 把历史注入实时终端缓冲区，会让两者的光标坐标系产生「等于历史高度」的永久偏移，
+ * 之后 shell 发出的任何光标指令都会落在历史里（跳回顶部、覆盖历史）。
+ * 因此历史必须在**另一个** xterm 实例里渲染，实时终端保持干净。
+ *
+ * 本组件只回放快照、不接受输入（`disableStdin`），也不与任何 PTY 相连。
+ */
+export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  // 用 sessionId 串联作为依赖：父组件每次渲染都会传入新数组，直接依赖数组会反复重建终端。
+  const segmentsKey = useMemo(
+    () => segments.map((s) => `${s.sessionId}@${s.archivedAt}`).join('|'),
+    [segments],
+  );
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !segmentsKey) {
+      return;
+    }
+
+    const hostEl = document.createElement('div');
+    hostEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+    container.appendChild(hostEl);
+
+    const theme = readTerminalTheme();
+    const terminal = new Terminal({
+      fontSize: 13,
+      fontFamily: readTerminalFontFamily(),
+      // 只读视图：光标颜色与底色相同 → 不可见
+      theme: { ...theme, cursor: theme.background, cursorAccent: theme.background },
+      allowProposedApi: true,
+      // 历史是跨多次重启累积的，scrollback 必须留足，否则较早的段会被裁掉
+      scrollback: 20000,
+      disableStdin: true,
+      cursorBlink: false,
+      cursorStyle: 'bar',
+    });
+    const fitAddon = new FitAddon();
+    terminal.loadAddon(fitAddon);
+    terminal.open(hostEl);
+    try {
+      fitAddon.fit();
+    } catch {
+      // 面板可能尚未布局（隐藏/零尺寸），ResizeObserver 会在可见后重新 fit
+    }
+
+    let cancelled = false;
+    const write = (data: string) =>
+      new Promise<void>((resolve) => {
+        if (cancelled) {
+          resolve();
+          return;
+        }
+        terminal.write(data, () => resolve());
+      });
+
+    void (async () => {
+      for (const segment of segments) {
+        const snapshot = await terminalOutputStore.load(segment.sessionId);
+        if (cancelled) {
+          return;
+        }
+        if (snapshot) {
+          await write('\r');
+          await write(snapshot);
+          // 把光标推进到本段内容最末行的下一行，避免下一段覆盖本段。
+          // findLastContentRow 返回 null 时（光标下方已无内容）newlinesToAdvance 为 0，
+          // 循环最多走两轮即退出——不能再出现「逐行空转」把分隔条顶下去的情况。
+          for (let guard = 0; guard < 20; guard += 1) {
+            const buffer = terminal.buffer.active;
+            const cursorRow = buffer.baseY + buffer.cursorY;
+            const lastContentRow = findLastContentRow(cursorRow, buffer.length, (row) => {
+              const line = buffer.getLine(row);
+              return line ? line.translateToString(true) : '';
+            });
+            const newlines = newlinesToAdvance(cursorRow, lastContentRow);
+            if (newlines === 0) {
+              break;
+            }
+            await write('\n'.repeat(newlines));
+          }
+        }
+        await write(historySeparator(segment.archivedAt));
+      }
+      if (!cancelled) {
+        terminal.scrollToBottom();
+      }
+    })();
+
+    const observer = new ResizeObserver(() => {
+      try {
+        fitAddon.fit();
+      } catch {
+        // 容器已被卸载
+      }
+    });
+    observer.observe(container);
+
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+      terminal.dispose();
+      hostEl.remove();
+    };
+    // segmentsKey 是 segments 的稳定指纹，用它避免每次渲染重建终端
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segmentsKey]);
+
+  return <div ref={containerRef} className="adl-terminal-history__canvas" />;
+}

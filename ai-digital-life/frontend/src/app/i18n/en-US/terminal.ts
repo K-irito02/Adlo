@@ -54,4 +54,8 @@ export const terminalEn = {
   terminalClearAllHistory: 'Clear all history',
   terminalClearTerminals: 'Clear terminals',
   terminalNewTerminal: 'New terminal',
+  terminalViewLayoutLabel: 'Terminal view layout',
+  terminalViewSingle: 'Single',
+  terminalViewDual: 'Dual',
+  terminalSwapAreas: 'Swap history and live terminal',
 } as const;

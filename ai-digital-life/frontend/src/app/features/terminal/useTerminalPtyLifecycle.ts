@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
@@ -7,9 +7,12 @@ import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 import { terminalOutputStore } from './terminalOutputStore';
 import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
-import { terminalXtermPool } from './terminalXtermPool';
-
-const MAX_SESSION_OUTPUT_BYTES = 100 * 1024;
+import { terminalXtermPool, readTerminalFontFamily } from './terminalXtermPool';
+import {
+  MAX_HISTORY_SEGMENTS,
+  terminalHistoryStore,
+  type TerminalHistorySegment,
+} from './terminalHistoryStore';
 
 const SHELL_MAP: Record<TerminalProfile, string> = {
   powershell: 'powershell',
@@ -23,7 +26,6 @@ interface PtyLifecycleParams {
 
 export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const xtermRef = useRef<XtermTerminalHandle | null>(null);
-  const sessionOutputsRef = useRef<Map<string, string>>(new Map());
   const saveDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」）
@@ -32,18 +34,82 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const liveSessionIdsRef = useRef<Set<string>>(new Set());
   // 重建期间缓冲的用户输入（PTY 创建前收到的按键，PTY 就绪后补发）
   const pendingInputRef = useRef('');
-  // PTY 创建时间戳：启动窗口内过滤 shell 清屏序列，保护已写入的序列化状态
-  const ptyCreatedAtRef = useRef<Map<string, number>>(new Map());
-  const STARTUP_WINDOW_MS = 5000;
+  // 每个标签「正在进行的激活」：并发触发（启动效应 + 键入补触发 + 聚焦上报）必须汇流成一次，
+  // 否则会为同一标签创建多个 PTY（已被日志证实过）。
+  const activatingRef = useRef<Map<string, Promise<void>>>(new Map());
   // 每个会话当前实际生效的 PTY 尺寸：同尺寸的 resize 直接跳过，
-  // 否则 ConPTY 每次都会重发整屏（约 250 字节的 `\x1b[K\r\n` 片段）污染输出缓冲，
-  // 表现为「每切换一次标签缓冲涨 256 字节」、回放时画面被这些垃圾片段扰动。
+  // 否则 ConPTY 每次都会重发整屏（约 250 字节的 `\x1b[K\r\n` 片段）污染输出缓冲。
   const ptyDimsRef = useRef<Map<string, { cols: number; rows: number }>>(new Map());
   // 每个标签的「上次所在目录」（由 shell 通过 OSC 9;9 上报，按标签持久化）
   const tabCwdRef = useRef<Map<string, string>>(new Map());
   const tabCwdsLoadedRef = useRef(false);
   // OSC 9;9 可能跨块截断：保留各会话的尾部片段用于拼接
   const oscCarryRef = useRef<Map<string, string>>(new Map());
+  // 每个标签的「历史分段索引」：历次 PTY 会话的 sessionId（旧 → 新）。
+  // 历史内容按 sessionId 由 terminalOutputStore 保存，这里只管顺序与归档时间。
+  const historyIndexRef = useRef<Map<string, TerminalHistorySegment[]>>(new Map());
+  const historyIndexLoadedRef = useRef(false);
+  // 索引是 ref（便于在回调里同步读写），用一个版本号驱动渲染
+  const [historyIndexVersion, setHistoryIndexVersion] = useState(0);
+
+  /** 懒加载持久化的「标签 → 历史分段」索引（只需一次） */
+  const ensureHistoryIndexLoaded = useCallback(() => {
+    if (historyIndexLoadedRef.current) {
+      return;
+    }
+    historyIndexLoadedRef.current = true;
+    for (const [tabId, segments] of Object.entries(terminalHistoryStore.loadAll())) {
+      historyIndexRef.current.set(tabId, segments);
+    }
+  }, []);
+
+  /** 持久化整个「标签 → 历史分段」索引，并触发一次渲染 */
+  const persistHistoryIndex = useCallback(() => {
+    const snapshot: Record<string, TerminalHistorySegment[]> = {};
+    historyIndexRef.current.forEach((segments, tabId) => {
+      snapshot[tabId] = segments;
+    });
+    terminalHistoryStore.saveAll(snapshot);
+    setHistoryIndexVersion((v) => v + 1);
+  }, []);
+
+  /**
+   * 把某标签当前的（即将失效的）会话归档为一段历史。
+   * 只在真正需要重建会话时调用；裁剪掉的最旧段连同其快照一并删除。
+   */
+  const archiveSessionAsHistory = useCallback(
+    (tabId: string, sessionId: string) => {
+      ensureHistoryIndexLoaded();
+      const segments = historyIndexRef.current.get(tabId) ?? [];
+      if (segments.some((segment) => segment.sessionId === sessionId)) {
+        return;
+      }
+      const next = [...segments, { sessionId, archivedAt: Date.now() }];
+      const dropped = next.slice(0, Math.max(0, next.length - MAX_HISTORY_SEGMENTS));
+      for (const segment of dropped) {
+        void terminalOutputStore.delete(segment.sessionId);
+      }
+      historyIndexRef.current.set(tabId, next.slice(-MAX_HISTORY_SEGMENTS));
+      persistHistoryIndex();
+    },
+    [ensureHistoryIndexLoaded, persistHistoryIndex],
+  );
+
+  /** 删除某标签的全部历史（关闭标签/关闭全部时调用），同时清掉各段快照 */
+  const clearHistoryForTab = useCallback(
+    (tabId: string) => {
+      const segments = historyIndexRef.current.get(tabId);
+      if (!segments) {
+        return;
+      }
+      for (const segment of segments) {
+        void terminalOutputStore.delete(segment.sessionId);
+      }
+      historyIndexRef.current.delete(tabId);
+      persistHistoryIndex();
+    },
+    [persistHistoryIndex],
+  );
 
   /** 懒加载持久化的「标签 → 目录」映射（只需一次） */
   const ensureTabCwdsLoaded = useCallback(() => {
@@ -72,7 +138,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       return;
     }
     try {
-      const state = entry.serializeAddon.serialize({ scrollback: 1000 });
+      // excludeAltBuffer：若退出时停在 vim/less 等备用缓冲区，快照只保留普通缓冲区内容。
+      // 历史视图是按「普通缓冲区快照」顺序拼接回放的，绝不能把 \x1b[?1049h 缓冲区切换带进去。
+      const state = entry.serializeAddon.serialize({
+        scrollback: 1000,
+        excludeAltBuffer: true,
+      });
       if (state) {
         terminalOutputStore.save(sessionId, state);
       }
@@ -115,6 +186,22 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   );
 
   /**
+   * 把某会话的尺寸上报给 PTY（同尺寸去重）。
+   * ConPTY 每次收到 resize 都会重发整屏，因此只有尺寸真实变化时才上报。
+   */
+  const applySessionSize = useCallback((sessionId: string, cols: number, rows: number) => {
+    if (cols <= 0 || rows <= 0) {
+      return;
+    }
+    const effective = ptyDimsRef.current.get(sessionId);
+    if (effective && effective.cols === cols && effective.rows === rows) {
+      return;
+    }
+    ptyDimsRef.current.set(sessionId, { cols, rows });
+    window.digitalLife.pty.resize(sessionId, cols, rows);
+  }, []);
+
+  /**
    * 为指定标签创建一个 PTY 会话并挂到该标签上。
    * xterm 实例由调用方通过 pool 管理，本函数仅负责 PTY 创建。
    */
@@ -123,7 +210,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       tabId: string,
       profile: TerminalProfile,
       workspaceId: string,
-      options?: { cwdOverride?: string; revived?: boolean },
+      options?: { cwdOverride?: string },
     ): Promise<void> => {
       const cwdOverride = options?.cwdOverride;
       const workspace = workspaceId
@@ -131,6 +218,15 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         : undefined;
       ensureTabCwdsLoaded();
       const cwd = cwdOverride ?? (workspaceId ? (workspace?.path ?? undefined) : undefined);
+
+      // 防止重复创建 PTY：如果该标签已有存活的 PTY，跳过创建
+      const existingTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
+      if (existingTab?.sessionId && liveSessionIdsRef.current.has(existingTab.sessionId)) {
+        console.debug(
+          `[ADL-DEBUG] attachSession SKIP — tab=${tabId} session=${existingTab.sessionId} already live`,
+        );
+        return;
+      }
 
       try {
         // 等待容器出现：React batching 可能导致 XtermTerminal 尚未 mount，
@@ -158,9 +254,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           const { FitAddon } = await import('@xterm/addon-fit');
           const tempTerminal = new Terminal({
             fontSize: 13,
-            fontFamily:
-              getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() ||
-              'Cascadia Code, Fira Code, Consolas, monospace',
+            fontFamily: readTerminalFontFamily(),
             rows: 24,
             cols: 80,
           });
@@ -169,7 +263,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           tempTerminal.open(tempDiv);
           tempFit.fit();
           const dims = tempFit.proposeDimensions();
-          console.log(
+          console.debug(
             `[ADL-DEBUG] attachSession dims — container=${container.clientWidth}x${container.clientHeight} dims=${dims ? `${dims.cols}x${dims.rows}` : 'null'}`,
           );
           if (dims && dims.cols > 0 && dims.rows > 0) {
@@ -189,22 +283,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         if (!result.ok) {
           const errorMsg = result.error?.message || 'Unknown error';
           console.error('Terminal creation failed:', errorMsg);
+          // 失败反馈由 TerminalPanel 的 .adl-terminal-error-note 呈现
           terminalUpdateTab(tabId, { status: 'terminated' });
-          // Display error in a temporary xterm so the user sees feedback
-          const errContainer = document.querySelector('.adl-terminal-canvas');
-          if (errContainer) {
-            const errEntry = terminalXtermPool.acquire('__error__', errContainer as HTMLDivElement);
-            errEntry.terminal.write(
-              `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`,
-            );
-            errEntry.terminal.write(`\x1b[31m${errorMsg}\x1b[0m\r\n\r\n`);
-            if (profile === 'bash') {
-              errEntry.terminal.write(
-                '\x1b[33mHint: Make sure Git for Windows or WSL is installed.\x1b[0m\r\n',
-              );
-            }
-            terminalXtermPool.release('__error__');
-          }
           return;
         }
 
@@ -214,104 +294,84 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         ptyDimsRef.current.set(sessionId, { cols, rows });
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
 
-        // 记录 PTY 创建时间：启动窗口内过滤清屏序列，保护序列化的历史内容
-        if (options?.revived) {
-          ptyCreatedAtRef.current.set(sessionId, Date.now());
-        }
+        console.debug(
+          `[ADL-DEBUG] attachSession PTY CREATED — tabId=${tabId} newSession=${sessionId} t=${Math.round(performance.now())}`,
+        );
       } catch (err) {
         console.error('Terminal creation error:', err);
+        // 失败反馈由 TerminalPanel 的 .adl-terminal-error-note 呈现
         terminalUpdateTab(tabId, { status: 'terminated' });
-        const errContainer = document.querySelector('.adl-terminal-canvas');
-        if (errContainer) {
-          const errEntry = terminalXtermPool.acquire('__error__', errContainer as HTMLDivElement);
-          errEntry.terminal.write(
-            `\r\n\x1b[31mError: Failed to start ${profile} terminal.\x1b[0m\r\n`,
-          );
-          errEntry.terminal.write(
-            `\x1b[31m${err instanceof Error ? err.message : String(err)}\x1b[0m\r\n\r\n`,
-          );
-          terminalXtermPool.release('__error__');
-        }
       }
     },
     [ensureTabCwdsLoaded, recentWorkspaces, terminalUpdateTab],
   );
 
   /**
-   * 激活某个标签：从 pool 获取 xterm，加载持久化输出并写入；
-   * 若该标签持有的 PTY 会话已不存在（重启后恢复），则创建新 PTY。
+   * 激活某个标签：会话存活则只做 fit/focus；会话已消失（应用重启后恢复的标签）则
+   * 把旧会话归档为「只读历史段」、再创建一个全新的 PTY。
+   *
+   * 并发调用（启动效应 + 键入补触发 + 聚焦上报）会汇流到同一个 promise，
+   * 保证每个标签最多只创建一个 PTY。
    */
   const activateTab = useCallback(
-    async (tabId: string): Promise<void> => {
-      const tab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
-      const sessionId = tab?.sessionId;
-      if (!tab || !sessionId) {
-        return;
-      }
-      const isLive = liveSessionIdsRef.current.has(sessionId);
-
-      if (isLive) {
-        // PTY 存活：pool entry 已有完整 buffer（PTY 输出持续写入），
-        // 只需 fit 和 focus
-        const pooled = terminalXtermPool.get(sessionId);
-        if (pooled) {
-          pooled.fitAddon.fit();
-          pooled.terminal.focus();
-        }
-        return;
+    (tabId: string): Promise<void> => {
+      const inFlight = activatingRef.current.get(tabId);
+      if (inFlight) {
+        return inFlight;
       }
 
-      // PTY 已死亡（应用重启后的恢复标签）：
-      // 1) 加载序列化状态并写入 xterm（精确还原终端视觉状态）
-      // 2) 创建新 PTY（shell 提示符自然出现在底部）
-      ensureTabCwdsLoaded();
-      const rememberedCwd = tabCwdRef.current.get(tabId);
-
-      // 等待 pool entry 就绪
-      let pooled = terminalXtermPool.get(sessionId);
-      if (!pooled) {
-        for (let frame = 0; frame < 30; frame++) {
-          await new Promise<void>((r) => requestAnimationFrame(() => r()));
-          pooled = terminalXtermPool.get(sessionId);
-          if (pooled) {
-            break;
+      const run = (async () => {
+        try {
+          const tab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
+          if (!tab) {
+            return;
           }
-        }
-      }
+          const sessionId = tab.sessionId;
+          if (sessionId && liveSessionIdsRef.current.has(sessionId)) {
+            // PTY 存活：pool entry 已有完整 buffer（PTY 输出持续写入），只需 fit 和 focus
+            const pooled = terminalXtermPool.get(sessionId);
+            if (pooled) {
+              pooled.fitAddon.fit();
+              pooled.terminal.focus();
+            }
+            return;
+          }
 
-      // 加载并写入序列化状态
-      if (pooled) {
-        const serialized = await terminalOutputStore.load(sessionId);
-        console.log(
-          `[ADL-DEBUG] activateTab restore — session=${sessionId} serializedBytes=${(serialized ?? '').length} poolEntry=exists`,
-        );
-        if (serialized) {
-          pooled.terminal.write(serialized);
-          pooled.terminal.scrollToBottom();
-        }
-      } else {
-        console.log(
-          `[ADL-DEBUG] activateTab restore — session=${sessionId} poolEntry=null (skipped write)`,
-        );
-      }
+          ensureTabCwdsLoaded();
+          const rememberedCwd = tabCwdRef.current.get(tabId);
 
-      // 创建新 PTY
-      await attachSession(tabId, tab.profile, tab.workspaceId, {
-        cwdOverride: rememberedCwd,
-        revived: true,
+          // 旧会话已结束（或无会话）：把它归档进历史索引。历史内容仍按 sessionId
+          // 存在 terminalOutputStore 里，由只读历史视图自行加载回放 —— 绝不写进实时终端，
+          // 否则 ConPTY 的光标坐标系会被历史顶偏（这就是「输出跳回顶部」的根因）。
+          if (sessionId) {
+            archiveSessionAsHistory(tabId, sessionId);
+          }
+
+          await attachSession(tabId, tab.profile, tab.workspaceId, {
+            cwdOverride: rememberedCwd,
+          });
+
+          // 补发 PTY 创建前缓冲的输入
+          const pending = pendingInputRef.current;
+          pendingInputRef.current = '';
+          const currentTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
+          if (pending && currentTab?.sessionId) {
+            window.digitalLife.pty.input(currentTab.sessionId, pending);
+          }
+        } catch (err) {
+          console.error('Terminal activation failed:', err);
+        }
+      })();
+
+      activatingRef.current.set(tabId, run);
+      void run.then(() => {
+        if (activatingRef.current.get(tabId) === run) {
+          activatingRef.current.delete(tabId);
+        }
       });
-
-      // 补发 PTY 创建前缓冲的输入
-      const pending = pendingInputRef.current;
-      pendingInputRef.current = '';
-      const newSessionId = useAppStore
-        .getState()
-        .terminalTabs.find((t) => t.id === tabId)?.sessionId;
-      if (pending && newSessionId) {
-        window.digitalLife.pty.input(newSessionId, pending);
-      }
+      return run;
     },
-    [attachSession, ensureTabCwdsLoaded],
+    [archiveSessionAsHistory, attachSession, ensureTabCwdsLoaded],
   );
 
   useEffect(() => {
@@ -336,19 +396,20 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   }, [sessionIdsKey, serializeSession]);
 
   // 启动激活：恢复的标签其会话必然已不存在（应用退出时会话被 kill），
-  // 因此在启动时对「上一次运行遗留的活动标签」走一次激活（回放历史 + 重建会话）。
+  // 因此在启动时对「上一次运行遗留的活动标签」走一次激活（归档历史 + 重建会话）。
   const startupHandledRef = useRef(false);
   useEffect(() => {
     if (startupHandledRef.current) {
       return;
     }
     const tabId = activeTab?.id;
-    const sessionId = activeTab?.sessionId;
-    if (!tabId || !sessionId) {
+    if (!tabId) {
       return;
     }
     startupHandledRef.current = true;
-    if (createdSessionIdsRef.current.has(sessionId)) {
+    const sessionId = activeTab?.sessionId;
+    // 本次运行已建过的会话无需再激活；无会话的标签（例如上次建会话中途退出）也要补建
+    if (sessionId && createdSessionIdsRef.current.has(sessionId)) {
       return;
     }
     void activateTab(tabId);
@@ -357,13 +418,19 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const handleXtermData = useCallback(
     (data: string) => {
       const tab = activeTab;
-      const sessionId = tab?.sessionId;
-      if (!tab || !sessionId) {
+      if (!tab) {
         return;
       }
-      if (!liveSessionIdsRef.current.has(sessionId)) {
-        // PTY 尚未创建（重启后恢复的标签）：缓冲输入，触发激活
-        pendingInputRef.current += data;
+      const sessionId = tab.sessionId;
+      if (!sessionId || !liveSessionIdsRef.current.has(sessionId)) {
+        // PTY 尚未就绪：缓冲输入并触发激活。
+        // xterm 在获得/失去焦点时会自动上报 \x1b[I / \x1b[O（shell 请求的 focus reporting），
+        // 那不是用户输入，不该混进待补发内容。
+        // eslint-disable-next-line no-control-regex
+        const userInput = data.replace(/\x1b\[[IO]/g, '');
+        if (userInput) {
+          pendingInputRef.current += userInput;
+        }
         void activateTab(tab.id);
         return;
       }
@@ -378,14 +445,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       if (!targetSession || !liveSessionIdsRef.current.has(targetSession)) {
         return;
       }
-      const effective = ptyDimsRef.current.get(targetSession);
-      if (effective && effective.cols === cols && effective.rows === rows) {
-        return;
-      }
-      ptyDimsRef.current.set(targetSession, { cols, rows });
-      window.digitalLife.pty.resize(targetSession, cols, rows);
+      applySessionSize(targetSession, cols, rows);
     },
-    [activeTab?.sessionId],
+    [activeTab?.sessionId, applySessionSize],
   );
 
   const handleCreateTab = useCallback(
@@ -431,10 +493,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         window.digitalLife.pty.kill(tab.sessionId);
         terminalXtermPool.release(tab.sessionId);
         liveSessionIdsRef.current.delete(tab.sessionId);
+        ptyDimsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
-        ptyCreatedAtRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
-        sessionOutputsRef.current.delete(tab.sessionId);
+        clearHistoryForTab(tabId);
         terminalOutputStore.delete(tab.sessionId);
       }
       if (tabCwdRef.current.delete(tabId)) {
@@ -442,7 +504,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
       terminalCloseTab(tabId);
     },
-    [persistTabCwds, terminalCloseTab],
+    [clearHistoryForTab, persistTabCwds, terminalCloseTab],
   );
 
   const handleCloseAllTabs = useCallback(
@@ -451,20 +513,22 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const tabsToClose =
         workspaceId !== undefined ? tabs.filter((tab) => tab.workspaceId === workspaceId) : tabs;
       tabsToClose.forEach((tab) => {
+        clearHistoryForTab(tab.id);
+        tabCwdRef.current.delete(tab.id);
         if (tab.sessionId) {
           window.digitalLife.pty.kill(tab.sessionId);
           terminalXtermPool.release(tab.sessionId);
           liveSessionIdsRef.current.delete(tab.sessionId);
           ptyDimsRef.current.delete(tab.sessionId);
           createdSessionIdsRef.current.delete(tab.sessionId);
-          ptyCreatedAtRef.current.delete(tab.sessionId);
-          sessionOutputsRef.current.delete(tab.sessionId);
+          oscCarryRef.current.delete(tab.sessionId);
           terminalOutputStore.delete(tab.sessionId);
         }
       });
+      persistTabCwds();
       terminalCloseAllTabs(workspaceId);
     },
-    [terminalCloseAllTabs],
+    [clearHistoryForTab, persistTabCwds, terminalCloseAllTabs],
   );
 
   const handleKill = useCallback(() => {
@@ -493,20 +557,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         return;
       }
 
-      const data = event.data;
-
-      // 启动窗口内过滤 shell 清屏/scrollback 清除/光标归位序列，
-      // 保护已写入的序列化历史内容，同时确保持久化输出不含这些序列。
-      const createdAt = ptyCreatedAtRef.current.get(event.sessionId);
-      const inStartupWindow = createdAt !== undefined && Date.now() - createdAt < STARTUP_WINDOW_MS;
-      // eslint-disable-next-line no-control-regex
-      const filteredData = inStartupWindow ? data.replace(/\x1b\[(?:2J|3J|H|1;1H)/g, '') : data;
-      if (inStartupWindow && data !== filteredData) {
-        console.log(
-          `[ADL-DEBUG] startup filter — session=${event.sessionId} filtered ${data.length - filteredData.length} bytes of clear sequences`,
-        );
-      }
-
       // OSC 9;9: 按标签记住 shell 上报的当前目录
       const oscScan = scanOsc99((oscCarryRef.current.get(event.sessionId) ?? '') + event.data);
       if (oscScan.carry) {
@@ -528,23 +578,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         }
       }
 
-      // 累积过滤后的输出到内存缓冲（用于持久化保存）
-      const outputs = sessionOutputsRef.current;
-      let previous = outputs.get(event.sessionId) ?? '';
-      previous += filteredData;
-      if (previous.length > MAX_SESSION_OUTPUT_BYTES) {
-        previous = previous.slice(previous.length - MAX_SESSION_OUTPUT_BYTES);
-      }
-      outputs.set(event.sessionId, previous);
-
-      // 写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）
+      // 原样写入 pool 中该会话的 xterm（所有会话，不仅限活动标签）。
+      // 不再做任何 ANSI 过滤：实时终端里只有本次会话的内容，ConPTY 的光标坐标系
+      // 与 xterm 完全一致，清屏/归位/绝对定位全部可以正常放行。
       const pooled = terminalXtermPool.get(event.sessionId);
       if (pooled) {
-        pooled.terminal.write(filteredData);
-      } else {
-        console.log(
-          `[ADL-DEBUG] pty output dropped (no pool entry) — session=${event.sessionId} bytes=${data.length} poolSize=${terminalXtermPool.size}`,
-        );
+        pooled.terminal.write(event.data);
       }
 
       // 防抖保存：合并高频输出事件，每 500ms 最多写入一次持久化存储
@@ -564,40 +603,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   }, [activeRightTool, persistTabCwds, serializeSession, terminalUpdateTab]);
 
   useEffect(() => {
-    const container = document.querySelector('.adl-tool-primary__scroll--terminal');
-    if (!container) {
-      return;
-    }
-
-    let resizeTimeout: ReturnType<typeof setTimeout> | null = null;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) {
-        return;
-      }
-      const { width, height } = entry.contentRect;
-      if (width <= 0 || height <= 0) {
-        return;
-      }
-
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      resizeTimeout = setTimeout(() => {
-        terminalXtermPool.fitAll();
-      }, 150);
-    });
-
-    observer.observe(container);
-    return () => {
-      if (resizeTimeout) {
-        clearTimeout(resizeTimeout);
-      }
-      observer.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
     const observer = new MutationObserver(() => {
       terminalXtermPool.syncTheme();
     });
@@ -608,9 +613,22 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     return () => observer.disconnect();
   }, []);
 
+  /** 当前活动标签的「只读历史段」列表（旧 → 新）；没有历史时为空数组 */
+  const historySegments = useMemo(() => {
+    const tabId = activeTab?.id;
+    if (!tabId) {
+      return [];
+    }
+    ensureHistoryIndexLoaded();
+    return historyIndexRef.current.get(tabId) ?? [];
+    // historyIndexVersion 只是「索引已变化」的渲染触发器，本身不参与计算：
+    // 索引存在 ref 里以便在回调中同步读写，这里靠版本号驱动重新取值。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab?.id, historyIndexVersion, ensureHistoryIndexLoaded]);
+
   return {
     xtermRef,
-    sessionOutputsRef,
+    historySegments,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,

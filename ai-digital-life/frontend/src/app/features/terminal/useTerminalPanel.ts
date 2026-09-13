@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
@@ -6,8 +6,11 @@ import { useTerminalDragDrop } from './useTerminalDragDrop';
 import { useTerminalTabActions } from './useTerminalTabActions';
 import { useTerminalShellManagement } from './useTerminalShellManagement';
 import { useTerminalViewport } from './useTerminalViewport';
+import { useTerminalViewPrefs } from './useTerminalViewPrefs';
 import type { TerminalProfile } from '@stores/types';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
+import type { TerminalHistorySegment } from './terminalHistoryStore';
+import type { TerminalViewMode, TerminalViewPrefs } from './terminalViewPrefs';
 
 export type TerminalNavigatorMode = 'sessions' | 'history';
 
@@ -43,6 +46,12 @@ export interface ContextMenuState {
 export interface UseTerminalPanelReturn {
   terminalState: {
     xtermRef: React.RefObject<XtermTerminalHandle | null>;
+    /** 承载「历史区 + 分界线 + 实时终端」的容器引用（拖拽分界线需要它换算比例） */
+    viewContainerRef: React.RefObject<HTMLDivElement | null>;
+    /** 终端视图偏好：单列/双列、历史区位置、历史区占比 */
+    viewPrefs: TerminalViewPrefs;
+    /** 活动标签的只读历史段（重启前的会话快照），供历史视图回放 */
+    historySegments: TerminalHistorySegment[];
     editInputRef: React.RefObject<HTMLInputElement | null>;
     shellMenuRef: React.RefObject<HTMLDivElement | null>;
     terminalMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -92,6 +101,11 @@ export interface UseTerminalPanelReturn {
     setShellMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setTerminalMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setEditValue: React.Dispatch<React.SetStateAction<string>>;
+    setViewMode: (mode: TerminalViewMode) => void;
+    /** 交换「只读历史区」与「实时终端」在主轴上的位置 */
+    swapAreas: () => void;
+    /** 分界线拖拽起始（单列调高度、双列调宽度） */
+    handleDividerPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
   };
   dragHandlers: {
     handleDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
@@ -126,6 +140,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
 
   const {
     xtermRef,
+    historySegments,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,
@@ -187,6 +202,11 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     })),
   );
 
+  const viewContainerRef = useRef<HTMLDivElement | null>(null);
+  const { viewPrefs, setViewMode, swapAreas, handleDividerPointerDown } = useTerminalViewPrefs({
+    containerRef: viewContainerRef,
+  });
+
   const handleClearCommandHistory = useCallback(() => {
     clearCommandHistory();
   }, [clearCommandHistory]);
@@ -194,6 +214,9 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   return {
     terminalState: {
       xtermRef,
+      viewContainerRef,
+      viewPrefs,
+      historySegments,
       editInputRef,
       shellMenuRef,
       terminalMenuRef,
@@ -243,6 +266,9 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       setShellMenuOpen,
       setTerminalMenuOpen,
       setEditValue,
+      setViewMode,
+      swapAreas,
+      handleDividerPointerDown,
     },
     dragHandlers: {
       handleDragStart,

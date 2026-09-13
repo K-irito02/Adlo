@@ -54,4 +54,8 @@ export const terminalZh = {
   terminalClearAllHistory: '清空全部历史',
   terminalClearTerminals: '清空终端',
   terminalNewTerminal: '新建终端',
+  terminalViewLayoutLabel: '终端视图布局',
+  terminalViewSingle: '单列',
+  terminalViewDual: '双列',
+  terminalSwapAreas: '交换历史与实时终端位置',
 } as const;

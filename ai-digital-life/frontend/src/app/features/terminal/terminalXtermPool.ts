@@ -16,9 +16,18 @@ export class TerminalXtermPool {
   private pool = new Map<string, PooledXterm>();
 
   acquire(sessionId: string, container: HTMLDivElement): PooledXterm {
+    // 同一容器只允许挂一个 hostEl。会话 id 变化（重启恢复时旧会话被新会话替换）会让
+    // 新 entry 被 append 到同一个容器，若不摘掉旧 entry 就会上下堆叠、互相遮挡。
+    // 只从 DOM 摘除（detach），entry 仍保留在池中，切回该会话时可直接复用其 buffer。
+    for (const entry of this.pool.values()) {
+      if (entry.sessionId !== sessionId && entry.hostEl.parentElement === container) {
+        entry.hostEl.remove();
+      }
+    }
+
     const existing = this.pool.get(sessionId);
     if (existing) {
-      if (existing.hostEl !== container) {
+      if (existing.hostEl.parentElement !== container) {
         container.appendChild(existing.hostEl);
         existing.fitAddon.fit();
       }
@@ -31,9 +40,7 @@ export class TerminalXtermPool {
     const terminal = new Terminal({
       cursorBlink: true,
       fontSize: 13,
-      fontFamily:
-        getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() ||
-        'Cascadia Code, Fira Code, Consolas, monospace',
+      fontFamily: readTerminalFontFamily(),
       theme: readTerminalTheme(),
       allowProposedApi: true,
       scrollback: 1000,
@@ -88,16 +95,6 @@ export class TerminalXtermPool {
     return this.pool.get(sessionId);
   }
 
-  fitAll(): void {
-    for (const entry of this.pool.values()) {
-      try {
-        entry.fitAddon.fit();
-      } catch {
-        // Skip disposed or detached instances
-      }
-    }
-  }
-
   disposeAll(): void {
     for (const [id] of this.pool) {
       this.release(id);
@@ -116,7 +113,14 @@ export class TerminalXtermPool {
   }
 }
 
-function readTerminalTheme() {
+export function readTerminalFontFamily(): string {
+  return (
+    getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim() ||
+    'Cascadia Code, Fira Code, Consolas, monospace'
+  );
+}
+
+export function readTerminalTheme() {
   const style = getComputedStyle(document.documentElement);
   return {
     background: style.getPropertyValue('--bg-terminal').trim() || '#0c0c0c',

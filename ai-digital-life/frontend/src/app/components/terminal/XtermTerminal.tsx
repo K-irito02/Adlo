@@ -3,18 +3,8 @@ import { terminalXtermPool } from '@features/terminal/terminalXtermPool';
 import '@xterm/xterm/css/xterm.css';
 
 export interface XtermTerminalHandle {
-  write(data: string): void;
   clear(): void;
-  focus(): void;
   getSelection(): string;
-  /** 读取当前建议尺寸（只测量，不 fit、不触发重排），供创建 PTY 时对齐真实尺寸 */
-  getDims(): { cols: number; rows: number } | null;
-  resize(): void;
-  /** 仅把当前尺寸上报给 PTY，不做 fit（不会触发整屏重排） */
-  reportSize(): void;
-  scrollToBottom(): void;
-  /** 序列化终端状态为可写入字符串 */
-  serialize(): string | null;
 }
 
 interface XtermTerminalProps {
@@ -37,17 +27,6 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
     useImperativeHandle(
       ref,
       () => ({
-        write(data: string) {
-          const entry = entryRef.current;
-          if (!entry) {
-            return;
-          }
-          const sanitized = data.replace(/\x7f/g, '');
-          entry.terminal.write(sanitized);
-          setTimeout(() => {
-            entry.terminal.scrollToBottom();
-          }, 0);
-        },
         clear() {
           const entry = entryRef.current;
           if (!entry) {
@@ -58,85 +37,58 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
             entry.terminal.scrollToBottom();
           }, 0);
         },
-        focus() {
-          const entry = entryRef.current;
-          if (entry) {
-            entry.terminal.focus();
-          }
-        },
         getSelection() {
           const entry = entryRef.current;
           return entry?.terminal.getSelection() ?? '';
-        },
-        getDims() {
-          const entry = entryRef.current;
-          if (!entry) {
-            return null;
-          }
-          const proposed = entry.fitAddon.proposeDimensions();
-          if (proposed && proposed.cols > 0 && proposed.rows > 0) {
-            return { cols: proposed.cols, rows: proposed.rows };
-          }
-          return { cols: entry.terminal.cols, rows: entry.terminal.rows };
-        },
-        resize() {
-          const entry = entryRef.current;
-          if (!entry) {
-            return;
-          }
-          entry.fitAddon.fit();
-          const dims = entry.fitAddon.proposeDimensions();
-          if (dims) {
-            onResizeRef.current?.(dims.cols, dims.rows);
-          }
-          setTimeout(() => {
-            entry.terminal.scrollToBottom();
-          }, 0);
-        },
-        reportSize() {
-          const entry = entryRef.current;
-          if (!entry) {
-            return;
-          }
-          const dims = entry.fitAddon.proposeDimensions();
-          if (dims) {
-            onResizeRef.current?.(dims.cols, dims.rows);
-          }
-        },
-        scrollToBottom() {
-          const entry = entryRef.current;
-          if (entry) {
-            entry.terminal.scrollToBottom();
-          }
-        },
-        serialize() {
-          const entry = entryRef.current;
-          if (!entry) {
-            return null;
-          }
-          try {
-            return entry.serializeAddon.serialize({ scrollback: 1000 });
-          } catch {
-            return null;
-          }
         },
       }),
       [],
     );
 
     useEffect(() => {
-      if (!sessionId || !containerRef.current) {
+      const container = containerRef.current;
+      if (!sessionId || !container) {
         return;
       }
 
-      const entry = terminalXtermPool.acquire(sessionId, containerRef.current);
+      const entry = terminalXtermPool.acquire(sessionId, container);
       entryRef.current = entry;
 
       const disposable = entry.terminal.onData((data) => {
         onDataRef.current?.(data);
       });
 
+      // 自身容器尺寸变化时重新 fit 并把尺寸上报给 PTY。
+      // 覆盖：面板缩放、视图模式切换（单列/双列）、分界线拖拽、历史区出现/消失。
+      // 去抖 120ms：连续拖拽不会把 ConPTY 打成整屏重绘风暴（ConPTY 每次 resize 都会重发整屏）。
+      let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+      const observer = new ResizeObserver(() => {
+        if (resizeTimer) {
+          clearTimeout(resizeTimer);
+        }
+        resizeTimer = setTimeout(() => {
+          resizeTimer = null;
+          if (!entry.hostEl.isConnected) {
+            return;
+          }
+          try {
+            entry.fitAddon.fit();
+          } catch {
+            return;
+          }
+          const dims = entry.fitAddon.proposeDimensions();
+          if (dims) {
+            onResizeRef.current?.(dims.cols, dims.rows);
+          }
+        }, 120);
+      });
+      observer.observe(container);
+
       return () => {
+        if (resizeTimer) {
+          clearTimeout(resizeTimer);
+        }
+        observer.disconnect();
         disposable.dispose();
         // 不释放 pool entry — 保留 xterm 实例和 buffer，切换标签时不丢失内容。
         // pool entry 仅在标签关闭时由 handleCloseTab 释放。

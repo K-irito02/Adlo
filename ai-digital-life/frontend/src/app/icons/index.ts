@@ -148,5 +148,6 @@ export {
   IconBell,
   IconPendingCommit,
 } from './status';
-export { IconTerminalDirectory, IconTerminalCommandHistory } from './terminal-nav';
+export { IconTerminalDirectory, IconTerminalCommandHistory, IconAreaSwap } from './terminal-nav';
+export type { IconAreaSwapProps, AreaSwapOrientation } from './terminal-nav';
 export { IconProfilePowerShell, IconProfileBash, IconProfileCmd } from './terminal-profiles';
