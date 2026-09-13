@@ -133,9 +133,30 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
     });
     observer.observe(container);
 
+    // 跟随主题：实时终端由 terminalXtermPool.syncTheme()（data-theme 的 MutationObserver）
+    // 统一刷新，但本视图是独立 xterm 实例、未入池，此前切换主题后一直停留在旧底色。
+    // 这里复用同一写法，主题变化时重读 token 并保持光标不可见覆盖。
+    const applyTheme = () => {
+      if (cancelled) {
+        return;
+      }
+      const next = readTerminalTheme();
+      terminal.options.theme = {
+        ...next,
+        cursor: next.background,
+        cursorAccent: next.background,
+      };
+    };
+    const themeObserver = new MutationObserver(applyTheme);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme'],
+    });
+
     return () => {
       cancelled = true;
       observer.disconnect();
+      themeObserver.disconnect();
       // 先解除所有挂起的 write（dispose 后其回调不会再触发）
       for (const resolve of pendingWrites) {
         resolve();

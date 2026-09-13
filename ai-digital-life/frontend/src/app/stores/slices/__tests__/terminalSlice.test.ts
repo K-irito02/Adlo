@@ -228,4 +228,12 @@ describe('terminalSlice', () => {
     (get() as unknown as TerminalSlice).setTerminalWorkspaceId('ws-1');
     expect((get() as unknown as TerminalSlice).terminalWorkspaceId).toBe('ws-1');
   });
+
+  it('setShellSelectorProfile sets the selector profile without touching default profile', () => {
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).setShellSelectorProfile('bash');
+    const state = get() as unknown as TerminalSlice;
+    expect(state.shellSelectorProfile).toBe('bash');
+    expect(state.defaultTerminalProfile).toBe('powershell');
+  });
 });

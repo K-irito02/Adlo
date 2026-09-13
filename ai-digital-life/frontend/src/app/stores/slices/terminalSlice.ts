@@ -14,6 +14,9 @@ import {
   TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
   TERMINAL_COMMAND_HISTORY_KEY,
+  TERMINAL_WORKSPACE_ID_KEY,
+  TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
+  normalizeTerminalShellProfile,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
@@ -29,6 +32,9 @@ export {
   TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
   TERMINAL_COMMAND_HISTORY_KEY,
+  TERMINAL_WORKSPACE_ID_KEY,
+  TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
+  normalizeTerminalShellProfile,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
@@ -87,6 +93,8 @@ const writeNavigatorCollapsed = makePersistedWriter(TERMINAL_NAVIGATOR_COLLAPSED
 const writeWorkspaceExpanded = makePersistedWriter(TERMINAL_WORKSPACE_EXPANDED_KEY);
 const writeNavigatorWidth = makePersistedNumberWriter(TERMINAL_NAVIGATOR_WIDTH_KEY);
 const writeCommandHistory = makePersistedWriter(TERMINAL_COMMAND_HISTORY_KEY);
+const writeTerminalWorkspaceId = makePersistedWriter(TERMINAL_WORKSPACE_ID_KEY);
+const writeShellSelectorProfile = makePersistedWriter(TERMINAL_SHELL_SELECTOR_PROFILE_KEY);
 
 // Lazy localStorage hydration — reads persisted values in idle time
 let _defaultsHydrated = false;
@@ -125,17 +133,24 @@ function hydrateTerminalDefaults(
       {},
     );
     const commandHistory = readJson<CommandHistoryEntry[]>(TERMINAL_COMMAND_HISTORY_KEY, []);
+    const persistedWorkspaceId = readJson<string>(TERMINAL_WORKSPACE_ID_KEY, '');
+    // 选择器 profile 回退到全局默认（首次无记录时跟随默认）；非法值同样回退
+    const shellProfile = normalizeTerminalShellProfile(
+      readJson<TerminalProfile>(TERMINAL_SHELL_SELECTOR_PROFILE_KEY, profile),
+      profile,
+    );
     set({
       terminalTabs: tabs,
       terminalTabsById: buildTabsById(tabs),
       terminalActiveTabId: activeTabId,
       defaultTerminalProfile: profile,
-      shellSelectorProfile: profile,
+      shellSelectorProfile: shellProfile,
       workspaceDefaultProfiles: workspaceProfiles,
       terminalNavigatorWidth: width,
       navigatorCollapsedByTool: collapsed,
       terminalWorkspaceExpanded: workspaceExpanded,
       commandHistory,
+      terminalWorkspaceId: typeof persistedWorkspaceId === 'string' ? persistedWorkspaceId : '',
     });
   };
   if (typeof requestIdleCallback === 'function') {
@@ -413,8 +428,26 @@ export const createTerminalSlice = (
 
     setTerminalPersisted: (persisted) => set({ terminalPersisted: persisted }),
 
-    setTerminalWorkspaceId: (workspaceId) => set({ terminalWorkspaceId: workspaceId }),
+    setTerminalWorkspaceId: (workspaceId) => {
+      // 与 setDefaultTerminalProfile 同策略双写：直接写保证关窗即时落盘，
+      // 去抖写合并跨 slice 写入。去抖调度器无 pagehide flush，仅靠它是不可靠的。
+      try {
+        window.localStorage.setItem(TERMINAL_WORKSPACE_ID_KEY, JSON.stringify(workspaceId));
+      } catch (err) {
+        console.warn('terminalSlice: localStorage operation failed:', err);
+      }
+      writeTerminalWorkspaceId(workspaceId);
+      set({ terminalWorkspaceId: workspaceId });
+    },
 
-    setShellSelectorProfile: (profile) => set({ shellSelectorProfile: profile }),
+    setShellSelectorProfile: (profile) => {
+      try {
+        window.localStorage.setItem(TERMINAL_SHELL_SELECTOR_PROFILE_KEY, JSON.stringify(profile));
+      } catch (err) {
+        console.warn('terminalSlice: localStorage operation failed:', err);
+      }
+      writeShellSelectorProfile(profile);
+      set({ shellSelectorProfile: profile });
+    },
   };
 };

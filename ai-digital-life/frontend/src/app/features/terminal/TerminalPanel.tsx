@@ -167,6 +167,7 @@ export function TerminalPanel() {
               menuRef={shellMenuRef}
               onCreateTab={terminalActions.handleCreateTab}
               onToggle={() => terminalActions.setShellMenuOpen((value) => !value)}
+              onClose={() => terminalActions.setShellMenuOpen(false)}
               onSelect={(profile: TerminalProfile) => {
                 terminalActions.updateProfile(profile);
                 terminalActions.setShellMenuOpen(false);
