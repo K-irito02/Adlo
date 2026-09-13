@@ -19,6 +19,7 @@ alwaysApply: true
 | `css-architecture.md` | CSS 拆分阈值、死 CSS 预防、布局稳定性、变量规范 | CSS/样式变更 |
 | `error-handling.md` | 错误处理、加载状态、Promise 规范、前后端统一模式 | 全局适用 |
 | `design-system.md` | 设计系统约束、主题、组件规范、CSS 架构引用 | UI/样式 |
+| `hint-color-usage.md` | 提示色使用规范（拖拽手柄/分界线悬停中性色，禁用 accent 蓝） | UI/样式 |
 | `quality-gates.md` | 测试、类型检查、合并前检查、重构门禁 | 测试/构建/重构 |
 | `commands.md` | 常用命令速查、脚本入口、环境设置 | 执行命令 |
 | `browser-automation.md` | 浏览器自动化工具选择、经验教训、操作规范 | 浏览器自动化/测试 |
@@ -63,6 +64,7 @@ alwaysApply: true
 | Tauri Command 变更 | `tauri-shell.md` |
 | 测试命令变更 | `quality-gates.md`、`commands.md` |
 | 设计系统变更 | `design-system.md` |
+| 提示色规范变更 | `hint-color-usage.md`、`design-system.md` |
 | UI 模式变更 | `ui-patterns.md` |
 | Phase 范围变更 | `phase-boundary.md` |
 | 双端一致性变更 | `tauri-shell.md`、`project-overview.md`、`desktop-ui-verification.md` |

@@ -44,6 +44,10 @@ alwaysApply: false
 
 详见 [tokens.md](../../docs/design-system/foundations/tokens.md)。
 
+## 提示色（Hint）
+
+拖拽手柄 / 分界线的悬停提示必须使用中性色 `var(--text-secondary)`，禁用 `--accent` 蓝色（避免与选中 / 焦点语义混淆）。完整规范见 [hint-color-usage.md](./hint-color-usage.md)。
+
 ## 工具条/标签栏（IconStrip）
 
 ### 按钮样式

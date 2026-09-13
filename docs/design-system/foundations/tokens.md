@@ -81,6 +81,19 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 `--surface-active` 用于选中/激活态的稍深底色（如菜单项 active）。
 `--surface-raised` 是弹出层（菜单、popover）的背景，定义在 `themes.css` 中。
 
+## Hint / 提示色
+
+拖拽手柄 / 分界线的悬停提示使用**中性色**，禁用 accent 蓝色（避免与选中 / 焦点语义混淆）：
+
+| Token | Light | Dark | Source |
+|-------|-------|------|--------|
+| `--text-secondary`（提示色首选） | `#767676` | `#9a9a9a` | `themes.css` |
+
+- 终端底色亮 `#f8f8f8` / 暗 `#0c0c0c` 下均清晰可见；需更强对比时可升级为 `--text-primary`，不得引入彩色。
+- 明度变化只走中性灰阶（白 → 灰 → 黑方向）。
+- 适用：`.adl-terminal-divider`、`.adl-tool-navigator__resize-handle`、`.adl-rightpanel__resize-handle`、`.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`、`.adl-settings-nav__resize-handle`、`.adl-cm-diff-viewer .adl-cm-diff-resizer`。
+- 规则真源见 [.agents/rules/hint-color-usage.md](../../../.agents/rules/hint-color-usage.md)（同步到 `.opencode/rules/`、`.trae/rules/`）。
+
 ## Focus
 
 - `--focus-ring-width` (3 px, boosted to 4 px under `prefers-contrast: more`)
