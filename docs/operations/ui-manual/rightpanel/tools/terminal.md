@@ -148,8 +148,11 @@ await source.dragTo(target);
 |------|------|
 | 键盘输入 | 直接输入到 xterm.js，自动发送到 PTY stdin |
 | 回车 | 发送 `\r` 到 PTY |
-| 粘贴 | 剪贴板内容发送到 PTY stdin |
-| Ctrl+C | 由 PTY 进程处理（终止进程或取消） |
+| 粘贴（Ctrl+V / Shift+Insert） | 剪贴板内容发送到 PTY stdin（经浏览器原生 paste 事件，无权限弹窗） |
+| Ctrl+C（有选区） | 复制选区到剪贴板（不向 PTY 发中断信号） |
+| Ctrl+C（无选区） | 由 PTY 进程处理（终止进程或取消） |
+| Ctrl+Shift+C | 一律视为复制（无选区时吞掉，避免误中断） |
+| 只读历史区 Ctrl+C | 有选区时复制（只读区不可粘贴） |
 
 ---
 

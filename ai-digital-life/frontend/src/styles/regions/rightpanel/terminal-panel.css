@@ -86,8 +86,10 @@
   height: 100%;
   /* 右侧 padding 为 0：host 右侧不内缩，自绘滚动条贴住区域右边缘（事项 5）。
      左/上/下取 space-2（8px）：事项 1 要求文本与边缘保持间距，4px 仍显局促；
-     边距须与 hostEl 内缩同值（改一边必须改另一边），host 见 TerminalHistoryView.tsx。 */
-  padding: var(--space-2) 0 var(--space-2) var(--space-2);
+     边距须与 hostEl 内缩同值（改一边必须改另一边），host 见 TerminalHistoryView.tsx。
+     历史视图无 .xterm-screen/canvas 背景规则是有意的：底色由 xterm theme 兜底
+     （与 --bg-terminal 同值），与实时侧视觉一致。 */
+  padding: var(--space-2, 8px) 0 var(--space-2, 8px) var(--space-2, 8px);
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -186,7 +188,7 @@
   /* 右侧 padding 为 0：host 右侧不内缩，自绘滚动条贴住区域右边缘（事项 5）。
      左/上/下取 space-2（8px）：事项 1 要求文本与边缘保持间距，4px 仍显局促；
      边距须与 hostEl 内缩同值（改一边必须改另一边），host 见 terminalXtermPool.ts。 */
-  padding: var(--space-2) 0 var(--space-2) var(--space-2);
+  padding: var(--space-2, 8px) 0 var(--space-2, 8px) var(--space-2, 8px);
   box-sizing: border-box;
 }
 
@@ -302,11 +304,11 @@
 .adl-terminal-error-note {
   display: flex;
   align-items: center;
-  gap: var(--space-1-5);
-  padding: var(--space-1-5) var(--space-3);
+  gap: var(--space-1-5, 6px);
+  padding: var(--space-1-5, 6px) var(--space-3, 12px);
   background: var(--bg-warning, #2d1f00);
   color: var(--text-warning, #ffa726);
-  font-size: var(--text-xs);
+  font-size: var(--text-xs, 12px);
   border-top: 1px solid var(--border-warning, #5a3e00);
   /* 作为主内容区的 flex 子项排在最后；双列视图下贴底覆盖在实时终端上 */
   order: 3;
@@ -326,5 +328,6 @@
 }
 
 /* 已清理（2026-09-13）：`.adl-tool-sidebar` 及 legacy "Terminal" 段
-  （`.adl-terminal-runner` / `.adl-terminal-output` / `.adl-select`）经全仓库扫描
-   确认零引用（`__actions` / `__list` / `__search` / `--sm` 变体为他文件独立类），整段删除 */
+  （`.adl-terminal-runner` / `.adl-terminal-output` / `.adl-select`）经代码区扫描
+   确认零挂载引用（`__actions` / `__list` / `__search` / `--sm` 变体为他文件独立类；docs 进度记录提及除外），整段删除。
+   复证检索式（仅命中本注释即干净）：git grep -nE "adl-terminal-(runner|output)([^A-Za-z0-9_-]|$)|adl-tool-sidebar([^A-Za-z0-9_-]|$)|adl-select([^A-Za-z0-9_-]|$)" -- . ":(exclude)docs" */

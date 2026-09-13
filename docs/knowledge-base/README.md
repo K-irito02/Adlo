@@ -256,6 +256,7 @@
 | 文件 | 来源 | 说明 |
 |------|------|------|
 | [terminal-shell-menu-hover-lessons-2026-09-13.md](./interaction/2026-09/terminal-shell-menu-hover-lessons-2026-09-13.md) | 2026-09-13 终端复合按钮悬停菜单 + closing-workflow 复审 | 2 条经验：子菜单卸载不触发 mouseleave（悬停位须在关闭动作处同步清理）；去抖写污染水合测试读数（播种前先放干悬置 flush，单例守卫用 resetModules 隔离） |
+| [terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md](./interaction/2026-09/terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md) | 2026-09-13 终端面板 7 事项修复 + 收尾复审 | 3 条经验：xterm v6 自绘滚动条覆盖法（`!important` width/left、不碰 top/height transition、border-radius 瞬切）+ 升级回归点；原生事件复制粘贴（return false 放行，禁用 readText，Shift 优先与 event.code 兜底）；flex 拖拽裁剪（min-*:0 + 1px 按比例分摊） |
 
 ### CI monitoring
 

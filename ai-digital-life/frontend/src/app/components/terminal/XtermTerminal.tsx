@@ -69,11 +69,14 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       const customKeyHandler = (event: KeyboardEvent): boolean => {
         const mod = event.ctrlKey || event.metaKey;
         const lowerKey = (event.key ?? '').toLowerCase();
-        const isPasteKey = (event.shiftKey && event.key === 'Insert') || (mod && lowerKey === 'v');
+        // 非拉丁键盘布局下 event.key 不是 c/v（如俄语 с/м），补 event.code 物理键判定
+        const isC = lowerKey === 'c' || event.code === 'KeyC';
+        const isV = lowerKey === 'v' || event.code === 'KeyV';
+        const isPasteKey = (event.shiftKey && event.key === 'Insert') || (mod && isV);
         if (isPasteKey) {
           return false;
         }
-        const isCopyKey = (mod && lowerKey === 'c') || (mod && event.key === 'Insert');
+        const isCopyKey = (mod && isC) || (mod && event.key === 'Insert');
         if (isCopyKey) {
           if (event.shiftKey) {
             return false;

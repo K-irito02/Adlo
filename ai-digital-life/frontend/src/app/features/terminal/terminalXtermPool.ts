@@ -28,7 +28,11 @@ export class TerminalXtermPool {
     if (existing) {
       if (existing.hostEl.parentElement !== container) {
         container.appendChild(existing.hostEl);
-        existing.fitAddon.fit();
+        try {
+          existing.fitAddon.fit();
+        } catch {
+          // 容器尚未布局（隐藏/零尺寸），消费侧 XtermTerminal 的 ResizeObserver 会重 fit
+        }
       }
       return existing;
     }

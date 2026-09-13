@@ -143,14 +143,18 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
     // 经 attachCustomKeyEventHandler 返回 false 放行原生 copy 事件（无权限弹窗）；
     // 只读区无粘贴，粘贴键同样返回 false——不污染 buffer 依赖的是 disableStdin 门控
     //（triggerDataEvent 直接返回）+ textarea 只读，而非本返回值（false 恰为放行原生事件）。
+    // Shift+Insert 一律归入粘贴（不论 Ctrl 是否按下），与实时终端一致，勿当 bug 改回复制。
     terminal.attachCustomKeyEventHandler((event: KeyboardEvent): boolean => {
       const mod = event.ctrlKey || event.metaKey;
       const lowerKey = (event.key ?? '').toLowerCase();
-      const isPasteKey = (event.shiftKey && event.key === 'Insert') || (mod && lowerKey === 'v');
+      // 非拉丁键盘布局下 event.key 不是 c/v，补 event.code 物理键判定（与实时终端一致）
+      const isC = lowerKey === 'c' || event.code === 'KeyC';
+      const isV = lowerKey === 'v' || event.code === 'KeyV';
+      const isPasteKey = (event.shiftKey && event.key === 'Insert') || (mod && isV);
       if (isPasteKey) {
         return false;
       }
-      const isCopyKey = (mod && lowerKey === 'c') || (mod && event.key === 'Insert');
+      const isCopyKey = (mod && isC) || (mod && event.key === 'Insert');
       if (isCopyKey) {
         if (event.shiftKey) {
           return false;
