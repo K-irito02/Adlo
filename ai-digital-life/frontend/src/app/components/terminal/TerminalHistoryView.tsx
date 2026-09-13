@@ -49,7 +49,14 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
     }
 
     const hostEl = document.createElement('div');
-    hostEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+    // 内缩一个间距：在外层 canvas 的 padding 盒内准确定位到 content 盒，
+    // 使内容与区域边缘保持 var(--space-2) 间距（绝对定位的 100% 宽高
+    // 相对的是 padding 盒，会盖住外层 padding，top/left 置 0 即贴边根因）。
+    // 右侧不内缩：xterm 自绘滚动条需贴住区域右边缘（事项 5），文本最右列止于
+    // 滚动条 14px 保留区，不会触及区域边缘。各边距须与容器 padding 同值，容器见
+    // terminal-panel.css `.adl-terminal-history__canvas`（改一边必须改另一边）。
+    hostEl.style.cssText =
+      'position:absolute;top:var(--space-2, 8px);left:var(--space-2, 8px);right:0;bottom:var(--space-2, 8px);overflow:hidden;';
     container.appendChild(hostEl);
 
     const theme = readHistoryTheme();
@@ -131,6 +138,27 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
         console.error('Terminal history replay failed:', err);
       }
     })();
+
+    // 键盘复制：只读历史是独立 xterm 实例（disableStdin），与实时终端同理，
+    // 经 attachCustomKeyEventHandler 返回 false 放行原生 copy 事件（无权限弹窗）；
+    // 只读区无粘贴，粘贴键同样返回 false——不污染 buffer 依赖的是 disableStdin 门控
+    //（triggerDataEvent 直接返回）+ textarea 只读，而非本返回值（false 恰为放行原生事件）。
+    terminal.attachCustomKeyEventHandler((event: KeyboardEvent): boolean => {
+      const mod = event.ctrlKey || event.metaKey;
+      const lowerKey = (event.key ?? '').toLowerCase();
+      const isPasteKey = (event.shiftKey && event.key === 'Insert') || (mod && lowerKey === 'v');
+      if (isPasteKey) {
+        return false;
+      }
+      const isCopyKey = (mod && lowerKey === 'c') || (mod && event.key === 'Insert');
+      if (isCopyKey) {
+        if (event.shiftKey) {
+          return false;
+        }
+        return !terminal.hasSelection();
+      }
+      return true;
+    });
 
     const observer = new ResizeObserver(() => {
       try {

@@ -34,7 +34,12 @@ export class TerminalXtermPool {
     }
 
     const hostEl = document.createElement('div');
-    hostEl.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;';
+    // 内缩一个间距：与只读历史视图同理，绝对定位子元素相对 padding 盒布局，
+    // 必须显式内缩才能让终端内容与区域边缘保持 var(--space-2) 间距。
+    // 右侧不内缩：xterm 自绘滚动条需贴住区域右边缘（事项 5）。各边距须与容器
+    // padding 同值，容器见 terminal-panel.css `.adl-terminal-canvas`（改一边必须改另一边）。
+    hostEl.style.cssText =
+      'position:absolute;top:var(--space-2, 8px);left:var(--space-2, 8px);right:0;bottom:var(--space-2, 8px);overflow:hidden;';
 
     const terminal = new Terminal({
       cursorBlink: true,
