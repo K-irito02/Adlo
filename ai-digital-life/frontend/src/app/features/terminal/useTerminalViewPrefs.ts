@@ -100,8 +100,11 @@ export function useTerminalViewPrefs({ containerRef }: UseTerminalViewPrefsParam
       const handleUp = () => {
         detach();
         // 提交到状态：与拖拽期间写的 CSS 变量同值，因此不会跳变。
+        // 值未变化（纯点击、无拖动）时不提交，避免一次冗余 re-render与落盘。
         // 卸载路径只会调 detach，不会在卸载后 setState。
-        setHistoryRatio(latestRatio);
+        if (latestRatio !== prefsRef.current.historyRatio) {
+          setHistoryRatio(latestRatio);
+        }
       };
 
       detachDragRef.current = detach;

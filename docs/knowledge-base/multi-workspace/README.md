@@ -13,5 +13,6 @@ Lessons and fixes related to multi-workspace terminal, panel, and UI alignment f
 - [interactive-terminal.md](./interactive-terminal.md) — Interactive terminal implementation
 - [stats-fix.md](./stats-fix.md) — Stats display fix
 - [terminal-binding.md](./terminal-binding.md) — Terminal binding implementation
+- [terminal-history-live-separation-2026-09-13.md](./terminal-history-live-separation-2026-09-13.md) — Terminal history/live separation: ConPTY-xterm coordinate misalignment root cause, SerializeAddon semantics, xterm pitfalls, lifecycle guards
 - [terminal-profile.md](./terminal-profile.md) — Terminal profile implementation
 - [tree-layout-alignment.md](./tree-layout-alignment.md) — Tree layout alignment fix

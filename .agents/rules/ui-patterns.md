@@ -833,3 +833,22 @@ const handleOutside = (e) => {
 ### 文档
 - CSS 变量 `--space-px: 1px`（`tokens.css:15`）
 - 详细分析：[knowledge-base/interaction/](../../docs/knowledge-base/interaction/)
+
+---
+
+## 25. 分栏拖拽分界线（Split Divider Drag）
+
+### 场景
+面板内两个区域（如终端「只读历史 / 实时终端」、导航器与内容区）之间需要用户可拖拽调整占比的 1px 分界线。
+
+### 实现（新实例必须复用此模式，不得另起炉灶）
+- 参考实现：`features/terminal/useTerminalViewPrefs.ts`（终端，含卸载兜底）、`hooks/useNavigatorResize.ts`（导航器，**缺卸载兜底**，勿照抄该缺口）
+- 分界线元素：`role="separator"` + `aria-orientation` + `aria-valuemin/max/now` + i18n `aria-label`；视觉 1px，命中区 `::before` 向两侧各外扩 ≥4px
+- 拖拽协议：`setPointerCapture` + `pointermove` 内 rAF 节流 + **拖拽期间只写 CSS 变量（不逐帧 setState）** + `pointerup` 提交状态并持久化（值未变化时不提交，避免纯点击产生冗余渲染/落盘）
+- **卸载兜底必须有**：`detach` 收尾函数存入 ref，卸载 effect 统一回收 pointer 监听 / rAF / body 上的 resizing 类
+- 比例换算抽成纯函数并配单测：像素下限换算成比例后与固定上下限双向钳制；极短面板（两像素下限矛盾）取包络区间兜底（先 `min` 后 `max`）
+- 区域换位用 flex `order`（DOM 顺序不变，避免重挂载有状态子树如 xterm）
+
+### 文档
+- 终端实例交互说明：[ui-manual/rightpanel/tools/terminal.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/operations/ui-manual/rightpanel/tools/terminal.md)「分界线拖拽」
+- 经验记录：[terminal-history-live-separation-2026-09-13.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/multi-workspace/terminal-history-live-separation-2026-09-13.md)

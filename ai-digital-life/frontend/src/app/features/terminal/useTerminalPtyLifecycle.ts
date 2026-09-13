@@ -226,7 +226,11 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 双保险：activateTab 已用 activatingRef 汇流并发激活，这里再拦一次
       // 「该标签已有存活 PTY」的调用（attachSession 也可能被 handleCreateTab 等路径直接调用）。
       const existingTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
-      if (existingTab?.sessionId && liveSessionIdsRef.current.has(existingTab.sessionId)) {
+      if (!existingTab) {
+        // 标签已被关闭（关闭 × 激活并发的竞态）：不再为其创建 PTY
+        return;
+      }
+      if (existingTab.sessionId && liveSessionIdsRef.current.has(existingTab.sessionId)) {
         return;
       }
 
@@ -288,6 +292,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         }
 
         const sessionId = result.data.sessionId;
+        // PTY 创建期间标签可能已被关闭：此时这个 PTY 已成孤儿，立即回收，
+        // 不写入任何 ref / store（否则会残留一个占用 shell 进程的会话）。
+        if (!useAppStore.getState().terminalTabs.some((t) => t.id === tabId)) {
+          void window.digitalLife.pty.kill(sessionId);
+          return;
+        }
         createdSessionIdsRef.current.add(sessionId);
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
@@ -496,12 +506,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         ptyDimsRef.current.delete(tab.sessionId);
         createdSessionIdsRef.current.delete(tab.sessionId);
         oscCarryRef.current.delete(tab.sessionId);
-        pendingInputRef.current.delete(tabId);
-        clearHistoryForTab(tabId);
         terminalOutputStore.delete(tab.sessionId);
-      } else {
-        pendingInputRef.current.delete(tabId);
       }
+      // 历史与待发输入的清理不依赖 sessionId 是否存在（与 handleCloseAllTabs 保持对称），
+      // 避免「有历史却无存活会话」的边界（如 PTY 创建失败前已归档）留下孤儿索引与快照。
+      pendingInputRef.current.delete(tabId);
+      clearHistoryForTab(tabId);
       if (tabCwdRef.current.delete(tabId)) {
         persistTabCwds();
       }

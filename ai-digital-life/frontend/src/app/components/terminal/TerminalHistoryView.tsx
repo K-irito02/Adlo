@@ -69,13 +69,20 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
     }
 
     let cancelled = false;
+    // xterm 在 dispose() 之后不再触发 write 的回调：把挂起的 resolver 收进集合，
+    // 卸载时统一 resolve，避免回放 IIFE 的 await 在组件卸载后永久挂起。
+    const pendingWrites = new Set<() => void>();
     const write = (data: string) =>
       new Promise<void>((resolve) => {
         if (cancelled) {
           resolve();
           return;
         }
-        terminal.write(data, () => resolve());
+        pendingWrites.add(resolve);
+        terminal.write(data, () => {
+          pendingWrites.delete(resolve);
+          resolve();
+        });
       });
 
     void (async () => {
@@ -87,9 +94,8 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
           }
           if (snapshot) {
             // 防御性回列首：正常路径里上段分隔条与首段起点都已把光标放在列 0，
-            // 这里再兜一次，避免快照首行被写到非 0 列造成整段错位。
-            await write('\r');
-            await write(snapshot);
+            // 这里再兜一次，避免快照首行被写到非 0 列造成整段错位（与快照合并为一次写入）。
+            await write(`\r${snapshot}`);
             // 把光标推进到本段内容最末行的下一行，避免下一段覆盖本段。
             // findLastContentRow 返回 null 时（光标下方已无内容）newlinesToAdvance 为 0，
             // 循环最多走两轮即退出——不能再出现「逐行空转」把分隔条顶下去的情况。
@@ -130,6 +136,11 @@ export function TerminalHistoryView({ segments }: TerminalHistoryViewProps) {
     return () => {
       cancelled = true;
       observer.disconnect();
+      // 先解除所有挂起的 write（dispose 后其回调不会再触发）
+      for (const resolve of pendingWrites) {
+        resolve();
+      }
+      pendingWrites.clear();
       terminal.dispose();
       hostEl.remove();
     };

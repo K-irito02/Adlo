@@ -147,6 +147,53 @@ await source.dragTo(target);
 
 ---
 
+## 终端内容区（历史 / 实时）
+
+> 终端画布分为上下（单列）或左右（双列）两区：上方为**只读历史区**（重启前会话的回放，独立滚动，不可输入），下方为**实时终端**（当前 PTY 会话，全功能）。两区之间由 1px 分界线隔开。
+
+### 选择器
+
+| 选择器 | 说明 |
+|--------|------|
+| `.adl-tool-primary__scroll--terminal` | 内容区根容器（flex，方向随视图模式） |
+| `.adl-terminal-history` | 只读历史区容器（独立滚动） |
+| `.adl-terminal-history__canvas` | 历史区只读 xterm 挂载容器 |
+| `.adl-terminal-live` | 实时终端容器 |
+| `.adl-terminal-divider` | 历史/实时分界线（`role="separator"`，可拖拽） |
+| `.adl-terminal-error-note` | Shell 启动失败的错误提示（仅活跃错误状态显示） |
+
+### 视图模式与位置交换
+
+| 控件 | 位置 | 行为 |
+|------|------|------|
+| 单列/双列分段控件 | 工具栏「更多终端操作」左侧 | 单列 = 上下布局；双列 = 左右布局（复用变更面板 `adl-tool-context__diff-view` 样式） |
+| 双三角形按钮（`IconAreaSwap`） | 分段控件右侧 | 实心三角形标记「只读历史区」所在侧（单列=上/双列=左）；点击交换两区位置并交换实心/空心 |
+
+视图模式、是否交换、历史区占比三项均持久化（localStorage `adl-terminal:view-prefs`），重启后保持。
+
+### 分界线拖拽
+
+```javascript
+// 按住分界线拖拽可调整历史区大小（单列调高度、双列调宽度）
+const divider = await page.$('.adl-terminal-divider');
+const box = await divider.boundingBox();
+await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+await page.mouse.down();
+await page.mouse.move(box.x, box.y - 100, { steps: 5 });
+await page.mouse.up();
+```
+
+- 历史区占比钳制：0.12–0.8，且历史 ≥64px、实时 ≥120px（面板极短时取包络区间）
+- 拖拽期间仅写 CSS 变量 `--adl-terminal-history-ratio`，松手才提交并持久化
+
+### 重启恢复行为
+
+1. 应用重启后，恢复的标签其旧 PTY 会话被归档为「只读历史段」（末尾带 `─── HH:MM:SS YYYY-MM-DD ───` 时间分隔条，格式为用户指定、不随语言变化）
+2. 实时终端是全新 Shell，历史**绝不注入**实时缓冲区（ConPTY 坐标系对齐是硬性不变量）
+3. 历史按标签累积（上限 5 段），跨重启保留
+
+---
+
 ## 相关元素
 
 | 元素 | 选择器 | 说明 |
