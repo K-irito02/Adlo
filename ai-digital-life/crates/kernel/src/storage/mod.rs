@@ -9,3 +9,7 @@ pub use locator::{
     locator_path, save_locator, save_locator_to,
 };
 pub use paths::{StorageDefaults, StoragePaths, StorageService};
+
+pub mod whitelist;
+
+pub use whitelist::{category_roots, is_own_dir, owns_file};
