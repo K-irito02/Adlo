@@ -214,3 +214,73 @@ export interface HistoryChunk {
   /** 本块包含的屏幕行，旧 → 新 */
   lines: HistoryRun[][];
 }
+
+export interface HistoryPalette {
+  foreground: string;
+  background: string;
+  /** 16 个基础色：0–7 常规、8–15 亮色 */
+  ansi: string[];
+}
+
+export interface ResolvedRunStyle {
+  color?: string;
+  backgroundColor?: string;
+  fontWeight?: number;
+  fontStyle?: string;
+  textDecoration?: string;
+  opacity?: number;
+}
+
+/** 256 色表：16–231 为 6×6×6 立方，232–255 为灰阶 */
+function palette256(index: number, palette: HistoryPalette): string {
+  if (index < 16) {
+    return palette.ansi[index] ?? palette.foreground;
+  }
+  if (index < 232) {
+    const n = index - 16;
+    const steps = [0, 95, 135, 175, 215, 255];
+    const r = steps[Math.floor(n / 36) % 6];
+    const g = steps[Math.floor(n / 6) % 6];
+    const b = steps[n % 6];
+    return `rgb(${r}, ${g}, ${b})`;
+  }
+  const gray = 8 + (index - 232) * 10;
+  return `rgb(${gray}, ${gray}, ${gray})`;
+}
+
+function toColor(value: number | string | undefined, palette: HistoryPalette, fallback: string): string {
+  if (value === undefined) {
+    return fallback;
+  }
+  return typeof value === 'number' ? palette256(value, palette) : value;
+}
+
+/**
+ * 把语义样式解析成当前主题下的具体颜色。
+ * 历史里存的是**语义值**（调色板下标 / 直接色），所以切换主题时历史会跟着正确重着色
+ * —— 与实时终端共用同一套主题 token 的口径一致。
+ */
+export function resolveRunStyle(run: HistoryRun, palette: HistoryPalette): ResolvedRunStyle {
+  const fg = toColor(run.fg, palette, palette.foreground);
+  const bg = run.bg === undefined ? undefined : toColor(run.bg, palette, palette.background);
+
+  const style: ResolvedRunStyle = run.inverse
+    ? { color: bg ?? palette.background, backgroundColor: fg }
+    : { color: fg };
+  if (!run.inverse && bg !== undefined) {
+    style.backgroundColor = bg;
+  }
+  if (run.bold) {
+    style.fontWeight = 700;
+  }
+  if (run.italic) {
+    style.fontStyle = 'italic';
+  }
+  if (run.underline) {
+    style.textDecoration = 'underline';
+  }
+  if (run.dim) {
+    style.opacity = 0.6;
+  }
+  return style;
+}
