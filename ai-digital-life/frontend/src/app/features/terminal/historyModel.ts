@@ -98,3 +98,109 @@ export function wrapLines(lines: HistoryRun[][], cols: number): HistoryRun[][] {
   }
   return out;
 }
+
+export interface ExtractCell {
+  getChars(): string;
+  getWidth(): number;
+  isFgDefault(): boolean;
+  getFgColor(): number | string;
+  isBgDefault(): boolean;
+  getBgColor(): number | string;
+  isBold(): boolean;
+  isItalic(): boolean;
+  isUnderline(): boolean;
+  isDim(): boolean;
+  isInverse(): boolean;
+}
+
+export interface ExtractLine {
+  getCell(x: number): ExtractCell | undefined;
+}
+
+export interface ExtractSource {
+  activeType: 'normal' | 'alternate';
+  length: number;
+  getLine(y: number): ExtractLine | undefined;
+}
+
+function styleOf(cell: ExtractCell): Omit<HistoryRun, 'text'> {
+  const style: Omit<HistoryRun, 'text'> = {};
+  if (!cell.isFgDefault()) {
+    style.fg = cell.getFgColor();
+  }
+  if (!cell.isBgDefault()) {
+    style.bg = cell.getBgColor();
+  }
+  if (cell.isBold()) {
+    style.bold = true;
+  }
+  if (cell.isItalic()) {
+    style.italic = true;
+  }
+  if (cell.isUnderline()) {
+    style.underline = true;
+  }
+  if (cell.isDim()) {
+    style.dim = true;
+  }
+  if (cell.isInverse()) {
+    style.inverse = true;
+  }
+  return style;
+}
+
+/** 行尾右裁：从末尾去掉「空白且无背景色」的 run，但保留带背景色的单元格 */
+function trimTrailingBlank(runs: HistoryRun[]): HistoryRun[] {
+  const kept = runs.slice();
+  while (kept.length > 0) {
+    const last = kept[kept.length - 1];
+    if (last.bg === undefined) {
+      const trimmed = last.text.replace(/ +$/, '');
+      if (trimmed === '') {
+        kept.pop();
+        continue;
+      }
+      if (trimmed !== last.text) {
+        kept[kept.length - 1] = { ...last, text: trimmed };
+      }
+    }
+    break;
+  }
+  return kept;
+}
+
+/**
+ * 提取 `[fromRow, toRow)` 的行模型。
+ *
+ * - 备用缓冲区（vim/less）不进入历史：改读 `normal`，延续既有结论。
+ * - 返回数组与请求区间一一对应，**空行保留为空数组**，行数信息不能丢。
+ */
+export function extractLines(
+  buffer: { active: ExtractSource; normal: ExtractSource },
+  fromRow: number,
+  toRow: number,
+): HistoryRun[][] {
+  const source = buffer.active.activeType === 'alternate' ? buffer.normal : buffer.active;
+  const out: HistoryRun[][] = [];
+  for (let y = Math.max(0, fromRow); y < Math.min(toRow, source.length); y += 1) {
+    const line = source.getLine(y);
+    const runs: HistoryRun[] = [];
+    if (line) {
+      for (let x = 0; ; x += 1) {
+        const cell = line.getCell(x);
+        if (!cell) {
+          break;
+        }
+        const style = styleOf(cell);
+        const last = runs[runs.length - 1];
+        if (last && sameStyle(last, style as HistoryRun)) {
+          last.text += cell.getChars();
+        } else {
+          runs.push({ ...style, text: cell.getChars() });
+        }
+      }
+    }
+    out.push(trimTrailingBlank(runs));
+  }
+  return out;
+}
