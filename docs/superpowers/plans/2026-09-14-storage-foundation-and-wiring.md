@@ -1071,7 +1071,7 @@ git commit -m "refactor(storage): unify log dir resolution via StoragePaths"
 **Interfaces:**
 - Consumes: `adl_kernel::storage::{StorageService, StorageDefaults, StoragePaths, load_locator, resolve_log_dir}`
 - Produces:
-  - `AppState { pub storage: std::sync::Arc<adl_kernel::storage::StorageService>, ... }`（替代语义上的 `data_dir`；保留 `data_dir: PathBuf` = `storage.paths().root` 以最小化调用点改动）
+  - `AppState { pub storage: std::sync::Arc<adl_kernel::storage::StorageService>, pub storage_defaults: adl_kernel::storage::StorageDefaults, ... }`（保留 `data_dir: PathBuf` = `storage.paths().root` 以最小化调用点改动；`storage_defaults` 供 Plan C 的预检命令复用同一默认基准）
   - `ServerState { pub storage: std::sync::Arc<adl_kernel::storage::StorageService>, pub data_dir: PathBuf, ... }`
   - `pub fn resolve_defaults(app: &tauri::App) -> anyhow::Result<adl_kernel::storage::StorageDefaults>`
 
@@ -1167,12 +1167,13 @@ pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
 }
 ```
 
-把 `init_app_state` 签名改为接收 `storage: Arc<adl_kernel::storage::StorageService>`：
+把 `init_app_state` 签名改为接收 `storage` 与 `defaults`：
 
 ```rust
 pub fn init_app_state(
     data_dir: PathBuf,
     storage: Arc<adl_kernel::storage::StorageService>,
+    defaults: adl_kernel::storage::StorageDefaults,
 ) -> anyhow::Result<AppState> {
 ```
 
@@ -1189,13 +1190,15 @@ pub fn init_app_state(
     let download_db_path = storage.paths().downloads_db.clone();
 ```
 
-并在 `AppState { ... }` 字面量中新增 `storage: storage.clone(),`。
+并在 `AppState { ... }` 字面量中新增 `storage: storage.clone(), storage_defaults: defaults,`。
 
 `AppState`（`state.rs`）新增字段：
 
 ```rust
     /// 解析后的存储路径（唯一真源：`storage-locator.json`）。
     pub storage: Arc<adl_kernel::storage::StorageService>,
+    /// 构造 `storage` 时使用的默认基准（供 Plan C 预检命令复用）。
+    pub storage_defaults: adl_kernel::storage::StorageDefaults,
 ```
 
 `main.rs:58-60` 改为：
@@ -1208,7 +1211,8 @@ pub fn init_app_state(
                 &locator, &defaults,
             ));
             let data_dir = storage.paths().root.clone();
-            let app_state = setup::init_app_state(data_dir.clone(), storage.clone())?;
+            let app_state =
+                setup::init_app_state(data_dir.clone(), storage.clone(), defaults.clone())?;
 ```
 
 （`main.rs` 需 `use std::sync::Arc;`。）
