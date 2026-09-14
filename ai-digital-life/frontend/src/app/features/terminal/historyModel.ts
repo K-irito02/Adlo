@@ -222,7 +222,7 @@ export interface HistoryPalette {
   ansi: string[];
 }
 
-export type ResolvedRunStyle = {
+export interface ResolvedRunStyle {
   color?: string;
   backgroundColor?: string;
   fontWeight?: number;
@@ -230,7 +230,7 @@ export type ResolvedRunStyle = {
   fontStyle?: 'italic';
   textDecoration?: 'underline';
   opacity?: number;
-};
+}
 
 /** 256 色表：16–231 为 6×6×6 立方，232–255 为灰阶 */
 function palette256(index: number, palette: HistoryPalette): string {
@@ -249,7 +249,11 @@ function palette256(index: number, palette: HistoryPalette): string {
   return `rgb(${gray}, ${gray}, ${gray})`;
 }
 
-function toColor(value: number | string | undefined, palette: HistoryPalette, fallback: string): string {
+function toColor(
+  value: number | string | undefined,
+  palette: HistoryPalette,
+  fallback: string,
+): string {
   if (value === undefined) {
     return fallback;
   }

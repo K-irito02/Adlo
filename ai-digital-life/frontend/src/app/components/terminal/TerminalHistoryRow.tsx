@@ -16,7 +16,9 @@ export const TerminalHistoryRow = memo(function TerminalHistoryRow({
   return (
     <div className="adl-terminal-history-row">
       {runs.map((run, i) => (
-        <span key={i} style={resolveRunStyle(run, palette)}>
+        /* 展开成新的对象字面量：radix 的 CSSProperties 带模板字面量索引签名，
+           interface 拿不到隐式索引签名，只有新字面量才能赋值给 style */
+        <span key={i} style={{ ...resolveRunStyle(run, palette) }}>
           {run.text}
         </span>
       ))}
