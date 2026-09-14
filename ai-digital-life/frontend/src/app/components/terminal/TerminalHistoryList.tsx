@@ -74,6 +74,11 @@ export function TerminalHistoryList({
     () =>
       buildLayout(
         segments,
+        // wrappedLinesOf：未加载的块回退到 meta.lines（采集时刻的屏幕行数），
+        // 加载完成后再用真实内容折行得到的行数覆盖它。二者在
+        // 「当前面板列数 ≠ 采集时列数」时可以不同，所以「加载一个块」可能改变
+        // layout.length。这种高度纠正是 Finding 3 的锚定逻辑负责吸收的 —— 块加载
+        // 时视图不跳到底部、滚动位置保持，于是行数变化对用户无感。
         (sessionId, seq) => {
           const loaded = chunks.get(chunkKey(sessionId, seq));
           if (loaded) {
@@ -108,6 +113,17 @@ export function TerminalHistoryList({
     return owners;
   }, [segments, chunks]);
 
+  // 段级稳定键：只有「段集合本身」变化（首屏挂载 / 历史被删 / 追加新段）才会改变。
+  // 单个块加载完成、或 resize 后重新折行，都不会改变这个键 —— 那些情况应保持
+  // 当前滚动位置，不应跳到底部（见 §6.3 的「锚定」要求）。
+  const segmentKey = useMemo(
+    () =>
+      segments
+        .map((s) => `${s.sessionId}|${s.chunks.map((_c, seq) => chunkKey(s.sessionId, seq)).join(',')}`)
+        .join(';'),
+    [segments],
+  );
+
   // 块级懒加载：视口内的块才 load → parse → 按 cols 折行
   useEffect(() => {
     let cancelled = false;
@@ -125,14 +141,20 @@ export function TerminalHistoryList({
           continue;
         }
         const raw = await terminalOutputStore.load(key);
-        if (cancelled || raw === null) {
+        if (cancelled) {
           continue;
         }
         let lines: HistoryRun[][];
-        try {
-          lines = wrapLines((JSON.parse(raw) as HistoryChunk).lines, cols);
-        } catch {
+        if (raw === null) {
+          // 内容确实缺失（非解析失败）：渲染「不可用」占位行，而非留空行。
+          // 与解析失败走同一个占位形态，文案由 unavailableLabel 注入，不硬编码。
           lines = [[{ text: unavailableLabel }]];
+        } else {
+          try {
+            lines = wrapLines((JSON.parse(raw) as HistoryChunk).lines, cols);
+          } catch {
+            lines = [[{ text: unavailableLabel }]];
+          }
         }
         setChunks((prev) => new Map(prev).set(key, lines));
       }
@@ -142,13 +164,28 @@ export function TerminalHistoryList({
     };
   }, [firstVisible, lastVisible, layout, ownerOf, cols, chunks, unavailableLabel]);
 
-  // 初始定位到最底部（与旧 scrollToBottom 行为一致）
+  // 定位到底部 —— 区分「段集合变化」与「块加载 / resize」两种 layout 变化来源：
+  //  - segmentChanged：首屏 / 追加 / 删除 → 落到最新内容；
+  //  - firstMeasurement：实测高度首次落定（rowHeight 从 fallback 变为真实值）→ Finding 1
+  //    纠正上一帧用 fallback 高度算出的 stale scrollTop，避免在列表中部打开历史；
+  //  - 之后 resize 再次改变 rowHeight、或某个块加载完成导致 layout.length 变化 → 均不跳
+  //    （保持视图位置，避免把用户从中间「拽」到底部，§6.3 锚定要求）。
+  const prevSegmentKey = useRef<string | null>(null);
+  const prevRowHeight = useRef<number>(FALLBACK_ROW_HEIGHT);
   useEffect(() => {
     const el = scrollRef.current;
-    if (el && layout.length > 0) {
+    if (!el || layout.length === 0) {
+      return;
+    }
+    const segmentChanged = prevSegmentKey.current !== segmentKey;
+    const firstMeasurement =
+      prevRowHeight.current === FALLBACK_ROW_HEIGHT && rowHeight !== FALLBACK_ROW_HEIGHT;
+    if (segmentChanged || firstMeasurement) {
       el.scrollTop = el.scrollHeight;
     }
-  }, [layout.length]);
+    prevSegmentKey.current = segmentKey;
+    prevRowHeight.current = rowHeight;
+  }, [segmentKey, rowHeight, layout.length, viewportHeight]);
 
   return (
     <div
