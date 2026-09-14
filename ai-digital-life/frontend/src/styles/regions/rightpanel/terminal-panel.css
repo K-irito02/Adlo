@@ -360,3 +360,33 @@
   flex: 0 0 auto;
   white-space: nowrap;
 }
+
+/* 只读历史虚拟列表：只挂载视口附近行，整段高度由 spacer 撑开。
+   list 绝对定位填满历史区（保留 space-2 内缩，与实时侧 host 同值），
+   自身 overflow-y:auto 负责滚动；行由 __row 绝对定位、top 用整数行偏移。 */
+.adl-terminal-history-list {
+  position: absolute;
+  top: var(--space-2, 8px);
+  left: var(--space-2, 8px);
+  right: 0;
+  bottom: var(--space-2, 8px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.adl-terminal-history-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.adl-terminal-history-list__spacer {
+  position: relative;
+  width: 100%;
+}
+
+.adl-terminal-history-list__row {
+  position: absolute;
+  left: 0;
+  right: 0;
+}

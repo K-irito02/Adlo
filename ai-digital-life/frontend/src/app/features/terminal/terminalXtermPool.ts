@@ -2,6 +2,11 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { TERMINAL_CAPTURE_SCROLLBACK_LINES } from './terminalHistoryCollector';
+import { type HistoryPalette } from './historyModel';
+
+/** cell 度量兜底：无实时终端实例可读时（历史区独立存在）用固定默认值 */
+const FALLBACK_CELL_WIDTH = 8;
+const FALLBACK_CELL_HEIGHT = 17;
 
 export interface PooledXterm {
   terminal: Terminal;
@@ -127,3 +132,73 @@ export function readTerminalTheme() {
 
 /** Singleton pool instance */
 export const terminalXtermPool = new TerminalXtermPool();
+
+/**
+ * 标准 xterm 16 色兜底：历史区与实时终端共用同一套调色板，
+ * 这里只在主题未给出 fg/bg 时退到纯黑底白字 —— ANSI 本身走标准值，
+ * 跟着 CSS 变量读出的 fg/bg 一起让历史在切主题时正确重着色。
+ */
+const ANSI_DEFAULTS = [
+  '#000000',
+  '#cd0000',
+  '#00cd00',
+  '#cdcd00',
+  '#0000ee',
+  '#cd00cd',
+  '#00cdcd',
+  '#e5e5e5',
+  '#7f7f7f',
+  '#ff0000',
+  '#00ff00',
+  '#ffff00',
+  '#5c5cff',
+  '#ff00ff',
+  '#00ffff',
+  '#ffffff',
+];
+
+let cachedHistoryPalette: HistoryPalette | null = null;
+let cachedHistoryPaletteSig = '';
+
+/**
+ * 从实时终端主题读取配色 → 历史与实时共用同一套调色板。
+ * 用模块级缓存保证「同一主题下返回同一个对象引用」，这样下游
+ * `TerminalHistoryRow`（React.memo）收到的 `palette` 在普通重渲染中保持稳定、
+ * memo 真正生效；仅当主题 fg/bg 变化时返回新对象触发重着色。
+ */
+export function readTerminalPalette(): HistoryPalette {
+  const theme = readTerminalTheme();
+  const foreground = theme.foreground || '#ffffff';
+  const background = theme.background || '#000000';
+  const sig = `${background}|${foreground}`;
+  if (cachedHistoryPalette && cachedHistoryPaletteSig === sig) {
+    return cachedHistoryPalette;
+  }
+  const palette: HistoryPalette = { foreground, background, ansi: ANSI_DEFAULTS };
+  cachedHistoryPalette = palette;
+  cachedHistoryPaletteSig = sig;
+  return palette;
+}
+
+/**
+ * 从实时终端 DOM 实测 cell 宽高：历史行高必须与实时终端完全一致，否则两侧对不齐。
+ * 池没有 `first()` 访问器（不该为这一个度量暴露宽泛入口），这里由调用方带上
+ * 它关心的 sessionId；sessionId 为空或对应实例 / `.xterm-screen` 缺失时退回固定默认值。
+ */
+export function readTerminalCellMetrics(sessionId: string | null): {
+  cellWidth: number;
+  cellHeight: number;
+} {
+  if (sessionId === null) {
+    return { cellWidth: FALLBACK_CELL_WIDTH, cellHeight: FALLBACK_CELL_HEIGHT };
+  }
+  const entry = terminalXtermPool.get(sessionId);
+  const screen = entry?.hostEl.querySelector('.xterm-screen') as HTMLElement | null;
+  if (!screen || !entry) {
+    return { cellWidth: FALLBACK_CELL_WIDTH, cellHeight: FALLBACK_CELL_HEIGHT };
+  }
+  return {
+    cellWidth: screen.offsetWidth / Math.max(1, entry.terminal.cols),
+    cellHeight: screen.offsetHeight / Math.max(1, entry.terminal.rows),
+  };
+}

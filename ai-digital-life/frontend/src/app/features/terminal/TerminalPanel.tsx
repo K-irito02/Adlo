@@ -15,7 +15,8 @@ import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { asWorkspaceID } from '@shared/branded';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
-import { TerminalHistoryView } from '@components/terminal/TerminalHistoryView';
+import { TerminalHistoryList } from '@components/terminal/TerminalHistoryList';
+import { readTerminalPalette, readTerminalCellMetrics } from '@features/terminal/terminalXtermPool';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
 import { HISTORY_RATIO_MAX, HISTORY_RATIO_MIN } from './terminalViewPrefs';
@@ -76,6 +77,13 @@ export function TerminalPanel() {
   const hasHistory = historySegments.length > 0;
   const isDual = viewPrefs.mode === 'dual';
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
+
+  // 绑定当前 session：把 sessionId 缝进度量读取器，并 memo 化避免每个渲染帧都重建
+  // 闭包（否则 TerminalHistoryList 的实测 effect 会随父组件重渲染反复重跑）。
+  const readHistoryCellMetrics = useCallback(
+    () => readTerminalCellMetrics(activeTab?.sessionId ?? null),
+    [activeTab?.sessionId],
+  );
 
   const visibleWorkspaces = useMemo(
     () => recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available),
@@ -358,7 +366,12 @@ export function TerminalPanel() {
               <>
                 {hasHistory ? (
                   <div className="adl-terminal-history">
-                    <TerminalHistoryView segments={historySegments} />
+                    <TerminalHistoryList
+                      segments={historySegments}
+                      palette={readTerminalPalette()}
+                      readCellMetrics={readHistoryCellMetrics}
+                      unavailableLabel={t.terminalHistorySegmentUnavailable}
+                    />
                   </div>
                 ) : null}
                 {hasHistory ? (

@@ -59,4 +59,5 @@ export const terminalZh = {
   terminalViewDual: '双列',
   terminalSwapAreas: '交换历史与实时终端位置',
   terminalDividerLabel: '拖拽调整只读历史区大小',
+  terminalHistorySegmentUnavailable: '历史段不可用',
 } as const;
