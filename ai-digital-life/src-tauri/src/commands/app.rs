@@ -243,6 +243,7 @@ pub fn build_app_info(
             workspace_deferred_ids: config.workspace_deferred_ids.clone(),
             workspace_natural_order: config.workspace_natural_order.clone(),
             browser_inactive_tab_suspend_ms: config.browser_inactive_tab_suspend_ms,
+            terminal_history_budget_bytes: config.terminal_history_budget_bytes,
         },
         current_workspace,
         recent_logs: vec![LogEntrySummary {
@@ -445,6 +446,7 @@ mod workspace_loading_tests {
             workspace_deferred_ids: vec!["b".into()],
             workspace_natural_order: vec!["c".into()],
             browser_inactive_tab_suspend_ms: 3_600_000,
+            terminal_history_budget_bytes: 1 << 30,
         };
         let json = serde_json::to_string(&snap).unwrap();
         assert!(json.contains("\"maxConcurrentWorkspaces\":4"));

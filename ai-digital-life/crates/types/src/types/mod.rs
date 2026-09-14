@@ -125,6 +125,7 @@ mod tests {
                 workspace_deferred_ids: vec![],
                 workspace_natural_order: vec![],
                 browser_inactive_tab_suspend_ms: 3_600_000,
+                terminal_history_budget_bytes: 1 << 30,
             },
             current_workspace: None,
             recent_logs: vec![],
