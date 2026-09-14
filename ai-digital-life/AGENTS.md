@@ -33,6 +33,13 @@
 - **locator 落点覆盖**：`locator_path()` 支持环境变量 `ADL_STORAGE_LOCATOR_PATH`（未设置时回退 `<dirs::config_dir()>/ai-digital-life/storage-locator.json`），供测试/开发把指针落点重定向到临时文件，避免读写真实 `%APPDATA%` locator。
 - **已知限制**：`ADL_STORAGE_LOCATOR_PATH` 只覆盖 locator 文件路径，**不覆盖 `locator_dir()`** —— 由真实配置目录派生的路径（如 `credentials_dir`）仍指向真实位置。它是 dev/test 逃生口，不是数据目录重定向开关。
 
+#### 存储设置组（Plan C）
+
+- 设置面板新增「存储」组：统一根 / 每类独立两种模式；终端历史磁盘预算与浏览器默认下载路径已搬入该组统一管理，行为不变。
+- 双端实现策略：Tauri 经 `storage_*` 命令直写 locator 并可 `app_restart` 立即迁移；浏览器（preview/http + mock 四端 `StorageBridge` 方法集一致，见 `frontend/src/shared/ipc/__tests__/storage-parity.test.ts`）手输路径，`restartApp` 返回 `NOT_SUPPORTED` 并提示下次启动生效。
+- 可配置 10 类（`database`、`downloads_db`、`site_meta_db`、`config`、`clipboard`、`snapshot`、`dsh`、`logs`、`credentials_fallback`、`downloads_default`，顺序与 `StorageCategory::key()` 一致；其中 `downloads_default` 为用户文件落点，固定不可移动）与不可移动 6 项（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）在 UI 中全部列出并附原因说明。
+- 磁盘空间分歧（已接受）：服务端 `freeBytes` 恒为 0（"unknown"）；UI 不渲染空间 verdict，`freeBytes == 0` 即视为未知并跳过空间判定（与壳层 `free_bytes > 0` 门控同约定）。
+
 ## 当前阶段
 
 **Phase 0 底座**：
