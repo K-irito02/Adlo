@@ -33,16 +33,15 @@ async fn main() {
         std::process::exit(1);
     }
 
-    let locator = adl_kernel::storage::load_locator();
-    let storage = adl_server::engine::storage_from_locator(&locator, &data_dir);
-
-    // 迁移必须在任何 DB/日志句柄打开之前完成。
     let defaults = adl_kernel::storage::StorageDefaults {
         root: data_dir.clone(),
         credentials_dir: adl_kernel::storage::locator::locator_dir().join("credentials"),
         downloads_dir: data_dir.clone(),
     };
-    let _ = adl_server::engine::run_startup_migration(&defaults);
+
+    // A11：迁移必须先于任何 DB/日志句柄打开，且先于 storage 构造——迁移会改写 locator
+    // 的根，`build_storage_after_migration` 保证 storage 解析的是迁移后的 locator。
+    let storage = adl_server::engine::build_storage_after_migration(&defaults, &data_dir);
 
     let state = match init_server_state(&data_dir, storage.clone()).await {
         Ok(state) => state,

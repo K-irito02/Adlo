@@ -60,6 +60,38 @@ pub fn run_startup_migration(
     report
 }
 
+/// A11：先迁移、再读 locator、最后构造 `StorageService`。
+///
+/// 顺序不变量（load-bearing）：迁移会改写 locator 的 `selection.root`，因此 storage
+/// **必须**在迁移之后从（新）locator 构造；否则 standalone adl-server 会在本次进程用
+/// 迁移前的旧根打开 DB，导致「数据看似丢失」。为避免触碰真实 `%APPDATA%` locator 的
+/// 单测，本函数把 `migrate` / `load` 作为注入点交给私有 `*_with` 变体。
+pub fn build_storage_after_migration(
+    defaults: &adl_kernel::storage::StorageDefaults,
+    data_dir: &Path,
+) -> std::sync::Arc<adl_kernel::storage::StorageService> {
+    build_storage_after_migration_with(
+        defaults,
+        data_dir,
+        run_startup_migration,
+        adl_kernel::storage::load_locator,
+    )
+}
+
+fn build_storage_after_migration_with(
+    defaults: &adl_kernel::storage::StorageDefaults,
+    data_dir: &Path,
+    migrate: impl FnOnce(
+        &adl_kernel::storage::StorageDefaults,
+    ) -> Option<adl_kernel::storage::MigrationReport>,
+    load: impl FnOnce() -> adl_kernel::storage::StorageLocator,
+) -> std::sync::Arc<adl_kernel::storage::StorageService> {
+    // 顺序不变量：migrate → load → build。切勿交换前两步。
+    let _ = migrate(defaults);
+    let locator = load();
+    storage_from_locator(&locator, data_dir)
+}
+
 pub async fn init_server_state(
     _data_dir: &Path,
     storage: std::sync::Arc<adl_kernel::storage::StorageService>,
@@ -286,5 +318,40 @@ mod startup_migration_tests {
             error: Some("disk full".into()),
         };
         assert!(summarize_migration(&bad).contains("disk full"));
+    }
+
+    /// A11 顺序不变量：migrate → load → build，且 storage 根取自（迁移后的）locator，
+    /// 而非 `data_dir`。用注入点实现，不触碰真实 `%APPDATA%` locator。
+    #[test]
+    fn storage_is_built_from_post_migration_locator_root() {
+        use std::cell::RefCell;
+        use std::path::PathBuf;
+
+        let order: RefCell<Vec<&str>> = RefCell::new(Vec::new());
+        let mut loc = adl_kernel::storage::StorageLocator::default();
+        loc.selection.root = Some(PathBuf::from("/migrated-root"));
+
+        let defaults = adl_kernel::storage::StorageDefaults {
+            root: PathBuf::from("/data-dir"),
+            credentials_dir: PathBuf::from("/creds"),
+            downloads_dir: PathBuf::from("/dl"),
+        };
+
+        let svc = build_storage_after_migration_with(
+            &defaults,
+            std::path::Path::new("/data-dir"),
+            |_d| {
+                order.borrow_mut().push("migrate");
+                None
+            },
+            || {
+                order.borrow_mut().push("load");
+                loc.clone()
+            },
+        );
+
+        assert_eq!(*order.borrow(), vec!["migrate", "load"], "migration must precede locator load");
+        assert_eq!(svc.paths().root, PathBuf::from("/migrated-root"));
+        assert_ne!(svc.paths().root, PathBuf::from("/data-dir"));
     }
 }
