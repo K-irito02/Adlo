@@ -107,6 +107,8 @@ export const settingsEn = {
   storageReportDirsKept: 'Kept {count} old folder(s) (contain external files)',
   storageReportRetained: 'Old files kept as configured',
   storageReportFailed: 'Migration failed: {error}',
+  storageReportSwitched:
+    'Data has already moved to the new location; only old-folder cleanup is incomplete — do not re-run migration.',
   storageImmutableTitle: 'Not movable (managed by the OS or runtime)',
   storageImmutableKeyring:
     'Credentials are kept in the OS credential manager; the location is fixed by the system.',

@@ -133,7 +133,7 @@ fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
         .into_iter()
         .map(|c| {
             let path = svc.paths().dir(c);
-            let (bytes, files) = dir_usage(&path);
+            let (bytes, files) = category_usage(c, &path);
             StorageCategoryStatus {
                 key: c.key().to_string(),
                 path: path.to_string_lossy().to_string(),
@@ -145,6 +145,15 @@ fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
             }
         })
         .collect()
+}
+
+/// 某分类的占用统计。`downloads_default` 只是设置值（用户文件落点，本应用不拥有其中
+/// 任何文件，`owns_file` 恒为 false），直接报 0 而不遍历用户整个 Downloads 目录。
+fn category_usage(category: st::StorageCategory, path: &std::path::Path) -> (u64, u64) {
+    if matches!(category, st::StorageCategory::DownloadsDefault) {
+        return (0, 0);
+    }
+    dir_usage(path)
 }
 
 fn dir_usage(path: &std::path::Path) -> (u64, u64) {
@@ -375,5 +384,22 @@ mod tests {
         let sel = patch_to_selection(&patch).unwrap();
         assert!(sel.root.is_none(), "blank root must be treated as unset");
         assert!(sel.categories.is_empty(), "unknown keys and blank paths are ignored");
+    }
+
+    #[test]
+    fn downloads_default_reports_zero_usage_without_walking() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-shell-storage-usage-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("user-file.bin"), [0u8; 13]).unwrap();
+        // 即使目录内有用户文件也不遍历：设置值路径恒为 0。
+        assert_eq!(
+            category_usage(adl_kernel::storage::StorageCategory::DownloadsDefault, &dir),
+            (0, 0)
+        );
+        // 其它分类仍正常统计，证明只是该分类被短路。
+        assert_eq!(category_usage(adl_kernel::storage::StorageCategory::Config, &dir), (13, 1));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

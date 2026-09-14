@@ -174,6 +174,12 @@ export function StorageSettings() {
           showToast(result.error.message, 'error');
           return;
         }
+        // 后端可能拒绝写入（预检失败时返回 restartRequired:false + failing preflight）：
+        // 此时保持对话框打开并回填预检结果展示 errors/warnings，不 toast、不关闭。
+        if (!result.data.preflight.ok) {
+          setPreflight(result.data.preflight);
+          return;
+        }
         setDialogOpen(false);
         if (applyNow && result.data.restartRequired) {
           const restarted = await bridge.restartApp();
@@ -430,6 +436,9 @@ export function StorageSettings() {
                 {t.storageReportFailed.replace('{error}', status.lastReport.error ?? '')}
               </small>
             )}
+            {!status.lastReport.ok && status.lastReport.switched ? (
+              <small>{t.storageReportSwitched}</small>
+            ) : null}
             {status.lastReport.removedDirs.length > 0 ? (
               <small>
                 {t.storageReportDirsRemoved.replace(

@@ -106,6 +106,7 @@ export const settingsZh = {
   storageReportDirsKept: '保留旧目录 {count} 个（含外部文件）',
   storageReportRetained: '已按设置保留旧数据',
   storageReportFailed: '迁移失败：{error}',
+  storageReportSwitched: '数据已迁移到新位置，仅清理旧目录未完成，无需再次迁移。',
   storageImmutableTitle: '不可移动（由系统或运行时管理）',
   storageImmutableKeyring: '凭据由操作系统凭据管理器安全保管，位置由系统决定，无需也无法自定义。',
   storageImmutableMachineId:

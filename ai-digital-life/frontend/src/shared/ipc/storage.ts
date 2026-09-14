@@ -88,7 +88,6 @@ export interface StoragePreflight {
 export interface StorageApplyResult {
   restartRequired: boolean;
   preflight: StoragePreflight;
-  restarted?: boolean;
 }
 
 /**

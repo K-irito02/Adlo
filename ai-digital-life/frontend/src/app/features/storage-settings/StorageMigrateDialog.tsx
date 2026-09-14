@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatBytes } from '@root/design-system/html';
+import { isTauriShell } from '@shared/env';
 import { IconAlertTriangle } from '../../icons';
 import type { StoragePreflight } from '@shared/ipc/storage';
 
@@ -129,6 +130,7 @@ export function StorageMigrateDialog({
           >
             {t.storageMigrateNow}
           </button>
+          {!isTauriShell() ? <small>{t.storageRestartUnavailableInBrowser}</small> : null}
         </div>
       </div>
     </div>,

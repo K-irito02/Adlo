@@ -48,7 +48,8 @@ function mockCategories(root: string): StorageCategoryStatus[] {
  *
  * 语义与真实后端对齐：`setPaths` 只写入挂起的待迁移项（不改当前 mode/root，
  * 与 locator 的 `pendingMigration` 一致），`cancelPending` 清空；`preflight`
- * 恒返回 ok；`restartApp` 为 no-op（浏览器无重启能力，B5）。
+ * 恒返回 ok；`restartApp` 返回 `NOT_SUPPORTED`（浏览器/mock 无重启能力，B5，
+ * 与 httpBridge 同形）。
  */
 export function createMockStorage(config: MockStorageConfig = {}): StorageBridge {
   let mode: StorageMode = config.mode ?? 'unified';
@@ -92,6 +93,13 @@ export function createMockStorage(config: MockStorageConfig = {}): StorageBridge
       return { ok: true, data: undefined };
     },
 
-    restartApp: async (): Promise<IpcResult<void>> => ({ ok: true, data: undefined }),
+    restartApp: async (): Promise<IpcResult<void>> => ({
+      ok: false,
+      error: {
+        code: 'NOT_SUPPORTED',
+        message:
+          '[mock-storage] storage.restartApp is not supported in mock/browser mode; the change applies on next launch.',
+      },
+    }),
   };
 }

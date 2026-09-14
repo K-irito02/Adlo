@@ -504,7 +504,7 @@ git commit -m "feat(storage): add shell commands for storage status, preflight a
   - `POST /storage/status` → `StorageStatus`（同 Task 1 DTO，字段名 camelCase）
   - `POST /storage/scan-foreign` → `Vec<ForeignScanDto>`
   - `POST /storage/preflight` → `PreflightDto`
-  - `POST /storage/set-paths` → `StorageApplyResult`（`restartRequired` 恒为 `false`，由前端提示重启）
+  - `POST /storage/set-paths` → `StorageApplyResult`（`restartRequired` 回显 `applyNow`，与壳层 `storage_set_paths` 同语义；浏览器模式无重启能力，前端据此提示下次启动生效）
 - `POST /storage/cancel-pending` → `()`
 
 - [ ] **Step 1: 写失败测试**
@@ -557,7 +557,7 @@ pub fn mode_to_str(mode: adl_kernel::storage::StorageMode) -> &'static str {
 
 - [ ] **Step 4: 浏览器模式「立即迁移」的确定性行为（B5）**
 
-**不实现** dev 中间层重启端点（跨进程重启 `ad-server-launch.mjs` 的子进程不可廉价实现）。浏览器模式下 `storage` 域的 `setPaths(patch, true)` 仅写 `pendingMigration` 并返回 `restartRequired: true`；`restartApp()` 在浏览器模式返回 `{ ok: false, error: NOT_SUPPORTED }`。前端在浏览器模式对「立即迁移并重启」按钮加一行说明（`storageRestartUnavailableInBrowser`），并 toast「已安排在下次启动迁移」。Tauri 模式为真正重启。
+**不实现** dev 中间层重启端点（跨进程重启 `ad-server-launch.mjs` 的子进程不可廉价实现）。浏览器模式下 `storage` 域的 `setPaths(patch, applyNow)` 仅写 `pendingMigration` 并返回 `restartRequired: applyNow`（与壳层同语义）；`restartApp()` 在浏览器模式返回 `{ ok: false, error: NOT_SUPPORTED }`。前端在浏览器模式对「立即迁移并重启」按钮加一行说明（`storageRestartUnavailableInBrowser`），并 toast「已安排在下次启动迁移」。Tauri 模式为真正重启。
 
 - [ ] **Step 5: 运行测试与提交**
 
@@ -625,7 +625,7 @@ export interface StoragePreflight {
   ok: boolean; errors: string[]; warnings: string[];
   totalFiles: number; totalBytes: number; freeBytes: number;
 }
-export interface StorageApplyResult { restartRequired: boolean; preflight: StoragePreflight; restarted?: boolean }
+export interface StorageApplyResult { restartRequired: boolean; preflight: StoragePreflight }
 
 export interface StorageBridge {
   getStatus(): Promise<IpcResult<StorageStatus>>;
