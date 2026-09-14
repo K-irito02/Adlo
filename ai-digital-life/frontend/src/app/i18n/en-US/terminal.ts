@@ -60,4 +60,12 @@ export const terminalEn = {
   terminalSwapAreas: 'Swap history and live terminal',
   terminalDividerLabel: 'Drag to resize the history area',
   terminalHistorySegmentUnavailable: 'History segment unavailable',
+  terminalHistoryRegionName: 'Read-only history area',
+  terminalLiveRegionName: 'Live terminal area',
+  terminalRegionCollapseTitle: 'Collapse {region} (the other area fills the space)',
+  terminalRegionExpandTitle: 'Expand {region}',
+  terminalHistoryDeleteLabel: 'Delete history',
+  terminalHistoryDeleteTitle: 'Delete all history for this tab (cannot be undone)',
+  terminalLiveClearLabel: 'Clear',
+  terminalLiveClearTitle: 'Clear what the live terminal currently shows (same as the clear command)',
 } as const;

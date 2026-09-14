@@ -390,3 +390,39 @@
   left: 0;
   right: 0;
 }
+
+.adl-terminal-region-actions {
+  position: absolute;
+  top: var(--space-2, 8px);
+  /* 右移 18px 避开 xterm 自绘滚动条的 14px 命中带，否则按钮会挡住滚动条拖拽 */
+  right: 18px;
+  display: flex;
+  gap: var(--space-1, 4px);
+  z-index: 4;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
+/* 悬停区域时显露；常驻态由 is-always-visible 驱动，不依赖 hover */
+.adl-terminal-history:hover .adl-terminal-region-actions,
+.adl-terminal-live:hover .adl-terminal-region-actions,
+.adl-terminal-region-actions.is-always-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-terminal-region-actions__btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+}
+
+.adl-terminal-region-actions__btn:hover {
+  color: var(--text-primary);
+}

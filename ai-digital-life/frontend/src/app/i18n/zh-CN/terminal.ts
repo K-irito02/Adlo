@@ -60,4 +60,12 @@ export const terminalZh = {
   terminalSwapAreas: '交换历史与实时终端位置',
   terminalDividerLabel: '拖拽调整只读历史区大小',
   terminalHistorySegmentUnavailable: '历史段不可用',
+  terminalHistoryRegionName: '只读历史区域',
+  terminalLiveRegionName: '实时终端区域',
+  terminalRegionCollapseTitle: '收起{region}（另一个区域会铺满剩余空间）',
+  terminalRegionExpandTitle: '展开{region}',
+  terminalHistoryDeleteLabel: '删除历史',
+  terminalHistoryDeleteTitle: '删除该标签的全部历史记录（不可恢复）',
+  terminalLiveClearLabel: '清空',
+  terminalLiveClearTitle: '清空实时终端当前显示的内容（等同 clear 命令）',
 } as const;
