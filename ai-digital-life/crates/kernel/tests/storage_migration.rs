@@ -4,51 +4,46 @@
 //! （`setup::run_startup_migration`）和 adl-server（`engine::run_startup_migration`）
 //! 在「进程启动、任何 DB/日志句柄打开之前」所走的路径完全一致。
 //!
-//! 隔离性说明：`apply_pending` 通过固定的 `storage-locator.json` 路径
-//! （`dirs::config_dir()/ai-digital-life`）落盘切换后的指针，而该路径在 Windows 上
-//! 由 `SHGetKnownFolderPath` 解析、无法用环境变量重定向。因此本测试在调用前对真实
-//! 指针文件做快照、调用后恢复（见 `LocatorGuard`），并用进程级互斥锁串行化本文件中的
-//! 用例。迁移的数据根全部位于临时目录，真实用户数据不会被触碰。
+//! 隔离性：`apply_pending` 经由 `save_locator` 落盘切换后的指针，落点由
+//! `locator_path()` 决定。本测试通过环境变量 `ADL_STORAGE_LOCATOR_PATH` 把它重定向到
+//! 临时文件，因此**从不读写真实 `%APPDATA%/ai-digital-life/storage-locator.json`**；
+//! 迁移的数据根也全部位于临时目录。
+//!
+//! `ADL_STORAGE_LOCATOR_PATH` 是进程级变量，故本文件用例用互斥锁串行化。
 
 use adl_kernel::storage::{
-    MigrationProgress, PendingMigration, StorageDefaults, StorageLocator, StorageSelection,
-    apply_pending, locator_path,
+    LOCATOR_FILE, MigrationProgress, PendingMigration, StorageDefaults, StorageLocator,
+    StorageSelection, apply_pending, load_locator_from, locator_dir, locator_path, save_locator,
 };
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard};
 
-/// 串行化所有会经过真实 locator 路径的用例（env 无法重定向该路径）。
-static LOCATOR_LOCK: Mutex<()> = Mutex::new(());
+/// 串行化本文件用例：`ADL_STORAGE_LOCATOR_PATH` 为进程级变量。
+static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-/// 在测试期间保护真实 `storage-locator.json`：进入时快照，离开（含 panic 展开）时恢复。
-struct LocatorGuard {
+/// 把 locator 落点重定向到临时文件；Drop 时移除该环境变量（含 panic 展开路径）。
+struct LocatorEnv {
     _lock: MutexGuard<'static, ()>,
     path: PathBuf,
-    original: Option<Vec<u8>>,
 }
 
-impl LocatorGuard {
-    fn new() -> Self {
-        let lock = LOCATOR_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let path = locator_path();
-        let original = std::fs::read(&path).ok();
-        Self { _lock: lock, path, original }
+impl LocatorEnv {
+    fn new(temp_locator: &Path) -> Self {
+        let lock = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // SAFETY: 持锁期间设置；本测试二进制内无其它线程读取该变量。
+        unsafe { std::env::set_var("ADL_STORAGE_LOCATOR_PATH", temp_locator) };
+        Self { _lock: lock, path: temp_locator.to_path_buf() }
+    }
+
+    fn path(&self) -> &Path {
+        &self.path
     }
 }
 
-impl Drop for LocatorGuard {
+impl Drop for LocatorEnv {
     fn drop(&mut self) {
-        match &self.original {
-            Some(bytes) => {
-                if let Some(parent) = self.path.parent() {
-                    let _ = std::fs::create_dir_all(parent);
-                }
-                let _ = std::fs::write(&self.path, bytes);
-            },
-            None => {
-                let _ = std::fs::remove_file(&self.path);
-            },
-        }
+        // SAFETY: 同 `new`。
+        unsafe { std::env::remove_var("ADL_STORAGE_LOCATOR_PATH") };
     }
 }
 
@@ -88,13 +83,19 @@ fn pending_to(to: StorageSelection) -> PendingMigration {
 /// 成功路径：复制 → 校验 → 切换指针 → 清理旧源；外部文件与其目录被保留。
 #[test]
 fn apply_pending_migrates_end_to_end_and_keeps_foreign_files() {
-    let _guard = LocatorGuard::new();
-
     let base = temp_root("success");
+    let temp_locator = base.join(LOCATOR_FILE);
+    let env = LocatorEnv::new(&temp_locator);
+
+    // 真实 locator 路径（仅用于断言"落点确实是临时文件"，不读写该文件）。
+    let real_locator = locator_dir().join(LOCATOR_FILE);
+    assert_ne!(temp_locator, real_locator, "sanity: override must differ from the real locator");
+    assert_eq!(locator_path(), temp_locator, "override must be active");
+
     let old_root = base.join("old");
     let new_root = base.join("new");
 
-    // 源：真实 SQLite 库（零字节文件被 SQLite 视为合法的空数据库）、配置、剪贴板图片，
+    // 源：合法 SQLite 空库（SQLite 视零长度文件为空数据库）、配置、剪贴板图片，
     // 以及一个不属于本应用的外部文件。
     std::fs::create_dir_all(&old_root).unwrap();
     write(&old_root.join("data.db"), b"");
@@ -149,15 +150,26 @@ fn apply_pending_migrates_end_to_end_and_keeps_foreign_files() {
     assert_eq!(locator.last_report.as_ref().map(|r| r.ok), Some(true), "last_report recorded");
     assert!(matches!(seen.last(), Some(MigrationProgress::Done)), "progress ends with Done");
 
+    // 指针确实落盘到了**临时** locator 文件（真实 %APPDATA% locator 从未被读写）。
+    // `apply_pending` 内部只落盘"指针切换"这一步（保留旧的 pending/lastReport），
+    // 因此壳层/adl-server 会在其后补一次 `save_locator` 落盘最终状态 —— 此处照做。
+    save_locator(&locator).expect("persist final locator");
+    assert!(env.path().is_file(), "switched locator must be persisted to the temp path");
+    let persisted = load_locator_from(env.path());
+    assert_eq!(persisted.selection.root.as_deref(), Some(new_root.as_path()));
+    assert!(persisted.pending_migration.is_none(), "persisted pending must be cleared");
+    assert_eq!(persisted.last_report.as_ref().map(|r| r.ok), Some(true));
+
     let _ = std::fs::remove_dir_all(&base);
 }
 
 /// 失败路径：目标目录被同名文件占据 → 复制阶段失败 → 不切换指针、不清理源、pending 标记失败。
 #[test]
 fn apply_pending_failure_keeps_source_and_marks_pending_failed() {
-    let _guard = LocatorGuard::new();
-
     let base = temp_root("failure");
+    let temp_locator = base.join(LOCATOR_FILE);
+    let env = LocatorEnv::new(&temp_locator);
+
     let old_root = base.join("old");
     let blocked_root = base.join("blocked");
 
@@ -190,6 +202,16 @@ fn apply_pending_failure_keeps_source_and_marks_pending_failed() {
     assert!(pending.failed, "failed flag must be set");
     assert!(pending.error.is_some(), "error must be recorded on pending");
     assert_eq!(locator.last_report.as_ref().map(|r| r.ok), Some(false), "failed last_report");
+
+    // 与壳层/adl-server 一致：随后补一次落盘（失败状态 + 保留的 pending）。
+    save_locator(&locator).expect("persist final locator");
+    let persisted = load_locator_from(env.path());
+    assert!(persisted.selection.root.is_none(), "persisted pointer must stay on the old root");
+    let persisted_pending =
+        persisted.pending_migration.as_ref().expect("persisted pending must be retained");
+    assert!(persisted_pending.failed, "persisted pending must be marked failed");
+    assert!(persisted_pending.error.is_some(), "persisted pending must carry the error");
+    assert_eq!(persisted.last_report.as_ref().map(|r| r.ok), Some(false));
 
     let _ = std::fs::remove_dir_all(&base);
 }

@@ -120,7 +120,13 @@ pub fn locator_dir() -> PathBuf {
 }
 
 /// 指针文件的绝对路径。
+///
+/// 测试/开发逃生口：显式指定 locator 文件路径（与 `ADL_CLI_LOG_MODE` /
+/// 数据目录参数风格一致），使集成测试无需读写真实 `%APPDATA%` 下的 locator。
 pub fn locator_path() -> PathBuf {
+    if let Some(p) = std::env::var_os("ADL_STORAGE_LOCATOR_PATH") {
+        return PathBuf::from(p);
+    }
     locator_dir().join(LOCATOR_FILE)
 }
 
@@ -159,11 +165,59 @@ pub fn save_locator_to(path: &Path, loc: &StorageLocator) -> Result<(), AppError
 mod tests {
     use super::*;
 
+    /// 串行化对 `ADL_STORAGE_LOCATOR_PATH` 的读写（进程级环境变量）。
+    static ENV_OVERRIDE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// 设置环境变量并在 Drop 时还原（含 panic 展开路径）。
+    struct EnvVarGuard {
+        key: &'static str,
+        original: Option<std::ffi::OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &std::ffi::OsStr) -> Self {
+            let original = std::env::var_os(key);
+            // SAFETY: 调用方持有 `ENV_OVERRIDE_LOCK`；本测试二进制内无其它线程读取该变量。
+            unsafe { std::env::set_var(key, value) };
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match self.original.take() {
+                // SAFETY: 同 `set`。
+                Some(v) => unsafe { std::env::set_var(self.key, v) },
+                // SAFETY: 同 `set`。
+                None => unsafe { std::env::remove_var(self.key) },
+            }
+        }
+    }
+
     fn temp_locator(name: &str) -> std::path::PathBuf {
         let dir =
             std::env::temp_dir().join(format!("adl-locator-test-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         dir.join(LOCATOR_FILE)
+    }
+
+    #[test]
+    fn locator_path_honors_env_override() {
+        let _lock = ENV_OVERRIDE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let preexisting = std::env::var_os("ADL_STORAGE_LOCATOR_PATH");
+        let target = temp_locator("env-override");
+        let _guard = EnvVarGuard::set("ADL_STORAGE_LOCATOR_PATH", target.as_os_str());
+
+        assert_eq!(locator_path(), target, "override must win over the platform config dir");
+
+        drop(_guard);
+        if preexisting.is_none() {
+            assert_eq!(
+                locator_path(),
+                locator_dir().join(LOCATOR_FILE),
+                "unset override must fall back to the real locator path"
+            );
+        }
     }
 
     #[test]
