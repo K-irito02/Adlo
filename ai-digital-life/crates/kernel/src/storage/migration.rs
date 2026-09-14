@@ -597,8 +597,13 @@ fn apply_pending_with(
         &to,
         pending.retain_source,
         || {
+            // A10：先落盘候选，成功后再改内存，避免 save 失败时内存 selection 指向
+            // 新位置而磁盘仍是旧值（内存 drift）。只改 selection，保留 pending/last_report。
+            let mut candidate = locator.clone();
+            candidate.selection = target.clone();
+            save(&candidate)?;
             locator.selection = target.clone();
-            save(locator)
+            Ok(())
         },
         &mut progress,
     );

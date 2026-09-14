@@ -58,6 +58,8 @@ fn main() {
             let t0 = std::time::Instant::now();
             let defaults = setup::resolve_defaults(app)?;
             std::fs::create_dir_all(&defaults.root)?;
+            // 迁移必须先于任何 DB/日志句柄打开执行。
+            let _migration_report = setup::run_startup_migration(&defaults);
             let locator = adl_kernel::storage::load_locator();
             let storage =
                 Arc::new(adl_kernel::storage::StorageService::from_locator(&locator, &defaults));

@@ -27,6 +27,24 @@ pub fn resolve_defaults(app: &tauri::App) -> anyhow::Result<adl_kernel::storage:
     Ok(adl_kernel::storage::StorageDefaults { root, credentials_dir, downloads_dir })
 }
 
+/// 壳层启动迁移：在打开任何 DB/日志句柄之前执行待迁移。
+pub fn run_startup_migration(
+    defaults: &adl_kernel::storage::StorageDefaults,
+) -> Option<adl_kernel::storage::MigrationReport> {
+    let mut locator = adl_kernel::storage::load_locator();
+    locator.pending_migration.as_ref()?;
+    let report = adl_kernel::storage::apply_pending(&mut locator, defaults, |progress| {
+        info!(?progress, "storage migration progress");
+    });
+    if let Err(e) = adl_kernel::storage::save_locator(&locator) {
+        tracing::error!(error = %e, "failed to persist storage locator after migration");
+    }
+    if let Some(r) = report.as_ref() {
+        info!(ok = r.ok, files = r.moved_files, "storage migration finished");
+    }
+    report
+}
+
 /// Build the system-only shell state. Business (DB, workspace, providers,
 /// durable sessions, SSE) lives in the spawned `adl-server` process — the shell
 /// keeps config + log manager + browser manager, then spawns the adl-server child.

@@ -27,10 +27,46 @@ pub fn storage_from_locator(
     std::sync::Arc::new(adl_kernel::storage::StorageService::from_locator(locator, &defaults))
 }
 
+/// 生成一行人类可读的迁移摘要（日志与报告复用）。
+pub fn summarize_migration(report: &adl_kernel::storage::MigrationReport) -> String {
+    if report.ok {
+        format!(
+            "storage migration ok: {} files / {} bytes moved, {} dirs removed, {} dirs kept",
+            report.moved_files,
+            report.moved_bytes,
+            report.removed_dirs.len(),
+            report.kept_dirs.len()
+        )
+    } else {
+        format!("storage migration failed: {}", report.error.as_deref().unwrap_or("unknown"))
+    }
+}
+
+/// 在打开任何 DB/日志句柄之前执行待迁移。返回执行的报告（无待迁移时 None）。
+pub fn run_startup_migration(
+    defaults: &adl_kernel::storage::StorageDefaults,
+) -> Option<adl_kernel::storage::MigrationReport> {
+    let mut locator = adl_kernel::storage::load_locator();
+    locator.pending_migration.as_ref()?;
+    let report = adl_kernel::storage::apply_pending(&mut locator, defaults, |progress| {
+        eprintln!("[adl-server] migration: {progress:?}");
+    });
+    if let Err(e) = adl_kernel::storage::save_locator(&locator) {
+        eprintln!("[adl-server] failed to persist storage locator: {e}");
+    }
+    if let Some(r) = report.as_ref() {
+        eprintln!("[adl-server] {}", summarize_migration(r));
+    }
+    report
+}
+
 pub async fn init_server_state(
-    data_dir: &Path,
+    _data_dir: &Path,
     storage: std::sync::Arc<adl_kernel::storage::StorageService>,
 ) -> Result<ServerState, AppError> {
+    // 收敛为 locator 驱动的唯一根；`--data-dir` 仅作为解析默认根时的输入。
+    let data_dir: &Path = &storage.paths().root;
+    std::fs::create_dir_all(data_dir).ok();
     eprintln!("[ad-server] init_server_state start, data_dir={}", data_dir.display());
     let dev_project_root = if cfg!(debug_assertions) {
         Some(
@@ -56,7 +92,6 @@ pub async fn init_server_state(
     eprintln!("[ad-server] LogManager initialized");
 
     let db_path = storage.paths().data_db.clone();
-    std::fs::create_dir_all(data_dir).ok();
     eprintln!("[ad-server] opening database at {}...", db_path.display());
     let db = Database::open(&db_path)
         .map_err(|e| AppError::Internal(format!("Database open failed: {e}")))?;
@@ -213,5 +248,43 @@ mod storage_tests {
         );
         let svc = storage_from_locator(&loc, &root);
         assert_eq!(svc.paths().clipboard_dir, std::path::PathBuf::from("/clip"));
+    }
+
+    #[test]
+    fn storage_root_is_the_canonical_data_dir() {
+        let root = std::path::PathBuf::from("/canon");
+        let svc = storage_from_locator(&adl_kernel::storage::StorageLocator::default(), &root);
+        assert_eq!(svc.paths().root, root);
+    }
+}
+
+#[cfg(test)]
+mod startup_migration_tests {
+    use super::*;
+
+    #[test]
+    fn summarize_migration_reports_success_or_failure() {
+        let ok = adl_kernel::storage::MigrationReport {
+            at: 1,
+            ok: true,
+            moved_files: 3,
+            moved_bytes: 2048,
+            removed_dirs: vec![],
+            kept_dirs: vec![],
+            retained: false,
+            error: None,
+        };
+        assert!(summarize_migration(&ok).contains("3"));
+        let bad = adl_kernel::storage::MigrationReport {
+            at: 1,
+            ok: false,
+            moved_files: 0,
+            moved_bytes: 0,
+            removed_dirs: vec![],
+            kept_dirs: vec![],
+            retained: false,
+            error: Some("disk full".into()),
+        };
+        assert!(summarize_migration(&bad).contains("disk full"));
     }
 }

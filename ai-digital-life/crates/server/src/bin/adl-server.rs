@@ -36,6 +36,14 @@ async fn main() {
     let locator = adl_kernel::storage::load_locator();
     let storage = adl_server::engine::storage_from_locator(&locator, &data_dir);
 
+    // 迁移必须在任何 DB/日志句柄打开之前完成。
+    let defaults = adl_kernel::storage::StorageDefaults {
+        root: data_dir.clone(),
+        credentials_dir: adl_kernel::storage::locator::locator_dir().join("credentials"),
+        downloads_dir: data_dir.clone(),
+    };
+    let _ = adl_server::engine::run_startup_migration(&defaults);
+
     let state = match init_server_state(&data_dir, storage.clone()).await {
         Ok(state) => state,
         Err(e) => {
