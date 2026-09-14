@@ -226,8 +226,9 @@ export interface ResolvedRunStyle {
   color?: string;
   backgroundColor?: string;
   fontWeight?: number;
-  fontStyle?: string;
-  textDecoration?: string;
+  /** 只能是这两个字面量：React 的 CSSProperties 不接受宽化 string */
+  fontStyle?: 'italic';
+  textDecoration?: 'underline';
   opacity?: number;
 }
 
