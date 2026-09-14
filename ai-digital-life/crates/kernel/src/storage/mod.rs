@@ -1,5 +1,6 @@
 pub mod category;
 pub mod locator;
+pub mod paths;
 
 pub use category::StorageCategory;
 pub use locator::{
@@ -7,3 +8,4 @@ pub use locator::{
     StorageLocator, StorageMode, StorageSelection, load_locator, load_locator_from, locator_dir,
     locator_path, save_locator, save_locator_to,
 };
+pub use paths::{StorageDefaults, StoragePaths, StorageService};
