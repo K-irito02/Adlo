@@ -8,6 +8,14 @@ export const TERMINAL_HISTORY_BUDGET_FOLLOW_DISK = 0;
 export const TERMINAL_HISTORY_DISK_RESERVE_BYTES = 1 << 30;
 export const TERMINAL_HISTORY_MIN_SEGMENTS_KEPT = 20;
 
+// 设置界面（存储组内的「终端历史磁盘预算」）的预设档位与换算。1 GiB = 1 << 30，
+// 与偏好默认值口径一致；放在本模块而非组件文件，避免 Fast Refresh 的「组件文件只导出组件」限制。
+export const budgetOptionsGb = [1, 2, 5, 10, 20];
+
+export function budgetBytesFromGb(gb: number): number {
+  return gb * (1 << 30);
+}
+
 export function segmentLines(seg: TerminalHistorySegment): number {
   return seg.chunks.reduce((sum, c) => sum + c.lines, 0);
 }

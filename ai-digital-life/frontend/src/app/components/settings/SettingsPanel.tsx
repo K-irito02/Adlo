@@ -6,12 +6,13 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { TooltipSimple } from '../Tooltip';
 import { SettingsNav } from './SettingsNav';
+import { SETTINGS_GROUPS } from './settingsGroups';
 import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
-import { TerminalSettings } from '../../features/terminal-settings/TerminalSettings';
+import { StorageSettings } from '../../features/storage-settings/StorageSettings';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
@@ -26,9 +27,9 @@ interface SettingsPanelProps {
 const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>> = {
   shortcuts: KeybindSettings,
   workspace: WorkspaceSettings,
-  terminal: TerminalSettings,
   browser: BrowserSettings,
   dsh: DshSettings,
+  storage: StorageSettings,
 };
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
@@ -116,6 +117,12 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     showToast(t.settingsResetComplete, 'success');
   };
 
+  // 持久化/历史遗留的 activeGroup 可能不在当前组列表里（如已移除的 terminal）：
+  // 回退到第一个组，避免导航无选中、面板空白。
+  const effectiveGroup = SETTINGS_GROUPS.some((group) => group.id === activeGroup)
+    ? activeGroup
+    : SETTINGS_GROUPS[0].id;
+
   const filtered = useMemo(() => {
     let items = settings;
     if (searchQuery.trim()) {
@@ -125,12 +132,12 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           s.label.toLowerCase().includes(lower) || s.description?.toLowerCase().includes(lower),
       );
     } else {
-      items = items.filter((s) => s.groupId === activeGroup);
+      items = items.filter((s) => s.groupId === effectiveGroup);
     }
     return items;
-  }, [activeGroup, searchQuery, settings]);
+  }, [effectiveGroup, searchQuery, settings]);
 
-  const ActiveComponent = !searchQuery.trim() ? SETTINGS_COMPONENTS[activeGroup] : undefined;
+  const ActiveComponent = !searchQuery.trim() ? SETTINGS_COMPONENTS[effectiveGroup] : undefined;
 
   return (
     <div className="adl-settings-panel">
@@ -187,7 +194,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
               { '--adl-settings-nav-width': `${settingsNavigatorWidth}px` } as React.CSSProperties
             }
           >
-            <SettingsNav activeGroup={activeGroup} onSelectGroup={setActiveGroup} />
+            <SettingsNav activeGroup={effectiveGroup} onSelectGroup={setActiveGroup} />
             <div
               className="adl-settings-nav__resize-handle"
               onPointerDown={handleNavResizeStart}

@@ -9,21 +9,9 @@ export function BrowserDownloadSettings() {
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
 
   const isAutoSave = downloadSettings.mode === 'auto';
-  const defaultPath = downloadSettings.default_path || undefined;
 
   const handleModeChange = (auto: boolean) => {
     void updateDownloadSettings(auto ? 'auto' : 'ask');
-  };
-
-  const handlePathChange = async () => {
-    const bridge = window.digitalLife?.workspace;
-    if (!bridge?.pickDirectory) {
-      return;
-    }
-    const result = await bridge.pickDirectory();
-    if (result.ok && result.data) {
-      void updateDownloadSettings(undefined, result.data);
-    }
   };
 
   return (
@@ -33,33 +21,7 @@ export function BrowserDownloadSettings() {
         description={t.browserDownloadSettingsDesc}
       />
 
-      {/* Default download path */}
-      <div className="adl-settings-row">
-        <div className="adl-settings-row__label">
-          <div className="adl-settings-row__label-text">
-            <span>{t.browserDownloadSettingsPath}</span>
-          </div>
-          <small>{t.browserDownloadSettingsPathDesc}</small>
-        </div>
-        <div
-          className="adl-settings-row__control"
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-        >
-          <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
-            {isLoadingSettings ? '...' : (defaultPath ?? t.browserDownloadSettingsPathDefault)}
-          </span>
-          <button
-            type="button"
-            className="adl-btn adl-btn--ghost"
-            onClick={() => void handlePathChange()}
-            disabled={isLoadingSettings}
-          >
-            {t.browserDownloadSettingsChangePath}
-          </button>
-        </div>
-      </div>
-
-      {/* Download mode */}
+      {/* Download mode（默认下载路径已移入「存储」设置组的存储引擎区） */}
       <div className="adl-settings-row">
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">

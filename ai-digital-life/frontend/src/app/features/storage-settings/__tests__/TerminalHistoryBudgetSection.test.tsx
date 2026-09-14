@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { TerminalSettings, budgetBytesFromGb, budgetOptionsGb } from '../TerminalSettings';
+import { budgetBytesFromGb, budgetOptionsGb } from '@features/terminal/terminalHistoryBudget';
+import { TerminalHistoryBudgetSection } from '../TerminalHistoryBudgetSection';
 
 /**
  * 偏好 store 的最小替身：
@@ -61,30 +62,30 @@ describe('budgetOptionsGb / budgetBytesFromGb', () => {
   });
 });
 
-describe('TerminalSettings', () => {
+describe('TerminalHistoryBudgetSection', () => {
   it('渲染预算设置项与当前档位', () => {
-    render(<TerminalSettings />);
+    render(<TerminalHistoryBudgetSection />);
     expect(screen.getByText('只读历史磁盘预算')).toBeTruthy();
     expect(screen.getByRole('combobox')).toHaveProperty('value', String(1 << 30));
   });
 
   it('包含「跟随磁盘剩余空间」与「自定义…」选项', () => {
-    render(<TerminalSettings />);
+    render(<TerminalHistoryBudgetSection />);
     expect(screen.getByText('跟随磁盘剩余空间')).toBeTruthy();
     expect(screen.getByText('自定义…')).toBeTruthy();
   });
 
   it('切到自定义档时出现数字输入框', async () => {
-    render(<TerminalSettings />);
+    render(<TerminalHistoryBudgetSection />);
     await userEvent.selectOptions(screen.getByRole('combobox'), 'custom');
     expect(screen.getByRole('spinbutton')).toBeTruthy();
   });
 });
 
-describe('TerminalSettings 自定义预算输入', () => {
+describe('TerminalHistoryBudgetSection 自定义预算输入', () => {
   async function renderInCustomMode() {
     const user = userEvent.setup();
-    const view = render(<TerminalSettings />);
+    const view = render(<TerminalHistoryBudgetSection />);
     await user.selectOptions(screen.getByRole('combobox'), 'custom');
     return { ...view, input: screen.getByRole('spinbutton') as HTMLInputElement };
   }
@@ -128,7 +129,7 @@ describe('TerminalSettings 自定义预算输入', () => {
   it('输入恰好等于预设档位时，store 回写不会把输入框在编辑中途卸载', async () => {
     // 起始值是非档位值 3 GB：此时编辑态是从偏好派生出来的，输入 5 GB 会让派生值翻转。
     mocks.state.configuredBytes = budgetBytesFromGb(3);
-    const { rerender } = render(<TerminalSettings />);
+    const { rerender } = render(<TerminalHistoryBudgetSection />);
     const input = screen.getByRole('spinbutton') as HTMLInputElement;
     expect(input.value).toBe('3');
 
@@ -145,18 +146,18 @@ describe('TerminalSettings 自定义预算输入', () => {
 
     // store 把 5 GB 回写下来：它正是本组件刚提交的值，不能据此把编辑态收回去。
     mocks.state.configuredBytes = budgetBytesFromGb(5);
-    rerender(<TerminalSettings />);
+    rerender(<TerminalHistoryBudgetSection />);
 
     expect(screen.getByRole('spinbutton')).toBe(input);
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('custom');
   });
 
   it('外部写入非档位值时进入自定义档，草稿重新播种并跟上外部值', () => {
-    const { rerender } = render(<TerminalSettings />);
+    const { rerender } = render(<TerminalHistoryBudgetSection />);
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe(String(1 << 30));
 
     mocks.state.configuredBytes = budgetBytesFromGb(3);
-    rerender(<TerminalSettings />);
+    rerender(<TerminalHistoryBudgetSection />);
 
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('custom');
     expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('3');
@@ -167,7 +168,7 @@ describe('TerminalSettings 自定义预算输入', () => {
     expect(screen.getByRole('spinbutton')).toBeTruthy();
 
     mocks.state.configuredBytes = 0;
-    rerender(<TerminalSettings />);
+    rerender(<TerminalHistoryBudgetSection />);
 
     expect(screen.queryByRole('spinbutton')).toBeNull();
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('follow-disk');
@@ -175,7 +176,7 @@ describe('TerminalSettings 自定义预算输入', () => {
 
   it('存储值 0 渲染为「跟随磁盘剩余空间」档，而不是任何预设档位', () => {
     mocks.state.configuredBytes = 0;
-    render(<TerminalSettings />);
+    render(<TerminalHistoryBudgetSection />);
 
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('follow-disk');
     expect(screen.queryByRole('spinbutton')).toBeNull();
@@ -203,7 +204,7 @@ describe('TerminalSettings 自定义预算输入', () => {
 
   it('从跟随磁盘切到「自定义…」时，隐藏跟随磁盘说明行并把上限换成草稿值', async () => {
     mocks.state.configuredBytes = 0;
-    render(<TerminalSettings />);
+    render(<TerminalHistoryBudgetSection />);
     expect(screen.getByText(FOLLOW_DISK_DESC)).toBeTruthy();
 
     await userEvent.selectOptions(screen.getByRole('combobox'), 'custom');

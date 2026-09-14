@@ -390,7 +390,8 @@ export type SettingsGroupId =
   | 'shortcuts'
   | 'terminal'
   | 'browser'
-  | 'dsh';
+  | 'dsh'
+  | 'storage';
 
 export interface SettingItem {
   id: string;

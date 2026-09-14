@@ -497,7 +497,6 @@ git commit -m "feat(storage): add shell commands for storage status, preflight a
 - Create: `ai-digital-life/crates/server/src/handlers/storage.rs`
 - Modify: `ai-digital-life/crates/server/src/handlers/mod.rs`
 - Modify: `ai-digital-life/crates/server/src/router.rs`（追加路由）
-- Modify: `ai-digital-life/frontend/dev/previewWorkspaceService/index.ts`（重启后端端点，浏览器模式「立即迁移」用）
 
 **Interfaces:**
 - Consumes: `adl_kernel::storage::{scan_foreign, preflight, load_locator, save_locator, StoragePaths, PendingMigration}`

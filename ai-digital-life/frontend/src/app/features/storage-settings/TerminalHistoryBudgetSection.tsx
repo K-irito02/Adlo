@@ -1,20 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
-import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import {
   TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
   TERMINAL_HISTORY_BUDGET_FOLLOW_DISK,
+  budgetBytesFromGb,
+  budgetOptionsGb,
   segmentBytes,
 } from '@features/terminal/terminalHistoryBudget';
 import { terminalHistoryStore } from '@features/terminal/terminalHistoryStore';
-
-/** 预设档位（GB）。1 GiB = 1 << 30，与偏好默认值口径一致。 */
-export const budgetOptionsGb = [1, 2, 5, 10, 20];
-
-export function budgetBytesFromGb(gb: number): number {
-  return gb * (1 << 30);
-}
 
 const CUSTOM_VALUE = 'custom';
 const FOLLOW_DISK_VALUE = 'follow-disk';
@@ -44,13 +38,13 @@ function formatBytes(bytes: number): string {
 }
 
 /**
- * 「终端」设置组。
+ * 「终端历史磁盘预算」区块（原「终端」设置组，Plan C Task 5 移入「存储」组）。
  *
  * 预算是**占用上限**而不是预留空间；低于上限永不自动删除；两种模式都至少保留最近 20 段
  * （见 terminalHistoryBudget 的淘汰实现）。这些语义都在文案里讲清楚，避免误读。
  *
  * 「当前已用」是本组件挂载时对各标签历史分段做的一次性本地聚合（sum of segmentBytes），
- * 不引入新的全局 store 字段：设置面板每次选中该组都会重新挂载，天然是新鲜的。
+ * 不引入新的全局 store 字段：存储组每次选中都会重新挂载，天然是新鲜的。
  *
  * 「自定义…」不是偏好里的一种取值，而是界面上的一个编辑态：偏好里只存字节数，
  * 因此用本地 state 表达它，并在偏好落回档位/跟随磁盘时（含「重置全部」）收回编辑态。
@@ -61,7 +55,7 @@ function formatBytes(bytes: number): string {
  * 输入在途时重新播种；本组件自己提交造成的回写不会重派编辑态，否则敲出恰好等于档位的值
  * 会让输入框在编辑中途卸载。
  */
-export function TerminalSettings() {
+export function TerminalHistoryBudgetSection() {
   const { t } = useTCopy();
   const configured = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
 
@@ -161,8 +155,6 @@ export function TerminalSettings() {
 
   return (
     <div className="adl-settings-section adl-terminal-settings">
-      <SettingsHeader title={t.settingsTerminal} description={t.settingsTerminalHistoryGroupDesc} />
-
       <div className="adl-settings-row">
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
