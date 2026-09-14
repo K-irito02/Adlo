@@ -35,6 +35,21 @@ export function effectiveBudgetBytes(
 }
 
 /**
+ * 从磁盘快照里取「可用空间」字节数：优先系统盘（Windows 的 C:），取不到回退第一块盘；无快照返回 null。
+ * 用结构类型而非导入 SystemSnapshot，避免 shared/ 与 app/features/ 的耦合。
+ */
+export function diskAvailableBytesFrom(
+  disks?: { mount: string; available: number }[],
+): number | null {
+  if (!disks || disks.length === 0) {
+    return null;
+  }
+  const system = disks.find((d) => /^C:/i.test(d.mount.trim()));
+  const chosen = system ?? disks[0];
+  return chosen.available;
+}
+
+/**
  * 一级淘汰：按 endedAt 升序（最旧优先）逐段删除，直到剩余总量 ≤ 预算。
  * 只作用于已结束的段；**总是跳过最近 20 段**（安全阀，避免磁盘将满时清空历史）。
  *

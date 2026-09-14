@@ -5,6 +5,7 @@ import {
   TERMINAL_HISTORY_BUDGET_FOLLOW_DISK,
   TERMINAL_HISTORY_DISK_RESERVE_BYTES,
   TERMINAL_HISTORY_MIN_SEGMENTS_KEPT,
+  diskAvailableBytesFrom,
   effectiveBudgetBytes,
   segmentBytes,
   segmentLines,
@@ -104,5 +105,64 @@ describe('selectLeadingChunksToEvict', () => {
 
   it('至少保留最后一块', () => {
     expect(selectLeadingChunksToEvict(seg(1, [10, 20]), 10 ** 9)).toBe(1);
+  });
+});
+
+// ── C1 回归：磁盘快照 → 可用空间 ────────────────────────────────────────
+describe('diskAvailableBytesFrom', () => {
+  const GB = 1 << 30;
+  const disk = (mount: string, available: number) => ({
+    mount,
+    total: available, // total 不影响取值，仅满足结构类型
+    available,
+  });
+
+  it('优先系统盘 C:，即便另一块盘更大', () => {
+    const disks = [
+      disk('/data', 8 * GB), // 非系统盘，更大
+      disk('C:', 1 * GB), // 系统盘，更小
+    ];
+    expect(diskAvailableBytesFrom(disks)).toBe(1 * GB);
+  });
+
+  it('容忍小写 c:\\ 这类 Windows 盘符写法', () => {
+    const disks = [
+      disk('c:\\', 123),
+      disk('/mnt/x', 999),
+    ];
+    expect(diskAvailableBytesFrom(disks)).toBe(123);
+  });
+
+  it('没有 C: 盘时回退到第一块盘', () => {
+    const disks = [
+      disk('/data', 7 * GB),
+      disk('/home', 2 * GB),
+    ];
+    expect(diskAvailableBytesFrom(disks)).toBe(7 * GB);
+  });
+
+  it('undefined 或空数组返回 null', () => {
+    expect(diskAvailableBytesFrom(undefined)).toBeNull();
+    expect(diskAvailableBytesFrom([])).toBeNull();
+  });
+});
+
+// ── C1 回归：settlement 现在消费的正是 hook 产出的参数形状 ───────────────
+// 这些是纯函数测试，钉死「配置预算」语义：固定值不理磁盘、0+磁盘、0+null。
+// （hook 级别的 wiring 见 c1-fix-report.md：因 settle 内嵌于 useCallback 且
+//  依赖 store/window，纯函数测试已覆盖其全部可判定分支，故不写空壳 hook 测试。）
+describe('effectiveBudgetBytes — 配置预算语义（C1 回归）', () => {
+  const GB = 1 << 30;
+
+  it('设定 20GB → 即使传入磁盘信息也返回 20GB', () => {
+    expect(effectiveBudgetBytes(20 * GB, 100 * GB)).toBe(20 * GB);
+  });
+
+  it('设定 0（跟随磁盘）+ 磁盘信息 → 磁盘 − 安全余量', () => {
+    expect(effectiveBudgetBytes(0, 5 * GB)).toBe(5 * GB - GB);
+  });
+
+  it('设定 0（跟随磁盘）+ null（拿不到磁盘）→ 回退默认 1GiB', () => {
+    expect(effectiveBudgetBytes(0, null)).toBe(GB);
   });
 });

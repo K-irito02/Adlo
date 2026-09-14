@@ -20,7 +20,9 @@ import {
 import {
   selectSegmentsToEvict,
   effectiveBudgetBytes,
+  diskAvailableBytesFrom,
   TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
+  TERMINAL_HISTORY_BUDGET_FOLLOW_DISK,
 } from './terminalHistoryBudget';
 import type { ExtractLine } from './historyModel';
 
@@ -177,7 +179,27 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     historyIndexRef.current.forEach((segments, tabId) => {
       segments.forEach((seg) => all.push({ tabId, seg }));
     });
-    const budget = effectiveBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES, null);
+
+    // 读用户偏好：undefined（尚未加载）回退默认预算；等于 FOLLOW_DISK 哨兵时取磁盘可用空间，
+    // 否则按固定设定值执行。读磁盘失败/拿不到快照 → diskAvailableBytes 为 null，由
+    // effectiveBudgetBytes 回退到默认预算，绝不阻塞结算。
+    const settingBytes =
+      useAppStore.getState().appInfo?.config?.terminalHistoryBudgetBytes ??
+      TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
+
+    let diskAvailableBytes: number | null = null;
+    if (settingBytes === TERMINAL_HISTORY_BUDGET_FOLLOW_DISK) {
+      try {
+        const result = await window.digitalLife.systemMonitor.snapshot();
+        if (result.ok) {
+          diskAvailableBytes = diskAvailableBytesFrom(result.data?.disks);
+        }
+      } catch {
+        diskAvailableBytes = null;
+      }
+    }
+
+    const budget = effectiveBudgetBytes(settingBytes, diskAvailableBytes);
     const doomed = selectSegmentsToEvict(all, budget);
     if (doomed.length === 0) {
       return;
@@ -271,8 +293,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         }
       }
       persistHistoryIndex();
+      // 段定稿后按用户偏好重新结算预算（fire-and-forget；不阻塞 beforeunload / 关闭路径）。
+      void settleHistoryBudget();
     },
-    [collectorFor, ensureHistoryIndexLoaded, persistHistoryIndex],
+    [collectorFor, ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget],
   );
 
   /** 应用启动：残留的 live 段其 PTY 必然已随进程退出而死 → 定稿 */
@@ -289,7 +313,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     if (changed) {
       persistHistoryIndex();
     }
-  }, [ensureHistoryIndexLoaded, persistHistoryIndex]);
+    // 启动定稿后按用户偏好结算预算，确保在首段新输出前就执行了上限（fire-and-forget）。
+    void settleHistoryBudget();
+  }, [ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget]);
 
   /** 懒加载持久化的「标签 → 目录」映射（只需一次） */
   const ensureTabCwdsLoaded = useCallback(() => {
