@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
@@ -22,6 +22,19 @@ const FOLLOW_DISK_VALUE = 'follow-disk';
 const GB = 1 << 30;
 const MB = 1 << 20;
 
+const MIN_BUDGET_GB = 1;
+const MAX_BUDGET_GB = 2000;
+
+/** 与 SettingsControls 的 InputControl 一致：输入停顿 500ms 才写回，避免逐键提交。 */
+const COMMIT_DEBOUNCE_MS = 500;
+
+function clampGb(value: number): number {
+  if (!Number.isFinite(value)) {
+    return MIN_BUDGET_GB;
+  }
+  return Math.min(MAX_BUDGET_GB, Math.max(MIN_BUDGET_GB, Math.round(value)));
+}
+
 function formatBytes(bytes: number): string {
   if (bytes >= GB) {
     const gb = bytes / GB;
@@ -41,6 +54,12 @@ function formatBytes(bytes: number): string {
  *
  * 「自定义…」不是偏好里的一种取值，而是界面上的一个编辑态：偏好里只存字节数，
  * 因此用本地 state 表达它，并在偏好落回档位/跟随磁盘时（含「重置全部」）收回编辑态。
+ *
+ * 自定义输入持有**本地草稿**（GB 字符串），停顿 500ms（或失焦/回车）才提交，与
+ * SettingsControls 的 InputControl 同构：偏好是不可乐观、不排队的外部状态，逐键写回会在
+ * 并发 patch 被丢弃或写失败时把用户刚敲的字静默弹回。草稿只在偏好**真正变化**且没有
+ * 输入在途时重新播种；本组件自己提交造成的回写不会重派编辑态，否则敲出恰好等于档位的值
+ * 会让输入框在编辑中途卸载。
  */
 export function TerminalSettings() {
   const { t } = useTCopy();
@@ -50,12 +69,76 @@ export function TerminalSettings() {
   const isFollowDisk = current === TERMINAL_HISTORY_BUDGET_FOLLOW_DISK;
   const isPreset = budgetOptionsGb.some((gb) => budgetBytesFromGb(gb) === current);
   const derivedCustom = !isFollowDisk && !isPreset;
+  const persistedGb = clampGb(current / GB);
 
   const [custom, setCustom] = useState(derivedCustom);
+  const [draftGb, setDraftGb] = useState(() => String(persistedGb));
+
+  /** 未提交的输入原文：非 null 表示有输入在途，此时草稿优先于偏好。 */
+  const pendingGbRef = useRef<string | null>(null);
+  /** 本组件刚提交的字节数：回写命中它说明这次变化是自己造成的，不据此重派编辑态。 */
+  const selfCommitRef = useRef<number | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
+    if (pendingGbRef.current !== null) {
+      return;
+    }
+    const isSelfEcho = selfCommitRef.current === current;
+    selfCommitRef.current = null;
+    if (isSelfEcho) {
+      return;
+    }
     setCustom(derivedCustom);
-  }, [derivedCustom]);
+    setDraftGb(String(persistedGb));
+  }, [current, derivedCustom, persistedGb]);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
+  }, []);
+
+  const apply = useCallback((bytes: number) => {
+    void useAppStore.getState().updatePreferences({ terminalHistoryBudgetBytes: bytes });
+  }, []);
+
+  /** 丢弃在途的自定义输入（改选档位/跟随磁盘时必须先调用，否则旧草稿会把新选择覆盖掉）。 */
+  const cancelPending = useCallback(() => {
+    pendingGbRef.current = null;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  const commitCustomBudget = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+    const raw = pendingGbRef.current;
+    pendingGbRef.current = null;
+    if (raw === null) {
+      return;
+    }
+    const gb = clampGb(Number(raw));
+    const bytes = budgetBytesFromGb(gb);
+    setDraftGb(String(gb));
+    selfCommitRef.current = bytes;
+    apply(bytes);
+  }, [apply]);
+
+  const handleCustomChange = (raw: string) => {
+    setDraftGb(raw);
+    pendingGbRef.current = raw;
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
+    timerRef.current = setTimeout(commitCustomBudget, COMMIT_DEBOUNCE_MS);
+  };
 
   const historyUsedBytes = useMemo(() => {
     let total = 0;
@@ -68,11 +151,13 @@ export function TerminalSettings() {
     return total;
   }, []);
 
-  const apply = (bytes: number) => {
-    void useAppStore.getState().updatePreferences({ terminalHistoryBudgetBytes: bytes });
-  };
-
   const selectValue = custom ? CUSTOM_VALUE : isFollowDisk ? FOLLOW_DISK_VALUE : String(current);
+
+  /** 自定义档下上限文案跟随草稿（草稿可能尚未提交）；跟随磁盘档下仍显示本地化模式名。 */
+  const limitLabel =
+    isFollowDisk && !custom
+      ? t.settingsTerminalHistoryBudgetFollowDisk
+      : formatBytes(custom ? budgetBytesFromGb(clampGb(Number(draftGb))) : current);
 
   return (
     <div className="adl-settings-section adl-terminal-settings">
@@ -91,6 +176,8 @@ export function TerminalSettings() {
             value={selectValue}
             onChange={(e) => {
               const value = e.target.value;
+              // 先丢弃在途的自定义输入，否则旧草稿会在防抖到期后覆盖掉这次选择。
+              cancelPending();
               if (value === CUSTOM_VALUE) {
                 setCustom(true);
                 return;
@@ -114,20 +201,23 @@ export function TerminalSettings() {
             <input
               type="number"
               className="adl-settings-input"
-              min={1}
-              max={2000}
+              min={MIN_BUDGET_GB}
+              max={MAX_BUDGET_GB}
               step={1}
-              value={Math.max(1, Math.round(current / GB))}
-              onChange={(e) => {
-                const gb = Math.min(2000, Math.max(1, Number(e.target.value) || 1));
-                apply(budgetBytesFromGb(gb));
+              value={draftGb}
+              onChange={(e) => handleCustomChange(e.target.value)}
+              onBlur={commitCustomBudget}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  commitCustomBudget();
+                }
               }}
             />
           ) : null}
         </div>
       </div>
 
-      {isFollowDisk ? (
+      {isFollowDisk && !custom ? (
         <div className="adl-settings-row">
           <div className="adl-settings-row__label">
             <small>{t.settingsTerminalHistoryBudgetFollowDiskDesc}</small>
@@ -140,10 +230,7 @@ export function TerminalSettings() {
           <small>
             {t.settingsTerminalHistoryBudgetUsed
               .replace('{used}', formatBytes(historyUsedBytes))
-              .replace(
-                '{limit}',
-                isFollowDisk ? t.settingsTerminalHistoryBudgetFollowDisk : formatBytes(current),
-              )}
+              .replace('{limit}', limitLabel)}
           </small>
         </div>
       </div>
