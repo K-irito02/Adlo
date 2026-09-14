@@ -2,7 +2,7 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { TERMINAL_CAPTURE_SCROLLBACK_LINES } from './terminalHistoryCollector';
-import { type HistoryPalette } from './historyModel';
+import type { HistoryPalette } from './historyModel';
 
 /** cell 度量兜底：无实时终端实例可读时（历史区独立存在）用固定默认值 */
 const FALLBACK_CELL_WIDTH = 8;
