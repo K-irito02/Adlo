@@ -14,12 +14,337 @@
 
 ## Global Constraints
 
-- **只迁移自有文件**：判定唯一依据是 Plan A 的 `adl_kernel::storage::owns_file` / `is_own_dir`；白名单外的文件不复制、不删除，其父目录保留。
+- **只迁移自有文件**：判定唯一依据是 `adl_kernel::storage::owns_file(category, base, path)` / `is_own_dir(category, base, dir)`（base-aware，Task 0 落地）；白名单外的文件不复制、不删除，其父目录保留。
 - **源文件只在「复制 + 校验全部通过」之后才删除**；指针切换是清理之前的最后一步。
 - **失败即回滚**：任一步失败 → 不切换指针、不删源；best-effort 删除本次新建的目标文件；标记 `pending_migration.failed = true` 并记录错误，不自动重试。
 - **幂等**：中断后重跑，目标已存在且大小一致的文件跳过；不把「目标已有我们的文件」当作错误。
 - **不新增重依赖到 `adl-kernel`**：磁盘剩余空间的 UX 预检放在 Plan C（壳层用已有 `sysinfo`）。本计划只做无依赖的预检（源=目标、目标在源内部、可写）。
 - 每个 Task 结束 `cargo test -p adl-kernel` 必须全绿；最终 `cargo clippy --workspace --all-targets -- -D warnings` 与 `cargo fmt` 干净。
+
+---
+
+## Plan B 重审修订（2026-09-14，执行前；吸收 Plan A 落地经验与最终复核结论）
+
+Plan A 已合并到 `refactor/strip-20260903`。执行前重审发现 Plan B 文本与实际落地接口有 4 处落差，须一并修订：
+
+| # | 落差 | 影响 | 裁决 |
+|---|---|---|---|
+| A1 | Plan A 落地的 `owns_file(category, path)` / `is_own_dir(category, dir)` 按**固定路径窗口**（`["clipboard","images"]`、`["snapshot"]`）判定 | per-category 自定义根（如 `E:/clip/images/a.png`、`E:/snap/<hash>/f`）会被误判为**外部文件** → 迁移漏文件、清理不删目录 | **必须修**：白名单改为 **base-aware**（按相对 base 的结构判定），签名加 `base` 参数，见 Task 0 |
+| A2 | 凭据回退白名单接受任意 `*.enc` | 用户自放的 `backup.enc` 会被迁移/删除，宽于 spec §5.2 | **必须修**：收紧为 `<service>.<account>.enc` 形态，见 Task 0 |
+| A3 | `save_locator_to` 为直写，非原子 | Plan B 会写 locator；崩溃/断电可能撕裂 `storage-locator.json` → 应用回退默认目录 | **必须修**：tmp + rename 原子写，见 Task 0 |
+| A4 | `ServerState.data_dir`（= `--data-dir`）与 `storage.paths().root`（locator 驱动）可分叉 | 独立运行 adl-server 且 locator 指定 `root=X` 时，会 `create_dir_all(Y)` 而 DB 开在 X | **必须修**：`init_server_state` 以 `storage.paths().root` 为唯一根（`data_dir` 收敛），见 Task 4 追加步骤 |
+| A5 | `category_roots` 无直接单测（Plan A 复核 carry-forward） | 迁移枚举的起点无保护 | Task 0 补测试 |
+| — | 裸 adl-server 启动出现瞬时 `r2d2: database is locked`（非致命，Plan A Task 8 观察到） | 与本计划无关（无 locator 时也出现） | **仅记录**，不在本计划修复；若 Task 4 后复现且与迁移相关再处理 |
+
+> Task 1/2/3 中所有 `owns_file(category, path)` / `is_own_dir(category, dir)` 调用在本修订后一律改为 base-aware 形式；下方对应片段已同步更新。
+
+---
+
+### Task 0: 白名单 base-aware 化 + 凭据形态收紧 + 原子写 locator
+
+**Files:**
+- Modify: `ai-digital-life/crates/kernel/src/storage/whitelist.rs`
+- Modify: `ai-digital-life/crates/kernel/src/storage/locator.rs`
+
+**Interfaces:**
+- Produces:
+  - `pub fn owns_file(category: StorageCategory, base: &Path, path: &Path) -> bool`
+  - `pub fn is_own_dir(category: StorageCategory, base: &Path, dir: &Path) -> bool`
+  - `pub fn category_roots(category: StorageCategory, paths: &StoragePaths) -> Vec<PathBuf>`（不变）
+  - `save_locator_to` 改为原子写（签名不变）
+
+- [ ] **Step 1: 改写白名单测试（base-aware + 凭据形态 + category_roots）**
+
+替换 `crates/kernel/src/storage/whitelist.rs` 的整个 `tests` 模块内容为：
+
+```rust
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::storage::locator::StorageLocator;
+    use crate::storage::paths::{StorageDefaults, StoragePaths};
+    use std::path::Path;
+
+    /// 统一模式默认根下的解析结果（base 与今日布局一致）。
+    fn default_paths() -> StoragePaths {
+        let defaults = StorageDefaults {
+            root: std::path::PathBuf::from("/d"),
+            credentials_dir: std::path::PathBuf::from("/c/creds"),
+            downloads_dir: std::path::PathBuf::from("/dl"),
+        };
+        StoragePaths::from_locator(&StorageLocator::default(), &defaults)
+    }
+
+    #[test]
+    fn database_owns_db_and_wal_shm_only() {
+        let p = default_paths();
+        let base = &p.root;
+        assert!(owns_file(StorageCategory::Database, base, Path::new("/d/data.db")));
+        assert!(owns_file(StorageCategory::Database, base, Path::new("/d/data.db-wal")));
+        assert!(owns_file(StorageCategory::Database, base, Path::new("/d/data.db-shm")));
+        assert!(!owns_file(StorageCategory::Database, base, Path::new("/d/other.db")));
+        assert!(!owns_file(StorageCategory::Database, base, Path::new("/d/user-note.txt")));
+    }
+
+    #[test]
+    fn clipboard_owns_images_and_thumbs_subtrees_under_any_base() {
+        let p = default_paths();
+        assert!(owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/images/a.png")
+        ));
+        assert!(owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/thumbs/a.png")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/user.txt")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/other/a.png")
+        ));
+        // A1 关键用例：per-category 自定义根
+        assert!(owns_file(
+            StorageCategory::Clipboard,
+            Path::new("E:/clip"),
+            Path::new("E:/clip/images/a.png")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            Path::new("E:/clip"),
+            Path::new("E:/clip/user.txt")
+        ));
+    }
+
+    #[test]
+    fn snapshot_requires_hash_subdir_under_any_base() {
+        let p = default_paths();
+        assert!(owns_file(
+            StorageCategory::Snapshot,
+            &p.snapshot_dir,
+            Path::new("/d/snapshot/abc123/f/x.ts")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Snapshot,
+            &p.snapshot_dir,
+            Path::new("/d/snapshot/loose.txt")
+        ));
+        assert!(is_own_dir(StorageCategory::Snapshot, &p.snapshot_dir, Path::new("/d/snapshot/abc123")));
+        assert!(!is_own_dir(StorageCategory::Snapshot, &p.snapshot_dir, Path::new("/d/snapshot")));
+        assert!(owns_file(
+            StorageCategory::Snapshot,
+            Path::new("E:/snap"),
+            Path::new("E:/snap/abc/f.ts")
+        ));
+        assert!(is_own_dir(StorageCategory::Snapshot, Path::new("E:/snap"), Path::new("E:/snap/abc")));
+    }
+
+    #[test]
+    fn dsh_owns_everything_under_its_two_bases() {
+        let p = default_paths();
+        assert!(owns_file(
+            StorageCategory::Dsh,
+            &p.dsh_versions_dir,
+            &p.dsh_versions_dir.join("v1/x.bin")
+        ));
+        assert!(owns_file(
+            StorageCategory::Dsh,
+            &p.dsh_bundle_dir,
+            &p.dsh_bundle_dir.join("version.txt")
+        ));
+        assert!(is_own_dir(StorageCategory::Dsh, &p.dsh_versions_dir, Path::new("/d/dsh-versions/v1")));
+    }
+
+    #[test]
+    fn logs_owns_known_log_file_names() {
+        let p = default_paths();
+        assert!(owns_file(StorageCategory::Logs, &p.logs_dir, Path::new("/d/logs/terminal-logs.txt")));
+        assert!(owns_file(StorageCategory::Logs, &p.logs_dir, Path::new("/d/logs/debug-logs-2026.txt")));
+        assert!(!owns_file(StorageCategory::Logs, &p.logs_dir, Path::new("/d/logs/notes.txt")));
+    }
+
+    #[test]
+    fn credentials_owns_only_service_account_enc_shape() {
+        let base = Path::new("/c/creds");
+        assert!(owns_file(
+            StorageCategory::CredentialsFallback,
+            base,
+            Path::new("/c/creds/ai-digital-life.ci-access-token.enc")
+        ));
+        // A2：宽泛的 *.enc 不再算自有。
+        assert!(!owns_file(StorageCategory::CredentialsFallback, base, Path::new("/c/creds/backup.enc")));
+        assert!(!owns_file(StorageCategory::CredentialsFallback, base, Path::new("/c/creds/plain.txt")));
+        assert!(!owns_file(StorageCategory::CredentialsFallback, base, Path::new("/c/creds/a..enc")));
+    }
+
+    #[test]
+    fn downloads_default_owns_nothing() {
+        let p = default_paths();
+        assert!(!owns_file(
+            StorageCategory::DownloadsDefault,
+            &p.downloads_default_dir,
+            Path::new("/dl/a.zip")
+        ));
+        assert!(!is_own_dir(StorageCategory::DownloadsDefault, &p.downloads_default_dir, Path::new("/dl")));
+    }
+
+    #[test]
+    fn files_outside_base_are_never_owned() {
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            Path::new("E:/clip"),
+            Path::new("/d/clipboard/images/a.png")
+        ));
+        assert!(!is_own_dir(StorageCategory::Snapshot, Path::new("E:/snap"), Path::new("/d/snapshot/abc")));
+    }
+
+    #[test]
+    fn category_roots_covers_each_category_once() {
+        let p = default_paths();
+        assert_eq!(category_roots(StorageCategory::Database, &p), vec![p.root.clone()]);
+        assert_eq!(category_roots(StorageCategory::Config, &p), vec![p.config_dir.clone()]);
+        assert_eq!(category_roots(StorageCategory::Clipboard, &p), vec![p.clipboard_dir.clone()]);
+        assert_eq!(category_roots(StorageCategory::Snapshot, &p), vec![p.snapshot_dir.clone()]);
+        assert_eq!(
+            category_roots(StorageCategory::Dsh, &p),
+            vec![p.dsh_versions_dir.clone(), p.dsh_bundle_dir.clone()]
+        );
+        assert_eq!(category_roots(StorageCategory::Logs, &p), vec![p.logs_dir.clone()]);
+        assert_eq!(
+            category_roots(StorageCategory::CredentialsFallback, &p),
+            vec![p.credentials_dir.clone()]
+        );
+        assert!(category_roots(StorageCategory::DownloadsDefault, &p).is_empty());
+        for c in [StorageCategory::Database, StorageCategory::DownloadsDb, StorageCategory::SiteMetaDb] {
+            assert_eq!(category_roots(c, &p), vec![p.root.clone()]);
+        }
+    }
+}
+```
+
+- [ ] **Step 2: 运行确认失败**
+
+Run: `cargo test -p adl-kernel storage::whitelist -v`
+Expected: FAIL（签名不匹配 / 新断言失败）
+
+- [ ] **Step 3: 实现 base-aware 白名单**
+
+用以下内容替换 `whitelist.rs` 中 `owns_file` 与 `is_own_dir` 的函数体（保留 `parts` 与 `category_roots`；`contains_window`/`window_index` 若不再被引用则删除，避免 clippy `dead_code`）：
+
+```rust
+/// 判断 `path` 是否属于 `category`。
+///
+/// `base` 是该分类在**当前解析结果**中的基目录（来自 `category_roots`）。判定基于
+/// `path` 相对 `base` 的结构，因此对 per-category 自定义根同样成立。
+/// `path` 不在 `base` 之下时一律判否。
+pub fn owns_file(category: StorageCategory, base: &Path, path: &Path) -> bool {
+    let name = match path.file_name().and_then(|n| n.to_str()) {
+        Some(n) => n,
+        None => return false,
+    };
+    let rel: Vec<String> = match path.strip_prefix(base) {
+        Ok(r) => parts(r),
+        Err(_) => return false,
+    };
+    match category {
+        StorageCategory::Database => matches!(name, "data.db" | "data.db-wal" | "data.db-shm"),
+        StorageCategory::DownloadsDb => {
+            matches!(name, "downloads.db" | "downloads.db-wal" | "downloads.db-shm")
+        },
+        StorageCategory::SiteMetaDb => matches!(
+            name,
+            "site-meta-cache.db" | "site-meta-cache.db-wal" | "site-meta-cache.db-shm"
+        ),
+        // config 基目录下所有文件均属自有。
+        StorageCategory::Config => !rel.is_empty(),
+        // `<base>/images/**` 或 `<base>/thumbs/**`
+        StorageCategory::Clipboard => {
+            matches!(rel.first().map(String::as_str), Some("images") | Some("thumbs"))
+        },
+        // `<base>/<hash>/...`：文件必须在 hash 子目录之下。
+        StorageCategory::Snapshot => rel.len() >= 2,
+        // base 本身即 dsh-versions 或 dsh-bundle 目录。
+        StorageCategory::Dsh => !rel.is_empty(),
+        StorageCategory::Logs => name.starts_with("terminal-logs") || name.starts_with("debug-logs"),
+        // 仅 `<service>.<account>.enc` 形态（两段非空且以 .enc 结尾），非任意 *.enc。
+        StorageCategory::CredentialsFallback => {
+            name.ends_with(".enc")
+                && name.split('.').count() == 3
+                && name.split('.').all(|seg| !seg.is_empty())
+        },
+        StorageCategory::DownloadsDefault => false,
+    }
+}
+
+/// 判断 `dir` 是否是该分类允许的**自有目录**（用于清理时能否 `remove_dir`）。
+pub fn is_own_dir(category: StorageCategory, base: &Path, dir: &Path) -> bool {
+    let rel: Vec<String> = match dir.strip_prefix(base) {
+        Ok(r) => parts(r),
+        Err(_) => return false,
+    };
+    match category {
+        StorageCategory::Config => true,
+        StorageCategory::Clipboard => {
+            matches!(rel.first().map(String::as_str), Some("images") | Some("thumbs"))
+        },
+        StorageCategory::Snapshot => !rel.is_empty(),
+        StorageCategory::Dsh => !rel.is_empty(),
+        StorageCategory::Logs => rel.is_empty(),
+        // 主库/下载库/站点元库直接位于共享根，凭据目录由 OS 配置目录承载，均不视为可删自有目录。
+        StorageCategory::Database
+        | StorageCategory::DownloadsDb
+        | StorageCategory::SiteMetaDb
+        | StorageCategory::CredentialsFallback
+        | StorageCategory::DownloadsDefault => false,
+    }
+}
+```
+
+- [ ] **Step 4: 运行白名单测试确认通过**
+
+Run: `cargo test -p adl-kernel storage::whitelist -v`
+Expected: PASS（9 个测试全绿）
+
+- [ ] **Step 5: 原子写 locator（A3）**
+
+在 `crates/kernel/src/storage/locator.rs` 中，把 `save_locator_to` 改为 tmp + rename：
+
+```rust
+pub fn save_locator_to(path: &Path, loc: &StorageLocator) -> Result<(), AppError> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let content = serde_json::to_string_pretty(loc)?;
+    // 原子写：先写同目录临时文件，再 rename 覆盖，避免崩溃时撕裂指针文件。
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, content)?;
+    std::fs::rename(&tmp, path)?;
+    Ok(())
+}
+```
+
+- [ ] **Step 6: 运行 locator 测试确认通过**
+
+Run: `cargo test -p adl-kernel storage::locator -v`
+Expected: PASS（原子写不改变可观察行为）
+
+- [ ] **Step 7: 全 kernel 测试与质量门**
+
+Run: `cargo test -p adl-kernel storage -v && cargo clippy -p adl-kernel --all-targets -- -D warnings && cargo fmt --check -p adl-kernel`
+Expected: PASS / 0 warning / 无 diff
+
+- [ ] **Step 8: 提交**
+
+```bash
+git add ai-digital-life/crates/kernel/src/storage
+git commit -m "fix(storage): make whitelist base-aware and locator writes atomic"
+```
 
 ---
 
@@ -221,7 +546,7 @@ pub fn scan_foreign(paths: &StoragePaths) -> Vec<ForeignScan> {
             }
             let foreign: Vec<String> = collect_files(&root)
                 .into_iter()
-                .filter(|f| !owns_file(category, f))
+                .filter(|f| !owns_file(category, &root, f))
                 .map(|f| f.to_string_lossy().to_string())
                 .collect();
             if !foreign.is_empty() {
@@ -317,9 +642,9 @@ fn owned_files(category: StorageCategory, base: &Path) -> Vec<PathBuf> {
         return Vec::new();
     }
     if base.is_file() {
-        return if owns_file(category, base) { vec![base.to_path_buf()] } else { Vec::new() };
+        return if owns_file(category, base, base) { vec![base.to_path_buf()] } else { Vec::new() };
     }
-    collect_files(base).into_iter().filter(|f| owns_file(category, f)).collect()
+    collect_files(base).into_iter().filter(|f| owns_file(category, base, f)).collect()
 }
 
 /// 探测目录可写：创建并删除一个临时文件。
@@ -785,7 +1110,7 @@ pub fn cleanup_category(
     for root in roots {
         // 单文件类：直接删文件。
         if root.is_file() {
-            if owns_file(category, &root) {
+            if owns_file(category, &root, &root) {
                 std::fs::remove_file(&root)?;
             }
             continue;
@@ -804,7 +1129,7 @@ pub fn cleanup_category(
             if dir == root {
                 continue;
             }
-            if !is_own_dir(category, &dir) {
+            if !is_own_dir(category, &root, &dir) {
                 continue;
             }
             match std::fs::read_dir(&dir) {
@@ -1124,6 +1449,36 @@ pub fn run_startup_migration(
             let _migration_report = setup::run_startup_migration(&defaults);
 ```
 
+- [ ] **Step 4b: 单根收敛（A4，adl-server）**
+
+迁移会改变 locator 的根，因此 `init_server_state` 必须以 `storage.paths().root` 为**唯一**根，避免 `data_dir`（`--data-dir`）与 locator 分叉时 `create_dir_all(dir)` 建错目录。
+
+在 `crates/server/src/engine.rs` 的 `init_server_state` 开头（`data_dir` 参数解析处）：
+
+```rust
+pub async fn init_server_state(
+    data_dir: &Path,
+    storage: std::sync::Arc<adl_kernel::storage::StorageService>,
+) -> Result<ServerState, AppError> {
+    // 收敛为 locator 驱动的唯一根；`--data-dir` 仅作为解析默认根时的输入。
+    let data_dir: &Path = &storage.paths().root;
+    std::fs::create_dir_all(data_dir).ok();
+    ...
+```
+
+并在同文件 `ServerState { ... }` 字面量处，把 `data_dir: data_dir.to_path_buf()` 保留（此时即 `storage.paths().root`）。`bin/adl-server.rs` 中 `--data-dir` 的 `create_dir_all` 可保留（解析默认根前的兜底），但引擎内的创建以收敛后的根为准。
+
+新增断言测试（放入 `storage_tests` 模块）：
+
+```rust
+    #[test]
+    fn storage_root_is_the_canonical_data_dir() {
+        let root = std::path::PathBuf::from("/canon");
+        let svc = storage_from_locator(&adl_kernel::storage::StorageLocator::default(), &root);
+        assert_eq!(svc.paths().root, root);
+    }
+```
+
 - [ ] **Step 5: 运行编译与测试**
 
 Run: `cargo test -p adl-kernel storage -v && cargo test -p adl-server --lib && cargo build -p adl-server`
@@ -1206,7 +1561,8 @@ git commit -m "docs(storage): document startup migration semantics"
 - §7.3 算法（预检/复制/校验/切换指针/清理/报告/回滚）→ Task 1-3 ✅
 - §7.4 幂等与中断安全 → Task 2 `copy_one`（大小一致跳过）+ Task 3 删除在切换之后 ✅
 - §7.5 外部文件处理 → Task 1 `scan_foreign` + Task 3 `cleanup_category`/`kept_dirs` ✅
-- §5.2 白名单 → 全部复用 Plan A `owns_file`/`is_own_dir` ✅
+- §5.2 白名单 → 全部复用 base-aware `owns_file`/`is_own_dir`（Task 0 改造）✅
+- 重审修订 A1–A5（base-aware / 凭据形态 / 原子写 / 单根收敛 / category_roots 测试）→ Task 0 与 Task 4 Step 4b ✅
 - §9 提示（预检失败/成功/失败/保留）→ 引擎产出 `PreflightReport`/`MigrationReport`；文案与渲染在 Plan C ✅
 - §11 测试 → Task 1-4 单测 + Task 5 手工验证 ✅
 - §7.3 磁盘空间预检 → 明确移到 Plan C（壳层用 `sysinfo`），本计划以复制失败触发回滚兜底 ✅
