@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { terminalOutputStore } from '../terminalOutputStore';
 
 const mockSave = vi.fn();
@@ -50,5 +50,42 @@ describe('terminalOutputStore', () => {
     mockLoad.mockRejectedValue(new Error('network'));
     const result = await terminalOutputStore.load('sess-1');
     expect(result).toBeNull();
+  });
+});
+
+describe('terminalOutputStore.save', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('服务端返回 ok:false 时返回 false（而非静默成功）', async () => {
+    vi.stubGlobal('window', {
+      digitalLife: {
+        terminalOutput: {
+          save: async () => ({ ok: false, error: { code: 'INVALID_INPUT', message: 'too large' } }),
+        },
+      },
+    });
+    await expect(terminalOutputStore.save('s1', 'x')).resolves.toBe(false);
+  });
+
+  it('ok:true 时返回 true', async () => {
+    vi.stubGlobal('window', {
+      digitalLife: { terminalOutput: { save: async () => ({ ok: true, data: undefined }) } },
+    });
+    await expect(terminalOutputStore.save('s1', 'x')).resolves.toBe(true);
+  });
+
+  it('抛异常时返回 false', async () => {
+    vi.stubGlobal('window', {
+      digitalLife: {
+        terminalOutput: {
+          save: async () => {
+            throw new Error('network down');
+          },
+        },
+      },
+    });
+    await expect(terminalOutputStore.save('s1', 'x')).resolves.toBe(false);
   });
 });
