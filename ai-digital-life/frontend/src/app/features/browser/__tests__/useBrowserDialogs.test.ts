@@ -1,13 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import type { PageMeta } from '@shared/ipc/browser';
+import type { PageMeta, PageMetaUpdatedPayload } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import * as siteMetaCache from '@utils/siteMetaCache';
 import { useAppStore } from '@stores/slicedStore';
 import { resetFaviconSelfHealThrottleForTest, useBrowserDialogs } from '../useBrowserDialogs';
 
 vi.mock('@utils/pageMetaClient', () => ({
-  pageMetaClient: { peek: vi.fn(), get: vi.fn(), getSilent: vi.fn() },
+  pageMetaClient: { peek: vi.fn(), get: vi.fn(), getSilent: vi.fn(), subscribeUpdated: vi.fn() },
 }));
 
 function makeMeta(partial: Partial<PageMeta>): PageMeta {
@@ -22,12 +22,24 @@ function makeMeta(partial: Partial<PageMeta>): PageMeta {
 
 describe('useBrowserDialogs create-tab write gate', () => {
   beforeEach(async () => {
+    // 定时器隔离：handleCreateTabConfirm 成功后会 arm 一个 2s 延迟的
+    // scheduleFaviconFetch（真实 setTimeout）。若用真实定时器，该延迟 getSilent
+    // 会落进后面某个测试的时间窗，导致 `not.toHaveBeenCalled` 类断言 flaky。
+    // 仅 fake 计时器（Date/微任务保持真实），与 useAppStartup.test.ts 先例一致。
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
     resetFaviconSelfHealThrottleForTest();
     vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
     vi.mocked(pageMetaClient.getSilent).mockReset();
+    vi.mocked(pageMetaClient.subscribeUpdated).mockReset();
+    // 默认 noop 订阅：不断言广播的用例走 4s 超时分支（由下述 advance 推进落定）。
+    vi.mocked(pageMetaClient.subscribeUpdated).mockReturnValue(() => {});
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   async function confirmCreateTab(url: string) {
@@ -44,7 +56,11 @@ describe('useBrowserDialogs create-tab write gate', () => {
       }),
     );
     await act(async () => {
-      await result.current.handleCreateTabConfirm('', url);
+      const pending = result.current.handleCreateTabConfirm('', url);
+      // 进入 favicon 广播等待时推进 fake 时间使其超时落定；
+      // 未进入等待时队列为空，推进是无操作。
+      await vi.advanceTimersByTimeAsync(4000);
+      await pending;
     });
     return { openTab };
   }
@@ -238,7 +254,13 @@ describe('useBrowserDialogs create-tab write gate', () => {
       }),
     );
     await act(async () => {
-      await result.current.handleCreateTabConfirm('', 'https://dlg-silent.example', 'save-only');
+      const pending = result.current.handleCreateTabConfirm(
+        '',
+        'https://dlg-silent.example',
+        'save-only',
+      );
+      await vi.advanceTimersByTimeAsync(4000);
+      await pending;
     });
     expect(pageMetaClient.getSilent).toHaveBeenCalledWith('https://dlg-silent.example');
     expect(createBookmarkEntry).toHaveBeenCalledWith(
@@ -299,6 +321,52 @@ describe('useBrowserDialogs create-tab write gate', () => {
     expect(entry.title).toBe('Old Title');
     expect(entry.faviconDataUri).toBe('data:image/png;base64,OLD');
   });
+
+  it('favicon broadcast arrives early: resolves the wait without the 4s timeout', async () => {
+    const url = 'https://dlg-broadcast.example';
+    vi.mocked(pageMetaClient.getSilent).mockResolvedValue(
+      makeMeta({ title: 'Live', faviconDataUri: '', url }),
+    );
+    const listeners: ((p: PageMetaUpdatedPayload) => void)[] = [];
+    const unsub = vi.fn();
+    vi.mocked(pageMetaClient.subscribeUpdated).mockImplementation((cb) => {
+      listeners.push(cb);
+      return unsub;
+    });
+    const createBookmarkEntry = vi.fn().mockReturnValue({ ok: true });
+    useAppStore.setState({ browserCreateBookmarkEntry: createBookmarkEntry });
+    const openTab = vi.fn();
+    const { result } = renderHook(() =>
+      useBrowserDialogs({
+        browserOpenTab: openTab,
+        browserUpdateTab: vi.fn(),
+        navigateTabExplicit: vi.fn(),
+        activeTab: null,
+        isBookmarked: false,
+        showToast: vi.fn(),
+        t: {},
+      }),
+    );
+    await act(async () => {
+      const pending = result.current.handleCreateTabConfirm('', url, 'save-only');
+      for (let i = 0; i < 20 && listeners.length === 0; i++) {
+        await Promise.resolve();
+      }
+      expect(listeners.length).toBe(1);
+      listeners[0]({
+        url,
+        title: 'Live',
+        faviconUrl: `${url}/f.png`,
+        faviconDataUri: 'data:image/png;base64,NEW',
+        source: 'http',
+      });
+      await pending;
+    });
+    expect(unsub).toHaveBeenCalledTimes(1);
+    expect(createBookmarkEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ url, title: 'Live' }),
+    );
+  });
 });
 
 describe('useBrowserDialogs create-tab save-mode branching', () => {
@@ -311,6 +379,7 @@ describe('useBrowserDialogs create-tab save-mode branching', () => {
     vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
     vi.mocked(pageMetaClient.getSilent).mockReset();
+    vi.mocked(pageMetaClient.subscribeUpdated).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
     useAppStore.setState({
@@ -578,6 +647,7 @@ describe('useBrowserDialogs edit-tab saved-bookmark sync', () => {
     vi.mocked(pageMetaClient.peek).mockReset();
     vi.mocked(pageMetaClient.get).mockReset();
     vi.mocked(pageMetaClient.getSilent).mockReset();
+    vi.mocked(pageMetaClient.subscribeUpdated).mockReset();
     siteMetaCache.setSiteMetaBackendForTest(siteMetaCache.createMockSiteMetaBackend());
     await siteMetaCache.initSiteMetaCache();
     useAppStore.setState({
