@@ -71,6 +71,109 @@ export const settingsEn = {
   settingsToggleVisibility: 'Toggle visibility',
   settingsSearchLabel: 'Search settings',
 
+  // Storage
+  storageTitle: 'Storage',
+  storageModeLabel: 'Path mode',
+  storageModeUnified: 'Unified root (default)',
+  storageModePerCategory: 'Per-category',
+  storageRootLabel: 'Data root',
+  storagePickDir: 'Choose folder',
+  storageManualInput: 'Enter manually',
+  storageManualInputPlaceholder: 'Enter an absolute path…',
+  storageApply: 'Apply',
+  storageCancel: 'Cancel',
+  storageCategoryGroupCore: 'Core data',
+  storageCategoryGroupAdvanced: 'Advanced',
+  storageUsed: '{size} used ({files} files)',
+  storageNotCreated: 'Not created yet',
+  storageForeignFiles: '{count} file(s) not created by this app will be kept',
+  storageLocatorTitle: 'Data location index',
+  storageLocatorHint:
+    'This file records where your data lives; do not delete it, or the app will fall back to the default folder',
+  storagePendingBanner: 'Migration scheduled for next launch',
+  storagePendingFailedBanner: 'Last migration failed: {error} (old data is intact)',
+  storageRetryMigration: 'Retry',
+  storageCancelPending: 'Cancel pending migration',
+  storageMigrateDialogTitle: 'Migrate data',
+  storageMigrateDialogSummary: 'Will move {files} file(s) (~{size}) to the new location',
+  storageMigrateNow: 'Migrate now and restart',
+  storageMigrateLater: 'Migrate on next launch',
+  storageRetainSource: 'Keep old files after migration (do not delete)',
+  storagePreflightErrors: 'Cannot migrate:',
+  storagePreflightWarnings: 'Note:',
+  storageReportTitle: 'Last migration report',
+  storageReportOk: 'Migrated {files} file(s) ({size})',
+  storageReportDirsRemoved: 'Removed {count} old folder(s)',
+  storageReportDirsKept: 'Kept {count} old folder(s) (contain external files)',
+  storageReportRetained: 'Old files kept as configured',
+  storageReportFailed: 'Migration failed: {error}',
+  storageImmutableTitle: 'Not movable (managed by the OS or runtime)',
+  storageImmutableKeyring:
+    'Credentials are kept in the OS credential manager; the location is fixed by the system.',
+  storageImmutableMachineId:
+    'This file derives the credential encryption key; moving it would make saved credentials undecryptable.',
+  storageImmutableLocalStorage:
+    'Stored per-origin by the WebView; managed with the app, no separate path.',
+  storageImmutableIndexedDb:
+    'Avatar cache lives in the browser IndexedDB; managed with the app, no separate path.',
+  storageImmutableWebview2:
+    'Managed by the WebView2 runtime; changing it requires rebuilding the whole browser environment.',
+  storageImmutableWorkspaceCache:
+    'Belongs to a specific workspace and moves with it; not part of the app data folder.',
+  storageRestartRequired: 'Saved. Restart the app to complete the migration.',
+  storageTerminalBudgetTitle: 'Terminal history disk budget',
+  storageRestartUnavailableInBrowser:
+    'The browser mode cannot restart the app; this change will apply on next launch.',
+  storageBrowserDownloadTitle: 'Browser default download folder',
+  storagePickFailed: 'Failed to choose folder: {error}',
+
+  // Storage categories
+  storageCategoryDatabase: 'Main database',
+  storageCategoryDownloadsDb: 'Download history DB',
+  storageCategorySiteMetaDb: 'Site metadata cache',
+  storageCategoryConfig: 'App configuration',
+  storageCategoryClipboard: 'Clipboard assets',
+  storageCategorySnapshot: 'Project snapshots',
+  storageCategoryDsh: 'DSH versions & bundles',
+  storageCategoryLogs: 'Logs',
+  storageCategoryCredentialsFallback: 'Credential fallback files',
+  storageCategoryDownloadsDefault: 'Default download folder',
+  storageCategoryDatabaseDesc:
+    "The app's core database, storing workspaces, sessions, tasks, approvals, patches and rollbacks, read-only terminal history, clipboard metadata, Git visualization cache, and more.",
+  storageCategoryDatabaseRelated:
+    'Relates to workspace navigation, the session panel, the terminal history area, clipboard history, and Git visualization.',
+  storageCategoryDownloadsDbDesc:
+    'Records of browser download tasks, including file name, source, time, and status.',
+  storageCategoryDownloadsDbRelated:
+    'Relates to the Downloads list and management in the built-in browser.',
+  storageCategorySiteMetaDbDesc:
+    'Cache of titles and icons (favicons) for visited sites, used to speed up tab display.',
+  storageCategorySiteMetaDbRelated:
+    'Relates to tab titles and icons, and history/bookmark display in the built-in browser.',
+  storageCategoryConfigDesc:
+    'App settings (language, theme, log mode, terminal budget, browser thresholds, DSH sources, etc.).',
+  storageCategoryConfigRelated: 'Relates to persisting every setting in the settings panel.',
+  storageCategoryClipboardDesc: 'Image and thumbnail files in clipboard history.',
+  storageCategoryClipboardRelated:
+    'Relates to image preview and re-insertion in the clipboard history panel.',
+  storageCategorySnapshotDesc:
+    'File snapshots taken before patches are applied, used for rollback and diff comparison.',
+  storageCategorySnapshotRelated: 'Relates to patch preview, apply, rollback, and the diff viewer.',
+  storageCategoryDshDesc: 'Downloaded versions and bundled artifacts of DeepSeek Harness.',
+  storageCategoryDshRelated:
+    'Relates to version management in the DSH settings group and running DSH.',
+  storageCategoryLogsDesc: 'Terminal and debug log files used for troubleshooting.',
+  storageCategoryLogsRelated:
+    'Relates to debugging tools (log collector, copy debug logs) and the troubleshooting workflow.',
+  storageCategoryCredentialsFallbackDesc:
+    'Credentials stored as encrypted files, used only when the OS credential manager is unavailable.',
+  storageCategoryCredentialsFallbackRelated:
+    'Relates to features that need credentials (such as CI access tokens and API tokens); the primary credentials are not here (see the not-movable section).',
+  storageCategoryDownloadsDefaultDesc:
+    'The default folder for browser downloads (it holds user files, not app data).',
+  storageCategoryDownloadsDefaultRelated:
+    'Relates to the default destination of built-in browser downloads; never deleted automatically.',
+
   // Command titles
   commandSessionNew: 'New Session',
   commandWorkspaceNew: 'New Workspace',
