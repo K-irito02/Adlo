@@ -51,6 +51,12 @@ pub struct PendingMigration {
     #[serde(default)]
     pub retain_source: bool,
     pub requested_at: i64,
+    /// 上次执行失败；不自动重试，等待用户在设置中「重试」或「取消」。
+    #[serde(default)]
+    pub failed: bool,
+    /// 上次失败原因（`failed == true` 时存在）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
 }
 
 /// 迁移清理阶段因含外部文件而被保留的旧目录。
@@ -225,6 +231,8 @@ mod tests {
             to: loc.selection.clone(),
             retain_source: true,
             requested_at: 1726000000,
+            failed: false,
+            error: None,
         });
         loc.last_report = Some(MigrationReport {
             at: 1726000001,
@@ -248,5 +256,27 @@ mod tests {
     fn minimal_json_parses_with_defaults() {
         let loc: StorageLocator = serde_json::from_str(r#"{"version":1}"#).unwrap();
         assert_eq!(loc, StorageLocator::default());
+    }
+
+    #[test]
+    fn pending_migration_failure_fields_default_and_round_trip() {
+        // 缺失新字段的旧 JSON 回退默认值。
+        let pm: PendingMigration = serde_json::from_str(
+            r#"{"from":{"mode":"unified"},"to":{"mode":"unified"},"requestedAt":1726000000}"#,
+        )
+        .unwrap();
+        assert!(!pm.failed);
+        assert!(pm.error.is_none());
+
+        let mut failed = pm.clone();
+        failed.failed = true;
+        failed.error = Some("disk full".to_string());
+        let back: PendingMigration =
+            serde_json::from_str(&serde_json::to_string(&failed).unwrap()).unwrap();
+        assert!(back.failed);
+        assert_eq!(back.error.as_deref(), Some("disk full"));
+
+        // failed == false 时 `error` 不序列化。
+        assert!(!serde_json::to_string(&pm).unwrap().contains("\"error\""));
     }
 }

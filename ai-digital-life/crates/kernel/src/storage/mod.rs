@@ -12,4 +12,11 @@ pub use paths::{StorageDefaults, StoragePaths, StorageService, resolve_log_dir};
 
 pub mod whitelist;
 
+pub mod migration;
+
+pub use migration::{
+    ForeignScan, MigrationProgress, PreflightIssue, PreflightReport, Severity, plan_categories,
+    preflight, scan_foreign,
+};
+
 pub use whitelist::{category_roots, is_own_dir, owns_file};
