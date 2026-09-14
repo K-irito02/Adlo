@@ -55,7 +55,8 @@ impl StoragePaths {
     /// 规则：先取 unified 根（`selection.root` 或 `defaults.root`），逐字段按该根拼接；
     /// 仅当 `mode == PerCategory` 时，`categories` 中的覆盖才生效（凭据回退与默认下载
     /// 目录的「未覆盖」值是平台默认，而非根下子路径）。`dsh` 覆盖值视为 DSH 根，
-    /// 两个子目录为 `X/dsh-versions`、`X/dsh-bundle`。
+    /// 两个子目录为 `X/dsh-versions`、`X/dsh-bundle`；三个 DB 分类的覆盖值视为**目录**，
+    /// 固定的数据库文件名（`data.db` / `downloads.db` / `site-meta-cache.db`）拼在其下。
     pub fn from_locator(loc: &StorageLocator, defaults: &StorageDefaults) -> Self {
         Self::resolve(&loc.selection, defaults)
     }
@@ -69,10 +70,14 @@ impl StoragePaths {
         };
 
         Self {
-            data_db: overridden(StorageCategory::Database).unwrap_or_else(|| root.join("data.db")),
+            data_db: overridden(StorageCategory::Database)
+                .map(|d| d.join("data.db"))
+                .unwrap_or_else(|| root.join("data.db")),
             downloads_db: overridden(StorageCategory::DownloadsDb)
+                .map(|d| d.join("downloads.db"))
                 .unwrap_or_else(|| root.join("downloads.db")),
             site_meta_db: overridden(StorageCategory::SiteMetaDb)
+                .map(|d| d.join("site-meta-cache.db"))
                 .unwrap_or_else(|| root.join("site-meta-cache.db")),
             config_dir: overridden(StorageCategory::Config).unwrap_or_else(|| root.join("config")),
             clipboard_dir: overridden(StorageCategory::Clipboard)
@@ -193,6 +198,22 @@ mod tests {
         assert_eq!(p.dsh_bundle_dir, PathBuf::from("E:/dsh/dsh-bundle"));
         // 未覆盖的类仍用 unified 根。
         assert_eq!(p.data_db, PathBuf::from("D:/adl/data.db"));
+    }
+
+    #[test]
+    fn per_category_db_override_is_a_directory() {
+        let mut loc = StorageLocator::default();
+        loc.selection.mode = StorageMode::PerCategory;
+        loc.selection.categories.insert(StorageCategory::Database, PathBuf::from("/xdb"));
+        loc.selection.categories.insert(StorageCategory::DownloadsDb, PathBuf::from("/xdl"));
+        loc.selection.categories.insert(StorageCategory::SiteMetaDb, PathBuf::from("/xmeta"));
+        let p = StoragePaths::from_locator(&loc, &defaults());
+        // 覆盖值是目录：数据库文件名拼在其下（与其它分类的目录语义一致）。
+        assert_eq!(p.data_db, PathBuf::from("/xdb/data.db"));
+        assert_eq!(p.downloads_db, PathBuf::from("/xdl/downloads.db"));
+        assert_eq!(p.site_meta_db, PathBuf::from("/xmeta/site-meta-cache.db"));
+        // dir() 与字段保持一致。
+        assert_eq!(p.dir(StorageCategory::Database), PathBuf::from("/xdb/data.db"));
     }
 
     #[test]

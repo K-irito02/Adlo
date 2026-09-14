@@ -212,17 +212,26 @@ fn probe_writable(target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// 单文件类：源文件不会同时包含 wal/shm，逐个按存在性处理。
-fn single_files(category: StorageCategory, paths: &StoragePaths) -> Vec<(PathBuf, PathBuf)> {
-    let names: &[&str] = match category {
-        StorageCategory::Database => &["data.db", "data.db-wal", "data.db-shm"],
-        StorageCategory::DownloadsDb => &["downloads.db", "downloads.db-wal", "downloads.db-shm"],
-        StorageCategory::SiteMetaDb => {
-            &["site-meta-cache.db", "site-meta-cache.db-wal", "site-meta-cache.db-shm"]
+/// 单文件类的主文件路径（Database/DownloadsDb/SiteMetaDb 的 .db 文件）。
+fn primary_db_file(category: StorageCategory, paths: &StoragePaths) -> Option<PathBuf> {
+    match category {
+        StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb => {
+            Some(paths.dir(category))
         },
-        _ => &[],
+        _ => None,
+    }
+}
+
+/// 单文件类的主文件 + WAL/SHM 伴随文件（按后缀，不改变文件名）。
+///
+/// NOTE (Task 3): 清理旧源时也必须用 `db_files(category, from)` 才能一并删除
+/// `.db-wal` / `.db-shm`，不要只删主库文件。
+fn db_files(category: StorageCategory, paths: &StoragePaths) -> Vec<PathBuf> {
+    let Some(primary) = primary_db_file(category, paths) else {
+        return Vec::new();
     };
-    names.iter().map(|n| (paths.root.join(n), paths.root.join(n))).collect()
+    let s = primary.to_string_lossy().to_string();
+    vec![primary, PathBuf::from(format!("{s}-wal")), PathBuf::from(format!("{s}-shm"))]
 }
 
 /// 该分类的「目录 → 目录」映射（单文件类返回空）。
@@ -254,21 +263,17 @@ pub fn copy_category(
     to: &StoragePaths,
     progress: &mut dyn FnMut(MigrationProgress),
 ) -> Result<Vec<(PathBuf, u64)>, AppError> {
-    // 单文件类：源文件名 → 目标根下同名文件。
+    // 单文件类：主库 + 伴随 wal/shm，源与目标逐一同名映射（覆盖值按目录解析）。
     if matches!(
         category,
         StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb
     ) {
         let mut moved = Vec::new();
-        for (src_root_file, _) in single_files(category, from) {
-            if !src_root_file.is_file() {
+        for (src, dst) in db_files(category, from).into_iter().zip(db_files(category, to)) {
+            if !src.is_file() {
                 continue;
             }
-            let Some(name) = src_root_file.file_name() else {
-                continue;
-            };
-            let dst = to.root.join(name);
-            let bytes = copy_one(&src_root_file, &dst, progress, category)?;
+            let bytes = copy_one(&src, &dst, progress, category)?;
             moved.push((dst, bytes));
         }
         return Ok(moved);
@@ -329,14 +334,10 @@ pub fn verify_category(
         category,
         StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb
     ) {
-        for (src, _) in single_files(category, from) {
+        for (src, dst) in db_files(category, from).into_iter().zip(db_files(category, to)) {
             if !src.is_file() {
                 continue;
             }
-            let Some(name) = src.file_name() else {
-                continue;
-            };
-            let dst = to.root.join(name);
             let s = std::fs::metadata(&src)?.len();
             let d = std::fs::metadata(&dst)
                 .map_err(|e| AppError::Storage(format!("missing target {}: {e}", dst.display())))?
@@ -349,9 +350,10 @@ pub fn verify_category(
             }
         }
         // 主库/下载库/站点元库：quick_check（只对存在的 .db 文件）。
-        let db = to.dir(category);
-        if db.is_file() {
-            quick_check(&db)?;
+        if let Some(db) = primary_db_file(category, to) {
+            if db.is_file() {
+                quick_check(&db)?;
+            }
         }
         return Ok(());
     }
@@ -478,7 +480,7 @@ mod tests {
         assert!(scan_foreign(&p).is_empty());
     }
 
-    use crate::storage::locator::StorageSelection;
+    use crate::storage::locator::{StorageMode, StorageSelection};
 
     fn write(path: &std::path::Path, bytes: &[u8]) {
         if let Some(p) = path.parent() {
@@ -530,6 +532,39 @@ mod tests {
         // 篡改目标大小 → 校验必须失败。
         std::fs::write(newp.clipboard_dir.join("images/a.png"), b"A").unwrap();
         assert!(verify_category(StorageCategory::Clipboard, &old, &newp).is_err());
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn copy_and_verify_migrates_per_category_db_override() {
+        let base = std::env::temp_dir().join(format!("adl-mig-db-override-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let old_root = base.join("old");
+        let new_db_dir = base.join("newdb");
+
+        // 源：统一根 <tmp>/old，写一个真实 SQLite 库。
+        let old = paths_for(&StorageSelection::default(), &old_root.to_string_lossy());
+        std::fs::create_dir_all(&old_root).unwrap();
+        {
+            let conn = rusqlite::Connection::open(old_root.join("data.db")).unwrap();
+            conn.execute_batch("CREATE TABLE t(x INTEGER); INSERT INTO t VALUES (1);").unwrap();
+        }
+
+        // 目标：per_category 覆盖 Database → 目录 <tmp>/newdb（覆盖值是目录）。
+        let mut categories = std::collections::BTreeMap::new();
+        categories.insert(StorageCategory::Database, new_db_dir.clone());
+        let new_sel = StorageSelection {
+            mode: StorageMode::PerCategory,
+            root: Some(old_root.clone()),
+            categories,
+        };
+        let newp = paths_for(&new_sel, &old_root.to_string_lossy());
+        assert_eq!(newp.data_db, new_db_dir.join("data.db"));
+
+        let mut noop = |_p: MigrationProgress| {};
+        copy_category(StorageCategory::Database, &old, &newp, &mut noop).unwrap();
+        verify_category(StorageCategory::Database, &old, &newp).unwrap();
+        assert!(new_db_dir.join("data.db").exists(), "override dir must receive data.db");
         let _ = std::fs::remove_dir_all(&base);
     }
 }
