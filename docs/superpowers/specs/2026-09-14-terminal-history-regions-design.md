@@ -603,6 +603,8 @@ type RegionCollapse = 'none' | 'history' | 'live';
 
 ### 15.1 子项目 A —— 应用数据根目录可自定义 + 迁移 + 旧目录清理
 
+→ 已立项并实施：`2026-09-14-storage-path-settings-design.md`（Plan A 已完成，见 `docs/superpowers/plans/2026-09-14-storage-*.md`）
+
 **需求来源**：用户要求「项目中所有数据，除非必须在系统 C 盘的情况下，其它都支持用户自定义路径，然后迁移并删除旧数据及目录」。
 
 **为什么不能落在终端面板**：终端历史与工作区、会话、任务、审批、剪贴板共用主库 `data.db`（`crates/server/src/engine.rs` 打开）；`data_dir` 下还有 `downloads.db`、`config/config.json`、`dsh-versions/`、site-meta 缓存、剪贴板缩略图、`.adl-logs`。移动 `data.db` 就是移动整个应用数据，路径能力天然是**全局**的。给终端单独换路径只能把历史从主库拆出，属于更换技术方案，已被用户否决。

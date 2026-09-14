@@ -18,6 +18,12 @@
 | CI/CD | GitHub Actions（`../.github/workflows/quality-gates.yml`，Windows-only） |
 | 凭据存储 | `crates/credential/`（keyring + 加密文件降级） |
 
+### 存储路径解析（`adl-kernel::storage`）
+
+- 所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析；locator 文件为 `<dirs::config_dir()>/ai-digital-life/storage-locator.json`（本计划只读不写，缺失时回退默认），默认统一根 = `app_data_dir()`。
+- 日志目录：debug（dev）构建写仓库根 `.adl-logs`，release 构建写 `<root>/logs`。
+- **已知行为修正**：补丁快照路径由硬编码（旧 `dirs::data_dir()/ai-digital-life/snapshot`）收敛到 adl-server 的 `storage.paths().snapshot_dir`；遗留目录下的旧快照不自动迁移，需手动移动（Plan B 只处理用户发起的路径变更）。
+
 ## 当前阶段
 
 **Phase 0 底座**：
