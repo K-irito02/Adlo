@@ -54,8 +54,10 @@ pub fn init_app_state(
         }
     }
 
-    let project_root = resolve_project_root();
-    let log_dir = project_root.join(".adl-logs");
+    // 开发态（debug）保留写仓库根 .adl-logs，release 使用 <root>/logs。
+    let dev_project_root = if cfg!(debug_assertions) { Some(resolve_project_root()) } else { None };
+    let log_dir =
+        adl_kernel::storage::resolve_log_dir(storage.paths(), dev_project_root.as_deref());
     std::fs::create_dir_all(&log_dir)?;
 
     let t1 = std::time::Instant::now();

@@ -8,7 +8,7 @@ pub use locator::{
     StorageLocator, StorageMode, StorageSelection, load_locator, load_locator_from, locator_dir,
     locator_path, save_locator, save_locator_to,
 };
-pub use paths::{StorageDefaults, StoragePaths, StorageService};
+pub use paths::{StorageDefaults, StoragePaths, StorageService, resolve_log_dir};
 
 pub mod whitelist;
 

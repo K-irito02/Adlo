@@ -2,7 +2,7 @@
 
 use super::category::StorageCategory;
 use super::locator::{StorageLocator, StorageMode, StorageSelection};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// 平台相关的默认位置（由调用方提供，因为壳层用 Tauri `app_data_dir()`，
 /// 而 adl-server 用 `--data-dir`，两者无法在 kernel 内自行取得同一个值）。
@@ -116,6 +116,19 @@ impl StorageService {
     }
 }
 
+/// 解析日志目录。
+///
+/// - `project_root = Some(p)` 时（开发态覆盖）：写入 `<p>/.adl-logs`，保持既有调试工作流。
+/// - `None` 时：使用 `paths.logs_dir`（默认 `<root>/logs`）。
+///
+/// 覆盖开关由调用方决定：debug 构建传入 `Some(仓库根)`，release 传 `None`。
+pub fn resolve_log_dir(paths: &StoragePaths, project_root: Option<&Path>) -> PathBuf {
+    match project_root {
+        Some(root) => root.join(".adl-logs"),
+        None => paths.logs_dir.clone(),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -198,5 +211,18 @@ mod tests {
             let d = p.dir(c);
             assert!(d.is_absolute() || d.starts_with("/default"), "{c:?} -> {d:?}");
         }
+    }
+
+    #[test]
+    fn resolve_log_dir_prefers_project_root_in_debug_override() {
+        let p = StoragePaths::from_locator(&StorageLocator::default(), &defaults());
+        let project_root = PathBuf::from("/repo");
+        assert_eq!(resolve_log_dir(&p, Some(&project_root)), PathBuf::from("/repo/.adl-logs"));
+    }
+
+    #[test]
+    fn resolve_log_dir_uses_storage_paths_when_no_override() {
+        let p = StoragePaths::from_locator(&StorageLocator::default(), &defaults());
+        assert_eq!(resolve_log_dir(&p, None), PathBuf::from("/default/root/logs"));
     }
 }

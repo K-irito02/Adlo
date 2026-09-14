@@ -8,18 +8,10 @@ use adl_storage::Database;
 use adl_storage::durable::DurableSessionManager;
 use adl_types::{WorkspaceMeta, now_ms};
 use std::io::Write;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 use tracing::info;
-
-fn resolve_log_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-        .parent()
-        .and_then(Path::parent)
-        .map(|p| p.join(".adl-logs"))
-        .unwrap_or_else(|| PathBuf::from(".adl-logs"))
-}
 
 /// 由 locator + 默认根构造存储服务。adl-server 的默认根即 `--data-dir`。
 pub fn storage_from_locator(
@@ -40,7 +32,19 @@ pub async fn init_server_state(
     storage: std::sync::Arc<adl_kernel::storage::StorageService>,
 ) -> Result<ServerState, AppError> {
     eprintln!("[ad-server] init_server_state start, data_dir={}", data_dir.display());
-    let log_dir = resolve_log_dir();
+    let dev_project_root = if cfg!(debug_assertions) {
+        Some(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .parent()
+                .and_then(std::path::Path::parent)
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| std::path::PathBuf::from(".")),
+        )
+    } else {
+        None
+    };
+    let log_dir =
+        adl_kernel::storage::resolve_log_dir(storage.paths(), dev_project_root.as_deref());
     std::fs::create_dir_all(&log_dir).ok();
     let log_config = adl_logging::LogConfig {
         terminal_log_mode: adl_logging::LogMode::default(),
