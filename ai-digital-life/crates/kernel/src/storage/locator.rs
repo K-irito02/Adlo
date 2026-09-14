@@ -142,7 +142,10 @@ pub fn save_locator_to(path: &Path, loc: &StorageLocator) -> Result<(), AppError
         std::fs::create_dir_all(parent)?;
     }
     let content = serde_json::to_string_pretty(loc)?;
-    std::fs::write(path, content)?;
+    // 原子写：先写同目录临时文件，再 rename 覆盖，避免崩溃时撕裂指针文件。
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, content)?;
+    std::fs::rename(&tmp, path)?;
     Ok(())
 }
 

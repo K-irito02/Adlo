@@ -16,27 +16,20 @@ fn parts(path: &Path) -> Vec<String> {
         .collect()
 }
 
-/// `parts` 中是否存在与 `window` 完全一致的**连续**子序列。
-fn contains_window(parts: &[String], window: &[&str]) -> bool {
-    window_index(parts, window).is_some()
-}
-
-/// `window` 连续子序列的起始下标（不存在则 `None`）。
-fn window_index(parts: &[String], window: &[&str]) -> Option<usize> {
-    if window.is_empty() || parts.len() < window.len() {
-        return None;
-    }
-    let w: Vec<String> = window.iter().map(|s| (*s).to_string()).collect();
-    parts.windows(w.len()).position(|win| win == w.as_slice())
-}
-
 /// 判断 `path` 是否属于 `category`。
-pub fn owns_file(category: StorageCategory, path: &Path) -> bool {
+///
+/// `base` 是该分类在**当前解析结果**中的基目录（来自 `category_roots`）。判定基于
+/// `path` 相对 `base` 的结构，因此对 per-category 自定义根同样成立。
+/// `path` 不在 `base` 之下时一律判否。
+pub fn owns_file(category: StorageCategory, base: &Path, path: &Path) -> bool {
     let name = match path.file_name().and_then(|n| n.to_str()) {
         Some(n) => n,
         None => return false,
     };
-    let p = parts(path);
+    let rel: Vec<String> = match path.strip_prefix(base) {
+        Ok(r) => parts(r),
+        Err(_) => return false,
+    };
     match category {
         StorageCategory::Database => matches!(name, "data.db" | "data.db-wal" | "data.db-shm"),
         StorageCategory::DownloadsDb => {
@@ -46,47 +39,43 @@ pub fn owns_file(category: StorageCategory, path: &Path) -> bool {
             name,
             "site-meta-cache.db" | "site-meta-cache.db-wal" | "site-meta-cache.db-shm"
         ),
-        // config 目录整体归本应用所有，其下任何文件均属自有。
-        StorageCategory::Config => true,
+        // config 基目录下所有文件均属自有。
+        StorageCategory::Config => !rel.is_empty(),
+        // `<base>/images/**` 或 `<base>/thumbs/**`
         StorageCategory::Clipboard => {
-            contains_window(&p, &["clipboard", "images"])
-                || contains_window(&p, &["clipboard", "thumbs"])
+            matches!(rel.first().map(String::as_str), Some("images") | Some("thumbs"))
         },
-        // 仅 `<snapshot>/<hash>/...` 下的文件属于我们；用户直接丢在 snapshot/ 下的不算。
-        StorageCategory::Snapshot => {
-            window_index(&p, &["snapshot"]).map(|i| i + 3 <= p.len()).unwrap_or(false)
-        },
-        StorageCategory::Dsh => {
-            contains_window(&p, &["dsh-versions"]) || contains_window(&p, &["dsh-bundle"])
-        },
+        // `<base>/<hash>/...`：文件必须在 hash 子目录之下。
+        StorageCategory::Snapshot => rel.len() >= 2,
+        // base 本身即 dsh-versions 或 dsh-bundle 目录。
+        StorageCategory::Dsh => !rel.is_empty(),
         StorageCategory::Logs => {
             name.starts_with("terminal-logs") || name.starts_with("debug-logs")
         },
+        // 仅 `<service>.<account>.enc` 形态（两段非空且以 .enc 结尾），非任意 *.enc。
         StorageCategory::CredentialsFallback => {
-            path.extension().and_then(|e| e.to_str()) == Some("enc")
+            name.ends_with(".enc")
+                && name.split('.').count() == 3
+                && name.split('.').all(|seg| !seg.is_empty())
         },
         StorageCategory::DownloadsDefault => false,
     }
 }
 
-/// 判断 `dir` 是否是该分类允许的**自有目录**（用于决定清理时能否 `remove_dir`）。
-pub fn is_own_dir(category: StorageCategory, dir: &Path) -> bool {
-    let p = parts(dir);
-    let ends_with = |w: &[&str]| -> bool {
-        p.len() >= w.len()
-            && p[p.len() - w.len()..].iter().map(String::as_str).eq(w.iter().copied())
+/// 判断 `dir` 是否是该分类允许的**自有目录**（用于清理时能否 `remove_dir`）。
+pub fn is_own_dir(category: StorageCategory, base: &Path, dir: &Path) -> bool {
+    let rel: Vec<String> = match dir.strip_prefix(base) {
+        Ok(r) => parts(r),
+        Err(_) => return false,
     };
     match category {
         StorageCategory::Config => true,
         StorageCategory::Clipboard => {
-            ends_with(&["clipboard", "images"]) || ends_with(&["clipboard", "thumbs"])
+            matches!(rel.first().map(String::as_str), Some("images") | Some("thumbs"))
         },
-        // snapshot 自身的任意子目录（含更深层）均自有；`snapshot` 目录本身不算。
-        StorageCategory::Snapshot => {
-            window_index(&p, &["snapshot"]).map(|i| i + 2 <= p.len()).unwrap_or(false)
-        },
-        StorageCategory::Dsh => ends_with(&["dsh-versions"]) || ends_with(&["dsh-bundle"]),
-        StorageCategory::Logs => ends_with(&["logs"]) || ends_with(&[".adl-logs"]),
+        StorageCategory::Snapshot => !rel.is_empty(),
+        StorageCategory::Dsh => !rel.is_empty(),
+        StorageCategory::Logs => rel.is_empty(),
         // 主库/下载库/站点元库直接位于共享根，凭据目录由 OS 配置目录承载，均不视为可删自有目录。
         StorageCategory::Database
         | StorageCategory::DownloadsDb
@@ -115,51 +104,210 @@ pub fn category_roots(category: StorageCategory, paths: &StoragePaths) -> Vec<Pa
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::storage::locator::StorageLocator;
+    use crate::storage::paths::{StorageDefaults, StoragePaths};
     use std::path::Path;
+
+    /// 统一模式默认根下的解析结果（base 与今日布局一致）。
+    fn default_paths() -> StoragePaths {
+        let defaults = StorageDefaults {
+            root: std::path::PathBuf::from("/d"),
+            credentials_dir: std::path::PathBuf::from("/c/creds"),
+            downloads_dir: std::path::PathBuf::from("/dl"),
+        };
+        StoragePaths::from_locator(&StorageLocator::default(), &defaults)
+    }
 
     #[test]
     fn database_owns_db_and_wal_shm_only() {
-        assert!(owns_file(StorageCategory::Database, Path::new("/d/data.db")));
-        assert!(owns_file(StorageCategory::Database, Path::new("/d/data.db-wal")));
-        assert!(owns_file(StorageCategory::Database, Path::new("/d/data.db-shm")));
-        assert!(!owns_file(StorageCategory::Database, Path::new("/d/other.db")));
-        assert!(!owns_file(StorageCategory::Database, Path::new("/d/user-note.txt")));
+        let p = default_paths();
+        let base = &p.root;
+        assert!(owns_file(StorageCategory::Database, base, Path::new("/d/data.db")));
+        assert!(owns_file(StorageCategory::Database, base, Path::new("/d/data.db-wal")));
+        assert!(owns_file(StorageCategory::Database, base, Path::new("/d/data.db-shm")));
+        assert!(!owns_file(StorageCategory::Database, base, Path::new("/d/other.db")));
+        assert!(!owns_file(StorageCategory::Database, base, Path::new("/d/user-note.txt")));
     }
 
     #[test]
-    fn clipboard_owns_images_and_thumbs_subtrees() {
-        assert!(owns_file(StorageCategory::Clipboard, Path::new("/d/clipboard/images/a.png")));
-        assert!(owns_file(StorageCategory::Clipboard, Path::new("/d/clipboard/thumbs/a.png")));
-        assert!(!owns_file(StorageCategory::Clipboard, Path::new("/d/clipboard/user.txt")));
-        assert!(!owns_file(StorageCategory::Clipboard, Path::new("/d/clipboard/other/a.png")));
+    fn clipboard_owns_images_and_thumbs_subtrees_under_any_base() {
+        let p = default_paths();
+        assert!(owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/images/a.png")
+        ));
+        assert!(owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/thumbs/a.png")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/user.txt")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            &p.clipboard_dir,
+            Path::new("/d/clipboard/other/a.png")
+        ));
+        // A1 关键用例：per-category 自定义根
+        assert!(owns_file(
+            StorageCategory::Clipboard,
+            Path::new("E:/clip"),
+            Path::new("E:/clip/images/a.png")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            Path::new("E:/clip"),
+            Path::new("E:/clip/user.txt")
+        ));
     }
 
     #[test]
-    fn snapshot_owns_only_hash_subdirs() {
-        assert!(owns_file(StorageCategory::Snapshot, Path::new("/d/snapshot/abc123/f/x.ts")));
-        assert!(is_own_dir(StorageCategory::Snapshot, Path::new("/d/snapshot/abc123")));
-        assert!(!is_own_dir(StorageCategory::Snapshot, Path::new("/d/snapshot")));
+    fn snapshot_requires_hash_subdir_under_any_base() {
+        let p = default_paths();
+        assert!(owns_file(
+            StorageCategory::Snapshot,
+            &p.snapshot_dir,
+            Path::new("/d/snapshot/abc123/f/x.ts")
+        ));
+        assert!(!owns_file(
+            StorageCategory::Snapshot,
+            &p.snapshot_dir,
+            Path::new("/d/snapshot/loose.txt")
+        ));
+        assert!(is_own_dir(
+            StorageCategory::Snapshot,
+            &p.snapshot_dir,
+            Path::new("/d/snapshot/abc123")
+        ));
+        assert!(!is_own_dir(StorageCategory::Snapshot, &p.snapshot_dir, Path::new("/d/snapshot")));
+        assert!(owns_file(
+            StorageCategory::Snapshot,
+            Path::new("E:/snap"),
+            Path::new("E:/snap/abc/f.ts")
+        ));
+        assert!(is_own_dir(
+            StorageCategory::Snapshot,
+            Path::new("E:/snap"),
+            Path::new("E:/snap/abc")
+        ));
+    }
+
+    #[test]
+    fn dsh_owns_everything_under_its_two_bases() {
+        let p = default_paths();
+        assert!(owns_file(
+            StorageCategory::Dsh,
+            &p.dsh_versions_dir,
+            &p.dsh_versions_dir.join("v1/x.bin")
+        ));
+        assert!(owns_file(
+            StorageCategory::Dsh,
+            &p.dsh_bundle_dir,
+            &p.dsh_bundle_dir.join("version.txt")
+        ));
+        assert!(is_own_dir(
+            StorageCategory::Dsh,
+            &p.dsh_versions_dir,
+            Path::new("/d/dsh-versions/v1")
+        ));
     }
 
     #[test]
     fn logs_owns_known_log_file_names() {
-        assert!(owns_file(StorageCategory::Logs, Path::new("/d/logs/terminal-logs.txt")));
-        assert!(owns_file(StorageCategory::Logs, Path::new("/d/logs/debug-logs-2026.txt")));
-        assert!(!owns_file(StorageCategory::Logs, Path::new("/d/logs/notes.txt")));
+        let p = default_paths();
+        assert!(owns_file(
+            StorageCategory::Logs,
+            &p.logs_dir,
+            Path::new("/d/logs/terminal-logs.txt")
+        ));
+        assert!(owns_file(
+            StorageCategory::Logs,
+            &p.logs_dir,
+            Path::new("/d/logs/debug-logs-2026.txt")
+        ));
+        assert!(!owns_file(StorageCategory::Logs, &p.logs_dir, Path::new("/d/logs/notes.txt")));
     }
 
     #[test]
-    fn credentials_owns_only_enc_files() {
+    fn credentials_owns_only_service_account_enc_shape() {
+        let base = Path::new("/c/creds");
         assert!(owns_file(
             StorageCategory::CredentialsFallback,
-            Path::new("/c/ai-digital-life/credentials/ai-digital-life.ci-access-token.enc")
+            base,
+            Path::new("/c/creds/ai-digital-life.ci-access-token.enc")
         ));
-        assert!(!owns_file(StorageCategory::CredentialsFallback, Path::new("/c/creds/plain.txt")));
+        // A2：宽泛的 *.enc 不再算自有。
+        assert!(!owns_file(
+            StorageCategory::CredentialsFallback,
+            base,
+            Path::new("/c/creds/backup.enc")
+        ));
+        assert!(!owns_file(
+            StorageCategory::CredentialsFallback,
+            base,
+            Path::new("/c/creds/plain.txt")
+        ));
+        assert!(!owns_file(
+            StorageCategory::CredentialsFallback,
+            base,
+            Path::new("/c/creds/a..enc")
+        ));
     }
 
     #[test]
     fn downloads_default_owns_nothing() {
-        assert!(!owns_file(StorageCategory::DownloadsDefault, Path::new("/d/downloads/a.zip")));
-        assert!(!is_own_dir(StorageCategory::DownloadsDefault, Path::new("/d/downloads")));
+        let p = default_paths();
+        assert!(!owns_file(
+            StorageCategory::DownloadsDefault,
+            &p.downloads_default_dir,
+            Path::new("/dl/a.zip")
+        ));
+        assert!(!is_own_dir(
+            StorageCategory::DownloadsDefault,
+            &p.downloads_default_dir,
+            Path::new("/dl")
+        ));
+    }
+
+    #[test]
+    fn files_outside_base_are_never_owned() {
+        assert!(!owns_file(
+            StorageCategory::Clipboard,
+            Path::new("E:/clip"),
+            Path::new("/d/clipboard/images/a.png")
+        ));
+        assert!(!is_own_dir(
+            StorageCategory::Snapshot,
+            Path::new("E:/snap"),
+            Path::new("/d/snapshot/abc")
+        ));
+    }
+
+    #[test]
+    fn category_roots_covers_each_category_once() {
+        let p = default_paths();
+        assert_eq!(category_roots(StorageCategory::Database, &p), vec![p.root.clone()]);
+        assert_eq!(category_roots(StorageCategory::Config, &p), vec![p.config_dir.clone()]);
+        assert_eq!(category_roots(StorageCategory::Clipboard, &p), vec![p.clipboard_dir.clone()]);
+        assert_eq!(category_roots(StorageCategory::Snapshot, &p), vec![p.snapshot_dir.clone()]);
+        assert_eq!(
+            category_roots(StorageCategory::Dsh, &p),
+            vec![p.dsh_versions_dir.clone(), p.dsh_bundle_dir.clone()]
+        );
+        assert_eq!(category_roots(StorageCategory::Logs, &p), vec![p.logs_dir.clone()]);
+        assert_eq!(
+            category_roots(StorageCategory::CredentialsFallback, &p),
+            vec![p.credentials_dir.clone()]
+        );
+        assert!(category_roots(StorageCategory::DownloadsDefault, &p).is_empty());
+        for c in
+            [StorageCategory::Database, StorageCategory::DownloadsDb, StorageCategory::SiteMetaDb]
+        {
+            assert_eq!(category_roots(c, &p), vec![p.root.clone()]);
+        }
     }
 }
