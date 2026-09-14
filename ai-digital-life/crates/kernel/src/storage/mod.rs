@@ -15,8 +15,8 @@ pub mod whitelist;
 pub mod migration;
 
 pub use migration::{
-    ForeignScan, MigrationProgress, PreflightIssue, PreflightReport, Severity, plan_categories,
-    preflight, scan_foreign,
+    ForeignScan, MigrationProgress, PreflightIssue, PreflightReport, Severity, copy_category,
+    plan_categories, preflight, scan_foreign, verify_category,
 };
 
 pub use whitelist::{category_roots, is_own_dir, owns_file};

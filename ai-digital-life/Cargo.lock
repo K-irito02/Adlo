@@ -153,6 +153,7 @@ dependencies = [
  "dirs 5.0.1",
  "notify",
  "regex",
+ "rusqlite",
  "serde",
  "serde_json",
  "tokio",
