@@ -222,7 +222,7 @@ export interface HistoryPalette {
   ansi: string[];
 }
 
-export interface ResolvedRunStyle {
+export type ResolvedRunStyle = {
   color?: string;
   backgroundColor?: string;
   fontWeight?: number;
@@ -230,7 +230,7 @@ export interface ResolvedRunStyle {
   fontStyle?: 'italic';
   textDecoration?: 'underline';
   opacity?: number;
-}
+};
 
 /** 256 色表：16–231 为 6×6×6 立方，232–255 为灰阶 */
 function palette256(index: number, palette: HistoryPalette): string {
