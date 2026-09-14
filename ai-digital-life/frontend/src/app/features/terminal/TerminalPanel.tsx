@@ -397,7 +397,7 @@ export function TerminalPanel() {
                     />
                     <TerminalRegionActions
                       region="history"
-                      collapsed={regionCollapse === 'history'}
+                      collapsed={regionCollapse !== 'none'}
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('history')}
                       onDelete={() => void terminalActions.deleteHistory(activeTab?.id ?? '')}
@@ -431,7 +431,7 @@ export function TerminalPanel() {
                     />
                     <TerminalRegionActions
                       region="live"
-                      collapsed={regionCollapse === 'live'}
+                      collapsed={regionCollapse !== 'none'}
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('live')}
                       onClear={terminalActions.handleClear}

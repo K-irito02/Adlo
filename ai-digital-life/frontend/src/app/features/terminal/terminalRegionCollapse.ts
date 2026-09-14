@@ -15,6 +15,21 @@ export function toggleRegion(collapse: RegionCollapse, region: RegionName): Regi
   return collapse === region ? 'none' : region;
 }
 
+/**
+ * 面板内「收起/展开」按钮的单点决策（Task 14 接线用）。
+ *
+ * 与 Task 12 的 `toggleRegion` 不同：`toggleRegion` 是「点同区域还原、点异区域切换」的通用三态互转，
+ * 而面板里任意时刻**只有可见区域**的按钮会被渲染。因此需要另一条规则：
+ * - 两区都可见（`'none'`）→ 点这个区域，收起这个区域；
+ * - 已经有区域被收起（某个区域单独可见）→ 点可见区域，还原两区都可见（`'none'`）。
+ *
+ * 设 `next = current === 'none' ? region : 'none'` 即可同时满足两种模式，
+ * 且从「单区独显」状态也必然能回到 `'none'`（不会卡在两种 solo 之间互切）。
+ */
+export function nextRegionCollapse(current: RegionCollapse, region: RegionName): RegionCollapse {
+  return current === 'none' ? region : 'none';
+}
+
 export function isRegionVisible(
   collapse: RegionCollapse,
   region: RegionName,

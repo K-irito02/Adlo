@@ -12,8 +12,8 @@ import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 import type { TerminalHistorySegment } from './terminalHistoryStore';
 import type { TerminalViewMode, TerminalViewPrefs } from './terminalViewPrefs';
 import {
+  nextRegionCollapse,
   terminalRegionCollapseStore,
-  toggleRegion,
 } from './terminalRegionCollapse';
 import type { RegionCollapse, RegionName } from './terminalRegionCollapse';
 
@@ -243,7 +243,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       }
       setCollapseMap((prev) => ({
         ...prev,
-        [collapseTabId]: toggleRegion(prev[collapseTabId] ?? 'none', region),
+        [collapseTabId]: nextRegionCollapse(prev[collapseTabId] ?? 'none', region),
       }));
     },
     [collapseTabId],

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isCollapseButtonVisible,
   isRegionVisible,
+  nextRegionCollapse,
   toggleRegion,
 } from '../terminalRegionCollapse';
 
@@ -34,5 +35,34 @@ describe('两个区域的可见性组合（需求逐条对应）', () => {
     };
     expect(map.tabA).toBe('history');
     expect(map.tabB).toBe('live');
+  });
+});
+
+/**
+ * 面板「收起/展开」按钮的单点决策（Task 14 接线）。
+ * 注意：这与 Task 12 的 `toggleRegion` 语义不同——面板里任意时刻只渲染可见区域的按钮，
+ * 因此从「单区独显」状态必须能回到 `'none'`（还原两区），而不是在两种 solo 之间互切。
+ */
+describe('面板收起/展开按钮的单点决策（nextRegionCollapse）', () => {
+  it('两区都可见时点历史区 → 收起历史区', () => {
+    expect(nextRegionCollapse('none', 'history')).toBe('history');
+  });
+
+  it('两区都可见时点实时区 → 收起实时区', () => {
+    expect(nextRegionCollapse('none', 'live')).toBe('live');
+  });
+
+  it('历史区独显时点实时区（可见区）→ 还原两区都可见', () => {
+    expect(nextRegionCollapse('history', 'live')).toBe('none');
+  });
+
+  it('实时区独显时点历史区（可见区）→ 还原两区都可见', () => {
+    expect(nextRegionCollapse('live', 'history')).toBe('none');
+  });
+
+  it('从独显状态必然能回到 none（不会卡在两种 solo 互切）', () => {
+    // 历史独显点历史区 → none；再点历史区 → history。单点按钮即可来回切换。
+    expect(nextRegionCollapse('history', 'history')).toBe('none');
+    expect(nextRegionCollapse('none', 'history')).toBe('history');
   });
 });
