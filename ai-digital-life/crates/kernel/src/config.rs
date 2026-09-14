@@ -19,6 +19,10 @@ fn default_browser_inactive_tab_suspend_ms() -> u64 {
     3_600_000
 }
 
+fn default_terminal_history_budget_bytes() -> u64 {
+    1 << 30
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 
 pub struct AppConfig {
@@ -61,6 +65,9 @@ pub struct AppConfig {
     /// Browser 标签页空闲挂起阈值（毫秒）。默认 1 小时，供 tab suspend 调度器读取。
     #[serde(default = "default_browser_inactive_tab_suspend_ms")]
     pub browser_inactive_tab_suspend_ms: u64,
+    /// 只读历史的磁盘预算（字节）。0 = 跟随磁盘剩余空间。
+    #[serde(default = "default_terminal_history_budget_bytes")]
+    pub terminal_history_budget_bytes: u64,
 }
 
 impl AppConfig {
@@ -94,6 +101,7 @@ impl Default for AppConfig {
             workspace_deferred_ids: Vec::new(),
             workspace_natural_order: Vec::new(),
             browser_inactive_tab_suspend_ms: default_browser_inactive_tab_suspend_ms(),
+            terminal_history_budget_bytes: default_terminal_history_budget_bytes(),
         }
     }
 }

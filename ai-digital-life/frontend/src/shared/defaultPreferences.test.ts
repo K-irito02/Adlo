@@ -86,3 +86,15 @@ describe('defaultPreferences', () => {
     expect(second.fonts?.uiFont).toBe('');
   });
 });
+
+import { DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES } from './defaultPreferences';
+
+describe('terminal history budget default', () => {
+  it('默认预算为 1 GiB', () => {
+    expect(DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES).toBe(1 << 30);
+  });
+
+  it('可作为设置项取到默认值', () => {
+    expect(getDefaultForSetting('terminalHistoryBudgetBytes')).toBe(1 << 30);
+  });
+});

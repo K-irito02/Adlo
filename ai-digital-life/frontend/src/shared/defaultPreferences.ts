@@ -23,6 +23,11 @@ export const DEFAULT_WORKSPACE_PRIORITY_IDS: string[] = [];
 export const DEFAULT_WORKSPACE_DEFERRED_IDS: string[] = [];
 export const DEFAULT_WORKSPACE_NATURAL_ORDER: string[] = [];
 
+// 与 app/features/terminal/terminalHistoryBudget.ts 的 TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES
+// 是同一默认值，但 shared/ 不能 import app/features/，故在此重复定义。
+// 改动默认值时两处必须同步。
+export const DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES = 1 << 30;
+
 export function getDefaultPreferences(): AppPreferencePatch {
   return {
     language: DEFAULT_LANGUAGE,
@@ -36,6 +41,7 @@ export function getDefaultPreferences(): AppPreferencePatch {
     workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
     workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
     workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
+    terminalHistoryBudgetBytes: DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES,
   };
 }
 
@@ -59,6 +65,8 @@ export function getDefaultForSetting(id: string): string | boolean | number | st
       return DEFAULT_WORKSPACE_DEFERRED_IDS;
     case 'workspaceNaturalOrder':
       return DEFAULT_WORKSPACE_NATURAL_ORDER;
+    case 'terminalHistoryBudgetBytes':
+      return DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES;
     case 'font:ui':
     case 'font:code':
     case 'font:terminal':

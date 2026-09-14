@@ -143,5 +143,8 @@ export function preferencePatchFromSettingChange(
   if (id === 'workspaceDeferredIds') {
     return { workspaceDeferredIds: value as unknown as string[] };
   }
+  if (id === 'terminalHistoryBudgetBytes') {
+    return { terminalHistoryBudgetBytes: value as number };
+  }
   return undefined;
 }

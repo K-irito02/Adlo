@@ -1,6 +1,8 @@
 // src/app/features/terminal/terminalHistoryBudget.ts
 import type { TerminalHistorySegment } from './terminalHistoryStore';
 
+// 与 shared/defaultPreferences.ts 的 DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES 是同一默认值，
+// 但 shared/ 不能 import app/features/，故在此重复定义。改动默认值时两处必须同步。
 export const TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES = 1 << 30;
 export const TERMINAL_HISTORY_BUDGET_FOLLOW_DISK = 0;
 export const TERMINAL_HISTORY_DISK_RESERVE_BYTES = 1 << 30;
