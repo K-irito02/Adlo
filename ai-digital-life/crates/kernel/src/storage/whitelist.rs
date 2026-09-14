@@ -87,10 +87,15 @@ pub fn is_own_dir(category: StorageCategory, base: &Path, dir: &Path) -> bool {
 
 /// 该分类允许出现的根目录集合（迁移枚举起点）。
 pub fn category_roots(category: StorageCategory, paths: &StoragePaths) -> Vec<PathBuf> {
+    // 单文件类：`dir(category)` 是 `.db` 文件路径，其父目录即承载目录（统一模式 = `root`，
+    // per-category 覆盖下 = 覆盖目录），与其它分类的「覆盖 = 目录」语义保持一致。
+    let db_root = |category: StorageCategory| {
+        paths.dir(category).parent().map(Path::to_path_buf).unwrap_or_else(|| paths.root.clone())
+    };
     match category {
-        StorageCategory::Database => vec![paths.root.clone()],
-        StorageCategory::DownloadsDb => vec![paths.root.clone()],
-        StorageCategory::SiteMetaDb => vec![paths.root.clone()],
+        StorageCategory::Database => vec![db_root(StorageCategory::Database)],
+        StorageCategory::DownloadsDb => vec![db_root(StorageCategory::DownloadsDb)],
+        StorageCategory::SiteMetaDb => vec![db_root(StorageCategory::SiteMetaDb)],
         StorageCategory::Config => vec![paths.config_dir.clone()],
         StorageCategory::Clipboard => vec![paths.clipboard_dir.clone()],
         StorageCategory::Snapshot => vec![paths.snapshot_dir.clone()],
@@ -309,5 +314,29 @@ mod tests {
         {
             assert_eq!(category_roots(c, &p), vec![p.root.clone()]);
         }
+
+        // A8：per-category 的 DB 覆盖值是目录，`category_roots` 必须返回该覆盖目录
+        // （而非统一根）。统一模式下 `dir(c).parent() == root`，上面的断言不变。
+        let mut sel = crate::storage::locator::StorageSelection {
+            mode: crate::storage::locator::StorageMode::PerCategory,
+            ..Default::default()
+        };
+        sel.categories.insert(StorageCategory::Database, PathBuf::from("E:/xdb"));
+        sel.categories.insert(StorageCategory::DownloadsDb, PathBuf::from("E:/xdl"));
+        sel.categories.insert(StorageCategory::SiteMetaDb, PathBuf::from("E:/xmeta"));
+        let q = StoragePaths::resolve(
+            &sel,
+            &StorageDefaults {
+                root: PathBuf::from("/d"),
+                credentials_dir: PathBuf::from("/c/creds"),
+                downloads_dir: PathBuf::from("/dl"),
+            },
+        );
+        assert_eq!(category_roots(StorageCategory::Database, &q), vec![PathBuf::from("E:/xdb")]);
+        assert_eq!(category_roots(StorageCategory::DownloadsDb, &q), vec![PathBuf::from("E:/xdl")]);
+        assert_eq!(
+            category_roots(StorageCategory::SiteMetaDb, &q),
+            vec![PathBuf::from("E:/xmeta")]
+        );
     }
 }

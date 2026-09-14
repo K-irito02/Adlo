@@ -4,9 +4,11 @@
 //! 持有 SQLite 句柄时搬文件的问题。
 
 use super::category::StorageCategory;
-use super::paths::StoragePaths;
-use super::whitelist::owns_file;
+use super::locator::{KeptDir, MigrationReport, StorageLocator};
+use super::paths::{StorageDefaults, StoragePaths};
+use super::whitelist::{is_own_dir, owns_file};
 use adl_errors::AppError;
+use adl_types::now_ms;
 use std::path::{Path, PathBuf};
 
 /// 预检问题严重级。
@@ -390,6 +392,196 @@ fn quick_check(db: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
+/// 删除某分类的旧自有文件，并自底向上删除已空的自有目录。
+///
+/// 返回 `(已删除目录, 因含外部文件而保留的目录)`。外部文件永不删除。
+pub fn cleanup_category(
+    category: StorageCategory,
+    from: &StoragePaths,
+) -> Result<(Vec<PathBuf>, Vec<KeptDir>), AppError> {
+    let mut removed_dirs = Vec::new();
+    let mut kept_dirs = Vec::new();
+
+    let roots: Vec<PathBuf> = if matches!(
+        category,
+        StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb
+    ) {
+        // A7/A8：单文件类统一走 db_files（覆盖感知，含 -wal/-shm 伴生文件）。
+        db_files(category, from)
+    } else {
+        dir_pairs(category, from, from).into_iter().map(|(d, _)| d).collect()
+    };
+
+    for root in roots {
+        // 单文件类：直接删主库/伴随文件。
+        if root.is_file() {
+            if owns_file(category, &root, &root) {
+                std::fs::remove_file(&root)?;
+            }
+            continue;
+        }
+        if !root.is_dir() {
+            continue;
+        }
+        // 删自有文件。
+        for file in owned_files(category, &root) {
+            std::fs::remove_file(&file)?;
+        }
+        // 自底向上删除空的自有目录。
+        let mut dirs = all_dirs(&root);
+        dirs.sort_by_key(|d| std::cmp::Reverse(d.components().count()));
+        for dir in dirs {
+            if dir == root || !is_own_dir(category, &root, &dir) || !is_empty_dir(&dir) {
+                continue;
+            }
+            if std::fs::remove_dir(&dir).is_ok() {
+                removed_dirs.push(dir);
+            }
+        }
+        // 根目录本身：若已空则删除；否则记录残留的外部文件（外部文件永不删除）。
+        if is_empty_dir(&root) {
+            if std::fs::remove_dir(&root).is_ok() {
+                removed_dirs.push(root);
+            }
+        } else {
+            let foreign: Vec<String> =
+                collect_files(&root).into_iter().map(|f| f.to_string_lossy().to_string()).collect();
+            if !foreign.is_empty() {
+                kept_dirs.push(KeptDir { path: root, foreign_files: foreign });
+            }
+        }
+    }
+
+    Ok((removed_dirs, kept_dirs))
+}
+
+/// 目录存在且为空时为 true（不可读视为「非空」，避免误删）。
+fn is_empty_dir(dir: &Path) -> bool {
+    match std::fs::read_dir(dir) {
+        Ok(mut it) => it.next().is_none(),
+        Err(_) => false,
+    }
+}
+
+/// 收集目录及其全部子目录（不跟随符号链接）。
+fn all_dirs(root: &Path) -> Vec<PathBuf> {
+    let mut out = vec![root.to_path_buf()];
+    let mut stack = vec![root.to_path_buf()];
+    while let Some(dir) = stack.pop() {
+        if let Ok(entries) = std::fs::read_dir(&dir) {
+            for entry in entries.flatten() {
+                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                    out.push(entry.path());
+                    stack.push(entry.path());
+                }
+            }
+        }
+    }
+    out
+}
+
+/// 执行一次完整迁移（不含 locator 持久化）：复制 → 校验 → 清理旧源。
+///
+/// 失败时 best-effort 清理本次新建的目标文件，且**绝不删除源文件**、不切换指针。
+pub fn run(
+    from: &StoragePaths,
+    to: &StoragePaths,
+    retain_source: bool,
+    mut progress: impl FnMut(MigrationProgress),
+) -> MigrationReport {
+    let categories = plan_categories(from, to);
+    let total = categories.len();
+    let mut created: Vec<PathBuf> = Vec::new();
+    let mut moved_files = 0usize;
+    let mut moved_bytes = 0u64;
+
+    // 1) 复制 + 校验（全部通过才切换指针）。
+    for (index, category) in categories.iter().enumerate() {
+        progress(MigrationProgress::Category { category: *category, index, total });
+        let copied = match copy_category(*category, from, to, &mut progress) {
+            Ok(moved) => moved,
+            Err(e) => return fail(&mut created, e),
+        };
+        for (path, bytes) in &copied {
+            moved_files += 1;
+            moved_bytes += bytes;
+            created.push(path.clone());
+        }
+        progress(MigrationProgress::Verifying { category: *category });
+        if let Err(e) = verify_category(*category, from, to) {
+            return fail(&mut created, e);
+        }
+    }
+
+    // 2) 清理旧源（保留模式跳过）。
+    let mut removed_dirs = Vec::new();
+    let mut kept_dirs = Vec::new();
+    if !retain_source {
+        for category in &categories {
+            progress(MigrationProgress::Cleaning { category: *category });
+            match cleanup_category(*category, from) {
+                Ok((removed, kept)) => {
+                    removed_dirs.extend(removed);
+                    kept_dirs.extend(kept);
+                },
+                Err(e) => return fail(&mut created, e),
+            }
+        }
+    }
+
+    progress(MigrationProgress::Done);
+    MigrationReport {
+        at: now_ms(),
+        ok: true,
+        moved_files,
+        moved_bytes,
+        removed_dirs,
+        kept_dirs,
+        retained: retain_source,
+        error: None,
+    }
+}
+
+/// 失败路径：不切换指针、不删源；best-effort 删除本次新建的目标文件。
+fn fail(created: &mut [PathBuf], error: AppError) -> MigrationReport {
+    for path in created.iter() {
+        let _ = std::fs::remove_file(path);
+    }
+    MigrationReport {
+        at: now_ms(),
+        ok: false,
+        moved_files: 0,
+        moved_bytes: 0,
+        removed_dirs: Vec::new(),
+        kept_dirs: Vec::new(),
+        retained: false,
+        error: Some(error.to_string()),
+    }
+}
+
+/// 执行 locator 中的待迁移（若有）：成功则更新 selection、清 pending、写 last_report；
+/// 失败则保留 pending 并标记 `failed`，不切换指针、不自动重试。
+pub fn apply_pending(
+    locator: &mut StorageLocator,
+    defaults: &StorageDefaults,
+    mut progress: impl FnMut(MigrationProgress),
+) -> Option<MigrationReport> {
+    let pending = locator.pending_migration.clone()?;
+    let from = StoragePaths::resolve(&pending.from, defaults);
+    let to = StoragePaths::resolve(&pending.to, defaults);
+
+    let report = run(&from, &to, pending.retain_source, &mut progress);
+    if report.ok {
+        locator.selection = pending.to.clone();
+        locator.pending_migration = None;
+    } else if let Some(still) = locator.pending_migration.as_mut() {
+        still.failed = true;
+        still.error = report.error.clone();
+    }
+    locator.last_report = Some(report.clone());
+    Some(report)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -565,6 +757,86 @@ mod tests {
         copy_category(StorageCategory::Database, &old, &newp, &mut noop).unwrap();
         verify_category(StorageCategory::Database, &old, &newp).unwrap();
         assert!(new_db_dir.join("data.db").exists(), "override dir must receive data.db");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn cleanup_removes_own_files_and_keeps_dir_with_foreign() {
+        let base = std::env::temp_dir().join(format!("adl-mig-clean-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let p = paths_for(&StorageSelection::default(), &base.to_string_lossy());
+        write(&p.clipboard_dir.join("images/a.png"), b"AAA");
+        write(&p.clipboard_dir.join("user-note.txt"), b"USER");
+
+        let (removed, kept) = cleanup_category(StorageCategory::Clipboard, &p).unwrap();
+        assert!(!p.clipboard_dir.join("images/a.png").exists());
+        assert!(p.clipboard_dir.join("user-note.txt").exists(), "foreign file kept");
+        assert!(kept.iter().any(|k| k.foreign_files.iter().any(|f| f.ends_with("user-note.txt"))));
+        let _ = removed; // images/ 目录被删则计入 removed
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn run_moves_data_and_reports() {
+        let base = std::env::temp_dir().join(format!("adl-mig-run-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let old = paths_for(&StorageSelection::default(), &base.join("old").to_string_lossy());
+        let sel = StorageSelection { root: Some(base.join("new")), ..Default::default() };
+        let newp = paths_for(&sel, &base.join("old").to_string_lossy());
+        write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
+        // 单文件类：必须是真实 SQLite —— verify_category 会跑 PRAGMA quick_check。
+        rusqlite::Connection::open(&old.data_db)
+            .unwrap()
+            .execute_batch("CREATE TABLE t(x);")
+            .unwrap();
+
+        let report = run(&old, &newp, false, |_p| {});
+        assert!(report.ok, "run should succeed: {:?}", report.error);
+        assert!(report.moved_files >= 2);
+        assert!(newp.clipboard_dir.join("images/a.png").exists());
+        assert!(!old.clipboard_dir.join("images/a.png").exists(), "source cleaned");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn run_retain_source_keeps_old_files() {
+        let base = std::env::temp_dir().join(format!("adl-mig-retain-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let old = paths_for(&StorageSelection::default(), &base.join("old").to_string_lossy());
+        let sel = StorageSelection { root: Some(base.join("new")), ..Default::default() };
+        let newp = paths_for(&sel, &base.join("old").to_string_lossy());
+        write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
+        let report = run(&old, &newp, true, |_p| {});
+        assert!(report.ok);
+        assert!(report.retained);
+        assert!(old.clipboard_dir.join("images/a.png").exists(), "source retained");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn apply_pending_clears_pending_and_sets_report() {
+        let base = std::env::temp_dir().join(format!("adl-mig-apply-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let mut loc = StorageLocator::default();
+        loc.selection.root = Some(base.join("new"));
+        loc.pending_migration = Some(crate::storage::locator::PendingMigration {
+            from: StorageSelection::default(),
+            to: loc.selection.clone(),
+            retain_source: false,
+            requested_at: 1,
+            failed: false,
+            error: None,
+        });
+        // 让源目录有内容，避免空跑歧义。默认根设为 <base>/old，目标根为 <base>/new，
+        // 避免触发「目标在源内部」的根级包含预检。
+        let old = paths_for(&StorageSelection::default(), &base.join("old").to_string_lossy());
+        write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
+
+        let report =
+            apply_pending(&mut loc, &defaults(&base.join("old").to_string_lossy()), |_p| {});
+        assert!(report.is_some());
+        assert!(loc.pending_migration.is_none(), "pending cleared on success");
+        assert!(loc.last_report.is_some());
         let _ = std::fs::remove_dir_all(&base);
     }
 }
