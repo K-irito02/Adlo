@@ -200,7 +200,24 @@ selectSegmentsToEvict(
 
 ### 5.3 必须同步抬高的单段体积上限（既有硬上限会拦住新格式）
 
-现状：服务端对单次保存有 **200 KiB 硬上限**（`crates/server/src/handlers/terminal_output.rs` 的 `MAX_OUTPUT_BYTES = 200 * 1024`），超限直接返回 `InvalidInput`，而前端 `terminalOutputStore.save()` 只 `console.warn` —— 表现为**历史静默丢失**。
+现状：服务端对单次保存有 **200 KiB 硬上限**（`crates/server/src/handlers/terminal_output.rs` 的 `MAX_OUTPUT_BYTES = 200 * 1024`），超限直接返回 `InvalidInput`。这个失败在**三层链路上全部被吞掉**：
+
+| 层 | 行为 | 后果 |
+|---|---|---|
+| `httpBridge.call()` | 服务端业务错误**不抛异常**，返回 `{ ok: false, error }`（只有网络类异常才走 `catch`） | 调用方看不到错误 |
+| `terminalOutputStore.save()` | 只 `catch` 抛出的异常，**不检查 `result.ok`**，超限时照样 `return true`；`console.warn` 仅在网络类异常时触发 | 失败被转换成「成功」 |
+| `serializeSession()` | 丢弃 `save()` 的返回值 | 最后一个发现机会也消失 |
+
+结果：**不抛错、不告警、无任何用户可见提示**；`INSERT OR REPLACE` 未执行，库中该会话停留在**上一次成功保存**的内容上 —— 表现为**历史内容静默截断**（段还在，但内容是旧的）。
+
+**与「历史段消失」的区别**（两者外观相似、机制完全不同，极易误诊，故单列）：
+
+| 现象 | 机制 | 表现 |
+|---|---|---|
+| 段整体不见 | `MAX_HISTORY_SEGMENTS = 5` 淘汰，段记录与快照一并删除 | 历史里缺了整段 |
+| 段内容残缺 | 本条 200 KiB 拒收，段记录仍在 | 段在，但内容停在旧状态、缺后半截 |
+
+两类问题都会随本设计的行模型格式放大：JSON 比 ANSI 大约 2–3 倍，原本「偶发」会变成「常态」。
 
 行模型 JSON 比 ANSI 序列化文本大约 2–3 倍（属性与结构开销），单段千行快照很可能越过这条线。因此必须一并处理，否则新格式上线即踩：
 
