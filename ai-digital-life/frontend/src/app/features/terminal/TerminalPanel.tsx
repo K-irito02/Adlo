@@ -16,7 +16,13 @@ import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { asWorkspaceID } from '@shared/branded';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
 import { TerminalHistoryList } from '@components/terminal/TerminalHistoryList';
+import { TerminalRegionActions } from '@components/terminal/TerminalRegionActions';
 import { readTerminalPalette, readTerminalCellMetrics } from '@features/terminal/terminalXtermPool';
+import {
+  isCollapseButtonVisible,
+  isRegionVisible,
+} from '@features/terminal/terminalRegionCollapse';
+import type { RegionName } from '@features/terminal/terminalRegionCollapse';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
 import { HISTORY_RATIO_MAX, HISTORY_RATIO_MIN } from './terminalViewPrefs';
@@ -51,6 +57,7 @@ export function TerminalPanel() {
   const {
     activeTab,
     hasActiveTab,
+    regionCollapse,
     navigatorMode,
     navigatorCollapsed,
     terminalNavigatorWidth,
@@ -77,6 +84,22 @@ export function TerminalPanel() {
   const hasHistory = historySegments.length > 0;
   const isDual = viewPrefs.mode === 'dual';
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
+
+  const historyVisible = isRegionVisible(regionCollapse, 'history', hasHistory);
+  const liveVisible = isRegionVisible(regionCollapse, 'live', true);
+  const canCollapse = isCollapseButtonVisible(hasHistory);
+
+  // 每个区域的叠加层文案都来自 i18n 键（无硬编码字符串）；
+  // regionName 设为该叠加层所属区域，使 {region} 模板解析为正确的区域名。
+  const regionActionTitles = (region: RegionName) => ({
+    collapse: t.terminalRegionCollapseTitle,
+    expand: t.terminalRegionExpandTitle,
+    regionName: region === 'history' ? t.terminalHistoryRegionName : t.terminalLiveRegionName,
+    deleteLabel: t.terminalHistoryDeleteLabel,
+    deleteTitle: t.terminalHistoryDeleteTitle,
+    clearLabel: t.terminalLiveClearLabel,
+    clearTitle: t.terminalLiveClearTitle,
+  });
 
   // 绑定当前 session：把 sessionId 缝进度量读取器，并 memo 化避免每个渲染帧都重建
   // 闭包（否则 TerminalHistoryList 的实测 effect 会随父组件重渲染反复重跑）。
@@ -364,17 +387,27 @@ export function TerminalPanel() {
           >
             {hasActiveTab ? (
               <>
-                {hasHistory ? (
-                  <div className="adl-terminal-history">
+                {historyVisible ? (
+                  <div className={`adl-terminal-history${liveVisible ? '' : ' is-solo'}`}>
                     <TerminalHistoryList
                       segments={historySegments}
                       palette={readTerminalPalette()}
                       readCellMetrics={readHistoryCellMetrics}
                       unavailableLabel={t.terminalHistorySegmentUnavailable}
                     />
+                    <TerminalRegionActions
+                      region="history"
+                      collapsed={regionCollapse === 'history'}
+                      canCollapse={canCollapse}
+                      onToggleCollapse={() => terminalActions.toggleRegionCollapse('history')}
+                      onDelete={() => void terminalActions.deleteHistory(activeTab?.id ?? '')}
+                      titles={regionActionTitles('history')}
+                      alwaysVisible={!liveVisible}
+                    />
                   </div>
                 ) : null}
-                {hasHistory ? (
+
+                {historyVisible && liveVisible ? (
                   <div
                     className="adl-terminal-divider"
                     role="separator"
@@ -386,15 +419,27 @@ export function TerminalPanel() {
                     onPointerDown={terminalActions.handleDividerPointerDown}
                   />
                 ) : null}
-                <div className="adl-terminal-live">
-                  <XtermTerminal
-                    ref={xtermRef}
-                    sessionId={activeTab?.sessionId ?? null}
-                    className="adl-terminal-canvas"
-                    onData={terminalActions.handleXtermData}
-                    onResize={terminalActions.handleXtermResize}
-                  />
-                </div>
+
+                {liveVisible ? (
+                  <div className="adl-terminal-live">
+                    <XtermTerminal
+                      ref={xtermRef}
+                      sessionId={activeTab?.sessionId ?? null}
+                      className="adl-terminal-canvas"
+                      onData={terminalActions.handleXtermData}
+                      onResize={terminalActions.handleXtermResize}
+                    />
+                    <TerminalRegionActions
+                      region="live"
+                      collapsed={regionCollapse === 'live'}
+                      canCollapse={canCollapse}
+                      onToggleCollapse={() => terminalActions.toggleRegionCollapse('live')}
+                      onClear={terminalActions.handleClear}
+                      titles={regionActionTitles('live')}
+                      alwaysVisible={!historyVisible}
+                    />
+                  </div>
+                ) : null}
                 {activeTab?.status === 'terminated' && !activeTab?.sessionId && (
                   <div className="adl-terminal-error-note">
                     <span>{'\u26A0'}</span>

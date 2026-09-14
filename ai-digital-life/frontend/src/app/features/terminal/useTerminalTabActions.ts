@@ -37,6 +37,7 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
     handleCloseTab,
     handleCloseAllTabs,
     handleKill,
+    deleteHistoryForTab,
   } = useTerminalPtyLifecycle({ activeTab });
 
   const handleDoubleClick = useCallback((tabId: string, title: string) => {
@@ -81,6 +82,7 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
     handleCloseTab,
     handleCloseAllTabs,
     handleKill,
+    deleteHistoryForTab,
     editingTabId,
     editValue,
     editInputRef,

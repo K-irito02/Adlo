@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
@@ -11,6 +11,11 @@ import type { TerminalProfile } from '@stores/types';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 import type { TerminalHistorySegment } from './terminalHistoryStore';
 import type { TerminalViewMode, TerminalViewPrefs } from './terminalViewPrefs';
+import {
+  terminalRegionCollapseStore,
+  toggleRegion,
+} from './terminalRegionCollapse';
+import type { RegionCollapse, RegionName } from './terminalRegionCollapse';
 
 export type TerminalNavigatorMode = 'sessions' | 'history';
 
@@ -69,6 +74,8 @@ export interface UseTerminalPanelReturn {
     navigatorCollapsed: boolean;
     activeTab?: ReturnType<typeof terminalSelectors.useActiveTerminalTab>;
     hasActiveTab: boolean;
+    /** 当前活动标签的只读/实时区域折叠态（'none' = 两区都展开） */
+    regionCollapse: RegionCollapse;
     currentProfile: TerminalProfile;
     currentProfileLabel: string;
     navigatorTitle: string;
@@ -106,6 +113,10 @@ export interface UseTerminalPanelReturn {
     swapAreas: () => void;
     /** 分界线拖拽起始（单列调高度、双列调宽度） */
     handleDividerPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+    /** 收起/展开某个只读区域（'history' | 'live'）；再点一次还原 'none' */
+    toggleRegionCollapse: (region: RegionName) => void;
+    /** 删除当前标签的全部只读历史，并把折叠态复位为 'none'（实时区随之恢复展开） */
+    deleteHistory: (tabId: string) => Promise<void>;
   };
   dragHandlers: {
     handleDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
@@ -155,6 +166,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     handleDoubleClick,
     handleEditSubmit,
     handleEditKeyDown,
+    deleteHistoryForTab,
   } = useTerminalTabActions({ activeTab });
 
   const {
@@ -211,6 +223,44 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     clearCommandHistory();
   }, [clearCommandHistory]);
 
+  // 区域折叠态：按标签记录，持久化到磁盘（重启后记住每个标签的折叠选择）。
+  const [collapseMap, setCollapseMap] = useState<Record<string, RegionCollapse>>(() =>
+    terminalRegionCollapseStore.load(),
+  );
+  useEffect(() => {
+    terminalRegionCollapseStore.save(collapseMap);
+  }, [collapseMap]);
+
+  const collapseTabId = activeTab?.id ?? '';
+  const regionCollapse: RegionCollapse = collapseTabId
+    ? (collapseMap[collapseTabId] ?? 'none')
+    : 'none';
+
+  const toggleRegionCollapse = useCallback(
+    (region: RegionName) => {
+      if (!collapseTabId) {
+        return;
+      }
+      setCollapseMap((prev) => ({
+        ...prev,
+        [collapseTabId]: toggleRegion(prev[collapseTabId] ?? 'none', region),
+      }));
+    },
+    [collapseTabId],
+  );
+
+  /**
+   * 删除历史：清索引 + 清全部块 + 折叠状态复位为 'none'。
+   * 实时区若原本收起则随之恢复展开；历史没了 → 收起/展开按钮自然消失。
+   */
+  const deleteHistory = useCallback(
+    async (tabId: string) => {
+      await deleteHistoryForTab(tabId);
+      setCollapseMap((prev) => ({ ...prev, [tabId]: 'none' }));
+    },
+    [deleteHistoryForTab],
+  );
+
   return {
     terminalState: {
       xtermRef,
@@ -234,6 +284,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       navigatorCollapsed,
       activeTab,
       hasActiveTab,
+      regionCollapse,
       currentProfile,
       currentProfileLabel,
       navigatorTitle,
@@ -269,6 +320,8 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       setViewMode,
       swapAreas,
       handleDividerPointerDown,
+      toggleRegionCollapse,
+      deleteHistory,
     },
     dragHandlers: {
       handleDragStart,

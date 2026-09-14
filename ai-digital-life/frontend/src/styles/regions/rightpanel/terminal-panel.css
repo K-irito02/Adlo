@@ -426,3 +426,10 @@
 .adl-terminal-region-actions__btn:hover {
   color: var(--text-primary);
 }
+
+/* 只剩一个区域时铺满：历史区默认按比例占主轴，独存时必须改为占满 */
+.adl-terminal-history.is-solo {
+  flex: 1 1 auto;
+  height: auto;
+  width: auto;
+}
