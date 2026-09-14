@@ -204,3 +204,13 @@ export function extractLines(
   }
   return out;
 }
+
+/** 一个行块：一次追加写入的最小单位 */
+export interface HistoryChunk {
+  /** 块序号，从 0 起，按序拼接成一个段 */
+  seq: number;
+  /** 提取时的列数，作为折行基准 */
+  cols: number;
+  /** 本块包含的屏幕行，旧 → 新 */
+  lines: HistoryRun[][];
+}
