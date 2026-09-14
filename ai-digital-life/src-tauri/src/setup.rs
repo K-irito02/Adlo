@@ -18,17 +18,6 @@ fn resolve_project_root() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// 解析并创建数据根目录（默认根）。真正的逐类路径由 `StorageService` 给出。
-/// 当前 `main.rs` 经 `resolve_defaults` + `StorageService` 派生根目录；本函数保留作
-/// 默认根的显式解析入口（Task 7 起供配置落点等调用方复用）。
-#[allow(dead_code)]
-pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
-    let defaults = resolve_defaults(app)?;
-    std::fs::create_dir_all(&defaults.root)?;
-    info!(root = ?defaults.root, "default data root resolved");
-    Ok(defaults.root)
-}
-
 /// 构造壳层的存储默认值：默认根 = Tauri `app_data_dir()`；凭据目录与默认下载目录
 /// 分别取平台默认与 `adl_browser` 的启发式值。
 pub fn resolve_defaults(app: &tauri::App) -> anyhow::Result<adl_kernel::storage::StorageDefaults> {

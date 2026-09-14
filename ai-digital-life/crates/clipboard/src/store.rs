@@ -11,10 +11,10 @@ pub struct ClipboardStore {
 }
 
 impl ClipboardStore {
-    pub fn new(db: Database, data_dir: impl Into<PathBuf>) -> Self {
-        let data_dir = data_dir.into();
-        let images_dir = data_dir.join("clipboard").join("images");
-        let thumbs_dir = data_dir.join("clipboard").join("thumbs");
+    pub fn new(db: Database, clipboard_dir: impl Into<PathBuf>) -> Self {
+        let clipboard_dir = clipboard_dir.into();
+        let images_dir = clipboard_dir.join("images");
+        let thumbs_dir = clipboard_dir.join("thumbs");
         std::fs::create_dir_all(&images_dir).ok();
         std::fs::create_dir_all(&thumbs_dir).ok();
         Self { db, images_dir, thumbs_dir }
@@ -136,6 +136,23 @@ mod tests {
             source_app: None,
             created_at,
         }
+    }
+
+    #[test]
+    fn new_uses_clipboard_dir_directly() {
+        // `new` 接收的已是分类目录本身（engine 传入 `storage.paths().clipboard_dir`），
+        // 不得再拼接 "clipboard"：统一模式下图片必须落在 `<root>/clipboard/images`。
+        let db_path = temp_dir().join("clip-layout.db");
+        let _ = std::fs::remove_file(&db_path);
+        let db = Database::open(&db_path).unwrap();
+        db.init_schema().unwrap();
+        let dir = temp_dir().join("clip-layout");
+        let _ = std::fs::remove_dir_all(&dir);
+        let store = ClipboardStore::new(db, &dir);
+        assert_eq!(store.images_dir().to_path_buf(), dir.join("images"));
+        assert_eq!(store.thumbs_dir().to_path_buf(), dir.join("thumbs"));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&db_path);
     }
 
     #[test]
