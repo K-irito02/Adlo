@@ -72,4 +72,11 @@ if (typeof window !== 'undefined') {
   globalThis.cancelAnimationFrame = (id: number) => {
     clearTimeout(id);
   };
+
+  // jsdom 不实现 canvas：xterm 在模块加载时创建 canvas 计算调色板会触发
+  // "Not implemented: HTMLCanvasElement.prototype.getContext" 噪声。返回 null
+  // 与 jsdom 默认行为等价（xterm 已对空上下文做了容错），仅消除该警告。
+  if (typeof HTMLCanvasElement !== 'undefined') {
+    HTMLCanvasElement.prototype.getContext = (() => null) as unknown as HTMLCanvasElement['getContext'];
+  }
 }

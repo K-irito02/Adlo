@@ -9,10 +9,20 @@ import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
 import { terminalXtermPool, readTerminalFontFamily } from './terminalXtermPool';
 import {
-  MAX_HISTORY_SEGMENTS,
   terminalHistoryStore,
+  chunkKey,
   type TerminalHistorySegment,
 } from './terminalHistoryStore';
+import {
+  TerminalHistoryCollector,
+  TERMINAL_CAPTURE_THROTTLE_MS,
+} from './terminalHistoryCollector';
+import {
+  selectSegmentsToEvict,
+  effectiveBudgetBytes,
+  TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
+} from './terminalHistoryBudget';
+import type { ExtractLine } from './historyModel';
 
 const SHELL_MAP: Record<TerminalProfile, string> = {
   powershell: 'powershell',
@@ -20,13 +30,44 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
   cmd: 'cmd',
 };
 
+/**
+ * 节流执行器：**替代原来的尾去抖**。
+ *
+ * 为什么必须换：尾去抖在持续输出时每来一个事件就重置定时器，定时器永不触发，
+ * 只能靠 30 秒周期兜底 —— 那 30 秒里的输出可能已超出 xterm scrollback 环而从源头丢失。
+ * 节流保证「输出期间最多每 intervalMs 采一次」，把积压行数压到远小于环容量。
+ */
+export function createThrottledRunner(run: () => void, intervalMs: number): () => void {
+  let lastRanAt = Number.NEGATIVE_INFINITY;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return () => {
+    const now = Date.now();
+    const elapsed = now - lastRanAt;
+    if (elapsed >= intervalMs) {
+      lastRanAt = now;
+      run();
+      return;
+    }
+    if (timer) {
+      return;
+    }
+    timer = setTimeout(() => {
+      timer = null;
+      lastRanAt = Date.now();
+      run();
+    }, intervalMs - elapsed);
+  };
+}
+
 interface PtyLifecycleParams {
   activeTab: { id: string; sessionId?: string } | undefined;
 }
 
 export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const xtermRef = useRef<XtermTerminalHandle | null>(null);
-  const saveDebounceRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // 每个会话一个采集器（只读历史行块的状态机）与一条节流触发线。
+  const collectorsRef = useRef<Map<string, TerminalHistoryCollector>>(new Map());
+  const throttledRef = useRef<Map<string, () => void>>(new Map());
 
   // 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」）
   const createdSessionIdsRef = useRef<Set<string>>(new Set());
@@ -74,46 +115,154 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     setHistoryIndexVersion((v) => v + 1);
   }, []);
 
-  /**
-   * 把某标签当前的（即将失效的）会话归档为一段历史。
-   * 只在真正需要重建会话时调用；裁剪掉的最旧段连同其快照一并删除。
-   */
-  const archiveSessionAsHistory = useCallback(
-    (tabId: string, sessionId: string) => {
-      ensureHistoryIndexLoaded();
-      const segments = historyIndexRef.current.get(tabId) ?? [];
-      if (segments.some((segment) => segment.sessionId === sessionId)) {
-        return;
-      }
-      const next = [...segments, { sessionId, archivedAt: Date.now() }];
-      const dropped = next.slice(0, Math.max(0, next.length - MAX_HISTORY_SEGMENTS));
-      for (const segment of dropped) {
-        void terminalOutputStore.delete(segment.sessionId);
-      }
-      historyIndexRef.current.set(tabId, next.slice(-MAX_HISTORY_SEGMENTS));
-      persistHistoryIndex();
-    },
-    [ensureHistoryIndexLoaded, persistHistoryIndex],
-  );
+  /** 每会话一个采集器：从 xterm pool 读屏幕、按块落盘写入 terminalOutputStore */
+  const collectorFor = useCallback((sessionId: string) => {
+    let collector = collectorsRef.current.get(sessionId);
+    if (!collector) {
+      collector = new TerminalHistoryCollector({
+        readBuffer: () => {
+          const entry = terminalXtermPool.get(sessionId);
+          const buffer = entry?.terminal.buffer;
+          return {
+            length: buffer?.active.length ?? 0,
+            baseY: buffer?.active.baseY ?? 0,
+            activeType: buffer?.active.type === 'alternate' ? 'alternate' : 'normal',
+            getLine: (y) => buffer?.active.getLine(y) as unknown as ExtractLine | undefined,
+          };
+        },
+        cols: () => terminalXtermPool.get(sessionId)?.terminal.cols ?? 80,
+        write: (key, payload) => terminalOutputStore.save(key, payload),
+      });
+      collector.setSessionId(sessionId);
+      collectorsRef.current.set(sessionId, collector);
+    }
+    return collector;
+  }, []);
 
-  /** 删除某标签的全部历史（关闭标签/关闭全部时调用），同时清掉各段快照 */
-  const clearHistoryForTab = useCallback(
-    (tabId: string) => {
+  /** 删除某标签的全部历史：段记录 + 每段 seq = 0..chunks.length-1 的全部块 */
+  const deleteHistoryForTab = useCallback(
+    async (tabId: string) => {
       // 先确保索引已加载：否则「启动后立刻关闭上次遗留标签」时 ref 还是空的，
       // 会提前 return，持久化里的索引与各段快照就成了孤儿数据。
       ensureHistoryIndexLoaded();
-      const segments = historyIndexRef.current.get(tabId);
-      if (!segments) {
-        return;
-      }
+      const segments = historyIndexRef.current.get(tabId) ?? [];
       for (const segment of segments) {
-        void terminalOutputStore.delete(segment.sessionId);
+        for (let seq = 0; seq < segment.chunks.length; seq += 1) {
+          await terminalOutputStore.delete(chunkKey(segment.sessionId, seq));
+        }
+        collectorsRef.current.delete(segment.sessionId);
+        throttledRef.current.delete(segment.sessionId);
       }
       historyIndexRef.current.delete(tabId);
       persistHistoryIndex();
     },
     [ensureHistoryIndexLoaded, persistHistoryIndex],
   );
+
+  /** 预算结算：超出有效预算时按最旧优先淘汰整段历史 */
+  const settleHistoryBudget = useCallback(() => {
+    const all: { tabId: string; seg: TerminalHistorySegment }[] = [];
+    historyIndexRef.current.forEach((segments, tabId) => {
+      segments.forEach((seg) => all.push({ tabId, seg }));
+    });
+    const budget = effectiveBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES, null);
+    const doomed = selectSegmentsToEvict(all, budget);
+    for (const { tabId, sessionId } of doomed) {
+      void deleteHistoryForTab(tabId).then(() => {
+        const segments = historyIndexRef.current.get(tabId) ?? [];
+        historyIndexRef.current.set(
+          tabId,
+          segments.filter((s) => s.sessionId !== sessionId),
+        );
+        persistHistoryIndex();
+      });
+    }
+  }, [deleteHistoryForTab, persistHistoryIndex]);
+
+  /** 采集一次 → 把块的元信息写回索引 → 结算预算 */
+  const persistCollectedChunks = useCallback(
+    async (sessionId: string) => {
+      const collector = collectorFor(sessionId);
+      const ok = await collector.collect();
+      if (!ok) {
+        return; // 失败：水位未推进，未满块保留，下一次采集重试
+      }
+      ensureHistoryIndexLoaded();
+      const tab = useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId);
+      if (!tab) {
+        return;
+      }
+      const segments = historyIndexRef.current.get(tab.id) ?? [];
+      const at = segments.findIndex((s) => s.sessionId === sessionId);
+      const next: TerminalHistorySegment = {
+        sessionId,
+        endedAt: Date.now(),
+        live: true,
+        chunks: collector.getWrittenChunks(),
+      };
+      if (at >= 0) {
+        segments[at] = next;
+      } else {
+        segments.push(next);
+      }
+      historyIndexRef.current.set(tab.id, segments);
+      persistHistoryIndex();
+      settleHistoryBudget();
+    },
+    [collectorFor, ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget],
+  );
+
+  /** 输出驱动的采集入口（节流） */
+  const collectThrottled = useCallback(
+    (sessionId: string) => {
+      let trigger = throttledRef.current.get(sessionId);
+      if (!trigger) {
+        trigger = createThrottledRunner(
+          () => void persistCollectedChunks(sessionId),
+          TERMINAL_CAPTURE_THROTTLE_MS,
+        );
+        throttledRef.current.set(sessionId, trigger);
+      }
+      trigger();
+    },
+    [persistCollectedChunks],
+  );
+
+  /** 段定稿：live 置 false、endedAt 冻结在最后一次采集时刻 */
+  const finalizeSegment = useCallback(
+    (sessionId: string) => {
+      ensureHistoryIndexLoaded();
+      for (const [tabId, segments] of historyIndexRef.current) {
+        const at = segments.findIndex((s) => s.sessionId === sessionId);
+        if (at >= 0) {
+          segments[at] = {
+            ...segments[at],
+            live: false,
+            chunks: collectorFor(sessionId).getWrittenChunks(),
+          };
+          historyIndexRef.current.set(tabId, segments);
+        }
+      }
+      persistHistoryIndex();
+    },
+    [collectorFor, ensureHistoryIndexLoaded, persistHistoryIndex],
+  );
+
+  /** 应用启动：残留的 live 段其 PTY 必然已随进程退出而死 → 定稿 */
+  const finalizeStaleSegments = useCallback(() => {
+    ensureHistoryIndexLoaded();
+    let changed = false;
+    for (const [tabId, segments] of historyIndexRef.current) {
+      const next = segments.map((s) => (s.live ? { ...s, live: false } : s));
+      if (next.some((s, i) => s !== segments[i])) {
+        historyIndexRef.current.set(tabId, next);
+        changed = true;
+      }
+    }
+    if (changed) {
+      persistHistoryIndex();
+    }
+  }, [ensureHistoryIndexLoaded, persistHistoryIndex]);
 
   /** 懒加载持久化的「标签 → 目录」映射（只需一次） */
   const ensureTabCwdsLoaded = useCallback(() => {
@@ -134,26 +283,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       snapshot[tabId] = cwd;
     });
     terminalCwdStore.saveAll(snapshot);
-  }, []);
-
-  const serializeSession = useCallback((sessionId: string) => {
-    const entry = terminalXtermPool.get(sessionId);
-    if (!entry) {
-      return;
-    }
-    try {
-      // excludeAltBuffer：若退出时停在 vim/less 等备用缓冲区，快照只保留普通缓冲区内容。
-      // 历史视图是按「普通缓冲区快照」顺序拼接回放的，绝不能把 \x1b[?1049h 缓冲区切换带进去。
-      const state = entry.serializeAddon.serialize({
-        scrollback: 1000,
-        excludeAltBuffer: true,
-      });
-      if (state) {
-        terminalOutputStore.save(sessionId, state);
-      }
-    } catch (err) {
-      console.warn('serializeSession failed:', err);
-    }
   }, []);
 
   const terminalTabs = terminalSelectors.useTerminalTabs();
@@ -345,12 +474,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           ensureTabCwdsLoaded();
           const rememberedCwd = tabCwdRef.current.get(tabId);
 
-          // 旧会话已结束（或无会话）：把它归档进历史索引。历史内容仍按 sessionId
-          // 存在 terminalOutputStore 里，由只读历史视图自行加载回放 —— 绝不写进实时终端，
-          // 否则 ConPTY 的光标坐标系会被历史顶偏（这就是「输出跳回顶部」的根因）。
-          if (sessionId) {
-            archiveSessionAsHistory(tabId, sessionId);
-          }
+          // 旧会话已结束（或无会话）：启动效应走激活即可；历史段会在 PTY 生命周期里
+          // 由采集器建立，并随会话结束/退出定稿。绝不把历史写进实时终端，否则 ConPTY
+          // 的光标坐标系会被历史顶偏（这就是「输出跳回顶部」的根因）。
 
           await attachSession(tabId, tab.profile, tab.workspaceId, {
             cwdOverride: rememberedCwd,
@@ -380,49 +506,55 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       });
       return run;
     },
-    [archiveSessionAsHistory, attachSession, ensureTabCwdsLoaded],
+    [attachSession, ensureTabCwdsLoaded],
   );
 
+  // 30 秒周期兜底：即使长时间无新输出也至少落盘一次（节流无法覆盖「安静」期的最后一次采集）。
   useEffect(() => {
     const interval = setInterval(() => {
       const sessionIds = sessionIdsKey ? sessionIdsKey.split('|') : [];
       for (const sessionId of sessionIds) {
-        serializeSession(sessionId);
+        void persistCollectedChunks(sessionId);
       }
     }, 30_000);
     return () => clearInterval(interval);
-  }, [sessionIdsKey, serializeSession]);
+  }, [sessionIdsKey, persistCollectedChunks]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
-      const sessionIds = sessionIdsKey ? sessionIdsKey.split('|') : [];
-      for (const sessionId of sessionIds) {
-        serializeSession(sessionId);
-      }
+      collectorsRef.current.forEach((collector, sessionId) => {
+        void collector.flush().then((ok) => {
+          if (ok) {
+            finalizeSegment(sessionId);
+          }
+        });
+      });
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [sessionIdsKey, serializeSession]);
+  }, [finalizeSegment]);
 
   // 启动激活：恢复的标签其会话必然已不存在（应用退出时会话被 kill），
-  // 因此在启动时对「上一次运行遗留的活动标签」走一次激活（归档历史 + 重建会话）。
+  // 因此在启动时对「上一次运行遗留的活动标签」走一次激活（重建会话），
+  // 并先把残留的 live 段定稿（其 PTY 已随进程退出而死）。
   const startupHandledRef = useRef(false);
   useEffect(() => {
     if (startupHandledRef.current) {
       return;
     }
+    startupHandledRef.current = true;
+    finalizeStaleSegments();
     const tabId = activeTab?.id;
     if (!tabId) {
       return;
     }
-    startupHandledRef.current = true;
     const sessionId = activeTab?.sessionId;
     // 本次运行已建过的会话无需再激活；无会话的标签（例如上次建会话中途退出）也要补建
     if (sessionId && createdSessionIdsRef.current.has(sessionId)) {
       return;
     }
     void activateTab(tabId);
-  }, [activeTab, activateTab]);
+  }, [activeTab, activateTab, finalizeStaleSegments]);
 
   const handleXtermData = useCallback(
     (data: string) => {
@@ -511,13 +643,13 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 历史与待发输入的清理不依赖 sessionId 是否存在（与 handleCloseAllTabs 保持对称），
       // 避免「有历史却无存活会话」的边界（如 PTY 创建失败前已归档）留下孤儿索引与快照。
       pendingInputRef.current.delete(tabId);
-      clearHistoryForTab(tabId);
+      void deleteHistoryForTab(tabId);
       if (tabCwdRef.current.delete(tabId)) {
         persistTabCwds();
       }
       terminalCloseTab(tabId);
     },
-    [clearHistoryForTab, persistTabCwds, terminalCloseTab],
+    [deleteHistoryForTab, persistTabCwds, terminalCloseTab],
   );
 
   const handleCloseAllTabs = useCallback(
@@ -526,7 +658,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       const tabsToClose =
         workspaceId !== undefined ? tabs.filter((tab) => tab.workspaceId === workspaceId) : tabs;
       tabsToClose.forEach((tab) => {
-        clearHistoryForTab(tab.id);
+        void deleteHistoryForTab(tab.id);
         tabCwdRef.current.delete(tab.id);
         pendingInputRef.current.delete(tab.id);
         if (tab.sessionId) {
@@ -542,7 +674,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       persistTabCwds();
       terminalCloseAllTabs(workspaceId);
     },
-    [clearHistoryForTab, persistTabCwds, terminalCloseAllTabs],
+    [deleteHistoryForTab, persistTabCwds, terminalCloseAllTabs],
   );
 
   const handleKill = useCallback(() => {
@@ -600,21 +732,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         pooled.terminal.write(event.data);
       }
 
-      // 防抖保存：合并高频输出事件，每 500ms 最多写入一次持久化存储
-      const existing = saveDebounceRef.current.get(event.sessionId);
-      if (existing) {
-        clearTimeout(existing);
-      }
-      saveDebounceRef.current.set(
-        event.sessionId,
-        setTimeout(() => {
-          saveDebounceRef.current.delete(event.sessionId);
-          serializeSession(event.sessionId);
-        }, 500),
-      );
+      // 节流采集：输出期间最多每 TERMINAL_CAPTURE_THROTTLE_MS 采一次（替代原尾去抖），
+      // 把积压行数压到远小于 xterm scrollback 环容量，避免采集间隙的输出从源头丢失。
+      collectThrottled(event.sessionId);
     });
     return () => unsub();
-  }, [activeRightTool, persistTabCwds, serializeSession, terminalUpdateTab]);
+  }, [activeRightTool, persistTabCwds, collectThrottled, terminalUpdateTab]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -634,7 +757,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       return [];
     }
     ensureHistoryIndexLoaded();
-    return historyIndexRef.current.get(tabId) ?? [];
+    // 已过滤正在进行的段：只读历史区绝不能把「实时终端当前内容」再渲染一遍，
+    // 否则 ConPTY 光标坐标系被历史顶偏（「输出跳回顶部」根因）。
+    return (historyIndexRef.current.get(tabId) ?? []).filter((s) => !s.live);
     // historyIndexVersion 只是「索引已变化」的渲染触发器，本身不参与计算：
     // 索引存在 ref 里以便在回调中同步读写，这里靠版本号驱动重新取值。
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -643,6 +768,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   return {
     xtermRef,
     historySegments,
+    deleteHistoryForTab,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,

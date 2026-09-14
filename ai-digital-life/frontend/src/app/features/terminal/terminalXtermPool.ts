@@ -1,12 +1,11 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { SerializeAddon } from '@xterm/addon-serialize';
+import { TERMINAL_CAPTURE_SCROLLBACK_LINES } from './terminalHistoryCollector';
 
 export interface PooledXterm {
   terminal: Terminal;
   fitAddon: FitAddon;
-  serializeAddon: SerializeAddon;
   hostEl: HTMLDivElement;
   sessionId: string;
 }
@@ -51,7 +50,8 @@ export class TerminalXtermPool {
       fontFamily: readTerminalFontFamily(),
       theme: readTerminalTheme(),
       allowProposedApi: true,
-      scrollback: 1000,
+      // 采集侧 scrollback 提到 5000：否则采集间隙的输出会从环里丢掉，持久化层看不到。
+      scrollback: TERMINAL_CAPTURE_SCROLLBACK_LINES,
       scrollSensitivity: 1,
       disableStdin: false,
       cursorStyle: 'bar',
@@ -61,8 +61,6 @@ export class TerminalXtermPool {
     const fitAddon = new FitAddon();
     terminal.loadAddon(fitAddon);
     terminal.loadAddon(new WebLinksAddon());
-    const serializeAddon = new SerializeAddon();
-    terminal.loadAddon(serializeAddon);
     terminal.open(hostEl);
 
     container.appendChild(hostEl);
@@ -70,7 +68,6 @@ export class TerminalXtermPool {
     const entry: PooledXterm = {
       terminal,
       fitAddon,
-      serializeAddon,
       hostEl,
       sessionId,
     };
