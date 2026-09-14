@@ -9,9 +9,21 @@ export const settingsEn = {
   // Group labels
   settingsGeneral: 'General',
   settingsWorkspace: 'Workspace',
+  settingsTerminal: 'Terminal',
   settingsShortcuts: 'Shortcuts',
   settingsBrowser: 'Browser',
   settingsDsh: 'DeepSeek Harness',
+
+  // Terminal settings
+  settingsTerminalHistoryGroupDesc: 'Manage terminal history storage and display behavior',
+  settingsTerminalHistoryBudget: 'Read-only history disk budget',
+  settingsTerminalHistoryBudgetDesc:
+    'This is a usage cap for read-only history, not reserved space. Nothing is deleted below the cap; above it, the oldest entries are evicted first, and the most recent 20 segments are always kept.',
+  settingsTerminalHistoryBudgetCustom: 'Custom…',
+  settingsTerminalHistoryBudgetFollowDisk: 'Follow free disk space',
+  settingsTerminalHistoryBudgetFollowDiskDesc:
+    'Estimates the cap from free space on the system drive, reserving 1GB for the system. The tighter the disk, the less history is kept.',
+  settingsTerminalHistoryBudgetUsed: 'Using {used} of {limit}',
 
   // Common settings
   settingsLanguage: 'Language',

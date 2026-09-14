@@ -9,9 +9,21 @@ export const settingsZh = {
   // 分组标签
   settingsGeneral: '通用',
   settingsWorkspace: '工作区',
+  settingsTerminal: '终端',
   settingsShortcuts: '快捷键',
   settingsBrowser: '浏览器',
   settingsDsh: 'DeepSeek Harness',
+
+  // 终端设置
+  settingsTerminalHistoryGroupDesc: '管理终端的历史存储与显示行为',
+  settingsTerminalHistoryBudget: '只读历史磁盘预算',
+  settingsTerminalHistoryBudgetDesc:
+    '这是只读历史在磁盘上的占用上限，不是预留空间。低于上限时不会自动删除任何历史；超过后才按「最旧优先」淘汰，并且始终至少保留最近 20 段。',
+  settingsTerminalHistoryBudgetCustom: '自定义…',
+  settingsTerminalHistoryBudgetFollowDisk: '跟随磁盘剩余空间',
+  settingsTerminalHistoryBudgetFollowDiskDesc:
+    '按系统盘剩余空间估算上限，并预留 1GB 给系统；磁盘越紧，可保留的历史越少。',
+  settingsTerminalHistoryBudgetUsed: '已用 {used}，上限 {limit}',
 
   // 通用设置项
   settingsLanguage: '语言',

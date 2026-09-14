@@ -11,6 +11,7 @@ import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
+import { TerminalSettings } from '../../features/terminal-settings/TerminalSettings';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
@@ -25,6 +26,7 @@ interface SettingsPanelProps {
 const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>> = {
   shortcuts: KeybindSettings,
   workspace: WorkspaceSettings,
+  terminal: TerminalSettings,
   browser: BrowserSettings,
   dsh: DshSettings,
 };
