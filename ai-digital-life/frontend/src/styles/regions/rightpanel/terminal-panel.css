@@ -331,3 +331,32 @@
   （`.adl-terminal-runner` / `.adl-terminal-output` / `.adl-select`）经代码区扫描
    确认零挂载引用（`__actions` / `__list` / `__search` / `--sm` 变体为他文件独立类；docs 进度记录提及除外），整段删除。
    复证检索式（仅命中本注释即干净）：git grep -nE "adl-terminal-(runner|output)([^A-Za-z0-9_-]|$)|adl-tool-sidebar([^A-Za-z0-9_-]|$)|adl-select([^A-Za-z0-9_-]|$)" -- . ":(exclude)docs" */
+
+.adl-terminal-history-row {
+  /* 行高与字符宽由实时终端 DOM 实测后写入这两个变量，保证两侧视觉延续 */
+  height: var(--adl-terminal-cell-height, 17px);
+  line-height: var(--adl-terminal-cell-height, 17px);
+  white-space: pre;
+  font-family: var(--font-mono-custom, monospace);
+  font-size: 13px;
+}
+
+.adl-terminal-history-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  height: var(--adl-terminal-cell-height, 17px);
+  color: var(--text-secondary);
+  font-size: var(--text-xs, 12px);
+}
+
+.adl-terminal-history-divider__line {
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border-subtle);
+}
+
+.adl-terminal-history-divider__label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
