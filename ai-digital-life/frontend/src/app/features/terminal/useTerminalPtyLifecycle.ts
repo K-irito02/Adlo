@@ -159,25 +159,52 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     [ensureHistoryIndexLoaded, persistHistoryIndex],
   );
 
+  /** 删除单个段及其全部块记录（预算淘汰用；不影响同标签其它段） */
+  const deleteSegmentRecords = useCallback(
+    async (tabId: string, segment: TerminalHistorySegment) => {
+      for (let seq = 0; seq < segment.chunks.length; seq += 1) {
+        await terminalOutputStore.delete(chunkKey(segment.sessionId, seq));
+      }
+      collectorsRef.current.delete(segment.sessionId);
+      throttledRef.current.delete(segment.sessionId);
+    },
+    [],
+  );
+
   /** 预算结算：超出有效预算时按最旧优先淘汰整段历史 */
-  const settleHistoryBudget = useCallback(() => {
+  const settleHistoryBudget = useCallback(async () => {
     const all: { tabId: string; seg: TerminalHistorySegment }[] = [];
     historyIndexRef.current.forEach((segments, tabId) => {
       segments.forEach((seg) => all.push({ tabId, seg }));
     });
     const budget = effectiveBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES, null);
     const doomed = selectSegmentsToEvict(all, budget);
-    for (const { tabId, sessionId } of doomed) {
-      void deleteHistoryForTab(tabId).then(() => {
-        const segments = historyIndexRef.current.get(tabId) ?? [];
-        historyIndexRef.current.set(
-          tabId,
-          segments.filter((s) => s.sessionId !== sessionId),
-        );
-        persistHistoryIndex();
-      });
+    if (doomed.length === 0) {
+      return;
     }
-  }, [deleteHistoryForTab, persistHistoryIndex]);
+    // 必须**逐段**删除：deleteHistoryForTab 会清掉该标签的全部段，
+    // 用它来淘汰一段会连带毁掉同标签其它段的落盘数据（索引却还在 → 显示「内容不可用」）。
+    const doomedByTab = new Map<string, Set<string>>();
+    for (const { tabId, sessionId } of doomed) {
+      const set = doomedByTab.get(tabId) ?? new Set<string>();
+      set.add(sessionId);
+      doomedByTab.set(tabId, set);
+      const segment = all.find((e) => e.tabId === tabId && e.seg.sessionId === sessionId)?.seg;
+      if (segment) {
+        await deleteSegmentRecords(tabId, segment);
+      }
+    }
+    for (const [tabId, sessionIds] of doomedByTab) {
+      const segments = historyIndexRef.current.get(tabId) ?? [];
+      const kept = segments.filter((s) => !sessionIds.has(s.sessionId));
+      if (kept.length > 0) {
+        historyIndexRef.current.set(tabId, kept);
+      } else {
+        historyIndexRef.current.delete(tabId);
+      }
+    }
+    persistHistoryIndex();
+  }, [deleteSegmentRecords, persistHistoryIndex]);
 
   /** 采集一次 → 把块的元信息写回索引 → 结算预算 */
   const persistCollectedChunks = useCallback(
@@ -207,7 +234,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
       historyIndexRef.current.set(tab.id, segments);
       persistHistoryIndex();
-      settleHistoryBudget();
+      void settleHistoryBudget();
     },
     [collectorFor, ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget],
   );
