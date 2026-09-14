@@ -54,3 +54,6 @@ Thumbs.db
 
 # ad-server config/test pollution (generated config for commands-config at crate cwd)
 /crates/server/config/
+
+# Agent-sandbox command marker files (PID + UUID naming, always 0 bytes, created in cwd)
+/_tmp_*
