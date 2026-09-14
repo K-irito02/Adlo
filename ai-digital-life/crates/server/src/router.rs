@@ -127,6 +127,14 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         )
         .route("/workspace/git-vis/branch-graph", post(handlers::workspace_git_vis::branch_graph))
         .route("/workspace/git-vis/file-hotspots", post(handlers::workspace_git_vis::file_hotspots))
+        // Storage domain (Plan C Task 2 — browser-mode mirror of the shell
+        // storage commands; B5: no `/storage/restart-backend`, adl-server never
+        // restarts itself).
+        .route("/storage/status", post(handlers::storage::status))
+        .route("/storage/scan-foreign", post(handlers::storage::scan_foreign))
+        .route("/storage/preflight", post(handlers::storage::preflight))
+        .route("/storage/set-paths", post(handlers::storage::set_paths))
+        .route("/storage/cancel-pending", post(handlers::storage::cancel_pending))
         // Terminal-output persistence domain
         .route("/terminal/save", post(handlers::terminal_output::save))
         .route("/terminal/load", post(handlers::terminal_output::load))

@@ -7,6 +7,7 @@ pub mod patch;
 pub mod reference;
 pub mod retrieval;
 pub mod snapshot;
+pub mod storage;
 pub mod system_monitor;
 pub mod terminal_output;
 pub mod workspace;
