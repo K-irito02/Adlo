@@ -1,5 +1,13 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
+import type {
+  StorageApplyResult,
+  StorageBridge,
+  StorageForeignScan,
+  StoragePathPatch,
+  StoragePreflight,
+  StorageStatus,
+} from '../shared/ipc/storage';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyWsClient } from '../shared/ipc/pty-ws';
 import { createTauriAppBridge } from './tauri-app';
@@ -64,6 +72,21 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     app: createTauriAppBridge(),
     browser: createTauriBrowserBridge(),
     reserved: createTauriReservedBridge(),
+
+    // Storage path management stays on Tauri invoke (Plan C Task 1 commands):
+    // the desktop owns the locator writes and the process restart. The
+    // migration itself runs on the next launch; `app_restart` is only invoked
+    // by the UI after `storage_set_paths` reports `restartRequired === true`.
+    storage: {
+      getStatus: () => invokeIpc<StorageStatus>('storage_get_status'),
+      scanForeign: () => invokeIpc<StorageForeignScan[]>('storage_scan_foreign_cmd'),
+      preflight: (patch: StoragePathPatch) =>
+        invokeIpc<StoragePreflight>('storage_preflight_cmd', { patch }),
+      setPaths: (patch: StoragePathPatch, applyNow: boolean) =>
+        invokeIpc<StorageApplyResult>('storage_set_paths', { patch, applyNow }),
+      cancelPending: () => invokeIpc<void>('storage_cancel_pending'),
+      restartApp: () => invokeIpc<void>('app_restart'),
+    } satisfies StorageBridge,
   };
 }
 

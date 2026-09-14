@@ -34,6 +34,7 @@ import { mockDsh } from './mock/mock-dsh';
 import { mockReserved } from './mock/mock-reserved';
 import { mockClipboard } from './mock/mock-clipboard';
 import { mockSystemMonitor } from './mock/mock-system-monitor';
+import { createMockStorage } from './mock/mock-storage';
 
 const MOCK_BRIDGE_STORAGE_KEY = 'ai-digital-life-mock-bridge-state';
 let persistenceEnabled = false;
@@ -137,6 +138,7 @@ export const mockDigitalLifeBridge: DigitalLifeBridge = {
     load: async () => ({ ok: true as const, data: null as string | null }),
     delete: async () => ({ ok: true as const, data: undefined as void }),
   },
+  storage: createMockStorage(),
 };
 
 export function setupMockBridge(): void {

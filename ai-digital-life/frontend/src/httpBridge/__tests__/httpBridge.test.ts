@@ -113,3 +113,74 @@ describe('createHttpBridge', () => {
     expect(resolveAdlServerBaseUrl()).toBe('http://127.0.0.1:12345');
   });
 });
+
+describe('createHttpBridge storage domain', () => {
+  beforeEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const patch = {
+    mode: 'unified' as const,
+    root: 'D:/adl',
+    categories: {},
+    retainSource: false,
+  };
+
+  it('maps storage.getStatus to POST /storage/status', async () => {
+    const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: { mode: 'unified' } }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    await bridge.storage.getStatus();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://127.0.0.1:9999/storage/status');
+    expect(fetchMock.mock.calls[0]?.[1]?.method).toBe('POST');
+  });
+
+  it('maps storage.scanForeign to POST /storage/scan-foreign', async () => {
+    const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: [] }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    await bridge.storage.scanForeign();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://127.0.0.1:9999/storage/scan-foreign');
+  });
+
+  it('maps storage.preflight to POST /storage/preflight with { patch }', async () => {
+    const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: { ok: true } }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    await bridge.storage.preflight(patch);
+    const init = fetchMock.mock.calls[0]?.[1];
+    const body = typeof init?.body === 'string' ? init.body : '{}';
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://127.0.0.1:9999/storage/preflight');
+    expect(JSON.parse(body)).toEqual({ patch });
+  });
+
+  it('maps storage.setPaths to POST /storage/set-paths with { patch, applyNow }', async () => {
+    const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: { restartRequired: true } }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    await bridge.storage.setPaths(patch, true);
+    const init = fetchMock.mock.calls[0]?.[1];
+    const body = typeof init?.body === 'string' ? init.body : '{}';
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://127.0.0.1:9999/storage/set-paths');
+    expect(JSON.parse(body)).toEqual({ patch, applyNow: true });
+  });
+
+  it('maps storage.cancelPending to POST /storage/cancel-pending', async () => {
+    const fetchMock = mockFetch(jsonResponse(200, { ok: true, data: null }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    await bridge.storage.cancelPending();
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://127.0.0.1:9999/storage/cancel-pending');
+  });
+
+  it('returns NOT_SUPPORTED for storage.restartApp (B5: browser cannot restart)', async () => {
+    mockFetch(jsonResponse(200, { ok: true, data: null }));
+    const { createHttpBridge } = await import('../../httpBridge');
+    const bridge = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+    const res = await bridge.storage.restartApp();
+    expect(res.ok).toBe(false);
+    if (!res.ok) {
+      expect(res.error.code).toBe('NOT_SUPPORTED');
+    }
+  });
+});

@@ -9,6 +9,7 @@ import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
 import type { ClipboardBridge } from '../shared/ipc/clipboard';
 import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
+import type { StorageBridge } from '../shared/ipc/storage';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyBridge } from './preview-pty-bridge';
@@ -256,6 +257,15 @@ export async function setupPreviewBridge(): Promise<void> {
       adlServerBaseUrl,
       http.systemMonitor,
       mockDigitalLifeBridge.systemMonitor,
+    ),
+    // Storage domain: httpBridge against the Task 2 `/storage/*` routes when the
+    // ad-server is reachable, mock otherwise. B5: the browser cannot restart the
+    // host process — `http.storage.restartApp` returns `NOT_SUPPORTED`, while
+    // the Tauri shell overrides it with `app_restart`.
+    storage: preferHttpWhenReachable<StorageBridge>(
+      adlServerBaseUrl,
+      http.storage,
+      mockDigitalLifeBridge.storage,
     ),
     // `reserved` (ACP/HTTP-API/CodeMode) has NO ad-server HTTP routes — the
     // httpBridge implementations are all `NOT_SUPPORTED` stubs. The desktop

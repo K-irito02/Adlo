@@ -216,3 +216,61 @@ describe('createTauriBridge system-capability domains stay on Tauri', () => {
     expect(res).toBe('tab-1');
   });
 });
+
+describe('createTauriBridge storage domain', () => {
+  const patch = {
+    mode: 'unified' as const,
+    root: 'D:/adl',
+    categories: {},
+    retainSource: false,
+  };
+
+  it('storage.getStatus invokes storage_get_status', async () => {
+    mockInvoke.mockResolvedValue(okResult({ mode: 'unified' }));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    const res = await bridge.storage.getStatus();
+
+    expect(mockInvoke).toHaveBeenCalledWith('storage_get_status', undefined);
+    expect(res).toEqual({ ok: true, data: { mode: 'unified' } });
+  });
+
+  it('storage.scanForeign invokes storage_scan_foreign_cmd', async () => {
+    mockInvoke.mockResolvedValue(okResult([]));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    await bridge.storage.scanForeign();
+
+    expect(mockInvoke).toHaveBeenCalledWith('storage_scan_foreign_cmd', undefined);
+  });
+
+  it('storage.preflight invokes storage_preflight_cmd with { patch }', async () => {
+    mockInvoke.mockResolvedValue(okResult({ ok: true }));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    await bridge.storage.preflight(patch);
+
+    expect(mockInvoke).toHaveBeenCalledWith('storage_preflight_cmd', { patch });
+  });
+
+  it('storage.setPaths invokes storage_set_paths with { patch, applyNow }', async () => {
+    mockInvoke.mockResolvedValue(okResult({ restartRequired: true }));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    await bridge.storage.setPaths(patch, true);
+
+    expect(mockInvoke).toHaveBeenCalledWith('storage_set_paths', { patch, applyNow: true });
+  });
+
+  it('storage.cancelPending invokes storage_cancel_pending', async () => {
+    mockInvoke.mockResolvedValue(okResult(undefined));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    await bridge.storage.cancelPending();
+
+    expect(mockInvoke).toHaveBeenCalledWith('storage_cancel_pending', undefined);
+  });
+
+  it('storage.restartApp invokes app_restart', async () => {
+    mockInvoke.mockResolvedValue(okResult(undefined));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    await bridge.storage.restartApp();
+
+    expect(mockInvoke).toHaveBeenCalledWith('app_restart', undefined);
+  });
+});

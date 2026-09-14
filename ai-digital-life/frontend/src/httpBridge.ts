@@ -80,6 +80,13 @@ import type {
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { ClipboardBridge } from './shared/ipc/clipboard';
 import type { SystemMonitorBridge } from './shared/ipc/system_monitor';
+import type {
+  StorageApplyResult,
+  StorageBridge,
+  StorageForeignScan,
+  StoragePreflight,
+  StorageStatus,
+} from './shared/ipc/storage';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 import {
   subscribeEventSource,
@@ -1038,8 +1045,24 @@ export function createHttpBridge({
         call<void>(baseUrl, '/terminal/save', POST({ sessionId, output })),
       load: (sessionId: string) =>
         call<string | null>(baseUrl, '/terminal/load', POST({ sessionId })),
-      delete: (sessionId: string) =>
-        call<void>(baseUrl, '/terminal/delete', POST({ sessionId })),
+      delete: (sessionId: string) => call<void>(baseUrl, '/terminal/delete', POST({ sessionId })),
     },
+
+    // ── Storage domain (crates/server/src/handlers/storage.rs). B5: no
+    // `/storage/restart-backend` route exists — adl-server never restarts
+    // itself, and the browser cannot restart the host process, so `restartApp`
+    // is a `NOT_SUPPORTED` fallback (the desktop shell overrides it with
+    // `app_restart`). The body nesting matches the locked Task 2 contract:
+    // preflight `{ patch }`, set-paths `{ patch, applyNow }`; status /
+    // scan-foreign / cancel-pending take no body.
+    storage: {
+      getStatus: () => call<StorageStatus>(baseUrl, '/storage/status', POST({})),
+      scanForeign: () => call<StorageForeignScan[]>(baseUrl, '/storage/scan-foreign', POST({})),
+      preflight: (patch) => call<StoragePreflight>(baseUrl, '/storage/preflight', POST({ patch })),
+      setPaths: (patch, applyNow) =>
+        call<StorageApplyResult>(baseUrl, '/storage/set-paths', POST({ patch, applyNow })),
+      cancelPending: () => call<void>(baseUrl, '/storage/cancel-pending', POST({})),
+      restartApp: () => taskNotSupported<void>('storage.restartApp'),
+    } satisfies StorageBridge,
   };
 }
