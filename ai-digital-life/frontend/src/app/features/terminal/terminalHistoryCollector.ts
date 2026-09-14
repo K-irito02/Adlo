@@ -33,13 +33,16 @@ function utf8Length(text: string): number {
  *    —— 这是「超出上限被拒收」被结构性消除的原因，而不是把阈值调大。
  * 3. **成功才推进水位**：写入失败时保留未满块与水位，下一次采集重试同一批行。
  *
- * 环回兜底：scrollback 溢出会裁掉最旧行、绝对行号失效。此时清空已落盘块，
- * 由调用方以当前缓冲区内容重建整段 —— 否则会写出错位的历史，比丢失更难排查。
+ * 环回兜底：scrollback 溢出会裁掉最旧行、绝对行号失效。此时只重置采集器**内部状态**
+ * （水位 / 暂存 / `written[]` 元信息 / seq），**磁盘上已写入的块不会被删除** —— 它们仍占着
+ * 存储，必须由调用方以当前缓冲区内容整段重建：用同一 `seq` 推导出的块键覆盖写回，
+ * 并同步重建分段索引。否则会写出错位的历史，比丢失更难排查。
  */
 export class TerminalHistoryCollector {
   private sessionId = '';
   private watermark = 0;
   private pending: HistoryRun[][] = [];
+  /** pending 各行 JSON 字节数之和；不含块包装与行间逗号（判定见 wouldExceedCap） */
   private pendingBytes = 0;
   private written: TerminalHistoryChunkMeta[] = [];
   private seq = 0;
@@ -70,7 +73,8 @@ export class TerminalHistoryCollector {
   async collect(): Promise<boolean> {
     const buffer = this.deps.readBuffer();
     this.detectRewind(buffer);
-    const frozenEnd = buffer.activeType === 'alternate' ? buffer.baseY : buffer.baseY;
+    // 本次采集的冻结终点：只采 [watermark, baseY) 的冻结行，视口区留给 flush。
+    const frozenEnd = buffer.baseY;
     return this.append(buffer, frozenEnd);
   }
 
@@ -84,6 +88,11 @@ export class TerminalHistoryCollector {
     return this.seal();
   }
 
+  /**
+   * 环回兜底：绝对行号失效时重置内部状态并要求整段重建。
+   * 这里**不删除磁盘上的块**：`written` 只是内存里的元信息，落盘的块仍留在原键上，
+   * 等调用方重建时按同一 `seq` 覆盖写回（见类注释）。
+   */
   private detectRewind(buffer: BufferSnapshot): void {
     if (this.watermark > 0 && buffer.length < this.watermark) {
       this.rebuilt = true;
@@ -108,10 +117,7 @@ export class TerminalHistoryCollector {
     );
     for (const line of rows) {
       const lineBytes = utf8Length(JSON.stringify(line));
-      if (
-        this.pending.length > 0 &&
-        this.pendingBytes + lineBytes > TERMINAL_HISTORY_CHUNK_MAX_BYTES
-      ) {
+      if (this.pending.length > 0 && this.wouldExceedCap(lineBytes)) {
         if (!(await this.seal())) {
           return false;
         }
@@ -120,6 +126,27 @@ export class TerminalHistoryCollector {
       this.pendingBytes += lineBytes;
     }
     return true;
+  }
+
+  /**
+   * 与 `seal` 同口径的「投影 payload 体积」是否超上限。
+   *
+   * 不能只比行体和：真正落盘的字节数还包含 `{"seq":N,"cols":N,"lines":[` … `]}` 这层包装，
+   * 以及 n+1 个行元素之间的 **n 个逗号**（n = 已暂存行数）。行体和顶格时包装与逗号会把
+   * payload 顶过上限，所以必须一并计入，让「交给 write 的 payload 永不超上限」成立在
+   * 结构性上，而不是靠余量够大。
+   */
+  private wouldExceedCap(lineBytes: number): boolean {
+    const projected = this.wrapperBytes() + this.pendingBytes + lineBytes + this.pending.length;
+    return projected > TERMINAL_HISTORY_CHUNK_MAX_BYTES;
+  }
+
+  /** 封块 payload 的固定包装字节数（与 `seal` 的序列化方式逐字一致） */
+  private wrapperBytes(): number {
+    return utf8Length(
+      `{"seq":${JSON.stringify(this.seq)},"cols":${JSON.stringify(this.deps.cols())},"lines":[` +
+        ']}',
+    );
   }
 
   /** 把 pending 落盘为一个块；成功推进 seq 与水位，失败清空 pending 让下次从同一水位重建 */

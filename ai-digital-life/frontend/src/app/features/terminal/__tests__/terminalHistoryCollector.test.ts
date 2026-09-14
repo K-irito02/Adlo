@@ -82,6 +82,43 @@ describe('TerminalHistoryCollector', () => {
     }
   });
 
+  it('封块预算包含 JSON 包装开销，任何写入的 payload 都不超过块上限', async () => {
+    const written: Record<string, string> = {};
+    // 单行序列化为 [{"text":"…"}]，字节数 = text 长度 + 13；2035 + 13 = 2048 字节/行。
+    // 32 行行体和 = 32 × 2048 = 65536，正好顶格（距上限 0 字节），
+    // 于是 {"seq":N,"cols":N,"lines":[…]} 的包装与行间逗号必然把 payload 顶过上限。
+    const line = 'x'.repeat(2035);
+    const frozen = Array.from({ length: 32 }, () => line);
+    const c = makeCollector(makeBuffer(frozen, []), written);
+    await c.collect();
+    await c.flush();
+    const payloads = Object.values(written);
+    expect(payloads.length).toBeGreaterThan(0);
+    for (const payload of payloads) {
+      expect(new TextEncoder().encode(payload).length).toBeLessThanOrEqual(
+        TERMINAL_HISTORY_CHUNK_MAX_BYTES,
+      );
+    }
+  });
+
+  it('短行时行间逗号同样计入封块预算，payload 也不超上限', async () => {
+    const written: Record<string, string> = {};
+    // 单行序列化为 [{"text":"a"}] = 14 字节；k 行的 payload = 30（包装）+ 14k + (k−1) 个行间逗号
+    // = 29 + 15k。k = 4367 → 65534 字节（距上限仅 2 字节），再收一行就是 65549 > 上限；
+    // 只按行体和判定会一路收到 ~4680 行，写出 ~70 KiB 的块。
+    const frozen = Array.from({ length: 4368 }, () => 'a');
+    const c = makeCollector(makeBuffer(frozen, []), written);
+    await c.collect();
+    await c.flush();
+    const payloads = Object.values(written);
+    expect(payloads.length).toBeGreaterThan(0);
+    for (const payload of payloads) {
+      expect(new TextEncoder().encode(payload).length).toBeLessThanOrEqual(
+        TERMINAL_HISTORY_CHUNK_MAX_BYTES,
+      );
+    }
+  });
+
   it('写入失败时不推进水位，下一次 collect 重试同一批行', async () => {
     let attempts = 0;
     const received: string[] = [];
