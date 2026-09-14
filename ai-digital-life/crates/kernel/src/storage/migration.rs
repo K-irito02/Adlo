@@ -4,7 +4,7 @@
 //! 持有 SQLite 句柄时搬文件的问题。
 
 use super::category::StorageCategory;
-use super::locator::{KeptDir, MigrationReport, StorageLocator};
+use super::locator::{KeptDir, MigrationReport, StorageLocator, save_locator};
 use super::paths::{StorageDefaults, StoragePaths};
 use super::whitelist::{is_own_dir, owns_file};
 use adl_errors::AppError;
@@ -480,13 +480,16 @@ fn all_dirs(root: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// 执行一次完整迁移（不含 locator 持久化）：复制 → 校验 → 清理旧源。
+/// 执行一次完整迁移：复制 → 校验 → **切换指针** → 清理旧源。
 ///
-/// 失败时 best-effort 清理本次新建的目标文件，且**绝不删除源文件**、不切换指针。
+/// `switch_pointer` 在对全部分类复制 + 校验通过之后、清理旧源之前调用（`FnOnce`），
+/// 是「清理之前的最后一步」。其返回 `Err` 时执行失败路径：best-effort 清理本次新建的
+/// 目标文件，**绝不删除源文件**，也不再执行清理。
 pub fn run(
     from: &StoragePaths,
     to: &StoragePaths,
     retain_source: bool,
+    switch_pointer: impl FnOnce() -> Result<(), AppError>,
     mut progress: impl FnMut(MigrationProgress),
 ) -> MigrationReport {
     let categories = plan_categories(from, to);
@@ -513,7 +516,12 @@ pub fn run(
         }
     }
 
-    // 2) 清理旧源（保留模式跳过）。
+    // 2) 切换指针（清理之前的最后一步）。失败 → 不清理、不删源。
+    if let Err(e) = switch_pointer() {
+        return fail(&mut created, e);
+    }
+
+    // 3) 清理旧源（保留模式跳过）。
     let mut removed_dirs = Vec::new();
     let mut kept_dirs = Vec::new();
     if !retain_source {
@@ -559,20 +567,42 @@ fn fail(created: &mut [PathBuf], error: AppError) -> MigrationReport {
     }
 }
 
-/// 执行 locator 中的待迁移（若有）：成功则更新 selection、清 pending、写 last_report；
-/// 失败则保留 pending 并标记 `failed`，不切换指针、不自动重试。
+/// 执行 locator 中的待迁移（若有）：成功则清 pending、写 last_report；失败则保留 pending
+/// 并标记 `failed`，不自动重试。
+///
+/// 指针切换（`locator.selection = pending.to` + 落盘）由 `run` 在复制 + 校验通过之后、
+/// 清理旧源之前执行，保证崩溃窗口内源文件仍完整。
 pub fn apply_pending(
     locator: &mut StorageLocator,
     defaults: &StorageDefaults,
+    progress: impl FnMut(MigrationProgress),
+) -> Option<MigrationReport> {
+    apply_pending_with(locator, defaults, save_locator, progress)
+}
+
+/// `apply_pending` 的实现，注入指针落盘函数以便单测使用临时路径（不写真实 locator）。
+fn apply_pending_with(
+    locator: &mut StorageLocator,
+    defaults: &StorageDefaults,
+    mut save: impl FnMut(&StorageLocator) -> Result<(), AppError>,
     mut progress: impl FnMut(MigrationProgress),
 ) -> Option<MigrationReport> {
     let pending = locator.pending_migration.clone()?;
     let from = StoragePaths::resolve(&pending.from, defaults);
     let to = StoragePaths::resolve(&pending.to, defaults);
+    let target = pending.to.clone();
 
-    let report = run(&from, &to, pending.retain_source, &mut progress);
+    let report = run(
+        &from,
+        &to,
+        pending.retain_source,
+        || {
+            locator.selection = target.clone();
+            save(locator)
+        },
+        &mut progress,
+    );
     if report.ok {
-        locator.selection = pending.to.clone();
         locator.pending_migration = None;
     } else if let Some(still) = locator.pending_migration.as_mut() {
         still.failed = true;
@@ -790,11 +820,35 @@ mod tests {
             .execute_batch("CREATE TABLE t(x);")
             .unwrap();
 
-        let report = run(&old, &newp, false, |_p| {});
+        let report = run(&old, &newp, false, || Ok(()), |_p| {});
         assert!(report.ok, "run should succeed: {:?}", report.error);
         assert!(report.moved_files >= 2);
         assert!(newp.clipboard_dir.join("images/a.png").exists());
         assert!(!old.clipboard_dir.join("images/a.png").exists(), "source cleaned");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn run_switch_pointer_failure_keeps_source() {
+        // A9：指针切换失败（复制 + 校验已通过）时绝不清理源文件。
+        let base = std::env::temp_dir().join(format!("adl-mig-switch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let old = paths_for(&StorageSelection::default(), &base.join("old").to_string_lossy());
+        let sel = StorageSelection { root: Some(base.join("new")), ..Default::default() };
+        let newp = paths_for(&sel, &base.join("old").to_string_lossy());
+        write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
+
+        let report = run(&old, &newp, false, || Err(AppError::Storage("boom".into())), |_p| {});
+        assert!(!report.ok, "switch failure must fail the run");
+        assert!(
+            report.error.as_deref().is_some_and(|e| e.contains("boom")),
+            "error should surface the switch failure: {:?}",
+            report.error
+        );
+        assert!(
+            old.clipboard_dir.join("images/a.png").exists(),
+            "source must stay intact when pointer switch fails"
+        );
         let _ = std::fs::remove_dir_all(&base);
     }
 
@@ -806,7 +860,7 @@ mod tests {
         let sel = StorageSelection { root: Some(base.join("new")), ..Default::default() };
         let newp = paths_for(&sel, &base.join("old").to_string_lossy());
         write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
-        let report = run(&old, &newp, true, |_p| {});
+        let report = run(&old, &newp, true, || Ok(()), |_p| {});
         assert!(report.ok);
         assert!(report.retained);
         assert!(old.clipboard_dir.join("images/a.png").exists(), "source retained");
@@ -832,11 +886,26 @@ mod tests {
         let old = paths_for(&StorageSelection::default(), &base.join("old").to_string_lossy());
         write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
 
-        let report =
-            apply_pending(&mut loc, &defaults(&base.join("old").to_string_lossy()), |_p| {});
+        // 用临时 locator 路径落盘，避免污染真实 `%APPDATA%/ai-digital-life/storage-locator.json`。
+        let loc_path = base.join("storage-locator.json");
+        let report = apply_pending_with(
+            &mut loc,
+            &defaults(&base.join("old").to_string_lossy()),
+            |l| crate::storage::locator::save_locator_to(&loc_path, l),
+            |_p| {},
+        );
         assert!(report.is_some());
         assert!(loc.pending_migration.is_none(), "pending cleared on success");
         assert!(loc.last_report.is_some());
+        // 指针切换在 `run` 内部、清理之前发生，因此 selection 已更新且已落盘。
+        assert!(loc_path.exists(), "switched locator must be persisted");
         let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn apply_pending_without_pending_is_none() {
+        let mut loc = StorageLocator::default();
+        let report = apply_pending(&mut loc, &defaults("/adl-nonexistent-noop-apply"), |_p| {});
+        assert!(report.is_none());
     }
 }
