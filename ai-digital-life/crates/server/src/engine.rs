@@ -299,6 +299,7 @@ mod startup_migration_tests {
         let ok = adl_kernel::storage::MigrationReport {
             at: 1,
             ok: true,
+            switched: true,
             moved_files: 3,
             moved_bytes: 2048,
             removed_dirs: vec![],
@@ -310,6 +311,7 @@ mod startup_migration_tests {
         let bad = adl_kernel::storage::MigrationReport {
             at: 1,
             ok: false,
+            switched: false,
             moved_files: 0,
             moved_bytes: 0,
             removed_dirs: vec![],

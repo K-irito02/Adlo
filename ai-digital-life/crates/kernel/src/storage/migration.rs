@@ -532,8 +532,30 @@ pub fn run(
                     removed_dirs.extend(removed);
                     kept_dirs.extend(kept);
                 },
-                Err(e) => return fail(&mut created, e),
+                Err(e) => {
+                    // 指针已落盘指向新根：新根即权威数据。清理失败绝不能走 `fail()`
+                    // （那会删除刚复制好的新数据），也不再继续清理；报告 ok=false 但
+                    // switched=true，调用方据此清除 pending，避免重试重新复制旧源覆盖新数据。
+                    return MigrationReport {
+                        at: now_ms(),
+                        ok: false,
+                        switched: true,
+                        moved_files,
+                        moved_bytes,
+                        removed_dirs,
+                        kept_dirs,
+                        retained: retain_source,
+                        error: Some(e.to_string()),
+                    };
+                },
             }
+        }
+        // 3b) 旧统一根若已空则一并删除（其它分类数据可能仍在其下 → 仅在空目录时删除）。
+        if from.root != to.root
+            && is_empty_dir(&from.root)
+            && std::fs::remove_dir(&from.root).is_ok()
+        {
+            removed_dirs.push(from.root.clone());
         }
     }
 
@@ -541,6 +563,7 @@ pub fn run(
     MigrationReport {
         at: now_ms(),
         ok: true,
+        switched: true,
         moved_files,
         moved_bytes,
         removed_dirs,
@@ -558,6 +581,7 @@ fn fail(created: &mut [PathBuf], error: AppError) -> MigrationReport {
     MigrationReport {
         at: now_ms(),
         ok: false,
+        switched: false,
         moved_files: 0,
         moved_bytes: 0,
         removed_dirs: Vec::new(),
@@ -592,6 +616,36 @@ fn apply_pending_with(
     let to = StoragePaths::resolve(&pending.to, defaults);
     let target = pending.to.clone();
 
+    // 预检（规范 §7.3）：源 = 目标、目标位于源内部、目标不可写等 → 只读失败，
+    // 不复制、不切换指针，并标记 pending 失败等待用户处理。
+    let pre = preflight(&from, &to);
+    if pre.has_errors() {
+        let error = pre
+            .issues
+            .iter()
+            .filter(|i| i.severity == Severity::Error)
+            .map(|i| i.message.clone())
+            .collect::<Vec<_>>()
+            .join("; ");
+        let report = MigrationReport {
+            at: now_ms(),
+            ok: false,
+            switched: false,
+            moved_files: 0,
+            moved_bytes: 0,
+            removed_dirs: Vec::new(),
+            kept_dirs: Vec::new(),
+            retained: pending.retain_source,
+            error: Some(error),
+        };
+        if let Some(still) = locator.pending_migration.as_mut() {
+            still.failed = true;
+            still.error = report.error.clone();
+        }
+        locator.last_report = Some(report.clone());
+        return Some(report);
+    }
+
     let report = run(
         &from,
         &to,
@@ -607,7 +661,9 @@ fn apply_pending_with(
         },
         &mut progress,
     );
-    if report.ok {
+    // 指针一旦落盘（ok 或 switched），pending 即视为已消费：绝不能重试重复制，
+    // 否则会用旧源覆盖迁移期间写入新根的新数据。仅当失败且未切换指针时才标记 failed。
+    if report.ok || report.switched {
         locator.pending_migration = None;
     } else if let Some(still) = locator.pending_migration.as_mut() {
         still.failed = true;
@@ -714,6 +770,16 @@ mod tests {
             std::fs::create_dir_all(p).unwrap();
         }
         std::fs::write(path, bytes).unwrap();
+    }
+
+    /// Windows：以 `share_mode(0)` 独占打开源文件，使后续 `std::fs::remove_file`
+    /// 报分享冲突（`cleanup_category` 失败）。返回的句柄必须存活到 `run/apply_pending`
+    /// 之后。注意 `std::fs::metadata` 走的是 `GetFileAttributesEx`，不受此锁影响，
+    /// 因此校验阶段仍可读取尺寸。
+    #[cfg(windows)]
+    fn lock_exclusive(path: &std::path::Path) -> std::fs::File {
+        use std::os::windows::fs::OpenOptionsExt;
+        std::fs::OpenOptions::new().read(true).share_mode(0).open(path).unwrap()
     }
 
     #[test]
@@ -827,6 +893,7 @@ mod tests {
 
         let report = run(&old, &newp, false, || Ok(()), |_p| {});
         assert!(report.ok, "run should succeed: {:?}", report.error);
+        assert!(report.switched, "successful run must record the pointer switch");
         assert!(report.moved_files >= 2);
         assert!(newp.clipboard_dir.join("images/a.png").exists());
         assert!(!old.clipboard_dir.join("images/a.png").exists(), "source cleaned");
@@ -872,6 +939,59 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
     }
 
+    /// Finding 1：指针切换成功后清理失败 → 绝不删除刚复制的新数据，报告 switched=true。
+    #[cfg(windows)]
+    #[test]
+    fn run_cleanup_failure_after_switch_keeps_target_files() {
+        let base = temp_base("cleanup-post-switch");
+        let old_root = base.join("old");
+        let new_root = base.join("new");
+        let old = paths_for(&StorageSelection::default(), &old_root.to_string_lossy());
+        let sel = StorageSelection { root: Some(new_root.clone()), ..Default::default() };
+        let newp = paths_for(&sel, &old_root.to_string_lossy());
+
+        let image = old.clipboard_dir.join("images/a.png");
+        write(&image, b"AAAA");
+        // 预置等长目标：`copy_one` 幂等跳过（不打开源），因此可以在复制前独占锁定源文件，
+        // 让清理阶段（指针切换之后）在删除源文件时报分享冲突。
+        write(&newp.clipboard_dir.join("images/a.png"), b"AAAA");
+        let lock = lock_exclusive(&image);
+
+        let report = run(&old, &newp, false, || Ok(()), |_p| {});
+        assert!(!report.ok, "post-switch cleanup failure must fail the report");
+        assert!(report.switched, "pointer switch happened before the cleanup failure");
+        assert!(report.error.is_some(), "cleanup error must be surfaced");
+        assert!(
+            newp.clipboard_dir.join("images/a.png").exists(),
+            "freshly-copied target data must NOT be deleted after the pointer switch"
+        );
+
+        drop(lock);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// Finding 3：迁移后旧的统一根若已空，则一并删除并记入 removed_dirs。
+    #[test]
+    fn run_removes_emptied_old_unified_root() {
+        let base = temp_base("remove-old-root");
+        let old_root = base.join("old");
+        let new_root = base.join("new");
+        let old = paths_for(&StorageSelection::default(), &old_root.to_string_lossy());
+        let sel = StorageSelection { root: Some(new_root), ..Default::default() };
+        let newp = paths_for(&sel, &old_root.to_string_lossy());
+        write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
+
+        let report = run(&old, &newp, false, || Ok(()), |_p| {});
+        assert!(report.ok, "run should succeed: {:?}", report.error);
+        assert!(!old_root.exists(), "emptied old unified root must be removed");
+        assert!(
+            report.removed_dirs.iter().any(|d| d == &old_root),
+            "removed_dirs must record the old unified root: {:?}",
+            report.removed_dirs
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
     #[test]
     fn apply_pending_clears_pending_and_sets_report() {
         let base = std::env::temp_dir().join(format!("adl-mig-apply-{}", std::process::id()));
@@ -904,6 +1024,99 @@ mod tests {
         assert!(loc.last_report.is_some());
         // 指针切换在 `run` 内部、清理之前发生，因此 selection 已更新且已落盘。
         assert!(loc_path.exists(), "switched locator must be persisted");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// Finding 2：预检失败（目标位于源内部）→ 不复制、不切换、pending 标记失败。
+    #[test]
+    fn apply_pending_preflight_blocks_target_inside_source() {
+        let base = temp_base("apply-preflight-inside");
+        let old_root = base.join("old");
+        let nested = old_root.join("nested");
+        let mut loc = StorageLocator {
+            pending_migration: Some(crate::storage::locator::PendingMigration {
+                from: StorageSelection::default(),
+                to: StorageSelection { root: Some(nested.clone()), ..Default::default() },
+                retain_source: false,
+                requested_at: 1,
+                failed: false,
+                error: None,
+            }),
+            ..Default::default()
+        };
+        let old = paths_for(&StorageSelection::default(), &old_root.to_string_lossy());
+        write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
+
+        let loc_path = base.join("storage-locator.json");
+        let report = apply_pending_with(
+            &mut loc,
+            &defaults(&old_root.to_string_lossy()),
+            |l| crate::storage::locator::save_locator_to(&loc_path, l),
+            |_p| {},
+        )
+        .expect("pending must be returned");
+
+        assert!(!report.ok, "preflight failure must fail the report");
+        assert!(!report.switched, "preflight failure must not switch the pointer");
+        assert!(report.error.is_some(), "preflight issues must be surfaced");
+        assert!(
+            !nested.join("clipboard/images/a.png").exists(),
+            "preflight failure must not copy anything"
+        );
+        assert!(loc.selection.root.is_none(), "pointer must stay on the old root");
+        assert!(old.clipboard_dir.join("images/a.png").exists(), "source must stay intact");
+        let pending = loc.pending_migration.as_ref().expect("pending retained on failure");
+        assert!(pending.failed, "preflight failure must mark pending failed");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// Finding 1(c)：指针落盘后清理失败 → `apply_pending` 仍清除 pending（绝不重复制）。
+    #[cfg(windows)]
+    #[test]
+    fn apply_pending_clears_pending_after_post_switch_cleanup_failure() {
+        let base = temp_base("apply-post-switch");
+        let old_root = base.join("old");
+        let new_root = base.join("new");
+        let mut loc = StorageLocator {
+            pending_migration: Some(crate::storage::locator::PendingMigration {
+                from: StorageSelection::default(),
+                to: StorageSelection { root: Some(new_root.clone()), ..Default::default() },
+                retain_source: false,
+                requested_at: 1,
+                failed: false,
+                error: None,
+            }),
+            ..Default::default()
+        };
+        let old = paths_for(&StorageSelection::default(), &old_root.to_string_lossy());
+        let image = old.clipboard_dir.join("images/a.png");
+        write(&image, b"AAAA");
+        // 等长目标让 `copy_one` 幂等跳过；独占锁定源文件 → 指针切换后的清理失败。
+        write(&new_root.join("clipboard/images/a.png"), b"AAAA");
+        let lock = lock_exclusive(&image);
+
+        let loc_path = base.join("storage-locator.json");
+        let report = apply_pending_with(
+            &mut loc,
+            &defaults(&old_root.to_string_lossy()),
+            |l| crate::storage::locator::save_locator_to(&loc_path, l),
+            |_p| {},
+        )
+        .expect("pending must be returned");
+
+        assert!(!report.ok, "cleanup failure must be reported");
+        assert!(report.switched, "pointer switched before the cleanup failure");
+        assert!(
+            loc.pending_migration.is_none(),
+            "pending must be consumed once the pointer is durable (never re-copy)"
+        );
+        assert_eq!(loc.selection.root.as_deref(), Some(new_root.as_path()), "pointer switched");
+        assert!(new_root.join("clipboard/images/a.png").exists(), "target data kept");
+        // 落盘的指针必须已切到新根（否则下次启动会以旧源重复制覆盖新数据）。
+        let persisted = crate::storage::locator::load_locator_from(&loc_path);
+        assert_eq!(persisted.selection.root.as_deref(), Some(new_root.as_path()));
+
+        drop(lock);
         let _ = std::fs::remove_dir_all(&base);
     }
 

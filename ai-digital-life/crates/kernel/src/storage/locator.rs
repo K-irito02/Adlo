@@ -73,6 +73,10 @@ pub struct KeptDir {
 pub struct MigrationReport {
     pub at: i64,
     pub ok: bool,
+    /// true 表示 locator 指针已成功切换并落盘（清理之前的最后一步）。
+    /// 一旦为 true，目标目录即为权威数据，重试绝不能重新复制（否则会覆盖新数据）。
+    #[serde(default)]
+    pub switched: bool,
     pub moved_files: usize,
     pub moved_bytes: u64,
     pub removed_dirs: Vec<PathBuf>,
@@ -291,6 +295,7 @@ mod tests {
         loc.last_report = Some(MigrationReport {
             at: 1726000001,
             ok: true,
+            switched: true,
             moved_files: 3,
             moved_bytes: 1024,
             removed_dirs: vec![std::path::PathBuf::from(r"D:\adl-old")],
