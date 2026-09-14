@@ -6,7 +6,7 @@
 
 **Architecture:** 壳层新增 `storage_*` Tauri 命令（读 locator、写 pendingMigration、预检含磁盘空间、触发重启）；adl-server 新增同名 HTTP 路由（复用 kernel 的 `scan_foreign`/`preflight`）；前端新增 `StorageBridge` 域并在 `tauri-bridge` / `preview-bridge` / `httpBridge` / `mock-bridge` 四端实现；设置面板新增 `StorageSettings` 自定义组件（仿 `TerminalSettings` 的按组定制模式）。迁移执行本身在 Plan B，本计划只负责「写 pending + 触发重启」与展示。
 
-**Tech Stack:** Rust + Tauri 2.x（`#[tauri::command]`、`tauri-plugin-process`）、axum（adl-server）、React 19 + Zustand + `@testing-library/react` + vitest、i18n（`TCopyContext` / `CopyDict`）。
+**Tech Stack:** Rust + Tauri 2.x（`#[tauri::command]`、`tauri::AppHandle::restart()`）、axum（adl-server）、React 19 + Zustand + `@testing-library/react` + vitest、i18n（`TCopyContext` / `CopyDict`）。
 
 **Spec:** `docs/superpowers/specs/2026-09-14-storage-path-settings-design.md`
 
@@ -20,6 +20,26 @@
 - **不可移动项必须全部列出**并附原因说明（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）。
 - **不常驻空提示**：横幅/报告仅在活跃状态下可见。
 - 新增 Tauri 命令必须登记到 `src-tauri/permissions/digital-life.toml`，禁止通配权限。
+
+---
+
+## Plan C 重审修订（2026-09-14，执行前；吸收 Plan A/B 落地经验）
+
+Plan A 与 Plan B 均已合并到 `refactor/strip-20260903`。执行前重审发现 7 处需修订：
+
+| # | 落差 | 裁决 |
+|---|---|---|
+| B1 | 计划用 `tauri-plugin-process` 实现重启；实测 tauri 2.11.5 已有 `tauri::AppHandle::restart(&self) -> !`（`tauri-2.11.5/src/app.rs:588`） | **删掉 `tauri-plugin-process` 依赖**；`app_restart` 直接用 `app.restart()`（返回 `!`，函数体不带分号即可满足 `Result` 返回类型） |
+| B2 | 计划说 permissions 文件「若采用 X 则 Y」；实测为单个 `[[permission]] identifier = "digital-life-commands"` + `commands.allow = [...]` | **确定做法**：把新命令追加进该既有 `commands.allow` 数组，不新建 permission |
+| B3 | 计划用 `sysinfo` 取可用空间（`src-tauri` 新增依赖）；实测 `DownloadManager::check_disk_space` 已用 `fs2::available_space`，且 `AppState.download_manager` 可用 | **不新增依赖**：给 `DownloadManager` 加 `pub fn available_space_bytes(&self, dir: &Path) -> Result<u64, String>`（复用 `fs2`），壳层经 `state.download_manager` 调用 |
+| B4 | Plan B 给 `MigrationReport` 增加了 `switched: bool` | `StorageReportDto` 必须包含 `switched`（前端据此提示「已切换但清理未完成」） |
+| B5 | 计划让浏览器模式「立即迁移」调 `/storage/restart-backend` 重启 dev 子进程 | **删除该端点**：dev 启动器（`ad-server-launch.mjs`）跨进程重启不可廉价实现。浏览器模式「立即迁移」= 写 pending + toast「已安排在下次启动迁移」；对话框保留两个选项（UI 一致），浏览器模式下对「立即」加一行说明。Tauri 模式为真正的重启。 |
+| B6 | 「搬入项」未给出实现路径；且实测 `TerminalSettings` 的**唯一内容**就是终端历史磁盘预算 | 抽出 `TerminalHistoryBudgetSection` 与 `BrowserDownloadPathSection` 两个组件供 `StorageSettings` 渲染；删除 `TerminalSettings.tsx` 并从 `GROUPS`/`SETTINGS_COMPONENTS` 移除 `terminal`；`SettingsPanel` 增加「activeGroup 不在组列表时回退到第一个组」的健壮性兜底（防止持久化的旧 `activeGroup` 导致空面板）；浏览器组保留下载**模式**（auto/ask），仅路径搬入 |
+| B7 | Plan B carry-forward：`preflight` 非纯只读（建目录 + 写 `.adl-write-probe`） | 在 AGENTS.md 的存储小节补一行说明：`preflight` 会创建目标父目录并写探测文件（非纯只读），供 UI 预检使用 |
+
+> 以下 Task 1/2/3/5 的相关片段已按 B1–B6 同步更新；执行时以上述裁决为准。
+
+---
 - 命令返回 `Result<T, AppError>` 结构化错误（现有 `IpcResult` 封装）。
 - 前端质量门：`pnpm --dir frontend run lint`、`pnpm --dir frontend run typecheck`、`pnpm --dir frontend run test` 全绿。
 
@@ -32,7 +52,7 @@
 - Modify: `ai-digital-life/src-tauri/src/commands/mod.rs`
 - Modify: `ai-digital-life/src-tauri/src/main.rs:113-177`（注册命令）
 - Modify: `ai-digital-life/src-tauri/permissions/digital-life.toml`
-- Modify: `ai-digital-life/src-tauri/Cargo.toml`（新增 `tauri-plugin-process`）
+- Modify: `ai-digital-life/crates/browser/src/download_manager.rs`（新增 `available_space_bytes`，B3）
 
 **Interfaces:**
 - Consumes: `adl_kernel::storage::{StorageService, StorageLocator, StorageDefaults, load_locator, save_locator, scan_foreign, preflight, MigrationReport, PendingMigration, StorageCategory}`
@@ -132,6 +152,8 @@ pub struct StorageCategoryStatus {
 pub struct StorageReportDto {
     pub at: i64,
     pub ok: bool,
+    /// Plan B 落地：指针是否已切换持久化（true 时即使 ok=false 也不得重跑迁移）。
+    pub switched: bool,
     pub moved_files: usize,
     pub moved_bytes: u64,
     pub removed_dirs: Vec<String>,
@@ -292,6 +314,7 @@ fn report_dto(r: &st::MigrationReport) -> StorageReportDto {
     StorageReportDto {
         at: r.at,
         ok: r.ok,
+        switched: r.switched,
         moved_files: r.moved_files,
         moved_bytes: r.moved_bytes,
         removed_dirs: r.removed_dirs.iter().map(|d| d.to_string_lossy().to_string()).collect(),
@@ -358,7 +381,7 @@ pub fn storage_preflight_cmd(
             st::Severity::Warning => warnings.push(issue.message.clone()),
         }
     }
-    let free_bytes = free_space_for(&to.root);
+    let free_bytes = state.download_manager.available_space_bytes(&to.root).unwrap_or(0);
     if free_bytes > 0 && report.total_bytes > 0 && free_bytes < report.total_bytes + report.total_bytes / 10 {
         errors.push(format!(
             "insufficient disk space on target: need ~{} bytes, free {} bytes",
@@ -376,18 +399,7 @@ pub fn storage_preflight_cmd(
     })
 }
 
-/// 目标根所在盘的可用字节（0 = 未知）。
-fn free_space_for(root: &std::path::Path) -> u64 {
-    let mut sys = sysinfo::System::new();
-    sys.refresh_disks_list();
-    let canon = root.canonicalize().unwrap_or_else(|_| root.to_path_buf());
-    sys.disks()
-        .iter()
-        .filter(|d| canon.starts_with(d.mount_point()))
-        .max_by_key(|d| d.mount_point().components().count())
-        .map(|d| d.available_space())
-        .unwrap_or(0)
-}
+// 可用空间经 `DownloadManager::available_space_bytes`（B3）获取，见 `storage_preflight_cmd`。
 
 #[tauri::command]
 pub fn storage_set_paths(
@@ -435,7 +447,7 @@ pub fn app_restart(app: AppHandle) -> Result<(), AppError> {
 }
 ```
 
-> `app.restart()` 的具体签名依 Tauri 版本：若返回 `!`（发散），函数体在其后为不可达，用 `#[allow(unreachable_code)]`；若返回 `()`，则正常返回。前提是已启用 `tauri-plugin-process`（Task 1 Step 5）。前端流程为：`setPaths(patch, true)` → 展示 toast → `restartApp()`（Tauri）/ `/storage/restart-backend`（浏览器）。
+> `app.restart()`（tauri 2.11.5 已有，返回 `!`）为唯一重启手段，**无需 `tauri-plugin-process`**（B1）。函数体写成 `app.restart()`（不带分号）即可满足 `Result<(), AppError>` 返回类型。前端流程为：`setPaths(patch, true)` → 展示 toast → `restartApp()`（Tauri，调用后进程即重启、该 invoke 不会返回）；浏览器模式无重启能力，仅提示「下次启动生效」（B5）。
 
 - [ ] **Step 5: 注册模块、命令与权限、AppState 字段**
 
@@ -451,25 +463,19 @@ pub fn app_restart(app: AppHandle) -> Result<(), AppError> {
             commands::storage::app_restart,
 ```
 
-- `src-tauri/permissions/digital-life.toml` 追加（格式照该文件现有条目）：
+- `src-tauri/permissions/digital-life.toml`：该文件实际为**单个** `[[permission]] identifier = "digital-life-commands"` + `commands.allow = [...]`（已核实）。把下列命令**追加**到既有 `commands.allow` 数组末尾，**不要**新建 permission：
 
 ```toml
-[[permission]]
-identifier = "allow-storage-commands"
-description = "Allow storage path status/preflight/apply/cancel and app restart"
-commands.allow = [
   "storage_get_status",
   "storage_scan_foreign_cmd",
   "storage_preflight_cmd",
   "storage_set_paths",
   "storage_cancel_pending",
   "app_restart",
-]
 ```
 
-（若该文件采用 `[permission]` 单条 + `commands.allow` 的既有写法，则把上述命令**追加**到现有 `commands.allow` 数组，而不是新建 permission。）
-- `AppState`（`state.rs`）追加字段 `pub storage_defaults: adl_kernel::storage::StorageDefaults,`；`setup.rs::init_app_state` 接收 `defaults` 并存入。`main.rs` 的 `resolve_defaults` 结果需克隆一份传入（`resolve_data_dir` 已算过 defaults，建议把 `resolve_defaults` 的结果作为参数传给 `init_app_state`，避免重复计算）。
-- `src-tauri/Cargo.toml` 追加 `sysinfo.workspace = true` 与 `tauri-plugin-process = "2"`；`main.rs` 加 `.plugin(tauri_plugin_process::init())`。
+- `AppState`（`state.rs`）已有 `storage` 与 `storage_defaults`（Plan A Task 5 落地），本任务**无需**再改。
+- `crates/browser/src/download_manager.rs`：新增 `pub fn available_space_bytes(&self, dir: &Path) -> Result<u64, String>`，内部用既有的 `fs2::available_space` 返回字节数。**不新增任何依赖**（B3）。
 
 - [ ] **Step 6: 运行编译与测试**
 
@@ -500,8 +506,7 @@ git commit -m "feat(storage): add shell commands for storage status, preflight a
   - `POST /storage/scan-foreign` → `Vec<ForeignScanDto>`
   - `POST /storage/preflight` → `PreflightDto`
   - `POST /storage/set-paths` → `StorageApplyResult`（`restartRequired` 恒为 `false`，由前端提示重启）
-  - `POST /storage/cancel-pending` → `()`
-  - `POST /storage/restart-backend` → `()`（委托 dev 中间层重启 adl-server 子进程；生产 Tauri 模式不使用）
+- `POST /storage/cancel-pending` → `()`
 
 - [ ] **Step 1: 写失败测试**
 
@@ -551,9 +556,9 @@ pub fn mode_to_str(mode: adl_kernel::storage::StorageMode) -> &'static str {
 
 并在 `handlers/mod.rs` 追加 `pub mod storage;`。
 
-- [ ] **Step 4: 浏览器模式「立即迁移」**
+- [ ] **Step 4: 浏览器模式「立即迁移」的确定性行为（B5）**
 
-在 `frontend/dev/previewWorkspaceService/index.ts` 追加中间层路由（仿现有 `/workspace/pick-directory` 等）：`POST /storage/restart-backend` → 终止并重新 spawn adl-server 子进程（复用 `ad-server-launch.mjs` 的启动逻辑）。若当前 dev 中间层无法安全重启，则退化为：返回 `{ ok: true, data: { restarted: false } }`，前端据此提示「请重启预览服务以完成迁移」。
+**不实现** dev 中间层重启端点（跨进程重启 `ad-server-launch.mjs` 的子进程不可廉价实现）。浏览器模式下 `storage` 域的 `setPaths(patch, true)` 仅写 `pendingMigration` 并返回 `restartRequired: true`；`restartApp()` 在浏览器模式返回 `{ ok: false, error: NOT_SUPPORTED }`。前端在浏览器模式对「立即迁移并重启」按钮加一行说明（`storageRestartUnavailableInBrowser`），并 toast「已安排在下次启动迁移」。Tauri 模式为真正重启。
 
 - [ ] **Step 5: 运行测试与提交**
 
@@ -574,7 +579,7 @@ git commit -m "feat(storage): expose storage status/preflight/apply routes on ad
 - Modify: `ai-digital-life/frontend/src/shared/ipc/digital-life.ts`（`DigitalLifeBridge` 加 `storage`）
 - Modify: `ai-digital-life/frontend/src/httpBridge.ts`（`createHttpBridge` 加 `storage` 域，fetch 后端路由）
 - Modify: `ai-digital-life/frontend/src/tauri-bridge/index.ts`（`storage` 用 invoke 调 Task 1 命令）
-- Modify: `ai-digital-life/frontend/src/preview-bridge/index.ts`（`storage` 走 httpBridge，`applyNow` 调 `/storage/restart-backend`）
+- Modify: `ai-digital-life/frontend/src/preview-bridge/index.ts`（`storage` 走 httpBridge；浏览器模式无重启能力，B5）
 - Create: `ai-digital-life/frontend/src/mock/mock-storage.ts`
 - Modify: `ai-digital-life/frontend/src/mock-bridge.ts`（挂载 `storage: mockStorage`）
 
@@ -598,7 +603,7 @@ export interface StorageCategoryStatus {
 }
 export interface KeptDir { path: string; foreignFiles: string[] }
 export interface StorageReport {
-  at: number; ok: boolean; movedFiles: number; movedBytes: number;
+  at: number; ok: boolean; switched: boolean; movedFiles: number; movedBytes: number;
   removedDirs: string[]; keptDirs: KeptDir[]; retained: boolean; error: string | null;
 }
 export interface StoragePending { failed: boolean; error: string | null }
@@ -688,7 +693,7 @@ Expected: FAIL（模块不存在）
 
 - `shared/ipc/storage.ts`：按上表写类型。
 - `mock/mock-storage.ts`：内存实现，`getStatus` 返回 10 类（key 用 `StorageCategory::key` 的同一组字符串 + 一个可配置 root 与 mode），`setPaths` 写内存 pending，`cancelPending` 清空，`preflight` 返回 `ok: true`，`restartApp` no-op；导出 `MOCK_IMMOVABLE_KEYS`（6 项，顺序如上）。
-- `httpBridge.ts`：新增 `storage` 域，映射到 Task 2 路由（`POST /storage/status` 等），`restartApp` 映射 `/storage/restart-backend`，返回 `IpcResult`。
+- `httpBridge.ts`：新增 `storage` 域，映射到 Task 2 路由（`POST /storage/status` 等），`restartApp` 返回 `NOT_SUPPORTED`（浏览器无重启能力，B5），返回 `IpcResult`。
 - `tauri-bridge/index.ts`：`storage: { getStatus: invokeIpc('storage_get_status'), scanForeign: invokeIpc('storage_scan_foreign_cmd'), preflight: (p) => invokeIpc('storage_preflight_cmd', { patch: p }), setPaths: (p, now) => invokeIpc('storage_set_paths', { patch: p, applyNow: now }), cancelPending: invokeIpc('storage_cancel_pending'), restartApp: invokeIpc('app_restart') }`。
 - `preview-bridge/index.ts`：`storage: preferHttpWhenReachable<StorageBridge>(adlServerBaseUrl, http.storage, mockDigitalLifeBridge.storage)`。
 - `mock-bridge.ts`：`storage: createMockStorage(),`。
@@ -776,6 +781,7 @@ Expected: FAIL（中英 key 数量不一致）
 | `storageImmutableWorkspaceCache` | 属于具体工作区，随工作区目录移动，不属于应用数据目录。 | Belongs to a specific workspace and moves with it; not part of the app data folder. |
 | `storageRestartRequired` | 已保存。请重启应用以完成迁移。 | Saved. Restart the app to complete the migration. |
 | `storageTerminalBudgetTitle` | 终端历史磁盘预算 | Terminal history disk budget |
+| `storageRestartUnavailableInBrowser` | 浏览器模式无法重启应用，此变更将在下次启动时生效。 | The browser mode cannot restart the app; this change will apply on next launch. |
 | `storageBrowserDownloadTitle` | 浏览器默认下载路径 | Browser default download folder |
 | `storagePickFailed` | 选择目录失败：{error} | Failed to choose folder: {error} |
 
@@ -929,7 +935,7 @@ StorageSettings
 行为：
 - 挂载时 `storage.getStatus()` 填充；`apply` 前先 `storage.preflight(patch)`，通过后打开 `StorageMigrateDialog`。
 - 模式切换时：切到 unified 清空 `categories`；切到 per_category 用 status 现有路径预填。
-- 搬入项：终端历史磁盘预算复用 `settingsTerminalHistoryBudget*` 的现有逻辑（从 `TerminalSettings` 迁移过来，改为在该组件内渲染），浏览器默认下载路径复用 `BrowserDownloadSettings` 的 `default_path` 逻辑；两处旧组件中删除对应区块。
+- 搬入项（B6）：抽出 `TerminalHistoryBudgetSection`（来自 `TerminalSettings.tsx`）与 `BrowserDownloadPathSection`（来自 `BrowserDownloadSettings.tsx` 的 `default_path` 区块），由 `StorageSettings` 渲染；随后删除 `TerminalSettings.tsx` 并从 `GROUPS`/`SETTINGS_COMPONENTS` 移除 `terminal` 组；`BrowserDownloadSettings` 保留下载**模式**（auto/ask）区块。`SettingsPanel` 增加兜底：`activeGroup` 不在组列表时按第一个组渲染（防止持久化的旧 `activeGroup` 造成空面板）。
 - 「数据位置索引」只读，含 ⓘ `storageLocatorHint`。
 - 不可移动 6 项：keyring / machineId / localStorage / indexedDB / webview2 / workspaceCache（顺序固定，遍历 `IMMOVABLE_ENTRY_KEYS` 并映射 `storageImmutable<Key>` i18n key）。
 
@@ -985,7 +991,7 @@ describe('storage category keys parity', () => {
 - [ ] **Step 2: 手工双端验证**
 
 1. Tauri 模式：打开设置→存储，切换统一/每类；改一个分类路径（如剪贴板→新目录）→ 选「下次启动」→ 重启 → 确认迁移与报告展示；再试「立即迁移并重启」。
-2. 浏览器模式：同流程（手输路径 + `/storage/restart-backend` 或下次启动提示）。
+2. 浏览器模式：同流程（手输路径）；「下次启动」生效；「立即迁移」按钮显示 `storageRestartUnavailableInBrowser` 说明并提示下次启动（B5）。
 3. 不可移动 6 项说明、索引文件提示、外部文件保留提示均可见。
 4. 终端组的磁盘预算与浏览器组的下载路径已消失，出现在「存储」组，且行为不变。
 
@@ -1029,13 +1035,13 @@ git commit -m "test(storage): add cross-mode parity checks and finalize docs"
 - §10 前端设置与搬入项 → Task 5 Step 5/6 ✅
 - §11 前端/i18n/双端测试 → Task 3/4/5/6 ✅
 - §12 误删 locator 风险提示 → Task 5 索引文件行 ⓘ ✅
-- §7.3 磁盘空间预检 → Task 1 `storage_preflight_cmd`（`sysinfo` 可用空间）✅
+- §7.3 磁盘空间预检 → Task 1 `storage_preflight_cmd`（经 `DownloadManager::available_space_bytes`，B3）✅
 
 **2. Placeholder scan:** 无 TBD/TODO。Task 2 Step 3 明确「按 `reference.rs` 的写法实现」并给出了 `mode_to_str` 完整代码与路由清单；DTO 与 Task 1 同构，字段名由 Task 6 parity 测试锁定。Task 4 的分类 Desc/Related 给出格式与首类完整样例并要求补全其余 9 类（10 类清单齐全，非占位）。
 
 **3. Type consistency:** `StorageStatus`/`StorageCategoryStatus`/`StorageReport`/`StoragePathPatch`/`PreflightDto` 在 Rust（Task 1/2）与 TS（Task 3）间字段名一致（camelCase）；`storage_get_status`/`storage_scan_foreign_cmd`/`storage_preflight_cmd`/`storage_set_paths`/`storage_cancel_pending`/`app_restart` 在 Task 1 定义、Task 3 invoke 引用一致；`STORAGE_CATEGORY_KEYS` 与 Rust `StorageCategory::key` 顺序在 Task 4/6 一致。
 
 **已知取舍与风险：**
-- `app.restart()` 的具体 API 依 Tauri 版本而定（本计划采用 `tauri-plugin-process` 的 `app.restart()`）；执行时若签名不同，以编译错误为准调整（`tauri::process::restart` 为备选）。浏览器模式的「立即迁移」依赖 dev 中间层重启 adl-server，若不可行则退化为「下次启动生效」提示（Task 2 Step 4 已给出退化路径）。
+- 重启：`tauri::AppHandle::restart()`（tauri 2.11.5 已有，返回 `!`），无需插件（B1）。浏览器模式无重启能力，仅提示「下次启动生效」（B5）；UI 保留两个选项以维持一致性。
 - Rust 侧 DTO 与 TS 类型未用 `ts-rs` 自动生成（手工保持同步）；若项目已对部分 DTO 使用 `ts-rs`，应改为生成以避免漂移 —— 执行时若发现 `ipc-types.generated.ts` 覆盖同类结构，按现有生成流程接入。
 - `storage_preflight_cmd(state.clone(), ...)` 依赖 `State: Clone`；若编译不通过，改为把预检逻辑抽成不依赖 `State` 的私有函数并分别从命令与 `set_paths` 调用。
