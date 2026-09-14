@@ -1071,7 +1071,7 @@ git commit -m "refactor(storage): unify log dir resolution via StoragePaths"
 **Interfaces:**
 - Consumes: `adl_kernel::storage::{StorageService, StorageDefaults, StoragePaths, load_locator, resolve_log_dir}`
 - Produces:
-  - `AppState { pub storage: std::sync::Arc<adl_kernel::storage::StorageService>, pub storage_defaults: adl_kernel::storage::StorageDefaults, ... }`（保留 `data_dir: PathBuf` = `storage.paths().root` 以最小化调用点改动；`storage_defaults` 供 Plan C 的预检命令复用同一默认基准）
+  - `AppState { pub storage: std::sync::Arc<adl_kernel::storage::StorageService>, pub storage_defaults: adl_kernel::storage::StorageDefaults, ... }`（`data_dir` 字段已删除——经核实零读取者，且为二进制 crate 内部结构、无外部 API；根经 `storage.paths().root` 取得。`storage_defaults` 供 Plan C 的预检命令复用同一默认基准）
   - `ServerState { pub storage: std::sync::Arc<adl_kernel::storage::StorageService>, pub data_dir: PathBuf, ... }`
   - `pub fn resolve_defaults(app: &tauri::App) -> anyhow::Result<adl_kernel::storage::StorageDefaults>`
 
