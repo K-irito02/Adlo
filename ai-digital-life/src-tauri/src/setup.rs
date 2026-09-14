@@ -37,7 +37,7 @@ pub fn init_app_state(
 ) -> anyhow::Result<AppState> {
     let t0 = std::time::Instant::now();
 
-    let mut config = match adl_config::load(&storage.paths().root) {
+    let mut config = match adl_config::load_from(&storage.paths().config_dir) {
         Ok(c) => c,
         Err(e) => {
             warn!(error = %e, "config load failed, using default");
@@ -95,9 +95,9 @@ pub fn init_app_state(
     adl_migration::run_pending(&download_db)
         .map_err(|e| anyhow::anyhow!("failed to apply download migrations: {e}"))?;
     let download_manager = adl_browser::download_handler::create_download_manager(download_db);
+    download_manager.set_default_dir_override(Some(storage.paths().downloads_default_dir.clone()));
 
     Ok(AppState {
-        data_dir,
         storage: storage.clone(),
         storage_defaults: defaults,
         config: config_arc,
@@ -115,7 +115,8 @@ pub fn init_app_state(
 /// SSE server and durable-session recovery now live in the adl-server process —
 /// this shell no longer runs them.
 pub fn start_background_tasks(state: &AppState) {
-    let data_dir = state.data_dir.clone();
+    let config_path = adl_config::config_path_for(&state.storage.paths().config_dir);
+    let config_dir = state.storage.paths().config_dir.clone();
     let config_arc = state.config.clone();
     let page_meta_svc = state.browser_manager.page_meta_service().clone();
 
@@ -141,10 +142,9 @@ pub fn start_background_tasks(state: &AppState) {
             let config_watcher = ConfigWatcher::new(initial_config);
             let mut watcher_rx = config_watcher.subscribe();
 
-            let config_path = adl_config::config_path(&data_dir);
             let config_arc_watcher = config_arc.clone();
             let watcher_handle = tokio::spawn(async move {
-                config_watcher.start_watching(config_path, data_dir).await;
+                config_watcher.start_watching(config_path, config_dir).await;
             });
 
             let config_update_handle = tokio::spawn(async move {
@@ -166,10 +166,10 @@ pub fn start_background_tasks(state: &AppState) {
     });
 }
 
-/// Save `config` to `data_dir`. The caller is expected to clone the config
+/// Save `config` to `config_dir`. The caller is expected to clone the config
 /// out under a read lock first — this function performs no locking itself,
 /// making it safe to call inside `spawn_blocking`.
-pub fn save_config_to_dir(data_dir: &Path, config: &adl_config::AppConfig) -> anyhow::Result<()> {
-    adl_config::save(data_dir, config)?;
+pub fn save_config_to_dir(config_dir: &Path, config: &adl_config::AppConfig) -> anyhow::Result<()> {
+    adl_config::save_to(config_dir, config)?;
     Ok(())
 }

@@ -26,8 +26,8 @@ pub struct SnapshotManager {
 }
 
 impl SnapshotManager {
-    pub fn new(app_data_dir: &Path, project_hash: &str) -> Self {
-        let snapshot_root = app_data_dir.join("snapshot").join(project_hash);
+    pub fn new(snapshot_root: &Path, project_hash: &str) -> Self {
+        let snapshot_root = snapshot_root.join(project_hash);
         Self { snapshot_root }
     }
 
@@ -213,14 +213,14 @@ mod tests {
     #[test]
     fn snapshot_manager_creates_root() {
         let tmp = std::env::temp_dir().join(format!("snapshot-test-{}", std::process::id()));
-        let manager = SnapshotManager::new(&tmp, "testproject");
+        let manager = SnapshotManager::new(&tmp.join("snapshot"), "testproject");
         assert!(manager.snapshot_root.ends_with("snapshot/testproject"));
     }
 
     #[test]
     fn list_snapshots_empty_when_none_exist() {
         let tmp = std::env::temp_dir().join(format!("snapshot-empty-{}", std::process::id()));
-        let manager = SnapshotManager::new(&tmp, "emptyproject");
+        let manager = SnapshotManager::new(&tmp.join("snapshot"), "emptyproject");
         let snapshots = manager.list_snapshots().unwrap();
         assert!(snapshots.is_empty());
     }
@@ -250,7 +250,7 @@ mod tests {
         assert_eq!(record.file_count, 2);
         assert!(record.id.starts_with("snap"));
 
-        let files_dir = snap_root.join("snapshot").join("testproj").join(&record.id).join("files");
+        let files_dir = snap_root.join("testproj").join(&record.id).join("files");
         assert!(files_dir.join("test.txt").exists(), "file should be copied");
         assert!(
             files_dir.join("subdir").join("nested.txt").exists(),

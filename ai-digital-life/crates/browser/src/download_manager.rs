@@ -225,6 +225,10 @@ pub struct DownloadManager {
     /// `finished(false)` arriving during a manual Range resume cannot trigger a
     /// second concurrent append thread.
     range_resume_inflight: Arc<Mutex<std::collections::HashSet<String>>>,
+    /// 覆盖默认下载目录（来自 StoragePaths.downloads_default_dir）。`Some`
+    /// 时替代 [`get_default_download_path`] 启发式；用户在设置中显式配置的
+    /// `default_path` 仍优先。
+    default_dir_override: Arc<Mutex<Option<PathBuf>>>,
 }
 
 #[allow(dead_code)]
@@ -240,7 +244,33 @@ impl DownloadManager {
             resume_timestamps: Arc::new(Mutex::new(HashMap::new())),
             non_resumable_restarting: Arc::new(Mutex::new(std::collections::HashSet::new())),
             range_resume_inflight: Arc::new(Mutex::new(std::collections::HashSet::new())),
+            default_dir_override: Arc::new(Mutex::new(None)),
         }
+    }
+
+    /// 覆盖默认下载目录（来自 StoragePaths.downloads_default_dir）。
+    pub fn set_default_dir_override(&self, dir: Option<PathBuf>) {
+        if let Ok(mut guard) = self.default_dir_override.lock() {
+            *guard = dir;
+        }
+    }
+
+    /// 生效的默认下载目录。
+    ///
+    /// 优先级：用户显式配置（`settings.default_path`）＞ storage 覆盖
+    /// （`StoragePaths.downloads_default_dir`）＞ 原启发式。构造时
+    /// `default_path` 即按启发式预填，因此"仍等于启发式"视为未定制，此时
+    /// storage 覆盖生效（统一模式下三者相同，行为与当前完全一致）。
+    fn effective_default_dir(&self, configured: &str) -> PathBuf {
+        let override_dir = self.default_dir_override.lock().ok().and_then(|g| g.clone());
+        if !configured.is_empty() {
+            let customized =
+                override_dir.is_none() || Path::new(configured) != get_default_download_path();
+            if customized {
+                return PathBuf::from(configured);
+            }
+        }
+        override_dir.unwrap_or_else(get_default_download_path)
     }
 
     /// Atomically claim the non-resumable restart slot for a record. Returns
@@ -782,7 +812,7 @@ impl DownloadManager {
             // Empty/root destination (e.g. WebView2 reports no location yet) —
             // fall back to the default download directory so the check doesn't
             // fail on an invalid path.
-            &get_default_download_path()
+            &self.effective_default_dir("")
         } else {
             path.parent().unwrap_or(Path::new("/"))
         };
@@ -831,11 +861,7 @@ impl DownloadManager {
     /// C-drive Downloads folder. The directory is created if missing.
     pub fn resolve_download_target(&self, url: &str, suggested_path: &str) -> String {
         let settings = self.get_settings();
-        let default_dir = if settings.default_path.is_empty() {
-            get_default_download_path()
-        } else {
-            PathBuf::from(&settings.default_path)
-        };
+        let default_dir = self.effective_default_dir(&settings.default_path);
 
         // Take the file name from the suggestion (or URL), but always place it
         // in the configured default directory.
@@ -2357,6 +2383,36 @@ mod tests {
         let _ =
             std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-target-custom.db"));
         let _ = std::fs::remove_dir_all(&custom_dir);
+    }
+
+    #[test]
+    fn resolve_download_target_prefers_storage_override_over_heuristic() {
+        let db = temp_db("target-override");
+        let mgr = DownloadManager::new(db);
+        let override_dir = std::env::temp_dir().join("adl-override-downloads");
+        let _ = std::fs::create_dir_all(&override_dir);
+        mgr.set_default_dir_override(Some(override_dir.clone()));
+
+        let target = mgr.resolve_download_target("https://example.com/file.bin", "");
+        let p = Path::new(&target);
+        assert_eq!(p.file_name().unwrap().to_str().unwrap(), "file.bin");
+        assert_eq!(p.parent().unwrap(), override_dir.as_path(), "must use storage override dir");
+
+        // 用户显式配置仍优先于 storage override。
+        mgr.update_settings(None, Some(override_dir.to_string_lossy().to_string()))
+            .expect("update settings");
+        mgr.set_default_dir_override(Some(std::env::temp_dir().join("adl-other-downloads")));
+        let target = mgr.resolve_download_target("https://example.com/file.bin", "");
+        assert_eq!(Path::new(&target).parent().unwrap(), override_dir.as_path());
+
+        // 清除 override 后回退到启发式（不断言具体目录，只要求可用）。
+        mgr.set_default_dir_override(None);
+        let target = mgr.resolve_download_target("https://example.com/file.bin", "");
+        assert!(Path::new(&target).is_absolute());
+
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-target-override.db"));
+        let _ = std::fs::remove_dir_all(&override_dir);
     }
 
     #[test]

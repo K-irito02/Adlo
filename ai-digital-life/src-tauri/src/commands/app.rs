@@ -198,11 +198,13 @@ pub async fn app_update_preferences(
     }
     let config_clone =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
-    let data_dir = state.data_dir.clone();
-    tokio::task::spawn_blocking(move || crate::setup::save_config_to_dir(&data_dir, &config_clone))
-        .await
-        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
-        .map_err(|e| AppError::Config(e.to_string()))?;
+    let config_dir = state.storage.paths().config_dir.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::setup::save_config_to_dir(&config_dir, &config_clone)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
+    .map_err(|e| AppError::Config(e.to_string()))?;
     state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
     let current_workspace = fetch_current_workspace(&state).await;
     let info = build_app_info(&state, current_workspace)?;
@@ -306,11 +308,13 @@ pub async fn app_set_log_mode(
         }
     }
     let config_clone = state.config.read().map_err(|_| "config lock poisoned".to_string())?.clone();
-    let data_dir = state.data_dir.clone();
-    tokio::task::spawn_blocking(move || crate::setup::save_config_to_dir(&data_dir, &config_clone))
-        .await
-        .map_err(|e| format!("spawn_blocking failed: {e}"))?
-        .map_err(|e| e.to_string())?;
+    let config_dir = state.storage.paths().config_dir.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::setup::save_config_to_dir(&config_dir, &config_clone)
+    })
+    .await
+    .map_err(|e| format!("spawn_blocking failed: {e}"))?
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }

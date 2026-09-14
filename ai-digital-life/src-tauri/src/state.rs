@@ -3,7 +3,6 @@ use adl_browser::download_manager::DownloadManager;
 use adl_kernel::config::AppConfig;
 use adl_kernel::events::EventBus;
 use adl_logging::LogManager;
-use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 
 use crate::adl_server::AdServerHandle;
@@ -13,7 +12,6 @@ use crate::adl_server::AdServerHandle;
 /// what the KEPT Tauri system commands need: app config + diagnostics, the
 /// WebView2 browser manager, log handling, and the adl-server child handle.
 pub struct AppState {
-    pub data_dir: PathBuf,
     /// 解析后的存储路径（唯一真源：`storage-locator.json`）。
     /// 后续任务（Task 6 日志目录、Task 7 配置语义）起由各落点读取。
     #[allow(dead_code)]

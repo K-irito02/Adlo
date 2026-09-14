@@ -83,7 +83,7 @@ pub async fn init_server_state(
     }
 
     eprintln!("[ad-server] loading config...");
-    let config = adl_config::load(&storage.paths().root)
+    let config = adl_config::load_from(&storage.paths().config_dir)
         .map_err(|e| AppError::Internal(format!("Config load failed: {e}")))?;
     eprintln!("[ad-server] config loaded");
 

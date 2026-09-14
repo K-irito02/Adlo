@@ -106,16 +106,12 @@ impl Default for AppConfig {
     }
 }
 
-pub fn config_dir(data_dir: &Path) -> PathBuf {
-    data_dir.join("config")
+pub fn config_path_for(config_dir: &Path) -> PathBuf {
+    config_dir.join("config.json")
 }
 
-pub fn config_path(data_dir: &Path) -> PathBuf {
-    config_dir(data_dir).join("config.json")
-}
-
-pub fn load(data_dir: &Path) -> Result<AppConfig, AppError> {
-    let path = config_path(data_dir);
+pub fn load_from(config_dir: &Path) -> Result<AppConfig, AppError> {
+    let path = config_path_for(config_dir);
     if !path.exists() {
         return Ok(AppConfig::default());
     }
@@ -128,10 +124,9 @@ pub fn load(data_dir: &Path) -> Result<AppConfig, AppError> {
     })
 }
 
-pub fn save(data_dir: &Path, config: &AppConfig) -> Result<(), AppError> {
-    let dir = config_dir(data_dir);
-    std::fs::create_dir_all(&dir)?;
-    let path = config_path(data_dir);
+pub fn save_to(config_dir: &Path, config: &AppConfig) -> Result<(), AppError> {
+    std::fs::create_dir_all(config_dir)?;
+    let path = config_path_for(config_dir);
     let content = serde_json::to_string_pretty(config)?;
     std::fs::write(&path, content)?;
     Ok(())
@@ -147,8 +142,8 @@ mod tests {
         let dir = temp_dir().join("adl-config-test");
         let _ = std::fs::remove_dir_all(&dir);
         let cfg = AppConfig::default();
-        save(&dir, &cfg).unwrap();
-        let loaded = load(&dir).unwrap();
+        save_to(&dir, &cfg).unwrap();
+        let loaded = load_from(&dir).unwrap();
         assert_eq!(loaded.language, DEFAULT_LANGUAGE);
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -163,6 +158,19 @@ mod tests {
         let log_config = config.to_log_config();
         assert_eq!(log_config.terminal_log_mode, LogMode::Overwrite);
         assert_eq!(log_config.debug_log_mode, LogMode::Multi);
+    }
+
+    #[test]
+    fn load_save_accept_config_dir_directly() {
+        let dir = temp_dir().join("adl-config-dir-direct-test");
+        let cfg_dir = dir.join("custom-config");
+        let _ = std::fs::remove_dir_all(&dir);
+        let cfg = AppConfig::default();
+        save_to(&cfg_dir, &cfg).unwrap();
+        assert!(config_path_for(&cfg_dir).exists());
+        let loaded = load_from(&cfg_dir).unwrap();
+        assert_eq!(loaded.language, DEFAULT_LANGUAGE);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
 
@@ -197,8 +205,8 @@ mod config_extension_tests {
             workspace_natural_order: vec!["ws-4".into()],
             ..Default::default()
         };
-        save(&dir, &config).unwrap();
-        let loaded = load(&dir).unwrap();
+        save_to(&dir, &config).unwrap();
+        let loaded = load_from(&dir).unwrap();
         assert_eq!(loaded.max_concurrent_workspaces, 4);
         assert_eq!(loaded.workspace_priority_ids, vec!["ws-1".to_string(), "ws-2".to_string()]);
         assert_eq!(loaded.workspace_deferred_ids, vec!["ws-3".to_string()]);
@@ -211,7 +219,7 @@ mod config_extension_tests {
         // 模拟旧版本 config.json：不含 workspace loading 字段
         let dir = temp_dir().join("adl-config-old-format-test");
         let _ = std::fs::remove_dir_all(&dir);
-        std::fs::create_dir_all(config_dir(&dir)).unwrap();
+        std::fs::create_dir_all(dir.join("config")).unwrap();
         let old_json = r#"{
             "language": "zh-CN",
             "theme_mode": "system",
@@ -224,8 +232,8 @@ mod config_extension_tests {
             "keybinds": {},
             "fonts": {}
         }"#;
-        std::fs::write(config_path(&dir), old_json).unwrap();
-        let loaded = load(&dir).unwrap();
+        std::fs::write(config_path_for(&dir), old_json).unwrap();
+        let loaded = load_from(&dir).unwrap();
         assert_eq!(loaded.max_concurrent_workspaces, 6);
         assert!(loaded.workspace_priority_ids.is_empty());
         assert!(loaded.workspace_deferred_ids.is_empty());

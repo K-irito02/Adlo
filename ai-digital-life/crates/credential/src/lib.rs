@@ -32,7 +32,16 @@ pub struct CredentialStore {
 
 enum StoreBackend {
     Keyring(keyring::Entry),
-    EncryptedFile { config_dir: PathBuf, machine_key: [u8; 32] },
+    EncryptedFile {
+        config_dir: PathBuf,
+        machine_key: [u8; 32],
+    },
+    /// 回退文件直接落在 `dir` 内（不再拼接 [`CREDENTIALS_SUBDIR`]）。`dir` 来自
+    /// `StoragePaths::credentials_dir`，本身已是最终目录。
+    EncryptedFileDir {
+        dir: PathBuf,
+        machine_key: [u8; 32],
+    },
 }
 
 impl CredentialStore {
@@ -41,6 +50,17 @@ impl CredentialStore {
     /// on an async runtime must invoke it from a blocking thread (e.g.
     /// `tokio::task::spawn_blocking`), never directly on the tokio executor.
     pub fn new(service: &str, account: &str) -> Self {
+        Self::with_fallback_dir(
+            service,
+            account,
+            config_dir().unwrap_or_else(|| PathBuf::from(".")),
+        )
+    }
+
+    /// keyring 优先、失败时回退到 `fallback_dir` 下的加密文件（拼接
+    /// [`CREDENTIALS_SUBDIR`]）。`new()` 的默认行为即此（回退根为
+    /// `dirs::config_dir()`），保持不变。
+    fn with_fallback_dir(service: &str, account: &str, fallback_dir: PathBuf) -> Self {
         match KeyringBackend::try_new(service, account) {
             Ok(entry) => CredentialStore {
                 service: service.to_string(),
@@ -56,13 +76,57 @@ impl CredentialStore {
                     account = account,
                     "using encrypted-file credential backend"
                 );
-                let config_dir = config_dir().unwrap_or_else(|| PathBuf::from("."));
                 let machine_key = derive_machine_key();
                 CredentialStore {
                     service: service.to_string(),
                     account: account.to_string(),
-                    store: StoreBackend::EncryptedFile { config_dir, machine_key },
+                    store: StoreBackend::EncryptedFile { config_dir: fallback_dir, machine_key },
                 }
+            },
+        }
+    }
+
+    /// 使用显式回退目录构造（当 OS keyring 不可用时文件直接落在
+    /// `credentials_dir` 内；`credentials_dir` 来自
+    /// `StoragePaths::credentials_dir`，本身已是最终目录，不再拼接子目录）。
+    /// keyring 可用时仍优先使用 keyring，与 `new()` 一致。
+    pub fn new_with_credentials_dir(
+        service: &str,
+        account: &str,
+        credentials_dir: PathBuf,
+    ) -> Self {
+        match KeyringBackend::try_new(service, account) {
+            Ok(entry) => CredentialStore {
+                service: service.to_string(),
+                account: account.to_string(),
+                store: StoreBackend::Keyring(entry),
+            },
+            Err(()) => {
+                tracing::debug!(
+                    service = service,
+                    account = account,
+                    "using encrypted-file credential backend with explicit credentials dir"
+                );
+                let machine_key = derive_machine_key();
+                CredentialStore {
+                    service: service.to_string(),
+                    account: account.to_string(),
+                    store: StoreBackend::EncryptedFileDir { dir: credentials_dir, machine_key },
+                }
+            },
+        }
+    }
+
+    /// 解析文件型后端的凭证文件路径与 AES 密钥（keyring 后端返回 `None`）。
+    fn file_parts(&self) -> Option<(PathBuf, [u8; 32])> {
+        match &self.store {
+            StoreBackend::Keyring(_) => None,
+            StoreBackend::EncryptedFile { config_dir, machine_key } => {
+                Some((encrypted_path(config_dir, &self.service, &self.account), *machine_key))
+            },
+            StoreBackend::EncryptedFileDir { dir, machine_key } => {
+                let path = dir.join(format!("{}.{}.enc", self.service, self.account));
+                Some((path, *machine_key))
             },
         }
     }
@@ -81,8 +145,10 @@ impl CredentialStore {
             StoreBackend::Keyring(entry) => {
                 entry.set_password(password).map_err(|e| AppError::Security(e.to_string()))
             },
-            StoreBackend::EncryptedFile { config_dir, machine_key } => {
-                let path = encrypted_path(config_dir, &self.service, &self.account);
+            StoreBackend::EncryptedFile { .. } | StoreBackend::EncryptedFileDir { .. } => {
+                let (path, machine_key) = self.file_parts().ok_or_else(|| {
+                    AppError::Internal("credential store is not file-backed".into())
+                })?;
                 if let Some(parent) = path.parent() {
                     // IO-class error: an unwritable/headless environment, not a
                     // code bug (distinguished from crypto/format Storage errors).
@@ -90,7 +156,7 @@ impl CredentialStore {
                         AppError::Io(format!("Failed to create credentials dir: {}", e))
                     })?;
                 }
-                let ciphertext = aes_encrypt(password.as_bytes(), machine_key)?;
+                let ciphertext = aes_encrypt(password.as_bytes(), &machine_key)?;
                 let encoded = format!("{}{}", CREDENTIAL_MAGIC, hex::encode(&ciphertext));
                 write_secure_file(&path, &encoded)
             },
@@ -106,8 +172,10 @@ impl CredentialStore {
                 },
                 Err(e) => Err(AppError::Security(e.to_string())),
             },
-            StoreBackend::EncryptedFile { config_dir, machine_key } => {
-                let path = encrypted_path(config_dir, &self.service, &self.account);
+            StoreBackend::EncryptedFile { .. } | StoreBackend::EncryptedFileDir { .. } => {
+                let (path, machine_key) = self.file_parts().ok_or_else(|| {
+                    AppError::Internal("credential store is not file-backed".into())
+                })?;
                 let content = std::fs::read_to_string(&path).map_err(|e| {
                     if e.kind() == std::io::ErrorKind::NotFound {
                         AppError::Security("No credential found".into())
@@ -121,18 +189,18 @@ impl CredentialStore {
                     let ciphertext = hex::decode(rest).map_err(|e| {
                         AppError::Storage(format!("Invalid credential file format: {}", e))
                     })?;
-                    aes_decrypt(&ciphertext, machine_key)?
+                    aes_decrypt(&ciphertext, &machine_key)?
                 } else {
                     // 旧格式：hex(XOR(plaintext, key)) — 向后兼容，读取后迁移到 AES
                     let ciphertext = hex::decode(trimmed).map_err(|e| {
                         AppError::Storage(format!("Invalid credential file format: {}", e))
                     })?;
-                    let plaintext = xor_cipher(&ciphertext, machine_key);
+                    let plaintext = xor_cipher(&ciphertext, &machine_key);
                     // 1) 先验证是合法 UTF-8 明文（避免把误判的字节写回新格式）
                     let utf8_valid = String::from_utf8(plaintext.clone()).is_ok();
                     if utf8_valid {
                         // 2) 用 AES 重新加密
-                        match aes_encrypt(&plaintext, machine_key) {
+                        match aes_encrypt(&plaintext, &machine_key) {
                             Ok(new_ciphertext) => {
                                 let encoded =
                                     format!("{}{}", CREDENTIAL_MAGIC, hex::encode(&new_ciphertext));
@@ -177,8 +245,10 @@ impl CredentialStore {
                 Err(keyring::Error::NoEntry) => Ok(()),
                 Err(e) => Err(AppError::Security(e.to_string())),
             },
-            StoreBackend::EncryptedFile { config_dir, .. } => {
-                let path = encrypted_path(config_dir, &self.service, &self.account);
+            StoreBackend::EncryptedFile { .. } | StoreBackend::EncryptedFileDir { .. } => {
+                let (path, _) = self.file_parts().ok_or_else(|| {
+                    AppError::Internal("credential store is not file-backed".into())
+                })?;
                 match std::fs::remove_file(&path) {
                     Ok(()) => Ok(()),
                     Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -195,7 +265,10 @@ impl CredentialStore {
     /// regression: when the keyring probe succeeded but the write still fails,
     /// that is a genuine bug that must not be swallowed.
     pub fn uses_encrypted_file(&self) -> bool {
-        matches!(self.store, StoreBackend::EncryptedFile { .. })
+        matches!(
+            self.store,
+            StoreBackend::EncryptedFile { .. } | StoreBackend::EncryptedFileDir { .. }
+        )
     }
 }
 
@@ -218,6 +291,42 @@ pub fn set_ci_access_token(token: &str) -> Result<(), AppError> {
 pub fn get_ci_access_token() -> Option<String> {
     let store = CredentialStore::new(DEFAULT_SERVICE, CI_CREDENTIAL_ACCOUNT);
     store.get_password().ok()
+}
+
+/// 设置 CI access token（回退目录显式指定，来自 `StoragePaths::credentials_dir`）。
+pub fn set_ci_access_token_in_dir(token: &str, credentials_dir: PathBuf) -> Result<(), AppError> {
+    if token.is_empty() {
+        delete_ci_access_token_in_dir(&credentials_dir)?;
+        return Ok(());
+    }
+    CredentialStore::new_with_credentials_dir(
+        DEFAULT_SERVICE,
+        CI_CREDENTIAL_ACCOUNT,
+        credentials_dir,
+    )
+    .set_password(token)?;
+    Ok(())
+}
+
+/// 读取 CI access token（回退目录显式指定；不存在则返回 `None`）。
+pub fn get_ci_access_token_in_dir(credentials_dir: &Path) -> Option<String> {
+    let store = CredentialStore::new_with_credentials_dir(
+        DEFAULT_SERVICE,
+        CI_CREDENTIAL_ACCOUNT,
+        credentials_dir.to_path_buf(),
+    );
+    store.get_password().ok()
+}
+
+/// 删除 CI access token（回退目录显式指定）。
+pub fn delete_ci_access_token_in_dir(credentials_dir: &Path) -> Result<(), AppError> {
+    CredentialStore::new_with_credentials_dir(
+        DEFAULT_SERVICE,
+        CI_CREDENTIAL_ACCOUNT,
+        credentials_dir.to_path_buf(),
+    )
+    .delete_password()?;
+    Ok(())
 }
 
 /// 删除 CI access token
@@ -631,6 +740,49 @@ mod tests {
 
         let store = CredentialStore::new_with_config_dir("file-svc", "file-acct", dir.clone());
         assert!(store.uses_encrypted_file());
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn credentials_dir_variant_resolves_file_directly_without_subdir() {
+        // StoragePaths::credentials_dir 本身已是最终目录：文件直接落在该目录内，
+        // 不再拼接 ai-digital-life/credentials 子目录。
+        let dir = std::path::PathBuf::from("/creds");
+        let store = CredentialStore {
+            service: "svc".to_string(),
+            account: "acct".to_string(),
+            store: StoreBackend::EncryptedFileDir { dir: dir.clone(), machine_key: [0u8; 32] },
+        };
+        let (path, _) = store.file_parts().expect("file-backed store resolves a path");
+        assert_eq!(path, dir.join("svc.acct.enc"));
+        assert!(store.uses_encrypted_file());
+    }
+
+    #[test]
+    fn credentials_dir_roundtrip_writes_file_directly() {
+        let dir = std::env::temp_dir().join(format!("cred_test_{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+
+        let store =
+            CredentialStore::new_with_credentials_dir("direct-svc", "direct-acct", dir.clone());
+        if !store.uses_encrypted_file() {
+            // 本机 keyring 可用：store 走 keyring 通道，文件断言不适用。
+            std::fs::remove_dir_all(&dir).ok();
+            return;
+        }
+        store.set_password("dir-secret").unwrap();
+        assert!(
+            dir.join("direct-svc.direct-acct.enc").exists(),
+            "credential file must land directly in credentials_dir"
+        );
+        assert!(
+            !dir.join(CREDENTIALS_SUBDIR).exists(),
+            "must not nest ai-digital-life/credentials under credentials_dir"
+        );
+        assert_eq!(store.get_password().unwrap(), "dir-secret");
+        store.delete_password().unwrap();
+        assert!(store.get_password().is_err());
 
         std::fs::remove_dir_all(&dir).ok();
     }

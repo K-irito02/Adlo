@@ -1,4 +1,4 @@
-use crate::config::{AppConfig, load};
+use crate::config::{AppConfig, load_from};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::watch;
@@ -14,7 +14,7 @@ impl ConfigWatcher {
         Self { tx, rx }
     }
 
-    pub async fn start_watching(&self, config_path: PathBuf, data_dir: PathBuf) {
+    pub async fn start_watching(&self, config_path: PathBuf, config_dir: PathBuf) {
         let tx = self.tx.clone();
         tokio::spawn(async move {
             let (notify_tx, mut notify_rx) = tokio::sync::mpsc::channel::<()>(16);
@@ -44,7 +44,7 @@ impl ConfigWatcher {
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                 while notify_rx.try_recv().is_ok() {}
 
-                match load(&data_dir) {
+                match load_from(&config_dir) {
                     Ok(new_config) => {
                         tracing::info!("Config file changed, reloading");
                         let _ = tx.send(Arc::new(new_config));

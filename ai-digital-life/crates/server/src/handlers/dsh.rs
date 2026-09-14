@@ -19,18 +19,18 @@ use adl_webapp_host::spawn_and_wait_ready;
 use adl_webapp_host::spawn_node_direct;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 
 /// dsh 版本目录 root（宿主持有的版本目录位置）。
 pub fn dsh_root(state: &ServerState) -> PathBuf {
-    dsh_root_dir(&state.data_dir)
+    dsh_root_dir(state.storage.paths())
 }
 
 /// 含数据根目录的 dsh 版本目录拼接（纯函数，便于单测）。
-fn dsh_root_dir(data_dir: &Path) -> PathBuf {
-    data_dir.join("dsh-versions")
+fn dsh_root_dir(paths: &adl_kernel::storage::StoragePaths) -> PathBuf {
+    paths.dsh_versions_dir.clone()
 }
 
 #[derive(serde::Deserialize)]
@@ -55,7 +55,7 @@ pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_open(
         state.dsh_state.clone(),
         state.dsh_start_lock.clone(),
-        &state.data_dir,
+        state.storage.paths(),
         state.dsh_source_cache.clone(),
     )
     .await;
@@ -247,7 +247,7 @@ async fn free_stale_dsh_on_default_port() -> Result<bool, AppError> {
 async fn run_open(
     dsh_guard: Arc<AsyncMutex<Option<HostedProcess>>>,
     start_lock: Arc<AsyncMutex<()>>,
-    data_dir: &Path,
+    paths: &adl_kernel::storage::StoragePaths,
     dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
 ) -> Result<serde_json::Value, AppError> {
     let start_time = std::time::Instant::now();
@@ -280,8 +280,8 @@ async fn run_open(
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
     // 加载配置与检测 bundled
     let config_start = std::time::Instant::now();
-    let download_config = adl_download_source::load(data_dir)?;
-    let bundled = adl_dsh_bundle::detect(data_dir)?;
+    let download_config = adl_download_source::load(&paths.root)?;
+    let bundled = adl_dsh_bundle::detect(&paths.root)?;
     tracing::info!(elapsed_ms = config_start.elapsed().as_millis(), "dsh::run_open: config loaded");
 
     // 智能选择 dsh 来源（在 free_stale 之前，避免误杀用户正在运行的 dsh）
@@ -314,7 +314,7 @@ async fn run_open(
                         }
                         let detect_start = std::time::Instant::now();
                         let new_source =
-                            adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+                            adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref());
                         tracing::info!(
                             detect_ms = detect_start.elapsed().as_millis(),
                             source = ?new_source,
@@ -337,7 +337,7 @@ async fn run_open(
             }
         } else {
             let detect_start = std::time::Instant::now();
-            let new_source = adl_dsh_version::select_dsh_source(data_dir, bundled.as_ref());
+            let new_source = adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref());
             tracing::info!(
                 detect_ms = detect_start.elapsed().as_millis(),
                 source = ?new_source,
@@ -386,7 +386,7 @@ async fn run_open(
             spawn_node_direct(&node_bin, &script_args[0], &script_args[1..], timeout).await?
         },
         adl_dsh_version::DshSource::Download { version } => {
-            let root = dsh_root_dir(data_dir);
+            let root = paths.dsh_versions_dir.clone();
             let selected_version = adl_dsh_version::read_selected(&root)?;
             let package_spec = match selected_version {
                 Some(v) => format!("@deepseek-ai/dsh@{v}"),
@@ -432,7 +432,7 @@ pub async fn pre_start_dsh(state: &ServerState) {
     match run_open(
         state.dsh_state.clone(),
         state.dsh_start_lock.clone(),
-        &state.data_dir,
+        state.storage.paths(),
         state.dsh_source_cache.clone(),
     )
     .await
@@ -484,7 +484,8 @@ async fn close_inner(state: &ServerState, keep: bool) -> Result<serde_json::Valu
 /// POST `/dsh/get-version-status` — 查询 dsh 版本目录状态（`VersionStatus`）。
 pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result = match adl_dsh_version::get_version_status(&root, &state.data_dir).await {
+    let result = match adl_dsh_version::get_version_status(&root, &state.storage.paths().root).await
+    {
         Ok(v) => serde_json::to_value(&v).map_err(|e| AppError::Internal(e.to_string())),
         Err(e) => Err(e),
     };
@@ -494,8 +495,9 @@ pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoRe
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result =
-        adl_dsh_version::update(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
+    let result = adl_dsh_version::update(&root, &state.storage.paths().root)
+        .await
+        .map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 
@@ -531,8 +533,9 @@ pub async fn uninstall(
 /// POST `/dsh/reinstall` — 按当前选中版本重装最新可用版本，返回新版本串。
 pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result =
-        adl_dsh_version::reinstall(&root, &state.data_dir).await.map(|v| serde_json::json!(v));
+    let result = adl_dsh_version::reinstall(&root, &state.storage.paths().root)
+        .await
+        .map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 
@@ -543,7 +546,7 @@ pub async fn get_source_status(State(state): State<ServerState>) -> impl IntoRes
 }
 
 async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
-    let data_dir = &state.data_dir;
+    let data_dir = &state.storage.paths().root;
 
     let bundled = adl_dsh_bundle::detect(data_dir)?
         .map(|b| serde_json::json!({ "version": b.version, "path": b.path }));
@@ -590,7 +593,7 @@ async fn save_source_config_inner(
     let input: serde_json::Value =
         serde_json::from_slice(&body).map_err(|e| AppError::InvalidInput(e.to_string()))?;
 
-    let mut config = adl_download_source::load(&state.data_dir)?;
+    let mut config = adl_download_source::load(&state.storage.paths().root)?;
 
     if let Some(registry) = input.get("npm_registry").and_then(|v| v.as_str()) {
         config.npm_registry = registry.to_string();
@@ -622,7 +625,7 @@ async fn save_source_config_inner(
         }
     }
 
-    adl_download_source::save(&state.data_dir, &config)?;
+    adl_download_source::save(&state.storage.paths().root, &config)?;
     Ok(serde_json::json!(true))
 }
 
@@ -653,13 +656,16 @@ async fn test_source_inner(body: axum::body::Bytes) -> Result<serde_json::Value,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
-    /// dsh_root 返回 data_dir 下的 dsh-versions。
+    /// dsh_root 返回 storage 的 dsh-versions 目录。
     #[test]
-    fn dsh_root_returns_data_dir_child() {
-        let data_dir = Path::new("/tmp/data");
-        assert_eq!(dsh_root_dir(data_dir), PathBuf::from("/tmp/data/dsh-versions"));
+    fn dsh_root_returns_storage_dsh_versions_dir() {
+        let dir = PathBuf::from("/tmp/data");
+        let storage = crate::engine::storage_from_locator(
+            &adl_kernel::storage::StorageLocator::default(),
+            &dir,
+        );
+        assert_eq!(dsh_root_dir(storage.paths()), PathBuf::from("/tmp/data/dsh-versions"));
     }
 
     /// close 在进程未运行时（keep=任意）幂等返回 `true`，不 panic。
