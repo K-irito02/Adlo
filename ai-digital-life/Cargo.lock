@@ -150,6 +150,7 @@ dependencies = [
  "adl-logging",
  "adl-types",
  "chrono",
+ "dirs 5.0.1",
  "notify",
  "regex",
  "serde",
