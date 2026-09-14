@@ -28,8 +28,20 @@ pub fn test_server_state() -> ServerState {
     db.init_schema().expect("init test schema");
     adl_migration::run_pending(&db).expect("run pending migrations");
 
+    let root = dir.clone();
+    let defaults = adl_kernel::storage::StorageDefaults {
+        root: root.clone(),
+        credentials_dir: root.join("credentials"),
+        downloads_dir: root.clone(),
+    };
+    let storage = std::sync::Arc::new(adl_kernel::storage::StorageService::from_locator(
+        &adl_kernel::storage::StorageLocator::default(),
+        &defaults,
+    ));
+
     ServerState {
         data_dir: dir.clone(),
+        storage,
         db: db.clone(),
         config: Arc::new(RwLock::new(AppConfig::default())),
         event_bus: EventBus::new(256),

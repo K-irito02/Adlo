@@ -10,7 +10,11 @@ type Sock = WebSocketStream<MaybeTlsStream<tokio::net::TcpStream>>;
 
 async fn connect_pty_socket() -> (Sock, u16) {
     let dir = std::env::temp_dir().join(format!("adl-ptyws-{}", uuid::Uuid::new_v4()));
-    let state = init_server_state(&dir).await.expect("init_server_state should succeed");
+    let storage = adl_server::engine::storage_from_locator(
+        &adl_kernel::storage::StorageLocator::default(),
+        &dir,
+    );
+    let state = init_server_state(&dir, storage).await.expect("init_server_state should succeed");
     let state_clone = state.clone();
     tokio::spawn(async move { serve(state_clone, 0).await });
     // Wait for the server to bind and store its port

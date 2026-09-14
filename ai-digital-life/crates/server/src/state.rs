@@ -16,6 +16,7 @@ use tokio::sync::Mutex as AsyncMutex;
 #[derive(Clone)]
 pub struct ServerState {
     pub data_dir: PathBuf,
+    pub storage: std::sync::Arc<adl_kernel::storage::StorageService>,
     pub db: Database,
     pub config: Arc<RwLock<AppConfig>>,
     pub event_bus: EventBus,

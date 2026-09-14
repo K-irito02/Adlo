@@ -33,7 +33,10 @@ async fn main() {
         std::process::exit(1);
     }
 
-    let state = match init_server_state(&data_dir).await {
+    let locator = adl_kernel::storage::load_locator();
+    let storage = adl_server::engine::storage_from_locator(&locator, &data_dir);
+
+    let state = match init_server_state(&data_dir, storage.clone()).await {
         Ok(state) => state,
         Err(e) => {
             eprintln!("[adl-server] init failed: {e:#}");

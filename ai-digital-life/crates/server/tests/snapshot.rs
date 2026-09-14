@@ -20,7 +20,11 @@ use tower::ServiceExt;
 
 async fn state() -> adl_server::ServerState {
     let dir = std::env::temp_dir().join(format!("adl-snap-api-{}", uuid::Uuid::new_v4()));
-    init_server_state(&dir).await.unwrap()
+    let storage = adl_server::engine::storage_from_locator(
+        &adl_kernel::storage::StorageLocator::default(),
+        &dir,
+    );
+    init_server_state(&dir, storage).await.unwrap()
 }
 
 fn app(state: adl_server::ServerState) -> axum::Router {

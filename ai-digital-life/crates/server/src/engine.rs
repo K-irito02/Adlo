@@ -21,7 +21,24 @@ fn resolve_log_dir() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(".adl-logs"))
 }
 
-pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError> {
+/// 由 locator + 默认根构造存储服务。adl-server 的默认根即 `--data-dir`。
+pub fn storage_from_locator(
+    locator: &adl_kernel::storage::StorageLocator,
+    default_root: &Path,
+) -> std::sync::Arc<adl_kernel::storage::StorageService> {
+    let defaults = adl_kernel::storage::StorageDefaults {
+        root: default_root.to_path_buf(),
+        credentials_dir: adl_kernel::storage::locator::locator_dir().join("credentials"),
+        // adl-server 不管理默认下载目录；用 root 占位，壳层才提供真实启发式值。
+        downloads_dir: default_root.to_path_buf(),
+    };
+    std::sync::Arc::new(adl_kernel::storage::StorageService::from_locator(locator, &defaults))
+}
+
+pub async fn init_server_state(
+    data_dir: &Path,
+    storage: std::sync::Arc<adl_kernel::storage::StorageService>,
+) -> Result<ServerState, AppError> {
     eprintln!("[ad-server] init_server_state start, data_dir={}", data_dir.display());
     let log_dir = resolve_log_dir();
     std::fs::create_dir_all(&log_dir).ok();
@@ -34,7 +51,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
         .map_err(|e| AppError::Internal(format!("LogManager init failed: {e}")))?;
     eprintln!("[ad-server] LogManager initialized");
 
-    let db_path = data_dir.join("data.db");
+    let db_path = storage.paths().data_db.clone();
     std::fs::create_dir_all(data_dir).ok();
     eprintln!("[ad-server] opening database at {}...", db_path.display());
     let db = Database::open(&db_path)
@@ -62,7 +79,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     }
 
     eprintln!("[ad-server] loading config...");
-    let config = adl_config::load(data_dir)
+    let config = adl_config::load(&storage.paths().root)
         .map_err(|e| AppError::Internal(format!("Config load failed: {e}")))?;
     eprintln!("[ad-server] config loaded");
 
@@ -78,7 +95,8 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
     // db（r2d2 连接池，Arc），供 clipboard_* handler 读写。监听线程在 `serve()` 里
     // 通过 `start_background_services` 启动（不在 `init_server_state` 启动，避免测试
     // 直接构造 state 时泄漏监听线程）。
-    let clipboard_store = Arc::new(adl_clipboard::ClipboardStore::new(db.clone(), data_dir));
+    let clipboard_store =
+        Arc::new(adl_clipboard::ClipboardStore::new(db.clone(), &storage.paths().clipboard_dir));
     let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
     let dsh_state = Arc::new(AsyncMutex::new(None));
     let dsh_start_lock = Arc::new(AsyncMutex::new(()));
@@ -86,6 +104,7 @@ pub async fn init_server_state(data_dir: &Path) -> Result<ServerState, AppError>
 
     Ok(ServerState {
         data_dir: data_dir.to_path_buf(),
+        storage: storage.clone(),
         db,
         config: Arc::new(RwLock::new(config)),
         event_bus,
@@ -164,5 +183,31 @@ fn restore_current_workspace(db: &Database) -> Result<Option<WorkspaceMeta>, App
             tracing::warn!(error = %e, "failed to deserialize persisted current_workspace; starting with none");
             Ok(None)
         },
+    }
+}
+
+#[cfg(test)]
+mod storage_tests {
+    use super::*;
+
+    #[test]
+    fn storage_from_locator_uses_default_root_for_data_db() {
+        let root = std::path::PathBuf::from("/test-root");
+        let svc = storage_from_locator(&adl_kernel::storage::StorageLocator::default(), &root);
+        assert_eq!(svc.paths().data_db, root.join("data.db"));
+        assert_eq!(svc.paths().logs_dir, root.join("logs"));
+    }
+
+    #[test]
+    fn storage_from_locator_honors_per_category_override() {
+        let root = std::path::PathBuf::from("/test-root");
+        let mut loc = adl_kernel::storage::StorageLocator::default();
+        loc.selection.mode = adl_kernel::storage::StorageMode::PerCategory;
+        loc.selection.categories.insert(
+            adl_kernel::storage::StorageCategory::Clipboard,
+            std::path::PathBuf::from("/clip"),
+        );
+        let svc = storage_from_locator(&loc, &root);
+        assert_eq!(svc.paths().clipboard_dir, std::path::PathBuf::from("/clip"));
     }
 }

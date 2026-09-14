@@ -11,7 +11,11 @@ use tower::ServiceExt;
 #[tokio::test]
 async fn engine_init_creates_workable_state() {
     let data_dir = std::env::temp_dir().join(format!("adl-server-{}", uuid::Uuid::new_v4()));
-    let state = init_server_state(&data_dir).await.expect("init should succeed");
+    let storage = adl_server::engine::storage_from_locator(
+        &adl_kernel::storage::StorageLocator::default(),
+        &data_dir,
+    );
+    let state = init_server_state(&data_dir, storage).await.expect("init should succeed");
 
     let conn = state.db.conn().expect("db connection should be obtainable");
     let one: i64 =

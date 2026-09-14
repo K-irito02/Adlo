@@ -5,6 +5,7 @@
 #![allow(linker_messages)]
 
 use adl_logging::LogMode;
+use std::sync::Arc;
 use tauri::Manager;
 use tauri::webview::PageLoadEvent;
 use tracing::info;
@@ -55,9 +56,14 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .setup(|app| {
             let t0 = std::time::Instant::now();
-            let data_dir = setup::resolve_data_dir(app)?;
-            info!("[ADL-PERF] resolve_data_dir: {}ms", t0.elapsed().as_millis());
-            let app_state = setup::init_app_state(data_dir.clone())?;
+            let defaults = setup::resolve_defaults(app)?;
+            std::fs::create_dir_all(&defaults.root)?;
+            let locator = adl_kernel::storage::load_locator();
+            let storage =
+                Arc::new(adl_kernel::storage::StorageService::from_locator(&locator, &defaults));
+            let data_dir = storage.paths().root.clone();
+            let app_state =
+                setup::init_app_state(data_dir.clone(), storage.clone(), defaults.clone())?;
             info!("[ADL-PERF] setup COMPLETE: {}ms", t0.elapsed().as_millis());
 
             // 剪贴板/系统监控全走 adl-server HTTP（adl-server 的 init_server_state 已启动

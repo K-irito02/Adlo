@@ -18,20 +18,37 @@ fn resolve_project_root() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
+/// 解析并创建数据根目录（默认根）。真正的逐类路径由 `StorageService` 给出。
+/// 当前 `main.rs` 经 `resolve_defaults` + `StorageService` 派生根目录；本函数保留作
+/// 默认根的显式解析入口（Task 7 起供配置落点等调用方复用）。
+#[allow(dead_code)]
 pub fn resolve_data_dir(app: &tauri::App) -> anyhow::Result<PathBuf> {
-    let dir = app.path().app_data_dir().context("failed to resolve app data dir")?;
-    std::fs::create_dir_all(&dir)?;
-    info!(?dir, "data directory resolved");
-    Ok(dir)
+    let defaults = resolve_defaults(app)?;
+    std::fs::create_dir_all(&defaults.root)?;
+    info!(root = ?defaults.root, "default data root resolved");
+    Ok(defaults.root)
+}
+
+/// 构造壳层的存储默认值：默认根 = Tauri `app_data_dir()`；凭据目录与默认下载目录
+/// 分别取平台默认与 `adl_browser` 的启发式值。
+pub fn resolve_defaults(app: &tauri::App) -> anyhow::Result<adl_kernel::storage::StorageDefaults> {
+    let root = app.path().app_data_dir().context("failed to resolve app data dir")?;
+    let credentials_dir = adl_kernel::storage::locator::locator_dir().join("credentials");
+    let downloads_dir = adl_browser::download_manager::get_default_download_path();
+    Ok(adl_kernel::storage::StorageDefaults { root, credentials_dir, downloads_dir })
 }
 
 /// Build the system-only shell state. Business (DB, workspace, providers,
 /// durable sessions, SSE) lives in the spawned `adl-server` process — the shell
 /// keeps config + log manager + browser manager, then spawns the adl-server child.
-pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
+pub fn init_app_state(
+    data_dir: PathBuf,
+    storage: Arc<adl_kernel::storage::StorageService>,
+    defaults: adl_kernel::storage::StorageDefaults,
+) -> anyhow::Result<AppState> {
     let t0 = std::time::Instant::now();
 
-    let mut config = match adl_config::load(&data_dir) {
+    let mut config = match adl_config::load(&storage.paths().root) {
         Ok(c) => c,
         Err(e) => {
             warn!(error = %e, "config load failed, using default");
@@ -74,11 +91,11 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     info!("[ADL-PERF] init_app_state TOTAL: {}ms", t0.elapsed().as_millis());
 
-    let site_meta_cache = adl_browser::SiteMetaCacheStore::open(&data_dir)
+    let site_meta_cache = adl_browser::SiteMetaCacheStore::open(&storage.paths().root)
         .map_err(|e| anyhow::anyhow!("failed to open site-meta-cache store: {e}"))?;
     let browser_manager = adl_browser::BrowserManager::new(site_meta_cache);
 
-    let download_db_path = data_dir.join("downloads.db");
+    let download_db_path = storage.paths().downloads_db.clone();
     let download_db = adl_storage::Database::open(&download_db_path)
         .map_err(|e| anyhow::anyhow!("failed to open download database: {e}"))?;
     download_db
@@ -90,6 +107,8 @@ pub fn init_app_state(data_dir: PathBuf) -> anyhow::Result<AppState> {
 
     Ok(AppState {
         data_dir,
+        storage: storage.clone(),
+        storage_defaults: defaults,
         config: config_arc,
         event_bus,
         browser_manager,

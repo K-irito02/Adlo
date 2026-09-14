@@ -669,7 +669,15 @@ mod tests {
             "adl-dsh-close-{}",
             std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
         ));
-        let state = crate::engine::init_server_state(&dir).await.unwrap();
+        let state = crate::engine::init_server_state(
+            &dir,
+            crate::engine::storage_from_locator(
+                &adl_kernel::storage::StorageLocator::default(),
+                &dir,
+            ),
+        )
+        .await
+        .unwrap();
         let result = close_inner(&state, true).await.unwrap();
         assert_eq!(result, serde_json::json!(true));
         let result = close_inner(&state, false).await.unwrap();
