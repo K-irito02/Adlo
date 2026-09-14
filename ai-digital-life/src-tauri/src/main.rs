@@ -182,6 +182,12 @@ fn main() {
             commands::platform::workspace_open_in_file_manager,
             commands::port_scan::browser_scan_ports,
             commands::port_scan::browser_get_port_details,
+            commands::storage::storage_get_status,
+            commands::storage::storage_scan_foreign_cmd,
+            commands::storage::storage_preflight_cmd,
+            commands::storage::storage_set_paths,
+            commands::storage::storage_cancel_pending,
+            commands::storage::app_restart,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

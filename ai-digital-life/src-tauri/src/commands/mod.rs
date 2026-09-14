@@ -6,6 +6,7 @@ pub mod download_commands;
 pub mod platform;
 pub mod port_scan;
 pub mod reserved;
+pub mod storage;
 pub mod workspace;
 
 use crate::error::CommandError;

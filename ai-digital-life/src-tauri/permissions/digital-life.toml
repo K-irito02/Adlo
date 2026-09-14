@@ -66,5 +66,11 @@ commands.allow = [
   "codemode_execute",
   "codemode_get_config",
   "browser_scan_ports",
-  "browser_get_port_details"
+  "browser_get_port_details",
+  "storage_get_status",
+  "storage_scan_foreign_cmd",
+  "storage_preflight_cmd",
+  "storage_set_paths",
+  "storage_cancel_pending",
+  "app_restart"
 ]

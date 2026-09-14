@@ -823,6 +823,15 @@ impl DownloadManager {
         Ok(())
     }
 
+    /// Free space (bytes) on the volume containing `dir`.
+    ///
+    /// Used by the storage settings preflight (Plan C) to reject a move that
+    /// would not fit on the target volume. Reuses the same `fs2` syscall as
+    /// `check_disk_space` — no new dependency.
+    pub fn available_space_bytes(&self, dir: &Path) -> Result<u64, String> {
+        fs2::available_space(dir).map_err(|e| format!("Disk check failed: {}", e))
+    }
+
     pub fn resolve_conflict_path(&self, suggested_path: &str) -> String {
         let path = Path::new(suggested_path);
         if !path.exists() {
@@ -2138,6 +2147,18 @@ mod tests {
         db.init_schema().expect("schema should init");
         adl_migration::run_pending(&db).expect("migrations should apply");
         db
+    }
+
+    #[test]
+    fn available_space_bytes_reports_volume_free_space() {
+        let db = temp_db("available-space");
+        let mgr = DownloadManager::new(db);
+        let bytes = mgr
+            .available_space_bytes(&std::env::temp_dir())
+            .expect("temp dir volume should report free space");
+        assert!(bytes > 0, "free space should be positive, got {bytes}");
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-available-space.db"));
     }
 
     #[test]
