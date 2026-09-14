@@ -51,6 +51,7 @@
 - 不修改左侧导航器（会话列表 / 命令历史）。
 - 不做历史导出、历史搜索、跨标签合并历史视图。
 - 不为旧历史数据格式提供迁移（见 4.4）。
+- **不实现「自定义保存路径」。** 终端历史与工作区、会话、剪贴板等共用主库 `data.db`，因此路径不可能只对终端生效；给终端单独换路径只能把历史从主库拆出，那等于更换技术方案。路径能力归属**项目级的「应用数据根目录可自定义」子项目**（见 §15），本设计不为它预留接口，也不在「终端」组下放路径项。
 
 ---
 
@@ -178,6 +179,7 @@ interface TerminalHistorySnapshot {
 | `TERMINAL_HISTORY_BUDGET_FOLLOW_DISK` | `0` | 哨兵值，表示「跟随磁盘剩余空间」模式 |
 | `TERMINAL_HISTORY_DISK_RESERVE_BYTES` | `1 GiB` | 跟随模式下预留给系统的安全余量 |
 | `TERMINAL_HISTORY_MIN_SEGMENTS_KEPT` | `20` | 两种模式都生效的最小保留段数安全阀 |
+| `TERMINAL_HISTORY_SEGMENT_MAX_BYTES` | `512 KiB` | 单段行模型 JSON 的 UTF-8 字节软上限（见 5.3） |
 
 - **预算不是预留空间**：应用不会预先占用，只有真实累计到该量才触发淘汰。
 - 总量统计**包含进行中的段**（它们确实占用磁盘），但**淘汰只作用于 `live === false` 的段**。
@@ -195,6 +197,20 @@ selectSegmentsToEvict(
 ```
 
 行为：仅考虑 `live === false`；按 `endedAt` 升序；跳过最近 `TERMINAL_HISTORY_MIN_SEGMENTS_KEPT` 段；累计到总量 ≤ `budgetBytes` 即停止。
+
+### 5.3 必须同步抬高的单段体积上限（既有硬上限会拦住新格式）
+
+现状：服务端对单次保存有 **200 KiB 硬上限**（`crates/server/src/handlers/terminal_output.rs` 的 `MAX_OUTPUT_BYTES = 200 * 1024`），超限直接返回 `InvalidInput`，而前端 `terminalOutputStore.save()` 只 `console.warn` —— 表现为**历史静默丢失**。
+
+行模型 JSON 比 ANSI 序列化文本大约 2–3 倍（属性与结构开销），单段千行快照很可能越过这条线。因此必须一并处理，否则新格式上线即踩：
+
+| 措施 | 内容 |
+|---|---|
+| 抬高服务端上限 | `MAX_OUTPUT_BYTES`：200 KiB → **2 MiB**（留足余量，并同步更新该文件的单测） |
+| 增加前端单段软上限 | 提取阶段施加 `TERMINAL_HISTORY_SEGMENT_MAX_BYTES`（**512 KiB**，按 **UTF-8 字节**计，与服务端口径一致）预算：累计超限时**从最旧的屏幕行开始丢弃**，保留最近内容，保证单段必定可存 |
+| 保存失败不再静默 | `terminalOutputStore.save()` 返回 `false` 时记录警告；该段在下一次心跳重试写入 |
+
+软上限的作用是让「单段必定可存」成为**构造性保证**，而不是依赖服务端拒绝后的补救。
 
 ---
 
@@ -351,6 +367,7 @@ type RegionCollapse = 'none' | 'history' | 'live';
 | `features/terminal/useTerminalPtyLifecycle.ts` | 归档改为建档/心跳/定稿；保存改行模型；暴露 `deleteHistoryForTab` |
 | `features/terminal/terminalHistoryStore.ts` | 段结构扩展 + 新字段边界校验 |
 | `features/terminal/terminalXtermPool.ts` | 移除 `SerializeAddon` |
+| `crates/server/src/handlers/terminal_output.rs` | `MAX_OUTPUT_BYTES` 由 200 KiB 抬到 2 MiB，并同步更新该文件的单测（见 5.3） |
 | `components/settings/SettingsNav.tsx` / `SettingsPanel.tsx` | 注册 `terminal` 组 |
 | `kernel/types.ts` | `SettingsGroupId` 增加 `'terminal'` |
 | `styles/regions/rightpanel/terminal-panel.css` | 历史列表、行、分隔符、按钮叠加层、滚动条样式 |
@@ -398,6 +415,7 @@ type RegionCollapse = 'none' | 'history' | 'live';
 - `resolveRunStyle()`：调色板下标（0–15 / 16–255）、直接色、缺省色、`inverse`、暗色。
 - `selectSegmentsToEvict()`：未超预算不淘汰、超预算按最旧优先、跳过进行中段、跳过最近 20 段、预算 0 时的安全阀行为。
 - `normalizeHistoryIndex()`：新字段缺失 / 类型错误的条目被丢弃。
+- 单段软上限裁剪：未超限不裁剪、超限时从最旧屏幕行开始丢弃、裁剪后 UTF-8 字节数 ≤ `TERMINAL_HISTORY_SEGMENT_MAX_BYTES`、裁剪后 `lines` 与实际内容一致。
 - 折叠归约：三态迁移、删除历史后重置为 `none`、标签关闭清理条目。
 
 ### 11.2 组件测试
@@ -448,3 +466,31 @@ type RegionCollapse = 'none' | 'history' | 'live';
 4. **设置层** —— Rust 偏好字段 → TS 类型 → 「终端」设置组与文案。
 
 依赖关系：渲染层依赖数据层的行模型；交互层的「删除」依赖数据层的删除接口；设置层的预算值只作为数据层淘汰策略的输入，因此可以最后做。
+
+---
+
+## 15. 范围外：已识别但独立立项的子项目
+
+以下两项**不在本设计范围内**，记录在此以免回头重新推导。二者与本设计**无依赖关系**，可各自独立走「设计 → 计划 → 实现」。
+
+### 15.1 子项目 A —— 应用数据根目录可自定义 + 迁移 + 旧目录清理
+
+**需求来源**：用户要求「项目中所有数据，除非必须在系统 C 盘的情况下，其它都支持用户自定义路径，然后迁移并删除旧数据及目录」。
+
+**为什么不能落在终端面板**：终端历史与工作区、会话、任务、审批、剪贴板共用主库 `data.db`（`crates/server/src/engine.rs` 打开）；`data_dir` 下还有 `downloads.db`、`config/config.json`、`dsh-versions/`、site-meta 缓存、剪贴板缩略图、`.adl-logs`。移动 `data.db` 就是移动整个应用数据，路径能力天然是**全局**的。给终端单独换路径只能把历史从主库拆出，属于更换技术方案，已被用户否决。
+
+**已核实的关键约束**（供 A 的设计直接使用）：
+
+| 事实 | 影响 |
+|---|---|
+| `data_dir` 由 `src-tauri/src/setup.rs::resolve_data_dir()` 解析（`app_data_dir()`，Windows 默认在 C 盘） | 搬迁入口就这一处 |
+| adl-server 子进程由 `AdServerHandle::spawn()` 以 `--data-dir <path>` 启动 | 换路径必须重启应用，不能热切换 |
+| 主库在进程启动时即被打开 | 迁移必须发生在**任何 DB 打开之前**，因此流程只能是「选择路径 → 迁移 → 提示重启」 |
+| `data_dir` 下的数据种类是**已知白名单** | 「旧目录清理」可按白名单逐类删除后 `remove_dir`（非空即失败，天然兜底），比递归删除安全 |
+| 用户已定策略 | 只删「属于本项目的文件」；目录中若存在用户自行放入的资源，保留目录本身 |
+
+**建议的全局设置落位**：不放「终端」组；建议「通用」组或新增「存储」组。
+
+### 15.2 备注 —— 服务端单段体积上限的后续复核
+
+本设计已包含 `MAX_OUTPUT_BYTES` 的抬高（见 5.3）。若后续子项目 A 改变存储落点，该上限位于**保存路径上的校验**，应一并复核。
