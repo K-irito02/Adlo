@@ -34,6 +34,8 @@ Plan A 已合并到 `refactor/strip-20260903`。执行前重审发现 Plan B 文
 | A3 | `save_locator_to` 为直写，非原子 | Plan B 会写 locator；崩溃/断电可能撕裂 `storage-locator.json` → 应用回退默认目录 | **必须修**：tmp + rename 原子写，见 Task 0 |
 | A4 | `ServerState.data_dir`（= `--data-dir`）与 `storage.paths().root`（locator 驱动）可分叉 | 独立运行 adl-server 且 locator 指定 `root=X` 时，会 `create_dir_all(Y)` 而 DB 开在 X | **必须修**：`init_server_state` 以 `storage.paths().root` 为唯一根（`data_dir` 收敛），见 Task 4 追加步骤 |
 | A5 | `category_roots` 无直接单测（Plan A 复核 carry-forward） | 迁移枚举的起点无保护 | Task 0 补测试 |
+| A6 | Task 1 落地后 `preflight` 里 `src == dst` 分支不可达（`plan_categories` 已保证不相等）；且其单测用 `/old`、`/other`、`/new` 在 Windows 上解析为盘根路径、测试会创建 `E:\old` 等目录 | 死代码 + 测试污染盘根 | Task 2 顺带清理：删除死分支；把 Task 1 遗留的盘根测试路径改为 `std::env::temp_dir()` 基目录 |
+| A7 | Plan A `paths.rs` 把 Database/DownloadsDb/SiteMetaDb 的 per-category 覆盖当作**文件路径**（`overridden(Database)` 直接赋给 `data_db`），与其它分类（覆盖=目录）不一致；Task 2 `single_files` 又用 `paths.root.join(name)` 忽略覆盖 | per-category DB 迁移目标错误；与 Plan C「选目录」UI 冲突 | **必须修**：统一为「覆盖 = 目录」。`paths.rs` 改为 `overridden(Database).map(\|d\| d.join("data.db")).unwrap_or(root.join("data.db"))`（三者同理）；`migration.rs` 用 `primary_db_file`/`db_files` 由 `paths.dir(category)` 派生主文件与 `-wal`/`-shm` 后缀；copy/verify/cleanup 一律用 `db_files` |
 | — | 裸 adl-server 启动出现瞬时 `r2d2: database is locked`（非致命，Plan A Task 8 观察到） | 与本计划无关（无 locator 时也出现） | **仅记录**，不在本计划修复；若 Task 4 后复现且与迁移相关再处理 |
 
 > Task 1/2/3 中所有 `owns_file(category, path)` / `is_own_dir(category, dir)` 调用在本修订后一律改为 base-aware 形式；下方对应片段已同步更新。
@@ -367,7 +369,7 @@ git commit -m "fix(storage): make whitelist base-aware and locator writes atomic
   - `pub fn plan_categories(from: &StoragePaths, to: &StoragePaths) -> Vec<StorageCategory>`
   - `pub fn scan_foreign(paths: &StoragePaths) -> Vec<ForeignScan>`
   - `pub fn preflight(from: &StoragePaths, to: &StoragePaths) -> PreflightReport`
-  - `pub fn run(from: &StoragePaths, to: &StoragePaths, retain_source: bool, progress: impl FnMut(MigrationProgress)) -> MigrationReport`
+  - `pub fn run(from: &StoragePaths, to: &StoragePaths, retain_source: bool, switch_pointer: impl FnOnce() -> Result<(), AppError>, progress: impl FnMut(MigrationProgress)) -> MigrationReport`
   - `pub fn apply_pending(locator: &mut StorageLocator, defaults: &StorageDefaults, progress: impl FnMut(MigrationProgress)) -> Option<MigrationReport>`
 
 - [ ] **Step 1: 写失败测试（分类差异与预检）**
@@ -955,7 +957,7 @@ fn quick_check(db: &Path) -> Result<(), AppError> {
 }
 ```
 
-> **依赖**：`adl-kernel` 需已在 Task 1 或本 Task 加入 `rusqlite.workspace = true`（用于 `quick_check`）。确认 workspace 根 `Cargo.toml` 的 `[workspace.dependencies]` 含 `rusqlite`；若为带 feature 的声明（如 `rusqlite = { version = "...", features = ["bundled"] }`），在 `crates/kernel/Cargo.toml` 用 `rusqlite.workspace = true` 继承。若该继承会引入 `bundled` 重编译，可改为在 `adl-storage` 暴露 `pub fn quick_check(path: &Path) -> Result<(), AppError>` 并让 kernel 调用 `adl-storage`（kernel 目前不依赖 adl-storage；二选一，择更轻者）。
+> **依赖（已裁决）**：在 `crates/kernel/Cargo.toml` 的 `[dependencies]` 加入 `rusqlite.workspace = true`（workspace 根声明为 `{ version = "0.39", features = ["bundled", "serde_json"] }`；`adl-storage` 已启用 `bundled`，feature 统一后不产生额外构建成本）。直接使用 `rusqlite` 实现 `quick_check`，不新增 kernel→adl-storage 依赖边。
 
 在 `mod.rs` 追加导出：
 
@@ -979,6 +981,11 @@ git commit -m "feat(storage): add idempotent copy and verification for migration
 
 ### Task 3: 清理旧源 + 编排 `run` / `apply_pending`
 
+**Task 3 附加修正（controller 裁决 A8，必须一并完成）**
+
+1. **`category_roots` 对 DB 分类改为取父目录**（A7 的收尾）：`crates/kernel/src/storage/whitelist.rs` 中 `Database`/`DownloadsDb`/`SiteMetaDb` 三支由 `vec![paths.root.clone()]` 改为 `vec![paths.dir(category).parent().map(Path::to_path_buf).unwrap_or_else(|| paths.root.clone())]`（统一模式下仍等于 `root`，per-category 下为覆盖目录）。同步更新 `category_roots_covers_each_category_once` 断言（统一模式断言不变）。
+2. **`cleanup_category` 必须用 `db_files`**：Task 2 已把单文件类改为 `db_files(category, paths) -> Vec<PathBuf>`（`primary_db_file` + `-wal`/`-shm`）。Task 3 的 `cleanup_category` 单文件分支不得再引用已删除的 `single_files`。
+
 **Files:**
 - Modify: `ai-digital-life/crates/kernel/src/storage/migration.rs`
 - Modify: `ai-digital-life/crates/kernel/src/storage/mod.rs`
@@ -987,7 +994,7 @@ git commit -m "feat(storage): add idempotent copy and verification for migration
 - Consumes: Task 1/2
 - Produces:
   - `pub fn cleanup_category(category: StorageCategory, from: &StoragePaths) -> Result<(Vec<PathBuf>, Vec<KeptDir>), AppError>` — (已删目录, 保留目录及外部文件)
-  - `pub fn run(from: &StoragePaths, to: &StoragePaths, retain_source: bool, progress: impl FnMut(MigrationProgress)) -> MigrationReport`
+  - `pub fn run(from: &StoragePaths, to: &StoragePaths, retain_source: bool, switch_pointer: impl FnOnce() -> Result<(), AppError>, progress: impl FnMut(MigrationProgress)) -> MigrationReport`
   - `pub fn apply_pending(locator: &mut StorageLocator, defaults: &StorageDefaults, progress: impl FnMut(MigrationProgress)) -> Option<MigrationReport>`
 
 - [ ] **Step 1: 写失败测试**
@@ -1020,9 +1027,10 @@ git commit -m "feat(storage): add idempotent copy and verification for migration
         sel.root = Some(base.join("new"));
         let newp = paths_for(&sel, &base.join("old").to_string_lossy());
         write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
-        write(&old.data_db, b"not-a-real-sqlite"); // 单文件类：无 wal/shm
+        // 单文件类：必须是真实 SQLite —— verify_category 会跑 PRAGMA quick_check。
+        rusqlite::Connection::open(&old.data_db).unwrap().execute_batch("CREATE TABLE t(x);").unwrap();
 
-        let report = run(&old, &newp, false, |_p| {});
+        let report = run(&old, &newp, false, || Ok(()), |_p| {});
         assert!(report.ok, "run should succeed: {:?}", report.error);
         assert!(report.moved_files >= 2);
         assert!(newp.clipboard_dir.join("images/a.png").exists());
@@ -1039,7 +1047,7 @@ git commit -m "feat(storage): add idempotent copy and verification for migration
         sel.root = Some(base.join("new"));
         let newp = paths_for(&sel, &base.join("old").to_string_lossy());
         write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
-        let report = run(&old, &newp, true, |_p| {});
+        let report = run(&old, &newp, true, || Ok(()), |_p| {});
         assert!(report.ok);
         assert!(report.retained);
         assert!(old.clipboard_dir.join("images/a.png").exists(), "source retained");
@@ -1060,11 +1068,12 @@ git commit -m "feat(storage): add idempotent copy and verification for migration
             failed: false,
             error: None,
         });
-        // 让源目录有内容，避免空跑歧义。
-        let old = paths_for(&StorageSelection::default(), &base.to_string_lossy());
+        // 让源目录有内容，避免空跑歧义。默认根设为 <base>/old，目标根为 <base>/new，
+        // 避免触发「目标在源内部」的根级包含预检。
+        let old = paths_for(&StorageSelection::default(), &base.join("old").to_string_lossy());
         write(&old.clipboard_dir.join("images/a.png"), b"AAAA");
 
-        let report = apply_pending(&mut loc, &defaults(&base.to_string_lossy()), |_p| {});
+        let report = apply_pending(&mut loc, &defaults(&base.join("old").to_string_lossy()), |_p| {});
         assert!(report.is_some());
         assert!(loc.pending_migration.is_none(), "pending cleared on success");
         assert!(loc.last_report.is_some());
@@ -1072,7 +1081,7 @@ git commit -m "feat(storage): add idempotent copy and verification for migration
     }
 ```
 
-> 注意：`paths_for(&StorageSelection::default(), base)` 的默认根 = `base`，而 `loc.selection.root = base/new` 的目标根在 `base/new` 之内 → 会触发「目标在源内部」预检错误。因此 `apply_pending` 测试里的源根需与目标根分开：把 `defaults` 的默认根设为 `base/old`，并让 `loc.selection.root = base/new`。实现测试时按此修正（`defaults(&format!("{}/old", base.display()))`）。
+> 注意：上面的测试已按「源根 `<base>/old`、目标根 `<base>/new`」写好（避免触发根级包含预检）。若你的 `paths_for`/`defaults` helper 命名与 Task 1 落地不一致，按实际名称调整，语义不变。
 
 - [ ] **Step 2: 运行确认失败**
 
@@ -1102,7 +1111,8 @@ pub fn cleanup_category(
         category,
         StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb
     ) {
-        single_files(category, from).into_iter().map(|(f, _)| f).collect()
+        // A7/A8：单文件类统一走 db_files（覆盖感知）。
+        db_files(category, from)
     } else {
         dir_pairs(category, from, from).into_iter().map(|(d, _)| d).collect()
     };
@@ -1181,12 +1191,16 @@ fn all_dirs(root: &Path) -> Vec<PathBuf> {
     out
 }
 
-/// 执行一次完整迁移（不含 locator 持久化）。失败时 best-effort 清理本次新建的目标文件，
-/// 且**绝不删除源文件**。
+/// 执行一次完整迁移。顺序严格为「复制 + 校验 → 切换指针 → 清理旧源」，以满足全局约束
+/// 「源文件只在复制+校验全部通过之后才删除；指针切换是清理之前的最后一步」。
+///
+/// `switch_pointer` 由调用方提供（`apply_pending` 传入「更新 locator.selection 并持久化」）。
+/// 它失败时立即回滚（best-effort 删除本次新建的目标文件），**不清理源**。失败时也绝不删除源文件。
 pub fn run(
     from: &StoragePaths,
     to: &StoragePaths,
     retain_source: bool,
+    switch_pointer: impl FnOnce() -> Result<(), AppError>,
     mut progress: impl FnMut(MigrationProgress),
 ) -> MigrationReport {
     let categories = plan_categories(from, to);
@@ -1200,7 +1214,7 @@ pub fn run(
         progress(MigrationProgress::Category { category: *category, index, total });
         let copied = match copy_category(*category, from, to, &mut progress) {
             Ok(moved) => moved,
-            Err(e) => return fail(&mut created, e, from, to),
+            Err(e) => return fail(&mut created, e),
         };
         for (path, bytes) in &copied {
             moved_files += 1;
@@ -1209,11 +1223,16 @@ pub fn run(
         }
         progress(MigrationProgress::Verifying { category: *category });
         if let Err(e) = verify_category(*category, from, to) {
-            return fail(&mut created, e, from, to);
+            return fail(&mut created, e);
         }
     }
 
-    // 2) 清理旧源（保留模式跳过）。
+    // 2) 切换指针（必须在清理之前；失败则不清理源）。
+    if let Err(e) = switch_pointer() {
+        return fail(&mut created, e);
+    }
+
+    // 3) 清理旧源（保留模式跳过）。
     let mut removed_dirs = Vec::new();
     let mut kept_dirs = Vec::new();
     if !retain_source {
@@ -1224,7 +1243,7 @@ pub fn run(
                     removed_dirs.extend(removed);
                     kept_dirs.extend(kept);
                 },
-                Err(e) => return fail(&mut created, e, from, to),
+                Err(e) => return fail(&mut created, e),
             }
         }
     }
@@ -1242,13 +1261,8 @@ pub fn run(
     }
 }
 
-/// 失败路径：不切换指针、不删源；best-effort 删除本次新建的目标文件。
-fn fail(
-    created: &mut [PathBuf],
-    error: AppError,
-    _from: &StoragePaths,
-    _to: &StoragePaths,
-) -> MigrationReport {
+/// 失败路径：不删源；best-effort 删除本次新建的目标文件。
+fn fail(created: &mut [PathBuf], error: AppError) -> MigrationReport {
     for path in created.iter() {
         let _ = std::fs::remove_file(path);
     }
@@ -1274,10 +1288,20 @@ pub fn apply_pending(
     let pending = locator.pending_migration.clone()?;
     let from = StoragePaths::resolve(&pending.from, defaults);
     let to = StoragePaths::resolve(&pending.to, defaults);
+    let target = pending.to.clone();
 
-    let report = run(&from, &to, pending.retain_source, &mut progress);
+    // 指针切换回调：复制+校验通过后、清理之前执行。持久化失败即回滚（不清理源）。
+    let report = run(
+        &from,
+        &to,
+        pending.retain_source,
+        || {
+            locator.selection = target.clone();
+            save_locator(locator)
+        },
+        &mut progress,
+    );
     if report.ok {
-        locator.selection = pending.to.clone();
         locator.pending_migration = None;
     } else if let Some(still) = locator.pending_migration.as_mut() {
         still.failed = true;
