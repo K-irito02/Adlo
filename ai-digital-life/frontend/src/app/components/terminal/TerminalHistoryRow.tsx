@@ -2,6 +2,7 @@ import { memo } from 'react';
 import {
   cellWidthOf,
   resolveRunStyle,
+  splitCellGroups,
   type HistoryPalette,
   type HistoryRun,
 } from '@features/terminal/historyModel';
@@ -56,22 +57,23 @@ export const TerminalHistoryRow = memo(function TerminalHistoryRow({
 });
 
 /**
- * 逐字钉格：每个字符占 `w × cell 宽` 的 inline-block 格，
- * 与 xterm（canvas 按单元格绝对定位字形）同网格，CJK/粗体不再逐列漂移。
- * 单元格宽度复用容器上的 `--adl-terminal-cell-width`（F6 实测值），
- * 字符格数复用咬合折行同一套 `cellWidthOf` 口径。
+ * 逐格钉格：每格占 `w × cell 宽` 的 inline-block，
+ * 与 xterm（按单元格定位字形）同网格，CJK/粗体不再逐列漂移。
+ * 单元格宽度复用容器上的 `--adl-terminal-cell-width`（实测值），
+ * 格划分与宽度复用咬合折行同一套 `splitCellGroups` 口径（零宽字符并入前格，
+ * 组合音标不会与基字符拆开，emoji 序列的格数也与 xterm 一致）。
  */
 function PinnedRun({ run, palette }: { run: HistoryRun; palette: HistoryPalette }) {
   const style = resolveRunStyle(run, palette);
   return (
     <span style={{ ...style }} className="adl-terminal-history-run">
-      {[...run.text].map((ch, j) => (
+      {splitCellGroups(run.text).map((group, j) => (
         <span
           key={j}
           className="adl-terminal-history-cell"
-          style={{ width: `calc(${cellWidthOf(ch)} * var(--adl-terminal-cell-width, 8px))` }}
+          style={{ width: `calc(${group.width} * var(--adl-terminal-cell-width, 8px))` }}
         >
-          {ch}
+          {group.text}
         </span>
       ))}
     </span>

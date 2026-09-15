@@ -31,6 +31,20 @@ export function chunkKey(sessionId: string, seq: number): string {
   return `${sessionId}#${seq}`;
 }
 
+/**
+ * 回卷（scrollback 溢出）后需要清理的「陈旧块」区间。
+ *
+ * 回卷时采集器把 `seq` 归零并从当前缓冲重采，磁盘键 `[0, nextCount)` 被新内容覆盖；
+ * 上一代若更长（`previousCount > nextCount`），`[nextCount, previousCount)` 就没有任何
+ * 索引引用它了——只能在这里删掉，否则是预算统计不到、删除路径也碰不到的磁盘孤儿。
+ */
+export function staleChunkRange(
+  previousCount: number,
+  nextCount: number,
+): { start: number; count: number } {
+  return { start: nextCount, count: Math.max(0, previousCount - nextCount) };
+}
+
 const scheduleWrite = makePersistedWriter(TERMINAL_HISTORY_INDEX_KEY);
 
 function isChunkMeta(value: unknown): value is TerminalHistoryChunkMeta {

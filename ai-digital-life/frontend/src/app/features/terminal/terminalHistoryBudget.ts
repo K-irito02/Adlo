@@ -58,11 +58,18 @@ export function diskAvailableBytesFrom(
 }
 
 /**
- * 一级淘汰：按 endedAt 升序（最旧优先）逐段删除，直到剩余总量 ≤ 预算。
+ * 淘汰：按 endedAt 升序（最旧优先）逐段删除，直到剩余总量 ≤ 预算。
  * 只作用于已结束的段；**总是跳过最近 20 段**（安全阀，避免磁盘将满时清空历史）。
  *
  * 为什么按段而不是按块：按块淘汰会让「一段历史只剩后半截」变成常态，
  * 而这正是本次要消除的现象形态。
+ *
+ * 为什么不需要「单段自身超预算就丢头部块」的二级淘汰：单段被索引引用的内容
+ * 结构性地被 xterm 的 scrollback 环封顶（`TERMINAL_CAPTURE_SCROLLBACK_LINES` 行；
+ * 每次回卷都整体重采并覆盖 `seq` 从 0 起），实测约 0.5–5 MB/段 —— 要顶破 1 GiB
+ * 默认预算（或 FOLLOW_DISK 的剩余空间预算）需要几百个段，那已由上面的按段淘汰覆盖。
+ * 如果将来放宽「单段上限」（例如允许不设环的连续采集），需要重新引入按块淘汰，
+ * 并同步改造块键（键由数组下标推导，丢头部块会让下标与 seq 错位，需引入首块偏移）。
  */
 export function selectSegmentsToEvict(
   segments: { tabId: string; seg: TerminalHistorySegment }[],
@@ -84,22 +91,4 @@ export function selectSegmentsToEvict(
     out.push({ tabId: entry.tabId, sessionId: entry.seg.sessionId });
   }
   return out;
-}
-
-/**
- * 二级淘汰（最后手段）：一级淘汰后仍超预算（单段自身就很大），
- * 对最旧段从头部丢弃若干块。**至少保留最后一块**，不允许把一段清空成零块。
- */
-export function selectLeadingChunksToEvict(
-  oldest: TerminalHistorySegment,
-  overflowBytes: number,
-): number {
-  let freed = 0;
-  let dropped = 0;
-  const max = Math.max(0, oldest.chunks.length - 1);
-  while (dropped < max && freed < overflowBytes) {
-    freed += oldest.chunks[dropped].size;
-    dropped += 1;
-  }
-  return dropped;
 }

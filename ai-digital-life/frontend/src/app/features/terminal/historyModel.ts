@@ -12,12 +12,22 @@ export interface HistoryRun {
 }
 
 /**
- * 单元格宽度判定（东亚宽字符占 2 格）。
+ * 零宽码点：组合标记（Mn/Me）与格式字符（Cf，含 ZWJ/ZWNJ/变体选择符）+ 零宽空格。
+ * xterm 的 wcwidth 对它们返回 0 并把字符并入前一格；若这里按 1 计，
+ * `👨‍👩‍👧` 这类序列会多出 2 格、带组合音标的文本会多 1 格，整行后续列全部右移。
+ */
+const ZERO_WIDTH = /^[\p{Mn}\p{Me}\p{Cf}\u200B]$/u;
+
+/**
+ * 单元格宽度判定（东亚宽字符占 2 格，零宽码点占 0 格）。
  * 口径与 xterm 的 wcwidth 一致；只覆盖终端里常见的宽字符区间，
  * 漏判只会让个别字符错 1 格，不会破坏换行正确性。
  */
-export function cellWidthOf(char: string): 1 | 2 {
+export function cellWidthOf(char: string): 0 | 1 | 2 {
   const cp = char.codePointAt(0) ?? 0;
+  if (ZERO_WIDTH.test(char)) {
+    return 0;
+  }
   const wide =
     (cp >= 0x1100 && cp <= 0x115f) ||
     (cp >= 0x2e80 && cp <= 0x303e) ||
@@ -35,11 +45,32 @@ export function cellWidthOf(char: string): 1 | 2 {
   return wide ? 2 : 1;
 }
 
-function explode(runs: HistoryRun[]): { ch: string; width: 1 | 2; run: HistoryRun }[] {
-  const cells: { ch: string; width: 1 | 2; run: HistoryRun }[] = [];
+/**
+ * 把一个 run 的文本切成「终端格」分组：基字符 + 紧随其后的零宽字符算一格。
+ *
+ * 这正是 xterm 的入格口径（零宽字符被并入前一格），因此**不能**改用 UAX#29 字素簇：
+ * 字素簇会把 `👨‍👩‍👧` 合并成"一格（2 列）"，而我们的实时 xterm 未启用 grapheme 聚类，
+ * 该序列在缓冲里是 3 个宽格（6 列）——历史必须跟实时对齐，故按格分组而非按字素簇。
+ */
+export function splitCellGroups(text: string): { text: string; width: number }[] {
+  const groups: { text: string; width: number }[] = [];
+  for (const ch of text) {
+    const width = cellWidthOf(ch);
+    const last = groups[groups.length - 1];
+    if (width === 0 && last) {
+      last.text += ch;
+      continue;
+    }
+    groups.push({ text: ch, width });
+  }
+  return groups;
+}
+
+function explode(runs: HistoryRun[]): { text: string; width: number; run: HistoryRun }[] {
+  const cells: { text: string; width: number; run: HistoryRun }[] = [];
   for (const run of runs) {
-    for (const ch of run.text) {
-      cells.push({ ch, width: cellWidthOf(ch), run });
+    for (const group of splitCellGroups(run.text)) {
+      cells.push({ ...group, run });
     }
   }
   return cells;
@@ -57,14 +88,14 @@ function sameStyle(a: HistoryRun, b: HistoryRun): boolean {
   );
 }
 
-function implode(cells: { ch: string; run: HistoryRun }[]): HistoryRun[] {
+function implode(cells: { text: string; run: HistoryRun }[]): HistoryRun[] {
   const out: HistoryRun[] = [];
   for (const cell of cells) {
     const last = out[out.length - 1];
     if (last && sameStyle(last, cell.run)) {
-      last.text += cell.ch;
+      last.text += cell.text;
     } else {
-      out.push({ ...cell.run, text: cell.ch });
+      out.push({ ...cell.run, text: cell.text });
     }
   }
   return out;
@@ -83,7 +114,7 @@ export function wrapLines(lines: HistoryRun[][], cols: number): HistoryRun[][] {
   }
   const out: HistoryRun[][] = [];
   for (const line of lines) {
-    let current: { ch: string; run: HistoryRun }[] = [];
+    let current: { text: string; run: HistoryRun }[] = [];
     let used = 0;
     for (const cell of explode(line)) {
       if (used + cell.width > cols && current.length > 0) {

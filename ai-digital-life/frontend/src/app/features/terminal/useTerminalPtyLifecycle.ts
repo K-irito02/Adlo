@@ -11,6 +11,7 @@ import { terminalXtermPool, readTerminalFontFamily, TERMINAL_FONT_SIZE } from '.
 import {
   terminalHistoryStore,
   chunkKey,
+  staleChunkRange,
   type TerminalHistoryChunkMeta,
   type TerminalHistorySegment,
 } from './terminalHistoryStore';
@@ -151,17 +152,45 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
    * 一次性发几十个删除请求会排队超时，而 `terminalOutputStore.delete` 吞掉失败 →
    * 静默留下孤儿块。小批既快于串行，也不会打满连接池。
    */
-  const deleteChunksForSession = useCallback(async (sessionId: string, count: number) => {
-    const DELETE_BATCH = 4;
-    for (let start = 0; start < count; start += DELETE_BATCH) {
-      const batch = Math.min(DELETE_BATCH, count - start);
-      await Promise.all(
-        Array.from({ length: batch }, (_unused, offset) =>
-          terminalOutputStore.delete(chunkKey(sessionId, start + offset)),
-        ),
+  const deleteChunksForSession = useCallback(
+    async (sessionId: string, start: number, count: number) => {
+      const DELETE_BATCH = 4;
+      for (let offset = 0; offset < count; offset += DELETE_BATCH) {
+        const batch = Math.min(DELETE_BATCH, count - offset);
+        await Promise.all(
+          Array.from({ length: batch }, (_unused, index) =>
+            terminalOutputStore.delete(chunkKey(sessionId, start + offset + index)),
+          ),
+        );
+      }
+    },
+    [],
+  );
+
+  /**
+   * 回卷（scrollback 溢出）后清理陈旧块：采集器把 `seq` 归零并整体重采，
+   * 上一代比新代多出来的尾部键已无索引引用（预算统计与删除路径都碰不到），
+   * 必须显式删除，否则成为永久磁盘孤儿。
+   */
+  const evictStaleChunksForRebuild = useCallback(
+    async (sessionId: string, nextCount: number) => {
+      const tabId = useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id;
+      if (!tabId) {
+        return;
+      }
+      const segment = (historyIndexRef.current.get(tabId) ?? []).find(
+        (s) => s.sessionId === sessionId,
       );
-    }
-  }, []);
+      if (!segment) {
+        return;
+      }
+      const { start, count } = staleChunkRange(segment.chunks.length, nextCount);
+      if (count > 0) {
+        await deleteChunksForSession(sessionId, start, count);
+      }
+    },
+    [deleteChunksForSession],
+  );
 
   /** 删除某标签的全部历史：段记录 + 每段 seq = 0..chunks.length-1 的全部块 */
   const deleteHistoryForTab = useCallback(
@@ -171,7 +200,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       ensureHistoryIndexLoaded();
       const segments = historyIndexRef.current.get(tabId) ?? [];
       for (const segment of segments) {
-        await deleteChunksForSession(segment.sessionId, segment.chunks.length);
+        await deleteChunksForSession(segment.sessionId, 0, segment.chunks.length);
         collectorsRef.current.delete(segment.sessionId);
         throttledRef.current.delete(segment.sessionId);
       }
@@ -184,7 +213,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   /** 删除单个段及其全部块记录（预算淘汰用；同标签其它段不受影响） */
   const deleteSegmentRecords = useCallback(
     async (segment: TerminalHistorySegment) => {
-      await deleteChunksForSession(segment.sessionId, segment.chunks.length);
+      await deleteChunksForSession(segment.sessionId, 0, segment.chunks.length);
       collectorsRef.current.delete(segment.sessionId);
       throttledRef.current.delete(segment.sessionId);
     },
@@ -302,7 +331,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
    * 共用一份实现是为了让守卫口径不会在两条路径间漂移。
    */
   const persistCollectedTail = useCallback(
-    (sessionId: string, collector: TerminalHistoryCollector, before: number) => {
+    async (sessionId: string, collector: TerminalHistoryCollector, before: number) => {
       const written = collector.getWrittenChunks();
       // 回卷重建后块数可能恰好与 before 相同，但磁盘 seq 键已被新内容覆盖，
       // 必须更新索引 meta。consumeRebuild 必须**无条件**调用（不能进 && 短路），
@@ -311,9 +340,13 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       if (written.length === before && !rebuilt) {
         return;
       }
+      if (rebuilt) {
+        // 回卷已让磁盘块整体换代：先清掉上一代多出来的尾部键，再写索引
+        await evictStaleChunksForRebuild(sessionId, written.length);
+      }
       upsertHistoryEntry(sessionId, written);
     },
-    [upsertHistoryEntry],
+    [evictStaleChunksForRebuild, upsertHistoryEntry],
   );
 
   /**
@@ -328,7 +361,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       if (!ok) {
         return;
       }
-      persistCollectedTail(sessionId, collector, before);
+      await persistCollectedTail(sessionId, collector, before);
     },
     [collectorFor, persistCollectedTail],
   );
@@ -345,7 +378,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       if (!ok) {
         return;
       }
-      persistCollectedTail(sessionId, collector, before);
+      await persistCollectedTail(sessionId, collector, before);
     },
     [collectorFor, persistCollectedTail],
   );
@@ -412,6 +445,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         // 后 seq 会归零重写，仅按 written.length 删会漏掉更高 seq 的旧块（磁盘孤儿）。
         await deleteChunksForSession(
           sessionId,
+          0,
           Math.max(previousSegment?.chunks.length ?? 0, written.length),
         );
         // 连同采集器一起丢弃：其 written 元信息现已悬空（指向刚删的块），
@@ -446,7 +480,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         if (at >= 0) {
           // 该会话本次没有任何可落盘内容（如采集器被重建且缓冲为空），
           // 段被丢弃前先删掉它记录的块，避免无索引可达的磁盘孤儿。
-          await deleteChunksForSession(sessionId, segments[at].chunks.length);
+          await deleteChunksForSession(sessionId, 0, segments[at].chunks.length);
           // 删除是异步 IPC：期间索引可能被并发改写（结算删段 / 检查点追加），
           // 必须重新取一次再改，否则会把这期间的更新整体覆盖掉。
           const latest = historyIndexRef.current.get(ownerTabId) ?? [];

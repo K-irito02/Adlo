@@ -9,7 +9,6 @@ import {
   effectiveBudgetBytes,
   segmentBytes,
   segmentLines,
-  selectLeadingChunksToEvict,
   selectSegmentsToEvict,
 } from '../terminalHistoryBudget';
 import type { TerminalHistorySegment } from '../terminalHistoryStore';
@@ -95,16 +94,6 @@ describe('selectSegmentsToEvict', () => {
       seg: seg(i + 1, [1000]),
     }));
     expect(selectSegmentsToEvict(list, 1)).toEqual([]);
-  });
-});
-
-describe('selectLeadingChunksToEvict', () => {
-  it('从头部累计，够用即停', () => {
-    expect(selectLeadingChunksToEvict(seg(1, [10, 20, 40, 80]), 25)).toBe(2);
-  });
-
-  it('至少保留最后一块', () => {
-    expect(selectLeadingChunksToEvict(seg(1, [10, 20]), 10 ** 9)).toBe(1);
   });
 });
 

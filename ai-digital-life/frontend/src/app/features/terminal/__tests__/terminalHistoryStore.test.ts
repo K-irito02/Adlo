@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chunkKey, normalizeHistoryIndex } from '../terminalHistoryStore';
+import { chunkKey, normalizeHistoryIndex, staleChunkRange } from '../terminalHistoryStore';
 
 describe('normalizeHistoryIndex', () => {
   it('保留结构完整的段', () => {
@@ -46,5 +46,17 @@ describe('chunkKey', () => {
   it('用合成键承载「一段多块」，不改 IPC 契约', () => {
     expect(chunkKey('s1', 0)).toBe('s1#0');
     expect(chunkKey('s1', 12)).toBe('s1#12');
+  });
+});
+
+describe('staleChunkRange', () => {
+  it('上一代更长时，清理尾部多出来的键区间', () => {
+    expect(staleChunkRange(10, 5)).toEqual({ start: 5, count: 5 });
+  });
+
+  it('等长或新代更长时无需清理', () => {
+    expect(staleChunkRange(3, 3)).toEqual({ start: 3, count: 0 });
+    expect(staleChunkRange(5, 10)).toEqual({ start: 10, count: 0 });
+    expect(staleChunkRange(0, 4)).toEqual({ start: 4, count: 0 });
   });
 });

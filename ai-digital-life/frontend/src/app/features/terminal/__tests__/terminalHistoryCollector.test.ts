@@ -1,6 +1,8 @@
 // src/app/features/terminal/__tests__/terminalHistoryCollector.test.ts
 import { describe, expect, it } from 'vitest';
 import {
+  TERMINAL_CHECKPOINT_IDLE_MS,
+  TERMINAL_CHECKPOINT_MIN_LINES,
   TERMINAL_HISTORY_CHUNK_MAX_BYTES,
   TerminalHistoryCollector,
 } from '../terminalHistoryCollector';
@@ -38,6 +40,7 @@ function makeCollector(
   buffer: ReturnType<typeof makeBuffer>,
   written: Record<string, string>,
   sessionId = 's',
+  now: () => number = () => 0,
 ) {
   const collector = new TerminalHistoryCollector({
     readBuffer: () => buffer,
@@ -46,6 +49,7 @@ function makeCollector(
       written[key] = payload;
       return true;
     },
+    now,
   });
   collector.setSessionId(sessionId);
   return collector;
@@ -238,17 +242,57 @@ describe('TerminalHistoryCollector', () => {
     expect(all).toEqual(lines);
   });
 
-  it('checkpoint 把未满块的冻结行落盘（小会话无需等 64KiB），视口行不入块且幂等', async () => {
+  it('checkpoint 攒块：未达阈值且未空闲时不封，flush（会话结束）一律封块', async () => {
     const written: Record<string, string> = {};
     const c = makeCollector(makeBuffer(['a', 'b'], ['v1']), written);
     await c.collect();
     expect(c.getWrittenChunks()).toEqual([]);
+    // 2 行、几十字节、未空闲 → 攒着不封块（避免稀疏会话每 30s 落一个小块）
     await c.checkpoint();
+    expect(Object.keys(written)).toEqual([]);
+    // 会话结束的 flush 不设阈值：冻结行 + 视口一并封块
+    await c.flush();
     expect(Object.keys(written)).toEqual(['s#0']);
-    expect(JSON.parse(written['s#0']).lines).toEqual([[{ text: 'a' }], [{ text: 'b' }]]);
-    expect(c.getWrittenChunks()).toEqual([{ lines: 2, size: expect.any(Number) }]);
+    expect(JSON.parse(written['s#0']).lines).toEqual([
+      [{ text: 'a' }],
+      [{ text: 'b' }],
+      [{ text: 'v1' }],
+    ]);
+    expect(c.getWrittenChunks()).toEqual([{ lines: 3, size: expect.any(Number) }]);
     // 无新增时再次 checkpoint 不写新块
     await c.checkpoint();
     expect(Object.keys(written)).toEqual(['s#0']);
+  });
+
+  it('checkpoint 攒够行数阈值即封块', async () => {
+    const written: Record<string, string> = {};
+    const lines = Array.from({ length: TERMINAL_CHECKPOINT_MIN_LINES + 1 }, () => 'a');
+    const c = makeCollector(makeBuffer(lines, []), written);
+    await c.collect();
+    await c.checkpoint();
+    expect(Object.keys(written).length).toBeGreaterThan(0);
+  });
+
+  it('checkpoint 攒够字节阈值即封块（行数未达）', async () => {
+    const written: Record<string, string> = {};
+    const longLine = 'x'.repeat(4096);
+    const lines = Array.from({ length: 8 }, () => longLine);
+    const c = makeCollector(makeBuffer(lines, []), written);
+    await c.collect();
+    await c.checkpoint();
+    expect(Object.keys(written).length).toBeGreaterThan(0);
+  });
+
+  it('checkpoint 空闲超时即封块（小 pending 也落盘，限制崩溃丢尾窗口）', async () => {
+    const written: Record<string, string> = {};
+    let now = 0;
+    const c = makeCollector(makeBuffer(['a', 'b'], []), written, 's', () => now);
+    await c.collect();
+    await c.checkpoint();
+    expect(Object.keys(written)).toEqual([]);
+    now += TERMINAL_CHECKPOINT_IDLE_MS;
+    await c.checkpoint();
+    expect(Object.keys(written)).toEqual(['s#0']);
+    expect(JSON.parse(written['s#0']).lines).toEqual([[{ text: 'a' }], [{ text: 'b' }]]);
   });
 });

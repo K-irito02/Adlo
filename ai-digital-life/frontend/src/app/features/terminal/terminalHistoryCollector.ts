@@ -11,6 +11,16 @@ export const TERMINAL_HISTORY_CHUNK_MAX_BYTES = 64 * 1024;
 export const TERMINAL_CAPTURE_SCROLLBACK_LINES = 5000;
 export const TERMINAL_CAPTURE_THROTTLE_MS = 500;
 
+/**
+ * 周期检查点的封块阈值（三选一命中即封）：
+ * - 行数或字节攒够 → 正常封块（块大小合理，写放大低）；
+ * - 距上次封块超过空闲时长 → 即使只有几行也落盘，把「崩溃丢尾」的窗口限制在该时长内。
+ * 会话结束的 `flush` 不受阈值约束，一律封块（尾部必须完整）。
+ */
+export const TERMINAL_CHECKPOINT_MIN_LINES = 200;
+export const TERMINAL_CHECKPOINT_MIN_BYTES = 16 * 1024;
+export const TERMINAL_CHECKPOINT_IDLE_MS = 5 * 60 * 1000;
+
 export interface BufferSnapshot {
   length: number;
   baseY: number;
@@ -23,6 +33,8 @@ interface CollectorDeps {
   cols: () => number;
   /** 返回是否写入成功；实现处应检查 IpcResult.ok（见 terminalOutputStore.save） */
   write: (key: string, payload: string) => Promise<boolean>;
+  /** 时间源（默认 Date.now）：检查点的空闲判定需要它，测试注入以便确定性断言 */
+  now?: () => number;
 }
 
 function utf8Length(text: string): number {
@@ -57,8 +69,14 @@ export class TerminalHistoryCollector {
   private written: TerminalHistoryChunkMeta[] = [];
   private seq = 0;
   private rebuilt = false;
+  /** 上次成功封块的时刻（ms）：检查点的空闲兜底据此判定 */
+  private lastSealAt = 0;
 
   constructor(private readonly deps: CollectorDeps) {}
+
+  private now(): number {
+    return (this.deps.now ?? Date.now)();
+  }
 
   /** 绑定会话并重置全部状态（每建一个新会话都要调用） */
   setSessionId(sessionId: string): void {
@@ -69,6 +87,7 @@ export class TerminalHistoryCollector {
     this.written = [];
     this.seq = 0;
     this.rebuilt = false;
+    this.lastSealAt = this.now();
   }
 
   getWrittenChunks(): TerminalHistoryChunkMeta[] {
@@ -109,9 +128,10 @@ export class TerminalHistoryCollector {
   }
 
   /**
-   * 检查点：收集冻结行后把未满块也封块落盘（小会话无需等 64KiB）。
+   * 检查点：收集冻结行，并在「攒够阈值」或「距上次封块超过空闲时长」时封块。
    * 只含冻结行、不含视口区 —— 与 collect 同口径，追加性与水位不变量同样成立。
-   * 无新增时 seal 空 pending 直接返回 true，不产生空块。
+   * 攒不够就留 pending 给后续检查点或会话结束的 flush（避免稀疏会话每 30s 落一个小块，
+   * 又用空闲兜底把崩溃丢尾窗口限制在 TERMINAL_CHECKPOINT_IDLE_MS 内）。
    */
   async checkpoint(): Promise<boolean> {
     return this.enqueue(() => this.doCheckpoint());
@@ -135,6 +155,13 @@ export class TerminalHistoryCollector {
     this.detectRewind(buffer);
     if (!(await this.append(buffer, buffer.baseY))) {
       return false;
+    }
+    const enoughLines = this.pending.length >= TERMINAL_CHECKPOINT_MIN_LINES;
+    const enoughBytes = this.pendingBytes >= TERMINAL_CHECKPOINT_MIN_BYTES;
+    const idleTooLong = this.now() - this.lastSealAt >= TERMINAL_CHECKPOINT_IDLE_MS;
+    if (!enoughLines && !enoughBytes && !idleTooLong) {
+      // 攒着不封：调用方的「块数未变则跳过」会跟着跳过索引写入，不产生 churn
+      return true;
     }
     return this.seal();
   }
@@ -238,6 +265,7 @@ export class TerminalHistoryCollector {
       return false;
     }
     this.written.push({ lines: this.pending.length, size: utf8Length(payload) });
+    this.lastSealAt = this.now();
     this.seq += 1;
     // 水位只在此处（落盘成功）推进，且严格按「本块行数」推进 —— 失败时不推进，
     // 这是「成功才推进水位、失败重试同一批行不重复」不变量成立的关键。
