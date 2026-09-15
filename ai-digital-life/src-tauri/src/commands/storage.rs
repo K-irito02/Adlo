@@ -1,6 +1,8 @@
+use crate::commands::ipc;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::storage as st;
+use adl_types::IpcResult;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{AppHandle, State};
@@ -189,7 +191,9 @@ fn report_dto(r: &st::MigrationReport) -> StorageReportDto {
 }
 
 #[tauri::command]
-pub fn storage_get_status(state: State<'_, AppState>) -> Result<StorageStatus, AppError> {
+pub fn storage_get_status(
+    state: State<'_, AppState>,
+) -> Result<IpcResult<StorageStatus>, AppError> {
     // TODO(DIAG): 临时诊断日志，定位 getStatus 卡死后删除。
     let t0 = std::time::Instant::now();
     tracing::info!("[STORAGE-DIAG] storage_get_status begin");
@@ -210,28 +214,28 @@ pub fn storage_get_status(state: State<'_, AppState>) -> Result<StorageStatus, A
         last_report: locator.last_report.as_ref().map(report_dto),
     };
     tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "[STORAGE-DIAG] storage_get_status end");
-    Ok(status)
+    Ok(ipc(Ok(status)))
 }
 
 #[tauri::command]
 pub fn storage_scan_foreign_cmd(
     state: State<'_, AppState>,
-) -> Result<Vec<ForeignScanDto>, AppError> {
-    Ok(st::scan_foreign(state.storage.paths())
+) -> Result<IpcResult<Vec<ForeignScanDto>>, AppError> {
+    Ok(ipc(Ok(st::scan_foreign(state.storage.paths())
         .into_iter()
         .map(|f| ForeignScanDto {
             category: f.category.key().to_string(),
             root: f.root.to_string_lossy().to_string(),
             foreign_files: f.foreign_files,
         })
-        .collect())
+        .collect())))
 }
 
 #[tauri::command]
 pub fn storage_preflight_cmd(
     state: State<'_, AppState>,
     patch: StoragePathPatch,
-) -> Result<PreflightDto, AppError> {
+) -> Result<IpcResult<PreflightDto>, AppError> {
     let selection = patch_to_selection(&patch)?;
     let defaults = state.storage_defaults.clone();
     let from = state.storage.paths().clone();
@@ -256,14 +260,14 @@ pub fn storage_preflight_cmd(
             free_bytes
         ));
     }
-    Ok(PreflightDto {
+    Ok(ipc(Ok(PreflightDto {
         ok: errors.is_empty(),
         errors,
         warnings,
         total_files: report.total_files as u64,
         total_bytes: report.total_bytes,
         free_bytes,
-    })
+    })))
 }
 
 // 可用空间经 `DownloadManager::available_space_bytes`（B3）获取，见 `storage_preflight_cmd`。
@@ -273,12 +277,18 @@ pub fn storage_set_paths(
     state: State<'_, AppState>,
     patch: StoragePathPatch,
     apply_now: bool,
-) -> Result<StorageApplyResult, AppError> {
+) -> Result<IpcResult<StorageApplyResult>, AppError> {
     let to = patch_to_selection(&patch)?;
     // 预检（含磁盘空间）；有硬错误则拒绝写入。
-    let preflight = storage_preflight_cmd(state.clone(), patch.clone())?;
+    // storage_preflight_cmd 只在外层 Err 时失败；内层 IpcResult::Err 不可能出现（其失败走外层 ?）。
+    let preflight = match storage_preflight_cmd(state.clone(), patch.clone())? {
+        IpcResult::Ok { data, .. } => data,
+        IpcResult::Err { error, .. } => {
+            return Err(AppError::Internal(error.message));
+        },
+    };
     if !preflight.ok {
-        return Ok(StorageApplyResult { restart_required: false, preflight });
+        return Ok(ipc(Ok(StorageApplyResult { restart_required: false, preflight })));
     }
     let mut locator = st::load_locator();
     locator.pending_migration = Some(st::PendingMigration {
@@ -293,15 +303,15 @@ pub fn storage_set_paths(
 
     // 不在命令内重启：迁移在下次启动、DB 打开前执行。`restart_required` 告知前端
     // 是否应随即调用 `app_restart`。这样避免了「发散调用后返回」的不可达代码。
-    Ok(StorageApplyResult { restart_required: apply_now, preflight })
+    Ok(ipc(Ok(StorageApplyResult { restart_required: apply_now, preflight })))
 }
 
 #[tauri::command]
-pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<(), AppError> {
+pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<()>, AppError> {
     let mut locator = st::load_locator();
     locator.pending_migration = None;
     st::save_locator(&locator)?;
-    Ok(())
+    Ok(ipc(Ok(())))
 }
 
 /// 重启应用。前端在 `storage_set_paths` 返回 `restartRequired == true` 后调用。

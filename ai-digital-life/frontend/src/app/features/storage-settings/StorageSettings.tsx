@@ -104,7 +104,12 @@ export function StorageSettings() {
           categories: result.ok ? result.data.categories.length : 0,
         });
         if (!result.ok) {
-          setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
+          setStatusError(
+            t.storageStatusLoadFailed.replace(
+              '{error}',
+              result.error?.message ?? t.storageUnknownError,
+            ),
+          );
           setLoading(false);
           return;
         }
@@ -166,7 +171,12 @@ export function StorageSettings() {
         elapsedMs: Date.now() - t0,
       });
       if (!result.ok) {
-        setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
+        setStatusError(
+          t.storageStatusLoadFailed.replace(
+            '{error}',
+            result.error?.message ?? t.storageUnknownError,
+          ),
+        );
       } else {
         setStatus(result.data);
         setMode(result.data.mode);
@@ -220,7 +230,10 @@ export function StorageSettings() {
       try {
         const result = await bridge.pickDirectory();
         if (!result.ok) {
-          showToast(t.storagePickFailed.replace('{error}', result.error.message), 'error');
+          showToast(
+            t.storagePickFailed.replace('{error}', result.error?.message ?? t.storageUnknownError),
+            'error',
+          );
           return;
         }
         if (result.data) {
@@ -242,7 +255,7 @@ export function StorageSettings() {
     try {
       const result = await bridge.preflight(buildPatch(false));
       if (!result.ok) {
-        showToast(result.error.message, 'error');
+        showToast(result.error?.message ?? t.storageUnknownError, 'error');
         return;
       }
       setPreflight(result.data);
@@ -250,7 +263,7 @@ export function StorageSettings() {
     } finally {
       setBusy(false);
     }
-  }, [buildPatch, showToast]);
+  }, [buildPatch, showToast, t]);
 
   const handleApplyMigration = useCallback(
     async (retainSource: boolean, applyNow: boolean) => {
@@ -262,7 +275,7 @@ export function StorageSettings() {
       try {
         const result = await bridge.setPaths(buildPatch(retainSource), applyNow);
         if (!result.ok) {
-          showToast(result.error.message, 'error');
+          showToast(result.error?.message ?? t.storageUnknownError, 'error');
           return;
         }
         // 后端可能拒绝写入（预检失败时返回 restartRequired:false + failing preflight）：
@@ -319,14 +332,14 @@ export function StorageSettings() {
     try {
       const result = await bridge.cancelPending();
       if (!result.ok) {
-        showToast(result.error.message, 'error');
+        showToast(result.error?.message ?? t.storageUnknownError, 'error');
         return;
       }
       await refresh();
     } finally {
       setBusy(false);
     }
-  }, [refresh, showToast]);
+  }, [refresh, showToast, t]);
 
   const categories = status?.categories ?? [];
   const coreCategories = categories.slice(0, CORE_CATEGORY_COUNT);

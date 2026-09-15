@@ -122,6 +122,25 @@ describe('StorageSettings', () => {
     expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
   });
 
+  it('does not hang when the backend returns a malformed failure without error object', async () => {
+    // 回归：裸值响应（ok 缺失）曾导致 result.error.message 抛错并卡死 loading。
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: false }),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
+    });
+    expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+  });
+
   it('every real category has non-empty Desc + Related copy (Task-5b)', async () => {
     const realStatus = {
       ...status,
