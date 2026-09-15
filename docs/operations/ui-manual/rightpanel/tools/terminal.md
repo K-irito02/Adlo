@@ -166,7 +166,9 @@ await source.dragTo(target);
 |--------|------|
 | `.adl-tool-primary__scroll--terminal` | 内容区根容器（flex，方向随视图模式） |
 | `.adl-terminal-history` | 只读历史区容器（独立滚动） |
-| `.adl-terminal-history__canvas` | 历史区只读 xterm 挂载容器 |
+| `.adl-terminal-history-list` | 只读历史虚拟列表滚动容器（懒加载视口附近块） |
+| `.adl-terminal-history-row` | 历史单个显示行（钉格行含 `.adl-terminal-history-cell`） |
+| `.adl-terminal-history-divider` | 历史日期分隔符（左右各留 `space-2`） |
 | `.adl-terminal-live` | 实时终端容器 |
 | `.adl-terminal-divider` | 历史/实时分界线（`role="separator"`，可拖拽） |
 | `.adl-terminal-error-note` | Shell 启动失败的错误提示（仅活跃错误状态显示） |
@@ -196,11 +198,12 @@ await page.mouse.up();
 - 拖拽期间仅写 CSS 变量 `--adl-terminal-history-ratio`，松手才提交并持久化
 - 分界线悬停/激活高亮为中性提示色 `--text-secondary`（禁用 `--accent` 蓝，详见提示色规范）；只读历史底色跟随主题（与实时终端一致）
 
-### 重启恢复行为
+### 会话归档与重启恢复行为
 
-1. 应用重启后，恢复的标签其旧 PTY 会话被归档为「只读历史段」（末尾带 `─── HH:MM:SS YYYY-MM-DD ───` 时间分隔条，格式为用户指定、不随语言变化）
-2. 实时终端是全新 Shell，历史**绝不注入**实时缓冲区（ConPTY 坐标系对齐是硬性不变量）
-3. 历史按标签累积（上限 5 段），跨重启保留
+1. 会话结束（PTY 退出 / 关闭应用的落盘）即把该会话归档为「只读历史段」（末尾带 `─── HH:MM:SS DD-MM-YYYY ───` 时间分隔条，格式固定、不随语言变化）；应用重启时对残留的进行中段兜底定稿
+2. 关闭应用时先拦截关闭 → 窗口立即隐藏 → 后台把未定稿会话全部落盘 → 再彻底退出（超时兜底）
+3. 实时终端是全新 Shell，历史**绝不注入**实时缓冲区（ConPTY 坐标系对齐是硬性不变量）
+4. 历史按标签累积并跨重启保留；磁盘超预算时按最旧优先淘汰整段，且始终保留最近 20 段（`TERMINAL_HISTORY_MIN_SEGMENTS_KEPT`，无固定段数上限）
 
 ---
 

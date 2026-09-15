@@ -12,8 +12,10 @@ function cell(ch: string): ExtractCell {
     getWidth: () => 1,
     isFgDefault: () => true,
     getFgColor: () => 0,
+    isFgRGB: () => false,
     isBgDefault: () => true,
     getBgColor: () => 0,
+    isBgRGB: () => false,
     isBold: () => false,
     isItalic: () => false,
     isUnderline: () => false,
@@ -160,11 +162,98 @@ describe('TerminalHistoryCollector', () => {
     // 模拟 scrollback 被裁剪：总行数缩到水位之下，绝对行号随之失效
     buffer = { length: 1, baseY: 0, activeType: 'normal', getLine: () => undefined };
     await c.collect();
-    expect(c.needsRebuild()).toBe(true);
+    expect(c.consumeRebuild()).toBe(true);
+    // 一次性消费：再次读取为 false，避免“块数未变则跳过”保护被永久绕过
+    expect(c.consumeRebuild()).toBe(false);
     expect(c.getWrittenChunks().length).toBe(0);
   });
 
   it('块上限常量取自设计（64 KiB）', () => {
     expect(TERMINAL_HISTORY_CHUNK_MAX_BYTES).toBe(64 * 1024);
+  });
+
+  it('flush 丢掉定稿快照末尾全空白行（分隔符不再沉底），中间空行保留', async () => {
+    const written: Record<string, string> = {};
+    const c = makeCollector(makeBuffer(['a', '', ''], ['v1', '', '']), written);
+    await c.flush();
+    expect(Object.keys(written)).toEqual(['s#0']);
+    expect(JSON.parse(written['s#0']).lines).toEqual([
+      [{ text: 'a' }],
+      [],
+      [],
+      [{ text: 'v1' }],
+    ]);
+  });
+
+  it('flush 全空白会话不产生空块', async () => {
+    const written: Record<string, string> = {};
+    const c = makeCollector(makeBuffer([], ['', '']), written);
+    await c.flush();
+    expect(Object.keys(written)).toEqual([]);
+    expect(c.getWrittenChunks()).toEqual([]);
+  });
+
+  it('flush 丢掉末尾空格填充行（带背景色的空白行同样修剪）', async () => {
+    const written: Record<string, string> = {};
+    // 视口尾部是带背景色的 3 格空格行：trimTrailingBlank 保留它（有 bg），isBlankLine 修剪它
+    const bgSpace = {
+      ...cell(' '),
+      isBgDefault: () => false,
+      getBgColor: () => 1,
+    };
+    const tailLine = { getCell: (x: number) => (x < 3 ? bgSpace : undefined) };
+    const buffer = {
+      length: 3,
+      baseY: 2,
+      activeType: 'normal' as const,
+      getLine: (y?: number) =>
+        y === 0
+          ? { getCell: (x: number) => (x === 0 ? cell('a') : undefined) }
+          : y === 1
+            ? { getCell: (x: number) => (x === 0 ? cell('v1') : undefined) }
+            : y === 2
+              ? tailLine
+              : undefined,
+    };
+    const collector = new TerminalHistoryCollector({
+      readBuffer: () => buffer,
+      cols: () => 10,
+      write: async (key, payload) => {
+        written[key] = payload;
+        return true;
+      },
+    });
+    collector.setSessionId('s');
+    await collector.flush();
+    expect(JSON.parse(written['s#0']).lines).toEqual([[{ text: 'a' }], [{ text: 'v1' }]]);
+  });
+
+  it('并发 collect 与 flush 串行执行不丢行', async () => {
+    const written: Record<string, string> = {};
+    const lines = Array.from({ length: 20 }, (_, i) => `L${i}`);
+    const c = makeCollector(makeBuffer(lines, []), written);
+    // 故意让写变慢，放大交错窗口：若串行化失效，水位错位会丢行或写重复行
+    await Promise.all([c.collect(), c.checkpoint(), c.flush()]);
+    const all: string[] = [];
+    for (const payload of Object.values(written)) {
+      for (const line of JSON.parse(payload).lines as { text: string }[][]) {
+        all.push(line.map((r) => r.text).join(''));
+      }
+    }
+    expect(all).toEqual(lines);
+  });
+
+  it('checkpoint 把未满块的冻结行落盘（小会话无需等 64KiB），视口行不入块且幂等', async () => {
+    const written: Record<string, string> = {};
+    const c = makeCollector(makeBuffer(['a', 'b'], ['v1']), written);
+    await c.collect();
+    expect(c.getWrittenChunks()).toEqual([]);
+    await c.checkpoint();
+    expect(Object.keys(written)).toEqual(['s#0']);
+    expect(JSON.parse(written['s#0']).lines).toEqual([[{ text: 'a' }], [{ text: 'b' }]]);
+    expect(c.getWrittenChunks()).toEqual([{ lines: 2, size: expect.any(Number) }]);
+    // 无新增时再次 checkpoint 不写新块
+    await c.checkpoint();
+    expect(Object.keys(written)).toEqual(['s#0']);
   });
 });

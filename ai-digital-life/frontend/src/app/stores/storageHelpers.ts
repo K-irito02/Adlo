@@ -84,22 +84,27 @@ export function createDebouncedWrite(waitMs: number) {
     scheduleFlush();
   }
 
+  /**
+   * 同步落盘全部 pending 写入（供关闭/卸载路径调用：去抖中的数据不等 idle 回调）。
+   * 无 pending 时为空操作；幂等（已调度的 idle/定时回调稍后空跑一次，无害）。
+   */
+  function flush(): void {
+    writeScheduled = false;
+    for (const [key, value] of pendingWrites) {
+      writeJson(key, value);
+    }
+    pendingWrites.clear();
+    for (const [key, value] of pendingNumberWrites) {
+      writeNumber(key, value);
+    }
+    pendingNumberWrites.clear();
+  }
+
   function scheduleFlush(): void {
     if (writeScheduled) {
       return;
     }
     writeScheduled = true;
-    const flush = () => {
-      writeScheduled = false;
-      for (const [key, value] of pendingWrites) {
-        writeJson(key, value);
-      }
-      pendingWrites.clear();
-      for (const [key, value] of pendingNumberWrites) {
-        writeNumber(key, value);
-      }
-      pendingNumberWrites.clear();
-    };
     if (typeof requestIdleCallback === 'function') {
       requestIdleCallback(flush, { timeout: 500 });
     } else {
@@ -107,11 +112,19 @@ export function createDebouncedWrite(waitMs: number) {
     }
   }
 
-  return { scheduleWrite, scheduleNumberWrite };
+  return { scheduleWrite, scheduleNumberWrite, flush };
 }
 
 const crossSliceWriter = createDebouncedWrite(50);
 export const scheduleCrossSliceWrite = crossSliceWriter.scheduleWrite;
+
+/**
+ * 同步落盘跨 slice 共享调度器中的 pending 写入。
+ * 关闭/卸载时调用，确保去抖窗口内的数据（标签、历史索引等）不随进程退出丢失。
+ */
+export function flushCrossSliceWrites(): void {
+  crossSliceWriter.flush();
+}
 
 /**
  * 创建绑定到指定 localStorage key 的持久化写入函数。

@@ -11,6 +11,7 @@ import { terminalXtermPool, readTerminalFontFamily } from './terminalXtermPool';
 import {
   terminalHistoryStore,
   chunkKey,
+  type TerminalHistoryChunkMeta,
   type TerminalHistorySegment,
 } from './terminalHistoryStore';
 import {
@@ -25,6 +26,11 @@ import {
   TERMINAL_HISTORY_BUDGET_FOLLOW_DISK,
 } from './terminalHistoryBudget';
 import type { ExtractLine } from './historyModel';
+import { isTauriShell } from '@shared/env';
+import { flushCrossSliceWrites } from '@stores/storageHelpers';
+
+/** 关闭时等待历史落盘的总超时：IPC 挂起也不能卡死窗口关闭 */
+const CLOSE_FLUSH_TIMEOUT_MS = 5000;
 
 const SHELL_MAP: Record<TerminalProfile, string> = {
   powershell: 'powershell',
@@ -141,6 +147,16 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     return collector;
   }, []);
 
+  /**
+   * 删除某会话的 `[0, count)` 号块记录（串行 await：调用方的等待链必须覆盖删除，
+   * 否则关闭路径的 destroy 可能抢在删除完成前杀死渲染进程）。
+   */
+  const deleteChunksForSession = useCallback(async (sessionId: string, count: number) => {
+    for (let seq = 0; seq < count; seq += 1) {
+      await terminalOutputStore.delete(chunkKey(sessionId, seq));
+    }
+  }, []);
+
   /** 删除某标签的全部历史：段记录 + 每段 seq = 0..chunks.length-1 的全部块 */
   const deleteHistoryForTab = useCallback(
     async (tabId: string) => {
@@ -149,28 +165,24 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       ensureHistoryIndexLoaded();
       const segments = historyIndexRef.current.get(tabId) ?? [];
       for (const segment of segments) {
-        for (let seq = 0; seq < segment.chunks.length; seq += 1) {
-          await terminalOutputStore.delete(chunkKey(segment.sessionId, seq));
-        }
+        await deleteChunksForSession(segment.sessionId, segment.chunks.length);
         collectorsRef.current.delete(segment.sessionId);
         throttledRef.current.delete(segment.sessionId);
       }
       historyIndexRef.current.delete(tabId);
       persistHistoryIndex();
     },
-    [ensureHistoryIndexLoaded, persistHistoryIndex],
+    [deleteChunksForSession, ensureHistoryIndexLoaded, persistHistoryIndex],
   );
 
-  /** 删除单个段及其全部块记录（预算淘汰用；不影响同标签其它段） */
+  /** 删除单个段及其全部块记录（预算淘汰用；同标签其它段不受影响） */
   const deleteSegmentRecords = useCallback(
-    async (tabId: string, segment: TerminalHistorySegment) => {
-      for (let seq = 0; seq < segment.chunks.length; seq += 1) {
-        await terminalOutputStore.delete(chunkKey(segment.sessionId, seq));
-      }
+    async (segment: TerminalHistorySegment) => {
+      await deleteChunksForSession(segment.sessionId, segment.chunks.length);
       collectorsRef.current.delete(segment.sessionId);
       throttledRef.current.delete(segment.sessionId);
     },
-    [],
+    [deleteChunksForSession],
   );
 
   /** 预算结算：超出有效预算时按最旧优先淘汰整段历史 */
@@ -213,7 +225,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       doomedByTab.set(tabId, set);
       const segment = all.find((e) => e.tabId === tabId && e.seg.sessionId === sessionId)?.seg;
       if (segment) {
-        await deleteSegmentRecords(tabId, segment);
+        await deleteSegmentRecords(segment);
       }
     }
     for (const [tabId, sessionIds] of doomedByTab) {
@@ -228,37 +240,100 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     persistHistoryIndex();
   }, [deleteSegmentRecords, persistHistoryIndex]);
 
-  /** 采集一次 → 把块的元信息写回索引 → 结算预算 */
-  const persistCollectedChunks = useCallback(
-    async (sessionId: string) => {
-      const collector = collectorFor(sessionId);
-      const ok = await collector.collect();
-      if (!ok) {
-        return; // 失败：水位未推进，未满块保留，下一次采集重试
-      }
-      ensureHistoryIndexLoaded();
-      const tab = useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId);
-      if (!tab) {
+  /**
+   * 把采集器已落盘块的元信息写回索引 → 结算预算。
+   * 空段（written 为空）不入索引：它无任何可渲染行，只会产出孤立日期分隔符。
+   * ownerTabId 可选：调用方已解析归属标签时透传，避免按 sessionId 重查
+   * （标签已关闭但历史保留在索引中时，重查会早退丢更新）。
+   */
+  const upsertHistoryEntry = useCallback(
+    (sessionId: string, written: TerminalHistoryChunkMeta[], ownerTabId?: string) => {
+      if (written.length === 0) {
         return;
       }
-      const segments = historyIndexRef.current.get(tab.id) ?? [];
+      ensureHistoryIndexLoaded();
+      const tabId =
+        ownerTabId ??
+        useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id;
+      if (!tabId) {
+        return;
+      }
+      const segments = historyIndexRef.current.get(tabId) ?? [];
       const at = segments.findIndex((s) => s.sessionId === sessionId);
+      // 已定稿条目（live:false）只刷新 chunks，不翻回 live、也不后推 endedAt：
+      // 关闭被拦等异常路径下会话仍存活，后续 persist 不能把历史从只读区抹掉，
+      // 也不该让分隔符时间从“真实结束时刻”漂移到“迟到采集时刻”。
+      const existing = segments[at];
       const next: TerminalHistorySegment = {
         sessionId,
-        endedAt: Date.now(),
-        live: true,
-        chunks: collector.getWrittenChunks(),
+        endedAt: existing?.live === false ? existing.endedAt : Date.now(),
+        live: existing?.live === false ? false : true,
+        chunks: written,
       };
       if (at >= 0) {
         segments[at] = next;
       } else {
         segments.push(next);
       }
-      historyIndexRef.current.set(tab.id, segments);
+      historyIndexRef.current.set(tabId, segments);
       persistHistoryIndex();
       void settleHistoryBudget();
     },
-    [collectorFor, ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget],
+    [ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget],
+  );
+
+  /**
+   * 两条采集路径（节流 collect / 30s 检查点）共用的收尾：块数未变且未发生回卷时
+   * 跳过 upsert —— 空闲期无意义的索引写、版本 bump（重渲染）与预算结算都不做。
+   * 共用一份实现是为了让守卫口径不会在两条路径间漂移。
+   */
+  const persistCollectedTail = useCallback(
+    (sessionId: string, collector: TerminalHistoryCollector, before: number) => {
+      const written = collector.getWrittenChunks();
+      // 回卷重建后块数可能恰好与 before 相同，但磁盘 seq 键已被新内容覆盖，
+      // 必须更新索引 meta。consumeRebuild 必须**无条件**调用（不能进 && 短路），
+      // 否则长度变化时标志不被消费、残留到下一次触发，多出一次无意义 upsert。
+      const rebuilt = collector.consumeRebuild();
+      if (written.length === before && !rebuilt) {
+        return;
+      }
+      upsertHistoryEntry(sessionId, written);
+    },
+    [upsertHistoryEntry],
+  );
+
+  /**
+   * 采集一次（节流路径，collect-only：不封未满块）→ 收尾写索引。
+   * 失败时水位未推进，未满块保留，下一次采集重试。
+   */
+  const persistCollectedChunks = useCallback(
+    async (sessionId: string) => {
+      const collector = collectorFor(sessionId);
+      const before = collector.getWrittenChunks().length;
+      const ok = await collector.collect();
+      if (!ok) {
+        return;
+      }
+      persistCollectedTail(sessionId, collector, before);
+    },
+    [collectorFor, persistCollectedTail],
+  );
+
+  /**
+   * 检查点持久化（30 秒周期用）：收集冻结行后把未满块也封块落盘，
+   * 小会话无需等 64KiB 上限。节流路径保持 collect-only，避免高频碎块。
+   */
+  const persistCheckpoint = useCallback(
+    async (sessionId: string) => {
+      const collector = collectorFor(sessionId);
+      const before = collector.getWrittenChunks().length;
+      const ok = await collector.checkpoint();
+      if (!ok) {
+        return;
+      }
+      persistCollectedTail(sessionId, collector, before);
+    },
+    [collectorFor, persistCollectedTail],
   );
 
   /** 输出驱动的采集入口（节流） */
@@ -277,36 +352,145 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     [persistCollectedChunks],
   );
 
-  /** 段定稿：live 置 false、endedAt 冻结在最后一次采集时刻 */
+  /**
+   * 段定稿：先 flush 把视口区也封入最后一块（会话已结束，视口不再变化），
+   * 再把 live 置 false。零输出会话（written 为空）不留索引，不产出孤立分隔符。
+   * 只作用于拥有该会话的标签；索引中找不到时回退按 sessionId 找归属标签
+   * （小会话可能从未 persist 过，索引里还没有它 —— 这正是纯分隔符 bug 的另一半）。
+   * 无归属（标签已删）时直接返回：flush 的落盘 IO 在此之前绝不执行，
+   * 否则写出的块无索引可达、无预算可淘汰、无删除可清理，成为永久孤儿。
+   */
   const finalizeSegment = useCallback(
-    (sessionId: string) => {
+    async (sessionId: string) => {
       ensureHistoryIndexLoaded();
+      let ownerTabId: string | null = null;
       for (const [tabId, segments] of historyIndexRef.current) {
-        const at = segments.findIndex((s) => s.sessionId === sessionId);
-        if (at >= 0) {
-          segments[at] = {
-            ...segments[at],
-            live: false,
-            chunks: collectorFor(sessionId).getWrittenChunks(),
-          };
-          historyIndexRef.current.set(tabId, segments);
+        if (segments.some((s) => s.sessionId === sessionId)) {
+          ownerTabId = tabId;
+          break;
         }
       }
+      ownerTabId ??=
+        useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id ?? null;
+      if (!ownerTabId) {
+        collectorsRef.current.delete(sessionId);
+        throttledRef.current.delete(sessionId);
+        return;
+      }
+      // flush 是异步 IPC，等待期间索引可能被改写：用户删整个标签历史、标签被关闭、
+      // 或预算结算淘汰了「该会话这一段」（标签仍有其它段）。await 后必须重新校验，
+      // 否则会把刚被删除的段“复活”成引用已删块的孤儿（无 UI 可达、无删除入口、仍占预算）。
+      // 判据用「该段定稿前是否已入索引」而非「tab key 是否存在」——后者漏掉单段淘汰。
+      const segmentExistedBefore = (historyIndexRef.current.get(ownerTabId) ?? []).some(
+        (s) => s.sessionId === sessionId,
+      );
+      const collector = collectorFor(sessionId);
+      const flushed = await collector.flush();
+      const written = collector.getWrittenChunks();
+      const segments = historyIndexRef.current.get(ownerTabId) ?? [];
+      const at = segments.findIndex((s) => s.sessionId === sessionId);
+      const tabStillExists = useAppStore.getState().terminalTabs.some((t) => t.id === ownerTabId);
+      if (!tabStillExists || (segmentExistedBefore && at < 0)) {
+        // 归属标签已关闭，或该段在等待期间被删除/淘汰：
+        // 本次落盘的块已无归属，逐块删除（await 完成，关闭路径的 await 链需覆盖它，
+        // 否则 destroy 可能抢在删除完成前退出）后放弃写入索引。
+        await deleteChunksForSession(sessionId, written.length);
+        // 连同采集器一起丢弃：其 written 元信息现已悬空（指向刚删的块），
+        // 会话若仍在输出，下一次采集会以全新采集器从当前缓冲重新封块。
+        collectorsRef.current.delete(sessionId);
+        throttledRef.current.delete(sessionId);
+        return;
+      }
+      if (!flushed) {
+        // 落盘失败：水位未推进，保留 live 让 30s 检查点/下次关闭重试；
+        // 已定稿条目（live:false）则原样不动，避免把“已完成”翻回进行中。
+        if (at >= 0 && segments[at].live) {
+          const retry = segments.slice();
+          // 失败时 written 可能为空（例如采集器刚被重建且尚未封块）：
+          // 此时保留既有 chunks meta，避免把元信息抹空（重启剪枝会让磁盘块成孤儿）。
+          retry[at] = {
+            ...retry[at],
+            endedAt: Date.now(),
+            chunks: written.length > 0 ? written : segments[at].chunks,
+          };
+          historyIndexRef.current.set(ownerTabId, retry);
+          persistHistoryIndex();
+        } else if (at < 0) {
+          upsertHistoryEntry(sessionId, written, ownerTabId);
+        }
+        return;
+      }
+      if (written.length === 0) {
+        if (at >= 0) {
+          // 该会话本次没有任何可落盘内容（如采集器被重建且缓冲为空），
+          // 段被丢弃前先删掉它记录的块，避免无索引可达的磁盘孤儿。
+          await deleteChunksForSession(sessionId, segments[at].chunks.length);
+          // 删除是异步 IPC：期间索引可能被并发改写（结算删段 / 检查点追加），
+          // 必须重新取一次再改，否则会把这期间的更新整体覆盖掉。
+          const latest = historyIndexRef.current.get(ownerTabId) ?? [];
+          const latestAt = latest.findIndex((s) => s.sessionId === sessionId);
+          if (latestAt >= 0) {
+            const next = latest.filter((_, i) => i !== latestAt);
+            if (next.length > 0) {
+              historyIndexRef.current.set(ownerTabId, next);
+            } else {
+              historyIndexRef.current.delete(ownerTabId);
+            }
+            persistHistoryIndex();
+          }
+        }
+        return;
+      }
+      // endedAt：live 段在定稿时冻结为当前时刻（Math.max 防时钟回拨）；
+      // 已定稿段（live:false）必须保留原结束时间——关闭路径的 flushAllHistories
+      // 会把本次运行内所有已结束会话再走一遍 finalize（采集器与 sessionId 都还在），
+      // 若无条件取 Date.now()，所有历史分隔条都会被改写成应用关闭时刻。
+      const existingSegment = segments[at];
+      const next: TerminalHistorySegment = {
+        sessionId,
+        endedAt:
+          existingSegment?.live === false
+            ? existingSegment.endedAt
+            : Math.max(existingSegment?.endedAt ?? 0, Date.now()),
+        live: false,
+        chunks: written,
+      };
+      const updated = segments.slice();
+      if (at >= 0) {
+        updated[at] = next;
+      } else {
+        updated.push(next);
+      }
+      historyIndexRef.current.set(ownerTabId, updated);
       persistHistoryIndex();
       // 段定稿后按用户偏好重新结算预算（fire-and-forget；不阻塞 beforeunload / 关闭路径）。
+      // 关闭路径不依赖它：finalizeSegment 的 await 不包含结算，5s 预算全留给 flush+save。
       void settleHistoryBudget();
     },
-    [collectorFor, ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget],
+    [
+      collectorFor,
+      deleteChunksForSession,
+      ensureHistoryIndexLoaded,
+      persistHistoryIndex,
+      settleHistoryBudget,
+      upsertHistoryEntry,
+    ],
   );
 
-  /** 应用启动：残留的 live 段其 PTY 必然已随进程退出而死 → 定稿 */
+  /** 应用启动：残留的 live 段其 PTY 必然已随进程退出而死 → 定稿；空段直接剪枝 */
   const finalizeStaleSegments = useCallback(() => {
     ensureHistoryIndexLoaded();
     let changed = false;
     for (const [tabId, segments] of historyIndexRef.current) {
-      const next = segments.map((s) => (s.live ? { ...s, live: false } : s));
-      if (next.some((s, i) => s !== segments[i])) {
-        historyIndexRef.current.set(tabId, next);
+      const next = segments
+        .filter((s) => s.chunks.length > 0)
+        .map((s) => (s.live ? { ...s, live: false } : s));
+      if (next.length !== segments.length || next.some((s, i) => s !== segments[i])) {
+        if (next.length > 0) {
+          historyIndexRef.current.set(tabId, next);
+        } else {
+          historyIndexRef.current.delete(tabId);
+        }
         changed = true;
       }
     }
@@ -417,15 +601,35 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
 
       try {
-        // 等待容器出现：React batching 可能导致 XtermTerminal 尚未 mount，
-        // document.querySelector 返回 null。轮询最多等 30 帧（~500ms）。
+        // 等待容器出现且完成布局：React batching 可能导致 XtermTerminal 尚未 mount
+        // （querySelector 返回 null），或已挂载但尚未布局（零尺寸，此时量出的
+        // 列数极小，会 baked 进 shell 排版与采集快照，且事后无法修复）。
+        // 帧数 + 墙钟双上限：面板隐藏/窗口最小化时 rAF 会被节流甚至暂停，
+        // 只数帧会让本函数长时间挂起；超时即回退 80×24（后续 fit→PTY resize 会纠正）。
+        const deadline = performance.now() + 1000;
         let container: HTMLElement | null = null;
-        for (let frame = 0; frame < 30; frame++) {
-          container = document.querySelector('.adl-terminal-canvas');
-          if (container) {
+        for (let frame = 0; frame < 60; frame++) {
+          const candidate = document.querySelector('.adl-terminal-canvas');
+          if (
+            candidate instanceof HTMLElement &&
+            candidate.clientWidth > 0 &&
+            candidate.clientHeight > 0
+          ) {
+            container = candidate;
             break;
           }
-          await new Promise<void>((r) => requestAnimationFrame(() => r()));
+          if (performance.now() >= deadline) {
+            break;
+          }
+          // rAF 与定时器赛跑：窗口被系统暂停时 rAF 完全不触发，
+          // 只等 rAF 会让这个 await 永久挂起（墙钟 deadline 也就永远检查不到）。
+          await new Promise<void>((resolve) => {
+            const timer = setTimeout(resolve, 100);
+            requestAnimationFrame(() => {
+              clearTimeout(timer);
+              resolve();
+            });
+          });
         }
 
         let cols = 80;
@@ -483,6 +687,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         createdSessionIdsRef.current.add(sessionId);
         liveSessionIdsRef.current.add(sessionId);
         ptyDimsRef.current.set(sessionId, { cols, rows });
+        // 出生尺寸同步给池：XtermTerminal 挂载时 acquire 消费，保证池几何
+        // 与 PTY 从出生就一致（采集读池 buffer，shell 按 PTY 排版）。
+        terminalXtermPool.setBirthDims(sessionId, cols, rows);
         terminalUpdateTab(tabId, { sessionId, status: 'running' });
       } catch (err) {
         console.error('Terminal creation error:', err);
@@ -562,30 +769,150 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     [attachSession, ensureTabCwdsLoaded],
   );
 
-  // 30 秒周期兜底：即使长时间无新输出也至少落盘一次（节流无法覆盖「安静」期的最后一次采集）。
+  // 30 秒周期检查点：收集冻结行并把未满块也封块落盘（小会话无需等 64KiB 上限；
+  // 节流路径保持 collect-only，避免高频碎块；安静期至少落盘一次）。
+  // 只轮询**仍在存活**的会话：已结束会话的标签仍持有 sessionId 且 xterm 缓冲还在池里，
+  // 若继续检查点，其采集器可能已被预算淘汰删掉 → 新建采集器从缓冲 row 0 重封 →
+  // push 出一个 live 段（live 段永不参与淘汰）→ 已淘汰的历史被"复活"、预算失效。
   useEffect(() => {
     const interval = setInterval(() => {
       const sessionIds = sessionIdsKey ? sessionIdsKey.split('|') : [];
       for (const sessionId of sessionIds) {
-        void persistCollectedChunks(sessionId);
+        if (!liveSessionIdsRef.current.has(sessionId)) {
+          continue;
+        }
+        void persistCheckpoint(sessionId);
       }
     }, 30_000);
     return () => clearInterval(interval);
-  }, [sessionIdsKey, persistCollectedChunks]);
+  }, [sessionIdsKey, persistCheckpoint]);
+
+  /**
+   * 关闭前把全部未定稿会话 flush+定稿（视口尾部也落盘）。
+   * 候选 = 索引中 live 段 ∪ 归属标签仍在但从未入索引的采集器会话（小会话可能一次都没 persist 过）。
+   */
+  const flushAllHistories = useCallback(async () => {
+    ensureHistoryIndexLoaded();
+    const pending = new Set<string>();
+    historyIndexRef.current.forEach((segments) => {
+      segments.forEach((s) => {
+        if (s.live) {
+          pending.add(s.sessionId);
+        }
+      });
+    });
+    const ownedSessionIds = new Set(
+      useAppStore
+        .getState()
+        .terminalTabs.map((t) => t.sessionId)
+        .filter((id): id is string => Boolean(id)),
+    );
+    collectorsRef.current.forEach((_collector, sessionId) => {
+      if (ownedSessionIds.has(sessionId)) {
+        pending.add(sessionId);
+      }
+    });
+    for (const sessionId of pending) {
+      try {
+        await finalizeSegment(sessionId);
+      } catch (err) {
+        // 关闭定稿失败即尾部丢失：记一条生产错误日志（常驻，非临时调试日志），
+        // 单会话失败不阻断其余会话，5s 超时兜底防卡死。
+        console.error('terminal history close flush failed', {
+          sessionId,
+          error: String(err),
+        });
+      }
+    }
+  }, [ensureHistoryIndexLoaded, finalizeSegment]);
 
   useEffect(() => {
     const handleBeforeUnload = () => {
+      // fire-and-forget 的 finalize 未必赶得上（save 是异步 IPC），但已落盘块的
+      // 元信息必须先进索引：先同步 upsert 当前 written，再同步落盘去抖写入，
+      // 重启后索引与已封块一致。视口尾部与本次未封块仍是 best-effort：
+      // 浏览器无异步等待 API，尾部丢失是已知限制，由 30s 检查点兜底
+      // （最多丢 30s 输出 + 视口尾；Tauri 走 onCloseRequested 可靠路径，不受此限）。
       collectorsRef.current.forEach((collector, sessionId) => {
-        void collector.flush().then((ok) => {
-          if (ok) {
-            finalizeSegment(sessionId);
-          }
-        });
+        upsertHistoryEntry(sessionId, collector.getWrittenChunks());
+        void finalizeSegment(sessionId);
       });
+      // 同步落盘去抖中的 localStorage 写入（标签、历史索引等），
+      // 否则重启后标签与历史索引丢失。
+      flushCrossSliceWrites();
     };
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [finalizeSegment]);
+  }, [finalizeSegment, upsertHistoryEntry]);
+
+  // Tauri 可靠关闭：拦截关闭后先 hide() 让窗口瞬间消失（WebView JS 继续运行），
+  // 后台 await 历史落盘完成再 destroy() 彻底退出（超时兜底防卡死）。
+  // 用 destroy() 而非 close()：前者不再触发 closeRequested（无重入），且 capabilities 已配 allow-destroy。
+  // 浏览器无异步等待 API，保持 beforeunload best-effort + 30s 检查点兜底（行为一致，实现不同）。
+  useEffect(() => {
+    if (!isTauriShell()) {
+      return;
+    }
+    let active = true;
+    let unlisten: (() => void) | undefined;
+    void import('@tauri-apps/api/window')
+      .then(({ getCurrentWindow }) => {
+        if (!active) {
+          return;
+        }
+        void getCurrentWindow()
+          .onCloseRequested(async (event) => {
+            event.preventDefault();
+            const win = getCurrentWindow();
+            try {
+              await win.hide();
+            } catch (err) {
+              // 隐藏失败则降级为冻结等待落盘（体验退化但功能仍成）：记生产错误日志。
+              console.error('terminal history close hide failed', {
+                error: String(err),
+              });
+            }
+            try {
+              await Promise.race([
+                flushAllHistories(),
+                new Promise((resolve) => setTimeout(resolve, CLOSE_FLUSH_TIMEOUT_MS)),
+              ]);
+            } finally {
+              // 同步落盘去抖中的 localStorage 写入（历史索引、标签等），再彻底退出；
+              // 否则 destroy 会抢在 idle 回调前杀死渲染进程，重启后历史全空。
+              flushCrossSliceWrites();
+              try {
+                await win.destroy();
+              } catch (err) {
+                // destroy 失败：窗口已被 hide 且 closeRequested 已 preventDefault，
+                // 若不恢复可见性用户只能从任务管理器结束进程 —— 回退 show()。
+                console.error('terminal history close destroy failed', {
+                  error: String(err),
+                });
+                try {
+                  await win.show();
+                } catch (showErr) {
+                  console.error('terminal history close restore failed', {
+                    error: String(showErr),
+                  });
+                }
+              }
+            }
+          })
+          .then((ul) => {
+            if (active) {
+              unlisten = ul;
+            } else {
+              ul();
+            }
+          });
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+      unlisten?.();
+    };
+  }, [flushAllHistories]);
 
   // 启动激活：恢复的标签其会话必然已不存在（应用退出时会话被 kill），
   // 因此在启动时对「上一次运行遗留的活动标签」走一次激活（重建会话），
@@ -753,6 +1080,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         if (tab) {
           terminalUpdateTab(tab.id, { status: 'terminated' });
         }
+        // 会话结束即定稿（flush 封块 + live=false）：历史无需等到应用重启才可见。
+        void finalizeSegment(event.sessionId);
         return;
       }
 
@@ -790,7 +1119,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       collectThrottled(event.sessionId);
     });
     return () => unsub();
-  }, [activeRightTool, persistTabCwds, collectThrottled, terminalUpdateTab]);
+  }, [activeRightTool, persistTabCwds, collectThrottled, terminalUpdateTab, finalizeSegment]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -812,7 +1141,8 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     ensureHistoryIndexLoaded();
     // 已过滤正在进行的段：只读历史区绝不能把「实时终端当前内容」再渲染一遍，
     // 否则 ConPTY 光标坐标系被历史顶偏（「输出跳回顶部」根因）。
-    return (historyIndexRef.current.get(tabId) ?? []).filter((s) => !s.live);
+    const all = historyIndexRef.current.get(tabId) ?? [];
+    return all.filter((s) => !s.live);
     // historyIndexVersion 只是「索引已变化」的渲染触发器，本身不参与计算：
     // 索引存在 ref 里以便在回调中同步读写，这里靠版本号驱动重新取值。
     // eslint-disable-next-line react-hooks/exhaustive-deps

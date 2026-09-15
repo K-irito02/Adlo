@@ -78,22 +78,6 @@
   width: calc(var(--adl-terminal-history-ratio) * (100% - 1px));
 }
 
-.adl-terminal-history__canvas {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  /* 右侧 padding 为 0：host 右侧不内缩，自绘滚动条贴住区域右边缘（事项 5）。
-     左/上/下取 space-2（8px）：事项 1 要求文本与边缘保持间距，4px 仍显局促；
-     边距须与 hostEl 内缩同值（改一边必须改另一边），host 见 TerminalHistoryView.tsx。
-     历史视图无 .xterm-screen/canvas 背景规则是有意的：底色由 xterm theme 兜底
-     （与 --bg-terminal 同值），与实时侧视觉一致。 */
-  padding: var(--space-2, 8px) 0 var(--space-2, 8px) var(--space-2, 8px);
-  box-sizing: border-box;
-  overflow: hidden;
-}
-
 /* 实时终端区：占满剩余空间，保持全高/全宽可用（vim/less 等不受影响） */
 .adl-terminal-live {
   position: relative;
@@ -219,13 +203,11 @@
    残留的原生 .xterm-viewport 滚动条仅视觉隐藏（语义保留：overflow-y:auto 不动，
    滚轮/键盘/程序化滚动能力不受影响，勿改为 overflow:hidden）。
    隐藏手法与 filetree 统一（width:0/height:0，见 leftbar.css）。 */
-.adl-terminal-canvas .xterm-viewport,
-.adl-terminal-history__canvas .xterm-viewport {
+.adl-terminal-canvas .xterm-viewport {
   scrollbar-width: none;
 }
 
-.adl-terminal-canvas .xterm-viewport::-webkit-scrollbar,
-.adl-terminal-history__canvas .xterm-viewport::-webkit-scrollbar {
+.adl-terminal-canvas .xterm-viewport::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
@@ -236,8 +218,7 @@
    运行时只更新 height/top，覆盖 width/left 不会与滚动同步逻辑冲突。
    勿对 top/height 加 transition（滚动跟手性会被过渡拖慢）。
    颜色沿用 xterm 主题（跟随前景，亮暗自适应）。 */
-.adl-terminal-canvas .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider,
-.adl-terminal-history__canvas .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
+.adl-terminal-canvas .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider {
   width: 3px !important;
   left: auto !important;
   right: 2px !important;
@@ -253,22 +234,7 @@
    （容器透明但可命中，3px 细线难瞄准，借容器扩大感知范围） */
 .adl-terminal-canvas .xterm .xterm-scrollable-element > .scrollbar.vertical:hover > .slider,
 .adl-terminal-canvas .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider:hover,
-.adl-terminal-canvas .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider.active,
-.adl-terminal-history__canvas
-  .xterm
-  .xterm-scrollable-element
-  > .scrollbar.vertical:hover
-  > .slider,
-.adl-terminal-history__canvas
-  .xterm
-  .xterm-scrollable-element
-  > .scrollbar.vertical
-  > .slider:hover,
-.adl-terminal-history__canvas
-  .xterm
-  .xterm-scrollable-element
-  > .scrollbar.vertical
-  > .slider.active {
+.adl-terminal-canvas .xterm .xterm-scrollable-element > .scrollbar.vertical > .slider.active {
   width: 100% !important;
   right: 0 !important;
   border-radius: var(--radius-none);
@@ -333,12 +299,33 @@
    复证检索式（仅命中本注释即干净）：git grep -nE "adl-terminal-(runner|output)([^A-Za-z0-9_-]|$)|adl-tool-sidebar([^A-Za-z0-9_-]|$)|adl-select([^A-Za-z0-9_-]|$)" -- . ":(exclude)docs" */
 
 .adl-terminal-history-row {
-  /* 行高与字符宽由实时终端 DOM 实测后写入这两个变量，保证两侧视觉延续 */
+  /* 行高与字符宽由实时终端 DOM 实测后写入这两个变量，保证两侧视觉延续。
+     字体栈必须与 xterm 完全一致（--font-mono 全 token，JetBrains Mono 优先），
+     否则回退字体步进不同、CJK 列逐列漂移；连字与字距调整必须关闭
+     （xterm canvas 默认无连字；等宽连字会吞掉列宽，见 xterm.js #5164）。 */
   height: var(--adl-terminal-cell-height, 17px);
   line-height: var(--adl-terminal-cell-height, 17px);
   white-space: pre;
-  font-family: var(--font-mono-custom, monospace);
+  font-family: var(--font-mono);
   font-size: 13px;
+  font-kerning: none;
+  font-variant-ligatures: none;
+}
+
+/* 逐字钉格的 run 与单元格：每个字形钉死在 w×cell 宽的格里，
+   与 xterm 按单元格绝对定位字形同网格。 */
+.adl-terminal-history-run {
+  white-space: pre;
+}
+
+.adl-terminal-history-cell {
+  display: inline-block;
+  /* vertical-align: top 必须与行盒基线策略成对保留：默认 baseline 会按字形基线
+     对齐，不同字形的基线差会把该格整体下移，破坏行内网格；
+     overflow: hidden 配合定宽裁掉超宽字形溢出（既不换行也不错位）。 */
+  vertical-align: top;
+  overflow: hidden;
+  white-space: pre;
 }
 
 .adl-terminal-history-divider {
@@ -348,6 +335,10 @@
   height: var(--adl-terminal-cell-height, 17px);
   color: var(--text-secondary);
   font-size: var(--text-xs, 12px);
+  /* 只补右侧留白：列表容器左侧已有 space-2 内缩（右侧必须为 0 才能与实时终端
+     同宽、列数一致），若此处再补左右各 8px，左端会变成 16px、右端 8px 而不对称。
+     因此右侧补 8px → 左 8px / 右 8px 视觉对称，且不影响列数换算。 */
+  margin-right: var(--space-2, 8px);
 }
 
 .adl-terminal-history-divider__line {
@@ -362,8 +353,11 @@
 }
 
 /* 只读历史虚拟列表：只挂载视口附近行，整段高度由 spacer 撑开。
-   list 绝对定位填满历史区（保留 space-2 内缩，与实时侧 host 同值），
-   自身 overflow-y:auto 负责滚动；行由 __row 绝对定位、top 用整数行偏移。 */
+   list 绝对定位填满历史区，内缩必须与实时侧 hostEl 逐边同值（左/上/下 space-2、右 0），
+   因为列数由 clientWidth 换算（TerminalHistoryList 的 cols）——任一边不同，
+   历史就会比实时少一列、提前换行，列对齐随之对不上。
+   右侧不留白是实时的既有形态（xterm 自绘滚动条贴右边缘）；
+   日期分隔线的左右留白改由分隔线自身的 margin 提供（见 __divider）。 */
 .adl-terminal-history-list {
   position: absolute;
   top: var(--space-2, 8px);

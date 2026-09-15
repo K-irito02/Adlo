@@ -23,6 +23,11 @@ export function buildLayout(
 ): LayoutRow[] {
   const rows: LayoutRow[] = [];
   for (const segment of segments) {
+    // 空段无任何可渲染行：跳过（否则会产出孤立日期分隔符）。上游四层已保证
+    // 空段到不了这里，此为导出纯函数的最后一道防御，防未来新调用方重蹈覆辙。
+    if (segment.chunks.length === 0) {
+      continue;
+    }
     segment.chunks.forEach((_meta, seq) => {
       const count = wrappedLinesOf(segment.sessionId, seq, cols);
       for (let i = 0; i < count; i += 1) {

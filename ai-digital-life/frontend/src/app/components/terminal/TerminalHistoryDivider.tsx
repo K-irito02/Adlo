@@ -7,12 +7,13 @@
  * 因此「整行铺满 + 日期居中 + 跟随区域宽度变化」全部由 flex 天然满足，
  * 宽度变化不需要任何重放 —— 这正是旧实现做不到的地方。
  * 时间取自该段的 `endedAt`（会话结束时刻），不是归档时刻。
+ * 日期顺序为日-月-年（DD-MM-YYYY），固定口径不随 locale 变化。
  */
 export function formatDividerTime(at: number): string {
   const d = new Date(at);
   const pad = (n: number) => String(n).padStart(2, '0');
   const time = `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  const date = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const date = `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
   return `${time} ${date}`;
 }
 

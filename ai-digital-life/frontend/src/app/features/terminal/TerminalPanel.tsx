@@ -31,15 +31,20 @@ import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
 import { MultiWorkspaceTerminal } from '../workspace-terminal';
 import { useTCopy } from '@i18n/useTCopy';
+import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 export function TerminalPanel() {
   const { t } = useTCopy();
+  // 订阅主题：手动切换亮/暗主题只改 data-theme 属性，不触发重渲染；
+  // 不订阅的话 readTerminalPalette() 拿到的仍是旧对象，只读历史颜色就跟不上。
+  // resolvedTheme 显式进入 palette 的 memo 依赖（主题版本号语义），语义不变、可读性更好。
+  const resolvedTheme = useResolvedTheme();
+  const historyPalette = useMemo(() => readTerminalPalette(), [resolvedTheme]);
 
   const {
     recentWorkspaces,
     terminalWorkspaceExpanded,
     setTerminalWorkspaceExpanded,
-    terminalCloseTab,
     terminalTogglePin,
     removeWorkspaceFromSidebar,
   } = useAppStore(
@@ -47,7 +52,6 @@ export function TerminalPanel() {
       recentWorkspaces: s.recentWorkspaces,
       terminalWorkspaceExpanded: s.terminalWorkspaceExpanded,
       setTerminalWorkspaceExpanded: s.setTerminalWorkspaceExpanded,
-      terminalCloseTab: s.terminalCloseTab,
       terminalTogglePin: s.terminalTogglePin,
       removeWorkspaceFromSidebar: s.removeWorkspaceFromSidebar,
     })),
@@ -90,11 +94,13 @@ export function TerminalPanel() {
   const canCollapse = isCollapseButtonVisible(hasHistory);
 
   // 每个区域的叠加层文案都来自 i18n 键（无硬编码字符串）；
-  // regionName 设为该叠加层所属区域，使 {region} 模板解析为正确的区域名。
+  // regionName 是本区名（收起用），otherRegionName 是另一区名（单区独显时展开用）。
   const regionActionTitles = (region: RegionName) => ({
     collapse: t.terminalRegionCollapseTitle,
     expand: t.terminalRegionExpandTitle,
     regionName: region === 'history' ? t.terminalHistoryRegionName : t.terminalLiveRegionName,
+    otherRegionName:
+      region === 'history' ? t.terminalLiveRegionName : t.terminalHistoryRegionName,
     deleteLabel: t.terminalHistoryDeleteLabel,
     deleteTitle: t.terminalHistoryDeleteTitle,
     clearLabel: t.terminalLiveClearLabel,
@@ -357,7 +363,11 @@ export function TerminalPanel() {
             onToggleExpand={toggleTerminalWorkspaceExpanded}
             onCreateTab={(wsId) => terminalActions.handleCreateTab(undefined, wsId)}
             onSelectTab={terminalActions.handleSelectTab}
-            onCloseTab={terminalCloseTab}
+            onCloseTab={
+              /* 必须走 handleCloseTab（按标签杀 PTY、释放 xterm 池、删除历史与目录记录）；
+                 直接调 store 的 terminalCloseTab 只移除标签状态，会留下孤儿 PTY 进程与历史段 */
+              terminalActions.handleCloseTab
+            }
             onTogglePin={terminalTogglePin}
             onHideFromRightPanels={handleHideTerminalWorkspace}
             onCloseAllTabs={terminalActions.handleCloseAllTabs}
@@ -391,13 +401,13 @@ export function TerminalPanel() {
                   <div className={`adl-terminal-history${liveVisible ? '' : ' is-solo'}`}>
                     <TerminalHistoryList
                       segments={historySegments}
-                      palette={readTerminalPalette()}
+                      palette={historyPalette}
                       readCellMetrics={readHistoryCellMetrics}
                       unavailableLabel={t.terminalHistorySegmentUnavailable}
                     />
                     <TerminalRegionActions
                       region="history"
-                      collapsed={regionCollapse !== 'none'}
+                      collapsedRegion={regionCollapse}
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('history')}
                       onDelete={() => void terminalActions.deleteHistory(activeTab?.id ?? '')}
@@ -431,7 +441,7 @@ export function TerminalPanel() {
                     />
                     <TerminalRegionActions
                       region="live"
-                      collapsed={regionCollapse !== 'none'}
+                      collapsedRegion={regionCollapse}
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('live')}
                       onClear={terminalActions.handleClear}

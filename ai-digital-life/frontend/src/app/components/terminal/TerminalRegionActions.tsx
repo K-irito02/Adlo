@@ -1,11 +1,13 @@
 // src/app/components/terminal/TerminalRegionActions.tsx
-import type { RegionName } from '@features/terminal/terminalRegionCollapse';
+import type { RegionCollapse, RegionName } from '@features/terminal/terminalRegionCollapse';
 import { IconClearDisplay, IconDelete, IconRegionCollapse, IconRegionExpand } from '@icons';
 
 export interface TerminalRegionActionsTitles {
   collapse: string;
   expand: string;
   regionName: string;
+  /** 被收起的另一个区域名：单区独显时展开按钮指向它 */
+  otherRegionName: string;
   deleteLabel?: string;
   deleteTitle?: string;
   clearLabel?: string;
@@ -14,8 +16,13 @@ export interface TerminalRegionActionsTitles {
 
 interface TerminalRegionActionsProps {
   region: RegionName;
-  /** 该区域当前是否处于收起态（收起态下本组件作为常驻「展开」按钮渲染） */
-  collapsed: boolean;
+  /**
+   * 当前被收起的区域（'none' = 两区都可见）。单区独显时可见区的按钮负责展开另一区。
+   * 调用方契约：被收起的区不渲染本组件（见 TerminalPanel 的 historyVisible/liveVisible 门控，
+   * 与 isRegionVisible 的 `collapse !== region` 对应）。若自身即被收起区则返回 null，
+   * 防未来复用/误传把“展开另一区”安在本不该出现的按钮上。
+   */
+  collapsedRegion: RegionCollapse;
   /** 两个区域都可能显示时才为 true；否则不渲染收起/展开按钮 */
   canCollapse: boolean;
   onToggleCollapse: () => void;
@@ -35,7 +42,7 @@ interface TerminalRegionActionsProps {
  */
 export function TerminalRegionActions({
   region,
-  collapsed,
+  collapsedRegion,
   canCollapse,
   onToggleCollapse,
   onDelete,
@@ -43,9 +50,17 @@ export function TerminalRegionActions({
   titles,
   alwaysVisible,
 }: TerminalRegionActionsProps) {
-  const toggleTitle = (collapsed ? titles.expand : titles.collapse).replace(
+  // 被收起的区不应渲染本组件（调用方契约）；误渲染时返回 null，
+  // 避免把“展开另一区”显示在错误的按钮上。
+  if (collapsedRegion === region) {
+    return null;
+  }
+  // 单区独显时，可见区的按钮展开的是被收起的另一区，文案必须用另一区的名字；
+  // 两区都可见时，按钮收起的是本区，用本区名字。
+  const isSolo = collapsedRegion !== 'none';
+  const toggleTitle = (isSolo ? titles.expand : titles.collapse).replaceAll(
     '{region}',
-    titles.regionName,
+    isSolo ? titles.otherRegionName : titles.regionName,
   );
 
   return (
@@ -83,7 +98,7 @@ export function TerminalRegionActions({
           onClick={onToggleCollapse}
           data-region={region}
         >
-          {collapsed ? (
+          {isSolo ? (
             <IconRegionExpand size={14} decorative />
           ) : (
             <IconRegionCollapse size={14} decorative />

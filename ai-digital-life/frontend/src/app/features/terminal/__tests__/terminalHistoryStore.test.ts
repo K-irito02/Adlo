@@ -26,6 +26,18 @@ describe('normalizeHistoryIndex', () => {
   it('丢弃非法标签条目', () => {
     expect(normalizeHistoryIndex({ tab1: 'nope', tab2: null })).toEqual({});
   });
+
+  it('丢弃 chunks 为空的段（空段无任何可渲染行，只会产出孤立日期分隔符）', () => {
+    const raw = {
+      tab1: [
+        { sessionId: 's1', endedAt: 1, live: false, chunks: [] },
+        { sessionId: 's2', endedAt: 2, live: false, chunks: [{ lines: 1, size: 10 }] },
+      ],
+    };
+    expect(normalizeHistoryIndex(raw)).toEqual({
+      tab1: [{ sessionId: 's2', endedAt: 2, live: false, chunks: [{ lines: 1, size: 10 }] }],
+    });
+  });
 });
 
 describe('chunkKey', () => {

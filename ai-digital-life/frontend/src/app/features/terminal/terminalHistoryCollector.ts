@@ -24,6 +24,11 @@ function utf8Length(text: string): number {
   return new TextEncoder().encode(text).length;
 }
 
+/** 全空白行：零 run，或所有 run 的文本全由空白字符组成（含带背景色的空格填充行） */
+function isBlankLine(line: HistoryRun[]): boolean {
+  return line.every((run) => run.text.trim() === '');
+}
+
 /**
  * 行块采集状态机：把「已冻结的屏幕行」按块追加落盘。
  *
@@ -65,12 +70,54 @@ export class TerminalHistoryCollector {
     return this.written.slice();
   }
 
-  needsRebuild(): boolean {
-    return this.rebuilt;
+  /**
+   * 回卷（scrollback 溢出）是否已发生：返回 true 并**清除标志**（一次性消费）。
+   * 一次性是关键：粘性标志会让调用方的「块数未变则跳过」保护永久失效，
+   * 造成空闲期无意义 upsert；消费后由调用方决定是否重建索引。
+   */
+  consumeRebuild(): boolean {
+    const rebuilt = this.rebuilt;
+    this.rebuilt = false;
+    return rebuilt;
+  }
+
+  /**
+   * 操作串行化：collect / checkpoint / flush 共享 watermark / pending / seq，
+   * 调用方（节流采集、30s 检查点、terminated 定稿、关闭全量定稿）可并发打到同一采集器。
+   * 单线程下同步段不会交错，但 seal 内的 await（IPC 落盘）会让第二个操作插进来，
+   * 造成水位推进与 pending 清空错位（丢行或写重复行）。所有入口经此队列，前一个落定后一个才跑。
+   */
+  private queue: Promise<void> = Promise.resolve();
+
+  private enqueue<T>(run: () => Promise<T>): Promise<T> {
+    const next = this.queue.then(run);
+    this.queue = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    return next;
   }
 
   /** 采集：把 [watermark, baseY) 的冻结行并入当前块，写满即封块 */
   async collect(): Promise<boolean> {
+    return this.enqueue(() => this.doCollect());
+  }
+
+  /**
+   * 检查点：收集冻结行后把未满块也封块落盘（小会话无需等 64KiB）。
+   * 只含冻结行、不含视口区 —— 与 collect 同口径，追加性与水位不变量同样成立。
+   * 无新增时 seal 空 pending 直接返回 true，不产生空块。
+   */
+  async checkpoint(): Promise<boolean> {
+    return this.enqueue(() => this.doCheckpoint());
+  }
+
+  /** 定稿：把视口区也封入最后一块（会话已结束，视口不再变化） */
+  async flush(): Promise<boolean> {
+    return this.enqueue(() => this.doFlush());
+  }
+
+  private async doCollect(): Promise<boolean> {
     const buffer = this.deps.readBuffer();
     this.detectRewind(buffer);
     // 本次采集的冻结终点：只采 [watermark, baseY) 的冻结行，视口区留给 flush。
@@ -78,12 +125,30 @@ export class TerminalHistoryCollector {
     return this.append(buffer, frozenEnd);
   }
 
-  /** 定稿：把视口区也封入最后一块（会话已结束，视口不再变化） */
-  async flush(): Promise<boolean> {
+  private async doCheckpoint(): Promise<boolean> {
+    const buffer = this.deps.readBuffer();
+    this.detectRewind(buffer);
+    if (!(await this.append(buffer, buffer.baseY))) {
+      return false;
+    }
+    return this.seal();
+  }
+
+  private async doFlush(): Promise<boolean> {
     const buffer = this.deps.readBuffer();
     this.detectRewind(buffer);
     if (!(await this.append(buffer, buffer.length))) {
       return false;
+    }
+    // 定稿快照丢掉末尾全空白行：视口尾部常年拖着一整屏空白（cls 之后更甚），
+    // 原样封块会让日期分隔符沉到数十空行之后。只动本次快照的末尾，
+    // 冻结区中间的空行（排版原意）不动；按被删行的实际 JSON 字节扣回，
+    // 保持 pendingBytes 与封块预算投影一致。
+    let tail = this.pending[this.pending.length - 1];
+    while (tail !== undefined && isBlankLine(tail)) {
+      const removed = this.pending.pop() as HistoryRun[];
+      this.pendingBytes = Math.max(0, this.pendingBytes - utf8Length(JSON.stringify(removed)));
+      tail = this.pending[this.pending.length - 1];
     }
     return this.seal();
   }

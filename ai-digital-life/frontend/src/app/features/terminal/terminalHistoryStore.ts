@@ -68,6 +68,8 @@ export function normalizeHistoryIndex(raw: unknown): Record<string, TerminalHist
         Number.isFinite(s.endedAt) &&
         typeof s.live === 'boolean' &&
         Array.isArray(s.chunks) &&
+        // 空段无任何可渲染行，只会产出孤立日期分隔符，直接丢弃
+        s.chunks.length > 0 &&
         s.chunks.every(isChunkMeta)
       );
     });

@@ -104,8 +104,11 @@ export interface ExtractCell {
   getWidth(): number;
   isFgDefault(): boolean;
   getFgColor(): number | string;
+  /** 前景是否为真彩色（xterm RGB 模式）：决定 getFgColor() 是调色板下标还是打包 0xRRGGBB */
+  isFgRGB(): boolean;
   isBgDefault(): boolean;
   getBgColor(): number | string;
+  isBgRGB(): boolean;
   isBold(): boolean;
   isItalic(): boolean;
   isUnderline(): boolean;
@@ -123,13 +126,32 @@ export interface ExtractSource {
   getLine(y: number): ExtractLine | undefined;
 }
 
+/** 真彩色打包值（0xRRGGBB）→ `#rrggbb` */
+function rgbHex(value: number): string {
+  return `#${(value >>> 0).toString(16).padStart(6, '0')}`;
+}
+
+/**
+ * 粗体提亮：0–7 号标准色按 8–15 号亮色渲染（xterm `drawBoldTextInBrightColors` 默认开）。
+ * `value >= 0` 不是冗余守卫：负值若不拦会被 `value < 8` 放行成 7，反而着色错误。
+ */
+function brightenBold(
+  value: number | string | undefined,
+  bold: boolean | undefined,
+): number | string | undefined {
+  return bold && typeof value === 'number' && value >= 0 && value < 8 ? value + 8 : value;
+}
+
 function styleOf(cell: ExtractCell): Omit<HistoryRun, 'text'> {
   const style: Omit<HistoryRun, 'text'> = {};
   if (!cell.isFgDefault()) {
-    style.fg = cell.getFgColor();
+    // 真彩色在缓冲里是打包的 0xRRGGBB（如纯蓝 #0000ff = 255），与调色板下标 0–255
+    // 数值空间重叠，单看数值无法区分，必须按 xterm 的 color mode 定型；
+    // 真彩色是绝对色（与主题无关），直接存成 hex 字符串。
+    style.fg = cell.isFgRGB() ? rgbHex(cell.getFgColor() as number) : cell.getFgColor();
   }
   if (!cell.isBgDefault()) {
-    style.bg = cell.getBgColor();
+    style.bg = cell.isBgRGB() ? rgbHex(cell.getBgColor() as number) : cell.getBgColor();
   }
   if (cell.isBold()) {
     style.bold = true;
@@ -174,6 +196,11 @@ function trimTrailingBlank(runs: HistoryRun[]): HistoryRun[] {
  *
  * - 备用缓冲区（vim/less）不进入历史：改读 `normal`，延续既有结论。
  * - 返回数组与请求区间一一对应，**空行保留为空数组**，行数信息不能丢。
+ * - **空白单元格必须还原成空格**：xterm 的空白格 `getChars()` 返回空串、宽度为 1，
+ *   其 DOM 渲染器用 `getChars() || WHITESPACE_CELL_CHAR`（`" "`）回退渲染；
+ *   提取若直接拼 `getChars()`，列间空白会全部消失，历史行被"压缩"、
+ *   与实时终端的列对齐对不上（曾实测 `ls` 多列输出在历史里挤成一列）。
+ *   宽度为 0 的格是宽字符的第二格占位，实时端渲染为 0 宽，不产出文本。
  */
 export function extractLines(
   buffer: { active: ExtractSource; normal: ExtractSource },
@@ -191,12 +218,17 @@ export function extractLines(
         if (!cell) {
           break;
         }
+        const chars = cell.getChars();
+        if (chars === '' && cell.getWidth() === 0) {
+          continue;
+        }
+        const text = chars === '' ? ' ' : chars;
         const style = styleOf(cell);
         const last = runs[runs.length - 1];
         if (last && sameStyle(last, style as HistoryRun)) {
-          last.text += cell.getChars();
+          last.text += text;
         } else {
-          runs.push({ ...style, text: cell.getChars() });
+          runs.push({ ...style, text });
         }
       }
     }
@@ -218,8 +250,8 @@ export interface HistoryChunk {
 export interface HistoryPalette {
   foreground: string;
   background: string;
-  /** 16 个基础色：0–7 常规、8–15 亮色 */
-  ansi: string[];
+  /** 16 个基础色：0–7 常规、8–15 亮色（readonly：调色板在多方共享，禁止被就地修改） */
+  ansi: readonly string[];
 }
 
 export interface ResolvedRunStyle {
@@ -257,23 +289,37 @@ function toColor(
   if (value === undefined) {
     return fallback;
   }
-  return typeof value === 'number' ? palette256(value, palette) : value;
+  if (typeof value !== 'number') {
+    // 直接色（提取期已定型的真彩色 hex，或调用方给的 CSS 颜色）原样使用
+    return value;
+  }
+  // number 恒为调色板下标 0–255：真彩色在提取期已按 color mode 定型为 hex 字符串
+  return palette256(value, palette);
 }
 
 /**
  * 把语义样式解析成当前主题下的具体颜色。
  * 历史里存的是**语义值**（调色板下标 / 直接色），所以切换主题时历史会跟着正确重着色
  * —— 与实时终端共用同一套主题 token 的口径一致。
+ * 粗体提亮：xterm 默认 `drawBoldTextInBrightColors: true`（所装版本默认值已核对），
+ * 粗体的 0–7 号标准色按 8–15 号亮色渲染；此处同口径，否则粗体目录蓝等与实时不一致。
+ * **顺序**：xterm 渲染器先做 inverse 交换、再对"交换后的前景"提亮
+ * （lib 内 `$`/`G` 互换后才 `$ += 8`），所以提亮必须作用在有效前景上，
+ * 否则 bold+inverse 会提亮错通道（背景被提亮、前景不提）。
  */
 export function resolveRunStyle(run: HistoryRun, palette: HistoryPalette): ResolvedRunStyle {
-  const fg = toColor(run.fg, palette, palette.foreground);
-  const bg = run.bg === undefined ? undefined : toColor(run.bg, palette, palette.background);
-
-  const style: ResolvedRunStyle = run.inverse
-    ? { color: bg ?? palette.background, backgroundColor: fg }
-    : { color: fg };
-  if (!run.inverse && bg !== undefined) {
-    style.backgroundColor = bg;
+  let style: ResolvedRunStyle;
+  if (run.inverse) {
+    // 交换后前景 = 原背景（提亮它），背景 = 原前景（不提亮）
+    style = {
+      color: toColor(brightenBold(run.bg, run.bold), palette, palette.background),
+      backgroundColor: toColor(run.fg, palette, palette.foreground),
+    };
+  } else {
+    style = { color: toColor(brightenBold(run.fg, run.bold), palette, palette.foreground) };
+    if (run.bg !== undefined) {
+      style.backgroundColor = toColor(run.bg, palette, palette.background);
+    }
   }
   if (run.bold) {
     style.fontWeight = 700;

@@ -30,4 +30,14 @@ describe('buildLayout', () => {
   it('空段列表得到空布局', () => {
     expect(buildLayout([], () => 1, 80)).toEqual([]);
   });
+
+  it('chunks 为空的段被跳过，不产出孤立分隔符', () => {
+    const withEmpty: TerminalHistorySegment[] = [
+      { sessionId: 's0', endedAt: 50, live: false, chunks: [] },
+      ...segments,
+    ];
+    const rows = buildLayout(withEmpty, () => 1, 80);
+    expect(rows.map((r) => r.kind)).toEqual(['line', 'line', 'divider', 'line', 'divider']);
+    expect(rows.filter((r) => r.kind === 'divider').map((r) => r.at)).toEqual([100, 200]);
+  });
 });
