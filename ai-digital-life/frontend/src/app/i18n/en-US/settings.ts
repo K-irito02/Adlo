@@ -122,12 +122,24 @@ export const settingsEn = {
     'Managed by the WebView2 runtime; changing it requires rebuilding the whole browser environment.',
   storageImmutableWorkspaceCache:
     'Belongs to a specific workspace and moves with it; not part of the app data folder.',
+  storageImmutableKeyringName: 'OS credential manager',
+  storageImmutableMachineIdName: 'Machine identity file',
+  storageImmutableLocalStorageName: 'UI state storage',
+  storageImmutableIndexedDbName: 'Avatar cache',
+  storageImmutableWebview2Name: 'WebView2 runtime data',
+  storageImmutableWorkspaceCacheName: 'Workspace-level cache',
   storageRestartRequired: 'Saved. Restart the app to complete the migration.',
   storageTerminalBudgetTitle: 'Terminal history disk budget',
   storageRestartUnavailableInBrowser:
     'The browser mode cannot restart the app; this change will apply on next launch.',
   storageBrowserDownloadTitle: 'Browser default download folder',
   storagePickFailed: 'Failed to choose folder: {error}',
+  storageStatusLoading: 'Loading storage status…',
+  storageStatusLoadFailed:
+    'Failed to load storage status: {error}. Please make sure the app backend is up to date and restarted.',
+  storageNoCategories: 'No storage categories available. Please retry later.',
+  storagePickUnavailable:
+    'Folder picker is not available in this environment. Please enter the path manually.',
 
   // Storage categories
   storageCategoryDatabase: 'Main database',

@@ -20,13 +20,19 @@ import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { BrowserDownloadPathSection } from './BrowserDownloadPathSection';
 
 /** 不可移动项 → i18n key（顺序固定，遍历 `IMMOVABLE_ENTRY_KEYS`）。 */
-const IMMOVABLE_COPY: Record<(typeof IMMOVABLE_ENTRY_KEYS)[number], CopyKey> = {
-  keyring: 'storageImmutableKeyring',
-  machineId: 'storageImmutableMachineId',
-  localStorage: 'storageImmutableLocalStorage',
-  indexedDB: 'storageImmutableIndexedDb',
-  webview2: 'storageImmutableWebview2',
-  workspaceCache: 'storageImmutableWorkspaceCache',
+const IMMOVABLE_COPY: Record<
+  (typeof IMMOVABLE_ENTRY_KEYS)[number],
+  { name: CopyKey; desc: CopyKey }
+> = {
+  keyring: { name: 'storageImmutableKeyringName', desc: 'storageImmutableKeyring' },
+  machineId: { name: 'storageImmutableMachineIdName', desc: 'storageImmutableMachineId' },
+  localStorage: { name: 'storageImmutableLocalStorageName', desc: 'storageImmutableLocalStorage' },
+  indexedDB: { name: 'storageImmutableIndexedDbName', desc: 'storageImmutableIndexedDb' },
+  webview2: { name: 'storageImmutableWebview2Name', desc: 'storageImmutableWebview2' },
+  workspaceCache: {
+    name: 'storageImmutableWorkspaceCacheName',
+    desc: 'storageImmutableWorkspaceCache',
+  },
 };
 
 /** 每个分组展示的分类数量（后端按固定顺序返回 10 类：前 5 核心、后 5 高级）。 */
@@ -51,6 +57,8 @@ export function StorageSettings() {
   const showToast = useAppStore((s) => s.showToast);
 
   const [status, setStatus] = useState<StorageStatus | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState<StorageMode>('unified');
   const [rootDraft, setRootDraft] = useState('');
   const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>({});
@@ -63,25 +71,34 @@ export function StorageSettings() {
     let cancelled = false;
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
+      setStatusError(t.storageStatusLoadFailed.replace('{error}', 'bridge unavailable'));
+      setLoading(false);
       return;
     }
     void bridge.getStatus().then((result) => {
-      if (cancelled || !result.ok) {
+      if (cancelled) {
         return;
       }
+      if (!result.ok) {
+        setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
+        setLoading(false);
+        return;
+      }
+      setStatusError(null);
       setStatus(result.data);
       setMode(result.data.mode);
       setRootDraft(result.data.root);
       setCategoryDrafts(
         Object.fromEntries(result.data.categories.map((category) => [category.key, category.path])),
       );
+      setLoading(false);
     });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [t]);
 
-  /** 只刷新后端状态（不覆盖用户正在编辑的草稿）。 */
+  /** 只刷新后端状态（不覆盖用户正在编辑的草稿）；成功时清除加载错误。 */
   const refresh = useCallback(async () => {
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
@@ -89,9 +106,33 @@ export function StorageSettings() {
     }
     const result = await bridge.getStatus();
     if (result.ok) {
+      setStatusError(null);
       setStatus(result.data);
     }
   }, []);
+
+  /** 加载失败后的重试：重置状态并重新拉取。 */
+  const handleRetryLoad = useCallback(async () => {
+    const bridge = window.digitalLife?.storage;
+    if (!bridge) {
+      setStatusError(t.storageStatusLoadFailed.replace('{error}', 'bridge unavailable'));
+      return;
+    }
+    setLoading(true);
+    setStatusError(null);
+    const result = await bridge.getStatus();
+    if (!result.ok) {
+      setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
+    } else {
+      setStatus(result.data);
+      setMode(result.data.mode);
+      setRootDraft(result.data.root);
+      setCategoryDrafts(
+        Object.fromEntries(result.data.categories.map((category) => [category.key, category.path])),
+      );
+    }
+    setLoading(false);
+  }, [t]);
 
   const buildPatch = useCallback(
     (retainSource: boolean): StoragePathPatch => ({
@@ -123,6 +164,7 @@ export function StorageSettings() {
     async (applyPath: (path: string) => void) => {
       const bridge = window.digitalLife?.workspace;
       if (!bridge?.pickDirectory) {
+        showToast(t.storagePickUnavailable, 'error');
         return;
       }
       setPicking(true);
@@ -259,6 +301,41 @@ export function StorageSettings() {
     />
   );
 
+  if (loading) {
+    return (
+      <div className="adl-settings-section adl-storage-settings">
+        <SettingsHeader title={t.storageTitle} />
+        <div className="adl-settings-row">
+          <div className="adl-settings-row__label">
+            <small>{t.storageStatusLoading}</small>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (statusError && !status) {
+    return (
+      <div className="adl-settings-section adl-storage-settings">
+        <SettingsHeader title={t.storageTitle} />
+        <div className="adl-settings-row">
+          <div className="adl-settings-row__label">
+            <small>{statusError}</small>
+          </div>
+          <div className="adl-settings-row__control">
+            <button
+              type="button"
+              className="adl-btn adl-btn--secondary"
+              onClick={() => void handleRetryLoad()}
+            >
+              {t.storageRetryMigration}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="adl-settings-section adl-storage-settings">
       <SettingsHeader title={t.storageTitle} />
@@ -327,6 +404,13 @@ export function StorageSettings() {
       ) : null}
 
       <h4 className="adl-settings-header__title">{t.storageCategoryGroupCore}</h4>
+      {categories.length === 0 ? (
+        <div className="adl-settings-row">
+          <div className="adl-settings-row__label">
+            <small>{t.storageNoCategories}</small>
+          </div>
+        </div>
+      ) : null}
       {coreCategories.map(renderCategory)}
 
       <h4 className="adl-settings-header__title">{t.storageCategoryGroupAdvanced}</h4>
@@ -379,7 +463,10 @@ export function StorageSettings() {
       {IMMOVABLE_ENTRY_KEYS.map((key) => (
         <div className="adl-settings-row" key={key} data-testid="storage-immutable-item">
           <div className="adl-settings-row__label">
-            <small>{t[IMMOVABLE_COPY[key]]}</small>
+            <div className="adl-settings-row__label-text">
+              <span>{t[IMMOVABLE_COPY[key].name]}</span>
+            </div>
+            <small>{t[IMMOVABLE_COPY[key].desc]}</small>
           </div>
         </div>
       ))}

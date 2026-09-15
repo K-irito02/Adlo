@@ -68,6 +68,42 @@ describe('StorageSettings', () => {
     });
   });
 
+  it('renders immovable entry names, not only descriptions', async () => {
+    renderSettings();
+    const items = await screen.findAllByTestId('storage-immutable-item');
+    const names = [
+      'storageImmutableKeyringName',
+      'storageImmutableMachineIdName',
+      'storageImmutableLocalStorageName',
+      'storageImmutableIndexedDbName',
+      'storageImmutableWebview2Name',
+      'storageImmutableWorkspaceCacheName',
+    ];
+    expect(items).toHaveLength(names.length);
+    for (const [index, item] of items.entries()) {
+      expect(item.textContent).toContain(names[index]);
+    }
+  });
+
+  it('shows an actionable error when storage status cannot be loaded', async () => {
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: false, error: { message: 'boom' } }),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
+    });
+    // 失败时不渲染空的分类行，避免"标题下无内容"的误导。
+    expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+  });
+
   it('every real category has non-empty Desc + Related copy (Task-5b)', async () => {
     const realStatus = {
       ...status,
