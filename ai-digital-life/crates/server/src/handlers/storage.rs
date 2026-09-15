@@ -194,18 +194,8 @@ fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
     st::StorageCategory::ALL
         .into_iter()
         .map(|c| {
-            // TODO(DIAG): 临时诊断日志，定位慢目录后删除。
-            let ct0 = std::time::Instant::now();
             let path = svc.paths().dir(c);
             let (bytes, files) = category_usage(c, &path);
-            tracing::info!(
-                category = c.key(),
-                path = %path.display(),
-                elapsed_ms = ct0.elapsed().as_millis(),
-                bytes,
-                files,
-                "[STORAGE-DIAG] category_status"
-            );
             StorageCategoryStatus {
                 key: c.key().to_string(),
                 path: path.to_string_lossy().to_string(),
@@ -282,9 +272,6 @@ fn preflight_dto(state: &ServerState, patch: &StoragePathPatch) -> Result<Prefli
 /// POST `/storage/status` — current locator selection, per-category usage and
 /// pending/report state.
 pub async fn status(State(state): State<ServerState>) -> impl IntoResponse {
-    // TODO(DIAG): 临时诊断日志，定位 getStatus 卡死后删除。
-    let t0 = std::time::Instant::now();
-    tracing::info!("[STORAGE-DIAG] ad-server /storage/status begin");
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let svc = state.storage.clone();
         let locator = st::load_locator();
@@ -302,7 +289,6 @@ pub async fn status(State(state): State<ServerState>) -> impl IntoResponse {
         Ok(serde_json::to_value(dto)?)
     })
     .await;
-    tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "[STORAGE-DIAG] ad-server /storage/status end");
     ipc::to_response(result)
 }
 

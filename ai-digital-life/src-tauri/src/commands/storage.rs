@@ -134,18 +134,8 @@ fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
     st::StorageCategory::ALL
         .into_iter()
         .map(|c| {
-            // TODO(DIAG): 临时诊断日志，定位慢目录后删除。
-            let ct0 = std::time::Instant::now();
             let path = svc.paths().dir(c);
             let (bytes, files) = category_usage(c, &path);
-            tracing::info!(
-                category = c.key(),
-                path = %path.display(),
-                elapsed_ms = ct0.elapsed().as_millis(),
-                bytes,
-                files,
-                "[STORAGE-DIAG] category_status"
-            );
             StorageCategoryStatus {
                 key: c.key().to_string(),
                 path: path.to_string_lossy().to_string(),
@@ -194,9 +184,6 @@ fn report_dto(r: &st::MigrationReport) -> StorageReportDto {
 pub fn storage_get_status(
     state: State<'_, AppState>,
 ) -> Result<IpcResult<StorageStatus>, AppError> {
-    // TODO(DIAG): 临时诊断日志，定位 getStatus 卡死后删除。
-    let t0 = std::time::Instant::now();
-    tracing::info!("[STORAGE-DIAG] storage_get_status begin");
     let locator = st::load_locator();
     let svc = state.storage.clone();
     let status = StorageStatus {
@@ -213,7 +200,6 @@ pub fn storage_get_status(
             .map(|p| PendingDto { failed: p.failed, error: p.error.clone() }),
         last_report: locator.last_report.as_ref().map(report_dto),
     };
-    tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "[STORAGE-DIAG] storage_get_status end");
     Ok(ipc(Ok(status)))
 }
 
@@ -236,7 +222,12 @@ pub fn storage_preflight_cmd(
     state: State<'_, AppState>,
     patch: StoragePathPatch,
 ) -> Result<IpcResult<PreflightDto>, AppError> {
-    let selection = patch_to_selection(&patch)?;
+    Ok(ipc(preflight_inner(&state, &patch)))
+}
+
+/// 预检核心（命令与内部调用共用，避免 `IpcResult` 解包/重包）。
+fn preflight_inner(state: &AppState, patch: &StoragePathPatch) -> Result<PreflightDto, AppError> {
+    let selection = patch_to_selection(patch)?;
     let defaults = state.storage_defaults.clone();
     let from = state.storage.paths().clone();
     let to = st::StoragePaths::resolve(&selection, &defaults);
@@ -260,14 +251,14 @@ pub fn storage_preflight_cmd(
             free_bytes
         ));
     }
-    Ok(ipc(Ok(PreflightDto {
+    Ok(PreflightDto {
         ok: errors.is_empty(),
         errors,
         warnings,
         total_files: report.total_files as u64,
         total_bytes: report.total_bytes,
         free_bytes,
-    })))
+    })
 }
 
 // 可用空间经 `DownloadManager::available_space_bytes`（B3）获取，见 `storage_preflight_cmd`。
@@ -279,14 +270,8 @@ pub fn storage_set_paths(
     apply_now: bool,
 ) -> Result<IpcResult<StorageApplyResult>, AppError> {
     let to = patch_to_selection(&patch)?;
-    // 预检（含磁盘空间）；有硬错误则拒绝写入。
-    // storage_preflight_cmd 只在外层 Err 时失败；内层 IpcResult::Err 不可能出现（其失败走外层 ?）。
-    let preflight = match storage_preflight_cmd(state.clone(), patch.clone())? {
-        IpcResult::Ok { data, .. } => data,
-        IpcResult::Err { error, .. } => {
-            return Err(AppError::Internal(error.message));
-        },
-    };
+    // 预检（含磁盘空间）；有硬错误则拒绝写入（直接调核心，不经 IpcResult 解包）。
+    let preflight = preflight_inner(&state, &patch)?;
     if !preflight.ok {
         return Ok(ipc(Ok(StorageApplyResult { restart_required: false, preflight })));
     }
@@ -315,8 +300,9 @@ pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<(
 }
 
 /// 重启应用。前端在 `storage_set_paths` 返回 `restartRequired == true` 后调用。
+/// 从不返回（进程重启），签名仍包 `IpcResult` 以与其它存储命令统一。
 #[tauri::command]
-pub fn app_restart(app: AppHandle) -> Result<(), AppError> {
+pub fn app_restart(app: AppHandle) -> Result<IpcResult<()>, AppError> {
     app.restart()
 }
 

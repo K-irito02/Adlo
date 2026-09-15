@@ -123,10 +123,18 @@ describe('StorageSettings', () => {
   });
 
   it('does not hang when the backend returns a malformed failure without error object', async () => {
-    // 回归：裸值响应（ok 缺失）曾导致 result.error.message 抛错并卡死 loading。
+    // 回归：真实故障是后端返回裸成功值（有 categories、无 ok，如旧后端未包 IpcResult），
+    // 前端 !result.ok 为真后曾在 result.error.message 抛错并卡死 loading。
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       storage: {
-        getStatus: vi.fn().mockResolvedValue({ ok: false }),
+        getStatus: vi.fn().mockResolvedValue({
+          mode: 'unified',
+          root: 'C:/data',
+          locatorPath: 'C:/locator.json',
+          categories: [],
+          pending: null,
+          lastReport: null,
+        }),
         scanForeign: vi.fn(),
         preflight: vi.fn(),
         setPaths: vi.fn(),
