@@ -10,10 +10,12 @@ import {
   type HistoryPalette,
   type HistoryRun,
 } from '@features/terminal/historyModel';
+import { FALLBACK_CELL_HEIGHT, FALLBACK_CELL_WIDTH } from '@features/terminal/terminalXtermPool';
 
 const OVERSCAN_ROWS = 40;
-const FALLBACK_ROW_HEIGHT = 17;
-const FALLBACK_CELL_WIDTH = 8;
+// 兜底 cell 度量复用实时终端池的常量（两处各写一份迟早漂移）；
+// FALLBACK_ROW_HEIGHT 同时用作「实测高度是否已落定」的哨兵值。
+const FALLBACK_ROW_HEIGHT = FALLBACK_CELL_HEIGHT;
 
 /**
  * 稳定的空 run 数组：未加载的行一律复用这一个引用，避免每个渲染帧都喂
@@ -102,8 +104,14 @@ export function TerminalHistoryList({
   const ownerOf = useMemo(() => {
     const owners: (TerminalHistorySegment | undefined)[] = [];
     for (const segment of segments) {
+      // 与 buildLayout 同口径跳过空段：它不产出行，这里若仍占位会让后续
+      // 行号与段错位（行拿到错误段的块键 → 渲染成空白/错内容）。
+      if (segment.chunks.length === 0) {
+        continue;
+      }
       const blockRows = segment.chunks.reduce(
-        (sum, _c, seq) => sum + (chunks.get(chunkKey(segment.sessionId, seq))?.length ?? segment.chunks[seq].lines),
+        (sum, _c, seq) =>
+          sum + (chunks.get(chunkKey(segment.sessionId, seq))?.length ?? segment.chunks[seq].lines),
         0,
       );
       for (let i = 0; i < blockRows + 1; i += 1) {
@@ -119,7 +127,10 @@ export function TerminalHistoryList({
   const segmentKey = useMemo(
     () =>
       segments
-        .map((s) => `${s.sessionId}|${s.chunks.map((_c, seq) => chunkKey(s.sessionId, seq)).join(',')}`)
+        .map(
+          (s) =>
+            `${s.sessionId}|${s.chunks.map((_c, seq) => chunkKey(s.sessionId, seq)).join(',')}`,
+        )
         .join(';'),
     [segments],
   );
@@ -212,8 +223,9 @@ export function TerminalHistoryList({
                 <TerminalHistoryRow
                   runs={
                     owner
-                      ? (chunks.get(chunkKey(owner.sessionId, row.chunkIndex))?.[row.lineIndexInChunk] ??
-                        EMPTY_RUNS)
+                      ? (chunks.get(chunkKey(owner.sessionId, row.chunkIndex))?.[
+                          row.lineIndexInChunk
+                        ] ?? EMPTY_RUNS)
                       : EMPTY_RUNS
                   }
                   palette={palette}

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { extractLines, type ExtractCell, type ExtractLine, type ExtractSource } from '../historyModel';
+import {
+  extractLines,
+  type ExtractCell,
+  type ExtractLine,
+  type ExtractSource,
+} from '../historyModel';
 
 function cell(ch: string, opts: Partial<ExtractCell> = {}): ExtractCell {
   return {
@@ -15,7 +20,7 @@ function cell(ch: string, opts: Partial<ExtractCell> = {}): ExtractCell {
     isItalic: () => false,
     isUnderline: () => false,
     isDim: () => false,
-    isInverse: () => false,
+    isInverse: () => opts.isInverse?.() ?? false,
   };
 }
 
@@ -56,9 +61,7 @@ describe('extractLines', () => {
   });
 
   it('保留带非默认背景色的尾部单元格（不丢色块）', () => {
-    const rows = [
-      line([cell('a'), cell(' ', { isBgDefault: () => false, getBgColor: () => 4 })]),
-    ];
+    const rows = [line([cell('a'), cell(' ', { isBgDefault: () => false, getBgColor: () => 4 })])];
     expect(extractLines(buffer(rows), 0, 1)).toEqual([[{ text: 'a' }, { text: ' ', bg: 4 }]]);
   });
 
@@ -66,9 +69,7 @@ describe('extractLines', () => {
     // xterm 空白格 getChars() 为空串、宽度 1；渲染器按 WHITESPACE_CELL_CHAR 画成空格。
     // 若不还原，`ls` 多列输出的列间空白会消失，历史行被压缩、与实时终端对不上。
     const blank = cell('', { getWidth: () => 1 });
-    const rows = [
-      line([cell('a'), blank, blank, cell('b'), cell('c')]),
-    ];
+    const rows = [line([cell('a'), blank, blank, cell('b'), cell('c')])];
     expect(extractLines(buffer(rows), 0, 1)).toEqual([[{ text: 'a  bc' }]]);
   });
 
@@ -89,8 +90,30 @@ describe('extractLines', () => {
       ]),
     ];
     expect(extractLines(buffer(rows), 0, 1)).toEqual([
-      [{ text: 'a', fg: '#0000ff' }, { text: 'b', fg: 255 }, { text: 'c', bg: '#1e90ff' }],
+      [
+        { text: 'a', fg: '#0000ff' },
+        { text: 'b', fg: 255 },
+        { text: 'c', bg: '#1e90ff' },
+      ],
     ]);
+  });
+
+  it('行尾反显（inverse）的空白格保留：反显下它是可见色块，裁掉会丢色', () => {
+    const rows = [line([cell('a'), cell(' ', { isInverse: () => true })])];
+    expect(extractLines(buffer(rows), 0, 1)).toEqual([
+      [{ text: 'a' }, { text: ' ', inverse: true }],
+    ]);
+  });
+
+  it('无背景色且非反显的尾部空白仍按原口径裁掉', () => {
+    const rows = [line([cell('a'), cell(' '), cell(' ')])];
+    expect(extractLines(buffer(rows), 0, 1)).toEqual([[{ text: 'a' }]]);
+  });
+
+  it('宽度 0 的格无论有无字符都不产出（与 xterm 渲染器 width===0 跳过同口径）', () => {
+    const weird = cell('x', { getWidth: () => 0 });
+    const rows = [line([cell('a'), weird, cell('b')])];
+    expect(extractLines(buffer(rows), 0, 1)).toEqual([[{ text: 'ab' }]]);
   });
 
   it('只返回给定行区间，空行保留为空数组', () => {

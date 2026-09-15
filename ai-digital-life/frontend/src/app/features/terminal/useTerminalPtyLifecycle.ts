@@ -7,17 +7,14 @@ import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 import { terminalOutputStore } from './terminalOutputStore';
 import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
-import { terminalXtermPool, readTerminalFontFamily } from './terminalXtermPool';
+import { terminalXtermPool, readTerminalFontFamily, TERMINAL_FONT_SIZE } from './terminalXtermPool';
 import {
   terminalHistoryStore,
   chunkKey,
   type TerminalHistoryChunkMeta,
   type TerminalHistorySegment,
 } from './terminalHistoryStore';
-import {
-  TerminalHistoryCollector,
-  TERMINAL_CAPTURE_THROTTLE_MS,
-} from './terminalHistoryCollector';
+import { TerminalHistoryCollector, TERMINAL_CAPTURE_THROTTLE_MS } from './terminalHistoryCollector';
 import {
   selectSegmentsToEvict,
   effectiveBudgetBytes,
@@ -148,12 +145,21 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   }, []);
 
   /**
-   * 删除某会话的 `[0, count)` 号块记录（串行 await：调用方的等待链必须覆盖删除，
-   * 否则关闭路径的 destroy 可能抢在删除完成前杀死渲染进程）。
+   * 删除某会话的 `[0, count)` 号块记录。
+   * 调用方的 await 链必须覆盖删除（否则关闭路径的 destroy 会抢在删除完成前
+   * 杀死渲染进程）；按小批并发而非全量并发：后端连接池 max_size=8 且 acquire 有超时，
+   * 一次性发几十个删除请求会排队超时，而 `terminalOutputStore.delete` 吞掉失败 →
+   * 静默留下孤儿块。小批既快于串行，也不会打满连接池。
    */
   const deleteChunksForSession = useCallback(async (sessionId: string, count: number) => {
-    for (let seq = 0; seq < count; seq += 1) {
-      await terminalOutputStore.delete(chunkKey(sessionId, seq));
+    const DELETE_BATCH = 4;
+    for (let start = 0; start < count; start += DELETE_BATCH) {
+      const batch = Math.min(DELETE_BATCH, count - start);
+      await Promise.all(
+        Array.from({ length: batch }, (_unused, offset) =>
+          terminalOutputStore.delete(chunkKey(sessionId, start + offset)),
+        ),
+      );
     }
   }, []);
 
@@ -247,13 +253,17 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
    * （标签已关闭但历史保留在索引中时，重查会早退丢更新）。
    */
   const upsertHistoryEntry = useCallback(
-    (sessionId: string, written: TerminalHistoryChunkMeta[], ownerTabId?: string) => {
+    (
+      sessionId: string,
+      written: TerminalHistoryChunkMeta[],
+      options?: { ownerTabId?: string; skipBudget?: boolean },
+    ) => {
       if (written.length === 0) {
         return;
       }
       ensureHistoryIndexLoaded();
       const tabId =
-        ownerTabId ??
+        options?.ownerTabId ??
         useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id;
       if (!tabId) {
         return;
@@ -277,7 +287,11 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       }
       historyIndexRef.current.set(tabId, segments);
       persistHistoryIndex();
-      void settleHistoryBudget();
+      // 关闭/卸载窗口传 skipBudget：结算先删块再写索引，被进程退出截断会留下
+      // 指向已删块的索引（下次启动显示「内容不可用」），淘汰交给下次启动统一处理。
+      if (!options?.skipBudget) {
+        void settleHistoryBudget();
+      }
     },
     [ensureHistoryIndexLoaded, persistHistoryIndex, settleHistoryBudget],
   );
@@ -361,7 +375,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
    * 否则写出的块无索引可达、无预算可淘汰、无删除可清理，成为永久孤儿。
    */
   const finalizeSegment = useCallback(
-    async (sessionId: string) => {
+    async (sessionId: string, options?: { skipBudget?: boolean }) => {
       ensureHistoryIndexLoaded();
       let ownerTabId: string | null = null;
       for (const [tabId, segments] of historyIndexRef.current) {
@@ -381,9 +395,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 或预算结算淘汰了「该会话这一段」（标签仍有其它段）。await 后必须重新校验，
       // 否则会把刚被删除的段“复活”成引用已删块的孤儿（无 UI 可达、无删除入口、仍占预算）。
       // 判据用「该段定稿前是否已入索引」而非「tab key 是否存在」——后者漏掉单段淘汰。
-      const segmentExistedBefore = (historyIndexRef.current.get(ownerTabId) ?? []).some(
-        (s) => s.sessionId === sessionId,
-      );
+      const previousSegments = historyIndexRef.current.get(ownerTabId) ?? [];
+      const previousSegment = previousSegments.find((s) => s.sessionId === sessionId);
+      const segmentExistedBefore = previousSegment !== undefined;
       const collector = collectorFor(sessionId);
       const flushed = await collector.flush();
       const written = collector.getWrittenChunks();
@@ -394,7 +408,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         // 归属标签已关闭，或该段在等待期间被删除/淘汰：
         // 本次落盘的块已无归属，逐块删除（await 完成，关闭路径的 await 链需覆盖它，
         // 否则 destroy 可能抢在删除完成前退出）后放弃写入索引。
-        await deleteChunksForSession(sessionId, written.length);
+        // 删除范围取「原段记录数」与「本次 written 数」的较大者：回卷（scrollback 溢出）
+        // 后 seq 会归零重写，仅按 written.length 删会漏掉更高 seq 的旧块（磁盘孤儿）。
+        await deleteChunksForSession(
+          sessionId,
+          Math.max(previousSegment?.chunks.length ?? 0, written.length),
+        );
         // 连同采集器一起丢弃：其 written 元信息现已悬空（指向刚删的块），
         // 会话若仍在输出，下一次采集会以全新采集器从当前缓冲重新封块。
         collectorsRef.current.delete(sessionId);
@@ -416,7 +435,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           historyIndexRef.current.set(ownerTabId, retry);
           persistHistoryIndex();
         } else if (at < 0) {
-          upsertHistoryEntry(sessionId, written, ownerTabId);
+          upsertHistoryEntry(sessionId, written, {
+            ownerTabId,
+            skipBudget: options?.skipBudget,
+          });
         }
         return;
       }
@@ -464,8 +486,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       historyIndexRef.current.set(ownerTabId, updated);
       persistHistoryIndex();
       // 段定稿后按用户偏好重新结算预算（fire-and-forget；不阻塞 beforeunload / 关闭路径）。
-      // 关闭路径不依赖它：finalizeSegment 的 await 不包含结算，5s 预算全留给 flush+save。
-      void settleHistoryBudget();
+      // 关闭/卸载路径传 skipBudget 跳过结算（见下文 flushAllHistories 的说明）。
+      if (!options?.skipBudget) {
+        void settleHistoryBudget();
+      }
     },
     [
       collectorFor,
@@ -645,7 +669,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
           const { Terminal } = await import('@xterm/xterm');
           const { FitAddon } = await import('@xterm/addon-fit');
           const tempTerminal = new Terminal({
-            fontSize: 13,
+            fontSize: TERMINAL_FONT_SIZE,
             fontFamily: readTerminalFontFamily(),
             rows: 24,
             cols: 80,
@@ -814,7 +838,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     });
     for (const sessionId of pending) {
       try {
-        await finalizeSegment(sessionId);
+        // 逐会话跳过预算结算：关闭路径只有 5s 预算，且结算一旦被 destroy 截断会留下
+        // 指向已删块的索引；淘汰统一交给下次启动的 finalizeStaleSegments。
+        await finalizeSegment(sessionId, { skipBudget: true });
       } catch (err) {
         // 关闭定稿失败即尾部丢失：记一条生产错误日志（常驻，非临时调试日志），
         // 单会话失败不阻断其余会话，5s 超时兜底防卡死。
@@ -824,6 +850,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         });
       }
     }
+    // 关闭路径不做预算结算（逐会话 skipBudget + 此处不再统一结算）：
+    // 结算先删块、再写索引，被紧随其后的 destroy 截断会让索引指向已删块
+    // （下次启动显示「内容不可用」）。超预算的淘汰交给下次启动时
+    // finalizeStaleSegments 的那次结算（应用正在运行，不会被截断）。
   }, [ensureHistoryIndexLoaded, finalizeSegment]);
 
   useEffect(() => {
@@ -834,8 +864,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       // 浏览器无异步等待 API，尾部丢失是已知限制，由 30s 检查点兜底
       // （最多丢 30s 输出 + 视口尾；Tauri 走 onCloseRequested 可靠路径，不受此限）。
       collectorsRef.current.forEach((collector, sessionId) => {
-        upsertHistoryEntry(sessionId, collector.getWrittenChunks());
-        void finalizeSegment(sessionId);
+        // 同关闭路径：两处都跳过预算结算（结算先删块再写索引，被进程退出截断会留下
+        // 指向已删块的索引），淘汰交给下次启动的 finalizeStaleSegments。
+        upsertHistoryEntry(sessionId, collector.getWrittenChunks(), { skipBudget: true });
+        void finalizeSegment(sessionId, { skipBudget: true });
       });
       // 同步落盘去抖中的 localStorage 写入（标签、历史索引等），
       // 否则重启后标签与历史索引丢失。
@@ -855,6 +887,9 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     }
     let active = true;
     let unlisten: (() => void) | undefined;
+    // 关闭处理只能跑一次：短时间内重复关闭请求（连按 Alt+F4/关闭按钮）会并发
+    // 触发两轮「hide → flush → destroy」，重复落盘且可能与 destroy 交错。
+    let closing = false;
     void import('@tauri-apps/api/window')
       .then(({ getCurrentWindow }) => {
         if (!active) {
@@ -863,6 +898,10 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
         void getCurrentWindow()
           .onCloseRequested(async (event) => {
             event.preventDefault();
+            if (closing) {
+              return;
+            }
+            closing = true;
             const win = getCurrentWindow();
             try {
               await win.hide();
@@ -873,10 +912,23 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
               });
             }
             try {
+              // 超时兜底：到点即放行退出。命中超时说明仍有会话未落盘（尾部会丢），
+              // 必须留下日志，否则只能靠用户事后发现历史缺尾。
+              let timedOut = false;
               await Promise.race([
                 flushAllHistories(),
-                new Promise((resolve) => setTimeout(resolve, CLOSE_FLUSH_TIMEOUT_MS)),
+                new Promise((resolve) => {
+                  setTimeout(() => {
+                    timedOut = true;
+                    resolve(undefined);
+                  }, CLOSE_FLUSH_TIMEOUT_MS);
+                }),
               ]);
+              if (timedOut) {
+                console.error('terminal history close flush timed out', {
+                  timeoutMs: CLOSE_FLUSH_TIMEOUT_MS,
+                });
+              }
             } finally {
               // 同步落盘去抖中的 localStorage 写入（历史索引、标签等），再彻底退出；
               // 否则 destroy 会抢在 idle 回调前杀死渲染进程，重启后历史全空。
@@ -885,10 +937,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
                 await win.destroy();
               } catch (err) {
                 // destroy 失败：窗口已被 hide 且 closeRequested 已 preventDefault，
-                // 若不恢复可见性用户只能从任务管理器结束进程 —— 回退 show()。
+                // 若不恢复可见性用户只能从任务管理器结束进程 —— 回退 show()，
+                // 并复位 closing 标志，否则后续关闭请求会被重入守卫吞掉，应用再也关不上。
                 console.error('terminal history close destroy failed', {
                   error: String(err),
                 });
+                closing = false;
                 try {
                   await win.show();
                 } catch (showErr) {

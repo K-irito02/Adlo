@@ -4,9 +4,18 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { TERMINAL_CAPTURE_SCROLLBACK_LINES } from './terminalHistoryCollector';
 import type { HistoryPalette } from './historyModel';
 
-/** cell 度量兜底：无实时终端实例可读时（历史区独立存在）用固定默认值 */
-const FALLBACK_CELL_WIDTH = 8;
-const FALLBACK_CELL_HEIGHT = 17;
+/**
+ * 终端字号：xterm 实例与临时测量实例必须同值（两处各写一个字面量迟早会漂移）。
+ * CSS 侧 `.adl-terminal-history-row` 的 font-size 无法读 TS 常量，保持同值并互相注释指向。
+ */
+export const TERMINAL_FONT_SIZE = 13;
+
+/**
+ * cell 度量兜底：无实时终端实例可读时（历史区独立存在）用固定默认值。
+ * 只读历史的行高/虚拟化换算复用同一组值（避免两处各写一份而漂移）。
+ */
+export const FALLBACK_CELL_WIDTH = 8;
+export const FALLBACK_CELL_HEIGHT = 17;
 
 export interface PooledXterm {
   terminal: Terminal;
@@ -82,7 +91,7 @@ export class TerminalXtermPool {
 
     const terminal = new Terminal({
       cursorBlink: true,
-      fontSize: 13,
+      fontSize: TERMINAL_FONT_SIZE,
       fontFamily: readTerminalFontFamily(),
       theme: readTerminalTheme(),
       allowProposedApi: true,

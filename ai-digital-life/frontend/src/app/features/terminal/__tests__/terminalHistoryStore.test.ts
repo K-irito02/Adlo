@@ -10,7 +10,9 @@ describe('normalizeHistoryIndex', () => {
   });
 
   it('丢弃 endedAt 非有限数的条目', () => {
-    expect(normalizeHistoryIndex({ tab1: [{ sessionId: 's1', endedAt: NaN, live: false, chunks: [] }] })).toEqual({});
+    expect(
+      normalizeHistoryIndex({ tab1: [{ sessionId: 's1', endedAt: NaN, live: false, chunks: [] }] }),
+    ).toEqual({});
   });
 
   it('丢弃缺 chunks 或 chunks 结构非法的条目', () => {

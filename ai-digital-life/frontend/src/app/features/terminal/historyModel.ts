@@ -171,12 +171,16 @@ function styleOf(cell: ExtractCell): Omit<HistoryRun, 'text'> {
   return style;
 }
 
-/** 行尾右裁：从末尾去掉「空白且无背景色」的 run，但保留带背景色的单元格 */
+/**
+ * 行尾右裁：从末尾去掉「空白且不可见」的 run。
+ * 保留两类可见空白：带非默认背景色的格（色块），以及反显（inverse）格
+ * ——反显下显示的是前景色底，裁掉会丢失可见色块。
+ */
 function trimTrailingBlank(runs: HistoryRun[]): HistoryRun[] {
   const kept = runs.slice();
   while (kept.length > 0) {
     const last = kept[kept.length - 1];
-    if (last.bg === undefined) {
+    if (last.bg === undefined && !last.inverse) {
       const trimmed = last.text.replace(/ +$/, '');
       if (trimmed === '') {
         kept.pop();
@@ -218,10 +222,12 @@ export function extractLines(
         if (!cell) {
           break;
         }
-        const chars = cell.getChars();
-        if (chars === '' && cell.getWidth() === 0) {
+        // 与 xterm DOM 渲染器同口径：宽度 0 的格（宽字符第二格占位）直接跳过，
+        // 其余一律 `getChars() || WHITESPACE_CELL_CHAR(" ")` —— 空白格还原为空格。
+        if (cell.getWidth() === 0) {
           continue;
         }
+        const chars = cell.getChars();
         const text = chars === '' ? ' ' : chars;
         const style = styleOf(cell);
         const last = runs[runs.length - 1];
@@ -261,7 +267,6 @@ export interface ResolvedRunStyle {
   /** 只能是这两个字面量：React 的 CSSProperties 不接受宽化 string */
   fontStyle?: 'italic';
   textDecoration?: 'underline';
-  opacity?: number;
 }
 
 /** 256 色表：16–231 为 6×6×6 立方，232–255 为灰阶 */
@@ -321,6 +326,15 @@ export function resolveRunStyle(run: HistoryRun, palette: HistoryPalette): Resol
       style.backgroundColor = toColor(run.bg, palette, palette.background);
     }
   }
+  if (run.dim) {
+    // xterm 的 dim 只降低**前景**不透明度（其 `.xterm-dim` 规则注释：不得影响背景），
+    // 等价于把前景按 50% 混入其背后的颜色。用 CSS color-mix 表达，
+    // 避免整格 opacity 连背景一起变淡（那会让带底色/反显的格与实时终端不一致）。
+    const behind = run.inverse
+      ? style.backgroundColor
+      : (style.backgroundColor ?? palette.background);
+    style.color = `color-mix(in srgb, ${style.color ?? palette.foreground} 50%, ${behind})`;
+  }
   if (run.bold) {
     style.fontWeight = 700;
   }
@@ -329,9 +343,6 @@ export function resolveRunStyle(run: HistoryRun, palette: HistoryPalette): Resol
   }
   if (run.underline) {
     style.textDecoration = 'underline';
-  }
-  if (run.dim) {
-    style.opacity = 0.6;
   }
   return style;
 }

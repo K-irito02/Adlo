@@ -126,18 +126,12 @@ describe('diskAvailableBytesFrom', () => {
   });
 
   it('容忍小写 c:\\ 这类 Windows 盘符写法', () => {
-    const disks = [
-      disk('c:\\', 123),
-      disk('/mnt/x', 999),
-    ];
+    const disks = [disk('c:\\', 123), disk('/mnt/x', 999)];
     expect(diskAvailableBytesFrom(disks)).toBe(123);
   });
 
   it('没有 C: 盘时回退到第一块盘', () => {
-    const disks = [
-      disk('/data', 7 * GB),
-      disk('/home', 2 * GB),
-    ];
+    const disks = [disk('/data', 7 * GB), disk('/home', 2 * GB)];
     expect(diskAvailableBytesFrom(disks)).toBe(7 * GB);
   });
 

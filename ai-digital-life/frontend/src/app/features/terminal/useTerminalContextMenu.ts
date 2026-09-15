@@ -16,6 +16,8 @@ export interface UseTerminalContextMenuReturn {
   handleTogglePin: () => void;
   handleRenameFromMenu: () => void;
   handleDeleteFromMenu: () => void;
+  /** 关闭菜单（外部点击 / Esc 由菜单组件调用） */
+  closeContextMenu: () => void;
 }
 
 export function useTerminalContextMenu(
@@ -68,6 +70,10 @@ export function useTerminalContextMenu(
     setContextMenu((prev) => ({ ...prev, open: false }));
   }, [contextMenu.tabId, handleCloseTab]);
 
+  const closeContextMenu = useCallback(() => {
+    setContextMenu((prev) => ({ ...prev, open: false }));
+  }, []);
+
   return {
     contextMenu,
     setContextMenu,
@@ -75,5 +81,6 @@ export function useTerminalContextMenu(
     handleTogglePin,
     handleRenameFromMenu,
     handleDeleteFromMenu,
+    closeContextMenu,
   };
 }

@@ -3,7 +3,15 @@ import { buildLayout } from '../historyLayout';
 import type { TerminalHistorySegment } from '../terminalHistoryStore';
 
 const segments: TerminalHistorySegment[] = [
-  { sessionId: 's1', endedAt: 100, live: false, chunks: [{ lines: 2, size: 1 }, { lines: 1, size: 1 }] },
+  {
+    sessionId: 's1',
+    endedAt: 100,
+    live: false,
+    chunks: [
+      { lines: 2, size: 1 },
+      { lines: 1, size: 1 },
+    ],
+  },
   { sessionId: 's2', endedAt: 200, live: false, chunks: [{ lines: 1, size: 1 }] },
 ];
 

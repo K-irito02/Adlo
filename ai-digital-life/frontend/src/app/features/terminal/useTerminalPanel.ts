@@ -11,10 +11,7 @@ import type { TerminalProfile } from '@stores/types';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 import type { TerminalHistorySegment } from './terminalHistoryStore';
 import type { TerminalViewMode, TerminalViewPrefs } from './terminalViewPrefs';
-import {
-  nextRegionCollapse,
-  terminalRegionCollapseStore,
-} from './terminalRegionCollapse';
+import { nextRegionCollapse, terminalRegionCollapseStore } from './terminalRegionCollapse';
 import type { RegionCollapse, RegionName } from './terminalRegionCollapse';
 
 export type TerminalNavigatorMode = 'sessions' | 'history';
@@ -117,6 +114,12 @@ export interface UseTerminalPanelReturn {
     toggleRegionCollapse: (region: RegionName) => void;
     /** 删除当前标签的全部只读历史，并把折叠态复位为 'none'（实时区随之恢复展开） */
     deleteHistory: (tabId: string) => Promise<void>;
+    /** 右键菜单「重命名」：进入内联编辑并关闭菜单 */
+    handleRenameFromMenu: () => void;
+    /** 右键菜单「删除」：走完整关闭清理（杀 PTY/释放池/删历史）并关闭菜单 */
+    handleDeleteFromMenu: () => void;
+    /** 关闭右键菜单（菜单组件在外部点击 / Esc 时调用） */
+    closeContextMenu: () => void;
   };
   dragHandlers: {
     handleDragStart: (e: React.DragEvent, tabId: string, isPinned: boolean) => void;
@@ -184,6 +187,9 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     contextMenu,
     handleContextMenu,
     handleTogglePin,
+    handleRenameFromMenu,
+    handleDeleteFromMenu,
+    closeContextMenu,
     handleCopy,
     handlePaste,
     handleClear,
@@ -230,6 +236,24 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   useEffect(() => {
     terminalRegionCollapseStore.save(collapseMap);
   }, [collapseMap]);
+
+  // 标签关闭后剪掉其折叠态记录：标签 id 每次创建都不同，不剪会随使用无限累积。
+  useEffect(() => {
+    setCollapseMap((prev) => {
+      const liveTabIds = new Set(terminalTabs.map((tab) => tab.id));
+      const stale = Object.keys(prev).filter((tabId) => !liveTabIds.has(tabId));
+      if (stale.length === 0) {
+        return prev;
+      }
+      const next: Record<string, RegionCollapse> = {};
+      for (const [tabId, value] of Object.entries(prev)) {
+        if (liveTabIds.has(tabId)) {
+          next[tabId] = value;
+        }
+      }
+      return next;
+    });
+  }, [terminalTabs]);
 
   const collapseTabId = activeTab?.id ?? '';
   const regionCollapse: RegionCollapse = collapseTabId
@@ -322,6 +346,9 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       handleDividerPointerDown,
       toggleRegionCollapse,
       deleteHistory,
+      handleRenameFromMenu,
+      handleDeleteFromMenu,
+      closeContextMenu,
     },
     dragHandlers: {
       handleDragStart,

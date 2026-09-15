@@ -43,9 +43,7 @@ export const TerminalHistoryRow = memo(function TerminalHistoryRow({
   return (
     <div className="adl-terminal-history-row">
       {pinned
-        ? runs.map((run, i) => (
-            <PinnedRun key={i} run={run} palette={palette} />
-          ))
+        ? runs.map((run, i) => <PinnedRun key={i} run={run} palette={palette} />)
         : runs.map((run, i) => (
             /* 展开成新的对象字面量：radix 的 CSSProperties 带模板字面量索引签名，
                interface 拿不到隐式索引签名，只有新字面量才能赋值给 style */

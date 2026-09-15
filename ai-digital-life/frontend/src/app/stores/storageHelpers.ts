@@ -69,6 +69,13 @@ export function createUiId(prefix: string): string {
   return `${prefix}-${random}`;
 }
 
+/**
+ * 全部去抖写入器实例。关闭/卸载路径必须把所有实例的 pending 写入同步落盘：
+ * 除跨 slice 共享调度器外，部分 slice 有自己的去抖实例（如 GitHub 快照/日志缓存，
+ * 300ms），只刷共享实例会让它们的最后一次写入随进程退出丢失。
+ */
+const debouncedWriters = new Set<{ flush: () => void }>();
+
 export function createDebouncedWrite(waitMs: number) {
   const pendingWrites = new Map<string, unknown>();
   const pendingNumberWrites = new Map<string, number>();
@@ -112,18 +119,23 @@ export function createDebouncedWrite(waitMs: number) {
     }
   }
 
-  return { scheduleWrite, scheduleNumberWrite, flush };
+  const writer = { scheduleWrite, scheduleNumberWrite, flush };
+  debouncedWriters.add(writer);
+  return writer;
 }
 
 const crossSliceWriter = createDebouncedWrite(50);
 export const scheduleCrossSliceWrite = crossSliceWriter.scheduleWrite;
 
 /**
- * 同步落盘跨 slice 共享调度器中的 pending 写入。
- * 关闭/卸载时调用，确保去抖窗口内的数据（标签、历史索引等）不随进程退出丢失。
+ * 同步落盘**所有**去抖写入器的 pending 数据。
+ * 关闭/卸载时调用，确保去抖窗口内的数据（标签、历史索引、GitHub 快照等）
+ * 不随进程退出丢失。
  */
 export function flushCrossSliceWrites(): void {
-  crossSliceWriter.flush();
+  for (const writer of debouncedWriters) {
+    writer.flush();
+  }
 }
 
 /**

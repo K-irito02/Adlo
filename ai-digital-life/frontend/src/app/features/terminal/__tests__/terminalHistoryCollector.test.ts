@@ -177,12 +177,7 @@ describe('TerminalHistoryCollector', () => {
     const c = makeCollector(makeBuffer(['a', '', ''], ['v1', '', '']), written);
     await c.flush();
     expect(Object.keys(written)).toEqual(['s#0']);
-    expect(JSON.parse(written['s#0']).lines).toEqual([
-      [{ text: 'a' }],
-      [],
-      [],
-      [{ text: 'v1' }],
-    ]);
+    expect(JSON.parse(written['s#0']).lines).toEqual([[{ text: 'a' }], [], [], [{ text: 'v1' }]]);
   });
 
   it('flush 全空白会话不产生空块', async () => {

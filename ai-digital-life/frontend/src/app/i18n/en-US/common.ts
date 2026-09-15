@@ -134,6 +134,7 @@ export const commonEn = {
   remove: 'Remove',
   resizeFileNavigator: 'Resize file navigator',
   resizeSettingsNavigator: 'Resize settings navigator',
+  resizeTerminalNavigator: 'Resize terminal navigator',
   sidebarNavigator: 'Workspace and session navigator',
   toolPanel: 'Workspace tool panel',
   voice: 'Voice',

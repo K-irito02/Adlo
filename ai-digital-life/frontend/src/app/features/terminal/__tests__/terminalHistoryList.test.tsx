@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import { render, cleanup, waitFor } from '@testing-library/react';
 import { TerminalHistoryList } from '@components/terminal/TerminalHistoryList';
 import type { HistoryPalette } from '@features/terminal/historyModel';
 import type { TerminalHistorySegment } from '@features/terminal/terminalHistoryStore';

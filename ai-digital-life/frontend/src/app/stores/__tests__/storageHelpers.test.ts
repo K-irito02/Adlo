@@ -26,4 +26,13 @@ describe('createDebouncedWrite flush', () => {
     flushCrossSliceWrites();
     expect(readJson('k2', {})).toEqual({ b: 2 });
   });
+
+  it('flushCrossSliceWrites 覆盖各 slice 自己的去抖实例（不只共享调度器）', () => {
+    // 部分 slice（如 GitHub 快照/日志缓存）用独立去抖实例，关闭路径必须一并落盘
+    const { scheduleWrite } = createDebouncedWrite(300);
+    scheduleWrite('k3', { c: 3 });
+    expect(window.localStorage.getItem('k3')).toBeNull();
+    flushCrossSliceWrites();
+    expect(readJson('k3', {})).toEqual({ c: 3 });
+  });
 });

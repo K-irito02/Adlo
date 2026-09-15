@@ -49,6 +49,7 @@ export function useTerminalMenus({
     handleTogglePin,
     handleRenameFromMenu,
     handleDeleteFromMenu,
+    closeContextMenu,
   } = useTerminalContextMenu(terminalTabs, handleDoubleClick, terminalTogglePin, handleCloseTab);
 
   const handleCopy = useCallback(() => {
@@ -169,6 +170,7 @@ export function useTerminalMenus({
     handleTogglePin,
     handleRenameFromMenu,
     handleDeleteFromMenu,
+    closeContextMenu,
     handleCopy,
     handlePaste,
     handleClear,

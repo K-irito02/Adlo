@@ -8,10 +8,12 @@ export interface TerminalRegionActionsTitles {
   regionName: string;
   /** 被收起的另一个区域名：单区独显时展开按钮指向它 */
   otherRegionName: string;
-  deleteLabel?: string;
-  deleteTitle?: string;
-  clearLabel?: string;
-  clearTitle?: string;
+  /** 以下四项必填：调用方恒按区域成对提供（历史区给删除、实时区给清空），
+      设为可选会让漏传变成「按钮无 aria-label/title」的静默缺陷。 */
+  deleteLabel: string;
+  deleteTitle: string;
+  clearLabel: string;
+  clearTitle: string;
 }
 
 interface TerminalRegionActionsProps {
@@ -64,9 +66,7 @@ export function TerminalRegionActions({
   );
 
   return (
-    <div
-      className={`adl-terminal-region-actions${alwaysVisible ? ' is-always-visible' : ''}`}
-    >
+    <div className={`adl-terminal-region-actions${alwaysVisible ? ' is-always-visible' : ''}`}>
       {onDelete ? (
         <button
           type="button"

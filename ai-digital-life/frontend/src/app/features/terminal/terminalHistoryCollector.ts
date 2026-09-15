@@ -1,5 +1,10 @@
 // src/app/features/terminal/terminalHistoryCollector.ts
-import { extractLines, type ExtractLine, type ExtractSource, type HistoryRun } from './historyModel';
+import {
+  extractLines,
+  type ExtractLine,
+  type ExtractSource,
+  type HistoryRun,
+} from './historyModel';
 import { chunkKey, type TerminalHistoryChunkMeta } from './terminalHistoryStore';
 
 export const TERMINAL_HISTORY_CHUNK_MAX_BYTES = 64 * 1024;

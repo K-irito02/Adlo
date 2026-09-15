@@ -306,7 +306,7 @@
   height: var(--adl-terminal-cell-height, 17px);
   line-height: var(--adl-terminal-cell-height, 17px);
   white-space: pre;
-  font-family: var(--font-mono);
+  font-family: var(--font-mono, monospace);
   font-size: 13px;
   font-kerning: none;
   font-variant-ligatures: none;
@@ -322,10 +322,13 @@
   display: inline-block;
   /* vertical-align: top 必须与行盒基线策略成对保留：默认 baseline 会按字形基线
      对齐，不同字形的基线差会把该格整体下移，破坏行内网格；
-     overflow: hidden 配合定宽裁掉超宽字形溢出（既不换行也不错位）。 */
+     overflow: hidden 配合定宽裁掉超宽字形溢出（既不换行也不错位）。
+     text-decoration: inherit 必不可少：下划线不向原子内联级后代（inline-block）传播，
+     不继承的话钉格行里的下划线文字（如 ls 的软链）会丢掉下划线。 */
   vertical-align: top;
   overflow: hidden;
   white-space: pre;
+  text-decoration: inherit;
 }
 
 .adl-terminal-history-divider {

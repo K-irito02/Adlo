@@ -67,5 +67,6 @@ export const terminalEn = {
   terminalHistoryDeleteLabel: 'Delete history',
   terminalHistoryDeleteTitle: 'Delete all history for this tab (cannot be undone)',
   terminalLiveClearLabel: 'Clear',
-  terminalLiveClearTitle: 'Clear what the live terminal currently shows (same as the clear command)',
+  terminalLiveClearTitle:
+    'Clear what the live terminal currently shows (same as the clear command)',
 } as const;

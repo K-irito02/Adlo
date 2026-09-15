@@ -36,10 +36,11 @@ import { useResolvedTheme } from '@hooks/useResolvedTheme';
 export function TerminalPanel() {
   const { t } = useTCopy();
   // 订阅主题：手动切换亮/暗主题只改 data-theme 属性，不触发重渲染；
-  // 不订阅的话 readTerminalPalette() 拿到的仍是旧对象，只读历史颜色就跟不上。
-  // resolvedTheme 显式进入 palette 的 memo 依赖（主题版本号语义），语义不变、可读性更好。
-  const resolvedTheme = useResolvedTheme();
-  const historyPalette = useMemo(() => readTerminalPalette(), [resolvedTheme]);
+  // 不订阅的话本次渲染不会重新求值 palette，只读历史颜色就跟不上。
+  // 返回值本身不用（仅借订阅驱动重渲染）；palette 的直接求值即可，
+  // readTerminalPalette 内部按 fg/bg 签名缓存，同主题下引用稳定（memo 化行组件不抖动）。
+  useResolvedTheme();
+  const historyPalette = readTerminalPalette();
 
   const {
     recentWorkspaces,
@@ -99,8 +100,7 @@ export function TerminalPanel() {
     collapse: t.terminalRegionCollapseTitle,
     expand: t.terminalRegionExpandTitle,
     regionName: region === 'history' ? t.terminalHistoryRegionName : t.terminalLiveRegionName,
-    otherRegionName:
-      region === 'history' ? t.terminalLiveRegionName : t.terminalHistoryRegionName,
+    otherRegionName: region === 'history' ? t.terminalLiveRegionName : t.terminalHistoryRegionName,
     deleteLabel: t.terminalHistoryDeleteLabel,
     deleteTitle: t.terminalHistoryDeleteTitle,
     clearLabel: t.terminalLiveClearLabel,
@@ -377,7 +377,7 @@ export function TerminalPanel() {
             onEditKeyDown={terminalActions.handleEditKeyDown}
           />
           <NavigatorResizeHandle
-            label="Resize terminal navigator"
+            label={t.resizeTerminalNavigator}
             minWidth={180}
             maxWidth={300}
             currentWidth={terminalNavigatorWidth}
@@ -465,42 +465,10 @@ export function TerminalPanel() {
       <TerminalContextMenu
         contextMenu={contextMenu}
         onTogglePin={terminalActions.handleTogglePin}
-        onRename={handleRenameFromContextMenu(
-          terminalTabs,
-          contextMenu,
-          terminalActions.handleDoubleClick,
-        )}
-        onDelete={handleDeleteFromContextMenu(contextMenu, terminalActions.handleCloseTab)}
-        onClose={noop}
+        onRename={terminalActions.handleRenameFromMenu}
+        onDelete={terminalActions.handleDeleteFromMenu}
+        onClose={terminalActions.closeContextMenu}
       />
     </div>
   );
 }
-
-function handleRenameFromContextMenu(
-  terminalTabs: { id: string; title: string }[],
-  contextMenu: { tabId: string | null },
-  handleDoubleClick: (tabId: string, title: string) => void,
-): () => void {
-  return () => {
-    if (contextMenu.tabId) {
-      const tab = terminalTabs.find((t) => t.id === contextMenu.tabId);
-      if (tab) {
-        handleDoubleClick(contextMenu.tabId, tab.title);
-      }
-    }
-  };
-}
-
-function handleDeleteFromContextMenu(
-  contextMenu: { tabId: string | null },
-  handleCloseTab: (tabId: string) => void,
-): () => void {
-  return () => {
-    if (contextMenu.tabId) {
-      handleCloseTab(contextMenu.tabId);
-    }
-  };
-}
-
-function noop(): void {}

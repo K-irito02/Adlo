@@ -31,11 +31,28 @@ describe('resolveRunStyle', () => {
     expect(resolveRunStyle({ text: 'a', fg: '#123456' }, palette).color).toBe('#123456');
   });
 
-  it('bold / italic / underline / dim 映射为 CSS', () => {
+  it('bold / italic / underline 映射为 CSS', () => {
     expect(resolveRunStyle({ text: 'a', bold: true }, palette).fontWeight).toBe(700);
     expect(resolveRunStyle({ text: 'a', italic: true }, palette).fontStyle).toBe('italic');
-    expect(resolveRunStyle({ text: 'a', underline: true }, palette).textDecoration).toBe('underline');
-    expect(resolveRunStyle({ text: 'a', dim: true }, palette).opacity).toBe(0.6);
+    expect(resolveRunStyle({ text: 'a', underline: true }, palette).textDecoration).toBe(
+      'underline',
+    );
+  });
+
+  it('dim 只把前景混向背景（不做整格 opacity，背景不被淡化）', () => {
+    // xterm 的 dim 只作用于前景（其 .xterm-dim 规则注释「不得影响背景」）
+    const plain = resolveRunStyle({ text: 'a', dim: true }, palette);
+    expect(plain.color).toBe(
+      `color-mix(in srgb, ${palette.foreground} 50%, ${palette.background})`,
+    );
+    expect(plain.backgroundColor).toBeUndefined();
+    // 带底色的格：混向该底色，且底色本身原样保留
+    const withBg = resolveRunStyle({ text: 'a', dim: true, bg: 4 }, palette);
+    expect(withBg.color).toBe('color-mix(in srgb, #ffffff 50%, #3465a4)');
+    expect(withBg.backgroundColor).toBe('#3465a4');
+    // 反显：前景取反显后的色（原 bg），混向反显后的底色（原 fg）
+    const inverse = resolveRunStyle({ text: 'a', dim: true, fg: 2, bg: 1, inverse: true }, palette);
+    expect(inverse.color).toBe('color-mix(in srgb, #cc0000 50%, #4e9a06)');
   });
 
   it('粗体的 0–7 号标准色按 8–15 号亮色渲染（xterm drawBoldTextInBrightColors 默认开）', () => {
