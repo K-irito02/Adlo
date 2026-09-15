@@ -141,6 +141,8 @@ export const settingsEn = {
   storagePickUnavailable:
     'Folder picker is not available in this environment. Please enter the path manually.',
   storageUnknownError: 'Unknown error',
+  storageBridgeUnavailable: 'bridge unavailable',
+  storageRetry: 'Retry',
   storageStatusTimeout:
     'Storage status timed out: the backend may be scanning a very large directory. Please retry; if it persists, check the size of your data directories.',
 

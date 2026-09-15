@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CopyKey } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
@@ -41,16 +41,40 @@ const CORE_CATEGORY_COUNT = 5;
 /** 状态查询超时（后端遍历超大目录时的兜底，避免无限 loading）。 */
 const STATUS_TIMEOUT_MS = 30_000;
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+/** 仅由超时计时器抛出的哨兵错误：与后端真实失败区分展示（F3）。 */
+export class StatusTimeoutError extends Error {
+  constructor() {
+    super('storage status timed out');
+    this.name = 'StatusTimeoutError';
+  }
+}
+
+function withTimeout<T>(fn: () => Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error('timeout')), ms);
+    timer = setTimeout(() => reject(new StatusTimeoutError()), ms);
   });
-  return Promise.race([promise, timeout]).finally(() => {
+  // 经 `Promise.resolve().then(fn)` 延迟调用：`bridge.getStatus()` 的同步抛错
+  // 也转为竞态的拒绝，走错误路径而非同步逃逸（F2）。
+  const task = Promise.resolve().then(fn);
+  return Promise.race([task, timeout]).finally(() => {
     if (timer) {
       clearTimeout(timer);
     }
   });
+}
+
+/** `ok:true` 畸形体校验：缺 `data`/`categories` 即视为版本错配，走加载失败路径（F1）。 */
+function isWellFormedStatus(data: unknown): data is StorageStatus {
+  if (typeof data !== 'object' || data === null) {
+    return false;
+  }
+  const candidate = data as Partial<StorageStatus>;
+  return (
+    (candidate.mode === 'unified' || candidate.mode === 'per_category') &&
+    typeof candidate.root === 'string' &&
+    Array.isArray(candidate.categories)
+  );
 }
 
 /**
@@ -90,83 +114,157 @@ export function StorageSettings() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
+  // 语言切换会更换 `t` 触发重取：草稿只播种一次，避免覆盖用户编辑（F6）。
+  // 错误文案仍用最新 `t` 即时计算，保持 `t` 新鲜度。
+  const draftsSeededRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
-      setStatusError(t.storageStatusLoadFailed.replace('{error}', 'bridge unavailable'));
+      setStatusError(t.storageStatusLoadFailed.replace('{error}', t.storageBridgeUnavailable));
       setLoading(false);
       return;
     }
-    void withTimeout(bridge.getStatus(), STATUS_TIMEOUT_MS).then(
-      (result) => {
-        if (cancelled) {
-          return;
-        }
-        if (!result.ok) {
-          if (result.error == null) {
-            // 形状错配（如旧后端裸值）只应出现在版本错配时；记 warn 供排查，UI 仍显示友好错误。
-            console.warn('[storage] malformed IpcResult (missing error object)', result);
+    void withTimeout(() => bridge.getStatus(), STATUS_TIMEOUT_MS)
+      .then(
+        (result) => {
+          if (cancelled) {
+            return;
           }
-          setStatusError(
-            t.storageStatusLoadFailed.replace(
-              '{error}',
-              ipcErrorMessage(result.error, t.storageUnknownError),
-            ),
-          );
+          try {
+            if (!result.ok) {
+              if (result.error == null) {
+                // 形状错配（如旧后端裸值）只应出现在版本错配时；记 warn 供排查，UI 仍显示友好错误。
+                console.warn('[storage] malformed IpcResult (missing error object)', result);
+              }
+              setStatusError(
+                t.storageStatusLoadFailed.replace(
+                  '{error}',
+                  ipcErrorMessage(result.error, t.storageUnknownError),
+                ),
+              );
+              setLoading(false);
+              return;
+            }
+            if (!isWellFormedStatus(result.data)) {
+              console.warn(
+                '[storage] malformed IpcResult (ok:true missing data/categories)',
+                result,
+              );
+              setStatusError(t.storageStatusLoadFailed.replace('{error}', t.storageUnknownError));
+              setLoading(false);
+              return;
+            }
+            setStatusError(null);
+            setStatus(result.data);
+            if (!draftsSeededRef.current) {
+              setMode(result.data.mode);
+              setRootDraft(result.data.root);
+              setCategoryDrafts(
+                Object.fromEntries(
+                  result.data.categories.map((category) => [category.key, category.path]),
+                ),
+              );
+              draftsSeededRef.current = true;
+            }
+            setLoading(false);
+          } catch (error) {
+            // 成功处理器内部抛错（如畸形 `ok:true` 取属性失败）：同样落加载失败，不卡 loading（F1）。
+            console.warn('[storage] malformed IpcResult (onFulfilled threw)', result, error);
+            setStatusError(t.storageStatusLoadFailed.replace('{error}', t.storageUnknownError));
+            setLoading(false);
+          }
+        },
+        (error: unknown) => {
+          if (cancelled) {
+            return;
+          }
+          // 超时哨兵报超时文案；其它拒绝（如 channel closed、同步抛错）报加载失败+原文（F3）。
+          if (error instanceof StatusTimeoutError) {
+            setStatusError(t.storageStatusTimeout);
+          } else {
+            setStatusError(
+              t.storageStatusLoadFailed.replace(
+                '{error}',
+                error instanceof Error ? error.message : t.storageUnknownError,
+              ),
+            );
+          }
           setLoading(false);
-          return;
-        }
-        setStatusError(null);
-        setStatus(result.data);
-        setMode(result.data.mode);
-        setRootDraft(result.data.root);
-        setCategoryDrafts(
-          Object.fromEntries(
-            result.data.categories.map((category) => [category.key, category.path]),
-          ),
-        );
-        setLoading(false);
-      },
-      () => {
+        },
+      )
+      .catch((error: unknown) => {
+        // 成功处理器抛错的兜底：已在内层 try/catch 处理，这里防漏网（如拒绝处理器抛错）。
         if (cancelled) {
           return;
         }
-        // 调用永不决议（后端遍历卡死等）：报超时而非无限 loading。
-        setStatusError(t.storageStatusTimeout);
+        console.warn('[storage] malformed IpcResult (unexpected throw)', error);
+        setStatusError(t.storageStatusLoadFailed.replace('{error}', t.storageUnknownError));
         setLoading(false);
-      },
-    );
+      });
     return () => {
       cancelled = true;
     };
   }, [t]);
 
-  /** 只刷新后端状态（不覆盖用户正在编辑的草稿）；成功时清除加载错误。 */
+  /** 只刷新后端状态（不覆盖用户正在编辑的草稿）；成功时清除加载错误，失败 toast（F5）。 */
   const refresh = useCallback(async () => {
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
       return;
     }
-    const result = await bridge.getStatus();
-    if (result.ok) {
+    try {
+      const result = await withTimeout(() => bridge.getStatus(), STATUS_TIMEOUT_MS);
+      if (!result.ok) {
+        if (result.error == null) {
+          console.warn('[storage] malformed IpcResult (missing error object)', result);
+        }
+        showToast(
+          t.storageStatusLoadFailed.replace(
+            '{error}',
+            ipcErrorMessage(result.error, t.storageUnknownError),
+          ),
+          'error',
+        );
+        return;
+      }
+      if (!isWellFormedStatus(result.data)) {
+        console.warn('[storage] malformed IpcResult (ok:true missing data/categories)', result);
+        showToast(t.storageStatusLoadFailed.replace('{error}', t.storageUnknownError), 'error');
+        return;
+      }
       setStatusError(null);
       setStatus(result.data);
+    } catch (error) {
+      if (error instanceof StatusTimeoutError) {
+        showToast(t.storageStatusTimeout, 'error');
+      } else {
+        showToast(
+          t.storageStatusLoadFailed.replace(
+            '{error}',
+            error instanceof Error ? error.message : t.storageUnknownError,
+          ),
+          'error',
+        );
+      }
     }
-  }, []);
+  }, [showToast, t]);
 
-  /** 加载失败后的重试：重置状态并重新拉取（同样受超时保护）。 */
+  /** 加载失败后的重试：重置状态并重新拉取（同样受超时保护）。加载中禁用防重入（F9）。 */
   const handleRetryLoad = useCallback(async () => {
+    if (loading) {
+      return;
+    }
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
-      setStatusError(t.storageStatusLoadFailed.replace('{error}', 'bridge unavailable'));
+      setStatusError(t.storageStatusLoadFailed.replace('{error}', t.storageBridgeUnavailable));
       return;
     }
     setLoading(true);
     setStatusError(null);
     try {
-      const result = await withTimeout(bridge.getStatus(), STATUS_TIMEOUT_MS);
+      const result = await withTimeout(() => bridge.getStatus(), STATUS_TIMEOUT_MS);
       if (!result.ok) {
         if (result.error == null) {
           console.warn('[storage] malformed IpcResult (missing error object)', result);
@@ -177,7 +275,12 @@ export function StorageSettings() {
             ipcErrorMessage(result.error, t.storageUnknownError),
           ),
         );
+      } else if (!isWellFormedStatus(result.data)) {
+        console.warn('[storage] malformed IpcResult (ok:true missing data/categories)', result);
+        setStatusError(t.storageStatusLoadFailed.replace('{error}', t.storageUnknownError));
       } else {
+        // 重试成功必须清除状态错误（F4），并重播种草稿（显式用户动作）。
+        setStatusError(null);
         setStatus(result.data);
         setMode(result.data.mode);
         setRootDraft(result.data.root);
@@ -186,12 +289,22 @@ export function StorageSettings() {
             result.data.categories.map((category) => [category.key, category.path]),
           ),
         );
+        draftsSeededRef.current = true;
       }
-    } catch {
-      setStatusError(t.storageStatusTimeout);
+    } catch (error) {
+      if (error instanceof StatusTimeoutError) {
+        setStatusError(t.storageStatusTimeout);
+      } else {
+        setStatusError(
+          t.storageStatusLoadFailed.replace(
+            '{error}',
+            error instanceof Error ? error.message : t.storageUnknownError,
+          ),
+        );
+      }
     }
     setLoading(false);
-  }, [t]);
+  }, [loading, t]);
 
   const buildPatch = useCallback(
     (retainSource: boolean): StoragePathPatch => ({
@@ -391,9 +504,10 @@ export function StorageSettings() {
             <button
               type="button"
               className="adl-btn adl-btn--secondary"
+              disabled={loading}
               onClick={() => void handleRetryLoad()}
             >
-              {t.storageRetryMigration}
+              {t.storageRetry}
             </button>
           </div>
         </div>
@@ -475,11 +589,13 @@ export function StorageSettings() {
             <small>{t.storageNoCategories}</small>
           </div>
         </div>
-      ) : null}
-      {coreCategories.map(renderCategory)}
-
-      <h4 className="adl-settings-header__title">{t.storageCategoryGroupAdvanced}</h4>
-      {advancedCategories.map(renderCategory)}
+      ) : (
+        <>
+          {coreCategories.map(renderCategory)}
+          <h4 className="adl-settings-header__title">{t.storageCategoryGroupAdvanced}</h4>
+          {advancedCategories.map(renderCategory)}
+        </>
+      )}
 
       <div className="adl-settings-row">
         <div className="adl-settings-row__label" />

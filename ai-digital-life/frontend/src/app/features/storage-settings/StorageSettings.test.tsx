@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { STORAGE_CATEGORY_KEYS } from '@shared/ipc/storage';
@@ -38,18 +38,29 @@ beforeEach(() => {
   };
 });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
+});
+
 // 与其它设置组测试同构：用 Proxy 桩文案（返回 key 本身）避免依赖完整 i18n 词典。
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
 }) as unknown as CopyDict;
 
-function renderSettings() {
+function renderSettings(t: CopyDict = mockT) {
   return render(
-    <TCopyProvider t={mockT} locale="en-US">
+    <TCopyProvider t={t} locale="en-US">
       <StorageSettings />
     </TCopyProvider>,
   );
 }
+
+/** 插值断言专用：加载失败文案带 `{error}` 占位，其余 key 回退为 key 本身。 */
+const interpT = new Proxy({} as Record<string, string>, {
+  get: (_, key) =>
+    key === 'storageStatusLoadFailed' ? 'LOAD FAILED: {error}' : typeof key === 'string' ? key : '',
+}) as unknown as CopyDict;
 
 describe('StorageSettings', () => {
   it('renders all 10 category rows with a description tooltip trigger', async () => {
@@ -102,9 +113,12 @@ describe('StorageSettings', () => {
     });
     // 失败时不渲染空的分类行，避免"标题下无内容"的误导。
     expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+    // 加载态必须清除（不卡 loading）。
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
   });
 
-  it('shows a timeout error when the status request itself rejects', async () => {
+  it('shows a load-failed (not timeout) error when the status request rejects', async () => {
+    // F3：真实拒绝（channel closed）走加载失败路径，仅计时器走超时文案。
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       storage: {
         getStatus: vi.fn().mockRejectedValue(new Error('channel closed')),
@@ -117,14 +131,39 @@ describe('StorageSettings', () => {
     };
     renderSettings();
     await waitFor(() => {
-      expect(screen.getByText('storageStatusTimeout')).toBeTruthy();
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
     });
+    expect(screen.queryByText('storageStatusTimeout')).toBeNull();
+    expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+  });
+
+  it('shows timeout UI when getStatus never settles (fake timers)', async () => {
+    vi.useFakeTimers();
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockImplementation(() => new Promise(() => {})),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    expect(screen.getByText('storageStatusLoading')).toBeTruthy();
+    // fake-timers 下 `waitFor` 不推进时钟：用 `act` 包裹推进，避免轮询挂死。
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(screen.getByText('storageStatusTimeout')).toBeTruthy();
     expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
   });
 
   it('does not hang when the backend returns a malformed failure without error object', async () => {
     // 回归：真实故障是后端返回裸成功值（有 categories、无 ok，如旧后端未包 IpcResult），
     // 前端 !result.ok 为真后曾在 result.error.message 抛错并卡死 loading。
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       storage: {
         getStatus: vi.fn().mockResolvedValue({
@@ -147,6 +186,30 @@ describe('StorageSettings', () => {
       expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
     });
     expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+    // 畸形体必须打 warn 供排查（T3）。
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('surfaces load error without hanging on malformed ok:true without categories (F1)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: { mode: 'unified', root: 'x' } }),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
+    });
+    expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+    expect(warnSpy).toHaveBeenCalled();
   });
 
   it('every real category has non-empty Desc + Related copy (Task-5b)', async () => {
@@ -215,16 +278,35 @@ describe('StorageSettings', () => {
     });
     // 规范失败体透传原 message，且不打 warn（warn 仅用于畸形体）。
     expect(warnSpy).not.toHaveBeenCalled();
-    warnSpy.mockRestore();
   });
 
-  it('retry path surfaces malformed failure instead of hanging', async () => {
+  it('interpolates the backend message into the load-failed text', async () => {
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       storage: {
-        getStatus: vi
-          .fn()
-          .mockResolvedValueOnce({ ok: false, error: { message: 'first' } })
-          .mockResolvedValue({ mode: 'unified', root: 'C:/x', locatorPath: '', categories: [] }),
+        getStatus: vi.fn().mockResolvedValue({ ok: false, error: { message: 'disk-gone' } }),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings(interpT);
+    await waitFor(() => {
+      expect(screen.getByText('LOAD FAILED: disk-gone')).toBeTruthy();
+    });
+  });
+
+  it('retry stays on error for malformed response, then recovers on well-formed response (T1/F4)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const getStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: false, error: { message: 'first' } })
+      .mockResolvedValueOnce({ mode: 'unified', root: 'C:/x', locatorPath: '', categories: [] })
+      .mockResolvedValueOnce({ ok: true, data: status });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus,
         scanForeign: vi.fn(),
         preflight: vi.fn(),
         setPaths: vi.fn(),
@@ -237,5 +319,24 @@ describe('StorageSettings', () => {
       expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
     });
     expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+
+    // 第一次点击重试：后端返回畸形体（无 ok）→ 仍显示错误、不卡 loading。
+    fireEvent.click(screen.getByRole('button', { name: 'storageRetry' }));
+    await waitFor(() => {
+      expect(getStatus).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
+    });
+    expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+    expect(warnSpy).toHaveBeenCalled();
+
+    // 第二次点击重试：良构成功 → 错误清除、10 行渲染（F4）。
+    fireEvent.click(screen.getByRole('button', { name: 'storageRetry' }));
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    expect(screen.queryByText('storageStatusLoadFailed')).toBeNull();
   });
 });

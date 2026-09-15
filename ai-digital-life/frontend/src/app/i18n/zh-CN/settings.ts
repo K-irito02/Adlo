@@ -131,6 +131,8 @@ export const settingsZh = {
   storageNoCategories: '暂无存储分类信息，请稍后重试。',
   storagePickUnavailable: '当前环境不支持目录选择，请手动输入路径。',
   storageUnknownError: '未知错误',
+  storageBridgeUnavailable: '存储桥不可用',
+  storageRetry: '重试',
   storageStatusTimeout:
     '读取存储状态超时：后端可能正在扫描超大目录。请重试；若持续出现，请检查各数据目录的大小。',
 
