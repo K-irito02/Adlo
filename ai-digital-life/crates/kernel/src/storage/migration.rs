@@ -158,11 +158,22 @@ pub fn preflight(from: &StoragePaths, to: &StoragePaths) -> PreflightReport {
                 message: format!("target {} is not writable: {e}", dst.display()),
             });
         }
-        // 统计待迁移体积。
+        // 统计待迁移体积。遍历截断即硬预检错误（不得吞掉：静默少计会导致目标空间误判）。
         if src.exists() {
-            for file in owned_files(category, &src) {
-                total_files += 1;
-                total_bytes += std::fs::metadata(&file).map(|m| m.len()).unwrap_or(0);
+            match owned_files(category, &src) {
+                Ok(files) => {
+                    for file in files {
+                        total_files += 1;
+                        total_bytes += std::fs::metadata(&file).map(|m| m.len()).unwrap_or(0);
+                    }
+                },
+                Err(e) => {
+                    issues.push(PreflightIssue {
+                        severity: Severity::Error,
+                        category: Some(category),
+                        message: e.to_string(),
+                    });
+                },
             }
         }
     }
@@ -194,9 +205,11 @@ impl WalkLimits {
 /// 有界收集目录下所有普通文件。
 ///
 /// 跳过符号链接与挂载点（Windows directory junction 的 `file_type()` 是 dir，
-/// 必须用 `is_symlink()`（`symlink_metadata`）判定，否则循环挂载导致无限遍历，
-/// 且用 canonical 化目录路径去重以兜底循环）。
+/// 必须用 `is_symlink()`（`symlink_metadata`）判定）。循环保证来自 canonical
+/// 化目录路径的 visited 去重集合 + `max_depth` 深度上限（`is_symlink` 跳过只是
+/// 尽早剪枝，不单独构成循环保证）。
 /// 返回 (文件列表, 是否因超预算/深度被截断)。
+/// 截断时经 `tracing::warn!` 记录根路径，调用方无需重复处理。
 pub fn walk_files(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
     use std::collections::HashSet;
     let mut out = Vec::new();
@@ -228,12 +241,18 @@ pub fn walk_files(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
                         truncated = true;
                         continue;
                     }
-                    if let Ok(canon) = std::fs::canonicalize(&path) {
-                        if visited.insert(canon) {
-                            stack.push((path, depth + 1));
-                        } else {
+                    match std::fs::canonicalize(&path) {
+                        Ok(canon) => {
+                            if visited.insert(canon) {
+                                stack.push((path, depth + 1));
+                            } else {
+                                truncated = true;
+                            }
+                        },
+                        Err(_) => {
+                            // 子目录不可解析（删除竞态/权限）：该子树被丢弃，计为截断。
                             truncated = true;
-                        }
+                        },
                     }
                 },
                 Ok(ft) if ft.is_file() => {
@@ -248,6 +267,11 @@ pub fn walk_files(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
                 _ => {},
             }
         }
+    }
+    if truncated {
+        // H1：超预算截断必须可见。集中在此处告警，覆盖全部调用方（scan_foreign /
+        // dir_usage_limited / 迁移路径），调用方无需重复处理 flag，DTO 不变。
+        tracing::warn!(root = %root.display(), "walk_files truncated: tree exceeds limits, results are partial");
     }
     (out, truncated)
 }
@@ -272,19 +296,32 @@ pub fn dir_usage_limited(path: &Path) -> (u64, u64) {
 }
 
 /// 递归收集目录下所有普通文件（迁移路径用：完整遍历 + 循环保护，保证终止）。
-fn collect_files(root: &Path) -> Vec<PathBuf> {
-    walk_files(root, WalkLimits::complete()).0
+/// 超深（>128 层）/循环导致的截断返回 `Err`，调用方必须大声失败，禁止静默丢文件。
+fn collect_files(root: &Path) -> Result<Vec<PathBuf>, AppError> {
+    let (files, truncated) = walk_files(root, WalkLimits::complete());
+    if truncated {
+        return Err(AppError::Storage(format!(
+            "directory walk truncated (exceeds depth/file limits): {}",
+            root.display()
+        )));
+    }
+    Ok(files)
 }
 
 /// 收集某分类在 `base` 目录下的自有文件（按 `owns_file` 过滤）。
-fn owned_files(category: StorageCategory, base: &Path) -> Vec<PathBuf> {
+/// 遍历截断时返回 `Err`（超深目录树不得静默迁移部分文件）。
+fn owned_files(category: StorageCategory, base: &Path) -> Result<Vec<PathBuf>, AppError> {
     if !base.exists() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
     if base.is_file() {
-        return if owns_file(category, base, base) { vec![base.to_path_buf()] } else { Vec::new() };
+        return Ok(if owns_file(category, base, base) {
+            vec![base.to_path_buf()]
+        } else {
+            Vec::new()
+        });
     }
-    collect_files(base).into_iter().filter(|f| owns_file(category, base, f)).collect()
+    Ok(collect_files(base)?.into_iter().filter(|f| owns_file(category, base, f)).collect())
 }
 
 /// 探测目录可写：创建并删除一个临时文件。
@@ -371,7 +408,7 @@ pub fn copy_category(
     // 目录类：保留相对路径。
     let mut moved = Vec::new();
     for (src_dir, dst_dir) in dir_pairs(category, from, to) {
-        for file in owned_files(category, &src_dir) {
+        for file in owned_files(category, &src_dir)? {
             let rel = match file.strip_prefix(&src_dir) {
                 Ok(r) => r,
                 Err(_) => continue,
@@ -448,7 +485,7 @@ pub fn verify_category(
     }
 
     for (src_dir, dst_dir) in dir_pairs(category, from, to) {
-        for file in owned_files(category, &src_dir) {
+        for file in owned_files(category, &src_dir)? {
             let rel = file.strip_prefix(&src_dir).unwrap_or(&file);
             let dst = dst_dir.join(rel);
             let s = std::fs::metadata(&file)?.len();
@@ -510,8 +547,8 @@ pub fn cleanup_category(
         if !root.is_dir() {
             continue;
         }
-        // 删自有文件。
-        for file in owned_files(category, &root) {
+        // 删自有文件（截断即 `Err` 大声失败，不静默删部分文件）。
+        for file in owned_files(category, &root)? {
             std::fs::remove_file(&file)?;
         }
         // 自底向上删除空的自有目录。
@@ -531,8 +568,10 @@ pub fn cleanup_category(
                 removed_dirs.push(root);
             }
         } else {
-            let foreign: Vec<String> =
-                collect_files(&root).into_iter().map(|f| f.to_string_lossy().to_string()).collect();
+            let foreign: Vec<String> = collect_files(&root)?
+                .into_iter()
+                .map(|f| f.to_string_lossy().to_string())
+                .collect();
             if !foreign.is_empty() {
                 kept_dirs.push(KeptDir { path: root, foreign_files: foreign });
             }
@@ -881,6 +920,81 @@ mod tests {
         let (files, truncated) = walk_files(&base, limits);
         assert!(truncated);
         assert_eq!(files.len(), 4);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn walk_files_truncation_flag_on_zero_depth_budget() {
+        // H1：截断只断言 flag（不匹配日志文本）；零深度预算下任何子目录即截断，
+        // 顶层文件仍返回（部分结果）。
+        let base = std::env::temp_dir().join(format!("adl-walk-zerodepth-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("sub")).unwrap();
+        std::fs::write(base.join("top.txt"), b"x").unwrap();
+        std::fs::write(base.join("sub/nested.txt"), b"y").unwrap();
+        let limits = WalkLimits { max_depth: 0, max_files: None };
+        let (files, truncated) = walk_files(&base, limits);
+        assert!(truncated, "subdirectory beyond zero depth budget must set the flag");
+        assert_eq!(files.len(), 1);
+        assert!(files.iter().any(|f| f.ends_with("top.txt")));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    /// 超深目录树夹具根（>128 层，触发 `WalkLimits::complete` 截断）。
+    /// Windows 下加 `\\?\` 前缀绕过 260 字符 MAX_PATH 限制。
+    fn deep_base(tag: &str) -> PathBuf {
+        let base = std::env::temp_dir().join(format!("adl-{tag}-{}", std::process::id()));
+        #[cfg(windows)]
+        let base = PathBuf::from(format!(r"\\?\{}", base.display()));
+        let _ = std::fs::remove_dir_all(&base);
+        base
+    }
+
+    /// 在 `root` 下建 `depth` 层单链嵌套（每层 1 字符目录名），底层放一个文件。
+    fn make_over_depth_tree(root: &Path, depth: usize) -> PathBuf {
+        let mut dir = root.to_path_buf();
+        for _ in 0..depth {
+            dir = dir.join("d");
+            std::fs::create_dir_all(&dir).unwrap();
+        }
+        let file = dir.join("f.txt");
+        std::fs::write(&file, b"x").unwrap();
+        file
+    }
+
+    #[test]
+    fn owned_files_errors_on_over_depth_tree() {
+        // M1：128 层以上的树不得静默丢文件，必须 `Err` 大声失败。
+        let base = deep_base("own-deep");
+        std::fs::create_dir_all(&base).unwrap();
+        make_over_depth_tree(&base, 135);
+        let err =
+            owned_files(StorageCategory::Config, &base).expect_err("over-depth tree must fail");
+        assert!(err.to_string().contains("truncated"), "error must name the truncation: {err}");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn copy_category_refuses_truncated_source() {
+        // M1：截断的源目录不得复制部分文件，`copy_category` 直接返回 `Err`。
+        let base = deep_base("copy-deep");
+        let old_root = base.join("old");
+        let new_root = base.join("new");
+        let old = paths_for(&StorageSelection::default(), &old_root.to_string_lossy());
+        let new_sel = StorageSelection { root: Some(new_root.clone()), ..Default::default() };
+        let newp = paths_for(&new_sel, &old_root.to_string_lossy());
+        std::fs::create_dir_all(&old.config_dir).unwrap();
+        make_over_depth_tree(&old.config_dir, 135);
+
+        let mut noop = |_p: MigrationProgress| {};
+        let err = copy_category(StorageCategory::Config, &old, &newp, &mut noop)
+            .expect_err("truncated source must be refused");
+        assert!(err.to_string().contains("truncated"), "error must name the truncation: {err}");
+        assert!(
+            !newp.config_dir.exists()
+                || walk_files(&newp.config_dir, WalkLimits::complete()).0.is_empty(),
+            "no partial copy may be left behind"
+        );
         let _ = std::fs::remove_dir_all(&base);
     }
 
