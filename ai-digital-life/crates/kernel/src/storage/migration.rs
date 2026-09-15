@@ -81,7 +81,9 @@ pub fn scan_foreign(paths: &StoragePaths) -> Vec<ForeignScan> {
             if !root.is_dir() {
                 continue;
             }
-            let foreign: Vec<String> = collect_files(&root)
+            // 状态查询用有界遍历：超大目录即停，避免 getStatus 卡死。
+            let foreign: Vec<String> = walk_files(&root, WalkLimits::status())
+                .0
                 .into_iter()
                 .filter(|f| !owns_file(category, &root, f))
                 .map(|f| f.to_string_lossy().to_string())
@@ -168,25 +170,110 @@ pub fn preflight(from: &StoragePaths, to: &StoragePaths) -> PreflightReport {
     PreflightReport { issues, total_files, total_bytes }
 }
 
-/// 递归收集目录下所有普通文件（不跟随符号链接）。
-fn collect_files(root: &Path) -> Vec<PathBuf> {
+/// 文件遍历预算。
+#[derive(Debug, Clone, Copy)]
+pub struct WalkLimits {
+    /// 最大目录深度（防病态嵌套）。
+    pub max_depth: usize,
+    /// 最大收集文件数；`None` = 完整遍历（迁移路径用，配合循环保护保证终止）。
+    pub max_files: Option<usize>,
+}
+
+impl WalkLimits {
+    /// 迁移用：完整但防循环。
+    pub fn complete() -> Self {
+        Self { max_depth: 128, max_files: None }
+    }
+
+    /// 状态查询用：有界快速。
+    pub fn status() -> Self {
+        Self { max_depth: 64, max_files: Some(200_000) }
+    }
+}
+
+/// 有界收集目录下所有普通文件。
+///
+/// 跳过符号链接与挂载点（Windows directory junction 的 `file_type()` 是 dir，
+/// 必须用 `is_symlink()`（`symlink_metadata`）判定，否则循环挂载导致无限遍历，
+/// 且用 canonical 化目录路径去重以兜底循环）。
+/// 返回 (文件列表, 是否因超预算/深度被截断)。
+pub fn walk_files(root: &Path, limits: WalkLimits) -> (Vec<PathBuf>, bool) {
+    use std::collections::HashSet;
     let mut out = Vec::new();
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(dir) = stack.pop() {
+    let mut truncated = false;
+    let mut visited: HashSet<PathBuf> = HashSet::new();
+    if let Ok(canon) = std::fs::canonicalize(root) {
+        visited.insert(canon);
+    }
+    let mut stack = vec![(root.to_path_buf(), 0usize)];
+    while let Some((dir, depth)) = stack.pop() {
+        if let Some(max) = limits.max_files {
+            if out.len() >= max {
+                truncated = true;
+                break;
+            }
+        }
         let entries = match std::fs::read_dir(&dir) {
             Ok(e) => e,
             Err(_) => continue,
         };
         for entry in entries.flatten() {
             let path = entry.path();
+            if path.is_symlink() {
+                continue;
+            }
             match entry.file_type() {
-                Ok(ft) if ft.is_dir() => stack.push(path),
-                Ok(ft) if ft.is_file() => out.push(path),
+                Ok(ft) if ft.is_dir() => {
+                    if depth + 1 > limits.max_depth {
+                        truncated = true;
+                        continue;
+                    }
+                    if let Ok(canon) = std::fs::canonicalize(&path) {
+                        if visited.insert(canon) {
+                            stack.push((path, depth + 1));
+                        } else {
+                            truncated = true;
+                        }
+                    }
+                },
+                Ok(ft) if ft.is_file() => {
+                    if let Some(max) = limits.max_files {
+                        if out.len() >= max {
+                            truncated = true;
+                            break;
+                        }
+                    }
+                    out.push(path);
+                },
                 _ => {},
             }
         }
     }
-    out
+    (out, truncated)
+}
+
+/// 有界目录占用统计（状态查询用）。超预算即停，返回部分统计。
+pub fn dir_usage_limited(path: &Path) -> (u64, u64) {
+    if path.is_file() {
+        let len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
+        return (len, 1);
+    }
+    if !path.is_dir() {
+        return (0, 0);
+    }
+    let (files, _) = walk_files(path, WalkLimits::status());
+    let mut bytes = 0u64;
+    let mut count = 0u64;
+    for f in files {
+        bytes += std::fs::metadata(&f).map(|m| m.len()).unwrap_or(0);
+        count += 1;
+    }
+    (bytes, count)
+}
+
+/// 递归收集目录下所有普通文件（迁移路径用：完整遍历 + 循环保护，保证终止）。
+fn collect_files(root: &Path) -> Vec<PathBuf> {
+    walk_files(root, WalkLimits::complete()).0
 }
 
 /// 收集某分类在 `base` 目录下的自有文件（按 `owns_file` 过滤）。
@@ -761,6 +848,77 @@ mod tests {
     fn scan_foreign_on_missing_dirs_is_empty() {
         let p = paths_for(&StorageLocator::default().selection, "/adl-nonexistent-9f3a7c1e-scan");
         assert!(scan_foreign(&p).is_empty());
+    }
+
+    #[test]
+    fn walk_files_respects_max_depth() {
+        let base = std::env::temp_dir().join(format!("adl-walk-depth-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        // 建 5 层嵌套，每层一个文件。
+        let mut dir = base.clone();
+        for i in 0..5 {
+            dir = dir.join(format!("l{i}"));
+            std::fs::create_dir_all(&dir).unwrap();
+            std::fs::write(dir.join("f.txt"), b"x").unwrap();
+        }
+        let limits = WalkLimits { max_depth: 2, max_files: None };
+        let (files, truncated) = walk_files(&base, limits);
+        assert!(truncated, "depthExceeded must be reported");
+        // base 下无文件；l0/f.txt（深度 1）与 l1/f.txt（深度 2）在内，第 3 层起被截断。
+        assert_eq!(files.len(), 2);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn walk_files_respects_max_files() {
+        let base = std::env::temp_dir().join(format!("adl-walk-count-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        for i in 0..10 {
+            std::fs::write(base.join(format!("f{i}.txt")), b"x").unwrap();
+        }
+        let limits = WalkLimits { max_depth: 64, max_files: Some(4) };
+        let (files, truncated) = walk_files(&base, limits);
+        assert!(truncated);
+        assert_eq!(files.len(), 4);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn walk_files_skips_symlinks() {
+        let base = std::env::temp_dir().join(format!("adl-walk-link-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::write(base.join("real.txt"), b"x").unwrap();
+        // Windows 建符号链接需特权；失败则跳过本用例（不判失败）。
+        #[cfg(windows)]
+        let link_ok =
+            std::os::windows::fs::symlink_file(base.join("real.txt"), base.join("link.txt"))
+                .is_ok();
+        #[cfg(not(windows))]
+        let link_ok =
+            std::os::unix::fs::symlink(base.join("real.txt"), base.join("link.txt")).is_ok();
+        let (files, _) = walk_files(&base, WalkLimits::status());
+        assert!(files.iter().any(|f| f.ends_with("real.txt")));
+        if link_ok {
+            assert!(
+                !files.iter().any(|f| f.ends_with("link.txt")),
+                "symlinks must never be collected"
+            );
+        }
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn dir_usage_limited_counts_and_stops() {
+        let base = std::env::temp_dir().join(format!("adl-walk-usage-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("sub")).unwrap();
+        std::fs::write(base.join("a.bin"), [0u8; 7]).unwrap();
+        std::fs::write(base.join("sub/b.bin"), [0u8; 5]).unwrap();
+        assert_eq!(dir_usage_limited(&base), (12, 2));
+        assert_eq!(dir_usage_limited(&base.join("missing")), (0, 0));
+        let _ = std::fs::remove_dir_all(&base);
     }
 
     use crate::storage::locator::{StorageMode, StorageSelection};

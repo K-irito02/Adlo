@@ -38,6 +38,21 @@ const IMMOVABLE_COPY: Record<
 /** 每个分组展示的分类数量（后端按固定顺序返回 10 类：前 5 核心、后 5 高级）。 */
 const CORE_CATEGORY_COUNT = 5;
 
+/** 状态查询超时（后端遍历超大目录时的兜底，避免无限 loading）。 */
+const STATUS_TIMEOUT_MS = 30_000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('timeout')), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  });
+}
+
 /**
  * 「存储」设置组（Plan C Task 5）。
  *
@@ -75,24 +90,36 @@ export function StorageSettings() {
       setLoading(false);
       return;
     }
-    void bridge.getStatus().then((result) => {
-      if (cancelled) {
-        return;
-      }
-      if (!result.ok) {
-        setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
+    void withTimeout(bridge.getStatus(), STATUS_TIMEOUT_MS).then(
+      (result) => {
+        if (cancelled) {
+          return;
+        }
+        if (!result.ok) {
+          setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
+          setLoading(false);
+          return;
+        }
+        setStatusError(null);
+        setStatus(result.data);
+        setMode(result.data.mode);
+        setRootDraft(result.data.root);
+        setCategoryDrafts(
+          Object.fromEntries(
+            result.data.categories.map((category) => [category.key, category.path]),
+          ),
+        );
         setLoading(false);
-        return;
-      }
-      setStatusError(null);
-      setStatus(result.data);
-      setMode(result.data.mode);
-      setRootDraft(result.data.root);
-      setCategoryDrafts(
-        Object.fromEntries(result.data.categories.map((category) => [category.key, category.path])),
-      );
-      setLoading(false);
-    });
+      },
+      () => {
+        if (cancelled) {
+          return;
+        }
+        // 调用永不决议（后端遍历卡死等）：报超时而非无限 loading。
+        setStatusError(t.storageStatusTimeout);
+        setLoading(false);
+      },
+    );
     return () => {
       cancelled = true;
     };
@@ -111,7 +138,7 @@ export function StorageSettings() {
     }
   }, []);
 
-  /** 加载失败后的重试：重置状态并重新拉取。 */
+  /** 加载失败后的重试：重置状态并重新拉取（同样受超时保护）。 */
   const handleRetryLoad = useCallback(async () => {
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
@@ -120,16 +147,22 @@ export function StorageSettings() {
     }
     setLoading(true);
     setStatusError(null);
-    const result = await bridge.getStatus();
-    if (!result.ok) {
-      setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
-    } else {
-      setStatus(result.data);
-      setMode(result.data.mode);
-      setRootDraft(result.data.root);
-      setCategoryDrafts(
-        Object.fromEntries(result.data.categories.map((category) => [category.key, category.path])),
-      );
+    try {
+      const result = await withTimeout(bridge.getStatus(), STATUS_TIMEOUT_MS);
+      if (!result.ok) {
+        setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
+      } else {
+        setStatus(result.data);
+        setMode(result.data.mode);
+        setRootDraft(result.data.root);
+        setCategoryDrafts(
+          Object.fromEntries(
+            result.data.categories.map((category) => [category.key, category.path]),
+          ),
+        );
+      }
+    } catch {
+      setStatusError(t.storageStatusTimeout);
     }
     setLoading(false);
   }, [t]);

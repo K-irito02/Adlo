@@ -140,6 +140,8 @@ export const settingsEn = {
   storageNoCategories: 'No storage categories available. Please retry later.',
   storagePickUnavailable:
     'Folder picker is not available in this environment. Please enter the path manually.',
+  storageStatusTimeout:
+    'Storage status timed out: the backend may be scanning a very large directory. Please retry; if it persists, check the size of your data directories.',
 
   // Storage categories
   storageCategoryDatabase: 'Main database',

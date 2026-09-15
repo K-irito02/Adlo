@@ -215,36 +215,8 @@ fn category_usage(category: st::StorageCategory, path: &std::path::Path) -> (u64
     if matches!(category, st::StorageCategory::DownloadsDefault) {
         return (0, 0);
     }
-    dir_usage(path)
-}
-
-fn dir_usage(path: &std::path::Path) -> (u64, u64) {
-    if path.is_file() {
-        let len = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
-        return (len, 1);
-    }
-    if !path.is_dir() {
-        return (0, 0);
-    }
-    let mut bytes = 0u64;
-    let mut files = 0u64;
-    let mut stack = vec![path.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                match entry.file_type() {
-                    Ok(ft) if ft.is_dir() => stack.push(p),
-                    Ok(ft) if ft.is_file() => {
-                        bytes += std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0);
-                        files += 1;
-                    },
-                    _ => {},
-                }
-            }
-        }
-    }
-    (bytes, files)
+    // 有界统计（防超大目录/循环挂载卡死状态查询），见 adl_kernel::storage。
+    st::dir_usage_limited(path)
 }
 
 fn report_dto(r: &st::MigrationReport) -> StorageReportDto {
@@ -522,13 +494,13 @@ mod tests {
         let (_svc, dir) = temp_storage("usage");
         let file = dir.join("a.bin");
         std::fs::write(&file, [0u8; 7]).unwrap();
-        assert_eq!(dir_usage(&file), (7, 1));
+        assert_eq!(st::dir_usage_limited(&file), (7, 1));
         let nested = dir.join("nested");
         std::fs::create_dir_all(&nested).unwrap();
         std::fs::write(nested.join("b.bin"), [0u8; 5]).unwrap();
         // `dir` also contains `a.bin` (7) + `nested/b.bin` (5) => 12 bytes / 2 files.
-        assert_eq!(dir_usage(&dir), (12, 2));
-        assert_eq!(dir_usage(&dir.join("missing")), (0, 0));
+        assert_eq!(st::dir_usage_limited(&dir), (12, 2));
+        assert_eq!(st::dir_usage_limited(&dir.join("missing")), (0, 0));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

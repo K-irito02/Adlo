@@ -104,6 +104,24 @@ describe('StorageSettings', () => {
     expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
   });
 
+  it('shows a timeout error when the status request itself rejects', async () => {
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockRejectedValue(new Error('channel closed')),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusTimeout')).toBeTruthy();
+    });
+    expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+  });
+
   it('every real category has non-empty Desc + Related copy (Task-5b)', async () => {
     const realStatus = {
       ...status,
