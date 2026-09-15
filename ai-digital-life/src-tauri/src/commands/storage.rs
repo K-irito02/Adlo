@@ -7,6 +7,11 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{AppHandle, State};
 
+/// 成功值包 `IpcResult` 信封（与 `download_*` 等命令的 `Ok(ipc(Ok(..)))` 同构的简写）。
+fn ok_ipc<T>(value: T) -> Result<IpcResult<T>, AppError> {
+    Ok(ipc(Ok(value)))
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct StorageCategoryStatus {
@@ -200,21 +205,23 @@ pub fn storage_get_status(
             .map(|p| PendingDto { failed: p.failed, error: p.error.clone() }),
         last_report: locator.last_report.as_ref().map(report_dto),
     };
-    Ok(ipc(Ok(status)))
+    ok_ipc(status)
 }
 
 #[tauri::command]
 pub fn storage_scan_foreign_cmd(
     state: State<'_, AppState>,
 ) -> Result<IpcResult<Vec<ForeignScanDto>>, AppError> {
-    Ok(ipc(Ok(st::scan_foreign(state.storage.paths())
-        .into_iter()
-        .map(|f| ForeignScanDto {
-            category: f.category.key().to_string(),
-            root: f.root.to_string_lossy().to_string(),
-            foreign_files: f.foreign_files,
-        })
-        .collect())))
+    ok_ipc(
+        st::scan_foreign(state.storage.paths())
+            .into_iter()
+            .map(|f| ForeignScanDto {
+                category: f.category.key().to_string(),
+                root: f.root.to_string_lossy().to_string(),
+                foreign_files: f.foreign_files,
+            })
+            .collect(),
+    )
 }
 
 #[tauri::command]
@@ -222,15 +229,19 @@ pub fn storage_preflight_cmd(
     state: State<'_, AppState>,
     patch: StoragePathPatch,
 ) -> Result<IpcResult<PreflightDto>, AppError> {
-    Ok(ipc(preflight_inner(&state, &patch)))
+    let selection = patch_to_selection(&patch)?;
+    ok_ipc(preflight_inner(&state, &selection)?)
 }
 
 /// 预检核心（命令与内部调用共用，避免 `IpcResult` 解包/重包）。
-fn preflight_inner(state: &AppState, patch: &StoragePathPatch) -> Result<PreflightDto, AppError> {
-    let selection = patch_to_selection(patch)?;
+/// 接收已解析的 `selection`，调用方只解析一次。
+fn preflight_inner(
+    state: &AppState,
+    selection: &st::StorageSelection,
+) -> Result<PreflightDto, AppError> {
     let defaults = state.storage_defaults.clone();
     let from = state.storage.paths().clone();
-    let to = st::StoragePaths::resolve(&selection, &defaults);
+    let to = st::StoragePaths::resolve(selection, &defaults);
     let report = st::preflight(&from, &to);
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -271,9 +282,9 @@ pub fn storage_set_paths(
 ) -> Result<IpcResult<StorageApplyResult>, AppError> {
     let to = patch_to_selection(&patch)?;
     // 预检（含磁盘空间）；有硬错误则拒绝写入（直接调核心，不经 IpcResult 解包）。
-    let preflight = preflight_inner(&state, &patch)?;
+    let preflight = preflight_inner(&state, &to)?;
     if !preflight.ok {
-        return Ok(ipc(Ok(StorageApplyResult { restart_required: false, preflight })));
+        return ok_ipc(StorageApplyResult { restart_required: false, preflight });
     }
     let mut locator = st::load_locator();
     locator.pending_migration = Some(st::PendingMigration {
@@ -288,7 +299,7 @@ pub fn storage_set_paths(
 
     // 不在命令内重启：迁移在下次启动、DB 打开前执行。`restart_required` 告知前端
     // 是否应随即调用 `app_restart`。这样避免了「发散调用后返回」的不可达代码。
-    Ok(ipc(Ok(StorageApplyResult { restart_required: apply_now, preflight })))
+    ok_ipc(StorageApplyResult { restart_required: apply_now, preflight })
 }
 
 #[tauri::command]
@@ -296,7 +307,7 @@ pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<(
     let mut locator = st::load_locator();
     locator.pending_migration = None;
     st::save_locator(&locator)?;
-    Ok(ipc(Ok(())))
+    ok_ipc(())
 }
 
 /// 重启应用。前端在 `storage_set_paths` 返回 `restartRequired == true` 后调用。

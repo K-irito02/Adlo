@@ -54,6 +54,15 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
+ * IpcResult 错误消息提取：缺失时回退为本地化未知错误。
+ * 畸形体（如旧后端裸值）不断言、不抛错，只降级显示；版本错配的可观测性由调用点的
+ * `console.warn` 负责（目前仅 getStatus 双路径打 warn，避免正常业务错误噪音）。
+ */
+function ipcErrorMessage(error: { message?: string } | null | undefined, fallback: string): string {
+  return error?.message ?? fallback;
+}
+
+/**
  * 「存储」设置组（Plan C Task 5）。
  *
  * 组成：模式切换 → （统一模式）根目录行 → 10 类分类行（核心/高级）→ 应用
@@ -103,7 +112,7 @@ export function StorageSettings() {
           setStatusError(
             t.storageStatusLoadFailed.replace(
               '{error}',
-              result.error?.message ?? t.storageUnknownError,
+              ipcErrorMessage(result.error, t.storageUnknownError),
             ),
           );
           setLoading(false);
@@ -165,7 +174,7 @@ export function StorageSettings() {
         setStatusError(
           t.storageStatusLoadFailed.replace(
             '{error}',
-            result.error?.message ?? t.storageUnknownError,
+            ipcErrorMessage(result.error, t.storageUnknownError),
           ),
         );
       } else {
@@ -222,7 +231,10 @@ export function StorageSettings() {
         const result = await bridge.pickDirectory();
         if (!result.ok) {
           showToast(
-            t.storagePickFailed.replace('{error}', result.error?.message ?? t.storageUnknownError),
+            t.storagePickFailed.replace(
+              '{error}',
+              ipcErrorMessage(result.error, t.storageUnknownError),
+            ),
             'error',
           );
           return;
@@ -246,7 +258,7 @@ export function StorageSettings() {
     try {
       const result = await bridge.preflight(buildPatch(false));
       if (!result.ok) {
-        showToast(result.error?.message ?? t.storageUnknownError, 'error');
+        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
       setPreflight(result.data);
@@ -266,7 +278,7 @@ export function StorageSettings() {
       try {
         const result = await bridge.setPaths(buildPatch(retainSource), applyNow);
         if (!result.ok) {
-          showToast(result.error?.message ?? t.storageUnknownError, 'error');
+          showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
           return;
         }
         // 后端可能拒绝写入（预检失败时返回 restartRequired:false + failing preflight）：
@@ -323,7 +335,7 @@ export function StorageSettings() {
     try {
       const result = await bridge.cancelPending();
       if (!result.ok) {
-        showToast(result.error?.message ?? t.storageUnknownError, 'error');
+        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
       await refresh();

@@ -196,4 +196,46 @@ describe('StorageSettings', () => {
       }
     }
   });
+
+  it('shows the original message without warn on a well-formed failure', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: false, error: { message: 'disk-gone' } }),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
+    });
+    // 规范失败体透传原 message，且不打 warn（warn 仅用于畸形体）。
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('retry path surfaces malformed failure instead of hanging', async () => {
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi
+          .fn()
+          .mockResolvedValueOnce({ ok: false, error: { message: 'first' } })
+          .mockResolvedValue({ mode: 'unified', root: 'C:/x', locatorPath: '', categories: [] }),
+        scanForeign: vi.fn(),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
+    });
+    expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+  });
 });
