@@ -85,16 +85,24 @@ export function StorageSettings() {
   useEffect(() => {
     let cancelled = false;
     const bridge = window.digitalLife?.storage;
+    // TODO(DIAG): 临时诊断日志，定位无限 loading 后删除。
+    console.log('[STORAGE-DIAG] storage effect begin, storage bridge present:', !!bridge);
     if (!bridge) {
       setStatusError(t.storageStatusLoadFailed.replace('{error}', 'bridge unavailable'));
       setLoading(false);
       return;
     }
+    const t0 = Date.now();
     void withTimeout(bridge.getStatus(), STATUS_TIMEOUT_MS).then(
       (result) => {
         if (cancelled) {
           return;
         }
+        console.log('[STORAGE-DIAG] getStatus settled', {
+          ok: result.ok,
+          elapsedMs: Date.now() - t0,
+          categories: result.ok ? result.data.categories.length : 0,
+        });
         if (!result.ok) {
           setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
           setLoading(false);
@@ -115,6 +123,7 @@ export function StorageSettings() {
         if (cancelled) {
           return;
         }
+        console.log('[STORAGE-DIAG] getStatus TIMEOUT after ms:', STATUS_TIMEOUT_MS);
         // 调用永不决议（后端遍历卡死等）：报超时而非无限 loading。
         setStatusError(t.storageStatusTimeout);
         setLoading(false);
@@ -141,14 +150,21 @@ export function StorageSettings() {
   /** 加载失败后的重试：重置状态并重新拉取（同样受超时保护）。 */
   const handleRetryLoad = useCallback(async () => {
     const bridge = window.digitalLife?.storage;
+    // TODO(DIAG): 临时诊断日志，定位无限 loading 后删除。
+    console.log('[STORAGE-DIAG] manual retry begin, storage bridge present:', !!bridge);
     if (!bridge) {
       setStatusError(t.storageStatusLoadFailed.replace('{error}', 'bridge unavailable'));
       return;
     }
     setLoading(true);
     setStatusError(null);
+    const t0 = Date.now();
     try {
       const result = await withTimeout(bridge.getStatus(), STATUS_TIMEOUT_MS);
+      console.log('[STORAGE-DIAG] retry getStatus settled', {
+        ok: result.ok,
+        elapsedMs: Date.now() - t0,
+      });
       if (!result.ok) {
         setStatusError(t.storageStatusLoadFailed.replace('{error}', result.error.message));
       } else {

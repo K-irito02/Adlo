@@ -132,8 +132,18 @@ fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
     st::StorageCategory::ALL
         .into_iter()
         .map(|c| {
+            // TODO(DIAG): 临时诊断日志，定位慢目录后删除。
+            let ct0 = std::time::Instant::now();
             let path = svc.paths().dir(c);
             let (bytes, files) = category_usage(c, &path);
+            tracing::info!(
+                category = c.key(),
+                path = %path.display(),
+                elapsed_ms = ct0.elapsed().as_millis(),
+                bytes,
+                files,
+                "[STORAGE-DIAG] category_status"
+            );
             StorageCategoryStatus {
                 key: c.key().to_string(),
                 path: path.to_string_lossy().to_string(),
@@ -180,9 +190,12 @@ fn report_dto(r: &st::MigrationReport) -> StorageReportDto {
 
 #[tauri::command]
 pub fn storage_get_status(state: State<'_, AppState>) -> Result<StorageStatus, AppError> {
+    // TODO(DIAG): 临时诊断日志，定位 getStatus 卡死后删除。
+    let t0 = std::time::Instant::now();
+    tracing::info!("[STORAGE-DIAG] storage_get_status begin");
     let locator = st::load_locator();
     let svc = state.storage.clone();
-    Ok(StorageStatus {
+    let status = StorageStatus {
         mode: match locator.selection.mode {
             st::StorageMode::Unified => "unified".into(),
             st::StorageMode::PerCategory => "per_category".into(),
@@ -195,7 +208,9 @@ pub fn storage_get_status(state: State<'_, AppState>) -> Result<StorageStatus, A
             .as_ref()
             .map(|p| PendingDto { failed: p.failed, error: p.error.clone() }),
         last_report: locator.last_report.as_ref().map(report_dto),
-    })
+    };
+    tracing::info!(elapsed_ms = t0.elapsed().as_millis(), "[STORAGE-DIAG] storage_get_status end");
+    Ok(status)
 }
 
 #[tauri::command]
