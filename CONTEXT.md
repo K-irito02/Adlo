@@ -155,6 +155,9 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 ### 终端 (Terminal)
 伪终端管理模块。Tauri 模式后端通过 `crates/pty/` 管理进程，浏览器模式通过 `previewTerminalService.ts`（Node.js）管理；前端通过 xterm.js 渲染，浏览器模式采用轮询机制（1000ms，`preview-pty-bridge.ts`）。
 
+### 只读历史 (Read-only History)
+终端面板中实时终端之外的历史回放区。每次 PTY 会话结束（shell 退出 / 关闭应用时的落盘）即定稿为一段历史，末尾附日期分隔条（`─── HH:MM:SS DD-MM-YYYY ───`，固定格式不随语言变化），按标签累积并跨重启保留。语义是**采集时刻的屏幕快照**（不随当前窗口宽度重新分列）；渲染为轻量 DOM 虚拟列表（`TerminalHistoryList`），空白单元格按 xterm 渲染器同口径还原为空格，含宽字符或粗斜体的行逐字钉格以贴合 xterm 单元格网格。磁盘超预算时按最旧优先整段淘汰，且始终保留最近 20 段。
+
 ### 变更引擎 (Change Engine)
 代码变更预览、应用、回滚、checkpoint 管理。位于 `crates/change-engine/`。
 
