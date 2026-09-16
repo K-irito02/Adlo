@@ -39,6 +39,9 @@ import {
 export function readRightTool(): ToolId {
   try {
     const raw = window.localStorage.getItem(ACTIVE_RIGHT_TOOL_KEY);
+    // 注意：'communicate'（通信面板）为发布前隐藏状态，这里有意不接受旧持久化值，
+    // 读到旧值时自动回落到 'files'，避免恢复隐藏后面板空白。恢复显示时把 'communicate'
+    // 加回下面的白名单即可（与 ToolSwitcher / RightPanel 两处注释配合）。
     if (
       raw === 'files' ||
       raw === 'changes' ||

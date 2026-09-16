@@ -9,12 +9,6 @@ export const IconTerminalDirectory = make(
   </>,
 );
 
-export const IconTerminalCommandHistory = make(
-  <>
-    <path d="M16.77 13.89a.37.37 0 0 1 0 .53l-2.25 2.25a.37.37 0 0 1-.53-.53L15.94 14.2l-1.98-1.98a.37.37 0 1 1 .53-.53Zm-6.75-2.25a.37.37 0 0 0-.53 0l-2.25 2.25a.37.37 0 0 0 0 .53l2.25 2.25a.37.37 0 1 0 .53-.53L8.03 14.2l1.98-1.98a.37.37 0 0 0 0-.53ZM19.88 8.19v12a1.12 1.12 0 0 1-1.12 1.12H5.25a1.12 1.12 0 0 1-1.12-1.12V3.75a1.12 1.12 0 0 1 1.12-1.12h9a.38.38 0 0 1 .27.11l5.25 5.25a.38.38 0 0 1 .11.27Zm-5.25-.38h3.97L14.6 3.91Zm4.5 12.38V8.63H14.25a.38.38 0 0 1-.38-.38V3.38H5.25a.38.38 0 0 0-.38.38v12a.38.38 0 0 0 .38.38H18.75a.38.38 0 0 0 .38-.38Z" />
-  </>,
-);
-
 export type AreaSwapOrientation = 'vertical' | 'horizontal';
 
 export interface IconAreaSwapProps extends IconProps {

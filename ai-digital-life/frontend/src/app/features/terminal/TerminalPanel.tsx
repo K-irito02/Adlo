@@ -3,7 +3,6 @@ import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
   IconTerminalDirectory,
-  IconTerminalCommandHistory,
   IconFoldVertical,
   IconPanelLeft,
   IconPanelLeftClose,
@@ -63,7 +62,6 @@ export function TerminalPanel() {
     activeTab,
     hasActiveTab,
     regionCollapse,
-    navigatorMode,
     navigatorCollapsed,
     terminalNavigatorWidth,
     terminalTabs,
@@ -129,7 +127,9 @@ export function TerminalPanel() {
       : independentExpanded && allWorkspaceExpanded;
   }, [visibleWorkspaces, terminalWorkspaceExpanded]);
 
-  const terminalNavigatorTitle = navigatorMode === 'history' ? t.terminalHistory : t.terminalLabel;
+  // 左侧导航标题固定为“终端目录”。“命令历史”模式已彻底删除（无入口、无 store），
+  // 不要在此处加回 navigatorMode 分支；只读历史区仍在主内容区按标签展示，不受影响。
+  const terminalNavigatorTitle = t.terminalLabel;
 
   const handleExpandAllTerminal = useCallback(() => {
     const expanded: Record<string, boolean> = {};
@@ -306,46 +306,23 @@ export function TerminalPanel() {
               <TooltipSimple content={t.terminalLabel} placement="top">
                 <button
                   type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'sessions' ? ' is-active' : ''}`}
-                  onClick={() => terminalActions.setNavigatorMode('sessions')}
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn is-active"
                   aria-label={t.terminalLabel}
-                  aria-pressed={navigatorMode === 'sessions' ? 'true' : 'false'}
+                  aria-pressed="true"
                 >
                   <IconTerminalDirectory size={14} decorative />
                 </button>
               </TooltipSimple>
-              <TooltipSimple content={t.terminalCommandHistory} placement="top">
-                <button
-                  type="button"
-                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'history' ? ' is-active' : ''}`}
-                  onClick={() => terminalActions.setNavigatorMode('history')}
-                  aria-label={t.terminalCommandHistory}
-                  aria-pressed={navigatorMode === 'history' ? 'true' : 'false'}
-                >
-                  <IconTerminalCommandHistory size={14} decorative />
-                </button>
-              </TooltipSimple>
+              {/* “命令历史”按钮已彻底删除：不再提供最近命令模式切换入口。
+                  只读历史区仍在主内容区（TerminalHistoryList）按标签展示，此处无需恢复。 */}
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-              <TooltipSimple
-                content={
-                  navigatorMode === 'sessions' ? t.terminalClearAllTabs : t.terminalClearAllHistory
-                }
-                placement="top"
-              >
+              <TooltipSimple content={t.terminalClearAllTabs} placement="top">
                 <button
                   type="button"
                   className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-                  onClick={
-                    navigatorMode === 'sessions'
-                      ? () => terminalActions.handleCloseAllTabs()
-                      : terminalActions.handleClearCommandHistory
-                  }
-                  aria-label={
-                    navigatorMode === 'sessions'
-                      ? t.terminalClearAllTabs
-                      : t.terminalClearAllHistory
-                  }
+                  onClick={() => terminalActions.handleCloseAllTabs()}
+                  aria-label={t.terminalClearAllTabs}
                 >
                   <IconDelete size={14} decorative />
                 </button>

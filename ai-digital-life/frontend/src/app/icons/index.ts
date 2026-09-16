@@ -151,7 +151,6 @@ export {
 } from './status';
 export {
   IconTerminalDirectory,
-  IconTerminalCommandHistory,
   IconAreaSwap,
   IconRegionCollapse,
   IconRegionExpand,

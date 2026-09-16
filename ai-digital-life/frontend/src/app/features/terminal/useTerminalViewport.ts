@@ -1,32 +1,24 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
-import { useTCopy } from '@i18n/useTCopy';
-import type { TerminalNavigatorMode } from './useTerminalPanel';
 
 interface UseTerminalViewportParams {
   terminalTabs: ReturnType<typeof terminalSelectors.useTerminalTabs>;
 }
 
 /**
- * 终端导航器视口 Hook：管理导航器模式、宽度、折叠与最近命令列表。
+ * 终端导航器视口 Hook：管理导航器折叠、宽度与尺寸调整。
  *
- * 职责：
- * - 导航器模式（sessions / history）切换
- * - 导航器折叠状态与宽度（来自 store selector）
- * - 命令历史列表（来自独立持久化存储）
- * - 导航器标题与计数派生
- * - 导航器折叠/展开切换与宽度调整（委托 useNavigatorResize）
+ * 说明：“命令历史（最近命令）”模式已彻底删除，此处不再维护
+ * sessions/history 模式切换、命令历史列表与标题/计数派生。
+ * 只读历史区仍在主内容区（TerminalHistoryList）按标签展示，不受影响。
  */
 export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams) {
-  const { t } = useTCopy();
-  const [navigatorMode, setNavigatorMode] = useState<TerminalNavigatorMode>('sessions');
-
+  void terminalTabs;
   const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
   const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
-  const commandHistory = terminalSelectors.useCommandHistory();
 
   const { setTerminalNavigatorWidth, toggleTerminalNavigator } = useAppStore(
     useShallow((state) => ({
@@ -34,10 +26,6 @@ export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams)
       toggleTerminalNavigator: state.toggleTerminalNavigator,
     })),
   );
-
-  const navigatorTitle =
-    navigatorMode === 'sessions' ? t.terminalSessions : t.terminalRecentCommands;
-  const navigatorCount = navigatorMode === 'sessions' ? terminalTabs.length : commandHistory.length;
 
   const toggleNavigator = useCallback(
     (tool: string) => {
@@ -55,13 +43,8 @@ export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams)
   });
 
   return {
-    navigatorMode,
-    setNavigatorMode,
     navigatorCollapsed,
     terminalNavigatorWidth,
-    navigatorTitle,
-    navigatorCount,
-    commandHistory,
     toggleNavigator,
     handleNavigatorResizeStart,
   };

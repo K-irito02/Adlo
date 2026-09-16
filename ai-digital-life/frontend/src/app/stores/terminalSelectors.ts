@@ -37,9 +37,6 @@ export const terminalSelectors = {
   hasTerminalTabs: (state: StoreState) => state.terminalTabs.length > 0,
   useHasTerminalTabs: () => useAppStore((s) => s.terminalTabs.length > 0),
 
-  getCommandHistory: (state: StoreState) => state.commandHistory,
-  useCommandHistory: () => useAppStore(useShallow((s) => s.commandHistory)),
-
   getShellSelectorProfile: (state: StoreState) => state.shellSelectorProfile,
   useShellSelectorProfile: () => useAppStore((s) => s.shellSelectorProfile),
 };

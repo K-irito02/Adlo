@@ -52,16 +52,14 @@ describe('ToolSwitcher', () => {
 
   it('renders the remaining tool tabs including settings', () => {
     renderSwitcher();
-    const labels = [
-      'toolFiles',
-      'toolChanges',
-      'toolBrowser',
-      'toolTerminal',
-      'toolSettings',
-      'toolCommunicate',
-    ];
+    const labels = ['toolFiles', 'toolChanges', 'toolBrowser', 'toolTerminal', 'toolSettings'];
     for (const label of labels) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
     }
+  });
+
+  it('hides the communicate tab before release (restorable, see ToolSwitcher TAB_META comment)', () => {
+    renderSwitcher();
+    expect(screen.queryByRole('tab', { name: 'toolCommunicate' })).not.toBeInTheDocument();
   });
 });

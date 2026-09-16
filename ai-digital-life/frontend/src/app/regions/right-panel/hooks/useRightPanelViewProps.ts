@@ -53,6 +53,8 @@ export function useRightPanelViewProps() {
       browser: browserTabs.length,
       terminal: terminalTabs.length,
       settings: 0,
+      // 通信面板发布前隐藏，但 badges 必须保留 communicate 键（Record<ToolId, number> 类型要求），
+      // 恢复显示时徽标逻辑（ciSnapshot 失败/取消 → 1）可直接复用，无需改动。
       communicate: communicateBadge,
     }),
     [

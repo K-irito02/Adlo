@@ -16,11 +16,8 @@ export interface TerminalTabState {
   sortOrder: number;
 }
 
-export interface CommandHistoryEntry {
-  id: string;
-  command: string;
-  timestamp: number;
-}
+// 注意：“命令历史（最近命令）”功能已彻底删除，不再保留 CommandHistoryEntry 与
+// TERMINAL_COMMAND_HISTORY_KEY。旧版本 localStorage 中的孤儿键无需迁移，会自然废弃。
 
 // Local storage keys
 export const TERMINAL_TABS_KEY = 'adl-ui:terminal-tabs';
@@ -30,7 +27,6 @@ export const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = 'adl-ui:terminal-workspac
 export const TERMINAL_NAVIGATOR_WIDTH_KEY = 'adl-ui:terminal-navigator-width';
 export const TERMINAL_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
 export const TERMINAL_WORKSPACE_EXPANDED_KEY = 'adl-ui:terminal-workspace-expanded';
-export const TERMINAL_COMMAND_HISTORY_KEY = 'adl-ui:terminal-command-history';
 export const TERMINAL_WORKSPACE_ID_KEY = 'adl-ui:terminal-workspace-id';
 export const TERMINAL_SHELL_SELECTOR_PROFILE_KEY = 'adl-ui:terminal-shell-selector-profile';
 

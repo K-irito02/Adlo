@@ -14,7 +14,8 @@ import type { TerminalViewMode, TerminalViewPrefs } from './terminalViewPrefs';
 import { nextRegionCollapse, terminalRegionCollapseStore } from './terminalRegionCollapse';
 import type { RegionCollapse, RegionName } from './terminalRegionCollapse';
 
-export type TerminalNavigatorMode = 'sessions' | 'history';
+// 注意：“命令历史（最近命令）”功能已彻底删除，不再提供 TerminalNavigatorMode。
+// 左侧导航固定展示终端目录；只读历史区仍在主内容区按标签展示。
 
 export type TerminalMenuItem =
   | { id: string; separator: true }
@@ -57,7 +58,6 @@ export interface UseTerminalPanelReturn {
     editInputRef: React.RefObject<HTMLInputElement | null>;
     shellMenuRef: React.RefObject<HTMLDivElement | null>;
     terminalMenuRef: React.RefObject<HTMLDivElement | null>;
-    navigatorMode: TerminalNavigatorMode;
     shellMenuOpen: boolean;
     terminalMenuOpen: boolean;
     contextMenu: ContextMenuState;
@@ -75,9 +75,6 @@ export interface UseTerminalPanelReturn {
     regionCollapse: RegionCollapse;
     currentProfile: TerminalProfile;
     currentProfileLabel: string;
-    navigatorTitle: string;
-    navigatorCount: number;
-    commandHistory: { id: string; command: string; timestamp: number }[];
     shellMenuItems: TerminalShellMenuItem[];
     shellTypeItems: (TerminalShellMenuItem & { label: string; profile: TerminalProfile })[];
     terminalMenuItems: TerminalMenuItem[];
@@ -87,7 +84,6 @@ export interface UseTerminalPanelReturn {
     handleSelectTab: (tabId: string) => void;
     handleCloseTab: (tabId: string) => void;
     handleCloseAllTabs: (workspaceId?: string) => void;
-    handleClearCommandHistory: () => void;
     handleTogglePin: () => void;
     handleDoubleClick: (tabId: string, title: string) => void;
     handleEditSubmit: () => void;
@@ -101,7 +97,6 @@ export interface UseTerminalPanelReturn {
     handleNavigatorResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
     handleXtermData: (data: string) => void;
     handleXtermResize: (cols: number, rows: number) => void;
-    setNavigatorMode: (mode: TerminalNavigatorMode) => void;
     setShellMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setTerminalMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setEditValue: React.Dispatch<React.SetStateAction<string>>;
@@ -203,31 +198,16 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   });
 
   const {
-    navigatorMode,
-    setNavigatorMode,
     navigatorCollapsed,
     terminalNavigatorWidth,
-    navigatorTitle,
-    navigatorCount,
-    commandHistory,
     toggleNavigator,
     handleNavigatorResizeStart,
   } = useTerminalViewport({ terminalTabs });
-
-  const { clearCommandHistory } = useAppStore(
-    useShallow((state) => ({
-      clearCommandHistory: state.clearCommandHistory,
-    })),
-  );
 
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
   const { viewPrefs, setViewMode, swapAreas, handleDividerPointerDown } = useTerminalViewPrefs({
     containerRef: viewContainerRef,
   });
-
-  const handleClearCommandHistory = useCallback(() => {
-    clearCommandHistory();
-  }, [clearCommandHistory]);
 
   // 区域折叠态：按标签记录，持久化到磁盘（重启后记住每个标签的折叠选择）。
   const [collapseMap, setCollapseMap] = useState<Record<string, RegionCollapse>>(() =>
@@ -294,7 +274,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       editInputRef,
       shellMenuRef,
       terminalMenuRef,
-      navigatorMode,
       shellMenuOpen,
       terminalMenuOpen,
       contextMenu,
@@ -311,9 +290,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       regionCollapse,
       currentProfile,
       currentProfileLabel,
-      navigatorTitle,
-      navigatorCount,
-      commandHistory,
       shellMenuItems,
       shellTypeItems,
       terminalMenuItems,
@@ -323,7 +299,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       handleSelectTab,
       handleCloseTab,
       handleCloseAllTabs,
-      handleClearCommandHistory,
       handleTogglePin,
       handleDoubleClick,
       handleEditSubmit,
@@ -337,7 +312,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       handleNavigatorResizeStart,
       handleXtermData,
       handleXtermResize,
-      setNavigatorMode,
       setShellMenuOpen,
       setTerminalMenuOpen,
       setEditValue,

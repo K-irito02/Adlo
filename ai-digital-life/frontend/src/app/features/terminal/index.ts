@@ -1,7 +1,6 @@
 export { TerminalPanel } from './TerminalPanel';
 export { useTerminalPanel } from './useTerminalPanel';
 export type {
-  TerminalNavigatorMode,
   TerminalMenuItem,
   TerminalShellMenuItem,
   ContextMenuState,

@@ -4,7 +4,7 @@
  */
 import type { StoreState } from '../StoreState';
 import type { TerminalProfile, ToolId } from '../types';
-import type { TerminalTabState, CommandHistoryEntry } from './terminalSliceTypes';
+import type { TerminalTabState } from './terminalSliceTypes';
 import {
   TERMINAL_TABS_KEY,
   TERMINAL_ACTIVE_TAB_KEY,
@@ -13,7 +13,6 @@ import {
   TERMINAL_NAVIGATOR_WIDTH_KEY,
   TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
-  TERMINAL_COMMAND_HISTORY_KEY,
   TERMINAL_WORKSPACE_ID_KEY,
   TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
   normalizeTerminalShellProfile,
@@ -22,7 +21,7 @@ import {
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
 } from './terminalSliceTypes';
 
-export type { TerminalTabState, CommandHistoryEntry };
+export type { TerminalTabState };
 export {
   TERMINAL_TABS_KEY,
   TERMINAL_ACTIVE_TAB_KEY,
@@ -31,7 +30,6 @@ export {
   TERMINAL_NAVIGATOR_WIDTH_KEY,
   TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
-  TERMINAL_COMMAND_HISTORY_KEY,
   TERMINAL_WORKSPACE_ID_KEY,
   TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
   normalizeTerminalShellProfile,
@@ -92,7 +90,6 @@ const writeWorkspaceDefaultProfiles = makePersistedWriter(TERMINAL_WORKSPACE_DEF
 const writeNavigatorCollapsed = makePersistedWriter(TERMINAL_NAVIGATOR_COLLAPSED_KEY);
 const writeWorkspaceExpanded = makePersistedWriter(TERMINAL_WORKSPACE_EXPANDED_KEY);
 const writeNavigatorWidth = makePersistedNumberWriter(TERMINAL_NAVIGATOR_WIDTH_KEY);
-const writeCommandHistory = makePersistedWriter(TERMINAL_COMMAND_HISTORY_KEY);
 const writeTerminalWorkspaceId = makePersistedWriter(TERMINAL_WORKSPACE_ID_KEY);
 const writeShellSelectorProfile = makePersistedWriter(TERMINAL_SHELL_SELECTOR_PROFILE_KEY);
 
@@ -136,7 +133,6 @@ function hydrateTerminalDefaults(
       TERMINAL_WORKSPACE_EXPANDED_KEY,
       {},
     );
-    const commandHistory = readJson<CommandHistoryEntry[]>(TERMINAL_COMMAND_HISTORY_KEY, []);
     const persistedWorkspaceId = readJson<string>(TERMINAL_WORKSPACE_ID_KEY, '');
     // 选择器 profile 回退到全局默认（首次无记录时跟随默认）；非法值同样回退
     const shellProfile = normalizeTerminalShellProfile(
@@ -153,7 +149,6 @@ function hydrateTerminalDefaults(
       terminalNavigatorWidth: width,
       navigatorCollapsedByTool: collapsed,
       terminalWorkspaceExpanded: workspaceExpanded,
-      commandHistory,
       terminalWorkspaceId: typeof persistedWorkspaceId === 'string' ? persistedWorkspaceId : '',
     });
   };
@@ -165,7 +160,6 @@ function hydrateTerminalDefaults(
 }
 
 const initialTerminalTabs: TerminalTabState[] = [];
-const initialCommandHistory: CommandHistoryEntry[] = [];
 
 // Type and slice definition
 export interface TerminalSlice {
@@ -179,7 +173,6 @@ export interface TerminalSlice {
   terminalWorkspaceExpanded: Record<string, boolean>;
   terminalPersisted: boolean;
   terminalWorkspaceId: string;
-  commandHistory: CommandHistoryEntry[];
 
   terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   terminalSelectTab: (tabId: string) => void;
@@ -189,8 +182,6 @@ export interface TerminalSlice {
   terminalTogglePin: (tabId: string) => void;
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
   terminalCloseAllTabs: (workspaceId?: string) => void;
-  addCommandHistory: (command: string) => void;
-  clearCommandHistory: () => void;
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
   setWorkspaceDefaultTerminalProfile: (workspaceId: string, profile: TerminalProfile) => void;
   setTerminalNavigatorWidth: (width: number) => void;
@@ -219,7 +210,6 @@ export const createTerminalSlice = (
     terminalWorkspaceExpanded: {},
     terminalPersisted: false,
     terminalWorkspaceId: '',
-    commandHistory: initialCommandHistory,
     shellSelectorProfile: 'powershell',
 
     terminalCreateTab: (profile: TerminalProfile | undefined, workspaceId = '') =>
@@ -358,23 +348,6 @@ export const createTerminalSlice = (
           terminalActiveTabId: nextActive,
         };
       }),
-
-    addCommandHistory: (command: string) =>
-      set((state) => {
-        const entry: CommandHistoryEntry = {
-          id: createUiId('cmd'),
-          command,
-          timestamp: Date.now(),
-        };
-        const nextHistory = [entry, ...state.commandHistory].slice(0, 200);
-        writeCommandHistory(nextHistory);
-        return { commandHistory: nextHistory };
-      }),
-
-    clearCommandHistory: () => {
-      writeCommandHistory([]);
-      set({ commandHistory: [] });
-    },
 
     setDefaultTerminalProfile: (profile) => {
       try {
