@@ -9,11 +9,21 @@ export interface ClipboardHistorySlice {
   clipboardHistory: ClipboardItem[];
   clipboardHistoryLoading: boolean;
   clipboardSearch: string;
+  clipboardSearchOpen: boolean;
+  clipboardMatchCase: boolean;
+  clipboardMatchWholeWord: boolean;
+  clipboardUseRegex: boolean;
+  clipboardKindFilter: string;
 
   setClipboardHistory: (items: ClipboardItem[]) => void;
   clearClipboardHistory: () => void;
   removeClipboardHistoryItem: (id: string) => void;
   setClipboardSearch: (query: string) => void;
+  setClipboardSearchOpen: (open: boolean) => void;
+  setClipboardMatchCase: (value: boolean) => void;
+  setClipboardMatchWholeWord: (value: boolean) => void;
+  setClipboardUseRegex: (value: boolean) => void;
+  setClipboardKindFilter: (kind: string) => void;
 }
 
 export const createClipboardHistorySlice = (
@@ -23,6 +33,11 @@ export const createClipboardHistorySlice = (
   clipboardHistory: [],
   clipboardHistoryLoading: false,
   clipboardSearch: '',
+  clipboardSearchOpen: false,
+  clipboardMatchCase: false,
+  clipboardMatchWholeWord: false,
+  clipboardUseRegex: false,
+  clipboardKindFilter: 'all',
 
   setClipboardHistory: (items) => set({ clipboardHistory: items }),
   clearClipboardHistory: () => set({ clipboardHistory: [] }),
@@ -31,4 +46,9 @@ export const createClipboardHistorySlice = (
       clipboardHistory: state.clipboardHistory.filter((item) => item.id !== id),
     })),
   setClipboardSearch: (query) => set({ clipboardSearch: query }),
+  setClipboardSearchOpen: (open) => set({ clipboardSearchOpen: open }),
+  setClipboardMatchCase: (value) => set({ clipboardMatchCase: value }),
+  setClipboardMatchWholeWord: (value) => set({ clipboardMatchWholeWord: value }),
+  setClipboardUseRegex: (value) => set({ clipboardUseRegex: value }),
+  setClipboardKindFilter: (kind) => set({ clipboardKindFilter: kind }),
 });

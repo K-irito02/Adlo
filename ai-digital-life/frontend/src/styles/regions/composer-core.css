@@ -205,6 +205,14 @@
   border: 1px solid var(--border-subtle);
 }
 
+/* 纯说明文字变体：无背景、无边框（用于只需陈述后果的确认对话框） */
+.adl-prompt-modal__item-info--plain {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+}
+
 .adl-prompt-modal__input {
   width: 100%;
   padding: var(--space-2) var(--space-3);

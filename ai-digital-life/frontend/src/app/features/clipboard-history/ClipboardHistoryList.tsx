@@ -1,34 +1,52 @@
-import { useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { EmptyRow, LoadingRow } from '@components/LoadingRow';
+import { TooltipSimple } from '@components/Tooltip';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { useTCopy } from '@i18n/useTCopy';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { ClipboardHistoryHeader } from './ClipboardHistoryHeader';
 import { ClipboardItemRow } from './ClipboardItemRow';
-
-function matchesQuery(item: ClipboardItem, normalizedQuery: string): boolean {
-  return (
-    item.kind.toLowerCase().includes(normalizedQuery) ||
-    (item.content ?? '').toLowerCase().includes(normalizedQuery)
-  );
-}
+import { ClipboardItemViewer } from './ClipboardItemViewer';
+import { filterClipboardItems } from './clipboardFilter';
 
 const REFRESH_INTERVAL_MS = 2000;
 
 /**
  * 剪贴板历史主列表容器。
- * - 顶部渲染 ClipboardHistoryHeader
- * - 下方渲染按 clipboardSearch 过滤后的条目列表
+ * - 顶部渲染 ClipboardHistoryHeader（标题 + 计数 + 清空 + 搜索切换 + 类型筛选）
+ * - 搜索模式下在历史区域顶部渲染搜索框 + Aa/ab/.* 选项（无替换功能）
+ * - 条目按类型筛选 + 搜索词（大小写/全字/正则）联合过滤
+ * - 列表用 CustomScrollArea 承载（与文件树一致的自定义滚动条）
  * - 空状态使用 EmptyRow（居中、无句号）
  * - 挂载时触发 fetchClipboardHistory()
  * - 以 2s 间隔轮询刷新；页面隐藏（document.hidden）时暂停、恢复可见时立即刷新并恢复轮询
  */
 export function ClipboardHistoryList() {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
   const clipboardHistory = useAppStore((s) => s.clipboardHistory);
   const clipboardSearch = useAppStore((s) => s.clipboardSearch);
+  const setClipboardSearch = useAppStore((s) => s.setClipboardSearch);
+  const clipboardSearchOpen = useAppStore((s) => s.clipboardSearchOpen);
+  const clipboardMatchCase = useAppStore((s) => s.clipboardMatchCase);
+  const setClipboardMatchCase = useAppStore((s) => s.setClipboardMatchCase);
+  const clipboardMatchWholeWord = useAppStore((s) => s.clipboardMatchWholeWord);
+  const setClipboardMatchWholeWord = useAppStore((s) => s.setClipboardMatchWholeWord);
+  const clipboardUseRegex = useAppStore((s) => s.clipboardUseRegex);
+  const setClipboardUseRegex = useAppStore((s) => s.setClipboardUseRegex);
+  const clipboardKindFilter = useAppStore((s) => s.clipboardKindFilter);
   const clipboardHistoryLoading = useAppStore((s) => s.clipboardHistoryLoading);
   const fetchClipboardHistory = useAppStore((s) => s.fetchClipboardHistory);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const [viewerItem, setViewerItem] = useState<ClipboardItem | null>(null);
+
+  const handleZoom = useCallback((item: ClipboardItem) => {
+    setViewerItem(item);
+  }, []);
+
+  const handleCloseViewer = useCallback(() => {
+    setViewerItem(null);
+  }, []);
 
   useEffect(() => {
     let timerId: number;
@@ -53,28 +71,108 @@ export function ClipboardHistoryList() {
     };
   }, [fetchClipboardHistory]);
 
-  const filtered = useMemo(() => {
-    const query = clipboardSearch.trim().toLowerCase();
-    if (!query) {
-      return clipboardHistory;
+  useEffect(() => {
+    if (clipboardSearchOpen) {
+      const timer = window.setTimeout(() => searchInputRef.current?.focus(), 0);
+      return () => window.clearTimeout(timer);
     }
-    return clipboardHistory.filter((item) => matchesQuery(item, query));
-  }, [clipboardHistory, clipboardSearch]);
+  }, [clipboardSearchOpen]);
+
+  const filtered = useMemo(
+    () =>
+      filterClipboardItems(clipboardHistory, {
+        kindFilter: clipboardKindFilter,
+        query: clipboardSearchOpen ? clipboardSearch : '',
+        matchCase: clipboardMatchCase,
+        wholeWord: clipboardMatchWholeWord,
+        useRegex: clipboardUseRegex,
+      }),
+    [
+      clipboardHistory,
+      clipboardKindFilter,
+      clipboardSearchOpen,
+      clipboardSearch,
+      clipboardMatchCase,
+      clipboardMatchWholeWord,
+      clipboardUseRegex,
+    ],
+  );
 
   return (
     <section className="adl-clipboard adl-leftbar__nav" aria-label={t.clipboardHistory}>
       <ClipboardHistoryHeader />
+      {clipboardSearchOpen ? (
+        <div className="adl-clipboard__searchpanel">
+          <label className="adl-search-panel__field adl-search-panel__field--with-actions">
+            <input
+              ref={searchInputRef}
+              type="search"
+              value={clipboardSearch}
+              onChange={(event) => setClipboardSearch(event.target.value)}
+              placeholder={t.searchPanelSearch as string}
+              aria-label={t.searchPanelSearch as string}
+            />
+            <div
+              className="adl-search-panel__toggles"
+              role="toolbar"
+              aria-label={formatT(t, 'searchOptions')}
+            >
+              <TooltipSimple content={t.searchPanelMatchCase} placement="top">
+                <button
+                  type="button"
+                  className={`adl-search-panel__modebtn${clipboardMatchCase ? ' is-active' : ''}`}
+                  aria-pressed={clipboardMatchCase ? 'true' : 'false'}
+                  onClick={() => setClipboardMatchCase(!clipboardMatchCase)}
+                  aria-label={t.searchPanelMatchCase as string}
+                >
+                  Aa
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content={t.searchPanelMatchWholeWord} placement="top">
+                <button
+                  type="button"
+                  className={`adl-search-panel__modebtn${clipboardMatchWholeWord ? ' is-active' : ''}`}
+                  aria-pressed={clipboardMatchWholeWord ? 'true' : 'false'}
+                  onClick={() => setClipboardMatchWholeWord(!clipboardMatchWholeWord)}
+                  aria-label={t.searchPanelMatchWholeWord as string}
+                >
+                  ab
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content={t.searchPanelUseRegex} placement="top">
+                <button
+                  type="button"
+                  className={`adl-search-panel__modebtn${clipboardUseRegex ? ' is-active' : ''}`}
+                  aria-pressed={clipboardUseRegex ? 'true' : 'false'}
+                  onClick={() => setClipboardUseRegex(!clipboardUseRegex)}
+                  aria-label={t.searchPanelUseRegex as string}
+                >
+                  .*
+                </button>
+              </TooltipSimple>
+            </div>
+          </label>
+        </div>
+      ) : null}
       {clipboardHistoryLoading ? (
         <LoadingRow variant="center" />
       ) : filtered.length === 0 ? (
         <EmptyRow message={t.clipboardEmpty} variant="center" />
       ) : (
-        <ul className="adl-clipboard__list" role="list">
-          {filtered.map((item) => (
-            <ClipboardItemRow key={item.id} item={item} />
-          ))}
-        </ul>
+        <CustomScrollArea
+          shellClassName="adl-clipboard__scroll-shell"
+          scrollClassName="adl-clipboard__scroll"
+          scrollbarClassName="adl-clipboard__scrollbar"
+          thumbClassName="adl-clipboard__scrollbar-thumb"
+        >
+          <ul className="adl-clipboard__list" role="list">
+            {filtered.map((item) => (
+              <ClipboardItemRow key={item.id} item={item} onZoom={handleZoom} />
+            ))}
+          </ul>
+        </CustomScrollArea>
       )}
+      {viewerItem ? <ClipboardItemViewer item={viewerItem} onClose={handleCloseViewer} /> : null}
     </section>
   );
 }

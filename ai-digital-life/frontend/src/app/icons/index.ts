@@ -13,6 +13,7 @@ export {
   IconColumns,
   IconExpandRows,
   IconCollapseRows,
+  IconExpandCorners,
   IconChevronLeft,
   IconChevronRight,
   IconChevronsLeft,
