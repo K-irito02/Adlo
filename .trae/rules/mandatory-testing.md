@@ -206,3 +206,23 @@ ESLint/Clippy 的 `--fix` 自动修复和任何人工修复必须遵守以下约
 - [quality-gates.md](./quality-gates.md) — 质量门禁
 - [dev-rules.md](./dev-rules.md) — 代理交互与执行规则
 - [error-handling.md](./error-handling.md) — 错误处理
+---
+
+## jsdom 与真实浏览器的断言边界
+
+`jsdom` 不实现浏览器的**焦点修正**与布局引擎，因此以下断言在 jsdom 中"恒真/恒假"，会形成假信心：
+
+| 断言类型 | jsdom 表现 | 真实浏览器（Chromium/WebView2） |
+|----------|-----------|--------------------------------|
+| 元素 `disabled` 后焦点去向 | 焦点**仍停留**在元素上 | 焦点被移到 `<body>`（模态框外） |
+| `dialog.contains(document.activeElement)` | 恒真（不会失焦） | `disabled` 后恒假 |
+| `Tab` 是否逃出模态框 | 无焦点遍历顺序语义 | 按可聚焦元素集合真实遍历 |
+| `pointer-events: none` / `opacity` 计算值 | 需真实样式表加载 | 需把 `styles/index.css` 全量注入 |
+
+**规则：**
+
+1. **焦点/键盘可达性/模态框契约**类的断言，必须在真实 Chromium 中验证（Playwright，`channel: msedge` 与 WebView2 同引擎）；jsdom 只用于锁「属性存在与否」与逻辑分支
+2. 验证真实浏览器行为时：注入**完整** `styles/index.css`（缺少某个 region 文件会因 `z-index`/定位缺失产生误报）、用 esbuild/vite 打包真实组件而非重写简化版
+3. 结论必须附实测输出（`activeElement`、`pointer-events`、`aria-disabled` 等计算值），不得仅凭 jsdom 通过即宣称"无障碍正确"
+
+> 反面案例（2026-09-17 剪贴板历史收尾）：清空进行中把对话框按钮全部 `disabled`，jsdom 断言"焦点仍在 dialog 内"通过，真实 Chromium 实测焦点已逃到 `<body>` —— 修正为 `aria-disabled` + `pointer-events:none` 后实测 63/63 断言通过。

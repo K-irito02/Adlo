@@ -852,3 +852,58 @@ const handleOutside = (e) => {
 ### 文档
 - 终端实例交互说明：[ui-manual/rightpanel/tools/terminal.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/operations/ui-manual/rightpanel/tools/terminal.md)「分界线拖拽」
 - 经验记录：[terminal-history-live-separation-2026-09-13.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/multi-workspace/terminal-history-live-separation-2026-09-13.md)
+---
+
+## 26. 进行中的破坏性操作：`aria-disabled` 而非 `disabled`（In-Flight Dialog Actions）
+
+### 概述
+
+确认对话框在**执行破坏性操作期间**（例如逐条删除最多 200 条剪贴板历史，秒级窗口）需要「按钮不可重复点击」，但**不能**用 `disabled`：Chromium / WebView2 会把被禁用且已聚焦的元素失焦到 `<body>`，焦点逃出 `aria-modal`；若同时把对话框内所有按钮都禁用，Tab 遍历也会直接离开模态框（`focusables.length === 0` 时任何焦点陷阱都无从接管）。
+
+### 实现
+
+- 按钮保持可聚焦，用 `aria-disabled="true"` 表达状态；**动作层**用重入守卫拦截（`clearingRef` / 早期 return）
+- 指针层用 CSS 拦截（视觉与 `disabled` 一致）：
+  ```css
+  .adl-prompt-modal [aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  ```
+- 守卫用 **ref** 承载（`clearingRef`）而非 state：`closeConfirm` 的依赖数组才能是 `[]`，焦点陷阱 effect 仅依赖「对话框开合」→ 不会因 `clearing` 变化而 teardown/setup（重建瞬间的 cleanup 会把焦点归还到模态框背后）
+- 打开时聚焦主操作按钮，关闭时把焦点归还触发按钮；**触发按钮可能已禁用**（如清空后无可见条目）→ 回退聚焦常驻可聚焦的兄弟控件
+
+### 验证要求
+
+`toBeDisabled()` / `disabled` 属性相关的**焦点行为断言在 jsdom 中恒真（不会失焦），必须用真实 Chromium（Playwright，`channel: msedge`）验证**；jsdom 断言只能锁「属性存在与否」，不能锁「焦点是否仍在模态框内」。
+
+### 文档
+
+- 实现示例：`frontend/src/app/features/clipboard-history/ClipboardHistoryHeader.tsx`（焦点陷阱 + `clearingRef` + 触发按钮禁用回退）
+- 手册：[ui-manual/leftbar/clipboard-history.md](../../docs/operations/ui-manual/leftbar/clipboard-history.md)
+- 知识沉淀：[clipboard-history-panel-rework-2026-09-17.md](../../docs/knowledge-base/interaction/2026-09/clipboard-history-panel-rework-2026-09-17.md)
+
+---
+
+## 27. 危险操作 hover 色的特异性（Danger Hover Specificity）
+
+### 概述
+
+`.adl-icon-btn` 家族的 hover 基类为 `.adl-icon-btn:hover:not(:disabled)`（特异性 **0,3,0**），且 `regions/titlebar.css` 通过 `styles/index.css` 在**多数 region 文件之后**加载。因此形如 `.adl-icon-btn--danger-hover:hover`（0,2,0）的修饰类规则**会被静默覆盖成死规则**。
+
+### 实现
+
+- 修饰类必须提权到 ≥ (0,4,0) 且与加载顺序无关：
+  ```css
+  .adl-icon-btn.adl-icon-btn--danger-hover:hover:not(:disabled) {
+    color: var(--danger);
+    background: var(--danger-soft);
+  }
+  ```
+- 颜色走主题 token（`--danger` / `--danger-soft`），不要用与主题无关的调色板（Tailwind `--color-red-*` 在暗色主题下背景近白）
+- 同一模式也适用于其他共享类覆盖：本文件先于 `titlebar.css` 加载时，覆盖必须显式提权（如 `.adl-icon-btn.adl-clipboard__searchbtn`）
+
+### 文档
+
+- 知识沉淀：[clipboard-history-panel-rework-2026-09-17.md](../../docs/knowledge-base/interaction/2026-09/clipboard-history-panel-rework-2026-09-17.md)

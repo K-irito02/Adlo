@@ -23,7 +23,7 @@
 
 | 模块 | 文档 | 说明 |
 | ---- | ---- | ---- |
-| 剪切看板 | - | `ClipboardHistoryList`，剪贴板历史列表 |
+| 剪切看板 | [clipboard-history.md](./clipboard-history.md) | `ClipboardHistoryList`，剪贴板历史列表（搜索/筛选/放大查看） |
 | 系统资源查看 | - | `SystemMonitorPanel`，系统资源监控 |
 | Resize Handle | - | 宽度调整手柄 |
 
