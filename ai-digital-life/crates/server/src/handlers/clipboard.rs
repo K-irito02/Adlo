@@ -3,8 +3,12 @@
 //! `clipboard_list/remove/clear` commands (Task 6) over
 //! `crate::ipc::to_response` (`IpcResult`).
 //!
-//! Browser-mode clipboard updates rely on frontend `sinceId` polling, so these
-//! handlers only expose the store CRUD surface (list/remove/clear); change
+//! Routes: `list` / `remove` / `clear` / `write-image` (store CRUD + image
+//! write-back) plus the static assets `thumb/:filename` (thumbnail) and
+//! `image/:filename` (full-resolution original, for the zoom-in viewer).
+//!
+//! Browser-mode clipboard updates rely on frontend polling, so these handlers
+//! expose the store CRUD surface plus the two static asset routes; change
 //! events are not part of the HTTP contract.
 
 use crate::ServerState;
@@ -133,9 +137,21 @@ async fn serve_png(dir: &Path, filename: &str) -> Response {
     if safe.is_empty() {
         return (StatusCode::NOT_FOUND, "not found").into_response();
     }
-    match tokio::fs::read(dir.join(safe)).await {
+    match tokio::fs::read(dir.join(&safe)).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, "image/png")], bytes).into_response(),
-        Err(_) => (StatusCode::NOT_FOUND, "not found").into_response(),
+        Err(e) => {
+            // 对外统一 404（静态资产不泄露服务端内情），但区分"文件不存在"与真实读失败，
+            // 便于排查"图不显示"的根因（权限/磁盘/路径过长等）。
+            if e.kind() != std::io::ErrorKind::NotFound {
+                tracing::warn!(
+                    error = %e,
+                    dir = %dir.display(),
+                    file = %safe,
+                    "clipboard asset read failed"
+                );
+            }
+            (StatusCode::NOT_FOUND, "not found").into_response()
+        },
     }
 }
 
@@ -341,6 +357,12 @@ mod tests {
         // 写一张"原图"到 store 的 images_dir
         let image_path = state.clipboard_store.images_dir().join("image-x.png");
         std::fs::write(&image_path, b"\x89PNG-fake-original").unwrap();
+        // 在 thumbs_dir 写**同名**文件：断言响应字节等于 images_dir 的内容，才能证明原图路由未跨目录取缩略图
+        let same_name_in_thumbs = state.clipboard_store.thumbs_dir().join("image-x.png");
+        std::fs::write(&same_name_in_thumbs, b"\x89PNG-from-thumbs").unwrap();
+        // 仅在 thumbs_dir 存在的文件：请求原图路由必须 404
+        let thumbs_only = state.clipboard_store.thumbs_dir().join("thumbs-only.png");
+        std::fs::write(&thumbs_only, b"\x89PNG-thumbs-only").unwrap();
         let app = app_router(state.clone()).with_state(state.clone());
 
         let ok = app
@@ -355,6 +377,8 @@ mod tests {
             .await
             .unwrap();
         assert!(ok.status().is_success());
+        let body = axum::body::to_bytes(ok.into_body(), 1024).await.unwrap();
+        assert_eq!(body.as_ref(), b"\x89PNG-fake-original");
 
         // 原图路由不服务缩略图目录中的文件
         let wrong_dir = app
@@ -362,7 +386,7 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri("/clipboard/image/thumb-x.png")
+                    .uri("/clipboard/image/thumbs-only.png")
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -382,5 +406,34 @@ mod tests {
             .unwrap();
         assert_eq!(missing.status(), axum::http::StatusCode::NOT_FOUND);
         let _ = std::fs::remove_file(&image_path);
+        let _ = std::fs::remove_file(&same_name_in_thumbs);
+        let _ = std::fs::remove_file(&thumbs_only);
+    }
+
+    #[tokio::test]
+    async fn asset_routes_reject_traversal_and_degenerate_names() {
+        let state = test_server_state();
+        // 上级目录放一个"机密"文件，验证穿越/绝对路径都不会被读取
+        let secret = state.clipboard_store.images_dir().parent().unwrap().join("secret.png");
+        std::fs::write(&secret, b"secret").unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+
+        for uri in [
+            "/clipboard/image/..",
+            "/clipboard/image/.",
+            "/clipboard/image/%2e%2e%2fsecret.png",
+            "/clipboard/image/..%2Fsecret.png",
+            "/clipboard/image/a%2F..%2F..%2Fsecret.png",
+            "/clipboard/thumb/%2e%2e%2fsecret.png",
+        ] {
+            let resp = app
+                .clone()
+                .oneshot(Request::builder().method("GET").uri(uri).body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), axum::http::StatusCode::NOT_FOUND, "expected 404 for {uri}");
+        }
+
+        let _ = std::fs::remove_file(&secret);
     }
 }

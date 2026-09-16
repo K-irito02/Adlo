@@ -660,6 +660,19 @@ function subscribeSseMapped<T>(
   };
 }
 
+/**
+ * 构造剪贴板静态资产 URL（缩略图 / 原图共用）。
+ * 取 basename 保证安全：后端 `/clipboard/<segment>/:filename` 会对 filename 做 basename
+ * 归一化，前端同样只取文件名，避免把本地绝对路径塞进 URL。
+ */
+function clipboardAssetUrl(baseUrl: string, segment: 'thumb' | 'image', filePath: string): string {
+  if (!filePath) {
+    return '';
+  }
+  const name = filePath.split(/[\\/]/).pop() ?? '';
+  return name ? `${baseUrl}/clipboard/${segment}/${encodeURIComponent(name)}` : '';
+}
+
 export function createHttpBridge({
   baseUrl,
   eventSourceFactory,
@@ -1023,23 +1036,8 @@ export function createHttpBridge({
       remove: (id: string) => call<boolean>(baseUrl, '/clipboard/remove', POST({ id })),
       clear: () => call<number>(baseUrl, '/clipboard/clear', POST({})),
       writeImage: (id: string) => call<boolean>(baseUrl, '/clipboard/write-image', POST({ id })),
-      getThumbUrl: (thumbPath: string) => {
-        if (!thumbPath) {
-          return '';
-        }
-        // 取 basename 保证安全：后端 `/clipboard/thumb/:filename` 会对 filename 做
-        // basename 归一化，前端同样只取文件名，避免把本地绝对路径塞进 URL。
-        const name = thumbPath.split(/[\\/]/).pop() ?? '';
-        return name ? `${baseUrl}/clipboard/thumb/${encodeURIComponent(name)}` : '';
-      },
-      getImageUrl: (imagePath: string) => {
-        if (!imagePath) {
-          return '';
-        }
-        // 同上：只取 basename，避免把本地绝对路径塞进 URL。
-        const name = imagePath.split(/[\\/]/).pop() ?? '';
-        return name ? `${baseUrl}/clipboard/image/${encodeURIComponent(name)}` : '';
-      },
+      getThumbUrl: (thumbPath: string) => clipboardAssetUrl(baseUrl, 'thumb', thumbPath),
+      getImageUrl: (imagePath: string) => clipboardAssetUrl(baseUrl, 'image', imagePath),
     } satisfies ClipboardBridge,
 
     // ── System-monitor domain.

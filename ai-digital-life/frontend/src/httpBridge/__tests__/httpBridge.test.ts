@@ -184,3 +184,38 @@ describe('createHttpBridge storage domain', () => {
     }
   });
 });
+
+describe('createHttpBridge — clipboard asset URLs', () => {
+  async function makeBridge() {
+    const { createHttpBridge } = await import('../../httpBridge');
+    return createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+  }
+
+  it('builds encoded basename-only image URLs (Windows and POSIX paths)', async () => {
+    const bridge = await makeBridge();
+    expect(bridge.clipboard.getImageUrl('C:\\clip\\images\\a b.png')).toBe(
+      'http://127.0.0.1:9999/clipboard/image/a%20b.png',
+    );
+    expect(bridge.clipboard.getImageUrl('/x/y/z.png')).toBe(
+      'http://127.0.0.1:9999/clipboard/image/z.png',
+    );
+  });
+
+  it('builds thumbnail URLs with the same rules (Windows and POSIX paths)', async () => {
+    const bridge = await makeBridge();
+    expect(bridge.clipboard.getThumbUrl('C:\\clip\\thumbs\\thumb-1.png')).toBe(
+      'http://127.0.0.1:9999/clipboard/thumb/thumb-1.png',
+    );
+    expect(bridge.clipboard.getThumbUrl('/x/y/thumb-2.png')).toBe(
+      'http://127.0.0.1:9999/clipboard/thumb/thumb-2.png',
+    );
+  });
+
+  it('returns an empty string for missing or degenerate paths', async () => {
+    const bridge = await makeBridge();
+    expect(bridge.clipboard.getImageUrl('')).toBe('');
+    expect(bridge.clipboard.getThumbUrl('')).toBe('');
+    expect(bridge.clipboard.getImageUrl('a/b/')).toBe('');
+    expect(bridge.clipboard.getThumbUrl('a/b/')).toBe('');
+  });
+});
