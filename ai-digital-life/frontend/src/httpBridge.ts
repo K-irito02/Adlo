@@ -1032,6 +1032,14 @@ export function createHttpBridge({
         const name = thumbPath.split(/[\\/]/).pop() ?? '';
         return name ? `${baseUrl}/clipboard/thumb/${encodeURIComponent(name)}` : '';
       },
+      getImageUrl: (imagePath: string) => {
+        if (!imagePath) {
+          return '';
+        }
+        // 同上：只取 basename，避免把本地绝对路径塞进 URL。
+        const name = imagePath.split(/[\\/]/).pop() ?? '';
+        return name ? `${baseUrl}/clipboard/image/${encodeURIComponent(name)}` : '';
+      },
     } satisfies ClipboardBridge,
 
     // ── System-monitor domain.

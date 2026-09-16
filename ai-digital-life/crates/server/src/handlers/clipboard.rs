@@ -123,27 +123,40 @@ pub async fn write_image(
     ipc::to_response(result)
 }
 
-/// GET `/clipboard/thumb/:filename` — serves a stored thumbnail image (PNG) from
-/// the clipboard store's `thumbs_dir`, for the frontend `<img src>` in the
-/// clipboard history panel. `filename` is sanitised to its basename to prevent
-/// path traversal; unknown files return 404.
-pub async fn thumb(
-    State(state): State<ServerState>,
-    axum::extract::Path(filename): axum::extract::Path<String>,
-) -> Response {
-    let thumbs_dir = state.clipboard_store.thumbs_dir().to_path_buf();
-    let safe = Path::new(&filename)
+/// Serve a stored PNG from `dir`. `filename` is sanitised to its basename to
+/// prevent path traversal; empty or unknown names return 404.
+async fn serve_png(dir: &Path, filename: &str) -> Response {
+    let safe = Path::new(filename)
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_default();
     if safe.is_empty() {
         return (StatusCode::NOT_FOUND, "not found").into_response();
     }
-    let path = thumbs_dir.join(safe);
-    match tokio::fs::read(path).await {
+    match tokio::fs::read(dir.join(safe)).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, "image/png")], bytes).into_response(),
         Err(_) => (StatusCode::NOT_FOUND, "not found").into_response(),
     }
+}
+
+/// GET `/clipboard/thumb/:filename` — serves a stored thumbnail image (PNG) from
+/// the clipboard store's `thumbs_dir`, for the frontend `<img src>` in the
+/// clipboard history panel.
+pub async fn thumb(
+    State(state): State<ServerState>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Response {
+    serve_png(state.clipboard_store.thumbs_dir(), &filename).await
+}
+
+/// GET `/clipboard/image/:filename` — serves the stored full-resolution PNG from
+/// the clipboard store's `images_dir`, so the frontend "zoom in" viewer can show
+/// the original image instead of the 256px-capped thumbnail.
+pub async fn image(
+    State(state): State<ServerState>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Response {
+    serve_png(state.clipboard_store.images_dir(), &filename).await
 }
 
 #[cfg(test)]
@@ -320,5 +333,54 @@ mod tests {
             .unwrap();
         assert_eq!(missing.status(), axum::http::StatusCode::NOT_FOUND);
         let _ = std::fs::remove_file(&thumb_path);
+    }
+
+    #[tokio::test]
+    async fn image_serves_stored_original_and_404s_unknown() {
+        let state = test_server_state();
+        // 写一张"原图"到 store 的 images_dir
+        let image_path = state.clipboard_store.images_dir().join("image-x.png");
+        std::fs::write(&image_path, b"\x89PNG-fake-original").unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+
+        let ok = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/image/image-x.png")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(ok.status().is_success());
+
+        // 原图路由不服务缩略图目录中的文件
+        let wrong_dir = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/image/thumb-x.png")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(wrong_dir.status(), axum::http::StatusCode::NOT_FOUND);
+
+        let missing = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/image/does-not-exist.png")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), axum::http::StatusCode::NOT_FOUND);
+        let _ = std::fs::remove_file(&image_path);
     }
 }

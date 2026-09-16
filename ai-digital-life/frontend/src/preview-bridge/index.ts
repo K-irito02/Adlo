@@ -251,6 +251,8 @@ export async function setupPreviewBridge(): Promise<void> {
       // ad-server base URL。不能放进 syncReturnMethods / mock fallback，
       // 否则 mock 的 getThumbUrl 恒返回 ''，导致预览模式缩略图渲染为图标占位。
       getThumbUrl: http.clipboard.getThumbUrl,
+      // getImageUrl 同理：纯 URL 构造器，恒走 http 实现。
+      getImageUrl: http.clipboard.getImageUrl,
     },
     terminalOutput: http.terminalOutput,
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(

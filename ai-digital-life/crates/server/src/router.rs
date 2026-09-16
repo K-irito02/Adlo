@@ -80,6 +80,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/clipboard/clear", post(handlers::clipboard::clear))
         .route("/clipboard/write-image", post(handlers::clipboard::write_image))
         .route("/clipboard/thumb/:filename", get(handlers::clipboard::thumb))
+        .route("/clipboard/image/:filename", get(handlers::clipboard::image))
         // System-monitor domain
         .route("/sysmon/snapshot", get(handlers::system_monitor::snapshot))
         // Dsh-harness domain

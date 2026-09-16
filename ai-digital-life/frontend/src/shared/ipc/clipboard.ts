@@ -58,4 +58,15 @@ export interface ClipboardBridge {
    * @see preview-bridge/index.ts → clipboard.getThumbUrl
    */
   getThumbUrl: (thumbPath: string) => string;
+  /**
+   * 把一条图片条目的原图路径（后端落盘的 `image_path`）转成前端可访问的 URL
+   * （ad-server `/clipboard/image/<filename>` 静态路由），供"放大查看"显示原图。
+   * 非图片或无可访问原图时返回空串。同步返回，不发起网络请求。
+   * @param imagePath 后端原图文件路径
+   * @returns 可访问的原图 URL（可能为空串）
+   * @see tauri-bridge/index.ts → clipboard.getImageUrl
+   * @see mock-bridge.ts → clipboard.getImageUrl
+   * @see preview-bridge/index.ts → clipboard.getImageUrl
+   */
+  getImageUrl: (imagePath: string) => string;
 }
