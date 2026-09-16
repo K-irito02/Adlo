@@ -1,7 +1,6 @@
 import { useTCopy } from '@i18n/useTCopy';
-import { formatT } from '@i18n/formatT';
-import type { CopyDict } from '@i18n/types';
 import { IconAlertTriangle, IconClose } from '@icons';
+import { formatRelativeTime } from '@utils/relativeTime';
 import { CopyButton } from './CopyButton';
 import type { NotificationData } from '@stores/slices/notificationSlice';
 
@@ -9,30 +8,6 @@ interface NotificationCardProps {
   notification: NotificationData;
   onClose: (id: string) => void;
   showCopy?: boolean;
-}
-
-function formatRelativeTime(ts: number, t: CopyDict): string {
-  const diff = Date.now() - ts;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 0) {
-    return '';
-  }
-  if (seconds < 60) {
-    return t.relativeTimeJustNow;
-  }
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) {
-    return formatT(t, 'relativeTimeMinutesAgo', { n: minutes });
-  }
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) {
-    return formatT(t, 'relativeTimeHoursAgo', { n: hours });
-  }
-  const days = Math.floor(hours / 24);
-  if (days < 30) {
-    return formatT(t, 'relativeTimeDaysAgo', { n: days });
-  }
-  return formatT(t, 'relativeTimeDaysAgo', { n: Math.floor(days / 30) * 30 });
 }
 
 export function NotificationCard({

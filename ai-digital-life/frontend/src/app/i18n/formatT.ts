@@ -1,12 +1,12 @@
 import type { CopyDict, CopyKey } from './types';
 
 export function formatT(t: CopyDict, key: CopyKey, vars?: Record<string, string | number>): string {
-  let str = t[key] ?? key;
+  const str = t[key] ?? key;
   if (!vars) {
     return str;
   }
-  for (const [k, v] of Object.entries(vars)) {
-    str = str.replace(`{${k}}`, String(v));
-  }
-  return str;
+  // 单次遍历替换：避免"先注入的文本含 {other} 占位符"时被后续替换命中（病态输入下的串扰）。
+  return str.replace(/\{(\w+)\}/g, (match, name: string) =>
+    Object.hasOwn(vars, name) ? String(vars[name]) : match,
+  );
 }

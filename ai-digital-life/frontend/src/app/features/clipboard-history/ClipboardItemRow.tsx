@@ -61,7 +61,7 @@ export const ClipboardItemRow = memo(function ClipboardItemRow({
   const timestamp = formatRelativeTime(item.createdAt, t);
 
   return (
-    <li className="adl-clipboard__row-item">
+    <li>
       <div
         className="adl-clipboard-row"
         role="button"
@@ -96,7 +96,7 @@ export const ClipboardItemRow = memo(function ClipboardItemRow({
           <TooltipSimple content={t.clipboardDeleteOne} placement="left">
             <button
               type="button"
-              className="adl-icon-btn adl-icon-btn--xs adl-clipboard-row__delete"
+              className="adl-icon-btn adl-icon-btn--xs"
               onClick={handleDelete}
               aria-label={t.clipboardDeleteOne}
             >
@@ -106,7 +106,7 @@ export const ClipboardItemRow = memo(function ClipboardItemRow({
           <TooltipSimple content={t.clipboardZoomView} placement="left">
             <button
               type="button"
-              className="adl-icon-btn adl-icon-btn--xs adl-clipboard-row__zoom"
+              className="adl-icon-btn adl-icon-btn--xs"
               onClick={(e) => {
                 e.stopPropagation();
                 handleZoom();

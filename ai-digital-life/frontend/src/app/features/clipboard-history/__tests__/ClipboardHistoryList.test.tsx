@@ -1,0 +1,103 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen } from '@testing-library/react';
+import { TCopyProvider } from '@i18n/TCopyContext';
+import type { ClipboardItem } from '@shared/ipc/clipboard';
+import { ClipboardHistoryList } from '../ClipboardHistoryList';
+import { useAppStore } from '@stores/slicedStore';
+
+vi.mock('@stores/slicedStore', () => ({
+  useAppStore: vi.fn(),
+}));
+
+const dict: Record<string, string> = {
+  clipboardHistory: '剪贴板历史',
+  clipboardEmpty: '暂无剪贴板历史',
+  clipboardNoMatch: '没有符合搜索和筛选条件的剪贴板历史',
+  clipboardText: '文本',
+  clipboardImage: '图片',
+  clipboardCopy: '复制',
+  clipboardZoomView: '放大查看',
+  clipboardDeleteOne: '删除本条',
+  clipboardFilter: '筛选类型',
+  clipboardFilterAll: '全部',
+  clipboardSearchPlaceholder: '搜索剪贴板',
+  clipboardClearAll: '清空全部剪贴板历史',
+  browserBack: '后退',
+  close: '关闭',
+  cancel: '取消',
+  confirm: '确定',
+};
+const mockT = new Proxy(dict, { get: (target, key) => target[String(key)] ?? String(key) });
+
+function makeItem(id: string, content: string): ClipboardItem {
+  return {
+    id,
+    kind: 'text',
+    content,
+    createdAt: Date.now(),
+  } as unknown as ClipboardItem;
+}
+
+function renderList(overrides: Record<string, unknown> = {}) {
+  const state: Record<string, unknown> = {
+    clipboardHistory: [],
+    clipboardHistoryLoading: false,
+    clipboardSearch: '',
+    clipboardSearchOpen: false,
+    clipboardMatchCase: false,
+    clipboardMatchWholeWord: false,
+    clipboardUseRegex: false,
+    clipboardKindFilter: 'all',
+    setClipboardSearch: vi.fn(),
+    setClipboardSearchOpen: vi.fn(),
+    setClipboardMatchCase: vi.fn(),
+    setClipboardMatchWholeWord: vi.fn(),
+    setClipboardUseRegex: vi.fn(),
+    setClipboardKindFilter: vi.fn(),
+    clearAllClipboard: vi.fn(),
+    removeClipboardItem: vi.fn(),
+    fetchClipboardHistory: vi.fn().mockResolvedValue(undefined),
+    ...overrides,
+  };
+  vi.mocked(useAppStore).mockImplementation((selector: (s: any) => any) => selector(state));
+  render(
+    <TCopyProvider t={mockT as never} locale="zh-CN">
+      <ClipboardHistoryList />
+    </TCopyProvider>,
+  );
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  (window as unknown as { digitalLife: unknown }).digitalLife = {
+    clipboard: { getThumbUrl: () => '', getImageUrl: () => '' },
+  };
+});
+
+afterEach(cleanup);
+
+describe('ClipboardHistoryList', () => {
+  it('shows the empty-history message when there is no history', () => {
+    renderList();
+    expect(screen.getByText('暂无剪贴板历史')).toBeTruthy();
+  });
+
+  it('distinguishes "no match" from "no history" when a filter excludes everything', () => {
+    renderList({ clipboardHistory: [makeItem('1', 'alpha')], clipboardKindFilter: 'image' });
+    expect(screen.getByText('没有符合搜索和筛选条件的剪贴板历史')).toBeTruthy();
+  });
+
+  it('renders one row per visible item and passes the visible count to the header', () => {
+    renderList({
+      clipboardHistory: [makeItem('1', 'alpha'), makeItem('2', 'beta')],
+      clipboardKindFilter: 'all',
+    });
+    expect(screen.getAllByRole('listitem')).toHaveLength(2);
+    expect(screen.getByRole('status').textContent).toBe('2');
+  });
+
+  it('excludes the row list from rendering while loading', () => {
+    renderList({ clipboardHistory: [makeItem('1', 'alpha')], clipboardHistoryLoading: true });
+    expect(screen.queryByRole('listitem')).toBeNull();
+  });
+});

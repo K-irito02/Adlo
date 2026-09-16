@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach } from 'vitest';
 import { TCopyProvider } from '@i18n/TCopyContext';
-import { ClipboardItemRow } from './ClipboardItemRow';
+import { ClipboardItemRow } from '../ClipboardItemRow';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { useAppStore } from '@stores/slicedStore';
 
@@ -105,9 +105,9 @@ describe('ClipboardItemRow', () => {
     expect(onZoom).not.toHaveBeenCalled();
   });
 
-  it('writes an image item back to the system clipboard via the copy button', () => {
+  it('writes an image item back to the system clipboard via the copy button', async () => {
     renderRow(makeItem({ kind: 'image', content: undefined, imagePath: 'C:/clip/a.png' }));
     fireEvent.click(screen.getByRole('button', { name: '复制' }));
-    expect(writeClipboardItem).toHaveBeenCalledWith('c1');
+    await waitFor(() => expect(writeClipboardItem).toHaveBeenCalledWith('c1'));
   });
 });

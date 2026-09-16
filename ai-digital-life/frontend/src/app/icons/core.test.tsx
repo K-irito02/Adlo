@@ -9,6 +9,7 @@ import {
   IconChevronUp,
   IconChevronsLeft,
   IconChevronsRight,
+  IconExpandCorners,
 } from './core';
 
 describe('chevron icon family geometry', () => {
@@ -79,5 +80,22 @@ describe('IconAddWorkspace geometry', () => {
     const { container } = render(<IconAddWorkspace size={16} decorative />);
     const svg = container.querySelector('svg');
     expect(svg?.getAttribute('stroke-width')).toBe('1.5');
+  });
+});
+
+describe('IconExpandCorners', () => {
+  it('keeps the source viewBox and the four corner paths', () => {
+    const { container } = render(<IconExpandCorners size={12} decorative />);
+    const svg = container.querySelector('svg');
+    expect(svg?.getAttribute('viewBox')).toBe('0 0 25 24');
+    expect(container.querySelectorAll('path').length).toBe(4);
+  });
+
+  it('inherits currentColor instead of a hard-coded fill', () => {
+    const { container } = render(<IconExpandCorners size={12} decorative />);
+    expect(container.querySelector('svg')?.getAttribute('fill')).toBe('currentColor');
+    for (const path of container.querySelectorAll('path')) {
+      expect(path.getAttribute('fill')).toBeNull();
+    }
   });
 });

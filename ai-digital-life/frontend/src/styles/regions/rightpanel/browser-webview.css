@@ -506,7 +506,9 @@
 
 /* ===== Close Button Danger Hover ===== */
 
-.adl-icon-btn--danger-hover:hover {
-  color: var(--color-red-500);
-  background: var(--color-red-100);
+/* 需高于 .adl-icon-btn:hover:not(:disabled)（0,3,0）；且 titlebar.css 更晚加载，故提到 (0,4,0)。
+   颜色走主题 token（而非 Tailwind 默认调色板），保证暗色主题下的对比度。 */
+.adl-icon-btn.adl-icon-btn--danger-hover:hover:not(:disabled) {
+  color: var(--danger);
+  background: var(--danger-soft);
 }

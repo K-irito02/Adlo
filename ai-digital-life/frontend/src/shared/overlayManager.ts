@@ -9,6 +9,7 @@ const OVERLAY_SELECTORS = [
   '.adl-hamburger__submenu',
   '.hint-card',
   '.adl-prompt-modal',
+  '.adl-clipboard-viewer',
   '.adl-toast',
   '.toast-card',
   '.toast-card-region',

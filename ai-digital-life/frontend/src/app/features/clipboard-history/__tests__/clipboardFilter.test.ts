@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import {
-  buildClipboardSearchPattern,
+  buildClipboardFilterInput,
   filterClipboardItems,
   getClipboardKindCounts,
-} from './clipboardFilter';
+} from '../clipboardFilter';
 
 function makeItem(id: string, kind: string, content?: string): ClipboardItem {
   return {
@@ -29,10 +29,27 @@ const ITEMS = [
 ];
 
 describe('getClipboardKindCounts', () => {
-  it('counts items by kind preserving first-seen order', () => {
+  it('counts items by kind in canonical order', () => {
     expect(getClipboardKindCounts(ITEMS)).toEqual([
       { kind: 'text', count: 3 },
       { kind: 'image', count: 1 },
+    ]);
+  });
+
+  it('keeps canonical order regardless of item order', () => {
+    const reordered = [ITEMS[2], ITEMS[0]];
+    expect(getClipboardKindCounts(reordered)).toEqual([
+      { kind: 'text', count: 1 },
+      { kind: 'image', count: 1 },
+    ]);
+  });
+
+  it('sorts unknown kinds after known ones', () => {
+    const withUnknown = [...ITEMS, makeItem('5', 'files', 'x')];
+    expect(getClipboardKindCounts(withUnknown).map((c) => c.kind)).toEqual([
+      'text',
+      'image',
+      'files',
     ]);
   });
 
@@ -41,56 +58,23 @@ describe('getClipboardKindCounts', () => {
   });
 });
 
-describe('buildClipboardSearchPattern', () => {
-  it('matches case-insensitively by default', () => {
-    const pattern = buildClipboardSearchPattern('hello', {
-      matchCase: false,
-      wholeWord: false,
+describe('buildClipboardFilterInput', () => {
+  it('uses the query only while the search panel is open', () => {
+    const base = {
+      kindFilter: 'text',
+      query: 'good',
+      matchCase: true,
+      matchWholeWord: false,
       useRegex: false,
-    });
-    expect(pattern?.test('Hello World')).toBe(true);
-  });
-
-  it('respects matchCase', () => {
-    const pattern = buildClipboardSearchPattern('hello', {
+    };
+    expect(buildClipboardFilterInput({ ...base, searchOpen: true })).toEqual({
+      kindFilter: 'text',
+      query: 'good',
       matchCase: true,
       wholeWord: false,
       useRegex: false,
     });
-    expect(pattern?.test('Hello World')).toBe(false);
-    expect(pattern?.test('hello again')).toBe(true);
-  });
-
-  it('respects wholeWord', () => {
-    const pattern = buildClipboardSearchPattern('hell', {
-      matchCase: false,
-      wholeWord: true,
-      useRegex: false,
-    });
-    expect(pattern?.test('hello')).toBe(false);
-    expect(pattern?.test('hell')).toBe(true);
-  });
-
-  it('supports regex and returns undefined for invalid regex', () => {
-    const ok = buildClipboardSearchPattern('h.llo', {
-      matchCase: false,
-      wholeWord: false,
-      useRegex: true,
-    });
-    expect(ok?.test('hello')).toBe(true);
-    expect(
-      buildClipboardSearchPattern('([', {
-        matchCase: false,
-        wholeWord: false,
-        useRegex: true,
-      }),
-    ).toBeUndefined();
-  });
-
-  it('returns undefined for empty query', () => {
-    expect(
-      buildClipboardSearchPattern('  ', { matchCase: false, wholeWord: false, useRegex: false }),
-    ).toBeUndefined();
+    expect(buildClipboardFilterInput({ ...base, searchOpen: false }).query).toBe('');
   });
 });
 
@@ -118,5 +102,25 @@ describe('filterClipboardItems', () => {
   it('matches image items by kind label query', () => {
     const result = filterClipboardItems(ITEMS, { kindFilter: 'all', query: 'image' });
     expect(result.map((item) => item.id)).toEqual(['3']);
+  });
+
+  it('returns nothing for an invalid regex', () => {
+    const result = filterClipboardItems(ITEMS, {
+      kindFilter: 'all',
+      query: '([',
+      useRegex: true,
+    });
+    expect(result).toEqual([]);
+  });
+
+  it('honours matchCase and wholeWord', () => {
+    expect(
+      filterClipboardItems(ITEMS, { kindFilter: 'all', query: 'hello', matchCase: true }).map(
+        (item) => item.id,
+      ),
+    ).toEqual(['2']);
+    expect(
+      filterClipboardItems(ITEMS, { kindFilter: 'all', query: 'hell', wholeWord: true }),
+    ).toEqual([]);
   });
 });

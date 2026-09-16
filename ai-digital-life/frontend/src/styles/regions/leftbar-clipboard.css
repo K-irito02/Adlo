@@ -5,18 +5,17 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  /* 72px = 行尾竖排三按钮 3×22px + 2×2px 间距 + 2px 余量（见 .adl-clipboard-row__actions） */
+  --adl-clipboard-row-height: 72px;
 }
 
 .adl-clipboard__header {
   border-bottom: 1px solid var(--border-subtle);
 }
 
-.adl-clipboard__toolbar {
+/* 提权到 (0,2,0)：不依赖与 .adl-workspace-toolbar 的相对加载顺序 */
+.adl-clipboard .adl-clipboard__toolbar {
   padding: var(--space-1);
-}
-
-.adl-clipboard__toolbar .adl-icon-btn {
-  margin-left: 0;
 }
 
 .adl-clipboard__count {
@@ -36,28 +35,11 @@
   padding: var(--space-1);
 }
 
-.adl-clipboard__searchbtn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
+/* 复用 .adl-icon-btn（28px 图标按钮）的尺寸/配色/hover，仅改圆角与标签布局。
+   本文件先于 regions/titlebar.css 加载，故提权到 (0,2,0)，不依赖加载顺序。 */
+.adl-icon-btn.adl-clipboard__searchbtn,
+.adl-icon-btn.adl-clipboard__filterbtn {
   border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition:
-    background-color 180ms var(--ease-default),
-    color 180ms var(--ease-default);
-}
-
-.adl-clipboard__searchbtn:hover,
-.adl-clipboard__searchbtn:focus-visible,
-.adl-clipboard__searchbtn.is-active {
-  background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .adl-clipboard__filter {
@@ -66,29 +48,12 @@
   flex-shrink: 0;
 }
 
-.adl-clipboard__filterbtn {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
+.adl-icon-btn.adl-clipboard__filterbtn {
+  width: auto;
   max-width: 96px;
-  height: 28px;
+  gap: var(--space-1);
   padding: 0 var(--space-1);
-  border: none;
-  border-radius: var(--radius-md);
-  background: transparent;
-  color: var(--text-secondary);
   font-size: var(--text-xs);
-  cursor: pointer;
-  transition:
-    background-color 180ms var(--ease-default),
-    color 180ms var(--ease-default);
-}
-
-.adl-clipboard__filterbtn:hover,
-.adl-clipboard__filterbtn:focus-visible,
-.adl-clipboard__filterbtn.is-open {
-  background: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .adl-clipboard__filterbtn-label {
@@ -97,43 +62,14 @@
   white-space: nowrap;
 }
 
-.adl-clipboard__filtermenu {
+/* 复用 .adl-sidebar-menu 的外观，仅覆盖定位/尺寸为行内下拉。
+   提权到 (0,2,0)：不依赖与 .adl-sidebar-menu 的相对加载顺序。 */
+.adl-clipboard .adl-clipboard__filtermenu {
   position: absolute;
-  top: calc(100% + 4px);
+  top: calc(100% + var(--space-1));
   right: 0;
   min-width: 100%;
-  width: max-content;
   max-width: 200px;
-  padding: 4px;
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  background: var(--bg-card);
-  box-shadow: var(--shadow-lg);
-  z-index: calc(var(--z-popover) + 10);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.adl-clipboard__filtermenu-item {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  width: 100%;
-  padding: 6px 8px;
-  border: none;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-primary);
-  text-align: left;
-  font-size: var(--text-xs);
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.adl-clipboard__filtermenu-item:hover,
-.adl-clipboard__filtermenu-item:focus-visible {
-  background: var(--bg-hover);
 }
 
 .adl-clipboard__filtermenu-item[aria-checked='true'] {
@@ -154,65 +90,80 @@
 }
 
 .adl-clipboard__searchpanel {
-  padding: var(--space-1) var(--space-1) 0;
+  padding: var(--space-1);
 }
 
 .adl-clipboard__toolbar .adl-clipboard__clear {
   border-radius: var(--radius-md);
 }
 
-.adl-clipboard__clear:hover {
-  color: var(--danger);
-}
+/* ---------------- Custom scrollbars (list + viewer), mirrors adl-filetree-* ---------------- */
 
-/* 列表滚动壳：与文件树 (adl-filetree-shell) 同款自定义滚动条 */
-.adl-clipboard__scroll-shell {
+.adl-clipboard__scroll-shell,
+.adl-clipboard-viewer__scroll-shell {
   position: relative;
   flex: 1;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
+  --adl-clipboard-scrollbar-width: 7px;
 }
 
-.adl-clipboard__scroll {
+.adl-clipboard__scroll,
+.adl-clipboard-viewer__scroll {
   height: 100%;
-  overflow-y: auto;
-  overflow-x: hidden;
   scrollbar-width: none;
 }
 
-.adl-clipboard__scroll::-webkit-scrollbar {
+.adl-clipboard__scroll {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.adl-clipboard-viewer__scroll {
+  overflow: auto;
+}
+
+.adl-clipboard__scroll::-webkit-scrollbar,
+.adl-clipboard-viewer__scroll::-webkit-scrollbar {
   width: 0;
   height: 0;
 }
 
-.adl-clipboard__scrollbar {
+.adl-clipboard__scrollbar,
+.adl-clipboard-viewer__scrollbar {
   position: absolute;
   top: 0;
   right: 1px;
   bottom: 0;
-  width: 7px;
+  width: var(--adl-clipboard-scrollbar-width);
   z-index: 3;
   opacity: 0;
   pointer-events: none;
+  transition: var(--transition-opacity);
 }
 
-.adl-clipboard__scroll-shell.is-scrollable .adl-clipboard__scrollbar {
+.adl-clipboard__scroll-shell.is-scrollable .adl-clipboard__scrollbar,
+.adl-clipboard-viewer__scroll-shell.is-scrollable .adl-clipboard-viewer__scrollbar {
   opacity: 1;
   pointer-events: auto;
 }
 
-.adl-clipboard__scrollbar-thumb {
+.adl-clipboard__scrollbar-thumb,
+.adl-clipboard-viewer__scrollbar-thumb {
   position: absolute;
   top: 0;
   right: 1px;
   width: 3px;
   min-height: 24px;
-  border-radius: 999px;
+  border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--text-muted) 34%, transparent);
 }
 
 .adl-clipboard__scrollbar:hover .adl-clipboard__scrollbar-thumb,
-.adl-clipboard__scrollbar:active .adl-clipboard__scrollbar-thumb {
+.adl-clipboard__scrollbar:active .adl-clipboard__scrollbar-thumb,
+.adl-clipboard-viewer__scrollbar:hover .adl-clipboard-viewer__scrollbar-thumb,
+.adl-clipboard-viewer__scrollbar:active .adl-clipboard-viewer__scrollbar-thumb {
   width: 5px;
   background: color-mix(in srgb, var(--text-muted) 54%, transparent);
 }
@@ -220,7 +171,7 @@
 .adl-clipboard__list {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--space-0-5);
   list-style: none;
   margin: 0;
   /* 横向 0：行悬停背景贴合滚动区左右边缘 */
@@ -234,8 +185,8 @@
   column-gap: var(--space-1-5);
   width: 100%;
   min-width: 0;
-  /* 固定行高：不随文本行数 / 图片尺寸变化（完整内容由放大查看承载）；高度容纳竖排三按钮 */
-  height: 72px;
+  /* 固定行高：不随文本行数 / 图片尺寸变化（完整内容由放大查看承载） */
+  height: var(--adl-clipboard-row-height);
   padding: 0 var(--space-2) 0 var(--space-1-5);
   box-sizing: border-box;
   border: none;
@@ -245,9 +196,7 @@
   border-radius: 0;
   cursor: pointer;
   text-align: left;
-  transition:
-    background-color 180ms var(--ease-default),
-    color 180ms var(--ease-default);
+  transition: var(--transition-colors);
 }
 
 .adl-clipboard-row:hover {
@@ -265,7 +214,7 @@
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   min-width: 0;
 }
 
@@ -276,7 +225,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  word-break: break-word;
 }
 
 .adl-clipboard-row__meta {
@@ -327,12 +275,12 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--space-0-5);
   flex-shrink: 0;
 }
 
-/* 与相邻的 adl-icon-btn--xs (22px) 对齐，保证竖排三按钮同宽 */
-.adl-clipboard-row__copy {
+/* 与相邻的 adl-icon-btn--xs (22px) 对齐，保证竖排三按钮同宽（覆盖 .adl-copy-btn 的 24px） */
+.adl-copy-btn.adl-clipboard-row__copy {
   width: 22px;
   height: 22px;
 }
@@ -350,7 +298,6 @@
 }
 
 .adl-clipboard-viewer__panel {
-  z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
   width: min(90vw, 720px);
@@ -385,57 +332,6 @@
   flex: 1;
   min-height: 0;
   display: flex;
-}
-
-.adl-clipboard-viewer__scroll-shell {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.adl-clipboard-viewer__scroll {
-  height: 100%;
-  overflow: auto;
-  scrollbar-width: none;
-}
-
-.adl-clipboard-viewer__scroll::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-.adl-clipboard-viewer__scrollbar {
-  position: absolute;
-  top: 0;
-  right: 1px;
-  bottom: 0;
-  width: 7px;
-  z-index: 3;
-  opacity: 0;
-  pointer-events: none;
-}
-
-.adl-clipboard-viewer__scroll-shell.is-scrollable .adl-clipboard-viewer__scrollbar {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.adl-clipboard-viewer__scrollbar-thumb {
-  position: absolute;
-  top: 0;
-  right: 1px;
-  width: 3px;
-  min-height: 24px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--text-muted) 34%, transparent);
-}
-
-.adl-clipboard-viewer__scrollbar:hover .adl-clipboard-viewer__scrollbar-thumb,
-.adl-clipboard-viewer__scrollbar:active .adl-clipboard-viewer__scrollbar-thumb {
-  width: 5px;
-  background: color-mix(in srgb, var(--text-muted) 54%, transparent);
 }
 
 .adl-clipboard-viewer__text {

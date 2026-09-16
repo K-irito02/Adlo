@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CopyDict } from '@i18n/types';
-import { buildClipboardClearScope } from './clipboardClearScope';
+import { buildClipboardClearScope } from '../clipboardClearScope';
 
 const t = {
   clipboardClearScopeSearch: '搜索"{query}"',

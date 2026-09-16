@@ -5,10 +5,10 @@ import { TooltipSimple } from '@components/Tooltip';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { useTCopy } from '@i18n/useTCopy';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
-import { ClipboardHistoryHeader } from './ClipboardHistoryHeader';
+import { ClipboardHistoryHeader, CLIPBOARD_SEARCH_PANEL_ID } from './ClipboardHistoryHeader';
 import { ClipboardItemRow } from './ClipboardItemRow';
 import { ClipboardItemViewer } from './ClipboardItemViewer';
-import { filterClipboardItems } from './clipboardFilter';
+import { buildClipboardFilterInput, filterClipboardItems } from './clipboardFilter';
 
 const REFRESH_INTERVAL_MS = 2000;
 
@@ -80,13 +80,17 @@ export function ClipboardHistoryList() {
 
   const filtered = useMemo(
     () =>
-      filterClipboardItems(clipboardHistory, {
-        kindFilter: clipboardKindFilter,
-        query: clipboardSearchOpen ? clipboardSearch : '',
-        matchCase: clipboardMatchCase,
-        wholeWord: clipboardMatchWholeWord,
-        useRegex: clipboardUseRegex,
-      }),
+      filterClipboardItems(
+        clipboardHistory,
+        buildClipboardFilterInput({
+          kindFilter: clipboardKindFilter,
+          searchOpen: clipboardSearchOpen,
+          query: clipboardSearch,
+          matchCase: clipboardMatchCase,
+          matchWholeWord: clipboardMatchWholeWord,
+          useRegex: clipboardUseRegex,
+        }),
+      ),
     [
       clipboardHistory,
       clipboardKindFilter,
@@ -100,9 +104,9 @@ export function ClipboardHistoryList() {
 
   return (
     <section className="adl-clipboard adl-leftbar__nav" aria-label={t.clipboardHistory}>
-      <ClipboardHistoryHeader />
+      <ClipboardHistoryHeader visibleItems={filtered} />
       {clipboardSearchOpen ? (
-        <div className="adl-clipboard__searchpanel">
+        <div className="adl-clipboard__searchpanel" id={CLIPBOARD_SEARCH_PANEL_ID}>
           <label className="adl-search-panel__field adl-search-panel__field--with-actions">
             <input
               ref={searchInputRef}
@@ -157,7 +161,10 @@ export function ClipboardHistoryList() {
       {clipboardHistoryLoading ? (
         <LoadingRow variant="center" />
       ) : filtered.length === 0 ? (
-        <EmptyRow message={t.clipboardEmpty} variant="center" />
+        <EmptyRow
+          message={clipboardHistory.length === 0 ? t.clipboardEmpty : t.clipboardNoMatch}
+          variant="center"
+        />
       ) : (
         <CustomScrollArea
           shellClassName="adl-clipboard__scroll-shell"

@@ -37,6 +37,7 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-hamburger__submenu');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.hint-card');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-prompt-modal');
+    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-clipboard-viewer');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-toast');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.toast-card');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.toast-card-region');
@@ -48,7 +49,7 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
 
   it('以逗号分隔的合法 querySelectorAll 格式', () => {
     const parts = WEBVIEW_OVERLAY_SELECTOR.split(',').map((s) => s.trim());
-    expect(parts.length).toBe(17);
+    expect(parts.length).toBe(18);
     expect(parts.every((s) => s.startsWith('.'))).toBe(true);
   });
 });

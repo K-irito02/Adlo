@@ -1,24 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-function buildSearchPattern(
-  query: string,
-  options: { matchCase: boolean; wholeWord: boolean; useRegex: boolean },
-) {
-  if (!query) {
-    return undefined;
-  }
-  const source = options.useRegex ? query : escapeRegExp(query);
-  const wrapped = options.wholeWord ? `\\b${source}\\b` : source;
-  try {
-    return new RegExp(wrapped, options.matchCase ? 'g' : 'gi');
-  } catch {
-    return undefined;
-  }
-}
+import { buildSearchPattern } from '@utils/searchPattern';
 
 interface SearchHit {
   path: string;

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconClose, IconFileImage } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
@@ -14,30 +14,43 @@ interface ClipboardItemViewerProps {
 
 /**
  * 剪贴板条目放大查看覆盖层（createPortal + 遮罩 + 卡片）。
- * - 文本条目：全文展示（`white-space: pre-wrap`），超出卡片高度时用 CustomScrollArea 滚动查看完整内容
- * - 图片条目：展示后端原图（`/clipboard/image/<filename>`，非 256px 缩略图）
- * - 遮罩点击 / Escape / 关闭按钮均可关闭
+ * - 文本条目：全文展示（`white-space: pre-wrap`），超出卡片高度时滚动查看完整内容
+ * - 图片条目：展示后端原图；原图缺失/加载失败时回退缩略图，再退到图标占位
+ * - 遮罩点击 / Escape / 关闭按钮均可关闭；关闭后焦点归还打开它的元素
  */
 export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps) {
   const { t } = useTCopy();
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const isImage = item.kind === 'image';
+  const imageUrl = isImage ? window.digitalLife.clipboard.getImageUrl(item.imagePath ?? '') : '';
+  const thumbUrl = isImage ? window.digitalLife.clipboard.getThumbUrl(item.thumbPath ?? '') : '';
+  // 原图 → 缩略图 → 图标占位，逐级回退（原图 URL 缺失时直接从缩略图起步）
+  const [imageStage, setImageStage] = useState<'original' | 'thumb' | 'none'>(() =>
+    imageUrl ? 'original' : 'thumb',
+  );
 
   useEffect(() => {
+    const previouslyFocused = document.activeElement as HTMLElement | null;
     closeRef.current?.focus();
+    return () => previouslyFocused?.focus?.();
   }, []);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
+        return;
+      }
+      // 面板内只有关闭按钮可聚焦：把 Tab 圈在面板内，兑现 aria-modal 契约。
+      if (event.key === 'Tab') {
+        event.preventDefault();
+        closeRef.current?.focus();
       }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onClose]);
-
-  const isImage = item.kind === 'image';
-  const imageUrl = isImage ? window.digitalLife.clipboard.getImageUrl(item.imagePath ?? '') : '';
+  const displayUrl = imageStage === 'original' ? imageUrl : imageStage === 'thumb' ? thumbUrl : '';
 
   return createPortal(
     <div className="adl-clipboard-viewer" onClick={onClose}>
@@ -72,8 +85,15 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
           >
             {isImage ? (
               <div className="adl-clipboard-viewer__image-wrap">
-                {imageUrl ? (
-                  <img className="adl-clipboard-viewer__image" src={imageUrl} alt="" />
+                {displayUrl ? (
+                  <img
+                    className="adl-clipboard-viewer__image"
+                    src={displayUrl}
+                    alt={t.clipboardImage}
+                    onError={() =>
+                      setImageStage((prev) => (prev === 'original' ? 'thumb' : 'none'))
+                    }
+                  />
                 ) : (
                   <IconFileImage size={48} decorative />
                 )}
