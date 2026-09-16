@@ -97,6 +97,15 @@
   border-radius: var(--radius-md);
 }
 
+/* 剪贴板清空确认框在清空进行中把按钮标记为 aria-disabled（而非 disabled）：
+   保留可聚焦性，避免 Chromium/WebView2 把焦点从 aria-modal 内移到 <body>。
+   指针事件被禁用，视觉与 disabled 一致。 */
+.adl-prompt-modal [aria-disabled='true'] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 /* ---------------- Custom scrollbars (list + viewer), mirrors adl-filetree-* ---------------- */
 
 .adl-clipboard__scroll-shell,

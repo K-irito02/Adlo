@@ -15,6 +15,7 @@ const dict: Record<string, string> = {
   clipboardText: '文本',
   clipboardImage: '图片',
   clipboardFilter: '筛选类型',
+  clipboardFilterWithValue: '筛选类型：{value}',
   clipboardFilterAll: '全部',
   clipboardSearchPlaceholder: '搜索剪贴板',
   browserBack: '后退',
@@ -45,8 +46,31 @@ const clearAllClipboard = vi.fn().mockResolvedValue(undefined);
 const removeClipboardItem = vi.fn().mockResolvedValue(undefined);
 const setClipboardKindFilter = vi.fn();
 
+let currentState: Record<string, unknown> = {};
+
+vi.mocked(useAppStore).mockImplementation((selector: (s: any) => any) => selector(currentState));
+
+function buildUi() {
+  const visibleItems = filterClipboardItems(
+    currentState.clipboardHistory as ClipboardItem[],
+    buildClipboardFilterInput({
+      kindFilter: currentState.clipboardKindFilter as string,
+      searchOpen: currentState.clipboardSearchOpen as boolean,
+      query: currentState.clipboardSearch as string,
+      matchCase: currentState.clipboardMatchCase as boolean,
+      matchWholeWord: currentState.clipboardMatchWholeWord as boolean,
+      useRegex: currentState.clipboardUseRegex as boolean,
+    }),
+  );
+  return (
+    <TCopyProvider t={mockT as never} locale="zh-CN">
+      <ClipboardHistoryHeader visibleItems={visibleItems} />
+    </TCopyProvider>
+  );
+}
+
 function renderHeader(overrides: Record<string, unknown> = {}) {
-  const state: Record<string, unknown> = {
+  currentState = {
     clipboardHistory: ITEMS,
     clipboardSearch: '',
     clipboardSearchOpen: false,
@@ -64,23 +88,12 @@ function renderHeader(overrides: Record<string, unknown> = {}) {
     removeClipboardItem,
     ...overrides,
   };
-  vi.mocked(useAppStore).mockImplementation((selector: (s: any) => any) => selector(state));
-  const visibleItems = filterClipboardItems(
-    state.clipboardHistory as ClipboardItem[],
-    buildClipboardFilterInput({
-      kindFilter: state.clipboardKindFilter as string,
-      searchOpen: state.clipboardSearchOpen as boolean,
-      query: state.clipboardSearch as string,
-      matchCase: state.clipboardMatchCase as boolean,
-      matchWholeWord: state.clipboardMatchWholeWord as boolean,
-      useRegex: state.clipboardUseRegex as boolean,
-    }),
-  );
-  render(
-    <TCopyProvider t={mockT as never} locale="zh-CN">
-      <ClipboardHistoryHeader visibleItems={visibleItems} />
-    </TCopyProvider>,
-  );
+  return render(buildUi());
+}
+
+function rerenderHeader(view: ReturnType<typeof render>, overrides: Record<string, unknown>) {
+  currentState = { ...currentState, ...overrides };
+  view.rerender(buildUi());
 }
 
 function openConfirm(label = '清空全部剪贴板历史') {
@@ -158,7 +171,7 @@ describe('ClipboardHistoryHeader', () => {
     expect(screen.queryByRole('dialog')).toBeNull();
   });
 
-  it('keeps the confirmation dialog open while clearing is in flight', async () => {
+  it('keeps the dialog focusable and ignores re-entrancy while clearing is in flight', async () => {
     let resolveRemove: ((value: void) => void) | undefined;
     removeClipboardItem.mockImplementationOnce(
       () =>
@@ -168,14 +181,43 @@ describe('ClipboardHistoryHeader', () => {
     );
     renderHeader({ clipboardKindFilter: 'image' });
     openConfirm('清空当前搜索和筛选后的剪贴板历史');
-    fireEvent.click(screen.getByRole('button', { name: '确定' }));
+    const confirmBtn = screen.getByRole('button', { name: '确定' });
+    fireEvent.click(confirmBtn);
     await waitFor(() => expect(removeClipboardItem).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole('button', { name: '确定' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: '取消' })).toBeDisabled();
+    // 清空期间按钮保留可聚焦性（用 aria-disabled 而非 disabled）：焦点不被浏览器移出模态框
+    expect(confirmBtn.getAttribute('aria-disabled')).toBe('true');
+    expect(confirmBtn.hasAttribute('disabled')).toBe(false);
+    expect(screen.getByRole('button', { name: '取消' })).toHaveAttribute('aria-disabled', 'true');
+    expect(screen.getByRole('button', { name: '关闭' })).toHaveAttribute('aria-disabled', 'true');
+    expect(document.activeElement).toBe(confirmBtn);
+    // 重复提交被忽略
+    fireEvent.click(confirmBtn);
     fireEvent.keyDown(document, { key: 'Escape' });
+    expect(removeClipboardItem).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('dialog')).toBeTruthy();
     resolveRemove?.();
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('focuses the confirm action on open and restores focus to the trigger on close', async () => {
+    renderHeader();
+    const trigger = screen.getByRole('button', { name: '清空全部剪贴板历史' });
+    openConfirm();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: '确定' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it('falls back to the filter button when the trigger is disabled on close', () => {
+    const view = renderHeader({ clipboardHistory: [makeItem('1')] });
+    fireEvent.click(screen.getByRole('button', { name: '清空全部剪贴板历史' }));
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    // 清空后无可见条目 → 触发按钮禁用
+    rerenderHeader(view, { clipboardHistory: [] });
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /筛选类型/ }));
   });
 
   it('resets a stale kind filter back to all', async () => {

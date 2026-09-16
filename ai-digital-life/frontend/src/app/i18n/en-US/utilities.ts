@@ -14,6 +14,7 @@ export const utilitiesEn = {
   clipboardNoMatch: 'No clipboard history matches the search and filter',
   clipboardSearchPlaceholder: 'Search clipboard',
   clipboardFilter: 'Filter by type',
+  clipboardFilterWithValue: 'Filter by type: {value}',
   clipboardFilterAll: 'All',
   clipboardClearAll: 'Clear all clipboard history',
   clipboardCopy: 'Copy',

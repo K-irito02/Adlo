@@ -40,7 +40,13 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
   const removeClipboardItem = useAppStore((s) => s.removeClipboardItem);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
+  // 用 ref 承载"正在清空"守卫：避免 clearing 变化导致焦点陷阱 effect 重建（重建会短暂把焦点
+  // 归还到模态框背后，清空期间焦点逃出 aria-modal）。
+  const clearingRef = useRef(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const clearBtnRef = useRef<HTMLButtonElement | null>(null);
+  const confirmPanelRef = useRef<HTMLDivElement | null>(null);
+  const confirmBtnRef = useRef<HTMLButtonElement | null>(null);
   const filterRef = useRef<HTMLDivElement | null>(null);
   const filterBtnRef = useRef<HTMLButtonElement | null>(null);
   const filterMenuRef = useRef<HTMLDivElement | null>(null);
@@ -149,25 +155,61 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
   }, [filterOpen, closeFilterMenu]);
 
   const closeConfirm = useCallback(() => {
-    if (!clearing) {
+    if (!clearingRef.current) {
       setConfirmOpen(false);
     }
-  }, [clearing]);
+  }, []);
 
   useEffect(() => {
     if (!confirmOpen) {
       return;
     }
+    const trigger = clearBtnRef.current;
+    const filterFallback = filterBtnRef.current;
+    confirmBtnRef.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeConfirm();
+        return;
+      }
+      // 面板内 Tab 循环（兑现 aria-modal 契约）
+      if (event.key === 'Tab') {
+        const focusables = Array.from(
+          confirmPanelRef.current?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [],
+        );
+        if (focusables.length === 0) {
+          return;
+        }
+        const current = focusables.indexOf(document.activeElement as HTMLElement);
+        const nextIndex = event.shiftKey
+          ? current <= 0
+            ? focusables.length - 1
+            : current - 1
+          : current < 0 || current === focusables.length - 1
+            ? 0
+            : current + 1;
+        event.preventDefault();
+        focusables[nextIndex].focus();
       }
     };
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      // 触发按钮可能因清空后无可见条目而禁用，回退到常驻可聚焦的筛选按钮
+      if (trigger && !trigger.disabled) {
+        trigger.focus();
+      } else {
+        filterFallback?.focus();
+      }
+    };
   }, [confirmOpen, closeConfirm]);
 
   const handleClear = async () => {
+    if (clearingRef.current) {
+      // 重入守卫：清空期间重复提交会被忽略（配合 aria-disabled 保留焦点）
+      return;
+    }
+    clearingRef.current = true;
     setClearing(true);
     try {
       if (clearScope === null) {
@@ -180,6 +222,7 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
     } catch {
       // 单项删除失败已由 store 层 captureError 呈现；此处仅避免未捕获 rejection。
     } finally {
+      clearingRef.current = false;
       setClearing(false);
       setConfirmOpen(false);
     }
@@ -197,6 +240,7 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
         </span>
         <TooltipSimple content={clearLabel} placement="right">
           <button
+            ref={clearBtnRef}
             type="button"
             className="adl-icon-btn adl-icon-btn--xs adl-clipboard__clear adl-icon-btn--danger-hover"
             onClick={() => setConfirmOpen(true)}
@@ -236,7 +280,7 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
               type="button"
               className={`adl-icon-btn adl-clipboard__filterbtn${filterOpen ? ' is-toggled' : ''}`}
               onClick={() => (filterOpen ? closeFilterMenu(false) : setFilterOpen(true))}
-              aria-label={`${t.clipboardFilter}: ${activeFilterLabel}`}
+              aria-label={formatT(t, 'clipboardFilterWithValue', { value: activeFilterLabel })}
               aria-haspopup="menu"
               aria-expanded={filterOpen ? 'true' : 'false'}
               aria-controls={FILTER_MENU_ID}
@@ -297,6 +341,7 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
               onClick={(e) => (e.target === e.currentTarget ? closeConfirm() : undefined)}
             >
               <div
+                ref={confirmPanelRef}
                 className="adl-prompt-modal__panel"
                 role="dialog"
                 aria-modal="true"
@@ -308,6 +353,7 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
                     type="button"
                     className="adl-prompt-modal__header-close"
                     onClick={closeConfirm}
+                    aria-disabled={clearing ? 'true' : 'false'}
                     aria-label={t.close}
                   >
                     ✕
@@ -321,15 +367,16 @@ export function ClipboardHistoryHeader({ visibleItems }: ClipboardHistoryHeaderP
                     type="button"
                     className="adl-btn adl-btn--ghost adl-btn--square"
                     onClick={closeConfirm}
-                    disabled={clearing}
+                    aria-disabled={clearing ? 'true' : 'false'}
                   >
                     {t.cancel}
                   </button>
                   <button
+                    ref={confirmBtnRef}
                     type="button"
                     className="adl-btn adl-btn--primary adl-btn--square"
                     onClick={() => void handleClear()}
-                    disabled={clearing}
+                    aria-disabled={clearing ? 'true' : 'false'}
                     aria-busy={clearing ? 'true' : 'false'}
                   >
                     {t.confirm}

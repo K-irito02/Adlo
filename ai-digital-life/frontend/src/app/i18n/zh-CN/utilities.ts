@@ -13,6 +13,7 @@ export const utilitiesZh = {
   clipboardNoMatch: '没有符合搜索和筛选条件的剪贴板历史',
   clipboardSearchPlaceholder: '搜索剪贴板',
   clipboardFilter: '筛选类型',
+  clipboardFilterWithValue: '筛选类型：{value}',
   clipboardFilterAll: '全部',
   clipboardClearAll: '清空全部剪贴板历史',
   clipboardCopy: '复制',

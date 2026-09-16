@@ -53,7 +53,15 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   const displayUrl = imageStage === 'original' ? imageUrl : imageStage === 'thumb' ? thumbUrl : '';
 
   return createPortal(
-    <div className="adl-clipboard-viewer" onClick={onClose}>
+    <div
+      className="adl-clipboard-viewer"
+      onClick={(event) => {
+        // 仅遮罩自身被点击时关闭：文本中拖选后松手到卡片外不应关闭（与清空确认框一致）。
+        if (event.target === event.currentTarget) {
+          onClose();
+        }
+      }}
+    >
       <div
         className="adl-clipboard-viewer__panel"
         role="dialog"
