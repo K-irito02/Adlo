@@ -42,6 +42,12 @@ pub enum AppEvent {
     FileChanged {
         path: String,
     },
+    /// 活动工作区内的文件批量变更（由 `adl-workspace` 的 watcher 产出，经 WS 推送）。
+    FilesChanged {
+        changed: Vec<String>,
+        removed: Vec<String>,
+        overflow: bool,
+    },
     /// 剪贴板历史新增/变更，携带最新条目 id。
     ClipboardChanged(String),
 }
@@ -100,8 +106,20 @@ impl AppEvent {
             Self::ModelStream(_) => "model.stream",
             Self::ConfigChanged => "config.changed",
             Self::FileChanged { .. } => "workspace.file-changed",
+            Self::FilesChanged { .. } => "workspace.files-changed",
             Self::ClipboardChanged(_) => "clipboard.changed",
         }
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        let mut obj = serde_json::Map::new();
+        obj.insert("type".into(), serde_json::Value::String(self.kind().to_string()));
+        if let Self::FilesChanged { changed, removed, overflow } = self {
+            obj.insert("changed".into(), serde_json::json!(changed));
+            obj.insert("removed".into(), serde_json::json!(removed));
+            obj.insert("overflow".into(), serde_json::json!(overflow));
+        }
+        serde_json::Value::Object(obj)
     }
 }
 
@@ -122,5 +140,20 @@ mod tests {
         bus.emit(AppEvent::ConfigChanged);
         let event = rx.recv().await.unwrap();
         assert!(matches!(event, AppEvent::ConfigChanged));
+    }
+
+    #[test]
+    fn files_changed_event_kind_and_payload() {
+        let event = AppEvent::FilesChanged {
+            changed: vec!["a.txt".to_string()],
+            removed: vec![],
+            overflow: false,
+        };
+        assert_eq!(event.kind(), "workspace.files-changed");
+        let json = event.to_json();
+        assert_eq!(json["type"], "workspace.files-changed");
+        assert_eq!(json["changed"][0], "a.txt");
+        assert_eq!(json["removed"].as_array().unwrap().len(), 0);
+        assert_eq!(json["overflow"], false);
     }
 }
