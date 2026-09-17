@@ -1,12 +1,17 @@
 import React, { Component, type ReactNode } from 'react';
 import type { CopyDict } from '../i18n/types';
 
-interface ErrorBoundaryProps {
+interface ErrorBoundaryBase {
   children: ReactNode;
-  fallback?: ReactNode;
   onError?: (error: Error, errorInfo: React.ErrorInfo) => void;
-  t: CopyDict;
 }
+
+/**
+ * 顶层错误边界：单点渲染异常不再导致整个应用空白（见 debug-logs 2026-09-17 RangeError 白屏）。
+ * 无 fallback 时必须传入 t（默认面板级降级 UI 走 i18n）；显式 fallback 可省略 t。
+ */
+type ErrorBoundaryProps = ErrorBoundaryBase &
+  ({ fallback: ReactNode; t?: CopyDict } | { fallback?: ReactNode; t: CopyDict });
 
 interface ErrorBoundaryState {
   hasError: boolean;
@@ -34,6 +39,10 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         return this.props.fallback;
       }
       const t = this.props.t;
+      // 类型层面：走到这里的一定是 t 必填的变体；运行时兜底覆盖纯 JS 调用方。
+      if (!t) {
+        return null;
+      }
       return (
         <div
           className="adl-error-boundary"

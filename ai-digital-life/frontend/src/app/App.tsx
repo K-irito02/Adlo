@@ -169,7 +169,43 @@ export function App() {
   }
 
   return (
-    <>
+    <ErrorBoundary
+      t={t}
+      fallback={
+        <div
+          className="adl-error-boundary"
+          role="alert"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '32px',
+            gap: '12px',
+            color: 'var(--text-secondary, #888)',
+            fontSize: '13px',
+            textAlign: 'center',
+            height: '100vh',
+          }}
+        >
+          <p>{t.appCrashFallback}</p>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              background: 'var(--surface-hover, #333)',
+              color: 'var(--text-primary, #fff)',
+              border: '1px solid var(--border, #444)',
+              borderRadius: '6px',
+              padding: '6px 16px',
+              cursor: 'pointer',
+              fontSize: '12px',
+            }}
+          >
+            {t.appCrashReload}
+          </button>
+        </div>
+      }
+    >
       <TCopyProvider t={t} locale={locale}>
         <main className="adl-shell adl-ide">
           <TitleBar
@@ -242,6 +278,6 @@ export function App() {
         )}
       </TCopyProvider>
       <StartupOverlayWrapper visible={!overlayHidden} />
-    </>
+    </ErrorBoundary>
   );
 }

@@ -54,6 +54,8 @@ export const commonZh = {
   // ======== Error Boundary ========
   panelError: '该面板遇到意外错误，已降级保护。',
   retry: '重试',
+  appCrashFallback: '应用遇到意外错误，请重新加载以恢复。',
+  appCrashReload: '重新加载',
   // ======== Action Buttons ========
   send: '发送',
   sendMessage: '发送消息',

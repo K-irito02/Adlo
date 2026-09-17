@@ -53,6 +53,8 @@ export const commonEn = {
   operationFailed: 'Operation failed, please retry',
   panelError: 'This panel encountered an unexpected error and has been degraded.',
   retry: 'Retry',
+  appCrashFallback: 'The app hit an unexpected error. Reload to recover.',
+  appCrashReload: 'Reload',
   send: 'Send',
   sendMessage: 'Send message',
   stopGenerating: 'Stop generating',
