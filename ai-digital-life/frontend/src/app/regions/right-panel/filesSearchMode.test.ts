@@ -310,8 +310,11 @@ describe('files search mode wiring', () => {
 
   it('retries preview reveal until lazy anchors mount (事项 43)', () => {
     expect(filesPanelSource).toContain('revealInPreview');
-    expect(filesPanelSource).toContain('preview-give-up');
     expect(filesPanelSource).toContain('setInterval(attempt, 60)');
+    // 重试上限 2.5s（事项 43）；临时调试日志已随事项 42 移除，不得回潮
+    expect(filesPanelSource).toContain('2500');
+    expect(filesPanelSource).not.toContain('preview-give-up');
+    expect(filesPanelSource).not.toContain('ADL-DEBUG');
   });
 
   it('waits for a fresh editor model instead of dropping the reveal (事项 43)', () => {

@@ -17,11 +17,6 @@ import { joinPathSegments } from '@utils/workspacePaths';
 import { findLineForQuery, revealSourceLine } from '@features/preview/revealSourceLine';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
-// 临时调试日志（用户指定：本轮排查用，收尾前需移除）
-function debugNavigate(event: string, data?: Record<string, unknown>): void {
-  console.warn('[ADL-DEBUG][navigate]', event, data ?? {});
-}
-
 const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const { t } = useTCopy();
   const {
@@ -157,18 +152,11 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
 
   const handleNavigateLine = useCallback(
     (line: number) => {
-      debugNavigate('enter', {
-        line,
-        path: selectedFilePath,
-        fileCategory,
-        previewEnabled,
-      });
       // For markdown preview mode, use DOM-based scrolling directly
       // (stale editor ref may exist from edit mode, but no CodeMirror is visible)
       if (fileCategory === 'markdown' && previewEnabled) {
         const surface = editorSurfaceRef.current;
         if (!surface) {
-          console.warn('[ADL-DEBUG][navigate] preview mode but no editor surface');
           return;
         }
         // 块级源行映射（data-source-line-start/end）由 markdownPreviewUtils 生成；
@@ -190,13 +178,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           }
         }
         const resolved = target ?? fallback ?? candidates[0] ?? null;
-        debugNavigate('preview', {
-          line,
-          candidates: candidates.length,
-          resolvedStart: resolved?.dataset.sourceLineStart,
-          resolvedEnd: resolved?.dataset.sourceLineEnd,
-          exact: !!target,
-        });
         if (resolved) {
           resolved.scrollIntoView({ behavior: 'smooth', block: 'center' });
           resolved.classList.remove('adl-md-flash');
@@ -216,10 +197,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       const editor = getStickySourceEditor();
       if (editor) {
         const lineCount = editor.getModel?.()?.getLineCount() ?? Number.POSITIVE_INFINITY;
-        debugNavigate('editor', {
-          line,
-          lineCount: Number.isFinite(lineCount) ? lineCount : 'unknown',
-        });
         // stale 行不丢弃，钳制到最近有效行（越界行会抛 RangeError，且无错误边界）
         let target = line;
         if (line < 1) {
@@ -269,7 +246,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       const attempt = () => {
         const surface = editorSurfaceRef.current;
         if (surface && revealSourceLine(surface, line, { flash: true })) {
-          debugNavigate('preview', { line });
           if (previewRevealTimerRef.current !== undefined) {
             window.clearInterval(previewRevealTimerRef.current);
             previewRevealTimerRef.current = undefined;
@@ -285,7 +261,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           void firstAnchor.offsetWidth;
           firstAnchor.classList.add('adl-md-flash');
           window.setTimeout(() => firstAnchor.classList.remove('adl-md-flash'), 1400);
-          debugNavigate('preview', { line, fallbackFirst: true });
           if (previewRevealTimerRef.current !== undefined) {
             window.clearInterval(previewRevealTimerRef.current);
             previewRevealTimerRef.current = undefined;
@@ -294,7 +269,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         }
         // 未挂载（懒加载）→ 保持 60ms 重试，上限 2.5s 后放弃
         if (Date.now() - startedAt > 2500) {
-          debugNavigate('preview-give-up', { line });
           if (previewRevealTimerRef.current !== undefined) {
             window.clearInterval(previewRevealTimerRef.current);
             previewRevealTimerRef.current = undefined;
@@ -391,7 +365,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     }
     if (fileContent === pending.baseline) {
       // 仍是旧内容（新内容加载中）：给加载留 800ms，超时按相同文本处理
-      debugNavigate('pending-wait-new-content', { path: pending.path, line: pending.line });
       const timer = window.setTimeout(() => {
         const current = pendingPreviewRevealRef.current;
         if (current && current.nonce === pending.nonce) {
@@ -402,7 +375,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       return () => window.clearTimeout(timer);
     }
     pendingPreviewRevealRef.current = null;
-    debugNavigate('pending-fire', { path: pending.path, line: pending.line });
     revealInPreview(pending.line);
   }, [selectedFilePath, fileContent, isPreviewModeForPath, revealInPreview]);
 
