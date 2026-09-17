@@ -170,7 +170,7 @@ git commit -m "feat(workspace): add search_in_files for per-file hit recomputati
 - Consumes: `crate::tree::ignored_dirs()`（Task 2 提升可见性）
 - Produces:
   - `pub struct FilesChangedBatch { pub changed: Vec<String>, pub removed: Vec<String>, pub overflow: bool }`
-  - `pub struct WorkspaceWatcher`，方法 `pub fn start(root: &Path, on_batch: Arc<dyn Fn(FilesChangedBatch) + Send + Sync>) -> Result<Self, AppError>`、`pub fn with_debounce(self, window: Duration) -> Self`、`pub fn stop(self)`（供 Task 4 engine 调用）
+  - `pub struct WorkspaceWatcher`，方法 `pub fn start(root: &Path, on_batch: Arc<dyn Fn(FilesChangedBatch) + Send + Sync>) -> Result<Self, AppError>`（内部固定 400ms 去抖；测试经 `#[cfg(test)] pub(crate) fn start_for_test(root, on_batch, debounce)` 覆盖短窗口）、`pub fn stop(self)`（供 Task 4 engine 调用）
 
 - [ ] **Step 1: 加依赖与可见性**
 
