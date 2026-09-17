@@ -9,6 +9,7 @@ import type { SettingsGroupId } from '@ai-digital-life/kernel';
 // LocalStorage 键名常量
 // ════════════════════════════════════════════════════════
 export const LEFT_COLLAPSED_KEY = 'adl-ui:left-collapsed';
+export const LEFT_PANEL_WIDTH_KEY = 'adl-ui:left-panel-width';
 export const RIGHT_COLLAPSED_KEY = 'adl-ui:right-collapsed';
 export const RIGHT_PANEL_WIDTH_KEY = 'adl-ui:right-panel-width';
 export const FILES_NAVIGATOR_WIDTH_KEY = 'adl-ui:files-navigator-width';
@@ -33,6 +34,9 @@ export const RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY = 'adl-ui:right-panel-last-re
 // ════════════════════════════════════════════════════════
 // 面板宽度常量
 // ════════════════════════════════════════════════════════
+export const LEFT_PANEL_WIDTH_MIN = 180;
+export const LEFT_PANEL_WIDTH_MAX = 260;
+export const DEFAULT_LEFT_PANEL_WIDTH = 180;
 export const RIGHT_PANEL_WIDTH_MIN = 320;
 export const RIGHT_PANEL_WIDTH_MAX = 4096;
 export const DEFAULT_RIGHT_PANEL_WIDTH = 520;
@@ -68,6 +72,7 @@ export const CHART_COLOR_PRESET_KEY = 'adl-ui:chart-color-preset';
 export interface UISlice {
   activeRightTool: ToolId;
   leftCollapsed: boolean;
+  leftbarWidth: number;
   rightCollapsed: boolean;
   rightPanelWidth: number;
   filesNavigatorWidth: number;
@@ -95,6 +100,7 @@ export interface UISlice {
 
   setActiveRightTool: (tool: ToolId) => void;
   setLeftCollapsed: (collapsed: boolean) => void;
+  setLeftbarWidth: (width: number) => void;
   setRightCollapsed: (collapsed: boolean) => void;
   toggleLeft: () => void;
   toggleRight: () => void;

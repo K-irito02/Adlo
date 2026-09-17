@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTCopy } from '../../i18n/useTCopy';
+import { useAppStore } from '../../stores/slicedStore';
 
 export function ResizeHandle() {
   const { t } = useTCopy();
@@ -18,7 +19,7 @@ export function ResizeHandle() {
 
   const handleResizeMouseDown = useCallback((event: React.MouseEvent) => {
     event.preventDefault();
-    const shellBody = document.querySelector('.adl-shell__body');
+    const shellBody = document.querySelector<HTMLElement>('.adl-shell__body');
     if (!shellBody) {
       return;
     }
@@ -26,14 +27,17 @@ export function ResizeHandle() {
     shellBody.classList.add('is-resizing');
     const startX = event.clientX;
     const root = document.documentElement;
+    // 起始宽度读 shellBody 的实时计算值（App 已把 store 持久化宽度以内联 --leftbar-width 落到该元素）；
+    // min/max 仍读 :root 上的设计 token。
     const startWidth =
-      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width')) || 180;
+      parseFloat(getComputedStyle(shellBody).getPropertyValue('--leftbar-width')) || 180;
     const minWidth =
       parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-min')) || 180;
     const maxWidth =
       parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-max')) || 360;
     const centerMinWidth =
       parseFloat(getComputedStyle(root).getPropertyValue('--center-width-min')) || 640;
+    const latestWidthRef = { current: startWidth };
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (!draggingRef.current || rafRef.current) {
@@ -51,7 +55,9 @@ export function ResizeHandle() {
           Math.min(maxWidth, allowedMax),
           Math.max(minWidth, startWidth + delta),
         );
-        root.style.setProperty('--leftbar-width', `${newWidth}px`);
+        latestWidthRef.current = newWidth;
+        // 拖拽中直写 DOM（避免逐帧 setState 重渲染）；释放时一次性 commit 到 store 持久化。
+        shellBody.style.setProperty('--leftbar-width', `${newWidth}px`);
       });
     };
 
@@ -62,6 +68,8 @@ export function ResizeHandle() {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = 0;
       }
+      // 释放时 commit：持久化到 localStorage 并同步 store（App 内联样式取同一值，无闪动）。
+      useAppStore.getState().setLeftbarWidth(latestWidthRef.current);
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('blur', onBlur);

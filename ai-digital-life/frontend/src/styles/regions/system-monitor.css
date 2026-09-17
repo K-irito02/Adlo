@@ -7,6 +7,7 @@
   min-width: 0;
   border-top: 1px solid var(--border-subtle);
   background: var(--bg);
+  container-type: inline-size;
 }
 
 .adl-sysmon__header {
@@ -92,19 +93,89 @@
 .adl-sysmon-bar__fill {
   height: 100%;
   border-radius: inherit;
-  background: var(--accent);
+  background: var(--text-secondary);
   transition: width var(--duration-200) var(--ease-default);
 }
 
-/* ---- 展开明细 ---- */
+/* 窄容器下隐藏内存行的水平进度条（仅保留数值，见事项 5/10）；
+   CPU 行 label 短、bar 在最窄态仍美观，故不隐藏。
+   bar 隐藏后用 margin-left:auto 把数值钉在最右侧（见事项 8；
+   不能常驻该规则，否则 auto margin 会吞掉自由空间导致可见态的 bar 塌缩） */
+@container (max-width: 200px) {
+  .adl-sysmon__row--memory .adl-sysmon-bar {
+    display: none;
+  }
+
+  .adl-sysmon__row--memory .adl-sysmon__value {
+    margin-left: auto;
+  }
+}
+
+/* ---- 展开明细（自定义 overlay 滚动条，见事项 2） ---- */
 .adl-sysmon__body {
+  position: relative;
+  max-height: 300px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* 空态分支（非滚动壳）保留原内边距 */
+.adl-sysmon__body:not(.adl-sysmon__scroll-shell) {
+  padding: 0 var(--space-2) var(--space-2);
+}
+
+.adl-sysmon-scroll {
+  height: 100%;
+  max-height: 300px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+}
+
+.adl-sysmon-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.adl-sysmon-scrollbar {
+  position: absolute;
+  top: 0;
+  right: 1px;
+  bottom: 0;
+  z-index: 3;
+  width: 7px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
+.adl-sysmon__scroll-shell.is-scrollable .adl-sysmon-scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-sysmon-scrollbar__thumb {
+  position: absolute;
+  top: 0;
+  right: 1px;
+  width: 3px;
+  min-height: 24px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--text-muted) 34%, transparent);
+}
+
+.adl-sysmon-scrollbar:hover .adl-sysmon-scrollbar__thumb,
+.adl-sysmon-scrollbar:active .adl-sysmon-scrollbar__thumb {
+  width: 5px;
+  background: color-mix(in srgb, var(--text-muted) 54%, transparent);
+}
+
+.adl-sysmon__body-inner {
   display: flex;
   flex-direction: column;
   gap: var(--space-2-5);
-  max-height: 300px;
   min-width: 0;
-  padding: 0 var(--space-2) var(--space-2);
-  overflow-y: auto;
+  padding: var(--space-1) 0 var(--space-2);
 }
 
 .adl-sysmon__section {
@@ -118,6 +189,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
+  padding: 0 var(--space-2);
   color: var(--text-muted);
   font-size: 10px;
   font-weight: var(--font-medium);
@@ -130,6 +202,7 @@
   align-items: center;
   gap: var(--space-1-5);
   min-width: 0;
+  padding: 0 var(--space-2);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
@@ -151,40 +224,28 @@
   color: var(--text-secondary);
 }
 
-/* 每核心 */
-.adl-sysmon__cores {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-0-5);
-}
-
-.adl-sysmon__core {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-.adl-sysmon__core-idx {
-  flex-shrink: 0;
-  min-width: 14px;
-  font-size: 9px;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
-}
-
-/* 表格（磁盘/网络/进程） */
+/* 表格（磁盘/网络/进程）：固定列宽 + 列间距 + 省略截断，防实时跳动（见事项 4）；
+   hover 背景全宽贴合左右边缘（见事项 3） */
 .adl-sysmon__table {
   width: 100%;
   min-width: 0;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
 }
 
+.adl-sysmon__table th,
+.adl-sysmon__table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .adl-sysmon__table th {
-  padding: 0 0 var(--space-0-5) 0;
+  padding: 0 var(--space-1) var(--space-0-5) var(--space-1);
   font-weight: var(--font-medium);
   text-align: right;
   color: var(--text-muted);
@@ -192,26 +253,103 @@
 
 .adl-sysmon__table th:first-child {
   text-align: left;
+  padding-left: var(--space-2);
+}
+
+.adl-sysmon__table th:last-child {
+  padding-right: var(--space-2);
 }
 
 .adl-sysmon__table td {
-  padding: var(--space-0-5) 0;
+  padding: var(--space-0-5) var(--space-1);
   text-align: right;
-  white-space: nowrap;
 }
 
 .adl-sysmon__table td:first-child {
   text-align: left;
+  padding-left: var(--space-2);
+}
+
+.adl-sysmon__table td:last-child {
+  padding-right: var(--space-2);
 }
 
 .adl-sysmon__table tbody tr:hover {
   background: var(--bg-hover);
 }
 
+/* 磁盘：挂载点 / 已用 / 可用 */
+.adl-sysmon__table--disks th:nth-child(1),
+.adl-sysmon__table--disks td:nth-child(1) {
+  width: 40%;
+}
+
+.adl-sysmon__table--disks th:nth-child(2),
+.adl-sysmon__table--disks td:nth-child(2) {
+  width: 30%;
+}
+
+.adl-sysmon__table--disks th:nth-child(3),
+.adl-sysmon__table--disks td:nth-child(3) {
+  width: 30%;
+}
+
+/* 网络：接口 / 上行 / 下行 */
+.adl-sysmon__table--nets th:nth-child(1),
+.adl-sysmon__table--nets td:nth-child(1) {
+  width: 32%;
+}
+
+.adl-sysmon__table--nets th:nth-child(2),
+.adl-sysmon__table--nets td:nth-child(2) {
+  width: 34%;
+}
+
+.adl-sysmon__table--nets th:nth-child(3),
+.adl-sysmon__table--nets td:nth-child(3) {
+  width: 34%;
+}
+
+/* 进程：名称 / 复制操作 / PID / CPU / 内存 */
+.adl-sysmon__table--procs th:nth-child(3),
+.adl-sysmon__table--procs td:nth-child(3) {
+  width: 15%;
+}
+
+.adl-sysmon__table--procs th:nth-child(4),
+.adl-sysmon__table--procs td:nth-child(4) {
+  width: 16%;
+}
+
+.adl-sysmon__table--procs th:nth-child(5),
+.adl-sysmon__table--procs td:nth-child(5) {
+  width: 24%;
+}
+
+.adl-sysmon__table--procs .adl-sysmon__actions-col {
+  width: 22px;
+  text-align: center;
+}
+
 .adl-sysmon__name {
-  max-width: 140px;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* 进程行复制按钮：仅 hover / 聚焦时出现（见事项 7）。
+   刻意不用 opacity transition：表格 1s 刷新 + 按 CPU 重排序会使静止鼠标下的行频繁易主，
+   淡入淡出会在每次易主时重播，造成闪烁/残影观感（见事项 9），故用瞬时切换。 */
+.adl-sysmon__copy {
+  width: 20px;
+  height: 20px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.adl-sysmon__table tbody tr:hover .adl-sysmon__copy,
+.adl-sysmon__table tbody tr:focus-within .adl-sysmon__copy {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* 开机时长 */
@@ -219,6 +357,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-1-5);
+  padding: 0 var(--space-2);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
   color: var(--text-muted);

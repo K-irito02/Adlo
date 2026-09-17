@@ -23,10 +23,11 @@ import { StartupOverlayWrapper } from './components/StartupOverlayWrapper';
 
 export function App() {
   const errorToasts = useAppStore((state) => state.errorToasts);
-  const { appInfo, leftCollapsed, rightCollapsed, rightPanelWidth } = useAppStore(
+  const { appInfo, leftCollapsed, leftbarWidth, rightCollapsed, rightPanelWidth } = useAppStore(
     useShallow((state) => ({
       appInfo: state.appInfo,
       leftCollapsed: state.leftCollapsed,
+      leftbarWidth: state.leftbarWidth,
       rightCollapsed: state.rightCollapsed,
       rightPanelWidth: state.rightPanelWidth,
     })),
@@ -184,7 +185,12 @@ export function App() {
 
           <div
             className={`adl-shell__body${leftCollapsed ? ' is-left-collapsed' : ''}${rightCollapsed ? ' is-right-collapsed' : ''}`}
-            style={{ '--rightpanel-width': `${rightPanelWidth}px` } as React.CSSProperties}
+            style={
+              {
+                '--leftbar-width': `${leftbarWidth}px`,
+                '--rightpanel-width': `${rightPanelWidth}px`,
+              } as React.CSSProperties
+            }
           >
             <ErrorBoundary t={t}>
               <LeftSidebar collapsed={leftCollapsed} />

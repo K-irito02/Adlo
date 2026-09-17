@@ -1,10 +1,16 @@
 import type { ReactNode } from 'react';
+import { useEffect } from 'react';
 import { IconCpu, IconMemory, IconDatabase, IconGlobe, IconList, IconHistory } from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '@root/design-system/html';
 import { EmptyRow } from '@components/LoadingRow';
+import { CopyButton } from '@components/CopyButton';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
+import { usePersistedScrollTop } from '@hooks/usePersistedScrollTop';
 import type { SystemSnapshot } from '@shared/ipc/system_monitor';
+
+const SYSMON_SCROLL_TOP_KEY = 'adl-ui:sysmon-scroll-top';
 
 type DiskStat = SystemSnapshot['disks'][number];
 type NetStat = SystemSnapshot['networks'][number];
@@ -47,10 +53,9 @@ function SectionTitle({ icon, label }: SectionTitleProps) {
 
 interface CpuSectionProps {
   cpuTotal: number;
-  cpuPerCore: number[];
 }
 
-function CpuSection({ cpuTotal, cpuPerCore }: CpuSectionProps) {
+function CpuSection({ cpuTotal }: CpuSectionProps) {
   const { t } = useTCopy();
   const totalPct = clampPercent(cpuTotal);
   return (
@@ -63,21 +68,6 @@ function CpuSection({ cpuTotal, cpuPerCore }: CpuSectionProps) {
         </div>
         <span className="adl-sysmon__value">{totalPct.toFixed(0)}%</span>
       </div>
-      {cpuPerCore.length > 0 ? (
-        <div className="adl-sysmon__cores">
-          {cpuPerCore.map((core, idx) => {
-            const corePct = clampPercent(core);
-            return (
-              <div className="adl-sysmon__core" key={idx} title={`${t.sysCpu} ${idx}`}>
-                <div className="adl-sysmon-bar">
-                  <div className="adl-sysmon-bar__fill" style={{ width: `${corePct}%` }} />
-                </div>
-                <span className="adl-sysmon__core-idx">{idx}</span>
-              </div>
-            );
-          })}
-        </div>
-      ) : null}
     </section>
   );
 }
@@ -93,7 +83,7 @@ function MemorySection({ memoryUsed, memoryTotal }: MemorySectionProps) {
   return (
     <section className="adl-sysmon__section">
       <SectionTitle icon={<IconMemory size={12} decorative />} label={t.sysMemory} />
-      <div className="adl-sysmon__row">
+      <div className="adl-sysmon__row adl-sysmon__row--memory">
         <span className="adl-sysmon__row-label">
           {formatBytes(memoryUsed)} / {formatBytes(memoryTotal)}
         </span>
@@ -118,7 +108,7 @@ function DisksSection({ disks }: DisksSectionProps) {
       {disks.length === 0 ? (
         <EmptyRow message={t.sysEmpty} variant="center" />
       ) : (
-        <table className="adl-sysmon__table">
+        <table className="adl-sysmon__table adl-sysmon__table--disks">
           <thead>
             <tr>
               <th>{t.sysDiskMount}</th>
@@ -153,7 +143,7 @@ function NetworkSection({ networks }: NetworkSectionProps) {
       {networks.length === 0 ? (
         <EmptyRow message={t.sysEmpty} variant="center" />
       ) : (
-        <table className="adl-sysmon__table">
+        <table className="adl-sysmon__table adl-sysmon__table--nets">
           <thead>
             <tr>
               <th>{''}</th>
@@ -188,10 +178,11 @@ function ProcessSection({ processes }: ProcessSectionProps) {
       {processes.length === 0 ? (
         <EmptyRow message={t.sysEmpty} variant="center" />
       ) : (
-        <table className="adl-sysmon__table">
+        <table className="adl-sysmon__table adl-sysmon__table--procs">
           <thead>
             <tr>
               <th>{t.sysProcName}</th>
+              <th className="adl-sysmon__actions-col" aria-label={t.copy} />
               <th>{t.sysProcPid}</th>
               <th>{t.sysProcCpu}</th>
               <th>{t.sysProcMem}</th>
@@ -201,6 +192,16 @@ function ProcessSection({ processes }: ProcessSectionProps) {
             {processes.map((proc) => (
               <tr key={proc.pid}>
                 <td className="adl-sysmon__name">{proc.name}</td>
+                <td className="adl-sysmon__actions-col">
+                  <CopyButton
+                    size={12}
+                    className="adl-sysmon__copy"
+                    text={`${proc.name} (PID ${proc.pid})`}
+                    tooltip={t.copy}
+                    tooltipCopied={t.copySuccessClipboard}
+                    nativeTooltip
+                  />
+                </td>
                 <td>{proc.pid}</td>
                 <td>{proc.cpuUsage.toFixed(1)}%</td>
                 <td>{formatBytes(proc.memory)}</td>
@@ -237,6 +238,16 @@ function UptimeSection({ uptimeSecs }: UptimeSectionProps) {
 export function SysmonDetails() {
   const { t } = useTCopy();
   const sysmonSnapshot = useAppStore((s) => s.sysmonSnapshot);
+  const { scrollRef: sysmonScrollRef, tryRestore: tryRestoreSysmonScroll } =
+    usePersistedScrollTop(SYSMON_SCROLL_TOP_KEY);
+
+  // 快照异步到达：数据就绪后回填上次滚动位置（用户手动滚动后不再回填）。
+  useEffect(() => {
+    if (sysmonSnapshot) {
+      tryRestoreSysmonScroll();
+    }
+  }, [sysmonSnapshot, tryRestoreSysmonScroll]);
+
   if (!sysmonSnapshot) {
     return (
       <div className="adl-sysmon__body">
@@ -246,16 +257,24 @@ export function SysmonDetails() {
   }
 
   return (
-    <div className="adl-sysmon__body">
-      <CpuSection cpuTotal={sysmonSnapshot.cpuTotal} cpuPerCore={sysmonSnapshot.cpuPerCore} />
-      <MemorySection
-        memoryUsed={sysmonSnapshot.memoryUsed}
-        memoryTotal={sysmonSnapshot.memoryTotal}
-      />
-      <DisksSection disks={sysmonSnapshot.disks} />
-      <NetworkSection networks={sysmonSnapshot.networks} />
-      <ProcessSection processes={sysmonSnapshot.processes} />
-      <UptimeSection uptimeSecs={sysmonSnapshot.uptimeSecs} />
-    </div>
+    <CustomScrollArea
+      ref={sysmonScrollRef}
+      shellClassName="adl-sysmon__body adl-sysmon__scroll-shell"
+      scrollClassName="adl-sysmon-scroll"
+      scrollbarClassName="adl-sysmon-scrollbar"
+      thumbClassName="adl-sysmon-scrollbar__thumb"
+    >
+      <div className="adl-sysmon__body-inner">
+        <CpuSection cpuTotal={sysmonSnapshot.cpuTotal} />
+        <MemorySection
+          memoryUsed={sysmonSnapshot.memoryUsed}
+          memoryTotal={sysmonSnapshot.memoryTotal}
+        />
+        <DisksSection disks={sysmonSnapshot.disks} />
+        <NetworkSection networks={sysmonSnapshot.networks} />
+        <ProcessSection processes={sysmonSnapshot.processes} />
+        <UptimeSection uptimeSecs={sysmonSnapshot.uptimeSecs} />
+      </div>
+    </CustomScrollArea>
   );
 }

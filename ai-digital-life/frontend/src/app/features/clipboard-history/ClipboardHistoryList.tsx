@@ -3,6 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { EmptyRow, LoadingRow } from '@components/LoadingRow';
 import { TooltipSimple } from '@components/Tooltip';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
+import { usePersistedScrollTop } from '@hooks/usePersistedScrollTop';
 import { useTCopy } from '@i18n/useTCopy';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { ClipboardHistoryHeader, CLIPBOARD_SEARCH_PANEL_ID } from './ClipboardHistoryHeader';
@@ -11,6 +12,7 @@ import { ClipboardItemViewer } from './ClipboardItemViewer';
 import { buildClipboardFilterInput, filterClipboardItems } from './clipboardFilter';
 
 const REFRESH_INTERVAL_MS = 2000;
+const CLIPBOARD_SCROLL_TOP_KEY = 'adl-ui:clipboard-scroll-top';
 
 /**
  * 剪贴板历史主列表容器。
@@ -39,6 +41,8 @@ export function ClipboardHistoryList() {
   const fetchClipboardHistory = useAppStore((s) => s.fetchClipboardHistory);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [viewerItem, setViewerItem] = useState<ClipboardItem | null>(null);
+  const { scrollRef: clipboardScrollRef, tryRestore: tryRestoreClipboardScroll } =
+    usePersistedScrollTop(CLIPBOARD_SCROLL_TOP_KEY);
 
   const handleZoom = useCallback((item: ClipboardItem) => {
     setViewerItem(item);
@@ -101,6 +105,13 @@ export function ClipboardHistoryList() {
       clipboardUseRegex,
     ],
   );
+
+  // 内容异步加载：条目就绪后回填上次滚动位置（用户手动滚动后不再回填）。
+  useEffect(() => {
+    if (!clipboardHistoryLoading && filtered.length > 0) {
+      tryRestoreClipboardScroll();
+    }
+  }, [clipboardHistoryLoading, filtered.length, tryRestoreClipboardScroll]);
 
   return (
     <section className="adl-clipboard adl-leftbar__nav" aria-label={t.clipboardHistory}>
@@ -167,6 +178,7 @@ export function ClipboardHistoryList() {
         />
       ) : (
         <CustomScrollArea
+          ref={clipboardScrollRef}
           shellClassName="adl-clipboard__scroll-shell"
           scrollClassName="adl-clipboard__scroll"
           scrollbarClassName="adl-clipboard__scrollbar"

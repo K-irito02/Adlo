@@ -8,6 +8,10 @@ import { readFlag, writeFlag, readNumber, writeNumber, clamp } from '../shared';
 import type { UISlice } from './uiSliceTypes';
 import {
   LEFT_COLLAPSED_KEY,
+  LEFT_PANEL_WIDTH_KEY,
+  LEFT_PANEL_WIDTH_MIN,
+  LEFT_PANEL_WIDTH_MAX,
+  DEFAULT_LEFT_PANEL_WIDTH,
   RIGHT_COLLAPSED_KEY,
   RIGHT_PANEL_WIDTH_KEY,
   FILES_NAVIGATOR_WIDTH_KEY,
@@ -69,6 +73,7 @@ export type UIWidthSlice = Pick<
   UISlice,
   | 'activeRightTool'
   | 'leftCollapsed'
+  | 'leftbarWidth'
   | 'rightCollapsed'
   | 'rightPanelWidth'
   | 'filesNavigatorWidth'
@@ -78,6 +83,7 @@ export type UIWidthSlice = Pick<
   | 'settingsNavigatorWidth'
   | 'setActiveRightTool'
   | 'setLeftCollapsed'
+  | 'setLeftbarWidth'
   | 'setRightCollapsed'
   | 'toggleLeft'
   | 'toggleRight'
@@ -97,6 +103,12 @@ export function createUIWidthSlice(
   return {
     activeRightTool: 'files',
     leftCollapsed: readFlag(LEFT_COLLAPSED_KEY, false),
+    leftbarWidth: readNumber(
+      LEFT_PANEL_WIDTH_KEY,
+      DEFAULT_LEFT_PANEL_WIDTH,
+      LEFT_PANEL_WIDTH_MIN,
+      LEFT_PANEL_WIDTH_MAX,
+    ),
     rightCollapsed: readFlag(RIGHT_COLLAPSED_KEY, false),
     rightPanelWidth: readNumber(
       RIGHT_PANEL_WIDTH_KEY,
@@ -142,6 +154,11 @@ export function createUIWidthSlice(
     setLeftCollapsed: (collapsed) => {
       writeFlag(LEFT_COLLAPSED_KEY, collapsed);
       set({ leftCollapsed: collapsed });
+    },
+    setLeftbarWidth: (width) => {
+      const next = clamp(width, LEFT_PANEL_WIDTH_MIN, LEFT_PANEL_WIDTH_MAX);
+      writeNumber(LEFT_PANEL_WIDTH_KEY, next);
+      set({ leftbarWidth: next });
     },
     setRightCollapsed: (collapsed) => {
       writeFlag(RIGHT_COLLAPSED_KEY, collapsed);
