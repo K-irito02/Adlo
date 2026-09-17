@@ -1,10 +1,16 @@
 import type {
   WorkspaceFileChangedEvent,
   WorkspaceFilesChangedBatch,
+  WorkspaceMeta,
 } from '@ai-digital-life/kernel';
 import { requestPreviewApi } from '../shared/ipc/preview-api';
 
-export function createPreviewEventsBridge() {
+/** Preview bridge shared mutable context (same shape as `preview-search.ts`). */
+export interface PreviewEventsContext {
+  currentWorkspace: WorkspaceMeta | undefined;
+}
+
+export function createPreviewEventsBridge(ctx: PreviewEventsContext) {
   return {
     onFileChanged: (_listener: (event: WorkspaceFileChangedEvent) => void) => () => {},
     onFilesChanged: (listener: (batch: WorkspaceFilesChangedBatch) => void) => {
@@ -16,7 +22,12 @@ export function createPreviewEventsBridge() {
           return;
         }
         try {
-          const params = new URLSearchParams({ since: String(cursor) });
+          // 与 `preview-search.ts` 相同：从共享 ctx 读取当前工作区；未打开工作区时跳过本轮。
+          const rootPath = ctx.currentWorkspace?.rootPath;
+          if (!rootPath) {
+            return;
+          }
+          const params = new URLSearchParams({ rootPath, since: String(cursor) });
           const result = await requestPreviewApi<{
             cursor: number;
             changed: string[];
@@ -39,9 +50,10 @@ export function createPreviewEventsBridge() {
           }
         } catch (err) {
           console.warn('[preview-events] files-changed poll failed', err);
-        }
-        if (!stopped) {
-          timer = setTimeout(poll, 2000);
+        } finally {
+          if (!stopped) {
+            timer = setTimeout(poll, 2000);
+          }
         }
       };
       timer = setTimeout(poll, 2000);

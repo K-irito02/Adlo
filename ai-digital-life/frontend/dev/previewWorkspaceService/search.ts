@@ -45,15 +45,15 @@ export async function searchInFiles(
     return [];
   }
   const hits: WorkspaceSearchHit[] = [];
-  for (const relativePath of paths) {
-    const absolute = join(rootPath, relativePath);
+  for (const candidatePath of paths) {
+    const absolute = join(rootPath, candidatePath);
     if (!existsSync(absolute)) {
       continue;
     }
     const content = await fs.readFile(absolute, 'utf8');
     content.split(/\r?\n/).forEach((lineText, index) => {
       if (lineText.toLowerCase().includes(needle)) {
-        hits.push({ path: relativePath, line: index + 1, preview: lineText.trim().slice(0, 240) });
+        hits.push({ path: candidatePath, line: index + 1, preview: lineText.trim().slice(0, 240) });
       }
     });
   }

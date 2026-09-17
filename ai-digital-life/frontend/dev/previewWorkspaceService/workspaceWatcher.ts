@@ -1,5 +1,5 @@
 import { watch, type FSWatcher } from 'node:fs';
-import { relative, sep } from 'node:path';
+import { sep } from 'node:path';
 
 export interface FilesChangedBatch {
   cursor: number;

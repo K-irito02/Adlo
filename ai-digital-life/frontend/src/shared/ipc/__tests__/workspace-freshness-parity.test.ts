@@ -28,7 +28,7 @@ describe('workspace freshness IPC parity', () => {
         currentWorkspace: undefined,
         retrievalStatus: undefined,
       }),
-      ...createPreviewEventsBridge(),
+      ...createPreviewEventsBridge({ currentWorkspace: undefined }),
     };
     const bridges = [
       createTauriBridge(TEST_BASE_URL).workspace,

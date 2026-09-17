@@ -110,12 +110,14 @@ export async function setupPreviewBridge(): Promise<void> {
   const ptyBridge = createPtyBridge();
   const audioMonitor = new BrowserAudioMonitor();
   window.__adlAudioMonitor = audioMonitor;
+  // 工作区 ctx 由 workspace bridge 维护（open 时更新），events 轮询共享同一对象以读取 rootPath。
+  const previewWorkspaceCtx = {
+    recentWorkspaces: loadRecentWorkspaces(),
+    currentWorkspace: undefined,
+    retrievalStatus: undefined,
+  };
   const { workspace, retrieval } = createPreviewWorkspaceBridge(
-    {
-      recentWorkspaces: loadRecentWorkspaces(),
-      currentWorkspace: undefined,
-      retrievalStatus: undefined,
-    },
+    previewWorkspaceCtx,
     setMockActiveWorkspace,
   );
   const gitBridge = createPreviewGitBridge(
@@ -131,7 +133,7 @@ export async function setupPreviewBridge(): Promise<void> {
     currentWorkspace: undefined,
     retrievalStatus: undefined,
   });
-  const eventsBridge = createPreviewEventsBridge();
+  const eventsBridge = createPreviewEventsBridge(previewWorkspaceCtx);
   const windowBridge = createPreviewWindowBridge(mockDigitalLifeBridge.window);
   const diagnosticBridge = createPreviewDiagnosticBridge(mockDigitalLifeBridge.app);
   const patchBridge = createPreviewPatchBridge(mockDigitalLifeBridge.patch);

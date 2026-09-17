@@ -405,11 +405,10 @@ const routes: Route[] = [
   {
     method: 'GET', pathname: makePath('/workspace/files-changed'),
     handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
       const since = Number(searchParams.get('since') ?? '0');
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
       if (!Number.isFinite(since) || since < 0) return fail('since must be a non-negative number', 'INVALID_INPUT');
-      // rootPath 可选：Task 5 的 preview-events 轮询只带 `since`（无 rootPath），
-      // 缺省时回退到 dev server cwd（预览模式默认工作区根）。
-      const rootPath = searchParams.get('rootPath')?.trim() || process.cwd();
       return ok(workspaceWatchers.ensure(rootPath).since(since));
     },
   },
