@@ -44,6 +44,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/change-preview", post(handlers::workspace::get_change_preview))
         .route("/workspace/tree", post(handlers::workspace::list_tree))
         .route("/workspace/search", post(handlers::workspace::search))
+        .route("/workspace/search-in-files", post(handlers::workspace::search_in_files))
         .route("/workspace/outline", post(handlers::workspace::outline))
         .route("/workspace/editor-dirty-paths", post(handlers::workspace::set_editor_dirty_paths))
         .route("/workspace/emit-file-changed", post(handlers::workspace::emit_file_changed))
@@ -142,5 +143,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/terminal/delete", post(handlers::terminal_output::delete))
         // PTY WebSocket domain
         .route("/pty", get(crate::pty_ws::ws_handler))
+        // Workspace event stream (file watcher push)
+        .route("/ws/workspace", get(crate::ws_workspace::ws_handler))
         .layer(middleware::from_fn(cors_layer))
 }

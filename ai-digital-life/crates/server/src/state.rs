@@ -38,4 +38,6 @@ pub struct ServerState {
     pub dsh_start_lock: Arc<AsyncMutex<()>>,
     /// dsh 来源缓存：避免每次打开 dsh 时都重新检测来源
     pub dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
+    /// 活动工作区文件监听器（warn+降级：启动失败时保持 `None`，功能退化为无自动刷新）
+    pub workspace_watcher: Arc<StdMutex<Option<adl_workspace::WorkspaceWatcher>>>,
 }

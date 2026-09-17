@@ -416,3 +416,100 @@ async fn remove_marks_removed_and_purges() {
         state.db.list_entities(adl_storage::EntityTable::Workspaces).unwrap();
     assert!(!remaining.iter().any(|w| w.id == wid), "workspace row purged");
 }
+
+/// `/workspace/search-in-files` 只扫描请求中列出的文件（watcher 驱动的局部重算）。
+#[tokio::test]
+async fn search_in_files_scans_only_requested_paths() {
+    let state = common::state("ws-sif").await;
+    let ws = common::make_workspace("ws-sif-src"); // 内含 notes.txt: "hello adl-server\nsecond line"
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({ "workspacePath": ws.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(body["ok"], true, "open body: {body}");
+
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search-in-files",
+        Some(serde_json::json!({ "paths": ["notes.txt"], "query": "hello" })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "search-in-files body: {body}");
+    let hits = body["data"].as_array().expect("hits");
+    assert_eq!(hits.len(), 1, "hits: {hits:?}");
+    assert_eq!(hits[0]["path"], "notes.txt");
+    assert_eq!(hits[0]["line"], 1);
+
+    // 未列出的文件不得出现在结果中
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search-in-files",
+        Some(serde_json::json!({ "paths": ["package.json"], "query": "hello" })),
+    )
+    .await;
+    assert_eq!(body["data"].as_array().unwrap().len(), 0);
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 缺失 `query` 字段 → INVALID_INPUT（而不是 500）。
+#[tokio::test]
+async fn search_in_files_requires_query_string() {
+    let state = common::state("ws-sif-bad").await;
+    let ws = common::make_workspace("ws-sif-bad-src");
+    let (_, _) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({ "workspacePath": ws.to_string_lossy() })),
+    )
+    .await;
+
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search-in-files",
+        Some(serde_json::json!({ "paths": ["notes.txt"] })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
+    assert_eq!(body["error"]["code"], "INVALID_INPUT");
+
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 路径穿越输入（绝对路径 / `..`）→ INVALID_INPUT，不得触达工作区外文件。
+#[tokio::test]
+async fn search_in_files_rejects_path_traversal() {
+    let state = common::state("ws-sif-trav").await;
+    let ws = common::make_workspace("ws-sif-trav-src");
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({ "workspacePath": ws.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(body["ok"], true, "open body: {body}");
+
+    let absolute = ws.join("notes.txt").to_string_lossy().to_string();
+    let evil = vec!["../evil.txt".to_string(), "sub/../../evil.txt".to_string(), absolute];
+    for path in &evil {
+        let (status, body) = common::send_request(
+            state.clone(),
+            Method::POST,
+            "/workspace/search-in-files",
+            Some(serde_json::json!({ "paths": [path], "query": "hello" })),
+        )
+        .await;
+        assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "path {path}: {body}");
+        assert_eq!(body["error"]["code"], "INVALID_INPUT", "path {path}: {body}");
+    }
+
+    let _ = std::fs::remove_dir_all(ws);
+}

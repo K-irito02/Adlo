@@ -156,6 +156,7 @@ pub async fn open(State(state): State<ServerState>, body: axum::body::Bytes) -> 
     }
     state.event_bus.emit(AppEvent::WorkspaceOpened(meta.id.clone()));
     state.event_bus.emit(AppEvent::RetrievalStatusChanged(meta.id.clone()));
+    crate::engine::restart_workspace_watcher(&state, std::path::Path::new(&meta.root_path));
     tracing::warn!(
         workspace_id = %meta.id,
         "workspace_open: legacy 'digital-life://retrieval-status' UI emit has no SSE equivalent; \
@@ -200,6 +201,12 @@ pub async fn clear_current(State(state): State<ServerState>) -> impl IntoRespons
             .map_err(|_| AppError::Internal("workspace mutex poisoned".into()))
         {
             return ipc::to_response(Err(e));
+        }
+        // 停止活动工作区的文件监听器（take 后显式 stop，保证工作线程退出）。
+        if let Ok(mut slot) = state.workspace_watcher.lock() {
+            if let Some(previous) = slot.take() {
+                previous.stop();
+            }
         }
     }
     ipc::to_response(result)
@@ -417,6 +424,62 @@ pub async fn search(
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let hits: Vec<WorkspaceSearchHit> =
             adl_workspace::search_text(PathBuf::from(root_path).as_path(), &input.query)?;
+        Ok(serde_json::to_value(hits)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SearchFilesBody {
+    paths: Vec<String>,
+    query: serde_json::Value,
+}
+
+/// 拒绝路径穿越输入：绝对路径或含 `..` 成分的相对路径一律 `INVALID_INPUT`，
+/// 防止越过工作区根读取任意文件。
+fn reject_traversal(paths: &[String]) -> Result<(), AppError> {
+    use std::path::Component;
+    for p in paths {
+        let path = std::path::Path::new(p);
+        let escapes = path.is_absolute()
+            || path.components().any(|c| {
+                matches!(c, Component::ParentDir | Component::RootDir | Component::Prefix(_))
+            });
+        if escapes {
+            return Err(AppError::InvalidInput(format!("path escapes workspace: {p}")));
+        }
+    }
+    Ok(())
+}
+
+/// POST `/workspace/search-in-files` — 仅对给定相对路径集合重算命中（watcher 驱动的局部刷新）。
+pub async fn search_in_files(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: SearchFilesBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let query = match input.query.as_str() {
+        Some(q) => q.to_string(),
+        None => {
+            return ipc::to_response(Err(AppError::InvalidInput("query must be a string".into())));
+        },
+    };
+    if let Err(e) = reject_traversal(&input.paths) {
+        return ipc::to_response(Err(e));
+    }
+    let root_path = match current_workspace(&state) {
+        Ok(ws) => ws.root_path,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let paths = input.paths;
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let hits: Vec<WorkspaceSearchHit> =
+            adl_workspace::search_in_files(PathBuf::from(root_path).as_path(), &paths, &query)?;
         Ok(serde_json::to_value(hits)?)
     })
     .await;

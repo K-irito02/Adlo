@@ -155,6 +155,7 @@ pub async fn init_server_state(
     eprintln!("[ad-server] config loaded");
 
     let event_bus = EventBus::new(256);
+    let restored_root = restored_current_workspace.as_ref().map(|w| w.root_path.clone());
     let current_workspace = Arc::new(RwLock::new(restored_current_workspace));
     let editor_dirty_paths = Arc::new(std::sync::Mutex::new(std::collections::HashSet::new()));
     let pty_sessions = Arc::new(AsyncSessionManager::new());
@@ -173,7 +174,7 @@ pub async fn init_server_state(
     let dsh_start_lock = Arc::new(AsyncMutex::new(()));
     let dsh_source_cache = Arc::new(RwLock::new(None));
 
-    Ok(ServerState {
+    let state = ServerState {
         data_dir: data_dir.to_path_buf(),
         storage: storage.clone(),
         db,
@@ -190,7 +191,35 @@ pub async fn init_server_state(
         dsh_state,
         dsh_start_lock,
         dsh_source_cache,
-    })
+        workspace_watcher: Arc::new(StdMutex::new(None)),
+    };
+    if let Some(root) = restored_root.as_ref() {
+        restart_workspace_watcher(&state, Path::new(root));
+    }
+    Ok(state)
+}
+
+/// 启动/重建活动工作区 watcher：把批次转成 `AppEvent::FilesChanged` 广播给 WS 订阅者。
+/// 失败仅告警（降级为无自动刷新），不影响应用启动。
+pub(crate) fn restart_workspace_watcher(state: &ServerState, root: &std::path::Path) {
+    let mut slot = state.workspace_watcher.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some(previous) = slot.take() {
+        previous.stop();
+    }
+    let bus = state.event_bus.clone();
+    let callback = std::sync::Arc::new(move |batch: adl_workspace::FilesChangedBatch| {
+        bus.emit(adl_kernel::events::AppEvent::FilesChanged {
+            changed: batch.changed,
+            removed: batch.removed,
+            overflow: batch.overflow,
+        });
+    });
+    match adl_workspace::WorkspaceWatcher::start(root, callback) {
+        Ok(watcher) => *slot = Some(watcher),
+        Err(err) => {
+            tracing::warn!(error = %err, root = %root.display(), "workspace watcher disabled")
+        },
+    }
 }
 
 /// Start the ad-server background services tied to the process lifetime: the
