@@ -98,6 +98,25 @@ fn search_text_in_files(
     Ok(hits)
 }
 
+/// 仅对给定工作区相对路径集合执行检索：语义（大小写不敏感 contains、行长截断、
+/// 每文件上限）与 [`search_text`] 完全一致——两条路径必须复用同一实现，避免漂移。
+/// 不存在的路径直接跳过（文件可能在检索后被删除/重命名）。
+pub fn search_in_files(
+    root: &Path,
+    relative_paths: &[String],
+    query: &str,
+) -> Result<Vec<WorkspaceSearchHit>, AppError> {
+    if query.trim().is_empty() || relative_paths.is_empty() {
+        return Ok(vec![]);
+    }
+    let files: Vec<PathBuf> = relative_paths
+        .iter()
+        .map(|relative| root.join(relative))
+        .filter(|absolute| absolute.is_file())
+        .collect();
+    search_text_in_files(&files, root, query, &|| false)
+}
+
 #[cfg(test)]
 mod search_text_async_tests {
     use super::*;
@@ -162,5 +181,81 @@ mod search_text_async_tests {
         assert!(result.is_ok());
         assert!(result.unwrap().is_empty());
         cleanup(&tmp);
+    }
+}
+
+#[cfg(test)]
+mod search_in_files_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static SIF_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_tmp_dir() -> std::path::PathBuf {
+        let id = SIF_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("search-in-files-test-{id}"));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("temp dir creation should succeed");
+        path
+    }
+
+    #[test]
+    fn search_in_files_only_scans_given_paths() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("hit.txt"), b"alpha needle\nbeta").unwrap();
+        std::fs::write(tmp.join("miss.txt"), b"needle in other file").unwrap();
+
+        let hits = search_in_files(&tmp, &["hit.txt".to_string()], "needle").unwrap();
+
+        assert_eq!(hits.len(), 1, "only the requested file must be scanned");
+        assert_eq!(hits[0].path, "hit.txt");
+        assert_eq!(hits[0].line, 1);
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_missing_path_is_skipped() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("a.txt"), b"needle").unwrap();
+
+        let hits = search_in_files(&tmp, &["nope.txt".to_string(), "a.txt".to_string()], "needle")
+            .unwrap();
+
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "a.txt");
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_matches_search_text_semantics() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("b.txt"), b"NEEDLE\nNeedle\nnone").unwrap();
+
+        let batched = search_in_files(&tmp, &["b.txt".to_string()], "needle").unwrap();
+        let whole = search_text(&tmp, "needle").unwrap();
+
+        assert_eq!(batched.len(), 2, "case-insensitive contains (same as search_text)");
+        // NOTE: deviates from plan verbatim (`assert_eq!(batched, whole)`):
+        // `WorkspaceSearchHit` (adl-types) derives no `PartialEq`, so compare field-wise.
+        assert_eq!(batched.len(), whole.len(), "batch and whole-workspace search must agree");
+        for (b, w) in batched.iter().zip(whole.iter()) {
+            assert_eq!(
+                (b.path.as_str(), b.line, b.preview.as_str()),
+                (w.path.as_str(), w.line, w.preview.as_str())
+            );
+        }
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_empty_query_returns_empty() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("c.txt"), b"anything").unwrap();
+        assert!(search_in_files(&tmp, &["c.txt".to_string()], "   ").unwrap().is_empty());
+        cleanup(&tmp);
+    }
+
+    fn cleanup(path: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(path);
     }
 }

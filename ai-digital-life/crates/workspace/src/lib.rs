@@ -21,7 +21,7 @@ pub use git::{
     switch_git_branch, unstage_file,
 };
 pub use preview::read_change_preview;
-pub use search::{search_text, search_text_async};
+pub use search::{search_in_files, search_text, search_text_async};
 pub use tree::{
     build_retrieval_snapshot, build_retrieval_snapshot_async, invalidate_tree_cache, list_tree,
     list_tree_cached, list_tree_force,
