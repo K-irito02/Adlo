@@ -38,6 +38,8 @@ interface SearchResultsTreeProps {
   matchCase: boolean;
   expandLabel: string;
   collapseLabel: string;
+  /** 失效命中行内标记文案（Shell 传入 t.searchHitStale，避免树内引入 i18n 依赖） */
+  staleLabel: string;
   /** 文件名高亮 query：文件范围传检索词，内容范围传空串（仅高亮片段） */
   nameQuery: string;
   /** 工具栏折叠全部/展开全部信号：内容范围 target snippets，文件范围 target dirs */
@@ -105,6 +107,7 @@ function SearchFileRow(props: {
   snippetsCollapsible: boolean;
   snippetsCollapsed: boolean;
   onToggleSnippets: () => void;
+  staleLabel: string;
 }) {
   const {
     file,
@@ -118,6 +121,7 @@ function SearchFileRow(props: {
     snippetsCollapsible,
     snippetsCollapsed,
     onToggleSnippets,
+    staleLabel,
   } = props;
   return (
     <TreeNodeRow
@@ -181,6 +185,9 @@ function SearchFileRow(props: {
                 <span className="adl-search-snippet__preview">
                   {highlightMatch(snippet.preview || file.path, query, matchCase)}
                 </span>
+                {snippet.stale ? (
+                  <span className="adl-search-snippet__stale">{staleLabel}</span>
+                ) : null}
               </button>
             </li>
           ))}
@@ -204,6 +211,7 @@ function SearchDirRows(props: {
   workspaceId: string;
   collapsedFiles: Set<string>;
   onToggleSnippets: (key: string) => void;
+  staleLabel: string;
 }) {
   const {
     entries,
@@ -217,6 +225,7 @@ function SearchDirRows(props: {
     workspaceId,
     collapsedFiles,
     onToggleSnippets,
+    staleLabel,
   } = props;
   return (
     <>
@@ -237,6 +246,7 @@ function SearchDirRows(props: {
               snippetsCollapsible={entry.file.snippets.length > 0}
               snippetsCollapsed={collapsedFiles.has(snippetKey)}
               onToggleSnippets={() => onToggleSnippets(snippetKey)}
+              staleLabel={staleLabel}
             />
           );
         }
@@ -298,6 +308,7 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
     matchCase,
     expandLabel,
     collapseLabel,
+    staleLabel,
     nameQuery,
     structureSignal,
     onStructureSignalConsumed,
@@ -452,6 +463,7 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
                           snippetsCollapsible={file.snippets.length > 0}
                           snippetsCollapsed={collapsedFiles.has(snippetKey)}
                           onToggleSnippets={() => toggleIn(setCollapsedFiles, snippetKey)}
+                          staleLabel={staleLabel}
                         />
                       );
                     })
@@ -470,6 +482,7 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
                       workspaceId={section.workspaceId}
                       collapsedFiles={collapsedFiles}
                       onToggleSnippets={(key) => toggleIn(setCollapsedFiles, key)}
+                      staleLabel={staleLabel}
                     />
                   )}
                 </ul>

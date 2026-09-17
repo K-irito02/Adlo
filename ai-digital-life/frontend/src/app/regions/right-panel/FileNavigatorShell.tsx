@@ -206,7 +206,12 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   });
 
   const filteredSearchResults = searchPanel.filteredResults;
+  // 检索选项由 store 持有（useSearchPanel 已上提，事项 45）：此处解构一次供过滤与开关 UI 共用
   const searchMatchCase = searchPanel.matchCase;
+  const searchMatchWholeWord = searchPanel.matchWholeWord;
+  const searchUseRegex = searchPanel.useRegex;
+  const searchPartial = useAppStore((s) => s.searchPartial);
+  const staleCount = searchEntries.filter((entry) => entry.stale).length;
 
   interface FileNameHit {
     workspaceId: string;
@@ -650,8 +655,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                 <TooltipSimple content={t.searchPanelMatchCase} placement="top">
                   <button
                     type="button"
-                    className={`adl-search-panel__modebtn${searchPanel.matchCase ? ' is-active' : ''}`}
-                    aria-pressed={searchPanel.matchCase ? 'true' : 'false'}
+                    className={`adl-search-panel__modebtn${searchMatchCase ? ' is-active' : ''}`}
+                    aria-pressed={searchMatchCase ? 'true' : 'false'}
                     onClick={() => searchPanel.setMatchCase((v) => !v)}
                     aria-label={t.searchPanelMatchCase as string}
                   >
@@ -661,8 +666,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                 <TooltipSimple content={t.searchPanelMatchWholeWord} placement="top">
                   <button
                     type="button"
-                    className={`adl-search-panel__modebtn${searchPanel.matchWholeWord ? ' is-active' : ''}`}
-                    aria-pressed={searchPanel.matchWholeWord ? 'true' : 'false'}
+                    className={`adl-search-panel__modebtn${searchMatchWholeWord ? ' is-active' : ''}`}
+                    aria-pressed={searchMatchWholeWord ? 'true' : 'false'}
                     onClick={() => searchPanel.setMatchWholeWord((v) => !v)}
                     aria-label={t.searchPanelMatchWholeWord as string}
                   >
@@ -672,8 +677,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                 <TooltipSimple content={t.searchPanelUseRegex} placement="top">
                   <button
                     type="button"
-                    className={`adl-search-panel__modebtn${searchPanel.useRegex ? ' is-active' : ''}`}
-                    aria-pressed={searchPanel.useRegex ? 'true' : 'false'}
+                    className={`adl-search-panel__modebtn${searchUseRegex ? ' is-active' : ''}`}
+                    aria-pressed={searchUseRegex ? 'true' : 'false'}
                     onClick={() => searchPanel.setUseRegex((v) => !v)}
                     aria-label={t.searchPanelUseRegex as string}
                   >
@@ -747,18 +752,29 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           ) : !committedSearchQuery.trim() ? (
             <p className="adl-empty-hint">{t.searchPlaceholder as string}</p>
           ) : activeSections.length > 0 ? (
-            <SearchResultsTree
-              sections={activeSections}
-              variant={filesSearchView === 'tree' ? 'tree' : 'list'}
-              query={committedSearchQuery}
-              matchCase={searchMatchCase}
-              nameQuery={filesSearchScope === 'file' ? committedSearchQuery : ''}
-              expandLabel={t.expandDetails as string}
-              collapseLabel={t.collapseDetails as string}
-              structureSignal={searchStructureSignal}
-              onStructureSignalConsumed={handleStructureSignalConsumed}
-              onCollapseStatusChange={handleCollapseStatusChange}
-            />
+            <>
+              {staleCount > 0 ? (
+                <p className="adl-search-stale-summary">
+                  {formatT(t, 'searchStaleSummary', { count: staleCount })}
+                </p>
+              ) : null}
+              {searchPartial ? (
+                <p className="adl-search-partial">{t.searchPartialResults as string}</p>
+              ) : null}
+              <SearchResultsTree
+                sections={activeSections}
+                variant={filesSearchView === 'tree' ? 'tree' : 'list'}
+                query={committedSearchQuery}
+                matchCase={searchMatchCase}
+                nameQuery={filesSearchScope === 'file' ? committedSearchQuery : ''}
+                expandLabel={t.expandDetails as string}
+                collapseLabel={t.collapseDetails as string}
+                staleLabel={t.searchHitStale as string}
+                structureSignal={searchStructureSignal}
+                onStructureSignalConsumed={handleStructureSignalConsumed}
+                onCollapseStatusChange={handleCollapseStatusChange}
+              />
+            </>
           ) : searching ? null : (
             <p className="adl-empty-hint">{t.noResults as string}</p>
           )}

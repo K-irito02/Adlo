@@ -81,4 +81,7 @@ export const fileEn = {
   fileExpand: 'Expand',
   fileCopyBranchName: 'Copy branch name',
   searchOptions: 'Search options',
+  searchHitStale: 'Outdated',
+  searchStaleSummary: '{count} results are outdated',
+  searchPartialResults: 'Showing partial results',
 } as const;

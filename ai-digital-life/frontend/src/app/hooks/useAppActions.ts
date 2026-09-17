@@ -26,6 +26,7 @@ export function useAppActions() {
       expandAllWorkspaceTreesInFileNav: state.expandAllWorkspaceTreesInFileNav,
       collapseAllWorkspaceTreesInFileNav: state.collapseAllWorkspaceTreesInFileNav,
       searchFiles: state.searchFiles,
+      subscribeWorkspaceFilesChanged: state.subscribeWorkspaceFilesChanged,
       setHunkDecision: state.setHunkDecision,
       applyPatchSet: state.applyPatchSet,
       rollbackPatchSet: state.rollbackPatchSet,

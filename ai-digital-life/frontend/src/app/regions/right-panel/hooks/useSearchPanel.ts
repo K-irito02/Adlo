@@ -1,4 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useShallow } from 'zustand/react/shallow';
+import { useAppStore } from '@stores/slicedStore';
 import { buildSearchPattern } from '@utils/searchPattern';
 
 interface SearchHit {
@@ -31,9 +33,36 @@ interface UseSearchPanelResult {
 }
 
 function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
-  const [matchCase, setMatchCase] = useState(false);
-  const [matchWholeWord, setMatchWholeWord] = useState(false);
-  const [useRegex, setUseRegex] = useState(false);
+  // 检索选项上提到 store：点击校验/重定位必须与检索时选项一致（事项 45）。
+  // 对外 API 不变：调用方仍拿到 boolean 值与 toggle 适配器。
+  const { matchCase, matchWholeWord, useRegex } = useAppStore(
+    useShallow((s) => ({
+      matchCase: s.searchMatchCase,
+      matchWholeWord: s.searchMatchWholeWord,
+      useRegex: s.searchUseRegex,
+    })),
+  );
+  const setMatchCaseValue = useAppStore((s) => s.setSearchMatchCase);
+  const setMatchWholeWordValue = useAppStore((s) => s.setSearchMatchWholeWord);
+  const setUseRegexValue = useAppStore((s) => s.setSearchUseRegex);
+  const setMatchCase = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      setMatchCaseValue(typeof value === 'function' ? value(matchCase) : value);
+    },
+    [matchCase, setMatchCaseValue],
+  );
+  const setMatchWholeWord = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      setMatchWholeWordValue(typeof value === 'function' ? value(matchWholeWord) : value);
+    },
+    [matchWholeWord, setMatchWholeWordValue],
+  );
+  const setUseRegex = useCallback(
+    (value: boolean | ((prev: boolean) => boolean)) => {
+      setUseRegexValue(typeof value === 'function' ? value(useRegex) : value);
+    },
+    [useRegex, setUseRegexValue],
+  );
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [replaceQuery, setReplaceQuery] = useState('');
 

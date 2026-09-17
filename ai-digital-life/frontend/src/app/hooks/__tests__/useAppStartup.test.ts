@@ -43,6 +43,7 @@ function setupWindowDigitalLife() {
     workspace: {
       listRecent: vi.fn().mockResolvedValue({ ok: true, data: [] }),
       onFileChanged: vi.fn(() => () => {}),
+      onFilesChanged: vi.fn(() => () => {}),
     },
   };
 }

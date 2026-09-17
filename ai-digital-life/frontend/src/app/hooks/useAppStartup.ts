@@ -68,6 +68,10 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
     });
   }, [actions, actions.markExternalFileChange]);
 
+  useEffect(() => {
+    return actions.subscribeWorkspaceFilesChanged();
+  }, [actions]);
+
   return {
     locale,
     t,

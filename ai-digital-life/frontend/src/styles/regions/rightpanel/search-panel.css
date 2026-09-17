@@ -391,3 +391,19 @@
 .adl-tool-sidebar__search input:focus {
   outline: none;
 }
+
+.adl-search-snippet__stale,
+.adl-search-file__stale {
+  flex: 0 0 auto;
+  margin-left: var(--space-2);
+  color: var(--warning);
+  font-size: 10px;
+}
+
+.adl-search-stale-summary,
+.adl-search-partial {
+  margin: 0;
+  padding: 2px var(--space-2);
+  color: var(--warning);
+  font-size: 11px;
+}

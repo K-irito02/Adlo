@@ -80,4 +80,7 @@ export const fileZh = {
   fileExpand: '展开',
   fileCopyBranchName: '复制分支名',
   searchOptions: '搜索选项',
+  searchHitStale: '已失效',
+  searchStaleSummary: '{count} 处结果已失效',
+  searchPartialResults: '仅显示部分结果',
 } as const;

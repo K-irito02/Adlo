@@ -14,6 +14,7 @@ import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
 import { useTCopy } from '@i18n/useTCopy';
 import { joinPathSegments } from '@utils/workspacePaths';
+import { findLineForQuery, revealSourceLine } from '@features/preview/revealSourceLine';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 // 临时调试日志（用户指定：本轮排查用，收尾前需移除）
@@ -267,53 +268,21 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       const startedAt = Date.now();
       const attempt = () => {
         const surface = editorSurfaceRef.current;
-        const candidates = surface
-          ? Array.from(surface.querySelectorAll<HTMLElement>('[data-source-line-start]'))
-          : [];
-        if (candidates.length === 0) {
-          if (Date.now() - startedAt > 2500) {
-            debugNavigate('preview-give-up', { line });
-            if (previewRevealTimerRef.current !== undefined) {
-              window.clearInterval(previewRevealTimerRef.current);
-              previewRevealTimerRef.current = undefined;
-            }
+        if (surface && revealSourceLine(surface, line, { flash: true })) {
+          debugNavigate('preview', { line });
+          if (previewRevealTimerRef.current !== undefined) {
+            window.clearInterval(previewRevealTimerRef.current);
+            previewRevealTimerRef.current = undefined;
           }
           return;
         }
-        // 块级源行映射（data-source-line-start/end）由 markdownPreviewUtils 生成；
-        // end 为闭区间末行号（单行块 start === end）。找不到包含该行的块时按业界做法
-        // 回退到"最近的前置块"，最后兜底按比例滚动。
-        let target: HTMLElement | null = null;
-        let fallback: HTMLElement | null = null;
-        for (const el of candidates) {
-          const start = Number(el.dataset.sourceLineStart);
-          const end = Number(el.dataset.sourceLineEnd);
-          if (start <= line && line <= end) {
-            // 取最内层（文档顺序中最后一个）包含该行的元素
-            target = el;
-          } else if (end < line) {
-            fallback = el;
+        // 未挂载（懒加载）→ 保持 60ms 重试，上限 2.5s 后放弃
+        if (Date.now() - startedAt > 2500) {
+          debugNavigate('preview-give-up', { line });
+          if (previewRevealTimerRef.current !== undefined) {
+            window.clearInterval(previewRevealTimerRef.current);
+            previewRevealTimerRef.current = undefined;
           }
-        }
-        const resolved = target ?? fallback ?? candidates[0] ?? null;
-        debugNavigate('preview', {
-          line,
-          candidates: candidates.length,
-          resolvedStart: resolved?.dataset.sourceLineStart,
-          resolvedEnd: resolved?.dataset.sourceLineEnd,
-          exact: !!target,
-        });
-        if (resolved) {
-          resolved.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          resolved.classList.remove('adl-md-flash');
-          // 强制重排以便连续跳转时动画可重放
-          void resolved.offsetWidth;
-          resolved.classList.add('adl-md-flash');
-          window.setTimeout(() => resolved.classList.remove('adl-md-flash'), 1400);
-        }
-        if (previewRevealTimerRef.current !== undefined) {
-          window.clearInterval(previewRevealTimerRef.current);
-          previewRevealTimerRef.current = undefined;
         }
       };
       attempt();
@@ -336,15 +305,39 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const handleOpenSearchResultAtLine = useCallback(
     (relativePath: string, line: number) => {
       const state = useAppStore.getState();
+      // 点击校验/重定位（事项 45）：live 内容可用时先校验，命中消失则标失效并停止，
+      // 重定位成功则后续流程使用重定位后的行号。
+      const liveContent =
+        state.selectedFilePath === relativePath && state.fileContent !== undefined
+          ? state.fileContent
+          : undefined;
+      let targetLine = line;
+      if (liveContent !== undefined) {
+        const relocated = findLineForQuery(
+          liveContent,
+          state.searchQuery,
+          {
+            matchCase: state.searchMatchCase,
+            wholeWord: state.searchMatchWholeWord,
+            useRegex: state.searchUseRegex,
+          },
+          line,
+        );
+        if (relocated === null) {
+          state.markSearchHitStale(relativePath, line);
+          return;
+        }
+        targetLine = relocated;
+      }
       if (isPreviewModeForPath(relativePath)) {
         if (state.selectedFilePath === relativePath && state.fileContent !== undefined) {
           // 文件已打开：预览挂载即定位（含懒加载等待）
-          revealInPreview(line);
+          revealInPreview(targetLine);
           return;
         }
         pendingPreviewRevealRef.current = {
           path: relativePath,
-          line,
+          line: targetLine,
           from: state.selectedFilePath,
           baseline: state.fileContent,
           nonce: Date.now(),
@@ -354,7 +347,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         onOpenFile(relativePath);
         return;
       }
-      onOpenFileAtLine(relativePath, line);
+      onOpenFileAtLine(relativePath, targetLine);
     },
     [isPreviewModeForPath, onOpenFile, onOpenFileAtLine, revealInPreview],
   );

@@ -50,6 +50,14 @@ describe('files search mode wiring', () => {
     new URL('../../stores/slices/searchSlice.ts', import.meta.url),
     'utf8',
   );
+  const searchPanelHookSource = readFileSync(
+    new URL('./hooks/useSearchPanel.ts', import.meta.url),
+    'utf8',
+  );
+  const startupSource = readFileSync(
+    new URL('../../hooks/useAppStartup.ts', import.meta.url),
+    'utf8',
+  );
 
   it('has i18n keys for search scope/view/loading/empty states (zh + en)', () => {
     for (const dict of [fileZh, fileEn]) {
@@ -331,5 +339,21 @@ describe('files search mode wiring', () => {
     // li 自身不画线，避免与 28px 回退值叠加
     expect(searchPanelCss).toContain('.adl-search-results .adl-filetree__item::before {');
     expect(searchPanelCss).toContain('display: none;');
+  });
+
+  it('validates and relocates the clicked hit, marking stale when gone (事项 45)', () => {
+    expect(filesPanelSource).toContain('findLineForQuery');
+    expect(filesPanelSource).toContain('markSearchHitStale');
+    expect(filesPanelSource).toContain('revealSourceLine');
+    expect(resultsTreeSource).toContain('searchHitStale');
+  });
+
+  it('sources the search options from the store so relocation matches the query (事项 45)', () => {
+    expect(shellSource).toContain('searchUseRegex');
+    expect(searchPanelHookSource).toContain('s.searchMatchCase');
+  });
+
+  it('subscribes to workspace file-change batches (事项 45)', () => {
+    expect(startupSource).toContain('subscribeWorkspaceFilesChanged');
   });
 });
