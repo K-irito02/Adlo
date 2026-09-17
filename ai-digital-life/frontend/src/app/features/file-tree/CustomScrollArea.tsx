@@ -25,8 +25,6 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollbarThumbRef = useRef<HTMLDivElement | null>(null);
-  const childrenRef = useRef<React.ReactNode>(children);
-  childrenRef.current = children;
 
   const updateScrollbar = useCallback(() => {
     const root = rootRef.current;
@@ -141,6 +139,17 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
         ref.current = scrollRef.current;
       }
     }
+    // 卸载/转发目标变化时回传 null，保证回调 ref 的 detach 语义完整
+    //（依赖本契约的消费者：usePersistedScrollTop 的监听卸载与落盘）。
+    return () => {
+      if (ref) {
+        if (typeof ref === 'function') {
+          ref(null);
+        } else {
+          ref.current = null;
+        }
+      }
+    };
   }, [ref]);
 
   useEffect(() => {

@@ -125,7 +125,6 @@
 }
 
 .adl-sysmon-scroll {
-  height: 100%;
   max-height: 300px;
   overflow-y: auto;
   overflow-x: hidden;
@@ -274,7 +273,8 @@
   padding-right: var(--space-2);
 }
 
-.adl-sysmon__table tbody tr:hover {
+.adl-sysmon__table tbody tr:hover,
+.adl-sysmon__table tbody tr:focus-within {
   background: var(--bg-hover);
 }
 
@@ -350,6 +350,14 @@
 .adl-sysmon__table tbody tr:focus-within .adl-sysmon__copy {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* 无 hover 设备（触屏）无法悬停，复制按钮常显（见事项 7 跟进 D2） */
+@media (hover: none) {
+  .adl-sysmon__copy {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 /* 开机时长 */

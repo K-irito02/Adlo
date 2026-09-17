@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fireEvent, render, act } from '@testing-library/react';
 import { useEffect, useState } from 'react';
+import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { usePersistedScrollTop } from './usePersistedScrollTop';
 
 function mockLayout(el: HTMLElement, box: { scrollHeight: number; clientHeight: number }) {
@@ -98,5 +99,73 @@ describe('usePersistedScrollTop', () => {
       vi.advanceTimersByTime(200);
     });
     expect(window.localStorage.getItem(key)).toBe('10');
+  });
+});
+
+function AreaHost({ storageKey }: { storageKey: string }) {
+  const { scrollRef } = usePersistedScrollTop(storageKey);
+  return (
+    <CustomScrollArea
+      ref={scrollRef}
+      shellClassName="test-shell"
+      scrollClassName="test-scroll"
+      scrollbarClassName="test-bar"
+      thumbClassName="test-thumb"
+    >
+      <div style={{ height: 1000 }}>content</div>
+    </CustomScrollArea>
+  );
+}
+
+function scrollAreaNode(rendered: { container: HTMLElement }) {
+  return rendered.container.querySelector('.test-scroll') as HTMLElement;
+}
+
+/**
+ * 生产路径集成用例：经 CustomScrollArea（effect 转发 ref，含 unmount 回传 null）挂载/卸载。
+ */
+describe('usePersistedScrollTop via CustomScrollArea', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('flushes pending scroll position on unmount', () => {
+    const key = 'test:area-unmount-flush';
+    const rendered = render(<AreaHost storageKey={key} />);
+    const node = scrollAreaNode(rendered);
+    setScrollTop(node, 60);
+    fireEvent.scroll(node);
+    // 去抖未触发即卸载：应同步落盘。
+    rendered.unmount();
+    expect(window.localStorage.getItem(key)).toBe('60');
+  });
+
+  it('unmount without scrolling does not overwrite saved value (R2)', () => {
+    const key = 'test:area-no-overwrite';
+    window.localStorage.setItem(key, '300');
+    const rendered = render(<AreaHost storageKey={key} />);
+    expect(scrollAreaNode(rendered)).not.toBeNull();
+    rendered.unmount();
+    expect(window.localStorage.getItem(key)).toBe('300');
+  });
+
+  it('rapid scrolls collapse into a single write of the latest value', () => {
+    const key = 'test:area-debounce';
+    const rendered = render(<AreaHost storageKey={key} />);
+    const node = scrollAreaNode(rendered);
+    setScrollTop(node, 20);
+    fireEvent.scroll(node);
+    setScrollTop(node, 90);
+    fireEvent.scroll(node);
+    expect(window.localStorage.getItem(key)).toBeNull();
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    expect(window.localStorage.getItem(key)).toBe('90');
   });
 });

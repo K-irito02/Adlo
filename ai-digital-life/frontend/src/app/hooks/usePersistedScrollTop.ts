@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { readNumber, writeNumber } from '@stores/shared';
+import { clamp, readNumber, writeNumber } from '@stores/shared';
 
 const SAVE_DEBOUNCE_MS = 150;
 const MAX_SCROLL_TOP = 1000000;
 
 /**
  * 滚动位置持久化（localStorage）。
+ *
+ * 约定：`storageKey` 须为模块级常量（首挂载时一次性读取 savedTop 并 armed，
+ * key 变化不会重读；当前两处调用均为常量，见 R6）。
  *
  * 根因说明（2026-09-17 修订）：初版用普通 ref + mount 时 useEffect 挂 scroll 监听，
  * 但两处滚动容器都是条件渲染（剪贴板 loading/空态、sysmon 无快照空态），父组件 mount 时
@@ -15,8 +18,8 @@ const MAX_SCROLL_TOP = 1000000;
  * - 挂载/数据就绪时恢复：节点到达时试一次 + `tryRestore` 由调用方在数据信号上触发
  *   （内容多为异步加载，一次性恢复会因内容尚矮而被钳制）；用户一旦手动滚动即接管，
  *   不再回填。
- * - 滚动停止 150ms 后去抖写入；节点离开（含组件卸载/收起）时同步落盘 pending 值。
- * - 程序化回填触发的 scroll 事件会被抑制，不会误存/误接管。
+ * - 滚动停止 150ms 后去抖写入；节点离开（含组件卸载/收起）时若有 pending 去抖则同步落盘。
+ * - 程序化回填触发的 scroll 事件会被抑制，不会误存/误接管（仅值真正改变时才置标记，R3）。
  */
 export function usePersistedScrollTop(storageKey: string) {
   const [savedTop] = useState(() => readNumber(storageKey, 0, 0, MAX_SCROLL_TOP));
@@ -27,16 +30,18 @@ export function usePersistedScrollTop(storageKey: string) {
 
   const writeTop = useCallback(
     (value: number) => {
-      writeNumber(storageKey, Math.max(0, Math.round(value)));
+      writeNumber(storageKey, clamp(Math.round(value), 0, MAX_SCROLL_TOP));
     },
     [storageKey],
   );
 
+  // 仅当有 pending 去抖时才落盘（R2）：无滚动、无 pending 的卸载不得以 0 覆盖已存值。
   const flushPending = useCallback(() => {
-    if (saveTimerRef.current !== undefined) {
-      window.clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = undefined;
+    if (saveTimerRef.current === undefined) {
+      return;
     }
+    window.clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = undefined;
     if (nodeRef.current) {
       writeTop(nodeRef.current.scrollTop);
     }
@@ -51,8 +56,11 @@ export function usePersistedScrollTop(storageKey: string) {
       if (maxScrollable <= 0) {
         return;
       }
-      suppressScrollRef.current = true;
+      // 仅值真正改变时才置抑制标记（R3）：钳制后相等/内容尚矮时赋值不产生 scroll 事件，
+      // 无条件置标记会残留并吞掉下一次真实用户滚动。
+      const before = el.scrollTop;
       el.scrollTop = Math.min(savedTop, maxScrollable);
+      suppressScrollRef.current = el.scrollTop !== before;
       if (maxScrollable >= savedTop) {
         restoreArmedRef.current = false;
       }
@@ -73,9 +81,12 @@ export function usePersistedScrollTop(storageKey: string) {
     if (saveTimerRef.current !== undefined) {
       window.clearTimeout(saveTimerRef.current);
     }
+    // 回调内读 nodeRef.current（R4）：150ms 窗口内节点若已切换，不写回旧节点值。
     saveTimerRef.current = window.setTimeout(() => {
       saveTimerRef.current = undefined;
-      writeTop(el.scrollTop);
+      if (nodeRef.current) {
+        writeTop(nodeRef.current.scrollTop);
+      }
     }, SAVE_DEBOUNCE_MS);
   }, [writeTop]);
 

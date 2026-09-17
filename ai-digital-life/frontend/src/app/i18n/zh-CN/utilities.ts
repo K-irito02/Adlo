@@ -25,7 +25,6 @@ export const utilitiesZh = {
   sysMemory: '内存',
   sysDisks: '磁盘',
   sysNetwork: '网络',
-  sysProcesses: '进程',
   sysProcessTopN: 'CPU 占用 Top-25',
   sysUptime: '开机时长',
   sysEmpty: '暂无数据',
@@ -38,4 +37,5 @@ export const utilitiesZh = {
   sysProcPid: 'PID',
   sysProcCpu: 'CPU',
   sysProcMem: '内存',
+  sysProcCopyText: '{name} (PID {pid})',
 } as const;

@@ -111,9 +111,9 @@ function DisksSection({ disks }: DisksSectionProps) {
         <table className="adl-sysmon__table adl-sysmon__table--disks">
           <thead>
             <tr>
-              <th>{t.sysDiskMount}</th>
-              <th>{t.sysDiskUsed}</th>
-              <th>{t.sysDiskAvail}</th>
+              <th scope="col">{t.sysDiskMount}</th>
+              <th scope="col">{t.sysDiskUsed}</th>
+              <th scope="col">{t.sysDiskAvail}</th>
             </tr>
           </thead>
           <tbody>
@@ -146,9 +146,11 @@ function NetworkSection({ networks }: NetworkSectionProps) {
         <table className="adl-sysmon__table adl-sysmon__table--nets">
           <thead>
             <tr>
-              <th>{''}</th>
-              <th>{t.sysNetUp}</th>
-              <th>{t.sysNetDown}</th>
+              <th scope="col" aria-label={t.sysNetwork}>
+                {''}
+              </th>
+              <th scope="col">{t.sysNetUp}</th>
+              <th scope="col">{t.sysNetDown}</th>
             </tr>
           </thead>
           <tbody>
@@ -171,7 +173,7 @@ interface ProcessSectionProps {
 }
 
 function ProcessSection({ processes }: ProcessSectionProps) {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
   return (
     <section className="adl-sysmon__section">
       <SectionTitle icon={<IconList size={12} decorative />} label={t.sysProcessTopN} />
@@ -181,11 +183,11 @@ function ProcessSection({ processes }: ProcessSectionProps) {
         <table className="adl-sysmon__table adl-sysmon__table--procs">
           <thead>
             <tr>
-              <th>{t.sysProcName}</th>
-              <th className="adl-sysmon__actions-col" aria-label={t.copy} />
-              <th>{t.sysProcPid}</th>
-              <th>{t.sysProcCpu}</th>
-              <th>{t.sysProcMem}</th>
+              <th scope="col">{t.sysProcName}</th>
+              <th scope="col" className="adl-sysmon__actions-col" aria-label={t.copy} />
+              <th scope="col">{t.sysProcPid}</th>
+              <th scope="col">{t.sysProcCpu}</th>
+              <th scope="col">{t.sysProcMem}</th>
             </tr>
           </thead>
           <tbody>
@@ -196,7 +198,7 @@ function ProcessSection({ processes }: ProcessSectionProps) {
                   <CopyButton
                     size={12}
                     className="adl-sysmon__copy"
-                    text={`${proc.name} (PID ${proc.pid})`}
+                    text={formatT(t, 'sysProcCopyText', { name: proc.name, pid: proc.pid })}
                     tooltip={t.copy}
                     tooltipCopied={t.copySuccessClipboard}
                     nativeTooltip
@@ -233,7 +235,7 @@ function UptimeSection({ uptimeSecs }: UptimeSectionProps) {
 }
 
 /**
- * 系统监控展开详情：CPU（总 + 每核心）、内存、磁盘、网络、进程 Top-N、开机时长。
+ * 系统监控展开详情：CPU（总量）、内存、磁盘、网络、进程 Top-N、开机时长。
  */
 export function SysmonDetails() {
   const { t } = useTCopy();

@@ -26,7 +26,6 @@ export const utilitiesEn = {
   sysMemory: 'Memory',
   sysDisks: 'Disks',
   sysNetwork: 'Network',
-  sysProcesses: 'Processes',
   sysProcessTopN: 'CPU Top-25',
   sysUptime: 'Uptime',
   sysEmpty: 'No data',
@@ -39,4 +38,5 @@ export const utilitiesEn = {
   sysProcPid: 'PID',
   sysProcCpu: 'CPU',
   sysProcMem: 'Mem',
+  sysProcCopyText: '{name} (PID {pid})',
 } as const;

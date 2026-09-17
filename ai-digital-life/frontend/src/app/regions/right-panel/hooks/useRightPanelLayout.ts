@@ -99,8 +99,11 @@ export function useRightPanelLayout(collapsed: boolean) {
     const root = document.documentElement;
     const shellWidth = shellBody?.getBoundingClientRect().width ?? window.innerWidth;
     const leftbar = shellBody?.querySelector('.adl-leftbar') as HTMLElement | null;
+    // 权威值在 shellBody 内联样式（App 自 store 落盘，拖拽中直写同一元素），:root 恒为默认值。
     const cssLeftWidth =
-      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width')) || 0;
+      parseFloat(shellBody?.style.getPropertyValue('--leftbar-width') || '') ||
+      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width')) ||
+      0;
     const leftWidth = leftCollapsed ? 0 : (leftbar?.getBoundingClientRect().width ?? cssLeftWidth);
     const overlayTriggerReserve =
       parseFloat(getComputedStyle(root).getPropertyValue('--center-width-min')) || 360;

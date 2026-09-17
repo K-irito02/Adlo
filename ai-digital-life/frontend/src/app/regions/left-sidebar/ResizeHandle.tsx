@@ -34,9 +34,9 @@ export function ResizeHandle() {
     const minWidth =
       parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-min')) || 180;
     const maxWidth =
-      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-max')) || 360;
+      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-max')) || 260;
     const centerMinWidth =
-      parseFloat(getComputedStyle(root).getPropertyValue('--center-width-min')) || 640;
+      parseFloat(getComputedStyle(root).getPropertyValue('--center-width-min')) || 360;
     const latestWidthRef = { current: startWidth };
 
     const onMouseMove = (moveEvent: MouseEvent) => {
@@ -69,7 +69,11 @@ export function ResizeHandle() {
         rafRef.current = 0;
       }
       // 释放时 commit：持久化到 localStorage 并同步 store（App 内联样式取同一值，无闪动）。
-      useAppStore.getState().setLeftbarWidth(latestWidthRef.current);
+      // 仅值变化时写，避免 unmount/blur 无位移时的多余写入与重渲染。
+      const store = useAppStore.getState();
+      if (latestWidthRef.current !== store.leftbarWidth) {
+        store.setLeftbarWidth(latestWidthRef.current);
+      }
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);
       window.removeEventListener('blur', onBlur);
