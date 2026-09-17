@@ -92,13 +92,21 @@ export function createWorkspaceEventsClient(
       connect();
       return () => {
         listeners.delete(listener);
+        if (listeners.size !== 0) {
+          return;
+        }
+        if (reconnectTimer !== null) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = null;
+        }
         if (
-          listeners.size === 0 &&
           socket !== null &&
-          socket.readyState !== WS_CONNECTING &&
-          socket.readyState !== WS_OPEN
+          (socket.readyState === WS_CONNECTING || socket.readyState === WS_OPEN)
         ) {
-          socket.close();
+          const ws = socket;
+          socket = null;
+          ws.onclose = null;
+          ws.close();
         }
       };
     },
