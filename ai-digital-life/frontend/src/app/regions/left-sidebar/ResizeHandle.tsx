@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useTCopy } from '../../i18n/useTCopy';
 import { useAppStore } from '../../stores/slicedStore';
+import {
+  LEFT_PANEL_WIDTH_MIN,
+  LEFT_PANEL_WIDTH_MAX,
+  DEFAULT_LEFT_PANEL_WIDTH,
+} from '../../stores/slices/uiSliceTypes';
 
 export function ResizeHandle() {
   const { t } = useTCopy();
@@ -29,15 +34,20 @@ export function ResizeHandle() {
     const root = document.documentElement;
     // 起始宽度读 shellBody 的实时计算值（App 已把 store 持久化宽度以内联 --leftbar-width 落到该元素）；
     // min/max 仍读 :root 上的设计 token。
-    const startWidth =
-      parseFloat(getComputedStyle(shellBody).getPropertyValue('--leftbar-width')) || 180;
+    const startWidth = Math.round(
+      parseFloat(getComputedStyle(shellBody).getPropertyValue('--leftbar-width')) ||
+        DEFAULT_LEFT_PANEL_WIDTH,
+    );
     const minWidth =
-      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-min')) || 180;
+      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-min')) ||
+      LEFT_PANEL_WIDTH_MIN;
     const maxWidth =
-      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-max')) || 260;
+      parseFloat(getComputedStyle(root).getPropertyValue('--leftbar-width-max')) ||
+      LEFT_PANEL_WIDTH_MAX;
+    // 中央区最小宽只有 CSS token（center.css），无 store 常量，缺失时回退 360。
     const centerMinWidth =
       parseFloat(getComputedStyle(root).getPropertyValue('--center-width-min')) || 360;
-    const latestWidthRef = { current: startWidth };
+    const latestWidth = { current: startWidth };
 
     const onMouseMove = (moveEvent: MouseEvent) => {
       if (!draggingRef.current || rafRef.current) {
@@ -55,13 +65,18 @@ export function ResizeHandle() {
           Math.min(maxWidth, allowedMax),
           Math.max(minWidth, startWidth + delta),
         );
-        latestWidthRef.current = newWidth;
+        // 取整后提交与直写：避免亚像素小数落盘，且零位移时恒等于 store 值而跳过写入。
+        latestWidth.current = Math.round(newWidth);
         // 拖拽中直写 DOM（避免逐帧 setState 重渲染）；释放时一次性 commit 到 store 持久化。
-        shellBody.style.setProperty('--leftbar-width', `${newWidth}px`);
+        shellBody.style.setProperty('--leftbar-width', `${latestWidth.current}px`);
       });
     };
 
     const cleanup = () => {
+      // mouseup/blur/unmount 可能重复进入，首次之后互斥。
+      if (!draggingRef.current) {
+        return;
+      }
       draggingRef.current = false;
       shellBody.classList.remove('is-resizing');
       if (rafRef.current) {
@@ -71,8 +86,8 @@ export function ResizeHandle() {
       // 释放时 commit：持久化到 localStorage 并同步 store（App 内联样式取同一值，无闪动）。
       // 仅值变化时写，避免 unmount/blur 无位移时的多余写入与重渲染。
       const store = useAppStore.getState();
-      if (latestWidthRef.current !== store.leftbarWidth) {
-        store.setLeftbarWidth(latestWidthRef.current);
+      if (latestWidth.current !== store.leftbarWidth) {
+        store.setLeftbarWidth(latestWidth.current);
       }
       window.removeEventListener('mousemove', onMouseMove);
       window.removeEventListener('mouseup', onMouseUp);

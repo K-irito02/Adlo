@@ -198,7 +198,10 @@ function ProcessSection({ processes }: ProcessSectionProps) {
                   <CopyButton
                     size={12}
                     className="adl-sysmon__copy"
-                    text={formatT(t, 'sysProcCopyText', { name: proc.name, pid: proc.pid })}
+                    text={formatT(t, 'sysProcCopyText', {
+                      name: proc.name.replace(/\s+/g, ' ').trim(),
+                      pid: proc.pid,
+                    })}
                     tooltip={t.copy}
                     tooltipCopied={t.copySuccessClipboard}
                     nativeTooltip
@@ -242,13 +245,17 @@ export function SysmonDetails() {
   const sysmonSnapshot = useAppStore((s) => s.sysmonSnapshot);
   const { scrollRef: sysmonScrollRef, tryRestore: tryRestoreSysmonScroll } =
     usePersistedScrollTop(SYSMON_SCROLL_TOP_KEY);
+  // 布尔跳变 + 条目数信号：快照每秒新 identity，直接依赖会导致 effect 每秒空跑；
+  // 进程数增长可能撑高内容，保留长度信号供 armed 存续期重试。
+  const hasSnapshot = sysmonSnapshot !== null;
+  const processCount = sysmonSnapshot?.processes.length ?? 0;
 
   // 快照异步到达：数据就绪后回填上次滚动位置（用户手动滚动后不再回填）。
   useEffect(() => {
-    if (sysmonSnapshot) {
+    if (hasSnapshot) {
       tryRestoreSysmonScroll();
     }
-  }, [sysmonSnapshot, tryRestoreSysmonScroll]);
+  }, [hasSnapshot, processCount, tryRestoreSysmonScroll]);
 
   if (!sysmonSnapshot) {
     return (

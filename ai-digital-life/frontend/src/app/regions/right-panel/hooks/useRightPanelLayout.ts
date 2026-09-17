@@ -95,6 +95,7 @@ export function useRightPanelLayout(collapsed: boolean) {
   );
 
   const readLayoutMetrics = useCallback((): RightPanelLayoutMetrics => {
+    // leftbarWidth 变更经 .adl-leftbar 的 ResizeObserver 间接触发本函数重算，无需订阅 store。
     const shellBody = panelRef.current?.closest('.adl-shell__body') as HTMLElement | null;
     const root = document.documentElement;
     const shellWidth = shellBody?.getBoundingClientRect().width ?? window.innerWidth;

@@ -31,6 +31,9 @@ export const ACTIVE_WORKSPACE_TAB_KEY = 'adl-ui:active-workspace-tab';
 export const RIGHT_PANEL_MODE_KEY = 'adl-ui:right-panel-mode';
 export const RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY = 'adl-ui:right-panel-last-restorable-width';
 
+// 命名说明：state 侧 `leftbar*` 沿用 CSS 类/变量（.adl-leftbar、--leftbar-width），
+// key/常量侧 `LEFT_PANEL_*` 沿用面板语义（与 RIGHT_PANEL_* 对齐），两者指同一左面板。
+
 // ════════════════════════════════════════════════════════
 // 面板宽度常量
 // ════════════════════════════════════════════════════════

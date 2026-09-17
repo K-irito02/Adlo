@@ -52,7 +52,16 @@
 | -------- | --------------------- | ------ |
 | 最小宽度 | `--leftbar-width-min` | 180px  |
 | 默认宽度 | `--leftbar-width`     | 180px  |
-| 最大宽度 | `--leftbar-width-max` | 360px  |
+| 最大宽度 | `--leftbar-width-max` | 260px  |
+
+### 持久化状态（localStorage，`adl-ui:` 前缀）
+
+| 状态 | 键名 | 说明 |
+| ---- | ---- | ---- |
+| 左栏宽度 | `adl-ui:left-panel-width` | 拖拽释放时提交，180–260px 钳制 |
+| 系统监控展开/收起 | `adl-ui:sysmon-collapsed` | 切换时同步写入 |
+| 剪贴板历史滚动位置 | `adl-ui:clipboard-scroll-top` | 滚动停止去抖写入 |
+| 系统监控滚动位置 | `adl-ui:sysmon-scroll-top` | 同上，收起即卸载落盘 |
 
 ## 注意事项
 

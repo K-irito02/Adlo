@@ -97,10 +97,11 @@
   transition: width var(--duration-200) var(--ease-default);
 }
 
-/* 窄容器下隐藏内存行的水平进度条（仅保留数值，见事项 5/10）；
+/* 窄容器下隐藏内存行的水平进度条（仅保留数值）。
    CPU 行 label 短、bar 在最窄态仍美观，故不隐藏。
-   bar 隐藏后用 margin-left:auto 把数值钉在最右侧（见事项 8；
-   不能常驻该规则，否则 auto margin 会吞掉自由空间导致可见态的 bar 塌缩） */
+   bar 隐藏后用 margin-left:auto 把数值钉在最右侧（不能常驻该规则，
+   否则 auto margin 会吞掉自由空间导致可见态的 bar 塌缩）。
+   内存行 label 在窄态允许收缩，避免长字节串被生硬裁掉而非省略。 */
 @container (max-width: 200px) {
   .adl-sysmon__row--memory .adl-sysmon-bar {
     display: none;
@@ -109,9 +110,13 @@
   .adl-sysmon__row--memory .adl-sysmon__value {
     margin-left: auto;
   }
+
+  .adl-sysmon__row--memory .adl-sysmon__row-label {
+    flex-shrink: 1;
+  }
 }
 
-/* ---- 展开明细（自定义 overlay 滚动条，见事项 2） ---- */
+/* ---- 展开明细（自定义 overlay 滚动条，与文件树/变更树同模式） ---- */
 .adl-sysmon__body {
   position: relative;
   max-height: 300px;
@@ -145,6 +150,7 @@
   width: 7px;
   opacity: 0;
   pointer-events: none;
+  touch-action: none;
   transition: opacity var(--duration-150) var(--ease-default);
 }
 
@@ -223,8 +229,8 @@
   color: var(--text-secondary);
 }
 
-/* 表格（磁盘/网络/进程）：固定列宽 + 列间距 + 省略截断，防实时跳动（见事项 4）；
-   hover 背景全宽贴合左右边缘（见事项 3） */
+/* 表格（磁盘/网络/进程）：固定列宽 + 列间距 + 省略截断，实时数值不再顶宽跳动；
+   表格全宽 + 首末单元格贴边，hover 背景与左右边缘贴合 */
 .adl-sysmon__table {
   width: 100%;
   min-width: 0;
@@ -310,24 +316,40 @@
   width: 34%;
 }
 
-/* 进程：名称 / 复制操作 / PID / CPU / 内存 */
+/* 进程：名称 / 复制操作 / PID / CPU / 内存。
+   数值列横向 padding 收至 2px：PID（5 位）与 CPU（"100.0%"）在常规边栏宽度下免省略。 */
 .adl-sysmon__table--procs th:nth-child(3),
 .adl-sysmon__table--procs td:nth-child(3) {
-  width: 15%;
+  width: 17%;
 }
 
 .adl-sysmon__table--procs th:nth-child(4),
 .adl-sysmon__table--procs td:nth-child(4) {
-  width: 16%;
+  width: 19%;
 }
 
 .adl-sysmon__table--procs th:nth-child(5),
 .adl-sysmon__table--procs td:nth-child(5) {
-  width: 24%;
+  width: 23%;
+}
+
+.adl-sysmon__table--procs th:nth-child(3),
+.adl-sysmon__table--procs td:nth-child(3),
+.adl-sysmon__table--procs th:nth-child(4),
+.adl-sysmon__table--procs td:nth-child(4) {
+  padding-left: var(--space-0-5);
+  padding-right: var(--space-0-5);
+}
+
+.adl-sysmon__table--procs th:nth-child(5),
+.adl-sysmon__table--procs td:nth-child(5) {
+  padding-left: var(--space-0-5);
 }
 
 .adl-sysmon__table--procs .adl-sysmon__actions-col {
   width: 22px;
+  padding-left: 1px;
+  padding-right: 1px;
   text-align: center;
 }
 
@@ -336,9 +358,9 @@
   text-overflow: ellipsis;
 }
 
-/* 进程行复制按钮：仅 hover / 聚焦时出现（见事项 7）。
+/* 进程行复制按钮：仅 hover / 聚焦时出现。
    刻意不用 opacity transition：表格 1s 刷新 + 按 CPU 重排序会使静止鼠标下的行频繁易主，
-   淡入淡出会在每次易主时重播，造成闪烁/残影观感（见事项 9），故用瞬时切换。 */
+   淡入淡出会在每次易主时重播，造成闪烁/残影观感，故用瞬时切换。 */
 .adl-sysmon__copy {
   width: 20px;
   height: 20px;
@@ -352,7 +374,7 @@
   pointer-events: auto;
 }
 
-/* 无 hover 设备（触屏）无法悬停，复制按钮常显（见事项 7 跟进 D2） */
+/* 无 hover 设备（触屏）无法悬停，复制按钮常显 */
 @media (hover: none) {
   .adl-sysmon__copy {
     opacity: 1;

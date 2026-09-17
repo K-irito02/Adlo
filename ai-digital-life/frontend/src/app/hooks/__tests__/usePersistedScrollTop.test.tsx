@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { fireEvent, render, act } from '@testing-library/react';
 import { useEffect, useState } from 'react';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
-import { usePersistedScrollTop } from './usePersistedScrollTop';
+import { usePersistedScrollTop } from '../usePersistedScrollTop';
 
 function mockLayout(el: HTMLElement, box: { scrollHeight: number; clientHeight: number }) {
   Object.defineProperty(el, 'scrollHeight', { configurable: true, get: () => box.scrollHeight });
@@ -145,7 +145,7 @@ describe('usePersistedScrollTop via CustomScrollArea', () => {
     expect(window.localStorage.getItem(key)).toBe('60');
   });
 
-  it('unmount without scrolling does not overwrite saved value (R2)', () => {
+  it('unmount without scrolling does not overwrite saved value', () => {
     const key = 'test:area-no-overwrite';
     window.localStorage.setItem(key, '300');
     const rendered = render(<AreaHost storageKey={key} />);
@@ -167,5 +167,25 @@ describe('usePersistedScrollTop via CustomScrollArea', () => {
       vi.advanceTimersByTime(200);
     });
     expect(window.localStorage.getItem(key)).toBe('90');
+  });
+
+  it('a no-op second restore does not clear the pending suppress (F-01)', () => {
+    const key = 'test:noop-keep-suppress';
+    window.localStorage.setItem(key, '300');
+    const { mountNode, rerender } = renderLateHost(key);
+    const node = mountNode();
+    // 内容先矮：部分恢复 0→50（值变化，置抑制，仍 armed）。
+    mockLayout(node, { scrollHeight: 150, clientHeight: 100 });
+    rerender(<LateHost storageKey={key} signal={1} />);
+    expect(node.scrollTop).toBe(50);
+    // 程序化事件到达前第二次恢复是 no-op：不得洗掉待消费的抑制标记。
+    rerender(<LateHost storageKey={key} signal={2} />);
+    // 第一次程序化 scroll 事件到达：被抑制，不接管、不保存。
+    fireEvent.scroll(node);
+    expect(window.localStorage.getItem(key)).toBe('300');
+    // 内容长高后重试：仍 armed，能回到完整保存值。
+    mockLayout(node, { scrollHeight: 800, clientHeight: 100 });
+    rerender(<LateHost storageKey={key} signal={3} />);
+    expect(node.scrollTop).toBe(300);
   });
 });

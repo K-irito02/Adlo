@@ -257,6 +257,7 @@
 |------|------|------|
 | [terminal-shell-menu-hover-lessons-2026-09-13.md](./interaction/2026-09/terminal-shell-menu-hover-lessons-2026-09-13.md) | 2026-09-13 终端复合按钮悬停菜单 + closing-workflow 复审 | 2 条经验：子菜单卸载不触发 mouseleave（悬停位须在关闭动作处同步清理）；去抖写污染水合测试读数（播种前先放干悬置 flush，单例守卫用 resetModules 隔离） |
 | [terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md](./interaction/2026-09/terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md) | 2026-09-13 终端面板 7 事项修复 + 收尾复审 | 3 条经验：xterm v6 自绘滚动条覆盖法（`!important` width/left、不碰 top/height transition、border-radius 瞬切）+ 升级回归点；原生事件复制粘贴（return false 放行，禁用 readText，Shift 优先与 event.code 兜底）；flex 拖拽裁剪（min-*:0 + 1px 按比例分摊） |
+| [sysmon-scroll-restore-persistence-lessons-2026-09-17.md](./interaction/2026-09/sysmon-scroll-restore-persistence-lessons-2026-09-17.md) | 2026-09-17 左栏系统监控 11 项优化 + 持久化 | 13 条经验：条件渲染容器滚动监听须用回调 ref、forwardRef 转发补 null cleanup、落盘 pending 门控、抑制标记只置位不清零、去抖读实时节点、恢复触发用稳定信号、flex auto-margin 塌缩、容器查询、fixed 表列盒模型、Tab 可达权衡、HMR 瞬时报错判定、`__tests__` 规则、i18n 编辑复核 |
 
 ### CI monitoring
 
