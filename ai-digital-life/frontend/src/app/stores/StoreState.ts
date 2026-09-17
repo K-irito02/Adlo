@@ -199,6 +199,8 @@ interface PatchActions {
 
 interface SearchActions {
   searchFiles: (query: string) => Promise<void>;
+  markSearchHitStale: (path: string, line?: number) => void;
+  subscribeWorkspaceFilesChanged: () => () => void;
 }
 
 interface DataFetchActions {

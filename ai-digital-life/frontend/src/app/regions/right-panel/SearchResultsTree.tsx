@@ -8,6 +8,7 @@ import { highlightMatch } from './searchHighlight';
 export interface SearchResultSnippet {
   line: number;
   preview: string;
+  stale?: boolean;
   onOpen: () => void;
 }
 

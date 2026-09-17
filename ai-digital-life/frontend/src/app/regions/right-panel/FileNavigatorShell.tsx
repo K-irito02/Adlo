@@ -22,7 +22,7 @@ import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { useFileCreation, useSearchPanel } from './hooks';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
-import type { SearchHit } from './hooks/useSearchPanel';
+import type { SearchHitEntry } from '@stores/slices/searchSlice';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';
 import { FileNavigatorTree } from './FileNavigatorTree';
 import { FileNavigatorRenaming } from './FileNavigatorRenaming';
@@ -37,7 +37,7 @@ interface FileNavigatorShellProps {
   allExpanded: boolean;
   outline: FileOutlineItem[];
   searchQuery: string;
-  searchResults: SearchHit[];
+  searchEntries: SearchHitEntry[];
   externalChangePath: string | undefined;
   dirtyEditorPaths: string[];
   appInfo:
@@ -87,7 +87,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     allExpanded,
     outline,
     searchQuery,
-    searchResults,
+    searchEntries,
     externalChangePath,
     dirtyEditorPaths,
     appInfo,
@@ -200,7 +200,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
 
   const searchPanel = useSearchPanel({
     searchQuery: committedSearchQuery,
-    searchResults,
+    searchResults: searchEntries,
     fileContent: undefined,
     onReplace: (value: string) => onEditorChange(value),
   });
@@ -314,6 +314,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         snippets: hits.map((hit) => ({
           line: hit.line,
           preview: hit.preview,
+          stale: hit.stale,
           onOpen: () => onOpenFileAtLine(hit.path, hit.line),
         })),
         onOpen: () => onOpenFileAtLine(path, firstLine),

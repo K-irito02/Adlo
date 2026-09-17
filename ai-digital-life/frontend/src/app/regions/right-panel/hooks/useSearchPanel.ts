@@ -5,6 +5,7 @@ interface SearchHit {
   path: string;
   line: number;
   preview: string;
+  stale?: boolean;
 }
 
 interface UseSearchPanelInput {

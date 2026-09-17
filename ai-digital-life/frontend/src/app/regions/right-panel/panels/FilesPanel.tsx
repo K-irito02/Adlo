@@ -41,7 +41,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     workspaceTreeLoading,
     workspaceTreeErrors,
     searchQuery,
-    searchResults,
+    searchEntries,
     dirtyEditorPaths,
     externalChangePath,
     onOpenFile,
@@ -514,7 +514,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           workspaceTreeErrors={workspaceTreeErrors}
           outline={outline}
           searchQuery={searchQuery}
-          searchResults={searchResults}
+          searchEntries={searchEntries}
           externalChangePath={externalChangePath}
           dirtyEditorPaths={dirtyEditorPaths}
           appInfo={appInfo}

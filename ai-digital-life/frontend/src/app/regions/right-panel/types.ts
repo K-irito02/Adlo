@@ -10,9 +10,9 @@ import type {
   RecentWorkspaceEntry,
   RepoMapNode,
   SettingItem,
-  WorkspaceSearchHit,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
+import type { SearchHitEntry } from '@stores/slices/searchSlice';
 import type { EditorTabState } from '@utils/editorTabs';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import type { PatchDirection, PatchReviewFilter } from '@features/patch-review';
@@ -58,7 +58,7 @@ export interface RightPanelViewProps {
   onShowInRightPanels: (workspaceId: string) => void;
   repoMap: RepoMapNode[];
   searchQuery: string;
-  searchResults: WorkspaceSearchHit[];
+  searchEntries: SearchHitEntry[];
   dirtyEditorPaths: string[];
   standardEditorRef: React.MutableRefObject<EditorRef | null>;
   onOpenFile: (relativePath: string) => void;
@@ -139,7 +139,7 @@ export type FilesPanelProps = Pick<
   | 'workspaceTreeLoading'
   | 'workspaceTreeErrors'
   | 'searchQuery'
-  | 'searchResults'
+  | 'searchEntries'
   | 'dirtyEditorPaths'
   | 'externalChangePath'
   | 'standardEditorRef'

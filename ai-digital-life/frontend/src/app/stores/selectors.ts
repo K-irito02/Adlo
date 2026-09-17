@@ -47,11 +47,11 @@ export const searchSelectors = {
   getSearchQuery: (state: StoreState) => state.searchQuery,
   useSearchQuery: () => useAppStore((s) => s.searchQuery),
 
-  getSearchResults: (state: StoreState) => state.searchResults,
-  useSearchResults: () => useAppStore(useShallow((s) => s.searchResults)),
+  getSearchEntries: (state: StoreState) => state.searchEntries,
+  useSearchEntries: () => useAppStore(useShallow((s) => s.searchEntries)),
 
-  hasSearchResults: (state: StoreState) => state.searchResults.length > 0,
-  useHasSearchResults: () => useAppStore((s) => s.searchResults.length > 0),
+  hasSearchEntries: (state: StoreState) => state.searchEntries.length > 0,
+  useHasSearchEntries: () => useAppStore((s) => s.searchEntries.length > 0),
 };
 
 // ============================================

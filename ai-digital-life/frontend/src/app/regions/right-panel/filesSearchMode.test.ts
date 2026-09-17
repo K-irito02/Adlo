@@ -273,7 +273,7 @@ describe('files search mode wiring', () => {
   });
 
   it('clears stale results when a new search starts (事项 36)', () => {
-    expect(searchActionsSource).toContain('set({ searchResults: [], searching: true })');
+    expect(searchActionsSource).toContain('beginSearchSession');
   });
 
   it('enables the structure toggle in search outline view like normal outline (事项 37)', () => {
@@ -282,7 +282,7 @@ describe('files search mode wiring', () => {
   });
 
   it('skips the backend request in file scope (事项 38)', () => {
-    expect(searchActionsSource).toContain("get().filesSearchScope === 'file'");
+    expect(searchActionsSource).toContain("state.filesSearchScope === 'file'");
   });
 
   it('jumps to the snippet line in preview mode too (事项 39)', () => {

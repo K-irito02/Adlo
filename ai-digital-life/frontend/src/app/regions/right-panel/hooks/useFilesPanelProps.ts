@@ -42,7 +42,7 @@ export function useFilesPanelProps(
   const workspaceTreeLoading = useAppStore(useShallow((s) => s.workspaceTreeLoading));
   const workspaceTreeErrors = useAppStore(useShallow((s) => s.workspaceTreeErrors));
   const searchQuery = useAppStore((s) => s.searchQuery);
-  const searchResults = useAppStore(useShallow((s) => s.searchResults));
+  const searchEntries = useAppStore(useShallow((s) => s.searchEntries));
   const dirtyEditorPaths = useAppStore(useShallow((s) => s.dirtyEditorPaths));
   const activePatchSet = useAppStore(useShallow((s) => s.activePatchSet));
   const latestPatchApplication = useAppStore(useShallow((s) => s.latestPatchApplication));
@@ -211,7 +211,7 @@ export function useFilesPanelProps(
       workspaceTreeLoading,
       workspaceTreeErrors,
       searchQuery: localSearchQuery,
-      searchResults,
+      searchEntries,
       dirtyEditorPaths,
       externalChangePath: externalFileChange?.path,
       onOpenFile: handleOpenFile,
@@ -257,7 +257,7 @@ export function useFilesPanelProps(
       workspaceTreeLoading,
       workspaceTreeErrors,
       localSearchQuery,
-      searchResults,
+      searchEntries,
       dirtyEditorPaths,
       externalFileChange?.path,
       handleOpenFile,

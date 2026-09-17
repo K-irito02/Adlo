@@ -34,7 +34,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
   return {
     /**
      * [bootstrap - 启动应用，获取工作区、Git 状态和补丁]
-     * @writes workspaceSlice.appInfo, workspaceSlice.recentWorkspaces, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, searchSlice.searchQuery, searchSlice.searchResults, searchSlice.searching
+     * @writes workspaceSlice.appInfo, workspaceSlice.recentWorkspaces, gitSlice.gitSnapshot, gitSlice.gitSnapshots, patchSlice.activePatchSet, editorSlice.selectedFilePath, editorSlice.openTabs, editorSlice.dirtyEditorPaths, diagnosticSlice.indexingStatus, diagnosticSlice.repoMap, searchSlice.searchQuery, searchSlice.searchEntries, searchSlice.searching
      */
     bootstrap: async () => {
       const requestSeq = workspaceRequestSeq;
@@ -276,7 +276,10 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         gitSnapshots: {},
         gitBranches: [],
         searchQuery: '',
-        searchResults: [],
+        searchEntries: [],
+        searchSessionId: 0,
+        searchPartial: false,
+        searchWorkspaceId: undefined,
         searching: false,
         externalFileChange: undefined,
       });
