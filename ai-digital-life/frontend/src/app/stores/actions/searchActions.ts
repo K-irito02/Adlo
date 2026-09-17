@@ -78,6 +78,12 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
   };
 
   const scheduleRecompute = (batch: WorkspaceFilesChangedBatch) => {
+    if (!get().searchQuery.trim()) {
+      pendingChanged = new Set();
+      pendingRemoved = new Set();
+      pendingOverflow = false;
+      return;
+    }
     batch.changed.forEach((path) => pendingChanged.add(path));
     batch.removed.forEach((path) => pendingRemoved.add(path));
     pendingOverflow = pendingOverflow || batch.overflow === true;
