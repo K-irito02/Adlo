@@ -1948,7 +1948,7 @@ describe('findLineForQuery', () => {
   });
 
   it('relocates to the nearest matching line when the preferred one no longer matches', () => {
-    expect(findLineForQuery(content, 'needle', { matchCase: false, wholeWord: false, useRegex: false }, 3)).toBe(4);
+    expect(findLineForQuery(content, 'needle', { matchCase: false, wholeWord: false, useRegex: false }, 3)).toBe(2);
   });
 
   it('returns null when the content no longer contains the query', () => {
@@ -2097,7 +2097,7 @@ export function revealEditorLineSafely(
 - [ ] **Step 4: 运行测试确认通过**
 
 Run: `pnpm --dir frontend run test -- --run src/app/features/preview/revealSourceLine.test.ts`
-Expected: PASS（11 个测试）
+Expected: PASS（10 个测试）
 
 - [ ] **Step 5: 提交**
 
