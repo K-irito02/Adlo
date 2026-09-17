@@ -71,6 +71,8 @@ describe('changes preview editor options', () => {
       ),
       'utf8',
     );
-    expect(changesPanelStateUtilsSource).toContain('editor.revealLineInCenter');
+    // Task 10 起直接 reveal 替换为越界守卫 helper（内部仍调用 revealLineInCenter）：先展开折叠区再揭示的顺序不变
+    expect(changesPanelStateUtilsSource).toContain('revealEditorLineSafely');
+    expect(changesPanelStateUtilsSource).toContain('uncollapseUnchanged');
   });
 });

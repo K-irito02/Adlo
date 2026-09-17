@@ -18,6 +18,7 @@ import { summarizePatchSet } from '@features/patch-review';
 import type { CopyDict } from '@app/i18n';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { categorizeFile } from '@regions/right-panel/fileTypeRouter';
+import { revealEditorLineSafely, revealSourceLine } from '@features/preview/revealSourceLine';
 import { normalizeWorkspaceRelativePath } from '@app/utils/workspacePaths';
 
 export function findCollapsedSectionStart(view: EditorView, targetLine: number): number | null {
@@ -239,10 +240,8 @@ export function revealOutlineLine(
   if (changePreview && categorizeFile(changePreview.path) === 'markdown' && previewEnabled) {
     const container = changesPreviewContainerRef.current;
     if (container) {
-      const heading = container.querySelector(`[data-source-line="${line}"]`) as HTMLElement | null;
-      if (heading) {
-        heading.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      // 变更面板不接检索词：直接复用与文件面板一致的块级跳转 + 闪烁，不做重定位
+      revealSourceLine(container, line, { flash: true });
     }
     return;
   }
@@ -266,9 +265,7 @@ export function revealOutlineLine(
         }
       }
     }
-    editor.revealLineInCenter?.(line);
-    editor.setPosition?.({ lineNumber: line, column: 1 });
-    editor.focus?.();
+    revealEditorLineSafely(editor, line, { scope: 'changes-panel', path: changePreview?.path });
   }
 }
 
