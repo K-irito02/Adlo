@@ -8,6 +8,10 @@ export type ChatMode = 'plan' | 'debug' | 'ask';
 export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
 export type FilesNavigatorMode = 'tree' | 'search' | 'outline';
 export type ChangesNavigatorMode = 'tree' | 'list' | 'outline';
+/** 检索文件模式下的结果展示形式：文件树 / 文件列表 /（选中文件的）文档大纲 */
+export type FilesSearchViewMode = 'tree' | 'list' | 'outline';
+/** 检索文件模式下的检索范围：文件名 / 文件内容 */
+export type FilesSearchScope = 'file' | 'content';
 
 export interface ContextChip {
   id: string;

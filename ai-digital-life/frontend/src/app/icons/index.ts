@@ -59,6 +59,8 @@ export {
   IconFileTree,
   IconNewFile,
   IconNewFolder,
+  IconSnippetCollapse,
+  IconSnippetExpand,
 } from './file';
 export {
   IconPlus,

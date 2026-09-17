@@ -8,9 +8,12 @@ import type { StoreState } from '../StoreState';
 export interface SearchSlice {
   searchQuery: string;
   searchResults: WorkspaceSearchHit[];
+  /** 是否正在检索中（防抖等待 + 后端请求期间为 true） */
+  searching: boolean;
 
   setSearchQuery: (query: string) => void;
   setSearchResults: (results: WorkspaceSearchHit[]) => void;
+  setSearching: (searching: boolean) => void;
   clearSearch: () => void;
 }
 
@@ -20,8 +23,10 @@ export const createSearchSlice = (
 ): SearchSlice => ({
   searchQuery: '',
   searchResults: [],
+  searching: false,
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSearchResults: (results) => set({ searchResults: results }),
-  clearSearch: () => set({ searchQuery: '', searchResults: [] }),
+  setSearching: (searching) => set({ searching }),
+  clearSearch: () => set({ searchQuery: '', searchResults: [], searching: false }),
 });

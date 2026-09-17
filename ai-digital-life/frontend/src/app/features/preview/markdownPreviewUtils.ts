@@ -70,6 +70,19 @@ function createMdInstance(): MarkdownIt {
     return defaultHeadingOpen(tokens, idx, options, env, self);
   };
 
+  // 块级源行映射（业界做法，参照 VS Code markdown preview 的 pluginSourceMap）：
+  // 为每个带 map 的块级 token 标注源行范围，使预览可跳转到任意行，而不仅限于标题。
+  // 语义：start = map[0] + 1（首行行号），end = map[1]（闭区间末行号，单行块 start === end）。
+  // 仅标题仍保留 data-source-line（文档大纲依赖它）。
+  md.core.ruler.push('adl-source-map', (state) => {
+    for (const token of state.tokens) {
+      if (token.map && token.type !== 'inline') {
+        token.attrSet('data-source-line-start', String(token.map[0] + 1));
+        token.attrSet('data-source-line-end', String(token.map[1]));
+      }
+    }
+  });
+
   return md;
 }
 

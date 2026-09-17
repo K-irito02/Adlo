@@ -1,4 +1,4 @@
-# Specs — 功能规格设计
+﻿# Specs — 功能规格设计
 
 本目录归档按日期组织的功能规格设计文档，按领域分类管理。
 
@@ -11,10 +11,11 @@
 | [git/](./git/) | Git 可视化规格设计 | 29 |
 | [multi-workspace/](./multi-workspace/) | 多工作区规格设计 | 6 |
 | [refactoring/](./refactoring/) | 重构/功能规格（含 spec.md + checklist.md + tasks.md 完整式） | 13 |
+| [search-freshness/](./search-freshness/) | 检索结果新鲜度（stale 自动重算 + 点击校验重定位） | 1 |
 | [ui/](./ui/) | UI/UX 通用规格设计（含 CI、启动、Provider、日历、模型设置等） | 17 |
 | [workspace/](./workspace/) | 工作区功能规格设计 | 5 |
 
-**总文件数：81**
+**总文件数：82**
 
 ## 归档约定
 

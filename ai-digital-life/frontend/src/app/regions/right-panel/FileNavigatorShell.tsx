@@ -7,6 +7,14 @@ import type {
 import { useTCopy } from '@i18n/useTCopy';
 import { IconReplace } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
+import { Spinner } from '@components/Spinner';
+import {
+  SearchResultsTree,
+  type SearchResultSection,
+  type SearchResultFile,
+  type SearchStructureSignal,
+  type SearchCollapseStatus,
+} from './SearchResultsTree';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { OutlineTree, getDefaultExpandedOutlineIds } from '@features/outline';
@@ -108,6 +116,10 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     setNavigatorMode,
     navigatorCollapsed,
     filesNavigatorWidth,
+    filesSearchView,
+    setFilesSearchView,
+    filesSearchScope,
+    setFilesSearchScope,
     setFileTreePathExpanded,
     toggleFileTreePath,
     expandFileTreePathChain,
@@ -123,6 +135,10 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       setNavigatorMode: s.setFilesNavigatorMode,
       navigatorCollapsed: s.navigatorCollapsedByTool.files,
       filesNavigatorWidth: s.filesNavigatorWidth,
+      filesSearchView: s.filesSearchView,
+      setFilesSearchView: s.setFilesSearchView,
+      filesSearchScope: s.filesSearchScope,
+      setFilesSearchScope: s.setFilesSearchScope,
       setFileTreePathExpanded: s.setFileTreePathExpanded,
       toggleFileTreePath: s.toggleFileTreePath,
       expandFileTreePathChain: s.expandFileTreePathChain,
@@ -137,6 +153,10 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const expandedPaths = useAppStore(useShallow((s) => s.expandedFileTreePaths));
   const workspaceTreeRefreshing = useAppStore(useShallow((s) => s.workspaceTreeRefreshing));
   const refreshingAllWorkspaces = useAppStore((s) => s.refreshingAllWorkspaces);
+  const searching = useAppStore((s) => s.searching);
+  // 回车确认的检索词：结果区一切（过滤/分组/空态/高亮）以它为准；
+  // 输入框草稿（searchQuery prop）仅控制输入值与回车提交，未回车不触发结果变化。
+  const committedSearchQuery = useAppStore((s) => s.searchQuery);
 
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   // 文件导航器"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载），
@@ -179,11 +199,198 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   });
 
   const searchPanel = useSearchPanel({
-    searchQuery,
+    searchQuery: committedSearchQuery,
     searchResults,
     fileContent: undefined,
     onReplace: (value: string) => onEditorChange(value),
   });
+
+  const filteredSearchResults = searchPanel.filteredResults;
+  const searchMatchCase = searchPanel.matchCase;
+
+  interface FileNameHit {
+    workspaceId: string;
+    path: string;
+    name: string;
+  }
+
+  // "文件"范围：仅按文件名匹配（目录路径不参与，避免无关文件出现）。
+  // 前端基于已加载的工作区树做包含匹配（后端仅支持内容检索，
+  // 不新增 IPC 以保持 Tauri/mock/preview/http 四端一致）。优先限定在用户点击选中的
+  // 工作区（activeWorkspaceId），未选中时回退到全部可见工作区。
+  const fileNameHits = useMemo(() => {
+    if (filesSearchScope !== 'file' || !committedSearchQuery.trim()) {
+      return [] as FileNameHit[];
+    }
+    const needle = searchMatchCase ? committedSearchQuery : committedSearchQuery.toLowerCase();
+    const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
+    const out: FileNameHit[] = [];
+    const MAX_FILE_HITS = 200;
+    for (const wsId of targetIds) {
+      const roots = workspaceTrees[wsId];
+      if (!roots || out.length >= MAX_FILE_HITS) {
+        continue;
+      }
+      const stack = [...roots];
+      while (stack.length > 0 && out.length < MAX_FILE_HITS) {
+        const node = stack.pop();
+        if (!node) {
+          continue;
+        }
+        if (node.kind === 'file') {
+          const hayName = searchMatchCase ? node.name : node.name.toLowerCase();
+          if (hayName.includes(needle)) {
+            out.push({ workspaceId: wsId, path: node.path, name: node.name });
+          }
+        } else if (node.children) {
+          stack.push(...node.children);
+        }
+      }
+    }
+    return out;
+  }, [
+    filesSearchScope,
+    committedSearchQuery,
+    searchMatchCase,
+    activeWorkspaceId,
+    visibleWorkspaces,
+    workspaceTrees,
+  ]);
+
+  const handleOpenFileNameHit = useCallback(
+    (hit: FileNameHit) => {
+      const ws = recentWorkspaces.find((w) => w.id === hit.workspaceId);
+      if (!ws) {
+        return;
+      }
+      const backendPath = appInfo?.currentWorkspace?.path;
+      if (backendPath && ws.path === backendPath) {
+        onOpenFile(hit.path);
+        return;
+      }
+      onOpenFileForWorkspace(ws.id, ws.path, hit.path);
+    },
+    [recentWorkspaces, appInfo?.currentWorkspace?.path, onOpenFile, onOpenFileForWorkspace],
+  );
+
+  // 检索范围展示名：内容检索以后端当前激活工作区为准；文件检索优先显示点击选中的工作区。
+  const searchScopeWorkspaceName =
+    filesSearchScope === 'file' && activeWorkspaceId
+      ? (visibleWorkspaces.find((w) => w.id === activeWorkspaceId)?.name ??
+        appInfo?.currentWorkspace?.name)
+      : appInfo?.currentWorkspace?.name;
+
+  // 搜索框占位提示“检索 xxx”（xxx = 所要检索的工作区名）；无工作区时回退通用文案。
+  const searchInputPlaceholder = searchScopeWorkspaceName
+    ? formatT(t, 'searchInputPlaceholder', { name: searchScopeWorkspaceName })
+    : (t.searchPanelSearch as string);
+
+  // 内容检索结果按文件分组（保持后端返回顺序），装配为变更面板同构的行数据。
+  const contentSections = useMemo<SearchResultSection[]>(() => {
+    if (filesSearchScope !== 'content' || !committedSearchQuery.trim()) {
+      return [];
+    }
+    const order: string[] = [];
+    const map = new Map<string, typeof filteredSearchResults>();
+    for (const result of filteredSearchResults) {
+      const arr = map.get(result.path);
+      if (arr) {
+        arr.push(result);
+      } else {
+        map.set(result.path, [result]);
+        order.push(result.path);
+      }
+    }
+    const backendPath = appInfo?.currentWorkspace?.path;
+    const wsId = recentWorkspaces.find((w) => w.path === backendPath)?.id ?? 'search-active';
+    const files: SearchResultFile[] = order.map((path) => {
+      const hits = map.get(path) ?? [];
+      const firstLine = hits[0]?.line ?? 1;
+      return {
+        key: path,
+        path,
+        name: path.slice(path.lastIndexOf('/') + 1),
+        matchCount: hits.length,
+        snippets: hits.map((hit) => ({
+          line: hit.line,
+          preview: hit.preview,
+          onOpen: () => onOpenFileAtLine(hit.path, hit.line),
+        })),
+        onOpen: () => onOpenFileAtLine(path, firstLine),
+        isActive: selectedFilePath === path,
+      };
+    });
+    if (files.length === 0) {
+      return [];
+    }
+    return [{ workspaceId: wsId, workspaceName: searchScopeWorkspaceName ?? '', files }];
+  }, [
+    filesSearchScope,
+    committedSearchQuery,
+    filteredSearchResults,
+    recentWorkspaces,
+    appInfo?.currentWorkspace?.path,
+    searchScopeWorkspaceName,
+    onOpenFileAtLine,
+    selectedFilePath,
+  ]);
+
+  // 文件检索结果按工作区分组，装配为变更面板同构的行数据。
+  const fileSections = useMemo<SearchResultSection[]>(() => {
+    if (filesSearchScope !== 'file') {
+      return [];
+    }
+    const order: string[] = [];
+    const map = new Map<string, typeof fileNameHits>();
+    for (const hit of fileNameHits) {
+      const arr = map.get(hit.workspaceId);
+      if (arr) {
+        arr.push(hit);
+      } else {
+        map.set(hit.workspaceId, [hit]);
+        order.push(hit.workspaceId);
+      }
+    }
+    const wsById = new Map(recentWorkspaces.map((w) => [w.id, w]));
+    return order.map((wsId) => ({
+      workspaceId: wsId,
+      workspaceName: wsById.get(wsId)?.name ?? '',
+      files: (map.get(wsId) ?? []).map((hit) => ({
+        key: hit.path,
+        path: hit.path,
+        name: hit.name,
+        snippets: [],
+        onOpen: () => handleOpenFileNameHit(hit),
+        isActive:
+          selectedFilePath === hit.path &&
+          (selectedFileWorkspaceId === wsId || !selectedFileWorkspaceId),
+      })),
+    }));
+  }, [
+    filesSearchScope,
+    fileNameHits,
+    recentWorkspaces,
+    selectedFilePath,
+    selectedFileWorkspaceId,
+    handleOpenFileNameHit,
+  ]);
+
+  const activeSections = filesSearchScope === 'content' ? contentSections : fileSections;
+
+  // 检索模式折叠全部/展开全部：内容范围作用全体片段，文件范围作用目录树
+  const [searchStructureSignal, setSearchStructureSignal] = useState<SearchStructureSignal | null>(
+    null,
+  );
+  const [searchCollapseStatus, setSearchCollapseStatus] = useState<SearchCollapseStatus>({
+    snippetsAllCollapsed: false,
+    dirsAllCollapsed: false,
+  });
+  const handleStructureSignalConsumed = useCallback(() => {
+    setSearchStructureSignal(null);
+  }, []);
+  const handleCollapseStatusChange = useCallback((status: SearchCollapseStatus) => {
+    setSearchCollapseStatus(status);
+  }, []);
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({
     onWidthCommit: useAppStore.getState().setFilesNavigatorWidth,
@@ -235,21 +442,52 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
   };
 
+  const inSearchMode = navigatorMode === 'search';
+  const inSearchResultsView = inSearchMode && filesSearchView !== 'outline';
+  // 检索模式的大纲视图与通常大纲视图共用同一套大纲折叠逻辑
+  const inOutlineView =
+    navigatorMode === 'outline' || (inSearchMode && filesSearchView === 'outline');
   const canToggleNavigatorStructure =
     navigatorMode === 'tree'
       ? visibleWorkspaces.length > 0
-      : navigatorMode === 'outline'
+      : inOutlineView
         ? hasExpandableOutlineItems
-        : false;
+        : inSearchResultsView
+          ? activeSections.length > 0 &&
+            (filesSearchScope === 'content' || filesSearchView === 'tree')
+          : false;
 
   const structureToggleExpanded =
     navigatorMode === 'tree'
       ? allExpanded
-      : navigatorMode === 'outline'
+      : inOutlineView
         ? hasExpandedOutlineItems
-        : false;
+        : inSearchResultsView
+          ? filesSearchScope === 'content'
+            ? !searchCollapseStatus.snippetsAllCollapsed
+            : !searchCollapseStatus.dirsAllCollapsed
+          : false;
 
   const handleToggleNavigatorStructure = () => {
+    if (inSearchResultsView) {
+      // 内容范围：全体片段收起/展开；文件范围：目录树收起/展开（列表视图无目录可折叠，已禁用）
+      if (filesSearchScope === 'content') {
+        const collapse = !searchCollapseStatus.snippetsAllCollapsed;
+        setSearchStructureSignal({
+          action: collapse ? 'collapse' : 'expand',
+          target: 'snippets',
+          nonce: Date.now(),
+        });
+      } else {
+        const collapse = !searchCollapseStatus.dirsAllCollapsed;
+        setSearchStructureSignal({
+          action: collapse ? 'collapse' : 'expand',
+          target: 'dirs',
+          nonce: Date.now(),
+        });
+      }
+      return;
+    }
     if (navigatorMode === 'tree') {
       if (allExpanded) {
         onCollapseAll();
@@ -258,7 +496,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       }
       return;
     }
-    if (navigatorMode === 'outline') {
+    if (inOutlineView) {
       handleToggleAllOutlineItems();
     }
   };
@@ -346,6 +584,11 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         isRefreshingAll={refreshingAllWorkspaces}
         onSetNavigatorMode={setNavigatorMode}
         fileCreation={fileCreation}
+        isSearchMode={navigatorMode === 'search'}
+        searchView={filesSearchView}
+        onSetSearchView={setFilesSearchView}
+        searchScope={filesSearchScope}
+        onSetSearchScope={setFilesSearchScope}
       />
 
       {navigatorMode === 'tree' ? (
@@ -394,8 +637,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                     onSearch(searchQuery);
                   }
                 }}
-                placeholder={t.searchPanelSearch as string}
-                aria-label={t.searchPanelSearch as string}
+                placeholder={searchInputPlaceholder}
+                aria-label={searchInputPlaceholder}
+                disabled={visibleWorkspaces.length === 0}
               />
               <div
                 className="adl-search-panel__toggles"
@@ -437,15 +681,17 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                 </TooltipSimple>
               </div>
             </label>
-            <button
-              type="button"
-              className={`adl-search-panel__toggle${searchPanel.replaceOpen ? ' is-open' : ''}`}
-              onClick={() => searchPanel.setReplaceOpen((v) => !v)}
-              aria-label={t.searchPanelToggleReplace as string}
-              aria-expanded={searchPanel.replaceOpen ? 'true' : 'false'}
-            >
-              <IconReplace size={12} decorative />
-            </button>
+            <TooltipSimple content={t.searchPanelToggleReplace} placement="top">
+              <button
+                type="button"
+                className={`adl-search-panel__toggle${searchPanel.replaceOpen ? ' is-open' : ''}`}
+                onClick={() => searchPanel.setReplaceOpen((v) => !v)}
+                aria-label={t.searchPanelToggleReplace as string}
+                aria-expanded={searchPanel.replaceOpen ? 'true' : 'false'}
+              >
+                <IconReplace size={12} decorative />
+              </button>
+            </TooltipSimple>
           </div>
 
           {searchPanel.replaceOpen ? (
@@ -464,7 +710,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                   type="button"
                   className="adl-search-panel__replacebtn"
                   onClick={searchPanel.handleReplace}
-                  disabled={!searchPanel.replaceQuery || !searchQuery}
+                  disabled={!searchPanel.replaceQuery || !committedSearchQuery}
                   aria-label={t.searchPanelReplaceAction as string}
                 >
                   <IconReplace size={14} decorative />
@@ -473,23 +719,47 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
             </div>
           ) : null}
 
-          {searchPanel.filteredResults.length > 0 ? (
-            <ul className="adl-tool-list adl-tool-list--search-results">
-              {searchPanel.filteredResults.map((result) => (
-                <li key={`${result.path}:${result.line}`}>
-                  <button
-                    type="button"
-                    className="adl-tool-list__item"
-                    onClick={() => onOpenFileAtLine(result.path, result.line)}
-                  >
-                    <span className="adl-tool-list__title">{result.path}</span>
-                    <small>{result.preview}</small>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
+          {visibleWorkspaces.length > 0 && searching ? (
+            <div className="adl-search-loading" role="status">
+              <Spinner size="sm" speed="normal" />
+              <span>{t.searchSearching as string}</span>
+            </div>
+          ) : null}
+
+          {visibleWorkspaces.length === 0 ? (
+            <p className="adl-empty-hint">{t.searchNoWorkspace as string}</p>
+          ) : filesSearchView === 'outline' ? (
+            selectedFilePath && outline.length > 0 ? (
+              <OutlineTree
+                items={outline}
+                onNavigate={(line) => onNavigateLine(line)}
+                expandLabel={t.expandDetails as string}
+                collapseLabel={t.collapseDetails as string}
+                expandedIds={expandedOutlineIds}
+                onExpandedIdsChange={setExpandedOutlineIds}
+              />
+            ) : (
+              <p className="adl-empty-hint">
+                {(selectedFilePath ? t.noDiagnostics : t.searchPlaceholder) as string}
+              </p>
+            )
+          ) : !committedSearchQuery.trim() ? (
             <p className="adl-empty-hint">{t.searchPlaceholder as string}</p>
+          ) : activeSections.length > 0 ? (
+            <SearchResultsTree
+              sections={activeSections}
+              variant={filesSearchView === 'tree' ? 'tree' : 'list'}
+              query={committedSearchQuery}
+              matchCase={searchMatchCase}
+              nameQuery={filesSearchScope === 'file' ? committedSearchQuery : ''}
+              expandLabel={t.expandDetails as string}
+              collapseLabel={t.collapseDetails as string}
+              structureSignal={searchStructureSignal}
+              onStructureSignalConsumed={handleStructureSignalConsumed}
+              onCollapseStatusChange={handleCollapseStatusChange}
+            />
+          ) : searching ? null : (
+            <p className="adl-empty-hint">{t.noResults as string}</p>
           )}
         </div>
       ) : null}

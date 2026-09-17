@@ -12,11 +12,12 @@
 | [infrastructure/](./infrastructure/) | 基础设施实施计划（磁盘清理等） | 1 |
 | [phase2/](./phase2/) | Phase 2 实施计划（Agent 核心、Provider 生态等） | 8 |
 | [refactoring/](./refactoring/) | 重构/代码质量/架构清理实施计划（按月归档） | 43 |
+| [search-freshness/](./search-freshness/) | 检索结果新鲜度（stale 自动重算 + 点击校验重定位） | 1 |
 | [startup/](./startup/) | 启动性能优化实施计划 | 4 |
 | [ui/](./ui/) | UI/UX 实施计划（含 i18n、CI、通知、主题、日历、模型设置等） | 21 |
 | [workspace/](./workspace/) | 工作区功能实施计划 | 5 |
 
-**总文件数：138**
+**总文件数：139**
 
 ## 归档约定
 

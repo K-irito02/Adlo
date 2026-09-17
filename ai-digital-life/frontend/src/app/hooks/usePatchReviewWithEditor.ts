@@ -6,10 +6,11 @@ import { usePatchReview } from './usePatchReview';
 import { useEditorReveal } from './useEditorReveal';
 
 export function usePatchReviewWithEditor() {
-  const { selectedFilePath, fileLastModifiedAt } = useAppStore(
+  const { selectedFilePath, fileLastModifiedAt, fileContent } = useAppStore(
     useShallow((s) => ({
       selectedFilePath: s.selectedFilePath,
       fileLastModifiedAt: s.fileLastModifiedAt,
+      fileContent: s.fileContent,
     })),
   );
   const actions = useAppActions();
@@ -40,6 +41,7 @@ export function usePatchReviewWithEditor() {
     { openFile: actions.openFile },
     pendingRevealRef,
     setPendingReveal,
+    fileContent,
   );
 
   return {

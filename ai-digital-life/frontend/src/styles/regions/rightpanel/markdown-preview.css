@@ -48,6 +48,33 @@
   margin-top: 0;
 }
 
+/* 检索跳转落点闪烁提示：短暂高亮后自动淡出（由 FilesPanel 添加/移除类） */
+@keyframes adl-md-flash-fade {
+  0%,
+  55% {
+    background-color: var(--warning-soft);
+    box-shadow: inset 3px 0 0 0 var(--warning);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 3px 0 0 0 transparent;
+  }
+}
+
+.adl-md-flash {
+  animation: adl-md-flash-fade 1.4s var(--ease-default) 1;
+  border-radius: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-md-flash {
+    animation: none;
+    background-color: var(--warning-soft);
+    box-shadow: inset 3px 0 0 0 var(--warning);
+    transition: background-color 0.2s linear;
+  }
+}
+
 .adl-markdown-preview > *:last-child {
   margin-bottom: 0;
 }

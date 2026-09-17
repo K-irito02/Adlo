@@ -57,16 +57,169 @@
 .adl-search-panel {
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
-  padding: 2px;
+  padding: 2px 0;
   gap: 4px;
   background: var(--bg);
+}
+
+/* 检索匹配高亮：项目黄色警示色（亮/暗主题分别取 --warning） */
+.adl-search-highlight {
+  background: var(--warning-soft);
+  color: var(--warning);
+  border-radius: 2px;
+  padding: 0 1px;
+}
+
+/* 加载态：纵向布局（动画上、文字下），在结果区居中 */
+.adl-search-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-6) 0;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+/* 内容片段行：行号首位与文件名称首位对齐（不含 logo 图标）。
+   文件名 x 推导（来自 file-tree-core / file-tree-lines / tree-shared）：
+     行内容起点 = li + 8（行基数）+ indent
+     文件名 = 行内容起点 + 24（图标 margin 6+16+2）+ 2（行 gap）
+              - 8（label 负 margin）+ 8（label padding）
+            = li + indent + 34
+   故按钮 padding-left = pull + indent + 34（pull 在负 margin 中相消，不影响文本 x），
+   行号列设左对齐，使数字首位恰好落在文件名首位。
+   --adl-search-pull 由 JS 按层级下发（根 4px + 14px/层），沿用文件行同款全幅
+   把戏使悬停背景左右贴合。 */
+.adl-search-snippet-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adl-search-snippet__btn {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  width: calc(100% + var(--adl-search-pull, 4px));
+  margin-inline-start: calc(-1 * var(--adl-search-pull, 4px));
+  padding: 1px 0 1px calc(var(--adl-search-pull, 4px) + var(--adl-tree-indent, 0px) + 34px);
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 11px;
+  line-height: 1.6;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adl-search-snippet__btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-search-snippet__line {
+  flex: 0 0 auto;
+  min-width: 24px;
+  text-align: left;
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.adl-search-snippet__preview {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 行悬停 → 展开/收起图标高亮传递（与 files-navigator 现有规则同语义）：
+   只覆盖本行 toggle 与直接子级 toggles（兄弟选择器天然精确，不随 li 冒泡点亮父链） */
+.adl-search-results .adl-filetree__row:hover .adl-filetree__toggle,
+.adl-search-results .adl-filetree__row:hover ~ .adl-filetree__children .adl-filetree__toggle {
+  color: var(--text-primary);
+}
+
+.adl-search-results .adl-multitree-entry__header:hover .adl-multitree-entry__expand-btn {
+  color: var(--text-primary);
+}
+
+/* 片段折叠/展开按钮垂直居中。注：tree-shared.css 已有全局
+   .adl-filetree__meta{align-self:center}，此处保留作用域显式声明以防加载顺序差异。 */
+.adl-search-results .adl-filetree__meta {
+  align-self: center;
+}
+
+/* 静态树连接线：虚拟化的固定 28px 线高在此不适用。
+   改为结构性画法——线画在"子级 ul"上，其高度即整棵子树（从首个子项顶到末个子项底），
+   上下各外扩 1px 桥接 ul 的 1px gap，故线沿子树连续到底、与下一同级项衔接无断口。
+   li 自身不再画线（避免与 28px 回退值叠加）。x 与 FileTree 一致：
+   li 左缘 + 18 + indent（恰好穿过该目录的 chevron 中心）。 */
+.adl-search-results .adl-filetree__item::before {
+  display: none;
+}
+
+.adl-search-results .adl-filetree__children {
+  position: relative;
+}
+
+.adl-search-results .adl-filetree__children::before {
+  content: '';
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  left: calc(18px + var(--adl-tree-indent, 0px));
+  width: 1px;
+  background: color-mix(in srgb, var(--border) 78%, transparent);
+}
+
+/* 文件悬停：右侧计数隐藏，片段折叠/展开按钮显现 */
+.adl-search-results .adl-search-file__snippet-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.adl-search-results .adl-filetree__row:hover .adl-search-file__snippet-toggle {
+  display: inline-flex;
+}
+
+.adl-search-results .adl-search-file__snippet-toggle:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-search-results .adl-filetree__row:hover .adl-search-file__count {
+  display: none;
+}
+
+/* 导航工具栏第二行的文件/内容分段控制器：紧凑尺寸，与 24px 图标按钮协调。
+   作用域限定在 navigator 内，不影响变更面板顶栏的内联/并排分段。 */
+.adl-tool-navigator__context .adl-tool-context__toggle-btn {
+  min-height: 22px;
+  padding: 0 var(--space-1-5);
+  font-size: 11px;
+  line-height: 1;
 }
 
 .adl-search-panel__controls {
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 0 2px;
 }
 
 .adl-search-panel__toggles {

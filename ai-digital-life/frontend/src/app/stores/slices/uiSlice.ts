@@ -2,7 +2,13 @@
  * UI 切片
  * 管理通用的 UI 状态
  */
-import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
+import type {
+  ToolId,
+  FilesNavigatorMode,
+  ChangesNavigatorMode,
+  FilesSearchViewMode,
+  FilesSearchScope,
+} from '../types';
 import type { StoreState } from '../StoreState';
 import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
 import { readFlag, writeFlag, readJson, writeJson, makePersistedWriter } from '../shared';
@@ -23,6 +29,8 @@ import {
   FILE_PREVIEW_MODE_KEY,
   FILES_NAVIGATOR_MODE_KEY,
   CHANGES_NAVIGATOR_MODE_KEY,
+  FILES_SEARCH_VIEW_KEY,
+  FILES_SEARCH_SCOPE_KEY,
   FILE_TREE_EXPANDED_KEY,
   CHANGES_TREE_EXPANDED_KEY,
 } from './uiSliceTypes';
@@ -55,6 +63,8 @@ export {
   CHANGES_TREE_EXPANDED_KEY,
   FILES_NAVIGATOR_MODE_KEY,
   CHANGES_NAVIGATOR_MODE_KEY,
+  FILES_SEARCH_VIEW_KEY,
+  FILES_SEARCH_SCOPE_KEY,
   FILE_PREVIEW_MODE_KEY,
   ACTIVE_HEATMAP_TAB_KEY,
   ACTIVE_WORKSPACE_TAB_KEY,
@@ -116,6 +126,8 @@ function hydrateUIDefaults(
     const expandedChangesTreePaths = readJson<TreeExpansionState>(CHANGES_TREE_EXPANDED_KEY, {});
     const filesNavigatorMode = readFilesNavigatorMode();
     const changesNavigatorMode = readChangesNavigatorMode();
+    const filesSearchView = readFilesSearchView();
+    const filesSearchScope = readFilesSearchScope();
     const filePreviewModeByPath = readJson<FilePreviewModeState>(FILE_PREVIEW_MODE_KEY, {});
     const changesPreviewEnabled = readFlag(CHANGES_PREVIEW_ENABLED_KEY, true);
     const showGitVisualization = readFlag(SHOW_GIT_VISUALIZATION_KEY, false);
@@ -136,6 +148,8 @@ function hydrateUIDefaults(
       expandedChangesTreePaths,
       filesNavigatorMode,
       changesNavigatorMode,
+      filesSearchView,
+      filesSearchScope,
       filePreviewModeByPath,
       changesPreviewEnabled,
       showGitVisualization,
@@ -172,6 +186,45 @@ function writeFilesNavigatorMode(mode: FilesNavigatorMode): void {
   }
 }
 
+function readFilesSearchView(): FilesSearchViewMode {
+  try {
+    const raw = window.localStorage.getItem(FILES_SEARCH_VIEW_KEY);
+    if (raw === 'tree' || raw === 'list' || raw === 'outline') {
+      return raw;
+    }
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
+  }
+  return 'list';
+}
+
+function writeFilesSearchView(view: FilesSearchViewMode): void {
+  try {
+    window.localStorage.setItem(FILES_SEARCH_VIEW_KEY, view);
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
+  }
+}
+
+function readFilesSearchScope(): FilesSearchScope {
+  try {
+    const raw = window.localStorage.getItem(FILES_SEARCH_SCOPE_KEY);
+    if (raw === 'file' || raw === 'content') {
+      return raw;
+    }
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
+  }
+  return 'content';
+}
+
+function writeFilesSearchScope(scope: FilesSearchScope): void {
+  try {
+    window.localStorage.setItem(FILES_SEARCH_SCOPE_KEY, scope);
+  } catch (err) {
+    console.warn('uiSlice: localStorage operation failed:', err);
+  }
+}
 function readChangesNavigatorMode(): ChangesNavigatorMode {
   try {
     const raw = window.localStorage.getItem(CHANGES_NAVIGATOR_MODE_KEY);
@@ -208,6 +261,8 @@ export const createUISlice = (
     isFetching: {},
     filesNavigatorMode: 'tree',
     changesNavigatorMode: 'tree',
+    filesSearchView: 'list',
+    filesSearchScope: 'content',
     filePreviewModeByPath: {},
     changesPreviewEnabled: true,
     showGitVisualization: false,
@@ -230,6 +285,14 @@ export const createUISlice = (
     setFilesNavigatorMode: (mode) => {
       writeFilesNavigatorMode(mode);
       set({ filesNavigatorMode: mode });
+    },
+    setFilesSearchView: (view) => {
+      writeFilesSearchView(view);
+      set({ filesSearchView: view });
+    },
+    setFilesSearchScope: (scope) => {
+      writeFilesSearchScope(scope);
+      set({ filesSearchScope: scope });
     },
     setFilePreviewModeForPath: (path, previewEnabled) =>
       set((state) => {

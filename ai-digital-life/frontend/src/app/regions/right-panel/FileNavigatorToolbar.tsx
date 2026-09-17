@@ -4,6 +4,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import {
   IconNewFile,
   IconFiles,
+  IconFileText,
   IconFoldVertical,
   IconNewFolder,
   IconList,
@@ -12,6 +13,7 @@ import {
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { UseFileCreationResult } from './hooks';
+import type { FilesSearchScope, FilesSearchViewMode } from '@stores/types';
 
 interface FileNavigatorToolbarProps {
   navigatorTitle: string;
@@ -25,6 +27,13 @@ interface FileNavigatorToolbarProps {
   isRefreshingAll: boolean;
   onSetNavigatorMode: (mode: 'tree' | 'search' | 'outline') => void;
   fileCreation: UseFileCreationResult;
+  /** 是否处于检索文件模式：第二行切换为检索结果视图按钮，并隐藏新建文件/文件夹 */
+  isSearchMode: boolean;
+  searchView: FilesSearchViewMode;
+  onSetSearchView: (view: FilesSearchViewMode) => void;
+  /** 检索范围分段控制器：占据原新建文件/文件夹按钮位置 */
+  searchScope: FilesSearchScope;
+  onSetSearchScope: (scope: FilesSearchScope) => void;
 }
 
 const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
@@ -39,6 +48,11 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
   isRefreshingAll,
   onSetNavigatorMode,
   fileCreation,
+  isSearchMode,
+  searchView,
+  onSetSearchView,
+  searchScope,
+  onSetSearchScope,
 }: FileNavigatorToolbarProps) {
   const { t } = useTCopy();
 
@@ -88,51 +102,120 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
       </div>
       <div className="adl-tool-navigator__context adl-tool-navigator__context--secondary">
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--actions">
-          <TooltipSimple content={t.fileTreeView} placement="top">
-            <button
-              type="button"
-              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tree' ? ' is-active' : ''}`}
-              onClick={() => onSetNavigatorMode('tree')}
-              aria-label={t.fileTreeView as string}
-              aria-pressed={navigatorMode === 'tree' ? 'true' : 'false'}
-            >
-              <IconFiles size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.changesOutline} placement="top">
-            <button
-              type="button"
-              className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'outline' ? ' is-active' : ''}`}
-              onClick={() => onSetNavigatorMode('outline')}
-              aria-label={(outline.length > 0 ? t.outline : t.toolFiles) as string}
-              aria-pressed={navigatorMode === 'outline' ? 'true' : 'false'}
-            >
-              <IconList size={14} decorative />
-            </button>
-          </TooltipSimple>
+          {isSearchMode ? (
+            <>
+              <TooltipSimple content={t.fileTreeView} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${searchView === 'tree' ? ' is-active' : ''}`}
+                  onClick={() => onSetSearchView('tree')}
+                  aria-label={t.fileTreeView as string}
+                  aria-pressed={searchView === 'tree' ? 'true' : 'false'}
+                >
+                  <IconFiles size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content={t.searchListView} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${searchView === 'list' ? ' is-active' : ''}`}
+                  onClick={() => onSetSearchView('list')}
+                  aria-label={t.searchListView as string}
+                  aria-pressed={searchView === 'list' ? 'true' : 'false'}
+                >
+                  <IconFileText size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content={t.outline} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${searchView === 'outline' ? ' is-active' : ''}`}
+                  onClick={() => onSetSearchView('outline')}
+                  aria-label={t.outline as string}
+                  aria-pressed={searchView === 'outline' ? 'true' : 'false'}
+                >
+                  <IconList size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </>
+          ) : (
+            <>
+              <TooltipSimple content={t.fileTreeView} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'tree' ? ' is-active' : ''}`}
+                  onClick={() => onSetNavigatorMode('tree')}
+                  aria-label={t.fileTreeView as string}
+                  aria-pressed={navigatorMode === 'tree' ? 'true' : 'false'}
+                >
+                  <IconFiles size={14} decorative />
+                </button>
+              </TooltipSimple>
+              <TooltipSimple content={t.changesOutline} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn adl-tool-navigator__context-btn${navigatorMode === 'outline' ? ' is-active' : ''}`}
+                  onClick={() => onSetNavigatorMode('outline')}
+                  aria-label={(outline.length > 0 ? t.outline : t.toolFiles) as string}
+                  aria-pressed={navigatorMode === 'outline' ? 'true' : 'false'}
+                >
+                  <IconList size={14} decorative />
+                </button>
+              </TooltipSimple>
+            </>
+          )}
         </div>
-        <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
-          <TooltipSimple content={t.fileNewFile} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn adl-tool-navigator__create-action"
-              onClick={() => fileCreation.startCreate('file')}
-              aria-label={t.fileNewFile as string}
-            >
-              <IconNewFile size={14} decorative />
-            </button>
-          </TooltipSimple>
-          <TooltipSimple content={t.fileNewFolder} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn adl-tool-navigator__create-action"
-              onClick={() => fileCreation.startCreate('folder')}
-              aria-label={t.fileNewFolder as string}
-            >
-              <IconNewFolder size={14} decorative />
-            </button>
-          </TooltipSimple>
-        </div>
+        {isSearchMode ? (
+          <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+            <TooltipSimple content={t.searchScopeLabel} placement="top">
+              <div
+                className="adl-tool-context__diff-view"
+                role="group"
+                aria-label={t.searchScopeLabel as string}
+              >
+                <button
+                  type="button"
+                  className={`adl-tool-context__toggle-btn${searchScope === 'file' ? ' is-active' : ''}`}
+                  aria-pressed={searchScope === 'file' ? 'true' : 'false'}
+                  onClick={() => onSetSearchScope('file')}
+                >
+                  {t.searchScopeFile}
+                </button>
+                <button
+                  type="button"
+                  className={`adl-tool-context__toggle-btn${searchScope === 'content' ? ' is-active' : ''}`}
+                  aria-pressed={searchScope === 'content' ? 'true' : 'false'}
+                  onClick={() => onSetSearchScope('content')}
+                >
+                  {t.searchScopeContent}
+                </button>
+              </div>
+            </TooltipSimple>
+          </div>
+        ) : (
+          <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
+            <TooltipSimple content={t.fileNewFile} placement="top">
+              <button
+                type="button"
+                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn adl-tool-navigator__create-action"
+                onClick={() => fileCreation.startCreate('file')}
+                aria-label={t.fileNewFile as string}
+              >
+                <IconNewFile size={14} decorative />
+              </button>
+            </TooltipSimple>
+            <TooltipSimple content={t.fileNewFolder} placement="top">
+              <button
+                type="button"
+                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn adl-tool-navigator__create-action"
+                onClick={() => fileCreation.startCreate('folder')}
+                aria-label={t.fileNewFolder as string}
+              >
+                <IconNewFolder size={14} decorative />
+              </button>
+            </TooltipSimple>
+          </div>
+        )}
       </div>
     </>
   );

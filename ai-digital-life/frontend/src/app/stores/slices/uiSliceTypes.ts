@@ -2,7 +2,13 @@
  * UI 切片类型和常量
  * 从 uiSlice.ts 提取，供 uiSlice.ts 和消费者使用
  */
-import type { ToolId, FilesNavigatorMode, ChangesNavigatorMode } from '../types';
+import type {
+  ToolId,
+  FilesNavigatorMode,
+  ChangesNavigatorMode,
+  FilesSearchViewMode,
+  FilesSearchScope,
+} from '../types';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
 
 // ════════════════════════════════════════════════════════
@@ -21,6 +27,8 @@ export const FILE_TREE_EXPANDED_KEY = 'adl-ui:file-tree-expanded';
 export const CHANGES_TREE_EXPANDED_KEY = 'adl-ui:changes-tree-expanded';
 export const FILES_NAVIGATOR_MODE_KEY = 'adl-ui:files-navigator-mode';
 export const CHANGES_NAVIGATOR_MODE_KEY = 'adl-ui:changes-navigator-mode';
+export const FILES_SEARCH_VIEW_KEY = 'adl-ui:files-search-view';
+export const FILES_SEARCH_SCOPE_KEY = 'adl-ui:files-search-scope';
 export const FILE_PREVIEW_MODE_KEY = 'adl-ui:file-preview-mode';
 export const CHANGES_PREVIEW_ENABLED_KEY = 'adl-ui:changes-preview-enabled';
 export const SESSION_TABS_EXPANDED_KEY = 'adl-ui:session-tabs-expanded';
@@ -88,6 +96,8 @@ export interface UISlice {
   expandedChangesTreePaths: TreeExpansionState;
   filesNavigatorMode: FilesNavigatorMode;
   changesNavigatorMode: ChangesNavigatorMode;
+  filesSearchView: FilesSearchViewMode;
+  filesSearchScope: FilesSearchScope;
   filePreviewModeByPath: FilePreviewModeState;
   changesPreviewEnabled: boolean;
   showGitVisualization: boolean;
@@ -120,6 +130,8 @@ export interface UISlice {
   expandFileTreePathChain: (workspaceId: string, path: string) => void;
   collapseAllFileTreePaths: (workspaceId: string) => void;
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
+  setFilesSearchView: (view: FilesSearchViewMode) => void;
+  setFilesSearchScope: (scope: FilesSearchScope) => void;
   setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
   carryFilePreviewModeForRename: (oldPath: string, newPath: string) => void;
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
