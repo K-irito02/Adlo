@@ -308,6 +308,7 @@ dependencies = [
  "adl-fs-ops",
  "adl-outline",
  "adl-types",
+ "notify",
  "serde",
  "tokio",
  "tracing",

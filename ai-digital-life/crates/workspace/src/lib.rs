@@ -6,6 +6,7 @@ mod git;
 pub(crate) mod preview;
 mod search;
 mod tree;
+mod watch;
 
 pub use detect::{
     detect_root, open_workspace, stable_workspace_id, strip_verbatim_prefix, workspace_type,
@@ -26,6 +27,7 @@ pub use tree::{
     build_retrieval_snapshot, build_retrieval_snapshot_async, invalidate_tree_cache, list_tree,
     list_tree_cached, list_tree_force,
 };
+pub use watch::{FilesChangedBatch, WorkspaceWatcher};
 
 use adl_errors::AppError;
 use adl_types::FileOutlineItem;

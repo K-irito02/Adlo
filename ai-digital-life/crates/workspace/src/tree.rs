@@ -134,7 +134,7 @@ pub fn list_tree_force(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> 
     Ok(tree)
 }
 
-fn ignored_dirs() -> &'static HashSet<&'static str> {
+pub(crate) fn ignored_dirs() -> &'static HashSet<&'static str> {
     static IGNORED_DIRS: OnceLock<HashSet<&'static str>> = OnceLock::new();
     IGNORED_DIRS.get_or_init(|| {
         HashSet::from([
@@ -548,7 +548,7 @@ fn collect_text_files_inner_int(
     Ok(())
 }
 
-fn should_ignore(name: &str) -> bool {
+pub(crate) fn should_ignore(name: &str) -> bool {
     ignored_dirs().contains(name)
 }
 

@@ -12,6 +12,7 @@ adl-errors = { path = "../errors" }
 adl-fs-ops = { path = "../fs-ops" }
 adl-outline = { path = "../outline" }
 serde.workspace = true
+notify.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 uuid.workspace = true
