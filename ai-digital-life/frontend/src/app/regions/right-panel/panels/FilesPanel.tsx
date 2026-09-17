@@ -276,6 +276,22 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           }
           return;
         }
+        // 锚点已挂载但 helper 未命中（行在首块之前）：兜底首块，与旧 candidates[0] 回退一致
+        const firstAnchor = surface?.querySelector<HTMLElement>('[data-source-line-start]');
+        if (firstAnchor) {
+          firstAnchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          firstAnchor.classList.remove('adl-md-flash');
+          // 强制重排以便连续跳转时动画可重放
+          void firstAnchor.offsetWidth;
+          firstAnchor.classList.add('adl-md-flash');
+          window.setTimeout(() => firstAnchor.classList.remove('adl-md-flash'), 1400);
+          debugNavigate('preview', { line, fallbackFirst: true });
+          if (previewRevealTimerRef.current !== undefined) {
+            window.clearInterval(previewRevealTimerRef.current);
+            previewRevealTimerRef.current = undefined;
+          }
+          return;
+        }
         // 未挂载（懒加载）→ 保持 60ms 重试，上限 2.5s 后放弃
         if (Date.now() - startedAt > 2500) {
           debugNavigate('preview-give-up', { line });
