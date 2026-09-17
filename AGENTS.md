@@ -33,13 +33,11 @@
 >
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
-## 当前阶段
+## 项目形态（完整形态，不分阶段）
 
-| Phase | 状态 | 范围 |
-|-------|------|------|
-| Phase 0 | ✅ 已完成 | 架构底座、桌面壳层、安全边界、基础设施 |
+本项目不做分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入与编排能力不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染）。
 
-技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。
+技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。范围边界与排除项见 [phase-boundary.md](.agents/rules/phase-boundary.md)。
 
 ## 重构历史
 
@@ -117,7 +115,7 @@ TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/
 ## 相关文档
 
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
-- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 远期规划
+- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
 - [SECURITY.md](./SECURITY.md) — 安全策略

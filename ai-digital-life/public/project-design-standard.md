@@ -1,10 +1,10 @@
 # AI 数字生命 · 项目设计标准
 
-> **版本**：v2.0
+> **版本**：v3.0
 >
-> **说明**：基于 Pi × OpenCode 源码核对 + 现状对齐修订。v1.0 的 8 处引用偏差已修正，新增决策 13/14。本文件为项目架构真源之一，重大修改需同步评审。
+> **说明**：v3.0 剥离已失效的自研 Agent 体系表述——Agent 对话、模型接入与编排交由第三方 harness（当前为 deepseek dsh）提供，本仓库仅做宿主集成；取消分阶段规划，当前实现即完整形态（桌面应用宿主 + 第三方 harness 集成）。自研 Agent 相关决策（02/03/04/05/06/08/09/11）标退役存档，仅保留决策记录；现行决策改写对齐宿主现状。本文件为项目架构真源之一，重大修改需同步评审。
 >
-> **生成/升版时间**：2026-08-05
+> **生成/升版时间**：2026-09-17
 >
 > **同源 HTML 版**：[project-design-standard.html](./project-design-standard.html)（渲染展示用，内容与此 Markdown 同步）
 
@@ -31,180 +31,105 @@
 
 | 统计项 | 数量 |
 |--------|------|
-| 核心决策项 | 14 |
-| 架构层级 | 5 |
-| 关键风险对策 | 7 |
-| 演化阶段 | 3 |
+| 核心决策项 | 14（现行 6 + 退役存档 8） |
+| 宿主架构层级 | 4 + 外部 harness 进程 |
+| 关键风险对策 | 5 |
 
-**核心公式**："Pi 的轻量骨架" + "OpenCode 的功能血肉" = "可控、可扩展、体验好"的编码代理。
+**核心公式**："桌面应用宿主（工作区 / 终端 / 编辑器 / 浏览器 / 存储 / 系统能力）" + "第三方 harness 的 Agent 能力" = 当前即完整形态，不分阶段。
 
 ---
 
 ## Section 01 · 14 项核心决策矩阵
 
-> 每一项决策均对照 Pi 与 OpenCode 真实源码核对，并结合项目现状修订。凡属自研抽象均已明确标注。
+> 现行决策（01/07/10/12/13/14）描述宿主现状；退役决策（02/03/04/05/06/08/09/11）仅保留决策记录，其"已落地"表述已失效——自研 Agent 体系随 dsh 剥离删除，能力由第三方 harness 提供。凡属自研抽象均已明确标注。
 
-### 决策 01 · 架构风格（混合方案）
+### 决策 01 · 架构风格（混合方案，现行）
 
-**选择**：分层主体 + 关键模块插件化
+**选择**：分层宿主 + 第三方 harness 集成
 
-主体采用分层架构保证清晰可控，关键扩展点（模型 Provider、外部工具、自定义 Agent）采用插件化。插件化在 Rust 内核层通过 trait + registry 落地，前端仅通过 IPC 消费能力，双端一致。
+主体采用分层架构保证清晰可控：UI → Bridge → Backend 命令 → Domain crates → 存储，层间单向依赖。Agent 对话、模型接入与编排不由本仓库实现，宿主通过第三方 harness 集成提供 Agent 能力（当前为 deepseek dsh：`crates/webapp-host` 进程托管、`dsh-bundle` / `dsh-version` 版本管理、`download-source` 下载源/镜像、中间区宿主渲染）。
 
-| 分层架构 | 插件化模块 |
-|----------|-----------|
-| 层间单向依赖，结构清晰 | Provider、工具、Agent 可插拔 |
-| 上手快，调试方便 | Rust trait + registry 落地 |
-| 适合项目早期 | 为未来扩展留空间 |
+| 分层宿主 | harness 集成 |
+|----------|--------------|
+| 层间单向依赖，结构清晰 | Agent 能力由外部 harness 提供 |
+| 上手快，调试方便 | 本仓库仅负责进程托管与宿主渲染 |
+| 双端一致（三桥接对齐） | 换 harness 不改宿主主体 |
 
-**为什么这样选**：分层保证项目早期开发效率，关键模块插件化则避免了"大泥球"风险——新增 Provider 或工具不需要改动核心层代码。已落地的 `ProviderRegistry`、`AgentRegistry`、`ToolRegistry` 即此决策的体现。
-
----
-
-### 决策 02 · Agent 设计（来自 Pi）
-
-**选择**：状态持有 + 事件订阅（Pi 模式）
-
-Agent 持有 state（messages + 上下文），通过 `subscribe()` 对外通知，流程线性可预测。状态由事件驱动更新（`processEvents` 归约），扩展可订阅事件流。
-
-| 控制方式 | 扩展方式 |
-|----------|----------|
-| 事件发布/订阅模式 | 订阅生命周期事件介入 |
-| subscribe() 监听事件 | Pi 共 33 个事件类型 |
-| 流程顺序确定 | 事件流可追踪调试 |
-
-**为什么这样选**：编码代理的核心流程是线性的（接收 Prompt → 思考 → 调用工具 → 生成回复），状态驱动让这条主线清晰可控，调试效率远高于策略路由。Pi 的真实实现是"可变状态对象 + 事件驱动更新"，本项目沿用该模式，不引入纯函数式事件溯源。
+**为什么这样选**：分层保证宿主清晰可控、双端行为一致；Agent 体系自研成本高且与宿主正交，交由专业第三方 harness（deepseek dsh）提供，宿主只保留集成面（拉起、版本、渲染），避免"大泥球"。
 
 ---
 
-### 决策 03 · 会话管理（来自 OpenCode）
+### 决策 02 · Agent 设计（⛔ 已退役·存档）
 
-**选择**：上下文 Epoch（**自研抽象**）
+> **退役原因**：自研 Agent 体系已随 dsh 剥离删除（Pi 式"状态持有 + 事件订阅"Agent 不再由本仓库实现）。Agent 对话与编排能力由第三方 harness（当前为 deepseek dsh）提供，本仓库仅做宿主集成。以下为历史决策记录，不作为实现依据。
 
-以 Epoch（一次 Prompt→Response 周期）为会话逻辑单元，四阶段框架为项目自研简化模型，映射到现有的 message / run 记录，不直接对应任何参考项目的内部结构。
-
-| 阶段管理 | 压缩机制 |
-|----------|----------|
-| 每个 Epoch 明确阶段 | 超过阈值自动触发 |
-| token 计数精确 | 保留最近 N 轮 turn |
-| 映射现有 message/run | 长会话无感运行 |
-
-**为什么这样选**：
-
-> ⚠️ **版本说明**：OpenCode 并无"四阶段 Epoch 状态机"——其真实结构是 12 类 Part（Text/Tool/StepStart 等）+ PromptAdmitted/Prompted 事件 + Tool 事件，且 Epoch 一词在 OpenCode 中指系统上下文基线快照。本决策将 Epoch 定义为**自研逻辑抽象**，目的是给长会话管理一个清晰"骨架"，与现有 message/run 结构对齐。
+原选择（历史）：状态持有 + 事件订阅（Pi 模式）——Agent 持有 state（messages + 上下文），通过 `subscribe()` 对外通知，状态由事件驱动更新。
 
 ---
 
-### 决策 04 · 工具系统（来自 Pi）
+### 决策 03 · 会话管理（⛔ 已退役·存档）
 
-**选择**：注册中心 + 运行时参数校验
+> **退役原因**：上下文 Epoch（自研抽象）随 Agent 会话体系一并剥离，`session/agent/provider/command/compaction/sessionFork` 前端领域已删除（见 `StoreState.ts`）。长会话管理由第三方 harness 负责。以下为历史决策记录，不作为实现依据。
 
-通过工具注册中心（`ToolRegistry`）动态注册工具，参数 Schema 运行时校验，新增工具零侵入核心。Pi 采用 **TypeBox**（`Type.Object` 为其 Schema 语法）做运行时校验，本项目在 Rust 侧用类型化结构体 + serde 落地同等的运行时校验能力。
-
-| 注册方式 | 执行流程 |
-|----------|----------|
-| registry.register() 调用 | execute(ctx) → result |
-| parameters 运行时校验 | 流式反馈支持 |
-| 新增工具零侵入核心 | 取消机制 |
-
-**为什么这样选**：编码代理的工具数量不会爆炸级增长（核心工具几十个足够），不需要 Effect-TS 级别的类型安全——快速开发、快速迭代更重要。
-
-> ⚠️ **版本说明**：v1.0 曾写"Type.Object 运行时参数校验"，易被误读为 zod；Pi 实际使用 **TypeBox**（pi-ai 直接 re-export `Type from "typebox"`），此处已修正。
+原选择（历史）：上下文 Epoch（自研抽象）——以一次 Prompt→Response 周期为会话逻辑单元。
 
 ---
 
-### 决策 05 · 扩展机制（来自 Pi）
+### 决策 04 · 工具系统（⛔ 已退役·存档）
 
-**选择**：Rust 层生命周期钩子（**目标态**）
+> **退役原因**：`ToolRegistry` 及 Agent 工具注册体系已从 Rust/前端实现中移除，不再由本仓库提供。以下为历史决策记录，不作为实现依据。
 
-以 Rust trait + hooks 链注册到内核层，监听 Agent 全生命周期事件。
-
-> ⚠️ **现状**：后端暂无独立 Plugin hooks 系统，工具级注册已通过 `ToolRegistry` 落地，生命周期钩子为待建设项（见演进路线·当前缺口）。
-
-| 生命周期钩子 | 能力扩展 |
-|--------------|----------|
-| Prompt 前预处理输入 | 注册工具、Agent |
-| Tool 调用后处理结果 | 修改系统提示词 |
-| 消息更新时修改输出 | Rust trait + Vec 有序注册 |
-
-**为什么这样选**：与"状态驱动 Agent"天然契合——状态变更的关键节点就是事件钩子的切入点。
-
-> ⚠️ **版本说明**：v1.0 引用的 `onBeforePrompt` / `onAfterToolCall` / `onMessageUpdate` 是 Claude Code 风格命名，Pi 实际为 `on("event_name")` 分发（共 33 个事件，如 `before_agent_start` / `tool_result` / `message_update`）。本项目改为 Rust 层 trait 钩子，名称以 Rust 习惯为准，不再照搬任一项目命名。
+原选择（历史）：注册中心 + 运行时参数校验——通过工具注册中心动态注册工具，参数 Schema 运行时校验（Pi 用 TypeBox，本项目 Rust 侧用类型化结构体 + serde）。
 
 ---
 
-### 决策 06 · 模型集成（来自 OpenCode）
+### 决策 05 · 扩展机制（⛔ 已退役·存档）
 
-**选择**：动态 Provider 注册
+> **退役原因**：Rust 层 Agent 生命周期钩子（目标态）不再建设——其依附的 Agent 体系已剥离。宿主扩展点为新增 Tauri Command / capability / 存储分类（须遵循对应规则）。以下为历史决策记录，不作为实现依据。
 
-配置文件声明 Provider（endpoint / options / enabled），运行时动态加载实例。
-
-> ✅ **已落地**：`crates/model-gateway` 的 `ProviderRegistry` + (provider, model) 对路由 + SSE 真实流式传输。
-
-| 注册方式 | 策略控制 |
-|----------|----------|
-| 配置文件声明式注册 | Provider allow/deny 策略 |
-| ProviderRegistry 管理 | 模型选择策略 |
-| 即插即用，无需改代码 | 动态模型获取 fetch_models |
-
-**为什么这样选**：与 `ProviderRegistry` 现有实现完全兼容，用户在配置中新增 Provider 即可立刻使用——是"插件化架构"在模型层的具体落地。与 OpenCode 的 `Provider.Service` 注册表思路一致，亦与 Pi 的 `registerProvider` 扩展 API 兼容。
+原选择（历史）：Rust 层生命周期钩子（目标态）——以 Rust trait + hooks 链监听 Agent 全生命周期事件。
 
 ---
 
-### 决策 07 · 状态管理（混合方案）
+### 决策 06 · 模型集成（⛔ 已退役·存档）
 
-**选择**：SQLite 存储 + 增量事件流抽象
+> **退役原因**：`crates/model-gateway`、`ProviderRegistry`、(provider, model) 对路由、SSE 流式传输、`ProviderManager` / `ModelPicker` UI 已全部从实现中移除（`RightPanel` 测试断言其不被引用）。模型接入由第三方 harness 提供，本仓库不做内置模型管理。以下为历史决策记录，不作为实现依据。
 
-事件按 append-only 语义写入 SQLite 会话表，当前 state = fold(events, initial) 归约得出。SQLite 为存储介质，事件流为逻辑抽象，兼顾现状与事件溯源收益。
+原选择（历史）：动态 Provider 注册——配置文件声明 Provider，运行时动态加载实例，`ProviderRegistry` 管理 + 动态模型获取。
+
+---
+
+### 决策 07 · 宿主数据存储（混合方案，现行）
+
+**选择**：SQLite + 文件 + storage-locator 统一解析
+
+所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析，locator 文件记录指针；SQLite（rusqlite）存结构化状态（工作区、补丁快照索引、站点元数据、剪贴板等），文件存大体量内容（终端历史归档、日志、dsh bundle）。路径变更走启动期迁移（复制 → 校验 → 切换指针 → 清理旧源），不做运行中热迁移。
 
 | 存储 | 恢复 |
 |------|------|
-| SQLite 追加行 O(1) 高效 | fold 归约重放事件 |
-| 完整可追溯时间线 | 配合快照加速 |
-| 天然支持时间旅行 | 支持回放任意点 |
+| SQLite 结构化状态 | locator 指针 + 启动期迁移 |
+| 文件存归档/日志/bundle | 失败不切换指针、不删源文件 |
+| 统一根 / 每类独立两模式 | 设置面板存储组统一管理 |
 
-**为什么这样选**：与"原生 Fork"和"上下文 Epoch"必须配套——DAG 分支的每个节点就是一个事件序列的分叉点，增量事件流让分支创建零拷贝成本。
+**为什么这样选**：宿主数据以"可迁移、可解释"为先——locator 指针让数据目录整体可搬，分类路径让用户按需安置；迁移只在启动期、任何 DB/日志句柄打开前执行，从机制上避开"持有句柄搬文件"。
 
-> ⚠️ **版本说明**：v1.0 写"JSONL 追加写"不准确——OpenCode 实际用 **SQLite**（drizzle），JSONL 仅用于调试日志；Pi 的 JSONL 是 append-only entry 树，落盘的是每轮最终 entry，并非 token 级事件流。本项目定为 **SQLite 介质 + 事件流逻辑抽象**（fold 归约在 SQLite 表上实现），不引入 JSONL。
-
----
-
-### 决策 08 · 压缩策略（来自 OpenCode）
-
-**选择**：自动阈值触发
-
-超过 token 阈值自动压缩早期内容，保留最近 N 轮 turn + 保护区 token，用户零感知。
-
-> ✅ **已落地**：`PRUNE_MINIMUM=20K` 触发 / `PRUNE_PROTECT=40K` 保护区 / 保留最近 2 轮 turn + 2K~8K token。
-
-| 触发条件 | 压缩范围 |
-|----------|----------|
-| token 计数超阈值 | 保留最近 N 轮 turn |
-| PRUNE_MINIMUM=20K 触发 | 保护区 token（2K~8K） |
-| 压缩前可选通知用户 | 更早内容生成摘要 |
-
-**为什么这样选**：编码任务是超长会话，用户不应该被"请压缩上下文"打断。自动压缩在后台悄悄完成，配合 turn 粒度可以精准决定"保留哪些、压缩哪些"。
-
-> ⚠️ **版本说明**：v1.0 写"保留最近 N 个 Epoch"单位有误——OpenCode 实际保留最近 N 轮 turn（tail_turns 默认 2）+ token 保护区（2K~8K），本项目的 `PRUNE_MINIMUM` / `PRUNE_PROTECT` / `DEFAULT_TAIL_TURNS` 常量即源于此，已按真实机制修正。
+> ⚠️ **版本说明**：原"SQLite 介质 + 事件流逻辑抽象（fold 归约）/ Epoch 分组"已随 Agent 会话体系退役，不再作为宿主存储模型。
 
 ---
 
-### 决策 09 · 会话分支（来自 Pi）
+### 决策 08 · 压缩策略（⛔ 已退役·存档）
 
-**选择**：原生 Fork（DAG / 树结构）
+> **退役原因**：`PRUNE_MINIMUM` / `PRUNE_PROTECT` 自动阈值压缩随 Agent 会话体系一并移除，代码中已无残留。长会话压缩由第三方 harness 负责。以下为历史决策记录，不作为实现依据。
 
-任意会话点创建分支，子分支继承父上下文，形成有向无环图（DAG / 树）。
+原选择（历史）：自动阈值触发——超过 token 阈值自动压缩早期内容，保留最近 N 轮 turn + 保护区 token。
 
-> ✅ **已落地**：`session_fork` 命令 + `forkSession`/`listSessionForks` IPC + 前端 Fork UI。
+---
 
-| 数据模型 | 使用场景 |
-|----------|----------|
-| 每个节点有 parentId | 探索不同方案对比 |
-| 每个节点标记 branchId | Agent 行为调试 |
-| 天然零拷贝分支 | 方案 A/B 测试 |
+### 决策 09 · 会话分支（⛔ 已退役·存档）
 
-**为什么这样选**：这是产品差异化核心功能——"让用户尝试不同方案对比优劣"是编码代理的高频场景，与增量事件流组合后，分支创建几乎是零成本的。
+> **退役原因**：`session_fork` 命令、`forkSession` / `listSessionForks` IPC 与前端 Fork UI 已全部移除，代码中已无残留。会话分支能力（如需）由第三方 harness 提供。以下为历史决策记录，不作为实现依据。
 
-> ✅ **真实来源**：Pi 的 session-manager 即 append-only 树（每 entry 带 parentId，`branch()`/`fork()` 移动 leaf 指针不改历史），本项目 Fork 机制与其同构。
+原选择（历史）：原生 Fork（DAG / 树结构）——任意会话点创建分支，子分支继承父上下文（与 Pi session-manager 的 append-only 树同构）。
 
 ---
 
@@ -214,7 +139,7 @@ Agent 持有 state（messages + 上下文），通过 `subscribe()` 对外通知
 
 充足留白、卡片化布局、流畅动画过渡，视觉层次清晰，强调品牌感和体验愉悦感。
 
-> ✅ **已落地**：CSS 设计 Token（亮暗主题）+ 自定义 Tooltip/滚动条 + i18n 936 keys。
+> ✅ **已落地**：CSS 设计 Token（亮暗主题）+ 自定义 Tooltip/滚动条 + i18n（22 领域）。
 
 | 视觉原则 | 交互原则 |
 |----------|----------|
@@ -228,37 +153,25 @@ Agent 持有 state（messages + 上下文），通过 `subscribe()` 对外通知
 
 ---
 
-### 决策 11 · 热重载能力（来自 OpenCode）
+### 决策 11 · 热重载能力（⛔ 已退役·存档）
 
-**选择**：配置级热重载
+> **退役原因**：Hot Reloadable Config（配置热重载）随 Agent 配置体系一并移除，代码中已无残留。宿主配置变更经设置面板落盘，需要重启生效的项由 UI 明确提示。以下为历史决策记录，不作为实现依据。
 
-配置、Provider 配置、Skill 文件变更即时生效，无需重启 Agent。**代码级热重载（插件源码改完即生效）明确不在本期范围**。
-
-> ✅ **已落地**：Hot Reloadable Config（配置热重载）。
-
-| 覆盖范围 | 实现思路 |
-|----------|----------|
-| 配置文件变更即时生效 | 文件系统 watcher 监听 |
-| Provider 配置与注册 | 重建派生配置状态 |
-| Skill 指令文件 | 代码级变更需重启 |
-
-**为什么这样选**：开发者体验是"数字生命"产品的灵魂——写 Skill、调 Provider 配置时，"改完立刻生效" vs "重启应用等 10 秒"，体验差一个数量级。
-
-> ⚠️ **版本说明**：v1.0 声称"插件/代码即时生效、无需重启"不属实——OpenCode 只有 RPC 触发的全量实例重建，Pi 也无代码级热重载。配置级热重载即可覆盖高频开发者体验诉求，代码级热重载列为远期实验（不承诺）。
+原选择（历史）：配置级热重载——配置、Provider 配置、Skill 文件变更即时生效，代码级热重载明确不承诺。
 
 ---
 
-### 决策 12 · 错误处理（来自 OpenCode）
+### 决策 12 · 错误处理（来自 OpenCode，现行）
 
 **选择**：双端结构化错误（Rust Result + TS 归类）
 
-Rust 侧 `Result<T, AppError>` 结构化传播，前端 `captureTypedError` 统一归类，结构化 JSONL 日志可追溯。**不再引入"统一 Error Channel 总线"**。
+Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/工作区/配置/IO/迁移/安全/审批/补丁/终端/模型/超时/限流/认证/网络等），前端 `captureTypedError` 统一归类，结构化 JSONL 日志可追溯。**不再引入"统一 Error Channel 总线"**。
 
 | 错误分类 | 处理流程 |
 |----------|----------|
 | UserError（用户操作） | Result<T, AppError> 传播 |
 | SystemError（系统异常） | captureTypedError 归类 |
-| ProviderError（模型层） | 结构化 JSONL 日志 |
+| ExternalError（外部依赖：harness 进程/网络/下载源） | 结构化 JSONL 日志 |
 
 **为什么这样选**：
 
@@ -294,250 +207,180 @@ Rust 侧 `Result<T, AppError>` 结构化传播，前端 `captureTypedError` 统�
 |----------|----------|
 | keyring 系统凭据库 | WebView 不直接访问系统能力 |
 | 加密文件降级 | capabilities 白名单（禁通配） |
-| 禁止写入配置/日志 | Ruleset 权限（Allow/Ask/Deny） |
+| 禁止写入配置/日志 | 敏感操作审批确认（ApprovalRequired） |
 
-**为什么这样选**：项目治理硬规则（见 AGENTS.md 安全边界与禁止项）。Pi 明确无内置权限系统（依赖容器化隔离），OpenCode 有完整 Rule/Ruleset 权限体系——本项目取其精华，落地为 Rust 侧 Ruleset + capabilities 白名单，且禁止 `"all"` / `"**"` 通配。
+**为什么这样选**：项目治理硬规则（见 AGENTS.md 安全边界与禁止项）。Pi 明确无内置权限系统（依赖容器化隔离），OpenCode 有完整 Rule/Ruleset 权限体系可作借鉴——本项目取其思路，落地为 capabilities 白名单（禁 `"all"` / `"**"` 通配）+ 敏感操作审批确认（`ApprovalRequired`），Agent 侧 Ruleset 已随 Agent 体系退役。
 
 ---
 
 ## Section 02 · 设计哲学与核心原则
 
-### Pi 基因 · 轻量高效内核
+> Pi 与 OpenCode 作为**参考项目**（设计模式借鉴与源码查阅，见首节），其 Agent 体系相关借鉴已随自研 Agent 剥离退役；以下仅保留对宿主仍有指导意义的部分。
 
-**我们吸收的：**
+### Pi 基因 · 轻量高效内核（历史借鉴）
 
-- 状态驱动 Agent：线性流程、可预测、易调试
-- 事件订阅扩展：subscribe() + 33 个生命周期事件
-- 工具注册中心：新增工具不改核心（ToolRegistry）
-- 原生 Fork：append-only 树 + parentId 零拷贝分支
-- 自动阈值压缩：DEFAULT_COMPACTION_SETTINGS 默认开启
+**仍有效的：**
+
+- 分层清晰、内核轻量：宿主只做工作区/终端/编辑器/浏览器/存储，不背 Agent 包袱
+- 纯 SQLite 存储（JSONL 仅作调试日志）
+
+**已退役的（随 Agent 体系剥离）：**
+
+- 状态驱动 Agent、事件订阅扩展（33 个生命周期事件）
+- 工具注册中心（ToolRegistry）、原生 Fork、自动阈值压缩
 
 **我们刻意不选的：**
 
 - TUI 优先的极简 UI（不符合桌面用户预期）
-- 无内置权限系统（依赖容器化，本项目需内置 Ruleset）
 - 纯 JSONL 存储（项目采用 SQLite，JSONL 仅作调试日志）
 
-### OpenCode 基因 · 完整功能体系
+### OpenCode 基因 · 完整功能体系（历史借鉴）
 
-**我们吸收的：**
+**仍有效的：**
 
-- 动态 Provider 注册：即插即用模型接入（Provider.Service）
-- 自动阈值压缩：PRUNE_MINIMUM/保护区 + 摘要
-- 类型化错误分类：fromError() 归一化思路
+- 类型化错误分类：fromError() 归一化思路（对齐本项目 Result + captureTypedError）
 - 精致 UI：审美与交互范式（非组件复用）
-- Ruleset 权限：Allow/Ask/Deny + 通配匹配
-- 配置热重载：改动配置无需重启
+
+**已退役的（随 Agent 体系剥离）：**
+
+- 动态 Provider 注册（Provider.Service）、自动阈值压缩、Ruleset 权限、配置热重载
 
 **我们刻意不选的：**
 
 - Effect-TS 函数式编程（学习曲线陡）
-- SQLite 直存全量状态（我们叠加事件流逻辑抽象）
 - 代码级热重载（两项目均未实现，不承诺）
 - 单一 Error Channel 总线（实际为多通道类型化错误）
 
 ### 🎯 组合公式
 
 ```text
-// 核心内核（决定流程可控性）
-Agent 核心 = Pi 状态持有 + 事件订阅 + Epoch 抽象（自研）
+// 宿主主体（决定应用边界）
+宿主 = 工作区管理 + 交互式终端 + 编辑器/预览/差异 + 内置浏览器 + 存储治理 + 系统能力
 
-// 扩展能力（决定开发效率）
-扩展层    = Pi 工具注册中心 + 生命周期事件 + OpenCode 动态 Provider + Ruleset
+// Agent 能力（决定智能上限，由外部提供）
+智能层 = 第三方 harness（当前为 deepseek dsh：进程托管 + 版本管理 + 宿主渲染）
 
-// 会话持久化（决定长会话体验）
-会话层    = Pi 原生 Fork (树) + SQLite + 事件流逻辑抽象 + 自动压缩
-
-// 用户体验（决定产品印象）
-表现层    = OpenCode 精致 UI + 配置热重载 + 双端结构化错误
+// 双端与质量（决定体验下限）
+体验层 = Tauri/浏览器双端行为一致 + 设计 Token + i18n + 双端结构化错误
 
 // 一句话总结
-"Pi 的轻量骨架" + "OpenCode 的功能血肉" = "可控、可扩展、体验好"的编码代理
+"专注的宿主" + "专业的 harness" = "完整形态，不分阶段"
 ```
 
 ---
 
 ## Section 03 · 架构蓝图
 
-> 五层架构：UI 层 → 桥接层 → Agent 层 → 内核层 → 持久化层，每层职责明确。
+> 四层宿主：UI 层 → 桥接层 → 后端命令层 → 存储层，每层职责明确；第三方 harness 作为外部进程由宿主拉起与渲染，不在层内。
 
 ### 👨‍💻 专业视角
 
-采用分层 + 插件化混合架构。严格遵循层间单向依赖原则：**UI → Bridge → Agent → Core → Storage**。插件通过 Core 层的 Extension Manager 注入，不允许跨层直接调用。关键契约（IPC 接口、工具定义）使用 TypeScript 类型作为单一真源。
+采用分层宿主架构。严格遵循层间单向依赖原则：**UI → Bridge → Backend Commands → Storage**。前端经三桥接（tauri-bridge / preview-bridge / mock-bridge）调用统一 IPC，经 `#[tauri::command]`（桌面）或 HTTP（浏览器预览）到达 Rust domain crates。第三方 harness（deepseek dsh）为外部进程：`webapp-host` 负责拉起与健康检查，`dsh-bundle` / `dsh-version` 管版本，中间区负责渲染（Tauri 独立 WebView2 子窗口 / 浏览器 iframe）。关键契约（IPC 接口、共享类型）使用 TypeScript 类型作为单一真源（Rust→TS 自动生成）。
 
 ### 🧑 通俗视角
 
-把系统想象成一家餐厅：
+把系统想象成一家餐厅 + 外请主厨：
 
 1. 顾客（用户）在前台（UI）点餐
 2. 服务员（Bridge）把订单传给后厨
-3. 主厨（Agent）看菜单，决定怎么做
-4. 帮厨（Core 工具）切菜、炒菜、装盘
-5. 传菜口（Storage）存着做好的菜和历史订单
+3. 后厨（Backend 命令 + domain crates）备菜、存档、记账
+4. 冷库（Storage）存着食材和历史订单
+5. 主厨（第三方 harness，外请）只管做"智能菜"，上菜口（中间区渲染）由餐厅提供
 
-想加新菜品？不需要装修后厨，找帮厨登记一下就行。
+想换主厨？不用装修餐厅，换个外请团队就行。
 
-### 五层架构图
+### 四层架构图
 
 > ⬇️ 依赖方向：上层依赖下层，下层不得依赖上层
 
 **🎨 UI 表现层**
-`React 组件` `设计系统 Token` `会话视图 (DAG 可视化)` `面板 (工具/设置)` `热重载 UI`
+`React 组件` `设计系统 Token` `工作区/终端/编辑器/浏览器面板` `设置（含存储组/dsh 设置）` `i18n`
 
 **🌉 桥接层**
 `Tauri Bridge (桌面)` `Preview Bridge (浏览器)` `Mock Bridge (测试)` `IPC 契约统一`
 
-**🤖 Agent 层（状态驱动 · 来自 Pi）**
-`Agent Runtime` `事件订阅 (subscribe)` `AgentRegistry / Router` `生命周期钩子（目标态）` `工具注册中心 (ToolRegistry)`
+**⚙️ 后端命令层**
+`Tauri Commands / HTTP handlers` `Domain Crates（workspace/command/pty/browser/clipboard/credential/storage…）` `结构化错误 (AppError)` `capabilities 白名单`
 
-**⚙️ 内核层（插件化模块）**
-`工具注册中心 （Pi 风格）` `ProviderRegistry （OpenCode 风格）` `模型调用网关 (ModelGateway)` `结构化错误 (AppError)` `配置热重载管理器` `Ruleset 权限门禁`
+**💾 存储层**
+`SQLite 状态（工作区/补丁快照索引/站点元数据/剪贴板…）` `文件（终端历史归档/日志/dsh bundle）` `storage-locator 指针` `启动期迁移`
 
-**💾 持久化层（SQLite + 事件流逻辑抽象）**
-`SQLite 会话存储` `会话 Fork（树结构）` `Snapshot 快照索引 (加速恢复)` `压缩后摘要 (CompactionPart)` `结构化日志`
+**🤖 外部 harness（非层内，宿主集成）**
+`webapp-host 拉起 + 健康检查` `dsh-bundle 内嵌版本` `dsh-version 系统版本检测/升级回退` `download-source 下载源/镜像` `中间区宿主渲染`
 
-### 🔌 插件化扩展点（关键模块）
+### 🔌 宿主集成点（harness 相关）
 
-**🧩 Agent / 工具扩展点**
+**🧩 进程托管**
 
-- `ToolRegistry.register()` — 注册新工具
-- `AgentRegistry.register()` — 注册自定义 Agent
-- 生命周期钩子（目标态，Rust trait）
-- 事件订阅（Pi 33 事件启发）
+- `webapp-host` 拉起 dsh 进程，就绪探测 + 失败重试 + `.cmd` 回退（Windows）
+- Tauri 独立 WebView2 子窗口承载，`browser_set_bounds` 跟随布局
 
-**🔌 Provider 扩展点**
+**📦 版本管理**
 
-- 配置文件声明式注册
-- endpoint / options / enabled
-- 兼容 OpenAI / Anthropic 契约
-- `ProviderRegistry.register()` 动态注册
-- 配置热重载立即生效
+- 内嵌版本（`dsh-bundle`：manifest + package 校验）与系统版本（PATH 检测）双源
+- 查最新 / 升级 / 回退 / 卸载（npm registry + 可配镜像）
 
-**📜 Skill 扩展点**
+**🖥️ 宿主渲染**
 
-- Markdown 文件 + Frontmatter
-- name / description / setup
-- 文件 watcher 自动热重载
-- 触发时注入 system prompt
-- 内置使用示例 / 步骤说明
+- 浏览器模式：iframe + 加载失败时外部打开兜底
+- 右面板遮挡时经 State + MutationObserver 协同隐藏 WebView（WebView2 为 OS 级表面，不可用 z-index 覆盖）
 
 ---
 
-## Section 04 · 核心数据模型
+## Section 04 · 宿主数据模型
 
-> SQLite 存储上的事件流逻辑抽象 + Epoch + 树形分支的组合数据结构，这是整个项目最复杂的部分。
+> locator 指针 + SQLite 状态 + 文件归档的组合，这是宿主数据面的全貌。原"事件流 + Epoch + 会话树"模型已随 Agent 会话体系退役（见决策 03/07/09 存档）。
 
 ### 👨‍💻 专业视角
 
-当前 state 由 `fold(events, initialState)` 归约得出，不直接存储为完整快照。每个 Event 是不可变记录，以 append-only 语义写入 SQLite 会话事件表。Epoch 作为事件的逻辑分组，对应一次完整的 Prompt→Response 周期（自研抽象）。树形分支通过 parentId 形成，不做物理拷贝。定期生成 snapshot 加速重放（snapshot + 其后 events = 当前 state）。
+所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析，locator 文件（`<config_dir>/ai-digital-life/storage-locator.json`）记录指针，默认统一根为 `app_data_dir()`。SQLite 存结构化状态，文件存大体量内容；路径变更登记为 `pendingMigration`，在下次启动、任何 DB/日志句柄打开前执行迁移。
 
 ### 🧑 通俗视角
 
-想象拍视频（增量事件流）而不是拍照片（全量快照）：
+想象搬家公司 + 档案室：
 
-- 视频的每一帧就是一个 Event
-- 一段连续的镜头就是一个 Epoch
-- 想分镜（Fork）就从某帧开始另拍一条线
-- 视频太长（上下文超限）就把前面剪成精华版（压缩）
-- 为了跳过片头，每隔一段时间存一个"关键帧"（snapshot）
-- 所有素材统一存在一个"数据库仓库"（SQLite）里，而不是散落的视频文件
+- locator 是"新家地址卡"，所有东西按卡上的地址放
+- SQLite 是档案柜：工作区清单、补丁快照索引、网站元数据、剪贴板各就各位
+- 文件是仓库：终端历史归档、日志、dsh 安装包放架子上
+- 搬家（迁移）只在开门前进行：先复印、再验货、再换地址卡，最后清理旧家；验货失败就不换卡，旧家东西完好
 
-### 📦 数据模型定义
+### 📦 存储布局
 
-```ts
-// ===== 会话存储核心类型（SQLite 事件表 + 逻辑抽象） =====
-
-type EventID = string;  // ULID：时间有序，支持排序
-type EpochID = string;
-type BranchID = string;
-type SessionID = string;
-
-// EventType 为自研简化模型：对齐现有 message/run 结构，非借鉴任何参考项目
-enum EventType {
-  PROMPT_ADMITTED = "prompt_admitted",
-  PROMPTED        = "prompted",
-  TOOL_CALL       = "tool_call",
-  TOOL_RESULT     = "tool_result",
-  MESSAGE_UPDATE  = "message_update",
-  EPOCH_COMPACTED = "epoch_compacted",
-  BRANCH_CREATED  = "branch_created",
-}
-
-// 不可变事件 —— 只能追加，不能修改（append-only 写入 SQLite 事件表）
-interface Event<T = unknown> {
-  id: EventID;
-  type: EventType;
-  epochId: EpochID;
-  branchId: BranchID;
-  sessionId: SessionID;
-  parentEventId: EventID | null;  // 树形链，用于 Fork
-  timestamp: number;
-  payload: T;
-}
-
-// ===== Epoch（一次 Prompt → Response 周期，自研抽象） =====
-enum EpochKind {
-  FULL    = "full",       // 完整 Epoch，事件都在
-  COMPACT = "compact",    // 压缩 Epoch，仅存摘要
-}
-
-interface Epoch {
-  id: EpochID;
-  branchId: BranchID;
-  parentEpochId: EpochID | null;  // 形成树
-  kind: EpochKind;
-  tokenCount: number;
-  summary?: string;  // COMPACT 模式的摘要
-  eventIds: EventID[];
-  createdAt: number;
-}
-
-// ===== Snapshot（加速恢复的关键帧） =====
-interface Snapshot {
-  id: string;
-  branchId: BranchID;
-  lastEventId: EventID;   // snapshot 覆盖到这个事件为止
-  state: AgentState;        // 归约后的完整 state
-  createdAt: number;
-}
-
-// ===== AgentState（fold 归约结果） =====
-interface AgentState {
-  messages: Message[];
-  contextTokens: number;
-  currentEpochId: EpochID | null;
-  activeBranchId: BranchID;
-  toolStates: Record<string, unknown>;
-}
-
-// ===== 恢复算法伪代码 =====
-function restoreState(sessionId, branchId) {
-  // 1. 找最新 snapshot
-  const snap = findLatestSnapshot(sessionId, branchId);
-  // 2. 取 snap 之后的事件（增量）
-  const events = loadEventsSince(sessionId, branchId, snap.lastEventId);
-  // 3. fold 归约 = 增量还原
-  return events.reduce((state, event) => applyEvent(state, event), snap.state);
-}
+```text
+<统一根>/
+├── database            # 主 SQLite：工作区、补丁快照索引等结构化状态
+├── downloads_db        # 浏览器下载记录库
+├── site_meta_db        # 站点元数据缓存（favicon data-URI + 标题）
+├── config              # 应用配置
+├── clipboard           # 剪贴板历史
+├── snapshot            # 补丁快照（原硬编码路径已收敛至此）
+├── dsh/                # dsh 相关
+│   ├── dsh-bundle/     # 内嵌版本（manifest.json + package/ + version.txt）
+│   └── …               # 版本管理数据
+├── logs/               # 日志（debug 构建另写仓库根 .adl-logs）
+└── credentials_fallback# keyring 不可用时的加密文件降级
 ```
+
+- 可迁移 9 分类（顺序与 `StorageCategory::key()` 一致）：`database`、`downloads_db`、`site_meta_db`、`config`、`clipboard`、`snapshot`、`dsh`、`logs`、`credentials_fallback`；另有 1 设置值路径（`downloads_default`，仅记录不迁移）与不可移动项（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）
+- 迁移语义：按分类复制 → 校验（尺寸 + SQLite `PRAGMA quick_check`）→ 切换 locator 指针并落盘 → 清理旧源（base-aware 白名单，外部文件永不删除）；失败不切换指针、不删源、不自动重试
+- 终端历史：会话结束即定稿归档，按标签累积跨重启保留，超磁盘预算时最旧优先整段淘汰（始终保留最近 20 段）
 
 ---
 
 ## Section 05 · 关键风险与应对
 
-> 14 项决策之间存在兼容性挑战。提前识别风险，准备对应策略。
+> 宿主 + 外部 harness 形态下的主要风险。原 Agent 体系风险（事件树/压缩/钩子/Provider token）已随退役失效，不再列出。
 
-### 风险 01 · 增量事件 + 树形分支 + 自动压缩
+### 风险 01 · dsh 宿主进程托管可靠性
 
-三者叠加的数据结构复杂度极高。增量事件是线性序列，但分支要求树结构，自动压缩又需要理解"哪些事件属于哪个分支"。一个节点压缩错了可能导致整条分支损坏。**本项目坚持任意节点 Fork，复杂度风险需以机制化解而非功能缩水。**
+dsh 为外部进程：拉起失败、端口占用、版本不匹配、进程意外退出都会让中间区无内容可渲染。
 
 **✅ 应对策略**
 
-1. 每个事件同时记录 branchId + parentEventId，通过索引表维护分支树
-2. **父节点冻结**：已作为其他分支父节点的事件不可再增子节点，防止树结构退化
-3. 压缩时仅处理该分支的祖先链（从叶子向上回溯），不跨分支
-4. 压缩前先生成 snapshot 备份，压缩失败可回滚
-5. 任意节点 Fork：通过 parentId 定位分叉点，新分支只复制指向（引用共享），不物理拷贝
+1. `webapp-host` 拉起后做就绪探测，失败重试；Windows 下先直调、失败回退 `.cmd`
+2. 系统 dsh 与内嵌 bundle 双源：优先可用源，检测经缓存避免重复探测
+3. 版本管理支持查最新 / 升级 / 回退 / 卸载，升级失败保留旧版可用
+4. 浏览器模式 iframe 加载被拒（X-Frame-Options / CSP）时退化为"外部打开"按钮
 
 ### 风险 02 · 结构化错误 vs 现有 captureTypedError
 
@@ -546,56 +389,34 @@ function restoreState(sessionId, branchId) {
 **✅ 应对策略**
 
 1. 不引入"统一 Error Channel 总线"，对齐现有双端体系
-2. Rust 侧：`Result<T, AppError>` 结构化传播，分类 User/System/Provider
+2. Rust 侧：`Result<T, AppError>` 结构化传播，`ErrorKind` 全覆盖分类
 3. 前端：captureTypedError 统一归类 + 结构化 JSONL 日志
 4. 新增模块沿用现有模式，不做"大爆炸"式重构
 
-### 风险 03 · 配置热重载 + 状态一致性
+### 风险 03 · 存储迁移丢数据
 
-配置热重载时，运行中的 Agent 可能持有旧配置引用（如旧 Provider endpoint），与热重载后的新配置不一致。
-
-**✅ 应对策略**
-
-1. 明确热重载范围：仅配置文件 / Provider 配置 / Skill 文件，不含代码
-2. 热重载流程：重新加载配置 → 重建派生状态（Provider 实例、Agent 配置）
-3. 运行中的请求不中断，下次调用采用新配置
-4. 配置校验失败时保留旧配置并告警，不回滚到损坏状态
-5. 代码级热重载明确不承诺（两参考项目均未实现）
-
-### 风险 04 · 生命周期钩子 + 事件流完整性
-
-Agent 生命周期钩子（Rust trait，目标态）介入输入/输出时，这些介入操作本身需被记录，否则会话重放恢复时钩子行为无法重放，导致结果不一致。
+路径变更涉及搬运 SQLite 与大文件：中途失败、句柄占用、目标不可写都可能丢数据或留双份。
 
 **✅ 应对策略**
 
-1. 要求：钩子若修改输入/输出，必须将修改内容注入到事件 payload 中
-2. Prompt 前预处理返回新 Prompt 时，自动生成 `PROMPT_MODIFIED` 事件
-3. 工具结果修改时，生成 `TOOL_RESULT_MODIFIED` 事件
-4. 文档明确：钩子只做副作用（发通知、写日志）不要求记录；但改数据必须记录
+1. 只在启动期、任何 DB/日志句柄打开前迁移，不做运行中热迁移
+2. 按分类复制 → 校验（尺寸 + `PRAGMA quick_check`）→ 切换指针 → 清理旧源
+3. 失败不切换指针、不删源文件、不自动重试，等用户在设置中重试或取消
+4. 清理用 base-aware 白名单，外部文件永不删除；预检用 `.adl-write-probe` 探测目标可写性
 
-### 风险 05 · 动态 Provider + 自动压缩阈值
+### 风险 04 · 设计感 UI + Tauri 双端一致性
 
-不同 Provider 的 token 计算标准不一致（OpenAI 用 tiktoken，Anthropic 另有算法）。如果中途切换 Provider，token 计数基线变化，可能导致"以为没超阈值，实际超了"，触发模型错误。
-
-**✅ 应对策略**
-
-1. 压缩阈值采用保守策略：以最大 token 上限的 80% 作为触发线
-2. 切换 Provider 时，强制重新计算当前 context tokens（用新 Provider 的 tokenizer）
-3. 存储中同时保存"字符数"作为兜底参考，字符数阈值也触发压缩检查
-4. Provider 契约要求暴露 `getTokenizer()` 方法，供上层使用
-
-### 风险 06 · 设计感 UI + Tauri 双端一致性
-
-浏览器预览（Chromium）和 Tauri 桌面（WebView2）的渲染引擎差异、系统字体差异、DPI 缩放差异，可能导致精致 UI 在 WebView2 中"看起来不精致"（字体发虚、动画掉帧、颜色偏差）。
+浏览器预览（Chromium）和 Tauri 桌面（WebView2）的渲染引擎差异、系统字体差异、DPI 缩放差异，可能导致精致 UI 在 WebView2 中"看起来不精致"（字体发虚、动画掉帧、颜色偏差）。WebView2 为 OS 级渲染表面，CSS z-index 无法覆盖。
 
 **✅ 应对策略**
 
 1. 设计 Token 必须抽象：颜色、字号、间距全部用 CSS 变量，平台层覆盖
 2. 字体栈优先用 Web Font（Inter / HarmonyOS Sans），不依赖系统字体
 3. 关键组件建立"双端验证清单"，每次修改后人工确认两端表现一致
-4. 启用 CSS `will-change` + `transform` 动画，避免重排导致的掉帧
+4. 浮动层出现时经 `browser_set_bounds` 移出 WebView（State + MutationObserver 双路检测）；面板 Resize Handle 用"区域逃逸"（向左扩展 8px 进无 WebView 区）
+5. 启用 CSS `will-change` + `transform` 动画，避免重排导致的掉帧
 
-### 风险 07 · 凭据管理 + 权限门禁误放
+### 风险 05 · 凭据管理 + 权限门禁误放
 
 WebView 若绕过 Tauri Command 直接触达系统能力，或 capabilities 使用通配权限，将破坏安全边界；凭据若落入普通配置或日志，会造成泄露。
 
@@ -603,47 +424,31 @@ WebView 若绕过 Tauri Command 直接触达系统能力，或 capabilities 使�
 
 1. 凭据只经 `crates/credential` 存储（keyring + 加密文件降级）
 2. capabilities 白名单禁止 `"all"` / `"**"` 通配，新增命令必须登记
-3. 敏感工具（文件写、命令执行）走 Ruleset 权限（Allow/Ask/Deny）
+3. 敏感操作走审批确认（`ApprovalRequired`）
 4. 日志中凭据脱敏，禁止明文打印
 
 ---
 
-## Section 06 · 分阶段演进路线
+## Section 06 · 项目形态（完整形态，不分阶段）
 
-> v2.0 对齐现状：标注已完成项与剩余缺口。每阶段结束后做验收，再进入下一阶段。
+> 本项目不做分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**。范围边界与排除项以 `phase-boundary.md` 规则为准，功能清单真源见 `ai-digital-life/AGENTS.md`。
 
-### ✅ 已完成 · Phase 0–2（🟢 底座与全功能 MVP 已落地）
+### ✅ 已实现（完整形态）
 
-- ✅ Tauri 桌面壳 + SQLite 状态
-- ✅ ProviderRegistry 动态 Provider 注册
-- ✅ (provider, model) 对路由 + SSE 真实流式
-- ✅ 自动压缩（PRUNE_MINIMUM=20K / 保护区 40K）
-- ✅ Session Fork（任意节点分叉 + Fork UI）
-- ✅ Snapshot / Revert
-- ✅ Ruleset 权限（Allow/Ask/Deny）
-- ✅ MCP / LSP / 多 Agent / Sub-agent
-- ✅ Hot Reloadable Config（配置级热重载）
-- ✅ Durable Session Execution
-- ✅ 设计 Token + 自定义 Tooltip/滚动条
-- ✅ i18n（13 领域 / 936 keys）
+- ✅ Tauri 桌面壳 + SQLite 状态 + 安全边界（capability 白名单）+ 双端一致（三桥接）
+- ✅ 工作区管理、文件树、大纲解析、搜索、Git 可视化、补丁预览/应用/回滚、快照
+- ✅ xterm.js 交互式终端（多会话 PTY）+ 只读历史归档
+- ✅ CodeMirror 编辑器 + 文件预览 + 差异查看器
+- ✅ 内置浏览器（WebView / iframe 双模式、标签/书签/历史/下载、站点元数据缓存）
+- ✅ 第三方 harness 宿主集成（进程托管、内嵌与系统版本管理、下载源/镜像、宿主渲染）
+- ✅ 存储治理（统一路径解析 + 启动期迁移 + 设置面板存储组）
+- ✅ 系统能力（剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储）
+- ✅ 设计 Token + 自定义 Tooltip/滚动条 + i18n（22 领域）
 
-### 🔧 当前缺口 · 待建设（🟡 补齐数据结构与扩展机制）
+### ⛔ 本仓库不实现（由第三方 harness 或未立项）
 
-- SQLite 上的事件流逻辑抽象（append-only 表 + fold 归约）
-- 任意节点 Fork 的树形索引与父节点冻结机制
-- 生命周期钩子（Rust trait + Vec 有序注册）
-- 钩子修改数据的 `PROMPT_MODIFIED` / `TOOL_RESULT_MODIFIED` 事件
-- Snapshot 加速恢复：每 N 轮自动快照
-- 开发模式：事件流可视化调试面板
-
-### 🔵 远期 · 体验打磨（提体验：Fork UI 深化 + 精致化）
-
-- Fork 分支树可视化，分支间快速切换对比
-- Skill Markdown 文件 watcher + 自动加载完善
-- Provider 配置热重载 + 切换无重启
-- UI 组件升级：微动画 + 卡片化 + 响应式打磨
-- 双端验证清单常态化执行
-- （不承诺）代码级热重载实验性探索
+- 内置 Agent / 多 Agent 编排、内置模型接入 / Provider 管理、Compaction / Session Fork / 自定义命令 / 权限 Ruleset / Custom Agent 等 Agent 配套能力——由第三方 harness 提供
+- 插件市场、浏览器自动化运行时、复杂云协作 / ACP / HTTP API / CodeMode——未来想法，未立项
 
 ---
 
@@ -652,8 +457,8 @@ WebView 若绕过 Tauri Command 直接触达系统能力，或 capabilities 使�
 - **✅ 当做决策时的依据**：遇到"要不要做 X？怎么做 X？"的问题时，先查对应决策项，按标准走。
 - **⚖️ 标准冲突时的优先级**：本标准 > 现有代码习惯 > Pi/OpenCode 原版实现。即"先按自己定的规矩来"。
 - **🔄 修订机制**：遇到标准覆盖不到的新场景，按同样的"对比两方案优缺点 → 选一个 → 记录理由"流程补充本标准，不允许拍脑袋决定。
-- **🔒 冻结项**：14 项核心决策中，决策 1–12 在 6 个月内不得变更（除非有充分的技术反证）；决策 13–14 为项目硬规则，任何时候不得放宽。频繁推翻架构是最大的开发杀手。
+- **🔒 冻结项**：现行决策（01/07/10/12/13/14）为宿主架构依据，其中 13–14 为项目硬规则，任何时候不得放宽。退役决策（02/03/04/05/06/08/09/11）仅为历史存档，不作为决策依据。频繁推翻架构是最大的开发杀手。
 
 ---
 
-*AI 数字生命 · 项目设计标准 v2.0 · 基于 Pi × OpenCode 源码核对 + 现状对齐修订 · 本文件为项目架构真源之一，重大修改需同步评审*
+*AI 数字生命 · 项目设计标准 v3.0 · 自研 Agent 体系剥离 + 完整形态对齐（2026-09-17）· 本文件为项目架构真源之一，重大修改需同步评审*

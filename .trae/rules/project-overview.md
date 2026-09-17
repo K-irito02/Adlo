@@ -10,7 +10,7 @@ alwaysApply: true
 | 维度 | 说明 |
 |------|------|
 | 项目名称 | AI 数字生命 (AI Digital Life) |
-| 项目类型 | AI 编码代理桌面应用（规划中支持移动端远程控制） |
+| 项目类型 | 桌面应用宿主 + 第三方 Agent harness 集成（Agent 对话、模型接入与编排由外部 harness 提供，当前为 deepseek dsh） |
 | 桌面框架 | Rust + Tauri 2.x |
 | 前端框架 | React 19 + Vite + TypeScript |
 | 状态管理 | Zustand（切片合并模式） |
@@ -59,7 +59,7 @@ alwaysApply: true
 | WebView UI 与样式 | `ai-digital-life/frontend/src/` |
 | 功能模块组件 | `ai-digital-life/frontend/src/app/features/` |
 | 设计 Token / 主题 | `ai-digital-life/frontend/src/design-system/`、`src/styles/` |
-| 阶段/路由/治理 | 根目录 `AGENTS.md` |
+| 项目形态/路由/治理 | 根目录 `AGENTS.md` |
 | 架构设计 | `docs/architecture/` |
 | 状态管理 / Store 变更 | `ai-digital-life/frontend/src/app/stores/` |
 
@@ -69,5 +69,5 @@ alwaysApply: true
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](../../CONTEXT.md) — 领域术语表
 - [SECURITY.md](../../SECURITY.md) — 安全策略
-- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 远期规划
+- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
 - [commands.md](./commands.md) — 常用命令速查

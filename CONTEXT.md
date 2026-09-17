@@ -128,16 +128,9 @@ Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allo
 
 ---
 
-## 阶段概念
+## 项目形态
 
-### Phase 0 - 架构底座
-已完成。包括 Rust crate 架构、Tauri 壳层、安全边界（capability 权限策略）、SQLite 持久化、日志系统。
-
-### Phase 1 - 交互式 MVP
-已完成。包括变更预览/应用/回滚。
-
-### Phase 3+ - 生态与规模化
-规划中。包括 ACP、HTTP API、CodeMode 沙箱、插件市场、浏览器自动化运行时、云服务集成、多模态输入、CI/CD 集成等。
+本项目不分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**。宿主侧包括架构底座（Rust crate 架构、Tauri 壳层、安全边界 capability 权限策略、SQLite 持久化、日志系统）、工作区、终端、编辑器、浏览器、存储治理与系统能力；Agent 对话、模型接入与编排能力由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染）。
 
 ---
 

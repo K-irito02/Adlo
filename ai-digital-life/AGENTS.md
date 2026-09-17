@@ -41,18 +41,21 @@
 - 磁盘空间分歧（已接受）：服务端 `freeBytes` 恒为 0（"unknown"）；UI 不渲染空间 verdict，`freeBytes == 0` 即视为未知并跳过空间判定（与壳层 `free_bytes > 0` 门控同约定）。
 - 预检非纯只读（B7）：`preflight` 会创建目标父目录并写入 `.adl-write-probe` 探测文件，供 UI 预检目标可写性。
 
-## 当前阶段
+## 项目形态（完整形态，不分阶段）
 
-**Phase 0 底座**：
+本项目不做分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入、多 Agent 编排及其配套能力（MCP / Compaction / Session Fork / 自定义命令 / 权限 Ruleset / Custom Agent 等）不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、下载源/镜像、宿主渲染）：
 
 - Tauri 桌面壳、SQLite 状态
-- 工作区管理、补丁预览/应用/回滚
+- 工作区管理、补丁预览/应用/回滚、快照
 - xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）+ 只读历史（会话结束即定稿归档、按标签累积跨重启保留、DOM 虚拟列表按 xterm 单元格网格渲染；关闭应用时窗口先隐藏、后台落盘完成再退出）
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 4模式导航栏（open/tabs/list/search）+ SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效 + 已打开标签过滤（filterTabIds）+ 多 iframe 状态保持（activatedTabIdsRef）+ 悬停关闭按钮（danger-hover）+ Flat 模式 ::after 渐变蒙版 + text-overflow: clip + 网站元数据持久化缓存（favicon data-URI + 标题，三层：Rust SQLite `site_meta_cache.rs` / preview JSON `.adl-cache/` / 前端 `siteMetaCache.ts`，预载门控 + 成功才写 + 引用计数删除）+ 标签加载状态（favicon 加载中 spinner + 标题未结算时"新建标签页"扫光动效，`titleResolved` 状态机 + `isRealTitle` 统一判定）+ 跨域重定向 favicon/标题兜底（方案 A 历史 URL 回写 `browserUpdateHistoryUrl` + 方案 B 会话级 `redirectMap`，`expectedNavigationUrlRef={url,at,tabId}` 显式导航检测 + 10s 新鲜度 + 发起 tab 绑定，参考 Chrome/Edge 重定向链消化语义 + Chromium `page_url_type`））
-- Zustand 切片模式（35 切片 + 31 action 模块）+ 模块化分层（features/ + regions/）
+- 第三方 harness 宿主集成（当前为 deepseek dsh）：进程托管与拉起（`crates/webapp-host`）、内嵌版本管理（`crates/dsh-bundle`）与系统版本检测/升级回退（`crates/dsh-version`）、下载源与镜像配置（`crates/download-source`）、中间区宿主渲染（Tauri 独立 WebView2 子窗口 / 浏览器 iframe + 外部打开兜底）
+- 存储治理：`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组（见上文"存储路径解析"）
+- 系统能力：剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储（keyring + 加密文件降级）
+- Zustand 切片模式（31 切片 + 17 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
-- i18n 国际化（13 领域 / 936 keys，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
+- i18n 国际化（22 领域，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
 > 截至 2026-09-15（存储功能 Plan A/B/C + 根因修复落地后实测）：工具链 rustc 1.97.1，616 Rust 测试通过（60 套件，0 失败）、1947 前端测试通过（234 文件）。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
 >
@@ -103,7 +106,7 @@ app/stores/
 ├── storageHelpers.ts            # localStorage 读写工具
 ├── cacheHelpers.ts              # 缓存系统（TTL/LRU）、请求序列
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 35 个独立切片（含 5 浏览器 + 3 GitHub + 7 Phase 2 增强切片）
+├── slices/                      # 31 个独立切片（含 8 浏览器 + 3 GitHub）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
 │   ├── editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts
@@ -119,7 +122,7 @@ app/stores/
 │   ├── browserHistorySlice.ts       # 浏览器历史记录
 │   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
 │   └── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
-└── actions/                     # 31 个跨切片 action 模块
+└── actions/                     # 17 个跨切片 action 模块
     ├── workspaceActions.ts（448 行） / editorActions.ts
     ├── patchActions.ts / gitActions.ts / fetchActions.ts
     ├── streamActions.ts / generalActions.ts / searchActions.ts
@@ -165,7 +168,7 @@ app/stores/
 ## 相关文件
 
 - [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则
-- [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 远期规划
+- [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
 - [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
 - [references/pi/](../references/pi/) — 参考项目 Pi 本地源码（MIT 许可）
 - [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 源码地图

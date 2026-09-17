@@ -10,7 +10,7 @@ alwaysApply: true
 | 文件 | 职责 | 触发条件 |
 |------|------|----------|
 | `project-overview.md` | 项目总览、双根结构、技术栈、双端架构 | 始终应用 |
-| `phase-boundary.md` | 阶段边界、范围限制、排除项 | 新功能规划 |
+| `phase-boundary.md` | 项目形态、范围边界、排除项 | 新功能规划 |
 | `codebase-map.md` | 代码地图、包列表、目录结构 | 涉及实现 |
 | `tauri-shell.md` | Tauri Command / capability 边界、安全基线、IPC/Bridge 架构 | 桌面应用 / IPC 变更 |
 | `rust-patterns.md` | Rust 性能模式、Crate 治理、数据库规范 | Rust 代码变更 |
@@ -66,7 +66,7 @@ alwaysApply: true
 | 设计系统变更 | `design-system.md` |
 | 提示色规范变更 | `hint-color-usage.md`、`design-system.md` |
 | UI 模式变更 | `ui-patterns.md` |
-| Phase 范围变更 | `phase-boundary.md` |
+| 项目形态/范围边界变更 | `phase-boundary.md` |
 | 双端一致性变更 | `tauri-shell.md`、`project-overview.md`、`desktop-ui-verification.md` |
 | 浏览器自动化工具/脚本变更 | `browser-automation.md`、`browser-automation` 技能 |
 | Trae 内置浏览器（integrated_browser）工具变更 | `browser-automation.md`、`browser-automation` 技能 |
