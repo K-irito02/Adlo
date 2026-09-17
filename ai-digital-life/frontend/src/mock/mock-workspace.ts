@@ -140,6 +140,23 @@ export const mockWorkspace: WorkspaceBridge = {
       .slice(0, 10);
     return { ok: true, data: hits };
   },
+  searchInFiles: async (paths: string[], query: string) => {
+    const needle = query.toLowerCase();
+    const hits: WorkspaceSearchHit[] = [];
+    for (const filePath of paths) {
+      const content = documents.get(filePath);
+      if (content === undefined) {
+        continue;
+      }
+      content.split(/\r?\n/).forEach((lineText, index) => {
+        if (lineText.toLowerCase().includes(needle)) {
+          hits.push({ path: filePath, line: index + 1, preview: lineText.trim() });
+        }
+      });
+    }
+    return { ok: true as const, data: hits };
+  },
+  onFilesChanged: () => () => {},
   outline: async (relativePath: string) => {
     const content = documents.get(relativePath) ?? "";
     const items: FileOutlineItem[] = buildOutlineFromContent(content, relativePath);

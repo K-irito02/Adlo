@@ -44,6 +44,15 @@ export interface WorkspaceSearchHit {
   preview: string;
 }
 
+export interface WorkspaceFilesChangedBatch {
+  /** 变更（新增/修改）文件的工作区相对路径 */
+  changed: string[];
+  /** 删除文件的工作区相对路径 */
+  removed: string[];
+  /** 单批超限：消费端应退化为整轮重搜 */
+  overflow?: boolean;
+}
+
 export interface WorkspaceFileDocument {
   path: string;
   content: string;

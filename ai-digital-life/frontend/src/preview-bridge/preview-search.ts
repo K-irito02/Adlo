@@ -23,6 +23,19 @@ export function createPreviewSearchBridge(ctx: PreviewSearchContext) {
       const params = new URLSearchParams({ rootPath: ctx.currentWorkspace.rootPath, query });
       return requestPreviewApi<WorkspaceSearchHit[]>(`/workspace/search?${params.toString()}`);
     },
+    searchInFiles: async (paths: string[], query: string) => {
+      if (!ctx.currentWorkspace) {
+        return { ok: true as const, data: [] as WorkspaceSearchHit[] };
+      }
+      const params = new URLSearchParams({ rootPath: ctx.currentWorkspace.rootPath });
+      return requestPreviewApi<WorkspaceSearchHit[]>(
+        `/workspace/search-in-files?${params.toString()}`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ paths, query }),
+        },
+      );
+    },
     outline: async (relativePath: string) => {
       if (!ctx.currentWorkspace) {
         return { ok: true as const, data: [] as FileOutlineItem[] };

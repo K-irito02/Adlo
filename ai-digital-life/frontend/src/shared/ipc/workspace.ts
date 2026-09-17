@@ -14,6 +14,7 @@ import type {
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
+  WorkspaceFilesChangedBatch,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -38,6 +39,7 @@ export type {
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
+  WorkspaceFilesChangedBatch,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -227,6 +229,26 @@ export interface WorkspaceBridge {
    * @see preview-bridge/index.ts → workspace.search
    */
   search: (query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
+  /**
+   * 仅对给定相对路径集合重算命中（文件 watcher 驱动的局部刷新）
+   * @param paths 工作区相对路径数组
+   * @param query 检索关键词
+   * @returns 这些文件中的命中列表
+   * @command workspace_search_in_files
+   * @see tauri-bridge/index.ts（...http 继承）→ workspace.searchInFiles
+   * @see mock-bridge.ts → workspace.searchInFiles
+   * @see preview-bridge/index.ts → workspace.searchInFiles
+   */
+  searchInFiles: (paths: string[], query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
+  /**
+   * 订阅活动工作区的文件批量变更（后端 watcher → WS / 预览模式轮询）
+   * @param listener 接收批次（changed/removed/overflow）的回调
+   * @returns 同步取消订阅函数
+   * @see tauri-bridge/index.ts（...http 继承）→ workspace.onFilesChanged
+   * @see mock-bridge.ts → workspace.onFilesChanged
+   * @see preview-bridge/index.ts → workspace.onFilesChanged
+   */
+  onFilesChanged: (listener: (batch: WorkspaceFilesChangedBatch) => void) => () => void;
   /**
    * 获取文件大纲 (函数/类/结构等)
    * @param relativePath 相对于工作区的路径

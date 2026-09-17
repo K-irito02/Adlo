@@ -60,6 +60,7 @@ import type {
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
+  WorkspaceFilesChangedBatch,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -94,6 +95,10 @@ import {
   type EventSourceFactory,
 } from './httpBridge/event-source';
 import { createPtyWsClient, type PtyWsClient, type PtyWsClientOptions } from './shared/ipc/pty-ws';
+import {
+  createWorkspaceEventsClient,
+  type WorkspaceEventsClient,
+} from './shared/ipc/workspace-events-ws';
 
 /** SSE wire event type (formerly in part-stream/partStoreTypes) */
 export type SseWireEvent =
@@ -148,6 +153,8 @@ export interface HttpBridgeOptions {
   lastEventId?: number;
   /** Options for the reused `/pty` WebSocket client (tests inject `wsFactory`). */
   ptyWsOptions?: PtyWsClientOptions;
+  /** Injectable WebSocket constructor for the `/ws/workspace` files-changed client. */
+  workspaceEventsWsFactory?: (url: string) => WebSocket;
 }
 
 const HTTP_ERROR_CODE = 'HTTP__ERROR';
@@ -678,6 +685,7 @@ export function createHttpBridge({
   eventSourceFactory,
   lastEventId,
   ptyWsOptions,
+  workspaceEventsWsFactory,
 }: HttpBridgeOptions): DigitalLifeBridge {
   // The `/pty` WebSocket client is shared across all `subscribePtyOutput`
   // listeners for this bridge instance (one socket, fanned out by pty-ws).
@@ -685,6 +693,16 @@ export function createHttpBridge({
   const getPtyClient = (): PtyWsClient => {
     ptyClient ??= createPtyWsClient(baseUrl, ptyWsOptions);
     return ptyClient;
+  };
+  // The `/ws/workspace` files-changed client is shared across all
+  // `onFilesChanged` listeners for this bridge instance (one socket, fanned
+  // out by workspace-events-ws; connects only while subscribers exist).
+  let workspaceEvents: WorkspaceEventsClient | null = null;
+  const getWorkspaceEvents = (): WorkspaceEventsClient => {
+    workspaceEvents ??= createWorkspaceEventsClient(baseUrl, {
+      wsFactory: workspaceEventsWsFactory,
+    });
+    return workspaceEvents;
   };
 
   // Largest event_log seq this bridge has observed, shared by all three SSE
@@ -851,6 +869,8 @@ export function createHttpBridge({
         ),
       search: (query: string) =>
         call<WorkspaceSearchHit[]>(baseUrl, '/workspace/search', POST({ query })),
+      searchInFiles: (paths: string[], query: string) =>
+        call<WorkspaceSearchHit[]>(baseUrl, '/workspace/search-in-files', POST({ paths, query })),
       outline: (relativePath: string) =>
         call<FileOutlineItem[]>(baseUrl, '/workspace/outline', POST({ relativePath })),
       setEditorDirtyPaths: (relativePaths: string[]) =>
@@ -875,6 +895,8 @@ export function createHttpBridge({
         );
         return () => {};
       },
+      onFilesChanged: (listener: (batch: WorkspaceFilesChangedBatch) => void) =>
+        getWorkspaceEvents().onFilesChanged(listener),
       getGitStatus: () => call<GitSnapshot>(baseUrl, '/workspace/git/status', POST({})),
       listGitBranches: (rootPath?: string) =>
         call<GitBranchSummary[]>(

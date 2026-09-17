@@ -141,6 +141,7 @@ export async function setupPreviewBridge(): Promise<void> {
     ...searchBridge,
     ...gitBridge,
     onFileChanged: eventsBridge.onFileChanged,
+    onFilesChanged: eventsBridge.onFilesChanged,
   };
 
   // `workspace.pickDirectory` (native folder dialog) and
@@ -171,13 +172,13 @@ export async function setupPreviewBridge(): Promise<void> {
       adlServerBaseUrl,
       workspaceHttp,
       workspacePreview,
-      // `onFileChanged` returns a synchronous unsubscribe (`() => void`) per
-      // the `WorkspaceBridge` contract — it must NOT be async-wrapped by the
-      // proxy, otherwise `useAppStartup` captures a `Promise` instead of the
-      // real unsubscribe (breaks the sync-unsubscribe contract + React effect
-      // cleanup). It is returned as-is from the preview impl (same in both
-      // reachable and fallback paths).
-      ['onFileChanged'],
+      // `onFileChanged` / `onFilesChanged` return a synchronous unsubscribe
+      // (`() => void`) per the `WorkspaceBridge` contract — they must NOT be
+      // async-wrapped by the proxy, otherwise `useAppStartup` captures a
+      // `Promise` instead of the real unsubscribe (breaks the sync-unsubscribe
+      // contract + React effect cleanup). They are returned as-is from the
+      // preview impl (same in both reachable and fallback paths).
+      ['onFileChanged', 'onFilesChanged'],
     ),
     retrieval: preferHttpWhenReachable<RetrievalBridge>(
       adlServerBaseUrl,
