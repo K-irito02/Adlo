@@ -1,4 +1,6 @@
 import fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { relativePath, normalizePath, collectTextFiles } from './files';
 import type { WorkspaceSearchHit } from '../../src/kernel/index';
 
@@ -29,6 +31,31 @@ export async function searchText(rootPath: string, query: string): Promise<Works
         return hits;
       }
     }
+  }
+  return hits;
+}
+
+export async function searchInFiles(
+  rootPath: string,
+  paths: string[],
+  query: string,
+): Promise<WorkspaceSearchHit[]> {
+  const needle = query.toLowerCase();
+  if (!needle.trim()) {
+    return [];
+  }
+  const hits: WorkspaceSearchHit[] = [];
+  for (const relativePath of paths) {
+    const absolute = join(rootPath, relativePath);
+    if (!existsSync(absolute)) {
+      continue;
+    }
+    const content = await fs.readFile(absolute, 'utf8');
+    content.split(/\r?\n/).forEach((lineText, index) => {
+      if (lineText.toLowerCase().includes(needle)) {
+        hits.push({ path: relativePath, line: index + 1, preview: lineText.trim().slice(0, 240) });
+      }
+    });
   }
   return hits;
 }

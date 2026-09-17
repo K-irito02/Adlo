@@ -10,6 +10,7 @@ import * as ciModule from './ci';
 import * as logging from './logging';
 import * as gitVis from './gitVisualization';
 import * as siteMetaCache from './siteMetaCache';
+import { workspaceWatchers } from './workspaceWatcher';
 import { createPreviewPageMetaService } from './pageMetaService';
 import type { MetaSource } from '../../src/shared/ipc/browser';
 
@@ -387,6 +388,29 @@ const routes: Route[] = [
       const query = searchParams.get('query') ?? '';
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
       return ok(await search.searchText(rootPath, query));
+    },
+  },
+  {
+    method: 'POST', pathname: makePath('/workspace/search-in-files'),
+    handler: async (_req, body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      const input = body as { paths?: string[]; query?: string } | undefined;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      if (!input || !Array.isArray(input.paths) || typeof input.query !== 'string') {
+        return fail('paths and query are required', 'INVALID_INPUT');
+      }
+      return ok(await search.searchInFiles(rootPath, input.paths, input.query));
+    },
+  },
+  {
+    method: 'GET', pathname: makePath('/workspace/files-changed'),
+    handler: async (_req, _body, searchParams) => {
+      const since = Number(searchParams.get('since') ?? '0');
+      if (!Number.isFinite(since) || since < 0) return fail('since must be a non-negative number', 'INVALID_INPUT');
+      // rootPath 可选：Task 5 的 preview-events 轮询只带 `since`（无 rootPath），
+      // 缺省时回退到 dev server cwd（预览模式默认工作区根）。
+      const rootPath = searchParams.get('rootPath')?.trim() || process.cwd();
+      return ok(workspaceWatchers.ensure(rootPath).since(since));
     },
   },
   {
