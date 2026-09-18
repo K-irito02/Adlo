@@ -24,6 +24,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     selectedFilePath,
     selectedFileWorkspaceId,
     fileContent,
+    fileOpenError,
+    positioningPath,
     filePatch,
     editorLanguage,
     diffSideBySide,
@@ -524,6 +526,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
               <LazyEditorSurface
                 selectedFilePath={selectedFilePath}
                 fileContent={fileContent}
+                fileOpenError={fileOpenError}
+                positioningPath={positioningPath}
                 filePatch={filePatch}
                 editorLanguage={editorLanguage}
                 diagnostics={diagnostics}
@@ -536,6 +540,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
                 onEditorChange={onEditorChange}
                 onEditorMount={onEditorMount}
                 onDiffMount={onDiffMount}
+                onOpenFile={onOpenFile}
                 onSetDiffLayout={onSetDiffLayout}
                 onJumpPatchHunk={onJumpPatchHunk}
                 onSelectPatchHunk={onSelectPatchHunk}

@@ -16,6 +16,16 @@ export interface EditorSlice {
   changePreviewLoading: boolean;
   fileContent?: string;
   fileLastModifiedAt?: number;
+  /**
+   * 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，
+   * 不回退显示旧文件内容；成功打开任意文件时清掉。
+   */
+  fileOpenError?: { path: string; code: string; message: string } | null;
+  /**
+   * 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成，
+   * 全程不绘制中间态；揭示成功/放弃时清掉。
+   */
+  positioningPath?: string | null;
   externalFileChange?: { path: string; lastModifiedAt: number };
   outline: FileOutlineItem[];
   dirtyEditorPaths: string[];
@@ -45,6 +55,8 @@ export interface EditorSlice {
   setChangePreviewLoading: (loading: boolean) => void;
   setFileContent: (content: string | undefined) => void;
   setFileLastModifiedAt: (timestamp: number | undefined) => void;
+  setFileOpenError: (error: { path: string; code: string; message: string } | null) => void;
+  setPositioningPath: (path: string | null) => void;
   setExternalFileChange: (change: { path: string; lastModifiedAt: number } | undefined) => void;
   setOutline: (items: FileOutlineItem[]) => void;
   setDirtyEditorPaths: (paths: string[]) => void;
@@ -73,6 +85,7 @@ export const createEditorSlice = (
   outline: [],
   changePreviewLoading: false,
   dirtyEditorPaths: [],
+  fileOpenError: null,
 
   setOpenTabs: (tabs) => set({ openTabs: tabs }),
   addOpenTab: (tab) =>
@@ -94,6 +107,8 @@ export const createEditorSlice = (
   setChangePreviewLoading: (loading) => set({ changePreviewLoading: loading }),
   setFileContent: (fileContent) => set({ fileContent }),
   setFileLastModifiedAt: (fileLastModifiedAt) => set({ fileLastModifiedAt }),
+  setFileOpenError: (fileOpenError) => set({ fileOpenError }),
+  setPositioningPath: (positioningPath) => set({ positioningPath }),
   setExternalFileChange: (externalFileChange) => set({ externalFileChange }),
   setOutline: (outline) => set({ outline }),
   setDirtyEditorPaths: (paths) => set({ dirtyEditorPaths: paths }),
@@ -187,6 +202,8 @@ export const createEditorSlice = (
       changePreviewLoading: false,
       fileContent: undefined,
       fileLastModifiedAt: undefined,
+      fileOpenError: null,
+      positioningPath: null,
       externalFileChange: undefined,
       outline: [],
       dirtyEditorPaths: [],

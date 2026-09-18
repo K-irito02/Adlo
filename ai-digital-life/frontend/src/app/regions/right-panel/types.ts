@@ -29,6 +29,10 @@ export interface RightPanelViewProps {
   changePreviewLoading: boolean;
   fileContent?: string;
   fileLastModifiedAt?: number;
+  /** 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，不回退旧内容 */
+  fileOpenError?: { path: string; code: string; message: string } | null;
+  /** 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成 */
+  positioningPath?: string | null;
   externalChangePath?: string;
   editorLanguage: string;
   diffSideBySide: boolean;
@@ -126,6 +130,8 @@ export type FilesPanelProps = Pick<
   | 'selectedFilePath'
   | 'selectedFileWorkspaceId'
   | 'fileContent'
+  | 'fileOpenError'
+  | 'positioningPath'
   | 'filePatch'
   | 'editorLanguage'
   | 'diffSideBySide'

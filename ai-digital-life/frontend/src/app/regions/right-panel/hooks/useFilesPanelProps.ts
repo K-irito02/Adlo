@@ -32,6 +32,8 @@ export function useFilesPanelProps(
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
   const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
   const fileContent = useAppStore((s) => s.fileContent);
+  const fileOpenError = useAppStore(useShallow((s) => s.fileOpenError));
+  const positioningPath = useAppStore((s) => s.positioningPath);
   const externalFileChange = useAppStore(useShallow((s) => s.externalFileChange));
   const outline = useAppStore(useShallow((s) => s.outline));
   const workspaceTrees = useAppStore(useShallow((s) => s.workspaceTrees));
@@ -198,6 +200,8 @@ export function useFilesPanelProps(
       selectedFilePath,
       selectedFileWorkspaceId,
       fileContent,
+      fileOpenError,
+      positioningPath,
       filePatch,
       editorLanguage,
       diffSideBySide,
@@ -245,6 +249,8 @@ export function useFilesPanelProps(
       selectedFilePath,
       selectedFileWorkspaceId,
       fileContent,
+      fileOpenError,
+      positioningPath,
       filePatch,
       editorLanguage,
       diffSideBySide,

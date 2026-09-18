@@ -25,6 +25,8 @@ interface EditorSurfaceShellProps extends Pick<
   RightPanelViewProps,
   | 'selectedFilePath'
   | 'fileContent'
+  | 'fileOpenError'
+  | 'positioningPath'
   | 'filePatch'
   | 'editorLanguage'
   | 'diagnostics'
@@ -37,6 +39,7 @@ interface EditorSurfaceShellProps extends Pick<
   | 'onEditorChange'
   | 'onEditorMount'
   | 'onDiffMount'
+  | 'onOpenFile'
   | 'onSetDiffLayout'
   | 'onJumpPatchHunk'
   | 'onSelectPatchHunk'
@@ -56,10 +59,12 @@ interface EditorSurfaceShellProps extends Pick<
 }
 
 const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorSurfaceShellProps) {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
   const {
     selectedFilePath,
     fileContent,
+    fileOpenError,
+    positioningPath,
     filePatch,
     editorLanguage,
     editorHint,
@@ -75,6 +80,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     editorOptions,
     onEditorMount,
     onDiffMount,
+    onOpenFile,
   } = props;
 
   const filePreviewModeByPath = useAppStore(useShallow((s) => s.filePreviewModeByPath));
@@ -142,6 +148,25 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
 
   if (!selectedFilePath) {
     return editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null;
+  }
+
+  // 开文件失败：主区展示友好错误，不回退显示旧文件内容（事项 46 调整项，用户决策）。
+  if (fileOpenError && fileOpenError.path === selectedFilePath) {
+    const isNotFound = fileOpenError.code === 'NOT_FOUND';
+    return (
+      <div className="adl-tool-editor__open-error" role="alert">
+        <strong className="adl-tool-editor__open-error-title">{t.fileOpenErrorTitle}</strong>
+        <span className="adl-tool-editor__open-error-path">{fileOpenError.path}</span>
+        <p className="adl-tool-editor__open-error-detail">
+          {isNotFound
+            ? t.fileOpenErrorNotFound
+            : formatT(t, 'fileOpenErrorDetail', { message: fileOpenError.message })}
+        </p>
+        <button type="button" onClick={() => onOpenFile(fileOpenError.path)}>
+          {t.fileOpenErrorRetry}
+        </button>
+      </div>
+    );
   }
 
   if (hasActivePatch && filePatch) {
@@ -275,7 +300,19 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   }
 
   return (
-    <div ref={editorSurfaceRef} className="adl-tool-editor__surface">
+    <div
+      ref={editorSurfaceRef}
+      className="adl-tool-editor__surface"
+      // 定位完成前隐藏表面（保布局可量测）：揭示成功/放弃即显现，全程无中间态
+      style={
+        positioningPath !== null && positioningPath === selectedFilePath
+          ? { visibility: 'hidden' }
+          : undefined
+      }
+      aria-busy={
+        positioningPath !== null && positioningPath === selectedFilePath ? true : undefined
+      }
+    >
       {stickyContextModel ? (
         <StickyContext data-testid="files-sticky-context" model={stickyContextModel} />
       ) : null}

@@ -66,6 +66,7 @@ export async function openFileGeneric(
         selectedFileWorkspaceId: config.workspaceId,
         fileContent: document.content,
         fileLastModifiedAt: document.lastModifiedAt,
+        fileOpenError: null,
         externalFileChange:
           state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
         outline: nextOutline,
@@ -78,12 +79,13 @@ export async function openFileGeneric(
     applyDocument(cachedDocument);
     return;
   }
+  // 就绪才切换（事项 46 调整项）：标签页即时出现作为点击反馈，
+  // 但 selectedFilePath/fileContent 保持旧值直到内容读到，主区全程无中间态。
   set((state: StoreState) => ({
     openTabs: state.openTabs.some((tab) => tab.path === relativePath)
       ? state.openTabs
       : [...state.openTabs, createEditorTab(relativePath)],
-    selectedFilePath: relativePath,
-    selectedFileWorkspaceId: config.workspaceId,
+    fileOpenError: null,
   }));
 
   const fileResult = await config.readFile();
@@ -92,6 +94,20 @@ export async function openFileGeneric(
   }
   if (!fileResult.ok) {
     captureError(get, fileResult.error, SCOPE);
+    const raw = fileResult.error as { code?: unknown; message?: unknown };
+    // 失败不在主区回退显示旧文件内容：切到目标路径并展示友好错误（用户决策）。
+    set({
+      selectedFilePath: relativePath,
+      selectedFileWorkspaceId: config.workspaceId,
+      fileContent: undefined,
+      fileLastModifiedAt: undefined,
+      outline: [],
+      fileOpenError: {
+        path: relativePath,
+        code: typeof raw.code === 'string' ? raw.code : 'UNKNOWN',
+        message: typeof raw.message === 'string' ? raw.message : '',
+      },
+    });
     return;
   }
   const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);

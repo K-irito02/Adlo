@@ -84,7 +84,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     /**
      * [openFile - 在编辑器中打开文件]
      * @reads workspaceSlice.appInfo
-     * @writes editorSlice.openTabs, editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.outline, editorSlice.dirtyEditorPaths
+     * @writes editorSlice.openTabs, editorSlice.selectedFilePath, editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.fileOpenError, editorSlice.outline, editorSlice.dirtyEditorPaths
      * @see shared/ipc.ts → workspace.readFile
      * @see mock-bridge.ts → workspace.readFile
      * @see preview-bridge/index.ts → workspace.readFile
@@ -99,7 +99,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [openFileForWorkspace - 为指定工作区打开文件]
-     * @writes editorSlice.openTabs, editorSlice.selectedFilePath, editorSlice.selectedFileWorkspaceId, editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.outline, editorSlice.dirtyEditorPaths
+     * @writes editorSlice.openTabs, editorSlice.selectedFilePath, editorSlice.selectedFileWorkspaceId, editorSlice.fileContent, editorSlice.fileLastModifiedAt, editorSlice.fileOpenError, editorSlice.outline, editorSlice.dirtyEditorPaths
      * @see shared/ipc.ts → workspace.readFileForWorkspace
      * @see mock-bridge.ts → workspace.readFileForWorkspace
      * @see preview-bridge/index.ts → workspace.readFileForWorkspace
