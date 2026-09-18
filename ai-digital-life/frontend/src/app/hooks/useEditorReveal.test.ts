@@ -4,21 +4,43 @@ import { useEditorReveal } from './useEditorReveal';
 import { useAppStore } from '@stores/slicedStore';
 import type { EditorRef } from '../stores/types';
 
+/**
+ * 语法扩展就绪闸门（方案 D）在测试里默认放行：真实实现依赖动态 import 的模块缓存，
+ * 在 jsdom 中永远不会就绪，会把每个用例都拖到 1200ms 上限。需要验证闸门行为的用例
+ * 自行把 `languageReady.value` 置 false。
+ */
+const languageReady = vi.hoisted(() => ({ value: true }));
+vi.mock('../features/editor/cmLanguages', () => ({
+  isLanguageExtensionReady: () => languageReady.value,
+  preloadLanguageExtension: () => {},
+}));
+
 afterEach(() => {
   useAppStore.getState().setPositioningPath(null);
   useAppStore.getState().setFileOpenError(null);
+  languageReady.value = true;
 });
 
 function makeContent(prefix: string, lines: number): string {
   return Array.from({ length: lines }, (_, i) => `${prefix} line ${i + 1}`).join('\n');
 }
 
+interface NumberBox {
+  value: number;
+}
+
+/** 渲染实测偏差：null = 目标未渲染（视口外），无法实测。 */
+interface DeltaBox {
+  value: number | null;
+}
+
 function makeMockEditor(
-  docLines: { value: number },
+  docLines: NumberBox,
   visibleRanges: { value: { startLineNumber: number; endLineNumber: number }[] } = {
     value: [{ startLineNumber: 1, endLineNumber: 60 }],
   },
-  topValue: { value: number } = { value: 0 },
+  centerDelta: DeltaBox = { value: 0 },
+  scrollTop: NumberBox = { value: 0 },
 ) {
   return {
     getModel: () => ({
@@ -28,7 +50,11 @@ function makeMockEditor(
     setPosition: vi.fn(),
     focus: vi.fn(),
     getSelection: () => null,
-    getTopForLineNumber: () => topValue.value,
+    getLineCenterDelta: () => centerDelta.value,
+    getScrollTop: () => scrollTop.value,
+    setScrollPosition: vi.fn((position: { scrollTop: number }) => {
+      scrollTop.value = position.scrollTop;
+    }),
     getVisibleRanges: () =>
       visibleRanges.value.map((r) => ({
         startLineNumber: r.startLineNumber,
@@ -47,12 +73,13 @@ interface RevealProps {
 
 function setup(
   initial: RevealProps,
-  docLines: { value: number },
+  docLines: NumberBox,
   mountEditor = true,
   visibleRanges?: { value: { startLineNumber: number; endLineNumber: number }[] },
-  topValue: { value: number } = { value: 0 },
+  centerDelta: DeltaBox = { value: 0 },
+  scrollTop: NumberBox = { value: 0 },
 ) {
-  const mockEditor = makeMockEditor(docLines, visibleRanges, topValue);
+  const mockEditor = makeMockEditor(docLines, visibleRanges, centerDelta, scrollTop);
   const pendingRevealRef = { current: null } as React.MutableRefObject<{
     path: string;
     line: number;
@@ -262,22 +289,25 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
     }
   });
 
-  it('keeps the curtain while the target pixel top is still drifting', () => {
-    // 大文件首跳：top 漂移期间不清帘，连续两次不变才显现。
+  it('nudges by the measured rendered delta and lifts the curtain only once aligned', () => {
+    // 渲染实测偏差 120px：必须按偏差直接校正 scrollTop（不再相信内部高度表估算），
+    // 未收敛前不摘帘；连续两次落在容差内才显现。
     vi.useFakeTimers();
     try {
       const contentB = makeContent('new', 1473);
       const docLines = { value: 1473 };
-      const topValue = { value: 0 };
+      const centerDelta = { value: 120 };
+      const scrollTop = { value: 5000 };
       const visibleRanges = { value: [{ startLineNumber: 1400, endLineNumber: 1473 }] };
       const { result, setProps, pendingRevealRef } = setup(
         { selectedFilePath: 'A.md', fileContent: makeContent('old', 57), fileLastModifiedAt: 1 },
         docLines,
         true,
         visibleRanges,
-        topValue,
+        centerDelta,
+        scrollTop,
       );
-      const editor = makeMockEditor(docLines, visibleRanges, topValue);
+      const editor = makeMockEditor(docLines, visibleRanges, centerDelta, scrollTop);
       act(() => {
         result.current.standardEditorRef.current = editor;
       });
@@ -289,22 +319,21 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
       expect(pendingRevealRef.current).toBeNull();
       expect(useAppStore.getState().positioningPath).toBe('big.html');
 
-      // top 首次采样 0：记录，不清帘
+      // 第一次监督 tick：按实测偏差一步校正（5000 + 120）
       act(() => {
         vi.advanceTimersByTime(100);
       });
-      expect(editor.revealLineInCenter).toHaveBeenCalledTimes(1);
+      expect(editor.setScrollPosition).toHaveBeenCalledWith({ scrollTop: 5120 });
       expect(useAppStore.getState().positioningPath).toBe('big.html');
-      // top 漂移 0→100：追踪重发（仍在帘后），不清帘
-      topValue.value = 100;
+
+      // 渲染回正：一次采样不够，连续两次才摘帘
+      centerDelta.value = 0;
       act(() => {
         vi.advanceTimersByTime(100);
       });
-      expect(editor.revealLineInCenter).toHaveBeenCalledTimes(2);
       expect(useAppStore.getState().positioningPath).toBe('big.html');
-      // 连续两次不变：摘帘
       act(() => {
-        vi.advanceTimersByTime(300);
+        vi.advanceTimersByTime(100);
       });
       expect(useAppStore.getState().positioningPath).toBeNull();
     } finally {
@@ -427,7 +456,6 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
         setPosition: vi.fn(),
         focus: vi.fn(),
         getSelection: () => null,
-        getTopForLineNumber: () => 0,
         getVisibleRanges: () => [],
         getDomNode: () => ({ isConnected: false }),
       } as unknown as EditorRef;
@@ -488,6 +516,61 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
       });
       expect(spy.mock.calls.length).toBeGreaterThan(first);
       expect(spy).toHaveBeenLastCalledWith(1439);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits for the target language extension before revealing (方案 D)', () => {
+    // 语法扩展未就绪（异步 import 未完成）时不揭示：扩展 resolve 后的 reconfigure
+    // 会触发重新量测，把刚定位好的落点推走（"首次点击不准"的嫌疑变量之一）。
+    vi.useFakeTimers();
+    try {
+      languageReady.value = false;
+      const contentB = makeContent('new', 57);
+      const docLines = { value: 57 };
+      const { result, setProps, mockEditor } = setup(
+        { selectedFilePath: 'A.md', fileContent: makeContent('old', 57), fileLastModifiedAt: 1 },
+        docLines,
+      );
+
+      act(() => {
+        result.current.handleOpenFileAtLine('B.md', 56);
+      });
+      setProps({ selectedFilePath: 'B.md', fileContent: contentB, fileLastModifiedAt: 2 });
+      expect(mockEditor.revealLineInCenter).not.toHaveBeenCalled();
+
+      // 扩展就绪后由兜底 tick 放行
+      languageReady.value = true;
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(mockEditor.revealLineInCenter).toHaveBeenCalledWith(56);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('releases the language gate after the cap so a failed load cannot block reveals', () => {
+    // 扩展加载失败不得让揭示永久卡死：到上限即放行。
+    vi.useFakeTimers();
+    try {
+      languageReady.value = false;
+      const contentB = makeContent('new', 57);
+      const docLines = { value: 57 };
+      const { result, setProps, mockEditor } = setup(
+        { selectedFilePath: 'A.md', fileContent: makeContent('old', 57), fileLastModifiedAt: 1 },
+        docLines,
+      );
+
+      act(() => {
+        result.current.handleOpenFileAtLine('B.md', 56);
+      });
+      setProps({ selectedFilePath: 'B.md', fileContent: contentB, fileLastModifiedAt: 2 });
+      act(() => {
+        vi.advanceTimersByTime(1500);
+      });
+      expect(mockEditor.revealLineInCenter).toHaveBeenCalledWith(56);
     } finally {
       vi.useRealTimers();
     }

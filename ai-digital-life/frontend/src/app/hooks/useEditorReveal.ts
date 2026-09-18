@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { DiagnosticSummary } from '@ai-digital-life/kernel';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
 import { useAppStore } from '@stores/slicedStore';
+import { detectEditorLanguage } from '@utils/workspacePaths';
+import { isLanguageExtensionReady, preloadLanguageExtension } from '../features/editor/cmLanguages';
 
 // 揭示时序常数（事项 46；集中命名，调参只改此处）。
 const VERIFY_DELAY_MS = 350;
@@ -60,6 +62,70 @@ function areFontsSettled(): boolean {
   } catch {
     return true;
   }
+}
+
+/** 落点容差（px）：渲染实测偏差在此范围内即视为已居中。 */
+const REVEAL_TOLERANCE_PX = 2;
+/** 摘帘要求连续多次实测都在容差内（吸收迟到的布局变化，避免"刚好一帧对齐"就掀帘）。 */
+const REVEAL_SETTLE_STREAK = 2;
+/**
+ * 语法扩展就绪闸门上限：超过即放行。
+ * 扩展加载失败、或变更面板差异链未走预热时，都不得把揭示永久卡住。
+ */
+const LANG_GATE_CAP_MS = 1200;
+
+type AlignOutcome = 'aligned' | 'nudged' | 'redispatched';
+
+/**
+ * 以**渲染后的真实几何**把目标行对齐到滚动容器中心。
+ *
+ * 为什么不能只用编辑器内部高度表：CodeMirror 的高度表在内容被绘制前只是**估算值**
+ * （官方 System Guide：*"initially estimated, measured accurately when content is drawn…
+ * even the parts outside of the viewport"*）。按估算值判"已稳定"会稳定在**错误**位置，
+ * 且误差随行号线性放大（1439 行 × 每行几像素 ≈ 数百像素），表现为"首次点击落点不准"。
+ *
+ * 三种结局：
+ * - `redispatched`：目标不在视口内 → 无布局可测，只能重发近似定位，下一轮再实测；
+ * - `nudged`：已渲染但超出容差 → 按实测偏差直接挪 `scrollTop`（一步到位，不再依赖估算）；
+ * - `aligned`：已渲染且偏差在容差内。
+ */
+function alignRenderedLine(editor: EditorRef, line: number): AlignOutcome {
+  let delta: number | null = null;
+  let visible = false;
+  try {
+    visible = editor
+      .getVisibleRanges()
+      .some((r) => r.startLineNumber <= line && line <= r.endLineNumber);
+    delta = editor.getLineCenterDelta?.(line) ?? null;
+  } catch {
+    return 'redispatched';
+  }
+  if (!visible || delta === null || !Number.isFinite(delta)) {
+    return 'redispatched';
+  }
+  if (Math.abs(delta) <= REVEAL_TOLERANCE_PX) {
+    return 'aligned';
+  }
+  // 偏差按浏览器原生行为在 [0, maxScroll] 内自动钳制，无需手工夹取
+  editor.setScrollPosition({ scrollTop: editor.getScrollTop() + delta });
+  return 'nudged';
+}
+
+/**
+ * 对齐并兜底：`redispatched` 时重发近似定位（不抢焦点——首揭示的 focus 已生效，
+ * 后续校正不应把焦点从用户正在操作的地方拉走）。
+ */
+function enforceRenderedAlignment(
+  editor: EditorRef,
+  line: number,
+  path: string,
+  scope: string,
+): AlignOutcome {
+  const outcome = alignRenderedLine(editor, line);
+  if (outcome === 'redispatched') {
+    revealLineSafely(editor, line, scope, path, { focus: false });
+  }
+  return outcome;
 }
 
 export function useEditorReveal(
@@ -131,6 +197,16 @@ export function useEditorReveal(
 
   // 记录 pending 的起始时刻，避免因模型迟迟不匹配而无限重试
   const pendingSinceRef = useRef<number | null>(null);
+  // 语法扩展就绪闸门的等待起点（有界等待，上限 LANG_GATE_CAP_MS）
+  const langGateSinceRef = useRef<number | null>(null);
+
+  /** 清空 pending 链的全部伴随状态（成功/放弃/新跳转共用，避免漏清字段）。 */
+  const resetPendingState = useCallback(() => {
+    pendingRevealRef.current = null;
+    pendingBasisRef.current = null;
+    pendingSinceRef.current = null;
+    langGateSinceRef.current = null;
+  }, [pendingRevealRef]);
   // 兜底重试计时器（事项 46 缺口 2）：编辑器挂载（尤其首屏 lazy Suspense）
   // 不产生 store 变更，effect 依赖不变不会重跑，pending 会烂掉。
   const pendingRetryRef = useRef<number | undefined>(undefined);
@@ -178,7 +254,8 @@ export function useEditorReveal(
   );
 
   /**
-   * 落点复核：延迟到布局稳定后，确认目标行确在可视区内；否则补一次揭示。
+   * 落点复核：延迟到布局稳定后**按渲染实测校验居中精度**（不再只问"可见吗"），
+   * 不在容差内则按偏差校正或重发近似定位。
    * epoch 保证只有"最后一次揭示"的复核能生效，旧定时器不得误伤新落点。
    */
   const scheduleRevealVerify = useCallback(
@@ -189,36 +266,26 @@ export function useEditorReveal(
         if (epoch !== revealEpochRef.current) {
           return;
         }
-        let visible = false;
-        try {
-          visible = editor
-            .getVisibleRanges()
-            .some((r) => r.startLineNumber <= line && line <= r.endLineNumber);
-        } catch {
-          return;
-        }
-        if (!visible) {
-          // 注意：此处不 bump epoch——稳定性轮询需跨越 correction 继续观察，
-          // bump 会误杀它；correction 本身 epoch 门控已保证只响应最后一次揭示。
-          revealLineSafely(editor, line, 'correct', path);
-        }
+        enforceRenderedAlignment(editor, line, path, 'correct');
       }, VERIFY_DELAY_MS);
     },
     [clearVerifyTimer],
   );
 
   /**
-   * 稳定性摘帘（事项 46 html:1439）：揭示后轮询目标行像素 top，连续两次不变
-   * 且目标在可视区且字体就绪才摘帘；上限兜底显现，永不永久隐藏。
-   * top 漂移或目标掉出可视区时重发揭示（追踪锚定，仍在帘后，不可见，
-   * 且不抢焦点，摘帘时首揭示的 focus 早已生效），
+   * 落点监督（方案 A）：揭示后每 100ms 按**渲染实测**对齐一次，连续
+   * `REVEAL_SETTLE_STREAK` 次都在容差内且字体就绪才摘帘；上限兜底显现，永不永久隐藏。
+   *
+   * 与旧实现的差别：旧实现用内部高度表 `getTopForLineNumber` 连续两次相同即判"稳定"，
+   * 高度表在未绘制区域是估算值 → 会"稳定且错"；新实现只认真实渲染几何。
+   *
    * 遇新 pending 或 flag 易主即中止，不干扰后来的跳转。
    */
   const awaitStableReveal = useCallback(
     (editor: EditorRef, line: number, path: string, epoch: number) => {
       clearStableTimer();
       const startedAt = Date.now();
-      let prevTop: number | null = null;
+      let alignedStreak = 0;
       const tick = () => {
         stableTimerRef.current = undefined;
         if (epoch !== revealEpochRef.current || pendingRevealRef.current !== null) {
@@ -232,35 +299,12 @@ export function useEditorReveal(
         if (useAppStore.getState().positioningPath !== path) {
           return;
         }
-        let top: number | null = null;
-        let visible = false;
-        try {
-          top = editor.getTopForLineNumber?.(line) ?? null;
-          visible = editor
-            .getVisibleRanges()
-            .some((r) => r.startLineNumber <= line && line <= r.endLineNumber);
-        } catch {
-          top = null;
-        }
-        if (
-          top !== null &&
-          Number.isFinite(top) &&
-          visible &&
-          prevTop !== null &&
-          Math.abs(top - prevTop) < 0.5 &&
-          areFontsSettled()
-        ) {
+        const outcome = enforceRenderedAlignment(editor, line, path, 'track');
+        alignedStreak = outcome === 'aligned' ? alignedStreak + 1 : 0;
+        const fontsSettled = areFontsSettled();
+        if (alignedStreak >= REVEAL_SETTLE_STREAK && fontsSettled) {
           clearOwnedPositioning();
           return;
-        }
-        if (top !== null && Number.isFinite(top)) {
-          // 漂移中（与上次不同）或掉出可视区：重发揭示追踪锚定（仍在帘后）。
-          if ((prevTop !== null && Math.abs(top - prevTop) >= 0.5) || !visible) {
-            revealLineSafely(editor, line, 'track', path, { focus: false });
-            prevTop = null;
-          } else {
-            prevTop = top;
-          }
         }
         if (Date.now() - startedAt > STABLE_CAP_MS) {
           clearOwnedPositioning();
@@ -289,9 +333,7 @@ export function useEditorReveal(
     }
     // 开文件失败：主区展示错误视图即终态，直接放弃 pending 并显现（事项 46 调整项）。
     if (useAppStore.getState().fileOpenError?.path === pending.path) {
-      pendingRevealRef.current = null;
-      pendingBasisRef.current = null;
-      pendingSinceRef.current = null;
+      resetPendingState();
       clearOwnedPositioning();
       return true;
     }
@@ -344,27 +386,43 @@ export function useEditorReveal(
         console.warn(
           `[useEditorReveal] give up stale pending reveal: line=${pending.line}, modelLines=${lineCount}, expected=${expectedLines}`,
         );
-        pendingRevealRef.current = null;
-        pendingBasisRef.current = null;
-        pendingSinceRef.current = null;
+        resetPendingState();
         clearOwnedPositioning();
         return true;
       }
       return false;
     }
+    // 方案 D：语法扩展就绪闸门（有界）。扩展是异步动态 import，resolve 后会改变编辑器
+    // 扩展集合并触发重新量测；若这次变化发生在揭示之后，落点就会被推走
+    // （"首次点击不准、第二次准"的嫌疑变量）。故先等扩展就绪再揭示；
+    // 扩展加载失败或差异链未预热时，到上限即放行，绝不把揭示永久卡住。
+    const language = detectEditorLanguage(pending.path);
+    if (!isLanguageExtensionReady(language)) {
+      preloadLanguageExtension(language);
+      const since = langGateSinceRef.current ?? Date.now();
+      langGateSinceRef.current = since;
+      if (Date.now() - since <= LANG_GATE_CAP_MS) {
+        return false;
+      }
+    }
+    langGateSinceRef.current = null;
     revealLineSafely(editor, pending.line, 'pending', pending.path);
     const epoch = (revealEpochRef.current += 1);
     // 落点复核（事项 46 症状②）：新挂载未量测的视图上 dispatch 的 scrollIntoView
     // 会按零高度布局解析、视口落错；待布局稳定后复核，不在可视区则补一次。
     scheduleRevealVerify(editor, pending.line, pending.path, epoch);
-    // 稳定性摘帘：帘子保持到布局稳定（目标像素 top 不再漂移）才显现，
-    // 而不是揭示 dispatch 即显现——否则用户会看到漂移中的视口。
+    // 落点监督（方案 A）：帘子保持到"渲染实测已居中且稳定"才显现，
+    // 而不是揭示 dispatch 即显现——否则用户会看到偏移/漂移中的视口。
     awaitStableReveal(editor, pending.line, pending.path, epoch);
-    pendingRevealRef.current = null;
-    pendingBasisRef.current = null;
-    pendingSinceRef.current = null;
+    resetPendingState();
     return true;
-  }, [scheduleRevealVerify, awaitStableReveal, clearOwnedPositioning, pendingRevealRef]);
+  }, [
+    scheduleRevealVerify,
+    awaitStableReveal,
+    clearOwnedPositioning,
+    resetPendingState,
+    pendingRevealRef,
+  ]);
 
   /**
    * 兜底链：仅 pending 未被 effect 消费时生效（挂载无 store 变更等缺口），
@@ -383,16 +441,20 @@ export function useEditorReveal(
         return;
       }
       if (Date.now() - pendingRetryStartRef.current > RETRY_CAP_MS) {
-        pendingRevealRef.current = null;
-        pendingBasisRef.current = null;
-        pendingSinceRef.current = null;
+        resetPendingState();
         clearOwnedPositioning();
         return;
       }
       pendingRetryRef.current = window.setTimeout(tickRetry, RETRY_STEP_MS);
     };
     pendingRetryRef.current = window.setTimeout(tickRetry, RETRY_STEP_MS);
-  }, [attemptPendingReveal, clearPendingRetry, clearOwnedPositioning, pendingRevealRef]);
+  }, [
+    attemptPendingReveal,
+    clearPendingRetry,
+    clearOwnedPositioning,
+    resetPendingState,
+    pendingRevealRef,
+  ]);
 
   useEffect(() => {
     if (attemptPendingReveal()) {
@@ -442,6 +504,10 @@ export function useEditorReveal(
         modifiedAt: snap.fileLastModifiedAt,
         alreadyOpen,
       };
+      // 方案 D（预热）：与"读文件内容"并行预热目标文件的语法扩展，使扩展尽量与
+      // 内容同批应用，从源头消除"揭示之后才 reconfigure → 落点被推走"的窗口。
+      preloadLanguageExtension(detectEditorLanguage(relativePath));
+      langGateSinceRef.current = null;
       // 定位期间隐藏目标文件表面，揭示完成/放弃才显现（事项 46 调整项）。
       // 旧链条显式取消，不靠 epoch 自然死亡（Phase 4 审查 1.5）。
       clearRevealTimers();

@@ -89,7 +89,15 @@ export interface EditorRef {
   focus(): void;
   setPosition(position: EditorPosition): void;
   setSelection?(selection: EditorSelection): void;
-  getTopForLineNumber?(lineNumber: number): number;
+  /**
+   * 目标行**渲染后**的几何偏差（px）：正 = 渲染在滚动容器中心之下，负 = 之上。
+   * 未渲染（在视口外、无布局）返回 null —— 此时无法实测，只能重新近似定位。
+   *
+   * 用途：以"渲染事实"校验落点，替代"内部高度表估算"作为稳定/复核判据。
+   * CodeMirror 的高度表在内容被绘制前只有估算值（官方 System Guide），
+   * 用估算值自证稳定会稳定在错误位置。
+   */
+  getLineCenterDelta?(lineNumber: number): number | null;
   getDomNode?(): HTMLElement | null;
   getView?(): unknown;
 }

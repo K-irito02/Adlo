@@ -177,10 +177,18 @@ export class CodeMirrorEditorRef implements EditorRef {
     });
   }
 
-  getTopForLineNumber?(lineNumber: number): number {
+  /**
+   * 渲染实测：目标行的屏幕 top 与滚动容器中心的差（正 = 偏下）。
+   * 未渲染（视口外）时 `coordsAtPos` 返回 null —— 此时无布局可测。
+   */
+  getLineCenterDelta?(lineNumber: number): number | null {
     const line = this.view.state.doc.line(lineNumber);
-    const block = this.view.lineBlockAt(line.from);
-    return block.top - this.view.documentTop;
+    const coords = this.view.coordsAtPos(line.from);
+    if (!coords) {
+      return null;
+    }
+    const rect = this.view.scrollDOM.getBoundingClientRect();
+    return coords.top - (rect.top + rect.height / 2);
   }
 
   getDomNode?(): HTMLElement | null {
