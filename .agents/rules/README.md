@@ -43,6 +43,7 @@ alwaysApply: true
 | `rust-inline-cfg-test-pattern.md` | Rust 内联 `#[cfg(test)]` 单元测试组织（内联于源文件末尾） | Rust 代码变更 |
 | `rust-use-statement-ordering-convention.md` | Rust use 语句三段式排序（std → 外部 crate → adl_* 内部 crate） | Rust 代码变更 |
 | `serde-default-rename-all-convention.md` | 跨 IPC 边界 Rust 类型的 serde 双注解约定 | 新增共享类型 |
+| `cross-language-constant-contract.md` | 跨语言常量契约：TS/Rust 双写常量两侧钉值测试 + 交叉引用注释 | 涉及双端共享数值常量 |
 | `ts-rs-type-generation-barrel-import.md` | Rust→TypeScript 自动类型生成及 kernel 桶导入规范 | 类型生成变更 |
 
 ## 新增规则
