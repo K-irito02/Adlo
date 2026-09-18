@@ -203,10 +203,16 @@ pub async fn clear_current(State(state): State<ServerState>) -> impl IntoRespons
             return ipc::to_response(Err(e));
         }
         // 停止活动工作区的文件监听器（take 后显式 stop，保证工作线程退出）。
-        if let Ok(mut slot) = state.workspace_watcher.lock() {
-            if let Some(previous) = slot.take() {
-                previous.stop();
-            }
+        // poison 时恢复继续而非静默跳过，否则旧 watcher 泄漏并继续广播脏批次。
+        let previous = match state.workspace_watcher.lock() {
+            Ok(mut slot) => slot.take(),
+            Err(poisoned) => {
+                tracing::warn!("workspace watcher slot poisoned on clear; recovering");
+                poisoned.into_inner().take()
+            },
+        };
+        if let Some(previous) = previous {
+            previous.stop();
         }
     }
     ipc::to_response(result)
@@ -438,15 +444,21 @@ struct SearchFilesBody {
 }
 
 /// 拒绝路径穿越输入：绝对路径或含 `..` 成分的相对路径一律 `INVALID_INPUT`，
-/// 防止越过工作区根读取任意文件。
+/// 防止越过工作区根读取任意文件。空串亦拒绝（归一化后即工作区根本身，
+/// 读目录会失败但语义无意义）。symlink 跃出的最终防线在
+/// `adl_workspace::search_in_files` 的 canonicalize 校验（单测覆盖）。
 fn reject_traversal(paths: &[String]) -> Result<(), AppError> {
     use std::path::Component;
     for p in paths {
+        if p.trim().is_empty() {
+            return Err(AppError::InvalidInput("path must not be empty".into()));
+        }
+        // `is_absolute` 由下面的 components 检查完全覆盖（Unix RootDir /
+        // Windows Prefix），此处不重复判断。
         let path = std::path::Path::new(p);
-        let escapes = path.is_absolute()
-            || path.components().any(|c| {
-                matches!(c, Component::ParentDir | Component::RootDir | Component::Prefix(_))
-            });
+        let escapes = path
+            .components()
+            .any(|c| matches!(c, Component::ParentDir | Component::RootDir | Component::Prefix(_)));
         if escapes {
             return Err(AppError::InvalidInput(format!("path escapes workspace: {p}")));
         }
@@ -471,6 +483,14 @@ pub async fn search_in_files(
     };
     if let Err(e) = reject_traversal(&input.paths) {
         return ipc::to_response(Err(e));
+    }
+    // DoS 护栏：调用方（watcher 批次）正常 ≤500 条；超限直接拒绝而非逐文件读。
+    const MAX_SEARCH_FILES_PATHS: usize = 2000;
+    if input.paths.len() > MAX_SEARCH_FILES_PATHS {
+        return ipc::to_response(Err(AppError::InvalidInput(format!(
+            "too many paths: {} > {MAX_SEARCH_FILES_PATHS}",
+            input.paths.len()
+        ))));
     }
     let root_path = match current_workspace(&state) {
         Ok(ws) => ws.root_path,

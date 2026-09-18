@@ -19,11 +19,12 @@ function collectBlocks(container: HTMLElement): MappedBlock[] {
 
 /**
  * 取包含该行的最内层块（文档顺序中最后一个命中者）；无包含者时回退到
- * **最近的前置块**（业界做法，见 VS Code markdown preview 的 scroll-sync）。
+ * **最近的前置块**（`end` 最大者，同 end 取后者；见 VS Code markdown preview 的 scroll-sync）。
  */
 export function resolveSourceLineElement(container: HTMLElement, line: number): HTMLElement | null {
   let containing: HTMLElement | null = null;
   let preceding: HTMLElement | null = null;
+  let precedingEnd = Number.NEGATIVE_INFINITY;
   for (const block of collectBlocks(container)) {
     if (
       Number.isFinite(block.start) &&
@@ -32,11 +33,33 @@ export function resolveSourceLineElement(container: HTMLElement, line: number): 
       line <= block.end
     ) {
       containing = block.element;
-    } else if (block.end < line) {
+    } else if (block.end < line && block.end >= precedingEnd) {
       preceding = block.element;
+      precedingEnd = block.end;
     }
   }
   return containing ?? preceding ?? null;
+}
+
+/** 落点闪烁（WeakMap 跟踪：连续跳转时旧定时器不得撕掉新加的类）。 */
+const flashTimers = new WeakMap<HTMLElement, number>();
+
+function flashElement(target: HTMLElement): void {
+  const previous = flashTimers.get(target);
+  if (previous !== undefined) {
+    window.clearTimeout(previous);
+  }
+  target.classList.remove('adl-md-flash');
+  // 强制重排以便连续跳转时动画可重放
+  void target.offsetWidth;
+  target.classList.add('adl-md-flash');
+  flashTimers.set(
+    target,
+    window.setTimeout(() => {
+      target.classList.remove('adl-md-flash');
+      flashTimers.delete(target);
+    }, 1400),
+  );
 }
 
 /** 滚动到目标行对应的块并（可选）落点闪烁；返回是否找到了目标块。 */
@@ -49,13 +72,14 @@ export function revealSourceLine(
   if (!target) {
     return false;
   }
-  target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  try {
+    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } catch {
+    // 游离 DOM 等极端情况：不抛，由调用方回退。
+    return false;
+  }
   if (options.flash) {
-    target.classList.remove('adl-md-flash');
-    // 强制重排以便连续跳转时动画可重放
-    void target.offsetWidth;
-    target.classList.add('adl-md-flash');
-    window.setTimeout(() => target.classList.remove('adl-md-flash'), 1400);
+    flashElement(target);
   }
   return true;
 }
@@ -100,6 +124,7 @@ export function findLineForQuery(
 
 /**
  * 编辑器行揭示：越界行钳制到最近有效行（越界会抛 RangeError，且上层无错误边界）。
+ * 与 FilesPanel 内联分支同语义（含 `line < 1 → 1`），调用方可统一预期。
  */
 export function revealEditorLineSafely(
   editor: EditorRef,
@@ -107,11 +132,11 @@ export function revealEditorLineSafely(
   context: { path?: string; scope: string },
 ): 'revealed' | 'clamped' | 'invalid' {
   const lineCount = editor.getModel?.()?.getLineCount() ?? Number.POSITIVE_INFINITY;
-  if (!Number.isFinite(line) || line < 1) {
+  if (!Number.isFinite(line)) {
     return 'invalid';
   }
   const finiteCount = Number.isFinite(lineCount) ? lineCount : null;
-  const target = finiteCount === null ? line : Math.min(line, finiteCount);
+  const target = line < 1 ? 1 : finiteCount === null ? line : Math.min(line, finiteCount);
   if (target !== line) {
     console.warn(
       `[revealEditorLineSafely] clamped in ${context.scope}: requested=${line}, applied=${target}, lineCount=${finiteCount ?? 'unknown'}, path=${context.path ?? 'unknown'}`,

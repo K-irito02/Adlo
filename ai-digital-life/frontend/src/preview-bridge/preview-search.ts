@@ -1,17 +1,9 @@
-import type {
-  WorkspaceSearchHit,
-  FileOutlineItem,
-  RecentWorkspaceEntry,
-  RetrievalSnapshot,
-  WorkspaceMeta,
-} from '@ai-digital-life/kernel';
+import type { WorkspaceSearchHit, FileOutlineItem, WorkspaceMeta } from '@ai-digital-life/kernel';
 import { requestPreviewApi } from '../shared/ipc/preview-api';
 
-/** Preview bridge shared mutable context (subset previously exported by preview-context). */
+/** Preview bridge shared mutable context（仅消费 currentWorkspace，其余字段已裁剪）。 */
 export interface PreviewSearchContext {
-  recentWorkspaces: RecentWorkspaceEntry[];
   currentWorkspace: WorkspaceMeta | undefined;
-  retrievalStatus: RetrievalSnapshot | undefined;
 }
 
 export function createPreviewSearchBridge(ctx: PreviewSearchContext) {

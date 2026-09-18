@@ -45,23 +45,37 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
   const setMatchCaseValue = useAppStore((s) => s.setSearchMatchCase);
   const setMatchWholeWordValue = useAppStore((s) => s.setSearchMatchWholeWord);
   const setUseRegexValue = useAppStore((s) => s.setSearchUseRegex);
+  // 选项变更即用当前检索词重搜：否则旧结果配新选项，点击校验误标 stale（事项 45 Phase 4 4.1）。
+  // 即时读 getState（不用闭包快照，同 tick 连点不丢切换，事项 45 Phase 4 2.3）。
+  const retriggerSearch = useCallback(() => {
+    const { searchQuery, searchFiles } = useAppStore.getState();
+    if (searchQuery.trim()) {
+      void searchFiles(searchQuery);
+    }
+  }, []);
   const setMatchCase = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      setMatchCaseValue(typeof value === 'function' ? value(matchCase) : value);
+      const current = useAppStore.getState().searchMatchCase;
+      setMatchCaseValue(typeof value === 'function' ? value(current) : value);
+      retriggerSearch();
     },
-    [matchCase, setMatchCaseValue],
+    [setMatchCaseValue, retriggerSearch],
   );
   const setMatchWholeWord = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      setMatchWholeWordValue(typeof value === 'function' ? value(matchWholeWord) : value);
+      const current = useAppStore.getState().searchMatchWholeWord;
+      setMatchWholeWordValue(typeof value === 'function' ? value(current) : value);
+      retriggerSearch();
     },
-    [matchWholeWord, setMatchWholeWordValue],
+    [setMatchWholeWordValue, retriggerSearch],
   );
   const setUseRegex = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      setUseRegexValue(typeof value === 'function' ? value(useRegex) : value);
+      const current = useAppStore.getState().searchUseRegex;
+      setUseRegexValue(typeof value === 'function' ? value(current) : value);
+      retriggerSearch();
     },
-    [useRegex, setUseRegexValue],
+    [setUseRegexValue, retriggerSearch],
   );
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [replaceQuery, setReplaceQuery] = useState('');
@@ -83,9 +97,10 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
     if (!searchPattern) {
       return [];
     }
+    // 同一实例复用＋逐次归零 lastIndex（/g/ 有状态），避免每行 new RegExp。
     return input.searchResults.filter((result) => {
-      const pattern = new RegExp(searchPattern);
-      return pattern.test(`${result.path}\n${result.preview}`);
+      searchPattern.lastIndex = 0;
+      return searchPattern.test(`${result.path}\n${result.preview}`);
     });
   }, [searchPattern, input.searchQuery, input.searchResults]);
 

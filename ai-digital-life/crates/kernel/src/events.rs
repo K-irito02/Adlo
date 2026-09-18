@@ -105,12 +105,17 @@ impl AppEvent {
             Self::TerminalStream(_) => "terminal.stream",
             Self::ModelStream(_) => "model.stream",
             Self::ConfigChanged => "config.changed",
+            // 单文件通道为历史兼容保留（旧 `emit-file-changed` 路径仍 emit）；
+            // 新代码一律走批量 `FilesChanged`，两者不得并存触发同一刷新。
             Self::FileChanged { .. } => "workspace.file-changed",
             Self::FilesChanged { .. } => "workspace.files-changed",
             Self::ClipboardChanged(_) => "clipboard.changed",
         }
     }
 
+    /// 诊断用序列化（`type` 契约，供日志/测试断言）。
+    /// WS 推送帧另有 `kind` 契约（见 `adl-server::ws_workspace::files_changed_frame`，
+    /// 由单测锁定），两者不得混用。
     pub fn to_json(&self) -> serde_json::Value {
         let mut obj = serde_json::Map::new();
         obj.insert("type".into(), serde_json::Value::String(self.kind().to_string()));

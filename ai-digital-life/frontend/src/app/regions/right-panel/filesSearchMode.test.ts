@@ -305,12 +305,16 @@ describe('files search mode wiring', () => {
     expect(revealSource).toContain('revealLineSafely');
     expect(revealSource).toContain('getLineCount');
     expect(revealSource).toContain('stale reveal line clamped');
-    expect(filesPanelSource).toContain('stale navigate line clamped');
+    // 内联分支已收敛到共享 helper（事项 45 Phase 4 C6），不再自带 clamp 实现
+    expect(filesPanelSource).toContain("revealEditorLineSafely(editor, line, { scope: 'navigate'");
   });
 
   it('retries preview reveal until lazy anchors mount (事项 43)', () => {
     expect(filesPanelSource).toContain('revealInPreview');
-    expect(filesPanelSource).toContain('setInterval(attempt, 60)');
+    // 首轮同步成功即终结，不再建 interval（成功揭示只执行一次，事项 45 Phase 4 1.1）
+    expect(filesPanelSource).toContain('window.setInterval(');
+    expect(filesPanelSource).toContain(', 60)');
+    expect(filesPanelSource).not.toContain('setInterval(attempt, 60)');
     // 重试上限 2.5s（事项 43）；临时调试日志已随事项 42 移除，不得回潮
     expect(filesPanelSource).toContain('2500');
     expect(filesPanelSource).not.toContain('preview-give-up');
@@ -358,5 +362,29 @@ describe('files search mode wiring', () => {
 
   it('subscribes to workspace file-change batches (事项 45)', () => {
     expect(startupSource).toContain('subscribeWorkspaceFilesChanged');
+  });
+
+  it('validates unopened hits after content arrives (事项 45 Phase 4 1.4)', () => {
+    expect(filesPanelSource).toContain('pendingSearchValidateRef');
+    expect(filesPanelSource).toContain('pendingPreviewRevealRef');
+    expect(filesPanelSource).toContain('query: querySnap');
+  });
+
+  it('reuses the shared reveal helper instead of a third copy (事项 45 Phase 4 1.5/2.1)', () => {
+    expect(filesPanelSource).toContain('revealSourceLine(surface, line, { flash: true })');
+    expect(filesPanelSource).not.toContain('candidates[0]');
+  });
+
+  it('resets collapse only on new queries, keyed by scope (事项 45 Phase 4 1.2)', () => {
+    expect(resultsTreeSource).toContain('[query, scopeKey]');
+    expect(resultsTreeSource).toContain('scopeKey');
+  });
+
+  it('declares file-scope truncation to the user (事项 45 Phase 4 1.6)', () => {
+    expect(shellSource).toContain('searchFilePartial');
+  });
+
+  it('disables wholeWord/regex toggles in file scope (事项 45 Phase 4 4.2)', () => {
+    expect(shellSource).toContain("disabled={filesSearchScope === 'file'}");
   });
 });

@@ -37,27 +37,37 @@ export interface SearchSlice {
   clearSearch: () => void;
 }
 
-/** 用重算结果替换某文件的全部命中（0 条即删除该文件）。顺序：先删旧条目，再追加新条目。 */
+/** 用重算结果替换某文件的全部命中（0 条即删除该文件）。原位替换保全局顺序。 */
 export function replaceFileHits(
   entries: SearchHitEntry[],
   path: string,
   hits: SearchHitEntry[],
+  workspaceId?: string,
 ): SearchHitEntry[] {
-  const kept = entries.filter((entry) => entry.path !== path);
-  return [...kept, ...hits.map((hit) => ({ ...hit, stale: false }))];
-}
-
-export function dropFileHits(entries: SearchHitEntry[], path: string): SearchHitEntry[] {
-  return entries.filter((entry) => entry.path !== path);
+  const matches = (entry: SearchHitEntry) =>
+    entry.path === path && (workspaceId === undefined || entry.workspaceId === workspaceId);
+  const fresh = hits.map((hit) => ({ ...hit, stale: false }));
+  const firstIndex = entries.findIndex(matches);
+  if (firstIndex === -1) {
+    return [...entries, ...fresh];
+  }
+  return [
+    ...entries.slice(0, firstIndex),
+    ...fresh,
+    ...entries.slice(firstIndex).filter((entry) => !matches(entry)),
+  ];
 }
 
 export function markHitsStale(
   entries: SearchHitEntry[],
   path: string,
   line?: number,
+  workspaceId?: string,
 ): SearchHitEntry[] {
   return entries.map((entry) =>
-    entry.path === path && (line === undefined || entry.line === line)
+    entry.path === path &&
+    (workspaceId === undefined || entry.workspaceId === workspaceId) &&
+    (line === undefined || entry.line === line)
       ? { ...entry, stale: true }
       : entry,
   );

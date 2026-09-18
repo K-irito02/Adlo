@@ -36,6 +36,11 @@ interface SearchResultsTreeProps {
   variant: 'tree' | 'list';
   query: string;
   matchCase: boolean;
+  /** 片段高亮的检索选项（文件名高亮保持子串语义，不用这两项） */
+  wholeWord: boolean;
+  useRegex: boolean;
+  /** 检索范围/视图：折叠重置只跟随这些，不跟随 sections 身份（点选文件即换 sections 身份，重置会丢折叠）。 */
+  scopeKey: string;
   expandLabel: string;
   collapseLabel: string;
   /** 失效命中行内标记文案（Shell 传入 t.searchHitStale，避免树内引入 i18n 依赖） */
@@ -99,6 +104,8 @@ function SearchFileRow(props: {
   flat: boolean;
   query: string;
   matchCase: boolean;
+  wholeWord: boolean;
+  useRegex: boolean;
   /** 文件名高亮 query（内容范围为空串，仅高亮片段） */
   nameQuery: string;
   expandLabel: string;
@@ -115,6 +122,8 @@ function SearchFileRow(props: {
     flat,
     query,
     matchCase,
+    wholeWord,
+    useRegex,
     nameQuery,
     expandLabel,
     collapseLabel,
@@ -183,7 +192,11 @@ function SearchFileRow(props: {
               >
                 <span className="adl-search-snippet__line">{snippet.line}</span>
                 <span className="adl-search-snippet__preview">
-                  {highlightMatch(snippet.preview || file.path, query, matchCase)}
+                  {highlightMatch(snippet.preview || file.path, query, matchCase, {
+                    matchCase,
+                    wholeWord,
+                    useRegex,
+                  })}
                 </span>
                 {snippet.stale ? (
                   <span className="adl-search-snippet__stale">{staleLabel}</span>
@@ -200,9 +213,10 @@ function SearchFileRow(props: {
 function SearchDirRows(props: {
   entries: ChildEntry[];
   depth: number;
-  flat: boolean;
   query: string;
   matchCase: boolean;
+  wholeWord: boolean;
+  useRegex: boolean;
   nameQuery: string;
   collapsedDirs: Set<string>;
   onToggleDir: (path: string) => void;
@@ -216,9 +230,10 @@ function SearchDirRows(props: {
   const {
     entries,
     depth,
-    flat,
     query,
     matchCase,
+    wholeWord,
+    useRegex,
     nameQuery,
     collapsedDirs,
     onToggleDir,
@@ -237,9 +252,11 @@ function SearchDirRows(props: {
               key={entry.file.key}
               file={entry.file}
               depth={depth}
-              flat={flat}
+              flat={false}
               query={query}
               matchCase={matchCase}
+              wholeWord={wholeWord}
+              useRegex={useRegex}
               nameQuery={nameQuery}
               expandLabel={props.expandLabel}
               collapseLabel={props.collapseLabel}
@@ -251,7 +268,9 @@ function SearchDirRows(props: {
           );
         }
         // 默认全部展开：collapsedDirs 只记录被用户手动收起的目录
-        const isExpanded = !collapsedDirs.has(entry.path);
+        // （按 workspaceId:key 命名空间，两工作区同名目录不联动）。
+        const dirKey = `${workspaceId}:${entry.path}`;
+        const isExpanded = !collapsedDirs.has(dirKey);
         return (
           <TreeNodeRow
             key={entry.path}
@@ -262,13 +281,13 @@ function SearchDirRows(props: {
             isExpanded={isExpanded}
             expandLabel={props.expandLabel}
             collapseLabel={props.collapseLabel}
-            onToggle={() => onToggleDir(entry.path)}
-            onActivate={() => onToggleDir(entry.path)}
+            onToggle={() => onToggleDir(dirKey)}
+            onActivate={() => onToggleDir(dirKey)}
             itemClassName="adl-filetree__item adl-filetree__node--directory"
             rowClassName="adl-filetree__row"
             labelClassName="adl-filetree__label"
             toggleClassName="adl-filetree__toggle"
-            indentClassName={`adl-filetree__indent${flat ? ' adl-filetree__indent--flat' : ''}`}
+            indentClassName="adl-filetree__indent"
             labelContentClassName="adl-filetree__node-main"
             label={entry.name}
             nodePath={entry.path}
@@ -287,11 +306,12 @@ function SearchDirRows(props: {
 
 // 检索结果树：与变更面板共用同一行级 chrome（TreeNodeRow + adl-filetree__* + FileIcon +
 // adl-multitree-entry 分组头），内容范围时文件行下方追加内容片段子行。
-function collectDirPaths(entries: ChildEntry[], out: string[]) {
+function collectDirPaths(entries: ChildEntry[], out: string[], workspaceId: string) {
   for (const entry of entries) {
     if (entry.kind === 'dir') {
-      out.push(entry.path);
-      collectDirPaths(entry.children, out);
+      // 与 toggle/读取一致：按 workspaceId:key 命名空间（事项 45 Phase 4 2.4）。
+      out.push(`${workspaceId}:${entry.path}`);
+      collectDirPaths(entry.children, out, workspaceId);
     }
   }
 }
@@ -306,6 +326,9 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
     variant,
     query,
     matchCase,
+    wholeWord,
+    useRegex,
+    scopeKey,
     expandLabel,
     collapseLabel,
     staleLabel,
@@ -314,16 +337,17 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
     onStructureSignalConsumed,
     onCollapseStatusChange,
   } = props;
-  const flat = variant === 'list';
 
   const [collapsedSections, setCollapsedSections] = useState<Set<string>>(() => new Set());
   const [collapsedDirs, setCollapsedDirs] = useState<Set<string>>(() => new Set());
   const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(() => new Set());
+  // 折叠重置只跟随 query/scope（新检索才清）：sections 身份随点选文件变化，
+  // 若依赖它，点开任一结果即清空全部折叠（事项 45 Phase 4 1.2）。
   useEffect(() => {
     setCollapsedSections(new Set());
     setCollapsedDirs(new Set());
     setCollapsedFiles(new Set());
-  }, [query, sections]);
+  }, [query, scopeKey]);
 
   const trees = useMemo(() => {
     if (variant === 'list') {
@@ -370,7 +394,7 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
     } else if (trees) {
       if (structureSignal.action === 'collapse') {
         const all: string[] = [];
-        trees.forEach((entries) => collectDirPaths(entries, all));
+        trees.forEach((entries, workspaceId) => collectDirPaths(entries, all, workspaceId));
         setCollapsedDirs(new Set(all));
       } else {
         setCollapsedDirs(new Set());
@@ -390,7 +414,7 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
       }
     }
     const dirPaths: string[] = [];
-    trees?.forEach((entries) => collectDirPaths(entries, dirPaths));
+    trees?.forEach((entries, workspaceId) => collectDirPaths(entries, dirPaths, workspaceId));
     onCollapseStatusChange({
       snippetsAllCollapsed: snippetKeys.every((k) => collapsedFiles.has(k)),
       dirsAllCollapsed: dirPaths.every((p) => collapsedDirs.has(p)),
@@ -454,9 +478,11 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
                           key={file.key}
                           file={file}
                           depth={0}
-                          flat
+                          flat={variant === 'list'}
                           query={query}
                           matchCase={matchCase}
+                          wholeWord={wholeWord}
+                          useRegex={useRegex}
                           nameQuery={nameQuery}
                           expandLabel={expandLabel}
                           collapseLabel={collapseLabel}
@@ -471,9 +497,10 @@ const SearchResultsTree = React.memo(function SearchResultsTree(props: SearchRes
                     <SearchDirRows
                       entries={trees?.get(section.workspaceId) ?? []}
                       depth={0}
-                      flat={flat}
                       query={query}
                       matchCase={matchCase}
+                      wholeWord={wholeWord}
+                      useRegex={useRegex}
                       nameQuery={nameQuery}
                       collapsedDirs={collapsedDirs}
                       onToggleDir={(path) => toggleIn(setCollapsedDirs, path)}

@@ -201,9 +201,22 @@ pub async fn init_server_state(
 
 /// 启动/重建活动工作区 watcher：把批次转成 `AppEvent::FilesChanged` 广播给 WS 订阅者。
 /// 失败仅告警（降级为无自动刷新），不影响应用启动。
+///
+/// 生命周期不变量（事项 45 Phase 4 R3 核验结论）：改变"当前工作区"的出口只有
+/// `open`（重建）、`clear-current`（停止）、进程启动恢复（重建）；分支切换等
+/// 只更新元数据（同根），无需重建。`emit` 是 broadcast 非阻塞发送，watcher
+/// 回调永不被反压（慢订阅者侧以 `Lagged→overflow` 降级）。
 pub(crate) fn restart_workspace_watcher(state: &ServerState, root: &std::path::Path) {
-    let mut slot = state.workspace_watcher.lock().unwrap_or_else(|e| e.into_inner());
-    if let Some(previous) = slot.take() {
+    // 先短持锁取出旧实例，锁外 stop/start：持锁 join 线程会占用 executor，
+    // 且未来回调若需此锁即死锁（事项 45 Phase 4 D1）。
+    let previous = match state.workspace_watcher.lock() {
+        Ok(mut slot) => slot.take(),
+        Err(poisoned) => {
+            tracing::warn!("workspace watcher slot poisoned; recovering");
+            poisoned.into_inner().take()
+        },
+    };
+    if let Some(previous) = previous {
         previous.stop();
     }
     let bus = state.event_bus.clone();
@@ -215,7 +228,13 @@ pub(crate) fn restart_workspace_watcher(state: &ServerState, root: &std::path::P
         });
     });
     match adl_workspace::WorkspaceWatcher::start(root, callback) {
-        Ok(watcher) => *slot = Some(watcher),
+        Ok(watcher) => match state.workspace_watcher.lock() {
+            Ok(mut slot) => *slot = Some(watcher),
+            Err(poisoned) => {
+                tracing::warn!("workspace watcher slot poisoned; recovering");
+                *poisoned.into_inner() = Some(watcher);
+            },
+        },
         Err(err) => {
             tracing::warn!(error = %err, root = %root.display(), "workspace watcher disabled")
         },

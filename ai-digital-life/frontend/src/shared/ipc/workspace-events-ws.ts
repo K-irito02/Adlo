@@ -21,9 +21,6 @@ export interface WorkspaceEventsClient {
   dispose(): void;
 }
 
-const WS_CONNECTING = 0;
-const WS_OPEN = 1;
-
 /** 单例式 WS 客户端：只在存在订阅者时连接，断线指数退避重连。 */
 export function createWorkspaceEventsClient(
   baseUrl = '',
@@ -35,20 +32,26 @@ export function createWorkspaceEventsClient(
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectDelay = reconnectDelayMs;
   let disposed = false;
+  // 首连成功后即有过连接：之后每次 onopen 都是"重连"，断线窗口的变更已丢失，
+  // 补发 overflow 批次唤醒消费端全量重搜（kernel 溢出退化契约在 WS 路径的落实）。
+  let hasConnected = false;
+
+  const sanitizeList = (value: unknown): string[] =>
+    Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
   const handleFrame = (raw: string) => {
-    let frame: { kind?: string; changed?: string[]; removed?: string[]; overflow?: boolean };
+    let frame: { kind?: string; changed?: unknown; removed?: unknown; overflow?: boolean };
     try {
       frame = JSON.parse(raw) as typeof frame;
     } catch {
       return;
     }
-    if (frame.kind !== 'files-changed') {
+    if (!frame || typeof frame !== 'object' || frame.kind !== 'files-changed') {
       return;
     }
     const batch: WorkspaceFilesChangedBatch = {
-      changed: frame.changed ?? [],
-      removed: frame.removed ?? [],
+      changed: sanitizeList(frame.changed),
+      removed: sanitizeList(frame.removed),
       overflow: frame.overflow === true,
     };
     listeners.forEach((fn) => fn(batch));
@@ -62,6 +65,11 @@ export function createWorkspaceEventsClient(
     socket = ws;
     ws.onopen = () => {
       reconnectDelay = reconnectDelayMs;
+      if (hasConnected) {
+        const batch: WorkspaceFilesChangedBatch = { changed: [], removed: [], overflow: true };
+        listeners.forEach((fn) => fn(batch));
+      }
+      hasConnected = true;
     };
     ws.onmessage = (event) => {
       if (typeof event.data === 'string') {
@@ -81,9 +89,32 @@ export function createWorkspaceEventsClient(
         reconnectDelay = Math.min(reconnectDelay * 2, maxReconnectDelayMs);
       }
     };
-    ws.onerror = (event) => {
-      console.warn('[workspace-events-ws] socket error', event);
+    ws.onerror = () => {
+      console.warn('[workspace-events-ws] socket error');
+      // 只 error 不 close 的假死连接：主动关闭走统一 onclose 重连。
+      try {
+        ws.close();
+      } catch {
+        // 关闭幂等，失败即已有 onclose 接管。
+      }
     };
+  };
+
+  /** 无条件释放 socket（CLOSING/CLOSED  equally）：close 幂等，不留"永不重连"状态。 */
+  const releaseSocket = () => {
+    if (socket === null) {
+      return;
+    }
+    const ws = socket;
+    socket = null;
+    ws.onclose = null;
+    ws.onerror = null;
+    ws.onmessage = null;
+    try {
+      ws.close();
+    } catch {
+      // 已关闭的 socket 再关即抛，忽略。
+    }
   };
 
   return {
@@ -99,29 +130,17 @@ export function createWorkspaceEventsClient(
           clearTimeout(reconnectTimer);
           reconnectTimer = null;
         }
-        if (
-          socket !== null &&
-          (socket.readyState === WS_CONNECTING || socket.readyState === WS_OPEN)
-        ) {
-          const ws = socket;
-          socket = null;
-          ws.onclose = null;
-          ws.close();
-        }
+        releaseSocket();
       };
     },
     dispose() {
+      // dispose 是终结性的：disposed 锁死后重订阅无声失活，重订者须新建 client。
       disposed = true;
       if (reconnectTimer !== null) {
         clearTimeout(reconnectTimer);
         reconnectTimer = null;
       }
-      if (socket !== null) {
-        const ws = socket;
-        socket = null;
-        ws.onclose = null;
-        ws.close();
-      }
+      releaseSocket();
       listeners.clear();
     },
   };

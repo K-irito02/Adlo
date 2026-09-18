@@ -392,8 +392,7 @@
   outline: none;
 }
 
-.adl-search-snippet__stale,
-.adl-search-file__stale {
+.adl-search-snippet__stale {
   flex: 0 0 auto;
   margin-left: var(--space-2);
   color: var(--warning);

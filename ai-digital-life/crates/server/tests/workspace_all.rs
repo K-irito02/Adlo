@@ -454,6 +454,39 @@ async fn search_in_files_scans_only_requested_paths() {
     .await;
     assert_eq!(body["data"].as_array().unwrap().len(), 0);
 
+    // 先停 watcher 再删目录（事项 45 Phase 4 S5：避免 watcher 线程与删除竞态）。
+    let (_, _) =
+        common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 超量 `paths` 直接拒绝（DoS 护栏），而不是逐文件读打满阻塞线程池。
+#[tokio::test]
+async fn search_in_files_rejects_oversized_path_list() {
+    let state = common::state("ws-sif-cap").await;
+    let ws = common::make_workspace("ws-sif-cap-src");
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({ "workspacePath": ws.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(body["ok"], true, "open body: {body}");
+
+    let paths: Vec<String> = (0..2001).map(|i| format!("f{i}.txt")).collect();
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search-in-files",
+        Some(serde_json::json!({ "paths": paths, "query": "hello" })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
+    assert_eq!(body["error"]["code"], "INVALID_INPUT", "body: {body}");
+
+    let (_, _) =
+        common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
     let _ = std::fs::remove_dir_all(ws);
 }
 
@@ -462,13 +495,14 @@ async fn search_in_files_scans_only_requested_paths() {
 async fn search_in_files_requires_query_string() {
     let state = common::state("ws-sif-bad").await;
     let ws = common::make_workspace("ws-sif-bad-src");
-    let (_, _) = common::send_request(
+    let (_, body) = common::send_request(
         state.clone(),
         Method::POST,
         "/workspace/open",
         Some(serde_json::json!({ "workspacePath": ws.to_string_lossy() })),
     )
     .await;
+    assert_eq!(body["ok"], true, "open body: {body}");
 
     let (status, body) = common::send_request(
         state.clone(),
@@ -480,6 +514,8 @@ async fn search_in_files_requires_query_string() {
     assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
     assert_eq!(body["error"]["code"], "INVALID_INPUT");
 
+    let (_, _) =
+        common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
     let _ = std::fs::remove_dir_all(ws);
 }
 
@@ -511,5 +547,17 @@ async fn search_in_files_rejects_path_traversal() {
         assert_eq!(body["error"]["code"], "INVALID_INPUT", "path {path}: {body}");
     }
 
+    // 空串路径同样拒绝（归一化后即根目录，语义无意义）。
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search-in-files",
+        Some(serde_json::json!({ "paths": [""], "query": "hello" })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
+
+    let (_, _) =
+        common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
     let _ = std::fs::remove_dir_all(ws);
 }

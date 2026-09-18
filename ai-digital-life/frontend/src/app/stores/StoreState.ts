@@ -199,7 +199,8 @@ interface PatchActions {
 
 interface SearchActions {
   searchFiles: (query: string) => Promise<void>;
-  markSearchHitStale: (path: string, line?: number) => void;
+  markSearchHitStale: (path: string, line?: number, workspaceId?: string) => void;
+  cancelPendingSearch: () => void;
   subscribeWorkspaceFilesChanged: () => () => void;
 }
 

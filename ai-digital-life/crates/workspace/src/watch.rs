@@ -1,24 +1,29 @@
 use adl_errors::AppError;
 use notify::{Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher};
 use std::collections::BTreeSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
 use std::time::Duration;
 
-/// 单批上限：超出即置 `overflow`，由前端退化为整轮重搜。
+/// 总量预算：changed＋removed 合计超出即置 `overflow` 并**丢弃载荷**，
+/// 由前端退化为整轮重搜（前端 overflow 路径本就丢弃载荷，见 searchActions）。
 const MAX_BATCH_PATHS: usize = 500;
+/// 输入 channel 容量：满即视为溢出（置位，由下一次 flush 以 overflow 批次上报）。
+const RAW_EVENT_CHANNEL_CAP: usize = 4096;
 /// 默认去抖窗口（决策：后端去抖，避免事件风暴穿透 IPC）。
 const DEFAULT_DEBOUNCE: Duration = Duration::from_millis(400);
 
 /// watcher 额外忽略的**应用自身写入**目录（在 `tree::ignored_dirs()` 之上）：
 /// 不排除会形成"应用写日志 → 事件 → 重算 → 再写日志"的自触发循环。
-const EXTRA_IGNORED_DIRS: &[&str] = &[".adl-logs", "logs", "test-artifacts"];
-/// 额外忽略的文件名后缀（含全名匹配项）。
-const EXTRA_IGNORED_SUFFIXES: &[&str] =
-    &["debug-logs.txt", "debug-logs-browser.txt", ".tmp", ".DS_Store"];
+const EXTRA_IGNORED_DIRS: &[&str] = &[".adl-logs", "logs", "test-artifacts", ".adl-cache"];
+/// 额外忽略的精确文件名（大小写不敏感）。
+const EXTRA_IGNORED_FILENAMES: &[&str] = &["debug-logs.txt", "debug-logs-browser.txt"];
+/// 额外忽略的文件名后缀（大小写不敏感）。
+const EXTRA_IGNORED_SUFFIXES: &[&str] = &[".tmp", ".ds_store"];
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct FilesChangedBatch {
     pub changed: Vec<String>,
     pub removed: Vec<String>,
@@ -41,7 +46,10 @@ fn is_ignored_path(relative: &Path) -> bool {
         }
     }
     let file_name =
-        relative.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        relative.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+    if EXTRA_IGNORED_FILENAMES.contains(&file_name.as_str()) {
+        return true;
+    }
     EXTRA_IGNORED_SUFFIXES.iter().any(|suffix| file_name.ends_with(suffix))
 }
 
@@ -77,9 +85,14 @@ impl WorkspaceWatcher {
         if !root.is_dir() {
             return Err(AppError::NotFound(format!("watch root: {}", root.display())));
         }
-        let (raw_tx, raw_rx) = mpsc::channel::<notify::Result<Event>>();
+        // 有界输入 channel：事件风暴下行满即记溢出，不让原始事件无界堆内存。
+        let (raw_tx, raw_rx) = mpsc::sync_channel::<notify::Result<Event>>(RAW_EVENT_CHANNEL_CAP);
+        let input_overflow = Arc::new(AtomicBool::new(false));
+        let input_overflow_producer = input_overflow.clone();
         let mut watcher = notify::recommended_watcher(move |event| {
-            let _ = raw_tx.send(event);
+            if raw_tx.try_send(event).is_err() {
+                input_overflow_producer.store(true, Ordering::Relaxed);
+            }
         })
         .map_err(|e| AppError::Internal(format!("failed to create file watcher: {e}")))?;
         watcher
@@ -102,7 +115,7 @@ impl WorkspaceWatcher {
                             let Some(relative) = to_relative(&root_owned, &path) else {
                                 continue;
                             };
-                            if is_ignored_path(PathBuf::from(&relative).as_path()) {
+                            if is_ignored_path(Path::new(&relative)) {
                                 continue;
                             }
                             if is_remove && !path.exists() {
@@ -119,20 +132,32 @@ impl WorkspaceWatcher {
                     },
                     Err(mpsc::RecvTimeoutError::Timeout) => {
                         if changed.is_empty() && removed.is_empty() {
+                            // 输入溢出但集合为空（事件在入队前被丢弃）：仍需上报，
+                            // 否则消费端永远收不到 overflow 而静默丢更新。
+                            if input_overflow.swap(false, Ordering::Relaxed) {
+                                emit_batch(
+                                    &on_batch,
+                                    FilesChangedBatch { overflow: true, ..Default::default() },
+                                );
+                            }
                             continue;
                         }
-                        let overflow = changed.len() + removed.len() > MAX_BATCH_PATHS;
-                        let mut changed_list: Vec<String> =
-                            std::mem::take(&mut changed).into_iter().collect();
-                        let mut removed_list: Vec<String> =
-                            std::mem::take(&mut removed).into_iter().collect();
-                        changed_list.truncate(MAX_BATCH_PATHS);
-                        removed_list.truncate(MAX_BATCH_PATHS);
-                        on_batch(FilesChangedBatch {
-                            changed: changed_list,
-                            removed: removed_list,
-                            overflow,
-                        });
+                        // 总量超预算即 overflow：载荷置空，前端整轮重搜覆盖，
+                        // 不传递截断后的残缺增量（避免双算与 IPC 浪费）。
+                        let overflow = changed.len() + removed.len() > MAX_BATCH_PATHS
+                            || input_overflow.swap(false, Ordering::Relaxed);
+                        let batch = if overflow {
+                            changed.clear();
+                            removed.clear();
+                            FilesChangedBatch { overflow: true, ..Default::default() }
+                        } else {
+                            FilesChangedBatch {
+                                changed: std::mem::take(&mut changed).into_iter().collect(),
+                                removed: std::mem::take(&mut removed).into_iter().collect(),
+                                overflow: false,
+                            }
+                        };
+                        emit_batch(&on_batch, batch);
                     },
                     Err(mpsc::RecvTimeoutError::Disconnected) => break,
                 }
@@ -143,11 +168,22 @@ impl WorkspaceWatcher {
     }
 
     /// 停止监听（drop watcher 会关闭 notify 通道，工作线程随 `Disconnected` 退出）。
+    ///
+    /// 约束：`worker.join()` 会阻塞当前线程，禁止在 tokio async 上下文中直接调用，
+    /// 应在 `spawn_blocking` 或后台线程中 stop。
     pub fn stop(mut self) {
         drop(self._watcher);
         if let Some(worker) = self.worker.take() {
             let _ = worker.join();
         }
+    }
+}
+
+/// 在 worker 线程调用批次回调：回调 panic 不得杀死监听线程，
+/// 记 error 后继续下一批（回调必须永不 panic 是契约，兜底防静默失效）。
+fn emit_batch(on_batch: &Arc<dyn Fn(FilesChangedBatch) + Send + Sync>, batch: FilesChangedBatch) {
+    if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| on_batch(batch))).is_err() {
+        tracing::error!("workspace watcher batch callback panicked; watcher continues");
     }
 }
 
@@ -238,7 +274,7 @@ mod tests {
     }
 
     #[test]
-    fn watcher_debounces_bursty_writes_into_one_batch() {
+    fn watcher_reports_bursty_writes() {
         let tmp = unique_tmp_dir();
         let batches: Arc<Mutex<Vec<FilesChangedBatch>>> = Arc::new(Mutex::new(vec![]));
         let sink = batches.clone();
@@ -319,5 +355,89 @@ mod tests {
         let missing = std::env::temp_dir().join("workspace-watch-missing-root-does-not-exist");
         let result = WorkspaceWatcher::start(&missing, Arc::new(|_| {}));
         assert!(result.is_err(), "watching a missing root must fail, not panic");
+    }
+
+    #[test]
+    fn watcher_survives_panicking_callback() {
+        let tmp = unique_tmp_dir();
+        let batches: Arc<Mutex<Vec<FilesChangedBatch>>> = Arc::new(Mutex::new(vec![]));
+        let sink = batches.clone();
+        let calls = Arc::new(AtomicU64::new(0));
+        let calls_producer = calls.clone();
+        let watcher = WorkspaceWatcher::start_for_test(
+            &tmp,
+            Arc::new(move |batch: FilesChangedBatch| {
+                // 首批直接 panic：监听线程不得死亡，后续批次仍须送达。
+                if calls_producer.fetch_add(1, Ordering::SeqCst) == 0 {
+                    panic!("boom");
+                }
+                sink.lock().unwrap().push(batch);
+            }),
+            Duration::from_millis(150),
+        )
+        .unwrap();
+
+        std::fs::write(tmp.join("first.txt"), b"1").unwrap();
+        assert!(
+            wait_until(|| calls.load(Ordering::SeqCst) >= 1, Duration::from_secs(5)),
+            "first batch must be attempted"
+        );
+        std::fs::write(tmp.join("second.txt"), b"2").unwrap();
+        assert!(
+            wait_until(
+                || batches
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|b| b.changed.contains(&"second.txt".to_string())),
+                Duration::from_secs(5)
+            ),
+            "watcher must survive the panic, got {:?}",
+            batches.lock().unwrap()
+        );
+        watcher.stop();
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn watcher_ignores_adl_cache_writes() {
+        let tmp = unique_tmp_dir();
+        std::fs::create_dir_all(tmp.join(".adl-cache")).unwrap();
+        let batches: Arc<Mutex<Vec<FilesChangedBatch>>> = Arc::new(Mutex::new(vec![]));
+        let sink = batches.clone();
+        let watcher = WorkspaceWatcher::start_for_test(
+            &tmp,
+            Arc::new(move |batch| sink.lock().unwrap().push(batch)),
+            Duration::from_millis(150),
+        )
+        .unwrap();
+
+        std::fs::write(tmp.join(".adl-cache").join("site-meta.json"), b"{}").unwrap();
+        std::fs::write(tmp.join("real.txt"), b"real").unwrap();
+
+        assert!(
+            wait_until(
+                || batches
+                    .lock()
+                    .unwrap()
+                    .iter()
+                    .any(|b| b.changed.contains(&"real.txt".to_string())),
+                Duration::from_secs(5)
+            ),
+            "expected real.txt reported"
+        );
+        // 给去抖窗口留足时间，确认 .adl-cache 写入永不出现。
+        std::thread::sleep(Duration::from_millis(400));
+        let all = batches.lock().unwrap();
+        for batch in all.iter() {
+            assert!(
+                !batch.changed.iter().any(|p| p.contains(".adl-cache")),
+                ".adl-cache writes must be ignored, got {:?}",
+                batch.changed
+            );
+        }
+        drop(all);
+        watcher.stop();
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

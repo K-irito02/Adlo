@@ -88,4 +88,5 @@ export const fileEn = {
   searchHitStale: 'Outdated',
   searchStaleSummary: '{count} results are outdated',
   searchPartialResults: 'Showing partial results',
+  searchFilePartial: 'File scope searches only the first 200 matches of loaded trees',
 } as const;

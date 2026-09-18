@@ -87,4 +87,5 @@ export const fileZh = {
   searchHitStale: '已失效',
   searchStaleSummary: '{count} 处结果已失效',
   searchPartialResults: '仅显示部分结果',
+  searchFilePartial: '文件范围仅检索已加载树的前 200 个匹配',
 } as const;

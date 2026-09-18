@@ -14,7 +14,10 @@ export function createPreviewEventsBridge(ctx: PreviewEventsContext) {
   return {
     onFileChanged: (_listener: (event: WorkspaceFileChangedEvent) => void) => () => {},
     onFilesChanged: (listener: (batch: WorkspaceFilesChangedBatch) => void) => {
+      // 前置条件：App 级单订阅者（useAppStartup 常驻订阅）。多订阅者将各自独立
+      // 轮询（N×2s 链）；若未来出现第二订阅者，须收敛为模块级共享 poller。
       let cursor = 0;
+      let lastRootPath: string | undefined;
       let stopped = false;
       let timer: ReturnType<typeof setTimeout> | undefined;
       const poll = async () => {
@@ -27,23 +30,30 @@ export function createPreviewEventsBridge(ctx: PreviewEventsContext) {
           if (!rootPath) {
             return;
           }
+          if (lastRootPath !== rootPath) {
+            // 工作区切换：旧游标对新根无意义，重置后自愈（首轮即全量语义）。
+            lastRootPath = rootPath;
+            cursor = 0;
+          }
           const params = new URLSearchParams({ rootPath, since: String(cursor) });
           const result = await requestPreviewApi<{
             cursor: number;
-            changed: string[];
-            removed: string[];
+            changed: unknown;
+            removed: unknown;
             overflow?: boolean;
           }>(`/workspace/files-changed?${params.toString()}`);
           if (result.ok && !stopped) {
             cursor = result.data.cursor;
-            if (
-              result.data.changed.length > 0 ||
-              result.data.removed.length > 0 ||
-              result.data.overflow
-            ) {
+            const changed = Array.isArray(result.data.changed)
+              ? result.data.changed.filter((p): p is string => typeof p === 'string')
+              : [];
+            const removed = Array.isArray(result.data.removed)
+              ? result.data.removed.filter((p): p is string => typeof p === 'string')
+              : [];
+            if (changed.length > 0 || removed.length > 0 || result.data.overflow) {
               listener({
-                changed: result.data.changed,
-                removed: result.data.removed,
+                changed,
+                removed,
                 overflow: result.data.overflow,
               });
             }

@@ -26,6 +26,18 @@ import type { SearchHitEntry } from '@stores/slices/searchSlice';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';
 import { FileNavigatorTree } from './FileNavigatorTree';
 import { FileNavigatorRenaming } from './FileNavigatorRenaming';
+
+/** 结构信号 nonce：单调计数（Date.now 同毫秒连点可碰撞）。 */
+let structureSignalNonce = 0;
+
+interface FileNameHit {
+  workspaceId: string;
+  path: string;
+  name: string;
+}
+
+/** 文件范围命中上限（与内容检索 MAX_HITS=200 对齐；超限走 searchFilePartial 提示）。 */
+const MAX_FILE_HITS = 200;
 import { FileCreationDialog } from './FileCreationDialog';
 import { useFileNavigatorContextMenu } from './FileNavigatorContextMenu';
 
@@ -211,13 +223,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const searchMatchWholeWord = searchPanel.matchWholeWord;
   const searchUseRegex = searchPanel.useRegex;
   const searchPartial = useAppStore((s) => s.searchPartial);
-  const staleCount = searchEntries.filter((entry) => entry.stale).length;
-
-  interface FileNameHit {
-    workspaceId: string;
-    path: string;
-    name: string;
-  }
+  const staleCount = useAppStore((s) => s.searchEntries.filter((entry) => entry.stale).length);
 
   // "文件"范围：仅按文件名匹配（目录路径不参与，避免无关文件出现）。
   // 前端基于已加载的工作区树做包含匹配（后端仅支持内容检索，
@@ -230,7 +236,6 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     const needle = searchMatchCase ? committedSearchQuery : committedSearchQuery.toLowerCase();
     const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
     const out: FileNameHit[] = [];
-    const MAX_FILE_HITS = 200;
     for (const wsId of targetIds) {
       const roots = workspaceTrees[wsId];
       if (!roots || out.length >= MAX_FILE_HITS) {
@@ -482,14 +487,14 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         setSearchStructureSignal({
           action: collapse ? 'collapse' : 'expand',
           target: 'snippets',
-          nonce: Date.now(),
+          nonce: (structureSignalNonce += 1),
         });
       } else {
         const collapse = !searchCollapseStatus.dirsAllCollapsed;
         setSearchStructureSignal({
           action: collapse ? 'collapse' : 'expand',
           target: 'dirs',
-          nonce: Date.now(),
+          nonce: (structureSignalNonce += 1),
         });
       }
       return;
@@ -668,6 +673,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                     type="button"
                     className={`adl-search-panel__modebtn${searchMatchWholeWord ? ' is-active' : ''}`}
                     aria-pressed={searchMatchWholeWord ? 'true' : 'false'}
+                    // 文件范围仅子串匹配文件名： wholeWord/regex 开关无效果，直接禁用（事项 45 Phase 4 4.2）
+                    disabled={filesSearchScope === 'file'}
                     onClick={() => searchPanel.setMatchWholeWord((v) => !v)}
                     aria-label={t.searchPanelMatchWholeWord as string}
                   >
@@ -679,6 +686,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                     type="button"
                     className={`adl-search-panel__modebtn${searchUseRegex ? ' is-active' : ''}`}
                     aria-pressed={searchUseRegex ? 'true' : 'false'}
+                    disabled={filesSearchScope === 'file'}
                     onClick={() => searchPanel.setUseRegex((v) => !v)}
                     aria-label={t.searchPanelUseRegex as string}
                   >
@@ -761,11 +769,17 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
               {searchPartial ? (
                 <p className="adl-search-partial">{t.searchPartialResults as string}</p>
               ) : null}
+              {filesSearchScope === 'file' && fileNameHits.length >= MAX_FILE_HITS ? (
+                <p className="adl-search-partial">{t.searchFilePartial as string}</p>
+              ) : null}
               <SearchResultsTree
                 sections={activeSections}
                 variant={filesSearchView === 'tree' ? 'tree' : 'list'}
                 query={committedSearchQuery}
                 matchCase={searchMatchCase}
+                wholeWord={searchMatchWholeWord}
+                useRegex={searchUseRegex}
+                scopeKey={`${filesSearchScope}:${filesSearchView}`}
                 nameQuery={filesSearchScope === 'file' ? committedSearchQuery : ''}
                 expandLabel={t.expandDetails as string}
                 collapseLabel={t.collapseDetails as string}

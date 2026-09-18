@@ -24,9 +24,7 @@ describe('workspace freshness IPC parity', () => {
   it('every bridge exposes searchInFiles and onFilesChanged', () => {
     const previewWorkspace = {
       ...createPreviewSearchBridge({
-        recentWorkspaces: [],
         currentWorkspace: undefined,
-        retrievalStatus: undefined,
       }),
       ...createPreviewEventsBridge({ currentWorkspace: undefined }),
     };
@@ -46,5 +44,21 @@ describe('workspace freshness IPC parity', () => {
     const unsubscribe = mockDigitalLifeBridge.workspace.onFilesChanged(() => {});
     expect(typeof unsubscribe).toBe('function');
     expect(() => unsubscribe()).not.toThrow();
+  });
+
+  it('mock searchInFiles returns [] for empty query (aligned with other bridges)', async () => {
+    const result = await mockDigitalLifeBridge.workspace.searchInFiles(['anything.md'], '   ');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual([]);
+    }
+  });
+
+  it('mock searchInFiles skips unknown paths without throwing', async () => {
+    const result = await mockDigitalLifeBridge.workspace.searchInFiles(['nope/missing.md'], 'x');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual([]);
+    }
   });
 });

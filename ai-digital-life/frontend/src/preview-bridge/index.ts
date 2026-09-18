@@ -120,19 +120,10 @@ export async function setupPreviewBridge(): Promise<void> {
     previewWorkspaceCtx,
     setMockActiveWorkspace,
   );
-  const gitBridge = createPreviewGitBridge(
-    {
-      recentWorkspaces: loadRecentWorkspaces(),
-      currentWorkspace: undefined,
-      retrievalStatus: undefined,
-    },
-    setMockActiveWorkspace,
-  );
-  const searchBridge = createPreviewSearchBridge({
-    recentWorkspaces: loadRecentWorkspaces(),
-    currentWorkspace: undefined,
-    retrievalStatus: undefined,
-  });
+  // search/git/events 三桥共享同一 ctx（open 时更新 currentWorkspace）：
+  // 独立字面量会导致切换后 search/git 恒读 undefined（事项 45 Phase 4 G3-1.5 同类）。
+  const gitBridge = createPreviewGitBridge(previewWorkspaceCtx, setMockActiveWorkspace);
+  const searchBridge = createPreviewSearchBridge(previewWorkspaceCtx);
   const eventsBridge = createPreviewEventsBridge(previewWorkspaceCtx);
   const windowBridge = createPreviewWindowBridge(mockDigitalLifeBridge.window);
   const diagnosticBridge = createPreviewDiagnosticBridge(mockDigitalLifeBridge.app);

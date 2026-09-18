@@ -352,7 +352,7 @@ fn collect_retrieval_data(
 /// full file content reads just to validate readability. Tradeoff: extension-based
 /// filtering is less precise than `looks_binary` byte inspection, but avoids the
 /// I/O cost of reading every file in large workspaces.
-fn is_text_file(root: &Path, relative: &str, max_file_bytes: u64) -> bool {
+pub(crate) fn is_text_file(root: &Path, relative: &str, max_file_bytes: u64) -> bool {
     let full_path = root.join(relative);
 
     // Check file size via metadata (no content read)

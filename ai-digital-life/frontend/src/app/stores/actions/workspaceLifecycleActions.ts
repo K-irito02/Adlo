@@ -46,6 +46,8 @@ export function createWorkspaceLifecycleActions(
         captureError(get, result.error, SCOPE);
         return { ok: false, error: result.error.message };
       }
+      // 工作区切换：旧搜索会话（含待发防抖/重算 timer）不得写入新上下文。
+      get().cancelPendingSearch();
       await get().bootstrap();
 
       return { ok: true };
@@ -74,6 +76,7 @@ export function createWorkspaceLifecycleActions(
         captureError(get, result.error, SCOPE);
         return;
       }
+      get().cancelPendingSearch();
       await get().bootstrap();
     },
 

@@ -1,7 +1,7 @@
 use adl_errors::AppError;
 use adl_types::WorkspaceSearchHit;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -98,8 +98,11 @@ fn search_text_in_files(
     Ok(hits)
 }
 
-/// 仅对给定工作区相对路径集合执行检索：语义（大小写不敏感 contains、行长截断、
-/// 每文件上限）与 [`search_text`] 完全一致——两条路径必须复用同一实现，避免漂移。
+/// 仅对给定工作区相对路径集合执行检索：行匹配语义（大小写不敏感 contains、
+/// 行预览截断、全局 200 上限）与 [`search_text`] 一致；候选需通过与全量检索
+/// 相同的忽略/文本/体积过滤。调用方传入的每条路径都会做归一化＋工作区收敛
+/// 校验（`a/../b` 放行、绝对路径/`..` 逃逸/symlink 跃出/缺失文件一律跳过），
+/// 与 [`search_text`]（经 `collect_text_files` 约束在根内）不对等的旧行为已收敛。
 /// 不存在的路径直接跳过（文件可能在检索后被删除/重命名）。
 pub fn search_in_files(
     root: &Path,
@@ -109,12 +112,75 @@ pub fn search_in_files(
     if query.trim().is_empty() || relative_paths.is_empty() {
         return Ok(vec![]);
     }
-    let files: Vec<PathBuf> = relative_paths
-        .iter()
-        .map(|relative| root.join(relative))
-        .filter(|absolute| absolute.is_file())
-        .collect();
+    let mut files: Vec<PathBuf> = Vec::with_capacity(relative_paths.len());
+    // 根 canonicalize 只算一次（每候选重复计算是浪费，且根在检索期间视为不变）。
+    let canonical_root = match root.canonicalize() {
+        Ok(canonical_root) => canonical_root,
+        Err(_) => {
+            tracing::warn!("search_in_files: workspace root unresolvable, returning empty");
+            return Ok(vec![]);
+        },
+    };
+    for relative in relative_paths {
+        // 先收敛：逃逸/缺失直接跳过，避免对界外路径做任何元数据探测。
+        let Some(absolute) = resolve_search_path(root, &canonical_root, relative) else {
+            continue;
+        };
+        let normalized = absolute
+            .strip_prefix(root)
+            .map(|p| p.to_string_lossy().replace('\\', "/"))
+            .unwrap_or_default();
+        if is_ignored_relative(&normalized) {
+            continue;
+        }
+        if !crate::tree::is_text_file(root, &normalized, crate::DEFAULT_MAX_FILE_BYTES) {
+            continue;
+        }
+        files.push(absolute);
+    }
     search_text_in_files(&files, root, query, &|| false)
+}
+
+/// 调用方路径是否命中忽略规则（目录段走 `tree::should_ignore`，与全量一致）。
+fn is_ignored_relative(relative: &str) -> bool {
+    Path::new(&relative.replace('\\', "/")).components().any(|component| match component {
+        Component::Normal(name) => crate::tree::should_ignore(&name.to_string_lossy()),
+        _ => false,
+    })
+}
+
+/// 把调用方相对路径收敛到工作区内：归一化后仍在根内的放行（含 `a/../b`）；
+/// 绝对路径、`..` 逃逸返回 `None`；随后对文件本身做 canonicalize 并校验
+/// `starts_with(root)`，拦截 symlink 跃出；缺失文件返回 `None`（调用方跳过）。
+fn resolve_search_path(root: &Path, canonical_root: &Path, relative: &str) -> Option<PathBuf> {
+    let mut normalized = PathBuf::new();
+    for component in Path::new(&relative.replace('\\', "/")).components() {
+        match component {
+            Component::Normal(part) => normalized.push(part),
+            Component::CurDir => {},
+            Component::ParentDir => {
+                // `a/../b` 归一化后仍在界内则放行；开头的 `..` 无处可退即逃逸。
+                if !normalized.pop() {
+                    tracing::warn!(relative = %relative, "search_in_files: skipping escaping path");
+                    return None;
+                }
+            },
+            Component::RootDir | Component::Prefix(_) => {
+                tracing::warn!(relative = %relative, "search_in_files: skipping escaping path");
+                return None;
+            },
+        }
+    }
+    let absolute = root.join(&normalized);
+    let canonical = match absolute.canonicalize() {
+        Ok(canonical) => canonical,
+        Err(_) => return None,
+    };
+    if !canonical.starts_with(canonical_root) {
+        tracing::warn!(relative = %relative, "search_in_files: skipping symlink escape");
+        return None;
+    }
+    Some(absolute)
 }
 
 #[cfg(test)]
@@ -252,6 +318,65 @@ mod search_in_files_tests {
         let tmp = unique_tmp_dir();
         std::fs::write(tmp.join("c.txt"), b"anything").unwrap();
         assert!(search_in_files(&tmp, &["c.txt".to_string()], "   ").unwrap().is_empty());
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_rejects_parent_dir_escape() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("inside.txt"), b"needle here").unwrap();
+
+        let hits = search_in_files(&tmp, &["../outside.txt".to_string()], "needle").unwrap();
+        assert!(hits.is_empty(), "escaping path must be skipped");
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_allows_dot_dot_that_stays_inside() {
+        let tmp = unique_tmp_dir();
+        std::fs::create_dir_all(tmp.join("sub")).unwrap();
+        std::fs::write(tmp.join("sub").join("deep.txt"), b"needle deep").unwrap();
+
+        let hits = search_in_files(&tmp, &["sub/../sub/deep.txt".to_string()], "needle").unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].line, 1);
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_skips_ignored_and_oversized_files() {
+        let tmp = unique_tmp_dir();
+        std::fs::create_dir_all(tmp.join("target")).unwrap();
+        std::fs::write(tmp.join("target").join("built.txt"), b"needle built").unwrap();
+        std::fs::write(tmp.join("big.txt"), b"needle big").unwrap();
+        // 2MB payload exceeds the 1MB text-file gate.
+        let big = vec![b'x'; 2 * 1024 * 1024];
+        std::fs::write(tmp.join("huge.txt"), &big).unwrap();
+
+        let hits = search_in_files(
+            &tmp,
+            &["target/built.txt".to_string(), "big.txt".to_string(), "huge.txt".to_string()],
+            "needle",
+        )
+        .unwrap();
+        let paths: Vec<&str> = hits.iter().map(|h| h.path.as_str()).collect();
+        assert!(paths.contains(&"big.txt"), "normal file must hit, got {paths:?}");
+        assert!(!paths.iter().any(|p| p.starts_with("target/")), "ignored dir must skip");
+        assert!(!paths.contains(&"huge.txt"), "oversized file must skip");
+        cleanup(&tmp);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn search_in_files_rejects_symlink_escape() {
+        let tmp = unique_tmp_dir();
+        let outside = unique_tmp_dir();
+        std::fs::write(outside.join("secret.txt"), b"needle secret").unwrap();
+        std::os::unix::fs::symlink(outside.join("secret.txt"), tmp.join("evil-link")).unwrap();
+
+        let hits = search_in_files(&tmp, &["evil-link".to_string()], "needle").unwrap();
+        assert!(hits.is_empty(), "symlink escape must be skipped, got {hits:?}");
+        cleanup(&outside);
         cleanup(&tmp);
     }
 

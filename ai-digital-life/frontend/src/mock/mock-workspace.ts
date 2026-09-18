@@ -141,6 +141,10 @@ export const mockWorkspace: WorkspaceBridge = {
     return { ok: true, data: hits };
   },
   searchInFiles: async (paths: string[], query: string) => {
+    // 与其余三端对齐：空查询返回 []（`''.includes` 恒真，旧代码会全量刷屏）。
+    if (!query.trim()) {
+      return { ok: true as const, data: [] };
+    }
     const needle = query.toLowerCase();
     const hits: WorkspaceSearchHit[] = [];
     for (const filePath of paths) {
@@ -150,12 +154,13 @@ export const mockWorkspace: WorkspaceBridge = {
       }
       content.split(/\r?\n/).forEach((lineText, index) => {
         if (lineText.toLowerCase().includes(needle)) {
-          hits.push({ path: filePath, line: index + 1, preview: lineText.trim() });
+          hits.push({ path: filePath, line: index + 1, preview: lineText.trim().slice(0, 240) });
         }
       });
     }
     return { ok: true as const, data: hits };
   },
+  // 空实现是刻意的：mock 内存文档无外部变更源，不存在需要推送的变更。
   onFilesChanged: () => () => {},
   outline: async (relativePath: string) => {
     const content = documents.get(relativePath) ?? "";

@@ -7,8 +7,6 @@ import type {
   GitVisBranchGraph,
   GitVisFileHotspots,
   IpcResult,
-  RecentWorkspaceEntry,
-  RetrievalSnapshot,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -17,11 +15,9 @@ import type {
 import { IpcErrorCode } from '../shared/ipc/shared';
 import { requestPreviewApi } from '../shared/ipc/preview-api';
 
-/** Preview bridge shared mutable context (subset previously exported by preview-context). */
+/** Preview bridge shared mutable context（仅消费 currentWorkspace，其余字段已裁剪）。 */
 export interface PreviewGitContext {
-  recentWorkspaces: RecentWorkspaceEntry[];
   currentWorkspace: WorkspaceMeta | undefined;
-  retrievalStatus: RetrievalSnapshot | undefined;
 }
 
 export function createPreviewGitBridge(

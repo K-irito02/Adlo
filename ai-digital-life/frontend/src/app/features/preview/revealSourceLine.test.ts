@@ -109,4 +109,26 @@ describe('findLineForQuery', () => {
       ),
     ).toBe(2);
   });
+
+  it('prefers the largest end among preceding blocks, not document order', () => {
+    const root = container(
+      '<ul data-source-line-start="1" data-source-line-end="10"><li data-source-line-start="3" data-source-line-end="4">x</li></ul>',
+    );
+    expect(resolveSourceLineElement(root, 11)?.tagName).toBe('UL');
+  });
+});
+
+describe('revealEditorLineSafely', () => {
+  it('clamps line 0 to line 1 like the panel branch', async () => {
+    const { revealEditorLineSafely } = await import('./revealSourceLine');
+    const calls: string[] = [];
+    const editor = {
+      getModel: () => ({ getLineCount: () => 57 }),
+      revealLineInCenter: (line: number) => calls.push(`reveal:${line}`),
+      setPosition: () => {},
+      focus: () => {},
+    };
+    expect(revealEditorLineSafely(editor as never, 0, { scope: 'test' })).toBe('clamped');
+    expect(calls).toEqual(['reveal:1']);
+  });
 });

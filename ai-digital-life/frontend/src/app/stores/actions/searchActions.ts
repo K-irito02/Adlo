@@ -20,34 +20,50 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
   const flushRecompute = async () => {
     const state = get();
     const query = state.searchQuery;
-    if (!query.trim()) {
+    if (!query.trim() || state.filesSearchScope === 'file') {
+      // 空查询/文件范围：丢弃过期 pending（200ms 窗口内 query 被清空/切范围时，
+      // 旧路径不得渗入下一会话），不发任何请求。
+      pendingChanged = new Set();
+      pendingRemoved = new Set();
+      pendingOverflow = false;
       return;
     }
     const activeWorkspaceId = state.searchWorkspaceId;
-    const changed = [...pendingChanged].filter((path) =>
-      state.searchEntries.some(
-        (entry) => entry.path === path && entry.workspaceId === activeWorkspaceId,
-      ),
+    const presentPaths = new Set(
+      state.searchEntries
+        .filter((entry) => entry.workspaceId === activeWorkspaceId)
+        .map((entry) => entry.path),
     );
+    // 已在结果中的走原位替换；变更后新命中的文件同样重算并追加（否则永不可见）。
+    // 单遍分区，避免 O(N·M) 反复扫描。
+    const known: string[] = [];
+    const unknown: string[] = [];
+    for (const path of pendingChanged) {
+      (presentPaths.has(path) ? known : unknown).push(path);
+    }
+    const toSearch = [...known, ...unknown];
     const removed = [...pendingRemoved];
     pendingChanged = new Set();
     pendingRemoved = new Set();
     pendingOverflow = false;
 
     if (removed.length > 0) {
-      let next = state.searchEntries;
-      for (const path of removed) {
-        next = next.filter(
-          (entry) => !(entry.path === path && entry.workspaceId === activeWorkspaceId),
-        );
-      }
-      set({ searchEntries: next });
+      const removedSet = new Set(removed);
+      set({
+        searchEntries: state.searchEntries.filter(
+          (entry) => !(removedSet.has(entry.path) && entry.workspaceId === activeWorkspaceId),
+        ),
+      });
     }
-    if (changed.length === 0) {
+    if (toSearch.length === 0) {
+      set({ searchPartial: get().searchEntries.length >= MAX_HITS });
       return;
     }
-    const result = await window.digitalLife.workspace.searchInFiles(changed, query);
+    const result = await window.digitalLife.workspace.searchInFiles(toSearch, query);
     if (!result.ok) {
+      // 本批丢失：回填 pending，下次批次到达时按当时 query/会话重试
+      //（无 TTLOOP：无未来批次即不再触发；removed 已落盘不受影响）。
+      toSearch.forEach((path) => pendingChanged.add(path));
       captureError(get, result.error, SCOPE);
       return;
     }
@@ -64,24 +80,57 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       }
     }
     let next = get().searchEntries;
-    for (const path of changed) {
+    for (const path of known) {
       next = replaceFileHits(
         next,
         path,
         toHitEntries(grouped.get(path) ?? [], activeWorkspaceId ?? ''),
+        activeWorkspaceId,
       );
     }
-    set({ searchEntries: next });
+    if (unknown.length > 0) {
+      // 去重键 JSON 序列化三元组，无边界串扰。
+      const dedupeKey = (workspaceId: string, path: string, line: number) =>
+        JSON.stringify([workspaceId, path, line]);
+      const seen = new Set(
+        next.map((entry) => dedupeKey(entry.workspaceId, entry.path, entry.line)),
+      );
+      const appended: typeof next = [];
+      for (const path of unknown) {
+        for (const hit of toHitEntries(grouped.get(path) ?? [], activeWorkspaceId ?? '')) {
+          const key = dedupeKey(hit.workspaceId, hit.path, hit.line);
+          if (!seen.has(key)) {
+            seen.add(key);
+            appended.push(hit);
+          }
+        }
+      }
+      next = [...next, ...appended];
+    }
+    // 合并后重算 partial（>= 保守策略：后端截断于 200 且不回总数，
+    // 恰 200 未截断时可能误提示，宁可误报不漏报）并执行全局上限。
+    const capped = next.length > MAX_HITS ? next.slice(0, MAX_HITS) : next;
+    set({ searchEntries: capped, searchPartial: next.length >= MAX_HITS });
     // 决策 6：文件变更后顺手刷新变更树与文件树（与命中重算同处一个节流窗口，只触发一次）
     void get().fetchGitStatus();
     void get().refreshAllWorkspaceTrees();
   };
 
+  /** 清空重算 pending（timer＋三集合），供分支切换/会话重置复用。 */
+  const resetRecomputePending = () => {
+    if (recomputeTimer !== undefined) {
+      clearTimeout(recomputeTimer);
+      recomputeTimer = undefined;
+    }
+    pendingChanged = new Set();
+    pendingRemoved = new Set();
+    pendingOverflow = false;
+  };
+
   const scheduleRecompute = (batch: WorkspaceFilesChangedBatch) => {
-    if (!get().searchQuery.trim()) {
-      pendingChanged = new Set();
-      pendingRemoved = new Set();
-      pendingOverflow = false;
+    // 文件范围为纯前端过滤：watcher 批次不得触发后端内容请求（事项 38 不变量）。
+    if (!get().searchQuery.trim() || get().filesSearchScope === 'file') {
+      resetRecomputePending();
       return;
     }
     batch.changed.forEach((path) => pendingChanged.add(path));
@@ -113,11 +162,17 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       const state = get();
       set({ searchQuery: query });
       if (!query.trim()) {
+        // 空查询：取消待发搜索＋重算 pending，旧结果不得回写。
+        debouncedSearch.cancel();
+        resetRecomputePending();
         set({ searchEntries: [], searching: false, searchPartial: false });
         return;
       }
       if (state.filesSearchScope === 'file') {
-        // 文件范围为纯前端过滤：仅提交检索词，不发后端内容请求、不置加载态
+        // 文件范围为纯前端过滤：仅提交检索词，不发后端内容请求、不置加载态；
+        // 同时取消待发 content 请求与重算，避免旧链路回写。
+        debouncedSearch.cancel();
+        resetRecomputePending();
         set({ searching: false });
         return;
       }
@@ -150,12 +205,26 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
     },
 
     /** [markSearchHitStale - 点击校验失败时标记该命中失效] */
-    markSearchHitStale: (path: string, line?: number) => {
-      set({ searchEntries: markHitsStale(get().searchEntries, path, line) });
+    markSearchHitStale: (path: string, line?: number, workspaceId?: string) => {
+      set({ searchEntries: markHitsStale(get().searchEntries, path, line, workspaceId) });
+    },
+
+    /**
+     * [cancelPendingSearch - 取消待发搜索与重算]
+     * 工作区切换/上下文清理时调用：待发防抖、重算 timer 与 pending 不得写入新会话。
+     */
+    cancelPendingSearch: () => {
+      debouncedSearch.cancel();
+      resetRecomputePending();
     },
 
     /** [subscribeWorkspaceFilesChanged - 订阅后端 watcher 批次并调度局部重算] */
-    subscribeWorkspaceFilesChanged: () =>
-      window.digitalLife.workspace.onFilesChanged(scheduleRecompute),
+    subscribeWorkspaceFilesChanged: () => {
+      const unsubscribe = window.digitalLife.workspace.onFilesChanged(scheduleRecompute);
+      return () => {
+        unsubscribe();
+        resetRecomputePending();
+      };
+    },
   };
 }
