@@ -188,10 +188,10 @@
 }
 
 .adl-clipboard-row {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
-  column-gap: var(--space-1-5);
   width: 100%;
   min-width: 0;
   /* 固定行高：不随文本行数 / 图片尺寸变化（完整内容由放大查看承载） */
@@ -280,12 +280,38 @@
 }
 
 .adl-clipboard-row__actions {
-  justify-self: end;
+  /* 悬停才显示：未悬停时绝对定位在行内右侧，不占布局（时间戳可直接顶到最右） */
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-0-5);
   flex-shrink: 0;
+  /* 悬浮在预览文字之上时用行悬停底色遮盖，避免三按钮与文本视觉叠压 */
+  background: var(--bg-hover);
+  z-index: 1;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-150) var(--ease-default),
+    visibility var(--duration-150) var(--ease-default);
+}
+
+.adl-clipboard-row:hover .adl-clipboard-row__actions,
+.adl-clipboard-row:focus-within .adl-clipboard-row__actions {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+/* 悬停时时间戳让位于三按钮（隐藏），释放右侧空间 */
+.adl-clipboard-row:hover .adl-clipboard-row__time,
+.adl-clipboard-row:focus-within .adl-clipboard-row__time {
+  visibility: hidden;
 }
 
 /* 与相邻的 adl-icon-btn--xs (22px) 对齐，保证竖排三按钮同宽（覆盖 .adl-copy-btn 的 24px） */
