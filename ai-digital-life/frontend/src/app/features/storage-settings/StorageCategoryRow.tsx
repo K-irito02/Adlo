@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatBytes } from '@root/design-system/html';
 import { IconCircleHelp } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+import { HintCardTrigger } from '../../components/HintCard';
 import type { StorageCategoryStatus } from '@shared/ipc/storage';
 import { CATEGORY_COPY, type CategoryCopy } from './storageCategoryCopy';
 
@@ -96,9 +96,7 @@ export function StorageCategoryRow({
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
           <span>{name}</span>
-          <TooltipSimple
-            placement="top"
-            maxWidth={320}
+          <HintCardTrigger
             content={
               <span>
                 {desc}
@@ -113,14 +111,14 @@ export function StorageCategoryRow({
           >
             <button
               type="button"
-              className="adl-icon-btn adl-icon-btn--xs"
+              className="adl-icon-button adl-icon-button--info"
               data-testid="storage-category-info"
               aria-label={desc || name}
-              title={desc || name}
+              tabIndex={-1}
             >
-              <IconCircleHelp size={12} decorative />
+              <IconCircleHelp size={14} decorative />
             </button>
-          </TooltipSimple>
+          </HintCardTrigger>
         </div>
         <small>{path}</small>
         <small>{usage}</small>

@@ -12,7 +12,7 @@ import {
   type StorageStatus,
 } from '@shared/ipc/storage';
 import { IconCircleHelp } from '../../icons';
-import { TooltipSimple } from '../../components/Tooltip';
+import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { StorageCategoryRow } from './StorageCategoryRow';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
@@ -625,16 +625,16 @@ export function StorageSettings() {
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
             <span>{t.storageLocatorTitle}</span>
-            <TooltipSimple placement="top" maxWidth={320} content={t.storageLocatorHint}>
+            <HintCardTrigger content={t.storageLocatorHint}>
               <button
                 type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
+                className="adl-icon-button adl-icon-button--info"
                 aria-label={t.storageLocatorHint}
-                title={t.storageLocatorHint}
+                tabIndex={-1}
               >
-                <IconCircleHelp size={12} decorative />
+                <IconCircleHelp size={14} decorative />
               </button>
-            </TooltipSimple>
+            </HintCardTrigger>
           </div>
           <small>{status?.locatorPath}</small>
         </div>
