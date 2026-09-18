@@ -57,3 +57,6 @@ Thumbs.db
 
 # Agent-sandbox command marker files (PID + UUID naming, always 0 bytes, created in cwd)
 /_tmp_*
+
+# 临时审查快照目录（Phase 4 审查用，收尾删除）
+.review-diffs/
