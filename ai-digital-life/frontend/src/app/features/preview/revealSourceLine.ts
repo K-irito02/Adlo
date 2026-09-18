@@ -121,7 +121,7 @@ function alignOverlay(overlay: HTMLElement, target: HTMLElement): void {
 }
 
 /** 播放一次落点高亮：对齐目标块并随滚动跟踪（连点可重放）。覆盖层不存在时不作提示。 */
-export function flashRevealedElement(container: HTMLElement, target: HTMLElement): void {
+function flashRevealedElement(container: HTMLElement, target: HTMLElement): void {
   const overlay = container.querySelector<HTMLElement>(`.${FLASH_OVERLAY_CLASS}`);
   if (!overlay) {
     return;

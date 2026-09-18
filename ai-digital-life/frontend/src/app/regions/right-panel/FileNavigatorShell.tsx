@@ -27,6 +27,7 @@ import type { SearchHitEntry } from '@stores/slices/searchSlice';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';
 import { FileNavigatorTree } from './FileNavigatorTree';
 import { FileNavigatorRenaming } from './FileNavigatorRenaming';
+import { SEARCH_MAX_RESULTS } from '../../../shared/ipc/searchWindow';
 import { SearchLimitHelpCard } from './SearchLimitHelpCard';
 
 /** 结构信号 nonce：单调计数（Date.now 同毫秒连点可碰撞）。 */
@@ -226,6 +227,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const searchUseRegex = searchPanel.useRegex;
   // 命中窗口：hasMore 是后端精确值（旧实现为"≥上限即视为被截断"的保守推断）。
   const searchHasMore = useAppStore((s) => s.searchHasMore);
+  const searchLimit = useAppStore((s) => s.searchLimit);
   const searchEntriesCount = useAppStore((s) => s.searchEntries.length);
   const loadMoreSearchResults = useAppStore((s) => s.loadMoreSearchResults);
   const showAllSearchResults = useAppStore((s) => s.showAllSearchResults);
@@ -773,14 +775,18 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                   {formatT(t, 'searchStaleSummary', { count: staleCount })}
                 </p>
               ) : null}
-              {searchEntriesCount > 0 ? (
+              {/* 分页行只属于内容检索范围：文件范围有自己的 searchFilePartial 提示，
+                  且旧内容命中数在文件视图下语义不符（M1） */}
+              {searchEntriesCount > 0 && filesSearchScope !== 'file' ? (
                 <div className="adl-search-limit" role="status">
                   <span className="adl-search-limit__text">
                     {searchHasMore
                       ? formatT(t, 'searchResultsShown', { count: searchEntriesCount })
                       : formatT(t, 'searchAllShown', { count: searchEntriesCount })}
                   </span>
-                  {searchHasMore ? (
+                  {/* 已到安全阀（searchLimit == SEARCH_MAX_RESULTS）即终态：
+                      后端仍报 hasMore 时按钮无处可去，隐藏避免"点不动的僵局"（L1） */}
+                  {searchHasMore && searchLimit < SEARCH_MAX_RESULTS ? (
                     <>
                       <button
                         type="button"

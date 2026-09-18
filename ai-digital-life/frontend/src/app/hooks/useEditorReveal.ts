@@ -13,12 +13,29 @@ const STABLE_STEP_MS = 100;
 const STABLE_CAP_MS = 3000;
 
 /**
- * 行揭示。越界行会直接抛 RangeError 且上层无错误边界（曾致整应用空白，
- * 见 debug-logs.txt 2026-09-17 Invalid line number 268 in 57-line document）。
+ * 把请求行钳制到当前文档行数内（唯一口径，`revealLineSafely` 与
+ * `alignRenderedLine` 共用——检索命中行相对当前内容可能 stale（检索后文件被改/
+ * 换成别的版本），不钳制会让量测/揭示两处对同一请求行各算各的）。
+ * 返回 `null` 表示请求行本身非有限数，无法揭示。
  *
- * 检索命中行相对当前内容可能 stale（检索后文件被改/换成别的版本），此时：
- * 不丢弃、不抛错，而是钳制到最近的有效行并告警——保证任何情况下都能落到可见位置。
+ * 为什么必须钳制：越界行会直接抛 RangeError 且上层无错误边界
+ * （曾致整应用空白，见 debug-logs.txt 2026-09-17 "Invalid line number 268 in
+ * 57-line document"）。不丢弃、不抛错，而是钳制到最近的有效行并告警——
+ * 保证任何情况下都能落到可见位置。
  */
+function clampRevealLine(editor: EditorRef, line: number): number | null {
+  if (!Number.isFinite(line)) {
+    return null;
+  }
+  const lineCount = editor.getModel?.()?.getLineCount() ?? Number.POSITIVE_INFINITY;
+  const finiteCount = Number.isFinite(lineCount) ? lineCount : null;
+  if (line < 1) {
+    return 1;
+  }
+  return finiteCount !== null && line > finiteCount ? finiteCount : line;
+}
+
+/** 行揭示：钳制后居中揭示并移动光标（越界行为见 `clampRevealLine`）。 */
 function revealLineSafely(
   editor: EditorRef,
   line: number,
@@ -26,17 +43,12 @@ function revealLineSafely(
   path?: string,
   opts?: { focus?: boolean },
 ): boolean {
-  const lineCount = editor.getModel?.()?.getLineCount() ?? Number.POSITIVE_INFINITY;
-  if (!Number.isFinite(line)) {
+  const target = clampRevealLine(editor, line);
+  if (target === null) {
     return false;
   }
+  const lineCount = editor.getModel?.()?.getLineCount() ?? Number.POSITIVE_INFINITY;
   const finiteCount = Number.isFinite(lineCount) ? lineCount : null;
-  let target = line;
-  if (line < 1) {
-    target = 1;
-  } else if (finiteCount !== null && line > finiteCount) {
-    target = finiteCount;
-  }
   if (target !== line) {
     console.warn(
       `[useEditorReveal] stale reveal line clamped in ${scope}: requested=${line}, applied=${target}, lineCount=${finiteCount ?? 'unknown'}, path=${path ?? 'unknown'}`,
@@ -90,25 +102,30 @@ type AlignOutcome = 'aligned' | 'nudged' | 'redispatched';
  * - `aligned`：已渲染且偏差在容差内。
  */
 function alignRenderedLine(editor: EditorRef, line: number): AlignOutcome {
-  let delta: number | null = null;
-  let visible = false;
+  // 与揭示同口径钳制：stale 越界行不做钳制时 `getLineCenterDelta` 内部
+  // `doc.line()` 会抛 RangeError → 恒 `redispatched` → 帘子拖满上限才显现。
+  const target = clampRevealLine(editor, line);
+  if (target === null) {
+    return 'redispatched';
+  }
   try {
-    visible = editor
+    const visible = editor
       .getVisibleRanges()
-      .some((r) => r.startLineNumber <= line && line <= r.endLineNumber);
-    delta = editor.getLineCenterDelta(line);
+      .some((r) => r.startLineNumber <= target && target <= r.endLineNumber);
+    const delta = editor.getLineCenterDelta(target);
+    if (!visible || delta === null || !Number.isFinite(delta)) {
+      return 'redispatched';
+    }
+    if (Math.abs(delta) <= REVEAL_TOLERANCE_PX) {
+      return 'aligned';
+    }
+    // 偏差按浏览器原生行为在 [0, maxScroll] 内自动钳制，无需手工夹取
+    editor.setScrollPosition({ scrollTop: editor.getScrollTop() + delta });
+    return 'nudged';
   } catch {
+    // 游离/销毁视图等真实异常路径：视为未渲染，下一轮重发近似定位。
     return 'redispatched';
   }
-  if (!visible || delta === null || !Number.isFinite(delta)) {
-    return 'redispatched';
-  }
-  if (Math.abs(delta) <= REVEAL_TOLERANCE_PX) {
-    return 'aligned';
-  }
-  // 偏差按浏览器原生行为在 [0, maxScroll] 内自动钳制，无需手工夹取
-  editor.setScrollPosition({ scrollTop: editor.getScrollTop() + delta });
-  return 'nudged';
 }
 
 /**
@@ -285,8 +302,7 @@ export function useEditorReveal(
     (editor: EditorRef, line: number, path: string, epoch: number) => {
       clearStableTimer();
       const startedAt = Date.now();
-      let alignedStreak = 0;
-      const tick = () => {
+      const tick = (alignedStreak: number): void => {
         stableTimerRef.current = undefined;
         if (epoch !== revealEpochRef.current || pendingRevealRef.current !== null) {
           // 被取代（diagnostic bump/新 pending）：若帘子仍在自己名下则显现，
@@ -300,9 +316,9 @@ export function useEditorReveal(
           return;
         }
         const outcome = enforceRenderedAlignment(editor, line, path, 'track');
-        alignedStreak = outcome === 'aligned' ? alignedStreak + 1 : 0;
+        const nextStreak = outcome === 'aligned' ? alignedStreak + 1 : 0;
         const fontsSettled = areFontsSettled();
-        if (alignedStreak >= REVEAL_SETTLE_STREAK && fontsSettled) {
+        if (nextStreak >= REVEAL_SETTLE_STREAK && fontsSettled) {
           clearOwnedPositioning();
           return;
         }
@@ -310,9 +326,9 @@ export function useEditorReveal(
           clearOwnedPositioning();
           return;
         }
-        stableTimerRef.current = window.setTimeout(tick, STABLE_STEP_MS);
+        stableTimerRef.current = window.setTimeout(() => tick(nextStreak), STABLE_STEP_MS);
       };
-      stableTimerRef.current = window.setTimeout(tick, STABLE_STEP_MS);
+      stableTimerRef.current = window.setTimeout(() => tick(0), STABLE_STEP_MS);
     },
     [clearStableTimer, clearOwnedPositioning, pendingRevealRef],
   );
@@ -346,12 +362,13 @@ export function useEditorReveal(
       return false;
     }
     // 销毁/游离视图（失败后错误视图替换了编辑器等）：不得 dispatch，等待挂载或超时放弃。
-    let connected = true;
-    try {
-      connected = editor.getDomNode?.()?.isConnected !== false;
-    } catch {
-      connected = false;
-    }
+    const connected = (() => {
+      try {
+        return editor.getDomNode?.()?.isConnected !== false;
+      } catch {
+        return false;
+      }
+    })();
     if (!connected) {
       return false;
     }

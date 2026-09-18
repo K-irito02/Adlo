@@ -110,6 +110,9 @@ fn search_text_in_files(
 
     'files: for file in files {
         if is_cancelled() {
+            // 取消即"扫描被截断"：宁可保守上报还有更多（调用方续页自会纠正），
+            // 也不能让截断页伪装成"已取尽"终结 UI 的续页入口。
+            has_more = true;
             break;
         }
 
@@ -139,6 +142,8 @@ fn search_text_in_files(
                 }
             }
             if index % CANCEL_CHECK_INTERVAL == 0 && is_cancelled() {
+                // 同上：取消 = 截断，保守上报还有更多。
+                has_more = true;
                 break 'files;
             }
         }
@@ -577,6 +582,19 @@ mod search_window_tests {
         assert_eq!(page.hits.len(), 2);
         assert_eq!(page.hits[0].line, 2);
         assert!(page.has_more);
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn cancelled_scan_reports_has_more_instead_of_claiming_exhausted() {
+        // 取消 = 扫描被截断：截断页必须保守上报 `has_more`，
+        // 否则 UI 会把"还没扫完"误判成"已取尽"而终结续页入口。
+        // 直接测私有 `search_text_in_files`：公开 `search_in_files` 固定传 `&|| false`。
+        let tmp = fixture();
+        let files = vec![tmp.join("a.txt")];
+        let page = search_text_in_files(&files, &tmp, "needle", SearchWindow::default(), &|| true)
+            .unwrap();
+        assert!(page.has_more, "cancelled page must not claim exhausted");
         cleanup(&tmp);
     }
 }

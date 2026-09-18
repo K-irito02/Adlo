@@ -35,7 +35,6 @@ export interface SearchSlice {
   setSearchQuery: (query: string) => void;
   setSearching: (searching: boolean) => void;
   setSearchEntries: (entries: SearchHitEntry[]) => void;
-  setSearchHasMore: (hasMore: boolean) => void;
   setSearchMatchCase: (value: boolean) => void;
   setSearchMatchWholeWord: (value: boolean) => void;
   setSearchUseRegex: (value: boolean) => void;
@@ -109,7 +108,6 @@ export const createSearchSlice = (
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSearching: (searching) => set({ searching }),
   setSearchEntries: (entries) => set({ searchEntries: entries }),
-  setSearchHasMore: (hasMore) => set({ searchHasMore: hasMore }),
   setSearchMatchCase: (value) => set({ searchMatchCase: value }),
   setSearchMatchWholeWord: (value) => set({ searchMatchWholeWord: value }),
   setSearchUseRegex: (value) => set({ searchUseRegex: value }),
