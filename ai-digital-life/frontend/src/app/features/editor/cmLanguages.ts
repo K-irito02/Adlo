@@ -62,6 +62,8 @@ const languageLoaders: Record<string, () => Promise<Extension[]>> = {
 };
 
 const extensionCache = new Map<string, Extension[]>();
+/** 进行中的加载（并发去重）：语言就绪闸门期间预热会被反复调用，见 `getLanguageExtension`。 */
+const pendingLoads = new Map<string, Promise<Extension[]>>();
 
 export function getLanguageExtensionSync(languageId: string): Extension[] {
   const cached = extensionCache.get(languageId);
@@ -80,9 +82,23 @@ export async function getLanguageExtension(languageId: string): Promise<Extensio
   if (!loader) {
     return [];
   }
-  const extensions = await loader();
-  extensionCache.set(languageId, extensions);
-  return extensions;
+  // 合并并发加载：就绪闸门期间（`attemptPendingReveal` 每次尝试都会预热）与编辑器自身
+  // 的加载会并发命中同一语言；不去重就会重复动态 import 并构造多份扩展实例。
+  const inFlight = pendingLoads.get(languageId);
+  if (inFlight) {
+    return inFlight;
+  }
+  const load = loader()
+    .then((extensions) => {
+      extensionCache.set(languageId, extensions);
+      return extensions;
+    })
+    .finally(() => {
+      // 只清 in-flight，不缓存失败：加载失败允许下次重试（调用方各自兜底）。
+      pendingLoads.delete(languageId);
+    });
+  pendingLoads.set(languageId, load);
+  return load;
 }
 
 /**

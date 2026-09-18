@@ -96,8 +96,12 @@ export interface EditorRef {
    * 用途：以"渲染事实"校验落点，替代"内部高度表估算"作为稳定/复核判据。
    * CodeMirror 的高度表在内容被绘制前只有估算值（官方 System Guide），
    * 用估算值自证稳定会稳定在错误位置。
+   *
+   * **必需方法**：揭示链的稳定性判定与精度复核都依赖它。若声明为可选，
+   * 未来新增的适配/替身一旦漏实现就会静默退化为"永远重发近似定位"，
+   * 表现为帘子一直挂到上限才显现 —— 宁可在类型层强制实现。
    */
-  getLineCenterDelta?(lineNumber: number): number | null;
+  getLineCenterDelta(lineNumber: number): number | null;
   getDomNode?(): HTMLElement | null;
   getView?(): unknown;
 }

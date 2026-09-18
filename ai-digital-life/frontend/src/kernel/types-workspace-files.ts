@@ -46,8 +46,9 @@ export interface WorkspaceSearchHit {
 
 /**
  * 检索分页窗口：跳过前 `offset` 条命中，最多返回 `limit` 条。
- * 缺省 `{ offset: 0, limit: SEARCH_PAGE_SIZE }`；`limit` 由后端钳制到安全阀
- * （[`SEARCH_MAX_RESULTS`]），调用方无法通过超大 `limit` 绕过。
+ * 缺省 `{ offset: 0, limit: 200 }`；`limit` 由后端钳制到安全阀 5000，
+ * 调用方无法通过超大 `limit` 绕过（常量定义在前端单一来源
+ * `shared/ipc/searchWindow.ts`，与本接口保持同步）。
  */
 export interface WorkspaceSearchWindow {
   offset?: number;

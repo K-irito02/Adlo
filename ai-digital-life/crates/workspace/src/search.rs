@@ -6,9 +6,16 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// 未指定窗口时的单次返回上限（前端首屏即按此值请求）。
+///
+/// **跨语言契约**：必须与前端单一来源 `frontend/src/shared/ipc/searchWindow.ts`
+/// 的 `SEARCH_PAGE_SIZE` 保持同值；两侧单测均把该值钉到 200，
+/// 任一侧单独改动都会在各自测试中失败。
 pub const MAX_SEARCH_RESULTS: usize = 200;
 /// "显示全部"的安全阀：单次请求可返回的最大命中数。
 /// 超过此值仍会被截断（`has_more` 为 true），避免超大仓库一次性拉爆内存与 IPC。
+///
+/// **跨语言契约**：必须与前端 `searchWindow.ts` 的 `SEARCH_MAX_RESULTS` 保持同值；
+/// 两侧单测均把该值钉到 5000（前端钳制、后端 `clamped` 各有一处断言）。
 pub const MAX_SEARCH_RESULTS_UNLIMITED: usize = 5000;
 const CANCEL_CHECK_INTERVAL: usize = 100;
 
@@ -531,6 +538,10 @@ mod search_window_tests {
 
     #[test]
     fn window_is_clamped_to_the_safety_valve() {
+        // 跨语言契约：这两个数字与前端 `searchWindow.ts` 的 `SEARCH_PAGE_SIZE` /
+        // `SEARCH_MAX_RESULTS` 必须同值，前端单测同样钉住它们 —— 任一侧单独改动都会失败。
+        assert_eq!(MAX_SEARCH_RESULTS, 200);
+        assert_eq!(MAX_SEARCH_RESULTS_UNLIMITED, 5000);
         assert_eq!(SearchWindow::clamped(0, 0).limit, 1, "limit 0 would starve the caller");
         assert_eq!(
             SearchWindow::clamped(0, MAX_SEARCH_RESULTS_UNLIMITED + 10_000).limit,

@@ -324,4 +324,35 @@ describe('searchActions paging (事项 5)', () => {
 
     expect(search).not.toHaveBeenCalled();
   });
+
+  it('writes the precise hasMore reported by the initial search', async () => {
+    // 首屏检索：窗口重置为默认页，hasMore 直接取自后端精确值（而非"等于上限即视为截断"）。
+    const { search, actions, get } = setupPaging(
+      { searchHasMore: false },
+      { hits: [{ path: 'a.md', line: 1, preview: 'x' }], hasMore: true },
+    );
+
+    await actions.searchFiles('needle');
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 200 });
+    expect(get().searchLimit).toBe(200);
+    expect(get().searchHasMore).toBe(true);
+    expect(get().searchEntries.map((e) => e.path)).toEqual(['a.md']);
+  });
+
+  it('reports no more when the initial search exhausts the results exactly', async () => {
+    // 命中数恰好等于默认页大小：旧实现会误报"结果未取尽"。
+    const page = {
+      hits: Array.from({ length: 200 }, (_, i) => ({ path: 'a.md', line: i + 1, preview: 'x' })),
+      hasMore: false,
+    };
+    const { actions, get } = setupPaging({}, page);
+
+    await actions.searchFiles('needle');
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(get().searchEntries).toHaveLength(200);
+    expect(get().searchHasMore).toBe(false);
+  });
 });

@@ -96,7 +96,7 @@ function alignRenderedLine(editor: EditorRef, line: number): AlignOutcome {
     visible = editor
       .getVisibleRanges()
       .some((r) => r.startLineNumber <= line && line <= r.endLineNumber);
-    delta = editor.getLineCenterDelta?.(line) ?? null;
+    delta = editor.getLineCenterDelta(line);
   } catch {
     return 'redispatched';
   }
@@ -325,7 +325,9 @@ export function useEditorReveal(
     const snap = latestFileRef.current;
     const pending = pendingRevealRef.current;
     if (!pending) {
-      pendingSinceRef.current = null;
+      // 无 pending 即"无揭示在途"：连语言闸门起点一并清空 —— 与成功/放弃路径
+      // 共用唯一的收敛点，避免只清一半留下过期字段。
+      resetPendingState();
       return true;
     }
     if (!snap.selectedFilePath || snap.selectedFilePath !== pending.path) {
@@ -405,7 +407,6 @@ export function useEditorReveal(
         return false;
       }
     }
-    langGateSinceRef.current = null;
     revealLineSafely(editor, pending.line, 'pending', pending.path);
     const epoch = (revealEpochRef.current += 1);
     // 落点复核（事项 46 症状②）：新挂载未量测的视图上 dispatch 的 scrollIntoView
@@ -497,6 +498,10 @@ export function useEditorReveal(
         }
         // 瞬态不一致（模型正在切换）：走 pending，alreadyOpen 标记保证后续放行。
       }
+      // 新跳转：先把上一条 pending 链的全部伴随状态清空（模型等待窗口 + 语言闸门起点），
+      // 再建立本次 pending —— 与成功/放弃路径共用同一个收敛点。否则上一跳遗留的窗口
+      // 会让本跳的等待"提前到期"（模型等待直接放弃 / 闸门直接放行）。
+      resetPendingState();
       setPendingReveal(relativePath, line);
       pendingBasisRef.current = {
         path: snap.selectedFilePath,
@@ -507,7 +512,6 @@ export function useEditorReveal(
       // 方案 D（预热）：与"读文件内容"并行预热目标文件的语法扩展，使扩展尽量与
       // 内容同批应用，从源头消除"揭示之后才 reconfigure → 落点被推走"的窗口。
       preloadLanguageExtension(detectEditorLanguage(relativePath));
-      langGateSinceRef.current = null;
       // 定位期间隐藏目标文件表面，揭示完成/放弃才显现（事项 46 调整项）。
       // 旧链条显式取消，不靠 epoch 自然死亡（Phase 4 审查 1.5）。
       clearRevealTimers();
@@ -523,6 +527,7 @@ export function useEditorReveal(
       startRetryChain,
       scheduleRevealVerify,
       clearOwnedPositioning,
+      resetPendingState,
     ],
   );
 

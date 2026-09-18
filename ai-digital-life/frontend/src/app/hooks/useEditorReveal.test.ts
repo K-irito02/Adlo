@@ -457,6 +457,9 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
         focus: vi.fn(),
         getSelection: () => null,
         getVisibleRanges: () => [],
+        // 与 EditorRef 契约保持一致：该方法现已为必需（类型层强制），
+        // 替身漏实现会与契约不一致，属应修的测试债务。
+        getLineCenterDelta: () => null,
         getDomNode: () => ({ isConnected: false }),
       } as unknown as EditorRef;
       const { result, setProps, pendingRevealRef } = setup(
@@ -567,8 +570,14 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
         result.current.handleOpenFileAtLine('B.md', 56);
       });
       setProps({ selectedFilePath: 'B.md', fileContent: contentB, fileLastModifiedAt: 2 });
+      // 上限之前必须一直不放行：没有这条断言，本用例在"未加闸门"的旧实现下也会通过。
       act(() => {
-        vi.advanceTimersByTime(1500);
+        vi.advanceTimersByTime(500);
+      });
+      expect(mockEditor.revealLineInCenter).not.toHaveBeenCalled();
+      // 超过上限（1200ms）后由兜底 tick 放行
+      act(() => {
+        vi.advanceTimersByTime(1000);
       });
       expect(mockEditor.revealLineInCenter).toHaveBeenCalledWith(56);
     } finally {

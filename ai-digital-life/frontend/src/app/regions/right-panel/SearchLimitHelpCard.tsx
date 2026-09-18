@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import { SEARCH_MAX_RESULTS, SEARCH_PAGE_SIZE } from '../../../shared/ipc/searchWindow';
 
 /**
  * 「检索结果上限」详细说明卡片。
@@ -7,13 +8,23 @@ import { useTCopy } from '@i18n/useTCopy';
  * 挂载于 `HintCardTrigger`（悬停或点击提示行右侧的“!”图标即弹出）——
  * 与分支图谱帮助卡同一套模式：共享卡片外壳（`styles/components/hintCard.css`）
  * + 共享内容版式（`.adl-help-card*`），本组件只负责组织 i18n 文案。
+ *
+ * 文案里的两个数量（每页条数、安全阀上限）用 `{page}` / `{max}` 插值自
+ * `searchWindow.ts` 的常量，避免常量调整后说明文字与真实行为悄悄漂移。
  */
 export const SearchLimitHelpCard = React.memo(function SearchLimitHelpCard() {
-  const { t } = useTCopy();
+  const { t, formatT } = useTCopy();
+  const vars = { page: SEARCH_PAGE_SIZE, max: SEARCH_MAX_RESULTS };
   const sections: { title: string; body: string }[] = [
-    { title: t.searchLimitHelpWhyTitle, body: t.searchLimitHelpWhy },
-    { title: t.searchLimitHelpActionsTitle, body: t.searchLimitHelpActions },
-    { title: t.searchLimitHelpCeilingTitle, body: t.searchLimitHelpCeiling },
+    { title: t.searchLimitHelpWhyTitle, body: formatT(t, 'searchLimitHelpWhy', vars) },
+    {
+      title: t.searchLimitHelpActionsTitle,
+      body: formatT(t, 'searchLimitHelpActions', vars),
+    },
+    {
+      title: t.searchLimitHelpCeilingTitle,
+      body: formatT(t, 'searchLimitHelpCeiling', vars),
+    },
     { title: t.searchLimitHelpScopeTitle, body: t.searchLimitHelpScope },
   ];
   return (

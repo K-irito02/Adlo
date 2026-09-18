@@ -86,7 +86,6 @@ export const fileZh = {
   fileOpenErrorRetry: '重试',
   searchHitStale: '已失效',
   searchStaleSummary: '{count} 处结果已失效',
-  searchPartialResults: '仅显示部分结果',
   searchFilePartial: '文件范围仅检索已加载树的前 200 个匹配',
   searchResultsShown: '已显示 {count} 条，结果未取尽',
   searchAllShown: '已显示全部 {count} 条',
@@ -96,13 +95,13 @@ export const fileZh = {
   searchLimitHelpTitle: '检索结果上限',
   searchLimitHelpWhyTitle: '为什么会有上限',
   searchLimitHelpWhy:
-    '大仓库里一个关键词可能命中成千上万处，一次全部载入会拖慢检索与界面。因此默认只取前 200 条，先让你快速看到最相关的一批结果。',
+    '大仓库里一个关键词可能命中成千上万处，一次全部载入会拖慢检索与界面。因此默认只取前 {page} 条，先让你快速看到最相关的一批结果。',
   searchLimitHelpActionsTitle: '「加载更多」与「显示全部」的区别',
   searchLimitHelpActions:
-    '· 加载更多：每次再取 200 条，适合边看边取、逐步扩大范围。\n· 显示全部：一次性把上限提到 5000 条，适合确实需要一次看全的场景。',
+    '· 加载更多：每次再取 {page} 条，适合边看边取、逐步扩大范围。\n· 显示全部：一次性把上限提到 {max} 条，适合确实需要一次看全的场景。',
   searchLimitHelpCeilingTitle: '到顶之后会怎样',
   searchLimitHelpCeiling:
-    '单次最多返回 5000 条。若仍显示“结果未取尽”，说明命中数超过上限，可继续用「加载更多」以外的方式收窄关键词再检索。',
+    '单次最多返回 {max} 条。若仍显示“结果未取尽”，说明命中数超过上限，可继续用「加载更多」以外的方式收窄关键词再检索。',
   searchLimitHelpScopeTitle: '请注意扫描范围',
   searchLimitHelpScope:
     '命中按目录遍历顺序累计，达到上限后剩余文件本次不会被扫描。所以“没有结果”不等于“文件里没有这个词”——收窄关键词或换个更具体的词往往更有效。',

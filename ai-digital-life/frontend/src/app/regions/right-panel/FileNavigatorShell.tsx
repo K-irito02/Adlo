@@ -38,7 +38,7 @@ interface FileNameHit {
   name: string;
 }
 
-/** 文件范围命中上限（与内容检索 MAX_HITS=200 对齐；超限走 searchFilePartial 提示）。 */
+/** 文件范围命中上限（与内容检索的默认页大小对齐；超限走 searchFilePartial 提示）。 */
 const MAX_FILE_HITS = 200;
 import { FileCreationDialog } from './FileCreationDialog';
 import { useFileNavigatorContextMenu } from './FileNavigatorContextMenu';

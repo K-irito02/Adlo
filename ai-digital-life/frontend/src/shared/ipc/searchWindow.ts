@@ -10,9 +10,19 @@ import type {
  * 保持同语义（跳过 offset、收 limit、多探一条判定 hasMore），避免各端各写一套而漂移。
  */
 
-/** 单次返回的默认上限（首屏与"加载更多"的步长）。 */
+/**
+ * 单次返回的默认上限（首屏与"加载更多"的步长）。
+ *
+ * **跨语言契约**：必须与后端 `crates/workspace/src/search.rs` 的
+ * `MAX_SEARCH_RESULTS` 同值；两侧单测均把该值钉到 200，任一侧单独改动都会失败。
+ */
 export const SEARCH_PAGE_SIZE = 200;
-/** "显示全部"的安全阀：单次请求可返回的最大命中数，与后端常量对齐。 */
+/**
+ * "显示全部"的安全阀：单次请求可返回的最大命中数。
+ *
+ * **跨语言契约**：必须与后端 `search.rs` 的 `MAX_SEARCH_RESULTS_UNLIMITED` 同值
+ * （前端于 `normalizeSearchWindow` 钳制、后端于 `SearchWindow::clamped` 钳制）。
+ */
 export const SEARCH_MAX_RESULTS = 5000;
 
 export interface NormalizedSearchWindow {

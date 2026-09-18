@@ -62,6 +62,15 @@ describe('workspace freshness IPC parity', () => {
     }
   });
 
+  it('mock search returns an empty page for empty query (aligned with other bridges)', async () => {
+    // 空查询若不短路，`''.includes` 恒真会把所有行当命中（与 Rust/dev 端行为分叉）。
+    const result = await mockDigitalLifeBridge.workspace.search('   ');
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual({ hits: [], hasMore: false });
+    }
+  });
+
   it('every bridge accepts the paging window and answers with a result page', async () => {
     // 分页窗口是四端共享契约：`hasMore` 必须来自后端（不能靠“等于上限”推断），
     // 故窗口参数与页对象形状在四端保持一致。网络端签名一致由类型系统保证，

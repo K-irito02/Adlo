@@ -87,7 +87,6 @@ export const fileEn = {
   fileOpenErrorRetry: 'Retry',
   searchHitStale: 'Outdated',
   searchStaleSummary: '{count} results are outdated',
-  searchPartialResults: 'Showing partial results',
   searchFilePartial: 'File scope searches only the first 200 matches of loaded trees',
   searchResultsShown: '{count} shown · more results available',
   searchAllShown: 'All {count} results shown',
@@ -97,13 +96,13 @@ export const fileEn = {
   searchLimitHelpTitle: 'Search result limits',
   searchLimitHelpWhyTitle: 'Why is there a limit?',
   searchLimitHelpWhy:
-    'A single keyword can match thousands of lines in a large workspace, and loading them all at once slows both the search and the UI. The first 200 matches are shown so you get a useful batch fast.',
+    'A single keyword can match thousands of lines in a large workspace, and loading them all at once slows both the search and the UI. The first {page} matches are shown so you get a useful batch fast.',
   searchLimitHelpActionsTitle: 'Load more vs. Show all',
   searchLimitHelpActions:
-    '· Load more: fetch another 200 matches each time — good for widening the scope step by step.\n· Show all: raise the window to the 5000-result ceiling in one go.',
+    '· Load more: fetch another {page} matches each time — good for widening the scope step by step.\n· Show all: raise the window to the {max}-result ceiling in one go.',
   searchLimitHelpCeilingTitle: 'What happens at the ceiling',
   searchLimitHelpCeiling:
-    'A single response returns at most 5000 matches. If the panel still says more results are available, the total exceeds that ceiling — narrow the keyword and search again.',
+    'A single response returns at most {max} matches. If the panel still says more results are available, the total exceeds that ceiling — narrow the keyword and search again.',
   searchLimitHelpScopeTitle: 'Note on scan scope',
   searchLimitHelpScope:
     'Matches accumulate in directory-walk order, so files after the ceiling are not scanned in that run. "No results" does not mean the word is absent — a narrower, more specific keyword works better.',

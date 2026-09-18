@@ -178,17 +178,24 @@ export class CodeMirrorEditorRef implements EditorRef {
   }
 
   /**
-   * 渲染实测：目标行的屏幕 top 与滚动容器中心的差（正 = 偏下）。
+   * 渲染实测：目标行的**屏幕中心**与滚动容器中心的差（正 = 偏下）。
    * 未渲染（视口外）时 `coordsAtPos` 返回 null —— 此时无布局可测。
+   *
+   * 基准必须是「行中心」而不是「行首」：`revealLineInCenter` 走
+   * `EditorView.scrollIntoView(pos, { y: 'center' })`，而 CodeMirror 的实现是把
+   * **整行块的中心**对齐到视口中心（`@codemirror/view` 视口计算：
+   * `topPos = (block.top + block.bottom) / 2 - viewHeight / 2`）。
+   * 若此处测行首，已正确居中的行会被判成"偏上约半行高"，从而触发一次虚假校正，
+   * 表现为揭示后约 100ms 的一次约 9px 下沉，且最终静止位与"居中"不一致。
    */
-  getLineCenterDelta?(lineNumber: number): number | null {
+  getLineCenterDelta(lineNumber: number): number | null {
     const line = this.view.state.doc.line(lineNumber);
     const coords = this.view.coordsAtPos(line.from);
     if (!coords) {
       return null;
     }
     const rect = this.view.scrollDOM.getBoundingClientRect();
-    return coords.top - (rect.top + rect.height / 2);
+    return (coords.top + coords.bottom) / 2 - (rect.top + rect.height / 2);
   }
 
   getDomNode?(): HTMLElement | null {

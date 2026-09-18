@@ -455,7 +455,9 @@ pub async fn search(
 #[serde(rename_all = "camelCase")]
 struct SearchFilesBody {
     paths: Vec<String>,
-    query: serde_json::Value,
+    /// 与 `SearchBody.query` 同为 `String`：非字符串在反序列化阶段即被拒绝，
+    /// 无需在处理器内再做运行时类型判定。
+    query: String,
     /// 分页窗口（可选）：watcher 局部重算通常传当前窗口，避免"显示全部"后被重置回 200。
     #[serde(default)]
     offset: Option<usize>,
@@ -495,12 +497,7 @@ pub async fn search_in_files(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let query = match input.query.as_str() {
-        Some(q) => q.to_string(),
-        None => {
-            return ipc::to_response(Err(AppError::InvalidInput("query must be a string".into())));
-        },
-    };
+    let query = input.query;
     if let Err(e) = reject_traversal(&input.paths) {
         return ipc::to_response(Err(e));
     }

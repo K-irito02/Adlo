@@ -127,12 +127,17 @@ export const mockWorkspace: WorkspaceBridge = {
     };
   },
   search: async (query: string, window?: WorkspaceSearchWindow) => {
+    // 与其余三端对齐：空查询直接返回空页（`''.includes` 恒真，否则会全量刷屏）。
+    if (!query.trim()) {
+      return { ok: true as const, data: { hits: [] as WorkspaceSearchHit[], hasMore: false } };
+    }
+    const needle = query.toLowerCase();
     const all: WorkspaceSearchHit[] = Array.from(documents.entries())
       .flatMap(([filePath, content]) =>
         content
           .split(/\r?\n/)
           .map((lineText, index) => ({ filePath, lineText, index }))
-          .filter((entry) => entry.lineText.toLowerCase().includes(query.toLowerCase()))
+          .filter((entry) => entry.lineText.toLowerCase().includes(needle))
           .map((entry) => ({
             path: entry.filePath,
             line: entry.index + 1,

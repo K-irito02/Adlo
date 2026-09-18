@@ -31,6 +31,15 @@ const componentsCss = readFileSync(
 const zhCopy = readFileSync(new URL('../../i18n/zh-CN/file.ts', import.meta.url), 'utf8');
 const enCopy = readFileSync(new URL('../../i18n/en-US/file.ts', import.meta.url), 'utf8');
 
+/**
+ * `formatT(t, '<key>', <第三参数>)` 的容忍匹配：空白、变量名、对象字面量都不敏感，
+ * 只锁定"该键确实被 formatT 调用且传了插值变量" —— 精确字面串会因 prettier 换行
+ * 或重命名而假失败。
+ */
+function interpolatedCallPattern(key: string): RegExp {
+  return new RegExp(`formatT\\(\\s*t\\s*,\\s*'${key}'\\s*,\\s*[^)]+\\s*\\)`);
+}
+
 describe('search result window UI (事项 5)', () => {
   it('offers both paging actions plus the help trigger in the limit row', () => {
     expect(fileNavigatorShellSource).toContain('adl-search-limit');
@@ -48,25 +57,40 @@ describe('search result window UI (事项 5)', () => {
   });
 
   it('keeps every label in i18n (zh + en parity)', () => {
-    for (const key of [
-      'searchResultsShown',
-      'searchAllShown',
+    // 含数量插值的键必须经 formatT 显式传入变量，否则用户会直接看到
+    // `{page}` / `{max}` / `{count}` 字面量；用容忍正则断言，避免换行/改名造成假失败。
+    const interpolated: { key: string; source: string }[] = [
+      { key: 'searchResultsShown', source: fileNavigatorShellSource },
+      { key: 'searchAllShown', source: fileNavigatorShellSource },
+      { key: 'searchLimitHelpWhy', source: helpCardSource },
+      { key: 'searchLimitHelpActions', source: helpCardSource },
+      { key: 'searchLimitHelpCeiling', source: helpCardSource },
+    ];
+    const plain = [
       'searchLoadMore',
       'searchShowAll',
       'searchLimitHelpAria',
       'searchLimitHelpTitle',
       'searchLimitHelpWhyTitle',
-      'searchLimitHelpWhy',
       'searchLimitHelpActionsTitle',
-      'searchLimitHelpActions',
       'searchLimitHelpCeilingTitle',
-      'searchLimitHelpCeiling',
       'searchLimitHelpScopeTitle',
       'searchLimitHelpScope',
-    ]) {
+    ];
+
+    for (const key of [...plain, ...interpolated.map((entry) => entry.key)]) {
       expect(zhCopy).toContain(`${key}:`);
       expect(enCopy).toContain(`${key}:`);
-      // 插值文案走 formatT(t, 'key', …)，其余走 t.key —— 两种写法都要算已接线
+    }
+
+    for (const { key, source } of interpolated) {
+      expect(interpolatedCallPattern(key).test(source), `${key} 未通过 formatT 传入插值变量`).toBe(
+        true,
+      );
+    }
+
+    for (const key of plain) {
+      // 其余文案走 t.key 或键名字面量（两种写法都算已接线）
       const wired =
         fileNavigatorShellSource.includes(`t.${key}`) ||
         fileNavigatorShellSource.includes(`'${key}'`) ||
