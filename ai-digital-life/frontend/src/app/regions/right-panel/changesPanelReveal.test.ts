@@ -16,4 +16,9 @@ describe('changes panel reveal wiring', () => {
   it('guards the diff editor reveal against out-of-range lines', () => {
     expect(source).toContain('revealEditorLineSafely');
   });
+
+  it('locates outline targets without the search-mode highlight', () => {
+    expect(source).toContain('revealSourceLine(container, line);');
+    expect(source).not.toContain('flash: true');
+  });
 });

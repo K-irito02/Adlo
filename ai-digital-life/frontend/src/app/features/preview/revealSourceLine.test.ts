@@ -1,12 +1,57 @@
 // @vitest-environment jsdom
-import { describe, expect, it } from 'vitest';
-import { findLineForQuery, resolveSourceLineElement, revealSourceLine } from './revealSourceLine';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  findLineForQuery,
+  resolveSourceLineElement,
+  revealSourceLine,
+  scrollAndFlash,
+} from './revealSourceLine';
 
 function container(html: string): HTMLElement {
   const root = document.createElement('div');
   root.innerHTML = html;
   document.body.appendChild(root);
   return root;
+}
+
+function stubRect(el: HTMLElement, top: number, height: number): void {
+  el.getBoundingClientRect = () =>
+    ({
+      top,
+      height,
+      bottom: top + height,
+      left: 0,
+      right: 0,
+      width: 0,
+      x: 0,
+      y: top,
+      toJSON: () => ({}),
+    }) as DOMRect;
+}
+
+function captureScrollBehavior(target: HTMLElement): string[] {
+  const behaviors: string[] = [];
+  target.scrollIntoView = (options?: boolean | ScrollIntoViewOptions) => {
+    behaviors.push(typeof options === 'object' && options ? String(options.behavior) : 'auto');
+  };
+  return behaviors;
+}
+
+/** 预览面（容器）+ 常驻高亮覆盖层 + 目标块；覆盖层的 offsetParent 显式指向容器。 */
+function overlayFixture(): {
+  root: HTMLElement;
+  overlay: HTMLElement;
+  target: HTMLElement;
+} {
+  const root = container(
+    '<div class="adl-md-flash-overlay"></div><p data-source-line-start="1" data-source-line-end="1">a</p>',
+  );
+  const overlay = root.querySelector('.adl-md-flash-overlay') as HTMLElement;
+  const target = root.querySelector('p') as HTMLElement;
+  Object.defineProperty(overlay, 'offsetParent', { value: root });
+  stubRect(root, 0, 1000);
+  stubRect(target, 100, 24);
+  return { root, overlay, target };
 }
 
 describe('resolveSourceLineElement', () => {
@@ -35,7 +80,7 @@ describe('resolveSourceLineElement', () => {
 });
 
 describe('revealSourceLine', () => {
-  it('scrolls to the resolved element and adds the flash class', () => {
+  it('scrolls to the resolved element and returns true', () => {
     const root = container('<p data-source-line-start="1" data-source-line-end="1">a</p>');
     const target = root.querySelector('p') as HTMLElement;
     let scrolled = false;
@@ -44,11 +89,80 @@ describe('revealSourceLine', () => {
     };
     expect(revealSourceLine(root, 1, { flash: true })).toBe(true);
     expect(scrolled).toBe(true);
-    expect(target.classList.contains('adl-md-flash')).toBe(true);
   });
 
   it('returns false without throwing when nothing matches', () => {
     expect(revealSourceLine(container('<p>plain</p>'), 5)).toBe(false);
+  });
+});
+
+describe('scrollAndFlash', () => {
+  // 高亮带 1.4s 定时器 + rAF 跟踪循环：用假时钟统一收敛，避免任务泄漏到环境销毁之后
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.clearAllTimers();
+    vi.useRealTimers();
+  });
+
+  it('jumps instantly when the target is far outside the viewport', () => {
+    const { root, target } = overlayFixture();
+    stubRect(target, 5000, 24);
+    const behaviors = captureScrollBehavior(target);
+    expect(scrollAndFlash(root, target, { flash: true })).toBe(true);
+    expect(behaviors).toEqual(['instant']);
+  });
+
+  it('keeps smooth scrolling for a nearby target', () => {
+    const { root, target } = overlayFixture();
+    const behaviors = captureScrollBehavior(target);
+    expect(scrollAndFlash(root, target, { flash: true })).toBe(true);
+    expect(behaviors).toEqual(['smooth']);
+  });
+
+  it('aligns the overlay to the target and plays the highlight', () => {
+    const { root, overlay, target } = overlayFixture();
+    target.scrollIntoView = () => {};
+    scrollAndFlash(root, target, { flash: true });
+    expect(overlay.classList.contains('is-active')).toBe(true);
+    expect(overlay.style.top).toBe('100px');
+    expect(overlay.style.height).toBe('24px');
+  });
+
+  it('does not play a highlight when asked without flash', () => {
+    const { root, overlay, target } = overlayFixture();
+    target.scrollIntoView = () => {};
+    scrollAndFlash(root, target);
+    expect(overlay.classList.contains('is-active')).toBe(false);
+  });
+
+  it('survives a surface without an overlay element', () => {
+    const root = container('<p data-source-line-start="1" data-source-line-end="1">a</p>');
+    const target = root.querySelector('p') as HTMLElement;
+    target.scrollIntoView = () => {};
+    expect(scrollAndFlash(root, target, { flash: true })).toBe(true);
+  });
+
+  it('collapses the highlight when the target left the document (file switched mid-flash)', () => {
+    // 旧目标块被替换后立即收起高亮条：既不冻结在旧像素位置，也不留下错位的黄带。
+    const { root, overlay, target } = overlayFixture();
+    target.scrollIntoView = () => {};
+    overlay.style.top = '7px';
+    overlay.style.height = '40px';
+    target.remove();
+    scrollAndFlash(root, target, { flash: true });
+    expect(overlay.style.height).toBe('0px');
+  });
+
+  it('clears the highlight once the flash duration elapses', () => {
+    const { root, overlay, target } = overlayFixture();
+    target.scrollIntoView = () => {};
+    scrollAndFlash(root, target, { flash: true });
+    expect(overlay.classList.contains('is-active')).toBe(true);
+    vi.advanceTimersByTime(1400);
+    expect(overlay.classList.contains('is-active')).toBe(false);
   });
 });
 

@@ -55,8 +55,8 @@ const regionsCssSource = [
   )
   .join('\n');
 
-/** 仅 diff 视图三件套：竖轨禁令只针对 diff 行背景（事项 41 的 markdown 落点闪烁
- * `adl-md-flash` 合法使用 inset 高亮，不在此禁令内）。 */
+/** 仅 diff 视图三件套：竖轨禁令只针对 diff 行背景（事项 41 的 markdown 落点高亮
+ * `adl-md-flash-overlay` 合法使用 inset 高亮，不在此禁令内）。 */
 const diffCssSource = ['diff-viewer.css', 'diff-inline.css', 'diff-side-by-side.css']
   .map((f) =>
     readFileSync(

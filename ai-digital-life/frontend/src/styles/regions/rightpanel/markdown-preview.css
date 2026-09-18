@@ -34,8 +34,8 @@
   overflow-y: auto;
   height: 100%;
   box-sizing: border-box;
-  width: min(100%, 920px);
-  margin: 0 auto;
+  /* 宽度由预览面的填充规则决定（`.adl-tool-editor__surface > div:not(...)` → 全宽）；
+     此处不再声明 max-width/margin:auto —— 该规则特异性更高，声明只会与生效值冲突。 */
   padding: var(--space-8) var(--space-10) 20vh;
   font-size: var(--text-base, 15px);
   line-height: 1.72;
@@ -48,7 +48,34 @@
   margin-top: 0;
 }
 
-/* 检索跳转落点闪烁提示：短暂高亮后自动淡出（由 FilesPanel 添加/移除类） */
+/* 检索跳转落点高亮：
+   - 视口夹层：铺满预览面并裁剪内部溢出 —— 高亮条在平滑滚动期间可能位于可视区之外，
+     若不裁剪会给预览面制造可滚动溢出（凭空冒出滚动条）。
+   - 高亮条：横向 left/right 0 铺满并与主内容显示区域左右边缘贴合（直角 + 左侧警示竖线），
+     top/height 由 revealSourceLine 写入内联样式，短暂高亮后自动淡出。 */
+.adl-md-flash-overlay-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.adl-md-flash-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.adl-md-flash-overlay.is-active {
+  /* 时长单一来源：TS 的 FLASH_DURATION_MS 通过 `--adl-md-flash-duration` 注入（此处 1.4s 为兜底） */
+  animation: adl-md-flash-fade var(--adl-md-flash-duration, 1.4s) var(--ease-default) 1;
+}
+
 @keyframes adl-md-flash-fade {
   0%,
   55% {
@@ -61,17 +88,11 @@
   }
 }
 
-.adl-md-flash {
-  animation: adl-md-flash-fade 1.4s var(--ease-default) 1;
-  border-radius: 3px;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .adl-md-flash {
+  .adl-md-flash-overlay.is-active {
     animation: none;
     background-color: var(--warning-soft);
     box-shadow: inset 3px 0 0 0 var(--warning);
-    transition: background-color 0.2s linear;
   }
 }
 

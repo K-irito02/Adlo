@@ -18,6 +18,7 @@ import {
   findLineForQuery,
   revealEditorLineSafely,
   revealSourceLine,
+  scrollAndFlash,
 } from '@features/preview/revealSourceLine';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
@@ -157,7 +158,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   }, []);
 
   const handleNavigateLine = useCallback(
-    (line: number) => {
+    (line: number, options?: { flash?: boolean }) => {
       // For markdown preview mode, use DOM-based scrolling directly
       // (stale editor ref may exist from edit mode, but no CodeMirror is visible)
       if (fileCategory === 'markdown' && previewEnabled) {
@@ -167,7 +168,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         }
         // 块级源行映射与最近前置块回退复用 helper（与检索跳转同语义，防分叉）；
         // 全无锚点的极端情况按行占比估算（分母用内容行数，不用块数）。
-        if (!revealSourceLine(surface, line, { flash: true })) {
+        // 落点高亮只由检索文件模式显式开启（大纲/诊断导航只需定位，不需要闪烁）。
+        if (!revealSourceLine(surface, line, { flash: options?.flash })) {
           const lineCount = fileContent?.split('\n').length ?? 0;
           const ratio = lineCount > 0 ? Math.min(line / lineCount, 1) : 0;
           surface.scrollTop = Math.max(0, ratio * (surface.scrollHeight - surface.clientHeight));
@@ -245,13 +247,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         }
         // 锚点已挂载但 helper 未命中（行在首块之前）：兜底首块并闪烁
         const firstAnchor = surface?.querySelector<HTMLElement>('[data-source-line-start]');
-        if (firstAnchor) {
-          firstAnchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          firstAnchor.classList.remove('adl-md-flash');
-          // 强制重排以便连续跳转时动画可重放
-          void firstAnchor.offsetWidth;
-          firstAnchor.classList.add('adl-md-flash');
-          window.setTimeout(() => firstAnchor.classList.remove('adl-md-flash'), 1400);
+        if (firstAnchor && surface) {
+          scrollAndFlash(surface, firstAnchor, { flash: true });
           finishPreviewRevealTimer();
           return true;
         }

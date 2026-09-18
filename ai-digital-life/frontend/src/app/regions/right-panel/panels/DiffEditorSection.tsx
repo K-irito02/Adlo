@@ -174,6 +174,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
               content={changePreview.currentContent}
               theme={changePreviewTheme}
             />
+            {/* 不渲染落点高亮覆盖层：变更面板无检索模式，大纲导航按设计只定位不闪烁 */}
           </div>
         ) : previewEnabled ? (
           <div className="adl-tool-editor__surface">

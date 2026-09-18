@@ -240,8 +240,9 @@ export function revealOutlineLine(
   if (changePreview && categorizeFile(changePreview.path) === 'markdown' && previewEnabled) {
     const container = changesPreviewContainerRef.current;
     if (container) {
-      // 变更面板不接检索词：直接复用与文件面板一致的块级跳转 + 闪烁，不做重定位
-      revealSourceLine(container, line, { flash: true });
+      // 变更面板大纲导航：复用与文件面板一致的块级跳转（含远距瞬时定位），
+      // 但不做落点高亮（落点高亮只在检索文件模式需要）
+      revealSourceLine(container, line);
     }
     return;
   }
