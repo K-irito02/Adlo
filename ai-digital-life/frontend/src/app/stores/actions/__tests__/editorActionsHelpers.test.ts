@@ -8,6 +8,7 @@ interface Snap {
   fileContent?: string;
   fileOpenError?: { path: string; code: string; message: string } | null;
   openTabs: { path: string }[];
+  outline?: unknown;
 }
 
 function setup(initial: Partial<Snap>) {
@@ -37,6 +38,13 @@ function setup(initial: Partial<Snap>) {
     workspace: { setEditorDirtyPaths: vi.fn() },
   };
   return { set, get, snapshots };
+}
+
+/** 为 captureError 挂载 reportError mock（Phase 4 审查 O4 去重）。 */
+function mockReportError(get: () => StoreState): ReturnType<typeof vi.fn> {
+  const reportError = vi.fn();
+  (get() as unknown as { reportError: unknown }).reportError = reportError;
+  return reportError;
 }
 
 function deferred<T>() {
@@ -78,13 +86,12 @@ describe('openFileGeneric hold-until-ready (事项 46 调整项)', () => {
   });
 
   it('shows a friendly error in the main area instead of stale content on failure', async () => {
-    const reportError = vi.fn();
     const { set, get } = setup({
       selectedFilePath: 'old.md',
       fileContent: 'old content',
       openTabs: [{ path: 'old.md' }],
     });
-    (get() as unknown as { reportError: unknown }).reportError = reportError;
+    mockReportError(get);
 
     await openFileGeneric(set as never, get as never, 'gone.md', getNextFileRequestSeq(), {
       cacheKey: `hold-test-fail-${Date.now()}-2`,
@@ -122,5 +129,178 @@ describe('openFileGeneric hold-until-ready (事项 46 调整项)', () => {
     expect(get().selectedFilePath).toBe('cached.md');
     expect(get().fileContent).toBe('cached content');
     expect(snapshots).toHaveLength(1);
+  });
+
+  it('discards a slow stale response when a newer open wins the race (H1)', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const gateA = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+    const gateB = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+
+    const pendingA = openFileGeneric(set as never, get as never, 'a.md', getNextFileRequestSeq(), {
+      cacheKey: `race-a-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () => gateA.promise as never,
+    });
+    const pendingB = openFileGeneric(set as never, get as never, 'b.md', getNextFileRequestSeq(), {
+      cacheKey: `race-b-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () => gateB.promise as never,
+    });
+    gateB.resolve({ ok: true, data: { content: 'B content', lastModifiedAt: 2 } });
+    await pendingB;
+    expect(get().selectedFilePath).toBe('b.md');
+    // A 后 resolve（成功）：过期门控丢弃，不得覆盖 B。
+    gateA.resolve({ ok: true, data: { content: 'A content', lastModifiedAt: 3 } });
+    await pendingA;
+    expect(get().selectedFilePath).toBe('b.md');
+    expect(get().fileContent).toBe('B content');
+    expect((get() as unknown as Snap).fileOpenError).toBeFalsy();
+  });
+
+  it('discards a slow stale failure when a newer open wins the race (H1)', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const reportError = mockReportError(get);
+    const gateA = deferred<{ ok: false; error: { code: string; message: string } }>();
+    const gateB = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+
+    const pendingA = openFileGeneric(set as never, get as never, 'a.md', getNextFileRequestSeq(), {
+      cacheKey: `race-fail-a-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () => gateA.promise as never,
+    });
+    const pendingB = openFileGeneric(set as never, get as never, 'b.md', getNextFileRequestSeq(), {
+      cacheKey: `race-fail-b-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () => gateB.promise as never,
+    });
+    gateB.resolve({ ok: true, data: { content: 'B content', lastModifiedAt: 2 } });
+    await pendingB;
+    // A 后失败：过期门控丢弃，不得把 selected 切回 A，也不得挂 A 的 error。
+    gateA.resolve({ ok: false, error: { code: 'NOT_FOUND', message: 'gone' } });
+    await pendingA;
+    expect(get().selectedFilePath).toBe('b.md');
+    expect((get() as unknown as Snap).fileOpenError).toBeFalsy();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('clears the error after failure-then-success on the same path (H2)', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    mockReportError(get);
+    const key = `fail-then-ok-${Date.now()}`;
+    const failCfg = {
+      cacheKey: key,
+      workspaceId: 'ws-1',
+      readFile: () =>
+        Promise.resolve({ ok: false, error: { code: 'NOT_FOUND', message: 'gone' } }) as never,
+    };
+    await openFileGeneric(set as never, get as never, 'gone.md', getNextFileRequestSeq(), failCfg);
+    expect((get() as unknown as Snap).fileOpenError?.path).toBe('gone.md');
+
+    await openFileGeneric(set as never, get as never, 'gone.md', getNextFileRequestSeq(), {
+      cacheKey: key,
+      workspaceId: 'ws-1',
+      readFile: () =>
+        Promise.resolve({ ok: true, data: { content: 'back again', lastModifiedAt: 9 } }) as never,
+    });
+    expect(get().fileContent).toBe('back again');
+    expect((get() as unknown as Snap).fileOpenError).toBeNull();
+  });
+
+  it('submits the same failure state when readFile rejects (M1)', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const reportError = mockReportError(get);
+
+    await openFileGeneric(set as never, get as never, 'boom.md', getNextFileRequestSeq(), {
+      cacheKey: `reject-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () => Promise.reject(new Error('boom')) as never,
+    });
+
+    expect(get().selectedFilePath).toBe('boom.md');
+    expect(get().fileContent).toBeUndefined();
+    const fileOpenError = (get() as unknown as Snap).fileOpenError;
+    expect(fileOpenError?.code).toBe('UNKNOWN');
+    expect(fileOpenError?.message).toContain('boom');
+    expect(reportError).toHaveBeenCalled();
+  });
+
+  it('keeps the error view during a retry pending instead of blank editor (M2)', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    mockReportError(get);
+    const key = `retry-pending-${Date.now()}`;
+    await openFileGeneric(set as never, get as never, 'gone.md', getNextFileRequestSeq(), {
+      cacheKey: key,
+      workspaceId: 'ws-1',
+      readFile: () =>
+        Promise.resolve({ ok: false, error: { code: 'NOT_FOUND', message: 'gone' } }) as never,
+    });
+    expect((get() as unknown as Snap).fileOpenError?.path).toBe('gone.md');
+
+    // 重试（同路径再次 open）：resolve 前错误仍在，不跌落空编辑器。
+    const gate = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+    const pending = openFileGeneric(
+      set as never,
+      get as never,
+      'gone.md',
+      getNextFileRequestSeq(),
+      {
+        cacheKey: key,
+        workspaceId: 'ws-1',
+        readFile: () => gate.promise as never,
+      },
+    );
+    expect((get() as unknown as Snap).fileOpenError?.path).toBe('gone.md');
+    expect(get().selectedFilePath).toBe('gone.md');
+
+    gate.resolve({ ok: true, data: { content: 'recovered', lastModifiedAt: 4 } });
+    await pending;
+    expect(get().fileContent).toBe('recovered');
+    expect((get() as unknown as Snap).fileOpenError).toBeNull();
+  });
+
+  it('keeps derived state on old values while pending, tab added upfront (M5)', async () => {
+    const outline = [{ id: 'old-outline' }];
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+      outline: outline as never,
+    });
+    const gate = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+
+    const pending = openFileGeneric(set as never, get as never, 'new.md', getNextFileRequestSeq(), {
+      cacheKey: `pending-inv-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () => gate.promise as never,
+    });
+    // 同步前缀后：tab 已加（点击反馈），其余派生状态保持旧值。
+    expect(get().openTabs.map((t: { path: string }) => t.path)).toContain('new.md');
+    expect(get().selectedFilePath).toBe('old.md');
+    expect(get().fileContent).toBe('old content');
+    expect(get().outline).toBe(outline);
+
+    gate.resolve({ ok: true, data: { content: 'new content', lastModifiedAt: 2 } });
+    await pending;
+    expect(get().selectedFilePath).toBe('new.md');
   });
 });

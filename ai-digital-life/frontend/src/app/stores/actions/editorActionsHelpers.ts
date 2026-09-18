@@ -37,7 +37,39 @@ const SCOPE = 'editor';
 export interface OpenFileConfig {
   cacheKey: string;
   workspaceId: string | undefined;
+  workspacePath?: string;
   readFile: () => Promise<IpcResult<WorkspaceFileDocument>>;
+}
+
+/**
+ * 开文件失败的统一提交（Phase 4 审查 M1/M4/L2）：{ok:false} 与 readFile 抛异常
+ * 共用。失败是终态——切到目标路径并展示友好错误，不回退旧内容；
+ * 同时清掉定位帘（错误视图即揭示结果）。
+ */
+function submitOpenFailure(
+  set: StoreApi<StoreState>['setState'],
+  relativePath: string,
+  config: OpenFileConfig,
+  error: unknown,
+) {
+  const raw = error as { code?: unknown; message?: unknown } | null | undefined;
+  const code = typeof raw?.code === 'string' ? raw.code : 'UNKNOWN';
+  const rawMessage = typeof raw?.message === 'string' ? raw.message : '';
+  set({
+    selectedFilePath: relativePath,
+    selectedFileWorkspaceId: config.workspaceId,
+    fileContent: undefined,
+    fileLastModifiedAt: undefined,
+    outline: [],
+    positioningPath: null,
+    fileOpenError: {
+      path: relativePath,
+      code,
+      message: rawMessage || code,
+      workspaceId: config.workspaceId,
+      workspacePath: config.workspacePath,
+    },
+  });
 }
 
 export async function openFileGeneric(
@@ -81,33 +113,33 @@ export async function openFileGeneric(
   }
   // 就绪才切换（事项 46 调整项）：标签页即时出现作为点击反馈，
   // 但 selectedFilePath/fileContent 保持旧值直到内容读到，主区全程无中间态。
+  // pending 期不变量：除 openTabs 外一切派生状态（selected/content/outline/
+  // diagnostics/preview/fileOpenError）均保持旧值；fileOpenError 刻意不清，
+  // 使重试 pending 期仍显示错误视图而非跌落空编辑器（Phase 4 审查 M2）。
   set((state: StoreState) => ({
     openTabs: state.openTabs.some((tab) => tab.path === relativePath)
       ? state.openTabs
       : [...state.openTabs, createEditorTab(relativePath)],
-    fileOpenError: null,
   }));
 
-  const fileResult = await config.readFile();
+  let fileResult: IpcResult<WorkspaceFileDocument>;
+  try {
+    fileResult = await config.readFile();
+  } catch (err) {
+    if (requestSeq !== fileRequestSeq) {
+      return;
+    }
+    captureError(get, err, SCOPE);
+    submitOpenFailure(set, relativePath, config, err);
+    return;
+  }
   if (requestSeq !== fileRequestSeq) {
     return;
   }
   if (!fileResult.ok) {
     captureError(get, fileResult.error, SCOPE);
-    const raw = fileResult.error as { code?: unknown; message?: unknown };
     // 失败不在主区回退显示旧文件内容：切到目标路径并展示友好错误（用户决策）。
-    set({
-      selectedFilePath: relativePath,
-      selectedFileWorkspaceId: config.workspaceId,
-      fileContent: undefined,
-      fileLastModifiedAt: undefined,
-      outline: [],
-      fileOpenError: {
-        path: relativePath,
-        code: typeof raw.code === 'string' ? raw.code : 'UNKNOWN',
-        message: typeof raw.message === 'string' ? raw.message : '',
-      },
-    });
+    submitOpenFailure(set, relativePath, config, fileResult.error);
     return;
   }
   const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);

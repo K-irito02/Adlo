@@ -93,6 +93,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
         cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
         workspaceId: get().appInfo?.currentWorkspace?.id,
+        workspacePath: get().appInfo?.currentWorkspace?.path,
         readFile: () => window.digitalLife.workspace.readFile(relativePath),
       });
     },
@@ -112,6 +113,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
         cacheKey: `${workspacePath}:${relativePath}`,
         workspaceId,
+        workspacePath,
         readFile: () =>
           window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
       });

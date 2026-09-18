@@ -541,6 +541,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
                 onEditorMount={onEditorMount}
                 onDiffMount={onDiffMount}
                 onOpenFile={onOpenFile}
+                onOpenFileForWorkspace={onOpenFileForWorkspace}
                 onSetDiffLayout={onSetDiffLayout}
                 onJumpPatchHunk={onJumpPatchHunk}
                 onSelectPatchHunk={onSelectPatchHunk}

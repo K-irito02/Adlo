@@ -14,6 +14,12 @@ import type { RightPanelViewProps } from './types';
 import { useTCopy } from '@i18n/useTCopy';
 import { useDiffStickyRanges } from './useDiffStickyRanges';
 
+/** 后端"不存在"类错误码归一化（Phase 4 审查 L3）：大小写/分隔符不敏感，另认 ENOENT。 */
+function isNotFoundCode(code: string): boolean {
+  const norm = code.toUpperCase().replace(/[^A-Z]/g, '_');
+  return norm.includes('NOT_FOUND') || norm === 'ENOENT';
+}
+
 const CodeEditor = lazy(() =>
   import('../../features/editor').then((m) => ({ default: m.CodeEditor })),
 );
@@ -40,6 +46,7 @@ interface EditorSurfaceShellProps extends Pick<
   | 'onEditorMount'
   | 'onDiffMount'
   | 'onOpenFile'
+  | 'onOpenFileForWorkspace'
   | 'onSetDiffLayout'
   | 'onJumpPatchHunk'
   | 'onSelectPatchHunk'
@@ -81,6 +88,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     onEditorMount,
     onDiffMount,
     onOpenFile,
+    onOpenFileForWorkspace,
   } = props;
 
   const filePreviewModeByPath = useAppStore(useShallow((s) => s.filePreviewModeByPath));
@@ -152,17 +160,44 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
 
   // 开文件失败：主区展示友好错误，不回退显示旧文件内容（事项 46 调整项，用户决策）。
   if (fileOpenError && fileOpenError.path === selectedFilePath) {
-    const isNotFound = fileOpenError.code === 'NOT_FOUND';
+    const isNotFound = isNotFoundCode(fileOpenError.code);
+    // scoped 重试目标齐全才走工作区入口，否则回退单文件入口（Phase 4 审查 O3：无非空断言）。
+    const retryTarget =
+      fileOpenError.workspaceId !== undefined && fileOpenError.workspacePath !== undefined
+        ? {
+            workspaceId: fileOpenError.workspaceId,
+            workspacePath: fileOpenError.workspacePath,
+          }
+        : undefined;
     return (
       <div className="adl-tool-editor__open-error" role="alert">
         <strong className="adl-tool-editor__open-error-title">{t.fileOpenErrorTitle}</strong>
-        <span className="adl-tool-editor__open-error-path">{fileOpenError.path}</span>
+        <span className="adl-tool-editor__open-error-path" title={fileOpenError.path}>
+          {fileOpenError.path}
+        </span>
         <p className="adl-tool-editor__open-error-detail">
           {isNotFound
             ? t.fileOpenErrorNotFound
-            : formatT(t, 'fileOpenErrorDetail', { message: fileOpenError.message })}
+            : formatT(t, 'fileOpenErrorDetail', {
+                message: fileOpenError.message || fileOpenError.code,
+              })}
         </p>
-        <button type="button" onClick={() => onOpenFile(fileOpenError.path)}>
+        <button
+          type="button"
+          className="adl-tool-editor__open-error-retry"
+          title={fileOpenError.path}
+          onClick={() => {
+            if (retryTarget) {
+              onOpenFileForWorkspace(
+                retryTarget.workspaceId,
+                retryTarget.workspacePath,
+                fileOpenError.path,
+              );
+            } else {
+              onOpenFile(fileOpenError.path);
+            }
+          }}
+        >
           {t.fileOpenErrorRetry}
         </button>
       </div>

@@ -62,7 +62,7 @@ function setup(
   };
   const actions = { openFile: vi.fn(() => Promise.resolve()) };
   const propsRef = { current: initial };
-  const { result, rerender } = renderHook(
+  const { result, rerender, unmount } = renderHook(
     () =>
       useEditorReveal(
         propsRef.current.selectedFilePath,
@@ -85,7 +85,7 @@ function setup(
     propsRef.current = next;
     rerender();
   };
-  return { result, setProps, mockEditor, actions, pendingRevealRef };
+  return { result, rerender, unmount, setProps, mockEditor, actions, pendingRevealRef };
 }
 
 describe('useEditorReveal pending handshake (事项 46)', () => {
@@ -339,5 +339,157 @@ describe('useEditorReveal pending handshake (事项 46)', () => {
     expect(mockEditor.revealLineInCenter).not.toHaveBeenCalled();
     expect(pendingRevealRef.current).toBeNull();
     expect(useAppStore.getState().positioningPath).toBeNull();
+  });
+
+  it('reveals when the new content happens to equal the old content (1.2)', () => {
+    // 同内容跨文件：mtime 不同即放行，不误判为中间态。
+    const same = makeContent('same', 57);
+    const docLines = { value: 57 };
+    const { result, setProps, mockEditor } = setup(
+      { selectedFilePath: 'A.md', fileContent: same, fileLastModifiedAt: 1 },
+      docLines,
+    );
+
+    act(() => {
+      result.current.handleOpenFileAtLine('B.md', 56);
+    });
+    setProps({ selectedFilePath: 'B.md', fileContent: same, fileLastModifiedAt: 2 });
+    expect(mockEditor.revealLineInCenter).toHaveBeenCalledWith(56);
+  });
+
+  it('clears the curtain when superseded mid-stabilization (1.4)', () => {
+    // 稳定轮询期间被新 pending 取代：不清帘会永久隐藏，必须显现。
+    vi.useFakeTimers();
+    try {
+      const contentA = makeContent('old', 57);
+      const contentB = makeContent('new', 57);
+      const docLines = { value: 57 };
+      const { result, setProps, pendingRevealRef } = setup(
+        { selectedFilePath: 'A.md', fileContent: contentA, fileLastModifiedAt: 1 },
+        docLines,
+      );
+
+      act(() => {
+        result.current.handleOpenFileAtLine('B.md', 56);
+      });
+      setProps({ selectedFilePath: 'B.md', fileContent: contentB, fileLastModifiedAt: 2 });
+      expect(useAppStore.getState().positioningPath).toBe('B.md');
+      // 新跳转到达（还未置帘）：旧稳定轮询中止时必须清掉旧帘。
+      act(() => {
+        pendingRevealRef.current = { path: 'C.md', line: 1 };
+      });
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(useAppStore.getState().positioningPath).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not dispatch after unmount (1.5)', () => {
+    // 卸载清理全部计时器：迟挂载＋复核都不再触发。
+    vi.useFakeTimers();
+    try {
+      const docLines = { value: 57 };
+      const { result, setProps, mockEditor, pendingRevealRef, unmount } = setup(
+        { selectedFilePath: undefined, fileContent: undefined, fileLastModifiedAt: undefined },
+        docLines,
+        false,
+      );
+
+      act(() => {
+        result.current.handleOpenFileAtLine('B.md', 56);
+      });
+      setProps({ selectedFilePath: 'B.md', fileContent: undefined, fileLastModifiedAt: undefined });
+      const revealSpy = vi.mocked(mockEditor.revealLineInCenter);
+      const callsBefore = revealSpy.mock.calls.length;
+      unmount();
+      pendingRevealRef.current = null;
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(revealSpy.mock.calls.length).toBe(callsBefore);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('waits instead of dispatching on a detached view (1.7)', () => {
+    // 销毁视图（isConnected false）：不 dispatch，超时放弃并显现。
+    vi.useFakeTimers();
+    try {
+      const contentB = makeContent('new', 57);
+      const docLines = { value: 57 };
+      const detached = {
+        getModel: () => ({ getLineCount: () => 57 }),
+        revealLineInCenter: vi.fn(),
+        setPosition: vi.fn(),
+        focus: vi.fn(),
+        getSelection: () => null,
+        getTopForLineNumber: () => 0,
+        getVisibleRanges: () => [],
+        getDomNode: () => ({ isConnected: false }),
+      } as unknown as EditorRef;
+      const { result, setProps, pendingRevealRef } = setup(
+        { selectedFilePath: 'A.md', fileContent: makeContent('old', 57), fileLastModifiedAt: 1 },
+        docLines,
+      );
+      act(() => {
+        result.current.standardEditorRef.current = detached;
+      });
+
+      act(() => {
+        result.current.handleOpenFileAtLine('B.md', 56);
+      });
+      setProps({ selectedFilePath: 'B.md', fileContent: contentB, fileLastModifiedAt: 2 });
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(detached.revealLineInCenter).not.toHaveBeenCalled();
+      expect(pendingRevealRef.current).not.toBeNull();
+      act(() => {
+        vi.advanceTimersByTime(3000);
+      });
+      expect(pendingRevealRef.current).toBeNull();
+      expect(useAppStore.getState().positioningPath).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('schedules a verify pass for already-open files (1.3)', () => {
+    // 已打开大文件直接揭示同样复核：目标不可视则补跳。
+    vi.useFakeTimers();
+    try {
+      const contentB = makeContent('new', 1473);
+      const docLines = { value: 1473 };
+      const visibleRanges = { value: [{ startLineNumber: 1, endLineNumber: 40 }] };
+      const { result, setProps } = setup(
+        { selectedFilePath: 'big.html', fileContent: contentB, fileLastModifiedAt: 2 },
+        docLines,
+        true,
+        visibleRanges,
+      );
+      const editor = makeMockEditor(docLines, visibleRanges);
+      act(() => {
+        result.current.standardEditorRef.current = editor;
+      });
+
+      act(() => {
+        result.current.handleOpenFileAtLine('big.html', 1439);
+      });
+      setProps({ selectedFilePath: 'big.html', fileContent: contentB, fileLastModifiedAt: 2 });
+      const spy = vi.mocked(editor.revealLineInCenter);
+      expect(spy).toHaveBeenCalledWith(1439);
+      const first = spy.mock.calls.length;
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+      expect(spy.mock.calls.length).toBeGreaterThan(first);
+      expect(spy).toHaveBeenLastCalledWith(1439);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

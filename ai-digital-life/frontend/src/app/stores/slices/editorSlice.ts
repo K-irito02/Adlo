@@ -6,6 +6,15 @@ import type { FileOutlineItem, WorkspaceChangePreview } from '@ai-digital-life/k
 import type { StoreState } from '../StoreState';
 import type { EditorTabState } from '@utils/editorTabs';
 
+/** 主区开文件失败信息（事项 46 调整项，Phase 4 审查 L1 抽为共享类型）。 */
+export interface FileOpenError {
+  path: string;
+  code: string;
+  message: string;
+  workspaceId?: string;
+  workspacePath?: string;
+}
+
 export interface EditorSlice {
   openTabs: EditorTabState[];
   selectedFilePath?: string;
@@ -20,7 +29,7 @@ export interface EditorSlice {
    * 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，
    * 不回退显示旧文件内容；成功打开任意文件时清掉。
    */
-  fileOpenError?: { path: string; code: string; message: string } | null;
+  fileOpenError?: FileOpenError | null;
   /**
    * 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成，
    * 全程不绘制中间态；揭示成功/放弃时清掉。
@@ -55,7 +64,7 @@ export interface EditorSlice {
   setChangePreviewLoading: (loading: boolean) => void;
   setFileContent: (content: string | undefined) => void;
   setFileLastModifiedAt: (timestamp: number | undefined) => void;
-  setFileOpenError: (error: { path: string; code: string; message: string } | null) => void;
+  setFileOpenError: (error: FileOpenError | null) => void;
   setPositioningPath: (path: string | null) => void;
   setExternalFileChange: (change: { path: string; lastModifiedAt: number } | undefined) => void;
   setOutline: (items: FileOutlineItem[]) => void;
@@ -86,6 +95,7 @@ export const createEditorSlice = (
   changePreviewLoading: false,
   dirtyEditorPaths: [],
   fileOpenError: null,
+  positioningPath: null,
 
   setOpenTabs: (tabs) => set({ openTabs: tabs }),
   addOpenTab: (tab) =>

@@ -3,6 +3,13 @@ import type { DiagnosticSummary } from '@ai-digital-life/kernel';
 import type { EditorRef, DiffEditorRef } from '../stores/types';
 import { useAppStore } from '@stores/slicedStore';
 
+// 揭示时序常数（事项 46；集中命名，调参只改此处）。
+const VERIFY_DELAY_MS = 350;
+const RETRY_STEP_MS = 120;
+const RETRY_CAP_MS = 3000;
+const STABLE_STEP_MS = 100;
+const STABLE_CAP_MS = 3000;
+
 /**
  * 行揭示。越界行会直接抛 RangeError 且上层无错误边界（曾致整应用空白，
  * 见 debug-logs.txt 2026-09-17 Invalid line number 268 in 57-line document）。
@@ -10,7 +17,13 @@ import { useAppStore } from '@stores/slicedStore';
  * 检索命中行相对当前内容可能 stale（检索后文件被改/换成别的版本），此时：
  * 不丢弃、不抛错，而是钳制到最近的有效行并告警——保证任何情况下都能落到可见位置。
  */
-function revealLineSafely(editor: EditorRef, line: number, scope: string, path?: string): boolean {
+function revealLineSafely(
+  editor: EditorRef,
+  line: number,
+  scope: string,
+  path?: string,
+  opts?: { focus?: boolean },
+): boolean {
   const lineCount = editor.getModel?.()?.getLineCount() ?? Number.POSITIVE_INFINITY;
   if (!Number.isFinite(line)) {
     return false;
@@ -29,8 +42,24 @@ function revealLineSafely(editor: EditorRef, line: number, scope: string, path?:
   }
   editor.revealLineInCenter(target);
   editor.setPosition({ lineNumber: target, column: 1 });
-  editor.focus();
+  if (opts?.focus ?? true) {
+    editor.focus();
+  }
   return true;
+}
+
+/**
+ * 字体是否就绪：行高的 late 变化（字体加载/语言扩展/折叠计算）是揭示后
+ * 视口漂移的主因，大行号会把像素误差放大成整屏。FontFaceSet.status 为
+ * 'loading' 时视为未就绪；无此 API（jsdom/旧环境）视为就绪。
+ */
+function areFontsSettled(): boolean {
+  try {
+    const status = document.fonts?.status;
+    return status === undefined || status === 'loaded';
+  } catch {
+    return true;
+  }
 }
 
 export function useEditorReveal(
@@ -47,13 +76,15 @@ export function useEditorReveal(
   const standardEditorRef = useRef<EditorRef | null>(null);
   const diffEditorRef = useRef<EditorRef | DiffEditorRef | null>(null);
 
-  // 最新文件快照（render 期同步），供同步揭示与 pending 依据读取；
-  // 走 ref 而不进 useCallback 依赖，避免回调身份抖动引发面板重渲染。
+  // 最新文件快照。render 期同步是有意为之：handleOpenFileAtLine 必须读到
+  // 本次点击对应的最新 store 值；若移入 effect，回调将读到上一帧快照。
   const latestFileRef = useRef({ selectedFilePath, fileContent, fileLastModifiedAt });
   latestFileRef.current = { selectedFilePath, fileContent, fileLastModifiedAt };
   // pending 依据：点击时刻的内容快照。openFile 中间态（路径已切新文件、
   // 内容仍是旧文件）下 modelFresh 会误判为"新鲜"，需用此快照识别并等待。
+  // path 用于区分"旧内容滞留"与"新内容恰好相同"（同内容跨文件不等待）。
   const pendingBasisRef = useRef<{
+    path: string | undefined;
     content: string | undefined;
     modifiedAt: number | undefined;
     alreadyOpen: boolean;
@@ -70,6 +101,19 @@ export function useEditorReveal(
       useAppStore.getState().setPositioningPath(path);
     }
   }, []);
+  // 本实例拥有的帘子：卸载时只清自己置的，不碰后来者（Phase 4 审查 3.2）。
+  const ownedPositioningRef = useRef<string | null>(null);
+  const setOwnedPositioning = useCallback(
+    (path: string) => {
+      ownedPositioningRef.current = path;
+      setPositioning(path);
+    },
+    [setPositioning],
+  );
+  const clearOwnedPositioning = useCallback(() => {
+    ownedPositioningRef.current = null;
+    setPositioning(null);
+  }, [setPositioning]);
 
   useEffect(() => {
     if (!activeDiagnostic?.line) {
@@ -91,6 +135,10 @@ export function useEditorReveal(
   // 不产生 store 变更，effect 依赖不变不会重跑，pending 会烂掉。
   const pendingRetryRef = useRef<number | undefined>(undefined);
   const pendingRetryStartRef = useRef<number>(0);
+  // 落点复核 / 稳定性轮询计时器（Phase 4 审查 1.5）：跟踪 ID，卸载与
+  // 新跳转时显式取消，不靠 epoch 自然死亡。
+  const verifyTimerRef = useRef<number | undefined>(undefined);
+  const stableTimerRef = useRef<number | undefined>(undefined);
 
   const clearPendingRetry = useCallback(() => {
     if (pendingRetryRef.current !== undefined) {
@@ -98,19 +146,35 @@ export function useEditorReveal(
       pendingRetryRef.current = undefined;
     }
   }, []);
+  const clearVerifyTimer = useCallback(() => {
+    if (verifyTimerRef.current !== undefined) {
+      window.clearTimeout(verifyTimerRef.current);
+      verifyTimerRef.current = undefined;
+    }
+  }, []);
+  const clearStableTimer = useCallback(() => {
+    if (stableTimerRef.current !== undefined) {
+      window.clearTimeout(stableTimerRef.current);
+      stableTimerRef.current = undefined;
+    }
+  }, []);
+  const clearRevealTimers = useCallback(() => {
+    clearPendingRetry();
+    clearVerifyTimer();
+    clearStableTimer();
+  }, [clearPendingRetry, clearVerifyTimer, clearStableTimer]);
 
-  // 卸载时清理兜底计时器与定位隐藏（防残留 flag 导致表面永久隐藏）
+  // 卸载时清理全部计时器与本实例拥有的定位隐藏（防残留 flag 导致表面永久隐藏）
   useEffect(
     () => () => {
-      if (pendingRetryRef.current !== undefined) {
-        window.clearTimeout(pendingRetryRef.current);
-        pendingRetryRef.current = undefined;
-      }
-      if (useAppStore.getState().positioningPath !== null) {
+      clearRevealTimers();
+      const owned = ownedPositioningRef.current;
+      if (owned !== null && useAppStore.getState().positioningPath === owned) {
         useAppStore.getState().setPositioningPath(null);
       }
+      ownedPositioningRef.current = null;
     },
-    [],
+    [clearRevealTimers],
   );
 
   /**
@@ -119,7 +183,9 @@ export function useEditorReveal(
    */
   const scheduleRevealVerify = useCallback(
     (editor: EditorRef, line: number, path: string, epoch: number) => {
-      window.setTimeout(() => {
+      clearVerifyTimer();
+      verifyTimerRef.current = window.setTimeout(() => {
+        verifyTimerRef.current = undefined;
         if (epoch !== revealEpochRef.current) {
           return;
         }
@@ -136,43 +202,34 @@ export function useEditorReveal(
           // bump 会误杀它；correction 本身 epoch 门控已保证只响应最后一次揭示。
           revealLineSafely(editor, line, 'correct', path);
         }
-      }, 350);
+      }, VERIFY_DELAY_MS);
     },
-    [],
+    [clearVerifyTimer],
   );
 
   /**
-   * 字体是否就绪：行高的 late 变化（字体加载/语言扩展/折叠计算）是揭示后
-   * 视口漂移的主因，大行号会把像素误差放大成整屏。FontFaceSet.status 为
-   * 'loading' 时视为未就绪；无此 API（jsdom/旧环境）视为就绪。
-   */
-  const POLL_CAP_MS = 3000;
-
-  function areFontsSettled(): boolean {
-    try {
-      const status = document.fonts?.status;
-      return status === undefined || status === 'loaded';
-    } catch {
-      return true;
-    }
-  }
-
-  /**
    * 稳定性摘帘（事项 46 html:1439）：揭示后轮询目标行像素 top，连续两次不变
-   * 且目标在可视区且字体就绪才摘帘；上限 3s 兜底显现，永不永久隐藏。
-   * top 漂移或目标掉出可视区时重发揭示（追踪锚定，仍在帘后，不可见），
+   * 且目标在可视区且字体就绪才摘帘；上限兜底显现，永不永久隐藏。
+   * top 漂移或目标掉出可视区时重发揭示（追踪锚定，仍在帘后，不可见，
+   * 且不抢焦点，摘帘时首揭示的 focus 早已生效），
    * 遇新 pending 或 flag 易主即中止，不干扰后来的跳转。
    */
   const awaitStableReveal = useCallback(
     (editor: EditorRef, line: number, path: string, epoch: number) => {
+      clearStableTimer();
       const startedAt = Date.now();
       let prevTop: number | null = null;
       const tick = () => {
-        if (
-          epoch !== revealEpochRef.current ||
-          pendingRevealRef.current !== null ||
-          useAppStore.getState().positioningPath !== path
-        ) {
+        stableTimerRef.current = undefined;
+        if (epoch !== revealEpochRef.current || pendingRevealRef.current !== null) {
+          // 被取代（diagnostic bump/新 pending）：若帘子仍在自己名下则显现，
+          // 否则表面永久隐藏（Phase 4 审查 1.4）。
+          if (useAppStore.getState().positioningPath === path) {
+            clearOwnedPositioning();
+          }
+          return;
+        }
+        if (useAppStore.getState().positioningPath !== path) {
           return;
         }
         let top: number | null = null;
@@ -193,27 +250,27 @@ export function useEditorReveal(
           Math.abs(top - prevTop) < 0.5 &&
           areFontsSettled()
         ) {
-          setPositioning(null);
+          clearOwnedPositioning();
           return;
         }
         if (top !== null && Number.isFinite(top)) {
           // 漂移中（与上次不同）或掉出可视区：重发揭示追踪锚定（仍在帘后）。
           if ((prevTop !== null && Math.abs(top - prevTop) >= 0.5) || !visible) {
-            revealLineSafely(editor, line, 'track', path);
+            revealLineSafely(editor, line, 'track', path, { focus: false });
             prevTop = null;
           } else {
             prevTop = top;
           }
         }
-        if (Date.now() - startedAt > POLL_CAP_MS) {
-          setPositioning(null);
+        if (Date.now() - startedAt > STABLE_CAP_MS) {
+          clearOwnedPositioning();
           return;
         }
-        window.setTimeout(tick, 100);
+        stableTimerRef.current = window.setTimeout(tick, STABLE_STEP_MS);
       };
-      window.setTimeout(tick, 100);
+      stableTimerRef.current = window.setTimeout(tick, STABLE_STEP_MS);
     },
-    [pendingRevealRef, setPositioning],
+    [clearStableTimer, clearOwnedPositioning, pendingRevealRef],
   );
 
   /**
@@ -235,7 +292,7 @@ export function useEditorReveal(
       pendingRevealRef.current = null;
       pendingBasisRef.current = null;
       pendingSinceRef.current = null;
-      setPositioning(null);
+      clearOwnedPositioning();
       return true;
     }
     const raw = diffEditorRef.current ?? standardEditorRef.current;
@@ -245,17 +302,28 @@ export function useEditorReveal(
       return false;
     }
     // 销毁/游离视图（失败后错误视图替换了编辑器等）：不得 dispatch，等待挂载或超时放弃。
-    if (editor.getDomNode?.()?.isConnected === false) {
+    let connected = true;
+    try {
+      connected = editor.getDomNode?.()?.isConnected !== false;
+    } catch {
+      connected = false;
+    }
+    if (!connected) {
       return false;
     }
     // 中间态守卫（事项 46）：路径已切但内容仍是点击时刻的旧文件时，
     // modelFresh 也会通过（两者同 stale），必须等待新内容到达才揭示。
+    // 仅当确实切了文件（basis.path !== pending.path）才等待——新内容恰好
+    // 与旧内容相同时不误伤（Phase 4 审查 1.2）；比较按 mtime→长度→内容
+    // 由廉到贵短路（Phase 4 审查 3.1）。
     const basis = pendingBasisRef.current;
     if (
       basis &&
       !basis.alreadyOpen &&
-      snap.fileContent === basis.content &&
-      snap.fileLastModifiedAt === basis.modifiedAt
+      basis.path !== pending.path &&
+      snap.fileLastModifiedAt === basis.modifiedAt &&
+      (snap.fileContent?.length ?? -1) === (basis.content?.length ?? -2) &&
+      snap.fileContent === basis.content
     ) {
       return false;
     }
@@ -272,14 +340,14 @@ export function useEditorReveal(
     if (!modelFresh) {
       const since = pendingSinceRef.current ?? Date.now();
       pendingSinceRef.current = since;
-      if (Date.now() - since > 3000) {
+      if (Date.now() - since > RETRY_CAP_MS) {
         console.warn(
           `[useEditorReveal] give up stale pending reveal: line=${pending.line}, modelLines=${lineCount}, expected=${expectedLines}`,
         );
         pendingRevealRef.current = null;
         pendingBasisRef.current = null;
         pendingSinceRef.current = null;
-        setPositioning(null);
+        clearOwnedPositioning();
         return true;
       }
       return false;
@@ -287,7 +355,7 @@ export function useEditorReveal(
     revealLineSafely(editor, pending.line, 'pending', pending.path);
     const epoch = (revealEpochRef.current += 1);
     // 落点复核（事项 46 症状②）：新挂载未量测的视图上 dispatch 的 scrollIntoView
-    // 会按零高度布局解析、视口落错；350ms 待布局稳定后复核，不在可视区则补一次。
+    // 会按零高度布局解析、视口落错；待布局稳定后复核，不在可视区则补一次。
     scheduleRevealVerify(editor, pending.line, pending.path, epoch);
     // 稳定性摘帘：帘子保持到布局稳定（目标像素 top 不再漂移）才显现，
     // 而不是揭示 dispatch 即显现——否则用户会看到漂移中的视口。
@@ -296,19 +364,51 @@ export function useEditorReveal(
     pendingBasisRef.current = null;
     pendingSinceRef.current = null;
     return true;
-  }, [pendingRevealRef, scheduleRevealVerify, awaitStableReveal, setPositioning]);
+  }, [scheduleRevealVerify, awaitStableReveal, clearOwnedPositioning, pendingRevealRef]);
+
+  /**
+   * 兜底链：仅 pending 未被 effect 消费时生效（挂载无 store 变更等缺口），
+   * 上限与 give-up 语义一致；消费成功即停，不空转。
+   * 步进 120ms：首跳 dwell 越短，冷启动中间态越不可见。
+   */
+  const startRetryChain = useCallback(() => {
+    clearPendingRetry();
+    pendingRetryStartRef.current = Date.now();
+    const tickRetry = () => {
+      pendingRetryRef.current = undefined;
+      if (!pendingRevealRef.current) {
+        return;
+      }
+      if (attemptPendingReveal()) {
+        return;
+      }
+      if (Date.now() - pendingRetryStartRef.current > RETRY_CAP_MS) {
+        pendingRevealRef.current = null;
+        pendingBasisRef.current = null;
+        pendingSinceRef.current = null;
+        clearOwnedPositioning();
+        return;
+      }
+      pendingRetryRef.current = window.setTimeout(tickRetry, RETRY_STEP_MS);
+    };
+    pendingRetryRef.current = window.setTimeout(tickRetry, RETRY_STEP_MS);
+  }, [attemptPendingReveal, clearPendingRetry, clearOwnedPositioning, pendingRevealRef]);
 
   useEffect(() => {
     if (attemptPendingReveal()) {
       clearPendingRetry();
+    } else if (pendingRetryRef.current === undefined) {
+      // 非 handleOpenFileAtLine 生产的 pending（如补丁 hunk 直调）同样需要兜底：
+      // 无运行中链条时惰性启动一条（Phase 4 审查 1.6）。
+      startRetryChain();
     }
   }, [
     fileContent,
     fileLastModifiedAt,
     selectedFilePath,
-    pendingRevealRef,
     attemptPendingReveal,
     clearPendingRetry,
+    startRetryChain,
   ]);
 
   const handleOpenFileAtLine = useCallback(
@@ -326,53 +426,37 @@ export function useEditorReveal(
         const lineCount = editor?.getModel?.()?.getLineCount();
         const expectedLines = snap.fileContent!.split('\n').length;
         if (editor && lineCount !== undefined && Math.abs(lineCount - expectedLines) <= 1) {
-          revealEpochRef.current += 1;
+          const epoch = (revealEpochRef.current += 1);
           revealLineSafely(editor, line, 'direct', relativePath);
-          setPositioning(null);
+          // 已打开视图同样可能 late 漂移：复核纠偏（不进帘，视图本就可见）。
+          scheduleRevealVerify(editor, line, relativePath, epoch);
+          clearOwnedPositioning();
           return;
         }
         // 瞬态不一致（模型正在切换）：走 pending，alreadyOpen 标记保证后续放行。
       }
       setPendingReveal(relativePath, line);
       pendingBasisRef.current = {
+        path: snap.selectedFilePath,
         content: snap.fileContent,
         modifiedAt: snap.fileLastModifiedAt,
         alreadyOpen,
       };
       // 定位期间隐藏目标文件表面，揭示完成/放弃才显现（事项 46 调整项）。
-      setPositioning(relativePath);
-      // 兜底链：仅 pending 未被 effect 消费时生效（挂载无 store 变更等缺口），
-      // 上限 3s，与既有 give-up 语义一致；消费成功即停，不空转。
-      // 步进 120ms：首跳 dwell 越短，冷启动中间态越不可见。
-      clearPendingRetry();
-      pendingRetryStartRef.current = Date.now();
-      const tickRetry = () => {
-        pendingRetryRef.current = undefined;
-        if (!pendingRevealRef.current) {
-          return;
-        }
-        if (attemptPendingReveal()) {
-          return;
-        }
-        if (Date.now() - pendingRetryStartRef.current > 3000) {
-          pendingRevealRef.current = null;
-          pendingBasisRef.current = null;
-          pendingSinceRef.current = null;
-          setPositioning(null);
-          return;
-        }
-        pendingRetryRef.current = window.setTimeout(tickRetry, 120);
-      };
-      pendingRetryRef.current = window.setTimeout(tickRetry, 120);
+      // 旧链条显式取消，不靠 epoch 自然死亡（Phase 4 审查 1.5）。
+      clearRevealTimers();
+      setOwnedPositioning(relativePath);
+      startRetryChain();
       void actions.openFile(relativePath);
     },
     [
       actions,
       setPendingReveal,
-      pendingRevealRef,
-      attemptPendingReveal,
-      clearPendingRetry,
-      setPositioning,
+      clearRevealTimers,
+      setOwnedPositioning,
+      startRetryChain,
+      scheduleRevealVerify,
+      clearOwnedPositioning,
     ],
   );
 

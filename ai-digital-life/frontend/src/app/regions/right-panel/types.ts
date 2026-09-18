@@ -13,6 +13,7 @@ import type {
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 import type { SearchHitEntry } from '@stores/slices/searchSlice';
+import type { FileOpenError } from '@stores/slices/editorSlice';
 import type { EditorTabState } from '@utils/editorTabs';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import type { PatchDirection, PatchReviewFilter } from '@features/patch-review';
@@ -30,7 +31,7 @@ export interface RightPanelViewProps {
   fileContent?: string;
   fileLastModifiedAt?: number;
   /** 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，不回退旧内容 */
-  fileOpenError?: { path: string; code: string; message: string } | null;
+  fileOpenError?: FileOpenError | null;
   /** 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成 */
   positioningPath?: string | null;
   externalChangePath?: string;
