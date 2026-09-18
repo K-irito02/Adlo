@@ -55,6 +55,17 @@ const regionsCssSource = [
   )
   .join('\n');
 
+/** 仅 diff 视图三件套：竖轨禁令只针对 diff 行背景（事项 41 的 markdown 落点闪烁
+ * `adl-md-flash` 合法使用 inset 高亮，不在此禁令内）。 */
+const diffCssSource = ['diff-viewer.css', 'diff-inline.css', 'diff-side-by-side.css']
+  .map((f) =>
+    readFileSync(
+      new URL(`../../../../src/styles/regions/rightpanel/${f}`, import.meta.url),
+      'utf8',
+    ),
+  )
+  .join('\n');
+
 function extractCssBlock(css: string, selector: string) {
   const normalizedCss = css.replace(/\r\n/g, '\n');
   const normalizedSelector = selector.replace(/\r\n/g, '\n');
@@ -78,7 +89,7 @@ describe('CodeMirror preview styling', () => {
     expect(sideBySideSource).toContain('gutter: true');
     expect(diffViewerSource).not.toContain('gutter: false');
     expect(cmThemeSource).not.toContain('inset 3px 0 0');
-    expect(regionsCssSource).not.toContain('inset 3px 0 0');
+    expect(diffCssSource).not.toContain('inset 3px 0 0');
   });
 
   it('keeps CodeMirror editor and diff surfaces independent from legacy Monaco selectors', () => {
