@@ -11,7 +11,7 @@ use adl_kernel::events::AppEvent;
 use adl_storage::EntityTable;
 use adl_types::{
     FileOutlineItem, RetrievalSnapshot, WorkspaceChangePreview, WorkspaceFileChangedEvent,
-    WorkspaceMeta, WorkspaceSearchHit, WorkspaceTreeNode,
+    WorkspaceMeta, WorkspaceTreeNode,
 };
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -268,6 +268,20 @@ struct TreeBody {
 #[serde(rename_all = "camelCase")]
 struct SearchBody {
     query: String,
+    /// 分页窗口（可选）：缺省跳过 0 条、最多返回 `MAX_SEARCH_RESULTS` 条。
+    #[serde(default)]
+    offset: Option<usize>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+/// 由请求体构造检索窗口：上限一律交 [`adl_workspace::SearchWindow::clamped`] 钳制，
+/// 调用方无法用超大 `limit` 绕过安全阀。
+fn search_window(offset: Option<usize>, limit: Option<usize>) -> adl_workspace::SearchWindow {
+    adl_workspace::SearchWindow::clamped(
+        offset.unwrap_or(0),
+        limit.unwrap_or(adl_workspace::MAX_SEARCH_RESULTS),
+    )
 }
 
 #[derive(serde::Deserialize)]
@@ -427,10 +441,11 @@ pub async fn search(
         Ok(ws) => ws.root_path,
         Err(e) => return ipc::to_response(Err(e)),
     };
+    let window = search_window(input.offset, input.limit);
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let hits: Vec<WorkspaceSearchHit> =
-            adl_workspace::search_text(PathBuf::from(root_path).as_path(), &input.query)?;
-        Ok(serde_json::to_value(hits)?)
+        let page =
+            adl_workspace::search_text(PathBuf::from(root_path).as_path(), &input.query, window)?;
+        Ok(serde_json::to_value(page)?)
     })
     .await;
     ipc::to_response(result)
@@ -441,6 +456,11 @@ pub async fn search(
 struct SearchFilesBody {
     paths: Vec<String>,
     query: serde_json::Value,
+    /// 分页窗口（可选）：watcher 局部重算通常传当前窗口，避免"显示全部"后被重置回 200。
+    #[serde(default)]
+    offset: Option<usize>,
+    #[serde(default)]
+    limit: Option<usize>,
 }
 
 /// 拒绝路径穿越输入：绝对路径或含 `..` 成分的相对路径一律 `INVALID_INPUT`，
@@ -497,10 +517,15 @@ pub async fn search_in_files(
         Err(e) => return ipc::to_response(Err(e)),
     };
     let paths = input.paths;
+    let window = search_window(input.offset, input.limit);
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let hits: Vec<WorkspaceSearchHit> =
-            adl_workspace::search_in_files(PathBuf::from(root_path).as_path(), &paths, &query)?;
-        Ok(serde_json::to_value(hits)?)
+        let page = adl_workspace::search_in_files(
+            PathBuf::from(root_path).as_path(),
+            &paths,
+            &query,
+            window,
+        )?;
+        Ok(serde_json::to_value(page)?)
     })
     .await;
     ipc::to_response(result)

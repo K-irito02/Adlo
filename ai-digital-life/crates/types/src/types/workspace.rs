@@ -230,6 +230,17 @@ pub struct WorkspaceSearchHit {
     pub preview: String,
 }
 
+/// 检索结果页：`hits` 是本次窗口内的命中，`has_more` 表示**窗口之后仍有命中**。
+///
+/// `has_more` 由后端多探一条命中得出（而非"恰好等于上限就视为被截断"），
+/// 故前端可以精确区分"已取尽"与"还有更多"，不必再保守误报。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceSearchPage {
+    pub hits: Vec<WorkspaceSearchHit>,
+    pub has_more: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkspaceFileDocument {

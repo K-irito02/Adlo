@@ -199,6 +199,10 @@ interface PatchActions {
 
 interface SearchActions {
   searchFiles: (query: string) => Promise<void>;
+  /** 追加一页命中（+SEARCH_PAGE_SIZE）并重跑当前检索 */
+  loadMoreSearchResults: () => Promise<void>;
+  /** 一次性把窗口提到安全阀上限并重跑当前检索 */
+  showAllSearchResults: () => Promise<void>;
   markSearchHitStale: (path: string, line?: number, workspaceId?: string) => void;
   cancelPendingSearch: () => void;
   subscribeWorkspaceFilesChanged: () => () => void;

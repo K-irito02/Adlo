@@ -9,8 +9,10 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
-  WorkspaceSearchHit
+  WorkspaceSearchHit,
+  WorkspaceSearchWindow
 } from "@ai-digital-life/kernel";
+import { paginateSearchHits } from "../shared/ipc/searchWindow";
 import {
   buildMockChangePreview,
   buildMockWorkspaceMeta,
@@ -124,8 +126,8 @@ export const mockWorkspace: WorkspaceBridge = {
       data: buildMockChangePreview(relativePath),
     };
   },
-  search: async (query: string) => {
-    const hits: WorkspaceSearchHit[] = Array.from(documents.entries())
+  search: async (query: string, window?: WorkspaceSearchWindow) => {
+    const all: WorkspaceSearchHit[] = Array.from(documents.entries())
       .flatMap(([filePath, content]) =>
         content
           .split(/\r?\n/)
@@ -136,14 +138,14 @@ export const mockWorkspace: WorkspaceBridge = {
             line: entry.index + 1,
             preview: entry.lineText.trim()
           }))
-      )
-      .slice(0, 10);
-    return { ok: true, data: hits };
+      );
+    // 与后端同语义：窗口切片 + 精确 hasMore（`paginateSearchHits` 是前端单一来源）。
+    return { ok: true, data: paginateSearchHits(all, window) };
   },
-  searchInFiles: async (paths: string[], query: string) => {
+  searchInFiles: async (paths: string[], query: string, window?: WorkspaceSearchWindow) => {
     // 与其余三端对齐：空查询返回 []（`''.includes` 恒真，旧代码会全量刷屏）。
     if (!query.trim()) {
-      return { ok: true as const, data: [] };
+      return { ok: true as const, data: { hits: [] as WorkspaceSearchHit[], hasMore: false } };
     }
     const needle = query.toLowerCase();
     const hits: WorkspaceSearchHit[] = [];
@@ -158,7 +160,7 @@ export const mockWorkspace: WorkspaceBridge = {
         }
       });
     }
-    return { ok: true as const, data: hits };
+    return { ok: true as const, data: paginateSearchHits(hits, window) };
   },
   // 空实现是刻意的：mock 内存文档无外部变更源，不存在需要推送的变更。
   onFilesChanged: () => () => {},

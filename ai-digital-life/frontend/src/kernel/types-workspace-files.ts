@@ -44,6 +44,25 @@ export interface WorkspaceSearchHit {
   preview: string;
 }
 
+/**
+ * 检索分页窗口：跳过前 `offset` 条命中，最多返回 `limit` 条。
+ * 缺省 `{ offset: 0, limit: SEARCH_PAGE_SIZE }`；`limit` 由后端钳制到安全阀
+ * （[`SEARCH_MAX_RESULTS`]），调用方无法通过超大 `limit` 绕过。
+ */
+export interface WorkspaceSearchWindow {
+  offset?: number;
+  limit?: number;
+}
+
+/**
+ * 检索结果页。`hasMore` 表示**窗口之后仍有命中**（后端多探一条得出），
+ * 因此可以精确区分"已取尽"与"还有更多"，而不是靠"等于上限即视为被截断"来保守推断。
+ */
+export interface WorkspaceSearchPage {
+  hits: WorkspaceSearchHit[];
+  hasMore: boolean;
+}
+
 export interface WorkspaceFilesChangedBatch {
   /** 变更（新增/修改）文件的工作区相对路径 */
   changed: string[];

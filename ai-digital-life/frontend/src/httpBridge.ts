@@ -65,7 +65,8 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
-  WorkspaceSearchHit,
+  WorkspaceSearchPage,
+  WorkspaceSearchWindow,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 import type { WorkspaceBridge } from './shared/ipc';
@@ -867,10 +868,14 @@ export function createHttpBridge({
           '/workspace/tree',
           POST(options?.force ? { force: true } : {}),
         ),
-      search: (query: string) =>
-        call<WorkspaceSearchHit[]>(baseUrl, '/workspace/search', POST({ query })),
-      searchInFiles: (paths: string[], query: string) =>
-        call<WorkspaceSearchHit[]>(baseUrl, '/workspace/search-in-files', POST({ paths, query })),
+      search: (query: string, window?: WorkspaceSearchWindow) =>
+        call<WorkspaceSearchPage>(baseUrl, '/workspace/search', POST({ query, ...window })),
+      searchInFiles: (paths: string[], query: string, window?: WorkspaceSearchWindow) =>
+        call<WorkspaceSearchPage>(
+          baseUrl,
+          '/workspace/search-in-files',
+          POST({ paths, query, ...window }),
+        ),
       outline: (relativePath: string) =>
         call<FileOutlineItem[]>(baseUrl, '/workspace/outline', POST({ relativePath })),
       setEditorDirtyPaths: (relativePaths: string[]) =>

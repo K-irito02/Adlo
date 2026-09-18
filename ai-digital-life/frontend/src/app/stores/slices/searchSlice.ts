@@ -1,5 +1,6 @@
 import type { WorkspaceSearchHit } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
+import { SEARCH_PAGE_SIZE } from '../../../shared/ipc/searchWindow';
 
 export interface SearchHitEntry {
   /** 产生该命中的工作区（跨工作区同相对路径不会错配） */
@@ -17,8 +18,13 @@ export interface SearchSlice {
   searchEntries: SearchHitEntry[];
   /** 会话标识：丢弃过期响应（新检索递增） */
   searchSessionId: number;
-  /** 命中达到上限：面板提示"仅显示部分结果" */
-  searchPartial: boolean;
+  /**
+   * 窗口之后**仍有命中**（后端 `hasMore` 的精确值）。
+   * 旧实现是"命中数 ≥ 上限即视为被截断"的保守推断，会把"恰好取尽"误报成部分结果。
+   */
+  searchHasMore: boolean;
+  /** 当前检索窗口上限：「加载更多」按 `SEARCH_PAGE_SIZE` 累加，「显示全部」提到安全阀。 */
+  searchLimit: number;
   /** 本次检索发生时的活动工作区 */
   searchWorkspaceId: string | undefined;
   /** 检索选项（上提到 store：点击校验/重定位必须与检索时选项一致） */
@@ -29,11 +35,19 @@ export interface SearchSlice {
   setSearchQuery: (query: string) => void;
   setSearching: (searching: boolean) => void;
   setSearchEntries: (entries: SearchHitEntry[]) => void;
-  setSearchPartial: (partial: boolean) => void;
+  setSearchHasMore: (hasMore: boolean) => void;
   setSearchMatchCase: (value: boolean) => void;
   setSearchMatchWholeWord: (value: boolean) => void;
   setSearchUseRegex: (value: boolean) => void;
-  beginSearchSession: (workspaceId: string | undefined) => number;
+  /**
+   * 开启新检索会话（递增 `searchSessionId`，用于丢弃过期响应）。
+   * `keepEntries` 供「加载更多 / 显示全部」使用：重跑是为了扩大窗口，
+   * 不应先清空已有结果造成列表闪烁。
+   */
+  beginSearchSession: (
+    workspaceId: string | undefined,
+    options?: { keepEntries?: boolean },
+  ) => number;
   clearSearch: () => void;
 }
 
@@ -85,7 +99,8 @@ export const createSearchSlice = (
   searching: false,
   searchEntries: [],
   searchSessionId: 0,
-  searchPartial: false,
+  searchHasMore: false,
+  searchLimit: SEARCH_PAGE_SIZE,
   searchWorkspaceId: undefined,
   searchMatchCase: false,
   searchMatchWholeWord: false,
@@ -94,20 +109,26 @@ export const createSearchSlice = (
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSearching: (searching) => set({ searching }),
   setSearchEntries: (entries) => set({ searchEntries: entries }),
-  setSearchPartial: (partial) => set({ searchPartial: partial }),
+  setSearchHasMore: (hasMore) => set({ searchHasMore: hasMore }),
   setSearchMatchCase: (value) => set({ searchMatchCase: value }),
   setSearchMatchWholeWord: (value) => set({ searchMatchWholeWord: value }),
   setSearchUseRegex: (value) => set({ searchUseRegex: value }),
-  beginSearchSession: (workspaceId) => {
+  beginSearchSession: (workspaceId, options) => {
     const nextId = _get().searchSessionId + 1;
     set({
       searchSessionId: nextId,
       searchWorkspaceId: workspaceId,
-      searchEntries: [],
-      searchPartial: false,
+      searchHasMore: options?.keepEntries ? _get().searchHasMore : false,
+      ...(options?.keepEntries ? {} : { searchEntries: [] }),
     });
     return nextId;
   },
   clearSearch: () =>
-    set({ searchQuery: '', searchEntries: [], searching: false, searchPartial: false }),
+    set({
+      searchQuery: '',
+      searchEntries: [],
+      searching: false,
+      searchHasMore: false,
+      searchLimit: SEARCH_PAGE_SIZE,
+    }),
 });

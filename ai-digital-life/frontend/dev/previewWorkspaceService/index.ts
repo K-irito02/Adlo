@@ -257,6 +257,22 @@ interface Route {
   handler: (request: IncomingMessage, body: unknown, searchParams: URLSearchParams) => Promise<IpcResult<unknown>>;
 }
 
+/**
+ * 从查询串解析检索分页窗口；缺省由 `normalizeSearchWindow` 兜底。
+ * 预览服务的 GET 检索把窗口放在 query 上（POST 走 body）。
+ */
+function parseWindow(searchParams: URLSearchParams): { offset?: number; limit?: number } {
+  const read = (key: string): number | undefined => {
+    const raw = searchParams.get(key);
+    if (raw === null || raw.trim() === '') {
+      return undefined;
+    }
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  };
+  return { offset: read('offset'), limit: read('limit') };
+}
+
 function makePath(relativePath: string): string {
   return `${API_PREFIX}${relativePath}`;
 }
@@ -387,19 +403,26 @@ const routes: Route[] = [
       const rootPath = searchParams.get('rootPath');
       const query = searchParams.get('query') ?? '';
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
-      return ok(await search.searchText(rootPath, query));
+      return ok(await search.searchText(rootPath, query, parseWindow(searchParams)));
     },
   },
   {
     method: 'POST', pathname: makePath('/workspace/search-in-files'),
     handler: async (_req, body, searchParams) => {
       const rootPath = searchParams.get('rootPath');
-      const input = body as { paths?: string[]; query?: string } | undefined;
+      const input = body as
+        | { paths?: string[]; query?: string; offset?: number; limit?: number }
+        | undefined;
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
       if (!input || !Array.isArray(input.paths) || typeof input.query !== 'string') {
         return fail('paths and query are required', 'INVALID_INPUT');
       }
-      return ok(await search.searchInFiles(rootPath, input.paths, input.query));
+      return ok(
+        await search.searchInFiles(rootPath, input.paths, input.query, {
+          offset: input.offset,
+          limit: input.limit,
+        }),
+      );
     },
   },
   {

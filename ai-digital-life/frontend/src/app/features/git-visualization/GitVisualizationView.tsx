@@ -512,7 +512,7 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
                 <HintCardTrigger content={<BranchGraphHelpCard />}>
                   <button
                     type="button"
-                    className="adl-icon-button adl-icon-button--info adl-branch-graph__help-trigger"
+                    className="adl-icon-button adl-icon-button--info"
                     tabIndex={-1}
                     aria-label={t.gitVisBranchGraphHelpAria}
                   >

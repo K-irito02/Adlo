@@ -1,0 +1,49 @@
+/* ==========================================================================
+   图标按钮（Icon Button）
+   --------------------------------------------------------------------------
+   此前 `adl-icon-button` / `adl-icon-button--info` 被 3 处引用但全仓无任何样式定义
+   （base.css 的全局 button 重置只清了背景/边框/内边距）—— 属死类，各调用方
+   只能各自补样式。这里补成共享组件样式，调用方直接用类名即可。
+
+   状态覆盖：default / hover / focus-visible / disabled。
+   ========================================================================== */
+
+.adl-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  flex: none;
+  border-radius: var(--radius-sm, 4px);
+  color: var(--text-muted);
+  background: transparent;
+  transition:
+    color 0.15s var(--ease-default),
+    background-color 0.15s var(--ease-default);
+}
+
+.adl-icon-button:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.adl-icon-button:focus-visible {
+  outline: 1px solid var(--accent, var(--primary));
+  outline-offset: 1px;
+}
+
+.adl-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.adl-icon-button:disabled:hover {
+  color: var(--text-muted);
+  background: transparent;
+}
+
+/* 信息按钮（“!”）：常态更收敛，hover 才提升对比，避免在标题行里抢视觉。 */
+.adl-icon-button--info {
+  color: var(--text-tertiary, var(--text-muted));
+}

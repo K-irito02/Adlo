@@ -311,9 +311,7 @@ describe('GitVisualizationView', () => {
 
     const title = branchCard!.querySelector('.adl-git-vis__card-title')!;
     // The help trigger is the immediate next sibling of the title.
-    const helpTrigger = title.nextElementSibling?.querySelector(
-      'button.adl-branch-graph__help-trigger',
-    );
+    const helpTrigger = title.nextElementSibling?.querySelector('button.adl-icon-button--info');
     expect(helpTrigger).toBeTruthy();
 
     // Click → the guide card appears (rendered in a portal).

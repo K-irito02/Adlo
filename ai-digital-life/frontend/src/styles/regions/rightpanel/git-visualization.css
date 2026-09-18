@@ -389,52 +389,8 @@
   gap: 8px;
 }
 
-/* ── Branch Graph guide card (help icon next to the chart title) ── */
-.adl-branch-graph__help-trigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  color: var(--text-muted);
-  transition:
-    color 0.15s,
-    background 0.15s;
-}
-
-.adl-branch-graph__help-trigger:hover {
-  color: var(--text-primary);
-  background: var(--bg-hover);
-}
-
-.adl-branch-graph__help-card {
-  min-width: 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.adl-branch-graph__help-title {
-  font-weight: 700;
-  font-size: var(--text-sm);
-  color: var(--text-primary);
-}
-
-.adl-branch-graph__help-section {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.adl-branch-graph__help-section-title {
-  font-weight: 600;
-  color: var(--text-primary);
-}
-
-.adl-branch-graph__help-section-body {
-  color: var(--text-muted);
-  white-space: pre-line;
-  word-break: break-word;
-}
+/** 分支图谱帮助入口与帮助卡沿用共享样式：`.adl-icon-button--info`（icon-button.css）
+    与 `.adl-help-card*`（hintCard.css），此处不再重复定义。 */
 
 .adl-branch-graph__tooltip-divider {
   border: none;

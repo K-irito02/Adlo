@@ -240,8 +240,10 @@ async fn search_outline_and_folder() {
     )
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "search body: {body}");
-    let hits = body["data"].as_array().expect("search hits");
+    let hits = body["data"]["hits"].as_array().expect("search hits");
     assert!(hits.iter().any(|h| h["path"] == "notes.txt"), "hits: {hits:?}");
+    // 小夹具不会被截断：精确的 hasMore 契约（旧实现只能靠"等于上限"保守推断）。
+    assert_eq!(body["data"]["hasMore"], false, "search body: {body}");
 
     let (status, body) = common::send_request(
         state.clone(),
@@ -439,10 +441,11 @@ async fn search_in_files_scans_only_requested_paths() {
     )
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "search-in-files body: {body}");
-    let hits = body["data"].as_array().expect("hits");
+    let hits = body["data"]["hits"].as_array().expect("hits");
     assert_eq!(hits.len(), 1, "hits: {hits:?}");
     assert_eq!(hits[0]["path"], "notes.txt");
     assert_eq!(hits[0]["line"], 1);
+    assert_eq!(body["data"]["hasMore"], false, "hits: {hits:?}");
 
     // 未列出的文件不得出现在结果中
     let (_, body) = common::send_request(
@@ -452,7 +455,7 @@ async fn search_in_files_scans_only_requested_paths() {
         Some(serde_json::json!({ "paths": ["package.json"], "query": "hello" })),
     )
     .await;
-    assert_eq!(body["data"].as_array().unwrap().len(), 0);
+    assert_eq!(body["data"]["hits"].as_array().unwrap().len(), 0);
 
     // 先停 watcher 再删目录（事项 45 Phase 4 S5：避免 watcher 线程与删除竞态）。
     let (_, _) =
@@ -556,6 +559,65 @@ async fn search_in_files_rejects_path_traversal() {
     )
     .await;
     assert_eq!(status, axum::http::StatusCode::BAD_REQUEST, "body: {body}");
+
+    let (_, _) =
+        common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
+    let _ = std::fs::remove_dir_all(ws);
+}
+
+/// 检索分页窗口经 HTTP 层的契约：`limit` 截断 + `hasMore` 精确、`offset` 续页不重不漏、
+/// 且超大 `limit` 被服务端钳制到安全阀（调用方无法绕过）。
+#[tokio::test]
+async fn search_window_pages_with_precise_has_more() {
+    let state = common::state("ws-win").await;
+    let ws = common::make_workspace("ws-win-src"); // notes.txt 两行都含 'e'（"hello adl-server" / "second line"）
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({ "workspacePath": ws.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(body["ok"], true, "open body: {body}");
+
+    // 第一页：limit=1 → 1 条 + hasMore=true
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search",
+        Some(serde_json::json!({ "query": "e", "limit": 1 })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "page1 body: {body}");
+    let page1 = body["data"]["hits"].as_array().expect("page1 hits");
+    assert_eq!(page1.len(), 1, "page1: {body}");
+    assert_eq!(page1[0]["line"], 1);
+    assert_eq!(body["data"]["hasMore"], true, "page1: {body}");
+
+    // 第二页：offset=1 → 承接下一页，且已取尽
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search",
+        Some(serde_json::json!({ "query": "e", "limit": 1, "offset": 1 })),
+    )
+    .await;
+    let page2 = body["data"]["hits"].as_array().expect("page2 hits");
+    assert_eq!(page2.len(), 1, "page2: {body}");
+    assert_eq!(page2[0]["line"], 2);
+    assert_eq!(body["data"]["hasMore"], false, "page2: {body}");
+
+    // 超大 limit 被钳制：请求 10_000_000 也不报错，且结果正常返回
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search",
+        Some(serde_json::json!({ "query": "e", "limit": 10_000_000 })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "clamp body: {body}");
+    assert_eq!(body["data"]["hits"].as_array().unwrap().len(), 2, "clamp body: {body}");
+    assert_eq!(body["data"]["hasMore"], false, "clamp body: {body}");
 
     let (_, _) =
         common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;

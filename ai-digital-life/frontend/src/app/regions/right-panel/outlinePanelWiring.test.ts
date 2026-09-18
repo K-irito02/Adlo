@@ -64,6 +64,10 @@ describe('outline panel wiring', () => {
     expect(changesPanelStateSource).toContain('handleToggleAllOutlineItems');
   });
 
+  it('flashes outline reveals only inside the search-mode outline sub-mode', () => {
+    expect(fileNavigatorShellSource).toContain('onNavigateLine(line, { flash: true })');
+  });
+
   it('uses the shared outline parser in preview workspace mode', () => {
     expect(previewWorkspaceServiceSource).toContain("from '../../src/shared/outline'");
     expect(previewWorkspaceServiceSource).toContain('return buildOutlineFromContent(');

@@ -46,11 +46,11 @@ describe('workspace freshness IPC parity', () => {
     expect(() => unsubscribe()).not.toThrow();
   });
 
-  it('mock searchInFiles returns [] for empty query (aligned with other bridges)', async () => {
+  it('mock searchInFiles returns an empty page for empty query (aligned with other bridges)', async () => {
     const result = await mockDigitalLifeBridge.workspace.searchInFiles(['anything.md'], '   ');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data).toEqual([]);
+      expect(result.data).toEqual({ hits: [], hasMore: false });
     }
   });
 
@@ -58,7 +58,22 @@ describe('workspace freshness IPC parity', () => {
     const result = await mockDigitalLifeBridge.workspace.searchInFiles(['nope/missing.md'], 'x');
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.data).toEqual([]);
+      expect(result.data).toEqual({ hits: [], hasMore: false });
+    }
+  });
+
+  it('every bridge accepts the paging window and answers with a result page', async () => {
+    // 分页窗口是四端共享契约：`hasMore` 必须来自后端（不能靠“等于上限”推断），
+    // 故窗口参数与页对象形状在四端保持一致。网络端签名一致由类型系统保证，
+    // 此处对可直接调用的 mock 端做行为断言。
+    const result = await mockDigitalLifeBridge.workspace.searchInFiles(['nope/missing.md'], 'x', {
+      offset: 0,
+      limit: 1,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data).toEqual({ hits: [], hasMore: false });
+      expect(Array.isArray(result.data.hits)).toBe(true);
     }
   });
 });

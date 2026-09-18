@@ -406,3 +406,50 @@
   color: var(--warning);
   font-size: 11px;
 }
+
+/* 结果窗口行：已显示 N 条 +「加载更多 / 显示全部」+「!」说明入口。
+   `.adl-search-partial` 仍用于文件范围的独立提示（searchFilePartial）。 */
+.adl-search-limit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  padding: 2px var(--space-2);
+  font-size: 11px;
+  color: var(--warning);
+}
+
+.adl-search-limit__text {
+  min-width: 0;
+}
+
+.adl-search-limit__action {
+  flex: none;
+  height: 18px;
+  padding: 0 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    color 0.15s var(--ease-default),
+    border-color 0.15s var(--ease-default);
+}
+
+.adl-search-limit__action:hover:not(:disabled) {
+  color: var(--text-primary);
+  border-color: var(--accent, var(--primary));
+}
+
+.adl-search-limit__action:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.adl-search-limit__help {
+  flex: none;
+  margin-left: auto;
+}

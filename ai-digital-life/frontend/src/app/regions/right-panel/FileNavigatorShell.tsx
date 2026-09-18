@@ -5,8 +5,9 @@ import type {
   RecentWorkspaceEntry,
 } from '@ai-digital-life/kernel';
 import { useTCopy } from '@i18n/useTCopy';
-import { IconReplace } from '@icons';
+import { IconCircleHelp, IconReplace } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
+import { HintCardTrigger } from '@components/HintCard';
 import { Spinner } from '@components/Spinner';
 import {
   SearchResultsTree,
@@ -26,6 +27,7 @@ import type { SearchHitEntry } from '@stores/slices/searchSlice';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';
 import { FileNavigatorTree } from './FileNavigatorTree';
 import { FileNavigatorRenaming } from './FileNavigatorRenaming';
+import { SearchLimitHelpCard } from './SearchLimitHelpCard';
 
 /** 结构信号 nonce：单调计数（Date.now 同毫秒连点可碰撞）。 */
 let structureSignalNonce = 0;
@@ -83,7 +85,7 @@ interface FileNavigatorShellProps {
     workspacePath?: string,
   ) => Promise<string | undefined>;
   onEditorChange: (value: string | undefined) => void;
-  onNavigateLine: (line: number) => void;
+  onNavigateLine: (line: number, options?: { flash?: boolean }) => void;
   workspaceTreeExpandedInFileNav: Record<string, boolean>;
   workspaceTreeLoading: Record<string, boolean>;
   workspaceTreeErrors: Record<string, string | undefined>;
@@ -222,7 +224,11 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const searchMatchCase = searchPanel.matchCase;
   const searchMatchWholeWord = searchPanel.matchWholeWord;
   const searchUseRegex = searchPanel.useRegex;
-  const searchPartial = useAppStore((s) => s.searchPartial);
+  // 命中窗口：hasMore 是后端精确值（旧实现为"≥上限即视为被截断"的保守推断）。
+  const searchHasMore = useAppStore((s) => s.searchHasMore);
+  const searchEntriesCount = useAppStore((s) => s.searchEntries.length);
+  const loadMoreSearchResults = useAppStore((s) => s.loadMoreSearchResults);
+  const showAllSearchResults = useAppStore((s) => s.showAllSearchResults);
   const staleCount = useAppStore((s) => s.searchEntries.filter((entry) => entry.stale).length);
 
   // "文件"范围：仅按文件名匹配（目录路径不参与，避免无关文件出现）。
@@ -746,7 +752,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
             selectedFilePath && outline.length > 0 ? (
               <OutlineTree
                 items={outline}
-                onNavigate={(line) => onNavigateLine(line)}
+                // 检索文件模式下的文档大纲：与检索结果片段同待遇（定位 + 落点高亮）
+                onNavigate={(line) => onNavigateLine(line, { flash: true })}
                 expandLabel={t.expandDetails as string}
                 collapseLabel={t.collapseDetails as string}
                 expandedIds={expandedOutlineIds}
@@ -766,8 +773,44 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                   {formatT(t, 'searchStaleSummary', { count: staleCount })}
                 </p>
               ) : null}
-              {searchPartial ? (
-                <p className="adl-search-partial">{t.searchPartialResults as string}</p>
+              {searchEntriesCount > 0 ? (
+                <div className="adl-search-limit" role="status">
+                  <span className="adl-search-limit__text">
+                    {searchHasMore
+                      ? formatT(t, 'searchResultsShown', { count: searchEntriesCount })
+                      : formatT(t, 'searchAllShown', { count: searchEntriesCount })}
+                  </span>
+                  {searchHasMore ? (
+                    <>
+                      <button
+                        type="button"
+                        className="adl-search-limit__action"
+                        disabled={searching}
+                        onClick={() => void loadMoreSearchResults()}
+                      >
+                        {t.searchLoadMore as string}
+                      </button>
+                      <button
+                        type="button"
+                        className="adl-search-limit__action"
+                        disabled={searching}
+                        onClick={() => void showAllSearchResults()}
+                      >
+                        {t.searchShowAll as string}
+                      </button>
+                    </>
+                  ) : null}
+                  <HintCardTrigger content={<SearchLimitHelpCard />}>
+                    <button
+                      type="button"
+                      className="adl-icon-button adl-icon-button--info adl-search-limit__help"
+                      tabIndex={-1}
+                      aria-label={t.searchLimitHelpAria as string}
+                    >
+                      <IconCircleHelp size={14} />
+                    </button>
+                  </HintCardTrigger>
+                </div>
               ) : null}
               {filesSearchScope === 'file' && fileNameHits.length >= MAX_FILE_HITS ? (
                 <p className="adl-search-partial">{t.searchFilePartial as string}</p>
@@ -799,6 +842,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         outline.length > 0 ? (
           <OutlineTree
             items={outline}
+            // 纯大纲导航（非检索文件模式）：只定位，不做落点高亮
             onNavigate={(line) => onNavigateLine(line)}
             expandLabel={t.expandDetails as string}
             collapseLabel={t.collapseDetails as string}

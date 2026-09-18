@@ -19,7 +19,8 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
-  WorkspaceSearchHit,
+  WorkspaceSearchPage,
+  WorkspaceSearchWindow,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 
@@ -44,7 +45,8 @@ export type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
-  WorkspaceSearchHit,
+  WorkspaceSearchPage,
+  WorkspaceSearchWindow,
   WorkspaceTreeNode,
 };
 
@@ -228,7 +230,10 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.search
    * @see preview-bridge/index.ts → workspace.search
    */
-  search: (query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
+  search: (
+    query: string,
+    window?: WorkspaceSearchWindow,
+  ) => Promise<IpcResult<WorkspaceSearchPage>>;
   /**
    * 仅对给定相对路径集合重算命中（文件 watcher 驱动的局部刷新）
    * @param paths 工作区相对路径数组
@@ -239,7 +244,11 @@ export interface WorkspaceBridge {
    * @see mock-bridge.ts → workspace.searchInFiles
    * @see preview-bridge/index.ts → workspace.searchInFiles
    */
-  searchInFiles: (paths: string[], query: string) => Promise<IpcResult<WorkspaceSearchHit[]>>;
+  searchInFiles: (
+    paths: string[],
+    query: string,
+    window?: WorkspaceSearchWindow,
+  ) => Promise<IpcResult<WorkspaceSearchPage>>;
   /**
    * 订阅活动工作区的文件批量变更（后端 watcher → WS / 预览模式轮询）
    * @param listener 接收批次（changed/removed/overflow）的回调

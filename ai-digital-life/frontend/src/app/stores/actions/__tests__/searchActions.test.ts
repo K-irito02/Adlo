@@ -13,12 +13,14 @@ describe('searchActions scheduleRecompute with empty query', () => {
   });
 
   it('drops file-change batches without scheduling recompute when no query is active', async () => {
-    const searchInFiles = vi.fn().mockResolvedValue({ ok: true, data: [] });
+    const searchInFiles = vi
+      .fn()
+      .mockResolvedValue({ ok: true, data: { hits: [], hasMore: false } });
     const searchFiles = vi.fn().mockResolvedValue(undefined);
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       workspace: {
         searchInFiles,
-        search: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        search: vi.fn().mockResolvedValue({ ok: true, data: { hits: [], hasMore: false } }),
         onFilesChanged: vi.fn(),
       },
     };
@@ -86,13 +88,15 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
   });
 
   function setupRecompute(initial: Record<string, unknown>) {
-    const searchInFiles = vi.fn().mockResolvedValue({ ok: true, data: [] });
+    const searchInFiles = vi
+      .fn()
+      .mockResolvedValue({ ok: true, data: { hits: [], hasMore: false } });
     const searchFiles = vi.fn().mockResolvedValue(undefined);
     const onFilesChanged = vi.fn();
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       workspace: {
         searchInFiles,
-        search: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        search: vi.fn().mockResolvedValue({ ok: true, data: { hits: [], hasMore: false } }),
         onFilesChanged,
       },
     };
@@ -102,7 +106,8 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
       searchSessionId: 1,
       searchWorkspaceId: 'ws-1',
       filesSearchScope: 'content',
-      searchPartial: false,
+      searchHasMore: false,
+      searchLimit: 200,
       searchFiles,
       fetchGitStatus: vi.fn(),
       refreshAllWorkspaceTrees: vi.fn(),
@@ -151,10 +156,13 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
     });
     searchInFiles.mockResolvedValueOnce({
       ok: true,
-      data: [
-        { path: 'a.md', line: 2, preview: 'x2' },
-        { path: 'c.md', line: 5, preview: 'z' },
-      ],
+      data: {
+        hits: [
+          { path: 'a.md', line: 2, preview: 'x2' },
+          { path: 'c.md', line: 5, preview: 'z' },
+        ],
+        hasMore: false,
+      },
     });
     schedule({ changed: ['a.md', 'c.md'], removed: [] });
     await vi.advanceTimersByTimeAsync(500);
@@ -166,18 +174,20 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
     ]);
   });
 
-  it('recomputes the partial flag after removals', async () => {
+  it('leaves the precise hasMore untouched when a recompute only removes hits', async () => {
     const entries = Array.from({ length: 200 }, (_, i) => ({
       workspaceId: 'ws-1',
       path: `f${i}.md`,
       line: 1,
       preview: 'x',
     }));
-    const { schedule, get } = setupRecompute({ searchEntries: entries, searchPartial: true });
+    const { schedule, get } = setupRecompute({ searchEntries: entries, searchHasMore: true });
     schedule({ changed: [], removed: entries.map((e) => e.path) });
     await vi.advanceTimersByTimeAsync(500);
     expect(get().searchEntries).toEqual([]);
-    expect(get().searchPartial).toBe(false);
+    // 局部重算拿不到全局信息：删除文件只减少已知命中，不能据此宣称“已取尽”，
+    // 故沿用上一次的精确值（旧的“>= 上限即视为被截断”推断已移除）。
+    expect(get().searchHasMore).toBe(true);
   });
 
   it('cancelPendingSearch drops scheduled recomputes', async () => {
@@ -188,7 +198,8 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
     expect(searchInFiles).not.toHaveBeenCalled();
   });
 
-  it('drains stale pending paths when the query was cleared mid-window', async () => {    const { searchInFiles, schedule, setQuery } = setupRecompute({});
+  it('drains stale pending paths when the query was cleared mid-window', async () => {
+    const { searchInFiles, schedule, setQuery } = setupRecompute({});
     schedule({ changed: ['stale.md'], removed: [] });
     setQuery('');
     await vi.advanceTimersByTimeAsync(500);
@@ -208,7 +219,7 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
       .mockResolvedValueOnce({ ok: false, error: { code: 'E', message: 'boom' } })
       .mockResolvedValueOnce({
         ok: true,
-        data: [{ path: 'a.md', line: 2, preview: 'x2' }],
+        data: { hits: [{ path: 'a.md', line: 2, preview: 'x2' }], hasMore: false },
       });
     (get() as unknown as { reportError?: unknown }).reportError = vi.fn();
     schedule({ changed: ['a.md'], removed: [] });
@@ -221,5 +232,96 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
     // 回填的 a.md 与新到的 b.md 一起重试
     expect(searchInFiles.mock.calls[1][0]).toEqual(['a.md', 'b.md']);
     expect(get().searchEntries.map((e) => `${e.path}:${e.line}`)).toEqual(['a.md:2']);
+  });
+});
+
+describe('searchActions paging (事项 5)', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  function setupPaging(initial: Record<string, unknown>, page: unknown) {
+    const search = vi.fn().mockResolvedValue({ ok: true, data: page });
+    const searchInFiles = vi
+      .fn()
+      .mockResolvedValue({ ok: true, data: { hits: [], hasMore: false } });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      workspace: { search, searchInFiles, onFilesChanged: vi.fn() },
+    };
+    let current = {
+      searchQuery: 'needle',
+      searchEntries: [],
+      searchSessionId: 1,
+      searchHasMore: true,
+      searchLimit: 200,
+      searchWorkspaceId: 'ws-1',
+      filesSearchScope: 'content',
+      appInfo: { currentWorkspace: { id: 'ws-1' } },
+      // 与真实 slice 同语义：会话递增以丢弃过期响应
+      beginSearchSession: () => {
+        const nextId = (current.searchSessionId as number) + 1;
+        current = { ...current, searchSessionId: nextId };
+        return nextId;
+      },
+      fetchGitStatus: vi.fn(),
+      refreshAllWorkspaceTrees: vi.fn(),
+      ...initial,
+    } as unknown as StoreState;
+    const set = vi.fn((partial: Partial<StoreState> | ((s: StoreState) => Partial<StoreState>)) => {
+      const patch = typeof partial === 'function' ? partial(current) : partial;
+      current = { ...current, ...patch } as StoreState;
+    });
+    const get = () => current;
+    const actions = createSearchActions(set as never, get as never);
+    return { search, actions, get };
+  }
+
+  it('loadMoreSearchResults widens the window by one page (no debounce, keeps entries)', async () => {
+    const { search, actions, get } = setupPaging(
+      {},
+      { hits: [{ path: 'a.md', line: 1, preview: 'x' }], hasMore: true },
+    );
+
+    await actions.loadMoreSearchResults();
+
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 400 });
+    expect(get().searchLimit).toBe(400);
+    expect(get().searchHasMore).toBe(true);
+    expect(get().searchEntries.map((e) => e.path)).toEqual(['a.md']);
+  });
+
+  it('showAllSearchResults jumps straight to the safety ceiling', async () => {
+    const { search, actions, get } = setupPaging({}, { hits: [], hasMore: false });
+
+    await actions.showAllSearchResults();
+
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 5000 });
+    expect(get().searchLimit).toBe(5000);
+    expect(get().searchHasMore).toBe(false);
+  });
+
+  it('does nothing once every result is already shown', async () => {
+    const { search, actions } = setupPaging({ searchHasMore: false }, { hits: [], hasMore: false });
+
+    await actions.loadMoreSearchResults();
+    await actions.showAllSearchResults();
+
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('stops widening at the ceiling', async () => {
+    const { search, actions } = setupPaging(
+      { searchLimit: 5000, searchHasMore: true },
+      { hits: [], hasMore: true },
+    );
+
+    await actions.loadMoreSearchResults();
+
+    expect(search).not.toHaveBeenCalled();
   });
 });

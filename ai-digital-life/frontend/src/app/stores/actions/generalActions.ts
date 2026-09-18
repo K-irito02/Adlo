@@ -8,6 +8,7 @@ import { isTauriShell } from '../../../tauri-bridge';
 import { runWithConcurrency } from '../../shared/asyncUtils';
 import { computeLoadPhases } from './workspaceLoadOrder';
 import { syncNewWorkspacesToNaturalOrder } from './workspaceNaturalOrderSync';
+import { SEARCH_PAGE_SIZE } from '../../../shared/ipc/searchWindow';
 import type { StoreApi } from 'zustand';
 const SCOPE = 'general';
 
@@ -278,7 +279,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         searchQuery: '',
         searchEntries: [],
         searchSessionId: 0,
-        searchPartial: false,
+        searchHasMore: false,
+        searchLimit: SEARCH_PAGE_SIZE,
         searchWorkspaceId: undefined,
         searching: false,
         externalFileChange: undefined,
