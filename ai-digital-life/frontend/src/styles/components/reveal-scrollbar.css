@@ -34,24 +34,26 @@
   left: 2px;
   width: 3px;
   border-radius: 999px;
-  background: var(--text-muted);
-  opacity: 0.75;
+  background: color-mix(in srgb, var(--text-muted) 34%, transparent);
   cursor: pointer;
   touch-action: none;
   transition:
     width var(--duration-150) var(--ease-default),
     left var(--duration-150) var(--ease-default),
-    background-color var(--duration-150) var(--ease-default),
-    opacity var(--duration-150) var(--ease-default);
+    background var(--duration-150) var(--ease-default);
 }
 
 .adl-reveal-scrollbar[data-visible='true'] .adl-reveal-scrollbar__thumb {
   pointer-events: auto;
 }
 
-.adl-reveal-scrollbar__thumb:hover {
+/* 与项目其它 overlay 滑块统一（文件树/大纲/剪贴板/模型选择器）：
+   同一色系 34%→54%、宽 3→5px 的细微加深，不切 primary 实色。 */
+.adl-reveal-scrollbar:hover .adl-reveal-scrollbar__thumb,
+.adl-reveal-scrollbar:active .adl-reveal-scrollbar__thumb,
+.adl-reveal-scrollbar__thumb:hover,
+.adl-reveal-scrollbar__thumb:active {
   left: 1px;
-  width: 6px;
-  background: var(--text-primary);
-  opacity: 1;
+  width: 5px;
+  background: color-mix(in srgb, var(--text-muted) 54%, transparent);
 }

@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { IconClose, IconFoldVertical } from '@icons';
 import { TreeRow } from '../file-tree/TreeRow';
+import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
+import { RevealScrollbar } from '../../components/RevealScrollbar';
 import type { ModuleTreeNode } from './moduleTreeUtils';
 import '@/styles/components/module-tree-card.css';
 
@@ -91,7 +93,10 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
 
   // Clamp the opening position into the viewport on mount and re-clamp when the
   // parent supplies a new position (e.g. right-clicking another directory while
-  // the card stays open). A position the user dragged to is never overwritten.
+  // the card stays open). A position update never yanks the card mid-drag:
+  // `hasDraggedRef` guards only the active drag window. Once the drag ends
+  // (`endDrag` resets the flag), a new position from a new context is applied
+  // normally — the card follows its current trigger directory.
   const hasDraggedRef = useRef(false);
   useLayoutEffect(() => {
     measureSize();
@@ -235,6 +240,10 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
 
   const handleAreaClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
+    // Overlay 滚动条是 host 的子树但无 data-path：点中/拖 thumb 不应清空已选行。
+    if (target.closest('.adl-reveal-scrollbar')) {
+      return;
+    }
     if (!target.closest('[data-path]')) {
       setSelectedPath(null);
     }
@@ -421,35 +430,49 @@ const ModuleTreeList = React.memo(function ModuleTreeList({
   onToggle,
   onActivate,
 }: ModuleTreeListProps) {
+  // Overlay 自定义滚动条：隐藏原生条、无布局占位，行 hover 背景可延伸贴边。
+  // deps 用内容敏感的行路径串（而非仅 length）：同长度内容替换（重命名/刷新/
+  // 右键另一目录复用卡片）时也能重测，卡片树规模小、开销可忽略。
+  const scrollbar = useRevealScrollbar([
+    flatNodes.map((f) => f.node.path).join('\u0001'),
+    expanded.size,
+  ]);
   return (
-    <div className="adl-module-tree-card__tree" onClick={handleAreaClick}>
-      <ul
-        className="adl-filetree adl-tree-root"
-        role="tree"
-        style={{ height: 'auto', position: 'relative' }}
-        onMouseOver={handleMouseOver}
-        onMouseOut={handleMouseOut}
-      >
-        {flatNodes.map(({ node, depth }) => (
-          <TreeRow
-            key={node.path}
-            name={node.name}
-            path={node.path}
-            isDir={node.isDir}
-            depth={depth + 1}
-            isExpanded={expanded.has(node.path)}
-            isSelected={selectedPath === node.path}
-            isHoveredByAncestor={hoveredDescendantPaths?.has(node.path) ?? false}
-            onToggle={onToggle}
-            onActivate={onActivate}
-            style={
-              {
-                '--adl-trunk-height': `${trunkHeightMap[node.path] ?? 28}px`,
-              } as React.CSSProperties
-            }
-          />
-        ))}
-      </ul>
+    <div
+      className="adl-module-tree-card__tree adl-reveal-scrollbar-host"
+      onClick={handleAreaClick}
+      {...scrollbar.hoverProps}
+    >
+      <div className="adl-module-tree-card__scroll adl-reveal-scroll" ref={scrollbar.scrollRef}>
+        <ul
+          className="adl-filetree adl-tree-root"
+          role="tree"
+          style={{ height: 'auto', position: 'relative' }}
+          onMouseOver={handleMouseOver}
+          onMouseOut={handleMouseOut}
+        >
+          {flatNodes.map(({ node, depth }) => (
+            <TreeRow
+              key={node.path}
+              name={node.name}
+              path={node.path}
+              isDir={node.isDir}
+              depth={depth + 1}
+              isExpanded={expanded.has(node.path)}
+              isSelected={selectedPath === node.path}
+              isHoveredByAncestor={hoveredDescendantPaths?.has(node.path) ?? false}
+              onToggle={onToggle}
+              onActivate={onActivate}
+              style={
+                {
+                  '--adl-trunk-height': `${trunkHeightMap[node.path] ?? 28}px`,
+                } as React.CSSProperties
+              }
+            />
+          ))}
+        </ul>
+      </div>
+      <RevealScrollbar controller={scrollbar} />
     </div>
   );
 });

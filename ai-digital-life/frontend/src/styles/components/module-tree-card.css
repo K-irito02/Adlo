@@ -74,19 +74,25 @@
 
 .adl-module-tree-card__tree {
   flex: 1;
+  min-height: 0;
+  position: relative;
   overflow: hidden;
   padding: 4px 0;
-  scrollbar-gutter: stable;
+  display: flex;
+  flex-direction: column;
 }
 
-.adl-module-tree-card__tree:hover {
+/* 内层为真正的滚动容器：原生条隐藏（见 reveal-scrollbar.css 的
+   .adl-reveal-scroll），overlay thumb 悬浮不占布局，行 hover 背景
+   可延伸至卡片右边缘贴合。外层是 flex item（高度由卡片内容/max-height
+   决定、非定值），内层必须用 flex:1+min-height:0 而非 height:100%，
+   否则百分比高度解析为 auto、内层随内容撑高、永不溢出（无滚动、无 thumb）。 */
+.adl-module-tree-card__scroll {
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
-
-/* Scrollbar visible only when hovering over the tree area.
-   scrollbar-gutter: stable reserves the scrollbar space so the
-   content width does not shift when the scrollbar appears. */
 .adl-module-tree-card__tree .adl-tree-node {
   content-visibility: auto;
   contain-intrinsic-size: 28px;
