@@ -390,4 +390,68 @@ describe('searchActions paging (事项 5)', () => {
 
     expect(empty.search).not.toHaveBeenCalled();
   });
+
+  it('searchFiles raises searching immediately so the debounce window never flashes "no results"', async () => {
+    const { search, actions, get } = setupPaging(
+      {},
+      { hits: [{ path: 'a.md', line: 1, preview: 'x' }], hasMore: false },
+    );
+
+    void actions.searchFiles('needle');
+    // 防抖（300ms）尚未触发：加载态已置位，结果区走 searching 分支而非"无结果"。
+    expect(get().searching).toBe(true);
+    expect(search).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 200 });
+    expect(get().searching).toBe(false);
+  });
+
+  it('cancelPendingSearch resets searching so a workspace switch inside the debounce window cannot stick the loading state', async () => {
+    const { search, actions, get } = setupPaging({}, { hits: [], hasMore: false });
+
+    void actions.searchFiles('needle');
+    expect(get().searching).toBe(true);
+
+    actions.cancelPendingSearch();
+    expect(get().searching).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(search).not.toHaveBeenCalled();
+    expect(get().searching).toBe(false);
+  });
+
+  it('refreshSearchResults cancels a pending debounced search and fires exactly once', async () => {
+    const { search, actions } = setupPaging(
+      { searchLimit: 400 },
+      { hits: [{ path: 'a.md', line: 1, preview: 'x' }], hasMore: false },
+    );
+
+    void actions.searchFiles('needle');
+    await actions.refreshSearchResults();
+    await vi.advanceTimersByTimeAsync(500);
+
+    // 待发防抖被取消：只有刷新这次直接请求，旧窗口不得回写。
+    expect(search).toHaveBeenCalledTimes(1);
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 400 });
+  });
+
+  it('refreshSearchResults surfaces a thrown IPC error and still resets searching', async () => {
+    // IPC 直接抛异常（非 {ok:false}）：入队错误 toast，不形成 unhandled rejection，加载态可退出。
+    const reportError = vi.fn();
+    const { search, actions, get } = setupPaging(
+      { searchLimit: 400, reportError },
+      { hits: [], hasMore: false },
+    );
+    search.mockRejectedValueOnce(new Error('ipc-boom'));
+
+    await actions.refreshSearchResults();
+
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 400 });
+    expect(reportError).toHaveBeenCalledTimes(1);
+    expect(get().searching).toBe(false);
+    expect(get().searchEntries).toEqual([]);
+  });
 });

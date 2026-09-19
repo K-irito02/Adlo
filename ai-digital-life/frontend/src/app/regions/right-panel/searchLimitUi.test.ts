@@ -119,4 +119,22 @@ describe('search result window UI (事项 5)', () => {
     // 共享样式必须在组件聚合入口登记，否则不生效
     expect(componentsCss).toContain('components/icon-button.css');
   });
+
+  it('keeps the limit row on one line with an overlay loading state and borderless actions', () => {
+    // 悬浮加载：结果区容器为定位锚点，加载块脱离文档流覆盖其上
+    expect(fileNavigatorShellSource).toContain('adl-search-results-wrap');
+    expect(fileNavigatorShellSource).toContain('adl-search-loading--overlay');
+    expect(searchPanelCss).toContain('.adl-search-results-wrap');
+    expect(searchPanelCss).toContain('.adl-search-loading--overlay');
+    expect(searchPanelCss).toContain('position: absolute');
+    // 分页行单行：nowrap + 文本省略 + 按钮组右贴边容器
+    expect(fileNavigatorShellSource).toContain('adl-search-limit__actions');
+    expect(searchPanelCss).toContain('.adl-search-limit__actions');
+    expect(searchPanelCss).toContain('flex-wrap: nowrap');
+    expect(searchPanelCss).toContain('text-overflow: ellipsis');
+    // 去边框文字按钮：无边框、常驻主题高亮、悬停灰底、按钮文本不换行、键盘焦点可见
+    expect(searchPanelCss).toContain('.adl-search-limit__action:focus-visible');
+    expect(searchPanelCss).toContain('white-space: nowrap');
+    expect(searchPanelCss).not.toContain('border-color: var(--accent');
+  });
 });

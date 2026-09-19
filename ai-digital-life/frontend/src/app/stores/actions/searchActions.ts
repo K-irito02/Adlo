@@ -182,6 +182,10 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         searchEntries: toHitEntries(result.data.hits, workspaceId ?? ''),
         searchHasMore: result.data.hasMore,
       });
+    } catch (error) {
+      // IPC 直接抛异常（非 {ok:false} 返回）：入队错误 toast，避免 unhandled rejection；
+      // finally 仍复位 searching，保证加载态可退出。
+      captureError(get, error, SCOPE);
     } finally {
       if (get().searchQuery === query && get().searchSessionId === sessionId) {
         set({ searching: false });
@@ -286,6 +290,10 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
     cancelPendingSearch: () => {
       debouncedSearch.cancel();
       resetRecomputePending();
+      // 防抖窗口内 searching 已提前置 true：取消待发时同步复位，否则工作区切换
+      // 落在此窗口内会导致加载常驻、分页按钮永久 disabled。在途请求由 searchSessionId
+      // 丢弃，finally 的复位只在会话匹配时生效，不会误伤新检索。
+      set({ searching: false });
     },
 
     /** [subscribeWorkspaceFilesChanged - 订阅后端 watcher 批次并调度局部重算] */

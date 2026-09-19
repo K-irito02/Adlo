@@ -463,19 +463,22 @@
   padding: 0 6px;
   border: none;
   border-radius: var(--radius-sm, 4px);
-  background: transparent;
+  background-color: transparent;
   color: var(--text-primary);
   font-size: 11px;
   line-height: 1;
+  white-space: nowrap;
   cursor: pointer;
-  transition:
-    color 0.15s var(--ease-default),
-    background-color 0.15s var(--ease-default);
+  transition: background-color 0.15s var(--ease-default);
 }
 
 .adl-search-limit__action:hover:not(:disabled) {
-  color: var(--text-primary);
-  background: var(--bg-hover);
+  background-color: var(--bg-hover);
+}
+
+.adl-search-limit__action:focus-visible {
+  outline: 1px solid var(--accent, var(--primary));
+  outline-offset: 1px;
 }
 
 .adl-search-limit__action:disabled {
