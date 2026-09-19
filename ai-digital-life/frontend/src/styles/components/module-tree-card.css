@@ -86,7 +86,8 @@
    .adl-reveal-scroll），overlay thumb 悬浮不占布局，行 hover 背景
    可延伸至卡片右边缘贴合。外层是 flex item（高度由卡片内容/max-height
    决定、非定值），内层必须用 flex:1+min-height:0 而非 height:100%，
-   否则百分比高度解析为 auto、内层随内容撑高、永不溢出（无滚动、无 thumb）。 */
+   否则百分比高度解析为 auto、内层随内容撑高、永不溢出（无滚动、无 thumb）。
+   约定：host 保持无水平 padding（当前 `padding: 4px 0`），行 hover 贴边依赖此约定。 */
 .adl-module-tree-card__scroll {
   flex: 1;
   min-height: 0;

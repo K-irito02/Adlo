@@ -4,7 +4,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { IconClose, IconFoldVertical } from '@icons';
 import { TreeRow } from '../file-tree/TreeRow';
 import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
-import { RevealScrollbar } from '../../components/RevealScrollbar';
+import { RevealScrollbar, REVEAL_SCROLLBAR_SELECTOR } from '../../components/RevealScrollbar';
 import type { ModuleTreeNode } from './moduleTreeUtils';
 import '@/styles/components/module-tree-card.css';
 
@@ -240,8 +240,10 @@ export const ModuleTreeCard = React.memo(function ModuleTreeCard({
 
   const handleAreaClick = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    // Overlay 滚动条是 host 的子树但无 data-path：点中/拖 thumb 不应清空已选行。
-    if (target.closest('.adl-reveal-scrollbar')) {
+    // Overlay 整体 pointer-events:none（仅 thumb auto）：轨道空白点击穿透到下层行/host，
+    // 按普通区域点击处理；此处豁免仅命中 thumb（含拖拽后的 click），防止清空已选。
+    // RevealScrollbar 无 track 翻页。标识经共享常量解耦，类名重命名时不静默失效。
+    if (target.closest(REVEAL_SCROLLBAR_SELECTOR)) {
       return;
     }
     if (!target.closest('[data-path]')) {

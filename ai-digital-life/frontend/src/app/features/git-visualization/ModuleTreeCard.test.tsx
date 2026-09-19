@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach, beforeAll, afterAll } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { ModuleTreeCard } from './ModuleTreeCard';
+import { REVEAL_SCROLLBAR_SELECTOR } from '../../components/RevealScrollbar';
 import type { ModuleTreeNode } from './moduleTreeUtils';
 
 afterEach(() => {
@@ -553,5 +554,53 @@ describe('ModuleTreeCard', () => {
 
     expect(card.style.left).toBe('432px');
     expect(card.style.top).toBe('192px');
+  });
+
+  it('should render the overlay scrollbar structure (host > scroll container)', () => {
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const host = document.querySelector('.adl-module-tree-card__tree.adl-reveal-scrollbar-host');
+    expect(host).not.toBeNull();
+    expect(host!.querySelector('.adl-module-tree-card__scroll.adl-reveal-scroll')).not.toBeNull();
+  });
+
+  it('should keep selection when clicking the custom scrollbar thumb', () => {
+    render(
+      <ModuleTreeCard
+        subtree={mockSubtree}
+        position={{ x: 100, y: 100 }}
+        onSelect={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByText('src'));
+    const treeItem = screen.getByRole('treeitem', { name: /src/ });
+    expect(treeItem.className).toContain('is-selected');
+
+    // JSDOM has no layout: fake a scrollable container, then trigger
+    // re-measure via scroll so the overlay thumb renders.
+    const scroll = document.querySelector('.adl-module-tree-card__scroll') as HTMLElement;
+    Object.defineProperty(scroll, 'scrollHeight', { value: 500, configurable: true });
+    Object.defineProperty(scroll, 'clientHeight', { value: 100, configurable: true });
+    fireEvent.scroll(scroll);
+
+    const thumb = document.querySelector('.adl-reveal-scrollbar__thumb') as HTMLElement;
+    expect(thumb).not.toBeNull();
+    // Contract between RevealScrollbar and the click exemption: the thumb must
+    // sit under an explicit data marker (decoupled from the CSS class name).
+    expect(thumb.closest(REVEAL_SCROLLBAR_SELECTOR)).not.toBeNull();
+    fireEvent.click(thumb);
+    expect(treeItem.className).toContain('is-selected');
+
+    // Negative control: the exemption is scoped, not blanket — clicking the
+    // scroll background (non-row area) still clears the selection.
+    fireEvent.click(scroll);
+    expect(treeItem.className).not.toContain('is-selected');
   });
 });

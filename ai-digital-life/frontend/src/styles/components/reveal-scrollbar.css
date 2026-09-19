@@ -47,8 +47,11 @@
   pointer-events: auto;
 }
 
-/* 与项目其它 overlay 滑块统一（文件树/大纲/剪贴板/模型选择器）：
-   同一色系 34%→54%、宽 3→5px 的细微加深，不切 primary 实色。 */
+/* 与项目其它 overlay 滑块统一（代表真源如 leftbar.css 文件树/大纲滑块、
+   leftbar-clipboard.css 剪贴板滑块、model-selector.css 模型选择器滑块，
+   另见 composer-popover / system-monitor / rightpanel/* 同色系滑块）：
+   同一色系 34%→54%、宽 3→5px 的细微加深，不切 primary 实色。
+   轨道 :hover/:active 为主；thumb 级伪类为指针捕获拖拽出界时的兜底（常规悬停下轨道即命中），勿删。 */
 .adl-reveal-scrollbar:hover .adl-reveal-scrollbar__thumb,
 .adl-reveal-scrollbar:active .adl-reveal-scrollbar__thumb,
 .adl-reveal-scrollbar__thumb:hover,
