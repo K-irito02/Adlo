@@ -219,6 +219,9 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       // 新检索：窗口重置为默认首页（旧 query 的结果由 beginSearchSession 清空）。
+      // 立即置 searching：防抖窗口（300ms）内 committed query 已更新但旧 entries
+      // 按新词过滤为空，若 searching 仍为 false 会先闪现"无结果"再变"检索中..."。
+      set({ searching: true });
       debouncedSearch(query, () => runContentSearch(query, SEARCH_PAGE_SIZE, false));
     },
 
@@ -252,6 +255,23 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       debouncedSearch.cancel();
       resetRecomputePending();
       await runContentSearch(query, SEARCH_MAX_RESULTS, true);
+    },
+
+    /**
+     * [refreshSearchResults - 用当前窗口上限原位重跑当前检索]
+     * 检索文件模式下"刷新全部"在刷树之后调用：文件增删/改名/内容变更后手动更新
+     * 结果。keepEntries 保证已显示内容原位不动（悬浮加载覆盖其上）；文件范围由
+     * 工作区树派生、随刷树自动更新，无需后端请求；空查询直接返回。
+     */
+    refreshSearchResults: async () => {
+      const state = get();
+      const query = state.searchQuery;
+      if (state.filesSearchScope === 'file' || !query.trim()) {
+        return;
+      }
+      debouncedSearch.cancel();
+      resetRecomputePending();
+      await runContentSearch(query, state.searchLimit, true);
     },
 
     /** [markSearchHitStale - 点击校验失败时标记该命中失效] */

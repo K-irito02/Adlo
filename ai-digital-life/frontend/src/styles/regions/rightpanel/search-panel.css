@@ -72,6 +72,16 @@
   padding: 0 1px;
 }
 
+/* 结果区容器：加载悬浮层的定位锚点（加载更多时已有结果不再下移让位）。 */
+.adl-search-results-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 96px;
+  gap: 4px;
+}
+
 /* 加载态：纵向布局（动画上、文字下），在结果区居中 */
 .adl-search-loading {
   display: flex;
@@ -82,6 +92,17 @@
   padding: var(--space-6) 0;
   color: var(--text-muted);
   font-size: var(--text-xs);
+}
+
+/* 加载悬浮层：覆盖结果区上方、不占据文档流；半透明底色让旧结果隐约可见，
+   pointer-events:none 保证悬浮时底层结果仍可交互。 */
+.adl-search-loading--overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  border-radius: var(--radius-md);
+  pointer-events: none;
 }
 
 /* 内容片段行：行号首位与文件名称首位对齐（不含 logo 图标）。
@@ -408,40 +429,53 @@
 }
 
 /* 结果窗口行：已显示 N 条 +「加载更多 / 显示全部」+「!」说明入口。
+   始终单行：文本左贴边（窄宽省略截断，title 悬停看全文），按钮组右贴边。
    `.adl-search-partial` 仍用于文件范围的独立提示（searchFilePartial）。 */
 .adl-search-limit {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
+  gap: 6px;
+  flex-wrap: nowrap;
   padding: 2px var(--space-2);
   font-size: 11px;
   color: var(--warning);
 }
 
 .adl-search-limit__text {
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-search-limit__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: none;
+  margin-left: auto;
 }
 
 .adl-search-limit__action {
   flex: none;
   height: 18px;
   padding: 0 6px;
-  border: 1px solid var(--border-subtle);
+  border: none;
   border-radius: var(--radius-sm, 4px);
   background: transparent;
-  color: var(--text-secondary);
+  color: var(--text-primary);
   font-size: 11px;
   line-height: 1;
   cursor: pointer;
   transition:
     color 0.15s var(--ease-default),
-    border-color 0.15s var(--ease-default);
+    background-color 0.15s var(--ease-default);
 }
 
 .adl-search-limit__action:hover:not(:disabled) {
   color: var(--text-primary);
-  border-color: var(--accent, var(--primary));
+  background: var(--bg-hover);
 }
 
 .adl-search-limit__action:disabled {
@@ -451,5 +485,4 @@
 
 .adl-search-limit__help {
   flex: none;
-  margin-left: auto;
 }

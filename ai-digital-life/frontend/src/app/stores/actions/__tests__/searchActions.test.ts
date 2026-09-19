@@ -355,4 +355,39 @@ describe('searchActions paging (事项 5)', () => {
     expect(get().searchEntries).toHaveLength(200);
     expect(get().searchHasMore).toBe(false);
   });
+
+  it('refreshSearchResults re-runs with the current window and keeps shown entries', async () => {
+    // 刷新全部（检索模式）：用当前窗口上限原位重跑，已显示内容不动（keepEntries），
+    // searching 置位保证悬浮加载覆盖其上。
+    const { search, actions, get } = setupPaging(
+      {
+        searchLimit: 400,
+        searchEntries: [{ workspaceId: 'ws-1', path: 'old.md', line: 1, preview: 'stale' }],
+      },
+      { hits: [{ path: 'a.md', line: 1, preview: 'fresh' }], hasMore: false },
+    );
+
+    const pending = actions.refreshSearchResults();
+    expect(get().searching).toBe(true);
+    await pending;
+
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 400 });
+    expect(get().searchLimit).toBe(400);
+    expect(get().searchEntries.map((e) => e.path)).toEqual(['a.md']);
+    expect(get().searching).toBe(false);
+  });
+
+  it('refreshSearchResults skips the backend request in file scope or with an empty query', async () => {
+    const { search, actions } = setupPaging({ filesSearchScope: 'file' }, { hits: [] });
+
+    await actions.refreshSearchResults();
+
+    expect(search).not.toHaveBeenCalled();
+
+    const empty = setupPaging({ searchQuery: '   ' }, { hits: [] });
+
+    await empty.actions.refreshSearchResults();
+
+    expect(empty.search).not.toHaveBeenCalled();
+  });
 });

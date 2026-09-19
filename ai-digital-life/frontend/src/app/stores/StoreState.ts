@@ -203,6 +203,8 @@ interface SearchActions {
   loadMoreSearchResults: () => Promise<void>;
   /** 一次性把窗口提到安全阀上限并重跑当前检索 */
   showAllSearchResults: () => Promise<void>;
+  /** 用当前窗口上限原位重跑当前检索（刷新全部在检索模式下调用） */
+  refreshSearchResults: () => Promise<void>;
   markSearchHitStale: (path: string, line?: number, workspaceId?: string) => void;
   cancelPendingSearch: () => void;
   subscribeWorkspaceFilesChanged: () => () => void;

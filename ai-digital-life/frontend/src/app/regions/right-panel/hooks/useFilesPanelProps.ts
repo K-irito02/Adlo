@@ -140,7 +140,14 @@ export function useFilesPanelProps(
   }, [actions]);
 
   const handleRefreshAll = useCallback(() => {
-    void actions.refreshAllWorkspaceTrees();
+    void (async () => {
+      await actions.refreshAllWorkspaceTrees();
+      // 检索文件模式：树刷新后原位重跑当前检索（文件增删/改名/内容变更后手动更新结果，
+      // 悬浮加载覆盖在原位不动的已显示内容上）；退出检索模式后文件树显示的即刚刷新的树。
+      if (useAppStore.getState().filesNavigatorMode === 'search') {
+        await actions.refreshSearchResults();
+      }
+    })();
   }, [actions]);
 
   const handleRefreshOneWorkspace = useCallback(

@@ -232,6 +232,13 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const loadMoreSearchResults = useAppStore((s) => s.loadMoreSearchResults);
   const showAllSearchResults = useAppStore((s) => s.showAllSearchResults);
   const staleCount = useAppStore((s) => s.searchEntries.filter((entry) => entry.stale).length);
+  // 分页行全文（内容与 title 共用：窄宽省略截断时悬停仍可见全文）。
+  const searchLimitText =
+    searchEntriesCount > 0 && filesSearchScope !== 'file'
+      ? searchHasMore
+        ? formatT(t, 'searchResultsShown', { count: searchEntriesCount })
+        : formatT(t, 'searchAllShown', { count: searchEntriesCount })
+      : '';
 
   // "文件"范围：仅按文件名匹配（目录路径不参与，避免无关文件出现）。
   // 前端基于已加载的工作区树做包含匹配（后端仅支持内容检索，
@@ -741,106 +748,108 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
             </div>
           ) : null}
 
-          {visibleWorkspaces.length > 0 && searching ? (
-            <div className="adl-search-loading" role="status">
-              <Spinner size="sm" speed="normal" />
-              <span>{t.searchSearching as string}</span>
-            </div>
-          ) : null}
+          <div className="adl-search-results-wrap">
+            {visibleWorkspaces.length > 0 && searching ? (
+              <div className="adl-search-loading adl-search-loading--overlay" role="status">
+                <Spinner size="sm" speed="normal" />
+                <span>{t.searchSearching as string}</span>
+              </div>
+            ) : null}
 
-          {visibleWorkspaces.length === 0 ? (
-            <p className="adl-empty-hint">{t.searchNoWorkspace as string}</p>
-          ) : filesSearchView === 'outline' ? (
-            selectedFilePath && outline.length > 0 ? (
-              <OutlineTree
-                items={outline}
-                // 检索文件模式下的文档大纲：与检索结果片段同待遇（定位 + 落点高亮）
-                onNavigate={(line) => onNavigateLine(line, { flash: true })}
-                expandLabel={t.expandDetails as string}
-                collapseLabel={t.collapseDetails as string}
-                expandedIds={expandedOutlineIds}
-                onExpandedIdsChange={setExpandedOutlineIds}
-              />
-            ) : (
-              <p className="adl-empty-hint">
-                {(selectedFilePath ? t.noDiagnostics : t.searchPlaceholder) as string}
-              </p>
-            )
-          ) : !committedSearchQuery.trim() ? (
-            <p className="adl-empty-hint">{t.searchPlaceholder as string}</p>
-          ) : activeSections.length > 0 ? (
-            <>
-              {staleCount > 0 ? (
-                <p className="adl-search-stale-summary">
-                  {formatT(t, 'searchStaleSummary', { count: staleCount })}
+            {visibleWorkspaces.length === 0 ? (
+              <p className="adl-empty-hint">{t.searchNoWorkspace as string}</p>
+            ) : filesSearchView === 'outline' ? (
+              selectedFilePath && outline.length > 0 ? (
+                <OutlineTree
+                  items={outline}
+                  // 检索文件模式下的文档大纲：与检索结果片段同待遇（定位 + 落点高亮）
+                  onNavigate={(line) => onNavigateLine(line, { flash: true })}
+                  expandLabel={t.expandDetails as string}
+                  collapseLabel={t.collapseDetails as string}
+                  expandedIds={expandedOutlineIds}
+                  onExpandedIdsChange={setExpandedOutlineIds}
+                />
+              ) : (
+                <p className="adl-empty-hint">
+                  {(selectedFilePath ? t.noDiagnostics : t.searchPlaceholder) as string}
                 </p>
-              ) : null}
-              {/* 分页行只属于内容检索范围：文件范围有自己的 searchFilePartial 提示，
+              )
+            ) : !committedSearchQuery.trim() ? (
+              <p className="adl-empty-hint">{t.searchPlaceholder as string}</p>
+            ) : activeSections.length > 0 ? (
+              <>
+                {staleCount > 0 ? (
+                  <p className="adl-search-stale-summary">
+                    {formatT(t, 'searchStaleSummary', { count: staleCount })}
+                  </p>
+                ) : null}
+                {/* 分页行只属于内容检索范围：文件范围有自己的 searchFilePartial 提示，
                   且旧内容命中数在文件视图下语义不符（M1） */}
-              {searchEntriesCount > 0 && filesSearchScope !== 'file' ? (
-                <div className="adl-search-limit" role="status">
-                  <span className="adl-search-limit__text">
-                    {searchHasMore
-                      ? formatT(t, 'searchResultsShown', { count: searchEntriesCount })
-                      : formatT(t, 'searchAllShown', { count: searchEntriesCount })}
-                  </span>
-                  {/* 已到安全阀（searchLimit == SEARCH_MAX_RESULTS）即终态：
-                      后端仍报 hasMore 时按钮无处可去，隐藏避免"点不动的僵局"（L1） */}
-                  {searchHasMore && searchLimit < SEARCH_MAX_RESULTS ? (
-                    <>
-                      <button
-                        type="button"
-                        className="adl-search-limit__action"
-                        disabled={searching}
-                        onClick={() => void loadMoreSearchResults()}
-                      >
-                        {t.searchLoadMore as string}
-                      </button>
-                      <button
-                        type="button"
-                        className="adl-search-limit__action"
-                        disabled={searching}
-                        onClick={() => void showAllSearchResults()}
-                      >
-                        {t.searchShowAll as string}
-                      </button>
-                    </>
-                  ) : null}
-                  <HintCardTrigger content={<SearchLimitHelpCard />}>
-                    <button
-                      type="button"
-                      className="adl-icon-button adl-icon-button--info adl-search-limit__help"
-                      tabIndex={-1}
-                      aria-label={t.searchLimitHelpAria as string}
-                    >
-                      <IconCircleHelp size={14} />
-                    </button>
-                  </HintCardTrigger>
-                </div>
-              ) : null}
-              {filesSearchScope === 'file' && fileNameHits.length >= MAX_FILE_HITS ? (
-                <p className="adl-search-partial">{t.searchFilePartial as string}</p>
-              ) : null}
-              <SearchResultsTree
-                sections={activeSections}
-                variant={filesSearchView === 'tree' ? 'tree' : 'list'}
-                query={committedSearchQuery}
-                matchCase={searchMatchCase}
-                wholeWord={searchMatchWholeWord}
-                useRegex={searchUseRegex}
-                scopeKey={`${filesSearchScope}:${filesSearchView}`}
-                nameQuery={filesSearchScope === 'file' ? committedSearchQuery : ''}
-                expandLabel={t.expandDetails as string}
-                collapseLabel={t.collapseDetails as string}
-                staleLabel={t.searchHitStale as string}
-                structureSignal={searchStructureSignal}
-                onStructureSignalConsumed={handleStructureSignalConsumed}
-                onCollapseStatusChange={handleCollapseStatusChange}
-              />
-            </>
-          ) : searching ? null : (
-            <p className="adl-empty-hint">{t.noResults as string}</p>
-          )}
+                {searchEntriesCount > 0 && filesSearchScope !== 'file' ? (
+                  <div className="adl-search-limit" role="status">
+                    <span className="adl-search-limit__text" title={searchLimitText}>
+                      {searchLimitText}
+                    </span>
+                    <span className="adl-search-limit__actions">
+                      {/* 已到安全阀（searchLimit == SEARCH_MAX_RESULTS）即终态：
+                        后端仍报 hasMore 时按钮无处可去，隐藏避免"点不动的僵局"（L1） */}
+                      {searchHasMore && searchLimit < SEARCH_MAX_RESULTS ? (
+                        <>
+                          <button
+                            type="button"
+                            className="adl-search-limit__action"
+                            disabled={searching}
+                            onClick={() => void loadMoreSearchResults()}
+                          >
+                            {t.searchLoadMore as string}
+                          </button>
+                          <button
+                            type="button"
+                            className="adl-search-limit__action"
+                            disabled={searching}
+                            onClick={() => void showAllSearchResults()}
+                          >
+                            {t.searchShowAll as string}
+                          </button>
+                        </>
+                      ) : null}
+                      <HintCardTrigger content={<SearchLimitHelpCard />}>
+                        <button
+                          type="button"
+                          className="adl-icon-button adl-icon-button--info adl-search-limit__help"
+                          tabIndex={-1}
+                          aria-label={t.searchLimitHelpAria as string}
+                        >
+                          <IconCircleHelp size={14} />
+                        </button>
+                      </HintCardTrigger>
+                    </span>
+                  </div>
+                ) : null}
+                {filesSearchScope === 'file' && fileNameHits.length >= MAX_FILE_HITS ? (
+                  <p className="adl-search-partial">{t.searchFilePartial as string}</p>
+                ) : null}
+                <SearchResultsTree
+                  sections={activeSections}
+                  variant={filesSearchView === 'tree' ? 'tree' : 'list'}
+                  query={committedSearchQuery}
+                  matchCase={searchMatchCase}
+                  wholeWord={searchMatchWholeWord}
+                  useRegex={searchUseRegex}
+                  scopeKey={`${filesSearchScope}:${filesSearchView}`}
+                  nameQuery={filesSearchScope === 'file' ? committedSearchQuery : ''}
+                  expandLabel={t.expandDetails as string}
+                  collapseLabel={t.collapseDetails as string}
+                  staleLabel={t.searchHitStale as string}
+                  structureSignal={searchStructureSignal}
+                  onStructureSignalConsumed={handleStructureSignalConsumed}
+                  onCollapseStatusChange={handleCollapseStatusChange}
+                />
+              </>
+            ) : searching ? null : (
+              <p className="adl-empty-hint">{t.noResults as string}</p>
+            )}
+          </div>
         </div>
       ) : null}
 
