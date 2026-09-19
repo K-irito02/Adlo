@@ -13,3 +13,4 @@ Lessons learned from UI/UX interaction fixes and optimizations.
   - [只读历史与实时终端的一致性四处同口径](./2026-09/terminal-history-live-parity-2026-09-15.md) — 空白格还原空格、Tango 调色板/粗体提亮/真彩色 mode、出生几何、关闭落盘窗口
   - [终端 Shell 选择器悬停菜单去抖](./2026-09/terminal-shell-menu-hover-lessons-2026-09-13.md)
   - [xterm v6 滚动条与复制粘贴](./2026-09/terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md)
+  - [检索加载态时序与悬浮层](./2026-09/search-loading-state-overlay-lessons-2026-09-19.md) — 提交与加载同 tick、取消同步复位；overlay 高度前提实证；范围切换防抖泄漏

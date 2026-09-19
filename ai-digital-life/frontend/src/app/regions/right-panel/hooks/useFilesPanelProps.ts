@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
+import { captureError } from '@stores/cacheHelpers';
 import { useAppActions } from '@hooks/useAppActions';
 import { findPatchFileByPath } from '@features/patch-review';
 import { filterDiagnosticsForPath, detectEditorLanguage } from '@utils/workspacePaths';
@@ -141,11 +142,17 @@ export function useFilesPanelProps(
 
   const handleRefreshAll = useCallback(() => {
     void (async () => {
-      await actions.refreshAllWorkspaceTrees();
-      // 检索文件模式：树刷新后原位重跑当前检索（文件增删/改名/内容变更后手动更新结果，
-      // 悬浮加载覆盖在原位不动的已显示内容上）；退出检索模式后文件树显示的即刚刷新的树。
-      if (useAppStore.getState().filesNavigatorMode === 'search') {
-        await actions.refreshSearchResults();
+      try {
+        await actions.refreshAllWorkspaceTrees();
+        // 检索文件模式：树刷新后原位重跑当前检索（文件增删/改名/内容变更后手动更新结果，
+        // 悬浮加载覆盖在原位不动的已显示内容上）；退出检索模式后文件树显示的即刚刷新的树。
+        if (useAppStore.getState().filesNavigatorMode === 'search') {
+          await actions.refreshSearchResults();
+        }
+      } catch (error) {
+        // 双 await 结构上不抛（allSettled＋runContentSearch 内建 catch），此处仅满足
+        // error-handling.md“Promise 链必须有 .catch()”的硬性规则。
+        captureError(useAppStore.getState, error, 'files-panel');
       }
     })();
   }, [actions]);

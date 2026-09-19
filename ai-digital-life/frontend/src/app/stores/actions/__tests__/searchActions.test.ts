@@ -262,14 +262,25 @@ describe('searchActions paging (事项 5)', () => {
       searchWorkspaceId: 'ws-1',
       filesSearchScope: 'content',
       appInfo: { currentWorkspace: { id: 'ws-1' } },
-      // 与真实 slice 同语义：会话递增以丢弃过期响应
-      beginSearchSession: () => {
+      // 与真实 slice 同语义：会话递增以丢弃过期响应；
+      // 复刻 keepEntries 语义（见 searchSlice.ts:114-123）：新检索清空旧 entries，
+      // 加载更多/显示全部/刷新保留，否则 keepEntries 回归测不出。
+      beginSearchSession: (workspaceId: unknown, options?: { keepEntries?: boolean }) => {
         const nextId = (current.searchSessionId as number) + 1;
-        current = { ...current, searchSessionId: nextId };
+        current = {
+          ...current,
+          searchSessionId: nextId,
+          searchWorkspaceId: workspaceId as string,
+          searchHasMore: options?.keepEntries ? current.searchHasMore : false,
+          ...(options?.keepEntries ? {} : { searchEntries: [] }),
+        } as unknown as StoreState;
         return nextId;
       },
       fetchGitStatus: vi.fn(),
       refreshAllWorkspaceTrees: vi.fn(),
+      errorToasts: [],
+      clearErrorToasts: vi.fn(),
+      reportError: vi.fn(),
       ...initial,
     } as unknown as StoreState;
     const set = vi.fn((partial: Partial<StoreState> | ((s: StoreState) => Partial<StoreState>)) => {
@@ -369,6 +380,8 @@ describe('searchActions paging (事项 5)', () => {
 
     const pending = actions.refreshSearchResults();
     expect(get().searching).toBe(true);
+    // 悬浮加载期间旧 entries 原位不动（keepEntries 生效，beginSearchSession 不清空）。
+    expect(get().searchEntries.map((e) => e.path)).toEqual(['old.md']);
     await pending;
 
     expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 400 });
@@ -389,6 +402,20 @@ describe('searchActions paging (事项 5)', () => {
     await empty.actions.refreshSearchResults();
 
     expect(empty.search).not.toHaveBeenCalled();
+  });
+
+  it('refreshSearchResults resets a stale searching flag on the skip path', async () => {
+    // 防抖窗内 searching 已提前置 true，此时切到文件范围/清空 query 后点刷新：
+    // 无后端请求，但须同步复位 searching，否则加载悬浮层常驻、分页按钮永久 disabled。
+    const { search, actions, get } = setupPaging(
+      { filesSearchScope: 'file', searching: true },
+      { hits: [], hasMore: false },
+    );
+
+    await actions.refreshSearchResults();
+
+    expect(search).not.toHaveBeenCalled();
+    expect(get().searching).toBe(false);
   });
 
   it('searchFiles raises searching immediately so the debounce window never flashes "no results"', async () => {
@@ -438,11 +465,35 @@ describe('searchActions paging (事项 5)', () => {
     expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 400 });
   });
 
+  it('searchFiles clears stale entries once the debounced new search starts', async () => {
+    // 新检索 keepEntries=false：旧 entries 在防抖待发期仍在（提交 query 不清结果），
+    // 会话开启时清空后写入新命中（此即"旧结果按新词过滤为空"闪现的另一半）。
+    const { search, actions, get } = setupPaging(
+      {
+        searchEntries: [{ workspaceId: 'ws-1', path: 'old.md', line: 1, preview: 'stale' }],
+      },
+      { hits: [{ path: 'a.md', line: 1, preview: 'fresh' }], hasMore: false },
+    );
+
+    void actions.searchFiles('needle');
+    expect(get().searchEntries.map((e) => e.path)).toEqual(['old.md']);
+
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 200 });
+    expect(get().searchEntries.map((e) => e.path)).toEqual(['a.md']);
+  });
+
   it('refreshSearchResults surfaces a thrown IPC error and still resets searching', async () => {
-    // IPC 直接抛异常（非 {ok:false}）：入队错误 toast，不形成 unhandled rejection，加载态可退出。
+    // IPC 直接抛异常（非 {ok:false}）：入队错误 toast，不形成 unhandled rejection，加载态可退出，
+    // 且失败保留旧 entries（留旧比闪空好，见 refreshSearchResults 注释）。
     const reportError = vi.fn();
     const { search, actions, get } = setupPaging(
-      { searchLimit: 400, reportError },
+      {
+        searchLimit: 400,
+        reportError,
+        searchEntries: [{ workspaceId: 'ws-1', path: 'old.md', line: 1, preview: 'kept' }],
+      },
       { hits: [], hasMore: false },
     );
     search.mockRejectedValueOnce(new Error('ipc-boom'));
@@ -452,6 +503,6 @@ describe('searchActions paging (事项 5)', () => {
     expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 400 });
     expect(reportError).toHaveBeenCalledTimes(1);
     expect(get().searching).toBe(false);
-    expect(get().searchEntries).toEqual([]);
+    expect(get().searchEntries.map((e) => e.path)).toEqual(['old.md']);
   });
 });

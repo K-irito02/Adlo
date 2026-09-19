@@ -204,7 +204,7 @@ export function resetRequestSeqs() {
   sessionRequestSeq = 0;
 }
 
-/** 创建防抖搜索工具 */
+/** 创建防抖搜索工具（回调必须内部处理自身异常：debounce 以 `void` 悬空调用，不捕获回调的 rejection）。 */
 export function createDebouncedSearch(ms: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const debounced = (query: string, doSearch: () => Promise<void>) => {

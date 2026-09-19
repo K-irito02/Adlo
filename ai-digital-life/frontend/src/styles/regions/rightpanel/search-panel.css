@@ -78,8 +78,9 @@
   display: flex;
   flex-direction: column;
   flex: 1;
-  min-height: 96px;
-  gap: 4px;
+  min-width: 0;
+  min-height: var(--space-24);
+  gap: var(--space-1);
 }
 
 /* 加载态：纵向布局（动画上、文字下），在结果区居中 */
@@ -95,10 +96,15 @@
 }
 
 /* 加载悬浮层：覆盖结果区上方、不占据文档流；半透明底色让旧结果隐约可见，
-   pointer-events:none 保证悬浮时底层结果仍可交互。 */
+   pointer-events:none 保证悬浮时底层结果仍可交互（刻意设计：加载更多期间的
+   误导航由点击校验＋重定位＋stale 标记纠正，见 FilesPanel 检索跳转链路）。
+   注：结果树（.adl-multitree flex:1+min-height:0）经 .adl-multitree-scroll
+  （height:100%+overflow-y:auto）内部滚动，wrap 高度恒等于可视区，
+   overlay inset:0 即盖住可视区，spinner 始终居中可见。 */
 .adl-search-loading--overlay {
   position: absolute;
   inset: 0;
+  /* 层级：盖住结果滚动条，不抢导航 resize handle（以数值注释代替 token，面板内无层级表）。 */
   z-index: 5;
   background: color-mix(in srgb, var(--bg) 72%, transparent);
   border-radius: var(--radius-md);
@@ -434,9 +440,11 @@
 .adl-search-limit {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-1-5);
   flex-wrap: nowrap;
-  padding: 2px var(--space-2);
+  min-width: 0;
+  overflow: hidden;
+  padding: var(--space-0-5) var(--space-2);
   font-size: 11px;
   color: var(--warning);
 }
@@ -449,18 +457,20 @@
   white-space: nowrap;
 }
 
+/* flex:none 保动作组不被文本挤压，margin-left:auto 保右贴边，两者正交缺一不可。 */
 .adl-search-limit__actions {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--space-1);
   flex: none;
   margin-left: auto;
 }
 
 .adl-search-limit__action {
   flex: none;
+  /* 紧凑分页行专用高度，不跟 28px 行高体系。 */
   height: 18px;
-  padding: 0 6px;
+  padding: 0 var(--space-1-5);
   border: none;
   border-radius: var(--radius-sm, 4px);
   background-color: transparent;

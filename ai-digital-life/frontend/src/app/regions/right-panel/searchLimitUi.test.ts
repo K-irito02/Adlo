@@ -136,5 +136,8 @@ describe('search result window UI (事项 5)', () => {
     expect(searchPanelCss).toContain('.adl-search-limit__action:focus-visible');
     expect(searchPanelCss).toContain('white-space: nowrap');
     expect(searchPanelCss).not.toContain('border-color: var(--accent');
+    // 悬浮加载不拦截交互（刻意设计，误导航由点击校验/stale 纠正）：锁定 overlay 语义
+    expect(searchPanelCss).toContain('.adl-search-loading--overlay');
+    expect(searchPanelCss).toContain('pointer-events: none');
   });
 });

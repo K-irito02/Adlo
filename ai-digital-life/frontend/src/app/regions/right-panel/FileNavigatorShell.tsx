@@ -787,7 +787,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                   且旧内容命中数在文件视图下语义不符（M1） */}
                 {searchEntriesCount > 0 && filesSearchScope !== 'file' ? (
                   <div className="adl-search-limit" role="status">
-                    <span className="adl-search-limit__text" title={searchLimitText}>
+                    <span className="adl-search-limit__text" title={searchLimitText || undefined}>
                       {searchLimitText}
                     </span>
                     <span className="adl-search-limit__actions">

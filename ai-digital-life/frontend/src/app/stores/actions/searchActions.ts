@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { SEARCH_MAX_RESULTS, SEARCH_PAGE_SIZE } from '../../../shared/ipc/searchWindow';
 import { createDebouncedSearch } from '../shared';
-import { captureError } from '../cacheHelpers';
+import { captureError, clearError } from '../cacheHelpers';
 import { markHitsStale, replaceFileHits, toHitEntries } from '../slices/searchSlice';
 import type { WorkspaceFilesChangedBatch } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
@@ -59,10 +59,19 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       // 无文件需重算：命中数只会减少，无法据此推断全局是否还有更多 → 沿用上一次的精确值。
       return;
     }
-    const result = await window.digitalLife.workspace.searchInFiles(toSearch, query, {
-      offset: 0,
-      limit: get().searchLimit,
-    });
+    let result;
+    try {
+      result = await window.digitalLife.workspace.searchInFiles(toSearch, query, {
+        offset: 0,
+        limit: get().searchLimit,
+      });
+    } catch (error) {
+      // IPC 直接抛异常：回填 pending 供下次批次重试 + 入队错误 toast（与 !ok 分支同语义），
+      // 避免 setTimeout 回调内的 unhandled rejection。
+      toSearch.forEach((path) => pendingChanged.add(path));
+      captureError(get, error, SCOPE);
+      return;
+    }
     if (!result.ok) {
       // 本批丢失：回填 pending，下次批次到达时按当时 query/会话重试
       //（无 TTLOOP：无未来批次即不再触发；removed 已落盘不受影响）。
@@ -135,6 +144,12 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
     pendingOverflow = false;
   };
 
+  /** 取消待发防抖＋清空重算 pending（loadMore/showAll/refresh/分支切换复用）。 */
+  const cancelScheduled = () => {
+    debouncedSearch.cancel();
+    resetRecomputePending();
+  };
+
   const scheduleRecompute = (batch: WorkspaceFilesChangedBatch) => {
     // 文件范围为纯前端过滤：watcher 批次不得触发后端内容请求（事项 38 不变量）。
     if (!get().searchQuery.trim() || get().filesSearchScope === 'file') {
@@ -201,11 +216,14 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
      */
     searchFiles: async (query: string) => {
       const state = get();
-      set({ searchQuery: query });
+      clearError(get, SCOPE);
+      // searching 随 query 一次提交：防抖窗口（300ms）内 committed query 已更新但旧 entries
+      // 按新词过滤为空，若 searching 仍为 false 会先闪现"无结果"再变"检索中..."；
+      // 空查询/文件范围分支在其后显式复位 searching:false。
+      set({ searchQuery: query, searching: true });
       if (!query.trim()) {
         // 空查询：取消待发搜索＋重算 pending，旧结果不得回写，窗口回到默认首页。
-        debouncedSearch.cancel();
-        resetRecomputePending();
+        cancelScheduled();
         set({
           searchEntries: [],
           searching: false,
@@ -217,15 +235,11 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       if (state.filesSearchScope === 'file') {
         // 文件范围为纯前端过滤：仅提交检索词，不发后端内容请求、不置加载态；
         // 同时取消待发 content 请求与重算，避免旧链路回写。
-        debouncedSearch.cancel();
-        resetRecomputePending();
+        cancelScheduled();
         set({ searching: false });
         return;
       }
       // 新检索：窗口重置为默认首页（旧 query 的结果由 beginSearchSession 清空）。
-      // 立即置 searching：防抖窗口（300ms）内 committed query 已更新但旧 entries
-      // 按新词过滤为空，若 searching 仍为 false 会先闪现"无结果"再变"检索中..."。
-      set({ searching: true });
       debouncedSearch(query, () => runContentSearch(query, SEARCH_PAGE_SIZE, false));
     },
 
@@ -235,6 +249,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
      * 立即执行（用户已显式点击），先取消待发防抖以免旧窗口响应覆盖。
      */
     loadMoreSearchResults: async () => {
+      clearError(get, SCOPE);
       const state = get();
       const query = state.searchQuery;
       if (!query.trim() || !state.searchHasMore) {
@@ -244,37 +259,42 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       if (nextLimit <= state.searchLimit) {
         return;
       }
-      debouncedSearch.cancel();
-      resetRecomputePending();
+      cancelScheduled();
       await runContentSearch(query, nextLimit, true);
     },
 
     /** [showAllSearchResults - 一次性加载到安全阀上限] */
     showAllSearchResults: async () => {
+      clearError(get, SCOPE);
       const state = get();
       const query = state.searchQuery;
       if (!query.trim() || !state.searchHasMore || state.searchLimit >= SEARCH_MAX_RESULTS) {
         return;
       }
-      debouncedSearch.cancel();
-      resetRecomputePending();
+      cancelScheduled();
       await runContentSearch(query, SEARCH_MAX_RESULTS, true);
     },
 
     /**
      * [refreshSearchResults - 用当前窗口上限原位重跑当前检索]
      * 检索文件模式下"刷新全部"在刷树之后调用：文件增删/改名/内容变更后手动更新
-     * 结果。keepEntries 保证已显示内容原位不动（悬浮加载覆盖其上）；文件范围由
-     * 工作区树派生、随刷树自动更新，无需后端请求；空查询直接返回。
+     * 结果。keepEntries 保证已显示内容原位不动（悬浮加载覆盖其上；失败同样保留
+     * 旧 entries，见 runContentSearch）；文件范围由工作区树派生、随刷树自动更新，
+     * 无需后端请求；空查询直接返回。
      */
     refreshSearchResults: async () => {
+      // 取消无条件前置：防抖待发（如刚键入新词 300ms 内点刷新）不得在守卫后 firing，
+      // 否则旧 content 请求会在文件范围/空查询下回写。
+      cancelScheduled();
+      clearError(get, SCOPE);
       const state = get();
       const query = state.searchQuery;
       if (state.filesSearchScope === 'file' || !query.trim()) {
+        // 无后端请求：同步复位 searching（与 searchFiles 空查询/file 分支同语义），
+        // 避免防抖窗内残留加载态。
+        set({ searching: false });
         return;
       }
-      debouncedSearch.cancel();
-      resetRecomputePending();
       await runContentSearch(query, state.searchLimit, true);
     },
 
@@ -288,11 +308,11 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
      * 工作区切换/上下文清理时调用：待发防抖、重算 timer 与 pending 不得写入新会话。
      */
     cancelPendingSearch: () => {
-      debouncedSearch.cancel();
-      resetRecomputePending();
+      cancelScheduled();
       // 防抖窗口内 searching 已提前置 true：取消待发时同步复位，否则工作区切换
-      // 落在此窗口内会导致加载常驻、分页按钮永久 disabled。在途请求由 searchSessionId
-      // 丢弃，finally 的复位只在会话匹配时生效，不会误伤新检索。
+      // 落在此窗口内会导致加载常驻、分页按钮永久 disabled。注意取消只作废未 firing
+      // 的防抖＋重算 pending，不递增 searchSessionId：在途 search() 仍可能回写，
+      // 由调用方在切换后开启新会话失效之；finally 的复位只在会话匹配时生效。
       set({ searching: false });
     },
 
