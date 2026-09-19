@@ -632,7 +632,7 @@ export function StorageSettings() {
                 aria-label={t.storageLocatorHint}
                 tabIndex={-1}
               >
-                <IconCircleHelp size={14} decorative />
+                <IconCircleHelp size={14} />
               </button>
             </HintCardTrigger>
           </div>

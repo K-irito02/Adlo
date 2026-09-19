@@ -63,13 +63,47 @@ const interpT = new Proxy({} as Record<string, string>, {
 }) as unknown as CopyDict;
 
 describe('StorageSettings', () => {
-  it('renders all 10 category rows with a description tooltip trigger', async () => {
+  it('renders all 10 category rows with a description hint trigger', async () => {
     renderSettings();
     await waitFor(() => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
     // 每类都必须有说明（spec §6.4 硬性要求）
     expect(screen.getAllByTestId('storage-category-info')).toHaveLength(10);
+  });
+
+  it('opens the hint card with the category description when clicking the info trigger', async () => {
+    const realStatus = {
+      ...status,
+      categories: STORAGE_CATEGORY_KEYS.map((key) => ({
+        key,
+        path: `C:/data/${key}`,
+        movable: key !== 'downloads_default',
+        exists: true,
+        bytes: 1024,
+        files: 2,
+        foreignFiles: [],
+      })),
+    };
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: realStatus }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    renderSettings();
+    const infos = await screen.findAllByTestId('storage-category-info');
+    const first = infos[0];
+    await act(async () => {
+      fireEvent.click(first);
+    });
+    // mockT 桩文案返回 key 本身：第一个分类（database）的 Desc key 应出现在 hint 卡片中
+    // （卡片内容 span 含 desc + related 两段文本，用正则匹配 desc 片段）。
+    expect(screen.getByText(/storageCategoryDatabaseDesc/)).toBeTruthy();
   });
 
   it('lists the six immovable entries', async () => {

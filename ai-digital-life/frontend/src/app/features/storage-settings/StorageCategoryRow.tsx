@@ -116,7 +116,7 @@ export function StorageCategoryRow({
               aria-label={desc || name}
               tabIndex={-1}
             >
-              <IconCircleHelp size={14} decorative />
+              <IconCircleHelp size={14} />
             </button>
           </HintCardTrigger>
         </div>

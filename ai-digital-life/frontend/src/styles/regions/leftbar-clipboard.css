@@ -5,7 +5,7 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
-  /* 72px = 行尾竖排三按钮 3×22px + 2×2px 间距 + 2px 余量（见 .adl-clipboard-row__actions） */
+  /* 72px = 行尾竖排三按钮 3×var(--adl-clipboard-row-actions-width) + 2×2px 间距 + 2px 余量 */
   --adl-clipboard-row-height: 72px;
   /* 悬停出现的三按钮列宽（adl-icon-btn--xs / adl-copy-btn 均为 22px） */
   --adl-clipboard-row-actions-width: 22px;
@@ -233,9 +233,12 @@
   padding-right: var(--space-2);
 }
 
-/* 悬停：右内边距换成按钮列宽，内容在按钮左侧截断，不再被按钮遮挡 */
+/* 悬停：右内边距换成按钮列宽，内容在按钮左侧截断，不再被按钮遮挡。
+   键盘可达：行聚焦（:focus-visible）或按钮自身聚焦（:has(:focus-visible)）时同样让位；
+   不用 :focus-within（鼠标点击按钮后保持聚焦会持续命中，移出容器按钮不消失）。 */
 .adl-clipboard-row:hover .adl-clipboard-row__body,
-.adl-clipboard-row:focus-within .adl-clipboard-row__body {
+.adl-clipboard-row:focus-visible .adl-clipboard-row__body,
+.adl-clipboard-row:has(:focus-visible) .adl-clipboard-row__body {
   padding-right: var(--adl-clipboard-row-actions-width);
 }
 
@@ -302,7 +305,6 @@
   flex-direction: column;
   align-items: center;
   gap: var(--space-0-5);
-  flex-shrink: 0;
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
@@ -312,7 +314,8 @@
 }
 
 .adl-clipboard-row:hover .adl-clipboard-row__actions,
-.adl-clipboard-row:focus-within .adl-clipboard-row__actions {
+.adl-clipboard-row:focus-visible .adl-clipboard-row__actions,
+.adl-clipboard-row:has(:focus-visible) .adl-clipboard-row__actions {
   opacity: 1;
   visibility: visible;
   pointer-events: auto;
@@ -320,14 +323,22 @@
 
 /* 悬停时时间戳让位于三按钮（隐藏），释放右侧空间 */
 .adl-clipboard-row:hover .adl-clipboard-row__time,
-.adl-clipboard-row:focus-within .adl-clipboard-row__time {
+.adl-clipboard-row:focus-visible .adl-clipboard-row__time,
+.adl-clipboard-row:has(:focus-visible) .adl-clipboard-row__time {
   visibility: hidden;
 }
 
 /* 与相邻的 adl-icon-btn--xs (22px) 对齐，保证竖排三按钮同宽（覆盖 .adl-copy-btn 的 24px） */
 .adl-copy-btn.adl-clipboard-row__copy {
-  width: 22px;
-  height: 22px;
+  width: var(--adl-clipboard-row-actions-width);
+  height: var(--adl-clipboard-row-actions-width);
+}
+
+/* 硬化行内三按钮宽度契约：与 --adl-clipboard-row-actions-width 保持同步，
+   不依赖 titlebar.css 中 .adl-icon-btn--xs 的尺寸（跨文件隐性耦合）。 */
+.adl-clipboard-row__actions .adl-icon-btn--xs {
+  width: var(--adl-clipboard-row-actions-width);
+  height: var(--adl-clipboard-row-actions-width);
 }
 
 /* ---------------- Clipboard item viewer (放大查看) ---------------- */
