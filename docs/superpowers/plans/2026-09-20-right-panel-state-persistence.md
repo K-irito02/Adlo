@@ -1341,14 +1341,35 @@ Expected: PASS（6 个用例全绿）。
 import { hydrateAll } from './persisted/hydrate';
 import { cleanupUnregisteredKeys } from './persisted/cleanup';
 
+// V2 全量盘点（ledger B1）登记的"范围外但共用 adl 前缀"的键。
+// 这些键由通信/GitHub/CI/系统监控/剪贴板等面板持有，不属于本次四面板范围，
+// 启动清理**必须**保留它们 —— 否则首次启动会清空用户的 CI 快照、GitHub 工作区配置与访问令牌。
+// Task 29 会把它们全部登记进 registry；在此之前本清单是唯一的防线，不得删除本常量。
+const PERSIST_KEEP_KEYS = new Set<string>([
+  'adl-ui:changes-branch',
+  'adl-ui:active-github-section',
+  'adl-ui:github-ci-folders',
+  'adl-ui:github-workspace-configs',
+  'adl-ui:github-access-token',
+  'adl-ui:ci-access-token',
+  'adl-ui:ci-config',
+  'adl-ui:ci-snapshots',
+  'adl-ui:ci-log-caches',
+  'adl-ui:ci-auto-refresh-on-push',
+  'adl-ui:active-communicate-platform',
+  'adl-ui:communicate-navigator-collapsed',
+  'adl-ui:sysmon-collapsed',
+  'adl-ui:sysmon-scroll-top',
+  'adl-ui:clipboard-scroll-top',
+]);
+
 // 同步水合：必须在 store 创建后立即执行，且早于任何 React 渲染 ——
 // 全应用唯一的水合时机（规格 §3.3）。禁止再引入第二处异步水合。
 const hydration = hydrateAll();
 if (Object.keys(hydration.patch).length > 0) {
   useSlicedAppStore.setState(hydration.patch);
 }
-// 未登记键与坏数据一并清除；V2 盘点登记的例外键在 Task 21 追加到 keep
-cleanupUnregisteredKeys({ extra: hydration.dirtyKeys });
+cleanupUnregisteredKeys({ keep: PERSIST_KEEP_KEYS, extra: hydration.dirtyKeys });
 ```
 
 - [ ] **Step 6: 运行全量前端测试确认无回归**
@@ -2280,7 +2301,13 @@ git add frontend/src/app/stores
 git commit -m "refactor(stores): migrate search settings persistence to the registry"
 ```
 
-Expected: PASS。至此"四套写盘做法"已全部收敛为唯一通道：执行 `grep -rn "makePersistedWriter\|createDebouncedWrite\|setItem(" frontend/src --include=*.ts --include=*.tsx | grep -v "__tests__"`，除 `storageHelpers.ts` 自身外应**无输出**。
+Expected: PASS。至此四面板的"四套写盘做法"已全部收敛为唯一通道（扫描范围限定为四面板对应文件 —— ledger B2 裁定；其余面板工具的收敛见 Task 29）：
+
+```bash
+cd ai-digital-life && grep -rn "makePersistedWriter\|createDebouncedWrite\|setItem(" frontend/src/app/stores/slices/uiSlice.ts frontend/src/app/stores/slices/uiSliceWidths.ts frontend/src/app/stores/slices/workspaceSlice.ts frontend/src/app/stores/slices/browser*.ts frontend/src/app/stores/slices/terminalSlice.ts frontend/src/app/stores/slices/searchSlice.ts frontend/src/app/stores/actions/workspaceTreeActions.ts frontend/src/app/stores/actions/gitFileOpsActions.ts frontend/src/app/stores/actions/browserCleanupActions.ts | grep -v "__tests__"
+```
+
+Expected: 无输出。
 
 ---
 
@@ -3849,6 +3876,96 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 
 ---
 
+## Task 29: 登记其余右侧面板工具的持久化状态（预检新增）
+
+**Files:**
+- Modify: `frontend/src/app/stores/persisted/registry.ts`
+- Modify: `frontend/src/app/stores/slices/gitSlice.ts`（`adl-ui:changes-branch`）
+- Modify: `frontend/src/app/stores/slices/ciSlice.ts`、`githubSlice.ts`、`githubSliceHelpers.ts`（`adl-ui:ci-*` / `adl-ui:github-*`）
+- Modify: `frontend/src/app/stores/slices/communicateSlice.ts`（`adl-ui:active-communicate-platform` / `adl-ui:communicate-navigator-collapsed`）
+- Modify: `frontend/src/app/stores/slices/systemMonitorSlice.ts`（`adl-ui:sysmon-*`）
+- Modify: `frontend/src/app/stores/slices/clipboardHistorySlice.ts`（`adl-ui:clipboard-scroll-top`）
+- Modify: `frontend/src/app/stores/slicedStore.ts`（清空 `PERSIST_KEEP_KEYS`）
+- Create: `frontend/src/app/stores/persisted/__tests__/outOfScopePanelsPersistence.test.ts`
+
+**Why this task exists:** V2 全量盘点（ledger B1）发现 15 个 `adl-ui:` 键不在 Task 7/9/10/11 的登记表内。它们属通信/GitHub/CI/系统监控/剪贴板面板（spec §3.7 的四面板范围外），但同在 `adl` 命名空间下。若不登记：(a) Task 6 的启动清理会删除它们（含 CI 快照、GitHub 工作区配置、两个访问令牌）；(b) Task 11 与 Task 18 的验收门禁以全仓为扫描范围，会恒为假。本任务把它们纳入统一通道，"统一基础设施"这一已确认决策才算真正落地。
+
+**Interfaces:**
+- Consumes: `defineEntry` / `readBooleanRecord` / `readStringEnum` / `readFlag` / `readNumberInRange`、`persist` / `persistField`、`pruneByWorkspaceId`（若适用）
+- Produces: 15 条新登记键 + `PERSIST_KEEP_KEYS` 归零
+
+**登记清单**
+
+| 现键名 | 新键名 | 域 | scope | 解析器 |
+|---|---|---|---|---|
+| `adl-ui:changes-branch` | `adl:changes.branch` | changes | byWorkspaceId | 字符串映射 |
+| `adl-ui:active-github-section` | `adl:browser.githubSection` | browser | global | `readStringEnum`（区块白名单以 `githubTreeSlice` 现有取值为准） |
+| `adl-ui:github-ci-folders` | `adl:browser.ciFolders` | browser | global | 数组 |
+| `adl-ui:github-workspace-configs` | `adl:browser.workspaceConfigs` | browser | byWorkspaceId | 对象映射；`pruneByWorkspaceId` |
+| `adl-ui:github-access-token` | `adl:browser.githubAccessToken` | browser | global | 字符串（**见下方安全说明**） |
+| `adl-ui:ci-access-token` | `adl:browser.ciAccessToken` | browser | global | 字符串（**见下方安全说明**） |
+| `adl-ui:ci-config` | `adl:browser.ciConfig` | browser | global | 对象 |
+| `adl-ui:ci-snapshots` | `adl:browser.ciSnapshots` | browser | global | 对象（体积需实测，超 32 KB 则 `sync: false`） |
+| `adl-ui:ci-log-caches` | `adl:browser.ciLogCaches` | browser | global | 对象（同上，超限则 `sync: false`） |
+| `adl-ui:ci-auto-refresh-on-push` | `adl:browser.ciAutoRefreshOnPush` | browser | global | `readFlag` |
+| `adl-ui:active-communicate-platform` | `adl:ui.communicatePlatform` | ui | global | `readStringEnum` |
+| `adl-ui:communicate-navigator-collapsed` | `adl:ui.communicateNavigatorCollapsed` | ui | global | `readFlag` |
+| `adl-ui:sysmon-collapsed` | `adl:ui.sysmonCollapsed` | ui | global | `readFlag` |
+| `adl-ui:sysmon-scroll-top` | `adl:ui.sysmonScrollTop` | ui | global | `readNumberInRange(0, 1e9)` |
+| `adl-ui:clipboard-scroll-top` | `adl:ui.clipboardScrollTop` | ui | global | `readNumberInRange(0, 1e9)` |
+
+**安全说明（必须遵守）：** `github-access-token` 与 `ci-access-token` 以明文存放于本地存储，与 `AGENTS.md` 禁止项「凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）」相冲突。**本任务只做"原样搬迁 + 保留"，绝不改变其存储位置或明文形态**（改变即等于迁移用户凭据，超出本计划范围且属安全敏感操作）。该冲突须在 Task 28 作为独立发现上报用户，并登记为后续子项目。
+
+- [ ] **Step 1: 写失败测试**
+
+创建 `frontend/src/app/stores/persisted/__tests__/outOfScopePanelsPersistence.test.ts`，对 15 条逐一断言"写入 → 模拟重启 → 读回一致"；另加两条：
+
+```ts
+it('keeps every previously-leaked key registered, so startup cleanup cannot delete it', () => {
+  const registered = new Set(registryEntries.map((entry) => entry.key));
+  for (const legacyKey of V2_LEAKED_KEYS) {
+    expect([...registered]).toContain(legacyKey);
+  }
+});
+
+it('no longer needs the transition keep-list', () => {
+  expect(PERSIST_KEEP_KEYS_HAS_ENTRIES).toBe(false);
+});
+```
+
+- [ ] **Step 2: 运行测试确认失败**
+
+```bash
+cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/persisted/__tests__/outOfScopePanelsPersistence.test.ts
+```
+
+Expected: FAIL。
+
+- [ ] **Step 3: 实施**
+
+按表登记 15 条；各 slice 的写入改走 `persist`（删除各自的 `makePersistedWriter` / 直接 `setItem`）；随后把 `slicedStore.ts` 中的 `PERSIST_KEEP_KEYS` 清空并删除该常量与其注释。
+
+实施前先实测 `ci-snapshots` / `ci-log-caches` / `github-ci-folders` 三项的真实体积（在运行中的应用控制台执行 `Object.entries(localStorage).filter(([k]) => k.includes('ci-')).map(([k, v]) => [k, v.length])`）；超过 32 KB 的必须标 `sync: false`，否则自检的体积用例会变红。
+
+- [ ] **Step 4: 运行测试确认通过，并把 Task 11 的门禁放开为全仓**
+
+```bash
+cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/persisted && pnpm frontend:test && pnpm frontend:typecheck
+grep -rn "makePersistedWriter\|createDebouncedWrite\|setItem(" frontend/src --include=*.ts --include=*.tsx | grep -v "__tests__" | grep -v "storageHelpers.ts"
+```
+
+Expected: 测试全绿；grep **无输出**（此时唯二允许出现 `setItem` 的位置是 `storageHelpers.ts` 自身，以及 vendored 参考实现）。
+
+- [ ] **Step 5: 提交**
+
+```bash
+cd ai-digital-life
+git add frontend/src/app/stores
+git commit -m "refactor(stores): register remaining right-panel tool state in the registry"
+```
+
+---
+
 ## Self-Review
 
 **1. 规格覆盖核对**
@@ -3866,6 +3983,7 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 | §3.5.3 启动清理（替代迁移） | T6（机制）、T1（V2 盘点）、T21（例外清单回填） |
 | §3.6 会话恢复 | T26、T27 |
 | §3.7 全量覆盖清单 | T22–T25 |
+| §3.7 之外：同命名空间的其他右侧面板工具（预检新增） | T29 |
 | §4 清理清单（死代码 / 死状态 / 重复定义） | T19、T20；`setWorkspaceTreeExpandedInFileNav` 的"改造为唯一写入口"在 T8 |
 | §5 错误处理与降级 | T3（四种降级输入）、T2（仅首次告警）、T6（清理不抛错）、T26（文件失效）、T27（越界钳制） |
 | §6 前置验证 | T1 |
