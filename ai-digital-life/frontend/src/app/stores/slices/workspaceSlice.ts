@@ -9,66 +9,7 @@ import type {
   GitSnapshot,
 } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import { STORAGE_HYDRATION_DELAY_MS } from '../constants';
-import { readJson, writeJson } from '../shared';
-
-// Local storage keys
-const WORKSPACE_TREE_EXPANDED_KEY = 'adl-ui:workspace-tree-expanded';
-const WORKSPACE_CHANGES_EXPANDED_KEY = 'adl-ui:workspace-changes-expanded';
-
-// Batch write scheduler — coalesces multiple localStorage writes into one
-const pendingWrites = new Map<string, unknown>();
-let writeScheduled = false;
-
-function scheduleWrite(key: string, value: unknown): void {
-  pendingWrites.set(key, value);
-  scheduleFlush();
-}
-
-function scheduleFlush(): void {
-  if (writeScheduled) {
-    return;
-  }
-  writeScheduled = true;
-  const flush = () => {
-    writeScheduled = false;
-    for (const [key, value] of pendingWrites) {
-      writeJson(key, value);
-    }
-    pendingWrites.clear();
-  };
-  if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(flush, { timeout: 500 });
-  } else {
-    setTimeout(flush, 50);
-  }
-}
-
-// Lazy localStorage hydration — reads persisted values in idle time
-let _defaultsHydrated = false;
-
-function hydrateWorkspaceDefaults(
-  get: () => StoreState,
-  set: (partial: Partial<StoreState>) => void,
-): void {
-  if (_defaultsHydrated) {
-    return;
-  }
-  _defaultsHydrated = true;
-  const doHydrate = () => {
-    const treeExpanded = readJson<Record<string, boolean>>(WORKSPACE_TREE_EXPANDED_KEY, {});
-    const changesExpanded = readJson<Record<string, boolean>>(WORKSPACE_CHANGES_EXPANDED_KEY, {});
-    set({
-      workspaceTreeExpandedInFileNav: treeExpanded,
-      workspaceChangesExpanded: changesExpanded,
-    });
-  };
-  if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(doHydrate, { timeout: 1000 });
-  } else {
-    setTimeout(doHydrate, STORAGE_HYDRATION_DELAY_MS);
-  }
-}
+import { persistField } from '../persisted/apply';
 
 export interface WorkspaceSlice {
   /**
@@ -135,9 +76,8 @@ export interface WorkspaceSlice {
  */
 export const createWorkspaceSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState,
+  _get: () => StoreState,
 ): WorkspaceSlice => {
-  hydrateWorkspaceDefaults(get, set);
   return {
     recentWorkspaces: [],
     workspaceTrees: {},
@@ -160,15 +100,11 @@ export const createWorkspaceSlice = (
     setWorkspaceTreeLoading: (loading) => set({ workspaceTreeLoading: loading }),
     setWorkspaceTreeRefreshing: (refreshing) => set({ workspaceTreeRefreshing: refreshing }),
     setWorkspaceTreeErrors: (errors) => set({ workspaceTreeErrors: errors }),
-    setWorkspaceTreeExpandedInFileNav: (expanded) => {
-      scheduleWrite(WORKSPACE_TREE_EXPANDED_KEY, expanded);
-      set({ workspaceTreeExpandedInFileNav: expanded });
-    },
+    setWorkspaceTreeExpandedInFileNav: (expanded) =>
+      set(persistField('adl:files.workspaceExpanded', expanded)),
     setRefreshingAllWorkspaces: (refreshing) => set({ refreshingAllWorkspaces: refreshing }),
-    setWorkspaceChangesExpanded: (expanded) => {
-      scheduleWrite(WORKSPACE_CHANGES_EXPANDED_KEY, expanded);
-      set({ workspaceChangesExpanded: expanded });
-    },
+    setWorkspaceChangesExpanded: (expanded) =>
+      set(persistField('adl:changes.workspaceExpanded', expanded)),
     setWorkspaceChangesTreeData: (data) => set({ workspaceChangesTreeData: data }),
     setWorkspaceChangesTreeLoading: (loading) => set({ workspaceChangesTreeLoading: loading }),
     setWorkspaceChangesTreeErrors: (errors) => set({ workspaceChangesTreeErrors: errors }),

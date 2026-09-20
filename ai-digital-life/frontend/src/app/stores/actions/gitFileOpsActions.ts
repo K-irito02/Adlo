@@ -22,7 +22,7 @@ export function createGitFileOpsActions(
       await expandSingle(
         state.workspaceChangesExpanded,
         workspaceId,
-        (next) => set({ workspaceChangesExpanded: next }),
+        (next) => get().setWorkspaceChangesExpanded(next),
         !!state.gitSnapshots[workspaceId],
         () => get().loadGitSnapshot(workspaceId, workspacePath),
       );
@@ -35,7 +35,7 @@ export function createGitFileOpsActions(
      * @see — 无桥接调用
      */
     collapseAllWorkspaceChanges: () => {
-      set({ workspaceChangesExpanded: {} });
+      get().setWorkspaceChangesExpanded({});
     },
 
     /**
@@ -51,7 +51,7 @@ export function createGitFileOpsActions(
       await batchExpandAll(
         state.recentWorkspaces,
         state.workspaceChangesExpanded,
-        (next) => set({ workspaceChangesExpanded: next }),
+        (next) => get().setWorkspaceChangesExpanded(next),
         (entry) => get().loadGitSnapshot(entry.id, entry.path),
         (id) => !!state.gitSnapshots[id],
       );

@@ -47,11 +47,9 @@ export function createWorkspaceTreeActions(
      */
     toggleWorkspaceTreeInFileNav: (workspaceId: WorkspaceID) => {
       const current = get().workspaceTreeExpandedInFileNav;
-      set({
-        workspaceTreeExpandedInFileNav: {
-          ...current,
-          [workspaceId]: !current[workspaceId],
-        },
+      get().setWorkspaceTreeExpandedInFileNav({
+        ...current,
+        [workspaceId]: !current[workspaceId],
       });
     },
 
@@ -68,7 +66,7 @@ export function createWorkspaceTreeActions(
       await expandSingle(
         state.workspaceTreeExpandedInFileNav,
         workspaceId,
-        (next) => set({ workspaceTreeExpandedInFileNav: next }),
+        (next) => get().setWorkspaceTreeExpandedInFileNav(next),
         !!state.workspaceTrees[workspaceId],
         () => get().loadWorkspaceTree(workspaceId, workspacePath),
       );
@@ -167,7 +165,7 @@ export function createWorkspaceTreeActions(
       await batchExpandAll(
         state.recentWorkspaces,
         state.workspaceTreeExpandedInFileNav,
-        (next) => set({ workspaceTreeExpandedInFileNav: next }),
+        (next) => get().setWorkspaceTreeExpandedInFileNav(next),
         (entry) => get().loadWorkspaceTree(asWorkspaceID(entry.id), entry.path),
         (id) => !!state.workspaceTrees[id],
       );
@@ -180,7 +178,7 @@ export function createWorkspaceTreeActions(
      * @see — 无桥接调用
      */
     collapseAllWorkspaceTreesInFileNav: () => {
-      set({ workspaceTreeExpandedInFileNav: {} });
+      get().setWorkspaceTreeExpandedInFileNav({});
     },
   };
 }

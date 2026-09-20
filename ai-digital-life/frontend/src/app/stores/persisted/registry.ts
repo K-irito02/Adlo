@@ -1,6 +1,6 @@
 import { defineEntry, readBooleanRecord, type PersistEntry } from './entry';
 import { readFlag, readNumberInRange, readStringEnum, readBooleanPropRecord } from './parsers';
-import { pruneDirPathsByWorkspace } from './prune';
+import { pruneDirPathsByWorkspace, pruneByWorkspaceId } from './prune';
 import {
   LEFT_PANEL_WIDTH_MIN,
   LEFT_PANEL_WIDTH_MAX,
@@ -49,6 +49,15 @@ export const registry = {
     fallback: {},
     scope: 'byWorkspaceId',
     read: readBooleanRecord,
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:changes.workspaceExpanded': defineEntry<Record<string, boolean>>({
+    key: 'adl:changes.workspaceExpanded',
+    field: 'workspaceChangesExpanded',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readBooleanRecord,
+    prune: pruneByWorkspaceId,
   }),
 
   // ─────────────────────────────────────────────────────────────
@@ -302,6 +311,4 @@ export const PERSIST_KEEP_KEYS = new Set<string>([
   'adl-ui:terminal-workspace-default-profiles',
   'adl-ui:terminal-workspace-expanded',
   'adl-ui:terminal-workspace-id',
-  'adl-ui:workspace-changes-expanded',
-  'adl-ui:workspace-tree-expanded',
 ]);

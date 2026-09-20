@@ -57,11 +57,12 @@ export function createBrowserCleanupActions(
         get().setActiveWorkspaceTab(activeWorkspaceTab);
       }
 
+      get().setWorkspaceTreeExpandedInFileNav(restExpanded);
+
       set({
         workspaceTrees: restTrees,
         workspaceTreeLoading: restLoading,
         workspaceTreeErrors: restErrors,
-        workspaceTreeExpandedInFileNav: restExpanded,
         browserTabs: cleaned.browserTabs,
         browserTabsById: cleaned.browserTabsById,
         browserTabFolders: cleaned.browserTabFolders,
