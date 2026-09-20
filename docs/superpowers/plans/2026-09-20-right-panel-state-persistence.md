@@ -3396,6 +3396,7 @@ Expected: PASS。
 - Modify: `frontend/src/app/stores/slices/browserSlice.ts:92,181,207-208,227-228,316-318`
 - Modify: `frontend/src/app/stores/browserSelectors.ts:14-18`
 - Modify: `frontend/src/app/stores/slices/terminalSlice.ts:174,211,406`
+- Modify: `frontend/src/app/stores/slices/terminalSliceTypes.ts`（删除 `normalizeTerminalShellProfile` —— Task 10 修复轮把最后一处生产调用移交给 registry 的条目 read 后，它只剩自身单测引用）
 - Modify: `frontend/src/app/stores/slices/uiSliceExpansion.ts:57,102-107`
 - Modify: `frontend/src/app/stores/slices/uiSliceTypes.ts:34,131`
 - Modify: `frontend/src/app/stores/slices/uiSlice.ts:74`
@@ -3423,6 +3424,7 @@ const DEAD_SYMBOLS = [
   'setBrowserWorkspaceId',
   'terminalPersisted',
   'setTerminalPersisted',
+  'normalizeTerminalShellProfile',
   'collapseAllFileTreePaths',
   'SESSION_TABS_EXPANDED_KEY',
 ];
