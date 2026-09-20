@@ -147,7 +147,8 @@ export const mockWorkspace: WorkspaceBridge = {
           .map((entry) => ({
             path: entry.filePath,
             line: entry.index + 1,
-            preview: entry.lineText.trim()
+            // 与三端对齐截断 240（事项 M7；searchInFiles 同文件已截断）。
+            preview: entry.lineText.trim().slice(0, 240),
           }))
       );
     // 与后端同语义：窗口切片 + 精确 hasMore（`paginateSearchHits` 是前端单一来源）。

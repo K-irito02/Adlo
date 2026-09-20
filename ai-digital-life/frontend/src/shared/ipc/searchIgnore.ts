@@ -11,8 +11,8 @@
  * 已知与 git 原生的偏差（与 Rust 镜像一致，罕见输入才触发；
  * 端特有差异见 Rust `crates/workspace/src/gitignore.rs` 文件头，两表互为镜像）：
  * - 行首尾空白一律去除（git 行首空格有意义）；
- * - `[...]` 原样交正则：`[!a]` 恰好同为否定故一致，但类内 `/` 可被匹配、
- *   类内转义不支持；未闭合 `[` 已转义处理；
+ * - `[...]` 字符组：`[!...]` 取反已重写为 `[^...]` 交正则（与 Rust 一致）；
+ *   未闭合 `[` 转义处理；类内 `/` 可被匹配；类内转义（`[\]]`）不支持；
  * - 大小写敏感（`core.ignorecase` 例外未建模）；
  * - `foo/**` 不匹配 `foo` 自身（仅其内容）；
  * - `stripTrailingSlash` 只去一个尾斜杠（`a//` 残留）。
@@ -40,6 +40,16 @@ function normalizeSeparators(path: string): string {
 
 function stripTrailingSlash(path: string): string {
   return path.endsWith('/') && path.length > 1 ? path.slice(0, -1) : path;
+}
+
+/**
+ * 忽略条目归一化（去首尾斜杠 + `\`→`/`）：后端 `trim_matches('/')` 视
+ * `/build` ≡ `build`，前端统一同语义，避免脏输入（手改 localStorage、
+ * 历史数据）导致前后端解读分叉（事项 M-1/L-7）。写入侧（`toggleIgnoredPath`）
+ * 本就产出归一化值，此处是读侧兜底。
+ */
+export function normalizeIgnoredEntry(raw: string): string {
+  return stripTrailingSlash(normalizeSeparators(raw)).replace(/^\/+/, '');
 }
 
 /** glob（`*`/`?`/`**`/`[...]`）转正则；`crossSlash` 决定 `*` 是否可跨 `/`。 */
@@ -70,6 +80,11 @@ function globToRegExpSource(glob: string): string {
       if (close === -1) {
         out += '\\[';
         i += 1;
+      } else if (glob[i + 1] === '!') {
+        // `[!...]` 取反：JS 正则里类内否定是 `[^...]`（`[!...]` 是字面 `!`），
+        // 此处重写为 `[^` 与 Rust `char_class_match` 对齐（事项 H1）。
+        out += `[^${glob.slice(i + 2, close + 1)}`;
+        i = close + 1;
       } else {
         out += glob.slice(i, close + 1);
         i = close + 1;
@@ -272,7 +287,11 @@ export function ignoreCheckStateOf(path: string, ignored: readonly string[]): Ig
  * 条目（过滤语义不变）；UI 层对这种情况走祖先展开（见树组件），不直接调本函数。
  */
 export function toggleIgnoredPath(path: string, ignored: readonly string[]): string[] {
-  const normalized = stripTrailingSlash(normalizeSeparators(path));
+  const normalized = normalizeIgnoredEntry(path);
+  // 空串不进名单：否则落盘越积越多（事项 L1；语义层 selectSearchFilter 本就会滤空）。
+  if (normalized === '') {
+    return [...ignored];
+  }
   const prefix = `${normalized}/`;
   const normalizeEntry = (ig: string) => stripTrailingSlash(normalizeSeparators(ig));
   const isExplicit = ignored.some(

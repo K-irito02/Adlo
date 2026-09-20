@@ -20,7 +20,11 @@ import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { OutlineTree, getDefaultExpandedOutlineIds } from '@features/outline';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
-import { isSearchPathExcluded } from '../../../shared/ipc/searchIgnore';
+import {
+  createGitignoreMatcher,
+  isSearchPathExcluded,
+  type GitignoreRuleSet,
+} from '../../../shared/ipc/searchIgnore';
 import { useFileCreation, useSearchPanel } from './hooks';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -232,6 +236,68 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const searchMaxResults = useAppStore((s) => s.searchMaxResults);
   const searchPageSize = useAppStore((s) => s.searchPageSize);
   const searchIgnoredPaths = useAppStore((s) => s.searchIgnoredPaths);
+  const searchUseGitignoreMap = useAppStore((s) => s.searchUseGitignore);
+  // 文件名范围的 `.gitignore` 判定器（按工作区缓存）：前端无 fs，只能经桥读
+  // `.gitignore` 内容后用共享 matcher 判定，与内容检索（后端）语义对齐（事项 M-2）。
+  // 加载完成前该工作区暂不过滤（闪现旧结果一次，重算/重搜后收敛）。
+  const [gitignoreMatchers, setGitignoreMatchers] = useState<
+    Record<string, ((path: string, isDir: boolean) => boolean) | undefined>
+  >({});
+  useEffect(() => {
+    let cancelled = false;
+    const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
+    void (async () => {
+      const next: Record<string, ((path: string, isDir: boolean) => boolean) | undefined> = {};
+      for (const wsId of targetIds) {
+        const ws = recentWorkspaces.find((w) => w.id === wsId);
+        const roots = workspaceTrees[wsId];
+        if (!ws || !roots) {
+          continue;
+        }
+        const gitPaths: string[] = [];
+        const stack = [...roots];
+        while (stack.length > 0 && gitPaths.length < 64) {
+          const node = stack.pop();
+          if (!node) {
+            continue;
+          }
+          if (node.kind === 'directory') {
+            stack.push(...node.children);
+          } else if (node.name === '.gitignore') {
+            gitPaths.push(node.path);
+          }
+        }
+        if (gitPaths.length === 0) {
+          continue;
+        }
+        const sets: GitignoreRuleSet[] = [];
+        for (const gitPath of gitPaths) {
+          try {
+            const result = await window.digitalLife.workspace.readFileForWorkspace(
+              ws.path,
+              gitPath,
+            );
+            if (result.ok) {
+              const slash = gitPath.lastIndexOf('/');
+              sets.push({
+                baseDir: slash === -1 ? '' : gitPath.slice(0, slash),
+                content: result.data.content,
+              });
+            }
+          } catch {
+            // 单文件读失败即跳过：不阻塞整树判定。
+          }
+        }
+        next[wsId] = createGitignoreMatcher(sets);
+      }
+      if (!cancelled) {
+        setGitignoreMatchers(next);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [workspaceTrees, activeWorkspaceId, visibleWorkspaces, recentWorkspaces]);
   const searchEntriesCount = useAppStore((s) => s.searchEntries.length);
   const loadMoreSearchResults = useAppStore((s) => s.loadMoreSearchResults);
   const showAllSearchResults = useAppStore((s) => s.showAllSearchResults);
@@ -255,9 +321,18 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     }
     const needle = searchMatchCase ? committedSearchQuery : committedSearchQuery.toLowerCase();
     const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
-    const isIgnored = (wsId: string, path: string) =>
-      // 与后端过滤同语义：复用共享匹配器（含分隔符归一化，事项 F7 去手写版）。
-      isSearchPathExcluded(path, searchIgnoredPaths[wsId] ?? []);
+    // 与后端过滤同语义：复用共享匹配器（含分隔符归一化，事项 F7 去手写版）。
+    // 文件名范围同样叠加 `.gitignore`（与内容检索一致，事项 M-2）。
+    const isIgnored = (wsId: string, path: string, isDir: boolean) => {
+      if (isSearchPathExcluded(path, searchIgnoredPaths[wsId] ?? [])) {
+        return true;
+      }
+      if ((searchUseGitignoreMap[wsId] ?? true) === false) {
+        return false;
+      }
+      const matcher = gitignoreMatchers[wsId];
+      return matcher ? matcher(path, isDir) : false;
+    };
     const out: FileNameHit[] = [];
     for (const wsId of targetIds) {
       const roots = workspaceTrees[wsId];
@@ -270,7 +345,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         if (!node) {
           continue;
         }
-        if (isIgnored(wsId, node.path)) {
+        if (isIgnored(wsId, node.path, node.kind === 'directory')) {
           continue;
         }
         if (node.kind === 'file') {
@@ -289,6 +364,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     committedSearchQuery,
     searchMatchCase,
     searchIgnoredPaths,
+    searchUseGitignoreMap,
+    gitignoreMatchers,
     activeWorkspaceId,
     visibleWorkspaces,
     workspaceTrees,

@@ -107,6 +107,13 @@ describe('createGitignoreMatcher', () => {
     expect(match('x/a.js', false)).toBe(false);
   });
 
+  it('negates bracket classes with [!...] like the Rust side', () => {
+    // 事项 H1：`[!a]` 取反与 Rust `char_class_match` 对齐（JS 原生是字面 `!`）。
+    const match = createGitignoreMatcher([{ baseDir: '', content: '[!a]bc\n' }]);
+    expect(match('xbc', false)).toBe(true);
+    expect(match('abc', false)).toBe(false);
+  });
+
   it('lets a nested star-plus-negation re-include files (rules never match their own dir)', () => {
     // 事项 F2：子目录 `.gitignore` 的 `*` 不得把目录自身判为忽略，
     // 否则祖先短路直接 true，同文件的 `!` 永无加回机会。

@@ -8,7 +8,10 @@ interface CustomScrollAreaProps {
   children: React.ReactNode;
   /** 滚动回调（虚拟化列表等需要跟随 scrollTop 的场景用；其余调用方不受影响） */
   onScroll?: React.UIEventHandler<HTMLDivElement>;
-  /** 透出滚动容器（同上；与 forwardRef 可并存） */
+  /**
+   * 透出滚动容器（与 forwardRef 可并存）。新代码优先用本 prop 读 scrollTop；
+   * `ref` 保留仅为历史兼容（事项 L-4）。
+   */
   scrollRef?: React.Ref<HTMLDivElement>;
 }
 

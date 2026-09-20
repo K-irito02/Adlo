@@ -451,6 +451,9 @@ pub async fn search(
         Ok(ws) => ws.root_path,
         Err(e) => return ipc::to_response(Err(e)),
     };
+    if let Err(e) = reject_oversized_filter(&input.excluded_paths) {
+        return ipc::to_response(Err(e));
+    }
     let window = search_window(input.offset, input.limit);
     let filter = adl_workspace::SearchFilter {
         excluded_paths: input.excluded_paths,
@@ -512,6 +515,19 @@ fn reject_traversal(paths: &[String]) -> Result<(), AppError> {
     Ok(())
 }
 
+/// 忽略名单 DoS 护栏：与 `MAX_SEARCH_FILES_PATHS` 同级（2000 条），
+/// 超限直接拒绝——静默截断会让被忽略文件重现（错而不报），拒绝是 loud 失败（事项 M2）。
+fn reject_oversized_filter(excluded_paths: &[String]) -> Result<(), AppError> {
+    const MAX_EXCLUDED_PATHS: usize = 2000;
+    if excluded_paths.len() > MAX_EXCLUDED_PATHS {
+        return Err(AppError::InvalidInput(format!(
+            "too many excluded paths: {} > {MAX_EXCLUDED_PATHS}",
+            excluded_paths.len()
+        )));
+    }
+    Ok(())
+}
+
 /// POST `/workspace/search-in-files` — 仅对给定相对路径集合重算命中（watcher 驱动的局部刷新）。
 pub async fn search_in_files(
     State(state): State<ServerState>,
@@ -537,6 +553,9 @@ pub async fn search_in_files(
         Ok(ws) => ws.root_path,
         Err(e) => return ipc::to_response(Err(e)),
     };
+    if let Err(e) = reject_oversized_filter(&input.excluded_paths) {
+        return ipc::to_response(Err(e));
+    }
     let paths = input.paths;
     let window = search_window(input.offset, input.limit);
     let filter = adl_workspace::SearchFilter {

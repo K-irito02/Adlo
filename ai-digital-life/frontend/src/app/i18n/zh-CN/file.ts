@@ -22,7 +22,7 @@ export const fileZh = {
     '有些项目（尤其是程序员的项目）里会放一个叫 .gitignore 的名单文件，上面写着哪些是自动生成的、无需关心的内容（比如临时文件、下载下来的依赖包）。\n· 打开开关，检索会自动跳过这些名单里的文件，和 VS Code 里搜索的效果一样。\n· 一个工作区里可能有多个 .gitignore（比如子目录里又拉了别的项目），它们会自动合并：离文件越近的规则越说了算。',
   searchIgnoreHelpCombineTitle: '两者怎么叠加',
   searchIgnoreHelpCombineBody:
-    '手动勾选和 .gitignore 是叠加关系：只要被其中任何一个点中，这个文件就不参与检索。',
+    '手动勾选和 .gitignore 是叠加关系：只要被其中任何一个点中，这个文件就不参与检索。\n· 文件名、文件内容两种检索范围都按这套规则过滤。',
   searchIgnoreHelpSaveTitle: '什么时候生效',
   searchIgnoreHelpSaveBody:
     '每个工作区各存各的，互不干扰。\n· 点「保存」后才真正生效；如果当前正有检索内容，保存后会立即重新检索，不用再搜一遍。',
@@ -34,7 +34,7 @@ export const fileZh = {
     '输入框有下限（每页 {pageMin} 条，最大显示 {maxMin} 条）：如果填得比下限还小，点保存时会自动提到下限，不用担心填错搜不出来。',
   searchLimitsHelpTooBigTitle: '填大了会怎样',
   searchLimitsHelpTooBigBody:
-    '填得比上限大，保存时会自动压到上限（分别是 {pageMax} 和 {maxHard}）。\n· 最大显示超过 5000 后，文件特别多的大项目可能会明显变慢，请谨慎调高。',
+    '填得比上限大，保存时会自动压到上限（分别是 {pageMax} 和 {maxHard}）。\n· 最大显示超过 {warnAt} 后，文件特别多的大项目可能会明显变慢，请谨慎调高。',
   searchLimitsHelpInvalidTitle: '填错了 / 清空了会怎样',
   searchLimitsHelpInvalidBody:
     '如果不小心输了字母或者把框清空了，保存时会当作没改过：自动恢复成原来的值，不用担心搞坏设置。',
@@ -44,7 +44,7 @@ export const fileZh = {
   searchSettingsUseGitignore: '使用工作区 .gitignore 过滤',
   searchSettingsPageSize: '每页条数',
   searchSettingsMaxResults: '最大显示条数',
-  searchSettingsOverLimitWarn: '超过 5000 条后大仓库可能明显卡顿，请谨慎调高。',
+  searchSettingsOverLimitWarn: '超过 {warnAt} 条后大仓库可能明显卡顿，请谨慎调高。',
   searchSettingsCheckItem: '忽略 {name}',
   searchSettingsEmptyTree: '暂无文件树（工作区为空或正在加载）',
   searchSettingsIgnoreHintTitle: '忽略规则说明',

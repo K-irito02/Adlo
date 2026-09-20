@@ -20,6 +20,8 @@ const MAX_SEARCH_PATHS = 2000;
 const MAX_FILE_BYTES = 1024 * 1024;
 /** 单次检索最多读取的 `.gitignore` 文件数（DoS 护栏：超深嵌套仓库裁剪）。 */
 const MAX_GITIGNORE_FILES = 64;
+/** 单个 `.gitignore` 体积上限（与 Rust `MAX_GITIGNORE_BYTES` 同值，超限跳过）。 */
+const MAX_GITIGNORE_BYTES = 64 * 1024;
 
 /**
  * 自工作区根向下收集全部 `.gitignore`（根在前、深层在后，与 Rust 侧同序）。
@@ -49,8 +51,14 @@ async function loadGitignoreChain(rootPath: string): Promise<GitignoreRuleSet[]>
         }
         stack.push(dir === '' ? entry.name : `${dir}/${entry.name}`);
       } else {
+        const fileAbs = join(abs, entry.name);
         try {
-          const content = await fs.readFile(join(abs, entry.name), 'utf8');
+          // 与 Rust 同值：超大文件跳过，避免整读进内存（事项 M4）。
+          const size = statSync(fileAbs).size;
+          if (size > MAX_GITIGNORE_BYTES) {
+            continue;
+          }
+          const content = await fs.readFile(fileAbs, 'utf8');
           sets.push({ baseDir: dir, content });
         } catch {
           // TOCTOU 删除/无权限：单文件跳过。
@@ -113,7 +121,17 @@ export async function searchText(
     if (!allowed(workspaceRelativePath)) {
       continue;
     }
-    const content = await fs.readFile(filePath, 'utf8');
+    // 与 `searchInFiles`/Rust 同形：单文件 TOCTOU/超限/二进制即跳过，
+    // 不能让一个文件拖垮整轮检索（事项 H2/M3）。
+    let content: string;
+    try {
+      if (statSync(filePath).size > MAX_FILE_BYTES) {
+        continue;
+      }
+      content = await fs.readFile(filePath, 'utf8');
+    } catch {
+      continue;
+    }
     const lines = content.split(/\r?\n/);
     for (let index = 0; index < lines.length; index += 1) {
       if (!lines[index].toLowerCase().includes(needle)) {

@@ -14,3 +14,4 @@ Lessons learned from UI/UX interaction fixes and optimizations.
   - [终端 Shell 选择器悬停菜单去抖](./2026-09/terminal-shell-menu-hover-lessons-2026-09-13.md)
   - [xterm v6 滚动条与复制粘贴](./2026-09/terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md)
   - [检索加载态时序与悬浮层](./2026-09/search-loading-state-overlay-lessons-2026-09-19.md) — 提交与加载同 tick、取消同步复位；overlay 高度前提实证；范围切换防抖泄漏
+  - [检索设置弹窗](./2026-09/search-settings-dialog-lessons-2026-09-20.md) — full-bleed 行类复用禁区、虚拟化 gap 陷阱、zustand 快照过期、gitignore 自身目录语义、探针先行

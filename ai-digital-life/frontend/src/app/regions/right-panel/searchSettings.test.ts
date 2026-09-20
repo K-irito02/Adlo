@@ -102,6 +102,13 @@ describe('search settings dialog wiring', () => {
     expect(searchActionsSource).toContain('selectSearchFilter');
   });
 
+  it('applies gitignore to file-name scope too (parity with content search)', () => {
+    // 事项 M-2 功能补齐：文件名范围经桥读 `.gitignore` 内容后用共享 matcher 判定。
+    expect(shellSource).toContain('createGitignoreMatcher');
+    expect(shellSource).toContain('readFileForWorkspace');
+    expect(shellSource).toContain('gitignoreMatchers');
+  });
+
   it('saves via an explicit Save button with feedback and immediate effect', () => {
     // 草稿态 + 保存落盘：弹窗内修改只写草稿，点保存才写 store；
     // 保存后有 loading→打勾反馈，且有在途检索时立即重跑生效。

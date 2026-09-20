@@ -8,6 +8,7 @@ import {
   SEARCH_PAGE_SIZE_MIN,
 } from '../../../shared/ipc/searchWindow';
 import { clamp, readJson, readNumber, writeJson, writeNumber } from '../shared';
+import { normalizeIgnoredEntry } from '../../../shared/ipc/searchIgnore';
 
 export const SEARCH_PAGE_SIZE_KEY = 'adl-search:page-size';
 export const SEARCH_MAX_RESULTS_KEY = 'adl-search:max-results';
@@ -171,7 +172,21 @@ function readSearchIgnoredPaths(): Record<string, string[]> {
     const clean: Record<string, string[]> = {};
     for (const [key, value] of Object.entries(raw)) {
       if (Array.isArray(value)) {
-        clean[key] = value.filter((p) => typeof p === 'string' && p.length > 0);
+        // 入口归一化：脏输入（前导斜杠/`\`/尾斜杠）在此收敛，
+        // 后续比较不再分叉（事项 M-1/L-1/L-7）。
+        const seen = new Set<string>();
+        const list: string[] = [];
+        for (const p of value) {
+          if (typeof p !== 'string') {
+            continue;
+          }
+          const normalized = normalizeIgnoredEntry(p);
+          if (normalized && !seen.has(normalized)) {
+            seen.add(normalized);
+            list.push(normalized);
+          }
+        }
+        clean[key] = list;
       }
     }
     return clean;
@@ -206,7 +221,8 @@ export const createSearchSlice = (
     searchEntries: [],
     searchSessionId: 0,
     searchHasMore: false,
-    searchLimit: SEARCH_PAGE_SIZE,
+    // 初值对齐持久化步长（而非常量 200）：重载后首屏即按用户步长请求（事项 L5）。
+    searchLimit: initialPageSize,
     searchWorkspaceId: undefined,
     searchMatchCase: false,
     searchMatchWholeWord: false,

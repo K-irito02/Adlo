@@ -81,6 +81,10 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     panelRef.current?.focus();
     const handleWindowKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key === 'Escape') {
+        // 礼让内层已消费的 Escape（事项 L-3(a)）；模态下 stopPropagation 防背景误关。
+        if (event.defaultPrevented) {
+          return;
+        }
         event.stopPropagation();
         onClose();
       }
@@ -383,7 +387,7 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
             </div>
             {Number(maxResultsDraft) > SEARCH_MAX_RESULTS ? (
               <p className="adl-search-settings__warn" role="status">
-                {t.searchSettingsOverLimitWarn as string}
+                {formatT(t, 'searchSettingsOverLimitWarn', { warnAt: SEARCH_MAX_RESULTS })}
               </p>
             ) : null}
           </div>

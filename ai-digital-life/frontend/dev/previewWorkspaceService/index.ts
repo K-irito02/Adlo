@@ -310,9 +310,10 @@ function parseFilterFromBody(input: {
 }): { excludedPaths?: string[]; useGitignore?: boolean } {
   const filter: { excludedPaths?: string[]; useGitignore?: boolean } = {};
   if (Array.isArray(input.excludedPaths)) {
-    filter.excludedPaths = input.excludedPaths.filter(
-      (p): p is string => typeof p === 'string' && p.length > 0,
-    );
+    // dev 预览宽容截断到 2000（服务端同值直接拒绝；此处截断不断整轮检索）。
+    filter.excludedPaths = input.excludedPaths
+      .filter((p): p is string => typeof p === 'string' && p.length > 0)
+      .slice(0, 2000);
   }
   if (typeof input.useGitignore === 'boolean') {
     filter.useGitignore = input.useGitignore;

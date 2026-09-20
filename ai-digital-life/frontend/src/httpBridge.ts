@@ -224,7 +224,8 @@ const filterBody = (filter?: WorkspaceSearchFilter): Record<string, unknown> => 
     return {};
   }
   const body: Record<string, unknown> = {};
-  if (filter.excludedPaths !== undefined) {
+  // 空名单省略（与 preview 归一规则一致；后端缺省即空，事项 L3）。
+  if (filter.excludedPaths !== undefined && filter.excludedPaths.length > 0) {
     body.excludedPaths = filter.excludedPaths;
   }
   if (filter.useGitignore !== undefined) {

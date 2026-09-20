@@ -42,6 +42,10 @@ function UnderlineTabs<Id extends string>({
 }: UnderlineTabsProps<Id>) {
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent) => {
+      // 空 tabs 护栏：`% 0` 得 NaN 会崩（事项 L-2；两处调用方恒非空，纯防御）。
+      if (tabs.length === 0) {
+        return;
+      }
       const idx = tabs.findIndex((tab) => tab.id === activeId);
       let next = idx;
       if (event.key === 'ArrowRight') {

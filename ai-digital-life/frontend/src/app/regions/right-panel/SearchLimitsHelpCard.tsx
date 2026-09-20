@@ -2,6 +2,7 @@ import React from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import {
   SEARCH_HARD_MAX_RESULTS,
+  SEARCH_MAX_RESULTS,
   SEARCH_PAGE_SIZE,
   SEARCH_PAGE_SIZE_MAX,
   SEARCH_PAGE_SIZE_MIN,
@@ -20,6 +21,7 @@ export const SearchLimitsHelpCard = React.memo(function SearchLimitsHelpCard() {
     pageMax: SEARCH_PAGE_SIZE_MAX,
     maxMin: SEARCH_PAGE_SIZE,
     maxHard: SEARCH_HARD_MAX_RESULTS,
+    warnAt: SEARCH_MAX_RESULTS,
   };
   const sections: { title: string; body: string }[] = [
     { title: t.searchLimitsHelpNumbersTitle, body: t.searchLimitsHelpNumbersBody },

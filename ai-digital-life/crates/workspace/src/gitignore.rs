@@ -425,6 +425,14 @@ mod gitignore_tests {
     }
 
     #[test]
+    fn bracket_negation_matches_frontend() {
+        // 事项 H1：`[!a]` 取反与前端重写后的 `[^...]` 对齐。
+        let m = matcher(&[("", "[!a]bc\n")]);
+        assert!(m.is_ignored("xbc", false));
+        assert!(!m.is_ignored("abc", false));
+    }
+
+    #[test]
     fn nested_star_plus_negation_reincludes() {
         // 事项 F2：子目录 `.gitignore` 的 `*` 不得把目录自身判为忽略，
         // 否则祖先短路直接 true，同文件的 `!` 永无加回机会（与前端镜像用例一致）。

@@ -22,7 +22,7 @@ export const fileEn = {
     "Some projects (especially programming projects) contain a list file called .gitignore naming auto-generated, don't-care-about content (such as temp files or downloaded dependency packages).\n· With the switch on, search automatically skips the files on those lists — the same as searching in VS Code.\n· A workspace can hold several .gitignore files (for example when a subfolder pulls in another project); they merge automatically, and the rule closest to a file wins.",
   searchIgnoreHelpCombineTitle: 'How do the two combine?',
   searchIgnoreHelpCombineBody:
-    'The manual list and .gitignore add up: a file matching either one is skipped in search.',
+    'The manual list and .gitignore add up: a file matching either one is skipped in search.\n· Both file-name and content search follow these rules.',
   searchIgnoreHelpSaveTitle: 'When does it take effect?',
   searchIgnoreHelpSaveBody:
     'Each workspace keeps its own settings.\n· They take effect once you press “Save”; if a search is currently shown, it re-runs immediately — no need to search again.',
@@ -34,7 +34,7 @@ export const fileEn = {
     'Each box has a floor (page {pageMin}, max {maxMin}): anything smaller is automatically raised to the floor on save, so you cannot break search by typing too small a number.',
   searchLimitsHelpTooBigTitle: 'What if I enter too big a value?',
   searchLimitsHelpTooBigBody:
-    'Anything above the ceiling is automatically pressed down to it ({pageMax} and {maxHard} respectively).\n· Going past 5000 on max results may noticeably slow down very large workspaces — raise it with care.',
+    'Anything above the ceiling is automatically pressed down to it ({pageMax} and {maxHard} respectively).\n· Going past {warnAt} on max results may noticeably slow down very large workspaces — raise it with care.',
   searchLimitsHelpInvalidTitle: 'What if I mistype or clear a box?',
   searchLimitsHelpInvalidBody:
     'Letters or an emptied box are treated as “no change” on save: the previous value is restored automatically, so settings cannot be broken this way.',
@@ -44,7 +44,7 @@ export const fileEn = {
   searchSettingsUseGitignore: 'Filter with workspace .gitignore files',
   searchSettingsPageSize: 'Page size',
   searchSettingsMaxResults: 'Max results',
-  searchSettingsOverLimitWarn: 'Going past 5000 may noticeably slow down large workspaces.',
+  searchSettingsOverLimitWarn: 'Going past {warnAt} may noticeably slow down large workspaces.',
   searchSettingsCheckItem: 'Ignore {name}',
   searchSettingsEmptyTree: 'No file tree yet (workspace is empty or loading)',
   searchSettingsIgnoreHintTitle: 'About ignore rules',
