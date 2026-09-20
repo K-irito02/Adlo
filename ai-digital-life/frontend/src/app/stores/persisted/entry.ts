@@ -84,3 +84,18 @@ export type PersistEntry<T> = {
 export function defineEntry<T>(entry: PersistEntry<T>): PersistEntry<T> {
   return entry;
 }
+
+/** 校验 Record<string, boolean>；键为字符串、值为布尔，否则整体判为不合法 */
+export function readBooleanRecord(raw: unknown): Record<string, boolean> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const result: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'boolean') {
+      return undefined;
+    }
+    result[key] = value;
+  }
+  return result;
+}

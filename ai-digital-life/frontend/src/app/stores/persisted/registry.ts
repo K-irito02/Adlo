@@ -1,4 +1,4 @@
-import { defineEntry, type PersistEntry } from './entry';
+import { defineEntry, readBooleanRecord, type PersistEntry } from './entry';
 
 /**
  * 中心登记表 —— 全局唯一事实来源。
@@ -15,6 +15,7 @@ export const registry = {
     field: 'workspaceTreeExpandedInFileNav',
     fallback: {},
     scope: 'byWorkspaceId',
+    read: readBooleanRecord,
   }),
 } as const;
 
