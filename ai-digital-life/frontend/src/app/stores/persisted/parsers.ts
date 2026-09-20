@@ -1,4 +1,5 @@
 import { clamp } from '../storageHelpers';
+import { normalizeIgnoredEntry } from '../../../shared/ipc/searchIgnore';
 
 /** 布尔：仅接受真正的 boolean */
 export function readFlag(raw: unknown): boolean | undefined {
@@ -12,6 +13,24 @@ export function readNumberInRange(min: number, max: number): (raw: unknown) => n
       return undefined;
     }
     return clamp(raw, min, max);
+  };
+}
+
+/**
+ * 数值 + 区间钳制 + 取整：承接旧读路径 `Math.floor(readNumber(...))` 的语义
+ * （见 Task 11：旧写路径存 `String(value)`，读路径先 clamp 再 floor）。
+ * 仅做钳制会丢失 floor（持久化的 `200.7` 由 200 变为 200.7），故此处钳制后再取整。
+ * 非有限数值判为不合法。
+ */
+export function readFlooredNumberInRange(
+  min: number,
+  max: number,
+): (raw: unknown) => number | undefined {
+  return (raw: unknown) => {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) {
+      return undefined;
+    }
+    return Math.floor(clamp(raw, min, max));
   };
 }
 
@@ -132,6 +151,58 @@ export function readBooleanPropRecord(
       inner[innerKey] = innerValue;
     }
     result[outerKey] = inner;
+  }
+  return result;
+}
+
+/**
+ * 检索手动忽略名单的读侧归一化（Task 11）。
+ *
+ * 入口收敛脏输入（前导斜杠 / `\` / 尾斜杠）并去重：复用 searchIgnore 的
+ * `normalizeIgnoredEntry`，全应用只有这一份清洗（写侧 `toggleIgnoredPath` 本就产出
+ * 归一化值，此处是读侧兜底，与迁移前 searchSlice 的旧 `readSearchIgnoredPaths` 语义一致）。
+ * 外层非对象 / 任一 workspace 的值非数组 ⇒ 整字段判为不合法（回退 fallback）。
+ */
+export function readSearchIgnoredPaths(raw: unknown): Record<string, string[]> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const result: Record<string, string[]> = {};
+  for (const [workspaceId, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
+    const seen = new Set<string>();
+    const list: string[] = [];
+    for (const p of value) {
+      if (typeof p !== 'string') {
+        continue;
+      }
+      const normalized = normalizeIgnoredEntry(p);
+      if (normalized && !seen.has(normalized)) {
+        seen.add(normalized);
+        list.push(normalized);
+      }
+    }
+    result[workspaceId] = list;
+  }
+  return result;
+}
+
+/**
+ * 检索 `.gitignore` 开关的读侧映射（Task 11）。
+ * 任一值非布尔 ⇒ 整字段判为不合法（回退 fallback）；非对象外层同样判为不合法。
+ */
+export function readSearchUseGitignore(raw: unknown): Record<string, boolean> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const result: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'boolean') {
+      return undefined;
+    }
+    result[key] = value;
   }
   return result;
 }

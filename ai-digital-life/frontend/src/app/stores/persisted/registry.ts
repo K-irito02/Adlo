@@ -2,6 +2,7 @@ import { defineEntry, readBooleanRecord, type PersistEntry } from './entry';
 import {
   readFlag,
   readNumberInRange,
+  readFlooredNumberInRange,
   readStringEnum,
   readBooleanPropRecord,
   readString,
@@ -9,8 +10,17 @@ import {
   readNumberArray,
   readObjectArray,
   readObjectArrayRecord,
+  readSearchIgnoredPaths,
+  readSearchUseGitignore,
   isPlainRecord,
 } from './parsers';
+import {
+  SEARCH_PAGE_SIZE,
+  SEARCH_PAGE_SIZE_MIN,
+  SEARCH_PAGE_SIZE_MAX,
+  SEARCH_MAX_RESULTS,
+  SEARCH_HARD_MAX_RESULTS,
+} from '../../../shared/ipc/searchWindow';
 import { pruneDirPathsByWorkspace, pruneByWorkspaceId, pruneBrowserTreeExpanded } from './prune';
 import { DEFAULT_CONFIGURED_PORTS } from '../slices/browserSliceShared';
 import type {
@@ -654,6 +664,45 @@ export const registry = {
     read: normalizeHistoryIndex,
     sync: false,
   }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 检索面板迁移批次（Task 11）：以下键取代 adl-search:* 遗留键。
+  // 全部写盘走 persist()/persistField()，全部读取走 hydrateAll()（同步，唯一水合时机）。
+  // searchMaxResults 的「page>max 自愈」与 searchLimit 的「首屏对齐步长」由
+  // searchComposite.ts 的复合水合器承接（见 Step 1b），因为 searchLimit 不是持久化字段。
+  // ─────────────────────────────────────────────────────────────
+  'adl:search.pageSize': defineEntry<number>({
+    key: 'adl:search.pageSize',
+    field: 'searchPageSize',
+    fallback: SEARCH_PAGE_SIZE,
+    scope: 'global',
+    // 读侧边界与写侧（setSearchPageSize 的 clamp）同源；必须 floor（旧读路径 Math.floor）。
+    read: readFlooredNumberInRange(SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX),
+  }),
+  'adl:search.maxResults': defineEntry<number>({
+    key: 'adl:search.maxResults',
+    field: 'searchMaxResults',
+    fallback: SEARCH_MAX_RESULTS,
+    scope: 'global',
+    // 下界是 SEARCH_PAGE_SIZE（200）而非某 MIN 常量；floor 同 pageSize（Task 11 控制器裁定）。
+    read: readFlooredNumberInRange(SEARCH_PAGE_SIZE, SEARCH_HARD_MAX_RESULTS),
+  }),
+  'adl:search.ignoredPaths': defineEntry<Record<string, string[]>>({
+    key: 'adl:search.ignoredPaths',
+    field: 'searchIgnoredPaths',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readSearchIgnoredPaths,
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:search.useGitignore': defineEntry<Record<string, boolean>>({
+    key: 'adl:search.useGitignore',
+    field: 'searchUseGitignore',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readSearchUseGitignore,
+    prune: pruneByWorkspaceId,
+  }),
 } as const;
 
 export type Registry = typeof registry;
@@ -688,10 +737,6 @@ export const registryEntries: PersistEntry<unknown>[] = Object.values(
  *    清除遗留键，命名空间门禁随之生效。
  */
 export const PERSIST_KEEP_KEYS = new Set<string>([
-  'adl-search:ignored-paths',
-  'adl-search:max-results',
-  'adl-search:page-size',
-  'adl-search:use-gitignore',
   'adl-ui:active-communicate-platform',
   'adl-ui:active-github-section',
   'adl-ui:browser-workspace-expanded',

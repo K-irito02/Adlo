@@ -7,13 +7,8 @@ import {
   SEARCH_PAGE_SIZE_MAX,
   SEARCH_PAGE_SIZE_MIN,
 } from '../../../shared/ipc/searchWindow';
-import { clamp, readJson, readNumber, writeJson, writeNumber } from '../shared';
-import { normalizeIgnoredEntry } from '../../../shared/ipc/searchIgnore';
-
-export const SEARCH_PAGE_SIZE_KEY = 'adl-search:page-size';
-export const SEARCH_MAX_RESULTS_KEY = 'adl-search:max-results';
-export const SEARCH_IGNORED_PATHS_KEY = 'adl-search:ignored-paths';
-export const SEARCH_USE_GITIGNORE_KEY = 'adl-search:use-gitignore';
+import { clamp } from '../shared';
+import { persistField } from '../persisted/apply';
 
 export interface SearchHitEntry {
   /** 产生该命中的工作区（跨工作区同相对路径不会错配） */
@@ -148,80 +143,23 @@ export function selectSearchFilter(
   return { excludedPaths: excluded, useGitignore: gitignore };
 }
 
-/** 读持久化的检索设置（localStorage 缺失/非法时回退默认值；取整与写路径对称）。 */
-function readSearchPageSize(): number {
-  return Math.floor(
-    readNumber(SEARCH_PAGE_SIZE_KEY, SEARCH_PAGE_SIZE, SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX),
-  );
-}
-
-function readSearchMaxResults(): number {
-  return Math.floor(
-    readNumber(
-      SEARCH_MAX_RESULTS_KEY,
-      SEARCH_MAX_RESULTS,
-      SEARCH_PAGE_SIZE,
-      SEARCH_HARD_MAX_RESULTS,
-    ),
-  );
-}
-
-function readSearchIgnoredPaths(): Record<string, string[]> {
-  const raw = readJson<Record<string, string[]>>(SEARCH_IGNORED_PATHS_KEY, {});
-  if (raw && typeof raw === 'object') {
-    const clean: Record<string, string[]> = {};
-    for (const [key, value] of Object.entries(raw)) {
-      if (Array.isArray(value)) {
-        // 入口归一化：脏输入（前导斜杠/`\`/尾斜杠）在此收敛，
-        // 后续比较不再分叉（事项 M-1/L-1/L-7）。
-        const seen = new Set<string>();
-        const list: string[] = [];
-        for (const p of value) {
-          if (typeof p !== 'string') {
-            continue;
-          }
-          const normalized = normalizeIgnoredEntry(p);
-          if (normalized && !seen.has(normalized)) {
-            seen.add(normalized);
-            list.push(normalized);
-          }
-        }
-        clean[key] = list;
-      }
-    }
-    return clean;
-  }
-  return {};
-}
-
-function readSearchUseGitignore(): Record<string, boolean> {
-  const raw = readJson<Record<string, boolean>>(SEARCH_USE_GITIGNORE_KEY, {});
-  if (raw && typeof raw === 'object') {
-    const clean: Record<string, boolean> = {};
-    for (const [key, value] of Object.entries(raw)) {
-      if (typeof value === 'boolean') {
-        clean[key] = value;
-      }
-    }
-    return clean;
-  }
-  return {};
-}
-
 export const createSearchSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
 ): SearchSlice => {
-  // 初始化即收敛：历史脏组合（page > max，如旧版本写入）重载自愈（事项 N1'）。
-  const initialPageSize = readSearchPageSize();
-  const initialMaxResults = Math.max(readSearchMaxResults(), initialPageSize);
+  // 检索设置的实际初值由 hydrateAll()（同步水合）经登记表回填：
+  // - searchPageSize / searchMaxResults / searchIgnoredPaths / searchUseGitignore 由简单条目写入；
+  // - searchMaxResults 的「page>max 自愈」与 searchLimit 的「首屏对齐步长」由 searchComposite 承接
+  //   （见 Step 1b）。此处只给与 fallback 一致的安全默认值，避免水合前空窗。
+  const initialPageSize = SEARCH_PAGE_SIZE;
+  const initialMaxResults = SEARCH_MAX_RESULTS;
   return {
     searchQuery: '',
     searching: false,
     searchEntries: [],
     searchSessionId: 0,
     searchHasMore: false,
-    // 初值对齐持久化步长（而非常量 200）：重载后首屏即按用户步长请求（事项 L5）。
+    // 初值对齐持久化步长（而非常量 200），最终由 searchComposite 在水合期产出（事项 L5）。
     searchLimit: initialPageSize,
     searchWorkspaceId: undefined,
     searchMatchCase: false,
@@ -229,8 +167,8 @@ export const createSearchSlice = (
     searchUseRegex: false,
     searchPageSize: initialPageSize,
     searchMaxResults: initialMaxResults,
-    searchIgnoredPaths: readSearchIgnoredPaths(),
-    searchUseGitignore: readSearchUseGitignore(),
+    searchIgnoredPaths: {},
+    searchUseGitignore: {},
 
     setSearchQuery: (query) => set({ searchQuery: query }),
     setSearching: (searching) => set({ searching }),
@@ -244,13 +182,16 @@ export const createSearchSlice = (
         return;
       }
       const next = clamp(Math.floor(value), SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX);
-      writeNumber(SEARCH_PAGE_SIZE_KEY, next);
-      set({ searchPageSize: next });
       // 步长超过当前上限时同步上调上限（只放大不缩小，无意外数据丢失；事项 N1）。
+      // 同一 setter 写两个键：合并两个 persistField 补丁为一次 set（事项 N1）。
       if (next > _get().searchMaxResults) {
         const maxed = clamp(next, SEARCH_PAGE_SIZE, SEARCH_HARD_MAX_RESULTS);
-        writeNumber(SEARCH_MAX_RESULTS_KEY, maxed);
-        set({ searchMaxResults: maxed });
+        set({
+          ...persistField('adl:search.pageSize', next),
+          ...persistField('adl:search.maxResults', maxed),
+        });
+      } else {
+        set(persistField('adl:search.pageSize', next));
       }
     },
     setSearchMaxResults: (value) => {
@@ -261,18 +202,15 @@ export const createSearchSlice = (
       //（对话框保存时另有双向收敛，见 SearchSettingsDialog；事项 F3）。
       const floor = Math.max(SEARCH_PAGE_SIZE, _get().searchPageSize);
       const next = clamp(Math.floor(value), floor, SEARCH_HARD_MAX_RESULTS);
-      writeNumber(SEARCH_MAX_RESULTS_KEY, next);
-      set({ searchMaxResults: next });
+      set(persistField('adl:search.maxResults', next));
     },
     setSearchIgnoredPaths: (workspaceId, paths) => {
       const next = { ..._get().searchIgnoredPaths, [workspaceId]: [...paths] };
-      writeJson(SEARCH_IGNORED_PATHS_KEY, next);
-      set({ searchIgnoredPaths: next });
+      set(persistField('adl:search.ignoredPaths', next));
     },
     setSearchUseGitignore: (workspaceId, value) => {
       const next = { ..._get().searchUseGitignore, [workspaceId]: value };
-      writeJson(SEARCH_USE_GITIGNORE_KEY, next);
-      set({ searchUseGitignore: next });
+      set(persistField('adl:search.useGitignore', next));
     },
     beginSearchSession: (workspaceId, options) => {
       const nextId = _get().searchSessionId + 1;

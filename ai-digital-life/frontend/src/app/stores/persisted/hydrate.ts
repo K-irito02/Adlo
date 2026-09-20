@@ -4,6 +4,7 @@ import { registryEntries } from './registry';
 import type { PersistEntry } from './entry';
 import { compositeHydrators } from './composite';
 import { terminalCompositeHydrators } from './terminalComposite';
+import { searchCompositeHydrators } from './searchComposite';
 
 export interface HydrationResult {
   /** 直接可交给 useAppStore.setState 的初始状态补丁 */
@@ -107,6 +108,14 @@ export function hydrateAll(): HydrationResult {
 
   // 终端跨键归一化（Task 10）：在全部简单条目读完之后、基于多个键的共同结果构建补丁
   for (const hydrator of terminalCompositeHydrators) {
+    Object.assign(
+      patch,
+      hydrator.build((key) => readJson<unknown>(key, undefined), priorPatch),
+    );
+  }
+
+  // 检索跨键派生（Task 11，Step 1b）：searchMaxResults 自愈 + searchLimit 初值对齐步长
+  for (const hydrator of searchCompositeHydrators) {
     Object.assign(
       patch,
       hydrator.build((key) => readJson<unknown>(key, undefined), priorPatch),
