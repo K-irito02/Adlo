@@ -17,8 +17,8 @@ import {
 } from '../../../shared/ipc/searchIgnore';
 
 interface SearchIgnoreTreeProps {
-  /** 当前工作区 id（切换时展开态重置，忽略名单由调用方按工作区传入） */
-  workspaceId: string;
+  // 注：无 workspaceId prop——调用方按工作区 `key` 重挂载（state/滚动全重置），
+  // 组件内部不再跟踪工作区身份（事项 F14）。
   nodes: WorkspaceTreeNode[];
   /** 该工作区的手动忽略名单（store 快照） */
   ignoredPaths: string[];
@@ -79,9 +79,15 @@ function expandAncestorForUncheck(
   ignored: string[],
 ): string[] {
   const normalizedTarget = target.replace(/\\/g, '/');
+  // 条目归一化后再比较（store 写入时已归一，但防御性统一处理尾斜杠/`\`，
+  // 否则最近祖先判定失效会回退到追加冗余条目，事项 F8）。
+  const normalizedIgnored = ignored.map((ig) => ig.replace(/\\/g, '/').replace(/\/+$/, ''));
   // 最近的显式祖先（含自身精确条目时调用方不会走到这里）。
   let ancestor: string | undefined;
-  for (const ig of ignored) {
+  for (const ig of normalizedIgnored) {
+    if (!ig) {
+      continue;
+    }
     if (normalizedTarget === ig || normalizedTarget.startsWith(`${ig}/`)) {
       if (ancestor === undefined || ig.length > ancestor.length) {
         ancestor = ig;
@@ -95,7 +101,10 @@ function expandAncestorForUncheck(
   if (!ancestorNode) {
     return toggleIgnoredPath(target, ignored);
   }
-  const rest = ignored.filter((ig) => ig !== ancestor && !ig.startsWith(`${ancestor}/`));
+  const rest = ignored.filter((ig) => {
+    const n = ig.replace(/\\/g, '/').replace(/\/+$/, '');
+    return n !== ancestor && !n.startsWith(`${ancestor}/`);
+  });
   const expanded: string[] = [];
   const walk = (dir: WorkspaceTreeNode) => {
     for (const child of dir.children) {
@@ -275,7 +284,6 @@ interface FlatRow {
 }
 
 const SearchIgnoreTree = React.memo(function SearchIgnoreTree({
-  workspaceId,
   nodes,
   ignoredPaths,
   onChange,
@@ -285,25 +293,15 @@ const SearchIgnoreTree = React.memo(function SearchIgnoreTree({
   emptyHint,
   toolbarExtra,
 }: SearchIgnoreTreeProps) {
-  // 白名单式展开：默认全部折叠（含异步后到达的目录——打开弹窗即只渲染顶层，
-  // 大仓库不再一次性构建数千行）。工作区切换时重置。
+  // 白名单式展开：默认全部折叠。调用方按工作区 `key` 重挂载（state 全重置），
+  // 故此处无需工作区切换 effect（事项 F14 去冗余；滚动复位由重挂载天然完成）。
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   // 当前悬停的行：其自身 + 所有后代行的 chevron 同步高亮（高亮传递）。
   const [hoveredPath, setHoveredPath] = useState<string | null>(null);
-  const workspaceRef = useRef(workspaceId);
   const scrollElRef = useRef<HTMLDivElement | null>(null);
   const scrollRafRef = useRef(0);
   // 虚拟化视口（可视区 scrollTop + 高度），滚动/resize 时经 rAF 节流更新。
   const [viewport, setViewport] = useState({ top: 0, height: 360 });
-  useEffect(() => {
-    if (workspaceRef.current !== workspaceId) {
-      workspaceRef.current = workspaceId;
-      setExpanded(new Set());
-      setHoveredPath(null);
-      scrollElRef.current?.scrollTo({ top: 0 });
-      setViewport((prev) => ({ ...prev, top: 0 }));
-    }
-  }, [workspaceId]);
 
   // 容器尺寸变化（弹窗/面板 resize）即刷新视口高度，否则窗口行数算少。
   useEffect(() => {
@@ -450,7 +448,7 @@ const SearchIgnoreTree = React.memo(function SearchIgnoreTree({
         >
           <ul className="adl-search-ignore__tree" role="tree">
             {windowStart > 0 ? (
-              <div
+              <li
                 className="adl-search-ignore__spacer"
                 style={{ height: windowStart * ROW_HEIGHT }}
                 aria-hidden="true"
@@ -481,7 +479,7 @@ const SearchIgnoreTree = React.memo(function SearchIgnoreTree({
               );
             })}
             {windowEnd < flatRows.length ? (
-              <div
+              <li
                 className="adl-search-ignore__spacer"
                 style={{ height: (flatRows.length - windowEnd) * ROW_HEIGHT }}
                 aria-hidden="true"

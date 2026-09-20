@@ -147,22 +147,21 @@ export function selectSearchFilter(
   return { excludedPaths: excluded, useGitignore: gitignore };
 }
 
-/** 读持久化的检索设置（localStorage 缺失/非法时回退默认值）。 */
+/** 读持久化的检索设置（localStorage 缺失/非法时回退默认值；取整与写路径对称）。 */
 function readSearchPageSize(): number {
-  return readNumber(
-    SEARCH_PAGE_SIZE_KEY,
-    SEARCH_PAGE_SIZE,
-    SEARCH_PAGE_SIZE_MIN,
-    SEARCH_PAGE_SIZE_MAX,
+  return Math.floor(
+    readNumber(SEARCH_PAGE_SIZE_KEY, SEARCH_PAGE_SIZE, SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX),
   );
 }
 
 function readSearchMaxResults(): number {
-  return readNumber(
-    SEARCH_MAX_RESULTS_KEY,
-    SEARCH_MAX_RESULTS,
-    SEARCH_PAGE_SIZE,
-    SEARCH_HARD_MAX_RESULTS,
+  return Math.floor(
+    readNumber(
+      SEARCH_MAX_RESULTS_KEY,
+      SEARCH_MAX_RESULTS,
+      SEARCH_PAGE_SIZE,
+      SEARCH_HARD_MAX_RESULTS,
+    ),
   );
 }
 
@@ -197,64 +196,85 @@ function readSearchUseGitignore(): Record<string, boolean> {
 export const createSearchSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
-): SearchSlice => ({
-  searchQuery: '',
-  searching: false,
-  searchEntries: [],
-  searchSessionId: 0,
-  searchHasMore: false,
-  searchLimit: SEARCH_PAGE_SIZE,
-  searchWorkspaceId: undefined,
-  searchMatchCase: false,
-  searchMatchWholeWord: false,
-  searchUseRegex: false,
-  searchPageSize: readSearchPageSize(),
-  searchMaxResults: readSearchMaxResults(),
-  searchIgnoredPaths: readSearchIgnoredPaths(),
-  searchUseGitignore: readSearchUseGitignore(),
+): SearchSlice => {
+  // 初始化即收敛：历史脏组合（page > max，如旧版本写入）重载自愈（事项 N1'）。
+  const initialPageSize = readSearchPageSize();
+  const initialMaxResults = Math.max(readSearchMaxResults(), initialPageSize);
+  return {
+    searchQuery: '',
+    searching: false,
+    searchEntries: [],
+    searchSessionId: 0,
+    searchHasMore: false,
+    searchLimit: SEARCH_PAGE_SIZE,
+    searchWorkspaceId: undefined,
+    searchMatchCase: false,
+    searchMatchWholeWord: false,
+    searchUseRegex: false,
+    searchPageSize: initialPageSize,
+    searchMaxResults: initialMaxResults,
+    searchIgnoredPaths: readSearchIgnoredPaths(),
+    searchUseGitignore: readSearchUseGitignore(),
 
-  setSearchQuery: (query) => set({ searchQuery: query }),
-  setSearching: (searching) => set({ searching }),
-  setSearchEntries: (entries) => set({ searchEntries: entries }),
-  setSearchMatchCase: (value) => set({ searchMatchCase: value }),
-  setSearchMatchWholeWord: (value) => set({ searchMatchWholeWord: value }),
-  setSearchUseRegex: (value) => set({ searchUseRegex: value }),
-  setSearchPageSize: (value) => {
-    const next = clamp(Math.floor(value), SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX);
-    writeNumber(SEARCH_PAGE_SIZE_KEY, next);
-    set({ searchPageSize: next });
-  },
-  setSearchMaxResults: (value) => {
-    const next = clamp(Math.floor(value), SEARCH_PAGE_SIZE, SEARCH_HARD_MAX_RESULTS);
-    writeNumber(SEARCH_MAX_RESULTS_KEY, next);
-    set({ searchMaxResults: next });
-  },
-  setSearchIgnoredPaths: (workspaceId, paths) => {
-    const next = { ..._get().searchIgnoredPaths, [workspaceId]: [...paths] };
-    writeJson(SEARCH_IGNORED_PATHS_KEY, next);
-    set({ searchIgnoredPaths: next });
-  },
-  setSearchUseGitignore: (workspaceId, value) => {
-    const next = { ..._get().searchUseGitignore, [workspaceId]: value };
-    writeJson(SEARCH_USE_GITIGNORE_KEY, next);
-    set({ searchUseGitignore: next });
-  },
-  beginSearchSession: (workspaceId, options) => {
-    const nextId = _get().searchSessionId + 1;
-    set({
-      searchSessionId: nextId,
-      searchWorkspaceId: workspaceId,
-      searchHasMore: options?.keepEntries ? _get().searchHasMore : false,
-      ...(options?.keepEntries ? {} : { searchEntries: [] }),
-    });
-    return nextId;
-  },
-  clearSearch: () =>
-    set({
-      searchQuery: '',
-      searchEntries: [],
-      searching: false,
-      searchHasMore: false,
-      searchLimit: _get().searchPageSize,
-    }),
-});
+    setSearchQuery: (query) => set({ searchQuery: query }),
+    setSearching: (searching) => set({ searching }),
+    setSearchEntries: (entries) => set({ searchEntries: entries }),
+    setSearchMatchCase: (value) => set({ searchMatchCase: value }),
+    setSearchMatchWholeWord: (value) => set({ searchMatchWholeWord: value }),
+    setSearchUseRegex: (value) => set({ searchUseRegex: value }),
+    setSearchPageSize: (value) => {
+      // 非有限输入直接丢弃：clamp(NaN) 恒为 NaN，会污染 store + 落盘（事项 F4）。
+      if (!Number.isFinite(value)) {
+        return;
+      }
+      const next = clamp(Math.floor(value), SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX);
+      writeNumber(SEARCH_PAGE_SIZE_KEY, next);
+      set({ searchPageSize: next });
+      // 步长超过当前上限时同步上调上限（只放大不缩小，无意外数据丢失；事项 N1）。
+      if (next > _get().searchMaxResults) {
+        const maxed = clamp(next, SEARCH_PAGE_SIZE, SEARCH_HARD_MAX_RESULTS);
+        writeNumber(SEARCH_MAX_RESULTS_KEY, maxed);
+        set({ searchMaxResults: maxed });
+      }
+    },
+    setSearchMaxResults: (value) => {
+      if (!Number.isFinite(value)) {
+        return;
+      }
+      // 下限取 max(200, 当前步长)：上限永远不低于步长，`page ≤ max` 在 slice 层闭合
+      //（对话框保存时另有双向收敛，见 SearchSettingsDialog；事项 F3）。
+      const floor = Math.max(SEARCH_PAGE_SIZE, _get().searchPageSize);
+      const next = clamp(Math.floor(value), floor, SEARCH_HARD_MAX_RESULTS);
+      writeNumber(SEARCH_MAX_RESULTS_KEY, next);
+      set({ searchMaxResults: next });
+    },
+    setSearchIgnoredPaths: (workspaceId, paths) => {
+      const next = { ..._get().searchIgnoredPaths, [workspaceId]: [...paths] };
+      writeJson(SEARCH_IGNORED_PATHS_KEY, next);
+      set({ searchIgnoredPaths: next });
+    },
+    setSearchUseGitignore: (workspaceId, value) => {
+      const next = { ..._get().searchUseGitignore, [workspaceId]: value };
+      writeJson(SEARCH_USE_GITIGNORE_KEY, next);
+      set({ searchUseGitignore: next });
+    },
+    beginSearchSession: (workspaceId, options) => {
+      const nextId = _get().searchSessionId + 1;
+      set({
+        searchSessionId: nextId,
+        searchWorkspaceId: workspaceId,
+        searchHasMore: options?.keepEntries ? _get().searchHasMore : false,
+        ...(options?.keepEntries ? {} : { searchEntries: [] }),
+      });
+      return nextId;
+    },
+    clearSearch: () =>
+      set({
+        searchQuery: '',
+        searchEntries: [],
+        searching: false,
+        searchHasMore: false,
+        searchLimit: _get().searchPageSize,
+      }),
+  };
+};

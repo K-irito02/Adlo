@@ -13,6 +13,7 @@ export const fileEn = {
   searchSettingsLimitsTab: 'Limits',
   searchSettingsClose: 'Close',
   searchSettingsSave: 'Save',
+  searchSettingsSaved: 'Saved',
   searchIgnoreHelpManualTitle: 'What does ticking do?',
   searchIgnoreHelpManualBody:
     'Ticking a file skips it in search, like crossing a line off a list.\n· Ticking a folder skips everything inside it, so you do not have to tick files one by one.\n· If a collapsed folder shows a small dot in its checkbox, some — but not all — of its contents are ticked.',

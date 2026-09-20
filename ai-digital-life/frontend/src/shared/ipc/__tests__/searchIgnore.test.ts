@@ -107,9 +107,23 @@ describe('createGitignoreMatcher', () => {
     expect(match('x/a.js', false)).toBe(false);
   });
 
+  it('lets a nested star-plus-negation re-include files (rules never match their own dir)', () => {
+    // 事项 F2：子目录 `.gitignore` 的 `*` 不得把目录自身判为忽略，
+    // 否则祖先短路直接 true，同文件的 `!` 永无加回机会。
+    const match = createGitignoreMatcher([{ baseDir: 'sub', content: '*\n!keep.log\n' }]);
+    expect(match('sub/debug.log', false)).toBe(true);
+    expect(match('sub/keep.log', false)).toBe(false);
+  });
+
   it('keeps anchored `*` within one level', () => {
     const match = createGitignoreMatcher([{ baseDir: '', content: 'doc/*.txt\n' }]);
     expect(match('doc/a.txt', false)).toBe(true);
     expect(match('doc/sub/a.txt', false)).toBe(false);
+  });
+
+  it('matches star-before-slash at a single level (mirrors Rust F1)', () => {
+    const match = createGitignoreMatcher([{ baseDir: '', content: '*/*.txt\n' }]);
+    expect(match('a/b.txt', false)).toBe(true);
+    expect(match('a/b/c.txt', false)).toBe(false);
   });
 });

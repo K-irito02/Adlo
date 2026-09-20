@@ -6,6 +6,13 @@
 //! - 支持 `*`（不跨 `/`）、`?`、`**`（跨分隔符）、`[...]` 字符组、行尾 `/`（仅目录）、
 //!   行首 `/` 或含 `/`（锚定到规则所在目录），其余为任意层级 basename 匹配。
 //!
+//! 已知与 git 原生的偏差（与前端镜像一致，罕见输入才触发；
+//! 端特有差异见前端 `frontend/src/shared/ipc/searchIgnore.ts` 文件头，两表互为镜像）：
+//! - 行首尾空白一律去除（git 行首空格有意义）；
+//! - `[...]` 类内转义（`[\]]`、`[a\-z]`）不支持，按字面处理；
+//! - 大小写敏感（`core.ignorecase` 例外未建模）；
+//! - 单个 `.gitignore` 超 64KB 跳过、单行超 1024 字节跳过、链超 64 个文件截断（均记日志）。
+//!
 //! 单测用例与前端 `searchIgnore.test.ts` 逐项对照：任一侧改动语义都会在各自测试里失败。
 
 use std::path::Path;
@@ -23,9 +30,12 @@ struct ParsedPattern {
     body: String,
 }
 
+/// 单行长度上限（按字节计）：超限行跳过（防止恶意超长模式触发回溯爆炸，事项 F3）。
+const MAX_PATTERN_LINE_LEN: usize = 1024;
+
 fn parse_line(raw: &str) -> Option<ParsedPattern> {
     let line = raw.trim();
-    if line.is_empty() || line.starts_with('#') {
+    if line.is_empty() || line.starts_with('#') || line.len() > MAX_PATTERN_LINE_LEN {
         return None;
     }
     let mut negate = false;
@@ -42,7 +52,8 @@ fn parse_line(raw: &str) -> Option<ParsedPattern> {
     let mut dir_only = false;
     if body.ends_with('/') {
         dir_only = true;
-        body = body.trim_end_matches('/');
+        // 只去一个尾斜杠，与前端 `stripTrailingSlash` 对齐（事项 F6）。
+        body = body.strip_suffix('/').unwrap_or(body);
     }
     let mut anchored = false;
     if let Some(rest) = body.strip_prefix('/') {
@@ -84,14 +95,15 @@ fn glob_match(pattern: &str, text: &str) -> bool {
                 }
                 return false;
             }
-            // `*`：贪心匹配，但遇到 `/` 即停（不跨分隔符）。
+            // `*`：贪心匹配，但消耗永不含 `/` 本身（先尝试后 break：
+            // `*/x` 须能匹配单层 `a/x`，break 只能阻止跨过 `/` 继续）。
             let mut i = 0;
             while i <= t.len() {
-                if i < t.len() && t[i] == '/' {
-                    break;
-                }
                 if rec(&p[1..], &t[i..]) {
                     return true;
+                }
+                if i < t.len() && t[i] == '/' {
+                    break;
                 }
                 i += 1;
             }
@@ -112,8 +124,7 @@ fn glob_match(pattern: &str, text: &str) -> bool {
                 let Some(end) = end else {
                     return p[0] == t[0] && rec(&p[1..], &t[1..]);
                 };
-                let (matched, _) = char_class_match(&p[1..end], t[0]);
-                if !matched {
+                if !char_class_match(&p[1..end], t[0]) {
                     return false;
                 }
                 rec(&p[end + 1..], &t[1..])
@@ -127,14 +138,11 @@ fn glob_match(pattern: &str, text: &str) -> bool {
             },
         }
     }
-    rec(
-        &pattern.chars().collect::<Vec<_>>(),
-        &text.chars().collect::<Vec<_>>(),
-    )
+    rec(&pattern.chars().collect::<Vec<_>>(), &text.chars().collect::<Vec<_>>())
 }
 
-/// `[...]` 字符组匹配（含 `[^...]` 取反与 `a-z` 范围）。
-fn char_class_match(class: &[char], c: char) -> (bool, bool) {
+/// `[...]` 字符组匹配（含 `[^...]` 取反与 `a-z` 范围；类内转义不支持，见文件头偏差表）。
+fn char_class_match(class: &[char], c: char) -> bool {
     let (negated, class) = match class.first() {
         Some('^') | Some('!') => (true, &class[1..]),
         _ => (false, class),
@@ -156,7 +164,7 @@ fn char_class_match(class: &[char], c: char) -> (bool, bool) {
             i += 1;
         }
     }
-    (matched != negated, true)
+    matched != negated
 }
 
 fn pattern_matches(pattern: &ParsedPattern, rel: &str, is_dir: bool) -> bool {
@@ -181,7 +189,8 @@ fn pattern_matches(pattern: &ParsedPattern, rel: &str, is_dir: bool) -> bool {
     }
     // 非锚定：任意层级的段名匹配即可；目录规则跳过文件自身的 basename。
     let segments: Vec<&str> = rel.split('/').collect();
-    let end = if !is_dir && pattern.dir_only { segments.len().saturating_sub(1) } else { segments.len() };
+    let end =
+        if !is_dir && pattern.dir_only { segments.len().saturating_sub(1) } else { segments.len() };
     segments[..end].iter().any(|segment| glob_match(&pattern.body, segment))
 }
 
@@ -225,6 +234,12 @@ impl GitignoreMatcher {
             let Some(rel) = self.relative_to_base(path, &set.base_dir) else {
                 continue;
             };
+            // 空 rel 表示"规则目录自身"：.gitignore 只作用于其所在目录之下，
+            // 不作用于目录自身（否则子目录的 `*` 会把自身判为忽略，
+            // 祖先短路直接返回 true，同文件的 `!` 永无加回机会；与前端镜像一致）。
+            if rel.is_empty() {
+                continue;
+            }
             for pattern in &set.patterns {
                 if pattern_matches(pattern, rel, is_dir) {
                     ignored = !pattern.negate;
@@ -257,25 +272,42 @@ impl GitignoreMatcher {
 }
 
 /// 自工作区根向下收集全部 `.gitignore`（根在前、深层在后；上限 64 个防超深嵌套）。
-/// 缺失/不可读即跳过；每次检索重新收集（改完下次检索立即生效，不做缓存）。
+/// 缺失/不可读即跳过（记 debug 日志，排查"规则不生效"时可查）；每次检索重新收集
+///（改完下次检索立即生效，不做缓存——检索本就全树 walk，.gitignore 文件极少）。
+/// 单个文件超 64KB 跳过并记 warn（防止恶意超大文件整读，事项 F3）。
 pub fn load_gitignore_chain(root: &Path) -> Vec<GitignoreRuleSet> {
     const MAX_GITIGNORE_FILES: usize = 64;
+    const MAX_GITIGNORE_BYTES: u64 = 64 * 1024;
     let mut sets: Vec<GitignoreRuleSet> = Vec::new();
     let mut stack: Vec<String> = vec![String::new()];
     while let Some(dir) = stack.pop() {
         if sets.len() >= MAX_GITIGNORE_FILES {
+            // 病态仓库才触发：每进程只记一次，避免击键防抖检索刷屏（事项 N2）。
+            static WARNED: std::sync::atomic::AtomicBool =
+                std::sync::atomic::AtomicBool::new(false);
+            if !WARNED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                tracing::warn!(
+                    "load_gitignore_chain: more than {MAX_GITIGNORE_FILES} .gitignore files, deeper rules dropped"
+                );
+            }
             break;
         }
         let abs = if dir.is_empty() { root.to_path_buf() } else { root.join(&dir) };
         let entries = match std::fs::read_dir(&abs) {
             Ok(entries) => entries,
-            Err(_) => continue,
+            Err(error) => {
+                tracing::debug!(path = %abs.display(), error = %error, "load_gitignore_chain: unreadable dir, skipped");
+                continue;
+            },
         };
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().into_owned();
             let file_type = match entry.file_type() {
                 Ok(file_type) => file_type,
-                Err(_) => continue,
+                Err(error) => {
+                    tracing::debug!(path = %entry.path().display(), error = %error, "load_gitignore_chain: stat failed, skipped");
+                    continue;
+                },
             };
             if file_type.is_dir() {
                 if name == ".git" || name == "node_modules" {
@@ -283,8 +315,27 @@ pub fn load_gitignore_chain(root: &Path) -> Vec<GitignoreRuleSet> {
                 }
                 stack.push(if dir.is_empty() { name } else { format!("{dir}/{name}") });
             } else if name == ".gitignore" {
-                if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                    sets.push(GitignoreRuleSet { base_dir: dir.clone(), content });
+                let too_big = entry
+                    .metadata()
+                    .map(|metadata| metadata.len() > MAX_GITIGNORE_BYTES)
+                    .unwrap_or(false);
+                if too_big {
+                    // 同 64 文件截断：每进程只记一次，避免击键防抖检索刷屏（事项 N2-b）。
+                    static WARNED_OVERSIZED: std::sync::atomic::AtomicBool =
+                        std::sync::atomic::AtomicBool::new(false);
+                    if !WARNED_OVERSIZED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+                        tracing::warn!(
+                            path = %entry.path().display(),
+                            "load_gitignore_chain: oversized .gitignore skipped"
+                        );
+                    }
+                    continue;
+                }
+                match std::fs::read_to_string(entry.path()) {
+                    Ok(content) => sets.push(GitignoreRuleSet { base_dir: dir.clone(), content }),
+                    Err(error) => {
+                        tracing::debug!(path = %entry.path().display(), error = %error, "load_gitignore_chain: unreadable file, skipped");
+                    },
                 }
             }
         }
@@ -371,5 +422,22 @@ mod gitignore_tests {
         let m = matcher(&[("", "doc/*.txt\n")]);
         assert!(m.is_ignored("doc/a.txt", false));
         assert!(!m.is_ignored("doc/sub/a.txt", false));
+    }
+
+    #[test]
+    fn nested_star_plus_negation_reincludes() {
+        // 事项 F2：子目录 `.gitignore` 的 `*` 不得把目录自身判为忽略，
+        // 否则祖先短路直接 true，同文件的 `!` 永无加回机会（与前端镜像用例一致）。
+        let m = matcher(&[("sub", "*\n!keep.log\n")]);
+        assert!(m.is_ignored("sub/debug.log", false));
+        assert!(!m.is_ignored("sub/keep.log", false));
+    }
+
+    #[test]
+    fn star_before_slash_matches_single_level() {
+        // 事项 F1：单 `*` 先尝试后 break，`*/x` 可匹配单层（与前端 `[^/]*` 一致）。
+        let m = matcher(&[("", "*/x\n")]);
+        assert!(m.is_ignored("a/x", false));
+        assert!(!m.is_ignored("a/b/x", false));
     }
 }

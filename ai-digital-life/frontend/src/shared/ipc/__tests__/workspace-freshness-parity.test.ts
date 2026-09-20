@@ -85,4 +85,24 @@ describe('workspace freshness IPC parity', () => {
       expect(Array.isArray(result.data.hits)).toBe(true);
     }
   });
+
+  it('mock search applies excludedPaths (manual list only, no gitignore equivalent)', async () => {
+    // mock 只实现手动名单（无内存 gitignore 对应物，注释已声明）：
+    // 钉住"仅手动名单"语义，避免与后端分歧无声扩大。
+    const { documents } = await import('../../../mock/mock-shared-workspace');
+    documents.set('parity-keep.md', 'needle here');
+    documents.set('parity-skip.md', 'needle here');
+    try {
+      const result = await mockDigitalLifeBridge.workspace.search('needle', undefined, {
+        excludedPaths: ['parity-skip.md'],
+      });
+      expect(result.ok).toBe(true);
+      if (result.ok) {
+        expect(result.data.hits.map((h) => h.path)).toEqual(['parity-keep.md']);
+      }
+    } finally {
+      documents.delete('parity-keep.md');
+      documents.delete('parity-skip.md');
+    }
+  });
 });

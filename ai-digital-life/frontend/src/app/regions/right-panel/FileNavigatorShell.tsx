@@ -20,6 +20,7 @@ import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { useNavigatorResize } from '@hooks/useNavigatorResize';
 import { OutlineTree, getDefaultExpandedOutlineIds } from '@features/outline';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
+import { isSearchPathExcluded } from '../../../shared/ipc/searchIgnore';
 import { useFileCreation, useSearchPanel } from './hooks';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -255,7 +256,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     const needle = searchMatchCase ? committedSearchQuery : committedSearchQuery.toLowerCase();
     const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
     const isIgnored = (wsId: string, path: string) =>
-      (searchIgnoredPaths[wsId] ?? []).some((ig) => path === ig || path.startsWith(`${ig}/`));
+      // 与后端过滤同语义：复用共享匹配器（含分隔符归一化，事项 F7 去手写版）。
+      isSearchPathExcluded(path, searchIgnoredPaths[wsId] ?? []);
     const out: FileNameHit[] = [];
     for (const wsId of targetIds) {
       const roots = workspaceTrees[wsId];

@@ -11,8 +11,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// 的 `SEARCH_PAGE_SIZE` 保持同值；两侧单测均把该值钉到 200，
 /// 任一侧单独改动都会在各自测试中失败。
 pub const MAX_SEARCH_RESULTS: usize = 200;
-/// "显示全部"的默认目标：单次请求可返回的最大命中数（用户未自定义时）。
-/// 超过此值仍会被截断（`has_more` 为 true），避免超大仓库一次性拉爆内存与 IPC。
+/// "显示全部"的默认目标：用户未自定义上限时，一次性加载即提到该值。
+/// 注意它不是钳制上限（钳制由 [`MAX_SEARCH_RESULTS_HARD_CAP`] 负责）：
+/// 后端缺省窗口是 `MAX_SEARCH_RESULTS`（200），5000 由前端"显示全部"显式传入。
 ///
 /// **跨语言契约**：必须与前端 `searchWindow.ts` 的 `SEARCH_MAX_RESULTS` 保持同值；
 /// 两侧单测均把该值钉到 5000（前端钳制、后端 `clamped` 各有一处断言）。
@@ -63,7 +64,8 @@ fn is_manually_excluded(relative: &str, excluded_paths: &[String]) -> bool {
     excluded_paths.iter().any(|raw| {
         let ignored = raw.replace('\\', "/");
         let ignored = ignored.trim_matches('/');
-        !ignored.is_empty() && (normalized == ignored || normalized.starts_with(&format!("{ignored}/")))
+        !ignored.is_empty()
+            && (normalized == ignored || normalized.starts_with(&format!("{ignored}/")))
     })
 }
 
@@ -127,7 +129,15 @@ pub async fn search_text_async(
         let files = crate::tree::collect_text_files(&root_owned, crate::DEFAULT_MAX_FILE_BYTES)?;
         let matcher = filter_owned.matcher_for(&root_owned);
         let cancelled_fn = move || cancelled_clone.load(Ordering::Relaxed);
-        search_text_in_files(&files, &root_owned, &query, window, &filter_owned, matcher.as_ref(), &cancelled_fn)
+        search_text_in_files(
+            &files,
+            &root_owned,
+            &query,
+            window,
+            &filter_owned,
+            matcher.as_ref(),
+            &cancelled_fn,
+        )
     });
 
     // Use select! instead of a detached tokio::spawn cancellation listener.
@@ -340,7 +350,9 @@ mod search_text_async_tests {
         // Cancel immediately before search starts
         let _ = tx.send(());
 
-        let result = search_text_async(&tmp, "hello", SearchWindow::default(), &SearchFilter::default(), rx).await;
+        let result =
+            search_text_async(&tmp, "hello", SearchWindow::default(), &SearchFilter::default(), rx)
+                .await;
         assert!(result.is_ok(), "search should return Ok even when cancelled");
         // Result should be empty (cancellation took effect before search could complete)
         // or contain matches — the key assertion is the function returns without hanging
@@ -359,7 +371,9 @@ mod search_text_async_tests {
 
         let (_tx, rx) = tokio::sync::broadcast::channel::<()>(1);
         // No cancellation sent — search should complete normally
-        let result = search_text_async(&tmp, "hello", SearchWindow::default(), &SearchFilter::default(), rx).await;
+        let result =
+            search_text_async(&tmp, "hello", SearchWindow::default(), &SearchFilter::default(), rx)
+                .await;
         assert!(result.is_ok());
         let hits = result.unwrap().hits;
         assert_eq!(hits.len(), 2, "expected 2 hits (one per line containing 'hello')");
@@ -372,7 +386,9 @@ mod search_text_async_tests {
         std::fs::write(tmp.join("test.txt"), b"hello world").unwrap();
 
         let (_tx, rx) = tokio::sync::broadcast::channel::<()>(1);
-        let result = search_text_async(&tmp, "   ", SearchWindow::default(), &SearchFilter::default(), rx).await;
+        let result =
+            search_text_async(&tmp, "   ", SearchWindow::default(), &SearchFilter::default(), rx)
+                .await;
         assert!(result.is_ok());
         assert!(result.unwrap().hits.is_empty());
         cleanup(&tmp);
@@ -400,10 +416,15 @@ mod search_in_files_tests {
         std::fs::write(tmp.join("hit.txt"), b"alpha needle\nbeta").unwrap();
         std::fs::write(tmp.join("miss.txt"), b"needle in other file").unwrap();
 
-        let hits =
-            search_in_files(&tmp, &["hit.txt".to_string()], "needle", SearchWindow::default(), &SearchFilter::default())
-                .unwrap()
-                .hits;
+        let hits = search_in_files(
+            &tmp,
+            &["hit.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
 
         assert_eq!(hits.len(), 1, "only the requested file must be scanned");
         assert_eq!(hits[0].path, "hit.txt");
@@ -436,11 +457,18 @@ mod search_in_files_tests {
         let tmp = unique_tmp_dir();
         std::fs::write(tmp.join("b.txt"), b"NEEDLE\nNeedle\nnone").unwrap();
 
-        let batched =
-            search_in_files(&tmp, &["b.txt".to_string()], "needle", SearchWindow::default(), &SearchFilter::default())
-                .unwrap()
-                .hits;
-        let whole = search_text(&tmp, "needle", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
+        let batched = search_in_files(
+            &tmp,
+            &["b.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
+        let whole = search_text(&tmp, "needle", SearchWindow::default(), &SearchFilter::default())
+            .unwrap()
+            .hits;
 
         assert_eq!(batched.len(), 2, "case-insensitive contains (same as search_text)");
         // NOTE: deviates from plan verbatim (`assert_eq!(batched, whole)`):
@@ -460,10 +488,16 @@ mod search_in_files_tests {
         let tmp = unique_tmp_dir();
         std::fs::write(tmp.join("c.txt"), b"anything").unwrap();
         assert!(
-            search_in_files(&tmp, &["c.txt".to_string()], "   ", SearchWindow::default(), &SearchFilter::default())
-                .unwrap()
-                .hits
-                .is_empty()
+            search_in_files(
+                &tmp,
+                &["c.txt".to_string()],
+                "   ",
+                SearchWindow::default(),
+                &SearchFilter::default()
+            )
+            .unwrap()
+            .hits
+            .is_empty()
         );
         cleanup(&tmp);
     }
@@ -540,10 +574,15 @@ mod search_in_files_tests {
         std::fs::write(outside.join("secret.txt"), b"needle secret").unwrap();
         std::os::unix::fs::symlink(outside.join("secret.txt"), tmp.join("evil-link")).unwrap();
 
-        let hits =
-            search_in_files(&tmp, &["evil-link".to_string()], "needle", SearchWindow::default(), &SearchFilter::default())
-                .unwrap()
-                .hits;
+        let hits = search_in_files(
+            &tmp,
+            &["evil-link".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
         assert!(hits.is_empty(), "symlink escape must be skipped, got {hits:?}");
         cleanup(&outside);
         cleanup(&tmp);
@@ -584,7 +623,9 @@ mod search_window_tests {
     #[test]
     fn window_offset_skips_leading_hits() {
         let tmp = fixture();
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(2, 200), &SearchFilter::default()).unwrap();
+        let page =
+            search_text(&tmp, "needle", SearchWindow::clamped(2, 200), &SearchFilter::default())
+                .unwrap();
         assert_eq!(page.hits.len(), 3, "5 hits minus 2 skipped");
         assert_eq!(page.hits[0].line, 3);
         assert!(!page.has_more, "remaining 3 fit in one page");
@@ -594,7 +635,9 @@ mod search_window_tests {
     #[test]
     fn window_limit_caps_page_and_reports_more() {
         let tmp = fixture();
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(0, 2), &SearchFilter::default()).unwrap();
+        let page =
+            search_text(&tmp, "needle", SearchWindow::clamped(0, 2), &SearchFilter::default())
+                .unwrap();
         assert_eq!(page.hits.len(), 2);
         assert_eq!((page.hits[0].line, page.hits[1].line), (1, 2));
         assert!(page.has_more, "3 hits remain beyond the window");
@@ -605,7 +648,9 @@ mod search_window_tests {
     fn has_more_is_false_when_the_page_holds_everything() {
         let tmp = fixture();
         // 恰好等于总命中数：旧实现把"等于上限"误判为被截断，多探一条后即可精确区分。
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(0, 5), &SearchFilter::default()).unwrap();
+        let page =
+            search_text(&tmp, "needle", SearchWindow::clamped(0, 5), &SearchFilter::default())
+                .unwrap();
         assert_eq!(page.hits.len(), 5);
         assert!(!page.has_more);
         cleanup(&tmp);
@@ -614,7 +659,9 @@ mod search_window_tests {
     #[test]
     fn offset_beyond_total_returns_empty_page() {
         let tmp = fixture();
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(99, 200), &SearchFilter::default()).unwrap();
+        let page =
+            search_text(&tmp, "needle", SearchWindow::clamped(99, 200), &SearchFilter::default())
+                .unwrap();
         assert!(page.hits.is_empty());
         assert!(!page.has_more);
         cleanup(&tmp);
@@ -643,7 +690,13 @@ mod search_window_tests {
         let mut collected: Vec<usize> = Vec::new();
         let mut offset = 0usize;
         loop {
-            let page = search_text(&tmp, "needle", SearchWindow::clamped(offset, 2), &SearchFilter::default()).unwrap();
+            let page = search_text(
+                &tmp,
+                "needle",
+                SearchWindow::clamped(offset, 2),
+                &SearchFilter::default(),
+            )
+            .unwrap();
             collected.extend(page.hits.iter().map(|h| h.line));
             if !page.has_more {
                 break;
@@ -657,9 +710,14 @@ mod search_window_tests {
     #[test]
     fn search_in_files_honours_the_window() {
         let tmp = fixture();
-        let page =
-            search_in_files(&tmp, &["a.txt".to_string()], "needle", SearchWindow::clamped(1, 2), &SearchFilter::default())
-                .unwrap();
+        let page = search_in_files(
+            &tmp,
+            &["a.txt".to_string()],
+            "needle",
+            SearchWindow::clamped(1, 2),
+            &SearchFilter::default(),
+        )
+        .unwrap();
         assert_eq!(page.hits.len(), 2);
         assert_eq!(page.hits[0].line, 2);
         assert!(page.has_more);
@@ -673,8 +731,16 @@ mod search_window_tests {
         // 直接测私有 `search_text_in_files`：公开 `search_in_files` 固定传 `&|| false`。
         let tmp = fixture();
         let files = vec![tmp.join("a.txt")];
-        let page = search_text_in_files(&files, &tmp, "needle", SearchWindow::default(), &SearchFilter::default(), None, &|| true)
-            .unwrap();
+        let page = search_text_in_files(
+            &files,
+            &tmp,
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+            None,
+            &|| true,
+        )
+        .unwrap();
         assert!(page.has_more, "cancelled page must not claim exhausted");
         cleanup(&tmp);
     }
@@ -719,8 +785,8 @@ mod search_filter_tests {
         std::fs::write(tmp.join(".gitignore"), b"*.log\n").unwrap();
         std::fs::write(tmp.join("debug.log"), b"needle").unwrap();
         std::fs::write(tmp.join("note.txt"), b"needle").unwrap();
-        let on = search_text(&tmp, "needle", SearchWindow::default(), &SearchFilter::default())
-            .unwrap();
+        let on =
+            search_text(&tmp, "needle", SearchWindow::default(), &SearchFilter::default()).unwrap();
         assert_eq!(on.hits.len(), 1);
         assert_eq!(on.hits[0].path, "note.txt");
         let off = SearchFilter { excluded_paths: Vec::new(), use_gitignore: false };
@@ -734,7 +800,8 @@ mod search_filter_tests {
         let tmp = unique_tmp_dir();
         std::fs::write(tmp.join("a.txt"), b"needle").unwrap();
         std::fs::write(tmp.join("b.txt"), b"needle").unwrap();
-        let filter = SearchFilter { excluded_paths: vec!["b.txt".to_string()], use_gitignore: true };
+        let filter =
+            SearchFilter { excluded_paths: vec!["b.txt".to_string()], use_gitignore: true };
         let page = search_in_files(
             &tmp,
             &["a.txt".to_string(), "b.txt".to_string()],

@@ -286,7 +286,7 @@ fn default_true() -> bool {
 }
 
 /// 由请求体构造检索窗口：上限一律交 [`adl_workspace::SearchWindow::clamped`] 钳制，
-/// 调用方无法用超大 `limit` 绕过安全阀。
+/// 调用方无法用超大 `limit` 绕过硬上限。
 fn search_window(offset: Option<usize>, limit: Option<usize>) -> adl_workspace::SearchWindow {
     adl_workspace::SearchWindow::clamped(
         offset.unwrap_or(0),

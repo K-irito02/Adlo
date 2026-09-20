@@ -121,6 +121,26 @@ describe('search settings dialog wiring', () => {
     expect(dialogSource).toContain('isLimits');
   });
 
+  it('locks rev2 review fixes (Phase 4)', () => {
+    // F1：limits 落盘前本地计算钳制 + 收敛，不读 stale 快照做不变量检查。
+    expect(dialogSource).toContain('nextMax = nextPage');
+    expect(dialogSource).toContain('nextPage = nextMax');
+    // F5：打开聚焦面板 + 关闭归还焦点。
+    expect(dialogSource).toContain('panelRef.current?.focus()');
+    expect(dialogSource).toContain('prevFocusRef');
+    // F2：tree 容器无 gap（虚拟占位按 ROW_HEIGHT 精确计算）。
+    const settingsCss = readFileSync(
+      new URL('../../../styles/regions/rightpanel/search-settings.css', import.meta.url),
+      'utf8',
+    );
+    expect(settingsCss).toContain('gap: 0;');
+    // F3：虚拟占位是 li（ul 下不允许 div）。
+    expect(treeSource).toContain('className="adl-search-ignore__spacer"');
+    expect(treeSource).not.toMatch(/<div[^>]*\n\s*className="adl-search-ignore__spacer"/);
+    // slice N1：max 下限取 max(200, 当前步长），page ≤ max 在 slice 层闭合。
+    expect(searchSliceSource).toContain('Math.max(SEARCH_PAGE_SIZE, _get().searchPageSize)');
+  });
+
   it('keeps every new label in i18n (zh + en parity)', () => {
     const keys = [
       'searchShort',
@@ -130,6 +150,7 @@ describe('search settings dialog wiring', () => {
       'searchSettingsLimitsTab',
       'searchSettingsClose',
       'searchSettingsSave',
+      'searchSettingsSaved',
       'searchIgnoreHelpManualTitle',
       'searchIgnoreHelpManualBody',
       'searchIgnoreHelpGitignoreTitle',

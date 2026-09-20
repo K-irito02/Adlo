@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent,
-  type MouseEvent,
-} from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
@@ -52,6 +44,9 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
   // 保存反馈：idle（保存）→ saving（loading 动画）→ saved（打勾）→ 回到 idle。
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle');
   const saveTimerRef = useRef<number | undefined>(undefined);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+  // 打开前聚焦的元素：关闭时归还焦点（事项 F5 收尾）。
+  const prevFocusRef = useRef<Element | null>(null);
 
   useEffect(() => {
     if (open) {
@@ -75,6 +70,28 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
 
   useEffect(() => () => window.clearTimeout(saveTimerRef.current), []);
 
+  // 焦点管理：打开即聚焦面板（键盘可达），Escape 走 window 监听
+  //（焦点在面板外也生效；容器 onKeyDown 冒泡不可靠，已移除）。
+  // 关闭/卸载时把焦点还给打开前的元素（齿轮按钮）。
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    prevFocusRef.current = document.activeElement;
+    panelRef.current?.focus();
+    const handleWindowKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleWindowKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleWindowKeyDown, true);
+      (prevFocusRef.current as HTMLElement | null)?.focus?.();
+    };
+  }, [open, onClose]);
+
   const currentWorkspaceId = useMemo(() => {
     if (selectedWorkspaceId && visibleWorkspaces.some((w) => w.id === selectedWorkspaceId)) {
       return selectedWorkspaceId;
@@ -92,15 +109,6 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
   const currentUseGitignore = useMemo(
     () => (currentWorkspaceId ? (draftGitignore[currentWorkspaceId] ?? true) : true),
     [draftGitignore, currentWorkspaceId],
-  );
-
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        onClose();
-      }
-    },
-    [onClose],
   );
 
   const handleBackdrop = useCallback(
@@ -138,7 +146,7 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
    * 原位重跑当前窗口即可（旧实现误用原位重跑导致新步长不生效，事项 26）。
    */
   const handleSave = useCallback(async () => {
-    if (saveState !== 'idle') {
+    if (saveState === 'saving') {
       return;
     }
     setSaveState('saving');
@@ -146,29 +154,45 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     const store = useAppStore.getState();
     const isLimits = tab !== 'ignore';
     if (!isLimits) {
-      for (const [wsId, paths] of Object.entries(draftIgnored)) {
-        store.setSearchIgnoredPaths(wsId, paths);
-      }
-      for (const [wsId, value] of Object.entries(draftGitignore)) {
-        store.setSearchUseGitignore(wsId, value);
+      // 弹窗打开期间新增的工作区不在 draft 快照里：保存时按 id 补齐，
+      // 默认读 store 现值（而非空），避免覆盖弹窗期已到达的持久化名单（事项 N2）。
+      const wsIds = new Set([
+        ...visibleWorkspaces.map((w) => w.id),
+        ...Object.keys(draftIgnored),
+        ...Object.keys(draftGitignore),
+      ]);
+      for (const wsId of wsIds) {
+        store.setSearchIgnoredPaths(
+          wsId,
+          draftIgnored[wsId] ?? store.searchIgnoredPaths[wsId] ?? [],
+        );
+        store.setSearchUseGitignore(
+          wsId,
+          draftGitignore[wsId] ?? store.searchUseGitignore[wsId] ?? true,
+        );
       }
     } else {
-      const parsedPage = Math.floor(Number(pageSizeDraft));
-      if (Number.isFinite(parsedPage)) {
-        store.setSearchPageSize(parsedPage);
+      // 本地先算好钳制 + 收敛再一次性落盘：zustand set 同步产生新对象，
+      // 旧 getState 快照读到的是修改前的值，不能拿它做不变量检查（事项 F1）。
+      // 空串/纯空白视为无效输入，恢复原值（与帮助文案一致，事项 F6）。
+      const clampPage = (v: number) =>
+        Math.min(SEARCH_PAGE_SIZE_MAX, Math.max(SEARCH_PAGE_SIZE_MIN, Math.floor(v)));
+      const clampMax = (v: number) =>
+        Math.min(SEARCH_HARD_MAX_RESULTS, Math.max(SEARCH_PAGE_SIZE, Math.floor(v)));
+      const rawPage = pageSizeDraft.trim() === '' ? NaN : Number(pageSizeDraft);
+      const rawMax = maxResultsDraft.trim() === '' ? NaN : Number(maxResultsDraft);
+      let nextPage = Number.isFinite(rawPage) ? clampPage(rawPage) : store.searchPageSize;
+      let nextMax = Number.isFinite(rawMax) ? clampMax(rawMax) : store.searchMaxResults;
+      // 不变量 page ≤ max：max 被调小则 page 收敛，否则 max 跟随 page。
+      if (nextPage > nextMax) {
+        if (Number.isFinite(rawMax) && nextMax !== store.searchMaxResults) {
+          nextPage = nextMax;
+        } else {
+          nextMax = nextPage;
+        }
       }
-      // 不变量 page ≤ max（与旧即时保存同语义）：步长调大时上限同步跟上，
-      // 上限调小时步长同步收敛，避免"还有更多"却无处可点。
-      if (store.searchPageSize > store.searchMaxResults) {
-        store.setSearchMaxResults(store.searchPageSize);
-      }
-      const parsedMax = Math.floor(Number(maxResultsDraft));
-      if (Number.isFinite(parsedMax)) {
-        store.setSearchMaxResults(parsedMax);
-      }
-      if (store.searchMaxResults < store.searchPageSize) {
-        store.setSearchPageSize(store.searchMaxResults);
-      }
+      store.setSearchPageSize(nextPage);
+      store.setSearchMaxResults(nextMax);
       setPageSizeDraft(String(useAppStore.getState().searchPageSize));
       setMaxResultsDraft(String(useAppStore.getState().searchMaxResults));
     }
@@ -193,7 +217,15 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     setSaveState('saved');
     window.clearTimeout(saveTimerRef.current);
     saveTimerRef.current = window.setTimeout(() => setSaveState('idle'), 1200);
-  }, [saveState, tab, draftIgnored, draftGitignore, pageSizeDraft, maxResultsDraft]);
+  }, [
+    saveState,
+    tab,
+    draftIgnored,
+    draftGitignore,
+    pageSizeDraft,
+    maxResultsDraft,
+    visibleWorkspaces,
+  ]);
 
   const checkLabel = useCallback(
     (name: string) => formatT(t, 'searchSettingsCheckItem', { name }),
@@ -231,12 +263,14 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
   }
 
   return createPortal(
-    <div className="adl-prompt-modal" onKeyDown={handleKeyDown} onClick={handleBackdrop}>
+    <div className="adl-prompt-modal" onClick={handleBackdrop}>
       <div
+        ref={panelRef}
         className="adl-prompt-modal__panel adl-prompt-modal__panel--wide"
         role="dialog"
         aria-modal="true"
         aria-label={t.searchSettingsTitle as string}
+        tabIndex={-1}
       >
         <div className="adl-prompt-modal__header">
           <span className="adl-search-settings__title">
@@ -248,7 +282,6 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
               <button
                 type="button"
                 className="adl-icon-button adl-icon-button--info"
-                tabIndex={-1}
                 aria-label={
                   (tab === 'ignore'
                     ? t.searchSettingsIgnoreHintTitle
@@ -303,7 +336,6 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
             {currentWorkspaceId ? (
               <SearchIgnoreTree
                 key={currentWorkspaceId}
-                workspaceId={currentWorkspaceId}
                 nodes={currentNodes}
                 ignoredPaths={currentIgnored}
                 onChange={handleIgnoreChange}
@@ -369,13 +401,17 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
             type="button"
             className="adl-btn adl-btn--primary adl-btn--square"
             onClick={() => void handleSave()}
-            disabled={saveState !== 'idle'}
+            // saved 态仍可点（用户改完输入可立即再存）；仅保存中禁用防重入。
+            disabled={saveState === 'saving'}
             aria-live="polite"
           >
             {saveState === 'saving' ? (
               <Spinner size="sm" speed="normal" />
             ) : saveState === 'saved' ? (
-              <IconCheck size={14} decorative />
+              <>
+                <IconCheck size={14} decorative />
+                <span className="sr-only">{t.searchSettingsSaved as string}</span>
+              </>
             ) : (
               (t.searchSettingsSave as string)
             )}

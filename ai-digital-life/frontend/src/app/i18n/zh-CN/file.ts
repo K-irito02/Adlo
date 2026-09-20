@@ -13,6 +13,7 @@ export const fileZh = {
   searchSettingsLimitsTab: '限制设置',
   searchSettingsClose: '关闭',
   searchSettingsSave: '保存',
+  searchSettingsSaved: '已保存',
   searchIgnoreHelpManualTitle: '手动勾选是怎么回事',
   searchIgnoreHelpManualBody:
     '勾选某个文件，检索时就会跳过它，就像在名单上划掉一行。\n· 勾选文件夹 = 它里面的所有东西都不搜，省得一个个点。\n· 文件夹折叠时如果勾选框里有个小圆点，说明它里面有一部分被勾选了，不是全部。',

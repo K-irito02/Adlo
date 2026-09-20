@@ -320,6 +320,15 @@ function parseFilterFromBody(input: {
   return filter;
 }
 
+/** 空过滤器归一为 `undefined`：与"未传参"语义完全一致，下游无需区分。 */
+function normalizeFilter(filter: {
+  excludedPaths?: string[];
+  useGitignore?: boolean;
+}): { excludedPaths?: string[]; useGitignore?: boolean } | undefined {
+  const hasPaths = filter.excludedPaths !== undefined && filter.excludedPaths.length > 0;
+  return !hasPaths && filter.useGitignore === undefined ? undefined : filter;
+}
+
 function makePath(relativePath: string): string {
   return `${API_PREFIX}${relativePath}`;
 }
@@ -455,7 +464,7 @@ const routes: Route[] = [
           rootPath,
           query,
           parseWindow(searchParams),
-          parseFilterFromQuery(searchParams),
+          normalizeFilter(parseFilterFromQuery(searchParams)),
         ),
       );
     },
@@ -479,10 +488,16 @@ const routes: Route[] = [
         return fail('paths and query are required', 'INVALID_INPUT');
       }
       return ok(
-        await search.searchInFiles(rootPath, input.paths, input.query, {
-          offset: input.offset,
-          limit: input.limit,
-        }, parseFilterFromBody(input)),
+        await search.searchInFiles(
+          rootPath,
+          input.paths,
+          input.query,
+          {
+            offset: input.offset,
+            limit: input.limit,
+          },
+          normalizeFilter(parseFilterFromBody(input)),
+        ),
       );
     },
   },

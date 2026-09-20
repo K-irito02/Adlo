@@ -152,7 +152,8 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  /* 无 gap：虚拟化占位按 ROW_HEIGHT 精确计算，有 gap 会随行数累积错位（事项 F2） */
+  gap: 0;
 }
 
 .adl-search-ignore__item {

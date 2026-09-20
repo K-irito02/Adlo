@@ -435,7 +435,9 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world\nfoo bar\nhello again").unwrap();
 
-        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
+        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default())
+            .unwrap()
+            .hits;
         assert_eq!(hits.len(), 2);
         assert_eq!(hits[0].path, "test.txt");
         assert_eq!(hits[0].line, 1);
@@ -450,7 +452,9 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "Hello World").unwrap();
 
-        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
+        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default())
+            .unwrap()
+            .hits;
         assert_eq!(hits.len(), 1);
 
         let _ = std::fs::remove_dir_all(dir);
@@ -463,7 +467,9 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world").unwrap();
 
-        let hits = search_text(&dir, "xyz", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
+        let hits = search_text(&dir, "xyz", SearchWindow::default(), &SearchFilter::default())
+            .unwrap()
+            .hits;
         assert!(hits.is_empty());
 
         let _ = std::fs::remove_dir_all(dir);
@@ -476,7 +482,8 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world").unwrap();
 
-        let hits = search_text(&dir, "", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
+        let hits =
+            search_text(&dir, "", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
         assert!(hits.is_empty());
 
         let _ = std::fs::remove_dir_all(dir);
@@ -491,7 +498,9 @@ mod tests {
             std::fs::write(dir.join(format!("file{}.txt", i)), "hello world").unwrap();
         }
 
-        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
+        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default())
+            .unwrap()
+            .hits;
         assert!(hits.len() <= 200);
 
         let _ = std::fs::remove_dir_all(dir);

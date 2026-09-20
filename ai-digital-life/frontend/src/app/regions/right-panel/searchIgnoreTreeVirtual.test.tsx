@@ -48,7 +48,6 @@ describe('SearchIgnoreTree virtualization', () => {
     const nodes = buildTree(300, 100);
     const { container } = render(
       <SearchIgnoreTree
-        workspaceId="ws-1"
         nodes={nodes}
         ignoredPaths={[]}
         onChange={() => {}}
@@ -76,7 +75,6 @@ describe('SearchIgnoreTree virtualization', () => {
     const onChange = vi.fn();
     const { container } = render(
       <SearchIgnoreTree
-        workspaceId="ws-1"
         nodes={nodes}
         ignoredPaths={[]}
         onChange={onChange}

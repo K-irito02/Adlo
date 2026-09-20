@@ -1,5 +1,4 @@
 import type { StoreState } from '../StoreState';
-import type { WorkspaceSearchFilter } from '@ai-digital-life/kernel';
 import { createDebouncedSearch } from '../shared';
 import { captureError, clearError } from '../cacheHelpers';
 import {
@@ -194,18 +193,20 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
   /**
    * 执行一次内容检索（窗口由调用方决定）：写 searchEntries / searchHasMore / searchLimit。
    * 会话 id 每次递增，晚到的旧响应会被丢弃（含“加载更多”期间的窗口竞态）。
-   * 过滤器（手动忽略 + `.gitignore` 开关）随每次请求透传，后端在窗口截断之前先生效。
+   * 过滤器在 firing 时用最新 store 快照组装（而非调用方预组装）：
+   * 防抖窗内改了忽略设置，本次请求即用新值；且所有链路（新检索/续页/显示全部/刷新）
+   * 统一走同一组装点，不会再有链路漏传（事项 F1/F5）。
    */
-  const runContentSearch = async (
-    query: string,
-    limit: number,
-    keepEntries: boolean,
-    filter?: WorkspaceSearchFilter,
-  ) => {
+  const runContentSearch = async (query: string, limit: number, keepEntries: boolean) => {
     const state = get();
     const workspaceId = state.appInfo?.currentWorkspace?.id;
     const sessionId = get().beginSearchSession(workspaceId, { keepEntries });
     set({ searching: true, searchLimit: limit });
+    const filter = selectSearchFilter(
+      get().searchIgnoredPaths,
+      get().searchUseGitignore,
+      get().appInfo?.currentWorkspace?.id,
+    );
     try {
       // 过滤器缺省时保持旧调用形状（query, window），避免透传 `undefined`
       // 占位——后端字段缺失即默认行为，与旧请求体完全一致。
@@ -268,12 +269,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       // 新检索：窗口重置为默认首页（旧 query 的结果由 beginSearchSession 清空）。
-      const filter = selectSearchFilter(
-        state.searchIgnoredPaths,
-        state.searchUseGitignore,
-        state.appInfo?.currentWorkspace?.id,
-      );
-      debouncedSearch(query, () => runContentSearch(query, state.searchPageSize, false, filter));
+      debouncedSearch(query, () => runContentSearch(query, state.searchPageSize, false));
     },
 
     /**
@@ -293,12 +289,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       cancelScheduled();
-      const filter = selectSearchFilter(
-        state.searchIgnoredPaths,
-        state.searchUseGitignore,
-        state.appInfo?.currentWorkspace?.id,
-      );
-      await runContentSearch(query, nextLimit, true, filter);
+      await runContentSearch(query, nextLimit, true);
     },
 
     /** [showAllSearchResults - 一次性加载到用户设定的上限] */
@@ -310,12 +301,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       cancelScheduled();
-      const filter = selectSearchFilter(
-        state.searchIgnoredPaths,
-        state.searchUseGitignore,
-        state.appInfo?.currentWorkspace?.id,
-      );
-      await runContentSearch(query, state.searchMaxResults, true, filter);
+      await runContentSearch(query, state.searchMaxResults, true);
     },
 
     /**

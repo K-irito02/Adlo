@@ -8,6 +8,15 @@
  * - Rust 后端（`crates/workspace/src/gitignore.rs`）镜像实现同一语义，
  *   两侧单测用同一批用例钉住（文件名/行为一致，逐项对照）。
  *
+ * 已知与 git 原生的偏差（与 Rust 镜像一致，罕见输入才触发；
+ * 端特有差异见 Rust `crates/workspace/src/gitignore.rs` 文件头，两表互为镜像）：
+ * - 行首尾空白一律去除（git 行首空格有意义）；
+ * - `[...]` 原样交正则：`[!a]` 恰好同为否定故一致，但类内 `/` 可被匹配、
+ *   类内转义不支持；未闭合 `[` 已转义处理；
+ * - 大小写敏感（`core.ignorecase` 例外未建模）；
+ * - `foo/**` 不匹配 `foo` 自身（仅其内容）；
+ * - `stripTrailingSlash` 只去一个尾斜杠（`a//` 残留）。
+ *
  * 路径约定：工作区相对路径，`/` 分隔，无前导斜杠；`\` 会被归一化为 `/`。
  */
 
@@ -182,10 +191,12 @@ export function createGitignoreMatcher(
     let ignored = false;
     for (const set of compiled) {
       const rel = relativeToBase(path, set.baseDir);
-      if (rel === undefined) {
+      // 空 rel 表示"规则目录自身"：.gitignore 只作用于其所在目录之下，
+      // 不作用于目录自身（否则子目录的 `*` 会把自身判为忽略，
+      // 祖先短路直接返回 true，同文件的 `!` 永无加回机会，事项 F2）。
+      if (rel === undefined || rel === '') {
         continue;
       }
-      // 空 rel 表示规则目录自身：只有 `*` 这类能命中空串的才有意义，统一走正则。
       for (const pattern of set.patterns) {
         if (patternMatches(pattern, rel, isDir)) {
           ignored = !pattern.negate;
