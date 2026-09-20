@@ -2550,12 +2550,18 @@ Expected: **恰好 2 行**，内容为 `:2` 的 import 与 `:20` 的 `makePersis
 ## Task 12: 折叠意图 —— `DirExpansion` 结构与三条转移规则
 
 **Files:**
-- Modify: `frontend/src/app/stores/slices/uiSliceTypes.ts:73-74`（类型）
+- Modify: `frontend/src/app/stores/slices/uiSliceTypes.ts:59-60,91`（`FileTreeExpansionState` 指向新结构；**`TreeExpansionState` 保持扁平不动** —— 它仍是变更侧 `expandedChangesTreePaths:92` 与三个树组件的叶级 prop 类型，T14 才改造变更侧）
 - Modify: `frontend/src/app/stores/slices/uiSliceExpansion.ts`（三条转移规则 + 结构）
 - Modify: `frontend/src/app/stores/persisted/parsers.ts`（新增 `readDirExpansion`）
 - Modify: `frontend/src/app/stores/persisted/prune.ts`（`pruneDirExpansion`）
-- Modify: `frontend/src/app/stores/persisted/registry.ts`（`adl:files.dirExpanded` 的 read/prune 换成新结构）
+- Modify: `frontend/src/app/stores/persisted/registry.ts`（`adl:files.dirExpanded` 的 read/prune 换成新结构；**`adl:changes.dirExpanded` 保持 `readBooleanRecord` / `pruneDirPathsByWorkspace` 不动**）
+- Modify: `frontend/src/app/stores/actions/workspaceTreeRename.ts:58-78`（新增 `remapTreeExpansion`，同时重映射 `expanded` 与 `manualCollapsed`；**既有 `remapExpandedTreePaths` 保留** —— 它仍服务于变更侧那个扁平整表）
+- Modify: `frontend/src/app/stores/actions/workspaceActions.ts:106-118`（重命名重映射改用 `remapTreeExpansion`）
+- Modify: `frontend/src/app/regions/right-panel/FileNavigatorTree.tsx:19`（prop 类型改为 `Record<string, TreeExpansion>`）
+- Modify: `frontend/src/app/features/workspace-file-tree/MultiWorkspaceFileTree.tsx:21,100`（prop 类型同上；`:100` 解包改为 `expandedPaths[workspace.id]?.expanded ?? {}`）
 - Create: `frontend/src/app/stores/slices/uiSliceExpansion.test.ts`
+
+> **为什么 Files 清单初稿漏了后四处（本任务裁定）**：`expandedFileTreePaths` 的值结构由"扁平 `path→bool`"变为 `{ expanded, manualCollapsed }`，而**内层结构被两处组件 prop 与一处重命名重映射直接消费**（`MultiWorkspaceFileTree.tsx:100` 会解包出内层交给叶级树组件）。初稿只列了 store 侧文件，按原文实现会**直接类型报错**。已逐一核查全部消费点（`grep -rn expandedFileTreePaths`）并将上列四处纳入范围；**叶级树的 `Record<string, boolean>` prop 不受影响**（内层解包后仍是扁平表），故 `fileTree.tsx`、`WorkspaceFileTreeEntry.tsx` 等无需改动。
 
 **Interfaces:**
 - Consumes: `persistField`（Task 6）
@@ -2563,8 +2569,17 @@ Expected: **恰好 2 行**，内容为 `:2` 的 import 与 `:20` 的 `makePersis
   - `type TreeExpansion = { expanded: Record<string, boolean>; manualCollapsed?: Record<string, true> }`
   - `readDirExpansion(raw: unknown): TreeExpansion | undefined`
   - `pruneDirExpansion(value: TreeExpansion, ctx: PruneCtx): PruneResult<TreeExpansion>`
+  - `remapTreeExpansion(value: TreeExpansion, oldPath: string, newPath: string): TreeExpansion`
   - store action 签名变化：`expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] }`（Task 13 消费该返回值）
   - 不变量：`manualCollapsed[k] === true` 与 `expanded[k] === true` **不得同时成立**
+
+**三条语义裁定（初稿未覆盖，均已核实代码后确定）**
+
+1. **`collapseAllFileTreePaths` 改为 `{ expanded: {} }`，并保留既有 `manualCollapsed`**。初稿未提这一处，但现状 `uiSliceExpansion.ts:96-101` 写的是 `[workspaceId]: {}` —— 新结构下 `{}` 缺少必填的 `expanded`，直接类型报错。语义上"全部折叠"= 无展开项，故 `{ expanded: {} }` 等价；`manualCollapsed` 保留（它表达"用户亲手折叠过这些"，此刻依然成立，且与 `expanded: {}` 无冲突）。
+
+2. **`read` 对跨字段不变量做"就地修复"，而不是整字段判非法**。规格 §3.2.3 分工是"`read` 管形状、`prune` 管引用是否还在"，而"同一路径同时出现在两侧"既非形状错误也非引用消失，属**内部一致性**。两种处理方式后果不对称：整字段判非法会因一处冲突**丢掉用户全部展开态**；而冲突有唯一正确解 —— `expanded[k] === true` 表示该目录当前是展开的，与"被手动折叠"矛盾时以后者为准删除 `manualCollapsed[k]`。故裁定：`readDirExpansion` 校验形状（`manualCollapsed` 叶子必须恒为 `true`，否则判非法）+ **就地丢弃冲突项**；`pruneDirExpansion` 在按引用清理之外**再次应用同一修复**（防御后来者绕过 read 直接构造）。这是**有意偏离**本计划"任一成员不合法即整条回退"的惯例，理由是此处被破坏的值**可解释且有唯一正解**，而非不可解释。
+
+3. **`expandFileTreePathChain` 要把 `blocked` 返出来，不能再是裸 `set(...)`**。现状（`uiSliceExpansion.ts:84-94`）是 `set((state) => {...})` 且返回值被忽略。改为返回 `{ blocked: string[] }` 时，实现须在**同一次同步执行**内既更新 state 又拿到 `blocked`（Zustand 的 `set(fn)` 是同步的，可在闭包内收集 `blocked` 后返回；或用 `_get()` 先算再 `set`）。**不得**为了拿返回值而把更新拆成两次 `set`。返回 `{ blocked: [] }` 时不得写盘（沿用既有的"无变化则原样返回 state"短路，避免每次点文件都触发一次落盘）。
 
 - [ ] **Step 1: 写失败测试（三条转移规则）**
 
@@ -2683,7 +2698,9 @@ export function expandTreePathChainInState(current: TreeExpansion, path: string)
 
 `toggleFileTreePath` 改为基于 `applySetExpanded(current, path, !(current.expanded[path] ?? false))`。
 
-`parsers.ts` 新增 `readDirExpansion`（复用 `readBooleanRecord` 校验 `expanded`，并校验 `manualCollapsed` 的叶子值恒为 `true`，否则判为不合法）；`prune.ts` 新增 `pruneDirExpansion`（在 `pruneDirPathsByWorkspace` 基础上，额外清理 `manualCollapsed` 中已不存在、或已处于展开态的项）。
+`parsers.ts` 新增 `readDirExpansion`（复用 `readBooleanRecord` 校验 `expanded`，并校验 `manualCollapsed` 的叶子值恒为 `true`，否则判为不合法；**并按上文的裁定 2 就地丢弃 `expanded[k] === true` 的冲突项**）；`prune.ts` 新增 `pruneDirExpansion`（在 `pruneDirPathsByWorkspace` 基础上，额外清理 `manualCollapsed` 中已不存在、或已处于展开态的项）。
+
+同步完成上列 Files 的其余四处改动：`workspaceTreeRename.ts` 新增 `remapTreeExpansion`、`workspaceActions.ts:106-118` 改用它、`FileNavigatorTree.tsx:19` 与 `MultiWorkspaceFileTree.tsx:21,100` 改类型与解包、`uiSliceExpansion.ts` 的 `collapseAllFileTreePaths` 改为 `{ expanded: {} }`（保留 `manualCollapsed`）。
 
 - [ ] **Step 4: 运行测试确认通过**
 
@@ -2693,12 +2710,17 @@ cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/slices/
 
 Expected: PASS（5 个用例全绿）。
 
-- [ ] **Step 5: 补剪枝单测并跑自检**
+- [ ] **Step 5: 补解析/剪枝/重映射单测，跑自检与类型检查**
 
-在 `prune.test.ts` 追加：`manualCollapsed` 中"已不存在路径"被清理、"已展开项"被清理、空清单跳过。然后：
+在 `prune.test.ts` 追加：`manualCollapsed` 中"已不存在路径"被清理、"已展开项"（与 `expanded[k] === true` 冲突）被清理、空清单跳过。
+另需覆盖本任务新引入的三条语义（初稿未列，属裁定 1/2/3 的落点）：
+
+1. `readDirExpansion` 对冲突项**修复而非判非法**（输入同时含 `expanded[k]=true` 与 `manualCollapsed[k]=true` → 返回的 `manualCollapsed` 不含 `k`，且**其余路径全部保留**）——这条正是"不丢用户全部展开态"的守卫；
+2. `remapTreeExpansion` 同时重映射两侧（`expanded` 与 `manualCollapsed` 的子树前缀都要跟着改），且**两侧都无变化时返回原对象**（保持既有的 `changed ? next : original` 引用等价约定，避免无谓落盘）；
+3. `expandFileTreePathChain` 在**无可展开项时返回 `{ blocked: [] }` 且不写盘**（用 spy 或断言 localStorage 未变），防止"每点一个已展开目录就触发一次落盘"。
 
 ```bash
-cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/persisted && pnpm frontend:typecheck
+cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/persisted && pnpm frontend:test && pnpm frontend:typecheck
 ```
 
 Expected: PASS。
