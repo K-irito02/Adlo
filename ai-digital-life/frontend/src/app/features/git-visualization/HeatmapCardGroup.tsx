@@ -17,6 +17,7 @@ import { ClockHeatmap } from './charts/ClockHeatmap';
 import { ContributorActivityHeatmap } from './charts/ContributorActivityHeatmap';
 import { ContributorModuleHeatmap } from './charts/ContributorModuleHeatmap';
 import { RefreshButton } from './RefreshButton';
+import { UnderlineTabs } from '../../components/UnderlineTabs';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
 import { resolveTimeRangeForFetch } from './timeRangeUtils';
@@ -243,24 +244,10 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     displayRange,
   ]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    const idx = TABS.findIndex((tab) => tab.id === activeHeatmapTab);
-    let next = idx;
-    if (e.key === 'ArrowRight') {
-      next = (idx + 1) % TABS.length;
-    } else if (e.key === 'ArrowLeft') {
-      next = (idx - 1 + TABS.length) % TABS.length;
-    } else if (e.key === 'Home') {
-      next = 0;
-    } else if (e.key === 'End') {
-      next = TABS.length - 1;
-    } else {
-      return;
-    }
-    e.preventDefault();
-    handleTabChange(TABS[next].id);
-    document.getElementById(`heatmap-tab-${TABS[next].id}`)?.focus();
-  };
+  const heatmapNavTabs = useMemo(
+    () => TABS.map((tab) => ({ id: tab.id, label: t[tab.titleKey] })),
+    [t],
+  );
 
   return (
     <div className="adl-git-vis__card">
@@ -276,26 +263,19 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
           yearBounds={yearBounds ?? undefined}
         />
       </div>
-      <nav
-        className="adl-git-vis__heatmap-nav"
-        role="tablist"
-        aria-label={t.gitVisHeatmapNav}
-        onKeyDown={handleKeyDown}
-      >
-        {TABS.map((tab) => (
-          <button
-            key={tab.id}
-            id={`heatmap-tab-${tab.id}`}
-            role="tab"
-            className={`adl-git-vis__heatmap-tab${activeHeatmapTab === tab.id ? ' adl-git-vis__heatmap-tab--active' : ''}`}
-            aria-selected={activeHeatmapTab === tab.id}
-            aria-controls="heatmap-tabpanel"
-            onClick={() => handleTabChange(tab.id)}
-          >
-            {t[tab.titleKey]}
-          </button>
-        ))}
-      </nav>
+      {/* tab 导航：与检索设置弹窗共用共享 `UnderlineTabs`
+         （下划线动效 + 键盘导航），此处透传原有类名/id，视觉与测试零变化 */}
+      <UnderlineTabs
+        tabs={heatmapNavTabs}
+        activeId={activeHeatmapTab}
+        onChange={handleTabChange}
+        ariaLabel={t.gitVisHeatmapNav}
+        idPrefix="heatmap-tab"
+        panelId="heatmap-tabpanel"
+        navClassName="adl-git-vis__heatmap-nav"
+        tabClassName="adl-git-vis__heatmap-tab"
+        activeTabClassName="adl-git-vis__heatmap-tab--active"
+      />
       <HeatmapInteractionProvider portalTarget={document.body}>
         <div
           className="adl-git-vis__chart"

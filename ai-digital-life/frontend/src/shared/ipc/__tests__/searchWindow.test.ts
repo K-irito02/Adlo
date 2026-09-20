@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SEARCH_HARD_MAX_RESULTS,
   SEARCH_MAX_RESULTS,
   SEARCH_PAGE_SIZE,
   normalizeSearchWindow,
@@ -27,9 +28,9 @@ describe('normalizeSearchWindow', () => {
     expect(normalizeSearchWindow({})).toEqual({ offset: 0, limit: SEARCH_PAGE_SIZE });
   });
 
-  it('clamps limit to the safety ceiling and treats 0 as 1', () => {
-    expect(normalizeSearchWindow({ limit: SEARCH_MAX_RESULTS + 10_000 }).limit).toBe(
-      SEARCH_MAX_RESULTS,
+  it('clamps limit to the hard ceiling and treats 0 as 1', () => {
+    expect(normalizeSearchWindow({ limit: SEARCH_HARD_MAX_RESULTS + 10_000 }).limit).toBe(
+      SEARCH_HARD_MAX_RESULTS,
     );
     // limit=0 会让调用方永远拿不到结果，故下限为 1（与 Rust clamped 同语义）。
     expect(normalizeSearchWindow({ limit: 0 }).limit).toBe(1);
@@ -75,11 +76,11 @@ describe('paginateSearchHits', () => {
     expect(page.hasMore).toBe(false);
   });
 
-  it('clamps the page to the safety ceiling', () => {
-    const page = paginateSearchHits(hits(SEARCH_MAX_RESULTS + 50), {
-      limit: SEARCH_MAX_RESULTS + 50,
+  it('clamps the page to the hard ceiling', () => {
+    const page = paginateSearchHits(hits(SEARCH_HARD_MAX_RESULTS + 50), {
+      limit: SEARCH_HARD_MAX_RESULTS + 50,
     });
-    expect(page.hits).toHaveLength(SEARCH_MAX_RESULTS);
+    expect(page.hits).toHaveLength(SEARCH_HARD_MAX_RESULTS);
     expect(page.hasMore).toBe(true);
   });
 
@@ -102,9 +103,11 @@ describe('paginateSearchHits', () => {
 describe('cross-language window contract', () => {
   it('pins the constants to the documented product values', () => {
     // 后端 `crates/workspace/src/search.rs` 的 `MAX_SEARCH_RESULTS` /
-    // `MAX_SEARCH_RESULTS_UNLIMITED` 由 `search_window_tests::window_is_clamped_to_the_safety_valve`
-    // 钉住同样的两个数字：任一侧单独改动都会在各自测试里失败，避免静默漂移。
+    // `MAX_SEARCH_RESULTS_UNLIMITED` / `MAX_SEARCH_RESULTS_HARD_CAP` 由
+    // `search_window_tests::window_is_clamped_to_the_safety_valve`
+    // 钉住同样的三个数字：任一侧单独改动都会在各自测试里失败，避免静默漂移。
     expect(SEARCH_PAGE_SIZE).toBe(200);
     expect(SEARCH_MAX_RESULTS).toBe(5000);
+    expect(SEARCH_HARD_MAX_RESULTS).toBe(20000);
   });
 });

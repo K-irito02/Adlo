@@ -273,6 +273,16 @@ struct SearchBody {
     offset: Option<usize>,
     #[serde(default)]
     limit: Option<usize>,
+    /// 手动忽略名单（可选）：工作区相对路径，目录隐含后代；与 `.gitignore` 并集生效。
+    #[serde(default)]
+    excluded_paths: Vec<String>,
+    /// `.gitignore` 开关（可选）：缺省启用，与前端 `selectSearchFilter` 缺省一致。
+    #[serde(default = "default_true")]
+    use_gitignore: bool,
+}
+
+fn default_true() -> bool {
+    true
 }
 
 /// 由请求体构造检索窗口：上限一律交 [`adl_workspace::SearchWindow::clamped`] 钳制，
@@ -442,9 +452,17 @@ pub async fn search(
         Err(e) => return ipc::to_response(Err(e)),
     };
     let window = search_window(input.offset, input.limit);
+    let filter = adl_workspace::SearchFilter {
+        excluded_paths: input.excluded_paths,
+        use_gitignore: input.use_gitignore,
+    };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let page =
-            adl_workspace::search_text(PathBuf::from(root_path).as_path(), &input.query, window)?;
+        let page = adl_workspace::search_text(
+            PathBuf::from(root_path).as_path(),
+            &input.query,
+            window,
+            &filter,
+        )?;
         Ok(serde_json::to_value(page)?)
     })
     .await;
@@ -463,6 +481,12 @@ struct SearchFilesBody {
     offset: Option<usize>,
     #[serde(default)]
     limit: Option<usize>,
+    /// 手动忽略名单（可选）：与 `SearchBody.excluded_paths` 同语义。
+    #[serde(default)]
+    excluded_paths: Vec<String>,
+    /// `.gitignore` 开关（可选）：缺省启用。
+    #[serde(default = "default_true")]
+    use_gitignore: bool,
 }
 
 /// 拒绝路径穿越输入：绝对路径或含 `..` 成分的相对路径一律 `INVALID_INPUT`，
@@ -515,12 +539,17 @@ pub async fn search_in_files(
     };
     let paths = input.paths;
     let window = search_window(input.offset, input.limit);
+    let filter = adl_workspace::SearchFilter {
+        excluded_paths: input.excluded_paths,
+        use_gitignore: input.use_gitignore,
+    };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let page = adl_workspace::search_in_files(
             PathBuf::from(root_path).as_path(),
             &paths,
             &query,
             window,
+            &filter,
         )?;
         Ok(serde_json::to_value(page)?)
     })

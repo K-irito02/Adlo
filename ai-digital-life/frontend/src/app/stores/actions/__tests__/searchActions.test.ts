@@ -30,6 +30,10 @@ describe('searchActions scheduleRecompute with empty query', () => {
       searchEntries: [],
       searchSessionId: 1,
       searchWorkspaceId: 'ws-1',
+      searchPageSize: 200,
+      searchMaxResults: 5000,
+      searchIgnoredPaths: {},
+      searchUseGitignore: {},
       searchFiles,
       fetchGitStatus: vi.fn(),
       refreshAllWorkspaceTrees: vi.fn(),
@@ -108,6 +112,10 @@ describe('searchActions recompute guards (事项 45 Phase 4)', () => {
       filesSearchScope: 'content',
       searchHasMore: false,
       searchLimit: 200,
+      searchPageSize: 200,
+      searchMaxResults: 5000,
+      searchIgnoredPaths: {},
+      searchUseGitignore: {},
       searchFiles,
       fetchGitStatus: vi.fn(),
       refreshAllWorkspaceTrees: vi.fn(),
@@ -259,6 +267,10 @@ describe('searchActions paging (事项 5)', () => {
       searchSessionId: 1,
       searchHasMore: true,
       searchLimit: 200,
+      searchPageSize: 200,
+      searchMaxResults: 5000,
+      searchIgnoredPaths: {},
+      searchUseGitignore: {},
       searchWorkspaceId: 'ws-1',
       filesSearchScope: 'content',
       appInfo: { currentWorkspace: { id: 'ws-1' } },
@@ -334,6 +346,39 @@ describe('searchActions paging (事项 5)', () => {
     await actions.loadMoreSearchResults();
 
     expect(search).not.toHaveBeenCalled();
+  });
+
+  it('passes the ignore filter through when exclusions exist', async () => {
+    const { search, actions } = setupPaging(
+      {
+        searchIgnoredPaths: { 'ws-1': ['skip'] },
+        searchUseGitignore: { 'ws-1': false },
+      },
+      { hits: [], hasMore: false },
+    );
+
+    await actions.showAllSearchResults();
+
+    expect(search).toHaveBeenCalledWith(
+      'needle',
+      { offset: 0, limit: 5000 },
+      { excludedPaths: ['skip'], useGitignore: false },
+    );
+  });
+
+  it('honours a customized page size for fresh searches and load-more steps', async () => {
+    const { search, actions, get } = setupPaging(
+      { searchPageSize: 50 },
+      { hits: [{ path: 'a.md', line: 1, preview: 'x' }], hasMore: true },
+    );
+
+    await actions.searchFiles('needle');
+    await vi.advanceTimersByTimeAsync(500);
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 50 });
+
+    await actions.loadMoreSearchResults();
+    expect(search).toHaveBeenCalledWith('needle', { offset: 0, limit: 100 });
+    expect(get().searchLimit).toBe(100);
   });
 
   it('writes the precise hasMore reported by the initial search', async () => {

@@ -105,9 +105,11 @@ describe('search result window UI (事项 5)', () => {
     expect(helpCardSource).toContain('adl-help-card__section-body');
   });
 
-  it('takes the window constants from the single frontend source', () => {
-    expect(searchActionsSource).toContain('SEARCH_PAGE_SIZE');
-    expect(searchActionsSource).toContain('SEARCH_MAX_RESULTS');
+  it('takes the window sizes from the store (user-customizable, single-source defaults)', () => {
+    // 步长/上限已改为 store 持有（检索设置可自定义）：actions 必须读 store 字段，
+    // 默认值仍只来自前端单一来源 searchWindow.ts（searchSlice 初始化时读入）。
+    expect(searchActionsSource).toContain('searchPageSize');
+    expect(searchActionsSource).toContain('searchMaxResults');
     expect(searchActionsSource).not.toContain('MAX_HITS');
   });
 

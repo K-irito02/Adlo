@@ -1,0 +1,280 @@
+/* ---------------- 检索设置弹窗（忽略树 + 限制输入） ---------------- */
+
+.adl-search-settings__tablist {
+  display: flex;
+  justify-content: center;
+  gap: 4px;
+  padding: 8px 16px 0;
+}
+
+.adl-search-settings__title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.adl-search-settings__body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+  min-height: 0;
+}
+
+.adl-search-settings__switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-primary);
+  /* 比最小字号 token（--text-xs: 12px）再小一档：开关行文字偏大时的特例 */
+  font-size: 11px;
+}
+
+.adl-search-settings__switch input {
+  accent-color: var(--text-primary);
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  cursor: pointer;
+}
+
+.adl-search-settings__workspaces {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.adl-search-settings__field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.adl-search-settings__field label {
+  min-width: 96px;
+  color: var(--text-primary);
+}
+
+.adl-search-settings__input {
+  width: 96px;
+  padding: 4px 8px;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.adl-search-settings__input:focus {
+  outline: 1px solid var(--border-strong);
+}
+
+.adl-search-settings__warn {
+  padding: 6px 8px;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-radius: 4px;
+}
+
+.adl-search-settings__tip {
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--text-tertiary);
+}
+
+/* --- 内嵌忽略树：自定义行（不用 adl-filetree__row——它是 full-bleed 设计，
+   `width: calc(100% + offset)` + 负 margin，专为无边框面板准备，
+   在弹窗边框容器里会左右溢出）。视觉 token 与文件树对齐
+   （24px 行高、hover 色、字体、chevron/FileIcon 组件），布局自有：
+   第 1 列=勾选框（最左侧独立列），第 2 列=chevron，第 3 列=图标+名称 --- */
+
+.adl-search-ignore {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 4px;
+}
+
+.adl-search-ignore__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.adl-search-ignore__toolbar-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.adl-search-ignore__scroll {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-height: 360px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.adl-search-ignore__scroll-area {
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  padding: 4px 0;
+}
+
+.adl-search-ignore__scroll-area::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* 自定义滚动条复用 multitree 那套：可见性由 CustomScrollArea 的 is-scrollable 驱动 */
+.adl-search-ignore__scroll.is-scrollable .adl-multitree-scrollbar {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-search-ignore__tree,
+.adl-search-ignore__group {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.adl-search-ignore__item {
+  margin: 0;
+  min-width: 0;
+}
+
+.adl-search-ignore__row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  /* 固定 28px（内容 24px + 上下 padding 各 2px）：虚拟化占位依赖此高度，
+     改行样式必须同步改 `SearchIgnoreTree.tsx` 的 ROW_HEIGHT */
+  height: 28px;
+  min-height: 28px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2px 8px;
+  border-radius: 0;
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+.adl-search-ignore__spacer {
+  display: block;
+  width: 100%;
+}
+
+.adl-search-ignore__row:hover {
+  background: var(--bg-hover);
+}
+
+/* 树内容（chevron + 图标 + 名称）：按深度缩进，勾选框保持在固定 gutter */
+.adl-search-ignore__row-body {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.adl-search-ignore__toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+button.adl-search-ignore__toggle:hover,
+.adl-search-ignore__toggle.is-highlighted {
+  color: var(--text-primary);
+}
+
+.adl-search-ignore__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adl-search-ignore__file-icon {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.adl-search-ignore__label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-search-ignore__check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin-right: 6px;
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  background: transparent;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.adl-search-ignore__check:hover {
+  border-color: var(--border-strong);
+}
+
+.adl-search-ignore__check:focus-visible {
+  outline: 1px solid var(--border-strong);
+  outline-offset: 1px;
+}
+
+.adl-search-ignore__check.is-checked {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: var(--bg);
+}
+
+/* 半选：折叠目录下有后代被勾选时的小圆点（需求指定样式，非原生横线） */
+.adl-search-ignore__check.is-partial::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+}

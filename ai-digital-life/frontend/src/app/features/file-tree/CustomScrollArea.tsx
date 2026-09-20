@@ -6,6 +6,10 @@ interface CustomScrollAreaProps {
   scrollbarClassName: string;
   thumbClassName: string;
   children: React.ReactNode;
+  /** 滚动回调（虚拟化列表等需要跟随 scrollTop 的场景用；其余调用方不受影响） */
+  onScroll?: React.UIEventHandler<HTMLDivElement>;
+  /** 透出滚动容器（同上；与 forwardRef 可并存） */
+  scrollRef?: React.Ref<HTMLDivElement>;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -19,12 +23,30 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
     scrollbarClassName,
     thumbClassName,
     children,
+    onScroll,
+    scrollRef: forwardedScrollRef,
   }: CustomScrollAreaProps,
   ref: ForwardedRef<HTMLDivElement>,
 ) {
   const rootRef = useRef<HTMLDivElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const scrollbarThumbRef = useRef<HTMLDivElement | null>(null);
+
+  // 内部滚动引用与外部透出引用合并（虚拟化列表需要读 scrollTop/clientHeight）。
+  const handleScrollRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      scrollRef.current = el;
+      if (!forwardedScrollRef) {
+        return;
+      }
+      if (typeof forwardedScrollRef === 'function') {
+        forwardedScrollRef(el);
+      } else {
+        forwardedScrollRef.current = el;
+      }
+    },
+    [forwardedScrollRef],
+  );
 
   const updateScrollbar = useCallback(() => {
     const root = rootRef.current;
@@ -158,7 +180,7 @@ export const CustomScrollArea = forwardRef(function CustomScrollArea(
 
   return (
     <div ref={rootRef} className={shellClassName}>
-      <div ref={scrollRef} className={scrollClassName}>
+      <div ref={handleScrollRef} className={scrollClassName} onScroll={onScroll}>
         {children}
       </div>
       <div

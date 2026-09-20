@@ -33,6 +33,7 @@
 @import './components/composer-extras.css';
 @import './components/copy-button.css';
 @import './components/notification-card.css';
+@import './components/underline-tabs.css';
 @import './components/notification-badge.css';
 @import './components/notification-dropdown.css';
 @import './components/conflict-modal.css';

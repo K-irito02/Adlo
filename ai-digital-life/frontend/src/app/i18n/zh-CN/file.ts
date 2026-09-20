@@ -6,6 +6,48 @@ export const fileZh = {
   searchPlaceholder: '输入关键词…',
   searchAction: '搜索',
   searchResults: '检索结果',
+  searchShort: '检索',
+  searchSettings: '检索设置',
+  searchSettingsTitle: '检索设置',
+  searchSettingsIgnoreTab: '忽略文件设置',
+  searchSettingsLimitsTab: '限制设置',
+  searchSettingsClose: '关闭',
+  searchSettingsSave: '保存',
+  searchIgnoreHelpManualTitle: '手动勾选是怎么回事',
+  searchIgnoreHelpManualBody:
+    '勾选某个文件，检索时就会跳过它，就像在名单上划掉一行。\n· 勾选文件夹 = 它里面的所有东西都不搜，省得一个个点。\n· 文件夹折叠时如果勾选框里有个小圆点，说明它里面有一部分被勾选了，不是全部。',
+  searchIgnoreHelpGitignoreTitle: '".gitignore"是什么？',
+  searchIgnoreHelpGitignoreBody:
+    '有些项目（尤其是程序员的项目）里会放一个叫 .gitignore 的名单文件，上面写着哪些是自动生成的、无需关心的内容（比如临时文件、下载下来的依赖包）。\n· 打开开关，检索会自动跳过这些名单里的文件，和 VS Code 里搜索的效果一样。\n· 一个工作区里可能有多个 .gitignore（比如子目录里又拉了别的项目），它们会自动合并：离文件越近的规则越说了算。',
+  searchIgnoreHelpCombineTitle: '两者怎么叠加',
+  searchIgnoreHelpCombineBody:
+    '手动勾选和 .gitignore 是叠加关系：只要被其中任何一个点中，这个文件就不参与检索。',
+  searchIgnoreHelpSaveTitle: '什么时候生效',
+  searchIgnoreHelpSaveBody:
+    '每个工作区各存各的，互不干扰。\n· 点「保存」后才真正生效；如果当前正有检索内容，保存后会立即重新检索，不用再搜一遍。',
+  searchLimitsHelpNumbersTitle: '这两个数字是什么',
+  searchLimitsHelpNumbersBody:
+    '· 每页条数：第一次搜出来显示多少条，也是每次点「加载更多」时再取多少条。\n· 最大显示条数：点「显示全部」时一次性最多显示多少条。',
+  searchLimitsHelpTooSmallTitle: '填小了会怎样',
+  searchLimitsHelpTooSmallBody:
+    '输入框有下限（每页 {pageMin} 条，最大显示 {maxMin} 条）：如果填得比下限还小，点保存时会自动提到下限，不用担心填错搜不出来。',
+  searchLimitsHelpTooBigTitle: '填大了会怎样',
+  searchLimitsHelpTooBigBody:
+    '填得比上限大，保存时会自动压到上限（分别是 {pageMax} 和 {maxHard}）。\n· 最大显示超过 5000 后，文件特别多的大项目可能会明显变慢，请谨慎调高。',
+  searchLimitsHelpInvalidTitle: '填错了 / 清空了会怎样',
+  searchLimitsHelpInvalidBody:
+    '如果不小心输了字母或者把框清空了，保存时会当作没改过：自动恢复成原来的值，不用担心搞坏设置。',
+  searchLimitsHelpSaveTitle: '什么时候生效',
+  searchLimitsHelpSaveBody:
+    '点「保存」后才真正生效；如果当前正有检索内容，会按新设置立即重新检索，结果区直接变为新值，不用再点加载更多。',
+  searchSettingsUseGitignore: '使用工作区 .gitignore 过滤',
+  searchSettingsPageSize: '每页条数',
+  searchSettingsMaxResults: '最大显示条数',
+  searchSettingsOverLimitWarn: '超过 5000 条后大仓库可能明显卡顿，请谨慎调高。',
+  searchSettingsCheckItem: '忽略 {name}',
+  searchSettingsEmptyTree: '暂无文件树（工作区为空或正在加载）',
+  searchSettingsIgnoreHintTitle: '忽略规则说明',
+  searchSettingsLimitsHintTitle: '限制说明',
   outline: '文档大纲',
   diagnostics: '诊断',
   noDiagnostics: '当前没有诊断',

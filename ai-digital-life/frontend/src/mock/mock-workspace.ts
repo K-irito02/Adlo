@@ -9,10 +9,12 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
+  WorkspaceSearchFilter,
   WorkspaceSearchHit,
   WorkspaceSearchWindow
 } from "@ai-digital-life/kernel";
 import { paginateSearchHits } from "../shared/ipc/searchWindow";
+import { isSearchPathExcluded } from "../shared/ipc/searchIgnore";
 import {
   buildMockChangePreview,
   buildMockWorkspaceMeta,
@@ -126,13 +128,17 @@ export const mockWorkspace: WorkspaceBridge = {
       data: buildMockChangePreview(relativePath),
     };
   },
-  search: async (query: string, window?: WorkspaceSearchWindow) => {
+  search: async (query: string, window?: WorkspaceSearchWindow, filter?: WorkspaceSearchFilter) => {
     // 与其余三端对齐：空查询直接返回空页（`''.includes` 恒真，否则会全量刷屏）。
     if (!query.trim()) {
       return { ok: true as const, data: { hits: [] as WorkspaceSearchHit[], hasMore: false } };
     }
+    // mock 为内存文档：手动忽略名单同样过滤（`.gitignore` 无内存对应物，恒视为不启用，
+    // 与"无 gitignore 文件的工作区"语义一致）。
+    const excluded = filter?.excludedPaths ?? [];
     const needle = query.toLowerCase();
     const all: WorkspaceSearchHit[] = Array.from(documents.entries())
+      .filter(([filePath]) => !isSearchPathExcluded(filePath, excluded))
       .flatMap(([filePath, content]) =>
         content
           .split(/\r?\n/)
@@ -147,14 +153,18 @@ export const mockWorkspace: WorkspaceBridge = {
     // 与后端同语义：窗口切片 + 精确 hasMore（`paginateSearchHits` 是前端单一来源）。
     return { ok: true, data: paginateSearchHits(all, window) };
   },
-  searchInFiles: async (paths: string[], query: string, window?: WorkspaceSearchWindow) => {
+  searchInFiles: async (paths: string[], query: string, window?: WorkspaceSearchWindow, filter?: WorkspaceSearchFilter) => {
     // 与其余三端对齐：空查询返回 []（`''.includes` 恒真，旧代码会全量刷屏）。
     if (!query.trim()) {
       return { ok: true as const, data: { hits: [] as WorkspaceSearchHit[], hasMore: false } };
     }
+    const excluded = filter?.excludedPaths ?? [];
     const needle = query.toLowerCase();
     const hits: WorkspaceSearchHit[] = [];
     for (const filePath of paths) {
+      if (isSearchPathExcluded(filePath, excluded)) {
+        continue;
+      }
       const content = documents.get(filePath);
       if (content === undefined) {
         continue;

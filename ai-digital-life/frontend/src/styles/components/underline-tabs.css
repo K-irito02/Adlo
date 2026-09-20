@@ -1,0 +1,56 @@
+/* ---------------- 下划线式 tab 导航（共享） ----------------
+   完整提取自 Git 可视化热力聚合图（`.adl-git-vis__heatmap-nav/__tab`）：
+   底部边框 + 选中下划线 scaleX 动效 + hover 变色，供各处复用。 */
+
+.adl-underline-tabs__nav {
+  display: flex;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0 var(--space-1);
+}
+
+.adl-underline-tabs__tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  padding: 0 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: color 0.15s;
+  white-space: nowrap;
+}
+
+.adl-underline-tabs__tab:hover {
+  color: var(--text-primary);
+}
+
+.adl-underline-tabs__tab--active {
+  color: var(--text-primary);
+}
+
+.adl-underline-tabs__tab::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--text-primary);
+  transform: scaleX(0);
+  transition: transform 0.2s ease;
+}
+
+.adl-underline-tabs__tab:hover::after {
+  transform: scaleX(1);
+}
+
+.adl-underline-tabs__tab--active::after {
+  transform: scaleX(1);
+}

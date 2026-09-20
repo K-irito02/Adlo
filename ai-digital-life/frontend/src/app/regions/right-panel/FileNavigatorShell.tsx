@@ -27,8 +27,8 @@ import type { SearchHitEntry } from '@stores/slices/searchSlice';
 import { FileNavigatorToolbar } from './FileNavigatorToolbar';
 import { FileNavigatorTree } from './FileNavigatorTree';
 import { FileNavigatorRenaming } from './FileNavigatorRenaming';
-import { SEARCH_MAX_RESULTS } from '../../../shared/ipc/searchWindow';
 import { SearchLimitHelpCard } from './SearchLimitHelpCard';
+import { SearchSettingsDialog } from './SearchSettingsDialog';
 
 /** 结构信号 nonce：单调计数（Date.now 同毫秒连点可碰撞）。 */
 let structureSignalNonce = 0;
@@ -228,6 +228,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   // 命中窗口：hasMore 是后端精确值（旧实现为"≥上限即视为被截断"的保守推断）。
   const searchHasMore = useAppStore((s) => s.searchHasMore);
   const searchLimit = useAppStore((s) => s.searchLimit);
+  const searchMaxResults = useAppStore((s) => s.searchMaxResults);
+  const searchPageSize = useAppStore((s) => s.searchPageSize);
+  const searchIgnoredPaths = useAppStore((s) => s.searchIgnoredPaths);
   const searchEntriesCount = useAppStore((s) => s.searchEntries.length);
   const loadMoreSearchResults = useAppStore((s) => s.loadMoreSearchResults);
   const showAllSearchResults = useAppStore((s) => s.showAllSearchResults);
@@ -244,12 +247,15 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   // 前端基于已加载的工作区树做包含匹配（后端仅支持内容检索，
   // 不新增 IPC 以保持 Tauri/mock/preview/http 四端一致）。优先限定在用户点击选中的
   // 工作区（activeWorkspaceId），未选中时回退到全部可见工作区。
+  // 手动忽略名单同样生效（与内容检索的后端过滤同语义：命中即跳过，目录隐含后代）。
   const fileNameHits = useMemo(() => {
     if (filesSearchScope !== 'file' || !committedSearchQuery.trim()) {
       return [] as FileNameHit[];
     }
     const needle = searchMatchCase ? committedSearchQuery : committedSearchQuery.toLowerCase();
     const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
+    const isIgnored = (wsId: string, path: string) =>
+      (searchIgnoredPaths[wsId] ?? []).some((ig) => path === ig || path.startsWith(`${ig}/`));
     const out: FileNameHit[] = [];
     for (const wsId of targetIds) {
       const roots = workspaceTrees[wsId];
@@ -260,6 +266,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       while (stack.length > 0 && out.length < MAX_FILE_HITS) {
         const node = stack.pop();
         if (!node) {
+          continue;
+        }
+        if (isIgnored(wsId, node.path)) {
           continue;
         }
         if (node.kind === 'file') {
@@ -277,6 +286,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     filesSearchScope,
     committedSearchQuery,
     searchMatchCase,
+    searchIgnoredPaths,
     activeWorkspaceId,
     visibleWorkspaces,
     workspaceTrees,
@@ -407,6 +417,13 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   const [searchStructureSignal, setSearchStructureSignal] = useState<SearchStructureSignal | null>(
     null,
   );
+  const [searchSettingsOpen, setSearchSettingsOpen] = useState(false);
+  const handleOpenSearchSettings = useCallback(() => {
+    setSearchSettingsOpen(true);
+  }, []);
+  const handleCloseSearchSettings = useCallback(() => {
+    setSearchSettingsOpen(false);
+  }, []);
   const [searchCollapseStatus, setSearchCollapseStatus] = useState<SearchCollapseStatus>({
     snippetsAllCollapsed: false,
     dirsAllCollapsed: false,
@@ -444,7 +461,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     navigatorMode === 'tree'
       ? t.changesFileTree
       : navigatorMode === 'search'
-        ? t.searchResults
+        ? t.searchShort
         : t.outline;
   const workspaceCount = visibleWorkspaces.length;
 
@@ -615,7 +632,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         onSetSearchView={setFilesSearchView}
         searchScope={filesSearchScope}
         onSetSearchScope={setFilesSearchScope}
+        onOpenSearchSettings={handleOpenSearchSettings}
       />
+      <SearchSettingsDialog open={searchSettingsOpen} onClose={handleCloseSearchSettings} />
 
       {navigatorMode === 'tree' ? (
         <FileNavigatorTree
@@ -791,9 +810,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                       {searchLimitText}
                     </span>
                     <span className="adl-search-limit__actions">
-                      {/* 已到安全阀（searchLimit == SEARCH_MAX_RESULTS）即终态：
+                      {/* 已到用户上限（searchLimit == searchMaxResults）即终态：
                         后端仍报 hasMore 时按钮无处可去，隐藏避免"点不动的僵局"（L1） */}
-                      {searchHasMore && searchLimit < SEARCH_MAX_RESULTS ? (
+                      {searchHasMore && searchLimit < searchMaxResults ? (
                         <>
                           <button
                             type="button"
@@ -813,7 +832,11 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                           </button>
                         </>
                       ) : null}
-                      <HintCardTrigger content={<SearchLimitHelpCard />}>
+                      <HintCardTrigger
+                        content={
+                          <SearchLimitHelpCard page={searchPageSize} max={searchMaxResults} />
+                        }
+                      >
                         <button
                           type="button"
                           className="adl-icon-button adl-icon-button--info adl-search-limit__help"

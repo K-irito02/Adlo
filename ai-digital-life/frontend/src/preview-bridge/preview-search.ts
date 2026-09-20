@@ -1,4 +1,5 @@
 import type {
+  WorkspaceSearchFilter,
   WorkspaceSearchPage,
   WorkspaceSearchWindow,
   FileOutlineItem,
@@ -22,9 +23,28 @@ function windowParams(window?: WorkspaceSearchWindow): Record<string, string> {
   return { offset: String(offset), limit: String(limit) };
 }
 
+/** 检索过滤器转查询串（GET 检索用；POST 检索直接进 body）。 */
+function filterParams(filter?: WorkspaceSearchFilter): Record<string, string> {
+  if (!filter) {
+    return {};
+  }
+  const params: Record<string, string> = {};
+  if (filter.excludedPaths !== undefined) {
+    params.excludedPaths = JSON.stringify(filter.excludedPaths);
+  }
+  if (filter.useGitignore !== undefined) {
+    params.useGitignore = filter.useGitignore ? '1' : '0';
+  }
+  return params;
+}
+
 export function createPreviewSearchBridge(ctx: PreviewSearchContext) {
   return {
-    search: async (query: string, window?: WorkspaceSearchWindow) => {
+    search: async (
+      query: string,
+      window?: WorkspaceSearchWindow,
+      filter?: WorkspaceSearchFilter,
+    ) => {
       if (!ctx.currentWorkspace) {
         return { ok: true as const, data: emptyPage() };
       }
@@ -32,10 +52,16 @@ export function createPreviewSearchBridge(ctx: PreviewSearchContext) {
         rootPath: ctx.currentWorkspace.rootPath,
         query,
         ...windowParams(window),
+        ...filterParams(filter),
       });
       return requestPreviewApi<WorkspaceSearchPage>(`/workspace/search?${params.toString()}`);
     },
-    searchInFiles: async (paths: string[], query: string, window?: WorkspaceSearchWindow) => {
+    searchInFiles: async (
+      paths: string[],
+      query: string,
+      window?: WorkspaceSearchWindow,
+      filter?: WorkspaceSearchFilter,
+    ) => {
       if (!ctx.currentWorkspace) {
         return { ok: true as const, data: emptyPage() };
       }
@@ -44,7 +70,13 @@ export function createPreviewSearchBridge(ctx: PreviewSearchContext) {
         `/workspace/search-in-files?${params.toString()}`,
         {
           method: 'POST',
-          body: JSON.stringify({ paths, query, ...window }),
+          body: JSON.stringify({
+            paths,
+            query,
+            ...window,
+            ...(filter?.excludedPaths !== undefined ? { excludedPaths: filter.excludedPaths } : {}),
+            ...(filter?.useGitignore !== undefined ? { useGitignore: filter.useGitignore } : {}),
+          }),
         },
       );
     },

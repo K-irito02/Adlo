@@ -19,6 +19,7 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
+  WorkspaceSearchFilter,
   WorkspaceSearchPage,
   WorkspaceSearchWindow,
   WorkspaceTreeNode,
@@ -45,6 +46,7 @@ export type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
+  WorkspaceSearchFilter,
   WorkspaceSearchPage,
   WorkspaceSearchWindow,
   WorkspaceTreeNode,
@@ -224,6 +226,8 @@ export interface WorkspaceBridge {
   /**
    * 在当前工作区中搜索文件/内容
    * @param query 搜索关键词
+   * @param window 分页窗口（可选）
+   * @param filter 检索过滤器（可选）：手动忽略名单 + `.gitignore` 开关，并集生效
    * @returns 搜索结果匹配项列表
    * @command workspace_search
    * @see tauri-bridge.ts → workspace.search
@@ -233,14 +237,17 @@ export interface WorkspaceBridge {
   search: (
     query: string,
     window?: WorkspaceSearchWindow,
+    filter?: WorkspaceSearchFilter,
   ) => Promise<IpcResult<WorkspaceSearchPage>>;
   /**
    * 仅对给定相对路径集合重算命中（文件 watcher 驱动的局部刷新）
    * @param paths 工作区相对路径数组
    * @param query 检索关键词
+   * @param window 分页窗口（可选）
+   * @param filter 检索过滤器（可选）：与 `search` 同语义
    * @returns 这些文件中的命中列表
    * @command workspace_search_in_files
-   * @see tauri-bridge/index.ts（...http 继承）→ workspace.searchInFiles
+   * @see tauri-bridge.ts（...http 继承）→ workspace.searchInFiles
    * @see mock-bridge.ts → workspace.searchInFiles
    * @see preview-bridge/index.ts → workspace.searchInFiles
    */
@@ -248,6 +255,7 @@ export interface WorkspaceBridge {
     paths: string[],
     query: string,
     window?: WorkspaceSearchWindow,
+    filter?: WorkspaceSearchFilter,
   ) => Promise<IpcResult<WorkspaceSearchPage>>;
   /**
    * 订阅活动工作区的文件批量变更（后端 watcher → WS / 预览模式轮询）

@@ -1,8 +1,13 @@
 import type { StoreState } from '../StoreState';
-import { SEARCH_MAX_RESULTS, SEARCH_PAGE_SIZE } from '../../../shared/ipc/searchWindow';
+import type { WorkspaceSearchFilter } from '@ai-digital-life/kernel';
 import { createDebouncedSearch } from '../shared';
 import { captureError, clearError } from '../cacheHelpers';
-import { markHitsStale, replaceFileHits, toHitEntries } from '../slices/searchSlice';
+import {
+  markHitsStale,
+  replaceFileHits,
+  selectSearchFilter,
+  toHitEntries,
+} from '../slices/searchSlice';
 import type { WorkspaceFilesChangedBatch } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 const SCOPE = 'search';
@@ -61,10 +66,21 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
     }
     let result;
     try {
-      result = await window.digitalLife.workspace.searchInFiles(toSearch, query, {
-        offset: 0,
-        limit: get().searchLimit,
-      });
+      const filter = selectSearchFilter(
+        state.searchIgnoredPaths,
+        state.searchUseGitignore,
+        activeWorkspaceId,
+      );
+      result = await window.digitalLife.workspace.searchInFiles(
+        toSearch,
+        query,
+        {
+          offset: 0,
+          limit: get().searchLimit,
+        },
+        // 过滤器缺省时保持旧调用形状（与 runContentSearch 同理）。
+        ...(filter === undefined ? [] : [filter]),
+      );
     } catch (error) {
       // IPC 直接抛异常：回填 pending 供下次批次重试 + 入队错误 toast（与 !ok 分支同语义），
       // 避免 setTimeout 回调内的 unhandled rejection。
@@ -178,14 +194,26 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
   /**
    * 执行一次内容检索（窗口由调用方决定）：写 searchEntries / searchHasMore / searchLimit。
    * 会话 id 每次递增，晚到的旧响应会被丢弃（含“加载更多”期间的窗口竞态）。
+   * 过滤器（手动忽略 + `.gitignore` 开关）随每次请求透传，后端在窗口截断之前先生效。
    */
-  const runContentSearch = async (query: string, limit: number, keepEntries: boolean) => {
+  const runContentSearch = async (
+    query: string,
+    limit: number,
+    keepEntries: boolean,
+    filter?: WorkspaceSearchFilter,
+  ) => {
     const state = get();
     const workspaceId = state.appInfo?.currentWorkspace?.id;
     const sessionId = get().beginSearchSession(workspaceId, { keepEntries });
     set({ searching: true, searchLimit: limit });
     try {
-      const result = await window.digitalLife.workspace.search(query, { offset: 0, limit });
+      // 过滤器缺省时保持旧调用形状（query, window），避免透传 `undefined`
+      // 占位——后端字段缺失即默认行为，与旧请求体完全一致。
+      const result = await window.digitalLife.workspace.search(
+        query,
+        { offset: 0, limit },
+        ...(filter === undefined ? [] : [filter]),
+      );
       if (get().searchQuery !== query || get().searchSessionId !== sessionId) {
         return;
       }
@@ -228,7 +256,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
           searchEntries: [],
           searching: false,
           searchHasMore: false,
-          searchLimit: SEARCH_PAGE_SIZE,
+          searchLimit: state.searchPageSize,
         });
         return;
       }
@@ -240,11 +268,16 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       // 新检索：窗口重置为默认首页（旧 query 的结果由 beginSearchSession 清空）。
-      debouncedSearch(query, () => runContentSearch(query, SEARCH_PAGE_SIZE, false));
+      const filter = selectSearchFilter(
+        state.searchIgnoredPaths,
+        state.searchUseGitignore,
+        state.appInfo?.currentWorkspace?.id,
+      );
+      debouncedSearch(query, () => runContentSearch(query, state.searchPageSize, false, filter));
     },
 
     /**
-     * [loadMoreSearchResults - 追加一页（+SEARCH_PAGE_SIZE）]
+     * [loadMoreSearchResults - 追加一页（+searchPageSize）]
      * 后端是“扫到第 N 条即停”的窗口语义，故续页即用更大的 limit 重跑；
      * 立即执行（用户已显式点击），先取消待发防抖以免旧窗口响应覆盖。
      */
@@ -255,24 +288,34 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       if (!query.trim() || !state.searchHasMore) {
         return;
       }
-      const nextLimit = Math.min(state.searchLimit + SEARCH_PAGE_SIZE, SEARCH_MAX_RESULTS);
+      const nextLimit = Math.min(state.searchLimit + state.searchPageSize, state.searchMaxResults);
       if (nextLimit <= state.searchLimit) {
         return;
       }
       cancelScheduled();
-      await runContentSearch(query, nextLimit, true);
+      const filter = selectSearchFilter(
+        state.searchIgnoredPaths,
+        state.searchUseGitignore,
+        state.appInfo?.currentWorkspace?.id,
+      );
+      await runContentSearch(query, nextLimit, true, filter);
     },
 
-    /** [showAllSearchResults - 一次性加载到安全阀上限] */
+    /** [showAllSearchResults - 一次性加载到用户设定的上限] */
     showAllSearchResults: async () => {
       clearError(get, SCOPE);
       const state = get();
       const query = state.searchQuery;
-      if (!query.trim() || !state.searchHasMore || state.searchLimit >= SEARCH_MAX_RESULTS) {
+      if (!query.trim() || !state.searchHasMore || state.searchLimit >= state.searchMaxResults) {
         return;
       }
       cancelScheduled();
-      await runContentSearch(query, SEARCH_MAX_RESULTS, true);
+      const filter = selectSearchFilter(
+        state.searchIgnoredPaths,
+        state.searchUseGitignore,
+        state.appInfo?.currentWorkspace?.id,
+      );
+      await runContentSearch(query, state.searchMaxResults, true, filter);
     },
 
     /**

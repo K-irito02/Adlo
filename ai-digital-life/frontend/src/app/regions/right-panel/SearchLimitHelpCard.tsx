@@ -9,12 +9,18 @@ import { SEARCH_MAX_RESULTS, SEARCH_PAGE_SIZE } from '../../../shared/ipc/search
  * 与分支图谱帮助卡同一套模式：共享卡片外壳（`styles/components/hintCard.css`）
  * + 共享内容版式（`.adl-help-card*`），本组件只负责组织 i18n 文案。
  *
- * 文案里的两个数量（每页条数、安全阀上限）用 `{page}` / `{max}` 插值自
- * `searchWindow.ts` 的常量，避免常量调整后说明文字与真实行为悄悄漂移。
+ * 文案里的两个数量（每页条数、上限）优先取调用方传入的用户自定义值，
+ * 缺省回退到 `searchWindow.ts` 的常量，避免常量调整后说明文字与真实行为悄悄漂移。
  */
-export const SearchLimitHelpCard = React.memo(function SearchLimitHelpCard() {
+export const SearchLimitHelpCard = React.memo(function SearchLimitHelpCard({
+  page = SEARCH_PAGE_SIZE,
+  max = SEARCH_MAX_RESULTS,
+}: {
+  page?: number;
+  max?: number;
+}) {
   const { t, formatT } = useTCopy();
-  const vars = { page: SEARCH_PAGE_SIZE, max: SEARCH_MAX_RESULTS };
+  const vars = { page, max };
   const sections: { title: string; body: string }[] = [
     { title: t.searchLimitHelpWhyTitle, body: formatT(t, 'searchLimitHelpWhy', vars) },
     {

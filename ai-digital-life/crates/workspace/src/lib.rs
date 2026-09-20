@@ -3,6 +3,7 @@
 pub(crate) mod detect;
 pub(crate) mod fs;
 mod git;
+pub(crate) mod gitignore;
 pub(crate) mod preview;
 mod search;
 mod tree;
@@ -21,10 +22,11 @@ pub use git::{
     git_has_local_changes, has_auto_stash, list_git_branches, pop_auto_stash, stage_file,
     switch_git_branch, unstage_file,
 };
+pub use gitignore::{GitignoreMatcher, GitignoreRuleSet, load_gitignore_chain};
 pub use preview::read_change_preview;
 pub use search::{
-    MAX_SEARCH_RESULTS, MAX_SEARCH_RESULTS_UNLIMITED, SearchWindow, search_in_files, search_text,
-    search_text_async,
+    MAX_SEARCH_RESULTS, MAX_SEARCH_RESULTS_HARD_CAP, MAX_SEARCH_RESULTS_UNLIMITED, SearchFilter,
+    SearchWindow, search_in_files, search_text, search_text_async,
 };
 pub use tree::{
     build_retrieval_snapshot, build_retrieval_snapshot_async, invalidate_tree_cache, list_tree,
@@ -433,7 +435,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world\nfoo bar\nhello again").unwrap();
 
-        let hits = search_text(&dir, "hello", SearchWindow::default()).unwrap().hits;
+        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
         assert_eq!(hits.len(), 2);
         assert_eq!(hits[0].path, "test.txt");
         assert_eq!(hits[0].line, 1);
@@ -448,7 +450,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "Hello World").unwrap();
 
-        let hits = search_text(&dir, "hello", SearchWindow::default()).unwrap().hits;
+        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
         assert_eq!(hits.len(), 1);
 
         let _ = std::fs::remove_dir_all(dir);
@@ -461,7 +463,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world").unwrap();
 
-        let hits = search_text(&dir, "xyz", SearchWindow::default()).unwrap().hits;
+        let hits = search_text(&dir, "xyz", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
         assert!(hits.is_empty());
 
         let _ = std::fs::remove_dir_all(dir);
@@ -474,7 +476,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("test.txt"), "hello world").unwrap();
 
-        let hits = search_text(&dir, "", SearchWindow::default()).unwrap().hits;
+        let hits = search_text(&dir, "", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
         assert!(hits.is_empty());
 
         let _ = std::fs::remove_dir_all(dir);
@@ -489,7 +491,7 @@ mod tests {
             std::fs::write(dir.join(format!("file{}.txt", i)), "hello world").unwrap();
         }
 
-        let hits = search_text(&dir, "hello", SearchWindow::default()).unwrap().hits;
+        let hits = search_text(&dir, "hello", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
         assert!(hits.len() <= 200);
 
         let _ = std::fs::remove_dir_all(dir);

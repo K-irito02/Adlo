@@ -273,6 +273,53 @@ function parseWindow(searchParams: URLSearchParams): { offset?: number; limit?: 
   return { offset: read('offset'), limit: read('limit') };
 }
 
+/**
+ * 从查询串解析检索过滤器（GET 检索用；缺失即默认行为，与 Rust `#[serde(default)]` 对齐）。
+ * `excludedPaths` 为 JSON 数组字符串，非法时忽略该项而非整包拒绝。
+ */
+function parseFilterFromQuery(searchParams: URLSearchParams): {
+  excludedPaths?: string[];
+  useGitignore?: boolean;
+} {
+  const filter: { excludedPaths?: string[]; useGitignore?: boolean } = {};
+  const rawPaths = searchParams.get('excludedPaths');
+  if (rawPaths !== null && rawPaths.trim() !== '') {
+    try {
+      const parsed: unknown = JSON.parse(rawPaths);
+      if (Array.isArray(parsed)) {
+        filter.excludedPaths = parsed.filter(
+          (p): p is string => typeof p === 'string' && p.length > 0,
+        );
+      }
+    } catch {
+      // 非法 JSON 即忽略该项：检索仍可执行，不整包拒绝。
+    }
+  }
+  const rawGitignore = searchParams.get('useGitignore');
+  if (rawGitignore === '1') {
+    filter.useGitignore = true;
+  } else if (rawGitignore === '0') {
+    filter.useGitignore = false;
+  }
+  return filter;
+}
+
+function parseFilterFromBody(input: {
+  excludedPaths?: unknown;
+  useGitignore?: unknown;
+}): { excludedPaths?: string[]; useGitignore?: boolean } {
+  const filter: { excludedPaths?: string[]; useGitignore?: boolean } = {};
+  if (Array.isArray(input.excludedPaths)) {
+    filter.excludedPaths = input.excludedPaths.filter(
+      (p): p is string => typeof p === 'string' && p.length > 0,
+    );
+  }
+  if (typeof input.useGitignore === 'boolean') {
+    filter.useGitignore = input.useGitignore;
+  }
+  return filter;
+}
+
 function makePath(relativePath: string): string {
   return `${API_PREFIX}${relativePath}`;
 }
@@ -403,7 +450,14 @@ const routes: Route[] = [
       const rootPath = searchParams.get('rootPath');
       const query = searchParams.get('query') ?? '';
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
-      return ok(await search.searchText(rootPath, query, parseWindow(searchParams)));
+      return ok(
+        await search.searchText(
+          rootPath,
+          query,
+          parseWindow(searchParams),
+          parseFilterFromQuery(searchParams),
+        ),
+      );
     },
   },
   {
@@ -411,7 +465,14 @@ const routes: Route[] = [
     handler: async (_req, body, searchParams) => {
       const rootPath = searchParams.get('rootPath');
       const input = body as
-        | { paths?: string[]; query?: string; offset?: number; limit?: number }
+        | {
+            paths?: string[];
+            query?: string;
+            offset?: number;
+            limit?: number;
+            excludedPaths?: unknown;
+            useGitignore?: unknown;
+          }
         | undefined;
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
       if (!input || !Array.isArray(input.paths) || typeof input.query !== 'string') {
@@ -421,7 +482,7 @@ const routes: Route[] = [
         await search.searchInFiles(rootPath, input.paths, input.query, {
           offset: input.offset,
           limit: input.limit,
-        }),
+        }, parseFilterFromBody(input)),
       );
     },
   },

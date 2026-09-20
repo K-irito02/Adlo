@@ -11,17 +11,65 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// 的 `SEARCH_PAGE_SIZE` 保持同值；两侧单测均把该值钉到 200，
 /// 任一侧单独改动都会在各自测试中失败。
 pub const MAX_SEARCH_RESULTS: usize = 200;
-/// "显示全部"的安全阀：单次请求可返回的最大命中数。
+/// "显示全部"的默认目标：单次请求可返回的最大命中数（用户未自定义时）。
 /// 超过此值仍会被截断（`has_more` 为 true），避免超大仓库一次性拉爆内存与 IPC。
 ///
 /// **跨语言契约**：必须与前端 `searchWindow.ts` 的 `SEARCH_MAX_RESULTS` 保持同值；
 /// 两侧单测均把该值钉到 5000（前端钳制、后端 `clamped` 各有一处断言）。
 pub const MAX_SEARCH_RESULTS_UNLIMITED: usize = 5000;
+/// 硬上限：用户自定义也不得超过的值（前端 >5000 时出卡顿警告）。
+///
+/// **跨语言契约**：必须与前端 `searchWindow.ts` 的 `SEARCH_HARD_MAX_RESULTS` 同值；
+/// 两侧单测均把该值钉到 20000。
+pub const MAX_SEARCH_RESULTS_HARD_CAP: usize = 20000;
 const CANCEL_CHECK_INTERVAL: usize = 100;
+
+/// 检索过滤器：手动忽略名单（工作区相对路径，目录隐含全部后代）与
+/// `.gitignore` 开关。两者为并集关系——命中任一即跳过该文件；
+/// 窗口截断（`offset`/`limit`/`has_more`）在过滤之后生效，因此
+/// "加载更多/显示全部"的计数不受影响。
+#[derive(Debug, Clone)]
+pub struct SearchFilter {
+    pub excluded_paths: Vec<String>,
+    /// 缺省启用（与前端 `selectSearchFilter` 的缺省一致：不传即叠加 gitignore）。
+    pub use_gitignore: bool,
+}
+
+impl Default for SearchFilter {
+    fn default() -> Self {
+        Self { excluded_paths: Vec::new(), use_gitignore: true }
+    }
+}
+
+impl SearchFilter {
+    /// 为本次检索加载 `.gitignore` 链（开关关闭或无规则文件时返回 `None`，
+    /// 调用方即跳过 gitignore 判定；每次检索重新加载，改完立即生效）。
+    fn matcher_for(&self, root: &Path) -> Option<crate::gitignore::GitignoreMatcher> {
+        if !self.use_gitignore {
+            return None;
+        }
+        let chain = crate::gitignore::load_gitignore_chain(root);
+        if chain.is_empty() {
+            return None;
+        }
+        Some(crate::gitignore::GitignoreMatcher::new(&chain))
+    }
+}
+
+/// 调用方相对路径是否命中手动忽略名单（精确或目录前缀）。
+fn is_manually_excluded(relative: &str, excluded_paths: &[String]) -> bool {
+    let normalized = relative.replace('\\', "/");
+    let normalized = normalized.trim_matches('/');
+    excluded_paths.iter().any(|raw| {
+        let ignored = raw.replace('\\', "/");
+        let ignored = ignored.trim_matches('/');
+        !ignored.is_empty() && (normalized == ignored || normalized.starts_with(&format!("{ignored}/")))
+    })
+}
 
 /// 检索分页窗口：跳过前 `offset` 条命中，最多返回 `limit` 条。
 ///
-/// 上限由服务端钳制（见 [`SearchWindow::clamped`]），调用方无法绕过安全阀。
+/// 上限由服务端钳制（见 [`SearchWindow::clamped`]），调用方无法绕过硬上限。
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SearchWindow {
     pub offset: usize,
@@ -36,9 +84,9 @@ impl Default for SearchWindow {
 
 impl SearchWindow {
     /// 钳制到合法区间：`limit = 0` 视为 1（否则调用方永远拿不到结果，且 `has_more` 无意义），
-    /// 超过 [`MAX_SEARCH_RESULTS_UNLIMITED`] 即夹到安全阀。
+    /// 超过 [`MAX_SEARCH_RESULTS_HARD_CAP`] 即夹到硬上限。
     pub fn clamped(offset: usize, limit: usize) -> Self {
-        Self { offset, limit: limit.clamp(1, MAX_SEARCH_RESULTS_UNLIMITED) }
+        Self { offset, limit: limit.clamp(1, MAX_SEARCH_RESULTS_HARD_CAP) }
     }
 }
 
@@ -46,18 +94,21 @@ pub fn search_text(
     root: &Path,
     query: &str,
     window: SearchWindow,
+    filter: &SearchFilter,
 ) -> Result<WorkspaceSearchPage, AppError> {
     if query.trim().is_empty() {
         return Ok(WorkspaceSearchPage { hits: vec![], has_more: false });
     }
     let files = crate::tree::collect_text_files(root, crate::DEFAULT_MAX_FILE_BYTES)?;
-    search_text_in_files(&files, root, query, window, &|| false)
+    let matcher = filter.matcher_for(root);
+    search_text_in_files(&files, root, query, window, filter, matcher.as_ref(), &|| false)
 }
 
 pub async fn search_text_async(
     root: &Path,
     query: &str,
     window: SearchWindow,
+    filter: &SearchFilter,
     mut cancellation: tokio::sync::broadcast::Receiver<()>,
 ) -> Result<WorkspaceSearchPage, AppError> {
     if query.trim().is_empty() {
@@ -66,6 +117,7 @@ pub async fn search_text_async(
 
     let query = query.to_string();
     let root_owned = root.to_path_buf();
+    let filter_owned = filter.clone();
     let cancelled = Arc::new(AtomicBool::new(false));
     let cancelled_clone = cancelled.clone();
 
@@ -73,8 +125,9 @@ pub async fn search_text_async(
     // (directory walk + metadata probes) and must not block the async runtime.
     let search_task = tokio::task::spawn_blocking(move || {
         let files = crate::tree::collect_text_files(&root_owned, crate::DEFAULT_MAX_FILE_BYTES)?;
+        let matcher = filter_owned.matcher_for(&root_owned);
         let cancelled_fn = move || cancelled_clone.load(Ordering::Relaxed);
-        search_text_in_files(&files, &root_owned, &query, window, &cancelled_fn)
+        search_text_in_files(&files, &root_owned, &query, window, &filter_owned, matcher.as_ref(), &cancelled_fn)
     });
 
     // Use select! instead of a detached tokio::spawn cancellation listener.
@@ -95,12 +148,15 @@ pub async fn search_text_async(
 }
 
 /// 按窗口收集命中：跳过前 `offset` 条，收满 `limit` 条后**再多探一条**用于判定 `has_more`，
-/// 随后立即返回（不扫描剩余文件）。
+/// 随后立即返回（不扫描剩余文件）。过滤器命中的文件在计数之前即跳过，
+/// 因此分页语义不受影响（被忽略的文件不占窗口名额）。
 fn search_text_in_files(
     files: &[PathBuf],
     root: &Path,
     query: &str,
     window: SearchWindow,
+    filter: &SearchFilter,
+    gitignore: Option<&crate::gitignore::GitignoreMatcher>,
     is_cancelled: &dyn Fn() -> bool,
 ) -> Result<WorkspaceSearchPage, AppError> {
     let query_lower = query.to_lowercase();
@@ -117,6 +173,14 @@ fn search_text_in_files(
         }
 
         let relative = crate::tree::relative_path(root, file);
+        if is_manually_excluded(&relative, &filter.excluded_paths) {
+            continue;
+        }
+        if let Some(matcher) = gitignore {
+            if matcher.is_ignored(&relative, false) {
+                continue;
+            }
+        }
         let content = match fs::read_to_string(file) {
             Ok(c) => c,
             Err(e) => {
@@ -162,10 +226,12 @@ pub fn search_in_files(
     relative_paths: &[String],
     query: &str,
     window: SearchWindow,
+    filter: &SearchFilter,
 ) -> Result<WorkspaceSearchPage, AppError> {
     if query.trim().is_empty() || relative_paths.is_empty() {
         return Ok(WorkspaceSearchPage { hits: vec![], has_more: false });
     }
+    let matcher = filter.matcher_for(root);
     let mut files: Vec<PathBuf> = Vec::with_capacity(relative_paths.len());
     // 根 canonicalize 只算一次（每候选重复计算是浪费，且根在检索期间视为不变）。
     let canonical_root = match root.canonicalize() {
@@ -187,12 +253,21 @@ pub fn search_in_files(
         if is_ignored_relative(&normalized) {
             continue;
         }
+        // watcher 重算同样受检索设置约束：被忽略的文件不再回写命中。
+        if is_manually_excluded(&normalized, &filter.excluded_paths) {
+            continue;
+        }
+        if let Some(matcher) = matcher.as_ref() {
+            if matcher.is_ignored(&normalized, false) {
+                continue;
+            }
+        }
         if !crate::tree::is_text_file(root, &normalized, crate::DEFAULT_MAX_FILE_BYTES) {
             continue;
         }
         files.push(absolute);
     }
-    search_text_in_files(&files, root, query, window, &|| false)
+    search_text_in_files(&files, root, query, window, filter, matcher.as_ref(), &|| false)
 }
 
 /// 调用方路径是否命中忽略规则（目录段走 `tree::should_ignore`，与全量一致）。
@@ -265,7 +340,7 @@ mod search_text_async_tests {
         // Cancel immediately before search starts
         let _ = tx.send(());
 
-        let result = search_text_async(&tmp, "hello", SearchWindow::default(), rx).await;
+        let result = search_text_async(&tmp, "hello", SearchWindow::default(), &SearchFilter::default(), rx).await;
         assert!(result.is_ok(), "search should return Ok even when cancelled");
         // Result should be empty (cancellation took effect before search could complete)
         // or contain matches — the key assertion is the function returns without hanging
@@ -284,7 +359,7 @@ mod search_text_async_tests {
 
         let (_tx, rx) = tokio::sync::broadcast::channel::<()>(1);
         // No cancellation sent — search should complete normally
-        let result = search_text_async(&tmp, "hello", SearchWindow::default(), rx).await;
+        let result = search_text_async(&tmp, "hello", SearchWindow::default(), &SearchFilter::default(), rx).await;
         assert!(result.is_ok());
         let hits = result.unwrap().hits;
         assert_eq!(hits.len(), 2, "expected 2 hits (one per line containing 'hello')");
@@ -297,7 +372,7 @@ mod search_text_async_tests {
         std::fs::write(tmp.join("test.txt"), b"hello world").unwrap();
 
         let (_tx, rx) = tokio::sync::broadcast::channel::<()>(1);
-        let result = search_text_async(&tmp, "   ", SearchWindow::default(), rx).await;
+        let result = search_text_async(&tmp, "   ", SearchWindow::default(), &SearchFilter::default(), rx).await;
         assert!(result.is_ok());
         assert!(result.unwrap().hits.is_empty());
         cleanup(&tmp);
@@ -326,7 +401,7 @@ mod search_in_files_tests {
         std::fs::write(tmp.join("miss.txt"), b"needle in other file").unwrap();
 
         let hits =
-            search_in_files(&tmp, &["hit.txt".to_string()], "needle", SearchWindow::default())
+            search_in_files(&tmp, &["hit.txt".to_string()], "needle", SearchWindow::default(), &SearchFilter::default())
                 .unwrap()
                 .hits;
 
@@ -346,6 +421,7 @@ mod search_in_files_tests {
             &["nope.txt".to_string(), "a.txt".to_string()],
             "needle",
             SearchWindow::default(),
+            &SearchFilter::default(),
         )
         .unwrap()
         .hits;
@@ -361,10 +437,10 @@ mod search_in_files_tests {
         std::fs::write(tmp.join("b.txt"), b"NEEDLE\nNeedle\nnone").unwrap();
 
         let batched =
-            search_in_files(&tmp, &["b.txt".to_string()], "needle", SearchWindow::default())
+            search_in_files(&tmp, &["b.txt".to_string()], "needle", SearchWindow::default(), &SearchFilter::default())
                 .unwrap()
                 .hits;
-        let whole = search_text(&tmp, "needle", SearchWindow::default()).unwrap().hits;
+        let whole = search_text(&tmp, "needle", SearchWindow::default(), &SearchFilter::default()).unwrap().hits;
 
         assert_eq!(batched.len(), 2, "case-insensitive contains (same as search_text)");
         // NOTE: deviates from plan verbatim (`assert_eq!(batched, whole)`):
@@ -384,7 +460,7 @@ mod search_in_files_tests {
         let tmp = unique_tmp_dir();
         std::fs::write(tmp.join("c.txt"), b"anything").unwrap();
         assert!(
-            search_in_files(&tmp, &["c.txt".to_string()], "   ", SearchWindow::default())
+            search_in_files(&tmp, &["c.txt".to_string()], "   ", SearchWindow::default(), &SearchFilter::default())
                 .unwrap()
                 .hits
                 .is_empty()
@@ -402,6 +478,7 @@ mod search_in_files_tests {
             &["../outside.txt".to_string()],
             "needle",
             SearchWindow::default(),
+            &SearchFilter::default(),
         )
         .unwrap()
         .hits;
@@ -420,6 +497,7 @@ mod search_in_files_tests {
             &["sub/../sub/deep.txt".to_string()],
             "needle",
             SearchWindow::default(),
+            &SearchFilter::default(),
         )
         .unwrap()
         .hits;
@@ -443,6 +521,7 @@ mod search_in_files_tests {
             &["target/built.txt".to_string(), "big.txt".to_string(), "huge.txt".to_string()],
             "needle",
             SearchWindow::default(),
+            &SearchFilter::default(),
         )
         .unwrap()
         .hits;
@@ -462,7 +541,7 @@ mod search_in_files_tests {
         std::os::unix::fs::symlink(outside.join("secret.txt"), tmp.join("evil-link")).unwrap();
 
         let hits =
-            search_in_files(&tmp, &["evil-link".to_string()], "needle", SearchWindow::default())
+            search_in_files(&tmp, &["evil-link".to_string()], "needle", SearchWindow::default(), &SearchFilter::default())
                 .unwrap()
                 .hits;
         assert!(hits.is_empty(), "symlink escape must be skipped, got {hits:?}");
@@ -505,7 +584,7 @@ mod search_window_tests {
     #[test]
     fn window_offset_skips_leading_hits() {
         let tmp = fixture();
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(2, 200)).unwrap();
+        let page = search_text(&tmp, "needle", SearchWindow::clamped(2, 200), &SearchFilter::default()).unwrap();
         assert_eq!(page.hits.len(), 3, "5 hits minus 2 skipped");
         assert_eq!(page.hits[0].line, 3);
         assert!(!page.has_more, "remaining 3 fit in one page");
@@ -515,7 +594,7 @@ mod search_window_tests {
     #[test]
     fn window_limit_caps_page_and_reports_more() {
         let tmp = fixture();
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(0, 2)).unwrap();
+        let page = search_text(&tmp, "needle", SearchWindow::clamped(0, 2), &SearchFilter::default()).unwrap();
         assert_eq!(page.hits.len(), 2);
         assert_eq!((page.hits[0].line, page.hits[1].line), (1, 2));
         assert!(page.has_more, "3 hits remain beyond the window");
@@ -526,7 +605,7 @@ mod search_window_tests {
     fn has_more_is_false_when_the_page_holds_everything() {
         let tmp = fixture();
         // 恰好等于总命中数：旧实现把"等于上限"误判为被截断，多探一条后即可精确区分。
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(0, 5)).unwrap();
+        let page = search_text(&tmp, "needle", SearchWindow::clamped(0, 5), &SearchFilter::default()).unwrap();
         assert_eq!(page.hits.len(), 5);
         assert!(!page.has_more);
         cleanup(&tmp);
@@ -535,7 +614,7 @@ mod search_window_tests {
     #[test]
     fn offset_beyond_total_returns_empty_page() {
         let tmp = fixture();
-        let page = search_text(&tmp, "needle", SearchWindow::clamped(99, 200)).unwrap();
+        let page = search_text(&tmp, "needle", SearchWindow::clamped(99, 200), &SearchFilter::default()).unwrap();
         assert!(page.hits.is_empty());
         assert!(!page.has_more);
         cleanup(&tmp);
@@ -543,14 +622,16 @@ mod search_window_tests {
 
     #[test]
     fn window_is_clamped_to_the_safety_valve() {
-        // 跨语言契约：这两个数字与前端 `searchWindow.ts` 的 `SEARCH_PAGE_SIZE` /
-        // `SEARCH_MAX_RESULTS` 必须同值，前端单测同样钉住它们 —— 任一侧单独改动都会失败。
+        // 跨语言契约：这三个数字与前端 `searchWindow.ts` 的 `SEARCH_PAGE_SIZE` /
+        // `SEARCH_MAX_RESULTS` / `SEARCH_HARD_MAX_RESULTS` 必须同值，
+        // 前端单测同样钉住它们 —— 任一侧单独改动都会失败。
         assert_eq!(MAX_SEARCH_RESULTS, 200);
         assert_eq!(MAX_SEARCH_RESULTS_UNLIMITED, 5000);
+        assert_eq!(MAX_SEARCH_RESULTS_HARD_CAP, 20000);
         assert_eq!(SearchWindow::clamped(0, 0).limit, 1, "limit 0 would starve the caller");
         assert_eq!(
-            SearchWindow::clamped(0, MAX_SEARCH_RESULTS_UNLIMITED + 10_000).limit,
-            MAX_SEARCH_RESULTS_UNLIMITED
+            SearchWindow::clamped(0, MAX_SEARCH_RESULTS_HARD_CAP + 10_000).limit,
+            MAX_SEARCH_RESULTS_HARD_CAP
         );
         assert_eq!(SearchWindow::default(), SearchWindow::clamped(0, MAX_SEARCH_RESULTS));
     }
@@ -562,7 +643,7 @@ mod search_window_tests {
         let mut collected: Vec<usize> = Vec::new();
         let mut offset = 0usize;
         loop {
-            let page = search_text(&tmp, "needle", SearchWindow::clamped(offset, 2)).unwrap();
+            let page = search_text(&tmp, "needle", SearchWindow::clamped(offset, 2), &SearchFilter::default()).unwrap();
             collected.extend(page.hits.iter().map(|h| h.line));
             if !page.has_more {
                 break;
@@ -577,7 +658,7 @@ mod search_window_tests {
     fn search_in_files_honours_the_window() {
         let tmp = fixture();
         let page =
-            search_in_files(&tmp, &["a.txt".to_string()], "needle", SearchWindow::clamped(1, 2))
+            search_in_files(&tmp, &["a.txt".to_string()], "needle", SearchWindow::clamped(1, 2), &SearchFilter::default())
                 .unwrap();
         assert_eq!(page.hits.len(), 2);
         assert_eq!(page.hits[0].line, 2);
@@ -592,9 +673,78 @@ mod search_window_tests {
         // 直接测私有 `search_text_in_files`：公开 `search_in_files` 固定传 `&|| false`。
         let tmp = fixture();
         let files = vec![tmp.join("a.txt")];
-        let page = search_text_in_files(&files, &tmp, "needle", SearchWindow::default(), &|| true)
+        let page = search_text_in_files(&files, &tmp, "needle", SearchWindow::default(), &SearchFilter::default(), None, &|| true)
             .unwrap();
         assert!(page.has_more, "cancelled page must not claim exhausted");
+        cleanup(&tmp);
+    }
+}
+
+#[cfg(test)]
+mod search_filter_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static SF_SEQ: AtomicU64 = AtomicU64::new(0);
+
+    fn unique_tmp_dir() -> std::path::PathBuf {
+        let id = SF_SEQ.fetch_add(1, Ordering::SeqCst);
+        let path = std::env::temp_dir().join(format!("search-filter-test-{id}"));
+        let _ = std::fs::remove_dir_all(&path);
+        std::fs::create_dir_all(&path).expect("temp dir creation should succeed");
+        path
+    }
+
+    fn cleanup(path: &std::path::Path) {
+        let _ = std::fs::remove_dir_all(path);
+    }
+
+    #[test]
+    fn excluded_directory_hides_all_descendants() {
+        let tmp = unique_tmp_dir();
+        std::fs::create_dir_all(tmp.join("skip")).unwrap();
+        std::fs::write(tmp.join("skip").join("a.txt"), b"needle").unwrap();
+        std::fs::write(tmp.join("keep.txt"), b"needle").unwrap();
+        let filter = SearchFilter { excluded_paths: vec!["skip".to_string()], use_gitignore: true };
+        let page = search_text(&tmp, "needle", SearchWindow::default(), &filter).unwrap();
+        let paths: Vec<&str> = page.hits.iter().map(|h| h.path.as_str()).collect();
+        assert_eq!(paths, vec!["keep.txt"], "ignored dir must not occupy window slots");
+        assert!(!page.has_more);
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn gitignore_chain_is_applied_and_switchable() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join(".gitignore"), b"*.log\n").unwrap();
+        std::fs::write(tmp.join("debug.log"), b"needle").unwrap();
+        std::fs::write(tmp.join("note.txt"), b"needle").unwrap();
+        let on = search_text(&tmp, "needle", SearchWindow::default(), &SearchFilter::default())
+            .unwrap();
+        assert_eq!(on.hits.len(), 1);
+        assert_eq!(on.hits[0].path, "note.txt");
+        let off = SearchFilter { excluded_paths: Vec::new(), use_gitignore: false };
+        let page = search_text(&tmp, "needle", SearchWindow::default(), &off).unwrap();
+        assert_eq!(page.hits.len(), 2, "switch off must restore gitignored files");
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_honours_the_filter() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("a.txt"), b"needle").unwrap();
+        std::fs::write(tmp.join("b.txt"), b"needle").unwrap();
+        let filter = SearchFilter { excluded_paths: vec!["b.txt".to_string()], use_gitignore: true };
+        let page = search_in_files(
+            &tmp,
+            &["a.txt".to_string(), "b.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &filter,
+        )
+        .unwrap();
+        assert_eq!(page.hits.len(), 1);
+        assert_eq!(page.hits[0].path, "a.txt");
         cleanup(&tmp);
     }
 }

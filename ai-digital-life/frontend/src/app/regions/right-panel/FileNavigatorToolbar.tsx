@@ -10,6 +10,7 @@ import {
   IconList,
   IconRefreshCw,
   IconUnfoldVertical,
+  IconSettings,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { UseFileCreationResult } from './hooks';
@@ -34,6 +35,8 @@ interface FileNavigatorToolbarProps {
   /** 检索范围分段控制器：占据原新建文件/文件夹按钮位置 */
   searchScope: FilesSearchScope;
   onSetSearchScope: (scope: FilesSearchScope) => void;
+  /** 检索设置弹窗入口：仅检索文件模式下在标题右侧显示齿轮按钮 */
+  onOpenSearchSettings?: () => void;
 }
 
 const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
@@ -53,6 +56,7 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
   onSetSearchView,
   searchScope,
   onSetSearchScope,
+  onOpenSearchSettings,
 }: FileNavigatorToolbarProps) {
   const { t } = useTCopy();
 
@@ -79,6 +83,18 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
             </button>
           </TooltipSimple>
           <span className="adl-tool-navigator__context-title">{navigatorTitle as string}</span>
+          {isSearchMode && onOpenSearchSettings ? (
+            <TooltipSimple content={t.searchSettings} placement="top">
+              <button
+                type="button"
+                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                onClick={onOpenSearchSettings}
+                aria-label={t.searchSettings as string}
+              >
+                <IconSettings size={12} decorative />
+              </button>
+            </TooltipSimple>
+          ) : null}
         </div>
         <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
           {workspaceCount > 0 ? (

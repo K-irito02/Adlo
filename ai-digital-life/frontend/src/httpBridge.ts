@@ -66,6 +66,7 @@ import type {
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
   WorkspaceSearchPage,
+  WorkspaceSearchFilter,
   WorkspaceSearchWindow,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
@@ -213,6 +214,24 @@ const jsonBody = (body: unknown): string => JSON.stringify(body ?? {});
 
 const GET = (): RequestInit => ({ method: 'GET' });
 const POST = (body: unknown): RequestInit => ({ method: 'POST', body: jsonBody(body) });
+
+/**
+ * 检索过滤器转请求体（camelCase，与 Rust `SearchBody` 的 serde 命名一致）。
+ * `filter` 缺省时返回空对象，保持旧请求体不变（后端字段均为 `#[serde(default)]`）。
+ */
+const filterBody = (filter?: WorkspaceSearchFilter): Record<string, unknown> => {
+  if (!filter) {
+    return {};
+  }
+  const body: Record<string, unknown> = {};
+  if (filter.excludedPaths !== undefined) {
+    body.excludedPaths = filter.excludedPaths;
+  }
+  if (filter.useGitignore !== undefined) {
+    body.useGitignore = filter.useGitignore;
+  }
+  return body;
+};
 
 const taskNotSupported = <T>(what: string): Promise<IpcResult<T>> =>
   Promise.resolve(notSupported<T>(what));
@@ -868,13 +887,22 @@ export function createHttpBridge({
           '/workspace/tree',
           POST(options?.force ? { force: true } : {}),
         ),
-      search: (query: string, window?: WorkspaceSearchWindow) =>
-        call<WorkspaceSearchPage>(baseUrl, '/workspace/search', POST({ query, ...window })),
-      searchInFiles: (paths: string[], query: string, window?: WorkspaceSearchWindow) =>
+      search: (query: string, window?: WorkspaceSearchWindow, filter?: WorkspaceSearchFilter) =>
+        call<WorkspaceSearchPage>(
+          baseUrl,
+          '/workspace/search',
+          POST({ query, ...window, ...filterBody(filter) }),
+        ),
+      searchInFiles: (
+        paths: string[],
+        query: string,
+        window?: WorkspaceSearchWindow,
+        filter?: WorkspaceSearchFilter,
+      ) =>
         call<WorkspaceSearchPage>(
           baseUrl,
           '/workspace/search-in-files',
-          POST({ paths, query, ...window }),
+          POST({ paths, query, ...window, ...filterBody(filter) }),
         ),
       outline: (relativePath: string) =>
         call<FileOutlineItem[]>(baseUrl, '/workspace/outline', POST({ relativePath })),

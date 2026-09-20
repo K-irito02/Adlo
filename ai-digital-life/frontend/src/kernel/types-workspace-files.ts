@@ -46,13 +46,24 @@ export interface WorkspaceSearchHit {
 
 /**
  * 检索分页窗口：跳过前 `offset` 条命中，最多返回 `limit` 条。
- * 缺省 `{ offset: 0, limit: 200 }`；`limit` 由后端钳制到安全阀 5000，
- * 调用方无法通过超大 `limit` 绕过（常量定义在前端单一来源
- * `shared/ipc/searchWindow.ts`，与本接口保持同步）。
+ * 缺省 `{ offset: 0, limit: 200 }`；`limit` 由后端钳制到硬上限
+ * （常量定义在前端单一来源 `shared/ipc/searchWindow.ts`，与本接口保持同步）。
  */
 export interface WorkspaceSearchWindow {
   offset?: number;
   limit?: number;
+}
+
+/**
+ * 检索过滤器：手动忽略名单与 `.gitignore` 开关（检索设置弹窗写入，store 持有）。
+ * 两者为并集关系——命中任一即跳过该文件；`limit`/分页语义在过滤之后生效，
+ * 因此"加载更多/显示全部"的计数不受影响。
+ */
+export interface WorkspaceSearchFilter {
+  /** 工作区相对路径数组：文件或目录（目录隐含其全部后代） */
+  excludedPaths?: string[];
+  /** 是否叠加工作区 `.gitignore` 链（类 git 语义自动合并，深层覆盖浅层） */
+  useGitignore?: boolean;
 }
 
 /**

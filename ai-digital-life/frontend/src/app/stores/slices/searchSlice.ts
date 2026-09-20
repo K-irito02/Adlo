@@ -1,6 +1,18 @@
-import type { WorkspaceSearchHit } from '@ai-digital-life/kernel';
+import type { WorkspaceSearchFilter, WorkspaceSearchHit } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import { SEARCH_PAGE_SIZE } from '../../../shared/ipc/searchWindow';
+import {
+  SEARCH_HARD_MAX_RESULTS,
+  SEARCH_MAX_RESULTS,
+  SEARCH_PAGE_SIZE,
+  SEARCH_PAGE_SIZE_MAX,
+  SEARCH_PAGE_SIZE_MIN,
+} from '../../../shared/ipc/searchWindow';
+import { clamp, readJson, readNumber, writeJson, writeNumber } from '../shared';
+
+export const SEARCH_PAGE_SIZE_KEY = 'adl-search:page-size';
+export const SEARCH_MAX_RESULTS_KEY = 'adl-search:max-results';
+export const SEARCH_IGNORED_PATHS_KEY = 'adl-search:ignored-paths';
+export const SEARCH_USE_GITIGNORE_KEY = 'adl-search:use-gitignore';
 
 export interface SearchHitEntry {
   /** 产生该命中的工作区（跨工作区同相对路径不会错配） */
@@ -31,6 +43,27 @@ export interface SearchSlice {
   searchMatchCase: boolean;
   searchMatchWholeWord: boolean;
   searchUseRegex: boolean;
+  /**
+   * 检索步长/首屏条数（检索设置可自定义，全局持久化）。
+   * 范围钳制到 `[SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX]`。
+   */
+  searchPageSize: number;
+  /**
+   * 「显示全部」的目标上限（检索设置可自定义，全局持久化）。
+   * 范围钳制到 `[SEARCH_PAGE_SIZE, SEARCH_HARD_MAX_RESULTS]`；
+   * 超过 5000 时 UI 出卡顿警告（见检索设置限制 tab）。
+   */
+  searchMaxResults: number;
+  /**
+   * 按工作区的手动忽略名单（工作区相对路径；目录隐含其全部后代）。
+   * 与 `.gitignore` 为并集关系，检索过滤器透传给后端（见 `WorkspaceSearchFilter`）。
+   */
+  searchIgnoredPaths: Record<string, string[]>;
+  /**
+   * 按工作区的 `.gitignore` 开关（缺省启用；未显式设置的工作区视为启用）。
+   * 关闭后检索不再叠加任何 `.gitignore` 规则，只用手动名单。
+   */
+  searchUseGitignore: Record<string, boolean>;
 
   setSearchQuery: (query: string) => void;
   setSearching: (searching: boolean) => void;
@@ -38,6 +71,10 @@ export interface SearchSlice {
   setSearchMatchCase: (value: boolean) => void;
   setSearchMatchWholeWord: (value: boolean) => void;
   setSearchUseRegex: (value: boolean) => void;
+  setSearchPageSize: (value: number) => void;
+  setSearchMaxResults: (value: number) => void;
+  setSearchIgnoredPaths: (workspaceId: string, paths: string[]) => void;
+  setSearchUseGitignore: (workspaceId: string, value: boolean) => void;
   /**
    * 开启新检索会话（递增 `searchSessionId`，用于丢弃过期响应）。
    * `keepEntries` 供「加载更多 / 显示全部」使用：重跑是为了扩大窗口，
@@ -90,6 +127,73 @@ export function toHitEntries(hits: WorkspaceSearchHit[], workspaceId: string): S
   return hits.map((hit) => ({ ...hit, workspaceId }));
 }
 
+/**
+ * 由 store 快照组装本次检索的过滤器：手动名单与 `.gitignore` 开关并集生效。
+ * 无手动忽略且 `.gitignore` 保持默认启用时返回 `undefined`
+ *（后端缺省即叠加 gitignore，此时无需透传，保持旧请求体不变）。
+ */
+export function selectSearchFilter(
+  ignoredPaths: Record<string, string[]> | undefined,
+  useGitignore: Record<string, boolean> | undefined,
+  workspaceId: string | undefined,
+): WorkspaceSearchFilter | undefined {
+  const excluded = (workspaceId ? ((ignoredPaths ?? {})[workspaceId] ?? []) : []).filter(
+    (p) => typeof p === 'string' && p.length > 0,
+  );
+  const gitignore = workspaceId ? ((useGitignore ?? {})[workspaceId] ?? true) : true;
+  if (excluded.length === 0 && gitignore) {
+    return undefined;
+  }
+  return { excludedPaths: excluded, useGitignore: gitignore };
+}
+
+/** 读持久化的检索设置（localStorage 缺失/非法时回退默认值）。 */
+function readSearchPageSize(): number {
+  return readNumber(
+    SEARCH_PAGE_SIZE_KEY,
+    SEARCH_PAGE_SIZE,
+    SEARCH_PAGE_SIZE_MIN,
+    SEARCH_PAGE_SIZE_MAX,
+  );
+}
+
+function readSearchMaxResults(): number {
+  return readNumber(
+    SEARCH_MAX_RESULTS_KEY,
+    SEARCH_MAX_RESULTS,
+    SEARCH_PAGE_SIZE,
+    SEARCH_HARD_MAX_RESULTS,
+  );
+}
+
+function readSearchIgnoredPaths(): Record<string, string[]> {
+  const raw = readJson<Record<string, string[]>>(SEARCH_IGNORED_PATHS_KEY, {});
+  if (raw && typeof raw === 'object') {
+    const clean: Record<string, string[]> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (Array.isArray(value)) {
+        clean[key] = value.filter((p) => typeof p === 'string' && p.length > 0);
+      }
+    }
+    return clean;
+  }
+  return {};
+}
+
+function readSearchUseGitignore(): Record<string, boolean> {
+  const raw = readJson<Record<string, boolean>>(SEARCH_USE_GITIGNORE_KEY, {});
+  if (raw && typeof raw === 'object') {
+    const clean: Record<string, boolean> = {};
+    for (const [key, value] of Object.entries(raw)) {
+      if (typeof value === 'boolean') {
+        clean[key] = value;
+      }
+    }
+    return clean;
+  }
+  return {};
+}
+
 export const createSearchSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
@@ -104,6 +208,10 @@ export const createSearchSlice = (
   searchMatchCase: false,
   searchMatchWholeWord: false,
   searchUseRegex: false,
+  searchPageSize: readSearchPageSize(),
+  searchMaxResults: readSearchMaxResults(),
+  searchIgnoredPaths: readSearchIgnoredPaths(),
+  searchUseGitignore: readSearchUseGitignore(),
 
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSearching: (searching) => set({ searching }),
@@ -111,6 +219,26 @@ export const createSearchSlice = (
   setSearchMatchCase: (value) => set({ searchMatchCase: value }),
   setSearchMatchWholeWord: (value) => set({ searchMatchWholeWord: value }),
   setSearchUseRegex: (value) => set({ searchUseRegex: value }),
+  setSearchPageSize: (value) => {
+    const next = clamp(Math.floor(value), SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX);
+    writeNumber(SEARCH_PAGE_SIZE_KEY, next);
+    set({ searchPageSize: next });
+  },
+  setSearchMaxResults: (value) => {
+    const next = clamp(Math.floor(value), SEARCH_PAGE_SIZE, SEARCH_HARD_MAX_RESULTS);
+    writeNumber(SEARCH_MAX_RESULTS_KEY, next);
+    set({ searchMaxResults: next });
+  },
+  setSearchIgnoredPaths: (workspaceId, paths) => {
+    const next = { ..._get().searchIgnoredPaths, [workspaceId]: [...paths] };
+    writeJson(SEARCH_IGNORED_PATHS_KEY, next);
+    set({ searchIgnoredPaths: next });
+  },
+  setSearchUseGitignore: (workspaceId, value) => {
+    const next = { ..._get().searchUseGitignore, [workspaceId]: value };
+    writeJson(SEARCH_USE_GITIGNORE_KEY, next);
+    set({ searchUseGitignore: next });
+  },
   beginSearchSession: (workspaceId, options) => {
     const nextId = _get().searchSessionId + 1;
     set({
@@ -127,6 +255,6 @@ export const createSearchSlice = (
       searchEntries: [],
       searching: false,
       searchHasMore: false,
-      searchLimit: SEARCH_PAGE_SIZE,
+      searchLimit: _get().searchPageSize,
     }),
 });
