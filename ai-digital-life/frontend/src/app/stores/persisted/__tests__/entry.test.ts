@@ -27,8 +27,22 @@ describe('parsePersistKey', () => {
     expect(parsePersistKey('adl-terminal:cwd-by-tab')).toBeNull();
   });
 
-  it('rejects a lowercase-starting name', () => {
-    expect(parsePersistKey('adl:files.lowercase')).toBeNull();
+  it('rejects a kebab-case name (legacy style)', () => {
+    expect(parsePersistKey('adl:files.kebab-case')).toBeNull();
+    expect(parsePersistKey('adl:browser.tab_folders')).toBeNull();
+    expect(parsePersistKey('adl:files.1startsWithDigit')).toBeNull();
+  });
+
+  // Task 9 的键表（计划 §Task 9 登记清单）含全小写单词名：adl:browser.tabs /
+  // history / bookmarks / shortcuts。计划原文要求这些键名逐字使用，故名称段必须
+  // 允许全小写单词 —— Task 2 为满足本文件旧用例而加的"至少含一个大写字母"约束
+  // 与之互斥（同一字符串不可能同时通过两者），此处按计划键表放开。
+  it('accepts a single-token lowercase name mandated by the plan key table', () => {
+    expect(parsePersistKey('adl:browser.tabs')).toEqual({
+      domain: 'browser',
+      name: 'tabs',
+      version: 1,
+    });
   });
 });
 

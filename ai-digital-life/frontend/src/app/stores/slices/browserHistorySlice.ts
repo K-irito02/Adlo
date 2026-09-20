@@ -1,5 +1,6 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, makePersistedWriter } from '../shared';
+import { createUiId } from '../shared';
+import { persist } from '../persisted/persist';
 import {
   historyDedupKey,
   hasViewIdentityParam,
@@ -7,14 +8,9 @@ import {
   historyDocumentKey,
   isPlaceholderTitle,
 } from '@utils/browserDisplayUtils';
-import { BROWSER_HISTORY_KEY } from './browserSliceShared';
 import type { BrowserHistoryState } from './browserTypes';
 
 export type { BrowserHistoryState };
-
-const writeHistory = makePersistedWriter(BROWSER_HISTORY_KEY);
-
-export const BROWSER_HISTORY_STORAGE_KEY = BROWSER_HISTORY_KEY;
 
 /**
  * 同一文档（同 hostname+pathname+身份参数）导航突发合并窗口（ms）。
@@ -89,7 +85,7 @@ export const createBrowserHistorySlice = (
           visitedAt: now,
         };
         const nextHistory = [merged, ...state.browserHistory.slice(1)];
-        writeHistory(nextHistory);
+        persist('adl:browser.history', nextHistory);
         return { browserHistory: nextHistory };
       }
 
@@ -117,13 +113,13 @@ export const createBrowserHistorySlice = (
         visitedAt: now,
       };
       const nextHistory = [newHistoryItem, ...filteredHistory].slice(0, 100);
-      writeHistory(nextHistory);
+      persist('adl:browser.history', nextHistory);
       return { browserHistory: nextHistory };
     });
   },
 
   browserClearHistory: () => {
-    writeHistory([]);
+    persist('adl:browser.history', []);
     set({ browserHistory: [] });
   },
 
@@ -143,7 +139,7 @@ export const createBrowserHistorySlice = (
       const nextHistory = state.browserHistory.map((h) =>
         historyDedupKey(h.url) === dedupKey ? { ...h, title } : h,
       );
-      writeHistory(nextHistory);
+      persist('adl:browser.history', nextHistory);
       return { browserHistory: nextHistory };
     });
   },
@@ -190,7 +186,7 @@ export const createBrowserHistorySlice = (
             )
             .filter((h) => h.id !== targetId)
         : state.browserHistory.map((h) => (h.id === targetId ? { ...h, url: newUrl } : h));
-      writeHistory(nextHistory);
+      persist('adl:browser.history', nextHistory);
       return { browserHistory: nextHistory };
     });
   },
@@ -224,7 +220,7 @@ export const createBrowserHistorySlice = (
           return `${y}-${m}-${dy}` !== dayKey;
         });
       }
-      writeHistory(filtered);
+      persist('adl:browser.history', filtered);
       return { browserHistory: filtered };
     });
   },
@@ -235,7 +231,7 @@ export const createBrowserHistorySlice = (
       if (nextHistory.length === state.browserHistory.length) {
         return state;
       }
-      writeHistory(nextHistory);
+      persist('adl:browser.history', nextHistory);
       return { browserHistory: nextHistory };
     });
   },

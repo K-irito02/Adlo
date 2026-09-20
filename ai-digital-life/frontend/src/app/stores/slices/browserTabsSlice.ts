@@ -1,11 +1,6 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, makePersistedWriter } from '../shared';
-import {
-  BROWSER_TABS_KEY,
-  BROWSER_ACTIVE_TAB_KEY,
-  BROWSER_TAB_FOLDERS_KEY,
-  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-} from './browserSliceShared';
+import { createUiId } from '../shared';
+import { persist } from '../persisted/persist';
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 import { historyDedupKey, isRealTitle } from '@utils/browserDisplayUtils';
 
@@ -14,11 +9,6 @@ import { historyDedupKey, isRealTitle } from '@utils/browserDisplayUtils';
 // without import-source churn. The canonical definitions live in
 // `./browserSliceShared` to break the cross-slice type import cycle.
 export type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
-
-const writeTabFolders = makePersistedWriter(BROWSER_TAB_FOLDERS_KEY);
-const writeBookmarkTabIdUrlMap = makePersistedWriter(BROWSER_BOOKMARK_TABID_URL_MAP_KEY);
-const writeTabs = makePersistedWriter(BROWSER_TABS_KEY);
-const writeActiveTab = makePersistedWriter(BROWSER_ACTIVE_TAB_KEY);
 
 function sortTabs(tabs: BrowserTabState[]): BrowserTabState[] {
   return [...tabs].sort((a, b) => {
@@ -36,9 +26,6 @@ function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState>
   }
   return result;
 }
-
-export const BROWSER_TABS_STORAGE_KEY = BROWSER_TABS_KEY;
-export const BROWSER_ACTIVE_TAB_STORAGE_KEY = BROWSER_ACTIVE_TAB_KEY;
 
 export interface BrowserTabsSlice {
   browserTabs: BrowserTabState[];
@@ -107,14 +94,14 @@ export const createBrowserTabsSlice = (
           }
           return f;
         });
-        writeTabFolders(nextFolders);
+        persist('adl:browser.tabFolders', nextFolders);
         if (tab.url && !nextTabIdUrlMap[tab.id]) {
           nextTabIdUrlMap = { ...nextTabIdUrlMap, [tab.id]: tab.url };
-          writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+          persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
         }
       }
-      writeTabs(nextTabs);
-      writeActiveTab(tab.id);
+      persist('adl:browser.tabs', nextTabs);
+      persist('adl:browser.activeTabId', tab.id);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
@@ -136,7 +123,7 @@ export const createBrowserTabsSlice = (
   },
 
   browserSelectTab: (tabId) => {
-    writeActiveTab(tabId);
+    persist('adl:browser.activeTabId', tabId);
     set({ browserActiveTabId: tabId });
   },
 
@@ -149,8 +136,8 @@ export const createBrowserTabsSlice = (
           ? (nextTabs[nextTabs.length - 1]?.id ?? '')
           : state.browserActiveTabId;
 
-      writeTabs(nextTabs);
-      writeActiveTab(nextActive);
+      persist('adl:browser.tabs', nextTabs);
+      persist('adl:browser.activeTabId', nextActive);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),
@@ -163,7 +150,7 @@ export const createBrowserTabsSlice = (
       const nextTabs = sortTabs(
         state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab)),
       );
-      writeTabs(nextTabs);
+      persist('adl:browser.tabs', nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
 
@@ -184,7 +171,7 @@ export const createBrowserTabsSlice = (
       });
       const hasMuteChange = isMuted !== undefined;
       if (hasMuteChange) {
-        writeTabs(nextTabs);
+        persist('adl:browser.tabs', nextTabs);
       }
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
@@ -194,7 +181,7 @@ export const createBrowserTabsSlice = (
       const nextTabs = state.browserTabs.map((tab) =>
         tab.id === tabId ? { ...tab, isAudioMuted: !tab.isAudioMuted } : tab,
       );
-      writeTabs(nextTabs);
+      persist('adl:browser.tabs', nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
 
@@ -212,7 +199,7 @@ export const createBrowserTabsSlice = (
           return tab;
         }),
       );
-      writeTabs(nextTabs);
+      persist('adl:browser.tabs', nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
     }),
 
@@ -230,7 +217,7 @@ export const createBrowserTabsSlice = (
         sortOrder: index,
       }));
 
-      writeTabs(reorderedWithSort);
+      persist('adl:browser.tabs', reorderedWithSort);
       return {
         browserTabs: reorderedWithSort,
         browserTabsById: buildTabsById(reorderedWithSort),
@@ -246,8 +233,8 @@ export const createBrowserTabsSlice = (
         nextTabs = [];
       }
       const nextActive = nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : '';
-      writeTabs(nextTabs);
-      writeActiveTab(nextActive);
+      persist('adl:browser.tabs', nextTabs);
+      persist('adl:browser.activeTabId', nextActive);
       return {
         browserTabs: nextTabs,
         browserTabsById: buildTabsById(nextTabs),

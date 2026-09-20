@@ -1,13 +1,8 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, makePersistedWriter, readJson } from '../shared';
+import { createUiId } from '../shared';
+import { persist } from '../persisted/persist';
 import { invokeIpc } from '../../../tauri-bridge/tauri-shared';
-import {
-  BROWSER_SHORTCUTS_KEY,
-  BROWSER_LOCAL_PORTS_KEY,
-  BROWSER_BG_CONFIG_KEY,
-  BROWSER_CONFIGURED_PORTS_KEY,
-  DEFAULT_CONFIGURED_PORTS,
-} from './browserSliceShared';
+import { DEFAULT_CONFIGURED_PORTS } from './browserSliceShared';
 import type {
   ShortcutSite,
   LocalPort,
@@ -17,11 +12,6 @@ import type {
 } from './browserTypes';
 
 export type { ShortcutSite, LocalPort, BackgroundMode, BackgroundFit, BackgroundConfig };
-
-const writeShortcuts = makePersistedWriter(BROWSER_SHORTCUTS_KEY);
-const writeLocalPorts = makePersistedWriter(BROWSER_LOCAL_PORTS_KEY);
-const writeBgConfig = makePersistedWriter(BROWSER_BG_CONFIG_KEY);
-const writeConfiguredPorts = makePersistedWriter(BROWSER_CONFIGURED_PORTS_KEY);
 
 export interface BrowserLandingSlice {
   browserShortcuts: ShortcutSite[];
@@ -59,10 +49,7 @@ export const createBrowserLandingSlice = (
   browserLocalPorts: [],
   browserPortScanning: false,
   browserBgConfig: { mode: 'default', fit: 'cover' },
-  browserConfiguredPorts: readJson<number[]>(
-    BROWSER_CONFIGURED_PORTS_KEY,
-    DEFAULT_CONFIGURED_PORTS,
-  ),
+  browserConfiguredPorts: DEFAULT_CONFIGURED_PORTS,
 
   browserAddShortcut: (site) => {
     let id = '';
@@ -81,7 +68,7 @@ export const createBrowserLandingSlice = (
         createdAt: Date.now(),
       };
       const nextShortcuts = [...state.browserShortcuts, newSite];
-      writeShortcuts(nextShortcuts);
+      persist('adl:browser.shortcuts', nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     });
     return id;
@@ -90,14 +77,14 @@ export const createBrowserLandingSlice = (
   browserRenameShortcut: (id, name) =>
     set((state) => {
       const nextShortcuts = state.browserShortcuts.map((s) => (s.id === id ? { ...s, name } : s));
-      writeShortcuts(nextShortcuts);
+      persist('adl:browser.shortcuts', nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     }),
 
   browserDeleteShortcut: (id) =>
     set((state) => {
       const nextShortcuts = state.browserShortcuts.filter((s) => s.id !== id);
-      writeShortcuts(nextShortcuts);
+      persist('adl:browser.shortcuts', nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     }),
 
@@ -111,14 +98,14 @@ export const createBrowserLandingSlice = (
         return { ...site, sortOrder: idx };
       });
       const nextShortcuts = [...ordered, ...other];
-      writeShortcuts(nextShortcuts);
+      persist('adl:browser.shortcuts', nextShortcuts);
       return { browserShortcuts: nextShortcuts };
     }),
 
   browserSetLocalPorts: (ports) =>
     set(() => {
       const withSort = ports.map((p, idx) => ({ ...p, sortOrder: p.sortOrder ?? idx }));
-      writeLocalPorts(withSort);
+      persist('adl:browser.localPorts', withSort);
       return { browserLocalPorts: withSort };
     }),
 
@@ -141,7 +128,7 @@ export const createBrowserLandingSlice = (
         sortOrder: maxSortOrder + 1,
       };
       const nextPorts = [...state.browserLocalPorts, newPort];
-      writeLocalPorts(nextPorts);
+      persist('adl:browser.localPorts', nextPorts);
       return { browserLocalPorts: nextPorts };
     });
     return id;
@@ -150,14 +137,14 @@ export const createBrowserLandingSlice = (
   browserDeleteLocalPort: (id) =>
     set((state) => {
       const nextPorts = state.browserLocalPorts.filter((p) => p.id !== id);
-      writeLocalPorts(nextPorts);
+      persist('adl:browser.localPorts', nextPorts);
       return { browserLocalPorts: nextPorts };
     }),
 
   browserUpdateLocalPort: (id, patch) =>
     set((state) => {
       const nextPorts = state.browserLocalPorts.map((p) => (p.id === id ? { ...p, ...patch } : p));
-      writeLocalPorts(nextPorts);
+      persist('adl:browser.localPorts', nextPorts);
       return { browserLocalPorts: nextPorts };
     }),
 
@@ -171,7 +158,7 @@ export const createBrowserLandingSlice = (
         return { ...port, sortOrder: idx };
       });
       const nextPorts = [...ordered, ...other];
-      writeLocalPorts(nextPorts);
+      persist('adl:browser.localPorts', nextPorts);
       return { browserLocalPorts: nextPorts };
     }),
 
@@ -213,7 +200,7 @@ export const createBrowserLandingSlice = (
         }));
 
       const next = [...updatedCurrent, ...newPorts];
-      writeLocalPorts(next);
+      persist('adl:browser.localPorts', next);
       set({ browserLocalPorts: next });
     } catch {
       // scan failed — leave previous state
@@ -223,19 +210,19 @@ export const createBrowserLandingSlice = (
   },
 
   browserSetBgConfig: (config) => {
-    writeBgConfig(config);
+    persist('adl:browser.bgConfig', config);
     set({ browserBgConfig: config });
   },
 
   browserResetBgConfig: () => {
     const defaultConfig: BackgroundConfig = { mode: 'default', fit: 'cover' };
-    writeBgConfig(defaultConfig);
+    persist('adl:browser.bgConfig', defaultConfig);
     set({ browserBgConfig: defaultConfig });
   },
 
   browserSetConfiguredPorts: (ports) => {
     const unique = [...new Set(ports.filter((p) => Number.isFinite(p) && p > 0 && p <= 65535))];
-    writeConfiguredPorts(unique);
+    persist('adl:browser.configuredPorts', unique);
     set({ browserConfiguredPorts: unique });
   },
 
@@ -250,7 +237,7 @@ export const createBrowserLandingSlice = (
         return state;
       }
       const next = [...state.browserConfiguredPorts, port];
-      writeConfiguredPorts(next);
+      persist('adl:browser.configuredPorts', next);
       return { browserConfiguredPorts: next };
     });
   },
@@ -258,7 +245,7 @@ export const createBrowserLandingSlice = (
   browserRemoveConfiguredPort: (port) => {
     set((state) => {
       const next = state.browserConfiguredPorts.filter((p) => p !== port);
-      writeConfiguredPorts(next);
+      persist('adl:browser.configuredPorts', next);
       return { browserConfiguredPorts: next };
     });
   },

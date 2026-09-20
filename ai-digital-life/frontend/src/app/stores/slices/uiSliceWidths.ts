@@ -6,11 +6,10 @@
  * registry 的 readNumberInRange 只是水合期的读取侧安全网，不替代写入侧钳制。
  */
 import type { StoreState } from '../StoreState';
-import { readNumber, clamp, makePersistedNumberWriter } from '../shared';
+import { clamp } from '../shared';
 import { persistField } from '../persisted/apply';
 import type { UISlice } from './uiSliceTypes';
 import {
-  BROWSER_NAVIGATOR_WIDTH_KEY,
   LEFT_PANEL_WIDTH_MIN,
   LEFT_PANEL_WIDTH_MAX,
   DEFAULT_LEFT_PANEL_WIDTH,
@@ -33,12 +32,6 @@ import {
   SETTINGS_NAVIGATOR_WIDTH_MAX,
   DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
 } from './uiSliceTypes';
-
-/**
- * 浏览器导航器宽度尚未迁移（不在 Task 7 迁移表内），暂保留遗留写盘通道，
- * 由后续任务迁移到 registry；其遗留键在 PERSIST_KEEP_KEYS 中受保护。
- */
-const writeBrowserNavigatorWidth = makePersistedNumberWriter(BROWSER_NAVIGATOR_WIDTH_KEY);
 
 export type UIWidthSlice = Pick<
   UISlice,
@@ -79,12 +72,7 @@ export function createUIWidthSlice(
     rightPanelWidth: DEFAULT_RIGHT_PANEL_WIDTH,
     filesNavigatorWidth: DEFAULT_FILES_NAVIGATOR_WIDTH,
     changesNavigatorWidth: DEFAULT_CHANGES_NAVIGATOR_WIDTH,
-    browserNavigatorWidth: readNumber(
-      BROWSER_NAVIGATOR_WIDTH_KEY,
-      DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-      BROWSER_NAVIGATOR_WIDTH_MIN,
-      BROWSER_NAVIGATOR_WIDTH_MAX,
-    ),
+    browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
     gitHubNavigatorWidth: DEFAULT_GITHUB_NAVIGATOR_WIDTH,
     settingsNavigatorWidth: DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
 
@@ -140,9 +128,12 @@ export function createUIWidthSlice(
       );
     },
     setBrowserNavigatorWidth: (width) => {
-      const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
-      writeBrowserNavigatorWidth(next);
-      set({ browserNavigatorWidth: next });
+      set(
+        persistField(
+          'adl:browser.navigatorWidth',
+          clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX),
+        ),
+      );
     },
     setGitHubNavigatorWidth: (width) => {
       set(

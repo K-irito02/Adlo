@@ -1,11 +1,6 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, makePersistedWriter } from '../shared';
-import {
-  BROWSER_BOOKMARKS_KEY,
-  BROWSER_TAB_FOLDERS_KEY,
-  BROWSER_WORKSPACE_BOOKMARKS_KEY,
-  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-} from './browserSliceShared';
+import { createUiId } from '../shared';
+import { persist } from '../persisted/persist';
 import { formatNewFolderNameByLocale } from '@i18n';
 import type {
   BrowserTabState,
@@ -62,13 +57,6 @@ export function checkBookmarkCollision(
   }
   return { ok: true };
 }
-
-const writeBookmarks = makePersistedWriter(BROWSER_BOOKMARKS_KEY);
-const writeTabFolders = makePersistedWriter(BROWSER_TAB_FOLDERS_KEY);
-const writeWorkspaceBookmarks = makePersistedWriter(BROWSER_WORKSPACE_BOOKMARKS_KEY);
-const writeBookmarkTabIdUrlMap = makePersistedWriter(BROWSER_BOOKMARK_TABID_URL_MAP_KEY);
-
-export const BROWSER_WORKSPACE_BOOKMARKS_STORAGE_KEY = BROWSER_WORKSPACE_BOOKMARKS_KEY;
 
 interface BrowserBookmarkHelpersState {
   browserTabs: BrowserTabState[];
@@ -436,16 +424,16 @@ export const createBrowserBookmarkSlice = (
         return state;
       }
       if (outcome.bookmarksChanged) {
-        writeBookmarks(outcome.partial.browserBookmarks);
+        persist('adl:browser.bookmarks', outcome.partial.browserBookmarks!);
       }
       if (outcome.foldersChanged) {
-        writeTabFolders(outcome.partial.browserTabFolders);
+        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
       }
       if (outcome.wsBookmarksChanged) {
-        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
+        persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
       }
       if (outcome.tabIdUrlMapChanged) {
-        writeBookmarkTabIdUrlMap(outcome.partial.browserBookmarkTabIdUrlMap);
+        persist('adl:browser.tabIdUrlMap', outcome.partial.browserBookmarkTabIdUrlMap!);
       }
       return outcome.partial;
     });
@@ -515,16 +503,16 @@ export const createBrowserBookmarkSlice = (
       }
 
       if (!exists) {
-        writeBookmarks(nextBookmarks);
+        persist('adl:browser.bookmarks', nextBookmarks);
       }
       if (foldersChanged) {
-        writeTabFolders(nextFolders);
+        persist('adl:browser.tabFolders', nextFolders);
       }
       if (wsChanged) {
-        writeWorkspaceBookmarks(nextWorkspaceBookmarks);
+        persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
       }
       if (input.folderId && foldersChanged) {
-        writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+        persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
       }
 
       return {
@@ -581,16 +569,16 @@ export const createBrowserBookmarkSlice = (
         return state;
       }
       if (outcome.foldersChanged) {
-        writeTabFolders(outcome.partial.browserTabFolders);
+        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
       }
       if (outcome.bookmarksChanged) {
-        writeBookmarks(outcome.partial.browserBookmarks);
+        persist('adl:browser.bookmarks', outcome.partial.browserBookmarks!);
       }
       if (outcome.wsBookmarksChanged) {
-        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
+        persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
       }
       if (outcome.tabIdUrlMapChanged) {
-        writeBookmarkTabIdUrlMap(outcome.partial.browserBookmarkTabIdUrlMap);
+        persist('adl:browser.tabIdUrlMap', outcome.partial.browserBookmarkTabIdUrlMap!);
       }
       return outcome.partial;
     });
@@ -720,16 +708,16 @@ export const createBrowserBookmarkSlice = (
       const nextTabIdUrlMap = { ...state.browserBookmarkTabIdUrlMap, [tabId]: url };
 
       if (bookmarksChanged) {
-        writeBookmarks(nextBookmarks);
+        persist('adl:browser.bookmarks', nextBookmarks);
       }
       if (foldersChanged) {
-        writeTabFolders(nextFolders);
+        persist('adl:browser.tabFolders', nextFolders);
       }
       if (wsChanged) {
-        writeWorkspaceBookmarks(nextWorkspaceBookmarks);
+        persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
       }
       if (nextTabIdUrlMap[tabId] !== state.browserBookmarkTabIdUrlMap[tabId]) {
-        writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+        persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
       }
 
       return {
@@ -767,7 +755,7 @@ export const createBrowserBookmarkSlice = (
         }
       }
       if (wsChanged) {
-        writeWorkspaceBookmarks(nextWorkspaceBookmarks);
+        persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
       }
 
       const nextFolders = scopeFolderId
@@ -804,7 +792,7 @@ export const createBrowserBookmarkSlice = (
             return folder;
           });
       if (nextFolders !== state.browserTabFolders) {
-        writeTabFolders(nextFolders);
+        persist('adl:browser.tabFolders', nextFolders);
       }
 
       // 仅当被移除的 (url,title) 元组不再被任何 folder/workspace 条目引用时才从全局移除
@@ -822,10 +810,10 @@ export const createBrowserBookmarkSlice = (
             )
           : state.browserBookmarks;
       if (nextBookmarks !== state.browserBookmarks) {
-        writeBookmarks(nextBookmarks);
+        persist('adl:browser.bookmarks', nextBookmarks);
       }
 
-      writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
+      persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
       return {
         browserBookmarks: nextBookmarks,
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
@@ -861,13 +849,13 @@ export const createBrowserBookmarkSlice = (
       if (nextBookmarks.length === state.browserBookmarks.length) {
         return state;
       }
-      writeBookmarks(nextBookmarks);
+      persist('adl:browser.bookmarks', nextBookmarks);
       return { browserBookmarks: nextBookmarks };
     }),
 
   browserClearAllWorkspaceBookmarks: () => {
-    writeWorkspaceBookmarks({});
-    writeBookmarkTabIdUrlMap({});
+    persist('adl:browser.workspaceBookmarks', {});
+    persist('adl:browser.tabIdUrlMap', {});
     set({
       browserWorkspaceBookmarks: {},
       browserBookmarkTabIdUrlMap: {},

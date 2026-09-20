@@ -18,7 +18,6 @@ export type {
   UISlice,
 } from './uiSliceTypes';
 export {
-  BROWSER_NAVIGATOR_WIDTH_KEY,
   RIGHT_PANEL_MODE_KEY,
   RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY,
   LEFT_PANEL_WIDTH_MIN,

@@ -3,31 +3,16 @@
  * 从 browserFoldersSlice.ts 提取的纯函数（无 store 访问）与 storage key 常量
  */
 import type { BrowserTabState } from './browserSliceShared';
-import {
-  BROWSER_TAB_FOLDERS_KEY,
-  BROWSER_TREE_EXPANDED_KEY,
-  BROWSER_WORKSPACE_EXPANDED_KEY,
-  BROWSER_TABS_KEY,
-  BROWSER_ACTIVE_TAB_KEY,
-  BROWSER_HISTORY_KEY,
-  BROWSER_WORKSPACE_BOOKMARKS_KEY,
-} from './browserSliceShared';
+import { BROWSER_WORKSPACE_EXPANDED_KEY } from './browserSliceShared';
 import type { TabFolderState } from './browserFoldersTypes';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 
-export {
-  BROWSER_TAB_FOLDERS_KEY,
-  BROWSER_TREE_EXPANDED_KEY,
-  BROWSER_WORKSPACE_EXPANDED_KEY,
-  BROWSER_TABS_KEY,
-  BROWSER_ACTIVE_TAB_KEY,
-  BROWSER_HISTORY_KEY,
-  BROWSER_WORKSPACE_BOOKMARKS_KEY,
-};
+// Task 9：除 `browser-workspace-expanded`（死状态，未登记，Task 20 删除）外，
+// 浏览器持久化键的遗留常量与 STORAGE_KEY 别名均已删除 —— 其单一事实来源是
+// persisted/registry.ts 的 `adl:browser.*` 登记键。
+export { BROWSER_WORKSPACE_EXPANDED_KEY };
 
-// Public storage key aliases (preserved for backwards compatibility)
-export const BROWSER_TAB_FOLDERS_STORAGE_KEY = BROWSER_TAB_FOLDERS_KEY;
-export const BROWSER_TREE_EXPANDED_STORAGE_KEY = BROWSER_TREE_EXPANDED_KEY;
+/** Public storage key alias (preserved for the not-yet-migrated dead key). */
 export const BROWSER_WORKSPACE_EXPANDED_STORAGE_KEY = BROWSER_WORKSPACE_EXPANDED_KEY;
 
 export function findFolderById(folders: TabFolderState[], folderId: string): TabFolderState | null {

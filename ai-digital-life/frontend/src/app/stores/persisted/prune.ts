@@ -85,6 +85,40 @@ export function pruneByTabId<T extends Record<string, unknown>>(
   return changed ? { value: next as T, changed: true } : { value, changed: false };
 }
 
+/**
+ * 按"工作区 / 标签引用是否仍存在"剪枝浏览器的树展开态。
+ *
+ * 键形态（`browserTabTreeExpanded`）：
+ *   - `workspace:<wsId>` → 按工作区存在性剪
+ *   - `folder:<folderId>` → **不剪**（文件夹删除路径尚未接入剪枝，见计划子项目 F3 / Task 28 收尾文档）
+ *   - `tab:<uniqueKey>:<tabId>` → 取最后一个 `:` 之后作为 tabId，按标签存在性剪
+ *   - `history:...` → 早于本键的历史树路径，**不剪**
+ *
+ * 安全不变量：任一份参照清单为空即整表跳过（规格 §3.5.1 首要安全规则）——
+ * store 构造期工作区/标签列表尚未载入，此时按存在性剪枝会误删全部展开态。
+ */
+export function pruneBrowserTreeExpanded(
+  value: Record<string, boolean>,
+  ctx: PruneCtx,
+): PruneResult<Record<string, boolean>> {
+  if (ctx.workspaceIds.size === 0 || ctx.tabIds.size === 0) {
+    return { value, changed: false };
+  }
+  const next: Record<string, boolean> = {};
+  let changed = false;
+  for (const [path, expanded] of Object.entries(value)) {
+    const isOrphan =
+      (path.startsWith('workspace:') && !ctx.workspaceIds.has(path.slice('workspace:'.length))) ||
+      (path.startsWith('tab:') && !ctx.tabIds.has(path.slice(path.lastIndexOf(':') + 1)));
+    if (isOrphan) {
+      changed = true;
+      continue;
+    }
+    next[path] = expanded;
+  }
+  return changed ? { value: next, changed: true } : { value, changed: false };
+}
+
 /** 剔除某个路径自身及其全部子孙路径（删除目录 / 重命名后的重映射用） */
 export function prunePathPrefix<T extends Record<string, unknown>>(
   paths: T,

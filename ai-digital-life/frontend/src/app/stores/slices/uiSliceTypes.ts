@@ -14,16 +14,14 @@ import type { SettingsGroupId } from '@ai-digital-life/kernel';
 // ════════════════════════════════════════════════════════
 // LocalStorage 键名常量
 //
-// 注意：本任务（Task 7）已将全量 UI 状态迁移到 persisted registry。
+// 注意：Task 7/9 已将全量 UI 状态与浏览器面板状态迁移到 persisted registry。
 // 凡已迁移的键不再以本地常量形式存在 —— 它们的单一事实来源是
 // persisted/registry.ts 中的 `adl:<域>.<名称>` 登记键，写入一律走
 // persistField()，读取一律走 hydrateAll()。下方仅保留尚未迁移的遗留键
 // （由 PERSIST_KEEP_KEYS 保护，待后续任务迁移）：
-//   - BROWSER_NAVIGATOR_WIDTH_KEY（浏览器导航器宽度，后续任务）
 //   - RIGHT_PANEL_MODE_KEY / RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY
 //     （仅存在于组件本地 state，Task 22 上提到 store 后再登记）
 // ════════════════════════════════════════════════════════
-export const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
 export const RIGHT_PANEL_MODE_KEY = 'adl-ui:right-panel-mode';
 export const RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY = 'adl-ui:right-panel-last-restorable-width';
 

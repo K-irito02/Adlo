@@ -1,40 +1,23 @@
 import type { StoreState } from '../StoreState';
 import { createUiId, makePersistedWriter } from '../shared';
+import { persist } from '../persisted/persist';
 import { formatNewFolderNameByLocale } from '@i18n';
 import type { TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
 import {
   collectAllDescendantFolderIds,
-  BROWSER_TAB_FOLDERS_KEY,
-  BROWSER_TREE_EXPANDED_KEY,
   BROWSER_WORKSPACE_EXPANDED_KEY,
-  BROWSER_TABS_KEY,
-  BROWSER_ACTIVE_TAB_KEY,
-  BROWSER_HISTORY_KEY,
-  BROWSER_WORKSPACE_BOOKMARKS_KEY,
 } from './browserFoldersUtils';
-import {
-  BROWSER_BOOKMARKS_STORAGE_KEY,
-  BROWSER_BOOKMARK_TABID_URL_MAP_KEY,
-} from './browserSliceShared';
 import { computeDeleteAllTabsOutcome, computeDeleteOwnTabsOutcome } from './browserFoldersDeletion';
 
-// Re-export types and public storage keys to preserve the public API
+// Re-export types and the still-legacy storage key to preserve the public API.
+// 注意（Task 9）：除 `browser-workspace-expanded` 外的浏览器持久化键均已迁移到
+// persisted/registry（`adl:browser.*`），其遗留常量与 STORAGE_KEY 别名已删除。
 export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
-export {
-  BROWSER_TAB_FOLDERS_STORAGE_KEY,
-  BROWSER_TREE_EXPANDED_STORAGE_KEY,
-  BROWSER_WORKSPACE_EXPANDED_STORAGE_KEY,
-} from './browserFoldersUtils';
+export { BROWSER_WORKSPACE_EXPANDED_STORAGE_KEY } from './browserFoldersUtils';
 
-const writeTabFolders = makePersistedWriter(BROWSER_TAB_FOLDERS_KEY);
-const writeTreeExpanded = makePersistedWriter(BROWSER_TREE_EXPANDED_KEY);
+// 死状态（无消费者，Task 20 删除）：尚未登记，暂保留遗留写盘通道与字面量，
+// 其键由 PERSIST_KEEP_KEYS 保护。迁移完成前不得改道 persist()（未登记键无登记表类型）。
 const writeWorkspaceExpanded = makePersistedWriter(BROWSER_WORKSPACE_EXPANDED_KEY);
-const writeTabs = makePersistedWriter(BROWSER_TABS_KEY);
-const writeActiveTab = makePersistedWriter(BROWSER_ACTIVE_TAB_KEY);
-const writeHistory = makePersistedWriter(BROWSER_HISTORY_KEY);
-const writeWorkspaceBookmarks = makePersistedWriter(BROWSER_WORKSPACE_BOOKMARKS_KEY);
-const writeBookmarks = makePersistedWriter(BROWSER_BOOKMARKS_STORAGE_KEY);
-const writeBookmarkTabIdUrlMap = makePersistedWriter(BROWSER_BOOKMARK_TABID_URL_MAP_KEY);
 
 export interface BrowserFoldersSlice {
   browserTabFolders: TabFolderState[];
@@ -84,7 +67,7 @@ export const createBrowserFoldersSlice = (
         parentType: parentType as 'workspace' | 'folder' | undefined,
       };
       const resultFolders = [...state.browserTabFolders, newFolder];
-      writeTabFolders(resultFolders);
+      persist('adl:browser.tabFolders', resultFolders);
       return { browserTabFolders: resultFolders };
     });
   },
@@ -97,7 +80,7 @@ export const createBrowserFoldersSlice = (
         }
         return folder;
       });
-      writeTabFolders(nextFolders);
+      persist('adl:browser.tabFolders', nextFolders);
       return { browserTabFolders: nextFolders };
     }),
 
@@ -110,7 +93,7 @@ export const createBrowserFoldersSlice = (
       const nextFolders = state.browserTabFolders.filter(
         (folder) => !idsToDelete.includes(folder.id),
       );
-      writeTabFolders(nextFolders);
+      persist('adl:browser.tabFolders', nextFolders);
       return { browserTabFolders: nextFolders };
     }),
 
@@ -131,7 +114,7 @@ export const createBrowserFoldersSlice = (
         }
         return folder;
       });
-      writeTabFolders(nextFolders);
+      persist('adl:browser.tabFolders', nextFolders);
       return { browserTabFolders: nextFolders };
     });
   },
@@ -142,13 +125,13 @@ export const createBrowserFoldersSlice = (
         ...state.browserTabTreeExpanded,
         [path]: !(state.browserTabTreeExpanded[path] ?? false),
       };
-      writeTreeExpanded(next);
+      persist('adl:browser.tabTreeExpanded', next);
       return { browserTabTreeExpanded: next };
     }),
 
   browserCollapseAllTreePaths: () =>
     set((_state) => {
-      writeTreeExpanded({});
+      persist('adl:browser.tabTreeExpanded', {});
       return { browserTabTreeExpanded: {} };
     }),
 
@@ -158,7 +141,7 @@ export const createBrowserFoldersSlice = (
       for (const p of paths) {
         next[p] = true;
       }
-      writeTreeExpanded(next);
+      persist('adl:browser.tabTreeExpanded', next);
       return { browserTabTreeExpanded: next };
     }),
 
@@ -169,17 +152,17 @@ export const createBrowserFoldersSlice = (
         return state;
       }
       if (outcome.wsChanged) {
-        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
+        persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
       }
       if (outcome.foldersChanged) {
-        writeTabFolders(outcome.partial.browserTabFolders);
+        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
       }
       if (outcome.tabsChanged) {
-        writeTabs(outcome.partial.browserTabs);
-        writeActiveTab(outcome.partial.browserActiveTabId);
+        persist('adl:browser.tabs', outcome.partial.browserTabs!);
+        persist('adl:browser.activeTabId', outcome.partial.browserActiveTabId!);
       }
       if (outcome.historyChanged) {
-        writeHistory(outcome.partial.browserHistory);
+        persist('adl:browser.history', outcome.partial.browserHistory!);
       }
       return outcome.partial;
     }),
@@ -191,17 +174,17 @@ export const createBrowserFoldersSlice = (
         return state;
       }
       if (outcome.wsChanged) {
-        writeWorkspaceBookmarks(outcome.partial.browserWorkspaceBookmarks);
+        persist('adl:browser.workspaceBookmarks', outcome.partial.browserWorkspaceBookmarks!);
       }
       if (outcome.foldersChanged) {
-        writeTabFolders(outcome.partial.browserTabFolders);
+        persist('adl:browser.tabFolders', outcome.partial.browserTabFolders!);
       }
       if (outcome.tabsChanged) {
-        writeTabs(outcome.partial.browserTabs);
-        writeActiveTab(outcome.partial.browserActiveTabId);
+        persist('adl:browser.tabs', outcome.partial.browserTabs!);
+        persist('adl:browser.activeTabId', outcome.partial.browserActiveTabId!);
       }
       if (outcome.historyChanged) {
-        writeHistory(outcome.partial.browserHistory);
+        persist('adl:browser.history', outcome.partial.browserHistory!);
       }
       return outcome.partial;
     }),
@@ -252,10 +235,10 @@ export const createBrowserFoldersSlice = (
         return f;
       });
 
-      writeTabFolders(nextFolders);
-      writeBookmarks(nextBookmarks);
-      writeBookmarkTabIdUrlMap(nextTabIdUrlMap);
-      writeWorkspaceBookmarks(nextWorkspaceBookmarks);
+      persist('adl:browser.tabFolders', nextFolders);
+      persist('adl:browser.bookmarks', nextBookmarks);
+      persist('adl:browser.tabIdUrlMap', nextTabIdUrlMap);
+      persist('adl:browser.workspaceBookmarks', nextWorkspaceBookmarks);
       return {
         browserTabFolders: nextFolders,
         browserBookmarks: nextBookmarks,

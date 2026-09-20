@@ -4,37 +4,16 @@ export type { BrowserTabState, BrowserTabStateUpdate };
 export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
 
 /**
- * Browser storage key constants — single source of truth.
+ * Browser storage key constants.
  *
- * Centralized here (the shared leaf module) to eliminate duplication across
- * browserSlice / browserTabsSlice / browserHistorySlice / browserBookmarkSlice
- * / browserFoldersUtils. All values must remain identical to the originals;
- * only their definition location changes.
+ * Task 9 迁移完成后，浏览器面板的持久化键（`adl:browser.*`）全部登记在
+ * `persisted/registry.ts` 中，写盘走 `persist()` / `persistField()`、读取走
+ * `hydrateAll()` —— 因此这些键不再以本地常量形式存在（单一事实来源是登记表）。
+ *
+ * 仅保留一个尚未迁移的遗留键：死状态 `browser-workspace-expanded`（无消费者，
+ * Task 20 删除），其字面量与写盘通道暂时保留，并由 PERSIST_KEEP_KEYS 保护。
  */
-export const BROWSER_TABS_KEY = 'adl-ui:browser-tabs';
-export const BROWSER_HISTORY_KEY = 'adl-ui:browser-history';
-export const BROWSER_BOOKMARKS_KEY = 'adl-ui:browser-bookmarks';
-export const BROWSER_TAB_FOLDERS_KEY = 'adl-ui:browser-tab-folders';
-export const BROWSER_ACTIVE_TAB_KEY = 'adl-ui:browser-active-tab';
-export const BROWSER_TREE_EXPANDED_KEY = 'adl-ui:browser-tab-tree-expanded';
 export const BROWSER_WORKSPACE_EXPANDED_KEY = 'adl-ui:browser-workspace-expanded';
-export const BROWSER_WORKSPACE_BOOKMARKS_KEY = 'adl-ui:browser-workspace-bookmarks';
-
-/**
- * Storage key for the global browser bookmarks list.
- * Backwards-compatible alias for `BROWSER_BOOKMARKS_KEY`.
- */
-export const BROWSER_BOOKMARKS_STORAGE_KEY = BROWSER_BOOKMARKS_KEY;
-
-/**
- * Storage key for the tabId → bookmarked URL map.
- * Enables snapshot lookup after tab navigation.
- */
-export const BROWSER_BOOKMARK_TABID_URL_MAP_KEY = 'adl-ui:browser-bookmark-tabid-url-map';
-export const BROWSER_SHORTCUTS_KEY = 'adl-ui:browser-shortcuts';
-export const BROWSER_LOCAL_PORTS_KEY = 'adl-ui:browser-local-ports';
-export const BROWSER_BG_CONFIG_KEY = 'adl-ui:browser-bg-config';
-export const BROWSER_CONFIGURED_PORTS_KEY = 'adl-ui:browser-configured-ports';
 
 /** Default list of ports to scan for local development servers. */
 export const DEFAULT_CONFIGURED_PORTS = [

@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { readJson } from '../storageHelpers';
 import { registryEntries } from './registry';
+import { compositeHydrators } from './composite';
 
 export type HydrationResult = {
   /** 直接可交给 useAppStore.setState 的初始状态补丁 */
@@ -69,6 +70,16 @@ export function hydrateAll(): HydrationResult {
       continue;
     }
     patch[entry.field as string] = parsed;
+  }
+
+  // 跨键归一化：必须在全部简单条目读完之后应用 —— 归一化器的输入是「多个键的共同结果」
+  // （例如 browserTabs 的 titleResolved 结算需要 tabs 本体，tabId→URL 映射需要书签 + 文件夹 + 标签）。
+  // 直接读原始值（不经过登记表的 read 校验器），因此归一化器自身必须对坏形状完全防御。
+  for (const hydrator of compositeHydrators) {
+    Object.assign(
+      patch,
+      hydrator.build((key) => readJson<unknown>(key, undefined)),
+    );
   }
 
   cached = { patch: patch as Partial<StoreState>, dirtyKeys };

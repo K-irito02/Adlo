@@ -14,11 +14,18 @@ export const PERSIST_DOMAINS = [
 
 export type PersistDomain = (typeof PERSIST_DOMAINS)[number];
 
-// name 必须是 camelCase/PascalCase（至少包含一个大写字母），纯小写视为非法键。
-// 注意：真实键名如 workspaceExpanded 以小写开头，但含大写字母，须能被解析；
-// 而 tests 中 adl:files.lowercase（纯小写）必须被拒绝。
+// 名称段为"以字母开头的单个字母数字 token"（camelCase / PascalCase / 单词）。
+// 目的：与遗留前缀的 kebab-case 名称（adl-ui:file-tree-expanded）划清界限，
+// 同时拒绝空段、数字开头、下划线/连字符/点号混入。
+//
+// 说明（Task 9 更正）：本条初稿为 `[A-Za-z][A-Za-z0-9]*`，Task 2 实现时因自身用例
+// 要求 `adl:files.lowercase` 返回 null 而收紧为"至少含一个大写字母"。但 Task 9 的
+// 登记键表逐字要求 `adl:browser.tabs` / `adl:browser.history` / `adl:browser.bookmarks`
+// / `adl:browser.shortcuts` 这四个全小写单词名 —— 与"至少含一个大写"互斥
+// （同一字符串不可能同时满足），故恢复为初稿正则，并按计划键表放开全小写单词名。
+// 遗留前缀（adl-ui: / adl-terminal: / adl-search:）的拒绝不受影响：它们是域段未匹配。
 const KEY_PATTERN =
-  /^adl:(?<domain>[a-z]+)\.(?<name>[A-Za-z0-9]*[A-Z][A-Za-z0-9]*)(?:\.v(?<version>[0-9]+))?$/;
+  /^adl:(?<domain>[a-z]+)\.(?<name>[A-Za-z][A-Za-z0-9]*)(?:\.v(?<version>[0-9]+))?$/;
 
 export type ParsedPersistKey = {
   domain: PersistDomain;

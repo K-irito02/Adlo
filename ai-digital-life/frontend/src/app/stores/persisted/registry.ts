@@ -1,6 +1,31 @@
 import { defineEntry, readBooleanRecord, type PersistEntry } from './entry';
-import { readFlag, readNumberInRange, readStringEnum, readBooleanPropRecord } from './parsers';
-import { pruneDirPathsByWorkspace, pruneByWorkspaceId } from './prune';
+import {
+  readFlag,
+  readNumberInRange,
+  readStringEnum,
+  readBooleanPropRecord,
+  readString,
+  readStringRecord,
+  readNumberArray,
+  readObjectArray,
+  readObjectArrayRecord,
+  isPlainRecord,
+} from './parsers';
+import { pruneDirPathsByWorkspace, pruneByWorkspaceId, pruneBrowserTreeExpanded } from './prune';
+import { DEFAULT_CONFIGURED_PORTS } from '../slices/browserSliceShared';
+import type {
+  BackgroundConfig,
+  BackgroundFit,
+  BackgroundMode,
+  BrowserBookmark,
+  BrowserHistoryState,
+  BrowserTabState,
+  LocalPort,
+  ShortcutSite,
+  TabFolderState,
+  WorkspaceBookmarkEntry,
+} from '../slices/browserTypes';
+import type { SearchEngine } from '../slices/browserSearchEnginesSlice';
 import {
   LEFT_PANEL_WIDTH_MIN,
   LEFT_PANEL_WIDTH_MAX,
@@ -20,6 +45,9 @@ import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
   SETTINGS_NAVIGATOR_WIDTH_MAX,
   DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
+  BROWSER_NAVIGATOR_WIDTH_MIN,
+  BROWSER_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_BROWSER_NAVIGATOR_WIDTH,
   defaultNavigatorCollapsed,
 } from '../slices/uiSliceTypes';
 import type {
@@ -30,6 +58,99 @@ import type {
   FilesSearchScope,
 } from '../types';
 import type { HeatmapTab, ChartColorPreset } from '../slices/uiSliceTypes';
+
+// ─────────────────────────────────────────────────────────────
+// 浏览器面板条目的逐项形状校验器（Task 9）
+//
+// 数组类字段的每一项都会作为完整领域对象写入 store，单个畸形元素
+// （字符串/null/缺关键字段）只会在渲染期暴露，故在读盘处整体拒绝、
+// 回退 fallback（并记入 dirtyKeys 于本轮启动被覆盖）。
+// ─────────────────────────────────────────────────────────────
+
+const isBrowserTab = (item: Record<string, unknown>): boolean =>
+  typeof item.id === 'string' && typeof item.title === 'string' && typeof item.url === 'string';
+
+const isBookmarkTabItem = (item: Record<string, unknown>): boolean =>
+  typeof item.tabId === 'string' && typeof item.url === 'string' && typeof item.title === 'string';
+
+const isTabFolder = (item: Record<string, unknown>): boolean => {
+  if (typeof item.id !== 'string' || typeof item.name !== 'string') {
+    return false;
+  }
+  if (typeof item.createdAt !== 'number') {
+    return false;
+  }
+  if (item.tabs === undefined) {
+    return true;
+  }
+  return (
+    Array.isArray(item.tabs) &&
+    item.tabs.every((tab) => isPlainRecord(tab) && isBookmarkTabItem(tab))
+  );
+};
+
+const isHistoryEntry = (item: Record<string, unknown>): boolean =>
+  typeof item.id === 'string' &&
+  typeof item.title === 'string' &&
+  typeof item.url === 'string' &&
+  typeof item.visitedAt === 'number';
+
+const isBookmark = (item: Record<string, unknown>): boolean =>
+  typeof item.url === 'string' && typeof item.title === 'string';
+
+const isShortcut = (item: Record<string, unknown>): boolean =>
+  typeof item.id === 'string' &&
+  typeof item.name === 'string' &&
+  typeof item.url === 'string' &&
+  typeof item.sortOrder === 'number' &&
+  typeof item.createdAt === 'number';
+
+const isLocalPort = (item: Record<string, unknown>): boolean =>
+  typeof item.id === 'string' &&
+  typeof item.host === 'string' &&
+  typeof item.port === 'number' &&
+  typeof item.sortOrder === 'number' &&
+  typeof item.lastAliveAt === 'number';
+
+const isSearchEngine = (item: Record<string, unknown>): boolean =>
+  typeof item.id === 'string' &&
+  typeof item.name === 'string' &&
+  typeof item.urlTemplate === 'string' &&
+  typeof item.isBuiltIn === 'boolean' &&
+  typeof item.isDefault === 'boolean';
+
+const BACKGROUND_MODES: readonly BackgroundMode[] = ['default', 'image', 'video'];
+const BACKGROUND_FITS: readonly BackgroundFit[] = ['cover', 'contain', 'repeat'];
+
+/** 背景配置：mode/fit 必须在白名单内，可选字符串字段按原样保留 */
+function readBackgroundConfig(raw: unknown): BackgroundConfig | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const record = raw as Record<string, unknown>;
+  const mode = record.mode;
+  const fit = record.fit;
+  if (!BACKGROUND_MODES.includes(mode as BackgroundMode)) {
+    return undefined;
+  }
+  if (!BACKGROUND_FITS.includes(fit as BackgroundFit)) {
+    return undefined;
+  }
+  const result: BackgroundConfig = { mode: mode as BackgroundMode, fit: fit as BackgroundFit };
+  if (typeof record.filePath === 'string') {
+    result.filePath = record.filePath;
+  }
+  if (typeof record.fileName === 'string') {
+    result.fileName = record.fileName;
+  }
+  return result;
+}
+
+/** 浏览器历史：与写入侧一致，最多保留最近 100 条 */
+function readBrowserHistory(raw: unknown): BrowserHistoryState[] | undefined {
+  const entries = readObjectArray<BrowserHistoryState>(isHistoryEntry)(raw);
+  return entries?.slice(0, 100);
+}
 
 /**
  * 中心登记表 —— 全局唯一事实来源。
@@ -229,6 +350,130 @@ export const registry = {
       'high-contrast',
     ] as const),
   }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 浏览器面板迁移批次（Task 9）：以下键取代原先散落在 browser*Slice /
+  // uiSliceWidths 中的 adl-ui:browser-* 与 adl:browser:* 遗留键。
+  // 全部写盘走 persist()/persistField()，全部读取走 hydrateAll()（同步，唯一水合时机）；
+  // browserSlice 的 requestIdleCallback/setTimeout 延迟水合已随本任务删除。
+  //
+  // 例外：adl-ui:browser-workspace-expanded（browserWorkspaceExpanded）**不登记** ——
+  // 无消费者的死状态，由 Task 20 删除；其字面量暂时保留在生产源码与 PERSIST_KEEP_KEYS 中。
+  // ─────────────────────────────────────────────────────────────
+  'adl:browser.tabs': defineEntry<BrowserTabState[]>({
+    key: 'adl:browser.tabs',
+    field: 'browserTabs',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<BrowserTabState>(isBrowserTab),
+  }),
+  'adl:browser.activeTabId': defineEntry<string>({
+    key: 'adl:browser.activeTabId',
+    field: 'browserActiveTabId',
+    fallback: '',
+    scope: 'global',
+    read: readString,
+  }),
+  'adl:browser.tabFolders': defineEntry<TabFolderState[]>({
+    key: 'adl:browser.tabFolders',
+    field: 'browserTabFolders',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<TabFolderState>(isTabFolder),
+  }),
+  'adl:browser.tabTreeExpanded': defineEntry<Record<string, boolean>>({
+    key: 'adl:browser.tabTreeExpanded',
+    field: 'browserTabTreeExpanded',
+    fallback: {},
+    scope: 'byTabId',
+    read: readBooleanRecord,
+    prune: pruneBrowserTreeExpanded,
+  }),
+  'adl:browser.history': defineEntry<BrowserHistoryState[]>({
+    key: 'adl:browser.history',
+    field: 'browserHistory',
+    fallback: [],
+    scope: 'global',
+    read: readBrowserHistory,
+  }),
+  'adl:browser.bookmarks': defineEntry<BrowserBookmark[]>({
+    key: 'adl:browser.bookmarks',
+    field: 'browserBookmarks',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<BrowserBookmark>(isBookmark),
+  }),
+  'adl:browser.workspaceBookmarks': defineEntry<Record<string, WorkspaceBookmarkEntry[]>>({
+    key: 'adl:browser.workspaceBookmarks',
+    field: 'browserWorkspaceBookmarks',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readObjectArrayRecord<WorkspaceBookmarkEntry>(isBookmarkTabItem),
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:browser.tabIdUrlMap': defineEntry<Record<string, string>>({
+    key: 'adl:browser.tabIdUrlMap',
+    field: 'browserBookmarkTabIdUrlMap',
+    fallback: {},
+    scope: 'global',
+    read: readStringRecord,
+  }),
+  'adl:browser.shortcuts': defineEntry<ShortcutSite[]>({
+    key: 'adl:browser.shortcuts',
+    field: 'browserShortcuts',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<ShortcutSite>(isShortcut),
+  }),
+  'adl:browser.localPorts': defineEntry<LocalPort[]>({
+    key: 'adl:browser.localPorts',
+    field: 'browserLocalPorts',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<LocalPort>(isLocalPort),
+  }),
+  'adl:browser.bgConfig': defineEntry<BackgroundConfig>({
+    key: 'adl:browser.bgConfig',
+    field: 'browserBgConfig',
+    fallback: { mode: 'default', fit: 'cover' },
+    scope: 'global',
+    read: readBackgroundConfig,
+  }),
+  'adl:browser.configuredPorts': defineEntry<number[]>({
+    key: 'adl:browser.configuredPorts',
+    field: 'browserConfiguredPorts',
+    fallback: [...DEFAULT_CONFIGURED_PORTS],
+    scope: 'global',
+    read: readNumberArray,
+  }),
+  'adl:browser.navigatorWidth': defineEntry<number>({
+    key: 'adl:browser.navigatorWidth',
+    field: 'browserNavigatorWidth',
+    fallback: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
+    scope: 'global',
+    read: readNumberInRange(BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX),
+  }),
+  'adl:browser.navigateInPlace': defineEntry<boolean>({
+    key: 'adl:browser.navigateInPlace',
+    field: 'browserNavigateInPlace',
+    fallback: false,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:browser.searchEngines': defineEntry<SearchEngine[]>({
+    key: 'adl:browser.searchEngines',
+    field: 'searchEngines',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<SearchEngine>(isSearchEngine),
+  }),
+  'adl:browser.defaultSearchEngineId': defineEntry<string>({
+    key: 'adl:browser.defaultSearchEngineId',
+    field: 'defaultSearchEngineId',
+    fallback: '',
+    scope: 'global',
+    read: readString,
+  }),
 } as const;
 
 export type Registry = typeof registry;
@@ -273,20 +518,6 @@ export const PERSIST_KEEP_KEYS = new Set<string>([
   'adl-terminal:view-prefs',
   'adl-ui:active-communicate-platform',
   'adl-ui:active-github-section',
-  'adl-ui:browser-active-tab',
-  'adl-ui:browser-bg-config',
-  'adl-ui:browser-bookmark-tabid-url-map',
-  'adl-ui:browser-bookmarks',
-  'adl-ui:browser-configured-ports',
-  'adl-ui:browser-history',
-  'adl-ui:browser-local-ports',
-  'adl-ui:browser-navigate-in-place',
-  'adl-ui:browser-navigator-width',
-  'adl-ui:browser-shortcuts',
-  'adl-ui:browser-tab-folders',
-  'adl-ui:browser-tab-tree-expanded',
-  'adl-ui:browser-tabs',
-  'adl-ui:browser-workspace-bookmarks',
   'adl-ui:browser-workspace-expanded',
   'adl-ui:changes-branch',
   'adl-ui:ci-access-token',

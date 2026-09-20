@@ -3,6 +3,7 @@ import type { StoreState } from '../StoreState';
 import type { WorkspaceID } from '../../../shared/branded';
 import { clearError, captureError } from '../shared';
 import { scheduleCrossSliceWrite } from '../storageHelpers';
+import { persist } from '../persisted/persist';
 import { stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
 const SCOPE = 'browser';
 
@@ -34,17 +35,16 @@ export function createBrowserCleanupActions(
         state.browserActiveTabId,
       );
 
-      scheduleCrossSliceWrite('adl-ui:browser-tabs', cleaned.browserTabs);
-      scheduleCrossSliceWrite('adl-ui:browser-tab-folders', cleaned.browserTabFolders);
+      persist('adl:browser.tabs', cleaned.browserTabs);
+      persist('adl:browser.tabFolders', cleaned.browserTabFolders);
+      // 死状态（未登记、无消费者，Task 20 删除）：无法经 persist()（登记表类型不含该键），
+      // 暂保留共享去抖通道与其遗留字面量。
       scheduleCrossSliceWrite(
         'adl-ui:browser-workspace-expanded',
         cleaned.browserWorkspaceExpanded,
       );
-      scheduleCrossSliceWrite('adl-ui:browser-active-tab', cleaned.browserActiveTabId);
-      scheduleCrossSliceWrite(
-        'adl-ui:browser-workspace-bookmarks',
-        cleaned.browserWorkspaceBookmarks,
-      );
+      persist('adl:browser.activeTabId', cleaned.browserActiveTabId);
+      persist('adl:browser.workspaceBookmarks', cleaned.browserWorkspaceBookmarks);
 
       // 彻底移出工作区：同时清理 Git 可视化该工作区的数据缓存，
       // 并重置 activeWorkspaceTab（若仍指向被移出的工作区），避免残留 tab。

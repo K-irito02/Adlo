@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import { makePersistedWriter, readJson } from '../shared';
+import { persist } from '../persisted/persist';
 
 export interface SearchEngine {
   id: string;
@@ -69,9 +69,6 @@ const BUILT_IN_ENGINES: Omit<SearchEngine, 'id'>[] = [
   },
 ];
 
-const writeSearchEngines = makePersistedWriter('adl:browser:searchEngines');
-const writeDefaultEngineId = makePersistedWriter('adl:browser:defaultSearchEngineId');
-
 export interface BrowserSearchEnginesSlice {
   searchEngines: SearchEngine[];
   defaultSearchEngineId: string;
@@ -93,19 +90,8 @@ export const createBrowserSearchEnginesSlice = (
   initializeSearchEngines: () => {
     const existing = get().searchEngines;
     if (existing.length > 0) {
-      return;
-    }
-
-    // 从 localStorage 读取已保存的搜索引擎
-    const savedEngines = readJson<SearchEngine[]>('adl:browser:searchEngines', []);
-
-    if (savedEngines.length > 0) {
-      // 使用已保存的搜索引擎
-      const savedId = readJson<string>('adl:browser:defaultSearchEngineId', '');
-      const savedEngine = savedEngines.find((e) => e.id === savedId);
-      const defaultId = savedEngine ? savedId : (savedEngines[0]?.id ?? '');
-
-      set({ searchEngines: savedEngines, defaultSearchEngineId: defaultId });
+      // 已有引擎表：来自本次会话或构造期同步水合（adl:browser.searchEngines）。
+      // 本函数不再自行读存储 —— 唯一水合时机是 hydrateAll()。
       return;
     }
 
@@ -115,11 +101,12 @@ export const createBrowserSearchEnginesSlice = (
       id: e.name.toLowerCase().replace(/\s+/g, '-'),
       isDefault: idx === 0,
     }));
-    writeSearchEngines(engines);
+    persist('adl:browser.searchEngines', engines);
 
-    const savedId = readJson<string>('adl:browser:defaultSearchEngineId', '');
-    const savedEngine = savedId ? engines.find((e) => e.id === savedId) : undefined;
-    const defaultId = savedEngine ? savedId : engines[0].id;
+    const defaultId = engines[0].id;
+    // 默认引擎 id 必须与引擎表一同落盘：否则重启后引擎表被还原、默认 id 仍为空，
+    // 面板会丢失去默认引擎的选中态（旧实现由启动期读盘补上，现已无水合期回填）。
+    persist('adl:browser.defaultSearchEngineId', defaultId);
 
     set({ searchEngines: engines, defaultSearchEngineId: defaultId });
   },
@@ -127,8 +114,8 @@ export const createBrowserSearchEnginesSlice = (
   setDefaultSearchEngine: (id) =>
     set((state) => {
       const next = state.searchEngines.map((e) => ({ ...e, isDefault: e.id === id }));
-      writeSearchEngines(next);
-      writeDefaultEngineId(id);
+      persist('adl:browser.searchEngines', next);
+      persist('adl:browser.defaultSearchEngineId', id);
       return { searchEngines: next, defaultSearchEngineId: id };
     }),
 
@@ -145,7 +132,7 @@ export const createBrowserSearchEnginesSlice = (
         faviconUrl: engine.faviconUrl,
       };
       const next = [...state.searchEngines, newEngine];
-      writeSearchEngines(next);
+      persist('adl:browser.searchEngines', next);
       return { searchEngines: next };
     });
     return id;
@@ -154,19 +141,19 @@ export const createBrowserSearchEnginesSlice = (
   updateCustomSearchEngine: (id, patch) =>
     set((state) => {
       const next = state.searchEngines.map((e) => (e.id === id ? { ...e, ...patch } : e));
-      writeSearchEngines(next);
+      persist('adl:browser.searchEngines', next);
       return { searchEngines: next };
     }),
 
   deleteCustomSearchEngine: (id) =>
     set((state) => {
       const next = state.searchEngines.filter((e) => e.id !== id);
-      writeSearchEngines(next);
+      persist('adl:browser.searchEngines', next);
 
       // 如果删除的是当前选中的引擎，切换到第一个可用引擎
       if (state.defaultSearchEngineId === id) {
         const newDefaultId = next[0]?.id ?? state.searchEngines.find((e) => e.isBuiltIn)?.id ?? '';
-        writeDefaultEngineId(newDefaultId);
+        persist('adl:browser.defaultSearchEngineId', newDefaultId);
         return { searchEngines: next, defaultSearchEngineId: newDefaultId };
       }
 

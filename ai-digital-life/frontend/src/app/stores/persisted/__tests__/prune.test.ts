@@ -4,6 +4,7 @@ import {
   pruneDirPathsByWorkspace,
   pruneByTabId,
   prunePathPrefix,
+  pruneBrowserTreeExpanded,
 } from '../prune';
 import type { PruneCtx } from '../entry';
 
@@ -121,6 +122,42 @@ describe('prunePathPrefix', () => {
   it('returns the input unchanged when nothing matches the removed path', () => {
     const value = { src: true, docs: false };
     const result = prunePathPrefix(value, 'vendor');
+    expect(result.changed).toBe(false);
+    expect(result.value).toEqual(value);
+  });
+});
+
+describe('pruneBrowserTreeExpanded', () => {
+  it('NEGATIVE: skips entirely when either reference list is empty', () => {
+    const value = { 'workspace:ws-a': true, 'tab:k:tab-a': true };
+    const emptyWorkspaces = pruneBrowserTreeExpanded(value, ctx({ tabIds: new Set(['tab-a']) }));
+    expect(emptyWorkspaces.changed).toBe(false);
+    expect(emptyWorkspaces.value).toEqual(value);
+
+    const emptyTabs = pruneBrowserTreeExpanded(value, ctx({ workspaceIds: new Set(['ws-a']) }));
+    expect(emptyTabs.changed).toBe(false);
+    expect(emptyTabs.value).toEqual(value);
+  });
+
+  it('drops orphan workspace paths', () => {
+    const result = pruneBrowserTreeExpanded(
+      { 'workspace:ws-a': true, 'workspace:ws-gone': true, 'tab:key-1:tab-a': false },
+      ctx({ workspaceIds: new Set(['ws-a']), tabIds: new Set(['tab-a']) }),
+    );
+    expect(result.changed).toBe(true);
+    expect(result.value).toEqual({ 'workspace:ws-a': true, 'tab:key-1:tab-a': false });
+  });
+
+  it('keeps folder paths even when the folder no longer exists', () => {
+    const value = {
+      'folder:folder-gone': true,
+      'history:year:2026': false,
+      'tab:key-1:tab-a': true,
+    };
+    const result = pruneBrowserTreeExpanded(
+      value,
+      ctx({ workspaceIds: new Set(['ws-a']), tabIds: new Set(['tab-a']) }),
+    );
     expect(result.changed).toBe(false);
     expect(result.value).toEqual(value);
   });
