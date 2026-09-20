@@ -3496,6 +3496,7 @@ Expected: PASS。
 - Modify: `frontend/src/app/stores/storageHelpers.ts`（新增 `registerFlushOnPageHide`）
 - Modify: `frontend/src/app/main.tsx`（或应用入口，注册兜底）
 - Modify: `frontend/src/app/stores/actions/generalActions.ts:66-70`（陈旧注释）
+- Modify: `frontend/src/app/stores/persisted/composite.ts:16,21`（`priorPatch` 注释对**乙类**条目的描述不实 —— Task 10 修复轮 2 写的该括注称快照含"乙类 `apply` 之前的校验结果"且"`priorPatch.field` 键一定存在"，但乙类的校验值由 `apply` 接收、**从不写入 patch**，且乙类 `field === undefined`。须把该括注限定为甲类含义，否则未来为乙类形状写复合水合器时会去读一个不存在的快照字段）
 - Modify: `frontend/src/app/stores/slicedStore.ts`（V2 例外键传入 `keep`）
 
 **Interfaces:**
