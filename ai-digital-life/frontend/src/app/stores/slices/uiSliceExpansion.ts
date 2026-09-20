@@ -93,7 +93,7 @@ function applySetExpanded(current: TreeExpansion, path: string, expanded: boolea
  * 短路：`changed` 为 false 时返回原引用，调用方据此跳过落盘——否则每次点开一个
  * 已展开目录都会触发一次写盘。
  */
-export function expandTreePathChainInState(
+function expandTreePathChainInState(
   current: TreeExpansion,
   path: string,
 ): { next: TreeExpansion; blocked: string[] } {

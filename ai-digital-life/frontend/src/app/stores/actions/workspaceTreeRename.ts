@@ -1,5 +1,6 @@
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
+import { repairManualCollapsed } from '../persisted/parsers';
 
 /**
  * Returns a new tree with the node at `oldPath` (and, for directories, all of its
@@ -81,10 +82,12 @@ export function remapExpandedTreePaths<V>(
 
 /**
  * 重映射文件树展开态（`TreeExpansion`）：同时重映射 `expanded` 与 `manualCollapsed`
- * 两个成员（被重命名的目录子树，两种意图都要跟着走）。
+ * 两个成员（被重命名的目录子树，两种意图都要跟着走），并在返回前应用跨字段不变量
+ * 修复（共享实现见 `repairManualCollapsed`）——重映射可能让手动折叠的路径与既有展开
+ * 路径相撞（如把 `dir` 改名为 `src` 而 `src` 已被展开），必须丢弃撞上的标记。
  *
- * 保持既有的引用等价约定：当**两侧**都无匹配时返回原 `TreeExpansion` 引用，调用方据此跳过
- * 无谓的写盘（与 `remapExpandedTreePaths` 一致）。
+ * 保持既有的引用等价约定：当**两侧**都无匹配**且**修复未丢弃任何项时返回原
+ * `TreeExpansion` 引用，调用方据此跳过无谓的写盘（与 `remapExpandedTreePaths` 一致）。
  */
 export function remapTreeExpansion(
   value: TreeExpansion,
@@ -95,12 +98,16 @@ export function remapTreeExpansion(
   const nextManual = value.manualCollapsed
     ? remapExpandedTreePaths(value.manualCollapsed, oldPath, newPath)
     : undefined;
-  if (nextExpanded === value.expanded && nextManual === value.manualCollapsed) {
+  const repairedManual = repairManualCollapsed(nextExpanded, nextManual);
+  const repairDropped =
+    (repairedManual !== undefined ? Object.keys(repairedManual).length : 0) !==
+    (nextManual !== undefined ? Object.keys(nextManual).length : 0);
+  if (nextExpanded === value.expanded && nextManual === value.manualCollapsed && !repairDropped) {
     return value;
   }
   return {
     expanded: nextExpanded,
-    manualCollapsed: nextManual && Object.keys(nextManual).length > 0 ? nextManual : undefined,
+    manualCollapsed: repairDropped ? repairedManual : nextManual,
   };
 }
 

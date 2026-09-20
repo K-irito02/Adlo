@@ -1,5 +1,6 @@
 import type { PruneCtx, PruneResult } from './entry';
 import { registryEntries } from './registry';
+import { repairManualCollapsed } from './parsers';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
 
 /**
@@ -173,20 +174,15 @@ export function pruneDirExpansion(
     const collapsedResult = pruneDirPathsByWorkspace({ [workspaceId]: manualRaw }, ctx);
     const prunedManualRaw = collapsedResult.value[workspaceId] ?? {};
 
-    // 防御层修复：expanded[k] === true ⇒ 丢弃 manualCollapsed[k]
-    const repairedManual: Record<string, true> = {};
-    for (const [key, manualValue] of Object.entries(prunedManualRaw)) {
-      if (prunedExpanded[key] === true) {
-        continue;
-      }
-      repairedManual[key] = manualValue;
-    }
-    const keptManual = Object.keys(repairedManual).length > 0;
+    // 防御层修复（共享实现见 repairManualCollapsed）：expanded[k] === true ⇒ 丢弃 manualCollapsed[k]
+    const repairedManual = repairManualCollapsed(prunedExpanded, prunedManualRaw);
+    const keptManual = repairedManual !== undefined;
     // 修复是否真的丢掉了一项 —— 不能用 `keptManual` 当"有变动"信号：
     // 只要还有一项合法的 manualCollapsed 它即为 true，会把"什么都没剪掉"误判为已变动，
     // 于是每次剪枝都换新引用、触发无谓落盘。
     const repairDropped =
-      Object.keys(repairedManual).length !== Object.keys(prunedManualRaw).length;
+      (repairedManual !== undefined ? Object.keys(repairedManual).length : 0) !==
+      Object.keys(prunedManualRaw).length;
 
     const workspaceChanged = expandedResult.changed || collapsedResult.changed || repairDropped;
     if (workspaceChanged) {

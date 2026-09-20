@@ -166,6 +166,20 @@ describe('remapTreeExpansion', () => {
     expect(result.manualCollapsed).toEqual({ elsewhere: true });
   });
 
+  it('drops a remapped manual intent that collides with an expanded path and keeps the rest', () => {
+    // 重命名把手动折叠的 `dir` 映射到 `src`，而 `src` 本就处于展开态：
+    // 不变量 `manualCollapsed[k] === true ⇒ expanded[k] !== true` 要求丢弃撞上的标记，
+    // 但未撞上的标记必须幸存；且不能返回原引用（修复确实改变了内容）。
+    const value: TreeExpansion = {
+      expanded: { src: true },
+      manualCollapsed: { dir: true, kept: true },
+    };
+    const result = remapTreeExpansion(value, 'dir', 'src');
+    expect(result).not.toBe(value);
+    expect(result.expanded).toEqual({ src: true });
+    expect(result.manualCollapsed).toEqual({ kept: true });
+  });
+
   it('handles an absent manual intent without inventing one', () => {
     const value = { expanded: { dir: true } };
     expect(remapTreeExpansion(value, 'dir', 'src')).toEqual({

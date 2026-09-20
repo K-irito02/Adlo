@@ -233,6 +233,38 @@ export function readSearchUseGitignore(raw: unknown): Record<string, boolean> | 
  * 而非把路径误当成 `TreeExpansion` 的成员。这是本任务"不兼容旧格式、旧扁平值直接丢弃"的
  * 落点——绝不为旧格式写任何兼容/迁移代码。
  */
+/**
+ * 跨字段不变量修复（裁定 2）的唯一实现：
+ * `manualCollapsed[k] === true` ⇒ `expanded[k] !== true`，冲突时以后者为准、
+ * **丢弃** `manualCollapsed[k]`（`expanded[k] === true` 表示目录当前确实展开，
+ * 与"被手动折叠"矛盾，这种损坏可解释且有唯一正解，故修复而非判非法）。
+ *
+ * 必须放在 `parsers.ts`（而非 `apply.ts` 或更高层）：`apply.ts` 值导入 `registry`，
+ * `registry` 又导入 `parsers`，放在上方任何一层都会引入运行时循环；
+ * `parsers.ts` 只依赖 `storageHelpers` / `searchIgnore` / `entry`（后两者为终点模块），方向安全。
+ *
+ * 语义约定：
+ * - 入参 `manualCollapsed` 为 `undefined` 或修复后为空 ⇒ 返回 `undefined`（无标记即无成员）；
+ * - 丢弃计数由调用方自行比对前后键数得出（`pruneDirExpansion` 依赖它区分
+ *   "修复丢了一项"与"标记项全部幸存"，`changed` 信号语义不变）。
+ */
+export function repairManualCollapsed(
+  expanded: Record<string, boolean>,
+  manualCollapsed: Record<string, true> | undefined,
+): Record<string, true> | undefined {
+  if (!manualCollapsed) {
+    return undefined;
+  }
+  const repaired: Record<string, true> = {};
+  for (const [key, value] of Object.entries(manualCollapsed)) {
+    if (expanded[key] === true) {
+      continue;
+    }
+    repaired[key] = value;
+  }
+  return Object.keys(repaired).length > 0 ? repaired : undefined;
+}
+
 export function readDirExpansion(raw: unknown): TreeExpansion | undefined {
   if (!isPlainRecord(raw)) {
     return undefined;
@@ -254,16 +286,7 @@ export function readDirExpansion(raw: unknown): TreeExpansion | undefined {
       manualCollapsed[key] = true;
     }
   }
-  // 就地修复跨字段冲突：expanded[k] === true ⇒ 丢弃 manualCollapsed[k]
-  if (manualCollapsed) {
-    const repaired: Record<string, true> = {};
-    for (const [key, value] of Object.entries(manualCollapsed)) {
-      if (expanded[key] === true) {
-        continue;
-      }
-      repaired[key] = value;
-    }
-    manualCollapsed = Object.keys(repaired).length > 0 ? repaired : undefined;
-  }
+  // 就地修复跨字段冲突（共享实现见 repairManualCollapsed）
+  manualCollapsed = repairManualCollapsed(expanded, manualCollapsed);
   return { expanded, manualCollapsed };
 }

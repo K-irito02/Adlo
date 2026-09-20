@@ -384,11 +384,11 @@ export const registry = {
     // 外层按工作区拆开，逐个工作区交给 readDirExpansion 校验 + 修复跨字段不变量；
     // 任一工作区不合法 ⇒ 整条回退 fallback（旧版扁平值会被 readDirExpansion 拒绝，见其注释）。
     read: (raw) => {
-      if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+      if (!isPlainRecord(raw)) {
         return undefined;
       }
       const result: Record<string, TreeExpansion> = {};
-      for (const [workspaceId, value] of Object.entries(raw as Record<string, unknown>)) {
+      for (const [workspaceId, value] of Object.entries(raw)) {
         const parsed = readDirExpansion(value);
         if (parsed === undefined) {
           return undefined;
