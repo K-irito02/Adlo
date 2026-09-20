@@ -251,7 +251,13 @@ export const PERSIST_DOMAINS = [
 
 export type PersistDomain = (typeof PERSIST_DOMAINS)[number];
 
-const KEY_PATTERN = /^adl:(?<domain>[a-z]+)\.(?<name>[A-Za-z][A-Za-z0-9]*)(?:\.v(?<version>[0-9]+))?$/;
+// 名称段为 camelCase：至少含一个大写字母。
+// 注：本条初稿写作 `[A-Za-z][A-Za-z0-9]*`，与本文自身的测试用例
+// （要求 parsePersistKey('adl:files.lowercase') 返回 null）自相矛盾；
+// 已按实现改为"至少含一个大写"，计划内全部键名（workspaceExpanded、
+// leftCollapsed、tabIdUrlMap、viewPrefs、lastFile 等）均满足该约束。
+const KEY_PATTERN =
+  /^adl:(?<domain>[a-z]+)\.(?<name>[A-Za-z0-9]*[A-Z][A-Za-z0-9]*)(?:\.v(?<version>[0-9]+))?$/;
 
 export type ParsedPersistKey = {
   domain: PersistDomain;
