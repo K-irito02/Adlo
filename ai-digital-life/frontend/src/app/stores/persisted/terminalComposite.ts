@@ -1,9 +1,8 @@
 import type { StoreState } from '../StoreState';
 import type { TerminalProfile } from '../types';
-import type { TerminalTabState } from '../slices/terminalSliceTypes';
-import { readObjectArray, readStringEnum } from './parsers';
-import { isTerminalTabState } from './registry';
-import { normalizeTerminalShellProfile } from '../slices/terminalSliceTypes';
+import { buildTabsById, type TerminalTabState } from '../slices/terminalSliceTypes';
+import { readObjectArray } from './parsers';
+import { isTerminalTabState, registry } from './registry';
 import type { CompositeHydrator } from './composite';
 
 /**
@@ -15,19 +14,20 @@ import type { CompositeHydrator } from './composite';
  * 2. `shellSelectorProfile` 三档回退链 —— 自己的键 → 非法回退
  *    `defaultTerminalProfile` → 再非法回退 `'powershell'`。
  *
- * 与 composite.ts 同构：直接读原始值，不经过登记表的 read 校验器之外
- * 的二次"期望形状"定义；`isTerminalTabState` 复用登记表的逐项校验器，
- * 单一来源，杜绝 T9 那种"弱判定写回 store"的缺陷。
+ * 校验器来源（唯一）：
+ * - `terminalTabs` 复用登记表的逐项校验器 `isTerminalTabState`；
+ * - profile 白名单只存在于 `slices/terminalSliceTypes.ts`，本文件**不持有**任何一份：
+ *   自有档直接调用 `registry['adl:terminal.shellSelectorProfile']` 条目**声明的那个 read**，
+ *   中间档取 `hydrateAll` 经 `adl:terminal.defaultProfile` 声明的 read 产出的补丁值。
+ *   两条路都不再重读原始键、不再自写第二份判定 —— 声明即生效，没有装饰性声明。
  *
  * 语义：键缺失 ≡ 空；键存在但形状不合法 ⇒ 不产出补丁（绝不把畸形值写回 store）。
  */
 
-const TERMINAL_PROFILES: readonly TerminalProfile[] = ['powershell', 'bash', 'cmd'];
-
 export const terminalCompositeHydrators: CompositeHydrator[] = [
   {
     name: 'terminalDerived',
-    build: (read) => {
+    build: (read, priorPatch) => {
       const rawTabs = read('adl:terminal.tabs');
       const tabs =
         rawTabs === undefined ? [] : readObjectArray<TerminalTabState>(isTerminalTabState)(rawTabs);
@@ -36,21 +36,16 @@ export const terminalCompositeHydrators: CompositeHydrator[] = [
       // 标签损坏（非数组 / 含畸形元素）⇒ 不产出 terminalTabsById，store 初始即为 {}，
       // 与简单条目把 terminalTabs 回退 [] 自洽；标签空或缺失 ⇒ 同样留 {}。
       if (tabs !== undefined && tabs.length > 0) {
-        const byId: Record<string, TerminalTabState> = {};
-        for (const tab of tabs) {
-          byId[tab.id] = tab;
-        }
-        patch.terminalTabsById = byId;
+        patch.terminalTabsById = buildTabsById(tabs);
       }
 
-      // 三档回退：shellSelectorProfile → defaultTerminalProfile → 'powershell'
-      const defaultProfile =
-        readStringEnum<TerminalProfile>(TERMINAL_PROFILES)(read('adl:terminal.defaultProfile')) ??
-        'powershell';
-      patch.shellSelectorProfile = normalizeTerminalShellProfile(
+      // 三档回退：own key（登记表声明的 read） → defaultTerminalProfile（登记表已校验的补丁值）
+      // → 'powershell'。第二档在简单条目里已有 fallback 'powershell'，故第三档随之成立。
+      const fallbackProfile: TerminalProfile = priorPatch.defaultTerminalProfile ?? 'powershell';
+      const ownSelectorProfile = registry['adl:terminal.shellSelectorProfile'].read?.(
         read('adl:terminal.shellSelectorProfile'),
-        defaultProfile,
       );
+      patch.shellSelectorProfile = ownSelectorProfile ?? fallbackProfile;
 
       return patch;
     },

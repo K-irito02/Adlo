@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { readJson } from '../storageHelpers';
 import { registryEntries } from './registry';
+import type { PersistEntry } from './entry';
 import { compositeHydrators } from './composite';
 import { terminalCompositeHydrators } from './terminalComposite';
 
@@ -45,6 +46,18 @@ export function hydrateAll(): HydrationResult {
   const patch: Record<string, unknown> = {};
   const dirtyKeys: string[] = [];
 
+  /**
+   * 单条条目的归位：甲类写 store 补丁、乙类把值交回外部模块缓存。
+   * 五处分支共用这一份派发，避免把同一段"field / apply 二选一"抄五遍。
+   */
+  const applyValue = (entry: PersistEntry<unknown>, value: unknown): void => {
+    if (entry.field !== undefined) {
+      patch[entry.field as string] = value;
+    } else if (entry.apply !== undefined) {
+      entry.apply(value);
+    }
+  };
+
   for (const entry of registryEntries) {
     if (entry.sync === false) {
       // sync:false 条目：既不产 store 补丁、也不调 apply —— 按需读取交给模块自身
@@ -52,56 +65,38 @@ export function hydrateAll(): HydrationResult {
     }
     if (!hasStoredValue(entry.key)) {
       // 键从未写过：写补丁（甲类）或回交缓存（乙类，同步条目）；不计入 dirtyKeys
-      if (entry.field !== undefined) {
-        patch[entry.field as string] = entry.fallback;
-      } else if (entry.apply !== undefined) {
-        entry.apply(entry.fallback);
-      }
+      applyValue(entry, entry.fallback);
       continue;
     }
     const raw = readJson<unknown>(entry.key, undefined);
     if (raw === undefined) {
       // 键存在却读不出值 ⇒ 存储内容已损坏，必须在本轮启动被覆盖
-      if (entry.field !== undefined) {
-        patch[entry.field as string] = entry.fallback;
-      } else if (entry.apply !== undefined) {
-        entry.apply(entry.fallback);
-      }
+      applyValue(entry, entry.fallback);
       dirtyKeys.push(entry.key);
       continue;
     }
     if (!entry.read) {
-      if (entry.field !== undefined) {
-        patch[entry.field as string] = raw;
-      } else if (entry.apply !== undefined) {
-        entry.apply(raw);
-      }
+      applyValue(entry, raw);
       continue;
     }
     const parsed = entry.read(raw);
     if (parsed === undefined) {
-      if (entry.field !== undefined) {
-        patch[entry.field as string] = entry.fallback;
-      } else if (entry.apply !== undefined) {
-        entry.apply(entry.fallback);
-      }
+      applyValue(entry, entry.fallback);
       dirtyKeys.push(entry.key);
       continue;
     }
-    if (entry.field !== undefined) {
-      patch[entry.field as string] = parsed;
-    } else if (entry.apply !== undefined) {
-      entry.apply(parsed);
-    }
+    applyValue(entry, parsed);
   }
 
   // 跨键归一化：必须在全部简单条目读完之后应用 —— 归一化器的输入是「多个键的共同结果」
   // （例如 browserTabs 的 titleResolved 结算需要 tabs 本体，tabId→URL 映射需要书签 + 文件夹 + 标签）。
   // 直接读原始值（不经过登记表的 read 校验器），因此归一化器自身必须对坏形状完全防御。
+  // 同时把**已构建的补丁**交出去：需要"登记表已校验过的值"时从这里取，不再重读原始键。
+  const priorPatch = patch as Partial<StoreState>;
   for (const hydrator of compositeHydrators) {
     Object.assign(
       patch,
-      hydrator.build((key) => readJson<unknown>(key, undefined)),
+      hydrator.build((key) => readJson<unknown>(key, undefined), priorPatch),
     );
   }
 
@@ -109,7 +104,7 @@ export function hydrateAll(): HydrationResult {
   for (const hydrator of terminalCompositeHydrators) {
     Object.assign(
       patch,
-      hydrator.build((key) => readJson<unknown>(key, undefined)),
+      hydrator.build((key) => readJson<unknown>(key, undefined), priorPatch),
     );
   }
 

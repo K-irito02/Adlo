@@ -8,6 +8,7 @@ import type { TerminalTabState } from './terminalSliceTypes';
 import { persistField } from '../persisted/apply';
 import { persist } from '../persisted/persist';
 import {
+  buildTabsById,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
@@ -35,14 +36,6 @@ function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
     }
     return a.sortOrder - b.sortOrder;
   });
-}
-
-function buildTabsById(tabs: TerminalTabState[]): Record<string, TerminalTabState> {
-  const result: Record<string, TerminalTabState> = {};
-  for (const tab of tabs) {
-    result[tab.id] = tab;
-  }
-  return result;
 }
 
 function defaultNavigatorCollapsed(): Record<ToolId, boolean> {

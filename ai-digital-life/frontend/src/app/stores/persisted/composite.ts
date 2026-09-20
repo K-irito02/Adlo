@@ -9,7 +9,12 @@ import { isBookmarkTabItem, isBrowserTab, isTabFolder } from './registry';
 /** 跨键归一化器：需要在简单条目读完之后、基于多个键的共同结果构建补丁 */
 export interface CompositeHydrator {
   name: string;
-  build: (read: (key: string) => unknown) => Partial<StoreState>;
+  /**
+   * @param read 直接读原始值（不经过登记表校验器），归一化器自身必须对坏形状完全防御
+   * @param priorPatch 简单条目已产出的补丁 —— 需要用"登记表已校验过的值"作输入时从这里取，
+   *   避免重读原始键、重写一份校验器（同一形状在本应用只能有一份判定）
+   */
+  build: (read: (key: string) => unknown, priorPatch: Partial<StoreState>) => Partial<StoreState>;
 }
 
 export function markResolvedTitles(tabs: BrowserTabState[]): BrowserTabState[] {

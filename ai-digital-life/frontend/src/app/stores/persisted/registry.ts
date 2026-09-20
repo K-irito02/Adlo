@@ -56,10 +56,17 @@ import type {
   ChangesNavigatorMode,
   FilesSearchViewMode,
   FilesSearchScope,
+  TerminalProfile,
 } from '../types';
 import type { HeatmapTab, ChartColorPreset } from '../slices/uiSliceTypes';
-import type { TerminalProfile } from '../types';
-import type { TerminalTabState } from '../slices/terminalSliceTypes';
+import {
+  isTerminalProfile,
+  readTerminalProfile,
+  TERMINAL_NAVIGATOR_WIDTH_MIN,
+  TERMINAL_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+  type TerminalTabState,
+} from '../slices/terminalSliceTypes';
 import {
   terminalViewPrefsStore,
   normalizeTerminalViewPrefs,
@@ -149,11 +156,10 @@ const BACKGROUND_FITS: readonly BackgroundFit[] = ['cover', 'contain', 'repeat']
 //
 // 与浏览器条目同构：同一键的"预期形状"本应用只能有一份定义。
 // `isTerminalTabState` 被登记表的 `read` 与 terminalComposite.ts 的跨键归一化
-// 复用（见导出）；`readStringEnum` / `readProfileMap` 也是唯一来源，
-// 复合水合器不再另写一份更弱的"期望形状"（这是 T9 被退回的根因）。
+// 复用（见导出）；profile 白名单**只有一份定义**，在 slices/terminalSliceTypes.ts
+// （`isTerminalProfile` / `readTerminalProfile`）—— 本文件不再抄一份字面量数组，
+// 否则某处弱化过的判定会绕过登记表的拒绝分支（这是 T9 被退回的根因）。
 // ─────────────────────────────────────────────────────────────
-
-const TERMINAL_PROFILES: readonly TerminalProfile[] = ['powershell', 'bash', 'cmd'];
 
 export const isTerminalTabState = (item: Record<string, unknown>): boolean => {
   if (typeof item.id !== 'string') {
@@ -165,7 +171,7 @@ export const isTerminalTabState = (item: Record<string, unknown>): boolean => {
   if (typeof item.title !== 'string') {
     return false;
   }
-  if (item.profile !== 'powershell' && item.profile !== 'bash' && item.profile !== 'cmd') {
+  if (!isTerminalProfile(item.profile)) {
     return false;
   }
   if (item.status !== 'idle' && item.status !== 'running' && item.status !== 'terminated') {
@@ -188,10 +194,10 @@ function readProfileMap(raw: unknown): Record<string, TerminalProfile> | undefin
   }
   const result: Record<string, TerminalProfile> = {};
   for (const [workspaceId, profile] of Object.entries(record)) {
-    if (!(TERMINAL_PROFILES as readonly string[]).includes(profile)) {
+    if (!isTerminalProfile(profile)) {
       return undefined;
     }
-    result[workspaceId] = profile as TerminalProfile;
+    result[workspaceId] = profile;
   }
   return result;
 }
@@ -576,7 +582,7 @@ export const registry = {
     field: 'defaultTerminalProfile',
     fallback: 'powershell',
     scope: 'global',
-    read: readStringEnum<TerminalProfile>(TERMINAL_PROFILES),
+    read: readTerminalProfile,
   }),
   'adl:terminal.workspaceDefaultProfiles': defineEntry<Record<string, TerminalProfile>>({
     key: 'adl:terminal.workspaceDefaultProfiles',
@@ -591,14 +597,16 @@ export const registry = {
     field: 'shellSelectorProfile',
     fallback: 'powershell',
     scope: 'global',
-    read: readStringEnum<TerminalProfile>(TERMINAL_PROFILES),
+    read: readTerminalProfile,
   }),
   'adl:terminal.navigatorWidth': defineEntry<number>({
     key: 'adl:terminal.navigatorWidth',
     field: 'terminalNavigatorWidth',
-    fallback: 240,
+    fallback: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
     scope: 'global',
-    read: readNumberInRange(180, 480),
+    // 读侧边界必须与写侧（setTerminalNavigatorWidth 的 clamp）同源：
+    // 曾经写死的 180–480 比写侧的 180–300 宽，会接住任何 setter 都产不出的值。
+    read: readNumberInRange(TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX),
   }),
   'adl:terminal.workspaceExpanded': defineEntry<Record<string, boolean>>({
     key: 'adl:terminal.workspaceExpanded',

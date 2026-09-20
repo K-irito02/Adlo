@@ -39,6 +39,31 @@ export function isTerminalProfile(value: unknown): value is TerminalProfile {
 }
 
 /**
+ * profile 白名单的**唯一**读盘校验器（Task 10 R2）。
+ *
+ * 登记表条目的 `read` 声明与 terminalComposite 的回退链都必须引用它 ——
+ * 本应用对"合法 profile"只能有一份定义，否则某处弱化过的判定会绕过登记表
+ * 的拒绝分支，把已判损坏的值重新写回 store。
+ */
+export function readTerminalProfile(raw: unknown): TerminalProfile | undefined {
+  return isTerminalProfile(raw) ? raw : undefined;
+}
+
+/**
+ * 由标签数组构建 id → 标签映射（`terminalTabsById`）。
+ *
+ * 放在叶子模块：终端的 setter（terminalSlice）与跨键水合（terminalComposite）
+ * 需要**同一份**语义，同一段逻辑不允许在两处各写一遍。
+ */
+export function buildTabsById(tabs: TerminalTabState[]): Record<string, TerminalTabState> {
+  const result: Record<string, TerminalTabState> = {};
+  for (const tab of tabs) {
+    result[tab.id] = tab;
+  }
+  return result;
+}
+
+/**
  * 归一化选择器 profile：持久化值合法则采用，否则回退到全局默认 profile。
  * 以全局默认（而非固定 'powershell'）为回退，保持"首次无记录时跟随默认"语义。
  */

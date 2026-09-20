@@ -272,6 +272,28 @@ describe('terminalSlice', () => {
     );
   });
 
+  it('setDefaultTerminalProfile writes through to the registry key', () => {
+    window.localStorage.clear();
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).setDefaultTerminalProfile('cmd');
+    flushCrossSliceWrites();
+    expect(window.localStorage.getItem('adl:terminal.defaultProfile')).toBe(JSON.stringify('cmd'));
+  });
+
+  it('setWorkspaceDefaultTerminalProfile persists the map and updates the store field', () => {
+    window.localStorage.clear();
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).setWorkspaceDefaultTerminalProfile('ws-1', 'bash');
+    flushCrossSliceWrites();
+    // persistField 返回的补丁必须以登记表的 field 名（workspaceDefaultProfiles）为键
+    expect((get() as unknown as TerminalSlice).workspaceDefaultProfiles).toEqual({
+      'ws-1': 'bash',
+    });
+    expect(window.localStorage.getItem('adl:terminal.workspaceDefaultProfiles')).toBe(
+      JSON.stringify({ 'ws-1': 'bash' }),
+    );
+  });
+
   it('setShellSelectorProfile sets the selector profile without touching default profile', () => {
     const { get } = createMockStore();
     (get() as unknown as TerminalSlice).setShellSelectorProfile('bash');
