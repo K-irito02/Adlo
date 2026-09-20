@@ -17,6 +17,7 @@
 - **唯一水合时机**：`hydrateAll()` 在 store 构造期同步执行一次。**禁止**新增第二个异步水合路径（不得使用 `requestIdleCallback` / `setTimeout` 延迟水合）。
 - **同步读准入线**：登记表中声明同步读的条目，**单条序列化体积 ≤ 32 KB**。大对象（终端历史索引、浏览器下载列表等）不得进入登记表，须显式标注 `sync: false`。
 - **剪枝安全规则**：剪枝必须与"参照清单是否就绪"绑定；参照清单为空（工作区列表为空 / 标签列表为空 / 该工作区树未加载或加载失败）时**一律跳过**。
+- **启动清理安全规则（约束每个任务）**：`cleanupUnregisteredKeys()` 会删除所有不在 registry 内的 `adl:` 键。迁移分批进行期间，**每个迁移任务（Task 7/9/10/11/29）必须把它刚登记的键从 `PERSIST_KEEP_KEYS` 中删除**，并保证"任何遗留键字面量要么已登记、要么在清单内"。这两条不变量由 `persisted/__tests__/keepListGuard.test.ts` 强制；该测试变红即表示有键会被启动清理误删，或清单存在冗余。`PERSIST_KEEP_KEYS` 只在 `persisted/registry.ts` 中定义一次并导出，store 与测试都从那里 import。
 - **键名规范**：`adl:<域>.<名称>`，域取值 `ui|files|changes|browser|terminal|search|session`；需要变更 schema 时加版本段 `adl:<域>.<名称>.v<N>`。
 - **双端一致**：所有功能必须在 Tauri 桌面模式与浏览器模式行为一致。本计划不新增 IPC 方法，`tauri-bridge.ts` / `preview-bridge/` / `mock-bridge.ts` 无需改动。
 - **i18n**：任何新增 UI 展示文本（含提示、aria-label、按钮 title）必须使用 i18n key，`zh-CN` 与 `en-US` 两份都要加；完成后跑 `pnpm --dir frontend run check:i18n`。
@@ -1362,26 +1363,22 @@ Expected: PASS（6 个用例全绿）。
 import { hydrateAll } from './persisted/hydrate';
 import { cleanupUnregisteredKeys } from './persisted/cleanup';
 
-// V2 全量盘点（ledger B1）登记的"范围外但共用 adl 前缀"的键。
-// 这些键由通信/GitHub/CI/系统监控/剪贴板等面板持有，不属于本次四面板范围，
-// 启动清理**必须**保留它们 —— 否则首次启动会清空用户的 CI 快照、GitHub 工作区配置与访问令牌。
-// Task 29 会把它们全部登记进 registry；在此之前本清单是唯一的防线，不得删除本常量。
+// ⚠️ 安全关键：启动清理会删除所有不在 registry 内的 adl: 键。迁移是分批进行的，
+// 在 Task 7–11 / 29 完成前，registry 只声明极少数键，因此**全部遗留键都必须列入本清单**，
+// 否则首次启动即清空用户的宽度/展开态/浏览器标签/终端标签/CI 快照等全部 UI 状态。
+//
+// 本清单由下面的命令生成（不要手工增删）：
+//   cd ai-digital-life && grep -rhoE "'adl-(ui|terminal|search|browser):[a-zA-Z0-9:._-]+'" \
+//     frontend/src --include=*.ts --include=*.tsx | grep -v "__tests__" | sort -u
+//
+// 维护规则（由 Task 6 新增的守卫测试强制）：
+// 1. 任何遗留键字面量必须"已登记 或 在本清单内" —— 否则守卫测试变红，杜绝漏保护。
+// 2. 本清单不得包含已登记的键 —— 每个迁移任务（Task 7/9/10/11/29）必须把
+//    自己刚登记的键从本清单删除，守卫测试会强制这一点。
+// 3. Task 21 完成时，本清单应只剩"范围外工具"的键；Task 29 完成后本清单必须为空
+//    （此时启动清理才真正开始清除遗留键，Task 18 的命名空间门禁随之生效）。
 const PERSIST_KEEP_KEYS = new Set<string>([
-  'adl-ui:changes-branch',
-  'adl-ui:active-github-section',
-  'adl-ui:github-ci-folders',
-  'adl-ui:github-workspace-configs',
-  'adl-ui:github-access-token',
-  'adl-ui:ci-access-token',
-  'adl-ui:ci-config',
-  'adl-ui:ci-snapshots',
-  'adl-ui:ci-log-caches',
-  'adl-ui:ci-auto-refresh-on-push',
-  'adl-ui:active-communicate-platform',
-  'adl-ui:communicate-navigator-collapsed',
-  'adl-ui:sysmon-collapsed',
-  'adl-ui:sysmon-scroll-top',
-  'adl-ui:clipboard-scroll-top',
+  // ← 以生成命令的输出逐行填入（约 72 条遗留键）
 ]);
 
 // 同步水合：必须在 store 创建后立即执行，且早于任何 React 渲染 ——
@@ -1392,6 +1389,61 @@ if (Object.keys(hydration.patch).length > 0) {
 }
 cleanupUnregisteredKeys({ keep: PERSIST_KEEP_KEYS, extra: hydration.dirtyKeys });
 ```
+
+同时新增守卫测试 `persisted/__tests__/keepListGuard.test.ts`（本任务的一部分，**不得**推迟）：
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
+import { registryEntries } from '../registry';
+import { PERSIST_KEEP_KEYS } from '@stores/slicedStore';
+
+const LEGACY_PREFIXES = ['adl-ui:', 'adl-terminal:', 'adl-search:', 'adl-browser:'];
+const LEGACY_LITERAL = /'(adl-(?:ui|terminal|search|browser):[a-zA-Z0-9:._-]+)'/g;
+
+function collectProductionSources(dir: string): string[] {
+  return readdirSync(dir).flatMap((name) => {
+    const full = join(dir, name);
+    if (statSync(full).isDirectory()) {
+      return name === '__tests__' ? [] : collectProductionSources(full);
+    }
+    return /\.(ts|tsx)$/.test(name) && !/\.test\.(ts|tsx)$/.test(name) ? [full] : [];
+  });
+}
+
+function legacyKeysInProductionSource(): string[] {
+  const found = new Set<string>();
+  for (const file of collectProductionSources(join(process.cwd(), 'src'))) {
+    const content = readFileSync(file, 'utf8');
+    for (const match of content.matchAll(LEGACY_LITERAL)) {
+      found.add(match[1]);
+    }
+  }
+  return [...found];
+}
+
+describe('startup-cleanup allowlist guard', () => {
+  it('every legacy key literal in production source is either registered or kept', () => {
+    const registered = new Set(registryEntries.map((entry) => entry.key));
+    const unguarded = legacyKeysInProductionSource().filter(
+      (key) => !registered.has(key) && !PERSIST_KEEP_KEYS.has(key),
+    );
+    expect(
+      unguarded,
+      'these legacy keys would be deleted by startup cleanup — register them or add them to PERSIST_KEEP_KEYS',
+    ).toEqual([]);
+  });
+
+  it('no kept key is already registered (migrations must narrow the list)', () => {
+    const registered = new Set(registryEntries.map((entry) => entry.key));
+    const redundant = [...PERSIST_KEEP_KEYS].filter((key) => registered.has(key));
+    expect(redundant, 'remove these from PERSIST_KEEP_KEYS now that they are registered').toEqual([]);
+  });
+});
+```
+
+`PERSIST_KEEP_KEYS` 必须从 `slicedStore.ts` 导出（供守卫测试 import）；若要避免测试反向依赖 store，可把它移到 `persisted/registry.ts` 并在 store 中 import —— 二选一，**不得两处各定义一份**。
 
 - [ ] **Step 6: 运行全量前端测试确认无回归**
 
