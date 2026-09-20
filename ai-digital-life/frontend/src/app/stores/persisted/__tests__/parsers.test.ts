@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   readFlag,
   readNumberInRange,
+  readFlooredNumberInRange,
   readStringEnum,
   readBooleanPropRecord,
   readString,
@@ -9,6 +10,7 @@ import {
   readNumberArray,
   readObjectArray,
   readObjectArrayRecord,
+  readSearchUseGitignore,
 } from '../parsers';
 
 describe('readFlag', () => {
@@ -34,6 +36,29 @@ describe('readNumberInRange', () => {
     expect(read('5')).toBeUndefined();
     expect(read(Number.NaN)).toBeUndefined();
     expect(read(Number.POSITIVE_INFINITY)).toBeUndefined();
+  });
+});
+
+describe('readFlooredNumberInRange', () => {
+  it('floors a fractional value instead of keeping it', () => {
+    const read = readFlooredNumberInRange(50, 1000);
+    // 承接旧读路径 Math.floor(readNumber(...))：钳制只保留 300.9，取整才是 300。
+    expect(read(300.9)).toBe(300);
+  });
+
+  it('clamps out-of-range values instead of rejecting them', () => {
+    const read = readFlooredNumberInRange(50, 1000);
+    expect(read(50)).toBe(50);
+    expect(read(10)).toBe(50);
+    expect(read(9999)).toBe(1000);
+  });
+
+  it('rejects non-numbers and non-finite numbers', () => {
+    const read = readFlooredNumberInRange(0, 10);
+    expect(read('5')).toBeUndefined();
+    expect(read(Number.NaN)).toBeUndefined();
+    expect(read(Number.POSITIVE_INFINITY)).toBeUndefined();
+    expect(read(Number.NEGATIVE_INFINITY)).toBeUndefined();
   });
 });
 
@@ -136,5 +161,21 @@ describe('readObjectArrayRecord', () => {
   it('rejects arrays and null', () => {
     expect(readObjectArrayRecord<{ id: string }>(isItem)([])).toBeUndefined();
     expect(readObjectArrayRecord<{ id: string }>(isItem)(null)).toBeUndefined();
+  });
+});
+
+describe('readSearchUseGitignore', () => {
+  it('accepts a per-workspace boolean map', () => {
+    expect(readSearchUseGitignore({ ws1: true, ws2: false })).toEqual({ ws1: true, ws2: false });
+  });
+
+  it('rejects the whole record when one member is not a boolean', () => {
+    // 登记表约定：任一成员畸形即整记录不合法（回退 fallback），而非只丢那一个成员。
+    expect(readSearchUseGitignore({ ws1: true, ws2: 'true' })).toBeUndefined();
+  });
+
+  it('rejects non-objects and null', () => {
+    expect(readSearchUseGitignore([])).toBeUndefined();
+    expect(readSearchUseGitignore(null)).toBeUndefined();
   });
 });

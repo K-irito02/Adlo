@@ -160,8 +160,13 @@ export function readBooleanPropRecord(
  *
  * 入口收敛脏输入（前导斜杠 / `\` / 尾斜杠）并去重：复用 searchIgnore 的
  * `normalizeIgnoredEntry`，全应用只有这一份清洗（写侧 `toggleIgnoredPath` 本就产出
- * 归一化值，此处是读侧兜底，与迁移前 searchSlice 的旧 `readSearchIgnoredPaths` 语义一致）。
- * 外层非对象 / 任一 workspace 的值非数组 ⇒ 整字段判为不合法（回退 fallback）。
+ * 归一化值，此处是读侧兜底）。
+ *
+ * 与迁移前 searchSlice 旧 `readSearchIgnoredPaths` 的关系：**入口级语义一致**（同一
+ * `normalizeIgnoredEntry` + 去重），但**外层容错被有意收紧**——旧读取器遇到某个 workspace
+ * 的值不是数组时**跳过该 workspace、保留其余**；本解析器改为任一层不合法即整字段判为不合法，
+ * 于是整个键回退 fallback 并在下次写盘时被覆盖，而不是只丢那一个成员。此收紧与登记表既有约定
+ * （任一成员畸形即整记录不合法，同 Task 7 的裁定）一致，且只有手工编辑/损坏的存储才会触发。
  */
 export function readSearchIgnoredPaths(raw: unknown): Record<string, string[]> | undefined {
   if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {

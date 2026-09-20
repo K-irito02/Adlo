@@ -1,3 +1,4 @@
+import { SEARCH_PAGE_SIZE } from '@shared/ipc/searchWindow';
 import type { CompositeHydrator } from './composite';
 
 /**
@@ -18,8 +19,10 @@ export const searchCompositeHydrators: CompositeHydrator[] = [
   {
     name: 'searchDerived',
     build: (_read, priorPatch) => {
-      const pageSize = priorPatch.searchPageSize ?? 0;
-      const maxResults = priorPatch.searchMaxResults ?? 0;
+      // 该分支按契约不可达（hydrateAll 已为缺失/脏/解析失败的键写入各自 fallback），仅为满足
+      // Partial<StoreState> 的 number 类型而存在，故必须取语义默认值 SEARCH_PAGE_SIZE 而非占位 0。
+      const pageSize = priorPatch.searchPageSize ?? SEARCH_PAGE_SIZE;
+      const maxResults = priorPatch.searchMaxResults ?? SEARCH_PAGE_SIZE;
       return {
         searchMaxResults: Math.max(maxResults, pageSize),
         searchLimit: pageSize,
