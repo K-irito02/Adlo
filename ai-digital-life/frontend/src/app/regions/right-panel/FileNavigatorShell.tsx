@@ -551,11 +551,27 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     }
   }, [navigatorMode]);
 
+  // 目标文件位于被手动折叠的目录内时，该折叠目录的行闪烁一次以提示位置（规格 §3.4）。
+  // 纯组件本地状态：不写盘、不进 store；1000ms 后清除，重新触发会重启窗口。
+  const [flashPath, setFlashPath] = useState<string | undefined>(undefined);
+  const flashTimerRef = useRef<number | undefined>(undefined);
+
   useEffect(() => {
     if (selectedFilePath && activeWorkspaceId) {
-      expandFileTreePathChain(activeWorkspaceId, selectedFilePath);
+      const { blocked } = expandFileTreePathChain(activeWorkspaceId, selectedFilePath);
+      if (blocked.length === 0) {
+        // 无被折叠祖先：不打断正在进行的闪烁，让上一次闪烁自然结束
+        return;
+      }
+      // blocked 按浅→深排序，blocked[0] 是最浅的被折叠祖先 —— 其上方已全部展开，
+      // 该行必然在虚列表中可见；更深层的行可能被折叠的父级隐藏，闪了也看不见
+      window.clearTimeout(flashTimerRef.current);
+      setFlashPath(blocked[0]);
+      flashTimerRef.current = window.setTimeout(() => setFlashPath(undefined), 1000);
     }
   }, [expandFileTreePathChain, selectedFilePath, activeWorkspaceId]);
+
+  useEffect(() => () => window.clearTimeout(flashTimerRef.current), []);
 
   const handleToggleAllOutlineItems = () => {
     if (!hasExpandableOutlineItems) {
@@ -731,6 +747,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           expandedPaths={expandedPaths}
           dirtyPaths={dirtyPaths}
           externalChangePath={externalChangePath}
+          flashPath={flashPath}
           onToggleExpand={onToggleExpandInFileNav}
           onRefreshOne={onRefreshOneWorkspace}
           onHideFromRightPanels={onHideFromRightPanels}

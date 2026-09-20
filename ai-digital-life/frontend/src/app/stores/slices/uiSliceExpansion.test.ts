@@ -62,6 +62,20 @@ describe('directory expansion intent', () => {
     expect(expansion().expanded['src/legacy']).toBe(false);
   });
 
+  it('reports nested blocked ancestors in shallow-to-deep order (blocked[0] is the visible one)', () => {
+    // 嵌套折叠：src 与 src/legacy 都被手动折叠。blocked[0] 必须是最浅的 src ——
+    // 只有它保证在虚列表中可见（其上方已被链路展开）；更深的 src/legacy 行
+    // 因父级折叠根本不在渲染列表里，闪它等于没有提示（FileNavigatorShell 用 blocked[0] 闪烁）。
+    useAppStore.getState().setFileTreePathExpanded(WS, 'src', false);
+    useAppStore.getState().setFileTreePathExpanded(WS, 'src/legacy', false);
+    const result = useAppStore.getState().expandFileTreePathChain(WS, 'src/legacy/old.ts');
+    expect(result.blocked).toEqual(['src', 'src/legacy']);
+    expect(result.blocked[0]).toBe('src');
+    // 被折叠的目录都保持折叠
+    expect(expansion().expanded['src']).toBe(false);
+    expect(expansion().expanded['src/legacy']).toBe(false);
+  });
+
   it('auto-expand still expands ancestors that were not manually collapsed', () => {
     useAppStore.getState().setFileTreePathExpanded(WS, 'src/legacy', false);
     const result = useAppStore.getState().expandFileTreePathChain(WS, 'src/active/now.ts');

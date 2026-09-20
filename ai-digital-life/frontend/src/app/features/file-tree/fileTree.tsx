@@ -23,6 +23,7 @@ interface VirtualNodeProps<T extends FileTreeRenderableNode> {
   hoveredPath: string | undefined;
   dirtyPaths?: Set<string>;
   externalChangePath: string | undefined;
+  isFlashing: boolean;
   onToggle: (path: string) => void;
   onOpenFile: (relativePath: string) => void;
   renderMeta?: (node: T) => React.ReactNode;
@@ -49,6 +50,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
   hoveredPath,
   dirtyPaths,
   externalChangePath,
+  isFlashing,
   onToggle,
   onOpenFile,
   renderMeta,
@@ -136,6 +138,7 @@ function VirtualNodeComponent<T extends FileTreeRenderableNode>({
       isWeakSelected={isWeakSelected}
       isHovered={isHovered}
       isContextMenuTarget={isContextMenuTarget}
+      isFlashing={isFlashing}
       expandLabel={expandLabel}
       collapseLabel={collapseLabel}
       onToggle={isDirectory ? handleToggle : undefined}
@@ -188,6 +191,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
   expandedPaths,
   dirtyPaths,
   externalChangePath,
+  flashPath,
   onToggle,
   onOpenFile,
   renderMeta,
@@ -352,6 +356,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
                 hoveredPath={hoveredPath}
                 dirtyPaths={dirtyPaths}
                 externalChangePath={externalChangePath}
+                isFlashing={flashPath !== undefined && flatNode.node.path === flashPath}
                 onToggle={handleToggleDirectory}
                 onOpenFile={handleOpenFile}
                 renderMeta={renderMeta}

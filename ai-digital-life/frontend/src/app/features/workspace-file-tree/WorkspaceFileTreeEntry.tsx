@@ -34,6 +34,8 @@ export interface WorkspaceFileTreeEntryProps {
   expandedPaths: Record<string, boolean>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
+  /** 需要闪烁提示的折叠目录路径（仅活动工作区传入，见 MultiWorkspaceFileTree） */
+  flashPath?: string;
   onToggleExpand: () => void;
   onSelectWorkspace: () => void;
   onHideFromRightPanels: (workspaceId: string) => void;
@@ -65,6 +67,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   expandedPaths,
   dirtyPaths,
   externalChangePath,
+  flashPath,
   onToggleExpand,
   onSelectWorkspace,
   onHideFromRightPanels,
@@ -461,6 +464,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               expandedPaths={expandedPaths}
               dirtyPaths={dirtyPaths}
               externalChangePath={externalChangePath}
+              flashPath={flashPath}
               onToggle={(path) => {
                 onNodeClicked(path, 'directory');
                 onToggleFileTreePath(path);
