@@ -2,6 +2,24 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
 }
 
+let writeFailureWarned = false;
+
+export function writeJson(key: string, value: unknown): void {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch (err) {
+    if (!writeFailureWarned) {
+      writeFailureWarned = true;
+      console.warn('storageHelpers.writeJson failed (further write failures suppressed):', err);
+    }
+  }
+}
+
+/** 仅供测试重置"仅首次告警"标记 */
+export function resetWriteFailureWarning(): void {
+  writeFailureWarned = false;
+}
+
 export function readJson<T>(key: string, fallback: T): T {
   try {
     const raw = window.localStorage.getItem(key);
@@ -12,14 +30,6 @@ export function readJson<T>(key: string, fallback: T): T {
     console.warn('storageHelpers.readJson failed:', err);
   }
   return fallback;
-}
-
-export function writeJson(key: string, value: unknown): void {
-  try {
-    window.localStorage.setItem(key, JSON.stringify(value));
-  } catch (err) {
-    console.warn('storageHelpers.writeJson failed:', err);
-  }
 }
 
 export function readNumber(key: string, fallback: number, min: number, max: number): number {
