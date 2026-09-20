@@ -8,6 +8,8 @@ import {
   DEFAULT_LEFT_PANEL_WIDTH,
   LEFT_PANEL_WIDTH_MIN,
   LEFT_PANEL_WIDTH_MAX,
+  FILES_NAVIGATOR_WIDTH_MIN,
+  FILES_NAVIGATOR_WIDTH_MAX,
 } from '../uiSliceTypes';
 
 function createSlice() {
@@ -62,5 +64,35 @@ describe('uiSliceWidths leftbarWidth persistence', () => {
     flushCrossSliceWrites();
     resetHydrationForTest();
     expect(hydrateAll().patch.leftbarWidth).toBe(200);
+  });
+
+  it('clamps an out-of-range argument in the store state and persists the clamped value', () => {
+    const { current } = createSlice();
+
+    current().setLeftbarWidth(9999);
+    expect(current().leftbarWidth).toBe(LEFT_PANEL_WIDTH_MAX);
+
+    current().setLeftbarWidth(1);
+    expect(current().leftbarWidth).toBe(LEFT_PANEL_WIDTH_MIN);
+
+    flushCrossSliceWrites();
+    expect(JSON.parse(localStorage.getItem('adl:ui.leftPanelWidth') as string)).toBe(
+      LEFT_PANEL_WIDTH_MIN,
+    );
+  });
+
+  it('clamps an out-of-range files navigator width in the store state and persists it clamped', () => {
+    const { current } = createSlice();
+
+    current().setFilesNavigatorWidth(FILES_NAVIGATOR_WIDTH_MAX + 1000);
+    expect(current().filesNavigatorWidth).toBe(FILES_NAVIGATOR_WIDTH_MAX);
+
+    current().setFilesNavigatorWidth(FILES_NAVIGATOR_WIDTH_MIN - 1000);
+    expect(current().filesNavigatorWidth).toBe(FILES_NAVIGATOR_WIDTH_MIN);
+
+    flushCrossSliceWrites();
+    expect(JSON.parse(localStorage.getItem('adl:files.navigatorWidth') as string)).toBe(
+      FILES_NAVIGATOR_WIDTH_MIN,
+    );
   });
 });
