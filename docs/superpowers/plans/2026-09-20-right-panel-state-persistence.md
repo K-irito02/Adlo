@@ -596,6 +596,18 @@ export type HydrationResult = {
 let cached: HydrationResult | undefined;
 
 /**
+ * 只读存在性探针。必需：readJson(key, undefined) 对"键不存在"与"JSON 解析失败"
+ * 返回同一个 undefined，若不区分则坏数据永远不会被标记为 dirty（Task 3 实测发现）。
+ */
+function hasStoredValue(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) !== null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * store 构造期同步执行一次的水合。
  *
  * 设计要点（规格 §3.3）：
@@ -617,7 +629,10 @@ export function hydrateAll(): HydrationResult {
       continue;
     }
     const raw = readJson<unknown>(entry.key, undefined);
-    if (raw === undefined) {
+    // 本地存在性探针：readJson 把"键不存在"与"解析失败"都折叠成 undefined，
+    // 因此单靠它无法区分"无数据"（无需标脏）与"坏数据"（需标脏并清理）。
+    // 本探针只读、不写，不违反"唯一写盘通道"约束。
+    if (!hasStoredValue(entry.key)) {
       patch[entry.field as string] = entry.fallback;
       continue;
     }
