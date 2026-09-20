@@ -91,8 +91,13 @@ export function hydrateAll(): HydrationResult {
   // 跨键归一化：必须在全部简单条目读完之后应用 —— 归一化器的输入是「多个键的共同结果」
   // （例如 browserTabs 的 titleResolved 结算需要 tabs 本体，tabId→URL 映射需要书签 + 文件夹 + 标签）。
   // 直接读原始值（不经过登记表的 read 校验器），因此归一化器自身必须对坏形状完全防御。
-  // 同时把**已构建的补丁**交出去：需要"登记表已校验过的值"时从这里取，不再重读原始键。
-  const priorPatch = patch as Partial<StoreState>;
+  //
+  // priorPatch 是**简单条目产出的补丁的快照**（在任何复合水合器运行之前取定），
+  // 传给每个复合水合器的都是同一份快照：需要"登记表已校验过的值"时从这里取，不再重读原始键。
+  // 刻意传快照而非累积补丁本身 —— 复合循环以累积补丁为 Object.assign 目标，若把累积补丁
+  // 传下去，后跑的复合就会看到先跑的复合的派生值（同一形状被二次派生，读到的已不是原始存储语义）。
+  // 契约详见 composite.ts 中 `CompositeHydrator.build` 的 priorPatch 文档。
+  const priorPatch = { ...patch } as Partial<StoreState>;
   for (const hydrator of compositeHydrators) {
     Object.assign(
       patch,
