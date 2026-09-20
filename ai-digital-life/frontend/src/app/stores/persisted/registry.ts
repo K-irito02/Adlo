@@ -65,15 +65,19 @@ import type { HeatmapTab, ChartColorPreset } from '../slices/uiSliceTypes';
 // 数组类字段的每一项都会作为完整领域对象写入 store，单个畸形元素
 // （字符串/null/缺关键字段）只会在渲染期暴露，故在读盘处整体拒绝、
 // 回退 fallback（并记入 dirtyKeys 于本轮启动被覆盖）。
+//
+// 这些校验器同时被 composite.ts 的跨键归一化复用（见导出）：同一个键的
+// "预期形状"在本应用只能有一份定义，否则弱化过的那一份会绕过登记表的
+// 拒绝判定，把登记表已判损坏的值重新写回 store。
 // ─────────────────────────────────────────────────────────────
 
-const isBrowserTab = (item: Record<string, unknown>): boolean =>
+export const isBrowserTab = (item: Record<string, unknown>): boolean =>
   typeof item.id === 'string' && typeof item.title === 'string' && typeof item.url === 'string';
 
-const isBookmarkTabItem = (item: Record<string, unknown>): boolean =>
+export const isBookmarkTabItem = (item: Record<string, unknown>): boolean =>
   typeof item.tabId === 'string' && typeof item.url === 'string' && typeof item.title === 'string';
 
-const isTabFolder = (item: Record<string, unknown>): boolean => {
+export const isTabFolder = (item: Record<string, unknown>): boolean => {
   if (typeof item.id !== 'string' || typeof item.name !== 'string') {
     return false;
   }

@@ -2,7 +2,9 @@ import { isRealTitle } from '@utils/browserDisplayUtils';
 import type { StoreState } from '../StoreState';
 import type { BrowserTabState } from '../slices/browserSliceShared';
 import type { WorkspaceBookmarkEntry } from '../slices/browserTypes';
-import type { BookmarkTabItem, TabFolderState } from '../slices/browserFoldersSlice';
+import type { TabFolderState } from '../slices/browserFoldersSlice';
+import { readObjectArray, readObjectArrayRecord, readString, readStringRecord } from './parsers';
+import { isBookmarkTabItem, isBrowserTab, isTabFolder } from './registry';
 
 /** 跨键归一化器：需要在简单条目读完之后、基于多个键的共同结果构建补丁 */
 export interface CompositeHydrator {
@@ -55,95 +57,50 @@ export function buildBrowserTabUrlMap(input: {
 }
 
 // ─────────────────────────────────────────────────────────────
-// 防御性读取：composite 直接读原始值，不经过登记表的 read 校验器，
-// 因此任何"形状不对"的存储值都必须在进入归一化逻辑前被拦下 ——
-// 坏数据绝不能让启动期水合抛错（规格 §3.3：水合绝不阻塞启动）。
+// 输入读取：composite 直接读原始值，不经过登记表的 read 校验器，
+// 因此必须自己承担"这一读要不要贡献补丁"的判断。但"预期形状"不自己定义 ——
+// 一律复用登记表的逐项校验器（isBrowserTab / isBookmarkTabItem / isTabFolder）
+// 与其读取器，保证同一个键不会出现两份宽严不一的形状判定。
 //
-// 语义：键缺失（undefined）≡ 空值（与 brief 的 `?? []` / `?? {}` 一致）；
-// 键存在但形状不对 ⇒ 该归一化器整体不贡献补丁（返回 {}），保留登记表
-// 简单条目读出的值/fallback。刻意不做"逐项剔除畸形元素后继续" —— 那会在
-// 登记表判定整值损坏、已回退 fallback 之后，又把一个被删减过的数组写回 store，
+// 语义：键缺失（undefined）≡ 空值（与 brief 的 `?? []` / `?? {}` 一致，
+// 归一化器可以在只有部分键可用的会话里照常工作）；键存在但形状不合法 ⇒
+// 该输入判为损坏（undefined），整个归一化器不贡献补丁，保留登记表简单条目
+// 读出的值/fallback。刻意不做"逐项剔除畸形元素后继续" —— 那会在登记表判定
+// 整值损坏、已回退 fallback 之后，又把一个被删减过的数组写回 store，
 // 使两处对同一个键的判定互相矛盾。
 // ─────────────────────────────────────────────────────────────
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
+/** 缺失 → []；否则按登记表的数组读取器（任一项不合法 ⇒ 整值拒绝） */
+function readArrayInput<T>(
+  isItem: (item: Record<string, unknown>) => boolean,
+  raw: unknown,
+): T[] | undefined {
+  return raw === undefined ? [] : readObjectArray<T>(isItem)(raw);
 }
 
-/** 缺失 → []；对象数组 → 原值；其余（含含非对象项）→ undefined（损坏） */
-function asObjectArray<T>(raw: unknown): T[] | undefined {
-  if (raw === undefined) {
-    return [];
-  }
-  if (!Array.isArray(raw) || !raw.every(isPlainObject)) {
-    return undefined;
-  }
-  return raw as T[];
+/** 缺失 → {}；否则按登记表的两层数组读取器（任一项不合法 ⇒ 整值拒绝） */
+function readArrayRecordInput<T>(
+  isItem: (item: Record<string, unknown>) => boolean,
+  raw: unknown,
+): Record<string, T[]> | undefined {
+  return raw === undefined ? {} : readObjectArrayRecord<T>(isItem)(raw);
 }
 
-/** 缺失 → {}；其值为对象数组的两层表 → 原值；其余 → undefined（损坏） */
-function asObjectArrayRecord<T>(raw: unknown): Record<string, T[]> | undefined {
-  if (raw === undefined) {
-    return {};
-  }
-  if (!isPlainObject(raw)) {
-    return undefined;
-  }
-  const result: Record<string, T[]> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    const items = asObjectArray<T>(value);
-    if (items === undefined) {
-      return undefined;
-    }
-    result[key] = items;
-  }
-  return result;
-}
-
-/** 缺失 → {}；字符串映射 → 原值；其余 → undefined（损坏） */
-function asStringMap(raw: unknown): Record<string, string> | undefined {
-  if (raw === undefined) {
-    return {};
-  }
-  if (!isPlainObject(raw)) {
-    return undefined;
-  }
-  const result: Record<string, string> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (typeof value !== 'string') {
-      return undefined;
-    }
-    result[key] = value;
-  }
-  return result;
-}
-
-/** 文件夹表：额外要求每项的 `tabs` 缺失或为对象数组（构建映射时会逐项迭代） */
-function asTabFolders(raw: unknown): TabFolderState[] | undefined {
-  const folders = asObjectArray<TabFolderState>(raw);
-  if (folders === undefined) {
-    return undefined;
-  }
-  for (const folder of folders) {
-    const tabs = (folder as { tabs?: unknown }).tabs;
-    if (tabs !== undefined && asObjectArray<BookmarkTabItem>(tabs) === undefined) {
-      return undefined;
-    }
-  }
-  return folders;
+/** 缺失 → {}；否则按登记表的字符串映射读取器（任一值非字符串 ⇒ 整值拒绝） */
+function readStringMapInput(raw: unknown): Record<string, string> | undefined {
+  return raw === undefined ? {} : readStringRecord(raw);
 }
 
 export const compositeHydrators: CompositeHydrator[] = [
   {
     name: 'browserTabs',
     build: (read) => {
-      const persistedTabs = asObjectArray<BrowserTabState>(read('adl:browser.tabs'));
+      const persistedTabs = readArrayInput<BrowserTabState>(isBrowserTab, read('adl:browser.tabs'));
       if (persistedTabs === undefined || persistedTabs.length === 0) {
         return {};
       }
       const tabs = markResolvedTitles(persistedTabs);
-      const rawActiveTabId = read('adl:browser.activeTabId');
-      const persistedActiveTabId = typeof rawActiveTabId === 'string' ? rawActiveTabId : undefined;
+      const persistedActiveTabId = readString(read('adl:browser.activeTabId'));
       const activeTabId =
         persistedActiveTabId && tabs.some((tab) => tab.id === persistedActiveTabId)
           ? persistedActiveTabId
@@ -158,12 +115,16 @@ export const compositeHydrators: CompositeHydrator[] = [
   {
     name: 'browserTabIdUrlMap',
     build: (read) => {
-      const tabs = asObjectArray<BrowserTabState>(read('adl:browser.tabs'));
-      const workspaceBookmarks = asObjectArrayRecord<WorkspaceBookmarkEntry>(
+      const tabs = readArrayInput<BrowserTabState>(isBrowserTab, read('adl:browser.tabs'));
+      const workspaceBookmarks = readArrayRecordInput<WorkspaceBookmarkEntry>(
+        isBookmarkTabItem,
         read('adl:browser.workspaceBookmarks'),
       );
-      const tabFolders = asTabFolders(read('adl:browser.tabFolders'));
-      const persistedMap = asStringMap(read('adl:browser.tabIdUrlMap'));
+      const tabFolders = readArrayInput<TabFolderState>(
+        isTabFolder,
+        read('adl:browser.tabFolders'),
+      );
+      const persistedMap = readStringMapInput(read('adl:browser.tabIdUrlMap'));
       if (
         tabs === undefined ||
         workspaceBookmarks === undefined ||

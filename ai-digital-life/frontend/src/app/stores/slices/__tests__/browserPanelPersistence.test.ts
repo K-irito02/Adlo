@@ -290,11 +290,14 @@ describe('every migrated browser key round-trips through the registry', () => {
     act(get());
     flushCrossSliceWrites();
 
-    expect(localStorage.getItem(key), `${key} must be written`).not.toBeNull();
+    const written = localStorage.getItem(key);
+    expect(written, `${key} must be written`).not.toBeNull();
     expect(localStorage.getItem(legacyKey), `${legacyKey} must no longer be written`).toBeNull();
 
     const patch = restart();
 
-    expect(patch[field], `${field} must be hydrated`).not.toBeUndefined();
+    // 断言真实值，而非"非 undefined"：水合前每条键都会把 fallback 写进 patch，
+    // 若解析器静默失败（或走 fallback），这里因 fallback ≠ 写入值而失败。
+    expect(patch[field], `${field} must be hydrated`).toEqual(JSON.parse(written as string));
   });
 });

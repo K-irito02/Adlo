@@ -54,4 +54,56 @@ describe('composite hydration is defensive', () => {
 
     expect(patch.browserTabs).toEqual([]);
   });
+
+  it('rejects an array holding a malformed item instead of writing it back into the store', () => {
+    // 登记表的 isBrowserTab 要求 id/title/url 均为字符串 ⇒ 整值拒绝、回退 fallback。
+    // composite 必须复用同一份校验器：不得用同一份原始值再构造补丁覆盖 fallback。
+    localStorage.setItem('adl:browser.tabs', JSON.stringify([{ id: 1 }]));
+
+    let patch: Partial<Record<string, unknown>> = {};
+    expect(() => {
+      patch = hydrateAll().patch as Partial<Record<string, unknown>>;
+    }).not.toThrow();
+
+    expect(patch.browserTabs).toEqual([]);
+    // 畸形项不得经由 composite 进入任何派生字段
+    expect(patch.browserTabsById).toBeUndefined();
+    expect(patch.browserActiveTabId).toBe('');
+  });
+
+  it('rejects a workspace-bookmark record holding a malformed item', () => {
+    // 该项有 url（弱守卫会据此往 tabId→URL 映射里塞值），但缺 title ⇒ isBookmarkTabItem 拒绝整值
+    localStorage.setItem(
+      'adl:browser.workspaceBookmarks',
+      JSON.stringify({ ws1: [{ tabId: 'tab-a', url: 'https://malformed.test' }] }),
+    );
+
+    let patch: Partial<Record<string, unknown>> = {};
+    expect(() => {
+      patch = hydrateAll().patch as Partial<Record<string, unknown>>;
+    }).not.toThrow();
+
+    expect(patch.browserWorkspaceBookmarks).toEqual({});
+    expect(patch.browserBookmarkTabIdUrlMap).toEqual({});
+  });
+
+  it('rejects a tab-folder array holding a malformed folder', () => {
+    // 该文件夹有 tabs 子项，但缺 id/name/createdAt ⇒ isTabFolder 拒绝整值
+    localStorage.setItem(
+      'adl:browser.tabFolders',
+      JSON.stringify([{ tabs: [{ tabId: 'tab-b' }] }]),
+    );
+    localStorage.setItem(
+      'adl:browser.tabs',
+      JSON.stringify([{ id: 'tab-b', title: 'B', url: 'https://from-tab.test' }]),
+    );
+
+    let patch: Partial<Record<string, unknown>> = {};
+    expect(() => {
+      patch = hydrateAll().patch as Partial<Record<string, unknown>>;
+    }).not.toThrow();
+
+    expect(patch.browserTabFolders).toEqual([]);
+    expect(patch.browserBookmarkTabIdUrlMap).toEqual({});
+  });
 });
