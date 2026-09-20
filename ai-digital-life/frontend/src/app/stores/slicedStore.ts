@@ -125,6 +125,39 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createDshActions(set, get), // dsh 宿主壳操作（打开/关闭/版本管理）
 }));
 
+import { hydrateAll } from './persisted/hydrate';
+import { cleanupUnregisteredKeys } from './persisted/cleanup';
+
+// V2 全量盘点（ledger B1）登记的"范围外但共用 adl 前缀"的键。
+// 这些键由通信/GitHub/CI/系统监控/剪贴板等面板持有，不属于本次四面板范围，
+// 启动清理**必须**保留它们 —— 否则首次启动会清空用户的 CI 快照、GitHub 工作区配置与访问令牌。
+// Task 29 会把它们全部登记进 registry；在此之前本清单是唯一的防线，不得删除本常量。
+const PERSIST_KEEP_KEYS = new Set<string>([
+  'adl-ui:changes-branch',
+  'adl-ui:active-github-section',
+  'adl-ui:github-ci-folders',
+  'adl-ui:github-workspace-configs',
+  'adl-ui:github-access-token',
+  'adl-ui:ci-access-token',
+  'adl-ui:ci-config',
+  'adl-ui:ci-snapshots',
+  'adl-ui:ci-log-caches',
+  'adl-ui:ci-auto-refresh-on-push',
+  'adl-ui:active-communicate-platform',
+  'adl-ui:communicate-navigator-collapsed',
+  'adl-ui:sysmon-collapsed',
+  'adl-ui:sysmon-scroll-top',
+  'adl-ui:clipboard-scroll-top',
+]);
+
+// 同步水合：必须在 store 创建后立即执行，且早于任何 React 渲染 ——
+// 全应用唯一的水合时机（规格 §3.3）。禁止再引入第二处异步水合。
+const hydration = hydrateAll();
+if (Object.keys(hydration.patch).length > 0) {
+  useSlicedAppStore.setState(hydration.patch);
+}
+cleanupUnregisteredKeys({ keep: PERSIST_KEEP_KEYS, extra: hydration.dirtyKeys });
+
 // 显式 hydration：在 store 创建后从 localStorage 恢复 GitHub Repo slice 的持久化状态
 void hydrateGitHubRepoSlice(useSlicedAppStore.setState);
 
