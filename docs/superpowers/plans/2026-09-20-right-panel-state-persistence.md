@@ -3914,7 +3914,13 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 | `adl-ui:sysmon-scroll-top` | `adl:ui.sysmonScrollTop` | ui | global | `readNumberInRange(0, 1e9)` |
 | `adl-ui:clipboard-scroll-top` | `adl:ui.clipboardScrollTop` | ui | global | `readNumberInRange(0, 1e9)` |
 
-**安全说明（必须遵守）：** `github-access-token` 与 `ci-access-token` 以明文存放于本地存储，与 `AGENTS.md` 禁止项「凭据写入普通配置或日志（必须通过 `crates/credential/` 存储）」相冲突。**本任务只做"原样搬迁 + 保留"，绝不改变其存储位置或明文形态**（改变即等于迁移用户凭据，超出本计划范围且属安全敏感操作）。该冲突须在 Task 28 作为独立发现上报用户，并登记为后续子项目。
+**安全说明（预检更正后的事实，必须遵守）：** 先前预检曾把 `github-access-token` / `ci-access-token` 判为"明文凭据违反凭据规则"，**该判断已被证伪**：
+
+- `adl-ui:github-access-token` **不存在于生产代码**（全仓唯一命中是 `frontend/src/mock/mock-ci.ts:11` 的一处注释）；
+- CI 令牌在 **Tauri 模式已走 OS 凭据库**且不回读前端（`ciSlice.ts:6` 注释 + `ciSlice.ts:252` 的 `isTauriMode() ? null : ...`；服务端经 `adl_credential::get_ci_access_token_in_dir` 读取）；令牌 IPC 设计为只写不回读（`shared/ipc/github.ts:38-61`）；
+- 仅**浏览器模式**因无 OS 钥匙串而回退到浏览器存储，任何替代（IndexedDB 等）同为明文。
+
+因此本任务对这两个键只做"**原样搬迁 + 保留**"，**不得**改变其存储位置、明文形态或读取路径（改走 credential 存储属安全敏感变更，且需读取旧值 → 违反"未发布产品禁止迁移代码"，明确排除在本次范围外）。该残余风险在 Task 28 作为独立发现上报。
 
 - [ ] **Step 1: 写失败测试**
 
