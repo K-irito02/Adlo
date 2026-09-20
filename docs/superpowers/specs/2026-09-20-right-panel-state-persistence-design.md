@@ -446,5 +446,6 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 
 | # | 事项 | 说明 |
 |---|---|---|
-| F1 | 终端历史索引等大对象的持久化收纳 | 受 §3.3 同步读准入线限制，继续走异步路径；如需统一收纳须另行设计 |
+| F1 | 终端历史索引等大对象的持久化收纳 | 受 §3.3 同步读准入线限制，登记但标注 `sync: false`，读取继续走按需路径；如需将其纳入构造期同步读须另行设计 |
 | F2 | 面板状态跨设备同步 | 当前为本地存储，无跨设备诉求 |
+| F3 | 乙类（外部微型存储）条目的引用剪枝 | `regionCollapse` / `cwdByTab` / `historyIndex` 三条按标签键的孤儿清理：`cwd` 与 `historyIndex` 的消费方已有自清理，`regionCollapse` 尚缺。延期至计划 Task 15 一并接线（见该任务注记），本次不在 Task 10 声明无人能执行的 `prune` |

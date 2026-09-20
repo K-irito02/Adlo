@@ -2260,9 +2260,11 @@ Expected: PASS；自检的 `field 唯一` 用例保持绿色。
 | 现键名 | 新键名 | 所有者 | scope | 解析器 | 剪枝 |
 |---|---|---|---|---|---|
 | `adl-terminal:view-prefs` | `adl:terminal.viewPrefs` | `terminalViewPrefs.ts` | global | `normalizeTerminalViewPrefs` | — |
-| `adl-terminal:region-collapse` | `adl:terminal.regionCollapse` | `terminalRegionCollapse.ts` | byTabId | `normalizeRegionCollapseMap` | `pruneByTabId` |
-| `adl-terminal:cwd-by-tab` | `adl:terminal.cwdByTab` | `terminalCwdStore.ts` | byTabId | 字符串映射 | `pruneByTabId` |
-| `adl-terminal:history-index` | `adl:terminal.historyIndex` | `terminalHistoryStore.ts` | byTabId | `normalizeHistoryIndex` | `pruneByTabId`；**`sync: false`** |
+| `adl-terminal:region-collapse` | `adl:terminal.regionCollapse` | `terminalRegionCollapse.ts` | byTabId | `normalizeRegionCollapseMap` | —（见下） |
+| `adl-terminal:cwd-by-tab` | `adl:terminal.cwdByTab` | `terminalCwdStore.ts` | byTabId | 字符串映射 | —（见下） |
+| `adl-terminal:history-index` | `adl:terminal.historyIndex` | `terminalHistoryStore.ts` | byTabId | `normalizeHistoryIndex` | —（见下）；**`sync: false`** |
+
+> **为什么乙类三条不声明 `prune`（本任务裁定）**：`pruneRegistry` 的契约是"给 store 快照 → 返回 store 补丁"，它靠 `entry.field` 取值（`prune.ts:155-156`）。乙类没有 store 字段，故无法被现有编排执行；**声明一个无人能执行的 `prune` 等于假完整**（本计划已多次踩到"看起来完成实则没有"的坑）。真实清理路径分两种、都已存在或另有归属：①`cwd` / `historyIndex` 的消费方已有"载入 → 过滤失效项 → 回写快照"的自清理（`useTerminalPtyLifecycle.ts:109,120` 与 `:568,580`）；②`regionCollapse` 与乙类的按标签孤儿清理，连同乙类剪枝所需的取值能力，一并归 **Task 17**（Phase 4 剪枝接线）统一设计。这是**显式延期**，不是遗漏。
 
 | `adl-ui:terminal-persisted` | 不登记 | — | — | — | 死字段，Task 20 删除 |
 
@@ -2275,8 +2277,18 @@ Expected: PASS；自检的 `field 唯一` 用例保持绿色。
 1. 模块级缓存 `let cache: T = <fallback>`；`load()/loadAll()` 改为**返回缓存**（起效后不再每次重解析 JSON）。
 2. 登记条目声明 `apply: (value) => { cache = value; }` —— 构造期水合把校验+剪枝后的值交回缓存。
 3. `save()/saveAll()` 改为 `cache = next; persist('<新键名>', next)` —— 退役私有去抖，接入共享去抖与关窗 flush（这正是本任务要修的既有缺陷：这四个 writer **未注册进 `flushCrossSliceWrites`，关窗瞬间的写入必丢**）。
-4. `historyIndex` 例外：`sync: false` 故 `apply` 不会被构造期调用；保留 `ensureHistoryIndexLoaded` 的按需读取，但它改为读**新键名**并写入缓存。
+4. `historyIndex` 例外：`sync: false` 故 `apply` 不会被构造期调用；`loadAll()` **不得**改成"只返回空缓存"，必须保持**先按需读一次存储、再返回缓存**的语义（沿用既有 `ensureHistoryIndexLoaded` 思路）。**否则会静默回归**：`TerminalHistoryBudgetSection.tsx:139` 在 `useMemo` 里直接调 `loadAll()` 统计已用字节 —— 若返回空缓存，存储预算面板会显示 0。
 5. 删除四个 `_KEY` 常量中的**旧字面量**（改成新键名即可，`keepListGuard` 不允许旧字面量残留于生产代码）。
+
+**模块加载方向（会导致运行时循环依赖，必须遵守）**
+
+甲类与乙类的水合方向相反：甲类由 `hydrateAll` 产出 store 补丁，乙类由 `hydrateAll` 调用条目自带的 `apply`。因此 **`registry.ts` 必须 import 那四个外部模块**，形成 `persisted → features/terminal` 的依赖。为了让这条边不成环：
+
+- 四个外部模块**只能** import `@stores/persisted/persist`（`persist.ts` 对 registry 是 `import type`，编译期擦除，运行时不成环）；
+- **禁止** import `@stores/persisted/apply`（`apply.ts:3` 是 registry 的**值**导入 → 会形成 `registry → feature → apply → registry` 的运行时环，表现为启动时 `undefined`）；
+- 也**禁止**从 `slices/*` 或 `slicedStore` 反向导入（会触发 store 在 registry 求值中途被构造）。
+
+四个外部模块目前只依赖 `@stores/storageHelpers`，改造后新增依赖仅限 `persist`，方向安全。`apply` 闭包引用模块级 `cache` 变量，在全部模块求值完成后才被调用，顺序安全。
 
 - [ ] **Step 0: 扩展登记表契约以支持外部水合目标**
 
@@ -2976,6 +2988,15 @@ cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/persist
 ```
 
 Expected: PASS（4 个用例，含 2 个负例）。
+
+**本任务必须一并处理的乙类条目剪枝（Task 10 显式延期的部分）**
+
+Task 10 为终端的三个外部微型存储（`regionCollapse` / `cwdByTab` / `historyIndex`）登记了键，但**未声明 `prune`**：`pruneRegistry` 靠 `entry.field` 从 store 快照取值（`prune.ts:155-156`），而乙类没有 store 字段，无法被现有编排执行。本任务在接线剪枝时**必须补上这一环**，方式二选一（择优并说明理由）：
+
+- **甲**：把外部条目的归宿从 `apply` 扩展为 `{ get(): T; set(v: T): void }`，使 `pruneRegistry` 能对乙类取值并回写（回写走 `persist`）；或
+- **乙**：乙类剪枝不并入 `pruneRegistry`，改由各外部模块在自己的载入路径上剔除失效 tabId（`cwd` / `historyIndex` 的消费方已有此模式，见 `useTerminalPtyLifecycle.ts:109,120` 与 `:568,580`），并在 `regionCollapse` 上补齐同等自清理。
+
+无论选哪种，**必须留下可失败的测试**：写入一个已不存在 tabId 的条目 → 触发对应剪枝 → 断言该条目被剔除。**禁止**只声明 `prune` 而不接线（这正是 Task 10 拒绝假完整的原因）。
 
 - [ ] **Step 5: 提交**
 
