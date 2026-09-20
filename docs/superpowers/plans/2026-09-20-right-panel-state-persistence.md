@@ -2403,23 +2403,40 @@ Expected: PASS。
 
 **Files:**
 - Modify: `frontend/src/app/stores/persisted/registry.ts`
-- Modify: `frontend/src/app/stores/slices/searchSlice.ts:152-209,238-274`
+- Modify: `frontend/src/app/stores/persisted/parsers.ts`（新增取整版数值解析器）
+- Create: `frontend/src/app/stores/persisted/searchComposite.ts`（检索复合水合器，见 Step 1b）
+- Modify: `frontend/src/app/stores/persisted/hydrate.ts`（挂载第三个复合循环）
+- Modify: `frontend/src/app/stores/slices/searchSlice.ts:13-16,148-208,213-275`（删 4 个遗留键常量与 4 个创建期读取器；写盘改走 `persist`）
 - Create: `frontend/src/app/stores/slices/__tests__/searchPersistence.test.ts`
+- Create: `frontend/src/app/stores/persisted/__tests__/searchComposite.test.ts`
 
 **Interfaces:**
-- Consumes: `defineEntry`、`persist`、`pruneByWorkspaceId`
+- Consumes: `defineEntry`、`persist` / `persistField`、`pruneByWorkspaceId`
 - Produces: 检索侧登记键 + `adl:search.*` 命名空间
 
-**登记清单**
+**登记清单（读界已按 `searchSlice.ts` 实际的 `clamp` 参数核准，非初稿数字）**
 
 | 现键名 | 新键名 | 字段 | scope | 解析器 | 剪枝 |
 |---|---|---|---|---|---|
-| `adl-search:page-size` | `adl:search.pageSize` | `searchPageSize` | global | `readNumberInRange(10, 500)` | — |
-| `adl-search:max-results` | `adl:search.maxResults` | `searchMaxResults` | global | `readNumberInRange(100, 10000)` | — |
-| `adl-search:ignored-paths` | `adl:search.ignoredPaths` | `searchIgnoredPaths` | byWorkspaceId | 数组映射（沿用既有归一化清洗逻辑） | `pruneByWorkspaceId` |
+| `adl-search:page-size` | `adl:search.pageSize` | `searchPageSize` | global | 取整 + `readNumberInRange(SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX)` = **[50, 1000]**；fallback `SEARCH_PAGE_SIZE` = **200** | — |
+| `adl-search:max-results` | `adl:search.maxResults` | `searchMaxResults` | global | 取整 + `readNumberInRange(SEARCH_PAGE_SIZE, SEARCH_HARD_MAX_RESULTS)` = **[200, 20000]**；fallback `SEARCH_MAX_RESULTS` = **5000** | — |
+| `adl-search:ignored-paths` | `adl:search.ignoredPaths` | `searchIgnoredPaths` | byWorkspaceId | 复用既有归一化清洗（`normalizeIgnoredEntry` + 去重）迁入 `parsers.ts`，**不得保留第二份** | `pruneByWorkspaceId` |
 | `adl-search:use-gitignore` | `adl:search.useGitignore` | `searchUseGitignore` | byWorkspaceId | 布尔映射 | `pruneByWorkspaceId` |
 
-> `readNumberInRange` 的实际上下限以 `searchSlice.ts` 现有的 `clamp` 调用参数为准 —— 实现前先读 `:152-167` 确认，不得凭本表数字臆测。
+> **初稿表格的两个数字都是错的**：初稿写 `readNumberInRange(10, 500)` 与 `(100, 10000)`；真值是 `[50, 1000]`（`SEARCH_PAGE_SIZE_MIN/MAX`）与 `[200, 20000]`（下界是 `SEARCH_PAGE_SIZE` 而非某个 MIN 常量，上界 `SEARCH_HARD_MAX_RESULTS`）。全部四个常量应从 `@shared/ipc/searchWindow` 导入，**不得在登记表里重打数字**。
+>
+> **取整不可省**：既有读路径是 `Math.floor(readNumber(...))`，而 `readNumberInRange` 只做钳制不取整（`parsers.ts:9-16`）。两者差一个 `Math.floor`，直接复用会改变语义（持久化的 `200.7` 由 200 变为 200.7）。故 `parsers.ts` 新增取整版（如 `readFlooredNumberInRange(min, max)`），两条数值条目共用它 —— 不要在两处各写一次 `Math.floor`。
+
+**Step 1b：检索复合水合器（保住创建期被删除的两项派生）**
+
+`searchSlice.ts:215-216` 的创建期读取里有两条**跨键派生**，删掉读取器后会无声丢失，必须由复合水合器承接（新建 `persisted/searchComposite.ts`，导出 `searchCompositeHydrators: CompositeHydrator[]`，并在 `hydrate.ts` 中作为第三个复合循环挂载；消费 `priorPatch` 快照而非原始键）：
+
+| 派生 | 现状 | 必须保住 |
+|---|---|---|
+| `searchMaxResults` 自愈 | `Math.max(readSearchMaxResults(), initialPageSize)`（事项 N1'） | 历史脏组合 `page > max` 重载后自愈 |
+| `searchLimit` 初值 | `searchLimit: initialPageSize`（事项 L5） | 重载后**首屏即按用户步长**请求；否则回落常量 200。`searchLimit` 有真实消费者（`FileNavigatorShell.tsx:235`、`searchActions.ts:78,140,287,300,327`），**且它不是持久化字段**，只能由复合水合器产出 |
+
+`priorPatch` 中两条字段由简单条目保证存在（`hydrateAll` 对缺失键写 fallback），故直接 `Math.max(priorPatch.searchMaxResults, priorPatch.searchPageSize)` 即可。**不要为这次纠偏新增写盘** —— 旧代码也只改内存、不回写（自愈结果由用户下一次保存自然落盘）。
 
 - [ ] **Step 1: 写失败测试**
 
@@ -2447,10 +2464,12 @@ describe('search settings persistence', () => {
   it('clamps an out-of-range page size on hydration', () => {
     localStorage.setItem('adl:search.pageSize', '99999');
     const { patch } = hydrateAll();
-    expect(patch.searchPageSize).toBeLessThanOrEqual(500);
+    expect(patch.searchPageSize).toBe(1000);
   });
 });
 ```
+
+两处已按真实语义收紧：`setSearchIgnoredPaths` 已确认为真实 setter 名（`searchSlice.ts:267`）；上界断言由 `toBeLessThanOrEqual(500)` 改为**上确界** `toBe(1000)`（`SEARCH_PAGE_SIZE_MAX`），因为"小于等于某数"对任何更小的错误上界都会通过 —— 属断言空转风险。
 
 - [ ] **Step 2: 运行测试确认失败**
 
@@ -2458,11 +2477,19 @@ describe('search settings persistence', () => {
 cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/slices/__tests__/searchPersistence.test.ts
 ```
 
-Expected: FAIL。（setter 真实名称以 `searchSlice.ts` 为准，按实际导出名修正测试。）
+Expected: FAIL。
 
 - [ ] **Step 3: 追加登记并改写写入路径**
 
-按上表追加条目；`searchSlice.ts` 中 `writeNumber` / `writeJson` 的直接调用改为 `persist`；保留既有的归一化清洗逻辑（作为 `read` 的实现，迁入 `parsers.ts` 或 `composite.ts`，不得保留第二份）。
+按上表追加条目；删除 `searchSlice.ts:13-16` 的四个遗留键常量（**已核实：全仓无外部消费者**，可整体删除）与 `:148-208` 的四个创建期读取器；写盘改为 `persist` / `persistField`。
+
+**必须保留（这是 T7 踩过的坑：迁移时顺手丢掉写时保护）**：
+
+- 四个 setter 里的 `Number.isFinite` 早退与 `clamp(Math.floor(value), …)` —— 读侧 `readNumberInRange` 只是兜底，**不替代写时边界**；
+- `setSearchPageSize` 里"步长超过当前上限时同步上调上限"的**第二处写盘**（`next > maxResults` → `persistField('adl:search.maxResults', maxed)`）。同一 setter 写两个键时**合并为一次 `set`**（把两个 `persistField` 的补丁展开进同一个对象），不要连续两次 `set`；
+- `setSearchMaxResults` 的下界 `Math.max(SEARCH_PAGE_SIZE, _get().searchPageSize)`（保证 `page ≤ max` 闭合）。
+
+**写出格式无变化（免疑虑）**：旧路径 `writeNumber` 存 `String(value)`（如 `"200"`），新路径 `persist` → `writeJson` 存 `JSON.stringify(value)`（`JSON.stringify(200) === "200"`）；数值与对象两种形态都逐字相同，故不构成格式迁移、无需兼容代码。行为差异仅有一处且是设计目标：写出由**同步直写**变为**共享去抖**（关窗 flush 覆盖，`pagehide` 兜底见 Task 21）。
 
 - [ ] **Step 4: 运行测试确认通过并提交**
 
