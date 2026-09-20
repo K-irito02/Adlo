@@ -252,13 +252,20 @@ export const PERSIST_DOMAINS = [
 
 export type PersistDomain = (typeof PERSIST_DOMAINS)[number];
 
-// 名称段为 camelCase：至少含一个大写字母。
-// 注：本条初稿写作 `[A-Za-z][A-Za-z0-9]*`，与本文自身的测试用例
-// （要求 parsePersistKey('adl:files.lowercase') 返回 null）自相矛盾；
-// 已按实现改为"至少含一个大写"，计划内全部键名（workspaceExpanded、
-// leftCollapsed、tabIdUrlMap、viewPrefs、lastFile 等）均满足该约束。
+// 名称段：单个以字母开头的字母数字 token（camelCase / PascalCase / 单词皆可）。
+// 目的：与遗留前缀的 kebab-case 名称（adl-ui:file-tree-expanded）划清界限，
+// 同时拒绝空段、数字开头、下划线/连字符/点号混入。
+//
+// 修订史（重要，避免再次互相矛盾）：
+//  - 初稿为 `[A-Za-z][A-Za-z0-9]*`（允许全小写单词）。
+//  - Task 2 实现时，因本任务自带用例要求 `adl:files.lowercase` 返回 null，
+//    被收紧为"至少含一个大写字母" —— 该用例本身是武断的，且**与后续
+//    Task 9 键表逐字要求的全小写单词名（adl:browser.tabs / history /
+//    bookmarks / shortcuts）互斥**。
+//  - Task 9 裁定：恢复为初稿正则，并把那条武断用例替换为三条真正可失败的反例
+//    （kebab-case / snake_case / 数字开头）。
 const KEY_PATTERN =
-  /^adl:(?<domain>[a-z]+)\.(?<name>[A-Za-z0-9]*[A-Z][A-Za-z0-9]*)(?:\.v(?<version>[0-9]+))?$/;
+  /^adl:(?<domain>[a-z]+)\.(?<name>[A-Za-z][A-Za-z0-9]*)(?:\.v(?<version>[0-9]+))?$/;
 
 export type ParsedPersistKey = {
   domain: PersistDomain;
