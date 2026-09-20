@@ -89,24 +89,34 @@ export const createUISlice = (
     setFilesSearchScope: (scope) => {
       set(persistField('adl:files.searchScope', scope));
     },
-    setFilePreviewModeForPath: (path, previewEnabled) =>
+    setFilePreviewModeForPath: (workspaceId, path, previewEnabled) =>
       set((state) => {
-        const next = { ...state.filePreviewModeByPath, [path]: previewEnabled };
-        return persistField('adl:files.previewMode', next);
+        const nextWs = {
+          ...(state.filePreviewModeByPath[workspaceId] ?? {}),
+          [path]: previewEnabled,
+        };
+        return persistField('adl:files.previewMode', {
+          ...state.filePreviewModeByPath,
+          [workspaceId]: nextWs,
+        });
       }),
-    carryFilePreviewModeForRename: (oldPath, newPath) =>
+    carryFilePreviewModeForRename: (workspaceId, oldPath, newPath) =>
       set((state) => {
-        const value = state.filePreviewModeByPath[oldPath];
+        const current = state.filePreviewModeByPath[workspaceId];
+        const value = current?.[oldPath];
         if (value === undefined) {
           return state;
         }
-        if (state.filePreviewModeByPath[newPath] === value) {
+        if (current[newPath] === value) {
           return state;
         }
-        const next = { ...state.filePreviewModeByPath };
-        delete next[oldPath];
-        next[newPath] = value;
-        return persistField('adl:files.previewMode', next);
+        const nextWs = { ...current };
+        delete nextWs[oldPath];
+        nextWs[newPath] = value;
+        return persistField('adl:files.previewMode', {
+          ...state.filePreviewModeByPath,
+          [workspaceId]: nextWs,
+        });
       }),
     setChangesPreviewEnabled: (previewEnabled) => {
       set(persistField('adl:changes.previewEnabled', previewEnabled));

@@ -195,17 +195,6 @@ export function computeTotalChangesStats(
   return { staged, unstaged, untracked };
 }
 
-export function computeExpandedPathsByWs(
-  workspaceChangesExpanded: Record<string, boolean>,
-  expandedPaths: Record<string, boolean>,
-): Record<string, Record<string, boolean>> {
-  const result: Record<string, Record<string, boolean>> = {};
-  for (const wsId of Object.keys(workspaceChangesExpanded)) {
-    result[wsId] = expandedPaths;
-  }
-  return result;
-}
-
 export function computeDirtyPathsSet(dirtyEditorPaths: string[]): Set<string> {
   return new Set(dirtyEditorPaths.map((p) => normalizeWorkspaceRelativePath(p)));
 }
@@ -293,19 +282,20 @@ export function selectNavigatorNode(
 }
 
 export function toggleAllDirectories(
+  workspaceId: string | undefined,
   directoryPaths: string[],
   hasExpandedDirectories: boolean,
-  collapseAllChangesTreePaths: () => void,
-  setChangesTreePathExpanded: (path: string, expanded: boolean) => void,
+  collapseAllChangesTreePaths: (workspaceId: string) => void,
+  setChangesTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void,
 ): void {
-  if (!directoryPaths.length) {
+  if (workspaceId === undefined || !directoryPaths.length) {
     return;
   }
   if (hasExpandedDirectories) {
-    collapseAllChangesTreePaths();
+    collapseAllChangesTreePaths(workspaceId);
     return;
   }
-  directoryPaths.forEach((pathValue) => setChangesTreePathExpanded(pathValue, true));
+  directoryPaths.forEach((pathValue) => setChangesTreePathExpanded(workspaceId, pathValue, true));
 }
 
 export function toggleAllOutlineItems(

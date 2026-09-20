@@ -13,6 +13,7 @@ import type {
   FileOutlineItem,
 } from '@ai-digital-life/kernel';
 import type { ChangeTreeNode, ChangeEntry } from '../changesTree';
+import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
 import { useTCopy } from '@i18n/useTCopy';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
 
@@ -32,7 +33,7 @@ interface TreeDataProps {
   changesTreeClickedWorkspaceId: string | undefined;
   navigatorSelectedPath: string | undefined;
   selectedChangePreviewWorkspaceId: string | undefined;
-  expandedPathsByWs: Record<string, Record<string, boolean>>;
+  expandedChangesTreePaths: Record<string, TreeExpansion>;
   dirtyPathsSet: Set<string>;
   externalChangePath: string | undefined;
 }
@@ -100,7 +101,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     changesTreeClickedWorkspaceId,
     navigatorSelectedPath,
     selectedChangePreviewWorkspaceId,
-    expandedPathsByWs,
+    expandedChangesTreePaths,
     dirtyPathsSet,
     externalChangePath,
     onToggleExpand,
@@ -207,7 +208,7 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
             selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
             clickedPath={changesTreeClickedPath}
             clickedWorkspaceId={changesTreeClickedWorkspaceId}
-            expandedPaths={expandedPathsByWs}
+            expandedPaths={expandedChangesTreePaths}
             dirtyPaths={dirtyPathsSet}
             externalChangePath={externalChangePath}
             onToggleExpand={onToggleExpand}

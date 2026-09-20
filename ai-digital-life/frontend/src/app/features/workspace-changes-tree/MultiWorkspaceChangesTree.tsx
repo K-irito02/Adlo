@@ -1,6 +1,7 @@
 import React, { useCallback } from 'react';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@shared/ipc';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
+import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
 import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeShell';
 import { WorkspaceChangesEntry } from './WorkspaceChangesEntry';
 import { useTCopy } from '@i18n/useTCopy';
@@ -17,7 +18,7 @@ export interface MultiWorkspaceChangesTreeProps {
   selectedChangePreviewWorkspaceId: string | undefined;
   clickedPath: string | undefined;
   clickedWorkspaceId: string | undefined;
-  expandedPaths: Record<string, Record<string, boolean>>;
+  expandedPaths: Record<string, TreeExpansion>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
   onToggleExpand: (workspaceId: string) => void;
@@ -83,7 +84,7 @@ export function MultiWorkspaceChangesTree({
             selectedChangePreviewPath={selectedChangePreviewPath}
             selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
             clickedPath={clickedWorkspaceId === workspace.id ? clickedPath : undefined}
-            expandedPaths={expandedPaths[workspace.id] ?? {}}
+            expandedPaths={expandedPaths[workspace.id]?.expanded ?? {}}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
             onToggleExpand={() => onToggleExpand(workspace.id)}

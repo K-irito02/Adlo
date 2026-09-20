@@ -122,20 +122,21 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     useCallback(
       (s) =>
         selectedFilePath
-          ? (s.filePreviewModeByPath[selectedFilePath] ?? fileCategory === 'markdown')
+          ? (s.filePreviewModeByPath[selectedFileWorkspaceId ?? '']?.[selectedFilePath] ??
+            fileCategory === 'markdown')
           : false,
-      [selectedFilePath, fileCategory],
+      [selectedFilePath, selectedFileWorkspaceId, fileCategory],
     ),
   );
 
   const setPreviewEnabled = useCallback(
     (enabled: boolean) => {
-      if (!selectedFilePath) {
+      if (!selectedFilePath || !selectedFileWorkspaceId) {
         return;
       }
-      setFilePreviewModeForPath(selectedFilePath, enabled);
+      setFilePreviewModeForPath(selectedFileWorkspaceId, selectedFilePath, enabled);
     },
-    [selectedFilePath, setFilePreviewModeForPath],
+    [selectedFilePath, selectedFileWorkspaceId, setFilePreviewModeForPath],
   );
 
   const selectedAbsolutePath = useMemo(() => {
@@ -217,13 +218,17 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   // pending 辨识 nonce 用单调计数器（Date.now 同毫秒连点可碰撞，事项 45 Phase 4 2.5）。
   const previewRevealNonceRef = useRef(0);
 
-  const isPreviewModeForPath = useCallback((relativePath: string): boolean => {
-    if (categorizeFile(relativePath) !== 'markdown') {
-      return false;
-    }
-    const previewByPath = useAppStore.getState().filePreviewModeByPath;
-    return previewByPath[relativePath] ?? true;
-  }, []);
+  const isPreviewModeForPath = useCallback(
+    (relativePath: string, workspaceId?: string): boolean => {
+      if (categorizeFile(relativePath) !== 'markdown') {
+        return false;
+      }
+      const state = useAppStore.getState();
+      const wsId = workspaceId ?? state.selectedFileWorkspaceId ?? '';
+      return state.filePreviewModeByPath[wsId]?.[relativePath] ?? true;
+    },
+    [],
+  );
 
   /** 终结预览揭示轮询（成功/兜底/放弃共用，事项 45 Phase 4 C6）。 */
   const finishPreviewRevealTimer = useCallback(() => {
@@ -298,7 +303,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         }
         targetLine = relocated;
       }
-      if (isPreviewModeForPath(relativePath)) {
+      if (isPreviewModeForPath(relativePath, state.searchWorkspaceId)) {
         if (state.selectedFilePath === relativePath && state.fileContent !== undefined) {
           // 文件已打开：预览挂载即定位（含懒加载等待）
           revealInPreview(targetLine);

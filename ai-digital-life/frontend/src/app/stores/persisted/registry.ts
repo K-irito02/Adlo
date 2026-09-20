@@ -11,7 +11,8 @@ import {
   readObjectArrayRecord,
   readSearchIgnoredPaths,
   readSearchUseGitignore,
-  readDirExpansion,
+  readBooleanPropRecord,
+  readDirExpansionRecord,
   isPlainRecord,
 } from './parsers';
 import {
@@ -21,7 +22,12 @@ import {
   SEARCH_MAX_RESULTS,
   SEARCH_HARD_MAX_RESULTS,
 } from '../../../shared/ipc/searchWindow';
-import { pruneByWorkspaceId, pruneBrowserTreeExpanded, pruneDirExpansion } from './prune';
+import {
+  pruneByWorkspaceId,
+  pruneBrowserTreeExpanded,
+  pruneDirExpansion,
+  pruneDirPathsByWorkspace,
+} from './prune';
 import { DEFAULT_CONFIGURED_PORTS } from '../slices/browserSliceShared';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
 import type {
@@ -383,38 +389,25 @@ export const registry = {
     scope: 'byWorkspaceId',
     // 外层按工作区拆开，逐个工作区交给 readDirExpansion 校验 + 修复跨字段不变量；
     // 任一工作区不合法 ⇒ 整条回退 fallback（旧版扁平值会被 readDirExpansion 拒绝，见其注释）。
-    read: (raw) => {
-      if (!isPlainRecord(raw)) {
-        return undefined;
-      }
-      const result: Record<string, TreeExpansion> = {};
-      for (const [workspaceId, value] of Object.entries(raw)) {
-        const parsed = readDirExpansion(value);
-        if (parsed === undefined) {
-          return undefined;
-        }
-        result[workspaceId] = parsed;
-      }
-      return result;
-    },
+    read: readDirExpansionRecord,
     prune: pruneDirExpansion,
   }),
-  'adl:changes.dirExpanded': defineEntry<Record<string, boolean>>({
+  'adl:changes.dirExpanded': defineEntry<Record<string, TreeExpansion>>({
     key: 'adl:changes.dirExpanded',
     field: 'expandedChangesTreePaths',
     fallback: {},
-    scope: 'global',
-    read: readBooleanRecord,
+    scope: 'byWorkspaceId',
+    // 与文件侧同构：外层按工作区拆开逐个校验 + 修复，任一工作区不合法 ⇒ 整条回退。
+    read: readDirExpansionRecord,
+    prune: pruneDirExpansion,
   }),
-  // 注意：filePreviewModeByPath 目前按 global 扁平表（Record<relativePath, boolean>）登记，
-  // 与现状数据结构完全一致（Task 7 不改数据结构）；Task 14 会将其改为按工作区隔离
-  // （byWorkspaceId）并调整数据结构，本条目届时由 Task 14 改写。
-  'adl:files.previewMode': defineEntry<Record<string, boolean>>({
+  'adl:files.previewMode': defineEntry<Record<string, Record<string, boolean>>>({
     key: 'adl:files.previewMode',
     field: 'filePreviewModeByPath',
     fallback: {},
-    scope: 'global',
-    read: readBooleanRecord,
+    scope: 'byWorkspaceId',
+    read: readBooleanPropRecord,
+    prune: pruneDirPathsByWorkspace,
   }),
   'adl:changes.previewEnabled': defineEntry<boolean>({
     key: 'adl:changes.previewEnabled',

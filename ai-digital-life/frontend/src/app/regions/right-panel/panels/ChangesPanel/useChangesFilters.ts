@@ -12,12 +12,12 @@ import { collectDirectoryPaths } from '@features/file-tree';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '@features/outline';
 import { summarizePatchSet } from '@features/patch-review';
 import { joinPathSegments } from '@app/utils/workspacePaths';
+import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
 import {
   computeVisibleWorkspaces,
   computeChangesTreeData,
   computeChangeCounts,
   computeTotalChangesStats,
-  computeExpandedPathsByWs,
   computeDirtyPathsSet,
   computeHasExpandedDirectories,
 } from './useChangesPanelStateUtils';
@@ -35,7 +35,7 @@ export interface UseChangesFiltersParams {
   workspaceChangesExpanded: Record<string, boolean>;
   gitSnapshots: Record<string, GitSnapshot>;
   activePatchSets: Record<string, PatchSet | undefined>;
-  expandedPaths: Record<string, boolean>;
+  expandedChangesTreePaths: Record<string, TreeExpansion>;
   dirtyEditorPaths: string[];
 }
 
@@ -52,7 +52,7 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     workspaceChangesExpanded,
     gitSnapshots,
     activePatchSets,
-    expandedPaths,
+    expandedChangesTreePaths,
     dirtyEditorPaths,
   } = params;
   const changesNavigatorMode = useAppStore((s) => s.changesNavigatorMode);
@@ -70,10 +70,6 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     useChangesPanelFilters(changeEntries);
   const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
-  const hasExpandedDirectories = useMemo(
-    () => computeHasExpandedDirectories(directoryPaths, expandedPaths),
-    [directoryPaths, expandedPaths],
-  );
   const navigatorSelectedPath = selectedPatchFilePath ?? selectedChangePreviewPath;
   const changeOutline = useMemo(
     () =>
@@ -115,6 +111,17 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     : undefined;
   const activeWorkspaceId = changesNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
 
+  // 单工作区目录开关（toolbar toggle-all 用的状态与动作）按选中工作区隔离：
+  // 只取该工作区的扁平展开表，未记录的工作区视为空展开。
+  const expandedPaths = useMemo(
+    () => expandedChangesTreePaths[activeWorkspaceId ?? '']?.expanded ?? {},
+    [expandedChangesTreePaths, activeWorkspaceId],
+  );
+  const hasExpandedDirectories = useMemo(
+    () => computeHasExpandedDirectories(directoryPaths, expandedPaths),
+    [directoryPaths, expandedPaths],
+  );
+
   const visibleWorkspaces = useMemo(
     () => computeVisibleWorkspaces(recentWorkspaces),
     [recentWorkspaces],
@@ -151,10 +158,6 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     () => computeTotalChangesStats(visibleWorkspaces, gitSnapshots),
     [visibleWorkspaces, gitSnapshots],
   );
-  const expandedPathsByWs = useMemo(
-    () => computeExpandedPathsByWs(workspaceChangesExpanded, expandedPaths),
-    [workspaceChangesExpanded, expandedPaths],
-  );
   const dirtyPathsSet = useMemo(() => computeDirtyPathsSet(dirtyEditorPaths), [dirtyEditorPaths]);
 
   return {
@@ -181,7 +184,6 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     changeCounts,
     totalChangeCount,
     totalChangesStats,
-    expandedPathsByWs,
     dirtyPathsSet,
   };
 }

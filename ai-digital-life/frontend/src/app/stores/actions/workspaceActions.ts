@@ -5,12 +5,7 @@ import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
 import { createWorkspaceLifecycleActions } from './workspaceLifecycleActions';
-import {
-  renameTreeNodePaths,
-  remapExpandedTreePaths,
-  remapTreeExpansion,
-  removeTreeNode,
-} from './workspaceTreeRename';
+import { renameTreeNodePaths, remapTreeExpansion, removeTreeNode } from './workspaceTreeRename';
 const SCOPE = 'workspace';
 
 // Re-export for test convenience (tests import from workspaceActions)
@@ -121,16 +116,20 @@ export function createWorkspaceActions(
             }
           }
         }
-        const expandedChanges = remapExpandedTreePaths(
-          get().expandedChangesTreePaths,
-          relativePath,
-          newPath,
-        );
-        if (expandedChanges !== get().expandedChangesTreePaths) {
-          set({ expandedChangesTreePaths: expandedChanges });
+        const expandedChangesForWs = get().expandedChangesTreePaths[ws.id];
+        if (expandedChangesForWs) {
+          const remappedChanges = remapTreeExpansion(expandedChangesForWs, relativePath, newPath);
+          if (remappedChanges !== expandedChangesForWs) {
+            set({
+              expandedChangesTreePaths: {
+                ...get().expandedChangesTreePaths,
+                [ws.id]: remappedChanges,
+              },
+            });
+          }
         }
-        if (get().filePreviewModeByPath[relativePath] !== undefined) {
-          get().carryFilePreviewModeForRename(relativePath, newPath);
+        if (get().filePreviewModeByPath[ws.id]?.[relativePath] !== undefined) {
+          get().carryFilePreviewModeForRename(ws.id, relativePath, newPath);
         }
       }
       void refreshTreeByWorkspacePath(get, workspacePath);

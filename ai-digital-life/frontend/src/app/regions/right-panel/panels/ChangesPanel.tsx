@@ -94,7 +94,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     changeCounts,
     totalChangeCount,
     totalChangesStats,
-    expandedPathsByWs,
+    expandedChangesTreePaths,
     dirtyPathsSet,
     handleToggleExpand,
     handleExpandAll,
@@ -137,7 +137,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           changesTreeClickedWorkspaceId={changesTreeClickedWorkspaceId}
           navigatorSelectedPath={navigatorSelectedPath}
           selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
-          expandedPathsByWs={expandedPathsByWs}
+          expandedChangesTreePaths={expandedChangesTreePaths}
           dirtyPathsSet={dirtyPathsSet}
           externalChangePath={props.externalChangePath}
           onToggleExpand={handleToggleExpand}

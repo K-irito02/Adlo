@@ -47,7 +47,7 @@ export function useChangesPanelState(props: ChangesPanelProps) {
   const {
     navigatorCollapsed,
     previewEnabled,
-    expandedPaths,
+    expandedChangesTreePaths,
     toggleNavigator,
     changesNavigatorWidth,
     setPreviewEnabled,
@@ -94,7 +94,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     changeCounts,
     totalChangeCount,
     totalChangesStats,
-    expandedPathsByWs,
     dirtyPathsSet,
   } = useChangesFilters({
     activePatchSet,
@@ -108,7 +107,7 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     workspaceChangesExpanded,
     gitSnapshots,
     activePatchSets,
-    expandedPaths,
+    expandedChangesTreePaths,
     dirtyEditorPaths: props.dirtyEditorPaths,
   });
 
@@ -138,6 +137,7 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     onSelectPatchFile,
     recentWorkspaces,
     visibleWorkspaces,
+    activeWorkspaceId,
     collapseAllChangesTreePaths,
     setChangesTreePathExpanded,
     toggleChangesTreePath,
@@ -158,8 +158,17 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     if (!navigatorSelectedPath) {
       return;
     }
-    expandChangesTreePathChain(navigatorSelectedPath);
-  }, [expandChangesTreePathChain, navigatorSelectedPath]);
+    const workspaceId = selectedChangePreviewWorkspaceId ?? activeWorkspaceId;
+    if (!workspaceId) {
+      return;
+    }
+    expandChangesTreePathChain(workspaceId, navigatorSelectedPath);
+  }, [
+    expandChangesTreePathChain,
+    navigatorSelectedPath,
+    selectedChangePreviewWorkspaceId,
+    activeWorkspaceId,
+  ]);
 
   const {
     changesRenameDialogOpen,
@@ -256,7 +265,7 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     navigatorCollapsed,
     changesNavigatorMode,
     previewEnabled,
-    expandedPaths,
+    expandedChangesTreePaths,
     toggleNavigator,
     changesNavigatorWidth,
     setChangesNavigatorMode,
@@ -325,7 +334,6 @@ export function useChangesPanelState(props: ChangesPanelProps) {
     changeCounts,
     totalChangeCount,
     totalChangesStats,
-    expandedPathsByWs,
     dirtyPathsSet,
     handleToggleExpand: onToggleExpand,
     handleExpandAll,

@@ -59,9 +59,9 @@ export const DEFAULT_SETTINGS_NAVIGATOR_WIDTH = 160;
 export type TreeExpansionState = Record<string, boolean>;
 
 /**
- * 文件树（按工作区隔离）的展开态。
+ * 文件树与变更树（均按工作区隔离）的展开态。
  *
- * 与变更侧 `TreeExpansionState` 不同，文件侧需要区分两种意图：
+ * 需要区分两种意图：
  * - `expanded`：该目录当前是否展开（自动展开也会写入它）；
  * - `manualCollapsed`：用户**亲手**折叠过的目录 —— 自动展开链不得覆盖（规格 §3.1.2）。
  *
@@ -75,7 +75,8 @@ export interface TreeExpansion {
   manualCollapsed?: Record<string, true>;
 }
 export type FileTreeExpansionState = Record<string, TreeExpansion>;
-export type FilePreviewModeState = Record<string, boolean>;
+export type ChangesTreeExpansionState = Record<string, TreeExpansion>;
+export type FilePreviewModeState = Record<string, Record<string, boolean>>;
 
 export type HeatmapTab = 'calendar' | 'clock' | 'activity' | 'module';
 
@@ -106,7 +107,7 @@ export interface UISlice {
   settingsNavigatorWidth: number;
   isFetching: Record<string, boolean>;
   expandedFileTreePaths: FileTreeExpansionState;
-  expandedChangesTreePaths: TreeExpansionState;
+  expandedChangesTreePaths: ChangesTreeExpansionState;
   filesNavigatorMode: FilesNavigatorMode;
   changesNavigatorMode: ChangesNavigatorMode;
   filesSearchView: FilesSearchViewMode;
@@ -145,8 +146,8 @@ export interface UISlice {
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
   setFilesSearchView: (view: FilesSearchViewMode) => void;
   setFilesSearchScope: (scope: FilesSearchScope) => void;
-  setFilePreviewModeForPath: (path: string, previewEnabled: boolean) => void;
-  carryFilePreviewModeForRename: (oldPath: string, newPath: string) => void;
+  setFilePreviewModeForPath: (workspaceId: string, path: string, previewEnabled: boolean) => void;
+  carryFilePreviewModeForRename: (workspaceId: string, oldPath: string, newPath: string) => void;
   setChangesPreviewEnabled: (previewEnabled: boolean) => void;
   setShowGitVisualization: (show: boolean) => void;
   setActiveHeatmapTab: (tab: HeatmapTab) => void;
@@ -154,10 +155,10 @@ export interface UISlice {
   setChartColorPreset: (preset: ChartColorPreset) => void;
   setStartupOverlayHidden: (hidden: boolean) => void;
   setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
-  setChangesTreePathExpanded: (path: string, expanded: boolean) => void;
-  toggleChangesTreePath: (path: string) => void;
-  expandChangesTreePathChain: (path: string) => void;
-  collapseAllChangesTreePaths: () => void;
+  setChangesTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
+  toggleChangesTreePath: (workspaceId: string, path: string) => void;
+  expandChangesTreePathChain: (workspaceId: string, path: string) => { blocked: string[] };
+  collapseAllChangesTreePaths: (workspaceId: string) => void;
   setHamburgerOpen: (open: boolean) => void;
   setHoveredMenuCategory: (category: 'file' | 'view' | 'help' | null) => void;
   closeAllMenus: () => void;

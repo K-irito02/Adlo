@@ -66,7 +66,7 @@ describe('loading and switching performance guards', () => {
     expect(cacheHelpersSource).toMatch(/export const FILE_DOCUMENT_CACHE_LIMIT = 32;/);
     expect(cacheHelpersSource).toMatch(/export const CHANGE_PREVIEW_CACHE_LIMIT = 32;/);
     expect(filesPanelSource).toContain(
-      "s.filePreviewModeByPath[selectedFilePath] ?? fileCategory === 'markdown'",
+      "s.filePreviewModeByPath[selectedFileWorkspaceId ?? '']?.[selectedFilePath]",
     );
   });
 });

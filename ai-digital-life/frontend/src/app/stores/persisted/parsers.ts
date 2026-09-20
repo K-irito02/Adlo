@@ -290,3 +290,25 @@ export function readDirExpansion(raw: unknown): TreeExpansion | undefined {
   manualCollapsed = repairManualCollapsed(expanded, manualCollapsed);
   return { expanded, manualCollapsed };
 }
+
+/**
+ * 读取按工作区隔离的目录展开态（`Record<workspaceId, TreeExpansion>`）。
+ *
+ * 外层按工作区拆开逐个交给 `readDirExpansion` 校验 + 修复；任一工作区不合法 ⇒
+ * 整条回退 fallback（与登记表既有约定一致）。旧版扁平值会被 `readDirExpansion`
+ * 拒绝（缺少合法的 `expanded` 成员），直接丢弃 —— 不写兼容代码。
+ */
+export function readDirExpansionRecord(raw: unknown): Record<string, TreeExpansion> | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  const result: Record<string, TreeExpansion> = {};
+  for (const [workspaceId, value] of Object.entries(raw)) {
+    const parsed = readDirExpansion(value);
+    if (parsed === undefined) {
+      return undefined;
+    }
+    result[workspaceId] = parsed;
+  }
+  return result;
+}

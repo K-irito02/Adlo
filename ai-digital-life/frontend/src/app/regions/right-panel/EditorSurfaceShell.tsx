@@ -91,7 +91,10 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     onOpenFileForWorkspace,
   } = props;
 
-  const filePreviewModeByPath = useAppStore(useShallow((s) => s.filePreviewModeByPath));
+  const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
+  const filePreviewModeByPath = useAppStore(
+    useShallow((s) => s.filePreviewModeByPath[selectedFileWorkspaceId ?? ''] ?? {}),
+  );
 
   const {
     fileCategory,

@@ -4,57 +4,14 @@
  */
 import type { StoreState } from '../StoreState';
 import { persistField } from '../persisted/apply';
-import type { TreeExpansion, TreeExpansionState, UISlice } from './uiSliceTypes';
+import type { TreeExpansion, UISlice } from './uiSliceTypes';
 
 /** 空展开态单例（按工作区缺省时复用，避免每次都 new 一个 {}） */
 const EMPTY_TREE_EXPANSION: TreeExpansion = { expanded: {} };
 
 // ───────────────────────────────────────────────────────────
-// 变更侧（扁平 Record<string, boolean>）辅助函数 —— 不动，T14 才改造变更侧
-// ───────────────────────────────────────────────────────────
-
-function setTreePathExpandedInState(
-  current: TreeExpansionState,
-  path: string,
-  expanded: boolean,
-): TreeExpansionState {
-  if ((current[path] ?? false) === expanded) {
-    return current;
-  }
-  return { ...current, [path]: expanded };
-}
-
-function toggleTreePathExpandedInState(
-  current: TreeExpansionState,
-  path: string,
-): TreeExpansionState {
-  return { ...current, [path]: !(current[path] ?? false) };
-}
-
-function expandFlatTreePathChainInState(
-  current: TreeExpansionState,
-  path: string,
-): TreeExpansionState {
-  let next = current;
-  let changed = false;
-  const segments = path.split('/').filter(Boolean);
-  let currentPath = '';
-  for (let i = 0; i < segments.length - 1; i += 1) {
-    currentPath = currentPath ? `${currentPath}/${segments[i]}` : segments[i];
-    if (next[currentPath]) {
-      continue;
-    }
-    if (!changed) {
-      next = { ...current };
-      changed = true;
-    }
-    next[currentPath] = true;
-  }
-  return next;
-}
-
-// ───────────────────────────────────────────────────────────
-// 文件侧（TreeExpansion）辅助函数 —— 本任务引入的三条转移规则
+// 文件侧 / 变更侧（TreeExpansion）共享辅助函数 —— 三条转移规则
+// （变更侧与文件侧同构，复用同一语义）
 // ───────────────────────────────────────────────────────────
 
 /**
@@ -183,31 +140,49 @@ export function createUIExpansionSlice(
           },
         }),
       ),
-    setChangesTreePathExpanded: (path, expanded) =>
+    setChangesTreePathExpanded: (workspaceId, path, expanded) =>
       set((state) => {
-        const next = setTreePathExpandedInState(state.expandedChangesTreePaths, path, expanded);
-        if (next === state.expandedChangesTreePaths) {
+        const current = state.expandedChangesTreePaths[workspaceId] ?? EMPTY_TREE_EXPANSION;
+        const next = applySetExpanded(current, path, expanded);
+        if (next === current) {
           return state;
         }
-        return persistField('adl:changes.dirExpanded', next);
+        const allPaths = { ...state.expandedChangesTreePaths, [workspaceId]: next };
+        return persistField('adl:changes.dirExpanded', allPaths);
       }),
-    toggleChangesTreePath: (path) =>
-      set((state) =>
-        persistField(
-          'adl:changes.dirExpanded',
-          toggleTreePathExpandedInState(state.expandedChangesTreePaths, path),
-        ),
-      ),
-    expandChangesTreePathChain: (path) =>
+    toggleChangesTreePath: (workspaceId, path) =>
       set((state) => {
-        const next = expandFlatTreePathChainInState(state.expandedChangesTreePaths, path);
-        if (next === state.expandedChangesTreePaths) {
+        const current = state.expandedChangesTreePaths[workspaceId] ?? EMPTY_TREE_EXPANSION;
+        const next = applySetExpanded(current, path, !(current.expanded[path] ?? false));
+        if (next === current) {
           return state;
         }
-        return persistField('adl:changes.dirExpanded', next);
+        const allPaths = { ...state.expandedChangesTreePaths, [workspaceId]: next };
+        return persistField('adl:changes.dirExpanded', allPaths);
       }),
-    collapseAllChangesTreePaths: () => {
-      set(persistField('adl:changes.dirExpanded', {}));
+    expandChangesTreePathChain: (workspaceId, path) => {
+      const state = _get();
+      const current = state.expandedChangesTreePaths[workspaceId] ?? EMPTY_TREE_EXPANSION;
+      const { next, blocked } = expandTreePathChainInState(current, path);
+      if (next !== current) {
+        set(
+          persistField('adl:changes.dirExpanded', {
+            ...state.expandedChangesTreePaths,
+            [workspaceId]: next,
+          }),
+        );
+      }
+      return { blocked };
     },
+    collapseAllChangesTreePaths: (workspaceId) =>
+      set((state) =>
+        persistField('adl:changes.dirExpanded', {
+          ...state.expandedChangesTreePaths,
+          [workspaceId]: {
+            expanded: {},
+            manualCollapsed: state.expandedChangesTreePaths[workspaceId]?.manualCollapsed,
+          },
+        }),
+      ),
   };
 }

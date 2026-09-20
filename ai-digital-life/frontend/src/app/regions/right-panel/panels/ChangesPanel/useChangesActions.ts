@@ -30,9 +30,10 @@ export interface UseChangesActionsParams {
   ) => void;
   recentWorkspaces: RecentWorkspaceEntry[];
   visibleWorkspaces: RecentWorkspaceEntry[];
-  collapseAllChangesTreePaths: () => void;
-  setChangesTreePathExpanded: (path: string, expanded: boolean) => void;
-  toggleChangesTreePath: (path: string) => void;
+  activeWorkspaceId: string | undefined;
+  collapseAllChangesTreePaths: (workspaceId: string) => void;
+  setChangesTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
+  toggleChangesTreePath: (workspaceId: string, path: string) => void;
 }
 
 export function useChangesActions(params: UseChangesActionsParams) {
@@ -51,6 +52,7 @@ export function useChangesActions(params: UseChangesActionsParams) {
     onSelectPatchFile,
     recentWorkspaces,
     visibleWorkspaces,
+    activeWorkspaceId,
     collapseAllChangesTreePaths,
     setChangesTreePathExpanded,
     toggleChangesTreePath,
@@ -98,12 +100,14 @@ export function useChangesActions(params: UseChangesActionsParams) {
 
   const handleToggleAllDirectories = useCallback(() => {
     toggleAllDirectories(
+      activeWorkspaceId,
       directoryPaths,
       hasExpandedDirectories,
       collapseAllChangesTreePaths,
       setChangesTreePathExpanded,
     );
   }, [
+    activeWorkspaceId,
     directoryPaths,
     hasExpandedDirectories,
     collapseAllChangesTreePaths,
@@ -159,8 +163,8 @@ export function useChangesActions(params: UseChangesActionsParams) {
   );
 
   const handleToggleFileTreePath = useCallback(
-    (_wsId: string, path: string) => {
-      toggleChangesTreePath(path);
+    (wsId: string, path: string) => {
+      toggleChangesTreePath(wsId, path);
     },
     [toggleChangesTreePath],
   );

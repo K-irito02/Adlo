@@ -3,7 +3,6 @@ import type { FileOutlineItem, FilePatch, PatchSet } from '@ai-digital-life/kern
 import { summarizePatchFile, type PatchFileSummary } from '@features/patch-review';
 import type { PreviewDiffVisualRange } from '@features/diff-viewer';
 import type { EditorRef } from '@stores/types';
-import type { FilePreviewModeState } from '@stores/slices/uiSlice';
 import type { FileCategory } from './fileTypeRouter';
 import { categorizeFile } from './fileTypeRouter';
 import type { UseStickyContextInput } from './hooks';
@@ -12,7 +11,8 @@ export interface UseDiffStickyRangesInput {
   selectedFilePath: string | undefined;
   fileContent: string | undefined;
   filePatch: FilePatch | undefined;
-  filePreviewModeByPath: FilePreviewModeState;
+  /** 当前工作区的预览开关扁平表（调用方按 selectedFileWorkspaceId 切片后传入） */
+  filePreviewModeByPath: Record<string, boolean>;
   activePatchSet: PatchSet | undefined;
   selectedPatchFilePath: string | undefined;
   collapsedPatchHunkIds: string[];
