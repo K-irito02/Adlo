@@ -3208,7 +3208,7 @@ git commit -m "fix(stores): prune every workspace-scoped key on workspace remova
 ## Task 17: 删除目录与重命名重映射的持久化一致性
 
 **Files:**
-- Modify: `frontend/src/app/stores/actions/workspaceActions.ts:106-126`（重映射改走统一通道）
+- Modify: `frontend/src/app/stores/actions/workspaceActions.ts:106-131`（重映射改走统一通道。**T12 更正行号并升级定性**：Task 12 改造重映射后，文件侧的裸 `set({...})` 在 `:115-121`、变更侧在 `:124-130`。文件侧那处不只是"内存新、磁盘旧" —— 重命名会把 `manualCollapsed` 标记搬到新路径，而裸 `set` 不落盘，重启后磁盘上仍是旧路径，`pruneDirExpansion` 会把旧路径当不存在清掉 ⇒ **"我折叠过的目录重启后又展开"，与用户所报症状同类、触发点不同**（审查 Minor #3 独立发现，本计划在 T17 早已立项，此处仅对齐行号与定性））
 - Modify: `frontend/src/app/stores/actions/workspaceActions.ts:157`（删除目录后剔除前缀）
 - Create: `frontend/src/app/stores/actions/__tests__/workspacePathRemap.test.ts`
 
@@ -3254,7 +3254,7 @@ describe('path remap keeps memory and storage consistent', () => {
 });
 ```
 
-> 两个 action 的签名固定为 `carryExpandedPathsForRename(workspaceId, oldPath, newPath)` 与 `dropExpandedPathsUnder(workspaceId, removedPath)`，是把 `workspaceActions.ts:106-126` 的内联裸 `set()` 逻辑提取为**可测试的具名 action**。变更树侧同名同形（`carryChangesExpandedPathsForRename` / `dropChangesExpandedPathsUnder`）。
+> 两个 action 的签名固定为 `carryExpandedPathsForRename(workspaceId, oldPath, newPath)` 与 `dropExpandedPathsUnder(workspaceId, removedPath)`，是把 `workspaceActions.ts:106-131` 的内联裸 `set()` 逻辑提取为**可测试的具名 action**。变更树侧同名同形（`carryChangesExpandedPathsForRename` / `dropChangesExpandedPathsUnder`）。
 
 - [ ] **Step 2: 运行测试确认失败**
 
@@ -3300,7 +3300,7 @@ Expected: FAIL —— `carryExpandedPathsForRename is not a function`。
       }),
 ```
 
-同构地为变更树补 `carryChangesExpandedPathsForRename` / `dropChangesExpandedPathsUnder`；`workspaceActions.ts:106-126` 改为调用这两个 action；`deleteWorkspaceFile` 成功后调用 `dropExpandedPathsUnder` 与 `dropChangesExpandedPathsUnder`。
+同构地为变更树补 `carryChangesExpandedPathsForRename` / `dropChangesExpandedPathsUnder`；`workspaceActions.ts:106-131` 改为调用这两个 action；`deleteWorkspaceFile` 成功后调用 `dropExpandedPathsUnder` 与 `dropChangesExpandedPathsUnder`。
 
 - [ ] **Step 4: 运行测试确认通过**
 
