@@ -2739,16 +2739,34 @@ git commit -m "feat(stores): preserve manual collapse intent against auto-expans
 
 **Files:**
 - Modify: `frontend/src/app/regions/right-panel/FileNavigatorShell.tsx:554-558`
-- Modify: `frontend/src/app/features/workspace-file-tree/WorkspaceFileTreeEntry.tsx`（传递 `flashPath` 到 FileTree）
+- Modify: `frontend/src/app/regions/right-panel/FileNavigatorTree.tsx`（**链路第 2 级透传**，初稿遗漏）
+- Modify: `frontend/src/app/features/workspace-file-tree/MultiWorkspaceFileTree.tsx`（**链路第 3 级透传，且仅活动工作区**：`workspace.id === selectedFileWorkspaceId` 才传 `flashPath`，初稿遗漏）
+- Modify: `frontend/src/app/features/workspace-file-tree/WorkspaceFileTreeEntry.tsx`（链路第 4 级，传递 `flashPath` 到 FileTree）
 - Modify: `frontend/src/app/features/file-tree/fileTree.tsx`（行级闪烁 class）
 - Modify: `frontend/src/app/features/file-tree/TreeNodeRow.tsx` / `TreeRow.tsx`（`isFlashing` 样式钩子）
-- Modify: `frontend/src/styles/**`（脉冲动画，`prefers-reduced-motion` 降级）
+- Modify: `frontend/src/styles/regions/rightpanel/file-tree-core.css`（脉冲动画，`prefers-reduced-motion` 降级。**修正落点**：`.adl-filetree__row` 的基础定义在 `file-tree-core.css:32`；初稿写 `styles/**` 过宽）
 
 **Interfaces:**
 - Consumes: `expandFileTreePathChain` 返回的 `{ blocked: string[] }`（Task 12）
 - Produces: `FileTree` 新增可选 prop `flashPath?: string`；闪烁持续 1000ms 后由调用方清除
 
 - [ ] **Step 1: 写失败测试（闪烁触发）**
+
+**初稿的三处缺陷（本任务裁定，均已核实代码后修正）**
+
+1. **prop 链漏了两级**。`flashPath` 的 state 在 `FileNavigatorShell`，而 `FileTree` 在四层之下：Shell → `FileNavigatorTree.tsx` → `MultiWorkspaceFileTree.tsx` → `WorkspaceFileTreeEntry` → `FileTree`。初稿 Files 只列了后两级，按原文实现中间两级接不上（且**不会报错** —— prop 是可选的，链路会静默断掉，闪烁永远不出现）。已补入 Files。**"可选 prop + 断链"不会报错只会失效**，这是比类型错误更危险的一类遗漏。
+2. **闪 `blocked` 的最深一级是错的，必须闪最浅一级（`blocked[0]`）**。`blocked` 是"被手动折叠的祖先"列表；嵌套折叠时（`src` 与 `src/legacy` 都被手动折叠），最深一级 `src/legacy` 的行**根本不在渲染列表里**（它的父级 `src` 折叠着，虚列表不含被折叠的子行）——闪烁一个看不见的行等于没有提示。而 `blocked[0]` 是最浅的被折叠祖先，链路已把其上方全部展开（它们未被标记），**必然可见**。已把 `setFlashPath(blocked[blocked.length - 1])` 改为 `setFlashPath(blocked[0])`。
+3. **`var(--adl-accent)` 不存在**，动画会静默失效（无效变量 ⇒ 颜色回退）。主题强调色的真名是 `--accent`（另有 `--accent-soft` / `--accent-subtle`），已改。样式落点从 `styles/**` 收窄到 `styles/regions/rightpanel/file-tree-core.css`（`.adl-filetree__row` 基础定义所在）。
+
+Step 1 的用例需追加一条钉住裁定 2：
+
+```tsx
+it('flashes the shallowest blocked ancestor so the row is actually visible', () => {
+  // 嵌套折叠：src 与 src/legacy 都被手动折叠。flashPath 必须是 src（可见）而非 src/legacy（被折叠隐藏）
+  // 该行为由 FileNavigatorShell 的 setFlashPath(blocked[0]) 决定，在 shell 级测试或以
+  // expandTreePathChain 的 blocked 顺序断言均可 —— 二选一，但必须有一条防回归。
+});
+```
 
 在 `frontend/src/app/features/file-tree/fileTree.test.tsx` 追加：
 
@@ -2802,7 +2820,7 @@ useEffect(() => {
   }
   // 目标文件位于被手动折叠的目录内：保持折叠，用一次闪烁提示位置（规格 §3.4）
   window.clearTimeout(flashTimerRef.current);
-  setFlashPath(blocked[blocked.length - 1]);
+  setFlashPath(blocked[0]);
   flashTimerRef.current = window.setTimeout(() => setFlashPath(undefined), 1000);
 }, [expandFileTreePathChain, selectedFilePath, activeWorkspaceId]);
 
@@ -2818,7 +2836,7 @@ useEffect(() => () => window.clearTimeout(flashTimerRef.current), []);
   }
 }
 @keyframes adl-filetree-flash {
-  0% { background-color: color-mix(in srgb, var(--adl-accent) 45%, transparent); }
+  0% { background-color: color-mix(in srgb, var(--accent) 45%, transparent); }
   100% { background-color: transparent; }
 }
 ```
