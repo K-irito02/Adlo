@@ -11,6 +11,7 @@ import {
   readObjectArray,
   readObjectArrayRecord,
   readSearchUseGitignore,
+  readDirExpansion,
 } from '../parsers';
 
 describe('readFlag', () => {
@@ -177,5 +178,62 @@ describe('readSearchUseGitignore', () => {
   it('rejects non-objects and null', () => {
     expect(readSearchUseGitignore([])).toBeUndefined();
     expect(readSearchUseGitignore(null)).toBeUndefined();
+  });
+});
+
+describe('readDirExpansion', () => {
+  it('accepts a well-formed expansion', () => {
+    expect(readDirExpansion({ expanded: { src: true }, manualCollapsed: { docs: true } })).toEqual({
+      expanded: { src: true },
+      manualCollapsed: { docs: true },
+    });
+  });
+
+  it('accepts an expansion without any manual intent', () => {
+    expect(readDirExpansion({ expanded: { src: true } })).toEqual({
+      expanded: { src: true },
+      manualCollapsed: undefined,
+    });
+  });
+
+  it('rejects a legacy flat value instead of reading its keys as members', () => {
+    // 旧版扁平形状（Task 12 前写盘的）没有 `expanded` 成员，必须整条判非法、回退 fallback，
+    // 绝不为旧格式写兼容/迁移代码。
+    expect(readDirExpansion({ 'src/legacy': false })).toBeUndefined();
+    expect(readDirExpansion({ 'src/legacy': false, src: true })).toBeUndefined();
+  });
+
+  it('rejects a non-boolean leaf in expanded', () => {
+    expect(readDirExpansion({ expanded: { src: 'yes' } })).toBeUndefined();
+    expect(readDirExpansion({ expanded: [] })).toBeUndefined();
+  });
+
+  it('rejects a manualCollapsed leaf that is not exactly true', () => {
+    expect(readDirExpansion({ expanded: {}, manualCollapsed: { src: false } })).toBeUndefined();
+    expect(readDirExpansion({ expanded: {}, manualCollapsed: { src: 1 } })).toBeUndefined();
+    expect(readDirExpansion({ expanded: {}, manualCollapsed: [] })).toBeUndefined();
+  });
+
+  it('repairs the cross-field conflict in place and keeps every other path', () => {
+    // 裁定 2：冲突有唯一正解（expanded[k] === true ⇒ 目录确实展开），因此就地丢弃
+    // manualCollapsed[k]，而不是因一处冲突丢掉用户**全部**展开态。
+    const result = readDirExpansion({
+      expanded: { src: true, docs: false, 'src/a': true },
+      manualCollapsed: { src: true, docs: true },
+    });
+    expect(result?.expanded).toEqual({ src: true, docs: false, 'src/a': true });
+    expect(result?.manualCollapsed).toEqual({ docs: true });
+  });
+
+  it('drops an emptied manualCollapsed entirely', () => {
+    const result = readDirExpansion({ expanded: { src: true }, manualCollapsed: { src: true } });
+    expect(result?.expanded).toEqual({ src: true });
+    expect(result?.manualCollapsed).toBeUndefined();
+  });
+
+  it('rejects arrays and null', () => {
+    expect(readDirExpansion([])).toBeUndefined();
+    expect(readDirExpansion(null)).toBeUndefined();
+    expect(readDirExpansion('src')).toBeUndefined();
   });
 });

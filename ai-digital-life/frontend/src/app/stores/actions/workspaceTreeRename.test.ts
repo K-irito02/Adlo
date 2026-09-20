@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
-import { renameTreeNodePaths, remapExpandedTreePaths, insertTreeNode } from './workspaceTreeRename';
+import {
+  renameTreeNodePaths,
+  remapExpandedTreePaths,
+  remapTreeExpansion,
+  insertTreeNode,
+} from './workspaceTreeRename';
+import type { TreeExpansion } from '../slices/uiSliceTypes';
 
 function node(path: string, kind: 'file' | 'directory', children: WorkspaceTreeNode[] = []) {
   return { path, name: path.split('/').pop() ?? path, kind, children };
@@ -120,5 +126,53 @@ describe('remapExpandedTreePaths', () => {
     const expanded = { directory: true, 'directory/deep': true };
     const result = remapExpandedTreePaths(expanded, 'dir', 'src');
     expect(result).toBe(expanded);
+  });
+});
+
+describe('remapTreeExpansion', () => {
+  it('remaps both the expanded state and the manual intent subtrees', () => {
+    const value: TreeExpansion = {
+      expanded: { dir: true, 'dir/sub': true, other: true },
+      manualCollapsed: { 'dir/collapsed': true, 'dir/sub/deep': true },
+    };
+    const result = remapTreeExpansion(value, 'dir', 'src');
+    expect(result).toEqual({
+      expanded: { src: true, 'src/sub': true, other: true },
+      manualCollapsed: { 'src/collapsed': true, 'src/sub/deep': true },
+    });
+  });
+
+  it('returns the original object when neither side matches', () => {
+    const value: TreeExpansion = {
+      expanded: { other: true },
+      manualCollapsed: { elsewhere: true },
+    };
+    expect(remapTreeExpansion(value, 'dir', 'src')).toBe(value);
+  });
+
+  it('still remaps when only the manual intent matches', () => {
+    const value: TreeExpansion = { expanded: { other: true }, manualCollapsed: { dir: true } };
+    const result = remapTreeExpansion(value, 'dir', 'src');
+    expect(result).not.toBe(value);
+    expect(result.expanded).toEqual({ other: true });
+    expect(result.manualCollapsed).toEqual({ src: true });
+  });
+
+  it('still remaps when only the expanded state matches', () => {
+    const value: TreeExpansion = { expanded: { dir: true }, manualCollapsed: { elsewhere: true } };
+    const result = remapTreeExpansion(value, 'dir', 'src');
+    expect(result).not.toBe(value);
+    expect(result.expanded).toEqual({ src: true });
+    expect(result.manualCollapsed).toEqual({ elsewhere: true });
+  });
+
+  it('handles an absent manual intent without inventing one', () => {
+    const value = { expanded: { dir: true } };
+    expect(remapTreeExpansion(value, 'dir', 'src')).toEqual({
+      expanded: { src: true },
+      manualCollapsed: undefined,
+    });
+    const untouched = { expanded: { other: true } };
+    expect(remapTreeExpansion(untouched, 'dir', 'src')).toBe(untouched);
   });
 });

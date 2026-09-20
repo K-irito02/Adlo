@@ -1,5 +1,7 @@
 import { clamp } from '../storageHelpers';
 import { normalizeIgnoredEntry } from '../../../shared/ipc/searchIgnore';
+import { readBooleanRecord } from './entry';
+import type { TreeExpansion } from '../slices/uiSliceTypes';
 
 /** 布尔：仅接受真正的 boolean */
 export function readFlag(raw: unknown): boolean | undefined {
@@ -210,4 +212,58 @@ export function readSearchUseGitignore(raw: unknown): Record<string, boolean> | 
     result[key] = value;
   }
   return result;
+}
+
+/**
+ * 读取单个工作区的文件树展开态（`TreeExpansion`）。
+ *
+ * 形状校验：
+ * - 必须是普通对象，且 `expanded` 必须是 `Record<string, boolean>`（借用 `readBooleanRecord`）；
+ * - `manualCollapsed` 若存在，其叶子必须**恒为 `true`**，否则整条判为不合法。
+ *
+ * 跨字段不变量修复（裁定 2，有意偏离"任一成员畸形即整条回退"的惯例）：
+ * 当 `manualCollapsed[k] === true` 与 `expanded[k] === true` 冲突时，以后者为准、
+ * **就地丢弃** `manualCollapsed[k]` 而非判整条非法。原因：这种损坏的值**可解释且有唯一
+ * 正解**（`expanded[k] === true` 表示目录当前确实展开，与"被手动折叠"矛盾），整条回退会
+ * 因一处冲突丢掉用户全部展开态——这是不可接受的。读侧修复后，剪枝侧（`pruneDirExpansion`）
+ * 再次应用同一修复作为防御（防止后来者绕过 read 直接构造）。
+ *
+ * 旧版扁平值（如 `{ 'src/legacy': false }`）必须被**拒绝**：它缺少合法的 `expanded`
+ * 成员，`readBooleanRecord(raw.expanded)` 返回 undefined，于是整条判非法、回退 fallback，
+ * 而非把路径误当成 `TreeExpansion` 的成员。这是本任务"不兼容旧格式、旧扁平值直接丢弃"的
+ * 落点——绝不为旧格式写任何兼容/迁移代码。
+ */
+export function readDirExpansion(raw: unknown): TreeExpansion | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  const expanded = readBooleanRecord(raw.expanded);
+  if (expanded === undefined) {
+    return undefined;
+  }
+  let manualCollapsed: Record<string, true> | undefined;
+  if (raw.manualCollapsed !== undefined) {
+    if (!isPlainRecord(raw.manualCollapsed)) {
+      return undefined;
+    }
+    manualCollapsed = {};
+    for (const [key, value] of Object.entries(raw.manualCollapsed)) {
+      if (value !== true) {
+        return undefined;
+      }
+      manualCollapsed[key] = true;
+    }
+  }
+  // 就地修复跨字段冲突：expanded[k] === true ⇒ 丢弃 manualCollapsed[k]
+  if (manualCollapsed) {
+    const repaired: Record<string, true> = {};
+    for (const [key, value] of Object.entries(manualCollapsed)) {
+      if (expanded[key] === true) {
+        continue;
+      }
+      repaired[key] = value;
+    }
+    manualCollapsed = Object.keys(repaired).length > 0 ? repaired : undefined;
+  }
+  return { expanded, manualCollapsed };
 }

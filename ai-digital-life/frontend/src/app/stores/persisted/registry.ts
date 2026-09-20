@@ -4,7 +4,6 @@ import {
   readNumberInRange,
   readFlooredNumberInRange,
   readStringEnum,
-  readBooleanPropRecord,
   readString,
   readStringRecord,
   readNumberArray,
@@ -12,6 +11,7 @@ import {
   readObjectArrayRecord,
   readSearchIgnoredPaths,
   readSearchUseGitignore,
+  readDirExpansion,
   isPlainRecord,
 } from './parsers';
 import {
@@ -21,8 +21,9 @@ import {
   SEARCH_MAX_RESULTS,
   SEARCH_HARD_MAX_RESULTS,
 } from '../../../shared/ipc/searchWindow';
-import { pruneDirPathsByWorkspace, pruneByWorkspaceId, pruneBrowserTreeExpanded } from './prune';
+import { pruneByWorkspaceId, pruneBrowserTreeExpanded, pruneDirExpansion } from './prune';
 import { DEFAULT_CONFIGURED_PORTS } from '../slices/browserSliceShared';
+import type { TreeExpansion } from '../slices/uiSliceTypes';
 import type {
   BackgroundConfig,
   BackgroundFit,
@@ -375,13 +376,28 @@ export const registry = {
     scope: 'global',
     read: readStringEnum<FilesSearchScope>(['file', 'content'] as const),
   }),
-  'adl:files.dirExpanded': defineEntry<Record<string, Record<string, boolean>>>({
+  'adl:files.dirExpanded': defineEntry<Record<string, TreeExpansion>>({
     key: 'adl:files.dirExpanded',
     field: 'expandedFileTreePaths',
     fallback: {},
     scope: 'byWorkspaceId',
-    read: readBooleanPropRecord,
-    prune: pruneDirPathsByWorkspace,
+    // 外层按工作区拆开，逐个工作区交给 readDirExpansion 校验 + 修复跨字段不变量；
+    // 任一工作区不合法 ⇒ 整条回退 fallback（旧版扁平值会被 readDirExpansion 拒绝，见其注释）。
+    read: (raw) => {
+      if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+        return undefined;
+      }
+      const result: Record<string, TreeExpansion> = {};
+      for (const [workspaceId, value] of Object.entries(raw as Record<string, unknown>)) {
+        const parsed = readDirExpansion(value);
+        if (parsed === undefined) {
+          return undefined;
+        }
+        result[workspaceId] = parsed;
+      }
+      return result;
+    },
+    prune: pruneDirExpansion,
   }),
   'adl:changes.dirExpanded': defineEntry<Record<string, boolean>>({
     key: 'adl:changes.dirExpanded',

@@ -57,7 +57,24 @@ export const DEFAULT_SETTINGS_NAVIGATOR_WIDTH = 160;
 // 类型定义
 // ════════════════════════════════════════════════════════
 export type TreeExpansionState = Record<string, boolean>;
-export type FileTreeExpansionState = Record<string, TreeExpansionState>;
+
+/**
+ * 文件树（按工作区隔离）的展开态。
+ *
+ * 与变更侧 `TreeExpansionState` 不同，文件侧需要区分两种意图：
+ * - `expanded`：该目录当前是否展开（自动展开也会写入它）；
+ * - `manualCollapsed`：用户**亲手**折叠过的目录 —— 自动展开链不得覆盖（规格 §3.1.2）。
+ *
+ * 不变量：`manualCollapsed[k] === true` 与 `expanded[k] === true` 不得同时成立。
+ * 当二者冲突时（读盘/剪枝期），以 `expanded[k] === true` 为准删除 `manualCollapsed[k]`
+ * （详见 `readDirExpansion` / `pruneDirExpansion` 的"就地修复"裁定）。
+ */
+export interface TreeExpansion {
+  expanded: Record<string, boolean>;
+  /** 用户亲手折叠过的路径；叶子恒为 `true`，否则视为非法（见 `readDirExpansion`） */
+  manualCollapsed?: Record<string, true>;
+}
+export type FileTreeExpansionState = Record<string, TreeExpansion>;
 export type FilePreviewModeState = Record<string, boolean>;
 
 export type HeatmapTab = 'calendar' | 'clock' | 'activity' | 'module';
@@ -123,7 +140,7 @@ export interface UISlice {
   setIsFetching: (key: string, value: boolean) => void;
   setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
   toggleFileTreePath: (workspaceId: string, path: string) => void;
-  expandFileTreePathChain: (workspaceId: string, path: string) => void;
+  expandFileTreePathChain: (workspaceId: string, path: string) => { blocked: string[] };
   collapseAllFileTreePaths: (workspaceId: string) => void;
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
   setFilesSearchView: (view: FilesSearchViewMode) => void;

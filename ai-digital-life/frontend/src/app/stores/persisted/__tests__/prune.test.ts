@@ -2,11 +2,13 @@ import { describe, it, expect } from 'vitest';
 import {
   pruneByWorkspaceId,
   pruneDirPathsByWorkspace,
+  pruneDirExpansion,
   pruneByTabId,
   prunePathPrefix,
   pruneBrowserTreeExpanded,
 } from '../prune';
 import type { PruneCtx } from '../entry';
+import type { TreeExpansion } from '../../slices/uiSliceTypes';
 
 function ctx(partial: Partial<PruneCtx> = {}): PruneCtx {
   return {
@@ -87,6 +89,100 @@ describe('pruneDirPathsByWorkspace', () => {
       }),
     );
     expect(result.value.workspace_b).toBeUndefined();
+  });
+});
+
+describe('pruneDirExpansion', () => {
+  it('NEGATIVE: skips entirely when the workspace list is empty (R7)', () => {
+    const value: Record<string, TreeExpansion> = {
+      workspace_a: { expanded: { src: true }, manualCollapsed: { docs: true } },
+    };
+    const result = pruneDirExpansion(value, ctx());
+    expect(result.changed).toBe(false);
+    expect(result.value).toBe(value);
+  });
+
+  it('drops expanded directories absent from the loaded tree and reports the change', () => {
+    const result = pruneDirExpansion(
+      { workspace_a: { expanded: { src: true, 'src/legacy': true } } },
+      ctx({
+        workspaceIds: new Set(['workspace_a']),
+        loadedDirPaths: new Map([['workspace_a', new Set(['src'])]]),
+      }),
+    );
+    expect(result.changed).toBe(true);
+    expect(result.value.workspace_a).toEqual({
+      expanded: { src: true },
+      manualCollapsed: undefined,
+    });
+  });
+
+  it('drops manualCollapsed entries whose directory no longer exists', () => {
+    const result = pruneDirExpansion(
+      { workspace_a: { expanded: { src: true }, manualCollapsed: { gone: true } } },
+      ctx({
+        workspaceIds: new Set(['workspace_a']),
+        loadedDirPaths: new Map([['workspace_a', new Set(['src'])]]),
+      }),
+    );
+    expect(result.changed).toBe(true);
+    expect(result.value.workspace_a).toEqual({
+      expanded: { src: true },
+      manualCollapsed: undefined,
+    });
+  });
+
+  it('repairs a conflicting manualCollapsed entry even without going through read', () => {
+    // 防御层（裁定 2）：绕过 read 直接构造出的 `expanded[k] === true` 与
+    // `manualCollapsed[k] === true` 冲突也必须在剪枝侧被修复。
+    const result = pruneDirExpansion(
+      { workspace_a: { expanded: { src: true }, manualCollapsed: { src: true } } },
+      ctx({
+        workspaceIds: new Set(['workspace_a']),
+        loadedDirPaths: new Map([['workspace_a', new Set(['src'])]]),
+      }),
+    );
+    expect(result.changed).toBe(true);
+    expect(result.value.workspace_a).toEqual({
+      expanded: { src: true },
+      manualCollapsed: undefined,
+    });
+  });
+
+  it('keeps the record and its reference when nothing is stale', () => {
+    const value: Record<string, TreeExpansion> = {
+      workspace_a: { expanded: { src: true }, manualCollapsed: { docs: true } },
+    };
+    const result = pruneDirExpansion(
+      value,
+      ctx({
+        workspaceIds: new Set(['workspace_a']),
+        loadedDirPaths: new Map([['workspace_a', new Set(['src', 'docs'])]]),
+      }),
+    );
+    expect(result.changed).toBe(false);
+    expect(result.value).toBe(value);
+    expect(result.value.workspace_a).toBe(value.workspace_a);
+  });
+
+  it('keeps a workspace whose tree is not loaded as-is (R2)', () => {
+    const value = { workspace_a: { expanded: { 'src/legacy': true } } };
+    const result = pruneDirExpansion(value, ctx({ workspaceIds: new Set(['workspace_a']) }));
+    expect(result.changed).toBe(false);
+    expect(result.value).toBe(value);
+  });
+
+  it('drops the whole record when the workspace is gone', () => {
+    const result = pruneDirExpansion(
+      {
+        workspace_a: { expanded: { src: true } },
+        workspace_gone: { expanded: { docs: true } },
+      },
+      ctx({ workspaceIds: new Set(['workspace_a']) }),
+    );
+    expect(result.changed).toBe(true);
+    expect(result.value.workspace_gone).toBeUndefined();
+    expect(result.value.workspace_a?.expanded).toEqual({ src: true });
   });
 });
 

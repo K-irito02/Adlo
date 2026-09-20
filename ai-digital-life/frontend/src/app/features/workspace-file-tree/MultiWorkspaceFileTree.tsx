@@ -5,6 +5,7 @@ import { MultiWorkspaceTreeShell } from '../multi-workspace/MultiWorkspaceTreeSh
 import { WorkspaceFileTreeEntry } from './WorkspaceFileTreeEntry';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
+import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
 
 export interface MultiWorkspaceFileTreeProps {
   workspaces: RecentWorkspaceEntry[];
@@ -18,7 +19,7 @@ export interface MultiWorkspaceFileTreeProps {
   selectedFileWorkspaceId: string | undefined;
   clickedPath: string | undefined;
   clickedWorkspaceId: string | undefined;
-  expandedPaths: Record<string, Record<string, boolean>>;
+  expandedPaths: Record<string, TreeExpansion>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
   onToggleExpand: (workspaceId: string) => void;
@@ -97,7 +98,7 @@ export function MultiWorkspaceFileTree({
             selectedFilePath={selectedFilePath}
             selectedFileWorkspaceId={selectedFileWorkspaceId}
             clickedPath={clickedWorkspaceId === workspace.id ? clickedPath : undefined}
-            expandedPaths={expandedPaths[workspace.id] ?? {}}
+            expandedPaths={expandedPaths[workspace.id]?.expanded ?? {}}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
             onToggleExpand={() => onToggleExpand(workspace.id)}

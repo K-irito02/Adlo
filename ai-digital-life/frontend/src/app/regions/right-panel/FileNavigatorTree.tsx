@@ -3,6 +3,7 @@ import type { WorkspaceTreeNode, RecentWorkspaceEntry } from '@ai-digital-life/k
 import { MultiWorkspaceFileTree } from '@features/workspace-file-tree';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import type { FileTreeContextMenuItem } from '@features/file-tree';
+import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
 
 interface FileNavigatorTreeProps {
   visibleWorkspaces: RecentWorkspaceEntry[];
@@ -16,7 +17,7 @@ interface FileNavigatorTreeProps {
   selectedFileWorkspaceId: string | undefined;
   clickedPath: string | undefined;
   clickedWorkspaceId: string | undefined;
-  expandedPaths: Record<string, Record<string, boolean>>;
+  expandedPaths: Record<string, TreeExpansion>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
   onToggleExpand: (workspaceId: string) => void;

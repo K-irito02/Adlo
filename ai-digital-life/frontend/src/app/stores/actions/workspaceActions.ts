@@ -5,7 +5,12 @@ import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
 import { createWorkspaceLifecycleActions } from './workspaceLifecycleActions';
-import { renameTreeNodePaths, remapExpandedTreePaths, removeTreeNode } from './workspaceTreeRename';
+import {
+  renameTreeNodePaths,
+  remapExpandedTreePaths,
+  remapTreeExpansion,
+  removeTreeNode,
+} from './workspaceTreeRename';
 const SCOPE = 'workspace';
 
 // Re-export for test convenience (tests import from workspaceActions)
@@ -105,7 +110,7 @@ export function createWorkspaceActions(
           });
           const expandedForWs = get().expandedFileTreePaths[workspaceId];
           if (expandedForWs) {
-            const remapped = remapExpandedTreePaths(expandedForWs, relativePath, newPath);
+            const remapped = remapTreeExpansion(expandedForWs, relativePath, newPath);
             if (remapped !== expandedForWs) {
               set({
                 expandedFileTreePaths: {
