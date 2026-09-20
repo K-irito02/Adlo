@@ -2516,17 +2516,47 @@ cd ai-digital-life && grep -rn "makePersistedWriter\|createDebouncedWrite\|setIt
   | grep -v "BROWSER_WORKSPACE_EXPANDED_KEY"
 ```
 
-Expected: 无输出。`grep -v` 只排除**一条**已裁定的例外，且该例外必须由下一段的理由与 Task 20 的删除清单兜住。
+Expected: **排除一个文件后无输出**，且该被排除文件有独立的、不可静默增长的定点检查。
 
-**唯一的例外（本门禁初稿在此自相矛盾，已修正）**
+```bash
+# 主扫描：四面板文件，排除唯一例外文件 browserFoldersSlice.ts
+cd ai-digital-life && grep -rn "makePersistedWriter\|createDebouncedWrite\|setItem(" \
+  frontend/src/app/stores/slices/uiSlice.ts \
+  frontend/src/app/stores/slices/uiSliceWidths.ts \
+  frontend/src/app/stores/slices/workspaceSlice.ts \
+  frontend/src/app/stores/slices/browserSlice.ts \
+  frontend/src/app/stores/slices/browserTabsSlice.ts \
+  frontend/src/app/stores/slices/browserBookmarkSlice.ts \
+  frontend/src/app/stores/slices/browserHistorySlice.ts \
+  frontend/src/app/stores/slices/browserLandingSlice.ts \
+  frontend/src/app/stores/slices/browserSearchEnginesSlice.ts \
+  frontend/src/app/stores/slices/terminalSlice.ts \
+  frontend/src/app/stores/slices/searchSlice.ts \
+  frontend/src/app/stores/actions/workspaceTreeActions.ts \
+  frontend/src/app/stores/actions/gitFileOpsActions.ts \
+  frontend/src/app/stores/actions/browserCleanupActions.ts \
+  | grep -v "__tests__"
+```
 
-初稿的期望是"无输出"，但 `browser*.ts` 会匹配到 `browserFoldersSlice.ts`，而该文件第 20 行仍有一条 `makePersistedWriter(BROWSER_WORKSPACE_EXPANDED_KEY)` —— 它写的是遗留键 `adl-ui:browser-workspace-expanded`。**这条 writer 是 T9 有意留下的**：该键属死状态，T9 裁定不登记、字面量留在源码并留在 `PERSIST_KEEP_KEYS`，删除职责归 Task 20。因此初稿的门禁**在 T11 完成的当天就无法通过**，与 T9 的裁定直接冲突。
+Expected: 无输出。
 
-裁定如下（不是放宽，是收紧到唯一例外）：
+```bash
+# 定点检查：唯一例外文件必须恰好 2 处，且就是这两行
+cd ai-digital-life && grep -n "makePersistedWriter\|createDebouncedWrite\|setItem(" \
+  frontend/src/app/stores/slices/browserFoldersSlice.ts
+```
 
-- 例外**只允许这一条**；`grep -v` 若需要第二行才能通过，说明又有未登记键的私有 writer 混进来，必须回到裁定而不是继续加 `-v`。
-- 该例外**必须**有到期机制：Task 20 的删除清单已点名到行（见该任务 Files），因此例外在 Phase 5 后消失，Task 21 的收尾门禁（放开为全仓）将不带此例外。
-- **不自证"死"就不算可接受的例外**（已核实）：`setBrowserWorkspaceExpanded`（`browserFoldersSlice.ts:41,251`）全仓**无调用点**，`writeWorkspaceExpanded` 仅被该 setter 调用（`:252`），故运行时不可达。注意**字段本身并非全死** —— `browserCleanupActions.ts:33,44,69`、`browserCleanupHelpers.ts:37-55`、`browserSelectors.ts:84-85` 仍读它，所以不能在此任务里只删 writer 而留字段（那是半拉子）；其完整清除属 Task 20。
+Expected: **恰好 2 行**，内容为 `:2` 的 import 与 `:20` 的 `makePersistedWriter(BROWSER_WORKSPACE_EXPANDED_KEY)`；**任何第三处出现即视为失败**。
+
+**为什么不是简单地 `grep -v` 一行（初稿此处自相矛盾，且我第一次的修正也不够）**
+
+初稿的期望是"无输出"，但 `browser*.ts` 会匹配到 `browserFoldersSlice.ts`，该文件仍写遗留键 `adl-ui:browser-workspace-expanded`。**这条 writer 是 T9 有意留下的**：该键属死状态，T9 裁定不登记、字面量留在源码并留在 `PERSIST_KEEP_KEYS`，删除职责归 Task 20。故初稿门禁在 T11 完成的当天就无法通过。
+
+我第一次的修正（`grep -v "BROWSER_WORKSPACE_EXPANDED_KEY"`）**仍然不够**：该文件第 2 行是 `import { createUiId, makePersistedWriter } from '../shared'`，不含该键名，不会被过滤掉 —— 门禁依旧输出一行。故改为"**主扫描排除整个文件 + 对该文件做定点计数**"：排除避免门禁不可满足，定点计数（恰好 2 行）防止该文件成为"裸写盲区"——若将来有人往里加第三个 writer，门禁仍会失败。
+
+**例外的到期机制**：Task 20 的 Files 清单已点名到行（writer / setter / 键常量 / 两处再导出 / selectors / 清理入参），Phase 5 之后该文件在扫描中不再需要排除，Task 21 的全仓门禁将不带任何例外。
+
+**已核实该例外自证"死"**：`setBrowserWorkspaceExpanded`（`browserFoldersSlice.ts:41,251`）全仓**无调用点**，`writeWorkspaceExpanded` 仅被该 setter 调用（`:252`），故运行时不可达。注意**字段本身并非全死** —— `browserCleanupActions.ts:33,44,69`、`browserCleanupHelpers.ts:37-55`、`browserSelectors.ts:84-85` 仍读它，所以不能在此任务里只删 writer 而留字段（那是半拉子）；其完整清除属 Task 20。
 
 ---
 
