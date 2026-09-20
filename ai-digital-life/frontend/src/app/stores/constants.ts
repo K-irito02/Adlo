@@ -1,5 +1,3 @@
-export const BROWSER_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
-
 /**
  * localStorage 惰性水合的回退延迟（毫秒）。
  *

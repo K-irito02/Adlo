@@ -5,13 +5,13 @@
 import type { StoreState } from '../StoreState';
 import type { TerminalProfile, ToolId } from '../types';
 import type { TerminalTabState } from './terminalSliceTypes';
+import { persistField } from '../persisted/apply';
 import {
   TERMINAL_TABS_KEY,
   TERMINAL_ACTIVE_TAB_KEY,
   TERMINAL_DEFAULT_PROFILE_KEY,
   TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
   TERMINAL_NAVIGATOR_WIDTH_KEY,
-  TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
   TERMINAL_WORKSPACE_ID_KEY,
   TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
@@ -28,7 +28,6 @@ export {
   TERMINAL_DEFAULT_PROFILE_KEY,
   TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
   TERMINAL_NAVIGATOR_WIDTH_KEY,
-  TERMINAL_NAVIGATOR_COLLAPSED_KEY,
   TERMINAL_WORKSPACE_EXPANDED_KEY,
   TERMINAL_WORKSPACE_ID_KEY,
   TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
@@ -87,7 +86,6 @@ const writeTerminalTabs = makePersistedWriter(TERMINAL_TABS_KEY);
 const writeTerminalActiveTab = makePersistedWriter(TERMINAL_ACTIVE_TAB_KEY);
 const writeDefaultProfile = makePersistedWriter(TERMINAL_DEFAULT_PROFILE_KEY);
 const writeWorkspaceDefaultProfiles = makePersistedWriter(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY);
-const writeNavigatorCollapsed = makePersistedWriter(TERMINAL_NAVIGATOR_COLLAPSED_KEY);
 const writeWorkspaceExpanded = makePersistedWriter(TERMINAL_WORKSPACE_EXPANDED_KEY);
 const writeNavigatorWidth = makePersistedNumberWriter(TERMINAL_NAVIGATOR_WIDTH_KEY);
 const writeTerminalWorkspaceId = makePersistedWriter(TERMINAL_WORKSPACE_ID_KEY);
@@ -122,13 +120,6 @@ function hydrateTerminalDefaults(
       TERMINAL_NAVIGATOR_WIDTH_MIN,
       TERMINAL_NAVIGATOR_WIDTH_MAX,
     );
-    const collapsed = {
-      ...defaultNavigatorCollapsed(),
-      ...readJson<Record<ToolId, boolean>>(
-        TERMINAL_NAVIGATOR_COLLAPSED_KEY,
-        defaultNavigatorCollapsed(),
-      ),
-    };
     const workspaceExpanded = readJson<Record<string, boolean>>(
       TERMINAL_WORKSPACE_EXPANDED_KEY,
       {},
@@ -147,7 +138,6 @@ function hydrateTerminalDefaults(
       shellSelectorProfile: shellProfile,
       workspaceDefaultProfiles: workspaceProfiles,
       terminalNavigatorWidth: width,
-      navigatorCollapsedByTool: collapsed,
       terminalWorkspaceExpanded: workspaceExpanded,
       terminalWorkspaceId: typeof persistedWorkspaceId === 'string' ? persistedWorkspaceId : '',
     });
@@ -387,15 +377,13 @@ export const createTerminalSlice = (
           ...state.navigatorCollapsedByTool,
           terminal: !(state.navigatorCollapsedByTool.terminal ?? false),
         };
-        writeNavigatorCollapsed(next);
-        return { navigatorCollapsedByTool: next };
+        return persistField('adl:ui.navigatorCollapsed', next);
       }),
 
     setTerminalNavigatorCollapsed: (collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
-        writeNavigatorCollapsed(next);
-        return { navigatorCollapsedByTool: next };
+        return persistField('adl:ui.navigatorCollapsed', next);
       }),
 
     setTerminalWorkspaceExpanded: (expanded) => {

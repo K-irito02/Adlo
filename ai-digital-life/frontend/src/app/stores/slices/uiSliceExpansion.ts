@@ -3,12 +3,8 @@
  * 管理文件树/变更树的展开状态
  */
 import type { StoreState } from '../StoreState';
-import { makePersistedWriter } from '../shared';
+import { persistField } from '../persisted/apply';
 import type { TreeExpansionState, UISlice } from './uiSliceTypes';
-import { FILE_TREE_EXPANDED_KEY, CHANGES_TREE_EXPANDED_KEY } from './uiSliceTypes';
-
-const writeFileTreeExpanded = makePersistedWriter(FILE_TREE_EXPANDED_KEY);
-const writeChangesTreeExpanded = makePersistedWriter(CHANGES_TREE_EXPANDED_KEY);
 
 function setTreePathExpandedInState(
   current: TreeExpansionState,
@@ -77,16 +73,14 @@ export function createUIExpansionSlice(
           return state;
         }
         const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
-        writeFileTreeExpanded(allPaths);
-        return { expandedFileTreePaths: allPaths };
+        return persistField('adl:files.dirExpanded', allPaths);
       }),
     toggleFileTreePath: (workspaceId, path) =>
       set((state) => {
         const current = state.expandedFileTreePaths[workspaceId] ?? {};
         const next = toggleTreePathExpandedInState(current, path);
         const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
-        writeFileTreeExpanded(allPaths);
-        return { expandedFileTreePaths: allPaths };
+        return persistField('adl:files.dirExpanded', allPaths);
       }),
     expandFileTreePathChain: (workspaceId, path) =>
       set((state) => {
@@ -96,42 +90,40 @@ export function createUIExpansionSlice(
           return state;
         }
         const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: next };
-        writeFileTreeExpanded(allPaths);
-        return { expandedFileTreePaths: allPaths };
+        return persistField('adl:files.dirExpanded', allPaths);
       }),
     collapseAllFileTreePaths: (workspaceId) =>
-      set((state) => {
-        const allPaths = { ...state.expandedFileTreePaths, [workspaceId]: {} };
-        writeFileTreeExpanded(allPaths);
-        return { expandedFileTreePaths: allPaths };
-      }),
+      set((state) =>
+        persistField('adl:files.dirExpanded', {
+          ...state.expandedFileTreePaths,
+          [workspaceId]: {},
+        }),
+      ),
     setChangesTreePathExpanded: (path, expanded) =>
       set((state) => {
         const next = setTreePathExpandedInState(state.expandedChangesTreePaths, path, expanded);
         if (next === state.expandedChangesTreePaths) {
           return state;
         }
-        writeChangesTreeExpanded(next);
-        return { expandedChangesTreePaths: next };
+        return persistField('adl:changes.dirExpanded', next);
       }),
     toggleChangesTreePath: (path) =>
-      set((state) => {
-        const next = toggleTreePathExpandedInState(state.expandedChangesTreePaths, path);
-        writeChangesTreeExpanded(next);
-        return { expandedChangesTreePaths: next };
-      }),
+      set((state) =>
+        persistField(
+          'adl:changes.dirExpanded',
+          toggleTreePathExpandedInState(state.expandedChangesTreePaths, path),
+        ),
+      ),
     expandChangesTreePathChain: (path) =>
       set((state) => {
         const next = expandTreePathChainInState(state.expandedChangesTreePaths, path);
         if (next === state.expandedChangesTreePaths) {
           return state;
         }
-        writeChangesTreeExpanded(next);
-        return { expandedChangesTreePaths: next };
+        return persistField('adl:changes.dirExpanded', next);
       }),
     collapseAllChangesTreePaths: () => {
-      writeChangesTreeExpanded({});
-      set({ expandedChangesTreePaths: {} });
+      set(persistField('adl:changes.dirExpanded', {}));
     },
   };
 }

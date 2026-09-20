@@ -2,72 +2,28 @@
  * UI 宽度切片
  * 管理面板宽度相关的 UI 状态
  */
-import type { ToolId } from '../types';
 import type { StoreState } from '../StoreState';
-import { readFlag, writeFlag, readNumber, writeNumber, clamp } from '../shared';
+import { readNumber, clamp, makePersistedNumberWriter } from '../shared';
+import { persistField } from '../persisted/apply';
 import type { UISlice } from './uiSliceTypes';
 import {
-  LEFT_COLLAPSED_KEY,
-  LEFT_PANEL_WIDTH_KEY,
-  LEFT_PANEL_WIDTH_MIN,
-  LEFT_PANEL_WIDTH_MAX,
-  DEFAULT_LEFT_PANEL_WIDTH,
-  RIGHT_COLLAPSED_KEY,
-  RIGHT_PANEL_WIDTH_KEY,
-  FILES_NAVIGATOR_WIDTH_KEY,
-  CHANGES_NAVIGATOR_WIDTH_KEY,
   BROWSER_NAVIGATOR_WIDTH_KEY,
-  GITHUB_NAVIGATOR_WIDTH_KEY,
-  SETTINGS_NAVIGATOR_WIDTH_KEY,
-  ACTIVE_RIGHT_TOOL_KEY,
-  RIGHT_PANEL_WIDTH_MIN,
-  RIGHT_PANEL_WIDTH_MAX,
+  DEFAULT_LEFT_PANEL_WIDTH,
   DEFAULT_RIGHT_PANEL_WIDTH,
-  FILES_NAVIGATOR_WIDTH_MIN,
-  FILES_NAVIGATOR_WIDTH_MAX,
   DEFAULT_FILES_NAVIGATOR_WIDTH,
-  CHANGES_NAVIGATOR_WIDTH_MIN,
-  CHANGES_NAVIGATOR_WIDTH_MAX,
   DEFAULT_CHANGES_NAVIGATOR_WIDTH,
   BROWSER_NAVIGATOR_WIDTH_MIN,
   BROWSER_NAVIGATOR_WIDTH_MAX,
   DEFAULT_BROWSER_NAVIGATOR_WIDTH,
-  GITHUB_NAVIGATOR_WIDTH_MIN,
-  GITHUB_NAVIGATOR_WIDTH_MAX,
   DEFAULT_GITHUB_NAVIGATOR_WIDTH,
-  SETTINGS_NAVIGATOR_WIDTH_MIN,
-  SETTINGS_NAVIGATOR_WIDTH_MAX,
   DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
 } from './uiSliceTypes';
 
-export function readRightTool(): ToolId {
-  try {
-    const raw = window.localStorage.getItem(ACTIVE_RIGHT_TOOL_KEY);
-    // 注意：'communicate'（通信面板）为发布前隐藏状态，这里有意不接受旧持久化值，
-    // 读到旧值时自动回落到 'files'，避免恢复隐藏后面板空白。恢复显示时把 'communicate'
-    // 加回下面的白名单即可（与 ToolSwitcher / RightPanel 两处注释配合）。
-    if (
-      raw === 'files' ||
-      raw === 'changes' ||
-      raw === 'browser' ||
-      raw === 'terminal' ||
-      raw === 'settings'
-    ) {
-      return raw;
-    }
-  } catch (err) {
-    console.warn('uiSliceWidths: localStorage operation failed:', err);
-  }
-  return 'files';
-}
-
-function writeRightTool(tool: ToolId): void {
-  try {
-    window.localStorage.setItem(ACTIVE_RIGHT_TOOL_KEY, tool);
-  } catch (err) {
-    console.warn('uiSliceWidths: localStorage operation failed:', err);
-  }
-}
+/**
+ * 浏览器导航器宽度尚未迁移（不在 Task 7 迁移表内），暂保留遗留写盘通道，
+ * 由后续任务迁移到 registry；其遗留键在 PERSIST_KEEP_KEYS 中受保护。
+ */
+const writeBrowserNavigatorWidth = makePersistedNumberWriter(BROWSER_NAVIGATOR_WIDTH_KEY);
 
 export type UIWidthSlice = Pick<
   UISlice,
@@ -102,116 +58,62 @@ export function createUIWidthSlice(
 ): UIWidthSlice {
   return {
     activeRightTool: 'files',
-    leftCollapsed: readFlag(LEFT_COLLAPSED_KEY, false),
-    leftbarWidth: readNumber(
-      LEFT_PANEL_WIDTH_KEY,
-      DEFAULT_LEFT_PANEL_WIDTH,
-      LEFT_PANEL_WIDTH_MIN,
-      LEFT_PANEL_WIDTH_MAX,
-    ),
-    rightCollapsed: readFlag(RIGHT_COLLAPSED_KEY, false),
-    rightPanelWidth: readNumber(
-      RIGHT_PANEL_WIDTH_KEY,
-      DEFAULT_RIGHT_PANEL_WIDTH,
-      RIGHT_PANEL_WIDTH_MIN,
-      RIGHT_PANEL_WIDTH_MAX,
-    ),
-    filesNavigatorWidth: readNumber(
-      FILES_NAVIGATOR_WIDTH_KEY,
-      DEFAULT_FILES_NAVIGATOR_WIDTH,
-      FILES_NAVIGATOR_WIDTH_MIN,
-      FILES_NAVIGATOR_WIDTH_MAX,
-    ),
-    changesNavigatorWidth: readNumber(
-      CHANGES_NAVIGATOR_WIDTH_KEY,
-      DEFAULT_CHANGES_NAVIGATOR_WIDTH,
-      CHANGES_NAVIGATOR_WIDTH_MIN,
-      CHANGES_NAVIGATOR_WIDTH_MAX,
-    ),
+    leftCollapsed: false,
+    leftbarWidth: DEFAULT_LEFT_PANEL_WIDTH,
+    rightCollapsed: false,
+    rightPanelWidth: DEFAULT_RIGHT_PANEL_WIDTH,
+    filesNavigatorWidth: DEFAULT_FILES_NAVIGATOR_WIDTH,
+    changesNavigatorWidth: DEFAULT_CHANGES_NAVIGATOR_WIDTH,
     browserNavigatorWidth: readNumber(
       BROWSER_NAVIGATOR_WIDTH_KEY,
       DEFAULT_BROWSER_NAVIGATOR_WIDTH,
       BROWSER_NAVIGATOR_WIDTH_MIN,
       BROWSER_NAVIGATOR_WIDTH_MAX,
     ),
-    gitHubNavigatorWidth: readNumber(
-      GITHUB_NAVIGATOR_WIDTH_KEY,
-      DEFAULT_GITHUB_NAVIGATOR_WIDTH,
-      GITHUB_NAVIGATOR_WIDTH_MIN,
-      GITHUB_NAVIGATOR_WIDTH_MAX,
-    ),
-    settingsNavigatorWidth: readNumber(
-      SETTINGS_NAVIGATOR_WIDTH_KEY,
-      DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
-      SETTINGS_NAVIGATOR_WIDTH_MIN,
-      SETTINGS_NAVIGATOR_WIDTH_MAX,
-    ),
+    gitHubNavigatorWidth: DEFAULT_GITHUB_NAVIGATOR_WIDTH,
+    settingsNavigatorWidth: DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
 
     setActiveRightTool: (tool) => {
-      writeRightTool(tool);
-      set({ activeRightTool: tool });
+      set(persistField('adl:ui.activeRightTool', tool));
     },
     setLeftCollapsed: (collapsed) => {
-      writeFlag(LEFT_COLLAPSED_KEY, collapsed);
-      set({ leftCollapsed: collapsed });
+      set(persistField('adl:ui.leftCollapsed', collapsed));
     },
     setLeftbarWidth: (width) => {
-      const next = clamp(width, LEFT_PANEL_WIDTH_MIN, LEFT_PANEL_WIDTH_MAX);
-      writeNumber(LEFT_PANEL_WIDTH_KEY, next);
-      set({ leftbarWidth: next });
+      set(persistField('adl:ui.leftPanelWidth', width));
     },
     setRightCollapsed: (collapsed) => {
-      writeFlag(RIGHT_COLLAPSED_KEY, collapsed);
-      set({ rightCollapsed: collapsed });
+      set(persistField('adl:ui.rightCollapsed', collapsed));
     },
-    toggleLeft: () =>
-      set((state) => {
-        const next = !state.leftCollapsed;
-        writeFlag(LEFT_COLLAPSED_KEY, next);
-        return { leftCollapsed: next };
-      }),
-    toggleRight: () =>
-      set((state) => {
-        const next = !state.rightCollapsed;
-        writeFlag(RIGHT_COLLAPSED_KEY, next);
-        return { rightCollapsed: next };
-      }),
+    toggleLeft: () => set((state) => persistField('adl:ui.leftCollapsed', !state.leftCollapsed)),
+    toggleRight: () => set((state) => persistField('adl:ui.rightCollapsed', !state.rightCollapsed)),
     toggleBoth: () =>
       set((state) => {
         const next = !(state.leftCollapsed && state.rightCollapsed);
-        writeFlag(LEFT_COLLAPSED_KEY, next);
-        writeFlag(RIGHT_COLLAPSED_KEY, next);
-        return { leftCollapsed: next, rightCollapsed: next };
+        return {
+          ...persistField('adl:ui.leftCollapsed', next),
+          ...persistField('adl:ui.rightCollapsed', next),
+        };
       }),
     setRightPanelWidth: (width) => {
-      const next = clamp(width, RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX);
-      writeNumber(RIGHT_PANEL_WIDTH_KEY, next);
-      set({ rightPanelWidth: next });
+      set(persistField('adl:ui.rightPanelWidth', width));
     },
     setFilesNavigatorWidth: (width) => {
-      const next = clamp(width, FILES_NAVIGATOR_WIDTH_MIN, FILES_NAVIGATOR_WIDTH_MAX);
-      writeNumber(FILES_NAVIGATOR_WIDTH_KEY, next);
-      set({ filesNavigatorWidth: next });
+      set(persistField('adl:files.navigatorWidth', width));
     },
     setChangesNavigatorWidth: (width) => {
-      const next = clamp(width, CHANGES_NAVIGATOR_WIDTH_MIN, CHANGES_NAVIGATOR_WIDTH_MAX);
-      writeNumber(CHANGES_NAVIGATOR_WIDTH_KEY, next);
-      set({ changesNavigatorWidth: next });
+      set(persistField('adl:changes.navigatorWidth', width));
     },
     setBrowserNavigatorWidth: (width) => {
       const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
-      writeNumber(BROWSER_NAVIGATOR_WIDTH_KEY, next);
+      writeBrowserNavigatorWidth(next);
       set({ browserNavigatorWidth: next });
     },
     setGitHubNavigatorWidth: (width) => {
-      const next = clamp(width, GITHUB_NAVIGATOR_WIDTH_MIN, GITHUB_NAVIGATOR_WIDTH_MAX);
-      writeNumber(GITHUB_NAVIGATOR_WIDTH_KEY, next);
-      set({ gitHubNavigatorWidth: next });
+      set(persistField('adl:ui.githubNavigatorWidth', width));
     },
     setSettingsNavigatorWidth: (width) => {
-      const next = clamp(width, SETTINGS_NAVIGATOR_WIDTH_MIN, SETTINGS_NAVIGATOR_WIDTH_MAX);
-      writeNumber(SETTINGS_NAVIGATOR_WIDTH_KEY, next);
-      set({ settingsNavigatorWidth: next });
+      set(persistField('adl:ui.settingsNavigatorWidth', width));
     },
   };
 }

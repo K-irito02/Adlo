@@ -15,7 +15,8 @@ import {
   makePersistedNumberWriter,
 } from '../shared';
 import { isRealTitle } from '@utils/browserDisplayUtils';
-import { BROWSER_NAVIGATOR_COLLAPSED_KEY, STORAGE_HYDRATION_DELAY_MS } from '../constants';
+import { STORAGE_HYDRATION_DELAY_MS } from '../constants';
+import { persistField } from '../persisted/apply';
 
 import type { BrowserTabState } from './browserSliceShared';
 import type { BrowserBookmark, WorkspaceBookmarkEntry } from './browserTypes';
@@ -59,7 +60,6 @@ const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
 const writeTabs = makePersistedWriter(BROWSER_TABS_KEY);
 const writeActiveTab = makePersistedWriter(BROWSER_ACTIVE_TAB_KEY);
 const writeNavigateInPlace = makePersistedWriter(BROWSER_NAVIGATE_IN_PLACE_KEY);
-const writeNavigatorCollapsed = makePersistedWriter(BROWSER_NAVIGATOR_COLLAPSED_KEY);
 const writeNavigatorWidth = makePersistedNumberWriter(BROWSER_NAVIGATOR_WIDTH_KEY);
 
 function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {
@@ -302,15 +302,13 @@ export const createBrowserSlice = (
           ...state.navigatorCollapsedByTool,
           browser: !(state.navigatorCollapsedByTool?.browser ?? false),
         };
-        writeNavigatorCollapsed(next);
-        return { navigatorCollapsedByTool: next };
+        return persistField('adl:ui.navigatorCollapsed', next);
       }),
 
     setBrowserNavigatorCollapsed: (collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, browser: collapsed };
-        writeNavigatorCollapsed(next);
-        return { navigatorCollapsedByTool: next };
+        return persistField('adl:ui.navigatorCollapsed', next);
       }),
 
     setBrowserPersisted: (persisted) => set({ browserPersisted: persisted }),

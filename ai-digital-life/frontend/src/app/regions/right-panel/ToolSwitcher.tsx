@@ -66,7 +66,7 @@ const TAB_META: {
   // 2. 恢复 RightPanel.tsx 中的 CommunicationPanel 懒加载 import 与面板 div；
   // 3. 确认 ToolId（stores/types.ts）仍保留 'communicate'（已保留，无需改动）。
   // 注意：badges 仍保留 communicate 键（useRightPanelViewProps），恢复后徽标自动生效；
-  // 持久化的 activeRightTool 若为旧值，readRightTool 会自动回落到 files，无需迁移。
+  // 持久化的 activeRightTool 若为旧值（如 'communicate'），注册表的 readStringEnum 会回落到 'files'，无需迁移。
   // {
   //   id: 'communicate',
   //   shortcut: 'Ctrl+Shift+C',

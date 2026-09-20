@@ -25,7 +25,6 @@ export const TERMINAL_ACTIVE_TAB_KEY = 'adl-ui:terminal-active-tab';
 export const TERMINAL_DEFAULT_PROFILE_KEY = 'adl-ui:terminal-default-profile';
 export const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = 'adl-ui:terminal-workspace-default-profiles';
 export const TERMINAL_NAVIGATOR_WIDTH_KEY = 'adl-ui:terminal-navigator-width';
-export const TERMINAL_NAVIGATOR_COLLAPSED_KEY = 'adl-ui:navigator-collapsed';
 export const TERMINAL_WORKSPACE_EXPANDED_KEY = 'adl-ui:terminal-workspace-expanded';
 export const TERMINAL_WORKSPACE_ID_KEY = 'adl-ui:terminal-workspace-id';
 export const TERMINAL_SHELL_SELECTOR_PROFILE_KEY = 'adl-ui:terminal-shell-selector-profile';

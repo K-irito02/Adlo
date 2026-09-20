@@ -1,11 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createUIWidthSlice } from '../uiSliceWidths';
 import type { UIWidthSlice } from '../uiSliceWidths';
+import { persistField } from '@stores/persisted/apply';
+import { hydrateAll, resetHydrationForTest } from '@stores/persisted/hydrate';
+import { flushCrossSliceWrites } from '@stores/storageHelpers';
 import {
-  LEFT_PANEL_WIDTH_KEY,
+  DEFAULT_LEFT_PANEL_WIDTH,
   LEFT_PANEL_WIDTH_MIN,
   LEFT_PANEL_WIDTH_MAX,
-  DEFAULT_LEFT_PANEL_WIDTH,
 } from '../uiSliceTypes';
 
 function createSlice() {
@@ -28,35 +30,37 @@ function createSlice() {
 describe('uiSliceWidths leftbarWidth persistence', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    resetHydrationForTest();
   });
 
   afterEach(() => {
     window.localStorage.clear();
   });
 
-  it('defaults to DEFAULT_LEFT_PANEL_WIDTH when nothing is stored', () => {
+  it('defaults to DEFAULT_LEFT_PANEL_WIDTH before hydration', () => {
     expect(createSlice().current().leftbarWidth).toBe(DEFAULT_LEFT_PANEL_WIDTH);
   });
 
-  it('restores a stored width within bounds', () => {
-    window.localStorage.setItem(LEFT_PANEL_WIDTH_KEY, '240');
-    expect(createSlice().current().leftbarWidth).toBe(240);
+  it('restores a stored width within bounds via registry hydration', () => {
+    persistField('adl:ui.leftPanelWidth', 240);
+    flushCrossSliceWrites();
+    resetHydrationForTest();
+    expect(hydrateAll().patch.leftbarWidth).toBe(240);
   });
 
-  it('clamps an out-of-range stored width', () => {
-    window.localStorage.setItem(LEFT_PANEL_WIDTH_KEY, '9999');
-    expect(createSlice().current().leftbarWidth).toBe(LEFT_PANEL_WIDTH_MAX);
-    window.localStorage.setItem(LEFT_PANEL_WIDTH_KEY, '1');
-    expect(createSlice().current().leftbarWidth).toBe(LEFT_PANEL_WIDTH_MIN);
+  it('clamps an out-of-range persisted width on hydration', () => {
+    localStorage.setItem('adl:ui.leftPanelWidth', '9999');
+    expect(hydrateAll().patch.leftbarWidth).toBe(LEFT_PANEL_WIDTH_MAX);
+    resetHydrationForTest();
+    localStorage.setItem('adl:ui.leftPanelWidth', '1');
+    expect(hydrateAll().patch.leftbarWidth).toBe(LEFT_PANEL_WIDTH_MIN);
   });
 
-  it('setLeftbarWidth clamps and writes through to localStorage', () => {
+  it('setLeftbarWidth writes the value through to the registry key', () => {
     const { current } = createSlice();
-    current().setLeftbarWidth(300);
-    expect(current().leftbarWidth).toBe(LEFT_PANEL_WIDTH_MAX);
-    expect(window.localStorage.getItem(LEFT_PANEL_WIDTH_KEY)).toBe(String(LEFT_PANEL_WIDTH_MAX));
     current().setLeftbarWidth(200);
-    expect(current().leftbarWidth).toBe(200);
-    expect(window.localStorage.getItem(LEFT_PANEL_WIDTH_KEY)).toBe('200');
+    flushCrossSliceWrites();
+    resetHydrationForTest();
+    expect(hydrateAll().patch.leftbarWidth).toBe(200);
   });
 });

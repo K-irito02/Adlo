@@ -25,7 +25,7 @@ const SettingsPanel = lazy(() =>
 // 2. 恢复下方 ActiveToolPanel 中 communicate 面板 div 的注释；
 // 3. 恢复 ToolSwitcher.tsx TAB_META 中的 communicate 配置块注释。
 // 注意：i18n（communicate.ts）、communicateSlice、CSS 均完整保留，恢复后即刻可用；
-// 持久化的 activeRightTool 若为旧值，readRightTool 会自动回落到 files，无需迁移。
+// 持久化的 activeRightTool 若为旧值（如 'communicate'），注册表的 readStringEnum 会回落到 'files'，无需迁移。
 // const CommunicationPanel = lazy(() =>
 //   import('./right-panel/panels/CommunicationPanel').then((m) => ({
 //     default: m.CommunicationPanel,

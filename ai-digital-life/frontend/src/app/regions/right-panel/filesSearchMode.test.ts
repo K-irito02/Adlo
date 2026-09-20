@@ -20,10 +20,6 @@ describe('files search mode wiring', () => {
     new URL('../../stores/slices/uiSlice.ts', import.meta.url),
     'utf8',
   );
-  const uiSliceTypesSource = readFileSync(
-    new URL('../../stores/slices/uiSliceTypes.ts', import.meta.url),
-    'utf8',
-  );
   const searchActionsSource = readFileSync(
     new URL('../../stores/actions/searchActions.ts', import.meta.url),
     'utf8',
@@ -199,11 +195,10 @@ describe('files search mode wiring', () => {
     );
   });
 
-  it('persists search view and scope in localStorage (事项 6)', () => {
-    expect(uiSliceTypesSource).toContain('FILES_SEARCH_VIEW_KEY');
-    expect(uiSliceTypesSource).toContain('FILES_SEARCH_SCOPE_KEY');
-    expect(uiSliceSource).toContain('readFilesSearchView');
-    expect(uiSliceSource).toContain('writeFilesSearchScope');
+  it('persists search view and scope via the registry (事项 6)', () => {
+    expect(uiSliceSource).toContain('adl:files.searchView');
+    expect(uiSliceSource).toContain('adl:files.searchScope');
+    expect(uiSliceSource).toContain('persistField');
     expect(uiSliceSource).toContain('setFilesSearchView');
     expect(uiSliceSource).toContain('setFilesSearchScope');
   });

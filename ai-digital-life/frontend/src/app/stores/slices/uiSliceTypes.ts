@@ -13,29 +13,17 @@ import type { SettingsGroupId } from '@ai-digital-life/kernel';
 
 // ════════════════════════════════════════════════════════
 // LocalStorage 键名常量
+//
+// 注意：本任务（Task 7）已将全量 UI 状态迁移到 persisted registry。
+// 凡已迁移的键不再以本地常量形式存在 —— 它们的单一事实来源是
+// persisted/registry.ts 中的 `adl:<域>.<名称>` 登记键，写入一律走
+// persistField()，读取一律走 hydrateAll()。下方仅保留尚未迁移的遗留键
+// （由 PERSIST_KEEP_KEYS 保护，待后续任务迁移）：
+//   - BROWSER_NAVIGATOR_WIDTH_KEY（浏览器导航器宽度，后续任务）
+//   - RIGHT_PANEL_MODE_KEY / RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY
+//     （仅存在于组件本地 state，Task 22 上提到 store 后再登记）
 // ════════════════════════════════════════════════════════
-export const LEFT_COLLAPSED_KEY = 'adl-ui:left-collapsed';
-export const LEFT_PANEL_WIDTH_KEY = 'adl-ui:left-panel-width';
-export const RIGHT_COLLAPSED_KEY = 'adl-ui:right-collapsed';
-export const RIGHT_PANEL_WIDTH_KEY = 'adl-ui:right-panel-width';
-export const FILES_NAVIGATOR_WIDTH_KEY = 'adl-ui:files-navigator-width';
-export const CHANGES_NAVIGATOR_WIDTH_KEY = 'adl-ui:changes-navigator-width';
 export const BROWSER_NAVIGATOR_WIDTH_KEY = 'adl-ui:browser-navigator-width';
-export const GITHUB_NAVIGATOR_WIDTH_KEY = 'adl-ui:github-navigator-width';
-export const SETTINGS_NAVIGATOR_WIDTH_KEY = 'adl-ui:settings-navigator-width';
-export const FILE_TREE_EXPANDED_KEY = 'adl-ui:file-tree-expanded';
-export const CHANGES_TREE_EXPANDED_KEY = 'adl-ui:changes-tree-expanded';
-export const FILES_NAVIGATOR_MODE_KEY = 'adl-ui:files-navigator-mode';
-export const CHANGES_NAVIGATOR_MODE_KEY = 'adl-ui:changes-navigator-mode';
-export const FILES_SEARCH_VIEW_KEY = 'adl-ui:files-search-view';
-export const FILES_SEARCH_SCOPE_KEY = 'adl-ui:files-search-scope';
-export const FILE_PREVIEW_MODE_KEY = 'adl-ui:file-preview-mode';
-export const CHANGES_PREVIEW_ENABLED_KEY = 'adl-ui:changes-preview-enabled';
-export const SESSION_TABS_EXPANDED_KEY = 'adl-ui:session-tabs-expanded';
-export const ACTIVE_RIGHT_TOOL_KEY = 'adl-ui:active-right-tool';
-export const SHOW_GIT_VISUALIZATION_KEY = 'adl-ui:show-git-visualization';
-export const ACTIVE_HEATMAP_TAB_KEY = 'adl-ui:active-heatmap-tab';
-export const ACTIVE_WORKSPACE_TAB_KEY = 'adl-ui:active-workspace-tab';
 export const RIGHT_PANEL_MODE_KEY = 'adl-ui:right-panel-mode';
 export const RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY = 'adl-ui:right-panel-last-restorable-width';
 
@@ -78,7 +66,17 @@ export type HeatmapTab = 'calendar' | 'clock' | 'activity' | 'module';
 
 export type ChartColorPreset = 'bklit-default' | 'cool-ocean' | 'warm-sunset' | 'high-contrast';
 
-export const CHART_COLOR_PRESET_KEY = 'adl-ui:chart-color-preset';
+/** 各导航器折叠态的默认（全展开）。同时作为注册表 `adl:ui.navigatorCollapsed` 的 fallback。 */
+export function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
+  return {
+    files: false,
+    changes: false,
+    browser: false,
+    terminal: false,
+    settings: false,
+    communicate: false,
+  };
+}
 
 export interface UISlice {
   activeRightTool: ToolId;
