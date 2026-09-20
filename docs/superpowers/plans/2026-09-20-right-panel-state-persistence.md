@@ -2499,24 +2499,11 @@ git add frontend/src/app/stores
 git commit -m "refactor(stores): migrate search settings persistence to the registry"
 ```
 
-Expected: PASS。至此四面板的"四套写盘做法"已全部收敛为唯一通道 —— 扫描范围限定为四面板对应文件（ledger B2 裁定；其余面板工具的收敛见 Task 29）：
+Expected: PASS。至此四面板的"四套写盘做法"已全部收敛为唯一通道 —— 扫描范围限定为四面板对应文件（ledger B2 裁定；其余面板工具的收敛见 Task 29）。
 
-```bash
-cd ai-digital-life && grep -rn "makePersistedWriter\|createDebouncedWrite\|setItem(" \
-  frontend/src/app/stores/slices/uiSlice.ts \
-  frontend/src/app/stores/slices/uiSliceWidths.ts \
-  frontend/src/app/stores/slices/workspaceSlice.ts \
-  frontend/src/app/stores/slices/browser*.ts \
-  frontend/src/app/stores/slices/terminalSlice.ts \
-  frontend/src/app/stores/slices/searchSlice.ts \
-  frontend/src/app/stores/actions/workspaceTreeActions.ts \
-  frontend/src/app/stores/actions/gitFileOpsActions.ts \
-  frontend/src/app/stores/actions/browserCleanupActions.ts \
-  | grep -v "__tests__" \
-  | grep -v "BROWSER_WORKSPACE_EXPANDED_KEY"
-```
-
-Expected: **排除一个文件后无输出**，且该被排除文件有独立的、不可静默增长的定点检查。
+> 门禁分两段（下方两条命令）：**主扫描** 用显式文件清单，**定点检查** 覆盖被排除的那一个文件。两段都必须跑，缺一不可。
+>
+> **文件清单已由 `browser*.ts` 通配收窄为显式列举**：通配会匹配 `browserFoldersSlice.ts`（含 T9 有意留下的死键 writer，归 Task 20 删除），使门禁不可满足。收窄时另外 6 个被通配匹配到的 browser 文件（`browserDownloadsSlice` / `browserFoldersDeletion` / `browserFoldersTypes` / `browserFoldersUtils` / `browserSliceShared` / `browserTypes`）已逐一核查**无裸写**，故收窄不产生盲区；这是有意的收窄，不是疏漏。
 
 ```bash
 # 主扫描：四面板文件，排除唯一例外文件 browserFoldersSlice.ts
