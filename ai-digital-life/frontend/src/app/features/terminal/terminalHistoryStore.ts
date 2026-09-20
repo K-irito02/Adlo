@@ -1,11 +1,12 @@
-import { makePersistedWriter, readJson } from '@stores/storageHelpers';
+import { readJson } from '@stores/storageHelpers';
+import { persist } from '@stores/persisted/persist';
 
 /**
  * 按**标签 id** 持久化「历史分段索引」：该标签历次 PTY 会话的 sessionId 列表（旧 → 新）。
  * 每段的行内容按**行块**存储，键为 `${sessionId}#${seq}`，值为 `HistoryChunk` 的 JSON。
  * 本索引只记录「有过哪些段、顺序如何、何时结束、每块的体积与行数」。
  */
-export const TERMINAL_HISTORY_INDEX_KEY = 'adl-terminal:history-index';
+export const TERMINAL_HISTORY_INDEX_KEY = 'adl:terminal.historyIndex';
 
 /** 单个行块的元信息 */
 export interface TerminalHistoryChunkMeta {
@@ -44,8 +45,6 @@ export function staleChunkRange(
 ): { start: number; count: number } {
   return { start: nextCount, count: Math.max(0, previousCount - nextCount) };
 }
-
-const scheduleWrite = makePersistedWriter(TERMINAL_HISTORY_INDEX_KEY);
 
 function isChunkMeta(value: unknown): value is TerminalHistoryChunkMeta {
   if (!value || typeof value !== 'object') {
@@ -94,11 +93,28 @@ export function normalizeHistoryIndex(raw: unknown): Record<string, TerminalHist
   return result;
 }
 
+// 模块级缓存：historyIndex 是唯一 sync:false 条目，构造期 hydrateAll 不调用其 apply，
+// 缓存可能始终为空。loadAll 必须按需读一次存储再返回缓存（沿用 ensureHistoryIndexLoaded 思路），
+// 否则 TerminalHistoryBudgetSection 的 useMemo 统计已用字节会显示 0。
+let cache: Record<string, TerminalHistorySegment[]> = {};
+let loaded = false;
+
 export const terminalHistoryStore = {
   loadAll(): Record<string, TerminalHistorySegment[]> {
-    return normalizeHistoryIndex(readJson<unknown>(TERMINAL_HISTORY_INDEX_KEY, {}));
+    if (!loaded) {
+      cache = normalizeHistoryIndex(readJson<unknown>(TERMINAL_HISTORY_INDEX_KEY, {}));
+      loaded = true;
+    }
+    return cache;
   },
   saveAll(map: Record<string, TerminalHistorySegment[]>): void {
-    scheduleWrite(map);
+    cache = map;
+    loaded = true;
+    persist(TERMINAL_HISTORY_INDEX_KEY, map);
+  },
+  /** 构造期水合汇聚器（sync:false 不会被 hydrateAll 调用，但登记表需声明以保类型一致） */
+  apply(value: Record<string, TerminalHistorySegment[]>): void {
+    cache = value;
+    loaded = true;
   },
 };

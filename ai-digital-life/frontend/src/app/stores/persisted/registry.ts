@@ -58,6 +58,24 @@ import type {
   FilesSearchScope,
 } from '../types';
 import type { HeatmapTab, ChartColorPreset } from '../slices/uiSliceTypes';
+import type { TerminalProfile } from '../types';
+import type { TerminalTabState } from '../slices/terminalSliceTypes';
+import {
+  terminalViewPrefsStore,
+  normalizeTerminalViewPrefs,
+} from '../../features/terminal/terminalViewPrefs';
+import {
+  terminalRegionCollapseStore,
+  normalizeRegionCollapseMap,
+  type RegionCollapse,
+} from '../../features/terminal/terminalRegionCollapse';
+import { terminalCwdStore } from '../../features/terminal/terminalCwdStore';
+import {
+  terminalHistoryStore,
+  normalizeHistoryIndex,
+  type TerminalHistorySegment,
+} from '../../features/terminal/terminalHistoryStore';
+import type { TerminalViewPrefs } from '../../features/terminal/terminalViewPrefs';
 
 // ─────────────────────────────────────────────────────────────
 // 浏览器面板条目的逐项形状校验器（Task 9）
@@ -125,6 +143,58 @@ const isSearchEngine = (item: Record<string, unknown>): boolean =>
 
 const BACKGROUND_MODES: readonly BackgroundMode[] = ['default', 'image', 'video'];
 const BACKGROUND_FITS: readonly BackgroundFit[] = ['cover', 'contain', 'repeat'];
+
+// ─────────────────────────────────────────────────────────────
+// 终端面板条目的逐项形状校验器（Task 10）
+//
+// 与浏览器条目同构：同一键的"预期形状"本应用只能有一份定义。
+// `isTerminalTabState` 被登记表的 `read` 与 terminalComposite.ts 的跨键归一化
+// 复用（见导出）；`readStringEnum` / `readProfileMap` 也是唯一来源，
+// 复合水合器不再另写一份更弱的"期望形状"（这是 T9 被退回的根因）。
+// ─────────────────────────────────────────────────────────────
+
+const TERMINAL_PROFILES: readonly TerminalProfile[] = ['powershell', 'bash', 'cmd'];
+
+export const isTerminalTabState = (item: Record<string, unknown>): boolean => {
+  if (typeof item.id !== 'string') {
+    return false;
+  }
+  if (typeof item.workspaceId !== 'string') {
+    return false;
+  }
+  if (typeof item.title !== 'string') {
+    return false;
+  }
+  if (item.profile !== 'powershell' && item.profile !== 'bash' && item.profile !== 'cmd') {
+    return false;
+  }
+  if (item.status !== 'idle' && item.status !== 'running' && item.status !== 'terminated') {
+    return false;
+  }
+  if (typeof item.isPinned !== 'boolean') {
+    return false;
+  }
+  if (typeof item.sortOrder !== 'number') {
+    return false;
+  }
+  return true;
+};
+
+/** 按工作区隔离的「默认终端类型」映射：任一值不是合法 profile 即整体拒绝 */
+function readProfileMap(raw: unknown): Record<string, TerminalProfile> | undefined {
+  const record = readStringRecord(raw);
+  if (record === undefined) {
+    return undefined;
+  }
+  const result: Record<string, TerminalProfile> = {};
+  for (const [workspaceId, profile] of Object.entries(record)) {
+    if (!(TERMINAL_PROFILES as readonly string[]).includes(profile)) {
+      return undefined;
+    }
+    result[workspaceId] = profile as TerminalProfile;
+  }
+  return result;
+}
 
 /** 背景配置：mode/fit 必须在白名单内，可选字符串字段按原样保留 */
 function readBackgroundConfig(raw: unknown): BackgroundConfig | undefined {
@@ -478,6 +548,104 @@ export const registry = {
     scope: 'global',
     read: readString,
   }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 终端面板迁移批次（Task 10）：以下键取代 adl-ui:terminal-* 与 adl-terminal:* 遗留键。
+  // 全部写盘走 persist()/persistField()，全部读取走 hydrateAll()（同步，唯一水合时机）；
+  // terminalSlice 的 requestIdleCallback/setTimeout 延迟水合已随本任务删除。
+  //
+  // 甲类（store 字段）：hydrateAll 写补丁；乙类（外部模块级微型存储）：hydrateAll 调 apply
+  // 交回模块缓存。乙类无 prune（见 brief：剪枝归 Task 15/17）。historyIndex 唯一 sync:false。
+  // ─────────────────────────────────────────────────────────────
+  'adl:terminal.tabs': defineEntry<TerminalTabState[]>({
+    key: 'adl:terminal.tabs',
+    field: 'terminalTabs',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<TerminalTabState>(isTerminalTabState),
+  }),
+  'adl:terminal.activeTabId': defineEntry<string>({
+    key: 'adl:terminal.activeTabId',
+    field: 'terminalActiveTabId',
+    fallback: '',
+    scope: 'global',
+    read: readString,
+  }),
+  'adl:terminal.defaultProfile': defineEntry<TerminalProfile>({
+    key: 'adl:terminal.defaultProfile',
+    field: 'defaultTerminalProfile',
+    fallback: 'powershell',
+    scope: 'global',
+    read: readStringEnum<TerminalProfile>(TERMINAL_PROFILES),
+  }),
+  'adl:terminal.workspaceDefaultProfiles': defineEntry<Record<string, TerminalProfile>>({
+    key: 'adl:terminal.workspaceDefaultProfiles',
+    field: 'workspaceDefaultProfiles',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readProfileMap,
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:terminal.shellSelectorProfile': defineEntry<TerminalProfile>({
+    key: 'adl:terminal.shellSelectorProfile',
+    field: 'shellSelectorProfile',
+    fallback: 'powershell',
+    scope: 'global',
+    read: readStringEnum<TerminalProfile>(TERMINAL_PROFILES),
+  }),
+  'adl:terminal.navigatorWidth': defineEntry<number>({
+    key: 'adl:terminal.navigatorWidth',
+    field: 'terminalNavigatorWidth',
+    fallback: 240,
+    scope: 'global',
+    read: readNumberInRange(180, 480),
+  }),
+  'adl:terminal.workspaceExpanded': defineEntry<Record<string, boolean>>({
+    key: 'adl:terminal.workspaceExpanded',
+    field: 'terminalWorkspaceExpanded',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readBooleanRecord,
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:terminal.workspaceId': defineEntry<string>({
+    key: 'adl:terminal.workspaceId',
+    field: 'terminalWorkspaceId',
+    fallback: '',
+    scope: 'global',
+    read: readString,
+  }),
+
+  // 乙类：水合目标为 features/terminal/* 的模块级微型存储（apply 交回缓存）
+  'adl:terminal.viewPrefs': defineEntry<TerminalViewPrefs>({
+    key: 'adl:terminal.viewPrefs',
+    apply: (value) => terminalViewPrefsStore.apply(value),
+    fallback: { mode: 'single', historyFirst: true, historyRatio: 0.32 },
+    scope: 'global',
+    read: normalizeTerminalViewPrefs,
+  }),
+  'adl:terminal.regionCollapse': defineEntry<Record<string, RegionCollapse>>({
+    key: 'adl:terminal.regionCollapse',
+    apply: (value) => terminalRegionCollapseStore.apply(value),
+    fallback: {},
+    scope: 'byTabId',
+    read: normalizeRegionCollapseMap,
+  }),
+  'adl:terminal.cwdByTab': defineEntry<Record<string, string>>({
+    key: 'adl:terminal.cwdByTab',
+    apply: (value) => terminalCwdStore.apply(value),
+    fallback: {},
+    scope: 'byTabId',
+    read: readStringRecord,
+  }),
+  'adl:terminal.historyIndex': defineEntry<Record<string, TerminalHistorySegment[]>>({
+    key: 'adl:terminal.historyIndex',
+    apply: (value) => terminalHistoryStore.apply(value),
+    fallback: {},
+    scope: 'byTabId',
+    read: normalizeHistoryIndex,
+    sync: false,
+  }),
 } as const;
 
 export type Registry = typeof registry;
@@ -516,10 +684,6 @@ export const PERSIST_KEEP_KEYS = new Set<string>([
   'adl-search:max-results',
   'adl-search:page-size',
   'adl-search:use-gitignore',
-  'adl-terminal:cwd-by-tab',
-  'adl-terminal:history-index',
-  'adl-terminal:region-collapse',
-  'adl-terminal:view-prefs',
   'adl-ui:active-communicate-platform',
   'adl-ui:active-github-section',
   'adl-ui:browser-workspace-expanded',
@@ -538,12 +702,4 @@ export const PERSIST_KEEP_KEYS = new Set<string>([
   'adl-ui:right-panel-mode',
   'adl-ui:sysmon-collapsed',
   'adl-ui:sysmon-scroll-top',
-  'adl-ui:terminal-active-tab',
-  'adl-ui:terminal-default-profile',
-  'adl-ui:terminal-navigator-width',
-  'adl-ui:terminal-shell-selector-profile',
-  'adl-ui:terminal-tabs',
-  'adl-ui:terminal-workspace-default-profiles',
-  'adl-ui:terminal-workspace-expanded',
-  'adl-ui:terminal-workspace-id',
 ]);

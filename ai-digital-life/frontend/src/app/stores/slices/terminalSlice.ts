@@ -6,16 +6,8 @@ import type { StoreState } from '../StoreState';
 import type { TerminalProfile, ToolId } from '../types';
 import type { TerminalTabState } from './terminalSliceTypes';
 import { persistField } from '../persisted/apply';
+import { persist } from '../persisted/persist';
 import {
-  TERMINAL_TABS_KEY,
-  TERMINAL_ACTIVE_TAB_KEY,
-  TERMINAL_DEFAULT_PROFILE_KEY,
-  TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
-  TERMINAL_NAVIGATOR_WIDTH_KEY,
-  TERMINAL_WORKSPACE_EXPANDED_KEY,
-  TERMINAL_WORKSPACE_ID_KEY,
-  TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
-  normalizeTerminalShellProfile,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
@@ -23,30 +15,13 @@ import {
 
 export type { TerminalTabState };
 export {
-  TERMINAL_TABS_KEY,
-  TERMINAL_ACTIVE_TAB_KEY,
-  TERMINAL_DEFAULT_PROFILE_KEY,
-  TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
-  TERMINAL_NAVIGATOR_WIDTH_KEY,
-  TERMINAL_WORKSPACE_EXPANDED_KEY,
-  TERMINAL_WORKSPACE_ID_KEY,
-  TERMINAL_SHELL_SELECTOR_PROFILE_KEY,
-  normalizeTerminalShellProfile,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
 };
 
 // Helper functions
-import {
-  clamp,
-  readJson,
-  readNumber,
-  createUiId,
-  makePersistedWriter,
-  makePersistedNumberWriter,
-} from '../shared';
-import { STORAGE_HYDRATION_DELAY_MS } from '../constants';
+import { clamp, createUiId } from '../shared';
 
 function deriveTerminalTitle(profile: TerminalProfile, count: number): string {
   const label = profile === 'powershell' ? 'PowerShell' : profile === 'bash' ? 'Bash' : 'CMD';
@@ -79,74 +54,6 @@ function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
     settings: false,
     communicate: false,
   };
-}
-
-// Persisted writers — coalesce multiple localStorage writes via shared 50ms scheduler
-const writeTerminalTabs = makePersistedWriter(TERMINAL_TABS_KEY);
-const writeTerminalActiveTab = makePersistedWriter(TERMINAL_ACTIVE_TAB_KEY);
-const writeDefaultProfile = makePersistedWriter(TERMINAL_DEFAULT_PROFILE_KEY);
-const writeWorkspaceDefaultProfiles = makePersistedWriter(TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY);
-const writeWorkspaceExpanded = makePersistedWriter(TERMINAL_WORKSPACE_EXPANDED_KEY);
-const writeNavigatorWidth = makePersistedNumberWriter(TERMINAL_NAVIGATOR_WIDTH_KEY);
-const writeTerminalWorkspaceId = makePersistedWriter(TERMINAL_WORKSPACE_ID_KEY);
-const writeShellSelectorProfile = makePersistedWriter(TERMINAL_SHELL_SELECTOR_PROFILE_KEY);
-
-// Lazy localStorage hydration — reads persisted values in idle time
-let _defaultsHydrated = false;
-
-function hydrateTerminalDefaults(
-  get: () => StoreState,
-  set: (partial: Partial<StoreState>) => void,
-): void {
-  if (_defaultsHydrated) {
-    return;
-  }
-  _defaultsHydrated = true;
-  const doHydrate = () => {
-    const tabs = readJson<TerminalTabState[]>(TERMINAL_TABS_KEY, []);
-    const activeTabId = readJson<string>(TERMINAL_ACTIVE_TAB_KEY, '');
-    // 全局默认同样可能脏读：先归一化再作为选择器回退，避免一处损坏污染两个字段
-    const profile = normalizeTerminalShellProfile(
-      readJson<TerminalProfile>(TERMINAL_DEFAULT_PROFILE_KEY, 'powershell'),
-      'powershell',
-    );
-    const workspaceProfiles = readJson<Record<string, TerminalProfile>>(
-      TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
-      {},
-    );
-    const width = readNumber(
-      TERMINAL_NAVIGATOR_WIDTH_KEY,
-      DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
-      TERMINAL_NAVIGATOR_WIDTH_MIN,
-      TERMINAL_NAVIGATOR_WIDTH_MAX,
-    );
-    const workspaceExpanded = readJson<Record<string, boolean>>(
-      TERMINAL_WORKSPACE_EXPANDED_KEY,
-      {},
-    );
-    const persistedWorkspaceId = readJson<string>(TERMINAL_WORKSPACE_ID_KEY, '');
-    // 选择器 profile 回退到全局默认（首次无记录时跟随默认）；非法值同样回退
-    const shellProfile = normalizeTerminalShellProfile(
-      readJson<TerminalProfile>(TERMINAL_SHELL_SELECTOR_PROFILE_KEY, profile),
-      profile,
-    );
-    set({
-      terminalTabs: tabs,
-      terminalTabsById: buildTabsById(tabs),
-      terminalActiveTabId: activeTabId,
-      defaultTerminalProfile: profile,
-      shellSelectorProfile: shellProfile,
-      workspaceDefaultProfiles: workspaceProfiles,
-      terminalNavigatorWidth: width,
-      terminalWorkspaceExpanded: workspaceExpanded,
-      terminalWorkspaceId: typeof persistedWorkspaceId === 'string' ? persistedWorkspaceId : '',
-    });
-  };
-  if (typeof requestIdleCallback === 'function') {
-    requestIdleCallback(doHydrate, { timeout: 1000 });
-  } else {
-    setTimeout(doHydrate, STORAGE_HYDRATION_DELAY_MS);
-  }
 }
 
 const initialTerminalTabs: TerminalTabState[] = [];
@@ -186,9 +93,8 @@ export interface TerminalSlice {
 
 export const createTerminalSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  get: () => StoreState,
+  _get: () => StoreState,
 ): TerminalSlice => {
-  hydrateTerminalDefaults(get, set);
   return {
     terminalTabs: initialTerminalTabs,
     terminalTabsById: {},
@@ -229,8 +135,8 @@ export const createTerminalSlice = (
           sortOrder: maxSortOrder + 1,
         };
         const nextTabs = sortTabs([...state.terminalTabs, tab]);
-        writeTerminalTabs(nextTabs);
-        writeTerminalActiveTab(tab.id);
+        persist('adl:terminal.tabs', nextTabs);
+        persist('adl:terminal.activeTabId', tab.id);
         return {
           terminalTabs: nextTabs,
           terminalTabsById: buildTabsById(nextTabs),
@@ -239,7 +145,7 @@ export const createTerminalSlice = (
       }),
 
     terminalSelectTab: (tabId) => {
-      writeTerminalActiveTab(tabId);
+      persist('adl:terminal.activeTabId', tabId);
       set({ terminalActiveTabId: tabId });
     },
 
@@ -251,8 +157,8 @@ export const createTerminalSlice = (
           state.terminalActiveTabId === tabId
             ? (nextTabs[nextTabs.length - 1]?.id ?? '')
             : state.terminalActiveTabId;
-        writeTerminalTabs(nextTabs);
-        writeTerminalActiveTab(nextActive);
+        persist('adl:terminal.tabs', nextTabs);
+        persist('adl:terminal.activeTabId', nextActive);
         return {
           terminalTabs: nextTabs,
           terminalTabsById: buildTabsById(nextTabs),
@@ -267,7 +173,7 @@ export const createTerminalSlice = (
             tab.id === state.terminalActiveTabId ? { ...tab, ...patch } : tab,
           ),
         );
-        writeTerminalTabs(nextTabs);
+        persist('adl:terminal.tabs', nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
@@ -276,7 +182,7 @@ export const createTerminalSlice = (
         const nextTabs = sortTabs(
           state.terminalTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab)),
         );
-        writeTerminalTabs(nextTabs);
+        persist('adl:terminal.tabs', nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
@@ -294,7 +200,7 @@ export const createTerminalSlice = (
             return tab;
           }),
         );
-        writeTerminalTabs(nextTabs);
+        persist('adl:terminal.tabs', nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
 
@@ -312,7 +218,7 @@ export const createTerminalSlice = (
           sortOrder: index,
         }));
 
-        writeTerminalTabs(reorderedWithSort);
+        persist('adl:terminal.tabs', reorderedWithSort);
         return {
           terminalTabs: reorderedWithSort,
           terminalTabsById: buildTabsById(reorderedWithSort),
@@ -330,8 +236,8 @@ export const createTerminalSlice = (
           nextTabs.find((tab) => tab.id === state.terminalActiveTabId) !== undefined
             ? state.terminalActiveTabId
             : (nextTabs[nextTabs.length - 1]?.id ?? '');
-        writeTerminalTabs(nextTabs);
-        writeTerminalActiveTab(nextActive);
+        persist('adl:terminal.tabs', nextTabs);
+        persist('adl:terminal.activeTabId', nextActive);
         return {
           terminalTabs: nextTabs,
           terminalTabsById: buildTabsById(nextTabs),
@@ -340,34 +246,19 @@ export const createTerminalSlice = (
       }),
 
     setDefaultTerminalProfile: (profile) => {
-      try {
-        window.localStorage.setItem(TERMINAL_DEFAULT_PROFILE_KEY, JSON.stringify(profile));
-      } catch (err) {
-        console.warn('terminalSlice: localStorage operation failed:', err);
-      }
-      writeDefaultProfile(profile);
+      persist('adl:terminal.defaultProfile', profile);
       set({ defaultTerminalProfile: profile });
     },
 
-    setWorkspaceDefaultTerminalProfile: (workspaceId, profile) => {
+    setWorkspaceDefaultTerminalProfile: (workspaceId, profile) =>
       set((state) => {
         const nextWorkspaceProfiles = { ...state.workspaceDefaultProfiles, [workspaceId]: profile };
-        try {
-          window.localStorage.setItem(
-            TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY,
-            JSON.stringify(nextWorkspaceProfiles),
-          );
-        } catch (err) {
-          console.warn('terminalSlice: localStorage operation failed:', err);
-        }
-        writeWorkspaceDefaultProfiles(nextWorkspaceProfiles);
-        return { workspaceDefaultProfiles: nextWorkspaceProfiles };
-      });
-    },
+        return persistField('adl:terminal.workspaceDefaultProfiles', nextWorkspaceProfiles);
+      }),
 
     setTerminalNavigatorWidth: (width) => {
       const next = clamp(width, TERMINAL_NAVIGATOR_WIDTH_MIN, TERMINAL_NAVIGATOR_WIDTH_MAX);
-      writeNavigatorWidth(next);
+      persist('adl:terminal.navigatorWidth', next);
       set({ terminalNavigatorWidth: next });
     },
 
@@ -387,31 +278,19 @@ export const createTerminalSlice = (
       }),
 
     setTerminalWorkspaceExpanded: (expanded) => {
-      writeWorkspaceExpanded(expanded);
+      persist('adl:terminal.workspaceExpanded', expanded);
       set({ terminalWorkspaceExpanded: expanded });
     },
 
     setTerminalPersisted: (persisted) => set({ terminalPersisted: persisted }),
 
     setTerminalWorkspaceId: (workspaceId) => {
-      // 与 setDefaultTerminalProfile 同策略双写：直接写保证关窗即时落盘，
-      // 去抖写合并跨 slice 写入。去抖调度器无 pagehide flush，仅靠它是不可靠的。
-      try {
-        window.localStorage.setItem(TERMINAL_WORKSPACE_ID_KEY, JSON.stringify(workspaceId));
-      } catch (err) {
-        console.warn('terminalSlice: localStorage operation failed:', err);
-      }
-      writeTerminalWorkspaceId(workspaceId);
+      persist('adl:terminal.workspaceId', workspaceId);
       set({ terminalWorkspaceId: workspaceId });
     },
 
     setShellSelectorProfile: (profile) => {
-      try {
-        window.localStorage.setItem(TERMINAL_SHELL_SELECTOR_PROFILE_KEY, JSON.stringify(profile));
-      } catch (err) {
-        console.warn('terminalSlice: localStorage operation failed:', err);
-      }
-      writeShellSelectorProfile(profile);
+      persist('adl:terminal.shellSelectorProfile', profile);
       set({ shellSelectorProfile: profile });
     },
   };

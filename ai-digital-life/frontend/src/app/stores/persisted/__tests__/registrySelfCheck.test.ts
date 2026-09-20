@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { registryEntries } from '../registry';
 import { parsePersistKey, PERSIST_DOMAINS, type PruneCtx } from '../entry';
+import type { StoreState } from '../../StoreState';
 
 const SYNC_BYTES_LIMIT = 32 * 1024;
 
@@ -25,9 +26,22 @@ describe('registry self-check', () => {
   // （如 Object.fromEntries），编译期保证消失，此处必须重新引入唯一性断言。
 
   it('store fields are unique — one field must not be declared by two keys', () => {
-    const fields = registryEntries.map((entry) => entry.field as string);
+    const fields = registryEntries
+      .map((entry) => entry.field)
+      .filter((field) => field !== undefined) as (keyof StoreState)[];
     const duplicates = fields.filter((field, index) => fields.indexOf(field) !== index);
     expect(duplicates).toEqual([]);
+  });
+
+  it('every entry declares exactly one of field / apply', () => {
+    for (const entry of registryEntries) {
+      const hasField = entry.field !== undefined;
+      const hasApply = entry.apply !== undefined;
+      expect(
+        hasField !== hasApply,
+        `entry ${entry.key} must declare exactly one of field / apply (got field=${hasField}, apply=${hasApply})`,
+      ).toBe(true);
+    }
   });
 
   it('every entry declares a scope', () => {

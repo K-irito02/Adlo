@@ -19,15 +19,8 @@ export interface TerminalTabState {
 // 注意：“命令历史（最近命令）”功能已彻底删除，不再保留 CommandHistoryEntry 与
 // TERMINAL_COMMAND_HISTORY_KEY。旧版本 localStorage 中的孤儿键无需迁移，会自然废弃。
 
-// Local storage keys
-export const TERMINAL_TABS_KEY = 'adl-ui:terminal-tabs';
-export const TERMINAL_ACTIVE_TAB_KEY = 'adl-ui:terminal-active-tab';
-export const TERMINAL_DEFAULT_PROFILE_KEY = 'adl-ui:terminal-default-profile';
-export const TERMINAL_WORKSPACE_DEFAULT_PROFILES_KEY = 'adl-ui:terminal-workspace-default-profiles';
-export const TERMINAL_NAVIGATOR_WIDTH_KEY = 'adl-ui:terminal-navigator-width';
-export const TERMINAL_WORKSPACE_EXPANDED_KEY = 'adl-ui:terminal-workspace-expanded';
-export const TERMINAL_WORKSPACE_ID_KEY = 'adl-ui:terminal-workspace-id';
-export const TERMINAL_SHELL_SELECTOR_PROFILE_KEY = 'adl-ui:terminal-shell-selector-profile';
+// 本地存储键已迁至 persisted/registry.ts（adl:terminal.* 命名空间，Task 10）。
+// 此处不再导出任何 adl-ui:terminal-* / adl-terminal:* 遗留字面量，旧键由启动清理删除。
 
 /**
  * TerminalProfile 合法值表：Record key 受联合类型约束，新增终端类型时

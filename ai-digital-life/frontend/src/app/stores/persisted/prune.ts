@@ -152,6 +152,10 @@ export function pruneRegistry(
     if (!entry.prune) {
       continue;
     }
+    // 乙类条目没有 store 字段，无法从 store 快照取值；其剪枝归 Task 15/17（见 brief）
+    if (entry.field === undefined) {
+      continue;
+    }
     const field = entry.field as string;
     const value = current[field];
     if (value === undefined) {

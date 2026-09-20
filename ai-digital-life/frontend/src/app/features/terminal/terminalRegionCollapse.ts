@@ -1,6 +1,7 @@
-import { makePersistedWriter, readJson } from '@stores/storageHelpers';
+import { readJson } from '@stores/storageHelpers';
+import { persist } from '@stores/persisted/persist';
 
-export const TERMINAL_REGION_COLLAPSE_KEY = 'adl-terminal:region-collapse';
+export const TERMINAL_REGION_COLLAPSE_KEY = 'adl:terminal.regionCollapse';
 
 export type RegionCollapse = 'none' | 'history' | 'live';
 export type RegionName = 'history' | 'live';
@@ -49,8 +50,6 @@ export function isCollapseButtonVisible(hasHistory: boolean): boolean {
   return hasHistory;
 }
 
-const scheduleWrite = makePersistedWriter(TERMINAL_REGION_COLLAPSE_KEY);
-
 export function normalizeRegionCollapseMap(raw: unknown): Record<string, RegionCollapse> {
   const source = (raw ?? {}) as Record<string, unknown>;
   const out: Record<string, RegionCollapse> = {};
@@ -62,11 +61,27 @@ export function normalizeRegionCollapseMap(raw: unknown): Record<string, RegionC
   return out;
 }
 
+// 模块级缓存：构造期水合（persisted/registry 的 apply 汇聚器）填值，之后 load 直接返回缓存。
+// cacheSet 防御：构造期 apply 未运行（测试路径 / 提前调用）时，按需读一次存储避免返回错误空值。
+let cache: Record<string, RegionCollapse> = {};
+let cacheSet = false;
+
 export const terminalRegionCollapseStore = {
   load(): Record<string, RegionCollapse> {
-    return normalizeRegionCollapseMap(readJson<unknown>(TERMINAL_REGION_COLLAPSE_KEY, {}));
+    if (!cacheSet) {
+      cache = normalizeRegionCollapseMap(readJson<unknown>(TERMINAL_REGION_COLLAPSE_KEY, {}));
+      cacheSet = true;
+    }
+    return cache;
   },
   save(map: Record<string, RegionCollapse>): void {
-    scheduleWrite(map);
+    cache = map;
+    cacheSet = true;
+    persist(TERMINAL_REGION_COLLAPSE_KEY, map);
+  },
+  /** 构造期水合：把校验+剪枝后的值交回模块缓存 */
+  apply(value: Record<string, RegionCollapse>): void {
+    cache = value;
+    cacheSet = true;
   },
 };
