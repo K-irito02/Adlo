@@ -19,10 +19,10 @@ describe('registry self-check', () => {
     }
   });
 
-  it('keys are unique across the registry', () => {
-    const keys = registryEntries.map((entry) => entry.key);
-    expect(new Set(keys).size).toBe(keys.length);
-  });
+  // 此处不再对「键名唯一」做运行时断言：registry 是对象字面量，重复键在编译期即报错
+  // （见 registry.ts 的规则 1），编译期保证严格强于等价的运行时断言。
+  // 但该保证以 registry 保持为对象字面量为前提 —— 若日后改为运行时构造的映射
+  // （如 Object.fromEntries），编译期保证消失，此处必须重新引入唯一性断言。
 
   it('store fields are unique — one field must not be declared by two keys', () => {
     const fields = registryEntries.map((entry) => entry.field as string);
