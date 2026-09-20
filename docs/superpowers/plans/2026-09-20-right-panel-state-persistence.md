@@ -778,7 +778,7 @@ describe('pruneDirPathsByWorkspace', () => {
   it('NEGATIVE: keeps all directory paths when that workspace tree is not loaded (R2)', () => {
     const result = pruneDirPathsByWorkspace(
       value,
-      ctx({ workspaceIds: new Set(['workspace_a']) }),
+      ctx({ workspaceIds: new Set(['workspace_a', 'workspace_b']) }),
     );
     expect(result.changed).toBe(false);
     expect(result.value).toEqual(value);
@@ -957,7 +957,7 @@ export function prunePathPrefix<T extends Record<string, unknown>>(
     }
     next[path] = pathValue;
   }
-  return changed ? { value: next as T, changed: true } : { value, changed: false };
+  return changed ? { value: next as T, changed: true } : { value: paths, changed: false };
 }
 
 /**
