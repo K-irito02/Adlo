@@ -164,7 +164,7 @@ type DirExpansion = {
 
 ```ts
 // registry.ts
-export type Entry<T> = {
+export type EntryBase<T> = {
   key: string;                    // 完整键名，全表唯一
   fallback: T;                    // 无数据 / 解析失败时的兜底
   scope: 'global' | 'byWorkspaceId' | 'byTabId';
@@ -172,7 +172,24 @@ export type Entry<T> = {
   prune?: (v: T, ctx: PruneCtx) => { value: T; changed: boolean };  // 引用是否仍存在
   sync?: boolean;                 // 是否允许构造期同步读，默认 true
 };
+
+// 值的归宿（二者恰有其一）—— 水合必须知道把值交给谁
+export type Entry<T> = EntryBase<T> &
+  (
+    | { field: keyof StoreState; apply?: never }   // 甲类：store 字段
+    | { field?: never; apply: (value: T) => void } // 乙类：模块级微型存储的缓存
+  );
 ```
+
+**为什么需要"乙类"（外部水合目标）**：并非所有持久化状态都住在 Zustand store 里。`features/terminal/` 下有四个模块级微型存储（`terminalViewPrefs` / `terminalRegionCollapse` / `terminalCwdStore` / `terminalHistoryStore`），它们是 `load()/save()` 形式、**没有订阅机制**，且其中一个（终端历史索引）按 §3.3 要点 3 明确**不得**进入构造期同步读。把它们搬进 store 会让大对象常驻并触发无关渲染通知；因此登记表允许条目声明 `apply` 汇聚器，构造期水合把校验+剪枝后的值交回该模块自己的缓存。
+
+**乙类的三条附带规则**：
+
+1. `sync: false` 的条目**既不产出 store 补丁、也不调用 `apply`** —— 它的读取沿用各自既有的按需路径（如 `ensureHistoryIndexLoaded`），该路径必须读**新键名**。
+2. `apply` 汇聚器只在构造期被调用一次（水合幂等），不得被用作运行时同步机制。
+3. `field` 唯一性断言只覆盖甲类；乙类由"恰有其一"断言保证不重复声明归宿。
+
+**为什么乙类不是"第二套读取路径"**：按需路径针对 `sync: false` 条目，本就是 §3.3 要点 3 强制要求存在的例外（大对象不得同步读）；乙类的其余三个条目仍是构造期同步水合，与甲类共用同一时机。
 
 ```ts
 // index.ts —— 仅两个入口，职责互斥
@@ -212,7 +229,7 @@ store 模块加载
 
 1. **竞态是被"移除"的，不是被"防住"的**。全应用仅剩一个水合时机（store 构造）且为同步 → 异步写入窗口从结构上不存在，因此**不需要** `hydrated` 标志位这类防御性代码（这正是拒绝"异步水合 + 写入门控"方案的原因：门控靠每个写入点自觉判断，漏一处即复发，且首帧会出现可见抖动）。
 2. 与现有惯例一致：面板宽度、整体折叠、导航模式**本来**就是构造期同步读的（`uiSliceWidths.ts:105-148`、`searchSlice.ts:216-217,232-233`、`useRightPanelViewProps.ts:30`）。本设计是把展开态接入同一轨道，**不引入第二套读取路径**。
-3. **同步读的准入线（硬性）**：单条数据必须体量小、且影响首帧外观。终端历史索引、浏览器下载列表等大对象**不允许**进登记表，继续走原有异步路径，登记时须显式标注。
+3. **同步读的准入线（硬性）**：单条数据必须体量小、且影响首帧外观。终端历史索引、浏览器下载列表等大对象**必须显式标注 `sync: false`**：它们仍进登记表（以获得键名规范、校验、剪枝与统一写通道），但**既不产出 store 补丁、也不调用 `apply`**，读取沿用各自既有的按需路径。原文此处写作"不允许进登记表…登记时须显式标注"，两句互斥，已按上文更正。
 4. `hydrateAll()` 幂等且只执行一次（模块级单例）。
 
 ### 3.4 折叠意图（决策：尊重手动折叠）

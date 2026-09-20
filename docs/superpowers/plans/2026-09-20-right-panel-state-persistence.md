@@ -15,7 +15,8 @@
 - **禁止**添加或保留任何数据格式兼容 / 旧版本迁移代码。schema 变更一律"换键名或加版本段 + 启动清理旧键"，不写读取旧格式的代码。
 - **唯一写盘通道**：所有 UI 状态写入必须经 `persist()`。**禁止**任何 slice 自建去抖写入器、**禁止**直接调用 `localStorage.setItem`。
 - **唯一水合时机**：`hydrateAll()` 在 store 构造期同步执行一次。**禁止**新增第二个异步水合路径（不得使用 `requestIdleCallback` / `setTimeout` 延迟水合）。
-- **同步读准入线**：登记表中声明同步读的条目，**单条序列化体积 ≤ 32 KB**。大对象（终端历史索引、浏览器下载列表等）不得进入登记表，须显式标注 `sync: false`。
+- **同步读准入线**：登记表中声明同步读的条目，**单条序列化体积 ≤ 32 KB**。大对象（终端历史索引、浏览器下载列表等）**必须显式标注 `sync: false`**：仍进登记表（获得键名规范 / 校验 / 剪枝 / 统一写通道），但既不产出 store 补丁、也不调用 `apply`；读取沿用各自既有的按需路径。
+- **条目归宿规则**：每条登记的 `field` 与 `apply` **恰有其一**（由 `registrySelfCheck.test.ts` 强制）。甲类 `field: keyof StoreState` 用于住在 store 里的状态；乙类 `apply: (value) => void` 用于住在模块级微型存储里的状态（如 `features/terminal/` 下的四个 `load()/save()` 模块）。**禁止**为了填 `field` 而把大对象或高频对象搬进 Zustand store —— 那会与同步读准入线及渲染性能冲突。
 - **剪枝安全规则**：剪枝必须与"参照清单是否就绪"绑定；参照清单为空（工作区列表为空 / 标签列表为空 / 该工作区树未加载或加载失败）时**一律跳过**。
 - **启动清理安全规则（约束每个任务）**：`cleanupUnregisteredKeys()` 会删除所有不在 registry 内的 `adl:` 键。迁移分批进行期间，**每个迁移任务（Task 7/9/10/11/29）必须把它刚登记的键从 `PERSIST_KEEP_KEYS` 中删除**，并保证"任何遗留键字面量要么已登记、要么在清单内"。这两条不变量由 `persisted/__tests__/keepListGuard.test.ts` 强制；该测试变红即表示有键会被启动清理误删，或清单存在冗余。`PERSIST_KEEP_KEYS` 只在 `persisted/registry.ts` 中定义一次并导出，store 与测试都从那里 import。
 - **键名规范**：`adl:<域>.<名称>`，域取值 `ui|files|changes|browser|terminal|search|session`；需要变更 schema 时加版本段 `adl:<域>.<名称>.v<N>`。
@@ -2218,19 +2219,34 @@ Expected: PASS；自检的 `field 唯一` 用例保持绿色。
 ## Task 10: 迁移终端面板持久化状态
 
 **Files:**
+- Modify: `frontend/src/app/stores/persisted/entry.ts`（**Step 0**：`PersistEntry` 支持"外部水合目标"，使 `field` 不再必填）
+- Modify: `frontend/src/app/stores/persisted/hydrate.ts`（**Step 0**：对无 `field` 的条目调用其 `apply` 汇聚器）
+- Modify: `frontend/src/app/stores/persisted/__tests__/registrySelfCheck.test.ts`（**Step 0**：新增"`field` / `apply` 恰有其一"断言）
 - Modify: `frontend/src/app/stores/persisted/registry.ts`
-- Modify: `frontend/src/app/stores/slices/terminalSlice.ts`（删除 `hydrateTerminalDefaults` 与 `_defaultsHydrated`）
+- Create: `frontend/src/app/stores/persisted/terminalComposite.ts`（终端复合水合器，见 Step 1b）
+- Modify: `frontend/src/app/stores/slices/terminalSlice.ts`（删除 `hydrateTerminalDefaults` 与 `_defaultsHydrated`；8 个私有 writer 退役）
+- Modify: `frontend/src/app/features/terminal/terminalCwdStore.ts`
+- Modify: `frontend/src/app/features/terminal/terminalHistoryStore.ts`
+- Modify: `frontend/src/app/features/terminal/terminalRegionCollapse.ts`
+- Modify: `frontend/src/app/features/terminal/terminalViewPrefs.ts`
 - Create: `frontend/src/app/stores/slices/__tests__/terminalPersistence.test.ts`
+- Create: `frontend/src/app/stores/persisted/__tests__/terminalComposite.test.ts`
 
 **Interfaces:**
-- Consumes: `defineEntry` / `readBooleanRecord` / `readStringEnum`、`persistField`、`pruneByWorkspaceId` / `pruneByTabId`
+- Consumes: `defineEntry` / `readBooleanRecord` / `readStringEnum`、`persistField` / `persist`、`pruneByWorkspaceId` / `pruneByTabId`
 - Produces: 终端侧登记键（见下表）+ `adl:terminal.*` 命名空间
 
-**登记清单**
+**为什么需要 Step 0（规格 §3.2.1 的 `Entry` 里从来没有 `field`）**
+
+初稿表格把 `viewPrefs` / `regionCollapse` / `cwdByTab` / `historyIndex` 的"字段"写成 `terminalViewPrefs` 等，但**这四个字段在 `StoreState` / `TerminalSlice` 中并不存在** —— 它们住在 `features/terminal/` 下的四个模块级微型存储里（`load()/save()` + 各自的 `makePersistedWriter`）。`field` 是 `keyof StoreState` 的必填项（`entry.ts:79`），因此按原文写**无法通过类型检查**。
+
+同时，把它们搬进 Zustand store 是**错的**：规格 §3.3 要点 3 明确要求"终端历史索引这类大对象不允许进入构造期同步读"，而搬进 store 会让它常驻并随每次 `saveAll` 触发 store 通知。正确做法是让登记表支持"**外部水合目标**"：条目声明 `apply(value)` 汇聚器而非 `field`，水合时把校验后的值交回模块自己的缓存。
+
+**登记清单 — 甲类：store 字段（`field`）**
 
 | 现键名 | 新键名 | 字段 | scope | 解析器 | 剪枝 |
 |---|---|---|---|---|---|
-| `adl-ui:terminal-tabs` | `adl:terminal.tabs` | `terminalTabs` | global | 数组 | — |
+| `adl-ui:terminal-tabs` | `adl:terminal.tabs` | `terminalTabs` | global | 数组（复用 `isTerminalTabState` 条目校验器） | — |
 | `adl-ui:terminal-active-tab` | `adl:terminal.activeTabId` | `terminalActiveTabId` | global | 字符串 | — |
 | `adl-ui:terminal-default-profile` | `adl:terminal.defaultProfile` | `defaultTerminalProfile` | global | 字符串枚举（profile 白名单） | — |
 | `adl-ui:terminal-workspace-default-profiles` | `adl:terminal.workspaceDefaultProfiles` | `workspaceDefaultProfiles` | byWorkspaceId | 字符串映射 | `pruneByWorkspaceId` |
@@ -2238,13 +2254,54 @@ Expected: PASS；自检的 `field 唯一` 用例保持绿色。
 | `adl-ui:terminal-navigator-width` | `adl:terminal.navigatorWidth` | `terminalNavigatorWidth` | global | `readNumberInRange(180, 480)` | — |
 | `adl-ui:terminal-workspace-expanded` | `adl:terminal.workspaceExpanded` | `terminalWorkspaceExpanded` | byWorkspaceId | `readBooleanRecord` | `pruneByWorkspaceId` |
 | `adl-ui:terminal-workspace-id` | `adl:terminal.workspaceId` | `terminalWorkspaceId` | global | 字符串 | — |
-| `adl-terminal:view-prefs` | `adl:terminal.viewPrefs` | `terminalViewPrefs` | global | 对象 | — |
-| `adl-terminal:region-collapse` | `adl:terminal.regionCollapse` | `terminalRegionCollapse` | byTabId | 字符串映射 | `pruneByTabId` |
-| `adl-terminal:cwd-by-tab` | `adl:terminal.cwdByTab` | `terminalCwdByTab` | byTabId | 字符串映射 | `pruneByTabId` |
-| `adl-terminal:history-index` | `adl:terminal.historyIndex` | `terminalHistoryIndex` | byTabId | 数组映射 | `pruneByTabId`；**`sync: false`** |
+
+**登记清单 — 乙类：外部微型存储（`apply`）**
+
+| 现键名 | 新键名 | 所有者 | scope | 解析器 | 剪枝 |
+|---|---|---|---|---|---|
+| `adl-terminal:view-prefs` | `adl:terminal.viewPrefs` | `terminalViewPrefs.ts` | global | `normalizeTerminalViewPrefs` | — |
+| `adl-terminal:region-collapse` | `adl:terminal.regionCollapse` | `terminalRegionCollapse.ts` | byTabId | `normalizeRegionCollapseMap` | `pruneByTabId` |
+| `adl-terminal:cwd-by-tab` | `adl:terminal.cwdByTab` | `terminalCwdStore.ts` | byTabId | 字符串映射 | `pruneByTabId` |
+| `adl-terminal:history-index` | `adl:terminal.historyIndex` | `terminalHistoryStore.ts` | byTabId | `normalizeHistoryIndex` | `pruneByTabId`；**`sync: false`** |
+
 | `adl-ui:terminal-persisted` | 不登记 | — | — | — | 死字段，Task 20 删除 |
 
-> `adl:terminal.historyIndex` 是登记表中**唯一**标注 `sync: false` 的条目：它随会话数增长，可能超过 32 KB，不得进入构造期同步读。它在对应 tab 激活时按需读取（沿用既有 `ensureHistoryIndexLoaded`）。
+> `adl:terminal.historyIndex` 是登记表中**唯一**标注 `sync: false` 的条目：它随会话数增长，可能超过 32 KB，不得进入构造期同步读。它在对应 tab 激活时按需读取（沿用既有 `ensureHistoryIndexLoaded`）—— 这是规格 §3.3 要点 3 允许的**唯一**按需读取例外，`sync: false` 条目既不产出 store 补丁、也不调用 `apply`。
+
+**乙类的统一改造方式（四个文件同构，逐个照做）**
+
+四个微型存储当前都是 `load()/loadAll()`（每次调用 `readJson` 重新解析）+ `save()/saveAll()`（私有去抖 `makePersistedWriter`）。改造为：
+
+1. 模块级缓存 `let cache: T = <fallback>`；`load()/loadAll()` 改为**返回缓存**（起效后不再每次重解析 JSON）。
+2. 登记条目声明 `apply: (value) => { cache = value; }` —— 构造期水合把校验+剪枝后的值交回缓存。
+3. `save()/saveAll()` 改为 `cache = next; persist('<新键名>', next)` —— 退役私有去抖，接入共享去抖与关窗 flush（这正是本任务要修的既有缺陷：这四个 writer **未注册进 `flushCrossSliceWrites`，关窗瞬间的写入必丢**）。
+4. `historyIndex` 例外：`sync: false` 故 `apply` 不会被构造期调用；保留 `ensureHistoryIndexLoaded` 的按需读取，但它改为读**新键名**并写入缓存。
+5. 删除四个 `_KEY` 常量中的**旧字面量**（改成新键名即可，`keepListGuard` 不允许旧字面量残留于生产代码）。
+
+- [ ] **Step 0: 扩展登记表契约以支持外部水合目标**
+
+`entry.ts`：把 `field: keyof StoreState` 改为"`field` 与 `apply` 恰有其一"的联合：
+
+```ts
+type EntryBase<T> = {
+  key: string;
+  fallback: T;
+  scope: PersistScope;
+  read?: (raw: unknown) => T | undefined;
+  prune?: (value: T, ctx: PruneCtx) => PruneResult<T>;
+  sync?: boolean;
+};
+
+export type PersistEntry<T> = EntryBase<T> &
+  (
+    | { field: keyof StoreState; apply?: never }
+    | { field?: never; /** 水合目标为模块级微型存储：把校验后的值交回其缓存 */ apply: (value: T) => void }
+  );
+```
+
+`hydrate.ts`：对 `sync !== false` 的条目，若有 `field` 则写入 `patch`，否则调用 `apply(validated)`；`sync: false` 的条目两条路都不走（既不入补丁也不调 `apply`）。
+
+`registrySelfCheck.test.ts`：把 `field 唯一` 断言改为只遍历带 `field` 的条目；新增断言"每条 ①`field` ②`apply` 恰有其一"（`field !== undefined) !== (apply !== undefined` 必须为真），并保留"每条有 `fallback` 与合法 `scope`"。
 
 - [ ] **Step 1: 写失败测试**
 
@@ -2263,14 +2320,15 @@ describe('terminal panel persistence', () => {
   });
 
   it('restores terminalWorkspaceExpanded after a simulated restart', () => {
-    useAppStore.getState().setTerminalWorkspaceExpanded({ '__independent__': true });
+    useAppStore.getState().setTerminalWorkspaceExpanded({ __independent__: true });
     flushCrossSliceWrites();
     resetHydrationForTest();
     expect(hydrateAll().patch.terminalWorkspaceExpanded).toEqual({ __independent__: true });
   });
 
   it('restores the active terminal tab id', () => {
-    useAppStore.getState().terminalSetActiveTab('terminal-abc');
+    // 真实方法名是 terminalSelectTab（terminalSlice.ts:241）；不存在 terminalSetActiveTab
+    useAppStore.getState().terminalSelectTab('terminal-abc');
     flushCrossSliceWrites();
     resetHydrationForTest();
     expect(hydrateAll().patch.terminalActiveTabId).toBe('terminal-abc');
@@ -2284,17 +2342,38 @@ describe('terminal panel persistence', () => {
 });
 ```
 
+- [ ] **Step 1b: 终端复合水合器（保住被删除的派生行为）**
+
+创建 `frontend/src/app/stores/persisted/terminalComposite.ts`，与 T9 的 `composite.ts` 同构：接在简单条目之后执行，只负责**跨键派生**。要搬过来的行为（都来自即将删除的 `hydrateTerminalDefaults`）：
+
+| 行为 | 现状 | 必须保住 |
+|---|---|---|
+| `terminalTabsById` | `hydrateTerminalDefaults` 里 `buildTabsById(tabs)`；且每次 tab 变更也重建 | 重启后由水合重建；否则标签按 id 检索全失效 |
+| `shellSelectorProfile` 回退链 | 读自己的键 → 非法则回退 `defaultTerminalProfile` → 再非法则 `'powershell'` | 三档回退逐档保留，缺一档即改变观感 |
+
+**关键约束（T9 已踩过的坑）**：复合水合器**不得**自写一套"期望形状"校验，必须复用登记表的条目校验器（`terminalTabs` 用 `isTerminalTabState`）。语义与 T9 一致：**键不存在 ⇒ 视为空；键存在但损坏 ⇒ 不产出补丁**（绝不把畸形值写回 store）。
+
 - [ ] **Step 2: 运行测试确认失败**
 
 ```bash
 cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/slices/__tests__/terminalPersistence.test.ts
 ```
 
-Expected: FAIL。（`terminalSetActiveTab` 若实际方法名不同，按 `terminalSlice.ts` 中导出的真实名称修正测试与实现；不得为此新增方法。）
+Expected: FAIL。注意 `terminalSetActiveTab` 在现有代码中**不存在**，真实方法名是 `terminalSelectTab`（`terminalSlice.ts:241`）—— 上面测试已按真实名写好，不得为此新增方法。
 
 - [ ] **Step 3: 追加登记、删除 idle 水合、写盘改走 `persist`**
 
-按上表追加条目；删除 `terminalSlice.ts:99-160` 的 `hydrateTerminalDefaults` 与调用；`:410-416` 的"直接 `setItem` + 去抖双写"改为单次 `persist('adl:terminal.workspaceId', workspaceId)`（双写是历史遗留，本任务统一为单通道）。
+按甲、乙两张表追加条目；删除 `terminalSlice.ts:95-160` 的 `hydrateTerminalDefaults` / `_defaultsHydrated` 及其调用。
+
+**8 个私有 writer 全部退役**（`terminalSlice.ts:85-92`），对应替换为 `persist` / `persistField`：
+
+| 退役 writer | 替换 |
+|---|---|
+| `writeTerminalTabs` / `writeTerminalActiveTab` / `writeDefaultProfile` / `writeWorkspaceDefaultProfiles` / `writeWorkspaceExpanded` / `writeNavigatorWidth` / `writeTerminalWorkspaceId` / `writeShellSelectorProfile` | 一律 `persist('<新键名>', value)`；所在 setter 若同时改 store 字段，则 `set(persistField('<新键名>', value))`，**两者合并为一次 `persistField`**，不再"先 setItem 再去抖双写" |
+
+**4 处 `setItem` + writer 双写必须收敛为单次 `persist`**：`terminalSlice.ts:344`（defaultProfile）、`:356`（workspaceDefaultProfiles）、`:400`（workspaceId）、`:410`（shellSelectorProfile）。双写是历史遗留，本任务统一为单通道 —— 这也是"写盘注册表漏项"缺陷的落点。
+
+**`PERSIST_KEEP_KEYS` 收窄**：删除上表 12 个已登记键（含 `adl-ui:terminal-*` 8 个与 `adl-terminal:*` 4 个）；`'adl-ui:terminal-persisted'` **保留**（死字段，Task 20 删除）。预期 keep 清单剩 **22** 条。
 
 - [ ] **Step 4: 运行测试确认通过并提交**
 
