@@ -30,7 +30,9 @@ alwaysApply: true
 | `tauri-command-ipc-wrapper-pattern.md` | Tauri 命令统一使用 ipc()/ipc_try() 包装器 | Tauri Command 变更 |
 | `tagged-enum-camelcase-serde-pattern.md` | Rust↔TS 共享类型 serde 序列化规范 | 新增共享类型 |
 | `usetcopy-i18n-context-pattern.md` | 前端 i18n useTCopy() 上下文模式实现 | 前端 UI 开发 |
-| `localstorage-lazy-hydration-pattern.md` | Zustand slice localStorage 惰性水合模式（requestIdleCallback + _defaultsHydrated 守卫） | Store / 状态变更 |
+| `localstorage-central-registry-persistence-architecture.md` | localStorage 中心登记表持久化架构（registry + 唯一写盘入口 + 构造期同步水合，取代惰性水合） | Store / 状态变更 |
+| `multi-dimensional-architecture-design.md` | 多维度架构设计总览（代码/数据/安全/部署/接口/性能） | 架构变更 |
+| `branded-nominal-type-id.md` | Branded<T,B> 名义类型保护领域 ID | 新增共享类型 |
 | `createlazyloader-factory-pattern.md` | createLazyLoader 惰性数据加载工厂模式（按工作区 ID 分片懒加载） | Store / 状态变更 |
 | `bridge-three-implementation-pattern.md` | 前端 Bridge 接口三实现架构（Tauri/Preview/Mock 对齐） | IPC / Bridge 变更 |
 | `frontend-at-alias-convention.md` | 前端 `@` 路径别名导入约定，禁止相对路径深层嵌套 | 前端导入变更 |
@@ -81,7 +83,7 @@ alwaysApply: true
 | IPC 包装模式变更 | `tauri-command-ipc-wrapper-pattern.md` |
 | Serde 序列化规范变更 | `tagged-enum-camelcase-serde-pattern.md` |
 | i18n 实现模式变更 | `usetcopy-i18n-context-pattern.md` |
-| localStorage 水合模式变更 | `localstorage-lazy-hydration-pattern.md` |
+| localStorage 持久化架构变更 | `localstorage-central-registry-persistence-architecture.md` |
 | 惰性加载工厂模式变更 | `createlazyloader-factory-pattern.md` |
 | Bridge 三实现架构变更 | `bridge-three-implementation-pattern.md` |
 | 前端 `@` 别名/导入约定变更 | `frontend-at-alias-convention.md` |
@@ -92,6 +94,8 @@ alwaysApply: true
 | crate 命名/新增变更 | `rust-crate-adl-prefix-convention.md` |
 | serde 序列化约定变更 | `serde-default-rename-all-convention.md` |
 | 类型生成/桶导入规范变更 | `ts-rs-type-generation-barrel-import.md` |
+| 多维度架构变更 | `multi-dimensional-architecture-design.md` |
+| 领域 ID 名义类型变更 | `branded-nominal-type-id.md` |
 
 ## MCP 服务器说明
 
@@ -105,7 +109,7 @@ Trae IDE 内置浏览器自动化工具（16 个 MCP 工具，含 `browser_evalu
 
 | 层级 | 覆盖范围 | 规则文件 |
 |------|----------|----------|
-| 项目总览 | 全局架构 | `project-overview.md`, `phase-boundary.md`, `codebase-map.md` |
+| 项目总览 | 全局架构 | `multi-dimensional-architecture-design.md`, `project-overview.md`, `phase-boundary.md`, `codebase-map.md` |
 | 语言/Framework | 特定技术栈 | `rust-patterns.md`, `zustand-patterns.md`, `component-architecture.md`, `css-architecture.md` |
 | 质量保障 | 测试/门禁 | `quality-gates.md`, `mandatory-testing.md`, `error-handling.md` |
 | 操作指南 | 命令/工具 | `commands.md`, `browser-automation.md`, `desktop-ui-verification.md` |

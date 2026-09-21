@@ -224,9 +224,6 @@ features/browser/
 
 > 2026-07-10 重构：BrowserPanel 650→458 行，提取 4 个 Hook（menuItems/addressSubmit/effects/closeHandlers）。桥接层拆分：tauri-bridge.ts 689→1 行（9 个子文件），mock-bridge.ts 759→144 行（新增 9 个 mock 子文件）。
 
-## 索引策略
+## 索引
 
-1. 业务逻辑 → `crates/*`
-2. Tauri 边界 → `src-tauri/*`
-3. UI → `frontend/src/*`
-4. 状态管理 → `frontend/src/app/stores/*`
+代码检索位置路由见 [project-overview.md](./project-overview.md#任务路由)（单一事实来源，避免在 codebase-map 与 project-overview 双份维护）。
