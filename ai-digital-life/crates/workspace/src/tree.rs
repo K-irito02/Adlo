@@ -58,14 +58,14 @@ fn generation_bump(key: &str) {
     *gens.entry(key.to_string()).or_insert(0) += 1;
 }
 
-/// 返回 root 对应的缓存树（若命中且未过期）。过期条目会被移除。
-fn tree_cache_get(root: &Path) -> Option<Vec<WorkspaceTreeNode>> {
+/// 返回 root 对应的缓存树与捕获时间（若命中且未过期）。过期条目会被移除。
+fn tree_cache_get(root: &Path) -> Option<(Vec<WorkspaceTreeNode>, i64)> {
     let key = normalize_cache_key(root);
     let now = now_ms();
     let mut cache = tree_cache().lock().unwrap_or_else(|e| e.into_inner());
     match cache.get(&key) {
         Some(entry) if now.saturating_sub(entry.captured_at) < TREE_CACHE_TTL_MS => {
-            Some(entry.tree.clone())
+            Some((entry.tree.clone(), entry.captured_at))
         },
         Some(_) => {
             // 过期：移除旧条目，返回 None 触发重扫
@@ -184,9 +184,9 @@ fn locator_custom_root() -> Option<PathBuf> {
     locator.selection.root
 }
 
-/// L2 读：行存在且反序列化成功即返回；损坏行自愈删除后回退 `None`
-/// （调用方走 L3 全量扫）。打开/查询失败一律回退，不抛错。
-fn read_disk_row(root: &Path) -> Option<Vec<WorkspaceTreeNode>> {
+/// L2 读：行存在且反序列化成功即返回（树，行捕获时间）；损坏行自愈删除后回退
+/// `None`（调用方走 L3 全量扫）。打开/查询失败一律回退，不抛错。
+fn read_disk_row(root: &Path) -> Option<(Vec<WorkspaceTreeNode>, i64)> {
     let dir = tree_cache_dir()?;
     let key = normalize_cache_key(root);
     let store = TreeCacheStore::open(&dir).ok()?;
@@ -194,7 +194,7 @@ fn read_disk_row(root: &Path) -> Option<Vec<WorkspaceTreeNode>> {
     match serde_json::from_str::<Vec<WorkspaceTreeNode>>(&row.tree_json) {
         Ok(nodes) => {
             debug!(root = %key, nodes = nodes.len(), "workspace tree disk cache hit");
-            Some(nodes)
+            Some((nodes, row.captured_at))
         },
         Err(e) => {
             debug!(root = %key, error = %e, "workspace tree disk row corrupt, dropping");
@@ -206,8 +206,10 @@ fn read_disk_row(root: &Path) -> Option<Vec<WorkspaceTreeNode>> {
     }
 }
 
-/// L2 写：best-effort；序列化/打开/put 任一步失败只记 `debug!`，永不影响调用方。
-fn write_disk_row(root: &Path, tree: &[WorkspaceTreeNode]) {
+/// L2 写：best-effort；打开/put 任一步失败只记 `debug!`，永不影响调用方。
+/// `captured_at` 由调用方传入（与返回给调用方的 miss 时间戳同一值，
+/// 保证“本次扫描时间 == 落盘行时间”，单测可断言相等，无毫秒边界抖动）。
+fn write_disk_row(root: &Path, tree: &[WorkspaceTreeNode], captured_at: i64) {
     let key = normalize_cache_key(root);
     let tree_json = match serde_json::to_string(tree) {
         Ok(json) => json,
@@ -219,7 +221,7 @@ fn write_disk_row(root: &Path, tree: &[WorkspaceTreeNode]) {
     let Some(dir) = tree_cache_dir() else { return };
     match TreeCacheStore::open(&dir) {
         Ok(store) => {
-            if let Err(e) = store.put(&key, &tree_json, now_ms()) {
+            if let Err(e) = store.put(&key, &tree_json, captured_at) {
                 debug!(root = %key, error = %e, "workspace tree disk write skipped");
             }
         },
@@ -233,34 +235,39 @@ fn write_disk_row(root: &Path, tree: &[WorkspaceTreeNode]) {
 /// 未命中则全量扫描并缓存。
 /// L1 内存 → L2 SQLite（进程重启后存活）→ L3 全量扫并回写 L1 + L2。
 pub fn list_tree_cached(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
-    list_tree_cached_stale_ok(root).map(|(tree, _)| tree)
+    list_tree_cached_stale_ok(root).map(|(tree, _, _)| tree)
 }
 
-/// `list_tree_cached` 的 stale-感知形态（供 Task 4 的 `allow_stale` 首包）：
-/// L1/L2 命中返 `(tree, true)`，miss 全量扫并回写后返 `(tree, false)`
-/// （miss 时本次即新鲜，调用方凭 `from_cache == false` 即知，无需二次校准）。
-pub fn list_tree_cached_stale_ok(root: &Path) -> Result<(Vec<WorkspaceTreeNode>, bool), AppError> {
-    if let Some(cached) = tree_cache_get(root) {
+/// `list_tree_cached` 的 stale-感知形态（供 Task 4 的 `allow_stale` 首包与
+/// `TreePayload.capturedAt` 校准门）：
+/// L1/L2 命中返 `(tree, true, captured_at)`（命中行的捕获时间），miss 全量扫并
+/// 回写后返 `(tree, false, scanned_at)`（本次扫描时间，即新鲜；调用方凭
+/// `from_cache == false` 即知，无需二次校准）。
+pub fn list_tree_cached_stale_ok(
+    root: &Path,
+) -> Result<(Vec<WorkspaceTreeNode>, bool, i64), AppError> {
+    if let Some((cached, captured_at)) = tree_cache_get(root) {
         debug!(
             root = %root.to_string_lossy(),
             nodes = cached.len(),
             "workspace tree cache hit"
         );
-        return Ok((cached, true));
+        return Ok((cached, true, captured_at));
     }
-    if let Some(nodes) = read_disk_row(root) {
+    if let Some((nodes, captured_at)) = read_disk_row(root) {
         // L2 命中回填 L1（沿用 put 的代际校验语义）。
         let key = normalize_cache_key(root);
         let generation = generation_get(&key);
         tree_cache_put(root, nodes.clone(), generation);
-        return Ok((nodes, true));
+        return Ok((nodes, true, captured_at));
     }
     let key = normalize_cache_key(root);
     let generation = generation_get(&key);
     let tree = list_tree(root)?;
     tree_cache_put(root, tree.clone(), generation);
-    write_disk_row(root, &tree);
-    Ok((tree, false))
+    let scanned_at = now_ms();
+    write_disk_row(root, &tree, scanned_at);
+    Ok((tree, false, scanned_at))
 }
 
 /// 绕过缓存强制重新扫描（显式"刷新"用）。先失效旧条目再全量扫描并缓存，
@@ -272,7 +279,7 @@ pub fn list_tree_force(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> 
     let generation = generation_get(&key);
     let tree = list_tree(root)?;
     tree_cache_put(root, tree.clone(), generation);
-    write_disk_row(root, &tree);
+    write_disk_row(root, &tree, now_ms());
     Ok(tree)
 }
 
@@ -938,22 +945,32 @@ mod tree_cache_tests {
     }
 
     /// L2：跨“内存清空”后仍命中（模拟进程重启后 L1 丢失，L2 落盘存活）。
+    /// miss 首包 `captured_at ≈ now`；L2 命中包原样携带落盘行的 `captured_at`
+    /// （供 Task 4 校准门；与首包相等即证明未重扫）。
     #[test]
     fn list_tree_cached_survives_memory_clear_via_disk_row() {
         let _l2 = l2_isolated_env("survive");
         let tmp = unique_tmp_dir("l2-survive");
         std::fs::write(tmp.join("a.txt"), b"a").unwrap();
-        let first = list_tree_cached(&tmp).unwrap();
+        let before = now_ms();
+        let (first, first_cached, first_at) = list_tree_cached_stale_ok(&tmp).unwrap();
+        assert!(!first_cached, "first call must be a fresh scan");
+        assert!(first_at >= before && first_at <= now_ms(), "miss captured_at must be ~now");
         assert!(first.iter().any(|n| n.path == "a.txt"));
         // 仅清 L1 内存条目（模拟进程重启后 L1 丢失，不删盘），并删除源文件：
         // 若实现回退到 L3 重扫，a.txt 将消失；唯有 L2 落盘行能返回它（不触发重扫）。
         tree_cache().lock().unwrap_or_else(|e| e.into_inner()).remove(&normalize_cache_key(&tmp));
         std::fs::remove_file(tmp.join("a.txt")).unwrap();
-        let second = list_tree_cached(&tmp).unwrap();
+        let (second, second_cached, second_at) = list_tree_cached_stale_ok(&tmp).unwrap();
+        assert!(second_cached, "second call must be served from cache");
         assert_eq!(first.len(), second.len());
         assert!(
             second.iter().any(|n| n.path == "a.txt"),
             "second call must come from the L2 disk row, not a rescan"
+        );
+        assert_eq!(
+            second_at, first_at,
+            "L2 hit must carry the stored row captured_at, not a fresh timestamp"
         );
         cleanup(&tmp);
     }
@@ -966,6 +983,20 @@ mod tree_cache_tests {
         std::fs::write(tmp.join("a.txt"), b"a").unwrap();
         let _ = list_tree_cached(&tmp).unwrap();
         invalidate_tree_cache(&tmp);
+        assert!(tree_cache_store_row_absent(&tmp), "disk row must be gone");
+        cleanup(&tmp);
+    }
+
+    /// `remove_tree_cache_row` 直调：返回 `()`（编译期锁定永不抛错签名），
+    /// 删行后同键 `get` 为 `None`。先断言行存在，排除空删真绿。
+    #[test]
+    fn remove_tree_cache_row_deletes_disk_row_directly() {
+        let _l2 = l2_isolated_env("remove-row");
+        let tmp = unique_tmp_dir("l2-remove-row");
+        std::fs::write(tmp.join("a.txt"), b"a").unwrap();
+        let _ = list_tree_cached(&tmp).unwrap();
+        assert!(!tree_cache_store_row_absent(&tmp), "disk row must exist after scan");
+        remove_tree_cache_row(&tmp);
         assert!(tree_cache_store_row_absent(&tmp), "disk row must be gone");
         cleanup(&tmp);
     }
