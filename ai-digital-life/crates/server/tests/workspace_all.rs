@@ -80,7 +80,8 @@ async fn open_workspace_returns_meta_and_activates() {
         common::send_request(state, Method::POST, "/workspace/tree", Some(serde_json::json!({})))
             .await;
     assert_eq!(status, axum::http::StatusCode::OK, "tree body: {tree}");
-    let nodes = tree["data"].as_array().expect("tree array");
+    let nodes = tree["data"]["tree"].as_array().expect("tree array");
+    assert_eq!(tree["data"]["fromCache"], false, "tree body: {tree}");
     assert!(
         nodes.iter().any(|n| n["path"] == "notes.txt" || n["name"] == "notes.txt"),
         "tree should contain notes.txt: {nodes:?}"

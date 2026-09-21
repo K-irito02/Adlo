@@ -262,6 +262,19 @@ struct TreeBody {
     /// 为 true 时绕过进程内缓存强制重新扫描（显式"刷新"用）。
     #[serde(default)]
     force: bool,
+    /// 为 true 时允许返回 SQLite 缓存行（stale-while-revalidate 的首包）。
+    #[serde(default)]
+    allow_stale: bool,
+}
+
+/// POST `/workspace/tree` 的响应载荷：树 + 是否来自缓存行 + 行捕获时间。
+/// `captured_at` 供前端校准门判定；miss/force 时为本次扫描时间。
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct TreePayload {
+    tree: Vec<WorkspaceTreeNode>,
+    from_cache: bool,
+    captured_at: i64,
 }
 
 #[derive(serde::Deserialize)]
@@ -420,18 +433,26 @@ pub async fn list_tree(
     let t_start = std::time::Instant::now();
     let display_path = path.display().to_string();
     let force = input.force;
+    let allow_stale = input.allow_stale && !input.force;
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let tree: Vec<WorkspaceTreeNode> = if force {
-            adl_workspace::list_tree_force(path.as_path())?
+        let (tree, from_cache, captured_at) = if allow_stale {
+            adl_workspace::list_tree_cached_stale_ok(path.as_path())?
+        } else if force {
+            (adl_workspace::list_tree_force(path.as_path())?, false, adl_types::now_ms())
         } else {
-            adl_workspace::list_tree_cached(path.as_path())?
+            let (tree, _, captured_at) = adl_workspace::list_tree_cached_stale_ok(path.as_path())?;
+            (tree, false, captured_at)
         };
-        Ok(serde_json::to_value(tree)?)
+        Ok(serde_json::to_value(TreePayload { tree, from_cache, captured_at })?)
     })
     .await;
+    let from_cache =
+        result.as_ref().ok().and_then(|v| v.get("fromCache")).and_then(serde_json::Value::as_bool);
     tracing::debug!(
         elapsed_ms = t_start.elapsed().as_millis(),
         force = force,
+        allow_stale = allow_stale,
+        from_cache = ?from_cache,
         root = %display_path,
         "workspace_list_tree: done"
     );
@@ -772,4 +793,195 @@ pub async fn move_file(
     })
     .await;
     ipc::to_response(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::router::app_router;
+    use crate::test_util::test_server_state;
+    use adl_storage::EntityTable;
+    use axum::body::Body;
+    use axum::http::Request;
+    use std::sync::atomic::{AtomicU64, Ordering};
+    use tower::ServiceExt;
+
+    static TREE_SRV_SEQ: AtomicU64 = AtomicU64::new(0);
+    static TREE_SRV_ENV_LOCK: std::sync::OnceLock<tokio::sync::Mutex<()>> =
+        std::sync::OnceLock::new();
+
+    fn env_lock() -> &'static tokio::sync::Mutex<()> {
+        TREE_SRV_ENV_LOCK.get_or_init(|| tokio::sync::Mutex::new(()))
+    }
+
+    /// 进程级 `ADL_TREE_CACHE_DIR` 隔离：三用例串行并各指唯一临时目录，
+    /// 退出时还原变量并清理目录（`Drop` 覆盖 panic 展开路径）。
+    struct TreeCacheEnvGuard {
+        _guard: tokio::sync::MutexGuard<'static, ()>,
+        original: Option<std::ffi::OsString>,
+        dir: std::path::PathBuf,
+    }
+
+    impl TreeCacheEnvGuard {
+        async fn isolate(tag: &str) -> Self {
+            let guard = env_lock().lock().await;
+            let id = TREE_SRV_SEQ.fetch_add(1, Ordering::SeqCst);
+            let dir = std::env::temp_dir().join(format!("adl-srv-tree-l2-{tag}-{id}"));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).expect("l2 temp dir creation should succeed");
+            let original = std::env::var_os("ADL_TREE_CACHE_DIR");
+            // SAFETY: 持有进程级互斥，本测试二进制内无其它线程并发读写该变量。
+            unsafe { std::env::set_var("ADL_TREE_CACHE_DIR", &dir) };
+            Self { _guard: guard, original, dir }
+        }
+
+        fn dir(&self) -> &std::path::Path {
+            &self.dir
+        }
+    }
+
+    impl Drop for TreeCacheEnvGuard {
+        fn drop(&mut self) {
+            match self.original.take() {
+                // SAFETY: 同 `isolate`。
+                Some(v) => unsafe { std::env::set_var("ADL_TREE_CACHE_DIR", v) },
+                // SAFETY: 同 `isolate`。
+                None => unsafe { std::env::remove_var("ADL_TREE_CACHE_DIR") },
+            }
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    /// 唯一工作区目录（内置 `a.txt`）；返回 `(原始路径, 规范化路径串)`。
+    /// 规范化经 `canonicalize` + 去 verbatim 前缀，与 `open_workspace` 落库的
+    /// `root_path` 同形，保证树缓存键与移除路径键逐字一致。
+    fn unique_ws_dir(tag: &str) -> (std::path::PathBuf, String) {
+        let id = TREE_SRV_SEQ.fetch_add(1, Ordering::SeqCst);
+        let raw = std::env::temp_dir().join(format!("adl-srv-tree-ws-{tag}-{id}"));
+        let _ = std::fs::remove_dir_all(&raw);
+        std::fs::create_dir_all(&raw).expect("ws temp dir creation should succeed");
+        std::fs::write(raw.join("a.txt"), b"a").expect("seed file creation should succeed");
+        let canon = std::fs::canonicalize(&raw).expect("canonicalize should succeed");
+        let ws = adl_workspace::strip_verbatim_prefix(&canon.to_string_lossy());
+        (raw, ws)
+    }
+
+    fn cleanup_ws(raw: &std::path::Path, ws: &str) {
+        adl_workspace::invalidate_tree_cache(std::path::Path::new(ws));
+        let _ = std::fs::remove_dir_all(raw);
+    }
+
+    async fn post_json(
+        state: &crate::ServerState,
+        uri: &str,
+        payload: serde_json::Value,
+    ) -> serde_json::Value {
+        let app = app_router(state.clone()).with_state(state.clone());
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(uri)
+                    .header("content-type", "application/json")
+                    .body(Body::from(serde_json::to_string(&payload).unwrap()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status().is_success(), "POST {uri} must succeed");
+        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20).await.unwrap();
+        serde_json::from_slice(&bytes).unwrap()
+    }
+
+    async fn post_tree(
+        state: &crate::ServerState,
+        ws: &str,
+        force: bool,
+        allow_stale: bool,
+    ) -> serde_json::Value {
+        post_json(
+            state,
+            "/workspace/tree",
+            serde_json::json!({
+                "workspacePath": ws,
+                "force": force,
+                "allowStale": allow_stale,
+            }),
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn stale_row_is_served_with_from_cache_true() {
+        let _l2 = TreeCacheEnvGuard::isolate("stale").await;
+        let state = test_server_state();
+        let (raw, ws) = unique_ws_dir("stale");
+        let primed = post_tree(&state, &ws, true, false).await;
+        assert_eq!(primed["ok"], serde_json::json!(true));
+        assert_eq!(primed["data"]["fromCache"], serde_json::json!(false));
+        let second = post_tree(&state, &ws, false, true).await;
+        assert_eq!(second["ok"], serde_json::json!(true));
+        assert_eq!(second["data"]["fromCache"], serde_json::json!(true));
+        let tree = second["data"]["tree"].as_array().expect("payload must carry tree array");
+        assert!(tree.iter().any(|n| n["path"] == "a.txt"));
+        assert!(second["data"]["capturedAt"].as_i64().expect("payload must carry capturedAt") > 0);
+        cleanup_ws(&raw, &ws);
+    }
+
+    #[tokio::test]
+    async fn allow_stale_false_ignores_disk_row() {
+        let _l2 = TreeCacheEnvGuard::isolate("fresh").await;
+        let state = test_server_state();
+        let (raw, ws) = unique_ws_dir("fresh");
+        let primed = post_tree(&state, &ws, true, false).await;
+        assert_eq!(primed["ok"], serde_json::json!(true));
+        // 缺省语义：不传 allowStale → 全量语义，fromCache 恒 false（即使命中缓存行）。
+        let body =
+            post_json(&state, "/workspace/tree", serde_json::json!({"workspacePath": ws})).await;
+        assert_eq!(body["ok"], serde_json::json!(true));
+        assert_eq!(body["data"]["fromCache"], serde_json::json!(false));
+        let tree = body["data"]["tree"].as_array().expect("payload must carry tree array");
+        assert!(tree.iter().any(|n| n["path"] == "a.txt"));
+        cleanup_ws(&raw, &ws);
+    }
+
+    #[tokio::test]
+    async fn remove_workspace_deletes_cache_row() {
+        let l2 = TreeCacheEnvGuard::isolate("remove").await;
+        let state = test_server_state();
+        let (raw, ws) = unique_ws_dir("remove");
+        let primed = post_tree(&state, &ws, true, false).await;
+        assert_eq!(primed["ok"], serde_json::json!(true));
+        let store =
+            adl_workspace::tree_cache_store::TreeCacheStore::open(l2.dir()).expect("open l2 store");
+        assert_eq!(
+            store.stats().expect("stats").workspace_count,
+            1,
+            "disk row must exist after scan"
+        );
+        let (meta, _recent) =
+            adl_workspace::open_workspace(std::path::Path::new(&ws)).expect("open workspace");
+        assert_eq!(meta.root_path, ws, "persisted root must match the tree cache key source");
+        state
+            .db
+            .save_entity(
+                EntityTable::Workspaces,
+                &meta.id,
+                Some(&meta.id),
+                None,
+                Some("ready"),
+                &meta,
+            )
+            .expect("save workspace meta");
+        let removed =
+            post_json(&state, "/sidebar/remove", serde_json::json!({"workspaceId": meta.id})).await;
+        assert_eq!(removed["ok"], serde_json::json!(true));
+        let store = adl_workspace::tree_cache_store::TreeCacheStore::open(l2.dir())
+            .expect("reopen l2 store");
+        assert_eq!(
+            store.stats().expect("stats").workspace_count,
+            0,
+            "disk row must be gone after remove"
+        );
+        cleanup_ws(&raw, &ws);
+    }
 }

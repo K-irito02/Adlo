@@ -230,6 +230,10 @@ pub async fn remove_from_sidebar(
             tables_touched = report.per_table.len(),
             "workspace data purged on remove-from-sidebar"
         );
+        // 树缓存行同删（best-effort：remove 内部永不抛错，直接调用即可）。
+        if let Some(root) = root_path.as_deref() {
+            adl_workspace::remove_tree_cache_row(std::path::Path::new(root));
+        }
         let mut all = load_or_seed_sidebar_with_db(db)?;
         if let Some(e) = all.iter_mut().find(|e| e.id == workspace_id) {
             e.removed_from_sidebar = true;
