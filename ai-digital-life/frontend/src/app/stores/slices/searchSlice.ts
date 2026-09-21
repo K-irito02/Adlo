@@ -10,6 +10,13 @@ import {
 import { clamp } from '../shared';
 import { persistField } from '../persisted/apply';
 
+/** 文件检索三开关（大小写/全词/正则）：单对象持有、一次落盘（Task 22） */
+export interface SearchFlags {
+  matchCase: boolean;
+  matchWholeWord: boolean;
+  useRegex: boolean;
+}
+
 export interface SearchHitEntry {
   /** 产生该命中的工作区（跨工作区同相对路径不会错配） */
   workspaceId: string;
@@ -35,10 +42,11 @@ export interface SearchSlice {
   searchLimit: number;
   /** 本次检索发生时的活动工作区 */
   searchWorkspaceId: string | undefined;
-  /** 检索选项（上提到 store：点击校验/重定位必须与检索时选项一致） */
-  searchMatchCase: boolean;
-  searchMatchWholeWord: boolean;
-  searchUseRegex: boolean;
+  /**
+   * 检索选项三开关（大小写/全词/正则，上提到 store：点击校验/重定位必须与检索时选项一致）。
+   * 单对象持有、一次落盘（`adl:files.searchFlags`，Task 22）。
+   */
+  searchFlags: SearchFlags;
   /**
    * 检索步长/首屏条数（检索设置可自定义，全局持久化）。
    * 范围钳制到 `[SEARCH_PAGE_SIZE_MIN, SEARCH_PAGE_SIZE_MAX]`。
@@ -64,9 +72,7 @@ export interface SearchSlice {
   setSearchQuery: (query: string) => void;
   setSearching: (searching: boolean) => void;
   setSearchEntries: (entries: SearchHitEntry[]) => void;
-  setSearchMatchCase: (value: boolean) => void;
-  setSearchMatchWholeWord: (value: boolean) => void;
-  setSearchUseRegex: (value: boolean) => void;
+  setSearchFlags: (flags: SearchFlags) => void;
   setSearchPageSize: (value: number) => void;
   setSearchMaxResults: (value: number) => void;
   setSearchIgnoredPaths: (workspaceId: string, paths: string[]) => void;
@@ -162,9 +168,7 @@ export const createSearchSlice = (
     // 初值对齐持久化步长（而非常量 200），最终由 searchComposite 在水合期产出（事项 L5）。
     searchLimit: initialPageSize,
     searchWorkspaceId: undefined,
-    searchMatchCase: false,
-    searchMatchWholeWord: false,
-    searchUseRegex: false,
+    searchFlags: { matchCase: false, matchWholeWord: false, useRegex: false },
     searchPageSize: initialPageSize,
     searchMaxResults: initialMaxResults,
     searchIgnoredPaths: {},
@@ -173,9 +177,7 @@ export const createSearchSlice = (
     setSearchQuery: (query) => set({ searchQuery: query }),
     setSearching: (searching) => set({ searching }),
     setSearchEntries: (entries) => set({ searchEntries: entries }),
-    setSearchMatchCase: (value) => set({ searchMatchCase: value }),
-    setSearchMatchWholeWord: (value) => set({ searchMatchWholeWord: value }),
-    setSearchUseRegex: (value) => set({ searchUseRegex: value }),
+    setSearchFlags: (flags) => set(persistField('adl:files.searchFlags', flags)),
     setSearchPageSize: (value) => {
       // 非有限输入直接丢弃：clamp(NaN) 恒为 NaN，会污染 store + 落盘（事项 F4）。
       if (!Number.isFinite(value)) {

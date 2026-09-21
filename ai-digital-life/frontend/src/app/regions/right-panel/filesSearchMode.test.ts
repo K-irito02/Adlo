@@ -352,7 +352,7 @@ describe('files search mode wiring', () => {
 
   it('sources the search options from the store so relocation matches the query (事项 45)', () => {
     expect(shellSource).toContain('searchUseRegex');
-    expect(searchPanelHookSource).toContain('s.searchMatchCase');
+    expect(searchPanelHookSource).toContain('s.searchFlags');
   });
 
   it('subscribes to workspace file-change batches (事项 45)', () => {

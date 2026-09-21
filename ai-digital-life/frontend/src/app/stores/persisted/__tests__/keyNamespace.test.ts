@@ -12,7 +12,8 @@ const SCAN_ROOT = join(process.cwd(), 'src/app/stores');
 // - __tests__ 目录与 *.test.*：含"旧键已被清除"断言字面量；
 // - ciSlice / communicateSlice / githubSlice(+Helpers) / githubRepoSlice(+Helpers) /
 //   systemMonitorSlice：T29 登记前保持原样；
-// - slices/uiSliceTypes.ts：RIGHT_PANEL_* 待 T22 收敛；
+// - slices/uiSliceTypes.ts：RIGHT_PANEL_* 待 T29 收敛
+//   （Task 22 已裁定不登记 rightPanelMode —— 派生状态，无上提理由）；
 // - persisted/registry.ts：PERSIST_KEEP_KEYS 字面量由 keepListGuard 守卫。
 // 全行 // 注释在扫描前剔除：注释提及旧键名是文档需要，不构成读写；
 // 门禁只关心代码行的真实引用。

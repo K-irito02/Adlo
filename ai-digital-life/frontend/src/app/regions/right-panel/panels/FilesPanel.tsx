@@ -291,9 +291,9 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       let targetLine = line;
       const querySnap = {
         text: state.searchQuery,
-        matchCase: state.searchMatchCase,
-        wholeWord: state.searchMatchWholeWord,
-        useRegex: state.searchUseRegex,
+        matchCase: state.searchFlags.matchCase,
+        wholeWord: state.searchFlags.matchWholeWord,
+        useRegex: state.searchFlags.useRegex,
       };
       if (liveContent !== undefined) {
         const relocated = findLineForQuery(liveContent, querySnap.text, querySnap, line);

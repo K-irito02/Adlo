@@ -2,6 +2,8 @@ import { clamp } from '../storageHelpers';
 import { normalizeIgnoredEntry } from '../../../shared/ipc/searchIgnore';
 import { readBooleanRecord } from './entry';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
+import type { SearchFlags } from '../slices/searchSlice';
+import type { FileTreeClickedNode } from '../slices/editorSlice';
 
 /** 布尔：仅接受真正的 boolean */
 export function readFlag(raw: unknown): boolean | undefined {
@@ -131,6 +133,21 @@ export function readObjectArrayRecord<T>(
 /** 普通对象判定（排除 null 与数组）—— 供各形状校验器复用 */
 export function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** Record<workspaceId, string[]>：大纲展开项（文件/变更共用）；任一层不合法即整字段判为不合法 */
+export function readStringArrayRecord(raw: unknown): Record<string, string[]> | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  const result: Record<string, string[]> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+      return undefined;
+    }
+    result[key] = [...(value as string[])];
+  }
+  return result;
 }
 
 /** Record<workspaceId, Record<path, boolean>> 两层布尔映射 */
@@ -309,6 +326,66 @@ export function readDirExpansionRecord(raw: unknown): Record<string, TreeExpansi
       return undefined;
     }
     result[workspaceId] = parsed;
+  }
+  return result;
+}
+
+/**
+ * 文件检索三开关（大小写/全词/正则）的读侧校验（Task 22）。
+ * 三个成员必须同时为布尔 —— 任一缺失或类型不对即整字段判为不合法
+ * （与登记表既有约定一致；写侧 `setSearchFlags` 恒产出完整对象）。
+ */
+export function readSearchFlags(raw: unknown): SearchFlags | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  const { matchCase, matchWholeWord, useRegex } = raw;
+  if (
+    typeof matchCase !== 'boolean' ||
+    typeof matchWholeWord !== 'boolean' ||
+    typeof useRegex !== 'boolean'
+  ) {
+    return undefined;
+  }
+  return { matchCase, matchWholeWord, useRegex };
+}
+
+/**
+ * 文件树选中节点的读侧校验（Task 22，`Record<workspaceId, FileTreeClickedNode>`）。
+ * 每个成员必须是普通对象；`path` / `workspaceRoot` 若出现必须为字符串，
+ * `kind` 若出现必须为 'directory' | 'file' —— 任一成员不合法即整字段回退。
+ */
+export function readClickedNodeRecord(
+  raw: unknown,
+): Record<string, FileTreeClickedNode> | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  const result: Record<string, FileTreeClickedNode> = {};
+  for (const [workspaceId, value] of Object.entries(raw)) {
+    if (!isPlainRecord(value)) {
+      return undefined;
+    }
+    const node: FileTreeClickedNode = {};
+    if (value.path !== undefined) {
+      if (typeof value.path !== 'string') {
+        return undefined;
+      }
+      node.path = value.path;
+    }
+    if (value.kind !== undefined) {
+      if (value.kind !== 'directory' && value.kind !== 'file') {
+        return undefined;
+      }
+      node.kind = value.kind;
+    }
+    if (value.workspaceRoot !== undefined) {
+      if (typeof value.workspaceRoot !== 'string') {
+        return undefined;
+      }
+      node.workspaceRoot = value.workspaceRoot;
+    }
+    result[workspaceId] = node;
   }
   return result;
 }

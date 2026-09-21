@@ -5,6 +5,15 @@
 import type { FileOutlineItem, WorkspaceChangePreview } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { EditorTabState } from '@utils/editorTabs';
+import { persistField } from '../persisted/apply';
+
+/** 文件树选中节点（按工作区隔离的持久化记录，`adl:files.clickedNode`，Task 22） */
+export interface FileTreeClickedNode {
+  path?: string;
+  kind?: 'directory' | 'file';
+  /** 点击"工作区顶级目录"（根目录）时记录 */
+  workspaceRoot?: string;
+}
 
 /** 主区开文件失败信息（事项 46 调整项，Phase 4 审查 L1 抽为共享类型）。 */
 export interface FileOpenError {
@@ -52,6 +61,14 @@ export interface EditorSlice {
   fileNavigatorActiveWorkspaceId?: string;
   /** Changes 面板"选中工作区"（与 Files 面板 fileNavigatorActiveWorkspaceId 隔离） */
   changesNavigatorActiveWorkspaceId?: string;
+  /**
+   * 文件树选中节点（按工作区隔离，`adl:files.clickedNode`，Task 22）。
+   * 与上方四个扁平字段互为镜像：扁平字段是"当前会话选中"（重启即空），
+   * 本记录是"各工作区上次选中"（跨重启还原，回退显示用）。
+   */
+  fileTreeClicked: Record<string, FileTreeClickedNode>;
+  /** 文件大纲展开项（按工作区隔离，`adl:files.outlineExpanded`，Task 22） */
+  filesOutlineExpanded: Record<string, string[]>;
 
   setOpenTabs: (tabs: EditorTabState[]) => void;
   addOpenTab: (tab: EditorTabState) => void;
@@ -74,6 +91,7 @@ export interface EditorSlice {
   setFileTreeClickedNode: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
   setFileTreeClickedWorkspaceRoot: (workspaceId: string) => void;
   clearFileTreeClickedNode: () => void;
+  setFilesOutlineExpanded: (workspaceId: string, ids: string[]) => void;
   setChangesTreeClickedNode: (
     workspaceId: string,
     path: string,
@@ -88,7 +106,7 @@ export interface EditorSlice {
 
 export const createEditorSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState,
+  get: () => StoreState,
 ): EditorSlice => ({
   openTabs: [],
   outline: [],
@@ -96,6 +114,8 @@ export const createEditorSlice = (
   dirtyEditorPaths: [],
   fileOpenError: null,
   positioningPath: null,
+  fileTreeClicked: {},
+  filesOutlineExpanded: {},
 
   setOpenTabs: (tabs) => set({ openTabs: tabs }),
   addOpenTab: (tab) =>
@@ -140,6 +160,15 @@ export const createEditorSlice = (
       };
     }),
   setFileTreeClickedNode: (workspaceId, path, kind) => {
+    const current = get();
+    if (
+      current.fileTreeClickedWorkspaceId === workspaceId &&
+      current.fileTreeClickedPath === path &&
+      current.fileTreeClickedKind === kind
+    ) {
+      // 重复选中同一节点：不写盘也不通知（Task 22，避免冗余落盘）
+      return;
+    }
     set({
       fileTreeClickedWorkspaceId: workspaceId,
       fileTreeClickedPath: path,
@@ -150,16 +179,40 @@ export const createEditorSlice = (
       // B 顶级目录（高亮在 B），随后回到 A 工作区里展开/点击节点，高亮却仍停在 B，
       // 导致在该工作区新建/重命名的目标被错误作用到 B 工作区。
       fileNavigatorActiveWorkspaceId: workspaceId,
+      ...persistField('adl:files.clickedNode', {
+        ...current.fileTreeClicked,
+        [workspaceId]: { path, kind },
+      }),
     });
   },
-  setFileTreeClickedWorkspaceRoot: (workspaceId) =>
+  setFileTreeClickedWorkspaceRoot: (workspaceId) => {
+    const current = get();
+    if (
+      current.fileTreeClickedWorkspaceId === workspaceId &&
+      current.fileTreeClickedWorkspaceRoot === workspaceId
+    ) {
+      return;
+    }
     set({
       fileTreeClickedWorkspaceId: workspaceId,
       fileTreeClickedPath: undefined,
       fileTreeClickedKind: undefined,
       fileTreeClickedWorkspaceRoot: workspaceId,
-    }),
-  clearFileTreeClickedNode: () =>
+      ...persistField('adl:files.clickedNode', {
+        ...current.fileTreeClicked,
+        [workspaceId]: { workspaceRoot: workspaceId },
+      }),
+    });
+  },
+  clearFileTreeClickedNode: () => {
+    const current = get();
+    const clearedWorkspaceId = current.fileTreeClickedWorkspaceId;
+    const nextClicked = { ...current.fileTreeClicked };
+    if (clearedWorkspaceId !== undefined) {
+      // 用户亲手清除选中（如点击空白处）：该工作区的上次选中记录一并删除，
+      // 否则重启后会高亮一个用户已放弃的项
+      delete nextClicked[clearedWorkspaceId];
+    }
     set({
       fileTreeClickedPath: undefined,
       fileTreeClickedWorkspaceId: undefined,
@@ -169,7 +222,16 @@ export const createEditorSlice = (
       // 可重新触达，避免点击后高亮/新建目标永久粘滞在陈旧工作区（后端激活工作区
       // 切换或该工作区被移除时指向错误）。
       fileNavigatorActiveWorkspaceId: undefined,
-    }),
+      ...persistField('adl:files.clickedNode', nextClicked),
+    });
+  },
+  setFilesOutlineExpanded: (workspaceId, ids) =>
+    set((state) =>
+      persistField('adl:files.outlineExpanded', {
+        ...state.filesOutlineExpanded,
+        [workspaceId]: [...ids],
+      }),
+    ),
   setChangesTreeClickedNode: (workspaceId, path, kind) =>
     set({
       changesTreeClickedWorkspaceId: workspaceId,

@@ -147,6 +147,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     fileTreeClickedWorkspaceId,
     fileTreeClickedKind,
     fileTreeClickedWorkspaceRoot,
+    fileTreeClickedRecord,
     fileNavigatorActiveWorkspaceId,
     setFileNavigatorActiveWorkspace,
   } = useAppStore(
@@ -166,6 +167,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       fileTreeClickedWorkspaceId: s.fileTreeClickedWorkspaceId,
       fileTreeClickedKind: s.fileTreeClickedKind,
       fileTreeClickedWorkspaceRoot: s.fileTreeClickedWorkspaceRoot,
+      fileTreeClickedRecord: s.fileTreeClicked,
       fileNavigatorActiveWorkspaceId: s.fileNavigatorActiveWorkspaceId,
       setFileNavigatorActiveWorkspace: s.setFileNavigatorActiveWorkspace,
     })),
@@ -198,20 +200,30 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     [recentWorkspaces],
   );
 
+  // 重启还原回退（Task 22）：会话选中（扁平字段）重启即空，此时以上次持久化选中补位，
+  // 使用户上次点击的节点在重启后仍高亮、仍作为新建目标。会话内有选中时扁平字段优先。
+  const restoredClickedNode =
+    activeWorkspaceId !== undefined ? fileTreeClickedRecord[activeWorkspaceId] : undefined;
+  const effClickedPath = fileTreeClickedPath ?? restoredClickedNode?.path;
+  const effClickedWorkspaceId = fileTreeClickedWorkspaceId ?? activeWorkspaceId;
+  const effClickedKind = fileTreeClickedKind ?? restoredClickedNode?.kind;
+  const effClickedWorkspaceRoot =
+    fileTreeClickedWorkspaceRoot ?? restoredClickedNode?.workspaceRoot;
+
   const fileCreation = useFileCreation({
     selectedFilePath,
     selectedFileWorkspaceId,
     activeWorkspaceId,
     recentWorkspaces,
     clickedNode:
-      fileTreeClickedPath && fileTreeClickedWorkspaceId && fileTreeClickedKind
+      effClickedPath && effClickedWorkspaceId && effClickedKind
         ? {
-            path: fileTreeClickedPath,
-            workspaceId: fileTreeClickedWorkspaceId,
-            kind: fileTreeClickedKind,
+            path: effClickedPath,
+            workspaceId: effClickedWorkspaceId,
+            kind: effClickedKind,
           }
         : undefined,
-    clickedWorkspaceRoot: fileTreeClickedWorkspaceRoot,
+    clickedWorkspaceRoot: effClickedWorkspaceRoot,
     onCreateWorkspaceFile,
     onCreateWorkspaceFolder,
     expandFileTreePathChain,
@@ -526,12 +538,36 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   );
 
   const defaultExpandedOutlineIds = useMemo(() => getDefaultExpandedOutlineIds(outline), [outline]);
-  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(
-    () => defaultExpandedOutlineIds,
-  );
+  // 大纲展开持久化（Task 22）：挂载时以该工作区的已存展开优先、默认展开为回退；
+  // 用户每次折叠/展开经 persistOutlineIds 写回 store（`adl:files.outlineExpanded`）。
+  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => {
+    const stored =
+      activeWorkspaceId !== undefined
+        ? useAppStore.getState().filesOutlineExpanded[activeWorkspaceId]
+        : undefined;
+    return stored !== undefined ? new Set(stored) : defaultExpandedOutlineIds;
+  });
+  const prevOutlineDefaultsRef = useRef(defaultExpandedOutlineIds);
   useEffect(() => {
+    if (prevOutlineDefaultsRef.current === defaultExpandedOutlineIds) {
+      return;
+    }
+    prevOutlineDefaultsRef.current = defaultExpandedOutlineIds;
+    // 文件切换导致默认展开变化：只重置本地视图，不写盘 —— 默认值是派生的，
+    // 写盘会覆盖用户上次亲手折叠的展开态；下一次用户 toggles 即重新落盘。
     setExpandedOutlineIds(defaultExpandedOutlineIds);
   }, [defaultExpandedOutlineIds]);
+  const persistOutlineIds = useCallback(
+    (next: Set<string>) => {
+      setExpandedOutlineIds(next);
+      const wsId =
+        useAppStore.getState().fileNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
+      if (wsId !== undefined) {
+        useAppStore.getState().setFilesOutlineExpanded(wsId, [...next]);
+      }
+    },
+    [derivedActiveWorkspaceId],
+  );
 
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
@@ -577,7 +613,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     if (!hasExpandableOutlineItems) {
       return;
     }
-    setExpandedOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
+    persistOutlineIds(hasExpandedOutlineItems ? new Set() : new Set(defaultExpandedOutlineIds));
   };
 
   const inSearchMode = navigatorMode === 'search';
@@ -742,8 +778,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           expandedStates={workspaceTreeExpandedInFileNav}
           selectedFilePath={selectedFilePath}
           selectedFileWorkspaceId={selectedFileWorkspaceId}
-          clickedPath={fileTreeClickedPath}
-          clickedWorkspaceId={fileTreeClickedWorkspaceId}
+          clickedPath={effClickedPath}
+          clickedWorkspaceId={effClickedWorkspaceId}
           expandedPaths={expandedPaths}
           dirtyPaths={dirtyPaths}
           externalChangePath={externalChangePath}
@@ -882,7 +918,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                   expandLabel={t.expandDetails as string}
                   collapseLabel={t.collapseDetails as string}
                   expandedIds={expandedOutlineIds}
-                  onExpandedIdsChange={setExpandedOutlineIds}
+                  onExpandedIdsChange={persistOutlineIds}
                 />
               ) : (
                 <p className="adl-empty-hint">
@@ -981,7 +1017,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
             expandLabel={t.expandDetails as string}
             collapseLabel={t.collapseDetails as string}
             expandedIds={expandedOutlineIds}
-            onExpandedIdsChange={setExpandedOutlineIds}
+            onExpandedIdsChange={persistOutlineIds}
           />
         ) : (
           <p className="adl-empty-hint">{t.noDiagnostics as string}</p>

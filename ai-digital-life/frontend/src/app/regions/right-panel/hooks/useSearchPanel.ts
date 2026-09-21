@@ -35,16 +35,15 @@ interface UseSearchPanelResult {
 function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
   // 检索选项上提到 store：点击校验/重定位必须与检索时选项一致（事项 45）。
   // 对外 API 不变：调用方仍拿到 boolean 值与 toggle 适配器。
+  // 三开关以单对象持有、一次落盘（`adl:files.searchFlags`，Task 22）。
   const { matchCase, matchWholeWord, useRegex } = useAppStore(
     useShallow((s) => ({
-      matchCase: s.searchMatchCase,
-      matchWholeWord: s.searchMatchWholeWord,
-      useRegex: s.searchUseRegex,
+      matchCase: s.searchFlags.matchCase,
+      matchWholeWord: s.searchFlags.matchWholeWord,
+      useRegex: s.searchFlags.useRegex,
     })),
   );
-  const setMatchCaseValue = useAppStore((s) => s.setSearchMatchCase);
-  const setMatchWholeWordValue = useAppStore((s) => s.setSearchMatchWholeWord);
-  const setUseRegexValue = useAppStore((s) => s.setSearchUseRegex);
+  const setSearchFlags = useAppStore((s) => s.setSearchFlags);
   // 选项变更即用当前检索词重搜：否则旧结果配新选项，点击校验误标 stale（事项 45 Phase 4 4.1）。
   // 即时读 getState（不用闭包快照，同 tick 连点不丢切换，事项 45 Phase 4 2.3）。
   const retriggerSearch = useCallback(() => {
@@ -55,27 +54,39 @@ function useSearchPanel(input: UseSearchPanelInput): UseSearchPanelResult {
   }, []);
   const setMatchCase = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      const current = useAppStore.getState().searchMatchCase;
-      setMatchCaseValue(typeof value === 'function' ? value(current) : value);
+      const { searchFlags } = useAppStore.getState();
+      const current = searchFlags.matchCase;
+      setSearchFlags({
+        ...searchFlags,
+        matchCase: typeof value === 'function' ? value(current) : value,
+      });
       retriggerSearch();
     },
-    [setMatchCaseValue, retriggerSearch],
+    [setSearchFlags, retriggerSearch],
   );
   const setMatchWholeWord = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      const current = useAppStore.getState().searchMatchWholeWord;
-      setMatchWholeWordValue(typeof value === 'function' ? value(current) : value);
+      const { searchFlags } = useAppStore.getState();
+      const current = searchFlags.matchWholeWord;
+      setSearchFlags({
+        ...searchFlags,
+        matchWholeWord: typeof value === 'function' ? value(current) : value,
+      });
       retriggerSearch();
     },
-    [setMatchWholeWordValue, retriggerSearch],
+    [setSearchFlags, retriggerSearch],
   );
   const setUseRegex = useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      const current = useAppStore.getState().searchUseRegex;
-      setUseRegexValue(typeof value === 'function' ? value(current) : value);
+      const { searchFlags } = useAppStore.getState();
+      const current = searchFlags.useRegex;
+      setSearchFlags({
+        ...searchFlags,
+        useRegex: typeof value === 'function' ? value(current) : value,
+      });
       retriggerSearch();
     },
-    [setUseRegexValue, retriggerSearch],
+    [setSearchFlags, retriggerSearch],
   );
   const [replaceOpen, setReplaceOpen] = useState(false);
   const [replaceQuery, setReplaceQuery] = useState('');

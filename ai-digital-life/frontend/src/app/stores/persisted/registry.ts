@@ -6,6 +6,9 @@ import {
   readStringEnum,
   readString,
   readStringRecord,
+  readStringArrayRecord,
+  readSearchFlags,
+  readClickedNodeRecord,
   readNumberArray,
   readObjectArray,
   readObjectArrayRecord,
@@ -100,6 +103,8 @@ import {
   type TerminalHistorySegment,
 } from '../../features/terminal/terminalHistoryStore';
 import type { TerminalViewPrefs } from '../../features/terminal/terminalViewPrefs';
+import type { SearchFlags } from '../slices/searchSlice';
+import type { FileTreeClickedNode } from '../slices/editorSlice';
 
 // ─────────────────────────────────────────────────────────────
 // 浏览器面板条目的逐项形状校验器（Task 9）
@@ -408,6 +413,38 @@ export const registry = {
     scope: 'byWorkspaceId',
     read: readBooleanPropRecord,
     prune: pruneDirPathsByWorkspace,
+  }),
+  // ─────────────────────────────────────────────────────────────
+  // 文件面板子状态补齐（Task 22）：树选中节点（三字段合一，避免三次写盘；
+  // 重复选中同一节点时 setter 提前 return，不写盘）+ 检索三开关（单对象一次落盘）
+  // + 文件大纲展开（组件本地 state 上提 store，挂载时按工作区回填）。
+  // 右侧面板模式（rightPanelMode）本次不登记：仍是 useRightPanelLayout 本地 state，
+  // 且为宽度/窗口几何的派生值（挂载即按恢复宽度重算），无上提为真相源的理由；
+  // 遗留键 adl-ui:right-panel-mode / adl-ui:right-panel-last-restorable-width
+  // 留在 PERSIST_KEEP_KEYS，随 Task 29 统一登记。
+  // ─────────────────────────────────────────────────────────────
+  'adl:files.clickedNode': defineEntry<Record<string, FileTreeClickedNode>>({
+    key: 'adl:files.clickedNode',
+    field: 'fileTreeClicked',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readClickedNodeRecord,
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:files.searchFlags': defineEntry<SearchFlags>({
+    key: 'adl:files.searchFlags',
+    field: 'searchFlags',
+    fallback: { matchCase: false, matchWholeWord: false, useRegex: false },
+    scope: 'global',
+    read: readSearchFlags,
+  }),
+  'adl:files.outlineExpanded': defineEntry<Record<string, string[]>>({
+    key: 'adl:files.outlineExpanded',
+    field: 'filesOutlineExpanded',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readStringArrayRecord,
+    prune: pruneByWorkspaceId,
   }),
   'adl:changes.previewEnabled': defineEntry<boolean>({
     key: 'adl:changes.previewEnabled',

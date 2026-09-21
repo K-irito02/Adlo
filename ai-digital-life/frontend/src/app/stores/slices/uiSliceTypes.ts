@@ -20,7 +20,9 @@ import type { SettingsGroupId } from '@ai-digital-life/kernel';
 // persistField()，读取一律走 hydrateAll()。下方仅保留尚未迁移的遗留键
 // （由 PERSIST_KEEP_KEYS 保护，待后续任务迁移）：
 //   - RIGHT_PANEL_MODE_KEY / RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY
-//     （仅存在于组件本地 state，Task 22 上提到 store 后再登记）
+//     （仅存在于组件本地 state；Task 22 已裁定不登记 —— rightPanelMode 是
+//     宽度/窗口几何的派生值（挂载即按恢复宽度重算），无上提为真相源的理由；
+//     随 Task 29 统一登记）
 // ════════════════════════════════════════════════════════
 export const RIGHT_PANEL_MODE_KEY = 'adl-ui:right-panel-mode';
 export const RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY = 'adl-ui:right-panel-last-restorable-width';
