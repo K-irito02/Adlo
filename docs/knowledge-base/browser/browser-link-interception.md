@@ -150,4 +150,4 @@ while (target) {
 - [builtin-browser.md](./builtin-browser.md) - 内置浏览器实现
 - [browser-subdirectory-fix.md](./browser-subdirectory-fix.md) - 子目录修复
 - [browser-tree-fix.md](./browser-tree-fix.md) - 浏览器树修复
-- [browser-spa-navigation-title-sync-fix-2026-06-28.md](./2026-06/browser-spa-navigation-title-sync-fix-2026-06-28.md) - SPA 导航标题同步修复
+- [browser-spa-navigation-title-sync-fix-2026-06-28.md](./navigation/browser-spa-navigation-title-sync-fix-2026-06-28.md) - SPA 导航标题同步修复

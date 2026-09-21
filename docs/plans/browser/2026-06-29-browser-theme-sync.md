@@ -1,6 +1,6 @@
 # Browser Theme Sync Implementation Plan — ✅ COMPLETED
 
-> **Status:** All 8 tasks completed. Final implementation uses CDP `Emulation.setEmulatedMedia` (not `SetPreferredColorScheme` which caused a shared-profile feedback loop). Knowledge document: `docs/knowledge-base/browser/2026-06/browser-theme-sync-final-2026-06-29.md`
+> **Status:** All 8 tasks completed. Final implementation uses CDP `Emulation.setEmulatedMedia` (not `SetPreferredColorScheme` which caused a shared-profile feedback loop). Knowledge document: `docs/knowledge-base/browser/webview-embed/browser-theme-sync-final-2026-06-29.md`
 
 **Goal:** Make embedded web pages in the browser panel respect the app's dark/light theme via `prefers-color-scheme`, covering both iframe (browser/preview) and Tauri WebView2 modes.
 

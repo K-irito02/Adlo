@@ -83,4 +83,4 @@
 
 ## 相关文档
 
-- 知识沉淀：[clipboard-history-panel-rework-2026-09-17.md](../../../knowledge-base/interaction/2026-09/clipboard-history-panel-rework-2026-09-17.md)
+- 知识沉淀：[clipboard-history-panel-rework-2026-09-17.md](../../../knowledge-base/interaction/clipboard-history-panel-rework-2026-09-17.md)

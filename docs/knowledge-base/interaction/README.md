@@ -1,17 +1,101 @@
 # Interaction Knowledge
 
-Lessons learned from UI/UX interaction fixes and optimizations.
+跨功能面板的交互/UX 问题修复经验，按交互子主题归类维护（不按时间归档）。
 
-## Subdirectories
+## 综合参考（根目录）
 
-- [2026-06](./2026-06/) — June 2026 interaction fixes
-- [2026-07](./2026-07/) — July 2026 interaction fixes
-- [2026-08](./2026-08/) — August 2026 interaction fixes
-  - [CSS transform 命中区与 pointer-events 下沉模式](./2026-08/css-transform-hit-area-pointer-events-2026-08-03.md) — 旋转元素命中区跟随 transform，交互属性须下沉到旋转元素本身
-  - [相对时间范围预设须按当前日期重解析](./2026-08/relative-time-range-re-resolve-2026-08-03.md) — rolling 预设不得固化为绝对日期；fetch/显示共用按 now 解析的快照
-- [2026-09](./2026-09/) — September 2026 interaction fixes
-  - [只读历史与实时终端的一致性四处同口径](./2026-09/terminal-history-live-parity-2026-09-15.md) — 空白格还原空格、Tango 调色板/粗体提亮/真彩色 mode、出生几何、关闭落盘窗口
-  - [终端 Shell 选择器悬停菜单去抖](./2026-09/terminal-shell-menu-hover-lessons-2026-09-13.md)
-  - [xterm v6 滚动条与复制粘贴](./2026-09/terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md)
-  - [检索加载态时序与悬浮层](./2026-09/search-loading-state-overlay-lessons-2026-09-19.md) — 提交与加载同 tick、取消同步复位；overlay 高度前提实证；范围切换防抖泄漏
-  - [检索设置弹窗](./2026-09/search-settings-dialog-lessons-2026-09-20.md) — full-bleed 行类复用禁区、虚拟化 gap 陷阱、zustand 快照过期、gitignore 自身目录语义、探针先行
+| 文件 | 说明 |
+|------|------|
+| [rename-dialog-standardization-2026-06-08.md](./rename-dialog-standardization-2026-06-08.md) | 重命名弹窗交互标准化（直角按钮、✕ 关闭、i18n 标题简洁化） |
+| [full-i18n-overhaul-2026-06-13.md](./full-i18n-overhaul-2026-06-13.md) | 全量国际化重构经验 |
+| [sidebar-toggle-icon-state-switching-2026-06-28.md](./sidebar-toggle-icon-state-switching-2026-06-28.md) | 侧边栏切换图标状态切换修复 |
+| [sub-card-border-subpixel-fix-2026-07-01.md](./sub-card-border-subpixel-fix-2026-07-01.md) | Sub-Card 边框子像素渲染修复（半像素卡高 + translateY 不对称抗锯齿） |
+| [svg-stroke-animation-logo-overlay-2026-07-14.md](./svg-stroke-animation-logo-overlay-2026-07-14.md) | SVG 描边动画与 Logo Overlay 实现经验 |
+| [refresh-button-animation-pattern-2026-07-23.md](./refresh-button-animation-pattern-2026-07-23.md) | 刷新按钮动画模式 |
+| [relative-time-range-re-resolve-2026-08-03.md](./relative-time-range-re-resolve-2026-08-03.md) | 相对时间范围预设须按当前日期重解析（rolling 预设不得固化绝对日期） |
+| [welcome-statusbar-path-layout-fix-2026-08-07.md](./welcome-statusbar-path-layout-fix-2026-08-07.md) | 最近工作区名称/路径布局修复（justify-self/overflow、minmax 比例、原生 title） |
+| [clipboard-history-panel-rework-2026-09-17.md](./clipboard-history-panel-rework-2026-09-17.md) | 剪贴板历史面板重构（复制/粘贴/清空交互与状态） |
+| [sysmon-scroll-restore-persistence-lessons-2026-09-17.md](./sysmon-scroll-restore-persistence-lessons-2026-09-17.md) | 左栏系统监控滚动恢复与持久化（回调 ref、落盘门控、去抖读实时节点） |
+
+## 子主题
+
+### [github-panel/](./github-panel/)
+
+GitHub CI 面板 UI、菜单、对话框、i18n。
+
+| 文件 | 说明 |
+|------|------|
+| [github-menu-recursive-delete-and-grouping-2026-06-12.md](./github-panel/github-menu-recursive-delete-and-grouping-2026-06-12.md) | 面板菜单重构（递归删除、红白分组、分隔线、"!" 双通道） |
+| [github-folder-pin-and-delete-2026-06-12.md](./github-panel/github-folder-pin-and-delete-2026-06-12.md) | 目录置顶、递归数据清除作用域修复、activeCiFolderId 跟踪 |
+| [github-tree-sub-entry-ordering-and-i18n-2026-06-12.md](./github-panel/github-tree-sub-entry-ordering-and-i18n-2026-06-12.md) | 树子条目排序（紧贴父目录）+ 子条目名称国际化 |
+| [github-delete-all-menu-and-hint-card-2026-06-13.md](./github-panel/github-delete-all-menu-and-hint-card-2026-06-13.md) | 删除全部菜单与提示卡片重构 |
+| [github-settings-dialog-standardization-2026-06-13.md](./github-panel/github-settings-dialog-standardization-2026-06-13.md) | 设置对话框标准化 |
+| [github-job-card-hover-and-status-dot-optimization-2026-06-14.md](./github-panel/github-job-card-hover-and-status-dot-optimization-2026-06-14.md) | Job 卡片悬停全宽延伸 + 状态点统一（z-index:-1 + 局部层叠上下文） |
+| [github-log-viewer-toolbar-optimization-2026-06-14.md](./github-panel/github-log-viewer-toolbar-optimization-2026-06-14.md) | 日志查看器工具栏（自定义下拉、搜索框常驻、overflow 与下拉定位冲突） |
+| [github-panel-i18n-full-coverage-2026-06-15.md](./github-panel/github-panel-i18n-full-coverage-2026-06-15.md) | GitHub 子面板 i18n 全覆盖（15 处硬编码清理、17 个翻译 key、标题行消失修复） |
+
+### [terminal/](./terminal/)
+
+终端面板交互（悬停菜单、xterm 滚动条、只读历史一致性）。
+
+| 文件 | 说明 |
+|------|------|
+| [terminal-shell-menu-hover-lessons-2026-09-13.md](./terminal/terminal-shell-menu-hover-lessons-2026-09-13.md) | 复合按钮悬停菜单（子菜单卸载不触发 mouseleave）+ 去抖写污染水合测试 |
+| [terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md](./terminal/terminal-xterm-v6-scrollbar-copypaste-lessons-2026-09-13.md) | xterm v6 自绘滚动条覆盖法 + 原生事件复制粘贴 + flex 拖拽裁剪 |
+| [terminal-history-live-parity-2026-09-15.md](./terminal/terminal-history-live-parity-2026-09-15.md) | 只读历史与实时终端一致性四处同口径（空格还原、Tango 调色板、出生几何、关闭落盘） |
+
+### [search/](./search/)
+
+检索（搜索）交互、加载态、设置弹窗。
+
+| 文件 | 说明 |
+|------|------|
+| [search-paging-and-reveal-accuracy.md](./search/search-paging-and-reveal-accuracy.md) | 检索分页"提前 return"漏扫、CodeMirror 高度表估算 vs 渲染实测闭环、Windows 脚本写文件坑 |
+| [search-freshness-hold-ready-reveal-lessons-2026-09-18.md](./search/search-freshness-hold-ready-reveal-lessons-2026-09-18.md) | 检索新鲜度、hold-ready-reveal 时序经验 |
+| [search-loading-state-overlay-lessons-2026-09-19.md](./search/search-loading-state-overlay-lessons-2026-09-19.md) | 检索加载态时序与悬浮层（提交与加载同 tick、范围切换防抖泄漏） |
+| [search-settings-dialog-lessons-2026-09-20.md](./search/search-settings-dialog-lessons-2026-09-20.md) | 检索设置弹窗（full-bleed 行类复用禁区、虚拟化 gap 陷阱、zustand 快照过期） |
+
+### [git-vis/](./git-vis/)
+
+Git 可视化（分支图、热力图、文件热点、loading）。
+
+| 文件 | 说明 |
+|------|------|
+| [branch-graph-tag-drag-and-highlight-fix-2026-07-29.md](./git-vis/branch-graph-tag-drag-and-highlight-fix-2026-07-29.md) | 分支图标签拖拽与高亮修复 |
+| [branch-graph-avatar-cache-and-flicker-fix-2026-07-30.md](./git-vis/branch-graph-avatar-cache-and-flicker-fix-2026-07-30.md) | 分支图头像缓存与闪烁修复 |
+| [heatmap-scrollbar-oscillation-and-patterns-2026-07-25.md](./git-vis/heatmap-scrollbar-oscillation-and-patterns-2026-07-25.md) | 日历热力图 5 项 Bug 修复（scrollbar-gutter 振荡、时区解析、persisted writer 模式） |
+| [git-vis-file-hotspots-leaderboard-2026-08-04.md](./git-vis/git-vis-file-hotspots-leaderboard-2026-08-04.md) | 文件热点排行榜（git numstat 转义、direction:rtl 禁用、虚拟滚动同步） |
+| [git-vis-heatmap-loading-polish-2026-08-05.md](./git-vis/git-vis-heatmap-loading-polish-2026-08-05.md) | 热力图 loading 修复（React 批处理吞 loading、TOCTOU、loading 所有权分离） |
+
+### [outline-file-tree/](./outline-file-tree/)
+
+大纲树与文件树的连接线、导航、悬停。
+
+| 文件 | 说明 |
+|------|------|
+| [outline-navigation-and-refresh-fix-2026-06-09.md](./outline-file-tree/outline-navigation-and-refresh-fix-2026-06-09.md) | 大纲导航折叠展开修复（uncollapseUnchanged 传参陷阱）+ 刷新按钮绕过懒加载守卫 |
+| [outline-connecting-lines-alignment-fix-2026-06-11.md](./outline-file-tree/outline-connecting-lines-alignment-fix-2026-06-11.md) | 大纲树竖线对齐修复（递归树 ::before 无需缩进变量、死代码删除） |
+| [file-tree-virtualized-connecting-lines-fix-2026-06-11.md](./outline-file-tree/file-tree-virtualized-connecting-lines-fix-2026-06-11.md) | 虚拟化文件树垂直连接线与悬停高亮修复（::before 溢出、JS 悬停传播） |
+
+### [pointer-events/](./pointer-events/)
+
+指针事件、命中区、拖拽、右键菜单、disabled 焦点。
+
+| 文件 | 说明 |
+|------|------|
+| [right-click-menu-positioning-2026-06-08.md](./pointer-events/right-click-menu-positioning-2026-06-08.md) | 右键菜单跟随鼠标位置修复（4 条经验：定位方式、FileTree 机制复用、条件守卫） |
+| [resize-handle-pointer-events-diversion-2026-06-23.md](./pointer-events/resize-handle-pointer-events-diversion-2026-06-23.md) | Resize Handle 与 Scrollbar 重叠：pointer-events 分流，::before 提供 3px 可拖拽边缘 |
+| [disabled-button-pointerup-fix-2026-07-19.md](./pointer-events/disabled-button-pointerup-fix-2026-07-19.md) | disabled 按钮 pointerup 丢失修复 |
+| [drag-overlay-pointer-event-penetration-2026-07-21.md](./pointer-events/drag-overlay-pointer-event-penetration-2026-07-21.md) | 拖拽覆盖层指针事件穿透修复 |
+| [css-transform-hit-area-pointer-events-2026-08-03.md](./pointer-events/css-transform-hit-area-pointer-events-2026-08-03.md) | 旋转元素命中区跟随 transform，交互属性须下沉到旋转元素本身 |
+
+### [toast-hint-card/](./toast-hint-card/)
+
+toast、错误提示、hint card 交互。
+
+| 文件 | 说明 |
+|------|------|
+| [hint-card-arrow-positioning-fix-2026-06-11.md](./toast-hint-card/hint-card-arrow-positioning-fix-2026-06-11.md) | Hint Card 箭头定位 + 动态 DOM 内存泄漏 + 父级 hover 背景隔离 |
+| [hint-card-dnd-fixes-2026-07-21.md](./toast-hint-card/hint-card-dnd-fixes-2026-07-21.md) | Hint Card 拖拽相关修复 |
+| [toast-card-unification-hover-collapse-2026-08-16.md](./toast-hint-card/toast-card-unification-hover-collapse-2026-08-16.md) | toast 卡片统一 + 悬停折叠 |
+| [error-toast-severity-scope-popLayout-2026-08-12.md](./toast-hint-card/error-toast-severity-scope-popLayout-2026-08-12.md) | 持久错误通知三级分级、模块作用域清除、popLayout 让位动画 |

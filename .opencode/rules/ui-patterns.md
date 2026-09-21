@@ -26,7 +26,7 @@ alwaysApply: true
 
 - 文件：[NewSessionDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/NewSessionDialog.tsx)、[RenameDialog.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/RenameDialog.tsx)
 - 直角按钮、✕ 关闭按钮、i18n 标题简洁化
-- 参考：[rename-dialog-standardization-2026-06-08.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-06/rename-dialog-standardization-2026-06-08.md)
+- 参考：[rename-dialog-standardization-2026-06-08.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/rename-dialog-standardization-2026-06-08.md)
 
 ### 模态表单 → `PromptModal`
 
@@ -71,7 +71,7 @@ alwaysApply: true
 
 - 分隔线仅在语义分组边界使用
 - 白色分组（常规操作）/ 红色分组（危险操作）分离
-- 参考：[github-menu-recursive-delete-and-grouping-2026-06-12.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-06/github-menu-recursive-delete-and-grouping-2026-06-12.md)
+- 参考：[github-menu-recursive-delete-and-grouping-2026-06-12.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/github-panel/github-menu-recursive-delete-and-grouping-2026-06-12.md)
 
 ---
 
@@ -93,7 +93,7 @@ alwaysApply: true
 - 适用场景：卡片内容行 hover 背景延伸至卡片左右边缘
 - 关键：父元素 `z-index: 0` 创建局部层叠上下文，`::after` 的 `z-index: -1` 才能正确绘制
 - 文档：[css-architecture.md](./css-architecture.md) → 全宽悬停背景模式
-- 参考：[github-job-card-hover-and-status-dot-optimization-2026-06-14.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-06/github-job-card-hover-and-status-dot-optimization-2026-06-14.md)
+- 参考：[github-job-card-hover-and-status-dot-optimization-2026-06-14.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/github-panel/github-job-card-hover-and-status-dot-optimization-2026-06-14.md)
 
 ### 父子悬停隔离
 
@@ -108,7 +108,7 @@ alwaysApply: true
 - 悬停时 `opacity: 1; pointer-events: auto`
 - 键盘可访问：用按钮自身的 `:focus-visible`（`opacity: 1; pointer-events: auto`）——**禁止**用容器级 `:focus-within`：鼠标点击按钮后按钮保持聚焦，`:focus-within` 持续命中 → 移出容器后按钮不消失
 - 叠放占位图标：悬停按钮覆盖的默认图标（如文件夹图标）在 `:has(:focus-visible)` 时隐藏，避免与按钮重叠
-- 参考：[git-vis-file-hotspots-leaderboard-2026-08-04.md](../../docs/knowledge-base/interaction/2026-08/git-vis-file-hotspots-leaderboard-2026-08-04.md)、[toast-card-unification-hover-collapse-2026-08-16.md](../../docs/knowledge-base/interaction/2026-08/toast-card-unification-hover-collapse-2026-08-16.md)
+- 参考：[git-vis-file-hotspots-leaderboard-2026-08-04.md](../../docs/knowledge-base/interaction/git-vis/git-vis-file-hotspots-leaderboard-2026-08-04.md)、[toast-card-unification-hover-collapse-2026-08-16.md](../../docs/knowledge-base/interaction/toast-hint-card/toast-card-unification-hover-collapse-2026-08-16.md)
 
 ### 文件树悬停传播
 
@@ -130,7 +130,7 @@ alwaysApply: true
 
 - 唯一允许的第三方动画图标库：`lucide-animated`（MIT）
 - 点击播放弹簧动画后自动恢复
-- 参考：[browser-copy-button-animation-2026-06-18.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/2026-06/browser-copy-button-animation-2026-06-18.md)
+- 参考：[browser-copy-button-animation-2026-06-18.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/navigation/browser-copy-button-animation-2026-06-18.md)
 
 ### 图标按钮
 
@@ -208,7 +208,7 @@ alwaysApply: true
 - 用于"关闭选项卡"等危险操作按钮，常驻隐藏、hover 时显示
 - 常态无背景色，hover 时变红：`color: var(--color-red-500); background: var(--color-red-100)`
 - 文件：[BrowserTreeEntryFlatList.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser-tree/BrowserTreeEntryFlatList.tsx)
-- 经验：[browser-opened-tabs-enhancement](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/2026-06/browser-opened-tabs-enhancement-2026-06-23.md)
+- 经验：[browser-opened-tabs-enhancement](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/tab-management/browser-opened-tabs-enhancement-2026-06-23.md)
 
 ### 主题切换与 transition（防闪烁）
 
@@ -259,8 +259,8 @@ alwaysApply: true
 ### 文档
 - [ContextMenu.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/components/ContextMenu.tsx) → `showHint()`
 - 左侧实现：[BrowserMenuHintItem.tsx](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/features/browser/BrowserMenuHintItem.tsx)
-- 经验：[hint-card-arrow-positioning-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-06/hint-card-arrow-positioning-fix-2026-06-11.md)
-- 子像素边框：[sub-card-border-subpixel-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-07/sub-card-border-subpixel-fix-2026-07-01.md)
+- 经验：[hint-card-arrow-positioning-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/toast-hint-card/hint-card-arrow-positioning-fix-2026-06-11.md)
+- 子像素边框：[sub-card-border-subpixel-fix](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/sub-card-border-subpixel-fix-2026-07-01.md)
 
 ### Hover Bridge（间隙桥接模式）
 子卡片与触发元素有间隙时，在触发元素上添加 `::after` 伪元素填满间隙。详见 CSS 实现文件。
@@ -297,7 +297,7 @@ alwaysApply: true
 ### 文档
 
 - 完整 CSS 模式：[css-architecture.md](./css-architecture.md) → 虚拟化树形列表的 CSS 模式
-- 经验：[file-tree-virtualized-connecting-lines-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-06/file-tree-virtualized-connecting-lines-fix-2026-06-11.md)
+- 经验：[file-tree-virtualized-connecting-lines-fix-2026-06-11.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/outline-file-tree/file-tree-virtualized-connecting-lines-fix-2026-06-11.md)
 
 ---
 
@@ -382,7 +382,7 @@ alwaysApply: true
 - **队列上限**：store 保留最近 50 条（ERROR_TOAST_STORE_LIMIT），UI 显示最近 5 条 + "+N 摘要"
 - **动画**：AnimatePresence mode="popLayout" + forwardRef（popLayout 测量要求）；**卡片级不设 `layout`**（避免折叠时 framer 全卡 FLIP 缩放抖动，卡片增删时兄弟瞬间就位为已知取舍，仅摘要卡保留 layout）；折叠/展开用**实测 max-height 过渡**（useLayoutEffect 读 scrollHeight 设内联 max-height + 两阶段收起：动画期间保持 pre-wrap，`transitionend` 后加 nowrap+ellipsis；ResizeObserver/fonts.ready/resize 兜底重测）
 - **操作**：折叠/展开、复制、关闭（单条）、清空全部（摘要行）。折叠/复制按钮为 **hover-only**（`.toast-card__btn--detail`，`:hover` 或按钮自身 `:focus-visible` 显示）
-- 经验：[toast-card-unification-hover-collapse-2026-08-16.md](../../docs/knowledge-base/interaction/2026-08/toast-card-unification-hover-collapse-2026-08-16.md)
+- 经验：[toast-card-unification-hover-collapse-2026-08-16.md](../../docs/knowledge-base/interaction/toast-hint-card/toast-card-unification-hover-collapse-2026-08-16.md)
 
 ---
 
@@ -655,7 +655,7 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 
 ### 文档
 
-- 完整经验：[knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-06/resize-handle-pointer-events-diversion-2026-06-23.md)
+- 完整经验：[knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/pointer-events/resize-handle-pointer-events-diversion-2026-06-23.md)
 - 实现文件：`frontend/src/styles/regions/leftbar.css` (`.adl-leftbar__resize-handle`)
 - 实现文件：`frontend/src/styles/regions/rightpanel/files-navigator.css`
   (`.adl-tool-navigator__resize-handle`)
@@ -686,8 +686,8 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 | 我要调布局                             | [§18 布局](#18-布局layout) → [tokens.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/foundations/tokens.md)                                                                             |
 | 我要调响应式                           | [§19 响应式](#19-响应式responsive) → [responsive.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/responsive.md)                                                             |
 | 我要做无障碍                           | [§20 无障碍](#20-无障碍accessibility) → [accessibility.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/design-system/guidelines/accessibility.md)                                                    |
-| 我要修 resize handle 与 scrollbar 重叠 | [§21 Resize Handle](#21-resize-handle--scrollbar) → [knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/2026-06/resize-handle-pointer-events-diversion-2026-06-23.md)        |
-| 我要做 hover text-overflow 遮罩        | [§23 Hover 渐变蒙版](#23-hover-渐变蒙版) → [knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/2026-06/browser-navigator-4-mode-2026-06-24.md)                                 |
+| 我要修 resize handle 与 scrollbar 重叠 | [§21 Resize Handle](#21-resize-handle--scrollbar) → [knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/pointer-events/resize-handle-pointer-events-diversion-2026-06-23.md)        |
+| 我要做 hover text-overflow 遮罩        | [§23 Hover 渐变蒙版](#23-hover-渐变蒙版) → [knowledge-base](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/browser/navigation/browser-navigator-4-mode-2026-06-24.md)                                 |
 | 我要做子卡片菜单（分支切换等）         | [§22 子卡片菜单](#22-子卡片菜单sub-card-menu) → [BranchSubCard.tsx](file:///E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/src/app/regions/right-panel/panels/BranchSubCard.tsx) |
 | 我要写 CSS                             | [css-architecture.md](./css-architecture.md)                                                                                                                                                  |
 | 我要拆组件                             | [component-architecture.md](./component-architecture.md)                                                                                                                                      |
@@ -752,7 +752,7 @@ z-index:3）在视觉上重叠，导致 Scrollbar 无法 hover/交互。
 ### 关键约束
 - `z-index: 1`（必须小于 meta 的 z-index: 2，确保关闭按钮可点击）
 - `pointer-events: none`（不阻塞点击）；仅 hover 显示
-- 详见 [knowledge-base/browser/](../../docs/knowledge-base/browser/2026-06/browser-navigator-4-mode-2026-06-24.md)
+- 详见 [knowledge-base/browser/](../../docs/knowledge-base/browser/navigation/browser-navigator-4-mode-2026-06-24.md)
 
 ---
 

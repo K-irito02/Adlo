@@ -102,4 +102,4 @@ StartupOverlay (fixed, z-9999, pointer-events: none, cursor: default)
 ## 相关文档
 
 - [tauri-sync-command-blocking-2026-07-14.md](../../knowledge-base/tauri-backend/tauri-sync-command-blocking-2026-07-14.md) — 启动期"未响应"根因与修复
-- [tauri-webview-overlay-hide-2026-06-18.md](../../knowledge-base/browser/2026-06/tauri-webview-overlay-hide-2026-06-18.md) — 原生 WebView 覆盖层 z-order 问题
+- [tauri-webview-overlay-hide-2026-06-18.md](../../knowledge-base/browser/webview-embed/tauri-webview-overlay-hide-2026-06-18.md) — 原生 WebView 覆盖层 z-order 问题

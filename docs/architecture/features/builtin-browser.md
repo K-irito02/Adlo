@@ -1,12 +1,12 @@
 # 内置浏览器实现总结
 
-> **2026-08-15 更新**：书签语义重构——去重从「按网址」改为「(网址, 标题)」元组语义（新建/编辑/保存并打开/收藏到目录/星标切换统一）；「新建书签/编辑书签」对话框改双按钮（保存并打开/仅保存，无取消）；标签标题隔离（已打开/将打开的标签始终显示网站真实标题，书签自定义标题只在书签树显示）；重复书签拦截时 toast 附带语义化路径（如「工作区A/工具/子文件夹」）；目录/书签悬停原生 `title` 改为语义化路径（`/` 分隔）。详见 [browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md](../../knowledge-base/browser/2026-08/browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md)。
-> **2026-08-14 更新**：修复历史导航与标题提取——C1 注入脚本历史 URL 归一化（pushState/replaceState 剥离 tracking/radio 参数，同 URL 转 replace）+ C2 前端智能回退（smartGoBack 循环 GoBack 到栈底）+ 原生 `can_go_back`/`can_go_forward` IPC（回退/前进按钮禁用态，双端一致）+ 标题来源门控（provenance：com 可覆盖 com/google 来源实现实时更新，不可覆盖 http/iframe 抓取标题）+ A2 SPA 兜底 h1 择优。详见 [browser-history-navigation-2026-08-14.md](../../knowledge-base/browser/2026-08/browser-history-navigation-2026-08-14.md)。
-> **2026-08-13 更新**：新增网站元数据持久化缓存（favicon data-URI + 标题）——三层架构（Rust SQLite `SiteMetaCacheStore` / preview JSON 文件 / 前端 `siteMetaCache.ts` 内存层），重开应用已缓存条目零网络秒开。预载门控、成功才写、失败保留旧缓存、引用计数删除、无条数上限。详见 [browser-site-meta-cache-2026-08-13.md](../../knowledge-base/browser/2026-08/browser-site-meta-cache-2026-08-13.md)。
-> **2026-06-30 更新**：修复书签删除跨域污染——`browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对，新增 `scopeFolderId` 参数限定文件夹范围。详见 [browser-folder-delete-bookmark-cleanup-2026-06-30.md](../../knowledge-base/browser/browser-folder-delete-bookmark-cleanup-2026-06-30.md)。  
-> **2026-06-28 更新**：修复 SPA 导航标题同步（Bilibili/YouTube 手动点击无响应/标题延迟 + 清空标签删除收藏目录标签）。详见 [browser-spa-navigation-title-sync-fix-2026-06-28.md](../../knowledge-base/browser/browser-spa-navigation-title-sync-fix-2026-06-28.md)。  
-> **2026-06-26 更新**：修复历史记录不记录的 6 个 Bug。详见 [browser-history-recording-fix-2026-06-26.md](../../knowledge-base/browser/browser-history-recording-fix-2026-06-26.md)。  
-> **2026-06-25 更新**：标签创建策略从"立即创建+hostname 占位"重构为"延迟创建+同步渲染"。详见 [browser-tab-meta-deferred-creation-2026-06-25.md](../../knowledge-base/browser/browser-tab-meta-deferred-creation-2026-06-25.md)。
+> **2026-08-15 更新**：书签语义重构——去重从「按网址」改为「(网址, 标题)」元组语义（新建/编辑/保存并打开/收藏到目录/星标切换统一）；「新建书签/编辑书签」对话框改双按钮（保存并打开/仅保存，无取消）；标签标题隔离（已打开/将打开的标签始终显示网站真实标题，书签自定义标题只在书签树显示）；重复书签拦截时 toast 附带语义化路径（如「工作区A/工具/子文件夹」）；目录/书签悬停原生 `title` 改为语义化路径（`/` 分隔）。详见 [browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md](../../knowledge-base/browser/bookmark/browser-bookmark-tuple-dedup-and-title-isolation-2026-08-15.md)。
+> **2026-08-14 更新**：修复历史导航与标题提取——C1 注入脚本历史 URL 归一化（pushState/replaceState 剥离 tracking/radio 参数，同 URL 转 replace）+ C2 前端智能回退（smartGoBack 循环 GoBack 到栈底）+ 原生 `can_go_back`/`can_go_forward` IPC（回退/前进按钮禁用态，双端一致）+ 标题来源门控（provenance：com 可覆盖 com/google 来源实现实时更新，不可覆盖 http/iframe 抓取标题）+ A2 SPA 兜底 h1 择优。详见 [browser-history-navigation-2026-08-14.md](../../knowledge-base/browser/history/browser-history-navigation-2026-08-14.md)。
+> **2026-08-13 更新**：新增网站元数据持久化缓存（favicon data-URI + 标题）——三层架构（Rust SQLite `SiteMetaCacheStore` / preview JSON 文件 / 前端 `siteMetaCache.ts` 内存层），重开应用已缓存条目零网络秒开。预载门控、成功才写、失败保留旧缓存、引用计数删除、无条数上限。详见 [browser-site-meta-cache-2026-08-13.md](../../knowledge-base/browser/favicon-meta/browser-site-meta-cache-2026-08-13.md)。
+> **2026-06-30 更新**：修复书签删除跨域污染——`browserRemoveTabBookmarks` 工作区过滤从 `tabId`-only 改为 `(tabId, url)` 对，新增 `scopeFolderId` 参数限定文件夹范围。详见 [browser-folder-delete-bookmark-cleanup-2026-06-30.md](../../knowledge-base/browser/bookmark/browser-folder-delete-bookmark-cleanup-2026-06-30.md)。  
+> **2026-06-28 更新**：修复 SPA 导航标题同步（Bilibili/YouTube 手动点击无响应/标题延迟 + 清空标签删除收藏目录标签）。详见 [browser-spa-navigation-title-sync-fix-2026-06-28.md](../../knowledge-base/browser/navigation/browser-spa-navigation-title-sync-fix-2026-06-28.md)。  
+> **2026-06-26 更新**：修复历史记录不记录的 6 个 Bug。详见 [browser-history-recording-fix-2026-06-26.md](../../knowledge-base/browser/history/browser-history-recording-fix-2026-06-26.md)。  
+> **2026-06-25 更新**：标签创建策略从"立即创建+hostname 占位"重构为"延迟创建+同步渲染"。详见 [browser-tab-meta-deferred-creation-2026-06-25.md](../../knowledge-base/browser/favicon-meta/browser-tab-meta-deferred-creation-2026-06-25.md)。
 
 ## 摘要
 为右侧面板浏览器工具实现了完整的双模式内置浏览器功能。Tauri 桌面模式使用原生 child WebView（multiwebview），浏览器预览模式使用 `<iframe>` 直连 + 外部浏览器降级按钮。
@@ -175,7 +175,7 @@
 |------|----------|------|
 | `frontend/src/app/features/browser/useBrowserPanel.ts` | 修改 | 添加 URL 变化事件监听，同步更新地址栏和标签页 |
 
-> 详细经验教训已记录在 [knowledge-base/browser/browser-url-sync-fix-2026-06-04.md](../../knowledge-base/browser/browser-url-sync-fix-2026-06-04.md)
+> 详细经验教训已记录在 [knowledge-base/browser/navigation/browser-url-sync-fix-2026-06-04.md](../../knowledge-base/browser/navigation/browser-url-sync-fix-2026-06-04.md)
 
 ## 浏览器导航模式切换 + 自动刷新修复（2026-06-20）
 
@@ -224,9 +224,9 @@
 | `frontend/src/app/features/browser/useBrowserWebView.ts` | 修改 | `isUrlRecentlySeen` 三层递进去重（精确→归一化→hostname+pathname）；TTL 3000ms |
 | `frontend/src/styles/regions/rightpanel/browser-toolbar.css` | 修改 | 新增 Switch 样式 |
 
-> **2026-06-25 补充**：后续新增了 WebView2 原生 DocumentTitleChanged/FaviconChanged COM 事件处理（`crates/browser/src/webview2_message.rs`），以及 Rust 侧多源去重（`should_emit_and_update`）。详细信息见 [browser-meta-sync-mechanism-2026-06-25.md](../../knowledge-base/browser/browser-meta-sync-mechanism-2026-06-25.md)。
+> **2026-06-25 补充**：后续新增了 WebView2 原生 DocumentTitleChanged/FaviconChanged COM 事件处理（`crates/browser/src/webview2_message.rs`），以及 Rust 侧多源去重（`should_emit_and_update`）。详细信息见 [browser-meta-sync-mechanism-2026-06-25.md](../../knowledge-base/browser/favicon-meta/browser-meta-sync-mechanism-2026-06-25.md)。
 | `frontend/src/app/i18n/zh-CN/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
 | `frontend/src/app/i18n/en-US/browser.ts` | 修改 | 新增 `browserNavigateInPlace`, `browserNavigateNewTab` |
 | `frontend/crates/browser/src/browser_navigation.rs` | 修改 | 移除 `stopImmediatePropagation` |
 
-> 详细经验教训已记录在 [knowledge-base/browser/browser-navigation-mode-toggle-2026-06-20.md](../../knowledge-base/browser/browser-navigation-mode-toggle-2026-06-20.md)
+> 详细经验教训已记录在 [knowledge-base/browser/navigation/browser-navigation-mode-toggle-2026-06-20.md](../../knowledge-base/browser/navigation/browser-navigation-mode-toggle-2026-06-20.md)
