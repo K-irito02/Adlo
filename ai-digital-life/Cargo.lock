@@ -306,11 +306,13 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "adl-fs-ops",
+ "adl-kernel",
  "adl-outline",
  "adl-types",
  "notify",
  "rusqlite",
  "serde",
+ "serde_json",
  "tokio",
  "tracing",
  "trash",

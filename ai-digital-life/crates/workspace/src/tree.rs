@@ -1,3 +1,4 @@
+use crate::tree_cache_store::TreeCacheStore;
 use adl_errors::AppError;
 use adl_types::{
     RepoMapEntry, RetrievalFileTypeCount, RetrievalSnapshot, RetrievalStatusV1, WorkspaceTreeNode,
@@ -95,6 +96,8 @@ fn tree_cache_put(root: &Path, tree: Vec<WorkspaceTreeNode>, expected_generation
 
 /// 清除 root 的文件树缓存并递增其失效代际。任何文件系统写操作后必须调用，
 /// 防止树过期；代际自增使"扫描中发生写操作"的并发窗口不会回填过期数据。
+/// 附带删除 SQLite 落盘行（`remove_tree_cache_row`，best-effort，
+/// 失败只记 `debug!`，永不让写操作失败）。
 pub fn invalidate_tree_cache(root: &Path) {
     let key = normalize_cache_key(root);
     let mut cache = tree_cache().lock().unwrap_or_else(|e| e.into_inner());
@@ -103,34 +106,173 @@ pub fn invalidate_tree_cache(root: &Path) {
     }
     drop(cache);
     generation_bump(&key);
+    remove_tree_cache_row(root);
+}
+
+/// `invalidate_tree_cache` 的 SQLite 部分拆出（供工作区移除路径复用，
+/// 见 Task 4）：best-effort，永不抛错。
+pub fn remove_tree_cache_row(root: &Path) {
+    let key = normalize_cache_key(root);
+    let Some(dir) = tree_cache_dir() else { return };
+    match TreeCacheStore::open(&dir) {
+        Ok(store) => {
+            if let Err(e) = store.remove(&key) {
+                debug!(root = %key, error = %e, "tree cache row removal skipped");
+            }
+        },
+        Err(e) => {
+            debug!(root = %key, error = %e, "tree cache store open skipped");
+        },
+    }
+}
+
+/// L2 落盘目录显式注入（测试/开发逃生口，仿 `ADL_STORAGE_LOCATOR_PATH` 惯例）。
+/// 仅绝对路径被采纳（防 CWD 漂移）；相对值视为未设置。
+const TREE_CACHE_DIR_ENV: &str = "ADL_TREE_CACHE_DIR";
+
+/// 已解析回退目录的过程级缓存：`argv`/定位器文件在进程启动后即固定，
+/// 缓存避免每次失效/读取重扫 `argv` 与重读定位器文件；
+/// 环境变量注入保持每次新鲜读取（单测隔离与运维覆盖用）。
+static TREE_CACHE_FALLBACK_DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
+
+/// L2 SQLite 落盘目录解析（唯一收敛点）：
+/// 1. `ADL_TREE_CACHE_DIR` 绝对路径（测试注入/运维覆盖，最高优先级，每次新鲜读取）；
+/// 2. 本进程 `argv` 的 `--data-dir <dir>`（`adl-server` 启动契约：
+///    壳层永远以解析后的存储根拉起它，见 `crates/server/src/bin/adl-server.rs`）；
+/// 3. 存储定位器文件的显式 `root`（覆盖无该 flag 的调用方，如壳层进程；
+///    路径规则与解析经 `adl-kernel::storage`  canonical API，无模式耦合；
+///    `TreeCache` 独立分类（Task 3）落地后，此处改读该分类目录）；
+/// 4. 皆无 → `None`（调用方跳过 L2，行为等同现状）。
+fn tree_cache_dir() -> Option<PathBuf> {
+    if let Some(dir) = std::env::var_os(TREE_CACHE_DIR_ENV) {
+        let dir = PathBuf::from(dir);
+        if dir.is_absolute() {
+            return Some(dir);
+        }
+    }
+    TREE_CACHE_FALLBACK_DIR
+        .get_or_init(|| {
+            data_dir_from_args(std::env::args_os().map(|arg| arg.to_string_lossy().into_owned()))
+                .or_else(locator_custom_root)
+        })
+        .clone()
+}
+
+/// 纯函数（单测友好）：从参数流（含 argv[0]，内部跳过）中提取 `--data-dir <dir>`（空格式，
+/// 与 `crates/server/src/bin/adl-server.rs` 的解析一致；另容忍 `--data-dir=<dir>`）。
+/// 首个 `--data-dir` 即返回；无值（末尾孤 flag）返回 `None`。
+fn data_dir_from_args(args: impl IntoIterator<Item = String>) -> Option<PathBuf> {
+    let mut args = args.into_iter();
+    // 跳过 argv[0]（可执行文件名）。
+    args.next()?;
+    while let Some(arg) = args.next() {
+        if arg == "--data-dir" {
+            return args.next().map(PathBuf::from);
+        }
+        if let Some(value) = arg.strip_prefix("--data-dir=") {
+            return Some(PathBuf::from(value));
+        }
+    }
+    None
+}
+
+/// 存储定位器文件的显式 `root`（`None` = 默认 unified，无自定义根）。
+/// 路径规则（`ADL_STORAGE_LOCATOR_PATH` 覆盖）与解析经
+/// `adl-kernel::storage::locator` canonical API；损坏/缺失回 `None`（永不阻塞）。
+fn locator_custom_root() -> Option<PathBuf> {
+    let locator = adl_kernel::storage::load_locator();
+    locator.selection.root
+}
+
+/// L2 读：行存在且反序列化成功即返回；损坏行自愈删除后回退 `None`
+/// （调用方走 L3 全量扫）。打开/查询失败一律回退，不抛错。
+fn read_disk_row(root: &Path) -> Option<Vec<WorkspaceTreeNode>> {
+    let dir = tree_cache_dir()?;
+    let key = normalize_cache_key(root);
+    let store = TreeCacheStore::open(&dir).ok()?;
+    let row = store.get(&key).ok()??;
+    match serde_json::from_str::<Vec<WorkspaceTreeNode>>(&row.tree_json) {
+        Ok(nodes) => {
+            debug!(root = %key, nodes = nodes.len(), "workspace tree disk cache hit");
+            Some(nodes)
+        },
+        Err(e) => {
+            debug!(root = %key, error = %e, "workspace tree disk row corrupt, dropping");
+            if let Err(e) = store.remove(&key) {
+                debug!(root = %key, error = %e, "corrupt tree cache row removal skipped");
+            }
+            None
+        },
+    }
+}
+
+/// L2 写：best-effort；序列化/打开/put 任一步失败只记 `debug!`，永不影响调用方。
+fn write_disk_row(root: &Path, tree: &[WorkspaceTreeNode]) {
+    let key = normalize_cache_key(root);
+    let tree_json = match serde_json::to_string(tree) {
+        Ok(json) => json,
+        Err(e) => {
+            debug!(root = %key, error = %e, "workspace tree disk write skipped: serialize failed");
+            return;
+        },
+    };
+    let Some(dir) = tree_cache_dir() else { return };
+    match TreeCacheStore::open(&dir) {
+        Ok(store) => {
+            if let Err(e) = store.put(&key, &tree_json, now_ms()) {
+                debug!(root = %key, error = %e, "workspace tree disk write skipped");
+            }
+        },
+        Err(e) => {
+            debug!(root = %key, error = %e, "workspace tree disk store open skipped");
+        },
+    }
 }
 
 /// 带进程内缓存的树加载（方案 C 入口）。命中则直接返回克隆的树，
 /// 未命中则全量扫描并缓存。
+/// L1 内存 → L2 SQLite（进程重启后存活）→ L3 全量扫并回写 L1 + L2。
 pub fn list_tree_cached(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
+    list_tree_cached_stale_ok(root).map(|(tree, _)| tree)
+}
+
+/// `list_tree_cached` 的 stale-感知形态（供 Task 4 的 `allow_stale` 首包）：
+/// L1/L2 命中返 `(tree, true)`，miss 全量扫并回写后返 `(tree, false)`
+/// （miss 时本次即新鲜，调用方凭 `from_cache == false` 即知，无需二次校准）。
+pub fn list_tree_cached_stale_ok(root: &Path) -> Result<(Vec<WorkspaceTreeNode>, bool), AppError> {
     if let Some(cached) = tree_cache_get(root) {
         debug!(
             root = %root.to_string_lossy(),
             nodes = cached.len(),
             "workspace tree cache hit"
         );
-        return Ok(cached);
+        return Ok((cached, true));
+    }
+    if let Some(nodes) = read_disk_row(root) {
+        // L2 命中回填 L1（沿用 put 的代际校验语义）。
+        let key = normalize_cache_key(root);
+        let generation = generation_get(&key);
+        tree_cache_put(root, nodes.clone(), generation);
+        return Ok((nodes, true));
     }
     let key = normalize_cache_key(root);
     let generation = generation_get(&key);
     let tree = list_tree(root)?;
     tree_cache_put(root, tree.clone(), generation);
-    Ok(tree)
+    write_disk_row(root, &tree);
+    Ok((tree, false))
 }
 
 /// 绕过缓存强制重新扫描（显式"刷新"用）。先失效旧条目再全量扫描并缓存，
-/// 使外部改动（IDE/终端/补丁）立即反映。
+/// 使外部改动（IDE/终端/补丁）立即反映。回写 L1 + L2（`invalidate` 已删 L2 旧行，
+/// 此处写入新鲜行，避免刷新后 10s（L1 TTL）一过又回退到重扫）。
 pub fn list_tree_force(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
     invalidate_tree_cache(root);
     let key = normalize_cache_key(root);
     let generation = generation_get(&key);
     let tree = list_tree(root)?;
     tree_cache_put(root, tree.clone(), generation);
+    write_disk_row(root, &tree);
     Ok(tree)
 }
 
@@ -726,5 +868,120 @@ mod tree_cache_tests {
         assert!(tree.iter().any(|n| n.path == "real"));
         assert!(!tree.iter().any(|n| n.path == "link"), "symlink must be skipped");
         cleanup(&tmp);
+    }
+
+    /// L2 单测隔离：串行化 `ADL_TREE_CACHE_DIR` 的读写（进程级环境变量，
+    /// 仿 `adl-kernel::storage::locator` 测试的 `ENV_OVERRIDE_LOCK` 惯例），
+    /// 并指向唯一临时目录（并行测试互不干扰：L2 键为工作区绝对路径，各不相同）。
+    static L2_TEST_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// 设置环境变量并在 Drop 时还原（含 panic 展开路径）。
+    struct EnvVarGuard {
+        key: &'static str,
+        original: Option<std::ffi::OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &std::ffi::OsStr) -> Self {
+            let original = std::env::var_os(key);
+            // SAFETY: 调用方持有 `L2_TEST_ENV_LOCK`；本测试二进制内无其它线程读写该变量。
+            unsafe { std::env::set_var(key, value) };
+            Self { key, original }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            match self.original.take() {
+                // SAFETY: 同 `set`。
+                Some(v) => unsafe { std::env::set_var(self.key, v) },
+                // SAFETY: 同 `set`。
+                None => unsafe { std::env::remove_var(self.key) },
+            }
+        }
+    }
+
+    /// 持有测试锁 + 环境变量还原；Drop 时清理 L2 临时目录。
+    /// 声明顺序即释放顺序的逆序：先声明者最晚释放（锁最后释放）。
+    struct L2EnvGuard {
+        _lock: std::sync::MutexGuard<'static, ()>,
+        _env: EnvVarGuard,
+        dir: std::path::PathBuf,
+    }
+
+    impl Drop for L2EnvGuard {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.dir);
+        }
+    }
+
+    fn l2_isolated_env(tag: &str) -> L2EnvGuard {
+        let lock = L2_TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let id = CACHE_SEQ.fetch_add(1, Ordering::SeqCst);
+        let dir = std::env::temp_dir().join(format!("adl-tree-l2-{tag}-{id}"));
+        let _ = std::fs::remove_dir_all(&dir);
+        let env = EnvVarGuard::set("ADL_TREE_CACHE_DIR", dir.as_os_str());
+        L2EnvGuard { _lock: lock, _env: env, dir }
+    }
+
+    /// 测试内小 helper（与实现同文件）：直调
+    /// `TreeCacheStore::open(&tree_cache_dir())` 判指定工作区的落盘行缺席。
+    /// 目录不可解析时视为缺席（与生产跳过 L2 的语义一致）。
+    fn tree_cache_store_row_absent(root: &std::path::Path) -> bool {
+        let Some(dir) = tree_cache_dir() else { return true };
+        match crate::tree_cache_store::TreeCacheStore::open(&dir) {
+            Ok(store) => {
+                store.get(&normalize_cache_key(root)).map(|row| row.is_none()).unwrap_or(true)
+            },
+            Err(_) => true,
+        }
+    }
+
+    /// L2：跨“内存清空”后仍命中（模拟进程重启后 L1 丢失，L2 落盘存活）。
+    #[test]
+    fn list_tree_cached_survives_memory_clear_via_disk_row() {
+        let _l2 = l2_isolated_env("survive");
+        let tmp = unique_tmp_dir("l2-survive");
+        std::fs::write(tmp.join("a.txt"), b"a").unwrap();
+        let first = list_tree_cached(&tmp).unwrap();
+        assert!(first.iter().any(|n| n.path == "a.txt"));
+        // 仅清 L1 内存条目（模拟进程重启后 L1 丢失，不删盘），并删除源文件：
+        // 若实现回退到 L3 重扫，a.txt 将消失；唯有 L2 落盘行能返回它（不触发重扫）。
+        tree_cache().lock().unwrap_or_else(|e| e.into_inner()).remove(&normalize_cache_key(&tmp));
+        std::fs::remove_file(tmp.join("a.txt")).unwrap();
+        let second = list_tree_cached(&tmp).unwrap();
+        assert_eq!(first.len(), second.len());
+        assert!(
+            second.iter().any(|n| n.path == "a.txt"),
+            "second call must come from the L2 disk row, not a rescan"
+        );
+        cleanup(&tmp);
+    }
+
+    /// 失效删行：invalidate 后 L2 无行，下次调用重扫（captured_at 更新）。
+    #[test]
+    fn invalidate_removes_disk_row() {
+        let _l2 = l2_isolated_env("invalidate");
+        let tmp = unique_tmp_dir("l2-invalidate");
+        std::fs::write(tmp.join("a.txt"), b"a").unwrap();
+        let _ = list_tree_cached(&tmp).unwrap();
+        invalidate_tree_cache(&tmp);
+        assert!(tree_cache_store_row_absent(&tmp), "disk row must be gone");
+        cleanup(&tmp);
+    }
+
+    /// `--data-dir` 提取（`tree_cache_dir` 回退链用）：空格与等号两式，缺席为 None。
+    #[test]
+    fn data_dir_from_args_supports_space_and_equals_forms() {
+        let args = ["adl-server", "--port", "0", "--data-dir", "D:/adl"]
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>();
+        assert_eq!(data_dir_from_args(args), Some(std::path::PathBuf::from("D:/adl")));
+        let args =
+            ["adl-server", "--data-dir=D:/x"].into_iter().map(String::from).collect::<Vec<_>>();
+        assert_eq!(data_dir_from_args(args), Some(std::path::PathBuf::from("D:/x")));
+        let args = ["adl-server"].into_iter().map(String::from).collect::<Vec<_>>();
+        assert_eq!(data_dir_from_args(args), None);
     }
 }
