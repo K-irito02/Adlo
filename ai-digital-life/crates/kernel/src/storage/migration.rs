@@ -73,6 +73,7 @@ pub fn scan_foreign(paths: &StoragePaths) -> Vec<ForeignScan> {
             StorageCategory::Database
                 | StorageCategory::DownloadsDb
                 | StorageCategory::SiteMetaDb
+                | StorageCategory::TreeCache
                 | StorageCategory::DownloadsDefault
         ) {
             continue;
@@ -338,12 +339,13 @@ fn probe_writable(target: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// 单文件类的主文件路径（Database/DownloadsDb/SiteMetaDb 的 .db 文件）。
+/// 单文件类的主文件路径（Database/DownloadsDb/SiteMetaDb/TreeCache 的 .db 文件）。
 fn primary_db_file(category: StorageCategory, paths: &StoragePaths) -> Option<PathBuf> {
     match category {
-        StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb => {
-            Some(paths.dir(category))
-        },
+        StorageCategory::Database
+        | StorageCategory::DownloadsDb
+        | StorageCategory::SiteMetaDb
+        | StorageCategory::TreeCache => Some(paths.dir(category)),
         _ => None,
     }
 }
@@ -392,7 +394,10 @@ pub fn copy_category(
     // 单文件类：主库 + 伴随 wal/shm，源与目标逐一同名映射（覆盖值按目录解析）。
     if matches!(
         category,
-        StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb
+        StorageCategory::Database
+            | StorageCategory::DownloadsDb
+            | StorageCategory::SiteMetaDb
+            | StorageCategory::TreeCache
     ) {
         let mut moved = Vec::new();
         for (src, dst) in db_files(category, from).into_iter().zip(db_files(category, to)) {
@@ -458,7 +463,10 @@ pub fn verify_category(
 ) -> Result<(), AppError> {
     if matches!(
         category,
-        StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb
+        StorageCategory::Database
+            | StorageCategory::DownloadsDb
+            | StorageCategory::SiteMetaDb
+            | StorageCategory::TreeCache
     ) {
         for (src, dst) in db_files(category, from).into_iter().zip(db_files(category, to)) {
             if !src.is_file() {
@@ -475,7 +483,7 @@ pub fn verify_category(
                 )));
             }
         }
-        // 主库/下载库/站点元库：quick_check（只对存在的 .db 文件）。
+        // 主库/下载库/站点元库/树缓存库：quick_check（只对存在的 .db 文件）。
         if let Some(db) = primary_db_file(category, to) {
             if db.is_file() {
                 quick_check(&db)?;
@@ -528,7 +536,10 @@ pub fn cleanup_category(
 
     let roots: Vec<PathBuf> = if matches!(
         category,
-        StorageCategory::Database | StorageCategory::DownloadsDb | StorageCategory::SiteMetaDb
+        StorageCategory::Database
+            | StorageCategory::DownloadsDb
+            | StorageCategory::SiteMetaDb
+            | StorageCategory::TreeCache
     ) {
         // A7/A8：单文件类统一走 db_files（覆盖感知，含 -wal/-shm 伴生文件）。
         db_files(category, from)

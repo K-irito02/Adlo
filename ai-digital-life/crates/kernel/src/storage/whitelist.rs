@@ -39,6 +39,9 @@ pub fn owns_file(category: StorageCategory, base: &Path, path: &Path) -> bool {
             name,
             "site-meta-cache.db" | "site-meta-cache.db-wal" | "site-meta-cache.db-shm"
         ),
+        StorageCategory::TreeCache => {
+            matches!(name, "tree-cache.db" | "tree-cache.db-wal" | "tree-cache.db-shm")
+        },
         // config 基目录下所有文件均属自有。
         StorageCategory::Config => !rel.is_empty(),
         // `<base>/images/**` 或 `<base>/thumbs/**`
@@ -76,10 +79,11 @@ pub fn is_own_dir(category: StorageCategory, base: &Path, dir: &Path) -> bool {
         StorageCategory::Snapshot => !rel.is_empty(),
         StorageCategory::Dsh => !rel.is_empty(),
         StorageCategory::Logs => rel.is_empty(),
-        // 主库/下载库/站点元库直接位于共享根，凭据目录由 OS 配置目录承载，均不视为可删自有目录。
+        // 主库/下载库/站点元库/树缓存库直接位于共享根，凭据目录由 OS 配置目录承载，均不视为可删自有目录。
         StorageCategory::Database
         | StorageCategory::DownloadsDb
         | StorageCategory::SiteMetaDb
+        | StorageCategory::TreeCache
         | StorageCategory::CredentialsFallback
         | StorageCategory::DownloadsDefault => false,
     }
@@ -96,6 +100,7 @@ pub fn category_roots(category: StorageCategory, paths: &StoragePaths) -> Vec<Pa
         StorageCategory::Database => vec![db_root(StorageCategory::Database)],
         StorageCategory::DownloadsDb => vec![db_root(StorageCategory::DownloadsDb)],
         StorageCategory::SiteMetaDb => vec![db_root(StorageCategory::SiteMetaDb)],
+        StorageCategory::TreeCache => vec![db_root(StorageCategory::TreeCache)],
         StorageCategory::Config => vec![paths.config_dir.clone()],
         StorageCategory::Clipboard => vec![paths.clipboard_dir.clone()],
         StorageCategory::Snapshot => vec![paths.snapshot_dir.clone()],
@@ -309,9 +314,12 @@ mod tests {
             vec![p.credentials_dir.clone()]
         );
         assert!(category_roots(StorageCategory::DownloadsDefault, &p).is_empty());
-        for c in
-            [StorageCategory::Database, StorageCategory::DownloadsDb, StorageCategory::SiteMetaDb]
-        {
+        for c in [
+            StorageCategory::Database,
+            StorageCategory::DownloadsDb,
+            StorageCategory::SiteMetaDb,
+            StorageCategory::TreeCache,
+        ] {
             assert_eq!(category_roots(c, &p), vec![p.root.clone()]);
         }
 
@@ -324,6 +332,7 @@ mod tests {
         sel.categories.insert(StorageCategory::Database, PathBuf::from("E:/xdb"));
         sel.categories.insert(StorageCategory::DownloadsDb, PathBuf::from("E:/xdl"));
         sel.categories.insert(StorageCategory::SiteMetaDb, PathBuf::from("E:/xmeta"));
+        sel.categories.insert(StorageCategory::TreeCache, PathBuf::from("E:/xtree"));
         let q = StoragePaths::resolve(
             &sel,
             &StorageDefaults {
@@ -338,5 +347,6 @@ mod tests {
             category_roots(StorageCategory::SiteMetaDb, &q),
             vec![PathBuf::from("E:/xmeta")]
         );
+        assert_eq!(category_roots(StorageCategory::TreeCache, &q), vec![PathBuf::from("E:/xtree")]);
     }
 }

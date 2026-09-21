@@ -465,7 +465,7 @@ mod tests {
     }
 
     #[test]
-    fn category_statuses_covers_all_ten_categories_in_order() {
+    fn category_statuses_covers_all_eleven_categories_in_order() {
         let (svc, dir) = temp_storage("statuses");
         let statuses = category_statuses(&svc);
         let keys: Vec<&str> = statuses.iter().map(|s| s.key.as_str()).collect();
@@ -475,6 +475,7 @@ mod tests {
                 "database",
                 "downloads_db",
                 "site_meta_db",
+                "tree_cache",
                 "config",
                 "clipboard",
                 "snapshot",

@@ -1,4 +1,4 @@
-//! 存储分类：应用数据的 10 个可配置落点。
+//! 存储分类：应用数据的 11 个可配置落点。
 
 use serde::{Deserialize, Serialize};
 
@@ -9,6 +9,7 @@ pub enum StorageCategory {
     Database,
     DownloadsDb,
     SiteMetaDb,
+    TreeCache,
     Config,
     Clipboard,
     Snapshot,
@@ -19,11 +20,12 @@ pub enum StorageCategory {
 }
 
 impl StorageCategory {
-    /// 全部 10 类，UI 展开顺序与此一致。
-    pub const ALL: [StorageCategory; 10] = [
+    /// 全部 11 类，UI 展开顺序与此一致。
+    pub const ALL: [StorageCategory; 11] = [
         StorageCategory::Database,
         StorageCategory::DownloadsDb,
         StorageCategory::SiteMetaDb,
+        StorageCategory::TreeCache,
         StorageCategory::Config,
         StorageCategory::Clipboard,
         StorageCategory::Snapshot,
@@ -39,6 +41,7 @@ impl StorageCategory {
             StorageCategory::Database => "database",
             StorageCategory::DownloadsDb => "downloads_db",
             StorageCategory::SiteMetaDb => "site_meta_db",
+            StorageCategory::TreeCache => "tree_cache",
             StorageCategory::Config => "config",
             StorageCategory::Clipboard => "clipboard",
             StorageCategory::Snapshot => "snapshot",
@@ -59,7 +62,7 @@ mod tests {
         let mut keys: Vec<&str> = StorageCategory::ALL.iter().map(|c| c.key()).collect();
         keys.sort_unstable();
         keys.dedup();
-        assert_eq!(keys.len(), 10, "ALL must contain 10 distinct categories");
+        assert_eq!(keys.len(), 11, "ALL must contain 11 distinct categories");
     }
 
     #[test]
