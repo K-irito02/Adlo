@@ -146,9 +146,8 @@ static TREE_CACHE_FALLBACK_DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
 /// 1. `ADL_TREE_CACHE_DIR` 绝对路径（测试注入/运维覆盖，最高优先级，每次新鲜读取）；
 /// 2. 本进程 `argv` 的 `--data-dir <dir>`（`adl-server` 启动契约：
 ///    壳层永远以解析后的存储根拉起它，见 `crates/server/src/bin/adl-server.rs`）；
-/// 3. 存储定位器文件的显式 `root`（覆盖无该 flag 的调用方，如壳层进程；
-///    路径规则与解析经 `adl-kernel::storage`  canonical API，无模式耦合；
-///    `TreeCache` 独立分类（Task 3）落地后，此处改读该分类目录）；
+/// 3. 存储定位器文件的 `TreeCache` 分类目录（覆盖无该 flag 的调用方，如壳层进程；
+///    经 `adl-kernel::storage` canonical API 解析，per-category 覆盖自动生效）；
 /// 4. 皆无 → `None`（调用方跳过 L2，行为等同现状）。
 fn tree_cache_dir() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os(TREE_CACHE_DIR_ENV) {
@@ -160,7 +159,7 @@ fn tree_cache_dir() -> Option<PathBuf> {
     TREE_CACHE_FALLBACK_DIR
         .get_or_init(|| {
             data_dir_from_args(std::env::args_os().map(|arg| arg.to_string_lossy().into_owned()))
-                .or_else(locator_custom_root)
+                .or_else(locator_tree_cache_dir)
         })
         .clone()
 }
@@ -183,12 +182,39 @@ fn data_dir_from_args(args: impl IntoIterator<Item = String>) -> Option<PathBuf>
     None
 }
 
-/// 存储定位器文件的显式 `root`（`None` = 默认 unified，无自定义根）。
-/// 路径规则（`ADL_STORAGE_LOCATOR_PATH` 覆盖）与解析经
-/// `adl-kernel::storage::locator` canonical API；损坏/缺失回 `None`（永不阻塞）。
-fn locator_custom_root() -> Option<PathBuf> {
+/// 存储定位器文件的 TreeCache 落盘目录（`None` = 无可信解析，调用方跳过 L2）。
+/// 经 `StorageCategory::TreeCache` canonical 解析（`StoragePaths::resolve` 后取
+/// `dir()` 的父目录），per-category 覆盖自动生效；损坏/缺失回 `None`（永不阻塞）。
+fn locator_tree_cache_dir() -> Option<PathBuf> {
     let locator = adl_kernel::storage::load_locator();
-    locator.selection.root
+    // 默认值仅在"统一根缺席且无 TreeCache 覆盖"时被消费——该情形已在纯函数内回
+    // `None`，此处取值不影响结果（defaults 形态仿 `engine::storage_from_locator`）。
+    let fallback_root = locator.selection.root.clone().unwrap_or_default();
+    let defaults = adl_kernel::storage::StorageDefaults {
+        root: fallback_root.clone(),
+        credentials_dir: adl_kernel::storage::locator_dir().join("credentials"),
+        downloads_dir: fallback_root,
+    };
+    tree_cache_dir_from_selection(&locator.selection, &defaults)
+}
+
+/// 纯函数（单测友好）：由 locator selection 解析 TreeCache 落盘目录——
+/// `StoragePaths::resolve` 后取 `dir(TreeCache)` 的父目录（`store.open` 在其下
+/// 拼接 `tree-cache.db`，见 `tree_cache_store.rs:DB_FILE_NAME`）。
+/// 默认根在 workspace 侧未知：无显式统一根、又无 TreeCache 独立覆盖（且覆盖仅
+/// per-category 模式有效，与 `resolve` 语义一致）时回 `None`。
+fn tree_cache_dir_from_selection(
+    selection: &adl_kernel::storage::StorageSelection,
+    defaults: &adl_kernel::storage::StorageDefaults,
+) -> Option<PathBuf> {
+    use adl_kernel::storage::{StorageCategory, StorageMode};
+    let per_category_override = selection.mode == StorageMode::PerCategory
+        && selection.categories.contains_key(&StorageCategory::TreeCache);
+    if selection.root.is_none() && !per_category_override {
+        return None;
+    }
+    let paths = adl_kernel::storage::StoragePaths::resolve(selection, defaults);
+    paths.dir(StorageCategory::TreeCache).parent().map(Path::to_path_buf)
 }
 
 /// L2 读：行存在且反序列化成功即返回（树，行捕获时间）；损坏行自愈删除后回退
@@ -1029,5 +1055,49 @@ mod tree_cache_tests {
         assert_eq!(data_dir_from_args(args), Some(std::path::PathBuf::from("D:/x")));
         let args = ["adl-server"].into_iter().map(String::from).collect::<Vec<_>>();
         assert_eq!(data_dir_from_args(args), None);
+    }
+
+    /// Task 3 fix：定位器回退经 `StorageCategory::TreeCache` canonical 解析——
+    /// per-category 覆盖直达覆盖目录（而非统一根），且与 `SiteMetaDb` 落点分类型。
+    #[test]
+    fn tree_cache_dir_from_selection_honors_per_category_override() {
+        use adl_kernel::storage::{
+            StorageCategory, StorageDefaults, StorageMode, StoragePaths, StorageSelection,
+        };
+
+        let mut sel = StorageSelection { mode: StorageMode::PerCategory, ..Default::default() };
+        sel.categories.insert(StorageCategory::SiteMetaDb, PathBuf::from("/xmeta"));
+        sel.categories.insert(StorageCategory::TreeCache, PathBuf::from("/xtree"));
+        let defaults = StorageDefaults {
+            root: PathBuf::from("/d"),
+            credentials_dir: PathBuf::from("/c/creds"),
+            downloads_dir: PathBuf::from("/dl"),
+        };
+        // per-category 覆盖：TreeCache 落盘目录即覆盖目录，不再是统一根。
+        assert_eq!(tree_cache_dir_from_selection(&sel, &defaults), Some(PathBuf::from("/xtree")));
+        // 分类型：与 SiteMetaDb 落点不同。
+        let meta_dir = StoragePaths::resolve(&sel, &defaults)
+            .dir(StorageCategory::SiteMetaDb)
+            .parent()
+            .map(Path::to_path_buf);
+        assert_ne!(tree_cache_dir_from_selection(&sel, &defaults), meta_dir);
+        // 文件名段：canonical 文件路径以 tree-cache.db 结尾（与 store 的 DB_FILE_NAME 同名）。
+        let file = StoragePaths::resolve(&sel, &defaults).dir(StorageCategory::TreeCache);
+        assert_eq!(file.file_name().and_then(|n| n.to_str()), Some("tree-cache.db"));
+    }
+
+    /// 无显式统一根、又无 TreeCache 独立覆盖时回 `None`
+    ///（默认根在 workspace 侧未知，调用方跳过 L2）。
+    #[test]
+    fn tree_cache_dir_from_selection_returns_none_without_explicit_root() {
+        use adl_kernel::storage::{StorageDefaults, StorageSelection};
+
+        let sel = StorageSelection::default();
+        let defaults = StorageDefaults {
+            root: PathBuf::from("/d"),
+            credentials_dir: PathBuf::from("/c/creds"),
+            downloads_dir: PathBuf::from("/dl"),
+        };
+        assert_eq!(tree_cache_dir_from_selection(&sel, &defaults), None);
     }
 }
