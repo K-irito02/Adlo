@@ -3346,7 +3346,9 @@ git commit -m "fix(stores): keep persisted expansion in sync on rename and delet
 
 **Interfaces:**
 - Consumes: Task 7–11 已完成的前缀迁移
-- Produces: 不变量 —— 生产代码中**不得**出现 `adl-ui:` / `adl-terminal:` / `adl-search:` / `adl-browser:` 四种旧前缀；所有持久化键必须能被 `parsePersistKey` 解析
+- Produces: 不变量 —— 已迁移面生产代码中**不得**出现 `adl-ui:` / `adl-terminal:` / `adl-search:` / `adl-browser:` 四种旧前缀；所有持久化键必须能被 `parsePersistKey` 解析
+
+> **范围注记（T18 预检裁定，第 13 处计划缺陷）**：全量收敛是 Task 29 的事，不是 T18 的。CI/GitHub/通信/系统监控/剪贴板等面板的活跃旧键受 `PERSIST_KEEP_KEYS` 保护待 T29 登记（见 `registry.ts:741-746`），本任务扫描限定已迁移面（`persisted/` + 四面板 slice/actions/selectors + `StoreState.ts`/`types.ts`），唯一例外为注明归属 T20 的 `adl-ui:browser-workspace-expanded`（T20 删除时同步收紧至零例外）。此为 Task 11 门禁收窄（账本 B2）先例的同一形态。
 
 - [ ] **Step 1: 写失败测试（静态断言）**
 
