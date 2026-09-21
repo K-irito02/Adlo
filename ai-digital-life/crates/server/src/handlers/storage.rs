@@ -16,6 +16,7 @@ use crate::ServerState;
 use crate::ipc;
 use adl_errors::AppError;
 use adl_kernel::storage as st;
+use adl_workspace::tree_cache_store::{TreeCacheOptions, TreeCacheStats, TreeCacheStore};
 use axum::extract::State;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
@@ -381,6 +382,97 @@ pub async fn cancel_pending(State(_state): State<ServerState>) -> impl IntoRespo
     ipc::to_response(result)
 }
 
+/// TTL 合法范围（分钟）：与前端 TTL 下拉选项（5/15/60 分钟/1 天）一致，越界拒绝写入。
+const TREE_CACHE_TTL_RANGE: std::ops::RangeInclusive<u64> = 1..=1440;
+
+fn validate_tree_cache_ttl(ttl_minutes: u64) -> Result<(), AppError> {
+    if TREE_CACHE_TTL_RANGE.contains(&ttl_minutes) {
+        Ok(())
+    } else {
+        Err(AppError::InvalidInput(format!("ttl_minutes {ttl_minutes} out of range 1..=1440")))
+    }
+}
+
+/// 可单测的落盘 helpers（`dir` 由调用方经 `adl_workspace::tree_cache_dir()` 解析传入，
+/// 仿 Task 1 存储层"调用方传入 `&Path`"惯例；handler 薄包一层做目录收敛）。
+fn tree_cache_stats_in(dir: &std::path::Path) -> Result<TreeCacheStats, AppError> {
+    TreeCacheStore::open(dir)?.stats()
+}
+
+#[cfg(test)]
+fn tree_cache_options_in(dir: &std::path::Path) -> Result<TreeCacheOptions, AppError> {
+    TreeCacheStore::open(dir)?.get_options()
+}
+
+fn tree_cache_set_options_in(
+    dir: &std::path::Path,
+    enabled: bool,
+    ttl_minutes: u64,
+) -> Result<(), AppError> {
+    validate_tree_cache_ttl(ttl_minutes)?;
+    TreeCacheStore::open(dir)?.set_options(enabled, ttl_minutes)
+}
+
+fn tree_cache_clear_in(dir: &std::path::Path) -> Result<(), AppError> {
+    TreeCacheStore::open(dir)?.clear()
+}
+
+/// 空表零值（目录不可解析时——进程既无 `--data-dir` 又无定位器根——行为等同 L2 跳过）。
+fn empty_tree_cache_stats() -> serde_json::Value {
+    serde_json::json!({
+        "workspaceCount": 0,
+        "totalBytes": 0,
+        "oldestCapturedAt": null,
+        "newestCapturedAt": null,
+    })
+}
+
+/// POST `/storage/tree-cache/stats` — `{}` → `{ workspaceCount, totalBytes,
+/// oldestCapturedAt, newestCapturedAt }`（camelCase，与 `TreeCacheStats` 对齐）。
+pub async fn tree_cache_stats(State(_state): State<ServerState>) -> impl IntoResponse {
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        match adl_workspace::tree_cache_dir() {
+            Some(dir) => Ok(serde_json::to_value(tree_cache_stats_in(&dir)?)?),
+            None => Ok(empty_tree_cache_stats()),
+        }
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/storage/tree-cache/options` — body 为裸 opts `{ enabled, ttlMinutes }`
+///（T6 httpBridge `POST(opts)` 实证）；`ttl_minutes` 越界报 `InvalidInput` → `{ ok:true }`。
+pub async fn tree_cache_options(
+    State(_state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: TreeCacheOptions = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        validate_tree_cache_ttl(input.ttl_minutes)?;
+        if let Some(dir) = adl_workspace::tree_cache_dir() {
+            tree_cache_set_options_in(&dir, input.enabled, input.ttl_minutes)?;
+        }
+        Ok(serde_json::Value::Null)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+/// POST `/storage/tree-cache/clear` — `{}` → 全行删除（元数据开关/TTL 保留）→ `{ ok:true }`。
+pub async fn tree_cache_clear(State(_state): State<ServerState>) -> impl IntoResponse {
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        if let Some(dir) = adl_workspace::tree_cache_dir() {
+            tree_cache_clear_in(&dir)?;
+        }
+        Ok(serde_json::Value::Null)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -514,6 +606,70 @@ mod tests {
         // 其它分类仍正常统计，证明只是该分类被短路。
         assert_eq!(category_usage(st::StorageCategory::Config, &dir), (13, 1));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tree_cache_stats_empty_table_reports_zero() {
+        let dir = tree_cache_tmp("stats-empty");
+        let stats = tree_cache_stats_in(&dir).unwrap();
+        assert_eq!(stats.workspace_count, 0);
+        assert_eq!(stats.total_bytes, 0);
+        assert!(stats.oldest_captured_at.is_none());
+        assert!(stats.newest_captured_at.is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tree_cache_options_default_and_roundtrip() {
+        let dir = tree_cache_tmp("opts");
+        let opts = tree_cache_options_in(&dir).unwrap();
+        assert!(opts.enabled);
+        assert_eq!(opts.ttl_minutes, 15);
+        tree_cache_set_options_in(&dir, false, 60).unwrap();
+        let opts = tree_cache_options_in(&dir).unwrap();
+        assert!(!opts.enabled);
+        assert_eq!(opts.ttl_minutes, 60);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tree_cache_set_options_rejects_out_of_range_ttl() {
+        let dir = tree_cache_tmp("opts-bad");
+        assert!(tree_cache_set_options_in(&dir, true, 0).is_err());
+        assert!(tree_cache_set_options_in(&dir, true, 1441).is_err());
+        // 边界值合法。
+        tree_cache_set_options_in(&dir, true, 1).unwrap();
+        tree_cache_set_options_in(&dir, true, 1440).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn tree_cache_clear_empties_rows_but_keeps_options() {
+        use adl_workspace::tree_cache_store::TreeCacheStore;
+        let dir = tree_cache_tmp("clear");
+        let store = TreeCacheStore::open(&dir).unwrap();
+        store.put("/ws/a", r#"[{"path":"a.txt"}]"#, 1000).unwrap();
+        store.put("/ws/b", r#"[{"path":"b.txt"}]"#, 2000).unwrap();
+        tree_cache_set_options_in(&dir, false, 60).unwrap();
+        tree_cache_clear_in(&dir).unwrap();
+        let stats = tree_cache_stats_in(&dir).unwrap();
+        assert_eq!(stats.workspace_count, 0);
+        assert_eq!(stats.total_bytes, 0);
+        assert!(stats.oldest_captured_at.is_none());
+        assert!(stats.newest_captured_at.is_none());
+        // 开关/TTL 是元数据，清除行不受影响。
+        let opts = tree_cache_options_in(&dir).unwrap();
+        assert!(!opts.enabled);
+        assert_eq!(opts.ttl_minutes, 60);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    fn tree_cache_tmp(tag: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("adl-server-treecache-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
     }
 
     /// Wire-format lock: the server DTO keys must stay camelCase and match the

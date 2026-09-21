@@ -149,7 +149,7 @@ static TREE_CACHE_FALLBACK_DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
 /// 3. 存储定位器文件的 `TreeCache` 分类目录（覆盖无该 flag 的调用方，如壳层进程；
 ///    经 `adl-kernel::storage` canonical API 解析，per-category 覆盖自动生效）；
 /// 4. 皆无 → `None`（调用方跳过 L2，行为等同现状）。
-fn tree_cache_dir() -> Option<PathBuf> {
+pub fn tree_cache_dir() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os(TREE_CACHE_DIR_ENV) {
         let dir = PathBuf::from(dir);
         if dir.is_absolute() {

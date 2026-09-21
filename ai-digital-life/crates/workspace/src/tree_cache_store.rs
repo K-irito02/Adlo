@@ -130,6 +130,14 @@ impl TreeCacheStore {
         Ok(())
     }
 
+    /// 删除全部缓存行（设置页"清除缓存"语义）；`tree_cache_meta`（开关/TTL）保留。
+    pub fn clear(&self) -> Result<(), AppError> {
+        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+        conn.execute("DELETE FROM tree_cache", [])
+            .map_err(|e| AppError::Storage(format!("clear tree_cache: {e}")))?;
+        Ok(())
+    }
+
     pub fn stats(&self) -> Result<TreeCacheStats, AppError> {
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
         conn.query_row(
@@ -230,6 +238,24 @@ mod tests {
         assert!(opts.enabled);
         assert_eq!(opts.ttl_minutes, 15);
         store.set_options(false, 60).unwrap();
+        let opts = store.get_options().unwrap();
+        assert!(!opts.enabled);
+        assert_eq!(opts.ttl_minutes, 60);
+    }
+
+    #[test]
+    fn clear_removes_all_rows_but_keeps_options() {
+        let dir = unique_tmp_dir("tc-clear");
+        let store = TreeCacheStore::open(&dir).unwrap();
+        store.put("/ws/a", "[]", 1000).unwrap();
+        store.put("/ws/b", "[]", 2000).unwrap();
+        store.set_options(false, 60).unwrap();
+        store.clear().unwrap();
+        assert!(store.get("/ws/a").unwrap().is_none());
+        assert!(store.get("/ws/b").unwrap().is_none());
+        let stats = store.stats().unwrap();
+        assert_eq!(stats.workspace_count, 0);
+        assert_eq!(stats.total_bytes, 0);
         let opts = store.get_options().unwrap();
         assert!(!opts.enabled);
         assert_eq!(opts.ttl_minutes, 60);

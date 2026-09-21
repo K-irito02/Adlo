@@ -137,6 +137,9 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/storage/preflight", post(handlers::storage::preflight))
         .route("/storage/set-paths", post(handlers::storage::set_paths))
         .route("/storage/cancel-pending", post(handlers::storage::cancel_pending))
+        .route("/storage/tree-cache/stats", post(handlers::storage::tree_cache_stats))
+        .route("/storage/tree-cache/options", post(handlers::storage::tree_cache_options))
+        .route("/storage/tree-cache/clear", post(handlers::storage::tree_cache_clear))
         // Terminal-output persistence domain
         .route("/terminal/save", post(handlers::terminal_output::save))
         .route("/terminal/load", post(handlers::terminal_output::load))
