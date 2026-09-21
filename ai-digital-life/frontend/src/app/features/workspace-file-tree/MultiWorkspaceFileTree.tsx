@@ -22,8 +22,6 @@ export interface MultiWorkspaceFileTreeProps {
   expandedPaths: Record<string, TreeExpansion>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
-  /** 需要闪烁提示的折叠目录路径（由 FileNavigatorShell 计算，仅活动工作区生效） */
-  flashPath?: string;
   onToggleExpand: (workspaceId: string) => void;
   onRefreshOne: (workspaceId: string) => void;
   onSelectWorkspace: (workspaceId: string) => void;
@@ -58,7 +56,6 @@ export function MultiWorkspaceFileTree({
   expandedPaths,
   dirtyPaths,
   externalChangePath,
-  flashPath,
   onToggleExpand,
   onRefreshOne,
   onSelectWorkspace,
@@ -104,7 +101,6 @@ export function MultiWorkspaceFileTree({
             expandedPaths={expandedPaths[workspace.id]?.expanded ?? {}}
             dirtyPaths={dirtyPaths}
             externalChangePath={externalChangePath}
-            flashPath={workspace.id === selectedFileWorkspaceId ? flashPath : undefined}
             onToggleExpand={() => onToggleExpand(workspace.id)}
             onSelectWorkspace={() => onSelectWorkspace(workspace.id)}
             onHideFromRightPanels={onHideFromRightPanels}
@@ -137,7 +133,6 @@ export function MultiWorkspaceFileTree({
       expandedPaths,
       dirtyPaths,
       externalChangePath,
-      flashPath,
       onToggleExpand,
       onRefreshOne,
       onSelectWorkspace,

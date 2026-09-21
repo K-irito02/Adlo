@@ -133,23 +133,6 @@
   color: var(--text-primary);
 }
 
-/* 目标文件位于被手动折叠的目录内时，该折叠目录的行闪烁一次提示位置（规格 §3.4）。
-   prefers-reduced-motion: reduce 时不做动画，行保持正常样式（无闪烁、无可见文本） */
-@media (prefers-reduced-motion: no-preference) {
-  .adl-filetree__row[data-flash='true'] {
-    animation: adl-filetree-flash 1s ease-out;
-  }
-}
-
-@keyframes adl-filetree-flash {
-  0% {
-    background-color: color-mix(in srgb, var(--accent) 45%, transparent);
-  }
-  100% {
-    background-color: transparent;
-  }
-}
-
 /* ---------------- Terminal tree (file-tree-like visual) ---------------- */
 
 .adl-multitree--terminal {

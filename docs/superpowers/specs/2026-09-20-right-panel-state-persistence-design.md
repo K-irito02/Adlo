@@ -89,7 +89,7 @@
 | D3 | 自动展开与手动折叠冲突 | **尊重手动折叠**：自动展开不得覆盖用户手动折叠过的目录 |
 | D4 | 孤儿数据处理 | **读盘懒剪 + 主动剪枝** |
 | D5 | 统一持久化层架构 | **中心登记表 + 统一读写通道**（内部复用轻量工厂，不另开第二套写盘实现） |
-| D6 | 折叠提示交互 | **保持折叠 + 短暂闪烁**（不自动展开，不解除折叠标记） |
+| D6 | 折叠提示交互 | **保持折叠**（闪烁提示已于 2026-09-21 按用户决策删除，见 §3.4 修订；不自动展开，不解除折叠标记） |
 | D7 | 会话恢复边界 | **包含**：恢复上次打开的文件 + 滚动偏移 + 折叠区间 |
 
 ---
@@ -242,12 +242,14 @@ store 模块加载
 expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] }
 ```
 
-调用方 `FileNavigatorShell` 直接消费该返回值，用**组件本地 state** 触发一次闪烁。这样"被挡下"这一信号在**产生它的地方**即被消费，不引入新的持久化字段，也不引入新的 store 字段。
+`blocked` 返回值保留供未来使用，当前暂无 UI 消费者（闪烁提示已删除，见下）。`manualCollapsed` 的保护语义不变。
 
 **折叠提示交互（决策：方案 3 —— 保持折叠 + 短暂闪烁）：**
 
-- 目标文件位于被手动折叠的目录内时，目录**保持折叠**，该行播放一次约 1 秒的浅色脉冲动画。
-- 动画走 CSS，不使用持久化状态；`prefers-reduced-motion` 下退化为无动画（仅保持选中高亮）。
+> **2026-09-21 修订（用户决策：删除闪烁提示）**：已打开文件不再在文件树做任何位置提示，闪烁 UI（`useFileFlash` + `data-flash` + CSS 动画）已整体删除。以下三条仅保留第一条与第三条的行为约束；第二条作废。`manualCollapsed` 保护机制与 `blocked` 返回值保留（折叠保持行为不变）。
+
+- 目标文件位于被手动折叠的目录内时，目录**保持折叠**~~，该行播放一次约 1 秒的浅色脉冲动画~~。
+- ~~动画走 CSS，不使用持久化状态；`prefers-reduced-motion` 下退化为无动画（仅保持选中高亮）。~~
 - 不在折叠状态下自动展开，保证用户手动折叠意图不被推翻。
 
 ### 3.5 剪枝（决策：读盘懒剪 + 主动剪枝）
@@ -391,7 +393,7 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 ### 7.2 验收标准
 
 1. 重启后四面板的**面板级 / 工作区级 / 目录级**状态全部与原状态一致。
-2. 手动折叠过的目录在打开其内部文件后**不会**自行展开，仅有一次闪烁提示。
+2. 手动折叠过的目录在打开其内部文件后**不会**自行展开（闪烁提示已删除，见 §3.4 修订）。
 3. 变更面板的目录展开在多工作区下不再串味。
 4. 删除工作区后，存储中不再残留该工作区的任何 `byWorkspaceId` 键（**含终端面板**）。
 5. 关窗瞬间的最后一次改动不丢失。
@@ -434,7 +436,7 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 - `stores/actions/browserCleanupActions.ts` — 清理改为遍历登记表 `byWorkspaceId` 条目
 - `stores/slices/browserFoldersSlice.ts` / `browserSlice.ts` / `browserSelectors.ts` / `terminalSlice.ts` — 删除死状态、归并重复定义、接入登记表
 - `stores/slices/searchSlice.ts` — 前缀收敛 + 按工作区隔离
-- `regions/right-panel/FileNavigatorShell.tsx` — 消费 `expandFileTreePathChain` 返回值触发闪烁；大纲展开接入
+- `regions/right-panel/FileNavigatorShell.tsx` — 大纲展开接入（闪烁消费已删除）
 - `regions/right-panel/panels/ChangesPanel/**` — 状态过滤器、大纲展开、行号/换行接入；目录展开按工作区隔离
 - `features/browser/**`、`features/terminal/**` — 子面板状态接入
 - `i18n/zh-CN/*`、`i18n/en-US/*` — 会话恢复失效提示等新增文案
@@ -464,7 +466,7 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 - 单命令全量 `pnpm frontend:test` 多次全绿（最新 305 files / 2560 passed）。
 
 **待用户真机验收（CLI 无法执行，未完成前不得视为已验收）**：
-1. T13 闪烁：折叠某目录 → 经检索打开其内部文件 → 目录保持折叠且最浅祖先行闪一次；reduce-motion 下无动画（若闪烁行不在虚列表可视区，另立"滚动到可见"任务）。
+1. T13 闪烁验收项作废（闪烁设计已删除，见 §3.4 修订；`manualCollapsed` 折叠保持行为仍按第 2 节验收）。
 2. 四面板重启矩阵（Tauri + 浏览器双端行为一致）：文件/变更/浏览器/终端展开态、检索开关、缩放、视图偏好、工作区隔离、删除工作区无残留、关窗瞬间改动不丢。
 3. 浏览器模式 CI token 一次性重填（升级后旧键被启动清理删除，Tauri 钥匙串路径不受影响）。
 4. 首次升级文件树展开态重置一次（旧扁平结构判非法回退，无兼容代码是硬约束要求的行为）。

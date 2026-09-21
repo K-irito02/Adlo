@@ -45,12 +45,6 @@ export interface FileTreeProps<T extends FileTreeRenderableNode> {
   expandedPaths: Record<string, boolean>;
   dirtyPaths?: Set<string>;
   externalChangePath?: string;
-  /**
-   * 需要闪烁提示的节点路径：目标文件位于被手动折叠的目录内时，
-   * 该折叠目录的行短暂闪烁一次以提示文件位置（规格 §3.4）。
-   * 仅影响渲染（data-flash 属性触发 CSS 动画），不参与任何持久化。
-   */
-  flashPath?: string;
   onToggle: (path: string) => void;
   onOpenFile: (relativePath: string) => void;
   renderMeta?: (node: T) => React.ReactNode;

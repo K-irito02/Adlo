@@ -20,8 +20,6 @@ interface FileNavigatorTreeProps {
   expandedPaths: Record<string, TreeExpansion>;
   dirtyPaths: Set<string>;
   externalChangePath: string | undefined;
-  /** 需要闪烁提示的折叠目录路径（原样透传到 MultiWorkspaceFileTree） */
-  flashPath?: string;
   onToggleExpand: (workspaceId: string) => void;
   onRefreshOne: (workspaceId: string) => void;
   onHideFromRightPanels: (workspaceId: string) => void;
@@ -56,7 +54,6 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
   expandedPaths,
   dirtyPaths,
   externalChangePath,
-  flashPath,
   onToggleExpand,
   onRefreshOne,
   onHideFromRightPanels,
@@ -97,7 +94,6 @@ const FileNavigatorTree = React.memo(function FileNavigatorTree({
         expandedPaths={expandedPaths}
         dirtyPaths={dirtyPaths}
         externalChangePath={externalChangePath}
-        flashPath={flashPath}
         onToggleExpand={onToggleExpand}
         onRefreshOne={onRefreshOne}
         onSelectWorkspace={onSelectWorkspace}

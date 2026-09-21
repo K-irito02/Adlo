@@ -11,8 +11,6 @@ interface TreeNodeRowProps {
   isWeakSelected?: boolean;
   isHovered?: boolean;
   isContextMenuTarget?: boolean;
-  /** 行级闪烁提示（data-flash 触发 CSS 动画）：目标文件位于被手动折叠目录内时的位置提示 */
-  isFlashing?: boolean;
   expandLabel: string;
   collapseLabel: string;
   onToggle?: () => void;
@@ -50,7 +48,6 @@ export const TreeNodeRow = React.memo(function TreeNodeRow({
   isWeakSelected = false,
   isHovered = false,
   isContextMenuTarget = false,
-  isFlashing = false,
   expandLabel,
   collapseLabel,
   onToggle,
@@ -95,7 +92,6 @@ export const TreeNodeRow = React.memo(function TreeNodeRow({
     >
       <div
         className={`adl-tree-node__row${rowClassName ? ` ${rowClassName}` : ''}`}
-        data-flash={isFlashing ? 'true' : undefined}
         onContextMenu={onContextMenu}
       >
         {hasChildren ? (

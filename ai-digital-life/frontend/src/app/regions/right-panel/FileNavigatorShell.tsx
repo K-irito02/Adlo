@@ -26,7 +26,6 @@ import {
   type GitignoreRuleSet,
 } from '../../../shared/ipc/searchIgnore';
 import { useFileCreation, useSearchPanel } from './hooks';
-import { useFileFlash } from './useFileFlash';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { SearchHitEntry } from '@stores/slices/searchSlice';
@@ -588,10 +587,6 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     }
   }, [navigatorMode]);
 
-  // 目标文件位于被手动折叠的目录内时，该折叠目录的行闪烁一次以提示位置（规格 §3.4）。
-  // 经 useFileFlash 等树到达后判定并重放（事项 2 根因修复）；纯组件本地状态。
-  const flashPath = useFileFlash(selectedFilePath, activeWorkspaceId);
-
   const handleToggleAllOutlineItems = () => {
     if (!hasExpandableOutlineItems) {
       return;
@@ -766,7 +761,6 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
           expandedPaths={expandedPaths}
           dirtyPaths={dirtyPaths}
           externalChangePath={externalChangePath}
-          flashPath={flashPath}
           onToggleExpand={onToggleExpandInFileNav}
           onRefreshOne={onRefreshOneWorkspace}
           onHideFromRightPanels={onHideFromRightPanels}

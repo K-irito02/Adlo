@@ -236,40 +236,4 @@ describe('FileTree', () => {
     expect(markup).toContain('adl-tree-node is-selected');
     expect(markup).not.toContain('is-weak-selected');
   });
-
-  it('applies the flash attribute to the row matching flashPath', () => {
-    const nodes: FileTreeRenderableNode[] = [
-      { path: 'src/legacy', name: 'legacy', kind: 'directory', children: [] },
-    ];
-    const { container } = render(
-      <FileTree
-        nodes={nodes}
-        expandedPaths={{}}
-        onToggle={() => undefined}
-        onOpenFile={() => undefined}
-        flashPath="src/legacy"
-      />,
-    );
-    const flashedRow = container.querySelector('[data-flash="true"]');
-    expect(flashedRow).not.toBeNull();
-    // 闪烁必须落在被折叠目录自己的行上（该行可见），且通过外层 li 的 data-path 可核对目标
-    expect(flashedRow?.closest('li')?.getAttribute('data-path')).toBe('src/legacy');
-  });
-
-  it('does not apply the flash attribute when flashPath is absent', () => {
-    const nodes: FileTreeRenderableNode[] = [
-      { path: 'src/legacy', name: 'legacy', kind: 'directory', children: [] },
-    ];
-    const { container } = render(
-      <FileTree
-        nodes={nodes}
-        expandedPaths={{}}
-        onToggle={() => undefined}
-        onOpenFile={() => undefined}
-      />,
-    );
-    expect(container.querySelector('[data-flash="true"]')).toBeNull();
-    // 没有 flashPath 时任何行都不应携带 data-flash 属性
-    expect(container.querySelectorAll('[data-flash]').length).toBe(0);
-  });
 });
