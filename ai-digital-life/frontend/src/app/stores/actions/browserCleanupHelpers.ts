@@ -2,18 +2,13 @@
  * 浏览器清理辅助函数
  * 从 workspaceActions.ts 提取的纯函数和类型
  */
-import type {
-  BrowserTabState,
-  TabFolderState,
-  WorkspaceBookmarkEntry,
-} from '../slices/browserSlice';
+import type { BrowserTabState, TabFolderState } from '../slices/browserSlice';
 
 export interface BrowserCleanupResult {
   browserTabs: BrowserTabState[];
   browserTabsById: Record<string, BrowserTabState>;
   browserTabFolders: TabFolderState[];
   browserWorkspaceExpanded: Record<string, boolean>;
-  browserWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>;
   browserActiveTabId: string;
 }
 
@@ -21,13 +16,15 @@ export interface BrowserCleanupResult {
  * Pure helper: drop a workspace from the in-memory browser state. Used both
  * by `cleanupRemovedWorkspaceTree` and by tests. No localStorage writes
  * here — callers handle persistence.
+ *
+ * 按工作区隔离的收藏（browserWorkspaceBookmarks）不在此处处理 —— 归
+ * `applyWorkspaceRemoved` 统一剔除（内存 + 落盘），此处不得重复写。
  */
 export function stripWorkspaceFromBrowserState(
   workspaceId: string,
   currentTabs: BrowserTabState[],
   currentFolders: TabFolderState[],
   currentExpanded: Record<string, boolean>,
-  currentWorkspaceBookmarks: Record<string, WorkspaceBookmarkEntry[]>,
   currentActiveTabId: string,
 ): BrowserCleanupResult {
   const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);
@@ -36,8 +33,6 @@ export function stripWorkspaceFromBrowserState(
   );
   const browserWorkspaceExpanded: Record<string, boolean> = { ...currentExpanded };
   delete browserWorkspaceExpanded[workspaceId];
-
-  const { [workspaceId]: _omit, ...browserWorkspaceBookmarks } = currentWorkspaceBookmarks;
 
   const browserTabsById: Record<string, BrowserTabState> = {};
   for (const t of browserTabs) {
@@ -53,7 +48,6 @@ export function stripWorkspaceFromBrowserState(
     browserTabsById,
     browserTabFolders,
     browserWorkspaceExpanded,
-    browserWorkspaceBookmarks,
     browserActiveTabId,
   };
 }

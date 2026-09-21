@@ -140,6 +140,14 @@ interface WorkspaceActions {
     newName: string,
     workspacePath?: string,
   ) => Promise<void>;
+  carryExpandedPathsForRename: (workspaceId: string, oldPath: string, newPath: string) => void;
+  dropExpandedPathsUnder: (workspaceId: string, removedPath: string) => void;
+  carryChangesExpandedPathsForRename: (
+    workspaceId: string,
+    oldPath: string,
+    newPath: string,
+  ) => void;
+  dropChangesExpandedPathsUnder: (workspaceId: string, removedPath: string) => void;
   moveWorkspaceFile: (
     relativePath: string,
     newPath: string,

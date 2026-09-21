@@ -6,6 +6,9 @@ import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
 import { createWorkspaceLifecycleActions } from './workspaceLifecycleActions';
 import { renameTreeNodePaths, remapTreeExpansion, removeTreeNode } from './workspaceTreeRename';
+import { persistField } from '../persisted/apply';
+import { prunePathPrefix } from '../persisted/prune';
+import { repairManualCollapsed } from '../persisted/parsers';
 const SCOPE = 'workspace';
 
 // Re-export for test convenience (tests import from workspaceActions)
@@ -68,6 +71,104 @@ export function createWorkspaceActions(
     ...createWorkspaceLifecycleActions(set, get),
 
     /**
+     * [carryExpandedPathsForRename - 重命名后搬运文件树展开态]
+     * @reads uiSlice.expandedFileTreePaths
+     * @writes uiSlice.expandedFileTreePaths（内存 + 经 persistField 落盘）
+     * @see workspaceTreeRename.ts → remapTreeExpansion（搬运两侧 + 保引用等价 + 不变量修复，复用 T12 实现）
+     */
+    carryExpandedPathsForRename: (workspaceId: string, oldPath: string, newPath: string) =>
+      set((state) => {
+        const current = state.expandedFileTreePaths[workspaceId];
+        if (!current) {
+          return state;
+        }
+        const remapped = remapTreeExpansion(current, oldPath, newPath);
+        if (remapped === current) {
+          return state;
+        }
+        return persistField('adl:files.dirExpanded', {
+          ...state.expandedFileTreePaths,
+          [workspaceId]: remapped,
+        });
+      }),
+
+    /**
+     * [dropExpandedPathsUnder - 删除目录后剔除文件树展开态]
+     * @writes uiSlice.expandedFileTreePaths（内存 + 经 persistField 落盘）
+     * @see persisted/prune.ts → prunePathPrefix（剔除路径自身及其子孙）
+     * @see persisted/parsers.ts → repairManualCollapsed（空标记归一为 undefined + 不变量修复）
+     */
+    dropExpandedPathsUnder: (workspaceId: string, removedPath: string) =>
+      set((state) => {
+        const current = state.expandedFileTreePaths[workspaceId];
+        if (!current) {
+          return state;
+        }
+        const expandedPruned = prunePathPrefix(current.expanded, removedPath);
+        const manualPruned = prunePathPrefix<Record<string, true>>(
+          current.manualCollapsed ?? {},
+          removedPath,
+        );
+        if (!expandedPruned.changed && !manualPruned.changed) {
+          return state;
+        }
+        return persistField('adl:files.dirExpanded', {
+          ...state.expandedFileTreePaths,
+          [workspaceId]: {
+            expanded: expandedPruned.value,
+            manualCollapsed: repairManualCollapsed(expandedPruned.value, manualPruned.value),
+          },
+        });
+      }),
+
+    /**
+     * [carryChangesExpandedPathsForRename - 重命名后搬运变更树展开态]
+     * 文件侧 carryExpandedPathsForRename 的同构（键 adl:changes.dirExpanded + 表 expandedChangesTreePaths）。
+     */
+    carryChangesExpandedPathsForRename: (workspaceId: string, oldPath: string, newPath: string) =>
+      set((state) => {
+        const current = state.expandedChangesTreePaths[workspaceId];
+        if (!current) {
+          return state;
+        }
+        const remapped = remapTreeExpansion(current, oldPath, newPath);
+        if (remapped === current) {
+          return state;
+        }
+        return persistField('adl:changes.dirExpanded', {
+          ...state.expandedChangesTreePaths,
+          [workspaceId]: remapped,
+        });
+      }),
+
+    /**
+     * [dropChangesExpandedPathsUnder - 删除目录后剔除变更树展开态]
+     * 文件侧 dropExpandedPathsUnder 的同构。
+     */
+    dropChangesExpandedPathsUnder: (workspaceId: string, removedPath: string) =>
+      set((state) => {
+        const current = state.expandedChangesTreePaths[workspaceId];
+        if (!current) {
+          return state;
+        }
+        const expandedPruned = prunePathPrefix(current.expanded, removedPath);
+        const manualPruned = prunePathPrefix<Record<string, true>>(
+          current.manualCollapsed ?? {},
+          removedPath,
+        );
+        if (!expandedPruned.changed && !manualPruned.changed) {
+          return state;
+        }
+        return persistField('adl:changes.dirExpanded', {
+          ...state.expandedChangesTreePaths,
+          [workspaceId]: {
+            expanded: expandedPruned.value,
+            manualCollapsed: repairManualCollapsed(expandedPruned.value, manualPruned.value),
+          },
+        });
+      }),
+
+    /**
      * [renameWorkspaceFile - 重命名工作区中的文件]
      * @reads editorSlice.selectedFilePath
      * @writes workspaceSlice.workspaceTrees (乐观重命名节点 + refreshTreeByWorkspacePath 静默校准)
@@ -103,31 +204,9 @@ export function createWorkspaceActions(
               [workspaceId]: renameTreeNodePaths(tree, relativePath, newPath),
             },
           });
-          const expandedForWs = get().expandedFileTreePaths[workspaceId];
-          if (expandedForWs) {
-            const remapped = remapTreeExpansion(expandedForWs, relativePath, newPath);
-            if (remapped !== expandedForWs) {
-              set({
-                expandedFileTreePaths: {
-                  ...get().expandedFileTreePaths,
-                  [workspaceId]: remapped,
-                },
-              });
-            }
-          }
+          get().carryExpandedPathsForRename(workspaceId, relativePath, newPath);
         }
-        const expandedChangesForWs = get().expandedChangesTreePaths[ws.id];
-        if (expandedChangesForWs) {
-          const remappedChanges = remapTreeExpansion(expandedChangesForWs, relativePath, newPath);
-          if (remappedChanges !== expandedChangesForWs) {
-            set({
-              expandedChangesTreePaths: {
-                ...get().expandedChangesTreePaths,
-                [ws.id]: remappedChanges,
-              },
-            });
-          }
-        }
+        get().carryChangesExpandedPathsForRename(ws.id, relativePath, newPath);
         if (get().filePreviewModeByPath[ws.id]?.[relativePath] !== undefined) {
           get().carryFilePreviewModeForRename(ws.id, relativePath, newPath);
         }
@@ -188,6 +267,12 @@ export function createWorkspaceActions(
           fileContent: undefined,
           openTabs: get().openTabs.filter((t) => t.path !== relativePath),
         });
+      }
+      // 删除成功后：剔除被删路径自身及其子孙的展开态（内存 + 落盘），
+      // 否则内存与磁盘分叉、重启后回落旧路径（与重命名搬运同一不变量）。
+      if (workspaceId && ws) {
+        get().dropExpandedPathsUnder(workspaceId, relativePath);
+        get().dropChangesExpandedPathsUnder(ws.id, relativePath);
       }
       await refreshTreeByWorkspacePath(get, workspacePath);
     },

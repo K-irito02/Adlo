@@ -30,7 +30,6 @@ export function createBrowserCleanupActions(
         state.browserTabs,
         state.browserTabFolders,
         state.browserWorkspaceExpanded,
-        state.browserWorkspaceBookmarks,
         state.browserActiveTabId,
       );
 
