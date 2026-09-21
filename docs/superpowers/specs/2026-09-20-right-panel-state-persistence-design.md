@@ -449,3 +449,24 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 | F1 | 终端历史索引等大对象的持久化收纳 | 受 §3.3 同步读准入线限制，登记但标注 `sync: false`，读取继续走按需路径；如需将其纳入构造期同步读须另行设计 |
 | F2 | 面板状态跨设备同步 | 当前为本地存储，无跨设备诉求 |
 | F3 | 乙类（外部微型存储）条目的引用剪枝 | `regionCollapse` / `cwdByTab` / `historyIndex` 三条按标签键的孤儿清理：`cwd` 与 `historyIndex` 的消费方已有自清理，`regionCollapse` 尚缺。延期至计划 Task 15 一并接线（见该任务注记），本次不在 Task 10 声明无人能执行的 `prune` |
+
+---
+
+## 11. 验收记录（T28，分支 `panel-state-persist`，2026-09-21）
+
+**实现结论**：T1–T27、T29 全部完成并通过逐任务双审（规格 + 质量），整分支终审 **merge-ready**（无修复波）。155 files / 56 commits / +9308/−2779；Rust 零改动。
+
+**机器可验证项（controller 已执行）**：
+- 登记表变异探针：临时删除 `adl:files.workspaceExpanded` → 5 个依赖用例变红 → 恢复后全绿（声明式约束真实生效）。
+- `cargo fmt --check` / `prettier --check` / `tsc` / `eslint` 全绿；Rust diff 为空。
+- 单命令全量 `pnpm frontend:test` 多次全绿（最新 305 files / 2560 passed）。
+
+**待用户真机验收（CLI 无法执行，未完成前不得视为已验收）**：
+1. T13 闪烁：折叠某目录 → 经检索打开其内部文件 → 目录保持折叠且最浅祖先行闪一次；reduce-motion 下无动画（若闪烁行不在虚列表可视区，另立"滚动到可见"任务）。
+2. 四面板重启矩阵（Tauri + 浏览器双端行为一致）：文件/变更/浏览器/终端展开态、检索开关、缩放、视图偏好、工作区隔离、删除工作区无残留、关窗瞬间改动不丢。
+3. 浏览器模式 CI token 一次性重填（升级后旧键被启动清理删除，Tauri 钥匙串路径不受影响）。
+4. 首次升级文件树展开态重置一次（旧扁平结构判非法回退，无兼容代码是硬约束要求的行为）。
+
+**范围决策（T28 待定）**：是否补 unmount 时最终视口刷盘 —— 症状（若不补）：T26 恢复的文件偶发滚动偏移滞后一次切换，无数据丢失。
+
+**已知未实现项**：计划 Task 13 Step 5 的"展开到当前文件"工具栏按钮（代码库中不存在该按钮）；`browserTabTreeExpanded` 的 `folder:` 前缀孤儿剪枝（浏览器侧原本即无该路径）。

@@ -34,6 +34,7 @@
 | [execution-lessons.md](./refactoring/execution-lessons.md) | 重构洞察 | 第 10 轮重构执行经验（CSS 截断、类型收窄、OnceLock 等） |
 | [progress-summary.md](./refactoring/progress-summary.md) | 重构洞察 | 第 1-17 轮重构进展汇总 |
 | [refactoring-process-lessons.md](./refactoring/refactoring-process-lessons.md) | REFACTORING_PROGRESS_REPORT | 跨 4 轮重构的 16 条经验（CSS、React、Rust 等） |
+| [persisted-state-registry-lessons-2026-09-21.md](./refactoring/persisted-state-registry-lessons-2026-09-21.md) | 右侧面板 UI 状态持久化（分支 panel-state-persist，T1–T29） | 8 条经验：剪枝参照清单就绪规则、persistField 补丁、搬迁丢行为、单一定义、计划矛盾裁定、静默失效真机、不变量测试强制、SDD 账本 |
 | [terminal-pty-evaluation.md](./refactoring/terminal-pty-evaluation.md) | 重构洞察 | Terminal 与 PTY crate 职责边界评估报告 |
 | [ui-restoration.md](./refactoring/ui-restoration.md) | 重构洞察 | UI 恢复经验（CSS 层叠、动画恢复、结构分层） |
 
