@@ -72,5 +72,8 @@ commands.allow = [
   "storage_preflight_cmd",
   "storage_set_paths",
   "storage_cancel_pending",
+  "storage_tree_cache_stats",
+  "storage_tree_cache_options",
+  "storage_tree_cache_clear",
   "app_restart"
 ]

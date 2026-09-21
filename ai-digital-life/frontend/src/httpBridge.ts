@@ -68,7 +68,7 @@ import type {
   WorkspaceSearchPage,
   WorkspaceSearchFilter,
   WorkspaceSearchWindow,
-  WorkspaceTreeNode,
+  WorkspaceTreePayload,
 } from '@ai-digital-life/kernel';
 import type { WorkspaceBridge } from './shared/ipc';
 import type { SnapshotRecord, RevertResult } from './shared/ipc/snapshot';
@@ -89,6 +89,8 @@ import type {
   StorageForeignScan,
   StoragePreflight,
   StorageStatus,
+  TreeCacheOptions,
+  TreeCacheStats,
 } from './shared/ipc/storage';
 import { repoMapEntriesToTree } from './shared/repoMapFromEntries';
 import {
@@ -848,11 +850,18 @@ export function createHttpBridge({
       pickDirectory: () => taskNotSupported<string | undefined>('workspace.pickDirectory'),
       removeFromSidebar: (workspaceId: string) =>
         call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/remove', POST({ workspaceId })),
-      listTreeForWorkspace: (workspacePath: string, options?: { force?: boolean }) =>
-        call<WorkspaceTreeNode[]>(
+      listTreeForWorkspace: (
+        workspacePath: string,
+        options?: { force?: boolean; allowStale?: boolean },
+      ) =>
+        call<WorkspaceTreePayload>(
           baseUrl,
           '/workspace/tree',
-          POST(options?.force ? { workspacePath, force: true } : { workspacePath }),
+          POST(
+            options?.force || options?.allowStale
+              ? { workspacePath, ...(options ?? {}) }
+              : { workspacePath },
+          ),
         ),
       listGitStatusForWorkspace: (workspacePath: string) =>
         call<GitSnapshot>(baseUrl, '/workspace/git/status', POST({ workspacePath })),
@@ -882,11 +891,18 @@ export function createHttpBridge({
           '/workspace/change-preview',
           POST({ workspacePath, relativePath }),
         ),
-      listTree: (options?: { force?: boolean }) =>
-        call<WorkspaceTreeNode[]>(
+      listTree: (options?: { force?: boolean; allowStale?: boolean }) =>
+        call<WorkspaceTreePayload>(
           baseUrl,
           '/workspace/tree',
-          POST(options?.force ? { force: true } : {}),
+          POST(
+            options?.force || options?.allowStale
+              ? {
+                  ...(options?.force ? { force: true } : {}),
+                  ...(options?.allowStale ? { allowStale: true } : {}),
+                }
+              : {},
+          ),
         ),
       search: (query: string, window?: WorkspaceSearchWindow, filter?: WorkspaceSearchFilter) =>
         call<WorkspaceSearchPage>(
@@ -1125,6 +1141,13 @@ export function createHttpBridge({
         call<StorageApplyResult>(baseUrl, '/storage/set-paths', POST({ patch, applyNow })),
       cancelPending: () => call<void>(baseUrl, '/storage/cancel-pending', POST({})),
       restartApp: () => taskNotSupported<void>('storage.restartApp'),
+      // 工作区树缓存（Task 5 `StorageBridge` 三方法）：路由 `/storage/tree-cache/*`
+      // 尚无服务端实现（`crates/server/src/router.rs` 无对应条目——后端任务落地前
+      // 404 透传为结构化 `IpcResult` 错误，见 `call` 的非 2xx 透传分支）。
+      getTreeCacheStats: () => call<TreeCacheStats>(baseUrl, '/storage/tree-cache/stats', POST({})),
+      setTreeCacheOptions: (opts: TreeCacheOptions) =>
+        call<void>(baseUrl, '/storage/tree-cache/options', POST(opts)),
+      clearTreeCache: () => call<void>(baseUrl, '/storage/tree-cache/clear', POST({})),
     } satisfies StorageBridge,
   };
 }

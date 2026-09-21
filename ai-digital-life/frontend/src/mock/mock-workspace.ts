@@ -72,9 +72,22 @@ export const mockWorkspace: WorkspaceBridge = {
     }
     return { ok: true, data: recentWorkspaces };
   },
-  listTreeForWorkspace: async (_workspacePath: string, _options?: { force?: boolean }) => ({
-    ok: true,
-    data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
+  listTreeForWorkspace: async (
+    _workspacePath: string,
+    _options?: { force?: boolean; allowStale?: boolean },
+  ) => ({
+    ok: true as const,
+    // mock 无 SQLite 行：allowStale 恒 miss，恒返新鲜树（fromCache:false）。
+    data: {
+      tree: currentWorkspaceMeta
+        ? buildWorkspaceTreeFromPaths(
+            Array.from(documents.keys()),
+            Array.from(emptyDirectories),
+          )
+        : [],
+      fromCache: false as const,
+      capturedAt: Date.now(),
+    },
   }),
   listGitStatusForWorkspace: async (_workspacePath: string) => ({
     ok: true,
@@ -97,9 +110,19 @@ export const mockWorkspace: WorkspaceBridge = {
     emptyDirectories.add(relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""));
     return { ok: true, data: true };
   },
-  listTree: async (_options?: { force?: boolean }) => ({
-    ok: true,
-    data: currentWorkspaceMeta ? buildWorkspaceTreeFromPaths(Array.from(documents.keys()), Array.from(emptyDirectories)) : []
+  listTree: async (_options?: { force?: boolean; allowStale?: boolean }) => ({
+    ok: true as const,
+    // 同 listTreeForWorkspace：allowStale 恒 miss，恒返新鲜树。
+    data: {
+      tree: currentWorkspaceMeta
+        ? buildWorkspaceTreeFromPaths(
+            Array.from(documents.keys()),
+            Array.from(emptyDirectories),
+          )
+        : [],
+      fromCache: false as const,
+      capturedAt: Date.now(),
+    },
   }),
   readFile: async (relativePath: string) => ({
     ok: true,

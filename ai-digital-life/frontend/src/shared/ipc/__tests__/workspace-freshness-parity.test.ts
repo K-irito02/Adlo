@@ -86,6 +86,27 @@ describe('workspace freshness IPC parity', () => {
     }
   });
 
+  it('mock listTreeForWorkspace wraps the tree with fromCache:false (allowStale always misses)', async () => {
+    const result = await mockDigitalLifeBridge.workspace.listTreeForWorkspace('/mock/ws', {
+      allowStale: true,
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.fromCache).toBe(false);
+      expect(Array.isArray(result.data.tree)).toBe(true);
+      expect(typeof result.data.capturedAt).toBe('number');
+    }
+  });
+
+  it('mock listTree wraps the tree with fromCache:false (allowStale always misses)', async () => {
+    const result = await mockDigitalLifeBridge.workspace.listTree({ allowStale: true });
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.data.fromCache).toBe(false);
+      expect(Array.isArray(result.data.tree)).toBe(true);
+      expect(typeof result.data.capturedAt).toBe('number');
+    }
+  });
   it('mock search applies excludedPaths (manual list only, no gitignore equivalent)', async () => {
     // mock 只实现手动名单（无内存 gitignore 对应物，注释已声明）：
     // 钉住"仅手动名单"语义，避免与后端分歧无声扩大。

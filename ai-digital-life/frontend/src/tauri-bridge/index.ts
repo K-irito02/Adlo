@@ -7,6 +7,8 @@ import type {
   StoragePathPatch,
   StoragePreflight,
   StorageStatus,
+  TreeCacheOptions,
+  TreeCacheStats,
 } from '../shared/ipc/storage';
 import { createHttpBridge, resolveAdlServerBaseUrl } from '../httpBridge';
 import { createPtyWsClient } from '../shared/ipc/pty-ws';
@@ -86,6 +88,12 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
         invokeIpc<StorageApplyResult>('storage_set_paths', { patch, applyNow }),
       cancelPending: () => invokeIpc<void>('storage_cancel_pending'),
       restartApp: () => invokeIpc<void>('app_restart'),
+      // 工作区树缓存（Task 5 `StorageBridge` 三方法）：命令名取自 Task 5 `@command`
+      // 注解；对应 `#[tauri::command]` 尚无 Rust 实现，落地前 invoke 报错透传。
+      getTreeCacheStats: () => invokeIpc<TreeCacheStats>('storage_tree_cache_stats'),
+      setTreeCacheOptions: (opts: TreeCacheOptions) =>
+        invokeIpc<void>('storage_tree_cache_options', { opts }),
+      clearTreeCache: () => invokeIpc<void>('storage_tree_cache_clear'),
     } satisfies StorageBridge,
   };
 }

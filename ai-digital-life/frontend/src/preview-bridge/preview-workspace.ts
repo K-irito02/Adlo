@@ -8,6 +8,7 @@ import type {
   WorkspaceFileDocument,
   WorkspaceMeta,
   WorkspaceTreeNode,
+  WorkspaceTreePayload,
 } from '@ai-digital-life/kernel';
 import { IpcErrorCode } from '../shared/ipc/shared';
 import { requestPreviewApi } from '../shared/ipc/preview-api';
@@ -123,9 +124,21 @@ export function createPreviewWorkspaceBridge(
       persistRecentWorkspaces(ctx.recentWorkspaces);
       return { ok: true as const, data: ctx.recentWorkspaces };
     },
-    listTreeForWorkspace: async (workspacePath: string, _options?: { force?: boolean }) => {
+    listTreeForWorkspace: async (
+      workspacePath: string,
+      _options?: { force?: boolean; allowStale?: boolean },
+    ): Promise<IpcResult<WorkspaceTreePayload>> => {
       const params = new URLSearchParams({ rootPath: workspacePath });
-      return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
+      const result = await requestPreviewApi<WorkspaceTreeNode[]>(
+        `/workspace/tree?${params.toString()}`,
+      );
+      // preview dev-server 只 serving 新鲜树：allowStale 恒 miss（同 mock 语义）。
+      return result.ok
+        ? {
+            ok: true as const,
+            data: { tree: result.data, fromCache: false, capturedAt: Date.now() },
+          }
+        : result;
     },
     listGitStatusForWorkspace: async (workspacePath: string) => {
       const params = new URLSearchParams({ rootPath: workspacePath });
@@ -180,12 +193,26 @@ export function createPreviewWorkspaceBridge(
         `/workspace/change-preview?${params.toString()}`,
       );
     },
-    listTree: async (_options?: { force?: boolean }) => {
+    listTree: async (_options?: {
+      force?: boolean;
+      allowStale?: boolean;
+    }): Promise<IpcResult<WorkspaceTreePayload>> => {
       if (!ctx.currentWorkspace) {
-        return { ok: true as const, data: [] as WorkspaceTreeNode[] };
+        return {
+          ok: true as const,
+          data: { tree: [] as WorkspaceTreeNode[], fromCache: false, capturedAt: Date.now() },
+        };
       }
       const params = new URLSearchParams({ rootPath: ctx.currentWorkspace.rootPath });
-      return requestPreviewApi<WorkspaceTreeNode[]>(`/workspace/tree?${params.toString()}`);
+      const result = await requestPreviewApi<WorkspaceTreeNode[]>(
+        `/workspace/tree?${params.toString()}`,
+      );
+      return result.ok
+        ? {
+            ok: true as const,
+            data: { tree: result.data, fromCache: false, capturedAt: Date.now() },
+          }
+        : result;
     },
     renameFile: async (relativePath: string, newName: string, workspacePath?: string) => {
       const rootPath = workspacePath ?? ctx.currentWorkspace?.rootPath;

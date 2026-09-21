@@ -49,11 +49,14 @@ describe('storage bridge method parity', () => {
     expect(sortedKeys(tauri.storage)).toEqual(sortedKeys(mock));
     expect(sortedKeys(mock)).toEqual([
       'cancelPending',
+      'clearTreeCache',
       'getStatus',
+      'getTreeCacheStats',
       'preflight',
       'restartApp',
       'scanForeign',
       'setPaths',
+      'setTreeCacheOptions',
     ]);
   });
 
@@ -62,6 +65,69 @@ describe('storage bridge method parity', () => {
     expect(res.ok).toBe(true);
     if (res.ok) {
       expect(res.data.categories.map((c) => c.key)).toEqual([...STORAGE_CATEGORY_KEYS]);
+    }
+  });
+
+  it('tree-cache methods behave identically on all bridges', async () => {
+    // Tauri 端：按 Task 5 `@command` 注解名桩住 invoke。
+    mockInvoke.mockImplementation(async (cmd: string) => {
+      if (cmd === 'storage_tree_cache_stats') {
+        return {
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+          },
+        };
+      }
+      return { ok: true, data: undefined };
+    });
+    // HTTP 端：桩住 fetch，按路由返回树缓存载荷。
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+      const url = String(input);
+      const data = url.endsWith('/storage/tree-cache/stats')
+        ? { workspaceCount: 0, totalBytes: 0, oldestCapturedAt: null, newestCapturedAt: null }
+        : undefined;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ ok: true, data }),
+      } as Response;
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    try {
+      const tauri = createTauriBridge('http://127.0.0.1:9999');
+      const http = createHttpBridge({ baseUrl: 'http://127.0.0.1:9999' });
+      const mock = createMockStorage();
+      for (const bridge of [tauri.storage, http.storage, mock]) {
+        const stats = await bridge.getTreeCacheStats();
+        expect(stats.ok).toBe(true);
+        if (stats.ok) {
+          expect(stats.data.workspaceCount).toBe(0);
+          expect(stats.data.totalBytes).toBe(0);
+          expect(stats.data.oldestCapturedAt).toBeNull();
+          expect(stats.data.newestCapturedAt).toBeNull();
+        }
+        const setRes = await bridge.setTreeCacheOptions({ enabled: false, ttlMinutes: 60 });
+        expect(setRes.ok).toBe(true);
+        // clear 幂等成功：连调两次都 ok。
+        expect((await bridge.clearTreeCache()).ok).toBe(true);
+        expect((await bridge.clearTreeCache()).ok).toBe(true);
+      }
+      // 命令/路由钉住：Tauri 命令名与 HTTP 路由与实现一致。
+      expect(mockInvoke).toHaveBeenCalledWith('storage_tree_cache_stats', undefined);
+      expect(mockInvoke).toHaveBeenCalledWith('storage_tree_cache_options', {
+        opts: { enabled: false, ttlMinutes: 60 },
+      });
+      expect(mockInvoke).toHaveBeenCalledWith('storage_tree_cache_clear', undefined);
+      const urls = fetchMock.mock.calls.map((call) => String(call[0]));
+      expect(urls).toContain('http://127.0.0.1:9999/storage/tree-cache/stats');
+      expect(urls).toContain('http://127.0.0.1:9999/storage/tree-cache/options');
+      expect(urls).toContain('http://127.0.0.1:9999/storage/tree-cache/clear');
+    } finally {
+      vi.unstubAllGlobals();
     }
   });
 });

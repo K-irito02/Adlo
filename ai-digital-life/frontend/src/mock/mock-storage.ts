@@ -6,6 +6,8 @@ import type {
   StorageMode,
   StoragePending,
   StorageStatus,
+  TreeCacheOptions,
+  TreeCacheStats,
 } from '../shared/ipc/storage';
 import { STORAGE_CATEGORY_KEYS } from '../shared/ipc/storage';
 
@@ -55,6 +57,8 @@ export function createMockStorage(config: MockStorageConfig = {}): StorageBridge
   let mode: StorageMode = config.mode ?? 'unified';
   const root = config.root ?? DEFAULT_MOCK_STORAGE_ROOT;
   let pending: StoragePending | null = null;
+  // 工作区树缓存内存态：mock 无 SQLite 行，stats 恒零值；options 内存保持。
+  let treeCacheOptions: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
   const preflightOk = (): StorageApplyResult['preflight'] => ({
     ok: true,
@@ -101,5 +105,20 @@ export function createMockStorage(config: MockStorageConfig = {}): StorageBridge
           '[mock-storage] storage.restartApp is not supported in mock/browser mode; the change applies on next launch.',
       },
     }),
+
+    getTreeCacheStats: async (): Promise<IpcResult<TreeCacheStats>> => ({
+      ok: true,
+      data: { workspaceCount: 0, totalBytes: 0, oldestCapturedAt: null, newestCapturedAt: null },
+    }),
+
+    setTreeCacheOptions: async (opts: TreeCacheOptions): Promise<IpcResult<void>> => {
+      treeCacheOptions = { ...opts };
+      return { ok: true, data: undefined };
+    },
+
+    clearTreeCache: async (): Promise<IpcResult<void>> => {
+      // 内存实现无行可删：幂等成功。
+      return { ok: true, data: undefined };
+    },
   };
 }
