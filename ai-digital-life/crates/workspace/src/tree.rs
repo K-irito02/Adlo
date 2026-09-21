@@ -187,17 +187,23 @@ fn process_tree_entry(
     if should_ignore(&name) {
         return TreeEntryOutcome::Skip;
     }
-    if let Ok(file_type) = entry.file_type() {
-        if file_type.is_symlink() {
-            debug!(
-                path = %path.to_string_lossy(),
-                "skipping symlink in workspace tree"
-            );
-            return TreeEntryOutcome::Skip;
-        }
+    // 事项 1-A：复用 readdir 自带的 file_type（d_type，免费），消灭每条目 2 次 stat。
+    // file_type 取不到时（如 d_type 未知的 FS）回退到 path 判定，与重构前逐位一致：
+    // 旧代码在 file_type Err 时同样走到 path.is_dir()/is_file()（含跟随链接语义）。
+    let file_type = entry.file_type().ok();
+    if file_type.as_ref().is_some_and(|file_type| file_type.is_symlink()) {
+        debug!(
+            path = %path.to_string_lossy(),
+            "skipping symlink in workspace tree"
+        );
+        return TreeEntryOutcome::Skip;
     }
+    let is_dir = match &file_type {
+        Some(file_type) => file_type.is_dir(),
+        None => path.is_dir(),
+    };
     let relative = relative_path(root, &path);
-    if path.is_dir() {
+    if is_dir {
         if *remaining == 0 {
             return TreeEntryOutcome::Stop;
         }
@@ -216,7 +222,10 @@ fn process_tree_entry(
             kind: "directory".into(),
             children,
         })
-    } else if path.is_file() {
+    } else if match &file_type {
+        Some(file_type) => file_type.is_file(),
+        None => path.is_file(),
+    } {
         if *remaining == 0 {
             return TreeEntryOutcome::Stop;
         }
@@ -678,6 +687,44 @@ mod tree_cache_tests {
 
         let after = list_tree_cached(&tmp).unwrap();
         assert!(after.iter().any(|n| n.path == "new.txt"), "tree must reflect newly created file");
+        cleanup(&tmp);
+    }
+
+    /// 事项 1-A（性能重构特征测试）：文件/目录/忽略目录分类契约。
+    /// 去 stat 化重构前后行为必须逐字一致：目录带 children、文件不带、
+    /// 忽略目录（node_modules）整棵消失。
+    #[test]
+    fn list_tree_classifies_entries_without_stat_fallback() {
+        let tmp = unique_tmp_dir("classify");
+        std::fs::create_dir_all(tmp.join("sub")).unwrap();
+        std::fs::write(tmp.join("sub/b.txt"), b"b").unwrap();
+        std::fs::write(tmp.join("top.txt"), b"t").unwrap();
+        std::fs::create_dir_all(tmp.join("node_modules/dep")).unwrap();
+        std::fs::write(tmp.join("node_modules/dep/x.js"), b"x").unwrap();
+
+        let tree = list_tree(&tmp).unwrap();
+        let sub = tree.iter().find(|n| n.path == "sub").expect("dir must be listed");
+        assert!(!sub.children.is_empty(), "dir must carry children");
+        assert!(tree.iter().any(|n| n.path == "top.txt"));
+        assert!(
+            !tree.iter().any(|n| n.path.starts_with("node_modules")),
+            "ignored dir must vanish entirely"
+        );
+        cleanup(&tmp);
+    }
+
+    /// 事项 1-A：符号链接必须跳过（与重构前一致），且不得被跟随展开。
+    #[cfg(unix)]
+    #[test]
+    fn list_tree_skips_symlinks() {
+        let tmp = unique_tmp_dir("symlink");
+        std::fs::create_dir_all(tmp.join("real")).unwrap();
+        std::fs::write(tmp.join("real/a.txt"), b"a").unwrap();
+        std::os::unix::fs::symlink(tmp.join("real"), tmp.join("link")).unwrap();
+
+        let tree = list_tree(&tmp).unwrap();
+        assert!(tree.iter().any(|n| n.path == "real"));
+        assert!(!tree.iter().any(|n| n.path == "link"), "symlink must be skipped");
         cleanup(&tmp);
     }
 }
