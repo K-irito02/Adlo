@@ -1,5 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { clampScrollTop, readEditorViewport, readPersistedViewport } from '../viewport';
+import {
+  clampScrollTop,
+  readEditorViewport,
+  readPersistedViewport,
+  shouldApplyViewport,
+  viewportSessionKey,
+} from '../viewport';
 import type { PersistedViewport } from '../viewport';
 
 const viewport: PersistedViewport = {
@@ -22,6 +28,11 @@ describe('clampScrollTop', () => {
 
   it('never returns a negative offset for an empty document', () => {
     expect(clampScrollTop(viewport, 0)).toBe(0);
+  });
+
+  it('returns 0 when scrollTopLine is missing or corrupt (fix round 1 #3)', () => {
+    expect(clampScrollTop({ ...viewport, scrollTopLine: 0 }, 60)).toBe(0);
+    expect(clampScrollTop({ ...viewport, scrollTopLine: Number.NaN }, 60)).toBe(0);
   });
 });
 
@@ -73,5 +84,28 @@ describe('readPersistedViewport', () => {
       JSON.stringify({ workspaceId: 'ws', scrollTop: 'far' }),
     );
     expect(readPersistedViewport()).toBeUndefined();
+  });
+});
+
+describe('shouldApplyViewport', () => {
+  const ws1Viewport: PersistedViewport = { ...viewport, workspaceId: 'ws1', scrollTop: 100 };
+  const ws2Viewport: PersistedViewport = { ...viewport, workspaceId: 'ws2', scrollTop: 200 };
+
+  it('applies a matching viewport once, then skips on replay', () => {
+    expect(shouldApplyViewport(null, 'a.ts', 'ws1', ws1Viewport)).toBe(true);
+    const applied = viewportSessionKey('ws1', 'a.ts');
+    expect(shouldApplyViewport(applied, 'a.ts', 'ws1', ws1Viewport)).toBe(false);
+  });
+
+  it('still applies after switching to the same path in another workspace (fix round 1 #1)', () => {
+    const appliedWs1 = viewportSessionKey('ws1', 'a.ts');
+    expect(viewportSessionKey('ws2', 'a.ts')).not.toBe(appliedWs1);
+    expect(shouldApplyViewport(appliedWs1, 'a.ts', 'ws2', ws2Viewport)).toBe(true);
+  });
+
+  it('skips when path or workspace does not match', () => {
+    expect(shouldApplyViewport(null, 'b.ts', 'ws1', ws1Viewport)).toBe(false);
+    expect(shouldApplyViewport(null, 'a.ts', 'ws2', ws1Viewport)).toBe(false);
+    expect(shouldApplyViewport(null, 'a.ts', undefined, ws1Viewport)).toBe(false);
   });
 });

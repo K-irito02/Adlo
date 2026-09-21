@@ -16,7 +16,11 @@ import { search } from '@codemirror/search';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import type { EditorRef } from '@stores/types';
 import type { PersistedViewport } from '@stores/persisted/viewport';
-import { applyEditorViewport } from '@stores/persisted/viewport';
+import {
+  applyEditorViewport,
+  shouldApplyViewport,
+  viewportSessionKey,
+} from '@stores/persisted/viewport';
 import { createEditorRef } from './editorAdapters';
 import { getThemeExtension, getPhrasesExtension } from './cmTheme';
 import { getLanguageExtension } from './cmLanguages';
@@ -164,21 +168,19 @@ export function CodeEditor({
   }, [lineNumbersEnabled, wordWrap]);
 
   // 会话恢复（Task 27）：挂载并拿到文档行数后，用 clampScrollTop 得到目标偏移
-  // 并精确恢复滚动，再按行号重建折叠区间。每个文件只应用一次（applied 哨兵），
+  // 并精确恢复滚动，再按行号重建折叠区间。每个"工作区 + 文件"只应用一次（applied
+  // 哨兵按二者联合键入；fix round 1 #1：单绑 fileKey 会漏恢复跨工作区同路径文件）。
   // 后续键入触发的 value 变化不再重放；工作区/路径任一不匹配即跳过。
   useEffect(() => {
     const view = viewRef.current;
     if (!view || !fileKey || !viewport) {
       return;
     }
-    if (viewportAppliedRef.current === fileKey) {
-      return;
-    }
-    if (viewport.relativePath !== fileKey || viewport.workspaceId !== workspaceId) {
+    if (!shouldApplyViewport(viewportAppliedRef.current, fileKey, workspaceId, viewport)) {
       return;
     }
     applyEditorViewport(view, viewport);
-    viewportAppliedRef.current = fileKey;
+    viewportAppliedRef.current = viewportSessionKey(workspaceId, fileKey);
   }, [fileKey, value, workspaceId, viewport, editorView]);
 
   return (

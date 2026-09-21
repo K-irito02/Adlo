@@ -88,6 +88,10 @@ export function readPersistedViewport(): PersistedViewport | undefined {
 /**
  * 越界钳制：文档足够长时保留原偏移；文档变短时按
  * docLines / scrollTopLine 比例换算到尾部；空文档返回 0。
+ *
+ * scrollTopLine 非正/非有限属损坏记录（capture 永不产出该值，见其 Math.max 归一）：
+ * 此时按比例换算的分母无意义，直接回 0 而非原样返回 stored —— 否则短文档会拿到
+ * 一个远超可滚动范围的像素偏移（fix round 1 #3）。
  */
 export function clampScrollTop(viewport: PersistedViewport, docLines: number): number {
   if (!Number.isFinite(docLines) || docLines <= 0) {
@@ -98,12 +102,36 @@ export function clampScrollTop(viewport: PersistedViewport, docLines: number): n
     return 0;
   }
   if (!Number.isFinite(viewport.scrollTopLine) || viewport.scrollTopLine <= 0) {
-    return stored;
+    return 0;
   }
   if (docLines >= viewport.scrollTopLine) {
     return stored;
   }
   return Math.max(0, (stored * docLines) / viewport.scrollTopLine);
+}
+
+/**
+ * 视口应用的会话键：同一相对路径可分属不同工作区，哨兵必须同时绑定二者
+ * （fix round 1 #1：只绑 fileKey 会导致切到另一工作区同路径文件时误判"已应用"）。
+ */
+export function viewportSessionKey(workspaceId: string | undefined, fileKey: string): string {
+  return `${workspaceId ?? ''}\0${fileKey}`;
+}
+
+/**
+ * CodeEditor 恢复 effect 的纯决策函数（先匹配、后比哨兵）。
+ * 抽出只为可测性：组件挂载时序在 jsdom 下不可断言，回归形态由单测钉住。
+ */
+export function shouldApplyViewport(
+  appliedKey: string | null,
+  fileKey: string,
+  workspaceId: string | undefined,
+  viewport: PersistedViewport,
+): boolean {
+  if (viewport.relativePath !== fileKey || viewport.workspaceId !== workspaceId) {
+    return false;
+  }
+  return appliedKey !== viewportSessionKey(workspaceId, fileKey);
 }
 
 /**

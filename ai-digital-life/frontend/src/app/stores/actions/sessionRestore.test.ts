@@ -136,6 +136,30 @@ describe('session restore', () => {
     }
   });
 
+  it('flags a same-path open in the wrong workspace as a failed restore (fix round 1 #4)', async () => {
+    const openFileForWorkspace = vi.fn().mockImplementation(async () => {
+      useAppStore.setState({
+        selectedFilePath: 'same.ts',
+        selectedFileWorkspaceId: 'workspace_b',
+      });
+    });
+    const realOpenFileForWorkspace = useAppStore.getState().openFileForWorkspace;
+    useAppStore.setState({
+      lastOpenedFile: { workspaceId: 'workspace_a', relativePath: 'same.ts' },
+      recentWorkspaces: [
+        workspaceEntry('workspace_a', '/ws/a'),
+        workspaceEntry('workspace_b', '/ws/b'),
+      ],
+      openFileForWorkspace: openFileForWorkspace as never,
+    });
+    try {
+      await expect(useAppStore.getState().restoreLastOpenedFile()).resolves.toBeUndefined();
+      expect(useAppStore.getState().sessionRestoreNotice).toBe('sessionLastFileMissing');
+    } finally {
+      useAppStore.setState({ openFileForWorkspace: realOpenFileForWorkspace });
+    }
+  });
+
   it('clears the notice and remembers the file when any file opens successfully', async () => {
     mockReadFileForWorkspace.mockResolvedValue({
       ok: true,

@@ -183,7 +183,8 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const after = get();
       if (
         after.fileOpenError?.path === last.relativePath ||
-        after.selectedFilePath !== last.relativePath
+        after.selectedFilePath !== last.relativePath ||
+        after.selectedFileWorkspaceId !== last.workspaceId
       ) {
         set({ sessionRestoreNotice: 'sessionLastFileMissing' });
       }
