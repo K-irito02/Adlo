@@ -168,7 +168,7 @@ git commit -m "feat(workspace): add SQLite row-level tree cache store"
 
 **Interfaces:**
 - Consumes: Task 1 的 `TreeCacheStore::open/get/put/remove`；`now_ms()`（`tree.rs` 既有 helper，以实际签名为准）；DB 目录由调用方经 `adl-kernel::storage` 解析后传入——`list_tree_cached(root)` 签名**不得**改变（调用方众多），DB 目录解析收敛到一处内部 helper `tree_cache_dir()`（读 `adl-kernel::storage` 对应分类目录；解析失败则跳过 L2，行为等同现状）。
-- Produces: 同名函数语义升级（L1 内存 → L2 SQLite → L3 全量扫并回写）；`invalidate_tree_cache` 附带删 SQLite 行。
+- Produces: 同名函数语义升级（L1 内存 → L2 SQLite → L3 全量扫并回写）；`invalidate_tree_cache` 附带删 SQLite 行；**新增导出 `list_tree_cached_stale_ok(root) -> (Vec<WorkspaceTreeNode>, bool)`（L1/L2 命中返 `(tree, true)`，miss 全量扫返 `(tree, false)`，供 Task 4）与 `remove_tree_cache_row(root)`（`invalidate` 的 SQLite 部分拆出，供 Task 4 移除路径复用，不得重复实现）。
 
 - [ ] **Step 1: 写失败测试**（`tree.rs` 的 `tree_cache_tests` 模块追加）
 
@@ -235,7 +235,7 @@ pub fn list_tree_cached(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError>
 cd ai-digital-life && cargo test -p adl-workspace && cargo clippy -p adl-workspace --all-targets 2>&1 | tail -n 2
 ```
 
-Expected: 全绿（含既有 103 用例）；clippy 零警告。
+Expected: 全绿（含既有 103 用例——数量以实际为准，只增不减）；clippy 零警告。
 
 - [ ] **Step 5: 提交**
 
@@ -280,7 +280,7 @@ Expected: 穷尽匹配错误列表（即待补清单）。
 cd ai-digital-life && cargo check --workspace 2>&1 | tail -n 2 && cargo test -p adl-kernel -p adl-storage -p adl-migration 2>&1 | grep -E "test result" | head -n 6
 ```
 
-Expected: check 通过；三 crate 测试全绿。crate 名以各自 `Cargo.toml` 的 `name` 为准（若 `adl-migration` 不存在则为实际名——先 `grep -m1 ^name crates/migration/Cargo.toml` 确认，不得臆测）。
+Expected: check 通过；三 crate 测试全绿（crate 名已核实：`adl-kernel` / `adl-storage` / `adl-migration`）。
 
 - [ ] **Step 4: 提交**
 
@@ -303,7 +303,7 @@ git commit -m "feat(storage): register tree-cache as migratable category"
 - Consumes: Task 1–2 的存储层；`run_blocking` 既有模式（`workspace.rs:423-431`）
 - Produces:
   - `TreeBody { workspace_path: Option<String>, force: bool, allow_stale: bool }`（全 `#[serde(default)]`，老客户端不传即全量语义， wire 兼容）
-  - `TreePayload { tree: Vec<WorkspaceTreeNode>, from_cache: bool }`（`Serialize` + `TS` 派生，与前端手工类型逐字段对齐，见 Task 5）
+  - `TreePayload { tree: Vec<WorkspaceTreeNode>, from_cache: bool, captured_at: i64 }`（`Serialize` + `#[serde(rename_all = "camelCase")]`，与前端手工类型逐字段对齐，见 Task 5；`captured_at` 供前端校准门判定，miss/force 时为本次扫描时间）
   - 移除工作区后该 `root_path` 的缓存行消失（best-effort）
 
 - [ ] **Step 1: 写失败测试**
@@ -334,7 +334,7 @@ fn remove_workspace_deletes_cache_row() {
 cd ai-digital-life && cargo test -p adl-server tree_cache
 ```
 
-Expected: FAIL（字段/方法不存在）。crate 名以 `crates/server/Cargo.toml` 为准（`adl-server` 存疑则先确认）。
+Expected: FAIL（字段/方法不存在）。crate 名为 `adl-server`（已核实）。
 
 - [ ] **Step 3: 实现**
 
@@ -407,12 +407,12 @@ git commit -m "feat(server): serve stale tree rows with from-cache flag"
 - Modify: `ai-digital-life/frontend/src/shared/ipc/storage.ts`（`StorageBridge` 追加三方法）
 
 **Interfaces:**
-- Consumes: Task 4 的 Rust `TreePayload`（字段 `camelCase`：`tree` / `fromCache`，与 `GitSnapshot` 的 `rename_all = "camelCase"` 惯例一致）
+- Consumes: Task 4 的 Rust `TreePayload`（字段 `camelCase`：`tree` / `fromCache` / `capturedAt`，与 `GitSnapshot` 的 `rename_all = "camelCase"` 惯例一致）
 - Produces:
-  - `export interface WorkspaceTreePayload { tree: WorkspaceTreeNode[]; fromCache: boolean }`
+  - `export interface WorkspaceTreePayload { tree: WorkspaceTreeNode[]; fromCache: boolean; capturedAt: number }`（`capturedAt` 供 T7 校准门判定；`export interface TreeCacheOptions { enabled: boolean; ttlMinutes: number }` 同文件或 storage 类型文件，按 `StorageStatus` 所在位置定）
   - `listTreeForWorkspace(workspacePath, options?: { force?: boolean; allowStale?: boolean }) => Promise<IpcResult<WorkspaceTreePayload>>`
   - `listTree(options?: { force?: boolean; allowStale?: boolean }) => Promise<IpcResult<WorkspaceTreePayload>>`（`listTree` 一并改——同命令同 handler，不改即类型分叉；其调用点在下一步任务中同步改）
-  - `getTreeCacheStats() => Promise<IpcResult<TreeCacheStats>>`，`setTreeCacheOptions(opts: { enabled: boolean; ttlMinutes: number }) => Promise<IpcResult<void>>`，`clearTreeCache() => Promise<IpcResult<void>>`，其中 `export interface TreeCacheStats { workspaceCount: number; totalBytes: number; oldestCapturedAt: number | null; newestCapturedAt: number | null }`
+  - `getTreeCacheStats() => Promise<IpcResult<TreeCacheStats>>`，`setTreeCacheOptions(opts: TreeCacheOptions) => Promise<IpcResult<void>>`，`clearTreeCache() => Promise<IpcResult<void>>`，其中 `export interface TreeCacheStats { workspaceCount: number; totalBytes: number; oldestCapturedAt: number | null; newestCapturedAt: number | null }`
 
 - [ ] **Step 1: 写失败测试**（`frontend/src/shared/ipc/__tests__/tree-payload-shape.test.ts`，新建；仿 `searchWindow.test.ts` 的类型守卫风格）
 
@@ -553,6 +553,12 @@ it('silently calibrates after a stale first packet and prunes only on the fresh 
 it('falls back to the blocking load when no stale row exists', async () => {
   // 首包 fromCache:false → loading 正常置位又清除，与现状一致。
 });
+
+it('skips calibration inside the TTL window and honors the master switch', async () => {
+  // getTreeCacheOptions mock → { enabled: true, ttlMinutes: 15 }；首包 { tree: STALE, fromCache: true, capturedAt: Date.now() }。
+  // 断言：无二次 refresh 调用（校准跳过），树保持 STALE。
+  // 再测 enabled:false → 首包请求不带 allowStale（桥 spy 断言 options 实参无 allowStale），行为等同现状。
+});
 ```
 
 - [ ] **Step 2: 运行测试确认失败**
@@ -571,10 +577,10 @@ Expected: FAIL（`allowStale` 未透传 / 无校准逻辑）。
 treeLoader: () =>
   window.digitalLife.workspace
     .listTreeForWorkspace(w.path, { allowStale: true })
-    .then((r) => (r.ok ? { tree: r.data.tree, fromCache: r.data.fromCache } : undefined)),
+    .then((r) => (r.ok ? { tree: r.data.tree, fromCache: r.data.fromCache, capturedAt: r.data.capturedAt } : undefined)),
 ```
 
-`loadBatch` 内：首包 `fromCache:true` 的工作区记入 `staleIds`，其 `workspaceTreeLoading` 不置 true（跳过 154 行的该 id 置位——以 `accumulateBatch` 调用点为准改条件）；`loadBatch` 返回后，对 `staleIds` 逐个 `await get().refreshOneWorkspaceTree(id, path, { silent: true })`，成功且无 `workspaceTreeErrors[id]` 则 `applyTreeLoadedPrune(id, collectDirPaths(get().workspaceTrees[id]))`（沿用 197-204 行的成功分支形态）。TTL 窗判定在服务端（行年龄 < TTL 时服务端直接回新鲜行并标 `fromCache:false`——**前端不判 TTL**，职责切分点，见 spec §2/§4）。
+`loadBatch` 内：首包 `fromCache:true` 的工作区记入 `staleIds`，其 `workspaceTreeLoading` 不置 true（跳过 154 行的该 id 置位——以 `accumulateBatch` 调用点为准改条件）。校准门（预检裁定，职责切分）：`loadBatch` 入口处调一次 `getTreeCacheOptions`（模块级缓存，失败回退 `{ enabled: true, ttlMinutes: 15 }`，与 Rust 缺省逐字一致）；`enabled:false` 时全批次 `allowStale:false`（等同现状）；否则仅对 `fromCache && (Date.now() - capturedAt > ttlMinutes * 60000)` 的工作区逐个 `await get().refreshOneWorkspaceTree(id, path, { silent: true })`，成功且无 `workspaceTreeErrors[id]` 则 `applyTreeLoadedPrune(id, collectDirPaths(get().workspaceTrees[id]))`（沿用 197-204 行的成功分支形态）。TTL 行龄小的工作区跳过校准（零扫描重启）。
 
 - [ ] **Step 4: 运行测试确认通过**
 
@@ -598,6 +604,7 @@ git commit -m "feat(stores): render stale trees first, calibrate silently"
 
 **Files:**
 - Modify: `ai-digital-life/frontend/src/app/stores/actions/workspaceTreeActions.ts`（`createLazyLoader` 的 `fetchFn` + `refreshOneWorkspaceTree` 的取值）
+- Modify: `ai-digital-life/frontend/src/app/stores/actions/workspaceActions.ts:352`（`listTree({ force: true })` 调用点拆包 `payload.tree`——预检已定位唯一 `listTree(` 调用点）
 - Modify: 相关测试（`workspaceTreeActions` 测试文件若存在则同步；`generalActions.test.ts` 的 refresh 相关用例；`useFileCreation.test.tsx` 的 `expandFileTreePathChain` mock 不受影响——其签名未变）
 
 **Interfaces:**
@@ -712,6 +719,7 @@ git commit -m "feat(settings): add tree-cache storage section"
 **Interfaces:**
 - Consumes: Task 1–9 全部产出
 - Produces: 验收记录（回填 spec §6 预留小节）+ 真机确认
+- 注（预检裁定）：Step 1–2 需真机 GUI，CLI 子代理不可见——实现者完成机器部分（Step 3 门禁 + Step 4 回填草稿）即关闭，真机清单移交用户/controller（T13 先例）。
 
 - [ ] **Step 1: 冷启动验收（桌面模式）**
 
