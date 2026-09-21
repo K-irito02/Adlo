@@ -187,6 +187,9 @@ fn main() {
             commands::storage::storage_preflight_cmd,
             commands::storage::storage_set_paths,
             commands::storage::storage_cancel_pending,
+            commands::storage::storage_tree_cache_stats,
+            commands::storage::storage_tree_cache_options,
+            commands::storage::storage_tree_cache_clear,
             commands::storage::app_restart,
         ])
         .run(tauri::generate_context!())

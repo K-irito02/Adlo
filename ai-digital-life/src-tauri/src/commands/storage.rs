@@ -3,6 +3,7 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::storage as st;
 use adl_types::IpcResult;
+use adl_workspace::tree_cache_store::{TreeCacheOptions, TreeCacheStats, TreeCacheStore};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{AppHandle, State};
@@ -307,6 +308,58 @@ pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<(
     let mut locator = st::load_locator();
     locator.pending_migration = None;
     st::save_locator(&locator)?;
+    ok_ipc(())
+}
+
+/// 空表零值（目录不可解析时——进程既无 `--data-dir` 又无定位器根——行为等同 L2 跳过）。
+fn empty_tree_cache_stats() -> TreeCacheStats {
+    TreeCacheStats {
+        workspace_count: 0,
+        total_bytes: 0,
+        oldest_captured_at: None,
+        newest_captured_at: None,
+    }
+}
+
+fn validate_tree_cache_ttl(ttl_minutes: u64) -> Result<(), AppError> {
+    if (1..=1440u64).contains(&ttl_minutes) {
+        Ok(())
+    } else {
+        Err(AppError::InvalidInput(format!("ttl_minutes {ttl_minutes} out of range 1..=1440")))
+    }
+}
+
+/// 工作区树缓存统计（设置页展示用），与服务端 `POST /storage/tree-cache/stats` 同语义。
+#[tauri::command]
+pub fn storage_tree_cache_stats(
+    _state: State<'_, AppState>,
+) -> Result<IpcResult<TreeCacheStats>, AppError> {
+    match adl_workspace::tree_cache_dir() {
+        Some(dir) => Ok(ipc(Ok(TreeCacheStore::open(&dir)?.stats()?))),
+        None => ok_ipc(empty_tree_cache_stats()),
+    }
+}
+
+/// 工作区树缓存开关/TTL 写入（参数信封 `{ opts }`，与 `tauri-bridge` 的
+/// `invokeIpc(…, { opts })` 对应）；`ttl_minutes` 越界报 `InvalidInput`。
+#[tauri::command]
+pub fn storage_tree_cache_options(
+    _state: State<'_, AppState>,
+    opts: TreeCacheOptions,
+) -> Result<IpcResult<()>, AppError> {
+    validate_tree_cache_ttl(opts.ttl_minutes)?;
+    if let Some(dir) = adl_workspace::tree_cache_dir() {
+        TreeCacheStore::open(&dir)?.set_options(opts.enabled, opts.ttl_minutes)?;
+    }
+    ok_ipc(())
+}
+
+/// 清除全部树缓存行（元数据开关/TTL 保留），与服务端 `POST /storage/tree-cache/clear` 同语义。
+#[tauri::command]
+pub fn storage_tree_cache_clear(_state: State<'_, AppState>) -> Result<IpcResult<()>, AppError> {
+    if let Some(dir) = adl_workspace::tree_cache_dir() {
+        TreeCacheStore::open(&dir)?.clear()?;
+    }
     ok_ipc(())
 }
 
