@@ -79,6 +79,8 @@ describe('storage bridge method parity', () => {
             totalBytes: 0,
             oldestCapturedAt: null,
             newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
           },
         };
       }
@@ -88,7 +90,14 @@ describe('storage bridge method parity', () => {
     const fetchMock = vi.fn<typeof fetch>(async (input) => {
       const url = String(input);
       const data = url.endsWith('/storage/tree-cache/stats')
-        ? { workspaceCount: 0, totalBytes: 0, oldestCapturedAt: null, newestCapturedAt: null }
+        ? {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          }
         : undefined;
       return {
         ok: true,
@@ -109,12 +118,22 @@ describe('storage bridge method parity', () => {
           expect(stats.data.totalBytes).toBe(0);
           expect(stats.data.oldestCapturedAt).toBeNull();
           expect(stats.data.newestCapturedAt).toBeNull();
+          // stats 与 get_options 同源：开关/TTL 缺省与 Rust 一致。
+          expect(stats.data.enabled).toBe(true);
+          expect(stats.data.ttlMinutes).toBe(15);
         }
         const setRes = await bridge.setTreeCacheOptions({ enabled: false, ttlMinutes: 60 });
         expect(setRes.ok).toBe(true);
         // clear 幂等成功：连调两次都 ok。
         expect((await bridge.clearTreeCache()).ok).toBe(true);
         expect((await bridge.clearTreeCache()).ok).toBe(true);
+      }
+      // mock 内存实现：set 后 stats 即反映新 options（clear 不影响开关/TTL）。
+      const mockAfter = await mock.getTreeCacheStats();
+      expect(mockAfter.ok).toBe(true);
+      if (mockAfter.ok) {
+        expect(mockAfter.data.enabled).toBe(false);
+        expect(mockAfter.data.ttlMinutes).toBe(60);
       }
       // 命令/路由钉住：Tauri 命令名与 HTTP 路由与实现一致。
       expect(mockInvoke).toHaveBeenCalledWith('storage_tree_cache_stats', undefined);

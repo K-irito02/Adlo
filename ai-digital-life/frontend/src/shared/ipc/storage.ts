@@ -62,13 +62,15 @@ export interface StorageStatus {
 /**
  * 工作区树缓存统计（设置页展示用）。
  * 与 Rust `TreeCacheStats`（`#[serde(rename_all = "camelCase")]`）逐字段对齐；
- * 空表时计数为 0、时间为 `null`。
+ * 空表时计数为 0、时间为 `null`；`enabled`/`ttlMinutes` 与 `get_options()` 同源。
  */
 export interface TreeCacheStats {
   workspaceCount: number;
   totalBytes: number;
   oldestCapturedAt: number | null;
   newestCapturedAt: number | null;
+  enabled: boolean;
+  ttlMinutes: number;
 }
 
 /**

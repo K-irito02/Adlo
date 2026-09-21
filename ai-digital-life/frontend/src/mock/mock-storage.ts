@@ -108,7 +108,15 @@ export function createMockStorage(config: MockStorageConfig = {}): StorageBridge
 
     getTreeCacheStats: async (): Promise<IpcResult<TreeCacheStats>> => ({
       ok: true,
-      data: { workspaceCount: 0, totalBytes: 0, oldestCapturedAt: null, newestCapturedAt: null },
+      // 行统计恒零值（内存实现无 SQLite 行）；开关/TTL 与 set 写入的内存态同源。
+      data: {
+        workspaceCount: 0,
+        totalBytes: 0,
+        oldestCapturedAt: null,
+        newestCapturedAt: null,
+        enabled: treeCacheOptions.enabled,
+        ttlMinutes: treeCacheOptions.ttlMinutes,
+      },
     }),
 
     setTreeCacheOptions: async (opts: TreeCacheOptions): Promise<IpcResult<void>> => {

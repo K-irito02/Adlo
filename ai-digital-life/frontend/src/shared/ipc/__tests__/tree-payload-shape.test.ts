@@ -14,7 +14,11 @@ describe('tree cache payload shape', () => {
       totalBytes: 1234,
       oldestCapturedAt: 100,
       newestCapturedAt: 200,
+      enabled: true,
+      ttlMinutes: 15,
     };
     expect(stats.workspaceCount).toBe(1);
+    expect(stats.enabled).toBe(true);
+    expect(stats.ttlMinutes).toBe(15);
   });
 });
