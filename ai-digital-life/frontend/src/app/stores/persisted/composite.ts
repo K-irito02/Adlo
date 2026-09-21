@@ -11,14 +11,16 @@ export interface CompositeHydrator {
   name: string;
   /**
    * @param read 直接读原始值（不经过登记表校验器），归一化器自身必须对坏形状完全防御
-   * @param priorPatch **简单条目**已产出的补丁的**快照** —— 由 `hydrateAll` 在任何复合水合器
-   *   运行之前取定，同一份快照原样传给每一个复合水合器。因此它只含登记表简单条目
-   *   （甲类 `field` 写出的值 / 乙类 `apply` 之前的校验结果）的产出，
+   * @param priorPatch **甲类简单条目**已产出的补丁的**快照** —— 由 `hydrateAll` 在任何复合水合器
+   *   运行之前取定，同一份快照原样传给每一个复合水合器。因此它只含甲类 `field` 条目
+   *   写出的值（乙类 `apply` 条目的校验结果由 `apply` 直接接收，从不写入 patch，
+   *   且乙类 `field === undefined`，故不得用 `priorPatch` 读乙类值），
    *   **不含**任何复合水合器的派生值（包括先于本水合器运行的那些复合的输出）。
    *   之所以要快照而不是传累积补丁：复合水合器共用这一份接口，后跑者若能看到先跑者的派生值，
    *   就会对同一形状二次派生（例如读到的是 title 已结算的 `browserTabs` 而非原始存储值）。
    *   取值规则：要**原始存储值**用 `read(key)`（自行承担形状防御）；
-   *   要**登记表已校验/已回退的值**用 `priorPatch.field`（键一定存在，因为简单条目总有 fallback）；
+   *   要**登记表已校验/已回退的值**用 `priorPatch.field`（甲类键一定存在，
+   *   因为甲类简单条目总有 fallback）；
    *   不要用 `priorPatch` 读其他复合水合器的输出 —— 那是本契约明确排除的。
    */
   build: (read: (key: string) => unknown, priorPatch: Partial<StoreState>) => Partial<StoreState>;

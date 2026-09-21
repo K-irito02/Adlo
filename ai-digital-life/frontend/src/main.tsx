@@ -1,6 +1,7 @@
 import { createRoot } from 'react-dom/client';
 import type { DigitalLifeBridge } from './shared/ipc/digital-life';
 import { createTauriBridge, isTauriShell, resolveTauriServerBaseUrl } from './tauri-bridge';
+import { registerFlushOnPageHide } from './app/stores/storageHelpers';
 import { App } from './app/App';
 import './app/utils/debugLogCollector'; // 调试日志收集器
 import './styles/index.css';
@@ -52,6 +53,8 @@ async function boot(): Promise<void> {
 
 void boot();
 void syncTauriWindowIcon();
+// 关窗兜底：去抖窗口内的 pending 写入在 pagehide / 切后台时同步落盘。
+registerFlushOnPageHide();
 
 declare global {
   interface Window {

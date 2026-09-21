@@ -69,3 +69,42 @@ describe('storageHelpers error logging', () => {
     expect(warnSpy).toHaveBeenCalled();
   });
 });
+
+describe('registerFlushOnPageHide', () => {
+  beforeEach(() => {
+    // 本文件前面的用例把 Storage.prototype.getItem/setItem 桩成了抛错/坏数据实现
+    // 且从不还原；此处恢复原生 localStorage（与 T3 的 hydrate.test.ts 同一卫生模式）。
+    vi.restoreAllMocks();
+  });
+
+  it('flushOnPageHide flushes pending writes when pagehide fires', async () => {
+    const { registerFlushOnPageHide, scheduleCrossSliceWrite } = await import('./storageHelpers');
+    const dispose = registerFlushOnPageHide();
+    try {
+      localStorage.clear();
+      scheduleCrossSliceWrite('adl:__probe', { ok: true });
+      window.dispatchEvent(new Event('pagehide'));
+      expect(localStorage.getItem('adl:__probe')).toBe('{"ok":true}');
+    } finally {
+      dispose();
+      localStorage.removeItem('adl:__probe');
+    }
+  });
+
+  it('flushOnPageHide also flushes when the document becomes hidden', async () => {
+    const { registerFlushOnPageHide, scheduleCrossSliceWrite } = await import('./storageHelpers');
+    const dispose = registerFlushOnPageHide();
+    const original = document.visibilityState;
+    try {
+      localStorage.clear();
+      scheduleCrossSliceWrite('adl:__probe2', { ok: true });
+      Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+      document.dispatchEvent(new Event('visibilitychange'));
+      expect(localStorage.getItem('adl:__probe2')).toBe('{"ok":true}');
+    } finally {
+      Object.defineProperty(document, 'visibilityState', { value: original, configurable: true });
+      dispose();
+      localStorage.removeItem('adl:__probe2');
+    }
+  });
+});

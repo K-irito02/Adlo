@@ -149,6 +149,26 @@ export function flushCrossSliceWrites(): void {
 }
 
 /**
+ * 关窗兜底：Tauri 的 onCloseRequested 与浏览器 beforeunload 之外，
+ * 补充 pagehide 与 visibilitychange(hidden) 两条路径（规格 §3.7 / 根因 C8）。
+ * 只做 flush（同步落盘 pending 写入），不做水合。
+ */
+export function registerFlushOnPageHide(): () => void {
+  const onPageHide = () => flushCrossSliceWrites();
+  const onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      flushCrossSliceWrites();
+    }
+  };
+  window.addEventListener('pagehide', onPageHide);
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  return () => {
+    window.removeEventListener('pagehide', onPageHide);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
+  };
+}
+
+/**
  * 创建绑定到指定 localStorage key 的持久化写入函数。
  * 使用共享的去抖写入调度器（50ms），跨 slice 合并写入。
  * 替代各 slice 中重复的 `const { scheduleWrite } = createDebouncedWrite(50);` 样板。

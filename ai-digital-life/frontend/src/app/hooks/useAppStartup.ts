@@ -38,28 +38,12 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
 
   useEffect(() => {
     void initSiteMetaCache();
-    let attempts = 0;
-    const MAX_ATTEMPTS = 5;
-    let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const tryCollect = () => {
-      const urls = collectWarmupUrls();
-      if (urls.length > 0) {
-        void pageMetaClient.warmup(urls);
-        return;
-      }
-      // 浏览器数据可能仍在延迟水合（requestIdleCallback timeout:1000 / setTimeout 200ms），
-      // 空结果时延迟重试以覆盖水合窗口；一旦有数据即停。
-      attempts += 1;
-      if (attempts < MAX_ATTEMPTS) {
-        retryTimer = setTimeout(tryCollect, 300);
-      }
-    };
-    tryCollect();
-    return () => {
-      if (retryTimer !== undefined) {
-        clearTimeout(retryTimer);
-      }
-    };
+    // 单次收集：store 构造期已同步水合（hydrateAll），首次收集即见全量持久化数据，
+    // 无需等待延迟水合（requestIdleCallback/setTimeout 机制已由 T7/T9 删除）。
+    const urls = collectWarmupUrls();
+    if (urls.length > 0) {
+      void pageMetaClient.warmup(urls);
+    }
   }, []);
 
   useEffect(() => {

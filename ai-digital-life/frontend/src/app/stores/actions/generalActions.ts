@@ -66,7 +66,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       );
 
       const recentWorkspaces = recentResult.ok ? recentResult.data : [];
-      // 为右侧面板设置默认展开所有可见工作区
+      // 可见工作区仅用于下面的加载瀑布（computeLoadPhases），不设置任何展开态。
       const visibleWorkspaces = recentWorkspaces.filter(
         (w) => !w.removedFromSidebar && w.available,
       );
