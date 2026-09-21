@@ -311,13 +311,17 @@ pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<(
     ok_ipc(())
 }
 
-/// 空表零值（目录不可解析时——进程既无 `--data-dir` 又无定位器根——行为等同 L2 跳过）。
+/// 空表零值（目录不可解析时——进程既无 `--data-dir` 又无定位器根——行为等同 L2 跳过；
+/// 开关/TTL 取 Rust 缺省，与 `TreeCacheOptions::default` 同源）。
 fn empty_tree_cache_stats() -> TreeCacheStats {
+    let defaults = TreeCacheOptions::default();
     TreeCacheStats {
         workspace_count: 0,
         total_bytes: 0,
         oldest_captured_at: None,
         newest_captured_at: None,
+        enabled: defaults.enabled,
+        ttl_minutes: defaults.ttl_minutes,
     }
 }
 
