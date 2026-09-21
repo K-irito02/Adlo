@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppStore } from '../slicedStore';
-import { accumulateBatch, setCalibrationOptionsForTesting } from './generalActions';
+import { accumulateBatch, resolveCalibrationOptions, setCalibrationOptionsForTesting } from './generalActions';
 import { applyTreeLoadedPrune } from '../persisted/pruneWiring';
 import type * as PruneWiringModule from '../persisted/pruneWiring';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
@@ -691,8 +691,59 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
   });
 });
 
-describe('fresh-path payload unwrap (T8)', () => {
-  const NODES: WorkspaceTreeNode[] = [
+describe('resolveCalibrationOptions from stats (T9)', () => {
+  const STATS_BASE = {
+    workspaceCount: 0,
+    totalBytes: 0,
+    oldestCapturedAt: null,
+    newestCapturedAt: null,
+  };
+
+  function setStorageBridge(impl: unknown) {
+    (window as unknown as { digitalLife?: unknown }).digitalLife = { storage: impl };
+  }
+
+  afterEach(() => {
+    setCalibrationOptionsForTesting(undefined);
+    (window as unknown as { digitalLife?: unknown }).digitalLife = undefined;
+  });
+
+  it('returns the stats options when the bridge resolves', async () => {
+    setStorageBridge({
+      getTreeCacheStats: vi
+        .fn()
+        .mockResolvedValue({ ok: true, data: { ...STATS_BASE, enabled: false, ttlMinutes: 60 } }),
+    });
+    await expect(resolveCalibrationOptions()).resolves.toEqual({
+      enabled: false,
+      ttlMinutes: 60,
+    });
+  });
+
+  it('falls back to Rust defaults when stats fail', async () => {
+    setStorageBridge({
+      getTreeCacheStats: vi.fn().mockResolvedValue({ ok: false, error: { message: 'gone' } }),
+    });
+    await expect(resolveCalibrationOptions()).resolves.toEqual({ enabled: true, ttlMinutes: 15 });
+  });
+
+  it('falls back to Rust defaults when the bridge is missing', async () => {
+    (window as unknown as { digitalLife?: unknown }).digitalLife = {};
+    await expect(resolveCalibrationOptions()).resolves.toEqual({ enabled: true, ttlMinutes: 15 });
+  });
+
+  it('testing override still wins over stats', async () => {
+    setStorageBridge({
+      getTreeCacheStats: vi
+        .fn()
+        .mockResolvedValue({ ok: true, data: { ...STATS_BASE, enabled: false, ttlMinutes: 60 } }),
+    });
+    setCalibrationOptionsForTesting({ enabled: true, ttlMinutes: 5 });
+    await expect(resolveCalibrationOptions()).resolves.toEqual({ enabled: true, ttlMinutes: 5 });
+  });
+});
+
+describe('fresh-path payload unwrap (T8)', () => {  const NODES: WorkspaceTreeNode[] = [
     { path: 'src', name: 'src', kind: 'directory', children: [] },
   ];
 

@@ -16,17 +16,27 @@ import type { StoreApi } from 'zustand';
 const SCOPE = 'general';
 
 /**
- * T7 校准门选项：默认返回与 Rust 缺省逐字一致（`enabled=true, ttlMinutes=15`）。
- *
- * 缺口裁定（binding）：options 读路径四层全无，本任务不建读路径；T9 经 `stats`
- * 扩展交付真实值并接到此处。测试经 `setCalibrationOptionsForTesting` 注入覆盖。
+ * T7 校准门选项：T9 起经 `storage.getTreeCacheStats` 读真实值
+ *（stats 与 `get_options()` 同源）；桥不可用/失败时回退 Rust 缺省。
+ * 测试经 `setCalibrationOptionsForTesting` 注入覆盖（覆盖优先于真实值，T9 保留）。
  */
 const RUST_TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
 let calibrationOptionsOverride: TreeCacheOptions | undefined;
 
-export function resolveCalibrationOptions(): TreeCacheOptions {
-  return calibrationOptionsOverride ?? RUST_TREE_CACHE_DEFAULTS;
+export async function resolveCalibrationOptions(): Promise<TreeCacheOptions> {
+  if (calibrationOptionsOverride !== undefined) {
+    return calibrationOptionsOverride;
+  }
+  try {
+    const result = await window.digitalLife?.storage?.getTreeCacheStats();
+    if (result?.ok) {
+      return { enabled: result.data.enabled, ttlMinutes: result.data.ttlMinutes };
+    }
+  } catch {
+    // 桥失败（channel closed 等）即回退缺省，行为等同现状全量加载。
+  }
+  return RUST_TREE_CACHE_DEFAULTS;
 }
 
 /** 仅供测试注入覆盖校准门选项；传 `undefined` 恢复 Rust 缺省。T9 接真实值后保留。 */
@@ -162,9 +172,10 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             snapshot: unknown;
           }>[]
         > {
-          // 校准门（T7 缺口裁定）：入口调一次 resolveCalibrationOptions；
+          // 校准门（T7 缺口裁定 + T9 接线）：入口 await 一次 resolveCalibrationOptions
+          //（注入覆盖优先，无桥/失败回退 Rust 缺省）；
           // enabled:false → 全批次 allowStale:false（首包请求不带 allowStale，等同现状）。
-          const calibOpts = resolveCalibrationOptions();
+          const calibOpts = await resolveCalibrationOptions();
           const staleAllowed = calibOpts.enabled;
           const ttlMs = calibOpts.ttlMinutes * 60000;
 
