@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { createUiId } from '../shared';
 import { persist } from '../persisted/persist';
+import { applyTabPrune } from '../persisted/pruneWiring';
 import type { BrowserTabState, BrowserTabStateUpdate } from './browserSliceShared';
 import { historyDedupKey, isRealTitle } from '@utils/browserDisplayUtils';
 
@@ -127,7 +128,7 @@ export const createBrowserTabsSlice = (
     set({ browserActiveTabId: tabId });
   },
 
-  browserCloseTab: (tabId) =>
+  browserCloseTab: (tabId) => {
     set((state) => {
       const filtered = state.browserTabs.filter((tab) => tab.id !== tabId);
       const nextTabs = sortTabs(filtered);
@@ -143,7 +144,10 @@ export const createBrowserTabsSlice = (
         browserTabsById: buildTabsById(nextTabs),
         browserActiveTabId: nextActive,
       };
-    }),
+    });
+    // 标签集合变化：剪掉已不存在标签的孤儿条目（规格 §3.5.1）。
+    applyTabPrune();
+  },
 
   browserUpdateTab: (tabId, patch) =>
     set((state) => {
@@ -241,5 +245,7 @@ export const createBrowserTabsSlice = (
         browserActiveTabId: nextActive,
       };
     });
+    // 同 browserCloseTab：批量关闭同样产生孤儿标签条目。
+    applyTabPrune();
   },
 });

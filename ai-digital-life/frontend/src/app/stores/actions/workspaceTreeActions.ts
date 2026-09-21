@@ -4,6 +4,8 @@ import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import type { WorkspaceID } from '../../../shared/branded';
 import { asWorkspaceID } from '../../../shared/branded';
 import { createLazyLoader, batchExpandAll, expandSingle } from '../shared';
+import { collectDirPaths } from '../persisted/prune';
+import { applyTreeLoadedPrune } from '../persisted/pruneWiring';
 
 /**
  * Workspace tree-loading and navigation-expansion actions.
@@ -13,6 +15,23 @@ export function createWorkspaceTreeActions(
   set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
 ) {
+  const loadWorkspaceTreeInner = createLazyLoader<WorkspaceTreeNode[]>(
+    (path) => window.digitalLife.workspace.listTreeForWorkspace(path),
+    (s, id) => ({ hasData: !!s.workspaceTrees[id], isLoading: !!s.workspaceTreeLoading[id] }),
+    (g, id) => ({
+      workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: true },
+      workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: undefined },
+    }),
+    (g, id, data) => ({
+      workspaceTrees: { ...g().workspaceTrees, [id]: data },
+      workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
+    }),
+    (g, id, message) => ({
+      workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
+      workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: message },
+    }),
+  )(set, get);
+
   return {
     /**
      * [loadWorkspaceTree - 懒加载指定工作区的文件树]
@@ -21,23 +40,31 @@ export function createWorkspaceTreeActions(
      * @see shared/ipc.ts → workspace.listTreeForWorkspace
      * @see mock-bridge.ts → workspace.listTreeForWorkspace
      * @see preview-bridge/index.ts → workspace.listTreeForWorkspace
+     *
+     * 成功加载后触发目录剪枝（规格 §3.5.1 / R2）；加载失败或复用缓存/并发跳过时不剪。
      */
-    loadWorkspaceTree: createLazyLoader<WorkspaceTreeNode[]>(
-      (path) => window.digitalLife.workspace.listTreeForWorkspace(path),
-      (s, id) => ({ hasData: !!s.workspaceTrees[id], isLoading: !!s.workspaceTreeLoading[id] }),
-      (g, id) => ({
-        workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: true },
-        workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: undefined },
-      }),
-      (g, id, data) => ({
-        workspaceTrees: { ...g().workspaceTrees, [id]: data },
-        workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
-      }),
-      (g, id, message) => ({
-        workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: false },
-        workspaceTreeErrors: { ...g().workspaceTreeErrors, [id]: message },
-      }),
-    )(set, get),
+    loadWorkspaceTree: async (workspaceId: WorkspaceID, workspacePath: string) => {
+      const before = get();
+      if (
+        before.workspaceTrees[workspaceId] !== undefined ||
+        before.workspaceTreeLoading[workspaceId] === true
+      ) {
+        // 本次未实际加载（已有数据 / 并发加载中）：实际完成的那一次会触发剪枝。
+        await loadWorkspaceTreeInner(workspaceId, workspacePath);
+        return;
+      }
+      await loadWorkspaceTreeInner(workspaceId, workspacePath);
+      const state = get();
+      if (state.workspaceTreeErrors[workspaceId] !== undefined) {
+        // 加载失败 ≠ 目录被删：跳过剪枝（规格 §3.5.1）。
+        return;
+      }
+      const tree = state.workspaceTrees[workspaceId];
+      if (!tree) {
+        return;
+      }
+      applyTreeLoadedPrune(workspaceId, collectDirPaths(tree));
+    },
 
     /**
      * [toggleWorkspaceTreeInFileNav - 切换工作区在文件导航中的展开状态]

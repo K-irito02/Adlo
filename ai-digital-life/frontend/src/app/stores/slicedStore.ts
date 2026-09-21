@@ -128,10 +128,18 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
 import { hydrateAll } from './persisted/hydrate';
 import { cleanupUnregisteredKeys } from './persisted/cleanup';
 import { PERSIST_KEEP_KEYS } from './persisted/registry';
+import { registerPruneStore } from './persisted/pruneWiring';
 
 // PERSIST_KEEP_KEYS 在 persisted/registry.ts 中定义（由生成命令产出，详见其头部注释），
 // 此处仅导入使用。启动清理会删除所有不在 registry 内的 adl: 键，迁移分批进行期间
 // 必须保留全部遗留键（见 registry.ts 注释与 keepListGuard 守卫测试）。
+
+// 剪枝接线注册：pruneWiring 经注入拿 store 引用（而非静态 import），
+// 避免 slicedStore → slice → pruneWiring → slicedStore 的求值环。
+registerPruneStore({
+  getState: useSlicedAppStore.getState,
+  setState: (partial) => useSlicedAppStore.setState(partial),
+});
 
 // 同步水合：必须在 store 创建后立即执行，且早于任何 React 渲染 ——
 // 全应用唯一的水合时机（规格 §3.3）。禁止再引入第二处异步水合。

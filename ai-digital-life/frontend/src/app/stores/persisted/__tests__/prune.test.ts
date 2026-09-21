@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  collectDirPaths,
   pruneByWorkspaceId,
   pruneDirPathsByWorkspace,
   pruneDirExpansion,
@@ -8,6 +9,7 @@ import {
   pruneBrowserTreeExpanded,
 } from '../prune';
 import type { PruneCtx } from '../entry';
+import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import type { TreeExpansion } from '../../slices/uiSliceTypes';
 
 function ctx(partial: Partial<PruneCtx> = {}): PruneCtx {
@@ -18,6 +20,24 @@ function ctx(partial: Partial<PruneCtx> = {}): PruneCtx {
     ...partial,
   };
 }
+
+describe('collectDirPaths', () => {
+  it('collects only directory paths recursively', () => {
+    const tree: WorkspaceTreeNode[] = [
+      {
+        path: 'src',
+        name: 'src',
+        kind: 'directory',
+        children: [
+          { path: 'src/a.ts', name: 'a.ts', kind: 'file', children: [] },
+          { path: 'src/nested', name: 'nested', kind: 'directory', children: [] },
+        ],
+      },
+      { path: 'README.md', name: 'README.md', kind: 'file', children: [] },
+    ];
+    expect(collectDirPaths(tree)).toEqual(new Set(['src', 'src/nested']));
+  });
+});
 
 describe('pruneByWorkspaceId', () => {
   it('NEGATIVE: skips entirely when the workspace list is empty (R7)', () => {

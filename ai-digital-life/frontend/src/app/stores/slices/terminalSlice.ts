@@ -6,6 +6,7 @@ import type { StoreState } from '../StoreState';
 import type { TerminalProfile, ToolId } from '../types';
 import type { TerminalTabState } from './terminalSliceTypes';
 import { persistField } from '../persisted/apply';
+import { applyTabPrune } from '../persisted/pruneWiring';
 import { persist } from '../persisted/persist';
 import {
   buildTabsById,
@@ -142,7 +143,7 @@ export const createTerminalSlice = (
       set({ terminalActiveTabId: tabId });
     },
 
-    terminalCloseTab: (tabId) =>
+    terminalCloseTab: (tabId) => {
       set((state) => {
         const filtered = state.terminalTabs.filter((tab) => tab.id !== tabId);
         const nextTabs = sortTabs(filtered);
@@ -157,7 +158,11 @@ export const createTerminalSlice = (
           terminalTabsById: buildTabsById(nextTabs),
           terminalActiveTabId: nextActive,
         };
-      }),
+      });
+      // 标签集合变化：剪掉已不存在标签的孤儿条目（甲类 browserTabTreeExpanded
+      // 的 tab 部分 + 乙类三个外部微型存储，规格 §3.5.1）。
+      applyTabPrune();
+    },
 
     terminalUpdateActiveTab: (patch) =>
       set((state) => {
@@ -218,7 +223,7 @@ export const createTerminalSlice = (
         };
       }),
 
-    terminalCloseAllTabs: (workspaceId?: string) =>
+    terminalCloseAllTabs: (workspaceId?: string) => {
       set((state) => {
         const filtered =
           workspaceId !== undefined
@@ -236,7 +241,10 @@ export const createTerminalSlice = (
           terminalTabsById: buildTabsById(nextTabs),
           terminalActiveTabId: nextActive,
         };
-      }),
+      });
+      // 同 terminalCloseTab：批量关闭同样产生孤儿标签条目。
+      applyTabPrune();
+    },
 
     setDefaultTerminalProfile: (profile) => {
       persist('adl:terminal.defaultProfile', profile);

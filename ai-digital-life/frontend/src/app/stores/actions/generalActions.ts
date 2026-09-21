@@ -1,5 +1,5 @@
 import type { StoreState } from '../StoreState';
-import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
+import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
@@ -8,6 +8,8 @@ import { isTauriShell } from '../../../tauri-bridge';
 import { runWithConcurrency } from '../../shared/asyncUtils';
 import { computeLoadPhases } from './workspaceLoadOrder';
 import { syncNewWorkspacesToNaturalOrder } from './workspaceNaturalOrderSync';
+import { collectDirPaths } from '../persisted/prune';
+import { applyTreeLoadedPrune, applyWorkspacePrune } from '../persisted/pruneWiring';
 import type { StoreApi } from 'zustand';
 const SCOPE = 'general';
 
@@ -81,6 +83,10 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
       // 尽早渲染 UI，不等 getGitStatus
       set(nextState);
+
+      // 工作区参照清单就绪（setRecentWorkspaces 的直接-set 等价路径 —— bootstrap
+      // 不经过该 action）：剪掉已不存在工作区 / 标签的孤儿条目（规格 §3.5.1）。
+      applyWorkspacePrune();
 
       // Sync any newly-discovered workspaces into the natural-order list
       syncNewWorkspacesToNaturalOrder();
@@ -185,6 +191,17 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           }
           if (Object.keys(batch_).length > 0) {
             set(batch_);
+          }
+          // 启动级联直接加载树（不经过 loadWorkspaceTree）：成功分支同样触发
+          // 目录剪枝；失败（tree === undefined）跳过（规格 §3.5.1）。
+          for (const result of results) {
+            if (result.status !== 'fulfilled') {
+              continue;
+            }
+            const { id, tree } = result.value;
+            if (tree !== undefined) {
+              applyTreeLoadedPrune(id, collectDirPaths(tree as WorkspaceTreeNode[]));
+            }
           }
           return results;
         }

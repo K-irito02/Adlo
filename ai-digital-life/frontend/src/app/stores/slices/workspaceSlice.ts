@@ -10,6 +10,7 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import { persistField } from '../persisted/apply';
+import { applyWorkspacePrune } from '../persisted/pruneWiring';
 
 export interface WorkspaceSlice {
   /**
@@ -95,7 +96,12 @@ export const createWorkspaceSlice = (
     refreshingAllChanges: false,
 
     setAppInfo: (appInfo) => set({ appInfo }),
-    setRecentWorkspaces: (workspaces) => set({ recentWorkspaces: workspaces }),
+    setRecentWorkspaces: (workspaces) => {
+      set({ recentWorkspaces: workspaces });
+      // 工作区参照清单就绪：剪掉已不存在工作区 / 标签的孤儿条目（规格 §3.5.1）。
+      // 空清单时 prune 层直接跳过（R7），此处无须设防。
+      applyWorkspacePrune();
+    },
     setWorkspaceTrees: (trees) => set({ workspaceTrees: trees }),
     setWorkspaceTreeLoading: (loading) => set({ workspaceTreeLoading: loading }),
     setWorkspaceTreeRefreshing: (refreshing) => set({ workspaceTreeRefreshing: refreshing }),

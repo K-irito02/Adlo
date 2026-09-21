@@ -2,6 +2,7 @@ import type { PruneCtx, PruneResult } from './entry';
 import { registryEntries } from './registry';
 import { repairManualCollapsed } from './parsers';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
+import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 
 /**
  * 按工作区存在性剪枝。
@@ -199,6 +200,29 @@ export function pruneDirExpansion(
 }
 
 /**
+ * 从一次性完整返回的工作区树中递归收集全部目录相对路径。
+ *
+ * 纯函数：调用方（树加载成功分支）在触发剪枝前用它构造 ctx.loadedDirPaths。
+ * 只收 `kind === 'directory'` 的 path —— 文件路径从不参与目录剪枝。
+ */
+export function collectDirPaths(tree: WorkspaceTreeNode[]): ReadonlySet<string> {
+  const paths = new Set<string>();
+  const visit = (nodes: WorkspaceTreeNode[]): void => {
+    for (const node of nodes) {
+      if (node.kind !== 'directory') {
+        continue;
+      }
+      paths.add(node.path);
+      if (node.children.length > 0) {
+        visit(node.children);
+      }
+    }
+  };
+  visit(tree);
+  return paths;
+}
+
+/**
  * 遍历登记表中带有 prune 的条目，对传入的"内存当前值"逐条剪枝。
  * 由四个触发入口（pruneAfterWorkspacesKnown / pruneAfterTreeLoaded / pruneAfterTabsKnown / 删除路径）
  * 共用，避免每个入口各自列举要剪哪个字段。
@@ -229,4 +253,17 @@ export function pruneRegistry(
     }
   }
   return { value: patch, changed };
+}
+
+/**
+ * 编排入口：对 store 快照执行登记表剪枝，只返回"需要写回的字段补丁"。
+ *
+ * 空参照清单的安全规则由各条目自身的 prune 函数强制（workspaceIds/tabIds 为空
+ * 即整表跳过，树未加载的工作区整体保留），此处不重复设防。
+ */
+export function applyPrunePatch(
+  current: Record<string, unknown>,
+  ctx: PruneCtx,
+): Record<string, unknown> {
+  return pruneRegistry(current, ctx).value;
 }
