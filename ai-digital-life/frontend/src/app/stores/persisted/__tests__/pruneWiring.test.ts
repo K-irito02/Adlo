@@ -187,7 +187,11 @@ describe('prune wiring', () => {
       workspace: {
         listTreeForWorkspace: vi.fn().mockResolvedValue({
           ok: true,
-          data: [{ path: 'src', name: 'src', kind: 'directory', children: [] }],
+          data: {
+            tree: [{ path: 'src', name: 'src', kind: 'directory', children: [] }],
+            fromCache: false,
+            capturedAt: Date.now(),
+          },
         }),
       },
     };

@@ -359,7 +359,7 @@ export function createWorkspaceActions(
         set({
           workspaceTrees: {
             ...get().workspaceTrees,
-            [appInfo.currentWorkspace.id]: result.data,
+            [appInfo.currentWorkspace.id]: result.data.tree,
           },
         });
       }

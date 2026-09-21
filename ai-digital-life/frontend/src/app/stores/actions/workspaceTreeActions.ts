@@ -16,7 +16,10 @@ export function createWorkspaceTreeActions(
   get: () => StoreState,
 ) {
   const loadWorkspaceTreeInner = createLazyLoader<WorkspaceTreeNode[]>(
-    (path) => window.digitalLife.workspace.listTreeForWorkspace(path),
+    (path) =>
+      window.digitalLife.workspace
+        .listTreeForWorkspace(path)
+        .then((r) => (r.ok ? { ok: true as const, data: r.data.tree } : r)),
     (s, id) => ({ hasData: !!s.workspaceTrees[id], isLoading: !!s.workspaceTreeLoading[id] }),
     (g, id) => ({
       workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: true },
@@ -142,7 +145,7 @@ export function createWorkspaceTreeActions(
           return;
         }
         set({
-          workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data },
+          workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data.tree },
         });
       } finally {
         if (!silent) {

@@ -690,3 +690,59 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
     expect(useAppStore.getState().workspaceTreeLoading['ws-1']).toBe(false);
   });
 });
+
+describe('fresh-path payload unwrap (T8)', () => {
+  const NODES: WorkspaceTreeNode[] = [
+    { path: 'src', name: 'src', kind: 'directory', children: [] },
+  ];
+
+  function setupFreshBridge() {
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      workspace: {
+        listTreeForWorkspace: vi.fn().mockResolvedValue({
+          ok: true,
+          data: { tree: NODES, fromCache: false, capturedAt: Date.now() },
+        }),
+        listTree: vi.fn().mockResolvedValue({
+          ok: true,
+          data: { tree: NODES, fromCache: false, capturedAt: Date.now() },
+        }),
+      },
+    };
+  }
+
+  beforeEach(() => {
+    setupFreshBridge();
+    useAppStore.setState({
+      workspaceTrees: {},
+      workspaceTreeLoading: {},
+      workspaceTreeErrors: {},
+      workspaceTreeRefreshing: {},
+    });
+  });
+
+  it('unwraps the payload tree on lazy load', async () => {
+    // 桥返回 { tree: NODES, fromCache: false } → workspaceTrees[id] === NODES。
+    // .catch 收敛剪枝段对未拆包对象的 TypeError，让 RED 落在下面的断言 diff 上。
+    await useAppStore
+      .getState()
+      .loadWorkspaceTree('ws-1' as never, '/fake/ws-1')
+      .catch(() => {});
+    expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(NODES);
+  });
+
+  it('unwraps the payload tree on refreshOneWorkspaceTree', async () => {
+    await useAppStore.getState().refreshOneWorkspaceTree('ws-1' as never, '/fake/ws-1');
+    expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(NODES);
+  });
+
+  it('unwraps the payload tree on refreshWorkspaceTree', async () => {
+    useAppStore.setState({
+      appInfo: {
+        currentWorkspace: { id: 'ws-1', path: '/fake/ws-1', rootPath: '/fake/ws-1', name: 'ws-1' },
+      } as never,
+    });
+    await useAppStore.getState().refreshWorkspaceTree();
+    expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(NODES);
+  });
+});
