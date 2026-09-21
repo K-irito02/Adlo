@@ -4194,11 +4194,11 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 
 | 现键名 | 新键名 | 域 | scope | 解析器 |
 |---|---|---|---|---|
-| `adl-ui:changes-branch` | `adl:changes.branch` | changes | byWorkspaceId | 字符串映射 |
+| `adl-ui:changes-branch` | `adl:changes.branch` | changes | global（现实为全局单字符串且读写 helper 零调用，按工作区建模将发明行为；字段 dormant 承载） | 字符串 |
 | `adl-ui:active-github-section` | `adl:browser.githubSection` | browser | global | `readStringEnum`（区块白名单以 `githubTreeSlice` 现有取值为准） |
 | `adl-ui:github-ci-folders` | `adl:browser.ciFolders` | browser | global | 数组 |
 | `adl-ui:github-workspace-configs` | `adl:browser.workspaceConfigs` | browser | byWorkspaceId | 对象映射；`pruneByWorkspaceId` |
-| `adl-ui:github-access-token` | `adl:browser.githubAccessToken` | browser | global | 字符串（**见下方安全说明**） |
+| `adl-ui:github-access-token` | —（未登记，见下方） | — | — | **生产代码中不存在**（账本 F：全仓唯一命中为 mock 注释），无字段可挂；新建状态会分裂与 ci token 的同键共享语义。故 17 行中实际登记 16 条，mock-ci 注释示例同步为新式键名 |
 | `adl-ui:ci-access-token` | `adl:browser.ciAccessToken` | browser | global | 字符串（**见下方安全说明**） |
 | `adl-ui:ci-config` | `adl:browser.ciConfig` | browser | global | 对象 |
 | `adl-ui:ci-snapshots` | `adl:browser.ciSnapshots` | browser | global | 对象（体积需实测，超 32 KB 则 `sync: false`） |
@@ -4224,7 +4224,7 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 
 - [ ] **Step 1: 写失败测试**
 
-创建 `frontend/src/app/stores/persisted/__tests__/outOfScopePanelsPersistence.test.ts`，对 17 条逐一断言"写入 → 模拟重启 → 读回一致"；另加两条：
+创建 `frontend/src/app/stores/persisted/__tests__/outOfScopePanelsPersistence.test.ts`，对 16 条逐一断言"写入 → 模拟重启 → 读回一致"；另加两条：
 
 ```ts
 it('keeps every previously-leaked key registered, so startup cleanup cannot delete it', () => {
@@ -4260,7 +4260,7 @@ cd ai-digital-life && pnpm --dir frontend exec vitest run src/app/stores/persist
 grep -rn "makePersistedWriter\|createDebouncedWrite\|setItem(" frontend/src --include=*.ts --include=*.tsx | grep -v "__tests__" | grep -v "storageHelpers.ts"
 ```
 
-Expected: 测试全绿；grep **无输出**（此时唯二允许出现 `setItem` 的位置是 `storageHelpers.ts` 自身，以及 vendored 参考实现）。
+Expected: 测试全绿；grep **在 T29 文件范围内无输出**。**范围注记（T29 裁定）**：字面全仓零 `setItem` 不可执行 —— 主题（`adl-theme-*`）、预览存储（`adl.preview.*`）、mock 桥、git-vis 等子系统持有计划外非遗留键的直接写入，从未进入本计划范围。等效门禁三件套：①全仓零遗留前缀字面量（keepListGuard 改写后）；②T29 文件零直接 IO；③keyNamespace 零例外。
 
 - [ ] **Step 5: 提交**
 
