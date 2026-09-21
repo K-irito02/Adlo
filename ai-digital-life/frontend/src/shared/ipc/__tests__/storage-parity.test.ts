@@ -22,11 +22,12 @@ import { createHttpBridge } from '../../../httpBridge';
 import { createTauriBridge } from '../../../tauri-bridge/index';
 
 describe('storage category keys parity', () => {
-  it('has exactly the 10 category keys', () => {
+  it('has exactly the 11 category keys', () => {
     expect(STORAGE_CATEGORY_KEYS).toEqual([
       'database',
       'downloads_db',
       'site_meta_db',
+      'tree_cache',
       'config',
       'clipboard',
       'snapshot',

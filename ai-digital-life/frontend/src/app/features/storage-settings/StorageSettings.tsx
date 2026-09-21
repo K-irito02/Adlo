@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { CopyKey } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
@@ -10,6 +11,8 @@ import {
   type StoragePathPatch,
   type StoragePreflight,
   type StorageStatus,
+  type TreeCacheOptions,
+  type TreeCacheStats,
 } from '@shared/ipc/storage';
 import { IconCircleHelp } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
@@ -35,8 +38,14 @@ const IMMOVABLE_COPY: Record<
   },
 };
 
-/** 每个分组展示的分类数量（后端按固定顺序返回 10 类：前 5 核心、后 5 高级）。 */
+/** 每个分组展示的分类数量（后端按固定顺序返回 11 类：前 5 核心、后 6 高级）。 */
 const CORE_CATEGORY_COUNT = 5;
+
+/** 树缓存 TTL 下拉选项（分钟；1440 即 1 天），与服务端合法范围 1..=1440 一致。 */
+const TREE_CACHE_TTL_OPTIONS = [5, 15, 60, 1440] as const;
+
+/** Rust 缺省（`TreeCacheOptions::default`）：stats 不可用时开关/TTL 的回退值。 */
+const TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
 /** 状态查询超时（后端遍历超大目录时的兜底，避免无限 loading）。 */
 const STATUS_TIMEOUT_MS = 30_000;
@@ -89,7 +98,8 @@ function ipcErrorMessage(error: { message?: string } | null | undefined, fallbac
 /**
  * 「存储」设置组（Plan C Task 5）。
  *
- * 组成：模式切换 → （统一模式）根目录行 → 10 类分类行（核心/高级）→ 应用
+ * 组成：模式切换 → （统一模式）根目录行 → 11 类分类行（核心/高级）→ 应用
+ * → 工作区树缓存（统计/清除/开关/TTL）
  * → 存储引擎（搬入的终端历史预算、浏览器默认下载路径）→ 数据位置索引（只读）
  * → 不可移动说明 6 项 → 待迁移横幅 → 上次迁移报告。
  *
@@ -114,9 +124,51 @@ export function StorageSettings() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
+  // 工作区树缓存区段态：stats 挂载拉取一次（数字非本地化文本，语言切换无需重拉）；
+  // 旧桥无该方法时静默缺席（try/catch 吞错），区段不渲染。
+  const [treeStats, setTreeStats] = useState<TreeCacheStats | null>(null);
+  const [treeConfirmOpen, setTreeConfirmOpen] = useState(false);
+  const [treeBusy, setTreeBusy] = useState(false);
+  const treeConfirmRef = useRef<HTMLButtonElement | null>(null);
   // 语言切换会更换 `t` 触发重取：草稿只播种一次，避免覆盖用户编辑（F6）。
   // 错误文案仍用最新 `t` 即时计算，保持 `t` 新鲜度。
   const draftsSeededRef = useRef(false);
+
+  /** 重拉树缓存 stats（清除/开关/TTL 写后刷新展示）；失败静默保留旧值。 */
+  const loadTreeStats = useCallback(async () => {
+    const bridge = window.digitalLife?.storage;
+    if (!bridge?.getTreeCacheStats) {
+      return;
+    }
+    try {
+      const result = await bridge.getTreeCacheStats();
+      if (result.ok) {
+        setTreeStats(result.data);
+      }
+    } catch {
+      // 旧桥/通道失败即缺席：区段保持上次（或不渲染），动作失败另行 toast。
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadTreeStats();
+  }, [loadTreeStats]);
+
+  // 清除确认对话框：打开聚焦确认键，Escape 关闭（仿 StorageMigrateDialog）。
+  useEffect(() => {
+    if (!treeConfirmOpen) {
+      return;
+    }
+    treeConfirmRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setTreeConfirmOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [treeConfirmOpen]);
 
   useEffect(() => {
     let cancelled = false;
@@ -457,9 +509,49 @@ export function StorageSettings() {
     }
   }, [refresh, showToast, t]);
 
+  /** 清除确认：删全行（派生数据，下次扫描重建）后重拉 stats；失败 toast。 */
+  const handleTreeClearConfirm = useCallback(async () => {
+    const bridge = window.digitalLife?.storage;
+    if (!bridge) {
+      return;
+    }
+    setTreeBusy(true);
+    try {
+      const result = await bridge.clearTreeCache();
+      if (!result.ok) {
+        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+        return;
+      }
+      setTreeConfirmOpen(false);
+      await loadTreeStats();
+    } finally {
+      setTreeBusy(false);
+    }
+  }, [loadTreeStats, showToast, t]);
+
+  /** 开关/TTL 写后重拉 stats；失败 toast 且不改本地展示（以 stats 为真源）。 */
+  const handleTreeOptionsChange = useCallback(
+    async (opts: TreeCacheOptions) => {
+      const bridge = window.digitalLife?.storage;
+      if (!bridge) {
+        return;
+      }
+      const result = await bridge.setTreeCacheOptions(opts);
+      if (!result.ok) {
+        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+        return;
+      }
+      await loadTreeStats();
+    },
+    [loadTreeStats, showToast, t],
+  );
+
   const categories = status?.categories ?? [];
   const coreCategories = categories.slice(0, CORE_CATEGORY_COUNT);
   const advancedCategories = categories.slice(CORE_CATEGORY_COUNT);
+  // 开关/TTL 控件以 stats 为真源；stats 缺席时区段不渲染，缺省值仅供回退展示。
+  const treeEnabled = treeStats?.enabled ?? TREE_CACHE_DEFAULTS.enabled;
+  const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
   const pathFor = (category: StorageCategoryStatus) =>
     categoryDrafts[category.key] ?? category.path;
 
@@ -611,6 +703,84 @@ export function StorageSettings() {
         </div>
       </div>
 
+      {treeStats ? (
+        <>
+          <h4 className="adl-settings-header__title">{t.treeCacheTitle}</h4>
+          <div className="adl-settings-row" data-testid="tree-cache-section">
+            <div className="adl-settings-row__label">
+              <small>
+                {t.treeCacheWorkspaces.replace('{count}', String(treeStats.workspaceCount))}
+              </small>
+              <small>{t.treeCacheSize.replace('{size}', formatBytes(treeStats.totalBytes))}</small>
+              <small>
+                {treeStats.newestCapturedAt == null
+                  ? t.storageNotCreated
+                  : t.treeCacheAge.replace(
+                      '{time}',
+                      new Date(treeStats.newestCapturedAt).toLocaleString(),
+                    )}
+              </small>
+            </div>
+            <div className="adl-settings-row__control">
+              <button
+                type="button"
+                className="adl-btn adl-btn--secondary"
+                data-testid="tree-cache-clear"
+                disabled={treeBusy}
+                onClick={() => setTreeConfirmOpen(true)}
+              >
+                {t.treeCacheClear}
+              </button>
+            </div>
+          </div>
+
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.treeCacheEnabled}</span>
+              </div>
+            </div>
+            <div
+              className="adl-settings-row__control"
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+            >
+              <input
+                type="checkbox"
+                aria-label={t.treeCacheEnabled}
+                checked={treeEnabled}
+                disabled={treeBusy}
+                onChange={(e) =>
+                  void handleTreeOptionsChange({
+                    enabled: e.target.checked,
+                    ttlMinutes: treeTtlMinutes,
+                  })
+                }
+              />
+              <select
+                className="adl-settings-select"
+                aria-label={t.treeCacheTtl}
+                value={treeTtlMinutes}
+                disabled={treeBusy}
+                onChange={(e) =>
+                  void handleTreeOptionsChange({
+                    enabled: treeEnabled,
+                    ttlMinutes: Number(e.target.value),
+                  })
+                }
+              >
+                {TREE_CACHE_TTL_OPTIONS.map((minutes) => (
+                  <option key={minutes} value={minutes}>
+                    {minutes === 1440
+                      ? t.treeCacheTtlDay
+                      : t.treeCacheTtlMinutes.replace('{minutes}', String(minutes))}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </>
+      ) : null}
+
       <hr className="adl-settings-divider" />
 
       <h4 className="adl-settings-header__title">{t.storageTerminalBudgetTitle}</h4>
@@ -735,6 +905,45 @@ export function StorageSettings() {
         onCancel={() => setDialogOpen(false)}
         onApply={(retainSource, applyNow) => void handleApplyMigration(retainSource, applyNow)}
       />
+      {treeConfirmOpen
+        ? createPortal(
+            <div
+              className="adl-confirm-overlay"
+              onClick={() => setTreeConfirmOpen(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t.treeCacheClear}
+            >
+              <div className="adl-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+                <div className="adl-confirm-dialog__header">
+                  <h3 className="adl-confirm-dialog__title">{t.treeCacheClear}</h3>
+                </div>
+                <div className="adl-confirm-dialog__body">
+                  <p className="adl-confirm-dialog__message">{t.treeCacheClearConfirm}</p>
+                </div>
+                <div className="adl-confirm-dialog__footer">
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    onClick={() => setTreeConfirmOpen(false)}
+                  >
+                    {t.storageCancel}
+                  </button>
+                  <button
+                    ref={treeConfirmRef}
+                    type="button"
+                    className="adl-btn adl-btn--primary"
+                    disabled={treeBusy}
+                    onClick={() => void handleTreeClearConfirm()}
+                  >
+                    {t.treeCacheClear}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

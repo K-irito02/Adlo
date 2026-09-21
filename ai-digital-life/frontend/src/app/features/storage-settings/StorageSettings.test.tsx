@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { STORAGE_CATEGORY_KEYS } from '@shared/ipc/storage';
+import { formatBytes } from '@root/design-system/html';
 import { settingsEn } from '../../i18n/en-US/settings';
 import { settingsZh } from '../../i18n/zh-CN/settings';
 import { CATEGORY_COPY } from './storageCategoryCopy';
@@ -12,10 +13,10 @@ const status = {
   mode: 'unified' as const,
   root: 'C:/Users/u/AppData/Roaming/app',
   locatorPath: 'C:/Users/u/AppData/Roaming/ai-digital-life/storage-locator.json',
-  categories: Array.from({ length: 10 }, (_, i) => ({
-    key: `c${i}`,
-    path: `C:/data/c${i}`,
-    movable: true,
+  categories: STORAGE_CATEGORY_KEYS.map((key) => ({
+    key,
+    path: `C:/data/${key}`,
+    movable: key !== 'downloads_default',
     exists: true,
     bytes: 1024,
     files: 2,
@@ -34,6 +35,19 @@ beforeEach(() => {
       setPaths: vi.fn(),
       cancelPending: vi.fn(),
       restartApp: vi.fn(),
+      getTreeCacheStats: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          workspaceCount: 0,
+          totalBytes: 0,
+          oldestCapturedAt: null,
+          newestCapturedAt: null,
+          enabled: true,
+          ttlMinutes: 15,
+        },
+      }),
+      setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
     },
   };
 });
@@ -63,13 +77,13 @@ const interpT = new Proxy({} as Record<string, string>, {
 }) as unknown as CopyDict;
 
 describe('StorageSettings', () => {
-  it('renders all 10 category rows with a description hint trigger', async () => {
+  it('renders all 11 category rows with a description hint trigger', async () => {
     renderSettings();
     await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(11);
     });
     // 每类都必须有说明（spec §6.4 硬性要求）
-    expect(screen.getAllByTestId('storage-category-info')).toHaveLength(10);
+    expect(screen.getAllByTestId('storage-category-info')).toHaveLength(11);
   });
 
   it('opens the hint card with the category description when clicking the info trigger', async () => {
@@ -93,6 +107,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -139,6 +166,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -161,6 +201,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -182,6 +235,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -213,6 +279,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -235,6 +314,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -267,6 +359,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -304,6 +409,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -323,6 +441,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings(interpT);
@@ -346,6 +477,19 @@ describe('StorageSettings', () => {
         setPaths: vi.fn(),
         cancelPending: vi.fn(),
         restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
       },
     };
     renderSettings();
@@ -366,11 +510,109 @@ describe('StorageSettings', () => {
     expect(screen.queryByText('storageStatusLoading')).toBeNull();
     expect(warnSpy).toHaveBeenCalled();
 
-    // 第二次点击重试：良构成功 → 错误清除、10 行渲染（F4）。
+    // 第二次点击重试：良构成功 → 错误清除、11 行渲染（F4）。
     fireEvent.click(screen.getByRole('button', { name: 'storageRetry' }));
     await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(11);
     });
     expect(screen.queryByText('storageStatusLoadFailed')).toBeNull();
+  });
+});
+
+describe('StorageSettings tree cache section (T9)', () => {
+  const treeStatsData = {
+    workspaceCount: 2,
+    totalBytes: 1024,
+    oldestCapturedAt: 1,
+    newestCapturedAt: 2,
+    enabled: true,
+    ttlMinutes: 15,
+  };
+
+  // 真实 settingsEn 词典兜底 key 名：treeCache 文案走插值断言，其余行沿用 key 名。
+  const treeT = new Proxy(settingsEn as unknown as Record<string, string>, {
+    get: (target, key) => (typeof key === 'string' && key in target ? target[key] : key),
+  }) as unknown as CopyDict;
+
+  function renderTreeSection(
+    overrides: {
+      statsData?: typeof treeStatsData;
+      getTreeCacheStats?: ReturnType<typeof vi.fn>;
+      setTreeCacheOptions?: ReturnType<typeof vi.fn>;
+      clearTreeCache?: ReturnType<typeof vi.fn>;
+    } = {},
+  ) {
+    const getTreeCacheStats =
+      overrides.getTreeCacheStats ??
+      vi.fn().mockResolvedValue({ ok: true, data: overrides.statsData ?? treeStatsData });
+    const setTreeCacheOptions =
+      overrides.setTreeCacheOptions ?? vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const clearTreeCache =
+      overrides.clearTreeCache ?? vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats,
+        setTreeCacheOptions,
+        clearTreeCache,
+      },
+    };
+    render(
+      <TCopyProvider t={treeT} locale="en-US">
+        <StorageSettings />
+      </TCopyProvider>,
+    );
+    return { getTreeCacheStats, setTreeCacheOptions, clearTreeCache };
+  }
+
+  it('shows tree-cache stats and clears on confirm', async () => {
+    const { getTreeCacheStats, clearTreeCache } = renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    expect(screen.getByText(settingsEn.treeCacheWorkspaces.replace('{count}', '2'))).toBeTruthy();
+    expect(
+      screen.getByText(settingsEn.treeCacheSize.replace('{size}', formatBytes(1024))),
+    ).toBeTruthy();
+
+    // 二次确认：点清除先弹对话框，确认后才调用一次。
+    fireEvent.click(screen.getByTestId('tree-cache-clear'));
+    await screen.findByText(settingsEn.treeCacheClearConfirm);
+    expect(clearTreeCache).not.toHaveBeenCalled();
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: settingsEn.treeCacheClear }));
+    await waitFor(() => {
+      expect(clearTreeCache).toHaveBeenCalledTimes(1);
+    });
+    // 清除后重拉 stats 刷新展示。
+    await waitFor(() => {
+      expect(getTreeCacheStats).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('toggling the master switch calls setTreeCacheOptions', async () => {
+    const { setTreeCacheOptions } = renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    const toggle = screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled });
+    expect(toggle).toHaveProperty('checked', true);
+    fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: false, ttlMinutes: 15 });
+  });
+
+  it('changing the TTL calls setTreeCacheOptions with the new value', async () => {
+    const { setTreeCacheOptions } = renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    const ttl = screen.getByRole('combobox', { name: settingsEn.treeCacheTtl });
+    fireEvent.change(ttl, { target: { value: '60' } });
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 60 });
   });
 });

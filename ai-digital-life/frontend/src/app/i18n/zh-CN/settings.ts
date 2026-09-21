@@ -155,6 +155,10 @@ export const settingsZh = {
   storageCategoryDownloadsDbRelated: '与内置浏览器的「下载」列表与管理有关。',
   storageCategorySiteMetaDbDesc: '已访问网站的标题与图标（favicon）缓存，用于加速标签显示。',
   storageCategorySiteMetaDbRelated: '与内置浏览器标签页的标题与图标、历史与书签显示有关。',
+  storageCategoryTreeCache: '工作区树缓存',
+  storageCategoryTreeCacheDesc:
+    '工作区文件树的 SQLite 落盘缓存，用于冷启动时毫秒级渲染目录树（派生数据，可随时清除重建）。',
+  storageCategoryTreeCacheRelated: '与工作区文件树的冷启动秒级渲染与后台静默校准有关。',
   storageCategoryConfigDesc: '应用设置（语言、主题、日志模式、终端预算、浏览器阈值、DSH 源等）。',
   storageCategoryConfigRelated: '与设置面板全部设置项的持久化有关。',
   storageCategoryClipboardDesc: '剪贴板历史中的图片与缩略图文件。',
@@ -172,6 +176,18 @@ export const settingsZh = {
   storageCategoryDownloadsDefaultDesc:
     '浏览器下载文件的默认保存目录（存的是用户文件，不是应用数据）。',
   storageCategoryDownloadsDefaultRelated: '与内置浏览器下载行为的默认落点有关；永不自动删除。',
+
+  // 工作区树缓存（设置存储组区段）
+  treeCacheTitle: '工作区树缓存',
+  treeCacheWorkspaces: '已缓存 {count} 个工作区',
+  treeCacheSize: '缓存大小 {size}',
+  treeCacheAge: '最近缓存 {time}',
+  treeCacheClear: '清除缓存',
+  treeCacheClearConfirm: '确定清除全部工作区树缓存？下次打开工作区时将重新扫描重建。',
+  treeCacheEnabled: '启用树缓存',
+  treeCacheTtl: '缓存有效期',
+  treeCacheTtlMinutes: '{minutes} 分钟',
+  treeCacheTtlDay: '1 天',
 
   // 命令标题
   commandSessionNew: '新建会话',

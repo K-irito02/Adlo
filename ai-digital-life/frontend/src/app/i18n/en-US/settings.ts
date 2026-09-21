@@ -169,6 +169,11 @@ export const settingsEn = {
     'Cache of titles and icons (favicons) for visited sites, used to speed up tab display.',
   storageCategorySiteMetaDbRelated:
     'Relates to tab titles and icons, and history/bookmark display in the built-in browser.',
+  storageCategoryTreeCache: 'Workspace tree cache',
+  storageCategoryTreeCacheDesc:
+    'On-disk SQLite cache of workspace file trees for millisecond cold-start rendering (derived data, safe to clear and rebuild).',
+  storageCategoryTreeCacheRelated:
+    'Relates to instant cold-start rendering and silent background calibration of workspace file trees.',
   storageCategoryConfigDesc:
     'App settings (language, theme, log mode, terminal budget, browser thresholds, DSH sources, etc.).',
   storageCategoryConfigRelated: 'Relates to persisting every setting in the settings panel.',
@@ -192,6 +197,18 @@ export const settingsEn = {
     'The default folder for browser downloads (it holds user files, not app data).',
   storageCategoryDownloadsDefaultRelated:
     'Relates to the default destination of built-in browser downloads; never deleted automatically.',
+
+  // Workspace tree cache (storage settings section)
+  treeCacheTitle: 'Workspace tree cache',
+  treeCacheWorkspaces: '{count} workspaces cached',
+  treeCacheSize: 'Cache size {size}',
+  treeCacheAge: 'Newest entry {time}',
+  treeCacheClear: 'Clear cache',
+  treeCacheClearConfirm: 'Clear all workspace tree caches? Trees will be rescanned on next open.',
+  treeCacheEnabled: 'Enable tree cache',
+  treeCacheTtl: 'Cache TTL',
+  treeCacheTtlMinutes: '{minutes} minutes',
+  treeCacheTtlDay: '1 day',
 
   // Command titles
   commandSessionNew: 'New Session',

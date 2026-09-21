@@ -32,7 +32,7 @@ export interface MockStorageConfig {
   mode?: StorageMode;
 }
 
-/** 为给定根构造 10 类分类状态（`downloads_default` 不可移动，与后端一致）。 */
+/** 为给定根构造 11 类分类状态（`downloads_default` 不可移动，与后端一致）。 */
 function mockCategories(root: string): StorageCategoryStatus[] {
   return STORAGE_CATEGORY_KEYS.map((key) => ({
     key,

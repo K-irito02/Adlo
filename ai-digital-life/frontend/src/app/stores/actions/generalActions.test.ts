@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppStore } from '../slicedStore';
-import { accumulateBatch, resolveCalibrationOptions, setCalibrationOptionsForTesting } from './generalActions';
+import {
+  accumulateBatch,
+  resolveCalibrationOptions,
+  setCalibrationOptionsForTesting,
+} from './generalActions';
 import { applyTreeLoadedPrune } from '../persisted/pruneWiring';
 import type * as PruneWiringModule from '../persisted/pruneWiring';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
@@ -743,7 +747,8 @@ describe('resolveCalibrationOptions from stats (T9)', () => {
   });
 });
 
-describe('fresh-path payload unwrap (T8)', () => {  const NODES: WorkspaceTreeNode[] = [
+describe('fresh-path payload unwrap (T8)', () => {
+  const NODES: WorkspaceTreeNode[] = [
     { path: 'src', name: 'src', kind: 'directory', children: [] },
   ];
 

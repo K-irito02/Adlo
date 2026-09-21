@@ -3,11 +3,11 @@ import { createMockStorage } from './mock-storage';
 import { IMMOVABLE_ENTRY_KEYS } from '../shared/ipc/storage';
 
 describe('mock-storage', () => {
-  it('exposes all 10 categories', async () => {
+  it('exposes all 11 categories', async () => {
     const s = createMockStorage();
     const res = await s.getStatus();
     expect(res.ok).toBe(true);
-    if (res.ok) expect(res.data.categories).toHaveLength(10);
+    if (res.ok) expect(res.data.categories).toHaveLength(11);
   });
 
   it('setPaths stores a pending migration', async () => {

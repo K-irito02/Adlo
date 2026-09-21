@@ -49,7 +49,7 @@ export interface StoragePending {
   error: string | null;
 }
 
-/** 存储总览：模式、根路径、10 类分类状态、locator 落点与待迁移/报告。 */
+/** 存储总览：模式、根路径、11 类分类状态、locator 落点与待迁移/报告。 */
 export interface StorageStatus {
   mode: StorageMode;
   root: string;
@@ -200,11 +200,12 @@ export interface StorageBridge {
   clearTreeCache: () => Promise<IpcResult<void>>;
 }
 
-/** 10 个分类 key，顺序与 Rust `StorageCategory::key` / `StorageCategory::ALL` 一致。 */
+/** 11 个分类 key，顺序与 Rust `StorageCategory::key` / `StorageCategory::ALL` 一致。 */
 export const STORAGE_CATEGORY_KEYS = [
   'database',
   'downloads_db',
   'site_meta_db',
+  'tree_cache',
   'config',
   'clipboard',
   'snapshot',
