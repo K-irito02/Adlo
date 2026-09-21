@@ -18,11 +18,6 @@ function createMockStore() {
 }
 
 describe('browserSlice', () => {
-  it('initializes with default navigator width', () => {
-    const { get } = createMockStore();
-    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(240);
-  });
-
   it('initializes with browserPersisted false', () => {
     const { get } = createMockStore();
     expect((get() as unknown as BrowserSlice).browserPersisted).toBe(false);
@@ -61,65 +56,6 @@ describe('browserSlice', () => {
     (get() as unknown as BrowserSlice).setBrowserNavigateInPlace(true);
     (get() as unknown as BrowserSlice).setBrowserNavigateInPlace(false);
     expect((get() as unknown as BrowserSlice).browserNavigateInPlace).toBe(false);
-  });
-
-  it('setBrowserNavigatorWidth clamps to min 180', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).setBrowserNavigatorWidth(0);
-    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(180);
-  });
-
-  it('setBrowserNavigatorWidth clamps to max 300', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).setBrowserNavigatorWidth(500);
-    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(300);
-  });
-
-  it('setBrowserNavigatorWidth sets within range', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).setBrowserNavigatorWidth(200);
-    expect((get() as unknown as BrowserSlice).browserNavigatorWidth).toBe(200);
-  });
-
-  it('toggleBrowserNavigator toggles from false to true', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).toggleBrowserNavigator();
-    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
-      string,
-      boolean
-    >;
-    expect(collapsed.browser).toBe(true);
-  });
-
-  it('toggleBrowserNavigator toggles from true to false', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).toggleBrowserNavigator();
-    (get() as unknown as BrowserSlice).toggleBrowserNavigator();
-    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
-      string,
-      boolean
-    >;
-    expect(collapsed.browser).toBe(false);
-  });
-
-  it('setBrowserNavigatorCollapsed sets browser collapsed', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).setBrowserNavigatorCollapsed(true);
-    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
-      string,
-      boolean
-    >;
-    expect(collapsed.browser).toBe(true);
-  });
-
-  it('setBrowserNavigatorCollapsed sets browser uncollapsed', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).setBrowserNavigatorCollapsed(false);
-    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
-      string,
-      boolean
-    >;
-    expect(collapsed.browser).toBe(false);
   });
 
   it('browserNavigateActiveTab creates a new tab when none exist', () => {

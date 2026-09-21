@@ -14,7 +14,7 @@
  *   （hydrateBrowserDefaults 已删除）。
  */
 import type { StoreState } from '../StoreState';
-import { clamp, createUiId } from '../shared';
+import { createUiId } from '../shared';
 import { isRealTitle } from '@utils/browserDisplayUtils';
 import { persistField } from '../persisted/apply';
 import { persist } from '../persisted/persist';
@@ -33,10 +33,6 @@ export type {
   BackgroundFit,
 } from './browserLandingSlice';
 
-const BROWSER_NAVIGATOR_WIDTH_MIN = 180;
-const BROWSER_NAVIGATOR_WIDTH_MAX = 300;
-const DEFAULT_BROWSER_NAVIGATOR_WIDTH = 240;
-
 function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState> {
   const result: Record<string, BrowserTabState> = {};
   for (const tab of tabs) {
@@ -46,16 +42,12 @@ function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState>
 }
 
 export interface BrowserSlice {
-  browserNavigatorWidth: number;
   browserPersisted: boolean;
   browserWorkspaceId: string;
 
   browserNavigateInPlace: boolean;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setBrowserNavigateInPlace: (value: boolean) => void;
-  setBrowserNavigatorWidth: (width: number) => void;
-  toggleBrowserNavigator: () => void;
-  setBrowserNavigatorCollapsed: (collapsed: boolean) => void;
   setBrowserPersisted: (persisted: boolean) => void;
   setBrowserWorkspaceId: (workspaceId: string) => void;
 }
@@ -65,7 +57,6 @@ export const createBrowserSlice = (
   _get: () => StoreState,
 ): BrowserSlice => {
   return {
-    browserNavigatorWidth: DEFAULT_BROWSER_NAVIGATOR_WIDTH,
     browserPersisted: false,
     browserWorkspaceId: '',
     browserNavigateInPlace: false,
@@ -127,29 +118,9 @@ export const createBrowserSlice = (
       });
     },
 
-    setBrowserNavigatorWidth: (width) => {
-      const next = clamp(width, BROWSER_NAVIGATOR_WIDTH_MIN, BROWSER_NAVIGATOR_WIDTH_MAX);
-      set(persistField('adl:browser.navigatorWidth', next));
-    },
-
     setBrowserNavigateInPlace: (value: boolean) => {
       set(persistField('adl:browser.navigateInPlace', value));
     },
-
-    toggleBrowserNavigator: () =>
-      set((state) => {
-        const next = {
-          ...state.navigatorCollapsedByTool,
-          browser: !(state.navigatorCollapsedByTool?.browser ?? false),
-        };
-        return persistField('adl:ui.navigatorCollapsed', next);
-      }),
-
-    setBrowserNavigatorCollapsed: (collapsed) =>
-      set((state) => {
-        const next = { ...state.navigatorCollapsedByTool, browser: collapsed };
-        return persistField('adl:ui.navigatorCollapsed', next);
-      }),
 
     setBrowserPersisted: (persisted) => set({ browserPersisted: persisted }),
 

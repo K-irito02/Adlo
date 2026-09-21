@@ -3,7 +3,7 @@
  * 管理终端标签页、会话等状态
  */
 import type { StoreState } from '../StoreState';
-import type { TerminalProfile, ToolId } from '../types';
+import type { TerminalProfile } from '../types';
 import type { TerminalTabState } from './terminalSliceTypes';
 import { persistField } from '../persisted/apply';
 import { applyTabPrune } from '../persisted/pruneWiring';
@@ -39,17 +39,6 @@ function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
   });
 }
 
-function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
-  return {
-    files: false,
-    changes: false,
-    browser: false,
-    terminal: false,
-    settings: false,
-    communicate: false,
-  };
-}
-
 const initialTerminalTabs: TerminalTabState[] = [];
 
 // Type and slice definition
@@ -60,7 +49,6 @@ export interface TerminalSlice {
   defaultTerminalProfile: TerminalProfile;
   workspaceDefaultProfiles: Record<string, TerminalProfile>;
   terminalNavigatorWidth: number;
-  navigatorCollapsedByTool: Record<ToolId, boolean>;
   terminalWorkspaceExpanded: Record<string, boolean>;
   terminalPersisted: boolean;
   terminalWorkspaceId: string;
@@ -76,8 +64,6 @@ export interface TerminalSlice {
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
   setWorkspaceDefaultTerminalProfile: (workspaceId: string, profile: TerminalProfile) => void;
   setTerminalNavigatorWidth: (width: number) => void;
-  toggleTerminalNavigator: () => void;
-  setTerminalNavigatorCollapsed: (collapsed: boolean) => void;
   setTerminalWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
   setTerminalPersisted: (persisted: boolean) => void;
   setTerminalWorkspaceId: (workspaceId: string) => void;
@@ -96,7 +82,6 @@ export const createTerminalSlice = (
     defaultTerminalProfile: 'powershell',
     workspaceDefaultProfiles: {},
     terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
-    navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     terminalWorkspaceExpanded: {},
     terminalPersisted: false,
     terminalWorkspaceId: '',
@@ -262,21 +247,6 @@ export const createTerminalSlice = (
       persist('adl:terminal.navigatorWidth', next);
       set({ terminalNavigatorWidth: next });
     },
-
-    toggleTerminalNavigator: () =>
-      set((state) => {
-        const next = {
-          ...state.navigatorCollapsedByTool,
-          terminal: !(state.navigatorCollapsedByTool.terminal ?? false),
-        };
-        return persistField('adl:ui.navigatorCollapsed', next);
-      }),
-
-    setTerminalNavigatorCollapsed: (collapsed) =>
-      set((state) => {
-        const next = { ...state.navigatorCollapsedByTool, terminal: collapsed };
-        return persistField('adl:ui.navigatorCollapsed', next);
-      }),
 
     setTerminalWorkspaceExpanded: (expanded) => {
       persist('adl:terminal.workspaceExpanded', expanded);

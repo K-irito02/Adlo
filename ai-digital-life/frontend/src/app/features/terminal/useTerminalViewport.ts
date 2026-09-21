@@ -20,20 +20,20 @@ export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams)
   const navigatorCollapsed = terminalSelectors.useNavigatorCollapsedByTool().terminal;
   const terminalNavigatorWidth = terminalSelectors.useTerminalNavigatorWidth();
 
-  const { setTerminalNavigatorWidth, toggleTerminalNavigator } = useAppStore(
+  const { setTerminalNavigatorWidth, toggleNavigator: toggleStoreNavigator } = useAppStore(
     useShallow((state) => ({
       setTerminalNavigatorWidth: state.setTerminalNavigatorWidth,
-      toggleTerminalNavigator: state.toggleTerminalNavigator,
+      toggleNavigator: state.toggleNavigator,
     })),
   );
 
   const toggleNavigator = useCallback(
     (tool: string) => {
       if (tool === 'terminal') {
-        toggleTerminalNavigator();
+        toggleStoreNavigator('terminal');
       }
     },
-    [toggleTerminalNavigator],
+    [toggleStoreNavigator],
   );
 
   const { handlePointerDown: handleNavigatorResizeStart } = useNavigatorResize({

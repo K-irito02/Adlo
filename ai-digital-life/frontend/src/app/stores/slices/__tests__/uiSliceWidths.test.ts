@@ -10,6 +10,9 @@ import {
   LEFT_PANEL_WIDTH_MAX,
   FILES_NAVIGATOR_WIDTH_MIN,
   FILES_NAVIGATOR_WIDTH_MAX,
+  DEFAULT_BROWSER_NAVIGATOR_WIDTH,
+  BROWSER_NAVIGATOR_WIDTH_MIN,
+  BROWSER_NAVIGATOR_WIDTH_MAX,
 } from '../uiSliceTypes';
 
 function createSlice() {
@@ -94,5 +97,25 @@ describe('uiSliceWidths leftbarWidth persistence', () => {
     expect(JSON.parse(localStorage.getItem('adl:files.navigatorWidth') as string)).toBe(
       FILES_NAVIGATOR_WIDTH_MIN,
     );
+  });
+
+  it('defaults browserNavigatorWidth to DEFAULT_BROWSER_NAVIGATOR_WIDTH (single owner, T19)', () => {
+    expect(createSlice().current().browserNavigatorWidth).toBe(DEFAULT_BROWSER_NAVIGATOR_WIDTH);
+  });
+
+  it('clamps an out-of-range browser navigator width in the store state and persists it clamped', () => {
+    const { current } = createSlice();
+
+    current().setBrowserNavigatorWidth(0);
+    expect(current().browserNavigatorWidth).toBe(BROWSER_NAVIGATOR_WIDTH_MIN);
+
+    current().setBrowserNavigatorWidth(500);
+    expect(current().browserNavigatorWidth).toBe(BROWSER_NAVIGATOR_WIDTH_MAX);
+
+    current().setBrowserNavigatorWidth(200);
+    expect(current().browserNavigatorWidth).toBe(200);
+
+    flushCrossSliceWrites();
+    expect(JSON.parse(localStorage.getItem('adl:browser.navigatorWidth') as string)).toBe(200);
   });
 });

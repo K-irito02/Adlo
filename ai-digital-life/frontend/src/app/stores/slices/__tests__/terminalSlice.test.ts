@@ -221,27 +221,6 @@ describe('terminalSlice', () => {
     expect((get() as unknown as TerminalSlice).terminalNavigatorWidth).toBe(200);
   });
 
-  it('toggleTerminalNavigator toggles navigator collapsed', () => {
-    const { get } = createMockStore();
-    (get() as unknown as TerminalSlice).toggleTerminalNavigator();
-    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
-      string,
-      boolean
-    >;
-    expect(collapsed.terminal).toBe(true);
-  });
-
-  it('toggleTerminalNavigator toggles back', () => {
-    const { get } = createMockStore();
-    (get() as unknown as TerminalSlice).toggleTerminalNavigator();
-    (get() as unknown as TerminalSlice).toggleTerminalNavigator();
-    const collapsed = (get() as Record<string, unknown>).navigatorCollapsedByTool as Record<
-      string,
-      boolean
-    >;
-    expect(collapsed.terminal).toBe(false);
-  });
-
   it('setTerminalPersisted sets the flag', () => {
     const { get } = createMockStore();
     (get() as unknown as TerminalSlice).setTerminalPersisted(true);
