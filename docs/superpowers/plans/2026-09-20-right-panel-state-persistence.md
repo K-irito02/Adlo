@@ -4175,6 +4175,7 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 
 **Files:**
 - Modify: `frontend/src/app/stores/persisted/registry.ts`
+- Modify: `frontend/src/app/regions/right-panel/hooks/useRightPanelLayout.ts`（`adl-ui:right-panel-mode` / `adl-ui:right-panel-last-restorable-width`：直接 `localStorage` 读写改走 `persist`；T22 跳过项，见下方）
 - Modify: `frontend/src/app/stores/slices/gitSlice.ts`（`adl-ui:changes-branch`）
 - Modify: `frontend/src/app/stores/slices/ciSlice.ts`、`githubSlice.ts`、`githubSliceHelpers.ts`（`adl-ui:ci-*` / `adl-ui:github-*`）
 - Modify: `frontend/src/app/stores/slices/communicateSlice.ts`（`adl-ui:active-communicate-platform` / `adl-ui:communicate-navigator-collapsed`）
@@ -4208,6 +4209,10 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 | `adl-ui:sysmon-collapsed` | `adl:ui.sysmonCollapsed` | ui | global | `readFlag` |
 | `adl-ui:sysmon-scroll-top` | `adl:ui.sysmonScrollTop` | ui | global | `readNumberInRange(0, 1e9)` |
 | `adl-ui:clipboard-scroll-top` | `adl:ui.clipboardScrollTop` | ui | global | `readNumberInRange(0, 1e9)` |
+| `adl-ui:right-panel-mode` | `adl:ui.rightPanelMode` | ui | global | `readStringEnum`（以 `rightPanelLayout.ts` 的 `RightPanelMode` 现有取值为准）；T22 跳过项（见下方），本任务收编 |
+| `adl-ui:right-panel-last-restorable-width` | `adl:ui.rightPanelLastRestorableWidth` | ui | global | `readNumberInRange`（以 `RIGHT_PANEL_WIDTH_MIN/MAX` 现有常量为准）；同上 |
+
+> **T22 跳过项收编（T22–T25 评审裁定，第 15 处计划缺陷的第二面）**：T22 以"派生状态"为由跳过 `rightPanelMode`，该理由不成立 —— `useRightPanelLayout.ts:11-29` 是本地 state + **直接 `localStorage` 读写**（`window.localStorage.getItem/setItem`，未走 `persist` 唯一通道），且 T29 Step 4 的全仓 grep 门禁会把它拦下。若不收编，T29 门禁恒为假（与 B1 同构）。故本任务一并登记这两键：读经登记表，写改走 `persist`（hook 非 slice 也可调 `persist`，T10 乙类先例）；同时修正 `registry.ts` / `uiSliceTypes.ts` / `keyNamespace.test.ts` 三处"派生状态、T29 保留"的失准注释。成本（若判断有误）：hook 的读写时序（渲染中读取）需保持同步语义 —— `persist` 内部读盘与直接 `getItem` 同为同步，无时序差。
 
 **安全说明（预检更正后的事实，必须遵守）：** 先前预检曾把 `github-access-token` / `ci-access-token` 判为"明文凭据违反凭据规则"，**该判断已被证伪**：
 
@@ -4219,7 +4224,7 @@ git commit -m "docs(right-panel): record persistence acceptance results and foll
 
 - [ ] **Step 1: 写失败测试**
 
-创建 `frontend/src/app/stores/persisted/__tests__/outOfScopePanelsPersistence.test.ts`，对 15 条逐一断言"写入 → 模拟重启 → 读回一致"；另加两条：
+创建 `frontend/src/app/stores/persisted/__tests__/outOfScopePanelsPersistence.test.ts`，对 17 条逐一断言"写入 → 模拟重启 → 读回一致"；另加两条：
 
 ```ts
 it('keeps every previously-leaked key registered, so startup cleanup cannot delete it', () => {
