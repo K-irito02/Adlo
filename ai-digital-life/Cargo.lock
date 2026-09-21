@@ -309,6 +309,7 @@ dependencies = [
  "adl-outline",
  "adl-types",
  "notify",
+ "rusqlite",
  "serde",
  "tokio",
  "tracing",

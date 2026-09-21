@@ -7,6 +7,7 @@ pub(crate) mod gitignore;
 pub(crate) mod preview;
 mod search;
 mod tree;
+pub mod tree_cache_store;
 mod watch;
 
 pub use detect::{
