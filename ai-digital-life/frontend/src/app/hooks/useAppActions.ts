@@ -12,6 +12,7 @@ export function useAppActions() {
       revealWorkspaceInFileManager: state.revealWorkspaceInFileManager,
       openFile: state.openFile,
       openFileForWorkspace: state.openFileForWorkspace,
+      restoreLastOpenedFile: state.restoreLastOpenedFile,
       openChangePreview: state.openChangePreview,
       openChangePreviewForWorkspace: state.openChangePreviewForWorkspace,
       createWorkspaceFile: state.createWorkspaceFile,

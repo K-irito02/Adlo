@@ -77,6 +77,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const editorShellRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const cmViewRef = useRef<EditorView | null>(null);
+  // 会话恢复的瞬态提示（Task 26）：仅在活跃错误状态下可见，打开任意文件即清空
+  const sessionRestoreNotice = useAppStore((s) => s.sessionRestoreNotice);
 
   const localDiffEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
 
@@ -570,6 +572,11 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
 
         <div className="adl-tool-primary">
           {editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null}
+          {sessionRestoreNotice === 'sessionLastFileMissing' ? (
+            <p className="adl-tool-hint" role="status">
+              {t.sessionLastFileMissing}
+            </p>
+          ) : null}
 
           <div ref={editorShellRef} className="adl-tool-editor" data-testid="editor-shell">
             <SuspenseWrapper>

@@ -4,7 +4,7 @@ import { readBooleanRecord } from './entry';
 import { BROWSER_ZOOM_MIN, BROWSER_ZOOM_MAX } from '../slices/browserSliceShared';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
 import type { SearchFlags } from '../slices/searchSlice';
-import type { FileTreeClickedNode } from '../slices/editorSlice';
+import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
 
 /** 布尔：仅接受真正的 boolean */
 export function readFlag(raw: unknown): boolean | undefined {
@@ -452,4 +452,19 @@ export function readClickedNodeRecord(
     result[workspaceId] = node;
   }
   return result;
+}
+
+/**
+ * 会话恢复：上次打开的文件（Task 26）。
+ * workspaceId 与 relativePath 必须同为字符串，否则整条判为不合法；
+ * null（从未打开过）是合法持久值，由登记表条目直接处理，不经过本函数。
+ */
+export function readSessionLastFile(raw: unknown): SessionLastFile | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  if (typeof raw.workspaceId !== 'string' || typeof raw.relativePath !== 'string') {
+    return undefined;
+  }
+  return { workspaceId: raw.workspaceId, relativePath: raw.relativePath };
 }

@@ -19,6 +19,7 @@ import {
   readSearchUseGitignore,
   readBooleanPropRecord,
   readDirExpansionRecord,
+  readSessionLastFile,
   isPlainRecord,
 } from './parsers';
 import {
@@ -110,7 +111,7 @@ import {
 } from '../../features/terminal/terminalHistoryStore';
 import type { TerminalViewPrefs } from '../../features/terminal/terminalViewPrefs';
 import type { SearchFlags } from '../slices/searchSlice';
-import type { FileTreeClickedNode } from '../slices/editorSlice';
+import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
 import type { ChangeFileState } from '../../regions/right-panel/changesTree';
 
 // ─────────────────────────────────────────────────────────────
@@ -839,6 +840,22 @@ export const registry = {
     scope: 'byWorkspaceId',
     read: readSearchUseGitignore,
     prune: pruneByWorkspaceId,
+  }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 会话恢复（Task 26）：上次打开的文件（单文件级全局）。
+  // fallback 用 null 而非 undefined：registrySelfCheck 的 32KB 断言对 fallback
+  // 做 JSON.stringify，undefined 会使其抛错；null 即"从未打开过"，是合法持久值。
+  // scope 为 global 且无 prune —— 工作区消失后的陈旧指向由 restoreLastOpenedFile
+  // 的降级路径处理（置瞬态提示，不删键），启动剪枝不碰它。
+  // ─────────────────────────────────────────────────────────────
+  'adl:session.lastFile': defineEntry<SessionLastFile | null>({
+    key: 'adl:session.lastFile',
+    field: 'lastOpenedFile',
+    fallback: null,
+    scope: 'global',
+    // null（从未打开过）直接合法；类型不符才回退 null 并记脏
+    read: (raw) => (raw === null ? null : readSessionLastFile(raw)),
   }),
 } as const;
 

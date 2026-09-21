@@ -15,6 +15,18 @@ export interface FileTreeClickedNode {
   workspaceRoot?: string;
 }
 
+/** 会话恢复：上次打开的文件（`adl:session.lastFile`，Task 26） */
+export interface SessionLastFile {
+  workspaceId: string;
+  relativePath: string;
+}
+
+/**
+ * 会话恢复的瞬态提示（Task 26，非持久化）。
+ * 恢复失败时置位，打开任意文件成功时清空 —— 提示不常驻。
+ */
+export type SessionRestoreNotice = 'sessionLastFileMissing';
+
 /** 主区开文件失败信息（事项 46 调整项，Phase 4 审查 L1 抽为共享类型）。 */
 export interface FileOpenError {
   path: string;
@@ -69,6 +81,16 @@ export interface EditorSlice {
   fileTreeClicked: Record<string, FileTreeClickedNode>;
   /** 文件大纲展开项（按工作区隔离，`adl:files.outlineExpanded`，Task 22） */
   filesOutlineExpanded: Record<string, string[]>;
+  /**
+   * 上次打开的文件（`adl:session.lastFile`，Task 26）。
+   * null = 从未成功打开过文件（与登记表 fallback 一致，见 registry 注释）。
+   */
+  lastOpenedFile: SessionLastFile | null;
+  /**
+   * 会话恢复的瞬态提示（Task 26，非持久化，不登记）。
+   * 恢复失败时置位，打开任意文件成功时清空。
+   */
+  sessionRestoreNotice?: SessionRestoreNotice;
 
   setOpenTabs: (tabs: EditorTabState[]) => void;
   addOpenTab: (tab: EditorTabState) => void;
@@ -116,6 +138,7 @@ export const createEditorSlice = (
   positioningPath: null,
   fileTreeClicked: {},
   filesOutlineExpanded: {},
+  lastOpenedFile: null,
 
   setOpenTabs: (tabs) => set({ openTabs: tabs }),
   addOpenTab: (tab) =>

@@ -168,6 +168,8 @@ interface EditorActions {
     workspacePath: string,
     relativePath: string,
   ) => Promise<void>;
+  rememberLastOpenedFile: (workspaceId: string, relativePath: string) => void;
+  restoreLastOpenedFile: () => Promise<void>;
   openChangePreview: (relativePath: string) => Promise<void>;
   openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
   markExternalFileChange: (input: { path: string; lastModifiedAt: number }) => void;

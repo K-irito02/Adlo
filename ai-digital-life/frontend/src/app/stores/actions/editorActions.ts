@@ -9,6 +9,7 @@ import {
 } from '../shared';
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../cacheHelpers';
+import { persistField } from '../persisted/apply';
 import { openFileGeneric, openChangePreviewGeneric } from './editorActionsHelpers';
 import { refreshTreeByWorkspacePath } from './workspaceActions';
 import { insertTreeNode } from './workspaceTreeRename';
@@ -90,12 +91,21 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * @see preview-bridge/index.ts → workspace.readFile
      */
     openFile: async (relativePath: string) => {
-      await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+      const workspaceId = get().appInfo?.currentWorkspace?.id;
+      const opened = await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
         cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
-        workspaceId: get().appInfo?.currentWorkspace?.id,
+        workspaceId,
         workspacePath: get().appInfo?.currentWorkspace?.path,
         readFile: () => window.digitalLife.workspace.readFile(relativePath),
       });
+      if (opened) {
+        if (workspaceId) {
+          get().rememberLastOpenedFile(workspaceId, relativePath);
+        } else {
+          // 无工作区上下文：无法记录可恢复的指向，但仍清空残留的恢复提示
+          set({ sessionRestoreNotice: undefined });
+        }
+      }
     },
 
     /**
@@ -110,13 +120,73 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       workspacePath: string,
       relativePath: string,
     ) => {
-      await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+      const opened = await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
         cacheKey: `${workspacePath}:${relativePath}`,
         workspaceId,
         workspacePath,
         readFile: () =>
           window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
       });
+      if (opened) {
+        get().rememberLastOpenedFile(workspaceId, relativePath);
+      }
+    },
+
+    /**
+     * [rememberLastOpenedFile - 记录上次打开的文件]
+     * 成功打开任意文件后调用（openFile / openFileForWorkspace /
+     * createWorkspaceFile），经 persist 唯一写盘通道落盘；同时清空会话恢复提示
+     * （提示不常驻）。
+     *
+     * 关闭文件时不清空：全仓唯一的关标签入口 removeOpenTab 当前无任何消费方
+     * （文件标签尚不可关闭），且 lastFile 语义是"上次打开"而非"当前打开" ——
+     * 重启后要恢复的正是它（Task 26）。
+     */
+    rememberLastOpenedFile: (workspaceId: string, relativePath: string) => {
+      set({
+        ...persistField('adl:session.lastFile', { workspaceId, relativePath }),
+        sessionRestoreNotice: undefined,
+      });
+    },
+
+    /**
+     * [restoreLastOpenedFile - 启动时恢复上次打开的文件]
+     * 由 useAppStartup 在 bootstrap 完成后调用一次（无轮询/重试）。
+     * 工作区/文件不存在、权限不足、读取失败时不抛错，只置瞬态
+     * sessionRestoreNotice，编辑器停在空态或既有错误视图。
+     * 已打开文件或已尝试过（notice 已置位）时直接返回，保证启动只执行一次。
+     */
+    restoreLastOpenedFile: async () => {
+      const state = get();
+      if (state.selectedFilePath !== undefined || state.sessionRestoreNotice !== undefined) {
+        return;
+      }
+      const last = state.lastOpenedFile;
+      if (!last) {
+        return;
+      }
+      const workspaces = state.recentWorkspaces;
+      if (workspaces.length === 0) {
+        // 参照清单未就绪：无法判定工作区是否存在，此时置位会误报，故静默返回
+        return;
+      }
+      const ws = workspaces.find((w) => w.id === last.workspaceId);
+      if (!ws) {
+        set({ sessionRestoreNotice: 'sessionLastFileMissing' });
+        return;
+      }
+      try {
+        await get().openFileForWorkspace(last.workspaceId, ws.path, last.relativePath);
+      } catch {
+        // 读取失败即降级为提示，不抛错（Task 26）
+      }
+      const after = get();
+      if (
+        after.fileOpenError?.path === last.relativePath ||
+        after.selectedFilePath !== last.relativePath
+      ) {
+        set({ sessionRestoreNotice: 'sessionLastFileMissing' });
+      }
     },
 
     /**
@@ -183,6 +253,15 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       // 乐观插入节点，立即显示；后台静默刷新校准，不阻塞 UI。
       insertTreeNodeOptimistic(get, set, relativePath, 'file', workspacePath);
       void refreshTreeByWorkspacePath(get, workspacePath);
+      const ws = workspacePath
+        ? get().recentWorkspaces.find((r) => r.path === workspacePath)
+        : undefined;
+      if (ws) {
+        // 新建即打开：同样记为上次打开的文件（成功打开即清空恢复提示）
+        get().rememberLastOpenedFile(ws.id, relativePath);
+      } else {
+        set({ sessionRestoreNotice: undefined });
+      }
       const nextOutline = buildOutlineFromContent(result.data.content, relativePath);
       const norm = normalizeWorkspaceRelativePath(relativePath);
       set((state: StoreState) => {

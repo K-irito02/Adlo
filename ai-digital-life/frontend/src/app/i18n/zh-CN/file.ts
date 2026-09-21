@@ -127,6 +127,7 @@ export const fileZh = {
   fileOpenErrorNotFound: '文件不存在，可能已被删除、移动或重命名。',
   fileOpenErrorDetail: '原因：{message}',
   fileOpenErrorRetry: '重试',
+  sessionLastFileMissing: '上次打开的文件已不存在',
   searchHitStale: '已失效',
   searchStaleSummary: '{count} 处结果已失效',
   searchFilePartial: '文件范围仅检索已加载树的前 200 个匹配',

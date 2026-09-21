@@ -78,7 +78,7 @@ export async function openFileGeneric(
   relativePath: string,
   requestSeq: number,
   config: OpenFileConfig,
-) {
+): Promise<boolean> {
   clearError(get, SCOPE);
   const cachedDocument = getCachedFileDocument(config.cacheKey);
 
@@ -109,7 +109,7 @@ export async function openFileGeneric(
 
   if (cachedDocument) {
     applyDocument(cachedDocument);
-    return;
+    return true;
   }
   // 就绪才切换（事项 46 调整项）：标签页即时出现作为点击反馈，
   // 但 selectedFilePath/fileContent 保持旧值直到内容读到，主区全程无中间态。
@@ -127,20 +127,20 @@ export async function openFileGeneric(
     fileResult = await config.readFile();
   } catch (err) {
     if (requestSeq !== fileRequestSeq) {
-      return;
+      return false;
     }
     captureError(get, err, SCOPE);
     submitOpenFailure(set, relativePath, config, err);
-    return;
+    return false;
   }
   if (requestSeq !== fileRequestSeq) {
-    return;
+    return false;
   }
   if (!fileResult.ok) {
     captureError(get, fileResult.error, SCOPE);
     // 失败不在主区回退显示旧文件内容：切到目标路径并展示友好错误（用户决策）。
     submitOpenFailure(set, relativePath, config, fileResult.error);
-    return;
+    return false;
   }
   const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);
   const nextDocument: CachedFileDocument = {
@@ -149,6 +149,7 @@ export async function openFileGeneric(
   };
   setCachedFileDocument(config.cacheKey, nextDocument);
   applyDocument(nextDocument, nextOutline);
+  return true;
 }
 
 export interface OpenChangePreviewConfig {

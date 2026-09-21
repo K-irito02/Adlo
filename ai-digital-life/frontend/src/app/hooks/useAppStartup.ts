@@ -32,7 +32,13 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   }, [t]);
 
   useEffect(() => {
-    void actions.bootstrap();
+    // 启动恢复（Task 26）：bootstrap 完成后单次尝试恢复上次打开的文件。
+    // 恢复失败只置瞬态提示、不抛错；此处无轮询/重试（重试循环已由 T18–21 删除）。
+    void actions
+      .bootstrap()
+      .finally(() => {
+        void actions.restoreLastOpenedFile();
+      });
     void initSiteMetaCache();
   }, [actions, actions.bootstrap]);
 

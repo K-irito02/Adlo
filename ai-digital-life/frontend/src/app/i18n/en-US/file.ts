@@ -128,6 +128,7 @@ export const fileEn = {
   fileOpenErrorNotFound: 'The file does not exist. It may have been deleted, moved, or renamed.',
   fileOpenErrorDetail: 'Reason: {message}',
   fileOpenErrorRetry: 'Retry',
+  sessionLastFileMissing: 'The file opened last time no longer exists',
   searchHitStale: 'Outdated',
   searchStaleSummary: '{count} results are outdated',
   searchFilePartial: 'File scope searches only the first 200 matches of loaded trees',
