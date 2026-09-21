@@ -49,6 +49,12 @@ export function createWorkspaceTreeActions(
         before.workspaceTrees[workspaceId] !== undefined ||
         before.workspaceTreeLoading[workspaceId] === true
       ) {
+        // TEMP-RCA(事项1): 命中守卫会跳过加载；若 loading 永久为 true 即自锁（定案前删除）
+        console.log('[ADL-DBG-RCA] loadWorkspaceTree skipped by guard', {
+          workspaceId,
+          hasData: before.workspaceTrees[workspaceId] !== undefined,
+          isLoading: before.workspaceTreeLoading[workspaceId] === true,
+        });
         // 本次未实际加载（已有数据 / 并发加载中）：实际完成的那一次会触发剪枝。
         await loadWorkspaceTreeInner(workspaceId, workspacePath);
         return;

@@ -595,6 +595,16 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   useEffect(() => {
     if (selectedFilePath && activeWorkspaceId) {
       const { blocked } = expandFileTreePathChain(activeWorkspaceId, selectedFilePath);
+      // TEMP-RCA(事项2): 闪烁是否触发取决于 blocked；连同 manualCollapsed 一并记录（定案前删除）
+      // 注：经 getState 读取以避免改动 effect 依赖（行为零变化）。
+      console.log('[ADL-DBG-RCA] flash check', {
+        selectedFilePath,
+        activeWorkspaceId,
+        selectedFileWorkspaceId,
+        blocked,
+        manualCollapsed:
+          useAppStore.getState().expandedFileTreePaths[activeWorkspaceId]?.manualCollapsed,
+      });
       if (blocked.length === 0) {
         // 无被折叠祖先：不打断正在进行的闪烁，让上一次闪烁自然结束
         return;
@@ -605,6 +615,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       setFlashPath(blocked[0]);
       flashTimerRef.current = window.setTimeout(() => setFlashPath(undefined), 1000);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- TEMP-RCA：日志引用 selectedFileWorkspaceId，定案删除，不进依赖
   }, [expandFileTreePathChain, selectedFilePath, activeWorkspaceId]);
 
   useEffect(() => () => window.clearTimeout(flashTimerRef.current), []);

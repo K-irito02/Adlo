@@ -156,9 +156,24 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             }
             set(loadingBatch);
           }
+          // TEMP-RCA(事项1): 诊断启动转圈是卡/慢/错（定案前删除）
+          console.log('[ADL-DBG-RCA] loadBatch start', {
+            ids: items.map((w) => w.id),
+            at: Date.now(),
+          });
+          const batchStartAt = Date.now();
           const results = await runWithConcurrency(tasks, concurrency, async (task) => {
             const [tree, snapshot] = await Promise.all([task.treeLoader(), task.snapshotLoader()]);
             return { id: task.id, tree, snapshot };
+          });
+          // TEMP-RCA(事项1): 整批结算情况（定案前删除）
+          console.log('[ADL-DBG-RCA] loadBatch settled', {
+            elapsedMs: Date.now() - batchStartAt,
+            summary: results.map((r, i) => ({
+              id: items[i]?.id,
+              status: r.status,
+              tree: r.status === 'fulfilled' ? r.value.tree !== undefined : undefined,
+            })),
           });
           const batch_: Partial<StoreState> = {};
           for (let i = 0; i < results.length; i += 1) {

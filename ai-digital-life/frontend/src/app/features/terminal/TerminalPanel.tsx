@@ -159,6 +159,12 @@ export function TerminalPanel() {
 
   const toggleTerminalWorkspaceExpanded = useCallback(
     (workspaceId: string) => {
+      // TEMP-RCA(事项3): 记录切换前后值（undefined→true 首点无感是已知嫌疑，定案前删除）
+      console.log('[ADL-DBG-RCA] terminal toggle', {
+        workspaceId,
+        before: terminalWorkspaceExpanded[workspaceId],
+        after: !terminalWorkspaceExpanded[workspaceId],
+      });
       setTerminalWorkspaceExpanded({
         ...terminalWorkspaceExpanded,
         [workspaceId]: !terminalWorkspaceExpanded[workspaceId],
