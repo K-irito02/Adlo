@@ -78,9 +78,9 @@ describe('prune wiring', () => {
     expect(useAppStore.getState().terminalWorkspaceExpanded).toEqual({
       __independent__: false,
     });
-    expect(JSON.parse(localStorage.getItem('adl:terminal.workspaceExpanded') ?? 'null')).toEqual(
-      { __independent__: false },
-    );
+    expect(JSON.parse(localStorage.getItem('adl:terminal.workspaceExpanded') ?? 'null')).toEqual({
+      __independent__: false,
+    });
   });
 
   it('NEGATIVE: does nothing while the workspace list is still empty', () => {
