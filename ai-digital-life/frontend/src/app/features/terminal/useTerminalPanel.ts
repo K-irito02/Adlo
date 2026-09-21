@@ -207,6 +207,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   const viewContainerRef = useRef<HTMLDivElement | null>(null);
   const { viewPrefs, setViewMode, swapAreas, handleDividerPointerDown } = useTerminalViewPrefs({
     containerRef: viewContainerRef,
+    activeTabId: activeTab?.id,
   });
 
   // 区域折叠态：按标签记录，持久化到磁盘（重启后记住每个标签的折叠选择）。

@@ -58,11 +58,14 @@ describe('terminal panel persistence', () => {
   });
 
   // R4：四个外部微型存储的 save*() → persist 落盘路径（此前完全没有往返断言）。
-  it('terminalViewPrefsStore.save writes through to the registry key', () => {
+  // Task 25 起 viewPrefs 按标签记录：saveForTab 写入该标签并保留其它标签。
+  it('terminalViewPrefsStore.saveForTab writes through to the registry key', () => {
     const prefs: TerminalViewPrefs = { mode: 'dual', historyFirst: false, historyRatio: 0.5 };
-    terminalViewPrefsStore.save(prefs);
+    terminalViewPrefsStore.saveForTab('terminal-1', prefs);
     flushCrossSliceWrites();
-    expect(localStorage.getItem('adl:terminal.viewPrefs')).toBe(JSON.stringify(prefs));
+    expect(JSON.parse(localStorage.getItem('adl:terminal.viewPrefs') ?? 'null')).toEqual({
+      'terminal-1': prefs,
+    });
   });
 
   it('terminalRegionCollapseStore.save writes through to the registry key', () => {

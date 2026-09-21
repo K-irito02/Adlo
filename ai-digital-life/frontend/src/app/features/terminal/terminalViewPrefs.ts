@@ -1,4 +1,4 @@
-import { clamp } from '@stores/storageHelpers';
+import { clamp, readJson } from '@stores/storageHelpers';
 import { persist } from '@stores/persisted/persist';
 
 /**
@@ -46,21 +46,71 @@ export function normalizeTerminalViewPrefs(raw: unknown): TerminalViewPrefs {
   };
 }
 
+/**
+ * 按标签记录的视图偏好映射归一化（Task 25，`adl:terminal.viewPrefs`）。
+ * 外层必须为普通对象（否则整条不合法）；每个标签值经单体归一化
+ * （归一化恒成功，故单标签损坏只影响该标签，不丢整表）。
+ */
+export function normalizeTerminalViewPrefsMap(
+  raw: unknown,
+): Record<string, TerminalViewPrefs> | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const result: Record<string, TerminalViewPrefs> = {};
+  for (const [tabId, value] of Object.entries(raw as Record<string, unknown>)) {
+    result[tabId] = normalizeTerminalViewPrefs(value);
+  }
+  return result;
+}
+
 // 模块级缓存：构造期水合（persisted/registry 的 apply 汇聚器）填值，之后 load 直接返回缓存。
-// 有合法默认值，回退安全（见 brief：viewPrefs 不应读存储也安全）。
-let cache: TerminalViewPrefs = DEFAULT_TERMINAL_VIEW_PREFS;
+// cacheSet 防御：构造期 apply 未运行（测试路径 / 提前调用）时，按需读一次存储避免返回错误空值。
+let cache: Record<string, TerminalViewPrefs> = {};
+let cacheSet = false;
+
+function readStored(): Record<string, TerminalViewPrefs> {
+  return normalizeTerminalViewPrefsMap(readJson<unknown>(TERMINAL_VIEW_PREFS_KEY, {})) ?? {};
+}
 
 export const terminalViewPrefsStore = {
-  load(): TerminalViewPrefs {
+  /** 某标签的偏好；无记录时等同旧全局默认（DEFAULT_TERMINAL_VIEW_PREFS） */
+  loadForTab(tabId: string | undefined): TerminalViewPrefs {
+    if (!cacheSet) {
+      cache = readStored();
+      cacheSet = true;
+    }
+    if (tabId === undefined) {
+      return DEFAULT_TERMINAL_VIEW_PREFS;
+    }
+    return cache[tabId] ?? DEFAULT_TERMINAL_VIEW_PREFS;
+  },
+  /** 写入某标签的偏好（去抖，唯一写通道 persist） */
+  saveForTab(tabId: string, prefs: TerminalViewPrefs): void {
+    if (!cacheSet) {
+      cache = readStored();
+      cacheSet = true;
+    }
+    cache = { ...cache, [tabId]: prefs };
+    persist(TERMINAL_VIEW_PREFS_KEY, cache);
+  },
+  /** 写入整个映射（剪枝回写用；去抖，唯一写通道 persist） */
+  saveAll(map: Record<string, TerminalViewPrefs>): void {
+    cache = map;
+    cacheSet = true;
+    persist(TERMINAL_VIEW_PREFS_KEY, map);
+  },
+  loadAll(): Record<string, TerminalViewPrefs> {
+    if (!cacheSet) {
+      cache = readStored();
+      cacheSet = true;
+    }
     return cache;
   },
-  save(prefs: TerminalViewPrefs): void {
-    cache = prefs;
-    persist(TERMINAL_VIEW_PREFS_KEY, prefs);
-  },
   /** 构造期水合：把校验+剪枝后的值交回模块缓存 */
-  apply(value: TerminalViewPrefs): void {
+  apply(value: Record<string, TerminalViewPrefs>): void {
     cache = value;
+    cacheSet = true;
   },
 };
 

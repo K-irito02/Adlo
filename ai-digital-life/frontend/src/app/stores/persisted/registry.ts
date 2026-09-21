@@ -95,7 +95,7 @@ import {
 } from '../slices/terminalSliceTypes';
 import {
   terminalViewPrefsStore,
-  normalizeTerminalViewPrefs,
+  normalizeTerminalViewPrefsMap,
 } from '../../features/terminal/terminalViewPrefs';
 import {
   terminalRegionCollapseStore,
@@ -769,12 +769,15 @@ export const registry = {
   }),
 
   // 乙类：水合目标为 features/terminal/* 的模块级微型存储（apply 交回缓存）
-  'adl:terminal.viewPrefs': defineEntry<TerminalViewPrefs>({
+  // viewPrefs 按标签记录（Task 25，scope byTabId + 关标签剪枝；无记录标签取
+  // DEFAULT_TERMINAL_VIEW_PREFS，等同旧全局默认）。单偏好约 60B，千级标签才近
+  // 32KB 同步读准入线 —— 实际标签数远低于此，故保持 sync（默认 true）。
+  'adl:terminal.viewPrefs': defineEntry<Record<string, TerminalViewPrefs>>({
     key: 'adl:terminal.viewPrefs',
     apply: (value) => terminalViewPrefsStore.apply(value),
-    fallback: { mode: 'single', historyFirst: true, historyRatio: 0.32 },
-    scope: 'global',
-    read: normalizeTerminalViewPrefs,
+    fallback: {},
+    scope: 'byTabId',
+    read: normalizeTerminalViewPrefsMap,
   }),
   'adl:terminal.regionCollapse': defineEntry<Record<string, RegionCollapse>>({
     key: 'adl:terminal.regionCollapse',

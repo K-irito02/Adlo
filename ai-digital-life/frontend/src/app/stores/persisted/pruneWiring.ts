@@ -4,6 +4,7 @@ import { applyPrunePatch, pruneByTabId } from './prune';
 import { persist } from './persist';
 import { registryEntries, type RegistryKey } from './registry';
 import { terminalRegionCollapseStore } from '../../features/terminal/terminalRegionCollapse';
+import { terminalViewPrefsStore } from '../../features/terminal/terminalViewPrefs';
 import { terminalCwdStore } from '../../features/terminal/terminalCwdStore';
 import { terminalHistoryStore } from '../../features/terminal/terminalHistoryStore';
 
@@ -28,10 +29,10 @@ import { terminalHistoryStore } from '../../features/terminal/terminalHistorySto
  *（createUiId('browser')），终端标签是另一命名空间（createUiId('terminal')），
  * 二者永不相撞 —— 若只取其一，另一侧的存活展开会被误判为孤儿删掉。
  *
- * 乙类条目（终端三个外部微型存储 regionCollapse / cwdByTab / historyIndex，
- * Task 10 延期）：它们没有 store 字段，不在 pruneRegistry 内，在此经模块自身
- * 的 load/save 清理（save 系走 persist 唯一写通道）。viewPrefs 是全局作用域，
- * 无引用可剪，不在此列。
+ * 乙类条目（终端四个外部微型存储 regionCollapse / viewPrefs / cwdByTab / historyIndex）：
+ * 它们没有 store 字段，不在 pruneRegistry 内，在此经模块自身的 load/save 清理
+ *（save 系走 persist 唯一写通道）。viewPrefs 自 Task 25 起按标签隔离（byTabId），
+ * 同在此剪枝；此前它是全局作用域、无引用可剪。
  */
 let loadedDirPaths = new Map<string, ReadonlySet<string>>();
 
@@ -88,6 +89,11 @@ function pruneExternalTabStores(ctx: PruneCtx): void {
   const prunedRegionCollapse = pruneByTabId(regionCollapse, ctx);
   if (prunedRegionCollapse.changed) {
     terminalRegionCollapseStore.save(prunedRegionCollapse.value);
+  }
+  const viewPrefs = terminalViewPrefsStore.loadAll();
+  const prunedViewPrefs = pruneByTabId(viewPrefs, ctx);
+  if (prunedViewPrefs.changed) {
+    terminalViewPrefsStore.saveAll(prunedViewPrefs.value);
   }
   const cwdByTab = terminalCwdStore.loadAll();
   const prunedCwd = pruneByTabId(cwdByTab, ctx);
