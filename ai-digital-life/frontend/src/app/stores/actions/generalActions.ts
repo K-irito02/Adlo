@@ -1,10 +1,12 @@
 import type { StoreState } from '../StoreState';
 import type { RecentWorkspaceEntry, WorkspaceTreeNode } from '@ai-digital-life/kernel';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
+import type { TreeCacheOptions } from '../../../shared/ipc/storage';
 import { workspaceRequestSeq, queueLowPriorityRefresh, clearError, captureError } from '../shared';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 import { resolveCurrentTheme } from '@shared/resolveTheme';
 import { isTauriShell } from '../../../tauri-bridge';
+import { asWorkspaceID } from '../../../shared/branded';
 import { runWithConcurrency } from '../../shared/asyncUtils';
 import { computeLoadPhases } from './workspaceLoadOrder';
 import { syncNewWorkspacesToNaturalOrder } from './workspaceNaturalOrderSync';
@@ -12,6 +14,25 @@ import { collectDirPaths } from '../persisted/prune';
 import { applyTreeLoadedPrune, applyWorkspacePrune } from '../persisted/pruneWiring';
 import type { StoreApi } from 'zustand';
 const SCOPE = 'general';
+
+/**
+ * T7 校准门选项：默认返回与 Rust 缺省逐字一致（`enabled=true, ttlMinutes=15`）。
+ *
+ * 缺口裁定（binding）：options 读路径四层全无，本任务不建读路径；T9 经 `stats`
+ * 扩展交付真实值并接到此处。测试经 `setCalibrationOptionsForTesting` 注入覆盖。
+ */
+const RUST_TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
+
+let calibrationOptionsOverride: TreeCacheOptions | undefined;
+
+export function resolveCalibrationOptions(): TreeCacheOptions {
+  return calibrationOptionsOverride ?? RUST_TREE_CACHE_DEFAULTS;
+}
+
+/** 仅供测试注入覆盖校准门选项；传 `undefined` 恢复 Rust 缺省。T9 接真实值后保留。 */
+export function setCalibrationOptionsForTesting(opts: TreeCacheOptions | undefined): void {
+  calibrationOptionsOverride = opts;
+}
 
 /**
  * 批量累加辅助函数 — 在 Partial<StoreState> 中累积 Record 字段的变更。
@@ -134,19 +155,55 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         async function loadBatch(
           items: RecentWorkspaceEntry[],
           concurrency: number,
-        ): Promise<PromiseSettledResult<{ id: string; tree: unknown; snapshot: unknown }>[]> {
+        ): Promise<
+          PromiseSettledResult<{
+            id: string;
+            tree: WorkspaceTreeNode[] | undefined;
+            snapshot: unknown;
+          }>[]
+        > {
+          // 校准门（T7 缺口裁定）：入口调一次 resolveCalibrationOptions；
+          // enabled:false → 全批次 allowStale:false（首包请求不带 allowStale，等同现状）。
+          const calibOpts = resolveCalibrationOptions();
+          const staleAllowed = calibOpts.enabled;
+          const ttlMs = calibOpts.ttlMinutes * 60000;
+
+          interface TreePacket {
+            tree: WorkspaceTreeNode[];
+            fromCache: boolean;
+            capturedAt: number;
+          }
+
           const tasks = items.map((w) => ({
             id: w.id,
+            path: w.path,
             // TEMP-RCA(事项1): 分项计时，区分树扫描慢还是 git 快照慢（定案前删除）
-            treeLoader: () => {
+            treeLoader: (): Promise<TreePacket | undefined> => {
               const t0 = Date.now();
-              return window.digitalLife.workspace.listTreeForWorkspace(w.path).then((r) => {
+              const request = staleAllowed
+                ? window.digitalLife.workspace.listTreeForWorkspace(w.path, { allowStale: true })
+                : window.digitalLife.workspace.listTreeForWorkspace(w.path);
+              return request.then((r) => {
                 console.log('[ADL-DBG-RCA] treeLoader settled', {
                   id: w.id,
                   ms: Date.now() - t0,
                   ok: r.ok,
                 });
-                return r.ok ? r.data : undefined;
+                if (!r.ok) {
+                  return undefined;
+                }
+                const payload = r.data;
+                if (!Array.isArray(payload.tree)) {
+                  console.warn('[workspace load] malformed tree payload, treating as miss', {
+                    id: w.id,
+                  });
+                  return undefined;
+                }
+                return {
+                  tree: payload.tree,
+                  fromCache: payload.fromCache,
+                  capturedAt: payload.capturedAt,
+                };
               });
             },
             snapshotLoader: () => {
@@ -161,12 +218,11 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               });
             },
           }));
-          // 提前设置 loading 标记，防止用户在 loadBatch 进行中点击展开时触发重复 lazyLoad
-          // （createLazyLoader 的 guard 会检查 isLoading，从而跳过已排队的工作区）
+          // 快照无 stale 语义：changes-loading 仍提前置位（与现状一致，
+          // 防 loadBatch 进行中触发重复加载；树 loading 见下，不再提前置位）。
           {
             const loadingBatch: Partial<StoreState> = {};
             for (const w of items) {
-              accumulateBatch(loadingBatch, get, 'workspaceTreeLoading', w.id, true);
               accumulateBatch(loadingBatch, get, 'workspaceChangesTreeLoading', w.id, true);
             }
             set(loadingBatch);
@@ -177,63 +233,149 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             at: Date.now(),
           });
           const batchStartAt = Date.now();
-          const results = await runWithConcurrency(tasks, concurrency, async (task) => {
-            const [tree, snapshot] = await Promise.all([task.treeLoader(), task.snapshotLoader()]);
-            return { id: task.id, tree, snapshot };
-          });
+          // 第一包：stale 先行 — 树请求带 allowStale 即到即渲染；
+          // fromCache:true 的行记入 staleCapturedAt，其 workspaceTreeLoading 永不置位
+          //（守卫靠已落库的 hasData 生效，无需 loading 占位）。
+          const treeResults = await runWithConcurrency(tasks, concurrency, (task) =>
+            task.treeLoader(),
+          );
+          const staleCapturedAt = new Map<string, number>();
+          const firstPacket: Partial<StoreState> = {};
+          for (let i = 0; i < treeResults.length; i += 1) {
+            const r = treeResults[i];
+            const item = items[i];
+            if (r.status !== 'fulfilled' || r.value === undefined) {
+              continue;
+            }
+            if (r.value.fromCache) {
+              accumulateBatch(firstPacket, get, 'workspaceTrees', item.id, r.value.tree);
+              staleCapturedAt.set(item.id, r.value.capturedAt);
+            }
+          }
+          if (Object.keys(firstPacket).length > 0) {
+            set(firstPacket);
+          }
+          // 第二包：miss 回退阻塞加载 — 非 stale 行置 loading（与现状一致的置位），
+          // 快照全量并发，结算后统一清零。
+          const nonStaleItems = items.filter((w) => !staleCapturedAt.has(w.id));
+          {
+            const blockingBatch: Partial<StoreState> = {};
+            for (const w of nonStaleItems) {
+              accumulateBatch(blockingBatch, get, 'workspaceTreeLoading', w.id, true);
+            }
+            if (Object.keys(blockingBatch).length > 0) {
+              set(blockingBatch);
+            }
+          }
+          const snapshotResults = await runWithConcurrency(tasks, concurrency, (task) =>
+            task.snapshotLoader(),
+          );
           // TEMP-RCA(事项1): 整批结算情况（定案前删除）
           console.log('[ADL-DBG-RCA] loadBatch settled', {
             elapsedMs: Date.now() - batchStartAt,
-            summary: results.map((r, i) => ({
-              id: items[i]?.id,
-              status: r.status,
-              tree: r.status === 'fulfilled' ? r.value.tree !== undefined : undefined,
-            })),
+            summary: items.map((item, i) => {
+              const r = treeResults[i];
+              return {
+                id: item?.id,
+                status: r.status,
+                tree:
+                  r.status === 'fulfilled' && r.value !== undefined
+                    ? r.value.tree !== undefined
+                    : undefined,
+              };
+            }),
           });
           const batch_: Partial<StoreState> = {};
-          for (let i = 0; i < results.length; i += 1) {
-            const r = results[i];
-            if (r.status === 'fulfilled') {
-              const { id, tree, snapshot } = r.value;
-              if (tree !== undefined) {
-                accumulateBatch(batch_, get, 'workspaceTrees', id, tree);
-                accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
-              } else {
-                // 修复：失败时也清除 loading 状态，避免永久卡死
-                accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
+          for (let i = 0; i < items.length; i += 1) {
+            const item = items[i];
+            const id = item.id;
+            const tr = treeResults[i];
+            const sr = snapshotResults[i];
+            if (tr.status === 'fulfilled' && tr.value !== undefined) {
+              if (!tr.value.fromCache) {
+                // miss 即新鲜：阻塞语义，落库
+                accumulateBatch(batch_, get, 'workspaceTrees', id, tr.value.tree);
               }
-              if (snapshot !== undefined) {
-                accumulateBatch(batch_, get, 'gitSnapshots', id, snapshot);
-                accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
-              } else {
-                accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
+              if (!staleCapturedAt.has(id)) {
+                // stale 行跳过该 id 的 loading 置位；失败行正常清除。
+                accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
               }
             } else {
-              // runWithConcurrency 保证 results[i] 与 items[i] 对齐；rejected 时同样
+              // runWithConcurrency 保证结果与 items 对齐；rejected 时同样
               // 清除 loading 标记，避免该工作区永久 loading 且被新 guard 卡住无法重试。
-              const id = items[i]?.id;
-              if (id) {
-                accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
-                accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
-              }
+              accumulateBatch(batch_, get, 'workspaceTreeLoading', id, false);
             }
-            // rejected items are logged by logRejected() at the call site
+            if (sr.status === 'fulfilled' && sr.value !== undefined) {
+              accumulateBatch(batch_, get, 'gitSnapshots', id, sr.value);
+            }
+            accumulateBatch(batch_, get, 'workspaceChangesTreeLoading', id, false);
           }
           if (Object.keys(batch_).length > 0) {
             set(batch_);
           }
-          // 启动级联直接加载树（不经过 loadWorkspaceTree）：成功分支同样触发
-          // 目录剪枝；失败（tree === undefined）跳过（规格 §3.5.1）。
-          for (const result of results) {
-            if (result.status !== 'fulfilled') {
+          // 启动级联直接加载树（不经过 loadWorkspaceTree）：剪枝只消费新鲜树——
+          // miss 包直接剪；stale 首包不剪（规格 §3.5.1 R2），待校准成功后以新鲜树剪；
+          // 失败（tree === undefined）跳过（规格 §3.5.1）。
+          for (let i = 0; i < items.length; i += 1) {
+            const tr = treeResults[i];
+            if (tr.status !== 'fulfilled' || tr.value === undefined || tr.value.fromCache) {
               continue;
             }
-            const { id, tree } = result.value;
-            if (tree !== undefined) {
-              applyTreeLoadedPrune(id, collectDirPaths(tree as WorkspaceTreeNode[]));
-            }
+            applyTreeLoadedPrune(items[i].id, collectDirPaths(tr.value.tree));
           }
-          return results;
+          // 静默校准（后台，不阻塞首屏）：仅对 fromCache 且行龄超 TTL 的行逐个
+          // refreshOneWorkspaceTree(id, path, { silent: true })；成功且无错则以新鲜树剪枝。
+          // TTL 行龄小跳过（零扫描重启）；单行失败只记 warn，不影响其他行与启动流程。
+          if (staleCapturedAt.size > 0) {
+            const calibrateAt = Date.now();
+            const calibrate = async () => {
+              for (const [id, capturedAt] of staleCapturedAt) {
+                if (typeof capturedAt !== 'number' || calibrateAt - capturedAt <= ttlMs) {
+                  continue;
+                }
+                const target = items.find((w) => w.id === id);
+                if (!target) {
+                  continue;
+                }
+                try {
+                  await get().refreshOneWorkspaceTree(asWorkspaceID(id), target.path, {
+                    silent: true,
+                  });
+                  if (get().workspaceTreeErrors[id] !== undefined) {
+                    continue;
+                  }
+                  const fresh = get().workspaceTrees[id];
+                  if (fresh !== undefined) {
+                    applyTreeLoadedPrune(id, collectDirPaths(fresh));
+                  }
+                } catch (err) {
+                  console.warn('[workspace load] silent tree calibration failed', { id, err });
+                }
+              }
+            };
+            void calibrate().catch((err) => {
+              console.warn('[workspace load] silent tree calibration failed', { err });
+            });
+          }
+          return items.map((item, i) => {
+            const tr = treeResults[i];
+            const sr = snapshotResults[i];
+            if (tr.status === 'rejected') {
+              return { status: 'rejected' as const, reason: tr.reason };
+            }
+            if (sr.status === 'rejected') {
+              return { status: 'rejected' as const, reason: sr.reason };
+            }
+            return {
+              status: 'fulfilled' as const,
+              value: {
+                id: item.id,
+                tree: tr.value?.tree,
+                snapshot: sr.value,
+              },
+            };
+          });
+          // rejected items are logged by logRejected() at the call site
         }
 
         // === Stage 1: priority blocks first screen ===
