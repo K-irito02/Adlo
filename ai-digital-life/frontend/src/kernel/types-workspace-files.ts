@@ -115,6 +115,17 @@ export interface WorkspaceTreeNode {
   children: WorkspaceTreeNode[];
 }
 
+/**
+ * POST `/workspace/tree` 的响应载荷：树 + 是否来自缓存行 + 行捕获时间。
+ * 与 Rust `TreePayload`（`#[serde(rename_all = "camelCase")]`）逐字段对齐；
+ * `capturedAt` 供校准门判定行龄，miss/force 时为本次扫描时间。
+ */
+export interface WorkspaceTreePayload {
+  tree: WorkspaceTreeNode[];
+  fromCache: boolean;
+  capturedAt: number;
+}
+
 export interface FileOutlineItem {
   id: string;
   label: string;

@@ -59,6 +59,27 @@ export interface StorageStatus {
   lastReport: StorageReport | null;
 }
 
+/**
+ * 工作区树缓存统计（设置页展示用）。
+ * 与 Rust `TreeCacheStats`（`#[serde(rename_all = "camelCase")]`）逐字段对齐；
+ * 空表时计数为 0、时间为 `null`。
+ */
+export interface TreeCacheStats {
+  workspaceCount: number;
+  totalBytes: number;
+  oldestCapturedAt: number | null;
+  newestCapturedAt: number | null;
+}
+
+/**
+ * 工作区树缓存开关与 TTL（分钟）；缺省 `enabled=true, ttlMinutes=15`。
+ * 与 Rust `TreeCacheOptions`（`#[serde(rename_all = "camelCase")]`）逐字段对齐。
+ */
+export interface TreeCacheOptions {
+  enabled: boolean;
+  ttlMinutes: number;
+}
+
 /** 提交给后端校验/写入的路径变更补丁。 */
 export interface StoragePathPatch {
   mode: StorageMode;
@@ -150,6 +171,31 @@ export interface StorageBridge {
    * @see mock-bridge.ts → storage.restartApp
    */
   restartApp: () => Promise<IpcResult<void>>;
+  /**
+   * 读取工作区树缓存统计（工作区数/总字节/最早与最新捕获时间）。
+   * @command storage_tree_cache_stats
+   * @see tauri-bridge/index.ts → storage.getTreeCacheStats
+   * @see preview-bridge/index.ts → storage.getTreeCacheStats
+   * @see mock-bridge.ts → storage.getTreeCacheStats
+   */
+  getTreeCacheStats: () => Promise<IpcResult<TreeCacheStats>>;
+  /**
+   * 写入工作区树缓存开关与 TTL（分钟）。
+   * @param opts 树缓存选项（开关 + TTL 分钟数）
+   * @command storage_tree_cache_options
+   * @see tauri-bridge/index.ts → storage.setTreeCacheOptions
+   * @see preview-bridge/index.ts → storage.setTreeCacheOptions
+   * @see mock-bridge.ts → storage.setTreeCacheOptions
+   */
+  setTreeCacheOptions: (opts: TreeCacheOptions) => Promise<IpcResult<void>>;
+  /**
+   * 清空工作区树缓存全部行（派生数据，删后下次扫描重建）。
+   * @command storage_tree_cache_clear
+   * @see tauri-bridge/index.ts → storage.clearTreeCache
+   * @see preview-bridge/index.ts → storage.clearTreeCache
+   * @see mock-bridge.ts → storage.clearTreeCache
+   */
+  clearTreeCache: () => Promise<IpcResult<void>>;
 }
 
 /** 10 个分类 key，顺序与 Rust `StorageCategory::key` / `StorageCategory::ALL` 一致。 */

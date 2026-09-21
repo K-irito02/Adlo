@@ -23,6 +23,7 @@ import type {
   WorkspaceSearchPage,
   WorkspaceSearchWindow,
   WorkspaceTreeNode,
+  WorkspaceTreePayload,
 } from '@ai-digital-life/kernel';
 
 export type {
@@ -50,6 +51,7 @@ export type {
   WorkspaceSearchPage,
   WorkspaceSearchWindow,
   WorkspaceTreeNode,
+  WorkspaceTreePayload,
 };
 
 /**
@@ -110,7 +112,8 @@ export interface WorkspaceBridge {
    * 获取指定工作区的文件目录树
    * @param workspacePath 工作区的绝对路径
    * @param options.force 为 true 时绕过服务端进程内缓存强制重新扫描（显式"刷新"用）
-   * @returns 文件目录树节点数组
+   * @param options.allowStale 为 true 时允许返回 SQLite 缓存行首包（stale-while-revalidate）
+   * @returns 树载荷（树 + 是否来自缓存 + 行捕获时间）
    * @command workspace_list_tree
    * @see tauri-bridge.ts → workspace.listTreeForWorkspace
    * @see mock-bridge.ts → workspace.listTreeForWorkspace
@@ -118,8 +121,8 @@ export interface WorkspaceBridge {
    */
   listTreeForWorkspace: (
     workspacePath: string,
-    options?: { force?: boolean },
-  ) => Promise<IpcResult<WorkspaceTreeNode[]>>;
+    options?: { force?: boolean; allowStale?: boolean },
+  ) => Promise<IpcResult<WorkspaceTreePayload>>;
   /**
    * 获取指定工作区的 Git 状态快照
    * @param workspacePath 工作区的绝对路径
@@ -216,13 +219,17 @@ export interface WorkspaceBridge {
   /**
    * 获取当前工作区的文件目录树
    * @param options.force 为 true 时绕过服务端进程内缓存强制重新扫描（显式"刷新"用）
-   * @returns 文件目录树节点数组
+   * @param options.allowStale 为 true 时允许返回 SQLite 缓存行首包（stale-while-revalidate）
+   * @returns 树载荷（树 + 是否来自缓存 + 行捕获时间）
    * @command workspace_list_tree
    * @see tauri-bridge.ts → workspace.listTree
    * @see mock-bridge.ts → workspace.listTree
    * @see preview-bridge/index.ts → workspace.listTree
    */
-  listTree: (options?: { force?: boolean }) => Promise<IpcResult<WorkspaceTreeNode[]>>;
+  listTree: (options?: {
+    force?: boolean;
+    allowStale?: boolean;
+  }) => Promise<IpcResult<WorkspaceTreePayload>>;
   /**
    * 在当前工作区中搜索文件/内容
    * @param query 搜索关键词
