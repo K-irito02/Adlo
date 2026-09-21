@@ -50,6 +50,28 @@ export function readStringEnum<T extends string>(
   };
 }
 
+/**
+ * 字符串集合（Task 23，变更状态过滤器）：落盘形态为数组，读回为 Set。
+ * 非数组外层判为不合法；数组内非法成员（非字符串 / 不在白名单）逐个过滤、
+ * 不整字段回退 —— 过滤器语义是"选中集合"，单个脏成员不应丢掉其余选中。
+ */
+export function readStringSet<T extends string>(
+  allowed: readonly T[],
+): (raw: unknown) => Set<T> | undefined {
+  return (raw: unknown) => {
+    if (!Array.isArray(raw)) {
+      return undefined;
+    }
+    const result = new Set<T>();
+    for (const item of raw) {
+      if (typeof item === 'string' && (allowed as readonly string[]).includes(item)) {
+        result.add(item as T);
+      }
+    }
+    return result;
+  };
+}
+
 /** 字符串：仅接受真正的 string（空串是合法值） */
 export function readString(raw: unknown): string | undefined {
   return typeof raw === 'string' ? raw : undefined;

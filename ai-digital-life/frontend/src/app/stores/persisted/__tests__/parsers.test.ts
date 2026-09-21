@@ -11,6 +11,7 @@ import {
   readObjectArray,
   readObjectArrayRecord,
   readSearchUseGitignore,
+  readStringSet,
   readDirExpansion,
 } from '../parsers';
 
@@ -235,5 +236,21 @@ describe('readDirExpansion', () => {
     expect(readDirExpansion([])).toBeUndefined();
     expect(readDirExpansion(null)).toBeUndefined();
     expect(readDirExpansion('src')).toBeUndefined();
+  });
+});
+
+describe('readStringSet', () => {
+  const read = readStringSet(['staged', 'modified', 'untracked'] as const);
+
+  it('keeps legal members and filters out illegal ones', () => {
+    const result = read(['staged', 'bogus', 42, 'modified']);
+    expect(result).toBeInstanceOf(Set);
+    expect([...(result ?? [])].sort()).toEqual(['modified', 'staged']);
+  });
+
+  it('rejects non-array input', () => {
+    expect(read('staged')).toBeUndefined();
+    expect(read({ staged: true })).toBeUndefined();
+    expect(read(null)).toBeUndefined();
   });
 });

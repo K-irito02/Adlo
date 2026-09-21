@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type {
   AppInfo,
@@ -71,6 +71,13 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
   const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
   const navigatorSelectedPath = selectedPatchFilePath ?? selectedChangePreviewPath;
+  // Changes 面板"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载），
+  // 未选中时回退到后端当前激活工作区。与 Files 面板 fileNavigatorActiveWorkspaceId 行为一致。
+  // （位置提前：下方大纲回填 effect 与 persist 回调在词法上先出现，须先声明避 TDZ。）
+  const derivedActiveWorkspaceId = appInfo?.currentWorkspace?.path
+    ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
+    : undefined;
+  const activeWorkspaceId = changesNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
   const changeOutline = useMemo(
     () =>
       changePreview
@@ -82,14 +89,40 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     () => getDefaultExpandedOutlineIds(changeOutline),
     [changeOutline],
   );
-  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(
-    () => defaultExpandedOutlineIds,
-  );
+  const [expandedOutlineIds, setExpandedOutlineIds] = useState<Set<string>>(() => {
+    // 挂载时按工作区回填已存展开（`adl:changes.outlineExpanded`，Task 23），
+    // 无记录时回退默认展开（与文件侧 persistOutlineIds 同形）。
+    const stored =
+      activeWorkspaceId !== undefined
+        ? useAppStore.getState().changesOutlineExpanded[activeWorkspaceId]
+        : undefined;
+    return stored !== undefined ? new Set(stored) : defaultExpandedOutlineIds;
+  });
+  const prevOutlineDefaultsRef = useRef(defaultExpandedOutlineIds);
   useEffect(() => {
+    if (prevOutlineDefaultsRef.current === defaultExpandedOutlineIds) {
+      return;
+    }
+    prevOutlineDefaultsRef.current = defaultExpandedOutlineIds;
+    // 预览内容切换导致默认展开变化：只重置本地视图，不写盘（同文件侧理由，
+    // 见 FileNavigatorShell 的 persistOutlineIds 注释）。
     setExpandedOutlineIds(defaultExpandedOutlineIds);
   }, [defaultExpandedOutlineIds]);
   const hasExpandableOutlineItems = defaultExpandedOutlineIds.size > 0;
   const hasExpandedOutlineItems = expandedOutlineIds.size > 0;
+
+  // 用户折叠/展开即写回 store（按当前选中工作区隔离）
+  const persistChangesOutlineIds = useCallback(
+    (ids: Set<string>) => {
+      setExpandedOutlineIds(ids);
+      const wsId =
+        useAppStore.getState().changesNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
+      if (wsId !== undefined) {
+        useAppStore.getState().setChangesOutlineExpanded(wsId, [...ids]);
+      }
+    },
+    [derivedActiveWorkspaceId],
+  );
 
   const navigatorRelativePath = selectedPatchFilePath ?? selectedChangePreviewPath;
 
@@ -103,13 +136,6 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     }
     return joinPathSegments(wsPath, navigatorRelativePath);
   }, [navigatorRelativePath, appInfo]);
-
-  // Changes 面板"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载），
-  // 未选中时回退到后端当前激活工作区。与 Files 面板 fileNavigatorActiveWorkspaceId 行为一致。
-  const derivedActiveWorkspaceId = appInfo?.currentWorkspace?.path
-    ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
-    : undefined;
-  const activeWorkspaceId = changesNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
 
   // 单工作区目录开关（toolbar toggle-all 用的状态与动作）按选中工作区隔离：
   // 只取该工作区的扁平展开表，未记录的工作区视为空展开。
@@ -173,7 +199,7 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
     changeOutline,
     defaultExpandedOutlineIds,
     expandedOutlineIds,
-    setExpandedOutlineIds,
+    setExpandedOutlineIds: persistChangesOutlineIds,
     hasExpandableOutlineItems,
     hasExpandedOutlineItems,
     navigatorRelativePath,

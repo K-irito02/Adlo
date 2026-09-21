@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import type { Dispatch, SetStateAction } from 'react';
 import type { CopyDict } from '@app/i18n';
 import type { ChangesMenuItem } from '../ChangesTopToolbar';
 import { computeChangesMenuItems } from './useChangesPanelStateUtils';
@@ -8,8 +7,8 @@ export interface UseChangesPanelMenuItemsInput {
   t: CopyDict;
   lineNumbersEnabled: boolean;
   wordWrapEnabled: boolean;
-  setLineNumbersEnabled: Dispatch<SetStateAction<boolean>>;
-  setWordWrapEnabled: Dispatch<SetStateAction<boolean>>;
+  setLineNumbersEnabled: (enabled: boolean) => void;
+  setWordWrapEnabled: (enabled: boolean) => void;
   navigatorRelativePath: string | undefined;
   navigatorAbsolutePath: string | undefined;
   copyToClipboard: (text: string) => Promise<void>;
@@ -34,8 +33,8 @@ export function useChangesPanelMenuItems({
         t,
         lineNumbersEnabled,
         wordWrapEnabled,
-        () => setLineNumbersEnabled((v) => !v),
-        () => setWordWrapEnabled((v) => !v),
+        () => setLineNumbersEnabled(!lineNumbersEnabled),
+        () => setWordWrapEnabled(!wordWrapEnabled),
       ),
     [t, lineNumbersEnabled, wordWrapEnabled, setLineNumbersEnabled, setWordWrapEnabled],
   );

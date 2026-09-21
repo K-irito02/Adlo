@@ -10,6 +10,7 @@ import type {
   FilesSearchScope,
 } from '../types';
 import type { SettingsGroupId } from '@ai-digital-life/kernel';
+import type { ChangeFileState } from '@regions/right-panel/changesTree';
 
 // ════════════════════════════════════════════════════════
 // LocalStorage 键名常量
@@ -126,6 +127,14 @@ export interface UISlice {
   activeSettingsGroup: SettingsGroupId;
   settingsSearchQuery: string;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
+  /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
+  changesStatusFilter: Set<ChangeFileState>;
+  /** 变更大纲展开项（按工作区隔离，`adl:changes.outlineExpanded`，Task 23） */
+  changesOutlineExpanded: Record<string, string[]>;
+  /** 变更 diff 行号开关（`adl:changes.lineNumbers`，Task 23） */
+  changesLineNumbers: boolean;
+  /** 变更 diff 自动换行开关（`adl:changes.wordWrap`，Task 23） */
+  changesWordWrap: boolean;
 
   setActiveRightTool: (tool: ToolId) => void;
   setLeftCollapsed: (collapsed: boolean) => void;
@@ -167,4 +176,9 @@ export interface UISlice {
   setSettingsSearchQuery: (query: string) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
+  setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;
+  toggleChangesStatusFilter: (filter: ChangeFileState) => void;
+  setChangesOutlineExpanded: (workspaceId: string, ids: string[]) => void;
+  setChangesLineNumbers: (enabled: boolean) => void;
+  setChangesWordWrap: (enabled: boolean) => void;
 }

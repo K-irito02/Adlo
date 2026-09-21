@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { ChangesPanelProps } from '@regions/right-panel/types';
 import { useTCopy } from '@app/i18n/useTCopy';
@@ -65,8 +65,11 @@ export function useChangesPanelState(props: ChangesPanelProps) {
   const changesTreeClickedPath = useAppStore((s) => s.changesTreeClickedPath);
   const changesTreeClickedWorkspaceId = useAppStore((s) => s.changesTreeClickedWorkspaceId);
   const snapshot = props.gitSnapshot ?? appInfo?.currentWorkspace?.gitSnapshot;
-  const [lineNumbersEnabled, setLineNumbersEnabled] = useState(true);
-  const [wordWrapEnabled, setWordWrapEnabled] = useState(true);
+  // diff 显示开关上提 store（`adl:changes.lineNumbers` / `adl:changes.wordWrap`，Task 23）
+  const lineNumbersEnabled = useAppStore((s) => s.changesLineNumbers);
+  const wordWrapEnabled = useAppStore((s) => s.changesWordWrap);
+  const setLineNumbersEnabled = useAppStore((s) => s.setChangesLineNumbers);
+  const setWordWrapEnabled = useAppStore((s) => s.setChangesWordWrap);
   const editorRef = useRef<DiffEditorRef | EditorRef | null>(null);
   const changesPreviewContainerRef = useRef<HTMLDivElement | null>(null);
 

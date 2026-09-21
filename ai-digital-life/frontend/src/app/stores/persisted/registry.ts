@@ -9,6 +9,7 @@ import {
   readStringArrayRecord,
   readSearchFlags,
   readClickedNodeRecord,
+  readStringSet,
   readNumberArray,
   readObjectArray,
   readObjectArrayRecord,
@@ -105,6 +106,7 @@ import {
 import type { TerminalViewPrefs } from '../../features/terminal/terminalViewPrefs';
 import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode } from '../slices/editorSlice';
+import type { ChangeFileState } from '../../regions/right-panel/changesTree';
 
 // ─────────────────────────────────────────────────────────────
 // 浏览器面板条目的逐项形状校验器（Task 9）
@@ -485,6 +487,45 @@ export const registry = {
       'warm-sunset',
       'high-contrast',
     ] as const),
+  }),
+  // ─────────────────────────────────────────────────────────────
+  // 变更面板子状态补齐（Task 23）：状态过滤器（store 持 Set、落盘转数组，
+  // 读侧 readStringSet 把非法成员逐个过滤；空集 = 不过滤）+ 变更大纲展开
+  // （组件本地 state 上提 store，挂载时按工作区回填）+ diff 行号/换行开关。
+  // ─────────────────────────────────────────────────────────────
+  'adl:changes.statusFilter': defineEntry<Set<ChangeFileState>>({
+    key: 'adl:changes.statusFilter',
+    field: 'changesStatusFilter',
+    fallback: new Set(),
+    scope: 'global',
+    read: readStringSet<ChangeFileState>([
+      'staged',
+      'modified',
+      'untracked',
+      'conflicted',
+    ] as const),
+  }),
+  'adl:changes.outlineExpanded': defineEntry<Record<string, string[]>>({
+    key: 'adl:changes.outlineExpanded',
+    field: 'changesOutlineExpanded',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readStringArrayRecord,
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:changes.lineNumbers': defineEntry<boolean>({
+    key: 'adl:changes.lineNumbers',
+    field: 'changesLineNumbers',
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:changes.wordWrap': defineEntry<boolean>({
+    key: 'adl:changes.wordWrap',
+    field: 'changesWordWrap',
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
   }),
 
   // ─────────────────────────────────────────────────────────────

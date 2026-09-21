@@ -4,6 +4,7 @@
  */
 import type { StoreState } from '../StoreState';
 import { persistField } from '../persisted/apply';
+import { persist } from '../persisted/persist';
 import type { UISlice } from './uiSliceTypes';
 import { defaultNavigatorCollapsed } from './uiSliceTypes';
 import { createUIWidthSlice } from './uiSliceWidths';
@@ -73,6 +74,10 @@ export const createUISlice = (
     activeSettingsGroup: 'general',
     settingsSearchQuery: '',
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
+    changesStatusFilter: new Set(),
+    changesOutlineExpanded: {},
+    changesLineNumbers: true,
+    changesWordWrap: true,
 
     setIsFetching: (key, value) => {
       set((state) => ({
@@ -159,6 +164,39 @@ export const createUISlice = (
         const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };
         return persistField('adl:ui.navigatorCollapsed', next);
       }),
+    // 变更状态过滤器（Task 23）：store 持有 Set（渲染直接用），落盘转数组
+    // （Set 不可 JSON 序列化）—— 仍是唯一写通道 persist，只是落盘形态与 store 形态
+    // 不同，故 value 侧用 as never 桥接（同 pruneWiring 的 persist 调用写法）；
+    // 读侧 readStringSet 把数组转回 Set，往返后仍为 Set 实例（见持久化测试）。
+    setChangesStatusFilter: (filter) => {
+      const next = new Set(filter);
+      persist('adl:changes.statusFilter', [...next] as never);
+      set({ changesStatusFilter: next });
+    },
+    toggleChangesStatusFilter: (filter) =>
+      set((state) => {
+        const next = new Set(state.changesStatusFilter);
+        if (next.has(filter)) {
+          next.delete(filter);
+        } else {
+          next.add(filter);
+        }
+        persist('adl:changes.statusFilter', [...next] as never);
+        return { changesStatusFilter: next };
+      }),
+    setChangesOutlineExpanded: (workspaceId, ids) =>
+      set((state) =>
+        persistField('adl:changes.outlineExpanded', {
+          ...state.changesOutlineExpanded,
+          [workspaceId]: [...ids],
+        }),
+      ),
+    setChangesLineNumbers: (enabled) => {
+      set(persistField('adl:changes.lineNumbers', enabled));
+    },
+    setChangesWordWrap: (enabled) => {
+      set(persistField('adl:changes.wordWrap', enabled));
+    },
     toggleNavigator: (tool) =>
       set((state) => {
         const next = {
