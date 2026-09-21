@@ -53,6 +53,12 @@
 - 双端一致：Tauri 真加速用例；mock/preview 恒 miss 正确性用例。
 - 验收指标：本仓库单仓冷启动树渲染 ≤1.5s（含 stale 即时渲染）；校准过程无 loading 闪烁；关闭场景（无行/损坏/开关关）行为与现状一致。
 
+## 9. 验收记录（机器部分，2026-09-21；真机待用户）
+
+- Rust：`adl-workspace` 113 + `adl-server` 43 系列 + `adl-kernel/adl-storage/adl-migration` 66/2+7/35 全绿；`cargo fmt --check` / `clippy --workspace --all-targets -D warnings` / `cargo check --workspace` 全绿。
+- 前端：单命令全量 307 files / 2581 passed；`tsc` / `eslint`（0 errors）/ `prettier --check` / `check:i18n`（1546=1546）全绿。
+- 待用户真机（CLI 不可见）：重启秒显旧树 + 后台校准无感 + 设置行统计/清除 + 移除删行 + 开关/TTL 生效 + 同路径重建无复活。
+
 ## 7. 其它面板核查结论（不再议）
 
 | 面板 | 证据 | 结论 |
