@@ -1,6 +1,7 @@
 import { clamp } from '../storageHelpers';
 import { normalizeIgnoredEntry } from '../../../shared/ipc/searchIgnore';
 import { readBooleanRecord } from './entry';
+import { BROWSER_ZOOM_MIN, BROWSER_ZOOM_MAX } from '../slices/browserSliceShared';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
 import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode } from '../slices/editorSlice';
@@ -245,6 +246,47 @@ export function readSearchUseGitignore(raw: unknown): Record<string, boolean> | 
   }
   const result: Record<string, boolean> = {};
   for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof value !== 'boolean') {
+      return undefined;
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
+/**
+ * 每标签缩放的读侧校验（Task 24，`Record<tabId, zoom>`）。
+ * 任一值非有限数值即整字段判为不合法；越界值钳制到 [0.5, 2.0]
+ * （与写侧 setBrowserZoomByTab 的 clamp 同源，见 browserSliceShared）。
+ */
+export function readZoomByTab(raw: unknown): Record<string, number> | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  const result: Record<string, number> = {};
+  for (const [tabId, value] of Object.entries(raw)) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return undefined;
+    }
+    result[tabId] = clamp(value, BROWSER_ZOOM_MIN, BROWSER_ZOOM_MAX);
+  }
+  return result;
+}
+
+/**
+ * 浏览器三大类区展开的读侧校验（Task 24）。
+ * 只接受 workspace / userFolder / history 三类已知 id（未知键即整字段不合法，
+ * 防止笔误键产生"合法但不同"的记录）；值必须为布尔。无记录时调用方默认展开。
+ */
+export function readBrowserCategoryExpanded(raw: unknown): Record<string, boolean> | undefined {
+  if (!isPlainRecord(raw)) {
+    return undefined;
+  }
+  const result: Record<string, boolean> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (key !== 'workspace' && key !== 'userFolder' && key !== 'history') {
+      return undefined;
+    }
     if (typeof value !== 'boolean') {
       return undefined;
     }

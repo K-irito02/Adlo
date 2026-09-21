@@ -10,6 +10,8 @@ import {
   readSearchFlags,
   readClickedNodeRecord,
   readStringSet,
+  readZoomByTab,
+  readBrowserCategoryExpanded,
   readNumberArray,
   readObjectArray,
   readObjectArrayRecord,
@@ -28,6 +30,7 @@ import {
 } from '../../../shared/ipc/searchWindow';
 import {
   pruneByWorkspaceId,
+  pruneByTabId,
   pruneBrowserTreeExpanded,
   pruneDirExpansion,
   pruneDirPathsByWorkspace,
@@ -47,6 +50,8 @@ import type {
   WorkspaceBookmarkEntry,
 } from '../slices/browserTypes';
 import type { SearchEngine } from '../slices/browserSearchEnginesSlice';
+import type { BrowserNavigatorMode } from '../../features/browser/useBrowserTabs';
+import type { BrowserSearchScope } from '../../features/browser/useBrowserSearch';
 import {
   LEFT_PANEL_WIDTH_MIN,
   LEFT_PANEL_WIDTH_MAX,
@@ -649,6 +654,49 @@ export const registry = {
     fallback: '',
     scope: 'global',
     read: readString,
+  }),
+  // ─────────────────────────────────────────────────────────────
+  // 浏览器面板子状态补齐（Task 24）：导航子视图模式 + 导航检索范围（检索词
+  // 本体是瞬态草稿，不登记，同 T22）+ 树选中项（"点击外部即清空"保留，
+  // 清空同样落盘 null，否则重启高亮已放弃项）+ 每标签缩放（按标签隔离，
+  // 关标签经 pruneByTabId 清理）+ 三大类区展开（记录驱动，无记录默认展开）。
+  // ─────────────────────────────────────────────────────────────
+  'adl:browser.navigatorMode': defineEntry<BrowserNavigatorMode>({
+    key: 'adl:browser.navigatorMode',
+    field: 'browserNavigatorMode',
+    fallback: 'tabs',
+    scope: 'global',
+    read: readStringEnum<BrowserNavigatorMode>(['open', 'tabs', 'list', 'search'] as const),
+  }),
+  'adl:browser.searchScope': defineEntry<BrowserSearchScope>({
+    key: 'adl:browser.searchScope',
+    field: 'browserSearchScope',
+    fallback: 'all',
+    scope: 'global',
+    read: readStringEnum<BrowserSearchScope>(['bookmarks', 'history', 'all'] as const),
+  }),
+  'adl:browser.selectedTreePath': defineEntry<string | null>({
+    key: 'adl:browser.selectedTreePath',
+    field: 'browserSelectedTreePath',
+    fallback: null,
+    scope: 'global',
+    // null（用户清空）是合法持久值；只有类型不符才回退（仍为 null）并记脏
+    read: (raw) => (raw === null || typeof raw === 'string' ? raw : undefined),
+  }),
+  'adl:browser.zoomByTab': defineEntry<Record<string, number>>({
+    key: 'adl:browser.zoomByTab',
+    field: 'browserZoomByTab',
+    fallback: {},
+    scope: 'byTabId',
+    read: readZoomByTab,
+    prune: pruneByTabId,
+  }),
+  'adl:browser.categoryExpanded': defineEntry<Record<string, boolean>>({
+    key: 'adl:browser.categoryExpanded',
+    field: 'browserCategoryExpanded',
+    fallback: {},
+    scope: 'global',
+    read: readBrowserCategoryExpanded,
   }),
 
   // ─────────────────────────────────────────────────────────────

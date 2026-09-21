@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAppStore } from '@stores/slicedStore';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type {
   BrowserTabState,
@@ -65,6 +66,10 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
 
   const tabIdToUrl = browserBookmarkTabIdUrlMap;
 
+  // 三大类区展开由记录驱动（`adl:browser.categoryExpanded`，Task 24）；
+  // 无记录的大类默认展开（保持既有观感，旧硬编码 true 的等价语义）。
+  const categoryExpanded = useAppStore((s) => s.browserCategoryExpanded);
+
   // 站点元数据镜像更新时强制重建收藏树节点标题（resolveSiteTitle 依赖 metaTitle/确认态）
   const [metaVersion, setMetaVersion] = useState(0);
   useEffect(() => subscribeSiteMetaGlobal(() => setMetaVersion((v) => v + 1)), []);
@@ -106,11 +111,11 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     () => ({
       id: 'workspace',
       label: labels.workspaceCategory,
-      isExpanded: true,
+      isExpanded: categoryExpanded['workspace'] ?? true,
       isPermanent: false,
       nodes: workspaceNodes,
     }),
-    [workspaceNodes, labels.workspaceCategory],
+    [workspaceNodes, labels.workspaceCategory, categoryExpanded],
   );
 
   const userFolderNodes = useMemo(
@@ -129,11 +134,11 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     () => ({
       id: 'userFolder',
       label: labels.userFolderCategory,
-      isExpanded: true,
+      isExpanded: categoryExpanded['userFolder'] ?? true,
       isPermanent: false,
       nodes: userFolderNodes,
     }),
-    [userFolderNodes, labels.userFolderCategory],
+    [userFolderNodes, labels.userFolderCategory, categoryExpanded],
   );
 
   const historyNodes = useMemo(
@@ -145,11 +150,11 @@ export function useBrowserTreeCache(input: UseBrowserTreeCacheInput): UseBrowser
     () => ({
       id: 'history',
       label: labels.historyCategory,
-      isExpanded: true,
+      isExpanded: categoryExpanded['history'] ?? true,
       isPermanent: true,
       nodes: historyNodes,
     }),
-    [historyNodes, labels.historyCategory],
+    [historyNodes, labels.historyCategory, categoryExpanded],
   );
 
   /* eslint-enable react-hooks/exhaustive-deps */

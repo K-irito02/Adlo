@@ -14,10 +14,14 @@
  *   （hydrateBrowserDefaults 已删除）。
  */
 import type { StoreState } from '../StoreState';
-import { createUiId } from '../shared';
+import { createUiId, clamp } from '../shared';
 import { isRealTitle } from '@utils/browserDisplayUtils';
 import { persistField } from '../persisted/apply';
 import { persist } from '../persisted/persist';
+import { BROWSER_ZOOM_MIN, BROWSER_ZOOM_MAX } from './browserSliceShared';
+import type { BrowserNavigatorMode } from '../../features/browser/useBrowserTabs';
+import type { BrowserSearchScope } from '../../features/browser/useBrowserSearch';
+import type { BrowserCategoryType } from '../../features/browser-tree/types';
 
 import type { BrowserTabState } from './browserSliceShared';
 
@@ -45,6 +49,27 @@ export interface BrowserSlice {
   browserNavigateInPlace: boolean;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setBrowserNavigateInPlace: (value: boolean) => void;
+  /** 导航子视图模式（`adl:browser.navigatorMode`，Task 24） */
+  browserNavigatorMode: BrowserNavigatorMode;
+  setBrowserNavigatorMode: (mode: BrowserNavigatorMode) => void;
+  /** 导航检索范围（`adl:browser.searchScope`，Task 24） */
+  browserSearchScope: BrowserSearchScope;
+  setBrowserSearchScope: (scope: BrowserSearchScope) => void;
+  /**
+   * 树选中项（`adl:browser.selectedTreePath`，Task 24；null = 无选中）。
+   * "点击外部即清空"行为保留：清空同样落盘（null），否则重启会高亮已放弃的项。
+   */
+  browserSelectedTreePath: string | null;
+  setBrowserSelectedTreePath: (path: string | null) => void;
+  /** 每标签缩放（`adl:browser.zoomByTab`，Task 24；无记录标签取 1.0） */
+  browserZoomByTab: Record<string, number>;
+  setBrowserZoomByTab: (tabId: string, zoom: number) => void;
+  /**
+   * 三大类区展开（`adl:browser.categoryExpanded`，Task 24）。
+   * 无记录的大类默认展开（保持既有观感）；读侧只接受三类已知 id。
+   */
+  browserCategoryExpanded: Record<string, boolean>;
+  setBrowserCategoryExpanded: (category: BrowserCategoryType, expanded: boolean) => void;
 }
 
 export const createBrowserSlice = (
@@ -53,6 +78,11 @@ export const createBrowserSlice = (
 ): BrowserSlice => {
   return {
     browserNavigateInPlace: false,
+    browserNavigatorMode: 'tabs',
+    browserSearchScope: 'all',
+    browserSelectedTreePath: null,
+    browserZoomByTab: {},
+    browserCategoryExpanded: {},
 
     browserNavigateActiveTab: (url: string, title?: string) => {
       set((state) => {
@@ -114,5 +144,29 @@ export const createBrowserSlice = (
     setBrowserNavigateInPlace: (value: boolean) => {
       set(persistField('adl:browser.navigateInPlace', value));
     },
+    setBrowserNavigatorMode: (mode) => {
+      set(persistField('adl:browser.navigatorMode', mode));
+    },
+    setBrowserSearchScope: (scope) => {
+      set(persistField('adl:browser.searchScope', scope));
+    },
+    setBrowserSelectedTreePath: (path) => {
+      set(persistField('adl:browser.selectedTreePath', path));
+    },
+    setBrowserZoomByTab: (tabId, zoom) =>
+      set((state) =>
+        persistField('adl:browser.zoomByTab', {
+          ...state.browserZoomByTab,
+          // 写侧钳制与读侧 readZoomByTab 同源（常量见 browserSliceShared）
+          [tabId]: clamp(zoom, BROWSER_ZOOM_MIN, BROWSER_ZOOM_MAX),
+        }),
+      ),
+    setBrowserCategoryExpanded: (category, expanded) =>
+      set((state) =>
+        persistField('adl:browser.categoryExpanded', {
+          ...state.browserCategoryExpanded,
+          [category]: expanded,
+        }),
+      ),
   };
 };

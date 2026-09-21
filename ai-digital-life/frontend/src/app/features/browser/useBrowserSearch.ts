@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -69,7 +70,9 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
   const { browserBookmarks, browserHistory, browserTabs } = options;
 
   const [navigatorQuery, setNavigatorQuery] = useState('');
-  const [searchScope, setSearchScope] = useState<BrowserSearchScope>('all');
+  // 检索范围上提 store（`adl:browser.searchScope`，Task 24）；检索词本体是瞬态草稿，不登记
+  const searchScope = useAppStore((s) => s.browserSearchScope);
+  const setSearchScope = useAppStore((s) => s.setBrowserSearchScope);
 
   const navigatorSearchRef = useRef<HTMLDivElement | null>(null);
   const navigatorSearchInputRef = useRef<HTMLInputElement | null>(null);

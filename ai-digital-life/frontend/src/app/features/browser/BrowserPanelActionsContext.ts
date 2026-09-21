@@ -19,7 +19,9 @@ export interface BrowserPanelActions {
     React.SetStateAction<{ open: boolean; folderId: string; currentName: string }>
   >;
   setNavigatorQuery: React.Dispatch<React.SetStateAction<string>>;
-  setSearchScope: React.Dispatch<React.SetStateAction<BrowserSearchScope>>;
+  // 检索范围 / 导航模式上提 store（Task 24）：调用方只传具体值，
+  // 故此处收窄为值 setter（原 Dispatch<SetStateAction> 的函数形态已无调用点）。
+  setSearchScope: (scope: BrowserSearchScope) => void;
   handleToggleTreePath: (path: string) => void;
   handleDeleteAllChildTabs: (_categoryType: string, nodePath: string) => void;
   handleDeleteOwnChildTabs: (_categoryType: string, nodePath: string) => void;
@@ -45,7 +47,7 @@ export interface BrowserPanelActions {
   handleReload: () => void;
   canGoBack: boolean;
   canGoForward: boolean;
-  setNavigatorMode: React.Dispatch<React.SetStateAction<BrowserNavigatorMode>>;
+  setNavigatorMode: (mode: BrowserNavigatorMode) => void;
   handleSelectTreePath: (path: string | null) => void;
   showToast: (message: string, type?: 'success' | 'warning' | 'error') => void;
   browserOpenTab: (url?: string, title?: string, folderId?: string) => void;

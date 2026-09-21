@@ -28,7 +28,8 @@ interface UseBrowserPanelEffectsParams {
   setAddressExpanded: Dispatch<SetStateAction<boolean>>;
   addressSearchRef: RefObject<HTMLLabelElement | null>;
   navigatorMode: BrowserNavigatorMode;
-  setNavigatorMode: Dispatch<SetStateAction<BrowserNavigatorMode>>;
+  // 同上收窄（Task 24）：内部只调用 setNavigatorMode('tabs') 具体值。
+  setNavigatorMode: (mode: BrowserNavigatorMode) => void;
   navigatorSearchRef: RefObject<HTMLDivElement | null>;
 }
 
