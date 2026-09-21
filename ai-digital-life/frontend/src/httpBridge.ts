@@ -1141,9 +1141,9 @@ export function createHttpBridge({
         call<StorageApplyResult>(baseUrl, '/storage/set-paths', POST({ patch, applyNow })),
       cancelPending: () => call<void>(baseUrl, '/storage/cancel-pending', POST({})),
       restartApp: () => taskNotSupported<void>('storage.restartApp'),
-      // 工作区树缓存（Task 5 `StorageBridge` 三方法）：路由 `/storage/tree-cache/*`
-      // 尚无服务端实现（`crates/server/src/router.rs` 无对应条目——后端任务落地前
-      // 404 透传为结构化 `IpcResult` 错误，见 `call` 的非 2xx 透传分支）。
+      // 工作区树缓存（`StorageBridge` 三方法）：路由见
+      // `crates/server/src/router.rs`（`/storage/tree-cache/*`）与
+      // `crates/server/src/handlers/storage.rs`，Tauri 命令见 `commands/storage.rs`。
       getTreeCacheStats: () => call<TreeCacheStats>(baseUrl, '/storage/tree-cache/stats', POST({})),
       setTreeCacheOptions: (opts: TreeCacheOptions) =>
         call<void>(baseUrl, '/storage/tree-cache/options', POST(opts)),

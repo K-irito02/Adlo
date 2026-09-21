@@ -1042,6 +1042,31 @@ mod tree_cache_tests {
         cleanup(&tmp);
     }
 
+    /// 工作区移除路径复用 `invalidate_tree_cache`：L1 内存与 L2 落盘行必须同删。
+    /// 仅删盘（`remove_tree_cache_row`）会留下 L1，TTL 内同路径重建可经 allowStale
+    /// 复活已删树——回归锁定移除路径的调用必须是 invalidate。
+    #[test]
+    fn workspace_removal_invalidate_clears_memory_and_disk() {
+        let _l2 = l2_isolated_env("removal");
+        let tmp = unique_tmp_dir("l2-removal");
+        std::fs::write(tmp.join("a.txt"), b"a").unwrap();
+        let _ = list_tree_cached(&tmp).unwrap();
+        let key = normalize_cache_key(&tmp);
+        assert!(
+            tree_cache().lock().unwrap_or_else(|e| e.into_inner()).contains_key(&key),
+            "L1 must be primed"
+        );
+        assert!(!tree_cache_store_row_absent(&tmp), "disk row must exist after scan");
+        // 与 `workspace_sidebar::remove_from_sidebar` 移除路径同调用。
+        invalidate_tree_cache(&tmp);
+        assert!(
+            !tree_cache().lock().unwrap_or_else(|e| e.into_inner()).contains_key(&key),
+            "L1 must be gone after removal"
+        );
+        assert!(tree_cache_store_row_absent(&tmp), "disk row must be gone after removal");
+        cleanup(&tmp);
+    }
+
     /// `--data-dir` 提取（`tree_cache_dir` 回退链用）：空格与等号两式，缺席为 None。
     #[test]
     fn data_dir_from_args_supports_space_and_equals_forms() {
