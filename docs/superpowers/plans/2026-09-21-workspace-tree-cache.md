@@ -168,7 +168,7 @@ git commit -m "feat(workspace): add SQLite row-level tree cache store"
 
 **Interfaces:**
 - Consumes: Task 1 的 `TreeCacheStore::open/get/put/remove`；`now_ms()`（`tree.rs` 既有 helper，以实际签名为准）；DB 目录由调用方经 `adl-kernel::storage` 解析后传入——`list_tree_cached(root)` 签名**不得**改变（调用方众多），DB 目录解析收敛到一处内部 helper `tree_cache_dir()`（读 `adl-kernel::storage` 对应分类目录；解析失败则跳过 L2，行为等同现状）。
-- Produces: 同名函数语义升级（L1 内存 → L2 SQLite → L3 全量扫并回写）；`invalidate_tree_cache` 附带删 SQLite 行；**新增导出 `list_tree_cached_stale_ok(root) -> (Vec<WorkspaceTreeNode>, bool)`（L1/L2 命中返 `(tree, true)`，miss 全量扫返 `(tree, false)`，供 Task 4）与 `remove_tree_cache_row(root)`（`invalidate` 的 SQLite 部分拆出，供 Task 4 移除路径复用，不得重复实现）。
+- Produces: 同名函数语义升级（L1 内存 → L2 SQLite → L3 全量扫并回写）；`invalidate_tree_cache` 附带删 SQLite 行；**新增导出 `list_tree_cached_stale_ok(root) -> (Vec<WorkspaceTreeNode>, bool, i64)`（L1/L2 命中返 `(tree, true, captured_at)`，miss 全量扫返 `(tree, false, now_ms)`，供 Task 4 组 `TreePayload`；captured_at 系预检裁定的校准门输入）与 `remove_tree_cache_row(root)`（返回 `()`，内部 best-effort，调用方无需处理错误，供 Task 4 移除路径复用，不得重复实现）。
 
 - [ ] **Step 1: 写失败测试**（`tree.rs` 的 `tree_cache_tests` 模块追加）
 
@@ -366,16 +366,14 @@ let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
 .await;
 ```
 
-注：`list_tree_cached_stale_ok` 需在 Task 2 的实现中一并导出（若 Task 2 未导出，在本任务补，**不得**回头改 Task 2 的测试）：语义 = L1/L2 命中即返 `(tree, true)`，miss 则全量扫返 `(tree, false)`（miss 时本次即新鲜，无需二次校准——调用方见 `from_cache:false` 即知）。tracing `debug!` 行追加 `allow_stale` 与 `from_cache` 字段（沿用既有 `elapsed_ms/force/root` 格式）。
+注：`list_tree_cached_stale_ok` 需在 Task 2 的实现中一并导出：语义 = L1/L2 命中即返 `(tree, true, captured_at)`，miss 则全量扫返 `(tree, false, now_ms)`（miss 时本次即新鲜，无需二次校准——调用方见 `from_cache:false` 即知）。tracing `debug!` 行追加 `allow_stale` 与 `from_cache` 字段（沿用既有 `elapsed_ms/force/root` 格式）。
 
 移除删行（`workspace_sidebar.rs:222-240` 段内，`purge_workspace` 成功后）：
 
 ```rust
-// 树缓存行同删（best-effort：失败只记日志，永不让移除失败）
+// 树缓存行同删（best-effort：remove 内部永不抛错，直接调用即可）
 if let Some(root) = root_path.as_deref() {
-    if let Err(e) = adl_workspace::remove_tree_cache_row(root) {
-        tracing::debug!(root = root, error = %e, "tree cache row removal skipped");
-    }
+    adl_workspace::remove_tree_cache_row(root);
 }
 ```
 
