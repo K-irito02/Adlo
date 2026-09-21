@@ -137,14 +137,29 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         ): Promise<PromiseSettledResult<{ id: string; tree: unknown; snapshot: unknown }>[]> {
           const tasks = items.map((w) => ({
             id: w.id,
-            treeLoader: () =>
-              window.digitalLife.workspace
-                .listTreeForWorkspace(w.path)
-                .then((r) => (r.ok ? r.data : undefined)),
-            snapshotLoader: () =>
-              window.digitalLife.workspace
-                .listGitStatusForWorkspace(w.path)
-                .then((r) => (r.ok ? r.data : undefined)),
+            // TEMP-RCA(事项1): 分项计时，区分树扫描慢还是 git 快照慢（定案前删除）
+            treeLoader: () => {
+              const t0 = Date.now();
+              return window.digitalLife.workspace.listTreeForWorkspace(w.path).then((r) => {
+                console.log('[ADL-DBG-RCA] treeLoader settled', {
+                  id: w.id,
+                  ms: Date.now() - t0,
+                  ok: r.ok,
+                });
+                return r.ok ? r.data : undefined;
+              });
+            },
+            snapshotLoader: () => {
+              const t0 = Date.now();
+              return window.digitalLife.workspace.listGitStatusForWorkspace(w.path).then((r) => {
+                console.log('[ADL-DBG-RCA] snapshotLoader settled', {
+                  id: w.id,
+                  ms: Date.now() - t0,
+                  ok: r.ok,
+                });
+                return r.ok ? r.data : undefined;
+              });
+            },
           }));
           // 提前设置 loading 标记，防止用户在 loadBatch 进行中点击展开时触发重复 lazyLoad
           // （createLazyLoader 的 guard 会检查 isLoading，从而跳过已排队的工作区）

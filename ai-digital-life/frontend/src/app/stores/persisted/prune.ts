@@ -5,6 +5,16 @@ import type { TreeExpansion } from '../slices/uiSliceTypes';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 
 /**
+ * 非工作区保留键：这类键与工作区 id 同处一个按工作区隔离的映射里，
+ * 但自身不是工作区（如终端"默认终端目录" `__independent__`），
+ * 按工作区存在性剪枝时必须豁免，否则重启必丢（事项 3 根因）。
+ * 引用该常量的 UI 侧同名定义见 TerminalPanel / MultiWorkspaceTerminal。
+ */
+export const NON_WORKSPACE_PRESERVED_KEYS: ReadonlySet<string> = new Set(['__independent__']);
+
+const EMPTY_PRESERVE: ReadonlySet<string> = new Set();
+
+/**
  * 按工作区存在性剪枝。
  *
  * 安全不变量：workspaceIds 为空时**必须**跳过 —— store 构造期工作区列表尚未载入，
@@ -13,6 +23,7 @@ import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 export function pruneByWorkspaceId<T extends Record<string, unknown>>(
   value: T,
   ctx: PruneCtx,
+  preserve: ReadonlySet<string> = EMPTY_PRESERVE,
 ): PruneResult<T> {
   if (ctx.workspaceIds.size === 0) {
     return { value, changed: false };
@@ -20,7 +31,7 @@ export function pruneByWorkspaceId<T extends Record<string, unknown>>(
   const next: Record<string, unknown> = {};
   let changed = false;
   for (const [workspaceId, entryValue] of Object.entries(value)) {
-    if (ctx.workspaceIds.has(workspaceId)) {
+    if (ctx.workspaceIds.has(workspaceId) || preserve.has(workspaceId)) {
       next[workspaceId] = entryValue;
     } else {
       changed = true;

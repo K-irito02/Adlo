@@ -36,6 +36,7 @@ import {
 } from '../../../shared/ipc/searchWindow';
 import {
   pruneByWorkspaceId,
+  NON_WORKSPACE_PRESERVED_KEYS,
   pruneByTabId,
   pruneBrowserTreeExpanded,
   pruneDirExpansion,
@@ -772,7 +773,9 @@ export const registry = {
     fallback: {},
     scope: 'byWorkspaceId',
     read: readBooleanRecord,
-    prune: pruneByWorkspaceId,
+    // `__independent__`（终端"默认终端目录"）不是工作区 id，必须豁免，
+    // 否则每次剪枝删除它，重启后该目录必展开（事项 3 根因）。
+    prune: (value, ctx) => pruneByWorkspaceId(value, ctx, NON_WORKSPACE_PRESERVED_KEYS),
   }),
   'adl:terminal.workspaceId': defineEntry<string>({
     key: 'adl:terminal.workspaceId',

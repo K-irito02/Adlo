@@ -29,6 +29,7 @@ import { TerminalShellSelector } from './TerminalShellSelector';
 import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
 import { MultiWorkspaceTerminal } from '../workspace-terminal';
+import { nextTerminalWorkspaceToggleValue } from './terminalWorkspaceToggle';
 import { useTCopy } from '@i18n/useTCopy';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
@@ -163,11 +164,17 @@ export function TerminalPanel() {
       console.log('[ADL-DBG-RCA] terminal toggle', {
         workspaceId,
         before: terminalWorkspaceExpanded[workspaceId],
-        after: !terminalWorkspaceExpanded[workspaceId],
+        after: nextTerminalWorkspaceToggleValue(
+          terminalWorkspaceExpanded[workspaceId],
+          workspaceId === INDEPENDENT_WORKSPACE_ID,
+        ),
       });
       setTerminalWorkspaceExpanded({
         ...terminalWorkspaceExpanded,
-        [workspaceId]: !terminalWorkspaceExpanded[workspaceId],
+        [workspaceId]: nextTerminalWorkspaceToggleValue(
+          terminalWorkspaceExpanded[workspaceId],
+          workspaceId === INDEPENDENT_WORKSPACE_ID,
+        ),
       });
     },
     [terminalWorkspaceExpanded, setTerminalWorkspaceExpanded],

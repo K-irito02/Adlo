@@ -66,6 +66,23 @@ describe('prune wiring', () => {
     expect(isPruneStoreRegistered()).toBe(true);
   });
 
+  it('preserves the non-workspace __independent__ terminal entry while dropping removed workspaces', () => {
+    // 事项 3 回归：`__independent__`（终端"默认终端目录"）不是工作区 id，
+    // 按工作区剪枝不得删除它，否则重启后该目录必展开。
+    useAppStore.setState({
+      recentWorkspaces: [workspaceEntry('workspace_a')],
+      terminalWorkspaceExpanded: { __independent__: false, workspace_gone: true } as never,
+    });
+    applyWorkspacePrune();
+    flushCrossSliceWrites();
+    expect(useAppStore.getState().terminalWorkspaceExpanded).toEqual({
+      __independent__: false,
+    });
+    expect(JSON.parse(localStorage.getItem('adl:terminal.workspaceExpanded') ?? 'null')).toEqual(
+      { __independent__: false },
+    );
+  });
+
   it('NEGATIVE: does nothing while the workspace list is still empty', () => {
     useAppStore.setState({
       expandedFileTreePaths: {
