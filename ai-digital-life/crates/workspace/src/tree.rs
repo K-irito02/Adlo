@@ -78,7 +78,14 @@ fn tree_cache_get(root: &Path) -> Option<(Vec<WorkspaceTreeNode>, i64)> {
 
 /// 写入缓存。若 `expected_generation` 与当前代际不一致（期间发生过失效），
 /// 说明扫描结果已过期，丢弃本次写入，避免并发写操作的回填竞态。
-fn tree_cache_put(root: &Path, tree: Vec<WorkspaceTreeNode>, expected_generation: u64) {
+/// `captured_at` 由调用方传入：L1 时间与返回/落盘时间同一值，
+/// 同内容的三次调用（miss → L2 命中 → L1 命中）返同一时间戳。
+fn tree_cache_put(
+    root: &Path,
+    tree: Vec<WorkspaceTreeNode>,
+    expected_generation: u64,
+    captured_at: i64,
+) {
     let key = normalize_cache_key(root);
     if generation_get(&key) != expected_generation {
         debug!(root = %key, "workspace tree scan stale, cache put dropped");
@@ -91,7 +98,7 @@ fn tree_cache_put(root: &Path, tree: Vec<WorkspaceTreeNode>, expected_generation
             cache.remove(&oldest_key);
         }
     }
-    cache.insert(key, CachedTree { tree, captured_at: now_ms() });
+    cache.insert(key, CachedTree { tree, captured_at });
 }
 
 /// 清除 root 的文件树缓存并递增其失效代际。任何文件系统写操作后必须调用，
@@ -255,17 +262,18 @@ pub fn list_tree_cached_stale_ok(
         return Ok((cached, true, captured_at));
     }
     if let Some((nodes, captured_at)) = read_disk_row(root) {
-        // L2 命中回填 L1（沿用 put 的代际校验语义）。
+        // L2 命中回填 L1：带回行时间戳，使随后 L1 命中返同一 captured_at。
         let key = normalize_cache_key(root);
         let generation = generation_get(&key);
-        tree_cache_put(root, nodes.clone(), generation);
+        tree_cache_put(root, nodes.clone(), generation, captured_at);
         return Ok((nodes, true, captured_at));
     }
     let key = normalize_cache_key(root);
     let generation = generation_get(&key);
     let tree = list_tree(root)?;
-    tree_cache_put(root, tree.clone(), generation);
+    // 单一扫描时间戳：L1/返回/落盘三者同一值。
     let scanned_at = now_ms();
+    tree_cache_put(root, tree.clone(), generation, scanned_at);
     write_disk_row(root, &tree, scanned_at);
     Ok((tree, false, scanned_at))
 }
@@ -278,8 +286,9 @@ pub fn list_tree_force(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> 
     let key = normalize_cache_key(root);
     let generation = generation_get(&key);
     let tree = list_tree(root)?;
-    tree_cache_put(root, tree.clone(), generation);
-    write_disk_row(root, &tree, now_ms());
+    let scanned_at = now_ms();
+    tree_cache_put(root, tree.clone(), generation, scanned_at);
+    write_disk_row(root, &tree, scanned_at);
     Ok(tree)
 }
 
@@ -972,6 +981,12 @@ mod tree_cache_tests {
             second_at, first_at,
             "L2 hit must carry the stored row captured_at, not a fresh timestamp"
         );
+        // 第三次调用命中回填后的 L1：同内容必须返同一 captured_at
+        //（回填若用 fresh now_ms 盖时间戳，此处即暴露分裂）。
+        let (third, third_cached, third_at) = list_tree_cached_stale_ok(&tmp).unwrap();
+        assert!(third_cached, "third call must be served from the backfilled L1");
+        assert_eq!(third.len(), first.len());
+        assert_eq!(third_at, first_at, "L1 hit after L2 backfill must return the row captured_at");
         cleanup(&tmp);
     }
 
