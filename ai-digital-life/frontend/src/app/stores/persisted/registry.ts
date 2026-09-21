@@ -112,6 +112,7 @@ import {
 import type { TerminalViewPrefs } from '../../features/terminal/terminalViewPrefs';
 import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
+import { EDITOR_VIEWPORT_KEY, readEditorViewport, type PersistedViewport } from './viewport';
 import type { ChangeFileState } from '../../regions/right-panel/changesTree';
 
 // ─────────────────────────────────────────────────────────────
@@ -856,6 +857,18 @@ export const registry = {
     scope: 'global',
     // null（从未打开过）直接合法；类型不符才回退 null 并记脏
     read: (raw) => (raw === null ? null : readSessionLastFile(raw)),
+  }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 会话恢复（Task 27）：编辑器视口（单文件级全局，只存数值）。
+  // fallback / null 约定与 adl:session.lastFile 同理（见上条注释）。
+  // ─────────────────────────────────────────────────────────────
+  'adl:session.editorViewport': defineEntry<PersistedViewport | null>({
+    key: EDITOR_VIEWPORT_KEY,
+    field: 'editorViewport',
+    fallback: null,
+    scope: 'global',
+    read: (raw) => (raw === null ? null : readEditorViewport(raw)),
   }),
 } as const;
 

@@ -15,6 +15,8 @@ import { indentOnInput, bracketMatching, codeFolding } from '@codemirror/languag
 import { search } from '@codemirror/search';
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import type { EditorRef } from '@stores/types';
+import type { PersistedViewport } from '@stores/persisted/viewport';
+import { applyEditorViewport } from '@stores/persisted/viewport';
 import { createEditorRef } from './editorAdapters';
 import { getThemeExtension, getPhrasesExtension } from './cmTheme';
 import { getLanguageExtension } from './cmLanguages';
@@ -33,6 +35,10 @@ export interface CodeEditorProps {
   lineNumbers?: boolean;
   wordWrap?: boolean;
   fileKey?: string;
+  /** 文件所属工作区 id（与 fileKey 配套，用于匹配持久化视口，Task 27） */
+  workspaceId?: string;
+  /** 跨重启恢复的视口（`adl:session.editorViewport`，Task 27） */
+  viewport?: PersistedViewport | null;
   onChange?: (value: string) => void;
   onMount?: (editor: EditorRef) => void;
   extensions?: Extension[];
@@ -50,6 +56,8 @@ export function CodeEditor({
   lineNumbers: lineNumbersEnabled = true,
   wordWrap = false,
   fileKey,
+  workspaceId,
+  viewport,
   onChange,
   onMount,
   extensions: extraExtensions = [],
@@ -57,6 +65,7 @@ export function CodeEditor({
   const { t } = useTCopy();
   const viewRef = useRef<EditorView | null>(null);
   const mountedRef = useRef(false);
+  const viewportAppliedRef = useRef<string | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
   const [langExtensions, setLangExtensions] = useState<Extension[]>([]);
   const wrapperRef = useRef<HTMLDivElement | null>(null);
@@ -153,6 +162,24 @@ export function CodeEditor({
       ],
     });
   }, [lineNumbersEnabled, wordWrap]);
+
+  // 会话恢复（Task 27）：挂载并拿到文档行数后，用 clampScrollTop 得到目标偏移
+  // 并精确恢复滚动，再按行号重建折叠区间。每个文件只应用一次（applied 哨兵），
+  // 后续键入触发的 value 变化不再重放；工作区/路径任一不匹配即跳过。
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view || !fileKey || !viewport) {
+      return;
+    }
+    if (viewportAppliedRef.current === fileKey) {
+      return;
+    }
+    if (viewport.relativePath !== fileKey || viewport.workspaceId !== workspaceId) {
+      return;
+    }
+    applyEditorViewport(view, viewport);
+    viewportAppliedRef.current = fileKey;
+  }, [fileKey, value, workspaceId, viewport, editorView]);
 
   return (
     <div

@@ -92,6 +92,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   } = props;
 
   const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
+  const editorViewport = useAppStore((s) => s.editorViewport);
   const filePreviewModeByPath = useAppStore(
     useShallow((s) => s.filePreviewModeByPath[selectedFileWorkspaceId ?? ''] ?? {}),
   );
@@ -128,7 +129,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     selectedFilePath,
   });
 
-  useEditorStateCache(cmViewRef, selectedFilePath);
+  useEditorStateCache(cmViewRef, selectedFilePath, selectedFileWorkspaceId);
 
   const handleStandardEditorMount = useCallback(
     (editor: EditorRef) => {
@@ -363,6 +364,8 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
           lineNumbers={editorOptions.standardOptions.lineNumbers}
           wordWrap={editorOptions.standardOptions.wordWrap}
           fileKey={selectedFilePath}
+          workspaceId={selectedFileWorkspaceId}
+          viewport={editorViewport}
           onChange={props.onEditorChange}
           onMount={handleStandardEditorMount}
         />

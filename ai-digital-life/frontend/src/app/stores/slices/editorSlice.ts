@@ -5,6 +5,7 @@
 import type { FileOutlineItem, WorkspaceChangePreview } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { EditorTabState } from '@utils/editorTabs';
+import type { PersistedViewport } from '../persisted/viewport';
 import { persistField } from '../persisted/apply';
 
 /** 文件树选中节点（按工作区隔离的持久化记录，`adl:files.clickedNode`，Task 22） */
@@ -91,6 +92,11 @@ export interface EditorSlice {
    * 恢复失败时置位，打开任意文件成功时清空。
    */
   sessionRestoreNotice?: SessionRestoreNotice;
+  /**
+   * 编辑器视口（`adl:session.editorViewport`，Task 27）。
+   * null = 尚无记录；只存行号/偏移/折叠区间数值（见 persisted/viewport.ts）。
+   */
+  editorViewport: PersistedViewport | null;
 
   setOpenTabs: (tabs: EditorTabState[]) => void;
   addOpenTab: (tab: EditorTabState) => void;
@@ -139,6 +145,7 @@ export const createEditorSlice = (
   fileTreeClicked: {},
   filesOutlineExpanded: {},
   lastOpenedFile: null,
+  editorViewport: null,
 
   setOpenTabs: (tabs) => set({ openTabs: tabs }),
   addOpenTab: (tab) =>
