@@ -718,7 +718,7 @@ export function StorageSettings() {
               </small>
               <small>{t.treeCacheSize.replace('{size}', formatBytes(treeStats.totalBytes))}</small>
               <small>
-                {treeStats.newestCapturedAt === null
+                {typeof treeStats.newestCapturedAt !== 'number'
                   ? t.storageNotCreated
                   : t.treeCacheAge.replace(
                       '{time}',
