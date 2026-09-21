@@ -25,6 +25,7 @@
   - 单行树 JSON 超 8MB 拒绝写入（`MAX_TREE_NODES` 已封顶条目数，此为第二道内存上限）。
 - 失效复用：`invalidate_tree_cache(path)`（内存）同时删 SQLite 行——写操作与 watcher 回调已调它，**零新增调用点**；`generation` 代际逻辑不动。
 - 读路径：`list_tree_cached` 改为 L1 内存 → L2 SQLite → L3 全量扫并回写。TTL 只做一件事：行年龄 < TTL 时**跳过后台重扫**（默认 15 分钟，高级可调 5/15/60 分钟/1 天；15 分钟内重启 = 零扫描）。`force=true` 语义不变（全量扫 + 写回）。
+- 移除工作区即删行：`removeWorkspaceFromSidebar`（唯一移除入口，T16 已收敛）成功后删该工作区的内存缓存 + SQLite 行。被删工作区的数据不得残留；同路径重建视为全新工作区，冷扫重建行。
 - 路径与迁移：DB 文件落 `adl-kernel::storage` 解析目录，注册为第 10 个可迁移分类（`StorageCategory` + locator `pendingMigration` 复用 Plan B 整套：复制→校验→切指针→清旧源；失败不切指针，旧路径照常）。
 
 ## 3. IPC（双端一致）
