@@ -1,28 +1,17 @@
 import type { StoreState } from '../StoreState';
-import { createUiId, makePersistedWriter } from '../shared';
+import { createUiId } from '../shared';
 import { persist } from '../persisted/persist';
 import { formatNewFolderNameByLocale } from '@i18n';
 import type { TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
-import {
-  collectAllDescendantFolderIds,
-  BROWSER_WORKSPACE_EXPANDED_KEY,
-} from './browserFoldersUtils';
+import { collectAllDescendantFolderIds } from './browserFoldersUtils';
 import { computeDeleteAllTabsOutcome, computeDeleteOwnTabsOutcome } from './browserFoldersDeletion';
 
-// Re-export types and the still-legacy storage key to preserve the public API.
-// 注意（Task 9）：除 `browser-workspace-expanded` 外的浏览器持久化键均已迁移到
-// persisted/registry（`adl:browser.*`），其遗留常量与 STORAGE_KEY 别名已删除。
+// Re-export types to preserve the public API.
 export type { BookmarkTabItem, TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
-export { BROWSER_WORKSPACE_EXPANDED_STORAGE_KEY } from './browserFoldersUtils';
-
-// 死状态（无消费者，Task 20 删除）：尚未登记，暂保留遗留写盘通道与字面量，
-// 其键由 PERSIST_KEEP_KEYS 保护。迁移完成前不得改道 persist()（未登记键无登记表类型）。
-const writeWorkspaceExpanded = makePersistedWriter(BROWSER_WORKSPACE_EXPANDED_KEY);
 
 export interface BrowserFoldersSlice {
   browserTabFolders: TabFolderState[];
   browserTabTreeExpanded: Record<string, boolean>;
-  browserWorkspaceExpanded: Record<string, boolean>;
 
   browserCreateTabFolder: (
     name?: string,
@@ -38,7 +27,6 @@ export interface BrowserFoldersSlice {
   browserDeleteAllTabsInNode: (nodePath: string) => void;
   browserDeleteOwnTabsInNode: (nodePath: string) => void;
   browserClearAllFolderTabs: () => void;
-  setBrowserWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
 }
 
 export const createBrowserFoldersSlice = (
@@ -47,7 +35,6 @@ export const createBrowserFoldersSlice = (
 ): BrowserFoldersSlice => ({
   browserTabFolders: [],
   browserTabTreeExpanded: {},
-  browserWorkspaceExpanded: {},
 
   browserCreateTabFolder: async (
     name?: string,
@@ -246,10 +233,5 @@ export const createBrowserFoldersSlice = (
         browserWorkspaceBookmarks: nextWorkspaceBookmarks,
       };
     });
-  },
-
-  setBrowserWorkspaceExpanded: (expanded) => {
-    writeWorkspaceExpanded(expanded);
-    set({ browserWorkspaceExpanded: expanded });
   },
 });

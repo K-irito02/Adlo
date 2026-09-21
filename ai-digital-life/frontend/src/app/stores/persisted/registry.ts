@@ -456,8 +456,7 @@ export const registry = {
   // 全部写盘走 persist()/persistField()，全部读取走 hydrateAll()（同步，唯一水合时机）；
   // browserSlice 的 requestIdleCallback/setTimeout 延迟水合已随本任务删除。
   //
-  // 例外：adl-ui:browser-workspace-expanded（browserWorkspaceExpanded）**不登记** ——
-  // 无消费者的死状态，由 Task 20 删除；其字面量暂时保留在生产源码与 PERSIST_KEEP_KEYS 中。
+  // 工作区行展开死状态已由 Task 20 全套删除（含 PERSIST_KEEP_KEYS 条目），此处不再为例外。
   // ─────────────────────────────────────────────────────────────
   'adl:browser.tabs': defineEntry<BrowserTabState[]>({
     key: 'adl:browser.tabs',
@@ -748,7 +747,6 @@ export const registryEntries: PersistEntry<unknown>[] = Object.values(
 export const PERSIST_KEEP_KEYS = new Set<string>([
   'adl-ui:active-communicate-platform',
   'adl-ui:active-github-section',
-  'adl-ui:browser-workspace-expanded',
   'adl-ui:changes-branch',
   'adl-ui:ci-access-token',
   'adl-ui:ci-auto-refresh-on-push',

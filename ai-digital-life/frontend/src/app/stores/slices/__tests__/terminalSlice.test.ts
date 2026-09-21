@@ -221,12 +221,6 @@ describe('terminalSlice', () => {
     expect((get() as unknown as TerminalSlice).terminalNavigatorWidth).toBe(200);
   });
 
-  it('setTerminalPersisted sets the flag', () => {
-    const { get } = createMockStore();
-    (get() as unknown as TerminalSlice).setTerminalPersisted(true);
-    expect((get() as unknown as TerminalSlice).terminalPersisted).toBe(true);
-  });
-
   it('setTerminalWorkspaceId sets the workspace id', () => {
     const { get } = createMockStore();
     (get() as unknown as TerminalSlice).setTerminalWorkspaceId('ws-1');

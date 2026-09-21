@@ -11,6 +11,7 @@ import { createBrowserLandingSlice } from '../browserLandingSlice';
 import { createBrowserSearchEnginesSlice } from '../browserSearchEnginesSlice';
 import { createBrowserBookmarkSlice } from '../browserBookmarkSlice';
 import { createBrowserSlice } from '../browserSlice';
+import { createUIWidthSlice } from '../uiSliceWidths';
 
 type SetFn = (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void;
 
@@ -28,6 +29,7 @@ function createBrowserStore() {
         : { ...state, ...(partial as Record<string, unknown>) };
   };
   state = {
+    ...createUIWidthSlice(set as never, get as never),
     ...createBrowserHistorySlice(set as never, get as never),
     ...createBrowserTabsSlice(set as never, get as never),
     ...createBrowserFoldersSlice(set as never, get as never),

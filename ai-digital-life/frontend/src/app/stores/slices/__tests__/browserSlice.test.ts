@@ -18,31 +18,9 @@ function createMockStore() {
 }
 
 describe('browserSlice', () => {
-  it('initializes with browserPersisted false', () => {
-    const { get } = createMockStore();
-    expect((get() as unknown as BrowserSlice).browserPersisted).toBe(false);
-  });
-
-  it('initializes with empty workspace id', () => {
-    const { get } = createMockStore();
-    expect((get() as unknown as BrowserSlice).browserWorkspaceId).toBe('');
-  });
-
   it('initializes with navigateInPlace false', () => {
     const { get } = createMockStore();
     expect((get() as unknown as BrowserSlice).browserNavigateInPlace).toBe(false);
-  });
-
-  it('setBrowserPersisted sets the flag', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).setBrowserPersisted(true);
-    expect((get() as unknown as BrowserSlice).browserPersisted).toBe(true);
-  });
-
-  it('setBrowserWorkspaceId sets the workspace id', () => {
-    const { get } = createMockStore();
-    (get() as unknown as BrowserSlice).setBrowserWorkspaceId('ws-1');
-    expect((get() as unknown as BrowserSlice).browserWorkspaceId).toBe('ws-1');
   });
 
   it('setBrowserNavigateInPlace sets the flag', () => {

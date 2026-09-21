@@ -8,7 +8,6 @@ export interface BrowserCleanupResult {
   browserTabs: BrowserTabState[];
   browserTabsById: Record<string, BrowserTabState>;
   browserTabFolders: TabFolderState[];
-  browserWorkspaceExpanded: Record<string, boolean>;
   browserActiveTabId: string;
 }
 
@@ -24,15 +23,12 @@ export function stripWorkspaceFromBrowserState(
   workspaceId: string,
   currentTabs: BrowserTabState[],
   currentFolders: TabFolderState[],
-  currentExpanded: Record<string, boolean>,
   currentActiveTabId: string,
 ): BrowserCleanupResult {
   const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);
   const browserTabFolders = currentFolders.filter(
     (f) => !(f.parentType === 'workspace' && f.parentId === workspaceId),
   );
-  const browserWorkspaceExpanded: Record<string, boolean> = { ...currentExpanded };
-  delete browserWorkspaceExpanded[workspaceId];
 
   const browserTabsById: Record<string, BrowserTabState> = {};
   for (const t of browserTabs) {
@@ -47,7 +43,6 @@ export function stripWorkspaceFromBrowserState(
     browserTabs,
     browserTabsById,
     browserTabFolders,
-    browserWorkspaceExpanded,
     browserActiveTabId,
   };
 }

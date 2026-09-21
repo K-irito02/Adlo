@@ -63,17 +63,6 @@ export function buildTabsById(tabs: TerminalTabState[]): Record<string, Terminal
   return result;
 }
 
-/**
- * 归一化选择器 profile：持久化值合法则采用，否则回退到全局默认 profile。
- * 以全局默认（而非固定 'powershell'）为回退，保持"首次无记录时跟随默认"语义。
- */
-export function normalizeTerminalShellProfile(
-  saved: unknown,
-  fallback: TerminalProfile,
-): TerminalProfile {
-  return isTerminalProfile(saved) ? saved : fallback;
-}
-
 // Constants
 export const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
 export const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;

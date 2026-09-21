@@ -42,14 +42,9 @@ function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState>
 }
 
 export interface BrowserSlice {
-  browserPersisted: boolean;
-  browserWorkspaceId: string;
-
   browserNavigateInPlace: boolean;
   browserNavigateActiveTab: (url: string, title?: string) => void;
   setBrowserNavigateInPlace: (value: boolean) => void;
-  setBrowserPersisted: (persisted: boolean) => void;
-  setBrowserWorkspaceId: (workspaceId: string) => void;
 }
 
 export const createBrowserSlice = (
@@ -57,8 +52,6 @@ export const createBrowserSlice = (
   _get: () => StoreState,
 ): BrowserSlice => {
   return {
-    browserPersisted: false,
-    browserWorkspaceId: '',
     browserNavigateInPlace: false,
 
     browserNavigateActiveTab: (url: string, title?: string) => {
@@ -121,9 +114,5 @@ export const createBrowserSlice = (
     setBrowserNavigateInPlace: (value: boolean) => {
       set(persistField('adl:browser.navigateInPlace', value));
     },
-
-    setBrowserPersisted: (persisted) => set({ browserPersisted: persisted }),
-
-    setBrowserWorkspaceId: (workspaceId) => set({ browserWorkspaceId: workspaceId }),
   };
 };

@@ -11,12 +11,6 @@ export const browserSelectors = {
   getBrowserNavigatorWidth: (state: StoreState) => state.browserNavigatorWidth,
   useBrowserNavigatorWidth: () => useAppStore((s) => s.browserNavigatorWidth),
 
-  getBrowserPersisted: (state: StoreState) => state.browserPersisted,
-  useBrowserPersisted: () => useAppStore((s) => s.browserPersisted),
-
-  getBrowserWorkspaceId: (state: StoreState) => state.browserWorkspaceId,
-  useBrowserWorkspaceId: () => useAppStore((s) => s.browserWorkspaceId),
-
   // --- BrowserTabsSlice (标签页) ---
   getBrowserTabs: (state: StoreState) => state.browserTabs,
   useBrowserTabs: () => useAppStore(useShallow((s) => s.browserTabs)),
@@ -80,9 +74,6 @@ export const browserSelectors = {
 
   getBrowserTabTreeExpanded: (state: StoreState) => state.browserTabTreeExpanded,
   useBrowserTabTreeExpanded: () => useAppStore(useShallow((s) => s.browserTabTreeExpanded)),
-
-  getBrowserWorkspaceExpanded: (state: StoreState) => state.browserWorkspaceExpanded,
-  useBrowserWorkspaceExpanded: () => useAppStore(useShallow((s) => s.browserWorkspaceExpanded)),
 
   // --- BrowserLandingSlice (着陆页) ---
   getBrowserShortcuts: (state: StoreState) => state.browserShortcuts,

@@ -16,9 +16,7 @@ const SCAN_ROOT = join(process.cwd(), 'src/app/stores');
 // - persisted/registry.ts：PERSIST_KEEP_KEYS 字面量由 keepListGuard 守卫。
 // 全行 // 注释在扫描前剔除：注释提及旧键名是文档需要，不构成读写；
 // 门禁只关心代码行的真实引用。
-// 唯一代码行例外（归属 T20，删死键时同步收紧本测试至零例外）：
-// - adl-ui:browser-workspace-expanded（browserSliceShared.ts 定义 + browserCleanupActions.ts 引用）
-const T20_DEFERRED_KEY = 'adl-ui:browser-workspace-expanded';
+// 死键 adl-ui:browser-workspace-expanded 已由 Task 20 全套删除，本测试为零例外。
 
 const SKIP_BASENAMES = new Set([
   'ciSlice.ts',
@@ -53,27 +51,16 @@ function stripFullLineComments(content: string): string {
 }
 
 describe('key namespace', () => {
-  it('no migrated-surface source references a legacy prefix (except the T20-deferred dead key)', () => {
+  it('no migrated-surface source references a legacy prefix', () => {
     const offenders: string[] = [];
-    const deferredKeyHolders: string[] = [];
     for (const file of collectSourceFiles(SCAN_ROOT)) {
-      const content = readFileSync(file, 'utf8');
-      if (content.includes(T20_DEFERRED_KEY)) {
-        deferredKeyHolders.push(file);
-      }
-      const withoutDeferred = content.split(T20_DEFERRED_KEY).join('');
-      const code = stripFullLineComments(withoutDeferred);
+      const code = stripFullLineComments(readFileSync(file, 'utf8'));
       for (const prefix of LEGACY_PREFIXES) {
         if (code.includes(prefix)) {
           offenders.push(`${file} → ${prefix}`);
         }
       }
     }
-    // 例外是 load-bearing 的：T20 删除死键后本断言变红，迫使同步收紧至零例外。
-    expect(
-      deferredKeyHolders,
-      'T20-deferred key is gone — remove the exception and this assertion',
-    ).not.toEqual([]);
     expect(offenders).toEqual([]);
   });
 

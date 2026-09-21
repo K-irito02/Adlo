@@ -81,7 +81,6 @@ export type UIExpansionSlice = Pick<
   | 'setFileTreePathExpanded'
   | 'toggleFileTreePath'
   | 'expandFileTreePathChain'
-  | 'collapseAllFileTreePaths'
   | 'setChangesTreePathExpanded'
   | 'toggleChangesTreePath'
   | 'expandChangesTreePathChain'
@@ -130,16 +129,6 @@ export function createUIExpansionSlice(
       }
       return { blocked };
     },
-    collapseAllFileTreePaths: (workspaceId) =>
-      set((state) =>
-        persistField('adl:files.dirExpanded', {
-          ...state.expandedFileTreePaths,
-          [workspaceId]: {
-            expanded: {},
-            manualCollapsed: state.expandedFileTreePaths[workspaceId]?.manualCollapsed,
-          },
-        }),
-      ),
     setChangesTreePathExpanded: (workspaceId, path, expanded) =>
       set((state) => {
         const current = state.expandedChangesTreePaths[workspaceId] ?? EMPTY_TREE_EXPANSION;

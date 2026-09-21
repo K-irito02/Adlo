@@ -110,13 +110,6 @@ describe('directory expansion intent', () => {
     }
   });
 
-  it('collapse-all clears every expansion but keeps the manual intent', () => {
-    useAppStore.getState().setFileTreePathExpanded(WS, 'src', true);
-    useAppStore.getState().setFileTreePathExpanded(WS, 'src/legacy', false);
-    useAppStore.getState().collapseAllFileTreePaths(WS);
-    expect(expansion()).toEqual({ expanded: {}, manualCollapsed: { 'src/legacy': true } });
-  });
-
   it('keeps the cross-field invariant after every mutation', () => {
     const { setFileTreePathExpanded, toggleFileTreePath, expandFileTreePathChain } =
       useAppStore.getState();

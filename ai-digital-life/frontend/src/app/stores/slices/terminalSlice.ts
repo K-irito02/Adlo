@@ -50,7 +50,6 @@ export interface TerminalSlice {
   workspaceDefaultProfiles: Record<string, TerminalProfile>;
   terminalNavigatorWidth: number;
   terminalWorkspaceExpanded: Record<string, boolean>;
-  terminalPersisted: boolean;
   terminalWorkspaceId: string;
 
   terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
@@ -65,7 +64,6 @@ export interface TerminalSlice {
   setWorkspaceDefaultTerminalProfile: (workspaceId: string, profile: TerminalProfile) => void;
   setTerminalNavigatorWidth: (width: number) => void;
   setTerminalWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
-  setTerminalPersisted: (persisted: boolean) => void;
   setTerminalWorkspaceId: (workspaceId: string) => void;
   shellSelectorProfile: TerminalProfile;
   setShellSelectorProfile: (profile: TerminalProfile) => void;
@@ -83,7 +81,6 @@ export const createTerminalSlice = (
     workspaceDefaultProfiles: {},
     terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
     terminalWorkspaceExpanded: {},
-    terminalPersisted: false,
     terminalWorkspaceId: '',
     shellSelectorProfile: 'powershell',
 
@@ -252,8 +249,6 @@ export const createTerminalSlice = (
       persist('adl:terminal.workspaceExpanded', expanded);
       set({ terminalWorkspaceExpanded: expanded });
     },
-
-    setTerminalPersisted: (persisted) => set({ terminalPersisted: persisted }),
 
     setTerminalWorkspaceId: (workspaceId) => {
       persist('adl:terminal.workspaceId', workspaceId);

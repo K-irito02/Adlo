@@ -142,7 +142,6 @@ export interface UISlice {
   setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
   toggleFileTreePath: (workspaceId: string, path: string) => void;
   expandFileTreePathChain: (workspaceId: string, path: string) => { blocked: string[] };
-  collapseAllFileTreePaths: (workspaceId: string) => void;
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
   setFilesSearchView: (view: FilesSearchViewMode) => void;
   setFilesSearchScope: (scope: FilesSearchScope) => void;
