@@ -29,7 +29,8 @@ pub struct CachedTreeRow {
     pub captured_at: i64,
 }
 
-/// 设置页展示用的缓存统计（空表时计数为 0、时间为 `None`）。
+/// 设置页展示用的缓存统计（空表时计数为 0、时间为 `None`；
+/// `enabled`/`ttl_minutes` 与 `get_options()` 同源，供校准门直接消费）。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TreeCacheStats {
@@ -37,6 +38,8 @@ pub struct TreeCacheStats {
     pub total_bytes: u64,
     pub oldest_captured_at: Option<i64>,
     pub newest_captured_at: Option<i64>,
+    pub enabled: bool,
+    pub ttl_minutes: u64,
 }
 
 /// 树缓存开关与 TTL（分钟）；缺省 `enabled=true, ttl_minutes=15`。
@@ -139,21 +142,33 @@ impl TreeCacheStore {
     }
 
     pub fn stats(&self) -> Result<TreeCacheStats, AppError> {
-        let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.query_row(
-            "SELECT COUNT(*), COALESCE(SUM(LENGTH(tree_json)), 0), MIN(captured_at), MAX(captured_at)
-             FROM tree_cache",
-            [],
-            |row| {
-                Ok(TreeCacheStats {
-                    workspace_count: row.get::<_, i64>(0)? as u64,
-                    total_bytes: row.get::<_, i64>(1)? as u64,
-                    oldest_captured_at: row.get(2)?,
-                    newest_captured_at: row.get(3)?,
-                })
-            },
-        )
-        .map_err(|e| AppError::Storage(format!("stats tree_cache: {e}")))
+        // 行统计与 meta 查询分两次加锁：`get_options` 内部另行加锁，同守卫内调用会死锁。
+        let (workspace_count, total_bytes, oldest_captured_at, newest_captured_at) = {
+            let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
+            conn.query_row(
+                "SELECT COUNT(*), COALESCE(SUM(LENGTH(tree_json)), 0), MIN(captured_at), MAX(captured_at)
+                 FROM tree_cache",
+                [],
+                |row| {
+                    Ok((
+                        row.get::<_, i64>(0)? as u64,
+                        row.get::<_, i64>(1)? as u64,
+                        row.get::<_, Option<i64>>(2)?,
+                        row.get::<_, Option<i64>>(3)?,
+                    ))
+                },
+            )
+            .map_err(|e| AppError::Storage(format!("stats tree_cache: {e}")))?
+        };
+        let opts = self.get_options()?;
+        Ok(TreeCacheStats {
+            workspace_count,
+            total_bytes,
+            oldest_captured_at,
+            newest_captured_at,
+            enabled: opts.enabled,
+            ttl_minutes: opts.ttl_minutes,
+        })
     }
 
     pub fn get_options(&self) -> Result<TreeCacheOptions, AppError> {
@@ -241,6 +256,21 @@ mod tests {
         let opts = store.get_options().unwrap();
         assert!(!opts.enabled);
         assert_eq!(opts.ttl_minutes, 60);
+    }
+
+    #[test]
+    fn stats_carries_current_options() {
+        let dir = unique_tmp_dir("tc-stats-opts");
+        let store = TreeCacheStore::open(&dir).unwrap();
+        let stats = store.stats().unwrap();
+        assert!(stats.enabled);
+        assert_eq!(stats.ttl_minutes, 15);
+        store.set_options(false, 60).unwrap();
+        store.put("/ws/a", "[]", 1000).unwrap();
+        let stats = store.stats().unwrap();
+        assert_eq!(stats.workspace_count, 1);
+        assert!(!stats.enabled);
+        assert_eq!(stats.ttl_minutes, 60);
     }
 
     #[test]
