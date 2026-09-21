@@ -1,6 +1,5 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { FileTree } from './fileTree';
 import type { FileTreeRenderableNode } from './fileTree.utils';

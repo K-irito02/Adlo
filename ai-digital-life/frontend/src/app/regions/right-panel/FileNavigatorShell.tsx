@@ -587,6 +587,14 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     }
   }, [navigatorMode]);
 
+  // 选中文件变化时展开其祖先链（无任何视觉提示；手动折叠的祖先保持折叠，
+  // 由 expandFileTreePathChain 的 blocked 语义保证，见 T12）。
+  useEffect(() => {
+    if (selectedFilePath && activeWorkspaceId) {
+      expandFileTreePathChain(activeWorkspaceId, selectedFilePath);
+    }
+  }, [expandFileTreePathChain, selectedFilePath, activeWorkspaceId]);
+
   const handleToggleAllOutlineItems = () => {
     if (!hasExpandableOutlineItems) {
       return;

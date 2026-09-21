@@ -118,15 +118,6 @@ function runPrune(ctx: PruneCtx): void {
   }
   const snapshot = ref.getState() as unknown as Record<string, unknown>;
   const patch = applyPrunePatch(snapshot, ctx);
-  // TEMP-RCA(事项3): 记录每次剪枝删掉的键（重点看 terminal.workspaceExpanded 的 __independent__，定案前删除）
-  for (const [field, fieldValue] of Object.entries(patch)) {
-    const beforeKeys = Object.keys((snapshot[field] as Record<string, unknown> | null) ?? {});
-    const afterKeys = Object.keys((fieldValue as Record<string, unknown> | null) ?? {});
-    const dropped = beforeKeys.filter((k) => !afterKeys.includes(k));
-    if (dropped.length > 0) {
-      console.log('[ADL-DBG-RCA] prune dropped keys', { field, dropped });
-    }
-  }
   for (const [field, fieldValue] of Object.entries(patch)) {
     const entry = registryEntries.find((candidate) => candidate.field === field);
     if (!entry) {

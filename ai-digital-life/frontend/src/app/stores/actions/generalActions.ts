@@ -188,18 +188,11 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           const tasks = items.map((w) => ({
             id: w.id,
             path: w.path,
-            // TEMP-RCA(事项1): 分项计时，区分树扫描慢还是 git 快照慢（定案前删除）
             treeLoader: (): Promise<TreePacket | undefined> => {
-              const t0 = Date.now();
               const request = staleAllowed
                 ? window.digitalLife.workspace.listTreeForWorkspace(w.path, { allowStale: true })
                 : window.digitalLife.workspace.listTreeForWorkspace(w.path);
               return request.then((r) => {
-                console.log('[ADL-DBG-RCA] treeLoader settled', {
-                  id: w.id,
-                  ms: Date.now() - t0,
-                  ok: r.ok,
-                });
                 if (!r.ok) {
                   return undefined;
                 }
@@ -218,13 +211,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               });
             },
             snapshotLoader: () => {
-              const t0 = Date.now();
               return window.digitalLife.workspace.listGitStatusForWorkspace(w.path).then((r) => {
-                console.log('[ADL-DBG-RCA] snapshotLoader settled', {
-                  id: w.id,
-                  ms: Date.now() - t0,
-                  ok: r.ok,
-                });
                 return r.ok ? r.data : undefined;
               });
             },
@@ -238,12 +225,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
             }
             set(loadingBatch);
           }
-          // TEMP-RCA(事项1): 诊断启动转圈是卡/慢/错（定案前删除）
-          console.log('[ADL-DBG-RCA] loadBatch start', {
-            ids: items.map((w) => w.id),
-            at: Date.now(),
-          });
-          const batchStartAt = Date.now();
           // 第一包：stale 先行 — 树请求带 allowStale 即到即渲染；
           // fromCache:true 的行记入 staleCapturedAt，其 workspaceTreeLoading 永不置位
           //（守卫靠已落库的 hasData 生效，无需 loading 占位）。
@@ -281,21 +262,6 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           const snapshotResults = await runWithConcurrency(tasks, concurrency, (task) =>
             task.snapshotLoader(),
           );
-          // TEMP-RCA(事项1): 整批结算情况（定案前删除）
-          console.log('[ADL-DBG-RCA] loadBatch settled', {
-            elapsedMs: Date.now() - batchStartAt,
-            summary: items.map((item, i) => {
-              const r = treeResults[i];
-              return {
-                id: item?.id,
-                status: r.status,
-                tree:
-                  r.status === 'fulfilled' && r.value !== undefined
-                    ? r.value.tree !== undefined
-                    : undefined,
-              };
-            }),
-          });
           const batch_: Partial<StoreState> = {};
           for (let i = 0; i < items.length; i += 1) {
             const item = items[i];
