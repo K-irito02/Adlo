@@ -397,6 +397,30 @@ git commit -m "feat(server): serve stale tree rows with from-cache flag"
 
 ---
 
+## Task 4b: 树缓存存储管理端点（服务端 HTTP + Tauri 命令）
+
+> **来源（T6 预检裁定，计划缺陷）**：计划 Task 4 只分配了树 handler + 移除删行，从未分配 storage 三方法（`getTreeCacheStats/setTreeCacheOptions/clearTreeCache`）的服务端实现；Task 6 按计划字面"路由名以 Task 4 为准"无法执行，只能自定路由名并以 contract test 锁定。Tauri 侧 storage 走 invoke 命令（`tauri-bridge/index.ts` 注释"Plan C Task 1 commands"），故还需三个 `#[tauri::command]`（T6 已预埋 capability 白名单与前端 invoke 调用，落地前 invoke 报错透传）。本任务补齐两者；**路由名/命令名以 T6 已锁定的 contract 为准，不得另起名字**（T6 的 `httpBridge.ts` 与 `tauri-bridge/index.ts` diff 即契约）。
+
+**Files:**
+- Modify: `ai-digital-life/crates/server/src/handlers/storage.rs`（新增 `tree_cache_stats` / `tree_cache_options` / `tree_cache_clear` 三 handler，仿同文件 `status`/`set_paths` 写法；经 `TreeCacheStore::open(&tree_cache_dir())` 操作；`set_options` 校验 `ttl_minutes` 在 1..=1440，否则 `InvalidInput`）
+- Modify: `ai-digital-life/crates/server/src/router.rs`（三条 POST 路由，路径名与 T6 `httpBridge.ts` 中的字符串逐字一致）
+- Modify: `ai-digital-life/src-tauri/src/commands/` 内 storage 命令文件（以实际文件名为准，先 `ls` 确认）：新增 `storage_tree_cache_stats` / `storage_tree_cache_options` / `storage_tree_cache_clear` 三个 `#[tauri::command]`（仿同文件既有 `storage_*` 命令，直调 `adl_workspace` 存储层；`clear` 删 DB 文件或调 `remove` 全行，以实现简单为准）
+- Test: handler 同文件 `#[cfg(test)]`（stats 空表零值、set/get options roundtrip、clear 后 stats 归零）+ src-tauri 命令若有既有测试 harness 则跟随，否则以 `cargo check` + 前端 parity 为据
+
+**Interfaces:**
+- Consumes: T1 `TreeCacheStore`；T2 `tree_cache_dir()`；T6 锁定的路由名字符串与命令名字符串（读 T6 diff，不得臆测）
+- Produces: 三 HTTP 端点可用；三 Tauri 命令可用；Tauri 桌面 `getTreeCacheStats` 不再 invoke 报错
+
+**Global Constraints:** TDD 红绿；Conventional Commit `feat(server)` + `feat(tauri)` 可分两次提交；cargo fmt/clippy/test 全绿；capability 白名单 T6 已加，本任务核对三名逐字一致即可；无兼容代码。
+
+- [ ] **Step 1: 写失败测试**（3 handler 用例，仿 `storage.rs` 既有测试；路由未注册时先 TCC 红）
+- [ ] **Step 2: 运行测试确认失败**（`cargo test -p adl-server storage::tree_cache`；crate 名已核实 `adl-server`）
+- [ ] **Step 3: 实现 handler + 路由 + Tauri 命令**（Tauri 命令文件先 `ls src-tauri/src/commands/` 定文件名；命令需在 `lib.rs`/`main.rs` 的 `invoke_handler!` 注册表登记，仿既有 `storage_*` 条目）
+- [ ] **Step 4: 运行测试确认通过**（`cargo test -p adl-server` + 前端 `storage-parity.test.ts` + `cargo check` 全 workspace；Tauri 命令以 `cargo check -p` 包名实际值为准）
+- [ ] **Step 5: 提交**（`feat(server): add tree-cache storage endpoints` / `feat(tauri): add tree-cache storage commands`）
+
+---
+
 ## Task 5: 共享 IPC 类型（payload + 桥方法签名）
 
 **Files:**
