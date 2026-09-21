@@ -4,6 +4,7 @@ import type { WorkspaceID } from '../../../shared/branded';
 import { clearError, captureError } from '../shared';
 import { scheduleCrossSliceWrite } from '../storageHelpers';
 import { persist } from '../persisted/persist';
+import { applyWorkspaceRemoved } from '../persisted/pruneWiring';
 import { stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
 const SCOPE = 'browser';
 
@@ -14,8 +15,8 @@ export function createBrowserCleanupActions(
   return {
     /**
      * [cleanupRemovedWorkspaceTree - 清理已移除工作区的状态缓存]
-     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, workspaceSlice.recentWorkspaces, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab
-     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.workspaceTreeExpandedInFileNav, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, browserSlice.browserWorkspaceBookmarks, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab
+     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.recentWorkspaces, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab（另有 applyWorkspaceRemoved 读取全部按工作区隔离的登记条目）
+     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserWorkspaceExpanded, browserSlice.browserActiveTabId, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab（另有 applyWorkspaceRemoved 写回全部按工作区隔离的登记条目）
      * @see — 无桥接调用 (本地内存清理)
      */
     cleanupRemovedWorkspaceTree: (workspaceId: WorkspaceID) => {
@@ -23,8 +24,6 @@ export function createBrowserCleanupActions(
       const { [workspaceId]: _omit, ...restTrees } = state.workspaceTrees;
       const { [workspaceId]: _omitLoading, ...restLoading } = state.workspaceTreeLoading;
       const { [workspaceId]: _omitErrors, ...restErrors } = state.workspaceTreeErrors;
-      const { [workspaceId]: _omitExpanded, ...restExpanded } =
-        state.workspaceTreeExpandedInFileNav;
 
       const cleaned = stripWorkspaceFromBrowserState(
         workspaceId,
@@ -35,6 +34,10 @@ export function createBrowserCleanupActions(
         state.browserActiveTabId,
       );
 
+      // 全局作用域的浏览器数组（登记表 scope 为 global，不在剪枝覆盖内），此处保留原有清理；
+      // 按工作区隔离的条目（workspaceTreeExpandedInFileNav / browserWorkspaceBookmarks 等
+      // 全部 10 条甲类 byWorkspaceId 登记）归末尾的 applyWorkspaceRemoved 统一处理，
+      // 此处不得重复写（不得两套并存）。
       persist('adl:browser.tabs', cleaned.browserTabs);
       persist('adl:browser.tabFolders', cleaned.browserTabFolders);
       // 死状态（未登记、无消费者，Task 20 删除）：无法经 persist()（登记表类型不含该键），
@@ -44,7 +47,6 @@ export function createBrowserCleanupActions(
         cleaned.browserWorkspaceExpanded,
       );
       persist('adl:browser.activeTabId', cleaned.browserActiveTabId);
-      persist('adl:browser.workspaceBookmarks', cleaned.browserWorkspaceBookmarks);
 
       // 彻底移出工作区：同时清理 Git 可视化该工作区的数据缓存，
       // 并重置 activeWorkspaceTab（若仍指向被移出的工作区），避免残留 tab。
@@ -57,8 +59,6 @@ export function createBrowserCleanupActions(
         get().setActiveWorkspaceTab(activeWorkspaceTab);
       }
 
-      get().setWorkspaceTreeExpandedInFileNav(restExpanded);
-
       set({
         workspaceTrees: restTrees,
         workspaceTreeLoading: restLoading,
@@ -67,9 +67,15 @@ export function createBrowserCleanupActions(
         browserTabsById: cleaned.browserTabsById,
         browserTabFolders: cleaned.browserTabFolders,
         browserWorkspaceExpanded: cleaned.browserWorkspaceExpanded,
-        browserWorkspaceBookmarks: cleaned.browserWorkspaceBookmarks,
         browserActiveTabId: cleaned.browserActiveTabId,
       });
+
+      // 唯一的工作区移除入口末尾：统一剔除该工作区在全部按工作区隔离条目中的记录
+      //（文件 / 变更 / 浏览器书签 / 终端 / 检索，内存 + 落盘）。顺序关键：本函数前面的
+      // set() 不碰任何按工作区隔离的登记字段，applyWorkspaceRemoved 才能从快照中看到
+      // 待删的工作区并完成"内存 + 落盘"（若在此之前先写 stripped 值，它会误判为无事可做
+      // 而跳过 persist，导致磁盘残留）。
+      applyWorkspaceRemoved(workspaceId as string);
     },
 
     /**
