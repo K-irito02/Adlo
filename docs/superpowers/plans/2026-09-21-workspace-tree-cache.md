@@ -577,9 +577,10 @@ it('falls back to the blocking load when no stale row exists', async () => {
 });
 
 it('skips calibration inside the TTL window and honors the master switch', async () => {
-  // getTreeCacheOptions mock → { enabled: true, ttlMinutes: 15 }；首包 { tree: STALE, fromCache: true, capturedAt: Date.now() }。
+  // 经 `resolveCalibrationOptions` 注入覆盖（默认实现返回 Rust 缺省；T9 接真实值）：
+  // mock → { enabled: true, ttlMinutes: 15 }；首包 { tree: STALE, fromCache: true, capturedAt: Date.now() }。
   // 断言：无二次 refresh 调用（校准跳过），树保持 STALE。
-  // 再测 enabled:false → 首包请求不带 allowStale（桥 spy 断言 options 实参无 allowStale），行为等同现状。
+  // 再覆盖 { enabled: false } → 首包请求不带 allowStale（桥 spy 断言 options 实参无 allowStale），行为等同现状。
 });
 ```
 
@@ -602,7 +603,7 @@ treeLoader: () =>
     .then((r) => (r.ok ? { tree: r.data.tree, fromCache: r.data.fromCache, capturedAt: r.data.capturedAt } : undefined)),
 ```
 
-`loadBatch` 内：首包 `fromCache:true` 的工作区记入 `staleIds`，其 `workspaceTreeLoading` 不置 true（跳过 154 行的该 id 置位——以 `accumulateBatch` 调用点为准改条件）。校准门（预检裁定，职责切分）：`loadBatch` 入口处调一次 `getTreeCacheOptions`（模块级缓存，失败回退 `{ enabled: true, ttlMinutes: 15 }`，与 Rust 缺省逐字一致）；`enabled:false` 时全批次 `allowStale:false`（等同现状）；否则仅对 `fromCache && (Date.now() - capturedAt > ttlMinutes * 60000)` 的工作区逐个 `await get().refreshOneWorkspaceTree(id, path, { silent: true })`，成功且无 `workspaceTreeErrors[id]` 则 `applyTreeLoadedPrune(id, collectDirPaths(get().workspaceTrees[id]))`（沿用 197-204 行的成功分支形态）。TTL 行龄小的工作区跳过校准（零扫描重启）。
+`loadBatch` 内：首包 `fromCache:true` 的工作区记入 `staleIds`，其 `workspaceTreeLoading` 不置 true（跳过 154 行的该 id 置位——以 `accumulateBatch` 调用点为准改条件）。校准门（预检裁定 + T7 缺口裁定，职责切分）：`loadBatch` 入口处调模块级 `resolveCalibrationOptions()`（默认实现返回 `{ enabled: true, ttlMinutes: 15 }` 与 Rust 缺省逐字一致；T9 将其接到真实值，见 Task 9 新增步骤）；`enabled:false` 时全批次 `allowStale:false`（等同现状）；否则仅对 `fromCache && (Date.now() - capturedAt > ttlMinutes * 60000)` 的工作区逐个 `await get().refreshOneWorkspaceTree(id, path, { silent: true })`，成功且无 `workspaceTreeErrors[id]` 则 `applyTreeLoadedPrune(id, collectDirPaths(get().workspaceTrees[id]))`（沿用 197-204 行的成功分支形态）。TTL 行龄小的工作区跳过校准（零扫描重启）。
 
 - [ ] **Step 4: 运行测试确认通过**
 
@@ -685,6 +686,7 @@ git commit -m "refactor(stores): unwrap stale tree payload on fresh paths"
 
 **Interfaces:**
 - Consumes: Task 6 的 `getTreeCacheStats/setTreeCacheOptions/clearTreeCache`（经 `useAppStore` 或直调 bridge，以 `StorageSettings.tsx:57-129` 的既有 `bridge.getStatus()` 调用形态为准）
+- T7 缺口回填（binding）：options 读路径四层全无——本任务一并交付，不新增路由：`stats` 响应扩展 `enabled` + `ttlMinutes` 字段（加法兼容，老客户端忽略多余字段；Rust `TreeCacheStats` 加两字段 + `stats()` handler 同改 + `TreeCacheStats` TS 类型同改 + parity 追加断言），并把 T7 的 `resolveCalibrationOptions()` 默认实现接到 `getTreeCacheStats` 的返回值（失败回退 Rust 缺省；T7 测试的注入覆盖点保留）。
 - Produces:
   - 基础行：路径（复用 `StorageCategoryRow` + 新 `TreeCache` 分类，走既有迁移对话框）、大小/工作区数/缓存时间（`stats()`）、"清除缓存"按钮（二次确认仿照既有危险操作写法）。
   - 高级：总开关（默认开）+ TTL 下拉（5/15/60 分钟/1 天，默认 15）。
