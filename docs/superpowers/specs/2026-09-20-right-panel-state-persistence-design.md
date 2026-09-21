@@ -454,7 +454,9 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 
 ## 11. 验收记录（T28，分支 `panel-state-persist`，2026-09-21）
 
-**实现结论**：T1–T27、T29 全部完成并通过逐任务双审（规格 + 质量），整分支终审 **merge-ready**（无修复波）。155 files / 56 commits / +9308/−2779；Rust 零改动。
+计划见 `docs/superpowers/plans/2026-09-20-right-panel-state-persistence.md`，执行账本见 `.superpowers/sdd/2026-09-20-right-panel-state-persistence/progress.md`。
+
+**实现结论**：T1–T27、T29 全部完成并通过逐任务双审（规格 + 质量），整分支终审 **merge-ready**（终审零新增修复项；逐任务阶段的修复轮详见账本）。155 files / 56 commits / +9308/-2779（`git diff --stat bf75fec5..HEAD` 口径，含实现与文档）。
 
 **机器可验证项（controller 已执行）**：
 - 登记表变异探针：临时删除 `adl:files.workspaceExpanded` → 5 个依赖用例变红 → 恢复后全绿（声明式约束真实生效）。
@@ -469,4 +471,4 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 
 **范围决策（T28 待定）**：是否补 unmount 时最终视口刷盘 —— 症状（若不补）：T26 恢复的文件偶发滚动偏移滞后一次切换，无数据丢失。
 
-**已知未实现项**：计划 Task 13 Step 5 的"展开到当前文件"工具栏按钮（代码库中不存在该按钮）；`browserTabTreeExpanded` 的 `folder:` 前缀孤儿剪枝（浏览器侧原本即无该路径）。
+**已知未实现项**：计划 Task 13 Step 5 的"展开到当前文件"工具栏按钮（代码库中不存在该按钮）；`browserTabTreeExpanded` 的 `folder:` 前缀孤儿剪枝（浏览器侧删除路径存在但剪枝未接入：`persisted/prune.ts` 注释"不剪"，见计划子项目 F3）。

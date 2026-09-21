@@ -52,6 +52,9 @@ digitalLife/
 # Superpower IDE runtime cache
 .superpowers/
 
+# Closing-workflow review snapshots (regenerable via git diff, deleted in Step 5)
+.review-diffs/
+
 # External reference code (not part of the project, for learning/reference only)
 references/opencode/
 references/bklit-ui/

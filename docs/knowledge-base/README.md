@@ -6,7 +6,7 @@
 
 | 目录 | 内容 | 文件数 |
 |------|------|--------|
-| [refactoring](./refactoring/) | 重构方法论、组件提取、执行报告、阶段性总结 | 28 |
+| [refactoring](./refactoring/) | 重构方法论、组件提取、执行报告、阶段性总结 | 33 |
 | [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 11 |
 | [browser](./browser/) | 内置浏览器实现、空标签引导页、树形目录交互、iframe 嵌入检查、Tauri WebView 覆盖、Resize Handle 区域逃逸、复制按钮动画化、Child WebView IPC 限制、SPA 标题轮询、导航模式切换、并发回调去重、标题锁定与 Favicon Pin、标签右键菜单与悬停按钮、WebView2 `text-overflow` 剪辑特性、已打开标签模式过滤与多 iframe 状态保持、4模式导航栏重构、双层同步机制、延迟创建、WebView2 原生 COM 事件、历史记录修复、历史标签删除修复、音频指示器、书签对话框 Store 模式、navigateTab 显式调用重构、favicon 时序竞争修复等经验 | 42 |
 | [code-quality](./code-quality/) | 全量代码质量检测与修复经验 | 21 |
@@ -20,6 +20,7 @@
 说明：
 - 文件数超过 15 的目录按年月分子目录归档（如 `2026-06/`、`2026-07/`）
 - 无明确日期的综合参考文件保留在根目录
+- 有明确日期的跨任务综合经验暂留根目录（待下次整理时建 `2026-09/` 分区迁移）
 - 文件名格式：`topic-description-YYYY-MM-DD.md`
 
 ## 索引
