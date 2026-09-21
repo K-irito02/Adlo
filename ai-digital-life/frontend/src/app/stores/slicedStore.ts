@@ -39,7 +39,6 @@ import {
   createBrowserDownloadsSlice,
 } from './slices';
 import { createGitVisSlice } from './slices/gitVisSlice';
-import { hydrateGitHubRepoSlice } from './slices/githubRepoSliceHelpers';
 import type { StoreState as FullStoreState } from './StoreState';
 
 import {
@@ -127,12 +126,10 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
 
 import { hydrateAll } from './persisted/hydrate';
 import { cleanupUnregisteredKeys } from './persisted/cleanup';
-import { PERSIST_KEEP_KEYS } from './persisted/registry';
 import { registerPruneStore } from './persisted/pruneWiring';
 
-// PERSIST_KEEP_KEYS 在 persisted/registry.ts 中定义（由生成命令产出，详见其头部注释），
-// 此处仅导入使用。启动清理会删除所有不在 registry 内的 adl: 键，迁移分批进行期间
-// 必须保留全部遗留键（见 registry.ts 注释与 keepListGuard 守卫测试）。
+// 过渡保留名单（PERSIST_KEEP_KEYS）已随 Task 29 删除：全部遗留键完成登记，
+// 启动清理只需处理水合失败的脏键（extra）。遗留 adl-ui:* 键残留无害且不再被读取。
 
 // 剪枝接线注册：pruneWiring 经注入拿 store 引用（而非静态 import），
 // 避免 slicedStore → slice → pruneWiring → slicedStore 的求值环。
@@ -147,10 +144,7 @@ const hydration = hydrateAll();
 if (Object.keys(hydration.patch).length > 0) {
   useSlicedAppStore.setState(hydration.patch);
 }
-cleanupUnregisteredKeys({ keep: PERSIST_KEEP_KEYS, extra: hydration.dirtyKeys });
-
-// 显式 hydration：在 store 创建后从 localStorage 恢复 GitHub Repo slice 的持久化状态
-void hydrateGitHubRepoSlice(useSlicedAppStore.setState);
+cleanupUnregisteredKeys({ extra: hydration.dirtyKeys });
 
 // Type safety: compile-time assertion that the store satisfies StoreState
 // Uses the "never" type trick: if StoreState and actual store types don't match,

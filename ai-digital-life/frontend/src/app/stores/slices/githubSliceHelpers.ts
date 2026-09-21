@@ -1,14 +1,10 @@
 /**
  * GitHub 切片辅助函数
- * 从 githubSlice.ts 提取的类型、Bridge 检测和 CI 配置持久化逻辑
+ * 从 githubSlice.ts 提取的类型、Bridge 检测和令牌存在标记逻辑。
+ * 配置 / 分区 / 开关的水合由 persisted/hydrateAll 拥有（Task 29），此处仅保留
+ * Tauri 钥匙串的异步存在标记（只写不回读）。
  */
-import type { CiRepoConfig } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from '@shared/ipc/digital-life';
-
-const CI_CONFIG_KEY = 'adl-ui:ci-config';
-const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
-const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
-const ACTIVE_GITHUB_SECTION_KEY = 'adl-ui:active-github-section';
 
 export type GitHubSection = 'overview' | 'workflows' | 'jobs' | 'logs' | 'settings' | 'help';
 
@@ -26,54 +22,15 @@ export function isTauriMode(): boolean {
   );
 }
 
-export async function hydrateCiConfigDefaults(): Promise<{
-  config: CiRepoConfig;
-  token: string;
-  autoRefresh: boolean;
-}> {
-  const defaultCfg: CiRepoConfig = {
-    owner: '',
-    repo: '',
-    branch: 'main',
-    workflowId: null,
-    accessToken: null,
-  };
+/**
+ * Tauri 模式的令牌存在标记：bridge 钥匙串有 token 时返回 '::stored::' 占位，
+ * 否则返回 undefined（调用方此时不得覆盖水合值）。配置 / 分区 / 开关不再经由
+ * 此处读盘——它们由 hydrateAll 同步水合；浏览器模式的令牌镜像同样由水合拥有。
+ */
+export async function hydrateCiTokenMarker(): Promise<string | undefined> {
   if (typeof window === 'undefined') {
-    return {
-      config: defaultCfg,
-      token: '',
-      autoRefresh: true,
-    };
+    return undefined;
   }
-
-  let config: CiRepoConfig = { ...defaultCfg };
-  let autoRefresh = true;
-
-  try {
-    const rawConfig = window.localStorage.getItem(CI_CONFIG_KEY);
-    if (rawConfig) {
-      const parsed = JSON.parse(rawConfig);
-      if (parsed && typeof parsed === 'object') {
-        config = {
-          owner: typeof parsed.owner === 'string' ? parsed.owner : '',
-          repo: typeof parsed.repo === 'string' ? parsed.repo : '',
-          branch: typeof parsed.branch === 'string' ? parsed.branch : 'main',
-          workflowId: parsed.workflowId ?? null,
-          accessToken: null,
-        };
-      }
-    }
-    const rawFlag = window.localStorage.getItem(CI_AUTO_REFRESH_ON_PUSH_KEY);
-    if (rawFlag === '0') {
-      autoRefresh = false;
-    } else if (rawFlag === '1') {
-      autoRefresh = true;
-    }
-  } catch (err) {
-    console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
-  }
-
-  let token = '';
   const bridge = getBridge();
   if (
     isTauriMode() &&
@@ -84,59 +41,11 @@ export async function hydrateCiConfigDefaults(): Promise<{
     try {
       const hasResult = await bridge.github.hasAccessToken();
       if (hasResult && hasResult.ok && hasResult.data) {
-        token = '::stored::';
-      }
-    } catch (err) {
-      console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
-    }
-  } else if (bridge && bridge.github && typeof bridge.github.hasAccessToken === 'function') {
-    try {
-      const hasResult = await bridge.github.hasAccessToken();
-      if (hasResult && hasResult.ok && hasResult.data) {
-        const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
-        token = typeof storedToken === 'string' && storedToken.length > 0 ? storedToken : '';
+        return '::stored::';
       }
     } catch (err) {
       console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
     }
   }
-
-  if (!token && typeof window !== 'undefined') {
-    try {
-      const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
-      if (typeof storedToken === 'string' && storedToken.length > 0) {
-        token = storedToken;
-      }
-    } catch (err) {
-      console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
-    }
-  }
-
-  return { config, token, autoRefresh };
-}
-
-export async function hydrateCiStatusDefaults(): Promise<{
-  activeGitHubSection: GitHubSection;
-}> {
-  if (typeof window === 'undefined') {
-    return { activeGitHubSection: 'overview' };
-  }
-
-  let activeGitHubSection: GitHubSection = 'overview';
-  try {
-    const storedSection = window.localStorage.getItem(ACTIVE_GITHUB_SECTION_KEY);
-    if (
-      storedSection === 'overview' ||
-      storedSection === 'workflows' ||
-      storedSection === 'jobs' ||
-      storedSection === 'settings' ||
-      storedSection === 'help'
-    ) {
-      activeGitHubSection = storedSection as GitHubSection;
-    }
-  } catch (err) {
-    console.warn('githubSliceHelpers: localStorage/bridge operation failed:', err);
-  }
-
-  return { activeGitHubSection };
+  return undefined;
 }

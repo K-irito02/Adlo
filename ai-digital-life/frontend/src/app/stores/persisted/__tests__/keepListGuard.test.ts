@@ -1,8 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { registryEntries } from '../registry';
-import { PERSIST_KEEP_KEYS } from '../registry';
+
+// Task 29 收尾门禁（全仓）：过渡保留名单 PERSIST_KEEP_KEYS 已删除，
+// 生产源码中不得再残留任何遗留键字面量（adl-ui: / adl-terminal: /
+// adl-search: / adl-browser:）。此前受保护的 17 个键已全部收编——
+// 16 个登记进 registry，adl-ui:github-access-token 在生产代码中本就不存在
+// （仅 mock-ci 注释，ledger F），注释示例已改为新式键名。
+// 新式 adl:<domain>.<name> 键不在本表达式覆盖范围内。
+// 用例内字面量与 mock 注释中的新式示例键不受影响（仅扫描遗留前缀）。
 
 const LEGACY_LITERAL = /'(adl-(?:ui|terminal|search|browser):[a-zA-Z0-9:._-]+)'/g;
 
@@ -16,34 +22,18 @@ function collectProductionSources(dir: string): string[] {
   });
 }
 
-function legacyKeysInProductionSource(): string[] {
-  const found = new Set<string>();
-  for (const file of collectProductionSources(join(process.cwd(), 'src'))) {
-    const content = readFileSync(file, 'utf8');
-    for (const match of content.matchAll(LEGACY_LITERAL)) {
-      found.add(match[1]);
-    }
-  }
-  return [...found];
-}
-
 describe('startup-cleanup allowlist guard', () => {
-  it('every legacy key literal in production source is either registered or kept', () => {
-    const registered = new Set(registryEntries.map((entry) => entry.key));
-    const unguarded = legacyKeysInProductionSource().filter(
-      (key) => !registered.has(key) && !PERSIST_KEEP_KEYS.has(key),
-    );
+  it('no legacy key literal remains in production source (keep-list retired)', () => {
+    const offenders: string[] = [];
+    for (const file of collectProductionSources(join(process.cwd(), 'src'))) {
+      const content = readFileSync(file, 'utf8');
+      for (const match of content.matchAll(LEGACY_LITERAL)) {
+        offenders.push(`${file}: ${match[1]}`);
+      }
+    }
     expect(
-      unguarded,
-      'these legacy keys would be deleted by startup cleanup — register them or add them to PERSIST_KEEP_KEYS',
+      offenders,
+      'legacy keys must be registered under a new adl: key (or removed) — the transition keep-list no longer exists',
     ).toEqual([]);
-  });
-
-  it('no kept key is already registered (migrations must narrow the list)', () => {
-    const registered = new Set(registryEntries.map((entry) => entry.key));
-    const redundant = [...PERSIST_KEEP_KEYS].filter((key) => registered.has(key));
-    expect(redundant, 'remove these from PERSIST_KEEP_KEYS now that they are registered').toEqual(
-      [],
-    );
   });
 });

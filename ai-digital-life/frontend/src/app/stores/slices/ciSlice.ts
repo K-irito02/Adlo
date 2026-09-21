@@ -5,7 +5,7 @@
  * 安全说明：
  * - Tauri 桌面模式：`ciAccessToken` 不持久化到前端，仅通过 `tauri-bridge` 调用 Rust credential crate（系统钥匙串优先，
  *   fallback 为加密文件存储）
- * - 浏览器开发模式：仅保存在内存 + localStorage 中（key: adl-ui:ci-access-token）
+ * - 浏览器开发模式：仅保存在内存 + localStorage 镜像中（key: adl:browser.ciAccessToken）
  * - 发送请求时通过 HTTP header 传递，避免出现在 URL 或日志中
  * - 任何代码路径禁止将 token 写入 console.log / error / 调试输出
  */
@@ -13,16 +13,9 @@ import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-l
 import type { StoreState } from '../StoreState';
 import type { DigitalLifeBridge } from '@shared/ipc/digital-life';
 import { CI_ERROR_CODES } from '@shared/ciErrors';
-import { makePersistedWriter } from '../shared';
+import { persistField } from '../persisted/apply';
+import { persist } from '../persisted/persist';
 import { executeCiStatusRefresh } from './githubCiRefresh';
-
-// Local storage keys
-const CI_CONFIG_KEY = 'adl-ui:ci-config';
-const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
-const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
-
-// Persisted writer — coalesces localStorage writes via shared 50ms scheduler
-const writeCiConfig = makePersistedWriter(CI_CONFIG_KEY);
 
 function getBridge(): DigitalLifeBridge | null {
   if (typeof window === 'undefined') {
@@ -38,53 +31,14 @@ function isTauriMode(): boolean {
   );
 }
 
-let _defaultsHydrated = false;
-
-async function hydrateCiDefaults(): Promise<{
-  config: CiRepoConfig;
-  token: string;
-  autoRefresh: boolean;
-}> {
-  const defaultCfg: CiRepoConfig = {
-    owner: '',
-    repo: '',
-    branch: 'main',
-    workflowId: null,
-    accessToken: null,
-  };
+/**
+ * Tauri 模式的令牌存在标记：bridge 钥匙串有 token 时前端以 '::stored::' 占位
+ * （只写不回读，不在前端回显）。配置与自刷新开关由 hydrateAll 拥有，此处不再读盘。
+ */
+async function hydrateCiTokenMarker(): Promise<string | undefined> {
   if (typeof window === 'undefined') {
-    return { config: defaultCfg, token: '', autoRefresh: true };
+    return undefined;
   }
-
-  let config: CiRepoConfig = { ...defaultCfg };
-  let autoRefresh = true;
-
-  try {
-    const rawConfig = window.localStorage.getItem(CI_CONFIG_KEY);
-    if (rawConfig) {
-      const parsed = JSON.parse(rawConfig);
-      if (parsed && typeof parsed === 'object') {
-        config = {
-          owner: typeof parsed.owner === 'string' ? parsed.owner : '',
-          repo: typeof parsed.repo === 'string' ? parsed.repo : '',
-          branch: typeof parsed.branch === 'string' ? parsed.branch : 'main',
-          workflowId: parsed.workflowId ?? null,
-          accessToken: null,
-        };
-      }
-    }
-    const rawFlag = window.localStorage.getItem(CI_AUTO_REFRESH_ON_PUSH_KEY);
-    if (rawFlag === '0') {
-      autoRefresh = false;
-    } else if (rawFlag === '1') {
-      autoRefresh = true;
-    }
-  } catch (err) {
-    console.warn('ciSlice: localStorage/bridge operation failed:', err);
-  }
-
-  // Token 读取：Tauri 模式走 credential crate，浏览器模式走 server API
-  let token = '';
   const bridge = getBridge();
   if (
     isTauriMode() &&
@@ -95,27 +49,13 @@ async function hydrateCiDefaults(): Promise<{
     try {
       const hasResult = await bridge.github.hasAccessToken();
       if (hasResult && hasResult.ok && hasResult.data) {
-        token = '::stored::'; // 标记后端已有 token（不在前端回显）
-      }
-    } catch (err) {
-      console.warn('ciSlice: localStorage/bridge operation failed:', err);
-    }
-  } else if (bridge && bridge.github && typeof bridge.github.hasAccessToken === 'function') {
-    // 浏览器预览模式：尝试从 server 读取
-    try {
-      const hasResult = await bridge.github.hasAccessToken();
-      if (hasResult && hasResult.ok && hasResult.data) {
-        // Server 有 token，尝试从 localStorage 获取实际值用于后续请求
-        const storedToken = window.localStorage.getItem(CI_ACCESS_TOKEN_KEY);
-        token = typeof storedToken === 'string' && storedToken.length > 0 ? storedToken : '';
+        return '::stored::'; // 标记后端已有 token（不在前端回显）
       }
     } catch (err) {
       console.warn('ciSlice: localStorage/bridge operation failed:', err);
     }
   }
-
-  _defaultsHydrated = true;
-  return { config, token, autoRefresh };
+  return undefined;
 }
 
 export interface CiSlice {
@@ -141,10 +81,12 @@ export const createCiSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
 ): CiSlice => {
-  // 启动时异步读取 token，立即同步读取配置
+  // 启动时仅补 Tauri 钥匙串存在标记；配置 / 令牌镜像 / 开关由 hydrateAll 同步水合。
   if (typeof window !== 'undefined') {
-    void hydrateCiDefaults().then(({ config, token, autoRefresh }) => {
-      set({ ciConfig: config, ciAccessToken: token, ciAutoRefreshOnPush: autoRefresh });
+    void hydrateCiTokenMarker().then((token) => {
+      if (token !== undefined) {
+        set({ ciAccessToken: token });
+      }
     });
   }
 
@@ -159,8 +101,9 @@ export const createCiSlice = (
     ciPersisted: true,
 
     setCiConfig: (config) => {
+      // 内存保留完整 config（含调用方传入的 accessToken）；落盘剥离 token（旧 writeCiConfig 同形）。
       set({ ciConfig: config });
-      writeCiConfig({
+      persist('adl:browser.ciConfig', {
         owner: config.owner,
         repo: config.repo,
         branch: config.branch,
@@ -181,19 +124,9 @@ export const createCiSlice = (
         }
       }
 
-      // 同时保存到 localStorage 以便页面刷新后能从 server 恢复
+      // 同时保存到本地镜像以便页面刷新后恢复（新键；清空时写空串，读侧等价于旧 removeItem）。
       set({ ciAccessToken: sanitized });
-      if (typeof window !== 'undefined') {
-        try {
-          if (sanitized.length > 0) {
-            window.localStorage.setItem(CI_ACCESS_TOKEN_KEY, sanitized);
-          } else {
-            window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-          }
-        } catch (err) {
-          console.warn('ciSlice: localStorage/bridge operation failed:', err);
-        }
-      }
+      persist('adl:browser.ciAccessToken', sanitized);
     },
 
     clearCiAccessToken: async () => {
@@ -208,26 +141,13 @@ export const createCiSlice = (
         }
       }
 
-      // 同时清除 localStorage
+      // 同时清除本地镜像
       set({ ciAccessToken: '' });
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-        } catch (err) {
-          console.warn('ciSlice: localStorage/bridge operation failed:', err);
-        }
-      }
+      persist('adl:browser.ciAccessToken', '');
     },
 
     setCiAutoRefreshOnPush: (enabled) => {
-      set({ ciAutoRefreshOnPush: enabled });
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(CI_AUTO_REFRESH_ON_PUSH_KEY, enabled ? '1' : '0');
-        } catch (err) {
-          console.warn('ciSlice: localStorage/bridge operation failed:', err);
-        }
-      }
+      set(persistField('adl:browser.ciAutoRefreshOnPush', enabled));
     },
 
     refreshCiStatus: async () => {

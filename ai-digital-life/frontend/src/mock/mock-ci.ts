@@ -4,12 +4,18 @@ import type { IpcResult } from "@ai-digital-life/kernel";
 /**
  * Shared token management for CI and GitHub domains.
  *
- * Both `ci` and `github` domains originally used the same localStorage key
- * `'adl-ui:ci-access-token'`. To preserve existing behavior (no logic change
- * during the split), both domains continue to use the same key here.
+ * Both `ci` and `github` domains originally used the same localStorage token key.
+ * To preserve existing behavior (no logic change during the split), both domains
+ * continue to use the same key here (relocated to `'adl:browser.ciAccessToken'`
+ * by Task 29, shared with the store).
  *
- * Concern: github likely should use its own key (e.g. `'adl-ui:github-access-token'`)
+ * Concern: github likely should use its own key (e.g. `'adl:browser.githubAccessToken'`)
  * so CI and GitHub tokens don't overwrite each other. See task-3-report.md.
+ *
+ * NOTE: mock bridge keeps synchronous direct localStorage IO on purpose —
+ * `hasAccessToken` must observe `setAccessToken` immediately, which the shared
+ * debounced persist channel cannot guarantee. Non-legacy key, out of the
+ * persist-channel gate scope.
  */
 function createTokenManagement(
   storageKey: string,
@@ -101,6 +107,6 @@ const mockStatusHandlers: Pick<
 };
 
 export const mockGithub: GitHubBridge = {
-  ...createTokenManagement('adl-ui:ci-access-token', 'GitHub'),
+  ...createTokenManagement('adl:browser.ciAccessToken', 'GitHub'),
   ...mockStatusHandlers,
 };

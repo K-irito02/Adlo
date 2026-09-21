@@ -10,7 +10,7 @@ import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { usePersistedScrollTop } from '@hooks/usePersistedScrollTop';
 import type { SystemSnapshot } from '@shared/ipc/system_monitor';
 
-const SYSMON_SCROLL_TOP_KEY = 'adl-ui:sysmon-scroll-top';
+const SYSMON_SCROLL_TOP_KEY = 'adl:ui.sysmonScrollTop';
 
 type DiskStat = SystemSnapshot['disks'][number];
 type NetStat = SystemSnapshot['networks'][number];
@@ -243,8 +243,10 @@ function UptimeSection({ uptimeSecs }: UptimeSectionProps) {
 export function SysmonDetails() {
   const { t } = useTCopy();
   const sysmonSnapshot = useAppStore((s) => s.sysmonSnapshot);
-  const { scrollRef: sysmonScrollRef, tryRestore: tryRestoreSysmonScroll } =
-    usePersistedScrollTop(SYSMON_SCROLL_TOP_KEY);
+  const { scrollRef: sysmonScrollRef, tryRestore: tryRestoreSysmonScroll } = usePersistedScrollTop(
+    SYSMON_SCROLL_TOP_KEY,
+    { usePersistChannel: true },
+  );
   // 布尔跳变 + 条目数信号：快照每秒新 identity，直接依赖会导致 effect 每秒空跑；
   // 进程数增长可能撑高内容，保留长度信号供 armed 存续期重试。
   const hasSnapshot = sysmonSnapshot !== null;

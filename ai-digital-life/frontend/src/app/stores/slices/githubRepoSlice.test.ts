@@ -1,60 +1,47 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { hydrateGitHubRepoSlice } from './githubRepoSliceHelpers';
+import { describe, it, expect } from 'vitest';
+import { stripTokenFromConfig, stripTokenFromFolders } from './githubRepoSliceHelpers';
 
-describe('hydrateGitHubRepoSlice', () => {
-  let setMock: ReturnType<typeof vi.fn>;
-
-  beforeEach(() => {
-    setMock = vi.fn();
-    vi.stubGlobal('window', {
-      localStorage: {
-        getItem: vi.fn(),
-      },
+// hydrateGitHubRepoSlice 随 Task 29 删除（水合收归 hydrateAll）；此处覆盖保留下来的
+// 落盘形状处理：token 剥离（写入侧恒不落 token，读侧恒为 null）。
+describe('githubRepoSlice token stripping', () => {
+  it('strips the accessToken from a workspace config before persistence', () => {
+    expect(
+      stripTokenFromConfig({
+        owner: 'o',
+        repo: 'r',
+        branch: 'main',
+        workflowId: null,
+        accessToken: 'secret',
+        configured: true,
+      }),
+    ).toEqual({
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+      workflowId: null,
+      accessToken: null,
+      configured: true,
     });
   });
 
-  it('calls set with hydrated configs when localStorage has data', async () => {
-    const configs = {
-      'ws-1': {
-        owner: 'octocat',
-        repo: 'hello',
-        branch: 'main',
-        accessToken: null,
-        configured: true,
-        workflowId: null,
+  it('strips accessTokens from folder configs, leaving tokenless folders untouched', () => {
+    const folders = stripTokenFromFolders([
+      {
+        id: 'f1',
+        name: 'a',
+        createdAt: 1,
+        ciConfig: {
+          owner: 'o',
+          repo: 'r',
+          branch: 'main',
+          workflowId: null,
+          accessToken: 'secret',
+          configured: true,
+        },
       },
-    };
-    vi.spyOn(globalThis, 'window', 'get').mockReturnValue({
-      localStorage: { getItem: vi.fn().mockReturnValue(JSON.stringify(configs)) },
-    } as unknown as Window & typeof globalThis);
-
-    await hydrateGitHubRepoSlice(setMock);
-
-    expect(setMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        gitHubWorkspaceConfigs: expect.objectContaining({ 'ws-1': expect.anything() }),
-      }),
-    );
-  });
-
-  it('does not call set when localStorage is empty', async () => {
-    vi.spyOn(globalThis, 'window', 'get').mockReturnValue({
-      localStorage: { getItem: vi.fn().mockReturnValue(null) },
-    } as unknown as Window & typeof globalThis);
-
-    await hydrateGitHubRepoSlice(setMock);
-
-    expect(setMock).not.toHaveBeenCalled();
-  });
-
-  it('guards against SSR (window undefined)', async () => {
-    const originalWindow = globalThis.window;
-    // @ts-expect-error simulate SSR
-    delete globalThis.window;
-
-    await expect(hydrateGitHubRepoSlice(setMock)).resolves.not.toThrow();
-    expect(setMock).not.toHaveBeenCalled();
-
-    globalThis.window = originalWindow;
+      { id: 'f2', name: 'b', createdAt: 2 },
+    ]);
+    expect(folders[0].ciConfig?.accessToken).toBeNull();
+    expect(folders[1]).toEqual({ id: 'f2', name: 'b', createdAt: 2 });
   });
 });

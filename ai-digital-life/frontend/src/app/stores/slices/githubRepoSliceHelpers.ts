@@ -1,15 +1,11 @@
 /**
  * GitHub Repo 切片辅助函数
- * 从 githubRepoSlice.ts 提取的 localStorage 持久化逻辑
+ * 工作区配置与 CI 文件夹的落盘形状处理（token 剥离）与纯集合运算。
+ * 读写通道（Task 29）：写经 persist()（唯一写通道），读经 hydrateAll()；
+ * 本模块不再持有任何去抖写入器与 localStorage 键。
  */
 import type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSliceTypes';
-import type { StoreState } from '../StoreState';
-import { createDebouncedWrite, readJson } from '../shared';
-
-const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
-const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
-
-const persistWriter = createDebouncedWrite(300);
+import { persist } from '../persisted/persist';
 
 /** Strip accessToken for secure localStorage persistence */
 export function stripTokenFromConfig(
@@ -32,44 +28,11 @@ export function scheduleWorkspaceConfigsWrite(configs: Record<string, GitWorkspa
   for (const [id, cfg] of Object.entries(configs)) {
     stripped[id] = stripTokenFromConfig(cfg);
   }
-  persistWriter.scheduleWrite(GH_WORKSPACE_CONFIGS_KEY, stripped);
+  persist('adl:browser.workspaceConfigs', stripped);
 }
 
 export function scheduleFoldersWrite(folders: GitHubCiFolderState[]): void {
-  persistWriter.scheduleWrite(GH_CI_FOLDERS_KEY, stripTokenFromFolders(folders));
-}
-
-export async function hydrateGitHubConfigs(): Promise<Record<string, GitWorkspaceCiConfig>> {
-  const saved = readJson<
-    Record<string, Omit<GitWorkspaceCiConfig, 'accessToken'> & { accessToken?: string | null }>
-  >(GH_WORKSPACE_CONFIGS_KEY, {});
-  const result: Record<string, GitWorkspaceCiConfig> = {};
-  for (const [id, cfg] of Object.entries(saved)) {
-    if (cfg && typeof cfg === 'object' && cfg.owner) {
-      result[id] = {
-        owner: cfg.owner,
-        repo: cfg.repo,
-        branch: cfg.branch ?? 'main',
-        workflowId: cfg.workflowId ?? null,
-        accessToken: null,
-        configured: cfg.configured ?? true,
-      };
-    }
-  }
-  return result;
-}
-
-export async function hydrateGitHubFolders(): Promise<GitHubCiFolderState[]> {
-  const saved = readJson<GitHubCiFolderState[]>(GH_CI_FOLDERS_KEY, []);
-  if (!Array.isArray(saved)) {
-    return [];
-  }
-  return saved.map((f) => {
-    if (f.ciConfig) {
-      return { ...f, ciConfig: { ...f.ciConfig, accessToken: null } };
-    }
-    return f;
-  });
+  persist('adl:browser.ciFolders', stripTokenFromFolders(folders));
 }
 
 /**
@@ -119,27 +82,4 @@ export function collectAffectedWorkspaceIds(
     }
   }
   return affectedWorkspaceIds;
-}
-
-/**
- * 显式 hydration 函数：从 localStorage 恢复 GitHub Repo slice 的持久化状态。
- * 应在 store 创建后由启动流程调用，替代 slice 工厂中的构造时副作用。
- * @param set Zustand set 函数（来自 store 实例）
- */
-export async function hydrateGitHubRepoSlice(
-  set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-): Promise<void> {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  const configs = await hydrateGitHubConfigs();
-  if (Object.keys(configs).length > 0) {
-    set({ gitHubWorkspaceConfigs: configs });
-  }
-
-  const folders = await hydrateGitHubFolders();
-  if (folders.length > 0) {
-    set({ gitHubCiFolders: folders });
-  }
 }

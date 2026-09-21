@@ -5,24 +5,6 @@ import type { EditorView } from '@codemirror/view';
 import { CodeMirrorEditorRef } from '@features/editor';
 import type { EditorRef } from '@stores/types';
 
-const CHANGES_BRANCH_STORAGE_KEY = 'adl-ui:changes-branch';
-
-export function readSelectedBranch(initialBranch: string): string {
-  try {
-    return window.localStorage.getItem(CHANGES_BRANCH_STORAGE_KEY)?.trim() || initialBranch;
-  } catch {
-    return initialBranch;
-  }
-}
-
-export function writeSelectedBranch(branch: string) {
-  try {
-    window.localStorage.setItem(CHANGES_BRANCH_STORAGE_KEY, branch);
-  } catch {
-    console.warn('[ChangesPanel/utils] failed to persist selected branch');
-  }
-}
-
 export function getChangeKindLabel(changeKind: 'added' | 'modified' | 'deleted', t: CopyDict) {
   return changeKind === 'added'
     ? t.gitAdded

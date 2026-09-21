@@ -4,9 +4,7 @@
  */
 import type { SystemSnapshot } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
-import { readFlag, writeFlag } from '../shared';
-
-export const SYSMON_COLLAPSED_KEY = 'adl-ui:sysmon-collapsed';
+import { persist } from '../persisted/persist';
 
 export interface SystemMonitorSlice {
   sysmonSnapshot: SystemSnapshot | null;
@@ -21,13 +19,14 @@ export const createSystemMonitorSlice = (
   _get: () => StoreState,
 ): SystemMonitorSlice => ({
   sysmonSnapshot: null,
-  sysmonCollapsed: readFlag(SYSMON_COLLAPSED_KEY, true),
+  // 初始值即登记表 fallback（默认收起 true）；真实值由 hydrateAll 在 store 创建后同步写入。
+  sysmonCollapsed: true,
 
   setSysmonSnapshot: (snap) => set({ sysmonSnapshot: snap }),
   toggleSysmonCollapsed: () =>
     set((state) => {
       const next = !state.sysmonCollapsed;
-      writeFlag(SYSMON_COLLAPSED_KEY, next);
+      persist('adl:ui.sysmonCollapsed', next);
       return { sysmonCollapsed: next };
     }),
 });

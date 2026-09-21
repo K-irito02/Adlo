@@ -1,8 +1,41 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { clamp, readNumber, writeNumber } from '@stores/shared';
+import { persist } from '@stores/persisted/persist';
 
 const SAVE_DEBOUNCE_MS = 150;
-const MAX_SCROLL_TOP = 1000000;
+/** 与旧读写路径一致的上界：readNumber 钳制与 writeNumber 钳制共用，登记表读界引用同一常量 */
+export const MAX_SCROLL_TOP = 1000000;
+
+// ─────────────────────────────────────────────────────────────
+// 滚动位置的水合缓存（Task 29，登记表 apply 目标）。
+//
+// sysmon / 剪贴板滚动位置是组件级状态（ref + 恢复编排，不宜上提 store）：
+// 构造期水合经 hydrateAll 把校验后的值交回此处；hook 初始值优先读缓存，
+// 未水合（任意键）或测试用任意键时回退到直接 readNumber——旧测试的任意键行为不变。
+// 已登记键的写入走 persist()（唯一写通道，关窗 flush 兜底）；未登记键保持 writeNumber。
+// JSON 与 String(number) 对数值序列化逐字相同，故两种写盘格式互通。
+// ─────────────────────────────────────────────────────────────
+const scrollTopCache = new Map<string, number>();
+
+/** 经 persist 通道写入的已登记滚动键（两键值类型同为 number，联合约束可精确推导） */
+type PersistedScrollKey = 'adl:ui.sysmonScrollTop' | 'adl:ui.clipboardScrollTop';
+
+/** 登记表 `adl:ui.sysmonScrollTop` / `adl:ui.clipboardScrollTop` 的 apply */
+export function applyPersistedScrollTop(key: string, value: number): void {
+  if (Number.isFinite(value)) {
+    scrollTopCache.set(key, value);
+  }
+}
+
+/** hook 初始值：水合缓存优先，未水合时为 undefined（调用方回退到 readNumber） */
+export function readCachedScrollTop(key: string): number | undefined {
+  return scrollTopCache.get(key);
+}
+
+/** 测试专用：清除模块级缓存，模拟全新启动 */
+export function resetScrollTopCacheForTest(): void {
+  scrollTopCache.clear();
+}
 
 /**
  * 滚动位置持久化（localStorage）。
@@ -21,8 +54,14 @@ const MAX_SCROLL_TOP = 1000000;
  * - 滚动停止 150ms 后去抖写入；节点离开（含组件卸载/收起）时若有 pending 去抖则同步落盘。
  * - 程序化回填触发的 scroll 事件会被抑制，不会误存/误接管（仅值真正改变时才置标记）。
  */
-export function usePersistedScrollTop(storageKey: string) {
-  const [savedTop] = useState(() => readNumber(storageKey, 0, 0, MAX_SCROLL_TOP));
+export function usePersistedScrollTop(
+  storageKey: string,
+  options?: { usePersistChannel?: boolean },
+) {
+  const usePersistChannel = options?.usePersistChannel === true;
+  const [savedTop] = useState(
+    () => readCachedScrollTop(storageKey) ?? readNumber(storageKey, 0, 0, MAX_SCROLL_TOP),
+  );
   const nodeRef = useRef<HTMLDivElement | null>(null);
   const restoreArmedRef = useRef(savedTop > 0);
   const suppressScrollRef = useRef(false);
@@ -30,9 +69,14 @@ export function usePersistedScrollTop(storageKey: string) {
 
   const writeTop = useCallback(
     (value: number) => {
-      writeNumber(storageKey, clamp(Math.round(value), 0, MAX_SCROLL_TOP));
+      const next = clamp(Math.round(value), 0, MAX_SCROLL_TOP);
+      if (usePersistChannel) {
+        persist(storageKey as PersistedScrollKey, next);
+      } else {
+        writeNumber(storageKey, next);
+      }
     },
-    [storageKey],
+    [storageKey, usePersistChannel],
   );
 
   // 仅当有 pending 去抖时才落盘：无滚动、无 pending 的卸载不得以 0 覆盖已存值。

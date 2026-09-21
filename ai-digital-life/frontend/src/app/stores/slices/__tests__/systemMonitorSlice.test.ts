@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { createSystemMonitorSlice, SYSMON_COLLAPSED_KEY } from '../systemMonitorSlice';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createSystemMonitorSlice } from '../systemMonitorSlice';
 import type { SystemMonitorSlice } from '../systemMonitorSlice';
+import { persistField } from '../../persisted/apply';
+import { hydrateAll, resetHydrationForTest } from '../../persisted/hydrate';
+import { flushCrossSliceWrites } from '../../storageHelpers';
 
 function createSlice() {
   let state: Record<string, unknown> = {};
@@ -15,46 +18,43 @@ function createSlice() {
   };
   const slice = createSystemMonitorSlice(set as never, get as never);
   state = { ...slice };
-  // 每次经 get() 读新鲜状态：toggle 经 set() 更新 backing state，快照对象本身不会变。
+  // 每次经 get() 读最新状态：toggle 经 set() 回写 backing state，与生产行为一致。
   return { current: () => get() as unknown as SystemMonitorSlice };
 }
 
 describe('systemMonitorSlice collapsed persistence', () => {
   beforeEach(() => {
     window.localStorage.clear();
+    resetHydrationForTest();
   });
 
-  afterEach(() => {
-    window.localStorage.clear();
-  });
-
-  it('defaults to collapsed when nothing is stored', () => {
+  it('defaults to collapsed when nothing is stored (registry fallback true)', () => {
     expect(createSlice().current().sysmonCollapsed).toBe(true);
+    expect(hydrateAll().patch.sysmonCollapsed).toBe(true);
   });
 
-  it('restores expanded when flag is 0', () => {
-    window.localStorage.setItem(SYSMON_COLLAPSED_KEY, '0');
-    expect(createSlice().current().sysmonCollapsed).toBe(false);
-  });
-
-  it('restores collapsed when flag is 1', () => {
-    window.localStorage.setItem(SYSMON_COLLAPSED_KEY, '1');
-    expect(createSlice().current().sysmonCollapsed).toBe(true);
+  it('restores expanded from the registry key', () => {
+    persistField('adl:ui.sysmonCollapsed', false);
+    flushCrossSliceWrites();
+    resetHydrationForTest();
+    expect(hydrateAll().patch.sysmonCollapsed).toBe(false);
   });
 
   it('falls back to collapsed on dirty stored value', () => {
-    window.localStorage.setItem(SYSMON_COLLAPSED_KEY, 'true');
-    expect(createSlice().current().sysmonCollapsed).toBe(true);
+    window.localStorage.setItem('adl:ui.sysmonCollapsed', '"yes"');
+    const result = hydrateAll();
+    expect(result.patch.sysmonCollapsed).toBe(true);
+    expect(result.dirtyKeys).toContain('adl:ui.sysmonCollapsed');
   });
 
-  it('toggle flips state and writes the flag synchronously', () => {
+  it('toggle flips state and persists through the shared channel', () => {
     const { current } = createSlice();
     expect(current().sysmonCollapsed).toBe(true);
     current().toggleSysmonCollapsed();
     expect(current().sysmonCollapsed).toBe(false);
-    expect(window.localStorage.getItem(SYSMON_COLLAPSED_KEY)).toBe('0');
-    current().toggleSysmonCollapsed();
-    expect(current().sysmonCollapsed).toBe(true);
-    expect(window.localStorage.getItem(SYSMON_COLLAPSED_KEY)).toBe('1');
+    flushCrossSliceWrites();
+    expect(window.localStorage.getItem('adl:ui.sysmonCollapsed')).toBe('false');
+    resetHydrationForTest();
+    expect(hydrateAll().patch.sysmonCollapsed).toBe(false);
   });
 });

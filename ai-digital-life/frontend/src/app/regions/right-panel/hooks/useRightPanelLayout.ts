@@ -1,52 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX } from '@stores/slices/uiSlice';
+import { persist } from '@stores/persisted/persist';
 import {
-  RIGHT_PANEL_MODE_KEY,
-  RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY,
-} from '@stores/slices/uiSliceTypes';
+  applyRightPanelMode,
+  applyRightPanelLastRestorableWidth,
+  readCachedRightPanelMode,
+  readCachedRightPanelLastRestorableWidth,
+} from '../rightPanelLayout';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { deriveRightPanelOverlayState, type RightPanelMode } from '../rightPanelLayout';
 
 function readPersistedRightPanelMode(): RightPanelMode {
-  try {
-    const raw = window.localStorage.getItem(RIGHT_PANEL_MODE_KEY);
-    if (raw === 'docked' || raw === 'overlay_partial' || raw === 'overlay_full') {
-      return raw;
-    }
-  } catch {
-    // localStorage unavailable
-  }
-  return 'docked';
+  return readCachedRightPanelMode();
 }
 
 function writePersistedRightPanelMode(mode: RightPanelMode): void {
-  try {
-    window.localStorage.setItem(RIGHT_PANEL_MODE_KEY, mode);
-  } catch {
-    // localStorage unavailable
-  }
+  applyRightPanelMode(mode);
+  persist('adl:ui.rightPanelMode', mode);
 }
 
 function readPersistedLastRestorableWidth(fallback: number): number {
-  try {
-    const raw = window.localStorage.getItem(RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY);
-    const parsed = raw ? Number(raw) : NaN;
-    if (Number.isFinite(parsed) && parsed > 0) {
-      return parsed;
-    }
-  } catch {
-    // localStorage unavailable
-  }
-  return fallback;
+  return readCachedRightPanelLastRestorableWidth() ?? fallback;
 }
 
 function writePersistedLastRestorableWidth(width: number): void {
-  try {
-    window.localStorage.setItem(RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY, String(width));
-  } catch {
-    // localStorage unavailable
-  }
+  applyRightPanelLastRestorableWidth(width);
+  persist('adl:ui.rightPanelLastRestorableWidth', width);
 }
 
 interface RightPanelLayoutMetrics {

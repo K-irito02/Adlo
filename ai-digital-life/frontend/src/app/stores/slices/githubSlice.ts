@@ -2,46 +2,28 @@ import type { CiJobSummary, CiStatusSnapshot, CiRepoConfig } from '@ai-digital-l
 import type { StoreState } from '../StoreState';
 import type { GitWorkspaceCiConfig } from './githubRepoSliceTypes';
 import { CI_ERROR_CODES } from '@shared/ciErrors';
-import { createDebouncedWrite, makePersistedWriter, readJson } from '../shared';
+import { readJson } from '../shared';
+import { persistField } from '../persisted/apply';
+import { persist } from '../persisted/persist';
+import { readCiSnapshots, readCiLogCaches, type CiLogCacheMap } from '../persisted/parsers';
 import {
   type GitHubSection,
   getBridge,
   isTauriMode,
-  hydrateCiConfigDefaults,
-  hydrateCiStatusDefaults,
+  hydrateCiTokenMarker,
 } from './githubSliceHelpers';
 import { executeCiStatusRefresh } from './githubCiRefresh';
 
-const CI_CONFIG_KEY = 'adl-ui:ci-config';
-const CI_ACCESS_TOKEN_KEY = 'adl-ui:ci-access-token';
-const CI_AUTO_REFRESH_ON_PUSH_KEY = 'adl-ui:ci-auto-refresh-on-push';
-const ACTIVE_GITHUB_SECTION_KEY = 'adl-ui:active-github-section';
-const CI_SNAPSHOTS_KEY = 'adl-ui:ci-snapshots';
-const CI_LOG_CACHES_KEY = 'adl-ui:ci-log-caches';
-
-// 50ms: shared cross-slice writer for config
-const writeCiConfig = makePersistedWriter(CI_CONFIG_KEY);
-// 300ms: independent writers for bulkier CI snapshots/log caches
-const snapshotsWriter = createDebouncedWrite(300);
-const logCachesWriter = createDebouncedWrite(300);
-const writeCiSnapshots = (value: unknown) => snapshotsWriter.scheduleWrite(CI_SNAPSHOTS_KEY, value);
-const writeCiLogCaches = (value: unknown) =>
-  logCachesWriter.scheduleWrite(CI_LOG_CACHES_KEY, value);
-
 export type { GitHubSection } from './githubSliceHelpers';
 
+// 大对象延迟加载（Task 29）：sync:false 条目构造期跳过，此处按需从新键读取（旧代码
+// 本就是 Promise 延迟加载，时序不变；300ms 独立去抖收敛为统一通道，关窗 flush 兜底）。
 function hydrateCiSnapshots(): Record<string, CiStatusSnapshot> {
-  return readJson<Record<string, CiStatusSnapshot>>(CI_SNAPSHOTS_KEY, {});
+  return readCiSnapshots(readJson<unknown>('adl:browser.ciSnapshots', undefined)) ?? {};
 }
 
-function hydrateCiLogCaches(): Record<
-  string,
-  { selectedJobId: number | null; logs: Record<number, string> }
-> {
-  return readJson<Record<string, { selectedJobId: number | null; logs: Record<number, string> }>>(
-    CI_LOG_CACHES_KEY,
-    {},
-  );
+function hydrateCiLogCaches(): CiLogCacheMap {
+  return readCiLogCaches(readJson<unknown>('adl:browser.ciLogCaches', undefined)) ?? {};
 }
 
 export interface GitHubSlice {
@@ -57,7 +39,7 @@ export interface GitHubSlice {
   /** CI data cached per workspace/folder ID */
   ciSnapshots: Record<string, CiStatusSnapshot>;
   /** Log caches per directory: selected job ID + fetched log texts */
-  ciLogCaches: Record<string, { selectedJobId: number | null; logs: Record<number, string> }>;
+  ciLogCaches: CiLogCacheMap;
 
   setActiveGitHubSection: (section: GitHubSection) => void;
   setCiConfig: (config: CiRepoConfig) => void;
@@ -83,15 +65,12 @@ export const createGitHubSlice = (
   _get: () => StoreState,
 ): GitHubSlice => {
   if (typeof window !== 'undefined') {
-    void hydrateCiConfigDefaults().then(({ config, token, autoRefresh }) => {
-      set({
-        ciConfig: config,
-        ciAccessToken: token,
-        ciAutoRefreshOnPush: autoRefresh,
-      });
-    });
-    void hydrateCiStatusDefaults().then(({ activeGitHubSection }) => {
-      set({ activeGitHubSection });
+    // 仅补 Tauri 钥匙串存在标记；配置 / 分区 / 开关由 hydrateAll 同步水合，
+    // 快照与日志缓存仍延迟加载（新键，时序不变）。
+    void hydrateCiTokenMarker().then((token) => {
+      if (token !== undefined) {
+        set({ ciAccessToken: token });
+      }
     });
     Promise.resolve().then(() => {
       const savedSnapshots = hydrateCiSnapshots();
@@ -121,19 +100,13 @@ export const createGitHubSlice = (
     ciLogCaches: {},
 
     setActiveGitHubSection: (section) => {
-      set({ activeGitHubSection: section });
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(ACTIVE_GITHUB_SECTION_KEY, section);
-        } catch (err) {
-          console.warn('githubSlice: localStorage/bridge operation failed:', err);
-        }
-      }
+      set(persistField('adl:browser.githubSection', section));
     },
 
     setCiConfig: (config) => {
+      // 内存保留完整 config（含调用方传入的 accessToken）；落盘剥离 token（旧 writeCiConfig 同形）。
       set({ ciConfig: config });
-      writeCiConfig({
+      persist('adl:browser.ciConfig', {
         owner: config.owner,
         repo: config.repo,
         branch: config.branch,
@@ -153,18 +126,9 @@ export const createGitHubSlice = (
         }
       }
 
+      // 本地镜像（新键；清空时写空串，读侧等价于旧 removeItem）
       set({ ciAccessToken: sanitized });
-      if (typeof window !== 'undefined') {
-        try {
-          if (sanitized.length > 0) {
-            window.localStorage.setItem(CI_ACCESS_TOKEN_KEY, sanitized);
-          } else {
-            window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-          }
-        } catch (err) {
-          console.warn('githubSlice: localStorage/bridge operation failed:', err);
-        }
-      }
+      persist('adl:browser.ciAccessToken', sanitized);
     },
 
     clearCiAccessToken: async () => {
@@ -179,24 +143,11 @@ export const createGitHubSlice = (
       }
 
       set({ ciAccessToken: '' });
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.removeItem(CI_ACCESS_TOKEN_KEY);
-        } catch (err) {
-          console.warn('githubSlice: localStorage/bridge operation failed:', err);
-        }
-      }
+      persist('adl:browser.ciAccessToken', '');
     },
 
     setCiAutoRefreshOnPush: (enabled) => {
-      set({ ciAutoRefreshOnPush: enabled });
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.setItem(CI_AUTO_REFRESH_ON_PUSH_KEY, enabled ? '1' : '0');
-        } catch (err) {
-          console.warn('githubSlice: localStorage/bridge operation failed:', err);
-        }
-      }
+      set(persistField('adl:browser.ciAutoRefreshOnPush', enabled));
     },
 
     refreshCiStatus: async () => {
@@ -273,7 +224,7 @@ export const createGitHubSlice = (
           ...state.ciLogCaches,
           [dirId]: { ...existing, ...data },
         };
-        writeCiLogCaches(next);
+        persist('adl:browser.ciLogCaches', next);
         return { ciLogCaches: next };
       });
     },
@@ -321,7 +272,7 @@ export const createGitHubSlice = (
       if (result.ok) {
         set((state) => {
           const nextSnapshots = { ...state.ciSnapshots, [id]: result.snapshot };
-          writeCiSnapshots(nextSnapshots);
+          persist('adl:browser.ciSnapshots', nextSnapshots);
           return {
             ciSnapshot: result.snapshot,
             ciJobs: result.snapshot.jobs ?? [],

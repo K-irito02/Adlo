@@ -7,10 +7,8 @@ import {
   scheduleFoldersWrite,
   collectDescendantFolderIds,
 } from './githubRepoSliceHelpers';
+import { persist } from '../persisted/persist';
 import { computeFolderDeleteOutcome } from './githubRepoDeleteHelpers';
-
-const GH_WORKSPACE_CONFIGS_KEY = 'adl-ui:github-workspace-configs';
-const GH_CI_FOLDERS_KEY = 'adl-ui:github-ci-folders';
 
 export type { GitWorkspaceCiConfig, GitHubCiFolderState } from './githubRepoSliceTypes';
 
@@ -87,13 +85,7 @@ export const createGitHubRepoSlice = (
     },
 
     clearAllGitHubWorkspaceConfigs: () => {
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
-        } catch (err) {
-          console.warn('githubRepoSlice: localStorage operation failed:', err);
-        }
-      }
+      persist('adl:browser.workspaceConfigs', {});
       set({
         gitHubWorkspaceConfigs: {},
         activeCiWorkspaceId: null,
@@ -290,13 +282,7 @@ export const createGitHubRepoSlice = (
     },
 
     clearAllFolders: () => {
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.removeItem(GH_CI_FOLDERS_KEY);
-        } catch (err) {
-          console.warn('githubRepoSlice: localStorage operation failed:', err);
-        }
-      }
+      persist('adl:browser.ciFolders', []);
       set({
         gitHubCiFolders: [],
         ciSnapshot: null,
@@ -316,13 +302,7 @@ export const createGitHubRepoSlice = (
     clearAllCiConfigs: () => {
       set((state) => {
         const nextFolders = state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined }));
-        if (typeof window !== 'undefined') {
-          try {
-            window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
-          } catch (err) {
-            console.warn('githubRepoSlice: localStorage operation failed:', err);
-          }
-        }
+        persist('adl:browser.workspaceConfigs', {});
         scheduleFoldersWrite(nextFolders);
         return { gitHubWorkspaceConfigs: {}, gitHubCiFolders: nextFolders };
       });
@@ -331,13 +311,7 @@ export const createGitHubRepoSlice = (
     clearAllCiConfigsAndData: () => {
       set((state) => {
         const nextFolders = state.gitHubCiFolders.map((f) => ({ ...f, ciConfig: undefined }));
-        if (typeof window !== 'undefined') {
-          try {
-            window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
-          } catch (err) {
-            console.warn('githubRepoSlice: localStorage operation failed:', err);
-          }
-        }
+        persist('adl:browser.workspaceConfigs', {});
         scheduleFoldersWrite(nextFolders);
         return {
           gitHubWorkspaceConfigs: {},
@@ -350,14 +324,8 @@ export const createGitHubRepoSlice = (
     },
 
     resetAllToOriginal: () => {
-      if (typeof window !== 'undefined') {
-        try {
-          window.localStorage.removeItem(GH_WORKSPACE_CONFIGS_KEY);
-          window.localStorage.removeItem(GH_CI_FOLDERS_KEY);
-        } catch (err) {
-          console.warn('githubRepoSlice: localStorage operation failed:', err);
-        }
-      }
+      persist('adl:browser.workspaceConfigs', {});
+      persist('adl:browser.ciFolders', []);
       set({
         gitHubCiFolders: [],
         gitHubWorkspaceConfigs: {},

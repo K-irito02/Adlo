@@ -15,18 +15,14 @@ import type { ChangeFileState } from '@regions/right-panel/changesTree';
 // ════════════════════════════════════════════════════════
 // LocalStorage 键名常量
 //
-// 注意：Task 7/9 已将全量 UI 状态与浏览器面板状态迁移到 persisted registry。
-// 凡已迁移的键不再以本地常量形式存在 —— 它们的单一事实来源是
+// 注意：Task 7/9/29 已将全量 UI 状态、浏览器面板状态与右侧面板布局状态迁移到
+// persisted registry。凡已迁移的键不再以本地常量形式存在 —— 它们的单一事实来源是
 // persisted/registry.ts 中的 `adl:<域>.<名称>` 登记键，写入一律走
-// persistField()，读取一律走 hydrateAll()。下方仅保留尚未迁移的遗留键
-// （由 PERSIST_KEEP_KEYS 保护，待后续任务迁移）：
-//   - RIGHT_PANEL_MODE_KEY / RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY
-//     （仅存在于组件本地 state；Task 22 已裁定不登记 —— rightPanelMode 是
-//     宽度/窗口几何的派生值（挂载即按恢复宽度重算），无上提为真相源的理由；
-//     随 Task 29 统一登记）
+// persist()/persistField()，读取一律走 hydrateAll()。
+// 右侧面板模式与可恢复宽度（Task 29）是 useRightPanelLayout 的 hook 本地 state，
+// 经登记表 `adl:ui.rightPanelMode` / `adl:ui.rightPanelLastRestorableWidth` 的
+// apply 交回 rightPanelLayout.ts 的模块缓存（乙类契约），写入走 persist()。
 // ════════════════════════════════════════════════════════
-export const RIGHT_PANEL_MODE_KEY = 'adl-ui:right-panel-mode';
-export const RIGHT_PANEL_LAST_RESTORABLE_WIDTH_KEY = 'adl-ui:right-panel-last-restorable-width';
 
 // 命名说明：state 侧 `leftbar*` 沿用 CSS 类/变量（.adl-leftbar、--leftbar-width），
 // key/常量侧 `LEFT_PANEL_*` 沿用面板语义（与 RIGHT_PANEL_* 对齐），两者指同一左面板。

@@ -41,6 +41,7 @@
  */
 import type { GitSnapshot, GitBranchSummary } from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
+import { persistField } from '../persisted/apply';
 
 export interface GitSlice {
   /**
@@ -53,9 +54,17 @@ export interface GitSlice {
   gitSnapshot?: GitSnapshot;
   gitBranches: GitBranchSummary[];
   gitStashRestored?: boolean;
+  /**
+   * 变更面板记住的分支选择（Task 29，`adl:changes.branch`）。
+   * 现状说明：旧读写 helper（ChangesPanel/utils 的 read/writeSelectedBranch）已无调用点，
+   * 随本任务删除；该字段暂无生产读写方，仅由登记表持有并参与往返测试——分支子菜单
+   * 消费它时直接用 setSelectedBranch，无需另起存储（noDeadState 记录的 dormant 模式）。
+   */
+  selectedBranch: string;
 
   setGitBranches: (branches: GitBranchSummary[]) => void;
   setGitStashRestored: (restored: boolean) => void;
+  setSelectedBranch: (branch: string) => void;
 }
 
 export const createGitSlice = (
@@ -63,7 +72,9 @@ export const createGitSlice = (
   _get: () => StoreState,
 ): GitSlice => ({
   gitBranches: [],
+  selectedBranch: '',
 
   setGitBranches: (branches) => set({ gitBranches: branches }),
   setGitStashRestored: (restored) => set({ gitStashRestored: restored }),
+  setSelectedBranch: (branch) => set(persistField('adl:changes.branch', branch)),
 });

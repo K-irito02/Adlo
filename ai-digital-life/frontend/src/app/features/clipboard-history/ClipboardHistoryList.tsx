@@ -12,7 +12,7 @@ import { ClipboardItemViewer } from './ClipboardItemViewer';
 import { buildClipboardFilterInput, filterClipboardItems } from './clipboardFilter';
 
 const REFRESH_INTERVAL_MS = 2000;
-const CLIPBOARD_SCROLL_TOP_KEY = 'adl-ui:clipboard-scroll-top';
+const CLIPBOARD_SCROLL_TOP_KEY = 'adl:ui.clipboardScrollTop';
 
 /**
  * 剪贴板历史主列表容器。
@@ -42,7 +42,7 @@ export function ClipboardHistoryList() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const [viewerItem, setViewerItem] = useState<ClipboardItem | null>(null);
   const { scrollRef: clipboardScrollRef, tryRestore: tryRestoreClipboardScroll } =
-    usePersistedScrollTop(CLIPBOARD_SCROLL_TOP_KEY);
+    usePersistedScrollTop(CLIPBOARD_SCROLL_TOP_KEY, { usePersistChannel: true });
 
   const handleZoom = useCallback((item: ClipboardItem) => {
     setViewerItem(item);

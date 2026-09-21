@@ -13,6 +13,11 @@ import {
   readSearchUseGitignore,
   readStringSet,
   readDirExpansion,
+  readCiRepoConfig,
+  readCiSnapshots,
+  readCiLogCaches,
+  readGitHubWorkspaceConfigs,
+  readGitHubCiFolders,
 } from '../parsers';
 
 describe('readFlag', () => {
@@ -252,5 +257,103 @@ describe('readStringSet', () => {
     expect(read('staged')).toBeUndefined();
     expect(read({ staged: true })).toBeUndefined();
     expect(read(null)).toBeUndefined();
+  });
+});
+
+describe('readCiRepoConfig', () => {
+  it('accepts a well-formed config and forces accessToken to null', () => {
+    expect(
+      readCiRepoConfig({
+        owner: 'o',
+        repo: 'r',
+        branch: 'main',
+        workflowId: '123',
+        accessToken: 'leaked',
+      }),
+    ).toEqual({
+      owner: 'o',
+      repo: 'r',
+      branch: 'main',
+      workflowId: '123',
+      accessToken: null,
+    });
+  });
+
+  it('rejects non-string members and non-objects', () => {
+    expect(readCiRepoConfig({ owner: 'o', repo: 'r', branch: 42 })).toBeUndefined();
+    expect(readCiRepoConfig(null)).toBeUndefined();
+    expect(readCiRepoConfig([])).toBeUndefined();
+  });
+});
+
+describe('readCiSnapshots', () => {
+  it('accepts well-formed snapshots', () => {
+    const snapshots = {
+      'ws-1': { repo: 'o/r', branch: 'main', jobs: [], capturedAtMs: 1 },
+    };
+    expect(readCiSnapshots(snapshots)).toEqual(snapshots);
+  });
+
+  it('rejects the whole table when any member is malformed', () => {
+    expect(readCiSnapshots({ 'ws-1': { repo: 'o/r' } })).toBeUndefined();
+    expect(readCiSnapshots([])).toBeUndefined();
+  });
+});
+
+describe('readCiLogCaches', () => {
+  it('accepts well-formed caches', () => {
+    const caches = { d1: { selectedJobId: 7, logs: { 7: 'a\n' } } };
+    expect(readCiLogCaches(caches)).toEqual(caches);
+  });
+
+  it('rejects non-string log lines and non-numeric job ids', () => {
+    expect(readCiLogCaches({ d1: { selectedJobId: '7', logs: {} } })).toBeUndefined();
+    expect(readCiLogCaches({ d1: { selectedJobId: null, logs: { 1: 42 } } })).toBeUndefined();
+  });
+});
+
+describe('readGitHubWorkspaceConfigs', () => {
+  it('skips members without an owner and keeps the rest (mirrors old hydrate)', () => {
+    expect(
+      readGitHubWorkspaceConfigs({
+        'ws-1': {
+          owner: 'o',
+          repo: 'r',
+          branch: 'dev',
+          workflowId: null,
+          configured: true,
+        },
+        'ws-bad': { repo: 'r' },
+      }),
+    ).toEqual({
+      'ws-1': {
+        owner: 'o',
+        repo: 'r',
+        branch: 'dev',
+        workflowId: null,
+        accessToken: null,
+        configured: true,
+      },
+    });
+  });
+
+  it('rejects non-objects', () => {
+    expect(readGitHubWorkspaceConfigs(null)).toBeUndefined();
+    expect(readGitHubWorkspaceConfigs([])).toBeUndefined();
+  });
+});
+
+describe('readGitHubCiFolders', () => {
+  it('nulls member tokens and skips members without an id', () => {
+    expect(
+      readGitHubCiFolders([
+        { id: 'f1', name: 'a', createdAt: 1, ciConfig: { owner: 'o', accessToken: 's' } },
+        { name: 'no-id' },
+      ]),
+    ).toEqual([{ id: 'f1', name: 'a', createdAt: 1, ciConfig: { owner: 'o', accessToken: null } }]);
+  });
+
+  it('rejects non-arrays', () => {
+    expect(readGitHubCiFolders({})).toBeUndefined();
   });
 });

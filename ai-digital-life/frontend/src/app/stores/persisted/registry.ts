@@ -20,6 +20,11 @@ import {
   readBooleanPropRecord,
   readDirExpansionRecord,
   readSessionLastFile,
+  readCiRepoConfig,
+  readCiSnapshots,
+  readCiLogCaches,
+  readGitHubWorkspaceConfigs,
+  readGitHubCiFolders,
   isPlainRecord,
 } from './parsers';
 import {
@@ -112,6 +117,17 @@ import {
 import type { TerminalViewPrefs } from '../../features/terminal/terminalViewPrefs';
 import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
+import type { PlatformId } from '../slices/communicateSlice';
+import type { GitHubSection } from '../slices/githubSliceHelpers';
+import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '../slices/githubRepoSliceTypes';
+import type { CiRepoConfig, CiStatusSnapshot } from '../../../shared/ipc/github';
+import { applyPersistedScrollTop, MAX_SCROLL_TOP } from '../../hooks/usePersistedScrollTop';
+import {
+  applyRightPanelMode,
+  applyRightPanelLastRestorableWidth,
+  RIGHT_PANEL_MODES,
+  type RightPanelMode,
+} from '../../regions/right-panel/rightPanelLayout';
 import { EDITOR_VIEWPORT_KEY, readEditorViewport, type PersistedViewport } from './viewport';
 import type { ChangeFileState } from '../../regions/right-panel/changesTree';
 
@@ -427,10 +443,6 @@ export const registry = {
   // 文件面板子状态补齐（Task 22）：树选中节点（三字段合一，避免三次写盘；
   // 重复选中同一节点时 setter 提前 return，不写盘）+ 检索三开关（单对象一次落盘）
   // + 文件大纲展开（组件本地 state 上提 store，挂载时按工作区回填）。
-  // 右侧面板模式（rightPanelMode）本次不登记：仍是 useRightPanelLayout 本地 state，
-  // 且为宽度/窗口几何的派生值（挂载即按恢复宽度重算），无上提为真相源的理由；
-  // 遗留键 adl-ui:right-panel-mode / adl-ui:right-panel-last-restorable-width
-  // 留在 PERSIST_KEEP_KEYS，随 Task 29 统一登记。
   // ─────────────────────────────────────────────────────────────
   'adl:files.clickedNode': defineEntry<Record<string, FileTreeClickedNode>>({
     key: 'adl:files.clickedNode',
@@ -541,7 +553,7 @@ export const registry = {
   // 全部写盘走 persist()/persistField()，全部读取走 hydrateAll()（同步，唯一水合时机）；
   // browserSlice 的 requestIdleCallback/setTimeout 延迟水合已随本任务删除。
   //
-  // 工作区行展开死状态已由 Task 20 全套删除（含 PERSIST_KEEP_KEYS 条目），此处不再为例外。
+  // 工作区行展开死状态已由 Task 20 全套删除，此处不再为例外。
   // ─────────────────────────────────────────────────────────────
   'adl:browser.tabs': defineEntry<BrowserTabState[]>({
     key: 'adl:browser.tabs',
@@ -870,6 +882,156 @@ export const registry = {
     scope: 'global',
     read: (raw) => (raw === null ? null : readEditorViewport(raw)),
   }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 其余右侧面板工具（Task 29）：CI / GitHub / 通信 / 系统监控 / 剪贴板 / 右侧布局。
+  // 取代散落在 ciSlice / githubSlice(+Helpers) / githubRepoSlice(+Helpers) /
+  // communicateSlice / systemMonitorSlice / ChangesPanel/utils /
+  // useRightPanelLayout / usePersistedScrollTop 中的 adl-ui:* 遗留键。
+  // 全部写盘走 persist()/persistField()，读取走 hydrateAll()；各 slice 的
+  // 构造期遗留读取与私有去抖写入器随本任务删除（CI 令牌的 bridge 只写不回读
+  // 路径与 Tauri 钥匙串路径不受影响，原样保留）。
+  //
+  // 体积预检（代表性夹具实测）：ciLogCaches ~336KB、ciSnapshots ~21KB（4 工作区，
+  // 约 5KB/工作区，7+ 工作区即超 32KB 同步读准入线）→ 二者 sync:false，
+  // 构造期跳过、由 githubSlice 延迟加载按需读取（旧代码本就延迟加载，语义不变）；
+  // ciFolders ~1.2KB、workspaceConfigs ~715B → 同步。
+  //
+  // 未登记项（有意）：adl-ui:github-access-token 在生产代码中不存在（仅 mock-ci
+  // 的一处注释，ledger F 已证伪），无 store 字段与读写路径可搬迁；为其新建状态
+  // 会分裂当前与 ci token 同键共享的语义，属安全红线禁止的变更，故只更新注释。
+  // ─────────────────────────────────────────────────────────────
+  'adl:changes.branch': defineEntry<string>({
+    key: 'adl:changes.branch',
+    field: 'selectedBranch',
+    fallback: '',
+    scope: 'global',
+    read: readString,
+  }),
+  'adl:browser.githubSection': defineEntry<GitHubSection>({
+    key: 'adl:browser.githubSection',
+    field: 'activeGitHubSection',
+    fallback: 'overview',
+    scope: 'global',
+    // 白名单与旧 hydrateCiStatusDefaults 的接受集一致（无 'logs'）：存过 'logs'
+    // 的用户重启后回退 'overview'，与旧行为逐字相同（类型成员多于接受集是现状）。
+    read: readStringEnum<GitHubSection>([
+      'overview',
+      'workflows',
+      'jobs',
+      'settings',
+      'help',
+    ] as const),
+  }),
+  'adl:browser.ciFolders': defineEntry<GitHubCiFolderState[]>({
+    key: 'adl:browser.ciFolders',
+    field: 'gitHubCiFolders',
+    fallback: [],
+    scope: 'global',
+    read: readGitHubCiFolders,
+  }),
+  'adl:browser.workspaceConfigs': defineEntry<Record<string, GitWorkspaceCiConfig>>({
+    key: 'adl:browser.workspaceConfigs',
+    field: 'gitHubWorkspaceConfigs',
+    fallback: {},
+    scope: 'byWorkspaceId',
+    read: readGitHubWorkspaceConfigs,
+    prune: pruneByWorkspaceId,
+  }),
+  'adl:browser.ciAccessToken': defineEntry<string>({
+    key: 'adl:browser.ciAccessToken',
+    field: 'ciAccessToken',
+    fallback: '',
+    scope: 'global',
+    // 浏览器模式的本地镜像，原样搬迁：Tauri 钥匙串路径与 bridge 只写不回读不变。
+    read: readString,
+  }),
+  'adl:browser.ciConfig': defineEntry<CiRepoConfig>({
+    key: 'adl:browser.ciConfig',
+    field: 'ciConfig',
+    fallback: { owner: '', repo: '', branch: 'main', workflowId: null, accessToken: null },
+    scope: 'global',
+    read: readCiRepoConfig,
+  }),
+  'adl:browser.ciSnapshots': defineEntry<Record<string, CiStatusSnapshot>>({
+    key: 'adl:browser.ciSnapshots',
+    field: 'ciSnapshots',
+    fallback: {},
+    scope: 'global',
+    read: readCiSnapshots,
+    sync: false,
+  }),
+  'adl:browser.ciLogCaches': defineEntry<
+    Record<string, { selectedJobId: number | null; logs: Record<number, string> }>
+  >({
+    key: 'adl:browser.ciLogCaches',
+    field: 'ciLogCaches',
+    fallback: {},
+    scope: 'global',
+    read: readCiLogCaches,
+    sync: false,
+  }),
+  'adl:browser.ciAutoRefreshOnPush': defineEntry<boolean>({
+    key: 'adl:browser.ciAutoRefreshOnPush',
+    field: 'ciAutoRefreshOnPush',
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:ui.communicatePlatform': defineEntry<PlatformId>({
+    key: 'adl:ui.communicatePlatform',
+    field: 'activePlatform',
+    fallback: 'github',
+    scope: 'global',
+    read: readStringEnum<PlatformId>(['github', 'feishu', 'qq', 'wechat', 'email'] as const),
+  }),
+  'adl:ui.communicateNavigatorCollapsed': defineEntry<boolean>({
+    key: 'adl:ui.communicateNavigatorCollapsed',
+    field: 'communicateNavigatorCollapsed',
+    fallback: false,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:ui.sysmonCollapsed': defineEntry<boolean>({
+    key: 'adl:ui.sysmonCollapsed',
+    field: 'sysmonCollapsed',
+    // 默认收起：与旧 readFlag(SYSMON_COLLAPSED_KEY, true) 的默认值一致。
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:ui.sysmonScrollTop': defineEntry<number>({
+    key: 'adl:ui.sysmonScrollTop',
+    apply: (value) => applyPersistedScrollTop('adl:ui.sysmonScrollTop', value),
+    fallback: 0,
+    scope: 'global',
+    // 上界以 hook 的实际钳制 MAX_SCROLL_TOP 为准（旧 readNumber 同界），非 1e9。
+    read: readNumberInRange(0, MAX_SCROLL_TOP),
+  }),
+  'adl:ui.clipboardScrollTop': defineEntry<number>({
+    key: 'adl:ui.clipboardScrollTop',
+    apply: (value) => applyPersistedScrollTop('adl:ui.clipboardScrollTop', value),
+    fallback: 0,
+    scope: 'global',
+    read: readNumberInRange(0, MAX_SCROLL_TOP),
+  }),
+  'adl:ui.rightPanelMode': defineEntry<RightPanelMode>({
+    key: 'adl:ui.rightPanelMode',
+    apply: (value) => applyRightPanelMode(value),
+    fallback: 'docked',
+    scope: 'global',
+    read: readStringEnum<RightPanelMode>(RIGHT_PANEL_MODES),
+  }),
+  'adl:ui.rightPanelLastRestorableWidth': defineEntry<number>({
+    key: 'adl:ui.rightPanelLastRestorableWidth',
+    apply: (value) => applyRightPanelLastRestorableWidth(value),
+    // NaN 即"从未存储"：apply 忽略非有限数，缓存保持 empty，hook 即回退到
+    // 实时的 rightPanelWidth（与旧"无存储即用当前宽度"一致）。静态回退值无法
+    // 表达该动态默认，故此处不用 DEFAULT_RIGHT_PANEL_WIDTH。
+    fallback: Number.NaN,
+    scope: 'global',
+    read: readNumberInRange(RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX),
+  }),
 } as const;
 
 export type Registry = typeof registry;
@@ -883,42 +1045,3 @@ export type RegistryValue<K extends RegistryKey> =
 export const registryEntries: PersistEntry<unknown>[] = Object.values(
   registry,
 ) as PersistEntry<unknown>[];
-
-/**
- * 启动清理的保留名单（allowlist）。
- *
- * ⚠️ 安全关键：cleanupUnregisteredKeys() 会删除 adl: 命名空间下所有"不在 registry 内"的键。
- * 迁移是分批进行的（Task 7/9/10/11/21/29），在 registry 完成接管前，
- * **全部遗留键字面量都必须列入本清单**，否则首次启动即清空用户的宽度/展开态/
- * 浏览器标签/终端标签/CI 快照/访问令牌等全部 UI 状态。
- *
- * 本清单由下面的命令生成（不要手工增删）：
- *   cd ai-digital-life && grep -rhoE "'adl-(ui|terminal|search|browser):[a-zA-Z0-9:._-]+'" \
- *     frontend/src --include=*.ts --include=*.tsx | grep -v "__tests__" | sort -u
- *
- * 维护规则（由 __tests__/keepListGuard.test.ts 强制）：
- * 1. 任何遗留键字面量必须"已登记 或 在本清单内" —— 否则守卫测试变红，杜绝漏保护。
- * 2. 本清单不得包含已登记的键 —— 每个迁移任务（Task 7/9/10/11/21/29）必须把自己
- *    刚登记的键从本清单删除，守卫测试会强制这一点（迫使清单逐步收窄）。
- * 3. 全部迁移任务完成后（Task 29），本清单必须为空 —— 此时启动清理才真正开始
- *    清除遗留键，命名空间门禁随之生效。
- */
-export const PERSIST_KEEP_KEYS = new Set<string>([
-  'adl-ui:active-communicate-platform',
-  'adl-ui:active-github-section',
-  'adl-ui:changes-branch',
-  'adl-ui:ci-access-token',
-  'adl-ui:ci-auto-refresh-on-push',
-  'adl-ui:ci-config',
-  'adl-ui:ci-log-caches',
-  'adl-ui:ci-snapshots',
-  'adl-ui:clipboard-scroll-top',
-  'adl-ui:communicate-navigator-collapsed',
-  'adl-ui:github-access-token',
-  'adl-ui:github-ci-folders',
-  'adl-ui:github-workspace-configs',
-  'adl-ui:right-panel-last-restorable-width',
-  'adl-ui:right-panel-mode',
-  'adl-ui:sysmon-collapsed',
-  'adl-ui:sysmon-scroll-top',
-]);
