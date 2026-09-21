@@ -850,6 +850,8 @@ export function createHttpBridge({
       pickDirectory: () => taskNotSupported<string | undefined>('workspace.pickDirectory'),
       removeFromSidebar: (workspaceId: string) =>
         call<RecentWorkspaceEntry[]>(baseUrl, '/sidebar/remove', POST({ workspaceId })),
+      // 树载荷两方法统一显式 pick（不透传未知字段；force 优先——后端
+      // `allow_stale = allowStale && !force`，并存时按全量扫执行）。
       listTreeForWorkspace: (
         workspacePath: string,
         options?: { force?: boolean; allowStale?: boolean },
@@ -859,7 +861,11 @@ export function createHttpBridge({
           '/workspace/tree',
           POST(
             options?.force || options?.allowStale
-              ? { workspacePath, ...(options ?? {}) }
+              ? {
+                  workspacePath,
+                  ...(options?.force ? { force: true } : {}),
+                  ...(options?.allowStale && !options?.force ? { allowStale: true } : {}),
+                }
               : { workspacePath },
           ),
         ),
@@ -895,11 +901,12 @@ export function createHttpBridge({
         call<WorkspaceTreePayload>(
           baseUrl,
           '/workspace/tree',
+          // force 优先（见上；后端 `allow_stale = allowStale && !force`）。
           POST(
             options?.force || options?.allowStale
               ? {
                   ...(options?.force ? { force: true } : {}),
-                  ...(options?.allowStale ? { allowStale: true } : {}),
+                  ...(options?.allowStale && !options?.force ? { allowStale: true } : {}),
                 }
               : {},
           ),

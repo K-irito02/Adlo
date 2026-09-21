@@ -38,7 +38,12 @@ const IMMOVABLE_COPY: Record<
   },
 };
 
-/** 每个分组展示的分类数量（后端按固定顺序返回 11 类：前 5 核心、后 6 高级）。 */
+/**
+ * 每个分组展示的分类数量（后端按固定顺序返回 11 类：前 5 核心、后 6 高级）。
+ * 核心 5 成员（位置不变，顺序与 `STORAGE_CATEGORY_KEYS` 前 5 一致）：
+ * `database` / `downloads_db` / `site_meta_db` / `tree_cache` / `config`
+ *（`clipboard` 已被挤入高级分组，F4 显式决策：保持插入位置，注释声明归属）。
+ */
 const CORE_CATEGORY_COUNT = 5;
 
 /** 树缓存 TTL 下拉选项（分钟；1440 即 1 天），与服务端合法范围 1..=1440 一致。 */
@@ -124,7 +129,7 @@ export function StorageSettings() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
-  // 工作区树缓存区段态：stats 挂载拉取一次（数字非本地化文本，语言切换无需重拉）；
+  // 工作区树缓存区段态：stats 挂载拉取一次（stats 数字/时间由 Intl 渲染，无需随语言重拉）；
   // 旧桥无该方法时静默缺席（try/catch 吞错），区段不渲染。
   const [treeStats, setTreeStats] = useState<TreeCacheStats | null>(null);
   const [treeConfirmOpen, setTreeConfirmOpen] = useState(false);
@@ -713,10 +718,11 @@ export function StorageSettings() {
               </small>
               <small>{t.treeCacheSize.replace('{size}', formatBytes(treeStats.totalBytes))}</small>
               <small>
-                {treeStats.newestCapturedAt == null
+                {treeStats.newestCapturedAt === null
                   ? t.storageNotCreated
                   : t.treeCacheAge.replace(
                       '{time}',
+                      // 缓存时间为绝对时刻：经 Intl 本地化渲染（与上条注释一致）。
                       new Date(treeStats.newestCapturedAt).toLocaleString(),
                     )}
               </small>
@@ -761,13 +767,27 @@ export function StorageSettings() {
                 aria-label={t.treeCacheTtl}
                 value={treeTtlMinutes}
                 disabled={treeBusy}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const raw = Number(e.target.value);
+                  if (!Number.isFinite(raw)) {
+                    return;
+                  }
+                  // 与服务端合法范围 1..=1440 对齐：钳制后写（非法值不出桥）。
+                  const ttlMinutes = Math.min(1440, Math.max(1, Math.floor(raw)));
                   void handleTreeOptionsChange({
                     enabled: treeEnabled,
-                    ttlMinutes: Number(e.target.value),
-                  })
-                }
+                    ttlMinutes,
+                  });
+                }}
               >
+                {/* 非列表值（如后端合法但不在下拉档的 30）：回退展示当前值档（复用既有 key，无新文案）。 */}
+                {!TREE_CACHE_TTL_OPTIONS.includes(
+                  treeTtlMinutes as (typeof TREE_CACHE_TTL_OPTIONS)[number],
+                ) ? (
+                  <option key="current" value={treeTtlMinutes}>
+                    {t.treeCacheTtlMinutes.replace('{minutes}', String(treeTtlMinutes))}
+                  </option>
+                ) : null}
                 {TREE_CACHE_TTL_OPTIONS.map((minutes) => (
                   <option key={minutes} value={minutes}>
                     {minutes === 1440

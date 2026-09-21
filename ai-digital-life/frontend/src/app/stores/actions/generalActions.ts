@@ -22,16 +22,42 @@ const SCOPE = 'general';
  */
 const RUST_TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
+/** TTL 合法范围（分钟），与 Rust `TREE_CACHE_TTL_RANGE`（1..=1440）一致，越界回缺省。 */
+const CALIBRATION_TTL_MIN = 1;
+const CALIBRATION_TTL_MAX = 1440;
+
 let calibrationOptionsOverride: TreeCacheOptions | undefined;
 
-export async function resolveCalibrationOptions(): Promise<TreeCacheOptions> {
-  if (calibrationOptionsOverride !== undefined) {
-    return calibrationOptionsOverride;
-  }
+/**
+ * 单飞 memo：一次 bootstrap 内 priority/deferred/natural 三 phase 共用一次
+ * `getTreeCacheStats` RPC（F5：此前每 `loadBatch` 调一次 → 每启动 3 次 RPC）。
+ * `bootstrap` 入口重置（见 `runWorkspaceLoadCascade` 开头）。
+ */
+let calibrationMemo: Promise<TreeCacheOptions> | undefined;
+
+/** TTL 清洗：有限数且落在 1..=1440 才采用，否则回 Rust 缺省（NaN/0/负数/超大不再 fail-open 全扫描）。 */
+function clampCalibrationOptions(opts: TreeCacheOptions): TreeCacheOptions {
+  const enabled =
+    typeof opts.enabled === 'boolean' ? opts.enabled : RUST_TREE_CACHE_DEFAULTS.enabled;
+  const ttl = opts.ttlMinutes;
+  const ttlMinutes =
+    typeof ttl === 'number' &&
+    Number.isFinite(ttl) &&
+    ttl >= CALIBRATION_TTL_MIN &&
+    ttl <= CALIBRATION_TTL_MAX
+      ? Math.floor(ttl)
+      : RUST_TREE_CACHE_DEFAULTS.ttlMinutes;
+  return { enabled, ttlMinutes };
+}
+
+async function loadCalibrationOptions(): Promise<TreeCacheOptions> {
   try {
     const result = await window.digitalLife?.storage?.getTreeCacheStats();
     if (result?.ok) {
-      return { enabled: result.data.enabled, ttlMinutes: result.data.ttlMinutes };
+      return clampCalibrationOptions({
+        enabled: result.data.enabled,
+        ttlMinutes: result.data.ttlMinutes,
+      });
     }
   } catch {
     // 桥失败（channel closed 等）即回退缺省，行为等同现状全量加载。
@@ -39,9 +65,23 @@ export async function resolveCalibrationOptions(): Promise<TreeCacheOptions> {
   return RUST_TREE_CACHE_DEFAULTS;
 }
 
+export async function resolveCalibrationOptions(): Promise<TreeCacheOptions> {
+  if (calibrationOptionsOverride !== undefined) {
+    return clampCalibrationOptions(calibrationOptionsOverride);
+  }
+  calibrationMemo ??= loadCalibrationOptions();
+  return calibrationMemo;
+}
+
 /** 仅供测试注入覆盖校准门选项；传 `undefined` 恢复 Rust 缺省。T9 接真实值后保留。 */
 export function setCalibrationOptionsForTesting(opts: TreeCacheOptions | undefined): void {
   calibrationOptionsOverride = opts;
+  calibrationMemo = undefined;
+}
+
+/** 重置单飞 memo：生产经 `bootstrap` 级联入口调用；测试按需调用。 */
+export function resetCalibrationMemo(): void {
+  calibrationMemo = undefined;
 }
 
 /**
@@ -134,6 +174,8 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         if (requestSeq !== workspaceRequestSeq) {
           return;
         }
+        // 新一轮级联重置校准单飞 memo：三 phase 共用本轮一次 stats 读取。
+        resetCalibrationMemo();
         if (visibleWorkspaces.length === 0) {
           completeStartup();
           return;
@@ -197,7 +239,14 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
                   return undefined;
                 }
                 const payload = r.data;
-                if (!Array.isArray(payload.tree)) {
+                // 全字段校验：tree 非数组、fromCache 非布尔、capturedAt 非 number
+                // 一律按 miss 处理（失格 capturedAt 若记入 stale 门会永不校准，见 F6）。
+                if (
+                  !payload ||
+                  !Array.isArray(payload.tree) ||
+                  typeof payload.fromCache !== 'boolean' ||
+                  typeof payload.capturedAt !== 'number'
+                ) {
                   console.warn('[workspace load] malformed tree payload, treating as miss', {
                     id: w.id,
                   });
@@ -240,6 +289,11 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
               continue;
             }
             if (r.value.fromCache) {
+              // stale 先行 seq 守卫（F2）：首包落库前用户若已触发同 id 新鲜加载
+              //（lazy/refresh 已写入 `workspaceTrees[id]`），stale 不得覆盖——用户点击的新鲜树必胜。
+              if (get().workspaceTrees[item.id] !== undefined) {
+                continue;
+              }
               accumulateBatch(firstPacket, get, 'workspaceTrees', item.id, r.value.tree);
               staleCapturedAt.set(item.id, r.value.capturedAt);
             }
@@ -305,12 +359,14 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           // TTL 行龄小跳过（零扫描重启）；单行失败只记 warn，不影响其他行与启动流程。
           if (staleCapturedAt.size > 0) {
             const calibrateAt = Date.now();
+            // id → 条目预建 Map（F3.2：校准循环内不再逐次 `items.find`）。
+            const itemsById = new Map(items.map((w) => [w.id, w] as const));
             const calibrate = async () => {
               for (const [id, capturedAt] of staleCapturedAt) {
                 if (typeof capturedAt !== 'number' || calibrateAt - capturedAt <= ttlMs) {
                   continue;
                 }
-                const target = items.find((w) => w.id === id);
+                const target = itemsById.get(id);
                 if (!target) {
                   continue;
                 }

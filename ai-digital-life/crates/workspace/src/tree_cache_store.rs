@@ -12,6 +12,19 @@ const DB_FILE_NAME: &str = "tree-cache.db";
 
 const DEFAULT_TTL_MINUTES: u64 = 15;
 
+/// 树缓存 TTL 合法范围（分钟）：与前端 TTL 下拉选项（5/15/60 分钟/1 天）一致，越界拒绝写入。
+/// 双端（服务端 handler + Tauri 命令）共用此常量与校验，不得各写一份。
+pub const TREE_CACHE_TTL_RANGE: std::ops::RangeInclusive<u64> = 1..=1440;
+
+/// 校验 TTL（分钟）合法性；越界报 `InvalidInput`（调用方直接透传，保持 handler 映射）。
+pub fn validate_tree_cache_ttl(ttl_minutes: u64) -> Result<(), AppError> {
+    if TREE_CACHE_TTL_RANGE.contains(&ttl_minutes) {
+        Ok(())
+    } else {
+        Err(AppError::InvalidInput(format!("ttl_minutes {ttl_minutes} out of range 1..=1440")))
+    }
+}
+
 const CREATE_TABLE_SQL: &str = "CREATE TABLE IF NOT EXISTS tree_cache (
     workspace_path TEXT PRIMARY KEY,
     tree_json      TEXT NOT NULL,
@@ -79,7 +92,7 @@ impl TreeCacheStore {
         let db_path = dir.join(DB_FILE_NAME);
         let conn = Connection::open(&db_path)
             .map_err(|e| AppError::Storage(format!("open {DB_FILE_NAME}: {e}")))?;
-        conn.execute_batch("PRAGMA journal_mode=WAL;")
+        conn.execute_batch("PRAGMA journal_mode=WAL; PRAGMA busy_timeout = 5000;")
             .map_err(|e| AppError::Storage(format!("set WAL: {e}")))?;
         conn.execute_batch(CREATE_TABLE_SQL)
             .map_err(|e| AppError::Storage(format!("create tree_cache tables: {e}")))?;
@@ -146,7 +159,7 @@ impl TreeCacheStore {
         let (workspace_count, total_bytes, oldest_captured_at, newest_captured_at) = {
             let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
             conn.query_row(
-                "SELECT COUNT(*), COALESCE(SUM(LENGTH(tree_json)), 0), MIN(captured_at), MAX(captured_at)
+                "SELECT COUNT(*), COALESCE(SUM(LENGTH(CAST(tree_json AS BLOB))), 0), MIN(captured_at), MAX(captured_at)
                  FROM tree_cache",
                 [],
                 |row| {
@@ -187,18 +200,33 @@ impl TreeCacheStore {
     }
 
     pub fn set_options(&self, enabled: bool, ttl_minutes: u64) -> Result<(), AppError> {
+        validate_tree_cache_ttl(ttl_minutes)?;
         let conn = self.db.lock().unwrap_or_else(|e| e.into_inner());
-        conn.execute(
-            "INSERT OR REPLACE INTO tree_cache_meta (key, value) VALUES ('enabled', ?1)",
-            params![if enabled { "1" } else { "0" }],
-        )
-        .map_err(|e| AppError::Storage(format!("set tree cache enabled: {e}")))?;
-        conn.execute(
-            "INSERT OR REPLACE INTO tree_cache_meta (key, value) VALUES ('ttl_minutes', ?1)",
-            params![ttl_minutes.to_string()],
-        )
-        .map_err(|e| AppError::Storage(format!("set tree cache ttl: {e}")))?;
-        Ok(())
+        // 两次元数据写入包一事务：崩溃不半写（开关与 TTL 要么同落盘要么同回滚）。
+        conn.execute_batch("BEGIN IMMEDIATE;")
+            .map_err(|e| AppError::Storage(format!("begin set tree cache options: {e}")))?;
+        let result = (|| -> Result<(), AppError> {
+            conn.execute(
+                "INSERT OR REPLACE INTO tree_cache_meta (key, value) VALUES ('enabled', ?1)",
+                params![if enabled { "1" } else { "0" }],
+            )
+            .map_err(|e| AppError::Storage(format!("set tree cache enabled: {e}")))?;
+            conn.execute(
+                "INSERT OR REPLACE INTO tree_cache_meta (key, value) VALUES ('ttl_minutes', ?1)",
+                params![ttl_minutes.to_string()],
+            )
+            .map_err(|e| AppError::Storage(format!("set tree cache ttl: {e}")))?;
+            Ok(())
+        })();
+        match result {
+            Ok(()) => conn
+                .execute_batch("COMMIT;")
+                .map_err(|e| AppError::Storage(format!("commit set tree cache options: {e}"))),
+            Err(e) => {
+                let _ = conn.execute_batch("ROLLBACK;");
+                Err(e)
+            },
+        }
     }
 }
 
@@ -271,6 +299,27 @@ mod tests {
         assert_eq!(stats.workspace_count, 1);
         assert!(!stats.enabled);
         assert_eq!(stats.ttl_minutes, 60);
+    }
+
+    #[test]
+    fn stats_total_bytes_counts_json_bytes_not_chars() {
+        let dir = unique_tmp_dir("tc-stats-cjk");
+        let store = TreeCacheStore::open(&dir).unwrap();
+        // CJK 文件名：字符数 < 字节数，断言字节口径（BLOB LENGTH）。
+        let json = r#"[{"path":"中文/文件树.txt"}]"#;
+        store.put("/ws/cjk", json, 1000).unwrap();
+        let stats = store.stats().unwrap();
+        assert_eq!(stats.total_bytes, json.len() as u64);
+    }
+
+    #[test]
+    fn set_options_rejects_out_of_range_ttl_at_store_level() {
+        let dir = unique_tmp_dir("tc-opts-range");
+        let store = TreeCacheStore::open(&dir).unwrap();
+        assert!(store.set_options(true, 0).is_err());
+        assert!(store.set_options(true, 1441).is_err());
+        store.set_options(true, 1).unwrap();
+        store.set_options(true, 1440).unwrap();
     }
 
     #[test]

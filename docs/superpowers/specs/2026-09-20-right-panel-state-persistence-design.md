@@ -246,7 +246,7 @@ expandFileTreePathChain(workspaceId: string, path: string): { blocked: string[] 
 
 **折叠提示交互（决策：方案 3 —— 保持折叠 + 短暂闪烁）：**
 
-> **2026-09-21 修订（用户决策：删除闪烁提示）**：已打开文件不再在文件树做任何位置提示，闪烁 UI（`useFileFlash` + `data-flash` + CSS 动画）已整体删除。以下三条仅保留第一条与第三条的行为约束；第二条作废。`manualCollapsed` 保护机制与 `blocked` 返回值保留（折叠保持行为不变）。
+> **2026-09-21 修订（用户决策：删除闪烁提示）**：不再做闪烁位置提示（选中高亮与折叠保持行为不变），闪烁 UI（`useFileFlash` + `data-flash` + CSS 动画）已整体删除。以下三条仅保留第一条与第三条的行为约束；第二条作废。`manualCollapsed` 保护机制与 `blocked` 返回值保留（折叠保持行为不变）。
 
 - 目标文件位于被手动折叠的目录内时，目录**保持折叠**~~，该行播放一次约 1 秒的浅色脉冲动画~~。
 - ~~动画走 CSS，不使用持久化状态；`prefers-reduced-motion` 下退化为无动画（仅保持选中高亮）。~~

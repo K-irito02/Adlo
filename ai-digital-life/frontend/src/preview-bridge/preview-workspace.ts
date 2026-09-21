@@ -133,6 +133,8 @@ export function createPreviewWorkspaceBridge(
         `/workspace/tree?${params.toString()}`,
       );
       // preview dev-server 只 serving 新鲜树：allowStale 恒 miss（同 mock 语义）。
+      // `capturedAt` 为客户端合成时间（`Date.now()`），仅恒 miss 路径携带——
+      // 校准门只消费 `fromCache:true` 行的时间戳，故该值永不参与校准判定。
       return result.ok
         ? {
             ok: true as const,
@@ -207,6 +209,7 @@ export function createPreviewWorkspaceBridge(
       const result = await requestPreviewApi<WorkspaceTreeNode[]>(
         `/workspace/tree?${params.toString()}`,
       );
+      // 同上：`capturedAt` 为客户端合成，仅恒 miss 路径携带，不参与校准判定。
       return result.ok
         ? {
             ok: true as const,

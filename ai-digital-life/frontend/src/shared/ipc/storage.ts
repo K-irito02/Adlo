@@ -126,7 +126,7 @@ export interface StorageBridge {
    * 读取当前存储模式、根路径与各分类占用。
    * @command storage_get_status / POST /storage/status
    * @see tauri-bridge/index.ts → storage.getStatus
-   * @see preview-bridge/index.ts → storage.getStatus
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.getStatus
    * @see mock-bridge.ts → storage.getStatus
    */
   getStatus: () => Promise<IpcResult<StorageStatus>>;
@@ -134,7 +134,7 @@ export interface StorageBridge {
    * 扫描各分类目录下的外部（非本应用所有）文件。
    * @command storage_scan_foreign_cmd / POST /storage/scan-foreign
    * @see tauri-bridge/index.ts → storage.scanForeign
-   * @see preview-bridge/index.ts → storage.scanForeign
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.scanForeign
    * @see mock-bridge.ts → storage.scanForeign
    */
   scanForeign: () => Promise<IpcResult<StorageForeignScan[]>>;
@@ -143,7 +143,7 @@ export interface StorageBridge {
    * @param patch 目标模式/根/分类路径与是否保留源
    * @command storage_preflight_cmd / POST /storage/preflight
    * @see tauri-bridge/index.ts → storage.preflight
-   * @see preview-bridge/index.ts → storage.preflight
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.preflight
    * @see mock-bridge.ts → storage.preflight
    */
   preflight: (patch: StoragePathPatch) => Promise<IpcResult<StoragePreflight>>;
@@ -153,7 +153,7 @@ export interface StorageBridge {
    * @param applyNow 是否请求立即重启以执行迁移
    * @command storage_set_paths / POST /storage/set-paths
    * @see tauri-bridge/index.ts → storage.setPaths
-   * @see preview-bridge/index.ts → storage.setPaths
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.setPaths
    * @see mock-bridge.ts → storage.setPaths
    */
   setPaths: (patch: StoragePathPatch, applyNow: boolean) => Promise<IpcResult<StorageApplyResult>>;
@@ -161,7 +161,7 @@ export interface StorageBridge {
    * 取消已挂起的迁移。
    * @command storage_cancel_pending / POST /storage/cancel-pending
    * @see tauri-bridge/index.ts → storage.cancelPending
-   * @see preview-bridge/index.ts → storage.cancelPending
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.cancelPending
    * @see mock-bridge.ts → storage.cancelPending
    */
   cancelPending: () => Promise<IpcResult<void>>;
@@ -169,7 +169,7 @@ export interface StorageBridge {
    * 重启应用以执行挂起的迁移（仅桌面端支持；浏览器端返回 `NOT_SUPPORTED`，B5）。
    * @command app_restart
    * @see tauri-bridge/index.ts → storage.restartApp
-   * @see preview-bridge/index.ts → storage.restartApp
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.restartApp
    * @see mock-bridge.ts → storage.restartApp
    */
   restartApp: () => Promise<IpcResult<void>>;
@@ -177,7 +177,7 @@ export interface StorageBridge {
    * 读取工作区树缓存统计（工作区数/总字节/最早与最新捕获时间）。
    * @command storage_tree_cache_stats
    * @see tauri-bridge/index.ts → storage.getTreeCacheStats
-   * @see preview-bridge/index.ts → storage.getTreeCacheStats
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.getTreeCacheStats
    * @see mock-bridge.ts → storage.getTreeCacheStats
    */
   getTreeCacheStats: () => Promise<IpcResult<TreeCacheStats>>;
@@ -186,7 +186,7 @@ export interface StorageBridge {
    * @param opts 树缓存选项（开关 + TTL 分钟数）
    * @command storage_tree_cache_options
    * @see tauri-bridge/index.ts → storage.setTreeCacheOptions
-   * @see preview-bridge/index.ts → storage.setTreeCacheOptions
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.setTreeCacheOptions
    * @see mock-bridge.ts → storage.setTreeCacheOptions
    */
   setTreeCacheOptions: (opts: TreeCacheOptions) => Promise<IpcResult<void>>;
@@ -194,7 +194,7 @@ export interface StorageBridge {
    * 清空工作区树缓存全部行（派生数据，删后下次扫描重建）。
    * @command storage_tree_cache_clear
    * @see tauri-bridge/index.ts → storage.clearTreeCache
-   * @see preview-bridge/index.ts → storage.clearTreeCache
+   * @see preview-bridge/index.ts (preferHttpWhenReachable → http/mock) → storage.clearTreeCache
    * @see mock-bridge.ts → storage.clearTreeCache
    */
   clearTreeCache: () => Promise<IpcResult<void>>;

@@ -16,7 +16,9 @@ use crate::ServerState;
 use crate::ipc;
 use adl_errors::AppError;
 use adl_kernel::storage as st;
-use adl_workspace::tree_cache_store::{TreeCacheOptions, TreeCacheStats, TreeCacheStore};
+use adl_workspace::tree_cache_store::{
+    TreeCacheOptions, TreeCacheStats, TreeCacheStore, validate_tree_cache_ttl,
+};
 use axum::extract::State;
 use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
@@ -382,17 +384,6 @@ pub async fn cancel_pending(State(_state): State<ServerState>) -> impl IntoRespo
     ipc::to_response(result)
 }
 
-/// TTL 合法范围（分钟）：与前端 TTL 下拉选项（5/15/60 分钟/1 天）一致，越界拒绝写入。
-const TREE_CACHE_TTL_RANGE: std::ops::RangeInclusive<u64> = 1..=1440;
-
-fn validate_tree_cache_ttl(ttl_minutes: u64) -> Result<(), AppError> {
-    if TREE_CACHE_TTL_RANGE.contains(&ttl_minutes) {
-        Ok(())
-    } else {
-        Err(AppError::InvalidInput(format!("ttl_minutes {ttl_minutes} out of range 1..=1440")))
-    }
-}
-
 /// 可单测的落盘 helpers（`dir` 由调用方经 `adl_workspace::tree_cache_dir()` 解析传入，
 /// 仿 Task 1 存储层"调用方传入 `&Path`"惯例；handler 薄包一层做目录收敛）。
 fn tree_cache_stats_in(dir: &std::path::Path) -> Result<TreeCacheStats, AppError> {
@@ -409,6 +400,8 @@ fn tree_cache_set_options_in(
     enabled: bool,
     ttl_minutes: u64,
 ) -> Result<(), AppError> {
+    // TTL 合法性以 store 层共享校验为准（B6：范围变更只改一处）；
+    // `InvalidInput` 透传即 handler 映射。
     validate_tree_cache_ttl(ttl_minutes)?;
     TreeCacheStore::open(dir)?.set_options(enabled, ttl_minutes)
 }
@@ -418,15 +411,16 @@ fn tree_cache_clear_in(dir: &std::path::Path) -> Result<(), AppError> {
 }
 
 /// 空表零值（目录不可解析时——进程既无 `--data-dir` 又无定位器根——行为等同 L2 跳过；
-/// 开关/TTL 取 Rust 缺省，与 `TreeCacheOptions::default` 逐字一致）。
+/// 开关/TTL 取 `TreeCacheOptions::default`，与 store 单源，改缺省只改一处）。
 fn empty_tree_cache_stats() -> serde_json::Value {
+    let defaults = TreeCacheOptions::default();
     serde_json::json!({
         "workspaceCount": 0,
         "totalBytes": 0,
         "oldestCapturedAt": null,
         "newestCapturedAt": null,
-        "enabled": true,
-        "ttlMinutes": 15,
+        "enabled": defaults.enabled,
+        "ttlMinutes": defaults.ttl_minutes,
     })
 }
 

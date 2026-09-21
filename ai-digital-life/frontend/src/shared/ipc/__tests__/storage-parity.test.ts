@@ -87,9 +87,15 @@ describe('storage bridge method parity', () => {
       }
       return { ok: true, data: undefined };
     });
-    // HTTP 端：桩住 fetch，按路由返回树缓存载荷。
-    const fetchMock = vi.fn<typeof fetch>(async (input) => {
+    // HTTP 端：桩住 fetch，按路由返回树缓存载荷，并记录请求体供下述信封断言。
+    const seenBodies = new Map<string, unknown>();
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
       const url = String(input);
+      try {
+        seenBodies.set(url, JSON.parse(String((init as RequestInit | undefined)?.body ?? '{}')));
+      } catch {
+        seenBodies.set(url, undefined);
+      }
       const data = url.endsWith('/storage/tree-cache/stats')
         ? {
             workspaceCount: 0,
@@ -146,6 +152,17 @@ describe('storage bridge method parity', () => {
       expect(urls).toContain('http://127.0.0.1:9999/storage/tree-cache/stats');
       expect(urls).toContain('http://127.0.0.1:9999/storage/tree-cache/options');
       expect(urls).toContain('http://127.0.0.1:9999/storage/tree-cache/clear');
+      // HTTP 请求体形态（F14）：stats/clear 为空体 `{}`；options 为裸 opts
+      //（`{ enabled, ttlMinutes }`，与 `httpBridge POST(opts)` 一致）。
+      expect(seenBodies.get('http://127.0.0.1:9999/storage/tree-cache/stats')).toEqual({});
+      expect(seenBodies.get('http://127.0.0.1:9999/storage/tree-cache/options')).toEqual({
+        enabled: false,
+        ttlMinutes: 60,
+      });
+      expect(seenBodies.get('http://127.0.0.1:9999/storage/tree-cache/clear')).toEqual({});
+      // Tauri/HTTP 信封对等（F14）：同一语义下 Tauri 用 `{ opts }` 信封
+      //（`invokeIpc('storage_tree_cache_options', { opts })`），HTTP 用裸体；
+      // 后端两侧各按注释形状接收，改任一信封此测即红。
     } finally {
       vi.unstubAllGlobals();
     }

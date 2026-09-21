@@ -355,11 +355,17 @@ export function createWorkspaceActions(
         return;
       }
       const appInfo = get().appInfo;
+      // 畸形载荷显式判 miss（F7）：`data?.tree` 失格即记错，不写脏树。
+      const freshTree = result.data?.tree;
+      if (!Array.isArray(freshTree)) {
+        captureError(get, new Error('malformed tree payload'), SCOPE);
+        return;
+      }
       if (appInfo?.currentWorkspace?.id) {
         set({
           workspaceTrees: {
             ...get().workspaceTrees,
-            [appInfo.currentWorkspace.id]: result.data.tree,
+            [appInfo.currentWorkspace.id]: freshTree,
           },
         });
       }

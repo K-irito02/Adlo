@@ -438,10 +438,13 @@ pub async fn list_tree(
         let (tree, from_cache, captured_at) = if allow_stale {
             adl_workspace::list_tree_cached_stale_ok(path.as_path())?
         } else if force {
-            (adl_workspace::list_tree_force(path.as_path())?, false, adl_types::now_ms())
+            // force 返回扫描自带时间戳（H2：删除 handler 侧二次 now_ms，毫秒不分裂）。
+            let (tree, scanned_at) = adl_workspace::list_tree_force(path.as_path())?;
+            (tree, false, scanned_at)
         } else {
-            let (tree, _, captured_at) = adl_workspace::list_tree_cached_stale_ok(path.as_path())?;
-            (tree, false, captured_at)
+            // 缺省分支真重扫 + 回写（B1/C1：永不读 L2，时间戳即本次扫描时间）。
+            let (tree, scanned_at) = adl_workspace::list_tree_fresh(path.as_path())?;
+            (tree, false, scanned_at)
         };
         Ok(serde_json::to_value(TreePayload { tree, from_cache, captured_at })?)
     })
@@ -934,11 +937,16 @@ mod tests {
         let (raw, ws) = unique_ws_dir("fresh");
         let primed = post_tree(&state, &ws, true, false).await;
         assert_eq!(primed["ok"], serde_json::json!(true));
-        // 缺省语义：不传 allowStale → 全量语义，fromCache 恒 false（即使命中缓存行）。
+        let primed_at =
+            primed["data"]["capturedAt"].as_i64().expect("primed must carry capturedAt");
+        // 缺省语义：不传 allowStale → 真重扫（B1：永不读 L2），fromCache 恒 false，
+        // 时间戳为本次扫描时间（不早于 primed 行时间，而非旧行时间）。
         let body =
             post_json(&state, "/workspace/tree", serde_json::json!({"workspacePath": ws})).await;
         assert_eq!(body["ok"], serde_json::json!(true));
         assert_eq!(body["data"]["fromCache"], serde_json::json!(false));
+        let body_at = body["data"]["capturedAt"].as_i64().expect("payload must carry capturedAt");
+        assert!(body_at >= primed_at, "default branch must return a fresh scan timestamp");
         let tree = body["data"]["tree"].as_array().expect("payload must carry tree array");
         assert!(tree.iter().any(|n| n["path"] == "a.txt"));
         cleanup_ws(&raw, &ws);

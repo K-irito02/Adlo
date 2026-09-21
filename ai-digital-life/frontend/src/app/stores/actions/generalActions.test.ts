@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useAppStore } from '../slicedStore';
 import {
   accumulateBatch,
+  resetCalibrationMemo,
   resolveCalibrationOptions,
   setCalibrationOptionsForTesting,
 } from './generalActions';
@@ -286,8 +287,10 @@ describe('workspace load cascade ordering', () => {
     useAppStore.setState({ appReady: false });
     await store.bootstrap();
 
-    // Allow the deferred IIFE to flush
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // 等级联 IIFE 落定（waitFor 替代固定 sleep，CI 高负载不 flaky）
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().appReady).toBe(true);
+    });
 
     // priority batch must complete before appReady flips to true
     expect(useAppStore.getState().appReady).toBe(true);
@@ -364,8 +367,10 @@ describe('workspace load cascade ordering', () => {
     useAppStore.setState({ appReady: false });
     await store.bootstrap();
 
-    // Allow the background cascade to flush
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // 等后台级联落定（waitFor 替代固定 sleep）
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().appReady).toBe(true);
+    });
 
     // 方案 B：无 currentWorkspace 时也必须预加载可见工作区树
     expect(useAppStore.getState().appReady).toBe(true);
@@ -460,7 +465,10 @@ describe('workspace load cascade ordering', () => {
       workspaceChangesTreeLoading: {},
     });
     await store.bootstrap();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // 等失败行 loading 清零（waitFor 替代固定 sleep）
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().workspaceTreeLoading['ws-boom']).toBe(false);
+    });
 
     // rejected 的 ws-boom 必须清除两个 loading 标记，否则新 guard（hasData||isLoading）会永久卡住它
     expect(useAppStore.getState().workspaceTreeLoading['ws-boom']).toBe(false);
@@ -606,7 +614,10 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
       seen.push(s.workspaceTreeLoading['ws-1']);
     });
     await useAppStore.getState().bootstrap();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // 等首包落库（waitFor 替代固定 sleep）
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(STALE_TREE);
+    });
     unsub();
 
     expect(mockListTree).toHaveBeenCalledWith('/fake/ws-1', { allowStale: true });
@@ -627,7 +638,10 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
       };
     });
     await useAppStore.getState().bootstrap();
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    // 等后台静默校准触发（fire-and-forget，waitFor 替代固定 100ms sleep）
+    await vi.waitFor(() => {
+      expect(mockRefresh).toHaveBeenCalledTimes(1);
+    });
 
     expect(mockRefresh).toHaveBeenCalledTimes(1);
     expect(mockRefresh).toHaveBeenCalledWith('ws-1', '/fake/ws-1', { silent: true });
@@ -648,7 +662,10 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
       seen.push(s.workspaceTreeLoading['ws-1']);
     });
     await useAppStore.getState().bootstrap();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // 等阻塞回退落库（waitFor 替代固定 sleep）
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(MISS_NODES);
+    });
     unsub();
 
     expect(mockListTree).toHaveBeenCalledWith('/fake/ws-1', { allowStale: true });
@@ -668,8 +685,10 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
       data: { tree: STALE_TREE, fromCache: true, capturedAt: Date.now() },
     }));
     await useAppStore.getState().bootstrap();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(STALE_TREE);
+    // 等首包落库（waitFor 替代固定 sleep）
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(STALE_TREE);
+    });
     expect(mockRefresh).not.toHaveBeenCalled();
     expect(vi.mocked(applyTreeLoadedPrune)).not.toHaveBeenCalled();
 
@@ -684,7 +703,10 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
     mockRefresh.mockClear();
     resetLoadState();
     await useAppStore.getState().bootstrap();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    // 等开关关闭后的全量包落库（waitFor 替代固定 sleep）
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(FRESH_TREE);
+    });
 
     expect(mockListTree).toHaveBeenCalled();
     for (const call of mockListTree.mock.calls) {
@@ -692,6 +714,62 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
     }
     expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(FRESH_TREE);
     expect(useAppStore.getState().workspaceTreeLoading['ws-1']).toBe(false);
+  });
+
+  it('skips the stale write when a fresh tree lands first (F2 seq guard)', async () => {
+    // 真实竞态：stale 首包在途时用户触发新鲜加载并先落库 → stale 不得覆盖。
+    // 注：不能在 bootstrap 前预置（bootstrap 会重置 `workspaceTrees:{}`），须在请求在途时 seeded。
+    let releaseStale!: () => void;
+    const staleGate = new Promise<void>((resolve) => {
+      releaseStale = resolve;
+    });
+    setupStaleBootstrap(['ws-1'], async () => {
+      await staleGate;
+      return {
+        ok: true,
+        data: { tree: STALE_TREE, fromCache: true, capturedAt: Date.now() - TTL_MS - 60_000 },
+      };
+    });
+    const bootstrapped = useAppStore.getState().bootstrap();
+    // 等 stale 请求发出（首包在途），再模拟用户新鲜加载先落库。
+    await vi.waitFor(() => {
+      expect(mockListTree).toHaveBeenCalled();
+    });
+    useAppStore.setState((s) => ({ workspaceTrees: { ...s.workspaceTrees, 'ws-1': FRESH_TREE } }));
+    releaseStale();
+    await bootstrapped;
+    await vi.waitFor(() => {
+      expect(useAppStore.getState().appReady).toBe(true);
+    });
+
+    // 用户点击的新鲜树必胜：stale 首包跳过写，且不计入校准（无需二次刷新）。
+    expect(useAppStore.getState().workspaceTrees['ws-1']).toEqual(FRESH_TREE);
+    expect(mockRefresh).not.toHaveBeenCalled();
+  });
+
+  it('treats non-boolean fromCache or non-number capturedAt as a miss (F6)', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      setupStaleBootstrap(['ws-1'], async () => ({
+        ok: true,
+        // 失格载荷：fromCache 非布尔、capturedAt 非 number。
+        data: { tree: STALE_TREE, fromCache: 'yes', capturedAt: 'now' },
+      }));
+      await useAppStore.getState().bootstrap();
+      await vi.waitFor(() => {
+        expect(useAppStore.getState().appReady).toBe(true);
+      });
+
+      // miss 语义：不落库、不记 stale（永不校准），warn 一次。
+      expect(useAppStore.getState().workspaceTrees['ws-1']).toBeUndefined();
+      expect(mockRefresh).not.toHaveBeenCalled();
+      expect(warnSpy).toHaveBeenCalledWith(
+        '[workspace load] malformed tree payload, treating as miss',
+        expect.objectContaining({ id: 'ws-1' }),
+      );
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 });
 
@@ -744,6 +822,58 @@ describe('resolveCalibrationOptions from stats (T9)', () => {
     });
     setCalibrationOptionsForTesting({ enabled: true, ttlMinutes: 5 });
     await expect(resolveCalibrationOptions()).resolves.toEqual({ enabled: true, ttlMinutes: 5 });
+  });
+
+  it('clamps out-of-range TTL to Rust defaults (F5)', async () => {
+    for (const ttlMinutes of [0, -5, 1441, 100_000, Number.NaN, Number.POSITIVE_INFINITY]) {
+      setStorageBridge({
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: { ...STATS_BASE, enabled: true, ttlMinutes },
+        }),
+      });
+      resetCalibrationMemo();
+      await expect(resolveCalibrationOptions()).resolves.toEqual({
+        enabled: true,
+        ttlMinutes: 15,
+      });
+    }
+    // 合法边界原样采用。
+    for (const ttlMinutes of [1, 15, 1440]) {
+      setStorageBridge({
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: { ...STATS_BASE, enabled: false, ttlMinutes },
+        }),
+      });
+      resetCalibrationMemo();
+      await expect(resolveCalibrationOptions()).resolves.toEqual({
+        enabled: false,
+        ttlMinutes,
+      });
+    }
+  });
+
+  it('single-flights concurrent resolutions into one stats RPC (F5)', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const getTreeCacheStats = vi.fn().mockImplementation(() =>
+      gate.then(() => ({
+        ok: true,
+        data: { ...STATS_BASE, enabled: true, ttlMinutes: 60 },
+      })),
+    );
+    setStorageBridge({ getTreeCacheStats });
+    resetCalibrationMemo();
+    // 首调用发起 fetch（memo 同步落定），次调用复用同一 promise。
+    const first = resolveCalibrationOptions();
+    const second = resolveCalibrationOptions();
+    release();
+    await expect(first).resolves.toEqual({ enabled: true, ttlMinutes: 60 });
+    await expect(second).resolves.toEqual({ enabled: true, ttlMinutes: 60 });
+    expect(getTreeCacheStats).toHaveBeenCalledTimes(1);
   });
 });
 

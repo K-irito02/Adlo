@@ -17,9 +17,20 @@ export function createWorkspaceTreeActions(
 ) {
   const loadWorkspaceTreeInner = createLazyLoader<WorkspaceTreeNode[]>(
     (path) =>
-      window.digitalLife.workspace
-        .listTreeForWorkspace(path)
-        .then((r) => (r.ok ? { ok: true as const, data: r.data.tree } : r)),
+      window.digitalLife.workspace.listTreeForWorkspace(path).then((r) => {
+        // 畸形载荷（`data` 缺席/非对象）显式判 miss（F7）：可选链取树，
+        // 失格走结构化 miss 而非 TypeError 抛错路径。
+        if (r.ok && Array.isArray(r.data?.tree)) {
+          return { ok: true as const, data: r.data.tree };
+        }
+        if (r.ok) {
+          return {
+            ok: false as const,
+            error: { code: 'INVALID_PAYLOAD', message: 'malformed tree payload' },
+          };
+        }
+        return r;
+      }),
     (s, id) => ({ hasData: !!s.workspaceTrees[id], isLoading: !!s.workspaceTreeLoading[id] }),
     (g, id) => ({
       workspaceTreeLoading: { ...g().workspaceTreeLoading, [id]: true },
@@ -138,8 +149,19 @@ export function createWorkspaceTreeActions(
           });
           return;
         }
+        // 畸形载荷显式判 miss（F7）：`data?.tree` 失格即记错，不写脏树。
+        const freshTree = result.data?.tree;
+        if (!Array.isArray(freshTree)) {
+          set({
+            workspaceTreeErrors: {
+              ...get().workspaceTreeErrors,
+              [workspaceId]: 'malformed tree payload',
+            },
+          });
+          return;
+        }
         set({
-          workspaceTrees: { ...get().workspaceTrees, [workspaceId]: result.data.tree },
+          workspaceTrees: { ...get().workspaceTrees, [workspaceId]: freshTree },
         });
       } finally {
         if (!silent) {

@@ -44,7 +44,19 @@ fn tree_generations() -> &'static Mutex<HashMap<String, u64>> {
 }
 
 fn normalize_cache_key(root: &Path) -> String {
-    root.to_string_lossy().replace('\\', "/")
+    let normalized = root.to_string_lossy().replace('\\', "/");
+    // 尾斜杠归一：`C:/ws/` 与 `C:/ws` 同键，避免僵尸行（调用方传形不一仍收敛）。
+    let trimmed = normalized.trim_end_matches('/').to_string();
+    let key = if trimmed.is_empty() { normalized } else { trimmed };
+    // Windows 路径大小写不敏感：同目录大小写变体收敛到同一行。
+    #[cfg(windows)]
+    {
+        key.to_lowercase()
+    }
+    #[cfg(not(windows))]
+    {
+        key
+    }
 }
 
 /// 读取 root 的当前失效代际。
@@ -149,6 +161,12 @@ static TREE_CACHE_FALLBACK_DIR: OnceLock<Option<PathBuf>> = OnceLock::new();
 /// 3. 存储定位器文件的 `TreeCache` 分类目录（覆盖无该 flag 的调用方，如壳层进程；
 ///    经 `adl-kernel::storage` canonical API 解析，per-category 覆盖自动生效）；
 /// 4. 皆无 → `None`（调用方跳过 L2，行为等同现状）。
+// 统一绝对路径过滤：argv `--data-dir` 与定位器解析的相对值一律视为 `None`
+//（与 `ADL_TREE_CACHE_DIR` 口径一致，防 CWD 漂移建库）；调用方跳过 L2。
+fn absolute_only(path: Option<PathBuf>) -> Option<PathBuf> {
+    path.filter(|p| p.is_absolute())
+}
+
 pub fn tree_cache_dir() -> Option<PathBuf> {
     if let Some(dir) = std::env::var_os(TREE_CACHE_DIR_ENV) {
         let dir = PathBuf::from(dir);
@@ -158,8 +176,10 @@ pub fn tree_cache_dir() -> Option<PathBuf> {
     }
     TREE_CACHE_FALLBACK_DIR
         .get_or_init(|| {
-            data_dir_from_args(std::env::args_os().map(|arg| arg.to_string_lossy().into_owned()))
-                .or_else(locator_tree_cache_dir)
+            absolute_only(data_dir_from_args(
+                std::env::args_os().map(|arg| arg.to_string_lossy().into_owned()),
+            ))
+            .or_else(|| absolute_only(locator_tree_cache_dir()))
         })
         .clone()
 }
@@ -214,7 +234,7 @@ fn tree_cache_dir_from_selection(
         return None;
     }
     let paths = adl_kernel::storage::StoragePaths::resolve(selection, defaults);
-    paths.dir(StorageCategory::TreeCache).parent().map(Path::to_path_buf)
+    absolute_only(paths.dir(StorageCategory::TreeCache).parent().map(Path::to_path_buf))
 }
 
 /// L2 读：行存在且反序列化成功即返回（树，行捕获时间）；损坏行自愈删除后回退
@@ -264,18 +284,25 @@ fn write_disk_row(root: &Path, tree: &[WorkspaceTreeNode], captured_at: i64) {
     }
 }
 
-/// 带进程内缓存的树加载（方案 C 入口）。命中则直接返回克隆的树，
-/// 未命中则全量扫描并缓存。
-/// L1 内存 → L2 SQLite（进程重启后存活）→ L3 全量扫并回写 L1 + L2。
-pub fn list_tree_cached(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
-    list_tree_cached_stale_ok(root).map(|(tree, _, _)| tree)
+/// 缺省分支真重扫（永不读 L1/L2）：全量扫描 + 回写 L1/L2，返回本次扫描时间。
+/// handler 缺省分支（`allow_stale:false` 非 force）用它并配 `from_cache:false`，
+/// 时间戳即新鲜扫描时间（L2 仅 `allowStale` 路径可读；开关关闭照样吃 stale 的反例见 C1）。
+pub fn list_tree_fresh(root: &Path) -> Result<(Vec<WorkspaceTreeNode>, i64), AppError> {
+    let key = normalize_cache_key(root);
+    let generation = generation_get(&key);
+    let tree = list_tree(root)?;
+    // 单一扫描时间戳：L1/返回/落盘三者同一值。
+    let scanned_at = now_ms();
+    tree_cache_put(root, tree.clone(), generation, scanned_at);
+    write_disk_row(root, &tree, scanned_at);
+    Ok((tree, scanned_at))
 }
 
 /// `list_tree_cached` 的 stale-感知形态（供 Task 4 的 `allow_stale` 首包与
 /// `TreePayload.capturedAt` 校准门）：
-/// L1/L2 命中返 `(tree, true, captured_at)`（命中行的捕获时间），miss 全量扫并
-/// 回写后返 `(tree, false, scanned_at)`（本次扫描时间，即新鲜；调用方凭
-/// `from_cache == false` 即知，无需二次校准）。
+/// L1/L2 命中返 `(tree, true, captured_at)`（命中行的捕获时间），miss 经
+/// `list_tree_fresh` 全量扫并回写后返 `(tree, false, scanned_at)`（本次扫描时间，
+/// 即新鲜；调用方凭 `from_cache == false` 即知，无需二次校准）。
 pub fn list_tree_cached_stale_ok(
     root: &Path,
 ) -> Result<(Vec<WorkspaceTreeNode>, bool, i64), AppError> {
@@ -294,28 +321,17 @@ pub fn list_tree_cached_stale_ok(
         tree_cache_put(root, nodes.clone(), generation, captured_at);
         return Ok((nodes, true, captured_at));
     }
-    let key = normalize_cache_key(root);
-    let generation = generation_get(&key);
-    let tree = list_tree(root)?;
-    // 单一扫描时间戳：L1/返回/落盘三者同一值。
-    let scanned_at = now_ms();
-    tree_cache_put(root, tree.clone(), generation, scanned_at);
-    write_disk_row(root, &tree, scanned_at);
+    let (tree, scanned_at) = list_tree_fresh(root)?;
     Ok((tree, false, scanned_at))
 }
 
-/// 绕过缓存强制重新扫描（显式"刷新"用）。先失效旧条目再全量扫描并缓存，
-/// 使外部改动（IDE/终端/补丁）立即反映。回写 L1 + L2（`invalidate` 已删 L2 旧行，
-/// 此处写入新鲜行，避免刷新后 10s（L1 TTL）一过又回退到重扫）。
-pub fn list_tree_force(root: &Path) -> Result<Vec<WorkspaceTreeNode>, AppError> {
+/// 绕过缓存强制重新扫描（显式"刷新"用）。先失效旧条目再经 `list_tree_fresh`
+/// 全量扫描并回写 L1 + L2（`invalidate` 已删 L2 旧行，此处写入新鲜行，
+/// 避免刷新后 10s（L1 TTL）一过又回退到重扫）。返回扫描自带时间戳，
+/// 调用方直接透传，不得二次 `now_ms()`（毫秒分裂见 H2）。
+pub fn list_tree_force(root: &Path) -> Result<(Vec<WorkspaceTreeNode>, i64), AppError> {
     invalidate_tree_cache(root);
-    let key = normalize_cache_key(root);
-    let generation = generation_get(&key);
-    let tree = list_tree(root)?;
-    let scanned_at = now_ms();
-    tree_cache_put(root, tree.clone(), generation, scanned_at);
-    write_disk_row(root, &tree, scanned_at);
-    Ok(tree)
+    list_tree_fresh(root)
 }
 
 pub(crate) fn ignored_dirs() -> &'static HashSet<&'static str> {
@@ -840,36 +856,60 @@ mod tree_cache_tests {
         let _ = std::fs::remove_dir_all(path);
     }
 
-    /// 方案 C：首次调用为 cache miss（全量扫描并缓存），第二次调用命中缓存且结果一致。
+    /// 缺省分支真重扫（B1）：`list_tree_fresh` 永不读 L2，每次全量扫描并回写，
+    /// 返回本次扫描时间（调用方配 `from_cache:false`）。
     #[test]
-    fn list_tree_cached_hits_after_first_scan() {
-        let tmp = unique_tmp_dir("cache-hit");
+    fn list_tree_fresh_rescans_with_scan_time() {
+        let tmp = unique_tmp_dir("cache-fresh");
         std::fs::write(tmp.join("a.txt"), b"a").unwrap();
         std::fs::create_dir_all(tmp.join("sub")).unwrap();
         std::fs::write(tmp.join("sub/b.txt"), b"b").unwrap();
 
-        let first = list_tree_cached(&tmp).unwrap();
-        let second = list_tree_cached(&tmp).unwrap();
+        let before = now_ms();
+        let (first, first_at) = list_tree_fresh(&tmp).unwrap();
+        let (second, second_at) = list_tree_fresh(&tmp).unwrap();
 
-        assert_eq!(first.len(), second.len(), "cache hit must return same tree");
+        assert_eq!(first.len(), second.len(), "fresh rescan must return same tree");
         assert!(first.iter().any(|n| n.path == "a.txt"));
         assert!(first.iter().any(|n| n.path == "sub"));
+        assert!(first_at >= before && first_at <= now_ms());
+        assert!(second_at >= first_at, "second scan time must not go backwards");
         cleanup(&tmp);
     }
 
-    /// 方案 C：写操作（create_file）后缓存被失效，再次调用反映新增文件。
+    /// `list_tree_fresh` 无视已落盘的 stale 行：删源文件后重扫即消失（B1 反例锁定）。
     #[test]
-    fn list_tree_cached_reflects_file_creation_after_invalidation() {
-        let tmp = unique_tmp_dir("cache-invalidate");
+    fn list_tree_fresh_ignores_stale_disk_row() {
+        let _l2 = l2_isolated_env("fresh-stale");
+        let tmp = unique_tmp_dir("fresh-ignores-stale");
+        std::fs::write(tmp.join("a.txt"), b"a").unwrap();
+        let _ = list_tree_fresh(&tmp).unwrap();
+        assert!(!tree_cache_store_row_absent(&tmp), "disk row must exist after fresh scan");
+        // 仅清 L1（模拟重启后 L1 丢失，不删盘），并删除源文件：
+        // 若实现读 L2，a.txt 将复活；真重扫则消失。
+        tree_cache().lock().unwrap_or_else(|e| e.into_inner()).remove(&normalize_cache_key(&tmp));
+        std::fs::remove_file(tmp.join("a.txt")).unwrap();
+        let (tree, _) = list_tree_fresh(&tmp).unwrap();
+        assert!(
+            !tree.iter().any(|n| n.path == "a.txt"),
+            "fresh scan must not resurrect the stale disk row"
+        );
+        cleanup(&tmp);
+    }
+
+    /// 写操作（create_file）后缓存被失效，再次 fresh 反映新增文件。
+    #[test]
+    fn list_tree_fresh_reflects_file_creation() {
+        let tmp = unique_tmp_dir("cache-fresh-invalidate");
         std::fs::write(tmp.join("a.txt"), b"a").unwrap();
 
-        let before = list_tree_cached(&tmp).unwrap();
+        let (before, _) = list_tree_fresh(&tmp).unwrap();
         assert!(!before.iter().any(|n| n.path == "new.txt"));
 
         // 走 crate 的 create_file（内部会 invalidate_tree_cache）
         crate::fs::create_file(&tmp, "new.txt", "content").unwrap();
 
-        let after = list_tree_cached(&tmp).unwrap();
+        let (after, _) = list_tree_fresh(&tmp).unwrap();
         assert!(after.iter().any(|n| n.path == "new.txt"), "tree must reflect newly created file");
         cleanup(&tmp);
     }
@@ -1022,7 +1062,7 @@ mod tree_cache_tests {
         let _l2 = l2_isolated_env("invalidate");
         let tmp = unique_tmp_dir("l2-invalidate");
         std::fs::write(tmp.join("a.txt"), b"a").unwrap();
-        let _ = list_tree_cached(&tmp).unwrap();
+        let _ = list_tree_fresh(&tmp).unwrap();
         invalidate_tree_cache(&tmp);
         assert!(tree_cache_store_row_absent(&tmp), "disk row must be gone");
         cleanup(&tmp);
@@ -1035,7 +1075,7 @@ mod tree_cache_tests {
         let _l2 = l2_isolated_env("remove-row");
         let tmp = unique_tmp_dir("l2-remove-row");
         std::fs::write(tmp.join("a.txt"), b"a").unwrap();
-        let _ = list_tree_cached(&tmp).unwrap();
+        let _ = list_tree_fresh(&tmp).unwrap();
         assert!(!tree_cache_store_row_absent(&tmp), "disk row must exist after scan");
         remove_tree_cache_row(&tmp);
         assert!(tree_cache_store_row_absent(&tmp), "disk row must be gone");
@@ -1050,7 +1090,7 @@ mod tree_cache_tests {
         let _l2 = l2_isolated_env("removal");
         let tmp = unique_tmp_dir("l2-removal");
         std::fs::write(tmp.join("a.txt"), b"a").unwrap();
-        let _ = list_tree_cached(&tmp).unwrap();
+        let _ = list_tree_fresh(&tmp).unwrap();
         let key = normalize_cache_key(&tmp);
         assert!(
             tree_cache().lock().unwrap_or_else(|e| e.into_inner()).contains_key(&key),
@@ -1082,24 +1122,86 @@ mod tree_cache_tests {
         assert_eq!(data_dir_from_args(args), None);
     }
 
+    /// B8：argv/定位器的相对路径统一过滤为 `None`（与 env 口径一致，防 CWD 漂移）。
+    #[test]
+    fn absolute_only_rejects_relative_cache_dirs() {
+        let abs = std::env::temp_dir().join("adl-abs-check");
+        assert!(abs.is_absolute(), "temp dir must be absolute on this platform");
+        assert_eq!(absolute_only(Some(abs.clone())), Some(abs));
+        assert_eq!(absolute_only(Some(PathBuf::from("relative/dir"))), None);
+        assert_eq!(absolute_only(None), None);
+    }
+
+    /// B8：定位器 per-category 相对覆盖视为不可解析（调用方跳过 L2）。
+    #[test]
+    fn tree_cache_dir_from_selection_rejects_relative_override() {
+        use adl_kernel::storage::{
+            StorageCategory, StorageDefaults, StorageMode, StorageSelection,
+        };
+
+        let mut sel = StorageSelection { mode: StorageMode::PerCategory, ..Default::default() };
+        sel.categories.insert(StorageCategory::TreeCache, PathBuf::from("relative/tree"));
+        let base = std::env::temp_dir();
+        let defaults = StorageDefaults {
+            root: base.join("adl-tc-rel-d"),
+            credentials_dir: base.join("adl-tc-rel-creds"),
+            downloads_dir: base.join("adl-tc-rel-dl"),
+        };
+        assert_eq!(tree_cache_dir_from_selection(&sel, &defaults), None);
+    }
+
+    /// B9：键规范化收敛尾斜杠（`C:/ws/` 与 `C:/ws` 同键，防僵尸行）。
+    #[test]
+    fn normalize_cache_key_trims_trailing_slash() {
+        assert_eq!(
+            normalize_cache_key(Path::new("C:/ws/")),
+            normalize_cache_key(Path::new("C:/ws"))
+        );
+        assert_eq!(
+            normalize_cache_key(Path::new("/tmp/ws//")),
+            normalize_cache_key(Path::new("/tmp/ws"))
+        );
+    }
+
+    /// B9：Windows 下同目录大小写变体收敛到同一键。
+    #[test]
+    fn normalize_cache_key_case_folds_on_windows_only() {
+        let a = normalize_cache_key(Path::new("C:/Ws"));
+        let b = normalize_cache_key(Path::new("c:/ws"));
+        if cfg!(windows) {
+            assert_eq!(a, b);
+        } else {
+            assert_ne!(a, b);
+        }
+    }
+
     /// Task 3 fix：定位器回退经 `StorageCategory::TreeCache` canonical 解析——
     /// per-category 覆盖直达覆盖目录（而非统一根），且与 `SiteMetaDb` 落点分类型。
+    /// 注：覆盖路径须为本平台绝对路径（B8 `absolute_only` 过滤；`C:/…` on Windows）。
     #[test]
     fn tree_cache_dir_from_selection_honors_per_category_override() {
         use adl_kernel::storage::{
             StorageCategory, StorageDefaults, StorageMode, StoragePaths, StorageSelection,
         };
 
+        fn abs(s: &str) -> PathBuf {
+            let base = std::env::temp_dir();
+            base.join(s)
+        }
+        let tree_dir = abs("adl-tc-xtree");
+        let meta_dir_input = abs("adl-tc-xmeta");
+        let root = abs("adl-tc-d");
+
         let mut sel = StorageSelection { mode: StorageMode::PerCategory, ..Default::default() };
-        sel.categories.insert(StorageCategory::SiteMetaDb, PathBuf::from("/xmeta"));
-        sel.categories.insert(StorageCategory::TreeCache, PathBuf::from("/xtree"));
+        sel.categories.insert(StorageCategory::SiteMetaDb, meta_dir_input.clone());
+        sel.categories.insert(StorageCategory::TreeCache, tree_dir.clone());
         let defaults = StorageDefaults {
-            root: PathBuf::from("/d"),
-            credentials_dir: PathBuf::from("/c/creds"),
-            downloads_dir: PathBuf::from("/dl"),
+            root: root.clone(),
+            credentials_dir: abs("adl-tc-creds"),
+            downloads_dir: abs("adl-tc-dl"),
         };
         // per-category 覆盖：TreeCache 落盘目录即覆盖目录，不再是统一根。
-        assert_eq!(tree_cache_dir_from_selection(&sel, &defaults), Some(PathBuf::from("/xtree")));
+        assert_eq!(tree_cache_dir_from_selection(&sel, &defaults), Some(tree_dir.clone()));
         // 分类型：与 SiteMetaDb 落点不同。
         let meta_dir = StoragePaths::resolve(&sel, &defaults)
             .dir(StorageCategory::SiteMetaDb)

@@ -3,7 +3,9 @@ use crate::state::AppState;
 use adl_errors::AppError;
 use adl_kernel::storage as st;
 use adl_types::IpcResult;
-use adl_workspace::tree_cache_store::{TreeCacheOptions, TreeCacheStats, TreeCacheStore};
+use adl_workspace::tree_cache_store::{
+    TreeCacheOptions, TreeCacheStats, TreeCacheStore, validate_tree_cache_ttl,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tauri::{AppHandle, State};
@@ -322,14 +324,6 @@ fn empty_tree_cache_stats() -> TreeCacheStats {
         newest_captured_at: None,
         enabled: defaults.enabled,
         ttl_minutes: defaults.ttl_minutes,
-    }
-}
-
-fn validate_tree_cache_ttl(ttl_minutes: u64) -> Result<(), AppError> {
-    if (1..=1440u64).contains(&ttl_minutes) {
-        Ok(())
-    } else {
-        Err(AppError::InvalidInput(format!("ttl_minutes {ttl_minutes} out of range 1..=1440")))
     }
 }
 

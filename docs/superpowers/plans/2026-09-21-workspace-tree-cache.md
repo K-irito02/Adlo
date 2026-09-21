@@ -37,7 +37,7 @@
 |---|---|
 | `crates/workspace/src/tree.rs` | `list_tree_cached` 接 L2；`invalidate_tree_cache` 删 SQLite 行 |
 | `crates/workspace/src/lib.rs` | 导出新模块 |
-| `crates/kernel/src/storage/category.rs` | 新增 `TreeCache` 变体（第 11 个）+ `key()` + `ALL` + 计数注释同步 |
+| `crates/kernel/src/storage/category.rs` | 新增 `TreeCache` 变体（第 11 项/第 10 个可迁移，含 `downloads_default` 设置值）+ `key()` + `ALL` + 计数注释同步 |
 | `crates/server/src/handlers/workspace.rs` | `TreeBody.allow_stale` + `TreePayload{tree, from_cache}` + `remove_from_sidebar` 删行 |
 | `crates/server/src/handlers/workspace_sidebar.rs` | 同上移除逻辑落点（以实际 `purge_workspace` 调用处为准，二选一，只改一处） |
 | `frontend/src/kernel/types-workspace-files.ts` | 新增 `WorkspaceTreePayload` 接口 |
@@ -167,7 +167,7 @@ git commit -m "feat(workspace): add SQLite row-level tree cache store"
 - Modify: `ai-digital-life/crates/workspace/src/tree.rs` tests（追加 2 用例，见 Step 1）
 
 **Interfaces:**
-- Consumes: Task 1 的 `TreeCacheStore::open/get/put/remove`；`now_ms()`（`tree.rs` 既有 helper，以实际签名为准）；DB 目录由调用方经 `adl-kernel::storage` 解析后传入——`list_tree_cached(root)` 签名**不得**改变（调用方众多），DB 目录解析收敛到一处内部 helper `tree_cache_dir()`（读 `adl-kernel::storage` 对应分类目录；解析失败则跳过 L2，行为等同现状）。
+- Consumes: Task 1 的 `TreeCacheStore::open/get/put/remove`；`now_ms()`（`tree.rs` 既有 helper，以实际签名为准）；DB 目录由内部 `tree_cache_dir()` 经 `adl-kernel::storage` 解析（`list_tree_cached(root)` 签名不变）；`TreeCacheStore` 单元测试才由调用方传入 `&Path`。
 - Produces: 同名函数语义升级（L1 内存 → L2 SQLite → L3 全量扫并回写）；`invalidate_tree_cache` 附带删 SQLite 行；**新增导出 `list_tree_cached_stale_ok(root) -> (Vec<WorkspaceTreeNode>, bool, i64)`（L1/L2 命中返 `(tree, true, captured_at)`，miss 全量扫返 `(tree, false, now_ms)`，供 Task 4 组 `TreePayload`；captured_at 系预检裁定的校准门输入）与 `remove_tree_cache_row(root)`（返回 `()`，内部 best-effort，调用方无需处理错误，供 Task 4 移除路径复用，不得重复实现）。
 
 - [ ] **Step 1: 写失败测试**（`tree.rs` 的 `tree_cache_tests` 模块追加）
@@ -247,7 +247,7 @@ git commit -m "feat(workspace): serve stale tree rows from disk cache"
 
 ---
 
-## Task 3: 存储分类注册第 11 类
+## Task 3: 存储分类注册第 11 项（第 10 个可迁移）
 
 **Files:**
 - Modify: `ai-digital-life/crates/kernel/src/storage/category.rs`（变体 + `key()` + `ALL` + 计数注释）
@@ -303,7 +303,7 @@ git commit -m "feat(storage): register tree-cache as migratable category"
 - Consumes: Task 1–2 的存储层；`run_blocking` 既有模式（`workspace.rs:423-431`）
 - Produces:
   - `TreeBody { workspace_path: Option<String>, force: bool, allow_stale: bool }`（全 `#[serde(default)]`，老客户端不传即全量语义， wire 兼容）
-  - `TreePayload { tree: Vec<WorkspaceTreeNode>, from_cache: bool, captured_at: i64 }`（`Serialize` + `#[serde(rename_all = "camelCase")]`，与前端手工类型逐字段对齐，见 Task 5；`captured_at` 供前端校准门判定，miss/force 时为本次扫描时间）
+  - `TreePayload { tree: Vec<WorkspaceTreeNode>, from_cache: bool, captured_at: i64 }`（`Serialize` + `#[serde(rename_all = "camelCase")]`，与前端手工类型逐字段对齐，见 Task 5；`captured_at` 供前端校准门判定，miss/force 时为本次扫描时间。命名映射：Rust 侧内部名 `TreePayload`，线名 camelCase，与前端 `WorkspaceTreePayload` 逐字段对齐）
   - 移除工作区后该 `root_path` 的缓存行消失（best-effort）
 
 - [ ] **Step 1: 写失败测试**
@@ -444,7 +444,7 @@ import type { WorkspaceTreePayload, TreeCacheStats } from '@kernel/types-workspa
 
 describe('tree cache payload shape', () => {
   it('payload carries the tree and its staleness', () => {
-    const payload: WorkspaceTreePayload = { tree: [], fromCache: true };
+    const payload: WorkspaceTreePayload = { tree: [], fromCache: true, capturedAt: 1000 };
     expect(payload.fromCache).toBe(true);
   });
 
@@ -697,8 +697,8 @@ git commit -m "refactor(stores): unwrap stale tree payload on fresh paths"
 
 ```tsx
 it('shows tree-cache stats and clears on confirm', async () => {
-  // bridge.storage.getTreeCacheStats mock → { workspaceCount: 2, totalBytes: 1024, oldestCapturedAt: 1, newestCapturedAt: 2 }。
-  // 断言：行渲染 "2" 与大小文本；点击清除 → clearTreeCache 被调一次。
+  // bridge.storage.getTreeCacheStats mock → { workspaceCount: 2, totalBytes: 1024, oldestCapturedAt: 1, newestCapturedAt: 2, enabled: true, ttlMinutes: 15 }。
+  // 断言：行渲染 "2" 与大小文本；开关/TTL 取 stats 值；点击清除 → clearTreeCache 被调一次。
 });
 
 it('toggling the master switch calls setTreeCacheOptions', async () => {

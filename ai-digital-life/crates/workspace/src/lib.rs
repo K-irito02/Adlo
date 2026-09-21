@@ -31,7 +31,7 @@ pub use search::{
 };
 pub use tree::{
     build_retrieval_snapshot, build_retrieval_snapshot_async, invalidate_tree_cache, list_tree,
-    list_tree_cached, list_tree_cached_stale_ok, list_tree_force, remove_tree_cache_row,
+    list_tree_cached_stale_ok, list_tree_force, list_tree_fresh, remove_tree_cache_row,
     tree_cache_dir,
 };
 pub use watch::{FilesChangedBatch, WorkspaceWatcher};

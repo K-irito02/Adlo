@@ -232,6 +232,8 @@ pub async fn remove_from_sidebar(
         );
         // 树缓存内存 + 落盘同删（invalidate = L1 清除 + 代际递增 + 落盘行删除，
         // best-effort，内部永不抛错；仅删盘会留下 L1，TTL 内重建可复活已删树）。
+        // 注：本闭包经 `run_sidebar_op` 在 `spawn_blocking` 内执行（含 open 建连接 +
+        // WAL + 建表 + DELETE 的 SQLite 阻塞 I/O，遵 handler recipe：阻塞操作不占 tokio worker）。
         if let Some(root) = root_path.as_deref() {
             adl_workspace::invalidate_tree_cache(std::path::Path::new(root));
         }
