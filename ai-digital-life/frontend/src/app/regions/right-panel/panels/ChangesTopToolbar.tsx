@@ -73,32 +73,35 @@ export function ChangesTopToolbar({
           </button>
         </TooltipSimple>
         {!hasActivePatchSet ? (
-          <TooltipSimple content={t.diffLayoutLabel} placement="top">
-            <div
-              className="adl-tool-context__diff-view"
-              role="group"
-              aria-label={t.diffLayoutLabel}
-            >
-              <button
-                type="button"
-                className={`adl-tool-context__toggle-btn${!diffSideBySide ? ' is-active' : ''}`}
-                aria-pressed={!diffSideBySide ? 'true' : 'false'}
-                disabled={!hasChangePreview}
-                onClick={() => onSetDiffLayout(false)}
+          <>
+            <span className="adl-tool-context__separator" aria-hidden="true" />
+            <TooltipSimple content={t.diffLayoutLabel} placement="top">
+              <div
+                className="adl-tool-context__diff-view"
+                role="group"
+                aria-label={t.diffLayoutLabel}
               >
-                {t.diffLayoutInline}
-              </button>
-              <button
-                type="button"
-                className={`adl-tool-context__toggle-btn${diffSideBySide ? ' is-active' : ''}`}
-                aria-pressed={diffSideBySide ? 'true' : 'false'}
-                disabled={!hasChangePreview}
-                onClick={() => onSetDiffLayout(true)}
-              >
-                {t.diffLayoutSideBySide}
-              </button>
-            </div>
-          </TooltipSimple>
+                <button
+                  type="button"
+                  className={`adl-tool-context__toggle-btn${!diffSideBySide ? ' is-active' : ''}`}
+                  aria-pressed={!diffSideBySide ? 'true' : 'false'}
+                  disabled={!hasChangePreview}
+                  onClick={() => onSetDiffLayout(false)}
+                >
+                  {t.diffLayoutInline}
+                </button>
+                <button
+                  type="button"
+                  className={`adl-tool-context__toggle-btn${diffSideBySide ? ' is-active' : ''}`}
+                  aria-pressed={diffSideBySide ? 'true' : 'false'}
+                  disabled={!hasChangePreview}
+                  onClick={() => onSetDiffLayout(true)}
+                >
+                  {t.diffLayoutSideBySide}
+                </button>
+              </div>
+            </TooltipSimple>
+          </>
         ) : null}
       </div>
       <div className="adl-tool-context__group adl-tool-context__group--files-actions">

@@ -66,6 +66,8 @@ export const settingsZh = {
   settingsUpdated: '设置已更新',
   settingsUpdateFailed: '设置更新失败',
   settingsResetComplete: '已恢复默认设置',
+  settingsResetConfirmTitle: '恢复全部默认？',
+  settingsResetConfirmMessage: '所有设置将恢复为默认值，此操作不可撤销。',
 
   // 无障碍
   settingsToggleVisibility: '切换可见性',

@@ -1,10 +1,11 @@
-import React, { useMemo, useRef, useCallback } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import type { SettingItem, SettingsGroupId } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import { IconSearch, IconPanelLeft, IconPanelLeftClose } from '../../icons';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { TooltipSimple } from '../Tooltip';
+import { ConfirmDialog } from '../ConfirmDialog';
 import { SettingsNav } from './SettingsNav';
 import { SETTINGS_GROUPS } from './settingsGroups';
 import { SettingsControls } from './SettingsControls';
@@ -112,10 +113,65 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     [setSettingsNavigatorWidth],
   );
 
-  const handleResetAll = async () => {
-    await updatePreferences(getDefaultPreferences());
-    showToast(t.settingsResetComplete, 'success');
-  };
+  const handleResetAll = useCallback(async () => {
+    const ok = await updatePreferences(getDefaultPreferences());
+    showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+  }, [updatePreferences, showToast, t]);
+
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  const searchButtonRef = useRef<HTMLButtonElement | null>(null);
+  const returnFocusToSearchRef = useRef(false);
+
+  const collapseSearch = useCallback(() => {
+    setSearchQuery('');
+    setSearchOpen(false);
+  }, [setSearchQuery]);
+
+  const handleSearchKeyDown = useCallback(
+    (event: React.KeyboardEvent<HTMLInputElement>) => {
+      if (event.key !== 'Escape' || confirmResetOpen) {
+        return;
+      }
+      event.stopPropagation();
+      returnFocusToSearchRef.current = true;
+      collapseSearch();
+    },
+    [collapseSearch, confirmResetOpen],
+  );
+
+  const handleSearchBlur = useCallback(
+    (event: React.FocusEvent<HTMLInputElement>) => {
+      const panel = event.currentTarget.closest('.adl-settings-panel');
+      if (panel && event.relatedTarget instanceof Node && panel.contains(event.relatedTarget)) {
+        return;
+      }
+      collapseSearch();
+    },
+    [collapseSearch],
+  );
+
+  useEffect(() => {
+    if (searchQuery.trim() !== '' && !searchOpen) {
+      setSearchOpen(true);
+    }
+  }, [searchQuery, searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen && returnFocusToSearchRef.current) {
+      returnFocusToSearchRef.current = false;
+      searchButtonRef.current?.focus();
+    }
+  }, [searchOpen]);
+
+  const handleCancelReset = useCallback(() => {
+    setConfirmResetOpen(false);
+  }, []);
+
+  const handleConfirmClick = useCallback(() => {
+    setConfirmResetOpen(false);
+    void handleResetAll();
+  }, [handleResetAll]);
 
   // 持久化/历史遗留的 activeGroup 可能不在当前组列表里（如已移除的 terminal）：
   // 回退到第一个组，避免导航无选中、面板空白。
@@ -158,41 +214,69 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
               )}
             </button>
           </TooltipSimple>
+          <span className="adl-tool-context__separator" aria-hidden="true" />
+          {searchOpen ? (
+            <div className="adl-settings-panel__search" role="search">
+              <label htmlFor="adl-settings-search-input" className="sr-only">
+                {t.settingsSearchLabel}
+              </label>
+              <IconSearch size={12} decorative />
+              <input
+                id="adl-settings-search-input"
+                type="search"
+                className="adl-settings-panel__search-input"
+                placeholder={t.settingsSearch}
+                value={searchQuery}
+                autoFocus
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchKeyDown}
+                onBlur={handleSearchBlur}
+              />
+            </div>
+          ) : (
+            <TooltipSimple content={t.settingsSearchLabel} placement="top">
+              <button
+                ref={searchButtonRef}
+                type="button"
+                className="adl-tool-context__iconbtn"
+                onClick={() => setSearchOpen(true)}
+                aria-label={t.settingsSearchLabel}
+              >
+                <IconSearch size={14} decorative />
+              </button>
+            </TooltipSimple>
+          )}
         </div>
         <div className="adl-settings-panel__header-actions">
-          <div className="adl-settings-panel__search">
-            <label htmlFor="adl-settings-search-input" className="sr-only">
-              {t.settingsSearchLabel}
-            </label>
-            <IconSearch size={12} decorative />
-            <input
-              id="adl-settings-search-input"
-              type="search"
-              className="adl-settings-panel__search-input"
-              placeholder={t.settingsSearch}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
           <button
             type="button"
             className="adl-settings-reset-all"
-            onClick={handleResetAll}
+            onClick={() => setConfirmResetOpen(true)}
             aria-label={t.settingsResetAll}
           >
             {t.settingsResetAll}
           </button>
         </div>
       </header>
+      <ConfirmDialog
+        open={confirmResetOpen}
+        title={t.settingsResetConfirmTitle}
+        message={t.settingsResetConfirmMessage}
+        confirmLabel={t.confirm}
+        cancelLabel={t.cancel}
+        onConfirm={handleConfirmClick}
+        onCancel={handleCancelReset}
+      />
       <div
         className={`adl-settings-panel__body${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
       >
         {!searchQuery.trim() && (
-          <nav
+          <div
             className="adl-tool-navigator adl-settings-nav"
             style={
               { '--adl-settings-nav-width': `${settingsNavigatorWidth}px` } as React.CSSProperties
             }
+            inert={navigatorCollapsed}
           >
             <SettingsNav activeGroup={effectiveGroup} onSelectGroup={setActiveGroup} />
             <div
@@ -205,7 +289,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
               aria-valuemax={SETTINGS_NAVIGATOR_WIDTH_MAX}
               aria-valuenow={settingsNavigatorWidth}
             />
-          </nav>
+          </div>
         )}
         <div className="adl-settings-panel__content adl-settings-panel__content--cards">
           {ActiveComponent ? (

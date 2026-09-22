@@ -490,6 +490,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
               )}
             </button>
           </TooltipSimple>
+          <span className="adl-tool-context__separator" aria-hidden="true" />
 
           <TooltipSimple
             content={navigatorMode === 'search' ? t.browserBack : t.search}

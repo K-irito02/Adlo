@@ -1,0 +1,212 @@
+import React from 'react';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import type { CopyDict } from '../../i18n';
+import { TCopyProvider } from '../../i18n/TCopyContext';
+import { useAppStore } from '../../stores/slicedStore';
+import { SettingsPanel } from './SettingsPanel';
+import { getDefaultPreferences } from '../../../shared/defaultPreferences';
+
+const mockT = new Proxy({} as Record<string, string>, {
+  get: (_, key) => (typeof key === 'string' ? key : ''),
+}) as unknown as CopyDict;
+
+function TestProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <TCopyProvider t={mockT} locale="en-US">
+      {children}
+    </TCopyProvider>
+  );
+}
+
+function setupStore() {
+  const updatePreferences = vi.fn(async () => true);
+  const showToast = vi.fn();
+  useAppStore.setState((s) => ({
+    settingsSearchQuery: '',
+    activeSettingsGroup: 'general',
+    navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
+    settingsNavigatorWidth: 200,
+    updatePreferences,
+    showToast,
+  }));
+  return { updatePreferences, showToast };
+}
+
+function renderPanel() {
+  return render(
+    <TestProvider>
+      <SettingsPanel settings={[]} onChangeSetting={() => {}} />
+    </TestProvider>,
+  );
+}
+
+describe('SettingsPanel shell header', () => {
+  afterEach(() => {
+    cleanup();
+    useAppStore.setState((s) => ({
+      settingsSearchQuery: '',
+      navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
+    }));
+  });
+
+  it('初始只渲染搜索图标按钮，不展开输入框', () => {
+    setupStore();
+    renderPanel();
+    expect(screen.getByRole('button', { name: 'settingsSearchLabel' })).not.toBeNull();
+    expect(document.querySelector('#adl-settings-search-input')).toBeNull();
+  });
+
+  it('点击搜索图标后展开输入框并聚焦', () => {
+    setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
+    const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement | null;
+    expect(input).not.toBeNull();
+    expect(document.activeElement).toBe(input);
+  });
+
+  it('输入框按 Escape 收起并清空关键词，焦点回到搜索图标', () => {
+    setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
+    const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'theme' } });
+    expect(useAppStore.getState().settingsSearchQuery).toBe('theme');
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(useAppStore.getState().settingsSearchQuery).toBe('');
+    expect(document.querySelector('#adl-settings-search-input')).toBeNull();
+    expect(document.activeElement).toBe(
+      screen.getByRole('button', { name: 'settingsSearchLabel' }),
+    );
+  });
+
+  it('输入框失焦到面板外收起并清空关键词', () => {
+    setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
+    const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'theme' } });
+    fireEvent.blur(input, { relatedTarget: document.body });
+    expect(useAppStore.getState().settingsSearchQuery).toBe('');
+    expect(document.querySelector('#adl-settings-search-input')).toBeNull();
+  });
+
+  it('输入框失焦收起并清空关键词', () => {
+    setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
+    const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'theme' } });
+    fireEvent.blur(input);
+    expect(useAppStore.getState().settingsSearchQuery).toBe('');
+    expect(document.querySelector('#adl-settings-search-input')).toBeNull();
+  });
+
+  it('toggle 右侧带有中段分隔线', () => {
+    setupStore();
+    renderPanel();
+    const header = document.querySelector('.adl-settings-panel__header');
+    expect(header?.querySelector('.adl-tool-context__separator')).not.toBeNull();
+  });
+
+  it('点击恢复全部默认先弹确认框，不直接执行', () => {
+    const { updatePreferences } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+    expect(updatePreferences).not.toHaveBeenCalled();
+  });
+
+  it('确认框点确认执行恢复并关闭，点取消不执行', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(updatePreferences).toHaveBeenCalledTimes(1);
+      expect(updatePreferences).toHaveBeenCalledWith(getDefaultPreferences());
+      expect(showToast).toHaveBeenCalled();
+    });
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+    expect(updatePreferences).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+  });
+
+  it('blur 到面板内控件保持过滤与展开', () => {
+    setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
+    const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'theme' } });
+    fireEvent.blur(input, {
+      relatedTarget: screen.getByRole('button', { name: 'settingsResetAll' }),
+    });
+    expect(useAppStore.getState().settingsSearchQuery).toBe('theme');
+    expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
+  });
+
+  it('恢复失败弹错误提示而非成功提示', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    updatePreferences.mockResolvedValue(false);
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+    });
+    expect(showToast).not.toHaveBeenCalledWith('settingsResetComplete', 'success');
+  });
+
+  it('对话框按 Escape 与点 overlay 关闭且不执行', () => {
+    const { updatePreferences } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    fireEvent.keyDown(document.body, { key: 'Escape' });
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    fireEvent.click(screen.getByRole('dialog'));
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+  });
+
+  it('点击对话框内层不关闭', () => {
+    const { updatePreferences } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    const inner = document.querySelector('.adl-confirm-dialog') as HTMLElement;
+    expect(inner).not.toBeNull();
+    fireEvent.click(inner);
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+  });
+
+  it('确认框打开时搜索框 Escape 只关框不清空关键词', () => {
+    setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
+    const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'theme' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    expect(useAppStore.getState().settingsSearchQuery).toBe('theme');
+    expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
+  });
+
+  it('内外各仅一处 settings-nav 类（防嵌套回归）', () => {
+    setupStore();
+    renderPanel();
+    expect(document.querySelectorAll('.adl-settings-nav').length).toBe(1);
+    const innerNav = document.querySelector('.adl-settings-panel__body nav:not([class])');
+    expect(innerNav).not.toBeNull();
+    expect(innerNav?.getAttribute('aria-label')).toBe('settingsTitle');
+  });
+});

@@ -5,6 +5,7 @@
    - Serif only on section titles (scoped --font-serif, shared .adl-settings-title--serif)
    - Stagger enter via transform/opacity only (ladder 0-400ms, n+7 clamp 480ms)
    - Pastel status via themed --pastel-* tokens
+   - Radius scale: nav items 0 (edge-flush) / header search + reset-all + keybinds search sm(2px) / cards lg(8px)
    ========================================================================== */
 
 .adl-settings-panel {
@@ -30,16 +31,15 @@
   padding: var(--space-1) var(--space-2);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   transition: var(--transition-colors);
   color: var(--text-muted);
+  min-width: 0;
 }
 
 .adl-settings-panel__search:hover,
 .adl-settings-panel__search:focus-within {
   background: var(--bg-muted);
-  border-color: var(--border-subtle);
-  color: var(--text-secondary);
 }
 
 .adl-settings-panel__header-actions {
@@ -56,6 +56,7 @@
   font-size: var(--text-xs);
   outline: none;
   width: 120px;
+  max-width: 100%;
 }
 
 .adl-settings-panel__body {
@@ -215,7 +216,8 @@
   width: var(--adl-settings-nav-width, 160px);
   flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
-  padding: var(--space-2) 0;
+  /* Top intentionally tighter (space-1) to meet the header hairline; bottom keeps space-2. */
+  padding: var(--space-1) 0 var(--space-2);
   overflow: hidden;
   background: var(--bg);
 }
@@ -258,8 +260,12 @@
 
 .adl-settings-nav ul {
   list-style: none;
-  padding: 0 var(--space-2);
+  padding: 0;
   margin: 0;
+}
+
+.adl-settings-nav li + li {
+  margin-top: var(--space-px);
 }
 
 .adl-settings-nav__item {
@@ -268,7 +274,7 @@
   padding: var(--space-2) var(--space-3);
   background: none;
   border: none;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-none);
   color: var(--text-secondary);
   font-size: var(--text-sm);
   cursor: pointer;
@@ -288,8 +294,17 @@
 }
 
 .adl-settings-nav__item:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  outline: none;
+  /* Inset ring: items are edge-flush inside overflow:hidden, an outset outline would be clipped. */
+  box-shadow: inset 0 0 0 var(--focus-ring-width) var(--focus-ring);
+}
+
+@media (forced-colors: active) {
+  .adl-settings-nav__item:focus-visible {
+    box-shadow: none;
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
 }
 
 /* ---- Rows & controls ---- */
@@ -567,7 +582,7 @@
   padding: var(--space-1) var(--space-3);
   background: transparent;
   border: 1px solid transparent;
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   cursor: pointer;
@@ -576,8 +591,6 @@
 
 .adl-settings-reset-all:hover {
   background: var(--bg-muted);
-  border-color: var(--border-subtle);
-  color: var(--text-primary);
 }
 
 .adl-settings-reset-all:focus-visible {
@@ -642,7 +655,7 @@
   padding: var(--space-1) var(--space-2);
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-xs);
   width: 180px;

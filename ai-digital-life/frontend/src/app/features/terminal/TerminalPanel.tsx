@@ -199,6 +199,7 @@ export function TerminalPanel() {
               )}
             </button>
           </TooltipSimple>
+          <span className="adl-tool-context__separator" aria-hidden="true" />
           <div className="adl-tool-context__group--terminal-actions">
             <TerminalShellSelector
               currentProfile={currentProfile}

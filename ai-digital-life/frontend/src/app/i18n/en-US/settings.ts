@@ -66,6 +66,9 @@ export const settingsEn = {
   settingsUpdated: 'Settings updated',
   settingsUpdateFailed: 'Failed to update settings',
   settingsResetComplete: 'Settings reset to defaults',
+  settingsResetConfirmTitle: 'Reset all to defaults?',
+  settingsResetConfirmMessage:
+    'All settings will be restored to their defaults. This cannot be undone.',
 
   // Accessibility
   settingsToggleVisibility: 'Toggle visibility',

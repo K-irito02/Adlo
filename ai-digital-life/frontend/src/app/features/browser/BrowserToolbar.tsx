@@ -102,6 +102,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             )}
           </button>
         </TooltipSimple>
+        <span className="adl-tool-context__separator" aria-hidden="true" />
         <TooltipSimple content={t.browserBack} placement="top">
           <button
             type="button"

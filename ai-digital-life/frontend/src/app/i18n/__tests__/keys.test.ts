@@ -77,6 +77,15 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('settingsTitle');
   });
 
+  it('includes reset-all confirm copy in both locales', () => {
+    expect(enUS.settingsResetConfirmTitle).toBe('Reset all to defaults?');
+    expect(enUS.settingsResetConfirmMessage).toBe(
+      'All settings will be restored to their defaults. This cannot be undone.',
+    );
+    expect(zhCN.settingsResetConfirmTitle).toBe('恢复全部默认？');
+    expect(zhCN.settingsResetConfirmMessage).toBe('所有设置将恢复为默认值，此操作不可撤销。');
+  });
+
   it('no longer exposes the legacy settingsModels or settingsProviders keys', () => {
     expect(enUS).not.toHaveProperty('settingsModels');
     expect(enUS).not.toHaveProperty('settingsModelsDesc');

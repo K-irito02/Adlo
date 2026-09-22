@@ -37,13 +37,9 @@ export function SettingsNav({ activeGroup, onSelectGroup }: SettingsNavProps) {
   };
 
   return (
-    <nav
-      ref={navRef}
-      className="adl-settings-nav"
-      aria-label={t.settingsTitle}
-      aria-orientation="vertical"
-      onKeyDown={handleKeyDown}
-    >
+    // NOTE: inner nav stays unclassed — .adl-settings-nav lives on the outer
+    // shell only (re-adding it here doubles padding/border).
+    <nav ref={navRef} aria-label={t.settingsTitle} onKeyDown={handleKeyDown}>
       <ul>
         {SETTINGS_GROUPS.map((group) => (
           <li key={group.id}>
