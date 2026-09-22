@@ -55,7 +55,6 @@ export const settingsEn = {
     'Font for terminal text; hover an option to preview live, click to confirm',
   settingsFontPreview: 'Preview: The quick brown fox 1234567890',
   settingsFontDefault: 'Default',
-  settingsFontSystemNote: 'Empty means the system default font',
 
   // Shortcuts
   settingsShortcutsTitle: 'Keyboard Shortcuts',
@@ -80,6 +79,9 @@ export const settingsEn = {
   settingsResetConfirmTitle: 'Reset all to defaults?',
   settingsResetConfirmMessage:
     'All settings will be restored to their defaults. This cannot be undone.',
+  settingsResetGroupConfirmTitle: 'Reset {group} to defaults?',
+  settingsResetGroupConfirmMessage:
+    'Every setting in the {group} group will be restored to its default. This cannot be undone.',
 
   // Accessibility
   settingsToggleVisibility: 'Toggle visibility',

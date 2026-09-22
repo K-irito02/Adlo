@@ -491,27 +491,9 @@
   transform: translateX(16px);
 }
 
-/* ---- Select / input ----
-   统一灰底直角：与恢复默认图标按钮同款 --bg-muted + --radius-sm(2px 偏直角)。
-   原生 select 保留给未迁移的设置组（browser/storage/dsh），同样收敛到该视觉。 */
-
-.adl-settings-select {
-  padding: var(--space-1) var(--space-2);
-  background: var(--bg-muted);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-}
-
-.adl-settings-select:hover {
-  background: var(--surface-hover);
-}
-
-.adl-settings-select:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
+/* ---- Input ----
+   统一灰底直角：--bg-muted + --radius-sm(2px 偏直角)。
+   原生 select 已全量迁移为 SettingsSelect，本节不再保留其样式。 */
 
 .adl-settings-input {
   padding: var(--space-1) var(--space-2);
@@ -526,6 +508,7 @@
 
 .adl-settings-input:hover:not(:readonly) {
   background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
 .adl-settings-input:focus-visible {
@@ -577,20 +560,6 @@
   min-width: 180px;
 }
 
-.adl-settings-font__input {
-  padding: var(--space-1) var(--space-2);
-  background: var(--bg-muted);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  font-size: var(--text-sm);
-}
-
-.adl-settings-font__input:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .adl-settings-font__preview {
   font-size: var(--text-xs);
   color: var(--text-secondary);
@@ -627,6 +596,8 @@
 
 .adl-settings-dropdown__trigger:hover {
   background: var(--surface-hover);
+  /* 浅色下 bg-muted 与 surface-hover 同值，hover 全靠边框变化保证可见 */
+  border-color: var(--border-strong);
 }
 
 .adl-settings-dropdown__trigger:focus-visible {
@@ -647,6 +618,7 @@
 
 .adl-settings-dropdown__menu {
   position: fixed;
+  /* 与 SettingsSelect.tsx MENU_MAX_HEIGHT 同步修改 */
   max-height: 240px;
   display: flex;
   background: var(--bg-card, var(--surface-raised));
@@ -666,6 +638,7 @@
   display: flex;
   flex-direction: column;
   gap: 1px;
+  /* 240 菜单高 − 上下 padding（space-1×2）= 232，与 MENU_MAX_HEIGHT 对应 */
   max-height: 232px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -695,6 +668,11 @@
   cursor: pointer;
   text-align: left;
   white-space: nowrap;
+}
+
+.adl-settings-dropdown__item > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .adl-settings-dropdown__item:hover,
@@ -801,11 +779,18 @@
   top: 50%;
   transform: translateY(-50%);
   opacity: 0;
+  /* 隐藏时同步脱离 Tab 顺序，避免键盘用户撞上不可见 stop；
+     visibility 离散过渡：显现即时、消失随 opacity 淡出 */
+  visibility: hidden;
+  transition:
+    opacity var(--duration-150) var(--ease-default),
+    visibility var(--duration-150) var(--ease-default);
 }
 
 .adl-settings-nav__row:hover .adl-settings-nav__reset,
 .adl-settings-nav__row:focus-within .adl-settings-nav__reset {
   opacity: 1;
+  visibility: visible;
 }
 
 /* ---- Keybinds ---- */

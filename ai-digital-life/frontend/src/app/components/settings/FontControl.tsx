@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { SettingItem } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { SettingsSelect } from './SettingsSelect';
@@ -47,13 +47,29 @@ export function FontControl({ item, cssVar, onChange, t }: FontControlProps) {
   }, [committed, cssVar]);
 
   const baseOptions = cssVar === '--font-sans-custom' ? UI_FONT_OPTIONS : MONO_FONT_OPTIONS;
-  const options = [
-    { value: '', label: t.settingsFontDefault },
-    ...baseOptions.map((f) => ({ value: f, label: f })),
-  ];
-  if (committed && !options.some((o) => o.value === committed)) {
-    options.push({ value: committed, label: committed });
-  }
+  // options/onHoverOption 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
+  const options = useMemo(() => {
+    const list = [
+      { value: '', label: t.settingsFontDefault },
+      ...baseOptions.map((f) => ({ value: f, label: f })),
+    ];
+    if (committed && !list.some((o) => o.value === committed)) {
+      list.push({ value: committed, label: committed });
+    }
+    return list;
+  }, [baseOptions, committed, t.settingsFontDefault]);
+
+  const handleHoverOption = useCallback((v: string | null) => {
+    setHover(v);
+  }, []);
+
+  const handleConfirm = useCallback(
+    (v: string) => {
+      setHover(null);
+      onChange(v);
+    },
+    [onChange],
+  );
 
   const previewFont = hover ?? committed;
 
@@ -68,11 +84,8 @@ export function FontControl({ item, cssVar, onChange, t }: FontControlProps) {
       <SettingsSelect
         value={committed}
         options={options}
-        onChange={(v) => {
-          setHover(null);
-          onChange(v);
-        }}
-        onHoverOption={(v) => setHover(v)}
+        onChange={handleConfirm}
+        onHoverOption={handleHoverOption}
         label={item.label}
         optionStyle={(v) => (v ? { fontFamily: v } : undefined)}
       />

@@ -28,12 +28,13 @@ interface MenuGeometry {
 }
 
 const MENU_OFFSET = 4;
+// 与 settings.css `.adl-settings-dropdown__menu max-height` 同步修改。
 const MENU_MAX_HEIGHT = 240;
 const VIEWPORT_MARGIN = 8;
 
 /**
  * 设置面板可复用自定义下拉（替代原生 select）。
- * 视觉沿用项目 adl-menu 菜单语言 + 设置灰底直角（--bg-muted / --radius-sm），
+ * 视觉对齐项目 adl-menu 菜单语言 + 设置灰底直角（--bg-muted / --radius-sm），
  * 滚动条复用项目 RevealScrollbar（overlay 悬停显现式，与文件树/剪贴板同源），
  * 菜单经 Portal 挂载到 body（fixed 定位），不受祖先 overflow 裁剪。
  * 支持悬停预览回调、键盘导航（上下/回车/Esc）、点击外部关闭。
@@ -119,12 +120,24 @@ export function SettingsSelect({
     (v: string) => {
       onHoverOption?.(null);
       setOpen(false);
+      // 菜单卸载后焦点无处可去，回落触发器（Esc 路径同理，见下方）。
+      triggerRef.current?.focus();
       if (v !== value) {
         onChange(v);
       }
     },
     [onChange, onHoverOption, value],
   );
+
+  // 打开时把高亮同步到已选项并置滚动旗：首帧即滚入可见（block nearest，可见则不动）。
+  const openMenu = useCallback(() => {
+    const idx = options.findIndex((o) => o.value === value);
+    if (idx >= 0) {
+      setActiveIndex(idx);
+    }
+    keyboardNavRef.current = true;
+    setOpen(true);
+  }, [options, value]);
 
   useEffect(() => {
     if (!open) {
@@ -145,19 +158,19 @@ export function SettingsSelect({
       } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         keyboardNavRef.current = true;
-        setActiveIndex((i) => {
-          const next = Math.min(options.length - 1, i + 1);
-          onHoverOption?.(options[next]?.value ?? null);
-          return next;
-        });
+        // updater 内禁止副作用（StrictMode 可双调用）：闭包 activeIndex 是新鲜的，直接计算。
+        const next = Math.min(options.length - 1, activeIndex + 1);
+        onHoverOption?.(options[next]?.value ?? null);
+        setActiveIndex(next);
       } else if (e.key === 'ArrowUp') {
         e.preventDefault();
         keyboardNavRef.current = true;
-        setActiveIndex((i) => {
-          const next = Math.max(0, i - 1);
-          onHoverOption?.(options[next]?.value ?? null);
-          return next;
-        });
+        const next = Math.max(0, activeIndex - 1);
+        onHoverOption?.(options[next]?.value ?? null);
+        setActiveIndex(next);
+      } else if (e.key === 'Tab') {
+        // Tab 移出即关闭（不 preventDefault，放行焦点自然移动）。
+        close();
       } else if (e.key === 'Enter') {
         const opt = options[activeIndex];
         if (
@@ -192,27 +205,35 @@ export function SettingsSelect({
     };
   }, [open, close, commit, options, activeIndex, onHoverOption, updateGeometry]);
 
-  // 仅键盘导航滚入高亮项（jsdom 无该 API，守卫）。
+  // 仅键盘导航/打开同步滚入高亮项（jsdom 无该 API，守卫）。
   // 注意 deps 禁止带 scrollbar 对象（每次渲染新身份，会引发无限循环）。
   useEffect(() => {
     if (!open || !keyboardNavRef.current) {
       return;
     }
-    keyboardNavRef.current = false;
     const list = listRef.current;
-    const active = list?.querySelector('[data-active="true"]');
+    // 首开时菜单 DOM 尚未挂载（等 menuGeometry 落定）：保留旗标，等 geometry 就绪的下一轮再滚。
+    if (!list) {
+      return;
+    }
+    keyboardNavRef.current = false;
+    const active = list.querySelector('[data-active="true"]');
     if (active && typeof (active as Element).scrollIntoView === 'function') {
       (active as Element).scrollIntoView({ block: 'nearest' });
     }
-  }, [open, activeIndex, listRef]);
+  }, [open, activeIndex, listRef, menuGeometry]);
 
   const handleTriggerKeyDown = (e: React.KeyboardEvent) => {
     if (disabled) {
       return;
     }
-    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp' || e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      setOpen((v) => !v);
+      if (open) {
+        close();
+      } else {
+        openMenu();
+      }
     }
   };
 
@@ -227,6 +248,7 @@ export function SettingsSelect({
         className="adl-settings-dropdown__trigger"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-controls={open ? listId : undefined}
         aria-label={label}
         disabled={disabled}
         onClick={() => {
@@ -236,7 +258,7 @@ export function SettingsSelect({
           if (open) {
             close();
           } else {
-            setOpen(true);
+            openMenu();
           }
         }}
         onKeyDown={handleTriggerKeyDown}
@@ -256,7 +278,11 @@ export function SettingsSelect({
               width: menuGeometry.width,
             }}
             {...scrollbar.hoverProps}
-            onMouseLeave={() => onHoverOption?.(null)}
+            // 后写获胜会覆盖 hook 的 onMouseLeave（显现状态卡死），故合并调用。
+            onMouseLeave={() => {
+              scrollbar.hoverProps.onMouseLeave();
+              onHoverOption?.(null);
+            }}
           >
             <ul
               id={listId}

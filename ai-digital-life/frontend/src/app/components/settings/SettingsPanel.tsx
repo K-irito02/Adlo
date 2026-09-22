@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import type { SettingItem, SettingsGroupId } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
+import { formatT } from '../../i18n/formatT';
 import { IconSearch, IconPanelLeft, IconPanelLeftClose } from '../../icons';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -238,6 +239,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const ActiveComponent = !searchQuery.trim() ? SETTINGS_COMPONENTS[effectiveGroup] : undefined;
 
+  // 组级重置沿用同一个 ConfirmDialog，文案按 pendingResetGroup 切换，避免"恢复全部"误导。
+  const pendingGroupLabel = pendingResetGroup
+    ? (t[
+        SETTINGS_GROUPS.find((g) => g.id === pendingResetGroup)?.labelKey ?? 'settingsGeneral'
+      ] as string)
+    : null;
+
   return (
     <div className="adl-settings-panel">
       <header className="adl-settings-panel__header">
@@ -303,8 +311,16 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       </header>
       <ConfirmDialog
         open={confirmResetOpen}
-        title={t.settingsResetConfirmTitle}
-        message={t.settingsResetConfirmMessage}
+        title={
+          pendingGroupLabel
+            ? formatT(t, 'settingsResetGroupConfirmTitle', { group: pendingGroupLabel })
+            : t.settingsResetConfirmTitle
+        }
+        message={
+          pendingGroupLabel
+            ? formatT(t, 'settingsResetGroupConfirmMessage', { group: pendingGroupLabel })
+            : t.settingsResetConfirmMessage
+        }
         confirmLabel={t.confirm}
         cancelLabel={t.cancel}
         onConfirm={handleConfirmClick}

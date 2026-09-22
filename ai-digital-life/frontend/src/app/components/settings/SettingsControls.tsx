@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
+import React, { useState, useEffect, useRef, useMemo, type ChangeEvent } from 'react';
 import type { SettingItem } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import type { CopyDict } from '../../i18n';
@@ -48,10 +48,15 @@ function ToggleControl({ item, onChange }: { item: SettingItem; onChange: (v: bo
 }
 
 function SelectControl({ item, onChange }: { item: SettingItem; onChange: (v: string) => void }) {
+  // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
+  const options = useMemo(
+    () => (item.options ?? []).map((opt) => ({ value: opt.value, label: opt.label })),
+    [item.options],
+  );
   return (
     <SettingsSelect
       value={String(item.value)}
-      options={(item.options ?? []).map((opt) => ({ value: opt.value, label: opt.label }))}
+      options={options}
       onChange={onChange}
       label={item.label}
     />

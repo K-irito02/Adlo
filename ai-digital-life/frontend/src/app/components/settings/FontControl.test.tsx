@@ -106,4 +106,11 @@ describe('FontControl', () => {
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('Inter');
   });
+
+  it('backfills an unknown committed value as an extra option', () => {
+    const custom: SettingItem = { ...mockItem, value: 'Roboto' };
+    render(<FontControl item={custom} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />);
+    fireEvent.click(screen.getByRole('button', { name: 'UI Font' }));
+    expect(screen.getByRole('option', { name: 'Roboto' })).toBeDefined();
+  });
 });

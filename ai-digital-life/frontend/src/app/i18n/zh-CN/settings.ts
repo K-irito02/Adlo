@@ -40,7 +40,7 @@ export const settingsZh = {
   settingsLogModeOverwrite: '覆盖',
   settingsLogModeAppend: '追加',
   settingsLogModeMulti: '多文件',
-  settingsResetGroupToDefault: '恢复{group}全部默认',
+  settingsResetGroupToDefault: '恢复 {group} 全部默认',
 
   // 字体设置
   settingsFontUi: '界面字体',
@@ -51,7 +51,6 @@ export const settingsZh = {
   settingsFontTerminalDesc: '终端会话文字的字体，悬停选项可实时预览，点击后确认生效',
   settingsFontPreview: '预览：The quick brown fox 1234567890',
   settingsFontDefault: '默认',
-  settingsFontSystemNote: '留空即使用系统默认字体',
 
   // 快捷键
   settingsShortcutsTitle: '快捷键设置',
@@ -75,6 +74,8 @@ export const settingsZh = {
   settingsResetComplete: '已恢复默认设置',
   settingsResetConfirmTitle: '恢复全部默认？',
   settingsResetConfirmMessage: '所有设置将恢复为默认值，此操作不可撤销。',
+  settingsResetGroupConfirmTitle: '恢复 {group} 全部默认？',
+  settingsResetGroupConfirmMessage: '{group} 分组下的全部设置项将恢复为默认值，此操作不可撤销。',
 
   // 无障碍
   settingsToggleVisibility: '切换可见性',

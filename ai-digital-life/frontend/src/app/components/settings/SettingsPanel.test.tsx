@@ -201,6 +201,26 @@ describe('SettingsPanel shell header', () => {
     expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
   });
 
+  it('组级重置弹分组文案而非“恢复全部”文案', async () => {
+    const { updatePreferences } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetGroupToDefault' }));
+    expect(screen.getByText('settingsResetGroupConfirmTitle')).not.toBeNull();
+    expect(screen.getByText('settingsResetGroupConfirmMessage')).not.toBeNull();
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(updatePreferences).toHaveBeenCalledTimes(1);
+    });
+    // 组级 patch 只含 general 组 6 个 key，不含全局 getDefaultPreferences() 的 keybinds 等。
+    const patch = (
+      updatePreferences.mock.calls[0] as unknown[] | undefined
+    )?.[0] as unknown as Record<string, unknown>;
+    expect(Object.keys(patch).sort()).toEqual(
+      ['debugLogMode', 'fonts', 'language', 'logLevel', 'terminalLogMode', 'themeMode'].sort(),
+    );
+  });
+
   it('内外各仅一处 settings-nav 类（防嵌套回归）', () => {
     setupStore();
     renderPanel();
