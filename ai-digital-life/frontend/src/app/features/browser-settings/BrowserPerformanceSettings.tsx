@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
@@ -36,9 +37,24 @@ export function BrowserPerformanceSettings() {
     useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs),
   );
 
-  const handleChange = (ms: number) => {
+  const handleChange = useCallback((ms: number) => {
     useAppStore.getState().updatePreferences({ browserInactiveTabSuspendMs: ms });
-  };
+  }, []);
+
+  const handleSelectChange = useCallback((v: string) => handleChange(Number(v)), [handleChange]);
+
+  // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
+  const selectOptions = useMemo(
+    () =>
+      OPTIONS.map((opt) => ({
+        value: String(opt.value),
+        label:
+          opt.min === null
+            ? t.browserSettingsSuspendOff
+            : t.browserSettingsSuspendMin.replace('{n}', String(opt.min)),
+      })),
+    [t.browserSettingsSuspendOff, t.browserSettingsSuspendMin],
+  );
 
   return (
     <div className="adl-settings-section adl-settings-card adl-browser-settings">
@@ -55,14 +71,8 @@ export function BrowserPerformanceSettings() {
         <div className="adl-settings-row__control">
           <SettingsSelect
             value={String(current)}
-            options={OPTIONS.map((opt) => ({
-              value: String(opt.value),
-              label:
-                opt.min === null
-                  ? t.browserSettingsSuspendOff
-                  : t.browserSettingsSuspendMin.replace('{n}', String(opt.min)),
-            }))}
-            onChange={(v) => handleChange(Number(v))}
+            options={selectOptions}
+            onChange={handleSelectChange}
             label={t.browserSettingsSuspendTitle}
           />
         </div>

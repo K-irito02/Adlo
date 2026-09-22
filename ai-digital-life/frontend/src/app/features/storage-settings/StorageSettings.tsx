@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CopyKey } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
@@ -558,6 +558,47 @@ export function StorageSettings() {
   // 开关/TTL 控件以 stats 为真源；stats 缺席时区段不渲染，缺省值仅供回退展示。
   const treeEnabled = treeStats?.enabled ?? TREE_CACHE_DEFAULTS.enabled;
   const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
+
+  const handleTtlSelectChange = useCallback(
+    (v: string) => {
+      const raw = Number(v);
+      if (!Number.isFinite(raw)) {
+        return;
+      }
+      // 与服务端合法范围 1..=1440 对齐：钳制后写（非法值不出桥）。
+      const ttlMinutes = Math.min(1440, Math.max(1, Math.floor(raw)));
+      void handleTreeOptionsChange({
+        enabled: treeEnabled,
+        ttlMinutes,
+      });
+    },
+    [handleTreeOptionsChange, treeEnabled],
+  );
+
+  // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
+  const ttlSelectOptions = useMemo(() => {
+    // 非列表值（如后端合法但不在下拉档的 30）：回退展示当前值档（复用既有 key，无新文案）。
+    const fallback = !TREE_CACHE_TTL_OPTIONS.includes(
+      treeTtlMinutes as (typeof TREE_CACHE_TTL_OPTIONS)[number],
+    )
+      ? [
+          {
+            value: String(treeTtlMinutes),
+            label: t.treeCacheTtlMinutes.replace('{minutes}', String(treeTtlMinutes)),
+          },
+        ]
+      : [];
+    return [
+      ...fallback,
+      ...TREE_CACHE_TTL_OPTIONS.map((minutes) => ({
+        value: String(minutes),
+        label:
+          minutes === 1440
+            ? t.treeCacheTtlDay
+            : t.treeCacheTtlMinutes.replace('{minutes}', String(minutes)),
+      })),
+    ];
+  }, [treeTtlMinutes, t.treeCacheTtlMinutes, t.treeCacheTtlDay]);
   const pathFor = (category: StorageCategoryStatus) =>
     categoryDrafts[category.key] ?? category.path;
 
@@ -772,38 +813,8 @@ export function StorageSettings() {
               />
               <SettingsSelect
                 value={String(treeTtlMinutes)}
-                options={[
-                  // 非列表值（如后端合法但不在下拉档的 30）：回退展示当前值档（复用既有 key，无新文案）。
-                  ...(!TREE_CACHE_TTL_OPTIONS.includes(
-                    treeTtlMinutes as (typeof TREE_CACHE_TTL_OPTIONS)[number],
-                  )
-                    ? [
-                        {
-                          value: String(treeTtlMinutes),
-                          label: t.treeCacheTtlMinutes.replace('{minutes}', String(treeTtlMinutes)),
-                        },
-                      ]
-                    : []),
-                  ...TREE_CACHE_TTL_OPTIONS.map((minutes) => ({
-                    value: String(minutes),
-                    label:
-                      minutes === 1440
-                        ? t.treeCacheTtlDay
-                        : t.treeCacheTtlMinutes.replace('{minutes}', String(minutes)),
-                  })),
-                ]}
-                onChange={(v) => {
-                  const raw = Number(v);
-                  if (!Number.isFinite(raw)) {
-                    return;
-                  }
-                  // 与服务端合法范围 1..=1440 对齐：钳制后写（非法值不出桥）。
-                  const ttlMinutes = Math.min(1440, Math.max(1, Math.floor(raw)));
-                  void handleTreeOptionsChange({
-                    enabled: treeEnabled,
-                    ttlMinutes,
-                  });
-                }}
+                options={ttlSelectOptions}
+                onChange={handleTtlSelectChange}
                 label={t.treeCacheTtl}
                 disabled={treeBusy}
               />

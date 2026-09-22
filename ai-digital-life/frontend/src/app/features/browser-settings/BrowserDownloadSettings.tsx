@@ -1,3 +1,4 @@
+import { useCallback, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
@@ -11,9 +12,26 @@ export function BrowserDownloadSettings() {
 
   const isAutoSave = downloadSettings.mode === 'auto';
 
-  const handleModeChange = (auto: boolean) => {
-    void updateDownloadSettings(auto ? 'auto' : 'ask');
-  };
+  const handleModeChange = useCallback(
+    (auto: boolean) => {
+      void updateDownloadSettings(auto ? 'auto' : 'ask');
+    },
+    [updateDownloadSettings],
+  );
+
+  const handleSelectChange = useCallback(
+    (v: string) => handleModeChange(v === 'auto'),
+    [handleModeChange],
+  );
+
+  // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
+  const selectOptions = useMemo(
+    () => [
+      { value: 'auto', label: t.browserDownloadSettingsModeAuto },
+      { value: 'ask', label: t.browserDownloadSettingsModeAsk },
+    ],
+    [t.browserDownloadSettingsModeAuto, t.browserDownloadSettingsModeAsk],
+  );
 
   return (
     <div className="adl-settings-section adl-settings-card adl-browser-settings">
@@ -33,11 +51,8 @@ export function BrowserDownloadSettings() {
         <div className="adl-settings-row__control">
           <SettingsSelect
             value={isAutoSave ? 'auto' : 'ask'}
-            options={[
-              { value: 'auto', label: t.browserDownloadSettingsModeAuto },
-              { value: 'ask', label: t.browserDownloadSettingsModeAsk },
-            ]}
-            onChange={(v) => handleModeChange(v === 'auto')}
+            options={selectOptions}
+            onChange={handleSelectChange}
             label={t.browserDownloadSettingsMode}
             disabled={isLoadingSettings}
           />

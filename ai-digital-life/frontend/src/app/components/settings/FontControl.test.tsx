@@ -48,12 +48,9 @@ describe('FontControl', () => {
     );
     const row = container.querySelector('.adl-settings-font--row');
     expect(row).not.toBeNull();
-    const preview = row?.querySelector('.adl-settings-font__preview');
-    const trigger = row?.querySelector('.adl-settings-dropdown__trigger');
-    expect(preview).not.toBeNull();
-    expect(trigger).not.toBeNull();
-    // 预览在 DOM 顺序上先于下拉触发器（视觉左侧）。
-    expect(row?.children[0]?.contains(preview ?? null) ?? preview === row?.children[0]).toBe(true);
+    // 预览为第一个子节点，下拉为第二个（含触发器），顺序即左右布局。
+    expect(row?.children[0]?.classList.contains('adl-settings-font__preview')).toBe(true);
+    expect(row?.children[1]?.querySelector('.adl-settings-dropdown__trigger')).not.toBeNull();
   });
 
   it('sets CSS variable on mount when value is non-empty', () => {
@@ -90,6 +87,7 @@ describe('FontControl', () => {
     expect(preview.style.fontFamily).toBe('Inter');
     // …但应用级 CSS 变量纹丝不动。
     expect(document.documentElement.style.getPropertyValue('--font-sans-custom')).toBe('');
+    // mouseleave 在 listbox 上派发，依赖 React 合成事件冒泡到菜单容器 div 的 onMouseLeave。
     fireEvent.mouseLeave(screen.getByRole('listbox'));
     expect(preview.style.fontFamily).toBe('');
   });
@@ -112,5 +110,50 @@ describe('FontControl', () => {
     render(<FontControl item={custom} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />);
     fireEvent.click(screen.getByRole('button', { name: 'UI Font' }));
     expect(screen.getByRole('option', { name: 'Roboto' })).toBeDefined();
+  });
+
+  it('shows the default label when empty and clears on selecting Default', () => {
+    const onChange = vi.fn();
+    const { unmount } = render(
+      <FontControl item={mockItem} cssVar="--font-sans-custom" onChange={() => {}} t={mockT} />,
+    );
+    expect(screen.getByRole('button', { name: 'UI Font' }).textContent).toContain('Default');
+    unmount();
+    // 当前已为空时选“默认”不回调（去重）；从非空切回才落盘 ''。
+    const withValue: SettingItem = { ...mockItem, value: 'Inter' };
+    render(
+      <FontControl item={withValue} cssVar="--font-sans-custom" onChange={onChange} t={mockT} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'UI Font' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Default' }));
+    expect(onChange).toHaveBeenCalledWith('');
+  });
+
+  it('uses mono candidates for code fonts and follows parent value updates', () => {
+    const monoItem: SettingItem = {
+      ...mockItem,
+      id: 'font:code',
+      label: 'Code Font',
+      value: '',
+      cssVar: '--font-mono-custom',
+    };
+    const { rerender } = render(
+      <FontControl item={monoItem} cssVar="--font-mono-custom" onChange={() => {}} t={mockT} />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Code Font' }));
+    expect(screen.getByRole('option', { name: 'JetBrains Mono' })).toBeDefined();
+    expect(screen.queryByRole('option', { name: 'Inter' })).toBeNull();
+    fireEvent.click(screen.getByRole('option', { name: 'JetBrains Mono' }));
+
+    // 父传入新值 → CSS 变量跟写。
+    rerender(
+      <FontControl
+        item={{ ...monoItem, value: 'Fira Code' }}
+        cssVar="--font-mono-custom"
+        onChange={() => {}}
+        t={mockT}
+      />,
+    );
+    expect(document.documentElement.style.getPropertyValue('--font-mono-custom')).toBe('Fira Code');
   });
 });

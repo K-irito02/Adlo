@@ -54,7 +54,10 @@ export function SettingsNav({
         {SETTINGS_GROUPS.map((group) => {
           const groupLabel = t[group.labelKey] as string;
           const canResetGroup = resettableGroups?.has(group.id) ?? false;
-          const resetLabel = formatT(t, 'settingsResetGroupToDefault', { group: groupLabel });
+          // 仅可重置组计算文案（惰性，避免无意义字符串替换）。
+          const resetLabel = canResetGroup
+            ? formatT(t, 'settingsResetGroupToDefault', { group: groupLabel })
+            : '';
           return (
             <li
               key={group.id}

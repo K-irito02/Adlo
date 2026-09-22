@@ -5,10 +5,25 @@ import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { SettingsPanel } from './SettingsPanel';
-import { getDefaultPreferences } from '../../../shared/defaultPreferences';
+import {
+  DEFAULT_DEBUG_LOG_MODE,
+  DEFAULT_FONTS,
+  DEFAULT_LANGUAGE,
+  DEFAULT_LOG_LEVEL,
+  DEFAULT_TERMINAL_LOG_MODE,
+  DEFAULT_THEME_MODE,
+  getDefaultPreferences,
+} from '../../../shared/defaultPreferences';
+
+// 组文案配含 {group} 的真模板，使 formatT 插值得以被覆盖（裸 key 回退测不到插值）。
+const GROUP_TEMPLATES: Record<string, string> = {
+  settingsResetGroupToDefault: 'Reset {group} all defaults',
+  settingsResetGroupConfirmTitle: 'Reset {group}?',
+  settingsResetGroupConfirmMessage: '{group} group will reset',
+};
 
 const mockT = new Proxy({} as Record<string, string>, {
-  get: (_, key) => (typeof key === 'string' ? key : ''),
+  get: (_, key) => (typeof key === 'string' ? (GROUP_TEMPLATES[key] ?? key) : ''),
 }) as unknown as CopyDict;
 
 function TestProvider({ children }: { children: React.ReactNode }) {
@@ -201,26 +216,6 @@ describe('SettingsPanel shell header', () => {
     expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
   });
 
-  it('组级重置弹分组文案而非“恢复全部”文案', async () => {
-    const { updatePreferences } = setupStore();
-    renderPanel();
-    fireEvent.click(screen.getByRole('button', { name: 'settingsResetGroupToDefault' }));
-    expect(screen.getByText('settingsResetGroupConfirmTitle')).not.toBeNull();
-    expect(screen.getByText('settingsResetGroupConfirmMessage')).not.toBeNull();
-    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    await waitFor(() => {
-      expect(updatePreferences).toHaveBeenCalledTimes(1);
-    });
-    // 组级 patch 只含 general 组 6 个 key，不含全局 getDefaultPreferences() 的 keybinds 等。
-    const patch = (
-      updatePreferences.mock.calls[0] as unknown[] | undefined
-    )?.[0] as unknown as Record<string, unknown>;
-    expect(Object.keys(patch).sort()).toEqual(
-      ['debugLogMode', 'fonts', 'language', 'logLevel', 'terminalLogMode', 'themeMode'].sort(),
-    );
-  });
-
   it('内外各仅一处 settings-nav 类（防嵌套回归）', () => {
     setupStore();
     renderPanel();
@@ -228,5 +223,70 @@ describe('SettingsPanel shell header', () => {
     const innerNav = document.querySelector('.adl-settings-panel__body nav:not([class])');
     expect(innerNav).not.toBeNull();
     expect(innerNav?.getAttribute('aria-label')).toBe('settingsTitle');
+  });
+});
+
+describe('SettingsPanel group reset', () => {
+  afterEach(() => {
+    cleanup();
+    useAppStore.setState((s) => ({
+      settingsSearchQuery: '',
+      navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
+    }));
+  });
+
+  it('组级重置弹分组文案（含组名插值）而非“恢复全部”文案', async () => {
+    const { updatePreferences } = setupStore();
+    renderPanel();
+    // mockT 组模板含 {group}：断言插值后文本，覆盖 formatT 真路径。
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
+    expect(screen.getByText('Reset settingsGeneral?')).not.toBeNull();
+    expect(screen.getByText('settingsGeneral group will reset')).not.toBeNull();
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(updatePreferences).toHaveBeenCalledTimes(1);
+    });
+    // 组级 patch 全值断言：只含 general 组 6 项（不含 keybinds 等全局项），fonts 为全量默认。
+    expect(updatePreferences).toHaveBeenCalledWith({
+      language: DEFAULT_LANGUAGE,
+      themeMode: DEFAULT_THEME_MODE,
+      logLevel: DEFAULT_LOG_LEVEL,
+      terminalLogMode: DEFAULT_TERMINAL_LOG_MODE,
+      debugLogMode: DEFAULT_DEBUG_LOG_MODE,
+      fonts: { ...DEFAULT_FONTS },
+    });
+    expect(screen.queryByText('Reset settingsGeneral?')).toBeNull();
+  });
+
+  it('组级重置成功弹成功提示；取消不执行且重开回全局文案', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(screen.queryByText('Reset settingsGeneral?')).toBeNull();
+
+    // 重开应回到全局文案（pendingResetGroup 已清零）。
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith('settingsResetComplete', 'success');
+    });
+  });
+
+  it('组级重置失败弹错误提示', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    updatePreferences.mockResolvedValue(false);
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+    });
   });
 });

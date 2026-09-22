@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
@@ -24,6 +24,20 @@ export function DshSettings() {
   const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const initializedRef = useRef(false);
+
+  const handleProxyModeChange = useCallback((v: string) => {
+    setProxyMode(v as ProxyMode);
+  }, []);
+
+  // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
+  const proxyModeOptions = useMemo(
+    () => [
+      { value: 'auto', label: t.dshSettingsProxyModeAuto },
+      { value: 'manual', label: t.dshSettingsProxyModeManual },
+      { value: 'none', label: t.dshSettingsProxyModeNone },
+    ],
+    [t.dshSettingsProxyModeAuto, t.dshSettingsProxyModeManual, t.dshSettingsProxyModeNone],
+  );
 
   // Sync initial state from sourceStatus on mount (only once)
   useEffect(() => {
@@ -190,12 +204,8 @@ export function DshSettings() {
           <span className="adl-dsh-settings__proxy-label">{t.dshSettingsProxyMode}</span>
           <SettingsSelect
             value={proxyMode}
-            options={[
-              { value: 'auto', label: t.dshSettingsProxyModeAuto },
-              { value: 'manual', label: t.dshSettingsProxyModeManual },
-              { value: 'none', label: t.dshSettingsProxyModeNone },
-            ]}
-            onChange={(v) => setProxyMode(v as ProxyMode)}
+            options={proxyModeOptions}
+            onChange={handleProxyModeChange}
             label={t.dshSettingsProxyMode}
           />
         </div>

@@ -28,7 +28,7 @@
 | `workspace` | 工作区 | 工作区相关设置 |
 | `shortcuts` | 快捷键 | 键盘快捷键配置 |
 | `browser` | 浏览器 | 浏览器性能和下载设置 |
-| `dsh` | DeepSeek Harness | DSH下载源和代理设置 |
+| `dsh` | DSH | DSH下载源和代理设置 |
 
 ---
 
@@ -112,8 +112,9 @@ await page.click('.adl-dsh-settings__source:nth-child(3)'); // 自定义
 // 输入自定义URL
 await page.fill('.adl-dsh-settings__source input[type="text"]', 'https://custom-registry.example');
 
-// 选择代理模式
-await page.selectOption('.adl-dsh-settings__proxy-mode select', 'manual');
+// 选择代理模式（自定义下拉：点触发器展开，再点选项；不再是原生 select）
+await page.click('.adl-dsh-settings__proxy-mode .adl-settings-dropdown__trigger');
+await page.click('.adl-settings-dropdown__item:has-text("手动")');
 
 // 输入代理配置
 await page.fill('.adl-dsh-settings__proxy-field:nth-child(1) input', 'http://proxy:8080');

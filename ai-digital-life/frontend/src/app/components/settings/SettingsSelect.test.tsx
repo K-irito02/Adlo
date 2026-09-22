@@ -50,6 +50,7 @@ describe('SettingsSelect', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
     fireEvent.mouseEnter(screen.getByRole('option', { name: 'Beta' }));
     expect(onHover).toHaveBeenCalledWith('b');
+    // mouseleave 在 listbox 上派发，依赖 React 合成事件冒泡到菜单容器 div 的 onMouseLeave。
     fireEvent.mouseLeave(screen.getByRole('listbox'));
     expect(onHover).toHaveBeenCalledWith(null);
   });
@@ -104,23 +105,61 @@ describe('SettingsSelect', () => {
   });
 
   it('scrolls the highlighted option into view only for keyboard navigation', () => {
-    const scrollIntoView = vi.fn();
-    Element.prototype.scrollIntoView = scrollIntoView;
+    // jsdom 是否自带该 API 不确定：直接挂载并按原状还原（有则恢复原函数，无则删除）。
+    const proto = Element.prototype as unknown as Record<string, unknown>;
+    const prev = proto.scrollIntoView;
+    const scrollSpy = vi.fn();
+    proto.scrollIntoView = scrollSpy;
     try {
       render(<SettingsSelect value="a" options={OPTIONS} onChange={() => {}} label="Pick" />);
       fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
       // 打开即同步到已选项并滚入（block nearest，可见则不动——只断言调用门控）。
-      expect(scrollIntoView).toHaveBeenCalled();
-      scrollIntoView.mockClear();
+      expect(scrollSpy).toHaveBeenCalled();
+      scrollSpy.mockClear();
       // 鼠标悬停只换高亮，不抢滚动。
       fireEvent.mouseEnter(screen.getByRole('option', { name: 'Beta' }));
-      expect(scrollIntoView).not.toHaveBeenCalled();
+      expect(scrollSpy).not.toHaveBeenCalled();
       // 方向键导航则滚入（Beta→Gamma 有位移，触发重渲染）。
       fireEvent.keyDown(screen.getByRole('listbox'), { key: 'ArrowDown' });
-      expect(scrollIntoView).toHaveBeenCalled();
+      expect(scrollSpy).toHaveBeenCalled();
     } finally {
-      // jsdom 默认无该 API，还原避免污染其它用例。
-      delete (Element.prototype as unknown as Record<string, unknown>).scrollIntoView;
+      if (prev === undefined) {
+        delete proto.scrollIntoView;
+      } else {
+        proto.scrollIntoView = prev;
+      }
     }
+  });
+
+  it('falls back to the raw value when it matches no option', () => {
+    render(<SettingsSelect value="zzz" options={OPTIONS} onChange={() => {}} label="Pick" />);
+    expect(screen.getByRole('button', { name: 'Pick' }).textContent).toContain('zzz');
+  });
+
+  it('fires onHoverOption on option focus (keyboard users)', () => {
+    const onHover = vi.fn();
+    render(
+      <SettingsSelect
+        value="a"
+        options={OPTIONS}
+        onChange={() => {}}
+        label="Pick"
+        onHoverOption={onHover}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
+    fireEvent.focus(screen.getByRole('option', { name: 'Beta' }));
+    expect(onHover).toHaveBeenCalledWith('b');
+  });
+
+  it('opens the menu via trigger keyboard (ArrowDown/Enter)', () => {
+    render(<SettingsSelect value="a" options={OPTIONS} onChange={() => {}} label="Pick" />);
+    const trigger = screen.getByRole('button', { name: 'Pick' });
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' });
+    expect(screen.queryByRole('listbox')).not.toBeNull();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('listbox')).toBeNull();
+    fireEvent.keyDown(trigger, { key: 'Enter' });
+    expect(screen.queryByRole('listbox')).not.toBeNull();
   });
 });

@@ -170,6 +170,7 @@ export function SettingsSelect({
         setActiveIndex(next);
       } else if (e.key === 'Tab') {
         // Tab 移出即关闭（不 preventDefault，放行焦点自然移动）。
+        // 方向键无焦点门控依赖于此：焦点离场必先经过 Tab 关闭，故窗口极小。
         close();
       } else if (e.key === 'Enter') {
         const opt = options[activeIndex];
@@ -299,7 +300,7 @@ export function SettingsSelect({
                       type="button"
                       role="option"
                       aria-selected={isSelected}
-                      data-active={idx === activeIndex}
+                      data-active={idx === activeIndex || undefined}
                       className={`adl-settings-dropdown__item${isSelected ? ' is-selected' : ''}${idx === activeIndex ? ' is-active' : ''}`}
                       style={optionStyle?.(opt.value)}
                       onClick={() => commit(opt.value)}
