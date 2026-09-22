@@ -95,15 +95,19 @@ export function KeybindSettings() {
 
   return (
     <div className="adl-settings-keybinds">
-      <div className="adl-settings-keybinds__header">
-        <h3>{t.settingsShortcutsTitle}</h3>
-        <input
-          type="search"
-          className="adl-settings-keybinds__search"
-          placeholder={t.settingsShortcutsSearch}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+      <div className="adl-settings-card adl-settings-keybinds__toolbar">
+        <div className="adl-settings-keybinds__header">
+          <h3 className="adl-settings-keybinds__title adl-settings-title--serif">
+            {t.settingsShortcutsTitle}
+          </h3>
+          <input
+            type="search"
+            className="adl-settings-keybinds__search"
+            placeholder={t.settingsShortcutsSearch}
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </div>
       </div>
       {GROUP_ORDER.map((group) => {
         const list = grouped.get(group);
@@ -111,7 +115,7 @@ export function KeybindSettings() {
           return null;
         }
         return (
-          <section key={group} className="adl-settings-keybinds__group">
+          <section key={group} className="adl-settings-card adl-settings-keybinds__group">
             <h4 className="adl-settings-keybinds__group-title">{t[GROUP_LABEL_KEY[group]]}</h4>
             <ul className="adl-settings-keybinds__list">
               {list.map((cmd) => {

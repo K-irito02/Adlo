@@ -129,10 +129,7 @@ export function StorageCategoryRow({
         ) : null}
       </div>
       {controlsEnabled ? (
-        <div
-          className="adl-settings-row__control"
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-        >
+        <div className="adl-settings-row__control adl-settings-row__control--inline">
           <button
             type="button"
             className="adl-btn adl-btn--ghost"

@@ -23,7 +23,7 @@ export const SPACING_TOKENS = [
   'space-24',
 ] as const;
 
-export const FONT_FAMILY_TOKENS = ['font-sans', 'font-mono', 'font-display'] as const;
+export const FONT_FAMILY_TOKENS = ['font-sans', 'font-mono', 'font-display', 'font-serif'] as const;
 
 export const FONT_SIZE_TOKENS = [
   'text-xs',
@@ -85,6 +85,7 @@ export const DURATION_TOKENS = [
   'duration-500',
   'duration-700',
   'duration-1000',
+  'duration-editorial',
 ] as const;
 
 export const ICON_SIZE_TOKENS = [

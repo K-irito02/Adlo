@@ -142,59 +142,65 @@ function PasswordControl({
 export function SettingsControls({ items, onChange, searchQuery }: SettingsControlsProps) {
   const { t } = useTCopy();
   if (items.length === 0) {
-    return <p className="adl-empty-hint">{t.noResults}</p>;
+    return (
+      <div className="adl-settings-card adl-settings-controls-wrap">
+        <p className="adl-empty-hint">{t.noResults}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="adl-settings-controls">
-      {items.map((item) => {
-        const defaultValue = getDefaultForSetting(item.id);
-        const canReset = item.type !== 'readonly' && defaultValue !== undefined;
-        return (
-          <div key={item.id} className="adl-settings-row">
-            <div className="adl-settings-row__label">
-              <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
-              {item.description && (
-                <small>{highlightMatch(item.description, searchQuery ?? '')}</small>
+    <div className="adl-settings-card adl-settings-controls-wrap">
+      <div className="adl-settings-controls">
+        {items.map((item) => {
+          const defaultValue = getDefaultForSetting(item.id);
+          const canReset = item.type !== 'readonly' && defaultValue !== undefined;
+          return (
+            <div key={item.id} className="adl-settings-row">
+              <div className="adl-settings-row__label">
+                <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
+                {item.description && (
+                  <small>{highlightMatch(item.description, searchQuery ?? '')}</small>
+                )}
+              </div>
+              <div className="adl-settings-row__control">
+                {item.type === 'toggle' && (
+                  <ToggleControl item={item} onChange={(v) => onChange(item.id, v)} />
+                )}
+                {item.type === 'select' && (
+                  <SelectControl item={item} onChange={(v) => onChange(item.id, v)} />
+                )}
+                {item.type === 'input' && (
+                  <InputControl item={item} onChange={(v) => onChange(item.id, v)} />
+                )}
+                {item.type === 'password' && (
+                  <PasswordControl item={item} onChange={(v) => onChange(item.id, v)} t={t} />
+                )}
+                {item.type === 'readonly' && <InputControl item={item} onChange={() => {}} />}
+                {item.type === 'font' && (
+                  <FontControl
+                    item={item}
+                    cssVar={item.cssVar ?? '--font-sans-custom'}
+                    onChange={(v) => onChange(item.id, v)}
+                    t={t}
+                  />
+                )}
+              </div>
+              {canReset && (
+                <button
+                  type="button"
+                  className="adl-settings-row__reset"
+                  aria-label={t.settingsResetToDefault}
+                  title={t.settingsResetToDefault}
+                  onClick={() => onChange(item.id, defaultValue as string | boolean | number)}
+                >
+                  <IconRefreshCw size={14} decorative />
+                </button>
               )}
             </div>
-            <div className="adl-settings-row__control">
-              {item.type === 'toggle' && (
-                <ToggleControl item={item} onChange={(v) => onChange(item.id, v)} />
-              )}
-              {item.type === 'select' && (
-                <SelectControl item={item} onChange={(v) => onChange(item.id, v)} />
-              )}
-              {item.type === 'input' && (
-                <InputControl item={item} onChange={(v) => onChange(item.id, v)} />
-              )}
-              {item.type === 'password' && (
-                <PasswordControl item={item} onChange={(v) => onChange(item.id, v)} t={t} />
-              )}
-              {item.type === 'readonly' && <InputControl item={item} onChange={() => {}} />}
-              {item.type === 'font' && (
-                <FontControl
-                  item={item}
-                  cssVar={item.cssVar ?? '--font-sans-custom'}
-                  onChange={(v) => onChange(item.id, v)}
-                  t={t}
-                />
-              )}
-            </div>
-            {canReset && (
-              <button
-                type="button"
-                className="adl-settings-row__reset"
-                aria-label={t.settingsResetToDefault}
-                title={t.settingsResetToDefault}
-                onClick={() => onChange(item.id, defaultValue as string | boolean | number)}
-              >
-                <IconRefreshCw size={14} decorative />
-              </button>
-            )}
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
     </div>
   );
 }

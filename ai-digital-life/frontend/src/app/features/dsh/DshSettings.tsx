@@ -119,8 +119,10 @@ export function DshSettings() {
 
   return (
     <div className="adl-dsh-settings">
-      <div className="adl-dsh-settings__section">
-        <h3 className="adl-dsh-settings__section-title">{t.dshSettingsSource}</h3>
+      <div className="adl-settings-card adl-dsh-settings__section">
+        <h3 className="adl-dsh-settings__section-title adl-settings-title--serif">
+          {t.dshSettingsSource}
+        </h3>
         <div className="adl-dsh-settings__sources">
           <label
             className={`adl-dsh-settings__source${sourceType === 'npmjs' ? ' is-selected' : ''}`}
@@ -179,8 +181,10 @@ export function DshSettings() {
         ) : null}
       </div>
 
-      <div className="adl-dsh-settings__section">
-        <h3 className="adl-dsh-settings__section-title">{t.dshSettingsProxy}</h3>
+      <div className="adl-settings-card adl-dsh-settings__section">
+        <h3 className="adl-dsh-settings__section-title adl-settings-title--serif">
+          {t.dshSettingsProxy}
+        </h3>
         <div className="adl-dsh-settings__proxy-mode">
           <span className="adl-dsh-settings__proxy-label">{t.dshSettingsProxyMode}</span>
           <select
@@ -229,7 +233,7 @@ export function DshSettings() {
         ) : null}
       </div>
 
-      <div className="adl-dsh-settings__actions">
+      <div className="adl-settings-card adl-dsh-settings__actions">
         <div className="adl-dsh-settings__test">
           <button
             type="button"

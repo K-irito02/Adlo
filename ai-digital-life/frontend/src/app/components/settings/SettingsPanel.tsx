@@ -207,7 +207,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
             />
           </nav>
         )}
-        <div className="adl-settings-panel__content">
+        <div className="adl-settings-panel__content adl-settings-panel__content--cards">
           {ActiveComponent ? (
             React.createElement(ActiveComponent)
           ) : (

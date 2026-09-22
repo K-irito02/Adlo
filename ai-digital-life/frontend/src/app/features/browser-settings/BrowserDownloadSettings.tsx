@@ -15,7 +15,7 @@ export function BrowserDownloadSettings() {
   };
 
   return (
-    <div className="adl-settings-section adl-browser-settings">
+    <div className="adl-settings-section adl-settings-card adl-browser-settings">
       <SettingsHeader
         title={t.browserDownloadSettingsTitle}
         description={t.browserDownloadSettingsDesc}

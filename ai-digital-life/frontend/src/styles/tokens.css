@@ -40,6 +40,10 @@
     var(--font-mono-custom, 'JetBrains Mono'), 'Fira Code', 'Cascadia Code', 'Consolas', 'Menlo',
     'Liberation Mono', 'Courier New', monospace;
   --font-display: var(--font-sans);
+  /* Editorial serif — settings panel section titles only (scoped consumers).
+     System serif stack: no webfont is bundled, so rendering stays
+     deterministic across machines. */
+  --font-serif: Georgia, 'Times New Roman', serif;
 
   /* --- Typography Size (1.25 ratio) --- */
   --text-xs: 12px;
@@ -106,6 +110,8 @@
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --ease-snap: cubic-bezier(0, 0.8, 0.2, 1);
+  --ease-editorial: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-editorial: 600ms;
 
   /* --- Common transitions --- */
   --transition-colors:
@@ -197,5 +203,6 @@
     --duration-500: 1ms;
     --duration-700: 1ms;
     --duration-1000: 1ms;
+    --duration-editorial: 1ms;
   }
 }

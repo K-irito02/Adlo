@@ -53,4 +53,16 @@ describe('SettingsHeader', () => {
     const root = document.querySelector('.adl-settings-header');
     expect(root).not.toBeNull();
   });
+
+  it('marks the title with the editorial serif class', () => {
+    render(<SettingsHeader title="Model Providers" />);
+    const heading = screen.getByRole('heading', { level: 3 });
+    expect(heading.classList.contains('adl-settings-title--serif')).toBe(true);
+  });
+
+  it('marks the header root as editorial', () => {
+    render(<SettingsHeader title="Model Providers" />);
+    const root = document.querySelector('.adl-settings-header');
+    expect(root?.classList.contains('adl-settings-header--editorial')).toBe(true);
+  });
 });

@@ -492,9 +492,11 @@
 }
 
 .adl-dsh-settings__section-title {
-  font-size: var(--text-sm);
+  font-size: var(--text-base);
   font-weight: var(--font-semibold);
   margin: 0;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
 }
 
 /* 源选择列表 */
@@ -510,23 +512,22 @@
   padding: var(--space-3);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  background: var(--bg-elevated);
+  background: var(--bg-muted);
   cursor: pointer;
-  transition: var(--transition-colors), var(--transition-shadow);
+  transition: var(--transition-colors);
 }
 
 .adl-dsh-settings__source:hover {
   border-color: var(--border-default);
-  box-shadow: var(--shadow);
 }
 
 .adl-dsh-settings__source.is-selected {
-  border-color: var(--accent);
-  background: var(--accent-soft);
+  border-color: var(--text-primary);
+  background: var(--pastel-neutral-bg);
 }
 
 .adl-dsh-settings__source input[type='radio'] {
-  accent-color: var(--accent);
+  accent-color: var(--text-primary);
 }
 
 /* 代理配置区域 */
@@ -539,6 +540,7 @@
 .adl-dsh-settings__proxy-label {
   font-size: var(--text-sm);
   min-width: 4em;
+  color: var(--text-secondary);
 }
 
 .adl-dsh-settings__proxy-fields {
@@ -562,24 +564,29 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border-subtle);
+  gap: var(--space-3);
 }
 
 .adl-dsh-settings__test {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  flex-wrap: wrap;
 }
 
 .adl-dsh-settings__test-result {
-  font-size: var(--text-sm);
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  letter-spacing: var(--tracking-wide);
 }
 
 .adl-dsh-settings__test-result.is-success {
-  color: var(--color-success);
+  background: var(--pastel-success-bg);
+  color: var(--pastel-success-fg);
 }
 
 .adl-dsh-settings__test-result.is-error {
-  color: var(--color-error);
+  background: var(--pastel-danger-bg);
+  color: var(--pastel-danger-fg);
 }

@@ -579,10 +579,12 @@ export function StorageSettings() {
   if (loading) {
     return (
       <div className="adl-settings-section adl-storage-settings">
-        <SettingsHeader title={t.storageTitle} />
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <small>{t.storageStatusLoading}</small>
+        <div className="adl-settings-card">
+          <SettingsHeader title={t.storageTitle} />
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <small>{t.storageStatusLoading}</small>
+            </div>
           </div>
         </div>
       </div>
@@ -592,20 +594,24 @@ export function StorageSettings() {
   if (statusError && !status) {
     return (
       <div className="adl-settings-section adl-storage-settings">
-        <SettingsHeader title={t.storageTitle} />
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <small>{statusError}</small>
-          </div>
-          <div className="adl-settings-row__control">
-            <button
-              type="button"
-              className="adl-btn adl-btn--secondary"
-              disabled={loading}
-              onClick={() => void handleRetryLoad()}
-            >
-              {t.storageRetry}
-            </button>
+        <div className="adl-settings-card">
+          <SettingsHeader title={t.storageTitle} />
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <small className="adl-settings-status adl-settings-status--danger">
+                {statusError}
+              </small>
+            </div>
+            <div className="adl-settings-row__control">
+              <button
+                type="button"
+                className="adl-btn adl-btn--secondary"
+                disabled={loading}
+                onClick={() => void handleRetryLoad()}
+              >
+                {t.storageRetry}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -614,103 +620,107 @@ export function StorageSettings() {
 
   return (
     <div className="adl-settings-section adl-storage-settings">
-      <SettingsHeader title={t.storageTitle} />
+      <div className="adl-settings-card">
+        <SettingsHeader title={t.storageTitle} />
 
-      <div className="adl-settings-row">
-        <div className="adl-settings-row__label">
-          <div className="adl-settings-row__label-text">
-            <span>{t.storageModeLabel}</span>
-          </div>
-        </div>
-        <div
-          className="adl-settings-row__control"
-          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-3)' }}
-        >
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <input
-              type="radio"
-              name="adl-storage-mode"
-              checked={mode === 'unified'}
-              onChange={() => handleModeChange('unified')}
-            />
-            <span>{t.storageModeUnified}</span>
-          </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-            <input
-              type="radio"
-              name="adl-storage-mode"
-              checked={mode === 'per_category'}
-              onChange={() => handleModeChange('per_category')}
-            />
-            <span>{t.storageModePerCategory}</span>
-          </label>
-        </div>
-      </div>
-
-      {mode === 'unified' ? (
         <div className="adl-settings-row">
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
-              <span>{t.storageRootLabel}</span>
+              <span>{t.storageModeLabel}</span>
             </div>
-            <small>{status?.root}</small>
           </div>
-          <div
-            className="adl-settings-row__control"
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-          >
+          <div className="adl-settings-row__control adl-settings-row__control--inline">
+            <label className="adl-settings-radio">
+              <input
+                type="radio"
+                name="adl-storage-mode"
+                checked={mode === 'unified'}
+                onChange={() => handleModeChange('unified')}
+              />
+              <span>{t.storageModeUnified}</span>
+            </label>
+            <label className="adl-settings-radio">
+              <input
+                type="radio"
+                name="adl-storage-mode"
+                checked={mode === 'per_category'}
+                onChange={() => handleModeChange('per_category')}
+              />
+              <span>{t.storageModePerCategory}</span>
+            </label>
+          </div>
+        </div>
+
+        {mode === 'unified' ? (
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t.storageRootLabel}</span>
+              </div>
+              <small>{status?.root}</small>
+            </div>
+            <div className="adl-settings-row__control adl-settings-row__control--inline">
+              <button
+                type="button"
+                className="adl-btn adl-btn--ghost"
+                disabled={picking}
+                onClick={() => void handlePickDirectory(setRootDraft)}
+              >
+                {t.storagePickDir}
+              </button>
+              <input
+                type="text"
+                className="adl-settings-input"
+                aria-label={t.storageManualInput}
+                placeholder={t.storageManualInputPlaceholder}
+                value={rootDraft}
+                onChange={(e) => setRootDraft(e.target.value)}
+              />
+            </div>
+          </div>
+        ) : null}
+      </div>
+
+      <div className="adl-settings-card">
+        <h4 className="adl-settings-section-title adl-settings-title--serif">
+          {t.storageCategoryGroupCore}
+        </h4>
+        {categories.length === 0 ? (
+          <div className="adl-settings-row">
+            <div className="adl-settings-row__label">
+              <small>{t.storageNoCategories}</small>
+            </div>
+          </div>
+        ) : (
+          <>
+            {coreCategories.map(renderCategory)}
+            <h4 className="adl-settings-section-title adl-settings-title--serif">
+              {t.storageCategoryGroupAdvanced}
+            </h4>
+            {advancedCategories.map(renderCategory)}
+          </>
+        )}
+
+        <div className="adl-settings-row adl-settings-row--actions">
+          <div className="adl-settings-row__label" />
+          <div className="adl-settings-row__control">
             <button
               type="button"
-              className="adl-btn adl-btn--ghost"
-              disabled={picking}
-              onClick={() => void handlePickDirectory(setRootDraft)}
+              className="adl-btn adl-btn--primary"
+              disabled={busy}
+              onClick={() => void handleApply()}
             >
-              {t.storagePickDir}
+              {t.storageApply}
             </button>
-            <input
-              type="text"
-              className="adl-settings-input"
-              aria-label={t.storageManualInput}
-              placeholder={t.storageManualInputPlaceholder}
-              value={rootDraft}
-              onChange={(e) => setRootDraft(e.target.value)}
-            />
           </div>
-        </div>
-      ) : null}
-
-      <h4 className="adl-settings-header__title">{t.storageCategoryGroupCore}</h4>
-      {categories.length === 0 ? (
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <small>{t.storageNoCategories}</small>
-          </div>
-        </div>
-      ) : (
-        <>
-          {coreCategories.map(renderCategory)}
-          <h4 className="adl-settings-header__title">{t.storageCategoryGroupAdvanced}</h4>
-          {advancedCategories.map(renderCategory)}
-        </>
-      )}
-
-      <div className="adl-settings-row">
-        <div className="adl-settings-row__label" />
-        <div className="adl-settings-row__control">
-          <button
-            type="button"
-            className="adl-btn adl-btn--primary"
-            disabled={busy}
-            onClick={() => void handleApply()}
-          >
-            {t.storageApply}
-          </button>
         </div>
       </div>
 
       {treeStats ? (
-        <>
-          <h4 className="adl-settings-header__title">{t.treeCacheTitle}</h4>
+        <div className="adl-settings-card">
+          <h4 className="adl-settings-section-title adl-settings-title--serif">
+            {t.treeCacheTitle}
+          </h4>
           <div className="adl-settings-row" data-testid="tree-cache-section">
             <div className="adl-settings-row__label">
               <small>
@@ -746,10 +756,7 @@ export function StorageSettings() {
                 <span>{t.treeCacheEnabled}</span>
               </div>
             </div>
-            <div
-              className="adl-settings-row__control"
-              style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-            >
+            <div className="adl-settings-row__control adl-settings-row__control--inline">
               <input
                 type="checkbox"
                 aria-label={t.treeCacheEnabled}
@@ -798,123 +805,136 @@ export function StorageSettings() {
               </select>
             </div>
           </div>
-        </>
+        </div>
       ) : null}
 
-      <hr className="adl-settings-divider" />
+      <div className="adl-settings-card">
+        <h4 className="adl-settings-section-title adl-settings-title--serif">
+          {t.storageTerminalBudgetTitle}
+        </h4>
+        <TerminalHistoryBudgetSection />
 
-      <h4 className="adl-settings-header__title">{t.storageTerminalBudgetTitle}</h4>
-      <TerminalHistoryBudgetSection />
-
-      <h4 className="adl-settings-header__title">{t.storageBrowserDownloadTitle}</h4>
-      <BrowserDownloadPathSection />
-
-      <hr className="adl-settings-divider" />
-
-      <div className="adl-settings-row">
-        <div className="adl-settings-row__label">
-          <div className="adl-settings-row__label-text">
-            <span>{t.storageLocatorTitle}</span>
-            <HintCardTrigger content={t.storageLocatorHint}>
-              <button
-                type="button"
-                className="adl-icon-button adl-icon-button--info"
-                aria-label={t.storageLocatorHint}
-                tabIndex={-1}
-              >
-                <IconCircleHelp size={14} />
-              </button>
-            </HintCardTrigger>
-          </div>
-          <small>{status?.locatorPath}</small>
-        </div>
+        <h4 className="adl-settings-section-title adl-settings-title--serif">
+          {t.storageBrowserDownloadTitle}
+        </h4>
+        <BrowserDownloadPathSection />
       </div>
 
-      <h4 className="adl-settings-header__title">{t.storageImmutableTitle}</h4>
-      {IMMOVABLE_ENTRY_KEYS.map((key) => (
-        <div className="adl-settings-row" key={key} data-testid="storage-immutable-item">
-          <div className="adl-settings-row__label">
-            <div className="adl-settings-row__label-text">
-              <span>{t[IMMOVABLE_COPY[key].name]}</span>
-            </div>
-            <small>{t[IMMOVABLE_COPY[key].desc]}</small>
-          </div>
-        </div>
-      ))}
-
-      {status?.pending ? (
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <small>
-              {status.pending.failed
-                ? t.storagePendingFailedBanner.replace('{error}', status.pending.error ?? '')
-                : t.storagePendingBanner}
-            </small>
-          </div>
-          <div
-            className="adl-settings-row__control"
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-          >
-            {status.pending.failed ? (
-              <button
-                type="button"
-                className="adl-btn adl-btn--secondary"
-                disabled={busy}
-                onClick={() => void handleRetryMigration()}
-              >
-                {t.storageRetryMigration}
-              </button>
-            ) : null}
-            <button
-              type="button"
-              className="adl-btn adl-btn--ghost"
-              disabled={busy}
-              onClick={() => void handleCancelPending()}
-            >
-              {t.storageCancelPending}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {status?.lastReport ? (
+      <div className="adl-settings-card">
         <div className="adl-settings-row">
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
-              <span>{t.storageReportTitle}</span>
+              <span>{t.storageLocatorTitle}</span>
+              <HintCardTrigger content={t.storageLocatorHint}>
+                <button
+                  type="button"
+                  className="adl-icon-button adl-icon-button--info"
+                  aria-label={t.storageLocatorHint}
+                  tabIndex={-1}
+                >
+                  <IconCircleHelp size={14} />
+                </button>
+              </HintCardTrigger>
             </div>
-            {status.lastReport.ok ? (
-              <small>
-                {t.storageReportOk
-                  .replace('{files}', String(status.lastReport.movedFiles))
-                  .replace('{size}', formatBytes(status.lastReport.movedBytes))}
-              </small>
-            ) : (
-              <small>
-                {t.storageReportFailed.replace('{error}', status.lastReport.error ?? '')}
-              </small>
-            )}
-            {!status.lastReport.ok && status.lastReport.switched ? (
-              <small>{t.storageReportSwitched}</small>
-            ) : null}
-            {status.lastReport.removedDirs.length > 0 ? (
-              <small>
-                {t.storageReportDirsRemoved.replace(
-                  '{count}',
-                  String(status.lastReport.removedDirs.length),
-                )}
-              </small>
-            ) : null}
-            {status.lastReport.keptDirs.length > 0 ? (
-              <small>
-                {t.storageReportDirsKept.replace(
-                  '{count}',
-                  String(status.lastReport.keptDirs.length),
-                )}
-              </small>
-            ) : null}
-            {status.lastReport.retained ? <small>{t.storageReportRetained}</small> : null}
+            <small>{status?.locatorPath}</small>
           </div>
+        </div>
+
+        <h4 className="adl-settings-section-title adl-settings-title--serif">
+          {t.storageImmutableTitle}
+        </h4>
+        {IMMOVABLE_ENTRY_KEYS.map((key) => (
+          <div className="adl-settings-row" key={key} data-testid="storage-immutable-item">
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <span>{t[IMMOVABLE_COPY[key].name]}</span>
+              </div>
+              <small>{t[IMMOVABLE_COPY[key].desc]}</small>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {status?.pending || status?.lastReport ? (
+        <div className="adl-settings-card">
+          {status?.pending ? (
+            <div className="adl-settings-row">
+              <div className="adl-settings-row__label">
+                <small
+                  className={`adl-settings-status ${
+                    status.pending.failed
+                      ? 'adl-settings-status--danger'
+                      : 'adl-settings-status--warning'
+                  }`}
+                >
+                  {status.pending.failed
+                    ? t.storagePendingFailedBanner.replace('{error}', status.pending.error ?? '')
+                    : t.storagePendingBanner}
+                </small>
+              </div>
+              <div className="adl-settings-row__control adl-settings-row__control--inline">
+                {status.pending.failed ? (
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={busy}
+                    onClick={() => void handleRetryMigration()}
+                  >
+                    {t.storageRetryMigration}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  className="adl-btn adl-btn--ghost"
+                  disabled={busy}
+                  onClick={() => void handleCancelPending()}
+                >
+                  {t.storageCancelPending}
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {status?.lastReport ? (
+            <div className="adl-settings-row">
+              <div className="adl-settings-row__label">
+                <div className="adl-settings-row__label-text">
+                  <span>{t.storageReportTitle}</span>
+                </div>
+                {status.lastReport.ok ? (
+                  <small>
+                    {t.storageReportOk
+                      .replace('{files}', String(status.lastReport.movedFiles))
+                      .replace('{size}', formatBytes(status.lastReport.movedBytes))}
+                  </small>
+                ) : (
+                  <small className="adl-settings-status adl-settings-status--danger">
+                    {t.storageReportFailed.replace('{error}', status.lastReport.error ?? '')}
+                  </small>
+                )}
+                {!status.lastReport.ok && status.lastReport.switched ? (
+                  <small>{t.storageReportSwitched}</small>
+                ) : null}
+                {status.lastReport.removedDirs.length > 0 ? (
+                  <small>
+                    {t.storageReportDirsRemoved.replace(
+                      '{count}',
+                      String(status.lastReport.removedDirs.length),
+                    )}
+                  </small>
+                ) : null}
+                {status.lastReport.keptDirs.length > 0 ? (
+                  <small>
+                    {t.storageReportDirsKept.replace(
+                      '{count}',
+                      String(status.lastReport.keptDirs.length),
+                    )}
+                  </small>
+                ) : null}
+                {status.lastReport.retained ? <small>{t.storageReportRetained}</small> : null}
+              </div>
+            </div>
+          ) : null}
         </div>
       ) : null}
 

@@ -37,11 +37,8 @@ export function BrowserDownloadPathSection() {
         </div>
         <small>{t.browserDownloadSettingsPathDesc}</small>
       </div>
-      <div
-        className="adl-settings-row__control"
-        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-      >
-        <span style={{ fontSize: 'var(--text-sm)', color: 'var(--text-secondary)' }}>
+      <div className="adl-settings-row__control adl-settings-row__control--inline">
+        <span className="adl-settings-row__control-text">
           {isLoadingSettings ? '...' : (defaultPath ?? t.browserDownloadSettingsPathDefault)}
         </span>
         <button

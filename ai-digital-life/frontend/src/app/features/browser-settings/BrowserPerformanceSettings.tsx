@@ -40,7 +40,7 @@ export function BrowserPerformanceSettings() {
   };
 
   return (
-    <div className="adl-settings-section adl-browser-settings">
+    <div className="adl-settings-section adl-settings-card adl-browser-settings">
       <SettingsHeader
         title={t.browserSettingsSuspendTitle}
         description={t.browserSettingsSuspendDesc}

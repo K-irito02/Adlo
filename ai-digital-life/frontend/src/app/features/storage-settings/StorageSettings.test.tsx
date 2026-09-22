@@ -77,6 +77,18 @@ const interpT = new Proxy({} as Record<string, string>, {
 }) as unknown as CopyDict;
 
 describe('StorageSettings', () => {
+  it('lays out loaded content as editorial settings cards', async () => {
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(11);
+    });
+    const cards = document.querySelectorAll('.adl-settings-card');
+    expect(cards.length).toBeGreaterThanOrEqual(3);
+    const headerCard = document.querySelector('.adl-storage-settings > .adl-settings-card');
+    expect(headerCard).not.toBeNull();
+    expect(headerCard?.querySelector('.adl-settings-header')).not.toBeNull();
+  });
+
   it('renders all 11 category rows with a description hint trigger', async () => {
     renderSettings();
     await waitFor(() => {

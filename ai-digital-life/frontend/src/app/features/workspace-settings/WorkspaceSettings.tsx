@@ -148,9 +148,7 @@ export function WorkspaceSettings() {
   };
 
   return (
-    <div className="adl-settings-section">
-      <SettingsHeader title={t.settingsWorkspaceLoad} />
-
+    <div className="adl-settings-section adl-settings-workspace">
       <DndContext
         sensors={dnd.sensors}
         collisionDetection={collisionDetection}
@@ -158,7 +156,8 @@ export function WorkspaceSettings() {
         onDragOver={dnd.handleDragOver}
         onDragEnd={dnd.handleDragEnd}
       >
-        <div className="workspace-curtain">
+        <div className="adl-settings-card" data-testid="workspace-load-card">
+          <SettingsHeader title={t.settingsWorkspaceLoad} />
           <div className="adl-settings-row">
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
@@ -168,7 +167,7 @@ export function WorkspaceSettings() {
                     type="button"
                     className="adl-icon-button adl-icon-button--info"
                     tabIndex={-1}
-                    aria-label=""
+                    aria-label={t.maxConcurrentWorkspacesDesc}
                   >
                     <IconCircleHelp size={16} />
                   </button>
@@ -182,47 +181,53 @@ export function WorkspaceSettings() {
                 min={1}
                 max={20}
                 onChange={(e) => handleConcurrentChange(parseInt(e.target.value, 10) || 1)}
-                className="adl-settings-input adl-settings-input--number"
+                className="adl-settings-input"
               />
             </div>
           </div>
+        </div>
 
-          <hr className="adl-settings-divider" />
+        <div className="workspace-curtain">
+          <div className="workspace-grid workspace-grid--cards">
+            <div className="adl-settings-card adl-settings-card--grid">
+              <SortableWorkspaceList
+                kind="priority"
+                title={t.priorityList}
+                tooltipContent={`${t.priorityListDesc}\n\n${t.priorityListTooltip}`}
+                badgeLabel={t.optional}
+                items={priorityWorkspaces}
+                emptyText={t.priorityListEmpty}
+                onRemove={(id) => handleRemove(id, 'priority')}
+                removeLabel={t.removeWorkspace}
+                t={t}
+              />
+            </div>
 
-          <div className="workspace-grid">
-            <SortableWorkspaceList
-              kind="priority"
-              title={t.priorityList}
-              tooltipContent={`${t.priorityListDesc}\n\n${t.priorityListTooltip}`}
-              badgeLabel={t.optional}
-              items={priorityWorkspaces}
-              emptyText={t.priorityListEmpty}
-              onRemove={(id) => handleRemove(id, 'priority')}
-              removeLabel={t.removeWorkspace}
-              t={t}
-            />
+            <div className="adl-settings-card adl-settings-card--grid">
+              <SortableWorkspaceList
+                kind="deferred"
+                title={t.deferredList}
+                tooltipContent={`${t.deferredListDesc}\n\n${t.deferredListTooltip}`}
+                badgeLabel={t.optional}
+                items={deferredWorkspaces}
+                emptyText={t.deferredListEmpty}
+                onRemove={(id) => handleRemove(id, 'deferred')}
+                removeLabel={t.removeWorkspace}
+                t={t}
+              />
+            </div>
 
-            <SortableWorkspaceList
-              kind="deferred"
-              title={t.deferredList}
-              tooltipContent={`${t.deferredListDesc}\n\n${t.deferredListTooltip}`}
-              badgeLabel={t.optional}
-              items={deferredWorkspaces}
-              emptyText={t.deferredListEmpty}
-              onRemove={(id) => handleRemove(id, 'deferred')}
-              removeLabel={t.removeWorkspace}
-              t={t}
-            />
-
-            <SortableWorkspaceList
-              kind="natural"
-              title={t.workspaceTagList}
-              tooltipContent={`${t.workspaceTagListDesc}\n\n${t.workspaceTagListTooltip}`}
-              items={naturalWorkspaces}
-              emptyText={t.workspaceTagListEmpty}
-              removeLabel={t.removeWorkspace}
-              t={t}
-            />
+            <div className="adl-settings-card adl-settings-card--grid">
+              <SortableWorkspaceList
+                kind="natural"
+                title={t.workspaceTagList}
+                tooltipContent={`${t.workspaceTagListDesc}\n\n${t.workspaceTagListTooltip}`}
+                items={naturalWorkspaces}
+                emptyText={t.workspaceTagListEmpty}
+                removeLabel={t.removeWorkspace}
+                t={t}
+              />
+            </div>
           </div>
         </div>
 

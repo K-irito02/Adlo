@@ -93,6 +93,35 @@ describe('KeybindSettings', () => {
     expect(search).toBeDefined();
   });
 
+  it('wraps each visible command group in an adl-settings-card', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const groupCards = document.querySelectorAll(
+      '.adl-settings-keybinds .adl-settings-card.adl-settings-keybinds__group',
+    );
+    expect(groupCards.length).toBeGreaterThan(1);
+    for (const card of groupCards) {
+      expect(card.querySelector('.adl-settings-keybinds__list')).not.toBeNull();
+    }
+  });
+
+  it('wraps the shortcuts toolbar in an adl-settings-card', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const toolbar = document.querySelector('.adl-settings-keybinds__toolbar');
+    expect(toolbar).not.toBeNull();
+    expect(toolbar?.classList.contains('adl-settings-card')).toBe(true);
+    expect(toolbar?.querySelector('.adl-settings-keybinds__search')).not.toBeNull();
+  });
+
   it('filters commands by search query', () => {
     render(
       <TestProvider>

@@ -44,6 +44,43 @@ describe('InputControl', () => {
   });
 });
 
+describe('SettingsControls editorial card layout', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('wraps setting rows in an adl-settings-card', () => {
+    const items: SettingItem[] = [
+      {
+        id: 'language',
+        groupId: 'general',
+        label: 'Language',
+        type: 'input',
+        value: 'en-US',
+      },
+    ];
+    render(
+      <TestProvider>
+        <SettingsControls items={items} onChange={() => {}} />
+      </TestProvider>,
+    );
+    const card = document.querySelector('.adl-settings-card');
+    expect(card).not.toBeNull();
+    expect(card?.querySelector('.adl-settings-row')).not.toBeNull();
+  });
+
+  it('wraps the empty-state hint in an adl-settings-card', () => {
+    render(
+      <TestProvider>
+        <SettingsControls items={[]} onChange={() => {}} />
+      </TestProvider>,
+    );
+    const card = document.querySelector('.adl-settings-card');
+    expect(card).not.toBeNull();
+    expect(card?.querySelector('.adl-empty-hint')).not.toBeNull();
+  });
+});
+
 describe('SettingsControls reset button', () => {
   afterEach(() => {
     cleanup();

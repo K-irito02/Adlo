@@ -192,6 +192,18 @@ html:not(.no-transition) [data-theme] {
   --error-toast-error: #e9967a;
   --error-toast-warning: #b45309;
 
+  /* === Pastel status (settings editorial) === */
+  --pastel-success-bg: #edf3ec;
+  --pastel-success-fg: #346538;
+  --pastel-info-bg: #e1f3fe;
+  --pastel-info-fg: #1f6c9f;
+  --pastel-warning-bg: #fbf3db;
+  --pastel-warning-fg: #956400;
+  --pastel-danger-bg: #fdebec;
+  --pastel-danger-fg: #9f2f2d;
+  --pastel-neutral-bg: #f0efec;
+  --pastel-neutral-fg: #5c5c5c;
+
   /* === Focus & Interaction === */
   --focus-ring: rgba(37, 99, 235, 0.28);
   --focus-ring-width: 3px;
@@ -426,6 +438,18 @@ html:not(.no-transition) [data-theme] {
   --danger-soft: rgba(233, 150, 122, 0.12);
   --danger-subtle: rgba(233, 150, 122, 0.08);
   --danger-muted: #e9967a;
+
+  /* === Pastel status (settings editorial, dark) === */
+  --pastel-success-bg: #1a2b1c;
+  --pastel-success-fg: #8fbc8f;
+  --pastel-info-bg: #152432;
+  --pastel-info-fg: #8eb8d4;
+  --pastel-warning-bg: #2a2415;
+  --pastel-warning-fg: #c9a84a;
+  --pastel-danger-bg: #2d1b1b;
+  --pastel-danger-fg: #c98888;
+  --pastel-neutral-bg: #242424;
+  --pastel-neutral-fg: #9a9a9a;
 
   /* === Window Controls (dark) === */
   --window-close-hover: rgb(232, 17, 35);

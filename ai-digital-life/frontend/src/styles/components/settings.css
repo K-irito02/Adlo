@@ -1,36 +1,54 @@
+/* ==========================================================================
+   Settings panel — Premium Utilitarian Minimalism / editorial
+   --------------------------------------------------------------------------
+   - Card sections: 1px hairline border, 8px radius, generous padding
+   - Serif only on section titles (scoped --font-serif, shared .adl-settings-title--serif)
+   - Stagger enter via transform/opacity only (ladder 0-400ms, n+7 clamp 480ms)
+   - Pastel status via themed --pastel-* tokens
+   ========================================================================== */
+
 .adl-settings-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
 }
+
 .adl-settings-panel__header {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 40px;
+  min-height: 44px;
   padding: var(--space-1-5) var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg);
 }
+
 .adl-settings-panel__search {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   background: transparent;
-  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   transition: var(--transition-colors);
+  color: var(--text-muted);
 }
+
 .adl-settings-panel__search:hover,
 .adl-settings-panel__search:focus-within {
   background: var(--bg-muted);
+  border-color: var(--border-subtle);
+  color: var(--text-secondary);
 }
+
 .adl-settings-panel__header-actions {
   display: flex;
   align-items: center;
   gap: var(--space-1);
   flex-shrink: 0;
 }
+
 .adl-settings-panel__search-input {
   background: none;
   border: none;
@@ -39,12 +57,14 @@
   outline: none;
   width: 120px;
 }
+
 .adl-settings-panel__body {
   display: flex;
   flex: 1;
   overflow: hidden;
   min-height: 0;
 }
+
 .adl-settings-panel__body.is-navigator-collapsed .adl-settings-nav {
   width: 0 !important;
   min-width: 0;
@@ -52,27 +72,161 @@
   overflow: hidden;
   border-right: none;
 }
+
 .adl-settings-panel__content {
   flex: 1;
   overflow-y: auto;
-  padding: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-8);
 }
+
+.adl-settings-panel__content--cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  align-items: stretch;
+}
+
+/* ---- Editorial card ---- */
+
+.adl-settings-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: var(--space-6) var(--space-7);
+  transition: var(--theme-transition);
+}
+
+/* Empty-state hint already sits on card padding; drop its own so the
+   no-results card aligns with row cards. */
+.adl-settings-card .adl-empty-hint {
+  padding: 0;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-card,
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card,
+.adl-settings-panel__content--cards > .adl-settings-section .workspace-grid > .adl-settings-card,
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card,
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card {
+  animation: adl-settings-card-enter var(--duration-editorial) var(--ease-editorial) both;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-card:nth-child(1),
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(1),
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(1),
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-card:nth-child(2),
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(2),
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(2),
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(2) {
+  animation-delay: 80ms;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-card:nth-child(3),
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(3),
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(3),
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(3) {
+  animation-delay: 160ms;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-card:nth-child(4),
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(4),
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(4),
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(4) {
+  animation-delay: 240ms;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-card:nth-child(5),
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(5),
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(5),
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(5) {
+  animation-delay: 320ms;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-card:nth-child(6),
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(6),
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(6),
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(6) {
+  animation-delay: 400ms;
+}
+
+/* Terminal clamp: cards at position 7+ keep the max delay so entrance
+   order never inverts (keybinds toolbar + 6 groups = 7 children). */
+.adl-settings-panel__content--cards > .adl-settings-card:nth-child(n + 7),
+.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(n + 7),
+.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(n + 7),
+.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(n + 7) {
+  animation-delay: 480ms;
+}
+
+/* Workspace bento grid cards (grandchildren via .workspace-curtain):
+   own short ladder continuing after the load-settings card (0ms). */
+.adl-settings-panel__content--cards
+  > .adl-settings-section
+  .workspace-grid
+  > .adl-settings-card:nth-child(1) {
+  animation-delay: 80ms;
+}
+
+.adl-settings-panel__content--cards
+  > .adl-settings-section
+  .workspace-grid
+  > .adl-settings-card:nth-child(2) {
+  animation-delay: 160ms;
+}
+
+.adl-settings-panel__content--cards
+  > .adl-settings-section
+  .workspace-grid
+  > .adl-settings-card:nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.adl-settings-panel__content--cards
+  > .adl-settings-section
+  .workspace-grid
+  > .adl-settings-card:nth-child(n + 4) {
+  animation-delay: 320ms;
+}
+
+@keyframes adl-settings-card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-3));
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-settings-card {
+    animation: none !important;
+  }
+}
+
+/* ---- Navigator (shell) ---- */
 
 .adl-settings-nav {
   position: relative;
   width: var(--adl-settings-nav-width, 160px);
   flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
-  padding: 2px 0 0;
+  padding: var(--space-2) 0;
   overflow: hidden;
+  background: var(--bg);
 }
+
 .adl-settings-nav__resize-handle {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
   width: 12px;
-  z-index: 10;
+  z-index: var(--z-raised);
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
@@ -101,49 +255,83 @@
   opacity: 1;
   background: var(--text-secondary);
 }
+
 .adl-settings-nav ul {
   list-style: none;
-  padding: 0;
+  padding: 0 var(--space-2);
   margin: 0;
 }
+
 .adl-settings-nav__item {
   display: block;
   width: 100%;
   padding: var(--space-2) var(--space-3);
   background: none;
   border: none;
-  border-radius: 0;
+  border-radius: var(--radius-md);
   color: var(--text-secondary);
   font-size: var(--text-sm);
   cursor: pointer;
   text-align: left;
+  transition: var(--transition-colors);
 }
+
 .adl-settings-nav__item:hover {
   background: var(--surface-hover);
   color: var(--text-primary);
 }
+
 .adl-settings-nav__item.is-active {
-  background: var(--surface-active);
+  background: var(--pastel-neutral-bg);
   color: var(--text-primary);
-  font-weight: 600;
+  font-weight: var(--font-semibold);
 }
+
+.adl-settings-nav__item:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* ---- Rows & controls ---- */
 
 .adl-settings-controls {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
 }
+
+.adl-settings-controls-wrap {
+  width: 100%;
+}
+
 .adl-settings-row {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-4);
-  padding: var(--space-3) 0;
+  padding: var(--space-3-5) 0;
   border-bottom: 1px solid var(--border-subtle);
 }
+
+.adl-settings-row:first-child {
+  padding-top: 0;
+}
+
+.adl-settings-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.adl-settings-row--actions {
+  border-bottom: none;
+  padding-top: var(--space-4);
+  justify-content: flex-end;
+}
+
 .adl-settings-row__label {
   flex: 1;
+  min-width: 0;
 }
+
 .adl-settings-row__label > .adl-settings-row__label-text {
   display: inline-flex;
   align-items: center;
@@ -151,19 +339,100 @@
   white-space: nowrap;
   overflow: hidden;
 }
+
 .adl-settings-row__label > .adl-settings-row__label-text span {
   font-size: var(--text-sm);
-  font-weight: 500;
+  font-weight: var(--font-medium);
+  color: var(--text-primary);
 }
+
 .adl-settings-row__label small {
   display: block;
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin-top: 2px;
+  line-height: var(--leading-relaxed);
 }
+
 .adl-settings-row__control {
   flex-shrink: 0;
 }
+
+.adl-settings-row__control--inline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-settings-row__control-text {
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.adl-settings-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.adl-settings-status {
+  display: inline-block;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  line-height: var(--leading-snug);
+}
+
+.adl-settings-status--success {
+  background: var(--pastel-success-bg);
+  color: var(--pastel-success-fg);
+}
+
+.adl-settings-status--info {
+  background: var(--pastel-info-bg);
+  color: var(--pastel-info-fg);
+}
+
+.adl-settings-status--warning {
+  background: var(--pastel-warning-bg);
+  color: var(--pastel-warning-fg);
+}
+
+.adl-settings-status--danger {
+  background: var(--pastel-danger-bg);
+  color: var(--pastel-danger-fg);
+}
+
+/* Status pills live inside .adl-settings-row__label as <small>. The label
+   rule (.adl-settings-row__label small, 0-1-1) would otherwise override
+   display/color/line-height, so re-assert here with compound selectors (0-2-0). */
+.adl-settings-row__label .adl-settings-status {
+  display: inline-block;
+  margin-top: var(--space-1);
+  line-height: var(--leading-snug);
+}
+
+.adl-settings-row__label .adl-settings-status--success {
+  color: var(--pastel-success-fg);
+}
+
+.adl-settings-row__label .adl-settings-status--info {
+  color: var(--pastel-info-fg);
+}
+
+.adl-settings-row__label .adl-settings-status--warning {
+  color: var(--pastel-warning-fg);
+}
+
+.adl-settings-row__label .adl-settings-status--danger {
+  color: var(--pastel-danger-fg);
+}
+
+/* ---- Toggle ---- */
 
 .adl-settings-toggle {
   background: none;
@@ -171,10 +440,12 @@
   cursor: pointer;
   padding: 0;
 }
+
 .adl-settings-toggle:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+
 .adl-settings-toggle__track {
   display: block;
   width: 36px;
@@ -184,9 +455,11 @@
   position: relative;
   transition: var(--transition-colors);
 }
+
 .adl-settings-toggle.is-on .adl-settings-toggle__track {
   background: var(--text-primary);
 }
+
 .adl-settings-toggle__thumb {
   position: absolute;
   top: 2px;
@@ -197,46 +470,67 @@
   background: var(--text-inverse);
   transition: var(--transition-transform);
 }
+
 .adl-settings-toggle.is-on .adl-settings-toggle__thumb {
   transform: translateX(16px);
 }
+
+/* ---- Select / input ---- */
 
 .adl-settings-select {
   padding: var(--space-1) var(--space-2);
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
 }
+
+.adl-settings-select:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
 .adl-settings-input {
   padding: var(--space-1) var(--space-2);
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
   width: 200px;
+  transition: var(--transition-colors);
 }
+
+.adl-settings-input:hover:not(:readonly) {
+  border-color: var(--border-strong);
+}
+
+.adl-settings-input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-color: var(--text-secondary);
+}
+
 .adl-settings-password {
   display: flex;
   align-items: center;
   gap: var(--space-1);
 }
-.adl-settings-highlight {
-  background: color-mix(in srgb, var(--accent) 25%, transparent);
-  border-radius: 2px;
-}
 
-.adl-settings-nav__item:focus-visible {
-  outline: var(--focus-ring-width) solid var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+.adl-settings-highlight {
+  background: var(--pastel-info-bg);
+  color: var(--pastel-info-fg);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-0-5);
 }
 
 .adl-settings-panel__search-input:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+
+/* ---- Font control ---- */
 
 .adl-settings-font {
   display: flex;
@@ -249,24 +543,31 @@
   padding: var(--space-1) var(--space-2);
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-sm);
+}
+
+.adl-settings-font__input:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .adl-settings-font__preview {
   font-size: var(--text-xs);
   color: var(--text-secondary);
   padding: var(--space-1) var(--space-2);
-  background: var(--surface-raised);
-  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  border-radius: var(--radius-md);
 }
+
+/* ---- Reset actions ---- */
 
 .adl-settings-reset-all {
   padding: var(--space-1) var(--space-3);
   background: transparent;
-  border: none;
-  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
   font-size: var(--text-xs);
   color: var(--text-secondary);
   cursor: pointer;
@@ -275,6 +576,7 @@
 
 .adl-settings-reset-all:hover {
   background: var(--bg-muted);
+  border-color: var(--border-subtle);
   color: var(--text-primary);
 }
 
@@ -306,10 +608,18 @@
   outline-offset: var(--focus-ring-offset);
 }
 
+/* ---- Keybinds ---- */
+
 .adl-settings-keybinds {
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
+}
+
+.adl-settings-keybinds__toolbar {
+  /* Intentionally slimmer than row cards: title + search need less air. */
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-4);
 }
 
 .adl-settings-keybinds__header {
@@ -317,21 +627,22 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin-bottom: var(--space-2);
 }
 
-.adl-settings-keybinds__header h3 {
+.adl-settings-keybinds__title {
   margin: 0;
-  font-size: var(--text-base);
+  font-size: var(--text-lg);
   font-weight: var(--font-semibold);
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+  color: var(--text-primary);
 }
 
 .adl-settings-keybinds__search {
   padding: var(--space-1) var(--space-2);
   background: var(--surface-raised);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   color: var(--text-primary);
   font-size: var(--text-xs);
   width: 180px;
@@ -345,16 +656,19 @@
 .adl-settings-keybinds__group {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .adl-settings-keybinds__group-title {
-  margin: 0 0 var(--space-1) 0;
+  margin: 0;
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
-  letter-spacing: var(--tracking-wide);
+  letter-spacing: var(--tracking-wider);
   color: var(--text-muted);
   text-transform: uppercase;
+  font-family: var(--font-sans);
 }
 
 .adl-settings-keybinds__list {
@@ -376,6 +690,11 @@
 
 .adl-settings-keybinds__row:last-child {
   border-bottom: none;
+  padding-bottom: 0;
+}
+
+.adl-settings-keybinds__row:first-child {
+  padding-top: 0;
 }
 
 .adl-settings-keybinds__label {
@@ -385,9 +704,9 @@
 
 .adl-settings-keybind {
   padding: var(--space-1) var(--space-3);
-  background: var(--surface-raised);
+  background: var(--bg-muted);
   border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius);
   color: var(--text-secondary);
   font-size: var(--text-xs);
   font-family: var(--font-mono, monospace);
@@ -399,7 +718,7 @@
 
 .adl-settings-keybind:hover {
   background: var(--surface-hover);
-  border-color: var(--accent-strong);
+  border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
@@ -409,18 +728,21 @@
 }
 
 .adl-settings-keybind.is-recording {
-  background: var(--accent-soft);
-  border-color: var(--accent-strong);
-  color: var(--accent-strong);
+  background: var(--pastel-info-bg);
+  border-color: var(--pastel-info-fg);
+  color: var(--pastel-info-fg);
   font-weight: var(--font-semibold);
 }
+
+/* ---- Section header (editorial) ---- */
 
 .adl-settings-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: var(--space-3);
-  padding: var(--space-3);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-2);
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -438,28 +760,55 @@
   color: var(--text-primary);
 }
 
+/* Shared editorial-serif utility for section titles (family/tracking only;
+   sizes stay per-block). Do not reuse block-scoped BEM modifiers across blocks. */
+.adl-settings-title--serif {
+  font-family: var(--font-serif);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+
+.adl-settings-header--editorial .adl-settings-header__title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+}
+
 .adl-settings-header__desc {
   margin: 0;
   font-size: var(--text-xs);
   color: var(--text-muted);
+  line-height: var(--leading-relaxed);
 }
 
 .adl-settings-header__action {
   flex-shrink: 0;
 }
 
-.adl-settings-section {
-  padding: 0;
+.adl-settings-section-title {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
 }
 
-.adl-settings-divider {
-  border: none;
-  border-top: 1px solid var(--border-subtle);
-  margin: var(--space-3) 0;
+.adl-settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
 }
+
+.adl-settings-section > .adl-settings-card {
+  margin-bottom: 0;
+}
+
+.adl-settings-card .adl-settings-section {
+  gap: var(--space-3);
+}
+
+/* ---- Sortable / workspace lists ---- */
 
 .adl-sortable-section {
-  margin-bottom: var(--space-4);
+  margin-bottom: 0;
 }
 
 .adl-sortable-section-title {
@@ -490,7 +839,7 @@
   font-size: var(--text-xs);
   color: var(--text-muted);
   border: 1px dashed var(--border-subtle);
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   text-align: center;
 }
 
@@ -499,9 +848,9 @@
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-1) var(--space-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
   cursor: grab;
 }
 
@@ -548,10 +897,10 @@
 
 .adl-sortable-remove:hover {
   color: var(--danger);
-  background: var(--surface-hover);
+  background: var(--pastel-danger-bg);
 }
 
-/* ========= Workspace Settings Three-Column Grid ========= */
+/* ---- Workspace three-column grid (bento) ---- */
 
 .workspace-curtain {
   overflow: hidden;
@@ -561,12 +910,24 @@
 .workspace-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(80px, 1fr));
-  gap: 12px;
+  gap: var(--space-3);
 }
 
-/* Remove margin from sections when inside grid */
+.workspace-grid--cards > .adl-settings-card {
+  min-width: 0;
+}
+
 .workspace-grid > .adl-sortable-section {
   margin-bottom: 0;
+}
+
+.adl-settings-card--grid {
+  padding: var(--space-4);
+}
+
+.adl-settings-card--grid .adl-settings-section,
+.adl-settings-card--grid > .adl-sortable-section {
+  gap: var(--space-2);
 }
 
 /* Section header title — single-line always */
@@ -578,16 +939,18 @@
 .adl-sortable-section-badge {
   display: inline-flex;
   align-items: center;
-  padding: 0 5px;
+  padding: 0 var(--space-1-5);
   margin-top: 1px;
   font-size: 9px;
   font-weight: 500;
   line-height: 1.4;
-  border-radius: 8px;
-  background: var(--surface-raised);
-  color: var(--text-muted);
-  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  background: var(--pastel-neutral-bg);
+  color: var(--pastel-neutral-fg);
+  border: none;
   white-space: nowrap;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
 }
 
 /* 🔴 Clip phase: handled by .workspace-curtain overflow:hidden +

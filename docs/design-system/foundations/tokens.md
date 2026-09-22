@@ -27,7 +27,7 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 
 ## Typography
 
-- Family: `--font-sans` (Inter + system stack), `--font-mono` (JetBrains Mono / Fira Code), `--font-display` (alias of sans).
+- Family: `--font-sans` (Inter + system stack), `--font-mono` (JetBrains Mono / Fira Code), `--font-display` (alias of sans), `--font-serif` (Georgia / Times New Roman system stack — settings panel section titles only, no webfont bundled).
 - Size scale: `--text-xs` (12 px) → `--text-5xl` (48 px) on a 1.25 ratio.
 - Weights: `--font-light` (300) → `--font-extrabold` (800).
 - Line heights: `--leading-none` (1) → `--leading-relaxed` (1.625).
@@ -46,8 +46,8 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 
 | Group     | Tokens                                                                                                               |
 | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| Duration  | `--duration-75` … `--duration-1000`                                                                                  |
-| Easing    | `--ease-default` (220 emphasis), `--ease-enter`, `--ease-exit`, `--ease-spring`, `--ease-snap`, `--ease-linear`      |
+| Duration  | `--duration-75` … `--duration-1000`, `--duration-editorial` (600 ms card entrances)                                        |
+| Easing    | `--ease-default` (220 emphasis), `--ease-enter`, `--ease-exit`, `--ease-spring`, `--ease-snap`, `--ease-linear`, `--ease-editorial` |
 | Composite | `--transition-colors`, `--transition-shadow`, `--transition-transform`, `--transition-opacity`, `--transition-modal` |
 
 
