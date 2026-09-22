@@ -14,7 +14,15 @@ import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSe
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
 import { StorageSettings } from '../../features/storage-settings/StorageSettings';
-import { getDefaultPreferences } from '../../../shared/defaultPreferences';
+import {
+  getDefaultPreferences,
+  DEFAULT_LANGUAGE,
+  DEFAULT_THEME_MODE,
+  DEFAULT_LOG_LEVEL,
+  DEFAULT_TERMINAL_LOG_MODE,
+  DEFAULT_DEBUG_LOG_MODE,
+  DEFAULT_FONTS,
+} from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
   SETTINGS_NAVIGATOR_WIDTH_MAX,
@@ -32,6 +40,9 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   dsh: DshSettings,
   storage: StorageSettings,
 };
+
+/** 组级重置已接入默认映射的组（当前仅通用组；其它组为独立组件/独立存储，暂不挂载按钮）。 */
+const GENERAL_RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set(['general']);
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
   const { t } = useTCopy();
@@ -118,6 +129,26 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
   }, [updatePreferences, showToast, t]);
 
+  const handleResetGroup = useCallback(
+    async (group: SettingsGroupId) => {
+      if (group !== 'general') {
+        return;
+      }
+      const ok = await updatePreferences({
+        language: DEFAULT_LANGUAGE,
+        themeMode: DEFAULT_THEME_MODE,
+        logLevel: DEFAULT_LOG_LEVEL,
+        terminalLogMode: DEFAULT_TERMINAL_LOG_MODE,
+        debugLogMode: DEFAULT_DEBUG_LOG_MODE,
+        fonts: { ...DEFAULT_FONTS },
+      });
+      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+    },
+    [updatePreferences, showToast, t],
+  );
+
+  const [pendingResetGroup, setPendingResetGroup] = useState<SettingsGroupId | null>(null);
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
@@ -166,12 +197,24 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const handleCancelReset = useCallback(() => {
     setConfirmResetOpen(false);
+    setPendingResetGroup(null);
   }, []);
 
   const handleConfirmClick = useCallback(() => {
     setConfirmResetOpen(false);
+    if (pendingResetGroup) {
+      const group = pendingResetGroup;
+      setPendingResetGroup(null);
+      void handleResetGroup(group);
+      return;
+    }
     void handleResetAll();
-  }, [handleResetAll]);
+  }, [handleResetAll, handleResetGroup, pendingResetGroup]);
+
+  const handleRequestResetGroup = useCallback((group: SettingsGroupId) => {
+    setPendingResetGroup(group);
+    setConfirmResetOpen(true);
+  }, []);
 
   // 持久化/历史遗留的 activeGroup 可能不在当前组列表里（如已移除的 terminal）：
   // 回退到第一个组，避免导航无选中、面板空白。
@@ -278,7 +321,12 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
             }
             inert={navigatorCollapsed}
           >
-            <SettingsNav activeGroup={effectiveGroup} onSelectGroup={setActiveGroup} />
+            <SettingsNav
+              activeGroup={effectiveGroup}
+              onSelectGroup={setActiveGroup}
+              resettableGroups={GENERAL_RESETTABLE_GROUPS}
+              onResetGroup={handleRequestResetGroup}
+            />
             <div
               className="adl-settings-nav__resize-handle"
               onPointerDown={handleNavResizeStart}

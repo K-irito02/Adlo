@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
+import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import type { DshSourceConfig } from '../../../shared/ipc/dsh';
 
 type SourceType = 'npmjs' | 'npmmirror' | 'custom';
@@ -187,15 +188,16 @@ export function DshSettings() {
         </h3>
         <div className="adl-dsh-settings__proxy-mode">
           <span className="adl-dsh-settings__proxy-label">{t.dshSettingsProxyMode}</span>
-          <select
-            className="adl-settings-select"
+          <SettingsSelect
             value={proxyMode}
-            onChange={(e) => setProxyMode(e.target.value as ProxyMode)}
-          >
-            <option value="auto">{t.dshSettingsProxyModeAuto}</option>
-            <option value="manual">{t.dshSettingsProxyModeManual}</option>
-            <option value="none">{t.dshSettingsProxyModeNone}</option>
-          </select>
+            options={[
+              { value: 'auto', label: t.dshSettingsProxyModeAuto },
+              { value: 'manual', label: t.dshSettingsProxyModeManual },
+              { value: 'none', label: t.dshSettingsProxyModeNone },
+            ]}
+            onChange={(v) => setProxyMode(v as ProxyMode)}
+            label={t.dshSettingsProxyMode}
+          />
         </div>
         {proxyMode === 'manual' ? (
           <div className="adl-dsh-settings__proxy-fields">

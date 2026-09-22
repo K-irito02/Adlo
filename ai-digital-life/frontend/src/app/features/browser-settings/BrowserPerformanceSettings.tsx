@@ -1,6 +1,7 @@
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { SettingsSelect } from '../../components/settings/SettingsSelect';
 
 const MINUTE_MS = 60_000;
 // { min: number | null } — null means Off (0).
@@ -52,19 +53,18 @@ export function BrowserPerformanceSettings() {
           </div>
         </div>
         <div className="adl-settings-row__control">
-          <select
-            className="adl-settings-select"
+          <SettingsSelect
             value={String(current)}
-            onChange={(e) => handleChange(Number(e.target.value))}
-          >
-            {OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.min === null
+            options={OPTIONS.map((opt) => ({
+              value: String(opt.value),
+              label:
+                opt.min === null
                   ? t.browserSettingsSuspendOff
-                  : t.browserSettingsSuspendMin.replace('{n}', String(opt.min))}
-              </option>
-            ))}
-          </select>
+                  : t.browserSettingsSuspendMin.replace('{n}', String(opt.min)),
+            }))}
+            onChange={(v) => handleChange(Number(v))}
+            label={t.browserSettingsSuspendTitle}
+          />
         </div>
       </div>
     </div>

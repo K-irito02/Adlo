@@ -620,8 +620,8 @@ describe('StorageSettings tree cache section (T9)', () => {
   it('changing the TTL calls setTreeCacheOptions with the new value', async () => {
     const { setTreeCacheOptions } = renderTreeSection();
     await screen.findByTestId('tree-cache-section');
-    const ttl = screen.getByRole('combobox', { name: settingsEn.treeCacheTtl });
-    fireEvent.change(ttl, { target: { value: '60' } });
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
+    fireEvent.click(screen.getByRole('option', { name: '60 minutes' }));
     await waitFor(() => {
       expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
     });

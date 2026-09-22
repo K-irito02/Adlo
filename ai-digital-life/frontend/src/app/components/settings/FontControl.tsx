@@ -1,11 +1,29 @@
-import { useState, useEffect, useRef, type ChangeEvent } from 'react';
+import { useEffect, useState } from 'react';
 import type { SettingItem } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
+import { SettingsSelect } from './SettingsSelect';
 
-const PLACEHOLDER_BY_CSS_VAR: Record<string, string> = {
-  '--font-sans-custom': 'Inter',
-  '--font-mono-custom': 'JetBrains Mono',
-};
+const UI_FONT_OPTIONS = [
+  'Inter',
+  'system-ui',
+  'PingFang SC',
+  'Microsoft YaHei',
+  'Noto Sans SC',
+  'Segoe UI',
+  'Helvetica Neue',
+  'Arial',
+];
+
+const MONO_FONT_OPTIONS = [
+  'JetBrains Mono',
+  'Cascadia Code',
+  'Consolas',
+  'Menlo',
+  'Fira Code',
+  'Source Code Pro',
+  'Noto Sans Mono',
+  'monospace',
+];
 
 interface FontControlProps {
   item: SettingItem;
@@ -15,51 +33,49 @@ interface FontControlProps {
 }
 
 export function FontControl({ item, cssVar, onChange, t }: FontControlProps) {
-  const [localValue, setLocalValue] = useState(String(item.value));
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const committed = String(item.value);
+  // 悬停值只驱动左侧预览，不写 documentElement（避免整个应用字体跳动）。
+  const [hover, setHover] = useState<string | null>(null);
 
+  // 已确认值落盘到 documentElement（双端一致：纯前端 CSS 变量即时生效 + 后端持久化经 onChange）。
   useEffect(() => {
-    setLocalValue(String(item.value));
-    const currentValue = String(item.value);
-    if (currentValue) {
-      document.documentElement.style.setProperty(cssVar, currentValue);
+    if (committed) {
+      document.documentElement.style.setProperty(cssVar, committed);
     } else {
       document.documentElement.style.removeProperty(cssVar);
     }
-  }, [item.value, cssVar]);
+  }, [committed, cssVar]);
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const next = e.target.value;
-    setLocalValue(next);
-    if (next) {
-      document.documentElement.style.setProperty(cssVar, next);
-    } else {
-      document.documentElement.style.removeProperty(cssVar);
-    }
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-    }
-    timerRef.current = setTimeout(() => onChange(next), 500);
-  };
+  const baseOptions = cssVar === '--font-sans-custom' ? UI_FONT_OPTIONS : MONO_FONT_OPTIONS;
+  const options = [
+    { value: '', label: t.settingsFontDefault },
+    ...baseOptions.map((f) => ({ value: f, label: f })),
+  ];
+  if (committed && !options.some((o) => o.value === committed)) {
+    options.push({ value: committed, label: committed });
+  }
 
-  useEffect(() => {
-    return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
-    };
-  }, []);
+  const previewFont = hover ?? committed;
 
   return (
-    <div className="adl-settings-font">
-      <input
-        type="text"
-        className="adl-settings-font__input"
-        value={localValue}
-        placeholder={PLACEHOLDER_BY_CSS_VAR[cssVar] ?? 'Inter'}
-        onChange={handleChange}
+    <div className="adl-settings-font adl-settings-font--row">
+      <div
+        className="adl-settings-font__preview"
+        style={previewFont ? { fontFamily: previewFont } : undefined}
+      >
+        {t.settingsFontPreview}
+      </div>
+      <SettingsSelect
+        value={committed}
+        options={options}
+        onChange={(v) => {
+          setHover(null);
+          onChange(v);
+        }}
+        onHoverOption={(v) => setHover(v)}
+        label={item.label}
+        optionStyle={(v) => (v ? { fontFamily: v } : undefined)}
       />
-      <div className="adl-settings-font__preview">{t.settingsFontPreview}</div>
     </div>
   );
 }

@@ -86,6 +86,7 @@ export {
   IconPlay,
   IconPause,
   IconRefreshCw,
+  IconResetDefaults,
   IconReplace,
   IconBack,
   IconMoreVertical,

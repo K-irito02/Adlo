@@ -17,6 +17,7 @@ import {
 import { IconCircleHelp } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { StorageCategoryRow } from './StorageCategoryRow';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
@@ -769,13 +770,30 @@ export function StorageSettings() {
                   })
                 }
               />
-              <select
-                className="adl-settings-select"
-                aria-label={t.treeCacheTtl}
-                value={treeTtlMinutes}
-                disabled={treeBusy}
-                onChange={(e) => {
-                  const raw = Number(e.target.value);
+              <SettingsSelect
+                value={String(treeTtlMinutes)}
+                options={[
+                  // 非列表值（如后端合法但不在下拉档的 30）：回退展示当前值档（复用既有 key，无新文案）。
+                  ...(!TREE_CACHE_TTL_OPTIONS.includes(
+                    treeTtlMinutes as (typeof TREE_CACHE_TTL_OPTIONS)[number],
+                  )
+                    ? [
+                        {
+                          value: String(treeTtlMinutes),
+                          label: t.treeCacheTtlMinutes.replace('{minutes}', String(treeTtlMinutes)),
+                        },
+                      ]
+                    : []),
+                  ...TREE_CACHE_TTL_OPTIONS.map((minutes) => ({
+                    value: String(minutes),
+                    label:
+                      minutes === 1440
+                        ? t.treeCacheTtlDay
+                        : t.treeCacheTtlMinutes.replace('{minutes}', String(minutes)),
+                  })),
+                ]}
+                onChange={(v) => {
+                  const raw = Number(v);
                   if (!Number.isFinite(raw)) {
                     return;
                   }
@@ -786,23 +804,9 @@ export function StorageSettings() {
                     ttlMinutes,
                   });
                 }}
-              >
-                {/* 非列表值（如后端合法但不在下拉档的 30）：回退展示当前值档（复用既有 key，无新文案）。 */}
-                {!TREE_CACHE_TTL_OPTIONS.includes(
-                  treeTtlMinutes as (typeof TREE_CACHE_TTL_OPTIONS)[number],
-                ) ? (
-                  <option key="current" value={treeTtlMinutes}>
-                    {t.treeCacheTtlMinutes.replace('{minutes}', String(treeTtlMinutes))}
-                  </option>
-                ) : null}
-                {TREE_CACHE_TTL_OPTIONS.map((minutes) => (
-                  <option key={minutes} value={minutes}>
-                    {minutes === 1440
-                      ? t.treeCacheTtlDay
-                      : t.treeCacheTtlMinutes.replace('{minutes}', String(minutes))}
-                  </option>
-                ))}
-              </select>
+                label={t.treeCacheTtl}
+                disabled={treeBusy}
+              />
             </div>
           </div>
         </div>

@@ -12,7 +12,7 @@ export const settingsEn = {
   settingsTerminal: 'Terminal',
   settingsShortcuts: 'Shortcuts',
   settingsBrowser: 'Browser',
-  settingsDsh: 'DeepSeek Harness',
+  settingsDsh: 'DSH',
 
   // Terminal settings
   settingsTerminalHistoryGroupDesc: 'Manage terminal history storage and display behavior',
@@ -27,24 +27,35 @@ export const settingsEn = {
 
   // Common settings
   settingsLanguage: 'Language',
+  settingsLanguageDesc: 'Display language of the app interface, applies immediately',
   settingsTheme: 'Theme',
-  settingsThemeSystem: 'System',
-  settingsThemeLight: 'Light',
-  settingsThemeDark: 'Dark',
+  settingsThemeDesc: 'Light / Dark / System, affects the whole interface palette',
   settingsAutoApproval: 'Auto-approval level',
   settingsLogLevel: 'Log Level',
-  settingsLogLevelDesc: 'Verbosity of application logs',
+  settingsLogLevelDesc: 'Verbosity of application logs, raise temporarily when troubleshooting',
   settingsTerminalLogMode: 'Terminal Log Mode',
+  settingsTerminalLogModeDesc:
+    'How terminal session logs are written: overwrite, append, or multi-file',
   settingsDebugLogMode: 'Debug Log Mode',
+  settingsDebugLogModeDesc: 'How debug logs are written: overwrite, append, or multi-file',
   settingsLogModeOverwrite: 'Overwrite',
   settingsLogModeAppend: 'Append',
   settingsLogModeMulti: 'Multi-file',
+  settingsResetGroupToDefault: 'Reset {group} to defaults',
 
   // Font settings
   settingsFontUi: 'UI Font',
+  settingsFontUiDesc:
+    'Font for the app interface text; hover an option to preview live, click to confirm',
   settingsFontCode: 'Code Font',
+  settingsFontCodeDesc:
+    'Font for editor and diff code; hover an option to preview live, click to confirm',
   settingsFontTerminal: 'Terminal Font',
+  settingsFontTerminalDesc:
+    'Font for terminal text; hover an option to preview live, click to confirm',
   settingsFontPreview: 'Preview: The quick brown fox 1234567890',
+  settingsFontDefault: 'Default',
+  settingsFontSystemNote: 'Empty means the system default font',
 
   // Shortcuts
   settingsShortcutsTitle: 'Keyboard Shortcuts',

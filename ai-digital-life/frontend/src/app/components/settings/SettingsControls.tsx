@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef, type ChangeEvent } from 'react';
 import type { SettingItem } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import type { CopyDict } from '../../i18n';
-import { IconEye, IconEyeOff, IconRefreshCw } from '../../icons';
+import { IconEye, IconEyeOff, IconResetDefaults } from '../../icons';
 import { FontControl } from './FontControl';
+import { SettingsSelect } from './SettingsSelect';
 import { getDefaultForSetting } from '../../../shared/defaultPreferences';
 
 interface SettingsControlsProps {
@@ -48,17 +49,12 @@ function ToggleControl({ item, onChange }: { item: SettingItem; onChange: (v: bo
 
 function SelectControl({ item, onChange }: { item: SettingItem; onChange: (v: string) => void }) {
   return (
-    <select
-      className="adl-settings-select"
+    <SettingsSelect
       value={String(item.value)}
-      onChange={(e) => onChange(e.target.value)}
-    >
-      {item.options?.map((opt) => (
-        <option key={opt.value} value={opt.value}>
-          {opt.label}
-        </option>
-      ))}
-    </select>
+      options={(item.options ?? []).map((opt) => ({ value: opt.value, label: opt.label }))}
+      onChange={onChange}
+      label={item.label}
+    />
   );
 }
 
@@ -158,7 +154,20 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
           return (
             <div key={item.id} className="adl-settings-row">
               <div className="adl-settings-row__label">
-                <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
+                <span className="adl-settings-row__label-text">
+                  {canReset && (
+                    <button
+                      type="button"
+                      className="adl-settings-row__reset adl-settings-row__reset--inline"
+                      aria-label={t.settingsResetToDefault}
+                      title={t.settingsResetToDefault}
+                      onClick={() => onChange(item.id, defaultValue as string | boolean | number)}
+                    >
+                      <IconResetDefaults size={14} decorative />
+                    </button>
+                  )}
+                  <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
+                </span>
                 {item.description && (
                   <small>{highlightMatch(item.description, searchQuery ?? '')}</small>
                 )}
@@ -186,17 +195,6 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
                   />
                 )}
               </div>
-              {canReset && (
-                <button
-                  type="button"
-                  className="adl-settings-row__reset"
-                  aria-label={t.settingsResetToDefault}
-                  title={t.settingsResetToDefault}
-                  onClick={() => onChange(item.id, defaultValue as string | boolean | number)}
-                >
-                  <IconRefreshCw size={14} decorative />
-                </button>
-              )}
             </div>
           );
         })}

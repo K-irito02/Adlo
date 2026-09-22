@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
+import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import {
   TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
   TERMINAL_HISTORY_BUDGET_FOLLOW_DISK,
@@ -153,6 +154,32 @@ export function TerminalHistoryBudgetSection() {
       ? t.settingsTerminalHistoryBudgetFollowDisk
       : formatBytes(custom ? budgetBytesFromGb(clampGb(Number(draftGb))) : current);
 
+  const handleSelectChange = useCallback(
+    (value: string) => {
+      // 先丢弃在途的自定义输入，否则旧草稿会在防抖到期后覆盖掉这次选择。
+      cancelPending();
+      if (value === CUSTOM_VALUE) {
+        setCustom(true);
+        return;
+      }
+      setCustom(false);
+      apply(value === FOLLOW_DISK_VALUE ? TERMINAL_HISTORY_BUDGET_FOLLOW_DISK : Number(value));
+    },
+    [apply, cancelPending],
+  );
+
+  const budgetOptions = useMemo(
+    () => [
+      ...budgetOptionsGb.map((gb) => ({
+        value: String(budgetBytesFromGb(gb)),
+        label: `${gb} GB`,
+      })),
+      { value: CUSTOM_VALUE, label: t.settingsTerminalHistoryBudgetCustom },
+      { value: FOLLOW_DISK_VALUE, label: t.settingsTerminalHistoryBudgetFollowDisk },
+    ],
+    [t.settingsTerminalHistoryBudgetCustom, t.settingsTerminalHistoryBudgetFollowDisk],
+  );
+
   return (
     <div className="adl-settings-section adl-terminal-settings">
       <div className="adl-settings-row">
@@ -163,31 +190,12 @@ export function TerminalHistoryBudgetSection() {
           <small>{t.settingsTerminalHistoryBudgetDesc}</small>
         </div>
         <div className="adl-settings-row__control">
-          <select
-            className="adl-settings-select"
+          <SettingsSelect
             value={selectValue}
-            onChange={(e) => {
-              const value = e.target.value;
-              // 先丢弃在途的自定义输入，否则旧草稿会在防抖到期后覆盖掉这次选择。
-              cancelPending();
-              if (value === CUSTOM_VALUE) {
-                setCustom(true);
-                return;
-              }
-              setCustom(false);
-              apply(
-                value === FOLLOW_DISK_VALUE ? TERMINAL_HISTORY_BUDGET_FOLLOW_DISK : Number(value),
-              );
-            }}
-          >
-            {budgetOptionsGb.map((gb) => (
-              <option key={gb} value={budgetBytesFromGb(gb)}>
-                {gb} GB
-              </option>
-            ))}
-            <option value={CUSTOM_VALUE}>{t.settingsTerminalHistoryBudgetCustom}</option>
-            <option value={FOLLOW_DISK_VALUE}>{t.settingsTerminalHistoryBudgetFollowDisk}</option>
-          </select>
+            options={budgetOptions}
+            onChange={handleSelectChange}
+            label={t.settingsTerminalHistoryBudget}
+          />
 
           {custom ? (
             <input

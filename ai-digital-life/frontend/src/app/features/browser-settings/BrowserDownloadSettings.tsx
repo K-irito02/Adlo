@@ -1,6 +1,7 @@
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { SettingsSelect } from '../../components/settings/SettingsSelect';
 
 export function BrowserDownloadSettings() {
   const { t } = useTCopy();
@@ -30,15 +31,16 @@ export function BrowserDownloadSettings() {
           <small>{t.browserDownloadSettingsModeDesc}</small>
         </div>
         <div className="adl-settings-row__control">
-          <select
-            className="adl-settings-select"
+          <SettingsSelect
             value={isAutoSave ? 'auto' : 'ask'}
-            onChange={(e) => handleModeChange(e.target.value === 'auto')}
+            options={[
+              { value: 'auto', label: t.browserDownloadSettingsModeAuto },
+              { value: 'ask', label: t.browserDownloadSettingsModeAsk },
+            ]}
+            onChange={(v) => handleModeChange(v === 'auto')}
+            label={t.browserDownloadSettingsMode}
             disabled={isLoadingSettings}
-          >
-            <option value="auto">{t.browserDownloadSettingsModeAuto}</option>
-            <option value="ask">{t.browserDownloadSettingsModeAsk}</option>
-          </select>
+          />
         </div>
       </div>
     </div>

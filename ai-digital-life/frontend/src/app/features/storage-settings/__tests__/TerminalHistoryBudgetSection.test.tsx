@@ -1,5 +1,4 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { budgetBytesFromGb, budgetOptionsGb } from '@features/terminal/terminalHistoryBudget';
 import { TerminalHistoryBudgetSection } from '../TerminalHistoryBudgetSection';
@@ -66,32 +65,42 @@ describe('TerminalHistoryBudgetSection', () => {
   it('渲染预算设置项与当前档位', () => {
     render(<TerminalHistoryBudgetSection />);
     expect(screen.getByText('只读历史磁盘预算')).toBeTruthy();
-    expect(screen.getByRole('combobox')).toHaveProperty('value', String(1 << 30));
+    expect(screen.getByRole('button', { name: '只读历史磁盘预算' }).textContent).toContain('1 GB');
   });
 
   it('包含「跟随磁盘剩余空间」与「自定义…」选项', () => {
     render(<TerminalHistoryBudgetSection />);
-    expect(screen.getByText('跟随磁盘剩余空间')).toBeTruthy();
-    expect(screen.getByText('自定义…')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '只读历史磁盘预算' }));
+    expect(screen.getByRole('option', { name: '跟随磁盘剩余空间' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: '自定义…' })).toBeTruthy();
   });
 
-  it('切到自定义档时出现数字输入框', async () => {
+  it('切到自定义档时出现数字输入框', () => {
     render(<TerminalHistoryBudgetSection />);
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'custom');
+    fireEvent.click(screen.getByRole('button', { name: '只读历史磁盘预算' }));
+    fireEvent.click(screen.getByRole('option', { name: '自定义…' }));
     expect(screen.getByRole('spinbutton')).toBeTruthy();
   });
 });
 
+function triggerLabel(): string {
+  return screen.getByRole('button', { name: '只读历史磁盘预算' }).textContent ?? '';
+}
+
+function selectBudgetOption(name: string) {
+  fireEvent.click(screen.getByRole('button', { name: '只读历史磁盘预算' }));
+  fireEvent.click(screen.getByRole('option', { name }));
+}
+
 describe('TerminalHistoryBudgetSection 自定义预算输入', () => {
-  async function renderInCustomMode() {
-    const user = userEvent.setup();
+  function renderInCustomMode() {
     const view = render(<TerminalHistoryBudgetSection />);
-    await user.selectOptions(screen.getByRole('combobox'), 'custom');
+    selectBudgetOption('自定义…');
     return { ...view, input: screen.getByRole('spinbutton') as HTMLInputElement };
   }
 
   it('逐键输入不写回偏好，停顿 500ms 后只提交最终值', async () => {
-    const { input } = await renderInCustomMode();
+    const { input } = renderInCustomMode();
 
     vi.useFakeTimers();
     fireEvent.change(input, { target: { value: '1' } });
@@ -114,7 +123,7 @@ describe('TerminalHistoryBudgetSection 自定义预算输入', () => {
   });
 
   it('停顿不足 500ms 的输入不会提交任何值', async () => {
-    const { input } = await renderInCustomMode();
+    const { input } = renderInCustomMode();
 
     vi.useFakeTimers();
     fireEvent.change(input, { target: { value: '7' } });
@@ -149,49 +158,47 @@ describe('TerminalHistoryBudgetSection 自定义预算输入', () => {
     rerender(<TerminalHistoryBudgetSection />);
 
     expect(screen.getByRole('spinbutton')).toBe(input);
-    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('custom');
+    expect(triggerLabel()).toContain('自定义…');
   });
 
   it('外部写入非档位值时进入自定义档，草稿重新播种并跟上外部值', () => {
     const { rerender } = render(<TerminalHistoryBudgetSection />);
-    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe(String(1 << 30));
+    expect(triggerLabel()).toContain('1 GB');
 
     mocks.state.configuredBytes = budgetBytesFromGb(3);
     rerender(<TerminalHistoryBudgetSection />);
 
-    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('custom');
+    expect(triggerLabel()).toContain('自定义…');
     expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('3');
   });
 
   it('外部写回跟随磁盘时收回编辑态（如「重置全部」）', async () => {
-    const { rerender } = await renderInCustomMode();
+    const { rerender } = renderInCustomMode();
     expect(screen.getByRole('spinbutton')).toBeTruthy();
 
     mocks.state.configuredBytes = 0;
     rerender(<TerminalHistoryBudgetSection />);
 
     expect(screen.queryByRole('spinbutton')).toBeNull();
-    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('follow-disk');
+    expect(triggerLabel()).toContain('跟随磁盘剩余空间');
   });
 
   it('存储值 0 渲染为「跟随磁盘剩余空间」档，而不是任何预设档位', () => {
     mocks.state.configuredBytes = 0;
     render(<TerminalHistoryBudgetSection />);
 
-    expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('follow-disk');
+    expect(triggerLabel()).toContain('跟随磁盘剩余空间');
     expect(screen.queryByRole('spinbutton')).toBeNull();
     expect(screen.getByText(FOLLOW_DISK_DESC)).toBeTruthy();
     expect(screen.getByText(/上限 跟随磁盘剩余空间/)).toBeTruthy();
   });
 
   it('改选档位会丢弃在途的自定义输入，不让旧草稿覆盖新选择', async () => {
-    const { input } = await renderInCustomMode();
+    const { input } = renderInCustomMode();
 
     vi.useFakeTimers();
     fireEvent.change(input, { target: { value: '128' } });
-    fireEvent.change(screen.getByRole('combobox'), {
-      target: { value: String(budgetBytesFromGb(2)) },
-    });
+    selectBudgetOption('2 GB');
     act(() => {
       vi.advanceTimersByTime(500);
     });
@@ -207,7 +214,7 @@ describe('TerminalHistoryBudgetSection 自定义预算输入', () => {
     render(<TerminalHistoryBudgetSection />);
     expect(screen.getByText(FOLLOW_DISK_DESC)).toBeTruthy();
 
-    await userEvent.selectOptions(screen.getByRole('combobox'), 'custom');
+    selectBudgetOption('自定义…');
 
     expect(screen.queryByText(FOLLOW_DISK_DESC)).toBeNull();
     expect(screen.getByText(/上限 1 GB/)).toBeTruthy();

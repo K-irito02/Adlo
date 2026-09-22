@@ -12,7 +12,7 @@ export const settingsZh = {
   settingsTerminal: '终端',
   settingsShortcuts: '快捷键',
   settingsBrowser: '浏览器',
-  settingsDsh: 'DeepSeek Harness',
+  settingsDsh: 'DSH',
 
   // 终端设置
   settingsTerminalHistoryGroupDesc: '管理终端的历史存储与显示行为',
@@ -27,24 +27,31 @@ export const settingsZh = {
 
   // 通用设置项
   settingsLanguage: '语言',
+  settingsLanguageDesc: '应用界面的显示语言，切换后立即生效',
   settingsTheme: '主题',
-  settingsThemeSystem: '跟随系统',
-  settingsThemeLight: '浅色',
-  settingsThemeDark: '深色',
+  settingsThemeDesc: '浅色 / 深色 / 跟随系统，影响全部界面的配色',
   settingsAutoApproval: '自动审批级别',
   settingsLogLevel: '日志级别',
-  settingsLogLevelDesc: '应用日志的详细程度',
+  settingsLogLevelDesc: '应用日志的详细程度，排查问题时可临时调高',
   settingsTerminalLogMode: '终端日志模式',
+  settingsTerminalLogModeDesc: '终端会话日志文件的写入方式：覆盖、追加或多文件',
   settingsDebugLogMode: '调试日志模式',
+  settingsDebugLogModeDesc: '调试日志文件的写入方式：覆盖、追加或多文件',
   settingsLogModeOverwrite: '覆盖',
   settingsLogModeAppend: '追加',
   settingsLogModeMulti: '多文件',
+  settingsResetGroupToDefault: '恢复{group}全部默认',
 
   // 字体设置
   settingsFontUi: '界面字体',
+  settingsFontUiDesc: '应用界面文字的字体，悬停选项可实时预览，点击后确认生效',
   settingsFontCode: '代码字体',
+  settingsFontCodeDesc: '编辑器与差异查看器代码的字体，悬停选项可实时预览，点击后确认生效',
   settingsFontTerminal: '终端字体',
+  settingsFontTerminalDesc: '终端会话文字的字体，悬停选项可实时预览，点击后确认生效',
   settingsFontPreview: '预览：The quick brown fox 1234567890',
+  settingsFontDefault: '默认',
+  settingsFontSystemNote: '留空即使用系统默认字体',
 
   // 快捷键
   settingsShortcutsTitle: '快捷键设置',

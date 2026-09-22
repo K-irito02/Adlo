@@ -282,8 +282,9 @@
   transition: var(--transition-colors);
 }
 
+/* hover 灰底只挂整行（.adl-settings-nav__row:hover），此处仅变字色：
+   若 item 与 row 同时上灰底（均为半透明），会叠成双层深灰。 */
 .adl-settings-nav__item:hover {
-  background: var(--surface-hover);
   color: var(--text-primary);
 }
 
@@ -490,15 +491,21 @@
   transform: translateX(16px);
 }
 
-/* ---- Select / input ---- */
+/* ---- Select / input ----
+   统一灰底直角：与恢复默认图标按钮同款 --bg-muted + --radius-sm(2px 偏直角)。
+   原生 select 保留给未迁移的设置组（browser/storage/dsh），同样收敛到该视觉。 */
 
 .adl-settings-select {
   padding: var(--space-1) var(--space-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
+}
+
+.adl-settings-select:hover {
+  background: var(--surface-hover);
 }
 
 .adl-settings-select:focus-visible {
@@ -508,9 +515,9 @@
 
 .adl-settings-input {
   padding: var(--space-1) var(--space-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
   width: 200px;
@@ -518,13 +525,12 @@
 }
 
 .adl-settings-input:hover:not(:readonly) {
-  border-color: var(--border-strong);
+  background: var(--surface-hover);
 }
 
 .adl-settings-input:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
-  border-color: var(--text-secondary);
 }
 
 .adl-settings-password {
@@ -554,11 +560,28 @@
   min-width: 200px;
 }
 
+/* 字体行：预览在左、下拉在右 */
+.adl-settings-font--row {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-settings-font--row .adl-settings-font__preview {
+  flex: 1;
+  min-width: 0;
+}
+
+.adl-settings-font--row .adl-settings-dropdown {
+  flex-shrink: 0;
+  min-width: 180px;
+}
+
 .adl-settings-font__input {
   padding: var(--space-1) var(--space-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
 }
@@ -573,7 +596,114 @@
   color: var(--text-secondary);
   padding: var(--space-1) var(--space-2);
   background: var(--bg-muted);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
+}
+
+/* ---- Settings custom dropdown（可复用：替代原生 select） ----
+   菜单经 Portal 挂 body（fixed 定位），不受祖先 overflow 裁剪；
+   滚动条复用项目 RevealScrollbar（overlay 悬停显现式，原生条隐藏）。 */
+
+.adl-settings-dropdown {
+  position: relative;
+  display: inline-block;
+  min-width: 160px;
+}
+
+.adl-settings-dropdown__trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-settings-dropdown__trigger:hover {
+  background: var(--surface-hover);
+}
+
+.adl-settings-dropdown__trigger:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-dropdown__trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-settings-dropdown__value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adl-settings-dropdown__menu {
+  position: fixed;
+  max-height: 240px;
+  display: flex;
+  background: var(--bg-card, var(--surface-raised));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.16));
+  z-index: var(--z-dropdown, 100);
+  padding: var(--space-1);
+}
+
+.adl-settings-dropdown__list {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  max-height: 232px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+
+.adl-settings-dropdown__list::-webkit-scrollbar {
+  display: none;
+}
+
+.adl-settings-dropdown__list > li {
+  margin: 0;
+}
+
+.adl-settings-dropdown__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-1-5) var(--space-2);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.adl-settings-dropdown__item:hover,
+.adl-settings-dropdown__item.is-active {
+  background: var(--bg-hover, var(--surface-hover));
+}
+
+.adl-settings-dropdown__item.is-selected {
+  font-weight: var(--font-medium);
 }
 
 /* ---- Reset actions ---- */
@@ -609,16 +739,73 @@
   color: var(--text-muted);
   cursor: pointer;
   transition: var(--transition-colors);
+  flex-shrink: 0;
 }
 
 .adl-settings-row__reset:hover {
-  background: var(--surface-hover);
-  color: var(--text-secondary);
+  background: var(--bg-muted);
+  color: var(--text-primary);
 }
 
 .adl-settings-row__reset:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* 行首内联恢复按钮：与标题同行，尺寸收紧 */
+.adl-settings-row__reset--inline {
+  padding: 2px;
+  margin-right: var(--space-1);
+  vertical-align: -2px;
+}
+
+/* 左侧导航行：组按钮占满整行；组级重置按钮绝对定位悬浮于右侧，
+   不占布局——hover/选中灰底始终与右边缘贴合 */
+.adl-settings-nav__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.adl-settings-nav__row .adl-settings-nav__item {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 选中灰底落整行（含重置按钮区），与右边缘贴合 */
+.adl-settings-nav__row.is-active {
+  background: var(--pastel-neutral-bg);
+}
+
+.adl-settings-nav__row.is-active .adl-settings-nav__item {
+  background: transparent;
+}
+
+/* hover 灰底挂整行：悬停在悬浮的重置按钮上也视为悬停该行，灰底不消失 */
+.adl-settings-nav__row:hover {
+  background: var(--surface-hover);
+}
+
+.adl-settings-nav__row.is-active:hover {
+  background: var(--pastel-neutral-bg);
+}
+
+/* 有重置按钮的行：给文字留出按钮位，避免悬浮按钮盖字 */
+.adl-settings-nav__row:has(.adl-settings-nav__reset) .adl-settings-nav__item {
+  padding-right: calc(var(--space-3) + 20px);
+}
+
+.adl-settings-nav__reset {
+  position: absolute;
+  right: var(--space-1);
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+}
+
+.adl-settings-nav__row:hover .adl-settings-nav__reset,
+.adl-settings-nav__row:focus-within .adl-settings-nav__reset {
+  opacity: 1;
 }
 
 /* ---- Keybinds ---- */
