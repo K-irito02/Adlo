@@ -1,4 +1,4 @@
-export { HintCard } from './HintCard';
+export { HintCard, HINT_TITLE_PREFIX } from './HintCard';
 export type { HintCardProps } from './HintCard';
 export { HintCardTrigger, HINT_CLOSE_DELAY_MS } from './HintCardTrigger';
 export type { HintCardTriggerProps } from './HintCardTrigger';

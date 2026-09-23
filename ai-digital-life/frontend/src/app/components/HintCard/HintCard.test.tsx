@@ -1,6 +1,6 @@
 import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HintCard } from './HintCard';
+import { HintCard, HINT_TITLE_PREFIX } from './HintCard';
 
 function makeRect(left: number, top: number): DOMRect {
   return {
@@ -82,6 +82,23 @@ describe('HintCard', () => {
     expect(titles[1].textContent).toBe('优先加载列表');
     expect(titles[0].getAttribute('role')).toBe('heading');
     expect(screen.getByText('随应用程序启动立即加载')).toBeTruthy();
+  });
+
+  it('does not render empty # titles as blank headings', async () => {
+    await act(async () => {
+      render(
+        <HintCard visible triggerRect={makeRect(100, 100)}>
+          {'# \n正文'}
+        </HintCard>,
+      );
+    });
+    const titles = document.querySelectorAll('.hint-card__title');
+    expect(titles).toHaveLength(0);
+    // 空标题 '# ' 降级为普通行
+    const lines = document.querySelectorAll('.hint-card__line');
+    expect(lines.length).toBeGreaterThanOrEqual(1);
+    expect(lines[0].textContent).toBe('# ');
+    expect(screen.getByText('正文')).toBeTruthy();
   });
 
   it('renders ReactNode content directly', async () => {

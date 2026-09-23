@@ -258,9 +258,9 @@
 }
 
 .adl-settings-nav__item.is-active {
-  background: var(--bg-active);
   color: var(--text-primary);
   font-weight: var(--font-semibold);
+  /* 背景由 row.is-active 控制，item 层不设——防止 bg-active 透明叠色变深 */
 }
 
 .adl-settings-nav__item:focus-visible {
@@ -1080,10 +1080,9 @@
 }
 
 /* ---- Max-concurrent row: no divider above the three lists ----
-   卡内首行即该行（后跟 .workspace-curtain），收紧为 :first-child：
-   未来若在卡内追加其它 row，新行仍保留全局分隔线。 */
+   使用 .adl-settings-row--flush 语义修饰，不依赖 DOM 顺序 (:first-child)。 */
 
-.adl-settings-workspace .adl-settings-card > .adl-settings-row:first-child {
+.adl-settings-workspace .adl-settings-card > .adl-settings-row--flush {
   border-bottom: none;
 }
 

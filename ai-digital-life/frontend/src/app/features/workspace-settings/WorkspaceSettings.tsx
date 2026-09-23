@@ -11,14 +11,10 @@ import { DndContext, pointerWithin, type CollisionDetection } from '@dnd-kit/cor
 import { useWorkspaceDnd } from './useWorkspaceDnd';
 import { SortableWorkspaceList } from './SortableWorkspaceList';
 import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
-import { HintCardTrigger } from '../../components/HintCard';
+import { HintCardTrigger, HINT_TITLE_PREFIX } from '../../components/HintCard';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
-import {
-  DEFAULT_MAX_CONCURRENT_WORKSPACES,
-  DEFAULT_WORKSPACE_PRIORITY_IDS,
-  DEFAULT_WORKSPACE_DEFERRED_IDS,
-  DEFAULT_WORKSPACE_NATURAL_ORDER,
-} from '../../../shared/defaultPreferences';
+import { GROUP_RESET_PATCHES } from '../../components/settings/settingsGroups';
+import { DEFAULT_MAX_CONCURRENT_WORKSPACES } from '../../../shared/defaultPreferences';
 
 function sameIdList(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
@@ -60,14 +56,36 @@ export function WorkspaceSettings() {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
       }
+      const timerP = p;
+      const timerPri = pri;
+      const timerDef = def;
+      const timerNat = nat;
       debounceRef.current = setTimeout(() => {
-        lastPersistedRef.current = { max: p, pri, def, nat };
-        updatePreferences({
-          maxConcurrentWorkspaces: p,
-          workspacePriorityIds: pri,
-          workspaceDeferredIds: def,
-          workspaceNaturalOrder: nat,
-        });
+        void (async () => {
+          try {
+            const ok = await updatePreferences({
+              maxConcurrentWorkspaces: timerP,
+              workspacePriorityIds: timerPri,
+              workspaceDeferredIds: timerDef,
+              workspaceNaturalOrder: timerNat,
+            });
+            if (!ok) {
+              throw new Error('updatePreferences returned false');
+            }
+            // 只有在 timer 未被 effect 清掉时才更新 lastPersistedRef，
+            // 避免外部重置先落盘后被过期写入覆盖。
+            if (debounceRef.current === undefined) {
+              lastPersistedRef.current = {
+                max: timerP,
+                pri: timerPri,
+                def: timerDef,
+                nat: timerNat,
+              };
+            }
+          } catch {
+            lastPersistedRef.current = null;
+          }
+        })();
       }, 200);
     },
     [updatePreferences],
@@ -193,6 +211,8 @@ export function WorkspaceSettings() {
       sameIdList(persisted.pri, cfgPri ?? []) &&
       sameIdList(persisted.def, cfgDef ?? []) &&
       sameIdList(persisted.nat, cfgNat ?? []);
+    // 第二守卫：persist 回显已到但用户在回显延迟内又做了新编辑时，
+    // local≠cfg 走向"外部赢"分支——此处拦住，保护在途编辑不被覆盖。
     if (isOwnEcho) {
       return;
     }
@@ -239,34 +259,33 @@ export function WorkspaceSettings() {
       clearTimeout(debounceRef.current);
       debounceRef.current = undefined;
     }
-    const nextMax = DEFAULT_MAX_CONCURRENT_WORKSPACES;
-    const nextPri = [...DEFAULT_WORKSPACE_PRIORITY_IDS];
-    const nextDef = [...DEFAULT_WORKSPACE_DEFERRED_IDS];
-    const nextNat = [...DEFAULT_WORKSPACE_NATURAL_ORDER];
+    const patch = GROUP_RESET_PATCHES.workspace!();
+    const nextMax = patch.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES;
+    const nextPri = [...(patch.workspacePriorityIds ?? [])];
+    const nextDef = [...(patch.workspaceDeferredIds ?? [])];
+    const nextNat = [...(patch.workspaceNaturalOrder ?? [])];
     lastPersistedRef.current = { max: nextMax, pri: nextPri, def: nextDef, nat: nextNat };
     setMaxConcurrent(nextMax);
     setPriorityIds(nextPri);
     setDeferredIds(nextDef);
     setNaturalOrder(nextNat);
     void (async () => {
-      const ok = await updatePreferences({
-        maxConcurrentWorkspaces: nextMax,
-        workspacePriorityIds: nextPri,
-        workspaceDeferredIds: nextDef,
-        workspaceNaturalOrder: nextNat,
-      });
-      if (ok) {
-        showToast(t.settingsResetComplete, 'success');
-        return;
+      try {
+        const ok = await updatePreferences(patch);
+        if (ok) {
+          showToast(t.settingsResetComplete, 'success');
+          return;
+        }
+        throw new Error('updatePreferences returned false');
+      } catch {
+        lastPersistedRef.current = null;
+        const cfg = useAppStore.getState().appInfo?.config;
+        setMaxConcurrent(cfg?.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES);
+        setPriorityIds([...(cfg?.workspacePriorityIds ?? [])]);
+        setDeferredIds([...(cfg?.workspaceDeferredIds ?? [])]);
+        setNaturalOrder([...(cfg?.workspaceNaturalOrder ?? [])]);
+        showToast(t.settingsUpdateFailed, 'error');
       }
-      // 失败回滚：本地回到落盘值，避免与 store 脱节（effect 依赖未变不会自动纠正）。
-      lastPersistedRef.current = null;
-      const cfg = useAppStore.getState().appInfo?.config;
-      setMaxConcurrent(cfg?.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES);
-      setPriorityIds([...(cfg?.workspacePriorityIds ?? [])]);
-      setDeferredIds([...(cfg?.workspaceDeferredIds ?? [])]);
-      setNaturalOrder([...(cfg?.workspaceNaturalOrder ?? [])]);
-      showToast(t.settingsUpdateFailed, 'error');
     })();
   }, [updatePreferences, showToast, t]);
 
@@ -299,7 +318,7 @@ export function WorkspaceSettings() {
         onDragEnd={dnd.handleDragEnd}
       >
         <div className="adl-settings-card" data-testid="workspace-load-card">
-          <div className="adl-settings-row">
+          <div className="adl-settings-row adl-settings-row--flush">
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <HintCardTrigger content={t.maxConcurrentWorkspacesDesc}>
@@ -332,7 +351,7 @@ export function WorkspaceSettings() {
               <SortableWorkspaceList
                 kind="priority"
                 title={t.priorityList}
-                tooltipContent={`# ${t.listHintIntroTitle}\n${t.priorityListDesc}\n${t.priorityListTooltip}`}
+                tooltipContent={`${HINT_TITLE_PREFIX}${t.listHintIntroTitle}\n${t.priorityListDesc}\n${t.priorityListTooltip}`}
                 badgeLabel={t.optional}
                 items={priorityWorkspaces}
                 emptyText={t.priorityListEmpty}
@@ -343,7 +362,7 @@ export function WorkspaceSettings() {
               <SortableWorkspaceList
                 kind="deferred"
                 title={t.deferredList}
-                tooltipContent={`# ${t.listHintIntroTitle}\n${t.deferredListDesc}\n${t.deferredListTooltip}`}
+                tooltipContent={`${HINT_TITLE_PREFIX}${t.listHintIntroTitle}\n${t.deferredListDesc}\n${t.deferredListTooltip}`}
                 badgeLabel={t.optional}
                 items={deferredWorkspaces}
                 emptyText={t.deferredListEmpty}
@@ -354,7 +373,7 @@ export function WorkspaceSettings() {
               <SortableWorkspaceList
                 kind="natural"
                 title={t.workspaceTagList}
-                tooltipContent={`# ${t.listHintIntroTitle}\n${t.workspaceTagListDesc}\n${t.workspaceTagListTooltip}`}
+                tooltipContent={`${HINT_TITLE_PREFIX}${t.listHintIntroTitle}\n${t.workspaceTagListDesc}\n${t.workspaceTagListTooltip}`}
                 items={naturalWorkspaces}
                 emptyText={t.workspaceTagListEmpty}
                 removeLabel={t.removeWorkspace}

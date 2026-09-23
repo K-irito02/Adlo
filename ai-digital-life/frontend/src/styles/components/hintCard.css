@@ -134,6 +134,9 @@
 .hint-card__title + .hint-card__line {
   margin-top: var(--space-1);
 }
+.hint-card__title + .hint-card__bullet-line {
+  margin-top: var(--space-1);
+}
 
 /* --- Reduced motion --- */
 @media (prefers-reduced-motion: reduce) {

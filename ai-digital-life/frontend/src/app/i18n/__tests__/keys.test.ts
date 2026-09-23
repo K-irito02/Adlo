@@ -204,6 +204,9 @@ describe('workspace settings loading copy (rename + plain language)', () => {
     // 特殊情况分点用全称，与列表标题一致
     expect(String(zhCN.workspaceTagListTooltip)).toContain('优先加载列表');
     expect(String(zhCN.workspaceTagListTooltip)).toContain('延迟加载列表');
+    // 特殊情况 header 不是分点（不以 · 开头），仅子项为分点
+    expect(String(zhCN.workspaceTagListTooltip)).toContain('特殊情况：\n· ');
+    expect(String(zhCN.workspaceTagListTooltip)).not.toContain('· 特殊情况：');
   });
 });
 

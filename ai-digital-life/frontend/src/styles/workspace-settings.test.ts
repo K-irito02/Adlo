@@ -67,7 +67,7 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   it('drops the divider between the max-concurrent row and the lists', () => {
     const body = ruleBody(
       settingsCss,
-      '.adl-settings-workspace .adl-settings-card > .adl-settings-row:first-child',
+      '.adl-settings-workspace .adl-settings-card > .adl-settings-row--flush',
     );
     expect(body).not.toBeNull();
     expect(body).toContain('border-bottom: none');
@@ -120,8 +120,9 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   it('matches a selected nav item to the row and keeps its bold label', () => {
     const item = ruleBody(settingsCss, '.adl-settings-nav__item.is-active');
     expect(item).not.toBeNull();
-    expect(item).toContain('background: var(--bg-active)');
     expect(item).toContain('font-weight: var(--font-semibold)');
+    // 背景由 row.is-active 控制，item 层不设——防止 bg-active 透明叠色
+    expect(item).not.toContain('background');
   });
 
   it('composes list hints with a shared intro title and single-newline sections', () => {

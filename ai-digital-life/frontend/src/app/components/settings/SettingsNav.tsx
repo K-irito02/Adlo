@@ -8,7 +8,7 @@ import { SETTINGS_GROUPS } from './settingsGroups';
 interface SettingsNavProps {
   activeGroup: SettingsGroupId;
   onSelectGroup: (group: SettingsGroupId) => void;
-  /** 组级重置：仅已接入默认映射的组渲染按钮（general / workspace）。 */
+  /** 组级重置：仅 RESETTABLE_GROUPS（由 GROUP_RESET_PATCHES 派生）中的组渲染按钮。 */
   resettableGroups?: ReadonlySet<SettingsGroupId>;
   onResetGroup?: (group: SettingsGroupId) => void;
 }
