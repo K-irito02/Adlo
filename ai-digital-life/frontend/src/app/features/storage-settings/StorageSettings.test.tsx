@@ -720,7 +720,7 @@ describe('StorageSettings', () => {
     expect(screen.queryByText('storageStatusLoading')).toBeNull();
     expect(warnSpy).toHaveBeenCalled();
 
-    // 第二次点击重试：良构成功 → 错误清除、11 行渲染（F4）。
+    // 第二次点击重试：良构成功 → 错误清除、10 行渲染（F4）。
     fireEvent.click(screen.getByRole('button', { name: 'storageRetry' }));
     await waitFor(() => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);

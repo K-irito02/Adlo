@@ -31,7 +31,12 @@ pub fn resolve_defaults(app: &tauri::App) -> anyhow::Result<adl_kernel::storage:
 
 /// 计算默认数据根：优先「与安装目录同级的新建 `<安装目录名>-data」目录」；
 /// 该路径不可写时回退到已解析的系统用户数据目录。
+/// 说明：仅打包（release）产物启用该同级策略；debug 构建 exe 位于 `target/debug`，
+/// 同级目录会落在 `target/` 内，被 `cargo clean`/`clean-target.ps1` 物理删除，故直接回落系统数据目录。
 fn default_data_root(fallback: PathBuf) -> PathBuf {
+    if cfg!(debug_assertions) {
+        return fallback;
+    }
     std::env::current_exe()
         .ok()
         .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
@@ -44,9 +49,6 @@ fn preferred_default_root(install_dir: &Path, fallback: PathBuf) -> PathBuf {
     let Some(name) = install_dir.file_name().map(|n| n.to_string_lossy().into_owned()) else {
         return fallback;
     };
-    if name.is_empty() {
-        return fallback;
-    }
     let parent = install_dir.parent().unwrap_or(install_dir);
     let candidate = parent.join(format!("{name}-data"));
     if is_writable(&candidate) { candidate } else { fallback }

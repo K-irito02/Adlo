@@ -387,7 +387,7 @@ export function StorageSettings() {
   const buildPatch = useCallback(
     (retainSource: boolean): StoragePathPatch => ({
       mode,
-      root: mode === 'unified' ? rootDraft : null,
+      root: mode === 'unified' ? rootDraft.trim() : null,
       categories: mode === 'per_category' ? categoryDrafts : {},
       retainSource,
     }),
