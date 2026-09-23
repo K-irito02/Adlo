@@ -76,20 +76,21 @@ export const workspaceEn = {
   settingsWorkspaceLoad: 'Workspace Loading',
   maxConcurrentWorkspaces: 'Max concurrent loading',
   maxConcurrentWorkspacesDesc:
-    'Higher values speed up the priority phase but increase CPU/memory pressure. Each workspace loads 2 concurrent requests (file tree + git status). Recommended: 4-8. Note: deferred and workspace tag list phases use min(2, this value) as their concurrency cap to reduce background load',
+    'Higher values speed up the priority phase but increase CPU and memory pressure. Each workspace starts 2 tasks at once (file tree + version status). Recommended: 4-8. The deferred and regular phases load at most 2 workspaces at a time to keep background load low',
+  listHintIntroTitle: 'Overview',
   priorityList: 'Priority',
-  priorityListDesc: 'Loaded synchronously at app startup; blocks first screen until all complete',
+  priorityListDesc: 'Loaded immediately at app startup; the first screen waits until all finish',
   priorityListTooltip:
-    '[Priority Loading List]\n\nTiming: Loaded synchronously at app startup; blocks first screen rendering. The app is not marked ready (appReady) until all priority workspaces finish loading\n\nConcurrency cap: maxConcurrent (user-configured, default 6)\n\nNote: The more workspaces in this list, the longer the first screen waits. Recommend only your most-used workspaces here\n\nSpecial case: If this list is empty, this phase is skipped and execution proceeds to the next phase',
+    '# Priority Loading List\n· Timing: Loaded immediately at app startup; the main UI does not appear until all finish\n· Concurrency: up to "Max concurrent loading" workspaces at once (default 6)\n· Note: the longer this list, the longer startup waits — keep only your most-used workspaces here\n· When empty: this phase is skipped and execution moves to the next one',
   deferredList: 'Deferred',
-  deferredListDesc: 'Loaded asynchronously after first screen is ready; does not block UI',
+  deferredListDesc: 'Continues loading in the background after startup; does not slow the UI',
   deferredListTooltip:
-    '[Deferred Loading List]\n\nTiming: Loaded asynchronously after first screen is ready (appReady); does not block UI. Users can operate the app normally during deferred loading\n\nConcurrency cap: min(2, maxConcurrent) to limit background load\n\nOrder: Begins after the priority phase completes; the workspace tag list phase begins only after this phase completes\n\nSpecial case: If this list is empty, this phase is skipped and execution proceeds to the workspace tag list phase',
-  workspaceTagList: 'Workspace Tag List',
+    '# Deferred Loading List\n· Timing: loads in the background once the main UI is ready; you can keep working\n· Concurrency: at most 2 workspaces at once to keep background load low\n· Order: starts after the priority phase; the regular phase starts only after this one\n· When empty: this phase is skipped and execution moves to the regular phase',
+  workspaceTagList: 'Regular',
   workspaceTagListDesc:
-    'Loaded asynchronously after both lists above complete. Default order: by add time descending (newest on top)',
+    'Starts after both the priority and deferred lists finish. Default order: newest added first',
   workspaceTagListTooltip:
-    '[Workspace Tag List]\n\nTiming: Loaded asynchronously after both the priority and deferred lists complete; this is the lowest priority batch\n\nConcurrency cap: min(2, maxConcurrent) to limit background load\n\nDefault order: by workspace add time descending (newest on top, oldest at bottom). Users can customize via drag-and-drop\n\nIndependence: This list order is independent of the sidebar workspace tag order; neither affects the other. Only these three lists determine workspace load order\n\nSpecial cases:\n• If priority is empty and deferred is non-empty, deferred becomes high priority; this list remains low priority\n• If both priority and deferred are empty, this list becomes high priority (blocks first screen)\n• If priority is non-empty and deferred is empty, this list becomes medium priority (runs immediately after first screen)\n• Stray workspaces (not in any list) are automatically appended to the end of this list',
+    '# Regular Loading List\n· Timing: starts after both the priority and deferred lists finish; this is the final batch\n· Concurrency: at most 2 workspaces at once to keep background load low\n· Default order: newest added first; drag to customize\n· Independence: independent of the sidebar workspace tag order; these three lists alone decide the load order\n· Special cases:\n· If deferred is non-empty and priority is empty, deferred runs as high priority and this list stays low priority\n· If both are empty, this list becomes high priority (runs at startup)\n· If priority is non-empty and deferred is empty, this list runs as medium priority (right after the first screen)\n· Workspaces not in any list are appended to the end of this list',
   priorityListEmpty: 'Drag a workspace here to prioritize it',
   deferredListEmpty: 'Drag a workspace here to defer it',
   workspaceTagListEmpty: 'All workspaces are assigned to priority or deferred lists',

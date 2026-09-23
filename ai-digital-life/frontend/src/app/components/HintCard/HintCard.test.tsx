@@ -54,6 +54,20 @@ describe('HintCard', () => {
     expect(screen.getByText('item two')).toBeTruthy();
   });
 
+  it('renders # heading lines as titled sections', async () => {
+    await act(async () => {
+      render(
+        <HintCard visible triggerRect={makeRect(100, 100)}>
+          {'# 简介\n正文'}
+        </HintCard>,
+      );
+    });
+    const title = document.querySelector('.hint-card__title');
+    expect(title).toBeTruthy();
+    expect(title!.textContent).toBe('简介');
+    expect(screen.getByText('正文')).toBeTruthy();
+  });
+
   it('renders ReactNode content directly', async () => {
     await act(async () => {
       render(

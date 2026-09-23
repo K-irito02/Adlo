@@ -93,6 +93,32 @@ describe('SortableWorkspaceList', () => {
     expect(exclamationPath).toBeNull();
   });
 
+  it('places the info icon before the section title text', () => {
+    const { container } = renderInDnd(
+      <SortableWorkspaceList
+        kind="priority"
+        title="P"
+        tooltipContent="t"
+        items={[]}
+        emptyText="Empty"
+        removeLabel="Remove {name}"
+      />,
+    );
+    const title = container.querySelector('.adl-sortable-section-title');
+    expect(title).not.toBeNull();
+    const children = Array.from(title!.children);
+    const infoIndex = children.findIndex(
+      (c) =>
+        c.classList.contains('adl-icon-button--info') || c.querySelector('.adl-icon-button--info'),
+    );
+    const textIndex = children.findIndex((c) =>
+      c.classList.contains('adl-sortable-section-title-text'),
+    );
+    expect(infoIndex).toBeGreaterThanOrEqual(0);
+    expect(textIndex).toBeGreaterThanOrEqual(0);
+    expect(infoIndex).toBeLessThan(textIndex);
+  });
+
   it('renders remove button for priority list', () => {
     renderInDnd(
       <SortableWorkspaceList

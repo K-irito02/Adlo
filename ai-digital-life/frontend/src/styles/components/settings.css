@@ -105,7 +105,6 @@
 
 .adl-settings-panel__content--cards > .adl-settings-card,
 .adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card,
-.adl-settings-panel__content--cards > .adl-settings-section .workspace-grid > .adl-settings-card,
 .adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card,
 .adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card {
   animation: adl-settings-card-enter var(--duration-editorial) var(--ease-editorial) both;
@@ -160,36 +159,6 @@
 .adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(n + 7),
 .adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(n + 7) {
   animation-delay: 480ms;
-}
-
-/* Workspace bento grid cards (grandchildren via .workspace-curtain):
-   own short ladder continuing after the load-settings card (0ms). */
-.adl-settings-panel__content--cards
-  > .adl-settings-section
-  .workspace-grid
-  > .adl-settings-card:nth-child(1) {
-  animation-delay: 80ms;
-}
-
-.adl-settings-panel__content--cards
-  > .adl-settings-section
-  .workspace-grid
-  > .adl-settings-card:nth-child(2) {
-  animation-delay: 160ms;
-}
-
-.adl-settings-panel__content--cards
-  > .adl-settings-section
-  .workspace-grid
-  > .adl-settings-card:nth-child(3) {
-  animation-delay: 240ms;
-}
-
-.adl-settings-panel__content--cards
-  > .adl-settings-section
-  .workspace-grid
-  > .adl-settings-card:nth-child(n + 4) {
-  animation-delay: 320ms;
 }
 
 @keyframes adl-settings-card-enter {
@@ -289,7 +258,7 @@
 }
 
 .adl-settings-nav__item.is-active {
-  background: var(--pastel-neutral-bg);
+  background: var(--bg-active);
   color: var(--text-primary);
   font-weight: var(--font-semibold);
 }
@@ -514,6 +483,10 @@
 .adl-settings-input:focus-visible {
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-input--narrow {
+  width: 80px;
 }
 
 .adl-settings-password {
@@ -750,9 +723,10 @@
   min-width: 0;
 }
 
-/* 选中灰底落整行（含重置按钮区），与右边缘贴合 */
+/* 选中灰底落整行（含重置按钮区），与右边缘贴合。
+   用文件树同款 --bg-active（深于 hover 的 --surface-hover），选中与悬停深浅分明 */
 .adl-settings-nav__row.is-active {
-  background: var(--pastel-neutral-bg);
+  background: var(--bg-active);
 }
 
 .adl-settings-nav__row.is-active .adl-settings-nav__item {
@@ -765,7 +739,7 @@
 }
 
 .adl-settings-nav__row.is-active:hover {
-  background: var(--pastel-neutral-bg);
+  background: var(--bg-active);
 }
 
 /* 有重置按钮的行：给文字留出按钮位，避免悬浮按钮盖字 */
@@ -1020,11 +994,11 @@
 }
 
 .adl-sortable-empty {
-  padding: var(--space-2) var(--space-3);
-  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
   color: var(--text-muted);
   border: 1px dashed var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   text-align: center;
 }
 
@@ -1035,7 +1009,7 @@
   padding: var(--space-1) var(--space-2);
   background: var(--bg-muted);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   cursor: grab;
 }
 
@@ -1085,6 +1059,36 @@
   background: var(--pastel-danger-bg);
 }
 
+/* ---- Workspace block header (title + group reset above the merged card) ---- */
+
+.adl-settings-workspace__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-settings-section.adl-settings-workspace {
+  gap: var(--space-3);
+}
+
+.adl-settings-workspace__header .adl-settings-header {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+/* ---- Max-concurrent row: no divider above the three lists ---- */
+
+.adl-settings-workspace .adl-settings-card > .adl-settings-row {
+  border-bottom: none;
+}
+
+.adl-settings-panel__content--cards > .adl-settings-section.adl-settings-workspace > .adl-settings-card {
+  animation-delay: 0ms;
+}
+
 /* ---- Workspace three-column grid (bento) ---- */
 
 .workspace-curtain {
@@ -1098,21 +1102,8 @@
   gap: var(--space-3);
 }
 
-.workspace-grid--cards > .adl-settings-card {
-  min-width: 0;
-}
-
 .workspace-grid > .adl-sortable-section {
   margin-bottom: 0;
-}
-
-.adl-settings-card--grid {
-  padding: var(--space-4);
-}
-
-.adl-settings-card--grid .adl-settings-section,
-.adl-settings-card--grid > .adl-sortable-section {
-  gap: var(--space-2);
 }
 
 /* Section header title — single-line always */

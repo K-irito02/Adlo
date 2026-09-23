@@ -122,6 +122,15 @@
 .hint-card__line {
   white-space: pre-line;
 }
+.hint-card__title {
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+  margin-top: var(--space-2);
+}
+.hint-card__title:first-child {
+  margin-top: 0;
+}
 
 /* --- Reduced motion --- */
 @media (prefers-reduced-motion: reduce) {

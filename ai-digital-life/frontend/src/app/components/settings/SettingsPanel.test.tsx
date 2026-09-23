@@ -10,8 +10,12 @@ import {
   DEFAULT_FONTS,
   DEFAULT_LANGUAGE,
   DEFAULT_LOG_LEVEL,
+  DEFAULT_MAX_CONCURRENT_WORKSPACES,
   DEFAULT_TERMINAL_LOG_MODE,
   DEFAULT_THEME_MODE,
+  DEFAULT_WORKSPACE_DEFERRED_IDS,
+  DEFAULT_WORKSPACE_NATURAL_ORDER,
+  DEFAULT_WORKSPACE_PRIORITY_IDS,
   getDefaultPreferences,
 } from '../../../shared/defaultPreferences';
 
@@ -288,5 +292,37 @@ describe('SettingsPanel group reset', () => {
     await waitFor(() => {
       expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
     });
+  });
+
+  it('工作区组级重置弹分组文案并提交工作区默认 patch', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsWorkspace all defaults' }));
+    expect(screen.getByText('Reset settingsWorkspace?')).not.toBeNull();
+    expect(screen.getByText('settingsWorkspace group will reset')).not.toBeNull();
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    expect(updatePreferences).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(updatePreferences).toHaveBeenCalledTimes(1);
+    });
+    // 工作区组 patch 全值断言：仅 4 个工作区字段，均为默认值。
+    expect(updatePreferences).toHaveBeenCalledWith({
+      maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
+      workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
+      workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
+      workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
+    });
+    expect(showToast).toHaveBeenCalledWith('settingsResetComplete', 'success');
+    expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
+  });
+
+  it('工作区组级重置取消不执行', () => {
+    const { updatePreferences } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsWorkspace all defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
   });
 });

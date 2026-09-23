@@ -94,8 +94,6 @@ export function SortableWorkspaceList({
   return (
     <div className="adl-sortable-section">
       <h4 className="adl-sortable-section-title">
-        <span className="adl-sortable-section-title-text">{title}</span>
-        {badgeLabel && <span className="adl-sortable-section-badge">{badgeLabel}</span>}
         <HintCardTrigger content={tooltipContent}>
           <button
             type="button"
@@ -106,6 +104,8 @@ export function SortableWorkspaceList({
             <IconCircleHelp size={16} />
           </button>
         </HintCardTrigger>
+        <span className="adl-sortable-section-title-text">{title}</span>
+        {badgeLabel && <span className="adl-sortable-section-badge">{badgeLabel}</span>}
       </h4>
       <SortableContext items={itemIds} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className="adl-sortable-list" data-droppable={kind}>

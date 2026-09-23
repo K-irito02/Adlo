@@ -138,6 +138,72 @@ describe('i18n zh-CN mirror', () => {
   });
 });
 
+describe('workspace settings loading copy (rename + plain language)', () => {
+  const HINT_FIELDS = [
+    'maxConcurrentWorkspacesDesc',
+    'priorityListDesc',
+    'priorityListTooltip',
+    'deferredListDesc',
+    'deferredListTooltip',
+    'workspaceTagListDesc',
+    'workspaceTagListTooltip',
+  ] as const;
+
+  it('renames 工作区标签列表 to 常规加载 / Regular', () => {
+    expect(zhCN.workspaceTagList).toBe('常规加载');
+    expect(enUS.workspaceTagList).toBe('Regular');
+  });
+
+  it('zh hint copy no longer mentions the old list name', () => {
+    for (const key of HINT_FIELDS) {
+      expect(String(zhCN[key]), key).not.toContain('工作区标签列表');
+    }
+    expect(String(zhCN.workspaceTagListEmpty)).not.toContain('工作区标签列表');
+  });
+
+  it('en hint copy no longer mentions the old list name', () => {
+    for (const key of HINT_FIELDS) {
+      expect(String(enUS[key]), key).not.toMatch(/workspace tag list/i);
+    }
+    expect(String(enUS.workspaceTagListEmpty)).not.toMatch(/workspace tag list/i);
+  });
+
+  it('zh hint copy avoids English jargon mixing', () => {
+    const banned = /priority|deferred|appReady|maxConcurrent|min\(|CPU|Git/i;
+    for (const key of HINT_FIELDS) {
+      expect(String(zhCN[key]), key).not.toMatch(banned);
+    }
+  });
+
+  it('zh list tooltips use · bullet lines for readability', () => {
+    expect(String(zhCN.priorityListTooltip)).toContain('· ');
+    expect(String(zhCN.deferredListTooltip)).toContain('· ');
+    expect(String(zhCN.workspaceTagListTooltip)).toContain('· ');
+    // 常规加载 tooltip 以新名称开篇
+    expect(String(zhCN.workspaceTagListTooltip)).toContain('常规加载');
+    expect(String(enUS.workspaceTagListTooltip)).toContain('Regular');
+  });
+
+  it('list hint copy uses titled sections without bracket decorations', () => {
+    expect(zhCN.listHintIntroTitle).toBe('简介');
+    expect(enUS.listHintIntroTitle).toBe('Overview');
+    for (const key of [
+      'priorityListTooltip',
+      'deferredListTooltip',
+      'workspaceTagListTooltip',
+    ] as const) {
+      const zh = String(zhCN[key]);
+      const en = String(enUS[key]);
+      expect(zh.startsWith('# '), key).toBe(true);
+      expect(en.startsWith('# '), key).toBe(true);
+      expect(zh, key).not.toMatch(/[【】\[\]]/);
+      expect(en, key).not.toMatch(/[【】\[\]]/);
+      expect(zh, key).not.toContain('\n\n');
+      expect(en, key).not.toContain('\n\n');
+    }
+  });
+});
+
 describe('git-visualization copy', () => {
   it('zh-CN branch graph desc separates legend symbols from text and avoids English "tagged"', () => {
     const desc = String(zhCN.gitVisBranchGraphDesc);

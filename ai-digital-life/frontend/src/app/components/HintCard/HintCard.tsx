@@ -19,6 +19,13 @@ function parseContent(content: React.ReactNode): React.ReactNode {
 
   const lines = content.split('\n');
   return lines.map((line, idx) => {
+    if (line.startsWith('# ')) {
+      return (
+        <div key={idx} className="hint-card__title">
+          {line.slice(2)}
+        </div>
+      );
+    }
     if (line.startsWith('· ')) {
       return (
         <div key={idx} className="hint-card__bullet-line">

@@ -2,23 +2,43 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '../../stores/slicedStore';
 import { useTCopy } from '../../i18n/useTCopy';
+import { formatT } from '../../i18n/formatT';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { IconCircleHelp } from '../../icons/status';
-import { IconMenu, IconClose } from '../../icons';
+import { IconMenu, IconClose, IconResetDefaults } from '../../icons';
 import { DndContext, pointerWithin, type CollisionDetection } from '@dnd-kit/core';
 import { useWorkspaceDnd } from './useWorkspaceDnd';
 import { SortableWorkspaceList } from './SortableWorkspaceList';
 import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
 import { HintCardTrigger } from '../../components/HintCard';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
+import {
+  DEFAULT_MAX_CONCURRENT_WORKSPACES,
+  DEFAULT_WORKSPACE_PRIORITY_IDS,
+  DEFAULT_WORKSPACE_DEFERRED_IDS,
+  DEFAULT_WORKSPACE_NATURAL_ORDER,
+} from '../../../shared/defaultPreferences';
+
+function sameIdList(a: string[], b: string[]): boolean {
+  return a.length === b.length && a.every((v, i) => v === b[i]);
+}
+
+interface LastPersistedValues {
+  max: number;
+  pri: string[];
+  def: string[];
+  nat: string[];
+}
 
 export function WorkspaceSettings() {
   const { t } = useTCopy();
-  const { appInfo, recentWorkspaces, updatePreferences } = useAppStore(
+  const { appInfo, recentWorkspaces, updatePreferences, showToast } = useAppStore(
     useShallow((state) => ({
       appInfo: state.appInfo,
       recentWorkspaces: state.recentWorkspaces,
       updatePreferences: state.updatePreferences,
+      showToast: state.showToast,
     })),
   );
 
@@ -28,8 +48,10 @@ export function WorkspaceSettings() {
   const [priorityIds, setPriorityIds] = useState<string[]>(config?.workspacePriorityIds ?? []);
   const [deferredIds, setDeferredIds] = useState<string[]>(config?.workspaceDeferredIds ?? []);
   const [naturalOrder, setNaturalOrder] = useState<string[]>(config?.workspaceNaturalOrder ?? []);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const lastPersistedRef = useRef<LastPersistedValues | null>(null);
 
   const persistChanges = useCallback(
     (p: number, pri: string[], def: string[], nat: string[]) => {
@@ -37,6 +59,7 @@ export function WorkspaceSettings() {
         clearTimeout(debounceRef.current);
       }
       debounceRef.current = setTimeout(() => {
+        lastPersistedRef.current = { max: p, pri, def, nat };
         updatePreferences({
           maxConcurrentWorkspaces: p,
           workspacePriorityIds: pri,
@@ -73,9 +96,6 @@ export function WorkspaceSettings() {
   );
 
   const naturalWorkspaces = useMemo<DraggableWorkspace[]>(() => {
-    // Match computeLoadPhases semantics: configured IDs in naturalOrder first,
-    // then strays (visible but not in any list) appended at the end. This keeps
-    // the settings UI consistent with the actual load order on the current boot.
     const configured = new Set<string>([...priorityIds, ...deferredIds, ...naturalOrder]);
     const ordered = naturalOrder
       .map((id) => visibleWorkspaces.find((w) => w.id === id))
@@ -113,7 +133,6 @@ export function WorkspaceSettings() {
 
   const handleRemove = useCallback(
     (id: string, fromList: ContainerId) => {
-      // Removing from priority/deferred moves back to natural (head)
       if (fromList === 'priority') {
         const nextPri = priorityIds.filter((i) => i !== id);
         const nextNat = [id, ...naturalOrder];
@@ -131,6 +150,48 @@ export function WorkspaceSettings() {
     [priorityIds, deferredIds, naturalOrder, maxConcurrent, persistChanges],
   );
 
+  const cfgMax = config?.maxConcurrentWorkspaces;
+  const cfgPri = config?.workspacePriorityIds;
+  const cfgDef = config?.workspaceDeferredIds;
+  const cfgNat = config?.workspaceNaturalOrder;
+  const hasConfig = config !== undefined;
+
+  useEffect(() => {
+    if (!hasConfig) {
+      return;
+    }
+    const persisted = lastPersistedRef.current;
+    const isOwnEcho =
+      persisted !== null &&
+      persisted.max === cfgMax &&
+      sameIdList(persisted.pri, cfgPri ?? []) &&
+      sameIdList(persisted.def, cfgDef ?? []) &&
+      sameIdList(persisted.nat, cfgNat ?? []);
+    if (isOwnEcho) {
+      return;
+    }
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = undefined;
+    }
+    setMaxConcurrent((prev) => {
+      const next = cfgMax ?? DEFAULT_MAX_CONCURRENT_WORKSPACES;
+      return prev === next ? prev : next;
+    });
+    setPriorityIds((prev) => {
+      const next = cfgPri ?? [];
+      return sameIdList(prev, next) ? prev : [...next];
+    });
+    setDeferredIds((prev) => {
+      const next = cfgDef ?? [];
+      return sameIdList(prev, next) ? prev : [...next];
+    });
+    setNaturalOrder((prev) => {
+      const next = cfgNat ?? [];
+      return sameIdList(prev, next) ? prev : [...next];
+    });
+  }, [hasConfig, cfgMax, cfgPri, cfgDef, cfgNat]);
+
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
@@ -139,8 +200,39 @@ export function WorkspaceSettings() {
     };
   }, []);
 
-  // Prefer sortable items over container droppables for accurate in-list
-  // insertion; falls back to container (e.g. empty list → append).
+  const groupLabel = t.settingsWorkspaceLoad;
+  const resetLabel = formatT(t, 'settingsResetGroupToDefault', { group: groupLabel });
+
+  const handleCancelReset = useCallback(() => {
+    setConfirmResetOpen(false);
+  }, []);
+
+  const handleConfirmReset = useCallback(() => {
+    setConfirmResetOpen(false);
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = undefined;
+    }
+    const nextMax = DEFAULT_MAX_CONCURRENT_WORKSPACES;
+    const nextPri = [...DEFAULT_WORKSPACE_PRIORITY_IDS];
+    const nextDef = [...DEFAULT_WORKSPACE_DEFERRED_IDS];
+    const nextNat = [...DEFAULT_WORKSPACE_NATURAL_ORDER];
+    lastPersistedRef.current = { max: nextMax, pri: nextPri, def: nextDef, nat: nextNat };
+    setMaxConcurrent(nextMax);
+    setPriorityIds(nextPri);
+    setDeferredIds(nextDef);
+    setNaturalOrder(nextNat);
+    void (async () => {
+      const ok = await updatePreferences({
+        maxConcurrentWorkspaces: nextMax,
+        workspacePriorityIds: nextPri,
+        workspaceDeferredIds: nextDef,
+        workspaceNaturalOrder: nextNat,
+      });
+      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+    })();
+  }, [updatePreferences, showToast, t]);
+
   const collisionDetection: CollisionDetection = (args) => {
     const pointerCollisions = pointerWithin(args);
     const itemCollisions = pointerCollisions.filter((c) => !String(c.id).startsWith('list-'));
@@ -149,6 +241,18 @@ export function WorkspaceSettings() {
 
   return (
     <div className="adl-settings-section adl-settings-workspace">
+      <div className="adl-settings-workspace__header">
+        <button
+          type="button"
+          className="adl-settings-row__reset"
+          aria-label={resetLabel}
+          title={resetLabel}
+          onClick={() => setConfirmResetOpen(true)}
+        >
+          <IconResetDefaults size={14} decorative />
+        </button>
+        <SettingsHeader title={groupLabel} />
+      </div>
       <DndContext
         sensors={dnd.sensors}
         collisionDetection={collisionDetection}
@@ -157,11 +261,9 @@ export function WorkspaceSettings() {
         onDragEnd={dnd.handleDragEnd}
       >
         <div className="adl-settings-card" data-testid="workspace-load-card">
-          <SettingsHeader title={t.settingsWorkspaceLoad} />
           <div className="adl-settings-row">
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
-                <span>{t.maxConcurrentWorkspaces}</span>
                 <HintCardTrigger content={t.maxConcurrentWorkspacesDesc}>
                   <button
                     type="button"
@@ -172,6 +274,7 @@ export function WorkspaceSettings() {
                     <IconCircleHelp size={16} />
                   </button>
                 </HintCardTrigger>
+                <span>{t.maxConcurrentWorkspaces}</span>
               </div>
             </div>
             <div className="adl-settings-row__control">
@@ -181,19 +284,17 @@ export function WorkspaceSettings() {
                 min={1}
                 max={20}
                 onChange={(e) => handleConcurrentChange(parseInt(e.target.value, 10) || 1)}
-                className="adl-settings-input"
+                className="adl-settings-input adl-settings-input--narrow"
               />
             </div>
           </div>
-        </div>
 
-        <div className="workspace-curtain">
-          <div className="workspace-grid workspace-grid--cards">
-            <div className="adl-settings-card adl-settings-card--grid">
+          <div className="workspace-curtain">
+            <div className="workspace-grid">
               <SortableWorkspaceList
                 kind="priority"
                 title={t.priorityList}
-                tooltipContent={`${t.priorityListDesc}\n\n${t.priorityListTooltip}`}
+                tooltipContent={`# ${t.listHintIntroTitle}\n${t.priorityListDesc}\n${t.priorityListTooltip}`}
                 badgeLabel={t.optional}
                 items={priorityWorkspaces}
                 emptyText={t.priorityListEmpty}
@@ -201,13 +302,11 @@ export function WorkspaceSettings() {
                 removeLabel={t.removeWorkspace}
                 t={t}
               />
-            </div>
 
-            <div className="adl-settings-card adl-settings-card--grid">
               <SortableWorkspaceList
                 kind="deferred"
                 title={t.deferredList}
-                tooltipContent={`${t.deferredListDesc}\n\n${t.deferredListTooltip}`}
+                tooltipContent={`# ${t.listHintIntroTitle}\n${t.deferredListDesc}\n${t.deferredListTooltip}`}
                 badgeLabel={t.optional}
                 items={deferredWorkspaces}
                 emptyText={t.deferredListEmpty}
@@ -215,13 +314,11 @@ export function WorkspaceSettings() {
                 removeLabel={t.removeWorkspace}
                 t={t}
               />
-            </div>
 
-            <div className="adl-settings-card adl-settings-card--grid">
               <SortableWorkspaceList
                 kind="natural"
                 title={t.workspaceTagList}
-                tooltipContent={`${t.workspaceTagListDesc}\n\n${t.workspaceTagListTooltip}`}
+                tooltipContent={`# ${t.listHintIntroTitle}\n${t.workspaceTagListDesc}\n${t.workspaceTagListTooltip}`}
                 items={naturalWorkspaces}
                 emptyText={t.workspaceTagListEmpty}
                 removeLabel={t.removeWorkspace}
@@ -258,6 +355,15 @@ export function WorkspaceSettings() {
           ) : null}
         </DragOverlayPortal>
       </DndContext>
+      <ConfirmDialog
+        open={confirmResetOpen}
+        title={formatT(t, 'settingsResetGroupConfirmTitle', { group: groupLabel })}
+        message={formatT(t, 'settingsResetGroupConfirmMessage', { group: groupLabel })}
+        confirmLabel={t.confirm}
+        cancelLabel={t.cancel}
+        onConfirm={handleConfirmReset}
+        onCancel={handleCancelReset}
+      />
     </div>
   );
 }
