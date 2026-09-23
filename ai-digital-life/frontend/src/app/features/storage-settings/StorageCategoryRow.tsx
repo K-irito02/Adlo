@@ -38,7 +38,7 @@ function ManualPathInput({
   return (
     <input
       type="text"
-      className="adl-settings-input"
+      className="adl-settings-input adl-settings-input--path"
       aria-label={label}
       placeholder={placeholder}
       value={draft}
@@ -92,10 +92,12 @@ export function StorageCategoryRow({
   const controlsEnabled = editable && category.movable;
 
   return (
-    <div className="adl-settings-row" data-testid="storage-category-row">
+    <div
+      className={`adl-settings-row${controlsEnabled ? ' adl-settings-row--path-center' : ''}`}
+      data-testid="storage-category-row"
+    >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">
-          <span>{name}</span>
           <HintCardTrigger
             content={
               <span>
@@ -119,8 +121,10 @@ export function StorageCategoryRow({
               <IconCircleHelp size={14} />
             </button>
           </HintCardTrigger>
+          <span>{name}</span>
         </div>
-        <small>{path}</small>
+        {/* 可编辑时路径显示在右侧路径框里，避免与 label 冗余；只读时在此展示 */}
+        {!controlsEnabled ? <small>{path}</small> : null}
         <small>{usage}</small>
         {category.foreignFiles.length > 0 ? (
           <small>
@@ -130,14 +134,6 @@ export function StorageCategoryRow({
       </div>
       {controlsEnabled ? (
         <div className="adl-settings-row__control adl-settings-row__control--inline">
-          <button
-            type="button"
-            className="adl-btn adl-btn--ghost"
-            onClick={onPickDirectory}
-            disabled={picking}
-          >
-            {t.storagePickDir}
-          </button>
           <ManualPathInput
             value={path}
             label={t.storageManualInput}
@@ -145,6 +141,14 @@ export function StorageCategoryRow({
             disabled={picking}
             onCommit={onPathChange}
           />
+          <button
+            type="button"
+            className="adl-btn adl-btn--path-pick"
+            onClick={onPickDirectory}
+            disabled={picking}
+          >
+            {t.storagePickDir}
+          </button>
         </div>
       ) : null}
     </div>

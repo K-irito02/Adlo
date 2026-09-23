@@ -89,17 +89,22 @@ export const settingsEn = {
 
   // Storage
   storageTitle: 'Storage',
+  storageCorePathsTitle: 'Core data paths',
   storageModeLabel: 'Path mode',
+  storageModeHint:
+    'Decides how each kind of data is stored: with "Unified root", everything lives under one folder for easy migration; with "Per-category", each kind gets its own folder so you can manage larger types independently.',
   storageModeUnified: 'Unified root (default)',
   storageModePerCategory: 'Per-category',
   storageRootLabel: 'Data root',
+  storageRootHint:
+    'The top-level folder for your core data. Everything is stored here by default; to relocate, pick a new folder with "Choose folder" or type another path.',
   storagePickDir: 'Choose folder',
   storageManualInput: 'Enter manually',
   storageManualInputPlaceholder: 'Enter an absolute path…',
   storageApply: 'Apply',
   storageCancel: 'Cancel',
-  storageCategoryGroupCore: 'Core data',
-  storageCategoryGroupAdvanced: 'Advanced',
+  storageRevert: 'Revert',
+  storageDirtyHint: 'Data paths under the "{block}" block were modified and are not applied yet',
   storageUsed: '{size} used ({files} files)',
   storageNotCreated: 'Not created yet',
   storageForeignFiles: '{count} file(s) not created by this app will be kept',
@@ -165,13 +170,13 @@ export const settingsEn = {
   // Storage categories
   storageCategoryDatabase: 'Main database',
   storageCategoryDownloadsDb: 'Download history DB',
-  storageCategorySiteMetaDb: 'Site metadata cache',
+  storageCategorySiteMetaDb: 'Website info cache',
   storageCategoryConfig: 'App configuration',
   storageCategoryClipboard: 'Clipboard assets',
   storageCategorySnapshot: 'Project snapshots',
   storageCategoryDsh: 'DSH versions & bundles',
   storageCategoryLogs: 'Logs',
-  storageCategoryCredentialsFallback: 'Credential fallback files',
+  storageCategoryCredentialsFallback: 'Backup credential files',
   storageCategoryDownloadsDefault: 'Default download folder',
   storageCategoryDatabaseDesc:
     "The app's core database, storing workspaces, sessions, tasks, approvals, patches and rollbacks, read-only terminal history, clipboard metadata, Git visualization cache, and more.",

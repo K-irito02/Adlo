@@ -70,6 +70,11 @@ function renderSettings(t: CopyDict = mockT) {
   );
 }
 
+/** 块上方「恢复 核心数据路径 全部默认」图标按钮。 */
+function headerResetButton(): HTMLElement | null {
+  return document.querySelector('[data-testid="storage-reset-defaults"]');
+}
+
 /** 插值断言专用：加载失败文案带 `{error}` 占位，其余 key 回退为 key 本身。 */
 const interpT = new Proxy({} as Record<string, string>, {
   get: (_, key) =>
@@ -80,22 +85,214 @@ describe('StorageSettings', () => {
   it('lays out loaded content as editorial settings cards', async () => {
     renderSettings();
     await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(11);
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
     const cards = document.querySelectorAll('.adl-settings-card');
     expect(cards.length).toBeGreaterThanOrEqual(3);
-    const headerCard = document.querySelector('.adl-storage-settings > .adl-settings-card');
-    expect(headerCard).not.toBeNull();
-    expect(headerCard?.querySelector('.adl-settings-header')).not.toBeNull();
+    // 合并后的「核心数据路径」块：顶部为 恢复默认图标 + 主标题（在块上方的 header 容器内）。
+    const header = document.querySelector('.adl-storage-settings > .adl-settings-storage__header');
+    expect(header).not.toBeNull();
+    expect(header?.querySelector('.adl-settings-header')).not.toBeNull();
+    expect(header?.querySelector('[data-testid="storage-reset-defaults"]')).not.toBeNull();
   });
 
-  it('renders all 11 category rows with a description hint trigger', async () => {
+  it('renders the restore-default trigger with the reset group label', async () => {
     renderSettings();
     await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(11);
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    const refresh = headerResetButton();
+    expect(refresh).not.toBeNull();
+    // mockT 桩文案回退为 key 本身：aria-label 由 settingsResetGroupToDefault + 标题拼接。
+    expect(refresh?.getAttribute('aria-label')).toBe('settingsResetGroupToDefault');
+  });
+
+  it('restoring defaults resets drafts and opens the migration flow with a default patch', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    fireEvent.click(headerResetButton() as HTMLElement);
+    await waitFor(() => {
+      expect(preflight).toHaveBeenCalledTimes(1);
+    });
+    // 恢复默认补丁 = 统一根 + 空根（后端视为默认根）+ 无逐类覆盖 + 不保留源。
+    expect(preflight).toHaveBeenCalledWith({
+      mode: 'unified',
+      root: '',
+      categories: {},
+      retainSource: false,
+    });
+    // 进入迁移对话框（冲突/确认即此对话框，不额外二次确认）。
+    expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('shows the sticky dirty bar when paths change and applies on click', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    // 未修改：不显示脏提交条。
+    expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+
+    // 修改数据根目录 → 出现粘性提交条。
+    const rootInput = screen.getByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(rootInput, { target: { value: 'D:/new-root' } });
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+
+    // 点提交条里的「应用」→ 走迁移流程（preflight）。
+    fireEvent.click(
+      within(screen.getByTestId('storage-dirtybar')).getByRole('button', {
+        name: 'storageApply',
+      }),
+    );
+    await waitFor(() => {
+      expect(preflight).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('reverts unsaved path changes via the revert button and clears the dirty bar', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    const rootInput = screen.getByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(rootInput, { target: { value: 'D:/changed' } });
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+
+    fireEvent.click(
+      within(screen.getByTestId('storage-dirtybar')).getByRole('button', {
+        name: 'storageRevert',
+      }),
+    );
+    // 撤回后恢复持久化状态：脏条与底部提交区都不再显示，且不触发 preflight。
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+    });
+    expect(screen.queryByTestId('storage-bottom-cta')).toBeNull();
+    expect(preflight).not.toHaveBeenCalled();
+    expect((rootInput as HTMLInputElement).value).toBe(status.root);
+  });
+
+  it('moves hint triggers before their titles for mode, root and locator rows', async () => {
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    // 所有 info 触发器（mode/root/category×10/locator）数量 >= 13。
+    const infos = document.querySelectorAll('.adl-icon-button--info');
+    expect(infos.length).toBeGreaterThanOrEqual(13);
+  });
+
+  it('renders all visible category rows (default download target hidden)', async () => {
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
     // 每类都必须有说明（spec §6.4 硬性要求）
-    expect(screen.getAllByTestId('storage-category-info')).toHaveLength(11);
+    expect(screen.getAllByTestId('storage-category-info')).toHaveLength(10);
   });
 
   it('opens the hint card with the category description when clicking the info trigger', async () => {
@@ -388,7 +585,8 @@ describe('StorageSettings', () => {
     };
     renderSettings();
     const infos = await screen.findAllByTestId('storage-category-info');
-    expect(infos).toHaveLength(STORAGE_CATEGORY_KEYS.length);
+    // downloads_default 不占展示行（并入「浏览器默认下载路径」块），渲染 info 数为 总类数-1。
+    expect(infos).toHaveLength(STORAGE_CATEGORY_KEYS.length - 1);
     // 渲染出的每个 ⓘ 触发器都必须带出 Desc 文案：缺 copy 时回退为裸 key。
     for (const [index, info] of infos.entries()) {
       const key = STORAGE_CATEGORY_KEYS[index] as string;
@@ -525,7 +723,7 @@ describe('StorageSettings', () => {
     // 第二次点击重试：良构成功 → 错误清除、11 行渲染（F4）。
     fireEvent.click(screen.getByRole('button', { name: 'storageRetry' }));
     await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(11);
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
     expect(screen.queryByText('storageStatusLoadFailed')).toBeNull();
   });

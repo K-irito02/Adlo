@@ -20,9 +20,16 @@ impl ConfigWatcher {
             let (notify_tx, mut notify_rx) = tokio::sync::mpsc::channel::<()>(16);
 
             let path_clone = config_path.clone();
+            let dir_clone = config_dir.clone();
             let notify_tx_clone = notify_tx.clone();
             tokio::task::spawn_blocking(move || {
                 use notify::{Event, RecursiveMode, Watcher};
+                // 首次运行时配置目录/文件可能尚未落盘（都随首次写入才建）。先确保监听目录存在，
+                // 否则 notify 对不存在的路径返回 "Input watch path is neither a file nor a directory"。
+                if let Err(e) = std::fs::create_dir_all(&dir_clone) {
+                    tracing::error!("Failed to create config directory for watching: {}", e);
+                    return;
+                }
                 let (tx, rx) = std::sync::mpsc::channel::<notify::Result<Event>>();
                 let mut watcher = match notify::recommended_watcher(tx) {
                     Ok(w) => w,
@@ -31,10 +38,23 @@ impl ConfigWatcher {
                         return;
                     },
                 };
-                if let Err(e) = watcher.watch(&path_clone, RecursiveMode::NonRecursive) {
-                    tracing::error!("Failed to watch config file: {}", e);
-                    return;
+                // 先尝试 watch 配置文件；其未创建则回退 watch 所在目录（目录已确保存在）。
+                let file_ok = path_clone.exists()
+                    && watcher.watch(&path_clone, RecursiveMode::NonRecursive).is_ok();
+                if !file_ok {
+                    if let Err(e) = watcher.watch(&dir_clone, RecursiveMode::NonRecursive) {
+                        tracing::error!(
+                            "Failed to watch config directory {}: {}",
+                            dir_clone.display(),
+                            e
+                        );
+                        return;
+                    }
                 }
+                tracing::info!(
+                    path = %if file_ok { path_clone.display().to_string() } else { dir_clone.display().to_string() },
+                    "Config watcher watching",
+                );
                 for _e in rx.into_iter().flatten() {
                     let _ = notify_tx_clone.blocking_send(());
                 }

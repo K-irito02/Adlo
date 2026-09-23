@@ -489,6 +489,38 @@
   width: 80px;
 }
 
+/* ---- Path rows (数据根目录 / 每类独立路径) ----
+   「路径显示框」与「选择目录」按钮：框在左、按钮在右；按钮常驻灰底，
+   hover 才出现描边（仿下拉/输入的交互），高度/圆角与路径框一致（偏直角）。 */
+.adl-settings-input--path {
+  width: 260px;
+}
+
+.adl-settings-row--path-center {
+  align-items: center;
+}
+
+/* 相邻两行属同一语义分组（如「路径模式」与「数据根目录」）时去掉其间隔线 */
+.adl-settings-row--no-divider {
+  border-bottom: none;
+}
+
+.adl-settings-row .adl-btn--path-pick {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.adl-settings-row .adl-btn--path-pick:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
 .adl-settings-password {
   display: flex;
   align-items: center;
@@ -533,12 +565,19 @@
   min-width: 180px;
 }
 
+/* 通用设置组：所有控制行（含下拉/预览/开关/输入）相对行高垂直居中（行默认 flex-start）。 */
+.adl-settings-controls .adl-settings-row {
+  align-items: center;
+}
+
 .adl-settings-font__preview {
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--text-secondary);
   padding: var(--space-1) var(--space-2);
   background: var(--bg-muted);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
+  box-sizing: border-box;
 }
 
 /* ---- Settings custom dropdown（可复用：替代原生 select） ----
@@ -762,7 +801,7 @@
 }
 
 .adl-settings-nav__row:hover .adl-settings-nav__reset,
-.adl-settings-nav__row:focus-within .adl-settings-nav__reset {
+.adl-settings-nav__row:has(.adl-settings-nav__item:focus-visible) .adl-settings-nav__reset {
   opacity: 1;
   visibility: visible;
 }
@@ -973,7 +1012,7 @@
 .adl-sortable-section-title {
   margin: 0 0 var(--space-2) 0;
   font-size: var(--text-sm);
-  font-weight: var(--font-semibold);
+  font-weight: var(--font-medium);
   color: var(--text-primary);
   display: flex;
   align-items: center;
@@ -1079,6 +1118,80 @@
   border-bottom: none;
 }
 
+/* ---- Storage block header (title + group reset above the merged card) ---- */
+
+.adl-settings-storage__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-settings-section.adl-settings-storage {
+  gap: var(--space-3);
+}
+
+.adl-settings-storage__header .adl-settings-header {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
+}
+
+/* 存储组「应用」主按钮：不用品牌蓝，改中性高对比（灰阶/黑白）。
+   仅作用于存储组卡内的按钮（迁移/清除确认对话框经 Portal 挂 body，不受影响）。 */
+.adl-storage-settings .adl-btn--primary {
+  background: var(--text-primary);
+  color: var(--bg-elevated);
+  border-color: var(--text-primary);
+}
+
+.adl-storage-settings .adl-btn--primary:hover:not(:disabled) {
+  background: var(--text-secondary);
+  border-color: var(--text-secondary);
+}
+
+/* 存储组粘性提交条：有未应用修改时固定于设置区底部、滚动可见。 */
+.adl-storage-settings__dirtybar {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+}
+
+/* 提示文字用项目自带黄色（警告/强调语义），亮暗主题可见 */
+.adl-storage-settings__dirtybar > span:first-child {
+  color: var(--pastel-warning-fg);
+}
+
+/* 块底部「撤回/应用」区的黄色提示文字（与粘性条一致） */
+.adl-storage-settings__cta-hint {
+  color: var(--pastel-warning-fg);
+  font-size: var(--text-sm);
+}
+
+.adl-storage-settings__dirtybar .adl-btn {
+  flex-shrink: 0;
+}
+
+.adl-storage-settings__dirtybar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
 /* ---- Max-concurrent row: no divider above the three lists ----
    使用 .adl-settings-row--flush 语义修饰，不依赖 DOM 顺序 (:first-child)。 */
 
@@ -1086,7 +1199,9 @@
   border-bottom: none;
 }
 
-.adl-settings-panel__content--cards > .adl-settings-section.adl-settings-workspace > .adl-settings-card {
+.adl-settings-panel__content--cards
+  > .adl-settings-section.adl-settings-workspace
+  > .adl-settings-card {
   animation-delay: 0ms;
 }
 

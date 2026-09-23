@@ -83,17 +83,22 @@ export const settingsZh = {
 
   // 存储
   storageTitle: '存储',
+  storageCorePathsTitle: '核心数据路径',
   storageModeLabel: '路径模式',
+  storageModeHint:
+    '决定各类数据如何存放：选择「统一根目录」，所有数据都放在同一个文件夹下，方便整体迁移；选择「每类完全独立」，则各类数据各占一个文件夹，便于单独管理较占空间的类型。',
   storageModeUnified: '统一根目录（默认）',
   storageModePerCategory: '每类完全独立',
   storageRootLabel: '数据根目录',
+  storageRootHint:
+    '各项核心数据的总存放位置。所有数据默认都会保存在这个文件夹下；若要换地方，可用行尾的「选择目录」重新选一个，或直接填一个新的路径。',
   storagePickDir: '选择目录',
   storageManualInput: '手动输入',
   storageManualInputPlaceholder: '输入绝对路径…',
   storageApply: '应用',
   storageCancel: '取消',
-  storageCategoryGroupCore: '核心数据',
-  storageCategoryGroupAdvanced: '高级',
+  storageRevert: '撤回',
+  storageDirtyHint: '「{block}」块中有数据路径被修改，尚未应用',
   storageUsed: '已用 {size}（{files} 个文件）',
   storageNotCreated: '尚未创建',
   storageForeignFiles: '检测到 {count} 个不属于本应用的文件，将保留',
@@ -122,7 +127,7 @@ export const settingsZh = {
   storageImmutableMachineId:
     '该文件用于派生凭据加密密钥；若移动，已保存的凭据将无法解密，因此不可移动。',
   storageImmutableLocalStorage: '由 WebView 按站点隔离存储，随应用整体管理，无独立路径。',
-  storageImmutableIndexedDb: '头像缓存位于浏览器的 IndexedDB，随应用整体管理，无独立路径。',
+  storageImmutableIndexedDb: '头像缓存保存在浏览器的内置数据库里，随应用一起管理，没有独立路径。',
   storageImmutableWebview2: '由 WebView2 运行时自管，修改需重建整个浏览器环境。',
   storageImmutableWorkspaceCache: '属于具体工作区，随工作区目录移动，不属于应用数据目录。',
   storageImmutableKeyringName: '凭据管理器',
@@ -149,13 +154,13 @@ export const settingsZh = {
   // 存储分类
   storageCategoryDatabase: '主业务库',
   storageCategoryDownloadsDb: '下载历史库',
-  storageCategorySiteMetaDb: '站点元缓存库',
+  storageCategorySiteMetaDb: '网页信息缓存库',
   storageCategoryConfig: '应用配置',
   storageCategoryClipboard: '剪贴板资源',
   storageCategorySnapshot: '项目快照',
   storageCategoryDsh: 'DSH 版本与包',
   storageCategoryLogs: '日志',
-  storageCategoryCredentialsFallback: '凭据回退文件',
+  storageCategoryCredentialsFallback: '备用凭据文件',
   storageCategoryDownloadsDefault: '默认下载目标',
   storageCategoryDatabaseDesc:
     '应用的核心数据库，保存工作区、会话、任务、审批、补丁与回滚、终端只读历史、剪贴板元数据、Git 可视化缓存等。',
@@ -163,11 +168,11 @@ export const settingsZh = {
     '与工作区导航、会话面板、终端历史区、剪贴板历史、Git 可视化等有关。',
   storageCategoryDownloadsDbDesc: '浏览器下载任务的记录，包含文件名、来源、时间和状态。',
   storageCategoryDownloadsDbRelated: '与内置浏览器的「下载」列表与管理有关。',
-  storageCategorySiteMetaDbDesc: '已访问网站的标题与图标（favicon）缓存，用于加速标签显示。',
+  storageCategorySiteMetaDbDesc: '保存访问过网站的标题与图标，让浏览器标签页打开更流畅。',
   storageCategorySiteMetaDbRelated: '与内置浏览器标签页的标题与图标、历史与书签显示有关。',
   storageCategoryTreeCache: '工作区树缓存',
   storageCategoryTreeCacheDesc:
-    '工作区文件树的 SQLite 落盘缓存，用于冷启动时毫秒级渲染目录树（派生数据，可随时清除重建）。',
+    '保存到磁盘的工作区文件树缓存，用于启动时快速显示目录树（可随时清除，清除后下次访问自动重建）。',
   storageCategoryTreeCacheRelated: '与工作区文件树的冷启动秒级渲染与后台静默校准有关。',
   storageCategoryConfigDesc: '应用设置（语言、主题、日志模式、终端预算、浏览器阈值、DSH 源等）。',
   storageCategoryConfigRelated: '与设置面板全部设置项的持久化有关。',

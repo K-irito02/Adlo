@@ -18,13 +18,49 @@ fn resolve_project_root() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from("."))
 }
 
-/// 构造壳层的存储默认值：默认根 = Tauri `app_data_dir()`；凭据目录与默认下载目录
-/// 分别取平台默认与 `adl_browser` 的启发式值。
+/// 构造壳层的存储默认值。默认数据根优先取「与安装目录同级的 `<安装目录名>-data`」；
+/// 该路径不可写（如 Program Files 等 Windows 拦截/只读位置）时回退到系统用户数据目录；
+/// 凭据目录与默认下载目录分别取平台默认与 `adl_browser` 的启发式值。
 pub fn resolve_defaults(app: &tauri::App) -> anyhow::Result<adl_kernel::storage::StorageDefaults> {
-    let root = app.path().app_data_dir().context("failed to resolve app data dir")?;
+    let app_data_root = app.path().app_data_dir().context("failed to resolve app data dir")?;
+    let root = default_data_root(app_data_root.clone());
     let credentials_dir = adl_kernel::storage::locator::locator_dir().join("credentials");
     let downloads_dir = adl_browser::download_manager::get_default_download_path();
     Ok(adl_kernel::storage::StorageDefaults { root, credentials_dir, downloads_dir })
+}
+
+/// 计算默认数据根：优先「与安装目录同级的新建 `<安装目录名>-data」目录」；
+/// 该路径不可写时回退到已解析的系统用户数据目录。
+fn default_data_root(fallback: PathBuf) -> PathBuf {
+    std::env::current_exe()
+        .ok()
+        .and_then(|exe| exe.parent().map(|p| p.to_path_buf()))
+        .map_or(fallback.clone(), |install_dir| preferred_default_root(&install_dir, fallback))
+}
+
+/// 在两个候选路径 `install_dir`、`fallback` 间选出默认数据根：
+/// `install_dir` 与 `<install_dir 名>-data` 同级，若该候选可写则用它，否则用 `fallback`。
+fn preferred_default_root(install_dir: &Path, fallback: PathBuf) -> PathBuf {
+    let Some(name) = install_dir.file_name().map(|n| n.to_string_lossy().into_owned()) else {
+        return fallback;
+    };
+    if name.is_empty() {
+        return fallback;
+    }
+    let parent = install_dir.parent().unwrap_or(install_dir);
+    let candidate = parent.join(format!("{name}-data"));
+    if is_writable(&candidate) { candidate } else { fallback }
+}
+
+/// 可写探测：能创建目录并写入/删除探针文件即视为可写（Windows 拦截的只读位置会失败）。
+fn is_writable(dir: &Path) -> bool {
+    if std::fs::create_dir_all(dir).is_err() {
+        return false;
+    }
+    let probe = dir.join(".adl-write-probe");
+    let ok = std::fs::write(&probe, b"probe").is_ok();
+    let _ = std::fs::remove_file(&probe);
+    ok
 }
 
 /// 壳层启动迁移：在打开任何 DB/日志句柄之前执行待迁移。
@@ -190,4 +226,58 @@ pub fn start_background_tasks(state: &AppState) {
 pub fn save_config_to_dir(config_dir: &Path, config: &adl_config::AppConfig) -> anyhow::Result<()> {
     adl_config::save_to(config_dir, config)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn temp_root(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("adl-setup-{tag}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn preferred_root_prefers_writable_sibling_data_dir() {
+        let root = temp_root("writable");
+        // installDir = <root>/MyApp → 同级 <root>/MyApp-data 可写，应选中。
+        let install = root.join("MyApp");
+        std::fs::create_dir_all(&install).unwrap();
+        let fallback = root.join("fallback-data");
+        let chosen = preferred_default_root(&install, fallback.clone());
+        assert_eq!(chosen, root.join("MyApp-data"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn preferred_root_falls_back_when_sibling_not_creatable() {
+        let root = temp_root("blocked");
+        // 让候选的同级父路径是一个「文件」→ create_dir_all 失败 → 回退 fallback。
+        let file = root.join("f.txt");
+        std::fs::write(&file, b"f").unwrap();
+        let install = file.join("app"); // <file>/app：其 parent 是文件，无法在其下建 <file>/app-data
+        let fallback = root.join("fallback-data");
+        let chosen = preferred_default_root(&install, fallback.clone());
+        assert_eq!(chosen, fallback);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn preferred_root_without_name_falls_back() {
+        let root = Path::new("/");
+        let fallback = PathBuf::from("C:/fallback");
+        assert_eq!(preferred_default_root(root, fallback.clone()), fallback);
+        assert_eq!(preferred_default_root(Path::new(""), fallback.clone()), fallback);
+    }
+
+    #[test]
+    fn is_writable_true_on_creatable_dir() {
+        let root = temp_root("probe");
+        assert!(is_writable(&root));
+        // 探针写入后应已清理。
+        assert!(!root.join(".adl-write-probe").exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
 }

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { CopyKey } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '@root/design-system/html';
 import {
@@ -14,7 +15,7 @@ import {
   type TreeCacheOptions,
   type TreeCacheStats,
 } from '@shared/ipc/storage';
-import { IconCircleHelp } from '../../icons';
+import { IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
@@ -39,19 +40,23 @@ const IMMOVABLE_COPY: Record<
   },
 };
 
-/**
- * 每个分组展示的分类数量（后端按固定顺序返回 11 类：前 5 核心、后 6 高级）。
- * 核心 5 成员（位置不变，顺序与 `STORAGE_CATEGORY_KEYS` 前 5 一致）：
- * `database` / `downloads_db` / `site_meta_db` / `tree_cache` / `config`
- *（`clipboard` 已被挤入高级分组，F4 显式决策：保持插入位置，注释声明归属）。
- */
-const CORE_CATEGORY_COUNT = 5;
-
 /** 树缓存 TTL 下拉选项（分钟；1440 即 1 天），与服务端合法范围 1..=1440 一致。 */
 const TREE_CACHE_TTL_OPTIONS = [5, 15, 60, 1440] as const;
 
 /** Rust 缺省（`TreeCacheOptions::default`）：stats 不可用时开关/TTL 的回退值。 */
 const TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
+
+/**
+ * 「恢复 核心数据路径 全部默认」的目标补丁：统一根 + 空根（后端视为默认根
+ * `app_data_dir`，见 `patch_to_selection`）+ 无逐类覆盖。与「应用」同一套
+ * preflight / 迁移对话框 / setPaths 流程。
+ */
+const CORE_RESET_PATCH: StoragePathPatch = {
+  mode: 'unified',
+  root: '',
+  categories: {},
+  retainSource: false,
+};
 
 /** 状态查询超时（后端遍历超大目录时的兜底，避免无限 loading）。 */
 const STATUS_TIMEOUT_MS = 30_000;
@@ -139,6 +144,21 @@ export function StorageSettings() {
   // 语言切换会更换 `t` 触发重取：草稿只播种一次，避免覆盖用户编辑（F6）。
   // 错误文案仍用最新 `t` 即时计算，保持 `t` 新鲜度。
   const draftsSeededRef = useRef(false);
+  // 「块底部 撤回/应用」是否处于可见区：可见时隐藏粘性提交条，不可见时显示。
+  const bottomCtaRef = useRef<HTMLDivElement | null>(null);
+  const [bottomCtaVisible, setBottomCtaVisible] = useState(false);
+
+  /** 撤回未应用的修改：把草稿重置回已持久化状态（mode/root/逐类路径）。 */
+  const handleRevert = useCallback(() => {
+    if (!status) {
+      return;
+    }
+    setMode(status.mode);
+    setRootDraft(status.root);
+    setCategoryDrafts(
+      Object.fromEntries(status.categories.map((category) => [category.key, category.path])),
+    );
+  }, [status]);
 
   /** 重拉树缓存 stats（清除/开关/TTL 写后刷新展示）；失败静默保留旧值。 */
   const loadTreeStats = useCallback(async () => {
@@ -420,24 +440,44 @@ export function StorageSettings() {
     [showToast, t],
   );
 
-  const handleApply = useCallback(async () => {
-    const bridge = window.digitalLife?.storage;
-    if (!bridge) {
-      return;
-    }
-    setBusy(true);
-    try {
-      const result = await bridge.preflight(buildPatch(false));
-      if (!result.ok) {
-        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+  /** 预检一个路径补丁并在通过后打开迁移对话框（「应用」与「恢复默认」共用）。 */
+  const applyPatch = useCallback(
+    async (patch: StoragePathPatch) => {
+      const bridge = window.digitalLife?.storage;
+      if (!bridge) {
         return;
       }
-      setPreflight(result.data);
-      setDialogOpen(true);
-    } finally {
-      setBusy(false);
-    }
-  }, [buildPatch, showToast, t]);
+      setBusy(true);
+      try {
+        const result = await bridge.preflight(patch);
+        if (!result.ok) {
+          showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+          return;
+        }
+        setPreflight(result.data);
+        setDialogOpen(true);
+      } finally {
+        setBusy(false);
+      }
+    },
+    [showToast, t],
+  );
+
+  const handleApply = useCallback(() => {
+    void applyPatch(buildPatch(false));
+  }, [applyPatch, buildPatch]);
+
+  /**
+   * 「恢复 核心数据路径 全部默认」：把表单草稿重置为默认（路径模式→统一根目录、
+   * 数据根目录→默认、逐类覆盖清空），并复用「应用」的迁移流程完成实际落盘。
+   * @see CORE_RESET_PATCH
+   */
+  const handleResetCorePaths = useCallback(() => {
+    setMode('unified');
+    setRootDraft('');
+    setCategoryDrafts({});
+    void applyPatch(CORE_RESET_PATCH);
+  }, [applyPatch]);
 
   const handleApplyMigration = useCallback(
     async (retainSource: boolean, applyNow: boolean) => {
@@ -553,8 +593,48 @@ export function StorageSettings() {
   );
 
   const categories = status?.categories ?? [];
-  const coreCategories = categories.slice(0, CORE_CATEGORY_COUNT);
-  const advancedCategories = categories.slice(CORE_CATEGORY_COUNT);
+
+  /** 展示用分类：`downloads_default`（默认下载目标）已并入下方「浏览器默认下载路径」块，此处不再重复列出。 */
+  const displayCategories = categories.filter((category) => category.key !== 'downloads_default');
+
+  /** 草稿与已持久化状态是否不一致：有未应用的修改（用于粘性提交条）。 */
+  const isDirty = Boolean(
+    status &&
+    (mode !== status.mode ||
+      (mode === 'unified'
+        ? rootDraft.trim() !== status.root
+        : categories.some((c) => (categoryDrafts[c.key] ?? c.path) !== c.path))),
+  );
+
+  // 观测「块底部 撤回/应用」是否可见：可见时推移性提交条隐藏；不可见（向上/向下滚、窗口变化）时显示。
+  // 根取最近的滚动容器（与 sticky bottom 一致），找不到则用视口。
+  useEffect(() => {
+    const el = bottomCtaRef.current;
+    if (!el || !isDirty || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    let root: Element | null = null;
+    let node: HTMLElement | null = el.parentElement;
+    while (node) {
+      const ov = getComputedStyle(node).overflowY;
+      if (ov === 'auto' || ov === 'scroll' || ov === 'overlay') {
+        root = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          setBottomCtaVisible(entry.isIntersecting);
+        }
+      },
+      { root, threshold: 0.1 },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isDirty]);
+
   // 开关/TTL 控件以 stats 为真源；stats 缺席时区段不渲染，缺省值仅供回退展示。
   const treeEnabled = treeStats?.enabled ?? TREE_CACHE_DEFAULTS.enabled;
   const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
@@ -618,11 +698,15 @@ export function StorageSettings() {
     />
   );
 
+  const resetLabel = formatT(t, 'settingsResetGroupToDefault', {
+    group: t.storageCorePathsTitle,
+  });
+
   if (loading) {
     return (
       <div className="adl-settings-section adl-storage-settings">
         <div className="adl-settings-card">
-          <SettingsHeader title={t.storageTitle} />
+          <SettingsHeader title={t.storageCorePathsTitle} />
           <div className="adl-settings-row">
             <div className="adl-settings-row__label">
               <small>{t.storageStatusLoading}</small>
@@ -637,7 +721,7 @@ export function StorageSettings() {
     return (
       <div className="adl-settings-section adl-storage-settings">
         <div className="adl-settings-card">
-          <SettingsHeader title={t.storageTitle} />
+          <SettingsHeader title={t.storageCorePathsTitle} />
           <div className="adl-settings-row">
             <div className="adl-settings-row__label">
               <small className="adl-settings-status adl-settings-status--danger">
@@ -662,12 +746,36 @@ export function StorageSettings() {
 
   return (
     <div className="adl-settings-section adl-storage-settings">
-      <div className="adl-settings-card">
-        <SettingsHeader title={t.storageTitle} />
+      <div className="adl-settings-storage__header">
+        <button
+          type="button"
+          className="adl-settings-row__reset"
+          aria-label={resetLabel}
+          title={resetLabel}
+          data-testid="storage-reset-defaults"
+          onClick={handleResetCorePaths}
+        >
+          <IconResetDefaults size={14} decorative />
+        </button>
+        <SettingsHeader title={t.storageCorePathsTitle} />
+      </div>
 
-        <div className="adl-settings-row">
+      <div className="adl-settings-card">
+        <div
+          className={`adl-settings-row${mode === 'unified' ? ' adl-settings-row--no-divider' : ''}`}
+        >
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
+              <HintCardTrigger content={t.storageModeHint}>
+                <button
+                  type="button"
+                  className="adl-icon-button adl-icon-button--info"
+                  tabIndex={-1}
+                  aria-label={t.storageModeHint}
+                >
+                  <IconCircleHelp size={14} />
+                </button>
+              </HintCardTrigger>
               <span>{t.storageModeLabel}</span>
             </div>
           </div>
@@ -694,68 +802,84 @@ export function StorageSettings() {
         </div>
 
         {mode === 'unified' ? (
-          <div className="adl-settings-row">
+          <div className="adl-settings-row adl-settings-row--path-center">
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
+                <HintCardTrigger content={t.storageRootHint}>
+                  <button
+                    type="button"
+                    className="adl-icon-button adl-icon-button--info"
+                    tabIndex={-1}
+                    aria-label={t.storageRootHint}
+                  >
+                    <IconCircleHelp size={14} />
+                  </button>
+                </HintCardTrigger>
                 <span>{t.storageRootLabel}</span>
               </div>
-              <small>{status?.root}</small>
             </div>
             <div className="adl-settings-row__control adl-settings-row__control--inline">
-              <button
-                type="button"
-                className="adl-btn adl-btn--ghost"
-                disabled={picking}
-                onClick={() => void handlePickDirectory(setRootDraft)}
-              >
-                {t.storagePickDir}
-              </button>
               <input
                 type="text"
-                className="adl-settings-input"
+                className="adl-settings-input adl-settings-input--path"
                 aria-label={t.storageManualInput}
                 placeholder={t.storageManualInputPlaceholder}
                 value={rootDraft}
                 onChange={(e) => setRootDraft(e.target.value)}
               />
+              <button
+                type="button"
+                className="adl-btn adl-btn--path-pick"
+                disabled={picking}
+                onClick={() => void handlePickDirectory(setRootDraft)}
+              >
+                {t.storagePickDir}
+              </button>
             </div>
           </div>
         ) : null}
-      </div>
 
-      <div className="adl-settings-card">
-        <h4 className="adl-settings-section-title adl-settings-title--serif">
-          {t.storageCategoryGroupCore}
-        </h4>
-        {categories.length === 0 ? (
+        {displayCategories.length === 0 ? (
           <div className="adl-settings-row">
             <div className="adl-settings-row__label">
               <small>{t.storageNoCategories}</small>
             </div>
           </div>
         ) : (
-          <>
-            {coreCategories.map(renderCategory)}
-            <h4 className="adl-settings-section-title adl-settings-title--serif">
-              {t.storageCategoryGroupAdvanced}
-            </h4>
-            {advancedCategories.map(renderCategory)}
-          </>
+          displayCategories.map(renderCategory)
         )}
 
-        <div className="adl-settings-row adl-settings-row--actions">
-          <div className="adl-settings-row__label" />
-          <div className="adl-settings-row__control">
-            <button
-              type="button"
-              className="adl-btn adl-btn--primary"
-              disabled={busy}
-              onClick={() => void handleApply()}
-            >
-              {t.storageApply}
-            </button>
+        {isDirty ? (
+          <div
+            className="adl-settings-row adl-settings-row--actions"
+            ref={bottomCtaRef}
+            data-testid="storage-bottom-cta"
+          >
+            <div className="adl-settings-row__label">
+              <span className="adl-storage-settings__cta-hint">
+                {t.storageDirtyHint.replace('{block}', t.storageCorePathsTitle)}
+              </span>
+            </div>
+            <div className="adl-settings-row__control adl-settings-row__control--inline">
+              <button
+                type="button"
+                className="adl-btn adl-btn--secondary"
+                disabled={busy}
+                onClick={handleRevert}
+              >
+                {t.storageRevert}
+              </button>
+              <button
+                type="button"
+                className="adl-btn adl-btn--primary"
+                disabled={busy}
+                onClick={() => void handleApply()}
+              >
+                {t.storageApply}
+              </button>
+            </div>
           </div>
-        </div>
+        ) : null}
       </div>
 
       {treeStats ? (
@@ -839,7 +963,6 @@ export function StorageSettings() {
         <div className="adl-settings-row">
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
-              <span>{t.storageLocatorTitle}</span>
               <HintCardTrigger content={t.storageLocatorHint}>
                 <button
                   type="button"
@@ -850,6 +973,7 @@ export function StorageSettings() {
                   <IconCircleHelp size={14} />
                 </button>
               </HintCardTrigger>
+              <span>{t.storageLocatorTitle}</span>
             </div>
             <small>{status?.locatorPath}</small>
           </div>
@@ -950,6 +1074,30 @@ export function StorageSettings() {
               </div>
             </div>
           ) : null}
+        </div>
+      ) : null}
+
+      {isDirty && !bottomCtaVisible ? (
+        <div className="adl-storage-settings__dirtybar" data-testid="storage-dirtybar">
+          <span>{t.storageDirtyHint.replace('{block}', t.storageCorePathsTitle)}</span>
+          <div className="adl-storage-settings__dirtybar-actions">
+            <button
+              type="button"
+              className="adl-btn adl-btn--secondary"
+              disabled={busy}
+              onClick={handleRevert}
+            >
+              {t.storageRevert}
+            </button>
+            <button
+              type="button"
+              className="adl-btn adl-btn--primary"
+              disabled={busy}
+              onClick={() => void handleApply()}
+            >
+              {t.storageApply}
+            </button>
+          </div>
         </div>
       ) : null}
 

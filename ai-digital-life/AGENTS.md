@@ -20,7 +20,7 @@
 
 ### 存储路径解析（`adl-kernel::storage`）
 
-- 所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析；locator 文件为 `<dirs::config_dir()>/ai-digital-life/storage-locator.json`（Plan A 阶段只读，缺失时回退默认；Plan B 起由启动期迁移写入指针切换结果），默认统一根 = `app_data_dir()`。
+- 所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析；locator 文件为 `<dirs::config_dir()>/ai-digital-life/storage-locator.json`（Plan A 阶段只读，缺失时回退默认；Plan B 起由启动期迁移写入指针切换结果），默认统一根 = 优先「与安装目录同级的 `&lt;安装目录名&gt;-data`」，该路径不可写（如 Windows 拦截的 Program Files 只读位置）时回退系统用户数据目录（壳层 `app_data_dir()`，见 `src-tauri/src/setup.rs::default_data_root`）。
 - 日志目录：debug（dev）构建写仓库根 `.adl-logs`，release 构建写 `<root>/logs`。
 - **已知行为修正**：补丁快照路径由硬编码（旧 `dirs::data_dir()/ai-digital-life/snapshot`）收敛到 adl-server 的 `storage.paths().snapshot_dir`；遗留目录下的旧快照不自动迁移，需手动移动（Plan B 只处理用户发起的路径变更）。
 
