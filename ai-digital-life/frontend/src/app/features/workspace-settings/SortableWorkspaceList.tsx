@@ -4,7 +4,6 @@ import { CSS } from '@dnd-kit/utilities';
 import { IconMenu, IconClose } from '../../icons';
 import { IconCircleHelp } from '../../icons/status';
 import { HintCardTrigger } from '../../components/HintCard';
-import type { CopyDict } from '../../i18n';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 
 interface SortableItemProps {
@@ -12,7 +11,6 @@ interface SortableItemProps {
   showActions: boolean;
   onRemove?: (id: string) => void;
   removeLabel: string;
-  t?: CopyDict;
 }
 
 function SortableItem({ workspace, showActions, onRemove, removeLabel }: SortableItemProps) {
@@ -71,8 +69,6 @@ export interface SortableWorkspaceListProps {
   onRemove?: (id: string) => void;
   /** i18n labels passed from parent to avoid duplicate useTCopy calls */
   removeLabel: string;
-  /** i18n copy dict passed from parent; demo entity markers resolve only when provided */
-  t?: CopyDict;
 }
 
 export function SortableWorkspaceList({
@@ -84,7 +80,6 @@ export function SortableWorkspaceList({
   emptyText,
   onRemove,
   removeLabel,
-  t,
 }: SortableWorkspaceListProps) {
   const { setNodeRef } = useDroppable({ id: `list-${kind}` });
 
@@ -99,7 +94,7 @@ export function SortableWorkspaceList({
             type="button"
             className="adl-icon-button adl-icon-button--info"
             tabIndex={-1}
-            aria-label=""
+            aria-label={title}
           >
             <IconCircleHelp size={16} />
           </button>
@@ -119,7 +114,6 @@ export function SortableWorkspaceList({
                 showActions={showActions}
                 onRemove={onRemove}
                 removeLabel={removeLabel}
-                t={t}
               />
             ))
           )}

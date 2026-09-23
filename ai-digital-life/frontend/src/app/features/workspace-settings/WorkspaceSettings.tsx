@@ -44,7 +44,9 @@ export function WorkspaceSettings() {
 
   const config = appInfo?.config;
 
-  const [maxConcurrent, setMaxConcurrent] = useState<number>(config?.maxConcurrentWorkspaces ?? 6);
+  const [maxConcurrent, setMaxConcurrent] = useState<number>(
+    config?.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES,
+  );
   const [priorityIds, setPriorityIds] = useState<string[]>(config?.workspacePriorityIds ?? []);
   const [deferredIds, setDeferredIds] = useState<string[]>(config?.workspaceDeferredIds ?? []);
   const [naturalOrder, setNaturalOrder] = useState<string[]>(config?.workspaceNaturalOrder ?? []);
@@ -96,6 +98,7 @@ export function WorkspaceSettings() {
   );
 
   const naturalWorkspaces = useMemo<DraggableWorkspace[]>(() => {
+    // 与 computeLoadPhases 同语义：已配置 ID 按 naturalOrder 在前，未入任何列表的可见工作区追加末尾。
     const configured = new Set<string>([...priorityIds, ...deferredIds, ...naturalOrder]);
     const ordered = naturalOrder
       .map((id) => visibleWorkspaces.find((w) => w.id === id))
@@ -133,6 +136,7 @@ export function WorkspaceSettings() {
 
   const handleRemove = useCallback(
     (id: string, fromList: ContainerId) => {
+      // 从优先/延迟移除的工作区移回常规列表头部。
       if (fromList === 'priority') {
         const nextPri = priorityIds.filter((i) => i !== id);
         const nextNat = [id, ...naturalOrder];
@@ -156,8 +160,30 @@ export function WorkspaceSettings() {
   const cfgNat = config?.workspaceNaturalOrder;
   const hasConfig = config !== undefined;
 
+  // 本地最新值镜像（ref，不进 effect 依赖）：用于判断"本地已与外部一致"。
+  // 注意：不能把本地 state 直接加入下面 effect 的依赖，否则每次击键都会触发 effect 并清掉刚调度的 debounce。
+  const localRef = useRef({
+    max: maxConcurrent,
+    pri: priorityIds,
+    def: deferredIds,
+    nat: naturalOrder,
+  });
+  localRef.current = { max: maxConcurrent, pri: priorityIds, def: deferredIds, nat: naturalOrder };
+
   useEffect(() => {
     if (!hasConfig) {
+      return;
+    }
+    // 本地已与外部一致（如新数组身份的内容相等更新）则直接返回：
+    // 不得清掉在途 debounce，否则用户 200ms 内的编辑会静默丢失。
+    // 内容确实不同时沿用"外部赢"语义（外部写入方已有 toast，本地静默跟随）。
+    const local = localRef.current;
+    if (
+      local.max === (cfgMax ?? DEFAULT_MAX_CONCURRENT_WORKSPACES) &&
+      sameIdList(local.pri, cfgPri ?? []) &&
+      sameIdList(local.def, cfgDef ?? []) &&
+      sameIdList(local.nat, cfgNat ?? [])
+    ) {
       return;
     }
     const persisted = lastPersistedRef.current;
@@ -229,15 +255,27 @@ export function WorkspaceSettings() {
         workspaceDeferredIds: nextDef,
         workspaceNaturalOrder: nextNat,
       });
-      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+      if (ok) {
+        showToast(t.settingsResetComplete, 'success');
+        return;
+      }
+      // 失败回滚：本地回到落盘值，避免与 store 脱节（effect 依赖未变不会自动纠正）。
+      lastPersistedRef.current = null;
+      const cfg = useAppStore.getState().appInfo?.config;
+      setMaxConcurrent(cfg?.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES);
+      setPriorityIds([...(cfg?.workspacePriorityIds ?? [])]);
+      setDeferredIds([...(cfg?.workspaceDeferredIds ?? [])]);
+      setNaturalOrder([...(cfg?.workspaceNaturalOrder ?? [])]);
+      showToast(t.settingsUpdateFailed, 'error');
     })();
   }, [updatePreferences, showToast, t]);
 
-  const collisionDetection: CollisionDetection = (args) => {
+  // 优先命中可排序条目而非容器 droppable 做精确行内插入；空列表等无条目场景回退到容器追加。
+  const collisionDetection: CollisionDetection = useCallback((args) => {
     const pointerCollisions = pointerWithin(args);
     const itemCollisions = pointerCollisions.filter((c) => !String(c.id).startsWith('list-'));
     return itemCollisions.length > 0 ? itemCollisions : pointerCollisions;
-  };
+  }, []);
 
   return (
     <div className="adl-settings-section adl-settings-workspace">
@@ -300,7 +338,6 @@ export function WorkspaceSettings() {
                 emptyText={t.priorityListEmpty}
                 onRemove={(id) => handleRemove(id, 'priority')}
                 removeLabel={t.removeWorkspace}
-                t={t}
               />
 
               <SortableWorkspaceList
@@ -312,7 +349,6 @@ export function WorkspaceSettings() {
                 emptyText={t.deferredListEmpty}
                 onRemove={(id) => handleRemove(id, 'deferred')}
                 removeLabel={t.removeWorkspace}
-                t={t}
               />
 
               <SortableWorkspaceList
@@ -322,7 +358,6 @@ export function WorkspaceSettings() {
                 items={naturalWorkspaces}
                 emptyText={t.workspaceTagListEmpty}
                 removeLabel={t.removeWorkspace}
-                t={t}
               />
             </div>
           </div>

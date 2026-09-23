@@ -325,4 +325,13 @@ describe('SettingsPanel group reset', () => {
     expect(updatePreferences).not.toHaveBeenCalled();
     expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
   });
+
+  it('重置按钮集合与 patch 工厂同源（单注册表）', async () => {
+    const groups = await import('./settingsGroups');
+    const factories = (groups as Record<string, unknown>).GROUP_RESET_PATCHES as
+      | Record<string, () => unknown>
+      | undefined;
+    expect(factories, 'GROUP_RESET_PATCHES missing').toBeDefined();
+    expect(new Set(Object.keys(factories!))).toEqual(new Set(groups.RESETTABLE_GROUPS));
+  });
 });

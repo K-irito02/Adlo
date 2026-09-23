@@ -8,26 +8,14 @@ import { useShallow } from 'zustand/react/shallow';
 import { TooltipSimple } from '../Tooltip';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SettingsNav } from './SettingsNav';
-import { SETTINGS_GROUPS } from './settingsGroups';
+import { SETTINGS_GROUPS, GROUP_RESET_PATCHES, RESETTABLE_GROUPS } from './settingsGroups';
 import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
 import { StorageSettings } from '../../features/storage-settings/StorageSettings';
-import {
-  getDefaultPreferences,
-  DEFAULT_LANGUAGE,
-  DEFAULT_THEME_MODE,
-  DEFAULT_LOG_LEVEL,
-  DEFAULT_TERMINAL_LOG_MODE,
-  DEFAULT_DEBUG_LOG_MODE,
-  DEFAULT_FONTS,
-  DEFAULT_MAX_CONCURRENT_WORKSPACES,
-  DEFAULT_WORKSPACE_PRIORITY_IDS,
-  DEFAULT_WORKSPACE_DEFERRED_IDS,
-  DEFAULT_WORKSPACE_NATURAL_ORDER,
-} from '../../../shared/defaultPreferences';
+import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
   SETTINGS_NAVIGATOR_WIDTH_MAX,
@@ -45,9 +33,6 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   dsh: DshSettings,
   storage: StorageSettings,
 };
-
-/** 组级重置已接入默认映射的组（general / workspace；其它组为独立组件/独立存储，暂不挂载按钮）。 */
-const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set(['general', 'workspace']);
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
   const { t } = useTCopy();
@@ -136,27 +121,14 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const handleResetGroup = useCallback(
     async (group: SettingsGroupId) => {
-      if (group === 'general') {
-        const ok = await updatePreferences({
-          language: DEFAULT_LANGUAGE,
-          themeMode: DEFAULT_THEME_MODE,
-          logLevel: DEFAULT_LOG_LEVEL,
-          terminalLogMode: DEFAULT_TERMINAL_LOG_MODE,
-          debugLogMode: DEFAULT_DEBUG_LOG_MODE,
-          fonts: { ...DEFAULT_FONTS },
-        });
-        showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+      // 与按钮渲染同源（RESETTABLE_GROUPS 由 patch 工厂派生）；未接入的组显式报错而非静默无操作。
+      const buildPatch = GROUP_RESET_PATCHES[group];
+      if (!buildPatch) {
+        showToast(t.settingsUpdateFailed, 'error');
         return;
       }
-      if (group === 'workspace') {
-        const ok = await updatePreferences({
-          maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
-          workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
-          workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
-          workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
-        });
-        showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
-      }
+      const ok = await updatePreferences(buildPatch());
+      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
     },
     [updatePreferences, showToast, t],
   );

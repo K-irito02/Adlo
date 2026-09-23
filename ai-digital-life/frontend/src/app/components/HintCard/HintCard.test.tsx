@@ -68,6 +68,22 @@ describe('HintCard', () => {
     expect(screen.getByText('正文')).toBeTruthy();
   });
 
+  it('renders a real two-title hint composition with headings in order', async () => {
+    await act(async () => {
+      render(
+        <HintCard visible triggerRect={makeRect(100, 100)}>
+          {'# 简介\n随应用程序启动立即加载\n# 优先加载列表\n· 加载时机：启动时'}
+        </HintCard>,
+      );
+    });
+    const titles = document.querySelectorAll('.hint-card__title');
+    expect(titles).toHaveLength(2);
+    expect(titles[0].textContent).toBe('简介');
+    expect(titles[1].textContent).toBe('优先加载列表');
+    expect(titles[0].getAttribute('role')).toBe('heading');
+    expect(screen.getByText('随应用程序启动立即加载')).toBeTruthy();
+  });
+
   it('renders ReactNode content directly', async () => {
     await act(async () => {
       render(

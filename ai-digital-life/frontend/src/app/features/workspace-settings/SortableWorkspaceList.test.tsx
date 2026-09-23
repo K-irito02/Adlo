@@ -29,6 +29,20 @@ describe('SortableWorkspaceList', () => {
     expect(screen.getByText('Priority')).toBeInTheDocument();
   });
 
+  it('names the list info button after the list title', () => {
+    renderInDnd(
+      <SortableWorkspaceList
+        kind="priority"
+        title="Priority"
+        tooltipContent="t"
+        items={[]}
+        emptyText="Empty"
+        removeLabel="Remove {name}"
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'Priority' })).toBeInTheDocument();
+  });
+
   it('renders all item names when items are non-empty', () => {
     renderInDnd(
       <SortableWorkspaceList

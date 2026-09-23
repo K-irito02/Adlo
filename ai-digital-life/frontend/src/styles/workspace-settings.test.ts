@@ -51,6 +51,11 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(header).not.toBeNull();
     expect(header).not.toContain('border-bottom');
     expect(header).not.toContain('padding-bottom');
+    // 真正的分隔线在内层 SettingsHeader 上（外层容器本就没有）
+    const inner = ruleBody(settingsCss, '.adl-settings-workspace__header .adl-settings-header');
+    expect(inner).not.toBeNull();
+    expect(inner).toContain('border-bottom: none');
+    expect(inner).toContain('padding-bottom: 0');
   });
 
   it('tightens the gap between the workspace title block and the card', () => {
@@ -62,10 +67,16 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   it('drops the divider between the max-concurrent row and the lists', () => {
     const body = ruleBody(
       settingsCss,
-      '.adl-settings-workspace .adl-settings-card > .adl-settings-row',
+      '.adl-settings-workspace .adl-settings-card > .adl-settings-row:first-child',
     );
     expect(body).not.toBeNull();
     expect(body).toContain('border-bottom: none');
+  });
+
+  it('keeps grid columns from blowing out on long workspace names', () => {
+    const body = ruleBody(settingsCss, '.workspace-grid > .adl-sortable-section');
+    expect(body).not.toBeNull();
+    expect(body).toContain('min-width: 0');
   });
 
   it('matches the empty drop zone box to a real workspace item', () => {
@@ -84,6 +95,7 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(title).not.toBeNull();
     expect(title).toContain('font-weight');
     expect(hintCardCss).toContain('.hint-card__title:first-child');
+    expect(hintCardCss).toContain('.hint-card__title + .hint-card__line');
   });
 
   it('keeps settings nav hover on the light surface token', () => {

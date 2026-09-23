@@ -291,6 +291,8 @@ export function useWorkspaceDnd(args: UseWorkspaceDndArgs): UseWorkspaceDndResul
       // Determine target container by calculating which grid column the
       // dropped item's bounding box overlaps most with. This handles all
       // drop-in-empty-space scenarios reliably.
+      // 注意：grabOffset/sourceRect 读的是闭包旧值（setState 快照语义）——
+      // 上面的清零不影响本次计算，勿改为读最新 state。
       const cursorContainer = findListContainerAtCursor(cursorRef.current, grabOffset, sourceRect);
       let overId: string | null;
 

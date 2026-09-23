@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent, waitFor, act } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
@@ -213,8 +213,8 @@ describe('WorkspaceSettings merged block', () => {
     expect(input.value).toBe('12');
   });
 
-  it('block reset failure surfaces an error toast', async () => {
-    const { updatePreferences, showToast } = setupStore();
+  it('block reset failure surfaces an error toast and rolls local values back', async () => {
+    const { updatePreferences, showToast } = setupStore({ maxConcurrentWorkspaces: 12 });
     updatePreferences.mockResolvedValue(false);
     renderSettings();
 
@@ -226,6 +226,52 @@ describe('WorkspaceSettings merged block', () => {
       expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
     });
     expect(showToast).not.toHaveBeenCalledWith('settingsResetComplete', 'success');
+    // 失败回滚：本地回到落盘值 12，不与 store 脱节
+    const input = document.querySelector('input.adl-settings-input--narrow') as HTMLInputElement;
+    expect(input.value).toBe('12');
+  });
+
+  it('keeps an in-flight edit when an equal-content external update arrives', async () => {
+    vi.useFakeTimers();
+    try {
+      const { updatePreferences } = setupStore({ maxConcurrentWorkspaces: 6 });
+      renderSettings();
+
+      const input = document.querySelector('input.adl-settings-input--narrow') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: '12' } });
+      expect(input.value).toBe('12');
+
+      // 外部同内容更新（新数组身份）：其它来源回写了相同值，不得清掉在途 debounce。
+      // setState 包进同步 act，确保外部 effect 先于 advanceTimers 执行（否则重渲染被推迟、timer 先开火，测不到竞态）。
+      act(() => {
+        useAppStore.setState((s) => ({
+          appInfo: s.appInfo
+            ? {
+                ...s.appInfo,
+                config: {
+                  ...s.appInfo.config,
+                  maxConcurrentWorkspaces: 12,
+                  workspacePriorityIds: [],
+                  workspaceDeferredIds: [],
+                  workspaceNaturalOrder: [],
+                },
+              }
+            : s.appInfo,
+        }));
+      });
+
+      await act(async () => {
+        vi.advanceTimersByTime(200);
+      });
+      expect(updatePreferences).toHaveBeenCalledWith({
+        maxConcurrentWorkspaces: 12,
+        workspacePriorityIds: [],
+        workspaceDeferredIds: [],
+        workspaceNaturalOrder: [],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('syncs local state when external config changes (e.g. group reset elsewhere)', async () => {

@@ -201,6 +201,9 @@ describe('workspace settings loading copy (rename + plain language)', () => {
       expect(zh, key).not.toContain('\n\n');
       expect(en, key).not.toContain('\n\n');
     }
+    // 特殊情况分点用全称，与列表标题一致
+    expect(String(zhCN.workspaceTagListTooltip)).toContain('优先加载列表');
+    expect(String(zhCN.workspaceTagListTooltip)).toContain('延迟加载列表');
   });
 });
 

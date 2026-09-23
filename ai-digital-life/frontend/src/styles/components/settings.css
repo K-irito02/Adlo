@@ -1079,9 +1079,11 @@
   border-bottom: none;
 }
 
-/* ---- Max-concurrent row: no divider above the three lists ---- */
+/* ---- Max-concurrent row: no divider above the three lists ----
+   卡内首行即该行（后跟 .workspace-curtain），收紧为 :first-child：
+   未来若在卡内追加其它 row，新行仍保留全局分隔线。 */
 
-.adl-settings-workspace .adl-settings-card > .adl-settings-row {
+.adl-settings-workspace .adl-settings-card > .adl-settings-row:first-child {
   border-bottom: none;
 }
 
@@ -1104,6 +1106,8 @@
 
 .workspace-grid > .adl-sortable-section {
   margin-bottom: 0;
+  /* grid 防爆开：列为 minmax(80px,1fr)，子项 min-width:auto 会被长工作区名撑开轨道 */
+  min-width: 0;
 }
 
 /* Section header title — single-line always */

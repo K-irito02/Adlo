@@ -131,6 +131,9 @@
 .hint-card__title:first-child {
   margin-top: 0;
 }
+.hint-card__title + .hint-card__line {
+  margin-top: var(--space-1);
+}
 
 /* --- Reduced motion --- */
 @media (prefers-reduced-motion: reduce) {

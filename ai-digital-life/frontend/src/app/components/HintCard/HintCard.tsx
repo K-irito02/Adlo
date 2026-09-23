@@ -13,6 +13,8 @@ export interface HintCardProps {
 }
 
 function parseContent(content: React.ReactNode): React.ReactNode {
+  // mini-markdown（保留前缀约定）：行首 '# ' 为标题、'· ' 为分点、空行为换行；其余原样渲染。
+  // 注意：任何以 '# ' 开头的 hint 行都会被转成标题，新增文案时避开此前缀。
   if (typeof content !== 'string') {
     return content;
   }
@@ -21,7 +23,7 @@ function parseContent(content: React.ReactNode): React.ReactNode {
   return lines.map((line, idx) => {
     if (line.startsWith('# ')) {
       return (
-        <div key={idx} className="hint-card__title">
+        <div key={idx} className="hint-card__title" role="heading" aria-level={2}>
           {line.slice(2)}
         </div>
       );
