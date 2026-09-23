@@ -44,7 +44,9 @@
 }
 
 /* 信息按钮（“!”）：与「恢复默认」图标同级收敛——常态用 muted 中性灰，
-   hover 才提升对比，避免在标题行里抢视觉、与标题同等高亮。 */
+   hover 才提升对比，避免在标题行里抢视觉、与标题同等高亮。
+   注：存储设置页的 info 按钮为装饰性提示触发器（HintCardTrigger 承载内容），
+   统一 tabIndex={-1}，故其 :focus-visible 分支几乎不触发；保留供其它可聚焦用法兜底。 */
 .adl-icon-button--info {
   color: var(--text-muted);
 }

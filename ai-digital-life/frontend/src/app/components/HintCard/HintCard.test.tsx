@@ -1,6 +1,6 @@
 import { render, screen, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { HintCard, HINT_TITLE_PREFIX } from './HintCard';
+import { HintCard } from './HintCard';
 
 function makeRect(left: number, top: number): DOMRect {
   return {

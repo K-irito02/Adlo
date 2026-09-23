@@ -158,7 +158,7 @@ export const settingsEn = {
   storageStatusLoading: 'Loading storage status…',
   storageStatusLoadFailed:
     'Failed to load storage status: {error}. Please make sure the app backend is up to date and restarted.',
-  storageNoCategories: 'No storage categories available. Please retry later.',
+  storageNoCategories: 'No storage categories available. Please retry later',
   storagePickUnavailable:
     'Folder picker is not available in this environment. Please enter the path manually.',
   storageUnknownError: 'Unknown error',

@@ -143,7 +143,7 @@ export const settingsZh = {
   storagePickFailed: '选择目录失败：{error}',
   storageStatusLoading: '正在读取存储状态…',
   storageStatusLoadFailed: '无法读取存储状态：{error}。请确认应用后端已更新并重启应用。',
-  storageNoCategories: '暂无存储分类信息，请稍后重试。',
+  storageNoCategories: '暂无存储分类信息，请稍后重试',
   storagePickUnavailable: '当前环境不支持目录选择，请手动输入路径。',
   storageUnknownError: '未知错误',
   storageBridgeUnavailable: '存储桥不可用',

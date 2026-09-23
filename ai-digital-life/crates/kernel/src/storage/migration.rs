@@ -325,8 +325,9 @@ fn owned_files(category: StorageCategory, base: &Path) -> Result<Vec<PathBuf>, A
     Ok(collect_files(base)?.into_iter().filter(|f| owns_file(category, base, f)).collect())
 }
 
-/// 探测目录可写：创建并删除一个临时文件。
-fn probe_writable(target: &Path) -> std::io::Result<()> {
+/// 探测目录可写：创建并删除一个临时文件。供存储预检与壳层默认数据根判定共用，
+/// 保证 `.adl-write-probe` 探针契约单点维护。
+pub fn probe_writable(target: &Path) -> std::io::Result<()> {
     let dir = if target.is_dir() || target.extension().is_none() {
         target
     } else {
@@ -335,7 +336,9 @@ fn probe_writable(target: &Path) -> std::io::Result<()> {
     std::fs::create_dir_all(dir)?;
     let probe = dir.join(".adl-write-probe");
     std::fs::write(&probe, b"")?;
-    let _ = std::fs::remove_file(&probe);
+    if let Err(e) = std::fs::remove_file(&probe) {
+        tracing::warn!(error = %e, path = %probe.display(), "failed to remove write probe file");
+    }
     Ok(())
 }
 

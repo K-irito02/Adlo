@@ -577,7 +577,6 @@
   background: var(--bg-muted);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  box-sizing: border-box;
 }
 
 /* ---- Settings custom dropdown（可复用：替代原生 select） ----
@@ -742,6 +741,14 @@
   outline-offset: var(--focus-ring-offset);
 }
 
+.adl-settings-row__reset:disabled,
+.adl-settings-row__reset:disabled:hover {
+  cursor: default;
+  opacity: 0.5;
+  color: var(--text-muted);
+  background: transparent;
+}
+
 /* 行首内联恢复按钮：与标题同行，尺寸收紧 */
 .adl-settings-row__reset--inline {
   padding: 2px;
@@ -801,7 +808,8 @@
 }
 
 .adl-settings-nav__row:hover .adl-settings-nav__reset,
-.adl-settings-nav__row:has(.adl-settings-nav__item:focus-visible) .adl-settings-nav__reset {
+.adl-settings-nav__row:has(.adl-settings-nav__item:focus-visible) .adl-settings-nav__reset,
+.adl-settings-nav__row:has(.adl-settings-nav__reset:focus-visible) .adl-settings-nav__reset {
   opacity: 1;
   visibility: visible;
 }
@@ -1098,38 +1106,22 @@
   background: var(--pastel-danger-bg);
 }
 
-/* ---- Workspace block header (title + group reset above the merged card) ---- */
+/* ---- Workspace / Storage block header (group reset above the merged card) ---- */
+/* 两个设置组头块样式相同，共用选择器保证单点维护。 */
 
-.adl-settings-workspace__header {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.adl-settings-section.adl-settings-workspace {
-  gap: var(--space-3);
-}
-
-.adl-settings-workspace__header .adl-settings-header {
-  flex: 1;
-  min-width: 0;
-  padding-bottom: 0;
-  margin-bottom: 0;
-  border-bottom: none;
-}
-
-/* ---- Storage block header (title + group reset above the merged card) ---- */
-
+.adl-settings-workspace__header,
 .adl-settings-storage__header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
+.adl-settings-section.adl-settings-workspace,
 .adl-settings-section.adl-settings-storage {
   gap: var(--space-3);
 }
 
+.adl-settings-workspace__header .adl-settings-header,
 .adl-settings-storage__header .adl-settings-header {
   flex: 1;
   min-width: 0;
@@ -1171,7 +1163,7 @@
 }
 
 /* 提示文字用项目自带黄色（警告/强调语义），亮暗主题可见 */
-.adl-storage-settings__dirtybar > span:first-child {
+.adl-storage-settings__dirtybar-hint {
   color: var(--pastel-warning-fg);
 }
 

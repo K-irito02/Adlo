@@ -1,14 +1,16 @@
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::{Arc, RwLock};
+
+use anyhow::Context;
+use tauri::Manager;
+use tracing::{info, warn};
+
 use crate::adl_server::AdServerHandle;
 use crate::state::AppState;
 use adl_kernel::config_watcher::ConfigWatcher;
 use adl_kernel::{config as adl_config, events::EventBus};
 use adl_types::now_ms;
-use anyhow::Context;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
-use tauri::Manager;
-use tracing::{info, warn};
 
 fn resolve_project_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -54,15 +56,12 @@ fn preferred_default_root(install_dir: &Path, fallback: PathBuf) -> PathBuf {
     if is_writable(&candidate) { candidate } else { fallback }
 }
 
-/// 可写探测：能创建目录并写入/删除探针文件即视为可写（Windows 拦截的只读位置会失败）。
+/// 判定候选数据根可写：复用 `adl-kernel::storage::probe_writable`（创建目录并写入/删除探针文件），
+/// 保证 `.adl-write-probe` 探针契约与存储预检单点一致。
+/// 说明：该探测依赖 exe manifest 已禁用 UAC 文件虚拟化（Tauri v2 默认 `asInvoker`）；
+/// 否则对 Program Files 等受保护位置的写入会被静默重定向到 VirtualStore，导致误判为可写。
 fn is_writable(dir: &Path) -> bool {
-    if std::fs::create_dir_all(dir).is_err() {
-        return false;
-    }
-    let probe = dir.join(".adl-write-probe");
-    let ok = std::fs::write(&probe, b"probe").is_ok();
-    let _ = std::fs::remove_file(&probe);
-    ok
+    adl_kernel::storage::probe_writable(dir).is_ok()
 }
 
 /// 壳层启动迁移：在打开任何 DB/日志句柄之前执行待迁移。
@@ -171,7 +170,6 @@ pub fn init_app_state(
 /// SSE server and durable-session recovery now live in the adl-server process —
 /// this shell no longer runs them.
 pub fn start_background_tasks(state: &AppState) {
-    let config_path = adl_config::config_path_for(&state.storage.paths().config_dir);
     let config_dir = state.storage.paths().config_dir.clone();
     let config_arc = state.config.clone();
     let page_meta_svc = state.browser_manager.page_meta_service().clone();
@@ -200,7 +198,7 @@ pub fn start_background_tasks(state: &AppState) {
 
             let config_arc_watcher = config_arc.clone();
             let watcher_handle = tokio::spawn(async move {
-                config_watcher.start_watching(config_path, config_dir).await;
+                config_watcher.start_watching(config_dir).await;
             });
 
             let config_update_handle = tokio::spawn(async move {

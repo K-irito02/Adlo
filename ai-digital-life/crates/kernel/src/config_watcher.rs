@@ -1,7 +1,9 @@
-use crate::config::{AppConfig, load_from};
 use std::path::PathBuf;
 use std::sync::Arc;
+
 use tokio::sync::watch;
+
+use crate::config::{AppConfig, load_from};
 
 pub struct ConfigWatcher {
     tx: watch::Sender<Arc<AppConfig>>,
@@ -14,12 +16,11 @@ impl ConfigWatcher {
         Self { tx, rx }
     }
 
-    pub async fn start_watching(&self, config_path: PathBuf, config_dir: PathBuf) {
+    pub async fn start_watching(&self, config_dir: PathBuf) {
         let tx = self.tx.clone();
         tokio::spawn(async move {
             let (notify_tx, mut notify_rx) = tokio::sync::mpsc::channel::<()>(16);
 
-            let path_clone = config_path.clone();
             let dir_clone = config_dir.clone();
             let notify_tx_clone = notify_tx.clone();
             tokio::task::spawn_blocking(move || {
@@ -38,22 +39,20 @@ impl ConfigWatcher {
                         return;
                     },
                 };
-                // 先尝试 watch 配置文件；其未创建则回退 watch 所在目录（目录已确保存在）。
-                let file_ok = path_clone.exists()
-                    && watcher.watch(&path_clone, RecursiveMode::NonRecursive).is_ok();
-                if !file_ok {
-                    if let Err(e) = watcher.watch(&dir_clone, RecursiveMode::NonRecursive) {
-                        tracing::error!(
-                            "Failed to watch config directory {}: {}",
-                            dir_clone.display(),
-                            e
-                        );
-                        return;
-                    }
+                // 统一 watch 配置目录而非单个文件：单文件 watch 句柄在 config 被删除重建或
+                // 外部 save-as/temp+rename 原子替换后会失效并永久失去事件流。watch 目录对首
+                // 次写入、删除重建、就地写（本组件 config.rs 用 std::fs::write）与替换均覆盖。
+                if let Err(e) = watcher.watch(&dir_clone, RecursiveMode::NonRecursive) {
+                    tracing::error!(
+                        "Failed to watch config directory {}: {}",
+                        dir_clone.display(),
+                        e
+                    );
+                    return;
                 }
                 tracing::info!(
-                    path = %if file_ok { path_clone.display().to_string() } else { dir_clone.display().to_string() },
-                    "Config watcher watching",
+                    path = %dir_clone.display(),
+                    "Config watcher watching config directory",
                 );
                 for _e in rx.into_iter().flatten() {
                     let _ = notify_tx_clone.blocking_send(());
@@ -74,6 +73,8 @@ impl ConfigWatcher {
                     },
                 }
             }
+            // watcher 任务在此结束（目录 watch 全部失败或通道关闭），热更新无法继续，显式留痕。
+            tracing::warn!("Config watcher exited, config hot-reload disabled");
         });
     }
 

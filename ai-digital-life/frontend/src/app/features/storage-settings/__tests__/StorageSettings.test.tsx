@@ -4,10 +4,10 @@ import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { STORAGE_CATEGORY_KEYS } from '@shared/ipc/storage';
 import { formatBytes } from '@root/design-system/html';
-import { settingsEn } from '../../i18n/en-US/settings';
-import { settingsZh } from '../../i18n/zh-CN/settings';
-import { CATEGORY_COPY } from './storageCategoryCopy';
-import { StorageSettings } from './StorageSettings';
+import { settingsEn } from '../../../i18n/en-US/settings';
+import { settingsZh } from '../../../i18n/zh-CN/settings';
+import { CATEGORY_COPY } from '../storageCategoryCopy';
+import { StorageSettings } from '../StorageSettings';
 
 const status = {
   mode: 'unified' as const,
@@ -146,7 +146,9 @@ describe('StorageSettings', () => {
     await waitFor(() => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
-    fireEvent.click(headerResetButton() as HTMLElement);
+    const reset = headerResetButton();
+    expect(reset).not.toBeNull();
+    fireEvent.click(reset as HTMLElement);
     await waitFor(() => {
       expect(preflight).toHaveBeenCalledTimes(1);
     });
@@ -157,10 +159,18 @@ describe('StorageSettings', () => {
       categories: {},
       retainSource: false,
     });
+    // 草稿已重置：UI 上的数据根目录输入框被清空（后端将空视为默认根）。
+    expect(
+      (screen.getByRole('textbox', { name: 'storageManualInput' }) as HTMLInputElement).value,
+    ).toBe('');
     // 进入迁移对话框（冲突/确认即此对话框，不额外二次确认）。
     expect(screen.getByRole('dialog')).toBeTruthy();
   });
 
+  // 注：脏条/底部提交区渲染由 IntersectionObserver 决定（bottomCtaVisible）。jsdom 无 IO，
+  // effect 早退使 bottomCtaVisible 恒为 false → 脏条恒渲染，因此以下应用/撤回用例在此稳定成立。
+  // 真实浏览器中「底部 CTA 可见时脏条隐藏、滚出后显示」属焦点/可布局契约，须用真实浏览器验证，
+  // 不以 jsdom 通过即宣称粘性条正确（mandatory-testing）。
   it('shows the sticky dirty bar when paths change and applies on click', async () => {
     const preflight = vi.fn().mockResolvedValue({
       ok: true,
@@ -282,8 +292,34 @@ describe('StorageSettings', () => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
     // 所有 info 触发器（mode/root/category×10/locator）数量 >= 13。
-    const infos = document.querySelectorAll('.adl-icon-button--info');
+    const infos = Array.from(document.querySelectorAll('.adl-icon-button--info'));
     expect(infos.length).toBeGreaterThanOrEqual(13);
+    // 名实相副：凡是位于「标题行 label-text 容器」内的 info 触发器，都必须位于紧随其后的
+    // 标题 <span> 之前（前置）。模式/根目录/逐类行均可被该排序断言真实覆盖。
+    let titleRowsChecked = 0;
+    for (const info of infos) {
+      const labelText = info.closest('.adl-settings-row__label-text');
+      if (!labelText) {
+        continue; // 无 label-text 容器的图标行（如不可移动条目）不参与排序断言。
+      }
+      // 标题 = label-text 内、按钮外、可见文本非空的 span（避开 HintCardTrigger 的包裹 span）。
+      const title = Array.from(labelText.querySelectorAll('span')).find(
+        (s) => !s.closest('button') && (s.textContent ?? '').trim().length > 0,
+      );
+      // label-text 行必带标题：缺失即结构漂移，直接失败，杜绝静默漏判。
+      expect(title, 'every titled row must have a title span to assert ordering').not.toBeNull();
+      if (!title) {
+        continue;
+      }
+      // compareDocumentPosition：DOCUMENT_POSITION_FOLLOWING 表示 title 在 info 之后。
+      expect(
+        info.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING,
+        'hint trigger should precede its title',
+      ).toBeTruthy();
+      titleRowsChecked += 1;
+    }
+    // 至少 mode/root/逐类等标题行参与排序断言（不为空跑用例）。
+    expect(titleRowsChecked).toBeGreaterThan(0);
   });
 
   it('renders all visible category rows (default download target hidden)', async () => {

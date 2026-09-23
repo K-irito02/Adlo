@@ -15,6 +15,20 @@ function ruleBody(css: string, selector: string): string | null {
   return css.slice(open + 1, close);
 }
 
+/** 分组（逗号并列）选择器规则的规则体查找：selector 需作为选择器列表中的完整一项（后随 `{` 或 `,`）。
+ * 用于 workspace/storage 头块合并后共享选择器的断言。 */
+function groupRuleBody(css: string, selector: string): string | null {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(?:^|,\\s*)${escaped}(?=\\s*(?:,|\\{))`, 'm');
+  const m = re.exec(css);
+  if (!m) {
+    return null;
+  }
+  const open = css.indexOf('{', m.index);
+  const close = css.indexOf('}', open);
+  return css.slice(open + 1, close);
+}
+
 describe('workspace settings styles (narrow input + right angles + merged-card cleanup)', () => {
   it('provides a narrow modifier for the numeric input', () => {
     const body = ruleBody(settingsCss, '.adl-settings-input--narrow');
@@ -47,19 +61,23 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   });
 
   it('workspace block header drops the divider and heavy spacing to the card', () => {
-    const header = ruleBody(settingsCss, '.adl-settings-workspace__header');
+    // 头块选择器已与 storage 头块合并为逗号并列组，用 groupRuleBody 查找。
+    const header = groupRuleBody(settingsCss, '.adl-settings-workspace__header');
     expect(header).not.toBeNull();
     expect(header).not.toContain('border-bottom');
     expect(header).not.toContain('padding-bottom');
     // 真正的分隔线在内层 SettingsHeader 上（外层容器本就没有）
-    const inner = ruleBody(settingsCss, '.adl-settings-workspace__header .adl-settings-header');
+    const inner = groupRuleBody(
+      settingsCss,
+      '.adl-settings-workspace__header .adl-settings-header',
+    );
     expect(inner).not.toBeNull();
     expect(inner).toContain('border-bottom: none');
     expect(inner).toContain('padding-bottom: 0');
   });
 
   it('tightens the gap between the workspace title block and the card', () => {
-    const body = ruleBody(settingsCss, '.adl-settings-section.adl-settings-workspace');
+    const body = groupRuleBody(settingsCss, '.adl-settings-section.adl-settings-workspace');
     expect(body).not.toBeNull();
     expect(body).toContain('gap: var(--space-3)');
   });

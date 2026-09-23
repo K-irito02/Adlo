@@ -388,7 +388,10 @@ export function StorageSettings() {
     (retainSource: boolean): StoragePathPatch => ({
       mode,
       root: mode === 'unified' ? rootDraft.trim() : null,
-      categories: mode === 'per_category' ? categoryDrafts : {},
+      categories:
+        mode === 'per_category'
+          ? Object.fromEntries(Object.entries(categoryDrafts).map(([k, v]) => [k, v.trim()]))
+          : {},
       retainSource,
     }),
     [mode, rootDraft, categoryDrafts],
@@ -603,7 +606,7 @@ export function StorageSettings() {
     (mode !== status.mode ||
       (mode === 'unified'
         ? rootDraft.trim() !== status.root
-        : categories.some((c) => (categoryDrafts[c.key] ?? c.path) !== c.path))),
+        : categories.some((c) => (categoryDrafts[c.key] ?? c.path).trim() !== c.path))),
   );
 
   // 观测「块底部 撤回/应用」是否可见：可见时推移性提交条隐藏；不可见（向上/向下滚、窗口变化）时显示。
@@ -753,6 +756,7 @@ export function StorageSettings() {
           aria-label={resetLabel}
           title={resetLabel}
           data-testid="storage-reset-defaults"
+          disabled={busy}
           onClick={handleResetCorePaths}
         >
           <IconResetDefaults size={14} decorative />
@@ -1079,7 +1083,9 @@ export function StorageSettings() {
 
       {isDirty && !bottomCtaVisible ? (
         <div className="adl-storage-settings__dirtybar" data-testid="storage-dirtybar">
-          <span>{t.storageDirtyHint.replace('{block}', t.storageCorePathsTitle)}</span>
+          <span className="adl-storage-settings__dirtybar-hint">
+            {t.storageDirtyHint.replace('{block}', t.storageCorePathsTitle)}
+          </span>
           <div className="adl-storage-settings__dirtybar-actions">
             <button
               type="button"
