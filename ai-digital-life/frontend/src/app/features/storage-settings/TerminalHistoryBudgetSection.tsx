@@ -185,11 +185,17 @@ export function TerminalHistoryBudgetSection() {
 
   const selectValue = custom ? CUSTOM_VALUE : isFollowDisk ? FOLLOW_DISK_VALUE : String(current);
 
-  /** 自定义档下上限文案跟随草稿（草稿可能尚未提交）；跟随磁盘档下仍显示本地化模式名。 */
+  /** 自定义档下上限文案跟随草稿（草稿可能尚未提交）；跟随磁盘档下仍显示本地化模式名。
+   * 草稿非法（空串/非数字）时回退显示当前偏好值，不显示钳制下限误导为「1 GB」（B2）。 */
+  const draftBytes = Number(draftValue);
   const limitLabel =
     isFollowDisk && !custom
       ? t.settingsTerminalHistoryBudgetFollowDisk
-      : formatBytes(custom ? budgetBytesFromCustom(Number(draftValue), draftUnit) : current);
+      : formatBytes(
+          custom && Number.isFinite(draftBytes) && draftValue.trim() !== ''
+            ? budgetBytesFromCustom(draftBytes, draftUnit)
+            : current,
+        );
 
   const handleSelectChange = useCallback(
     (value: string) => {

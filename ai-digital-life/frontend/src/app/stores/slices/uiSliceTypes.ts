@@ -123,11 +123,11 @@ export interface UISlice {
   activeSettingsGroup: SettingsGroupId;
   settingsSearchQuery: string;
   /**
-   * 「存储」组级恢复默认请求序列：侧边栏重置按钮只发信号（+ 切到存储组），
-   * 真正的确认对话框与多步执行由 StorageSettings 订阅此序列后承接
-   *（核心路径迁移/树缓存/预算/下载分属不同桥，不能走 updatePreferences 一刀切）。
+   * 「存储」组级恢复默认**待处理**信号（transient，不持久化）：侧边栏重置按钮置 true，
+   * StorageSettings 承接消费（开框前 consume）。布尔 pending 而非序号，是为了消除
+   * 「未挂载 → 切组+信号同批 → 挂载即把新值当历史播种而漏弹」的首跳竞态（Phase 4 H1）。
    */
-  storageGroupResetSeq: number;
+  storageGroupResetPending: boolean;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
   changesStatusFilter: Set<ChangeFileState>;
@@ -176,7 +176,10 @@ export interface UISlice {
   closeAllMenus: () => void;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;
+  /** 置位组级恢复待处理（幂等：已 pending 再点保持 true）。 */
   requestStorageGroupReset: () => void;
+  /** 消费组级恢复待处理（承接方开框前/丢弃信号时调用）。 */
+  consumeStorageGroupReset: () => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;

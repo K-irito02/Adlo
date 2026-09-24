@@ -28,7 +28,8 @@ export function isBudgetUnit(v: string): v is BudgetUnit {
 export const BUDGET_MIN_BYTES = 1 << 30;
 export const BUDGET_MAX_BYTES = 2000 * (1 << 30);
 
-export function budgetUnitMultiplier(unit: BudgetUnit): number {
+/** 单位换算乘数（模块内私有：仅本文件换算函数消费，不导出扩面）。 */
+function budgetUnitMultiplier(unit: BudgetUnit): number {
   return unit === 'mb' ? 1 << 20 : 1 << 30;
 }
 
@@ -47,7 +48,11 @@ export function budgetBytesFromCustom(raw: number, unit: BudgetUnit): number {
     return BUDGET_MIN_BYTES;
   }
   const bytes = Math.round(raw * budgetUnitMultiplier(unit));
-  return Math.min(BUDGET_MAX_BYTES, Math.max(BUDGET_MIN_BYTES, bytes));
+  // 乘法溢出（raw 极大 → Infinity）按上限钳制，勿落入 clampBudgetBytes 的非有限→下限分支。
+  if (!Number.isFinite(bytes)) {
+    return BUDGET_MAX_BYTES;
+  }
+  return clampBudgetBytes(bytes);
 }
 
 /** 字节钳制到自定义取值范围（非法输入回落下限；草稿播种/重显用）。 */
@@ -59,7 +64,8 @@ export function clampBudgetBytes(bytes: number): number {
 }
 
 /** 字节 → 指定单位显示串（切单位时同一草稿换算，保持显示与待提交一致）。
- * 小数保留四位，避免单位来回切换造成草稿漂移（仿 treeCacheTtl formatMinutesForUnit）。 */
+ * 小数保留四位，减缓单位来回切换造成的草稿漂移（字节才是 canonical 值，显示仅格式化；
+ * 仿 treeCacheTtl formatMinutesForUnit）。注意四位小数仍有微量往返误差，不追求绝对无损。 */
 export function formatBytesForBudgetUnit(bytes: number, unit: BudgetUnit): string {
   const raw = bytes / budgetUnitMultiplier(unit);
   return String(Math.round(raw * 10000) / 10000);

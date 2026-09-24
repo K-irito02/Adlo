@@ -52,8 +52,8 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
 /**
  * 侧边栏渲染重置按钮的组 = patch 工厂键 + storage。
  * storage 例外：核心路径/树缓存/下载分属独立存储，没有统一偏好 patch，不走
- * updatePreferences；侧边栏只切组 + 发信号，确认对话框与多步执行由 StorageSettings
- * 订阅 `storageGroupResetSeq` 后承接（见 requestStorageGroupReset）。
+ * updatePreferences；侧边栏只切组 + 置 pending 信号，确认对话框与多步执行由
+ * StorageSettings 承接（见 uiSlice `storageGroupResetPending`）。
  */
 export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set([
   ...(Object.keys(GROUP_RESET_PATCHES) as SettingsGroupId[]),

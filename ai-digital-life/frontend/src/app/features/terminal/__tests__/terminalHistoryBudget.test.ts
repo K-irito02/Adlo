@@ -155,6 +155,8 @@ describe('budget custom units (MB/GB)', () => {
     expect(budgetBytesFromCustom(Number.NaN, 'mb')).toBe(BUDGET_MIN_BYTES);
     expect(budgetBytesFromCustom(1, 'mb')).toBe(BUDGET_MIN_BYTES);
     expect(budgetBytesFromCustom(999999, 'gb')).toBe(BUDGET_MAX_BYTES);
+    // 乘法溢出（Infinity）钳到上限，不落入非有限→下限分支（rev6 N2）。
+    expect(budgetBytesFromCustom(1e300, 'gb')).toBe(BUDGET_MAX_BYTES);
   });
 
   it('formatBytesForBudgetUnit 切单位换算显示（2GB ↔ 2048MB）', () => {

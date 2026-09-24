@@ -9,14 +9,19 @@ export function BrowserDownloadSettings() {
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const isLoadingSettings = useAppStore((s) => s.isLoadingSettings);
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
+  const showToast = useAppStore((s) => s.showToast);
 
   const isAutoSave = downloadSettings.mode === 'auto';
 
   const handleModeChange = useCallback(
     (auto: boolean) => {
-      void updateDownloadSettings(auto ? 'auto' : 'ask');
+      void updateDownloadSettings(auto ? 'auto' : 'ask').then((result) => {
+        if (!result.ok) {
+          showToast(t.settingsUpdateFailed, 'error');
+        }
+      });
     },
-    [updateDownloadSettings],
+    [updateDownloadSettings, showToast, t],
   );
 
   const handleSelectChange = useCallback(

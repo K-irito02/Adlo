@@ -71,7 +71,7 @@ export const createUISlice = (
     hoveredMenuCategory: null,
     activeSettingsGroup: 'general',
     settingsSearchQuery: '',
-    storageGroupResetSeq: 0,
+    storageGroupResetPending: false,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     changesStatusFilter: new Set(),
     changesOutlineExpanded: {},
@@ -158,8 +158,8 @@ export const createUISlice = (
       }),
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
-    requestStorageGroupReset: () =>
-      set((state) => ({ storageGroupResetSeq: state.storageGroupResetSeq + 1 })),
+    requestStorageGroupReset: () => set({ storageGroupResetPending: true }),
+    consumeStorageGroupReset: () => set({ storageGroupResetPending: false }),
     setNavigatorCollapsed: (tool, collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };

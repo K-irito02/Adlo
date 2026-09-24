@@ -61,7 +61,10 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   });
 
   it('drops the in-card h4 subtitle rule after immovables moved to a block header', () => {
-    expect(settingsCss).not.toContain('.adl-settings-section-title');
+    // 精确选择器断言（与文件内 ruleBody 风格统一），避免子串误杀 `--foo` 后缀类名；
+    // 同时用 groupRuleBody 覆盖"以逗号分组形式被重新引入"的盲点（rev2 I3-N1）。
+    expect(ruleBody(settingsCss, '.adl-settings-section-title')).toBeNull();
+    expect(groupRuleBody(settingsCss, '.adl-settings-section-title')).toBeNull();
   });
 
   it('workspace block header drops the divider and heavy spacing to the card', () => {

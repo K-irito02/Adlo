@@ -113,7 +113,7 @@ export const settingsZh = {
   storageRetryMigration: '重试',
   storageCancelPending: '取消待迁移',
   storageMigrateDialogTitle: '迁移数据',
-  storageMigrateDialogSummary: '将迁移 {files} 个文件（约 {size}）到新位置',
+  storageMigrateDialogSummary: '核心数据路径：将迁移 {files} 个文件（约 {size}）到新位置',
   storageMigrateNow: '立即迁移并重启',
   storageMigrateLater: '下次启动时迁移',
   storageRetainSource: '迁移后保留旧路径数据（不删除）',
@@ -146,14 +146,14 @@ export const settingsZh = {
   storageBrowserDownloadTitle: '浏览器默认下载路径',
   storageDownloadMigrateLabel: '更改路径时自动迁移文件',
   storageDownloadMigrateHint:
-    '开启后，修改默认下载路径会把旧路径下的全部文件和文件夹一并搬到新路径，搬运成功后才删除旧路径目录（Windows 系统自带目录只搬文件、不删除目录）；搬运失败则保留旧路径数据不动，不会造成文件丢失。关闭时只切换路径，不搬运任何文件。',
+    '开启后，修改默认下载路径会把旧路径下的全部文件和文件夹一并搬到新路径，全部搬完后才删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）。若中途失败：已搬走的文件会留在新路径，其余仍在旧路径，设置不会切换，可随时重试，不会丢失任何文件。关闭时只切换路径，不搬运任何文件。',
   storageDownloadMigrateEnableTitle: '开启自动迁移？',
   storageDownloadMigrateEnableConfirm:
-    '开启「更改路径时自动迁移文件」后，以后每次修改默认下载路径，旧路径下的全部文件和文件夹都会被搬到新路径；只有全部搬运成功，才会删除旧路径目录（Windows 系统自带目录只搬文件、不删除目录）。若搬运中途失败，旧路径数据会保持原样，你可以稍后重试。不会偷偷删除或丢弃任何文件。确定要开启吗？',
+    '开启「更改路径时自动迁移文件」后，以后每次修改默认下载路径，旧路径下的全部文件和文件夹都会被搬到新路径；只有全部搬运成功，才会删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）。若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不会切换，可稍后重试；不会丢失或丢弃任何文件。确定要开启吗？',
   storageDownloadMigrateEnableConfirmBtn: '确认开启',
   storageDownloadResetTitle: '恢复默认下载路径？',
   storageDownloadResetConfirmMigrateOn:
-    '将把默认下载路径恢复为系统默认。当前已开启自动迁移：旧路径下的全部文件会先搬到系统默认路径，搬运成功后删除旧路径目录（Windows 系统自带目录只搬文件、不删除目录）；若搬运失败，旧路径数据保持原样。',
+    '将把默认下载路径恢复为系统默认。当前已开启自动迁移：旧路径下的全部文件会先搬到系统默认路径，全部成功后删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不切换，可重试。',
   storageDownloadResetConfirmMigrateOff:
     '将把默认下载路径恢复为系统默认。当前未开启自动迁移：只切换路径，旧路径中的文件不会被搬运，也不会被删除。',
   storageDownloadResetConfirmBtn: '恢复默认',
@@ -163,9 +163,9 @@ export const settingsZh = {
     '核心数据路径：回到「统一根目录」+ 默认位置；随后走迁移流程，需重启应用（或下次启动）后生效。',
   storageGroupResetItemTree:
     '工作区树缓存：重新开启，保留时长恢复 15 分钟，已缓存内容保留；立即生效。',
-  storageGroupResetItemBudget: '终端历史磁盘预算：恢复为 1 GB；立即生效。',
+  storageGroupResetItemBudget: '终端历史磁盘预算：恢复为 {default}；立即生效。',
   storageGroupResetItemDownloadMigrateOn:
-    '浏览器默认下载路径：恢复为系统默认；旧路径文件先搬过去（Windows 系统目录除外），成功后删除旧目录；自动迁移开关恢复为关闭。',
+    '浏览器默认下载路径：恢复为系统默认；旧路径文件先搬过去，全部成功后才删除旧目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；自动迁移开关恢复为关闭。',
   storageGroupResetItemDownloadMigrateOff:
     '浏览器默认下载路径：恢复为系统默认，只切换路径、不搬文件；自动迁移开关保持关闭。',
   storageDownloadMigrateFailed: '迁移文件失败：{error}',

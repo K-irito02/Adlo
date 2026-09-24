@@ -79,8 +79,8 @@ export function StorageMigrateDialog({
                 <IconAlertTriangle size={12} decorative /> {t.storagePreflightErrors}
               </p>
               <ul>
-                {errors.map((error) => (
-                  <li key={error}>{error}</li>
+                {errors.map((error, index) => (
+                  <li key={`${error}-${index}`}>{error}</li>
                 ))}
               </ul>
             </div>
@@ -90,20 +90,18 @@ export function StorageMigrateDialog({
             <div className="adl-confirm-dialog__message">
               <p>{t.storagePreflightWarnings}</p>
               <ul>
-                {warnings.map((warning) => (
-                  <li key={warning}>{warning}</li>
+                {warnings.map((warning, index) => (
+                  <li key={`${warning}-${index}`}>{warning}</li>
                 ))}
               </ul>
             </div>
           ) : null}
 
-          <label
-            className="adl-confirm-dialog__message"
-            style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-          >
+          <label className="adl-confirm-dialog__message adl-confirm-dialog__retain">
             <input
               type="checkbox"
               checked={retainSource}
+              disabled={busy}
               onChange={(e) => setRetainSource(e.target.checked)}
             />
             <span>{t.storageRetainSource}</span>

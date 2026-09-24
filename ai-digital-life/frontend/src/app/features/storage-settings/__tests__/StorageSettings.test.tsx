@@ -511,6 +511,441 @@ describe('StorageSettings', () => {
     expect(setPaths).not.toHaveBeenCalled();
   });
 
+  it('group reset with failing preflight keeps the user draft intact (M1)', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: false,
+      error: { code: 'Internal', message: 'preflight bridge exploded' },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    // 用户在核心路径块有未保存编辑。
+    const rootInput = screen.getByRole('textbox', {
+      name: 'storageManualInput',
+    }) as HTMLInputElement;
+    fireEvent.change(rootInput, { target: { value: 'D:/user-typed-root' } });
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    await waitFor(() => {
+      expect(preflight).toHaveBeenCalledTimes(1);
+    });
+    // 预检失败：不开组对话框，且用户草稿不被清空（先验后清，M1）。
+    expect(screen.queryByText('storageGroupResetTitle')).toBeNull();
+    expect(
+      (screen.getByRole('textbox', { name: 'storageManualInput' }) as HTMLInputElement).value,
+    ).toBe('D:/user-typed-root');
+    // pending 已被消费：可再次点击重试。
+    expect(useAppStore.getState().storageGroupResetPending).toBe(false);
+  });
+
+  it('group reset applies the preflight snapshot patch, not live drafts (M2)', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    const setPaths = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { preflight: { ok: true }, restartRequired: false },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths,
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+    });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    const dialog = await screen.findByRole('dialog');
+    // 对话框无焦点陷阱：后台（DOM 上仍可寻址的）核心路径输入被改动。
+    const rootInput = screen.getByRole('textbox', {
+      name: 'storageManualInput',
+    }) as HTMLInputElement;
+    fireEvent.change(rootInput, { target: { value: 'D:/sneaky-edit' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+    await waitFor(() => {
+      expect(setPaths).toHaveBeenCalledTimes(1);
+    });
+    // 落盘仍为开框时预检的默认补丁快照（root:''），不读实时草稿（M2）。
+    expect(setPaths).toHaveBeenCalledWith(
+      { mode: 'unified', root: '', categories: {}, retainSource: false },
+      false,
+    );
+  });
+
+  it('repeated sidebar signal while the group dialog is open is discarded (H2)', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+    });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    const dialog = await screen.findByRole('dialog');
+    expect(preflight).toHaveBeenCalledTimes(1);
+    // 已开框时再次点击侧边栏重置：信号被消费丢弃，不重复预检、不并发开框。
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    await waitFor(() => {
+      expect(useAppStore.getState().storageGroupResetPending).toBe(false);
+    });
+    expect(preflight).toHaveBeenCalledTimes(1);
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    // 已勾选的保留源不被第二次信号重置。
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'storageRetainSource' }));
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    await waitFor(() => {
+      expect(useAppStore.getState().storageGroupResetPending).toBe(false);
+    });
+    expect(
+      within(screen.getByRole('dialog')).getByRole('checkbox', {
+        name: 'storageRetainSource',
+      }),
+    ).toBeChecked();
+    expect(preflight).toHaveBeenCalledTimes(1);
+    // 未点迁移键前不得发生任何核心落盘（rev2 I4-N5 要求的 setPaths 断言）。
+    expect(
+      (window as unknown as { digitalLife: { storage: { setPaths: ReturnType<typeof vi.fn> } } })
+        .digitalLife.storage.setPaths,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('budget reset failure surfaces an error toast (M3)', async () => {
+    const showToast = vi.fn();
+    const prevShowToast = useAppStore.getState().showToast;
+    useAppStore.setState({ showToast });
+    try {
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      // beforeEach 仅装 storage 桥：无 app 桥 → updatePreferences 返回 false → 失败 toast。
+      fireEvent.click(screen.getByTestId('terminal-budget-reset'));
+      await waitFor(() => {
+        expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+      });
+    } finally {
+      // 还原真实 showToast：文件内其它用例断言 store `toasts`，替换泄漏会使其全部落空。
+      useAppStore.setState({ showToast: prevShowToast });
+    }
+  });
+
+  it('group reset surfaces an error toast when the budget write fails (M3 group path)', async () => {
+    const showToast = vi.fn();
+    const prevShowToast = useAppStore.getState().showToast;
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    useAppStore.setState({
+      showToast,
+      updatePreferences: vi.fn(async () => false),
+    });
+    try {
+      const preflight = vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          ok: true,
+          errors: [],
+          warnings: [],
+          totalFiles: 0,
+          totalBytes: 0,
+          freeBytes: 0,
+        },
+      });
+      const setPaths = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { preflight: { ok: true }, restartRequired: false },
+      });
+      (window as unknown as { digitalLife: unknown }).digitalLife = {
+        storage: {
+          getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+          scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+          preflight,
+          setPaths,
+          cancelPending: vi.fn(),
+          restartApp: vi.fn(),
+          getTreeCacheStats: vi.fn().mockResolvedValue({
+            ok: true,
+            data: {
+              workspaceCount: 0,
+              totalBytes: 0,
+              oldestCapturedAt: null,
+              newestCapturedAt: null,
+              enabled: true,
+              ttlMinutes: 15,
+            },
+          }),
+          setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+          clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        },
+      };
+      useAppStore.setState({
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+      // 预算写失败 → error toast，且其余块继续（setPaths 仍执行，互不阻塞）。
+      await waitFor(() => {
+        expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+      });
+      await waitFor(() => {
+        expect(setPaths).toHaveBeenCalledTimes(1);
+      });
+    } finally {
+      useAppStore.setState({ showToast: prevShowToast, updatePreferences: prevUpdatePreferences });
+    }
+  });
+
+  it('group reset without the storage bridge toasts and does not open the dialog', async () => {
+    const showToast = vi.fn();
+    const prevShowToast = useAppStore.getState().showToast;
+    const prevDigitalLife = (window as unknown as { digitalLife?: unknown }).digitalLife;
+    useAppStore.setState({ showToast });
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    try {
+      renderSettings();
+      await waitFor(() => {
+        // 无桥：面板进入错误 UI（加载失败），不 hang。
+        expect(screen.queryAllByTestId('storage-category-row')).toHaveLength(0);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      await waitFor(() => {
+        expect(showToast).toHaveBeenCalledWith('storageStatusLoadFailed', 'error');
+      });
+      expect(useAppStore.getState().storageGroupResetPending).toBe(false);
+      expect(screen.queryByText('storageGroupResetTitle')).toBeNull();
+    } finally {
+      useAppStore.setState({ showToast: prevShowToast });
+      (window as unknown as { digitalLife?: unknown }).digitalLife = prevDigitalLife;
+    }
+  });
+
+  it('falls back to the last known root when refresh fails after group apply (L3)', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    const setPaths = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { preflight: { ok: true }, restartRequired: false },
+    });
+    const getStatus = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, data: status })
+      .mockResolvedValue({ ok: false, error: { code: 'Internal', message: 'channel closed' } });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus,
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths,
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+    });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+    await waitFor(() => {
+      expect(setPaths).toHaveBeenCalledTimes(1);
+    });
+    // refresh 失败（第 2 次 getStatus 非 ok）→ 回填上次已知根，不空显示（L3）。
+    await waitFor(() => {
+      expect(
+        (screen.getByRole('textbox', { name: 'storageManualInput' }) as HTMLInputElement).value,
+      ).toBe(status.root);
+    });
+  });
+
+  it('discards the group reset signal while the tree confirm dialog is open (guard regression)', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+    });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    // 打开树缓存清除确认框（树确认开着时守卫应丢弃组信号，rev4 A3）。
+    fireEvent.click(screen.getByTestId('tree-cache-clear'));
+    await screen.findByRole('dialog');
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    await waitFor(() => {
+      expect(useAppStore.getState().storageGroupResetPending).toBe(false);
+    });
+    // 不重复预检、不叠加组框：仍只有树确认框一个 dialog。
+    expect(preflight).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    expect(screen.queryByText('storageGroupResetTitle')).toBeNull();
+  });
+
   // 注：脏条/底部提交区渲染由 IntersectionObserver 决定（bottomCtaVisible）。jsdom 无 IO，
   // effect 早退使 bottomCtaVisible 恒为 false → 脏条恒渲染，因此以下应用/撤回用例在此稳定成立。
   // 真实浏览器中「底部 CTA 可见时脏条隐藏、滚出后显示」属焦点/可布局契约，须用真实浏览器验证，

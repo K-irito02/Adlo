@@ -44,6 +44,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const clearDownloadHistory = useAppStore((s) => s.clearDownloadHistory);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
+  const showToast = useAppStore((s) => s.showToast);
 
   const {
     handleOpenFile,
@@ -57,8 +58,12 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
 
   const handleAutoSaveToggle = useCallback(() => {
     const newMode = autoSave ? 'ask' : 'auto';
-    void updateDownloadSettings(newMode);
-  }, [autoSave, updateDownloadSettings]);
+    void updateDownloadSettings(newMode).then((result) => {
+      if (!result.ok) {
+        showToast(t.settingsUpdateFailed, 'error');
+      }
+    });
+  }, [autoSave, updateDownloadSettings, showToast, t]);
 
   const handleOpenSettings = useCallback(() => {
     setActiveSettingsGroup('browser');

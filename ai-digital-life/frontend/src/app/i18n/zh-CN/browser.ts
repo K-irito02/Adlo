@@ -234,8 +234,6 @@ export const browserZh = {
   browserDownloadSettingsDesc: '配置默认下载行为',
   browserDownloadSettingsPath: '默认下载路径',
   browserDownloadSettingsPathDesc: '下载文件保存的目录',
-  browserDownloadSettingsPathDefault: '系统默认',
-  browserDownloadSettingsChangePath: '更改',
   browserDownloadSettingsMode: '下载模式',
   browserDownloadSettingsModeDesc: '选择下载处理方式',
   browserDownloadSettingsModeAuto: '自动保存',

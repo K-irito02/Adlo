@@ -246,8 +246,6 @@ export const browserEn = {
   browserDownloadSettingsDesc: 'Configure default download behavior',
   browserDownloadSettingsPath: 'Default download path',
   browserDownloadSettingsPathDesc: 'Directory where downloaded files are saved',
-  browserDownloadSettingsPathDefault: 'System default',
-  browserDownloadSettingsChangePath: 'Change',
   browserDownloadSettingsMode: 'Download mode',
   browserDownloadSettingsModeDesc: 'Choose how downloads are handled',
   browserDownloadSettingsModeAuto: 'Auto-save',

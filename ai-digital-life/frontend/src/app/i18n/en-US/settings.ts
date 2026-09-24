@@ -119,7 +119,8 @@ export const settingsEn = {
   storageRetryMigration: 'Retry',
   storageCancelPending: 'Cancel pending migration',
   storageMigrateDialogTitle: 'Migrate data',
-  storageMigrateDialogSummary: 'Will move {files} file(s) (~{size}) to the new location',
+  storageMigrateDialogSummary:
+    'Core data paths: {files} file(s) (~{size}) will be moved to the new location',
   storageMigrateNow: 'Migrate now and restart',
   storageMigrateLater: 'Migrate on next launch',
   storageRetainSource: 'Keep old files after migration (do not delete)',
@@ -159,14 +160,14 @@ export const settingsEn = {
   storageBrowserDownloadTitle: 'Browser default download folder',
   storageDownloadMigrateLabel: 'Migrate files when path changes',
   storageDownloadMigrateHint:
-    'When on, changing the default download folder moves every file and subfolder from the old path to the new one, and only deletes the old folder after everything has been moved successfully (Windows system folders are never deleted — files are only moved out). If the move fails midway, the old path is left untouched so nothing is lost. When off, only the path switches and no files are moved.',
+    "When on, changing the default download folder moves every file and subfolder from the old path to the new one, and deletes the old folder only after everything has been moved successfully (exception: system-owned folders — e.g. the system drive's Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted). If it fails midway: files already moved stay in the new path, the rest remain in the old path, and the setting is not switched — you can retry anytime and no file is ever lost. When off, only the path switches and no files are moved.",
   storageDownloadMigrateEnableTitle: 'Turn on auto-migration?',
   storageDownloadMigrateEnableConfirm:
-    'With "Migrate files when path changes" on, every future change of the default download folder will move all files and subfolders from the old path to the new one. The old folder is deleted only after the move fully succeeds (Windows system folders are never deleted — files are only moved out); if it fails midway, the old path stays intact and you can retry later. No file is ever silently deleted or discarded. Turn it on now?',
+    'With "Migrate files when path changes" on, every future change of the default download folder will move all files and subfolders from the old path to the new one. The old folder is deleted only after the move fully succeeds (exception: system-owned folders — e.g. the system drive\'s Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted). If it fails midway: files already moved stay in the new path, the rest remain in the old path, and the setting is not switched — you can retry later and no file is ever lost or discarded. Turn it on now?',
   storageDownloadMigrateEnableConfirmBtn: 'Turn on',
   storageDownloadResetTitle: 'Reset the default download folder?',
   storageDownloadResetConfirmMigrateOn:
-    'The default download folder will be reset to the system default. Auto-migration is currently on: every file under the old path will be moved to the system default folder first, and the old folder is deleted only after the move succeeds (Windows system folders are never deleted — files are only moved out); if it fails, the old path stays intact.',
+    "The default download folder will be reset to the system default. Auto-migration is currently on: every file under the old path will be moved to the system default folder first, and the old folder is deleted only after the move fully succeeds (exception: system-owned folders — e.g. the system drive's Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted); if it fails midway: files already moved stay in the new path, the rest remain in the old path, the setting is not switched, and you can retry.",
   storageDownloadResetConfirmMigrateOff:
     'The default download folder will be reset to the system default. Auto-migration is currently off: only the path changes — files under the old path are neither moved nor deleted.',
   storageDownloadResetConfirmBtn: 'Reset',
@@ -176,9 +177,10 @@ export const settingsEn = {
     'Core data paths: back to the "unified root" at the default location; a migration flow follows and takes effect after restarting the app (or on next launch).',
   storageGroupResetItemTree:
     'Workspace tree cache: turned back on with a 15-minute retention; cached content is kept; applies immediately.',
-  storageGroupResetItemBudget: 'Terminal history disk budget: back to 1 GB; applies immediately.',
+  storageGroupResetItemBudget:
+    'Terminal history disk budget: back to {default}; applies immediately.',
   storageGroupResetItemDownloadMigrateOn:
-    'Browser default download folder: back to the system default; files under the old path are moved over first (Windows system folders excluded) and the old folder is removed after success; the auto-migration switch is turned back off.',
+    "Browser default download folder: back to the system default; files under the old path are moved over first, and the old folder is removed only after everything succeeds (exception: system-owned folders — e.g. the system drive's Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted); the auto-migration switch is turned back off.",
   storageGroupResetItemDownloadMigrateOff:
     'Browser default download folder: back to the system default with only the path switched — no files moved; the auto-migration switch stays off.',
   storageDownloadMigrateFailed: 'Failed to migrate files: {error}',

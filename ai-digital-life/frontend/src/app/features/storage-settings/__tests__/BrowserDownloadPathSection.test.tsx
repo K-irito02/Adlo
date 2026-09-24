@@ -8,7 +8,7 @@ const mocks = vi.hoisted(() => ({
   downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
   systemDefaultDownloadPath: '',
   changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
-  updateDownloadSettings: vi.fn(async () => undefined),
+  updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
   fetchSystemDefaultDownloadPath: vi.fn(async () => undefined),
   showToast: vi.fn(),
   isLoadingSettings: false,
@@ -44,7 +44,6 @@ vi.mock('@i18n/useTCopy', () => ({
     t: {
       browserDownloadSettingsPath: '默认下载路径',
       browserDownloadSettingsPathDesc: '下载文件保存的目录',
-      storageManualInput: '手动输入',
       storageManualInputPlaceholder: '输入绝对路径…',
       storagePickDir: '选择目录',
       storagePickUnavailable: '当前环境不支持目录选择',
@@ -57,6 +56,7 @@ vi.mock('@i18n/useTCopy', () => ({
       storageDownloadMigrateEnableConfirmBtn: '确认开启',
       storageDownloadMigrateFailed: '迁移文件失败：{error}',
       storageCancel: '取消',
+      settingsUpdateFailed: '设置更新失败',
     } as unknown as CopyDict,
   }),
 }));
@@ -159,6 +159,35 @@ describe('BrowserDownloadPathSection', () => {
       expect(mocks.fetchSystemDefaultDownloadPath).toHaveBeenCalled();
     });
     expect(mocks.changeDownloadPath).not.toHaveBeenCalled();
+  });
+
+  it('follows an async system-default refill without overwriting in-flight typing', () => {
+    mocks.systemDefaultDownloadPath = '';
+    const { rerender } = renderSection();
+    const input = screen.getByLabelText('默认下载路径') as HTMLInputElement;
+    expect(input.value).toBe('');
+    // 异步解析值到达：未编辑过 → 草稿跟随外部值（F13 异步回填路径）。
+    mocks.systemDefaultDownloadPath = 'C:/Users/u/Downloads';
+    rerender(
+      <TCopyProvider t={{} as unknown as CopyDict} locale="en-US">
+        <BrowserDownloadPathSection />
+      </TCopyProvider>,
+    );
+    expect((screen.getByLabelText('默认下载路径') as HTMLInputElement).value).toBe(
+      'C:/Users/u/Downloads',
+    );
+    // 用户在途输入期间外部再次更新 → 脏标记保护，不覆盖在途草稿（D1/F13 竞态）。
+    const input2 = screen.getByLabelText('默认下载路径') as HTMLInputElement;
+    fireEvent.change(input2, { target: { value: 'C:/Users/u/Ongoing' } });
+    mocks.systemDefaultDownloadPath = 'C:/Users/u/Late';
+    rerender(
+      <TCopyProvider t={{} as unknown as CopyDict} locale="en-US">
+        <BrowserDownloadPathSection />
+      </TCopyProvider>,
+    );
+    expect((screen.getByLabelText('默认下载路径') as HTMLInputElement).value).toBe(
+      'C:/Users/u/Ongoing',
+    );
   });
 
   it('enable-migrate confirm button matches cancel (secondary, no brand blue)', async () => {

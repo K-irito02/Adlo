@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatBytes } from '@root/design-system/html';
 import { IconCircleHelp } from '../../icons';
@@ -9,6 +9,10 @@ import { CATEGORY_COPY, type CategoryCopy } from './storageCategoryCopy';
 /**
  * 手输路径草稿：偏好/上游状态是不可乐观的外部值，逐键写回会被并发 patch 丢弃，
  * 因此本地持有草稿，失焦或回车才提交（与 SettingsControls 的 InputControl 同构）。
+ *
+ * 草稿同步用**脏标记**：用户改过（dirty）后，外部 value 变化不再覆盖在途输入
+ *（如系统默认路径异步到达、上游状态刷新）；prop 追上已提交值（value === draft）时
+ * 清除脏标记恢复同步——避免「焦点期间外部更新」在失焦时把旧值写回去。
  */
 export function ManualPathInput({
   value,
@@ -24,9 +28,19 @@ export function ManualPathInput({
   onCommit: (path: string) => void;
 }) {
   const [draft, setDraft] = useState(value);
+  const dirtyRef = useRef(false);
+  const draftRef = useRef(value);
+  draftRef.current = draft;
 
   useEffect(() => {
-    setDraft(value);
+    if (!dirtyRef.current) {
+      setDraft(value);
+      return;
+    }
+    // 外部值已追上我们的提交：清除脏标记，恢复对外部更新的同步。
+    if (value === draftRef.current) {
+      dirtyRef.current = false;
+    }
   }, [value]);
 
   const commit = () => {
@@ -43,7 +57,10 @@ export function ManualPathInput({
       placeholder={placeholder}
       value={draft}
       disabled={disabled}
-      onChange={(e) => setDraft(e.target.value)}
+      onChange={(e) => {
+        dirtyRef.current = true;
+        setDraft(e.target.value);
+      }}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === 'Enter') {

@@ -61,7 +61,7 @@ export interface BrowserDownloadsSlice {
     mode?: string,
     defaultPath?: string,
     autoMigrate?: boolean,
-  ) => Promise<void>;
+  ) => Promise<IpcResult<void>>;
   /** 改默认下载路径；`migrate` 时后端先搬旧路径全部文件，成功后才删旧目录并落盘。 */
   changeDownloadPath: (newPath: string, migrate: boolean) => Promise<IpcResult<void>>;
   clearDownloadHistory: () => Promise<void>;
@@ -91,6 +91,8 @@ export const createBrowserDownloadsSlice = (
       if (result.ok) {
         set({ downloads: result.data });
       }
+    } catch {
+      // 非 Tauri 环境无该通道：保持空列表（与 fetchSystemDefaultDownloadPath 同口径）。
     } finally {
       set({ isLoadingDownloads: false });
     }
@@ -103,6 +105,8 @@ export const createBrowserDownloadsSlice = (
       if (result.ok) {
         set({ downloadSettings: result.data });
       }
+    } catch {
+      // 非 Tauri 环境无该通道：保持当前设置。
     } finally {
       set({ isLoadingSettings: false });
     }
@@ -120,13 +124,22 @@ export const createBrowserDownloadsSlice = (
   },
 
   updateDownloadSettings: async (mode?: string, defaultPath?: string, autoMigrate?: boolean) => {
-    const result = await invoke<IpcResult<void>>('download_update_settings', {
-      mode: mode ?? null,
-      defaultPath: defaultPath ?? null,
-      autoMigrate: autoMigrate ?? null,
-    });
-    if (result.ok) {
-      await get().fetchDownloadSettings();
+    // 与 changeDownloadPath 同构：浏览器模式 invoke 抛错转业务失败，避免未处理拒绝（F5/J2）。
+    try {
+      const result = await invoke<IpcResult<void>>('download_update_settings', {
+        mode: mode ?? null,
+        defaultPath: defaultPath ?? null,
+        autoMigrate: autoMigrate ?? null,
+      });
+      if (result.ok) {
+        await get().fetchDownloadSettings();
+      }
+      return result;
+    } catch (e) {
+      return {
+        ok: false as const,
+        error: { code: 'Internal' as const, message: e instanceof Error ? e.message : String(e) },
+      };
     }
   },
 

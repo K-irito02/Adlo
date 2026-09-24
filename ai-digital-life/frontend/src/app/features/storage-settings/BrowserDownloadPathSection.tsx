@@ -5,6 +5,23 @@ import { useTCopy } from '@i18n/useTCopy';
 import { ManualPathInput } from './StorageCategoryRow';
 
 /**
+ * 路径别名归一（前端侧，供"显式输入=系统默认"判定，F8/N6）：
+ * 统一斜杠与去尾分隔符；仅当串中含反斜杠（Windows 风格路径）才大小写不敏感——
+ * 避免把 Unix 上真实不同的大小写路径误判为同一目录。
+ */
+function normalizePathAlias(p: string): string {
+  const norm = p.replace(/\//g, '\\').replace(/\\+$/, '');
+  return norm.includes('\\') ? norm.toLowerCase() : norm;
+}
+
+function isSameResolvedPath(a: string, b: string): boolean {
+  if (!a || !b) {
+    return false;
+  }
+  return normalizePathAlias(a) === normalizePathAlias(b);
+}
+
+/**
  * 「浏览器默认下载路径」区块（原「浏览器」设置组的 default_path 行，Plan C Task 5 移入「存储」组）。
  * 下载**模式**（auto/ask）仍留在「浏览器」组，这里只管路径与「更改时迁移」开关。
  *
@@ -13,7 +30,7 @@ import { ManualPathInput } from './StorageCategoryRow';
  *（`migrate` 取当前复选框状态）。开启复选框时弹确认，确认后才写入（默认关闭）。
  *
  * 空路径（= 系统默认）不空显示：展示 `download_get_default_path` 解析出的系统默认
- * 目录；无改动失焦不回写（提交守卫按展示值判等），不把隐式默认转成显式落盘。
+ * 目录；无改动失焦不回写，与系统默认同值的显式输入归一为 `''`（不把隐式默认转成显式落盘）。
  */
 export function BrowserDownloadPathSection() {
   const { t } = useTCopy();
@@ -67,13 +84,19 @@ export function BrowserDownloadPathSection() {
   }, [confirmEnable]);
 
   const commitPath = async (path: string) => {
-    // 按展示值判等：无改动失焦不回写，避免把隐式系统默认转成显式落盘。
-    if (path === displayPath) {
+    if (busy || isLoadingSettings) {
+      return;
+    }
+    // 提交前 trim；与解析系统默认相同的显式输入归一为 ''（保持隐式默认，
+    // 不把显式值落盘改变 storage 覆盖判定，F8）；无改动不回写。
+    const trimmed = path.trim();
+    const target = isSameResolvedPath(trimmed, systemDefaultDownloadPath) ? '' : trimmed;
+    if (target === defaultPath) {
       return;
     }
     setBusy(true);
     try {
-      const result = await changeDownloadPath(path, autoMigrate);
+      const result = await changeDownloadPath(target, autoMigrate);
       if (!result.ok) {
         showToast(
           autoMigrate
@@ -88,6 +111,9 @@ export function BrowserDownloadPathSection() {
   };
 
   const handlePickDirectory = async () => {
+    if (busy || isLoadingSettings) {
+      return;
+    }
     const bridge = window.digitalLife?.workspace;
     if (!bridge?.pickDirectory) {
       showToast(t.storagePickUnavailable, 'error');
@@ -103,15 +129,20 @@ export function BrowserDownloadPathSection() {
         );
         return;
       }
-      if (result.data && result.data !== displayPath) {
-        const change = await changeDownloadPath(result.data, autoMigrate);
-        if (!change.ok) {
-          showToast(
-            autoMigrate
-              ? t.storageDownloadMigrateFailed.replace('{error}', change.error.message)
-              : change.error.message || t.storageUnknownError,
-            'error',
-          );
+      if (result.data) {
+        const picked = result.data.trim();
+        // 选中目录恰为系统默认 → 按 '' 提交（同 commitPath 的归一，F8/N6）。
+        const target = isSameResolvedPath(picked, systemDefaultDownloadPath) ? '' : picked;
+        if (target !== defaultPath) {
+          const change = await changeDownloadPath(target, autoMigrate);
+          if (!change.ok) {
+            showToast(
+              autoMigrate
+                ? t.storageDownloadMigrateFailed.replace('{error}', change.error.message)
+                : t.storagePickFailed.replace('{error}', change.error.message),
+              'error',
+            );
+          }
         }
       }
     } finally {
@@ -121,7 +152,11 @@ export function BrowserDownloadPathSection() {
 
   const handleMigrateToggle = (checked: boolean) => {
     if (!checked) {
-      void updateDownloadSettings(undefined, undefined, false);
+      void updateDownloadSettings(undefined, undefined, false).then((result) => {
+        if (!result.ok) {
+          showToast(t.settingsUpdateFailed, 'error');
+        }
+      });
       return;
     }
     setConfirmEnable(true);
@@ -142,7 +177,7 @@ export function BrowserDownloadPathSection() {
               aria-label={t.storageDownloadMigrateLabel}
               data-testid="download-migrate-checkbox"
               checked={autoMigrate}
-              disabled={isLoadingSettings}
+              disabled={disabled}
               onChange={(e) => {
                 triggerRef.current = e.currentTarget;
                 handleMigrateToggle(e.target.checked);
@@ -220,7 +255,11 @@ export function BrowserDownloadPathSection() {
                     disabled={busy}
                     onClick={() => {
                       setConfirmEnable(false);
-                      void updateDownloadSettings(undefined, undefined, true);
+                      void updateDownloadSettings(undefined, undefined, true).then((result) => {
+                        if (!result.ok) {
+                          showToast(t.settingsUpdateFailed, 'error');
+                        }
+                      });
                     }}
                   >
                     {t.storageDownloadMigrateEnableConfirmBtn}

@@ -203,8 +203,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     (group: SettingsGroupId) => {
       if (group === 'storage') {
         // 存储组多桥多步（迁移/树缓存/预算/下载各有各的桥与生效时机），不能走
-        // updatePreferences 一刀切：切到存储组 + 发信号，由 StorageSettings 弹出
-        // 自有确认对话框（逐项列出变更与重启要求）并执行。
+        // updatePreferences 一刀切：先关通用确认框（防键盘路径下双框叠加，rev2 I4-N1），
+        // 再切到存储组 + 置 pending 信号，由 StorageSettings 弹出自有确认对话框并执行。
+        setConfirmResetOpen(false);
+        setPendingResetGroup(null);
         setActiveGroup('storage');
         requestStorageGroupReset();
         return;

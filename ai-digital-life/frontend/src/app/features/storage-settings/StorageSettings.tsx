@@ -165,20 +165,19 @@ export function StorageSettings() {
   const [downloadResetBusy, setDownloadResetBusy] = useState(false);
   const downloadResetConfirmRef = useRef<HTMLButtonElement | null>(null);
   const downloadResetTriggerRef = useRef<HTMLElement | null>(null);
-  /** 存储组级「恢复全部默认」确认对话框（侧边栏按钮经 storageGroupResetSeq 触发）。
+  /** 存储组级「恢复全部默认」确认对话框（侧边栏按钮经 storageGroupResetPending 触发）。
    * 一步完成：4 项明细 + 预检摘要/错误 + 保留源复选框 + 迁移时机按钮。 */
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);
   const [groupResetPreflight, setGroupResetPreflight] = useState<StoragePreflight | null>(null);
   const [groupResetRetain, setGroupResetRetain] = useState(false);
   const groupResetConfirmRef = useRef<HTMLButtonElement | null>(null);
-  /** null = 尚未挂载播种：首次只记录序列，不弹框（避免切到存储组就自动弹）。 */
-  const groupResetSeqRef = useRef<number | null>(null);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
-  /** 存储组级恢复默认请求序列（侧边栏按钮只发信号，确认对话框与执行在此承接）。 */
-  const storageGroupResetSeq = useAppStore((s) => s.storageGroupResetSeq);
+  /** 组级恢复待处理信号 + 消费动作（pending 布尔消除挂载播种吞信号的首跳竞态）。 */
+  const storageGroupResetPending = useAppStore((s) => s.storageGroupResetPending);
+  const consumeStorageGroupReset = useAppStore((s) => s.consumeStorageGroupReset);
   /** TTL 自定义编辑态（本地草稿，不直接等于 stats.ttlMinutes）。 */
   const [ttlCustomMode, setTtlCustomMode] = useState(false);
   const [ttlCustomValue, setTtlCustomValue] = useState('');
@@ -315,12 +314,23 @@ export function StorageSettings() {
     return () => window.removeEventListener('keydown', handleEscape);
   }, [groupResetOpen, groupResetBusy]);
 
-  /** 终端预算恢复默认：直接写默认字节数，无需确认（产品决策 2026-09-24）。 */
-  const handleTerminalBudgetReset = useCallback(() => {
-    void useAppStore.getState().updatePreferences({
+  /** 终端预算恢复默认：直接写默认字节数，无需确认（产品决策 2026-09-24）。
+   * 返回写入结果：单块点击按需 toast；组级恢复 await 后失败可见（Phase 4 M3）。
+   * `updatePreferences` 契约恒 resolve boolean（实现内全量 try/catch，见 generalActions），
+   * 不再挂第二层 `.catch`（Phase 4 B-P1）。 */
+  const handleTerminalBudgetReset = useCallback((): Promise<boolean> => {
+    return useAppStore.getState().updatePreferences({
       terminalHistoryBudgetBytes: TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
     });
   }, []);
+
+  const handleTerminalBudgetResetClick = useCallback(() => {
+    void handleTerminalBudgetReset().then((ok) => {
+      if (!ok) {
+        showToast(t.settingsUpdateFailed, 'error');
+      }
+    });
+  }, [handleTerminalBudgetReset, showToast, t]);
 
   /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按当前迁移开关决定是否搬文件。 */
   const handleDownloadResetConfirm = useCallback(async () => {
@@ -602,22 +612,34 @@ export function StorageSettings() {
     [showToast, t],
   );
 
-  /** 预检一个路径补丁并在通过后打开迁移对话框（「应用」与「恢复默认」共用）。 */
+  /** 预检一个路径补丁并在通过后打开迁移对话框（「应用」与「恢复默认」共用）。
+   * 失败路径清 `resetReseedRef`：恢复默认置位后预检失败时标志不滞留，
+   * 避免之后无关的常规「应用」成功时误触发根回填（Phase 4 B-O1）。 */
   const applyPatch = useCallback(
     async (patch: StoragePathPatch) => {
       const bridge = window.digitalLife?.storage;
       if (!bridge) {
+        resetReseedRef.current = false;
         return;
       }
       setBusy(true);
       try {
         const result = await bridge.preflight(patch);
         if (!result.ok) {
+          resetReseedRef.current = false;
           showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
           return;
         }
         setPreflight(result.data);
         setDialogOpen(true);
+      } catch (error) {
+        // preflight promise reject（与 !ok 同为失败）：清标志 + toast，防第三条滞留路径与
+        // void 调用方的 unhandled rejection（Phase 4 B-N4）。
+        resetReseedRef.current = false;
+        showToast(
+          ipcErrorMessage(error instanceof Error ? error : null, t.storageUnknownError),
+          'error',
+        );
       } finally {
         setBusy(false);
       }
@@ -644,16 +666,34 @@ export function StorageSettings() {
   }, [applyPatch]);
 
   /**
-   * 组级对话框打开：先把草稿清成恢复值（与单块恢复一致：取消也不回填），再对默认补丁
-   * 做预检，拿到摘要/错误后开框。桥失败只 toast 不开框（仿 applyPatch）。
+   * 组级对话框打开（承接 pending 信号）：
+   * 1. 消费 pending + `groupResetOpeningRef` in-flight 门控：app 当前未启用 StrictMode
+   *    （main.tsx 直接 createRoot render），但门控防御将来启用时 effect 双跑读到同一
+   *    闭包（pending/busy 皆 stale）导致的并发双预检（rev2 I4-N3）；
+   * 2. 入口守卫：组框/单块迁移框/树确认/下载确认已开或任一 busy 时丢弃信号，
+   *    杜绝并发预检/落盘与键盘路径多框叠加（H2/L2/rev2 I4-N4 半修残留 R4）；
+   * 3. 先对默认补丁预检，**成功后**才清草稿——预检失败不丢用户未保存编辑（M1）；
+   * 4. 桥缺席 toast 不开框。
    */
+  const groupResetOpeningRef = useRef(false);
   const openGroupResetDialog = useCallback(async () => {
+    consumeStorageGroupReset();
+    if (
+      groupResetOpeningRef.current ||
+      groupResetOpen ||
+      groupResetBusy ||
+      dialogOpen ||
+      busy ||
+      treeConfirm !== null ||
+      downloadResetConfirm
+    ) {
+      return;
+    }
+    groupResetOpeningRef.current = true;
     const bridge = window.digitalLife?.storage;
-    setMode('unified');
-    setRootDraft('');
-    setCategoryDrafts({});
-    setGroupResetRetain(false);
     if (!bridge) {
+      groupResetOpeningRef.current = false;
+      showToast(t.storageStatusLoadFailed.replace('{error}', t.storageBridgeUnavailable), 'error');
       return;
     }
     setGroupResetBusy(true);
@@ -663,26 +703,37 @@ export function StorageSettings() {
         showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
+      // 预检通过后再把草稿清成恢复值（与单块恢复一致：取消也不回填）。
+      setMode('unified');
+      setRootDraft('');
+      setCategoryDrafts({});
+      setGroupResetRetain(false);
       setGroupResetPreflight(result.data);
       setGroupResetOpen(true);
     } finally {
+      groupResetOpeningRef.current = false;
       setGroupResetBusy(false);
     }
-  }, [showToast, t]);
+  }, [
+    consumeStorageGroupReset,
+    groupResetOpen,
+    groupResetBusy,
+    dialogOpen,
+    busy,
+    treeConfirm,
+    downloadResetConfirm,
+    showToast,
+    t,
+  ]);
 
-  // 存储组级恢复默认：侧边栏按钮只发信号（顺带切到存储组），此处按序列变化开自有对话框。
-  // 挂载只播种序列；StrictMode 双跑时第二遍因序列未变空转。
+  // 存储组级恢复默认：侧边栏置 pending（顺带切到存储组），此处消费并开自有对话框。
+  // pending 为布尔——挂载即消费，不存在「新值被当历史播种」的首跳漏弹（H1）。
   useEffect(() => {
-    if (groupResetSeqRef.current === null) {
-      groupResetSeqRef.current = storageGroupResetSeq;
+    if (!storageGroupResetPending) {
       return;
     }
-    if (groupResetSeqRef.current === storageGroupResetSeq) {
-      return;
-    }
-    groupResetSeqRef.current = storageGroupResetSeq;
     void openGroupResetDialog();
-  }, [storageGroupResetSeq, openGroupResetDialog]);
+  }, [storageGroupResetPending, openGroupResetDialog]);
 
   const handleApplyMigration = useCallback(
     async (retainSource: boolean, applyNow: boolean) => {
@@ -1045,25 +1096,39 @@ export function StorageSettings() {
 
   /** 恢复默认：enabled=true、ttl=15；不触发清缓存。
    * 产品决策（2026-09-24）：“恢复默认”含重开语义——关闭态点击同样写 enabled=true
-   *（默认值本身就是开启），按钮在关闭态保持可用。 */
+   *（默认值本身就是开启），按钮在关闭态保持可用。返回写入 Promise 供组级 await（L5）。 */
   const handleTreeResetDefaults = useCallback(() => {
     cancelPendingTtl();
     setTtlCustomMode(false);
     setTtlCustomValue('');
-    void handleTreeOptionsChange({ ...TREE_CACHE_DEFAULTS });
+    return handleTreeOptionsChange({ ...TREE_CACHE_DEFAULTS });
   }, [cancelPendingTtl, handleTreeOptionsChange]);
 
   /**
-   * 存储组级「恢复全部默认」一步执行（迁移时机确认键共用）：先立即执行预算/树缓存/
-   * 下载三项，再为核心数据路径落盘（保留源 + 立即/下次启动由调用方传入）。
-   * 各块复用自有恢复语义、各自 toast，互不阻塞；落盘尾段仿 handleApplyMigration。
+   * 存储组级「恢复全部默认」一步执行（迁移时机确认键共用）：
+   * 1. 桥检查前移（L4）；2. 预算/树 await 失败各自 toast 可见（M3），下载失败同样 toast；
+   * 3. 核心路径落盘用**开框预检的补丁快照**（仅替换 retainSource），不读实时草稿——
+   *    防止对话框无焦点陷阱时后台 Tab 改动草稿导致展示与落盘分裂（M2）；
+   * 4. 各块互不阻塞（既定产品语义，失败不回滚其它块）；尾段仿 handleApplyMigration。
    */
   const handleGroupResetApply = useCallback(
     async (applyNow: boolean) => {
+      const bridge = window.digitalLife?.storage;
+      if (!bridge) {
+        showToast(
+          t.storageStatusLoadFailed.replace('{error}', t.storageBridgeUnavailable),
+          'error',
+        );
+        return;
+      }
       setGroupResetBusy(true);
       try {
-        handleTerminalBudgetReset();
-        handleTreeResetDefaults();
+        const budgetOk = await handleTerminalBudgetReset();
+        if (!budgetOk) {
+          showToast(t.settingsUpdateFailed, 'error');
+        }
+        // 树写自带错误 toast（handleTreeOptionsChange 内部）；await 保证与后续 refresh 的顺序可读。
+        await handleTreeResetDefaults();
         const migrate = downloadSettings.auto_migrate_on_path_change;
         const result = await changeDownloadPath('', migrate);
         if (!result.ok) {
@@ -1073,19 +1138,16 @@ export function StorageSettings() {
               : t.storagePickFailed.replace('{error}', result.error.message),
             'error',
           );
-        } else {
-          // 路径先按当前开关搬迁，再把开关恢复为默认关闭（非 Tauri 下桥不可用则 toast）。
-          try {
-            await updateDownloadSettings(undefined, undefined, false);
-          } catch {
-            showToast(t.settingsUpdateFailed, 'error');
-          }
         }
-        const bridge = window.digitalLife?.storage;
-        if (!bridge) {
-          return;
+        // 开关复位与搬迁结果解耦：清单承诺"开关恢复为关闭"，无论搬迁成败都执行（I1-N5）。
+        const upd = await updateDownloadSettings(undefined, undefined, false);
+        if (!upd.ok) {
+          showToast(t.settingsUpdateFailed, 'error');
         }
-        const applied = await bridge.setPaths(buildPatch(groupResetRetain), applyNow);
+        const applied = await bridge.setPaths(
+          { ...CORE_RESET_PATCH, retainSource: groupResetRetain },
+          applyNow,
+        );
         if (!applied.ok) {
           showToast(ipcErrorMessage(applied.error, t.storageUnknownError), 'error');
           return;
@@ -1106,10 +1168,13 @@ export function StorageSettings() {
         } else {
           showToast(t.storagePendingBanner, 'success');
         }
+        // 树/预算走独立桥，此处 refresh 仅回填核心根（L5）。
         const fresh = await refresh();
-        // 组级恢复的草稿已在开框时清成空串，用最新解析根回填，避免输入框空显示。
         if (fresh) {
           setRootDraft(fresh.root);
+        } else if (status) {
+          // refresh 失败也回填上次已知根，避免输入框空显示（L3）。
+          setRootDraft(status.root);
         }
       } finally {
         setGroupResetBusy(false);
@@ -1121,9 +1186,9 @@ export function StorageSettings() {
       downloadSettings.auto_migrate_on_path_change,
       changeDownloadPath,
       updateDownloadSettings,
-      buildPatch,
       groupResetRetain,
       refresh,
+      status,
       showToast,
       t,
     ],
@@ -1500,7 +1565,7 @@ export function StorageSettings() {
           aria-label={budgetResetLabel}
           title={budgetResetLabel}
           data-testid="terminal-budget-reset"
-          onClick={handleTerminalBudgetReset}
+          onClick={handleTerminalBudgetResetClick}
         >
           <IconResetDefaults size={14} decorative />
         </button>
@@ -1808,7 +1873,12 @@ export function StorageSettings() {
                   <ul className="adl-confirm-dialog__message adl-confirm-dialog__list">
                     <li>{t.storageGroupResetItemCore}</li>
                     <li>{t.storageGroupResetItemTree}</li>
-                    <li>{t.storageGroupResetItemBudget}</li>
+                    <li>
+                      {t.storageGroupResetItemBudget.replace(
+                        '{default}',
+                        formatBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES),
+                      )}
+                    </li>
                     <li>
                       {downloadSettings.auto_migrate_on_path_change
                         ? t.storageGroupResetItemDownloadMigrateOn
@@ -1827,8 +1897,8 @@ export function StorageSettings() {
                         <IconAlertTriangle size={12} decorative /> {t.storagePreflightErrors}
                       </p>
                       <ul>
-                        {(groupResetPreflight?.errors ?? []).map((error) => (
-                          <li key={error}>{error}</li>
+                        {(groupResetPreflight?.errors ?? []).map((error, index) => (
+                          <li key={`${error}-${index}`}>{error}</li>
                         ))}
                       </ul>
                     </div>
@@ -1838,20 +1908,18 @@ export function StorageSettings() {
                     <div className="adl-confirm-dialog__message">
                       <p>{t.storagePreflightWarnings}</p>
                       <ul>
-                        {(groupResetPreflight?.warnings ?? []).map((warning) => (
-                          <li key={warning}>{warning}</li>
+                        {(groupResetPreflight?.warnings ?? []).map((warning, index) => (
+                          <li key={`${warning}-${index}`}>{warning}</li>
                         ))}
                       </ul>
                     </div>
                   ) : null}
 
-                  <label
-                    className="adl-confirm-dialog__message"
-                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-                  >
+                  <label className="adl-confirm-dialog__message adl-confirm-dialog__retain">
                     <input
                       type="checkbox"
                       checked={groupResetRetain}
+                      disabled={groupResetBusy}
                       onChange={(e) => setGroupResetRetain(e.target.checked)}
                     />
                     <span>{t.storageRetainSource}</span>

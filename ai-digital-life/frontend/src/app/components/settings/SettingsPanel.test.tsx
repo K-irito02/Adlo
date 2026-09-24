@@ -339,17 +339,68 @@ describe('SettingsPanel group reset', () => {
     expect(groups.RESETTABLE_GROUPS.has('workspace')).toBe(true);
   });
 
-  it('存储组级重置切组并发信号，不弹通用确认框、不调 updatePreferences', () => {
+  it('存储组级重置切组并发信号，不弹通用确认框、不调 updatePreferences（含首跳集成）', async () => {
     const { updatePreferences } = setupStore();
-    useAppStore.setState({ activeSettingsGroup: 'general' });
-    const before = useAppStore.getState().storageGroupResetSeq;
+    // H1 集成：StorageSettings 在点击前未挂载（当前在 general）。提供最小存储桥，
+    // 断言切组+信号后组对话框立即出现（pending 被挂载的 StorageSettings 消费，不漏弹）。
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    (window as unknown as { digitalLife?: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            mode: 'unified',
+            root: '',
+            locatorPath: '',
+            categories: [],
+            pending: null,
+            lastReport: null,
+          },
+        }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+      },
+    };
+    useAppStore.setState({ activeSettingsGroup: 'general', storageGroupResetPending: false });
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'Reset storageTitle all defaults' }));
-    // 切到存储组 + 发信号（确认对话框由 StorageSettings 承接）。
+    // 切到存储组 + pending 已置位并被挂载的 StorageSettings 消费。
     expect(useAppStore.getState().activeSettingsGroup).toBe('storage');
-    expect(useAppStore.getState().storageGroupResetSeq).toBe(before + 1);
+    expect(useAppStore.getState().storageGroupResetPending).toBe(false);
     expect(updatePreferences).not.toHaveBeenCalled();
     expect(screen.queryByText('Reset storageTitle?')).toBeNull();
     expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    // 首跳不漏弹：组对话框出现（H1 回归）。
+    expect(await screen.findByText('storageGroupResetTitle')).toBeTruthy();
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+  });
+
+  it('storage branch closes an open generic group confirm before switching (rev2 I4-N1)', () => {
+    setupStore();
+    renderPanel();
+    // 先打开通用组确认框（general）。
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
+    expect(screen.getByText('Reset settingsGeneral?')).toBeTruthy();
+    // 通用框开着时点存储组重置（键盘路径可达）：先关通用框，再切组+发信号。
+    fireEvent.click(screen.getByRole('button', { name: 'Reset storageTitle all defaults' }));
+    expect(screen.queryByText('Reset settingsGeneral?')).toBeNull();
+    expect(useAppStore.getState().activeSettingsGroup).toBe('storage');
+    // 切组后 StorageSettings 随即挂载并消费 pending（与首跳集成同语义）。
+    expect(useAppStore.getState().storageGroupResetPending).toBe(false);
+    // 通用确认框未被误执行。
+    expect(useAppStore.getState().updatePreferences).not.toHaveBeenCalled();
   });
 });
