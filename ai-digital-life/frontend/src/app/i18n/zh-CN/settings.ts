@@ -194,15 +194,28 @@ export const settingsZh = {
 
   // 工作区树缓存（设置存储组区段）
   treeCacheTitle: '工作区树缓存',
+  treeCacheStatsLabel: '缓存统计',
   treeCacheWorkspaces: '已缓存 {count} 个工作区',
   treeCacheSize: '缓存大小 {size}',
   treeCacheAge: '最近缓存 {time}',
   treeCacheClear: '清除缓存',
   treeCacheClearConfirm: '确定清除全部工作区树缓存？下次打开工作区时将重新扫描重建。',
   treeCacheEnabled: '启用树缓存',
+  treeCacheEnabledHint:
+    '开启后，工作区文件树会在首次扫描后缓存到磁盘；下次打开先显示缓存内容、再后台静默校准，冷启动更快。超过有效期或树变化较大时会自动重新扫描。关闭后将不再读写该缓存。',
+  treeCacheDisableTitle: '关闭树缓存？',
+  treeCacheDisableConfirm:
+    '关闭树缓存会清除已缓存的全部工作区文件树。之后每次打开工作区都需要完整扫描重建，首次显示文件树会明显变慢；文件树功能仍可正常使用，只是失去缓存加速。重新开启后会随使用逐步重建缓存。确定关闭吗？',
+  treeCacheDisableConfirmBtn: '确认关闭',
   treeCacheTtl: '缓存有效期',
   treeCacheTtlMinutes: '{minutes} 分钟',
   treeCacheTtlDay: '1 天',
+  treeCacheTtlCustom: '自定义…',
+  treeCacheTtlUnitLabel: '时间单位',
+  treeCacheUnitSecond: '秒',
+  treeCacheUnitMinute: '分',
+  treeCacheUnitHour: '时',
+  treeCacheUnitDay: '天',
 
   // 命令标题
   commandSessionNew: '新建会话',

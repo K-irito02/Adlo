@@ -819,10 +819,20 @@ describe('StorageSettings tree cache section (T9)', () => {
   it('shows tree-cache stats and clears on confirm', async () => {
     const { getTreeCacheStats, clearTreeCache } = renderTreeSection();
     await screen.findByTestId('tree-cache-section');
+    // 主标题 + 横排统计副标题。
+    expect(screen.getByText(settingsEn.treeCacheStatsLabel)).toBeTruthy();
     expect(screen.getByText(settingsEn.treeCacheWorkspaces.replace('{count}', '2'))).toBeTruthy();
     expect(
       screen.getByText(settingsEn.treeCacheSize.replace('{size}', formatBytes(1024))),
     ).toBeTruthy();
+    const stats = document.querySelector('.adl-tree-cache-stats');
+    expect(stats).not.toBeNull();
+    expect(stats?.querySelectorAll('.adl-tree-cache-stats__sep')).toHaveLength(2);
+
+    // 标题移出卡片：恢复默认图标 + SettingsHeader 在 header 容器内。
+    const header = document.querySelector('[data-testid="tree-cache-reset"]')?.parentElement;
+    expect(header?.classList.contains('adl-settings-storage__header')).toBe(true);
+    expect(header?.querySelector('.adl-settings-header')).not.toBeNull();
 
     // 二次确认：点清除先弹对话框，确认后才调用一次。
     fireEvent.click(screen.getByTestId('tree-cache-clear'));
@@ -839,16 +849,62 @@ describe('StorageSettings tree cache section (T9)', () => {
     });
   });
 
-  it('toggling the master switch calls setTreeCacheOptions', async () => {
-    const { setTreeCacheOptions } = renderTreeSection();
+  it('shows the enable hint under the tree-cache label', async () => {
+    renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    expect(screen.getByText(settingsEn.treeCacheEnabledHint)).toBeTruthy();
+  });
+
+  it('unchecking the master switch opens disable confirm then writes and clears', async () => {
+    const { setTreeCacheOptions, clearTreeCache } = renderTreeSection();
     await screen.findByTestId('tree-cache-section');
     const toggle = screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled });
     expect(toggle).toHaveProperty('checked', true);
     fireEvent.click(toggle);
+    // 先弹确认框，不直接写。
+    await screen.findByText(settingsEn.treeCacheDisableConfirm);
+    expect(setTreeCacheOptions).not.toHaveBeenCalled();
+    expect(clearTreeCache).not.toHaveBeenCalled();
+    // TTL 下拉在确认前仍可用（enabled 尚未写 false）。
+    expect(screen.getByRole('button', { name: settingsEn.treeCacheTtl })).not.toBeDisabled();
+    const dialog = screen.getByRole('dialog');
+    const confirmBtn = within(dialog).getByRole('button', {
+      name: settingsEn.treeCacheDisableConfirmBtn,
+    });
+    // 与「取消」同款 secondary：无品牌蓝填充。
+    expect(confirmBtn.className).toContain('adl-btn--secondary');
+    expect(confirmBtn.className).not.toContain('adl-btn--primary');
+    fireEvent.click(confirmBtn);
     await waitFor(() => {
       expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
     });
     expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: false, ttlMinutes: 15 });
+    await waitFor(() => {
+      expect(clearTreeCache).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(
+        (screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }) as HTMLInputElement)
+          .checked,
+      ).toBe(false);
+    });
+    // 确认关闭后 TTL 下拉禁用。
+    expect(screen.getByRole('button', { name: settingsEn.treeCacheTtl })).toBeDisabled();
+  });
+
+  it('rechecking the master switch enables without a confirm dialog', async () => {
+    const { setTreeCacheOptions } = renderTreeSection({
+      statsData: { ...treeStatsData, enabled: false },
+    });
+    await screen.findByTestId('tree-cache-section');
+    const toggle = screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled });
+    expect(toggle).toHaveProperty('checked', false);
+    fireEvent.click(toggle);
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 15 });
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 
   it('changing the TTL calls setTreeCacheOptions with the new value', async () => {
@@ -860,5 +916,80 @@ describe('StorageSettings tree cache section (T9)', () => {
       expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
     });
     expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 60 });
+  });
+
+  it('custom TTL converts seconds up to whole minutes within 1..=1440', async () => {
+    const { setTreeCacheOptions } = renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheTtlCustom }));
+    const input = screen.getByRole('spinbutton', {
+      name: settingsEn.treeCacheTtlCustom,
+    }) as HTMLInputElement;
+    expect(input).toBeTruthy();
+    // 自定义态控件顺序：数值 → 单位 → 默认选项下拉（默认选项恒在最右）。
+    const control = input.closest('.adl-settings-row__control');
+    expect(control).not.toBeNull();
+    // SettingsSelect 根节点是无 aria-label 的 div，label 在内部 trigger 上。
+    const order = Array.from(control!.children).map((el) => {
+      if (el instanceof HTMLElement && el.tagName === 'INPUT') {
+        return el.getAttribute('aria-label') ?? el.tagName;
+      }
+      return el.querySelector('[aria-label]')?.getAttribute('aria-label') ?? el.tagName;
+    });
+    expect(order).toEqual([
+      settingsEn.treeCacheTtlCustom,
+      settingsEn.treeCacheTtlUnitLabel,
+      settingsEn.treeCacheTtl,
+    ]);
+    // 默认单位为分钟。
+    fireEvent.change(input, { target: { value: '90' } });
+    await waitFor(
+      () => {
+        expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 90 });
+      },
+      { timeout: 1500 },
+    );
+
+    // 切到秒：30s → 向上取整 1 分钟。
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtlUnitLabel }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheUnitSecond }));
+    fireEvent.change(input, { target: { value: '30' } });
+    await waitFor(
+      () => {
+        expect(setTreeCacheOptions).toHaveBeenLastCalledWith({
+          enabled: true,
+          ttlMinutes: 1,
+        });
+      },
+      { timeout: 1500 },
+    );
+
+    // 上限 1 天：2 天 → 钳制 1440。
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtlUnitLabel }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheUnitDay }));
+    fireEvent.change(input, { target: { value: '2' } });
+    await waitFor(
+      () => {
+        expect(setTreeCacheOptions).toHaveBeenLastCalledWith({
+          enabled: true,
+          ttlMinutes: 1440,
+        });
+      },
+      { timeout: 1500 },
+    );
+  });
+
+  it('reset button restores tree-cache defaults without clearing', async () => {
+    const { setTreeCacheOptions, clearTreeCache } = renderTreeSection({
+      statsData: { ...treeStatsData, enabled: false, ttlMinutes: 60 },
+    });
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByTestId('tree-cache-reset'));
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 15 });
+    expect(clearTreeCache).not.toHaveBeenCalled();
   });
 });

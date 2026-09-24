@@ -46,6 +46,52 @@ const TREE_CACHE_TTL_OPTIONS = [5, 15, 60, 1440] as const;
 /** Rust 缺省（`TreeCacheOptions::default`）：stats 不可用时开关/TTL 的回退值。 */
 const TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
+/** TTL「自定义…」下拉哨兵值（不是持久化取值，仅界面编辑态）。 */
+const TREE_CACHE_TTL_CUSTOM = 'custom';
+
+/** 自定义 TTL 单位（秒向上取整到分钟；服务端仍只存 1..=1440 分钟）。 */
+type TreeTtlUnit = 's' | 'm' | 'h' | 'd';
+
+/** 与 SettingsControls 的 InputControl 一致：输入停顿 500ms 才写回，避免逐键提交。 */
+const TREE_TTL_COMMIT_DEBOUNCE_MS = 500;
+
+/** 自定义输入 → 分钟：非正数返回 null；否则按单位换算并钳制 1..=1440（上限 1 天）。 */
+function treeTtlMinutesFromCustom(raw: number, unit: TreeTtlUnit): number | null {
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return null;
+  }
+  let minutes: number;
+  switch (unit) {
+    case 's':
+      minutes = Math.ceil(raw / 60);
+      break;
+    case 'm':
+      minutes = Math.round(raw);
+      break;
+    case 'h':
+      minutes = Math.round(raw * 60);
+      break;
+    case 'd':
+      minutes = Math.round(raw * 1440);
+      break;
+  }
+  return Math.min(1440, Math.max(1, minutes));
+}
+
+/** 自定义单位 → number input 的 max（配合 min=1；超界提交时仍会被上面的函数钳制）。 */
+function treeTtlUnitMax(unit: TreeTtlUnit): number {
+  switch (unit) {
+    case 's':
+      return 86_400;
+    case 'm':
+      return 1440;
+    case 'h':
+      return 24;
+    case 'd':
+      return 1;
+  }
+}
+
 /**
  * 「恢复 核心数据路径 全部默认」的目标补丁：统一根 + 空根（后端视为默认根
  * `app_data_dir`，见 `patch_to_selection`）+ 无逐类覆盖。与「应用」同一套
@@ -138,9 +184,16 @@ export function StorageSettings() {
   // 工作区树缓存区段态：stats 挂载拉取一次（stats 数字/时间由 Intl 渲染，无需随语言重拉）；
   // 旧桥无该方法时静默缺席（try/catch 吞错），区段不渲染。
   const [treeStats, setTreeStats] = useState<TreeCacheStats | null>(null);
-  const [treeConfirmOpen, setTreeConfirmOpen] = useState(false);
+  /** 树缓存确认对话框：null 关闭；`clear` 清除缓存；`disable` 关闭开关（含清缓存说明）。 */
+  const [treeConfirm, setTreeConfirm] = useState<'clear' | 'disable' | null>(null);
   const [treeBusy, setTreeBusy] = useState(false);
   const treeConfirmRef = useRef<HTMLButtonElement | null>(null);
+  /** TTL 自定义编辑态（本地草稿，不直接等于 stats.ttlMinutes）。 */
+  const [ttlCustomMode, setTtlCustomMode] = useState(false);
+  const [ttlCustomValue, setTtlCustomValue] = useState('');
+  const [ttlCustomUnit, setTtlCustomUnit] = useState<TreeTtlUnit>('m');
+  const ttlPendingRef = useRef<string | null>(null);
+  const ttlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 语言切换会更换 `t` 触发重取：草稿只播种一次，避免覆盖用户编辑（F6）。
   // 错误文案仍用最新 `t` 即时计算，保持 `t` 新鲜度。
   const draftsSeededRef = useRef(false);
@@ -180,21 +233,31 @@ export function StorageSettings() {
     void loadTreeStats();
   }, [loadTreeStats]);
 
-  // 清除确认对话框：打开聚焦确认键，Escape 关闭（仿 StorageMigrateDialog）。
+  // 确认对话框：打开聚焦确认键，Escape 关闭（仿 StorageMigrateDialog）。
   useEffect(() => {
-    if (!treeConfirmOpen) {
+    if (!treeConfirm) {
       return;
     }
     treeConfirmRef.current?.focus();
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
-        setTreeConfirmOpen(false);
+        setTreeConfirm(null);
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [treeConfirmOpen]);
+  }, [treeConfirm]);
+
+  // 自定义 TTL 防抖计时器卸载清理。
+  useEffect(
+    () => () => {
+      if (ttlTimerRef.current) {
+        clearTimeout(ttlTimerRef.current);
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -571,14 +634,44 @@ export function StorageSettings() {
         showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
-      setTreeConfirmOpen(false);
+      setTreeConfirm(null);
       await loadTreeStats();
     } finally {
       setTreeBusy(false);
     }
   }, [loadTreeStats, showToast, t]);
 
-  /** 开关/TTL 写后重拉 stats；失败 toast 且不改本地展示（以 stats 为真源）。 */
+  /** 关闭确认：串行 写 options(enabled=false) → 清缓存 → 重拉 stats；失败 toast。 */
+  const handleTreeDisableConfirm = useCallback(
+    async (opts: TreeCacheOptions) => {
+      const bridge = window.digitalLife?.storage;
+      if (!bridge) {
+        return;
+      }
+      setTreeBusy(true);
+      try {
+        const result = await bridge.setTreeCacheOptions(opts);
+        if (!result.ok) {
+          showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+          return;
+        }
+        const clearResult = await bridge.clearTreeCache();
+        if (!clearResult.ok) {
+          showToast(ipcErrorMessage(clearResult.error, t.storageUnknownError), 'error');
+          // 开关已写成功：仍关闭对话框并重拉 stats，避免勾选状态卡在旧值。
+        }
+        setTreeConfirm(null);
+        await loadTreeStats();
+        // 回拉可能返回陈旧 enabled（no-op/静默失败）：写成功的结果以本地 opts 为准。
+        setTreeStats((prev) => (prev ? { ...prev, ...opts } : prev));
+      } finally {
+        setTreeBusy(false);
+      }
+    },
+    [loadTreeStats, showToast, t],
+  );
+
+  /** 开关/TTL 写后重拉 stats + 本地合并回写（防 stats 回拉静默失败导致勾选弹回）。 */
   const handleTreeOptionsChange = useCallback(
     async (opts: TreeCacheOptions) => {
       const bridge = window.digitalLife?.storage;
@@ -590,9 +683,27 @@ export function StorageSettings() {
         showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
+      setTreeStats((prev) =>
+        prev ? { ...prev, enabled: opts.enabled, ttlMinutes: opts.ttlMinutes } : prev,
+      );
       await loadTreeStats();
+      setTreeStats((prev) =>
+        prev ? { ...prev, enabled: opts.enabled, ttlMinutes: opts.ttlMinutes } : prev,
+      );
     },
     [loadTreeStats, showToast, t],
+  );
+
+  /** 复选框：勾选直接写；取消勾选弹关闭确认（含清缓存影响说明），确认后才写。 */
+  const handleTreeEnabledToggle = useCallback(
+    (checked: boolean) => {
+      if (checked) {
+        void handleTreeOptionsChange({ enabled: true, ttlMinutes: treeStats?.ttlMinutes ?? 15 });
+        return;
+      }
+      setTreeConfirm('disable');
+    },
+    [handleTreeOptionsChange, treeStats?.ttlMinutes],
   );
 
   const categories = status?.categories ?? [];
@@ -642,37 +753,9 @@ export function StorageSettings() {
   const treeEnabled = treeStats?.enabled ?? TREE_CACHE_DEFAULTS.enabled;
   const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
 
-  const handleTtlSelectChange = useCallback(
-    (v: string) => {
-      const raw = Number(v);
-      if (!Number.isFinite(raw)) {
-        return;
-      }
-      // 与服务端合法范围 1..=1440 对齐：钳制后写（非法值不出桥）。
-      const ttlMinutes = Math.min(1440, Math.max(1, Math.floor(raw)));
-      void handleTreeOptionsChange({
-        enabled: treeEnabled,
-        ttlMinutes,
-      });
-    },
-    [handleTreeOptionsChange, treeEnabled],
-  );
-
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
-  const ttlSelectOptions = useMemo(() => {
-    // 非列表值（如后端合法但不在下拉档的 30）：回退展示当前值档（复用既有 key，无新文案）。
-    const fallback = !TREE_CACHE_TTL_OPTIONS.includes(
-      treeTtlMinutes as (typeof TREE_CACHE_TTL_OPTIONS)[number],
-    )
-      ? [
-          {
-            value: String(treeTtlMinutes),
-            label: t.treeCacheTtlMinutes.replace('{minutes}', String(treeTtlMinutes)),
-          },
-        ]
-      : [];
-    return [
-      ...fallback,
+  const ttlSelectOptions = useMemo(
+    () => [
       ...TREE_CACHE_TTL_OPTIONS.map((minutes) => ({
         value: String(minutes),
         label:
@@ -680,8 +763,106 @@ export function StorageSettings() {
             ? t.treeCacheTtlDay
             : t.treeCacheTtlMinutes.replace('{minutes}', String(minutes)),
       })),
-    ];
-  }, [treeTtlMinutes, t.treeCacheTtlMinutes, t.treeCacheTtlDay]);
+      { value: TREE_CACHE_TTL_CUSTOM, label: t.treeCacheTtlCustom },
+    ],
+    [t.treeCacheTtlMinutes, t.treeCacheTtlDay, t.treeCacheTtlCustom],
+  );
+
+  const ttlUnitOptions = useMemo(
+    () => [
+      { value: 's', label: t.treeCacheUnitSecond },
+      { value: 'm', label: t.treeCacheUnitMinute },
+      { value: 'h', label: t.treeCacheUnitHour },
+      { value: 'd', label: t.treeCacheUnitDay },
+    ],
+    [t.treeCacheUnitSecond, t.treeCacheUnitMinute, t.treeCacheUnitHour, t.treeCacheUnitDay],
+  );
+
+  const treeTtlIsPreset = TREE_CACHE_TTL_OPTIONS.includes(
+    treeTtlMinutes as (typeof TREE_CACHE_TTL_OPTIONS)[number],
+  );
+  // 非预设值或用户选了「自定义…」→ 自定义编辑态（本地草稿，不覆盖 stats）。
+  const showTtlCustom = ttlCustomMode || !treeTtlIsPreset;
+  const ttlSelectValue = showTtlCustom ? TREE_CACHE_TTL_CUSTOM : String(treeTtlMinutes);
+
+  /** 丢弃在途的自定义输入（改选预设/重置时必须先调用，否则旧草稿会在防抖到期后覆盖）。 */
+  const cancelPendingTtl = useCallback(() => {
+    ttlPendingRef.current = null;
+    if (ttlTimerRef.current) {
+      clearTimeout(ttlTimerRef.current);
+      ttlTimerRef.current = null;
+    }
+  }, []);
+
+  const commitTtlCustom = useCallback(() => {
+    if (ttlTimerRef.current) {
+      clearTimeout(ttlTimerRef.current);
+      ttlTimerRef.current = null;
+    }
+    const raw = ttlPendingRef.current;
+    ttlPendingRef.current = null;
+    if (raw === null) {
+      return;
+    }
+    const minutes = treeTtlMinutesFromCustom(Number(raw), ttlCustomUnit);
+    if (minutes === null) {
+      return;
+    }
+    setTtlCustomValue(String(raw));
+    void handleTreeOptionsChange({ enabled: treeEnabled, ttlMinutes: minutes });
+  }, [handleTreeOptionsChange, treeEnabled, ttlCustomUnit]);
+
+  const handleTtlSelectChange = useCallback(
+    (v: string) => {
+      cancelPendingTtl();
+      if (v === TREE_CACHE_TTL_CUSTOM) {
+        setTtlCustomMode(true);
+        setTtlCustomValue(String(treeTtlMinutes));
+        setTtlCustomUnit('m');
+        return;
+      }
+      setTtlCustomMode(false);
+      setTtlCustomValue('');
+      const raw = Number(v);
+      if (!Number.isFinite(raw)) {
+        return;
+      }
+      // 与服务端合法范围 1..=1440 对齐：钳制后写（非法值不出桥）。
+      const ttlMinutes = Math.min(1440, Math.max(1, Math.floor(raw)));
+      void handleTreeOptionsChange({ enabled: treeEnabled, ttlMinutes });
+    },
+    [cancelPendingTtl, handleTreeOptionsChange, treeEnabled, treeTtlMinutes],
+  );
+
+  const handleTtlCustomChange = useCallback(
+    (raw: string) => {
+      setTtlCustomValue(raw);
+      ttlPendingRef.current = raw;
+      if (ttlTimerRef.current) {
+        clearTimeout(ttlTimerRef.current);
+      }
+      ttlTimerRef.current = setTimeout(commitTtlCustom, TREE_TTL_COMMIT_DEBOUNCE_MS);
+    },
+    [commitTtlCustom],
+  );
+
+  // 后端合法但不在预设档的 TTL（如 30）：进入自定义态时播种草稿（不覆盖在途输入）。
+  useEffect(() => {
+    if (treeTtlIsPreset || ttlPendingRef.current !== null || ttlCustomMode) {
+      return;
+    }
+    setTtlCustomValue(String(treeTtlMinutes));
+    setTtlCustomUnit('m');
+  }, [treeTtlIsPreset, treeTtlMinutes, ttlCustomMode]);
+
+  /** 恢复默认：enabled=true、ttl=15；不触发清缓存。 */
+  const handleTreeResetDefaults = useCallback(() => {
+    cancelPendingTtl();
+    setTtlCustomMode(false);
+    setTtlCustomValue('');
+    void handleTreeOptionsChange({ ...TREE_CACHE_DEFAULTS });
+  }, [cancelPendingTtl, handleTreeOptionsChange]);
+
   const pathFor = (category: StorageCategoryStatus) =>
     categoryDrafts[category.key] ?? category.path;
 
@@ -703,6 +884,9 @@ export function StorageSettings() {
 
   const resetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.storageCorePathsTitle,
+  });
+  const treeResetLabel = formatT(t, 'settingsResetGroupToDefault', {
+    group: t.treeCacheTitle,
   });
 
   if (loading) {
@@ -887,68 +1071,126 @@ export function StorageSettings() {
       </div>
 
       {treeStats ? (
-        <div className="adl-settings-card">
-          <h4 className="adl-settings-section-title adl-settings-title--serif">
-            {t.treeCacheTitle}
-          </h4>
-          <div className="adl-settings-row" data-testid="tree-cache-section">
-            <div className="adl-settings-row__label">
-              <small>
-                {t.treeCacheWorkspaces.replace('{count}', String(treeStats.workspaceCount))}
-              </small>
-              <small>{t.treeCacheSize.replace('{size}', formatBytes(treeStats.totalBytes))}</small>
-              <small>
-                {typeof treeStats.newestCapturedAt !== 'number'
-                  ? t.storageNotCreated
-                  : t.treeCacheAge.replace(
-                      '{time}',
-                      // 缓存时间为绝对时刻：经 Intl 本地化渲染（与上条注释一致）。
-                      new Date(treeStats.newestCapturedAt).toLocaleString(),
-                    )}
-              </small>
-            </div>
-            <div className="adl-settings-row__control">
-              <button
-                type="button"
-                className="adl-btn adl-btn--secondary"
-                data-testid="tree-cache-clear"
-                disabled={treeBusy}
-                onClick={() => setTreeConfirmOpen(true)}
-              >
-                {t.treeCacheClear}
-              </button>
-            </div>
+        <>
+          <div className="adl-settings-storage__header adl-settings-storage__header--tree-cache">
+            <button
+              type="button"
+              className="adl-settings-row__reset"
+              aria-label={treeResetLabel}
+              title={treeResetLabel}
+              data-testid="tree-cache-reset"
+              disabled={treeBusy}
+              onClick={handleTreeResetDefaults}
+            >
+              <IconResetDefaults size={14} decorative />
+            </button>
+            <SettingsHeader title={t.treeCacheTitle} />
           </div>
 
-          <div className="adl-settings-row">
-            <div className="adl-settings-row__label">
-              <div className="adl-settings-row__label-text">
-                <span>{t.treeCacheEnabled}</span>
+          <div className="adl-settings-card">
+            <div className="adl-settings-row" data-testid="tree-cache-section">
+              <div className="adl-settings-row__label">
+                <div className="adl-settings-row__label-text">
+                  <span>{t.treeCacheStatsLabel}</span>
+                </div>
+                <div className="adl-tree-cache-stats">
+                  <span>
+                    {t.treeCacheWorkspaces.replace('{count}', String(treeStats.workspaceCount))}
+                  </span>
+                  <span className="adl-tree-cache-stats__sep" aria-hidden="true">
+                    |
+                  </span>
+                  <span>
+                    {t.treeCacheSize.replace('{size}', formatBytes(treeStats.totalBytes))}
+                  </span>
+                  <span className="adl-tree-cache-stats__sep" aria-hidden="true">
+                    |
+                  </span>
+                  <span>
+                    {typeof treeStats.newestCapturedAt !== 'number'
+                      ? t.storageNotCreated
+                      : t.treeCacheAge.replace(
+                          '{time}',
+                          // 缓存时间为绝对时刻：经 Intl 本地化渲染（与上条注释一致）。
+                          new Date(treeStats.newestCapturedAt).toLocaleString(),
+                        )}
+                  </span>
+                </div>
+              </div>
+              <div className="adl-settings-row__control">
+                <button
+                  type="button"
+                  className="adl-btn adl-btn--hover-outline"
+                  data-testid="tree-cache-clear"
+                  disabled={treeBusy}
+                  onClick={() => setTreeConfirm('clear')}
+                >
+                  {t.treeCacheClear}
+                </button>
               </div>
             </div>
-            <div className="adl-settings-row__control adl-settings-row__control--inline">
-              <input
-                type="checkbox"
-                aria-label={t.treeCacheEnabled}
-                checked={treeEnabled}
-                disabled={treeBusy}
-                onChange={(e) =>
-                  void handleTreeOptionsChange({
-                    enabled: e.target.checked,
-                    ttlMinutes: treeTtlMinutes,
-                  })
-                }
-              />
-              <SettingsSelect
-                value={String(treeTtlMinutes)}
-                options={ttlSelectOptions}
-                onChange={handleTtlSelectChange}
-                label={t.treeCacheTtl}
-                disabled={treeBusy}
-              />
+
+            <div
+              className="adl-settings-row adl-settings-row--path-center"
+              data-testid="tree-cache-enabled-row"
+            >
+              <div className="adl-settings-row__label">
+                <div className="adl-settings-row__label-text">
+                  <span>{t.treeCacheEnabled}</span>
+                  <input
+                    type="checkbox"
+                    aria-label={t.treeCacheEnabled}
+                    checked={treeEnabled}
+                    disabled={treeBusy}
+                    onChange={(e) => handleTreeEnabledToggle(e.target.checked)}
+                  />
+                </div>
+                <small>{t.treeCacheEnabledHint}</small>
+              </div>
+              <div className="adl-settings-row__control adl-settings-row__control--inline">
+                {showTtlCustom ? (
+                  <>
+                    <input
+                      type="number"
+                      className="adl-settings-input adl-settings-input--narrow"
+                      min={1}
+                      max={treeTtlUnitMax(ttlCustomUnit)}
+                      step={1}
+                      aria-label={t.treeCacheTtlCustom}
+                      value={ttlCustomValue}
+                      disabled={treeBusy || !treeEnabled}
+                      onChange={(e) => handleTtlCustomChange(e.target.value)}
+                      onBlur={commitTtlCustom}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          commitTtlCustom();
+                        }
+                      }}
+                    />
+                    <SettingsSelect
+                      value={ttlCustomUnit}
+                      options={ttlUnitOptions}
+                      onChange={(v) => {
+                        cancelPendingTtl();
+                        setTtlCustomUnit(v as TreeTtlUnit);
+                      }}
+                      label={t.treeCacheTtlUnitLabel}
+                      disabled={treeBusy || !treeEnabled}
+                    />
+                  </>
+                ) : null}
+                {/* 默认选项下拉恒在最右（自定义态顺序：数值 → 单位 → 默认选项）。 */}
+                <SettingsSelect
+                  value={ttlSelectValue}
+                  options={ttlSelectOptions}
+                  onChange={handleTtlSelectChange}
+                  label={t.treeCacheTtl}
+                  disabled={treeBusy || !treeEnabled}
+                />
+              </div>
             </div>
           </div>
-        </div>
+        </>
       ) : null}
 
       <div className="adl-settings-card">
@@ -1114,38 +1356,58 @@ export function StorageSettings() {
         onCancel={() => setDialogOpen(false)}
         onApply={(retainSource, applyNow) => void handleApplyMigration(retainSource, applyNow)}
       />
-      {treeConfirmOpen
+      {treeConfirm
         ? createPortal(
             <div
               className="adl-confirm-overlay"
-              onClick={() => setTreeConfirmOpen(false)}
+              onClick={() => setTreeConfirm(null)}
               role="dialog"
               aria-modal="true"
-              aria-label={t.treeCacheClear}
+              aria-label={treeConfirm === 'disable' ? t.treeCacheDisableTitle : t.treeCacheClear}
             >
               <div className="adl-confirm-dialog" onClick={(e) => e.stopPropagation()}>
                 <div className="adl-confirm-dialog__header">
-                  <h3 className="adl-confirm-dialog__title">{t.treeCacheClear}</h3>
+                  <h3 className="adl-confirm-dialog__title">
+                    {treeConfirm === 'disable' ? t.treeCacheDisableTitle : t.treeCacheClear}
+                  </h3>
                 </div>
                 <div className="adl-confirm-dialog__body">
-                  <p className="adl-confirm-dialog__message">{t.treeCacheClearConfirm}</p>
+                  <p className="adl-confirm-dialog__message">
+                    {treeConfirm === 'disable'
+                      ? t.treeCacheDisableConfirm
+                      : t.treeCacheClearConfirm}
+                  </p>
                 </div>
                 <div className="adl-confirm-dialog__footer">
                   <button
                     type="button"
                     className="adl-btn adl-btn--secondary"
-                    onClick={() => setTreeConfirmOpen(false)}
+                    onClick={() => setTreeConfirm(null)}
                   >
                     {t.storageCancel}
                   </button>
                   <button
                     ref={treeConfirmRef}
                     type="button"
-                    className="adl-btn adl-btn--primary"
+                    // 关闭确认与「取消」同款 secondary（无品牌蓝填充）；清除确认保留 primary。
+                    className={
+                      treeConfirm === 'disable'
+                        ? 'adl-btn adl-btn--secondary'
+                        : 'adl-btn adl-btn--primary'
+                    }
                     disabled={treeBusy}
-                    onClick={() => void handleTreeClearConfirm()}
+                    onClick={() => {
+                      if (treeConfirm === 'disable') {
+                        void handleTreeDisableConfirm({
+                          enabled: false,
+                          ttlMinutes: treeTtlMinutes,
+                        });
+                      } else {
+                        void handleTreeClearConfirm();
+                      }
+                    }}
                   >
-                    {t.treeCacheClear}
+                    {treeConfirm === 'disable' ? t.treeCacheDisableConfirmBtn : t.treeCacheClear}
                   </button>
                 </div>
               </div>

@@ -384,10 +384,25 @@ pub async fn cancel_pending(State(_state): State<ServerState>) -> impl IntoRespo
     ipc::to_response(result)
 }
 
-/// 可单测的落盘 helpers（`dir` 由调用方经 `adl_workspace::tree_cache_dir()` 解析传入，
+/// 可单测的落盘 helpers（`dir` 由调用方经 `tree_cache_dir_from_state` 解析传入，
 /// 仿 Task 1 存储层"调用方传入 `&Path`"惯例；handler 薄包一层做目录收敛）。
 fn tree_cache_stats_in(dir: &std::path::Path) -> Result<TreeCacheStats, AppError> {
     TreeCacheStore::open(dir)?.stats()
+}
+
+/// TreeCache 落盘目录：与 `storage/status` 同源（`state.storage.paths()`，
+/// locator 缺 root 时回落 `state.data_dir`）。`paths.dir(TreeCache)` 已是
+/// `tree-cache.db` 文件路径，取其父目录供 `TreeCacheStore::open` 再拼文件名。
+/// 不再走 `adl_workspace::tree_cache_dir()`（壳层无 `--data-dir` 且 locator 缺
+/// root 时回 None → 空表零值，与磁盘真实文件不一致）。
+fn tree_cache_dir_from_state(state: &ServerState) -> std::path::PathBuf {
+    state
+        .storage
+        .paths()
+        .dir(st::StorageCategory::TreeCache)
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| state.storage.paths().root.clone())
 }
 
 #[cfg(test)]
@@ -410,28 +425,12 @@ fn tree_cache_clear_in(dir: &std::path::Path) -> Result<(), AppError> {
     TreeCacheStore::open(dir)?.clear()
 }
 
-/// 空表零值（目录不可解析时——进程既无 `--data-dir` 又无定位器根——行为等同 L2 跳过；
-/// 开关/TTL 取 `TreeCacheOptions::default`，与 store 单源，改缺省只改一处）。
-fn empty_tree_cache_stats() -> serde_json::Value {
-    let defaults = TreeCacheOptions::default();
-    serde_json::json!({
-        "workspaceCount": 0,
-        "totalBytes": 0,
-        "oldestCapturedAt": null,
-        "newestCapturedAt": null,
-        "enabled": defaults.enabled,
-        "ttlMinutes": defaults.ttl_minutes,
-    })
-}
-
 /// POST `/storage/tree-cache/stats` — `{}` → `{ workspaceCount, totalBytes,
 /// oldestCapturedAt, newestCapturedAt, enabled, ttlMinutes }`（camelCase，与 `TreeCacheStats` 对齐）。
-pub async fn tree_cache_stats(State(_state): State<ServerState>) -> impl IntoResponse {
+pub async fn tree_cache_stats(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        match adl_workspace::tree_cache_dir() {
-            Some(dir) => Ok(serde_json::to_value(tree_cache_stats_in(&dir)?)?),
-            None => Ok(empty_tree_cache_stats()),
-        }
+        let dir = tree_cache_dir_from_state(&state);
+        Ok(serde_json::to_value(tree_cache_stats_in(&dir)?)?)
     })
     .await;
     ipc::to_response(result)
@@ -440,7 +439,7 @@ pub async fn tree_cache_stats(State(_state): State<ServerState>) -> impl IntoRes
 /// POST `/storage/tree-cache/options` — body 为裸 opts `{ enabled, ttlMinutes }`
 ///（T6 httpBridge `POST(opts)` 实证）；`ttl_minutes` 越界报 `InvalidInput` → `{ ok:true }`。
 pub async fn tree_cache_options(
-    State(_state): State<ServerState>,
+    State(state): State<ServerState>,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
     let input: TreeCacheOptions = match ipc::json_body(body).await {
@@ -449,9 +448,8 @@ pub async fn tree_cache_options(
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         validate_tree_cache_ttl(input.ttl_minutes)?;
-        if let Some(dir) = adl_workspace::tree_cache_dir() {
-            tree_cache_set_options_in(&dir, input.enabled, input.ttl_minutes)?;
-        }
+        let dir = tree_cache_dir_from_state(&state);
+        tree_cache_set_options_in(&dir, input.enabled, input.ttl_minutes)?;
         Ok(serde_json::Value::Null)
     })
     .await;
@@ -459,11 +457,10 @@ pub async fn tree_cache_options(
 }
 
 /// POST `/storage/tree-cache/clear` — `{}` → 全行删除（元数据开关/TTL 保留）→ `{ ok:true }`。
-pub async fn tree_cache_clear(State(_state): State<ServerState>) -> impl IntoResponse {
+pub async fn tree_cache_clear(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        if let Some(dir) = adl_workspace::tree_cache_dir() {
-            tree_cache_clear_in(&dir)?;
-        }
+        let dir = tree_cache_dir_from_state(&state);
+        tree_cache_clear_in(&dir)?;
         Ok(serde_json::Value::Null)
     })
     .await;
@@ -659,13 +656,6 @@ mod tests {
         assert!(!opts.enabled);
         assert_eq!(opts.ttl_minutes, 60);
         let _ = std::fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn empty_tree_cache_stats_reports_rust_defaults() {
-        let v = empty_tree_cache_stats();
-        assert_eq!(v.get("enabled"), Some(&serde_json::json!(true)));
-        assert_eq!(v.get("ttlMinutes"), Some(&serde_json::json!(15)));
     }
 
     fn tree_cache_tmp(tag: &str) -> std::path::PathBuf {

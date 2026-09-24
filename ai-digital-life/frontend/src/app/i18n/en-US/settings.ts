@@ -221,15 +221,28 @@ export const settingsEn = {
 
   // Workspace tree cache (storage settings section)
   treeCacheTitle: 'Workspace tree cache',
+  treeCacheStatsLabel: 'Cache stats',
   treeCacheWorkspaces: '{count} workspaces cached',
   treeCacheSize: 'Cache size {size}',
   treeCacheAge: 'Newest entry {time}',
   treeCacheClear: 'Clear cache',
   treeCacheClearConfirm: 'Clear all workspace tree caches? Trees will be rescanned on next open.',
   treeCacheEnabled: 'Enable tree cache',
+  treeCacheEnabledHint:
+    'When enabled, workspace file trees are cached to disk after the first scan. The next open shows the cached tree first and refreshes quietly in the background for a faster cold start. The cache rescans automatically when it expires or the tree changes significantly. When off, the cache is neither read nor written.',
+  treeCacheDisableTitle: 'Turn off tree cache?',
+  treeCacheDisableConfirm:
+    'Turning off the tree cache clears all cached workspace file trees. Every workspace open will then need a full rescan, so the file tree will appear noticeably slower at first; the tree still works, only without cache acceleration. Turning it back on rebuilds the cache gradually as you use it. Turn it off now?',
+  treeCacheDisableConfirmBtn: 'Turn off',
   treeCacheTtl: 'Cache TTL',
   treeCacheTtlMinutes: '{minutes} minutes',
   treeCacheTtlDay: '1 day',
+  treeCacheTtlCustom: 'Custom…',
+  treeCacheTtlUnitLabel: 'Time unit',
+  treeCacheUnitSecond: 'sec',
+  treeCacheUnitMinute: 'min',
+  treeCacheUnitHour: 'hr',
+  treeCacheUnitDay: 'day',
 
   // Command titles
   commandSessionNew: 'New Session',

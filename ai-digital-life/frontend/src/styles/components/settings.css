@@ -363,6 +363,14 @@
   cursor: pointer;
 }
 
+/* Native radio/checkbox fill: monochrome via text-primary (not accent blue).
+   Light: near-black fill + light glyph; dark: light-gray fill + dark glyph.
+   Matches dsh/search-settings precedent; browser draws the inner mark. */
+.adl-settings-section input[type='radio'],
+.adl-settings-section input[type='checkbox'] {
+  accent-color: var(--text-primary);
+}
+
 .adl-settings-status {
   display: inline-block;
   padding: var(--space-1) var(--space-2);
@@ -494,6 +502,40 @@
    hover 才出现描边（仿下拉/输入的交互），高度/圆角与路径框一致（偏直角）。 */
 .adl-settings-input--path {
   width: 260px;
+}
+
+/* 次要动作按钮（清除缓存等）：灰底偏直角、描边仅 hover——与 path-pick 同交互语言。 */
+.adl-settings-row .adl-btn--hover-outline {
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: var(--text-sm);
+  flex-shrink: 0;
+}
+
+.adl-settings-row .adl-btn--hover-outline:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-hover);
+  color: var(--text-primary);
+}
+
+/* 工作区树缓存统计副标题：单行水平（已缓存 | 缓存大小 | 时间），空间不足时换行。 */
+.adl-tree-cache-stats {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1-5);
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  line-height: var(--leading-relaxed);
+}
+
+.adl-tree-cache-stats__sep {
+  color: var(--text-muted);
+  opacity: 0.55;
+  user-select: none;
 }
 
 .adl-settings-row--path-center {
@@ -1114,6 +1156,11 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+/* 工作区树缓存块头：与上方核心数据路径卡之间加大间距，区分两块。 */
+.adl-settings-storage__header--tree-cache {
+  margin-top: var(--space-2);
 }
 
 .adl-settings-section.adl-settings-workspace,

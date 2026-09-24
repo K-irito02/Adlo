@@ -162,4 +162,42 @@ describe('SettingsSelect', () => {
     fireEvent.keyDown(trigger, { key: 'Enter' });
     expect(screen.queryByRole('listbox')).not.toBeNull();
   });
+
+  it('bottom-anchors the menu to the trigger top when there is no room below', () => {
+    // 触发器贴近视口底部：下方放不下 MENU_MAX_HEIGHT，应向上打开并用 CSS bottom 贴顶边
+    //（不再按固定 240 推 top——短菜单会整体上浮、与触发器脱节）。
+    const prevInnerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', {
+      value: 400,
+      configurable: true,
+      writable: true,
+    });
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 360,
+      bottom: 388,
+      left: 20,
+      right: 140,
+      width: 120,
+      height: 28,
+      x: 20,
+      y: 360,
+      toJSON: () => ({}),
+    } as DOMRect);
+    try {
+      render(<SettingsSelect value="a" options={OPTIONS} onChange={() => {}} label="Pick" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
+      const menu = document.querySelector('.adl-settings-dropdown__menu') as HTMLElement;
+      expect(menu).not.toBeNull();
+      // bottom = innerHeight - rect.top + MENU_OFFSET(4)
+      expect(menu.style.bottom).toBe(`${400 - 360 + 4}px`);
+      expect(menu.style.top).toBe('');
+    } finally {
+      spy.mockRestore();
+      Object.defineProperty(window, 'innerHeight', {
+        value: prevInnerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
 });

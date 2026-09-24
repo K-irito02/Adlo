@@ -22,7 +22,10 @@ interface SettingsSelectProps {
 }
 
 interface MenuGeometry {
-  top: number;
+  /** 向下打开：菜单顶边相对视口（与 bottom 互斥） */
+  top?: number;
+  /** 向上打开：菜单底边锚定触发器上边缘，与实际菜单高度无关（与 top 互斥） */
+  bottom?: number;
   left: number;
   width: number;
 }
@@ -98,12 +101,20 @@ export function SettingsSelect({
       Math.min(rect.right - width, window.innerWidth - width - VIEWPORT_MARGIN),
     );
     const belowTop = rect.bottom + MENU_OFFSET;
-    const aboveTop = rect.top - MENU_OFFSET - MENU_MAX_HEIGHT;
     const fitsBelow = belowTop + MENU_MAX_HEIGHT <= window.innerHeight - VIEWPORT_MARGIN;
-    const top = fitsBelow ? belowTop : Math.max(VIEWPORT_MARGIN, aboveTop);
-    const next = { top, left, width };
+    // 向下：顶边贴触发器底缘。向上：底边锚定触发器上缘（用 CSS bottom，
+    // 不按固定 MENU_MAX_HEIGHT 推 top——短菜单会整体上浮、与触发器脱节）。
+    const next: MenuGeometry = fitsBelow
+      ? { top: belowTop, left, width }
+      : { bottom: window.innerHeight - rect.top + MENU_OFFSET, left, width };
     const prev = geometryRef.current;
-    if (prev && prev.top === next.top && prev.left === next.left && prev.width === next.width) {
+    if (
+      prev &&
+      prev.top === next.top &&
+      prev.bottom === next.bottom &&
+      prev.left === next.left &&
+      prev.width === next.width
+    ) {
       return;
     }
     geometryRef.current = next;
@@ -275,6 +286,7 @@ export function SettingsSelect({
             className="adl-settings-dropdown__menu"
             style={{
               top: menuGeometry.top,
+              bottom: menuGeometry.bottom,
               left: menuGeometry.left,
               width: menuGeometry.width,
             }}

@@ -313,51 +313,48 @@ pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<(
     ok_ipc(())
 }
 
-/// 空表零值（目录不可解析时——进程既无 `--data-dir` 又无定位器根——行为等同 L2 跳过；
-/// 开关/TTL 取 Rust 缺省，与 `TreeCacheOptions::default` 同源）。
-fn empty_tree_cache_stats() -> TreeCacheStats {
-    let defaults = TreeCacheOptions::default();
-    TreeCacheStats {
-        workspace_count: 0,
-        total_bytes: 0,
-        oldest_captured_at: None,
-        newest_captured_at: None,
-        enabled: defaults.enabled,
-        ttl_minutes: defaults.ttl_minutes,
-    }
+/// TreeCache 落盘目录：与 `storage_get_status` 同源（`state.storage.paths()`，
+/// locator 缺 root 时回落 `defaults.root`）。`paths.dir(TreeCache)` 已是
+/// `tree-cache.db` 文件路径，取其父目录供 `TreeCacheStore::open` 再拼文件名。
+fn tree_cache_dir_from_state(state: &AppState) -> std::path::PathBuf {
+    state
+        .storage
+        .paths()
+        .dir(st::StorageCategory::TreeCache)
+        .parent()
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(|| state.storage.paths().root.clone())
 }
 
 /// 工作区树缓存统计（设置页展示用），与服务端 `POST /storage/tree-cache/stats` 同语义。
 #[tauri::command]
 pub fn storage_tree_cache_stats(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
 ) -> Result<IpcResult<TreeCacheStats>, AppError> {
-    match adl_workspace::tree_cache_dir() {
-        Some(dir) => Ok(ipc(Ok(TreeCacheStore::open(&dir)?.stats()?))),
-        None => ok_ipc(empty_tree_cache_stats()),
-    }
+    // 与核心数据路径同一真源：不再走 `tree_cache_dir()`（壳层无 `--data-dir` 且
+    // locator 缺 root 时回 None → 空表零值，与磁盘 3.8MB 文件不一致）。
+    let dir = tree_cache_dir_from_state(&state);
+    Ok(ipc(Ok(TreeCacheStore::open(&dir)?.stats()?)))
 }
 
 /// 工作区树缓存开关/TTL 写入（参数信封 `{ opts }`，与 `tauri-bridge` 的
 /// `invokeIpc(…, { opts })` 对应）；`ttl_minutes` 越界报 `InvalidInput`。
 #[tauri::command]
 pub fn storage_tree_cache_options(
-    _state: State<'_, AppState>,
+    state: State<'_, AppState>,
     opts: TreeCacheOptions,
 ) -> Result<IpcResult<()>, AppError> {
     validate_tree_cache_ttl(opts.ttl_minutes)?;
-    if let Some(dir) = adl_workspace::tree_cache_dir() {
-        TreeCacheStore::open(&dir)?.set_options(opts.enabled, opts.ttl_minutes)?;
-    }
+    let dir = tree_cache_dir_from_state(&state);
+    TreeCacheStore::open(&dir)?.set_options(opts.enabled, opts.ttl_minutes)?;
     ok_ipc(())
 }
 
 /// 清除全部树缓存行（元数据开关/TTL 保留），与服务端 `POST /storage/tree-cache/clear` 同语义。
 #[tauri::command]
-pub fn storage_tree_cache_clear(_state: State<'_, AppState>) -> Result<IpcResult<()>, AppError> {
-    if let Some(dir) = adl_workspace::tree_cache_dir() {
-        TreeCacheStore::open(&dir)?.clear()?;
-    }
+pub fn storage_tree_cache_clear(state: State<'_, AppState>) -> Result<IpcResult<()>, AppError> {
+    let dir = tree_cache_dir_from_state(&state);
+    TreeCacheStore::open(&dir)?.clear()?;
     ok_ipc(())
 }
 

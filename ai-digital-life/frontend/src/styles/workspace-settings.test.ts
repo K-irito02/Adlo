@@ -123,7 +123,7 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   });
 
   it('paints a selected settings nav row deeper than hover (file-tree bg-active)', () => {
-    const active = ruleBody(settingsCss, '.adl-settings-nav__row.is-active');
+    const active = groupRuleBody(settingsCss, '.adl-settings-nav__row.is-active');
     expect(active).not.toBeNull();
     expect(active).toContain('background: var(--bg-active)');
     expect(active).not.toContain('pastel-neutral-bg');
@@ -150,5 +150,47 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     );
     expect(src).toContain('listHintIntroTitle');
     expect(src).not.toContain('\\n\\n${t.');
+  });
+
+  it('lays out tree-cache stats as a horizontal flex line with separators', () => {
+    const stats = ruleBody(settingsCss, '.adl-tree-cache-stats');
+    expect(stats).not.toBeNull();
+    expect(stats).toContain('display: flex');
+    expect(stats).toContain('flex-wrap: wrap');
+    const sep = ruleBody(settingsCss, '.adl-tree-cache-stats__sep');
+    expect(sep).not.toBeNull();
+  });
+
+  it('adds extra top margin to the tree-cache block header vs the core-paths header', () => {
+    const header = ruleBody(settingsCss, '.adl-settings-storage__header--tree-cache');
+    expect(header).not.toBeNull();
+    expect(header).toContain('margin-top');
+    const base = ruleBody(settingsCss, '.adl-settings-storage__header');
+    expect(base).not.toBeNull();
+    expect(base).not.toContain('margin-top');
+  });
+
+  it('paints settings radio/checkbox with monochrome text-primary, not accent blue', () => {
+    const body = ruleBody(
+      settingsCss,
+      ".adl-settings-section input[type='radio'],\n.adl-settings-section input[type='checkbox']",
+    );
+    expect(body).not.toBeNull();
+    expect(body).toContain('accent-color: var(--text-primary)');
+    expect(body).not.toContain('var(--accent)');
+  });
+
+  it('makes the clear-cache button right-angled with hover-only outline', () => {
+    const body = ruleBody(settingsCss, '.adl-settings-row .adl-btn--hover-outline');
+    expect(body).not.toBeNull();
+    expect(body).toContain('border: 1px solid transparent');
+    expect(body).toContain('border-radius: var(--radius-sm)');
+    expect(body).toContain('background: var(--bg-muted)');
+    const hover = ruleBody(
+      settingsCss,
+      '.adl-settings-row .adl-btn--hover-outline:hover:not(:disabled)',
+    );
+    expect(hover).not.toBeNull();
+    expect(hover).toContain('border-color: var(--border-strong)');
   });
 });
