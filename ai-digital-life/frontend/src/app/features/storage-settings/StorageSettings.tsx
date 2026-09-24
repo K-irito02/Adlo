@@ -5,6 +5,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { formatBytes } from '@root/design-system/html';
+import { isTauriShell } from '@shared/env';
 import {
   IMMOVABLE_ENTRY_KEYS,
   type StorageCategoryStatus,
@@ -15,7 +16,7 @@ import {
   type TreeCacheOptions,
   type TreeCacheStats,
 } from '@shared/ipc/storage';
-import { IconCircleHelp, IconResetDefaults } from '../../icons';
+import { IconAlertTriangle, IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
@@ -31,6 +32,7 @@ import {
   treeTtlUnitMax,
   type TreeTtlUnit,
 } from './treeCacheTtl';
+import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 
 /** 不可移动项 → i18n key（顺序固定，遍历 `IMMOVABLE_ENTRY_KEYS`）。 */
 const IMMOVABLE_COPY: Record<
@@ -158,6 +160,25 @@ export function StorageSettings() {
   const treeConfirmRef = useRef<HTMLButtonElement | null>(null);
   /** 打开确认对话框的触发源：关闭后恢复焦点用。 */
   const treeConfirmTriggerRef = useRef<HTMLElement | null>(null);
+  /** 下载路径「恢复默认」确认对话框（文案含当前迁移开关状态）。 */
+  const [downloadResetConfirm, setDownloadResetConfirm] = useState(false);
+  const [downloadResetBusy, setDownloadResetBusy] = useState(false);
+  const downloadResetConfirmRef = useRef<HTMLButtonElement | null>(null);
+  const downloadResetTriggerRef = useRef<HTMLElement | null>(null);
+  /** 存储组级「恢复全部默认」确认对话框（侧边栏按钮经 storageGroupResetSeq 触发）。
+   * 一步完成：4 项明细 + 预检摘要/错误 + 保留源复选框 + 迁移时机按钮。 */
+  const [groupResetOpen, setGroupResetOpen] = useState(false);
+  const [groupResetBusy, setGroupResetBusy] = useState(false);
+  const [groupResetPreflight, setGroupResetPreflight] = useState<StoragePreflight | null>(null);
+  const [groupResetRetain, setGroupResetRetain] = useState(false);
+  const groupResetConfirmRef = useRef<HTMLButtonElement | null>(null);
+  /** null = 尚未挂载播种：首次只记录序列，不弹框（避免切到存储组就自动弹）。 */
+  const groupResetSeqRef = useRef<number | null>(null);
+  const downloadSettings = useAppStore((s) => s.downloadSettings);
+  const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
+  const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
+  /** 存储组级恢复默认请求序列（侧边栏按钮只发信号，确认对话框与执行在此承接）。 */
+  const storageGroupResetSeq = useAppStore((s) => s.storageGroupResetSeq);
   /** TTL 自定义编辑态（本地草稿，不直接等于 stats.ttlMinutes）。 */
   const [ttlCustomMode, setTtlCustomMode] = useState(false);
   const [ttlCustomValue, setTtlCustomValue] = useState('');
@@ -171,6 +192,12 @@ export function StorageSettings() {
   // 语言切换会更换 `t` 触发重取：草稿只播种一次，避免覆盖用户编辑（F6）。
   // 错误文案仍用最新 `t` 即时计算，保持 `t` 新鲜度。
   const draftsSeededRef = useRef(false);
+  /**
+   * 「恢复默认」后重播种数据根输入：恢复把草稿清成空串（后端视空为默认根），
+   * 迁移落盘成功后用后端解析出的默认根回填，避免输入框空显示。
+   * 只在恢复流程的成功路径消费一次；普通「应用」不碰草稿。
+   */
+  const resetReseedRef = useRef(false);
   // 「块底部 撤回/应用」是否处于可见区：可见时隐藏粘性提交条，不可见时显示。
   const bottomCtaRef = useRef<HTMLDivElement | null>(null);
   const [bottomCtaVisible, setBottomCtaVisible] = useState(false);
@@ -240,6 +267,80 @@ export function StorageSettings() {
     treeConfirmTriggerRef.current?.focus();
     treeConfirmTriggerRef.current = null;
   }, [treeConfirm]);
+
+  // 下载路径恢复默认确认：打开聚焦确认键，Escape 关闭；忙时锁关闭。
+  useEffect(() => {
+    if (!downloadResetConfirm) {
+      return;
+    }
+    downloadResetConfirmRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (downloadResetBusy) {
+          return;
+        }
+        setDownloadResetConfirm(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [downloadResetConfirm, downloadResetBusy]);
+
+  useEffect(() => {
+    if (downloadResetConfirm) {
+      return;
+    }
+    downloadResetTriggerRef.current?.focus();
+    downloadResetTriggerRef.current = null;
+  }, [downloadResetConfirm]);
+
+  // 组级确认对话框：打开聚焦确认键，Escape 关闭；忙时锁关闭通道。
+  // 触发源在侧边栏导航（组件树之外），关闭后不强制回焦点。
+  useEffect(() => {
+    if (!groupResetOpen) {
+      return;
+    }
+    groupResetConfirmRef.current?.focus();
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        if (groupResetBusy) {
+          return;
+        }
+        setGroupResetOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [groupResetOpen, groupResetBusy]);
+
+  /** 终端预算恢复默认：直接写默认字节数，无需确认（产品决策 2026-09-24）。 */
+  const handleTerminalBudgetReset = useCallback(() => {
+    void useAppStore.getState().updatePreferences({
+      terminalHistoryBudgetBytes: TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
+    });
+  }, []);
+
+  /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按当前迁移开关决定是否搬文件。 */
+  const handleDownloadResetConfirm = useCallback(async () => {
+    setDownloadResetBusy(true);
+    try {
+      const result = await changeDownloadPath('', downloadSettings.auto_migrate_on_path_change);
+      if (!result.ok) {
+        showToast(
+          downloadSettings.auto_migrate_on_path_change
+            ? t.storageDownloadMigrateFailed.replace('{error}', result.error.message)
+            : t.storagePickFailed.replace('{error}', result.error.message),
+          'error',
+        );
+        return;
+      }
+      setDownloadResetConfirm(false);
+    } finally {
+      setDownloadResetBusy(false);
+    }
+  }, [changeDownloadPath, downloadSettings.auto_migrate_on_path_change, showToast, t]);
 
   // 自定义 TTL 防抖计时器卸载清理。
   useEffect(
@@ -341,11 +442,12 @@ export function StorageSettings() {
     };
   }, [t]);
 
-  /** 只刷新后端状态（不覆盖用户正在编辑的草稿）；成功时清除加载错误，失败 toast（F5）。 */
+  /** 只刷新后端状态（不覆盖用户正在编辑的草稿）；成功时清除加载错误，失败 toast（F5）。
+   * 返回最新状态（恢复默认流程用它回填数据根输入；失败返回 null）。 */
   const refresh = useCallback(async () => {
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
-      return;
+      return null;
     }
     try {
       const result = await withTimeout(() => bridge.getStatus(), STATUS_TIMEOUT_MS);
@@ -360,15 +462,16 @@ export function StorageSettings() {
           ),
           'error',
         );
-        return;
+        return null;
       }
       if (!isWellFormedStatus(result.data)) {
         console.warn('[storage] malformed IpcResult (ok:true missing data/categories)', result);
         showToast(t.storageStatusLoadFailed.replace('{error}', t.storageUnknownError), 'error');
-        return;
+        return null;
       }
       setStatusError(null);
       setStatus(result.data);
+      return result.data;
     } catch (error) {
       if (error instanceof StatusTimeoutError) {
         showToast(t.storageStatusTimeout, 'error');
@@ -381,6 +484,7 @@ export function StorageSettings() {
           'error',
         );
       }
+      return null;
     }
   }, [showToast, t]);
 
@@ -534,8 +638,51 @@ export function StorageSettings() {
     setMode('unified');
     setRootDraft('');
     setCategoryDrafts({});
+    // 恢复流程：落盘成功后用后端解析出的默认根回填输入框（不空显示）。
+    resetReseedRef.current = true;
     void applyPatch(CORE_RESET_PATCH);
   }, [applyPatch]);
+
+  /**
+   * 组级对话框打开：先把草稿清成恢复值（与单块恢复一致：取消也不回填），再对默认补丁
+   * 做预检，拿到摘要/错误后开框。桥失败只 toast 不开框（仿 applyPatch）。
+   */
+  const openGroupResetDialog = useCallback(async () => {
+    const bridge = window.digitalLife?.storage;
+    setMode('unified');
+    setRootDraft('');
+    setCategoryDrafts({});
+    setGroupResetRetain(false);
+    if (!bridge) {
+      return;
+    }
+    setGroupResetBusy(true);
+    try {
+      const result = await bridge.preflight(CORE_RESET_PATCH);
+      if (!result.ok) {
+        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+        return;
+      }
+      setGroupResetPreflight(result.data);
+      setGroupResetOpen(true);
+    } finally {
+      setGroupResetBusy(false);
+    }
+  }, [showToast, t]);
+
+  // 存储组级恢复默认：侧边栏按钮只发信号（顺带切到存储组），此处按序列变化开自有对话框。
+  // 挂载只播种序列；StrictMode 双跑时第二遍因序列未变空转。
+  useEffect(() => {
+    if (groupResetSeqRef.current === null) {
+      groupResetSeqRef.current = storageGroupResetSeq;
+      return;
+    }
+    if (groupResetSeqRef.current === storageGroupResetSeq) {
+      return;
+    }
+    groupResetSeqRef.current = storageGroupResetSeq;
+    void openGroupResetDialog();
+  }, [storageGroupResetSeq, openGroupResetDialog]);
 
   const handleApplyMigration = useCallback(
     async (retainSource: boolean, applyNow: boolean) => {
@@ -568,7 +715,13 @@ export function StorageSettings() {
         } else {
           showToast(t.storagePendingBanner, 'success');
         }
-        await refresh();
+        const fresh = await refresh();
+        // 恢复流程回填：草稿曾被清成空串，用最新解析根回填，避免输入框空显示。
+        // 待迁移（下次启动生效）时回填的仍是旧根——数据确实还在旧位置，诚实展示。
+        if (resetReseedRef.current && fresh) {
+          setRootDraft(fresh.root);
+        }
+        resetReseedRef.current = false;
       } finally {
         setBusy(false);
       }
@@ -900,6 +1053,82 @@ export function StorageSettings() {
     void handleTreeOptionsChange({ ...TREE_CACHE_DEFAULTS });
   }, [cancelPendingTtl, handleTreeOptionsChange]);
 
+  /**
+   * 存储组级「恢复全部默认」一步执行（迁移时机确认键共用）：先立即执行预算/树缓存/
+   * 下载三项，再为核心数据路径落盘（保留源 + 立即/下次启动由调用方传入）。
+   * 各块复用自有恢复语义、各自 toast，互不阻塞；落盘尾段仿 handleApplyMigration。
+   */
+  const handleGroupResetApply = useCallback(
+    async (applyNow: boolean) => {
+      setGroupResetBusy(true);
+      try {
+        handleTerminalBudgetReset();
+        handleTreeResetDefaults();
+        const migrate = downloadSettings.auto_migrate_on_path_change;
+        const result = await changeDownloadPath('', migrate);
+        if (!result.ok) {
+          showToast(
+            migrate
+              ? t.storageDownloadMigrateFailed.replace('{error}', result.error.message)
+              : t.storagePickFailed.replace('{error}', result.error.message),
+            'error',
+          );
+        } else {
+          // 路径先按当前开关搬迁，再把开关恢复为默认关闭（非 Tauri 下桥不可用则 toast）。
+          try {
+            await updateDownloadSettings(undefined, undefined, false);
+          } catch {
+            showToast(t.settingsUpdateFailed, 'error');
+          }
+        }
+        const bridge = window.digitalLife?.storage;
+        if (!bridge) {
+          return;
+        }
+        const applied = await bridge.setPaths(buildPatch(groupResetRetain), applyNow);
+        if (!applied.ok) {
+          showToast(ipcErrorMessage(applied.error, t.storageUnknownError), 'error');
+          return;
+        }
+        // 后端可能拒绝写入：保持对话框打开并回填预检结果展示 errors/warnings。
+        if (!applied.data.preflight.ok) {
+          setGroupResetPreflight(applied.data.preflight);
+          return;
+        }
+        setGroupResetOpen(false);
+        if (applyNow && applied.data.restartRequired) {
+          const restarted = await bridge.restartApp();
+          if (!restarted.ok) {
+            showToast(t.storageRestartUnavailableInBrowser, 'error');
+          } else {
+            showToast(t.storageRestartRequired, 'success');
+          }
+        } else {
+          showToast(t.storagePendingBanner, 'success');
+        }
+        const fresh = await refresh();
+        // 组级恢复的草稿已在开框时清成空串，用最新解析根回填，避免输入框空显示。
+        if (fresh) {
+          setRootDraft(fresh.root);
+        }
+      } finally {
+        setGroupResetBusy(false);
+      }
+    },
+    [
+      handleTerminalBudgetReset,
+      handleTreeResetDefaults,
+      downloadSettings.auto_migrate_on_path_change,
+      changeDownloadPath,
+      updateDownloadSettings,
+      buildPatch,
+      groupResetRetain,
+      refresh,
+      showToast,
+      t,
+    ],
+  );
+
   const pathFor = (category: StorageCategoryStatus) =>
     categoryDrafts[category.key] ?? category.path;
 
@@ -924,6 +1153,12 @@ export function StorageSettings() {
   });
   const treeResetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.treeCacheTitle,
+  });
+  const budgetResetLabel = formatT(t, 'settingsResetGroupToDefault', {
+    group: t.storageTerminalBudgetTitle,
+  });
+  const downloadResetLabel = formatT(t, 'settingsResetGroupToDefault', {
+    group: t.storageBrowserDownloadTitle,
   });
 
   if (loading) {
@@ -1258,41 +1493,48 @@ export function StorageSettings() {
         </>
       ) : null}
 
+      <div className="adl-settings-storage__header adl-settings-storage__header--section">
+        <button
+          type="button"
+          className="adl-settings-row__reset"
+          aria-label={budgetResetLabel}
+          title={budgetResetLabel}
+          data-testid="terminal-budget-reset"
+          onClick={handleTerminalBudgetReset}
+        >
+          <IconResetDefaults size={14} decorative />
+        </button>
+        <SettingsHeader title={t.storageTerminalBudgetTitle} />
+      </div>
       <div className="adl-settings-card">
-        <h4 className="adl-settings-section-title adl-settings-title--serif">
-          {t.storageTerminalBudgetTitle}
-        </h4>
         <TerminalHistoryBudgetSection />
+      </div>
 
-        <h4 className="adl-settings-section-title adl-settings-title--serif">
-          {t.storageBrowserDownloadTitle}
-        </h4>
+      <div className="adl-settings-storage__header adl-settings-storage__header--section">
+        <button
+          type="button"
+          className="adl-settings-row__reset"
+          aria-label={downloadResetLabel}
+          title={downloadResetLabel}
+          data-testid="download-path-reset"
+          onClick={(e) => {
+            downloadResetTriggerRef.current = e.currentTarget;
+            setDownloadResetConfirm(true);
+          }}
+        >
+          <IconResetDefaults size={14} decorative />
+        </button>
+        <SettingsHeader title={t.storageBrowserDownloadTitle} />
+      </div>
+      <div className="adl-settings-card">
         <BrowserDownloadPathSection />
       </div>
 
+      {/* 不可移动项独立成块：主标题无恢复默认按钮（系统/运行时管理，无可恢复项）。 */}
+      <div className="adl-settings-storage__header adl-settings-storage__header--section">
+        <SettingsHeader title={t.storageImmutableTitle} />
+      </div>
       <div className="adl-settings-card">
-        <div className="adl-settings-row">
-          <div className="adl-settings-row__label">
-            <div className="adl-settings-row__label-text">
-              <HintCardTrigger content={t.storageLocatorHint}>
-                <button
-                  type="button"
-                  className="adl-icon-button adl-icon-button--info"
-                  aria-label={t.storageLocatorHint}
-                  tabIndex={-1}
-                >
-                  <IconCircleHelp size={14} />
-                </button>
-              </HintCardTrigger>
-              <span>{t.storageLocatorTitle}</span>
-            </div>
-            <small>{status?.locatorPath}</small>
-          </div>
-        </div>
-
-        <h4 className="adl-settings-section-title adl-settings-title--serif">
-          {t.storageImmutableTitle}
-        </h4>
         {IMMOVABLE_ENTRY_KEYS.map((key) => (
           <div className="adl-settings-row" key={key} data-testid="storage-immutable-item">
             <div className="adl-settings-row__label">
@@ -1388,6 +1630,28 @@ export function StorageSettings() {
         </div>
       ) : null}
 
+      {/* 数据位置索引沉底：放在不可移动块之后的最底部。 */}
+      <div className="adl-settings-card" data-testid="storage-locator-card">
+        <div className="adl-settings-row">
+          <div className="adl-settings-row__label">
+            <div className="adl-settings-row__label-text">
+              <HintCardTrigger content={t.storageLocatorHint}>
+                <button
+                  type="button"
+                  className="adl-icon-button adl-icon-button--info"
+                  aria-label={t.storageLocatorHint}
+                  tabIndex={-1}
+                >
+                  <IconCircleHelp size={14} />
+                </button>
+              </HintCardTrigger>
+              <span>{t.storageLocatorTitle}</span>
+            </div>
+            <small>{status?.locatorPath}</small>
+          </div>
+        </div>
+      </div>
+
       {isDirty && !bottomCtaVisible ? (
         <div className="adl-storage-settings__dirtybar" data-testid="storage-dirtybar">
           <span className="adl-storage-settings__dirtybar-hint">
@@ -1418,7 +1682,10 @@ export function StorageSettings() {
         open={dialogOpen}
         preflight={preflight}
         busy={busy}
-        onCancel={() => setDialogOpen(false)}
+        onCancel={() => {
+          resetReseedRef.current = false;
+          setDialogOpen(false);
+        }}
         onApply={(retainSource, applyNow) => void handleApplyMigration(retainSource, applyNow)}
       />
       {treeConfirm
@@ -1456,12 +1723,8 @@ export function StorageSettings() {
                   <button
                     ref={treeConfirmRef}
                     type="button"
-                    // 关闭确认与「取消」同款 secondary（无品牌蓝填充）；清除确认保留 primary。
-                    className={
-                      treeConfirm === 'disable'
-                        ? 'adl-btn adl-btn--secondary'
-                        : 'adl-btn adl-btn--primary'
-                    }
+                    // 确认对话框的确认键与「取消」同款 secondary（无品牌蓝填充，产品决策 2026-09-24）。
+                    className="adl-btn adl-btn--secondary"
                     disabled={treeBusy}
                     onClick={() => {
                       if (treeConfirm === 'disable') {
@@ -1476,6 +1739,156 @@ export function StorageSettings() {
                   >
                     {treeConfirm === 'disable' ? t.treeCacheDisableConfirmBtn : t.treeCacheClear}
                   </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+      {downloadResetConfirm
+        ? createPortal(
+            <div
+              className="adl-confirm-overlay"
+              onClick={downloadResetBusy ? undefined : () => setDownloadResetConfirm(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t.storageDownloadResetTitle}
+            >
+              <div className="adl-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+                <div className="adl-confirm-dialog__header">
+                  <h3 className="adl-confirm-dialog__title">{t.storageDownloadResetTitle}</h3>
+                </div>
+                <div className="adl-confirm-dialog__body">
+                  <p className="adl-confirm-dialog__message">
+                    {downloadSettings.auto_migrate_on_path_change
+                      ? t.storageDownloadResetConfirmMigrateOn
+                      : t.storageDownloadResetConfirmMigrateOff}
+                  </p>
+                </div>
+                <div className="adl-confirm-dialog__footer">
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={downloadResetBusy}
+                    onClick={() => setDownloadResetConfirm(false)}
+                  >
+                    {t.storageCancel}
+                  </button>
+                  <button
+                    ref={downloadResetConfirmRef}
+                    type="button"
+                    // 确认与「取消」同款 secondary（无品牌蓝填充，产品决策 2026-09-24）。
+                    className="adl-btn adl-btn--secondary"
+                    disabled={downloadResetBusy}
+                    onClick={() => void handleDownloadResetConfirm()}
+                  >
+                    {t.storageDownloadResetConfirmBtn}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
+      {groupResetOpen
+        ? createPortal(
+            <div
+              className="adl-confirm-overlay"
+              onClick={groupResetBusy ? undefined : () => setGroupResetOpen(false)}
+              role="dialog"
+              aria-modal="true"
+              aria-label={t.storageGroupResetTitle}
+            >
+              <div className="adl-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+                <div className="adl-confirm-dialog__header">
+                  <h3 className="adl-confirm-dialog__title">{t.storageGroupResetTitle}</h3>
+                </div>
+                <div className="adl-confirm-dialog__body">
+                  <p className="adl-confirm-dialog__message">{t.storageGroupResetIntro}</p>
+                  <ul className="adl-confirm-dialog__message adl-confirm-dialog__list">
+                    <li>{t.storageGroupResetItemCore}</li>
+                    <li>{t.storageGroupResetItemTree}</li>
+                    <li>{t.storageGroupResetItemBudget}</li>
+                    <li>
+                      {downloadSettings.auto_migrate_on_path_change
+                        ? t.storageGroupResetItemDownloadMigrateOn
+                        : t.storageGroupResetItemDownloadMigrateOff}
+                    </li>
+                  </ul>
+                  <p className="adl-confirm-dialog__message">
+                    {t.storageMigrateDialogSummary
+                      .replace('{files}', String(groupResetPreflight?.totalFiles ?? 0))
+                      .replace('{size}', formatBytes(groupResetPreflight?.totalBytes ?? 0))}
+                  </p>
+
+                  {(groupResetPreflight?.errors ?? []).length > 0 ? (
+                    <div className="adl-confirm-dialog__message">
+                      <p>
+                        <IconAlertTriangle size={12} decorative /> {t.storagePreflightErrors}
+                      </p>
+                      <ul>
+                        {(groupResetPreflight?.errors ?? []).map((error) => (
+                          <li key={error}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {(groupResetPreflight?.warnings ?? []).length > 0 ? (
+                    <div className="adl-confirm-dialog__message">
+                      <p>{t.storagePreflightWarnings}</p>
+                      <ul>
+                        {(groupResetPreflight?.warnings ?? []).map((warning) => (
+                          <li key={warning}>{warning}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  <label
+                    className="adl-confirm-dialog__message"
+                    style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={groupResetRetain}
+                      onChange={(e) => setGroupResetRetain(e.target.checked)}
+                    />
+                    <span>{t.storageRetainSource}</span>
+                  </label>
+                </div>
+                <div className="adl-confirm-dialog__footer">
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={groupResetBusy}
+                    onClick={() => setGroupResetOpen(false)}
+                  >
+                    {t.storageCancel}
+                  </button>
+                  {/* 确认键与「取消」同款 secondary（无品牌蓝填充）；预检失败时禁用。 */}
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={
+                      groupResetBusy || (groupResetPreflight !== null && !groupResetPreflight.ok)
+                    }
+                    onClick={() => void handleGroupResetApply(false)}
+                  >
+                    {t.storageMigrateLater}
+                  </button>
+                  <button
+                    ref={groupResetConfirmRef}
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={
+                      groupResetBusy || (groupResetPreflight !== null && !groupResetPreflight.ok)
+                    }
+                    onClick={() => void handleGroupResetApply(true)}
+                  >
+                    {t.storageMigrateNow}
+                  </button>
+                  {!isTauriShell() ? <small>{t.storageRestartUnavailableInBrowser}</small> : null}
                 </div>
               </div>
             </div>,

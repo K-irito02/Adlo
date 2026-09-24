@@ -195,6 +195,11 @@ pub async fn app_update_preferences(
         if let Some(v) = patch.browser_inactive_tab_suspend_ms {
             config.browser_inactive_tab_suspend_ms = v;
         }
+        // 只读历史磁盘预算：0 = 跟随磁盘剩余空间，其余为字节数上限。
+        // 缺失此分支时前端选择档位/恢复默认会静默失效（issue 2026-09-24：恒显 1 GB）。
+        if let Some(v) = patch.terminal_history_budget_bytes {
+            config.terminal_history_budget_bytes = v;
+        }
     }
     let config_clone =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();

@@ -47,6 +47,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     toggleNavigator,
     settingsNavigatorWidth,
     setSettingsNavigatorWidth,
+    requestStorageGroupReset,
   } = useAppStore(
     useShallow((s) => ({
       activeGroup: s.activeSettingsGroup,
@@ -59,6 +60,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       toggleNavigator: s.toggleNavigator,
       settingsNavigatorWidth: s.settingsNavigatorWidth,
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
+      requestStorageGroupReset: s.requestStorageGroupReset,
     })),
   );
 
@@ -197,10 +199,21 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     void handleResetAll();
   }, [handleResetAll, handleResetGroup, pendingResetGroup]);
 
-  const handleRequestResetGroup = useCallback((group: SettingsGroupId) => {
-    setPendingResetGroup(group);
-    setConfirmResetOpen(true);
-  }, []);
+  const handleRequestResetGroup = useCallback(
+    (group: SettingsGroupId) => {
+      if (group === 'storage') {
+        // 存储组多桥多步（迁移/树缓存/预算/下载各有各的桥与生效时机），不能走
+        // updatePreferences 一刀切：切到存储组 + 发信号，由 StorageSettings 弹出
+        // 自有确认对话框（逐项列出变更与重启要求）并执行。
+        setActiveGroup('storage');
+        requestStorageGroupReset();
+        return;
+      }
+      setPendingResetGroup(group);
+      setConfirmResetOpen(true);
+    },
+    [requestStorageGroupReset, setActiveGroup],
+  );
 
   // 持久化/历史遗留的 activeGroup 可能不在当前组列表里（如已移除的 terminal）：
   // 回退到第一个组，避免导航无选中、面板空白。

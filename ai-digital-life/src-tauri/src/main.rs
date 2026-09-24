@@ -166,6 +166,7 @@ fn main() {
             commands::download_commands::download_list,
             commands::download_commands::download_get_settings,
             commands::download_commands::download_update_settings,
+            commands::download_commands::download_change_default_path,
             commands::download_commands::download_clear_history,
             commands::download_commands::download_delete_file_and_record,
             commands::download_commands::download_remove_record,

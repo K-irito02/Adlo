@@ -104,6 +104,15 @@
   gap: var(--space-2);
 }
 
+/* 确认对话框内的变更明细列表（如存储组级恢复默认）：与 message 同字号色阶，条目收紧。 */
+.adl-confirm-dialog__list {
+  margin: 0 0 var(--space-4);
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 .adl-btn {
   display: inline-flex;
   align-items: center;

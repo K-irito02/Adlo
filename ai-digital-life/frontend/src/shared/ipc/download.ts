@@ -22,6 +22,8 @@ export interface DownloadRecord {
 export interface DownloadSettings {
   mode: DownloadMode;
   default_path: string;
+  /** 更改默认下载路径时自动迁移旧路径全部文件（成功后删除旧目录）。 */
+  auto_migrate_on_path_change: boolean;
 }
 
 /** Result of a user-initiated pause. The backend reflects the true end state:

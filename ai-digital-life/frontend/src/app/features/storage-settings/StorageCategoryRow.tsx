@@ -10,7 +10,7 @@ import { CATEGORY_COPY, type CategoryCopy } from './storageCategoryCopy';
  * 手输路径草稿：偏好/上游状态是不可乐观的外部值，逐键写回会被并发 patch 丢弃，
  * 因此本地持有草稿，失焦或回车才提交（与 SettingsControls 的 InputControl 同构）。
  */
-function ManualPathInput({
+export function ManualPathInput({
   value,
   label,
   placeholder,

@@ -24,6 +24,9 @@ export const settingsEn = {
   settingsTerminalHistoryBudgetFollowDiskDesc:
     'Estimates the cap from free space on the system drive, reserving 1GB for the system. The tighter the disk, the less history is kept.',
   settingsTerminalHistoryBudgetUsed: 'Using {used} of {limit}',
+  settingsTerminalHistoryBudgetUnitLabel: 'Size unit',
+  settingsTerminalHistoryBudgetUnitMb: 'MB',
+  settingsTerminalHistoryBudgetUnitGb: 'GB',
 
   // Common settings
   settingsLanguage: 'Language',
@@ -110,7 +113,7 @@ export const settingsEn = {
   storageForeignFiles: '{count} file(s) not created by this app will be kept',
   storageLocatorTitle: 'Data location index',
   storageLocatorHint:
-    'This file records where your data lives; do not delete it, or the app will fall back to the default folder',
+    "This small file remembers which folders on your computer hold each kind of app data — the app reads it on every launch to find your data. Please don't delete, rename, or hand-edit it. If it is deleted by accident, the app will start with the default folders; your original data stays safely where it was, just out of sight here — point the paths back in the Storage settings to recover it.",
   storagePendingBanner: 'Migration scheduled for next launch',
   storagePendingFailedBanner: 'Last migration failed: {error} (old data is intact)',
   storageRetryMigration: 'Retry',
@@ -130,7 +133,7 @@ export const settingsEn = {
   storageReportFailed: 'Migration failed: {error}',
   storageReportSwitched:
     'Data has already moved to the new location; only old-folder cleanup is incomplete — do not re-run migration.',
-  storageImmutableTitle: 'Not movable (managed by the OS or runtime)',
+  storageImmutableTitle: 'Not movable "managed by the OS or runtime"',
   storageImmutableKeyring:
     'Credentials are kept in the OS credential manager; the location is fixed by the system.',
   storageImmutableMachineId:
@@ -154,6 +157,31 @@ export const settingsEn = {
   storageRestartUnavailableInBrowser:
     'The browser mode cannot restart the app; this change will apply on next launch.',
   storageBrowserDownloadTitle: 'Browser default download folder',
+  storageDownloadMigrateLabel: 'Migrate files when path changes',
+  storageDownloadMigrateHint:
+    'When on, changing the default download folder moves every file and subfolder from the old path to the new one, and only deletes the old folder after everything has been moved successfully (Windows system folders are never deleted — files are only moved out). If the move fails midway, the old path is left untouched so nothing is lost. When off, only the path switches and no files are moved.',
+  storageDownloadMigrateEnableTitle: 'Turn on auto-migration?',
+  storageDownloadMigrateEnableConfirm:
+    'With "Migrate files when path changes" on, every future change of the default download folder will move all files and subfolders from the old path to the new one. The old folder is deleted only after the move fully succeeds (Windows system folders are never deleted — files are only moved out); if it fails midway, the old path stays intact and you can retry later. No file is ever silently deleted or discarded. Turn it on now?',
+  storageDownloadMigrateEnableConfirmBtn: 'Turn on',
+  storageDownloadResetTitle: 'Reset the default download folder?',
+  storageDownloadResetConfirmMigrateOn:
+    'The default download folder will be reset to the system default. Auto-migration is currently on: every file under the old path will be moved to the system default folder first, and the old folder is deleted only after the move succeeds (Windows system folders are never deleted — files are only moved out); if it fails, the old path stays intact.',
+  storageDownloadResetConfirmMigrateOff:
+    'The default download folder will be reset to the system default. Auto-migration is currently off: only the path changes — files under the old path are neither moved nor deleted.',
+  storageDownloadResetConfirmBtn: 'Reset',
+  storageGroupResetTitle: 'Reset all Storage defaults?',
+  storageGroupResetIntro: 'These 4 areas will be reset to their defaults:',
+  storageGroupResetItemCore:
+    'Core data paths: back to the "unified root" at the default location; a migration flow follows and takes effect after restarting the app (or on next launch).',
+  storageGroupResetItemTree:
+    'Workspace tree cache: turned back on with a 15-minute retention; cached content is kept; applies immediately.',
+  storageGroupResetItemBudget: 'Terminal history disk budget: back to 1 GB; applies immediately.',
+  storageGroupResetItemDownloadMigrateOn:
+    'Browser default download folder: back to the system default; files under the old path are moved over first (Windows system folders excluded) and the old folder is removed after success; the auto-migration switch is turned back off.',
+  storageGroupResetItemDownloadMigrateOff:
+    'Browser default download folder: back to the system default with only the path switched — no files moved; the auto-migration switch stays off.',
+  storageDownloadMigrateFailed: 'Failed to migrate files: {error}',
   storagePickFailed: 'Failed to choose folder: {error}',
   storageStatusLoading: 'Loading storage status…',
   storageStatusLoadFailed:

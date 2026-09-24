@@ -29,8 +29,8 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
 ];
 
 /**
- * 组级重置 patch 工厂（单一真相源）：按钮渲染与执行行为同源。
- * 未接入的组（storage/shortcuts/browser/dsh 为独立组件/独立存储）无按钮、无行为。
+ * 组级重置 patch 工厂（偏好直写组）：按钮渲染与执行行为同源。
+ * 未接入的组（shortcuts/browser/dsh 为独立组件/独立存储）无按钮、无行为。
  */
 export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPreferencePatch>> = {
   general: () => ({
@@ -49,7 +49,13 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
   }),
 };
 
-/** 组级重置已接入默认映射的组，由 patch 工厂派生（与执行行为同源）。 */
-export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set(
-  Object.keys(GROUP_RESET_PATCHES) as SettingsGroupId[],
-);
+/**
+ * 侧边栏渲染重置按钮的组 = patch 工厂键 + storage。
+ * storage 例外：核心路径/树缓存/下载分属独立存储，没有统一偏好 patch，不走
+ * updatePreferences；侧边栏只切组 + 发信号，确认对话框与多步执行由 StorageSettings
+ * 订阅 `storageGroupResetSeq` 后承接（见 requestStorageGroupReset）。
+ */
+export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set([
+  ...(Object.keys(GROUP_RESET_PATCHES) as SettingsGroupId[]),
+  'storage',
+]);

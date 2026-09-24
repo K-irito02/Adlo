@@ -93,14 +93,40 @@ pub fn download_update_settings(
     state: State<'_, AppState>,
     mode: Option<String>,
     default_path: Option<String>,
+    auto_migrate: Option<bool>,
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::debug!(
         mode = mode.as_deref(),
         default_path = default_path.as_deref(),
+        auto_migrate = ?auto_migrate,
         "[ADL-DL] download_update_settings called"
     );
     let mode_enum = mode.as_deref().map(DownloadMode::from_str);
-    state.download_manager.update_settings(mode_enum, default_path).map_err(map_download_err)?;
+    state
+        .download_manager
+        .update_settings(mode_enum, default_path, auto_migrate)
+        .map_err(map_download_err)?;
+    Ok(ipc(Ok(())))
+}
+
+/// 更改默认下载路径；`migrate` 为 true 时先把旧路径全部文件搬到新路径，
+/// 全部成功后才删除旧目录并落盘。搬运用 `spawn_blocking` 避免阻塞主线程。
+#[tauri::command]
+pub async fn download_change_default_path(
+    state: State<'_, AppState>,
+    new_path: String,
+    migrate: bool,
+) -> Result<IpcResult<()>, CommandError> {
+    tracing::debug!(
+        new_path = %new_path,
+        migrate,
+        "[ADL-DL] download_change_default_path called"
+    );
+    let mgr = state.download_manager.clone();
+    tokio::task::spawn_blocking(move || mgr.change_default_path(&new_path, migrate))
+        .await
+        .map_err(|e| map_download_err(format!("download_change_default_path join failed: {e}")))?
+        .map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
 

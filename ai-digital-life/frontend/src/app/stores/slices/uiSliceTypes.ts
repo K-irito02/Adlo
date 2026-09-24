@@ -122,6 +122,12 @@ export interface UISlice {
   hoveredMenuCategory: 'file' | 'view' | 'help' | null;
   activeSettingsGroup: SettingsGroupId;
   settingsSearchQuery: string;
+  /**
+   * 「存储」组级恢复默认请求序列：侧边栏重置按钮只发信号（+ 切到存储组），
+   * 真正的确认对话框与多步执行由 StorageSettings 订阅此序列后承接
+   *（核心路径迁移/树缓存/预算/下载分属不同桥，不能走 updatePreferences 一刀切）。
+   */
+  storageGroupResetSeq: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
   changesStatusFilter: Set<ChangeFileState>;
@@ -170,6 +176,7 @@ export interface UISlice {
   closeAllMenus: () => void;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;
+  requestStorageGroupReset: () => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;

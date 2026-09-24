@@ -98,6 +98,57 @@ describe('StorageSettings', () => {
     expect(header?.querySelector('[data-testid="storage-reset-defaults"]')).not.toBeNull();
   });
 
+  it('splits terminal budget and download path into separate cards with block headers', async () => {
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    const budgetHeader = document
+      .querySelector('[data-testid="terminal-budget-reset"]')
+      ?.closest('.adl-settings-storage__header');
+    expect(budgetHeader).not.toBeNull();
+    expect(budgetHeader?.classList.contains('adl-settings-storage__header--section')).toBe(true);
+    expect(budgetHeader?.querySelector('.adl-settings-header')).not.toBeNull();
+
+    const downloadHeader = document
+      .querySelector('[data-testid="download-path-reset"]')
+      ?.closest('.adl-settings-storage__header');
+    expect(downloadHeader).not.toBeNull();
+    expect(downloadHeader?.classList.contains('adl-settings-storage__header--section')).toBe(true);
+
+    // 各自独立成卡：预算卡与下载卡之间无共享 h4 合并标题。
+    const budgetCard = budgetHeader?.nextElementSibling;
+    expect(budgetCard?.classList.contains('adl-settings-card')).toBe(true);
+    expect(budgetCard?.querySelector('[data-testid="terminal-budget-reset"]')).toBeNull();
+    const downloadCard = downloadHeader?.nextElementSibling;
+    expect(downloadCard?.classList.contains('adl-settings-card')).toBe(true);
+    expect(downloadCard?.querySelector('[data-testid="download-path-row"]')).not.toBeNull();
+    expect(downloadCard?.querySelector('[data-testid="download-migrate-row"]')).not.toBeNull();
+    expect(budgetCard).not.toBe(downloadCard);
+  });
+
+  it('download path reset opens a confirm dialog reflecting migrate state', async () => {
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    fireEvent.click(screen.getByTestId('download-path-reset'));
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('storageDownloadResetTitle')).toBeTruthy();
+    // 默认未开启迁移 → off 文案。
+    expect(within(dialog).getByText('storageDownloadResetConfirmMigrateOff')).toBeTruthy();
+    // 确认与「取消」同款 secondary（无品牌蓝填充）。
+    const confirmBtn = within(dialog).getByRole('button', {
+      name: 'storageDownloadResetConfirmBtn',
+    });
+    expect(confirmBtn.className).toContain('adl-btn--secondary');
+    expect(confirmBtn.className).not.toContain('adl-btn--primary');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
   it('renders the restore-default trigger with the reset group label', async () => {
     renderSettings();
     await waitFor(() => {
@@ -167,6 +218,297 @@ describe('StorageSettings', () => {
     ).toBe('');
     // 进入迁移对话框（冲突/确认即此对话框，不额外二次确认）。
     expect(screen.getByRole('dialog')).toBeTruthy();
+  });
+
+  it('restoring defaults refills the root input with the resolved default after migration', async () => {
+    const freshRoot = 'D:/fresh-default-root';
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    const setPaths = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { preflight: { ok: true }, restartRequired: false },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: { ...status, root: freshRoot } }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths,
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    fireEvent.click(headerResetButton() as HTMLElement);
+    await waitFor(() => {
+      expect(preflight).toHaveBeenCalledTimes(1);
+    });
+    const dialog = await screen.findByRole('dialog');
+    // 迁移确认键与「取消」同款 secondary（无品牌蓝填充）。
+    const migrateNow = within(dialog).getByRole('button', { name: 'storageMigrateNow' });
+    expect(migrateNow.className).toContain('adl-btn--secondary');
+    expect(migrateNow.className).not.toContain('adl-btn--primary');
+    fireEvent.click(migrateNow);
+    await waitFor(() => {
+      expect(setPaths).toHaveBeenCalledTimes(1);
+    });
+    // 落盘成功后用后端解析出的默认根回填：输入框不再空显示，对话框关闭。
+    await waitFor(() => {
+      expect(
+        (screen.getByRole('textbox', { name: 'storageManualInput' }) as HTMLInputElement).value,
+      ).toBe(freshRoot);
+    });
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
+  it('places the locator card at the very bottom below the immovables block', async () => {
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    const cards = document.querySelectorAll('.adl-storage-settings > .adl-settings-card');
+    expect(cards.length).toBeGreaterThanOrEqual(5);
+    expect(cards[cards.length - 1].getAttribute('data-testid')).toBe('storage-locator-card');
+  });
+
+  it('opens the storage group reset dialog in one step with change list and migrate actions', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    const setPaths = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { preflight: { ok: true }, restartRequired: false },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths,
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    // 真 store 默认即 auto_migrate 关闭 → off 版下载条目。
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+    });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    expect(screen.queryByText('storageGroupResetTitle')).toBeNull();
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('storageGroupResetTitle')).toBeTruthy();
+    expect(within(dialog).getByText('storageGroupResetIntro')).toBeTruthy();
+    for (const key of [
+      'storageGroupResetItemCore',
+      'storageGroupResetItemTree',
+      'storageGroupResetItemBudget',
+      'storageGroupResetItemDownloadMigrateOff',
+    ]) {
+      expect(within(dialog).getByText(key)).toBeTruthy();
+    }
+    // 预检摘要 + 保留源复选框同框。
+    expect(within(dialog).getByText('storageMigrateDialogSummary')).toBeTruthy();
+    expect(within(dialog).getByRole('checkbox', { name: 'storageRetainSource' })).toBeTruthy();
+    // 三个动作键（取消/下次启动/立即迁移）均为 secondary，无品牌蓝。
+    for (const name of ['storageCancel', 'storageMigrateLater', 'storageMigrateNow']) {
+      const btn = within(dialog).getByRole('button', { name });
+      expect(btn.className).toContain('adl-btn--secondary');
+      expect(btn.className).not.toContain('adl-btn--primary');
+    }
+    // 一步执行：选「下次启动时迁移」，直接落盘（默认补丁 + retain=false + applyNow=false）。
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+    await waitFor(() => {
+      expect(setPaths).toHaveBeenCalledTimes(1);
+    });
+    expect(setPaths).toHaveBeenCalledWith(
+      {
+        mode: 'unified',
+        root: '',
+        categories: {},
+        retainSource: false,
+      },
+      false,
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('group reset migrate-now applies immediately and honors the retain-source checkbox', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    const setPaths = vi.fn().mockResolvedValue({
+      ok: true,
+      data: { preflight: { ok: true }, restartRequired: false },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths,
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+    });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'storageRetainSource' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateNow' }));
+    await waitFor(() => {
+      expect(setPaths).toHaveBeenCalledTimes(1);
+    });
+    expect(setPaths).toHaveBeenCalledWith(
+      {
+        mode: 'unified',
+        root: '',
+        categories: {},
+        retainSource: true,
+      },
+      true,
+    );
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('group reset with failing preflight blocks the migrate actions and shows errors', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: false,
+        errors: ['target unwritable'],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    const setPaths = vi.fn();
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths,
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('target unwritable')).toBeTruthy();
+    expect(within(dialog).getByRole('button', { name: 'storageMigrateLater' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'storageMigrateNow' })).toBeDisabled();
+    // 取消不落盘（preflight 在开框时已跑一次）。
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    expect(preflight).toHaveBeenCalledTimes(1);
+    expect(setPaths).not.toHaveBeenCalled();
   });
 
   // 注：脏条/底部提交区渲染由 IntersectionObserver 决定（bottomCtaVisible）。jsdom 无 IO，
@@ -402,6 +744,25 @@ describe('StorageSettings', () => {
     for (const [index, item] of items.entries()) {
       expect(item.textContent).toContain(names[index]);
     }
+  });
+
+  it('gives immovables their own block header without a reset button', async () => {
+    renderSettings();
+    const items = await screen.findAllByTestId('storage-immutable-item');
+    expect(items).toHaveLength(6);
+    const card = items[0].closest('.adl-settings-card');
+    expect(card).not.toBeNull();
+    // 卡内无合并小标题：标题已提取为块上方主标题。
+    expect(card?.querySelector('h4')).toBeNull();
+    const header = card?.previousElementSibling;
+    expect(header?.classList.contains('adl-settings-storage__header')).toBe(true);
+    expect(header?.classList.contains('adl-settings-storage__header--section')).toBe(true);
+    expect(header?.querySelector('.adl-settings-header')).not.toBeNull();
+    // mockT 桩文案返回 key 本身：主标题即 storageImmutableTitle。
+    expect(header?.textContent).toContain('storageImmutableTitle');
+    // 不可移动由系统/运行时管理：主标题左侧无恢复默认按钮。
+    expect(header?.querySelector('.adl-settings-row__reset')).toBeNull();
+    expect(card?.querySelector('.adl-settings-row__reset')).toBeNull();
   });
 
   it('shows an actionable error when storage status cannot be loaded', async () => {
@@ -842,7 +1203,10 @@ describe('StorageSettings tree cache section (T9)', () => {
     await screen.findByText(settingsEn.treeCacheClearConfirm);
     expect(clearTreeCache).not.toHaveBeenCalled();
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: settingsEn.treeCacheClear }));
+    const clearConfirmBtn = within(dialog).getByRole('button', { name: settingsEn.treeCacheClear });
+    expect(clearConfirmBtn.className).toContain('adl-btn--secondary');
+    expect(clearConfirmBtn.className).not.toContain('adl-btn--primary');
+    fireEvent.click(clearConfirmBtn);
     await waitFor(() => {
       expect(clearTreeCache).toHaveBeenCalledTimes(1);
     });
@@ -1245,15 +1609,19 @@ describe('StorageSettings tree cache section (T9)', () => {
   });
 
   it('returns focus to the trigger after the clear dialog closes', async () => {
-    renderTreeSection();
+    const { clearTreeCache } = renderTreeSection();
     await screen.findByTestId('tree-cache-section');
     const clearBtn = screen.getByTestId('tree-cache-clear');
     fireEvent.click(clearBtn);
     await screen.findByText(settingsEn.treeCacheClearConfirm);
     const dialog = screen.getByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('button', { name: settingsEn.treeCacheClear }));
+    // 清除确认与「取消」同款 secondary（无品牌蓝填充，产品决策 2026-09-24）。
+    const clearConfirmBtn = within(dialog).getByRole('button', { name: settingsEn.treeCacheClear });
+    expect(clearConfirmBtn.className).toContain('adl-btn--secondary');
+    expect(clearConfirmBtn.className).not.toContain('adl-btn--primary');
+    fireEvent.click(clearConfirmBtn);
     await waitFor(() => {
-      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(clearTreeCache).toHaveBeenCalledTimes(1);
     });
     // 关框 effect 回焦点到触发源（waitFor 防调度抖动）。
     await waitFor(() => {

@@ -47,13 +47,23 @@ export function updateTabsForDownloadState(
 export interface BrowserDownloadsSlice {
   downloads: DownloadRecord[];
   downloadSettings: DownloadSettings;
+  /** 系统默认下载目录（`download_get_default_path` 解析值）：`default_path` 为空
+   *（= 系统默认）时展示用，避免恢复默认后输入框空显示。 best-effort，取不到即 ''。 */
+  systemDefaultDownloadPath: string;
   activeDownloads: Record<string, DownloadProgress>;
   isLoadingDownloads: boolean;
   isLoadingSettings: boolean;
 
   fetchDownloads: () => Promise<void>;
   fetchDownloadSettings: () => Promise<void>;
-  updateDownloadSettings: (mode?: string, defaultPath?: string) => Promise<void>;
+  fetchSystemDefaultDownloadPath: () => Promise<void>;
+  updateDownloadSettings: (
+    mode?: string,
+    defaultPath?: string,
+    autoMigrate?: boolean,
+  ) => Promise<void>;
+  /** 改默认下载路径；`migrate` 时后端先搬旧路径全部文件，成功后才删旧目录并落盘。 */
+  changeDownloadPath: (newPath: string, migrate: boolean) => Promise<IpcResult<void>>;
   clearDownloadHistory: () => Promise<void>;
   deleteDownloadFile: (id: string) => Promise<void>;
   removeDownloadRecord: (id: string) => Promise<void>;
@@ -68,7 +78,8 @@ export const createBrowserDownloadsSlice = (
   get: () => StoreState,
 ): BrowserDownloadsSlice => ({
   downloads: [],
-  downloadSettings: { mode: 'auto', default_path: '' },
+  downloadSettings: { mode: 'auto', default_path: '', auto_migrate_on_path_change: false },
+  systemDefaultDownloadPath: '',
   activeDownloads: {},
   isLoadingDownloads: false,
   isLoadingSettings: false,
@@ -97,13 +108,43 @@ export const createBrowserDownloadsSlice = (
     }
   },
 
-  updateDownloadSettings: async (mode?: string, defaultPath?: string) => {
+  fetchSystemDefaultDownloadPath: async () => {
+    try {
+      const result = await invoke<IpcResult<string>>('download_get_default_path');
+      if (result.ok && typeof result.data === 'string') {
+        set({ systemDefaultDownloadPath: result.data });
+      }
+    } catch {
+      // 非 Tauri 环境无该通道：保持 ''，调用方回退占位文案。
+    }
+  },
+
+  updateDownloadSettings: async (mode?: string, defaultPath?: string, autoMigrate?: boolean) => {
     const result = await invoke<IpcResult<void>>('download_update_settings', {
       mode: mode ?? null,
       defaultPath: defaultPath ?? null,
+      autoMigrate: autoMigrate ?? null,
     });
     if (result.ok) {
       await get().fetchDownloadSettings();
+    }
+  },
+
+  changeDownloadPath: async (newPath: string, migrate: boolean) => {
+    try {
+      const result = await invoke<IpcResult<void>>('download_change_default_path', {
+        newPath,
+        migrate,
+      });
+      if (result.ok) {
+        await get().fetchDownloadSettings();
+      }
+      return result;
+    } catch (e) {
+      return {
+        ok: false,
+        error: { code: 'Internal', message: e instanceof Error ? e.message : String(e) },
+      };
     }
   },
 

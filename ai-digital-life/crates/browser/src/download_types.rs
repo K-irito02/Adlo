@@ -89,6 +89,10 @@ pub struct DownloadRecord {
 pub struct DownloadSettings {
     pub mode: DownloadMode,
     pub default_path: String,
+    /// 更改默认下载路径时自动把旧路径全部文件迁到新路径（成功后删旧目录）。
+    /// 未发布阶段无历史数据兼容负担：`serde(default)` 即默认关闭。
+    #[serde(default)]
+    pub auto_migrate_on_path_change: bool,
 }
 
 /// Result of a user-initiated pause. Distinguishes a genuine pause from a
@@ -108,6 +112,7 @@ impl Default for DownloadSettings {
             default_path: super::download_manager::get_default_download_path()
                 .to_string_lossy()
                 .to_string(),
+            auto_migrate_on_path_change: false,
         }
     }
 }

@@ -121,10 +121,11 @@ export function StorageMigrateDialog({
           >
             {t.storageMigrateLater}
           </button>
+          {/* 确认与「取消」同款 secondary（无品牌蓝填充，产品决策 2026-09-24）。 */}
           <button
             ref={confirmRef}
             type="button"
-            className="adl-btn adl-btn--primary"
+            className="adl-btn adl-btn--secondary"
             disabled={blocked}
             onClick={() => onApply(retainSource, true)}
           >

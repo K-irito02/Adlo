@@ -44,6 +44,13 @@ describe('applyPreferencePatch', () => {
     expect(result.debugLogMode).toBe('multi');
   });
 
+  it('applies terminalHistoryBudgetBytes patch (preset select / reset writes through)', () => {
+    const result = applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 2 * (1 << 30) });
+    expect(result.terminalHistoryBudgetBytes).toBe(2 * (1 << 30));
+    const followDisk = applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 0 });
+    expect(followDisk.terminalHistoryBudgetBytes).toBe(0);
+  });
+
   it('preserves existing fields when patching logLevel only', () => {
     const patch: AppPreferencePatch = { logLevel: 'warn' };
     const result = applyPreferencePatch(baseConfig, patch);

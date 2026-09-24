@@ -16,6 +16,55 @@ export function budgetBytesFromGb(gb: number): number {
   return gb * (1 << 30);
 }
 
+/** 自定义预算单位（与「工作区树缓存」自定义 TTL 的秒/分/时/天单位下拉同构）。 */
+export type BudgetUnit = 'mb' | 'gb';
+
+/** 单位字符串类型守卫（SettingsSelect 回传 string，非法串拒绝进 state）。 */
+export function isBudgetUnit(v: string): v is BudgetUnit {
+  return v === 'mb' || v === 'gb';
+}
+
+/** 自定义预算字节数取值范围：1 GB..=2000 GB（与原自定义档 GB 输入 1..=2000 同口径）。 */
+export const BUDGET_MIN_BYTES = 1 << 30;
+export const BUDGET_MAX_BYTES = 2000 * (1 << 30);
+
+export function budgetUnitMultiplier(unit: BudgetUnit): number {
+  return unit === 'mb' ? 1 << 20 : 1 << 30;
+}
+
+/** 自定义输入在指定单位下的取值上下限（供 number 输入框 min/max）。 */
+export function budgetUnitMin(unit: BudgetUnit): number {
+  return unit === 'mb' ? 1024 : 1;
+}
+
+export function budgetUnitMax(unit: BudgetUnit): number {
+  return unit === 'mb' ? 2_048_000 : 2000;
+}
+
+/** 自定义输入 → 字节：非法输入回落下限；其余钳制到取值范围。 */
+export function budgetBytesFromCustom(raw: number, unit: BudgetUnit): number {
+  if (!Number.isFinite(raw) || raw <= 0) {
+    return BUDGET_MIN_BYTES;
+  }
+  const bytes = Math.round(raw * budgetUnitMultiplier(unit));
+  return Math.min(BUDGET_MAX_BYTES, Math.max(BUDGET_MIN_BYTES, bytes));
+}
+
+/** 字节钳制到自定义取值范围（非法输入回落下限；草稿播种/重显用）。 */
+export function clampBudgetBytes(bytes: number): number {
+  if (!Number.isFinite(bytes)) {
+    return BUDGET_MIN_BYTES;
+  }
+  return Math.min(BUDGET_MAX_BYTES, Math.max(BUDGET_MIN_BYTES, bytes));
+}
+
+/** 字节 → 指定单位显示串（切单位时同一草稿换算，保持显示与待提交一致）。
+ * 小数保留四位，避免单位来回切换造成草稿漂移（仿 treeCacheTtl formatMinutesForUnit）。 */
+export function formatBytesForBudgetUnit(bytes: number, unit: BudgetUnit): string {
+  const raw = bytes / budgetUnitMultiplier(unit);
+  return String(Math.round(raw * 10000) / 10000);
+}
+
 export function segmentLines(seg: TerminalHistorySegment): number {
   return seg.chunks.reduce((sum, c) => sum + c.lines, 0);
 }

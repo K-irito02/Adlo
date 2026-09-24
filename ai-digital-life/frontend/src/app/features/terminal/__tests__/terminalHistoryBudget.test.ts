@@ -1,12 +1,19 @@
 // src/app/features/terminal/__tests__/terminalHistoryBudget.test.ts
 import { describe, expect, it } from 'vitest';
 import {
+  BUDGET_MAX_BYTES,
+  BUDGET_MIN_BYTES,
   TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
   TERMINAL_HISTORY_BUDGET_FOLLOW_DISK,
   TERMINAL_HISTORY_DISK_RESERVE_BYTES,
   TERMINAL_HISTORY_MIN_SEGMENTS_KEPT,
+  budgetBytesFromCustom,
+  budgetUnitMax,
+  budgetUnitMin,
   diskAvailableBytesFrom,
   effectiveBudgetBytes,
+  formatBytesForBudgetUnit,
+  isBudgetUnit,
   segmentBytes,
   segmentLines,
   selectSegmentsToEvict,
@@ -127,6 +134,41 @@ describe('diskAvailableBytesFrom', () => {
   it('undefined 或空数组返回 null', () => {
     expect(diskAvailableBytesFrom(undefined)).toBeNull();
     expect(diskAvailableBytesFrom([])).toBeNull();
+  });
+});
+
+describe('budget custom units (MB/GB)', () => {
+  const GB = 1 << 30;
+  const MB = 1 << 20;
+
+  it('isBudgetUnit 只接受 mb/gb', () => {
+    expect(isBudgetUnit('mb')).toBe(true);
+    expect(isBudgetUnit('gb')).toBe(true);
+    expect(isBudgetUnit('tb')).toBe(false);
+    expect(isBudgetUnit('')).toBe(false);
+  });
+
+  it('budgetBytesFromCustom 按单位换算并钳制到 1GB..=2000GB', () => {
+    expect(budgetBytesFromCustom(2, 'gb')).toBe(2 * GB);
+    expect(budgetBytesFromCustom(2048, 'mb')).toBe(2 * GB);
+    expect(budgetBytesFromCustom(0, 'gb')).toBe(BUDGET_MIN_BYTES);
+    expect(budgetBytesFromCustom(Number.NaN, 'mb')).toBe(BUDGET_MIN_BYTES);
+    expect(budgetBytesFromCustom(1, 'mb')).toBe(BUDGET_MIN_BYTES);
+    expect(budgetBytesFromCustom(999999, 'gb')).toBe(BUDGET_MAX_BYTES);
+  });
+
+  it('formatBytesForBudgetUnit 切单位换算显示（2GB ↔ 2048MB）', () => {
+    expect(formatBytesForBudgetUnit(2 * GB, 'gb')).toBe('2');
+    expect(formatBytesForBudgetUnit(2 * GB, 'mb')).toBe('2048');
+    expect(formatBytesForBudgetUnit(1536 * MB, 'gb')).toBe('1.5');
+  });
+
+  it('单位输入上下限与字节范围同口径', () => {
+    expect(budgetUnitMin('gb')).toBe(1);
+    expect(budgetUnitMax('gb')).toBe(2000);
+    expect(budgetUnitMin('mb')).toBe(1024);
+    expect(budgetUnitMax('mb')).toBe(2_048_000);
+    expect(budgetBytesFromCustom(budgetUnitMax('mb'), 'mb')).toBe(BUDGET_MAX_BYTES);
   });
 });
 

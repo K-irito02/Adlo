@@ -794,6 +794,7 @@ impl DownloadManager {
         &self,
         mode: Option<DownloadMode>,
         default_path: Option<String>,
+        auto_migrate: Option<bool>,
     ) -> Result<(), String> {
         let mut settings = self.settings.lock().expect("settings mutex should not be poisoned");
         if let Some(m) = mode {
@@ -802,8 +803,64 @@ impl DownloadManager {
         if let Some(p) = default_path {
             settings.default_path = p;
         }
+        if let Some(a) = auto_migrate {
+            settings.auto_migrate_on_path_change = a;
+        }
         self.save_settings(&settings)?;
         Ok(())
+    }
+
+    /// 更改默认下载路径；`migrate` 为 true 时先把旧生效目录下**全部**文件/子目录
+    /// 搬到新生效目录（同名冲突按 `resolve_conflict_path` 改名），全部成功后才删除
+    /// 旧目录并落盘新路径。任一步失败即中止且不更新设置，旧数据尽量保持可恢复。
+    /// 系统自带目录（见 `is_system_protected_dir`）只迁出文件、永不删除目录本体。
+    pub fn change_default_path(&self, new_path: &str, migrate: bool) -> Result<(), String> {
+        let settings = self.get_settings();
+        let old_effective = self.effective_default_dir(&settings.default_path);
+        let new_effective = self.effective_default_dir(new_path);
+
+        if migrate && old_effective != new_effective && old_effective.exists() {
+            let remove_old = !is_system_protected_dir(&old_effective);
+            if !remove_old {
+                tracing::info!(
+                    old = %old_effective.display(),
+                    "download default path is a system directory: migrating files out, keeping the directory itself"
+                );
+            }
+            self.migrate_dir(&old_effective, &new_effective, remove_old)?;
+        }
+
+        self.update_settings(None, Some(new_path.to_string()), None)
+    }
+
+    /// 把 `old` 目录下全部条目搬到 `new`；`remove_old` 为 true 时成功后删除 `old`
+    ///（系统自带目录传 false，只迁出文件、不删目录，防误删 Windows 系统目录）。
+    fn migrate_dir(&self, old: &Path, new: &Path, remove_old: bool) -> Result<(), String> {
+        if new.starts_with(old) || old.starts_with(new) {
+            return Err(format!(
+                "cannot migrate: paths overlap ({} vs {})",
+                old.display(),
+                new.display()
+            ));
+        }
+
+        fs::create_dir_all(new).map_err(|e| format!("create target dir failed: {e}"))?;
+
+        for entry in fs::read_dir(old).map_err(|e| format!("read old dir failed: {e}"))? {
+            let entry = entry.map_err(|e| format!("read old dir entry failed: {e}"))?;
+            let src = entry.path();
+            let mut dest = new.join(entry.file_name());
+            if dest.exists() {
+                dest = PathBuf::from(self.resolve_conflict_path(dest.to_string_lossy().as_ref()));
+            }
+            move_path(&src, &dest)?;
+        }
+
+        if !remove_old {
+            return Ok(());
+        }
+        // 全部条目搬完才删旧目录（产品决策：成功后清空删除，含外部文件）。
+        fs::remove_dir_all(old).map_err(|e| format!("remove old dir failed: {e}"))
     }
 
     pub fn check_disk_space(&self, path: &str) -> Result<(), String> {
@@ -1980,6 +2037,88 @@ impl DownloadManager {
     }
 }
 
+/// Single entry move: rename first (atomic, same volume); fall back to
+/// copy + remove for cross-device moves (e.g. different drives).
+fn move_path(src: &Path, dest: &Path) -> Result<(), String> {
+    if fs::rename(src, dest).is_ok() {
+        return Ok(());
+    }
+    if src.is_dir() {
+        copy_dir_all(src, dest)?;
+        fs::remove_dir_all(src).map_err(|e| format!("remove source dir failed: {e}"))?;
+    } else {
+        fs::copy(src, dest).map_err(|e| format!("copy file failed: {e}"))?;
+        fs::remove_file(src).map_err(|e| format!("remove source file failed: {e}"))?;
+    }
+    Ok(())
+}
+
+fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
+    fs::create_dir_all(dst).map_err(|e| format!("create dir failed: {e}"))?;
+    for entry in fs::read_dir(src).map_err(|e| format!("read dir failed: {e}"))? {
+        let entry = entry.map_err(|e| format!("read dir entry failed: {e}"))?;
+        let dest = dst.join(entry.file_name());
+        if entry.file_type().map_err(|e| e.to_string())?.is_dir() {
+            copy_dir_all(&entry.path(), &dest)?;
+        } else {
+            fs::copy(entry.path(), &dest).map_err(|e| format!("copy file failed: {e}"))?;
+        }
+    }
+    Ok(())
+}
+
+/// 系统自带目录清单：迁移时只允许迁出文件，绝不删除目录本体（防误删 Windows
+/// 系统目录，如系统下载/文档/桌面文件夹、系统根、盘符根目录）。
+fn system_protected_dirs() -> Vec<PathBuf> {
+    let mut out = Vec::new();
+    #[cfg(windows)]
+    for var in ["SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramData", "USERPROFILE"] {
+        if let Ok(v) = std::env::var(var) {
+            let p = PathBuf::from(v);
+            if !p.as_os_str().is_empty() {
+                out.push(p);
+            }
+        }
+    }
+    // dirs 已知文件夹（下载/文档/桌面/图片/视频/音乐/家目录）：跨平台同理保护。
+    for p in [
+        dirs::home_dir(),
+        dirs::download_dir(),
+        dirs::document_dir(),
+        dirs::desktop_dir(),
+        dirs::picture_dir(),
+        dirs::video_dir(),
+        dirs::audio_dir(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        out.push(p);
+    }
+    out
+}
+
+/// `path` 是否为系统自带目录：是则迁移只搬文件、不删目录。
+/// 盘符根/无父目录（如 `C:\`、`/`）永远视为受保护。
+fn is_system_protected_dir(path: &Path) -> bool {
+    if path.parent().is_none() {
+        return true;
+    }
+    let canon = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+    for prot in system_protected_dirs() {
+        let prot_canon = prot.canonicalize().unwrap_or(prot);
+        #[cfg(windows)]
+        if prot_canon.to_string_lossy().to_lowercase() == canon.to_string_lossy().to_lowercase() {
+            return true;
+        }
+        #[cfg(not(windows))]
+        if prot_canon == canon {
+            return true;
+        }
+    }
+    false
+}
+
 /// Maximum number of automatic resume attempts before requiring user action.
 /// Matches Chromium's `kMaxAutoResumeAttempts = 5`.
 const MAX_AUTO_RESUME_ATTEMPTS: u32 = 5;
@@ -2248,19 +2387,175 @@ mod tests {
 
         let s = mgr.get_settings();
         assert_eq!(s.mode, DownloadMode::Ask);
+        assert!(!s.auto_migrate_on_path_change, "auto-migrate defaults to off");
 
-        mgr.update_settings(Some(DownloadMode::Ask), Some("/custom/path".to_string()))
+        mgr.update_settings(Some(DownloadMode::Ask), Some("/custom/path".to_string()), None)
             .expect("update should succeed");
         let s2 = mgr.get_settings();
         assert_eq!(s2.mode, DownloadMode::Ask);
         assert_eq!(s2.default_path, "/custom/path");
+        assert!(!s2.auto_migrate_on_path_change);
+
+        mgr.update_settings(None, None, Some(true)).expect("auto-migrate update");
+        assert!(mgr.get_settings().auto_migrate_on_path_change);
 
         // Reload from db
         let mgr2 = DownloadManager::new(db.clone());
         let s3 = mgr2.get_settings();
         assert_eq!(s3.mode, DownloadMode::Ask);
         assert_eq!(s3.default_path, "/custom/path");
+        assert!(s3.auto_migrate_on_path_change, "auto-migrate persists across reload");
         let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-settings.db"));
+    }
+
+    #[test]
+    fn change_default_path_migrates_then_removes_old() {
+        let db = temp_db("change-path-migrate");
+        let mgr = DownloadManager::new(db.clone());
+        let old = std::env::temp_dir().join("adl-dl-migrate-old");
+        let new = std::env::temp_dir().join("adl-dl-migrate-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(old.join("sub")).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(old.join("a.txt"), b"a").unwrap();
+        std::fs::write(old.join("sub").join("c.txt"), b"c").unwrap();
+        std::fs::write(new.join("b.txt"), b"b").unwrap();
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false)
+            .expect("point path at old without migrate");
+        mgr.change_default_path(new.to_string_lossy().as_ref(), true)
+            .expect("migrate should succeed");
+
+        assert_eq!(mgr.get_settings().default_path, new.to_string_lossy());
+        assert!(!old.exists(), "old dir must be removed after successful migrate");
+        assert!(new.join("a.txt").exists());
+        assert!(new.join("sub").join("c.txt").exists());
+        assert!(new.join("b.txt").exists());
+
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-migrate.db"),
+        );
+    }
+
+    #[test]
+    fn change_default_path_without_migrate_keeps_files() {
+        let db = temp_db("change-path-keep");
+        let mgr = DownloadManager::new(db.clone());
+        let old = std::env::temp_dir().join("adl-dl-keep-old");
+        let new = std::env::temp_dir().join("adl-dl-keep-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::write(old.join("a.txt"), b"a").unwrap();
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
+        mgr.change_default_path(new.to_string_lossy().as_ref(), false).expect("set new");
+
+        assert_eq!(mgr.get_settings().default_path, new.to_string_lossy());
+        assert!(old.join("a.txt").exists(), "no-migrate must not move or delete");
+        assert!(!new.join("a.txt").exists());
+
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-change-path-keep.db"));
+    }
+
+    #[test]
+    fn change_default_path_migrate_rejects_overlap() {
+        let db = temp_db("change-path-overlap");
+        let mgr = DownloadManager::new(db.clone());
+        let old = std::env::temp_dir().join("adl-dl-overlap-old");
+        let nested = old.join("inner");
+        let _ = std::fs::remove_dir_all(&old);
+        std::fs::create_dir_all(&nested).unwrap();
+        std::fs::write(old.join("a.txt"), b"a").unwrap();
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
+        let err = mgr
+            .change_default_path(nested.to_string_lossy().as_ref(), true)
+            .expect_err("overlapping migrate must fail");
+        assert!(err.contains("overlap"), "unexpected error: {err}");
+        assert_eq!(mgr.get_settings().default_path, old.to_string_lossy());
+        assert!(old.join("a.txt").exists());
+
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-overlap.db"),
+        );
+    }
+
+    #[test]
+    fn change_default_path_migrate_resolves_name_conflicts() {
+        let db = temp_db("change-path-conflict");
+        let mgr = DownloadManager::new(db.clone());
+        let old = std::env::temp_dir().join("adl-dl-conflict-old");
+        let new = std::env::temp_dir().join("adl-dl-conflict-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(old.join("same.txt"), b"from-old").unwrap();
+        std::fs::write(new.join("same.txt"), b"from-new").unwrap();
+
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
+        mgr.change_default_path(new.to_string_lossy().as_ref(), true).expect("migrate");
+
+        assert!(!old.exists());
+        assert_eq!(std::fs::read(new.join("same.txt")).unwrap(), b"from-new");
+        assert_eq!(std::fs::read(new.join("same (1).txt")).unwrap(), b"from-old");
+
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-conflict.db"),
+        );
+    }
+
+    #[test]
+    fn is_system_protected_dir_marks_roots_home_and_known_folders() {
+        use std::path::Path;
+        // 盘符根/文件系统根永远受保护（只读断言，不触碰文件系统）。
+        #[cfg(windows)]
+        assert!(is_system_protected_dir(Path::new("C:\\")));
+        #[cfg(not(windows))]
+        assert!(is_system_protected_dir(Path::new("/")));
+        if let Some(home) = dirs::home_dir() {
+            assert!(is_system_protected_dir(&home), "home dir must be protected");
+        }
+        if let Some(downloads) = dirs::download_dir() {
+            assert!(is_system_protected_dir(&downloads), "downloads dir must be protected");
+        }
+        // 普通业务子目录不受保护。
+        let ordinary = std::env::temp_dir().join("adl-dl-ordinary-subdir-probe");
+        assert!(!is_system_protected_dir(&ordinary));
+    }
+
+    #[test]
+    fn migrate_dir_without_remove_old_moves_files_but_keeps_old_dir() {
+        let db = temp_db("migrate-keep-dir");
+        let mgr = DownloadManager::new(db.clone());
+        let old = std::env::temp_dir().join("adl-dl-keepdir-old");
+        let new = std::env::temp_dir().join("adl-dl-keepdir-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(old.join("sub")).unwrap();
+        std::fs::write(old.join("a.txt"), b"a").unwrap();
+        std::fs::write(old.join("sub").join("c.txt"), b"c").unwrap();
+
+        // 系统目录语义：只迁出文件、不删目录（change_default_path 对受保护目录即走此分支）。
+        mgr.migrate_dir(&old, &new, false).expect("migrate without remove");
+
+        assert!(new.join("a.txt").exists());
+        assert!(new.join("sub").join("c.txt").exists());
+        assert!(old.exists(), "protected old dir must be kept");
+        assert!(std::fs::read_dir(&old).unwrap().next().is_none(), "old dir must be emptied");
+
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        let _ =
+            std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-migrate-keep-dir.db"));
     }
 
     #[test]
@@ -2391,7 +2686,7 @@ mod tests {
         let mgr = DownloadManager::new(db.clone());
         let custom_dir = std::env::temp_dir().join("adl-custom-downloads");
         let _ = std::fs::create_dir_all(&custom_dir);
-        mgr.update_settings(None, Some(custom_dir.to_string_lossy().to_string()))
+        mgr.update_settings(None, Some(custom_dir.to_string_lossy().to_string()), None)
             .expect("update settings");
 
         // WebView2 suggests a C-drive path; the configured default must win.
@@ -2420,7 +2715,7 @@ mod tests {
         assert_eq!(p.parent().unwrap(), override_dir.as_path(), "must use storage override dir");
 
         // 用户显式配置仍优先于 storage override。
-        mgr.update_settings(None, Some(override_dir.to_string_lossy().to_string()))
+        mgr.update_settings(None, Some(override_dir.to_string_lossy().to_string()), None)
             .expect("update settings");
         mgr.set_default_dir_override(Some(std::env::temp_dir().join("adl-other-downloads")));
         let target = mgr.resolve_download_target("https://example.com/file.bin", "");

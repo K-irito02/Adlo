@@ -24,6 +24,9 @@ export const settingsZh = {
   settingsTerminalHistoryBudgetFollowDiskDesc:
     '按系统盘剩余空间估算上限，并预留 1GB 给系统；磁盘越紧，可保留的历史越少。',
   settingsTerminalHistoryBudgetUsed: '已用 {used}，上限 {limit}',
+  settingsTerminalHistoryBudgetUnitLabel: '容量单位',
+  settingsTerminalHistoryBudgetUnitMb: 'MB',
+  settingsTerminalHistoryBudgetUnitGb: 'GB',
 
   // 通用设置项
   settingsLanguage: '语言',
@@ -103,7 +106,8 @@ export const settingsZh = {
   storageNotCreated: '尚未创建',
   storageForeignFiles: '检测到 {count} 个不属于本应用的文件，将保留',
   storageLocatorTitle: '数据位置索引',
-  storageLocatorHint: '此文件记录数据位置，请勿删除；删除后应用将回退到默认目录',
+  storageLocatorHint:
+    '这个小文件记着你的各类数据实际放在电脑的哪个文件夹，应用每次启动都靠它找到数据。请不要删除、改名或手动修改它；如果不小心删掉了，应用会用默认目录启动，原来的数据还好好地留在原位置，只是在这里看不见——重新在「存储」设置里把路径指回去即可恢复。',
   storagePendingBanner: '已安排下次启动迁移',
   storagePendingFailedBanner: '上次迁移失败：{error}（旧数据完好）',
   storageRetryMigration: '重试',
@@ -122,7 +126,7 @@ export const settingsZh = {
   storageReportRetained: '已按设置保留旧数据',
   storageReportFailed: '迁移失败：{error}',
   storageReportSwitched: '数据已迁移到新位置，仅清理旧目录未完成，无需再次迁移。',
-  storageImmutableTitle: '不可移动（由系统或运行时管理）',
+  storageImmutableTitle: '不可移动「由系统或运行时管理」',
   storageImmutableKeyring: '凭据由操作系统凭据管理器安全保管，位置由系统决定，无需也无法自定义。',
   storageImmutableMachineId:
     '该文件用于派生凭据加密密钥；若移动，已保存的凭据将无法解密，因此不可移动。',
@@ -140,6 +144,31 @@ export const settingsZh = {
   storageTerminalBudgetTitle: '终端历史磁盘预算',
   storageRestartUnavailableInBrowser: '浏览器模式无法重启应用，此变更将在下次启动时生效。',
   storageBrowserDownloadTitle: '浏览器默认下载路径',
+  storageDownloadMigrateLabel: '更改路径时自动迁移文件',
+  storageDownloadMigrateHint:
+    '开启后，修改默认下载路径会把旧路径下的全部文件和文件夹一并搬到新路径，搬运成功后才删除旧路径目录（Windows 系统自带目录只搬文件、不删除目录）；搬运失败则保留旧路径数据不动，不会造成文件丢失。关闭时只切换路径，不搬运任何文件。',
+  storageDownloadMigrateEnableTitle: '开启自动迁移？',
+  storageDownloadMigrateEnableConfirm:
+    '开启「更改路径时自动迁移文件」后，以后每次修改默认下载路径，旧路径下的全部文件和文件夹都会被搬到新路径；只有全部搬运成功，才会删除旧路径目录（Windows 系统自带目录只搬文件、不删除目录）。若搬运中途失败，旧路径数据会保持原样，你可以稍后重试。不会偷偷删除或丢弃任何文件。确定要开启吗？',
+  storageDownloadMigrateEnableConfirmBtn: '确认开启',
+  storageDownloadResetTitle: '恢复默认下载路径？',
+  storageDownloadResetConfirmMigrateOn:
+    '将把默认下载路径恢复为系统默认。当前已开启自动迁移：旧路径下的全部文件会先搬到系统默认路径，搬运成功后删除旧路径目录（Windows 系统自带目录只搬文件、不删除目录）；若搬运失败，旧路径数据保持原样。',
+  storageDownloadResetConfirmMigrateOff:
+    '将把默认下载路径恢复为系统默认。当前未开启自动迁移：只切换路径，旧路径中的文件不会被搬运，也不会被删除。',
+  storageDownloadResetConfirmBtn: '恢复默认',
+  storageGroupResetTitle: '恢复「存储」全部默认？',
+  storageGroupResetIntro: '以下 4 处将一起恢复为默认值：',
+  storageGroupResetItemCore:
+    '核心数据路径：回到「统一根目录」+ 默认位置；随后走迁移流程，需重启应用（或下次启动）后生效。',
+  storageGroupResetItemTree:
+    '工作区树缓存：重新开启，保留时长恢复 15 分钟，已缓存内容保留；立即生效。',
+  storageGroupResetItemBudget: '终端历史磁盘预算：恢复为 1 GB；立即生效。',
+  storageGroupResetItemDownloadMigrateOn:
+    '浏览器默认下载路径：恢复为系统默认；旧路径文件先搬过去（Windows 系统目录除外），成功后删除旧目录；自动迁移开关恢复为关闭。',
+  storageGroupResetItemDownloadMigrateOff:
+    '浏览器默认下载路径：恢复为系统默认，只切换路径、不搬文件；自动迁移开关保持关闭。',
+  storageDownloadMigrateFailed: '迁移文件失败：{error}',
   storagePickFailed: '选择目录失败：{error}',
   storageStatusLoading: '正在读取存储状态…',
   storageStatusLoadFailed: '无法读取存储状态：{error}。请确认应用后端已更新并重启应用。',

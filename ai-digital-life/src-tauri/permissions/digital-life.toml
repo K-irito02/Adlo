@@ -46,6 +46,7 @@ commands.allow = [
   "download_list",
   "download_get_settings",
   "download_update_settings",
+  "download_change_default_path",
   "download_clear_history",
   "download_delete_file_and_record",
   "download_remove_record",

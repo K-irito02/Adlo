@@ -325,7 +325,8 @@
   overflow: hidden;
 }
 
-.adl-settings-row__label > .adl-settings-row__label-text span {
+.adl-settings-row__label > .adl-settings-row__label-text span,
+.adl-settings-row__label > .adl-settings-row__label-text label {
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--text-primary);
@@ -555,6 +556,11 @@
 /* 相邻两行属同一语义分组（如「路径模式」与「数据根目录」）时去掉其间隔线 */
 .adl-settings-row--no-divider {
   border-bottom: none;
+}
+
+/* 同一语义分组的次行（如预算块的「已用…」）：收紧与上一行的间距 */
+.adl-settings-row--compact {
+  padding-top: var(--space-1);
 }
 
 .adl-settings-password {
@@ -1027,13 +1033,6 @@
   flex-shrink: 0;
 }
 
-.adl-settings-section-title {
-  margin: 0 0 var(--space-3);
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  color: var(--text-primary);
-}
-
 .adl-settings-section {
   display: flex;
   flex-direction: column;
@@ -1153,8 +1152,9 @@
   gap: var(--space-2);
 }
 
-/* 工作区树缓存块头：与上方核心数据路径卡之间加大间距，区分两块。 */
-.adl-settings-storage__header--tree-cache {
+/* 工作区树缓存/终端预算/下载路径块头：与上方卡之间加大间距，区分块。 */
+.adl-settings-storage__header--tree-cache,
+.adl-settings-storage__header--section {
   margin-top: var(--space-2);
 }
 

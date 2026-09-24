@@ -326,12 +326,30 @@ describe('SettingsPanel group reset', () => {
     expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
   });
 
-  it('重置按钮集合与 patch 工厂同源（单注册表）', async () => {
+  it('重置按钮集合与 patch 工厂同源（单注册表；storage 例外走自有流程）', async () => {
     const groups = await import('./settingsGroups');
     const factories = (groups as Record<string, unknown>).GROUP_RESET_PATCHES as
       | Record<string, () => unknown>
       | undefined;
     expect(factories, 'GROUP_RESET_PATCHES missing').toBeDefined();
-    expect(new Set(Object.keys(factories!))).toEqual(new Set(groups.RESETTABLE_GROUPS));
+    expect(new Set(Object.keys(factories!))).toEqual(new Set(['general', 'workspace']));
+    // storage 无统一偏好 patch（多桥多步），但侧边栏同样渲染按钮并走自有确认对话框。
+    expect(groups.RESETTABLE_GROUPS.has('storage')).toBe(true);
+    expect(groups.RESETTABLE_GROUPS.has('general')).toBe(true);
+    expect(groups.RESETTABLE_GROUPS.has('workspace')).toBe(true);
+  });
+
+  it('存储组级重置切组并发信号，不弹通用确认框、不调 updatePreferences', () => {
+    const { updatePreferences } = setupStore();
+    useAppStore.setState({ activeSettingsGroup: 'general' });
+    const before = useAppStore.getState().storageGroupResetSeq;
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset storageTitle all defaults' }));
+    // 切到存储组 + 发信号（确认对话框由 StorageSettings 承接）。
+    expect(useAppStore.getState().activeSettingsGroup).toBe('storage');
+    expect(useAppStore.getState().storageGroupResetSeq).toBe(before + 1);
+    expect(updatePreferences).not.toHaveBeenCalled();
+    expect(screen.queryByText('Reset storageTitle?')).toBeNull();
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
   });
 });

@@ -24,7 +24,7 @@ describe('Browser settings editorial cards', () => {
     cleanup();
     useAppStore.setState({
       appInfo: undefined,
-      downloadSettings: { mode: 'ask', default_path: '' },
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
       isLoadingSettings: false,
     });
   });

@@ -39,6 +39,9 @@ vi.mock('@i18n/useTCopy', () => ({
       settingsTerminalHistoryBudgetFollowDisk: '跟随磁盘剩余空间',
       settingsTerminalHistoryBudgetFollowDiskDesc: '按系统盘剩余空间估算上限，并预留 1GB 给系统',
       settingsTerminalHistoryBudgetUsed: '已用 {used}，上限 {limit}',
+      settingsTerminalHistoryBudgetUnitLabel: '容量单位',
+      settingsTerminalHistoryBudgetUnitMb: 'MB',
+      settingsTerminalHistoryBudgetUnitGb: 'GB',
     },
   }),
 }));
@@ -80,6 +83,89 @@ describe('TerminalHistoryBudgetSection', () => {
     fireEvent.click(screen.getByRole('button', { name: '只读历史磁盘预算' }));
     fireEvent.click(screen.getByRole('option', { name: '自定义…' }));
     expect(screen.getByRole('spinbutton')).toBeTruthy();
+  });
+
+  it('自定义档把数值输入放在档位下拉左侧', () => {
+    render(<TerminalHistoryBudgetSection />);
+    fireEvent.click(screen.getByRole('button', { name: '只读历史磁盘预算' }));
+    fireEvent.click(screen.getByRole('option', { name: '自定义…' }));
+    const input = screen.getByRole('spinbutton');
+    const select = screen.getByRole('button', { name: '只读历史磁盘预算' });
+    expect(
+      input.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'input should appear before the preset select',
+    ).toBeTruthy();
+    expect(input.closest('.adl-settings-row__control--inline')).not.toBeNull();
+    expect(input.classList.contains('adl-settings-input--narrow')).toBe(true);
+  });
+
+  it('预算行与已用行无分隔线、收紧间距，预算行控件垂直居中', () => {
+    render(<TerminalHistoryBudgetSection />);
+    const rows = document.querySelectorAll('.adl-terminal-settings > .adl-settings-row');
+    expect(rows.length).toBe(2);
+    expect(rows[0].classList.contains('adl-settings-row--no-divider')).toBe(true);
+    expect(rows[0].classList.contains('adl-settings-row--path-center')).toBe(true);
+    expect(rows[1].classList.contains('adl-settings-row--compact')).toBe(true);
+  });
+
+  it('自定义档提供 MB/GB 单位下拉，切单位按同一预算换算草稿且不提交', () => {
+    mocks.state.configuredBytes = budgetBytesFromGb(3);
+    render(<TerminalHistoryBudgetSection />);
+    // 非档位 3GB → 自定义态，草稿 '3' GB。
+    expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('3');
+    const unitSelect = screen.getByRole('button', { name: '容量单位' });
+    expect(unitSelect.textContent).toContain('GB');
+    fireEvent.click(unitSelect);
+    fireEvent.click(screen.getByRole('option', { name: 'MB' }));
+    expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('3072');
+    expect(screen.getByRole('button', { name: '容量单位' }).textContent).toContain('MB');
+    // 切单位只是换算显示，不写桥。
+    expect(mocks.state.updatePreferences).not.toHaveBeenCalled();
+  });
+
+  it('切到 MB 后输入按 MB 换算提交', () => {
+    render(<TerminalHistoryBudgetSection />);
+    selectBudgetOption('自定义…');
+    fireEvent.click(screen.getByRole('button', { name: '容量单位' }));
+    fireEvent.click(screen.getByRole('option', { name: 'MB' }));
+    const input = screen.getByRole('spinbutton') as HTMLInputElement;
+    expect(input.value).toBe('1024');
+
+    vi.useFakeTimers();
+    fireEvent.change(input, { target: { value: '2048' } });
+    act(() => {
+      vi.advanceTimersByTime(500);
+    });
+    vi.useRealTimers();
+
+    expect(mocks.state.updatePreferences).toHaveBeenCalledTimes(1);
+    expect(mocks.state.updatePreferences).toHaveBeenCalledWith({
+      terminalHistoryBudgetBytes: budgetBytesFromGb(2),
+    });
+  });
+
+  it('外部恢复默认在打字中途到达时丢弃在途草稿，不让旧输入覆盖', () => {
+    mocks.state.configuredBytes = budgetBytesFromGb(3);
+    const { rerender } = render(<TerminalHistoryBudgetSection />);
+    const input = screen.getByRole('spinbutton') as HTMLInputElement;
+
+    vi.useFakeTimers();
+    fireEvent.change(input, { target: { value: '9' } });
+    // 外部写入另一非档位值：草稿重播种，仍在自定义态。
+    mocks.state.configuredBytes = budgetBytesFromGb(7);
+    rerender(<TerminalHistoryBudgetSection />);
+    expect((screen.getByRole('spinbutton') as HTMLInputElement).value).toBe('7');
+    // 外部恢复默认档：退出自定义态。
+    mocks.state.configuredBytes = budgetBytesFromGb(1);
+    rerender(<TerminalHistoryBudgetSection />);
+    expect(screen.queryByRole('spinbutton')).toBeNull();
+    expect(triggerLabel()).toContain('1 GB');
+    // 在途草稿已被丢弃：防抖到期也不写桥。
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+    vi.useRealTimers();
+    expect(mocks.state.updatePreferences).not.toHaveBeenCalled();
   });
 });
 

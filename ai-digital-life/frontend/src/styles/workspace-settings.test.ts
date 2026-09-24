@@ -60,6 +60,10 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(settingsCss).not.toContain('.adl-settings-card--grid');
   });
 
+  it('drops the in-card h4 subtitle rule after immovables moved to a block header', () => {
+    expect(settingsCss).not.toContain('.adl-settings-section-title');
+  });
+
   it('workspace block header drops the divider and heavy spacing to the card', () => {
     // 头块选择器已与 storage 头块合并为逗号并列组，用 groupRuleBody 查找。
     const header = groupRuleBody(settingsCss, '.adl-settings-workspace__header');
@@ -162,12 +166,38 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   });
 
   it('adds extra top margin to the tree-cache block header vs the core-paths header', () => {
-    const header = ruleBody(settingsCss, '.adl-settings-storage__header--tree-cache');
+    const header = groupRuleBody(settingsCss, '.adl-settings-storage__header--tree-cache');
     expect(header).not.toBeNull();
     expect(header).toContain('margin-top');
     const base = ruleBody(settingsCss, '.adl-settings-storage__header');
     expect(base).not.toBeNull();
     expect(base).not.toContain('margin-top');
+  });
+
+  it('adds extra top margin to stacked block headers (budget/download) like tree-cache', () => {
+    const header = groupRuleBody(settingsCss, '.adl-settings-storage__header--section');
+    expect(header).not.toBeNull();
+    expect(header).toContain('margin-top');
+  });
+
+  it('styles label-based subtitles exactly like span subtitles', () => {
+    // 「更改路径时自动迁移文件」「启用树缓存」用 <label>（点文字即切换，便于无障碍），
+    // 视觉必须与其它 <span> 副标题一致：此前选择器只覆盖 span 导致字体走样。
+    const body = groupRuleBody(
+      settingsCss,
+      '.adl-settings-row__label > .adl-settings-row__label-text label',
+    );
+    expect(body).not.toBeNull();
+    expect(body).toContain('font-size: var(--text-sm)');
+    expect(body).toContain('font-weight: var(--font-medium)');
+    expect(body).toContain('color: var(--text-primary)');
+  });
+
+  it('provides a compact row modifier that tightens the grouped second row', () => {
+    const body = ruleBody(settingsCss, '.adl-settings-row--compact');
+    expect(body).not.toBeNull();
+    expect(body).toContain('padding-top');
+    expect(body).not.toContain('padding-top: var(--space-3-5)');
   });
 
   it('paints storage radio/checkbox with monochrome text-primary, not accent blue', () => {

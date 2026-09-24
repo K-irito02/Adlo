@@ -81,6 +81,11 @@ export function applyPreferencePatch(
   if (patch.browserInactiveTabSuspendMs !== undefined) {
     nextConfig.browserInactiveTabSuspendMs = patch.browserInactiveTabSuspendMs;
   }
+  // 只读历史磁盘预算：0 = 跟随磁盘。Tauri 后端 app_update_preferences 有同语义分支，
+  // 缺失会导致档位选择/恢复默认静默失效（issue 2026-09-24：恒显 1 GB）。
+  if (patch.terminalHistoryBudgetBytes !== undefined) {
+    nextConfig.terminalHistoryBudgetBytes = patch.terminalHistoryBudgetBytes;
+  }
 
   return nextConfig;
 }

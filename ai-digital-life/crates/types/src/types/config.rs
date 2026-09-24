@@ -199,4 +199,14 @@ mod tests {
         assert!(json.contains("SET_LANGUAGE"));
         assert!(json.contains("en-US"));
     }
+
+    #[test]
+    fn app_preference_patch_deserializes_budget_bytes() {
+        // 前端档位/恢复默认经此字段下发（issue 2026-09-24：后端曾直接丢弃导致恒显 1 GB）。
+        let patch: AppPreferencePatch =
+            serde_json::from_str(r#"{"terminalHistoryBudgetBytes": 2147483648}"#).unwrap();
+        assert_eq!(patch.terminal_history_budget_bytes, Some(2147483648));
+        let empty: AppPreferencePatch = serde_json::from_str(r#"{"language": "zh-CN"}"#).unwrap();
+        assert_eq!(empty.terminal_history_budget_bytes, None);
+    }
 }
