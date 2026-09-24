@@ -44,6 +44,9 @@ export function ManualPathInput({
   }, [value]);
 
   const commit = () => {
+    // 提交即交接点：清脏标记——即使本次草稿与外部值相等（无需回写），后续外部更新
+    // 也应重新同步；否则后端归一（trim/空→默认）导致回显永远对不上草稿，脏标记永久滞留（M2）。
+    dirtyRef.current = false;
     if (draft !== value) {
       onCommit(draft);
     }

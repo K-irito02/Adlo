@@ -140,6 +140,12 @@ pub fn app_get_diagnostics(
     }))
 }
 
+/// 只读历史磁盘预算钳制（与前端 `budgetBytesFromCustom` 同口径）：
+/// 0 = 跟随磁盘剩余空间直通；其余钳制到 1GiB..=2000GiB，防止手造 patch 写入非法值。
+fn clamp_terminal_history_budget_bytes(v: u64) -> u64 {
+    if v == 0 { 0 } else { v.clamp(1 << 30, 2000 * (1 << 30)) }
+}
+
 #[tauri::command]
 pub async fn app_update_preferences(
     app: tauri::AppHandle,
@@ -195,10 +201,10 @@ pub async fn app_update_preferences(
         if let Some(v) = patch.browser_inactive_tab_suspend_ms {
             config.browser_inactive_tab_suspend_ms = v;
         }
-        // 只读历史磁盘预算：0 = 跟随磁盘剩余空间，其余为字节数上限。
-        // 缺失此分支时前端选择档位/恢复默认会静默失效（issue 2026-09-24：恒显 1 GB）。
+        // 只读历史磁盘预算：0 = 跟随磁盘剩余空间直通；其余钳制到 1GiB..=2000GiB
+        //（与前端 budgetBytesFromCustom 同口径；缺失此分支时前端选择档位/恢复默认会静默失效）。
         if let Some(v) = patch.terminal_history_budget_bytes {
-            config.terminal_history_budget_bytes = v;
+            config.terminal_history_budget_bytes = clamp_terminal_history_budget_bytes(v);
         }
     }
     let config_clone =
@@ -415,6 +421,20 @@ mod workspace_loading_tests {
         assert_eq!(patch.workspace_priority_ids, None);
         assert_eq!(patch.workspace_deferred_ids, None);
         assert_eq!(patch.workspace_natural_order, None);
+    }
+
+    #[test]
+    fn clamp_terminal_history_budget_bytes_passes_through_follow_disk() {
+        assert_eq!(clamp_terminal_history_budget_bytes(0), 0);
+        assert_eq!(clamp_terminal_history_budget_bytes(1 << 30), 1 << 30);
+        assert_eq!(clamp_terminal_history_budget_bytes(2000 * (1 << 30)), 2000 * (1 << 30));
+    }
+
+    #[test]
+    fn clamp_terminal_history_budget_bytes_clamps_out_of_range() {
+        // 与前端 budgetBytesFromCustom 同口径：非法小值抬下限、超大钳上限。
+        assert_eq!(clamp_terminal_history_budget_bytes(1), 1 << 30);
+        assert_eq!(clamp_terminal_history_budget_bytes(u64::MAX), 2000 * (1 << 30));
     }
 
     #[test]

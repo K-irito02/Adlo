@@ -54,6 +54,11 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
  * storage 例外：核心路径/树缓存/下载分属独立存储，没有统一偏好 patch，不走
  * updatePreferences；侧边栏只切组 + 置 pending 信号，确认对话框与多步执行由
  * StorageSettings 承接（见 uiSlice `storageGroupResetPending`）。
+ *
+ * 类型不变式：`RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)`，差集仅允许 `storage`。
+ * 通用消费者不得直接取 `GROUP_RESET_PATCHES[group]`（storage 无工厂）——
+ * `SettingsPanel.handleRequestResetGroup` 已对 storage 提前分支；
+ * `SettingsPanel.test.tsx` 的"单注册表"用例锁定该差集（task4 M-2）。
  */
 export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set([
   ...(Object.keys(GROUP_RESET_PATCHES) as SettingsGroupId[]),

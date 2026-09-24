@@ -1,24 +1,36 @@
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
+import { DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
 import { useTCopy } from '@i18n/useTCopy';
 import { ManualPathInput } from './StorageCategoryRow';
 
 /**
  * 路径别名归一（前端侧，供"显式输入=系统默认"判定，F8/N6）：
- * 统一斜杠与去尾分隔符；仅当串中含反斜杠（Windows 风格路径）才大小写不敏感——
- * 避免把 Unix 上真实不同的大小写路径误判为同一目录。
+ * 统一斜杠与去尾分隔符；大小写折叠**仅当任一侧为 Windows 风格**（含反斜杠、盘符
+ * `X:` 前缀、正斜杠 UNC `//server/share`）——单侧判定会漏掉 `C:/X` vs `c:\x` 混写；
+ * 纯正斜杠路径（Unix 风格）保持大小写敏感，与后端 `normalize_path_key`
+ * （仅 #[cfg(windows)] 小写）语义一致。
  */
 function normalizePathAlias(p: string): string {
-  const norm = p.replace(/\//g, '\\').replace(/\\+$/, '');
-  return norm.includes('\\') ? norm.toLowerCase() : norm;
+  return p.replace(/\//g, '\\').replace(/\\+$/, '');
+}
+
+function isWindowsStylePath(p: string): boolean {
+  // 反斜杠、盘符前缀（`X:`）、正斜杠 UNC（`//server/share`）均为 Windows 风格（R4-N1）。
+  return p.includes('\\') || /^[a-zA-Z]:/.test(p) || p.startsWith('//');
 }
 
 function isSameResolvedPath(a: string, b: string): boolean {
   if (!a || !b) {
     return false;
   }
-  return normalizePathAlias(a) === normalizePathAlias(b);
+  const normA = normalizePathAlias(a);
+  const normB = normalizePathAlias(b);
+  if (isWindowsStylePath(a) || isWindowsStylePath(b)) {
+    return normA.toLowerCase() === normB.toLowerCase();
+  }
+  return normA === normB;
 }
 
 /**
@@ -83,6 +95,7 @@ export function BrowserDownloadPathSection() {
     triggerRef.current = null;
   }, [confirmEnable]);
 
+  /** 刷新失败哨兵（slice 侧 DOWNLOAD_REFRESH_FAILED）：写成功但回读失败时透出，映射专用 toast。 */
   const commitPath = async (path: string) => {
     if (busy || isLoadingSettings) {
       return;
@@ -99,9 +112,17 @@ export function BrowserDownloadPathSection() {
       const result = await changeDownloadPath(target, autoMigrate);
       if (!result.ok) {
         showToast(
-          autoMigrate
-            ? t.storageDownloadMigrateFailed.replace('{error}', result.error.message)
-            : t.storagePickFailed.replace('{error}', result.error.message),
+          result.error.message === DOWNLOAD_REFRESH_FAILED
+            ? t.storageDownloadRefreshFailed
+            : autoMigrate
+              ? t.storageDownloadMigrateFailed.replace(
+                  '{error}',
+                  result.error.message ?? t.storageUnknownError,
+                )
+              : t.storagePickFailed.replace(
+                  '{error}',
+                  result.error.message ?? t.storageUnknownError,
+                ),
           'error',
         );
       }
@@ -137,9 +158,17 @@ export function BrowserDownloadPathSection() {
           const change = await changeDownloadPath(target, autoMigrate);
           if (!change.ok) {
             showToast(
-              autoMigrate
-                ? t.storageDownloadMigrateFailed.replace('{error}', change.error.message)
-                : t.storagePickFailed.replace('{error}', change.error.message),
+              change.error.message === DOWNLOAD_REFRESH_FAILED
+                ? t.storageDownloadRefreshFailed
+                : autoMigrate
+                  ? t.storageDownloadMigrateFailed.replace(
+                      '{error}',
+                      change.error.message ?? t.storageUnknownError,
+                    )
+                  : t.storagePickFailed.replace(
+                      '{error}',
+                      change.error.message ?? t.storageUnknownError,
+                    ),
               'error',
             );
           }
@@ -174,7 +203,6 @@ export function BrowserDownloadPathSection() {
             <input
               id="adl-download-migrate"
               type="checkbox"
-              aria-label={t.storageDownloadMigrateLabel}
               data-testid="download-migrate-checkbox"
               checked={autoMigrate}
               disabled={disabled}

@@ -4,6 +4,7 @@ import type { CopyKey } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
+import { DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
 import { formatBytes } from '@root/design-system/html';
 import { isTauriShell } from '@shared/env';
 import {
@@ -162,6 +163,11 @@ export function StorageSettings() {
   const treeConfirmTriggerRef = useRef<HTMLElement | null>(null);
   /** 下载路径「恢复默认」确认对话框（文案含当前迁移开关状态）。 */
   const [downloadResetConfirm, setDownloadResetConfirm] = useState(false);
+  /** 下载恢复对话框打开时刻的迁移开关快照：文案与执行同源，避免开框后键盘回 Tab
+   * 切开关导致"文案一个值、行为另一个值"（task4 L-5；组级 M2 快照的同构）。 */
+  const downloadMigrateAtOpenRef = useRef(false);
+  /** 组级对话框打开时刻的迁移开关快照（M4-R：组清单文案与搬运行为同源）。 */
+  const groupMigrateAtOpenRef = useRef(false);
   const [downloadResetBusy, setDownloadResetBusy] = useState(false);
   const downloadResetConfirmRef = useRef<HTMLButtonElement | null>(null);
   const downloadResetTriggerRef = useRef<HTMLElement | null>(null);
@@ -200,6 +206,8 @@ export function StorageSettings() {
   // 「块底部 撤回/应用」是否处于可见区：可见时隐藏粘性提交条，不可见时显示。
   const bottomCtaRef = useRef<HTMLDivElement | null>(null);
   const [bottomCtaVisible, setBottomCtaVisible] = useState(false);
+  /** 最近一次成功加载/刷新确认的数据根（L-6 回填源：闭包 status 可能陈旧）。 */
+  const lastKnownRootRef = useRef<string | null>(null);
 
   /** 撤回未应用的修改：把草稿重置回已持久化状态（mode/root/逐类路径）。 */
   const handleRevert = useCallback(() => {
@@ -332,16 +340,26 @@ export function StorageSettings() {
     });
   }, [handleTerminalBudgetReset, showToast, t]);
 
-  /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按当前迁移开关决定是否搬文件。 */
+  /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按**开框时刻**的迁移开关
+   * 快照决定是否搬文件（M4：对话框无焦点陷阱，开框后改开关不影响本次语义）。 */
   const handleDownloadResetConfirm = useCallback(async () => {
     setDownloadResetBusy(true);
     try {
-      const result = await changeDownloadPath('', downloadSettings.auto_migrate_on_path_change);
+      const migrate = downloadMigrateAtOpenRef.current;
+      const result = await changeDownloadPath('', migrate);
       if (!result.ok) {
         showToast(
-          downloadSettings.auto_migrate_on_path_change
-            ? t.storageDownloadMigrateFailed.replace('{error}', result.error.message)
-            : t.storagePickFailed.replace('{error}', result.error.message),
+          result.error.message === DOWNLOAD_REFRESH_FAILED
+            ? t.storageDownloadRefreshFailed
+            : migrate
+              ? t.storageDownloadMigrateFailed.replace(
+                  '{error}',
+                  result.error.message ?? t.storageUnknownError,
+                )
+              : t.storagePickFailed.replace(
+                  '{error}',
+                  result.error.message ?? t.storageUnknownError,
+                ),
           'error',
         );
         return;
@@ -350,7 +368,7 @@ export function StorageSettings() {
     } finally {
       setDownloadResetBusy(false);
     }
-  }, [changeDownloadPath, downloadSettings.auto_migrate_on_path_change, showToast, t]);
+  }, [changeDownloadPath, showToast, t]);
 
   // 自定义 TTL 防抖计时器卸载清理。
   useEffect(
@@ -402,6 +420,7 @@ export function StorageSettings() {
             }
             setStatusError(null);
             setStatus(result.data);
+            lastKnownRootRef.current = result.data.root;
             if (!draftsSeededRef.current) {
               setMode(result.data.mode);
               setRootDraft(result.data.root);
@@ -481,6 +500,7 @@ export function StorageSettings() {
       }
       setStatusError(null);
       setStatus(result.data);
+      lastKnownRootRef.current = result.data.root;
       return result.data;
     } catch (error) {
       if (error instanceof StatusTimeoutError) {
@@ -529,6 +549,7 @@ export function StorageSettings() {
         // 重试成功必须清除状态错误（F4），并重播种草稿（显式用户动作）。
         setStatusError(null);
         setStatus(result.data);
+        lastKnownRootRef.current = result.data.root;
         setMode(result.data.mode);
         setRootDraft(result.data.root);
         setCategoryDrafts(
@@ -703,11 +724,13 @@ export function StorageSettings() {
         showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
-      // 预检通过后再把草稿清成恢复值（与单块恢复一致：取消也不回填）。
+      // 预检通过后再把草稿清成恢复值（与单块恢复一致：取消也不回填），
+      // 同时快照下载迁移开关供本次组流程全程使用（M4-R：与对话框展示文案同源）。
       setMode('unified');
       setRootDraft('');
       setCategoryDrafts({});
       setGroupResetRetain(false);
+      groupMigrateAtOpenRef.current = downloadSettings.auto_migrate_on_path_change;
       setGroupResetPreflight(result.data);
       setGroupResetOpen(true);
     } finally {
@@ -722,6 +745,7 @@ export function StorageSettings() {
     busy,
     treeConfirm,
     downloadResetConfirm,
+    downloadSettings.auto_migrate_on_path_change,
     showToast,
     t,
   ]);
@@ -734,6 +758,14 @@ export function StorageSettings() {
     }
     void openGroupResetDialog();
   }, [storageGroupResetPending, openGroupResetDialog]);
+
+  // 卸载兜底：pending 置位后若组件在消费前卸载（挂载失败等极小概率），清信号
+  // 避免残留到下次挂载"迟到弹窗"（task4 L-1；正常路径挂载即消费，此处恒为 no-op）。
+  useEffect(() => {
+    return () => {
+      useAppStore.getState().consumeStorageGroupReset();
+    };
+  }, [consumeStorageGroupReset]);
 
   const handleApplyMigration = useCallback(
     async (retainSource: boolean, applyNow: boolean) => {
@@ -892,38 +924,39 @@ export function StorageSettings() {
   );
 
   /** 开关/TTL 写后重拉 stats + 本地合并回写（防 stats 回拉静默失败导致勾选弹回）。
-   * 桥本身抛错落 toast，不抛未处理拒绝。 */
+   * 桥本身抛错落 toast，不抛未处理拒绝。返回写成功与否供组级汇总（N4；调用方 void 忽略亦可）。 */
   const handleTreeOptionsChange = useCallback(
-    async (opts: TreeCacheOptions) => {
+    async (opts: TreeCacheOptions): Promise<boolean> => {
       const bridge = window.digitalLife?.storage;
       if (!bridge) {
-        return;
+        return false;
       }
       const seq = ++treeWriteSeqRef.current;
       try {
         const result = await bridge.setTreeCacheOptions(opts);
         if (!result.ok) {
           showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
-          return;
+          return false;
         }
       } catch (e) {
         showToast(ipcErrorMessage(e instanceof Error ? e : null, t.storageUnknownError), 'error');
-        return;
+        return false;
       }
       // 快速连续写是 last-completion-wins：被更新写超车时跳过本次合并。
       if (treeWriteSeqRef.current !== seq) {
-        return;
+        return true;
       }
       setTreeStats((prev) =>
         prev ? { ...prev, enabled: opts.enabled, ttlMinutes: opts.ttlMinutes } : prev,
       );
       await loadTreeStats(seq);
       if (treeWriteSeqRef.current !== seq) {
-        return;
+        return true;
       }
       setTreeStats((prev) =>
         prev ? { ...prev, enabled: opts.enabled, ttlMinutes: opts.ttlMinutes } : prev,
       );
+      return true;
     },
     [loadTreeStats, showToast, t],
   );
@@ -1106,10 +1139,13 @@ export function StorageSettings() {
 
   /**
    * 存储组级「恢复全部默认」一步执行（迁移时机确认键共用）：
-   * 1. 桥检查前移（L4）；2. 预算/树 await 失败各自 toast 可见（M3），下载失败同样 toast；
-   * 3. 核心路径落盘用**开框预检的补丁快照**（仅替换 retainSource），不读实时草稿——
-   *    防止对话框无焦点陷阱时后台 Tab 改动草稿导致展示与落盘分裂（M2）；
-   * 4. 各块互不阻塞（既定产品语义，失败不回滚其它块）；尾段仿 handleApplyMigration。
+   * 1. 桥检查前移（L4）；2. **核心先行**：核心 setPaths（含后端二次 preflight）失败即早返，
+   *    不再执行下载搬运等不可逆操作——缩小不可逆部分生效窗口（closing H-1）；
+   *    其余三块（预算/树/下载）互不阻塞、失败各自 toast（既定产品语义）；
+   * 3. 核心路径落盘用**开框预检的补丁快照**（仅替换 retainSource），不读实时草稿（M2）；
+   * 4. 下载搬运的 migrate 开关用**开框快照**，与对话框展示文案同源（M4-R）；
+   * 5. 任一分支失败：尾部只发汇总错误（不再发成功 toast，M5），且**保持对话框打开**
+   *    供检查/重试（与单块/树确认框"失败不关框"对齐，M5-R）；尾段仿 handleApplyMigration。
    */
   const handleGroupResetApply = useCallback(
     async (applyNow: boolean) => {
@@ -1121,29 +1157,13 @@ export function StorageSettings() {
         );
         return;
       }
+      // 预检失败的对话框不进入本函数（按钮 disabled），编程调用再守一次（task4 L-2）。
+      if (groupResetPreflight && !groupResetPreflight.ok) {
+        return;
+      }
       setGroupResetBusy(true);
       try {
-        const budgetOk = await handleTerminalBudgetReset();
-        if (!budgetOk) {
-          showToast(t.settingsUpdateFailed, 'error');
-        }
-        // 树写自带错误 toast（handleTreeOptionsChange 内部）；await 保证与后续 refresh 的顺序可读。
-        await handleTreeResetDefaults();
-        const migrate = downloadSettings.auto_migrate_on_path_change;
-        const result = await changeDownloadPath('', migrate);
-        if (!result.ok) {
-          showToast(
-            migrate
-              ? t.storageDownloadMigrateFailed.replace('{error}', result.error.message)
-              : t.storagePickFailed.replace('{error}', result.error.message),
-            'error',
-          );
-        }
-        // 开关复位与搬迁结果解耦：清单承诺"开关恢复为关闭"，无论搬迁成败都执行（I1-N5）。
-        const upd = await updateDownloadSettings(undefined, undefined, false);
-        if (!upd.ok) {
-          showToast(t.settingsUpdateFailed, 'error');
-        }
+        // 核心先行：最易失败且其失败会让一切无意义，先落盘；失败早返。
         const applied = await bridge.setPaths(
           { ...CORE_RESET_PATCH, retainSource: groupResetRetain },
           applyNow,
@@ -1157,6 +1177,62 @@ export function StorageSettings() {
           setGroupResetPreflight(applied.data.preflight);
           return;
         }
+        // 任一分支失败即记 failed：尾部不再发"成功"toast，改发汇总错误（task1 M5）。
+        let failed = false;
+        const budgetOk = await handleTerminalBudgetReset();
+        if (!budgetOk) {
+          showToast(t.settingsUpdateFailed, 'error');
+          failed = true;
+        }
+        // 树写自带错误 toast；返回值纳入汇总（N4）。
+        const treeOk = await handleTreeResetDefaults();
+        if (!treeOk) {
+          failed = true;
+        }
+        const migrate = groupMigrateAtOpenRef.current;
+        const result = await changeDownloadPath('', migrate);
+        if (!result.ok) {
+          showToast(
+            result.error.message === DOWNLOAD_REFRESH_FAILED
+              ? t.storageDownloadRefreshFailed
+              : migrate
+                ? t.storageDownloadMigrateFailed.replace(
+                    '{error}',
+                    result.error.message ?? t.storageUnknownError,
+                  )
+                : t.storagePickFailed.replace(
+                    '{error}',
+                    result.error.message ?? t.storageUnknownError,
+                  ),
+            'error',
+          );
+          failed = true;
+        }
+        // 开关复位与搬迁结果解耦：清单承诺"开关恢复为关闭"，无论搬迁成败都执行（I1-N5）。
+        const upd = await updateDownloadSettings(undefined, undefined, false);
+        if (!upd.ok) {
+          showToast(
+            upd.error.message === DOWNLOAD_REFRESH_FAILED
+              ? t.storageDownloadRefreshFailed
+              : t.settingsUpdateFailed,
+            'error',
+          );
+          failed = true;
+        }
+        // 树/预算走独立桥，此处 refresh 仅回填核心根（L5）。
+        const fresh = await refresh();
+        if (fresh) {
+          lastKnownRootRef.current = fresh.root;
+          setRootDraft(fresh.root);
+        } else if (lastKnownRootRef.current ?? status?.root) {
+          // refresh 失败也回填上次已知根，避免输入框空显示（L3/L-6）。
+          setRootDraft(lastKnownRootRef.current ?? status?.root ?? '');
+        }
+        if (failed) {
+          // 任一分支失败：只发汇总错误，不发成功 toast，且保持对话框打开供检查（M5-R）。
+          showToast(t.settingsUpdateFailed, 'error');
+          return;
+        }
         setGroupResetOpen(false);
         if (applyNow && applied.data.restartRequired) {
           const restarted = await bridge.restartApp();
@@ -1168,14 +1244,6 @@ export function StorageSettings() {
         } else {
           showToast(t.storagePendingBanner, 'success');
         }
-        // 树/预算走独立桥，此处 refresh 仅回填核心根（L5）。
-        const fresh = await refresh();
-        if (fresh) {
-          setRootDraft(fresh.root);
-        } else if (status) {
-          // refresh 失败也回填上次已知根，避免输入框空显示（L3）。
-          setRootDraft(status.root);
-        }
       } finally {
         setGroupResetBusy(false);
       }
@@ -1183,10 +1251,10 @@ export function StorageSettings() {
     [
       handleTerminalBudgetReset,
       handleTreeResetDefaults,
-      downloadSettings.auto_migrate_on_path_change,
       changeDownloadPath,
       updateDownloadSettings,
       groupResetRetain,
+      groupResetPreflight,
       refresh,
       status,
       showToast,
@@ -1584,6 +1652,8 @@ export function StorageSettings() {
           data-testid="download-path-reset"
           onClick={(e) => {
             downloadResetTriggerRef.current = e.currentTarget;
+            // 开框即快照迁移开关（M4/L-5）。
+            downloadMigrateAtOpenRef.current = downloadSettings.auto_migrate_on_path_change;
             setDownloadResetConfirm(true);
           }}
         >
@@ -1596,7 +1666,10 @@ export function StorageSettings() {
       </div>
 
       {/* 不可移动项独立成块：主标题无恢复默认按钮（系统/运行时管理，无可恢复项）。 */}
-      <div className="adl-settings-storage__header adl-settings-storage__header--section">
+      <div
+        className="adl-settings-storage__header adl-settings-storage__header--section"
+        data-testid="immovables-block-header"
+      >
         <SettingsHeader title={t.storageImmutableTitle} />
       </div>
       <div className="adl-settings-card">
@@ -1825,7 +1898,7 @@ export function StorageSettings() {
                 </div>
                 <div className="adl-confirm-dialog__body">
                   <p className="adl-confirm-dialog__message">
-                    {downloadSettings.auto_migrate_on_path_change
+                    {downloadMigrateAtOpenRef.current
                       ? t.storageDownloadResetConfirmMigrateOn
                       : t.storageDownloadResetConfirmMigrateOff}
                   </p>
@@ -1874,13 +1947,12 @@ export function StorageSettings() {
                     <li>{t.storageGroupResetItemCore}</li>
                     <li>{t.storageGroupResetItemTree}</li>
                     <li>
-                      {t.storageGroupResetItemBudget.replace(
-                        '{default}',
-                        formatBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES),
-                      )}
+                      {formatT(t, 'storageGroupResetItemBudget', {
+                        default: formatBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES),
+                      })}
                     </li>
                     <li>
-                      {downloadSettings.auto_migrate_on_path_change
+                      {groupMigrateAtOpenRef.current
                         ? t.storageGroupResetItemDownloadMigrateOn
                         : t.storageGroupResetItemDownloadMigrateOff}
                     </li>

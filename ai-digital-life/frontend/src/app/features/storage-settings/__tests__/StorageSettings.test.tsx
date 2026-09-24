@@ -291,168 +291,363 @@ describe('StorageSettings', () => {
     await waitFor(() => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
-    const cards = document.querySelectorAll('.adl-storage-settings > .adl-settings-card');
-    expect(cards.length).toBeGreaterThanOrEqual(5);
-    expect(cards[cards.length - 1].getAttribute('data-testid')).toBe('storage-locator-card');
+    // 相对断言（后续加卡不脆断，I6）：locator 卡在不可移动卡之后。
+    const immovablesCard = screen
+      .getAllByTestId('storage-immutable-item')[0]
+      ?.closest('.adl-settings-card');
+    const locatorCard = screen.getByTestId('storage-locator-card');
+    if (!immovablesCard) {
+      throw new Error('immovables card not found');
+    }
+    expect(
+      immovablesCard.compareDocumentPosition(locatorCard) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'locator card should follow the immovables card',
+    ).toBeTruthy();
   });
 
   it('opens the storage group reset dialog in one step with change list and migrate actions', async () => {
-    const preflight = vi.fn().mockResolvedValue({
-      ok: true,
-      data: {
-        ok: true,
-        errors: [],
-        warnings: [],
-        totalFiles: 0,
-        totalBytes: 0,
-        freeBytes: 0,
-      },
-    });
-    const setPaths = vi.fn().mockResolvedValue({
-      ok: true,
-      data: { preflight: { ok: true }, restartRequired: false },
-    });
-    (window as unknown as { digitalLife: unknown }).digitalLife = {
-      storage: {
-        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
-        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
-        preflight,
-        setPaths,
-        cancelPending: vi.fn(),
-        restartApp: vi.fn(),
-        getTreeCacheStats: vi.fn().mockResolvedValue({
-          ok: true,
-          data: {
-            workspaceCount: 0,
-            totalBytes: 0,
-            oldestCapturedAt: null,
-            newestCapturedAt: null,
-            enabled: true,
-            ttlMinutes: 15,
-          },
-        }),
-        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
-        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
-      },
-    };
-    // 真 store 默认即 auto_migrate 关闭 → off 版下载条目。
+    // 全成功路径：预算/下载/开关写 mock 成功，否则 M5-R 失败保持开框语义会让关框断言落空。
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     useAppStore.setState({
-      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      updatePreferences: vi.fn(async () => true),
+      changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     });
-    renderSettings();
-    await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
-    });
-    expect(screen.queryByText('storageGroupResetTitle')).toBeNull();
-    act(() => {
-      useAppStore.getState().requestStorageGroupReset();
-    });
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('storageGroupResetTitle')).toBeTruthy();
-    expect(within(dialog).getByText('storageGroupResetIntro')).toBeTruthy();
-    for (const key of [
-      'storageGroupResetItemCore',
-      'storageGroupResetItemTree',
-      'storageGroupResetItemBudget',
-      'storageGroupResetItemDownloadMigrateOff',
-    ]) {
-      expect(within(dialog).getByText(key)).toBeTruthy();
+    try {
+      const preflight = vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          ok: true,
+          errors: [],
+          warnings: [],
+          totalFiles: 0,
+          totalBytes: 0,
+          freeBytes: 0,
+        },
+      });
+      const setPaths = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { preflight: { ok: true }, restartRequired: false },
+      });
+      (window as unknown as { digitalLife: unknown }).digitalLife = {
+        storage: {
+          getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+          scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+          preflight,
+          setPaths,
+          cancelPending: vi.fn(),
+          restartApp: vi.fn(),
+          getTreeCacheStats: vi.fn().mockResolvedValue({
+            ok: true,
+            data: {
+              workspaceCount: 0,
+              totalBytes: 0,
+              oldestCapturedAt: null,
+              newestCapturedAt: null,
+              enabled: true,
+              ttlMinutes: 15,
+            },
+          }),
+          setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+          clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        },
+      };
+      // 真 store 默认即 auto_migrate 关闭 → off 版下载条目。
+      useAppStore.setState({
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      expect(screen.queryByText('storageGroupResetTitle')).toBeNull();
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('storageGroupResetTitle')).toBeTruthy();
+      expect(within(dialog).getByText('storageGroupResetIntro')).toBeTruthy();
+      for (const key of [
+        'storageGroupResetItemCore',
+        'storageGroupResetItemTree',
+        'storageGroupResetItemBudget',
+        'storageGroupResetItemDownloadMigrateOff',
+      ]) {
+        expect(within(dialog).getByText(key)).toBeTruthy();
+      }
+      // 预检摘要 + 保留源复选框同框。
+      expect(within(dialog).getByText('storageMigrateDialogSummary')).toBeTruthy();
+      expect(within(dialog).getByRole('checkbox', { name: 'storageRetainSource' })).toBeTruthy();
+      // 三个动作键（取消/下次启动/立即迁移）均为 secondary，无品牌蓝。
+      for (const name of ['storageCancel', 'storageMigrateLater', 'storageMigrateNow']) {
+        const btn = within(dialog).getByRole('button', { name });
+        expect(btn.className).toContain('adl-btn--secondary');
+        expect(btn.className).not.toContain('adl-btn--primary');
+      }
+      // 一步执行：选「下次启动时迁移」，直接落盘（默认补丁 + retain=false + applyNow=false）。
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+      await waitFor(() => {
+        expect(setPaths).toHaveBeenCalledTimes(1);
+      });
+      expect(setPaths).toHaveBeenCalledWith(
+        {
+          mode: 'unified',
+          root: '',
+          categories: {},
+          retainSource: false,
+        },
+        false,
+      );
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+    } finally {
+      useAppStore.setState({
+        updatePreferences: prevUpdatePreferences,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+      });
     }
-    // 预检摘要 + 保留源复选框同框。
-    expect(within(dialog).getByText('storageMigrateDialogSummary')).toBeTruthy();
-    expect(within(dialog).getByRole('checkbox', { name: 'storageRetainSource' })).toBeTruthy();
-    // 三个动作键（取消/下次启动/立即迁移）均为 secondary，无品牌蓝。
-    for (const name of ['storageCancel', 'storageMigrateLater', 'storageMigrateNow']) {
-      const btn = within(dialog).getByRole('button', { name });
-      expect(btn.className).toContain('adl-btn--secondary');
-      expect(btn.className).not.toContain('adl-btn--primary');
-    }
-    // 一步执行：选「下次启动时迁移」，直接落盘（默认补丁 + retain=false + applyNow=false）。
-    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
-    await waitFor(() => {
-      expect(setPaths).toHaveBeenCalledTimes(1);
-    });
-    expect(setPaths).toHaveBeenCalledWith(
-      {
-        mode: 'unified',
-        root: '',
-        categories: {},
-        retainSource: false,
-      },
-      false,
-    );
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).toBeNull();
-    });
   });
 
   it('group reset migrate-now applies immediately and honors the retain-source checkbox', async () => {
-    const preflight = vi.fn().mockResolvedValue({
-      ok: true,
-      data: {
-        ok: true,
-        errors: [],
-        warnings: [],
-        totalFiles: 0,
-        totalBytes: 0,
-        freeBytes: 0,
-      },
-    });
-    const setPaths = vi.fn().mockResolvedValue({
-      ok: true,
-      data: { preflight: { ok: true }, restartRequired: false },
-    });
-    (window as unknown as { digitalLife: unknown }).digitalLife = {
-      storage: {
-        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
-        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
-        preflight,
-        setPaths,
-        cancelPending: vi.fn(),
-        restartApp: vi.fn(),
-        getTreeCacheStats: vi.fn().mockResolvedValue({
-          ok: true,
-          data: {
-            workspaceCount: 0,
-            totalBytes: 0,
-            oldestCapturedAt: null,
-            newestCapturedAt: null,
-            enabled: true,
-            ttlMinutes: 15,
-          },
-        }),
-        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
-        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
-      },
-    };
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     useAppStore.setState({
-      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      updatePreferences: vi.fn(async () => true),
+      changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
     });
-    renderSettings();
-    await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    try {
+      const preflight = vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          ok: true,
+          errors: [],
+          warnings: [],
+          totalFiles: 0,
+          totalBytes: 0,
+          freeBytes: 0,
+        },
+      });
+      const setPaths = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { preflight: { ok: true }, restartRequired: false },
+      });
+      (window as unknown as { digitalLife: unknown }).digitalLife = {
+        storage: {
+          getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+          scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+          preflight,
+          setPaths,
+          cancelPending: vi.fn(),
+          restartApp: vi.fn(),
+          getTreeCacheStats: vi.fn().mockResolvedValue({
+            ok: true,
+            data: {
+              workspaceCount: 0,
+              totalBytes: 0,
+              oldestCapturedAt: null,
+              newestCapturedAt: null,
+              enabled: true,
+              ttlMinutes: 15,
+            },
+          }),
+          setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+          clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        },
+      };
+      useAppStore.setState({
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('checkbox', { name: 'storageRetainSource' }));
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateNow' }));
+      await waitFor(() => {
+        expect(setPaths).toHaveBeenCalledTimes(1);
+      });
+      expect(setPaths).toHaveBeenCalledWith(
+        {
+          mode: 'unified',
+          root: '',
+          categories: {},
+          retainSource: true,
+        },
+        true,
+      );
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+    } finally {
+      useAppStore.setState({
+        updatePreferences: prevUpdatePreferences,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+      });
+    }
+  });
+
+  it('group reset keeps the dialog open when a leg fails (M5-R)', async () => {
+    const showToast = vi.fn();
+    const prevShowToast = useAppStore.getState().showToast;
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    // 预算写失败 → failed=true：核心落盘成功后只发汇总错误，且对话框保持打开（M5-R）。
+    useAppStore.setState({
+      showToast,
+      updatePreferences: vi.fn(async () => false),
     });
-    act(() => {
-      useAppStore.getState().requestStorageGroupReset();
-    });
-    const dialog = await screen.findByRole('dialog');
-    fireEvent.click(within(dialog).getByRole('checkbox', { name: 'storageRetainSource' }));
-    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateNow' }));
-    await waitFor(() => {
-      expect(setPaths).toHaveBeenCalledTimes(1);
-    });
-    expect(setPaths).toHaveBeenCalledWith(
-      {
-        mode: 'unified',
-        root: '',
-        categories: {},
-        retainSource: true,
-      },
-      true,
-    );
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).toBeNull();
-    });
+    try {
+      const preflight = vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          ok: true,
+          errors: [],
+          warnings: [],
+          totalFiles: 0,
+          totalBytes: 0,
+          freeBytes: 0,
+        },
+      });
+      const setPaths = vi.fn().mockResolvedValue({
+        ok: true,
+        data: { preflight: { ok: true }, restartRequired: false },
+      });
+      (window as unknown as { digitalLife: unknown }).digitalLife = {
+        storage: {
+          getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+          scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+          preflight,
+          setPaths,
+          cancelPending: vi.fn(),
+          restartApp: vi.fn(),
+          getTreeCacheStats: vi.fn().mockResolvedValue({
+            ok: true,
+            data: {
+              workspaceCount: 0,
+              totalBytes: 0,
+              oldestCapturedAt: null,
+              newestCapturedAt: null,
+              enabled: true,
+              ttlMinutes: 15,
+            },
+          }),
+          setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+          clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        },
+      };
+      useAppStore.setState({
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+      await waitFor(() => {
+        expect(setPaths).toHaveBeenCalledTimes(1);
+      });
+      // 汇总错误已发，且对话框保持打开供检查（不发成功 toast、不关框）。
+      await waitFor(() => {
+        expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+      });
+      expect(showToast).not.toHaveBeenCalledWith('storagePendingBanner', 'success');
+      expect(screen.queryByRole('dialog')).not.toBeNull();
+    } finally {
+      useAppStore.setState({ showToast: prevShowToast, updatePreferences: prevUpdatePreferences });
+    }
+  });
+
+  it('group reset skips all legs when the core setPaths fails (core-first ordering)', async () => {
+    // 核心先行：setPaths 失败即早返，下载搬运等不可逆操作不再执行（closing H-1）。
+    const updatePreferences = vi.fn(async () => true);
+    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const setTreeCacheOptions = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    useAppStore.setState({ updatePreferences, changeDownloadPath, updateDownloadSettings });
+    try {
+      const preflight = vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          ok: true,
+          errors: [],
+          warnings: [],
+          totalFiles: 0,
+          totalBytes: 0,
+          freeBytes: 0,
+        },
+      });
+      const setPaths = vi.fn().mockResolvedValue({
+        ok: false,
+        error: { code: 'Internal', message: 'core write rejected' },
+      });
+      (window as unknown as { digitalLife: unknown }).digitalLife = {
+        storage: {
+          getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+          scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+          preflight,
+          setPaths,
+          cancelPending: vi.fn(),
+          restartApp: vi.fn(),
+          getTreeCacheStats: vi.fn().mockResolvedValue({
+            ok: true,
+            data: {
+              workspaceCount: 0,
+              totalBytes: 0,
+              oldestCapturedAt: null,
+              newestCapturedAt: null,
+              enabled: true,
+              ttlMinutes: 15,
+            },
+          }),
+          setTreeCacheOptions,
+          clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        },
+      };
+      useAppStore.setState({
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: true },
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+      await waitFor(() => {
+        expect(setPaths).toHaveBeenCalledTimes(1);
+      });
+      // 核心失败：预算/树/下载/开关四腿一律不执行，对话框保持打开。
+      expect(updatePreferences).not.toHaveBeenCalled();
+      expect(changeDownloadPath).not.toHaveBeenCalled();
+      expect(updateDownloadSettings).not.toHaveBeenCalled();
+      expect(setTreeCacheOptions).not.toHaveBeenCalled();
+      expect(screen.queryByRole('dialog')).not.toBeNull();
+    } finally {
+      useAppStore.setState({
+        updatePreferences: prevUpdatePreferences,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+      });
+    }
   });
 
   it('group reset with failing preflight blocks the migrate actions and shows errors', async () => {
@@ -785,7 +980,7 @@ describe('StorageSettings', () => {
       });
       const dialog = await screen.findByRole('dialog');
       fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
-      // 预算写失败 → error toast，且其余块继续（setPaths 仍执行，互不阻塞）。
+      // 预算写失败 → error toast；核心先行已落盘成功，其余块继续（setPaths 仍执行）。
       await waitFor(() => {
         expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
       });
@@ -1193,6 +1388,8 @@ describe('StorageSettings', () => {
     expect(header?.classList.contains('adl-settings-storage__header')).toBe(true);
     expect(header?.classList.contains('adl-settings-storage__header--section')).toBe(true);
     expect(header?.querySelector('.adl-settings-header')).not.toBeNull();
+    // 块头有稳定 testid（结构重排不靠 previousElementSibling 脆定位）。
+    expect(header?.getAttribute('data-testid')).toBe('immovables-block-header');
     // mockT 桩文案返回 key 本身：主标题即 storageImmutableTitle。
     expect(header?.textContent).toContain('storageImmutableTitle');
     // 不可移动由系统/运行时管理：主标题左侧无恢复默认按钮。

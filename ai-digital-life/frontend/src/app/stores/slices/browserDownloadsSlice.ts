@@ -44,6 +44,12 @@ export function updateTabsForDownloadState(
   return tabs.map((t) => (t.id === sourceTabId ? { ...t, isDownloading: stillActive } : t));
 }
 
+/**
+ * 写成功但回读失败的哨兵 message（M9）：调用方据此映射专用 toast，
+ * 区别于真正的写入失败。集中定义避免三处字面量重复。
+ */
+export const DOWNLOAD_REFRESH_FAILED = 'REFRESH_FAILED';
+
 export interface BrowserDownloadsSlice {
   downloads: DownloadRecord[];
   downloadSettings: DownloadSettings;
@@ -55,7 +61,7 @@ export interface BrowserDownloadsSlice {
   isLoadingSettings: boolean;
 
   fetchDownloads: () => Promise<void>;
-  fetchDownloadSettings: () => Promise<void>;
+  fetchDownloadSettings: () => Promise<boolean>;
   fetchSystemDefaultDownloadPath: () => Promise<void>;
   updateDownloadSettings: (
     mode?: string,
@@ -104,9 +110,12 @@ export const createBrowserDownloadsSlice = (
       const result = await invoke<IpcResult<DownloadSettings>>('download_get_settings');
       if (result.ok) {
         set({ downloadSettings: result.data });
+        return true;
       }
+      return false;
     } catch {
       // 非 Tauri 环境无该通道：保持当前设置。
+      return false;
     } finally {
       set({ isLoadingSettings: false });
     }
@@ -132,7 +141,14 @@ export const createBrowserDownloadsSlice = (
         autoMigrate: autoMigrate ?? null,
       });
       if (result.ok) {
-        await get().fetchDownloadSettings();
+        // 写成功但回读失败同样不可静默：调用方按 DOWNLOAD_REFRESH_FAILED 展示专用 toast（M9）。
+        const fresh = await get().fetchDownloadSettings();
+        if (!fresh) {
+          return {
+            ok: false as const,
+            error: { code: 'Internal' as const, message: DOWNLOAD_REFRESH_FAILED },
+          };
+        }
       }
       return result;
     } catch (e) {
@@ -150,13 +166,21 @@ export const createBrowserDownloadsSlice = (
         migrate,
       });
       if (result.ok) {
-        await get().fetchDownloadSettings();
+        const fresh = await get().fetchDownloadSettings();
+        if (!fresh) {
+          return {
+            ok: false as const,
+            error: { code: 'Internal' as const, message: DOWNLOAD_REFRESH_FAILED },
+          };
+        }
+        // 解析默认路径同步刷新，避免重置后输入框依赖挂载旧值（L3）。
+        await get().fetchSystemDefaultDownloadPath();
       }
       return result;
     } catch (e) {
       return {
-        ok: false,
-        error: { code: 'Internal', message: e instanceof Error ? e.message : String(e) },
+        ok: false as const,
+        error: { code: 'Internal' as const, message: e instanceof Error ? e.message : String(e) },
       };
     }
   },

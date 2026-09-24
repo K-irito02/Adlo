@@ -134,6 +134,7 @@ export const settingsEn = {
   storageReportFailed: 'Migration failed: {error}',
   storageReportSwitched:
     'Data has already moved to the new location; only old-folder cleanup is incomplete — do not re-run migration.',
+  // Intentional: straight quotes, not curly (task 3 convention); do NOT "fix" to “”.
   storageImmutableTitle: 'Not movable "managed by the OS or runtime"',
   storageImmutableKeyring:
     'Credentials are kept in the OS credential manager; the location is fixed by the system.',
@@ -184,6 +185,8 @@ export const settingsEn = {
   storageGroupResetItemDownloadMigrateOff:
     'Browser default download folder: back to the system default with only the path switched — no files moved; the auto-migration switch stays off.',
   storageDownloadMigrateFailed: 'Failed to migrate files: {error}',
+  storageDownloadRefreshFailed:
+    'Download settings saved, but the display failed to refresh — please reopen settings to verify',
   storagePickFailed: 'Failed to choose folder: {error}',
   storageStatusLoading: 'Loading storage status…',
   storageStatusLoadFailed:

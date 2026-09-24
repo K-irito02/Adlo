@@ -229,6 +229,9 @@ pub struct DownloadManager {
     /// 时替代 [`get_default_download_path`] 启发式；用户在设置中显式配置的
     /// `default_path` 仍优先。
     default_dir_override: Arc<Mutex<Option<PathBuf>>>,
+    /// 路径变更串行锁：`change_default_path` 读-迁-写三步非原子，并发调用会交错
+    ///（A 读旧 A → B/C 同迁）；UI 侧 busy 互斥承担主要串行化，此处再加实例锁兜底。
+    migration_lock: Arc<Mutex<()>>,
 }
 
 #[allow(dead_code)]
@@ -245,6 +248,7 @@ impl DownloadManager {
             non_resumable_restarting: Arc::new(Mutex::new(std::collections::HashSet::new())),
             range_resume_inflight: Arc::new(Mutex::new(std::collections::HashSet::new())),
             default_dir_override: Arc::new(Mutex::new(None)),
+            migration_lock: Arc::new(Mutex::new(())),
         }
     }
 
@@ -815,6 +819,9 @@ impl DownloadManager {
     /// 旧目录并落盘新路径。任一步失败即中止且不更新设置，旧数据尽量保持可恢复。
     /// 系统自带目录（见 `is_system_protected_dir`）只迁出文件、永不删除目录本体。
     pub fn change_default_path(&self, new_path: &str, migrate: bool) -> Result<(), String> {
+        // 读-迁-写串行化（见 migration_lock 注释）。
+        let _migration_guard =
+            self.migration_lock.lock().map_err(|_| "migration lock poisoned".to_string())?;
         // 非绝对路径会随进程 cwd 漂移（迁移更会"真的搬走"文件）；空串=系统默认仍允许。
         // 校验与落盘统一用同一规范化结果：trim 两端（纯空白 trim 后即 ""，自然归一为默认）。
         let normalized = new_path.trim();
@@ -2693,9 +2700,37 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&old);
         let _ = std::fs::remove_dir_all(&new);
-        // 不清理共享基座 `.adl-dl-tests`：与并行执行的其它迁移测试互删会 flaky（rev3 R2）。
         let _ = std::fs::remove_file(
             std::env::temp_dir().join("adl-download-mgr-change-path-conflict.db"),
+        );
+    }
+
+    #[test]
+    fn migrate_dir_resolves_double_collision_without_overwrite() {
+        // 双重冲突：目标已有 same.txt 与 same (1).txt 时，搬运必须落到 same (2).txt，
+        // 不得静默覆盖（H1 回归：resolve_conflict_path 内循环至空闲名）。
+        let db = temp_db("change-path-double-conflict");
+        let mgr = DownloadManager::new(db.clone());
+        let old = test_workspace("double-conflict-old");
+        let new = test_workspace("double-conflict-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(&old).unwrap();
+        std::fs::create_dir_all(&new).unwrap();
+        std::fs::write(old.join("same.txt"), b"from-old").unwrap();
+        std::fs::write(new.join("same.txt"), b"from-new").unwrap();
+        std::fs::write(new.join("same (1).txt"), b"from-new-1").unwrap();
+
+        mgr.migrate_dir(&old, &new, true).expect("migrate with double collision");
+
+        assert_eq!(std::fs::read(new.join("same.txt")).unwrap(), b"from-new");
+        assert_eq!(std::fs::read(new.join("same (1).txt")).unwrap(), b"from-new-1");
+        assert_eq!(std::fs::read(new.join("same (2).txt")).unwrap(), b"from-old");
+        assert!(!old.exists(), "old dir removed after successful migrate");
+
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-double-conflict.db"),
         );
     }
 

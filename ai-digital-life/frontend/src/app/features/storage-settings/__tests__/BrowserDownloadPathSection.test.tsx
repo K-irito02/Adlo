@@ -84,7 +84,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('BrowserDownloadPathSection', () => {
@@ -103,6 +103,56 @@ describe('BrowserDownloadPathSection', () => {
     fireEvent.blur(input);
     await waitFor(() => {
       expect(mocks.changeDownloadPath).toHaveBeenCalledWith('D:/downloads', false);
+    });
+  });
+
+  it('normalizes a windows-style alias of the system default to implicit default', async () => {
+    mocks.downloadSettings.default_path = 'D:/other';
+    mocks.systemDefaultDownloadPath = 'C:/Users/u/Downloads';
+    renderSection();
+    const input = screen.getByLabelText('默认下载路径') as HTMLInputElement;
+    // 反斜杠 + 大小写差异的 Windows 别名 → 归一为 ''（不落盘显式值）。
+    fireEvent.change(input, { target: { value: 'c:\\users\\u\\downloads\\' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(mocks.changeDownloadPath).toHaveBeenCalledWith('', false);
+    });
+  });
+
+  it('normalizes forward-slash windows case variants via drive-letter sniffing', async () => {
+    mocks.downloadSettings.default_path = 'D:/other';
+    mocks.systemDefaultDownloadPath = 'C:/Users/u/Downloads';
+    renderSection();
+    const input = screen.getByLabelText('默认下载路径') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'c:/users/u/downloads' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(mocks.changeDownloadPath).toHaveBeenCalledWith('', false);
+    });
+  });
+
+  it('treats forward-slash UNC as windows-style for case folding (R4-N1)', async () => {
+    mocks.downloadSettings.default_path = 'D:/other';
+    mocks.systemDefaultDownloadPath = '//Srv/Share';
+    renderSection();
+    const input = screen.getByLabelText('默认下载路径') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '//srv/share' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(mocks.changeDownloadPath).toHaveBeenCalledWith('', false);
+    });
+  });
+
+  it('does not lowercase unix-style paths when comparing (case-sensitive)', async () => {
+    mocks.downloadSettings.default_path = 'D:/other';
+    mocks.systemDefaultDownloadPath = '/home/u/downloads';
+    renderSection();
+    const input = screen.getByLabelText('默认下载路径') as HTMLInputElement;
+    // Unix 风格（仅 `/`）大小写不同 → 不同目录，原样提交（M1：后端仅 Windows 小写）。
+    fireEvent.change(input, { target: { value: '/Home/U/Downloads' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(mocks.changeDownloadPath).toHaveBeenCalledWith('/Home/U/Downloads', false);
     });
   });
 

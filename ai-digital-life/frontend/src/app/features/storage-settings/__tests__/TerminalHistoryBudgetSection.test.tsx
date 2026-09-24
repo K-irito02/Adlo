@@ -85,6 +85,17 @@ describe('TerminalHistoryBudgetSection', () => {
     expect(screen.getByRole('spinbutton')).toBeTruthy();
   });
 
+  it('清空自定义输入后失焦不写桥，输入框回滚到当前偏好（M3）', () => {
+    render(<TerminalHistoryBudgetSection />);
+    fireEvent.click(screen.getByRole('button', { name: '只读历史磁盘预算' }));
+    fireEvent.click(screen.getByRole('option', { name: '自定义…' }));
+    const input = screen.getByRole('spinbutton') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.blur(input);
+    expect(mocks.state.updatePreferences).not.toHaveBeenCalled();
+    expect(input.value).toBe('1');
+  });
+
   it('自定义档把数值输入放在档位下拉左侧', () => {
     render(<TerminalHistoryBudgetSection />);
     fireEvent.click(screen.getByRole('button', { name: '只读历史磁盘预算' }));

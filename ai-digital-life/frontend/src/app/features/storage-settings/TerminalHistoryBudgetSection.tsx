@@ -100,13 +100,19 @@ export function TerminalHistoryBudgetSection() {
     if (pending === null) {
       return;
     }
+    // 空输入（清空后失焦/回车）不是"选 0"：回滚显示到当前偏好，不写桥（M3）。
+    // 展示侧 limitLabel 已对空草稿回退 current，提交侧与之对齐。
+    if (pending.value.trim() === '') {
+      setDraftValue(formatBytesForBudgetUnit(clampBudgetBytes(current), pending.unit));
+      return;
+    }
     // 在途草稿自带单位提交，不受提交前最后一次切单位影响（仿树缓存 TTL）。
     const bytes = budgetBytesFromCustom(Number(pending.value), pending.unit);
     setDraftUnit(pending.unit);
     setDraftValue(formatBytesForBudgetUnit(bytes, pending.unit));
     selfCommitRef.current = bytes;
     apply(bytes);
-  }, [apply]);
+  }, [apply, current]);
 
   const rearmTimer = useCallback(() => {
     if (timerRef.current) {
@@ -165,9 +171,15 @@ export function TerminalHistoryBudgetSection() {
       setDraftValue(converted);
       rearmTimer();
     } else {
-      // 无在途输入：同一预算按新单位换算显示，不提交。
-      const bytes = budgetBytesFromCustom(Number(draftValue), draftUnit);
-      setDraftValue(formatBytesForBudgetUnit(bytes, v));
+      // 无在途输入：同一预算按新单位换算显示，不提交。草稿非法（空/NaN）时
+      // 不抬成下限，回退按当前偏好重显（与 limitLabel 的 B2 回退对齐，I7）。
+      const draftNum = Number(draftValue);
+      if (!Number.isFinite(draftNum) || draftValue.trim() === '') {
+        setDraftValue(formatBytesForBudgetUnit(clampBudgetBytes(current), v));
+      } else {
+        const bytes = budgetBytesFromCustom(draftNum, draftUnit);
+        setDraftValue(formatBytesForBudgetUnit(bytes, v));
+      }
     }
     setDraftUnit(v);
   };

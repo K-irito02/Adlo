@@ -51,6 +51,22 @@ describe('applyPreferencePatch', () => {
     expect(followDisk.terminalHistoryBudgetBytes).toBe(0);
   });
 
+  it('clamps out-of-range terminalHistoryBudgetBytes (0 passes through)', () => {
+    expect(
+      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 1 })
+        .terminalHistoryBudgetBytes,
+    ).toBe(1 << 30);
+    expect(
+      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: Number.MAX_SAFE_INTEGER })
+        .terminalHistoryBudgetBytes,
+    ).toBe(2000 * (1 << 30));
+    // NaN 不写入 config，回落下限。
+    expect(
+      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: Number.NaN })
+        .terminalHistoryBudgetBytes,
+    ).toBe(1 << 30);
+  });
+
   it('preserves existing fields when patching logLevel only', () => {
     const patch: AppPreferencePatch = { logLevel: 'warn' };
     const result = applyPreferencePatch(baseConfig, patch);

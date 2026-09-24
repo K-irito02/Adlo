@@ -126,6 +126,7 @@ export const settingsZh = {
   storageReportRetained: '已按设置保留旧数据',
   storageReportFailed: '迁移失败：{error}',
   storageReportSwitched: '数据已迁移到新位置，仅清理旧目录未完成，无需再次迁移。',
+  // 有意：括号用「」而非（）（任务 3 约定），勿"修复"为全角括号。
   storageImmutableTitle: '不可移动「由系统或运行时管理」',
   storageImmutableKeyring: '凭据由操作系统凭据管理器安全保管，位置由系统决定，无需也无法自定义。',
   storageImmutableMachineId:
@@ -169,6 +170,7 @@ export const settingsZh = {
   storageGroupResetItemDownloadMigrateOff:
     '浏览器默认下载路径：恢复为系统默认，只切换路径、不搬文件；自动迁移开关保持关闭。',
   storageDownloadMigrateFailed: '迁移文件失败：{error}',
+  storageDownloadRefreshFailed: '下载设置已保存，但刷新显示失败，请重新打开设置页确认',
   storagePickFailed: '选择目录失败：{error}',
   storageStatusLoading: '正在读取存储状态…',
   storageStatusLoadFailed: '无法读取存储状态：{error}。请确认应用后端已更新并重启应用。',

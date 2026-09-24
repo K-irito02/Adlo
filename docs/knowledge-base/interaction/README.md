@@ -17,6 +17,7 @@
 | [clipboard-history-panel-rework-2026-09-17.md](./clipboard-history-panel-rework-2026-09-17.md) | 剪贴板历史面板重构（复制/粘贴/清空交互与状态） |
 | [sysmon-scroll-restore-persistence-lessons-2026-09-17.md](./sysmon-scroll-restore-persistence-lessons-2026-09-17.md) | 左栏系统监控滚动恢复与持久化（回调 ref、落盘门控、去抖读实时节点） |
 | [settings-debounce-race-fake-timers-false-pass-2026-09-23.md](./settings-debounce-race-fake-timers-false-pass-2026-09-23.md) | 设置页去抖竞态（ref 镜像早退约束）+ fake-timers 假绿陷阱（外部 setState 须包同步 act） |
+| [confirm-dialog-pending-snapshot-refresh-2026-09-24.md](./confirm-dialog-pending-snapshot-refresh-2026-09-24.md) | 确认对话框三模式：pending 布尔信号（防首跳漏弹）、开框快照落盘（防后台改草稿分裂）、写成功回读失败哨兵可见 |
 
 ## 子主题
 
