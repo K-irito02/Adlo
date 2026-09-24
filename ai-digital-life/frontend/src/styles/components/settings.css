@@ -365,9 +365,11 @@
 
 /* Native radio/checkbox fill: monochrome via text-primary (not accent blue).
    Light: near-black fill + light glyph; dark: light-gray fill + dark glyph.
-   Matches dsh/search-settings precedent; browser draws the inner mark. */
-.adl-settings-section input[type='radio'],
-.adl-settings-section input[type='checkbox'] {
+   Matches dsh/search-settings precedent; browser draws the inner mark.
+   作用域收敛到存储组（最小作用域原则）：路径模式 radio + 树缓存 checkbox；
+   其它设置页不受影响。 */
+.adl-storage-settings input[type='radio'],
+.adl-storage-settings input[type='checkbox'] {
   accent-color: var(--text-primary);
 }
 
@@ -521,6 +523,13 @@
   color: var(--text-primary);
 }
 
+/* 键盘焦点可见：保持直角语言，只借描边 + outline 表焦点（hover 描边不常驻，故需独立规则）。 */
+.adl-settings-row .adl-btn--hover-outline:focus-visible {
+  border-color: var(--border-strong);
+  outline: 2px solid var(--border-strong);
+  outline-offset: 1px;
+}
+
 /* 工作区树缓存统计副标题：单行水平（已缓存 | 缓存大小 | 时间），空间不足时换行。 */
 .adl-tree-cache-stats {
   display: flex;
@@ -671,7 +680,8 @@
 
 .adl-settings-dropdown__menu {
   position: fixed;
-  /* 与 SettingsSelect.tsx MENU_MAX_HEIGHT 同步修改 */
+  /* 与 SettingsSelect.tsx MENU_MAX_HEIGHT 同步修改；向上打开且上方空间不足时
+     由行内 maxHeight 动态覆盖收窄（updateGeometry 按触发器上缘可用高度计算）。 */
   max-height: 240px;
   display: flex;
   background: var(--bg-card, var(--surface-raised));

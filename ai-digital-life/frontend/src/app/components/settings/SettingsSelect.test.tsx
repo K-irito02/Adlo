@@ -191,6 +191,61 @@ describe('SettingsSelect', () => {
       // bottom = innerHeight - rect.top + MENU_OFFSET(4)
       expect(menu.style.bottom).toBe(`${400 - 360 + 4}px`);
       expect(menu.style.top).toBe('');
+      // 上方空间充足：maxHeight 取上限 240（= min(240, max(80, 360-4-8))）。
+      expect(menu.style.maxHeight).toBe('240px');
+      const list = document.querySelector('.adl-settings-dropdown__list') as HTMLElement;
+      expect(list.style.maxHeight).toBe('232px');
+    } finally {
+      spy.mockRestore();
+      Object.defineProperty(window, 'innerHeight', {
+        value: prevInnerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it('clears the stale side when flipping between down and up, with dynamic maxHeight', () => {
+    // 先高视口向下打开，再压视口触发 resize 翻转向上：旧 top 内联必须清除。
+    const prevInnerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', {
+      value: 800,
+      configurable: true,
+      writable: true,
+    });
+    const rect = {
+      top: 100,
+      bottom: 128,
+      left: 20,
+      right: 140,
+      width: 120,
+      height: 28,
+      x: 20,
+      y: 100,
+      toJSON: () => ({}),
+    } as DOMRect;
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(rect);
+    try {
+      render(<SettingsSelect value="a" options={OPTIONS} onChange={() => {}} label="Pick" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
+      let menu = document.querySelector('.adl-settings-dropdown__menu') as HTMLElement;
+      expect(menu.style.top).not.toBe('');
+      expect(menu.style.bottom).toBe('');
+      expect(menu.style.maxHeight).toBe('');
+      // 压到 200px：下方放不下 240 → resize 后向上打开。
+      Object.defineProperty(window, 'innerHeight', {
+        value: 200,
+        configurable: true,
+        writable: true,
+      });
+      fireEvent(window, new Event('resize'));
+      menu = document.querySelector('.adl-settings-dropdown__menu') as HTMLElement;
+      expect(menu.style.top).toBe('');
+      expect(menu.style.bottom).toBe(`${200 - 100 + 4}px`);
+      // 上缘保护：min(240, max(80, 100-4-8)) = 88，列表区同步收窄 80。
+      expect(menu.style.maxHeight).toBe('88px');
+      const list = document.querySelector('.adl-settings-dropdown__list') as HTMLElement;
+      expect(list.style.maxHeight).toBe('80px');
     } finally {
       spy.mockRestore();
       Object.defineProperty(window, 'innerHeight', {

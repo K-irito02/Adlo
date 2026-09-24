@@ -170,10 +170,10 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(base).not.toContain('margin-top');
   });
 
-  it('paints settings radio/checkbox with monochrome text-primary, not accent blue', () => {
+  it('paints storage radio/checkbox with monochrome text-primary, not accent blue', () => {
     const body = ruleBody(
       settingsCss,
-      ".adl-settings-section input[type='radio'],\n.adl-settings-section input[type='checkbox']",
+      ".adl-storage-settings input[type='radio'],\n.adl-storage-settings input[type='checkbox']",
     );
     expect(body).not.toBeNull();
     expect(body).toContain('accent-color: var(--text-primary)');
@@ -192,5 +192,9 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     );
     expect(hover).not.toBeNull();
     expect(hover).toContain('border-color: var(--border-strong)');
+    // 键盘焦点可见（hover 描边不常驻，需独立 focus-visible 规则）。
+    const focus = ruleBody(settingsCss, '.adl-settings-row .adl-btn--hover-outline:focus-visible');
+    expect(focus).not.toBeNull();
+    expect(focus).toContain('border-color: var(--border-strong)');
   });
 });

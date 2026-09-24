@@ -314,16 +314,22 @@ pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<(
 }
 
 /// TreeCache 落盘目录：与 `storage_get_status` 同源（`state.storage.paths()`，
-/// locator 缺 root 时回落 `defaults.root`）。`paths.dir(TreeCache)` 已是
-/// `tree-cache.db` 文件路径，取其父目录供 `TreeCacheStore::open` 再拼文件名。
-fn tree_cache_dir_from_state(state: &AppState) -> std::path::PathBuf {
-    state
-        .storage
-        .paths()
-        .dir(st::StorageCategory::TreeCache)
-        .parent()
-        .map(std::path::Path::to_path_buf)
-        .unwrap_or_else(|| state.storage.paths().root.clone())
+/// locator 缺 root 时回落 `defaults.root`）。优先级：
+/// 1. `ADL_TREE_CACHE_DIR` 绝对覆盖（测试注入/运维，与 L2 `tree_cache_dir()` 同口径）；
+/// 2. `paths.tree_cache_store_dir()`（`tree-cache.db` 父目录；相对路径回 None，防 CWD 漂移建库）；
+/// 3. 绝对统一根；仍非绝对则 `InvalidInput` 拒绝建库。
+///
+/// stats 在此建空库与旧 `Some` 分支行为一致（`TreeCacheStore::open` 含建库；
+/// options/clear 本就需建库写语义，故不做只读 open）。
+fn tree_cache_dir_from_state(state: &AppState) -> Result<std::path::PathBuf, AppError> {
+    if let Some(dir) = adl_workspace::tree_cache_dir_env_override() {
+        return Ok(dir);
+    }
+    let paths = state.storage.paths();
+    paths
+        .tree_cache_store_dir()
+        .or_else(|| paths.root.is_absolute().then(|| paths.root.clone()))
+        .ok_or_else(|| AppError::InvalidInput("tree-cache directory is not absolute".to_string()))
 }
 
 /// 工作区树缓存统计（设置页展示用），与服务端 `POST /storage/tree-cache/stats` 同语义。
@@ -333,7 +339,7 @@ pub fn storage_tree_cache_stats(
 ) -> Result<IpcResult<TreeCacheStats>, AppError> {
     // 与核心数据路径同一真源：不再走 `tree_cache_dir()`（壳层无 `--data-dir` 且
     // locator 缺 root 时回 None → 空表零值，与磁盘 3.8MB 文件不一致）。
-    let dir = tree_cache_dir_from_state(&state);
+    let dir = tree_cache_dir_from_state(&state)?;
     Ok(ipc(Ok(TreeCacheStore::open(&dir)?.stats()?)))
 }
 
@@ -345,7 +351,7 @@ pub fn storage_tree_cache_options(
     opts: TreeCacheOptions,
 ) -> Result<IpcResult<()>, AppError> {
     validate_tree_cache_ttl(opts.ttl_minutes)?;
-    let dir = tree_cache_dir_from_state(&state);
+    let dir = tree_cache_dir_from_state(&state)?;
     TreeCacheStore::open(&dir)?.set_options(opts.enabled, opts.ttl_minutes)?;
     ok_ipc(())
 }
@@ -353,7 +359,7 @@ pub fn storage_tree_cache_options(
 /// 清除全部树缓存行（元数据开关/TTL 保留），与服务端 `POST /storage/tree-cache/clear` 同语义。
 #[tauri::command]
 pub fn storage_tree_cache_clear(state: State<'_, AppState>) -> Result<IpcResult<()>, AppError> {
-    let dir = tree_cache_dir_from_state(&state);
+    let dir = tree_cache_dir_from_state(&state)?;
     TreeCacheStore::open(&dir)?.clear()?;
     ok_ipc(())
 }

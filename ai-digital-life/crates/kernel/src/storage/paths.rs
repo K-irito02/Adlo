@@ -52,6 +52,15 @@ impl StoragePaths {
         }
     }
 
+    /// `TreeCacheStore::open` 用目录：`dir(TreeCache)` 是 `tree-cache.db` 文件路径，
+    /// 取其父目录（`open` 在其下再拼文件名，见 workspace `tree_cache_store.rs:DB_FILE_NAME`）。
+    /// 相对路径回 `None`（防 CWD 漂移建库，与 workspace `tree_cache_dir` 的
+    /// `absolute_only` 同口径）；调用方决定回落统一根或报错。
+    pub fn tree_cache_store_dir(&self) -> Option<PathBuf> {
+        let parent = self.dir(StorageCategory::TreeCache).parent().map(Path::to_path_buf)?;
+        parent.is_absolute().then_some(parent)
+    }
+
     /// 由 locator 解析出全部路径。
     ///
     /// 规则：先取 unified 根（`selection.root` 或 `defaults.root`），逐字段按该根拼接；
@@ -240,6 +249,44 @@ mod tests {
             let d = p.dir(c);
             assert!(d.is_absolute() || d.starts_with("/default"), "{c:?} -> {d:?}");
         }
+    }
+
+    #[test]
+    fn tree_cache_store_dir_is_parent_of_db_file() {
+        // Windows 下 `/x` 无盘符不算绝对路径：用 temp_dir 构造本平台绝对根。
+        let root = std::env::temp_dir().join("adl-tc-store-dir");
+        let mut loc = StorageLocator::default();
+        loc.selection.root = Some(root.clone());
+        let p = StoragePaths::from_locator(&loc, &defaults());
+        assert_eq!(p.tree_cache_db.file_name().and_then(|n| n.to_str()), Some("tree-cache.db"));
+        assert_eq!(p.tree_cache_store_dir(), Some(root));
+    }
+
+    #[test]
+    fn tree_cache_store_dir_honors_per_category_override() {
+        let dir = std::env::temp_dir().join("adl-tc-store-override");
+        let mut loc = StorageLocator::default();
+        loc.selection.mode = StorageMode::PerCategory;
+        loc.selection.categories.insert(StorageCategory::TreeCache, dir.clone());
+        let p = StoragePaths::from_locator(&loc, &defaults());
+        assert_eq!(p.tree_cache_store_dir(), Some(dir));
+    }
+
+    #[test]
+    fn tree_cache_store_dir_rejects_relative_unified_root() {
+        let mut loc = StorageLocator::default();
+        loc.selection.root = Some(PathBuf::from("rel/root"));
+        let p = StoragePaths::from_locator(&loc, &defaults());
+        assert_eq!(p.tree_cache_store_dir(), None);
+    }
+
+    #[test]
+    fn tree_cache_store_dir_rejects_relative_per_category_override() {
+        let mut loc = StorageLocator::default();
+        loc.selection.mode = StorageMode::PerCategory;
+        loc.selection.categories.insert(StorageCategory::TreeCache, PathBuf::from("rel/tree"));
+        let p = StoragePaths::from_locator(&loc, &defaults());
+        assert_eq!(p.tree_cache_store_dir(), None);
     }
 
     #[test]

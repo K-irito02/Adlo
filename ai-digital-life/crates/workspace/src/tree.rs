@@ -167,12 +167,17 @@ fn absolute_only(path: Option<PathBuf>) -> Option<PathBuf> {
     path.filter(|p| p.is_absolute())
 }
 
+/// `ADL_TREE_CACHE_DIR` 绝对覆盖（测试注入/运维，最高优先级）：设置页
+/// stats/options/clear 经此与 L2 真实落点保持一致；相对值忽略（与 `tree_cache_dir` 同口径）。
+pub fn tree_cache_dir_env_override() -> Option<PathBuf> {
+    let dir = PathBuf::from(std::env::var_os(TREE_CACHE_DIR_ENV)?);
+    dir.is_absolute().then_some(dir)
+}
+
 pub fn tree_cache_dir() -> Option<PathBuf> {
-    if let Some(dir) = std::env::var_os(TREE_CACHE_DIR_ENV) {
-        let dir = PathBuf::from(dir);
-        if dir.is_absolute() {
-            return Some(dir);
-        }
+    // env 覆盖口径收敛一处（相对值忽略、防 CWD 漂移，见 `tree_cache_dir_env_override`）。
+    if let Some(dir) = tree_cache_dir_env_override() {
+        return Some(dir);
     }
     TREE_CACHE_FALLBACK_DIR
         .get_or_init(|| {
@@ -1211,6 +1216,32 @@ mod tree_cache_tests {
         // 文件名段：canonical 文件路径以 tree-cache.db 结尾（与 store 的 DB_FILE_NAME 同名）。
         let file = StoragePaths::resolve(&sel, &defaults).dir(StorageCategory::TreeCache);
         assert_eq!(file.file_name().and_then(|n| n.to_str()), Some("tree-cache.db"));
+    }
+
+    /// `tree_cache_dir_env_override`：绝对覆盖采纳、相对值忽略（与 `tree_cache_dir` 同口径）。
+    #[test]
+    fn env_override_accepts_absolute_and_rejects_relative() {
+        let _lock = L2_TEST_ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // Windows 下 `/x` 无盘符不算绝对路径：用 temp_dir 构造本平台绝对路径。
+        let abs = std::env::temp_dir().join("adl-tc-env-abs");
+        {
+            let _env = EnvVarGuard::set("ADL_TREE_CACHE_DIR", abs.as_os_str());
+            assert_eq!(tree_cache_dir_env_override(), Some(abs.clone()));
+        }
+        {
+            let _env =
+                EnvVarGuard::set("ADL_TREE_CACHE_DIR", std::path::Path::new("rel/dir").as_os_str());
+            assert_eq!(tree_cache_dir_env_override(), None);
+        }
+        {
+            // 变量缺席 → None（调用方走下一优先级）。
+            let original = std::env::var_os("ADL_TREE_CACHE_DIR");
+            unsafe { std::env::remove_var("ADL_TREE_CACHE_DIR") };
+            assert_eq!(tree_cache_dir_env_override(), None);
+            if let Some(v) = original {
+                unsafe { std::env::set_var("ADL_TREE_CACHE_DIR", v) };
+            }
+        }
     }
 
     /// 无显式统一根、又无 TreeCache 独立覆盖时回 `None`

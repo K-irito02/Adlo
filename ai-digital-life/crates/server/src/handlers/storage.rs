@@ -391,18 +391,24 @@ fn tree_cache_stats_in(dir: &std::path::Path) -> Result<TreeCacheStats, AppError
 }
 
 /// TreeCache 落盘目录：与 `storage/status` 同源（`state.storage.paths()`，
-/// locator 缺 root 时回落 `state.data_dir`）。`paths.dir(TreeCache)` 已是
-/// `tree-cache.db` 文件路径，取其父目录供 `TreeCacheStore::open` 再拼文件名。
+/// locator 缺 root 时回落 `paths.root`，默认即 `state.data_dir`）。优先级：
+/// 1. `ADL_TREE_CACHE_DIR` 绝对覆盖（测试注入/运维，与 L2 `tree_cache_dir()` 同口径）；
+/// 2. `paths.tree_cache_store_dir()`（`tree-cache.db` 父目录；相对路径回 None，防 CWD 漂移建库）；
+/// 3. 绝对统一根；仍非绝对则 `InvalidInput` 拒绝建库。
+///
 /// 不再走 `adl_workspace::tree_cache_dir()`（壳层无 `--data-dir` 且 locator 缺
 /// root 时回 None → 空表零值，与磁盘真实文件不一致）。
-fn tree_cache_dir_from_state(state: &ServerState) -> std::path::PathBuf {
-    state
-        .storage
-        .paths()
-        .dir(st::StorageCategory::TreeCache)
-        .parent()
-        .map(std::path::Path::to_path_buf)
-        .unwrap_or_else(|| state.storage.paths().root.clone())
+/// stats 在此建空库与旧 `Some` 分支行为一致（`TreeCacheStore::open` 含建库；
+/// options/clear 本就需建库写语义，故不做只读 open）。
+fn tree_cache_dir_from_state(state: &ServerState) -> Result<std::path::PathBuf, AppError> {
+    if let Some(dir) = adl_workspace::tree_cache_dir_env_override() {
+        return Ok(dir);
+    }
+    let paths = state.storage.paths();
+    paths
+        .tree_cache_store_dir()
+        .or_else(|| paths.root.is_absolute().then(|| paths.root.clone()))
+        .ok_or_else(|| AppError::InvalidInput("tree-cache directory is not absolute".to_string()))
 }
 
 #[cfg(test)]
@@ -429,7 +435,7 @@ fn tree_cache_clear_in(dir: &std::path::Path) -> Result<(), AppError> {
 /// oldestCapturedAt, newestCapturedAt, enabled, ttlMinutes }`（camelCase，与 `TreeCacheStats` 对齐）。
 pub async fn tree_cache_stats(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let dir = tree_cache_dir_from_state(&state);
+        let dir = tree_cache_dir_from_state(&state)?;
         Ok(serde_json::to_value(tree_cache_stats_in(&dir)?)?)
     })
     .await;
@@ -448,7 +454,7 @@ pub async fn tree_cache_options(
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         validate_tree_cache_ttl(input.ttl_minutes)?;
-        let dir = tree_cache_dir_from_state(&state);
+        let dir = tree_cache_dir_from_state(&state)?;
         tree_cache_set_options_in(&dir, input.enabled, input.ttl_minutes)?;
         Ok(serde_json::Value::Null)
     })
@@ -459,7 +465,7 @@ pub async fn tree_cache_options(
 /// POST `/storage/tree-cache/clear` — `{}` → 全行删除（元数据开关/TTL 保留）→ `{ ok:true }`。
 pub async fn tree_cache_clear(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let dir = tree_cache_dir_from_state(&state);
+        let dir = tree_cache_dir_from_state(&state)?;
         tree_cache_clear_in(&dir)?;
         Ok(serde_json::Value::Null)
     })

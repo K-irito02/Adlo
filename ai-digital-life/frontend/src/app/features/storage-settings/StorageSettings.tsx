@@ -23,6 +23,7 @@ import { StorageCategoryRow } from './StorageCategoryRow';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { BrowserDownloadPathSection } from './BrowserDownloadPathSection';
+import { treeTtlMinutesFromCustom, treeTtlUnitMax, type TreeTtlUnit } from './treeCacheTtl';
 
 /** 不可移动项 → i18n key（顺序固定，遍历 `IMMOVABLE_ENTRY_KEYS`）。 */
 const IMMOVABLE_COPY: Record<
@@ -49,48 +50,8 @@ const TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 /** TTL「自定义…」下拉哨兵值（不是持久化取值，仅界面编辑态）。 */
 const TREE_CACHE_TTL_CUSTOM = 'custom';
 
-/** 自定义 TTL 单位（秒向上取整到分钟；服务端仍只存 1..=1440 分钟）。 */
-type TreeTtlUnit = 's' | 'm' | 'h' | 'd';
-
 /** 与 SettingsControls 的 InputControl 一致：输入停顿 500ms 才写回，避免逐键提交。 */
 const TREE_TTL_COMMIT_DEBOUNCE_MS = 500;
-
-/** 自定义输入 → 分钟：非正数返回 null；否则按单位换算并钳制 1..=1440（上限 1 天）。 */
-function treeTtlMinutesFromCustom(raw: number, unit: TreeTtlUnit): number | null {
-  if (!Number.isFinite(raw) || raw <= 0) {
-    return null;
-  }
-  let minutes: number;
-  switch (unit) {
-    case 's':
-      minutes = Math.ceil(raw / 60);
-      break;
-    case 'm':
-      minutes = Math.round(raw);
-      break;
-    case 'h':
-      minutes = Math.round(raw * 60);
-      break;
-    case 'd':
-      minutes = Math.round(raw * 1440);
-      break;
-  }
-  return Math.min(1440, Math.max(1, minutes));
-}
-
-/** 自定义单位 → number input 的 max（配合 min=1；超界提交时仍会被上面的函数钳制）。 */
-function treeTtlUnitMax(unit: TreeTtlUnit): number {
-  switch (unit) {
-    case 's':
-      return 86_400;
-    case 'm':
-      return 1440;
-    case 'h':
-      return 24;
-    case 'd':
-      return 1;
-  }
-}
 
 /**
  * 「恢复 核心数据路径 全部默认」的目标补丁：统一根 + 空根（后端视为默认根
@@ -194,6 +155,9 @@ export function StorageSettings() {
   const [ttlCustomUnit, setTtlCustomUnit] = useState<TreeTtlUnit>('m');
   const ttlPendingRef = useRef<string | null>(null);
   const ttlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 树缓存写请求单调序列：丢弃被更新写超车的过期回包合并（近似 last-initiation-wins；
+   * 服务端按到达序应用，同桥同序到达时等价）。 */
+  const treeWriteSeqRef = useRef(0);
   // 语言切换会更换 `t` 触发重取：草稿只播种一次，避免覆盖用户编辑（F6）。
   // 错误文案仍用最新 `t` 即时计算，保持 `t` 新鲜度。
   const draftsSeededRef = useRef(false);
@@ -213,8 +177,10 @@ export function StorageSettings() {
     );
   }, [status]);
 
-  /** 重拉树缓存 stats（清除/开关/TTL 写后刷新展示）；失败静默保留旧值。 */
-  const loadTreeStats = useCallback(async () => {
+  /** 重拉树缓存 stats（清除/开关/TTL 写后刷新展示）；失败静默保留旧值。
+   * 传 `expectedSeq` 时：回包落地发现已有更新写超车则跳过本次 `setTreeStats`
+   *（关序列号守卫最后缺口：旧写慢读不覆盖新写合并；不传则保持原语义）。 */
+  const loadTreeStats = useCallback(async (expectedSeq?: number) => {
     const bridge = window.digitalLife?.storage;
     if (!bridge?.getTreeCacheStats) {
       return;
@@ -222,6 +188,9 @@ export function StorageSettings() {
     try {
       const result = await bridge.getTreeCacheStats();
       if (result.ok) {
+        if (expectedSeq !== undefined && treeWriteSeqRef.current !== expectedSeq) {
+          return;
+        }
         setTreeStats(result.data);
       }
     } catch {
@@ -621,6 +590,16 @@ export function StorageSettings() {
     }
   }, [refresh, showToast, t]);
 
+  /** 丢弃在途的自定义输入（改选预设/重置/关闭开关/切单位前必须先处理，
+   * 否则旧草稿会在防抖到期后覆盖新意图）。 */
+  const cancelPendingTtl = useCallback(() => {
+    ttlPendingRef.current = null;
+    if (ttlTimerRef.current) {
+      clearTimeout(ttlTimerRef.current);
+      ttlTimerRef.current = null;
+    }
+  }, []);
+
   /** 清除确认：删全行（派生数据，下次扫描重建）后重拉 stats；失败 toast。 */
   const handleTreeClearConfirm = useCallback(async () => {
     const bridge = window.digitalLife?.storage;
@@ -648,6 +627,9 @@ export function StorageSettings() {
       if (!bridge) {
         return;
       }
+      // 在途 TTL 防抖若此时到期，会用过期闭包把开关写回 true：先丢弃。
+      cancelPendingTtl();
+      const seq = ++treeWriteSeqRef.current;
       setTreeBusy(true);
       try {
         const result = await bridge.setTreeCacheOptions(opts);
@@ -661,14 +643,18 @@ export function StorageSettings() {
           // 开关已写成功：仍关闭对话框并重拉 stats，避免勾选状态卡在旧值。
         }
         setTreeConfirm(null);
-        await loadTreeStats();
+        await loadTreeStats(seq);
         // 回拉可能返回陈旧 enabled（no-op/静默失败）：写成功的结果以本地 opts 为准。
+        // 被更新写超车时跳过合并（序列号守卫）。
+        if (treeWriteSeqRef.current !== seq) {
+          return;
+        }
         setTreeStats((prev) => (prev ? { ...prev, ...opts } : prev));
       } finally {
         setTreeBusy(false);
       }
     },
-    [loadTreeStats, showToast, t],
+    [cancelPendingTtl, loadTreeStats, showToast, t],
   );
 
   /** 开关/TTL 写后重拉 stats + 本地合并回写（防 stats 回拉静默失败导致勾选弹回）。 */
@@ -678,15 +664,23 @@ export function StorageSettings() {
       if (!bridge) {
         return;
       }
+      const seq = ++treeWriteSeqRef.current;
       const result = await bridge.setTreeCacheOptions(opts);
       if (!result.ok) {
         showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
+      // 快速连续写是 last-completion-wins：被更新写超车时跳过本次合并。
+      if (treeWriteSeqRef.current !== seq) {
+        return;
+      }
       setTreeStats((prev) =>
         prev ? { ...prev, enabled: opts.enabled, ttlMinutes: opts.ttlMinutes } : prev,
       );
-      await loadTreeStats();
+      await loadTreeStats(seq);
+      if (treeWriteSeqRef.current !== seq) {
+        return;
+      }
       setTreeStats((prev) =>
         prev ? { ...prev, enabled: opts.enabled, ttlMinutes: opts.ttlMinutes } : prev,
       );
@@ -698,12 +692,17 @@ export function StorageSettings() {
   const handleTreeEnabledToggle = useCallback(
     (checked: boolean) => {
       if (checked) {
-        void handleTreeOptionsChange({ enabled: true, ttlMinutes: treeStats?.ttlMinutes ?? 15 });
+        void handleTreeOptionsChange({
+          enabled: true,
+          ttlMinutes: treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes,
+        });
         return;
       }
+      // 在途 TTL 防抖若在确认对话框期间到期，会把开关写回 true：先丢弃。
+      cancelPendingTtl();
       setTreeConfirm('disable');
     },
-    [handleTreeOptionsChange, treeStats?.ttlMinutes],
+    [cancelPendingTtl, handleTreeOptionsChange, treeStats?.ttlMinutes],
   );
 
   const categories = status?.categories ?? [];
@@ -785,15 +784,6 @@ export function StorageSettings() {
   const showTtlCustom = ttlCustomMode || !treeTtlIsPreset;
   const ttlSelectValue = showTtlCustom ? TREE_CACHE_TTL_CUSTOM : String(treeTtlMinutes);
 
-  /** 丢弃在途的自定义输入（改选预设/重置时必须先调用，否则旧草稿会在防抖到期后覆盖）。 */
-  const cancelPendingTtl = useCallback(() => {
-    ttlPendingRef.current = null;
-    if (ttlTimerRef.current) {
-      clearTimeout(ttlTimerRef.current);
-      ttlTimerRef.current = null;
-    }
-  }, []);
-
   const commitTtlCustom = useCallback(() => {
     if (ttlTimerRef.current) {
       clearTimeout(ttlTimerRef.current);
@@ -805,10 +795,11 @@ export function StorageSettings() {
       return;
     }
     const minutes = treeTtlMinutesFromCustom(Number(raw), ttlCustomUnit);
+    // 非法输入（空/0/负/NaN）静默丢弃不出桥：防抖输入的常见选择——输入框保留草稿，
+    // 用户继续键入即重新排队，无需错误态打断编辑。
     if (minutes === null) {
       return;
     }
-    setTtlCustomValue(String(raw));
     void handleTreeOptionsChange({ enabled: treeEnabled, ttlMinutes: minutes });
   }, [handleTreeOptionsChange, treeEnabled, ttlCustomUnit]);
 
@@ -855,7 +846,9 @@ export function StorageSettings() {
     setTtlCustomUnit('m');
   }, [treeTtlIsPreset, treeTtlMinutes, ttlCustomMode]);
 
-  /** 恢复默认：enabled=true、ttl=15；不触发清缓存。 */
+  /** 恢复默认：enabled=true、ttl=15；不触发清缓存。
+   * 产品决策（2026-09-24）：“恢复默认”含重开语义——关闭态点击同样写 enabled=true
+   *（默认值本身就是开启），按钮在关闭态保持可用。 */
   const handleTreeResetDefaults = useCallback(() => {
     cancelPendingTtl();
     setTtlCustomMode(false);
@@ -1171,7 +1164,12 @@ export function StorageSettings() {
                       value={ttlCustomUnit}
                       options={ttlUnitOptions}
                       onChange={(v) => {
-                        cancelPendingTtl();
+                        // 切单位是继续编辑同一草稿：先以旧单位提交在途输入，
+                        // 否则草稿静默丢失且显示值与已提交值错位。
+                        // 刻意取舍：提交用旧单位换算，输入框数字串保持用户原输入
+                        //（如 45m 提交 45 分钟后显示为 `45 s`），口径错位至下次编辑收敛；
+                        // 立即提交的确定性优先于显示值换算。
+                        commitTtlCustom();
                         setTtlCustomUnit(v as TreeTtlUnit);
                       }}
                       label={t.treeCacheTtlUnitLabel}

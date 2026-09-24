@@ -8,6 +8,7 @@ import { settingsEn } from '../../../i18n/en-US/settings';
 import { settingsZh } from '../../../i18n/zh-CN/settings';
 import { CATEGORY_COPY } from '../storageCategoryCopy';
 import { StorageSettings } from '../StorageSettings';
+import { treeTtlMinutesFromCustom } from '../treeCacheTtl';
 
 const status = {
   mode: 'unified' as const,
@@ -991,5 +992,97 @@ describe('StorageSettings tree cache section (T9)', () => {
     });
     expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 15 });
     expect(clearTreeCache).not.toHaveBeenCalled();
+  });
+
+  it('seeds the custom editor when the backend TTL is not a preset', async () => {
+    const { setTreeCacheOptions } = renderTreeSection({
+      statsData: { ...treeStatsData, ttlMinutes: 30 },
+    });
+    await screen.findByTestId('tree-cache-section');
+    // 非预设值自动进自定义态：草稿播种 30/分，不写桥。
+    await waitFor(() => {
+      expect(
+        (
+          screen.getByRole('spinbutton', {
+            name: settingsEn.treeCacheTtlCustom,
+          }) as HTMLInputElement
+        ).value,
+      ).toBe('30');
+    });
+    expect(setTreeCacheOptions).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: settingsEn.treeCacheTtl }).textContent).toContain(
+      settingsEn.treeCacheTtlCustom,
+    );
+  });
+
+  it('does not bridge illegal custom TTL input (0/negative/empty)', async () => {
+    const { setTreeCacheOptions } = renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheTtlCustom }));
+    const input = screen.getByRole('spinbutton', { name: settingsEn.treeCacheTtlCustom });
+    fireEvent.change(input, { target: { value: '0' } });
+    fireEvent.change(input, { target: { value: '-5' } });
+    fireEvent.change(input, { target: { value: '' } });
+    // 超过 500ms 防抖仍不出桥（非法输入静默丢弃）。
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(setTreeCacheOptions).not.toHaveBeenCalled();
+  });
+
+  it('keeps the disable dialog open when writing options fails', async () => {
+    const setTreeCacheOptions = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: { message: 'disk-gone' } });
+    const { clearTreeCache } = renderTreeSection({ setTreeCacheOptions });
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    await screen.findByText(settingsEn.treeCacheDisableConfirm);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: settingsEn.treeCacheDisableConfirmBtn }),
+    );
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    // 写失败：不清缓存、不关框、不改勾选。
+    expect(clearTreeCache).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    expect(
+      (screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+  });
+
+  it('still closes and reloads when clearing fails after disable', async () => {
+    const clearTreeCache = vi.fn().mockResolvedValue({ ok: false, error: { message: 'locked' } });
+    const { getTreeCacheStats } = renderTreeSection({ clearTreeCache });
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    await screen.findByText(settingsEn.treeCacheDisableConfirm);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: settingsEn.treeCacheDisableConfirmBtn }),
+    );
+    await waitFor(() => {
+      expect(clearTreeCache).toHaveBeenCalledTimes(1);
+    });
+    // 开关已写成功：仍关框 + 重拉 stats（注释承诺的行为）。
+    expect(screen.queryByRole('dialog')).toBeNull();
+    await waitFor(() => {
+      expect(getTreeCacheStats).toHaveBeenCalledTimes(2);
+    });
+  });
+});
+
+describe('treeTtlMinutesFromCustom', () => {
+  it('rounds fractional units, ceilings seconds, and rejects non-positive input', () => {
+    expect(treeTtlMinutesFromCustom(1.4, 'm')).toBe(1);
+    expect(treeTtlMinutesFromCustom(1.5, 'm')).toBe(2);
+    expect(treeTtlMinutesFromCustom(0.5, 'h')).toBe(30);
+    expect(treeTtlMinutesFromCustom(30, 's')).toBe(1);
+    expect(treeTtlMinutesFromCustom(0, 'm')).toBeNull();
+    expect(treeTtlMinutesFromCustom(-3, 'h')).toBeNull();
+    expect(treeTtlMinutesFromCustom(Number.NaN, 's')).toBeNull();
+    expect(treeTtlMinutesFromCustom(2, 'd')).toBe(1440);
   });
 });

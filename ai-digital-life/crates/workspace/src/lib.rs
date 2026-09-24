@@ -32,7 +32,7 @@ pub use search::{
 pub use tree::{
     build_retrieval_snapshot, build_retrieval_snapshot_async, invalidate_tree_cache, list_tree,
     list_tree_cached_stale_ok, list_tree_force, list_tree_fresh, remove_tree_cache_row,
-    tree_cache_dir,
+    tree_cache_dir, tree_cache_dir_env_override,
 };
 pub use watch::{FilesChangedBatch, WorkspaceWatcher};
 

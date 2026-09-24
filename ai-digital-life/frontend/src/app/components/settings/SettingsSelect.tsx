@@ -26,6 +26,8 @@ interface MenuGeometry {
   top?: number;
   /** 向上打开：菜单底边锚定触发器上边缘，与实际菜单高度无关（与 top 互斥） */
   bottom?: number;
+  /** 向上打开且可用高度不足时收窄菜单盒（不大于 MENU_MAX_HEIGHT；向下打开为 undefined，走 CSS 上限） */
+  maxHeight?: number;
   left: number;
   width: number;
 }
@@ -34,6 +36,10 @@ const MENU_OFFSET = 4;
 // 与 settings.css `.adl-settings-dropdown__menu max-height` 同步修改。
 const MENU_MAX_HEIGHT = 240;
 const VIEWPORT_MARGIN = 8;
+// 菜单盒上下 padding（space-1×2）= 8：列表区上限 = 菜单盒上限 − 8（与 CSS `240−8=232` 同口径）。
+const MENU_LIST_VERTICAL_PADDING = 8;
+// 向上收窄时的最小菜单高：低于此值菜单不可用，宁可溢出不断臂。
+const MENU_MIN_HEIGHT = 80;
 
 /**
  * 设置面板可复用自定义下拉（替代原生 select）。
@@ -103,15 +109,25 @@ export function SettingsSelect({
     const belowTop = rect.bottom + MENU_OFFSET;
     const fitsBelow = belowTop + MENU_MAX_HEIGHT <= window.innerHeight - VIEWPORT_MARGIN;
     // 向下：顶边贴触发器底缘。向上：底边锚定触发器上缘（用 CSS bottom，
-    // 不按固定 MENU_MAX_HEIGHT 推 top——短菜单会整体上浮、与触发器脱节）。
+    // 不按固定 MENU_MAX_HEIGHT 推 top——短菜单会整体上浮、与触发器脱节），
+    // 同时按触发器上方可用高度收窄菜单（补回旧上缘钳制的保护，改动态 maxHeight 实现）。
     const next: MenuGeometry = fitsBelow
       ? { top: belowTop, left, width }
-      : { bottom: window.innerHeight - rect.top + MENU_OFFSET, left, width };
+      : {
+          bottom: window.innerHeight - rect.top + MENU_OFFSET,
+          maxHeight: Math.min(
+            MENU_MAX_HEIGHT,
+            Math.max(MENU_MIN_HEIGHT, rect.top - MENU_OFFSET - VIEWPORT_MARGIN),
+          ),
+          left,
+          width,
+        };
     const prev = geometryRef.current;
     if (
       prev &&
       prev.top === next.top &&
       prev.bottom === next.bottom &&
+      prev.maxHeight === next.maxHeight &&
       prev.left === next.left &&
       prev.width === next.width
     ) {
@@ -181,7 +197,7 @@ export function SettingsSelect({
         setActiveIndex(next);
       } else if (e.key === 'Tab') {
         // Tab 移出即关闭（不 preventDefault，放行焦点自然移动）。
-        // 方向键无焦点门控依赖于此：焦点离场必先经过 Tab 关闭，故窗口极小。
+        // 方向键无焦点门控依赖于此：焦点离场必先经过 Tab 关闭，故方向键可直接处理、无需先校验焦点位置。
         close();
       } else if (e.key === 'Enter') {
         const opt = options[activeIndex];
@@ -289,6 +305,7 @@ export function SettingsSelect({
               bottom: menuGeometry.bottom,
               left: menuGeometry.left,
               width: menuGeometry.width,
+              maxHeight: menuGeometry.maxHeight,
             }}
             {...scrollbar.hoverProps}
             // 后写获胜会覆盖 hook 的 onMouseLeave（显现状态卡死），故合并调用。
@@ -303,6 +320,11 @@ export function SettingsSelect({
               aria-label={label}
               className="adl-settings-dropdown__list adl-reveal-scroll"
               ref={scrollbar.scrollRef as unknown as React.Ref<HTMLUListElement>}
+              style={
+                menuGeometry.maxHeight != null
+                  ? { maxHeight: menuGeometry.maxHeight - MENU_LIST_VERTICAL_PADDING }
+                  : undefined
+              }
             >
               {options.map((opt, idx) => {
                 const isSelected = opt.value === value;
