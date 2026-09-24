@@ -37,8 +37,12 @@ const MENU_OFFSET = 4;
 const MENU_MAX_HEIGHT = 240;
 const VIEWPORT_MARGIN = 8;
 // 菜单盒上下 padding（space-1×2）= 8：列表区上限 = 菜单盒上限 − 8（与 CSS `240−8=232` 同口径）。
+// 注：盒模型另有 1px×2 边框未计入——与 CSS 历史口径保持一致（flex + overflow-y 可消化 2px），
+// 若未来有人把此处改成 10，必须同步改 CSS `232 → 230` 并走 UI 回归。
 const MENU_LIST_VERTICAL_PADDING = 8;
 // 向上收窄时的最小菜单高：低于此值菜单不可用，宁可溢出不断臂。
+// 刻意取舍：两侧都不足 240 时仍优先向上（简单可预测），允许上缘溢出；
+// 若未来要零溢出，可比较上下可用空间选大者（需实测菜单高度，另案处理）。
 const MENU_MIN_HEIGHT = 80;
 
 /**
@@ -108,12 +112,14 @@ export function SettingsSelect({
     );
     const belowTop = rect.bottom + MENU_OFFSET;
     const fitsBelow = belowTop + MENU_MAX_HEIGHT <= window.innerHeight - VIEWPORT_MARGIN;
-    // 向下：顶边贴触发器底缘。向上：底边锚定触发器上缘（用 CSS bottom，
-    // 不按固定 MENU_MAX_HEIGHT 推 top——短菜单会整体上浮、与触发器脱节），
-    // 同时按触发器上方可用高度收窄菜单（补回旧上缘钳制的保护，改动态 maxHeight 实现）。
+    // 向下：顶边贴触发器底缘（显式清互斥侧，防后人展开复用带入旧值）。
+    // 向上：底边锚定触发器上缘（用 CSS bottom，不按固定 MENU_MAX_HEIGHT 推 top——
+    // 短菜单会整体上浮、与触发器脱节），同时按触发器上方可用高度收窄菜单
+    //（补回旧上缘钳制的保护，改动态 maxHeight 实现；同样显式清 top 侧）。
     const next: MenuGeometry = fitsBelow
-      ? { top: belowTop, left, width }
+      ? { top: belowTop, bottom: undefined, maxHeight: undefined, left, width }
       : {
+          top: undefined,
           bottom: window.innerHeight - rect.top + MENU_OFFSET,
           maxHeight: Math.min(
             MENU_MAX_HEIGHT,

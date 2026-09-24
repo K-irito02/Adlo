@@ -290,6 +290,28 @@ mod tests {
     }
 
     #[test]
+    fn tree_cache_store_dir_rejects_bare_file_name() {
+        // `dir()` 经 resolve 恒为 `根/覆盖.join("tree-cache.db")`，parent 不可能为空；
+        // 此例锁定极端输入（裸文件名）的守卫语义：非绝对 → None。
+        let p = StoragePaths {
+            root: PathBuf::from("rel"),
+            data_db: PathBuf::from("rel/data.db"),
+            downloads_db: PathBuf::from("rel/downloads.db"),
+            site_meta_db: PathBuf::from("rel/site-meta-cache.db"),
+            tree_cache_db: PathBuf::from("tree-cache.db"),
+            config_dir: PathBuf::from("rel/config"),
+            clipboard_dir: PathBuf::from("rel/clipboard"),
+            snapshot_dir: PathBuf::from("rel/snapshot"),
+            dsh_versions_dir: PathBuf::from("rel/dsh-versions"),
+            dsh_bundle_dir: PathBuf::from("rel/dsh-bundle"),
+            logs_dir: PathBuf::from("rel/logs"),
+            credentials_dir: PathBuf::from("rel/creds"),
+            downloads_default_dir: PathBuf::from("rel/dl"),
+        };
+        assert_eq!(p.tree_cache_store_dir(), None);
+    }
+
+    #[test]
     fn resolve_log_dir_prefers_project_root_in_debug_override() {
         let p = StoragePaths::from_locator(&StorageLocator::default(), &defaults());
         let project_root = PathBuf::from("/repo");

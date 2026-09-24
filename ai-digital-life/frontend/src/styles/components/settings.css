@@ -506,8 +506,9 @@
   width: 260px;
 }
 
-/* 次要动作按钮（清除缓存等）：灰底偏直角、描边仅 hover——与 path-pick 同交互语言。 */
-.adl-settings-row .adl-btn--hover-outline {
+/* 次要动作按钮（清除缓存/目录选择等）：灰底偏直角、描边仅 hover——同交互语言单点维护。
+   键盘焦点可见：保持直角语言，只借描边 + outline 表焦点（hover 描边不常驻，故需独立规则）。 */
+.adl-settings-row .adl-btn--path-pick {
   padding: var(--space-1) var(--space-2);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -517,14 +518,14 @@
   flex-shrink: 0;
 }
 
-.adl-settings-row .adl-btn--hover-outline:hover:not(:disabled) {
+.adl-settings-row .adl-btn--path-pick:hover:not(:disabled) {
   border-color: var(--border-strong);
   background: var(--surface-hover);
   color: var(--text-primary);
 }
 
 /* 键盘焦点可见：保持直角语言，只借描边 + outline 表焦点（hover 描边不常驻，故需独立规则）。 */
-.adl-settings-row .adl-btn--hover-outline:focus-visible {
+.adl-settings-row .adl-btn--path-pick:focus-visible {
   border-color: var(--border-strong);
   outline: 2px solid var(--border-strong);
   outline-offset: 1px;
@@ -554,22 +555,6 @@
 /* 相邻两行属同一语义分组（如「路径模式」与「数据根目录」）时去掉其间隔线 */
 .adl-settings-row--no-divider {
   border-bottom: none;
-}
-
-.adl-settings-row .adl-btn--path-pick {
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: var(--bg-muted);
-  color: var(--text-secondary);
-  font-size: var(--text-sm);
-  flex-shrink: 0;
-}
-
-.adl-settings-row .adl-btn--path-pick:hover:not(:disabled) {
-  border-color: var(--border-strong);
-  background: var(--surface-hover);
-  color: var(--text-primary);
 }
 
 .adl-settings-password {

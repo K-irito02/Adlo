@@ -77,6 +77,29 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('settingsTitle');
   });
 
+  it('includes the tree-cache settings keys in both locales', () => {
+    const keys = [
+      'treeCacheStatsLabel',
+      'treeCacheEnabledHint',
+      'treeCacheDisableTitle',
+      'treeCacheDisableConfirm',
+      'treeCacheDisableConfirmBtn',
+      'treeCacheTtlCustom',
+      'treeCacheTtlUnitLabel',
+      'treeCacheUnitSecond',
+      'treeCacheUnitMinute',
+      'treeCacheUnitHour',
+      'treeCacheUnitDay',
+    ] as const;
+    for (const key of keys) {
+      expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
+      expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
+    }
+    // 插值占位符两侧一致。
+    expect(String(enUS.treeCacheTtlMinutes)).toContain('{minutes}');
+    expect(String(zhCN.treeCacheTtlMinutes)).toContain('{minutes}');
+  });
+
   it('includes reset-all confirm copy in both locales', () => {
     expect(enUS.settingsResetConfirmTitle).toBe('Reset all to defaults?');
     expect(enUS.settingsResetConfirmMessage).toBe(

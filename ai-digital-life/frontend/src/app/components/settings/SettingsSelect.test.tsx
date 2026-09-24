@@ -195,6 +195,9 @@ describe('SettingsSelect', () => {
       expect(menu.style.maxHeight).toBe('240px');
       const list = document.querySelector('.adl-settings-dropdown__list') as HTMLElement;
       expect(list.style.maxHeight).toBe('232px');
+      // 横向几何：width 取 max(120, 160)，left 右对齐钳制（jsdom innerWidth 1024）。
+      expect(menu.style.width).toBe('160px');
+      expect(menu.style.left).toBe('8px');
     } finally {
       spy.mockRestore();
       Object.defineProperty(window, 'innerHeight', {
@@ -246,6 +249,88 @@ describe('SettingsSelect', () => {
       expect(menu.style.maxHeight).toBe('88px');
       const list = document.querySelector('.adl-settings-dropdown__list') as HTMLElement;
       expect(list.style.maxHeight).toBe('80px');
+    } finally {
+      spy.mockRestore();
+      Object.defineProperty(window, 'innerHeight', {
+        value: prevInnerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it('flips back down and clears the upper side when space returns', () => {
+    // 先小视口向上打开，再放大视口 resize：旧 bottom/maxHeight 内联必须清除。
+    const prevInnerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', {
+      value: 200,
+      configurable: true,
+      writable: true,
+    });
+    const rect = {
+      top: 100,
+      bottom: 128,
+      left: 20,
+      right: 140,
+      width: 120,
+      height: 28,
+      x: 20,
+      y: 100,
+      toJSON: () => ({}),
+    } as DOMRect;
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue(rect);
+    try {
+      render(<SettingsSelect value="a" options={OPTIONS} onChange={() => {}} label="Pick" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
+      let menu = document.querySelector('.adl-settings-dropdown__menu') as HTMLElement;
+      expect(menu.style.bottom).not.toBe('');
+      Object.defineProperty(window, 'innerHeight', {
+        value: 800,
+        configurable: true,
+        writable: true,
+      });
+      fireEvent(window, new Event('resize'));
+      menu = document.querySelector('.adl-settings-dropdown__menu') as HTMLElement;
+      expect(menu.style.top).toBe(`${128 + 4}px`);
+      expect(menu.style.bottom).toBe('');
+      expect(menu.style.maxHeight).toBe('');
+    } finally {
+      spy.mockRestore();
+      Object.defineProperty(window, 'innerHeight', {
+        value: prevInnerHeight,
+        configurable: true,
+        writable: true,
+      });
+    }
+  });
+
+  it('clamps to the minimum height at the extreme top', () => {
+    // rect.top=30/innerHeight=300：下方放不下 240 → 向上；可用高度 30-4-8=18 < 80 → 钳制 80。
+    const prevInnerHeight = window.innerHeight;
+    Object.defineProperty(window, 'innerHeight', {
+      value: 300,
+      configurable: true,
+      writable: true,
+    });
+    const spy = vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+      top: 30,
+      bottom: 58,
+      left: 20,
+      right: 140,
+      width: 120,
+      height: 28,
+      x: 20,
+      y: 30,
+      toJSON: () => ({}),
+    } as DOMRect);
+    try {
+      render(<SettingsSelect value="a" options={OPTIONS} onChange={() => {}} label="Pick" />);
+      fireEvent.click(screen.getByRole('button', { name: 'Pick' }));
+      const menu = document.querySelector('.adl-settings-dropdown__menu') as HTMLElement;
+      expect(menu.style.bottom).toBe(`${300 - 30 + 4}px`);
+      expect(menu.style.maxHeight).toBe('80px');
+      const list = document.querySelector('.adl-settings-dropdown__list') as HTMLElement;
+      expect(list.style.maxHeight).toBe('72px');
     } finally {
       spy.mockRestore();
       Object.defineProperty(window, 'innerHeight', {

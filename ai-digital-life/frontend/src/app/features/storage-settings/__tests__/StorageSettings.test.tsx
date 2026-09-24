@@ -8,7 +8,8 @@ import { settingsEn } from '../../../i18n/en-US/settings';
 import { settingsZh } from '../../../i18n/zh-CN/settings';
 import { CATEGORY_COPY } from '../storageCategoryCopy';
 import { StorageSettings } from '../StorageSettings';
-import { treeTtlMinutesFromCustom } from '../treeCacheTtl';
+import { formatMinutesForUnit, treeTtlMinutesFromCustom } from '../treeCacheTtl';
+import { useAppStore } from '@stores/slicedStore';
 
 const status = {
   mode: 'unified' as const,
@@ -776,19 +777,20 @@ describe('StorageSettings tree cache section (T9)', () => {
     ttlMinutes: 15,
   };
 
-  // 真实 settingsEn 词典兜底 key 名：treeCache 文案走插值断言，其余行沿用 key 名。
-  const treeT = new Proxy(settingsEn as unknown as Record<string, string>, {
-    get: (target, key) => (typeof key === 'string' && key in target ? target[key] : key),
-  }) as unknown as CopyDict;
-
+  // 真实词典兜底 key 名：treeCache 文案走插值断言，其余行沿用 key 名（locale 可切 zh-CN）。
   function renderTreeSection(
     overrides: {
       statsData?: typeof treeStatsData;
       getTreeCacheStats?: ReturnType<typeof vi.fn>;
       setTreeCacheOptions?: ReturnType<typeof vi.fn>;
       clearTreeCache?: ReturnType<typeof vi.fn>;
+      locale?: 'en-US' | 'zh-CN';
     } = {},
   ) {
+    const dict = overrides.locale === 'zh-CN' ? settingsZh : settingsEn;
+    const t = new Proxy(dict as unknown as Record<string, string>, {
+      get: (target, key) => (typeof key === 'string' && key in target ? target[key] : key),
+    }) as unknown as CopyDict;
     const getTreeCacheStats =
       overrides.getTreeCacheStats ??
       vi.fn().mockResolvedValue({ ok: true, data: overrides.statsData ?? treeStatsData });
@@ -809,12 +811,12 @@ describe('StorageSettings tree cache section (T9)', () => {
         clearTreeCache,
       },
     };
-    render(
-      <TCopyProvider t={treeT} locale="en-US">
+    const view = render(
+      <TCopyProvider t={t} locale={overrides.locale ?? 'en-US'}>
         <StorageSettings />
       </TCopyProvider>,
     );
-    return { getTreeCacheStats, setTreeCacheOptions, clearTreeCache };
+    return { getTreeCacheStats, setTreeCacheOptions, clearTreeCache, unmount: view.unmount };
   }
 
   it('shows tree-cache stats and clears on confirm', async () => {
@@ -966,7 +968,8 @@ describe('StorageSettings tree cache section (T9)', () => {
       { timeout: 1500 },
     );
 
-    // 上限 1 天：2 天 → 钳制 1440。
+    // 上限 1 天：2 天 → 钳制 1440（天单位 number input max=1，故此处手输 2 是刻意
+    // 绕过原生 max 约束、直测换算钳制函数，而非测 UI 约束本身）。
     fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtlUnitLabel }));
     fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheUnitDay }));
     fireEvent.change(input, { target: { value: '2' } });
@@ -1015,18 +1018,18 @@ describe('StorageSettings tree cache section (T9)', () => {
     );
   });
 
-  it('does not bridge illegal custom TTL input (0/negative/empty)', async () => {
+  it.each([['0'], ['-5'], ['']])('does not bridge illegal custom TTL input (%s)', async (value) => {
     const { setTreeCacheOptions } = renderTreeSection();
     await screen.findByTestId('tree-cache-section');
     fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
     fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheTtlCustom }));
     const input = screen.getByRole('spinbutton', { name: settingsEn.treeCacheTtlCustom });
-    fireEvent.change(input, { target: { value: '0' } });
-    fireEvent.change(input, { target: { value: '-5' } });
-    fireEvent.change(input, { target: { value: '' } });
-    // 超过 500ms 防抖仍不出桥（非法输入静默丢弃）。
+    // 每个非法值独占一次防抖窗口（连发只有末值真正提交，旧写法恒过测不出分支）。
+    fireEvent.change(input, { target: { value } });
+    // 超过 500ms 防抖仍不出桥（非法输入静默丢弃），输入框保留草稿。
     await new Promise((resolve) => setTimeout(resolve, 700));
     expect(setTreeCacheOptions).not.toHaveBeenCalled();
+    expect((input as HTMLInputElement).value).toBe(value);
   });
 
   it('keeps the disable dialog open when writing options fails', async () => {
@@ -1072,6 +1075,214 @@ describe('StorageSettings tree cache section (T9)', () => {
       expect(getTreeCacheStats).toHaveBeenCalledTimes(2);
     });
   });
+
+  it('converts the draft display when switching units without bridging immediately', async () => {
+    const { setTreeCacheOptions } = renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheTtlCustom }));
+    const input = screen.getByRole('spinbutton', {
+      name: settingsEn.treeCacheTtlCustom,
+    }) as HTMLInputElement;
+    fireEvent.change(input, { target: { value: '45' } });
+    // 切到秒：同一草稿换算为 2700 显示，不立即写桥（仍走防抖）。
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtlUnitLabel }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheUnitSecond }));
+    expect(input.value).toBe('2700');
+    expect(setTreeCacheOptions).not.toHaveBeenCalled();
+    // 防抖到期：2700 秒 → 45 分钟写桥。
+    await waitFor(
+      () => {
+        expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 45 });
+      },
+      { timeout: 1500 },
+    );
+  });
+
+  it('keeps the clear dialog open and toasts when clearing throws', async () => {
+    useAppStore.getState().clearToasts();
+    const clearTreeCache = vi.fn().mockRejectedValueOnce(new Error('channel closed'));
+    renderTreeSection({ clearTreeCache });
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByTestId('tree-cache-clear'));
+    await screen.findByText(settingsEn.treeCacheClearConfirm);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: settingsEn.treeCacheClear }));
+    await waitFor(() => {
+      expect(clearTreeCache).toHaveBeenCalledTimes(1);
+    });
+    // 抛错落 toast + 对话框保持打开 + 无未处理拒绝（测试不崩即证）。
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    const toasts = useAppStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toContain('channel closed');
+  });
+
+  it('does not let a slow older reload overwrite a newer options merge', async () => {
+    // 首读即时（挂载），之后重拉全部挂起、由测试按序放行。
+    const pendingReads: ((v: { ok: true; data: typeof treeStatsData }) => void)[] = [];
+    let reads = 0;
+    const getTreeCacheStats = vi.fn().mockImplementation(() => {
+      reads += 1;
+      if (reads === 1) {
+        return Promise.resolve({ ok: true, data: treeStatsData });
+      }
+      return new Promise<{ ok: true; data: typeof treeStatsData }>((resolve) => {
+        pendingReads.push(resolve);
+      });
+    });
+    const { setTreeCacheOptions } = renderTreeSection({ getTreeCacheStats });
+    await screen.findByTestId('tree-cache-section');
+    // 写 60（重拉挂起），再写 1 天（重拉挂起）。
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
+    fireEvent.click(screen.getByRole('option', { name: '60 minutes' }));
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 60 });
+    });
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheTtlDay }));
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: true, ttlMinutes: 1440 });
+    });
+    expect(pendingReads).toHaveLength(2);
+    // 先放新闻（ttl 1440）合并生效，再放旧读（ttl 60）：被序列号守卫丢弃。
+    pendingReads[1]({ ok: true, data: { ...treeStatsData, ttlMinutes: 1440 } });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: settingsEn.treeCacheTtl }).textContent).toContain(
+        settingsEn.treeCacheTtlDay,
+      );
+    });
+    pendingReads[0]({ ok: true, data: treeStatsData });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    // 旧读未覆盖：仍显示 1 天，且只写了两次（无回写）。
+    expect(screen.getByRole('button', { name: settingsEn.treeCacheTtl }).textContent).toContain(
+      settingsEn.treeCacheTtlDay,
+    );
+    expect(setTreeCacheOptions).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps the disable dialog open when the bridge itself throws', async () => {
+    useAppStore.getState().clearToasts();
+    const setTreeCacheOptions = vi.fn().mockRejectedValueOnce(new Error('channel closed'));
+    renderTreeSection({ setTreeCacheOptions });
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    await screen.findByText(settingsEn.treeCacheDisableConfirm);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: settingsEn.treeCacheDisableConfirmBtn }),
+    );
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    // 抛错落 toast + 对话框保持打开 + 开关不变 + 无未处理拒绝（测试不崩即证）。
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    const toasts = useAppStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toContain('channel closed');
+    expect(
+      (screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }) as HTMLInputElement)
+        .checked,
+    ).toBe(true);
+  });
+
+  it('drops a pending TTL draft when opening the disable confirm', async () => {
+    const { setTreeCacheOptions } = renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    // 自定义态键入（在途 500ms 防抖），随即 500ms 内取消勾选。
+    fireEvent.click(screen.getByRole('button', { name: settingsEn.treeCacheTtl }));
+    fireEvent.click(screen.getByRole('option', { name: settingsEn.treeCacheTtlCustom }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: settingsEn.treeCacheTtlCustom }), {
+      target: { value: '90' },
+    });
+    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    await screen.findByText(settingsEn.treeCacheDisableConfirm);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: settingsEn.treeCacheDisableConfirmBtn }),
+    );
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    // 只有关闭写；过期草稿未把开关写回 true。
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    expect(setTreeCacheOptions).toHaveBeenCalledWith({ enabled: false, ttlMinutes: 15 });
+  });
+
+  it('locks the dialog close channels while the disable write is busy', async () => {
+    let resolveWrite!: (v: { ok: true; data: undefined }) => void;
+    const setTreeCacheOptions = vi.fn().mockImplementationOnce(
+      () =>
+        new Promise<{ ok: true; data: undefined }>((resolve) => {
+          resolveWrite = resolve;
+        }),
+    );
+    renderTreeSection({ setTreeCacheOptions });
+    await screen.findByTestId('tree-cache-section');
+    fireEvent.click(screen.getByRole('checkbox', { name: settingsEn.treeCacheEnabled }));
+    await screen.findByText(settingsEn.treeCacheDisableConfirm);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(
+      within(dialog).getByRole('button', { name: settingsEn.treeCacheDisableConfirmBtn }),
+    );
+    await waitFor(() => {
+      expect(setTreeCacheOptions).toHaveBeenCalledTimes(1);
+    });
+    // 忙时：Esc 与遮罩点击均不关框，取消键禁用。
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    fireEvent.click(screen.getByRole('dialog'));
+    expect(screen.queryByRole('dialog')).not.toBeNull();
+    expect(
+      within(screen.getByRole('dialog')).getByRole('button', { name: settingsEn.storageCancel }),
+    ).toBeDisabled();
+    // 写完成：关框。
+    resolveWrite({ ok: true, data: undefined });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('returns focus to the trigger after the clear dialog closes', async () => {
+    renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    const clearBtn = screen.getByTestId('tree-cache-clear');
+    fireEvent.click(clearBtn);
+    await screen.findByText(settingsEn.treeCacheClearConfirm);
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: settingsEn.treeCacheClear }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    // 关框 effect 回焦点到触发源（waitFor 防调度抖动）。
+    await waitFor(() => {
+      expect(document.activeElement).toBe(clearBtn);
+    });
+  });
+
+  it('toggles via the label text', async () => {
+    renderTreeSection();
+    await screen.findByTestId('tree-cache-section');
+    // 纯文本 label 与 checkbox 经 htmlFor/id 关联：点文字即切换（零视觉变更）。
+    fireEvent.click(screen.getByText(settingsEn.treeCacheEnabled));
+    await screen.findByText(settingsEn.treeCacheDisableConfirm);
+  });
+
+  it('formats the cache time with the app locale', async () => {
+    const statsData = { ...treeStatsData, newestCapturedAt: Date.UTC(2026, 8, 24, 12, 0, 0) };
+    const { unmount } = renderTreeSection({ statsData });
+    await screen.findByTestId('tree-cache-section');
+    // en-US：月/日/年（只断年月顺序，避开时区日边界）。
+    expect(document.querySelector('.adl-tree-cache-stats')?.textContent).toMatch(
+      /9\/\d{1,2}\/2026/,
+    );
+    unmount();
+    renderTreeSection({ statsData, locale: 'zh-CN' });
+    await screen.findByTestId('tree-cache-section');
+    // zh-CN：年/月/日。
+    expect(document.querySelector('.adl-tree-cache-stats')?.textContent).toMatch(/2026\/9\//);
+  });
 });
 
 describe('treeTtlMinutesFromCustom', () => {
@@ -1084,5 +1295,16 @@ describe('treeTtlMinutesFromCustom', () => {
     expect(treeTtlMinutesFromCustom(-3, 'h')).toBeNull();
     expect(treeTtlMinutesFromCustom(Number.NaN, 's')).toBeNull();
     expect(treeTtlMinutesFromCustom(2, 'd')).toBe(1440);
+  });
+
+  it('formatMinutesForUnit converts minutes to the display unit', () => {
+    expect(formatMinutesForUnit(45, 's')).toBe('2700');
+    expect(formatMinutesForUnit(45, 'm')).toBe('45');
+    expect(formatMinutesForUnit(90, 'h')).toBe('1.5');
+    expect(formatMinutesForUnit(1440, 'd')).toBe('1');
+    // 四位小数保证天单位往返无漂移（2 位时 45 分钟→0.03 天→回算 43 分钟）。
+    expect(formatMinutesForUnit(45, 'd')).toBe('0.0313');
+    expect(treeTtlMinutesFromCustom(0.0313, 'd')).toBe(45);
+    expect(treeTtlMinutesFromCustom(Number(formatMinutesForUnit(45, 'd')), 'd')).toBe(45);
   });
 });

@@ -171,29 +171,31 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
   });
 
   it('paints storage radio/checkbox with monochrome text-primary, not accent blue', () => {
-    const body = ruleBody(
-      settingsCss,
-      ".adl-storage-settings input[type='radio'],\n.adl-storage-settings input[type='checkbox']",
-    );
-    expect(body).not.toBeNull();
-    expect(body).toContain('accent-color: var(--text-primary)');
-    expect(body).not.toContain('var(--accent)');
+    for (const selector of [
+      ".adl-storage-settings input[type='radio']",
+      ".adl-storage-settings input[type='checkbox']",
+    ]) {
+      const body = groupRuleBody(settingsCss, selector);
+      expect(body, selector).not.toBeNull();
+      expect(body).toContain('accent-color: var(--text-primary)');
+      expect(body).not.toContain('var(--accent)');
+    }
   });
 
   it('makes the clear-cache button right-angled with hover-only outline', () => {
-    const body = ruleBody(settingsCss, '.adl-settings-row .adl-btn--hover-outline');
+    const body = ruleBody(settingsCss, '.adl-settings-row .adl-btn--path-pick');
     expect(body).not.toBeNull();
     expect(body).toContain('border: 1px solid transparent');
     expect(body).toContain('border-radius: var(--radius-sm)');
     expect(body).toContain('background: var(--bg-muted)');
     const hover = ruleBody(
       settingsCss,
-      '.adl-settings-row .adl-btn--hover-outline:hover:not(:disabled)',
+      '.adl-settings-row .adl-btn--path-pick:hover:not(:disabled)',
     );
     expect(hover).not.toBeNull();
     expect(hover).toContain('border-color: var(--border-strong)');
     // 键盘焦点可见（hover 描边不常驻，需独立 focus-visible 规则）。
-    const focus = ruleBody(settingsCss, '.adl-settings-row .adl-btn--hover-outline:focus-visible');
+    const focus = ruleBody(settingsCss, '.adl-settings-row .adl-btn--path-pick:focus-visible');
     expect(focus).not.toBeNull();
     expect(focus).toContain('border-color: var(--border-strong)');
   });

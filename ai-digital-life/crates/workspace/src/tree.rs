@@ -975,6 +975,13 @@ mod tree_cache_tests {
             unsafe { std::env::set_var(key, value) };
             Self { key, original }
         }
+
+        fn remove(key: &'static str) -> Self {
+            let original = std::env::var_os(key);
+            // SAFETY: 同 `set`。
+            unsafe { std::env::remove_var(key) };
+            Self { key, original }
+        }
     }
 
     impl Drop for EnvVarGuard {
@@ -1234,13 +1241,9 @@ mod tree_cache_tests {
             assert_eq!(tree_cache_dir_env_override(), None);
         }
         {
-            // 变量缺席 → None（调用方走下一优先级）。
-            let original = std::env::var_os("ADL_TREE_CACHE_DIR");
-            unsafe { std::env::remove_var("ADL_TREE_CACHE_DIR") };
+            // 变量缺席 → None（调用方走下一优先级）；guard 保证 panic 时仍还原。
+            let _env = EnvVarGuard::remove("ADL_TREE_CACHE_DIR");
             assert_eq!(tree_cache_dir_env_override(), None);
-            if let Some(v) = original {
-                unsafe { std::env::set_var("ADL_TREE_CACHE_DIR", v) };
-            }
         }
     }
 

@@ -314,10 +314,13 @@ pub fn storage_cancel_pending(_state: State<'_, AppState>) -> Result<IpcResult<(
 }
 
 /// TreeCache 落盘目录：与 `storage_get_status` 同源（`state.storage.paths()`，
-/// locator 缺 root 时回落 `defaults.root`）。优先级：
-/// 1. `ADL_TREE_CACHE_DIR` 绝对覆盖（测试注入/运维，与 L2 `tree_cache_dir()` 同口径）；
+/// 回落 `paths.root`——locator 无 root 时即 `defaults.root`，壳层为 `app_data_dir()`）。
+/// 优先级：
+/// 1. `ADL_TREE_CACHE_DIR` 绝对覆盖（测试注入/运维，与 L2 `tree_cache_dir()` 同口径；
+///    运维覆盖需指向可写目录，此处不做包含校验——能设进程环境者与进程同权）；
 /// 2. `paths.tree_cache_store_dir()`（`tree-cache.db` 父目录；相对路径回 None，防 CWD 漂移建库）；
-/// 3. 绝对统一根；仍非绝对则 `InvalidInput` 拒绝建库。
+/// 3. 绝对统一根；仍非绝对则 `InvalidInput` 拒绝建库（fail-loud：前端区段不渲染，
+///    仅相对路径配置时触发，正常部署恒为绝对路径）。
 ///
 /// stats 在此建空库与旧 `Some` 分支行为一致（`TreeCacheStore::open` 含建库；
 /// options/clear 本就需建库写语义，故不做只读 open）。

@@ -23,7 +23,14 @@ import { StorageCategoryRow } from './StorageCategoryRow';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { BrowserDownloadPathSection } from './BrowserDownloadPathSection';
-import { treeTtlMinutesFromCustom, treeTtlUnitMax, type TreeTtlUnit } from './treeCacheTtl';
+import {
+  formatMinutesForUnit,
+  formatTreeCacheTime,
+  isTreeTtlUnit,
+  treeTtlMinutesFromCustom,
+  treeTtlUnitMax,
+  type TreeTtlUnit,
+} from './treeCacheTtl';
 
 /** 不可移动项 → i18n key（顺序固定，遍历 `IMMOVABLE_ENTRY_KEYS`）。 */
 const IMMOVABLE_COPY: Record<
@@ -129,7 +136,7 @@ function ipcErrorMessage(error: { message?: string } | null | undefined, fallbac
  * 每类数据实际落在哪里），「每类独立」模式才开放选择目录/手输。
  */
 export function StorageSettings() {
-  const { t } = useTCopy();
+  const { t, locale } = useTCopy();
   const showToast = useAppStore((s) => s.showToast);
 
   const [status, setStatus] = useState<StorageStatus | null>(null);
@@ -149,11 +156,14 @@ export function StorageSettings() {
   const [treeConfirm, setTreeConfirm] = useState<'clear' | 'disable' | null>(null);
   const [treeBusy, setTreeBusy] = useState(false);
   const treeConfirmRef = useRef<HTMLButtonElement | null>(null);
+  /** 打开确认对话框的触发源：关闭后恢复焦点用。 */
+  const treeConfirmTriggerRef = useRef<HTMLElement | null>(null);
   /** TTL 自定义编辑态（本地草稿，不直接等于 stats.ttlMinutes）。 */
   const [ttlCustomMode, setTtlCustomMode] = useState(false);
   const [ttlCustomValue, setTtlCustomValue] = useState('');
   const [ttlCustomUnit, setTtlCustomUnit] = useState<TreeTtlUnit>('m');
-  const ttlPendingRef = useRef<string | null>(null);
+  /** 在途自定义草稿（值 + 输入时单位）：timer 到期按自带单位提交，不受后续切单位影响。 */
+  const ttlPendingRef = useRef<{ value: string; unit: TreeTtlUnit } | null>(null);
   const ttlTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** 树缓存写请求单调序列：丢弃被更新写超车的过期回包合并（近似 last-initiation-wins；
    * 服务端按到达序应用，同桥同序到达时等价）。 */
@@ -203,6 +213,7 @@ export function StorageSettings() {
   }, [loadTreeStats]);
 
   // 确认对话框：打开聚焦确认键，Escape 关闭（仿 StorageMigrateDialog）。
+  // 忙时锁关闭通道（遮罩/Esc/取消键）：写+清+重拉仍在后台跑，关框会丢失进度上下文。
   useEffect(() => {
     if (!treeConfirm) {
       return;
@@ -211,11 +222,23 @@ export function StorageSettings() {
     const handleEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
+        if (treeBusy) {
+          return;
+        }
         setTreeConfirm(null);
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
+  }, [treeConfirm, treeBusy]);
+
+  // 确认对话框关闭后焦点回到触发源（打开时记录），键盘用户不丢位置。
+  useEffect(() => {
+    if (treeConfirm) {
+      return;
+    }
+    treeConfirmTriggerRef.current?.focus();
+    treeConfirmTriggerRef.current = null;
   }, [treeConfirm]);
 
   // 自定义 TTL 防抖计时器卸载清理。
@@ -600,12 +623,14 @@ export function StorageSettings() {
     }
   }, []);
 
-  /** 清除确认：删全行（派生数据，下次扫描重建）后重拉 stats；失败 toast。 */
+  /** 清除确认：删全行（派生数据，下次扫描重建）后重拉 stats；失败 toast。
+   * 桥本身抛错（通道关闭等）与 !ok 同等落 toast，不抛未处理拒绝。 */
   const handleTreeClearConfirm = useCallback(async () => {
     const bridge = window.digitalLife?.storage;
     if (!bridge) {
       return;
     }
+    const seq = ++treeWriteSeqRef.current;
     setTreeBusy(true);
     try {
       const result = await bridge.clearTreeCache();
@@ -614,13 +639,16 @@ export function StorageSettings() {
         return;
       }
       setTreeConfirm(null);
-      await loadTreeStats();
+      await loadTreeStats(seq);
+    } catch (e) {
+      showToast(ipcErrorMessage(e instanceof Error ? e : null, t.storageUnknownError), 'error');
     } finally {
       setTreeBusy(false);
     }
   }, [loadTreeStats, showToast, t]);
 
-  /** 关闭确认：串行 写 options(enabled=false) → 清缓存 → 重拉 stats；失败 toast。 */
+  /** 关闭确认：串行 写 options(enabled=false) → 清缓存 → 重拉 stats；失败 toast。
+   * 桥本身抛错（通道关闭等）与 !ok 同等落 toast，对话框保持打开，不抛未处理拒绝。 */
   const handleTreeDisableConfirm = useCallback(
     async (opts: TreeCacheOptions) => {
       const bridge = window.digitalLife?.storage;
@@ -650,6 +678,8 @@ export function StorageSettings() {
           return;
         }
         setTreeStats((prev) => (prev ? { ...prev, ...opts } : prev));
+      } catch (e) {
+        showToast(ipcErrorMessage(e instanceof Error ? e : null, t.storageUnknownError), 'error');
       } finally {
         setTreeBusy(false);
       }
@@ -657,7 +687,8 @@ export function StorageSettings() {
     [cancelPendingTtl, loadTreeStats, showToast, t],
   );
 
-  /** 开关/TTL 写后重拉 stats + 本地合并回写（防 stats 回拉静默失败导致勾选弹回）。 */
+  /** 开关/TTL 写后重拉 stats + 本地合并回写（防 stats 回拉静默失败导致勾选弹回）。
+   * 桥本身抛错落 toast，不抛未处理拒绝。 */
   const handleTreeOptionsChange = useCallback(
     async (opts: TreeCacheOptions) => {
       const bridge = window.digitalLife?.storage;
@@ -665,9 +696,14 @@ export function StorageSettings() {
         return;
       }
       const seq = ++treeWriteSeqRef.current;
-      const result = await bridge.setTreeCacheOptions(opts);
-      if (!result.ok) {
-        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+      try {
+        const result = await bridge.setTreeCacheOptions(opts);
+        if (!result.ok) {
+          showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+          return;
+        }
+      } catch (e) {
+        showToast(ipcErrorMessage(e instanceof Error ? e : null, t.storageUnknownError), 'error');
         return;
       }
       // 快速连续写是 last-completion-wins：被更新写超车时跳过本次合并。
@@ -692,6 +728,8 @@ export function StorageSettings() {
   const handleTreeEnabledToggle = useCallback(
     (checked: boolean) => {
       if (checked) {
+        // 在途自定义草稿若此时到期会覆盖新意图：与取消路径同样先丢弃。
+        cancelPendingTtl();
         void handleTreeOptionsChange({
           enabled: true,
           ttlMinutes: treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes,
@@ -789,19 +827,28 @@ export function StorageSettings() {
       clearTimeout(ttlTimerRef.current);
       ttlTimerRef.current = null;
     }
-    const raw = ttlPendingRef.current;
+    const pending = ttlPendingRef.current;
     ttlPendingRef.current = null;
-    if (raw === null) {
+    if (pending === null) {
       return;
     }
-    const minutes = treeTtlMinutesFromCustom(Number(raw), ttlCustomUnit);
+    // 按草稿自带单位换算（切单位后 timer 重排仍用旧单位口径，不错位）。
+    const minutes = treeTtlMinutesFromCustom(Number(pending.value), pending.unit);
     // 非法输入（空/0/负/NaN）静默丢弃不出桥：防抖输入的常见选择——输入框保留草稿，
     // 用户继续键入即重新排队，无需错误态打断编辑。
     if (minutes === null) {
       return;
     }
     void handleTreeOptionsChange({ enabled: treeEnabled, ttlMinutes: minutes });
-  }, [handleTreeOptionsChange, treeEnabled, ttlCustomUnit]);
+  }, [handleTreeOptionsChange, treeEnabled]);
+
+  /** 重排防抖 timer（调用方已更新 pending；回调读 ref，单位恒新鲜）。 */
+  const rearmTtlTimer = useCallback(() => {
+    if (ttlTimerRef.current) {
+      clearTimeout(ttlTimerRef.current);
+    }
+    ttlTimerRef.current = setTimeout(commitTtlCustom, TREE_TTL_COMMIT_DEBOUNCE_MS);
+  }, [commitTtlCustom]);
 
   const handleTtlSelectChange = useCallback(
     (v: string) => {
@@ -828,13 +875,10 @@ export function StorageSettings() {
   const handleTtlCustomChange = useCallback(
     (raw: string) => {
       setTtlCustomValue(raw);
-      ttlPendingRef.current = raw;
-      if (ttlTimerRef.current) {
-        clearTimeout(ttlTimerRef.current);
-      }
-      ttlTimerRef.current = setTimeout(commitTtlCustom, TREE_TTL_COMMIT_DEBOUNCE_MS);
+      ttlPendingRef.current = { value: raw, unit: ttlCustomUnit };
+      rearmTtlTimer();
     },
-    [commitTtlCustom],
+    [rearmTtlTimer, ttlCustomUnit],
   );
 
   // 后端合法但不在预设档的 TTL（如 30）：进入自定义态时播种草稿（不覆盖在途输入）。
@@ -1104,19 +1148,23 @@ export function StorageSettings() {
                       ? t.storageNotCreated
                       : t.treeCacheAge.replace(
                           '{time}',
-                          // 缓存时间为绝对时刻：经 Intl 本地化渲染（与上条注释一致）。
-                          new Date(treeStats.newestCapturedAt).toLocaleString(),
+                          // 缓存时间为绝对时刻：按应用语言经 Intl 本地化渲染。
+                          formatTreeCacheTime(treeStats.newestCapturedAt, locale),
                         )}
                   </span>
                 </div>
               </div>
               <div className="adl-settings-row__control">
+                {/* 次要动作按钮：灰底偏直角、描边仅 hover（path-pick 交互语言）。 */}
                 <button
                   type="button"
-                  className="adl-btn adl-btn--hover-outline"
+                  className="adl-btn adl-btn--path-pick"
                   data-testid="tree-cache-clear"
                   disabled={treeBusy}
-                  onClick={() => setTreeConfirm('clear')}
+                  onClick={(e) => {
+                    treeConfirmTriggerRef.current = e.currentTarget;
+                    setTreeConfirm('clear');
+                  }}
                 >
                   {t.treeCacheClear}
                 </button>
@@ -1129,13 +1177,18 @@ export function StorageSettings() {
             >
               <div className="adl-settings-row__label">
                 <div className="adl-settings-row__label-text">
-                  <span>{t.treeCacheEnabled}</span>
+                  {/* 纯文本 label（无附加样式）：点文字即切换，零视觉变更。 */}
+                  <label htmlFor="adl-tree-cache-enabled">{t.treeCacheEnabled}</label>
                   <input
+                    id="adl-tree-cache-enabled"
                     type="checkbox"
                     aria-label={t.treeCacheEnabled}
                     checked={treeEnabled}
                     disabled={treeBusy}
-                    onChange={(e) => handleTreeEnabledToggle(e.target.checked)}
+                    onChange={(e) => {
+                      treeConfirmTriggerRef.current = e.currentTarget;
+                      handleTreeEnabledToggle(e.target.checked);
+                    }}
                   />
                 </div>
                 <small>{t.treeCacheEnabledHint}</small>
@@ -1164,13 +1217,27 @@ export function StorageSettings() {
                       value={ttlCustomUnit}
                       options={ttlUnitOptions}
                       onChange={(v) => {
-                        // 切单位是继续编辑同一草稿：先以旧单位提交在途输入，
-                        // 否则草稿静默丢失且显示值与已提交值错位。
-                        // 刻意取舍：提交用旧单位换算，输入框数字串保持用户原输入
-                        //（如 45m 提交 45 分钟后显示为 `45 s`），口径错位至下次编辑收敛；
-                        // 立即提交的确定性优先于显示值换算。
-                        commitTtlCustom();
-                        setTtlCustomUnit(v as TreeTtlUnit);
+                        if (!isTreeTtlUnit(v)) {
+                          return;
+                        }
+                        // 切单位是继续编辑同一草稿：在途输入换算到新单位后显示与待提交一致，
+                        // 不丢草稿、不立即写桥（仍走防抖）；非法草稿则丢弃。
+                        const pending = ttlPendingRef.current;
+                        if (pending !== null) {
+                          const minutes = treeTtlMinutesFromCustom(
+                            Number(pending.value),
+                            pending.unit,
+                          );
+                          if (minutes === null) {
+                            cancelPendingTtl();
+                          } else {
+                            const converted = formatMinutesForUnit(minutes, v);
+                            ttlPendingRef.current = { value: converted, unit: v };
+                            setTtlCustomValue(converted);
+                            rearmTtlTimer();
+                          }
+                        }
+                        setTtlCustomUnit(v);
                       }}
                       label={t.treeCacheTtlUnitLabel}
                       disabled={treeBusy || !treeEnabled}
@@ -1358,7 +1425,7 @@ export function StorageSettings() {
         ? createPortal(
             <div
               className="adl-confirm-overlay"
-              onClick={() => setTreeConfirm(null)}
+              onClick={treeBusy ? undefined : () => setTreeConfirm(null)}
               role="dialog"
               aria-modal="true"
               aria-label={treeConfirm === 'disable' ? t.treeCacheDisableTitle : t.treeCacheClear}
@@ -1377,9 +1444,11 @@ export function StorageSettings() {
                   </p>
                 </div>
                 <div className="adl-confirm-dialog__footer">
+                  {/* 忙时锁关闭：写+清+重拉仍在后台跑，关框会丢失进度上下文。 */}
                   <button
                     type="button"
                     className="adl-btn adl-btn--secondary"
+                    disabled={treeBusy}
                     onClick={() => setTreeConfirm(null)}
                   >
                     {t.storageCancel}
