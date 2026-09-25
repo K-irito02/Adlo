@@ -12,6 +12,8 @@ interface SettingsNavProps {
    * storage 走 StorageSettings 自有确认对话框与多步流程，见 settingsGroups）。 */
   resettableGroups?: ReadonlySet<SettingsGroupId>;
   onResetGroup?: (group: SettingsGroupId) => void;
+  /** 组全默认时禁用的行（聚合点计算；缺省/未知态保持启用 fail-open）。 */
+  disabledResetGroups?: ReadonlySet<SettingsGroupId>;
 }
 
 export function SettingsNav({
@@ -19,6 +21,7 @@ export function SettingsNav({
   onSelectGroup,
   resettableGroups,
   onResetGroup,
+  disabledResetGroups,
 }: SettingsNavProps) {
   const { t } = useTCopy();
   const navRef = useRef<HTMLElement>(null);
@@ -78,6 +81,7 @@ export function SettingsNav({
                   className="adl-settings-row__reset adl-settings-nav__reset"
                   aria-label={resetLabel}
                   title={resetLabel}
+                  disabled={disabledResetGroups?.has(group.id) ?? false}
                   onClick={(e) => {
                     e.stopPropagation();
                     onResetGroup?.(group.id);

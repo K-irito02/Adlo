@@ -8,6 +8,7 @@ import { SettingsPanel } from './SettingsPanel';
 import {
   DEFAULT_DEBUG_LOG_MODE,
   DEFAULT_FONTS,
+  DEFAULT_KEYBINDS,
   DEFAULT_LANGUAGE,
   DEFAULT_LOG_LEVEL,
   DEFAULT_MAX_CONCURRENT_WORKSPACES,
@@ -317,6 +318,22 @@ describe('SettingsPanel group reset', () => {
     expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
   });
 
+  it('快捷键组级重置经侧边栏按钮弹分组文案并提交快捷键默认 patch', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsShortcuts all defaults' }));
+    expect(screen.getByText('Reset settingsShortcuts?')).not.toBeNull();
+    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    expect(updatePreferences).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(updatePreferences).toHaveBeenCalledTimes(1);
+    });
+    // 快捷键组 patch 只含 keybinds 全量默认。
+    expect(updatePreferences).toHaveBeenCalledWith({ keybinds: { ...DEFAULT_KEYBINDS } });
+    expect(showToast).toHaveBeenCalledWith('settingsResetComplete', 'success');
+  });
+
   it('工作区组级重置取消不执行', () => {
     const { updatePreferences } = setupStore();
     renderPanel();
@@ -332,7 +349,9 @@ describe('SettingsPanel group reset', () => {
       | Record<string, () => unknown>
       | undefined;
     expect(factories, 'GROUP_RESET_PATCHES missing').toBeDefined();
-    expect(new Set(Object.keys(factories!))).toEqual(new Set(['general', 'workspace']));
+    expect(new Set(Object.keys(factories!))).toEqual(
+      new Set(['general', 'workspace', 'shortcuts']),
+    );
     // storage 无统一偏好 patch（多桥多步），但侧边栏同样渲染按钮并走自有确认对话框。
     expect(groups.RESETTABLE_GROUPS.has('storage')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('general')).toBe(true);
@@ -402,5 +421,72 @@ describe('SettingsPanel group reset', () => {
     expect(useAppStore.getState().storageGroupResetPending).toBe(false);
     // 通用确认框未被误执行。
     expect(useAppStore.getState().updatePreferences).not.toHaveBeenCalled();
+  });
+
+  // 侧边栏聚合 disabled（Task 4）：general/workspace/shortcuts 行在组全默认时禁用、
+  // 有偏离时启用。storage 行不纳入聚合（status 为 StorageSettings 挂载态异步数据，
+  // 侧边栏无此数据），保持常开——此处故意不断言 storage 行的 disabled。
+  function setNavConfig(patch: Record<string, unknown> = {}) {
+    const base = getDefaultPreferences();
+    useAppStore.setState((s) => ({
+      appInfo: {
+        ...((s.appInfo ?? {}) as Record<string, unknown>),
+        config: {
+          resolvedTheme: 'light',
+          maxRecentWorkspaces: 10,
+          modelPreferences: { providers: {} },
+          browserInactiveTabSuspendMs: 0,
+          ...((s.appInfo?.config ?? {}) as Record<string, unknown>),
+          ...base,
+          ...patch,
+        },
+      } as never,
+    }));
+  }
+
+  function navResetDisabled(name: string): boolean {
+    return (screen.getByRole('button', { name }) as HTMLButtonElement).disabled;
+  }
+
+  it('disables general nav reset when prefs equal defaults', () => {
+    setupStore();
+    setNavConfig();
+    renderPanel();
+    expect(navResetDisabled('Reset settingsGeneral all defaults')).toBe(true);
+  });
+
+  it('enables general nav reset when a pref differs', () => {
+    setupStore();
+    setNavConfig({ language: 'en-US' });
+    renderPanel();
+    expect(navResetDisabled('Reset settingsGeneral all defaults')).toBe(false);
+  });
+
+  it('disables workspace nav reset when prefs equal defaults', () => {
+    setupStore();
+    setNavConfig();
+    renderPanel();
+    expect(navResetDisabled('Reset settingsWorkspace all defaults')).toBe(true);
+  });
+
+  it('enables workspace nav reset when a pref differs', () => {
+    setupStore();
+    setNavConfig({ maxConcurrentWorkspaces: 99 });
+    renderPanel();
+    expect(navResetDisabled('Reset settingsWorkspace all defaults')).toBe(false);
+  });
+
+  it('disables shortcuts nav reset when keybinds equal defaults', () => {
+    setupStore();
+    setNavConfig();
+    renderPanel();
+    expect(navResetDisabled('Reset settingsShortcuts all defaults')).toBe(true);
+  });
+
+  it('enables shortcuts nav reset when a keybind differs', () => {
+    setupStore();
+    setNavConfig({ keybinds: { ...DEFAULT_KEYBINDS, 'workspace.new': 'ctrl+alt+n' } });
+    renderPanel();
+    expect(navResetDisabled('Reset settingsShortcuts all defaults')).toBe(false);
   });
 });

@@ -9,6 +9,7 @@ import { TooltipSimple } from '../Tooltip';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SettingsNav } from './SettingsNav';
 import { SETTINGS_GROUPS, GROUP_RESET_PATCHES, RESETTABLE_GROUPS } from './settingsGroups';
+import { DEFAULT_COMMANDS } from '../../commands/defaultCommands';
 import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
@@ -34,6 +35,19 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   storage: StorageSettings,
 };
 
+/** 数组元素级比对（undefined 视为非默认，保持启用）。 */
+function sameStringArray(
+  actual: readonly string[] | undefined,
+  expected: readonly string[] | undefined,
+): boolean {
+  return (
+    actual !== undefined &&
+    expected !== undefined &&
+    actual.length === expected.length &&
+    actual.every((v, i) => v === expected[i])
+  );
+}
+
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
   const { t } = useTCopy();
   const {
@@ -48,6 +62,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     settingsNavigatorWidth,
     setSettingsNavigatorWidth,
     requestStorageGroupReset,
+    config,
   } = useAppStore(
     useShallow((s) => ({
       activeGroup: s.activeSettingsGroup,
@@ -61,8 +76,57 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       settingsNavigatorWidth: s.settingsNavigatorWidth,
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
       requestStorageGroupReset: s.requestStorageGroupReset,
+      config: s.appInfo?.config,
     })),
   );
+
+  // 侧边栏组级重置聚合 disabled：组全默认时对应行按钮禁用。config 未加载时
+  // 全部启用（fail-open）。storage 行不纳入：其"是否默认"判定依赖 StorageSettings
+  // 挂载态异步加载的 storage status（mode/root/defaultRoot），侧边栏无此数据；
+  // 为其单独发一次 getStatus 属重复请求且引入 loading 竞态，故 storage 行保持常开，
+  // 块级四个按钮仍各自执行 disabled 逻辑。
+  const disabledResetGroups = useMemo(() => {
+    const disabled = new Set<SettingsGroupId>();
+    if (!config) {
+      return disabled;
+    }
+    const generalPatch = GROUP_RESET_PATCHES.general?.();
+    if (
+      generalPatch &&
+      config.language === generalPatch.language &&
+      config.themeMode === generalPatch.themeMode &&
+      config.logLevel === generalPatch.logLevel &&
+      config.terminalLogMode === generalPatch.terminalLogMode &&
+      config.debugLogMode === generalPatch.debugLogMode &&
+      config.fonts?.uiFont === generalPatch.fonts?.uiFont &&
+      config.fonts?.codeFont === generalPatch.fonts?.codeFont &&
+      config.fonts?.terminalFont === generalPatch.fonts?.terminalFont
+    ) {
+      disabled.add('general');
+    }
+    const workspacePatch = GROUP_RESET_PATCHES.workspace?.();
+    if (
+      workspacePatch &&
+      config.maxConcurrentWorkspaces === workspacePatch.maxConcurrentWorkspaces &&
+      sameStringArray(config.workspacePriorityIds, workspacePatch.workspacePriorityIds) &&
+      sameStringArray(config.workspaceDeferredIds, workspacePatch.workspaceDeferredIds) &&
+      sameStringArray(config.workspaceNaturalOrder, workspacePatch.workspaceNaturalOrder)
+    ) {
+      disabled.add('workspace');
+    }
+    // 与 KeybindSettings.currentOf 同语义（缺 key 视为 defaultKeybind，无默认视为 'none'）；
+    // 此处本地重写三行比较，不从 KeybindSettings import。
+    const keybinds = config.keybinds ?? {};
+    if (
+      DEFAULT_COMMANDS.every(
+        (cmd) =>
+          (keybinds[cmd.id] ?? cmd.defaultKeybind ?? 'none') === (cmd.defaultKeybind ?? 'none'),
+      )
+    ) {
+      disabled.add('shortcuts');
+    }
+    return disabled;
+  }, [config]);
 
   const rafRef = useRef(0);
 
@@ -342,6 +406,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
               onSelectGroup={setActiveGroup}
               resettableGroups={RESETTABLE_GROUPS}
               onResetGroup={handleRequestResetGroup}
+              disabledResetGroups={disabledResetGroups}
             />
             <div
               className="adl-settings-nav__resize-handle"
