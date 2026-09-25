@@ -12,11 +12,14 @@ import { useKeyCapture } from '../../hooks/useKeyCapture';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { IconResetDefaults } from '../../icons';
 
-const GROUP_ORDER: CommandGroup[] = ['general', 'navigation'];
+const GROUP_ORDER: CommandGroup[] = ['general', 'navigation', 'view', 'zoom', 'file'];
 
 const GROUP_LABEL_KEY: Record<CommandGroup, CopyKey> = {
   general: 'settingsShortcutsGroupGeneral',
   navigation: 'settingsShortcutsGroupNavigation',
+  view: 'settingsShortcutsGroupView',
+  zoom: 'settingsShortcutsGroupZoom',
+  file: 'settingsShortcutsGroupFile',
 };
 
 /**

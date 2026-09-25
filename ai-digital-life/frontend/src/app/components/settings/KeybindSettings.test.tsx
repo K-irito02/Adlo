@@ -121,7 +121,7 @@ describe('KeybindSettings', () => {
     );
 
     const groups = document.querySelectorAll('.adl-settings-keybinds__group');
-    expect(groups.length).toBe(2);
+    expect(groups.length).toBe(5);
     for (const group of groups) {
       const header = group.querySelector(':scope > .adl-settings-keybinds__group-header');
       const card = group.querySelector(':scope > .adl-settings-card');
@@ -160,7 +160,7 @@ describe('KeybindSettings', () => {
     const groupCards = document.querySelectorAll(
       '.adl-settings-keybinds__group > .adl-settings-card',
     );
-    expect(groupCards.length).toBe(2);
+    expect(groupCards.length).toBe(5);
   });
 
   it('renders a group-level reset button per block', () => {
@@ -171,7 +171,7 @@ describe('KeybindSettings', () => {
     );
 
     const groupResets = document.querySelectorAll('.adl-settings-keybinds__group-reset');
-    expect(groupResets.length).toBe(2);
+    expect(groupResets.length).toBe(5);
   });
 
   it('renders a per-row reset button before each shortcut name', () => {
@@ -182,7 +182,7 @@ describe('KeybindSettings', () => {
     );
 
     const rowResets = screen.getAllByLabelText('settingsShortcutsResetOne');
-    expect(rowResets.length).toBe(3);
+    expect(rowResets.length).toBe(14);
   });
 
   it('filters commands by keybind text (raw mod+n)', () => {
@@ -267,7 +267,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    expect(screen.getByLabelText('settingsShortcutsUnassigned')).toBeDefined();
+    expect(screen.getAllByLabelText('settingsShortcutsUnassigned')).toHaveLength(2);
   });
 
   it('clicking KeybindControl enters recording mode (aria-label changes to Press keys)', () => {
@@ -519,7 +519,7 @@ describe('KeybindSettings', () => {
     );
 
     const groupResets = document.querySelectorAll('.adl-settings-keybinds__group-reset');
-    expect(groupResets.length).toBe(2);
+    expect(groupResets.length).toBe(5);
     // navigation group is second; its reset restores workspace.new/open defaults
     await act(async () => {
       fireEvent.click(groupResets[1]);
