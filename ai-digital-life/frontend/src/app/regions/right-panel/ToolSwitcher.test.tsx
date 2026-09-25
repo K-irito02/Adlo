@@ -1,9 +1,10 @@
 import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import type { CopyDict } from '../../i18n';
 import type { ToolId } from '../../stores/types';
+import { useAppStore } from '../../stores/slicedStore';
 import { ToolSwitcher } from './ToolSwitcher';
 
 const mockT = new Proxy({} as Record<string, string>, {
@@ -61,5 +62,47 @@ describe('ToolSwitcher', () => {
   it('hides the communicate tab before release (restorable, see ToolSwitcher TAB_META comment)', () => {
     renderSwitcher();
     expect(screen.queryByRole('tab', { name: 'toolCommunicate' })).not.toBeInTheDocument();
+  });
+
+  it('derives tab shortcut hints from user keybinds', async () => {
+    const prevAppInfo = useAppStore.getState().appInfo;
+    useAppStore.setState({
+      appInfo: {
+        ...(prevAppInfo as object),
+        config: {
+          ...((prevAppInfo as { config?: object } | null)?.config as object),
+          keybinds: { 'view.terminal': 'mod+t' },
+        },
+      } as never,
+    });
+    try {
+      render(
+        <TestProvider>
+          <ToolSwitcher
+            activeTool="files"
+            badges={badges}
+            idBase="test-ts"
+            onSelect={vi.fn()}
+            rightPanelExpanded={false}
+            onToggleRightPanelExpanded={vi.fn()}
+          />
+        </TestProvider>,
+      );
+      // TooltipSimple renders its content only on hover (with showDelay), so a
+      // plain render never contains the hint — open the terminal tab tooltip first.
+      fireEvent.mouseEnter(screen.getByRole('tab', { name: 'toolTerminal' }));
+      // Only the hovered tab's tooltip is mounted, so the negative assertion on
+      // its content is deterministic.
+      await vi.waitFor(
+        () => {
+          const tooltip = document.body.querySelector('[data-testid="tooltip-content"]');
+          expect(tooltip?.textContent ?? '').toContain('Ctrl+T');
+          expect(tooltip?.textContent ?? '').not.toContain('Ctrl+Shift+`');
+        },
+        { timeout: 2000 },
+      );
+    } finally {
+      useAppStore.setState({ appInfo: prevAppInfo });
+    }
   });
 });

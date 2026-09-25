@@ -9,6 +9,9 @@ import {
   IconSettings,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
+import { useAppStore } from '@stores/slicedStore';
+import { formatKeybind } from '@shared/keybinds';
+import { DEFAULT_KEYBINDS } from '@shared/defaultPreferences';
 import type { ToolId } from '@stores/types';
 import type { CopyDict } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
@@ -24,37 +27,37 @@ interface ToolSwitcherProps {
 
 const TAB_META: {
   id: ToolId;
-  shortcut: string;
+  commandId: string;
   icon: React.ReactNode;
   labelKey: keyof CopyDict;
 }[] = [
   {
     id: 'files',
-    shortcut: 'Ctrl+Shift+E',
+    commandId: 'view.files',
     icon: <IconFiles size={16} decorative />,
     labelKey: 'toolFiles',
   },
   {
     id: 'changes',
-    shortcut: 'Ctrl+Shift+G',
+    commandId: 'view.changes',
     icon: <IconGitFork size={16} decorative />,
     labelKey: 'toolChanges',
   },
   {
     id: 'browser',
-    shortcut: 'Ctrl+Shift+B',
+    commandId: 'view.browser',
     icon: <IconGlobe size={16} decorative />,
     labelKey: 'toolBrowser',
   },
   {
     id: 'terminal',
-    shortcut: 'Ctrl+Shift+`',
+    commandId: 'view.terminal',
     icon: <IconTerminal size={16} decorative />,
     labelKey: 'toolTerminal',
   },
   {
     id: 'settings',
-    shortcut: 'Ctrl+Shift+,',
+    commandId: 'settings.open',
     icon: <IconSettings size={16} decorative />,
     labelKey: 'toolSettings',
   },
@@ -96,6 +99,7 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
 }: ToolSwitcherProps) {
   const { t } = useTCopy();
   const [hoveredTool, setHoveredTool] = React.useState<ToolId | null>(null);
+  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? {};
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, currentTool: ToolId) => {
@@ -146,9 +150,10 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
           const nextTab = TAB_META[index + 1];
           const shouldShowSeparator =
             !!nextTab && isHighlighted && (activeTool === nextTab.id || hoveredTool === nextTab.id);
+          const hint = formatKeybind(keybinds[tab.commandId] ?? DEFAULT_KEYBINDS[tab.commandId]);
           return (
             <React.Fragment key={tab.id}>
-              <TooltipSimple content={`${label} · ${tab.shortcut}`} placement="top">
+              <TooltipSimple content={hint ? `${label} · ${hint}` : label} placement="top">
                 <button
                   type="button"
                   id={tabId}
