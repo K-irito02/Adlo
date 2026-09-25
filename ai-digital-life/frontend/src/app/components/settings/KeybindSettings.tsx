@@ -1,16 +1,23 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CommandGroup, CommandMeta } from '../../commands/defaultCommands';
 import { DEFAULT_COMMANDS } from '../../commands/defaultCommands';
 import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '../../i18n/useTCopy';
-import { formatKeybind, EMPTY_KEYBINDS, parseKeybind } from '../../../shared/keybinds';
-import { DEFAULT_KEYBINDS } from '../../../shared/defaultPreferences';
+import {
+  formatKeybind,
+  EMPTY_KEYBINDS,
+  parseKeybind,
+  recordKeybind,
+} from '../../../shared/keybinds';
 import type { CopyKey } from '../../i18n/types';
 import { KeybindControl } from './KeybindControl';
+import { SettingsHeader } from './SettingsHeader';
 import { useKeyCapture } from '../../hooks/useKeyCapture';
 import { ConfirmDialog } from '../ConfirmDialog';
-import { IconResetDefaults } from '../../icons';
+import { HintCardTrigger } from '../HintCard';
+import { IconResetDefaults, IconKeyboard } from '../../icons';
+import { IconCircleHelp } from '../../icons/status';
 
 const GROUP_ORDER: CommandGroup[] = ['general', 'navigation', 'view', 'zoom', 'file'];
 
@@ -45,6 +52,25 @@ function shortcutMatchTexts(
   const formatted = formatKeybind(keybinds[cmd.id] ?? cmd.defaultKeybind).toLowerCase();
   const tokens = parseKeybind(raw).join('');
   return [raw, formatted, tokens];
+}
+
+/** 修饰键原始部分串（与 recordKeybind 同一平台映射），供预览与模糊过滤共用。 */
+function modifierParts(event: KeyboardEvent): string[] {
+  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const parts: string[] = [];
+  if (isMac ? event.metaKey : event.ctrlKey) {
+    parts.push('mod');
+  }
+  if (isMac ? event.ctrlKey : event.metaKey) {
+    parts.push(isMac ? 'ctrl' : 'meta');
+  }
+  if (event.altKey) {
+    parts.push('alt');
+  }
+  if (event.shiftKey) {
+    parts.push('shift');
+  }
+  return parts;
 }
 
 function matchesShortcutQuery(
@@ -87,7 +113,12 @@ export function KeybindSettings() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [pendingResetGroup, setPendingResetGroup] = useState<CommandGroup | null>(null);
-  const [confirmResetAllOpen, setConfirmResetAllOpen] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  // 捕获态输入框回显：修饰键单按时实时预览已按下的部分（如 Ctrl+…），
+  // 同时把原始部分串写入查询参与模糊过滤（压平匹配天然命中含该修饰键的命令）；
+  // 落定/取消时恢复或提交。查询 untouched 的旧语义已废除。
+  const [capturePreview, setCapturePreview] = useState('');
+  const preCaptureQueryRef = useRef('');
 
   const filtered = useMemo(() => {
     if (!searchQuery.trim()) {
@@ -140,6 +171,54 @@ export function KeybindSettings() {
     onStop: handleStop,
   });
 
+  // 搜索框按键捕获：与行级录制同一监听策略（document capture + 吞掉事件），
+  // 避免捕获到的组合键触发全局快捷键（如 Ctrl+N 新建工作区）。
+  // 修饰键单按（recordKeybind 返回 null）不结束捕获，只回显已按下的部分，
+  // 让"只按一个键"也有可见反应；Esc 结束捕获（查询 untouched，直接恢复显示）。
+  useEffect(() => {
+    if (!capturing) {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      if (event.key === 'Escape') {
+        setSearchQuery(preCaptureQueryRef.current);
+        setCapturing(false);
+        setCapturePreview('');
+        return;
+      }
+      const kb = recordKeybind(event);
+      if (kb === null) {
+        const parts = modifierParts(event);
+        if (parts.length > 0) {
+          setCapturePreview(`${formatKeybind(parts.join('+'))}+…`);
+          setSearchQuery(parts.join('+'));
+        }
+        return;
+      }
+      setSearchQuery(formatKeybind(kb));
+      setCapturing(false);
+      setCapturePreview('');
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [capturing]);
+
+  const startCapture = () => {
+    setActiveId(null);
+    preCaptureQueryRef.current = searchQuery;
+    setCapturePreview('');
+    setCapturing(true);
+  };
+
+  const cancelCapture = () => {
+    setSearchQuery(preCaptureQueryRef.current);
+    setCapturing(false);
+    setCapturePreview('');
+  };
+
   const currentOf = (cmd: CommandMeta): string => keybinds[cmd.id] ?? cmd.defaultKeybind ?? 'none';
 
   const handleResetOne = (cmd: CommandMeta) => {
@@ -169,42 +248,48 @@ export function KeybindSettings() {
     })();
   };
 
-  const handleConfirmResetAll = () => {
-    setConfirmResetAllOpen(false);
-    void (async () => {
-      const ok = await updatePreferences({ keybinds: { ...keybinds, ...DEFAULT_KEYBINDS } });
-      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
-    })();
-  };
-
   const pendingGroupLabel = pendingResetGroup ? t[GROUP_LABEL_KEY[pendingResetGroup]] : null;
 
   return (
     <div className="adl-settings-keybinds">
       <div className="adl-settings-keybinds__toolbar">
-        <button
-          type="button"
-          className="adl-settings-row__reset"
-          aria-label={t.settingsShortcutsResetAllShortcuts}
-          title={t.settingsShortcutsResetAllShortcuts}
-          onClick={() => setConfirmResetAllOpen(true)}
-        >
-          <IconResetDefaults size={14} decorative />
-        </button>
+        <HintCardTrigger content={t.settingsShortcutsSearchHint}>
+          <button
+            type="button"
+            className="adl-icon-button adl-icon-button--info"
+            tabIndex={-1}
+            aria-label={t.settingsShortcutsSearchHintLabel}
+          >
+            <IconCircleHelp size={16} />
+          </button>
+        </HintCardTrigger>
         <label
           htmlFor="adl-settings-keybinds-search"
           className="adl-settings-keybinds__search-label"
         >
           {t.settingsShortcutsSearchLabel}
         </label>
-        <input
-          id="adl-settings-keybinds-search"
-          type="search"
-          className="adl-settings-keybinds__search"
-          placeholder={t.settingsShortcutsSearch}
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-        />
+        <div className="adl-settings-keybinds__search-wrap">
+          <input
+            id="adl-settings-keybinds-search"
+            type="search"
+            className="adl-settings-keybinds__search"
+            placeholder={capturing ? t.settingsShortcutsSearchCapturing : ''}
+            value={capturing ? capturePreview : searchQuery}
+            readOnly={capturing}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <button
+            type="button"
+            className={`adl-settings-keybinds__capture${capturing ? ' is-recording' : ''}`}
+            aria-label={t.settingsShortcutsSearchByKeypress}
+            title={t.settingsShortcutsSearchByKeypress}
+            aria-pressed={capturing}
+            onClick={() => (capturing ? cancelCapture() : startCapture())}
+          >
+            <IconKeyboard size={14} decorative />
+          </button>
+        </div>
       </div>
       {GROUP_ORDER.map((group) => {
         const list = grouped.get(group);
@@ -213,6 +298,11 @@ export function KeybindSettings() {
         }
         const groupLabel = t[GROUP_LABEL_KEY[group]];
         const groupResetLabel = formatT(t, 'settingsResetGroupToDefault', { group: groupLabel });
+        // 块内全为默认值时禁用恢复按钮（同行级语义）：无 hover 灰底、不可点、不弹确认框。
+        const isGroupDefault = list.every(
+          (cmd) =>
+            (keybinds[cmd.id] ?? cmd.defaultKeybind ?? 'none') === (cmd.defaultKeybind ?? 'none'),
+        );
         return (
           <div key={group} className="adl-settings-keybinds__group">
             <div className="adl-settings-keybinds__group-header">
@@ -221,11 +311,12 @@ export function KeybindSettings() {
                 className="adl-settings-row__reset adl-settings-keybinds__group-reset"
                 aria-label={groupResetLabel}
                 title={groupResetLabel}
+                disabled={isGroupDefault}
                 onClick={() => setPendingResetGroup(group)}
               >
                 <IconResetDefaults size={14} decorative />
               </button>
-              <h4 className="adl-settings-keybinds__group-title">{groupLabel}</h4>
+              <SettingsHeader title={groupLabel} />
             </div>
             <section className="adl-settings-card">
               <ul className="adl-settings-keybinds__list">
@@ -248,7 +339,12 @@ export function KeybindSettings() {
                       <KeybindControl
                         keybind={current}
                         isRecording={activeId === cmd.id}
-                        onClick={() => setActiveId((prev) => (prev === cmd.id ? null : cmd.id))}
+                        onClick={() => {
+                          if (capturing) {
+                            cancelCapture();
+                          }
+                          setActiveId((prev) => (prev === cmd.id ? null : cmd.id));
+                        }}
                       />
                     </li>
                   );
@@ -274,15 +370,6 @@ export function KeybindSettings() {
         cancelLabel={t.cancel}
         onConfirm={handleConfirmGroupReset}
         onCancel={() => setPendingResetGroup(null)}
-      />
-      <ConfirmDialog
-        open={confirmResetAllOpen}
-        title={t.settingsShortcutsResetAllTitle}
-        message={t.settingsShortcutsResetAllMessage}
-        confirmLabel={t.confirm}
-        cancelLabel={t.cancel}
-        onConfirm={handleConfirmResetAll}
-        onCancel={() => setConfirmResetAllOpen(false)}
       />
     </div>
   );

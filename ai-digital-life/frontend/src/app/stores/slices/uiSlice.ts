@@ -72,6 +72,7 @@ export const createUISlice = (
     activeSettingsGroup: 'general',
     settingsSearchQuery: '',
     storageGroupResetPending: false,
+    storageBlocksAtDefault: null,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     changesStatusFilter: new Set(),
     changesOutlineExpanded: {},
@@ -160,6 +161,7 @@ export const createUISlice = (
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
     requestStorageGroupReset: () => set({ storageGroupResetPending: true }),
     consumeStorageGroupReset: () => set({ storageGroupResetPending: false }),
+    setStorageBlocksAtDefault: (value) => set({ storageBlocksAtDefault: value }),
     setNavigatorCollapsed: (tool, collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };

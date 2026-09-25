@@ -63,6 +63,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     setSettingsNavigatorWidth,
     requestStorageGroupReset,
     config,
+    storageBlocksAtDefault,
   } = useAppStore(
     useShallow((s) => ({
       activeGroup: s.activeSettingsGroup,
@@ -77,14 +78,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
       requestStorageGroupReset: s.requestStorageGroupReset,
       config: s.appInfo?.config,
+      storageBlocksAtDefault: s.storageBlocksAtDefault,
     })),
   );
 
   // 侧边栏组级重置聚合 disabled：组全默认时对应行按钮禁用。config 未加载时
-  // 全部启用（fail-open）。storage 行不纳入：其"是否默认"判定依赖 StorageSettings
-  // 挂载态异步加载的 storage status（mode/root/defaultRoot），侧边栏无此数据；
-  // 为其单独发一次 getStatus 属重复请求且引入 loading 竞态，故 storage 行保持常开，
-  // 块级四个按钮仍各自执行 disabled 逻辑。
+  // 全部启用（fail-open）。storage 行纳入：StorageSettings 挂载时维护聚合信号，
+  // 未挂载（null/未知）时保持启用。
   const disabledResetGroups = useMemo(() => {
     const disabled = new Set<SettingsGroupId>();
     if (!config) {
@@ -125,8 +125,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     ) {
       disabled.add('shortcuts');
     }
+    if (storageBlocksAtDefault === true) {
+      disabled.add('storage');
+    }
     return disabled;
-  }, [config]);
+  }, [config, storageBlocksAtDefault]);
 
   const rafRef = useRef(0);
 

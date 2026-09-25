@@ -318,6 +318,34 @@ describe('SettingsPanel group reset', () => {
     expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
   });
 
+  it('storage nav reset disabled only when storage aggregate reports all-default', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    setNavConfig();
+    useAppStore.setState({ storageBlocksAtDefault: true });
+    try {
+      renderPanel();
+      expect(navResetDisabled('Reset storageTitle all defaults')).toBe(true);
+    } finally {
+      useAppStore.setState({ storageBlocksAtDefault: prevAggregate, appInfo: prevAppInfo });
+    }
+  });
+
+  it('storage nav reset stays enabled when aggregate unknown', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    setNavConfig();
+    useAppStore.setState({ storageBlocksAtDefault: null });
+    try {
+      renderPanel();
+      expect(navResetDisabled('Reset storageTitle all defaults')).toBe(false);
+    } finally {
+      useAppStore.setState({ storageBlocksAtDefault: prevAggregate, appInfo: prevAppInfo });
+    }
+  });
+
   it('快捷键组级重置经侧边栏按钮弹分组文案并提交快捷键默认 patch', async () => {
     const { updatePreferences, showToast } = setupStore();
     renderPanel();
@@ -423,9 +451,8 @@ describe('SettingsPanel group reset', () => {
     expect(useAppStore.getState().updatePreferences).not.toHaveBeenCalled();
   });
 
-  // 侧边栏聚合 disabled（Task 4）：general/workspace/shortcuts 行在组全默认时禁用、
-  // 有偏离时启用。storage 行不纳入聚合（status 为 StorageSettings 挂载态异步数据，
-  // 侧边栏无此数据），保持常开——此处故意不断言 storage 行的 disabled。
+  // 侧边栏聚合 disabled（Task 4 + 存储聚合）：general/workspace/shortcuts 行在组全默认时禁用、
+  // 有偏离时启用；storage 行由 StorageSettings 维护的聚合信号驱动，未知时保持启用。
   function setNavConfig(patch: Record<string, unknown> = {}) {
     const base = getDefaultPreferences();
     useAppStore.setState((s) => ({

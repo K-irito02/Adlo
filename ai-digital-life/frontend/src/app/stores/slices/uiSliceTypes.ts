@@ -128,6 +128,11 @@ export interface UISlice {
    * 「未挂载 → 切组+信号同批 → 挂载即把新值当历史播种而漏弹」的首跳竞态（Phase 4 H1）。
    */
   storageGroupResetPending: boolean;
+  /**
+   * 存储四块是否全默认的聚合信号（transient，不持久化）：StorageSettings 挂载时按
+   * 四块判定写入并在卸载时清 null，供侧边栏存储行 disabled 用。null = 未知 → 启用。
+   */
+  storageBlocksAtDefault: boolean | null;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
   changesStatusFilter: Set<ChangeFileState>;
@@ -186,6 +191,8 @@ export interface UISlice {
   requestStorageGroupReset: () => void;
   /** 消费组级恢复待处理（承接方开框前/丢弃信号时调用）。 */
   consumeStorageGroupReset: () => void;
+  /** 设置存储四块全默认聚合信号（StorageSettings 挂载维护，卸载清 null）。 */
+  setStorageBlocksAtDefault: (value: boolean | null) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;

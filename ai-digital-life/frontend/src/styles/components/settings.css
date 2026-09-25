@@ -768,7 +768,8 @@
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
-  color: var(--text-muted);
+  /* 启用态与文字同亮度（secondary）；禁用态回 muted（见 :disabled）。 */
+  color: var(--text-secondary);
   cursor: pointer;
   transition: var(--transition-colors);
   flex-shrink: 0;
@@ -862,7 +863,7 @@
 .adl-settings-keybinds {
   display: flex;
   flex-direction: column;
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 .adl-settings-keybinds__toolbar {
@@ -886,13 +887,23 @@
   white-space: nowrap;
 }
 
+.adl-settings-keybinds__search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
 .adl-settings-keybinds__search {
   flex: 1;
   min-width: 0;
   padding: var(--space-1) var(--space-2);
+  /* 右侧按键捕获按钮位 */
+  padding-right: calc(var(--space-2) + 22px);
   background: var(--bg-muted);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  /* 与块卡片同款圆角（区别于偏直角的按钮语言） */
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
   font-size: var(--text-xs);
   transition: var(--transition-colors);
@@ -901,6 +912,43 @@
 .adl-settings-keybinds__search:hover:not(:readonly) {
   background: var(--surface-hover);
   border-color: var(--border-strong);
+}
+
+/* 搜索框内右侧按键捕获按钮：常驻透明，仅图标可见；hover 才显底 */
+.adl-settings-keybinds__capture {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-settings-keybinds__capture:hover {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.adl-settings-keybinds__capture:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-settings-keybinds__capture.is-recording {
+  background: var(--pastel-info-bg);
+  border-color: var(--pastel-info-fg);
+  color: var(--pastel-info-fg);
 }
 
 .adl-settings-keybinds__search:focus-visible {
@@ -932,25 +980,19 @@
   }
 }
 
-/* 块头：组级恢复按钮 + 主标题（与工作区/存储组头同一交互语言）。 */
+/* 块头：组级恢复按钮 + SettingsHeader（与工作区/存储组头同一交互与标题语言，无分隔线）。 */
 .adl-settings-keybinds__group-header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--border-subtle);
 }
 
-.adl-settings-keybinds__group-title {
-  margin: 0;
+.adl-settings-keybinds__group-header .adl-settings-header {
   flex: 1;
   min-width: 0;
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-  letter-spacing: var(--tracking-wider);
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-family: var(--font-sans);
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: none;
 }
 
 .adl-settings-keybinds__list {
@@ -986,11 +1028,12 @@
   color: var(--text-primary);
 }
 
+/* 快捷键键帽：常驻透明边框（灰底偏直角，同"选择目录"按钮语言），hover 才描边。 */
 .adl-settings-keybind {
   padding: var(--space-1) var(--space-3);
   background: var(--bg-muted);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
   color: var(--text-secondary);
   font-size: var(--text-xs);
   font-family: var(--font-mono, monospace);
@@ -1000,13 +1043,14 @@
   text-align: center;
 }
 
-.adl-settings-keybind:hover {
+.adl-settings-keybind:hover:not(:disabled) {
   background: var(--surface-hover);
   border-color: var(--border-strong);
   color: var(--text-primary);
 }
 
 .adl-settings-keybind:focus-visible {
+  border-color: var(--border-strong);
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }

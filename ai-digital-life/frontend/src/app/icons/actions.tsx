@@ -204,6 +204,24 @@ export const IconResetDefaults = makeThin(
   1.5,
 );
 
+/**
+ * 键盘图标（快捷键搜索框内按键捕获按钮）。
+ * 经 makeThin 统一 stroke 风格，继承 currentColor。禁止内联使用，请统一 import 此组件。
+ */
+export const IconKeyboard = makeThin(
+  <>
+    <rect width="20" height="12" x="2" y="6" rx="2" />
+    <path d="M6 10h.01" />
+    <path d="M10 10h.01" />
+    <path d="M14 10h.01" />
+    <path d="M18 10h.01" />
+    <path d="M6 14h.01" />
+    <path d="M18 14h.01" />
+    <path d="M9 14h6" />
+  </>,
+  1.5,
+);
+
 export const IconReplace = make(
   <>
     <path d="M4 7h11" />

@@ -4,6 +4,7 @@ import type { CopyDict } from '../../i18n';
 import {
   DEFAULT_DEBUG_LOG_MODE,
   DEFAULT_FONTS,
+  DEFAULT_KEYBINDS,
   DEFAULT_LANGUAGE,
   DEFAULT_LOG_LEVEL,
   DEFAULT_MAX_CONCURRENT_WORKSPACES,
@@ -30,7 +31,7 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
 
 /**
  * 组级重置 patch 工厂（偏好直写组）：按钮渲染与执行行为同源。
- * 未接入的组（shortcuts/browser/dsh 为独立组件/独立存储）无按钮、无行为。
+ * 未接入的组（browser/dsh 为独立组件/独立存储）无按钮、无行为。
  */
 export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPreferencePatch>> = {
   general: () => ({
@@ -46,6 +47,9 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
     workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
     workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
     workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
+  }),
+  shortcuts: () => ({
+    keybinds: { ...DEFAULT_KEYBINDS },
   }),
 };
 

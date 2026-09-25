@@ -199,6 +199,38 @@ describe('StorageSettings', () => {
     }
   });
 
+  it('download block reset also restores the auto-migrate switch to off', async () => {
+    const prevDownloadSettings = useAppStore.getState().downloadSettings;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    setStoreDownloadSettings('D:/custom-downloads', true);
+    useAppStore.setState({ changeDownloadPath, updateDownloadSettings });
+    try {
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      fireEvent.click(screen.getByTestId('download-path-reset'));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'storageDownloadResetConfirmBtn' }),
+      );
+      await waitFor(() => {
+        expect(changeDownloadPath).toHaveBeenCalledWith('', true);
+      });
+      // 开关复位与搬迁解耦：恢复默认同时关闭自动迁移。
+      expect(updateDownloadSettings).toHaveBeenCalledWith(undefined, undefined, false);
+    } finally {
+      useAppStore.setState({
+        downloadSettings: prevDownloadSettings,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+      });
+    }
+  });
+
   it('renders the restore-default trigger with the reset group label', async () => {
     renderSettings();
     await waitFor(() => {

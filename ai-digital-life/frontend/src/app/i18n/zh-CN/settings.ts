@@ -57,15 +57,16 @@ export const settingsZh = {
 
   // 快捷键
   settingsShortcutsSearchLabel: '搜索快捷键',
-  settingsShortcutsSearch: '搜索快捷键...',
+  settingsShortcutsSearchHintLabel: '搜索快捷键功能说明',
+  settingsShortcutsSearchHint:
+    '# 搜索快捷键这样用\n直接打字就能找：按功能的中文名（比如"新建工作空间"）、按键原文（比如 mod+n）、界面上显示的样子（比如 Ctrl+N），甚至单个字母（比如 n）都行。\n点输入框右边的键盘图标，可以直接在键盘上按出组合键，自动填进来帮你找；如果只按了 Ctrl、Shift 这种单键，会显示已按下的部分并继续等你按完，不用重来。\n按 Esc 取消按键输入，回到之前的搜索词。',
+  settingsShortcutsSearchCapturing: '按下快捷键以搜索…',
+  settingsShortcutsSearchByKeypress: '用按键搜索',
   settingsShortcutsPressKeys: '按下快捷键...',
   settingsShortcutsUnassigned: '未设置',
   settingsShortcutsConflict: '快捷键冲突',
   settingsShortcutsConflictDesc: '快捷键 {keybind} 已被以下命令占用：{titles}',
   settingsShortcutsResetOne: '重置此项',
-  settingsShortcutsResetAllShortcuts: '恢复全部快捷键为默认',
-  settingsShortcutsResetAllTitle: '恢复全部快捷键为默认？',
-  settingsShortcutsResetAllMessage: '全部快捷键将恢复为默认值，此操作不可撤销。',
   settingsShortcutsClear: '清除',
   settingsShortcutsGroupGeneral: '通用',
   settingsShortcutsGroupNavigation: '导航',

@@ -87,6 +87,7 @@ export {
   IconPause,
   IconRefreshCw,
   IconResetDefaults,
+  IconKeyboard,
   IconReplace,
   IconBack,
   IconMoreVertical,

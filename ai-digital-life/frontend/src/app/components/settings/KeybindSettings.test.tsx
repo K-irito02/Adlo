@@ -93,7 +93,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const search = screen.getByPlaceholderText('settingsShortcutsSearch');
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel');
     expect(search).toBeDefined();
   });
 
@@ -129,11 +129,13 @@ describe('KeybindSettings', () => {
       expect(card).not.toBeNull();
       // Header must not be nested inside the card
       expect(card?.querySelector('.adl-settings-keybinds__group-header')).toBeNull();
-      expect(header?.querySelector('.adl-settings-keybinds__group-title')).not.toBeNull();
+      // Storage-style title via SettingsHeader (no legacy uppercase group-title, no divider)
+      expect(header?.querySelector('.adl-settings-header__title')).not.toBeNull();
+      expect(header?.querySelector('.adl-settings-keybinds__group-title')).toBeNull();
     }
   });
 
-  it('renders a sticky toolbar (not a card) with reset-all + search label + search input', () => {
+  it('renders a sticky toolbar (not a card) with search label + input + keypress-capture button', () => {
     render(
       <TestProvider>
         <KeybindSettings />
@@ -143,11 +145,12 @@ describe('KeybindSettings', () => {
     const toolbar = document.querySelector('.adl-settings-keybinds__toolbar');
     expect(toolbar).not.toBeNull();
     expect(toolbar?.classList.contains('adl-settings-card')).toBe(false);
-    // Top reset-all button uses the shortcuts-scoped label
-    expect(screen.getByLabelText('settingsShortcutsResetAllShortcuts')).toBeDefined();
+    // Top reset-all moved to the settings nav row — no reset button in the toolbar
+    expect(screen.queryByLabelText('settingsShortcutsResetAllShortcuts')).toBeNull();
     // Visible "search shortcuts" text label (i18n, not hardcoded)
     expect(screen.getByText('settingsShortcutsSearchLabel')).toBeDefined();
     expect(toolbar?.querySelector('.adl-settings-keybinds__search')).not.toBeNull();
+    expect(screen.getByLabelText('settingsShortcutsSearchByKeypress')).toBeDefined();
   });
 
   it('renders only groups that have commands (no empty placeholder groups)', () => {
@@ -192,7 +195,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const search = screen.getByPlaceholderText('settingsShortcutsSearch') as HTMLInputElement;
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
     act(() => {
       fireEvent.change(search, { target: { value: 'mod+n' } });
     });
@@ -208,7 +211,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const search = screen.getByPlaceholderText('settingsShortcutsSearch') as HTMLInputElement;
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
     act(() => {
       fireEvent.change(search, { target: { value: 'Ctrl+N' } });
     });
@@ -224,7 +227,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const search = screen.getByPlaceholderText('settingsShortcutsSearch') as HTMLInputElement;
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
     act(() => {
       fireEvent.change(search, { target: { value: 'commandWorkspace' } });
     });
@@ -537,10 +540,49 @@ describe('KeybindSettings', () => {
     updatePreferencesSpy.mockRestore();
   });
 
-  it('top reset-all opens a confirm dialog and resets all shortcuts on confirm', async () => {
-    const updatePreferencesSpy = vi
-      .spyOn(useAppStore.getState(), 'updatePreferences')
-      .mockResolvedValue(true);
+  it('group reset buttons are disabled when nothing in the group changed', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const groupResets = Array.from(
+      document.querySelectorAll('.adl-settings-keybinds__group-reset'),
+    ) as HTMLButtonElement[];
+    expect(groupResets.length).toBe(5);
+    for (const btn of groupResets) {
+      expect(btn.disabled).toBe(true);
+    }
+  });
+
+  it('group reset button enables only for the group that changed', () => {
+    useAppStore.setState({
+      appInfo: {
+        appName: 'test',
+        version: '0.0.0',
+        config: {
+          language: 'en-US',
+          themeMode: 'system',
+          resolvedTheme: 'light',
+          logLevel: 'info',
+          terminalLogMode: 'overwrite',
+          debugLogMode: 'overwrite',
+          maxRecentWorkspaces: 5,
+          modelPreferences: { providers: {} },
+          keybinds: { 'workspace.new': 'mod+k' },
+          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
+          maxConcurrentWorkspaces: 6,
+          workspacePriorityIds: [],
+          workspaceDeferredIds: [],
+          workspaceNaturalOrder: [],
+          browserInactiveTabSuspendMs: 3_600_000,
+          terminalHistoryBudgetBytes: 1 << 30,
+        },
+        currentWorkspace: undefined,
+        recentLogs: [],
+      },
+    });
 
     render(
       <TestProvider>
@@ -548,20 +590,122 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    await act(async () => {
-      fireEvent.click(screen.getByLabelText('settingsShortcutsResetAllShortcuts'));
+    const groupResets = Array.from(
+      document.querySelectorAll('.adl-settings-keybinds__group-reset'),
+    ) as HTMLButtonElement[];
+    // general, navigation, view, zoom, file — only navigation changed
+    const enabled = groupResets.map((btn) => btn.disabled);
+    expect(enabled).toEqual([true, false, true, true, true]);
+  });
+
+  it('keypress-capture button enters capture mode with a distinct prompt', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
+    act(() => {
+      fireEvent.click(screen.getByLabelText('settingsShortcutsSearchByKeypress'));
     });
 
-    const confirmButton = screen.getByText('confirm');
-    await act(async () => {
-      fireEvent.click(confirmButton);
+    expect(search.placeholder).toBe('settingsShortcutsSearchCapturing');
+  });
+
+  it('captured keypress is written into the search box as formatted text', async () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText('settingsShortcutsSearchByKeypress'));
     });
 
-    expect(updatePreferencesSpy).toHaveBeenCalledTimes(1);
-    const call = updatePreferencesSpy.mock.calls[0][0];
-    expect(call.keybinds?.['workspace.new']).toBe('mod+n');
-    expect(call.keybinds?.['workspace.open']).toBe('mod+o');
-    expect(call.keybinds?.['settings.open']).toBe('mod+shift+comma');
-    updatePreferencesSpy.mockRestore();
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'n', ctrlKey: true, bubbles: true, cancelable: true }),
+      );
+    });
+
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
+    expect(search.value).toBe('Ctrl+N');
+    expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
+  });
+
+  it('Escape cancels capture mode and restores the previous query', async () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
+    act(() => {
+      fireEvent.change(search, { target: { value: 'workspace' } });
+    });
+    act(() => {
+      fireEvent.click(screen.getByLabelText('settingsShortcutsSearchByKeypress'));
+    });
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }),
+      );
+    });
+
+    expect(search.value).toBe('workspace');
+    expect(search.placeholder).toBe('');
+  });
+
+  it('modifier-only press previews held keys and keeps waiting', async () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    act(() => {
+      fireEvent.click(screen.getByLabelText('settingsShortcutsSearchByKeypress'));
+    });
+
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'Control',
+          ctrlKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      );
+    });
+
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
+    // 回显已按下的部分，仍在捕获态（提示语不变）
+    expect(search.value).toBe('Ctrl+…');
+    expect(search.placeholder).toBe('settingsShortcutsSearchCapturing');
+    // 预览同步参与过滤：唯一不含修饰键的命令被滤掉，其余仍在
+    expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
+    expect(screen.queryByText('fileLineNumbers')).toBeNull();
+
+    // 接着按完组合键，正常提交
+    await act(async () => {
+      document.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'n', ctrlKey: true, bubbles: true, cancelable: true }),
+      );
+    });
+    expect(search.value).toBe('Ctrl+N');
+  });
+
+  it('renders the search hint button next to the label', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    expect(screen.getByLabelText('settingsShortcutsSearchHintLabel')).toBeDefined();
   });
 });

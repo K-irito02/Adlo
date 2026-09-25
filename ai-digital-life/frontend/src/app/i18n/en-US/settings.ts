@@ -61,16 +61,16 @@ export const settingsEn = {
 
   // Shortcuts
   settingsShortcutsSearchLabel: 'Search shortcuts',
-  settingsShortcutsSearch: 'Search shortcuts...',
+  settingsShortcutsSearchHintLabel: 'How shortcut search works',
+  settingsShortcutsSearchHint:
+    '# How to search shortcuts\nJust type: a feature name (e.g. "New Workspace"), the raw key text (e.g. mod+n), what you see on screen (e.g. Ctrl+N), or even a single letter (e.g. n).\nClick the keyboard icon on the right of the box to press a combo directly — it fills itself in; holding only Ctrl or Shift shows what you have pressed so far and keeps waiting, no need to restart.\nPress Esc to cancel key input and go back to your previous search.',
+  settingsShortcutsSearchCapturing: 'Press keys to search…',
+  settingsShortcutsSearchByKeypress: 'Search by keypress',
   settingsShortcutsPressKeys: 'Press keys...',
   settingsShortcutsUnassigned: 'Unassigned',
   settingsShortcutsConflict: 'Shortcut Conflict',
   settingsShortcutsConflictDesc: 'Shortcut {keybind} is already used by: {titles}',
   settingsShortcutsResetOne: 'Reset this shortcut',
-  settingsShortcutsResetAllShortcuts: 'Reset all shortcuts to defaults',
-  settingsShortcutsResetAllTitle: 'Reset all shortcuts to defaults?',
-  settingsShortcutsResetAllMessage:
-    'All shortcuts will be restored to their defaults. This cannot be undone.',
   settingsShortcutsClear: 'Clear',
   settingsShortcutsGroupGeneral: 'General',
   settingsShortcutsGroupNavigation: 'Navigation',

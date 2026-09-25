@@ -341,12 +341,15 @@ export function StorageSettings() {
   }, [handleTerminalBudgetReset, showToast, t]);
 
   /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按**开框时刻**的迁移开关
-   * 快照决定是否搬文件（M4：对话框无焦点陷阱，开框后改开关不影响本次语义）。 */
+   * 快照决定是否搬文件（M4：对话框无焦点陷阱，开框后改开关不影响本次语义）。
+   * 开关复位与搬迁结果解耦：无论搬迁成败都恢复为关闭（同组级语义，I1-N5）；
+   * 任一失败对话框保持打开（同组级 M5）。 */
   const handleDownloadResetConfirm = useCallback(async () => {
     setDownloadResetBusy(true);
     try {
       const migrate = downloadMigrateAtOpenRef.current;
       const result = await changeDownloadPath('', migrate);
+      let ok = true;
       if (!result.ok) {
         showToast(
           result.error.message === DOWNLOAD_REFRESH_FAILED
@@ -362,13 +365,25 @@ export function StorageSettings() {
                 ),
           'error',
         );
-        return;
+        ok = false;
       }
-      setDownloadResetConfirm(false);
+      const upd = await updateDownloadSettings(undefined, undefined, false);
+      if (!upd.ok) {
+        showToast(
+          upd.error.message === DOWNLOAD_REFRESH_FAILED
+            ? t.storageDownloadRefreshFailed
+            : t.settingsUpdateFailed,
+          'error',
+        );
+        ok = false;
+      }
+      if (ok) {
+        setDownloadResetConfirm(false);
+      }
     } finally {
       setDownloadResetBusy(false);
     }
-  }, [changeDownloadPath, showToast, t]);
+  }, [changeDownloadPath, updateDownloadSettings, showToast, t]);
 
   // 自定义 TTL 防抖计时器卸载清理。
   useEffect(
@@ -1037,6 +1052,16 @@ export function StorageSettings() {
     budgetBytes !== undefined && budgetBytes === TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
   const downloadAtDefault =
     downloadSettings.default_path === '' && !downloadSettings.auto_migrate_on_path_change;
+
+  // 侧边栏存储行 disabled 聚合信号：四块全默认才为 true；卸载（切出存储组）时清 null
+  // 回到"未知→启用"。transient，不持久化。
+  const setStorageBlocksAtDefault = useAppStore((s) => s.setStorageBlocksAtDefault);
+  useEffect(() => {
+    setStorageBlocksAtDefault(
+      coreAtDefault && treeAtDefault && budgetAtDefault && downloadAtDefault,
+    );
+    return () => setStorageBlocksAtDefault(null);
+  }, [coreAtDefault, treeAtDefault, budgetAtDefault, downloadAtDefault, setStorageBlocksAtDefault]);
 
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
   const ttlSelectOptions = useMemo(
