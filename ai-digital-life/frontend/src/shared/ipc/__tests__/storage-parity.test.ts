@@ -66,6 +66,7 @@ describe('storage bridge method parity', () => {
     expect(res.ok).toBe(true);
     if (res.ok) {
       expect(res.data.categories.map((c) => c.key)).toEqual([...STORAGE_CATEGORY_KEYS]);
+      expect(typeof res.data.defaultRoot).toBe('string');
     }
   });
 

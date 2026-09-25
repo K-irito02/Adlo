@@ -75,6 +75,7 @@ export function createMockStorage(config: MockStorageConfig = {}): StorageBridge
       data: {
         mode,
         root,
+        defaultRoot: root,
         categories: mockCategories(root),
         locatorPath: `${root}/storage-locator.json`,
         pending,

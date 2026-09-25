@@ -53,6 +53,8 @@ export interface StoragePending {
 export interface StorageStatus {
   mode: StorageMode;
   root: string;
+  /** 后端默认根（`defaults.root`）：核心块"是否默认"判定的比对基准。 */
+  defaultRoot: string;
   categories: StorageCategoryStatus[];
   locatorPath: string;
   pending: StoragePending | null;
