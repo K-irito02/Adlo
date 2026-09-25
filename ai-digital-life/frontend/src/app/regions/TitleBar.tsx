@@ -19,6 +19,7 @@ import { Spinner } from '../components/Spinner';
 import { useAppStore } from '../stores/slicedStore';
 import { TooltipSimple } from '../components/Tooltip';
 import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
+import { useAppZoom } from '../hooks/useAppZoom';
 import { HamburgerMenu } from './HamburgerMenu';
 import { WindowControls } from './WindowControls';
 import { TitleBarNotifications } from './TitleBarNotifications';
@@ -88,14 +89,7 @@ const TitleBar = React.memo(function TitleBar({
     void window.digitalLife.window.close();
   }, []);
 
-  const zoomBy = useCallback((delta: number) => {
-    const current = parseFloat(getComputedStyle(document.documentElement).zoom || '1');
-    const next = Math.max(0.5, Math.min(2, (Number.isFinite(current) ? current : 1) + delta));
-    document.documentElement.style.zoom = String(next);
-  }, []);
-  const resetZoom = useCallback(() => {
-    document.documentElement.style.zoom = '1';
-  }, []);
+  const { zoomBy, resetZoom } = useAppZoom();
 
   const fileItems = useFileMenuItems(
     t,
