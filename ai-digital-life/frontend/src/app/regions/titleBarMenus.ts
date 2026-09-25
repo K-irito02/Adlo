@@ -1,6 +1,7 @@
 import type { CopyDict } from '../i18n/types';
 import type { ToolId } from '../stores/types';
 import { formatKeybind } from '../../shared/keybinds';
+import { defaultKeybindOf } from '../commands/defaultCommands';
 
 export interface MenuItem {
   id: string;
@@ -13,12 +14,12 @@ export interface MenuItem {
 
 type Keybinds = Record<string, string | undefined>;
 
-function displayShortcut(keybinds: Keybinds, id: string, fallback: string): string | undefined {
+function displayShortcut(keybinds: Keybinds, id: string): string | undefined {
   const raw = keybinds[id];
   if (raw === 'none') {
     return undefined;
   }
-  return formatKeybind(raw ?? fallback);
+  return formatKeybind(raw ?? defaultKeybindOf(id) ?? 'none');
 }
 
 export function useFileMenuItems(
@@ -32,13 +33,13 @@ export function useFileMenuItems(
     {
       id: 'new-ws',
       label: t.menuNewWorkspace,
-      shortcut: displayShortcut(keybinds, 'workspace.new', 'mod+n'),
+      shortcut: displayShortcut(keybinds, 'workspace.new'),
       action: onTriggerCreateWorkspace,
     },
     {
       id: 'open-folder',
       label: t.menuOpenFolder,
-      shortcut: displayShortcut(keybinds, 'workspace.open', 'mod+o'),
+      shortcut: displayShortcut(keybinds, 'workspace.open'),
       action: onOpenFolder,
     },
     { id: 'sep-1', label: '', separator: true },
@@ -59,51 +60,51 @@ export function useViewMenuItems(
     {
       id: 'open-files-panel',
       label: t.menuOpenFilePanel,
-      shortcut: displayShortcut(keybinds, 'view.files', 'mod+shift+e'),
+      shortcut: displayShortcut(keybinds, 'view.files'),
       action: () => setActiveRightTool('files'),
     },
     {
       id: 'open-changes-panel',
       label: t.menuOpenChangesPanel,
-      shortcut: displayShortcut(keybinds, 'view.changes', 'mod+shift+g'),
+      shortcut: displayShortcut(keybinds, 'view.changes'),
       action: () => setActiveRightTool('changes'),
     },
     {
       id: 'open-browser-panel',
       label: t.menuOpenBrowserPanel,
-      shortcut: displayShortcut(keybinds, 'view.browser', 'mod+shift+b'),
+      shortcut: displayShortcut(keybinds, 'view.browser'),
       action: () => setActiveRightTool('browser'),
     },
     {
       id: 'open-terminal-panel',
       label: t.menuOpenTerminalPanel,
-      shortcut: displayShortcut(keybinds, 'view.terminal', 'mod+shift+`'),
+      shortcut: displayShortcut(keybinds, 'view.terminal'),
       action: () => setActiveRightTool('terminal'),
     },
     { id: 'sep-1', label: '', separator: true },
     {
       id: 'zoom-in',
       label: t.menuZoomIn,
-      shortcut: displayShortcut(keybinds, 'zoom.in', 'mod+shift+plus'),
+      shortcut: displayShortcut(keybinds, 'zoom.in'),
       action: () => zoomBy(0.1),
     },
     {
       id: 'zoom-out',
       label: t.menuZoomOut,
-      shortcut: displayShortcut(keybinds, 'zoom.out', 'mod+-'),
+      shortcut: displayShortcut(keybinds, 'zoom.out'),
       action: () => zoomBy(-0.1),
     },
     {
       id: 'zoom-reset',
       label: t.menuResetZoom,
-      shortcut: displayShortcut(keybinds, 'zoom.reset', 'mod+0'),
+      shortcut: displayShortcut(keybinds, 'zoom.reset'),
       action: resetZoom,
     },
     { id: 'sep-2', label: '', separator: true },
     {
       id: 'settings',
       label: t.menuSettings,
-      shortcut: displayShortcut(keybinds, 'settings.open', 'mod+shift+comma'),
+      shortcut: displayShortcut(keybinds, 'settings.open'),
       action: onOpenSettings,
     },
   ];

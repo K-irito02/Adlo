@@ -65,3 +65,7 @@ export const DEFAULT_COMMANDS: CommandMeta[] = [
   { id: 'file.toggle-word-wrap', titleKey: 'fileWordWrap', group: 'file', defaultKeybind: 'alt+z' },
   { id: 'file.toggle-line-numbers', titleKey: 'fileLineNumbers', group: 'file' },
 ];
+
+export function defaultKeybindOf(id: string): string | undefined {
+  return DEFAULT_COMMANDS.find((cmd) => cmd.id === id)?.defaultKeybind;
+}

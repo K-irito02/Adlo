@@ -22,6 +22,7 @@ import {
 } from '@features/preview/revealSourceLine';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 import { formatKeybind } from '@shared/keybinds';
+import { defaultKeybindOf } from '../../../commands/defaultCommands';
 import { useFilesPanelShortcuts } from './useFilesPanelShortcuts';
 
 const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
@@ -445,7 +446,9 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         shortcut:
           keybinds['file.copy-relative'] === 'none'
             ? undefined
-            : formatKeybind(keybinds['file.copy-relative'] ?? 'mod+shift+c'),
+            : formatKeybind(
+                keybinds['file.copy-relative'] ?? defaultKeybindOf('file.copy-relative'),
+              ),
         disabled: !selectedFilePath,
         action: () => void handleCopyPath(selectedFilePath),
       },
@@ -455,7 +458,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         shortcut:
           keybinds['file.copy-full'] === 'none'
             ? undefined
-            : formatKeybind(keybinds['file.copy-full'] ?? 'mod+alt+c'),
+            : formatKeybind(keybinds['file.copy-full'] ?? defaultKeybindOf('file.copy-full')),
         disabled: !selectedAbsolutePath,
         action: () => void handleCopyPath(selectedAbsolutePath),
       },
@@ -472,7 +475,9 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         shortcut:
           keybinds['file.toggle-word-wrap'] === 'none'
             ? undefined
-            : formatKeybind(keybinds['file.toggle-word-wrap'] ?? 'alt+z'),
+            : formatKeybind(
+                keybinds['file.toggle-word-wrap'] ?? defaultKeybindOf('file.toggle-word-wrap'),
+              ),
         checked: editorOptions.wordWrapEnabled,
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },

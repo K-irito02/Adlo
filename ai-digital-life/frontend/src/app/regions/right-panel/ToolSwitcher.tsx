@@ -72,7 +72,6 @@ const TAB_META: {
   // 持久化的 activeRightTool 若为旧值（如 'communicate'），注册表的 readStringEnum 会回落到 'files'，无需迁移。
   // {
   //   id: 'communicate',
-  //   shortcut: 'Ctrl+Shift+C',
   //   icon: (
   //     <svg
   //       viewBox="0 0 16 16"

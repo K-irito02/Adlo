@@ -30,6 +30,8 @@ const COMMAND_HANDLERS: Record<string, (callbacks: ActionCallbacks) => void> = {
   'zoom.reset': (cb) => cb.resetZoom(),
 };
 
+const GLOBAL_COMMANDS = DEFAULT_COMMANDS.filter((cmd) => cmd.group !== 'file');
+
 export function findMatchingCommand(
   event: KeyboardEvent,
   commands: CommandMeta[],
@@ -68,7 +70,7 @@ export function useKeyboardShortcuts(callbacks: ActionCallbacks): void {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const commands = DEFAULT_COMMANDS;
+      const commands = GLOBAL_COMMANDS;
       const match = findMatchingCommand(event, commands, keybinds);
       if (!match) {
         return;

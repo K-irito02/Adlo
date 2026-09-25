@@ -45,6 +45,8 @@ describe('useAppZoom', () => {
     expect(document.documentElement.style.zoom).toBe('1');
     act(() => result.current.zoomBy(10));
     expect(document.documentElement.style.zoom).toBe('2');
+    act(() => result.current.zoomBy(-10));
+    expect(document.documentElement.style.zoom).toBe('0.5');
     act(() => result.current.resetZoom());
     expect(document.documentElement.style.zoom).toBe('1');
     unmount();

@@ -51,4 +51,23 @@ describe('useKeyboardShortcuts extended dispatch', () => {
     );
     expect(match?.id).toBe('zoom.reset');
   });
+
+  it('ignores file-scoped shortcuts globally (no preventDefault, no callback)', () => {
+    const onOpenTerminalView = vi.fn();
+    const { unmount } = renderHook(() =>
+      useKeyboardShortcuts(fullCallbacks({ openTerminalView: onOpenTerminalView })),
+    );
+    const event = new KeyboardEvent('keydown', {
+      key: 'C',
+      ctrlKey: true,
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    const preventSpy = vi.spyOn(event, 'preventDefault');
+    document.dispatchEvent(event);
+    expect(preventSpy).not.toHaveBeenCalled();
+    expect(onOpenTerminalView).not.toHaveBeenCalled();
+    unmount();
+  });
 });
