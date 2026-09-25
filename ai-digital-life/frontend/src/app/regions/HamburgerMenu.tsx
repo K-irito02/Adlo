@@ -8,10 +8,9 @@ import { useAppStore } from '../stores/slicedStore';
 const HOVER_DELAY_MS = 120;
 
 interface CategoryItem {
-  id: 'file' | 'view' | 'help' | 'command';
+  id: 'file' | 'view' | 'help';
   label: string;
   items?: MenuItem[];
-  action?: () => void;
 }
 
 function useViewportFlip(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
@@ -40,13 +39,11 @@ export function HamburgerMenu({
   fileItems,
   viewItems,
   helpItems,
-  onOpenCommandPalette,
 }: {
   t: CopyDict;
   fileItems: MenuItem[];
   viewItems: MenuItem[];
   helpItems: MenuItem[];
-  onOpenCommandPalette: () => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -80,9 +77,8 @@ export function HamburgerMenu({
       { id: 'file', label: t.menuFile, items: fileItems },
       { id: 'view', label: t.menuView, items: viewItems },
       { id: 'help', label: t.menuHelp, items: helpItems },
-      { id: 'command', label: t.menuCommandPalette, action: onOpenCommandPalette },
     ],
-    [t, fileItems, viewItems, helpItems, onOpenCommandPalette],
+    [t, fileItems, viewItems, helpItems],
   );
 
   useEffect(() => {
@@ -135,13 +131,6 @@ export function HamburgerMenu({
       }
       if (event.key === 'ArrowLeft' && hoveredMenuCategory) {
         setHoveredMenuCategory(null);
-      }
-      if (event.key === 'Enter' && focusedIndex >= 0) {
-        const cat = categories[focusedIndex];
-        if (cat.action) {
-          cat.action();
-          closeAllMenus();
-        }
       }
       if (event.key === 'Tab') {
         event.preventDefault();
@@ -246,12 +235,6 @@ export function HamburgerMenu({
                   aria-expanded={hasSubmenu ? hoveredMenuCategory === cat.id : undefined}
                   tabIndex={focusedIndex === index ? 0 : -1}
                   className={`adl-hamburger__item${hoveredMenuCategory === cat.id || focusedIndex === index ? ' is-hovered' : ''}`}
-                  onClick={() => {
-                    if (cat.action) {
-                      cat.action();
-                      closeAllMenus();
-                    }
-                  }}
                   onFocus={() => setFocusedIndex(index)}
                 >
                   <span>{cat.label}</span>

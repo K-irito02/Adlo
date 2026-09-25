@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { TCopyProvider } from '../i18n/TCopyContext';
 import type { CopyDict } from '../i18n/types';
+import { useAppStore } from '../stores/slicedStore';
 import { TitleBar } from './TitleBar';
 
 afterEach(cleanup);
@@ -66,4 +67,13 @@ describe('TitleBar add-workspace control', () => {
 it('does not accept onOpenCommandPalette prop (dead palette removed)', () => {
   const props = renderTitleBar();
   expect('onOpenCommandPalette' in props).toBe(false);
+});
+
+it('hamburger menu has exactly file/view/help categories (no command entry)', () => {
+  useAppStore.setState({ hoveredMenuCategory: null });
+  renderTitleBar();
+  fireEvent.click(screen.getByRole('button', { name: 'appMenu' }));
+  const items = screen.getAllByRole('menuitem');
+  const labels = items.map((el) => el.textContent);
+  expect(labels).toEqual(['menuFile', 'menuView', 'menuHelp']);
 });
