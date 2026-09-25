@@ -10,9 +10,11 @@ import { ConfirmDialog } from '../ConfirmDialog';
 import { SettingsNav } from './SettingsNav';
 import {
   SETTINGS_GROUPS,
-  GROUP_RESET_PATCHES,
   RESETTABLE_GROUPS,
   isKeybindsAtDefault,
+  isWorkspaceAtDefault,
+  isPatchSatisfied,
+  getGroupResetPatch,
 } from './settingsGroups';
 import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
@@ -38,19 +40,6 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   dsh: DshSettings,
   storage: StorageSettings,
 };
-
-/** 数组元素级比对（undefined 视为非默认，保持启用）。 */
-function sameStringArray(
-  actual: readonly string[] | undefined,
-  expected: readonly string[] | undefined,
-): boolean {
-  return (
-    actual !== undefined &&
-    expected !== undefined &&
-    actual.length === expected.length &&
-    actual.every((v, i) => v === expected[i])
-  );
-}
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
   const { t } = useTCopy();
@@ -89,32 +78,30 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // 侧边栏组级重置聚合 disabled：组全默认时对应行按钮禁用。config 未加载时
   // 全部启用（fail-open）。storage 行纳入：StorageSettings 挂载时维护聚合信号，
   // 未挂载（null/未知）时保持启用。
+  // 注意 workspace 块读本地编辑态（含 200ms 防抖持久化窗口），此处读已持久化的
+  // config：窗口期内两侧可能短暂不一致，持久化后收敛，无数据丢失。
   const disabledResetGroups = useMemo(() => {
     const disabled = new Set<SettingsGroupId>();
     if (!config) {
       return disabled;
     }
-    const generalPatch = GROUP_RESET_PATCHES.general?.();
+    const generalPatch = getGroupResetPatch('general');
     if (
       generalPatch &&
-      config.language === generalPatch.language &&
-      config.themeMode === generalPatch.themeMode &&
-      config.logLevel === generalPatch.logLevel &&
-      config.terminalLogMode === generalPatch.terminalLogMode &&
-      config.debugLogMode === generalPatch.debugLogMode &&
-      config.fonts?.uiFont === generalPatch.fonts?.uiFont &&
-      config.fonts?.codeFont === generalPatch.fonts?.codeFont &&
-      config.fonts?.terminalFont === generalPatch.fonts?.terminalFont
+      isPatchSatisfied(
+        config as unknown as Record<string, unknown>,
+        generalPatch as unknown as Record<string, unknown>,
+      )
     ) {
       disabled.add('general');
     }
-    const workspacePatch = GROUP_RESET_PATCHES.workspace?.();
     if (
-      workspacePatch &&
-      config.maxConcurrentWorkspaces === workspacePatch.maxConcurrentWorkspaces &&
-      sameStringArray(config.workspacePriorityIds, workspacePatch.workspacePriorityIds) &&
-      sameStringArray(config.workspaceDeferredIds, workspacePatch.workspaceDeferredIds) &&
-      sameStringArray(config.workspaceNaturalOrder, workspacePatch.workspaceNaturalOrder)
+      isWorkspaceAtDefault({
+        maxConcurrentWorkspaces: config.maxConcurrentWorkspaces,
+        workspacePriorityIds: config.workspacePriorityIds,
+        workspaceDeferredIds: config.workspaceDeferredIds,
+        workspaceNaturalOrder: config.workspaceNaturalOrder,
+      })
     ) {
       disabled.add('workspace');
     }
@@ -182,20 +169,28 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   );
 
   const handleResetAll = useCallback(async () => {
-    const ok = await updatePreferences(getDefaultPreferences());
-    showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+    try {
+      const ok = await updatePreferences(getDefaultPreferences());
+      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+    } catch {
+      showToast(t.settingsUpdateFailed, 'error');
+    }
   }, [updatePreferences, showToast, t]);
 
   const handleResetGroup = useCallback(
     async (group: SettingsGroupId) => {
       // 与按钮渲染同源（RESETTABLE_GROUPS 由 patch 工厂派生）；未接入的组显式报错而非静默无操作。
-      const buildPatch = GROUP_RESET_PATCHES[group];
-      if (!buildPatch) {
+      const patch = getGroupResetPatch(group);
+      if (!patch) {
         showToast(t.settingsUpdateFailed, 'error');
         return;
       }
-      const ok = await updatePreferences(buildPatch());
-      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+      try {
+        const ok = await updatePreferences(patch);
+        showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
+      } catch {
+        showToast(t.settingsUpdateFailed, 'error');
+      }
     },
     [updatePreferences, showToast, t],
   );

@@ -115,7 +115,15 @@ export const createBrowserDownloadsSlice = (
     try {
       const result = await invoke<IpcResult<DownloadSettings>>('download_get_settings');
       if (result.ok) {
-        set({ downloadSettings: result.data, downloadSettingsLoaded: true });
+        // 归一化：旧/第三方 provider 可能缺 auto_migrate 字段（undefined 会让
+        // checkbox 失控 + downloadAtDefault 误判默认），缺席按 false（后端默认关）处理。
+        set({
+          downloadSettings: {
+            ...result.data,
+            auto_migrate_on_path_change: result.data.auto_migrate_on_path_change ?? false,
+          },
+          downloadSettingsLoaded: true,
+        });
         return true;
       }
       return false;

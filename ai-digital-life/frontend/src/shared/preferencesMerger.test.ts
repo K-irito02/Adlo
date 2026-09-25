@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { applyPreferencePatch } from './preferencesMerger';
 import type { AppPreferencePatch, ConfigSnapshot } from './ipc-types.generated';
+import { GROUP_RESET_PATCHES } from '../app/components/settings/settingsGroups';
 
 const baseConfig: ConfigSnapshot = {
   language: 'zh-CN',
@@ -65,6 +66,11 @@ describe('applyPreferencePatch', () => {
       applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: Number.NaN })
         .terminalHistoryBudgetBytes,
     ).toBe(1 << 30);
+    // float 取整（Rust u64 不收小数）。
+    expect(
+      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 1.5 * (1 << 30) })
+        .terminalHistoryBudgetBytes,
+    ).toBe(1610612736);
   });
 
   it('preserves existing fields when patching logLevel only', () => {
@@ -194,5 +200,18 @@ describe('applyPreferencePatch', () => {
     };
     const result = applyPreferencePatch(baseWithModels, patch);
     expect(result.modelPreferences.providers.deepseek.enabledModels).toEqual(['deepseek-chat']);
+  });
+
+  it('shortcuts group reset drops customized no-default commands (wholesale replace)', () => {
+    const customized: ConfigSnapshot = {
+      ...baseConfig,
+      keybinds: { 'file.toggle-line-numbers': 'alt+l', 'workspace.new': 'mod+k' },
+    };
+    const patch = GROUP_RESET_PATCHES.shortcuts?.();
+    expect(patch).toBeDefined();
+    const result = applyPreferencePatch(customized, patch!);
+    // 无默认命令不残留显式 key，有默认命令回到默认串。
+    expect('file.toggle-line-numbers' in (result.keybinds ?? {})).toBe(false);
+    expect(result.keybinds?.['workspace.new']).toBe('mod+n');
   });
 });

@@ -129,7 +129,7 @@ export function useBrowserPanelMenuItems({
       },
       {
         id: 'zoom-reset',
-        label: t.menuZoomReset,
+        label: t.menuResetZoom,
         hint: t.menuResetZoomHint,
         action: () => {
           if (!activeTab?.id) {

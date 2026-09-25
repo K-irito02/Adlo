@@ -4,7 +4,7 @@ import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './hooks/useAppActions';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
-import { useAppZoom } from './hooks/useAppZoom';
+import { useAppZoom, ZOOM_STEP } from './hooks/useAppZoom';
 import { useDragDropWorkspace } from './hooks/useDragDropWorkspace';
 import { useAppStartup } from './hooks/useAppStartup';
 import { usePatchReviewWithEditor } from './hooks/usePatchReviewWithEditor';
@@ -113,18 +113,25 @@ export function App() {
     navigateRightTool('settings');
   }, [navigateRightTool]);
 
+  const handleOpenShortcutsSettings = useCallback(() => {
+    const state = useAppStore.getState();
+    state.navigateRightTool('settings');
+    state.setActiveSettingsGroup('shortcuts');
+  }, []);
+
   const { zoomBy, resetZoom } = useAppZoom();
 
   useKeyboardShortcuts({
     openCreateWorkspaceDialog: () => setCreateWorkspaceModalOpen(true),
     openWorkspace: handleOpenFolder,
     openSettings: handleOpenSettings,
+    openShortcutsSettings: handleOpenShortcutsSettings,
     openFilesView: () => navigateRightTool('files'),
     openChangesView: () => navigateRightTool('changes'),
     openBrowserView: () => navigateRightTool('browser'),
     openTerminalView: () => navigateRightTool('terminal'),
-    zoomIn: () => zoomBy(0.1),
-    zoomOut: () => zoomBy(-0.1),
+    zoomIn: () => zoomBy(ZOOM_STEP),
+    zoomOut: () => zoomBy(-ZOOM_STEP),
     resetZoom,
   });
 

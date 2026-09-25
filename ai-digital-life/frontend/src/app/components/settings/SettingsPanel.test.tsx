@@ -295,6 +295,29 @@ describe('SettingsPanel group reset', () => {
     });
   });
 
+  it('组级重置传输抛错弹错误提示而不崩溃', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    updatePreferences.mockRejectedValue(new Error('transport down'));
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+    });
+  });
+
+  it('恢复全部传输抛错弹错误提示而不崩溃', async () => {
+    const { showToast } = setupStore();
+    const updatePreferences = vi.fn().mockRejectedValue(new Error('transport down'));
+    useAppStore.setState({ updatePreferences });
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+    });
+  });
+
   it('工作区组级重置弹分组文案并提交工作区默认 patch', async () => {
     const { updatePreferences, showToast } = setupStore();
     renderPanel();
@@ -394,6 +417,12 @@ describe('SettingsPanel group reset', () => {
     expect(new Set(Object.keys(factories!))).toEqual(
       new Set(['general', 'workspace', 'shortcuts']),
     );
+    // 访问器口径：工厂组返回 patch，storage 返回 null（调用方走自有流程）。
+    expect(groups.getGroupResetPatch('general')).toBeDefined();
+    expect(groups.getGroupResetPatch('workspace')).toBeDefined();
+    expect(groups.getGroupResetPatch('shortcuts')).toBeDefined();
+    expect(groups.getGroupResetPatch('storage')).toBeNull();
+    expect(groups.getGroupResetPatch('browser')).toBeNull();
     // storage 无统一偏好 patch（多桥多步），但侧边栏同样渲染按钮并走自有确认对话框。
     expect(groups.RESETTABLE_GROUPS.has('storage')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('general')).toBe(true);

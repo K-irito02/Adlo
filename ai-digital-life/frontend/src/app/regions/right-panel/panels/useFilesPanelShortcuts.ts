@@ -2,9 +2,8 @@ import { useEffect, type RefObject } from 'react';
 import { DEFAULT_COMMANDS } from '../../../commands/defaultCommands';
 import { findMatchingCommand } from '../../../hooks/useKeyboardShortcuts';
 
-const FILE_COMMAND_IDS = new Set(
-  DEFAULT_COMMANDS.filter((c) => c.group === 'file').map((c) => c.id),
-);
+const FILE_COMMANDS = DEFAULT_COMMANDS.filter((c) => c.group === 'file');
+const FILE_COMMAND_IDS = new Set(FILE_COMMANDS.map((c) => c.id));
 
 export interface FilesPanelShortcutDeps {
   panelRef: RefObject<HTMLDivElement | null>;
@@ -21,7 +20,12 @@ export interface FilesPanelShortcutDeps {
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName);
+  // CodeMirror 6 表面是 div + contenteditable（tagName 拦不住），一并排除，
+  // 否则面板内编辑器里的 Alt+Z / Ctrl+Shift+C 会被面板动作吞掉。
+  return (
+    target instanceof HTMLElement &&
+    target.closest('input, textarea, select, [contenteditable="true"], .cm-editor') !== null
+  );
 }
 
 export function useFilesPanelShortcuts(deps: FilesPanelShortcutDeps): void {
@@ -43,7 +47,9 @@ export function useFilesPanelShortcuts(deps: FilesPanelShortcutDeps): void {
       if (isEditableTarget(event.target)) {
         return;
       }
-      const match = findMatchingCommand(event, DEFAULT_COMMANDS, keybinds);
+      // 只匹配 file 组命令：用户把 file 命令绑到全局 chord 上时，
+      // 以 file 语义优先（菜单展示即此语义），不静默吞掉。
+      const match = findMatchingCommand(event, FILE_COMMANDS, keybinds);
       if (!match || !FILE_COMMAND_IDS.has(match.id)) {
         return;
       }

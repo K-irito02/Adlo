@@ -70,7 +70,7 @@ export const settingsEn = {
   settingsShortcutsUnassigned: 'Unassigned',
   settingsShortcutsConflict: 'Shortcut Conflict',
   settingsShortcutsConflictDesc: 'Shortcut {keybind} is already used by: {titles}',
-  settingsShortcutsResetOne: 'Reset this shortcut',
+  settingsShortcutsResetOneFor: 'Reset {name}',
   settingsShortcutsClear: 'Clear',
   settingsShortcutsGroupGeneral: 'General',
   settingsShortcutsGroupNavigation: 'Navigation',

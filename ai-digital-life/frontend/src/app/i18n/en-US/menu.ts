@@ -12,7 +12,6 @@ export const menuEn = {
   menuExit: 'Exit',
   menuZoomIn: 'Zoom In',
   menuZoomOut: 'Zoom Out',
-  menuZoomReset: 'Reset Zoom',
   menuResetZoom: 'Reset Zoom',
   menuSettings: 'Settings',
   menuShortcuts: 'Shortcuts',

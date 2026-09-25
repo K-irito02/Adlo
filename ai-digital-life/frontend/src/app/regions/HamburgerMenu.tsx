@@ -53,6 +53,9 @@ export function HamburgerMenu({
   const focusRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const [focusedIndex, setFocusedIndex] = useState(-1);
+  // 子菜单键盘焦点（item id，无则回分类层）：ArrowRight 进入首个可用项，
+  // ArrowUp/Down 在子菜单内移动，Enter 原生触发按钮，Escape/ArrowLeft 回分类。
+  const [subFocusId, setSubFocusId] = useState<string | null>(null);
 
   const {
     hamburgerOpen,
@@ -106,11 +109,34 @@ export function HamburgerMenu({
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         closeAllMenus();
+        setSubFocusId(null);
         triggerRef.current?.focus();
         return;
       }
+      const openCat = categories.find((c) => c.id === hoveredMenuCategory);
+      const openItems = (openCat?.items ?? []).filter((i) => !i.separator);
+      if (subFocusId && openItems.length > 0) {
+        const idx = openItems.findIndex((i) => i.id === subFocusId);
+        if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+          event.preventDefault();
+          const dir = event.key === 'ArrowDown' ? 1 : -1;
+          const next = openItems[(idx + dir + openItems.length) % openItems.length];
+          setSubFocusId(next.id);
+          return;
+        }
+        if (event.key === 'ArrowLeft') {
+          setHoveredMenuCategory(null);
+          setSubFocusId(null);
+          return;
+        }
+        if (event.key === 'Enter') {
+          // 焦点已在子项按钮上，原生 click 生效；此处仅防分类层逻辑抢跑。
+          return;
+        }
+      }
       if (event.key === 'ArrowDown') {
         event.preventDefault();
+        setSubFocusId(null);
         setFocusedIndex((prev) => {
           const next = prev < categories.length - 1 ? prev + 1 : 0;
           return next;
@@ -118,6 +144,7 @@ export function HamburgerMenu({
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
+        setSubFocusId(null);
         setFocusedIndex((prev) => {
           const next = prev > 0 ? prev - 1 : categories.length - 1;
           return next;
@@ -127,6 +154,10 @@ export function HamburgerMenu({
         const cat = categories[focusedIndex];
         if (cat.items && cat.items.length > 0) {
           setHoveredMenuCategory(cat.id as 'file' | 'view' | 'help');
+          const first = cat.items.find((i) => !i.separator);
+          if (first) {
+            setSubFocusId(first.id);
+          }
         }
       }
       if (event.key === 'ArrowLeft' && hoveredMenuCategory) {
@@ -145,6 +176,7 @@ export function HamburgerMenu({
     closeAllMenus,
     focusedIndex,
     hoveredMenuCategory,
+    subFocusId,
     setHoveredMenuCategory,
     categories,
   ]);
@@ -163,12 +195,22 @@ export function HamburgerMenu({
     }
   }, [hamburgerOpen, focusedIndex]);
 
+  useEffect(() => {
+    if (hamburgerOpen && subFocusId) {
+      submenuRef.current
+        ?.querySelector<HTMLButtonElement>(`[data-sub-id="${subFocusId}"]`)
+        ?.focus();
+    }
+  }, [hamburgerOpen, subFocusId, hoveredMenuCategory]);
+
   const handleCategoryEnter = useCallback(
     (category: 'file' | 'view' | 'help') => {
       if (hoverTimeoutRef.current) {
         clearTimeout(hoverTimeoutRef.current);
         hoverTimeoutRef.current = null;
       }
+      // 鼠标接管后键盘子焦点失效，避免悬停项与键盘焦点打架。
+      setSubFocusId(null);
       setHoveredMenuCategory(category);
     },
     [setHoveredMenuCategory],
@@ -259,9 +301,10 @@ export function HamburgerMenu({
                           key={item.id}
                           type="button"
                           role="menuitem"
-                          tabIndex={-1}
+                          tabIndex={subFocusId === item.id ? 0 : -1}
                           className="adl-hamburger__subitem"
                           disabled={item.disabled}
+                          data-sub-id={item.id}
                           onClick={() => {
                             item.action?.();
                             closeAllMenus();

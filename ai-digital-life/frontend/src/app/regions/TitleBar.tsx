@@ -19,6 +19,7 @@ import { Spinner } from '../components/Spinner';
 import { useAppStore } from '../stores/slicedStore';
 import { TooltipSimple } from '../components/Tooltip';
 import { useFileMenuItems, useViewMenuItems, useHelpMenuItems } from './titleBarMenus';
+import { EMPTY_KEYBINDS } from '../../shared/keybinds';
 import { useAppZoom } from '../hooks/useAppZoom';
 import { HamburgerMenu } from './HamburgerMenu';
 import { WindowControls } from './WindowControls';
@@ -89,7 +90,7 @@ const TitleBar = React.memo(function TitleBar({
 
   const { zoomBy, resetZoom } = useAppZoom();
 
-  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? {};
+  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? EMPTY_KEYBINDS;
   const openShortcutsSettings = useCallback(() => {
     const state = useAppStore.getState();
     state.navigateRightTool('settings');
@@ -110,7 +111,7 @@ const TitleBar = React.memo(function TitleBar({
     onOpenSettings,
     navigateRightTool,
   );
-  const helpItems = useHelpMenuItems(t, openShortcutsSettings);
+  const helpItems = useHelpMenuItems(t, keybinds, openShortcutsSettings);
 
   return (
     <header className="adl-titlebar" role="banner">

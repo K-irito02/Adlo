@@ -3,6 +3,7 @@ import { renderHook } from '@testing-library/react';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts';
 import { findMatchingCommand } from './useKeyboardShortcuts';
 import { DEFAULT_COMMANDS } from '../commands/defaultCommands';
+import { useAppStore } from '../stores/slicedStore';
 
 function dispatchKey(key: string, opts: KeyboardEventInit = {}): void {
   document.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, ...opts }));
@@ -13,6 +14,7 @@ function fullCallbacks(overrides = {}) {
     openCreateWorkspaceDialog: vi.fn(),
     openWorkspace: vi.fn(),
     openSettings: vi.fn(),
+    openShortcutsSettings: vi.fn(),
     openFilesView: vi.fn(),
     openChangesView: vi.fn(),
     openBrowserView: vi.fn(),
@@ -69,5 +71,29 @@ describe('useKeyboardShortcuts extended dispatch', () => {
     expect(preventSpy).not.toHaveBeenCalled();
     expect(onOpenTerminalView).not.toHaveBeenCalled();
     unmount();
+  });
+
+  it('dispatches a user-bound settings.shortcuts with no default', () => {
+    const prevAppInfo = useAppStore.getState().appInfo;
+    useAppStore.setState({
+      appInfo: {
+        ...(prevAppInfo as object),
+        config: {
+          ...((prevAppInfo as { config?: object } | null)?.config as object),
+          keybinds: { 'settings.shortcuts': 'mod+k' },
+        },
+      } as never,
+    });
+    try {
+      const onOpenShortcutsSettings = vi.fn();
+      const { unmount } = renderHook(() =>
+        useKeyboardShortcuts(fullCallbacks({ openShortcutsSettings: onOpenShortcutsSettings })),
+      );
+      dispatchKey('k', { ctrlKey: true });
+      expect(onOpenShortcutsSettings).toHaveBeenCalledTimes(1);
+      unmount();
+    } finally {
+      useAppStore.setState({ appInfo: prevAppInfo });
+    }
   });
 });

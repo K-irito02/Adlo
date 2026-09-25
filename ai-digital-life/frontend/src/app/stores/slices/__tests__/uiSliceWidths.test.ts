@@ -119,6 +119,15 @@ describe('uiSliceWidths leftbarWidth persistence', () => {
     expect(current().rightCollapsed).toBe(false);
   });
 
+  it('navigateRightTool re-selecting the same tool while collapsed still expands', () => {
+    const { current } = createSlice();
+    current().navigateRightTool('files');
+    current().setRightCollapsed(true);
+    current().navigateRightTool('files');
+    expect(current().activeRightTool).toBe('files');
+    expect(current().rightCollapsed).toBe(false);
+  });
+
   it('clamps an out-of-range browser navigator width in the store state and persists it clamped', () => {
     const { current } = createSlice();
 

@@ -867,7 +867,9 @@
 }
 
 .adl-settings-keybinds__toolbar {
-  /* 非卡片：与主题底色融为一体；滚动时钉在主内容区顶部（负边距技巧消除容器上内边距的跳动）。 */
+  /* 非卡片：与主题底色融为一体；滚动时钉在主内容区顶部（负边距技巧消除容器上内边距的跳动）。
+     父容器 padding 见 .adl-settings-panel__content（--space-4），改动需同步；
+     z-index 低于 ConfirmDialog 遮罩，确认框弹出时不被盖住。 */
   position: sticky;
   top: calc(-1 * var(--space-4));
   z-index: 2;
@@ -909,7 +911,7 @@
   transition: var(--transition-colors);
 }
 
-.adl-settings-keybinds__search:hover:not(:readonly) {
+.adl-settings-keybinds__search:hover:not([readonly]) {
   background: var(--surface-hover);
   border-color: var(--border-strong);
 }

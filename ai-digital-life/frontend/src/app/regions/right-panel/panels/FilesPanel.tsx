@@ -21,8 +21,8 @@ import {
   scrollAndFlash,
 } from '@features/preview/revealSourceLine';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
-import { formatKeybind } from '@shared/keybinds';
-import { defaultKeybindOf } from '../../../commands/defaultCommands';
+import { EMPTY_KEYBINDS } from '@shared/keybinds';
+import { displayShortcut } from '../../../commands/defaultCommands';
 import { useFilesPanelShortcuts } from './useFilesPanelShortcuts';
 
 const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
@@ -436,29 +436,21 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     }
   }, [selectedFilePath, fileContent, isPreviewModeForPath, handleNavigateLine]);
 
-  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds ?? {});
+  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? EMPTY_KEYBINDS;
 
   const fileMenuItems: (FileMenuItem | FileMenuDivider)[] = useMemo(
     () => [
       {
         id: 'copy-relative',
         label: t.fileCopyRelativePath as string,
-        shortcut:
-          keybinds['file.copy-relative'] === 'none'
-            ? undefined
-            : formatKeybind(
-                keybinds['file.copy-relative'] ?? defaultKeybindOf('file.copy-relative'),
-              ),
+        shortcut: displayShortcut(keybinds, 'file.copy-relative'),
         disabled: !selectedFilePath,
         action: () => void handleCopyPath(selectedFilePath),
       },
       {
         id: 'copy-full',
         label: t.fileCopyFullPath as string,
-        shortcut:
-          keybinds['file.copy-full'] === 'none'
-            ? undefined
-            : formatKeybind(keybinds['file.copy-full'] ?? defaultKeybindOf('file.copy-full')),
+        shortcut: displayShortcut(keybinds, 'file.copy-full'),
         disabled: !selectedAbsolutePath,
         action: () => void handleCopyPath(selectedAbsolutePath),
       },
@@ -466,18 +458,14 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       {
         id: 'line-numbers',
         label: t.fileLineNumbers as string,
+        shortcut: displayShortcut(keybinds, 'file.toggle-line-numbers'),
         checked: editorOptions.lineNumbersEnabled,
         action: () => editorOptions.setLineNumbersEnabled((v) => !v),
       },
       {
         id: 'word-wrap',
         label: t.fileWordWrap as string,
-        shortcut:
-          keybinds['file.toggle-word-wrap'] === 'none'
-            ? undefined
-            : formatKeybind(
-                keybinds['file.toggle-word-wrap'] ?? defaultKeybindOf('file.toggle-word-wrap'),
-              ),
+        shortcut: displayShortcut(keybinds, 'file.toggle-word-wrap'),
         checked: editorOptions.wordWrapEnabled,
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },

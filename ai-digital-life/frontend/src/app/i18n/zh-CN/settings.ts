@@ -66,7 +66,7 @@ export const settingsZh = {
   settingsShortcutsUnassigned: '未设置',
   settingsShortcutsConflict: '快捷键冲突',
   settingsShortcutsConflictDesc: '快捷键 {keybind} 已被以下命令占用：{titles}',
-  settingsShortcutsResetOne: '重置此项',
+  settingsShortcutsResetOneFor: '重置 {name}',
   settingsShortcutsClear: '清除',
   settingsShortcutsGroupGeneral: '通用',
   settingsShortcutsGroupNavigation: '导航',

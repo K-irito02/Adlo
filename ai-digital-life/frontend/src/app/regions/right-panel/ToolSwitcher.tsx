@@ -10,8 +10,8 @@ import {
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { useAppStore } from '@stores/slicedStore';
-import { formatKeybind } from '@shared/keybinds';
-import { DEFAULT_KEYBINDS } from '@shared/defaultPreferences';
+import { EMPTY_KEYBINDS } from '@shared/keybinds';
+import { displayShortcut, type CommandMeta } from '@app/commands/defaultCommands';
 import type { ToolId } from '@stores/types';
 import type { CopyDict } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
@@ -27,7 +27,7 @@ interface ToolSwitcherProps {
 
 const TAB_META: {
   id: ToolId;
-  commandId: string;
+  commandId: CommandMeta['id'];
   icon: React.ReactNode;
   labelKey: keyof CopyDict;
 }[] = [
@@ -98,7 +98,7 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
 }: ToolSwitcherProps) {
   const { t } = useTCopy();
   const [hoveredTool, setHoveredTool] = React.useState<ToolId | null>(null);
-  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? {};
+  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? EMPTY_KEYBINDS;
 
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>, currentTool: ToolId) => {
@@ -149,7 +149,7 @@ export const ToolSwitcher = React.memo(function ToolSwitcher({
           const nextTab = TAB_META[index + 1];
           const shouldShowSeparator =
             !!nextTab && isHighlighted && (activeTool === nextTab.id || hoveredTool === nextTab.id);
-          const hint = formatKeybind(keybinds[tab.commandId] ?? DEFAULT_KEYBINDS[tab.commandId]);
+          const hint = displayShortcut(keybinds, tab.commandId);
           return (
             <React.Fragment key={tab.id}>
               <TooltipSimple content={hint ? `${label} · ${hint}` : label} placement="top">

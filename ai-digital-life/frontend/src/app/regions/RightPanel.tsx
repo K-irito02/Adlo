@@ -227,6 +227,7 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
           activeTool={activeRightTool}
           badges={badges}
           idBase={panelIdBase}
+          // 面板内 tab 切换用非展开语义：面板可见时才可达，无需重复展开。
           onSelect={setActiveRightTool}
           rightPanelExpanded={rightPanelMode === 'overlay_full'}
           onToggleRightPanelExpanded={handleToggleRightPanelExpanded}

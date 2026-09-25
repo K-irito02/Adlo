@@ -5,7 +5,7 @@ import { useKeyCapture, type UseKeyCaptureArgs } from './useKeyCapture';
 
 const TEST_COMMANDS: CommandMeta[] = [
   {
-    id: 'session.new',
+    id: 'general.probe',
     titleKey: 'commandSessionNew',
     group: 'general',
     defaultKeybind: 'mod+shift+n',
@@ -82,15 +82,15 @@ describe('useKeyCapture', () => {
 
   it('records keybind when active and key pressed', () => {
     const onRecord = vi.fn();
-    renderHook(() => useKeyCapture(makeArgs({ activeId: 'session.new', onRecord })));
+    renderHook(() => useKeyCapture(makeArgs({ activeId: 'general.probe', onRecord })));
 
     dispatchKey('n', { ctrlKey: true, shiftKey: true });
-    expect(onRecord).toHaveBeenCalledWith('session.new', 'mod+shift+n');
+    expect(onRecord).toHaveBeenCalledWith('general.probe', 'mod+shift+n');
   });
 
   it('stops recording on Escape', () => {
     const onStop = vi.fn();
-    renderHook(() => useKeyCapture(makeArgs({ activeId: 'session.new', onStop })));
+    renderHook(() => useKeyCapture(makeArgs({ activeId: 'general.probe', onStop })));
 
     dispatchKey('Escape');
     expect(onStop).toHaveBeenCalledTimes(1);
@@ -98,32 +98,32 @@ describe('useKeyCapture', () => {
 
   it('clears binding on Backspace without modifiers', () => {
     const onRecord = vi.fn();
-    renderHook(() => useKeyCapture(makeArgs({ activeId: 'session.new', onRecord })));
+    renderHook(() => useKeyCapture(makeArgs({ activeId: 'general.probe', onRecord })));
 
     dispatchKey('Backspace');
-    expect(onRecord).toHaveBeenCalledWith('session.new', 'none');
+    expect(onRecord).toHaveBeenCalledWith('general.probe', 'none');
   });
 
   it('clears binding on Delete without modifiers', () => {
     const onRecord = vi.fn();
-    renderHook(() => useKeyCapture(makeArgs({ activeId: 'session.new', onRecord })));
+    renderHook(() => useKeyCapture(makeArgs({ activeId: 'general.probe', onRecord })));
 
     dispatchKey('Delete');
-    expect(onRecord).toHaveBeenCalledWith('session.new', 'none');
+    expect(onRecord).toHaveBeenCalledWith('general.probe', 'none');
   });
 
   it('does not clear binding on Backspace with modifiers (records instead)', () => {
     const onRecord = vi.fn();
-    renderHook(() => useKeyCapture(makeArgs({ activeId: 'session.new', onRecord })));
+    renderHook(() => useKeyCapture(makeArgs({ activeId: 'general.probe', onRecord })));
 
     dispatchKey('Backspace', { shiftKey: true });
-    expect(onRecord).not.toHaveBeenCalledWith('session.new', 'none');
-    expect(onRecord).toHaveBeenCalledWith('session.new', 'shift+backspace');
+    expect(onRecord).not.toHaveBeenCalledWith('general.probe', 'none');
+    expect(onRecord).toHaveBeenCalledWith('general.probe', 'shift+backspace');
   });
 
   it('continues waiting when only modifier pressed', () => {
     const onRecord = vi.fn();
-    renderHook(() => useKeyCapture(makeArgs({ activeId: 'session.new', onRecord })));
+    renderHook(() => useKeyCapture(makeArgs({ activeId: 'general.probe', onRecord })));
 
     dispatchKey('Shift', { shiftKey: true });
     dispatchKey('Control', { ctrlKey: true });
@@ -140,7 +140,7 @@ describe('useKeyCapture', () => {
       useKeyCapture(
         makeArgs({
           activeId: 'workspace.open',
-          keybinds: { 'session.new': 'mod+shift+n' },
+          keybinds: { 'general.probe': 'mod+shift+n' },
           onRecord,
           onConflict,
         }),
@@ -153,7 +153,7 @@ describe('useKeyCapture', () => {
     expect(onConflict.mock.calls[0][1]).toBe('mod+shift+n');
     const conflicts = onConflict.mock.calls[0][2] as CommandMeta[];
     expect(conflicts).toHaveLength(1);
-    expect(conflicts[0].id).toBe('session.new');
+    expect(conflicts[0].id).toBe('general.probe');
     expect(onRecord).not.toHaveBeenCalled();
   });
 
@@ -172,7 +172,7 @@ describe('useKeyCapture', () => {
     dispatchKey('n', { ctrlKey: true, shiftKey: true });
     expect(onConflict).toHaveBeenCalledTimes(1);
     const conflicts = onConflict.mock.calls[0][2] as CommandMeta[];
-    expect(conflicts[0].id).toBe('session.new');
+    expect(conflicts[0].id).toBe('general.probe');
   });
 
   it('records comma key as `comma` (matches default settings.open keybind)', () => {
@@ -196,8 +196,8 @@ describe('useKeyCapture', () => {
     renderHook(() =>
       useKeyCapture(
         makeArgs({
-          activeId: 'session.new',
-          keybinds: { 'session.new': 'mod+shift+n' },
+          activeId: 'general.probe',
+          keybinds: { 'general.probe': 'mod+shift+n' },
           onRecord,
           onConflict,
         }),
@@ -206,13 +206,13 @@ describe('useKeyCapture', () => {
 
     dispatchKey('n', { ctrlKey: true, shiftKey: true });
     expect(onConflict).not.toHaveBeenCalled();
-    expect(onRecord).toHaveBeenCalledWith('session.new', 'mod+shift+n');
+    expect(onRecord).toHaveBeenCalledWith('general.probe', 'mod+shift+n');
   });
 
   it('removes listener when activeId becomes null', () => {
     const onRecord = vi.fn();
     const { rerender } = renderHook((props: UseKeyCaptureArgs) => useKeyCapture(props), {
-      initialProps: makeArgs({ activeId: 'session.new', onRecord }),
+      initialProps: makeArgs({ activeId: 'general.probe', onRecord }),
     });
 
     rerender(makeArgs({ activeId: null, onRecord }));
@@ -244,7 +244,7 @@ describe('useKeyCapture', () => {
     rerender(
       makeArgs({
         activeId: 'workspace.open',
-        keybinds: { 'session.new': 'mod+o' },
+        keybinds: { 'general.probe': 'mod+o' },
         onRecord,
         onConflict,
       }),
@@ -253,7 +253,7 @@ describe('useKeyCapture', () => {
     dispatchKey('o', { ctrlKey: true });
     expect(onConflict).toHaveBeenCalledTimes(1);
     const conflicts = onConflict.mock.calls[0][2] as CommandMeta[];
-    expect(conflicts[0].id).toBe('session.new');
+    expect(conflicts[0].id).toBe('general.probe');
     expect(onRecord).not.toHaveBeenCalled();
   });
 
@@ -264,7 +264,7 @@ describe('useKeyCapture', () => {
       useKeyCapture(
         makeArgs({
           activeId: 'workspace.open',
-          keybinds: { 'session.new': 'none' },
+          keybinds: { 'general.probe': 'none' },
           onRecord,
           onConflict,
         }),
@@ -277,7 +277,7 @@ describe('useKeyCapture', () => {
   });
 
   it('prevents default and stops propagation while recording', () => {
-    renderHook(() => useKeyCapture(makeArgs({ activeId: 'session.new' })));
+    renderHook(() => useKeyCapture(makeArgs({ activeId: 'general.probe' })));
 
     const event = new KeyboardEvent('keydown', {
       key: 'n',

@@ -1,13 +1,12 @@
 # 帮助菜单
 
-> 帮助菜单包含命令面板、快捷键和许可证相关操作。
+> 帮助菜单包含键盘快捷键与许可证操作（命令面板入口已删除）。
 
 ## 菜单项列表
 
 | 菜单项 | 快捷键 | 说明 |
 |--------|--------|------|
-| 命令面板 | `Ctrl+Shift+P` | 打开命令面板（当前为搜索文件） |
-| 键盘快捷键 | `Ctrl+K Ctrl+S` | 查看键盘快捷键（未实现） |
+| 键盘快捷键 | 未分配（设置 → 快捷键可绑定 `settings.shortcuts`） | 打开设置并定位到快捷键组 |
 | 查看许可证 | - | 查看应用许可证（未实现） |
 
 ## 定位选择器
@@ -19,63 +18,12 @@
 
 ## 操作详情
 
-### 命令面板
-
-| 属性 | 值 |
-|------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "命令面板" 文本) |
-| 快捷键 | `Ctrl+Shift+P` |
-
-#### 前置条件
-
-- [x] 无特殊条件
-
-#### 操作
-
-```javascript
-// 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="help"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="help"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("命令面板")');
-
-// 方式2：通过快捷键
-await page.keyboard.down('Control');
-await page.keyboard.down('Shift');
-await page.keyboard.press('P');
-await page.keyboard.up('Shift');
-await page.keyboard.up('Control');
-```
-
-#### 状态变化
-
-- 右侧面板切换到文件工具
-- 搜索输入框获得焦点
-
-#### 预期结果
-
-- 文件面板激活
-- 搜索功能可用
-
-#### 等待条件
-
-```javascript
-await page.waitForSelector('#files-panel.is-active');
-```
-
-#### 注意
-
-- 当前命令面板功能为搜索文件的降级实现
-- 完整命令面板功能计划在未来版本实现
-
----
-
 ### 键盘快捷键
 
 | 属性 | 值 |
 |------|-----|
 | 菜单项选择器 | `.adl-menu__item` (包含 "键盘快捷键" 文本) |
-| 快捷键 | `Ctrl+K Ctrl+S` |
-| 状态 | **未实现** |
+| 快捷键 | 未分配（`settings.shortcuts` 命令，可在设置 → 快捷键中绑定） |
 
 #### 操作
 
@@ -87,7 +35,7 @@ await page.click('.adl-menu__item:has-text("键盘快捷键")');
 
 #### 预期结果
 
-- 当前无响应（功能未实现）
+- 设置面板打开并定位到"快捷键"组
 
 ---
 
@@ -110,9 +58,10 @@ await page.click('.adl-menu__item:has-text("查看许可证")');
 
 - 当前无响应（功能未实现）
 
-## 命令面板入口
+## 命令面板入口（已删除）
 
-除了通过帮助菜单访问，命令面板还可以通过以下方式触发：
+> 命令面板入口（含汉堡一级菜单项与本帮助子菜单项）已随死功能清理删除；
+> 以下为归档记录，自动化脚本不得再依赖这些选择器。
 
 ### 标题栏搜索按钮
 

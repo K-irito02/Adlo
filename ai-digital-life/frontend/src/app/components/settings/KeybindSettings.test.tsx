@@ -184,8 +184,8 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const rowResets = screen.getAllByLabelText('settingsShortcutsResetOne');
-    expect(rowResets.length).toBe(14);
+    const rowResets = screen.getAllByLabelText('settingsShortcutsResetOneFor');
+    expect(rowResets.length).toBe(15);
   });
 
   it('filters commands by keybind text (raw mod+n)', () => {
@@ -270,7 +270,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    expect(screen.getAllByLabelText('settingsShortcutsUnassigned')).toHaveLength(2);
+    expect(screen.getAllByLabelText('settingsShortcutsUnassigned')).toHaveLength(3);
   });
 
   it('clicking KeybindControl enters recording mode (aria-label changes to Press keys)', () => {
@@ -473,7 +473,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const rowReset = screen.getAllByLabelText('settingsShortcutsResetOne')[0];
+    const rowReset = screen.getAllByLabelText('settingsShortcutsResetOneFor')[0];
     await act(async () => {
       fireEvent.click(rowReset);
     });
@@ -755,5 +755,76 @@ describe('KeybindSettings', () => {
     );
 
     expect(screen.getByLabelText('settingsShortcutsSearchHintLabel')).toBeDefined();
+  });
+
+  it('matches cmd+n and command+n alias queries without lookbehind', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
+    act(() => {
+      fireEvent.change(search, { target: { value: 'cmd+n' } });
+    });
+    expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
+    act(() => {
+      fireEvent.change(search, { target: { value: 'command+n' } });
+    });
+    expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
+  });
+
+  it('resetting a command without default removes its key instead of writing none', async () => {
+    useAppStore.setState({
+      appInfo: {
+        appName: 'test',
+        version: '0.0.0',
+        config: {
+          language: 'en-US',
+          themeMode: 'system',
+          resolvedTheme: 'light',
+          logLevel: 'info',
+          terminalLogMode: 'overwrite',
+          debugLogMode: 'overwrite',
+          maxRecentWorkspaces: 5,
+          modelPreferences: { providers: {} },
+          keybinds: { 'file.toggle-line-numbers': 'alt+l' },
+          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
+          maxConcurrentWorkspaces: 6,
+          workspacePriorityIds: [],
+          workspaceDeferredIds: [],
+          workspaceNaturalOrder: [],
+          browserInactiveTabSuspendMs: 3_600_000,
+          terminalHistoryBudgetBytes: 1 << 30,
+        },
+        currentWorkspace: undefined,
+        recentLogs: [],
+      },
+    });
+    const updatePreferencesSpy = vi
+      .spyOn(useAppStore.getState(), 'updatePreferences')
+      .mockResolvedValue(true);
+
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const buttons = screen.getAllByLabelText('settingsShortcutsResetOneFor');
+    const target = buttons.find(
+      (b) => b.closest('li')?.textContent?.includes('fileLineNumbers') ?? false,
+    );
+    expect(target).toBeDefined();
+    await act(async () => {
+      fireEvent.click(target!);
+    });
+
+    expect(updatePreferencesSpy).toHaveBeenCalledTimes(1);
+    const call = updatePreferencesSpy.mock.calls[0][0];
+    expect(call.keybinds).toBeDefined();
+    expect('file.toggle-line-numbers' in (call.keybinds ?? {})).toBe(false);
+    updatePreferencesSpy.mockRestore();
   });
 });

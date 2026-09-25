@@ -12,7 +12,6 @@ export const menuZh = {
   menuExit: '退出',
   menuZoomIn: '放大',
   menuZoomOut: '缩小',
-  menuZoomReset: '重置缩放',
   menuResetZoom: '重置缩放',
   menuSettings: '设置',
   menuShortcuts: '键盘快捷键',

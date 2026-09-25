@@ -1,4 +1,5 @@
 import type { CopyKey } from '../i18n/types';
+import { formatKeybind } from '../../shared/keybinds';
 
 export type CommandGroup = 'general' | 'navigation' | 'view' | 'zoom' | 'file';
 
@@ -27,6 +28,11 @@ export const DEFAULT_COMMANDS: CommandMeta[] = [
     titleKey: 'commandSettingsOpen',
     group: 'general',
     defaultKeybind: 'mod+shift+comma',
+  },
+  {
+    id: 'settings.shortcuts',
+    titleKey: 'menuShortcuts',
+    group: 'general',
   },
   { id: 'view.files', titleKey: 'menuOpenFilePanel', group: 'view', defaultKeybind: 'mod+shift+e' },
   {
@@ -68,4 +74,19 @@ export const DEFAULT_COMMANDS: CommandMeta[] = [
 
 export function defaultKeybindOf(id: string): string | undefined {
   return DEFAULT_COMMANDS.find((cmd) => cmd.id === id)?.defaultKeybind;
+}
+
+/**
+ * 菜单/tooltip 展示用快捷键文本（单点）：`none` 或无绑定时返回 undefined（调用方隐藏），
+ * 否则用户覆盖 ?? 命令默认 → 本地化显示。titleBarMenus / ToolSwitcher / FilesPanel 共用，防漂移。
+ */
+export function displayShortcut(
+  keybinds: Record<string, string | undefined>,
+  id: string,
+): string | undefined {
+  const raw = keybinds[id];
+  if (raw === 'none') {
+    return undefined;
+  }
+  return formatKeybind(raw ?? defaultKeybindOf(id) ?? 'none') || undefined;
 }

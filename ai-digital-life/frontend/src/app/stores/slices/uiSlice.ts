@@ -49,11 +49,11 @@ export {
  */
 export const createUISlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState,
+  get: () => StoreState,
 ): UISlice => {
   return {
-    ...createUIWidthSlice(set, _get),
-    ...createUIExpansionSlice(set, _get),
+    ...createUIWidthSlice(set, get),
+    ...createUIExpansionSlice(set, get),
 
     isFetching: {},
     filesNavigatorMode: 'tree',
@@ -161,7 +161,13 @@ export const createUISlice = (
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
     requestStorageGroupReset: () => set({ storageGroupResetPending: true }),
     consumeStorageGroupReset: () => set({ storageGroupResetPending: false }),
-    setStorageBlocksAtDefault: (value) => set({ storageBlocksAtDefault: value }),
+    setStorageBlocksAtDefault: (value) => {
+      // 同值不写：聚合 effect 每次谓词重算都调用，守卫避免订阅者无效通知。
+      if (get().storageBlocksAtDefault === value) {
+        return;
+      }
+      set({ storageBlocksAtDefault: value });
+    },
     setNavigatorCollapsed: (tool, collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };

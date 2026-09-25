@@ -86,7 +86,7 @@ export function applyPreferencePatch(
   // 非有限值（NaN）回落下限，不向 config 写 NaN）。
   if (patch.terminalHistoryBudgetBytes !== undefined) {
     const raw = Number.isFinite(patch.terminalHistoryBudgetBytes)
-      ? patch.terminalHistoryBudgetBytes
+      ? Math.trunc(patch.terminalHistoryBudgetBytes)
       : 1 << 30;
     nextConfig.terminalHistoryBudgetBytes =
       raw === 0 ? 0 : Math.min(2000 * (1 << 30), Math.max(1 << 30, raw));

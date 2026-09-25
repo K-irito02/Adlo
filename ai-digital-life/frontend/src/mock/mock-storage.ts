@@ -30,6 +30,12 @@ export const DEFAULT_MOCK_STORAGE_ROOT = 'C:/Users/Public/AI-Digital-Life';
 export interface MockStorageConfig {
   root?: string;
   mode?: StorageMode;
+  /**
+   * 独立默认根（可选）：缺省跟随 `root`（演示即默认布局）。
+   * 显式传入不同值可模拟"自定义根偏离默认"（真实后端 `defaults.root` 语义），
+   * 供 coreAtDefault 分歧场景验证。
+   */
+  defaultRoot?: string;
 }
 
 /** 为给定根构造 11 类分类状态（`downloads_default` 不可移动，与后端一致）。 */
@@ -56,6 +62,7 @@ function mockCategories(root: string): StorageCategoryStatus[] {
 export function createMockStorage(config: MockStorageConfig = {}): StorageBridge {
   let mode: StorageMode = config.mode ?? 'unified';
   const root = config.root ?? DEFAULT_MOCK_STORAGE_ROOT;
+  const defaultRoot = config.defaultRoot ?? root;
   let pending: StoragePending | null = null;
   // 工作区树缓存内存态：mock 无 SQLite 行，stats 恒零值；options 内存保持。
   let treeCacheOptions: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
@@ -75,7 +82,7 @@ export function createMockStorage(config: MockStorageConfig = {}): StorageBridge
       data: {
         mode,
         root,
-        defaultRoot: root,
+        defaultRoot,
         categories: mockCategories(root),
         locatorPath: `${root}/storage-locator.json`,
         pending,

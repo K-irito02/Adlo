@@ -133,6 +133,17 @@ describe('WorkspaceSettings merged block', () => {
     expect(resetBtn.hasAttribute('disabled')).toBe(false);
   });
 
+  it('block reset stays enabled while config is loading (fail-open)', () => {
+    setupStore();
+    useAppStore.setState({ appInfo: undefined });
+    renderSettings();
+
+    const resetBtn = screen.getByRole('button', {
+      name: 'Reset settingsWorkspaceLoad all defaults',
+    });
+    expect(resetBtn.hasAttribute('disabled')).toBe(false);
+  });
+
   it('renders one card with three list sections and no grid cards', () => {
     setupStore();
     renderSettings();

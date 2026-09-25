@@ -33,7 +33,10 @@ const GROUP_LABEL_KEY: Record<CommandGroup, CopyKey> = {
 
 /**
  * 查询串归一化：小写、去空白；`, / ，` 统一为 `comma`（与 keybind 存储一致）；
- * 常见修饰键别名归一（control→ctrl，cmd/command→mod），覆盖 Win / Mac 显示差异。
+ * 常见修饰键别名归一（control→ctrl，command/cmd→mod），覆盖 Win / Mac 显示差异。
+ * 注意不用正则 lookbehind（旧 Safari 解析即 SyntaxError）：先把 `command`
+ * 换成占位符再处理零散 `cmd`，避免 `commandWorkspace` 这类词被破坏
+ * （标题路径另有 plain 短路，本替换只走快捷键匹配分支）。
  */
 function normalizeShortcutQuery(value: string): string {
   return value
@@ -42,7 +45,7 @@ function normalizeShortcutQuery(value: string): string {
     .replace(/,|，/g, 'comma')
     .replace(/control/g, 'ctrl')
     .replace(/command/g, 'mod')
-    .replace(/(?<!mo)cmd/g, 'mod');
+    .replace(/cmd/g, 'mod');
 }
 
 /** 命令的三路可匹配文本：原始串（mod+n）/ 格式化显示（Ctrl+N）/ 去 `+` 压平（modn，命中单键名）。 */
@@ -127,6 +130,7 @@ export function KeybindSettings() {
   }, [filtered]);
 
   const handleRecord = (id: string, keybind: string) => {
+    // 录制成功保持静默（键帽文字变化即确认），失败走冲突 toast；减少噪音是刻意产品决策。
     void updatePreferences({ keybinds: { ...keybinds, [id]: keybind } });
     setActiveId(null);
   };
@@ -211,7 +215,15 @@ export function KeybindSettings() {
       return;
     }
     void (async () => {
-      const ok = await updatePreferences({ keybinds: { ...keybinds, [cmd.id]: target } });
+      // 无默认值的命令重置即删 key（与 DEFAULT_KEYBINDS"缺席即默认"同构），
+      // 避免存显式 'none' 造成无意义 diff。
+      const next = { ...keybinds };
+      if (cmd.defaultKeybind === undefined) {
+        delete next[cmd.id];
+      } else {
+        next[cmd.id] = cmd.defaultKeybind;
+      }
+      const ok = await updatePreferences({ keybinds: next });
       showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
     })();
   };
@@ -225,7 +237,11 @@ export function KeybindSettings() {
     void (async () => {
       const next = { ...keybinds };
       for (const cmd of commands.filter((c) => c.group === group)) {
-        next[cmd.id] = cmd.defaultKeybind ?? 'none';
+        if (cmd.defaultKeybind === undefined) {
+          delete next[cmd.id];
+        } else {
+          next[cmd.id] = cmd.defaultKeybind;
+        }
       }
       const ok = await updatePreferences({ keybinds: next });
       showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
@@ -305,13 +321,16 @@ export function KeybindSettings() {
                 {list.map((cmd) => {
                   const current = currentOf(cmd);
                   const isDefault = current === (cmd.defaultKeybind ?? 'none');
+                  const resetOneLabel = formatT(t, 'settingsShortcutsResetOneFor', {
+                    name: t[cmd.titleKey],
+                  });
                   return (
                     <li key={cmd.id} className="adl-settings-keybinds__row">
                       <button
                         type="button"
                         className="adl-settings-row__reset adl-settings-row__reset--inline"
-                        aria-label={t.settingsShortcutsResetOne}
-                        title={t.settingsShortcutsResetOne}
+                        aria-label={resetOneLabel}
+                        title={resetOneLabel}
                         disabled={isDefault}
                         onClick={() => handleResetOne(cmd)}
                       >

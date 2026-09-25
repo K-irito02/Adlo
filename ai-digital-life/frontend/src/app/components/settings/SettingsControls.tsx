@@ -6,6 +6,7 @@ import { IconEye, IconEyeOff, IconResetDefaults } from '../../icons';
 import { FontControl } from './FontControl';
 import { SettingsSelect } from './SettingsSelect';
 import { getDefaultForSetting } from '../../../shared/defaultPreferences';
+import { isStringArrayEqual } from './settingsGroups';
 
 interface SettingsControlsProps {
   items: SettingItem[];
@@ -13,14 +14,14 @@ interface SettingsControlsProps {
   searchQuery?: string;
 }
 
-/** 当前值是否已等于默认值（数组按元素比对）：等于则行级恢复按钮禁用。 */
+/** 当前值是否已等于默认值：等于则行级恢复按钮禁用。
+ * 非数组用 `===`（typeof 不一致即不等，保持启用 fail-open；NaN 恒不等亦然）。
+ * 数组分支走共享 helper。 */
 function isDefaultValue(value: unknown, defaultValue: unknown): boolean {
   if (Array.isArray(value) || Array.isArray(defaultValue)) {
-    return (
-      Array.isArray(value) &&
-      Array.isArray(defaultValue) &&
-      value.length === defaultValue.length &&
-      value.every((v, i) => v === defaultValue[i])
+    return isStringArrayEqual(
+      Array.isArray(value) ? (value as string[]) : undefined,
+      Array.isArray(defaultValue) ? (defaultValue as string[]) : undefined,
     );
   }
   return value === defaultValue;

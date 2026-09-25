@@ -76,6 +76,19 @@ describe('storage bridge method parity', () => {
     }
   });
 
+  it('mock can represent default-vs-custom root divergence', async () => {
+    const res = await createMockStorage({
+      root: 'D:/custom-root',
+      defaultRoot: 'C:/Users/Public/AI-Digital-Life',
+    }).getStatus();
+    expect(res.ok).toBe(true);
+    if (res.ok) {
+      expect(res.data.root).toBe('D:/custom-root');
+      expect(res.data.defaultRoot).toBe('C:/Users/Public/AI-Digital-Life');
+      expect(res.data.root).not.toBe(res.data.defaultRoot);
+    }
+  });
+
   it('tree-cache methods behave identically on all bridges', async () => {
     // Tauri 端：按 Task 5 `@command` 注解名桩住 invoke。
     mockInvoke.mockImplementation(async (cmd: string) => {

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useAppStore } from '../stores/slicedStore';
 import { DEFAULT_COMMANDS } from '../commands/defaultCommands';
 import type { CommandMeta } from '../commands/defaultCommands';
@@ -8,6 +8,7 @@ export interface ActionCallbacks {
   openCreateWorkspaceDialog: () => void;
   openWorkspace: () => void;
   openSettings: () => void;
+  openShortcutsSettings: () => void;
   openFilesView: () => void;
   openChangesView: () => void;
   openBrowserView: () => void;
@@ -21,6 +22,7 @@ const COMMAND_HANDLERS: Record<string, (callbacks: ActionCallbacks) => void> = {
   'workspace.new': (cb) => cb.openCreateWorkspaceDialog(),
   'workspace.open': (cb) => cb.openWorkspace(),
   'settings.open': (cb) => cb.openSettings(),
+  'settings.shortcuts': (cb) => cb.openShortcutsSettings(),
   'view.files': (cb) => cb.openFilesView(),
   'view.changes': (cb) => cb.openChangesView(),
   'view.browser': (cb) => cb.openBrowserView(),
@@ -54,6 +56,10 @@ export function findMatchingCommand(
 
 export function useKeyboardShortcuts(callbacks: ActionCallbacks): void {
   const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds ?? EMPTY_KEYBINDS);
+  // 回调经 ref 分发：App 每次 render 传新对象字面量，effect 只随 keybinds 重绑，
+  // 避免每次 render 都 remove/addEventListener。
+  const callbacksRef = useRef(callbacks);
+  callbacksRef.current = callbacks;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -63,10 +69,10 @@ export function useKeyboardShortcuts(callbacks: ActionCallbacks): void {
         return;
       }
       event.preventDefault();
-      COMMAND_HANDLERS[match.id]?.(callbacks);
+      COMMAND_HANDLERS[match.id]?.(callbacksRef.current);
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [keybinds, callbacks]);
+  }, [keybinds]);
 }

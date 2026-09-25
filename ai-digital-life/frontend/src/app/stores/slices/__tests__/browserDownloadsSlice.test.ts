@@ -1,7 +1,17 @@
-import { describe, it, expect } from 'vitest';
-import { tabStillDownloading, updateTabsForDownloadState } from '../browserDownloadsSlice';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  tabStillDownloading,
+  updateTabsForDownloadState,
+  createBrowserDownloadsSlice,
+} from '../browserDownloadsSlice';
 import type { DownloadRecord } from '@shared/ipc/download';
 import type { BrowserTabState } from '../browserTypes';
+import type { StoreState } from '../../StoreState';
+
+const { mockInvoke } = vi.hoisted(() => ({ mockInvoke: vi.fn() }));
+
+vi.mock('@tauri-apps/api/core', () => ({ invoke: mockInvoke }));
+vi.mock('@tauri-apps/api/event', () => ({ listen: vi.fn() }));
 
 function download(overrides: Partial<DownloadRecord>): DownloadRecord {
   return {
@@ -85,5 +95,27 @@ describe('browserDownloadsSlice — updateTabsForDownloadState', () => {
     const tabs = [tab('tab-1', true)];
     const next = updateTabsForDownloadState(tabs, [], undefined);
     expect(next).toBe(tabs);
+  });
+});
+
+describe('browserDownloadsSlice — fetchDownloadSettings ingest', () => {
+  it('normalizes a missing auto_migrate field to false and marks loaded', async () => {
+    mockInvoke.mockResolvedValue({
+      ok: true,
+      data: { mode: 'ask', default_path: 'D:/dl' },
+    });
+    let state = {} as StoreState;
+    const set = (partial: Partial<StoreState> | ((s: StoreState) => Partial<StoreState>)) => {
+      state = {
+        ...state,
+        ...(typeof partial === 'function' ? partial(state) : partial),
+      } as StoreState;
+    };
+    const slice = createBrowserDownloadsSlice(set, () => state);
+    const ok = await slice.fetchDownloadSettings();
+    expect(ok).toBe(true);
+    expect(state.downloadSettings.auto_migrate_on_path_change).toBe(false);
+    expect(state.downloadSettingsLoaded).toBe(true);
+    mockInvoke.mockReset();
   });
 });

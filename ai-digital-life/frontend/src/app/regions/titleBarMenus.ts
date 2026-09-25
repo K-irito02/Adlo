@@ -1,7 +1,8 @@
 import type { CopyDict } from '../i18n/types';
 import type { ToolId } from '../stores/types';
-import { formatKeybind } from '../../shared/keybinds';
-import { defaultKeybindOf } from '../commands/defaultCommands';
+import { displayShortcut } from '../commands/defaultCommands';
+import { isMacPlatform } from '../../shared/keybinds';
+import { ZOOM_STEP } from '../hooks/useAppZoom';
 
 export interface MenuItem {
   id: string;
@@ -13,14 +14,6 @@ export interface MenuItem {
 }
 
 type Keybinds = Record<string, string | undefined>;
-
-function displayShortcut(keybinds: Keybinds, id: string): string | undefined {
-  const raw = keybinds[id];
-  if (raw === 'none') {
-    return undefined;
-  }
-  return formatKeybind(raw ?? defaultKeybindOf(id) ?? 'none');
-}
 
 export function useFileMenuItems(
   t: CopyDict,
@@ -43,8 +36,13 @@ export function useFileMenuItems(
       action: onOpenFolder,
     },
     { id: 'sep-1', label: '', separator: true },
-    // OS 级：窗口管理器直接消费 Alt+F4，应用监听不到，保留字面量展示。
-    { id: 'exit', label: t.menuExit, shortcut: 'Alt+F4', action: handleClose },
+    // OS 级：窗口管理器直接消费，应用监听不到，保留字面量展示（macOS 为 ⌘Q）。
+    {
+      id: 'exit',
+      label: t.menuExit,
+      shortcut: isMacPlatform() ? '⌘Q' : 'Alt+F4',
+      action: handleClose,
+    },
   ];
 }
 
@@ -86,13 +84,13 @@ export function useViewMenuItems(
       id: 'zoom-in',
       label: t.menuZoomIn,
       shortcut: displayShortcut(keybinds, 'zoom.in'),
-      action: () => zoomBy(0.1),
+      action: () => zoomBy(ZOOM_STEP),
     },
     {
       id: 'zoom-out',
       label: t.menuZoomOut,
       shortcut: displayShortcut(keybinds, 'zoom.out'),
-      action: () => zoomBy(-0.1),
+      action: () => zoomBy(-ZOOM_STEP),
     },
     {
       id: 'zoom-reset',
@@ -110,9 +108,18 @@ export function useViewMenuItems(
   ];
 }
 
-export function useHelpMenuItems(t: CopyDict, onOpenShortcuts: () => void): MenuItem[] {
+export function useHelpMenuItems(
+  t: CopyDict,
+  keybinds: Keybinds,
+  onOpenShortcuts: () => void,
+): MenuItem[] {
   return [
-    { id: 'shortcuts', label: t.menuShortcuts, action: onOpenShortcuts },
+    {
+      id: 'shortcuts',
+      label: t.menuShortcuts,
+      shortcut: displayShortcut(keybinds, 'settings.shortcuts'),
+      action: onOpenShortcuts,
+    },
     { id: 'license', label: t.menuLicense, action: () => {} },
   ];
 }

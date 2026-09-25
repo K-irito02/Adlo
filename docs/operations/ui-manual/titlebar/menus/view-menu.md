@@ -1,21 +1,22 @@
 # 视图菜单
 
-> 视图菜单包含视图切换、缩放和设置相关操作。
+> 视图菜单包含面板切换、缩放和设置相关操作。菜单右侧快捷键文本由各命令当前绑定派生
+> （设置 → 快捷键可改），下表为默认值。
 
 ## 菜单项列表
 
 | 菜单项 | 快捷键 | 说明 |
 |--------|--------|------|
-| Diff 查看 | - | 切换到变更工具面板 |
-| 浏览器查看 | - | 切换到浏览器工具面板 |
-| 文件查看 | - | 切换到文件工具面板 |
-| 终端查看 | - | 切换到终端工具面板 |
+| 打开 · 文件面板 | `Ctrl+Shift+E` | 切换到文件工具面板 |
+| 打开 · 变更面板 | `Ctrl+Shift+G` | 切换到变更工具面板 |
+| 打开 · 浏览器面板 | `Ctrl+Shift+B` | 切换到浏览器工具面板 |
+| 打开 · 终端面板 | `Ctrl+Shift+\`` | 切换到终端工具面板 |
 | ────────── | - | 分隔线 |
-| 放大 | `Ctrl++` | 放大界面 |
+| 放大 | `Ctrl+Shift+Plus` | 放大界面 |
 | 缩小 | `Ctrl+-` | 缩小界面 |
 | 重置缩放 | `Ctrl+0` | 重置到默认缩放 |
 | ────────── | - | 分隔线 |
-| 设置 | `Ctrl+,` | 打开设置面板 |
+| 设置 | `Ctrl+Shift+Comma` | 打开设置面板 |
 
 ## 定位选择器
 
@@ -26,84 +27,32 @@
 
 ## 操作详情
 
-### Diff 查看
+### 打开 · 文件面板
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "Diff 查看" 文本) |
+| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 文件面板" 文本) |
+| 快捷键 | `Ctrl+Shift+E`（可在设置 → 快捷键中改绑 `view.files`） |
 
 #### 操作
 
 ```javascript
+// 方式1：通过菜单
 await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
 await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("Diff 查看")');
+await page.click('.adl-menu__item:has-text("打开 · 文件面板")');
+
+// 方式2：通过快捷键（默认绑定）
+await page.keyboard.down('Control');
+await page.keyboard.down('Shift');
+await page.keyboard.press('E');
+await page.keyboard.up('Shift');
+await page.keyboard.up('Control');
 ```
 
 #### 状态变化
 
-- 右侧面板切换到变更工具
-
-#### 预期结果
-
-- 变更面板激活
-- 显示 Git 变更列表
-
-#### 等待条件
-
-```javascript
-await page.waitForSelector('#changes-panel.is-active');
-```
-
----
-
-### 浏览器查看
-
-| 属性 | 值 |
-|------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "浏览器查看" 文本) |
-
-#### 操作
-
-```javascript
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("浏览器查看")');
-```
-
-#### 状态变化
-
-- 右侧面板切换到浏览器工具
-
-#### 预期结果
-
-- 浏览器面板激活
-
-#### 等待条件
-
-```javascript
-await page.waitForSelector('#browser-panel.is-active');
-```
-
----
-
-### 文件查看
-
-| 属性 | 值 |
-|------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "文件查看" 文本) |
-
-#### 操作
-
-```javascript
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("文件查看")');
-```
-
-#### 状态变化
-
-- 右侧面板切换到文件工具
+- 右侧面板切换到文件工具（收起态会自动展开）
 
 #### 预期结果
 
@@ -118,23 +67,87 @@ await page.waitForSelector('#files-panel.is-active');
 
 ---
 
-### 终端查看
+### 打开 · 变更面板
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "终端查看" 文本) |
+| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 变更面板" 文本) |
+| 快捷键 | `Ctrl+Shift+G`（`view.changes`） |
 
 #### 操作
 
 ```javascript
 await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
 await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("终端查看")');
+await page.click('.adl-menu__item:has-text("打开 · 变更面板")');
 ```
 
 #### 状态变化
 
-- 右侧面板切换到终端工具
+- 右侧面板切换到变更工具（收起态会自动展开）
+
+#### 预期结果
+
+- 变更面板激活
+- 显示 Git 变更列表
+
+#### 等待条件
+
+```javascript
+await page.waitForSelector('#changes-panel.is-active');
+```
+
+---
+
+### 打开 · 浏览器面板
+
+| 属性 | 值 |
+|------|-----|
+| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 浏览器面板" 文本) |
+| 快捷键 | `Ctrl+Shift+B`（`view.browser`） |
+
+#### 操作
+
+```javascript
+await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
+await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
+await page.click('.adl-menu__item:has-text("打开 · 浏览器面板")');
+```
+
+#### 状态变化
+
+- 右侧面板切换到浏览器工具（收起态会自动展开）
+
+#### 预期结果
+
+- 浏览器面板激活
+
+#### 等待条件
+
+```javascript
+await page.waitForSelector('#browser-panel.is-active');
+```
+
+---
+
+### 打开 · 终端面板
+
+| 属性 | 值 |
+|------|-----|
+| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 终端面板" 文本) |
+| 快捷键 | `` Ctrl+Shift+` ``（`view.terminal`） |
+
+#### 操作
+
+```javascript
+await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
+await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
+await page.click('.adl-menu__item:has-text("打开 · 终端面板")');
+```
+
+#### 状态变化
+
+- 右侧面板切换到终端工具（收起态会自动展开）
 
 #### 预期结果
 
@@ -153,7 +166,7 @@ await page.waitForSelector('#terminal-panel.is-active');
 | 属性 | 值 |
 |------|-----|
 | 菜单项选择器 | `.adl-menu__item` (包含 "放大" 文本) |
-| 快捷键 | `Ctrl++` |
+| 快捷键 | `Ctrl+Shift+Plus`（`zoom.in`，可在设置 → 快捷键中改绑） |
 
 #### 操作
 
@@ -163,9 +176,11 @@ await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
 await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
 await page.click('.adl-menu__item:has-text("放大")');
 
-// 方式2：通过快捷键
+// 方式2：通过快捷键（默认绑定）
 await page.keyboard.down('Control');
-await page.keyboard.press('+');
+await page.keyboard.down('Shift');
+await page.keyboard.press('Equal');
+await page.keyboard.up('Shift');
 await page.keyboard.up('Control');
 ```
 
@@ -255,7 +270,7 @@ await page.keyboard.up('Control');
 | 属性 | 值 |
 |------|-----|
 | 菜单项选择器 | `.adl-menu__item` (包含 "设置" 文本) |
-| 快捷键 | `Ctrl+,` |
+| 快捷键 | `Ctrl+Shift+Comma`（`settings.open`） |
 
 #### 操作
 
@@ -265,9 +280,11 @@ await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
 await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
 await page.click('.adl-menu__item:has-text("设置")');
 
-// 方式2：通过快捷键
+// 方式2：通过快捷键（默认绑定）
 await page.keyboard.down('Control');
+await page.keyboard.down('Shift');
 await page.keyboard.press(',');
+await page.keyboard.up('Shift');
 await page.keyboard.up('Control');
 ```
 

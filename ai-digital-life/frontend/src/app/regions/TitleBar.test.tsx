@@ -64,16 +64,34 @@ describe('TitleBar add-workspace control', () => {
   });
 });
 
-it('does not accept onOpenCommandPalette prop (dead palette removed)', () => {
-  const props = renderTitleBar();
-  expect('onOpenCommandPalette' in props).toBe(false);
+it('hamburger menu items carry no command-palette row (dead palette removed)', () => {
+  useAppStore.setState({ hamburgerOpen: false, hoveredMenuCategory: null });
+  renderTitleBar();
+  fireEvent.click(screen.getByRole('button', { name: 'appMenu' }));
+  expect(screen.queryByText('menuCommandPalette')).toBeNull();
+  fireEvent.keyDown(document, { key: 'Escape' });
 });
 
 it('hamburger menu has exactly file/view/help categories (no command entry)', () => {
-  useAppStore.setState({ hoveredMenuCategory: null });
+  useAppStore.setState({ hamburgerOpen: false, hoveredMenuCategory: null });
   renderTitleBar();
   fireEvent.click(screen.getByRole('button', { name: 'appMenu' }));
   const items = screen.getAllByRole('menuitem');
   const labels = items.map((el) => el.textContent);
   expect(labels).toEqual(['menuFile', 'menuView', 'menuHelp']);
+});
+
+it('hamburger submenu is keyboard reachable (ArrowRight focuses first item)', () => {
+  useAppStore.setState({ hamburgerOpen: false, hoveredMenuCategory: null });
+  const props = renderTitleBar();
+  fireEvent.click(screen.getByRole('button', { name: 'appMenu' }));
+  fireEvent.keyDown(document, { key: 'ArrowDown' });
+  fireEvent.keyDown(document, { key: 'ArrowRight' });
+  expect(document.activeElement?.getAttribute('data-sub-id')).toBe('new-ws');
+  fireEvent.keyDown(document, { key: 'ArrowDown' });
+  expect(document.activeElement?.getAttribute('data-sub-id')).toBe('open-folder');
+  fireEvent.click(document.activeElement as HTMLElement);
+  expect(props.onOpenFolder).toHaveBeenCalledTimes(1);
+  fireEvent.keyDown(document, { key: 'Escape' });
+  expect(screen.queryByRole('menu')).toBeNull();
 });

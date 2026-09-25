@@ -30,9 +30,14 @@ describe('titleBarMenus derived shortcuts', () => {
   });
 
   it('help menu drops palette, keeps shortcuts row without chord text', () => {
-    const items = useHelpMenuItems(t, vi.fn());
+    const items = useHelpMenuItems(t, {}, vi.fn());
     expect(items.map((i) => i.id)).toEqual(['shortcuts', 'license']);
     expect(items.find((i) => i.id === 'shortcuts')?.shortcut).toBeUndefined();
+  });
+
+  it('shortcuts row shows a hint once the user binds settings.shortcuts', () => {
+    const items = useHelpMenuItems(t, { 'settings.shortcuts': 'mod+k' }, vi.fn());
+    expect(items.find((i) => i.id === 'shortcuts')?.shortcut).toBe('Ctrl+K');
   });
 
   it('reflects user-customized keybinds', () => {

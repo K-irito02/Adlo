@@ -7,9 +7,22 @@ export function isModifier(key: string): boolean {
   return MODIFIER_KEYS.has(key);
 }
 
-/** 平台判定单点（modifier 映射与显示分支共用，防漂移）。 */
+/**
+ * macOS 平台判定单点（modifier 映射与显示分支共用）。
+ * navigator.platform 已废弃：部分 UA 缩减环境返回空串，此时叠加 userAgent 启发式，
+ * 避免 Mac 用户被误判为 Win（mod 映射到 Ctrl 则 ⌘ 无反应）。
+ * 不使用 navigator.userAgentData（异步高熵 API，按需才取）。
+ */
 export function isMacPlatform(): boolean {
-  return /Mac|iPhone|iPad/.test(navigator.platform);
+  const plat =
+    (navigator as unknown as { userAgentData?: { platform?: unknown } }).userAgentData?.platform ??
+    (navigator as unknown as { platform?: unknown }).platform ??
+    '';
+  if (/Mac|iPhone|iPad/.test(String(plat))) {
+    return true;
+  }
+  const ua = navigator.userAgent ?? '';
+  return /Mac/.test(ua) && !/Windows/.test(ua);
 }
 
 export function normalizeKey(key: string): string {

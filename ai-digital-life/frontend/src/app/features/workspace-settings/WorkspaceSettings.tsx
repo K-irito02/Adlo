@@ -13,17 +13,12 @@ import { SortableWorkspaceList } from './SortableWorkspaceList';
 import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
 import { HintCardTrigger, HINT_TITLE_PREFIX } from '../../components/HintCard';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
-import { GROUP_RESET_PATCHES } from '../../components/settings/settingsGroups';
 import {
-  DEFAULT_MAX_CONCURRENT_WORKSPACES,
-  DEFAULT_WORKSPACE_PRIORITY_IDS,
-  DEFAULT_WORKSPACE_DEFERRED_IDS,
-  DEFAULT_WORKSPACE_NATURAL_ORDER,
-} from '../../../shared/defaultPreferences';
-
-function sameIdList(a: string[], b: string[]): boolean {
-  return a.length === b.length && a.every((v, i) => v === b[i]);
-}
+  GROUP_RESET_PATCHES,
+  isWorkspaceAtDefault,
+  isStringArrayEqual,
+} from '../../components/settings/settingsGroups';
+import { DEFAULT_MAX_CONCURRENT_WORKSPACES } from '../../../shared/defaultPreferences';
 
 interface LastPersistedValues {
   max: number;
@@ -203,9 +198,9 @@ export function WorkspaceSettings() {
     const local = localRef.current;
     if (
       local.max === (cfgMax ?? DEFAULT_MAX_CONCURRENT_WORKSPACES) &&
-      sameIdList(local.pri, cfgPri ?? []) &&
-      sameIdList(local.def, cfgDef ?? []) &&
-      sameIdList(local.nat, cfgNat ?? [])
+      isStringArrayEqual(local.pri, cfgPri ?? []) &&
+      isStringArrayEqual(local.def, cfgDef ?? []) &&
+      isStringArrayEqual(local.nat, cfgNat ?? [])
     ) {
       return;
     }
@@ -213,9 +208,9 @@ export function WorkspaceSettings() {
     const isOwnEcho =
       persisted !== null &&
       persisted.max === cfgMax &&
-      sameIdList(persisted.pri, cfgPri ?? []) &&
-      sameIdList(persisted.def, cfgDef ?? []) &&
-      sameIdList(persisted.nat, cfgNat ?? []);
+      isStringArrayEqual(persisted.pri, cfgPri ?? []) &&
+      isStringArrayEqual(persisted.def, cfgDef ?? []) &&
+      isStringArrayEqual(persisted.nat, cfgNat ?? []);
     // 第二守卫：persist 回显已到但用户在回显延迟内又做了新编辑时，
     // local≠cfg 走向"外部赢"分支——此处拦住，保护在途编辑不被覆盖。
     if (isOwnEcho) {
@@ -231,15 +226,15 @@ export function WorkspaceSettings() {
     });
     setPriorityIds((prev) => {
       const next = cfgPri ?? [];
-      return sameIdList(prev, next) ? prev : [...next];
+      return isStringArrayEqual(prev, next) ? prev : [...next];
     });
     setDeferredIds((prev) => {
       const next = cfgDef ?? [];
-      return sameIdList(prev, next) ? prev : [...next];
+      return isStringArrayEqual(prev, next) ? prev : [...next];
     });
     setNaturalOrder((prev) => {
       const next = cfgNat ?? [];
-      return sameIdList(prev, next) ? prev : [...next];
+      return isStringArrayEqual(prev, next) ? prev : [...next];
     });
   }, [hasConfig, cfgMax, cfgPri, cfgDef, cfgNat]);
 
@@ -253,12 +248,16 @@ export function WorkspaceSettings() {
 
   const groupLabel = t.settingsWorkspaceLoad;
   const resetLabel = formatT(t, 'settingsResetGroupToDefault', { group: groupLabel });
-  // 全为默认值时禁用块恢复按钮（同行级语义）。
+  // 全为默认值时禁用块恢复按钮（同行级语义）。判定走工厂同源 helper（防"常量 vs 工厂"漂移）；
+  // config 未加载时保持启用（fail-open，与侧边栏一致）。
   const isDefault =
-    maxConcurrent === DEFAULT_MAX_CONCURRENT_WORKSPACES &&
-    sameIdList(priorityIds, DEFAULT_WORKSPACE_PRIORITY_IDS) &&
-    sameIdList(deferredIds, DEFAULT_WORKSPACE_DEFERRED_IDS) &&
-    sameIdList(naturalOrder, DEFAULT_WORKSPACE_NATURAL_ORDER);
+    config !== undefined &&
+    isWorkspaceAtDefault({
+      maxConcurrentWorkspaces: maxConcurrent,
+      workspacePriorityIds: priorityIds,
+      workspaceDeferredIds: deferredIds,
+      workspaceNaturalOrder: naturalOrder,
+    });
 
   const handleCancelReset = useCallback(() => {
     setConfirmResetOpen(false);
@@ -270,7 +269,11 @@ export function WorkspaceSettings() {
       clearTimeout(debounceRef.current);
       debounceRef.current = undefined;
     }
-    const patch = GROUP_RESET_PATCHES.workspace!();
+    const patch = GROUP_RESET_PATCHES.workspace?.();
+    if (!patch) {
+      showToast(t.settingsUpdateFailed, 'error');
+      return;
+    }
     const nextMax = patch.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES;
     const nextPri = [...(patch.workspacePriorityIds ?? [])];
     const nextDef = [...(patch.workspaceDeferredIds ?? [])];

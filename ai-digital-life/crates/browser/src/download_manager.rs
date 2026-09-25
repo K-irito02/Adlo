@@ -95,6 +95,10 @@ fn query_operation_state(op: &DownloadOp) -> NativeDownloadState {
 /// file fails to delete anyway, leaving a warn log).
 const TMP_ORPHAN_GRACE_SECS: u64 = 30;
 
+/// 迁移复排上限：1 主轮 + 3 并发复排。耗尽仍有残留即报错不切换，
+/// 由调用方 toast 告知用户重试（H4，不再静默保留）。
+const MAX_DRAIN_PASSES: usize = 4;
+
 /// Whether `name` matches WebView2's download staging shape `{GUID}.tmp`
 /// (`GUID` = 8-4-4-4-12 hex digits). The `.tmp` extension is matched
 /// case-insensitively because the destination folder may live on a
@@ -832,6 +836,15 @@ impl DownloadManager {
         let old_effective = self.effective_default_dir(&settings.default_path);
         let new_effective = self.effective_default_dir(normalized);
 
+        // H1：搬迁目标落在系统管理整棵子树内时拒绝（防向系统树内建目录 +
+        // 整树写入）。仅搬迁时检查：migrate=false 只改设置字符串，不碰文件系统。
+        if migrate && !normalized.is_empty() && is_inside_deep_protected_dir(&new_effective) {
+            return Err(format!(
+                "download path must not point inside a system-managed tree: {}",
+                new_effective.display()
+            ));
+        }
+
         // 规范化后比较：大小写/分隔符/`..` 别名指向同一目录时不搬（防自迁移自删）。
         if migrate
             && old_effective.exists()
@@ -852,6 +865,10 @@ impl DownloadManager {
 
     /// 把 `old` 目录下全部条目搬到 `new`；`remove_old` 为 true 时成功后删除 `old`
     ///（系统自带目录传 false，只迁出文件、不删目录，防误删 Windows 系统目录）。
+    ///
+    /// 并发兜底（H4）：主轮结束后若旧目录仍有残留（迁移期间写入的新文件），
+    /// 有限次复排（`MAX_DRAIN_PASSES`）继续搬运；耗尽仍非空则报错、设置不切换，
+    /// 由调用方 toast 告知用户重试——不再静默保留。
     fn migrate_dir(&self, old: &Path, new: &Path, remove_old: bool) -> Result<(), String> {
         // 规范化后双向包含才拒绝：词法 starts_with 会被大小写/`..`/分隔符别名绕过，
         // 绕过后 dest 落在源内部会触发递归自复制。
@@ -871,30 +888,47 @@ impl DownloadManager {
         fs::create_dir_all(new).map_err(|e| format!("create target dir failed: {e}"))?;
 
         // enumerate 下标 = 已成功搬运数（前序条目全部成功才会走到当前条目）。
-        for (moved, entry) in
-            fs::read_dir(old).map_err(|e| format!("read old dir failed: {e}"))?.enumerate()
-        {
-            let entry = entry.map_err(|e| format!("read old dir entry failed: {e}"))?;
-            let src = entry.path();
-            let mut dest = new.join(entry.file_name());
-            if dest.exists() {
-                dest = PathBuf::from(self.resolve_conflict_path(dest.to_string_lossy().as_ref()));
+        let mut moved = 0usize;
+        // 1 主轮 + 有限复排：每轮至少搬走 1 个条目才继续，避免并发写入下空转。
+        for _ in 0..MAX_DRAIN_PASSES {
+            let mut progressed = false;
+            for entry in fs::read_dir(old).map_err(|e| format!("read old dir failed: {e}"))? {
+                let entry = entry.map_err(|e| format!("read old dir entry failed: {e}"))?;
+                let src = entry.path();
+                let mut dest = new.join(entry.file_name());
+                // 目标已存在（并发/历史残留）：改名后再搬，沿用主流程冲突语义。
+                // 注意改名后的 dest 一定是新建；预先存在的 dest 碰都不碰（见下）。
+                let dest_existed = dest.exists();
+                if dest_existed {
+                    dest =
+                        PathBuf::from(self.resolve_conflict_path(dest.to_string_lossy().as_ref()));
+                }
+                if let Err(e) = move_path(&src, &dest) {
+                    // H2 半拷贝清理（跨盘回退中途失败时 dest 内已有部分内容）：
+                    // dest 为本轮新建才删（冲突改名的一定是新建），保证目录级
+                    // "非旧即新"，不留新旧双份；清理失败忽略，保留原始错误。
+                    cleanup_partial_dest(&dest, dest_existed);
+                    // 无 journal 全局回滚（Phase 4 F4 判定：两阶段复制需双倍磁盘且违背搬迁语义）：
+                    // 失败时条目级完整性仍保证（每文件非旧即新、无丢失），错误串携带进度供
+                    // 人工对账；i18n 文案同口径（已搬留新路径/其余留旧路径/设置未切换）。
+                    return Err(format!(
+                        "migrate failed after moving {moved} entries ({e}); files already moved stay in the new path, the rest remain in the old path, and settings were not updated"
+                    ));
+                }
+                moved += 1;
+                progressed = true;
             }
-            move_path(&src, &dest).map_err(|e| {
-                // 无 journal 全局回滚（Phase 4 F4 判定：两阶段复制需双倍磁盘且违背搬迁语义）：
-                // 失败时条目级完整性仍保证（每文件非旧即新、无丢失），错误串携带进度供
-                // 人工对账；i18n 文案同口径（已搬留新路径/其余留旧路径/设置未切换）。
-                format!(
-                    "migrate failed after moving {moved} entries ({e}); files already moved stay in the new path, the rest remain in the old path, and settings were not updated"
-                )
-            })?;
+            if !progressed {
+                break;
+            }
         }
 
         if !remove_old {
             return Ok(());
         }
-        // 全部已枚举条目搬完才尝试删旧目录；任何删除侧异常（非空竞态/复检失败/ACL）
-        // 一律降级为告警并保留目录——文件已全部搬完，让设置照常落盘，避免"已搬未落盘"。
+        // 全部已枚举条目搬完才尝试删旧目录；复排耗尽仍非空说明并发写入持续发生，
+        // 报错不切换（调用方 toast），而非静默保留。删除侧异常（复检失败/ACL）仍
+        // 降级为告警并保留目录——文件已全部搬完，让设置照常落盘，避免"已搬未落盘"。
         match fs::read_dir(old) {
             Ok(mut entries) => {
                 if entries.next().is_none() {
@@ -905,13 +939,11 @@ impl DownloadManager {
                             "old dir was empty but remove failed (concurrent write?); keeping the directory"
                         );
                     }
+                    Ok(())
                 } else {
-                    tracing::warn!(
-                        old = %old.display(),
-                        "old dir not empty after migrate (concurrent writes); keeping the directory"
-                    );
+                    Err("concurrent writes during migrate: old dir still has entries after bounded redrain; settings were not updated"
+                        .to_string())
                 }
-                Ok(())
             },
             Err(e) => {
                 tracing::warn!(
@@ -2227,12 +2259,65 @@ fn lexical_normalize(path: &Path) -> PathBuf {
     out
 }
 
-/// 系统自带目录清单（dir, 是否前缀保护整棵子树）：
+/// H2：目录跨盘半拷贝清理。`dest_existed` 为本轮搬运前 `dest` 是否已存在：
+/// 新建的才删（冲突改名的一定是新建），预先存在的碰都不碰。
+/// 跨盘回退（`copy_dir_all` 中途失败）是唯一能产生"部分目标"的路径，
+/// 同卷 rename 要么整体成功要么整体失败，走不到这里——本函数单测覆盖判定逻辑，
+/// 调用点由 code review 锁定。
+fn cleanup_partial_dest(dest: &Path, dest_existed: bool) {
+    if !dest_existed {
+        let _ = fs::remove_dir_all(dest);
+    }
+}
+
+/// `path` 是否落在深保护整棵子树内部（不含精确相等本身）：
+/// 系统树内新建目录 + 整树写入均拒绝（H1）；精确命中的已知文件夹
+///（如 Downloads 本身）仍允许——只有"内部"被拦。
+fn is_inside_deep_protected_dir(path: &Path) -> bool {
+    if path.as_os_str().is_empty() {
+        return false;
+    }
+    let key = normalize_path_key(path);
+    for (prot, deep) in system_protected_dirs() {
+        if !deep {
+            continue;
+        }
+        let prot_key = normalize_path_key(&prot);
+        if key != prot_key && Path::new(&key).starts_with(&prot_key) {
+            return true;
+        }
+    }
+    false
+}
+
+// 系统自带目录清单（dir, 是否前缀保护整棵子树）：
+// - 系统树（SystemRoot/ProgramFiles/ProgramData）整棵子树受保护（防误删
+//   `Windows\System32`、`Program Files\Vendor\...` 等系统子目录）；
+// - 用户已知文件夹/家目录仅精确匹配——用户自建的子目录不是"系统自带"，
+//   迁移成功后仍按产品决策删除，不扩大保护面。
+// 测试覆盖（M8）：`#[cfg(test)]` 下优先读线程内覆盖表；迁移类测试把工作区建在
+// `temp`（Windows 上位于 AppData 深保护树内）并经 `test_workspace()` 置空覆盖表，
+// 保护单测从不设置覆盖、读真实表。线程内覆盖保证并行测试互不影响。
+#[cfg(test)]
+thread_local! {
+    static TEST_PROTECTED_TABLE: std::cell::RefCell<Option<Vec<(std::path::PathBuf, bool)>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+fn system_protected_dirs() -> Vec<(PathBuf, bool)> {
+    #[cfg(test)]
+    if let Some(table) = TEST_PROTECTED_TABLE.try_with(|c| c.borrow().clone()).unwrap_or(None) {
+        return table;
+    }
+    system_protected_dirs_inner()
+}
+
+/// 见 `system_protected_dirs`（测试覆盖表优先的薄包装）：真实表构造在此。
 /// - 系统树（SystemRoot/ProgramFiles/ProgramData）整棵子树受保护（防误删
 ///   `Windows\System32`、`Program Files\Vendor\...` 等系统子目录）；
 /// - 用户已知文件夹/家目录仅精确匹配——用户自建的子目录不是"系统自带"，
 ///   迁移成功后仍按产品决策删除，不扩大保护面。
-fn system_protected_dirs() -> Vec<(PathBuf, bool)> {
+fn system_protected_dirs_inner() -> Vec<(PathBuf, bool)> {
     let mut out: Vec<(PathBuf, bool)> = Vec::new();
     #[cfg(windows)]
     for var in ["SystemRoot", "ProgramFiles", "ProgramFiles(x86)", "ProgramData"] {
@@ -2590,12 +2675,18 @@ mod tests {
         let _ = std::fs::remove_file(std::env::temp_dir().join("adl-download-mgr-settings.db"));
     }
 
-    /// 测试用目录基座：位于家目录下的隐藏测试树——家目录仅精确保护、其用户子目录
-    /// 按产品决策可删；且**不落入 AppData**（Windows 的 `std::env::temp_dir()` 在
-    /// `AppData\Local\Temp` 下，受 AppData 深保护，会使"迁移成功后删除旧目录"断言失效）。
+    /// 测试用目录基座：`temp` 下隐藏测试树 + 测试保护表覆盖（见
+    /// `TEST_PROTECTED_TABLE`），不污染真实家目录；保护单测不受影响
+    /// （它们从不调用本函数，读真实表）。
     fn test_workspace(name: &str) -> std::path::PathBuf {
-        let base = dirs::home_dir().unwrap_or_else(std::env::temp_dir);
-        base.join(".adl-dl-tests").join(name)
+        TEST_PROTECTED_TABLE.with(|c| *c.borrow_mut() = Some(Vec::new()));
+        std::env::temp_dir().join(".adl-dl-tests").join(name)
+    }
+
+    /// 非 workspace 系的迁移测试（如直接拼 temp 路径的用例）：同样置空保护表，
+    /// 否则 temp（Windows 位于 AppData 深保护树内）会被 H1/旧目录删除逻辑干扰。
+    fn allow_test_paths_unprotected() {
+        TEST_PROTECTED_TABLE.with(|c| *c.borrow_mut() = Some(Vec::new()));
     }
 
     #[test]
@@ -2656,6 +2747,8 @@ mod tests {
 
     #[test]
     fn change_default_path_migrate_rejects_overlap() {
+        // temp 直拼路径：先置空保护表，否则 H1（深保护树内拒绝）抢在 overlap 检查前触发。
+        allow_test_paths_unprotected();
         let db = temp_db("change-path-overlap");
         let mgr = DownloadManager::new(db.clone());
         let old = std::env::temp_dir().join("adl-dl-overlap-old");
@@ -2675,6 +2768,116 @@ mod tests {
         let _ = std::fs::remove_dir_all(&old);
         let _ = std::fs::remove_file(
             std::env::temp_dir().join("adl-download-mgr-change-path-overlap.db"),
+        );
+    }
+
+    #[test]
+    fn inside_deep_protected_dir_marks_strict_subtree_only() {
+        use std::path::Path;
+        // 空串与无关路径永不命中。
+        assert!(!is_inside_deep_protected_dir(Path::new("")));
+        assert!(!is_inside_deep_protected_dir(Path::new("D:/data")));
+        #[cfg(windows)]
+        {
+            let sys = std::env::var("SystemRoot")
+                .map(std::path::PathBuf::from)
+                .unwrap_or_else(|_| PathBuf::from(r"C:\Windows"));
+            // 精确相等不算 inside（已知文件夹本身仍可作为下载目录）。
+            assert!(!is_inside_deep_protected_dir(&sys));
+            assert!(
+                is_inside_deep_protected_dir(&sys.join("Temp").join("adl-never-create")),
+                "system subtree must be rejected"
+            );
+        }
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn change_default_path_rejects_new_path_inside_protected_tree() {
+        let db = temp_db("change-path-protected");
+        let mgr = DownloadManager::new(db.clone());
+        let sys = std::env::var("SystemRoot")
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from(r"C:\Windows"));
+        let target = sys.join("ADL-NEVER-CREATE-SUBDIR");
+        // H1 只守搬迁：migrate=true 拒绝。
+        let err = mgr
+            .change_default_path(target.to_string_lossy().as_ref(), true)
+            .expect_err("protected subtree must be rejected");
+        assert!(err.contains("system-managed"), "unexpected error: {err}");
+        // migrate=false 只改设置字符串，不碰文件系统 → 允许。
+        mgr.change_default_path(target.to_string_lossy().as_ref(), false)
+            .expect("settings-only set stays allowed");
+        assert_eq!(mgr.get_settings().default_path, target.to_string_lossy());
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-protected.db"),
+        );
+    }
+
+    #[test]
+    fn cleanup_partial_dest_removes_only_fresh_dest() {
+        let base = test_workspace("cleanup-guard");
+        let fresh = base.join("fresh");
+        let kept = base.join("kept");
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(fresh.join("sub")).unwrap();
+        std::fs::write(fresh.join("sub").join("f.txt"), b"x").unwrap();
+        std::fs::create_dir_all(&kept).unwrap();
+        std::fs::write(kept.join("k.txt"), b"k").unwrap();
+
+        cleanup_partial_dest(&fresh, false);
+        assert!(!fresh.exists(), "fresh partial dest must be removed");
+        cleanup_partial_dest(&kept, true);
+        assert!(kept.join("k.txt").exists(), "pre-existing dest must be kept");
+
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn change_default_path_reports_concurrent_writes_without_switching() {
+        // 后台写线程持续加文件：复排耗尽 → 报错且设置不切换；若写线程先停则成功。
+        // 两种结局都合法，断言按分支收敛（设置与目录状态一致）。
+        let db = temp_db("change-path-concurrent");
+        let mgr = DownloadManager::new(db.clone());
+        let old = test_workspace("concurrent-old");
+        let new = test_workspace("concurrent-new");
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        std::fs::create_dir_all(&old).unwrap();
+        for i in 0..20 {
+            std::fs::write(old.join(format!("base-{i}.txt")), b"x").unwrap();
+        }
+        mgr.change_default_path(old.to_string_lossy().as_ref(), false).expect("set old");
+        let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let stop_w = stop.clone();
+        let old_w = old.clone();
+        // 节流写（1ms/个、上限 300 个）：既保证复排耗尽时大概率仍有残留（走 Err 分支），
+        // 又把用例耗时压在半秒内；提前写完则走 Ok 分支——两分支断言各自收敛。
+        let writer = std::thread::spawn(move || {
+            for n in 0..300 {
+                if stop_w.load(std::sync::atomic::Ordering::Relaxed) {
+                    break;
+                }
+                let _ = std::fs::write(old_w.join(format!("live-{n}.txt")), b"y");
+                std::thread::sleep(std::time::Duration::from_millis(1));
+            }
+        });
+        let result = mgr.change_default_path(new.to_string_lossy().as_ref(), true);
+        stop.store(true, std::sync::atomic::Ordering::Relaxed);
+        let _ = writer.join();
+        match result {
+            Ok(()) => {
+                assert_eq!(mgr.get_settings().default_path, new.to_string_lossy());
+            },
+            Err(e) => {
+                assert!(e.contains("concurrent"), "unexpected error: {e}");
+                assert_eq!(mgr.get_settings().default_path, old.to_string_lossy());
+            },
+        }
+        let _ = std::fs::remove_dir_all(&old);
+        let _ = std::fs::remove_dir_all(&new);
+        let _ = std::fs::remove_file(
+            std::env::temp_dir().join("adl-download-mgr-change-path-concurrent.db"),
         );
     }
 
