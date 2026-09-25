@@ -69,6 +69,9 @@ export const settingsZh = {
   settingsShortcutsClear: '清除',
   settingsShortcutsGroupGeneral: '通用',
   settingsShortcutsGroupNavigation: '导航',
+  settingsShortcutsGroupView: '视图',
+  settingsShortcutsGroupZoom: '缩放',
+  settingsShortcutsGroupFile: '文件',
 
   // Toast
   settingsUpdated: '设置已更新',

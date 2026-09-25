@@ -98,3 +98,14 @@ describe('terminal history budget default', () => {
     expect(getDefaultForSetting('terminalHistoryBudgetBytes')).toBe(1 << 30);
   });
 });
+
+it('exposes 14 customizable commands with stable defaults', () => {
+  expect(DEFAULT_KEYBINDS['view.terminal']).toBe('mod+shift+`');
+  expect(DEFAULT_KEYBINDS['zoom.in']).toBe('mod+shift+plus');
+  expect(DEFAULT_KEYBINDS['zoom.out']).toBe('mod+-');
+  expect(DEFAULT_KEYBINDS['zoom.reset']).toBe('mod+0');
+  expect(DEFAULT_KEYBINDS['file.copy-relative']).toBe('mod+shift+c');
+  expect(DEFAULT_KEYBINDS['file.copy-full']).toBe('mod+alt+c');
+  expect(DEFAULT_KEYBINDS['file.toggle-word-wrap']).toBe('alt+z');
+  expect(DEFAULT_KEYBINDS['file.toggle-line-numbers']).toBeUndefined();
+});

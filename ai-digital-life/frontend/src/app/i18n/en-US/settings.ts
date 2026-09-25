@@ -74,6 +74,9 @@ export const settingsEn = {
   settingsShortcutsClear: 'Clear',
   settingsShortcutsGroupGeneral: 'General',
   settingsShortcutsGroupNavigation: 'Navigation',
+  settingsShortcutsGroupView: 'View',
+  settingsShortcutsGroupZoom: 'Zoom',
+  settingsShortcutsGroupFile: 'File',
 
   // Toast
   settingsUpdated: 'Settings updated',
