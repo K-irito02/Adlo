@@ -4,6 +4,7 @@ import { useAppStore } from './stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppActions } from './hooks/useAppActions';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useAppZoom } from './hooks/useAppZoom';
 import { useDragDropWorkspace } from './hooks/useDragDropWorkspace';
 import { useAppStartup } from './hooks/useAppStartup';
 import { usePatchReviewWithEditor } from './hooks/usePatchReviewWithEditor';
@@ -112,15 +113,20 @@ export function App() {
     setActiveRightTool('settings');
   }, [setActiveRightTool]);
 
+  const { zoomBy, resetZoom } = useAppZoom();
+
   useKeyboardShortcuts({
     openCreateWorkspaceDialog: () => setCreateWorkspaceModalOpen(true),
     openWorkspace: handleOpenFolder,
     openSettings: handleOpenSettings,
+    openFilesView: () => setActiveRightTool('files'),
+    openChangesView: () => setActiveRightTool('changes'),
+    openBrowserView: () => setActiveRightTool('browser'),
+    openTerminalView: () => setActiveRightTool('terminal'),
+    zoomIn: () => zoomBy(0.1),
+    zoomOut: () => zoomBy(-0.1),
+    resetZoom,
   });
-
-  const handleOpenCommandPalette = useCallback(() => {
-    setActiveRightTool('files');
-  }, [setActiveRightTool]);
 
   const setStartupOverlayHidden = useAppStore((s) => s.setStartupOverlayHidden);
   const [overlayHidden, setOverlayHidden] = useState(false);
@@ -214,7 +220,6 @@ export function App() {
             onTriggerCreateWorkspace={handleTriggerCreateWorkspace}
             onOpenFolder={handleOpenFolder}
             isOpeningWorkspace={isOpeningWorkspace}
-            onOpenCommandPalette={handleOpenCommandPalette}
             onCycleTheme={handleCycleTheme}
             onSelectLanguage={handleSelectLanguage}
           />

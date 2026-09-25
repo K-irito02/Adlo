@@ -30,7 +30,6 @@ interface TitleBarProps {
   onTriggerCreateWorkspace: () => void;
   onOpenFolder: () => void;
   isOpeningWorkspace: boolean;
-  onOpenCommandPalette: () => void;
   onCycleTheme: () => void;
   onSelectLanguage: (language: AppInfo['config']['language']) => void;
 }
@@ -62,7 +61,6 @@ const TitleBar = React.memo(function TitleBar({
   onTriggerCreateWorkspace,
   onOpenFolder,
   isOpeningWorkspace,
-  onOpenCommandPalette,
   onCycleTheme,
   onSelectLanguage,
 }: TitleBarProps) {
@@ -99,18 +97,12 @@ const TitleBar = React.memo(function TitleBar({
     setActiveRightTool,
   );
   const viewItems = useViewMenuItems(t, zoomBy, resetZoom, onOpenSettings, setActiveRightTool);
-  const helpItems = useHelpMenuItems(t, onOpenCommandPalette);
+  const helpItems = useHelpMenuItems(t, () => setActiveRightTool('files'));
 
   return (
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
-        <HamburgerMenu
-          t={t}
-          fileItems={fileItems}
-          viewItems={viewItems}
-          helpItems={helpItems}
-          onOpenCommandPalette={onOpenCommandPalette}
-        />
+        <HamburgerMenu t={t} fileItems={fileItems} viewItems={viewItems} helpItems={helpItems} />
       </div>
       <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
       <div className="adl-titlebar__right">

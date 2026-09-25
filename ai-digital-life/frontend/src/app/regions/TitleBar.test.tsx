@@ -25,7 +25,6 @@ function renderTitleBar(overrides: Partial<Parameters<typeof TitleBar>[0]> = {})
     onTriggerCreateWorkspace: vi.fn(),
     onOpenFolder: vi.fn(),
     isOpeningWorkspace: false,
-    onOpenCommandPalette: vi.fn(),
     onCycleTheme: vi.fn(),
     onSelectLanguage: vi.fn(),
     ...overrides,
@@ -62,4 +61,9 @@ describe('TitleBar add-workspace control', () => {
     expect(addButton.compareDocumentPosition(divider!) & FOLLOWING).toBeTruthy();
     expect(divider!.compareDocumentPosition(themeButton) & FOLLOWING).toBeTruthy();
   });
+});
+
+it('does not accept onOpenCommandPalette prop (dead palette removed)', () => {
+  const props = renderTitleBar();
+  expect('onOpenCommandPalette' in props).toBe(false);
 });
