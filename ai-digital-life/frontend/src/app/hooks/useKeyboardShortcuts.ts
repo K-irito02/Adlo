@@ -8,15 +8,29 @@ export interface ActionCallbacks {
   openCreateWorkspaceDialog: () => void;
   openWorkspace: () => void;
   openSettings: () => void;
+  openFilesView: () => void;
+  openChangesView: () => void;
+  openBrowserView: () => void;
+  openTerminalView: () => void;
+  zoomIn: () => void;
+  zoomOut: () => void;
+  resetZoom: () => void;
 }
 
 const COMMAND_HANDLERS: Record<string, (callbacks: ActionCallbacks) => void> = {
   'workspace.new': (cb) => cb.openCreateWorkspaceDialog(),
   'workspace.open': (cb) => cb.openWorkspace(),
   'settings.open': (cb) => cb.openSettings(),
+  'view.files': (cb) => cb.openFilesView(),
+  'view.changes': (cb) => cb.openChangesView(),
+  'view.browser': (cb) => cb.openBrowserView(),
+  'view.terminal': (cb) => cb.openTerminalView(),
+  'zoom.in': (cb) => cb.zoomIn(),
+  'zoom.out': (cb) => cb.zoomOut(),
+  'zoom.reset': (cb) => cb.resetZoom(),
 };
 
-function findMatchingCommand(
+export function findMatchingCommand(
   event: KeyboardEvent,
   commands: CommandMeta[],
   keybinds: Record<string, string | undefined>,
