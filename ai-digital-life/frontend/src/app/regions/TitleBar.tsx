@@ -89,15 +89,28 @@ const TitleBar = React.memo(function TitleBar({
 
   const { zoomBy, resetZoom } = useAppZoom();
 
+  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? {};
+  const openShortcutsSettings = useCallback(() => {
+    const state = useAppStore.getState();
+    state.setActiveRightTool('settings');
+    state.setActiveSettingsGroup('shortcuts');
+  }, []);
   const fileItems = useFileMenuItems(
     t,
+    keybinds,
     onTriggerCreateWorkspace,
     onOpenFolder,
     handleClose,
+  );
+  const viewItems = useViewMenuItems(
+    t,
+    keybinds,
+    zoomBy,
+    resetZoom,
+    onOpenSettings,
     setActiveRightTool,
   );
-  const viewItems = useViewMenuItems(t, zoomBy, resetZoom, onOpenSettings, setActiveRightTool);
-  const helpItems = useHelpMenuItems(t, () => setActiveRightTool('files'));
+  const helpItems = useHelpMenuItems(t, openShortcutsSettings);
 
   return (
     <header className="adl-titlebar" role="banner">
