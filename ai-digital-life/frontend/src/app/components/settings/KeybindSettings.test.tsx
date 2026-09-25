@@ -699,6 +699,54 @@ describe('KeybindSettings', () => {
     expect(search.value).toBe('Ctrl+N');
   });
 
+  it('group reset reflects hidden rows under an active filter', () => {
+    useAppStore.setState({
+      appInfo: {
+        appName: 'test',
+        version: '0.0.0',
+        config: {
+          language: 'en-US',
+          themeMode: 'system',
+          resolvedTheme: 'light',
+          logLevel: 'info',
+          terminalLogMode: 'overwrite',
+          debugLogMode: 'overwrite',
+          maxRecentWorkspaces: 5,
+          modelPreferences: { providers: {} },
+          // 可见行（workspace.new）为默认，被滤掉的 workspace.open 被改过。
+          keybinds: { 'workspace.open': 'mod+k' },
+          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
+          maxConcurrentWorkspaces: 6,
+          workspacePriorityIds: [],
+          workspaceDeferredIds: [],
+          workspaceNaturalOrder: [],
+          browserInactiveTabSuspendMs: 3_600_000,
+          terminalHistoryBudgetBytes: 1 << 30,
+        },
+        currentWorkspace: undefined,
+        recentLogs: [],
+      },
+    });
+
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    // 过滤到只剩 workspace.new（默认），但 navigation 块按钮仍启用（整组判定）。
+    const search = screen.getByLabelText('settingsShortcutsSearchLabel') as HTMLInputElement;
+    act(() => {
+      fireEvent.change(search, { target: { value: 'workspace.new' } });
+    });
+    expect(screen.queryByText('commandWorkspaceOpen')).toBeNull();
+    const groupResets = Array.from(
+      document.querySelectorAll('.adl-settings-keybinds__group-reset'),
+    ) as HTMLButtonElement[];
+    expect(groupResets.length).toBe(1);
+    expect(groupResets[0].disabled).toBe(false);
+  });
+
   it('renders the search hint button next to the label', () => {
     render(
       <TestProvider>

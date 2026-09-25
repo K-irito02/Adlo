@@ -340,16 +340,15 @@ export function StorageSettings() {
     });
   }, [handleTerminalBudgetReset, showToast, t]);
 
-  /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按**开框时刻**的迁移开关
-   * 快照决定是否搬文件（M4：对话框无焦点陷阱，开框后改开关不影响本次语义）。
-   * 开关复位与搬迁结果解耦：无论搬迁成败都恢复为关闭（同组级语义，I1-N5）；
-   * 任一失败对话框保持打开（同组级 M5）。 */
-  const handleDownloadResetConfirm = useCallback(async () => {
-    setDownloadResetBusy(true);
-    try {
-      const migrate = downloadMigrateAtOpenRef.current;
-      const result = await changeDownloadPath('', migrate);
+  /**
+   * 下载路径恢复默认的共享序列（单块/组级共用，防漂移）：路径写回系统默认
+   * （空串，migrate 按调用方传入的开框快照）+ 开关复位关闭（解耦，成败都执行）。
+   * 各自 toast；返回整体 ok。调用方决定后续：单块成功关框，组级记 failed 汇总。
+   */
+  const resetDownloadToDefault = useCallback(
+    async (migrate: boolean): Promise<boolean> => {
       let ok = true;
+      const result = await changeDownloadPath('', migrate);
       if (!result.ok) {
         showToast(
           result.error.message === DOWNLOAD_REFRESH_FAILED
@@ -377,13 +376,26 @@ export function StorageSettings() {
         );
         ok = false;
       }
+      return ok;
+    },
+    [changeDownloadPath, updateDownloadSettings, showToast, t],
+  );
+
+  /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按**开框时刻**的迁移开关
+   * 快照决定是否搬文件（M4：对话框无焦点陷阱，开框后改开关不影响本次语义）。
+   * 开关复位与搬迁结果解耦：无论搬迁成败都恢复为关闭（同组级语义，I1-N5）；
+   * 任一失败对话框保持打开（同组级 M5）。重试安全：空串→空串幂等，重复 toast 为唯一成本。 */
+  const handleDownloadResetConfirm = useCallback(async () => {
+    setDownloadResetBusy(true);
+    try {
+      const ok = await resetDownloadToDefault(downloadMigrateAtOpenRef.current);
       if (ok) {
         setDownloadResetConfirm(false);
       }
     } finally {
       setDownloadResetBusy(false);
     }
-  }, [changeDownloadPath, updateDownloadSettings, showToast, t]);
+  }, [resetDownloadToDefault]);
 
   // 自定义 TTL 防抖计时器卸载清理。
   useEffect(
@@ -1043,15 +1055,23 @@ export function StorageSettings() {
   const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
 
   // 四块「恢复默认」按钮的禁用判定（spec §3）：各块在其数据源未知时保持启用
-  //（fail-open），未知态不禁用。
+  //（fail-open），未知态不禁用。per_category 模式下核心按钮恒启用是有意的：
+  // 一键回到统一默认本身就是有效操作（CORE_RESET_PATCH），不存在"无事可做"态。
   const coreAtDefault =
     status !== null && status.mode === 'unified' && status.root === status.defaultRoot && !isDirty;
-  const treeAtDefault = treeEnabled && treeTtlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes;
+  // treeStats 为 null（未加载/失败）时视为未知 → false（展示区段此时不渲染按钮，
+  // 但聚合信号必须保守，不能把未知计为默认）。
+  const treeAtDefault =
+    treeStats !== null && treeEnabled && treeTtlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes;
   const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
   const budgetAtDefault =
     budgetBytes !== undefined && budgetBytes === TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
+  const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
+  // store 初值恰为默认形，无 loaded 标记无法区分"未知"与"默认" → 未知时启用。
   const downloadAtDefault =
-    downloadSettings.default_path === '' && !downloadSettings.auto_migrate_on_path_change;
+    downloadSettingsLoaded &&
+    downloadSettings.default_path === '' &&
+    !downloadSettings.auto_migrate_on_path_change;
 
   // 侧边栏存储行 disabled 聚合信号：四块全默认才为 true；卸载（切出存储组）时清 null
   // 回到"未知→启用"。transient，不持久化。
@@ -1060,8 +1080,8 @@ export function StorageSettings() {
     setStorageBlocksAtDefault(
       coreAtDefault && treeAtDefault && budgetAtDefault && downloadAtDefault,
     );
-    return () => setStorageBlocksAtDefault(null);
   }, [coreAtDefault, treeAtDefault, budgetAtDefault, downloadAtDefault, setStorageBlocksAtDefault]);
+  useEffect(() => () => setStorageBlocksAtDefault(null), [setStorageBlocksAtDefault]);
 
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
   const ttlSelectOptions = useMemo(
@@ -1225,34 +1245,8 @@ export function StorageSettings() {
         if (!treeOk) {
           failed = true;
         }
-        const migrate = groupMigrateAtOpenRef.current;
-        const result = await changeDownloadPath('', migrate);
-        if (!result.ok) {
-          showToast(
-            result.error.message === DOWNLOAD_REFRESH_FAILED
-              ? t.storageDownloadRefreshFailed
-              : migrate
-                ? t.storageDownloadMigrateFailed.replace(
-                    '{error}',
-                    result.error.message ?? t.storageUnknownError,
-                  )
-                : t.storagePickFailed.replace(
-                    '{error}',
-                    result.error.message ?? t.storageUnknownError,
-                  ),
-            'error',
-          );
-          failed = true;
-        }
-        // 开关复位与搬迁结果解耦：清单承诺"开关恢复为关闭"，无论搬迁成败都执行（I1-N5）。
-        const upd = await updateDownloadSettings(undefined, undefined, false);
-        if (!upd.ok) {
-          showToast(
-            upd.error.message === DOWNLOAD_REFRESH_FAILED
-              ? t.storageDownloadRefreshFailed
-              : t.settingsUpdateFailed,
-            'error',
-          );
+        const downloadOk = await resetDownloadToDefault(groupMigrateAtOpenRef.current);
+        if (!downloadOk) {
           failed = true;
         }
         // 树/预算走独立桥，此处 refresh 仅回填核心根（L5）。
@@ -1287,8 +1281,7 @@ export function StorageSettings() {
     [
       handleTerminalBudgetReset,
       handleTreeResetDefaults,
-      changeDownloadPath,
-      updateDownloadSettings,
+      resetDownloadToDefault,
       groupResetRetain,
       groupResetPreflight,
       refresh,
@@ -1669,7 +1662,7 @@ export function StorageSettings() {
           aria-label={budgetResetLabel}
           title={budgetResetLabel}
           data-testid="terminal-budget-reset"
-          disabled={budgetAtDefault}
+          disabled={budgetAtDefault || groupResetBusy}
           onClick={handleTerminalBudgetResetClick}
         >
           <IconResetDefaults size={14} decorative />

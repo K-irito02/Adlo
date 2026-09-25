@@ -7,6 +7,11 @@ export function isModifier(key: string): boolean {
   return MODIFIER_KEYS.has(key);
 }
 
+/** 平台判定单点（modifier 映射与显示分支共用，防漂移）。 */
+export function isMacPlatform(): boolean {
+  return /Mac|iPhone|iPad/.test(navigator.platform);
+}
+
 export function normalizeKey(key: string): string {
   const map: Record<string, string> = {
     ',': 'comma',
@@ -25,13 +30,16 @@ export function normalizeKey(key: string): string {
   return map[key] ?? key.toLowerCase();
 }
 
-export function recordKeybind(event: KeyboardEvent): string | null {
-  const key = event.key;
-  if (isModifier(key)) {
-    return null;
-  }
+export interface ModifierFlags {
+  ctrlKey: boolean;
+  metaKey: boolean;
+  altKey: boolean;
+  shiftKey: boolean;
+}
 
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+/** 按下事件中的修饰键原始部分串（与 recordKeybind 同一平台映射），供预览与录制共用。 */
+export function modifierParts(event: ModifierFlags): string[] {
+  const isMac = isMacPlatform();
   const parts: string[] = [];
   if (isMac ? event.metaKey : event.ctrlKey) {
     parts.push('mod');
@@ -45,6 +53,16 @@ export function recordKeybind(event: KeyboardEvent): string | null {
   if (event.shiftKey) {
     parts.push('shift');
   }
+  return parts;
+}
+
+export function recordKeybind(event: KeyboardEvent): string | null {
+  const key = event.key;
+  if (isModifier(key)) {
+    return null;
+  }
+
+  const parts = modifierParts(event);
   parts.push(normalizeKey(key));
   return parts.join('+');
 }
@@ -71,7 +89,7 @@ export function formatKeybind(keybind: string | undefined): string {
   if (!keybind || keybind === 'none') {
     return '';
   }
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+  const isMac = isMacPlatform();
   return keybind
     .split('+')
     .map((p) => {

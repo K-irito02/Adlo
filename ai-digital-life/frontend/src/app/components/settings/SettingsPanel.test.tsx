@@ -346,6 +346,20 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
+  it('storage nav reset stays enabled when aggregate reports non-default', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    setNavConfig();
+    useAppStore.setState({ storageBlocksAtDefault: false });
+    try {
+      renderPanel();
+      expect(navResetDisabled('Reset storageTitle all defaults')).toBe(false);
+    } finally {
+      useAppStore.setState({ storageBlocksAtDefault: prevAggregate, appInfo: prevAppInfo });
+    }
+  });
+
   it('快捷键组级重置经侧边栏按钮弹分组文案并提交快捷键默认 patch', async () => {
     const { updatePreferences, showToast } = setupStore();
     renderPanel();

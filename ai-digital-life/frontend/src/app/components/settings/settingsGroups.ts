@@ -1,6 +1,7 @@
 import type { SettingsGroupId } from '@shared/ipc';
 import type { AppPreferencePatch } from '../../../shared/ipc-types.generated';
 import type { CopyDict } from '../../i18n';
+import { DEFAULT_COMMANDS, type CommandGroup } from '../../commands/defaultCommands';
 import {
   DEFAULT_DEBUG_LOG_MODE,
   DEFAULT_FONTS,
@@ -31,7 +32,11 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
 
 /**
  * 组级重置 patch 工厂（偏好直写组）：按钮渲染与执行行为同源。
- * 未接入的组（browser/dsh 为独立组件/独立存储）无按钮、无行为。
+ * 未接入 patch 工厂的组：browser/dsh 无按钮、无行为；storage 有按钮但走自有流程
+ * （侧边栏只切组 + 置 pending 信号，确认对话框与多步执行由 StorageSettings 承接，
+ * 见 uiSlice `storageGroupResetPending`）。
+ *
+ * 类型不变式：`RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)`，差集仅允许 `storage`。
  */
 export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPreferencePatch>> = {
   general: () => ({
@@ -54,12 +59,8 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
 };
 
 /**
- * 侧边栏渲染重置按钮的组 = patch 工厂键 + storage。
- * storage 例外：核心路径/树缓存/下载分属独立存储，没有统一偏好 patch，不走
- * updatePreferences；侧边栏只切组 + 置 pending 信号，确认对话框与多步执行由
- * StorageSettings 承接（见 uiSlice `storageGroupResetPending`）。
+ * 侧边栏渲染重置按钮的组 = patch 工厂键 + storage（storage 自有流程见上）。
  *
- * 类型不变式：`RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)`，差集仅允许 `storage`。
  * 通用消费者不得直接取 `GROUP_RESET_PATCHES[group]`（storage 无工厂）——
  * `SettingsPanel.handleRequestResetGroup` 已对 storage 提前分支；
  * `SettingsPanel.test.tsx` 的"单注册表"用例锁定该差集（task4 M-2）。
@@ -68,3 +69,17 @@ export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set([
   ...(Object.keys(GROUP_RESET_PATCHES) as SettingsGroupId[]),
   'storage',
 ]);
+
+/**
+ * 快捷键是否全默认（缺 key 视为该命令 defaultKeybind，无默认视为 'none'——
+ * 与 KeybindSettings.currentOf 同语义）。块内按钮与侧边栏行共用，防漂移。
+ * 传 group 则只判定该分组（块级用），不传判定全部（侧边栏行用）。
+ */
+export function isKeybindsAtDefault(
+  keybinds: Record<string, string | undefined>,
+  group?: CommandGroup,
+): boolean {
+  return DEFAULT_COMMANDS.filter((cmd) => !group || cmd.group === group).every(
+    (cmd) => (keybinds[cmd.id] ?? cmd.defaultKeybind ?? 'none') === (cmd.defaultKeybind ?? 'none'),
+  );
+}

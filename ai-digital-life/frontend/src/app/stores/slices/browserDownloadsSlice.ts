@@ -59,6 +59,11 @@ export interface BrowserDownloadsSlice {
   activeDownloads: Record<string, DownloadProgress>;
   isLoadingDownloads: boolean;
   isLoadingSettings: boolean;
+  /**
+   * 下载设置是否已成功加载过（transient，不持久化）：初始 store 默认形恰为"默认形"，
+   * 无此标记则无法区分"未知"与"默认"，恢复按钮 fail-open 依赖它。
+   */
+  downloadSettingsLoaded: boolean;
 
   fetchDownloads: () => Promise<void>;
   fetchDownloadSettings: () => Promise<boolean>;
@@ -89,6 +94,7 @@ export const createBrowserDownloadsSlice = (
   activeDownloads: {},
   isLoadingDownloads: false,
   isLoadingSettings: false,
+  downloadSettingsLoaded: false,
 
   fetchDownloads: async () => {
     set({ isLoadingDownloads: true });
@@ -109,7 +115,7 @@ export const createBrowserDownloadsSlice = (
     try {
       const result = await invoke<IpcResult<DownloadSettings>>('download_get_settings');
       if (result.ok) {
-        set({ downloadSettings: result.data });
+        set({ downloadSettings: result.data, downloadSettingsLoaded: true });
         return true;
       }
       return false;

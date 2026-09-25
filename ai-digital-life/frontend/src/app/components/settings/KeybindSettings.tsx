@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { CommandGroup, CommandMeta } from '../../commands/defaultCommands';
 import { DEFAULT_COMMANDS } from '../../commands/defaultCommands';
 import { useAppStore } from '../../stores/slicedStore';
@@ -9,8 +9,10 @@ import {
   EMPTY_KEYBINDS,
   parseKeybind,
   recordKeybind,
+  modifierParts,
 } from '../../../shared/keybinds';
 import type { CopyKey } from '../../i18n/types';
+import { isKeybindsAtDefault } from './settingsGroups';
 import { KeybindControl } from './KeybindControl';
 import { SettingsHeader } from './SettingsHeader';
 import { useKeyCapture } from '../../hooks/useKeyCapture';
@@ -52,25 +54,6 @@ function shortcutMatchTexts(
   const formatted = formatKeybind(keybinds[cmd.id] ?? cmd.defaultKeybind).toLowerCase();
   const tokens = parseKeybind(raw).join('');
   return [raw, formatted, tokens];
-}
-
-/** 修饰键原始部分串（与 recordKeybind 同一平台映射），供预览与模糊过滤共用。 */
-function modifierParts(event: KeyboardEvent): string[] {
-  const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
-  const parts: string[] = [];
-  if (isMac ? event.metaKey : event.ctrlKey) {
-    parts.push('mod');
-  }
-  if (isMac ? event.ctrlKey : event.metaKey) {
-    parts.push(isMac ? 'ctrl' : 'meta');
-  }
-  if (event.altKey) {
-    parts.push('alt');
-  }
-  if (event.shiftKey) {
-    parts.push('shift');
-  }
-  return parts;
 }
 
 function matchesShortcutQuery(
@@ -171,10 +154,17 @@ export function KeybindSettings() {
     onStop: handleStop,
   });
 
+  // Esc 取消与按钮/行录制的取消同语义：恢复之前查询并退出捕获态。
+  const cancelCapture = useCallback(() => {
+    setSearchQuery(preCaptureQueryRef.current);
+    setCapturing(false);
+    setCapturePreview('');
+  }, []);
+
   // 搜索框按键捕获：与行级录制同一监听策略（document capture + 吞掉事件），
   // 避免捕获到的组合键触发全局快捷键（如 Ctrl+N 新建工作区）。
-  // 修饰键单按（recordKeybind 返回 null）不结束捕获，只回显已按下的部分，
-  // 让"只按一个键"也有可见反应；Esc 结束捕获（查询 untouched，直接恢复显示）。
+  // 修饰键单按（recordKeybind 返回 null）不结束捕获：回显已按下的部分，
+  // 同时把原始部分串写入查询参与模糊过滤；Esc 取消捕获恢复之前查询。
   useEffect(() => {
     if (!capturing) {
       return;
@@ -183,10 +173,10 @@ export function KeybindSettings() {
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
+      // Esc 自身不可被捕获搜索（行级录制同样把 Esc 当停止）；
+      // 打字 `esc`/`escape` 仍可命中。
       if (event.key === 'Escape') {
-        setSearchQuery(preCaptureQueryRef.current);
-        setCapturing(false);
-        setCapturePreview('');
+        cancelCapture();
         return;
       }
       const kb = recordKeybind(event);
@@ -204,19 +194,13 @@ export function KeybindSettings() {
     };
     document.addEventListener('keydown', onKeyDown, true);
     return () => document.removeEventListener('keydown', onKeyDown, true);
-  }, [capturing]);
+  }, [capturing, cancelCapture]);
 
   const startCapture = () => {
     setActiveId(null);
     preCaptureQueryRef.current = searchQuery;
     setCapturePreview('');
     setCapturing(true);
-  };
-
-  const cancelCapture = () => {
-    setSearchQuery(preCaptureQueryRef.current);
-    setCapturing(false);
-    setCapturePreview('');
   };
 
   const currentOf = (cmd: CommandMeta): string => keybinds[cmd.id] ?? cmd.defaultKeybind ?? 'none';
@@ -257,7 +241,6 @@ export function KeybindSettings() {
           <button
             type="button"
             className="adl-icon-button adl-icon-button--info"
-            tabIndex={-1}
             aria-label={t.settingsShortcutsSearchHintLabel}
           >
             <IconCircleHelp size={16} />
@@ -299,10 +282,9 @@ export function KeybindSettings() {
         const groupLabel = t[GROUP_LABEL_KEY[group]];
         const groupResetLabel = formatT(t, 'settingsResetGroupToDefault', { group: groupLabel });
         // 块内全为默认值时禁用恢复按钮（同行级语义）：无 hover 灰底、不可点、不弹确认框。
-        const isGroupDefault = list.every(
-          (cmd) =>
-            (keybinds[cmd.id] ?? cmd.defaultKeybind ?? 'none') === (cmd.defaultKeybind ?? 'none'),
-        );
+        // 注意按整组判定（isKeybindsAtDefault），而非当前过滤可见的子集——搜索遮住的
+        // 改动行同样参与，否则过滤态下按钮状态与重置范围不一致。
+        const isGroupDefault = isKeybindsAtDefault(keybinds, group);
         return (
           <div key={group} className="adl-settings-keybinds__group">
             <div className="adl-settings-keybinds__group-header">

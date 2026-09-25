@@ -108,14 +108,15 @@ function setStoreBudgetBytes(bytes: number) {
   });
 }
 
-/** 下载 store 播种。 */
-function setStoreDownloadSettings(defaultPath: string, autoMigrate: boolean) {
+/** 下载 store 播种（含已加载标记；未知态用例显式覆盖为 false）。 */
+function setStoreDownloadSettings(defaultPath: string, autoMigrate: boolean, loaded = true) {
   useAppStore.setState({
     downloadSettings: {
       mode: 'ask',
       default_path: defaultPath,
       auto_migrate_on_path_change: autoMigrate,
     },
+    downloadSettingsLoaded: loaded,
   });
 }
 
@@ -201,6 +202,7 @@ describe('StorageSettings', () => {
 
   it('download block reset also restores the auto-migrate switch to off', async () => {
     const prevDownloadSettings = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
@@ -225,9 +227,96 @@ describe('StorageSettings', () => {
     } finally {
       useAppStore.setState({
         downloadSettings: prevDownloadSettings,
+        downloadSettingsLoaded: prevLoaded,
         changeDownloadPath: prevChangeDownloadPath,
         updateDownloadSettings: prevUpdateDownloadSettings,
       });
+    }
+  });
+
+  it('download block reset still resets the switch when the move fails and keeps the dialog open', async () => {
+    const prevDownloadSettings = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    const changeDownloadPath = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'Internal', message: 'boom' },
+    }));
+    const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    setStoreDownloadSettings('D:/custom-downloads', true);
+    useAppStore.setState({ changeDownloadPath, updateDownloadSettings });
+    try {
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      fireEvent.click(screen.getByTestId('download-path-reset'));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'storageDownloadResetConfirmBtn' }),
+      );
+      await waitFor(() => {
+        expect(updateDownloadSettings).toHaveBeenCalledWith(undefined, undefined, false);
+      });
+      expect(screen.queryByRole('dialog')).not.toBeNull();
+    } finally {
+      useAppStore.setState({
+        downloadSettings: prevDownloadSettings,
+        downloadSettingsLoaded: prevLoaded,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+      });
+    }
+  });
+
+  it('download block reset keeps the dialog open when the switch reset fails', async () => {
+    const prevDownloadSettings = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const updateDownloadSettings = vi.fn(async () => ({
+      ok: false as const,
+      error: { code: 'Internal', message: 'boom' },
+    }));
+    setStoreDownloadSettings('D:/custom-downloads', false);
+    useAppStore.setState({ changeDownloadPath, updateDownloadSettings });
+    try {
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      fireEvent.click(screen.getByTestId('download-path-reset'));
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(
+        within(dialog).getByRole('button', { name: 'storageDownloadResetConfirmBtn' }),
+      );
+      await waitFor(() => {
+        expect(updateDownloadSettings).toHaveBeenCalledWith(undefined, undefined, false);
+      });
+      expect(screen.queryByRole('dialog')).not.toBeNull();
+    } finally {
+      useAppStore.setState({
+        downloadSettings: prevDownloadSettings,
+        downloadSettingsLoaded: prevLoaded,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+      });
+    }
+  });
+
+  it('keeps download reset enabled when settings never loaded', async () => {
+    const prevDownloadSettings = useAppStore.getState().downloadSettings;
+    setStoreDownloadSettings('', false, false);
+    try {
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      expect(screen.getByTestId('download-path-reset')).not.toBeDisabled();
+    } finally {
+      useAppStore.setState({ downloadSettings: prevDownloadSettings });
     }
   });
 
@@ -2440,6 +2529,7 @@ describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () =>
     useAppStore.setState({
       appInfo: undefined,
       downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      downloadSettingsLoaded: false,
     });
   });
 
@@ -2532,5 +2622,28 @@ describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () =>
     expect(screen.queryByTestId('tree-cache-reset')).toBeNull();
     expect(screen.queryByTestId('terminal-budget-reset')).toBeNull();
     expect(screen.queryByTestId('download-path-reset')).toBeNull();
+  });
+
+  it('aggregate is false when tree stats fail even if everything else is default', async () => {
+    // 树未知不得计为默认：其余三块全默认 + 树 stats 失败 → 聚合 false（侧边栏行保持启用）。
+    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreDownloadSettings('', false);
+    mockResetDisabledBridge();
+    (
+      window as unknown as {
+        digitalLife: { storage: { getTreeCacheStats: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage.getTreeCacheStats.mockRejectedValue(new Error('boom'));
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    try {
+      await renderLoaded();
+      await waitFor(() => {
+        expect(useAppStore.getState().storageBlocksAtDefault).toBe(false);
+      });
+      // 树区段不渲染（无按钮可断言），聚合信号是唯一可观测面。
+      expect(screen.queryByTestId('tree-cache-reset')).toBeNull();
+    } finally {
+      useAppStore.setState({ storageBlocksAtDefault: prevAggregate });
+    }
   });
 });

@@ -8,8 +8,12 @@ import { useShallow } from 'zustand/react/shallow';
 import { TooltipSimple } from '../Tooltip';
 import { ConfirmDialog } from '../ConfirmDialog';
 import { SettingsNav } from './SettingsNav';
-import { SETTINGS_GROUPS, GROUP_RESET_PATCHES, RESETTABLE_GROUPS } from './settingsGroups';
-import { DEFAULT_COMMANDS } from '../../commands/defaultCommands';
+import {
+  SETTINGS_GROUPS,
+  GROUP_RESET_PATCHES,
+  RESETTABLE_GROUPS,
+  isKeybindsAtDefault,
+} from './settingsGroups';
 import { SettingsControls } from './SettingsControls';
 import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
@@ -114,15 +118,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     ) {
       disabled.add('workspace');
     }
-    // 与 KeybindSettings.currentOf 同语义（缺 key 视为 defaultKeybind，无默认视为 'none'）；
-    // 此处本地重写三行比较，不从 KeybindSettings import。
+    // 与 KeybindSettings.currentOf 同语义，统一走共享 helper（防漂移）。
     const keybinds = config.keybinds ?? {};
-    if (
-      DEFAULT_COMMANDS.every(
-        (cmd) =>
-          (keybinds[cmd.id] ?? cmd.defaultKeybind ?? 'none') === (cmd.defaultKeybind ?? 'none'),
-      )
-    ) {
+    if (isKeybindsAtDefault(keybinds)) {
       disabled.add('shortcuts');
     }
     if (storageBlocksAtDefault === true) {

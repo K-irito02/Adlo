@@ -914,6 +914,16 @@
   border-color: var(--border-strong);
 }
 
+/* 隐藏 Chromium 原生 search 清除按钮：与右侧按键捕获按钮重叠（同站点的
+   tool-search 输入框同理，见 search-panel.css）。 */
+.adl-settings-keybinds__search::-webkit-search-decoration,
+.adl-settings-keybinds__search::-webkit-search-cancel-button,
+.adl-settings-keybinds__search::-webkit-search-results-button,
+.adl-settings-keybinds__search::-webkit-search-results-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
 /* 搜索框内右侧按键捕获按钮：常驻透明，仅图标可见；hover 才显底 */
 .adl-settings-keybinds__capture {
   position: absolute;
@@ -1043,7 +1053,7 @@
   text-align: center;
 }
 
-.adl-settings-keybind:hover:not(:disabled) {
+.adl-settings-keybind:hover {
   background: var(--surface-hover);
   border-color: var(--border-strong);
   color: var(--text-primary);
