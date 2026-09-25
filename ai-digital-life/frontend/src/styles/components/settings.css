@@ -153,7 +153,7 @@
 }
 
 /* Terminal clamp: cards at position 7+ keep the max delay so entrance
-   order never inverts (keybinds toolbar + 6 groups = 7 children). */
+   order never inverts (keybinds toolbar is sticky, groups render as cards). */
 .adl-settings-panel__content--cards > .adl-settings-card:nth-child(n + 7),
 .adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(n + 7),
 .adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(n + 7),
@@ -866,35 +866,41 @@
 }
 
 .adl-settings-keybinds__toolbar {
-  /* Intentionally slimmer than row cards: title + search need less air. */
-  padding-top: var(--space-4);
-  padding-bottom: var(--space-4);
-}
-
-.adl-settings-keybinds__header {
+  /* 非卡片：与主题底色融为一体；滚动时钉在主内容区顶部（负边距技巧消除容器上内边距的跳动）。 */
+  position: sticky;
+  top: calc(-1 * var(--space-4));
+  z-index: 2;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-2);
+  margin-top: calc(-1 * var(--space-4));
+  padding-top: calc(var(--space-4) + var(--space-2));
+  padding-bottom: var(--space-2);
+  background: var(--bg);
 }
 
-.adl-settings-keybinds__title {
-  margin: 0;
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-  letter-spacing: var(--tracking-tight);
-  line-height: var(--leading-tight);
+.adl-settings-keybinds__search-label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
   color: var(--text-primary);
+  white-space: nowrap;
 }
 
 .adl-settings-keybinds__search {
+  flex: 1;
+  min-width: 0;
   padding: var(--space-1) var(--space-2);
-  background: var(--surface-raised);
-  border: 1px solid var(--border-default);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-xs);
-  width: 180px;
+  transition: var(--transition-colors);
+}
+
+.adl-settings-keybinds__search:hover:not(:readonly) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
 .adl-settings-keybinds__search:focus-visible {
@@ -905,13 +911,40 @@
 .adl-settings-keybinds__group {
   display: flex;
   flex-direction: column;
+  gap: var(--space-3);
+}
+
+.adl-settings-keybinds__group > .adl-settings-card {
+  animation: adl-settings-card-enter var(--duration-editorial) var(--ease-editorial) both;
+}
+
+.adl-settings-keybinds__group:nth-child(2) > .adl-settings-card {
+  animation-delay: 0ms;
+}
+
+.adl-settings-keybinds__group:nth-child(3) > .adl-settings-card {
+  animation-delay: 80ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-settings-keybinds__group > .adl-settings-card {
+    animation: none !important;
+  }
+}
+
+/* 块头：组级恢复按钮 + 主标题（与工作区/存储组头同一交互语言）。 */
+.adl-settings-keybinds__group-header {
+  display: flex;
+  align-items: center;
   gap: var(--space-2);
+  padding-bottom: var(--space-1);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
 .adl-settings-keybinds__group-title {
   margin: 0;
-  padding-bottom: var(--space-1);
-  border-bottom: 1px solid var(--border-subtle);
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-xs);
   font-weight: var(--font-semibold);
   letter-spacing: var(--tracking-wider);
@@ -947,6 +980,8 @@
 }
 
 .adl-settings-keybinds__label {
+  flex: 1;
+  min-width: 0;
   font-size: var(--text-sm);
   color: var(--text-primary);
 }

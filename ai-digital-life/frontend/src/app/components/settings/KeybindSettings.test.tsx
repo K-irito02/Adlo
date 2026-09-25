@@ -10,6 +10,10 @@ const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
 }) as unknown as CopyDict;
 
+function getKeybindButtons(): HTMLButtonElement[] {
+  return Array.from(document.querySelectorAll('button.adl-settings-keybind'));
+}
+
 function TestProvider({ children }: { children: React.ReactNode }) {
   return (
     <TCopyProvider t={mockT} locale="en-US">
@@ -101,7 +105,7 @@ describe('KeybindSettings', () => {
     );
 
     const groupCards = document.querySelectorAll(
-      '.adl-settings-keybinds .adl-settings-card.adl-settings-keybinds__group',
+      '.adl-settings-keybinds__group > .adl-settings-card',
     );
     expect(groupCards.length).toBeGreaterThan(1);
     for (const card of groupCards) {
@@ -109,7 +113,27 @@ describe('KeybindSettings', () => {
     }
   });
 
-  it('wraps the shortcuts toolbar in an adl-settings-card', () => {
+  it('renders group headers outside the cards (workspace/storage pattern)', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const groups = document.querySelectorAll('.adl-settings-keybinds__group');
+    expect(groups.length).toBe(2);
+    for (const group of groups) {
+      const header = group.querySelector(':scope > .adl-settings-keybinds__group-header');
+      const card = group.querySelector(':scope > .adl-settings-card');
+      expect(header).not.toBeNull();
+      expect(card).not.toBeNull();
+      // Header must not be nested inside the card
+      expect(card?.querySelector('.adl-settings-keybinds__group-header')).toBeNull();
+      expect(header?.querySelector('.adl-settings-keybinds__group-title')).not.toBeNull();
+    }
+  });
+
+  it('renders a sticky toolbar (not a card) with reset-all + search label + search input', () => {
     render(
       <TestProvider>
         <KeybindSettings />
@@ -118,8 +142,79 @@ describe('KeybindSettings', () => {
 
     const toolbar = document.querySelector('.adl-settings-keybinds__toolbar');
     expect(toolbar).not.toBeNull();
-    expect(toolbar?.classList.contains('adl-settings-card')).toBe(true);
+    expect(toolbar?.classList.contains('adl-settings-card')).toBe(false);
+    // Top reset-all button uses the shortcuts-scoped label
+    expect(screen.getByLabelText('settingsShortcutsResetAllShortcuts')).toBeDefined();
+    // Visible "search shortcuts" text label (i18n, not hardcoded)
+    expect(screen.getByText('settingsShortcutsSearchLabel')).toBeDefined();
     expect(toolbar?.querySelector('.adl-settings-keybinds__search')).not.toBeNull();
+  });
+
+  it('renders only groups that have commands (no empty placeholder groups)', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const groupCards = document.querySelectorAll(
+      '.adl-settings-keybinds__group > .adl-settings-card',
+    );
+    expect(groupCards.length).toBe(2);
+  });
+
+  it('renders a group-level reset button per block', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const groupResets = document.querySelectorAll('.adl-settings-keybinds__group-reset');
+    expect(groupResets.length).toBe(2);
+  });
+
+  it('renders a per-row reset button before each shortcut name', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const rowResets = screen.getAllByLabelText('settingsShortcutsResetOne');
+    expect(rowResets.length).toBe(3);
+  });
+
+  it('filters commands by keybind text (raw mod+n)', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const search = screen.getByPlaceholderText('settingsShortcutsSearch') as HTMLInputElement;
+    act(() => {
+      fireEvent.change(search, { target: { value: 'mod+n' } });
+    });
+
+    expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
+    expect(screen.queryByText('commandSettingsOpen')).toBeNull();
+  });
+
+  it('filters commands by formatted keybind text (Ctrl+N)', () => {
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const search = screen.getByPlaceholderText('settingsShortcutsSearch') as HTMLInputElement;
+    act(() => {
+      fireEvent.change(search, { target: { value: 'Ctrl+N' } });
+    });
+
+    expect(screen.getByText('commandWorkspaceNew')).toBeDefined();
+    expect(screen.queryByText('commandSettingsOpen')).toBeNull();
   });
 
   it('filters commands by search query', () => {
@@ -182,10 +277,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const buttons = screen.getAllByRole('button');
-    const keybindButton =
-      buttons.find((b) => b.getAttribute('aria-label') !== 'settingsShortcutsUnassigned') ??
-      buttons[0];
+    const keybindButton = getKeybindButtons()[0];
 
     act(() => {
       fireEvent.click(keybindButton);
@@ -206,7 +298,7 @@ describe('KeybindSettings', () => {
     );
 
     // Click first keybind button to start recording (settings.open in general group)
-    const keybindButton = screen.getAllByRole('button')[0];
+    const keybindButton = getKeybindButtons()[0];
     act(() => {
       fireEvent.click(keybindButton);
     });
@@ -243,10 +335,9 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    // Find workspace.open's button. To be robust: find a button that is NOT the search
-    // input and click it, then press mod+n which conflicts with workspace.new's default.
-    const allButtons = screen.getAllByRole('button');
-    const keybindButtons = allButtons.filter((b) => b.tagName === 'BUTTON');
+    // Find workspace.open's button via its KeybindControl and press mod+n,
+    // which conflicts with workspace.new's default.
+    const keybindButtons = getKeybindButtons();
     let clicked = false;
     for (const btn of keybindButtons) {
       act(() => {
@@ -287,7 +378,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const keybindButton = screen.getAllByRole('button')[0];
+    const keybindButton = getKeybindButtons()[0];
     act(() => {
       fireEvent.click(keybindButton);
     });
@@ -319,7 +410,7 @@ describe('KeybindSettings', () => {
       </TestProvider>,
     );
 
-    const keybindButton = screen.getAllByRole('button')[0];
+    const keybindButton = getKeybindButtons()[0];
     act(() => {
       fireEvent.click(keybindButton);
     });
@@ -339,6 +430,138 @@ describe('KeybindSettings', () => {
     if (call.keybinds) {
       expect(call.keybinds['settings.open']).toBe('none');
     }
+    updatePreferencesSpy.mockRestore();
+  });
+
+  it('row reset restores a single shortcut without a confirm dialog', async () => {
+    useAppStore.setState({
+      appInfo: {
+        appName: 'test',
+        version: '0.0.0',
+        config: {
+          language: 'en-US',
+          themeMode: 'system',
+          resolvedTheme: 'light',
+          logLevel: 'info',
+          terminalLogMode: 'overwrite',
+          debugLogMode: 'overwrite',
+          maxRecentWorkspaces: 5,
+          modelPreferences: { providers: {} },
+          keybinds: { 'settings.open': 'mod+k' },
+          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
+          maxConcurrentWorkspaces: 6,
+          workspacePriorityIds: [],
+          workspaceDeferredIds: [],
+          workspaceNaturalOrder: [],
+          browserInactiveTabSuspendMs: 3_600_000,
+          terminalHistoryBudgetBytes: 1 << 30,
+        },
+        currentWorkspace: undefined,
+        recentLogs: [],
+      },
+    });
+    const updatePreferencesSpy = vi
+      .spyOn(useAppStore.getState(), 'updatePreferences')
+      .mockResolvedValue(true);
+
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const rowReset = screen.getAllByLabelText('settingsShortcutsResetOne')[0];
+    await act(async () => {
+      fireEvent.click(rowReset);
+    });
+
+    expect(updatePreferencesSpy).toHaveBeenCalledTimes(1);
+    const call = updatePreferencesSpy.mock.calls[0][0];
+    expect(call.keybinds?.['settings.open']).toBe('mod+shift+comma');
+    updatePreferencesSpy.mockRestore();
+  });
+
+  it('group reset opens a confirm dialog and resets the group on confirm', async () => {
+    useAppStore.setState({
+      appInfo: {
+        appName: 'test',
+        version: '0.0.0',
+        config: {
+          language: 'en-US',
+          themeMode: 'system',
+          resolvedTheme: 'light',
+          logLevel: 'info',
+          terminalLogMode: 'overwrite',
+          debugLogMode: 'overwrite',
+          maxRecentWorkspaces: 5,
+          modelPreferences: { providers: {} },
+          keybinds: { 'workspace.new': 'mod+k', 'workspace.open': 'mod+j' },
+          fonts: { uiFont: '', codeFont: '', terminalFont: '' },
+          maxConcurrentWorkspaces: 6,
+          workspacePriorityIds: [],
+          workspaceDeferredIds: [],
+          workspaceNaturalOrder: [],
+          browserInactiveTabSuspendMs: 3_600_000,
+          terminalHistoryBudgetBytes: 1 << 30,
+        },
+        currentWorkspace: undefined,
+        recentLogs: [],
+      },
+    });
+    const updatePreferencesSpy = vi
+      .spyOn(useAppStore.getState(), 'updatePreferences')
+      .mockResolvedValue(true);
+
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    const groupResets = document.querySelectorAll('.adl-settings-keybinds__group-reset');
+    expect(groupResets.length).toBe(2);
+    // navigation group is second; its reset restores workspace.new/open defaults
+    await act(async () => {
+      fireEvent.click(groupResets[1]);
+    });
+
+    const confirmButton = screen.getByText('confirm');
+    await act(async () => {
+      fireEvent.click(confirmButton);
+    });
+
+    expect(updatePreferencesSpy).toHaveBeenCalledTimes(1);
+    const call = updatePreferencesSpy.mock.calls[0][0];
+    expect(call.keybinds?.['workspace.new']).toBe('mod+n');
+    expect(call.keybinds?.['workspace.open']).toBe('mod+o');
+    updatePreferencesSpy.mockRestore();
+  });
+
+  it('top reset-all opens a confirm dialog and resets all shortcuts on confirm', async () => {
+    const updatePreferencesSpy = vi
+      .spyOn(useAppStore.getState(), 'updatePreferences')
+      .mockResolvedValue(true);
+
+    render(
+      <TestProvider>
+        <KeybindSettings />
+      </TestProvider>,
+    );
+
+    await act(async () => {
+      fireEvent.click(screen.getByLabelText('settingsShortcutsResetAllShortcuts'));
+    });
+
+    const confirmButton = screen.getByText('confirm');
+    await act(async () => {
+      fireEvent.click(confirmButton);
+    });
+
+    expect(updatePreferencesSpy).toHaveBeenCalledTimes(1);
+    const call = updatePreferencesSpy.mock.calls[0][0];
+    expect(call.keybinds?.['workspace.new']).toBe('mod+n');
+    expect(call.keybinds?.['workspace.open']).toBe('mod+o');
+    expect(call.keybinds?.['settings.open']).toBe('mod+shift+comma');
     updatePreferencesSpy.mockRestore();
   });
 });

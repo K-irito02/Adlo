@@ -1,6 +1,6 @@
 import type { CopyKey } from '../i18n/types';
 
-export type CommandGroup = 'general' | 'session' | 'navigation' | 'model' | 'terminal' | 'prompt';
+export type CommandGroup = 'general' | 'navigation';
 
 export interface CommandMeta {
   id: string;

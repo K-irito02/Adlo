@@ -7,7 +7,7 @@ const TEST_COMMANDS: CommandMeta[] = [
   {
     id: 'session.new',
     titleKey: 'commandSessionNew',
-    group: 'session',
+    group: 'general',
     defaultKeybind: 'mod+shift+n',
   },
   {

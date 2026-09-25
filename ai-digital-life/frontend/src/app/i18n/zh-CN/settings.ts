@@ -56,20 +56,19 @@ export const settingsZh = {
   settingsFontDefault: '默认',
 
   // 快捷键
-  settingsShortcutsTitle: '快捷键设置',
+  settingsShortcutsSearchLabel: '搜索快捷键',
   settingsShortcutsSearch: '搜索快捷键...',
   settingsShortcutsPressKeys: '按下快捷键...',
   settingsShortcutsUnassigned: '未设置',
   settingsShortcutsConflict: '快捷键冲突',
   settingsShortcutsConflictDesc: '快捷键 {keybind} 已被以下命令占用：{titles}',
   settingsShortcutsResetOne: '重置此项',
+  settingsShortcutsResetAllShortcuts: '恢复全部快捷键为默认',
+  settingsShortcutsResetAllTitle: '恢复全部快捷键为默认？',
+  settingsShortcutsResetAllMessage: '全部快捷键将恢复为默认值，此操作不可撤销。',
   settingsShortcutsClear: '清除',
   settingsShortcutsGroupGeneral: '通用',
-  settingsShortcutsGroupSession: '会话',
   settingsShortcutsGroupNavigation: '导航',
-  settingsShortcutsGroupModel: '模型与智能体',
-  settingsShortcutsGroupTerminal: '终端',
-  settingsShortcutsGroupPrompt: '提示词',
 
   // Toast
   settingsUpdated: '设置已更新',

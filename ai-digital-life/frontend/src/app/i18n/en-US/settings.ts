@@ -60,20 +60,20 @@ export const settingsEn = {
   settingsFontDefault: 'Default',
 
   // Shortcuts
-  settingsShortcutsTitle: 'Keyboard Shortcuts',
+  settingsShortcutsSearchLabel: 'Search shortcuts',
   settingsShortcutsSearch: 'Search shortcuts...',
   settingsShortcutsPressKeys: 'Press keys...',
   settingsShortcutsUnassigned: 'Unassigned',
   settingsShortcutsConflict: 'Shortcut Conflict',
   settingsShortcutsConflictDesc: 'Shortcut {keybind} is already used by: {titles}',
   settingsShortcutsResetOne: 'Reset this shortcut',
+  settingsShortcutsResetAllShortcuts: 'Reset all shortcuts to defaults',
+  settingsShortcutsResetAllTitle: 'Reset all shortcuts to defaults?',
+  settingsShortcutsResetAllMessage:
+    'All shortcuts will be restored to their defaults. This cannot be undone.',
   settingsShortcutsClear: 'Clear',
   settingsShortcutsGroupGeneral: 'General',
-  settingsShortcutsGroupSession: 'Session',
   settingsShortcutsGroupNavigation: 'Navigation',
-  settingsShortcutsGroupModel: 'Model and Agent',
-  settingsShortcutsGroupTerminal: 'Terminal',
-  settingsShortcutsGroupPrompt: 'Prompt',
 
   // Toast
   settingsUpdated: 'Settings updated',
