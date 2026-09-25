@@ -66,6 +66,12 @@ describe('storage bridge method parity', () => {
     expect(res.ok).toBe(true);
     if (res.ok) {
       expect(res.data.categories.map((c) => c.key)).toEqual([...STORAGE_CATEGORY_KEYS]);
+      // Coverage split: only the mock end fabricates getStatus here — the file
+      // instantiates no preview-storage factory (preview delegates storage to
+      // http/mock, see storage.ts docs). tauri/http are generic passthroughs with
+      // no pick/mapping (invokeIpc<StorageStatus>('storage_get_status') /
+      // call<StorageStatus>(…, '/storage/status', …)), both Rust ends carry
+      // serialization/construction tests, and tsc enforces the required field.
       expect(typeof res.data.defaultRoot).toBe('string');
     }
   });

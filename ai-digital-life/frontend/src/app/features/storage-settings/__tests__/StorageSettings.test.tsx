@@ -2464,6 +2464,18 @@ describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () =>
     expect(screen.getByTestId('download-path-reset')).toBeDisabled();
   });
 
+  it('enables budget reset when budget config is unknown (fail-open)', async () => {
+    // 预算未知（appInfo 缺席）→ 不得禁用，保持启用。
+    useAppStore.setState({ appInfo: undefined });
+    setStoreDownloadSettings('', false);
+    mockResetDisabledBridge();
+    await renderLoaded();
+    expect(headerResetButton()).toBeDisabled();
+    expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
+    expect(screen.getByTestId('terminal-budget-reset')).not.toBeDisabled();
+    expect(screen.getByTestId('download-path-reset')).toBeDisabled();
+  });
+
   it('enables download reset when path customized', async () => {
     setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
     setStoreDownloadSettings('D:/custom-downloads', false);

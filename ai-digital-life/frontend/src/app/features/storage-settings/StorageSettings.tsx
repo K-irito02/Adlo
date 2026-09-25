@@ -1027,14 +1027,14 @@ export function StorageSettings() {
   const treeEnabled = treeStats?.enabled ?? TREE_CACHE_DEFAULTS.enabled;
   const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
 
-  // 四块「恢复默认」按钮的禁用判定（spec §3）：status 未知（null/loading/加载失败）
-  // → 全部启用（fail-open），未知态不禁用。
+  // 四块「恢复默认」按钮的禁用判定（spec §3）：各块在其数据源未知时保持启用
+  //（fail-open），未知态不禁用。
   const coreAtDefault =
     status !== null && status.mode === 'unified' && status.root === status.defaultRoot && !isDirty;
   const treeAtDefault = treeEnabled && treeTtlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes;
+  const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
   const budgetAtDefault =
-    (useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes) ??
-      TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES) === TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
+    budgetBytes !== undefined && budgetBytes === TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
   const downloadAtDefault =
     downloadSettings.default_path === '' && !downloadSettings.auto_migrate_on_path_change;
 
