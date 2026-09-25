@@ -61,6 +61,7 @@ pub struct PendingDto {
 pub struct StorageStatus {
     pub mode: String,
     pub root: String,
+    pub default_root: String,
     pub categories: Vec<StorageCategoryStatus>,
     pub locator_path: String,
     pub pending: Option<PendingDto>,
@@ -200,6 +201,7 @@ pub fn storage_get_status(
             st::StorageMode::PerCategory => "per_category".into(),
         },
         root: svc.paths().root.to_string_lossy().to_string(),
+        default_root: svc.default_root().to_string_lossy().to_string(),
         categories: category_statuses(&svc),
         locator_path: st::locator_path().to_string_lossy().to_string(),
         pending: locator

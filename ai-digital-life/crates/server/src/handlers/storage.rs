@@ -70,6 +70,7 @@ pub struct PendingDto {
 pub struct StorageStatus {
     pub mode: String,
     pub root: String,
+    pub default_root: String,
     pub categories: Vec<StorageCategoryStatus>,
     pub locator_path: String,
     pub pending: Option<PendingDto>,
@@ -281,6 +282,7 @@ pub async fn status(State(state): State<ServerState>) -> impl IntoResponse {
         let dto = StorageStatus {
             mode: mode_to_str(locator.selection.mode).to_string(),
             root: svc.paths().root.to_string_lossy().to_string(),
+            default_root: svc.default_root().to_string_lossy().to_string(),
             categories: category_statuses(&svc),
             locator_path: st::locator_path().to_string_lossy().to_string(),
             pending: locator
@@ -682,6 +684,7 @@ mod tests {
         let status = StorageStatus {
             mode: "unified".into(),
             root: "/r".into(),
+            default_root: "/d".into(),
             categories: vec![],
             locator_path: "/l".into(),
             pending: Some(PendingDto { failed: false, error: None }),
@@ -699,6 +702,7 @@ mod tests {
         };
         let v = serde_json::to_value(status).unwrap();
         assert!(v.get("locatorPath").is_some());
+        assert!(v.get("defaultRoot").is_some());
         assert!(v.get("lastReport").is_some());
         assert!(v["lastReport"].get("keptDirs").is_some());
         assert!(v["lastReport"].get("movedFiles").is_some());

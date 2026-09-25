@@ -119,11 +119,16 @@ impl StoragePaths {
 pub struct StorageService {
     paths: StoragePaths,
     selection: StorageSelection,
+    default_root: PathBuf,
 }
 
 impl StorageService {
     pub fn from_locator(loc: &StorageLocator, defaults: &StorageDefaults) -> Self {
-        Self { paths: StoragePaths::from_locator(loc, defaults), selection: loc.selection.clone() }
+        Self {
+            paths: StoragePaths::from_locator(loc, defaults),
+            selection: loc.selection.clone(),
+            default_root: defaults.root.clone(),
+        }
     }
 
     pub fn paths(&self) -> &StoragePaths {
@@ -132,6 +137,10 @@ impl StorageService {
 
     pub fn selection(&self) -> &StorageSelection {
         &self.selection
+    }
+
+    pub fn default_root(&self) -> &Path {
+        &self.default_root
     }
 }
 
@@ -160,6 +169,17 @@ mod tests {
             credentials_dir: PathBuf::from("/default/creds"),
             downloads_dir: PathBuf::from("/default/downloads"),
         }
+    }
+
+    #[test]
+    fn service_remembers_default_root() {
+        let defaults = defaults();
+        let loc = StorageLocator::default();
+        debug_assert_eq!(loc.selection.mode, StorageMode::Unified);
+        debug_assert!(loc.selection.root.is_none());
+        debug_assert!(loc.selection.categories.is_empty());
+        let svc = StorageService::from_locator(&loc, &defaults);
+        assert_eq!(svc.default_root(), &defaults.root);
     }
 
     #[test]
