@@ -10,6 +10,7 @@ import { CATEGORY_COPY } from '../storageCategoryCopy';
 import { StorageSettings } from '../StorageSettings';
 import { formatMinutesForUnit, treeTtlMinutesFromCustom } from '../treeCacheTtl';
 import { useAppStore } from '@stores/slicedStore';
+import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 
 const status = {
   mode: 'unified' as const,
@@ -77,6 +78,47 @@ function headerResetButton(): HTMLElement | null {
   return document.querySelector('[data-testid="storage-reset-defaults"]');
 }
 
+/** 预算 store 播种（WorkspaceSettings.test.ts 同构的全量 config 字面量 + 预算覆盖）。 */
+function setStoreBudgetBytes(bytes: number) {
+  useAppStore.setState({
+    appInfo: {
+      appName: 'test',
+      version: '0.0.0',
+      config: {
+        language: 'en-US',
+        themeMode: 'system',
+        resolvedTheme: 'light',
+        logLevel: 'info',
+        terminalLogMode: 'overwrite',
+        debugLogMode: 'overwrite',
+        maxRecentWorkspaces: 5,
+        modelPreferences: { providers: {} },
+        keybinds: {},
+        fonts: { uiFont: '', codeFont: '', terminalFont: '' },
+        maxConcurrentWorkspaces: 6,
+        workspacePriorityIds: [],
+        workspaceDeferredIds: [],
+        workspaceNaturalOrder: [],
+        browserInactiveTabSuspendMs: 3_600_000,
+        terminalHistoryBudgetBytes: bytes,
+      },
+      currentWorkspace: undefined,
+      recentLogs: [],
+    },
+  });
+}
+
+/** 下载 store 播种。 */
+function setStoreDownloadSettings(defaultPath: string, autoMigrate: boolean) {
+  useAppStore.setState({
+    downloadSettings: {
+      mode: 'ask',
+      default_path: defaultPath,
+      auto_migrate_on_path_change: autoMigrate,
+    },
+  });
+}
+
 /** 插值断言专用：加载失败文案带 `{error}` 占位，其余 key 回退为 key 本身。 */
 const interpT = new Proxy({} as Record<string, string>, {
   get: (_, key) =>
@@ -128,25 +170,33 @@ describe('StorageSettings', () => {
   });
 
   it('download path reset opens a confirm dialog reflecting migrate state', async () => {
-    renderSettings();
-    await waitFor(() => {
-      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
-    });
-    fireEvent.click(screen.getByTestId('download-path-reset'));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('storageDownloadResetTitle')).toBeTruthy();
-    // 默认未开启迁移 → off 文案。
-    expect(within(dialog).getByText('storageDownloadResetConfirmMigrateOff')).toBeTruthy();
-    // 确认与「取消」同款 secondary（无品牌蓝填充）。
-    const confirmBtn = within(dialog).getByRole('button', {
-      name: 'storageDownloadResetConfirmBtn',
-    });
-    expect(confirmBtn.className).toContain('adl-btn--secondary');
-    expect(confirmBtn.className).not.toContain('adl-btn--primary');
-    fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
-    await waitFor(() => {
-      expect(screen.queryByRole('dialog')).toBeNull();
-    });
+    // 未更改禁用语义下默认即禁用：播种偏离路径使按钮可用（只改 default_path，
+    // 迁移开关保持关闭，断言文案仍为 off 版）。
+    const prevDownloadSettings = useAppStore.getState().downloadSettings;
+    setStoreDownloadSettings('D:/custom-downloads', false);
+    try {
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      fireEvent.click(screen.getByTestId('download-path-reset'));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('storageDownloadResetTitle')).toBeTruthy();
+      // 默认未开启迁移 → off 文案。
+      expect(within(dialog).getByText('storageDownloadResetConfirmMigrateOff')).toBeTruthy();
+      // 确认与「取消」同款 secondary（无品牌蓝填充）。
+      const confirmBtn = within(dialog).getByRole('button', {
+        name: 'storageDownloadResetConfirmBtn',
+      });
+      expect(confirmBtn.className).toContain('adl-btn--secondary');
+      expect(confirmBtn.className).not.toContain('adl-btn--primary');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+    } finally {
+      useAppStore.setState({ downloadSettings: prevDownloadSettings });
+    }
   });
 
   it('renders the restore-default trigger with the reset group label', async () => {
@@ -905,6 +955,9 @@ describe('StorageSettings', () => {
     const showToast = vi.fn();
     const prevShowToast = useAppStore.getState().showToast;
     useAppStore.setState({ showToast });
+    // 未更改禁用语义下默认预算即禁用：播种偏离预算使按钮可用（updatePreferences
+    // 仍为真实实现，无 app 桥 → 返回 false → 失败 toast）。
+    setStoreBudgetBytes(2 * TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
     try {
       renderSettings();
       await waitFor(() => {
@@ -917,7 +970,7 @@ describe('StorageSettings', () => {
       });
     } finally {
       // 还原真实 showToast：文件内其它用例断言 store `toasts`，替换泄漏会使其全部落空。
-      useAppStore.setState({ showToast: prevShowToast });
+      useAppStore.setState({ showToast: prevShowToast, appInfo: undefined });
     }
   });
 
@@ -2306,5 +2359,134 @@ describe('treeTtlMinutesFromCustom', () => {
     expect(formatMinutesForUnit(45, 'd')).toBe('0.0313');
     expect(treeTtlMinutesFromCustom(0.0313, 'd')).toBe(45);
     expect(treeTtlMinutesFromCustom(Number(formatMinutesForUnit(45, 'd')), 'd')).toBe(45);
+  });
+});
+
+describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () => {
+  const DEFAULT_ROOT = status.root;
+
+  /** 全默认预算/下载 store + 默认布局 status（`defaultRoot === root`）+ 默认树 stats。 */
+  function mockResetDisabledBridge(
+    opts: {
+      statusData?: typeof status & { defaultRoot?: string };
+      treeEnabled?: boolean;
+      treeTtlMinutes?: number;
+      getStatusResult?: unknown;
+    } = {},
+  ) {
+    const statusData = opts.statusData ?? { ...status, defaultRoot: DEFAULT_ROOT };
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi
+          .fn()
+          .mockResolvedValue(opts.getStatusResult ?? { ok: true, data: statusData }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight: vi.fn(),
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: opts.treeEnabled ?? true,
+            ttlMinutes: opts.treeTtlMinutes ?? 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+  }
+
+  // 本 describe 顺序执行于文件末尾：每个用例显式播种预算/下载 store，
+  // 用例后复位，避免跨文件内其它用例泄漏（store 在同文件内常驻）。
+  afterEach(() => {
+    useAppStore.setState({
+      appInfo: undefined,
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+    });
+  });
+
+  async function renderLoaded() {
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+  }
+
+  it('disables all four block resets when everything is at defaults', async () => {
+    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreDownloadSettings('', false);
+    mockResetDisabledBridge();
+    await renderLoaded();
+    expect(headerResetButton()).toBeDisabled();
+    expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
+    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
+    expect(screen.getByTestId('download-path-reset')).toBeDisabled();
+  });
+
+  it('enables core reset when root differs from defaultRoot', async () => {
+    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreDownloadSettings('', false);
+    mockResetDisabledBridge({
+      statusData: { ...status, root: 'D:/custom-root', defaultRoot: DEFAULT_ROOT },
+    });
+    await renderLoaded();
+    expect(headerResetButton()).not.toBeDisabled();
+    expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
+    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
+    expect(screen.getByTestId('download-path-reset')).toBeDisabled();
+  });
+
+  it('enables tree reset when ttl differs', async () => {
+    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreDownloadSettings('', false);
+    mockResetDisabledBridge({ treeTtlMinutes: 30 });
+    await renderLoaded();
+    expect(headerResetButton()).toBeDisabled();
+    expect(screen.getByTestId('tree-cache-reset')).not.toBeDisabled();
+    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
+    expect(screen.getByTestId('download-path-reset')).toBeDisabled();
+  });
+
+  it('enables budget reset when budget differs', async () => {
+    setStoreBudgetBytes(2 * TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreDownloadSettings('', false);
+    mockResetDisabledBridge();
+    await renderLoaded();
+    expect(headerResetButton()).toBeDisabled();
+    expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
+    expect(screen.getByTestId('terminal-budget-reset')).not.toBeDisabled();
+    expect(screen.getByTestId('download-path-reset')).toBeDisabled();
+  });
+
+  it('enables download reset when path customized', async () => {
+    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreDownloadSettings('D:/custom-downloads', false);
+    mockResetDisabledBridge();
+    await renderLoaded();
+    expect(headerResetButton()).toBeDisabled();
+    expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
+    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
+    expect(screen.getByTestId('download-path-reset')).not.toBeDisabled();
+  });
+
+  it('keeps resets enabled when status failed to load', async () => {
+    // fail-open：status 未知走错误 UI，四块恢复按钮不渲染为 disabled（无禁用态）。
+    mockResetDisabledBridge({
+      getStatusResult: { ok: false, error: { message: 'disk-gone' } },
+    });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getByText('storageStatusLoadFailed')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('storage-reset-defaults')).toBeNull();
+    expect(screen.queryByTestId('tree-cache-reset')).toBeNull();
+    expect(screen.queryByTestId('terminal-budget-reset')).toBeNull();
+    expect(screen.queryByTestId('download-path-reset')).toBeNull();
   });
 });

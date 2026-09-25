@@ -1027,6 +1027,17 @@ export function StorageSettings() {
   const treeEnabled = treeStats?.enabled ?? TREE_CACHE_DEFAULTS.enabled;
   const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
 
+  // 四块「恢复默认」按钮的禁用判定（spec §3）：status 未知（null/loading/加载失败）
+  // → 全部启用（fail-open），未知态不禁用。
+  const coreAtDefault =
+    status !== null && status.mode === 'unified' && status.root === status.defaultRoot && !isDirty;
+  const treeAtDefault = treeEnabled && treeTtlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes;
+  const budgetAtDefault =
+    (useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes) ??
+      TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES) === TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
+  const downloadAtDefault =
+    downloadSettings.default_path === '' && !downloadSettings.auto_migrate_on_path_change;
+
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
   const ttlSelectOptions = useMemo(
     () => [
@@ -1345,7 +1356,7 @@ export function StorageSettings() {
           aria-label={resetLabel}
           title={resetLabel}
           data-testid="storage-reset-defaults"
-          disabled={busy}
+          disabled={busy || coreAtDefault}
           onClick={handleResetCorePaths}
         >
           <IconResetDefaults size={14} decorative />
@@ -1484,7 +1495,7 @@ export function StorageSettings() {
               aria-label={treeResetLabel}
               title={treeResetLabel}
               data-testid="tree-cache-reset"
-              disabled={treeBusy}
+              disabled={treeBusy || treeAtDefault}
               onClick={handleTreeResetDefaults}
             >
               <IconResetDefaults size={14} decorative />
@@ -1633,6 +1644,7 @@ export function StorageSettings() {
           aria-label={budgetResetLabel}
           title={budgetResetLabel}
           data-testid="terminal-budget-reset"
+          disabled={budgetAtDefault}
           onClick={handleTerminalBudgetResetClick}
         >
           <IconResetDefaults size={14} decorative />
@@ -1650,6 +1662,7 @@ export function StorageSettings() {
           aria-label={downloadResetLabel}
           title={downloadResetLabel}
           data-testid="download-path-reset"
+          disabled={downloadAtDefault}
           onClick={(e) => {
             downloadResetTriggerRef.current = e.currentTarget;
             // 开框即快照迁移开关（M4/L-5）。
