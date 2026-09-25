@@ -21,6 +21,8 @@ import {
   scrollAndFlash,
 } from '@features/preview/revealSourceLine';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
+import { formatKeybind } from '@shared/keybinds';
+import { useFilesPanelShortcuts } from './useFilesPanelShortcuts';
 
 const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const { t } = useTCopy();
@@ -75,6 +77,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   } = props;
 
   const editorShellRef = useRef<HTMLDivElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const cmViewRef = useRef<EditorView | null>(null);
   // 会话恢复的瞬态提示（Task 26）：仅在活跃错误状态下可见，打开任意文件即清空
@@ -432,19 +435,27 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     }
   }, [selectedFilePath, fileContent, isPreviewModeForPath, handleNavigateLine]);
 
+  const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds ?? {});
+
   const fileMenuItems: (FileMenuItem | FileMenuDivider)[] = useMemo(
     () => [
       {
         id: 'copy-relative',
         label: t.fileCopyRelativePath as string,
-        shortcut: 'Ctrl+Shift+C',
+        shortcut:
+          keybinds['file.copy-relative'] === 'none'
+            ? undefined
+            : formatKeybind(keybinds['file.copy-relative'] ?? 'mod+shift+c'),
         disabled: !selectedFilePath,
         action: () => void handleCopyPath(selectedFilePath),
       },
       {
         id: 'copy-full',
         label: t.fileCopyFullPath as string,
-        shortcut: 'Ctrl+Alt+C',
+        shortcut:
+          keybinds['file.copy-full'] === 'none'
+            ? undefined
+            : formatKeybind(keybinds['file.copy-full'] ?? 'mod+alt+c'),
         disabled: !selectedAbsolutePath,
         action: () => void handleCopyPath(selectedAbsolutePath),
       },
@@ -458,19 +469,31 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       {
         id: 'word-wrap',
         label: t.fileWordWrap as string,
-        shortcut: t.fileWordWrapShortcut as string,
+        shortcut:
+          keybinds['file.toggle-word-wrap'] === 'none'
+            ? undefined
+            : formatKeybind(keybinds['file.toggle-word-wrap'] ?? 'alt+z'),
         checked: editorOptions.wordWrapEnabled,
         action: () => editorOptions.setWordWrapEnabled((v) => !v),
       },
     ],
-    [t, selectedFilePath, selectedAbsolutePath, editorOptions, handleCopyPath],
+    [t, selectedFilePath, selectedAbsolutePath, editorOptions, handleCopyPath, keybinds],
   );
+
+  useFilesPanelShortcuts({
+    panelRef,
+    selectedFilePath,
+    selectedAbsolutePath,
+    editorOptions,
+    handleCopyPath,
+    keybinds,
+  });
 
   const resolvedTheme = useResolvedTheme();
   const resolvedLocale = appInfo?.config?.language ?? 'zh-CN';
 
   return (
-    <div className="adl-tool-panel adl-tool-panel--files">
+    <div className="adl-tool-panel adl-tool-panel--files" ref={panelRef}>
       <div
         className="adl-tool-context adl-tool-context--files"
         aria-label={t.fileExplorerContext as string}
