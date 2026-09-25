@@ -79,7 +79,6 @@ export const fileZh = {
   fileCopyFullPath: '复制完整路径',
   fileLineNumbers: '行号',
   fileWordWrap: '自动换行',
-  fileWordWrapShortcut: 'Alt+Z',
   stickyContextTop: '文件顶部',
   stickyContextKindHeading: '标题',
   stickyContextKindLine: '行',

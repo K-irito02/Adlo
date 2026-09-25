@@ -79,7 +79,6 @@ export const fileEn = {
   fileCopyFullPath: 'Copy full path',
   fileLineNumbers: 'Line Numbers',
   fileWordWrap: 'Word Wrap',
-  fileWordWrapShortcut: 'Alt+Z',
   stickyContextTop: 'File top',
   stickyContextKindHeading: 'Heading',
   stickyContextKindLine: 'Line',
