@@ -13,6 +13,19 @@ interface SettingsControlsProps {
   searchQuery?: string;
 }
 
+/** 当前值是否已等于默认值（数组按元素比对）：等于则行级恢复按钮禁用。 */
+function isDefaultValue(value: unknown, defaultValue: unknown): boolean {
+  if (Array.isArray(value) || Array.isArray(defaultValue)) {
+    return (
+      Array.isArray(value) &&
+      Array.isArray(defaultValue) &&
+      value.length === defaultValue.length &&
+      value.every((v, i) => v === defaultValue[i])
+    );
+  }
+  return value === defaultValue;
+}
+
 function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query.trim()) {
     return text;
@@ -156,6 +169,7 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
         {items.map((item) => {
           const defaultValue = getDefaultForSetting(item.id);
           const canReset = item.type !== 'readonly' && defaultValue !== undefined;
+          const isDefault = canReset && isDefaultValue(item.value, defaultValue);
           return (
             <div key={item.id} className="adl-settings-row">
               <div className="adl-settings-row__label">
@@ -166,6 +180,7 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
                       className="adl-settings-row__reset adl-settings-row__reset--inline"
                       aria-label={t.settingsResetToDefault}
                       title={t.settingsResetToDefault}
+                      disabled={isDefault}
                       onClick={() => onChange(item.id, defaultValue as string | boolean | number)}
                     >
                       <IconResetDefaults size={14} decorative />

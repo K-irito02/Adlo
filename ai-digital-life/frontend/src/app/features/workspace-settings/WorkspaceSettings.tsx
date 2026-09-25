@@ -14,7 +14,12 @@ import { DragOverlayPortal } from '../../components/drag/DragOverlayPortal';
 import { HintCardTrigger, HINT_TITLE_PREFIX } from '../../components/HintCard';
 import type { ContainerId, DraggableWorkspace } from './WorkspaceSettingsTypes';
 import { GROUP_RESET_PATCHES } from '../../components/settings/settingsGroups';
-import { DEFAULT_MAX_CONCURRENT_WORKSPACES } from '../../../shared/defaultPreferences';
+import {
+  DEFAULT_MAX_CONCURRENT_WORKSPACES,
+  DEFAULT_WORKSPACE_PRIORITY_IDS,
+  DEFAULT_WORKSPACE_DEFERRED_IDS,
+  DEFAULT_WORKSPACE_NATURAL_ORDER,
+} from '../../../shared/defaultPreferences';
 
 function sameIdList(a: string[], b: string[]): boolean {
   return a.length === b.length && a.every((v, i) => v === b[i]);
@@ -248,6 +253,12 @@ export function WorkspaceSettings() {
 
   const groupLabel = t.settingsWorkspaceLoad;
   const resetLabel = formatT(t, 'settingsResetGroupToDefault', { group: groupLabel });
+  // 全为默认值时禁用块恢复按钮（同行级语义）。
+  const isDefault =
+    maxConcurrent === DEFAULT_MAX_CONCURRENT_WORKSPACES &&
+    sameIdList(priorityIds, DEFAULT_WORKSPACE_PRIORITY_IDS) &&
+    sameIdList(deferredIds, DEFAULT_WORKSPACE_DEFERRED_IDS) &&
+    sameIdList(naturalOrder, DEFAULT_WORKSPACE_NATURAL_ORDER);
 
   const handleCancelReset = useCallback(() => {
     setConfirmResetOpen(false);
@@ -304,6 +315,7 @@ export function WorkspaceSettings() {
           className="adl-settings-row__reset"
           aria-label={resetLabel}
           title={resetLabel}
+          disabled={isDefault}
           onClick={() => setConfirmResetOpen(true)}
         >
           <IconResetDefaults size={14} decorative />

@@ -160,9 +160,32 @@ describe('SettingsControls reset button', () => {
       </TestProvider>,
     );
     const resetBtn = screen.getByRole('button', { name: 'settingsResetToDefault' });
+    expect(resetBtn.hasAttribute('disabled')).toBe(false);
     fireEvent.click(resetBtn);
     expect(onChange).toHaveBeenCalledTimes(1);
     expect(onChange).toHaveBeenCalledWith('language', 'zh-CN');
+  });
+
+  it('disables reset button when the value already equals the default', () => {
+    const onChange = vi.fn();
+    const items: SettingItem[] = [
+      {
+        id: 'language',
+        groupId: 'general',
+        label: 'Language',
+        type: 'input',
+        value: 'zh-CN',
+      },
+    ];
+    render(
+      <TestProvider>
+        <SettingsControls items={items} onChange={onChange} />
+      </TestProvider>,
+    );
+    const resetBtn = screen.getByRole('button', { name: 'settingsResetToDefault' });
+    expect(resetBtn.hasAttribute('disabled')).toBe(true);
+    fireEvent.click(resetBtn);
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it('clicking reset for font setting calls onChange with empty string', () => {

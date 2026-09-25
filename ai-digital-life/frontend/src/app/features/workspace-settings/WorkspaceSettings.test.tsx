@@ -113,6 +113,26 @@ describe('WorkspaceSettings merged block', () => {
     ).toBeTruthy();
   });
 
+  it('block reset button is disabled when values equal defaults', () => {
+    setupStore();
+    renderSettings();
+
+    const resetBtn = screen.getByRole('button', {
+      name: 'Reset settingsWorkspaceLoad all defaults',
+    });
+    expect(resetBtn.hasAttribute('disabled')).toBe(true);
+  });
+
+  it('block reset button enables when a value differs from defaults', () => {
+    setupStore({ maxConcurrentWorkspaces: 3 });
+    renderSettings();
+
+    const resetBtn = screen.getByRole('button', {
+      name: 'Reset settingsWorkspaceLoad all defaults',
+    });
+    expect(resetBtn.hasAttribute('disabled')).toBe(false);
+  });
+
   it('renders one card with three list sections and no grid cards', () => {
     setupStore();
     renderSettings();
