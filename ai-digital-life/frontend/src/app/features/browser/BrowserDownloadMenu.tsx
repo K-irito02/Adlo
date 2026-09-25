@@ -43,7 +43,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const clearDownloadHistory = useAppStore((s) => s.clearDownloadHistory);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
-  const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
+  const navigateRightTool = useAppStore((s) => s.navigateRightTool);
   const showToast = useAppStore((s) => s.showToast);
 
   const {
@@ -67,9 +67,9 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
 
   const handleOpenSettings = useCallback(() => {
     setActiveSettingsGroup('browser');
-    setActiveRightTool('settings');
+    navigateRightTool('settings');
     onClose();
-  }, [setActiveSettingsGroup, setActiveRightTool, onClose]);
+  }, [setActiveSettingsGroup, navigateRightTool, onClose]);
 
   const handleOpenFolder = useCallback(async () => {
     try {

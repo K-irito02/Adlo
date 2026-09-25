@@ -54,32 +54,32 @@ export function useViewMenuItems(
   zoomBy: (delta: number) => void,
   resetZoom: () => void,
   onOpenSettings: () => void,
-  setActiveRightTool: (tool: ToolId) => void,
+  navigateRightTool: (tool: ToolId) => void,
 ): MenuItem[] {
   return [
     {
       id: 'open-files-panel',
       label: t.menuOpenFilePanel,
       shortcut: displayShortcut(keybinds, 'view.files'),
-      action: () => setActiveRightTool('files'),
+      action: () => navigateRightTool('files'),
     },
     {
       id: 'open-changes-panel',
       label: t.menuOpenChangesPanel,
       shortcut: displayShortcut(keybinds, 'view.changes'),
-      action: () => setActiveRightTool('changes'),
+      action: () => navigateRightTool('changes'),
     },
     {
       id: 'open-browser-panel',
       label: t.menuOpenBrowserPanel,
       shortcut: displayShortcut(keybinds, 'view.browser'),
-      action: () => setActiveRightTool('browser'),
+      action: () => navigateRightTool('browser'),
     },
     {
       id: 'open-terminal-panel',
       label: t.menuOpenTerminalPanel,
       shortcut: displayShortcut(keybinds, 'view.terminal'),
-      action: () => setActiveRightTool('terminal'),
+      action: () => navigateRightTool('terminal'),
     },
     { id: 'sep-1', label: '', separator: true },
     {

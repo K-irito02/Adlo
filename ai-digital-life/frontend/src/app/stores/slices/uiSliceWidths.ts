@@ -46,6 +46,7 @@ export type UIWidthSlice = Pick<
   | 'gitHubNavigatorWidth'
   | 'settingsNavigatorWidth'
   | 'setActiveRightTool'
+  | 'navigateRightTool'
   | 'setLeftCollapsed'
   | 'setLeftbarWidth'
   | 'setRightCollapsed'
@@ -78,6 +79,12 @@ export function createUIWidthSlice(
 
     setActiveRightTool: (tool) => {
       set(persistField('adl:ui.activeRightTool', tool));
+    },
+    navigateRightTool: (tool) => {
+      set({
+        ...persistField('adl:ui.activeRightTool', tool),
+        ...persistField('adl:ui.rightCollapsed', false),
+      });
     },
     setLeftCollapsed: (collapsed) => {
       set(persistField('adl:ui.leftCollapsed', collapsed));

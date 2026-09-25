@@ -139,6 +139,12 @@ export interface UISlice {
   changesWordWrap: boolean;
 
   setActiveRightTool: (tool: ToolId) => void;
+  /**
+   * 用户主动导航（菜单/快捷键/设置跳转）：切换工具并同时展开右侧面板。
+   * 与 `setActiveRightTool` 的区别：后者只切工具（被动同步用，如 usePatchReview 的守卫调用），
+   * 收起态下调用它会导致"切了但看不见"。
+   */
+  navigateRightTool: (tool: ToolId) => void;
   setLeftCollapsed: (collapsed: boolean) => void;
   setLeftbarWidth: (width: number) => void;
   setRightCollapsed: (collapsed: boolean) => void;

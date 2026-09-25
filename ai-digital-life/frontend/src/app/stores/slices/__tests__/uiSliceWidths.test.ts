@@ -103,6 +103,22 @@ describe('uiSliceWidths leftbarWidth persistence', () => {
     expect(createSlice().current().browserNavigatorWidth).toBe(DEFAULT_BROWSER_NAVIGATOR_WIDTH);
   });
 
+  it('navigateRightTool sets the tool and expands a collapsed right panel', () => {
+    const { current } = createSlice();
+    current().setRightCollapsed(true);
+    current().navigateRightTool('terminal');
+    expect(current().activeRightTool).toBe('terminal');
+    expect(current().rightCollapsed).toBe(false);
+  });
+
+  it('navigateRightTool keeps an expanded panel expanded', () => {
+    const { current } = createSlice();
+    current().setRightCollapsed(false);
+    current().navigateRightTool('browser');
+    expect(current().activeRightTool).toBe('browser');
+    expect(current().rightCollapsed).toBe(false);
+  });
+
   it('clamps an out-of-range browser navigator width in the store state and persists it clamped', () => {
     const { current } = createSlice();
 

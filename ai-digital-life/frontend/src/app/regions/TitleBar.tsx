@@ -66,7 +66,7 @@ const TitleBar = React.memo(function TitleBar({
 }: TitleBarProps) {
   const { t } = useTCopy();
 
-  const { leftCollapsed, rightCollapsed, toggleLeft, toggleRight, toggleBoth, setActiveRightTool } =
+  const { leftCollapsed, rightCollapsed, toggleLeft, toggleRight, toggleBoth, navigateRightTool } =
     useAppStore(
       useShallow((state) => ({
         leftCollapsed: state.leftCollapsed,
@@ -74,7 +74,7 @@ const TitleBar = React.memo(function TitleBar({
         toggleLeft: state.toggleLeft,
         toggleRight: state.toggleRight,
         toggleBoth: state.toggleBoth,
-        setActiveRightTool: state.setActiveRightTool,
+        navigateRightTool: state.navigateRightTool,
       })),
     );
   const language = appInfo?.config.language ?? 'zh-CN';
@@ -92,7 +92,7 @@ const TitleBar = React.memo(function TitleBar({
   const keybinds = useAppStore((s) => s.appInfo?.config?.keybinds) ?? {};
   const openShortcutsSettings = useCallback(() => {
     const state = useAppStore.getState();
-    state.setActiveRightTool('settings');
+    state.navigateRightTool('settings');
     state.setActiveSettingsGroup('shortcuts');
   }, []);
   const fileItems = useFileMenuItems(
@@ -108,7 +108,7 @@ const TitleBar = React.memo(function TitleBar({
     zoomBy,
     resetZoom,
     onOpenSettings,
-    setActiveRightTool,
+    navigateRightTool,
   );
   const helpItems = useHelpMenuItems(t, openShortcutsSettings);
 

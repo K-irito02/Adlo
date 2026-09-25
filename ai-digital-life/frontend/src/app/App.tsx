@@ -34,7 +34,7 @@ export function App() {
     })),
   );
   const actions = useAppActions();
-  const setActiveRightTool = useAppStore((s) => s.setActiveRightTool);
+  const navigateRightTool = useAppStore((s) => s.navigateRightTool);
   const toasts = useAppStore((s) => s.toasts);
   const removeToast = useAppStore((s) => s.removeToast);
   const dismissErrorToast = useAppStore((s) => s.dismissErrorToast);
@@ -110,8 +110,8 @@ export function App() {
   }, [actions]);
 
   const handleOpenSettings = useCallback(() => {
-    setActiveRightTool('settings');
-  }, [setActiveRightTool]);
+    navigateRightTool('settings');
+  }, [navigateRightTool]);
 
   const { zoomBy, resetZoom } = useAppZoom();
 
@@ -119,10 +119,10 @@ export function App() {
     openCreateWorkspaceDialog: () => setCreateWorkspaceModalOpen(true),
     openWorkspace: handleOpenFolder,
     openSettings: handleOpenSettings,
-    openFilesView: () => setActiveRightTool('files'),
-    openChangesView: () => setActiveRightTool('changes'),
-    openBrowserView: () => setActiveRightTool('browser'),
-    openTerminalView: () => setActiveRightTool('terminal'),
+    openFilesView: () => navigateRightTool('files'),
+    openChangesView: () => navigateRightTool('changes'),
+    openBrowserView: () => navigateRightTool('browser'),
+    openTerminalView: () => navigateRightTool('terminal'),
     zoomIn: () => zoomBy(0.1),
     zoomOut: () => zoomBy(-0.1),
     resetZoom,
