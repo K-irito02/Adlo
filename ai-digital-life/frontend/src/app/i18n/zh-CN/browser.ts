@@ -215,7 +215,7 @@ export const browserZh = {
   browserSearchEngineRefresh: '刷新搜索引擎图标与名称',
   browserSearchEngineNamePlaceholder: '留空自动获取搜索引擎名称',
 
-  // 不活跃标签挂起设置
+  // 标签挂起设置（描述句保留“不活跃”行为说明，仅标题去形容词）
   browserSettingsSuspendTitle: '标签挂起时长',
   browserSettingsSuspendDesc:
     '不活跃标签闲置超过该时长后自动释放页面（重新打开时重新加载）。设为关闭则仅靠内存压力触发。',

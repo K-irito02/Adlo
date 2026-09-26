@@ -228,8 +228,8 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
       ".adl-storage-settings input[type='radio']",
       ".adl-storage-settings input[type='checkbox']",
       // 共享 DownloadPathBlock 在浏览器组复用：同一样式缺了浏览器作用域，
-      // 迁移复选框回退 UA 默认蓝色（与存储组不一致）。
-      ".adl-settings-browser input[type='radio']",
+      // 迁移复选框回退 UA 默认蓝色（与存储组不一致）。浏览器组暂无原生
+      // radio，只断言 checkbox。
       ".adl-settings-browser input[type='checkbox']",
     ]) {
       const body = groupRuleBody(settingsCss, selector);

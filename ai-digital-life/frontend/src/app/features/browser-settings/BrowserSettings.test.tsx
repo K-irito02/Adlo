@@ -391,6 +391,57 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     expect(updateDownloadSettings).not.toHaveBeenCalled();
   });
 
+  it('group reset discards an in-flight custom draft instead of letting it overwrite the default', async () => {
+    // F1：自定义草稿防抖在途时组级恢复确认写默认，旧草稿到期不得覆盖。
+    vi.useFakeTimers();
+    const changeDownloadPath = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    // mock 写穿 store，使 raw 真正变化（复现外部写入路径）。
+    updatePreferences.mockImplementation(async (patch) => {
+      useAppStore.setState((s) => ({
+        appInfo: s.appInfo
+          ? { ...s.appInfo, config: { ...s.appInfo.config, ...patch } }
+          : s.appInfo,
+      }));
+      return true;
+    });
+    setConfig(3_600_000);
+    setDownload('auto', true);
+    useAppStore.setState({ changeDownloadPath: changeDownloadPath as never });
+    renderBrowser(confirmT);
+    // 先键入自定义草稿（500ms 防抖尚未提交）。
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend delay' }));
+    fireEvent.click(screen.getByRole('option', { name: 'browserSettingsSuspendCustom' }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'browserSettingsSuspendCustom' }), {
+      target: { value: '90' },
+    });
+    expect(updatePreferences).not.toHaveBeenCalled();
+    // 草稿在途时触发组级恢复并确认。
+    act(() => {
+      useAppStore.setState({ browserGroupResetPending: true });
+    });
+    expect(screen.getByText('browserGroupResetTitle')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-btn' }));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(600);
+    });
+    // 只写一次默认值，旧草稿（90 分钟 = 5_400_000）不得覆盖。
+    expect(updatePreferences).toHaveBeenCalledTimes(1);
+    expect(updatePreferences).toHaveBeenCalledWith({ browserInactiveTabSuspendMs: 900_000 });
+    expect(screen.queryByText('browserGroupResetTitle')).toBeNull();
+  });
+
+  it('seeds the product default instead of 0 when entering custom from Off', () => {
+    // F6：Off（0ms）进自定义时播种 15（与 number input min=1 一致），而非 '0'。
+    setConfig(0);
+    renderBrowser();
+    fireEvent.click(screen.getByRole('button', { name: 'browserSettingsSuspendTitle' }));
+    fireEvent.click(screen.getByRole('option', { name: 'browserSettingsSuspendCustom' }));
+    expect(
+      (screen.getByRole('spinbutton', { name: 'browserSettingsSuspendCustom' }) as HTMLInputElement)
+        .value,
+    ).toBe('15');
+  });
+
   it('drops the pending signal while the download path block confirm is open (entry guard)', () => {
     useAppStore.setState({
       downloadSettings: {

@@ -34,7 +34,7 @@ export function BrowserDownloadSettings({
     onOpenChange?.(confirm);
   }, [confirm, onOpenChange]);
 
-  const isAutoSave = downloadSettings.mode === 'auto';
+  const isAutoSave = downloadSettings.mode === DEFAULT_DOWNLOAD_MODE;
   /** 恢复默认可用性：加载未知/失败 → 未知不禁用（fail-open）。 */
   const atDefault = downloadSettingsLoaded && isAutoSave;
 

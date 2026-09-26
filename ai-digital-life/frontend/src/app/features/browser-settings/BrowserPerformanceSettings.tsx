@@ -49,8 +49,14 @@ export function BrowserPerformanceSettings({
   const [customMode, setCustomMode] = useState(false);
   const [customValue, setCustomValue] = useState('');
   const [customUnit, setCustomUnit] = useState<SuspendUnit>('m');
-  /** 在途自定义草稿（值 + 输入时单位）：timer 到期按自带单位提交，不受后续切单位影响。 */
-  const pendingRef = useRef<{ value: string; unit: SuspendUnit } | null>(null);
+  /** 在途自定义草稿（值 + 输入时单位 + 输入时外部值）：timer 到期按自带单位提交，
+   * 不受后续切单位影响；提交前校验外部值未变——组级恢复等外部写入到达后，
+   * 旧草稿必须丢弃而非覆盖新值（F1）。 */
+  const pendingRef = useRef<{
+    value: string;
+    unit: SuspendUnit;
+    base: number | undefined;
+  } | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [confirm, setConfirm] = useState(false);
 
@@ -87,6 +93,19 @@ export function BrowserPerformanceSettings({
   // 自定义防抖计时器卸载清理。
   useEffect(() => cancelPendingSuspend, [cancelPendingSuspend]);
 
+  /** 外部值变化时同步自定义态：预设档退出自定义（组级恢复写默认即此路径），
+   * 非档位按新值重播种，避免显示旧草稿。 */
+  const syncDraftToExternal = useCallback((externalMs: number) => {
+    if (isSuspendPreset(externalMs)) {
+      setCustomMode(false);
+      setCustomValue('');
+      return;
+    }
+    const unit = seedSuspendUnit(externalMs);
+    setCustomUnit(unit);
+    setCustomValue(formatMsForUnit(externalMs, unit));
+  }, []);
+
   const commitSuspendCustom = useCallback(() => {
     // 只清 timer、先读草稿再清 pending（顺序颠倒会把 pending 置空导致提交永空转）。
     if (timerRef.current) {
@@ -98,6 +117,13 @@ export function BrowserPerformanceSettings({
     if (pending === null) {
       return;
     }
+    // 提交前校验：草稿在途期间外部值若已变化（组级恢复写默认等），丢弃旧草稿
+    // 并同步显示，不写桥（F1）。
+    const latest = useAppStore.getState().appInfo?.config?.browserInactiveTabSuspendMs;
+    if (pending.base !== undefined && latest !== undefined && latest !== pending.base) {
+      syncDraftToExternal(latest);
+      return;
+    }
     // 按草稿自带单位换算（切单位后 timer 重排仍用旧单位口径，不错位）。
     const ms = suspendMsFromCustom(Number(pending.value), pending.unit);
     // 非法输入（空/0/负/NaN）静默丢弃不出桥：输入框保留草稿，继续键入即重新排队。
@@ -105,7 +131,7 @@ export function BrowserPerformanceSettings({
       return;
     }
     void writeSuspend(ms);
-  }, [writeSuspend]);
+  }, [writeSuspend, syncDraftToExternal]);
 
   /** 重排防抖 timer（调用方已更新 pending；回调读 ref，单位恒新鲜）。 */
   const rearmSuspendTimer = useCallback(() => {
@@ -120,7 +146,9 @@ export function BrowserPerformanceSettings({
       cancelPendingSuspend();
       if (v === SUSPEND_SELECT_CUSTOM) {
         setCustomMode(true);
-        setCustomValue(formatMsForUnit(currentMs, 'm'));
+        // Off（0ms）进自定义时播种产品默认：number input min=1，'0' 非法且与之矛盾（F6）。
+        const seedMs = currentMs > 0 ? currentMs : DEFAULT_BROWSER_SUSPEND_MS;
+        setCustomValue(formatMsForUnit(seedMs, 'm'));
         setCustomUnit('m');
         return;
       }
@@ -138,10 +166,10 @@ export function BrowserPerformanceSettings({
   const handleCustomChange = useCallback(
     (rawValue: string) => {
       setCustomValue(rawValue);
-      pendingRef.current = { value: rawValue, unit: customUnit };
+      pendingRef.current = { value: rawValue, unit: customUnit, base: raw };
       rearmSuspendTimer();
     },
-    [customUnit, rearmSuspendTimer],
+    [customUnit, raw, rearmSuspendTimer],
   );
 
   const handleUnitChange = useCallback(
@@ -158,7 +186,7 @@ export function BrowserPerformanceSettings({
           cancelPendingSuspend();
         } else {
           const converted = formatMsForUnit(ms, v);
-          pendingRef.current = { value: converted, unit: v };
+          pendingRef.current = { value: converted, unit: v, base: pending.base };
           setCustomValue(converted);
           rearmSuspendTimer();
         }
@@ -178,6 +206,25 @@ export function BrowserPerformanceSettings({
     setCustomUnit(unit);
     setCustomValue(formatMsForUnit(currentMs, unit));
   }, [isPreset, currentMs, customMode]);
+
+  // 外部写入到达时（组级恢复写默认 / 他处修改）：丢弃在途草稿并同步显示（F1）。
+  // 正常键入不改变 raw，不误杀；用户自己的提交先清 pending 再写桥，
+  // raw 变化时显示已与新值一致，重播种为同一值（无闪动）。
+  const prevRawRef = useRef(raw);
+  useEffect(() => {
+    if (prevRawRef.current === raw) {
+      return;
+    }
+    prevRawRef.current = raw;
+    if (pendingRef.current === null && !customMode) {
+      return;
+    }
+    cancelPendingSuspend();
+    if (raw === undefined) {
+      return;
+    }
+    syncDraftToExternal(raw);
+  }, [raw, customMode, cancelPendingSuspend, syncDraftToExternal]);
 
   /** 恢复默认：确认后写 15 分钟产品默认并退出自定义态；失败保持对话框供重试。 */
   const handleResetConfirm = useCallback(() => {

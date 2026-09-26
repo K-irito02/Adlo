@@ -77,6 +77,8 @@ export function getDefaultForSetting(id: string): string | boolean | number | st
       return DEFAULT_WORKSPACE_NATURAL_ORDER;
     case 'terminalHistoryBudgetBytes':
       return DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES;
+    case 'browserInactiveTabSuspendMs':
+      return DEFAULT_BROWSER_SUSPEND_MS;
     case 'font:ui':
     case 'font:code':
     case 'font:terminal':

@@ -35,7 +35,7 @@ export function BrowserSettings() {
   // 三块 at-default 判定与各块恢复按钮同口径（fail-open：未知视为非默认）。
   const suspendMs = useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs);
   const suspendAtDefault = suspendMs !== undefined && suspendMs === DEFAULT_BROWSER_SUSPEND_MS;
-  const modeAtDefault = downloadSettingsLoaded && downloadSettings.mode === 'auto';
+  const modeAtDefault = downloadSettingsLoaded && downloadSettings.mode === DEFAULT_DOWNLOAD_MODE;
   const pathAtDefault = isDownloadPathAtDefault(downloadSettings, downloadSettingsLoaded);
 
   const setBrowserBlocksAtDefault = useAppStore((s) => s.setBrowserBlocksAtDefault);

@@ -176,6 +176,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   );
 
   const handleResetAll = useCallback(async () => {
+    // 恢复全部仅覆盖偏好 patch（getDefaultPreferences）：下载模式/路径/迁移开关
+    // 走独立下载桥，不在其内——浏览器组级恢复覆盖这三步（F2，预存范围，非本次引入）。
     try {
       const ok = await updatePreferences(getDefaultPreferences());
       showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');

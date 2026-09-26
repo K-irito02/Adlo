@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   getDefaultPreferences,
   getDefaultForSetting,
+  DEFAULT_BROWSER_SUSPEND_MS,
   DEFAULT_KEYBINDS,
   DEFAULT_FONTS,
   DEFAULT_LANGUAGE,
@@ -50,6 +51,11 @@ describe('defaultPreferences', () => {
     expect(getDefaultForSetting('logLevel')).toBe(DEFAULT_LOG_LEVEL);
     expect(getDefaultForSetting('terminalLogMode')).toBe(DEFAULT_TERMINAL_LOG_MODE);
     expect(getDefaultForSetting('debugLogMode')).toBe(DEFAULT_DEBUG_LOG_MODE);
+  });
+
+  it('getDefaultForSetting returns the suspend default for browserInactiveTabSuspendMs', () => {
+    // 与 getDefaultPreferences() 的挂起字段同源；缺分支会回 undefined（F5）。
+    expect(getDefaultForSetting('browserInactiveTabSuspendMs')).toBe(DEFAULT_BROWSER_SUSPEND_MS);
   });
 
   it('getDefaultForSetting returns empty string for font settings', () => {
