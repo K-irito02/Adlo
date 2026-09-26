@@ -111,10 +111,11 @@ export function DshSettings() {
   //（事项 11 Phase 4 A1-1.4；drainingRef 仍负责防止重入 drain 循环）。
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
   const persist = useCallback(
-    (config: DshSourceConfig): Promise<boolean> => {
+    (config: DshSourceConfig, silent = false): Promise<boolean> => {
       const run = saveChainRef.current.then(async () => {
         try {
-          const ok = await actions.saveSourceConfig(config);
+          // 后台自动保存传 silent：失败仅此处 toast，不记全局错误卡（收尾 F8 单通道）。
+          const ok = await actions.saveSourceConfig(config, silent);
           if (!ok) {
             showToast(t.dshSettingsSaveFailed, 'error');
           }
@@ -142,7 +143,7 @@ export function DshSettings() {
         pendingSaveRef.current = false;
         const config = buildConfig();
         if (config) {
-          await persist(config);
+          await persist(config, true);
         }
       }
     } finally {
@@ -195,8 +196,10 @@ export function DshSettings() {
       if (candidates.length === 0) {
         // 空候选才提示：静默模式（桥失败 null / 双源不可达）直接返回不打扰；
         // 单桥失败但另一路可达时照常选优（事项 11 Phase 4 B1-B-1）。
+        // 用户手动触发而空候选：把 source_mode 落盘（本次选择即语义），再提示。
         if (!silent) {
           showToast(t.dshSettingsAutoDetectFailed, 'error');
+          await persist({ source_mode: 'auto' });
         }
         return;
       }
@@ -392,7 +395,9 @@ export function DshSettings() {
     setGroupResetOpen(false);
   }, []);
 
-  /** 下载源块恢复：源=自动检测 + 落盘默认 registry，静默实测选优；乐观执行，失败回滚。 */
+  /** 下载源块恢复：源=自动检测 + 落盘默认 registry，静默实测选优；乐观执行，失败回滚。
+   * 无 busy 守卫：确认即关框卸载所以双击不可达；万一重入，同载荷经串行链排队幂等
+   * （收尾 F7，刻意不再加守卫）。 */
   const handleSourceResetConfirm = useCallback(() => {
     const prev = { sourceType, customUrl, testResult };
     applySourceType('auto');
@@ -460,9 +465,12 @@ export function DshSettings() {
       applySourceType(next);
       setTestResult(null);
       clearTestTimer();
-      scheduleSave();
       if (next === 'auto') {
+        // 切自动检测不排防抖：检测写回覆盖全部语义，避免固定双写（收尾 F5）。
+        // 双源皆不可达时检测内负责把 source_mode 落盘（下保持一致）。
         void runAutoDetect(false);
+      } else {
+        scheduleSave();
       }
     },
     [applySourceType, clearTestTimer, scheduleSave, runAutoDetect],
@@ -520,12 +528,15 @@ export function DshSettings() {
         ok = result.reachable;
         message = ok
           ? t.dshSettingsTestSuccess.replace('{latency}', String(result.latency_ms ?? '-'))
-          : t.dshSettingsTestFailed.replace('{error}', result.error ?? 'Unknown');
+          : t.dshSettingsTestFailed.replace(
+              '{error}',
+              result.error ?? t.dshSettingsTestErrorUnknown,
+            );
       } else {
-        message = t.dshSettingsTestFailed.replace('{error}', 'Request failed');
+        message = t.dshSettingsTestFailed.replace('{error}', t.dshSettingsTestErrorRequestFailed);
       }
     } catch {
-      message = t.dshSettingsTestFailed.replace('{error}', 'Network error');
+      message = t.dshSettingsTestFailed.replace('{error}', t.dshSettingsTestErrorNetwork);
     }
     setTestResult({ ok, message });
     setTesting(false);

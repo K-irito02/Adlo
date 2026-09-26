@@ -4,12 +4,14 @@ import { useAppStore } from '../slicedStore';
 // 真实 store + 最小 dsh 桥：验证后台同步 silent 语义（失败不记全局错误卡）。
 const mockGetSourceStatus = vi.fn();
 const mockTestSource = vi.fn();
+const mockSaveSourceConfig = vi.fn();
 
 function setupBridge() {
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     dsh: {
       getSourceStatus: (...args: unknown[]) => mockGetSourceStatus(...args),
       testSource: (...args: unknown[]) => mockTestSource(...args),
+      saveSourceConfig: (...args: unknown[]) => mockSaveSourceConfig(...args),
     },
   };
 }
@@ -72,6 +74,29 @@ describe('dsh background sync silence', () => {
     // testSource 同理。
     mockTestSource.mockResolvedValue(NETWORK_FAILURE);
     await useAppStore.getState().testSource('https://registry.npmjs.org', true);
+    expect(useAppStore.getState().errorToasts).toHaveLength(1);
+  });
+
+  it('桥本身抛异常：不向上透出，按失败返回（silent 下不记卡）', async () => {
+    mockGetSourceStatus.mockRejectedValue(new Error('bridge gone'));
+    await expect(useAppStore.getState().fetchSourceStatus()).resolves.toBe(false);
+    expect(useAppStore.getState().errorToasts).toHaveLength(1);
+    await expect(useAppStore.getState().fetchSourceStatus(true)).resolves.toBe(false);
+    expect(useAppStore.getState().errorToasts).toHaveLength(1);
+    mockTestSource.mockRejectedValue(new Error('bridge gone'));
+    await expect(
+      useAppStore.getState().testSource('https://registry.npmjs.org', true),
+    ).resolves.toBeNull();
+    expect(useAppStore.getState().errorToasts).toHaveLength(1);
+  });
+
+  it('saveSourceConfig silent：后台保存失败仅调用方 toast，不记全局错误卡', async () => {
+    mockSaveSourceConfig.mockResolvedValue(NETWORK_FAILURE);
+    const ok = await useAppStore.getState().saveSourceConfig({ source_mode: 'auto' }, true);
+    expect(ok).toBe(false);
+    expect(useAppStore.getState().errorToasts).toHaveLength(0);
+    const ok2 = await useAppStore.getState().saveSourceConfig({ source_mode: 'auto' });
+    expect(ok2).toBe(false);
     expect(useAppStore.getState().errorToasts).toHaveLength(1);
   });
 });

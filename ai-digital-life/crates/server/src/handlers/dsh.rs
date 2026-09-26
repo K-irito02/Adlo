@@ -614,32 +614,45 @@ async fn save_source_config_inner(
         };
     }
     if let Some(mode) = input.get("source_mode") {
-        config.source_mode = match mode {
-            serde_json::Value::String(s) => match s.as_str() {
-                "auto" => adl_download_source::SourceMode::Auto,
-                "manual" => adl_download_source::SourceMode::Manual,
-                _ => return Err(AppError::InvalidInput(format!("invalid source mode: {s}"))),
+        match mode {
+            serde_json::Value::String(s) => {
+                config.source_mode = match s.as_str() {
+                    "auto" => adl_download_source::SourceMode::Auto,
+                    "manual" => adl_download_source::SourceMode::Manual,
+                    _ => return Err(AppError::InvalidInput(format!("invalid source mode: {s}"))),
+                };
             },
             // 显式 null 视为缺省不修改（与 proxy 字段 null-清空语义不同：source_mode
             // 无"清空"概念，前端缺省即不发该键）。
-            serde_json::Value::Null => config.source_mode,
+            serde_json::Value::Null => {},
             _ => {
                 return Err(AppError::InvalidInput("source_mode must be string or null".into()));
             },
-        };
+        }
     }
     if let Some(proxy) = input.get("proxy") {
         // proxy 本体非对象（null 除外）直接拒绝，避免整体静默 no-op 误导调用方。
         if !proxy.is_object() && !proxy.is_null() {
             return Err(AppError::InvalidInput("proxy must be object".into()));
         }
-        if let Some(mode_str) = proxy.get("mode").and_then(|v| v.as_str()) {
-            config.proxy.mode = match mode_str {
-                "auto" => adl_download_source::ProxyMode::Auto,
-                "manual" => adl_download_source::ProxyMode::Manual,
-                "none" => adl_download_source::ProxyMode::None,
-                _ => return Err(AppError::InvalidInput(format!("invalid proxy mode: {mode_str}"))),
-            };
+        if let Some(proxy_mode) = proxy.get("mode") {
+            match proxy_mode {
+                serde_json::Value::String(s) => {
+                    config.proxy.mode = match s.as_str() {
+                        "auto" => adl_download_source::ProxyMode::Auto,
+                        "manual" => adl_download_source::ProxyMode::Manual,
+                        "none" => adl_download_source::ProxyMode::None,
+                        _ => {
+                            return Err(AppError::InvalidInput(format!("invalid proxy mode: {s}")));
+                        },
+                    };
+                },
+                // 显式 null 视为缺省不修改（mode 无"清空"概念）。
+                serde_json::Value::Null => {},
+                _ => {
+                    return Err(AppError::InvalidInput("proxy mode must be string or null".into()));
+                },
+            }
         }
         // 字段支持 null 清空（恢复默认需清掉残留的代理地址），string 写入。
         for (key, slot) in [
@@ -823,6 +836,7 @@ mod tests {
             serde_json::json!({ "npm_registry": 123 }),
             serde_json::json!({ "proxy": "not-an-object" }),
             serde_json::json!({ "proxy": { "http_proxy": 123 } }),
+            serde_json::json!({ "proxy": { "mode": 123 } }),
         ] {
             let result =
                 save_source_config_inner(&state, axum::body::Bytes::from(bad.to_string())).await;

@@ -249,7 +249,7 @@ interface DshActions {
   uninstallDsh: (version: string) => Promise<boolean>;
   reinstallDsh: () => Promise<boolean>;
   fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
-  saveSourceConfig: (config: DshSourceConfig) => Promise<boolean>;
+  saveSourceConfig: (config: DshSourceConfig, silent?: boolean) => Promise<boolean>;
   testSource: (url: string, silent?: boolean) => Promise<DshTestResult | null>;
 }
 

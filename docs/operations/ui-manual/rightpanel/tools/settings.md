@@ -83,7 +83,8 @@ await page.fill('.adl-settings-item--input input', 'value');
 
 ## DSH 设置
 
-> DeepSeek Harness下载源和代理设置。
+> DeepSeek Harness下载源和代理设置。三块结构（下载源 / 代理设置 / 测试连接）：
+> 块头在卡外（恢复默认图标 + 主标题），卡内副标题行左说明、右控件；变更即自动保存。
 
 ### 定位选择器
 
@@ -95,37 +96,39 @@ await page.fill('.adl-settings-item--input input', 'value');
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-dsh-settings__source` | 下载源选择（npmjs/npmmirror/自定义） |
-| `.adl-dsh-settings__proxy-mode` | 代理模式选择（自动检测/手动/无） |
-| `.adl-dsh-settings__proxy-fields` | 代理配置字段（HTTP/HTTPS/不代理） |
-| `.adl-dsh-settings__test` | 测试连接按钮和结果 |
-| `.adl-dsh-settings__actions` | 保存按钮 |
+| `.adl-dsh-settings__header` | 块头（下载源/代理设置带恢复按钮，测试连接块为装饰图标） |
+| `[data-testid="dsh-source-reset"]` | 下载源块恢复默认按钮 |
+| `[data-testid="dsh-proxy-reset"]` | 代理设置块恢复默认按钮 |
+| `.adl-settings-row__control .adl-settings-dropdown__trigger` | 下载源/代理模式下拉框（自动检测/npmjs/npmmirror/自定义；自动检测/自定义/无） |
+| `.adl-settings-input` | 自定义地址与代理配置字段（HTTP/HTTPS/直连名单） |
+| `[data-testid="dsh-test-button"]` | 测试连接按钮（结果显示在按钮内，2 秒后恢复） |
 
 ### 操作流程
 
 ```javascript
-// 选择下载源
-await page.click('.adl-dsh-settings__source:nth-child(1)'); // npmjs
-await page.click('.adl-dsh-settings__source:nth-child(2)'); // npmmirror
-await page.click('.adl-dsh-settings__source:nth-child(3)'); // 自定义
+// 选择下载源（自定义下拉：点触发器展开，再点选项；不再是 radio 卡片）
+// 选项：自动检测 / npmjs（官方） / npmmirror（中国） / 自定义
+await page.click('[aria-label="下载源"]');
+await page.click('.adl-settings-dropdown__item:has-text("自定义")');
 
-// 输入自定义URL
-await page.fill('.adl-dsh-settings__source input[type="text"]', 'https://custom-registry.example');
+// 输入自定义地址（选中自定义后出现，变更即自动保存，无保存按钮）
+await page.fill('[aria-label="自定义地址"]', 'https://custom-registry.example');
 
-// 选择代理模式（自定义下拉：点触发器展开，再点选项；不再是原生 select）
-await page.click('.adl-dsh-settings__proxy-mode .adl-settings-dropdown__trigger');
-await page.click('.adl-settings-dropdown__item:has-text("手动")');
+// 选择代理模式（选项：自动检测/自定义/无）
+await page.click('[aria-label="代理模式"]');
+await page.click('.adl-settings-dropdown__item:has-text("自定义")');
 
 // 输入代理配置
-await page.fill('.adl-dsh-settings__proxy-field:nth-child(1) input', 'http://proxy:8080');
-await page.fill('.adl-dsh-settings__proxy-field:nth-child(2) input', 'http://proxy:8080');
-await page.fill('.adl-dsh-settings__proxy-field:nth-child(3) input', 'localhost,127.0.0.1');
+await page.fill('[aria-label="HTTP 代理"]', 'http://proxy:8080');
+await page.fill('[aria-label="HTTPS 代理"]', 'http://proxy:8080');
+await page.fill('[aria-label="直连名单"]', 'localhost,127.0.0.1');
 
-// 测试连接
-await page.click('.adl-dsh-settings__test button');
+// 测试连接（结果显示在按钮内）
+await page.click('[data-testid="dsh-test-button"]');
 
-// 保存设置
-await page.click('.adl-dsh-settings__actions button');
+// 块级恢复默认（经确认对话框，乐观执行）
+await page.click('[data-testid="dsh-source-reset"]');
+await page.click('button:has-text("确认")');
 ```
 
 ---

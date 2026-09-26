@@ -162,10 +162,14 @@ describe('DshSettings', () => {
       'dshSettingsSourceAuto',
     );
     await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({
-        source_mode: 'auto',
-        npm_registry: NPMMIRROR_URL,
-      });
+      // 检测写回为显式路径（silent=false），后台防抖路径才传 true。
+      expect(saveSourceConfig).toHaveBeenCalledWith(
+        {
+          source_mode: 'auto',
+          npm_registry: NPMMIRROR_URL,
+        },
+        false,
+      );
     });
     // silent：静默写回，不弹「已自动选择」成功提示。
     expect(useAppStore.getState().toasts).toHaveLength(0);
@@ -193,7 +197,7 @@ describe('DshSettings', () => {
     expect(saveSourceConfig).not.toHaveBeenCalled();
   });
 
-  it('用户手动选自动检测而双源均不可达：弹失败提示', async () => {
+  it('用户手动选自动检测而双源均不可达：弹失败提示并落盘 source_mode', async () => {
     useAppStore.setState({
       sourceStatus: makeStatus({ source_mode: 'manual', npm_registry: NPMJS_URL }),
     });
@@ -205,6 +209,10 @@ describe('DshSettings', () => {
       expect(
         useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsAutoDetectFailed'),
       ).toBe(true);
+    });
+    // 空候选也把本次选择落盘（后端与 UI 一致），不带 registry（保持上次检测值）。
+    await waitFor(() => {
+      expect(saveSourceConfig).toHaveBeenCalledWith({ source_mode: 'auto' }, false);
     });
   });
 
@@ -238,10 +246,13 @@ describe('DshSettings', () => {
       .mockResolvedValue({ reachable: true, latency_ms: 30, error: null });
     renderSettings();
     await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({
-        source_mode: 'auto',
-        npm_registry: NPMMIRROR_URL,
-      });
+      expect(saveSourceConfig).toHaveBeenCalledWith(
+        {
+          source_mode: 'auto',
+          npm_registry: NPMMIRROR_URL,
+        },
+        false,
+      );
     });
     expect(useAppStore.getState().toasts).toHaveLength(0);
   });
@@ -270,11 +281,13 @@ describe('DshSettings', () => {
       await vi.advanceTimersByTimeAsync(501);
     });
     expect(saveSourceConfig).toHaveBeenCalledTimes(1);
+    // 后台防抖路径传 silent=true（失败仅 toast，不记全局错误卡）。
     expect(saveSourceConfig).toHaveBeenCalledWith(
       expect.objectContaining({
         source_mode: 'manual',
         proxy: expect.objectContaining({ mode: 'manual', http_proxy: 'http://proxy:8080' }),
       }),
+      true,
     );
     expect(useAppStore.getState().toasts.some((t) => t.message === 'dshSettingsSaveFailed')).toBe(
       false,
@@ -331,9 +344,13 @@ describe('DshSettings', () => {
     expect(saveSourceConfig).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
     await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({
-        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-      });
+      // 显式恢复路径传 silent=false（失败走全局错误卡 + toast 双通道）。
+      expect(saveSourceConfig).toHaveBeenCalledWith(
+        {
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+        false,
+      );
     });
     await waitFor(() => {
       expect(screen.queryByText('settingsResetGroupConfirmTitle')).toBeNull();
@@ -352,10 +369,13 @@ describe('DshSettings', () => {
     fireEvent.click(screen.getByTestId('dsh-source-reset'));
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
     await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({
-        source_mode: 'auto',
-        npm_registry: NPMJS_URL,
-      });
+      expect(saveSourceConfig).toHaveBeenCalledWith(
+        {
+          source_mode: 'auto',
+          npm_registry: NPMJS_URL,
+        },
+        false,
+      );
     });
     expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
       'dshSettingsSourceAuto',
@@ -414,11 +434,14 @@ describe('DshSettings', () => {
     expect(saveSourceConfig).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
     await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({
-        source_mode: 'auto',
-        npm_registry: NPMJS_URL,
-        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-      });
+      expect(saveSourceConfig).toHaveBeenCalledWith(
+        {
+          source_mode: 'auto',
+          npm_registry: NPMJS_URL,
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+        false,
+      );
     });
     await waitFor(() => {
       expect(useAppStore.getState().toasts.some((t) => t.message === 'settingsResetComplete')).toBe(
@@ -502,17 +525,22 @@ describe('DshSettings', () => {
       resolveFirst(true);
       await vi.advanceTimersByTimeAsync(0);
     });
-    // 先防抖快照（含刚填的代理地址），后恢复默认（清空）。
+    // 先防抖快照（含刚填的代理地址，后台路径 silent=true），后恢复默认（清空，显式路径 false）。
     expect(saveSourceConfig).toHaveBeenCalledTimes(2);
     expect(saveSourceConfig).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
         proxy: expect.objectContaining({ mode: 'manual', http_proxy: 'http://proxy:8080' }),
       }),
+      true,
     );
-    expect(saveSourceConfig).toHaveBeenNthCalledWith(2, {
-      proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-    });
+    expect(saveSourceConfig).toHaveBeenNthCalledWith(
+      2,
+      {
+        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+      },
+      false,
+    );
   });
 
   it('确认落盘失败前用户已改值：不回滚，新输入优先', async () => {
@@ -587,11 +615,14 @@ describe('DshSettings', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
     await waitFor(() => {
-      expect(saveSourceConfig).toHaveBeenCalledWith({
-        source_mode: 'auto',
-        npm_registry: NPMJS_URL,
-        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-      });
+      expect(saveSourceConfig).toHaveBeenCalledWith(
+        {
+          source_mode: 'auto',
+          npm_registry: NPMJS_URL,
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+        false,
+      );
     });
   });
 });

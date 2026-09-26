@@ -165,7 +165,16 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       if (!silent) {
         clearError(get, SCOPE);
       }
-      const result = await window.digitalLife.dsh.getSourceStatus();
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getSourceStatus>>;
+      try {
+        result = await window.digitalLife.dsh.getSourceStatus();
+      } catch (e) {
+        // 桥本身抛异常（缺失/崩溃）：按失败处理，silent 下不记卡（收尾 F2）。
+        if (!silent) {
+          captureError(get, e, SCOPE);
+        }
+        return false;
+      }
       if (result.ok) {
         get().setDshSourceStatus(result.data);
         return true;
@@ -178,16 +187,30 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
 
     /**
      * [saveSourceConfig - 保存 dsh 下载源配置（npm registry / mirror / proxy）]
-     * @returns true=成功；false=失败（已记录全局错误卡片）
+     * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
+     * @param silent 后台自动保存传 true：失败仅由调用方 toast，不记全局错误卡片
+     * （避免与 toast 双通道并存。收尾 F8）。
      * @reads 无
      * @writes dshSlice.sourceStatus（保存后自动刷新）
      * @see httpBridge.ts → dsh.saveSourceConfig (/dsh/source-config)
      */
-    saveSourceConfig: async (config: DshSourceConfig): Promise<boolean> => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.dsh.saveSourceConfig(config);
+    saveSourceConfig: async (config: DshSourceConfig, silent = false): Promise<boolean> => {
+      if (!silent) {
+        clearError(get, SCOPE);
+      }
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.saveSourceConfig>>;
+      try {
+        result = await window.digitalLife.dsh.saveSourceConfig(config);
+      } catch (e) {
+        if (!silent) {
+          captureError(get, e, SCOPE);
+        }
+        return false;
+      }
       if (!result.ok) {
-        captureError(get, result.error, SCOPE);
+        if (!silent) {
+          captureError(get, result.error, SCOPE);
+        }
         return false;
       }
       // 保存成功后自动刷新源状态
@@ -211,7 +234,15 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       if (!silent) {
         clearError(get, SCOPE);
       }
-      const result = await window.digitalLife.dsh.testSource(url);
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.testSource>>;
+      try {
+        result = await window.digitalLife.dsh.testSource(url);
+      } catch (e) {
+        if (!silent) {
+          captureError(get, e, SCOPE);
+        }
+        return null;
+      }
       if (result.ok) {
         return result.data;
       }
