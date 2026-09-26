@@ -367,10 +367,13 @@
 /* Native radio/checkbox fill: monochrome via text-primary (not accent blue).
    Light: near-black fill + light glyph; dark: light-gray fill + dark glyph.
    Matches dsh/search-settings precedent; browser draws the inner mark.
-   作用域收敛到存储组（最小作用域原则）：路径模式 radio + 树缓存 checkbox；
+   作用域：存储组 + 浏览器组——共享 DownloadPathBlock 在两组复用同一原生
+   checkbox，Phase 2 复用组件时漏了该规则，导致浏览器组回退 UA 默认蓝色；
    其它设置页不受影响。 */
 .adl-storage-settings input[type='radio'],
-.adl-storage-settings input[type='checkbox'] {
+.adl-storage-settings input[type='checkbox'],
+.adl-settings-browser input[type='radio'],
+.adl-settings-browser input[type='checkbox'] {
   accent-color: var(--text-primary);
 }
 
@@ -1266,6 +1269,14 @@
   padding-bottom: 0;
   margin-bottom: 0;
   border-bottom: none;
+}
+
+/* 浏览器组两块卡片（标签挂起时长 / 下载设置）行内控件垂直居中：
+   label 侧副标题 + 描述更高时，右侧数值输入 / 下拉与行高居中对齐，
+   而非全局 flex-start 顶部对齐。限定两块卡片共有的 .adl-browser-settings，
+   下载路径块与其它设置组不受影响。 */
+.adl-browser-settings .adl-settings-row {
+  align-items: center;
 }
 
 /* 存储组「应用」主按钮：不用品牌蓝，改中性高对比（灰阶/黑白）。

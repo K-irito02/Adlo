@@ -1790,7 +1790,7 @@ describe('StorageSettings', () => {
     };
     renderSettings();
     const infos = await screen.findAllByTestId('storage-category-info');
-    // downloads_default 不占展示行（并入「浏览器默认下载路径」块），渲染 info 数为 总类数-1。
+    // downloads_default 不占展示行（并入「浏览器下载路径」块），渲染 info 数为 总类数-1。
     expect(infos).toHaveLength(STORAGE_CATEGORY_KEYS.length - 1);
     // 渲染出的每个 ⓘ 触发器都必须带出 Desc 文案：缺 copy 时回退为裸 key。
     for (const [index, info] of infos.entries()) {

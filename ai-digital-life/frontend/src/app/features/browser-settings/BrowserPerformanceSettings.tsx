@@ -24,7 +24,7 @@ const SUSPEND_SELECT_CUSTOM = 'custom';
 const SUSPEND_COMMIT_DEBOUNCE_MS = 500;
 
 /**
- * 「不活跃标签挂起时长」块：块级 header（恢复默认图标 + 主标题）在卡片之外，
+ * 「标签挂起时长」块：块级 header（恢复默认图标 + 主标题）在卡片之外，
  * 卡内副标题保留标题、描述落在副标题下（用户指定布局）。
  * 恢复默认经确认对话框写 15 分钟产品默认（settingsResetGroupConfirm* 通用键，
  * WorkspaceSettings 块级确认同源）；自定义输入（秒/分/时/天）防抖提交，

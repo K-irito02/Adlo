@@ -227,12 +227,24 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     for (const selector of [
       ".adl-storage-settings input[type='radio']",
       ".adl-storage-settings input[type='checkbox']",
+      // 共享 DownloadPathBlock 在浏览器组复用：同一样式缺了浏览器作用域，
+      // 迁移复选框回退 UA 默认蓝色（与存储组不一致）。
+      ".adl-settings-browser input[type='radio']",
+      ".adl-settings-browser input[type='checkbox']",
     ]) {
       const body = groupRuleBody(settingsCss, selector);
       expect(body, selector).not.toBeNull();
       expect(body).toContain('accent-color: var(--text-primary)');
       expect(body).not.toContain('var(--accent)');
     }
+  });
+
+  it('centers browser suspend/mode row controls vertically against the taller label', () => {
+    // 两块卡片（挂起时长 / 下载设置）都带 .adl-browser-settings：label 侧副标题+描述
+    // 更高时，右侧控件（数值输入/下拉）应在行内垂直居中，而非全局 flex-start 顶部对齐。
+    const body = ruleBody(settingsCss, '.adl-browser-settings .adl-settings-row');
+    expect(body).not.toBeNull();
+    expect(body).toContain('align-items: center');
   });
 
   it('makes the clear-cache button right-angled with hover-only outline', () => {

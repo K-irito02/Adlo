@@ -34,7 +34,7 @@ function isSameResolvedPath(a: string, b: string): boolean {
 }
 
 /**
- * 「浏览器默认下载路径」区块（原「浏览器」设置组的 default_path 行，Plan C Task 5 移入「存储」组）。
+ * 「浏览器下载路径」区块（原「浏览器」设置组的 default_path 行，Plan C Task 5 移入「存储」组）。
  * 下载**模式**（auto/ask）仍留在「浏览器」组，这里只管路径与「更改时迁移」开关。
  *
  * 布局：迁移复选框在上、路径行在下，两行属同一语义分组（去分隔线、右侧控件垂直居中）。

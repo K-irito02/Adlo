@@ -147,7 +147,7 @@ export const settingsZh = {
   storageRestartRequired: '已保存。请重启应用以完成迁移。',
   storageTerminalBudgetTitle: '终端历史磁盘预算',
   storageRestartUnavailableInBrowser: '浏览器模式无法重启应用，此变更将在下次启动时生效。',
-  storageBrowserDownloadTitle: '浏览器默认下载路径',
+  storageBrowserDownloadTitle: '浏览器下载路径',
   storageDownloadMigrateLabel: '更改路径时自动迁移文件',
   storageDownloadMigrateHint:
     '开启后，修改默认下载路径会把旧路径下的全部文件和文件夹一并搬到新路径，全部搬完后才删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）。若中途失败：已搬走的文件会留在新路径，其余仍在旧路径，设置不会切换，可随时重试，不会丢失任何文件。关闭时只切换路径，不搬运任何文件。',

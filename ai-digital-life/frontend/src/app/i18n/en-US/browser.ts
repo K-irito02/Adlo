@@ -228,7 +228,7 @@ export const browserEn = {
   browserSearchEngineNamePlaceholder: 'Leave empty to auto-fetch name',
 
   // Inactive-tab suspend setting
-  browserSettingsSuspendTitle: 'Suspend inactive tabs after',
+  browserSettingsSuspendTitle: 'Suspend tabs after',
   browserSettingsSuspendDesc:
     'Inactive tabs are released after this idle time (reloads on reopen). Off relies on memory pressure only.',
   browserSettingsSuspendOff: 'Off',

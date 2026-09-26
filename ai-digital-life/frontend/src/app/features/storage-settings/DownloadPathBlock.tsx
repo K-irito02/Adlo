@@ -9,7 +9,7 @@ import { BrowserDownloadPathSection } from './BrowserDownloadPathSection';
 import { isDownloadPathAtDefault, useDownloadPathReset } from './downloadPathReset';
 
 /**
- * 「浏览器默认下载路径」块（块头 + 卡片 + 恢复默认确认对话框），自包含状态。
+ * 「浏览器下载路径」块（块头 + 卡片 + 恢复默认确认对话框），自包含状态。
  * 「存储」与「浏览器」设置组渲染同一实例化组件：底层 store 同源，两处显示与行为
  * 天然同步（同一时刻只挂载一个组，无双实例冲突）。
  *

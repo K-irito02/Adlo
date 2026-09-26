@@ -161,7 +161,7 @@ export const settingsEn = {
   storageTerminalBudgetTitle: 'Terminal history disk budget',
   storageRestartUnavailableInBrowser:
     'The browser mode cannot restart the app; this change will apply on next launch.',
-  storageBrowserDownloadTitle: 'Browser default download folder',
+  storageBrowserDownloadTitle: 'Browser download folder',
   storageDownloadMigrateLabel: 'Migrate files when path changes',
   storageDownloadMigrateHint:
     "When on, changing the default download folder moves every file and subfolder from the old path to the new one, and deletes the old folder only after everything has been moved successfully (exception: system-owned folders — e.g. the system drive's Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted). If it fails midway: files already moved stay in the new path, the rest remain in the old path, and the setting is not switched — you can retry anytime and no file is ever lost. When off, only the path switches and no files are moved.",

@@ -128,7 +128,7 @@ function ipcErrorMessage(error: { message?: string } | null | undefined, fallbac
  *
  * 组成：模式切换 → （统一模式）根目录行 → 11 类分类行（核心/高级）→ 应用
  * → 工作区树缓存（统计/清除/开关/TTL）
- * → 存储引擎（搬入的终端历史预算、浏览器默认下载路径）→ 数据位置索引（只读）
+  * → 存储引擎（搬入的终端历史预算、浏览器下载路径）→ 数据位置索引（只读）
  * → 不可移动说明 6 项 → 待迁移横幅 → 上次迁移报告。
  *
  * 数据流：挂载时 `storage.getStatus()` 填充；「应用」先 `preflight` 校验，
@@ -924,7 +924,7 @@ export function StorageSettings() {
 
   const categories = status?.categories ?? [];
 
-  /** 展示用分类：`downloads_default`（默认下载目标）已并入下方「浏览器默认下载路径」块，此处不再重复列出。 */
+  /** 展示用分类：`downloads_default`（默认下载目标）已并入下方「浏览器下载路径」块，此处不再重复列出。 */
   const displayCategories = categories.filter((category) => category.key !== 'downloads_default');
 
   /** 草稿与已持久化状态是否不一致：有未应用的修改（用于粘性提交条）。 */

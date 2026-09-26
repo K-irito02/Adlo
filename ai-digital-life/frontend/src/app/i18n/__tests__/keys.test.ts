@@ -174,6 +174,13 @@ describe('i18n en-US namespace keys', () => {
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
     }
   });
+
+  it('uses the shorter suspend/path block titles in both locales', () => {
+    expect(zhCN.browserSettingsSuspendTitle).toBe('标签挂起时长');
+    expect(enUS.browserSettingsSuspendTitle).toBe('Suspend tabs after');
+    expect(zhCN.storageBrowserDownloadTitle).toBe('浏览器下载路径');
+    expect(enUS.storageBrowserDownloadTitle).toBe('Browser download folder');
+  });
 });
 
 describe('i18n zh-CN mirror', () => {
