@@ -233,6 +233,12 @@ export const browserEn = {
     'Inactive tabs are released after this idle time (reloads on reopen). Off relies on memory pressure only.',
   browserSettingsSuspendOff: 'Off',
   browserSettingsSuspendMin: '{n} min',
+  browserSettingsSuspendCustom: 'Custom…',
+  browserSettingsSuspendUnitLabel: 'Suspend unit',
+  browserSettingsSuspendUnitSecond: 'sec',
+  browserSettingsSuspendUnitMinute: 'min',
+  browserSettingsSuspendUnitHour: 'hr',
+  browserSettingsSuspendUnitDay: 'day',
 
   // Downloads
   browserDownloadTitle: 'Downloads',
@@ -243,11 +249,10 @@ export const browserEn = {
 
   // Download Settings
   browserDownloadSettingsTitle: 'Download Settings',
-  browserDownloadSettingsDesc: 'Configure default download behavior',
   browserDownloadSettingsPath: 'Default download path',
   browserDownloadSettingsPathDesc: 'Directory where downloaded files are saved',
   browserDownloadSettingsMode: 'Download mode',
-  browserDownloadSettingsModeDesc: 'Choose how downloads are handled',
+  browserDownloadSettingsModeHint: 'Choose how downloads are handled; auto-save by default.',
   browserDownloadSettingsModeAuto: 'Auto-save',
   browserDownloadSettingsModeAsk: 'Ask each time',
   browserDownloadActive: 'In progress',

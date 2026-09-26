@@ -172,6 +172,11 @@ export const settingsZh = {
     '浏览器默认下载路径：恢复为系统默认；旧路径文件先搬过去，全部成功后才删除旧目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；自动迁移开关恢复为关闭。',
   storageGroupResetItemDownloadMigrateOff:
     '浏览器默认下载路径：恢复为系统默认，只切换路径、不搬文件；自动迁移开关保持关闭。',
+  browserGroupResetTitle: '恢复「浏览器」全部默认？',
+  browserGroupResetMessage:
+    '挂起时长（恢复 15 分钟）、下载模式（恢复自动保存）、默认下载路径（恢复系统默认并关闭自动迁移）将一起恢复为默认值。',
+  browserGroupResetMigrateOnNote:
+    '当前已开启「更改路径时自动迁移文件」：恢复路径时旧路径下的全部文件会先搬到系统默认路径，全部成功后删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不切换，可重试。',
   storageDownloadMigrateFailed: '迁移文件失败：{error}',
   storageDownloadRefreshFailed: '下载设置已保存，但刷新显示失败，请重新打开设置页确认',
   storagePickFailed: '选择目录失败：{error}',

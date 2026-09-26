@@ -221,6 +221,12 @@ export const browserZh = {
     '不活跃标签闲置超过该时长后自动释放页面（重新打开时重新加载）。设为关闭则仅靠内存压力触发。',
   browserSettingsSuspendOff: '关闭',
   browserSettingsSuspendMin: '{n} 分钟',
+  browserSettingsSuspendCustom: '自定义…',
+  browserSettingsSuspendUnitLabel: '挂起时长单位',
+  browserSettingsSuspendUnitSecond: '秒',
+  browserSettingsSuspendUnitMinute: '分钟',
+  browserSettingsSuspendUnitHour: '小时',
+  browserSettingsSuspendUnitDay: '天',
 
   // 下载
   browserDownloadTitle: '下载',
@@ -231,11 +237,10 @@ export const browserZh = {
 
   // 下载设置
   browserDownloadSettingsTitle: '下载设置',
-  browserDownloadSettingsDesc: '配置默认下载行为',
   browserDownloadSettingsPath: '默认下载路径',
   browserDownloadSettingsPathDesc: '下载文件保存的目录',
   browserDownloadSettingsMode: '下载模式',
-  browserDownloadSettingsModeDesc: '选择下载处理方式',
+  browserDownloadSettingsModeHint: '选择下载处理方式，默认自动保存。',
   browserDownloadSettingsModeAuto: '自动保存',
   browserDownloadSettingsModeAsk: '每次询问',
   browserDownloadActive: '进行中',

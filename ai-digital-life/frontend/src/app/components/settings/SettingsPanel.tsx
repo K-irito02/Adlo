@@ -55,8 +55,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     settingsNavigatorWidth,
     setSettingsNavigatorWidth,
     requestStorageGroupReset,
+    requestBrowserGroupReset,
     config,
     storageBlocksAtDefault,
+    browserBlocksAtDefault,
   } = useAppStore(
     useShallow((s) => ({
       activeGroup: s.activeSettingsGroup,
@@ -70,14 +72,16 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       settingsNavigatorWidth: s.settingsNavigatorWidth,
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
       requestStorageGroupReset: s.requestStorageGroupReset,
+      requestBrowserGroupReset: s.requestBrowserGroupReset,
       config: s.appInfo?.config,
       storageBlocksAtDefault: s.storageBlocksAtDefault,
+      browserBlocksAtDefault: s.browserBlocksAtDefault,
     })),
   );
 
   // 侧边栏组级重置聚合 disabled：组全默认时对应行按钮禁用。config 未加载时
-  // 全部启用（fail-open）。storage 行纳入：StorageSettings 挂载时维护聚合信号，
-  // 未挂载（null/未知）时保持启用。
+  // 全部启用（fail-open）。storage/browser 行纳入：StorageSettings / BrowserSettings
+  // 挂载时维护聚合信号，未挂载（null/未知）时保持启用。
   // 注意 workspace 块读本地编辑态（含 200ms 防抖持久化窗口），此处读已持久化的
   // config：窗口期内两侧可能短暂不一致，持久化后收敛，无数据丢失。
   const disabledResetGroups = useMemo(() => {
@@ -113,8 +117,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     if (storageBlocksAtDefault === true) {
       disabled.add('storage');
     }
+    if (browserBlocksAtDefault === true) {
+      disabled.add('browser');
+    }
     return disabled;
-  }, [config, storageBlocksAtDefault]);
+  }, [config, storageBlocksAtDefault, browserBlocksAtDefault]);
 
   const rafRef = useRef(0);
 
@@ -271,10 +278,20 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         requestStorageGroupReset();
         return;
       }
+      if (group === 'browser') {
+        // 浏览器组同为自有流程（挂起偏好 + 下载模式 + 下载路径三步跨桥）：
+        // 先关通用确认框，再切组 + 置 pending 信号，由 BrowserSettings 弹出自有
+        // 确认对话框并按挂起 → 模式 → 路径顺序执行。
+        setConfirmResetOpen(false);
+        setPendingResetGroup(null);
+        setActiveGroup('browser');
+        requestBrowserGroupReset();
+        return;
+      }
       setPendingResetGroup(group);
       setConfirmResetOpen(true);
     },
-    [requestStorageGroupReset, setActiveGroup],
+    [requestStorageGroupReset, requestBrowserGroupReset, setActiveGroup],
   );
 
   // 持久化/历史遗留的 activeGroup 可能不在当前组列表里（如已移除的 terminal）：

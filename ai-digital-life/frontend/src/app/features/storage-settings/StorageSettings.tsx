@@ -4,7 +4,6 @@ import type { CopyKey } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
-import { DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
 import { formatBytes } from '@root/design-system/html';
 import { isTauriShell } from '@shared/env';
 import {
@@ -24,7 +23,8 @@ import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { StorageCategoryRow } from './StorageCategoryRow';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
-import { BrowserDownloadPathSection } from './BrowserDownloadPathSection';
+import { DownloadPathBlock } from './DownloadPathBlock';
+import { isDownloadPathAtDefault, useDownloadPathReset } from './downloadPathReset';
 import {
   formatMinutesForUnit,
   formatTreeCacheTime,
@@ -161,16 +161,11 @@ export function StorageSettings() {
   const treeConfirmRef = useRef<HTMLButtonElement | null>(null);
   /** 打开确认对话框的触发源：关闭后恢复焦点用。 */
   const treeConfirmTriggerRef = useRef<HTMLElement | null>(null);
-  /** 下载路径「恢复默认」确认对话框（文案含当前迁移开关状态）。 */
-  const [downloadResetConfirm, setDownloadResetConfirm] = useState(false);
-  /** 下载恢复对话框打开时刻的迁移开关快照：文案与执行同源，避免开框后键盘回 Tab
-   * 切开关导致"文案一个值、行为另一个值"（task4 L-5；组级 M2 快照的同构）。 */
-  const downloadMigrateAtOpenRef = useRef(false);
   /** 组级对话框打开时刻的迁移开关快照（M4-R：组清单文案与搬运行为同源）。 */
   const groupMigrateAtOpenRef = useRef(false);
-  const [downloadResetBusy, setDownloadResetBusy] = useState(false);
-  const downloadResetConfirmRef = useRef<HTMLButtonElement | null>(null);
-  const downloadResetTriggerRef = useRef<HTMLElement | null>(null);
+  /** 下载路径块确认对话框开合（DownloadPathBlock 经 onOpenChange 通知）：
+   * 组级恢复的入口守卫用，避免与单块确认框键盘路径多框叠加。 */
+  const [downloadResetOpen, setDownloadResetOpen] = useState(false);
   /** 存储组级「恢复全部默认」确认对话框（侧边栏按钮经 storageGroupResetPending 触发）。
    * 一步完成：4 项明细 + 预检摘要/错误 + 保留源复选框 + 迁移时机按钮。 */
   const [groupResetOpen, setGroupResetOpen] = useState(false);
@@ -179,8 +174,6 @@ export function StorageSettings() {
   const [groupResetRetain, setGroupResetRetain] = useState(false);
   const groupResetConfirmRef = useRef<HTMLButtonElement | null>(null);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
-  const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
-  const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   /** 组级恢复待处理信号 + 消费动作（pending 布尔消除挂载播种吞信号的首跳竞态）。 */
   const storageGroupResetPending = useAppStore((s) => s.storageGroupResetPending);
   const consumeStorageGroupReset = useAppStore((s) => s.consumeStorageGroupReset);
@@ -275,32 +268,7 @@ export function StorageSettings() {
     treeConfirmTriggerRef.current = null;
   }, [treeConfirm]);
 
-  // 下载路径恢复默认确认：打开聚焦确认键，Escape 关闭；忙时锁关闭。
-  useEffect(() => {
-    if (!downloadResetConfirm) {
-      return;
-    }
-    downloadResetConfirmRef.current?.focus();
-    const handleEscape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        if (downloadResetBusy) {
-          return;
-        }
-        setDownloadResetConfirm(false);
-      }
-    };
-    window.addEventListener('keydown', handleEscape);
-    return () => window.removeEventListener('keydown', handleEscape);
-  }, [downloadResetConfirm, downloadResetBusy]);
-
-  useEffect(() => {
-    if (downloadResetConfirm) {
-      return;
-    }
-    downloadResetTriggerRef.current?.focus();
-    downloadResetTriggerRef.current = null;
-  }, [downloadResetConfirm]);
+  // 下载路径恢复默认的焦点/Esc 管理已随块抽入 DownloadPathBlock（自包含）。
 
   // 组级确认对话框：打开聚焦确认键，Escape 关闭；忙时锁关闭通道。
   // 触发源在侧边栏导航（组件树之外），关闭后不强制回焦点。
@@ -340,62 +308,9 @@ export function StorageSettings() {
     });
   }, [handleTerminalBudgetReset, showToast, t]);
 
-  /**
-   * 下载路径恢复默认的共享序列（单块/组级共用，防漂移）：路径写回系统默认
-   * （空串，migrate 按调用方传入的开框快照）+ 开关复位关闭（解耦，成败都执行）。
-   * 各自 toast；返回整体 ok。调用方决定后续：单块成功关框，组级记 failed 汇总。
-   */
-  const resetDownloadToDefault = useCallback(
-    async (migrate: boolean): Promise<boolean> => {
-      let ok = true;
-      const result = await changeDownloadPath('', migrate);
-      if (!result.ok) {
-        showToast(
-          result.error.message === DOWNLOAD_REFRESH_FAILED
-            ? t.storageDownloadRefreshFailed
-            : migrate
-              ? t.storageDownloadMigrateFailed.replace(
-                  '{error}',
-                  result.error.message ?? t.storageUnknownError,
-                )
-              : t.storagePickFailed.replace(
-                  '{error}',
-                  result.error.message ?? t.storageUnknownError,
-                ),
-          'error',
-        );
-        ok = false;
-      }
-      const upd = await updateDownloadSettings(undefined, undefined, false);
-      if (!upd.ok) {
-        showToast(
-          upd.error.message === DOWNLOAD_REFRESH_FAILED
-            ? t.storageDownloadRefreshFailed
-            : t.settingsUpdateFailed,
-          'error',
-        );
-        ok = false;
-      }
-      return ok;
-    },
-    [changeDownloadPath, updateDownloadSettings, showToast, t],
-  );
-
-  /** 下载路径恢复默认：确认后把路径写回系统默认（空串），按**开框时刻**的迁移开关
-   * 快照决定是否搬文件（M4：对话框无焦点陷阱，开框后改开关不影响本次语义）。
-   * 开关复位与搬迁结果解耦：无论搬迁成败都恢复为关闭（同组级语义，I1-N5）；
-   * 任一失败对话框保持打开（同组级 M5）。重试安全：空串→空串幂等，重复 toast 为唯一成本。 */
-  const handleDownloadResetConfirm = useCallback(async () => {
-    setDownloadResetBusy(true);
-    try {
-      const ok = await resetDownloadToDefault(downloadMigrateAtOpenRef.current);
-      if (ok) {
-        setDownloadResetConfirm(false);
-      }
-    } finally {
-      setDownloadResetBusy(false);
-    }
-  }, [resetDownloadToDefault]);
+  // 下载路径恢复默认的共享序列（单块/组级共用，防漂移）：抽入 downloadPathReset.ts，
+  // 与「浏览器」组同源；单块确认对话框随块抽入 DownloadPathBlock。
+  const { resetDownloadToDefault } = useDownloadPathReset();
 
   // 自定义 TTL 防抖计时器卸载清理。
   useEffect(
@@ -733,7 +648,7 @@ export function StorageSettings() {
       dialogOpen ||
       busy ||
       treeConfirm !== null ||
-      downloadResetConfirm
+      downloadResetOpen
     ) {
       return;
     }
@@ -771,7 +686,7 @@ export function StorageSettings() {
     dialogOpen,
     busy,
     treeConfirm,
-    downloadResetConfirm,
+    downloadResetOpen,
     downloadSettings.auto_migrate_on_path_change,
     showToast,
     t,
@@ -1068,10 +983,7 @@ export function StorageSettings() {
     budgetBytes !== undefined && budgetBytes === TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
   const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
   // store 初值恰为默认形，无 loaded 标记无法区分"未知"与"默认" → 未知时启用。
-  const downloadAtDefault =
-    downloadSettingsLoaded &&
-    downloadSettings.default_path === '' &&
-    !downloadSettings.auto_migrate_on_path_change;
+  const downloadAtDefault = isDownloadPathAtDefault(downloadSettings, downloadSettingsLoaded);
 
   // 侧边栏存储行 disabled 聚合信号：四块全默认才为 true；卸载（切出存储组）时清 null
   // 回到"未知→启用"。transient，不持久化。
@@ -1318,9 +1230,6 @@ export function StorageSettings() {
   });
   const budgetResetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.storageTerminalBudgetTitle,
-  });
-  const downloadResetLabel = formatT(t, 'settingsResetGroupToDefault', {
-    group: t.storageBrowserDownloadTitle,
   });
 
   if (loading) {
@@ -1673,28 +1582,7 @@ export function StorageSettings() {
         <TerminalHistoryBudgetSection />
       </div>
 
-      <div className="adl-settings-storage__header adl-settings-storage__header--section">
-        <button
-          type="button"
-          className="adl-settings-row__reset"
-          aria-label={downloadResetLabel}
-          title={downloadResetLabel}
-          data-testid="download-path-reset"
-          disabled={downloadAtDefault}
-          onClick={(e) => {
-            downloadResetTriggerRef.current = e.currentTarget;
-            // 开框即快照迁移开关（M4/L-5）。
-            downloadMigrateAtOpenRef.current = downloadSettings.auto_migrate_on_path_change;
-            setDownloadResetConfirm(true);
-          }}
-        >
-          <IconResetDefaults size={14} decorative />
-        </button>
-        <SettingsHeader title={t.storageBrowserDownloadTitle} />
-      </div>
-      <div className="adl-settings-card">
-        <BrowserDownloadPathSection />
-      </div>
+      <DownloadPathBlock onOpenChange={setDownloadResetOpen} />
 
       {/* 不可移动项独立成块：主标题无恢复默认按钮（系统/运行时管理，无可恢复项）。 */}
       <div
@@ -1907,51 +1795,6 @@ export function StorageSettings() {
                     }}
                   >
                     {treeConfirm === 'disable' ? t.treeCacheDisableConfirmBtn : t.treeCacheClear}
-                  </button>
-                </div>
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
-      {downloadResetConfirm
-        ? createPortal(
-            <div
-              className="adl-confirm-overlay"
-              onClick={downloadResetBusy ? undefined : () => setDownloadResetConfirm(false)}
-              role="dialog"
-              aria-modal="true"
-              aria-label={t.storageDownloadResetTitle}
-            >
-              <div className="adl-confirm-dialog" onClick={(e) => e.stopPropagation()}>
-                <div className="adl-confirm-dialog__header">
-                  <h3 className="adl-confirm-dialog__title">{t.storageDownloadResetTitle}</h3>
-                </div>
-                <div className="adl-confirm-dialog__body">
-                  <p className="adl-confirm-dialog__message">
-                    {downloadMigrateAtOpenRef.current
-                      ? t.storageDownloadResetConfirmMigrateOn
-                      : t.storageDownloadResetConfirmMigrateOff}
-                  </p>
-                </div>
-                <div className="adl-confirm-dialog__footer">
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--secondary"
-                    disabled={downloadResetBusy}
-                    onClick={() => setDownloadResetConfirm(false)}
-                  >
-                    {t.storageCancel}
-                  </button>
-                  <button
-                    ref={downloadResetConfirmRef}
-                    type="button"
-                    // 确认与「取消」同款 secondary（无品牌蓝填充，产品决策 2026-09-24）。
-                    className="adl-btn adl-btn--secondary"
-                    disabled={downloadResetBusy}
-                    onClick={() => void handleDownloadResetConfirm()}
-                  >
-                    {t.storageDownloadResetConfirmBtn}
                   </button>
                 </div>
               </div>

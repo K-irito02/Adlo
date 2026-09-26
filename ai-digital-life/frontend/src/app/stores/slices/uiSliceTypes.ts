@@ -133,6 +133,17 @@ export interface UISlice {
    * 四块判定写入并在卸载时清 null，供侧边栏存储行 disabled 用。null = 未知 → 启用。
    */
   storageBlocksAtDefault: boolean | null;
+  /**
+   * 「浏览器」组级恢复默认**待处理**信号（transient，不持久化）：与 storage 同构
+   * （Phase 4 H1 首跳竞态消除）——侧边栏重置按钮置 true，BrowserSettings 承接消费。
+   */
+  browserGroupResetPending: boolean;
+  /**
+   * 浏览器三块（挂起/下载模式/下载路径）是否全默认的聚合信号（transient，不持久化）：
+   * BrowserSettings 挂载时判定写入并在卸载时清 null，供侧边栏浏览器行 disabled 用。
+   * null = 未知 → 启用（fail-open）。
+   */
+  browserBlocksAtDefault: boolean | null;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
   changesStatusFilter: Set<ChangeFileState>;
@@ -193,6 +204,12 @@ export interface UISlice {
   consumeStorageGroupReset: () => void;
   /** 设置存储四块全默认聚合信号（StorageSettings 挂载维护，卸载清 null）。 */
   setStorageBlocksAtDefault: (value: boolean | null) => void;
+  /** 置位浏览器组级恢复待处理（幂等：已 pending 再点保持 true）。 */
+  requestBrowserGroupReset: () => void;
+  /** 消费浏览器组级恢复待处理（BrowserSettings 开框前/入口守卫丢弃时调用）。 */
+  consumeBrowserGroupReset: () => void;
+  /** 设置浏览器三块全默认聚合信号（BrowserSettings 挂载维护，卸载清 null）。 */
+  setBrowserBlocksAtDefault: (value: boolean | null) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;

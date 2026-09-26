@@ -1233,28 +1233,33 @@
   background: var(--pastel-danger-bg);
 }
 
-/* ---- Workspace / Storage block header (group reset above the merged card) ---- */
-/* 两个设置组头块样式相同，共用选择器保证单点维护。 */
+/* ---- Workspace / Storage / Browser block header (group reset above the merged card) ---- */
+/* 三个设置组头块样式相同，共用选择器保证单点维护（storage 选择器保持末位：
+   workspace-settings.test.ts 的 ruleBody 按 `selector {` 精确匹配）。 */
 
 .adl-settings-workspace__header,
+.adl-settings-browser__header,
 .adl-settings-storage__header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-/* 工作区树缓存/终端预算/下载路径块头：与上方卡之间加大间距，区分块。 */
+/* 工作区树缓存/终端预算/下载路径块头、浏览器挂起/下载模式块头：与上方卡之间加大间距，区分块。 */
 .adl-settings-storage__header--tree-cache,
+.adl-settings-browser__header--section,
 .adl-settings-storage__header--section {
   margin-top: var(--space-2);
 }
 
 .adl-settings-section.adl-settings-workspace,
-.adl-settings-section.adl-settings-storage {
+.adl-settings-section.adl-settings-storage,
+.adl-settings-section.adl-settings-browser {
   gap: var(--space-3);
 }
 
 .adl-settings-workspace__header .adl-settings-header,
+.adl-settings-browser__header .adl-settings-header,
 .adl-settings-storage__header .adl-settings-header {
   flex: 1;
   min-width: 0;

@@ -383,6 +383,48 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
+  it('browser nav reset disabled only when browser aggregate reports all-default', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().browserBlocksAtDefault;
+    setNavConfig();
+    useAppStore.setState({ browserBlocksAtDefault: true });
+    try {
+      renderPanel();
+      expect(navResetDisabled('Reset settingsBrowser all defaults')).toBe(true);
+    } finally {
+      useAppStore.setState({ browserBlocksAtDefault: prevAggregate, appInfo: prevAppInfo });
+    }
+  });
+
+  it('browser nav reset stays enabled when aggregate unknown', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().browserBlocksAtDefault;
+    setNavConfig();
+    useAppStore.setState({ browserBlocksAtDefault: null });
+    try {
+      renderPanel();
+      expect(navResetDisabled('Reset settingsBrowser all defaults')).toBe(false);
+    } finally {
+      useAppStore.setState({ browserBlocksAtDefault: prevAggregate, appInfo: prevAppInfo });
+    }
+  });
+
+  it('browser nav reset stays enabled when aggregate reports non-default', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().browserBlocksAtDefault;
+    setNavConfig();
+    useAppStore.setState({ browserBlocksAtDefault: false });
+    try {
+      renderPanel();
+      expect(navResetDisabled('Reset settingsBrowser all defaults')).toBe(false);
+    } finally {
+      useAppStore.setState({ browserBlocksAtDefault: prevAggregate, appInfo: prevAppInfo });
+    }
+  });
+
   it('快捷键组级重置经侧边栏按钮弹分组文案并提交快捷键默认 patch', async () => {
     const { updatePreferences, showToast } = setupStore();
     renderPanel();
@@ -408,7 +450,7 @@ describe('SettingsPanel group reset', () => {
     expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
   });
 
-  it('重置按钮集合与 patch 工厂同源（单注册表；storage 例外走自有流程）', async () => {
+  it('重置按钮集合与 patch 工厂同源（单注册表；storage/browser 例外走自有流程）', async () => {
     const groups = await import('./settingsGroups');
     const factories = (groups as Record<string, unknown>).GROUP_RESET_PATCHES as
       | Record<string, () => unknown>
@@ -417,14 +459,15 @@ describe('SettingsPanel group reset', () => {
     expect(new Set(Object.keys(factories!))).toEqual(
       new Set(['general', 'workspace', 'shortcuts']),
     );
-    // 访问器口径：工厂组返回 patch，storage 返回 null（调用方走自有流程）。
+    // 访问器口径：工厂组返回 patch，storage/browser 返回 null（调用方走自有流程）。
     expect(groups.getGroupResetPatch('general')).toBeDefined();
     expect(groups.getGroupResetPatch('workspace')).toBeDefined();
     expect(groups.getGroupResetPatch('shortcuts')).toBeDefined();
     expect(groups.getGroupResetPatch('storage')).toBeNull();
     expect(groups.getGroupResetPatch('browser')).toBeNull();
-    // storage 无统一偏好 patch（多桥多步），但侧边栏同样渲染按钮并走自有确认对话框。
+    // storage/browser 无统一偏好 patch（多桥多步），但侧边栏同样渲染按钮并走自有确认对话框。
     expect(groups.RESETTABLE_GROUPS.has('storage')).toBe(true);
+    expect(groups.RESETTABLE_GROUPS.has('browser')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('general')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('workspace')).toBe(true);
   });
@@ -491,6 +534,32 @@ describe('SettingsPanel group reset', () => {
     // 切组后 StorageSettings 随即挂载并消费 pending（与首跳集成同语义）。
     expect(useAppStore.getState().storageGroupResetPending).toBe(false);
     // 通用确认框未被误执行。
+    expect(useAppStore.getState().updatePreferences).not.toHaveBeenCalled();
+  });
+
+  it('browser nav reset switches group and fires the browser pending signal (own confirm dialog)', () => {
+    const { updatePreferences } = setupStore();
+    useAppStore.setState({ activeSettingsGroup: 'general', browserGroupResetPending: false });
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsBrowser all defaults' }));
+    // 切到浏览器组 + pending 已置位并被挂载的 BrowserSettings 消费。
+    expect(useAppStore.getState().activeSettingsGroup).toBe('browser');
+    expect(useAppStore.getState().browserGroupResetPending).toBe(false);
+    expect(updatePreferences).not.toHaveBeenCalled();
+    // 不弹通用组确认框，改由 BrowserSettings 自有确认对话框承接（首跳不漏弹）。
+    expect(screen.queryByText('Reset settingsBrowser?')).toBeNull();
+    expect(screen.getByText('browserGroupResetTitle')).toBeTruthy();
+  });
+
+  it('browser branch closes an open generic group confirm before switching', () => {
+    setupStore();
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
+    expect(screen.getByText('Reset settingsGeneral?')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsBrowser all defaults' }));
+    expect(screen.queryByText('Reset settingsGeneral?')).toBeNull();
+    expect(useAppStore.getState().activeSettingsGroup).toBe('browser');
+    expect(useAppStore.getState().browserGroupResetPending).toBe(false);
     expect(useAppStore.getState().updatePreferences).not.toHaveBeenCalled();
   });
 

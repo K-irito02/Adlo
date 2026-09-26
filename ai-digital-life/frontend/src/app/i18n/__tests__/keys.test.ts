@@ -142,6 +142,38 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS.browserClearAllOpenTabs).toBe('Close all open tabs');
     expect(zhCN.browserClearAllOpenTabs).toBe('关闭所有已打开标签页');
   });
+
+  it('includes browser settings group/block reset keys in both locales', () => {
+    const keys = [
+      // 挂起块：自定义时长 + 单位
+      'browserSettingsSuspendCustom',
+      'browserSettingsSuspendUnitLabel',
+      'browserSettingsSuspendUnitSecond',
+      'browserSettingsSuspendUnitMinute',
+      'browserSettingsSuspendUnitHour',
+      'browserSettingsSuspendUnitDay',
+      // 下载模式块：合并后的单句描述
+      'browserDownloadSettingsModeHint',
+      // 组级恢复自有确认对话框
+      'browserGroupResetTitle',
+      'browserGroupResetMessage',
+      'browserGroupResetMigrateOnNote',
+    ] as const;
+    for (const key of keys) {
+      expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
+      expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
+    }
+    // 迁移附注仅在开框时开关为开追加展示（内容含搬运语义）。
+    expect(String(zhCN.browserGroupResetMigrateOnNote)).toContain('自动迁移');
+    expect(String(enUS.browserGroupResetMigrateOnNote)).toMatch(/migrat/i);
+  });
+
+  it('no longer exposes the merged-away download description keys', () => {
+    for (const key of ['browserDownloadSettingsDesc', 'browserDownloadSettingsModeDesc']) {
+      expect(enUS, `en:${key}`).not.toHaveProperty(key);
+      expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
+    }
+  });
 });
 
 describe('i18n zh-CN mirror', () => {

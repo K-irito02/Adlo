@@ -183,6 +183,26 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(header).toContain('margin-top');
   });
 
+  it('styles the browser group block headers like storage (base + section + container)', () => {
+    // 挂起块头（首块）与 storage/workspace 共用同一规则（storage 保持组内末位，
+    // ruleBody 精确匹配 `.adl-settings-storage__header {` 不被破坏）。
+    const base = groupRuleBody(settingsCss, '.adl-settings-browser__header');
+    expect(base).not.toBeNull();
+    expect(base).toContain('display: flex');
+    // 下载设置块头带 --section 修饰，与存储分段块头同享额外上边距。
+    const section = groupRuleBody(settingsCss, '.adl-settings-browser__header--section');
+    expect(section).not.toBeNull();
+    expect(section).toContain('margin-top');
+    // section 容器 gap 与 workspace/storage 共享。
+    const container = groupRuleBody(settingsCss, '.adl-settings-section.adl-settings-browser');
+    expect(container).not.toBeNull();
+    expect(container).toContain('gap: var(--space-3)');
+    // 内层 SettingsHeader 的分隔线清零组同样含 browser。
+    const inner = groupRuleBody(settingsCss, '.adl-settings-browser__header .adl-settings-header');
+    expect(inner).not.toBeNull();
+    expect(inner).toContain('border-bottom: none');
+  });
+
   it('styles label-based subtitles exactly like span subtitles', () => {
     // 「更改路径时自动迁移文件」「启用树缓存」用 <label>（点文字即切换，便于无障碍），
     // 视觉必须与其它 <span> 副标题一致：此前选择器只覆盖 span 导致字体走样。
