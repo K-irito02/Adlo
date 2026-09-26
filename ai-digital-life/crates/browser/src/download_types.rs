@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use tracing::debug;
 
 /// Resume mode determines how a download interruption should be handled.
 /// Mirrors Chromium's `ResumeMode` enum from `download_item_impl.h`.
@@ -87,7 +88,10 @@ pub struct DownloadRecord {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DownloadSettings {
+    /// 缺字段时回退产品默认（Auto），与 `from_str` 未知串 fallback 同口径（F5-A）。
+    #[serde(default)]
     pub mode: DownloadMode,
+    /// 落盘目录（必填）：持久化恒写，缺字段即整单反序列化失败（与上二者不对称是故意的，F1-rust）。
     pub default_path: String,
     /// 更改默认下载路径时自动把旧路径全部文件迁到新路径（成功后删旧目录）。
     /// 未发布阶段无历史数据兼容负担：`serde(default)` 即默认关闭。
@@ -117,9 +121,10 @@ impl Default for DownloadSettings {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum DownloadMode {
+    #[default]
     Auto,
     Ask,
 }
@@ -132,11 +137,18 @@ impl DownloadMode {
         }
     }
 
+    /// 解析模式字符串。未知串（拼写错误/大小写变体/空串）有意回退 `Auto`，
+    /// 与 `Default` 同口径（F5-A 文档化决策）；生产反序列化走 serde 派生，
+    /// 未知变体本来即 `Err`（严格面），缺字段由 `#[serde(default)]` 覆盖。
     #[allow(clippy::should_implement_trait)]
     pub fn from_str(s: &str) -> Self {
         match s {
             "ask" => Self::Ask,
-            _ => Self::Auto,
+            unknown => {
+                // 未知串静默回退 Auto（F5-A 决策）：留痕供排查，勿删此日志。
+                debug!(input = unknown, "DownloadMode::from_str fallback to Auto");
+                Self::Auto
+            },
         }
     }
 }
@@ -196,5 +208,19 @@ mod tests {
         assert_eq!(mode, DownloadMode::Auto);
         let mode: DownloadMode = serde_json::from_str("\"ask\"").unwrap();
         assert_eq!(mode, DownloadMode::Ask);
+    }
+
+    #[test]
+    fn download_settings_missing_mode_falls_back_to_auto() {
+        // 缺字段回退产品默认（F5-A），与 from_str 未知串 fallback 同口径。
+        let settings: DownloadSettings =
+            serde_json::from_str(r#"{"default_path":"D:/dl"}"#).unwrap();
+        assert_eq!(settings.mode, DownloadMode::Auto);
+    }
+
+    #[test]
+    fn download_mode_rejects_unknown_variant_strict_face() {
+        // 严格面锁定（N4）：serde 未知变体必须 Err，与 from_str 的宽松面区分。
+        assert!(serde_json::from_str::<DownloadMode>("\"typo\"").is_err());
     }
 }

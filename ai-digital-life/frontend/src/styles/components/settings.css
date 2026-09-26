@@ -370,7 +370,9 @@
    作用域：存储组（radio/checkbox）+ 浏览器组（checkbox：共享块的迁移开关；
    浏览器组暂无原生 radio）——共享 DownloadPathBlock 在两组复用同一原生
    checkbox，Phase 2 复用组件时漏了该规则，导致浏览器组回退 UA 默认蓝色；
-   其它设置页不受影响。 */
+   其它设置页不受影响。
+   注意与卡片类 `.adl-browser-settings` 区分：此处 `.adl-settings-browser` 是
+   section 容器（组级），卡片级规则另见 `.adl-browser-settings .adl-settings-row`（L7）。 */
 .adl-storage-settings input[type='radio'],
 .adl-storage-settings input[type='checkbox'],
 .adl-settings-browser input[type='checkbox'] {

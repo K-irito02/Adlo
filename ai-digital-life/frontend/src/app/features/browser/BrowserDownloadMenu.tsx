@@ -8,6 +8,7 @@ import { BrowserDownloadItem } from './BrowserDownloadItem';
 import { BrowserDownloadContextMenu } from './BrowserDownloadContextMenu';
 import { useDownloadItemActions } from './useDownloadItemActions';
 import type { DownloadRecord } from '@shared/ipc/download';
+import { DEFAULT_DOWNLOAD_MODE } from '@shared/defaultPreferences';
 
 import './BrowserDownloadMenu.css';
 
@@ -54,7 +55,7 @@ export const BrowserDownloadMenu = React.memo(function BrowserDownloadMenu({
     handleCopyLink,
   } = useDownloadItemActions();
 
-  const autoSave = downloadSettings.mode === 'auto';
+  const autoSave = downloadSettings.mode === DEFAULT_DOWNLOAD_MODE;
 
   const handleAutoSaveToggle = useCallback(() => {
     const newMode = autoSave ? 'ask' : 'auto';

@@ -13,6 +13,7 @@ import type {
 } from '@shared/ipc/download';
 import type { IpcResult } from '@ai-digital-life/kernel';
 import { buildTabsById } from './browserFoldersUtils';
+import { DEFAULT_DOWNLOAD_MODE } from '@shared/defaultPreferences';
 
 /**
  * Whether a tab still has at least one active (in_progress) download after a
@@ -89,7 +90,11 @@ export const createBrowserDownloadsSlice = (
   get: () => StoreState,
 ): BrowserDownloadsSlice => ({
   downloads: [],
-  downloadSettings: { mode: 'auto', default_path: '', auto_migrate_on_path_change: false },
+  downloadSettings: {
+    mode: DEFAULT_DOWNLOAD_MODE,
+    default_path: '',
+    auto_migrate_on_path_change: false,
+  },
   systemDefaultDownloadPath: '',
   activeDownloads: {},
   isLoadingDownloads: false,

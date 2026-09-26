@@ -98,8 +98,8 @@ describe('browserDownloadsSlice — updateTabsForDownloadState', () => {
   });
 });
 
-describe('browserDownloadsSlice — fetchDownloadSettings ingest', () => {
-  it('initial download settings match the product default (auto-save)', () => {
+describe('browserDownloadsSlice — initial state', () => {
+  it('defaults to auto-save before first fetch', () => {
     const slice = createBrowserDownloadsSlice(
       () => undefined,
       () => ({}) as StoreState,
@@ -107,7 +107,9 @@ describe('browserDownloadsSlice — fetchDownloadSettings ingest', () => {
     expect(slice.downloadSettings.mode).toBe('auto');
     expect(slice.downloadSettingsLoaded).toBe(false);
   });
+});
 
+describe('browserDownloadsSlice — fetchDownloadSettings ingest', () => {
   it('normalizes a missing auto_migrate field to false and marks loaded', async () => {
     mockInvoke.mockResolvedValue({
       ok: true,

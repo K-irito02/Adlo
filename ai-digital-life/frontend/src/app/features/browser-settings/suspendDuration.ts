@@ -40,8 +40,12 @@ export function suspendMsFromCustom(raw: number, unit: SuspendUnit): number | nu
 }
 
 /** 毫秒 → 指定单位显示串（切单位时同一草稿换算，保持显示与待提交一致）。
- * 小数保留四位（天单位下 2 位会漂移）；提交时仍经 suspendMsFromCustom 钳制。 */
+ * 小数保留四位（天单位下 2 位会漂移）；提交时仍经 suspendMsFromCustom 钳制。
+ * 非有限输入（NaN/Inf，后端脏值）返回空串，不把 "NaN" 画进输入框（L-3）。 */
 export function formatMsForUnit(ms: number, unit: SuspendUnit): string {
+  if (!Number.isFinite(ms)) {
+    return '';
+  }
   return String(Math.round((ms / UNIT_MS[unit]) * 10000) / 10000);
 }
 

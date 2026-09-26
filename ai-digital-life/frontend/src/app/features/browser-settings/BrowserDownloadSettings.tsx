@@ -35,8 +35,10 @@ export function BrowserDownloadSettings({
   }, [confirm, onOpenChange]);
 
   const isAutoSave = downloadSettings.mode === DEFAULT_DOWNLOAD_MODE;
-  /** 恢复默认可用性：加载未知/失败 → 未知不禁用（fail-open）。 */
+  /** 恢复默认可用性：加载未知/失败 → 未知不禁用（fail-open）；加载中禁用，
+   * 与模式下拉的 disabled 口径一致（L-10）。 */
   const atDefault = downloadSettingsLoaded && isAutoSave;
+  const resetDisabled = atDefault || isLoadingSettings;
 
   const applyMode = useCallback(
     async (auto: boolean): Promise<boolean> => {
@@ -51,7 +53,7 @@ export function BrowserDownloadSettings({
 
   const handleSelectChange = useCallback(
     (v: string) => {
-      void applyMode(v === 'auto');
+      void applyMode(v === DEFAULT_DOWNLOAD_MODE);
     },
     [applyMode],
   );
@@ -87,7 +89,7 @@ export function BrowserDownloadSettings({
           aria-label={resetLabel}
           title={resetLabel}
           data-testid="download-mode-reset"
-          disabled={atDefault}
+          disabled={resetDisabled}
           onClick={() => setConfirm(true)}
         >
           <IconResetDefaults size={14} decorative />

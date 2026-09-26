@@ -30,7 +30,8 @@ export const DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES = 1 << 30;
 
 // 与 app/features/browser/useBrowserSuspendScheduler.ts 的 DEFAULT_IDLE_MS 是同一产品默认
 // （15 分钟；Rust 侧 serde default 同步为 900_000，见 crates/kernel/src/config.rs）。
-// 改动默认值时各处必须同步。
+// 调度器侧 DEFAULT_IDLE_MS 为本常量的别名引用：改动默认值时只改此处，
+// 跨语言漂移由 Rust 字面量断言 + 本文件钉值测试捕获。
 export const DEFAULT_BROWSER_SUSPEND_MS = 900_000;
 
 // 下载模式产品默认（自动保存；Rust 侧 DownloadMode::Auto 同步）。

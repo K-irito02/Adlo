@@ -428,6 +428,8 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     expect(updatePreferences).toHaveBeenCalledTimes(1);
     expect(updatePreferences).toHaveBeenCalledWith({ browserInactiveTabSuspendMs: 900_000 });
     expect(screen.queryByText('browserGroupResetTitle')).toBeNull();
+    // 组恢复成功后挂起块回到预设显示（H-1 回归锁定）：自定义输入消失。
+    expect(screen.queryByRole('spinbutton')).toBeNull();
   });
 
   it('seeds the product default instead of 0 when entering custom from Off', () => {
@@ -440,6 +442,56 @@ describe('Browser settings group reset (own confirm dialog)', () => {
       (screen.getByRole('spinbutton', { name: 'browserSettingsSuspendCustom' }) as HTMLInputElement)
         .value,
     ).toBe('15');
+  });
+
+  it('converts the seeded display when switching units without typing (U1)', () => {
+    // 7 分钟存量播种为 7 分钟；未键入即切小时，显示须换算（0.1167）而非保留 7。
+    setConfig(420_000);
+    renderBrowser();
+    const input = screen.getByRole('spinbutton', {
+      name: 'browserSettingsSuspendCustom',
+    }) as HTMLInputElement;
+    expect(input.value).toBe('7');
+    fireEvent.click(screen.getByRole('button', { name: 'browserSettingsSuspendUnitLabel' }));
+    fireEvent.click(screen.getByRole('option', { name: 'browserSettingsSuspendUnitHour' }));
+    expect(
+      (screen.getByRole('spinbutton', { name: 'browserSettingsSuspendCustom' }) as HTMLInputElement)
+        .value,
+    ).toBe('0.1167');
+    expect(updatePreferences).not.toHaveBeenCalled();
+  });
+
+  it('disables the suspend reset while settings are loading (U2)', () => {
+    setConfig(3_600_000);
+    useAppStore.setState({ isLoadingSettings: true });
+    renderBrowser();
+    expect(resetButton('suspend-reset').disabled).toBe(true);
+    // 预设下拉与模式块下拉口径一致，加载中同样禁用（R1）。
+    expect(
+      (screen.getByRole('button', { name: 'browserSettingsSuspendTitle' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+  });
+
+  it('keeps the custom draft when the suspend reset write fails', async () => {
+    // L-2：恢复写桥失败时对话框保持打开，且用户草稿保留可直接重试。
+    vi.useFakeTimers();
+    updatePreferences.mockResolvedValue(false);
+    setConfig(3_600_000);
+    renderBrowser(confirmT);
+    fireEvent.click(screen.getByRole('button', { name: 'Suspend delay' }));
+    fireEvent.click(screen.getByRole('option', { name: 'browserSettingsSuspendCustom' }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'browserSettingsSuspendCustom' }), {
+      target: { value: '90' },
+    });
+    fireEvent.click(resetButton('suspend-reset'));
+    fireEvent.click(screen.getByRole('button', { name: 'confirm-btn' }));
+    await act(async () => {});
+    expect(screen.getByText('Reset Suspend delay?')).toBeTruthy();
+    expect(
+      (screen.getByRole('spinbutton', { name: 'browserSettingsSuspendCustom' }) as HTMLInputElement)
+        .value,
+    ).toBe('90');
   });
 
   it('drops the pending signal while the download path block confirm is open (entry guard)', () => {

@@ -146,6 +146,10 @@ describe('SettingsPanel shell header', () => {
     await waitFor(() => {
       expect(updatePreferences).toHaveBeenCalledTimes(1);
       expect(updatePreferences).toHaveBeenCalledWith(getDefaultPreferences());
+      // 恢复全部确含挂起默认值（F7：getDefaultPreferences 自引恒过，此断言锁行为）。
+      expect(updatePreferences).toHaveBeenCalledWith(
+        expect.objectContaining({ browserInactiveTabSuspendMs: 900_000 }),
+      );
       expect(showToast).toHaveBeenCalled();
     });
     expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();

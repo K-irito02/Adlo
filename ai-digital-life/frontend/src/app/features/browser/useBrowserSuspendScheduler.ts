@@ -1,10 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
+import { DEFAULT_BROWSER_SUSPEND_MS } from '@shared/defaultPreferences';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 const IDLE_INTERVAL_MS = 20_000;
-const DEFAULT_IDLE_MS = 900_000;
+// 与 DEFAULT_BROWSER_SUSPEND_MS 同一产品默认（单源引用，防漂移）。
+const DEFAULT_IDLE_MS = DEFAULT_BROWSER_SUSPEND_MS;
 
 export interface SuspendPassInput {
   tabs: BrowserTabState[];

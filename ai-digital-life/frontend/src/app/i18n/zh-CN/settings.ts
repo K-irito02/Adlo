@@ -173,6 +173,8 @@ export const settingsZh = {
   storageGroupResetItemDownloadMigrateOff:
     '浏览器默认下载路径：恢复为系统默认，只切换路径、不搬文件；自动迁移开关保持关闭。',
   browserGroupResetTitle: '恢复「浏览器」全部默认？',
+  // 文案中的 15 分钟/自动保存与 DEFAULT_BROWSER_SUSPEND_MS / DEFAULT_DOWNLOAD_MODE
+  // 同源，改产品默认时同步此处（L-8）。
   browserGroupResetMessage:
     '挂起时长（恢复 15 分钟）、下载模式（恢复自动保存）、默认下载路径（恢复系统默认并关闭自动迁移）将一起恢复为默认值。',
   browserGroupResetMigrateOnNote:

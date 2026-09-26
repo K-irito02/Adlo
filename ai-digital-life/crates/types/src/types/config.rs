@@ -147,6 +147,7 @@ fn default_max_concurrent_workspaces_snapshot() -> usize {
     6
 }
 
+/// 与 `kernel::config` 同名字段是同一产品默认（15 分钟 = 900_000），改动时两处同步。
 fn default_browser_inactive_tab_suspend_ms() -> u64 {
     900_000
 }

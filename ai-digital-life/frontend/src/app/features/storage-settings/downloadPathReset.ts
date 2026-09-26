@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
 import { DOWNLOAD_REFRESH_FAILED } from '@stores/slices/browserDownloadsSlice';
 import type { DownloadSettings } from '@shared/ipc/download';
 
@@ -35,14 +36,12 @@ export function useDownloadPathReset(): {
           result.error.message === DOWNLOAD_REFRESH_FAILED
             ? t.storageDownloadRefreshFailed
             : migrate
-              ? t.storageDownloadMigrateFailed.replace(
-                  '{error}',
-                  result.error.message ?? t.storageUnknownError,
-                )
-              : t.storagePickFailed.replace(
-                  '{error}',
-                  result.error.message ?? t.storageUnknownError,
-                ),
+              ? formatT(t, 'storageDownloadMigrateFailed', {
+                  error: result.error.message ?? t.storageUnknownError,
+                })
+              : formatT(t, 'storagePickFailed', {
+                  error: result.error.message ?? t.storageUnknownError,
+                }),
           'error',
         );
         ok = false;

@@ -40,6 +40,7 @@ export function BrowserPerformanceSettings({
 }) {
   const { t } = useTCopy();
   const showToast = useAppStore((s) => s.showToast);
+  const isLoadingSettings = useAppStore((s) => s.isLoadingSettings);
   const raw = useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs);
   // config 未加载回退产品默认（显示 15 分钟档；恢复按钮按 raw 判定 fail-open）。
   const currentMs = raw ?? DEFAULT_BROWSER_SUSPEND_MS;
@@ -64,8 +65,10 @@ export function BrowserPerformanceSettings({
     onOpenChange?.(confirm);
   }, [confirm, onOpenChange]);
 
-  /** 恢复默认可用性：config 未加载（raw undefined）→ 未知不禁用（fail-open）。 */
+  /** 恢复默认可用性：config 未加载（raw undefined）→ 未知不禁用（fail-open）；
+   * 加载中禁用，与下载模式块口径一致（U2）。 */
   const atDefault = raw !== undefined && raw === DEFAULT_BROWSER_SUSPEND_MS;
+  const resetDisabled = atDefault || isLoadingSettings;
   const showCustom = customMode || !isPreset;
   const selectValue = showCustom ? SUSPEND_SELECT_CUSTOM : String(currentMs);
 
@@ -99,6 +102,7 @@ export function BrowserPerformanceSettings({
     if (isSuspendPreset(externalMs)) {
       setCustomMode(false);
       setCustomValue('');
+      setCustomUnit('m');
       return;
     }
     const unit = seedSuspendUnit(externalMs);
@@ -118,7 +122,9 @@ export function BrowserPerformanceSettings({
       return;
     }
     // 提交前校验：草稿在途期间外部值若已变化（组级恢复写默认等），丢弃旧草稿
-    // 并同步显示，不写桥（F1）。
+    // 并同步显示，不写桥（F1）。时序分工：raw effect 覆盖“外部已落盘”
+    // （timer 后到期）；本校验覆盖“timer 抢跑”（raw 尚未变时放行，终态仍由
+    // 后写的外部写入矫正）——两重缺一即 reopen 竞态，勿删其一（L5）。
     const latest = useAppStore.getState().appInfo?.config?.browserInactiveTabSuspendMs;
     if (pending.base !== undefined && latest !== undefined && latest !== pending.base) {
       syncDraftToExternal(latest);
@@ -147,9 +153,11 @@ export function BrowserPerformanceSettings({
       if (v === SUSPEND_SELECT_CUSTOM) {
         setCustomMode(true);
         // Off（0ms）进自定义时播种产品默认：number input min=1，'0' 非法且与之矛盾（F6）。
+        // 单位口径与非档位重播种一致（最大整单位），防漂移（L-4）。
         const seedMs = currentMs > 0 ? currentMs : DEFAULT_BROWSER_SUSPEND_MS;
-        setCustomValue(formatMsForUnit(seedMs, 'm'));
-        setCustomUnit('m');
+        const seedUnit = seedSuspendUnit(seedMs);
+        setCustomUnit(seedUnit);
+        setCustomValue(formatMsForUnit(seedMs, seedUnit));
         return;
       }
       setCustomMode(false);
@@ -190,10 +198,20 @@ export function BrowserPerformanceSettings({
           setCustomValue(converted);
           rearmSuspendTimer();
         }
+      } else if (customValue !== '') {
+        // 无在途输入但有显示值（播种后未键入即切单位）：按旧单位换算显示，
+        // 否则数字配新单位造成量级错位（U1：7 分钟切小时显示 "7" 即 7 小时）。
+        const shown = Number(customValue);
+        if (Number.isFinite(shown)) {
+          const ms = suspendMsFromCustom(shown, customUnit);
+          if (ms !== null) {
+            setCustomValue(formatMsForUnit(ms, v));
+          }
+        }
       }
       setCustomUnit(v);
     },
-    [cancelPendingSuspend, rearmSuspendTimer],
+    [cancelPendingSuspend, customUnit, customValue, rearmSuspendTimer],
   );
 
   // 后端合法但不在预设档的挂起时长（如 7 分钟）：进入自定义态时播种草稿
@@ -226,13 +244,14 @@ export function BrowserPerformanceSettings({
     syncDraftToExternal(raw);
   }, [raw, customMode, cancelPendingSuspend, syncDraftToExternal]);
 
-  /** 恢复默认：确认后写 15 分钟产品默认并退出自定义态；失败保持对话框供重试。 */
+  /** 恢复默认：确认后写 15 分钟产品默认并退出自定义态；失败保持对话框供重试。
+   * 草稿只在成功时清：失败保留用户输入，检查后可直接重试同一值（L-2）。 */
   const handleResetConfirm = useCallback(() => {
     cancelPendingSuspend();
-    setCustomMode(false);
-    setCustomValue('');
     void writeSuspend(DEFAULT_BROWSER_SUSPEND_MS).then((ok) => {
       if (ok) {
+        setCustomMode(false);
+        setCustomValue('');
         setConfirm(false);
       }
     });
@@ -281,7 +300,7 @@ export function BrowserPerformanceSettings({
           aria-label={resetLabel}
           title={resetLabel}
           data-testid="suspend-reset"
-          disabled={atDefault}
+          disabled={resetDisabled}
           onClick={() => setConfirm(true)}
         >
           <IconResetDefaults size={14} decorative />
@@ -329,6 +348,7 @@ export function BrowserPerformanceSettings({
               options={selectOptions}
               onChange={handleSelectChange}
               label={t.browserSettingsSuspendTitle}
+              disabled={isLoadingSettings}
             />
           </div>
         </div>

@@ -3,6 +3,7 @@ import {
   getDefaultPreferences,
   getDefaultForSetting,
   DEFAULT_BROWSER_SUSPEND_MS,
+  DEFAULT_DOWNLOAD_MODE,
   DEFAULT_KEYBINDS,
   DEFAULT_FONTS,
   DEFAULT_LANGUAGE,
@@ -56,6 +57,12 @@ describe('defaultPreferences', () => {
   it('getDefaultForSetting returns the suspend default for browserInactiveTabSuspendMs', () => {
     // 与 getDefaultPreferences() 的挂起字段同源；缺分支会回 undefined（F5）。
     expect(getDefaultForSetting('browserInactiveTabSuspendMs')).toBe(DEFAULT_BROWSER_SUSPEND_MS);
+  });
+
+  it('pins the product default literals (cross-language contract)', () => {
+    // 跨语言契约：两侧各自钉死字面值，单侧静默改动即失败（F3）。
+    expect(DEFAULT_BROWSER_SUSPEND_MS).toBe(900_000);
+    expect(DEFAULT_DOWNLOAD_MODE).toBe('auto');
   });
 
   it('getDefaultForSetting returns empty string for font settings', () => {

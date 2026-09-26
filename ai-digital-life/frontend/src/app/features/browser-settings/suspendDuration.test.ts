@@ -41,6 +41,11 @@ describe('suspendDuration (自定义挂起时长纯函数)', () => {
     expect(formatMsForUnit(5_400_000, 'h')).toBe('1.5');
   });
 
+  it('renders non-finite stored values as empty instead of NaN (L-3)', () => {
+    expect(formatMsForUnit(Number.NaN, 'm')).toBe('');
+    expect(formatMsForUnit(Number.POSITIVE_INFINITY, 'h')).toBe('');
+  });
+
   it('exposes a per-unit max consistent with the 30-day ceiling', () => {
     expect(suspendUnitMax('s')).toBe(2_592_000);
     expect(suspendUnitMax('m')).toBe(43_200);

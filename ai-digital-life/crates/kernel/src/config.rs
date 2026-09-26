@@ -15,6 +15,8 @@ fn default_max_concurrent_workspaces() -> usize {
     6
 }
 
+/// 与前端 `DEFAULT_BROWSER_SUSPEND_MS` 是同一产品默认（15 分钟 = 900_000）。
+/// 改动时两处必须同步（跨语言契约：Rust 侧 `app.rs` 断言字面量，前端钉值测试）。
 fn default_browser_inactive_tab_suspend_ms() -> u64 {
     900_000
 }
@@ -62,7 +64,7 @@ pub struct AppConfig {
     /// Default order: newest-added first (user can customize via drag-and-drop).
     #[serde(default)]
     pub workspace_natural_order: Vec<String>,
-    /// Browser 标签页空闲挂起阈值（毫秒）。默认 1 小时，供 tab suspend 调度器读取。
+    /// Browser 标签页空闲挂起阈值（毫秒）。默认 15 分钟（900_000），供 tab suspend 调度器读取。
     #[serde(default = "default_browser_inactive_tab_suspend_ms")]
     pub browser_inactive_tab_suspend_ms: u64,
     /// 只读历史的磁盘预算（字节）。0 = 跟随磁盘剩余空间。
