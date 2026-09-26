@@ -56,9 +56,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     setSettingsNavigatorWidth,
     requestStorageGroupReset,
     requestBrowserGroupReset,
+    requestDshGroupReset,
     config,
     storageBlocksAtDefault,
     browserBlocksAtDefault,
+    dshBlocksAtDefault,
   } = useAppStore(
     useShallow((s) => ({
       activeGroup: s.activeSettingsGroup,
@@ -73,9 +75,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       setSettingsNavigatorWidth: s.setSettingsNavigatorWidth,
       requestStorageGroupReset: s.requestStorageGroupReset,
       requestBrowserGroupReset: s.requestBrowserGroupReset,
+      requestDshGroupReset: s.requestDshGroupReset,
       config: s.appInfo?.config,
       storageBlocksAtDefault: s.storageBlocksAtDefault,
       browserBlocksAtDefault: s.browserBlocksAtDefault,
+      dshBlocksAtDefault: s.dshBlocksAtDefault,
     })),
   );
 
@@ -120,8 +124,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     if (browserBlocksAtDefault === true) {
       disabled.add('browser');
     }
+    if (dshBlocksAtDefault === true) {
+      disabled.add('dsh');
+    }
     return disabled;
-  }, [config, storageBlocksAtDefault, browserBlocksAtDefault]);
+  }, [config, storageBlocksAtDefault, browserBlocksAtDefault, dshBlocksAtDefault]);
 
   const rafRef = useRef(0);
 
@@ -291,10 +298,20 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         requestBrowserGroupReset();
         return;
       }
+      if (group === 'dsh') {
+        // DSH 组为自有流程（下载源 + 代理 + 恢复写 saveSourceConfig 桥，
+        // 非偏好 patch）：先关通用确认框，再切组 + 置 pending 信号，
+        // 由 DshSettings 弹出自有确认对话框并执行。
+        setConfirmResetOpen(false);
+        setPendingResetGroup(null);
+        setActiveGroup('dsh');
+        requestDshGroupReset();
+        return;
+      }
       setPendingResetGroup(group);
       setConfirmResetOpen(true);
     },
-    [requestStorageGroupReset, requestBrowserGroupReset, setActiveGroup],
+    [requestStorageGroupReset, requestBrowserGroupReset, requestDshGroupReset, setActiveGroup],
   );
 
   // 持久化/历史遗留的 activeGroup 可能不在当前组列表里（如已移除的 terminal）：

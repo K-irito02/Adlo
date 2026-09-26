@@ -248,9 +248,9 @@ interface DshActions {
   revertDsh: (version: string) => Promise<boolean>;
   uninstallDsh: (version: string) => Promise<boolean>;
   reinstallDsh: () => Promise<boolean>;
-  fetchSourceStatus: () => Promise<boolean>;
+  fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
   saveSourceConfig: (config: DshSourceConfig) => Promise<boolean>;
-  testSource: (url: string) => Promise<DshTestResult | null>;
+  testSource: (url: string, silent?: boolean) => Promise<DshTestResult | null>;
 }
 
 type AllActions = [

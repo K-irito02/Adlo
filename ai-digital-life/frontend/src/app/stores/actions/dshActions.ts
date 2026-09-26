@@ -153,19 +153,23 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
 
     /**
      * [fetchSourceStatus - 拉取 dsh 下载源状态（bundled / system / running / config）]
-     * @returns true=成功；false=失败（已记录全局错误卡片）
+     * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
+     * @param silent 后台同步（设置页挂载拉取）传 true：失败不记全局错误卡片。
+     * 旧 UI 挂载零调用，进组重复弹窗是回归；fail-open 表单 + 主动操作各自报错已足够。
      * @reads 无
      * @writes dshSlice.sourceStatus
      * @see httpBridge.ts → dsh.getSourceStatus (/dsh/source-status)
      */
-    fetchSourceStatus: async (): Promise<boolean> => {
+    fetchSourceStatus: async (silent = false): Promise<boolean> => {
       clearError(get, SCOPE);
       const result = await window.digitalLife.dsh.getSourceStatus();
       if (result.ok) {
         get().setDshSourceStatus(result.data);
         return true;
       }
-      captureError(get, result.error, SCOPE);
+      if (!silent) {
+        captureError(get, result.error, SCOPE);
+      }
       return false;
     },
 
@@ -193,18 +197,22 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
 
     /**
      * [testSource - 测试指定下载源 URL 的可达性和延迟]
-     * @returns DshTestResult | null（null 表示请求失败已记录错误卡片）
+     * @returns DshTestResult | null（null 表示请求失败，非 silent 时已记录错误卡片）
+     * @param silent 后台实测（自动检测）传 true：失败不记全局错误卡片，
+     * 由调用方按 silent 语义决定是否提示。
      * @reads 无
      * @writes 无
      * @see httpBridge.ts → dsh.testSource (/dsh/test-source)
      */
-    testSource: async (url: string): Promise<DshTestResult | null> => {
+    testSource: async (url: string, silent = false): Promise<DshTestResult | null> => {
       clearError(get, SCOPE);
       const result = await window.digitalLife.dsh.testSource(url);
       if (result.ok) {
         return result.data;
       }
-      captureError(get, result.error, SCOPE);
+      if (!silent) {
+        captureError(get, result.error, SCOPE);
+      }
       return null;
     },
   };

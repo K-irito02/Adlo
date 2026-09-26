@@ -32,11 +32,12 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
 
 /**
  * 组级重置 patch 工厂（偏好直写组）：按钮渲染与执行行为同源。
- * 未接入 patch 工厂的组：dsh 无按钮、无行为；storage/browser 有按钮但走自有流程
- * （侧边栏只切组 + 置 pending 信号，确认对话框与多步执行由 StorageSettings /
- * BrowserSettings 承接，见 uiSlice `storageGroupResetPending` / `browserGroupResetPending`）。
+ * 未接入 patch 工厂的组：storage/browser/dsh 走自有流程（侧边栏只切组 +
+ * 置 pending 信号，确认对话框与执行由 StorageSettings / BrowserSettings /
+ * DshSettings 承接，见 uiSlice `*GroupResetPending`）。
  *
- * 类型不变式：`RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)`，差集仅允许 `storage`、`browser`。
+ * 类型不变式：`RESETTABLE_GROUPS ⊇ keys(GROUP_RESET_PATCHES)`，差集仅允许
+ * `storage`、`browser`、`dsh`。
  */
 export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPreferencePatch>> = {
   general: () => ({
@@ -59,26 +60,27 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
 };
 
 /**
- * 侧边栏渲染重置按钮的组 = patch 工厂键 + storage + browser（自有流程见上）。
+ * 侧边栏渲染重置按钮的组 = patch 工厂键 + storage + browser + dsh（自有流程见上）。
  *
- * 通用消费者不得直接取 `GROUP_RESET_PATCHES[group]`（storage/browser 无工厂）——
- * 用 `getGroupResetPatch(group)`（storage/browser 返回 null，调用方走自有流程），
- * `SettingsPanel.handleRequestResetGroup` 已对 storage/browser 提前分支；
+ * 通用消费者不得直接取 `GROUP_RESET_PATCHES[group]`（storage/browser/dsh 无工厂）——
+ * 用 `getGroupResetPatch(group)`（三组返回 null，调用方走自有流程），
+ * `SettingsPanel.handleRequestResetGroup` 已对三组提前分支；
  * `SettingsPanel.test.tsx` 的"单注册表"用例锁定该差集（task4 M-2）。
  */
 export const RESETTABLE_GROUPS: ReadonlySet<SettingsGroupId> = new Set([
   ...(Object.keys(GROUP_RESET_PATCHES) as SettingsGroupId[]),
   'storage',
   'browser',
+  'dsh',
 ]);
 
 /**
- * 组级重置 patch 单一入口：偏好直写组返回 patch，storage/browser 返回 null
- * （调用方走 StorageSettings / BrowserSettings 自有确认对话框与多步流程）。
- * 直接索引 `GROUP_RESET_PATCHES[group]` 是非惯用法（storage/browser 会拿到 undefined）。
+ * 组级重置 patch 单一入口：偏好直写组返回 patch，storage/browser/dsh 返回 null
+ * （调用方走各组自有确认对话框与多步流程）。
+ * 直接索引 `GROUP_RESET_PATCHES[group]` 是非惯用法（三组会拿到 undefined）。
  */
 export function getGroupResetPatch(group: SettingsGroupId): AppPreferencePatch | null {
-  if (group === 'storage' || group === 'browser') {
+  if (group === 'storage' || group === 'browser' || group === 'dsh') {
     return null;
   }
   return GROUP_RESET_PATCHES[group]?.() ?? null;

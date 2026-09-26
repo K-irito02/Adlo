@@ -478,115 +478,32 @@
   height: var(--icon-sm);
 }
 
-/* DSH 设置面板 */
-.adl-dsh-settings {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+/* DSH 设置面板：块头（恢复默认 + 主标题）样式由 settings.css 的共享选择器组
+   （.adl-dsh-settings__header / --section / section gap）单点维护，此处只放
+   组内局部样式——行控件垂直居中见 settings.css `.adl-dsh-settings .adl-settings-row`。 */
+
+/* 右侧控件与下拉框同宽：下拉框定宽 160px（覆盖 min-width），测试按钮同宽；
+   输入框保持现状（200px）不动。过长结果文案省略显示，title 透出全文。 */
+.adl-dsh-settings .adl-settings-dropdown {
+  width: 160px;
 }
 
-.adl-dsh-settings__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
+/* 测试连接按钮：复用下拉触发器视觉（灰底 radius-sm、hover 描边、直角），
+   文案（含测试中/结果态）在按钮内水平居中。 */
+.adl-dsh-settings__test-button {
+  width: 160px;
+  min-width: 160px;
+  justify-content: center;
 }
 
-.adl-dsh-settings__section-title {
-  font-size: var(--text-base);
-  font-weight: var(--font-semibold);
-  margin: 0;
-  letter-spacing: var(--tracking-tight);
-  line-height: var(--leading-tight);
+.adl-dsh-settings__test-button .adl-settings-dropdown__value {
+  text-align: center;
 }
 
-/* 源选择列表 */
-.adl-dsh-settings__sources {
-  display: grid;
-  gap: var(--space-2);
-}
-
-.adl-dsh-settings__source {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-3);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-lg);
-  background: var(--bg-muted);
-  cursor: pointer;
-  transition: var(--transition-colors);
-}
-
-.adl-dsh-settings__source:hover {
-  border-color: var(--border-default);
-}
-
-.adl-dsh-settings__source.is-selected {
-  border-color: var(--text-primary);
-  background: var(--pastel-neutral-bg);
-}
-
-.adl-dsh-settings__source input[type='radio'] {
-  accent-color: var(--text-primary);
-}
-
-/* 代理配置区域 */
-.adl-dsh-settings__proxy-mode {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.adl-dsh-settings__proxy-label {
-  font-size: var(--text-sm);
-  min-width: 4em;
-  color: var(--text-secondary);
-}
-
-.adl-dsh-settings__proxy-fields {
-  display: grid;
-  gap: var(--space-2);
-  margin-left: var(--space-6);
-}
-
-.adl-dsh-settings__proxy-field {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-}
-
-.adl-dsh-settings__proxy-field .adl-dsh-settings__proxy-label {
-  min-width: 6em;
-}
-
-/* 操作区域 */
-.adl-dsh-settings__actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-.adl-dsh-settings__test {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  flex-wrap: wrap;
-}
-
-.adl-dsh-settings__test-result {
-  font-size: var(--text-xs);
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-full);
-  letter-spacing: var(--tracking-wide);
-}
-
-.adl-dsh-settings__test-result.is-success {
-  background: var(--pastel-success-bg);
+.adl-dsh-settings__test-button .adl-settings-dropdown__value.is-success {
   color: var(--pastel-success-fg);
 }
 
-.adl-dsh-settings__test-result.is-error {
-  background: var(--pastel-danger-bg);
+.adl-dsh-settings__test-button .adl-settings-dropdown__value.is-error {
   color: var(--pastel-danger-fg);
 }

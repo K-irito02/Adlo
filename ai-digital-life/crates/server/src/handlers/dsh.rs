@@ -605,6 +605,13 @@ async fn save_source_config_inner(
             _ => return Err(AppError::InvalidInput("dsh_mirror must be string or null".into())),
         };
     }
+    if let Some(mode_str) = input.get("source_mode").and_then(|v| v.as_str()) {
+        config.source_mode = match mode_str {
+            "auto" => adl_download_source::SourceMode::Auto,
+            "manual" => adl_download_source::SourceMode::Manual,
+            _ => return Err(AppError::InvalidInput(format!("invalid source mode: {mode_str}"))),
+        };
+    }
     if let Some(proxy) = input.get("proxy") {
         if let Some(mode_str) = proxy.get("mode").and_then(|v| v.as_str()) {
             config.proxy.mode = match mode_str {
@@ -614,14 +621,20 @@ async fn save_source_config_inner(
                 _ => return Err(AppError::InvalidInput(format!("invalid proxy mode: {mode_str}"))),
             };
         }
-        if let Some(v) = proxy.get("http_proxy").and_then(|v| v.as_str()) {
-            config.proxy.http_proxy = Some(v.to_string());
-        }
-        if let Some(v) = proxy.get("https_proxy").and_then(|v| v.as_str()) {
-            config.proxy.https_proxy = Some(v.to_string());
-        }
-        if let Some(v) = proxy.get("no_proxy").and_then(|v| v.as_str()) {
-            config.proxy.no_proxy = Some(v.to_string());
+        // 字段支持 null 清空（恢复默认需清掉残留的代理地址），string 写入。
+        for (key, slot) in [
+            ("http_proxy", &mut config.proxy.http_proxy),
+            ("https_proxy", &mut config.proxy.https_proxy),
+            ("no_proxy", &mut config.proxy.no_proxy),
+        ] {
+            match proxy.get(key) {
+                Some(serde_json::Value::String(v)) => *slot = Some(v.clone()),
+                Some(serde_json::Value::Null) => *slot = None,
+                Some(_) => {
+                    return Err(AppError::InvalidInput(format!("{key} must be string or null")));
+                },
+                None => {},
+            }
         }
     }
 
@@ -646,9 +659,12 @@ async fn test_source_inner(body: axum::body::Bytes) -> Result<serde_json::Value,
 
     let status = adl_download_source::test_source(url, std::time::Duration::from_secs(10)).await;
 
+    // 键名与前端 `DshTestResult` 对齐（reachable/latency_ms/error 全 snake_case，
+    // 与 source-status 的 config 序列化口径一致；曾误写 latencyMs 致前端读到
+    // undefined 显示 "-ms"，且自动检测的延迟比较恒取首项）。
     Ok(serde_json::json!({
         "reachable": status.reachable,
-        "latencyMs": status.latency_ms,
+        "latency_ms": status.latency_ms,
         "error": status.error,
     }))
 }
@@ -698,6 +714,61 @@ mod tests {
     fn version_input_camelcase_deserializes() {
         let v: VersionInput = serde_json::from_str(r#"{ "version": "1.2.3" }"#).unwrap();
         assert_eq!(v.version, "1.2.3");
+    }
+
+    /// save_source_config：source_mode 写入、registry 写入、proxy 字段 null 清空。
+    #[tokio::test]
+    async fn save_source_config_writes_mode_and_clears_proxy() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-dsh-source-cfg-{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let state = crate::engine::init_server_state(
+            &dir,
+            crate::engine::storage_from_locator(
+                &adl_kernel::storage::StorageLocator::default(),
+                &dir,
+            ),
+        )
+        .await
+        .unwrap();
+
+        let body = serde_json::json!({
+            "source_mode": "manual",
+            "npm_registry": "https://registry.npmmirror.com",
+            "proxy": {
+                "mode": "manual",
+                "http_proxy": "http://proxy:8080",
+                "https_proxy": null,
+                "no_proxy": null
+            }
+        });
+        save_source_config_inner(&state, axum::body::Bytes::from(body.to_string())).await.unwrap();
+
+        // null 清空：把已写入的 http_proxy 清掉。
+        let clear = serde_json::json!({ "proxy": { "http_proxy": null } });
+        save_source_config_inner(&state, axum::body::Bytes::from(clear.to_string())).await.unwrap();
+
+        let config = adl_download_source::load(&dir).unwrap();
+        assert_eq!(config.source_mode, adl_download_source::SourceMode::Manual);
+        assert_eq!(config.npm_registry, "https://registry.npmmirror.com");
+        assert_eq!(config.proxy.http_proxy, None);
+        assert_eq!(config.proxy.mode, adl_download_source::ProxyMode::Manual);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `/dsh/test-source` 响应键名与前端 `DshTestResult` 对齐（全 snake_case）：
+    /// 曾误写 `latencyMs`，前端 `latency_ms` 读到 undefined 显示 "-ms"，
+    /// 且自动检测的延迟比较恒取首项。用必拒连的本地端口，快失败、无外部网络依赖。
+    #[tokio::test]
+    async fn test_source_response_keys_match_frontend_type() {
+        let body = axum::body::Bytes::from(r#"{ "url": "http://127.0.0.1:1/" }"#);
+        let value = test_source_inner(body).await.unwrap();
+        assert_eq!(value.get("reachable").and_then(|v| v.as_bool()), Some(false));
+        assert!(value.get("latency_ms").is_some());
+        assert!(value.get("latencyMs").is_none());
+        assert!(value.get("error").is_some());
     }
 
     /// is_dsh_cmdline 识别 dsh 残留进程命令行（npm 规范名 / Windows 路径两种写法）。

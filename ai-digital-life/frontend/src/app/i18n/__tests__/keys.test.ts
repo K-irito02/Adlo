@@ -175,6 +175,44 @@ describe('i18n en-US namespace keys', () => {
     }
   });
 
+  it('includes dsh settings group/block copy in both locales', () => {
+    const keys = [
+      // 下载源块：自动检测选项 + 副标题/提示
+      'dshSettingsSourceAuto',
+      'dshSettingsSourceDesc',
+      'dshSettingsSourceHint',
+      'dshSettingsCustomUrl',
+      'dshSettingsCustomUrlDesc',
+      // 代理块：副标题/提示（模式改名「代理模式」，手动改名「自定义」）
+      'dshSettingsProxyDesc',
+      'dshSettingsProxyHint',
+      // 测试连接块：按钮文案 + 副标题/提示 + 自动检测反馈
+      'dshSettingsTestLabel',
+      'dshSettingsTestDesc',
+      'dshSettingsTestHint',
+      'dshSettingsTestButton',
+      'dshSettingsAutoDetected',
+      'dshSettingsAutoDetectFailed',
+      'dshSettingsSaveFailed',
+    ] as const;
+    for (const key of keys) {
+      expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
+      expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
+    }
+    // 改名与删除锁定：模式→代理模式、手动→自定义；保存按钮键随自动保存移除。
+    expect(zhCN.dshSettingsProxyMode).toBe('代理模式');
+    expect(zhCN.dshSettingsProxyModeManual).toBe('自定义');
+    expect(enUS.dshSettingsProxyMode).toBe('Proxy Mode');
+    expect(enUS.dshSettingsProxyModeManual).toBe('Custom');
+    for (const key of ['dshSettingsSave', 'dshSettingsSaveSuccess']) {
+      expect(enUS, `en:${key}`).not.toHaveProperty(key);
+      expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
+    }
+    // 插值占位符两侧一致。
+    expect(String(enUS.dshSettingsAutoDetected)).toContain('{source}');
+    expect(String(zhCN.dshSettingsAutoDetected)).toContain('{source}');
+  });
+
   it('uses the shorter suspend/path block titles in both locales', () => {
     expect(zhCN.browserSettingsSuspendTitle).toBe('标签挂起时长');
     expect(enUS.browserSettingsSuspendTitle).toBe('Suspend tabs after');

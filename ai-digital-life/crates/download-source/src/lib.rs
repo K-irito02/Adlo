@@ -17,6 +17,9 @@ pub struct DownloadSourceConfig {
     pub dsh_mirror: Option<String>,
     pub proxy: ProxyConfig,
     pub prefer_offline: bool,
+    /// 下载源选择模式：auto=自动检测（延迟实测选优，前端负责解析写回 registry）；
+    /// manual=用户手选（npm_registry 即所选值）。
+    pub source_mode: SourceMode,
 }
 
 impl Default for DownloadSourceConfig {
@@ -27,8 +30,17 @@ impl Default for DownloadSourceConfig {
             dsh_mirror: None,
             proxy: ProxyConfig::default(),
             prefer_offline: DEFAULT_PREFER_OFFLINE,
+            source_mode: SourceMode::Auto,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum SourceMode {
+    #[default]
+    Auto,
+    Manual,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -187,6 +199,26 @@ mod tests {
         assert!(config.dsh_mirror.is_none());
         assert!(config.prefer_offline);
         assert_eq!(config.proxy.mode, ProxyMode::Auto);
+        assert_eq!(config.source_mode, SourceMode::Auto);
+    }
+
+    /// 缺 source_mode 字段的旧配置文件按 struct 级 serde(default) 落到 Auto。
+    #[test]
+    fn missing_source_mode_defaults_to_auto() {
+        let json = r#"{ "npm_registry": "https://registry.npmmirror.com" }"#;
+        let config: DownloadSourceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.source_mode, SourceMode::Auto);
+        assert_eq!(config.npm_registry, "https://registry.npmmirror.com");
+    }
+
+    /// source_mode 序列化为 snake_case（auto / manual），与 proxy.mode 同口径。
+    #[test]
+    fn source_mode_serializes_snake_case() {
+        let config = DownloadSourceConfig { source_mode: SourceMode::Manual, ..Default::default() };
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains(r#""source_mode":"manual""#));
+        let decoded: DownloadSourceConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.source_mode, SourceMode::Manual);
     }
 
     #[test]

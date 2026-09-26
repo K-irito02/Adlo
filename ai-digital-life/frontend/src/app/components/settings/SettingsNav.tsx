@@ -9,7 +9,7 @@ interface SettingsNavProps {
   activeGroup: SettingsGroupId;
   onSelectGroup: (group: SettingsGroupId) => void;
   /** 组级重置：RESETTABLE_GROUPS 中的组渲染按钮（general/workspace 走偏好 patch；
-   * storage 走 StorageSettings 自有确认对话框与多步流程，见 settingsGroups）。 */
+   * storage/browser/dsh 走各组自有确认对话框与执行流程，见 settingsGroups）。 */
   resettableGroups?: ReadonlySet<SettingsGroupId>;
   onResetGroup?: (group: SettingsGroupId) => void;
   /** 组全默认时禁用的行（聚合点计算；缺省/未知态保持启用 fail-open）。 */

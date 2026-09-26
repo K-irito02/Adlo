@@ -75,6 +75,8 @@ export const createUISlice = (
     storageBlocksAtDefault: null,
     browserGroupResetPending: false,
     browserBlocksAtDefault: null,
+    dshGroupResetPending: false,
+    dshBlocksAtDefault: null,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     changesStatusFilter: new Set(),
     changesOutlineExpanded: {},
@@ -178,6 +180,15 @@ export const createUISlice = (
         return;
       }
       set({ browserBlocksAtDefault: value });
+    },
+    requestDshGroupReset: () => set({ dshGroupResetPending: true }),
+    consumeDshGroupReset: () => set({ dshGroupResetPending: false }),
+    setDshBlocksAtDefault: (value) => {
+      // 同值不写：聚合 effect 每次谓词重算都调用，守卫避免订阅者无效通知。
+      if (get().dshBlocksAtDefault === value) {
+        return;
+      }
+      set({ dshBlocksAtDefault: value });
     },
     setNavigatorCollapsed: (tool, collapsed) =>
       set((state) => {

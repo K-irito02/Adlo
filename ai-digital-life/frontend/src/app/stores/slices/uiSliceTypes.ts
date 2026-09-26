@@ -144,6 +144,18 @@ export interface UISlice {
    * null = 未知 → 启用（fail-open）。
    */
   browserBlocksAtDefault: boolean | null;
+  /**
+   * 「DSH」组级恢复默认**待处理**信号（transient，不持久化）：与 storage/browser 同构
+   * ——侧边栏重置按钮置 true，DshSettings 承接消费（DSH 配置走 saveSourceConfig 桥，
+   * 无偏好 patch，须自有确认对话框与执行流程）。
+   */
+  dshGroupResetPending: boolean;
+  /**
+   * DSH 两块（下载源/代理设置）是否全默认的聚合信号（transient，不持久化）：
+   * DshSettings 挂载时按 sourceStatus.config 判定写入并在卸载时清 null，
+   * 供侧边栏 DSH 行 disabled 用。null = 未知 → 启用（fail-open）。
+   */
+  dshBlocksAtDefault: boolean | null;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
   changesStatusFilter: Set<ChangeFileState>;
@@ -210,6 +222,12 @@ export interface UISlice {
   consumeBrowserGroupReset: () => void;
   /** 设置浏览器三块全默认聚合信号（BrowserSettings 挂载维护，卸载清 null）。 */
   setBrowserBlocksAtDefault: (value: boolean | null) => void;
+  /** 置位 DSH 组级恢复待处理（幂等：已 pending 再点保持 true）。 */
+  requestDshGroupReset: () => void;
+  /** 消费 DSH 组级恢复待处理（DshSettings 开框前/入口守卫丢弃时调用）。 */
+  consumeDshGroupReset: () => void;
+  /** 设置 DSH 两块全默认聚合信号（DshSettings 挂载维护，卸载清 null）。 */
+  setDshBlocksAtDefault: (value: boolean | null) => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;

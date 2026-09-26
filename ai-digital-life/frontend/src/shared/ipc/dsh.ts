@@ -12,6 +12,8 @@ export interface DshSourceStatus {
   config: {
     npm_registry: string;
     dsh_mirror: string | null;
+    /** 下载源选择模式：auto=自动检测（延迟实测选优），manual=用户手选 */
+    source_mode: 'auto' | 'manual';
     proxy: {
       mode: string;
       http_proxy: string | null;
@@ -27,6 +29,8 @@ export interface DshSourceStatus {
 export interface DshSourceConfig {
   npm_registry?: string;
   dsh_mirror?: string | null;
+  /** 下载源选择模式（PATCH：缺省不修改） */
+  source_mode?: 'auto' | 'manual';
   proxy?: {
     mode?: 'auto' | 'manual' | 'none';
     http_proxy?: string | null;

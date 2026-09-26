@@ -805,6 +805,19 @@
   vertical-align: -2px;
 }
 
+/* 装饰性占位图标：不可点、无 hover，只为与其它块头对齐（DSH 测试连接块
+   无需恢复默认）。取禁用态同款灰暗（弱化文字色 + 半透明），表明非交互。 */
+.adl-settings-row__reset--static {
+  cursor: default;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.adl-settings-row__reset--static:hover {
+  background: transparent;
+  color: var(--text-muted);
+}
+
 /* 左侧导航行：组按钮占满整行；组级重置按钮绝对定位悬浮于右侧，
    不占布局——hover/选中灰底始终与右边缘贴合 */
 .adl-settings-nav__row {
@@ -1238,33 +1251,37 @@
   background: var(--pastel-danger-bg);
 }
 
-/* ---- Workspace / Storage / Browser block header (group reset above the merged card) ---- */
-/* 三个设置组头块样式相同，共用选择器保证单点维护（storage 选择器保持末位：
+/* ---- Workspace / Storage / Browser / DSH block header (group reset above the merged card) ---- */
+/* 四个设置组头块样式相同，共用选择器保证单点维护（storage 选择器保持组内末位：
    workspace-settings.test.ts 的 ruleBody 按 `selector {` 精确匹配）。 */
 
 .adl-settings-workspace__header,
 .adl-settings-browser__header,
+.adl-dsh-settings__header,
 .adl-settings-storage__header {
   display: flex;
   align-items: center;
   gap: var(--space-2);
 }
 
-/* 工作区树缓存/终端预算/下载路径块头、浏览器挂起/下载模式块头：与上方卡之间加大间距，区分块。 */
+/* 工作区树缓存/终端预算/下载路径块头、浏览器挂起/下载模式块头、DSH 代理/测试块头：与上方卡之间加大间距，区分块。 */
 .adl-settings-storage__header--tree-cache,
 .adl-settings-browser__header--section,
+.adl-dsh-settings__header--section,
 .adl-settings-storage__header--section {
   margin-top: var(--space-2);
 }
 
 .adl-settings-section.adl-settings-workspace,
 .adl-settings-section.adl-settings-storage,
-.adl-settings-section.adl-settings-browser {
+.adl-settings-section.adl-settings-browser,
+.adl-settings-section.adl-dsh-settings {
   gap: var(--space-3);
 }
 
 .adl-settings-workspace__header .adl-settings-header,
 .adl-settings-browser__header .adl-settings-header,
+.adl-dsh-settings__header .adl-settings-header,
 .adl-settings-storage__header .adl-settings-header {
   flex: 1;
   min-width: 0;
@@ -1278,6 +1295,13 @@
    而非全局 flex-start 顶部对齐。限定两块卡片共有的 .adl-browser-settings，
    下载路径块与其它设置组不受影响。 */
 .adl-browser-settings .adl-settings-row {
+  align-items: center;
+}
+
+/* DSH 组三块卡片（下载源 / 代理设置 / 测试连接）行内控件垂直居中：
+   label 侧提示图标 + 副标题 + 描述更高时，右侧下拉/输入/测试按钮与行高居中对齐
+   （与浏览器组同构，避免全局 flex-start 顶部对齐）。 */
+.adl-dsh-settings .adl-settings-row {
   align-items: center;
 }
 

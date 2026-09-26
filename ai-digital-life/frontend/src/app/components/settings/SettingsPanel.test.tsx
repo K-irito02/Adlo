@@ -454,7 +454,7 @@ describe('SettingsPanel group reset', () => {
     expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
   });
 
-  it('重置按钮集合与 patch 工厂同源（单注册表；storage/browser 例外走自有流程）', async () => {
+  it('重置按钮集合与 patch 工厂同源（单注册表；storage/browser/dsh 例外走自有流程）', async () => {
     const groups = await import('./settingsGroups');
     const factories = (groups as Record<string, unknown>).GROUP_RESET_PATCHES as
       | Record<string, () => unknown>
@@ -463,15 +463,17 @@ describe('SettingsPanel group reset', () => {
     expect(new Set(Object.keys(factories!))).toEqual(
       new Set(['general', 'workspace', 'shortcuts']),
     );
-    // 访问器口径：工厂组返回 patch，storage/browser 返回 null（调用方走自有流程）。
+    // 访问器口径：工厂组返回 patch，storage/browser/dsh 返回 null（调用方走自有流程）。
     expect(groups.getGroupResetPatch('general')).toBeDefined();
     expect(groups.getGroupResetPatch('workspace')).toBeDefined();
     expect(groups.getGroupResetPatch('shortcuts')).toBeDefined();
     expect(groups.getGroupResetPatch('storage')).toBeNull();
     expect(groups.getGroupResetPatch('browser')).toBeNull();
-    // storage/browser 无统一偏好 patch（多桥多步），但侧边栏同样渲染按钮并走自有确认对话框。
+    expect(groups.getGroupResetPatch('dsh')).toBeNull();
+    // storage/browser/dsh 无统一偏好 patch（跨桥写入），但侧边栏同样渲染按钮并走自有确认对话框。
     expect(groups.RESETTABLE_GROUPS.has('storage')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('browser')).toBe(true);
+    expect(groups.RESETTABLE_GROUPS.has('dsh')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('general')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('workspace')).toBe(true);
   });
@@ -565,6 +567,49 @@ describe('SettingsPanel group reset', () => {
     expect(useAppStore.getState().activeSettingsGroup).toBe('browser');
     expect(useAppStore.getState().browserGroupResetPending).toBe(false);
     expect(useAppStore.getState().updatePreferences).not.toHaveBeenCalled();
+  });
+
+  it('dsh nav reset switches group and fires the dsh pending signal (own confirm dialog)', async () => {
+    const { updatePreferences } = setupStore();
+    // DshSettings 切组后挂载即拉取下载源状态：提供最小 dsh 桥。
+    (window as unknown as { digitalLife?: unknown }).digitalLife = {
+      dsh: {
+        getSourceStatus: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            bundled: null,
+            system: null,
+            running: null,
+            config: {
+              npm_registry: 'https://registry.npmjs.org',
+              dsh_mirror: null,
+              source_mode: 'manual',
+              proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+            },
+          },
+        }),
+        saveSourceConfig: vi.fn().mockResolvedValue({ ok: true, data: true }),
+        testSource: vi.fn().mockResolvedValue({
+          ok: true,
+          data: { reachable: true, latency_ms: 10, error: null },
+        }),
+      },
+    };
+    useAppStore.setState({
+      activeSettingsGroup: 'general',
+      dshGroupResetPending: false,
+      sourceStatus: null,
+    });
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsDsh all defaults' }));
+    // 切到 DSH 组 + pending 已置位并被挂载的 DshSettings 消费。
+    expect(useAppStore.getState().activeSettingsGroup).toBe('dsh');
+    expect(useAppStore.getState().dshGroupResetPending).toBe(false);
+    // 不走偏好 patch（DSH 配置写 saveSourceConfig 桥）。
+    expect(updatePreferences).not.toHaveBeenCalled();
+    // 自有确认对话框承接（首跳不漏弹），不弹通用组确认框。
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
   });
 
   // 侧边栏聚合 disabled（Task 4 + 存储聚合）：general/workspace/shortcuts 行在组全默认时禁用、
