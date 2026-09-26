@@ -121,7 +121,7 @@ export const appInfo: AppInfo = {
     workspacePriorityIds: [],
     workspaceDeferredIds: [],
     workspaceNaturalOrder: [],
-    browserInactiveTabSuspendMs: 3_600_000,
+    browserInactiveTabSuspendMs: 900_000,
     terminalHistoryBudgetBytes: 1 << 30,
   },
   currentWorkspace: {

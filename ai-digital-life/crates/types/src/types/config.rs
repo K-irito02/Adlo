@@ -148,7 +148,7 @@ fn default_max_concurrent_workspaces_snapshot() -> usize {
 }
 
 fn default_browser_inactive_tab_suspend_ms() -> u64 {
-    3_600_000
+    900_000
 }
 
 fn default_terminal_history_budget_bytes_snapshot() -> u64 {

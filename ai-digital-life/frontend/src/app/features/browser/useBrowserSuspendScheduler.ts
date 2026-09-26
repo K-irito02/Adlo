@@ -4,7 +4,7 @@ import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 const IDLE_INTERVAL_MS = 20_000;
-const DEFAULT_IDLE_MS = 3_600_000;
+const DEFAULT_IDLE_MS = 900_000;
 
 export interface SuspendPassInput {
   tabs: BrowserTabState[];

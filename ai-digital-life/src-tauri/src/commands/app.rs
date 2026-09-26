@@ -455,7 +455,7 @@ mod workspace_loading_tests {
         assert!(snap.workspace_priority_ids.is_empty());
         assert!(snap.workspace_deferred_ids.is_empty());
         assert!(snap.workspace_natural_order.is_empty());
-        assert_eq!(snap.browser_inactive_tab_suspend_ms, 3_600_000);
+        assert_eq!(snap.browser_inactive_tab_suspend_ms, 900_000);
     }
 
     #[test]

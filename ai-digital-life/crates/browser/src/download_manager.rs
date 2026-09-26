@@ -2653,7 +2653,7 @@ mod tests {
         let mgr = DownloadManager::new(db.clone());
 
         let s = mgr.get_settings();
-        assert_eq!(s.mode, DownloadMode::Ask);
+        assert_eq!(s.mode, DownloadMode::Auto);
         assert!(!s.auto_migrate_on_path_change, "auto-migrate defaults to off");
 
         mgr.update_settings(Some(DownloadMode::Ask), Some("/custom/path".to_string()), None)

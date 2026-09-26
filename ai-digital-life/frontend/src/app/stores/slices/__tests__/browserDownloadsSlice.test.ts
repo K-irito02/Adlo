@@ -99,6 +99,15 @@ describe('browserDownloadsSlice — updateTabsForDownloadState', () => {
 });
 
 describe('browserDownloadsSlice — fetchDownloadSettings ingest', () => {
+  it('initial download settings match the product default (auto-save)', () => {
+    const slice = createBrowserDownloadsSlice(
+      () => undefined,
+      () => ({}) as StoreState,
+    );
+    expect(slice.downloadSettings.mode).toBe('auto');
+    expect(slice.downloadSettingsLoaded).toBe(false);
+  });
+
   it('normalizes a missing auto_migrate field to false and marks loaded', async () => {
     mockInvoke.mockResolvedValue({
       ok: true,

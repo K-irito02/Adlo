@@ -108,7 +108,7 @@ pub struct DownloadPauseResult {
 impl Default for DownloadSettings {
     fn default() -> Self {
         Self {
-            mode: DownloadMode::Ask,
+            mode: DownloadMode::Auto,
             default_path: super::download_manager::get_default_download_path()
                 .to_string_lossy()
                 .to_string(),

@@ -28,6 +28,15 @@ export const DEFAULT_WORKSPACE_NATURAL_ORDER: string[] = [];
 // 改动默认值时两处必须同步。
 export const DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES = 1 << 30;
 
+// 与 app/features/browser/useBrowserSuspendScheduler.ts 的 DEFAULT_IDLE_MS 是同一产品默认
+// （15 分钟；Rust 侧 serde default 同步为 900_000，见 crates/kernel/src/config.rs）。
+// 改动默认值时各处必须同步。
+export const DEFAULT_BROWSER_SUSPEND_MS = 900_000;
+
+// 下载模式产品默认（自动保存；Rust 侧 DownloadMode::Auto 同步）。
+// downloadSettings 走独立桥而非偏好 patch，此常量仅作恢复目标单一真源。
+export const DEFAULT_DOWNLOAD_MODE = 'auto' as const;
+
 export function getDefaultPreferences(): AppPreferencePatch {
   return {
     language: DEFAULT_LANGUAGE,
@@ -42,6 +51,7 @@ export function getDefaultPreferences(): AppPreferencePatch {
     workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
     workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
     terminalHistoryBudgetBytes: DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES,
+    browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
   };
 }
 
