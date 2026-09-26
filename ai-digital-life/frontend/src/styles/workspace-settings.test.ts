@@ -185,7 +185,8 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
 
   it('styles the browser group block headers like storage (base + section + container)', () => {
     // 挂起块头（首块）与 storage/workspace 共用同一规则（storage 保持组内末位，
-    // ruleBody 精确匹配 `.adl-settings-storage__header {` 不被破坏）。
+    // ruleBody 精确匹配 `.adl-settings-storage__header {` 不被破坏；
+    // DSH 头块后续并入同一组，同样保持 storage 末位）。
     const base = groupRuleBody(settingsCss, '.adl-settings-browser__header');
     expect(base).not.toBeNull();
     expect(base).toContain('display: flex');

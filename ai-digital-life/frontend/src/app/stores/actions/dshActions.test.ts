@@ -58,4 +58,20 @@ describe('dsh background sync silence', () => {
     expect(result).toBeNull();
     expect(useAppStore.getState().errorToasts).toHaveLength(0);
   });
+
+  it('silent 同步不清除用户已有的错误卡（只读不碰）', async () => {
+    // 先一次主动失败留下一张 dsh 错误卡，再跑 silent 同步：旧卡必须保留。
+    mockGetSourceStatus.mockResolvedValue(NETWORK_FAILURE);
+    await useAppStore.getState().fetchSourceStatus();
+    expect(useAppStore.getState().errorToasts).toHaveLength(1);
+    const detail = useAppStore.getState().errorToasts[0].detail;
+    await useAppStore.getState().fetchSourceStatus(true);
+    const toasts = useAppStore.getState().errorToasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].detail).toBe(detail);
+    // testSource 同理。
+    mockTestSource.mockResolvedValue(NETWORK_FAILURE);
+    await useAppStore.getState().testSource('https://registry.npmjs.org', true);
+    expect(useAppStore.getState().errorToasts).toHaveLength(1);
+  });
 });

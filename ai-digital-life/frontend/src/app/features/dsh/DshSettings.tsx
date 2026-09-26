@@ -106,18 +106,26 @@ export function DshSettings() {
     return config;
   }, []);
 
+  // 全通道串行：防抖落盘与显式写入共用一条 promise 链，同一时刻最多一个在途
+  // saveSourceConfig，按调用顺序完成——saveNow 不再与在途 drainSave 并发双写
+  //（事项 11 Phase 4 A1-1.4；drainingRef 仍负责防止重入 drain 循环）。
+  const saveChainRef = useRef<Promise<void>>(Promise.resolve());
   const persist = useCallback(
-    async (config: DshSourceConfig): Promise<boolean> => {
-      try {
-        const ok = await actions.saveSourceConfig(config);
-        if (!ok) {
+    (config: DshSourceConfig): Promise<boolean> => {
+      const run = saveChainRef.current.then(async () => {
+        try {
+          const ok = await actions.saveSourceConfig(config);
+          if (!ok) {
+            showToast(t.dshSettingsSaveFailed, 'error');
+          }
+          return ok;
+        } catch {
           showToast(t.dshSettingsSaveFailed, 'error');
+          return false;
         }
-        return ok;
-      } catch {
-        showToast(t.dshSettingsSaveFailed, 'error');
-        return false;
-      }
+      });
+      saveChainRef.current = run.then(() => {});
+      return run;
     },
     [actions, showToast, t],
   );
@@ -168,9 +176,8 @@ export function DshSettings() {
 
   /**
    * 自动检测：并发实测官方与镜像，取可达中延迟更低者写回（source_mode=auto）。
-   * silent=true（挂载/恢复后静默执行）只在失败时 toast；结果到达时若用户已
-   * 改选其它源则丢弃。桥级失败（后端不可达，结果为 null）：静默模式直接返回，
-   * 不弹"自动检测失败"（后台同步不打扰）；用户触发则落入空候选提示。
+   * silent=true（挂载/恢复后静默执行）：空候选（双源不可达/桥失败 null）直接返回
+   * 不打扰；单桥失败但另一路可达时照常选优。结果到达时若用户已改选其它源则丢弃。
    */
   const runAutoDetect = useCallback(
     async (silent: boolean) => {
@@ -181,15 +188,16 @@ export function DshSettings() {
       if (sourceTypeRef.current !== 'auto') {
         return;
       }
-      if ((official === null || mirror === null) && silent) {
-        return;
-      }
       const candidates = [
         { url: NPMJS_URL, label: t.dshSettingsSourceNpmjs, result: official },
         { url: NPMMIRROR_URL, label: t.dshSettingsSourceNpmmirror, result: mirror },
       ].filter((c) => c.result?.reachable === true);
       if (candidates.length === 0) {
-        showToast(t.dshSettingsAutoDetectFailed, 'error');
+        // 空候选才提示：静默模式（桥失败 null / 双源不可达）直接返回不打扰；
+        // 单桥失败但另一路可达时照常选优（事项 11 Phase 4 B1-B-1）。
+        if (!silent) {
+          showToast(t.dshSettingsAutoDetectFailed, 'error');
+        }
         return;
       }
       const winner = candidates.reduce((best, c) =>
@@ -251,15 +259,25 @@ export function DshSettings() {
     }
   }, [sourceStatus, applySourceType, runAutoDetect]);
 
-  // 卸载清理测试结果计时器；防抖计时器刻意保留——挂载后落盘走 store action，
-  // 放行可避免"改完立即切组导致丢保存"。
+  // 测试结果计时器清零 helper（三处事件 + 卸载清理共用，语义一致：旧结论 stale 即清）。
+  const clearTestTimer = useCallback(() => {
+    if (testTimerRef.current !== null) {
+      window.clearTimeout(testTimerRef.current);
+      testTimerRef.current = null;
+    }
+  }, []);
+
+  // 卸载清理三件套（测试结果计时器/聚合信号/pending 兜底）；防抖计时器刻意保留——
+  // 挂载后落盘走 store action，放行可避免"改完立即切组导致丢保存"。
   useEffect(
     () => () => {
-      if (testTimerRef.current !== null) {
-        window.clearTimeout(testTimerRef.current);
-      }
+      clearTestTimer();
+      setDshBlocksAtDefault(null);
+      // 卸载（切出 DSH 组）：聚合信号清 null 回到「未知 → 启用」（transient，不持久化）；
+      // pending 兜底消费，避免下次挂载"迟到弹窗"。
+      useAppStore.getState().consumeDshGroupReset();
     },
-    [],
+    [clearTestTimer, setDshBlocksAtDefault],
   );
 
   // 聚合信号：源=自动检测且代理=自动 → 两块全默认（供侧边栏 DSH 行禁用）。
@@ -272,19 +290,18 @@ export function DshSettings() {
   useEffect(() => {
     setDshBlocksAtDefault(sourceStatus !== null && sourceAtDefault && proxyAtDefault);
   }, [sourceStatus, sourceAtDefault, proxyAtDefault, setDshBlocksAtDefault]);
-  // 卸载（切出 DSH 组）清 null 回到「未知 → 启用」。transient，不持久化。
-  useEffect(() => () => setDshBlocksAtDefault(null), [setDshBlocksAtDefault]);
 
   /**
-   * 组级恢复对话框打开（承接 pending 信号）：先消费（幂等），入口守卫
-   * （组框/任一块框已开/执行中 → 丢弃）杜绝并发与键盘路径多框叠加，
-   * 与 BrowserSettings.openGroupResetDialog 同构。
+   * 组级恢复对话框打开（承接 pending 信号）：守卫先行——组框/任一块框已开/
+   * 执行中 → 不消费 pending（信号保留，框关闭后 effect 重试），避免重置意图被
+   * 静默吞掉（事项 11 Phase 4 A1-L1）；无框时消费（幂等）并开框。
+   * 与 BrowserSettings.openGroupResetDialog 同构（彼处为先消费，本处为保信号改守卫先行）。
    */
   const openGroupResetDialog = useCallback(() => {
-    consumeDshGroupReset();
     if (groupResetOpen || groupResetBusy || sourceResetOpen || proxyResetOpen) {
       return;
     }
+    consumeDshGroupReset();
     setGroupResetOpen(true);
   }, [consumeDshGroupReset, groupResetOpen, groupResetBusy, sourceResetOpen, proxyResetOpen]);
 
@@ -294,14 +311,6 @@ export function DshSettings() {
     }
     openGroupResetDialog();
   }, [dshGroupResetPending, openGroupResetDialog]);
-
-  // 卸载兜底：pending 置位后若组件在消费前卸载，清信号避免下次挂载"迟到弹窗"。
-  useEffect(
-    () => () => {
-      useAppStore.getState().consumeDshGroupReset();
-    },
-    [],
-  );
 
   /** 组级恢复：源=自动检测（落盘后静默实测选优）、代理=自动、清空自定义地址与代理字段。
    * 乐观执行：点确认立刻关框并刷新卡片，后台落盘；失败则 toast（saveNow 内）并
@@ -320,6 +329,16 @@ export function DshSettings() {
     setNoProxy('');
     setTestResult(null);
     setGroupResetOpen(false);
+    // 回滚判决读 formRef：此处同步快照，不依赖渲染后 effect（极快失败时 effect
+    // 尚未跑，回滚会被误判跳过。事项 11 Phase 4 A1-1.5）。
+    formRef.current = {
+      sourceType: 'auto',
+      customUrl: '',
+      proxyMode: 'auto',
+      httpProxy: '',
+      httpsProxy: '',
+      noProxy: '',
+    };
     void (async () => {
       try {
         const ok = await saveNow({
@@ -367,12 +386,11 @@ export function DshSettings() {
     noProxy,
   ]);
 
+  // 取消无执行中守卫：组确认乐观先关框，busy 为 true 时对话框已卸载，
+  // 取消按钮物理不可达（事项 11 Phase 4 B1-A-1 死守卫清理）。
   const handleGroupCancel = useCallback(() => {
-    if (groupResetBusy) {
-      return;
-    }
     setGroupResetOpen(false);
-  }, [groupResetBusy]);
+  }, []);
 
   /** 下载源块恢复：源=自动检测 + 落盘默认 registry，静默实测选优；乐观执行，失败回滚。 */
   const handleSourceResetConfirm = useCallback(() => {
@@ -381,6 +399,8 @@ export function DshSettings() {
     setCustomUrl('');
     setTestResult(null);
     setSourceResetOpen(false);
+    // 同步快照 formRef（见组确认注释，不依赖渲染后 effect）。
+    formRef.current = { ...formRef.current, sourceType: 'auto', customUrl: '' };
     void (async () => {
       const ok = await saveNow({ source_mode: 'auto', npm_registry: NPMJS_URL });
       if (!ok) {
@@ -404,6 +424,14 @@ export function DshSettings() {
     setHttpsProxy('');
     setNoProxy('');
     setProxyResetOpen(false);
+    // 同步快照 formRef（见组确认注释，不依赖渲染后 effect）。
+    formRef.current = {
+      ...formRef.current,
+      proxyMode: 'auto',
+      httpProxy: '',
+      httpsProxy: '',
+      noProxy: '',
+    };
     void (async () => {
       const ok = await saveNow({
         proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
@@ -431,24 +459,24 @@ export function DshSettings() {
       const next = v as SourceType;
       applySourceType(next);
       setTestResult(null);
-      if (testTimerRef.current !== null) {
-        window.clearTimeout(testTimerRef.current);
-        testTimerRef.current = null;
-      }
+      clearTestTimer();
       scheduleSave();
       if (next === 'auto') {
         void runAutoDetect(false);
       }
     },
-    [applySourceType, scheduleSave, runAutoDetect],
+    [applySourceType, clearTestTimer, scheduleSave, runAutoDetect],
   );
 
   const handleCustomUrlChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
       setCustomUrl(e.target.value);
+      // 地址变了旧结论即 stale：与切源一致清掉按钮内结果（事项 11 Phase 4 A1-L6）。
+      setTestResult(null);
+      clearTestTimer();
       scheduleSave();
     },
-    [scheduleSave],
+    [clearTestTimer, scheduleSave],
   );
 
   const handleProxyModeChange = useCallback(
@@ -471,10 +499,7 @@ export function DshSettings() {
     if (testing) {
       return;
     }
-    if (testTimerRef.current !== null) {
-      window.clearTimeout(testTimerRef.current);
-      testTimerRef.current = null;
-    }
+    clearTestTimer();
     setTesting(true);
     setTestResult(null);
     const s = formRef.current;
@@ -508,7 +533,7 @@ export function DshSettings() {
       testTimerRef.current = null;
       setTestResult(null);
     }, TEST_RESULT_MS);
-  }, [testing, actions, t]);
+  }, [testing, actions, clearTestTimer, t]);
 
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
   const sourceOptions = useMemo(

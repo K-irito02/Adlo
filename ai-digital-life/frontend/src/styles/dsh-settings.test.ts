@@ -1,4 +1,6 @@
 // @vitest-environment node
+// 本文件 ruleBody 只支持单选择器精确匹配（无分组/嵌套处理）；被测 DSH 规则均为
+// 单选择器，如需断言共享分组选择器请用 workspace-settings.test.ts 的 groupRuleBody。
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
@@ -20,10 +22,25 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     const dropdown = ruleBody(dshCss, '.adl-dsh-settings .adl-settings-dropdown');
     expect(dropdown).not.toBeNull();
     expect(dropdown).toContain('width: 160px');
+    expect(dropdown).toContain('min-width: 160px');
     const button = ruleBody(dshCss, '.adl-dsh-settings__test-button');
     expect(button).not.toBeNull();
     expect(button).toContain('width: 160px');
     expect(button).toContain('min-width: 160px');
+  });
+
+  it('relies on the shared value class for result ellipsis (locks the dependency)', () => {
+    // 省略规则由 settings.css 共享类提供，dsh.css 不重复声明；此处锁定依赖不断。
+    const shared = ruleBody(settingsCss, '.adl-settings-dropdown__value');
+    expect(shared).not.toBeNull();
+    expect(shared).toContain('overflow: hidden');
+    expect(shared).toContain('text-overflow: ellipsis');
+    expect(shared).toContain('white-space: nowrap');
+    // 按钮是 inline-flex，内层 span 为 flex item：缺 min-width:0 会被内容撑开，
+    // 省略号永不触发（事项 11 Phase 4 A2-R2-B1）。
+    const value = ruleBody(dshCss, '.adl-dsh-settings__test-button .adl-settings-dropdown__value');
+    expect(value).not.toBeNull();
+    expect(value).toContain('min-width: 0');
   });
 
   it('centers the test button content (label, testing and result states)', () => {
@@ -49,14 +66,8 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     );
     expect(success).not.toBeNull();
     expect(error).not.toBeNull();
-    expect(success).toContain('color:');
-    expect(error).toContain('color:');
-  });
-
-  it('does not left-align the test button', () => {
-    const body = ruleBody(dshCss, '.adl-dsh-settings__test-button');
-    expect(body).not.toBeNull();
-    expect(body).not.toContain('flex-start');
+    expect(success).toContain('var(--pastel-success-fg)');
+    expect(error).toContain('var(--pastel-danger-fg)');
   });
 
   it('keeps the decorative header icon dim (disabled-like, non-interactive)', () => {

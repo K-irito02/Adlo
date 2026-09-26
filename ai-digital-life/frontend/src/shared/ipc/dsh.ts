@@ -14,8 +14,9 @@ export interface DshSourceStatus {
     dsh_mirror: string | null;
     /** 下载源选择模式：auto=自动检测（延迟实测选优），manual=用户手选 */
     source_mode: 'auto' | 'manual';
+    /** 代理模式（后端 ProxyMode snake_case 封闭值域：auto | manual | none） */
     proxy: {
-      mode: string;
+      mode: 'auto' | 'manual' | 'none';
       http_proxy: string | null;
       https_proxy: string | null;
       no_proxy: string | null;

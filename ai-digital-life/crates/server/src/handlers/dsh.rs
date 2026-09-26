@@ -595,8 +595,16 @@ async fn save_source_config_inner(
 
     let mut config = adl_download_source::load(&state.storage.paths().root)?;
 
-    if let Some(registry) = input.get("npm_registry").and_then(|v| v.as_str()) {
-        config.npm_registry = registry.to_string();
+    // PATCH 语义：字段缺省 = 不修改；类型错误 = InvalidInput（与 dsh_mirror 臂同口径，
+    // 事项 11 Phase 4 A3-F1；npm_registry 旧静默忽略一并收紧）。
+    if let Some(registry) = input.get("npm_registry") {
+        match registry {
+            serde_json::Value::String(s) => config.npm_registry = s.clone(),
+            serde_json::Value::Null => {},
+            _ => {
+                return Err(AppError::InvalidInput("npm_registry must be string or null".into()));
+            },
+        }
     }
     if let Some(mirror) = input.get("dsh_mirror") {
         config.dsh_mirror = match mirror {
@@ -605,14 +613,26 @@ async fn save_source_config_inner(
             _ => return Err(AppError::InvalidInput("dsh_mirror must be string or null".into())),
         };
     }
-    if let Some(mode_str) = input.get("source_mode").and_then(|v| v.as_str()) {
-        config.source_mode = match mode_str {
-            "auto" => adl_download_source::SourceMode::Auto,
-            "manual" => adl_download_source::SourceMode::Manual,
-            _ => return Err(AppError::InvalidInput(format!("invalid source mode: {mode_str}"))),
+    if let Some(mode) = input.get("source_mode") {
+        config.source_mode = match mode {
+            serde_json::Value::String(s) => match s.as_str() {
+                "auto" => adl_download_source::SourceMode::Auto,
+                "manual" => adl_download_source::SourceMode::Manual,
+                _ => return Err(AppError::InvalidInput(format!("invalid source mode: {s}"))),
+            },
+            // 显式 null 视为缺省不修改（与 proxy 字段 null-清空语义不同：source_mode
+            // 无"清空"概念，前端缺省即不发该键）。
+            serde_json::Value::Null => config.source_mode,
+            _ => {
+                return Err(AppError::InvalidInput("source_mode must be string or null".into()));
+            },
         };
     }
     if let Some(proxy) = input.get("proxy") {
+        // proxy 本体非对象（null 除外）直接拒绝，避免整体静默 no-op 误导调用方。
+        if !proxy.is_object() && !proxy.is_null() {
+            return Err(AppError::InvalidInput("proxy must be object".into()));
+        }
         if let Some(mode_str) = proxy.get("mode").and_then(|v| v.as_str()) {
             config.proxy.mode = match mode_str {
                 "auto" => adl_download_source::ProxyMode::Auto,
@@ -769,6 +789,52 @@ mod tests {
         assert!(value.get("latency_ms").is_some());
         assert!(value.get("latencyMs").is_none());
         assert!(value.get("error").is_some());
+    }
+
+    /// save_source_config 非法输入直接 InvalidInput，且校验全部发生在落盘前
+    ///（无部分写入）。覆盖：非法 source_mode 字符串/类型、非法 registry 类型、
+    ///proxy 本体非对象、proxy 字段非法类型（事项 11 Phase 4 A3-F3）。
+    #[tokio::test]
+    async fn save_source_config_rejects_invalid_input_atomically() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-dsh-source-bad-{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let state = crate::engine::init_server_state(
+            &dir,
+            crate::engine::storage_from_locator(
+                &adl_kernel::storage::StorageLocator::default(),
+                &dir,
+            ),
+        )
+        .await
+        .unwrap();
+
+        // 先落一份已知配置，后续非法写入不得污染它。
+        let seed = serde_json::json!({
+            "source_mode": "manual",
+            "npm_registry": "https://registry.npmmirror.com",
+        });
+        save_source_config_inner(&state, axum::body::Bytes::from(seed.to_string())).await.unwrap();
+
+        for bad in [
+            serde_json::json!({ "source_mode": "bogus" }),
+            serde_json::json!({ "source_mode": 123 }),
+            serde_json::json!({ "npm_registry": 123 }),
+            serde_json::json!({ "proxy": "not-an-object" }),
+            serde_json::json!({ "proxy": { "http_proxy": 123 } }),
+        ] {
+            let result =
+                save_source_config_inner(&state, axum::body::Bytes::from(bad.to_string())).await;
+            assert!(result.is_err(), "expected InvalidInput for {bad}");
+        }
+
+        let config = adl_download_source::load(&dir).unwrap();
+        assert_eq!(config.source_mode, adl_download_source::SourceMode::Manual);
+        assert_eq!(config.npm_registry, "https://registry.npmmirror.com");
+        assert_eq!(config.proxy.http_proxy, None);
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// is_dsh_cmdline 识别 dsh 残留进程命令行（npm 规范名 / Windows 路径两种写法）。

@@ -152,7 +152,7 @@ export interface UISlice {
   dshGroupResetPending: boolean;
   /**
    * DSH 两块（下载源/代理设置）是否全默认的聚合信号（transient，不持久化）：
-   * DshSettings 挂载时按 sourceStatus.config 判定写入并在卸载时清 null，
+   * DshSettings 挂载时按本地选项判定（`sourceStatus` 仅作未知门）写入并在卸载时清 null，
    * 供侧边栏 DSH 行 disabled 用。null = 未知 → 启用（fail-open）。
    */
   dshBlocksAtDefault: boolean | null;

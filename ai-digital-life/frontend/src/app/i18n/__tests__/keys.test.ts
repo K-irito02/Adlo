@@ -211,6 +211,10 @@ describe('i18n en-US namespace keys', () => {
     // 插值占位符两侧一致。
     expect(String(enUS.dshSettingsAutoDetected)).toContain('{source}');
     expect(String(zhCN.dshSettingsAutoDetected)).toContain('{source}');
+    expect(String(enUS.dshSettingsTestSuccess)).toContain('{latency}');
+    expect(String(zhCN.dshSettingsTestSuccess)).toContain('{latency}');
+    expect(String(enUS.dshSettingsTestFailed)).toContain('{error}');
+    expect(String(zhCN.dshSettingsTestFailed)).toContain('{error}');
   });
 
   it('uses the shorter suspend/path block titles in both locales', () => {

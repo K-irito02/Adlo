@@ -56,7 +56,7 @@ export const dshEn = {
     '"Auto Detect" follows the system settings; "Custom" uses the addresses you fill in; "None" connects directly without a proxy',
   dshSettingsProxyHttp: 'HTTP Proxy',
   dshSettingsProxyHttps: 'HTTPS Proxy',
-  dshSettingsProxyNoProxy: 'Direct list',
+  dshSettingsProxyNoProxy: 'No-proxy list',
   dshSettingsProxyPlaceholder: 'http://proxy:8080',
   dshSettingsProxyNoProxyPlaceholder: 'localhost,127.0.0.1',
   dshSettingsTestConnection: 'Test Connection',

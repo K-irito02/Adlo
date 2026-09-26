@@ -482,10 +482,12 @@
    （.adl-dsh-settings__header / --section / section gap）单点维护，此处只放
    组内局部样式——行控件垂直居中见 settings.css `.adl-dsh-settings .adl-settings-row`。 */
 
-/* 右侧控件与下拉框同宽：下拉框定宽 160px（覆盖 min-width），测试按钮同宽；
-   输入框保持现状（200px）不动。过长结果文案省略显示，title 透出全文。 */
+/* 右侧控件与下拉框同宽：下拉框定宽 160px（含 min-width 锁定意图），测试按钮同宽；
+   输入框保持现状（200px）不动。过长结果文案省略显示（复用共享
+   `.adl-settings-dropdown__value` 的省略规则），title 透出全文。 */
 .adl-dsh-settings .adl-settings-dropdown {
   width: 160px;
+  min-width: 160px;
 }
 
 /* 测试连接按钮：复用下拉触发器视觉（灰底 radius-sm、hover 描边、直角），
@@ -497,6 +499,7 @@
 }
 
 .adl-dsh-settings__test-button .adl-settings-dropdown__value {
+  min-width: 0;
   text-align: center;
 }
 
