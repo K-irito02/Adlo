@@ -76,7 +76,8 @@ function computeThumb(
     return { length: viewport, offset: 0 };
   }
   const ratio = viewport / contentSize;
-  const length = Math.max(MIN_THUMB_LENGTH[axis], ratio * viewport);
+  // Math.min(viewport, …)：极窄/极矮 viewport（< 最短滑块）下不越出可视区。
+  const length = Math.min(viewport, Math.max(MIN_THUMB_LENGTH[axis], ratio * viewport));
   const maxScroll = contentSize - viewport;
   const offset = (position / maxScroll) * (viewport - length);
   return { length, offset };

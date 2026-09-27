@@ -4,16 +4,17 @@ import type { RevealScrollbarController } from '../hooks/useRevealScrollbar';
 export const REVEAL_SCROLLBAR_ATTR = 'data-reveal-scrollbar';
 export const REVEAL_SCROLLBAR_SELECTOR = `[${REVEAL_SCROLLBAR_ATTR}]`;
 
+/** 悬停显现式滚动条（竖）。横向点态常驻条见 `HScrollbar`（rev2：横轴样式
+ * 已随 settings 换用 HScrollbar 移除，勿向本组件传 `axis: 'horizontal'` 控制器）。 */
 export function RevealScrollbar({ controller }: { controller: RevealScrollbarController }) {
   if (!controller.scrollable) {
     return null;
   }
-  const { visible, thumbStyle, thumbListeners, axis } = controller;
+  const { visible, thumbStyle, thumbListeners } = controller;
   return (
     <div
       className="adl-reveal-scrollbar"
       data-reveal-scrollbar
-      data-axis={axis}
       data-visible={visible}
       aria-hidden="true"
     >

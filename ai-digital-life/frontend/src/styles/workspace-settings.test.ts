@@ -8,6 +8,11 @@ const revealCss = readFileSync(
   new URL('./components/reveal-scrollbar.css', import.meta.url),
   'utf-8',
 );
+const tokensCss = readFileSync(new URL('./tokens.css', import.meta.url), 'utf-8');
+const editorCss = readFileSync(
+  new URL('./regions/rightpanel/editor-content.css', import.meta.url),
+  'utf-8',
+);
 
 function ruleBody(css: string, selector: string): string | null {
   const start = css.indexOf(`${selector} {`);
@@ -309,8 +314,9 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
   it('C: rows stack below 600px instead of crushing the label to zero width', () => {
     const start = settingsCss.indexOf('@container settings-content (max-width: 600px)');
     expect(start).not.toBe(-1);
-    // 取固定窗口（@container 含多条嵌套规则，首个 } 只闭合第一条内规则）。
-    const block = settingsCss.slice(start, start + 2000);
+    // 截到下一个 @container 档为止（固定字符窗口会越界吞到后续档，rev2 R2）。
+    const nextStage = settingsCss.indexOf('@container', start + 1);
+    const block = settingsCss.slice(start, nextStage === -1 ? undefined : nextStage);
     // 堆叠（label 上、control 下）+ 控件流式宽度是两个症状的直接解。
     expect(block).toContain('flex-direction: column');
     expect(block).toContain('width: 100%');
@@ -344,6 +350,13 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     //（断言 `transition:` 声明；注释里的「无 transition」字样不计）。
     expect(body).not.toContain('transition:');
     expect(body).toContain('visibility: hidden');
+    // 修复隐式前提锁：同元素仍挂着基类 `transition: var(--transition-colors)`，
+    // 残影不回归依赖该 token 不含 opacity（rev2 R1）。
+    const start = tokensCss.indexOf('--transition-colors:');
+    expect(start).not.toBe(-1);
+    const decl = tokensCss.slice(start, tokensCss.indexOf(';', start));
+    expect(decl).toContain('color');
+    expect(decl).not.toContain('opacity');
   });
 
   it('settings cards render instantly — no enter animation remains (drawer-spring regression lock)', () => {
@@ -456,5 +469,17 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     const dragging = ruleBody(revealCss, '.adl-hscroll__thumb.is-dragging');
     expect(dragging).not.toBeNull();
     expect(dragging).toContain('var(--hscroll-thumb-dragging-bg)');
+  });
+
+  it('HScrollbar dot design stays in parity with editor .adl-cm-hscroll (drift lock, rev2 R5)', () => {
+    const cm = ruleBody(editorCss, '.adl-cm-hscroll__thumb');
+    const mine = ruleBody(revealCss, '.adl-hscroll__thumb');
+    expect(cm).not.toBeNull();
+    expect(mine).not.toBeNull();
+    // 提取自编辑器的关键视觉参数：任一侧改动都应触发人工同步评估。
+    for (const decl of ['min-width: 6px', 'max-width: 6px', 'var(--hscroll-thumb-bg)']) {
+      expect(cm).toContain(decl);
+      expect(mine).toContain(decl);
+    }
   });
 });

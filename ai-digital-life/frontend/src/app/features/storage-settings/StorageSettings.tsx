@@ -641,6 +641,8 @@ export function StorageSettings() {
    * @see CORE_RESET_PATCH
    */
   const handleResetCorePaths = useCallback(() => {
+    // 恢复默认是用户意图的草稿改写：置位防语言切换窗口的再验证回滚恢复值。
+    draftsDirtyRef.current = true;
     setMode('unified');
     setRootDraft('');
     setCategoryDrafts({});
@@ -689,6 +691,8 @@ export function StorageSettings() {
       }
       // 预检通过后再把草稿清成恢复值（与单块恢复一致：取消也不回填），
       // 同时快照下载迁移开关供本次组流程全程使用（M4-R：与对话框展示文案同源）。
+      // 恢复值是用户意图的草稿改写：置位防语言切换窗口的再验证回滚。
+      draftsDirtyRef.current = true;
       setMode('unified');
       setRootDraft('');
       setCategoryDrafts({});
@@ -1390,7 +1394,12 @@ export function StorageSettings() {
                 type="button"
                 className="adl-btn adl-btn--path-pick"
                 disabled={picking}
-                onClick={() => void handlePickDirectory(setRootDraft)}
+                onClick={() =>
+                  void handlePickDirectory((path) => {
+                    draftsDirtyRef.current = true;
+                    setRootDraft(path);
+                  })
+                }
               >
                 {t.storagePickDir}
               </button>

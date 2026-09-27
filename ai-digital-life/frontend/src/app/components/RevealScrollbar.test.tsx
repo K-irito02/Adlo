@@ -36,6 +36,5 @@ describe('RevealScrollbar', () => {
     const thumb = track.querySelector('.adl-reveal-scrollbar__thumb') as HTMLElement;
     expect(thumb).toHaveStyle({ height: '24px' });
     expect(track.getAttribute('aria-hidden')).toBe('true');
-    expect(track.getAttribute('data-axis')).toBe('vertical');
   });
 });

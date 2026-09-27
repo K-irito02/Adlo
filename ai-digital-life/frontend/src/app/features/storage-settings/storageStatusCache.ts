@@ -125,8 +125,13 @@ export function prefetchStorageSettings(): Promise<void> {
           }
         })
         .catch(() => undefined);
-  prefetchInFlight = Promise.all([fetchStatus, fetchTreeStats]).then(() => {
-    prefetchInFlight = null;
+  const settled = Promise.all([fetchStatus, fetchTreeStats]).then(() => {
+    // identity 守卫：reset 可能在本 promise 在途时清空并放行新一轮预取，
+    // 旧 promise settle 不得清掉新 latch（否则并发去重失效）。
+    if (prefetchInFlight === settled) {
+      prefetchInFlight = null;
+    }
   });
-  return prefetchInFlight;
+  prefetchInFlight = settled;
+  return settled;
 }

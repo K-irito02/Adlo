@@ -134,6 +134,16 @@ describe('useRevealScrollbar', () => {
     expect(thumb.dataset.scrollable).toBe('true');
   });
 
+  it('re-measures on hover when content grew without scroll or resize (async length)', () => {
+    const { host } = renderHost(5, { scrollHeight: 100, clientHeight: 100 });
+    const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
+    expect(thumb.dataset.scrollable).toBe('false');
+    // 内容异步变长但元素尺寸不变：无 scroll/ResizeObserver 事件，hover 进入兜底重测。
+    Object.defineProperty(host, 'scrollHeight', { configurable: true, value: 400 });
+    fireEvent.mouseEnter(host);
+    expect(thumb.dataset.scrollable).toBe('true');
+  });
+
   it('horizontal axis derives scrollable and thumb width from scrollWidth', () => {
     const { host } = renderHorizontalHost({ scrollWidth: 400, clientWidth: 100 });
     fireEvent.mouseEnter(host);

@@ -2751,4 +2751,46 @@ describe('StorageSettings entry cache (stale-while-revalidate)', () => {
     await inflight;
     expect(getCachedStorageStatus()).toBeNull();
   });
+
+  it('draftsDirtyRef 正向：用户编辑草稿后，再验证不回滚（语言切换重取场景）', async () => {
+    const perCategory = { ...cachedStatus, mode: 'per_category' as const };
+    setCachedStorageStatus(perCategory);
+    const storage = (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage;
+    storage.getStatus.mockResolvedValue({ ok: true, data: perCategory });
+    const view = renderSettings();
+    await waitFor(() => expect(screen.getByLabelText('storageModePerCategory')).toBeChecked());
+    // 用户切回统一（draftsDirtyRef 置位）。
+    fireEvent.click(screen.getByLabelText('storageModeUnified'));
+    expect(screen.getByLabelText('storageModeUnified')).toBeChecked();
+    // 语言切换（t 身份变化）触发 [t] 再验证：fresh 仍是 per_category ——
+    // 若 dirty 保护失效，草稿会被重播种回滚成 per_category。
+    const t2 = new Proxy({} as Record<string, string>, {
+      get: (_, key) => (typeof key === 'string' ? key : ''),
+    }) as unknown as CopyDict;
+    view.rerender(
+      <TCopyProvider t={t2} locale="en-US">
+        <StorageSettings />
+      </TCopyProvider>,
+    );
+    await waitFor(() => expect(storage.getStatus).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText('storageModeUnified')).toBeChecked();
+    expect(screen.getByLabelText('storageModePerCategory')).not.toBeChecked();
+  });
+
+  it('draftsDirtyRef 反向：未编辑时，再验证把草稿重播种为后端最新（缓存收敛）', async () => {
+    setCachedStorageStatus(cachedStatus); // mode: unified（缓存快照）
+    const perCategory = { ...cachedStatus, mode: 'per_category' as const };
+    (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage.getStatus.mockResolvedValue({ ok: true, data: perCategory });
+    renderSettings();
+    // 挂载再验证（dirty=false）→ 草稿随 fresh 重播种为 per_category（修 rev1-F2 分叉）。
+    await waitFor(() => expect(screen.getByLabelText('storageModePerCategory')).toBeChecked());
+  });
 });
