@@ -8,7 +8,7 @@ const THUMB_CLASS = 'adl-hscroll__thumb';
 
 /**
  * 常驻水平滚动条（点态指示器），设计完整提取自文件面板/变更面板的
- * `.adl-cm-hscroll`（CodeMirror 自定义横条，editor-content.css）：
+ * `.adl-cm-hscroll`（CodeMirror 自定义横条，cm-overrides.css）：
  *
  * - **常驻**：可滚动即显示（区别于 RevealScrollbar 的悬停显现垂直条）；
  * - **静止点态**：6px 圆点、反主题高亮（`--hscroll-thumb-bg`：浅色纯黑/深色纯白），

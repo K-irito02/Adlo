@@ -5,15 +5,15 @@
      1. tokens     - design primitives (CSS custom properties)
      2. themes     - color schemes × theme modes
      3. base       - resets, body backdrop, focus, scrollbar
-     4. layout     - app shell, sidebar, page, grid presets
-     5. components - Button / Input / Card / Badge / Modal / Toast / etc.
-     6. utilities  - sr-only, focus helpers, spacing utilities
+     4. components - Button / Input / Card / Badge / Modal / Toast / etc.
+     5. utilities  - sr-only, focus helpers, spacing utilities
+   （原 layout.css —— app-shell/page/grid 模板遗留 —— 已删：全仓 0 引用，
+    真实布局在 regions/*.css 与 .adl-* 组件样式中）
    ========================================================================== */
 
 @import './tokens.css';
 @import './themes.css';
 @import './base.css';
-@import './layout.css';
 @import './components.css';
 @import './regions/leftbar.css';
 @import './regions/leftbar-workspace.css';

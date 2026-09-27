@@ -30,7 +30,8 @@ function makeController(
     scrollable: true,
     thumbLength: 25,
     thumbOffset: 60,
-    thumbStyle: { width: '25px', transform: 'translateX(60px)' },
+    // 横轴 thumbStyle 为空对象（几何走 thumbLength/thumbOffset，revB-D2）。
+    thumbStyle: {},
     thumbListeners: { onPointerDown: vi.fn() },
     ...overrides,
   };

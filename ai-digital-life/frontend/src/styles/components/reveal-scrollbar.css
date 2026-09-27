@@ -75,7 +75,7 @@
 
 /* ---- 常驻水平滚动条（点态指示器，HScrollbar）----
    设计完整提取自文件面板/变更面板的编辑器横条 `.adl-cm-hscroll`
-   （editor-content.css，含 CodeMirror 定位差异处除外）：
+   （cm-overrides.css，含 CodeMirror 定位差异处除外）：
    常驻显示（非悬停显现）→ 静止 6px 反主题高亮点（--hscroll-thumb-bg：
    浅色纯黑 / 深色纯白），点位经 --adl-hscroll-dot-offset 对齐滑块中心；
    悬停/拖拽展开为常规滑块（40px 起、6px 高），亮度略亮于常规。 */
