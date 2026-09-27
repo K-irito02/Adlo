@@ -10,7 +10,7 @@ const revealCss = readFileSync(
 );
 const tokensCss = readFileSync(new URL('./tokens.css', import.meta.url), 'utf-8');
 const editorCss = readFileSync(
-  new URL('./regions/rightpanel/editor-content.css', import.meta.url),
+  new URL('./regions/rightpanel/cm-overrides.css', import.meta.url),
   'utf-8',
 );
 
@@ -442,7 +442,7 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     );
   });
 
-  it('reveal scrollbar: horizontal axis overlays at the bottom with a thin thumb', () => {
+  it('dead horizontal reveal axis styles stay removed (superseded by HScrollbar)', () => {
     // 横向 reveal 轴样式已随 settings 改用点态 HScrollbar 删除（无生产消费者）；
     // 横向滚动条的唯一实现是 .adl-hscroll（见下一条断言）。
     expect(revealCss).not.toContain("[data-axis='horizontal']");

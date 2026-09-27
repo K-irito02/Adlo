@@ -72,69 +72,9 @@
   height: 0;
 }
 
-/* Custom horizontal scrollbar — replaces native scrollbar in no-word-wrap mode.
-   Positioned at the bottom of .cm-editor, starting after the gutter, so it
-   never overlaps line numbers. */
-.adl-cm-hscroll {
-  position: absolute;
-  bottom: 0;
-  left: var(--adl-editor-gutter-width, 0px);
-  right: 0;
-  height: 10px;
-  z-index: 10;
-  display: none;
-  cursor: pointer;
-  user-select: none;
-}
-
-.adl-cm-hscroll.is-visible {
-  display: block;
-}
-
-.adl-cm-hscroll__track {
-  position: absolute;
-  inset: 0;
-}
-
-.adl-cm-hscroll__thumb {
-  position: absolute;
-  top: 3px;
-  height: 4px;
-  left: 0;
-  min-width: 6px;
-  max-width: 6px;
-  background: var(--hscroll-thumb-bg);
-  border-radius: 3px;
-  box-shadow: var(--hscroll-thumb-shadow);
-  transition:
-    max-width 0.25s ease,
-    background 0.2s,
-    box-shadow 0.2s;
-  transform: translateX(var(--adl-hscroll-dot-offset, 0px));
-  cursor: default;
-}
-
-.adl-cm-hscroll:hover .adl-cm-hscroll__thumb {
-  max-width: none;
-  min-width: 40px;
-  height: 6px;
-  top: 2px;
-  background: var(--hscroll-thumb-hover-bg);
-  box-shadow: var(--hscroll-thumb-hover-shadow);
-  transform: none;
-  cursor: grab;
-}
-
-.adl-cm-hscroll__thumb.is-dragging {
-  max-width: none;
-  min-width: 40px;
-  height: 6px;
-  top: 2px;
-  background: var(--hscroll-thumb-dragging-bg);
-  box-shadow: var(--hscroll-thumb-dragging-shadow);
-  transform: none;
-  cursor: grabbing;
-}
+/* Custom horizontal scrollbar (`adl-cm-hscroll`) lives solely in
+   cm-overrides.css (imported later — a verbatim duplicate here was dead);
+   React extraction counterpart: .adl-hscroll in reveal-scrollbar.css. */
 
 .adl-cm-editor .cm-content,
 .adl-cm-diff-viewer .cm-content {

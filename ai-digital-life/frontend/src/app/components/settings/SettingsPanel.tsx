@@ -357,10 +357,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // 编辑器/差异查看器横向条家族）。scrollRef 挂真实滚动元素，hover 挂外层
   // 宿主（滑块与滚动区为兄弟节点，hover 必须覆盖两者，否则悬停滑块即闪隐）。
   const contentScrollbar = useRevealScrollbar([effectiveGroup, searchQuery], 'vertical');
-  const hostScrollbar = useRevealScrollbar(
-    [effectiveGroup, searchQuery, settingsNavigatorWidth],
-    'horizontal',
-  );
+  // 横向几何由 ResizeObserver 直接观察 host（导航拖宽即改 host 宽度），
+  // deps 无需再含 settingsNavigatorWidth（revB-R3：原依据不成立）。
+  const hostScrollbar = useRevealScrollbar([effectiveGroup, searchQuery], 'horizontal');
 
   // 组级重置沿用同一个 ConfirmDialog，文案按 pendingResetGroup 切换，避免"恢复全部"误导。
   const pendingGroupLabel = pendingResetGroup

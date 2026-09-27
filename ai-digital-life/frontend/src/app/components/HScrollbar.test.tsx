@@ -28,7 +28,6 @@ function makeController(
     hoverProps: { onMouseEnter: () => {}, onMouseLeave: () => {} },
     visible: false,
     scrollable: true,
-    axis: 'horizontal',
     thumbLength: 25,
     thumbOffset: 60,
     thumbStyle: { width: '25px', transform: 'translateX(60px)' },

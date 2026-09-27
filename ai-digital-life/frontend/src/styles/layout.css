@@ -1,87 +1,12 @@
 /* ==========================================================================
    Layout
    --------------------------------------------------------------------------
-   - App shell: titlebar / sidebar / content / statusbar
    - Responsive grid system (12-col + dashboard / two-col / three-col presets)
    - Container widths (fluid / standard / wide / narrow)
    - Page header / content scroll area
+   （`.app-shell*` 规则已删：真实 DOM 为 `.adl-shell*`，`.app-shell*` 全仓 0 引用 —
+    Phase 0 确认的死代码，responsive 断点中的同名规则一并移除）
    ========================================================================== */
-
-/* -------- App shell -------- */
-.app-shell {
-  display: grid;
-  grid-template-rows: var(--titlebar-height) 1fr;
-  min-height: 100vh;
-  min-height: 100dvh;
-}
-
-.app-shell__titlebar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-4);
-  background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-subtle);
-  -webkit-app-region: drag;
-  user-select: none;
-}
-
-.app-shell__titlebar > button,
-.app-shell__titlebar > a {
-  -webkit-app-region: no-drag;
-}
-
-.app-shell__brand {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  font-weight: var(--font-semibold);
-}
-
-.app-shell__brand-name {
-  font-size: var(--text-sm);
-}
-
-.app-shell__brand-meta {
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-}
-
-.app-shell__titlebar-spacer {
-  flex: 1 1 auto;
-}
-
-.app-shell__body {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
-  min-height: 0;
-}
-
-.app-shell__sidebar {
-  border-right: 1px solid var(--border-subtle);
-  background: var(--bg-elevated);
-  padding: var(--space-4) var(--space-3);
-  overflow-y: auto;
-}
-
-.app-shell__main {
-  min-width: 0;
-  overflow-y: auto;
-  scroll-behavior: smooth;
-}
-
-.app-shell__statusbar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: 0 var(--space-4);
-  background: var(--bg-elevated);
-  border-top: 1px solid var(--border-subtle);
-  font-size: var(--text-xs);
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow-x: auto;
-}
 
 /* -------- Sidebar nav -------- */
 .nav {
@@ -233,14 +158,6 @@
 
 /* -------- Responsive: small tablet / large phone (≤ 960px) -------- */
 @media (max-width: 960px) {
-  .app-shell__body {
-    grid-template-columns: var(--sidebar-width-collapsed) 1fr;
-  }
-
-  .app-shell__sidebar {
-    padding: var(--space-3) var(--space-2);
-  }
-
   .nav__item {
     justify-content: center;
     padding: var(--space-3);
@@ -264,18 +181,6 @@
 
 /* -------- Responsive: phone (≤ 640px) -------- */
 @media (max-width: 640px) {
-  .app-shell {
-    grid-template-rows: var(--titlebar-height) 1fr auto;
-  }
-
-  .app-shell__body {
-    grid-template-columns: 1fr;
-  }
-
-  .app-shell__sidebar {
-    display: none;
-  }
-
   .page__title {
     font-size: var(--text-2xl);
   }

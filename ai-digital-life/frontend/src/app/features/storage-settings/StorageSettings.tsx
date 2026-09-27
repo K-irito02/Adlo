@@ -86,7 +86,7 @@ const CORE_RESET_PATCH: StoragePathPatch = {
 const STATUS_TIMEOUT_MS = 30_000;
 
 /** 仅由超时计时器抛出的哨兵错误：与后端真实失败区分展示（F3）。 */
-export class StatusTimeoutError extends Error {
+class StatusTimeoutError extends Error {
   constructor() {
     super('storage status timed out');
     this.name = 'StatusTimeoutError';

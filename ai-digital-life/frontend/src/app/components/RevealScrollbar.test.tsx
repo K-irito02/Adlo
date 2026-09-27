@@ -9,7 +9,6 @@ function makeController(overrides: Partial<RevealScrollbarController>): RevealSc
     hoverProps: { onMouseEnter: () => {}, onMouseLeave: () => {} },
     visible: false,
     scrollable: false,
-    axis: 'vertical',
     thumbLength: 24,
     thumbOffset: 0,
     thumbStyle: { height: '24px', transform: 'translateY(0px)' },

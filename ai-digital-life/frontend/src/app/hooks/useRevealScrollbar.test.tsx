@@ -35,6 +35,8 @@ function ThumbProbe({ controller }: { controller: RevealScrollbarController }) {
       data-testid="thumb"
       data-visible={controller.visible}
       data-scrollable={controller.scrollable}
+      data-thumb-length={controller.thumbLength}
+      data-thumb-offset={controller.thumbOffset}
       style={controller.thumbStyle}
       {...controller.thumbListeners}
     />
@@ -151,8 +153,9 @@ describe('useRevealScrollbar', () => {
     expect(thumb.dataset.scrollable).toBe('true');
     expect(thumb.dataset.visible).toBe('true');
     // 比例宽 25px < 横轴下限 40（对齐编辑器 THUMB_MIN_WIDTH）→ 钳到 40。
-    expect(thumb.style.width).toBe('40px');
-    expect(thumb.style.transform).toBe('translateX(0px)');
+    // 横轴几何走 thumbLength/thumbOffset（thumbStyle 仅竖轴，revB-D2）。
+    expect(thumb.dataset.thumbLength).toBe('40');
+    expect(thumb.dataset.thumbOffset).toBe('0');
   });
 
   it('horizontal axis not scrollable when content fits', () => {

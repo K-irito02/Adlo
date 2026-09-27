@@ -21,10 +21,10 @@ export interface RevealScrollbarController {
   };
   visible: boolean;
   scrollable: boolean;
-  axis: RevealScrollbarAxis;
-  /** 滑块几何原始值（px）：供点态/自定义渲染使用（thumbStyle 已含等价的字符串形式）。 */
+  /** 滑块几何原始值（px）：横向消费者（HScrollbar）据此自行渲染点态滑块。 */
   thumbLength: number;
   thumbOffset: number;
+  /** 仅竖轴 RevealScrollbar 消费的字符串样式（横轴返回空对象，见 thumbStyle 注释）。 */
   thumbStyle: CSSProperties;
   thumbListeners: {
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
@@ -211,10 +211,13 @@ export function useRevealScrollbar(
   const thumb = computeThumb(geometry, axis);
   const visible = hovered && scrollable;
 
+  // 横向消费者（HScrollbar）走 thumbLength/thumbOffset 自行渲染（点态设计）；
+  // thumbStyle 只服务竖轴 RevealScrollbar —— 横分支零生产消费者且是误用陷阱
+  //（误传给 RevealScrollbar 会渲染错位），返回空对象（revB-D2）。
   const thumbStyle: CSSProperties =
     axis === 'vertical'
       ? { height: `${thumb.length}px`, transform: `translateY(${thumb.offset}px)` }
-      : { width: `${thumb.length}px`, transform: `translateX(${thumb.offset}px)` };
+      : {};
 
   return {
     scrollRef,
@@ -229,7 +232,6 @@ export function useRevealScrollbar(
     },
     visible,
     scrollable,
-    axis,
     thumbLength: thumb.length,
     thumbOffset: thumb.offset,
     thumbStyle,
