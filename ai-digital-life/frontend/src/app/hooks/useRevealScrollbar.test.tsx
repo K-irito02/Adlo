@@ -24,6 +24,11 @@ function mockLayout(el: HTMLElement, box: { scrollHeight: number; clientHeight: 
   Object.defineProperty(el, 'clientHeight', { configurable: true, get: () => box.clientHeight });
 }
 
+function mockLayoutX(el: HTMLElement, box: { scrollWidth: number; clientWidth: number }) {
+  Object.defineProperty(el, 'scrollWidth', { configurable: true, get: () => box.scrollWidth });
+  Object.defineProperty(el, 'clientWidth', { configurable: true, get: () => box.clientWidth });
+}
+
 function ThumbProbe({ controller }: { controller: RevealScrollbarController }) {
   return (
     <div
@@ -52,6 +57,23 @@ function renderHost(items: number, box: { scrollHeight: number; clientHeight: nu
   const rendered = render(<Host items={items} />);
   const host = rendered.container.querySelector('[data-testid="host"]') as HTMLElement;
   mockLayout(host, box);
+  fireEvent.scroll(host);
+  return { ...rendered, host };
+}
+
+function HorizontalHost() {
+  const controller = useRevealScrollbar([1], 'horizontal');
+  return (
+    <div ref={controller.scrollRef} {...controller.hoverProps} data-testid="host-x">
+      <ThumbProbe controller={controller} />
+    </div>
+  );
+}
+
+function renderHorizontalHost(box: { scrollWidth: number; clientWidth: number }) {
+  const rendered = render(<HorizontalHost />);
+  const host = rendered.container.querySelector('[data-testid="host-x"]') as HTMLElement;
+  mockLayoutX(host, box);
   fireEvent.scroll(host);
   return { ...rendered, host };
 }
@@ -110,5 +132,33 @@ describe('useRevealScrollbar', () => {
     rendered.rerender(<Host items={5} />);
     const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
     expect(thumb.dataset.scrollable).toBe('true');
+  });
+
+  it('horizontal axis derives scrollable and thumb width from scrollWidth', () => {
+    const { host } = renderHorizontalHost({ scrollWidth: 400, clientWidth: 100 });
+    fireEvent.mouseEnter(host);
+    const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
+    expect(thumb.dataset.scrollable).toBe('true');
+    expect(thumb.dataset.visible).toBe('true');
+    expect(thumb.style.width).toBe('25px');
+    expect(thumb.style.transform).toBe('translateX(0px)');
+  });
+
+  it('horizontal axis not scrollable when content fits', () => {
+    const { host } = renderHorizontalHost({ scrollWidth: 100, clientWidth: 100 });
+    fireEvent.mouseEnter(host);
+    const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
+    expect(thumb.dataset.scrollable).toBe('false');
+    expect(thumb.dataset.visible).toBe('false');
+  });
+
+  it('horizontal drag maps clientX to scrollLeft and clamps', () => {
+    const { host } = renderHorizontalHost({ scrollWidth: 400, clientWidth: 100 });
+    fireEvent.mouseEnter(host);
+    const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
+    fireEvent.pointerDown(thumb, { pointerId: 1, clientX: 0 });
+    fireEvent.pointerMove(window, { pointerId: 1, clientX: 30 });
+    fireEvent.pointerUp(window, { pointerId: 1, clientX: 30 });
+    expect(host.scrollLeft).toBe(120);
   });
 });

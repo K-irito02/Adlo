@@ -4,6 +4,10 @@ import { readFileSync } from 'node:fs';
 
 const settingsCss = readFileSync(new URL('./components/settings.css', import.meta.url), 'utf-8');
 const hintCardCss = readFileSync(new URL('./components/hintCard.css', import.meta.url), 'utf-8');
+const revealCss = readFileSync(
+  new URL('./components/reveal-scrollbar.css', import.meta.url),
+  'utf-8',
+);
 
 function ruleBody(css: string, selector: string): string | null {
   const start = css.indexOf(`${selector} {`);
@@ -264,5 +268,133 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     const focus = ruleBody(settingsCss, '.adl-settings-row .adl-btn--path-pick:focus-visible');
     expect(focus).not.toBeNull();
     expect(focus).toContain('border-color: var(--border-strong)');
+  });
+});
+
+describe('settings panel narrow layout (方案 C+B+A)', () => {
+  it('B: nav width is clamped against the content floor (360 > 320 constant conflict)', () => {
+    // 直接断言钳制式（ruleBody('.adl-settings-nav') 会先命中 is-navigator-collapsed
+    // 规则里的同名子串，不能用）。
+    expect(settingsCss).toContain(
+      'min(var(--adl-settings-nav-width, 160px), calc(100% - var(--adl-settings-content-min, 280px)))',
+    );
+    // 单一来源：地板变量定义在面板根上；280 = 堆叠舒适最小宽（160 时代与导航
+    // 下限同源耦合，兜底横滚在数学上不可达）。
+    const panel = ruleBody(settingsCss, '.adl-settings-panel');
+    expect(panel).not.toBeNull();
+    expect(panel).toContain('--adl-settings-content-min: 280px');
+  });
+
+  it('A: content keeps a min-width floor and the host is the horizontal scroller', () => {
+    const content = ruleBody(settingsCss, '.adl-settings-panel__content');
+    expect(content).not.toBeNull();
+    expect(content).toContain('min-width: var(--adl-settings-content-min, 280px)');
+    const host = ruleBody(settingsCss, '.adl-settings-panel__content-host');
+    expect(host).not.toBeNull();
+    expect(host).toContain('overflow-x: auto');
+    // 外层是滚动条定位宿主：自身必须不滚动，否则 abspos 滑块随滚动位移。
+    const outer = ruleBody(settingsCss, '.adl-settings-panel__content-outer');
+    expect(outer).not.toBeNull();
+    expect(outer).toContain('position: relative');
+    expect(outer).not.toContain('overflow-x');
+  });
+
+  it('C: content-host is the container-query context', () => {
+    const host = ruleBody(settingsCss, '.adl-settings-panel__content-host');
+    expect(host).not.toBeNull();
+    expect(host).toContain('container-type: inline-size');
+    expect(host).toContain('container-name: settings-content');
+  });
+
+  it('C: rows stack below 600px instead of crushing the label to zero width', () => {
+    const start = settingsCss.indexOf('@container settings-content (max-width: 600px)');
+    expect(start).not.toBe(-1);
+    // 取固定窗口（@container 含多条嵌套规则，首个 } 只闭合第一条内规则）。
+    const block = settingsCss.slice(start, start + 2000);
+    // 堆叠（label 上、control 下）+ 控件流式宽度是两个症状的直接解。
+    expect(block).toContain('flex-direction: column');
+    expect(block).toContain('width: 100%');
+    // 组级 align-items:center（0-2-0）必须在本档被扳回 stretch，否则窄档
+    // 子项 shrink-to-fit、四组行为不一致。
+    expect(block).toContain('.adl-settings-controls .adl-settings-row');
+    expect(block).toContain('align-items: stretch');
+    // 字体块整块改列（预览/下拉各占一行）。
+    expect(block).toContain('.adl-settings-font--row');
+  });
+
+  it('clamps label descriptions to at most 5 lines with anywhere-wrap', () => {
+    const body = ruleBody(settingsCss, '.adl-settings-row__label small');
+    expect(body).not.toBeNull();
+    expect(body).toContain('-webkit-line-clamp: 5');
+    expect(body).toContain('overflow-wrap: anywhere');
+  });
+
+  it('workspace empty drop-zone text is single-line ellipsized like the tag label', () => {
+    const body = ruleBody(settingsCss, '.adl-sortable-empty');
+    expect(body).not.toBeNull();
+    expect(body).toContain('white-space: nowrap');
+    expect(body).toContain('text-overflow: ellipsis');
+    expect(body).toContain('overflow: hidden');
+  });
+
+  it('C: narrow stages tighten padding and unlock fixed-width controls', () => {
+    expect(settingsCss).toContain('@container settings-content (max-width: 460px)');
+    const start = settingsCss.indexOf('@container settings-content (max-width: 300px)');
+    expect(start).not.toBe(-1);
+    const block = settingsCss.slice(start, start + 2000);
+    // dsh 锁死的 160px 下拉/测试按钮在极窄档解锁（提权选择器防 dsh.css 反覆盖）。
+    expect(block).toContain(
+      '.adl-settings-panel__content .adl-dsh-settings .adl-settings-dropdown',
+    );
+    expect(block).toContain('min-width: 0');
+  });
+
+  it('reveal scrollbar: horizontal container hides the native bar (custom hbar only)', () => {
+    const body = ruleBody(revealCss, '.adl-reveal-scroll-x');
+    expect(body).not.toBeNull();
+    expect(body).toContain('overflow-x: auto');
+    expect(body).toContain('scrollbar-width: none');
+    expect(ruleBody(revealCss, '.adl-reveal-scroll-x::-webkit-scrollbar')).toContain(
+      'display: none',
+    );
+  });
+
+  it('reveal scrollbar: horizontal axis overlays at the bottom with a thin thumb', () => {
+    expect(revealCss).toContain("[data-axis='horizontal']");
+    const track = ruleBody(revealCss, ".adl-reveal-scrollbar[data-axis='horizontal']");
+    expect(track).not.toBeNull();
+    expect(track).toContain('bottom: 0');
+    expect(track).toContain('width: auto');
+    const thumb = ruleBody(
+      revealCss,
+      ".adl-reveal-scrollbar[data-axis='horizontal'] .adl-reveal-scrollbar__thumb",
+    );
+    expect(thumb).not.toBeNull();
+    expect(thumb).toContain('height: 4px');
+  });
+
+  it('HScrollbar: persistent dot-indicator design matches the editor .adl-cm-hscroll', () => {
+    // 常驻容器：底部 overlay（无 hover 显现门控 —— 组件按 scrollable 条件渲染）。
+    const bar = ruleBody(revealCss, '.adl-hscroll');
+    expect(bar).not.toBeNull();
+    expect(bar).toContain('bottom: 0');
+    expect(bar).toContain('height: 10px');
+    // 静止点态：6px 圆点 + 反主题高亮 token + 点位对齐变量（浅色纯黑/深色纯白）。
+    const thumb = ruleBody(revealCss, '.adl-hscroll__thumb');
+    expect(thumb).not.toBeNull();
+    expect(thumb).toContain('min-width: 6px');
+    expect(thumb).toContain('max-width: 6px');
+    expect(thumb).toContain('var(--hscroll-thumb-bg)');
+    expect(thumb).toContain('var(--adl-hscroll-dot-offset');
+    // 悬停展开为常规滑块，亮度略亮（hover token）。
+    const hover = ruleBody(revealCss, '.adl-hscroll:hover .adl-hscroll__thumb');
+    expect(hover).not.toBeNull();
+    expect(hover).toContain('min-width: 40px');
+    expect(hover).toContain('transform: none');
+    expect(hover).toContain('var(--hscroll-thumb-hover-bg)');
+    // 拖拽态独立配色。
+    const dragging = ruleBody(revealCss, '.adl-hscroll__thumb.is-dragging');
+    expect(dragging).not.toBeNull();
+    expect(dragging).toContain('var(--hscroll-thumb-dragging-bg)');
   });
 });

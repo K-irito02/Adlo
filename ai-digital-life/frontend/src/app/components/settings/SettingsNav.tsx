@@ -14,6 +14,8 @@ interface SettingsNavProps {
   onResetGroup?: (group: SettingsGroupId) => void;
   /** 组全默认时禁用的行（聚合点计算；缺省/未知态保持启用 fail-open）。 */
   disabledResetGroups?: ReadonlySet<SettingsGroupId>;
+  /** 悬停行回调：供面板预热该组数据（如存储组进场缓存预取），不参与渲染状态。 */
+  onHoverGroup?: (group: SettingsGroupId) => void;
 }
 
 export function SettingsNav({
@@ -22,6 +24,7 @@ export function SettingsNav({
   resettableGroups,
   onResetGroup,
   disabledResetGroups,
+  onHoverGroup,
 }: SettingsNavProps) {
   const { t } = useTCopy();
   const navRef = useRef<HTMLElement>(null);
@@ -66,6 +69,7 @@ export function SettingsNav({
             <li
               key={group.id}
               className={`adl-settings-nav__row${activeGroup === group.id ? ' is-active' : ''}`}
+              onPointerEnter={() => onHoverGroup?.(group.id)}
             >
               <button
                 type="button"

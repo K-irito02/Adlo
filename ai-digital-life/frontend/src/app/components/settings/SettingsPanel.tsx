@@ -17,11 +17,15 @@ import {
   getGroupResetPatch,
 } from './settingsGroups';
 import { SettingsControls } from './SettingsControls';
+import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
+import { RevealScrollbar } from '../RevealScrollbar';
+import { HScrollbar } from '../HScrollbar';
 import { KeybindSettings } from './KeybindSettings';
 import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSettings';
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
 import { StorageSettings } from '../../features/storage-settings/StorageSettings';
+import { prefetchStorageSettings } from '../../features/storage-settings/storageStatusCache';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
@@ -131,6 +135,19 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   }, [config, storageBlocksAtDefault, browserBlocksAtDefault, dshBlocksAtDefault]);
 
   const rafRef = useRef(0);
+
+  // 方案 C 预取：设置面板打开即预热「存储」组快照（写入方案 B 的进场缓存），
+  // 用户随后点击时数据多已就绪，首次进入也基本无加载骨架。
+  useEffect(() => {
+    void prefetchStorageSettings();
+  }, []);
+
+  // 悬停侧边栏存储行再预热一次：移动→点击的天然延迟是免费的命中窗口。
+  const handleNavHoverGroup = useCallback((group: SettingsGroupId) => {
+    if (group === 'storage') {
+      void prefetchStorageSettings();
+    }
+  }, []);
 
   const handleNavResizeStart = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -336,6 +353,15 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const ActiveComponent = !searchQuery.trim() ? SETTINGS_COMPONENTS[effectiveGroup] : undefined;
 
+  // 项目自定义滚动条（垂直=文件树/剪贴板同源 RevealScrollbar；水平=对齐
+  // 编辑器/差异查看器横向条家族）。scrollRef 挂真实滚动元素，hover 挂外层
+  // 宿主（滑块与滚动区为兄弟节点，hover 必须覆盖两者，否则悬停滑块即闪隐）。
+  const contentScrollbar = useRevealScrollbar([effectiveGroup, searchQuery], 'vertical');
+  const hostScrollbar = useRevealScrollbar(
+    [effectiveGroup, searchQuery, settingsNavigatorWidth],
+    'horizontal',
+  );
+
   // 组级重置沿用同一个 ConfirmDialog，文案按 pendingResetGroup 切换，避免"恢复全部"误导。
   const pendingGroupLabel = pendingResetGroup
     ? (t[
@@ -440,6 +466,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
               resettableGroups={RESETTABLE_GROUPS}
               onResetGroup={handleRequestResetGroup}
               disabledResetGroups={disabledResetGroups}
+              onHoverGroup={handleNavHoverGroup}
             />
             <div
               className="adl-settings-nav__resize-handle"
@@ -453,16 +480,39 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
             />
           </div>
         )}
-        <div className="adl-settings-panel__content adl-settings-panel__content--cards">
-          {ActiveComponent ? (
-            React.createElement(ActiveComponent)
-          ) : (
-            <SettingsControls
-              items={filtered}
-              onChange={onChangeSetting}
-              searchQuery={searchQuery}
-            />
-          )}
+        <div
+          className="adl-settings-panel__content-outer adl-reveal-scrollbar-host"
+          onMouseEnter={() => {
+            contentScrollbar.hoverProps.onMouseEnter();
+            hostScrollbar.hoverProps.onMouseEnter();
+          }}
+          onMouseLeave={() => {
+            contentScrollbar.hoverProps.onMouseLeave();
+            hostScrollbar.hoverProps.onMouseLeave();
+          }}
+        >
+          <div
+            className="adl-settings-panel__content-host adl-reveal-scroll-x"
+            ref={hostScrollbar.scrollRef}
+          >
+            <div
+              className="adl-settings-panel__content adl-settings-panel__content--cards adl-reveal-scroll"
+              ref={contentScrollbar.scrollRef}
+            >
+              {ActiveComponent ? (
+                React.createElement(ActiveComponent)
+              ) : (
+                <SettingsControls
+                  items={filtered}
+                  onChange={onChangeSetting}
+                  searchQuery={searchQuery}
+                />
+              )}
+            </div>
+          </div>
+          <RevealScrollbar controller={contentScrollbar} />
+          {/* 水平条用点态常驻设计（文件/变更面板同款 HScrollbar），区别于竖条的悬停显现 */}
+          <HScrollbar controller={hostScrollbar} />
         </div>
       </div>
     </div>

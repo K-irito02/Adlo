@@ -3,7 +3,7 @@
    --------------------------------------------------------------------------
    - Card sections: 1px hairline border, 8px radius, generous padding
    - Serif only on section titles (scoped --font-serif, shared .adl-settings-title--serif)
-   - Stagger enter via transform/opacity only (ladder 0-400ms, n+7 clamp 480ms)
+   - Cards render instantly on group switch (no enter animation)
    - Pastel status via themed --pastel-* tokens
    - Radius scale: nav items 0 (edge-flush) / header search + reset-all + keybinds search sm(2px) / cards lg(8px)
    ========================================================================== */
@@ -12,6 +12,11 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  /* 内容区宽度地板（方案 A）= 堆叠布局的舒适最小宽。导航钳制与内容区
+     min-width 共用本变量：面板可用宽 < 地板（导航展开 + 面板 ≲440px）时
+     内容区真正横向溢出 → 水平 RevealScrollbar 出现（此前 160px 与导航下限
+     同源耦合，兜底滚动在数学上不可达）。 */
+  --adl-settings-content-min: 280px;
 }
 
 .adl-settings-panel__header {
@@ -74,8 +79,34 @@
   border-right: none;
 }
 
+/* 内容区外层：垂直/水平 RevealScrollbar 的定位宿主（自身不滚动，
+   否则 abspos 滑块会随滚动容器一起位移）。 */
+.adl-settings-panel__content-outer {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* 横向滚动层（方案 A 兜底）：内容地板 > 可用宽时在此轴滚动；
+   同时作为容器查询上下文（方案 C），窄档样式按本层宽度触发。 */
+.adl-settings-panel__content-host {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  container-type: inline-size;
+  container-name: settings-content;
+}
+
 .adl-settings-panel__content {
   flex: 1;
+  min-width: var(--adl-settings-content-min, 280px);
   overflow-y: auto;
   padding: var(--space-4) var(--space-4) var(--space-8);
 }
@@ -103,86 +134,18 @@
   padding: 0;
 }
 
-.adl-settings-panel__content--cards > .adl-settings-card,
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card,
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card,
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card {
-  animation: adl-settings-card-enter var(--duration-editorial) var(--ease-editorial) both;
-}
-
-.adl-settings-panel__content--cards > .adl-settings-card:nth-child(1),
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(1),
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(1),
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(1) {
-  animation-delay: 0ms;
-}
-
-.adl-settings-panel__content--cards > .adl-settings-card:nth-child(2),
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(2),
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(2),
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(2) {
-  animation-delay: 80ms;
-}
-
-.adl-settings-panel__content--cards > .adl-settings-card:nth-child(3),
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(3),
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(3),
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(3) {
-  animation-delay: 160ms;
-}
-
-.adl-settings-panel__content--cards > .adl-settings-card:nth-child(4),
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(4),
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(4),
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(4) {
-  animation-delay: 240ms;
-}
-
-.adl-settings-panel__content--cards > .adl-settings-card:nth-child(5),
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(5),
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(5),
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(5) {
-  animation-delay: 320ms;
-}
-
-.adl-settings-panel__content--cards > .adl-settings-card:nth-child(6),
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(6),
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(6),
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(6) {
-  animation-delay: 400ms;
-}
-
-/* Terminal clamp: cards at position 7+ keep the max delay so entrance
-   order never inverts (keybinds toolbar is sticky, groups render as cards). */
-.adl-settings-panel__content--cards > .adl-settings-card:nth-child(n + 7),
-.adl-settings-panel__content--cards > .adl-settings-section > .adl-settings-card:nth-child(n + 7),
-.adl-settings-panel__content--cards > .adl-settings-keybinds > .adl-settings-card:nth-child(n + 7),
-.adl-settings-panel__content--cards > .adl-dsh-settings > .adl-settings-card:nth-child(n + 7) {
-  animation-delay: 480ms;
-}
-
-@keyframes adl-settings-card-enter {
-  from {
-    opacity: 0;
-    transform: translateY(var(--space-3));
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .adl-settings-card {
-    animation: none !important;
-  }
-}
-
 /* ---- Navigator (shell) ---- */
 
 .adl-settings-nav {
   position: relative;
-  width: var(--adl-settings-nav-width, 160px);
+  /* 方案 B：拖宽上限联动内容地板 —— 导航至多占到「面板宽 − 内容地板」，
+     消灭 SETTINGS_NAVIGATOR_WIDTH_MAX(360) > RIGHT_PANEL_WIDTH_MIN(320) 的
+     常量矛盾（导航曾可把内容区挤到 0 宽）。拖拽仍写
+     --adl-settings-nav-width（aria/持久化不变），视觉宽度由本式钳制。 */
+  width: max(
+    160px,
+    min(var(--adl-settings-nav-width, 160px), calc(100% - var(--adl-settings-content-min, 280px)))
+  );
   flex-shrink: 0;
   border-right: 1px solid var(--border-subtle);
   /* Top intentionally tighter (space-1) to meet the header hairline; bottom keeps space-2. */
@@ -323,6 +286,7 @@
   gap: var(--space-1);
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .adl-settings-row__label > .adl-settings-row__label-text span,
@@ -333,7 +297,13 @@
 }
 
 .adl-settings-row__label small {
-  display: block;
+  /* 说明文字硬上限 5 行（产品要求：字体组提示不得超过五行）+ 任意断行：
+     极窄下不再十几行撑爆行高，也不会横向溢出压到右侧控件上。 */
+  display: -webkit-box;
+  -webkit-line-clamp: 5;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: var(--text-xs);
   color: var(--text-muted);
   margin-top: 2px;
@@ -624,6 +594,7 @@
   background: var(--bg-muted);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
+  overflow: hidden;
 }
 
 /* ---- Settings custom dropdown（可复用：替代原生 select） ----
@@ -861,12 +832,10 @@
   top: 50%;
   transform: translateY(-50%);
   opacity: 0;
-  /* 隐藏时同步脱离 Tab 顺序，避免键盘用户撞上不可见 stop；
-     visibility 离散过渡：显现即时、消失随 opacity 淡出 */
+  /* 隐藏时同步脱离 Tab 顺序，避免键盘用户撞上不可见 stop。
+     显隐即时（无 transition）：快速来回悬停时旧图标立即消失，
+     不与新行淡入的图标叠加成残影/幻影 */
   visibility: hidden;
-  transition:
-    opacity var(--duration-150) var(--ease-default),
-    visibility var(--duration-150) var(--ease-default);
 }
 
 .adl-settings-nav__row:hover .adl-settings-nav__reset,
@@ -990,24 +959,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-}
-
-.adl-settings-keybinds__group > .adl-settings-card {
-  animation: adl-settings-card-enter var(--duration-editorial) var(--ease-editorial) both;
-}
-
-.adl-settings-keybinds__group:nth-child(2) > .adl-settings-card {
-  animation-delay: 0ms;
-}
-
-.adl-settings-keybinds__group:nth-child(3) > .adl-settings-card {
-  animation-delay: 80ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .adl-settings-keybinds__group > .adl-settings-card {
-    animation: none !important;
-  }
 }
 
 /* 块头：组级恢复按钮 + SettingsHeader（与工作区/存储组头同一交互与标题语言，无分隔线）。 */
@@ -1174,8 +1125,13 @@
   overflow: hidden;
 }
 
+/* 标题文字可收缩 + 省略号（原 flex-shrink:0 会把文字顶出 overflow:hidden 的裁剪盒）；
+   徽章保持不收缩，窄列下截断的是文字而非徽章。 */
 .adl-sortable-section-title-text {
-  flex-shrink: 0;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .adl-sortable-list {
@@ -1192,6 +1148,11 @@
   border: 1px dashed var(--border-subtle);
   border-radius: var(--radius-sm);
   text-align: center;
+  /* 单行省略截断：与 .adl-sortable-item 标签同为单行（同 padding 同字号），
+     虚线框高度与工作区标签一致，不因多行文案在窄列里被撑高数倍。 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .adl-sortable-item {
@@ -1366,12 +1327,6 @@
   border-bottom: none;
 }
 
-.adl-settings-panel__content--cards
-  > .adl-settings-section.adl-settings-workspace
-  > .adl-settings-card {
-  animation-delay: 0ms;
-}
-
 /* ---- Workspace three-column grid (bento) ---- */
 
 .workspace-curtain {
@@ -1391,10 +1346,11 @@
   min-width: 0;
 }
 
-/* Section header title — single-line always */
+/* Section header title — single-line always, ellipsized when clipped */
 .adl-settings-header__title {
   white-space: nowrap;
   overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .adl-sortable-section-badge {
@@ -1417,3 +1373,145 @@
 /* 🔴 Clip phase: handled by .workspace-curtain overflow:hidden +
    grid-template-columns: repeat(3, minmax(80px, 1fr)).
    Below 264px (3*80 + 2*12) grid overflows → parent clips right side. */
+
+/* ---- Narrow stages (方案 C：容器查询分档) ----
+   上下文 = .adl-settings-panel__content-host（container-name: settings-content）。
+   宽档为上方基础规则（不动，dsh-settings.test 锁定的 160px 等保持）；
+   窄档只在此追加：≤460 收 padding → ≤600 完全堆叠（每元素一行）→ ≤300 解锁固定宽控件。
+   堆叠阈值 600 = 刚性控件（260 路径输入 + 按钮 + gap）+ 卡片内边距 + 最小可读 label
+   的实测和（420~600 曾是"并排死区"：label 被压到 0~54px、副标题溢出压到输入框上）。
+   触发依据是内容区实际可用宽（而非视口），与右面板/导航宽度解耦。 */
+
+@container settings-content (max-width: 460px) {
+  .adl-settings-panel__content {
+    padding: var(--space-3) var(--space-3) var(--space-6);
+  }
+
+  .adl-settings-card {
+    padding: var(--space-4);
+  }
+
+  .adl-settings-row,
+  .adl-settings-keybinds__row {
+    gap: var(--space-3);
+  }
+}
+
+/* 完全堆叠：label 在上、control 在下，每个内容各占一行（主标题/副标题/
+   说明/预览框/输入框/下拉从上至下分布）。消灭「label 被压到 0 宽 → CJK 逐字竖排」、
+   「control 不可收缩 → 溢出卡片」与 420~600 并排死区；control 改流式宽度。 */
+@container settings-content (max-width: 600px) {
+  .adl-settings-row,
+  .adl-settings-keybinds__row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  /* 组级 align-items:center（0-2-0，通用/浏览器/DSH 三条 + path-center）会压过
+     上面的 stretch（0-1-0）→ 窄档子项 shrink-to-fit 不拉伸、组间行为不一致。
+     用等价特异度在本档逐一扳回 stretch。 */
+  .adl-settings-controls .adl-settings-row,
+  .adl-browser-settings .adl-settings-row,
+  .adl-dsh-settings .adl-settings-row,
+  .adl-settings-row--path-center {
+    align-items: stretch;
+  }
+
+  .adl-settings-row__control {
+    flex-shrink: 1;
+    width: 100%;
+  }
+
+  .adl-settings-row__control--inline {
+    flex-wrap: wrap;
+  }
+
+  /* 按钮 nowrap 文字允许在控件列内换行，max-width 防止长文案顶出容器。 */
+  .adl-settings-row__control .adl-btn {
+    max-width: 100%;
+    white-space: normal;
+  }
+
+  .adl-settings-input,
+  .adl-settings-input--path {
+    width: 100%;
+    max-width: 260px;
+  }
+
+  .adl-settings-dropdown,
+  .adl-settings-font--row .adl-settings-dropdown {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .adl-settings-font {
+    min-width: 0;
+    width: 100%;
+  }
+
+  /* 字体块整块改列：预览框独占一行、下拉独占一行（原 row 下预览被压 0 宽溢出）。 */
+  .adl-settings-font--row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-2);
+  }
+
+  .adl-settings-font--row .adl-settings-dropdown {
+    flex-shrink: 1;
+  }
+
+  .adl-settings-keybinds__label {
+    flex: none;
+  }
+
+  /* 块头（恢复默认图标 + 主标题）与快捷键工具栏：允许换行，各自成行。 */
+  .adl-settings-workspace__header,
+  .adl-settings-browser__header,
+  .adl-dsh-settings__header,
+  .adl-settings-storage__header,
+  .adl-settings-keybinds__group-header,
+  .adl-settings-keybinds__toolbar,
+  .adl-settings-header {
+    flex-wrap: wrap;
+  }
+
+  .adl-settings-keybinds__search-label {
+    white-space: normal;
+  }
+
+  /* 存储组底部粘性提交条：提示与操作按钮换行，避免窄档互相挤压。 */
+  .adl-storage-settings__dirtybar {
+    flex-wrap: wrap;
+  }
+}
+
+/* 极窄档：进一步收 padding，解锁 dsh 等处锁死的固定 160px 宽控件，
+   工作区三列 grid 降列（2 列 → 220px 以下 1 列），避免只能靠裁剪。 */
+@container settings-content (max-width: 300px) {
+  .adl-settings-panel__content {
+    padding: var(--space-2) var(--space-2) var(--space-6);
+  }
+
+  .adl-settings-card {
+    padding: var(--space-3);
+  }
+
+  /* dsh.css（独立样式表）锁死 160px：加内容层前缀提权，保证窄档覆盖生效。 */
+  .adl-settings-panel__content .adl-dsh-settings .adl-settings-dropdown,
+  .adl-settings-panel__content .adl-dsh-settings__test-button {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .workspace-grid {
+    grid-template-columns: repeat(2, minmax(80px, 1fr));
+  }
+}
+
+@container settings-content (max-width: 220px) {
+  .workspace-grid {
+    grid-template-columns: minmax(80px, 1fr);
+  }
+}

@@ -1,10 +1,11 @@
 import React from 'react';
-import { describe, it, expect, afterEach, vi } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { SettingsPanel } from './SettingsPanel';
+import { resetStorageSettingsCache } from '../../features/storage-settings/storageStatusCache';
 import {
   DEFAULT_DEBUG_LOG_MODE,
   DEFAULT_FONTS,
@@ -60,6 +61,11 @@ function renderPanel() {
     </TestProvider>,
   );
 }
+
+// 存储进场缓存为模块级状态：每例冷启动，避免命中缓存跳过加载路径干扰断言。
+beforeEach(() => {
+  resetStorageSettingsCache();
+});
 
 describe('SettingsPanel shell header', () => {
   afterEach(() => {

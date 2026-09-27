@@ -8,6 +8,12 @@ import { settingsEn } from '../../../i18n/en-US/settings';
 import { settingsZh } from '../../../i18n/zh-CN/settings';
 import { CATEGORY_COPY } from '../storageCategoryCopy';
 import { StorageSettings } from '../StorageSettings';
+import {
+  getCachedStorageStatus,
+  prefetchStorageSettings,
+  resetStorageSettingsCache,
+  setCachedStorageStatus,
+} from '../storageStatusCache';
 import { formatMinutesForUnit, treeTtlMinutesFromCustom } from '../treeCacheTtl';
 import { useAppStore } from '@stores/slicedStore';
 import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
@@ -30,6 +36,8 @@ const status = {
 };
 
 beforeEach(() => {
+  // 模块级进场缓存跨用例泄漏会让「首帧加载态」类断言失真：每例冷启动。
+  resetStorageSettingsCache();
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     storage: {
       getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
@@ -2645,5 +2653,58 @@ describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () =>
     } finally {
       useAppStore.setState({ storageBlocksAtDefault: prevAggregate });
     }
+  });
+});
+
+describe('StorageSettings entry cache (stale-while-revalidate)', () => {
+  // 共享 fixture 是刻意的 partial（桥 mock 无类型）；入缓存需完整 StorageStatus，
+  // 这里补齐 defaultRoot（= root，即「核心重置默认可用」语义，与本组断言无关）。
+  const cachedStatus = { ...status, defaultRoot: status.root };
+
+  it('缓存命中：首帧即完整内容，不显示加载骨架（无需等待 IPC）', () => {
+    setCachedStorageStatus(cachedStatus);
+    renderSettings();
+    // 同步断言：effect 里的 getStatus 尚未 settle，首帧完全由缓存驱动。
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+    expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+  });
+
+  it('缓存命中后后台再验证：成功即静默更新缓存，全程无加载骨架', async () => {
+    setCachedStorageStatus(cachedStatus);
+    const fresh = { ...cachedStatus, locatorPath: 'D:/fresh/storage-locator.json' };
+    (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage.getStatus.mockResolvedValue({ ok: true, data: fresh });
+    renderSettings();
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+    await waitFor(() => {
+      expect(getCachedStorageStatus()?.locatorPath).toBe('D:/fresh/storage-locator.json');
+    });
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+  });
+
+  it('冷进入（无缓存）：加载成功后写回缓存，供下次进场瞬显', async () => {
+    expect(getCachedStorageStatus()).toBeNull();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    expect(getCachedStorageStatus()?.root).toBe(status.root);
+  });
+
+  it('预取静默填充缓存；畸形 status 不入缓存', async () => {
+    await prefetchStorageSettings();
+    expect(getCachedStorageStatus()?.root).toBe(status.root);
+
+    resetStorageSettingsCache();
+    (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage.getStatus.mockResolvedValue({ ok: true, data: { mode: 'bogus' } });
+    await prefetchStorageSettings();
+    expect(getCachedStorageStatus()).toBeNull();
   });
 });

@@ -8,11 +8,12 @@ export function RevealScrollbar({ controller }: { controller: RevealScrollbarCon
   if (!controller.scrollable) {
     return null;
   }
-  const { visible, thumbStyle, thumbListeners } = controller;
+  const { visible, thumbStyle, thumbListeners, axis } = controller;
   return (
     <div
       className="adl-reveal-scrollbar"
       data-reveal-scrollbar
+      data-axis={axis}
       data-visible={visible}
       aria-hidden="true"
     >
