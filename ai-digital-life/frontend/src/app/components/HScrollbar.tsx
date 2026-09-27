@@ -1,4 +1,4 @@
-import { useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import type { RevealScrollbarController } from '../hooks/useRevealScrollbar';
 
 /** 点态位移变量名：与编辑器 `.adl-cm-hscroll` 同名语义（thumb 中心对齐的点偏移）。 */
@@ -23,6 +23,22 @@ const THUMB_CLASS = 'adl-hscroll__thumb';
 export function HScrollbar({ controller }: { controller: RevealScrollbarController }) {
   const [dragging, setDragging] = useState(false);
   const { scrollRef, scrollable, thumbLength, thumbOffset, thumbListeners } = controller;
+
+  // 拖拽态兜底复位：正常路径靠 thumb 的 pointerup/cancel（pointer capture 保证
+  // 命中），capture 不可用/事件丢失时避免 is-dragging 卡死在展开态。
+  useEffect(() => {
+    if (!dragging) {
+      return;
+    }
+    const end = () => setDragging(false);
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
+    return () => {
+      window.removeEventListener('pointerup', end);
+      window.removeEventListener('pointercancel', end);
+    };
+  }, [dragging]);
+
   if (!scrollable) {
     return null;
   }

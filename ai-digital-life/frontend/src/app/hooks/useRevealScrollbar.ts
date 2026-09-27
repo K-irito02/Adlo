@@ -40,7 +40,13 @@ interface Geometry {
   clientWidth: number;
 }
 
-const MIN_THUMB_SIZE = 24;
+/** 滑块最短长度：竖 24（reveal 家族惯例）；横 40 对齐编辑器
+ * `HorizontalScrollManager.THUMB_MIN_WIDTH` —— 否则 thumbLength∈[24,40) 时
+ * 点位（中心对齐）与 hover 展开（CSS min-width:40px）中心错位。 */
+const MIN_THUMB_LENGTH: Record<RevealScrollbarAxis, number> = {
+  vertical: 24,
+  horizontal: 40,
+};
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -70,7 +76,7 @@ function computeThumb(
     return { length: viewport, offset: 0 };
   }
   const ratio = viewport / contentSize;
-  const length = Math.max(MIN_THUMB_SIZE, ratio * viewport);
+  const length = Math.max(MIN_THUMB_LENGTH[axis], ratio * viewport);
   const maxScroll = contentSize - viewport;
   const offset = (position / maxScroll) * (viewport - length);
   return { length, offset };

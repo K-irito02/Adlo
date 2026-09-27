@@ -684,3 +684,47 @@ describe('SettingsPanel group reset', () => {
     expect(navResetDisabled('Reset settingsShortcuts all defaults')).toBe(false);
   });
 });
+
+describe('SettingsPanel storage prefetch wiring', () => {
+  afterEach(() => {
+    cleanup();
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+  });
+
+  it('悬停侧边栏存储行触发存储预取（onHoverGroup 接线）', async () => {
+    setupStore();
+    const getStatus = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        mode: 'unified',
+        root: '',
+        locatorPath: '',
+        categories: [],
+        pending: null,
+        lastReport: null,
+      },
+    });
+    const getTreeCacheStats = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        workspaceCount: 0,
+        totalBytes: 0,
+        oldestCapturedAt: null,
+        newestCapturedAt: null,
+        enabled: true,
+        ttlMinutes: 15,
+      },
+    });
+    (window as unknown as { digitalLife?: unknown }).digitalLife = {
+      storage: { getStatus, getTreeCacheStats },
+    };
+    renderPanel();
+    // 挂载预取先完成并填充缓存（本用例只验证 hover 接线，绕开冷填充 no-op）。
+    await waitFor(() => expect(getStatus).toHaveBeenCalledTimes(1));
+    resetStorageSettingsCache();
+    const row = screen.getByRole('button', { name: 'storageTitle' }).closest('li');
+    expect(row).not.toBeNull();
+    fireEvent.pointerEnter(row as HTMLElement);
+    await waitFor(() => expect(getStatus).toHaveBeenCalledTimes(2));
+  });
+});

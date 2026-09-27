@@ -73,38 +73,6 @@
   background: color-mix(in srgb, var(--text-muted) 54%, transparent);
 }
 
-/* ---- 横向轴（对齐编辑器/差异查看器 .adl-cm-hscroll 家族）----
-   底部 overlay、透明轨道、thumb 4px → 悬停 6px 加高加深处；
-   宽度由 JS inline 设置（thumbStyle），此处只管高度/纵向位置/颜色。 */
-.adl-reveal-scrollbar[data-axis='horizontal'] {
-  top: auto;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  width: auto;
-  height: 8px;
-}
-
-.adl-reveal-scrollbar[data-axis='horizontal'] .adl-reveal-scrollbar__thumb {
-  top: 2px;
-  left: 0;
-  height: 4px;
-  transition:
-    height var(--duration-150) var(--ease-default),
-    top var(--duration-150) var(--ease-default),
-    background var(--duration-150) var(--ease-default);
-}
-
-.adl-reveal-scrollbar[data-axis='horizontal']:hover .adl-reveal-scrollbar__thumb,
-.adl-reveal-scrollbar[data-axis='horizontal']:active .adl-reveal-scrollbar__thumb,
-.adl-reveal-scrollbar[data-axis='horizontal'] .adl-reveal-scrollbar__thumb:hover,
-.adl-reveal-scrollbar[data-axis='horizontal'] .adl-reveal-scrollbar__thumb:active {
-  left: 0;
-  top: 1px;
-  height: 6px;
-  background: color-mix(in srgb, var(--text-muted) 54%, transparent);
-}
-
 /* ---- 常驻水平滚动条（点态指示器，HScrollbar）----
    设计完整提取自文件面板/变更面板的编辑器横条 `.adl-cm-hscroll`
    （editor-content.css，含 CodeMirror 定位差异处除外）：

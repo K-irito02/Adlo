@@ -8,19 +8,26 @@ import type { StorageStatus, TreeCacheStats } from '@shared/ipc/storage';
  * 渲染的快照**（stale-while-revalidate）：
  *
  * - **B（缓存 + 静默再验证）**：挂载命中缓存即瞬显真实数据（非占位假值），
- *   同时后台 `getStatus()` 再验证，回来后静默 setState 更新；写路径由
- *   `StorageSettings` 的 status/treeStats 同步 effect 统一写回（单一写回点）。
- * - **C（预取热身）**：`prefetchStorageSettings()` 在设置面板打开 / 悬停侧边栏
- *   存储行时预热，首次进入也基本无加载态。
+ *   同时后台 `getStatus()` 再验证，回来后静默 setState 更新；组件内
+ *   status/treeStats 同步 effect 为唯一写回点。
+ * - **C（预取冷填充）**：`prefetchStorageSettings()` 在设置面板打开/悬停存储行时
+ *   预热——**仅缓存为空时拉取并写入**（冷填充语义）；新鲜度由挂载再验证提供，
+ *   因此命中后 no-op：既不会用慢返回的旧快照覆盖新写回（时序覆盖），
+ *   也不重复全量扫描。epoch 在 reset 时递增，在途预取过期后放弃写入。
  *
  * 失效约定：缓存只存「成功渲染过的值」；失败/畸形体不入缓存（挂载路径仍有
- * 超时保护与错误页）。模块级生命周期 = 页面会话（刷新即清），无持久化。
+ * 30s 超时保护与错误页）。模块级生命周期 = 页面会话（刷新即清），无持久化。
  */
 
 let statusCache: StorageStatus | null = null;
 let treeStatsCache: TreeCacheStats | null = null;
 /** 预取去重：并发调用共享同一在途 promise，settled 后放行下次预取。 */
 let prefetchInFlight: Promise<void> | null = null;
+/** 缓存纪元：`resetStorageSettingsCache` 递增，在途预取据此放弃写入（测试隔离）。 */
+let epoch = 0;
+
+/** 预取超时：防慢请求永久占用在途 latch（挂载路径另有 30s 超时与错误页）。 */
+const PREFETCH_TIMEOUT_MS = 10_000;
 
 export function getCachedStorageStatus(): StorageStatus | null {
   return statusCache;
@@ -51,19 +58,37 @@ export function isWellFormedStatus(data: unknown): data is StorageStatus {
   );
 }
 
-/** 测试隔离：模块级缓存跨用例泄漏会让「首帧加载态」类断言失真。 */
+/** 测试隔离：模块级缓存跨用例泄漏会让「首帧加载态」类断言失真；
+ * 同时递增 epoch 使在途预取过期，不回写已清空的缓存。 */
 export function resetStorageSettingsCache(): void {
   statusCache = null;
   treeStatsCache = null;
   prefetchInFlight = null;
+  epoch += 1;
+}
+
+function withTimeout<T>(task: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error('storage prefetch timeout')), ms);
+  });
+  return Promise.race([task, timeout]).finally(() => {
+    if (timer) {
+      clearTimeout(timer);
+    }
+  });
 }
 
 /**
- * 预取（方案 C）：静默填充 status + treeStats 缓存，无 UI 参与。
- * 失败/畸形/旧桥缺方法一律静默放弃（不写缓存、不抛错）——真正的加载与错误
- * 处理仍在 `StorageSettings` 挂载路径（带 30s 超时与错误页）。
+ * 预取（方案 C，冷填充语义）：仅缓存为空时静默拉取 status + treeStats 并写入。
+ * 已有缓存 → 立即 no-op（新鲜度由挂载再验证负责）；失败/畸形/旧桥缺方法一律
+ * 静默放弃（不写缓存、不抛错）——真正的加载与错误处理仍在 `StorageSettings`
+ * 挂载路径（带 30s 超时与错误页）。
  */
 export function prefetchStorageSettings(): Promise<void> {
+  if (statusCache !== null) {
+    return Promise.resolve();
+  }
   if (prefetchInFlight) {
     return prefetchInFlight;
   }
@@ -71,21 +96,31 @@ export function prefetchStorageSettings(): Promise<void> {
   if (!bridge) {
     return Promise.resolve();
   }
+  const fetchEpoch = epoch;
   // 经 Promise.resolve().then 包装：同步抛错转为拒绝，不逃逸出预取通道。
-  const fetchStatus = Promise.resolve()
-    .then(() => bridge.getStatus())
+  const fetchStatus = withTimeout(
+    Promise.resolve().then(() => bridge.getStatus()),
+    PREFETCH_TIMEOUT_MS,
+  )
     .then((result) => {
-      if (result.ok && isWellFormedStatus(result.data)) {
+      if (
+        fetchEpoch === epoch &&
+        statusCache === null &&
+        result.ok &&
+        isWellFormedStatus(result.data)
+      ) {
         statusCache = result.data;
       }
     })
     .catch(() => undefined);
   const fetchTreeStats = !bridge.getTreeCacheStats
     ? Promise.resolve()
-    : Promise.resolve()
-        .then(() => bridge.getTreeCacheStats!())
+    : withTimeout(
+        Promise.resolve().then(() => bridge.getTreeCacheStats!()),
+        PREFETCH_TIMEOUT_MS,
+      )
         .then((result) => {
-          if (result.ok) {
+          if (fetchEpoch === epoch && treeStatsCache === null && result.ok) {
             treeStatsCache = result.data;
           }
         })

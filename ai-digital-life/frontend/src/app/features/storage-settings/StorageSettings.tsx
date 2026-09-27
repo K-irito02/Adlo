@@ -139,17 +139,20 @@ export function StorageSettings() {
   // 进场缓存（方案 B）：命中即以最近一次成功快照初始化 —— 首帧完整内容、
   // 无加载骨架；未命中保留一次性加载态（每会话仅首次冷进入）。草稿同步播种，
   // 避免缓存快照（per_category 结构）与草稿默认值不一致导致首帧结构跳变。
-  const [status, setStatus] = useState<StorageStatus | null>(getCachedStorageStatus);
+  // 单次读取供全部惰性初始化器共用（初始化器仅首渲染执行一次）。
+  const initialCached = getCachedStorageStatus();
+  const [status, setStatus] = useState<StorageStatus | null>(() => initialCached);
   const [statusError, setStatusError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(() => getCachedStorageStatus() === null);
-  const [mode, setMode] = useState<StorageMode>(() => getCachedStorageStatus()?.mode ?? 'unified');
-  const [rootDraft, setRootDraft] = useState(() => getCachedStorageStatus()?.root ?? '');
-  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>(() => {
-    const cached = getCachedStorageStatus();
-    return cached
-      ? Object.fromEntries(cached.categories.map((category) => [category.key, category.path]))
-      : {};
-  });
+  const [loading, setLoading] = useState(() => initialCached === null);
+  const [mode, setMode] = useState<StorageMode>(() => initialCached?.mode ?? 'unified');
+  const [rootDraft, setRootDraft] = useState(() => initialCached?.root ?? '');
+  const [categoryDrafts, setCategoryDrafts] = useState<Record<string, string>>(() =>
+    initialCached
+      ? Object.fromEntries(
+          initialCached.categories.map((category) => [category.key, category.path]),
+        )
+      : {},
+  );
   const [preflight, setPreflight] = useState<StoragePreflight | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -157,7 +160,7 @@ export function StorageSettings() {
   // 工作区树缓存区段态：stats 挂载拉取一次（stats 数字/时间由 Intl 渲染，无需随语言重拉）；
   // 旧桥无该方法时静默缺席（try/catch 吞错），区段不渲染。缓存命中即瞬显，避免
   // status 先到、stats 后到造成的区段二次插入跳动（方案 B）。
-  const [treeStats, setTreeStats] = useState<TreeCacheStats | null>(getCachedTreeStats);
+  const [treeStats, setTreeStats] = useState<TreeCacheStats | null>(() => getCachedTreeStats());
   /** 树缓存确认对话框：null 关闭；`clear` 清除缓存；`disable` 关闭开关（含清缓存说明）。 */
   const [treeConfirm, setTreeConfirm] = useState<'clear' | 'disable' | null>(null);
   const [treeBusy, setTreeBusy] = useState(false);
@@ -190,10 +193,10 @@ export function StorageSettings() {
   /** 树缓存写请求单调序列：丢弃被更新写超车的过期回包合并（近似 last-initiation-wins；
    * 服务端按到达序应用，同桥同序到达时等价）。 */
   const treeWriteSeqRef = useRef(0);
-  // 语言切换会更换 `t` 触发重取：草稿只播种一次，避免覆盖用户编辑（F6）。
-  // 错误文案仍用最新 `t` 即时计算，保持 `t` 新鲜度。
-  // 缓存命中时初始化即视为已播种（草稿在状态初始化处已从快照播种）。
-  const draftsSeededRef = useRef(getCachedStorageStatus() !== null);
+  // 草稿「用户已编辑」标记：再验证/语言切换重取时，未编辑的草稿随最新
+  // status 重播种（防 status/草稿分叉 → isDirty 误报、按应用推旧路径），
+  // 已编辑的草稿绝不覆盖（保留原 F6 语义）。缓存命中初始化的草稿视为未编辑。
+  const draftsDirtyRef = useRef(false);
   /**
    * 「恢复默认」后重播种数据根输入：恢复把草稿清成空串（后端视空为默认根），
    * 迁移落盘成功后用后端解析出的默认根回填，避免输入框空显示。
@@ -204,7 +207,7 @@ export function StorageSettings() {
   const bottomCtaRef = useRef<HTMLDivElement | null>(null);
   const [bottomCtaVisible, setBottomCtaVisible] = useState(false);
   /** 最近一次成功加载/刷新确认的数据根（L-6 回填源：闭包 status 可能陈旧）。 */
-  const lastKnownRootRef = useRef<string | null>(getCachedStorageStatus()?.root ?? null);
+  const lastKnownRootRef = useRef<string | null>(initialCached?.root ?? null);
 
   // 缓存同步点（方案 B 的写回约定）：挂载拉取 / refresh / 重试 / 树缓存本地合并
   // 的最终渲染值统一写回 —— 缓存恒等于「最近一次成功渲染的快照」，下次进场即瞬显。
@@ -229,6 +232,7 @@ export function StorageSettings() {
     setCategoryDrafts(
       Object.fromEntries(status.categories.map((category) => [category.key, category.path])),
     );
+    draftsDirtyRef.current = false;
   }, [status]);
 
   /** 重拉树缓存 stats（清除/开关/TTL 写后刷新展示）；失败静默保留旧值。
@@ -380,7 +384,7 @@ export function StorageSettings() {
             setStatusError(null);
             setStatus(result.data);
             lastKnownRootRef.current = result.data.root;
-            if (!draftsSeededRef.current) {
+            if (!draftsDirtyRef.current) {
               setMode(result.data.mode);
               setRootDraft(result.data.root);
               setCategoryDrafts(
@@ -388,7 +392,6 @@ export function StorageSettings() {
                   result.data.categories.map((category) => [category.key, category.path]),
                 ),
               );
-              draftsSeededRef.current = true;
             }
             setLoading(false);
           } catch (error) {
@@ -505,7 +508,7 @@ export function StorageSettings() {
         console.warn('[storage] malformed IpcResult (ok:true missing data/categories)', result);
         setStatusError(t.storageStatusLoadFailed.replace('{error}', t.storageUnknownError));
       } else {
-        // 重试成功必须清除状态错误（F4），并重播种草稿（显式用户动作）。
+        // 重试成功必须清除状态错误（F4），并重播种草稿（显式用户动作 → 未编辑态）。
         setStatusError(null);
         setStatus(result.data);
         lastKnownRootRef.current = result.data.root;
@@ -516,7 +519,7 @@ export function StorageSettings() {
             result.data.categories.map((category) => [category.key, category.path]),
           ),
         );
-        draftsSeededRef.current = true;
+        draftsDirtyRef.current = false;
       }
     } catch (error) {
       if (error instanceof StatusTimeoutError) {
@@ -548,6 +551,7 @@ export function StorageSettings() {
 
   const handleModeChange = useCallback(
     (next: StorageMode) => {
+      draftsDirtyRef.current = true;
       setMode(next);
       if (next === 'unified') {
         setCategoryDrafts({});
@@ -1230,11 +1234,15 @@ export function StorageSettings() {
       path={pathFor(category)}
       editable={mode === 'per_category'}
       picking={picking}
-      onPathChange={(path) => setCategoryDrafts((prev) => ({ ...prev, [category.key]: path }))}
+      onPathChange={(path) => {
+        draftsDirtyRef.current = true;
+        setCategoryDrafts((prev) => ({ ...prev, [category.key]: path }));
+      }}
       onPickDirectory={() =>
-        void handlePickDirectory((path) =>
-          setCategoryDrafts((prev) => ({ ...prev, [category.key]: path })),
-        )
+        void handlePickDirectory((path) => {
+          draftsDirtyRef.current = true;
+          setCategoryDrafts((prev) => ({ ...prev, [category.key]: path }));
+        })
       }
     />
   );
@@ -1373,7 +1381,10 @@ export function StorageSettings() {
                 aria-label={t.storageManualInput}
                 placeholder={t.storageManualInputPlaceholder}
                 value={rootDraft}
-                onChange={(e) => setRootDraft(e.target.value)}
+                onChange={(e) => {
+                  draftsDirtyRef.current = true;
+                  setRootDraft(e.target.value);
+                }}
               />
               <button
                 type="button"

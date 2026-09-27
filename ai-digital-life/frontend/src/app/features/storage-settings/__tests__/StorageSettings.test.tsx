@@ -2707,4 +2707,48 @@ describe('StorageSettings entry cache (stale-while-revalidate)', () => {
     await prefetchStorageSettings();
     expect(getCachedStorageStatus()).toBeNull();
   });
+
+  it('预取冷填充语义：缓存已有值即 no-op，不再发 IPC（新鲜度由挂载再验证提供）', async () => {
+    setCachedStorageStatus({ ...status, defaultRoot: status.root });
+    const storage = (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage;
+    await prefetchStorageSettings();
+    expect(storage.getStatus).not.toHaveBeenCalled();
+  });
+
+  it('reset 清空缓存后预取重新拉取（去重 latch 随 reset 失效）', async () => {
+    const storage = (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage;
+    await prefetchStorageSettings();
+    expect(storage.getStatus).toHaveBeenCalledTimes(1);
+    expect(getCachedStorageStatus()).not.toBeNull();
+    resetStorageSettingsCache();
+    await prefetchStorageSettings();
+    expect(storage.getStatus).toHaveBeenCalledTimes(2);
+  });
+
+  it('在途预取在 reset 后放弃写入（epoch 守卫，防跨用例缓存泄漏）', async () => {
+    const storage = (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage;
+    let release!: (value: unknown) => void;
+    storage.getStatus.mockReturnValue(
+      new Promise((resolve) => {
+        release = resolve;
+      }),
+    );
+    const inflight = prefetchStorageSettings();
+    resetStorageSettingsCache();
+    release({ ok: true, data: { ...status, defaultRoot: status.root } });
+    await inflight;
+    expect(getCachedStorageStatus()).toBeNull();
+  });
 });

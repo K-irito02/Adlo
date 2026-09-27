@@ -114,7 +114,9 @@ describe('HScrollbar (persistent dot indicator, extracted from .adl-cm-hscroll)'
     const track = container.querySelector('.adl-hscroll__track') as HTMLElement;
     mockTrackBox(track, 100);
     const thumb = container.querySelector('.adl-hscroll__thumb') as HTMLElement;
-    fireEvent.pointerDown(thumb, { clientX: 0, pointerId: 1 });
+    // clientX:50 —— 若 thumb 守卫被删，closest 跳过缺失会触发轨道跳转
+    // (50/100)*300=150，断言 scrollLeft 仍为 0 才能真正检出守卫。
+    fireEvent.pointerDown(thumb, { clientX: 50, pointerId: 1 });
     expect(onPointerDown).toHaveBeenCalledTimes(1);
     expect(thumb.classList.contains('is-dragging')).toBe(true);
     expect(scroller.scrollLeft).toBe(0);

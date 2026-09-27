@@ -46,7 +46,7 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 
 | Group     | Tokens                                                                                                               |
 | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| Duration  | `--duration-75` … `--duration-1000`, `--duration-editorial` (600 ms card entrances)                                        |
+| Duration  | `--duration-75` … `--duration-1000`, `--duration-editorial` (600 ms)                                                 |
 | Easing    | `--ease-default` (220 emphasis), `--ease-enter`, `--ease-exit`, `--ease-spring`, `--ease-snap`, `--ease-linear`, `--ease-editorial` |
 | Composite | `--transition-colors`, `--transition-shadow`, `--transition-transform`, `--transition-opacity`, `--transition-modal` |
 

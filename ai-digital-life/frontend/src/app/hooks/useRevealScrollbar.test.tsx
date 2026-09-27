@@ -140,7 +140,8 @@ describe('useRevealScrollbar', () => {
     const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
     expect(thumb.dataset.scrollable).toBe('true');
     expect(thumb.dataset.visible).toBe('true');
-    expect(thumb.style.width).toBe('25px');
+    // 比例宽 25px < 横轴下限 40（对齐编辑器 THUMB_MIN_WIDTH）→ 钳到 40。
+    expect(thumb.style.width).toBe('40px');
     expect(thumb.style.transform).toBe('translateX(0px)');
   });
 
@@ -157,8 +158,9 @@ describe('useRevealScrollbar', () => {
     fireEvent.mouseEnter(host);
     const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
     fireEvent.pointerDown(thumb, { pointerId: 1, clientX: 0 });
+    // thumb 钳到 40px ⇒ 可拖轨道长 100-40=60；delta 30 → (30/60)*300 = 150。
     fireEvent.pointerMove(window, { pointerId: 1, clientX: 30 });
     fireEvent.pointerUp(window, { pointerId: 1, clientX: 30 });
-    expect(host.scrollLeft).toBe(120);
+    expect(host.scrollLeft).toBe(150);
   });
 });

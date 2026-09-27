@@ -38,21 +38,4 @@ describe('RevealScrollbar', () => {
     expect(track.getAttribute('aria-hidden')).toBe('true');
     expect(track.getAttribute('data-axis')).toBe('vertical');
   });
-
-  it('marks horizontal axis on the track (settings panel fallback bar)', () => {
-    const { container } = render(
-      <RevealScrollbar
-        controller={makeController({
-          scrollable: true,
-          visible: true,
-          axis: 'horizontal',
-          thumbStyle: { width: '60px', transform: 'translateX(0px)' },
-        })}
-      />,
-    );
-    const track = container.querySelector('.adl-reveal-scrollbar') as HTMLElement;
-    expect(track.getAttribute('data-axis')).toBe('horizontal');
-    const thumb = track.querySelector('.adl-reveal-scrollbar__thumb') as HTMLElement;
-    expect(thumb).toHaveStyle({ width: '60px' });
-  });
 });

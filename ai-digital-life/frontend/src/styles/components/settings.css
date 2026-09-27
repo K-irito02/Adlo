@@ -111,6 +111,13 @@
   padding: var(--space-4) var(--space-4) var(--space-8);
 }
 
+/* .adl-reveal-scroll 的 overscroll-behavior: contain 会截断横轴滚轮链
+   （内部超宽时 shift+滚轮到不了 host 的横条）——横轴显式放行。特异度提到
+   0-2-0，保证压过 reveal-scrollbar.css 的 shorthand（顺序无关）。 */
+.adl-settings-panel__content.adl-reveal-scroll {
+  overscroll-behavior-x: auto;
+}
+
 .adl-settings-panel__content--cards {
   display: flex;
   flex-direction: column;
@@ -286,11 +293,15 @@
   gap: var(--space-1);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
+/* 省略号落在 flex 子项（span/label）上：text-overflow 对 inline-flex 容器
+   本身无效，且子项默认 min-width:auto 不收缩（dsh-settings.test 记录过同型教训）。 */
 .adl-settings-row__label > .adl-settings-row__label-text span,
 .adl-settings-row__label > .adl-settings-row__label-text label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--text-sm);
   font-weight: var(--font-medium);
   color: var(--text-primary);
@@ -845,6 +856,15 @@
   visibility: visible;
 }
 
+/* 禁用态在行悬停/聚焦时保持灰暗：上面 show 规则（0-3-0）压过
+   .adl-settings-row__reset:disabled（0-2-0），需等价高特异度扳回 opacity 0.5。 */
+.adl-settings-nav__row:hover .adl-settings-nav__reset:disabled,
+.adl-settings-nav__row:has(.adl-settings-nav__item:focus-visible) .adl-settings-nav__reset:disabled,
+.adl-settings-nav__row:has(.adl-settings-nav__reset:focus-visible)
+  .adl-settings-nav__reset:disabled {
+  opacity: 0.5;
+}
+
 /* ---- Keybinds ---- */
 
 .adl-settings-keybinds {
@@ -1303,6 +1323,13 @@
   color: var(--pastel-warning-fg);
 }
 
+/* 点态横条覆盖底部 10px（编辑器同款 overlay，见 reveal-scrollbar.css）：
+   粘性提交条 sticks 于 scrollport 底边，会被横条轨道劫持点击 —— 横条在场时
+   上抬 10px 让出点击带；:has 不支持时优雅降级为原贴底行为。 */
+.adl-settings-panel__content-outer:has(.adl-hscroll) .adl-storage-settings__dirtybar {
+  bottom: 10px;
+}
+
 /* 块底部「撤回/应用」区的黄色提示文字（与粘性条一致） */
 .adl-storage-settings__cta-hint {
   color: var(--pastel-warning-fg);
@@ -1391,9 +1418,12 @@
     padding: var(--space-4);
   }
 
-  .adl-settings-row,
-  .adl-settings-keybinds__row {
-    gap: var(--space-3);
+  /* 粘性工具栏负边距与容器上 padding 同步（原 --space-4 契约，见其注释）：
+     上 padding 收到 space-3，top/margin-top/padding-top 同步下移。 */
+  .adl-settings-keybinds__toolbar {
+    top: calc(-1 * var(--space-3));
+    margin-top: calc(-1 * var(--space-3));
+    padding-top: calc(var(--space-3) + var(--space-2));
   }
 }
 
@@ -1487,8 +1517,9 @@
   }
 }
 
-/* 极窄档：进一步收 padding，解锁 dsh 等处锁死的固定 160px 宽控件，
-   工作区三列 grid 降列（2 列 → 220px 以下 1 列），避免只能靠裁剪。 */
+/* 极窄档：进一步收 padding，解锁 dsh 等处锁死的固定 160px 宽控件。
+   （workspace-grid 降 2 列挪到独立的 ≤320 档：3 列需 inner≥264px ⇒ host≥320，
+   原 300 阈值在 host∈[301,319] 会漏裁。） */
 @container settings-content (max-width: 300px) {
   .adl-settings-panel__content {
     padding: var(--space-2) var(--space-2) var(--space-6);
@@ -1505,6 +1536,16 @@
     min-width: 0;
   }
 
+  .adl-settings-keybinds__toolbar {
+    top: calc(-1 * var(--space-2));
+    margin-top: calc(-1 * var(--space-2));
+    padding-top: calc(var(--space-2) + var(--space-2));
+  }
+}
+
+/* 3 列 bento 需要 3*80 + 2*12 = 264px 内宽 ⇒ host ≥ 320（含两级收窄后的
+   padding）：host < 320 时降 2 列，避免靠 curtain 裁掉第三列。 */
+@container settings-content (max-width: 320px) {
   .workspace-grid {
     grid-template-columns: repeat(2, minmax(80px, 1fr));
   }

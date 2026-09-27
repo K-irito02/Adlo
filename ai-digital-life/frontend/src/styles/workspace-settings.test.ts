@@ -337,6 +337,74 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     expect(body).toContain('overflow: hidden');
   });
 
+  it('nav reset icon shows/hides instantly — no fade transition (ghost-icon regression lock)', () => {
+    const body = ruleBody(settingsCss, '.adl-settings-nav__reset');
+    expect(body).not.toBeNull();
+    // 重新加回 opacity/visibility 过渡会让快速来回悬停再次出现残影
+    //（断言 `transition:` 声明；注释里的「无 transition」字样不计）。
+    expect(body).not.toContain('transition:');
+    expect(body).toContain('visibility: hidden');
+  });
+
+  it('settings cards render instantly — no enter animation remains (drawer-spring regression lock)', () => {
+    expect(settingsCss).not.toContain('adl-settings-card-enter');
+    expect(settingsCss).not.toContain('@keyframes');
+  });
+
+  it('nav reset disabled state stays dimmed under row hover (show rule specificity fix)', () => {
+    expect(settingsCss).toContain('.adl-settings-nav__row:hover .adl-settings-nav__reset:disabled');
+    // 选择器列表被 prettier 折成多行，用 groupRuleBody（按逗号分隔项匹配）。
+    const body = groupRuleBody(
+      settingsCss,
+      '.adl-settings-nav__row:hover .adl-settings-nav__reset:disabled',
+    );
+    expect(body).not.toBeNull();
+    expect(body).toContain('opacity: 0.5');
+  });
+
+  it('label text ellipsis lives on the flex child span, not the inline-flex container', () => {
+    // text-overflow 对 inline-flex 容器无效；子项必须 min-width:0 + overflow 才会出省略号。
+    const body = groupRuleBody(
+      settingsCss,
+      '.adl-settings-row__label > .adl-settings-row__label-text span',
+    );
+    expect(body).not.toBeNull();
+    expect(body).toContain('min-width: 0');
+    expect(body).toContain('overflow: hidden');
+    expect(body).toContain('text-overflow: ellipsis');
+  });
+
+  it('horizontal dot bar releases the sticky dirtybar click band via :has', () => {
+    expect(settingsCss).toContain(
+      '.adl-settings-panel__content-outer:has(.adl-hscroll) .adl-storage-settings__dirtybar',
+    );
+    const body = ruleBody(
+      settingsCss,
+      '.adl-settings-panel__content-outer:has(.adl-hscroll) .adl-storage-settings__dirtybar',
+    );
+    expect(body).not.toBeNull();
+    expect(body).toContain('bottom: 10px');
+  });
+
+  it('content x-axis may chain wheel to the host horizontal bar', () => {
+    const body = ruleBody(settingsCss, '.adl-settings-panel__content.adl-reveal-scroll');
+    expect(body).not.toBeNull();
+    expect(body).toContain('overscroll-behavior-x: auto');
+  });
+
+  it('workspace grid drops to 2 columns below 320px host (3-col needs inner 264px)', () => {
+    expect(settingsCss).toContain('@container settings-content (max-width: 320px)');
+    // ≤300 档不再承担降列（原 300 阈值在 host 301~319 会漏裁第三列）：
+    // 截取 ≤300 档自身（到下一档 @container 320 为止），避免窗口越界误吞。
+    const start300 = settingsCss.indexOf('@container settings-content (max-width: 300px)');
+    const start320 = settingsCss.indexOf('@container settings-content (max-width: 320px)');
+    expect(start300).not.toBe(-1);
+    expect(start320).toBeGreaterThan(start300);
+    const block300 = settingsCss.slice(start300, start320);
+    expect(block300).not.toContain('.workspace-grid');
+    expect(block300).toContain('.adl-settings-keybinds__toolbar');
+  });
+
   it('C: narrow stages tighten padding and unlock fixed-width controls', () => {
     expect(settingsCss).toContain('@container settings-content (max-width: 460px)');
     const start = settingsCss.indexOf('@container settings-content (max-width: 300px)');
@@ -360,17 +428,9 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
   });
 
   it('reveal scrollbar: horizontal axis overlays at the bottom with a thin thumb', () => {
-    expect(revealCss).toContain("[data-axis='horizontal']");
-    const track = ruleBody(revealCss, ".adl-reveal-scrollbar[data-axis='horizontal']");
-    expect(track).not.toBeNull();
-    expect(track).toContain('bottom: 0');
-    expect(track).toContain('width: auto');
-    const thumb = ruleBody(
-      revealCss,
-      ".adl-reveal-scrollbar[data-axis='horizontal'] .adl-reveal-scrollbar__thumb",
-    );
-    expect(thumb).not.toBeNull();
-    expect(thumb).toContain('height: 4px');
+    // 横向 reveal 轴样式已随 settings 改用点态 HScrollbar 删除（无生产消费者）；
+    // 横向滚动条的唯一实现是 .adl-hscroll（见下一条断言）。
+    expect(revealCss).not.toContain("[data-axis='horizontal']");
   });
 
   it('HScrollbar: persistent dot-indicator design matches the editor .adl-cm-hscroll', () => {
