@@ -121,4 +121,29 @@ describe('HScrollbar (persistent dot indicator, extracted from .adl-cm-hscroll)'
     expect(thumb.classList.contains('is-dragging')).toBe(true);
     expect(scroller.scrollLeft).toBe(0);
   });
+
+  it('window pointerup resets a stuck dragging state (capture-loss fallback)', () => {
+    const scroller = makeScroller({ scrollWidth: 400, clientWidth: 100 });
+    const { container } = render(
+      <HScrollbar
+        controller={makeController({
+          scrollRef: { current: scroller },
+          thumbListeners: { onPointerDown: vi.fn() },
+        })}
+      />,
+    );
+    const thumb = container.querySelector('.adl-hscroll__thumb') as HTMLElement;
+    fireEvent.pointerDown(thumb, { pointerId: 1 });
+    expect(
+      (container.querySelector('.adl-hscroll__thumb') as HTMLElement).classList.contains(
+        'is-dragging',
+      ),
+    ).toBe(true);
+    fireEvent.pointerUp(window);
+    expect(
+      (container.querySelector('.adl-hscroll__thumb') as HTMLElement).classList.contains(
+        'is-dragging',
+      ),
+    ).toBe(false);
+  });
 });

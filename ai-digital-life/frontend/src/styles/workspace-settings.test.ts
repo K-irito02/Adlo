@@ -483,5 +483,16 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
       expect(cm).toContain(decl);
       expect(mine).toContain(decl);
     }
+    // hover 展开参数双边一致（40px 起、hover 配色）。
+    const cmHover = ruleBody(editorCss, '.adl-cm-hscroll:hover .adl-cm-hscroll__thumb');
+    const myHover = ruleBody(revealCss, '.adl-hscroll:hover .adl-hscroll__thumb');
+    expect(cmHover).not.toBeNull();
+    expect(myHover).not.toBeNull();
+    for (const decl of ['min-width: 40px', 'var(--hscroll-thumb-hover-bg)']) {
+      expect(cmHover).toContain(decl);
+      expect(myHover).toContain(decl);
+    }
+    // 点态触屏手势保护仅提取侧有（编辑器真源无，属合理改进，单边断言）。
+    expect(mine).toContain('touch-action: none');
   });
 });

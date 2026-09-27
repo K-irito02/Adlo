@@ -120,7 +120,8 @@ function ipcErrorMessage(error: { message?: string } | null | undefined, fallbac
 /**
  * 「存储」设置组（Plan C Task 5）。
  *
- * 组成：模式切换 → （统一模式）根目录行 → 11 类分类行（核心/高级）→ 应用
+ * 组成：模式切换 → （统一模式）根目录行 → 10 条可迁移分类行（核心/高级；
+ * `downloads_default` 为设置值路径、不占分类行）→ 应用
  * → 工作区树缓存（统计/清除/开关/TTL）
  * → 存储引擎（搬入的终端历史预算、浏览器下载路径）→ 数据位置索引（只读）
  * → 不可移动说明 6 项 → 待迁移横幅 → 上次迁移报告。
@@ -139,7 +140,8 @@ export function StorageSettings() {
   // 进场缓存（方案 B）：命中即以最近一次成功快照初始化 —— 首帧完整内容、
   // 无加载骨架；未命中保留一次性加载态（每会话仅首次冷进入）。草稿同步播种，
   // 避免缓存快照（per_category 结构）与草稿默认值不一致导致首帧结构跳变。
-  // 单次读取供全部惰性初始化器共用（初始化器仅首渲染执行一次）。
+  // 单次读取：initialCached 在首渲染被各惰性初始化器消费；变量本身每渲染重读
+  // 只是廉价的模块变量读取（供 refs 初始化复用）。
   const initialCached = getCachedStorageStatus();
   const [status, setStatus] = useState<StorageStatus | null>(() => initialCached);
   const [statusError, setStatusError] = useState<string | null>(null);
@@ -343,6 +345,10 @@ export function StorageSettings() {
     [],
   );
 
+  // 挂载拉取（方案 B 的后台再验证）：与面板预取有意重叠——预取是冷填充，
+  // 两条通道各发一次全量扫描是接受的成本（冷填充 no-op 后约 1 次/会话）。
+  // 既定取舍：缓存命中 + 再验证失败时静默保留快照（不弹错误页），
+  // statusError 仅无缓存的冷进入走错误页展示。
   useEffect(() => {
     let cancelled = false;
     const bridge = window.digitalLife?.storage;

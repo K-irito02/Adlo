@@ -58,7 +58,9 @@ export function HScrollbar({ controller }: { controller: RevealScrollbarControll
     if (trackRect.width <= 0) {
       return;
     }
-    const ratio = (event.clientX - trackRect.left) / trackRect.width;
+    // 钳制到 [0,1]：圆角/缩放/指针捕获偏移可能算出越界比例（编辑器真源未钳，
+    // 浏览器多半自行钳制；此处显式化，不依赖未定义行为）。
+    const ratio = Math.min(1, Math.max(0, (event.clientX - trackRect.left) / trackRect.width));
     const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
     el.scrollLeft = ratio * maxScroll;
   };
@@ -76,6 +78,11 @@ export function HScrollbar({ controller }: { controller: RevealScrollbarControll
             } as React.CSSProperties
           }
           onPointerDown={(event) => {
+            // 先确认滚动容器存在再置拖拽态：scrollRef 为 null 时 hook 的
+            // startDrag 会 early-return，此时若已置位 is-dragging 会残留展开态。
+            if (!scrollRef.current) {
+              return;
+            }
             setDragging(true);
             thumbListeners.onPointerDown(event);
           }}

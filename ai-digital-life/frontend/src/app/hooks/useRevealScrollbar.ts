@@ -105,7 +105,17 @@ export function useRevealScrollbar(
       return;
     }
     const geo = readGeometry(el);
-    setGeometry(geo);
+    // 浅比较 6 字段：几何未变不 setState，避免 hover 进入等高频重测多一次渲染。
+    setGeometry((prev) =>
+      prev.scrollTop === geo.scrollTop &&
+      prev.scrollHeight === geo.scrollHeight &&
+      prev.clientHeight === geo.clientHeight &&
+      prev.scrollLeft === geo.scrollLeft &&
+      prev.scrollWidth === geo.scrollWidth &&
+      prev.clientWidth === geo.clientWidth
+        ? prev
+        : geo,
+    );
   }, []);
 
   const depsKey = deps.join('\u0000');

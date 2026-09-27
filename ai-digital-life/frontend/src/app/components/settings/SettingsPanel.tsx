@@ -142,8 +142,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     void prefetchStorageSettings();
   }, []);
 
-  // 悬停侧边栏存储行再预热一次：移动→点击的天然延迟是免费的命中窗口。
-  const handleNavHoverGroup = useCallback((group: SettingsGroupId) => {
+  // 悬停/聚焦侧边栏存储行再预热一次：移动→点击的天然延迟是免费的命中窗口。
+  // Tech-debt 注记：面板直连具体 feature 模块的预热函数；当第二个组需要预热时，
+  // 改为 groupPrefetchers 注册表（feature 侧登记、面板侧按组调用），勿再加分支。
+  const handleNavPreheatGroup = useCallback((group: SettingsGroupId) => {
     if (group === 'storage') {
       void prefetchStorageSettings();
     }
@@ -354,8 +356,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const ActiveComponent = !searchQuery.trim() ? SETTINGS_COMPONENTS[effectiveGroup] : undefined;
 
   // 项目自定义滚动条（垂直=文件树/剪贴板同源 RevealScrollbar；水平=对齐
-  // 编辑器/差异查看器横向条家族）。scrollRef 挂真实滚动元素，hover 挂外层
-  // 宿主（滑块与滚动区为兄弟节点，hover 必须覆盖两者，否则悬停滑块即闪隐）。
+  // 编辑器/差异查看器横向条家族的点态 HScrollbar）。scrollRef 挂真实滚动元素，
+  // hover 挂外层宿主（滑块与滚动区为兄弟节点，hover 必须覆盖两者，否则悬停滑块即闪隐）。
+  // 横轴的 `visible`（hover 门控）未被 HScrollbar 消费（常驻设计按 scrollable 渲染）：
+  // 此处复用 hoverProps 仅为借道进入即重测（measure），勿误读为"横条需 hover 才可见"。
   const contentScrollbar = useRevealScrollbar([effectiveGroup, searchQuery], 'vertical');
   // 横向几何由 ResizeObserver 直接观察 host（导航拖宽即改 host 宽度），
   // deps 无需再含 settingsNavigatorWidth（revB-R3：原依据不成立）。
@@ -465,7 +469,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
               resettableGroups={RESETTABLE_GROUPS}
               onResetGroup={handleRequestResetGroup}
               disabledResetGroups={disabledResetGroups}
-              onHoverGroup={handleNavHoverGroup}
+              onPreheatGroup={handleNavPreheatGroup}
             />
             <div
               className="adl-settings-nav__resize-handle"

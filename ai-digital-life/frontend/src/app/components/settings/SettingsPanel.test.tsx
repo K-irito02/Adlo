@@ -727,4 +727,32 @@ describe('SettingsPanel storage prefetch wiring', () => {
     fireEvent.pointerEnter(row as HTMLElement);
     await waitFor(() => expect(getStatus).toHaveBeenCalledTimes(2));
   });
+
+  it('悬停/聚焦非存储行不触发存储预取（负例）', async () => {
+    setupStore();
+    const getStatus = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        mode: 'unified',
+        root: '',
+        locatorPath: '',
+        categories: [],
+        pending: null,
+        lastReport: null,
+      },
+    });
+    (window as unknown as { digitalLife?: unknown }).digitalLife = {
+      storage: { getStatus },
+    };
+    renderPanel();
+    await waitFor(() => expect(getStatus).toHaveBeenCalledTimes(1));
+    resetStorageSettingsCache();
+    const row = screen.getByRole('button', { name: 'settingsGeneral' }).closest('li');
+    expect(row).not.toBeNull();
+    fireEvent.pointerEnter(row as HTMLElement);
+    fireEvent.focus(screen.getByRole('button', { name: 'settingsWorkspace' }));
+    // 预热只认存储组：给微任务/macrotask 刷新机会后仍为 1 次。
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(getStatus).toHaveBeenCalledTimes(1);
+  });
 });

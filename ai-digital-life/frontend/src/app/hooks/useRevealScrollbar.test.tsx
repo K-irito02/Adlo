@@ -176,4 +176,13 @@ describe('useRevealScrollbar', () => {
     fireEvent.pointerUp(window, { pointerId: 1, clientX: 30 });
     expect(host.scrollLeft).toBe(150);
   });
+
+  it('horizontal thumb never exceeds a tiny viewport (Math.min cap branch)', () => {
+    const { host } = renderHorizontalHost({ scrollWidth: 100, clientWidth: 30 });
+    fireEvent.mouseEnter(host);
+    const thumb = document.querySelector('[data-testid="thumb"]') as HTMLElement;
+    expect(thumb.dataset.scrollable).toBe('true');
+    // 比例 9px < 下限 40，但 viewport 仅 30 → Math.min 取 30 而非 40。
+    expect(thumb.dataset.thumbLength).toBe('30');
+  });
 });

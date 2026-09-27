@@ -80,51 +80,59 @@ function withTimeout<T>(task: Promise<T>, ms: number): Promise<T> {
 }
 
 /**
- * 预取（方案 C，冷填充语义）：仅缓存为空时静默拉取 status + treeStats 并写入。
- * 已有缓存 → 立即 no-op（新鲜度由挂载再验证负责）；失败/畸形/旧桥缺方法一律
- * 静默放弃（不写缓存、不抛错）——真正的加载与错误处理仍在 `StorageSettings`
- * 挂载路径（带 30s 超时与错误页）。
+ * 预取（方案 C，冷填充语义）：仅两侧缓存皆为空时静默拉取 status + treeStats 并写入。
+ * 任一侧已有值时**只拉缺失侧**：新鲜度由挂载再验证负责；慢返回的旧快照
+ * 不可能覆盖新写回（时序覆盖），也不重复全量扫描缺失侧之外的内容。
+ * 失败/畸形/旧桥缺方法一律静默放弃（不写缓存、不抛错）——真正的加载与错误
+ * 处理仍在 `StorageSettings` 挂载路径（带 30s 超时与错误页）。
+ *
+ * 缓存为不可变快照约定：写入后任何一方不得原地修改 status/treeStats 对象
+ * （组件侧同样 immutable 更新）；违者污染下次进场的瞬显内容。
  */
 export function prefetchStorageSettings(): Promise<void> {
-  if (statusCache !== null) {
+  if (statusCache !== null && treeStatsCache !== null) {
     return Promise.resolve();
   }
   if (prefetchInFlight) {
     return prefetchInFlight;
   }
-  const bridge = window.digitalLife?.storage;
+  const bridge = typeof window !== 'undefined' ? window.digitalLife?.storage : undefined;
   if (!bridge) {
     return Promise.resolve();
   }
   const fetchEpoch = epoch;
   // 经 Promise.resolve().then 包装：同步抛错转为拒绝，不逃逸出预取通道。
-  const fetchStatus = withTimeout(
-    Promise.resolve().then(() => bridge.getStatus()),
-    PREFETCH_TIMEOUT_MS,
-  )
-    .then((result) => {
-      if (
-        fetchEpoch === epoch &&
-        statusCache === null &&
-        result.ok &&
-        isWellFormedStatus(result.data)
-      ) {
-        statusCache = result.data;
-      }
-    })
-    .catch(() => undefined);
-  const fetchTreeStats = !bridge.getTreeCacheStats
-    ? Promise.resolve()
-    : withTimeout(
-        Promise.resolve().then(() => bridge.getTreeCacheStats!()),
-        PREFETCH_TIMEOUT_MS,
-      )
-        .then((result) => {
-          if (fetchEpoch === epoch && treeStatsCache === null && result.ok) {
-            treeStatsCache = result.data;
-          }
-        })
-        .catch(() => undefined);
+  const fetchStatus =
+    statusCache !== null
+      ? Promise.resolve()
+      : withTimeout(
+          Promise.resolve().then(() => bridge.getStatus()),
+          PREFETCH_TIMEOUT_MS,
+        )
+          .then((result) => {
+            if (
+              fetchEpoch === epoch &&
+              statusCache === null &&
+              result.ok &&
+              isWellFormedStatus(result.data)
+            ) {
+              statusCache = result.data;
+            }
+          })
+          .catch(() => undefined);
+  const fetchTreeStats =
+    treeStatsCache !== null || !bridge.getTreeCacheStats
+      ? Promise.resolve()
+      : withTimeout(
+          Promise.resolve().then(() => bridge.getTreeCacheStats!()),
+          PREFETCH_TIMEOUT_MS,
+        )
+          .then((result) => {
+            if (fetchEpoch === epoch && treeStatsCache === null && result.ok) {
+              treeStatsCache = result.data;
+            }
+          })
+          .catch(() => undefined);
   const settled = Promise.all([fetchStatus, fetchTreeStats]).then(() => {
     // identity 守卫：reset 可能在本 promise 在途时清空并放行新一轮预取，
     // 旧 promise settle 不得清掉新 latch（否则并发去重失效）。

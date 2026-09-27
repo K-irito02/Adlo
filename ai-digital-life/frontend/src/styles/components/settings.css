@@ -17,6 +17,9 @@
      内容区真正横向溢出 → 水平 RevealScrollbar 出现（此前 160px 与导航下限
      同源耦合，兜底滚动在数学上不可达）。 */
   --adl-settings-content-min: 280px;
+  /* 导航宽度下限（方案 B 钳制共用）：与 uiSliceTypes.ts SETTINGS_NAVIGATOR_WIDTH_MIN
+     同值，改动需同步（拖拽/持久化下限与本视觉下限一体）。 */
+  --adl-settings-nav-min: 160px;
 }
 
 .adl-settings-panel__header {
@@ -80,7 +83,10 @@
 }
 
 /* 内容区外层：垂直/水平 RevealScrollbar 的定位宿主（自身不滚动，
-   否则 abspos 滑块会随滚动容器一起位移）。 */
+   否则 abspos 滑块会随滚动容器一起位移）。
+   约束：禁止 padding/border —— 水平点条的定位上下文即本层宽度，而滑块几何
+   以横向滚动容器（content-host）的 clientWidth 为基准；两者失配则点位/滑块
+   系统性偏移（当前 outer 无 padding/border + 竖条 overlay，故 outer 宽 == host 宽）。 */
 .adl-settings-panel__content-outer {
   position: relative;
   display: flex;
@@ -150,7 +156,7 @@
      常量矛盾（导航曾可把内容区挤到 0 宽）。拖拽仍写
      --adl-settings-nav-width（aria/持久化不变），视觉宽度由本式钳制。 */
   width: max(
-    160px,
+    var(--adl-settings-nav-min, 160px),
     min(var(--adl-settings-nav-width, 160px), calc(100% - var(--adl-settings-content-min, 280px)))
   );
   flex-shrink: 0;
@@ -312,6 +318,7 @@
      极窄下不再十几行撑爆行高，也不会横向溢出压到右侧控件上。 */
   display: -webkit-box;
   -webkit-line-clamp: 5;
+  line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
   overflow-wrap: anywhere;
@@ -605,7 +612,10 @@
   background: var(--bg-muted);
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
+  /* 单行样本：超长字体名省略而非拦腰截断。 */
   overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* ---- Settings custom dropdown（可复用：替代原生 select） ----
@@ -844,9 +854,11 @@
   transform: translateY(-50%);
   opacity: 0;
   /* 隐藏时同步脱离 Tab 顺序，避免键盘用户撞上不可见 stop。
-     显隐即时（无 transition）：快速来回悬停时旧图标立即消失，
-     不与新行淡入的图标叠加成残影/幻影 */
+     显隐即时：opacity/visibility 不过渡（残影根因）；颜色过渡保留，
+     且用 transition-property 与 --transition-colors 显式解耦——
+     即使设计系统将来给该 token 加 opacity，残影也不会回归。 */
   visibility: hidden;
+  transition-property: color, background-color, border-color;
 }
 
 .adl-settings-nav__row:hover .adl-settings-nav__reset,
@@ -855,9 +867,12 @@
   opacity: 1;
   visibility: visible;
 }
-
-/* 禁用态在行悬停/聚焦时保持灰暗：上面 show 规则（0-3-0）压过
-   .adl-settings-row__reset:disabled（0-2-0），需等价高特异度扳回 opacity 0.5。 */
+/* 禁用态在行悬停/聚焦时保持灰暗：上面的 show 规则（0-3-0）压过同一按钮上
+   的 `.adl-settings-row__reset:disabled`（0-2-0，settings.css:775），
+   需等价高特异度扳回 opacity 0.5。
+   顺序敏感：本规则必须位于 show 规则之后（同特异度靠后来居上）。
+   第三项的 `:focus-visible` 在 disabled 上永不匹配（原生 disabled 不可聚焦），
+   仅为与 show 规则列表保对称、將来 show 增项时不漏。 */
 .adl-settings-nav__row:hover .adl-settings-nav__reset:disabled,
 .adl-settings-nav__row:has(.adl-settings-nav__item:focus-visible) .adl-settings-nav__reset:disabled,
 .adl-settings-nav__row:has(.adl-settings-nav__reset:focus-visible)
@@ -1325,7 +1340,8 @@
 
 /* 点态横条覆盖底部 10px（编辑器同款 overlay，见 reveal-scrollbar.css）：
    粘性提交条 sticks 于 scrollport 底边，会被横条轨道劫持点击 —— 横条在场时
-   上抬 10px 让出点击带；:has 不支持时优雅降级为原贴底行为。 */
+   上抬 10px 让出点击带；:has 不支持时优雅降级为原贴底行为。
+   耦合：10px 与 .adl-hscroll 的 height 同值，改动需同步。 */
 .adl-settings-panel__content-outer:has(.adl-hscroll) .adl-storage-settings__dirtybar {
   bottom: 10px;
 }
@@ -1407,7 +1423,9 @@
    窄档只在此追加：≤460 收 padding → ≤600 完全堆叠（每元素一行）→ ≤300 解锁固定宽控件。
    堆叠阈值 600 = 刚性控件（260 路径输入 + 按钮 + gap）+ 卡片内边距 + 最小可读 label
    的实测和（420~600 曾是"并排死区"：label 被压到 0~54px、副标题溢出压到输入框上）。
-   触发依据是内容区实际可用宽（而非视口），与右面板/导航宽度解耦。 */
+   触发依据是内容区实际可用宽（而非视口），与右面板/导航宽度解耦。
+   降级声明：不支持 container queries 的旧浏览器回退到宽档并排
+   （420~600 并排死区重现，属已知降级；桌面 WebView2/Chromium 均支持）。 */
 
 @container settings-content (max-width: 460px) {
   .adl-settings-panel__content {

@@ -10,6 +10,7 @@ import { CATEGORY_COPY } from '../storageCategoryCopy';
 import { StorageSettings } from '../StorageSettings';
 import {
   getCachedStorageStatus,
+  getCachedTreeStats,
   prefetchStorageSettings,
   resetStorageSettingsCache,
   setCachedStorageStatus,
@@ -2792,5 +2793,40 @@ describe('StorageSettings entry cache (stale-while-revalidate)', () => {
     renderSettings();
     // 挂载再验证（dirty=false）→ 草稿随 fresh 重播种为 per_category（修 rev1-F2 分叉）。
     await waitFor(() => expect(screen.getByLabelText('storageModePerCategory')).toBeChecked());
+  });
+
+  it('预取同时填充树缓存快照（双侧冷填充）', async () => {
+    await prefetchStorageSettings();
+    expect(getCachedStorageStatus()?.root).toBe(status.root);
+    expect(getCachedTreeStats()?.ttlMinutes).toBe(15);
+  });
+
+  it('旧桥无 getTreeCacheStats 时预取静默成功（仅填 status）', async () => {
+    const storage = (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage;
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: { getStatus: storage.getStatus },
+    };
+    await expect(prefetchStorageSettings()).resolves.toBeUndefined();
+    expect(getCachedStorageStatus()).not.toBeNull();
+    expect(getCachedTreeStats()).toBeNull();
+  });
+
+  it('缓存命中 + 再验证失败时保留快照内容（静默陈旧取舍 pin）', async () => {
+    setCachedStorageStatus(cachedStatus);
+    const storage = (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage;
+    storage.getStatus.mockResolvedValue({ ok: false, error: { message: 'disk-gone' } });
+    renderSettings();
+    expect(screen.queryByText('storageStatusLoading')).toBeNull();
+    await waitFor(() => expect(storage.getStatus).toHaveBeenCalled());
+    // 错误页门 `statusError && !status`：status 非空 → 快照内容保留、不切错误页。
+    expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
   });
 });
