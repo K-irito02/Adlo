@@ -422,7 +422,9 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     expect(settingsCss).toContain('@container settings-content (max-width: 460px)');
     const start = settingsCss.indexOf('@container settings-content (max-width: 300px)');
     expect(start).not.toBe(-1);
-    const block = settingsCss.slice(start, start + 2000);
+    // 截到下一档边界（与 ≤600/≤320 同法，固定字符窗口会越界，rev3 L1）。
+    const nextStage = settingsCss.indexOf('@container', start + 1);
+    const block = settingsCss.slice(start, nextStage === -1 ? undefined : nextStage);
     // dsh 锁死的 160px 下拉/测试按钮在极窄档解锁（提权选择器防 dsh.css 反覆盖）。
     expect(block).toContain(
       '.adl-settings-panel__content .adl-dsh-settings .adl-settings-dropdown',
