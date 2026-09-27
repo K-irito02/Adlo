@@ -346,9 +346,11 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
   it('nav reset icon shows/hides instantly — no fade transition (ghost-icon regression lock)', () => {
     const body = ruleBody(settingsCss, '.adl-settings-nav__reset');
     expect(body).not.toBeNull();
-    // 重新加回 opacity/visibility 过渡会让快速来回悬停再次出现残影
-    //（断言 `transition:` 声明；注释里的「无 transition」字样不计）。
-    expect(body).not.toContain('transition:');
+    // 锁的是真凶（opacity/visibility 过渡），而非一切 transition：
+    // 颜色过渡（transition-property: color…）允许且期望保留。
+    // 先剥注释：注释里会提到 opacity/visibility 字样，不能计入匹配。
+    const code = body!.replace(/\/\*[\s\S]*?\*\//g, '');
+    expect(code).not.toMatch(/transition[^;]*(opacity|visibility)/);
     expect(body).toContain('visibility: hidden');
     // 修复隐式前提锁：同元素仍挂着基类 `transition: var(--transition-colors)`，
     // 残影不回归依赖该 token 不含 opacity（rev2 R1）。
@@ -360,8 +362,9 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
   });
 
   it('settings cards render instantly — no enter animation remains (drawer-spring regression lock)', () => {
+    // 作用域收窄到 card-enter：裸 `@keyframes` 断言会误杀未来合法动效（复审 F2）。
     expect(settingsCss).not.toContain('adl-settings-card-enter');
-    expect(settingsCss).not.toContain('@keyframes');
+    expect(settingsCss).not.toMatch(/@keyframes\s+adl-settings-card-enter/);
   });
 
   it('nav reset disabled state stays dimmed under row hover (show rule specificity fix)', () => {

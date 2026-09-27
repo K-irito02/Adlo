@@ -506,6 +506,7 @@ describe('SettingsPanel group reset', () => {
           data: {
             mode: 'unified',
             root: '',
+            defaultRoot: '',
             locatorPath: '',
             categories: [],
             pending: null,
@@ -691,7 +692,7 @@ describe('SettingsPanel storage prefetch wiring', () => {
     delete (window as unknown as { digitalLife?: unknown }).digitalLife;
   });
 
-  it('悬停侧边栏存储行触发存储预取（onHoverGroup 接线）', async () => {
+  it('悬停侧边栏存储行触发存储预取（onPreheatGroup 接线）', async () => {
     setupStore();
     const getStatus = vi.fn().mockResolvedValue({
       ok: true,

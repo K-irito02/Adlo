@@ -22,6 +22,9 @@ import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/termin
 const status = {
   mode: 'unified' as const,
   root: 'C:/Users/u/AppData/Roaming/app',
+  // 与 root 刻意不同：root === defaultRoot 会禁用核心恢复按钮（历史教训）；
+  // isWellFormedStatus 要求 defaultRoot 为字符串，故 fixture 必须带合法值。
+  defaultRoot: 'D:/AppDefaults/ai-digital-life',
   locatorPath: 'C:/Users/u/AppData/Roaming/ai-digital-life/storage-locator.json',
   categories: STORAGE_CATEGORY_KEYS.map((key) => ({
     key,
@@ -2705,6 +2708,23 @@ describe('StorageSettings entry cache (stale-while-revalidate)', () => {
         digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
       }
     ).digitalLife.storage.getStatus.mockResolvedValue({ ok: true, data: { mode: 'bogus' } });
+    await prefetchStorageSettings();
+    expect(getCachedStorageStatus()).toBeNull();
+  });
+
+  it('畸形分类元素不入缓存（信封对但元素错：空 path / 非字符串 key）', async () => {
+    const storage = (
+      window as unknown as {
+        digitalLife: { storage: { getStatus: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.storage;
+    storage.getStatus.mockResolvedValue({
+      ok: true,
+      data: {
+        ...cachedStatus,
+        categories: [{ key: 42, path: null }],
+      },
+    });
     await prefetchStorageSettings();
     expect(getCachedStorageStatus()).toBeNull();
   });

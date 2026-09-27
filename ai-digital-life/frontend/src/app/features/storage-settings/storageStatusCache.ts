@@ -1,4 +1,4 @@
-import type { StorageStatus, TreeCacheStats } from '@shared/ipc/storage';
+import type { StorageCategoryStatus, StorageStatus, TreeCacheStats } from '@shared/ipc/storage';
 
 /**
  * 「存储」组进场缓存（方案 B+C，根因修复 2026-09-27）。
@@ -45,7 +45,10 @@ export function setCachedTreeStats(stats: TreeCacheStats): void {
   treeStatsCache = stats;
 }
 
-/** `ok:true` 畸形体校验：缺 `data`/`categories` 即视为版本错配，不入缓存也不渲染（F1）。 */
+/** `ok:true` 畸形体校验：缺 `data`/`categories` 即视为版本错配，不入缓存也不渲染（F1）。
+ * 除信封外逐分类校验元素形状（`key`/`path` 字符串）与 `defaultRoot`：
+ * 版本错位后端若返回空/畸形分类项，须在入缓存前拦截 —— 否则坏快照污染整个会话，
+ * 每次进场都渲染错行。 */
 export function isWellFormedStatus(data: unknown): data is StorageStatus {
   if (typeof data !== 'object' || data === null) {
     return false;
@@ -54,7 +57,15 @@ export function isWellFormedStatus(data: unknown): data is StorageStatus {
   return (
     (candidate.mode === 'unified' || candidate.mode === 'per_category') &&
     typeof candidate.root === 'string' &&
-    Array.isArray(candidate.categories)
+    typeof candidate.defaultRoot === 'string' &&
+    Array.isArray(candidate.categories) &&
+    candidate.categories.every(
+      (category) =>
+        typeof category === 'object' &&
+        category !== null &&
+        typeof (category as Partial<StorageCategoryStatus>).key === 'string' &&
+        typeof (category as Partial<StorageCategoryStatus>).path === 'string',
+    )
   );
 }
 
