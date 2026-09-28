@@ -1,5 +1,3 @@
-/* eslint-disable react-refresh/only-export-components -- highlightMatch 是行内高亮纯函数，搜索面板需复用同一份命中口径（R6），与组件同文件导出 */
-
 import React, { useState, useEffect, useRef, useMemo, type ChangeEvent } from 'react';
 import type { SettingItem } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -14,7 +12,6 @@ import { anchorFor } from './settingsSearchIndex';
 interface SettingsControlsProps {
   items: SettingItem[];
   onChange: (id: string, value: string | boolean | number) => void;
-  searchQuery?: string;
 }
 
 /** 当前值是否已等于默认值：等于则行级恢复按钮禁用。
@@ -28,23 +25,6 @@ function isDefaultValue(value: unknown, defaultValue: unknown): boolean {
     );
   }
   return value === defaultValue;
-}
-
-export function highlightMatch(text: string, query: string): React.ReactNode {
-  if (!query.trim()) {
-    return text;
-  }
-  const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) {
-    return text;
-  }
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="adl-settings-highlight">{text.slice(idx, idx + query.length)}</mark>
-      {text.slice(idx + query.length)}
-    </>
-  );
 }
 
 function ToggleControl({ item, onChange }: { item: SettingItem; onChange: (v: boolean) => void }) {
@@ -157,7 +137,7 @@ function PasswordControl({
   );
 }
 
-export function SettingsControls({ items, onChange, searchQuery }: SettingsControlsProps) {
+export function SettingsControls({ items, onChange }: SettingsControlsProps) {
   const { t } = useTCopy();
   if (items.length === 0) {
     return (
@@ -194,11 +174,9 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
                       <IconResetDefaults size={14} decorative />
                     </button>
                   )}
-                  <span>{highlightMatch(item.label, searchQuery ?? '')}</span>
+                  <span>{item.label}</span>
                 </span>
-                {item.description && (
-                  <small>{highlightMatch(item.description, searchQuery ?? '')}</small>
-                )}
+                {item.description && <small>{item.description}</small>}
               </div>
               <div className="adl-settings-row__control">
                 {item.type === 'toggle' && (

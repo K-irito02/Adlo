@@ -2,7 +2,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { EmptyRow } from '@components/LoadingRow';
 import { SETTINGS_GROUPS } from './settingsGroups';
 import { anchorFor, type SettingsSearchEntry } from './settingsSearchIndex';
-import { highlightMatch } from './SettingsControls';
+import { highlightMatch } from './settingsHighlight';
 
 interface SettingsSearchResultsProps {
   /** 已按查询过滤的跨组索引条目（`filterSearchIndex` 输出）。 */
@@ -15,19 +15,13 @@ interface SettingsSearchResultsProps {
 
 /**
  * 跨组搜索结果列表：按 `SETTINGS_GROUPS` 顺序分组，组标题取各组 `labelKey`，
- * 命中词复用 `SettingsControls.highlightMatch`（单一口径）。无结果时回落共享空态。
+ * 命中词复用共享 `settingsHighlight.highlightMatch`（单一口径）。无结果时回落共享空态。
  */
 export function SettingsSearchResults({ entries, query, onSelect }: SettingsSearchResultsProps) {
   const { t } = useTCopy();
 
   if (entries.length === 0) {
-    return (
-      <EmptyRow
-        message={t.settingsNoResults}
-        variant="center"
-        className="adl-settings-search-empty"
-      />
-    );
+    return <EmptyRow message={t.settingsNoResults} variant="center" />;
   }
 
   return (

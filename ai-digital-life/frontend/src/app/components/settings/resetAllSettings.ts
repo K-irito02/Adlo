@@ -8,22 +8,22 @@ import {
 import { executeDshResetPlan, type DshResetDeps } from '@shared/settings-reset/dshReset';
 import {
   executeStorageResetPlan,
-  type StorageResetDeps,
-  type StorageResetPlan,
+  type StorageResetExecuteDeps,
+  type StorageResetExecutePlan,
 } from '@shared/settings-reset/storageReset';
-import type { GroupKey, GroupResetResult } from '@shared/settings-reset/types';
+import type { GroupKey, GroupResetResult, GroupResetStep } from '@shared/settings-reset/types';
 
 export interface ResetAllDeps {
   updatePreferences: (patch: AppPreferencePatch) => Promise<boolean>;
   browser: BrowserResetDeps;
   dsh: DshResetDeps;
-  storage: StorageResetDeps;
+  storage: StorageResetExecuteDeps;
 }
 
 export interface ResetAllOutcome {
   done: GroupKey[];
   failedAt?: GroupKey;
-  failedStep?: string;
+  failedStep?: GroupResetStep;
   /** 失败步的结构化错误（供调用方在汇总提示中展示原因）。 */
   error?: IpcError;
   skipped: GroupKey[];
@@ -76,11 +76,23 @@ async function runFirstGroup(key: FirstGroupKey, deps: ResetAllDeps): Promise<St
 }
 
 async function runStorage(
-  deps: StorageResetDeps,
-  plan: StorageResetPlan,
+  deps: StorageResetExecuteDeps,
+  plan: StorageResetExecutePlan,
   opts: { applyNow: boolean; retainSource: boolean },
 ): Promise<StepResult> {
   const out = await executeStorageResetPlan(deps, plan, opts);
+  // 首个失败块为预算/树（不携带 error）而下载族亦失败时，回落到下载族的结构化错误，
+  // 避免聚合流程只能展示通用文案、下载族原因被静默吞掉（F1）。
+  if (!out.result.ok && out.result.error === undefined && out.downloadFailure?.error) {
+    return {
+      result: {
+        ok: false,
+        failedStep: out.result.failedStep,
+        error: out.downloadFailure.error,
+      },
+      restartRequired: out.restartRequired,
+    };
+  }
   return { result: out.result, restartRequired: out.restartRequired };
 }
 
@@ -97,7 +109,7 @@ function pendingAfter(failedAt: GroupKey, done: GroupKey[]): GroupKey[] {
  */
 export async function resetAllSettings(
   deps: ResetAllDeps,
-  opts: { storagePlan: StorageResetPlan | null; applyNow: boolean; retainSource: boolean },
+  opts: { storagePlan: StorageResetExecutePlan | null; applyNow: boolean; retainSource: boolean },
   onProgress?: (key: GroupKey) => void,
 ): Promise<ResetAllOutcome> {
   const done: GroupKey[] = [];

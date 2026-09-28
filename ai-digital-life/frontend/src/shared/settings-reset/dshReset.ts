@@ -10,8 +10,6 @@ export const DSH_RESET_PAYLOAD: DshSourceConfig = {
 
 export interface DshResetDeps {
   saveSourceConfig: (config: DshSourceConfig) => Promise<boolean>;
-  /** 落盘成功后的收尾（组件用：静默实测选优；编排器不传）。 */
-  afterReset?: () => void;
 }
 
 export async function executeDshResetPlan(deps: DshResetDeps): Promise<GroupResetResult> {
@@ -19,6 +17,5 @@ export async function executeDshResetPlan(deps: DshResetDeps): Promise<GroupRese
   if (!ok) {
     return { ok: false, failedStep: 'saveSourceConfig' };
   }
-  deps.afterReset?.();
   return { ok: true };
 }

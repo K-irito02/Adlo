@@ -18,7 +18,7 @@ import {
 } from '@shared/ipc/storage';
 import {
   executeStorageResetPlan,
-  type StorageResetPlan,
+  type StorageResetExecutePlan,
 } from '@shared/settings-reset/storageReset';
 import { IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
@@ -1297,22 +1297,19 @@ export function StorageSettings() {
       }
       setGroupResetBusy(true);
       try {
-        const plan: StorageResetPlan = {
+        const plan: StorageResetExecutePlan = {
           blocks: {
             coreNeeded: groupResetCoreNeeded,
             tree: groupResetBlocks.tree,
             budget: groupResetBlocks.budget,
             download: groupResetBlocks.download,
           },
-          preflight: groupResetPreflight,
           migrateAtOpen: groupMigrateAtOpenRef.current,
         };
         // 共享执行器返回的失败结果不携带预检载荷：从 setPaths 包裹层捕获，供 preflight 失败分支回填。
         const captured: { preflight: StoragePreflight | null } = { preflight: null };
         const { result, restartRequired, downloadFailure } = await executeStorageResetPlan(
           {
-            bridge: { preflight: (patch) => bridge.preflight(patch) },
-            refreshStatus: () => refresh(),
             setPaths: async (patch, now) => {
               const applied = await bridge.setPaths(patch, now);
               if (!applied.ok) {
@@ -1335,13 +1332,6 @@ export function StorageSettings() {
             },
             // 树写自带错误 toast；返回值纳入汇总（N4）。
             resetTreeCache: handleTreeResetDefaults,
-            previewDownload: () => ({
-              settings: useAppStore.getState().downloadSettings,
-              loaded: useAppStore.getState().downloadSettingsLoaded,
-            }),
-            readTreeStats: () => treeStats,
-            readBudgetBytes: () =>
-              useAppStore.getState().appInfo?.config?.terminalHistoryBudgetBytes,
             downloadPath: { changeDownloadPath, updateDownloadSettings },
           },
           plan,
@@ -1427,7 +1417,6 @@ export function StorageSettings() {
       groupResetPreflight,
       groupResetCoreNeeded,
       groupResetBlocks,
-      treeStats,
       refresh,
       status,
       showToast,

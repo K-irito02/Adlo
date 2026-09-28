@@ -3,7 +3,26 @@ import type { IpcError, IpcResult } from '@ai-digital-life/kernel';
 /** 「恢复全部默认」的执行单元（顺序即 UI 展示顺序）。 */
 export type GroupKey = 'preferences' | 'browser' | 'dsh' | 'storage';
 
-export type GroupResetResult = { ok: true } | { ok: false; failedStep: string; error?: IpcError };
+/**
+ * 组级恢复的失败步骤码（内部契约，绝不展示给用户）：编排器与各组执行器的
+ * 魔法字面量统一受此联合约束，拼写错误 / 重命名漏改可被编译器拦下。
+ */
+export type GroupResetStep =
+  | 'preferences'
+  | 'unexpected'
+  | 'suspend'
+  | 'downloadMode'
+  | 'downloadPath'
+  | 'downloadPathSwitch'
+  | 'saveSourceConfig'
+  | 'corePaths'
+  | 'corePathsPreflight'
+  | 'budget'
+  | 'treeCache';
+
+export type GroupResetResult =
+  | { ok: true }
+  | { ok: false; failedStep: GroupResetStep; error?: IpcError };
 
 /** 下载路径恢复的纯序列依赖（由调用方注入 store action，本模块不 import stores）。 */
 export interface DownloadPathResetDeps {

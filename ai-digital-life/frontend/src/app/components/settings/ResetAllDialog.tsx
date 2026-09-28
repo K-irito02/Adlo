@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
+import type { CopyDict } from '@i18n';
 import { formatBytes } from '@root/design-system/html';
 import { useAppStore } from '@stores/slicedStore';
 import type { TreeCacheStats } from '@shared/ipc/storage';
@@ -59,12 +60,12 @@ async function computePlan(
   return computeStorageResetPlan({ ...deps, readTreeStats: () => treeStats }, predicates);
 }
 
-function groupLabel(t: Record<string, string>, key: GroupKey): string {
+function groupLabel(t: CopyDict, key: GroupKey): string {
   return t[RESET_ALL_GROUP_LABEL_KEYS[key]];
 }
 
 /** 存储行范围文案：计算中 / 就绪 / 全默认（无事可做）/ 不可用（无法判定）。 */
-function storageScopeText(state: PlanState, t: Record<string, string>): string {
+function storageScopeText(state: PlanState, t: CopyDict): string {
   if (state.status === 'computing') {
     return t.settingsResetAllStorageCompute;
   }
@@ -106,11 +107,19 @@ export function ResetAllDialog({
     setPlanState({ status: 'computing' });
     setRetainSource(false);
     setProgress(null);
-    void computePlan(deps, storagePredicates).then((result) => {
-      if (!cancelled) {
-        setPlanState({ status: 'ready', result });
-      }
-    });
+    void computePlan(deps, storagePredicates)
+      .then((result) => {
+        if (!cancelled) {
+          setPlanState({ status: 'ready', result });
+        }
+      })
+      // 计划计算内的 IPC（refreshStatus / preflight）被拒时回落到「不可用」分支：
+      // 避免永久停在「计算中…」（仅剩取消键）并产生未处理的 rejection。
+      .catch(() => {
+        if (!cancelled) {
+          setPlanState({ status: 'ready', result: { status: 'unavailable' } });
+        }
+      });
     return () => {
       cancelled = true;
     };

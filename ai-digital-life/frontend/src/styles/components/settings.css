@@ -1628,28 +1628,12 @@
   background: var(--surface-hover);
 }
 
-/* 跳转落点高亮：主题变量描边 + 背景短暂淡出（时长与 TS 常量 SEARCH_HIGHLIGHT_MS 同值）。
-   仅描边/背景，不改布局；reduced-motion 下取消动画，保留静态描边。 */
+/* 跳转落点高亮：主题变量描边 + 背景强调（静态呈现，进入即显式、~1.2s 后移除；
+   不做动画，避免 background-color 补间触发 paint，符合「动画/过渡仅用 transform/opacity」规范）。
+   仅描边/背景，不改布局。 */
 .adl-settings-search-highlight {
   border-radius: var(--radius-sm);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
   background-color: var(--accent-subtle);
-  animation: adl-settings-search-highlight-fade 1.2s ease-out;
-}
-
-@keyframes adl-settings-search-highlight-fade {
-  from {
-    background-color: var(--accent-soft);
-  }
-
-  to {
-    background-color: var(--accent-subtle);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .adl-settings-search-highlight {
-    animation: none;
-  }
 }

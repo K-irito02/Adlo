@@ -1,4 +1,3 @@
-import React from 'react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
 import { TCopyProvider } from '@i18n/TCopyContext';
@@ -160,7 +159,10 @@ describe('ResetAllDialog', () => {
   it('核心需迁移：展示预检文件数、双迁移时机键，保留源默认不勾', async () => {
     installStoreActions();
     renderDialog({});
-    expect(await screen.findByText(/7/)).not.toBeNull();
+    // 断言完整插值片段（totalFiles=7 与 formatBytes(700) 均含 "7"，仅匹 /7/ 会命中非目标文本）。
+    expect(
+      await screen.findByText(/Core data paths: 7 file\(s\) \(~700\.0 B\) will be moved/),
+    ).not.toBeNull();
     expect(screen.getByRole('button', { name: 'storageMigrateLater' })).not.toBeNull();
     expect(screen.getByRole('button', { name: 'storageMigrateNow' })).not.toBeNull();
     const retain = screen.getByRole('checkbox') as HTMLInputElement;

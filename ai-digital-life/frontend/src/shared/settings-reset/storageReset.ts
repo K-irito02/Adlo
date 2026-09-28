@@ -24,11 +24,15 @@ export interface StorageResetBlocks {
   download: StorageDownloadBlock;
 }
 
-export interface StorageResetPlan {
+/** 执行块载荷：执行期不消费 preflight（仅计算/展示侧需要）。 */
+export interface StorageResetExecutePlan {
   blocks: StorageResetBlocks;
-  preflight: StoragePreflight | null;
   /** 计划生成时刻的下载迁移开关（程序化流程无对话框快照，取实时值）。 */
   migrateAtOpen: boolean;
+}
+
+export interface StorageResetPlan extends StorageResetExecutePlan {
+  preflight: StoragePreflight | null;
 }
 
 /**
@@ -42,9 +46,18 @@ export type StorageResetPlanResult =
   | { status: 'allDefault' }
   | { status: 'unavailable' };
 
-export interface StorageResetDeps {
+/** 计划计算所需依赖：只读状态 / 预检 / 默认性判定数据源。 */
+export interface StorageResetComputeDeps {
   bridge?: StorageBridgeLike;
   refreshStatus: () => Promise<StorageStatus | null>;
+  previewDownload: () => { settings: DownloadSettings; loaded: boolean };
+  /** 传入当前 tree 统计与预算（由调用方从 store/缓存读取）。 */
+  readTreeStats: () => TreeCacheStats | null;
+  readBudgetBytes: () => number | undefined;
+}
+
+/** 计划执行所需依赖：路径写入 / 预算 / 树缓存 / 下载序列（不含只读计算依赖）。 */
+export interface StorageResetExecuteDeps {
   setPaths: (
     patch: StoragePathPatch,
     applyNow: boolean,
@@ -54,13 +67,12 @@ export interface StorageResetDeps {
   >;
   resetBudget: () => Promise<boolean>;
   resetTreeCache: () => Promise<boolean>;
-  previewDownload: () => { settings: DownloadSettings; loaded: boolean };
-  /** 传入当前 tree 统计与预算（由调用方从 store/缓存读取）。 */
-  readTreeStats: () => TreeCacheStats | null;
-  readBudgetBytes: () => number | undefined;
   /** 下载分支执行用的纯序列依赖（由调用方注入 store action）。 */
   downloadPath: DownloadPathResetDeps;
 }
+
+/** 计算 + 执行的完整依赖（供同时需要两者的消费方，如聚合对话框）。 */
+export interface StorageResetDeps extends StorageResetComputeDeps, StorageResetExecuteDeps {}
 
 /** 与 UI 同源的默认判定（避免在 shared 内重复常量：这些 helper 由调用方注入）。 */
 export interface StorageResetPredicates {
@@ -86,7 +98,7 @@ const CORE_RESET_PATCH: StoragePathPatch = {
  *   供对话框展示错误并禁用确认键。
  */
 export async function computeStorageResetPlan(
-  deps: StorageResetDeps,
+  deps: StorageResetComputeDeps,
   predicates: StorageResetPredicates,
 ): Promise<StorageResetPlanResult> {
   if (!deps.bridge) {
@@ -135,8 +147,8 @@ export async function computeStorageResetPlan(
  * 仍能复现下载族失败文案（R6/R9），无需从 `failedStep`（首个失败块）反推。
  */
 export async function executeStorageResetPlan(
-  deps: StorageResetDeps,
-  plan: StorageResetPlan,
+  deps: StorageResetExecuteDeps,
+  plan: StorageResetExecutePlan,
   opts: { applyNow: boolean; retainSource: boolean },
 ): Promise<{
   result: GroupResetResult;
@@ -173,8 +185,8 @@ export async function executeStorageResetPlan(
 
 /** 核心路径块（先行）：失败即早返；成功带出 `restartRequired`（无需重赋值）。 */
 async function applyCoreReset(
-  deps: StorageResetDeps,
-  plan: StorageResetPlan,
+  deps: StorageResetExecuteDeps,
+  plan: StorageResetExecutePlan,
   opts: { applyNow: boolean; retainSource: boolean },
 ): Promise<{ result: GroupResetResult; restartRequired: boolean }> {
   if (!plan.blocks.coreNeeded) {

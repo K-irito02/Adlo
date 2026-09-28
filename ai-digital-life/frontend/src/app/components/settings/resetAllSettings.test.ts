@@ -17,13 +17,6 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
     },
     dsh: { saveSourceConfig: vi.fn(async () => true) },
     storage: {
-      bridge: {
-        preflight: vi.fn(async () => ({
-          ok: true as const,
-          data: { ok: true, totalFiles: 0, totalBytes: 0, errors: [], warnings: [], freeBytes: 0 },
-        })),
-      },
-      refreshStatus: vi.fn(async () => null),
       setPaths: vi.fn(async () => ({
         ok: true as const,
         restartRequired: false,
@@ -38,9 +31,6 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
       })),
       resetBudget: vi.fn(async () => true),
       resetTreeCache: vi.fn(async () => true),
-      previewDownload: () => ({ settings: {} as never, loaded: true }),
-      readTreeStats: () => null,
-      readBudgetBytes: () => undefined,
       downloadPath: {
         changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
@@ -69,6 +59,25 @@ describe('resetAllSettings', () => {
     expect(seen).toEqual(['preferences', 'browser', 'dsh', 'storage']);
     expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'storage']);
     expect(outcome.skipped).toEqual([]);
+  });
+
+  it('preferences 失败即停：其余三组都不执行并计入 skipped', async () => {
+    const d = deps({ updatePreferences: vi.fn(async () => false) });
+    const outcome = await resetAllSettings(d, {
+      storagePlan: STORAGE_PLAN,
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome).toEqual({
+      done: [],
+      failedAt: 'preferences',
+      failedStep: 'preferences',
+      skipped: ['browser', 'dsh', 'storage'],
+      restartRequired: false,
+    });
+    expect(d.browser.updatePreferences).not.toHaveBeenCalled();
+    expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
+    expect(d.storage.resetBudget).not.toHaveBeenCalled();
   });
 
   it('browser 失败即停：dsh 与 storage 都不执行，且计入 skipped', async () => {

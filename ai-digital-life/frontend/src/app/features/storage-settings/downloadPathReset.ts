@@ -7,6 +7,7 @@ import type { IpcError } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import type { DownloadSettings } from '@shared/ipc/download';
 import { resetDownloadPathToDefault } from '@shared/settings-reset/downloadPathReset';
+import type { GroupResetStep } from '@shared/settings-reset/types';
 
 /**
  * 下载路径是否全默认（路径空串 = 系统默认 + 迁移开关关闭）。
@@ -44,7 +45,7 @@ export function downloadResetBlockVariant(
  */
 export function downloadResetFailureCopy(
   t: CopyDict,
-  failedStep: string,
+  failedStep: GroupResetStep,
   error: IpcError | undefined,
   migrate: boolean,
 ): string {

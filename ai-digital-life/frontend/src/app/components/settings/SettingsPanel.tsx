@@ -74,15 +74,16 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   storage: StorageSettings,
 };
 
-/** 跳转落点高亮：类名（R6 要求 `adl-` 前缀）与停留时长（与 CSS 动画同值）。 */
+/** 跳转落点高亮：类名（R6 要求 `adl-` 前缀）与停留时长（静态高亮，~1.2s 后移除）。 */
 const SEARCH_HIGHLIGHT_CLASS = 'adl-settings-search-highlight';
 const SEARCH_HIGHLIGHT_MS = 1200;
 /**
  * 跳转锚点的有界等待（R15）：部分锚点异步挂载（如存储组 `treeCache` 需等树缓存
- * stats 回包），故在锚点出现前逐帧重试，最多 `SEARCH_JUMP_MAX_ATTEMPTS` 帧
- * （≈0.5s @60fps）；用尽即放弃，避免锚点确实缺席时意图永久悬挂。
+ * stats 回包），故在锚点出现前逐帧重试，最多等待 `SEARCH_JUMP_DEADLINE_MS` 墙钟
+ * 时间；用尽即放弃，避免锚点确实缺席时意图永久悬挂。以时间（非帧数）为界：
+ * 慢 IPC 冷缓存不会过早放弃，后台标签页 rAF 节流下也仍收敛。
  */
-const SEARCH_JUMP_MAX_ATTEMPTS = 30;
+const SEARCH_JUMP_DEADLINE_MS = 2000;
 
 /** 待解析的跳转意图：切组后由 effect 等锚点出现，再滚动 + 高亮。 */
 interface PendingJump {
@@ -185,6 +186,24 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
 
   /**
+   * 拉取最新存储状态并写入共享缓存（聚合计划计算与恢复成功后刷新共用）。
+   * 开框计算计划时写入的是恢复前快照，成功提交后必须回写，否则随后进入存储组
+   * 仍显示旧值、侧栏「存储」禁用聚合也停留在旧口径（L2）。
+   */
+  const refreshStorageStatus = useCallback(async () => {
+    const bridge: StorageBridge | undefined = window.digitalLife?.storage;
+    if (!bridge) {
+      return null;
+    }
+    const result = await bridge.getStatus();
+    if (!result.ok) {
+      return null;
+    }
+    setCachedStorageStatus(result.data);
+    return result.data;
+  }, []);
+
+  /**
    * 「恢复全部默认」聚合对话框的存储组依赖：桥、状态刷新、路径写入、预算/树缓存恢复与下载
    * 路径序列。判定口径经 `resetAllStoragePredicates` 注入（与 StorageSettings UI 同源）。
    */
@@ -193,17 +212,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     return {
       bridge: bridge ? { preflight: (patch) => bridge.preflight(patch) } : undefined,
       // 状态查询写入共享缓存：随后进入存储组即见刷新后的状态。
-      refreshStatus: async () => {
-        if (!bridge) {
-          return null;
-        }
-        const result = await bridge.getStatus();
-        if (!result.ok) {
-          return null;
-        }
-        setCachedStorageStatus(result.data);
-        return result.data;
-      },
+      refreshStatus: refreshStorageStatus,
       setPaths: async (patch, applyNow) => {
         if (!bridge) {
           return { ok: false, error: { code: 'Internal', message: t.storageBridgeUnavailable } };
@@ -239,7 +248,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       readBudgetBytes: () => useAppStore.getState().appInfo?.config?.terminalHistoryBudgetBytes,
       downloadPath: { changeDownloadPath, updateDownloadSettings },
     };
-  }, [changeDownloadPath, updateDownloadSettings, updatePreferences, t]);
+  }, [changeDownloadPath, updateDownloadSettings, updatePreferences, t, refreshStorageStatus]);
 
   /** 存储四块「是否已默认」判定注入：复用 storageAtDefault / downloadPathReset 的真实 helper。 */
   const resetAllStoragePredicates = useMemo<StorageResetPredicates>(
@@ -259,6 +268,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       const labelOf = (key: GroupKey) => t[RESET_ALL_GROUP_LABEL_KEYS[key]];
       if (outcome.failedAt === undefined) {
         showToast(t.settingsResetAllDoneAll, 'success');
+        if (outcome.done.includes('storage')) {
+          // 存储步骤已执行：刷新共享缓存，避免随后进入存储组仍显示恢复前快照（L2）。
+          await refreshStorageStatus();
+        }
         if (outcome.restartRequired) {
           // 与 StorageSettings 组级尾部同源：applyNow 已写入待迁移补丁，此处触发立即重启；
           // 桥不可重启（浏览器 / mock）时提示改由下次启动生效。
@@ -289,7 +302,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         );
       }
     },
-    [showToast, t],
+    [showToast, t, refreshStorageStatus],
   );
 
   const rafRef = useRef(0);
@@ -506,20 +519,38 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     [collapseSearch, setActiveGroup],
   );
 
-  // 跳转意图解析：待 activeGroup 生效后定位锚点；锚点尚未挂载则逐帧重试至有界预算。
+  /**
+   * 侧栏选择分组：搜索态下先收起搜索再切组，否则内容区仍渲染跨组结果、点击成死点击
+   * （导航高亮移动但内容不变）。非搜索态行为与直接 `setActiveGroup` 一致。
+   */
+  const handleSelectGroup = useCallback(
+    (group: SettingsGroupId) => {
+      if (searchQuery.trim() !== '') {
+        collapseSearch();
+      }
+      setActiveGroup(group);
+    },
+    [collapseSearch, searchQuery, setActiveGroup],
+  );
+
+  // 跳转意图解析：待 activeGroup 生效后定位锚点；锚点尚未挂载则逐帧重试至有界时间预算。
   // 命中后滚动居中 + 高亮 1.2s（移除定时器存于 ref，避免意图清空时被 effect 清理误杀）。
+  // 用户中途切到别的组时清除残留意图：否则之后手工回到该组会自发滚动+高亮（状态机残留）。
   useEffect(() => {
-    if (!pendingJump || activeGroup !== pendingJump.group) {
+    if (!pendingJump) {
+      return;
+    }
+    if (activeGroup !== pendingJump.group) {
+      setPendingJump(null);
       return;
     }
     const selector = `[data-settings-anchor="${pendingJump.anchor}"]`;
-    let attempts = 0;
+    const deadline = Date.now() + SEARCH_JUMP_DEADLINE_MS;
     let frame = 0;
     const tick = () => {
       const element = document.querySelector<HTMLElement>(selector);
       if (!element) {
-        attempts += 1;
-        if (attempts >= SEARCH_JUMP_MAX_ATTEMPTS) {
+        if (Date.now() >= deadline) {
           setPendingJump(null);
           return;
         }
@@ -791,7 +822,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         >
           <SettingsNav
             activeGroup={effectiveGroup}
-            onSelectGroup={setActiveGroup}
+            onSelectGroup={handleSelectGroup}
             resettableGroups={RESETTABLE_GROUPS}
             onResetGroup={handleRequestResetGroup}
             disabledResetGroups={disabledResetGroups}
@@ -836,11 +867,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
                   onSelect={handleSelectResult}
                 />
               ) : (
-                <SettingsControls
-                  items={filtered}
-                  onChange={onChangeSetting}
-                  searchQuery={searchQuery}
-                />
+                <SettingsControls items={filtered} onChange={onChangeSetting} />
               )}
             </div>
           </div>

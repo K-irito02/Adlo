@@ -2,7 +2,7 @@ import type { DownloadSettings } from '@shared/ipc/download';
 import type { StorageStatus, TreeCacheOptions, TreeCacheStats } from '@shared/ipc/storage';
 import type { StorageTreeBlock } from '@shared/settings-reset/storageReset';
 import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
-import { isDownloadPathAtDefault } from './downloadPathReset';
+import { isDownloadPathAtDefault } from '@features/storage-settings/downloadPathReset';
 
 /** Rust 缺省（`TreeCacheOptions::default`）：stats 不可用时开关/TTL 的回退值。
  * 注意：`stores/actions/generalActions.ts` 有同值字面量 `RUST_TREE_CACHE_DEFAULTS`

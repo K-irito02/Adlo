@@ -15,8 +15,9 @@
 // Canonical IPC error surface. Re-exported here because
 // `eslint no-restricted-imports` forbids the UI layer (`src/app/**`) from
 // importing `@ai-digital-life/kernel` directly and names `@shared/ipc` as the
-// prescribed path.
-export type { IpcError, IpcResult } from '@ai-digital-life/kernel';
+// prescribed path. `IpcResult` is not re-exported here — the domain files
+// (`./clipboard`, `./dsh`, ...) already surface it via `export *`.
+export type { IpcError } from '@ai-digital-life/kernel';
 export { toUserMessage } from '@ai-digital-life/kernel';
 
 export * from './app';
