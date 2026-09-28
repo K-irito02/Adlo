@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
-import { DEFAULT_BROWSER_SUSPEND_MS, DEFAULT_DOWNLOAD_MODE } from '@shared/defaultPreferences';
+import { executeBrowserResetPlan } from '@shared/settings-reset/browserReset';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { BrowserPerformanceSettings } from './BrowserPerformanceSettings';
 import { BrowserDownloadSettings } from './BrowserDownloadSettings';
 import { DownloadPathBlock } from '../storage-settings/DownloadPathBlock';
-import { useDownloadPathReset } from '../storage-settings/downloadPathReset';
+import { downloadResetFailureCopy } from '../storage-settings/downloadPathReset';
 import { computeBrowserBlocksAtDefault } from './browserAtDefault';
 
 /**
@@ -21,10 +21,10 @@ export function BrowserSettings() {
   const { t } = useTCopy();
   const updatePreferences = useAppStore((s) => s.updatePreferences);
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
+  const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
   const showToast = useAppStore((s) => s.showToast);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
-  const { resetDownloadToDefault } = useDownloadPathReset();
 
   // 组级恢复待处理信号 + 消费动作（pending 布尔消除挂载播种吞信号的首跳竞态）。
   const browserGroupResetPending = useAppStore((s) => s.browserGroupResetPending);
@@ -98,9 +98,10 @@ export function BrowserSettings() {
   );
 
   /**
-   * 组级恢复确认：按挂起 → 下载模式 → 下载路径顺序依次执行（跨 bridge 多步，
-   * 不能走 updatePreferences 一刀切）。任一步失败即停止并保持对话框供重试，
-   * 全部成功才关框 + 成功 toast。
+   * 组级恢复确认：委托共享编排 `executeBrowserResetPlan`，按挂起 → 下载模式 →
+   * 下载路径顺序依次执行（跨 bridge 多步，不能走 updatePreferences 一刀切）。
+   * 任一步失败即停止并保持对话框供重试，全部成功才关框 + 成功 toast；失败文案
+   * 与改前逐字一致（下载路径家族细分，其余通用失败，见 `downloadResetFailureCopy`）。
    */
   const handleGroupConfirm = useCallback(() => {
     if (groupResetBusy) {
@@ -109,21 +110,26 @@ export function BrowserSettings() {
     setGroupResetBusy(true);
     void (async () => {
       try {
-        const suspendOk = await updatePreferences({
-          browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
+        const result = await executeBrowserResetPlan({
+          updatePreferences,
+          updateDownloadSettings,
+          downloadPath: { changeDownloadPath, updateDownloadSettings },
+          migrateAtOpen: groupMigrateAtOpenRef.current,
         });
-        if (!suspendOk) {
-          showToast(t.settingsUpdateFailed, 'error');
-          return;
-        }
-        const modeResult = await updateDownloadSettings(DEFAULT_DOWNLOAD_MODE);
-        if (!modeResult.ok) {
-          showToast(t.settingsUpdateFailed, 'error');
-          return;
-        }
-        // 路径步自带 toast（失败原因细分）与开框快照的迁移开关。
-        const pathOk = await resetDownloadToDefault(groupMigrateAtOpenRef.current);
-        if (!pathOk) {
+        if (!result.ok) {
+          const pathStepFailed =
+            result.failedStep === 'downloadPath' || result.failedStep === 'downloadPathSwitch';
+          showToast(
+            pathStepFailed
+              ? downloadResetFailureCopy(
+                  t,
+                  result.failedStep,
+                  result.error,
+                  groupMigrateAtOpenRef.current,
+                )
+              : t.settingsUpdateFailed,
+            'error',
+          );
           return;
         }
         showToast(t.settingsResetComplete, 'success');
@@ -134,14 +140,7 @@ export function BrowserSettings() {
         setGroupResetBusy(false);
       }
     })();
-  }, [
-    groupResetBusy,
-    updatePreferences,
-    updateDownloadSettings,
-    showToast,
-    t,
-    resetDownloadToDefault,
-  ]);
+  }, [groupResetBusy, updatePreferences, updateDownloadSettings, changeDownloadPath, showToast, t]);
 
   const handleGroupCancel = useCallback(() => {
     if (groupResetBusy) {
