@@ -13,6 +13,7 @@ import {
 } from '../../../shared/keybinds';
 import type { CopyKey } from '../../i18n/types';
 import { isKeybindsAtDefault } from './settingsGroups';
+import { anchorFor } from './settingsSearchIndex';
 import { KeybindControl } from './KeybindControl';
 import { SettingsHeader } from './SettingsHeader';
 import { useKeyCapture } from '../../hooks/useKeyCapture';
@@ -325,7 +326,11 @@ export function KeybindSettings() {
                     name: t[cmd.titleKey],
                   });
                   return (
-                    <li key={cmd.id} className="adl-settings-keybinds__row">
+                    <li
+                      key={cmd.id}
+                      className="adl-settings-keybinds__row"
+                      data-settings-anchor={anchorFor('shortcuts', cmd.id)}
+                    >
                       <button
                         type="button"
                         className="adl-settings-row__reset adl-settings-row__reset--inline"

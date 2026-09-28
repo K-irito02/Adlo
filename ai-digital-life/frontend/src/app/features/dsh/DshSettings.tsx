@@ -10,6 +10,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { HintCardTrigger } from '../../components/HintCard';
 import { IconCircleHelp } from '../../icons/status';
 import { IconResetDefaults } from '../../icons';
+import { anchorFor } from '@components/settings/settingsSearchIndex';
 import type { DshSourceConfig } from '../../../shared/ipc/dsh';
 
 type SourceType = 'auto' | 'npmjs' | 'npmmirror' | 'custom';
@@ -601,7 +602,7 @@ export function DshSettings() {
 
   return (
     <div className="adl-settings-section adl-dsh-settings">
-      <div className="adl-dsh-settings__header">
+      <div className="adl-dsh-settings__header" data-settings-anchor={anchorFor('dsh', 'source')}>
         <button
           type="button"
           className="adl-settings-row__reset"
@@ -655,7 +656,10 @@ export function DshSettings() {
         ) : null}
       </div>
 
-      <div className="adl-dsh-settings__header adl-dsh-settings__header--section">
+      <div
+        className="adl-dsh-settings__header adl-dsh-settings__header--section"
+        data-settings-anchor={anchorFor('dsh', 'proxy')}
+      >
         <button
           type="button"
           className="adl-settings-row__reset"

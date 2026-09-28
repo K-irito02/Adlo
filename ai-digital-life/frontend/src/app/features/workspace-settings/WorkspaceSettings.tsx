@@ -18,6 +18,7 @@ import {
   isWorkspaceAtDefault,
   isStringArrayEqual,
 } from '../../components/settings/settingsGroups';
+import { anchorFor } from '@components/settings/settingsSearchIndex';
 import { DEFAULT_MAX_CONCURRENT_WORKSPACES } from '../../../shared/defaultPreferences';
 
 interface LastPersistedValues {
@@ -333,7 +334,10 @@ export function WorkspaceSettings() {
         onDragEnd={dnd.handleDragEnd}
       >
         <div className="adl-settings-card" data-testid="workspace-load-card">
-          <div className="adl-settings-row adl-settings-row--flush">
+          <div
+            className="adl-settings-row adl-settings-row--flush"
+            data-settings-anchor={anchorFor('workspace', 'maxConcurrentWorkspaces')}
+          >
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <HintCardTrigger content={t.maxConcurrentWorkspacesDesc}>

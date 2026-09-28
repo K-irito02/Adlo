@@ -32,11 +32,14 @@ const SUSPEND_COMMIT_DEBOUNCE_MS = 500;
  *
  * @param onOpenChange 确认对话框开合通知：父级（浏览器组）把它纳入组级恢复的
  * 入口守卫，避免键盘路径多框叠加（与 DownloadPathBlock 同构）。
+ * @param anchor 搜索锚点：由父级按所在设置组传入，挂在块头容器上供「设置搜索」跳转。
  */
 export function BrowserPerformanceSettings({
   onOpenChange,
+  anchor,
 }: {
   onOpenChange?: (open: boolean) => void;
+  anchor?: string;
 }) {
   const { t } = useTCopy();
   const showToast = useAppStore((s) => s.showToast);
@@ -293,7 +296,7 @@ export function BrowserPerformanceSettings({
 
   return (
     <>
-      <div className="adl-settings-browser__header">
+      <div className="adl-settings-browser__header" data-settings-anchor={anchor}>
         <button
           type="button"
           className="adl-settings-row__reset"

@@ -7,6 +7,7 @@ import { FontControl } from './FontControl';
 import { SettingsSelect } from './SettingsSelect';
 import { getDefaultForSetting } from '../../../shared/defaultPreferences';
 import { isStringArrayEqual } from './settingsGroups';
+import { anchorFor } from './settingsSearchIndex';
 
 interface SettingsControlsProps {
   items: SettingItem[];
@@ -172,7 +173,11 @@ export function SettingsControls({ items, onChange, searchQuery }: SettingsContr
           const canReset = item.type !== 'readonly' && defaultValue !== undefined;
           const isDefault = canReset && isDefaultValue(item.value, defaultValue);
           return (
-            <div key={item.id} className="adl-settings-row">
+            <div
+              key={item.id}
+              className="adl-settings-row"
+              data-settings-anchor={anchorFor(item.groupId, item.id)}
+            >
               <div className="adl-settings-row__label">
                 <span className="adl-settings-row__label-text">
                   {canReset && (

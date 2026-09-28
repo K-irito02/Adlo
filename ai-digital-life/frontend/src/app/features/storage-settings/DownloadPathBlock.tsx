@@ -19,8 +19,16 @@ import {
  *
  * @param onOpenChange 确认对话框开合通知：父级（存储组）用它把「下载确认已开」纳入
  * 组级恢复的入口守卫，避免键盘路径多框叠加（原 `downloadResetConfirm` 语义）。
+ * @param anchor 搜索锚点：由父级按所在设置组传入（存储组 / 浏览器组共用同一块，
+ * 两侧锚点 id 不同），挂在块头容器上供「设置搜索」跳转。
  */
-export function DownloadPathBlock({ onOpenChange }: { onOpenChange?: (open: boolean) => void }) {
+export function DownloadPathBlock({
+  onOpenChange,
+  anchor,
+}: {
+  onOpenChange?: (open: boolean) => void;
+  anchor?: string;
+}) {
   const { t } = useTCopy();
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
@@ -88,7 +96,10 @@ export function DownloadPathBlock({ onOpenChange }: { onOpenChange?: (open: bool
 
   return (
     <>
-      <div className="adl-settings-storage__header adl-settings-storage__header--section">
+      <div
+        className="adl-settings-storage__header adl-settings-storage__header--section"
+        data-settings-anchor={anchor}
+      >
         <button
           type="button"
           className="adl-settings-row__reset"

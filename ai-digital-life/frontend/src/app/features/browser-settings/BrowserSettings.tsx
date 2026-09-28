@@ -8,6 +8,7 @@ import { BrowserDownloadSettings } from './BrowserDownloadSettings';
 import { DownloadPathBlock } from '../storage-settings/DownloadPathBlock';
 import { downloadResetFailureCopy } from '../storage-settings/downloadPathReset';
 import { computeBrowserBlocksAtDefault } from './browserAtDefault';
+import { anchorFor } from '@components/settings/settingsSearchIndex';
 
 /**
  * 「浏览器」设置组容器：挂起时长 + 下载模式 + 下载路径三块。
@@ -152,10 +153,19 @@ export function BrowserSettings() {
   return (
     // section 容器：块头与卡片同级排布（与存储组同构），gap 由 settings.css 共享规则给出。
     <div className="adl-settings-section adl-settings-browser">
-      <BrowserPerformanceSettings onOpenChange={setSuspendConfirmOpen} />
-      <BrowserDownloadSettings onOpenChange={setModeConfirmOpen} />
+      <BrowserPerformanceSettings
+        onOpenChange={setSuspendConfirmOpen}
+        anchor={anchorFor('browser', 'performance')}
+      />
+      <BrowserDownloadSettings
+        onOpenChange={setModeConfirmOpen}
+        anchor={anchorFor('browser', 'downloadMode')}
+      />
       {/* 与「存储」组同一块组件：底层 store 同源，两处显示天然同步。 */}
-      <DownloadPathBlock onOpenChange={setPathConfirmOpen} />
+      <DownloadPathBlock
+        onOpenChange={setPathConfirmOpen}
+        anchor={anchorFor('browser', 'downloadPath')}
+      />
       <ConfirmDialog
         open={groupResetOpen}
         title={t.browserGroupResetTitle}

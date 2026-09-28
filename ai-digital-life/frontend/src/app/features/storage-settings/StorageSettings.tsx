@@ -54,6 +54,7 @@ import {
   type TreeTtlUnit,
 } from './treeCacheTtl';
 import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
+import { anchorFor } from '@components/settings/settingsSearchIndex';
 
 /** 不可移动项 → i18n key（顺序固定，遍历 `IMMOVABLE_ENTRY_KEYS`）。 */
 const IMMOVABLE_COPY: Record<
@@ -1611,7 +1612,10 @@ export function StorageSettings() {
         </>
       ) : null}
 
-      <div className="adl-settings-storage__header">
+      <div
+        className="adl-settings-storage__header"
+        data-settings-anchor={anchorFor('storage', 'corePaths')}
+      >
         <button
           type="button"
           className="adl-settings-row__reset"
@@ -1758,7 +1762,10 @@ export function StorageSettings() {
 
       {treeStats ? (
         <>
-          <div className="adl-settings-storage__header adl-settings-storage__header--tree-cache">
+          <div
+            className="adl-settings-storage__header adl-settings-storage__header--tree-cache"
+            data-settings-anchor={anchorFor('storage', 'treeCache')}
+          >
             <button
               type="button"
               className="adl-settings-row__reset"
@@ -1907,7 +1914,10 @@ export function StorageSettings() {
         </>
       ) : null}
 
-      <div className="adl-settings-storage__header adl-settings-storage__header--section">
+      <div
+        className="adl-settings-storage__header adl-settings-storage__header--section"
+        data-settings-anchor={anchorFor('storage', 'terminalBudget')}
+      >
         <button
           type="button"
           className="adl-settings-row__reset"
@@ -1925,12 +1935,16 @@ export function StorageSettings() {
         <TerminalHistoryBudgetSection />
       </div>
 
-      <DownloadPathBlock onOpenChange={setDownloadResetOpen} />
+      <DownloadPathBlock
+        onOpenChange={setDownloadResetOpen}
+        anchor={anchorFor('storage', 'browserDownload')}
+      />
 
       {/* 不可移动项独立成块：主标题无恢复默认按钮（系统/运行时管理，无可恢复项）。 */}
       <div
         className="adl-settings-storage__header adl-settings-storage__header--section"
         data-testid="immovables-block-header"
+        data-settings-anchor={anchorFor('storage', 'immutable')}
       >
         <SettingsHeader title={t.storageImmutableTitle} />
       </div>

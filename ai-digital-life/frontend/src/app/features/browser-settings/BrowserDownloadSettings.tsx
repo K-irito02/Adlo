@@ -16,11 +16,14 @@ import { IconResetDefaults } from '../../icons';
  *
  * @param onOpenChange 确认对话框开合通知：父级（浏览器组）把它纳入组级恢复的
  * 入口守卫，避免键盘路径多框叠加（与 DownloadPathBlock 同构）。
+ * @param anchor 搜索锚点：由父级按所在设置组传入，挂在块头容器上供「设置搜索」跳转。
  */
 export function BrowserDownloadSettings({
   onOpenChange,
+  anchor,
 }: {
   onOpenChange?: (open: boolean) => void;
+  anchor?: string;
 }) {
   const { t } = useTCopy();
   const downloadSettings = useAppStore((s) => s.downloadSettings);
@@ -82,7 +85,10 @@ export function BrowserDownloadSettings({
 
   return (
     <>
-      <div className="adl-settings-browser__header adl-settings-browser__header--section">
+      <div
+        className="adl-settings-browser__header adl-settings-browser__header--section"
+        data-settings-anchor={anchor}
+      >
         <button
           type="button"
           className="adl-settings-row__reset"
