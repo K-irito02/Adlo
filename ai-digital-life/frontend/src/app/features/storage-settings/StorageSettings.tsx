@@ -122,11 +122,11 @@ function ipcErrorMessage(error: { message?: string } | null | undefined, fallbac
   return error?.message ?? fallback;
 }
 
-/** 两份路径草稿逐键一致（键缺失视为 undefined，键集合不同即不一致）。 */
+/** 两份路径草稿逐键一致（键缺失视为 undefined；比较时 trim，与 isDirty/buildPatch 口径一致）。 */
 function isSameDrafts(a: Record<string, string>, b: Record<string, string>): boolean {
   const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
   for (const key of keys) {
-    if (a[key] !== b[key]) {
+    if ((a[key] ?? '').trim() !== (b[key] ?? '').trim()) {
       return false;
     }
   }
@@ -597,6 +597,10 @@ export function StorageSettings() {
 
   const handleModeChange = useCallback(
     (next: StorageMode) => {
+      // 注意：切模式会重置分类草稿（切 unified 清空，切 per_category 从 status
+      // 重播种），per_category 下的未应用编辑在切走后丢失 —— 已知取舍：切换即
+      // "换上下文"（见事项 3"切换不算修改"决策）；rootDraft 保留，切回 unified
+      // 脏条重现。未来如需保留对侧编辑需产品决策，另起事项（Phase 4 R1-5 记录）。
       draftsDirtyRef.current = true;
       setMode(next);
       if (next === 'unified') {
@@ -1077,7 +1081,7 @@ export function StorageSettings() {
     status?.pending != null &&
     appliedDraftsRef.current !== null &&
     appliedDraftsRef.current.mode === mode &&
-    appliedDraftsRef.current.root === rootDraft &&
+    appliedDraftsRef.current.root.trim() === rootDraft.trim() &&
     isSameDrafts(appliedDraftsRef.current.drafts, categoryDrafts);
   const isDirty = Boolean(
     status &&
@@ -1409,10 +1413,6 @@ export function StorageSettings() {
   const resetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.storageCorePathsTitle,
   });
-  // 顶部「待迁移任务」块头的装饰性禁用恢复按钮（与其它块头同构，事项 11a）。
-  const pendingResetLabel = formatT(t, 'settingsResetGroupToDefault', {
-    group: t.storagePendingTaskTitle,
-  });
   const treeResetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.treeCacheTitle,
   });
@@ -1468,13 +1468,14 @@ export function StorageSettings() {
       {status?.pending || status?.lastReport ? (
         <>
           <div className="adl-settings-storage__header" data-testid="storage-pending-header">
+            {/* 纯装饰性图标（用户决策）：aria-hidden + 不可聚焦，不播报"永远不可用"的重置控件（Phase 4 R3-11a-L1）。 */}
             <button
               type="button"
               className="adl-settings-row__reset"
-              aria-label={pendingResetLabel}
-              title={pendingResetLabel}
               data-testid="storage-pending-reset"
               disabled
+              aria-hidden="true"
+              tabIndex={-1}
             >
               <IconResetDefaults size={14} decorative />
             </button>

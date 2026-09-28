@@ -375,16 +375,12 @@ fn owned_files(category: StorageCategory, base: &Path) -> Result<Vec<PathBuf>, A
         // 单文件类：主库 + 已存在的 `-wal`/`-shm` 伴生文件（与 `db_files`/复制同源，事项 11c：
         // 预检 total_files 与实际搬移文件数一致）。伴生文件不走 `owns_file`——其 `strip_prefix`
         // 以主库文件为基，伴生路径天然不在其下（白名单语义按目录结构判定，此处已验主库归属）。
+        // 后缀构造复用 `companion_paths`（Phase 4 R3-11c-L1 去重），只收已存在文件。
         if is_single_file_category(category) {
-            let s = base.to_string_lossy().to_string();
-            let mut out = vec![base.to_path_buf()];
-            for suffix in ["-wal", "-shm"] {
-                let p = PathBuf::from(format!("{s}{suffix}"));
-                if p.is_file() {
-                    out.push(p);
-                }
-            }
-            return Ok(out);
+            return Ok(companion_paths(base)
+                .into_iter()
+                .filter(|p| p.is_file())
+                .collect());
         }
         return Ok(vec![base.to_path_buf()]);
     }

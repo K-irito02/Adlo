@@ -154,9 +154,12 @@ export function isPatchSatisfied(
   return Object.entries(patch).every(([key, expected]) => {
     const actual = current[key];
     if (Array.isArray(expected) || Array.isArray(actual)) {
+      // 任一侧非数组 → 不相等（fail-open 非默认）；同时堵住 actual 为 null 时
+      // `(null)[i]` 索引抛 TypeError 的预存脆弱（Phase 4 R3-12a-L1）。
+      if (!Array.isArray(expected) || !Array.isArray(actual)) {
+        return false;
+      }
       return (
-        Array.isArray(expected) &&
-        Array.isArray(actual) &&
         expected.length === actual.length &&
         expected.every((v, i) => v === (actual as unknown[])[i])
       );
