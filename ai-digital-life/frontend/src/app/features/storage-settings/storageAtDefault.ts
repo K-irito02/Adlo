@@ -1,5 +1,6 @@
 import type { DownloadSettings } from '@shared/ipc/download';
 import type { StorageStatus, TreeCacheOptions, TreeCacheStats } from '@shared/ipc/storage';
+import type { StorageTreeBlock } from '@shared/settings-reset/storageReset';
 import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 import { isDownloadPathAtDefault } from './downloadPathReset';
 
@@ -25,6 +26,20 @@ export function isTreeCacheAtDefault(treeStats: TreeCacheStats | null): boolean 
     treeStats.enabled &&
     treeStats.ttlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes
   );
+}
+
+/** 树缓存块的展示/执行变体（原内联于 `openGroupResetDialog`，提取后组件与恢复计划共用）。 */
+export function treeBlockOf(treeStats: TreeCacheStats | null): StorageTreeBlock {
+  if (isTreeCacheAtDefault(treeStats)) {
+    return 'hidden';
+  }
+  if (treeStats === null) {
+    return 'full';
+  }
+  if (treeStats.enabled) {
+    return 'ttl';
+  }
+  return treeStats.ttlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes ? 'reenable' : 'full';
 }
 
 /** 终端历史磁盘预算是否已默认（config 未加载 → 未知 → false，不计为默认）。 */

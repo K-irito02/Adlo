@@ -16,6 +16,10 @@ import {
   type TreeCacheOptions,
   type TreeCacheStats,
 } from '@shared/ipc/storage';
+import {
+  executeStorageResetPlan,
+  type StorageResetPlan,
+} from '@shared/settings-reset/storageReset';
 import { IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
@@ -24,7 +28,7 @@ import { StorageCategoryRow } from './StorageCategoryRow';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { DownloadPathBlock } from './DownloadPathBlock';
-import { downloadResetBlockVariant, useDownloadPathReset } from './downloadPathReset';
+import { downloadResetBlockVariant, downloadResetFailureCopy } from './downloadPathReset';
 import { localizePreflightIssues } from './preflightCopy';
 import {
   TREE_CACHE_DEFAULTS,
@@ -32,6 +36,7 @@ import {
   isBudgetAtDefault,
   isCorePathsAtDefault,
   isTreeCacheAtDefault,
+  treeBlockOf,
 } from './storageAtDefault';
 import {
   getCachedStorageStatus,
@@ -219,6 +224,9 @@ export function StorageSettings() {
   const groupResetConfirmRef = useRef<HTMLButtonElement | null>(null);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
+  /** 组级恢复经共享执行器直接调 store 下载 action（不再经 `useDownloadPathReset` hook）。 */
+  const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
+  const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
   const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
   /** 组级恢复待处理信号 + 消费动作（pending 布尔消除挂载播种吞信号的首跳竞态）。 */
   const storageGroupResetPending = useAppStore((s) => s.storageGroupResetPending);
@@ -370,8 +378,7 @@ export function StorageSettings() {
   }, [handleTerminalBudgetReset, showToast, t]);
 
   // 下载路径恢复默认的共享序列（单块/组级共用，防漂移）：抽入 downloadPathReset.ts，
-  // 与「浏览器」组同源；单块确认对话框随块抽入 DownloadPathBlock。
-  const { resetDownloadToDefault } = useDownloadPathReset();
+  // 与「浏览器」组同源；单块确认对话框随块抽入 DownloadPathBlock，组级经共享执行器直调 store。
 
   // 自定义 TTL 防抖计时器卸载清理。
   useEffect(
@@ -770,15 +777,7 @@ export function StorageSettings() {
       const budget = store.appInfo?.config?.terminalHistoryBudgetBytes;
       const dl = store.downloadSettings;
       const dlLoaded = store.downloadSettingsLoaded;
-      const treeBlock: 'full' | 'reenable' | 'ttl' | 'hidden' = isTreeCacheAtDefault(tree)
-        ? 'hidden'
-        : tree === null
-          ? 'full'
-          : tree.enabled
-            ? 'ttl'
-            : tree.ttlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes
-              ? 'reenable'
-              : 'full';
+      const treeBlock = treeBlockOf(tree);
       const budgetBlock = !isBudgetAtDefault(budget);
       // 下载分支变体与块级对话框同源（`downloadResetBlockVariant`，Phase 4 R2-R10-L2）。
       const downloadBlock = downloadResetBlockVariant(dl, dlLoaded);
@@ -1268,14 +1267,18 @@ export function StorageSettings() {
   }, [cancelPendingTtl, handleTreeOptionsChange]);
 
   /**
-   * 存储组级「恢复全部默认」一步执行（迁移时机确认键共用）：
+   * 存储组级「恢复全部默认」一步执行（迁移时机确认键共用）：委托共享编排
+   * `executeStorageResetPlan`（与「恢复全部默认」同源），计划取本组件**开框快照**
+   * （`groupResetBlocks`/`groupResetCoreNeeded`/`groupMigrateAtOpenRef`），显示与执行同源。
+   * 语义与改前逐字一致：
    * 1. 桥检查前移（L4）；2. **核心先行**：核心 setPaths（含后端二次 preflight）失败即早返，
-   *    不再执行下载搬运等不可逆操作——缩小不可逆部分生效窗口（closing H-1）；
-   *    其余三块（预算/树/下载）互不阻塞、失败各自 toast（既定产品语义）；
+   *    不再执行预算/树/下载——缩小不可逆部分生效窗口（closing H-1）；其余三块（预算/树/下载）
+   *    互不阻塞、全部尝试，失败各自 toast（预算腿经注入包装即时 toast；树写自带 toast；下载族
+   *    经 `downloadResetFailureCopy` 复现，R6）；
    * 3. 核心路径落盘用**开框预检的补丁快照**（仅替换 retainSource），不读实时草稿（M2）；
    * 4. 下载搬运的 migrate 开关用**开框快照**，与对话框展示文案同源（M4-R）；
-   * 5. 任一分支失败：尾部只发汇总错误（不再发成功 toast，M5），且**保持对话框打开**
-   *    供检查/重试（与单块/树确认框"失败不关框"对齐，M5-R）；尾段仿 handleApplyMigration。
+   * 5. 任一分支失败：refresh 后尾部只发汇总错误（不再发成功 toast，M5），且**保持对话框打开**
+   *    供检查/重试（与单块/树确认框"失败不关框"对齐，M5-R）。
    */
   const handleGroupResetApply = useCallback(
     async (applyNow: boolean) => {
@@ -1293,47 +1296,76 @@ export function StorageSettings() {
       }
       setGroupResetBusy(true);
       try {
-        let restartRequired = false;
-        if (groupResetCoreNeeded) {
-          // 核心先行：最易失败且其失败会让一切无意义，先落盘；失败早返。
-          const applied = await bridge.setPaths(
-            { ...CORE_RESET_PATCH, retainSource: groupResetRetain },
-            applyNow,
-          );
-          if (!applied.ok) {
-            showToast(ipcErrorMessage(applied.error, t.storageUnknownError), 'error');
-            return;
-          }
+        const plan: StorageResetPlan = {
+          blocks: {
+            coreNeeded: groupResetCoreNeeded,
+            tree: groupResetBlocks.tree,
+            budget: groupResetBlocks.budget,
+            download: groupResetBlocks.download,
+          },
+          preflight: groupResetPreflight,
+          migrateAtOpen: groupMigrateAtOpenRef.current,
+        };
+        // 共享执行器返回的失败结果不携带预检载荷：从 setPaths 包裹层捕获，供 preflight 失败分支回填。
+        const captured: { preflight: StoragePreflight | null } = { preflight: null };
+        const { result, restartRequired } = await executeStorageResetPlan(
+          {
+            bridge: { preflight: (patch) => bridge.preflight(patch) },
+            refreshStatus: () => refresh(),
+            setPaths: async (patch, now) => {
+              const applied = await bridge.setPaths(patch, now);
+              if (!applied.ok) {
+                return { ok: false, error: applied.error };
+              }
+              captured.preflight = applied.data.preflight;
+              return {
+                ok: true,
+                restartRequired: applied.data.restartRequired,
+                preflight: applied.data.preflight,
+              };
+            },
+            resetBudget: async () => {
+              const ok = await handleTerminalBudgetReset();
+              if (!ok) {
+                // 预算腿失败即时 toast（与改前同点，不挪到汇总之后，避免重排提示）。
+                showToast(t.settingsUpdateFailed, 'error');
+              }
+              return ok;
+            },
+            // 树写自带错误 toast；返回值纳入汇总（N4）。
+            resetTreeCache: handleTreeResetDefaults,
+            previewDownload: () => ({
+              settings: useAppStore.getState().downloadSettings,
+              loaded: useAppStore.getState().downloadSettingsLoaded,
+            }),
+            readTreeStats: () => treeStats,
+            readBudgetBytes: () =>
+              useAppStore.getState().appInfo?.config?.terminalHistoryBudgetBytes,
+            downloadPath: { changeDownloadPath, updateDownloadSettings },
+          },
+          plan,
+          { applyNow, retainSource: groupResetRetain },
+        );
+        if (!result.ok && result.failedStep === 'corePaths') {
+          showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+          return;
+        }
+        if (!result.ok && result.failedStep === 'corePathsPreflight') {
           // 后端可能拒绝写入：保持对话框打开并回填预检结果展示 errors/warnings。
-          if (!applied.data.preflight.ok) {
-            setGroupResetPreflight(applied.data.preflight);
-            return;
+          if (captured.preflight) {
+            setGroupResetPreflight(captured.preflight);
           }
-          restartRequired = applied.data.restartRequired;
+          return;
         }
-        // 任一分支失败即记 failed：尾部不再发"成功"toast，改发汇总错误（task1 M5）。
-        // 事项 10：已默认的块（开框快照 hidden/false）跳过恢复腿——与清单显示同源，
-        // 不做无意义写入。
-        let failed = false;
-        if (groupResetBlocks.budget) {
-          const budgetOk = await handleTerminalBudgetReset();
-          if (!budgetOk) {
-            showToast(t.settingsUpdateFailed, 'error');
-            failed = true;
-          }
-        }
-        // 树写自带错误 toast；返回值纳入汇总（N4）。
-        if (groupResetBlocks.tree !== 'hidden') {
-          const treeOk = await handleTreeResetDefaults();
-          if (!treeOk) {
-            failed = true;
-          }
-        }
-        if (groupResetBlocks.download !== 'hidden') {
-          const downloadOk = await resetDownloadToDefault(groupMigrateAtOpenRef.current);
-          if (!downloadOk) {
-            failed = true;
-          }
+        if (
+          !result.ok &&
+          (result.failedStep === 'downloadPath' || result.failedStep === 'downloadPathSwitch')
+        ) {
+          // 下载族失败文案与改前逐字一致（R6），于汇总错误之前即时提示（下载腿为最后一块）。
+          showToast(
+            downloadResetFailureCopy(t, result.failedStep, result.error, plan.migrateAtOpen),
+            'error',
+          );
         }
         // 树/预算走独立桥，此处 refresh 回填核心并重播种草稿（L5）：组恢复是
         // 用户意图的整体改写 —— 成功后草稿统一回到新持久化值（含丢弃未应用的
@@ -1357,7 +1389,7 @@ export function StorageSettings() {
           // 草稿已被回填改写，旧快照再无对照意义，对称于成功路径的卫生清理。
           appliedDraftsRef.current = null;
         }
-        if (failed) {
+        if (!result.ok) {
           // 任一分支失败：只发汇总错误，不发成功 toast，且保持对话框打开供检查（M5-R）。
           showToast(t.settingsUpdateFailed, 'error');
           return;
@@ -1385,11 +1417,13 @@ export function StorageSettings() {
     [
       handleTerminalBudgetReset,
       handleTreeResetDefaults,
-      resetDownloadToDefault,
+      changeDownloadPath,
+      updateDownloadSettings,
       groupResetRetain,
       groupResetPreflight,
       groupResetCoreNeeded,
       groupResetBlocks,
+      treeStats,
       refresh,
       status,
       showToast,

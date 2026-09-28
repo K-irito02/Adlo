@@ -8,6 +8,7 @@ import {
   isCorePathsAtDefault,
   isTreeCacheAtDefault,
   TREE_CACHE_DEFAULTS,
+  treeBlockOf,
   type StorageBlocksAtDefaultInput,
 } from './storageAtDefault';
 
@@ -80,5 +81,13 @@ describe('storageAtDefault', () => {
     expect(isTreeCacheAtDefault({ ...treeStats, enabled: false })).toBe(false);
     expect(isBudgetAtDefault(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES)).toBe(true);
     expect(isBudgetAtDefault(undefined)).toBe(false);
+  });
+
+  it('treeBlockOf maps every tree state to its reset variant (at-default → hidden)', () => {
+    expect(treeBlockOf(treeStats)).toBe('hidden');
+    expect(treeBlockOf(null)).toBe('full');
+    expect(treeBlockOf({ ...treeStats, ttlMinutes: 30 })).toBe('ttl');
+    expect(treeBlockOf({ ...treeStats, enabled: false })).toBe('reenable');
+    expect(treeBlockOf({ ...treeStats, enabled: false, ttlMinutes: 30 })).toBe('full');
   });
 });

@@ -42,13 +42,15 @@ function deps(overrides: Partial<StorageResetDeps> = {}): StorageResetDeps {
 }
 
 // 一组简单 stub 谓词：树/下载块恒 'hidden'、预算恒默认；核心按 unified + root===defaultRoot 判定。
+// 注：`isTreeCacheAtDefault` 与 `treeBlockOf: 'hidden'` 保持一致（同为「树已默认」），
+// 与 R2a 后短路判定改用该谓词的口径对齐。
 function predicates(): StorageResetPredicates {
   return {
     isCorePathsAtDefault: vi.fn(
       (status: StorageStatus | null) =>
         status !== null && status.mode === 'unified' && status.root === status.defaultRoot,
     ),
-    isTreeCacheAtDefault: vi.fn(() => false),
+    isTreeCacheAtDefault: vi.fn(() => true),
     isBudgetAtDefault: vi.fn(() => true),
     treeBlockOf: vi.fn(() => 'hidden' as const),
     downloadBlockOf: vi.fn(() => 'hidden' as const),
@@ -81,6 +83,42 @@ describe('computeStorageResetPlan', () => {
 
   it('桥缺失时返回 null（调用方按跳过处理）', async () => {
     expect(await computeStorageResetPlan(deps({ bridge: undefined }), predicates())).toBeNull();
+  });
+
+  it('核心预检 IPC 成功但 data.ok=false → 仍返回非 null 计划并携带该 preflight（Task 10 依赖）', async () => {
+    const failingPreflight = {
+      ok: false,
+      totalFiles: 0,
+      totalBytes: 0,
+      errors: [{ category: null, message: 'target unwritable' }],
+      warnings: [],
+      freeBytes: 0,
+    };
+    const d = deps({
+      bridge: { preflight: vi.fn(async () => ({ ok: true as const, data: failingPreflight })) },
+      refreshStatus: vi.fn(
+        async () =>
+          ({
+            mode: 'perCategory',
+            root: '/x',
+            defaultRoot: '/data',
+            pending: null,
+            categories: [],
+          }) as never,
+      ),
+    });
+    const plan = await computeStorageResetPlan(d, predicates());
+    expect(plan).not.toBeNull();
+    expect(plan?.blocks.coreNeeded).toBe(true);
+    expect(plan?.preflight?.ok).toBe(false);
+  });
+
+  it('「四块全默认」短路由 isTreeCacheAtDefault 决定（R2a：死契约被真正消费）', async () => {
+    const p = predicates();
+    // tree 谓词为 false（未默认），但 treeBlockOf 谎报 'hidden'：短路必须以谓词为准。
+    p.isTreeCacheAtDefault = vi.fn(() => false);
+    p.treeBlockOf = vi.fn(() => 'hidden' as const);
+    expect(await computeStorageResetPlan(deps(), p)).not.toBeNull();
   });
 });
 
@@ -151,5 +189,81 @@ describe('executeStorageResetPlan', () => {
       retainSource: false,
     });
     expect(out.restartRequired).toBe(true);
+  });
+
+  it('核心预检未通过（IPC 成功但 preflight.ok=false）→ failedStep=corePathsPreflight 并短路后续块', async () => {
+    const d = deps({
+      setPaths: vi.fn(async () => ({
+        ok: true as const,
+        restartRequired: false,
+        preflight: {
+          ok: false,
+          totalFiles: 0,
+          totalBytes: 0,
+          errors: [],
+          warnings: [],
+          freeBytes: 0,
+        },
+      })),
+    });
+    const plan: StorageResetPlan = {
+      blocks: { coreNeeded: true, tree: 'hidden', budget: true, download: 'hidden' },
+      preflight: { ok: true, totalFiles: 0, totalBytes: 0, errors: [], warnings: [] } as never,
+      migrateAtOpen: false,
+    };
+    const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
+    expect(out.result).toEqual({ ok: false, failedStep: 'corePathsPreflight' });
+    expect(d.resetBudget).not.toHaveBeenCalled();
+  });
+
+  it('预算失败不短路：树缓存与下载仍全部尝试（组级聚合语义）', async () => {
+    const d = deps({
+      resetBudget: vi.fn(async () => false),
+      resetTreeCache: vi.fn(async () => false),
+    });
+    const plan: StorageResetPlan = {
+      blocks: { coreNeeded: false, tree: 'ttl', budget: true, download: 'off' },
+      preflight: null,
+      migrateAtOpen: true,
+    };
+    const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
+    expect(out.result).toEqual({ ok: false, failedStep: 'budget' });
+    expect(d.resetTreeCache).toHaveBeenCalledTimes(1);
+    expect(d.downloadPath.changeDownloadPath).toHaveBeenCalledWith('', true);
+  });
+
+  it('树缓存失败时 failedStep=treeCache，且下载块仍被执行', async () => {
+    const d = deps({ resetTreeCache: vi.fn(async () => false) });
+    const plan: StorageResetPlan = {
+      blocks: { coreNeeded: false, tree: 'full', budget: false, download: 'off' },
+      preflight: null,
+      migrateAtOpen: false,
+    };
+    const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
+    expect(out.result).toEqual({ ok: false, failedStep: 'treeCache' });
+    expect(d.downloadPath.changeDownloadPath).toHaveBeenCalledTimes(1);
+  });
+
+  it('下载失败时保留自身 failedStep 与 error（供调用方复现下载族失败文案）', async () => {
+    const d = deps({
+      downloadPath: {
+        changeDownloadPath: vi.fn(async () => ({
+          ok: false as const,
+          error: { code: 'Internal' as const, message: 'migrate failed' },
+        })),
+        updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      },
+    });
+    const plan: StorageResetPlan = {
+      blocks: { coreNeeded: false, tree: 'hidden', budget: false, download: 'on' },
+      preflight: null,
+      migrateAtOpen: true,
+    };
+    const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
+    expect(out.result).toEqual({
+      ok: false,
+      failedStep: 'downloadPath',
+      error: { code: 'Internal', message: 'migrate failed' },
+    });
   });
 });
