@@ -1,0 +1,159 @@
+import { describe, it, expect, vi } from 'vitest';
+import { resetAllSettings } from './resetAllSettings';
+import { getDefaultPreferences } from '@shared/defaultPreferences';
+import type { ResetAllDeps } from './resetAllSettings';
+
+function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
+  return {
+    updatePreferences: vi.fn(async () => true),
+    browser: {
+      updatePreferences: vi.fn(async () => true),
+      updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      downloadPath: {
+        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      },
+      migrateAtOpen: false,
+    },
+    dsh: { saveSourceConfig: vi.fn(async () => true) },
+    storage: {
+      bridge: {
+        preflight: vi.fn(async () => ({
+          ok: true as const,
+          data: { ok: true, totalFiles: 0, totalBytes: 0, errors: [], warnings: [], freeBytes: 0 },
+        })),
+      },
+      refreshStatus: vi.fn(async () => null),
+      setPaths: vi.fn(async () => ({
+        ok: true as const,
+        restartRequired: false,
+        preflight: {
+          ok: true,
+          totalFiles: 0,
+          totalBytes: 0,
+          errors: [],
+          warnings: [],
+          freeBytes: 0,
+        },
+      })),
+      resetBudget: vi.fn(async () => true),
+      resetTreeCache: vi.fn(async () => true),
+      previewDownload: () => ({ settings: {} as never, loaded: true }),
+      readTreeStats: () => null,
+      readBudgetBytes: () => undefined,
+      downloadPath: {
+        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      },
+    },
+    storagePredicates: {
+      isCorePathsAtDefault: () => true,
+      isTreeCacheAtDefault: () => true,
+      isBudgetAtDefault: () => true,
+      treeBlockOf: () => 'hidden',
+      downloadBlockOf: () => 'hidden',
+    },
+    ...overrides,
+  };
+}
+
+const STORAGE_PLAN = {
+  blocks: { coreNeeded: false, tree: 'hidden' as const, budget: true, download: 'hidden' as const },
+  preflight: null,
+  migrateAtOpen: false,
+};
+
+describe('resetAllSettings', () => {
+  it('顺序为 preferences → browser → dsh → storage，且进度逐步回调', async () => {
+    const d = deps();
+    const seen: string[] = [];
+    const outcome = await resetAllSettings(
+      d,
+      { storagePlan: STORAGE_PLAN, applyNow: false, retainSource: false },
+      (k) => seen.push(k),
+    );
+    expect(d.updatePreferences).toHaveBeenCalledWith(getDefaultPreferences());
+    expect(seen).toEqual(['preferences', 'browser', 'dsh', 'storage']);
+    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh', 'storage']);
+    expect(outcome.skipped).toEqual([]);
+  });
+
+  it('browser 失败即停：dsh 与 storage 都不执行，且计入 skipped', async () => {
+    const d = deps({ browser: { ...deps().browser, updatePreferences: vi.fn(async () => false) } });
+    const outcome = await resetAllSettings(d, {
+      storagePlan: STORAGE_PLAN,
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome).toEqual({
+      done: ['preferences'],
+      failedAt: 'browser',
+      failedStep: 'suspend',
+      skipped: ['dsh', 'storage'],
+      restartRequired: false,
+    });
+    expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
+    expect(d.storage.resetBudget).not.toHaveBeenCalled();
+  });
+
+  it('storagePlan 为 null 时存储计入 skipped，其余照常执行', async () => {
+    const d = deps();
+    const outcome = await resetAllSettings(d, {
+      storagePlan: null,
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh']);
+    expect(outcome.skipped).toEqual(['storage']);
+  });
+
+  it('storage 的 restartRequired 透传到 outcome', async () => {
+    const d = deps({
+      storage: {
+        ...deps().storage,
+        setPaths: vi.fn(async () => ({
+          ok: true as const,
+          restartRequired: true,
+          preflight: {
+            ok: true,
+            totalFiles: 0,
+            totalBytes: 0,
+            errors: [],
+            warnings: [],
+            freeBytes: 0,
+          },
+        })),
+      },
+    });
+    const plan = { ...STORAGE_PLAN, blocks: { ...STORAGE_PLAN.blocks, coreNeeded: true } };
+    const outcome = await resetAllSettings(d, {
+      storagePlan: plan,
+      applyNow: true,
+      retainSource: false,
+    });
+    expect(outcome.restartRequired).toBe(true);
+    expect(outcome.done).toContain('storage');
+  });
+
+  it('注入步骤抛出异常时返回失败结果而非 reject', async () => {
+    const d = deps({
+      browser: {
+        ...deps().browser,
+        updatePreferences: vi.fn(async () => {
+          throw new Error('boom');
+        }),
+      },
+    });
+    const outcome = await resetAllSettings(d, {
+      storagePlan: STORAGE_PLAN,
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome.failedAt).toBe('browser');
+    expect(outcome.failedStep).toBe('unexpected');
+    expect(outcome.done).toEqual(['preferences']);
+    expect(outcome.skipped).toEqual(['dsh', 'storage']);
+    expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
+    expect(d.storage.resetBudget).not.toHaveBeenCalled();
+  });
+});
