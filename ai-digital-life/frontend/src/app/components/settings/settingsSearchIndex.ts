@@ -62,7 +62,8 @@ export function buildSettingsSearchIndex(input: {
       group: 'shortcuts' as const,
       anchorId: cmd.id,
       label: input.t[cmd.titleKey],
-      keywords: [cmd.id, formatKeybind(binding), binding],
+      // 无键位命令的 formatKeybind('') 为空串：滤掉空关键词，索引不留空条目。
+      keywords: [cmd.id, formatKeybind(binding), binding].filter((keyword) => keyword.length > 0),
     };
   });
   const blocks = GROUP_BLOCK_ENTRIES.map((entry) => ({

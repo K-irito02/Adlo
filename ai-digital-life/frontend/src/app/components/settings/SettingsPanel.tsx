@@ -762,7 +762,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         onClose={() => setResetAllOpen(false)}
         deps={resetAllStorageDeps}
         storagePredicates={resetAllStoragePredicates}
-        allDefault={allGroupsAtDefault}
         onCommitted={handleResetAllCommitted}
       />
       <ConfirmDialog

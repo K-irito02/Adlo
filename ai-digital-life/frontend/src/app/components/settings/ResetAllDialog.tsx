@@ -23,8 +23,6 @@ export interface ResetAllDialogProps {
   deps: StorageResetDeps;
   /** 与 UI 同源的「是否已默认」判定（由 storageAtDefault / downloadPathReset 注入）。 */
   storagePredicates: StorageResetPredicates;
-  /** 六组是否全部已是默认（真时无任何可恢复项，仅展示空态）。 */
-  allDefault: boolean;
   /** 执行结束回调（成功/失败/跳过汇总由调用方展示）。 */
   onCommitted: (outcome: ResetAllOutcome) => void;
 }
@@ -78,7 +76,6 @@ export function ResetAllDialog({
   onClose,
   deps,
   storagePredicates,
-  allDefault,
   onCommitted,
 }: ResetAllDialogProps) {
   const { t } = useTCopy();
@@ -220,68 +217,62 @@ export function ResetAllDialog({
           <h3 className="adl-confirm-dialog__title">{t.settingsResetConfirmTitle}</h3>
         </div>
         <div className="adl-confirm-dialog__body">
-          {allDefault ? (
-            <p className="adl-confirm-dialog__message">{t.settingsNoResults}</p>
-          ) : (
-            <>
-              <p className="adl-confirm-dialog__message">{t.settingsResetAllScopeIntro}</p>
-              <ul className="adl-confirm-dialog__list">
-                <li>{t.settingsResetAllScopePreferences}</li>
-                <li>{t.settingsResetAllScopeBrowser}</li>
-                <li>{t.settingsResetAllScopeDsh}</li>
-                <li>{storageScopeText}</li>
+          <p className="adl-confirm-dialog__message">{t.settingsResetAllScopeIntro}</p>
+          <ul className="adl-confirm-dialog__list">
+            <li>{t.settingsResetAllScopePreferences}</li>
+            <li>{t.settingsResetAllScopeBrowser}</li>
+            <li>{t.settingsResetAllScopeDsh}</li>
+            <li>{storageScopeText}</li>
+          </ul>
+
+          {coreNeeded ? (
+            <p className="adl-confirm-dialog__message">
+              {formatT(t, 'storageMigrateDialogSummary', {
+                files: String(preflight?.totalFiles ?? 0),
+                size: formatBytes(preflight?.totalBytes ?? 0),
+              })}
+            </p>
+          ) : null}
+
+          {preflight && preflight.errors.length > 0 ? (
+            <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--error">
+              <p className="adl-confirm-dialog__issues-title">{t.storagePreflightErrors}</p>
+              <ul className="adl-confirm-dialog__issues-list">
+                {localizePreflightIssues(preflight.errors, t).map((text, index) => (
+                  <li key={`${text}-${index}`}>{text}</li>
+                ))}
               </ul>
+            </div>
+          ) : null}
 
-              {coreNeeded ? (
-                <p className="adl-confirm-dialog__message">
-                  {formatT(t, 'storageMigrateDialogSummary', {
-                    files: String(preflight?.totalFiles ?? 0),
-                    size: formatBytes(preflight?.totalBytes ?? 0),
-                  })}
-                </p>
-              ) : null}
+          {preflight && preflight.warnings.length > 0 ? (
+            <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--warning">
+              <p className="adl-confirm-dialog__issues-title">{t.storagePreflightWarnings}</p>
+              <ul className="adl-confirm-dialog__issues-list">
+                {localizePreflightIssues(preflight.warnings, t).map((text, index) => (
+                  <li key={`${text}-${index}`}>{text}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
-              {preflight && preflight.errors.length > 0 ? (
-                <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--error">
-                  <p className="adl-confirm-dialog__issues-title">{t.storagePreflightErrors}</p>
-                  <ul className="adl-confirm-dialog__issues-list">
-                    {localizePreflightIssues(preflight.errors, t).map((text, index) => (
-                      <li key={`${text}-${index}`}>{text}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+          {coreNeeded ? (
+            <label className="adl-confirm-dialog__message adl-confirm-dialog__retain">
+              <input
+                type="checkbox"
+                checked={retainSource}
+                disabled={busy}
+                onChange={(e) => setRetainSource(e.target.checked)}
+              />
+              <span>{t.storageRetainSource}</span>
+            </label>
+          ) : null}
 
-              {preflight && preflight.warnings.length > 0 ? (
-                <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--warning">
-                  <p className="adl-confirm-dialog__issues-title">{t.storagePreflightWarnings}</p>
-                  <ul className="adl-confirm-dialog__issues-list">
-                    {localizePreflightIssues(preflight.warnings, t).map((text, index) => (
-                      <li key={`${text}-${index}`}>{text}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
-
-              {coreNeeded ? (
-                <label className="adl-confirm-dialog__message adl-confirm-dialog__retain">
-                  <input
-                    type="checkbox"
-                    checked={retainSource}
-                    disabled={busy}
-                    onChange={(e) => setRetainSource(e.target.checked)}
-                  />
-                  <span>{t.storageRetainSource}</span>
-                </label>
-              ) : null}
-
-              {busy && progress !== null ? (
-                <p className="adl-confirm-dialog__message">
-                  {formatT(t, 'settingsResetAllProgress', { group: groupLabel(t, progress) })}
-                </p>
-              ) : null}
-            </>
-          )}
+          {busy && progress !== null ? (
+            <p className="adl-confirm-dialog__message">
+              {formatT(t, 'settingsResetAllProgress', { group: groupLabel(t, progress) })}
+            </p>
+          ) : null}
         </div>
         <div className="adl-confirm-dialog__footer">
           <button
@@ -292,7 +283,7 @@ export function ResetAllDialog({
           >
             {t.cancel}
           </button>
-          {!allDefault && planState.status === 'ready' ? confirmControls : null}
+          {planState.status === 'ready' ? confirmControls : null}
         </div>
       </div>
     </div>,
