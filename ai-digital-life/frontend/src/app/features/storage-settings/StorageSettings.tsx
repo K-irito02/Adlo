@@ -1308,7 +1308,7 @@ export function StorageSettings() {
         };
         // 共享执行器返回的失败结果不携带预检载荷：从 setPaths 包裹层捕获，供 preflight 失败分支回填。
         const captured: { preflight: StoragePreflight | null } = { preflight: null };
-        const { result, restartRequired } = await executeStorageResetPlan(
+        const { result, restartRequired, downloadFailure } = await executeStorageResetPlan(
           {
             bridge: { preflight: (patch) => bridge.preflight(patch) },
             refreshStatus: () => refresh(),
@@ -1357,13 +1357,16 @@ export function StorageSettings() {
           }
           return;
         }
-        if (
-          !result.ok &&
-          (result.failedStep === 'downloadPath' || result.failedStep === 'downloadPathSwitch')
-        ) {
-          // 下载族失败文案与改前逐字一致（R6），于汇总错误之前即时提示（下载腿为最后一块）。
+        if (downloadFailure) {
+          // 下载族失败文案与改前逐字一致（R6）：由下载块自身结果触发，与 `failedStep`
+          //（首个失败块）解耦 —— 预算/树先失败时下载腿仍已执行、也仍要提示（R9）。
           showToast(
-            downloadResetFailureCopy(t, result.failedStep, result.error, plan.migrateAtOpen),
+            downloadResetFailureCopy(
+              t,
+              downloadFailure.failedStep,
+              downloadFailure.error,
+              plan.migrateAtOpen,
+            ),
             'error',
           );
         }

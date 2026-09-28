@@ -2233,6 +2233,66 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     }
   });
 
+  it('group reset keeps the download-family toast when budget also fails (R9)', async () => {
+    // 预算与下载同一组恢复内同时失败：聚合裁决取首个失败块（budget），但下载家族文案
+    // 仍须发出（改前下载腿无条件执行且自行 toast）——不得因 failedStep=budget 被吞。
+    const bridge = mockStorageBridge({ statusData: statusAtDefault });
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    const prevShowToast = useAppStore.getState().showToast;
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const showToast = vi.fn();
+    try {
+      // 预算偏离默认（该腿可执行）→ 写失败；下载非默认且开迁移 → 路径写失败。
+      setStoreBudgetBytes(2 * TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      useAppStore.setState({
+        showToast,
+        updatePreferences: vi.fn(async () => false),
+        changeDownloadPath: vi.fn(async () => ({
+          ok: false as const,
+          error: { code: 'Internal' as const, message: 'migrate boom' },
+        })),
+        updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: true },
+        downloadSettingsLoaded: true,
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageGroupResetConfirm' }));
+      // 下载族文案（开框迁移快照 = true → migrate 变体）。
+      await waitFor(() => {
+        expect(showToast).toHaveBeenCalledWith('storageDownloadMigrateFailed', 'error');
+      });
+      // 预算腿 toast 与尾部汇总错误都在（同一文案 → 恰两次）。
+      expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+      expect(
+        showToast.mock.calls.filter((call) => call[0] === 'settingsUpdateFailed'),
+      ).toHaveLength(2);
+      // 失败不关框（保持对话框供检查/重试）。
+      expect(screen.queryByRole('dialog')).not.toBeNull();
+      expect(bridge.setPaths).not.toHaveBeenCalled();
+    } finally {
+      useAppStore.setState({
+        updatePreferences: prevUpdatePreferences,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+        showToast: prevShowToast,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+    }
+  });
+
   it('localizes structured preflight issues with category prefix and dedupes (9)', async () => {
     // 事项 9：结构化 issue → ［分类名］前缀 + 同（分类,文案）去重 + 未知消息原文回退。
     const prefixT = new Proxy({} as Record<string, string>, {

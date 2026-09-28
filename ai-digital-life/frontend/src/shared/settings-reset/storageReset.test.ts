@@ -266,4 +266,56 @@ describe('executeStorageResetPlan', () => {
       error: { code: 'Internal', message: 'migrate failed' },
     });
   });
+
+  it('downloadFailure 独立暴露：预算先失败时仍带出下载块自身结果（R9）', async () => {
+    const d = deps({
+      resetBudget: vi.fn(async () => false),
+      downloadPath: {
+        changeDownloadPath: vi.fn(async () => ({
+          ok: false as const,
+          error: { code: 'Internal' as const, message: 'migrate failed' },
+        })),
+        updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+      },
+    });
+    const plan: StorageResetPlan = {
+      blocks: { coreNeeded: false, tree: 'hidden', budget: true, download: 'on' },
+      preflight: null,
+      migrateAtOpen: true,
+    };
+    const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
+    // 聚合裁决仍取首个失败块（预算），下载块结果另经 downloadFailure 暴露。
+    expect(out.result).toEqual({ ok: false, failedStep: 'budget' });
+    expect(out.downloadFailure).toEqual({
+      ok: false,
+      failedStep: 'downloadPath',
+      error: { code: 'Internal', message: 'migrate failed' },
+    });
+  });
+
+  it('downloadFailure 在下载成功或未执行时为 undefined（R9）', async () => {
+    const ranAndSucceeded: StorageResetPlan = {
+      blocks: { coreNeeded: false, tree: 'hidden', budget: false, download: 'on' },
+      preflight: null,
+      migrateAtOpen: false,
+    };
+    const success = await executeStorageResetPlan(deps(), ranAndSucceeded, {
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(success.result.ok).toBe(true);
+    expect(success.downloadFailure).toBeUndefined();
+
+    const skipped: StorageResetPlan = {
+      blocks: { coreNeeded: false, tree: 'hidden', budget: false, download: 'hidden' },
+      preflight: null,
+      migrateAtOpen: false,
+    };
+    const skippedOut = await executeStorageResetPlan(deps(), skipped, {
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(skippedOut.result.ok).toBe(true);
+    expect(skippedOut.downloadFailure).toBeUndefined();
+  });
 });

@@ -117,13 +117,18 @@ export async function computeStorageResetPlan(
  * 按计划顺序执行四块恢复：核心路径 → 预算 → 树缓存 → 下载路径。
  * 核心块失败即早返（其后三块不可逆且互不阻塞，全部尝试——组级「一次聚合失败」语义）；
  * 非核心块首个失败决定整体 `failedStep`（沿用组级行为，不短路后续块）；`restartRequired`
- * 透传核心块结果。
+ * 透传核心块结果。下载块自身结果另经 `downloadFailure` 暴露：调用方据此在预算/树亦失败时
+ * 仍能复现下载族失败文案（R6/R9），无需从 `failedStep`（首个失败块）反推。
  */
 export async function executeStorageResetPlan(
   deps: StorageResetDeps,
   plan: StorageResetPlan,
   opts: { applyNow: boolean; retainSource: boolean },
-): Promise<{ result: GroupResetResult; restartRequired: boolean }> {
+): Promise<{
+  result: GroupResetResult;
+  restartRequired: boolean;
+  downloadFailure?: Extract<GroupResetResult, { ok: false }>;
+}> {
   const core = await applyCoreReset(deps, plan, opts);
   if (!core.result.ok) {
     return core;
@@ -137,16 +142,19 @@ export async function executeStorageResetPlan(
   if (plan.blocks.tree !== 'hidden' && !(await deps.resetTreeCache())) {
     failures.push({ ok: false, failedStep: 'treeCache' });
   }
-  if (plan.blocks.download !== 'hidden') {
-    const download = await resetDownloadPathToDefault(deps.downloadPath, plan.migrateAtOpen);
-    if (!download.ok) {
-      failures.push(download);
-    }
+  const download =
+    plan.blocks.download === 'hidden'
+      ? null
+      : await resetDownloadPathToDefault(deps.downloadPath, plan.migrateAtOpen);
+  const downloadFailure = download !== null && !download.ok ? download : undefined;
+  if (downloadFailure) {
+    failures.push(downloadFailure);
   }
-  if (failures.length > 0) {
-    return { result: failures[0], restartRequired: core.restartRequired };
-  }
-  return { result: { ok: true }, restartRequired: core.restartRequired };
+  return {
+    result: failures.length > 0 ? failures[0] : { ok: true },
+    restartRequired: core.restartRequired,
+    downloadFailure,
+  };
 }
 
 /** 核心路径块（先行）：失败即早返；成功带出 `restartRequired`（无需重赋值）。 */
