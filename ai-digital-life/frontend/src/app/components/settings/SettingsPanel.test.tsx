@@ -27,6 +27,11 @@ const GROUP_TEMPLATES: Record<string, string> = {
   settingsResetGroupToDefault: 'Reset {group} all defaults',
   settingsResetGroupConfirmTitle: 'Reset {group}?',
   settingsResetGroupConfirmMessage: '{group} group will reset',
+  // 聚合恢复汇总用真模板：裸 key 回退测不到 {done}/{group}/{reason}/{groups} 的替换。
+  settingsResetAllFailedSummary: 'Reset: {done}; failed: {group} ({reason})',
+  settingsResetAllSkippedNote: 'Not executed: {groups}',
+  // preferences 组无单组标签（general+workspace+shortcuts 合称），用范围清单首条作为展示名。
+  settingsResetAllScopePreferences: 'Preferences',
 };
 
 const mockT = new Proxy({} as Record<string, string>, {
@@ -53,6 +58,24 @@ function setupStore() {
     showToast,
   }));
   return { updatePreferences, showToast };
+}
+
+/**
+ * 聚合恢复（顶部按钮）会经 store 实时取浏览器/DSH 的写 action：装成功桩并返回还原函数，
+ * 避免 jsdom 无桥导致的假失败与跨用例泄漏（偏好 action 由 setupStore 负责）。
+ */
+function installResetAllActions() {
+  const prev = {
+    updateDownloadSettings: useAppStore.getState().updateDownloadSettings,
+    changeDownloadPath: useAppStore.getState().changeDownloadPath,
+    saveSourceConfig: useAppStore.getState().saveSourceConfig,
+  };
+  useAppStore.setState({
+    updateDownloadSettings: vi.fn(async () => ({ ok: true, data: undefined })) as never,
+    changeDownloadPath: vi.fn(async () => ({ ok: true, data: undefined })) as never,
+    saveSourceConfig: vi.fn(async () => true) as never,
+  });
+  return () => useAppStore.setState(prev as never);
 }
 
 function renderPanel() {
@@ -145,27 +168,35 @@ describe('SettingsPanel shell header', () => {
     expect(updatePreferences).not.toHaveBeenCalled();
   });
 
-  it('确认框点确认执行恢复并关闭，点取消不执行', async () => {
+  it('聚合对话框确认后提交偏好默认 patch 并汇总提示，点取消不执行', async () => {
     const { updatePreferences, showToast } = setupStore();
-    renderPanel();
-    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
-    await waitFor(() => {
-      expect(updatePreferences).toHaveBeenCalledTimes(1);
-      expect(updatePreferences).toHaveBeenCalledWith(getDefaultPreferences());
-      // 恢复全部确含挂起默认值（F7：getDefaultPreferences 自引恒过，此断言锁行为）。
-      expect(updatePreferences).toHaveBeenCalledWith(
-        expect.objectContaining({ browserInactiveTabSuspendMs: 900_000 }),
-      );
-      expect(showToast).toHaveBeenCalled();
-    });
-    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    const restoreActions = installResetAllActions();
+    try {
+      renderPanel();
+      fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+      expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+      expect(updatePreferences).not.toHaveBeenCalled();
+      // 无存储桥 → 计划为 null → 单确认键（其余三组照常执行）。
+      fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
+      await waitFor(() => {
+        // 恢复全部确含挂起默认值（F7：getDefaultPreferences 自引恒过，此断言锁行为）。
+        expect(updatePreferences).toHaveBeenCalledWith(getDefaultPreferences());
+        expect(updatePreferences).toHaveBeenCalledWith(
+          expect.objectContaining({ browserInactiveTabSuspendMs: 900_000 }),
+        );
+        expect(showToast).toHaveBeenCalledWith('settingsResetAllDoneAll', 'success');
+      });
+      expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
 
-    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
-    expect(updatePreferences).toHaveBeenCalledTimes(1);
-    expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+      const callsAfterConfirm = updatePreferences.mock.calls.length;
+      fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+      expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+      expect(updatePreferences.mock.calls.length).toBe(callsAfterConfirm);
+      expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
+    } finally {
+      restoreActions();
+    }
   });
 
   it('blur 到面板内控件保持过滤与展开', () => {
@@ -181,16 +212,25 @@ describe('SettingsPanel shell header', () => {
     expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
   });
 
-  it('恢复失败弹错误提示而非成功提示', async () => {
+  it('聚合恢复失败弹错误汇总而非成功提示（reason 回退到通用失败文案）', async () => {
     const { updatePreferences, showToast } = setupStore();
     updatePreferences.mockResolvedValue(false);
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => {
-      expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+      // 返回式失败无结构化 error → reason 回退 t.settingsUpdateFailed（真模板插值）。
+      expect(showToast).toHaveBeenCalledWith(
+        'Reset: ; failed: Preferences (settingsUpdateFailed)',
+        'error',
+      );
+      // 失败即停：未执行的组以 skipped 提示补出。
+      expect(showToast).toHaveBeenCalledWith(
+        'Not executed: settingsBrowser, settingsDsh, storageTitle',
+        'warning',
+      );
     });
-    expect(showToast).not.toHaveBeenCalledWith('settingsResetComplete', 'success');
+    expect(showToast).not.toHaveBeenCalledWith('settingsResetAllDoneAll', 'success');
   });
 
   it('对话框按 Escape 与点 overlay 关闭且不执行', () => {
@@ -316,15 +356,18 @@ describe('SettingsPanel group reset', () => {
     });
   });
 
-  it('恢复全部传输抛错弹错误提示而不崩溃', async () => {
+  it('聚合恢复传输抛错弹错误汇总而不崩溃（reason 取结构化 error 消息）', async () => {
     const { showToast } = setupStore();
     const updatePreferences = vi.fn().mockRejectedValue(new Error('transport down'));
     useAppStore.setState({ updatePreferences });
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => {
-      expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
+      expect(showToast).toHaveBeenCalledWith(
+        'Reset: ; failed: Preferences (transport down)',
+        'error',
+      );
     });
   });
 
@@ -936,6 +979,54 @@ describe('SettingsPanel group reset', () => {
         downloadSettingsLoaded: prevLoaded,
       });
       resetStorageSettingsCache();
+    }
+  });
+
+  // 顶部「恢复全部默认」按钮禁用口径：六组全默认才禁用（与侧边栏行同源聚合）。
+  function topResetDisabled(): boolean {
+    return (screen.getByRole('button', { name: 'settingsResetAll' }) as HTMLButtonElement).disabled;
+  }
+
+  it('六组全默认时顶部恢复全部默认按钮禁用', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevStorage = useAppStore.getState().storageBlocksAtDefault;
+    const prevBrowser = useAppStore.getState().browserBlocksAtDefault;
+    const prevDsh = useAppStore.getState().dshBlocksAtDefault;
+    const prevSource = useAppStore.getState().sourceStatus;
+    setNavConfig();
+    useAppStore.setState({
+      storageBlocksAtDefault: true,
+      browserBlocksAtDefault: true,
+      dshBlocksAtDefault: true,
+      // 源状态置空：跳过未激活 dsh 组的校正 effect（否则会用残留 sourceStatus 覆写聚合）。
+      sourceStatus: null,
+    });
+    try {
+      renderPanel();
+      expect(topResetDisabled()).toBe(true);
+    } finally {
+      useAppStore.setState({
+        appInfo: prevAppInfo,
+        storageBlocksAtDefault: prevStorage,
+        browserBlocksAtDefault: prevBrowser,
+        dshBlocksAtDefault: prevDsh,
+        sourceStatus: prevSource,
+      });
+    }
+  });
+
+  it('任一组非默认时顶部恢复全部默认按钮保持可用', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevStorage = useAppStore.getState().storageBlocksAtDefault;
+    setNavConfig({ logLevel: 'debug' });
+    useAppStore.setState({ storageBlocksAtDefault: true });
+    try {
+      renderPanel();
+      expect(topResetDisabled()).toBe(false);
+    } finally {
+      useAppStore.setState({ appInfo: prevAppInfo, storageBlocksAtDefault: prevStorage });
     }
   });
 });

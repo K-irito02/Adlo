@@ -11,11 +11,14 @@ import { SettingsNav } from './SettingsNav';
 import {
   SETTINGS_GROUPS,
   RESETTABLE_GROUPS,
+  RESET_ALL_GROUP_LABEL_KEYS,
   isKeybindsAtDefault,
   isWorkspaceAtDefault,
   isPatchSatisfied,
   getGroupResetPatch,
 } from './settingsGroups';
+import { ResetAllDialog } from './ResetAllDialog';
+import type { ResetAllOutcome } from './resetAllSettings';
 import { SettingsControls } from './SettingsControls';
 import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
 import { RevealScrollbar } from '../RevealScrollbar';
@@ -29,10 +32,22 @@ import {
   prefetchStorageSettings,
   getCachedStorageStatus,
   getCachedTreeStats,
+  setCachedStorageStatus,
 } from '../../features/storage-settings/storageStatusCache';
 import { computeStorageBlocksAtDefault } from '../../features/storage-settings/storageAtDefault';
+import {
+  TREE_CACHE_DEFAULTS,
+  isBudgetAtDefault,
+  isCorePathsAtDefault,
+  isTreeCacheAtDefault,
+  treeBlockOf,
+} from '@features/storage-settings/storageAtDefault';
+import { downloadResetBlockVariant } from '@features/storage-settings/downloadPathReset';
+import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
+import type { StorageResetDeps, StorageResetPredicates } from '@shared/settings-reset/storageReset';
+import type { GroupKey } from '@shared/settings-reset/types';
+import type { StorageBridge } from '@shared/ipc/storage';
 import { computeBrowserBlocksAtDefault } from '../../features/browser-settings/browserAtDefault';
-import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
   SETTINGS_NAVIGATOR_WIDTH_MAX,
@@ -138,6 +153,113 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
     return disabled;
   }, [config, storageBlocksAtDefault, browserBlocksAtDefault, dshBlocksAtDefault]);
+
+  // 六组全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
+  const allGroupsAtDefault = disabledResetGroups.size === SETTINGS_GROUPS.length;
+
+  const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
+  const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
+
+  /**
+   * 「恢复全部默认」聚合对话框的存储组依赖：桥、状态刷新、路径写入、预算/树缓存恢复与下载
+   * 路径序列。判定口径经 `resetAllStoragePredicates` 注入（与 StorageSettings UI 同源）。
+   */
+  const resetAllStorageDeps = useMemo<StorageResetDeps>(() => {
+    const bridge: StorageBridge | undefined = window.digitalLife?.storage;
+    return {
+      bridge: bridge ? { preflight: (patch) => bridge.preflight(patch) } : undefined,
+      // 状态查询写入共享缓存：随后进入存储组即见刷新后的状态。
+      refreshStatus: async () => {
+        if (!bridge) {
+          return null;
+        }
+        const result = await bridge.getStatus();
+        if (!result.ok) {
+          return null;
+        }
+        setCachedStorageStatus(result.data);
+        return result.data;
+      },
+      setPaths: async (patch, applyNow) => {
+        if (!bridge) {
+          return { ok: false, error: { code: 'Internal', message: t.storageBridgeUnavailable } };
+        }
+        const applied = await bridge.setPaths(patch, applyNow);
+        if (!applied.ok) {
+          return { ok: false, error: applied.error };
+        }
+        return {
+          ok: true,
+          restartRequired: applied.data.restartRequired,
+          preflight: applied.data.preflight,
+        };
+      },
+      // 预算恢复：直接写默认字节数（与 StorageSettings 单块恢复同源）。
+      resetBudget: () =>
+        updatePreferences({
+          terminalHistoryBudgetBytes: TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
+        }),
+      // 树缓存恢复：写默认开关/TTL；不清缓存（恢复默认不含清除语义）。
+      resetTreeCache: async () => {
+        if (!bridge) {
+          return false;
+        }
+        const result = await bridge.setTreeCacheOptions({ ...TREE_CACHE_DEFAULTS });
+        return result.ok;
+      },
+      previewDownload: () => ({
+        settings: useAppStore.getState().downloadSettings,
+        loaded: useAppStore.getState().downloadSettingsLoaded,
+      }),
+      readTreeStats: () => getCachedTreeStats(),
+      readBudgetBytes: () => useAppStore.getState().appInfo?.config?.terminalHistoryBudgetBytes,
+      downloadPath: { changeDownloadPath, updateDownloadSettings },
+    };
+  }, [changeDownloadPath, updateDownloadSettings, updatePreferences, t]);
+
+  /** 存储四块「是否已默认」判定注入：复用 storageAtDefault / downloadPathReset 的真实 helper。 */
+  const resetAllStoragePredicates = useMemo<StorageResetPredicates>(
+    () => ({
+      isCorePathsAtDefault,
+      isBudgetAtDefault,
+      isTreeCacheAtDefault,
+      treeBlockOf,
+      downloadBlockOf: (settings, loaded) => downloadResetBlockVariant(settings, loaded),
+    }),
+    [],
+  );
+
+  /** 聚合恢复结束：成功/失败/跳过汇总提示（组名经统一 labelKey 表解析，防两处漂移）。 */
+  const handleResetAllCommitted = useCallback(
+    (outcome: ResetAllOutcome) => {
+      const labelOf = (key: GroupKey) => t[RESET_ALL_GROUP_LABEL_KEYS[key]];
+      if (outcome.failedAt === undefined) {
+        showToast(t.settingsResetAllDoneAll, 'success');
+        if (outcome.restartRequired) {
+          showToast(t.storageRestartRequired, 'success');
+        }
+        return;
+      }
+      // R10：reason 取结构化 error 消息（绝不展示 'suspend'/'corePathsPreflight' 等内部步骤码）。
+      showToast(
+        formatT(t, 'settingsResetAllFailedSummary', {
+          done: outcome.done.map(labelOf).join(', '),
+          group: labelOf(outcome.failedAt),
+          reason: outcome.error?.message ?? t.settingsUpdateFailed,
+        }),
+        'error',
+      );
+      if (outcome.skipped.length > 0) {
+        showToast(
+          formatT(t, 'settingsResetAllSkippedNote', {
+            groups: outcome.skipped.map(labelOf).join(', '),
+          }),
+          'warning',
+        );
+      }
+    },
+    [showToast, t],
+  );
 
   const rafRef = useRef(0);
 
@@ -290,18 +412,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     [setSettingsNavigatorWidth],
   );
 
-  const handleResetAll = useCallback(async () => {
-    // 恢复全部仅覆盖偏好 patch（`getDefaultPreferences()`）；下载模式 / 路径 /
-    // 迁移开关走独立下载桥，不在其内——浏览器组级恢复覆盖这三步
-    //（F2，预存范围，非本次引入）。
-    try {
-      const ok = await updatePreferences(getDefaultPreferences());
-      showToast(ok ? t.settingsResetComplete : t.settingsUpdateFailed, ok ? 'success' : 'error');
-    } catch {
-      showToast(t.settingsUpdateFailed, 'error');
-    }
-  }, [updatePreferences, showToast, t]);
-
   const handleResetGroup = useCallback(
     async (group: SettingsGroupId) => {
       // 与按钮渲染同源（RESETTABLE_GROUPS 由 patch 工厂派生）；未接入的组显式报错而非静默无操作。
@@ -324,6 +434,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
+  /** 顶部「恢复全部默认」聚合对话框（跨四组编排，替代原通用确认框路径）。 */
+  const [resetAllOpen, setResetAllOpen] = useState(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const returnFocusToSearchRef = useRef(false);
 
@@ -334,14 +446,15 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key !== 'Escape' || confirmResetOpen) {
+      // 任一确认框开着：Escape 交给对话框自身关闭，不清空搜索词。
+      if (event.key !== 'Escape' || confirmResetOpen || resetAllOpen) {
         return;
       }
       event.stopPropagation();
       returnFocusToSearchRef.current = true;
       collapseSearch();
     },
-    [collapseSearch, confirmResetOpen],
+    [collapseSearch, confirmResetOpen, resetAllOpen],
   );
 
   const handleSearchBlur = useCallback(
@@ -375,14 +488,14 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const handleConfirmClick = useCallback(() => {
     setConfirmResetOpen(false);
-    if (pendingResetGroup) {
-      const group = pendingResetGroup;
-      setPendingResetGroup(null);
-      void handleResetGroup(group);
+    // 通用确认框只服务组级恢复（「恢复全部」改由 ResetAllDialog 承接，不再走此路径）。
+    if (!pendingResetGroup) {
       return;
     }
-    void handleResetAll();
-  }, [handleResetAll, handleResetGroup, pendingResetGroup]);
+    const group = pendingResetGroup;
+    setPendingResetGroup(null);
+    void handleResetGroup(group);
+  }, [handleResetGroup, pendingResetGroup]);
 
   const handleRequestResetGroup = useCallback(
     (group: SettingsGroupId) => {
@@ -517,13 +630,22 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           <button
             type="button"
             className="adl-settings-reset-all"
-            onClick={() => setConfirmResetOpen(true)}
+            onClick={() => setResetAllOpen(true)}
             aria-label={t.settingsResetAll}
+            disabled={allGroupsAtDefault}
           >
             {t.settingsResetAll}
           </button>
         </div>
       </header>
+      <ResetAllDialog
+        open={resetAllOpen}
+        onClose={() => setResetAllOpen(false)}
+        deps={resetAllStorageDeps}
+        storagePredicates={resetAllStoragePredicates}
+        allDefault={allGroupsAtDefault}
+        onCommitted={handleResetAllCommitted}
+      />
       <ConfirmDialog
         open={confirmResetOpen}
         title={
