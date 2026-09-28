@@ -627,4 +627,44 @@ describe('DshSettings', () => {
       );
     });
   });
+
+  it('组级恢复取消在途防抖：显式写入只落一次（旧快照不补写）', async () => {
+    vi.useFakeTimers();
+    useAppStore.setState({
+      sourceStatus: makeStatus({
+        source_mode: 'manual',
+        npm_registry: NPMMIRROR_URL,
+        proxy: { mode: 'manual', http_proxy: null, https_proxy: null, no_proxy: null },
+      }),
+    });
+    // 检测不可达：恢复后的静默实测不产生写回，断言窗口内应只有恢复这一次写。
+    testSource.mockResolvedValue({ reachable: false, latency_ms: null, error: 'ENOTFOUND' });
+    renderSettings();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    // 改代理字段触发 500ms 防抖保存（此刻在途、尚未落盘）。
+    fireEvent.change(screen.getByLabelText('dshSettingsProxyHttp'), {
+      target: { value: 'http://proxy:8080' },
+    });
+    expect(saveSourceConfig).not.toHaveBeenCalled();
+    // 防抖窗口内触发组级恢复并确认（不推进计时器）。
+    act(() => {
+      useAppStore.setState({ dshGroupResetPending: true });
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    // 推进超过防抖窗口：在途防抖已被 saveNow 取消，旧快照不得补写第二次。
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(saveSourceConfig).toHaveBeenCalledTimes(1);
+    expect(saveSourceConfig).toHaveBeenCalledWith(
+      {
+        source_mode: 'auto',
+        npm_registry: NPMJS_URL,
+        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+      },
+      false,
+    );
+  });
 });

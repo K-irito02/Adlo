@@ -317,9 +317,9 @@ export function DshSettings() {
   }, [dshGroupResetPending, openGroupResetDialog]);
 
   /** 组级恢复：源=自动检测（落盘后静默实测选优）、代理=自动、清空自定义地址与代理字段。
-   * 乐观执行：点确认立刻关框并刷新卡片，后台落盘（委托共享 `executeDshResetPlan`）；
-   * 失败则 toast（persist 内）并回滚到确认前的值（期间用户若已手动改过则不回滚，
-   * 新输入优先）。 */
+   * 乐观执行：点确认立刻关框并刷新卡片，后台落盘（委托共享 `executeDshResetPlan`，经
+   * saveNow 显式写入以取消在途防抖，避免旧快照在恢复之后补写）；失败则 toast（persist
+   * 内）并回滚到确认前的值（期间用户若已手动改过则不回滚，新输入优先）。 */
   const handleGroupConfirm = useCallback(() => {
     if (groupResetBusy) {
       return;
@@ -345,36 +345,38 @@ export function DshSettings() {
       noProxy: '',
     };
     void (async () => {
-      const result = await executeDshResetPlan({
-        saveSourceConfig: (cfg) => persist(cfg),
-        afterReset: () => void runAutoDetect(true),
-      });
-      if (!result.ok) {
-        const s = formRef.current;
-        if (
-          s.sourceType === 'auto' &&
-          s.customUrl === '' &&
-          s.proxyMode === 'auto' &&
-          s.httpProxy === '' &&
-          s.httpsProxy === '' &&
-          s.noProxy === ''
-        ) {
-          applySourceType(prev.sourceType);
-          setCustomUrl(prev.customUrl);
-          setProxyMode(prev.proxyMode);
-          setHttpProxy(prev.httpProxy);
-          setHttpsProxy(prev.httpsProxy);
-          setNoProxy(prev.noProxy);
+      try {
+        // saveNow（非 persist）：显式写入前取消在途防抖并清 pending，避免旧快照
+        // 在恢复写盘之后补写（显式写入契约见 saveNow 定义）。
+        const result = await executeDshResetPlan({ saveSourceConfig: (cfg) => saveNow(cfg) });
+        if (!result.ok) {
+          const s = formRef.current;
+          if (
+            s.sourceType === 'auto' &&
+            s.customUrl === '' &&
+            s.proxyMode === 'auto' &&
+            s.httpProxy === '' &&
+            s.httpsProxy === '' &&
+            s.noProxy === ''
+          ) {
+            applySourceType(prev.sourceType);
+            setCustomUrl(prev.customUrl);
+            setProxyMode(prev.proxyMode);
+            setHttpProxy(prev.httpProxy);
+            setHttpsProxy(prev.httpsProxy);
+            setNoProxy(prev.noProxy);
+          }
+          return;
         }
+        showToast(t.settingsResetComplete, 'success');
+        void runAutoDetect(true);
+      } finally {
         setGroupResetBusy(false);
-        return;
       }
-      showToast(t.settingsResetComplete, 'success');
-      setGroupResetBusy(false);
     })();
   }, [
     groupResetBusy,
-    persist,
+    saveNow,
     applySourceType,
     showToast,
     t,
