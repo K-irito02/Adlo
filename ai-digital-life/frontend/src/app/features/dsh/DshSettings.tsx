@@ -3,6 +3,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
+import { executeDshResetPlan } from '@shared/settings-reset/dshReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -316,8 +317,9 @@ export function DshSettings() {
   }, [dshGroupResetPending, openGroupResetDialog]);
 
   /** 组级恢复：源=自动检测（落盘后静默实测选优）、代理=自动、清空自定义地址与代理字段。
-   * 乐观执行：点确认立刻关框并刷新卡片，后台落盘；失败则 toast（saveNow 内）并
-   * 回滚到确认前的值（期间用户若已手动改过则不回滚，新输入优先）。 */
+   * 乐观执行：点确认立刻关框并刷新卡片，后台落盘（委托共享 `executeDshResetPlan`）；
+   * 失败则 toast（persist 内）并回滚到确认前的值（期间用户若已手动改过则不回滚，
+   * 新输入优先）。 */
   const handleGroupConfirm = useCallback(() => {
     if (groupResetBusy) {
       return;
@@ -343,40 +345,36 @@ export function DshSettings() {
       noProxy: '',
     };
     void (async () => {
-      try {
-        const ok = await saveNow({
-          source_mode: 'auto',
-          npm_registry: NPMJS_URL,
-          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
-        });
-        if (!ok) {
-          const s = formRef.current;
-          if (
-            s.sourceType === 'auto' &&
-            s.customUrl === '' &&
-            s.proxyMode === 'auto' &&
-            s.httpProxy === '' &&
-            s.httpsProxy === '' &&
-            s.noProxy === ''
-          ) {
-            applySourceType(prev.sourceType);
-            setCustomUrl(prev.customUrl);
-            setProxyMode(prev.proxyMode);
-            setHttpProxy(prev.httpProxy);
-            setHttpsProxy(prev.httpsProxy);
-            setNoProxy(prev.noProxy);
-          }
-          return;
+      const result = await executeDshResetPlan({
+        saveSourceConfig: (cfg) => persist(cfg),
+        afterReset: () => void runAutoDetect(true),
+      });
+      if (!result.ok) {
+        const s = formRef.current;
+        if (
+          s.sourceType === 'auto' &&
+          s.customUrl === '' &&
+          s.proxyMode === 'auto' &&
+          s.httpProxy === '' &&
+          s.httpsProxy === '' &&
+          s.noProxy === ''
+        ) {
+          applySourceType(prev.sourceType);
+          setCustomUrl(prev.customUrl);
+          setProxyMode(prev.proxyMode);
+          setHttpProxy(prev.httpProxy);
+          setHttpsProxy(prev.httpsProxy);
+          setNoProxy(prev.noProxy);
         }
-        showToast(t.settingsResetComplete, 'success');
-        void runAutoDetect(true);
-      } finally {
         setGroupResetBusy(false);
+        return;
       }
+      showToast(t.settingsResetComplete, 'success');
+      setGroupResetBusy(false);
     })();
   }, [
     groupResetBusy,
-    saveNow,
+    persist,
     applySourceType,
     showToast,
     t,
