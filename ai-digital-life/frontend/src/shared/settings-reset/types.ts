@@ -24,6 +24,14 @@ export type GroupResetResult =
   | { ok: true }
   | { ok: false; failedStep: GroupResetStep; error?: IpcError };
 
+/** 下载路径恢复的失败步骤（仅下载族；为 `GroupResetStep` 的下载子集）。 */
+export type DownloadResetStep = 'downloadPath' | 'downloadPathSwitch';
+
+/** 下载路径恢复纯序列的结果：失败步骤必属下载族，调用方可安全选用下载族失败文案。 */
+export type DownloadPathResetResult =
+  | { ok: true }
+  | { ok: false; failedStep: DownloadResetStep; error?: IpcError };
+
 /** 下载路径恢复的纯序列依赖（由调用方注入 store action，本模块不 import stores）。 */
 export interface DownloadPathResetDeps {
   changeDownloadPath: (path: string, migrate: boolean) => Promise<IpcResult<void>>;

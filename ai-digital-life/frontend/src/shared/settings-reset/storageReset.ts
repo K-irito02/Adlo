@@ -7,7 +7,7 @@ import type {
   TreeCacheStats,
 } from '@shared/ipc/storage';
 import { resetDownloadPathToDefault } from './downloadPathReset';
-import type { DownloadPathResetDeps, GroupResetResult } from './types';
+import type { DownloadPathResetDeps, DownloadPathResetResult, GroupResetResult } from './types';
 
 /** 仅声明本模块用到的成员，避免依赖完整 bridge 类型。 */
 export interface StorageBridgeLike {
@@ -83,7 +83,11 @@ export interface StorageResetPredicates {
   downloadBlockOf: (settings: DownloadSettings, loaded: boolean) => StorageDownloadBlock;
 }
 
-const CORE_RESET_PATCH: StoragePathPatch = {
+/**
+ * 「恢复 核心数据路径 全部默认」的目标补丁：与 `StorageSettings` 的「应用」同一套
+ * preflight / 迁移对话框 / setPaths 流程共用（单一事实来源，防两处默认值漂移）。
+ */
+export const CORE_RESET_PATCH: StoragePathPatch = {
   mode: 'unified',
   root: '',
   categories: {},
@@ -153,7 +157,10 @@ export async function executeStorageResetPlan(
 ): Promise<{
   result: GroupResetResult;
   restartRequired: boolean;
-  downloadFailure?: Extract<GroupResetResult, { ok: false }>;
+  downloadFailure?: Extract<DownloadPathResetResult, { ok: false }>;
+  /** 核心路径预检未通过（`failedStep === 'corePathsPreflight'`）时回填的预检结果，
+   *  供调用方展示 errors/warnings（无需从 setPaths 包裹层另辟旁路携带）。 */
+  corePreflight?: StoragePreflight;
 }> {
   const core = await applyCoreReset(deps, plan, opts);
   if (!core.result.ok) {
@@ -183,12 +190,17 @@ export async function executeStorageResetPlan(
   };
 }
 
-/** 核心路径块（先行）：失败即早返；成功带出 `restartRequired`（无需重赋值）。 */
+/** 核心路径块（先行）：失败即早返；成功带出 `restartRequired`（无需重赋值）；
+ *  预检未通过时把该 preflight 随结果带出（供调用方回填展示）。 */
 async function applyCoreReset(
   deps: StorageResetExecuteDeps,
   plan: StorageResetExecutePlan,
   opts: { applyNow: boolean; retainSource: boolean },
-): Promise<{ result: GroupResetResult; restartRequired: boolean }> {
+): Promise<{
+  result: GroupResetResult;
+  restartRequired: boolean;
+  corePreflight?: StoragePreflight;
+}> {
   if (!plan.blocks.coreNeeded) {
     return { result: { ok: true }, restartRequired: false };
   }
@@ -203,7 +215,11 @@ async function applyCoreReset(
     };
   }
   if (!applied.preflight.ok) {
-    return { result: { ok: false, failedStep: 'corePathsPreflight' }, restartRequired: false };
+    return {
+      result: { ok: false, failedStep: 'corePathsPreflight' },
+      restartRequired: false,
+      corePreflight: applied.preflight,
+    };
   }
   return { result: { ok: true }, restartRequired: applied.restartRequired };
 }

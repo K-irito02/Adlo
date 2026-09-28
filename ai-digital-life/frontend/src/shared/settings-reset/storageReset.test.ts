@@ -245,6 +245,15 @@ describe('executeStorageResetPlan', () => {
     };
     const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
     expect(out.result).toEqual({ ok: false, failedStep: 'corePathsPreflight' });
+    // 失败的预检载荷随结果带出（供调用方回填展示，无需从 setPaths 包裹层旁路捕获）。
+    expect(out.corePreflight).toEqual({
+      ok: false,
+      totalFiles: 0,
+      totalBytes: 0,
+      errors: [],
+      warnings: [],
+      freeBytes: 0,
+    });
     expect(d.resetBudget).not.toHaveBeenCalled();
   });
 

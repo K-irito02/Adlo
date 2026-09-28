@@ -96,6 +96,7 @@ export const settingsEn = {
   settingsResetAllStorageUnavailable: 'Storage unavailable, skipped',
   settingsResetAllProgress: 'Resetting: {group}',
   settingsResetAllFailedSummary: 'Reset: {done}; failed: {group} ({reason})',
+  settingsResetAllFailedSummaryNoDone: 'Failed: {group} ({reason})',
   settingsResetAllSkippedNote: 'Not executed: {groups}',
   settingsResetAllDoneAll: 'All default settings restored',
 

@@ -91,6 +91,7 @@ export const settingsZh = {
   settingsResetAllStorageUnavailable: '存储不可用，已跳过',
   settingsResetAllProgress: '正在恢复：{group}',
   settingsResetAllFailedSummary: '已恢复：{done}；失败：{group}（{reason}）',
+  settingsResetAllFailedSummaryNoDone: '失败：{group}（{reason}）',
   settingsResetAllSkippedNote: '未执行：{groups}',
   settingsResetAllDoneAll: '已恢复全部默认设置',
 

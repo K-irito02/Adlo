@@ -1,4 +1,4 @@
-import type { DownloadPathResetDeps, GroupResetResult } from './types';
+import type { DownloadPathResetDeps, DownloadPathResetResult } from './types';
 
 /**
  * 下载路径恢复默认的纯序列（单块 / 存储组级 / 浏览器组级 / 恢复全部共用）：
@@ -8,7 +8,7 @@ import type { DownloadPathResetDeps, GroupResetResult } from './types';
 export async function resetDownloadPathToDefault(
   deps: DownloadPathResetDeps,
   migrate: boolean,
-): Promise<GroupResetResult> {
+): Promise<DownloadPathResetResult> {
   const pathResult = await deps.changeDownloadPath('', migrate);
   // 开关独立复位：路径步失败也要执行，避免残留半关状态。
   const switchResult = await deps.updateDownloadSettings(undefined, undefined, false);

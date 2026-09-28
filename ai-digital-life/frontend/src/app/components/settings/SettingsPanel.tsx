@@ -39,6 +39,7 @@ import {
   prefetchStorageSettings,
   getCachedStorageStatus,
   getCachedTreeStats,
+  isWellFormedStatus,
   setCachedStorageStatus,
 } from '../../features/storage-settings/storageStatusCache';
 import { computeStorageBlocksAtDefault } from '../../features/storage-settings/storageAtDefault';
@@ -196,7 +197,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       return null;
     }
     const result = await bridge.getStatus();
-    if (!result.ok) {
+    // 与预取/挂载路径同口径：畸形体不入缓存（否则坏快照污染整个会话），跳过写入。
+    if (!result.ok || !isWellFormedStatus(result.data)) {
       return null;
     }
     setCachedStorageStatus(result.data);
@@ -285,12 +287,19 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         return;
       }
       // R10：reason 取结构化 error 消息（绝不展示 'suspend'/'corePathsPreflight' 等内部步骤码）。
+      // 首组即失败时 `done` 为空：改用「无已完成组」变体，避免「已恢复：；失败：…」残缺文案。
       showToast(
-        formatT(t, 'settingsResetAllFailedSummary', {
-          done: outcome.done.map(labelOf).join(', '),
-          group: labelOf(outcome.failedAt),
-          reason: outcome.error?.message ?? t.settingsUpdateFailed,
-        }),
+        formatT(
+          t,
+          outcome.done.length === 0
+            ? 'settingsResetAllFailedSummaryNoDone'
+            : 'settingsResetAllFailedSummary',
+          {
+            done: outcome.done.map(labelOf).join(', '),
+            group: labelOf(outcome.failedAt),
+            reason: outcome.error?.message ?? t.settingsUpdateFailed,
+          },
+        ),
         'error',
       );
       if (outcome.skipped.length > 0) {
@@ -561,6 +570,12 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       if (typeof element.scrollIntoView === 'function') {
         element.scrollIntoView({ block: 'center' });
       }
+      // a11y（F3）：结果项卸载后焦点会落回 <body>；把焦点移交给落点锚点，键盘用户
+      // 不必从头 Tab。锚点为普通元素、通常不可聚焦，就地补 `tabindex="-1"`（不改各组件 markup）。
+      if (!element.hasAttribute('tabindex')) {
+        element.setAttribute('tabindex', '-1');
+      }
+      element.focus({ preventScroll: true });
       element.classList.add(SEARCH_HIGHLIGHT_CLASS);
       highlightRef.current = {
         element,
@@ -652,6 +667,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const handleRequestResetGroup = useCallback(
     (group: SettingsGroupId) => {
+      // 搜索态下目标组组件未挂载（内容区仍渲染跨组结果）：先收起搜索，否则三组自有
+      // 重置信号被置位却无人消费，对话框要等用户日后回到该组才「迟到弹出」（M2 同族）。
+      if (searchQuery.trim() !== '') {
+        collapseSearch();
+      }
       if (group === 'storage') {
         // 存储组多桥多步（迁移/树缓存/预算/下载各有各的桥与生效时机），不能走
         // updatePreferences 一刀切：先关通用确认框（防键盘路径下双框叠加，rev2 I4-N1），
@@ -685,7 +705,14 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       setPendingResetGroup(group);
       setConfirmResetOpen(true);
     },
-    [requestStorageGroupReset, requestBrowserGroupReset, requestDshGroupReset, setActiveGroup],
+    [
+      collapseSearch,
+      searchQuery,
+      requestStorageGroupReset,
+      requestBrowserGroupReset,
+      requestDshGroupReset,
+      setActiveGroup,
+    ],
   );
 
   // 持久化/历史遗留的 activeGroup 可能不在当前组列表里（如已移除的 terminal）：

@@ -126,6 +126,7 @@ describe('i18n en-US namespace keys', () => {
       'settingsResetAllStorageUnavailable',
       'settingsResetAllProgress',
       'settingsResetAllFailedSummary',
+      'settingsResetAllFailedSummaryNoDone',
       'settingsResetAllSkippedNote',
       'settingsResetAllDoneAll',
     ] as const;
@@ -140,6 +141,9 @@ describe('i18n en-US namespace keys', () => {
     expect(String(zhCN.settingsResetAllFailedSummary)).toBe(
       '已恢复：{done}；失败：{group}（{reason}）',
     );
+    // 「无已完成组」变体：仅含 {group}/{reason}，首组失败时不渲染残缺的 {done}。
+    expect(String(enUS.settingsResetAllFailedSummaryNoDone)).toBe('Failed: {group} ({reason})');
+    expect(String(zhCN.settingsResetAllFailedSummaryNoDone)).toBe('失败：{group}（{reason}）');
     expect(String(enUS.settingsResetAllProgress)).toContain('{group}');
     expect(String(zhCN.settingsResetAllProgress)).toContain('{group}');
     expect(String(enUS.settingsResetAllSkippedNote)).toContain('{groups}');

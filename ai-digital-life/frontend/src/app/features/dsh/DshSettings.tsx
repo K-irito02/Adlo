@@ -3,7 +3,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
-import { executeDshResetPlan } from '@shared/settings-reset/dshReset';
+import { executeDshResetPlan, NPMJS_URL } from '@shared/settings-reset/dshReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
@@ -16,7 +16,6 @@ import type { DshSourceConfig } from '../../../shared/ipc/dsh';
 type SourceType = 'auto' | 'npmjs' | 'npmmirror' | 'custom';
 type ProxyMode = 'auto' | 'manual' | 'none';
 
-const NPMJS_URL = 'https://registry.npmjs.org';
 const NPMMIRROR_URL = 'https://registry.npmmirror.com';
 /** 变更即静默保存的防抖窗口（失败才 toast，成功不打扰）。 */
 const AUTOSAVE_DELAY_MS = 500;

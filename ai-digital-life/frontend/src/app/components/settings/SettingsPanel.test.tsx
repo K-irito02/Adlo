@@ -30,6 +30,7 @@ const GROUP_TEMPLATES: Record<string, string> = {
   settingsResetGroupConfirmMessage: '{group} group will reset',
   // 聚合恢复汇总用真模板：裸 key 回退测不到 {done}/{group}/{reason}/{groups} 的替换。
   settingsResetAllFailedSummary: 'Reset: {done}; failed: {group} ({reason})',
+  settingsResetAllFailedSummaryNoDone: 'Failed: {group} ({reason})',
   settingsResetAllSkippedNote: 'Not executed: {groups}',
   // preferences 组无单组标签（general+workspace+shortcuts 合称），用范围清单首条作为展示名。
   settingsResetAllScopePreferences: 'Preferences',
@@ -307,18 +308,16 @@ describe('SettingsPanel shell header', () => {
     expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
   });
 
-  it('聚合恢复失败弹错误汇总而非成功提示（reason 回退到通用失败文案）', async () => {
+  it('聚合恢复失败弹错误汇总而非成功提示（首组失败：无已完成组变体）', async () => {
     const { updatePreferences, showToast } = setupStore();
     updatePreferences.mockResolvedValue(false);
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
     fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => {
+      // 首组（preferences）失败 → done 为空 → 用「无已完成组」变体，避免「已恢复：；」残缺文案。
       // 返回式失败无结构化 error → reason 回退 t.settingsUpdateFailed（真模板插值）。
-      expect(showToast).toHaveBeenCalledWith(
-        'Reset: ; failed: Preferences (settingsUpdateFailed)',
-        'error',
-      );
+      expect(showToast).toHaveBeenCalledWith('Failed: Preferences (settingsUpdateFailed)', 'error');
       // 失败即停：未执行的组以 skipped 提示补出。
       expect(showToast).toHaveBeenCalledWith(
         'Not executed: settingsBrowser, settingsDsh, storageTitle',
@@ -326,6 +325,21 @@ describe('SettingsPanel shell header', () => {
       );
     });
     expect(showToast).not.toHaveBeenCalledWith('settingsResetAllDoneAll', 'success');
+  });
+
+  it('聚合恢复失败汇总：已有已完成组时用 {done} 变体（含完成组清单）', async () => {
+    const { updatePreferences, showToast } = setupStore();
+    // preferences 成功、browser 挂起步失败 → done=['preferences']、failedAt='browser'。
+    updatePreferences.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+    renderPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
+    await waitFor(() => {
+      expect(showToast).toHaveBeenCalledWith(
+        'Reset: Preferences; failed: settingsBrowser (settingsUpdateFailed)',
+        'error',
+      );
+    });
   });
 
   it('对话框按 Escape 与点 overlay 关闭且不执行', () => {
@@ -459,10 +473,7 @@ describe('SettingsPanel group reset', () => {
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
     fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => {
-      expect(showToast).toHaveBeenCalledWith(
-        'Reset: ; failed: Preferences (transport down)',
-        'error',
-      );
+      expect(showToast).toHaveBeenCalledWith('Failed: Preferences (transport down)', 'error');
     });
   });
 
@@ -1268,7 +1279,20 @@ describe('SettingsPanel cross-group search', () => {
       );
       expect(anchor).not.toBeNull();
       expect(anchor?.classList.contains('adl-settings-search-highlight')).toBe(true);
+      // F3：跳转命中后焦点移交给落点锚点（结果项卸载不再把焦点丢给 <body>）。
+      expect(document.activeElement).toBe(anchor);
     });
+  });
+
+  it('搜索态点击侧栏组重置按钮：先收起搜索再切组（M2 同族）', () => {
+    setupStore();
+    renderSearchPanel();
+    typeQuery('language');
+    expect(useAppStore.getState().settingsSearchQuery).toBe('language');
+    fireEvent.click(screen.getByRole('button', { name: 'Reset settingsBrowser all defaults' }));
+    // 收起搜索：否则目标组组件未挂载，重置信号无人消费、对话框迟到弹出。
+    expect(useAppStore.getState().settingsSearchQuery).toBe('');
+    expect(useAppStore.getState().activeSettingsGroup).toBe('browser');
   });
 
   it('无匹配查询渲染共享空态（settingsNoResults）', () => {

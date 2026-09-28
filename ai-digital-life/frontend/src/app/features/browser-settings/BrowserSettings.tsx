@@ -118,19 +118,20 @@ export function BrowserSettings() {
           migrateAtOpen: groupMigrateAtOpenRef.current,
         });
         if (!result.ok) {
-          const pathStepFailed =
-            result.failedStep === 'downloadPath' || result.failedStep === 'downloadPathSwitch';
-          showToast(
-            pathStepFailed
-              ? downloadResetFailureCopy(
-                  t,
-                  result.failedStep,
-                  result.error,
-                  groupMigrateAtOpenRef.current,
-                )
-              : t.settingsUpdateFailed,
-            'error',
-          );
+          // 下载路径家族细分文案（路径步 / 开关步）；其余步骤恒为通用失败文案。
+          if (result.failedStep === 'downloadPath' || result.failedStep === 'downloadPathSwitch') {
+            showToast(
+              downloadResetFailureCopy(
+                t,
+                result.failedStep,
+                result.error,
+                groupMigrateAtOpenRef.current,
+              ),
+              'error',
+            );
+            return;
+          }
+          showToast(t.settingsUpdateFailed, 'error');
           return;
         }
         showToast(t.settingsResetComplete, 'success');

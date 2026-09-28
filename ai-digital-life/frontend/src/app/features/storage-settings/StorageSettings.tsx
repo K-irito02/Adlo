@@ -17,8 +17,11 @@ import {
   type TreeCacheStats,
 } from '@shared/ipc/storage';
 import {
+  CORE_RESET_PATCH,
   executeStorageResetPlan,
+  type StorageDownloadBlock,
   type StorageResetExecutePlan,
+  type StorageTreeBlock,
 } from '@shared/settings-reset/storageReset';
 import { IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
@@ -80,18 +83,6 @@ const TREE_CACHE_TTL_CUSTOM = 'custom';
 
 /** 与 SettingsControls 的 InputControl 一致：输入停顿 500ms 才写回，避免逐键提交。 */
 const TREE_TTL_COMMIT_DEBOUNCE_MS = 500;
-
-/**
- * 「恢复 核心数据路径 全部默认」的目标补丁：统一根 + 空根（后端视为默认根
- * `app_data_dir`，见 `patch_to_selection`）+ 无逐类覆盖。与「应用」同一套
- * preflight / 迁移对话框 / setPaths 流程。
- */
-const CORE_RESET_PATCH: StoragePathPatch = {
-  mode: 'unified',
-  root: '',
-  categories: {},
-  retainSource: false,
-};
 
 /** 状态查询超时（后端遍历超大目录时的兜底，避免无限 loading）。 */
 const STATUS_TIMEOUT_MS = 30_000;
@@ -218,9 +209,9 @@ export function StorageSettings() {
   // 组级开框快照（事项 10）：逐块真实非默认判定 + 文案变体，显示与执行同源。
   // 'hidden' = 该块已是默认值，清单不出现且确认时跳过对应恢复腿；未知态 fail-open 显示。
   const [groupResetBlocks, setGroupResetBlocks] = useState<{
-    tree: 'full' | 'reenable' | 'ttl' | 'hidden';
+    tree: StorageTreeBlock;
     budget: boolean;
-    download: 'on' | 'off' | 'switchOnly' | 'hidden';
+    download: StorageDownloadBlock;
   }>({ tree: 'hidden', budget: false, download: 'hidden' });
   const groupResetConfirmRef = useRef<HTMLButtonElement | null>(null);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
@@ -1306,45 +1297,44 @@ export function StorageSettings() {
           },
           migrateAtOpen: groupMigrateAtOpenRef.current,
         };
-        // 共享执行器返回的失败结果不携带预检载荷：从 setPaths 包裹层捕获，供 preflight 失败分支回填。
-        const captured: { preflight: StoragePreflight | null } = { preflight: null };
-        const { result, restartRequired, downloadFailure } = await executeStorageResetPlan(
-          {
-            setPaths: async (patch, now) => {
-              const applied = await bridge.setPaths(patch, now);
-              if (!applied.ok) {
-                return { ok: false, error: applied.error };
-              }
-              captured.preflight = applied.data.preflight;
-              return {
-                ok: true,
-                restartRequired: applied.data.restartRequired,
-                preflight: applied.data.preflight,
-              };
+        // 共享执行器的失败结果直接携带核心预检载荷（corePreflight），无需旁路捕获。
+        const { result, restartRequired, downloadFailure, corePreflight } =
+          await executeStorageResetPlan(
+            {
+              setPaths: async (patch, now) => {
+                const applied = await bridge.setPaths(patch, now);
+                if (!applied.ok) {
+                  return { ok: false, error: applied.error };
+                }
+                return {
+                  ok: true,
+                  restartRequired: applied.data.restartRequired,
+                  preflight: applied.data.preflight,
+                };
+              },
+              resetBudget: async () => {
+                const ok = await handleTerminalBudgetReset();
+                if (!ok) {
+                  // 预算腿失败即时 toast（与改前同点，不挪到汇总之后，避免重排提示）。
+                  showToast(t.settingsUpdateFailed, 'error');
+                }
+                return ok;
+              },
+              // 树写自带错误 toast；返回值纳入汇总（N4）。
+              resetTreeCache: handleTreeResetDefaults,
+              downloadPath: { changeDownloadPath, updateDownloadSettings },
             },
-            resetBudget: async () => {
-              const ok = await handleTerminalBudgetReset();
-              if (!ok) {
-                // 预算腿失败即时 toast（与改前同点，不挪到汇总之后，避免重排提示）。
-                showToast(t.settingsUpdateFailed, 'error');
-              }
-              return ok;
-            },
-            // 树写自带错误 toast；返回值纳入汇总（N4）。
-            resetTreeCache: handleTreeResetDefaults,
-            downloadPath: { changeDownloadPath, updateDownloadSettings },
-          },
-          plan,
-          { applyNow, retainSource: groupResetRetain },
-        );
+            plan,
+            { applyNow, retainSource: groupResetRetain },
+          );
         if (!result.ok && result.failedStep === 'corePaths') {
           showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
           return;
         }
         if (!result.ok && result.failedStep === 'corePathsPreflight') {
           // 后端可能拒绝写入：保持对话框打开并回填预检结果展示 errors/warnings。
-          if (captured.preflight) {
-            setGroupResetPreflight(captured.preflight);
+          if (corePreflight) {
+            setGroupResetPreflight(corePreflight);
           }
           return;
         }

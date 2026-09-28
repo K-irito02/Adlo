@@ -7,7 +7,8 @@ import type { IpcError } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import type { DownloadSettings } from '@shared/ipc/download';
 import { resetDownloadPathToDefault } from '@shared/settings-reset/downloadPathReset';
-import type { GroupResetStep } from '@shared/settings-reset/types';
+import type { DownloadResetStep } from '@shared/settings-reset/types';
+import type { StorageDownloadBlock } from '@shared/settings-reset/storageReset';
 
 /**
  * 下载路径是否全默认（路径空串 = 系统默认 + 迁移开关关闭）。
@@ -19,9 +20,10 @@ export function isDownloadPathAtDefault(settings: DownloadSettings, loaded: bool
 }
 
 /** 下载恢复分支变体（Phase 4 R2-R10-L2 抽取，块级对话框与组级清单同源，防漂移）。
+ * 单一事实来源为共享层的 `StorageDownloadBlock`，此处仅为就近别名。
  * `migrateOverride`：块级对话框传开框快照开关（M4-R：展示文案与搬运行为同源）；
  * 组级清单用实时值（不传）。 */
-export type DownloadResetVariant = 'on' | 'off' | 'switchOnly' | 'hidden';
+export type DownloadResetVariant = StorageDownloadBlock;
 export function downloadResetBlockVariant(
   settings: DownloadSettings,
   loaded: boolean,
@@ -45,7 +47,7 @@ export function downloadResetBlockVariant(
  */
 export function downloadResetFailureCopy(
   t: CopyDict,
-  failedStep: GroupResetStep,
+  failedStep: DownloadResetStep,
   error: IpcError | undefined,
   migrate: boolean,
 ): string {

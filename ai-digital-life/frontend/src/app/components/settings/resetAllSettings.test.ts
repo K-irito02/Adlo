@@ -218,4 +218,33 @@ describe('resetAllSettings', () => {
     expect(outcome.failedStep).toBe('corePaths');
     expect(outcome.error).toEqual({ code: 'Internal', message: 'nope' });
   });
+
+  it('storage 首个失败块无 error 时回落到下载块的结构化 error（F1）', async () => {
+    // 预算腿失败（失败块不携带 error）+ 下载腿失败（携带结构化 error）：
+    // runStorage 的回落分支须把下载族的结构化错误带出，避免原因被静默吞掉。
+    const downloadError = { code: 'Internal' as const, message: 'migrate failed' };
+    const d = deps({
+      storage: {
+        ...deps().storage,
+        resetBudget: vi.fn(async () => false),
+        downloadPath: {
+          changeDownloadPath: vi.fn(async () => ({ ok: false as const, error: downloadError })),
+          updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        },
+      },
+    });
+    const outcome = await resetAllSettings(d, {
+      storagePlan: {
+        blocks: { coreNeeded: false, tree: 'hidden', budget: true, download: 'on' },
+        migrateAtOpen: true,
+      },
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome.failedAt).toBe('storage');
+    // 首个失败块为预算（不携带 error）：failedStep 保留其码不改写。
+    expect(outcome.failedStep).toBe('budget');
+    // error 回落到下载块的下载族结构化错误（直接覆盖 runStorage 的回落分支）。
+    expect(outcome.error).toEqual(downloadError);
+  });
 });
