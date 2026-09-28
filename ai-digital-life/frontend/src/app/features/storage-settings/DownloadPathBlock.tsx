@@ -121,9 +121,12 @@ export function DownloadPathBlock({ onOpenChange }: { onOpenChange?: (open: bool
                 </div>
                 <div className="adl-confirm-dialog__body">
                   <p className="adl-confirm-dialog__message">
-                    {migrateAtOpenRef.current
-                      ? t.storageDownloadResetConfirmMigrateOn
-                      : t.storageDownloadResetConfirmMigrateOff}
+                    {/* 事项 10：路径已是系统默认（仅开关非默认可开框）→ 只提示开关恢复。 */}
+                    {downloadSettings.default_path === '' && migrateAtOpenRef.current
+                      ? t.storageDownloadResetConfirmSwitchOnly
+                      : migrateAtOpenRef.current
+                        ? t.storageDownloadResetConfirmMigrateOn
+                        : t.storageDownloadResetConfirmMigrateOff}
                   </p>
                 </div>
                 <div className="adl-confirm-dialog__footer">

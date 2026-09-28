@@ -95,6 +95,7 @@ export const commonEn = {
   contextSearchAria: 'Search context options',
   contextNoMatch: 'No matching options found',
   contextRemoveAria: 'Remove {label}',
+  languageSystem: 'System',
   languageChinese: '中文',
   languageEnglish: 'EN',
   envControlsAria: 'Environment controls',

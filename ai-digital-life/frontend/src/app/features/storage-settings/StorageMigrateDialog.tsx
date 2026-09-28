@@ -3,8 +3,8 @@ import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatBytes } from '@root/design-system/html';
 import { isTauriShell } from '@shared/env';
-import { IconAlertTriangle } from '../../icons';
 import type { StoragePreflight } from '@shared/ipc/storage';
+import { localizePreflightIssues } from './preflightCopy';
 
 interface StorageMigrateDialogProps {
   open: boolean;
@@ -74,24 +74,23 @@ export function StorageMigrateDialog({
           <p className="adl-confirm-dialog__message">{summary}</p>
 
           {errors.length > 0 ? (
-            <div className="adl-confirm-dialog__message">
-              <p>
-                <IconAlertTriangle size={12} decorative /> {t.storagePreflightErrors}
-              </p>
-              <ul>
-                {errors.map((error, index) => (
-                  <li key={`${error}-${index}`}>{error}</li>
+            <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--error">
+              <p className="adl-confirm-dialog__issues-title">{t.storagePreflightErrors}</p>
+              <ul className="adl-confirm-dialog__issues-list">
+                {/* 事项 9：本地化 + 分类名前缀 + 按最终文本去重。 */}
+                {localizePreflightIssues(errors, t).map((text, index) => (
+                  <li key={`${text}-${index}`}>{text}</li>
                 ))}
               </ul>
             </div>
           ) : null}
 
           {warnings.length > 0 ? (
-            <div className="adl-confirm-dialog__message">
-              <p>{t.storagePreflightWarnings}</p>
-              <ul>
-                {warnings.map((warning, index) => (
-                  <li key={`${warning}-${index}`}>{warning}</li>
+            <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--warning">
+              <p className="adl-confirm-dialog__issues-title">{t.storagePreflightWarnings}</p>
+              <ul className="adl-confirm-dialog__issues-list">
+                {localizePreflightIssues(warnings, t).map((text, index) => (
+                  <li key={`${text}-${index}`}>{text}</li>
                 ))}
               </ul>
             </div>

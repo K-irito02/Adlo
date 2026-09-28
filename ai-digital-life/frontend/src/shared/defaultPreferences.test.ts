@@ -14,10 +14,13 @@ import {
 } from './defaultPreferences';
 
 describe('defaultPreferences', () => {
-  it('returns full patch with all defaults', () => {
+  it('returns full patch with defaults, excluding language/themeMode (user baseline)', () => {
     const defaults = getDefaultPreferences();
-    expect(defaults.language).toBe('zh-CN');
-    expect(defaults.themeMode).toBe('system');
+    // 语言/主题是用户个人基线（跟随系统或用户选定值）：恢复全部默认不改动
+    //（产品决策 2026-09-27）；DEFAULT_LANGUAGE 为 'system'（跟随系统）。
+    expect(defaults.language).toBeUndefined();
+    expect(defaults.themeMode).toBeUndefined();
+    expect(DEFAULT_LANGUAGE).toBe('system');
     expect(defaults.logLevel).toBe('info');
     expect(defaults.terminalLogMode).toBe('overwrite');
     expect(defaults.debugLogMode).toBe('overwrite');

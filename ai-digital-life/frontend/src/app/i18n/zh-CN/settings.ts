@@ -111,6 +111,7 @@ export const settingsZh = {
   storageLocatorTitle: '数据位置索引',
   storageLocatorHint:
     '这个小文件记着你的各类数据实际放在电脑的哪个文件夹，应用每次启动都靠它找到数据。请不要删除、改名或手动修改它；如果不小心删掉了，应用会用默认目录启动，原来的数据还好好地留在原位置，只是在这里看不见——重新在「存储」设置里把路径指回去即可恢复。',
+  storagePendingTaskTitle: '待迁移任务',
   storagePendingBanner: '已安排下次启动迁移',
   storagePendingFailedBanner: '上次迁移失败：{error}（旧数据完好）',
   storageRetryMigration: '重试',
@@ -160,18 +161,39 @@ export const settingsZh = {
     '将把默认下载路径恢复为系统默认。当前已开启自动迁移：旧路径下的全部文件会先搬到系统默认路径，全部成功后删除旧路径目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；若中途失败：已搬走的文件在新路径、其余仍在旧路径，设置不切换，可重试。',
   storageDownloadResetConfirmMigrateOff:
     '将把默认下载路径恢复为系统默认。当前未开启自动迁移：只切换路径，旧路径中的文件不会被搬运，也不会被删除。',
+  // 路径已是系统默认、仅迁移开关非默认：确认框不提路径恢复（已是默认，事项 10）。
+  storageDownloadResetConfirmSwitchOnly:
+    '下载路径已是系统默认，无需变更。当前已开启自动迁移：本次仅将开关恢复为关闭，不涉及文件搬运。',
   storageDownloadResetConfirmBtn: '恢复默认',
   storageGroupResetTitle: '恢复「存储」全部默认？',
-  storageGroupResetIntro: '以下 4 处将一起恢复为默认值：',
+  // 不写死数量：清单按开框时快照逐块过滤——已默认的块整项不出现（事项 10）。
+  storageGroupResetIntro: '以下设置将一起恢复为默认值：',
+  // 全部四块均已是默认值时不开对话框，直接提示（事项 10 空态）。
+  storageGroupResetAllDefault: '存储设置均已为默认值，无需恢复。',
   storageGroupResetItemCore:
     '核心数据路径：回到「统一根目录」+ 默认位置；随后走迁移流程，需重启应用（或下次启动）后生效。',
+  // 树缓存按开框快照细分三种真实待恢复文案：全部 / 仅重新开启 / 仅恢复保留时长。
   storageGroupResetItemTree:
     '工作区树缓存：重新开启，保留时长恢复 15 分钟，已缓存内容保留；立即生效。',
+  storageGroupResetItemTreeReenable: '工作区树缓存：重新开启，已缓存内容保留；立即生效。',
+  storageGroupResetItemTreeTtl: '工作区树缓存：保留时长恢复 15 分钟，已缓存内容保留；立即生效。',
   storageGroupResetItemBudget: '终端历史磁盘预算：恢复为 {default}；立即生效。',
   storageGroupResetItemDownloadMigrateOn:
     '浏览器默认下载路径：恢复为系统默认；旧路径文件先搬过去，全部成功后才删除旧目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；自动迁移开关恢复为关闭。',
   storageGroupResetItemDownloadMigrateOff:
     '浏览器默认下载路径：恢复为系统默认，只切换路径、不搬文件；自动迁移开关保持关闭。',
+  // 路径已是系统默认、仅迁移开关非默认：不提路径恢复（已是默认，事项 10）。
+  storageGroupResetItemDownloadSwitchOnly:
+    '浏览器默认下载路径已是系统默认：本次仅将自动迁移开关恢复为关闭，不涉及文件搬运。',
+  // 核心已默认时对话框只留一个确认键（不出现迁移时机两键）。
+  storageGroupResetConfirm: '确认恢复默认',
+  // 预检英文原文（Rust storage/migration.rs）的前端本地化映射，匹配规则见 preflightCopy.ts。
+  storagePreflightIssueWithCategory: '［{category}］{message}',
+  storagePreflightIdentical: '新位置与当前使用的位置相同，无需迁移。',
+  storagePreflightInside:
+    '新位置与当前数据位置互相包含（一个在另一个里面），无法迁移，请换一个位置。',
+  storagePreflightCreateDir: '无法创建新位置的文件夹，请检查路径是否有效、是否有权限。',
+  storagePreflightNotWritable: '新位置不可写入（可能没有权限），请换一个位置。',
   browserGroupResetTitle: '恢复「浏览器」全部默认？',
   // 文案中的 15 分钟/自动保存与 DEFAULT_BROWSER_SUSPEND_MS / DEFAULT_DOWNLOAD_MODE
   // 同源，改产品默认时同步此处（L-8）。

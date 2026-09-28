@@ -1314,6 +1314,12 @@
   border-color: var(--text-secondary);
 }
 
+/* 顶部「待迁移任务」块的取消待迁移按钮：四角偏直角（radius-sm，仅此按钮，事项 11b）。
+   hover 灰底轮廓因此更方正；其余 ghost 按钮维持 .adl-btn 默认圆角不变。 */
+.adl-btn.adl-settings-pending__cancel {
+  border-radius: var(--radius-sm);
+}
+
 /* 存储组粘性提交条：有未应用修改时固定于设置区底部、滚动可见。 */
 .adl-storage-settings__dirtybar {
   position: sticky;
@@ -1327,7 +1333,8 @@
   padding: var(--space-2) var(--space-3);
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  /* 偏直角小圆角（产品决策 2026-09-27，事项 4）：radius-md（6px）过圆。 */
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-md);
   color: var(--text-secondary);
   font-size: var(--text-sm);

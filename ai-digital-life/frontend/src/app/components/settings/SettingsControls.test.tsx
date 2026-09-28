@@ -163,7 +163,8 @@ describe('SettingsControls reset button', () => {
     expect(resetBtn.hasAttribute('disabled')).toBe(false);
     fireEvent.click(resetBtn);
     expect(onChange).toHaveBeenCalledTimes(1);
-    expect(onChange).toHaveBeenCalledWith('language', 'zh-CN');
+    // 行级恢复目标 = 默认语言「跟随系统」（产品决策 2026-09-27）。
+    expect(onChange).toHaveBeenCalledWith('language', 'system');
   });
 
   it('disables reset button when the value already equals the default', () => {
@@ -174,7 +175,7 @@ describe('SettingsControls reset button', () => {
         groupId: 'general',
         label: 'Language',
         type: 'input',
-        value: 'zh-CN',
+        value: 'system',
       },
     ];
     render(

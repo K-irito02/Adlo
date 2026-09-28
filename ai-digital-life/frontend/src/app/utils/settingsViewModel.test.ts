@@ -61,11 +61,11 @@ describe('buildSettingsItems', () => {
     expect(modelItems).toHaveLength(0);
   });
 
-  it('language select has zh-CN and en-US options', () => {
+  it('language select has system (follow OS), zh-CN and en-US options', () => {
     const items = buildSettingsItems(mockT, mockAppInfo);
     const langItem = items.find((i) => i.id === 'language');
     expect(langItem?.type).toBe('select');
-    expect(langItem?.options?.map((o) => o.value)).toEqual(['zh-CN', 'en-US']);
+    expect(langItem?.options?.map((o) => o.value)).toEqual(['system', 'zh-CN', 'en-US']);
   });
 
   it('does not include approvalMode or workspacePath items (moved to CustomAgentSettings / sidebar)', () => {

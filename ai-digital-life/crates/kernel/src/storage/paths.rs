@@ -61,6 +61,28 @@ impl StoragePaths {
         parent.is_absolute().then_some(parent)
     }
 
+    /// `dir()` 的逆运算：由该分类**实际路径**还原 per-category 覆盖值语义的目录，
+    /// 与 `resolve` 的拼接规则互逆（DB 四类实际路径是固定文件名拼接结果 `X/data.db`
+    /// → 覆盖值 `X`；dsh 实际路径是子目录 `X/dsh-versions` → 覆盖值 `X`；其余分类
+    /// 覆盖值即其目录本身）。
+    ///
+    /// 状态回报（`category_statuses.path`）用此值，保证「状态 → 前端草稿 → patch
+    /// 回传 → resolve」round-trip 恒等——未修改分类不再产生 `data.db/data.db`
+    /// 假路径（事项 9 根因）。
+    pub fn override_dir(&self, category: StorageCategory) -> PathBuf {
+        let actual = self.dir(category);
+        match category {
+            StorageCategory::Database
+            | StorageCategory::DownloadsDb
+            | StorageCategory::SiteMetaDb
+            | StorageCategory::TreeCache
+            | StorageCategory::Dsh => {
+                actual.parent().map(Path::to_path_buf).unwrap_or(actual)
+            },
+            _ => actual,
+        }
+    }
+
     /// 由 locator 解析出全部路径。
     ///
     /// 规则：先取 unified 根（`selection.root` 或 `defaults.root`），逐字段按该根拼接；
@@ -251,6 +273,61 @@ mod tests {
         assert_eq!(p.tree_cache_db, PathBuf::from("/xtree/tree-cache.db"));
         // dir() 与字段保持一致。
         assert_eq!(p.dir(StorageCategory::Database), PathBuf::from("/xdb/data.db"));
+    }
+
+    /// 事项 9 根因锁定：状态回报（`override_dir`）→ patch 回传 → `resolve`
+    /// 必须 round-trip 恒等——未修改分类不得产生 `data.db/data.db` 假路径。
+    /// 统一从 unified 布局与 per-category 覆盖布局两个方向验证全部 11 类。
+    #[test]
+    fn override_dir_round_trips_through_resolve() {
+        // 方向 1：unified 布局（无覆盖）→ override_dir → per_category resolve 恒等。
+        let unified = StoragePaths::from_locator(&StorageLocator::default(), &defaults());
+        for category in StorageCategory::ALL {
+            let mut loc = StorageLocator::default();
+            loc.selection.mode = StorageMode::PerCategory;
+            loc.selection.categories.insert(category, unified.override_dir(category));
+            let roundtrip = StoragePaths::from_locator(&loc, &defaults());
+            assert_eq!(
+                roundtrip.dir(category),
+                unified.dir(category),
+                "unified round-trip mismatch for {}",
+                category.key()
+            );
+        }
+
+        // 方向 2：per-category 覆盖布局 → override_dir → 再 resolve 恒等。
+        let mut loc = StorageLocator::default();
+        loc.selection.mode = StorageMode::PerCategory;
+        loc.selection.root = Some(PathBuf::from("D:/adl"));
+        loc.selection.categories.insert(StorageCategory::Database, PathBuf::from("/xdb"));
+        loc.selection.categories.insert(StorageCategory::DownloadsDb, PathBuf::from("/xdl"));
+        loc.selection.categories.insert(StorageCategory::SiteMetaDb, PathBuf::from("/xmeta"));
+        loc.selection.categories.insert(StorageCategory::TreeCache, PathBuf::from("/xtree"));
+        loc.selection.categories.insert(StorageCategory::Dsh, PathBuf::from("E:/dsh"));
+        loc.selection.categories.insert(StorageCategory::Clipboard, PathBuf::from("E:/clip"));
+        loc.selection
+            .categories
+            .insert(StorageCategory::DownloadsDefault, PathBuf::from("E:/dl"));
+        let first = StoragePaths::from_locator(&loc, &defaults());
+        let mut loc2 = StorageLocator::default();
+        loc2.selection.mode = StorageMode::PerCategory;
+        for category in StorageCategory::ALL {
+            loc2.selection
+                .categories
+                .insert(category, first.override_dir(category));
+        }
+        let second = StoragePaths::from_locator(&loc2, &defaults());
+        for category in StorageCategory::ALL {
+            assert_eq!(
+                second.dir(category),
+                first.dir(category),
+                "per-category round-trip mismatch for {}",
+                category.key()
+            );
+        }
+        // 关键防回归：DB 类不得出现双重嵌套（data.db/data.db）。
+        assert!(!second.data_db.to_string_lossy().contains("data.db/data.db"));
+        assert_eq!(second.dsh_versions_dir, PathBuf::from("E:/dsh/dsh-versions"));
     }
 
     #[test]

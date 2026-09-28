@@ -92,7 +92,7 @@ export const appInfo: AppInfo = {
   appName: "AI Digital Life",
   version: "0.1.0",
   config: {
-    language: "zh-CN" as const,
+    language: "system" as const,
     themeMode: "system" as const,
     resolvedTheme: "light" as const,
     logLevel: "info" as const,

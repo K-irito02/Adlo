@@ -488,6 +488,46 @@ describe('StorageSettings', () => {
     ).toBeTruthy();
   });
 
+  it('renders the pending/report block as the first block above the core paths block', () => {
+    // 事项 11a：pending 提示 + 上次迁移报告同块上移为第一块，块头带主标题与
+    // 装饰性禁用恢复按钮；取消按钮挂专属 class（radius-sm，事项 11b）。
+    setCachedStorageStatus({
+      ...status,
+      defaultRoot: status.root,
+      pending: { failed: false, error: null },
+      lastReport: {
+        at: 1758974400000,
+        ok: true,
+        switched: true,
+        movedFiles: 3,
+        movedBytes: 344064,
+        removedDirs: [],
+        keptDirs: [],
+        retained: false,
+        error: null,
+      },
+    });
+    renderSettings();
+    // 块头主标题（mockT 原样返回 key）与装饰性禁用恢复按钮。
+    expect(screen.getByText('storagePendingTaskTitle')).toBeTruthy();
+    const pendingReset = document.querySelector('[data-testid="storage-pending-reset"]');
+    expect(pendingReset).not.toBeNull();
+    expect((pendingReset as HTMLButtonElement).disabled).toBe(true);
+    // pending 提示与上次迁移报告同块上移。
+    const card = screen.getByTestId('storage-pending-card');
+    expect(card.textContent).toContain('storagePendingBanner');
+    expect(card.textContent).toContain('storageReportTitle');
+    // 相对断言（后续加卡不脆断）：该块在核心数据路径之上，为第一块。
+    const coreTitle = screen.getByText('storageCorePathsTitle');
+    expect(
+      card.compareDocumentPosition(coreTitle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      'pending card should precede the core paths block',
+    ).toBeTruthy();
+    // 取消待迁移按钮使用专属 class（radius-sm，事项 11b）。
+    const cancel = screen.getByText('storageCancelPending');
+    expect(cancel.className).toContain('adl-settings-pending__cancel');
+  });
+
   it('opens the storage group reset dialog in one step with change list and migrate actions', async () => {
     // 全成功路径：预算/下载/开关写 mock 成功，否则 M5-R 失败保持开框语义会让关框断言落空。
     const prevUpdatePreferences = useAppStore.getState().updatePreferences;
@@ -522,6 +562,7 @@ describe('StorageSettings', () => {
           setPaths,
           cancelPending: vi.fn(),
           restartApp: vi.fn(),
+          // 事项 10 后清单逐块过滤：四项都需真实非默认才全部出现 → 树播种非默认。
           getTreeCacheStats: vi.fn().mockResolvedValue({
             ok: true,
             data: {
@@ -529,17 +570,18 @@ describe('StorageSettings', () => {
               totalBytes: 0,
               oldestCapturedAt: null,
               newestCapturedAt: null,
-              enabled: true,
-              ttlMinutes: 15,
+              enabled: false,
+              ttlMinutes: 30,
             },
           }),
           setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
           clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
         },
       };
-      // 真 store 默认即 auto_migrate 关闭 → off 版下载条目。
+      // 真 store 默认即 auto_migrate 关闭 → off 版下载条目；显式未加载态（非默认）。
       useAppStore.setState({
         downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+        downloadSettingsLoaded: false,
       });
       renderSettings();
       await waitFor(() => {
@@ -838,7 +880,8 @@ describe('StorageSettings', () => {
       ok: true,
       data: {
         ok: false,
-        errors: ['target unwritable'],
+        // 事项 9：结构化 issue；根级问题 category=null → 无分类前缀，原文回退展示。
+        errors: [{ category: null, message: 'target unwritable' }],
         warnings: [],
         totalFiles: 0,
         totalBytes: 0,
@@ -1387,6 +1430,73 @@ describe('StorageSettings', () => {
     await waitFor(() => {
       expect(preflight).toHaveBeenCalledTimes(1);
     });
+    // 本用例走 unified 流程：patch 带 rootDraft 草稿（既有语义）。
+    const sentPatch = preflight.mock.calls[0][0] as { mode: string; root: string | null };
+    expect(sentPatch.mode).toBe('unified');
+    expect(sentPatch.root).toBe('D:/new-root');
+  });
+
+  it('per-category apply sends current applied root in patch (9: no root fallback)', async () => {
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: true,
+        errors: [],
+        warnings: [],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
+        scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+        preflight,
+        setPaths: vi.fn(),
+        cancelPending: vi.fn(),
+        restartApp: vi.fn(),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+        setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+        clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      },
+    };
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    // 切到每类独立 → 改首个分类路径 → 应用。
+    fireEvent.click(screen.getByRole('radio', { name: 'storageModePerCategory' }));
+    const pathInputs = screen.getAllByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(pathInputs[0], { target: { value: 'D:/moved/category' } });
+    fireEvent.click(
+      within(screen.getByTestId('storage-dirtybar')).getByRole('button', {
+        name: 'storageApply',
+      }),
+    );
+    await waitFor(() => {
+      expect(preflight).toHaveBeenCalledTimes(1);
+    });
+    // 事项 9：per_category patch 带当前已应用 root（status.root）而非 null——
+    // null 会让 to.root 回落默认根（root-inside「互相包含」误报 + locator 自定义根被静默重置）。
+    const sentPatch = preflight.mock.calls[0][0] as {
+      mode: string;
+      root: string | null;
+      categories: Record<string, string>;
+    };
+    expect(sentPatch.mode).toBe('per_category');
+    expect(sentPatch.root).toBe(status.root);
+    expect(sentPatch.categories.database).toBe('D:/moved/category');
   });
 
   it('reverts unsaved path changes via the revert button and clears the dirty bar', async () => {
@@ -1943,6 +2053,535 @@ describe('StorageSettings', () => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
     expect(screen.queryByText('storageStatusLoadFailed')).toBeNull();
+  });
+});
+
+describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default group reset)', () => {
+  /** 核心已默认态：root === defaultRoot（组恢复跳过核心预检的前置条件）。 */
+  const statusAtDefault = { ...status, root: status.defaultRoot };
+  const defaultTreeStats = {
+    ok: true,
+    data: {
+      workspaceCount: 0,
+      totalBytes: 0,
+      oldestCapturedAt: null,
+      newestCapturedAt: null,
+      enabled: true,
+      ttlMinutes: 15,
+    },
+  };
+
+  function mockStorageBridge(
+    opts: {
+      statusData?: typeof status;
+      preflight?: ReturnType<typeof vi.fn>;
+      treeResult?: typeof defaultTreeStats;
+    } = {},
+  ) {
+    const bridge = {
+      getStatus: vi.fn().mockResolvedValue({ ok: true, data: opts.statusData ?? status }),
+      scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      preflight: opts.preflight ?? vi.fn(),
+      setPaths: vi.fn(),
+      cancelPending: vi.fn(),
+      restartApp: vi.fn(),
+      getTreeCacheStats: vi.fn().mockResolvedValue(opts.treeResult ?? defaultTreeStats),
+      setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+    };
+    (window as unknown as { digitalLife: unknown }).digitalLife = { storage: bridge };
+    return bridge;
+  }
+
+  it('switching the path mode alone is not an edit (no dirty bar); editing a path is', async () => {
+    mockStorageBridge();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+    // 决策 2：单选从「统一根」切到「每类独立」——不落盘的模式切换不算修改。
+    fireEvent.click(screen.getByRole('radio', { name: 'storageModePerCategory' }));
+    expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+    // 改具体路径值才出现粘性提交条（事项 8：分类行逐键提交——change 即出条，
+    // 无需等失焦；与统一根输入行为一致）。
+    const pathInputs = screen.getAllByRole('textbox', { name: 'storageManualInput' });
+    expect(pathInputs.length).toBeGreaterThan(0);
+    fireEvent.change(pathInputs[0], { target: { value: 'D:/moved/category' } });
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+    // 逐键提交后失焦不重复提交（draft === value 时 commit 为 no-op）。
+    fireEvent.blur(pathInputs[0]);
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+  });
+
+  it('group reset with core at default skips preflight and renders the single-confirm dialog (5/6-F1)', async () => {
+    // preflight 桩永不 settle：若被调用，开框会挂住 → 断言未调用即可锁定跳过语义。
+    const preflight = vi.fn();
+    const bridge = mockStorageBridge({ statusData: statusAtDefault, preflight });
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    try {
+      useAppStore.setState({
+        updatePreferences: vi.fn(async () => true),
+        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      // 事项 5：核心已默认 → 不预检（否则 identical 英文错误 + 双确认键全禁）。
+      expect(preflight).not.toHaveBeenCalled();
+      // 事项 6-F1：无核心清单项 / 迁移摘要 / retain 复选框 / 预检错误区。
+      expect(within(dialog).queryByText('storageGroupResetItemCore')).toBeNull();
+      expect(within(dialog).queryByText('storageMigrateDialogSummary')).toBeNull();
+      expect(within(dialog).queryByRole('checkbox', { name: 'storageRetainSource' })).toBeNull();
+      expect(within(dialog).queryByText('storagePreflightErrors')).toBeNull();
+      // 事项 10：树缓存已是默认值（fixture enabled+15min）→ 树项整项不出现；
+      // 预算（appInfo 未加载→非默认）与下载（未加载→非默认）仍列示。
+      expect(within(dialog).queryByText('storageGroupResetItemTree')).toBeNull();
+      expect(within(dialog).getByText('storageGroupResetItemBudget')).toBeTruthy();
+      expect(within(dialog).getByText('storageGroupResetItemDownloadMigrateOff')).toBeTruthy();
+      // footer 退化为 取消 + 单一确认键（无迁移时机双键）。
+      expect(within(dialog).getByRole('button', { name: 'storageGroupResetConfirm' })).toBeTruthy();
+      expect(within(dialog).queryByRole('button', { name: 'storageMigrateLater' })).toBeNull();
+      expect(within(dialog).queryByRole('button', { name: 'storageMigrateNow' })).toBeNull();
+      // 事项 5：开框全程不清草稿 → 无脏条残留；取消后同样无残留。
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+      expect(bridge.setPaths).not.toHaveBeenCalled();
+    } finally {
+      useAppStore.setState({
+        updatePreferences: prevUpdatePreferences,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+      });
+    }
+  });
+
+  it('group reset confirm with core at default applies the other blocks and skips setPaths (6-F1)', async () => {
+    const bridge = mockStorageBridge({ statusData: statusAtDefault });
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    const prevShowToast = useAppStore.getState().showToast;
+    const showToast = vi.fn();
+    try {
+      useAppStore.setState({
+        updatePreferences: vi.fn(async () => true),
+        changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
+        showToast,
+        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      });
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageGroupResetConfirm' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      // 核心跳过：不写路径补丁；成功 toast 用组恢复完成文案（非待迁移横幅）。
+      expect(bridge.setPaths).not.toHaveBeenCalled();
+      expect(showToast).toHaveBeenCalledWith('settingsResetComplete', 'success');
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+    } finally {
+      useAppStore.setState({
+        updatePreferences: prevUpdatePreferences,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+        showToast: prevShowToast,
+      });
+    }
+  });
+
+  it('localizes structured preflight issues with category prefix and dedupes (9)', async () => {
+    // 事项 9：结构化 issue → ［分类名］前缀 + 同（分类,文案）去重 + 未知消息原文回退。
+    const prefixT = new Proxy({} as Record<string, string>, {
+      get: (_, key) => {
+        if (key === 'storagePreflightIssueWithCategory') {
+          return '［{category}］{message}';
+        }
+        if (key === 'storagePreflightIdentical') {
+          return 'LOCALIZED_IDENTICAL';
+        }
+        if (key === 'storageCategoryDatabase') {
+          return 'DB';
+        }
+        if (key === 'storageCategorySiteMetaDb') {
+          return 'META';
+        }
+        if (key === 'storageCategoryTreeCache') {
+          return 'TREE';
+        }
+        if (key === 'storagePreflightNotWritable') {
+          return 'LOCALIZED_NOT_WRITABLE';
+        }
+        return typeof key === 'string' ? key : '';
+      },
+    }) as unknown as CopyDict;
+    const preflight = vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        ok: false,
+        errors: [
+          { category: 'database', message: 'source and target are identical' },
+          // 同分类同文案重复 → 去重后只留一条。
+          { category: 'database', message: 'source and target are identical' },
+          // 不同分类同文案 → 分类名不同 → 不去重，两条都在。
+          { category: 'site_meta_db', message: 'source and target are identical' },
+          // 根级未知消息 → 无前缀、原文回退。
+          { category: null, message: 'raw unknown backend message' },
+        ],
+        warnings: [{ category: 'tree_cache', message: 'path is not writable' }],
+        totalFiles: 0,
+        totalBytes: 0,
+        freeBytes: 0,
+      },
+    });
+    mockStorageBridge({ preflight });
+    renderSettings(prefixT);
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    act(() => {
+      useAppStore.getState().requestStorageGroupReset();
+    });
+    const dialog = await screen.findByRole('dialog');
+    // 分类名前缀 + 去重：同分类重复只剩一条；不同分类各一条（前缀区分）。
+    expect(within(dialog).getAllByText('［DB］LOCALIZED_IDENTICAL')).toHaveLength(1);
+    expect(within(dialog).getAllByText('［META］LOCALIZED_IDENTICAL')).toHaveLength(1);
+    // 根级未知消息：无前缀、原文展示。
+    expect(within(dialog).getByText('raw unknown backend message')).toBeTruthy();
+    // 警告同样带分类名前缀。
+    expect(within(dialog).getByText('［TREE］LOCALIZED_NOT_WRITABLE')).toBeTruthy();
+    // 英文原文不再出现；预检失败仍禁用迁移动作。
+    expect(within(dialog).queryByText('source and target are identical')).toBeNull();
+    expect(within(dialog).getByRole('button', { name: 'storageMigrateLater' })).toBeDisabled();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+  });
+
+  it('keeps the sidebar aggregate after unmount instead of nulling it (7)', async () => {
+    mockStorageBridge();
+    const prev = useAppStore.getState().storageBlocksAtDefault;
+    try {
+      const { unmount } = renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      await waitFor(() => {
+        expect(useAppStore.getState().storageBlocksAtDefault).not.toBeNull();
+      });
+      const before = useAppStore.getState().storageBlocksAtDefault;
+      expect(typeof before).toBe('boolean');
+      unmount();
+      // 卸载不再置 null：切出存储组保持最近一次判定。
+      expect(useAppStore.getState().storageBlocksAtDefault).toBe(before);
+    } finally {
+      useAppStore.setState({ storageBlocksAtDefault: prev });
+    }
+  });
+
+  it('all four storage blocks already default → no dialog, info toast instead (10)', async () => {
+    mockStorageBridge({ statusData: statusAtDefault });
+    const showToast = vi.fn();
+    const prevShowToast = useAppStore.getState().showToast;
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    try {
+      useAppStore.setState({ showToast });
+      // 四块全默认：核心 root===defaultRoot、树 enabled+15、预算默认、下载已加载且系统默认。
+      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreDownloadSettings('', false);
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      // 不开对话框（不出空白清单），直接提示无需恢复。
+      await waitFor(() => {
+        expect(showToast).toHaveBeenCalledWith('storageGroupResetAllDefault', 'success');
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+    } finally {
+      useAppStore.setState({
+        showToast: prevShowToast,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+    }
+  });
+
+  it('group dialog lists only really non-default blocks and picks truthful tree copy (10)', async () => {
+    // 树 disabled+TTL=30 → 需"重新开启+恢复时长"（full 变体）；预算/下载默认 → 整项不出现。
+    mockStorageBridge({
+      statusData: statusAtDefault,
+      treeResult: {
+        ok: true,
+        data: {
+          workspaceCount: 0,
+          totalBytes: 0,
+          oldestCapturedAt: null,
+          newestCapturedAt: null,
+          enabled: false,
+          ttlMinutes: 30,
+        },
+      },
+    });
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    try {
+      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreDownloadSettings('', false);
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      // 树非默认 → 出现（且文案与真实形态一致）；核心/预算/下载默认 → 整项不出现。
+      expect(within(dialog).getByText('storageGroupResetItemTree')).toBeTruthy();
+      expect(within(dialog).queryByText('storageGroupResetItemCore')).toBeNull();
+      expect(within(dialog).queryByText('storageGroupResetItemBudget')).toBeNull();
+      expect(within(dialog).queryByText('storageGroupResetItemDownloadMigrateOff')).toBeNull();
+      expect(within(dialog).queryByText('storageGroupResetItemDownloadMigrateOn')).toBeNull();
+      expect(within(dialog).getByRole('button', { name: 'storageGroupResetConfirm' })).toBeTruthy();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+    } finally {
+      useAppStore.setState({
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+    }
+  });
+
+  it('tree copy matches the real pending change: reenable-only / ttl-only variants (10)', async () => {
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const openAndAssert = async (treeResult: typeof defaultTreeStats, expectedKey: string) => {
+      mockStorageBridge({ statusData: statusAtDefault, treeResult });
+      const view = renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(expectedKey)).toBeTruthy();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+      // 连开两次前先卸载，避免两棵组件树叠加（分类行数量翻倍）。
+      view.unmount();
+    };
+    try {
+      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreDownloadSettings('', false);
+      // 仅需重新开启（disabled + TTL 已是 15）→ reenable 变体。
+      await openAndAssert(
+        {
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: false,
+            ttlMinutes: 15,
+          },
+        },
+        'storageGroupResetItemTreeReenable',
+      );
+      // 仅需恢复保留时长（enabled + TTL≠15）→ ttl 变体。
+      await openAndAssert(
+        {
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 60,
+          },
+        },
+        'storageGroupResetItemTreeTtl',
+      );
+    } finally {
+      useAppStore.setState({
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+    }
+  });
+
+  it('download path already default but migrate switch on → switch-only copy (10)', async () => {
+    mockStorageBridge({ statusData: statusAtDefault });
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    try {
+      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      // 路径已是系统默认，仅迁移开关非默认 → 只提示开关恢复，不提路径。
+      setStoreDownloadSettings('', true);
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('storageGroupResetItemDownloadSwitchOnly')).toBeTruthy();
+      expect(within(dialog).queryByText('storageGroupResetItemDownloadMigrateOn')).toBeNull();
+      expect(within(dialog).queryByText('storageGroupResetItemDownloadMigrateOff')).toBeNull();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+    } finally {
+      useAppStore.setState({
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+    }
+  });
+
+  it('group apply skips legs of already-default blocks (execution mirrors the list) (10)', async () => {
+    // 核心/树/预算/下载全默认 → 开框即被空态拦截；这里核心非默认（唯一待恢复腿），
+    // 其余三块默认 → 确认后仅 setPaths 执行，预算/树/下载写全部跳过。
+    const bridge = mockStorageBridge({
+      preflight: vi.fn().mockResolvedValue({
+        ok: true,
+        data: { ok: true, errors: [], warnings: [], totalFiles: 0, totalBytes: 0, freeBytes: 0 },
+      }),
+      treeResult: {
+        ok: true,
+        data: {
+          workspaceCount: 0,
+          totalBytes: 0,
+          oldestCapturedAt: null,
+          newestCapturedAt: null,
+          enabled: true,
+          ttlMinutes: 15,
+        },
+      },
+    });
+    bridge.setPaths.mockResolvedValue({
+      ok: true,
+      data: { preflight: { ok: true }, restartRequired: false },
+    });
+    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+    const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
+    const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const updatePreferences = vi.fn(async () => true);
+    const changeDownloadPath = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    const updateDownloadSettings = vi.fn(async () => ({ ok: true as const, data: undefined }));
+    try {
+      useAppStore.setState({
+        updatePreferences,
+        changeDownloadPath,
+        updateDownloadSettings,
+      });
+      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreDownloadSettings('', false);
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      act(() => {
+        useAppStore.getState().requestStorageGroupReset();
+      });
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+      await waitFor(() => {
+        expect(bridge.setPaths).toHaveBeenCalledTimes(1);
+      });
+      // 已默认的三块不执行恢复腿（执行与清单显示同源）。
+      expect(updatePreferences).not.toHaveBeenCalled();
+      expect(bridge.setTreeCacheOptions).not.toHaveBeenCalled();
+      expect(changeDownloadPath).not.toHaveBeenCalled();
+      expect(updateDownloadSettings).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+    } finally {
+      useAppStore.setState({
+        updatePreferences: prevUpdatePreferences,
+        changeDownloadPath: prevChangeDownloadPath,
+        updateDownloadSettings: prevUpdateDownloadSettings,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+    }
+  });
+
+  it('block-level download confirm uses switch-only copy when path is already default (10)', async () => {
+    mockStorageBridge();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    try {
+      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      // 路径系统默认 + 迁移开关开 → 块按钮可用（非默认），确认框只提示关开关。
+      setStoreDownloadSettings('', true);
+      renderSettings();
+      await waitFor(() => {
+        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+      });
+      fireEvent.click(screen.getByTestId('download-path-reset'));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText('storageDownloadResetConfirmSwitchOnly')).toBeTruthy();
+      expect(within(dialog).queryByText('storageDownloadResetConfirmMigrateOn')).toBeNull();
+      fireEvent.click(within(dialog).getByRole('button', { name: 'storageCancel' }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+    } finally {
+      useAppStore.setState({
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+    }
   });
 });
 

@@ -17,6 +17,8 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
     type: 'select',
     value: config.language,
     options: [
+      // 'system' = 跟随系统语言（默认；产品决策 2026-09-27），选定具体语言后成为个人默认基线。
+      { value: 'system', label: t.languageSystem },
       { value: 'zh-CN', label: t.languageChinese },
       { value: 'en-US', label: 'English' },
     ],

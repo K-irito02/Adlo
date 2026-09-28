@@ -14,6 +14,7 @@ import { useEditorOptions } from '../hooks';
 import { detectEditorLanguage } from '@utils/workspacePaths';
 import { DiffViewer } from '@features/diff-viewer';
 import { useTCopy } from '@i18n/useTCopy';
+import { resolveAppLanguage } from '@i18n/resolveLanguage';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 type PatchReviewSectionProps = Pick<
@@ -105,7 +106,7 @@ const PatchReviewSection = React.memo(function PatchReviewSection(props: PatchRe
   }, [activeFilePatchFromSet]);
 
   const changePreviewTheme = useResolvedTheme();
-  const changePreviewLocale = appInfo?.config.language ?? 'zh-CN';
+  const changePreviewLocale = resolveAppLanguage(appInfo?.config.language);
 
   const diffExtensions = useMemo(() => [], []);
   const validation = latestPatchApplication?.validation;

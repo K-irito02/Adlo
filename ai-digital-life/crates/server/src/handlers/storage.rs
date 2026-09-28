@@ -97,12 +97,21 @@ pub struct ForeignScanDto {
     pub foreign_files: Vec<String>,
 }
 
+/// 单条预检问题（结构化，事项 9：携带分类供前端本地化展示 + 去重）。
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PreflightIssueDto {
+    /// 分类 key（与前端 `CATEGORY_COPY` 键一致）；`None` = 根级问题（如磁盘空间、root 检查）。
+    pub category: Option<String>,
+    pub message: String,
+}
+
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PreflightDto {
     pub ok: bool,
-    pub errors: Vec<String>,
-    pub warnings: Vec<String>,
+    pub errors: Vec<PreflightIssueDto>,
+    pub warnings: Vec<PreflightIssueDto>,
     pub total_files: u64,
     pub total_bytes: u64,
     pub free_bytes: u64,
@@ -198,29 +207,21 @@ fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
     st::StorageCategory::ALL
         .into_iter()
         .map(|c| {
-            let path = svc.paths().dir(c);
-            let (bytes, files) = category_usage(c, &path);
+            // path 报覆盖值语义（`override_dir`，round-trip 恒等，事项 9 根因修复）；
+            // 占用统计与存在性用实际解析路径 `dir(c)`（DB 类是文件、dsh 是子目录）。
+            let actual = paths.dir(c);
+            let (bytes, files) = st::category_usage(c, &actual);
             StorageCategoryStatus {
                 key: c.key().to_string(),
-                path: path.to_string_lossy().to_string(),
+                path: paths.override_dir(c).to_string_lossy().to_string(),
                 movable: !matches!(c, st::StorageCategory::DownloadsDefault),
-                exists: path.exists(),
+                exists: actual.exists(),
                 bytes,
                 files,
                 foreign_files: foreign_for(c),
             }
         })
         .collect()
-}
-
-/// 某分类的占用统计。`downloads_default` 只是设置值（用户文件落点，本应用不拥有其中
-/// 任何文件，`owns_file` 恒为 false），直接报 0 而不遍历用户整个 Downloads 目录。
-fn category_usage(category: st::StorageCategory, path: &std::path::Path) -> (u64, u64) {
-    if matches!(category, st::StorageCategory::DownloadsDefault) {
-        return (0, 0);
-    }
-    // 有界统计（防超大目录/循环挂载卡死状态查询），见 adl_kernel::storage。
-    st::dir_usage_limited(path)
 }
 
 fn report_dto(r: &st::MigrationReport) -> StorageReportDto {
@@ -258,9 +259,13 @@ fn preflight_dto(state: &ServerState, patch: &StoragePathPatch) -> Result<Prefli
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
     for issue in &report.issues {
+        let dto = PreflightIssueDto {
+            category: issue.category.map(|c| c.key().to_string()),
+            message: issue.message.clone(),
+        };
         match issue.severity {
-            st::Severity::Error => errors.push(issue.message.clone()),
-            st::Severity::Warning => warnings.push(issue.message.clone()),
+            st::Severity::Error => errors.push(dto),
+            st::Severity::Warning => warnings.push(dto),
         }
     }
     Ok(PreflightDto {
@@ -588,6 +593,21 @@ mod tests {
     }
 
     #[test]
+    fn category_status_counts_db_companions() {
+        let (svc, dir) = temp_storage("db-companions");
+        let db = svc.paths().dir(st::StorageCategory::Database);
+        std::fs::create_dir_all(db.parent().unwrap()).unwrap();
+        std::fs::write(&db, [0u8; 7]).unwrap();
+        let s = db.to_string_lossy().to_string();
+        std::fs::write(format!("{s}-wal"), [0u8; 5]).unwrap();
+        // 状态统计与复制口径一致：主库 + 既有 wal 均计入（事项 11c）。
+        let statuses = category_statuses(&svc);
+        let database = statuses.iter().find(|s| s.key == "database").unwrap();
+        assert_eq!((database.bytes, database.files), (12, 2));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
     fn dir_usage_counts_a_file_and_recurses_a_directory() {
         let (_svc, dir) = temp_storage("usage");
         let file = dir.join("a.bin");
@@ -607,9 +627,9 @@ mod tests {
         let (_svc, dir) = temp_storage("dl-usage");
         std::fs::write(dir.join("user-file.bin"), [0u8; 13]).unwrap();
         // 即使目录内有用户文件也不遍历：设置值路径恒为 0。
-        assert_eq!(category_usage(st::StorageCategory::DownloadsDefault, &dir), (0, 0));
+        assert_eq!(st::category_usage(st::StorageCategory::DownloadsDefault, &dir), (0, 0));
         // 其它分类仍正常统计，证明只是该分类被短路。
-        assert_eq!(category_usage(st::StorageCategory::Config, &dir), (13, 1));
+        assert_eq!(st::category_usage(st::StorageCategory::Config, &dir), (13, 1));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

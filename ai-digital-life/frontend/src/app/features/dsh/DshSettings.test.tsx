@@ -456,7 +456,7 @@ describe('DshSettings', () => {
     );
   });
 
-  it('两块全默认写聚合信号 dshBlocksAtDefault，卸载清 null', async () => {
+  it('两块全默认写聚合信号 dshBlocksAtDefault，卸载保留', async () => {
     useAppStore.setState({
       sourceStatus: makeStatus({
         source_mode: 'auto',
@@ -470,7 +470,9 @@ describe('DshSettings', () => {
       expect(useAppStore.getState().dshBlocksAtDefault).toBe(true);
     });
     unmount();
-    expect(useAppStore.getState().dshBlocksAtDefault).toBeNull();
+    // 卸载不清（事项 12d）：保留最后已知聚合供侧边栏禁用判定，
+    // 切出后由 SettingsPanel 未激活校正刷新。
+    expect(useAppStore.getState().dshBlocksAtDefault).toBe(true);
   });
 
   it('未全默认（代理非 auto）时聚合信号为 false', async () => {

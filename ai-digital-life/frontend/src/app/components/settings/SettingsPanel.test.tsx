@@ -5,18 +5,19 @@ import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { SettingsPanel } from './SettingsPanel';
-import { resetStorageSettingsCache } from '../../features/storage-settings/storageStatusCache';
+import {
+  resetStorageSettingsCache,
+  setCachedStorageStatus,
+  setCachedTreeStats,
+} from '../../features/storage-settings/storageStatusCache';
 import {
   DEFAULT_DEBUG_LOG_MODE,
   DEFAULT_FONTS,
   DEFAULT_KEYBINDS,
-  DEFAULT_LANGUAGE,
   DEFAULT_LOG_LEVEL,
   DEFAULT_MAX_CONCURRENT_WORKSPACES,
   DEFAULT_TERMINAL_LOG_MODE,
-  DEFAULT_THEME_MODE,
   DEFAULT_WORKSPACE_DEFERRED_IDS,
-  DEFAULT_WORKSPACE_NATURAL_ORDER,
   DEFAULT_WORKSPACE_PRIORITY_IDS,
   getDefaultPreferences,
 } from '../../../shared/defaultPreferences';
@@ -262,10 +263,9 @@ describe('SettingsPanel group reset', () => {
     await waitFor(() => {
       expect(updatePreferences).toHaveBeenCalledTimes(1);
     });
-    // 组级 patch 全值断言：只含 general 组 6 项（不含 keybinds 等全局项），fonts 为全量默认。
+    // 组级 patch 全值断言：只含 general 组 4 项（不含 keybinds 等全局项），fonts 为
+    // 全量默认；语言/主题是用户个人基线，组级恢复不改动（产品决策 2026-09-27）。
     expect(updatePreferences).toHaveBeenCalledWith({
-      language: DEFAULT_LANGUAGE,
-      themeMode: DEFAULT_THEME_MODE,
       logLevel: DEFAULT_LOG_LEVEL,
       terminalLogMode: DEFAULT_TERMINAL_LOG_MODE,
       debugLogMode: DEFAULT_DEBUG_LOG_MODE,
@@ -340,12 +340,11 @@ describe('SettingsPanel group reset', () => {
     await waitFor(() => {
       expect(updatePreferences).toHaveBeenCalledTimes(1);
     });
-    // 工作区组 patch 全值断言：仅 4 个工作区字段，均为默认值。
+    // 工作区组 patch 全值断言：3 个工作区字段均为默认值（加载顺序不参与，事项 12b）。
     expect(updatePreferences).toHaveBeenCalledWith({
       maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
       workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
       workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
-      workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
     });
     expect(showToast).toHaveBeenCalledWith('settingsResetComplete', 'success');
     expect(screen.queryByText('Reset settingsWorkspace?')).toBeNull();
@@ -432,6 +431,87 @@ describe('SettingsPanel group reset', () => {
       expect(navResetDisabled('Reset settingsBrowser all defaults')).toBe(false);
     } finally {
       useAppStore.setState({ browserBlocksAtDefault: prevAggregate, appInfo: prevAppInfo });
+    }
+  });
+
+  it('corrects the browser aggregate from the store when the browser group is inactive', () => {
+    // 挂起时长默认 + 下载设置全默认 → 聚合应从过期 false 校正为 true（事项 12c）。
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().browserBlocksAtDefault;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevDownloadLoaded = useAppStore.getState().downloadSettingsLoaded;
+    setNavConfig();
+    useAppStore.setState({
+      downloadSettings: { mode: 'auto', default_path: '', auto_migrate_on_path_change: false },
+      downloadSettingsLoaded: true,
+      browserBlocksAtDefault: false,
+    });
+    try {
+      renderPanel();
+      expect(useAppStore.getState().browserBlocksAtDefault).toBe(true);
+    } finally {
+      useAppStore.setState({
+        browserBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevDownloadLoaded,
+      });
+    }
+  });
+
+  it('keeps the browser aggregate untouched when the store cannot determine it', () => {
+    // 下载设置未回读 → 未知（null）不写，保留最后已知值（事项 12c）。
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().browserBlocksAtDefault;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevDownloadLoaded = useAppStore.getState().downloadSettingsLoaded;
+    setNavConfig();
+    useAppStore.setState({ downloadSettingsLoaded: false, browserBlocksAtDefault: false });
+    try {
+      renderPanel();
+      expect(useAppStore.getState().browserBlocksAtDefault).toBe(false);
+    } finally {
+      useAppStore.setState({
+        browserBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevDownloadLoaded,
+      });
+    }
+  });
+
+  it('corrects the dsh aggregate from the store when the dsh group is inactive', () => {
+    // 源=auto 且代理=auto → 聚合应从过期 false 校正为 true（事项 12d）。
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().dshBlocksAtDefault;
+    const prevSource = useAppStore.getState().sourceStatus;
+    setNavConfig();
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: null,
+        running: null,
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+      dshBlocksAtDefault: false,
+    });
+    try {
+      renderPanel();
+      expect(useAppStore.getState().dshBlocksAtDefault).toBe(true);
+    } finally {
+      useAppStore.setState({
+        dshBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        sourceStatus: prevSource,
+      });
     }
   });
 
@@ -652,9 +732,26 @@ describe('SettingsPanel group reset', () => {
 
   it('enables general nav reset when a pref differs', () => {
     setupStore();
-    setNavConfig({ language: 'en-US' });
+    // 判据取 general patch 内字段（语言/主题已剔除，见下一条负例）。
+    setNavConfig({ logLevel: 'debug' });
     renderPanel();
     expect(navResetDisabled('Reset settingsGeneral all defaults')).toBe(false);
+  });
+
+  it('general nav reset stays disabled when only language/theme differ (user baseline)', () => {
+    // 语言/主题是用户个人基线，不参与组默认性判定（产品决策 2026-09-27）。
+    setupStore();
+    setNavConfig({ language: 'en-US', themeMode: 'dark' });
+    renderPanel();
+    expect(navResetDisabled('Reset settingsGeneral all defaults')).toBe(true);
+  });
+
+  it('disables general nav reset when config fonts is null (Rust Option::None)', () => {
+    // config.fonts 为 null（Rust Option::None 序列化）与「空串」默认等价（事项 12a）。
+    setupStore();
+    setNavConfig({ fonts: null });
+    renderPanel();
+    expect(navResetDisabled('Reset settingsGeneral all defaults')).toBe(true);
   });
 
   it('disables workspace nav reset when prefs equal defaults', () => {
@@ -671,6 +768,14 @@ describe('SettingsPanel group reset', () => {
     expect(navResetDisabled('Reset settingsWorkspace all defaults')).toBe(false);
   });
 
+  it('workspace nav stays disabled when only the auto-synced natural order differs', () => {
+    // 加载顺序被自动同步自动写入（有工作区即非空），不参与组默认性判定（事项 12b）。
+    setupStore();
+    setNavConfig({ workspaceNaturalOrder: ['ws-auto'] });
+    renderPanel();
+    expect(navResetDisabled('Reset settingsWorkspace all defaults')).toBe(true);
+  });
+
   it('disables shortcuts nav reset when keybinds equal defaults', () => {
     setupStore();
     setNavConfig();
@@ -683,6 +788,96 @@ describe('SettingsPanel group reset', () => {
     setNavConfig({ keybinds: { ...DEFAULT_KEYBINDS, 'workspace.new': 'ctrl+alt+n' } });
     renderPanel();
     expect(navResetDisabled('Reset settingsShortcuts all defaults')).toBe(false);
+  });
+
+  // 事项 7：存储组从未进入时，聚合由预取缓存 + store 一次性初始化（不再停留 null）。
+  it('initializes the storage aggregate from the prefetch cache before the storage group is opened', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    setNavConfig();
+    setCachedStorageStatus({
+      mode: 'unified',
+      root: 'C:/AppDefaults/ai-digital-life',
+      defaultRoot: 'C:/AppDefaults/ai-digital-life',
+      locatorPath: 'C:/AppDefaults/ai-digital-life/storage-locator.json',
+      categories: [],
+      pending: null,
+      lastReport: null,
+    });
+    setCachedTreeStats({
+      workspaceCount: 0,
+      totalBytes: 0,
+      oldestCapturedAt: null,
+      newestCapturedAt: null,
+      enabled: true,
+      ttlMinutes: 15,
+    });
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      downloadSettingsLoaded: true,
+      storageBlocksAtDefault: null,
+    });
+    try {
+      renderPanel();
+      // 全默认快照（核心根=默认根、树默认、预算默认 setNavConfig 基线、下载空串）→ true。
+      expect(useAppStore.getState().storageBlocksAtDefault).toBe(true);
+      expect(navResetDisabled('Reset storageTitle all defaults')).toBe(true);
+    } finally {
+      useAppStore.setState({
+        storageBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+      resetStorageSettingsCache();
+    }
+  });
+
+  it('computes the cached storage aggregate as non-default when the core root differs (7)', () => {
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    setNavConfig();
+    setCachedStorageStatus({
+      mode: 'unified',
+      root: 'D:/custom-root',
+      defaultRoot: 'C:/AppDefaults/ai-digital-life',
+      locatorPath: 'C:/AppDefaults/ai-digital-life/storage-locator.json',
+      categories: [],
+      pending: null,
+      lastReport: null,
+    });
+    setCachedTreeStats({
+      workspaceCount: 0,
+      totalBytes: 0,
+      oldestCapturedAt: null,
+      newestCapturedAt: null,
+      enabled: true,
+      ttlMinutes: 15,
+    });
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      downloadSettingsLoaded: true,
+      storageBlocksAtDefault: null,
+    });
+    try {
+      renderPanel();
+      expect(useAppStore.getState().storageBlocksAtDefault).toBe(false);
+      expect(navResetDisabled('Reset storageTitle all defaults')).toBe(false);
+    } finally {
+      useAppStore.setState({
+        storageBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+      resetStorageSettingsCache();
+    }
   });
 });
 

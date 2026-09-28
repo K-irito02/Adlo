@@ -4,6 +4,7 @@ import { useAppStore } from '../stores/slicedStore';
 import { systemPrefersDark, type ResolvedTheme } from '../../design-system';
 import FlowFieldBackground from './flow-field-background';
 import LogoSvg from './LogoSvg';
+import { resolveAppLanguage } from '../i18n/resolveLanguage';
 
 function getThemeFromRoot(): ResolvedTheme {
   if (typeof document !== 'undefined') {
@@ -26,10 +27,8 @@ const THEME_COLORS: Record<
 export default function StartupOverlay() {
   const [theme, setTheme] = useState<ResolvedTheme>(getThemeFromRoot);
   const storeLanguage = useAppStore((s) => s.appInfo?.config.language);
-  const displayLang = useMemo(
-    () => storeLanguage ?? (typeof navigator !== 'undefined' ? navigator.language : 'en'),
-    [storeLanguage],
-  );
+  // Logo 变体按解析后的实际语言（'system' → 跟随系统解析）。
+  const displayLang = useMemo(() => resolveAppLanguage(storeLanguage), [storeLanguage]);
 
   // 移除 index.html 中的静态预加载覆盖层，让 React 覆盖层接管
   useLayoutEffect(() => {

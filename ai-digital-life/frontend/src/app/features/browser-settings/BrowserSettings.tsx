@@ -6,10 +6,8 @@ import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { BrowserPerformanceSettings } from './BrowserPerformanceSettings';
 import { BrowserDownloadSettings } from './BrowserDownloadSettings';
 import { DownloadPathBlock } from '../storage-settings/DownloadPathBlock';
-import {
-  isDownloadPathAtDefault,
-  useDownloadPathReset,
-} from '../storage-settings/downloadPathReset';
+import { useDownloadPathReset } from '../storage-settings/downloadPathReset';
+import { computeBrowserBlocksAtDefault } from './browserAtDefault';
 
 /**
  * 「浏览器」设置组容器：挂起时长 + 下载模式 + 下载路径三块。
@@ -32,18 +30,17 @@ export function BrowserSettings() {
   const browserGroupResetPending = useAppStore((s) => s.browserGroupResetPending);
   const consumeBrowserGroupReset = useAppStore((s) => s.consumeBrowserGroupReset);
 
-  // 三块 at-default 判定与各块恢复按钮同口径（fail-open：未知视为非默认）。
+  // 三块 at-default 判定与各块恢复按钮同口径（fail-open：未知视为非默认，
+  // 共享 helper 见 browserAtDefault，与 SettingsPanel 未激活校正同源，事项 12c）。
   const suspendMs = useAppStore((s) => s.appInfo?.config?.browserInactiveTabSuspendMs);
-  const suspendAtDefault = suspendMs !== undefined && suspendMs === DEFAULT_BROWSER_SUSPEND_MS;
-  const modeAtDefault = downloadSettingsLoaded && downloadSettings.mode === DEFAULT_DOWNLOAD_MODE;
-  const pathAtDefault = isDownloadPathAtDefault(downloadSettings, downloadSettingsLoaded);
-
   const setBrowserBlocksAtDefault = useAppStore((s) => s.setBrowserBlocksAtDefault);
   useEffect(() => {
-    setBrowserBlocksAtDefault(suspendAtDefault && modeAtDefault && pathAtDefault);
-  }, [suspendAtDefault, modeAtDefault, pathAtDefault, setBrowserBlocksAtDefault]);
-  // 卸载（切出浏览器组）清 null 回到「未知 → 启用」。transient，不持久化。
-  useEffect(() => () => setBrowserBlocksAtDefault(null), [setBrowserBlocksAtDefault]);
+    setBrowserBlocksAtDefault(
+      computeBrowserBlocksAtDefault(suspendMs, downloadSettings, downloadSettingsLoaded) ?? false,
+    );
+  }, [suspendMs, downloadSettings, downloadSettingsLoaded, setBrowserBlocksAtDefault]);
+  // 卸载不再清 null（事项 12c）：保留最后已知聚合供侧边栏禁用判定，
+  // 切出后由 SettingsPanel 未激活校正随 store 变化刷新。
 
   const [groupResetOpen, setGroupResetOpen] = useState(false);
   const [groupResetBusy, setGroupResetBusy] = useState(false);

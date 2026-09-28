@@ -16,7 +16,7 @@ import {
   type TreeCacheOptions,
   type TreeCacheStats,
 } from '@shared/ipc/storage';
-import { IconAlertTriangle, IconCircleHelp, IconResetDefaults } from '../../icons';
+import { IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
@@ -25,6 +25,14 @@ import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { DownloadPathBlock } from './DownloadPathBlock';
 import { isDownloadPathAtDefault, useDownloadPathReset } from './downloadPathReset';
+import { localizePreflightIssues } from './preflightCopy';
+import {
+  TREE_CACHE_DEFAULTS,
+  computeStorageBlocksAtDefault,
+  isBudgetAtDefault,
+  isCorePathsAtDefault,
+  isTreeCacheAtDefault,
+} from './storageAtDefault';
 import {
   getCachedStorageStatus,
   getCachedTreeStats,
@@ -60,9 +68,6 @@ const IMMOVABLE_COPY: Record<
 
 /** 树缓存 TTL 下拉选项（分钟；1440 即 1 天），与服务端合法范围 1..=1440 一致。 */
 const TREE_CACHE_TTL_OPTIONS = [5, 15, 60, 1440] as const;
-
-/** Rust 缺省（`TreeCacheOptions::default`）：stats 不可用时开关/TTL 的回退值。 */
-const TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
 /** TTL「自定义…」下拉哨兵值（不是持久化取值，仅界面编辑态）。 */
 const TREE_CACHE_TTL_CUSTOM = 'custom';
@@ -180,8 +185,20 @@ export function StorageSettings() {
   const [groupResetBusy, setGroupResetBusy] = useState(false);
   const [groupResetPreflight, setGroupResetPreflight] = useState<StoragePreflight | null>(null);
   const [groupResetRetain, setGroupResetRetain] = useState(false);
+  // 开框时对核心持久化状态的判定快照：核心已默认 → 对话框不展示核心清单项/
+  // 迁移摘要/retain 复选框，确认键也退化为单键，且确认时跳过核心 setPaths。
+  const [groupResetCoreNeeded, setGroupResetCoreNeeded] = useState(false);
+  // 组级开框快照（事项 10）：逐块真实非默认判定 + 文案变体，显示与执行同源。
+  // 'hidden' = 该块已是默认值，清单不出现且确认时跳过对应恢复腿；未知态 fail-open 显示。
+  const [groupResetBlocks, setGroupResetBlocks] = useState<{
+    tree: 'full' | 'reenable' | 'ttl' | 'hidden';
+    budget: boolean;
+    download: 'on' | 'off' | 'switchOnly' | 'hidden';
+  }>({ tree: 'hidden', budget: false, download: 'hidden' });
   const groupResetConfirmRef = useRef<HTMLButtonElement | null>(null);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
+  const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
+  const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
   /** 组级恢复待处理信号 + 消费动作（pending 布尔消除挂载播种吞信号的首跳竞态）。 */
   const storageGroupResetPending = useAppStore((s) => s.storageGroupResetPending);
   const consumeStorageGroupReset = useAppStore((s) => s.consumeStorageGroupReset);
@@ -545,14 +562,18 @@ export function StorageSettings() {
   const buildPatch = useCallback(
     (retainSource: boolean): StoragePathPatch => ({
       mode,
-      root: mode === 'unified' ? rootDraft.trim() : null,
+      // 事项 9：per_category 也带**当前已应用的 root**（非 rootDraft 草稿）——
+      // root:null 会让 to.root 回落默认根，(1) 自定义根与默认根嵌套时误报
+      // root-inside「互相包含」（旧截图第 5 条），(2) 迁移落盘会把 locator
+      // 自定义根静默重置为默认。带 status.root → to.root==from.root，两项同消。
+      root: mode === 'unified' ? rootDraft.trim() : (status?.root ?? ''),
       categories:
         mode === 'per_category'
           ? Object.fromEntries(Object.entries(categoryDrafts).map(([k, v]) => [k, v.trim()]))
           : {},
       retainSource,
     }),
-    [mode, rootDraft, categoryDrafts],
+    [mode, rootDraft, categoryDrafts, status],
   );
 
   const handleModeChange = useCallback(
@@ -664,8 +685,12 @@ export function StorageSettings() {
    *    闭包（pending/busy 皆 stale）导致的并发双预检（rev2 I4-N3）；
    * 2. 入口守卫：组框/单块迁移框/树确认/下载确认已开或任一 busy 时丢弃信号，
    *    杜绝并发预检/落盘与键盘路径多框叠加（H2/L2/rev2 I4-N4 半修残留 R4）；
-   * 3. 先对默认补丁预检，**成功后**才清草稿——预检失败不丢用户未保存编辑（M1）；
-   * 4. 桥缺席 toast 不开框。
+   * 3. 核心持久化状态未就绪先刷新；仍不可用 → toast 不开框（无法安全判定）；
+   * 4. **仅核心持久化非默认时**才预检 CORE_RESET_PATCH —— 核心已默认时 from==to，
+   *    后端报 "source and target are identical"（英文原文中英混排且禁用确认键，F1）；
+   *    且预检成功后清草稿会使 rootDraft='' 与 status.root 不等 → 误报脏、
+   *    取消后残留（E/事项 5）。因此核心已默认时不清草稿、不预检；
+   * 5. 桥缺席 toast 不开框。
    */
   const groupResetOpeningRef = useRef(false);
   const openGroupResetDialog = useCallback(async () => {
@@ -690,21 +715,78 @@ export function StorageSettings() {
     }
     setGroupResetBusy(true);
     try {
-      const result = await bridge.preflight(CORE_RESET_PATCH);
-      if (!result.ok) {
-        showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+      let current = status;
+      if (current === null) {
+        // refresh 失败自带 toast；此处直接放弃开框。
+        current = await refresh();
+        if (current === null) {
+          return;
+        }
+      }
+      const coreNeeded = current.mode !== 'unified' || current.root !== current.defaultRoot;
+
+      // 事项 10：逐块真实非默认快照（显示与执行同源）。读最新值——闭包里的 treeStats
+      // 可能因 await 陈旧，空则现拉一次；store 值直接 getState 取新鲜态。
+      // 已默认的块 → 'hidden'/false：清单不出现、确认时跳过对应恢复腿；未知 fail-open 显示。
+      let tree = treeStats;
+      if (tree === null && bridge.getTreeCacheStats) {
+        try {
+          const result = await bridge.getTreeCacheStats();
+          if (result.ok) {
+            tree = result.data;
+          }
+        } catch {
+          // 拉取失败按未知处理（fail-open 显示）。
+        }
+      }
+      const store = useAppStore.getState();
+      const budget = store.appInfo?.config?.terminalHistoryBudgetBytes;
+      const dl = store.downloadSettings;
+      const dlLoaded = store.downloadSettingsLoaded;
+      const treeBlock: 'full' | 'reenable' | 'ttl' | 'hidden' = isTreeCacheAtDefault(tree)
+        ? 'hidden'
+        : tree === null
+          ? 'full'
+          : tree.enabled
+            ? 'ttl'
+            : tree.ttlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes
+              ? 'reenable'
+              : 'full';
+      const budgetBlock = !isBudgetAtDefault(budget);
+      const downloadBlock: 'on' | 'off' | 'switchOnly' | 'hidden' = !isDownloadPathAtDefault(
+        dl,
+        dlLoaded,
+      )
+        ? dl.default_path !== ''
+          ? dl.auto_migrate_on_path_change
+            ? 'on'
+            : 'off'
+          : dl.auto_migrate_on_path_change
+            ? 'switchOnly'
+            : 'off'
+        : 'hidden';
+
+      // 全部四块均已是默认值：不出空白清单，直接提示（事项 10 空态）。
+      if (!coreNeeded && treeBlock === 'hidden' && !budgetBlock && downloadBlock === 'hidden') {
+        showToast(t.storageGroupResetAllDefault, 'success');
         return;
       }
-      // 预检通过后再把草稿清成恢复值（与单块恢复一致：取消也不回填），
-      // 同时快照下载迁移开关供本次组流程全程使用（M4-R：与对话框展示文案同源）。
-      // 恢复值是用户意图的草稿改写：置位防语言切换窗口的再验证回滚。
-      draftsDirtyRef.current = true;
-      setMode('unified');
-      setRootDraft('');
-      setCategoryDrafts({});
+
+      if (coreNeeded) {
+        const result = await bridge.preflight(CORE_RESET_PATCH);
+        if (!result.ok) {
+          showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
+          return;
+        }
+        setGroupResetPreflight(result.data);
+      } else {
+        setGroupResetPreflight(null);
+      }
+      // 快照下载迁移开关供本次组流程全程使用（M4-R：与对话框展示文案同源）。
       setGroupResetRetain(false);
-      groupMigrateAtOpenRef.current = downloadSettings.auto_migrate_on_path_change;
-      setGroupResetPreflight(result.data);
+      groupMigrateAtOpenRef.current = dl.auto_migrate_on_path_change;
+      setGroupResetCoreNeeded(coreNeeded);
+      setGroupResetBlocks({ tree: treeBlock, budget: budgetBlock, download: downloadBlock });
       setGroupResetOpen(true);
     } finally {
       groupResetOpeningRef.current = false;
@@ -718,7 +800,9 @@ export function StorageSettings() {
     busy,
     treeConfirm,
     downloadResetOpen,
-    downloadSettings.auto_migrate_on_path_change,
+    status,
+    refresh,
+    treeStats,
     showToast,
     t,
   ]);
@@ -958,13 +1042,14 @@ export function StorageSettings() {
   /** 展示用分类：`downloads_default`（默认下载目标）已并入下方「浏览器下载路径」块，此处不再重复列出。 */
   const displayCategories = categories.filter((category) => category.key !== 'downloads_default');
 
-  /** 草稿与已持久化状态是否不一致：有未应用的修改（用于粘性提交条）。 */
+  /** 草稿与已持久化状态是否不一致：有未应用的修改（用于粘性提交条）。
+   * 仅按路径值差异判定 —— 切换单选（路径模式）本身不算修改（产品决策 2026-09-27），
+   * 不出现黄条/撤回；改动具体路径值后才出现。 */
   const isDirty = Boolean(
     status &&
-    (mode !== status.mode ||
-      (mode === 'unified'
-        ? rootDraft.trim() !== status.root
-        : categories.some((c) => (categoryDrafts[c.key] ?? c.path).trim() !== c.path))),
+    (mode === 'unified'
+      ? rootDraft.trim() !== status.root
+      : categories.some((c) => (categoryDrafts[c.key] ?? c.path).trim() !== c.path)),
   );
 
   // 观测「块底部 撤回/应用」是否可见：可见时推移性提交条隐藏；不可见（向上/向下滚、窗口变化）时显示。
@@ -1003,28 +1088,31 @@ export function StorageSettings() {
   // 四块「恢复默认」按钮的禁用判定（spec §3）：各块在其数据源未知时保持启用
   //（fail-open），未知态不禁用。per_category 模式下核心按钮恒启用是有意的：
   // 一键回到统一默认本身就是有效操作（CORE_RESET_PATCH），不存在"无事可做"态。
-  const coreAtDefault =
-    status !== null && status.mode === 'unified' && status.root === status.defaultRoot && !isDirty;
-  // treeStats 为 null（未加载/失败）时视为未知 → false（展示区段此时不渲染按钮，
-  // 但聚合信号必须保守，不能把未知计为默认）。
-  const treeAtDefault =
-    treeStats !== null && treeEnabled && treeTtlMinutes === TREE_CACHE_DEFAULTS.ttlMinutes;
-  const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
-  const budgetAtDefault =
-    budgetBytes !== undefined && budgetBytes === TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
-  const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
-  // store 初值恰为默认形，无 loaded 标记无法区分"未知"与"默认" → 未知时启用。
-  const downloadAtDefault = isDownloadPathAtDefault(downloadSettings, downloadSettingsLoaded);
+  const coreAtDefault = isCorePathsAtDefault(status, isDirty);
+  const treeAtDefault = isTreeCacheAtDefault(treeStats);
+  const budgetAtDefault = isBudgetAtDefault(budgetBytes);
 
-  // 侧边栏存储行 disabled 聚合信号：四块全默认才为 true；卸载（切出存储组）时清 null
-  // 回到"未知→启用"。transient，不持久化。
+  // 侧边栏存储行 disabled 聚合信号：四块全默认才为 true（口径单一真源见
+  // storageAtDefault.ts，与 SettingsPanel 预取初始化共用）。卸载**不清空**（事项 7）：
+  // 切出存储组保持最近一次判定，避免"切出即回启用"；聚合未知（从未进过存储组）
+  // 由 SettingsPanel 预取完成后一次性初始化（只写 null → 已知，不覆盖实时判定）。
+  const storageAtDefault = computeStorageBlocksAtDefault({
+    status,
+    treeStats,
+    budgetBytes,
+    downloadSettings,
+    downloadSettingsLoaded,
+    draftsDirty: isDirty,
+  });
   const setStorageBlocksAtDefault = useAppStore((s) => s.setStorageBlocksAtDefault);
   useEffect(() => {
-    setStorageBlocksAtDefault(
-      coreAtDefault && treeAtDefault && budgetAtDefault && downloadAtDefault,
-    );
-  }, [coreAtDefault, treeAtDefault, budgetAtDefault, downloadAtDefault, setStorageBlocksAtDefault]);
-  useEffect(() => () => setStorageBlocksAtDefault(null), [setStorageBlocksAtDefault]);
+    // status 未就绪（加载中/失败）返回 null 不写聚合：避免把预取已初始化的判定
+    // 覆盖成 false（flicker）；未知期间侧边栏按最近已知值或 fail-open 启用。
+    if (storageAtDefault === null) {
+      return;
+    }
+    setStorageBlocksAtDefault(storageAtDefault);
+  }, [storageAtDefault, setStorageBlocksAtDefault]);
 
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
   const ttlSelectOptions = useMemo(
@@ -1162,41 +1250,60 @@ export function StorageSettings() {
       }
       setGroupResetBusy(true);
       try {
-        // 核心先行：最易失败且其失败会让一切无意义，先落盘；失败早返。
-        const applied = await bridge.setPaths(
-          { ...CORE_RESET_PATCH, retainSource: groupResetRetain },
-          applyNow,
-        );
-        if (!applied.ok) {
-          showToast(ipcErrorMessage(applied.error, t.storageUnknownError), 'error');
-          return;
-        }
-        // 后端可能拒绝写入：保持对话框打开并回填预检结果展示 errors/warnings。
-        if (!applied.data.preflight.ok) {
-          setGroupResetPreflight(applied.data.preflight);
-          return;
+        let restartRequired = false;
+        if (groupResetCoreNeeded) {
+          // 核心先行：最易失败且其失败会让一切无意义，先落盘；失败早返。
+          const applied = await bridge.setPaths(
+            { ...CORE_RESET_PATCH, retainSource: groupResetRetain },
+            applyNow,
+          );
+          if (!applied.ok) {
+            showToast(ipcErrorMessage(applied.error, t.storageUnknownError), 'error');
+            return;
+          }
+          // 后端可能拒绝写入：保持对话框打开并回填预检结果展示 errors/warnings。
+          if (!applied.data.preflight.ok) {
+            setGroupResetPreflight(applied.data.preflight);
+            return;
+          }
+          restartRequired = applied.data.restartRequired;
         }
         // 任一分支失败即记 failed：尾部不再发"成功"toast，改发汇总错误（task1 M5）。
+        // 事项 10：已默认的块（开框快照 hidden/false）跳过恢复腿——与清单显示同源，
+        // 不做无意义写入。
         let failed = false;
-        const budgetOk = await handleTerminalBudgetReset();
-        if (!budgetOk) {
-          showToast(t.settingsUpdateFailed, 'error');
-          failed = true;
+        if (groupResetBlocks.budget) {
+          const budgetOk = await handleTerminalBudgetReset();
+          if (!budgetOk) {
+            showToast(t.settingsUpdateFailed, 'error');
+            failed = true;
+          }
         }
         // 树写自带错误 toast；返回值纳入汇总（N4）。
-        const treeOk = await handleTreeResetDefaults();
-        if (!treeOk) {
-          failed = true;
+        if (groupResetBlocks.tree !== 'hidden') {
+          const treeOk = await handleTreeResetDefaults();
+          if (!treeOk) {
+            failed = true;
+          }
         }
-        const downloadOk = await resetDownloadToDefault(groupMigrateAtOpenRef.current);
-        if (!downloadOk) {
-          failed = true;
+        if (groupResetBlocks.download !== 'hidden') {
+          const downloadOk = await resetDownloadToDefault(groupMigrateAtOpenRef.current);
+          if (!downloadOk) {
+            failed = true;
+          }
         }
-        // 树/预算走独立桥，此处 refresh 仅回填核心根（L5）。
+        // 树/预算走独立桥，此处 refresh 回填核心并重播种草稿（L5）：组恢复是
+        // 用户意图的整体改写 —— 成功后草稿统一回到新持久化值（含丢弃未应用的
+        // 核心编辑，组恢复语义），避免旧 mode/分类草稿残留误报脏。
         const fresh = await refresh();
         if (fresh) {
           lastKnownRootRef.current = fresh.root;
+          setMode(fresh.mode);
           setRootDraft(fresh.root);
+          setCategoryDrafts(
+            Object.fromEntries(fresh.categories.map((category) => [category.key, category.path])),
+          );
+          draftsDirtyRef.current = false;
         } else if (lastKnownRootRef.current ?? status?.root) {
           // refresh 失败也回填上次已知根，避免输入框空显示（L3/L-6）。
           setRootDraft(lastKnownRootRef.current ?? status?.root ?? '');
@@ -1207,15 +1314,20 @@ export function StorageSettings() {
           return;
         }
         setGroupResetOpen(false);
-        if (applyNow && applied.data.restartRequired) {
-          const restarted = await bridge.restartApp();
-          if (!restarted.ok) {
-            showToast(t.storageRestartUnavailableInBrowser, 'error');
+        if (groupResetCoreNeeded) {
+          if (applyNow && restartRequired) {
+            const restarted = await bridge.restartApp();
+            if (!restarted.ok) {
+              showToast(t.storageRestartUnavailableInBrowser, 'error');
+            } else {
+              showToast(t.storageRestartRequired, 'success');
+            }
           } else {
-            showToast(t.storageRestartRequired, 'success');
+            showToast(t.storagePendingBanner, 'success');
           }
         } else {
-          showToast(t.storagePendingBanner, 'success');
+          // 核心已默认（跳过 setPaths）：其余三块均为立即生效写入，无待迁移项。
+          showToast(t.settingsResetComplete, 'success');
         }
       } finally {
         setGroupResetBusy(false);
@@ -1227,6 +1339,8 @@ export function StorageSettings() {
       resetDownloadToDefault,
       groupResetRetain,
       groupResetPreflight,
+      groupResetCoreNeeded,
+      groupResetBlocks,
       refresh,
       status,
       showToast,
@@ -1259,6 +1373,10 @@ export function StorageSettings() {
 
   const resetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.storageCorePathsTitle,
+  });
+  // 顶部「待迁移任务」块头的装饰性禁用恢复按钮（与其它块头同构，事项 11a）。
+  const pendingResetLabel = formatT(t, 'settingsResetGroupToDefault', {
+    group: t.storagePendingTaskTitle,
   });
   const treeResetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.treeCacheTitle,
@@ -1311,6 +1429,105 @@ export function StorageSettings() {
 
   return (
     <div className="adl-settings-section adl-storage-settings">
+      {/* 顶部第一块：待迁移任务（pending 提示 + 上次迁移报告同块上移，事项 11a）。 */}
+      {status?.pending || status?.lastReport ? (
+        <>
+          <div className="adl-settings-storage__header" data-testid="storage-pending-header">
+            <button
+              type="button"
+              className="adl-settings-row__reset"
+              aria-label={pendingResetLabel}
+              title={pendingResetLabel}
+              data-testid="storage-pending-reset"
+              disabled
+            >
+              <IconResetDefaults size={14} decorative />
+            </button>
+            <SettingsHeader title={t.storagePendingTaskTitle} />
+          </div>
+          <div className="adl-settings-card" data-testid="storage-pending-card">
+            {status?.pending ? (
+              <div className="adl-settings-row">
+                <div className="adl-settings-row__label">
+                  <small
+                    className={`adl-settings-status ${
+                      status.pending.failed
+                        ? 'adl-settings-status--danger'
+                        : 'adl-settings-status--warning'
+                    }`}
+                  >
+                    {status.pending.failed
+                      ? t.storagePendingFailedBanner.replace('{error}', status.pending.error ?? '')
+                      : t.storagePendingBanner}
+                  </small>
+                </div>
+                <div className="adl-settings-row__control adl-settings-row__control--inline">
+                  {status.pending.failed ? (
+                    <button
+                      type="button"
+                      className="adl-btn adl-btn--secondary"
+                      disabled={busy}
+                      onClick={() => void handleRetryMigration()}
+                    >
+                      {t.storageRetryMigration}
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--ghost adl-settings-pending__cancel"
+                    disabled={busy}
+                    onClick={() => void handleCancelPending()}
+                  >
+                    {t.storageCancelPending}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
+            {status?.lastReport ? (
+              <div className="adl-settings-row">
+                <div className="adl-settings-row__label">
+                  <div className="adl-settings-row__label-text">
+                    <span>{t.storageReportTitle}</span>
+                  </div>
+                  {status.lastReport.ok ? (
+                    <small>
+                      {t.storageReportOk
+                        .replace('{files}', String(status.lastReport.movedFiles))
+                        .replace('{size}', formatBytes(status.lastReport.movedBytes))}
+                    </small>
+                  ) : (
+                    <small className="adl-settings-status adl-settings-status--danger">
+                      {t.storageReportFailed.replace('{error}', status.lastReport.error ?? '')}
+                    </small>
+                  )}
+                  {!status.lastReport.ok && status.lastReport.switched ? (
+                    <small>{t.storageReportSwitched}</small>
+                  ) : null}
+                  {status.lastReport.removedDirs.length > 0 ? (
+                    <small>
+                      {t.storageReportDirsRemoved.replace(
+                        '{count}',
+                        String(status.lastReport.removedDirs.length),
+                      )}
+                    </small>
+                  ) : null}
+                  {status.lastReport.keptDirs.length > 0 ? (
+                    <small>
+                      {t.storageReportDirsKept.replace(
+                        '{count}',
+                        String(status.lastReport.keptDirs.length),
+                      )}
+                    </small>
+                  ) : null}
+                  {status.lastReport.retained ? <small>{t.storageReportRetained}</small> : null}
+                </div>
+              </div>
+            ) : null}
+          </div>
+        </>
+      ) : null}
+
       <div className="adl-settings-storage__header">
         <button
           type="button"
@@ -1318,7 +1535,7 @@ export function StorageSettings() {
           aria-label={resetLabel}
           title={resetLabel}
           data-testid="storage-reset-defaults"
-          disabled={busy || coreAtDefault}
+          disabled={busy || loading || coreAtDefault}
           onClick={handleResetCorePaths}
         >
           <IconResetDefaults size={14} decorative />
@@ -1647,89 +1864,6 @@ export function StorageSettings() {
         ))}
       </div>
 
-      {status?.pending || status?.lastReport ? (
-        <div className="adl-settings-card">
-          {status?.pending ? (
-            <div className="adl-settings-row">
-              <div className="adl-settings-row__label">
-                <small
-                  className={`adl-settings-status ${
-                    status.pending.failed
-                      ? 'adl-settings-status--danger'
-                      : 'adl-settings-status--warning'
-                  }`}
-                >
-                  {status.pending.failed
-                    ? t.storagePendingFailedBanner.replace('{error}', status.pending.error ?? '')
-                    : t.storagePendingBanner}
-                </small>
-              </div>
-              <div className="adl-settings-row__control adl-settings-row__control--inline">
-                {status.pending.failed ? (
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--secondary"
-                    disabled={busy}
-                    onClick={() => void handleRetryMigration()}
-                  >
-                    {t.storageRetryMigration}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--ghost"
-                  disabled={busy}
-                  onClick={() => void handleCancelPending()}
-                >
-                  {t.storageCancelPending}
-                </button>
-              </div>
-            </div>
-          ) : null}
-
-          {status?.lastReport ? (
-            <div className="adl-settings-row">
-              <div className="adl-settings-row__label">
-                <div className="adl-settings-row__label-text">
-                  <span>{t.storageReportTitle}</span>
-                </div>
-                {status.lastReport.ok ? (
-                  <small>
-                    {t.storageReportOk
-                      .replace('{files}', String(status.lastReport.movedFiles))
-                      .replace('{size}', formatBytes(status.lastReport.movedBytes))}
-                  </small>
-                ) : (
-                  <small className="adl-settings-status adl-settings-status--danger">
-                    {t.storageReportFailed.replace('{error}', status.lastReport.error ?? '')}
-                  </small>
-                )}
-                {!status.lastReport.ok && status.lastReport.switched ? (
-                  <small>{t.storageReportSwitched}</small>
-                ) : null}
-                {status.lastReport.removedDirs.length > 0 ? (
-                  <small>
-                    {t.storageReportDirsRemoved.replace(
-                      '{count}',
-                      String(status.lastReport.removedDirs.length),
-                    )}
-                  </small>
-                ) : null}
-                {status.lastReport.keptDirs.length > 0 ? (
-                  <small>
-                    {t.storageReportDirsKept.replace(
-                      '{count}',
-                      String(status.lastReport.keptDirs.length),
-                    )}
-                  </small>
-                ) : null}
-                {status.lastReport.retained ? <small>{t.storageReportRetained}</small> : null}
-              </div>
-            </div>
-          ) : null}
-        </div>
-      ) : null}
-
       {/* 数据位置索引沉底：放在不可移动块之后的最底部。 */}
       <div className="adl-settings-card" data-testid="storage-locator-card">
         <div className="adl-settings-row">
@@ -1861,58 +1995,83 @@ export function StorageSettings() {
                 <div className="adl-confirm-dialog__body">
                   <p className="adl-confirm-dialog__message">{t.storageGroupResetIntro}</p>
                   <ul className="adl-confirm-dialog__message adl-confirm-dialog__list">
-                    <li>{t.storageGroupResetItemCore}</li>
-                    <li>{t.storageGroupResetItemTree}</li>
-                    <li>
-                      {formatT(t, 'storageGroupResetItemBudget', {
-                        default: formatBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES),
-                      })}
-                    </li>
-                    <li>
-                      {groupMigrateAtOpenRef.current
-                        ? t.storageGroupResetItemDownloadMigrateOn
-                        : t.storageGroupResetItemDownloadMigrateOff}
-                    </li>
+                    {/* 事项 10：清单按开框快照逐块过滤——已默认的块整项不出现；
+                        树/下载按真实非默认形态选文案变体（显示与执行同源）。 */}
+                    {groupResetCoreNeeded ? <li>{t.storageGroupResetItemCore}</li> : null}
+                    {groupResetBlocks.tree === 'full' ? (
+                      <li>{t.storageGroupResetItemTree}</li>
+                    ) : null}
+                    {groupResetBlocks.tree === 'reenable' ? (
+                      <li>{t.storageGroupResetItemTreeReenable}</li>
+                    ) : null}
+                    {groupResetBlocks.tree === 'ttl' ? (
+                      <li>{t.storageGroupResetItemTreeTtl}</li>
+                    ) : null}
+                    {groupResetBlocks.budget ? (
+                      <li>
+                        {formatT(t, 'storageGroupResetItemBudget', {
+                          default: formatBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES),
+                        })}
+                      </li>
+                    ) : null}
+                    {groupResetBlocks.download === 'on' ? (
+                      <li>{t.storageGroupResetItemDownloadMigrateOn}</li>
+                    ) : null}
+                    {groupResetBlocks.download === 'off' ? (
+                      <li>{t.storageGroupResetItemDownloadMigrateOff}</li>
+                    ) : null}
+                    {groupResetBlocks.download === 'switchOnly' ? (
+                      <li>{t.storageGroupResetItemDownloadSwitchOnly}</li>
+                    ) : null}
                   </ul>
-                  <p className="adl-confirm-dialog__message">
-                    {t.storageMigrateDialogSummary
-                      .replace('{files}', String(groupResetPreflight?.totalFiles ?? 0))
-                      .replace('{size}', formatBytes(groupResetPreflight?.totalBytes ?? 0))}
-                  </p>
+                  {groupResetCoreNeeded ? (
+                    <p className="adl-confirm-dialog__message">
+                      {t.storageMigrateDialogSummary
+                        .replace('{files}', String(groupResetPreflight?.totalFiles ?? 0))
+                        .replace('{size}', formatBytes(groupResetPreflight?.totalBytes ?? 0))}
+                    </p>
+                  ) : null}
 
-                  {(groupResetPreflight?.errors ?? []).length > 0 ? (
-                    <div className="adl-confirm-dialog__message">
-                      <p>
-                        <IconAlertTriangle size={12} decorative /> {t.storagePreflightErrors}
+                  {groupResetPreflight && groupResetPreflight.errors.length > 0 ? (
+                    <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--error">
+                      <p className="adl-confirm-dialog__issues-title">{t.storagePreflightErrors}</p>
+                      <ul className="adl-confirm-dialog__issues-list">
+                        {/* 事项 9：本地化 + 分类名前缀 + 按最终文本去重。 */}
+                        {localizePreflightIssues(groupResetPreflight.errors, t).map(
+                          (text, index) => (
+                            <li key={`${text}-${index}`}>{text}</li>
+                          ),
+                        )}
+                      </ul>
+                    </div>
+                  ) : null}
+
+                  {groupResetPreflight && groupResetPreflight.warnings.length > 0 ? (
+                    <div className="adl-confirm-dialog__issues adl-confirm-dialog__issues--warning">
+                      <p className="adl-confirm-dialog__issues-title">
+                        {t.storagePreflightWarnings}
                       </p>
-                      <ul>
-                        {(groupResetPreflight?.errors ?? []).map((error, index) => (
-                          <li key={`${error}-${index}`}>{error}</li>
-                        ))}
+                      <ul className="adl-confirm-dialog__issues-list">
+                        {localizePreflightIssues(groupResetPreflight.warnings, t).map(
+                          (text, index) => (
+                            <li key={`${text}-${index}`}>{text}</li>
+                          ),
+                        )}
                       </ul>
                     </div>
                   ) : null}
 
-                  {(groupResetPreflight?.warnings ?? []).length > 0 ? (
-                    <div className="adl-confirm-dialog__message">
-                      <p>{t.storagePreflightWarnings}</p>
-                      <ul>
-                        {(groupResetPreflight?.warnings ?? []).map((warning, index) => (
-                          <li key={`${warning}-${index}`}>{warning}</li>
-                        ))}
-                      </ul>
-                    </div>
+                  {groupResetCoreNeeded ? (
+                    <label className="adl-confirm-dialog__message adl-confirm-dialog__retain">
+                      <input
+                        type="checkbox"
+                        checked={groupResetRetain}
+                        disabled={groupResetBusy}
+                        onChange={(e) => setGroupResetRetain(e.target.checked)}
+                      />
+                      <span>{t.storageRetainSource}</span>
+                    </label>
                   ) : null}
-
-                  <label className="adl-confirm-dialog__message adl-confirm-dialog__retain">
-                    <input
-                      type="checkbox"
-                      checked={groupResetRetain}
-                      disabled={groupResetBusy}
-                      onChange={(e) => setGroupResetRetain(e.target.checked)}
-                    />
-                    <span>{t.storageRetainSource}</span>
-                  </label>
                 </div>
                 <div className="adl-confirm-dialog__footer">
                   <button
@@ -1923,28 +2082,45 @@ export function StorageSettings() {
                   >
                     {t.storageCancel}
                   </button>
-                  {/* 确认键与「取消」同款 secondary（无品牌蓝填充）；预检失败时禁用。 */}
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--secondary"
-                    disabled={
-                      groupResetBusy || (groupResetPreflight !== null && !groupResetPreflight.ok)
-                    }
-                    onClick={() => void handleGroupResetApply(false)}
-                  >
-                    {t.storageMigrateLater}
-                  </button>
-                  <button
-                    ref={groupResetConfirmRef}
-                    type="button"
-                    className="adl-btn adl-btn--secondary"
-                    disabled={
-                      groupResetBusy || (groupResetPreflight !== null && !groupResetPreflight.ok)
-                    }
-                    onClick={() => void handleGroupResetApply(true)}
-                  >
-                    {t.storageMigrateNow}
-                  </button>
+                  {groupResetCoreNeeded ? (
+                    <>
+                      {/* 确认键与「取消」同款 secondary（无品牌蓝填充）；预检失败时禁用。 */}
+                      <button
+                        type="button"
+                        className="adl-btn adl-btn--secondary"
+                        disabled={
+                          groupResetBusy ||
+                          (groupResetPreflight !== null && !groupResetPreflight.ok)
+                        }
+                        onClick={() => void handleGroupResetApply(false)}
+                      >
+                        {t.storageMigrateLater}
+                      </button>
+                      <button
+                        ref={groupResetConfirmRef}
+                        type="button"
+                        className="adl-btn adl-btn--secondary"
+                        disabled={
+                          groupResetBusy ||
+                          (groupResetPreflight !== null && !groupResetPreflight.ok)
+                        }
+                        onClick={() => void handleGroupResetApply(true)}
+                      >
+                        {t.storageMigrateNow}
+                      </button>
+                    </>
+                  ) : (
+                    /* 核心已默认：无迁移时机可选，单一确认键直接执行其余三块恢复。 */
+                    <button
+                      ref={groupResetConfirmRef}
+                      type="button"
+                      className="adl-btn adl-btn--secondary"
+                      disabled={groupResetBusy}
+                      onClick={() => void handleGroupResetApply(false)}
+                    >
+                      {t.storageGroupResetConfirm}
+                    </button>
+                  )}
                   {!isTauriShell() ? <small>{t.storageRestartUnavailableInBrowser}</small> : null}
                 </div>
               </div>

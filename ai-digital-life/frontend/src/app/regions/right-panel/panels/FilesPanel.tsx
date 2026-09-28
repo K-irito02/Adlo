@@ -13,6 +13,7 @@ import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from '../Fil
 import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
 import { useTCopy } from '@i18n/useTCopy';
+import { resolveAppLanguage } from '@i18n/resolveLanguage';
 import { joinPathSegments } from '@utils/workspacePaths';
 import {
   findLineForQuery,
@@ -483,7 +484,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   });
 
   const resolvedTheme = useResolvedTheme();
-  const resolvedLocale = appInfo?.config?.language ?? 'zh-CN';
+  const resolvedLocale = resolveAppLanguage(appInfo?.config?.language);
 
   return (
     <div className="adl-tool-panel adl-tool-panel--files" ref={panelRef}>

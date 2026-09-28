@@ -296,6 +296,59 @@ pub fn dir_usage_limited(path: &Path) -> (u64, u64) {
     (bytes, count)
 }
 
+/// 是否为单文件类（落点为单个 .db 主库文件，伴生 `-wal`/`-shm` 同目录同名前缀）。
+fn is_single_file_category(category: StorageCategory) -> bool {
+    matches!(
+        category,
+        StorageCategory::Database
+            | StorageCategory::DownloadsDb
+            | StorageCategory::SiteMetaDb
+            | StorageCategory::TreeCache
+    )
+}
+
+/// 单文件类的主库路径 `path` 加上伴生后缀（不改变文件名前缀）。
+fn companion_paths(path: &Path) -> Vec<PathBuf> {
+    let s = path.to_string_lossy().to_string();
+    vec![
+        path.to_path_buf(),
+        PathBuf::from(format!("{s}-wal")),
+        PathBuf::from(format!("{s}-shm")),
+    ]
+}
+
+/// 某分类的占用统计（双端 `category_statuses` 共用，事项 11c 统一口径）：
+/// - `downloads_default` 只是设置值（用户文件落点，本应用不拥有其中任何文件）→ (0, 0)；
+/// - 单文件类：主库 + **已存在**的 `-wal`/`-shm` 伴生文件（与 `db_files`/复制/清理同源，
+///   不再只数主库——否则重启后 SQLite 重建伴生文件会造成「新位置 3 文件、统计 1 文件」的口径分裂）；
+/// - 目录类：有界遍历统计（`dir_usage_limited`，防超大目录/循环挂载卡死状态查询）。
+pub fn category_usage(category: StorageCategory, path: &Path) -> (u64, u64) {
+    if matches!(category, StorageCategory::DownloadsDefault) {
+        return (0, 0);
+    }
+    if is_single_file_category(category) {
+        if !path.exists() {
+            return (0, 0);
+        }
+        if path.is_dir() {
+            // 防御：单文件类落点不应是目录，退化为有界目录统计而非静默 (0,0)。
+            return dir_usage_limited(path);
+        }
+        let mut bytes = 0u64;
+        let mut files = 0u64;
+        for p in companion_paths(path) {
+            if let Ok(meta) = std::fs::metadata(&p) {
+                if meta.is_file() {
+                    bytes += meta.len();
+                    files += 1;
+                }
+            }
+        }
+        return (bytes, files);
+    }
+    dir_usage_limited(path)
+}
+
 /// 递归收集目录下所有普通文件（迁移路径用：完整遍历 + 循环保护，保证终止）。
 /// 超深（>128 层）/循环导致的截断返回 `Err`，调用方必须大声失败，禁止静默丢文件。
 fn collect_files(root: &Path) -> Result<Vec<PathBuf>, AppError> {
@@ -316,11 +369,24 @@ fn owned_files(category: StorageCategory, base: &Path) -> Result<Vec<PathBuf>, A
         return Ok(Vec::new());
     }
     if base.is_file() {
-        return Ok(if owns_file(category, base, base) {
-            vec![base.to_path_buf()]
-        } else {
-            Vec::new()
-        });
+        if !owns_file(category, base, base) {
+            return Ok(Vec::new());
+        }
+        // 单文件类：主库 + 已存在的 `-wal`/`-shm` 伴生文件（与 `db_files`/复制同源，事项 11c：
+        // 预检 total_files 与实际搬移文件数一致）。伴生文件不走 `owns_file`——其 `strip_prefix`
+        // 以主库文件为基，伴生路径天然不在其下（白名单语义按目录结构判定，此处已验主库归属）。
+        if is_single_file_category(category) {
+            let s = base.to_string_lossy().to_string();
+            let mut out = vec![base.to_path_buf()];
+            for suffix in ["-wal", "-shm"] {
+                let p = PathBuf::from(format!("{s}{suffix}"));
+                if p.is_file() {
+                    out.push(p);
+                }
+            }
+            return Ok(out);
+        }
+        return Ok(vec![base.to_path_buf()]);
     }
     Ok(collect_files(base)?.into_iter().filter(|f| owns_file(category, base, f)).collect())
 }
@@ -1046,6 +1112,71 @@ mod tests {
         std::fs::write(base.join("sub/b.bin"), [0u8; 5]).unwrap();
         assert_eq!(dir_usage_limited(&base), (12, 2));
         assert_eq!(dir_usage_limited(&base.join("missing")), (0, 0));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn category_usage_counts_db_and_existing_companions() {
+        let base = temp_base("category-usage-db");
+        let db = base.join("data.db");
+        write(&db, &[0u8; 7]);
+        assert_eq!(category_usage(StorageCategory::Database, &db), (7, 1));
+        // 重启后 SQLite 重建的伴生文件必须计入（事项 11c 口径分裂根因修复）。
+        write(&base.join("data.db-wal"), &[0u8; 5]);
+        write(&base.join("data.db-shm"), &[0u8; 3]);
+        assert_eq!(category_usage(StorageCategory::Database, &db), (15, 3));
+        // downloads_default 是设置值：恒 0，不遍历用户目录。
+        assert_eq!(category_usage(StorageCategory::DownloadsDefault, &base), (0, 0));
+        // 目录类保持有界遍历口径（本夹具 3 文件 / 15 字节）。
+        assert_eq!(category_usage(StorageCategory::Config, &base), (15, 3));
+        // 缺失落点 → (0, 0)。
+        assert_eq!(
+            category_usage(StorageCategory::Database, &base.join("missing.db")),
+            (0, 0)
+        );
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn owned_files_single_file_includes_existing_companions() {
+        let base = temp_base("owned-db-companions");
+        let db = base.join("data.db");
+        write(&db, &[0u8; 7]);
+        // 主库无伴生 → 仅主库（与旧行为一致）。
+        assert_eq!(owned_files(StorageCategory::Database, &db).unwrap(), vec![db.clone()]);
+        // 主库 + 既有伴生 → 全部返回（与 db_files/复制同源，事项 11c）。
+        write(&base.join("data.db-wal"), &[0u8; 5]);
+        write(&base.join("data.db-shm"), &[0u8; 3]);
+        let mut files = owned_files(StorageCategory::Database, &db).unwrap();
+        files.sort();
+        let mut expected = vec![db, base.join("data.db-shm"), base.join("data.db-wal")];
+        expected.sort();
+        assert_eq!(files, expected);
+        // 非自有单文件名 → 不返回（白名单语义保持）。
+        let foreign = base.join("foreign.bin");
+        write(&foreign, &[0u8; 2]);
+        assert!(owned_files(StorageCategory::Database, &foreign).unwrap().is_empty());
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn preflight_totals_include_existing_db_companions() {
+        let base = temp_base("preflight-db-companions");
+        let old_root = base.join("old");
+        let other_root = base.join("other");
+        let from = paths_for(&StorageLocator::default().selection, &old_root.to_string_lossy());
+        let db = from.dir(StorageCategory::Database);
+        write(&db, &[0u8; 7]);
+        let s = db.to_string_lossy().to_string();
+        write(&std::path::PathBuf::from(format!("{s}-wal")), &[0u8; 5]);
+        let mut loc = StorageLocator::default();
+        loc.selection.root = Some(other_root);
+        let to = paths_for(&loc.selection, &old_root.to_string_lossy());
+        let report = preflight(&from, &to);
+        assert!(!report.has_errors(), "issues: {:?}", report.issues);
+        // 主库 7 字节 + 既有 wal 5 字节：total 与复制搬移口径一致（事项 11c）。
+        assert_eq!(report.total_files, 2);
+        assert_eq!(report.total_bytes, 12);
         let _ = std::fs::remove_dir_all(&base);
     }
 

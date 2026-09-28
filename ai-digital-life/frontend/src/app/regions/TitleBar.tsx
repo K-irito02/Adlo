@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import { useTCopy } from '../i18n/useTCopy';
+import { resolveAppLanguage } from '../i18n/resolveLanguage';
 import {
   IconAddWorkspace,
   IconEye,
@@ -78,7 +79,9 @@ const TitleBar = React.memo(function TitleBar({
         navigateRightTool: state.navigateRightTool,
       })),
     );
-  const language = appInfo?.config.language ?? 'zh-CN';
+  // 图标/切换目标按**解析后**的界面语言（'system' 跟随系统时显示当前实际语言）；
+  // 切换即写入具体语言值，成为用户个人默认基线。
+  const language = resolveAppLanguage(appInfo?.config.language);
   const nextLanguage = language === 'zh-CN' ? 'en-US' : 'zh-CN';
 
   const handleClose = useCallback(() => {

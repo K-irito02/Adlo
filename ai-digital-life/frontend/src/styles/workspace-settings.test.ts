@@ -499,3 +499,37 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     expect(mine).toContain('touch-action: none');
   });
 });
+
+describe('storage group reset dialog + dirty bar styles (2026-09-27 decisions)', () => {
+  const contextMenuCss = readFileSync(
+    new URL('./regions/context-menu.css', import.meta.url),
+    'utf-8',
+  );
+
+  it('sticky dirty bar uses the straighter radius-sm instead of radius-md (item 4)', () => {
+    const body = ruleBody(settingsCss, '.adl-storage-settings__dirtybar');
+    expect(body).not.toBeNull();
+    expect(body).toContain('border-radius: var(--radius-sm)');
+    expect(body).not.toContain('var(--radius-md)');
+  });
+
+  it('retain-source checkbox gets an explicit monochrome accent (item 6-F2)', () => {
+    // portal 挂 document.body，脱离 .adl-storage-settings 作用域 → 必须显式声明。
+    const body = ruleBody(contextMenuCss, ".adl-confirm-dialog__retain input[type='checkbox']");
+    expect(body).not.toBeNull();
+    expect(body).toContain('accent-color: var(--text-primary)');
+  });
+
+  it('preflight issues render as bordered blocks with semantic side stripes (item 6-F1)', () => {
+    const issues = ruleBody(contextMenuCss, '.adl-confirm-dialog__issues');
+    expect(issues).not.toBeNull();
+    expect(issues).toContain('background: var(--bg-secondary)');
+    expect(issues).toContain('border-radius: var(--radius-sm)');
+    expect(ruleBody(contextMenuCss, '.adl-confirm-dialog__issues--error')).toContain(
+      'var(--danger)',
+    );
+    expect(ruleBody(contextMenuCss, '.adl-confirm-dialog__issues--warning')).toContain(
+      'var(--pastel-warning-fg)',
+    );
+  });
+});

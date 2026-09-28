@@ -9,7 +9,6 @@ import {
   DEFAULT_MAX_CONCURRENT_WORKSPACES,
   DEFAULT_WORKSPACE_PRIORITY_IDS,
   DEFAULT_WORKSPACE_DEFERRED_IDS,
-  DEFAULT_WORKSPACE_NATURAL_ORDER,
 } from '../../../shared/defaultPreferences';
 
 // 组文案配含 {group} 的真模板，使 formatT 插值得以被覆盖（与 SettingsPanel.test 同法）。
@@ -221,7 +220,6 @@ describe('WorkspaceSettings merged block', () => {
       maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
       workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
       workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
-      workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
     });
     expect(showToast).toHaveBeenCalledWith('settingsResetComplete', 'success');
     expect(screen.queryByText('Reset settingsWorkspaceLoad?')).toBeNull();

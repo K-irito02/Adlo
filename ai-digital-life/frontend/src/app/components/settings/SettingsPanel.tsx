@@ -25,7 +25,13 @@ import { WorkspaceSettings } from '../../features/workspace-settings/WorkspaceSe
 import { BrowserSettings } from '../../features/browser-settings/BrowserSettings';
 import { DshSettings } from '../../features/dsh/DshSettings';
 import { StorageSettings } from '../../features/storage-settings/StorageSettings';
-import { prefetchStorageSettings } from '../../features/storage-settings/storageStatusCache';
+import {
+  prefetchStorageSettings,
+  getCachedStorageStatus,
+  getCachedTreeStats,
+} from '../../features/storage-settings/storageStatusCache';
+import { computeStorageBlocksAtDefault } from '../../features/storage-settings/storageAtDefault';
+import { computeBrowserBlocksAtDefault } from '../../features/browser-settings/browserAtDefault';
 import { getDefaultPreferences } from '../../../shared/defaultPreferences';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
@@ -112,7 +118,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         maxConcurrentWorkspaces: config.maxConcurrentWorkspaces,
         workspacePriorityIds: config.workspacePriorityIds,
         workspaceDeferredIds: config.workspaceDeferredIds,
-        workspaceNaturalOrder: config.workspaceNaturalOrder,
       })
     ) {
       disabled.add('workspace');
@@ -141,6 +146,75 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   useEffect(() => {
     void prefetchStorageSettings();
   }, []);
+
+  // 存储组聚合初始化/校正（事项 7）：存储组未激活（StorageSettings 未挂载、无路径
+  // 草稿）时，据缓存 status/tree + store config/download 重算侧边栏禁用聚合 ——
+  // 覆盖「从未进过存储组」的未知态，以及其他组改动影响存储默认性的场景（如浏览器
+  // 组恢复下载路径）。存储组激活期间由 StorageSettings 实时维护（含路径草稿判定），
+  // 此处跳过，防双写者漂移。
+  const downloadSettings = useAppStore((s) => s.downloadSettings);
+  const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
+  const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
+  const setStorageBlocksAtDefault = useAppStore((s) => s.setStorageBlocksAtDefault);
+  useEffect(() => {
+    if (activeGroup === 'storage') {
+      return;
+    }
+    const value = computeStorageBlocksAtDefault({
+      status: getCachedStorageStatus(),
+      treeStats: getCachedTreeStats(),
+      budgetBytes,
+      downloadSettings,
+      downloadSettingsLoaded,
+      draftsDirty: false,
+    });
+    if (value !== null && value !== useAppStore.getState().storageBlocksAtDefault) {
+      setStorageBlocksAtDefault(value);
+    }
+  }, [
+    activeGroup,
+    budgetBytes,
+    downloadSettings,
+    downloadSettingsLoaded,
+    setStorageBlocksAtDefault,
+  ]);
+
+  // 浏览器组聚合初始化/校正（事项 12c）：浏览器组未激活（BrowserSettings 未挂载）时，
+  // 据 store（挂起时长 + 下载模式/路径，共享 helper 同 BrowserSettings 口径）重算
+  // 侧边栏禁用聚合 —— 覆盖「卸载后保留最后已知值」与其它组改动影响浏览器默认性的
+  // 场景（如存储组恢复下载路径）。激活期间由 BrowserSettings 实时维护，此处跳过，
+  // 防双写者漂移；信息不足返回 null 不写（保持未知/最后已知值）。
+  const setBrowserBlocksAtDefault = useAppStore((s) => s.setBrowserBlocksAtDefault);
+  useEffect(() => {
+    if (activeGroup === 'browser') {
+      return;
+    }
+    const value = computeBrowserBlocksAtDefault(
+      config?.browserInactiveTabSuspendMs,
+      downloadSettings,
+      downloadSettingsLoaded,
+    );
+    if (value !== null && value !== useAppStore.getState().browserBlocksAtDefault) {
+      setBrowserBlocksAtDefault(value);
+    }
+  }, [activeGroup, config, downloadSettings, downloadSettingsLoaded, setBrowserBlocksAtDefault]);
+
+  // DSH 组聚合初始化/校正（事项 12d）：DSH 组未激活（DshSettings 未挂载）时，据 store
+  // sourceStatus（已持久化 config.source_mode / proxy.mode）重算；sourceStatus 未知
+  //（null）不写。激活期间由 DshSettings 用本地编辑态实时维护（可能领先防抖落盘
+  // ≤200ms），两侧在落盘后收敛。
+  const sourceStatus = useAppStore((s) => s.sourceStatus);
+  const setDshBlocksAtDefault = useAppStore((s) => s.setDshBlocksAtDefault);
+  useEffect(() => {
+    if (activeGroup === 'dsh' || !sourceStatus) {
+      return;
+    }
+    const value =
+      sourceStatus.config.source_mode === 'auto' && sourceStatus.config.proxy.mode === 'auto';
+    if (value !== useAppStore.getState().dshBlocksAtDefault) {
+      setDshBlocksAtDefault(value);
+    }
+  }, [activeGroup, sourceStatus, setDshBlocksAtDefault]);
 
   // 悬停/聚焦侧边栏存储行再预热一次：移动→点击的天然延迟是免费的命中窗口。
   // Tech-debt 注记：面板直连具体 feature 模块的预热函数；当第二个组需要预热时，

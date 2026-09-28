@@ -1,7 +1,14 @@
 import type { AppPreferencePatch } from './ipc-types.generated';
 import { DEFAULT_COMMANDS } from '../app/commands/defaultCommands';
 
-export const DEFAULT_LANGUAGE = 'zh-CN';
+/**
+ * 语言默认值 = 「跟随系统」（产品决策 2026-09-27）：
+ * - `system` 表示持续跟随操作系统语言（解析见 `i18n/resolveLanguage.ts`：zh* → zh-CN，其余 → en-US）。
+ * - 用户在设置中手动选定具体语言后，该值即成为个人默认基线 —— 组级/全部恢复
+ *   默认**不包含** language/themeMode（见 `GROUP_RESET_PATCHES.general` 与
+ *   `getDefaultPreferences()`），恢复默认永不改变用户的语言/主题偏好。
+ */
+export const DEFAULT_LANGUAGE = 'system';
 export const DEFAULT_THEME_MODE = 'system' as const;
 export const DEFAULT_LOG_LEVEL = 'info';
 export const DEFAULT_TERMINAL_LOG_MODE = 'overwrite' as const;
@@ -40,8 +47,8 @@ export const DEFAULT_DOWNLOAD_MODE = 'auto' as const;
 
 export function getDefaultPreferences(): AppPreferencePatch {
   return {
-    language: DEFAULT_LANGUAGE,
-    themeMode: DEFAULT_THEME_MODE,
+    // 刻意不含 language / themeMode：二者是用户个人基线（跟随系统或用户选定值），
+    // 恢复全部默认不改动（产品决策 2026-09-27）。
     logLevel: DEFAULT_LOG_LEVEL,
     terminalLogMode: DEFAULT_TERMINAL_LOG_MODE,
     debugLogMode: DEFAULT_DEBUG_LOG_MODE,

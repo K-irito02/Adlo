@@ -270,17 +270,17 @@ export function DshSettings() {
     }
   }, []);
 
-  // 卸载清理三件套（测试结果计时器/聚合信号/pending 兜底）；防抖计时器刻意保留——
+  // 卸载清理两件套（测试结果计时器/pending 兜底）；防抖计时器刻意保留——
   // 挂载后落盘走 store action，放行可避免"改完立即切组导致丢保存"。
   useEffect(
     () => () => {
       clearTestTimer();
-      setDshBlocksAtDefault(null);
-      // 卸载（切出 DSH 组）：聚合信号清 null 回到「未知 → 启用」（transient，不持久化）；
+      // 聚合信号卸载不清（事项 12d）：保留最后已知值供侧边栏禁用判定，
+      // 切出后由 SettingsPanel 未激活校正随 store 变化刷新；
       // pending 兜底消费，避免下次挂载"迟到弹窗"。
       useAppStore.getState().consumeDshGroupReset();
     },
-    [clearTestTimer, setDshBlocksAtDefault],
+    [clearTestTimer],
   );
 
   // 聚合信号：源=自动检测且代理=自动 → 两块全默认（供侧边栏 DSH 行禁用）。

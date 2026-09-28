@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use ts_rs::TS;
 
-const DEFAULT_LANGUAGE: &str = "zh-CN";
+/// 与前端 `shared/defaultPreferences.ts::DEFAULT_LANGUAGE` 同一产品默认（`"system"` =
+/// 跟随系统语言，前端经 `i18n/resolveLanguage.ts` 解析 zh* → zh-CN，其余 → en-US）。
+/// 改动时两处必须同步（跨语言契约）。
+const DEFAULT_LANGUAGE: &str = "system";
 const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_MAX_RECENT_WORKSPACES: usize = 10;
 

@@ -113,11 +113,53 @@
   gap: var(--space-1);
 }
 
-/* 「迁移后保留旧路径数据」复选框行（迁移对话框与组级对话框共用）。 */
+/* 「迁移后保留旧路径数据」复选框行（迁移对话框与组级对话框共用）。
+   复选框 portal 挂 document.body，不受 .adl-storage-settings 作用域内的
+   accent-color 覆盖 → 显式声明单色（与「启用树缓存」一致，事项 6-F2，禁蓝色填充）。 */
 .adl-confirm-dialog__retain {
   display: flex;
   align-items: center;
   gap: var(--space-2);
+}
+
+.adl-confirm-dialog__retain input[type='checkbox'] {
+  accent-color: var(--text-primary);
+}
+
+/* 预检错误/警告区块（存储组恢复默认等）：次级底色 + 小圆角 + 语义左侧色条，
+   替代裸段落/列表的临时排版（事项 6-F1）。 */
+.adl-confirm-dialog__issues {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+.adl-confirm-dialog__issues--error {
+  border-left: 3px solid var(--danger);
+}
+
+.adl-confirm-dialog__issues--warning {
+  border-left: 3px solid var(--pastel-warning-fg);
+}
+
+.adl-confirm-dialog__issues-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin: 0 0 var(--space-1);
+  color: var(--text-primary);
+}
+
+.adl-confirm-dialog__issues-list {
+  margin: 0;
+  padding-left: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .adl-btn {

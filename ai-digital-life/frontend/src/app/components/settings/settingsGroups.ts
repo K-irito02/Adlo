@@ -6,13 +6,10 @@ import {
   DEFAULT_DEBUG_LOG_MODE,
   DEFAULT_FONTS,
   DEFAULT_KEYBINDS,
-  DEFAULT_LANGUAGE,
   DEFAULT_LOG_LEVEL,
   DEFAULT_MAX_CONCURRENT_WORKSPACES,
   DEFAULT_TERMINAL_LOG_MODE,
-  DEFAULT_THEME_MODE,
   DEFAULT_WORKSPACE_DEFERRED_IDS,
-  DEFAULT_WORKSPACE_NATURAL_ORDER,
   DEFAULT_WORKSPACE_PRIORITY_IDS,
 } from '../../../shared/defaultPreferences';
 
@@ -40,9 +37,10 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
  * `storage`、`browser`、`dsh`。
  */
 export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPreferencePatch>> = {
+  // 刻意不含 language / themeMode：二者是用户个人基线（跟随系统或用户选定值），
+  // 组级恢复默认不改动语言/主题（产品决策 2026-09-27）。侧边栏「全默认」判定
+  // （isPatchSatisfied 对本 patch）因此也不含二者 —— 语言/主题恒视为已默认。
   general: () => ({
-    language: DEFAULT_LANGUAGE,
-    themeMode: DEFAULT_THEME_MODE,
     logLevel: DEFAULT_LOG_LEVEL,
     terminalLogMode: DEFAULT_TERMINAL_LOG_MODE,
     debugLogMode: DEFAULT_DEBUG_LOG_MODE,
@@ -52,7 +50,8 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
     maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
     workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
     workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
-    workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
+    // 刻意不含 workspaceNaturalOrder：加载顺序由列表操作与自动同步（见
+    // workspaceNaturalOrderSync）维护，组级恢复不触碰它（事项 12b）。
   }),
   shortcuts: () => ({
     keybinds: { ...DEFAULT_KEYBINDS },
@@ -116,12 +115,13 @@ export function isKeybindsAtDefault(
   );
 }
 
-/** 工作区四字段快照（本地编辑态 / store config 均可），与重置 patch 同源判定。 */
+/** 工作区三字段快照（本地编辑态 / store config 均可），与重置 patch 同源判定。
+ *  不含 `workspaceNaturalOrder`：它被自动同步自动写入（有工作区即非空），
+ *  参与判定会让组恢复按钮永不禁用；且已移出重置 patch（事项 12b）。 */
 export interface WorkspaceResetValues {
   maxConcurrentWorkspaces: number | undefined;
   workspacePriorityIds: readonly string[] | undefined;
   workspaceDeferredIds: readonly string[] | undefined;
-  workspaceNaturalOrder: readonly string[] | undefined;
 }
 
 /**
@@ -136,12 +136,17 @@ export function isWorkspaceAtDefault(values: WorkspaceResetValues): boolean {
   return (
     values.maxConcurrentWorkspaces === patch.maxConcurrentWorkspaces &&
     isStringArrayEqual(values.workspacePriorityIds, patch.workspacePriorityIds) &&
-    isStringArrayEqual(values.workspaceDeferredIds, patch.workspaceDeferredIds) &&
-    isStringArrayEqual(values.workspaceNaturalOrder, patch.workspaceNaturalOrder)
+    isStringArrayEqual(values.workspaceDeferredIds, patch.workspaceDeferredIds)
   );
 }
 
-/** 偏好 patch 与当前值逐项比对（嵌套对象递归，数组元素级）：工厂加字段自动纳入。 */
+/**
+ * 偏好 patch 与当前值逐项比对（嵌套对象递归，数组元素级）：工厂加字段自动纳入。
+ *
+ * 口径补充（事项 12a）：`null`（Rust `Option::None` 序列化）与「空串」默认等价——
+ * `config.fonts` 为 null 时仍视为已默认，否则「通用」组恢复按钮永远无法禁用。
+ * 仅 `expected === ''` 时放宽（叶子级），非空默认值缺失仍判非默认（fail-open）。
+ */
 export function isPatchSatisfied(
   current: Record<string, unknown>,
   patch: Record<string, unknown>,
@@ -156,16 +161,22 @@ export function isPatchSatisfied(
         expected.every((v, i) => v === (actual as unknown[])[i])
       );
     }
-    if (
-      expected !== null &&
-      typeof expected === 'object' &&
-      actual !== null &&
-      typeof actual === 'object'
-    ) {
-      return isPatchSatisfied(
-        actual as Record<string, unknown>,
-        expected as Record<string, unknown>,
-      );
+    if (expected !== null && typeof expected === 'object') {
+      // 整个对象缺失/null（如 config.fonts = null）：按空对象递归，
+      // 叶子走下方 null≡'' 口径；对象内非空默认值缺失照常判非默认。
+      if (actual === null || actual === undefined) {
+        return isPatchSatisfied({}, expected as Record<string, unknown>);
+      }
+      if (typeof actual === 'object') {
+        return isPatchSatisfied(
+          actual as Record<string, unknown>,
+          expected as Record<string, unknown>,
+        );
+      }
+      return false;
+    }
+    if (expected === '' && (actual === null || actual === undefined)) {
+      return true;
     }
     return actual === expected;
   });

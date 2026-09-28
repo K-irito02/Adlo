@@ -1,0 +1,26 @@
+import { DEFAULT_BROWSER_SUSPEND_MS, DEFAULT_DOWNLOAD_MODE } from '@shared/defaultPreferences';
+import type { DownloadSettings } from '@shared/ipc/download';
+import { isDownloadPathAtDefault } from '../storage-settings/downloadPathReset';
+
+/**
+ * 浏览器组三块「全默认」聚合（挂起时长 + 下载模式 + 下载路径）。
+ *
+ * 信息不足（config 未含挂起时长 / 下载设置未成功回读）返回 `null`（未知），
+ * 消费方按「未知 → fail-open 启用」处理（不写或落 false 均不产生禁用）。
+ * BrowserSettings（挂载实时判定，未知落 false）与 SettingsPanel（未激活时校正，
+ * 事项 12c）共用此口径，防漂移。
+ */
+export function computeBrowserBlocksAtDefault(
+  suspendMs: number | undefined,
+  downloadSettings: DownloadSettings,
+  downloadSettingsLoaded: boolean,
+): boolean | null {
+  if (suspendMs === undefined || !downloadSettingsLoaded) {
+    return null;
+  }
+  return (
+    suspendMs === DEFAULT_BROWSER_SUSPEND_MS &&
+    downloadSettings.mode === DEFAULT_DOWNLOAD_MODE &&
+    isDownloadPathAtDefault(downloadSettings, true)
+  );
+}

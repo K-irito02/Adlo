@@ -101,6 +101,7 @@ export const commonZh = {
   contextNoMatch: '未找到匹配的选项',
   contextRemoveAria: '移除 {label}',
   // ======== Environment Controls ========
+  languageSystem: '跟随系统',
   languageChinese: '中文',
   languageEnglish: 'EN',
   envControlsAria: 'Environment controls',

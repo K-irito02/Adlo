@@ -1,8 +1,8 @@
 import type { AppInfo } from '@shared/ipc';
-import type { CopyDict, Locale } from './types';
+import type { CopyDict } from './types';
 import { loadLocale } from './i18nLoader';
+import { resolveAppLanguage } from './resolveLanguage';
 
 export async function getAppCopy(appInfo?: AppInfo): Promise<CopyDict> {
-  const locale: Locale = appInfo?.config.language === 'en-US' ? 'en-US' : 'zh-CN';
-  return loadLocale(locale);
+  return loadLocale(resolveAppLanguage(appInfo?.config.language));
 }

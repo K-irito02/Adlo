@@ -117,6 +117,7 @@ export const settingsEn = {
   storageLocatorTitle: 'Data location index',
   storageLocatorHint:
     "This small file remembers which folders on your computer hold each kind of app data — the app reads it on every launch to find your data. Please don't delete, rename, or hand-edit it. If it is deleted by accident, the app will start with the default folders; your original data stays safely where it was, just out of sight here — point the paths back in the Storage settings to recover it.",
+  storagePendingTaskTitle: 'Pending migration task',
   storagePendingBanner: 'Migration scheduled for next launch',
   storagePendingFailedBanner: 'Last migration failed: {error} (old data is intact)',
   storageRetryMigration: 'Retry',
@@ -174,19 +175,45 @@ export const settingsEn = {
     "The default download folder will be reset to the system default. Auto-migration is currently on: every file under the old path will be moved to the system default folder first, and the old folder is deleted only after the move fully succeeds (exception: system-owned folders — e.g. the system drive's Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted); if it fails midway: files already moved stay in the new path, the rest remain in the old path, the setting is not switched, and you can retry.",
   storageDownloadResetConfirmMigrateOff:
     'The default download folder will be reset to the system default. Auto-migration is currently off: only the path changes — files under the old path are neither moved nor deleted.',
+  // Path already the system default, only the migrate switch is non-default: no path-reset claim (item 10).
+  storageDownloadResetConfirmSwitchOnly:
+    'The download folder is already the system default, so nothing changes there. Auto-migration is currently on: this only turns the switch back off — no files are moved.',
   storageDownloadResetConfirmBtn: 'Reset',
   storageGroupResetTitle: 'Reset all Storage defaults?',
-  storageGroupResetIntro: 'These 4 areas will be reset to their defaults:',
+  // No hardcoded count: each item is filtered by the open-time snapshot — already-default blocks are hidden entirely (item 10).
+  storageGroupResetIntro: 'The following settings will be reset to their defaults:',
+  // All four blocks already default → toast instead of opening an empty dialog (item 10 empty state).
+  storageGroupResetAllDefault: 'Storage settings are already at their defaults; nothing to reset.',
   storageGroupResetItemCore:
     'Core data paths: back to the "unified root" at the default location; a migration flow follows and takes effect after restarting the app (or on next launch).',
+  // Tree cache has three truthful variants by open-time snapshot: full / re-enable only / retention only.
   storageGroupResetItemTree:
     'Workspace tree cache: turned back on with a 15-minute retention; cached content is kept; applies immediately.',
+  storageGroupResetItemTreeReenable:
+    'Workspace tree cache: turned back on; cached content is kept; applies immediately.',
+  storageGroupResetItemTreeTtl:
+    'Workspace tree cache: retention back to 15 minutes; cached content is kept; applies immediately.',
   storageGroupResetItemBudget:
     'Terminal history disk budget: back to {default}; applies immediately.',
   storageGroupResetItemDownloadMigrateOn:
     "Browser default download folder: back to the system default; files under the old path are moved over first, and the old folder is removed only after everything succeeds (exception: system-owned folders — e.g. the system drive's Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted); the auto-migration switch is turned back off.",
   storageGroupResetItemDownloadMigrateOff:
     'Browser default download folder: back to the system default with only the path switched — no files moved; the auto-migration switch stays off.',
+  // Path already the system default, only the migrate switch is non-default: no path-reset claim (item 10).
+  storageGroupResetItemDownloadSwitchOnly:
+    'The browser default download folder is already the system default: this only turns the auto-migration switch back off — no files are moved.',
+  // Single confirm button when core paths are already default (no migrate later/now pair).
+  storageGroupResetConfirm: 'Reset to Defaults',
+  // Localized mappings of English preflight messages (Rust storage/migration.rs); rules in preflightCopy.ts.
+  storagePreflightIssueWithCategory: '[{category}] {message}',
+  storagePreflightIdentical:
+    'The new location is the same as the current one — nothing to migrate.',
+  storagePreflightInside:
+    'The new location is nested inside the current one (or vice versa). Choose a different location.',
+  storagePreflightCreateDir:
+    'Cannot create the folder at the new location. Check that the path is valid and you have permission.',
+  storagePreflightNotWritable:
+    'The new location is not writable (possibly no permission). Choose a different location.',
   browserGroupResetTitle: 'Reset all Browser defaults?',
   browserGroupResetMessage:
     'Suspend duration (back to 15 minutes), download mode (back to auto-save), and the default download folder (back to the system default with auto-migration turned off) will all be reset to their defaults.',

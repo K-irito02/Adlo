@@ -7,11 +7,16 @@ import type { StorageCategoryStatus } from '@shared/ipc/storage';
 import { CATEGORY_COPY, type CategoryCopy } from './storageCategoryCopy';
 
 /**
- * 手输路径草稿：偏好/上游状态是不可乐观的外部值，逐键写回会被并发 patch 丢弃，
- * 因此本地持有草稿，失焦或回车才提交（与 SettingsControls 的 InputControl 同构）。
+ * 手输路径草稿：本地持有草稿，失焦或回车才提交（与 SettingsControls 的 InputControl 同构），
+ * 避免逐键写回外部状态被并发 patch 丢弃。
+ *
+ * `commitOnChange`（逐键提交，事项 8）：提交目标是**本地草稿 state**（如存储分类行的
+ * `categoryDrafts`）时开启——逐键更新才能让 isDirty 派生的脏条/底部 CTA 即时出现。
+ * 提交目标是 store/后端（如下载路径 `changeDownloadPath`，可能触发真实文件搬运）时
+ * 保持失焦提交，勿开启。
  *
  * 草稿同步用**脏标记**：用户改过（dirty）后，外部 value 变化不再覆盖在途输入
- *（如系统默认路径异步到达、上游状态刷新）；prop 追上已提交值（value === draft）时
+ * （如系统默认路径异步到达、上游状态刷新）；prop 追上已提交值（value === draft）时
  * 清除脏标记恢复同步——避免「焦点期间外部更新」在失焦时把旧值写回去。
  */
 export function ManualPathInput({
@@ -20,12 +25,14 @@ export function ManualPathInput({
   placeholder,
   disabled,
   onCommit,
+  commitOnChange = false,
 }: {
   value: string;
   label: string;
   placeholder: string;
   disabled: boolean;
   onCommit: (path: string) => void;
+  commitOnChange?: boolean;
 }) {
   const [draft, setDraft] = useState(value);
   const dirtyRef = useRef(false);
@@ -63,6 +70,9 @@ export function ManualPathInput({
       onChange={(e) => {
         dirtyRef.current = true;
         setDraft(e.target.value);
+        if (commitOnChange) {
+          onCommit(e.target.value);
+        }
       }}
       onBlur={commit}
       onKeyDown={(e) => {
@@ -160,6 +170,7 @@ export function StorageCategoryRow({
             placeholder={t.storageManualInputPlaceholder}
             disabled={picking}
             onCommit={onPathChange}
+            commitOnChange
           />
           <button
             type="button"

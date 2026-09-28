@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import { createUiId } from '../shared';
 import { persist } from '../persisted/persist';
 import { formatNewFolderNameByLocale } from '@i18n';
+import { resolveAppLanguage } from '@i18n/resolveLanguage';
 import type {
   BrowserTabState,
   BrowserBookmark as _BrowserBookmark,
@@ -526,7 +527,7 @@ export const createBrowserBookmarkSlice = (
   },
 
   browserBookmarkTab: async (tabId, folderId, newFolderName, workspaceId, titleOverride) => {
-    const locale = (_get().appInfo?.config.language ?? 'zh-CN') as 'zh-CN' | 'en-US';
+    const locale = resolveAppLanguage(_get().appInfo?.config.language);
     const folders = _get().browserTabFolders;
     const resolvedName =
       newFolderName != null

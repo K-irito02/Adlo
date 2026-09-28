@@ -9,11 +9,16 @@ export type StorageMode = 'unified' | 'per_category';
 export interface StorageCategoryStatus {
   /** 分类 key，与 Rust `StorageCategory::key` 一致。 */
   key: string;
-  /** 分类当前解析到的绝对路径。 */
+  /**
+   * 分类当前路径（**覆盖值语义**，事项 9 根因修复）：与 per-category 补丁的
+   * 分类值同语义——DB 四类与 dsh 报其覆盖目录（`override_dir`），其余分类报
+   * 自身目录。前端草稿原样回传即 round-trip 恒等，不再产生 `data.db/data.db`
+   * 假路径；占用与存在性仍按实际解析路径统计。
+   */
   path: string;
   /** 是否允许迁移（`downloads_default` 固定不可移动）。 */
   movable: boolean;
-  /** 路径当前是否存在。 */
+  /** 实际解析路径当前是否存在。 */
   exists: boolean;
   /** 占用字节数。 */
   bytes: number;
@@ -99,11 +104,19 @@ export interface StorageForeignScan {
   foreignFiles: string[];
 }
 
+/** 单条预检问题（结构化，事项 9：携带分类供前端本地化展示与去重）。 */
+export interface StoragePreflightIssue {
+  /** 分类 key（与 `CATEGORY_COPY` 键一致）；null = 根级问题（磁盘空间、root 检查）。 */
+  category: string | null;
+  /** 后端英文原文（经 `preflightCopy` 本地化展示）。 */
+  message: string;
+}
+
 /** 迁移预检结果（不写盘）。 */
 export interface StoragePreflight {
   ok: boolean;
-  errors: string[];
-  warnings: string[];
+  errors: StoragePreflightIssue[];
+  warnings: StoragePreflightIssue[];
   totalFiles: number;
   totalBytes: number;
   freeBytes: number;

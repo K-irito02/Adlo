@@ -2,6 +2,7 @@ import type { StoreState } from '../StoreState';
 import { createUiId } from '../shared';
 import { persist } from '../persisted/persist';
 import { formatNewFolderNameByLocale } from '@i18n';
+import { resolveAppLanguage } from '@i18n/resolveLanguage';
 import type { TabFolderState, TabFolderStateUpdate } from './browserFoldersTypes';
 import { collectAllDescendantFolderIds } from './browserFoldersUtils';
 import { computeDeleteAllTabsOutcome, computeDeleteOwnTabsOutcome } from './browserFoldersDeletion';
@@ -42,7 +43,7 @@ export const createBrowserFoldersSlice = (
     parentType?: 'workspace' | 'folder',
   ) => {
     const folderCount = _get().browserTabFolders.length;
-    const locale = (_get().appInfo?.config.language ?? 'zh-CN') as 'zh-CN' | 'en-US';
+    const locale = resolveAppLanguage(_get().appInfo?.config.language);
     const folderName = name?.trim() || (await formatNewFolderNameByLocale(locale, folderCount + 1));
     set((state) => {
       const newFolder: TabFolderState = {

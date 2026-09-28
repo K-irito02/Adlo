@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AppInfo } from '@ai-digital-life/kernel';
 import type { CopyDict, Locale } from '../i18n/types';
 import { loadLocale } from '../i18n/i18nLoader';
+import { resolveAppLanguage } from '../i18n/resolveLanguage';
 import { useAppActions } from './useAppActions';
 import { useThemeSync } from './useThemeSync';
 import { initSiteMetaCache } from '@utils/siteMetaCache';
@@ -19,7 +20,7 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
     if (!appInfo) {
       return;
     }
-    const lang = (appInfo.config.language ?? 'zh-CN') as Locale;
+    const lang = resolveAppLanguage(appInfo.config.language);
     setLocale(lang);
     loadLocale(lang).then(setT);
   }, [appInfo]);

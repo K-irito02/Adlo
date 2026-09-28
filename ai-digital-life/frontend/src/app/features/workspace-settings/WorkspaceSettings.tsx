@@ -256,7 +256,6 @@ export function WorkspaceSettings() {
       maxConcurrentWorkspaces: maxConcurrent,
       workspacePriorityIds: priorityIds,
       workspaceDeferredIds: deferredIds,
-      workspaceNaturalOrder: naturalOrder,
     });
 
   const handleCancelReset = useCallback(() => {
@@ -277,12 +276,13 @@ export function WorkspaceSettings() {
     const nextMax = patch.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES;
     const nextPri = [...(patch.workspacePriorityIds ?? [])];
     const nextDef = [...(patch.workspaceDeferredIds ?? [])];
-    const nextNat = [...(patch.workspaceNaturalOrder ?? [])];
-    lastPersistedRef.current = { max: nextMax, pri: nextPri, def: nextDef, nat: nextNat };
+    // 加载顺序（workspaceNaturalOrder）不参与组恢复：已同时移出默认性判定与
+    // 重置 patch（事项 12b），本地态保持不变；lastPersisted 记录当前值维持
+    // 回显守卫（isOwnEcho）口径一致。
+    lastPersistedRef.current = { max: nextMax, pri: nextPri, def: nextDef, nat: naturalOrder };
     setMaxConcurrent(nextMax);
     setPriorityIds(nextPri);
     setDeferredIds(nextDef);
-    setNaturalOrder(nextNat);
     void (async () => {
       try {
         const ok = await updatePreferences(patch);
@@ -297,11 +297,11 @@ export function WorkspaceSettings() {
         setMaxConcurrent(cfg?.maxConcurrentWorkspaces ?? DEFAULT_MAX_CONCURRENT_WORKSPACES);
         setPriorityIds([...(cfg?.workspacePriorityIds ?? [])]);
         setDeferredIds([...(cfg?.workspaceDeferredIds ?? [])]);
-        setNaturalOrder([...(cfg?.workspaceNaturalOrder ?? [])]);
+        // naturalOrder 未被本次重置改动，不回滚（事项 12b）。
         showToast(t.settingsUpdateFailed, 'error');
       }
     })();
-  }, [updatePreferences, showToast, t]);
+  }, [updatePreferences, showToast, t, naturalOrder]);
 
   // 优先命中可排序条目而非容器 droppable 做精确行内插入；空列表等无条目场景回退到容器追加。
   const collisionDetection: CollisionDetection = useCallback((args) => {

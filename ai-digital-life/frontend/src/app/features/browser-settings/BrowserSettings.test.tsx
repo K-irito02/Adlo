@@ -524,13 +524,15 @@ describe('Browser settings group reset (own confirm dialog)', () => {
     expect(screen.queryByText('browserGroupResetTitle')).toBeNull();
   });
 
-  it('reports the aggregate all-default signal while mounted and clears it on unmount', () => {
+  it('reports the aggregate all-default signal while mounted and keeps it on unmount', () => {
     setConfig(900_000);
     setDownload('auto', true);
     renderBrowser();
     expect(useAppStore.getState().browserBlocksAtDefault).toBe(true);
     cleanup();
-    expect(useAppStore.getState().browserBlocksAtDefault).toBeNull();
+    // 卸载不清（事项 12c）：保留最后已知聚合供侧边栏禁用判定，
+    // 切出后由 SettingsPanel 未激活校正刷新。
+    expect(useAppStore.getState().browserBlocksAtDefault).toBe(true);
   });
 
   it('aggregate reports non-default when any block deviates', () => {
