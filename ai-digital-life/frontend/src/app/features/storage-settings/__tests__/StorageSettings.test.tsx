@@ -3489,3 +3489,126 @@ describe('StorageSettings entry cache (stale-while-revalidate)', () => {
     expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
   });
 });
+
+describe('事项 13：应用+确认后脏条/CTA 消失（挂起提交快照语义）', () => {
+  /** 带挂起迁移的 status（setPaths 成功后后端已登记）。 */
+  const pendingStatus = { ...status, pending: { failed: false, error: null } };
+
+  /**
+   * 可切后台 pending 态的桥：setPaths 成功即视为后端已登记挂起、cancelPending 成功
+   * 即撤销 —— getStatus 按当前后台态返回，不依赖调用次数（冷启动加载 / 成功后
+   * refresh / 取消后 refresh 均正确）。
+   */
+  function makeBridgeWithPendingToggle() {
+    let backendPending = false;
+    const bridge = {
+      getStatus: vi.fn().mockImplementation(async () => ({
+        ok: true,
+        data: backendPending ? pendingStatus : status,
+      })),
+      scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
+      preflight: vi.fn().mockResolvedValue({
+        ok: true,
+        data: { ok: true, errors: [], warnings: [], totalFiles: 0, totalBytes: 0, freeBytes: 0 },
+      }),
+      setPaths: vi.fn().mockImplementation(async () => {
+        backendPending = true;
+        return { ok: true, data: { preflight: { ok: true }, restartRequired: false } };
+      }),
+      cancelPending: vi.fn().mockImplementation(async () => {
+        backendPending = false;
+        return { ok: true, data: undefined };
+      }),
+      restartApp: vi.fn(),
+      getTreeCacheStats: vi.fn().mockResolvedValue({
+        ok: true,
+        data: {
+          workspaceCount: 0,
+          totalBytes: 0,
+          oldestCapturedAt: null,
+          newestCapturedAt: null,
+          enabled: true,
+          ttlMinutes: 15,
+        },
+      }),
+      setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+      clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+    };
+    (window as unknown as { digitalLife: unknown }).digitalLife = { storage: bridge };
+    return bridge;
+  }
+
+  /** 改根路径草稿 → 脏条「应用」→ 对话框「下次启动迁移」→ 等挂起落地（pending 卡出现）。 */
+  async function applyViaDialogAndDefer() {
+    const rootInput = screen.getByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(rootInput, { target: { value: 'D:/new-root' } });
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+    fireEvent.click(
+      within(screen.getByTestId('storage-dirtybar')).getByRole('button', { name: 'storageApply' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    // refresh 落地：顶部「待迁移任务」块出现（status.pending 非空）。
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-pending-card')).toBeTruthy();
+    });
+    return rootInput;
+  }
+
+  it('apply + confirm (defer) hides the dirtybar and bottom CTA; draft keeps the new path', async () => {
+    makeBridgeWithPendingToggle();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    const rootInput = await applyViaDialogAndDefer();
+    // 修改已提交（挂起待迁移）→ 粘性脏条与块底部 CTA 消失；撤回走「取消待迁移」。
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+      expect(screen.queryByTestId('storage-bottom-cta')).toBeNull();
+    });
+    // 方案 2：输入框保留用户提交的新路径（不回跳旧根）。
+    expect((rootInput as HTMLInputElement).value).toBe('D:/new-root');
+  });
+
+  it('editing the draft while a migration is pending shows the dirtybar again', async () => {
+    makeBridgeWithPendingToggle();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    await applyViaDialogAndDefer();
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+    });
+    // 挂起中再编辑：草稿 ≠ 已提交快照 → 脏条恢复（可再次应用覆盖挂起，方案 2 核心差异）。
+    const rootInput = screen.getByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(rootInput, { target: { value: 'D:/new-root-2' } });
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+    expect(screen.getByTestId('storage-bottom-cta')).toBeTruthy();
+  });
+
+  it('canceling the pending migration restores the dirtybar (snapshot cleared)', async () => {
+    const bridge = makeBridgeWithPendingToggle();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    await applyViaDialogAndDefer();
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+    });
+    // 「待迁移任务」块的「取消待迁移」→ 挂起撤销 → 草稿仍未应用 → 脏条恢复。
+    fireEvent.click(screen.getByText('storageCancelPending'));
+    await waitFor(() => {
+      expect(bridge.cancelPending).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+      expect(screen.getByTestId('storage-bottom-cta')).toBeTruthy();
+    });
+  });
+});

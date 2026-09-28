@@ -122,6 +122,17 @@ function ipcErrorMessage(error: { message?: string } | null | undefined, fallbac
   return error?.message ?? fallback;
 }
 
+/** 两份路径草稿逐键一致（键缺失视为 undefined，键集合不同即不一致）。 */
+function isSameDrafts(a: Record<string, string>, b: Record<string, string>): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    if (a[key] !== b[key]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 /**
  * 「存储」设置组（Plan C Task 5）。
  *
@@ -129,7 +140,7 @@ function ipcErrorMessage(error: { message?: string } | null | undefined, fallbac
  * `downloads_default` 为设置值路径、不占分类行）→ 应用
  * → 工作区树缓存（统计/清除/开关/TTL）
  * → 存储引擎（搬入的终端历史预算、浏览器下载路径）→ 数据位置索引（只读）
- * → 不可移动说明 6 项 → 待迁移横幅 → 上次迁移报告。
+ * → 不可移动说明 6 项；顶部首块为「待迁移任务」（pending 提示 + 上次迁移报告，事项 11a）。
  *
  * 数据流：挂载时 `storage.getStatus()` 填充；「应用」先 `preflight` 校验，
  * 再打开 `StorageMigrateDialog` 由用户选择迁移时机（立即/下次启动、是否保留旧数据）。
@@ -160,6 +171,14 @@ export function StorageSettings() {
         )
       : {},
   );
+  /** 事项 13：最近一次成功提交的路径草稿快照（挂起迁移 setPaths+preflight 成功时记录）。
+   *  草稿与其一致 → 改动已作为待迁移提交，不算未应用修改（脏条/CTA 消失）；
+   *  仅在 `status.pending` 存在时生效（取消待迁移/迁移完成即失效），取消成功时显式清除。 */
+  const appliedDraftsRef = useRef<{
+    mode: StorageMode;
+    root: string;
+    drafts: Record<string, string>;
+  } | null>(null);
   const [preflight, setPreflight] = useState<StoragePreflight | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -844,6 +863,10 @@ export function StorageSettings() {
           return;
         }
         setDialogOpen(false);
+        // 事项 13：提交成功 → 记录草稿快照（草稿保留展示新路径；挂起在途期间
+        // 快照使脏条/CTA 消失）。applyNow（立即重启）同样记录：重启失败
+        //（浏览器模式）时 pending 已登记，快照同样生效。
+        appliedDraftsRef.current = { mode, root: rootDraft, drafts: categoryDrafts };
         if (applyNow && result.data.restartRequired) {
           const restarted = await bridge.restartApp();
           if (!restarted.ok) {
@@ -866,7 +889,7 @@ export function StorageSettings() {
         setBusy(false);
       }
     },
-    [buildPatch, refresh, showToast, t],
+    [buildPatch, refresh, showToast, t, mode, rootDraft, categoryDrafts],
   );
 
   const handleRetryMigration = useCallback(async () => {
@@ -900,6 +923,8 @@ export function StorageSettings() {
         showToast(ipcErrorMessage(result.error, t.storageUnknownError), 'error');
         return;
       }
+      // 事项 13：挂起撤销 → 提交快照失效，草稿回到「未应用修改」（脏条/CTA 恢复）。
+      appliedDraftsRef.current = null;
       await refresh();
     } finally {
       setBusy(false);
@@ -1044,9 +1069,19 @@ export function StorageSettings() {
 
   /** 草稿与已持久化状态是否不一致：有未应用的修改（用于粘性提交条）。
    * 仅按路径值差异判定 —— 切换单选（路径模式）本身不算修改（产品决策 2026-09-27），
-   * 不出现黄条/撤回；改动具体路径值后才出现。 */
+   * 不出现黄条/撤回；改动具体路径值后才出现。
+   * 事项 13：挂起迁移在途（status.pending）且草稿 == 已提交快照 → 改动已作为
+   * 待迁移提交，不算未应用修改（脏条/块底部 CTA 消失，撤回走「取消待迁移」）；
+   * 挂起中再编辑（草稿 ≠ 快照）恢复判脏，可再次应用覆盖挂起（方案 2）。 */
+  const draftEqualsApplied =
+    status?.pending != null &&
+    appliedDraftsRef.current !== null &&
+    appliedDraftsRef.current.mode === mode &&
+    appliedDraftsRef.current.root === rootDraft &&
+    isSameDrafts(appliedDraftsRef.current.drafts, categoryDrafts);
   const isDirty = Boolean(
     status &&
+    !draftEqualsApplied &&
     (mode === 'unified'
       ? rootDraft.trim() !== status.root
       : categories.some((c) => (categoryDrafts[c.key] ?? c.path).trim() !== c.path)),
