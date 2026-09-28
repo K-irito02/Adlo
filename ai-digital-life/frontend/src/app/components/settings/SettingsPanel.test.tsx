@@ -1,6 +1,7 @@
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
+import type { SettingItem } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
@@ -1100,5 +1101,121 @@ describe('SettingsPanel storage prefetch wiring', () => {
     // 预热只认存储组：给微任务/macrotask 刷新机会后仍为 1 次。
     await new Promise((resolve) => setTimeout(resolve, 50));
     expect(getStatus).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('SettingsPanel cross-group search', () => {
+  const generalItems: SettingItem[] = [
+    {
+      id: 'language',
+      groupId: 'general',
+      label: 'Language',
+      description: 'Display language',
+      type: 'select',
+      value: 'en-US',
+      options: [{ value: 'en-US', label: 'English' }],
+    },
+  ];
+
+  afterEach(() => {
+    cleanup();
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    useAppStore.setState((s) => ({
+      settingsSearchQuery: '',
+      activeSettingsGroup: 'general',
+      navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
+    }));
+  });
+
+  function renderSearchPanel(items: SettingItem[] = generalItems) {
+    return render(
+      <TestProvider>
+        <SettingsPanel settings={items} onChangeSetting={() => {}} />
+      </TestProvider>,
+    );
+  }
+
+  function typeQuery(value: string): HTMLInputElement {
+    fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
+    const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
+    fireEvent.change(input, { target: { value } });
+    return input;
+  }
+
+  it('输入查询后渲染按组分组的结果（而非扁平列表），且侧栏导航保持可见', () => {
+    setupStore();
+    renderSearchPanel();
+    typeQuery('language');
+    expect(document.querySelector('.adl-settings-search-results')).not.toBeNull();
+    expect(document.querySelector('.adl-settings-controls')).toBeNull();
+    const titles = Array.from(document.querySelectorAll('.adl-settings-search-results__title')).map(
+      (el) => el.textContent,
+    );
+    expect(titles).toEqual(['settingsGeneral']);
+    expect(screen.getByRole('button', { name: 'Language' })).not.toBeNull();
+    // 跳转式 UX：搜索态下侧栏导航保持可见（不再隐藏）。
+    expect(document.querySelector('.adl-settings-nav')).not.toBeNull();
+  });
+
+  it('点击结果切换到该条目所属组，并给锚点打上高亮类', async () => {
+    setupStore();
+    renderSearchPanel([]);
+    typeQuery('maxconcurrent');
+    // 命中词被 <mark> 拆成两个节点，计算出的可访问名带空格；按去空白归一匹配。
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: (name) => name.replace(/\s+/g, '').toLowerCase() === 'maxconcurrentworkspaces',
+      }),
+    );
+    expect(useAppStore.getState().activeSettingsGroup).toBe('workspace');
+    await waitFor(() => {
+      const anchor = document.querySelector(
+        '[data-settings-anchor="workspace:maxConcurrentWorkspaces"]',
+      );
+      expect(anchor).not.toBeNull();
+      expect(anchor?.classList.contains('adl-settings-search-highlight')).toBe(true);
+    });
+  });
+
+  it('无匹配查询渲染共享空态（settingsNoResults）', () => {
+    setupStore();
+    renderSearchPanel();
+    typeQuery('zzz-no-such-setting');
+    expect(document.querySelector('.adl-settings-search-results')).toBeNull();
+    const empty = document.querySelector('.adl-empty-row');
+    expect(empty).not.toBeNull();
+    expect(empty?.textContent).toContain('settingsNoResults');
+  });
+
+  it('面板内 mod+F 打开搜索输入框并阻断默认查找', () => {
+    setupStore();
+    renderSearchPanel();
+    const panel = document.querySelector('.adl-settings-panel') as HTMLElement;
+    const bubbled: string[] = [];
+    const onDocumentKeyDown = (e: KeyboardEvent) => bubbled.push(e.key);
+    document.addEventListener('keydown', onDocumentKeyDown);
+    const notPrevented = fireEvent.keyDown(panel, { key: 'f', ctrlKey: true });
+    document.removeEventListener('keydown', onDocumentKeyDown);
+    // preventDefault 已调用（dispatchEvent 返回 false）；stopPropagation 已调用（未冒泡到 document）。
+    expect(notPrevented).toBe(false);
+    expect(bubbled).toEqual([]);
+    expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
+  });
+
+  it('面板外的 mod+F 不响应', () => {
+    setupStore();
+    renderSearchPanel();
+    fireEvent.keyDown(document.body, { key: 'f', ctrlKey: true });
+    expect(document.querySelector('#adl-settings-search-input')).toBeNull();
+  });
+
+  it('portal 对话框（React 树内、DOM 在面板外）内的 mod+F 不响应', () => {
+    setupStore();
+    renderSearchPanel();
+    fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    const dialog = screen.getByRole('dialog');
+    const notPrevented = fireEvent.keyDown(dialog, { key: 'f', metaKey: true });
+    expect(notPrevented).toBe(true);
+    expect(document.querySelector('#adl-settings-search-input')).toBeNull();
   });
 });

@@ -1,3 +1,5 @@
+/* eslint-disable react-refresh/only-export-components -- highlightMatch 是行内高亮纯函数，搜索面板需复用同一份命中口径（R6），与组件同文件导出 */
+
 import React, { useState, useEffect, useRef, useMemo, type ChangeEvent } from 'react';
 import type { SettingItem } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -28,7 +30,7 @@ function isDefaultValue(value: unknown, defaultValue: unknown): boolean {
   return value === defaultValue;
 }
 
-function highlightMatch(text: string, query: string): React.ReactNode {
+export function highlightMatch(text: string, query: string): React.ReactNode {
   if (!query.trim()) {
     return text;
   }

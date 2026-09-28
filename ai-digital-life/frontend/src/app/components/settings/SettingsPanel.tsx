@@ -20,6 +20,13 @@ import {
 import { ResetAllDialog } from './ResetAllDialog';
 import type { ResetAllOutcome } from './resetAllSettings';
 import { SettingsControls } from './SettingsControls';
+import { SettingsSearchResults } from './SettingsSearchResults';
+import {
+  anchorFor,
+  buildSettingsSearchIndex,
+  filterSearchIndex,
+  type SettingsSearchEntry,
+} from './settingsSearchIndex';
 import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
 import { RevealScrollbar } from '../RevealScrollbar';
 import { HScrollbar } from '../HScrollbar';
@@ -47,6 +54,7 @@ import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/termin
 import type { StorageResetDeps, StorageResetPredicates } from '@shared/settings-reset/storageReset';
 import type { GroupKey } from '@shared/settings-reset/types';
 import type { StorageBridge } from '@shared/ipc/storage';
+import { EMPTY_KEYBINDS } from '@shared/keybinds';
 import { computeBrowserBlocksAtDefault } from '../../features/browser-settings/browserAtDefault';
 import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
@@ -65,6 +73,10 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   dsh: DshSettings,
   storage: StorageSettings,
 };
+
+/** 跳转落点高亮：类名（R6 要求 `adl-` 前缀）与停留时长（与 CSS 动画同值）。 */
+const SEARCH_HIGHLIGHT_CLASS = 'adl-settings-search-highlight';
+const SEARCH_HIGHLIGHT_MS = 1200;
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
   const { t } = useTCopy();
@@ -444,6 +456,49 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     setSearchOpen(false);
   }, [setSearchQuery]);
 
+  /**
+   * 跳转到命中条目：收起搜索 → 切换到该组 → 下一帧把锚点滚入视口居中 + 短暂高亮。
+   * 高亮只落在锚点元素自身（general/shortcuts/workspace 为整行，storage/browser/dsh 为块头），
+   * 不扩展到后继卡片：避免与相邻行/卡片形成双重描边，也避免误高亮无关兄弟节点（见报告）。
+   */
+  const handleSelectResult = useCallback(
+    (entry: SettingsSearchEntry) => {
+      collapseSearch();
+      setActiveGroup(entry.group);
+      window.requestAnimationFrame(() => {
+        const target = document.querySelector(
+          `[data-settings-anchor="${anchorFor(entry.group, entry.anchorId)}"]`,
+        );
+        if (!(target instanceof HTMLElement)) {
+          return;
+        }
+        if (typeof target.scrollIntoView === 'function') {
+          target.scrollIntoView({ block: 'center' });
+        }
+        target.classList.add(SEARCH_HIGHLIGHT_CLASS);
+        window.setTimeout(() => {
+          target.classList.remove(SEARCH_HIGHLIGHT_CLASS);
+        }, SEARCH_HIGHLIGHT_MS);
+      });
+    },
+    [collapseSearch, setActiveGroup],
+  );
+
+  /** mod+F：焦点在面板内时拦截浏览器/编辑器查找，改为打开面板搜索输入框。 */
+  const handlePanelKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'f') {
+      return;
+    }
+    // portal 渲染的对话框在 React 树内（事件会冒泡到此），但 DOM 在面板外：
+    // 以 DOM 归属判定「焦点是否在面板内」，焦点在面板外一律不响应。
+    if (!(event.target instanceof Node) || !event.currentTarget.contains(event.target)) {
+      return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    setSearchOpen(true);
+  }, []);
+
   const handleSearchKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       // 任一确认框开着：Escape 交给对话框自身关闭，不清空搜索词。
@@ -541,21 +596,25 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     ? activeGroup
     : SETTINGS_GROUPS[0].id;
 
-  const filtered = useMemo(() => {
-    let items = settings;
-    if (searchQuery.trim()) {
-      const lower = searchQuery.toLowerCase();
-      items = items.filter(
-        (s) =>
-          s.label.toLowerCase().includes(lower) || s.description?.toLowerCase().includes(lower),
-      );
-    } else {
-      items = items.filter((s) => s.groupId === effectiveGroup);
-    }
-    return items;
-  }, [effectiveGroup, searchQuery, settings]);
+  // 非搜索态：当前组的固定设置项（搜索态由跨组索引结果承载，见下）。
+  const filtered = useMemo(
+    () => settings.filter((s) => s.groupId === effectiveGroup),
+    [effectiveGroup, settings],
+  );
 
-  const ActiveComponent = !searchQuery.trim() ? SETTINGS_COMPONENTS[effectiveGroup] : undefined;
+  const isSearching = searchQuery.trim() !== '';
+
+  // 跨组搜索索引 + 过滤结果：仅搜索态渲染（非搜索态空查询也会返回全量，故不额外分支）。
+  const searchIndex = useMemo(
+    () => buildSettingsSearchIndex({ t, settings, keybinds: config?.keybinds ?? EMPTY_KEYBINDS }),
+    [t, settings, config],
+  );
+  const searchResults = useMemo(
+    () => filterSearchIndex(searchIndex, searchQuery),
+    [searchIndex, searchQuery],
+  );
+
+  const ActiveComponent = !isSearching ? SETTINGS_COMPONENTS[effectiveGroup] : undefined;
 
   // 项目自定义滚动条（垂直=文件树/剪贴板同源 RevealScrollbar；水平=对齐
   // 编辑器/差异查看器横向条家族的点态 HScrollbar）。scrollRef 挂真实滚动元素，
@@ -575,7 +634,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     : null;
 
   return (
-    <div className="adl-settings-panel">
+    <div className="adl-settings-panel" onKeyDown={handlePanelKeyDown}>
       <header className="adl-settings-panel__header">
         <div className="adl-tool-context__group adl-tool-context__group--grow">
           <TooltipSimple content={t.panelNavigatorToggle} placement="top">
@@ -666,34 +725,32 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       <div
         className={`adl-settings-panel__body${navigatorCollapsed ? ' is-navigator-collapsed' : ''}`}
       >
-        {!searchQuery.trim() && (
+        <div
+          className="adl-tool-navigator adl-settings-nav"
+          style={
+            { '--adl-settings-nav-width': `${settingsNavigatorWidth}px` } as React.CSSProperties
+          }
+          inert={navigatorCollapsed}
+        >
+          <SettingsNav
+            activeGroup={effectiveGroup}
+            onSelectGroup={setActiveGroup}
+            resettableGroups={RESETTABLE_GROUPS}
+            onResetGroup={handleRequestResetGroup}
+            disabledResetGroups={disabledResetGroups}
+            onPreheatGroup={handleNavPreheatGroup}
+          />
           <div
-            className="adl-tool-navigator adl-settings-nav"
-            style={
-              { '--adl-settings-nav-width': `${settingsNavigatorWidth}px` } as React.CSSProperties
-            }
-            inert={navigatorCollapsed}
-          >
-            <SettingsNav
-              activeGroup={effectiveGroup}
-              onSelectGroup={setActiveGroup}
-              resettableGroups={RESETTABLE_GROUPS}
-              onResetGroup={handleRequestResetGroup}
-              disabledResetGroups={disabledResetGroups}
-              onPreheatGroup={handleNavPreheatGroup}
-            />
-            <div
-              className="adl-settings-nav__resize-handle"
-              onPointerDown={handleNavResizeStart}
-              role="separator"
-              aria-orientation="vertical"
-              aria-label={t.resizeSettingsNavigator}
-              aria-valuemin={SETTINGS_NAVIGATOR_WIDTH_MIN}
-              aria-valuemax={SETTINGS_NAVIGATOR_WIDTH_MAX}
-              aria-valuenow={settingsNavigatorWidth}
-            />
-          </div>
-        )}
+            className="adl-settings-nav__resize-handle"
+            onPointerDown={handleNavResizeStart}
+            role="separator"
+            aria-orientation="vertical"
+            aria-label={t.resizeSettingsNavigator}
+            aria-valuemin={SETTINGS_NAVIGATOR_WIDTH_MIN}
+            aria-valuemax={SETTINGS_NAVIGATOR_WIDTH_MAX}
+            aria-valuenow={settingsNavigatorWidth}
+          />
+        </div>
         <div
           className="adl-settings-panel__content-outer adl-reveal-scrollbar-host"
           onMouseEnter={() => {
@@ -715,6 +772,12 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
             >
               {ActiveComponent ? (
                 React.createElement(ActiveComponent)
+              ) : isSearching ? (
+                <SettingsSearchResults
+                  entries={searchResults}
+                  query={searchQuery}
+                  onSelect={handleSelectResult}
+                />
               ) : (
                 <SettingsControls
                   items={filtered}
