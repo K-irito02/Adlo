@@ -187,6 +187,13 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
 
   /**
+   * 存储状态刷新版本号：`refreshStorageStatus` 写完共享缓存即自增，作为下方存储聚合
+   * 重算 effect 的依赖 —— 缓存为模块级状态、不经由 store 触发重新渲染，若不依赖它，
+   * 「仅核心路径变更」的聚合恢复提交后侧栏/顶部禁用口径会停留旧值（low-3）。
+   */
+  const [storageStatusRevision, setStorageStatusRevision] = useState(0);
+
+  /**
    * 拉取最新存储状态并写入共享缓存（聚合计划计算与恢复成功后刷新共用）。
    * 开框计算计划时写入的是恢复前快照，成功提交后必须回写，否则随后进入存储组
    * 仍显示旧值、侧栏「存储」禁用聚合也停留在旧口径（L2）。
@@ -202,6 +209,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       return null;
     }
     setCachedStorageStatus(result.data);
+    setStorageStatusRevision((revision) => revision + 1);
     return result.data;
   }, []);
 
@@ -366,6 +374,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     budgetBytes,
     downloadSettings,
     downloadSettingsLoaded,
+    storageStatusRevision,
     setStorageBlocksAtDefault,
   ]);
 
@@ -493,15 +502,21 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const returnFocusToSearchRef = useRef(false);
   /** 待解析的跳转意图：搜索选中后先切组，由下方 effect 等锚点出现再滚动 + 高亮。 */
   const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
-  /** 当前落点高亮（元素 + 移除定时器）：下一次跳转或面板卸载时清理。 */
-  const highlightRef = useRef<{ element: HTMLElement; timer: number } | null>(null);
+  /** 当前落点高亮（元素 + 移除定时器 + 是否由本次跳转补加 `tabindex`）：
+   *  下一次跳转或面板卸载时清理。 */
+  const highlightRef = useRef<{
+    element: HTMLElement;
+    timer: number;
+    addedTabIndex: boolean;
+  } | null>(null);
 
   const collapseSearch = useCallback(() => {
     setSearchQuery('');
     setSearchOpen(false);
   }, [setSearchQuery]);
 
-  /** 清除当前落点高亮（含移除定时器）：下一次跳转前与面板卸载时调用。 */
+  /** 清除当前落点高亮（含移除定时器）：下一次跳转前与面板卸载时调用。
+   *  仅摘除本跳转补加的 `tabindex`（既有属性不动），不留永久可脚本聚焦的语义残留。 */
   const clearCurrentHighlight = useCallback(() => {
     const current = highlightRef.current;
     if (!current) {
@@ -509,6 +524,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
     window.clearTimeout(current.timer);
     current.element.classList.remove(SEARCH_HIGHLIGHT_CLASS);
+    if (current.addedTabIndex) {
+      current.element.removeAttribute('tabindex');
+    }
     highlightRef.current = null;
   }, []);
 
@@ -555,7 +573,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
     const selector = `[data-settings-anchor="${pendingJump.anchor}"]`;
     const deadline = Date.now() + SEARCH_JUMP_DEADLINE_MS;
-    let frame = 0;
+    // 逐帧重试的句柄用 const 容器承载（项目禁止 `let` 重赋值）：闭包跨调用读写其字段。
+    const pendingFrame = { current: 0 };
     const tick = () => {
       const element = document.querySelector<HTMLElement>(selector);
       if (!element) {
@@ -563,7 +582,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           setPendingJump(null);
           return;
         }
-        frame = window.requestAnimationFrame(tick);
+        pendingFrame.current = window.requestAnimationFrame(tick);
         return;
       }
       clearCurrentHighlight();
@@ -571,16 +590,22 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         element.scrollIntoView({ block: 'center' });
       }
       // a11y（F3）：结果项卸载后焦点会落回 <body>；把焦点移交给落点锚点，键盘用户
-      // 不必从头 Tab。锚点为普通元素、通常不可聚焦，就地补 `tabindex="-1"`（不改各组件 markup）。
-      if (!element.hasAttribute('tabindex')) {
+      // 不必从头 Tab。锚点为普通元素、通常不可聚焦，就地补 `tabindex="-1"`（不改各组件 markup）；
+      // 仅记录「本次补加」并在高亮结束/下一次跳转时摘除，避免留下永久可聚焦的语义残留。
+      const addedTabIndex = !element.hasAttribute('tabindex');
+      if (addedTabIndex) {
         element.setAttribute('tabindex', '-1');
       }
       element.focus({ preventScroll: true });
       element.classList.add(SEARCH_HIGHLIGHT_CLASS);
       highlightRef.current = {
         element,
+        addedTabIndex,
         timer: window.setTimeout(() => {
           element.classList.remove(SEARCH_HIGHLIGHT_CLASS);
+          if (addedTabIndex) {
+            element.removeAttribute('tabindex');
+          }
           highlightRef.current = null;
         }, SEARCH_HIGHLIGHT_MS),
       };
@@ -588,8 +613,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     };
     tick();
     return () => {
-      if (frame) {
-        window.cancelAnimationFrame(frame);
+      if (pendingFrame.current) {
+        window.cancelAnimationFrame(pendingFrame.current);
       }
     };
   }, [pendingJump, activeGroup, clearCurrentHighlight]);

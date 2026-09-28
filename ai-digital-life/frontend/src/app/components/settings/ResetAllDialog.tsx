@@ -106,25 +106,26 @@ export function ResetAllDialog({
     if (!open) {
       return;
     }
-    let cancelled = false;
+    // 取消标记用 const 容器承载（项目禁止 `let` 重赋值）：闭包跨 then/catch/cleanup 读写其字段。
+    const cancelState = { cancelled: false };
     setPlanState({ status: 'computing' });
     setRetainSource(false);
     setProgress(null);
     void computePlan(deps, storagePredicates)
       .then((result) => {
-        if (!cancelled) {
+        if (!cancelState.cancelled) {
           setPlanState({ status: 'ready', result });
         }
       })
       // 计划计算内的 IPC（refreshStatus / preflight）被拒时回落到「不可用」分支：
       // 避免永久停在「计算中…」（仅剩取消键）并产生未处理的 rejection。
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelState.cancelled) {
           setPlanState({ status: 'ready', result: { status: 'unavailable' } });
         }
       });
     return () => {
-      cancelled = true;
+      cancelState.cancelled = true;
     };
   }, [open, deps, storagePredicates]);
 

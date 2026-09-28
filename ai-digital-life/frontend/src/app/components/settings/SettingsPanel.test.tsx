@@ -1088,6 +1088,82 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
+  it('刷新存储缓存后重算侧栏存储聚合（仅核心路径变更场景，low-3 回归）', async () => {
+    // 初始缓存核心根非默认 → 聚合 false；打开聚合对话框触发 refreshStatus（getStatus）
+    // 写回默认快照。存储聚合重算 effect 须据「刷新版本」再次运行并收敛为 true
+    //（修复前该 effect 不依赖缓存，会停留 false，直至切组或其它依赖变化）。
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const prevBridge = (window as unknown as { digitalLife?: unknown }).digitalLife;
+    setNavConfig();
+    setCachedStorageStatus({
+      mode: 'unified',
+      root: 'D:/custom-root',
+      defaultRoot: 'C:/AppDefaults/ai-digital-life',
+      locatorPath: 'C:/AppDefaults/ai-digital-life/storage-locator.json',
+      categories: [],
+      pending: null,
+      lastReport: null,
+    });
+    setCachedTreeStats({
+      workspaceCount: 0,
+      totalBytes: 0,
+      oldestCapturedAt: null,
+      newestCapturedAt: null,
+      enabled: true,
+      ttlMinutes: 15,
+    });
+    useAppStore.setState({
+      downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
+      downloadSettingsLoaded: true,
+      storageBlocksAtDefault: null,
+    });
+    // 刷新返回默认根：写回缓存即代表「核心路径已恢复默认」。
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            mode: 'unified',
+            root: 'C:/AppDefaults/ai-digital-life',
+            defaultRoot: 'C:/AppDefaults/ai-digital-life',
+            locatorPath: 'C:/AppDefaults/ai-digital-life/storage-locator.json',
+            categories: [],
+            pending: null,
+            lastReport: null,
+          },
+        }),
+        preflight: vi.fn().mockResolvedValue({
+          ok: true,
+          data: { ok: true, errors: [], warnings: [], totalFiles: 0, totalBytes: 0, freeBytes: 0 },
+        }),
+        setPaths: vi.fn(),
+        changeDownloadPath: vi.fn(),
+      },
+    };
+    try {
+      renderPanel();
+      expect(useAppStore.getState().storageBlocksAtDefault).toBe(false);
+      fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+      await waitFor(() => {
+        expect(useAppStore.getState().storageBlocksAtDefault).toBe(true);
+      });
+      expect(navResetDisabled('Reset storageTitle all defaults')).toBe(true);
+    } finally {
+      useAppStore.setState({
+        storageBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevLoaded,
+      });
+      (window as unknown as { digitalLife?: unknown }).digitalLife = prevBridge;
+      resetStorageSettingsCache();
+    }
+  });
+
   // 顶部「恢复全部默认」按钮禁用口径：六组全默认才禁用（与侧边栏行同源聚合）。
   function topResetDisabled(): boolean {
     return (screen.getByRole('button', { name: 'settingsResetAll' }) as HTMLButtonElement).disabled;

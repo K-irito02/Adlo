@@ -42,7 +42,6 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
 
 const STORAGE_PLAN = {
   blocks: { coreNeeded: false, tree: 'hidden' as const, budget: true, download: 'hidden' as const },
-  preflight: null,
   migrateAtOpen: false,
 };
 
