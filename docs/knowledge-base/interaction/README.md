@@ -21,6 +21,7 @@
 | [confirm-dialog-pending-snapshot-refresh-2026-09-24.md](./confirm-dialog-pending-snapshot-refresh-2026-09-24.md) | 确认对话框三模式：pending 布尔信号（防首跳漏弹）、开框快照落盘（防后台改草稿分裂）、写成功回读失败哨兵可见 |
 | [shortcut-review-lessons-2026-09-25.md](./shortcut-review-lessons-2026-09-25.md) | 快捷键/下载迁移复审经验：lookbehind 解析期风险、contenteditable 守卫、fail-open 未知态、测试覆盖表、显示串单测定平台 |
 | [settings-panel-narrow-layout-and-dot-scrollbar-2026-09-27.md](./settings-panel-narrow-layout-and-dot-scrollbar-2026-09-27.md) | 设置面板窄布局：堆叠阈值核算（防并排死区）+ SWR 进场缓存 dirty 位 + 点态横条提取与 parity 锁 |
+| [settings-cross-group-search-and-reset-all-2026-09-29.md](./settings-cross-group-search-and-reset-all-2026-09-29.md) | 设置面板跨组搜索与「恢复全部默认」：异步锚点跳转须有界重试（单帧必失败）、导航常显后所有切组入口须收搜索、模态焦点契约、复用同语文案须同复动作、判别联合勿塌缩为 null |
 
 ## 子主题
 

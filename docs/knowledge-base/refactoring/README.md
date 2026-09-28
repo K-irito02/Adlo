@@ -22,6 +22,7 @@
 | [refactor-round-68-2026-06-19.md](./process/refactor-round-68-2026-06-19.md) | CSS barrel 模式、Store 三层拆分、agent_pipeline 模块化、console.log 清理 |
 | [execution-lessons.md](./process/execution-lessons.md) | 第 10 轮重构执行经验（CSS 截断、类型收窄、OnceLock 等） |
 | [progress-summary.md](./process/progress-summary.md) | 第 1-17 轮重构进展汇总 |
+| [cross-task-integration-gaps-2026-09-29.md](./process/cross-task-integration-gaps-2026-09-29.md) | 逐任务审查看不见的跨任务整合缺口（同名入口动作分叉、生产者多返回字段未被消费、规格把「动作+文案」写成「仅文案」）与 5 条对策 |
 
 ### [store-ui/](./store-ui/)
 
