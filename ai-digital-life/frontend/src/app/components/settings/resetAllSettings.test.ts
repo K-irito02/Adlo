@@ -156,4 +156,64 @@ describe('resetAllSettings', () => {
     expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
     expect(d.storage.resetBudget).not.toHaveBeenCalled();
   });
+
+  it('抛出原生 Error 时把 message 透传到 outcome.error（不再吞掉错误信息）', async () => {
+    const d = deps({
+      dsh: {
+        saveSourceConfig: vi.fn(async () => {
+          throw new Error('boom');
+        }),
+      },
+    });
+    const outcome = await resetAllSettings(d, {
+      storagePlan: STORAGE_PLAN,
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome.failedAt).toBe('dsh');
+    expect(outcome.failedStep).toBe('unexpected');
+    expect(outcome.error?.message).toBe('boom');
+    expect(outcome.done).toEqual(['preferences', 'browser']);
+    expect(outcome.skipped).toEqual(['storage']);
+  });
+
+  it('抛出非 Error 值时仍 resolve（不 reject），error 归一化为通用结构化错误', async () => {
+    const d = deps({
+      browser: {
+        ...deps().browser,
+        updatePreferences: vi.fn(async () => {
+          throw 'nope';
+        }),
+      },
+    });
+    const outcome = await resetAllSettings(d, {
+      storagePlan: STORAGE_PLAN,
+      applyNow: false,
+      retainSource: false,
+    });
+    expect(outcome.failedStep).toBe('unexpected');
+    expect(typeof outcome.error?.code).toBe('string');
+    expect(typeof outcome.error?.message).toBe('string');
+  });
+
+  it('返回式失败的结构化 error 原样透传到 outcome.error', async () => {
+    const d = deps({
+      storage: {
+        ...deps().storage,
+        setPaths: vi.fn(async () => ({
+          ok: false as const,
+          error: { code: 'Internal' as const, message: 'nope' },
+        })),
+      },
+    });
+    const plan = { ...STORAGE_PLAN, blocks: { ...STORAGE_PLAN.blocks, coreNeeded: true } };
+    const outcome = await resetAllSettings(d, {
+      storagePlan: plan,
+      applyNow: true,
+      retainSource: false,
+    });
+    expect(outcome.failedAt).toBe('storage');
+    expect(outcome.failedStep).toBe('corePaths');
+    expect(outcome.error).toEqual({ code: 'Internal', message: 'nope' });
+  });
 });

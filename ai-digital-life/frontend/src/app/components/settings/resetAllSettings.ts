@@ -1,3 +1,4 @@
+import { type IpcError, toUserMessage } from '@shared/ipc';
 import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import { getDefaultPreferences } from '@shared/defaultPreferences';
 import {
@@ -25,6 +26,8 @@ export interface ResetAllOutcome {
   done: GroupKey[];
   failedAt?: GroupKey;
   failedStep?: string;
+  /** 失败步的结构化错误（供调用方在汇总提示中展示原因）。 */
+  error?: IpcError;
   skipped: GroupKey[];
   restartRequired: boolean;
 }
@@ -37,27 +40,9 @@ const ORDER: GroupKey[] = [...FIRST_GROUPS, 'storage'];
 const PREFERENCES_STEP = 'preferences';
 const UNEXPECTED_STEP = 'unexpected';
 
-/** 与 `IpcError` 结构等价（UI 层禁止直接 import kernel，故就地声明）。 */
-interface NormalizedIpcError {
-  code: string;
-  message: string;
-}
-
 interface StepResult {
   result: GroupResetResult;
   restartRequired: boolean;
-}
-
-/** 抛出值若结构上就是 IPC 错误，则原样保留；否则丢弃（不伪造错误对象）。 */
-function asIpcError(thrown: unknown): NormalizedIpcError | undefined {
-  if (typeof thrown !== 'object' || thrown === null) {
-    return undefined;
-  }
-  const candidate = thrown as { code?: unknown; message?: unknown };
-  if (typeof candidate.code !== 'string' || typeof candidate.message !== 'string') {
-    return undefined;
-  }
-  return { code: candidate.code, message: candidate.message };
 }
 
 /** 每一步统一兜底：注入的 action 抛出异常时映射为 'unexpected' 失败，编排器永不 reject。 */
@@ -66,7 +51,7 @@ async function attempt(run: () => Promise<StepResult>): Promise<StepResult> {
     return await run();
   } catch (thrown) {
     return {
-      result: { ok: false, failedStep: UNEXPECTED_STEP, error: asIpcError(thrown) },
+      result: { ok: false, failedStep: UNEXPECTED_STEP, error: toUserMessage(thrown) },
       restartRequired: false,
     };
   }
@@ -128,6 +113,7 @@ export async function resetAllSettings(
         done,
         failedAt: key,
         failedStep: step.result.failedStep,
+        error: step.result.error,
         skipped: pendingAfter(key, done),
         restartRequired: step.restartRequired,
       };
@@ -148,6 +134,7 @@ export async function resetAllSettings(
       done,
       failedAt: 'storage',
       failedStep: storageStep.result.failedStep,
+      error: storageStep.result.error,
       skipped: pendingAfter('storage', done),
       restartRequired: storageStep.restartRequired,
     };

@@ -12,6 +12,13 @@
  *   collisions.
  */
 
+// Canonical IPC error surface. Re-exported here because
+// `eslint no-restricted-imports` forbids the UI layer (`src/app/**`) from
+// importing `@ai-digital-life/kernel` directly and names `@shared/ipc` as the
+// prescribed path.
+export type { IpcError, IpcResult } from '@ai-digital-life/kernel';
+export { toUserMessage } from '@ai-digital-life/kernel';
+
 export * from './app';
 export * from './clipboard';
 export * from './dsh';
