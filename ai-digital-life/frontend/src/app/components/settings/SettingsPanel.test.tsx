@@ -1202,10 +1202,19 @@ describe('SettingsPanel cross-group search', () => {
     expect(document.querySelector('#adl-settings-search-input')).not.toBeNull();
   });
 
-  it('面板外的 mod+F 不响应', () => {
+  it('面板外普通元素的 mod+F 不响应（事件确已派发并冒泡到 document，非空洞）', () => {
     setupStore();
     renderSearchPanel();
-    fireEvent.keyDown(document.body, { key: 'f', ctrlKey: true });
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    const seen: string[] = [];
+    const onDocumentKeyDown = (e: KeyboardEvent) => seen.push(e.key);
+    document.addEventListener('keydown', onDocumentKeyDown);
+    fireEvent.keyDown(outside, { key: 'f', ctrlKey: true });
+    document.removeEventListener('keydown', onDocumentKeyDown);
+    outside.remove();
+    // 事件真实发生并冒泡到 document；但目标在面板 DOM 外，面板不打开搜索。
+    expect(seen).toEqual(['f']);
     expect(document.querySelector('#adl-settings-search-input')).toBeNull();
   });
 
@@ -1217,5 +1226,71 @@ describe('SettingsPanel cross-group search', () => {
     const notPrevented = fireEvent.keyDown(dialog, { key: 'f', metaKey: true });
     expect(notPrevented).toBe(true);
     expect(document.querySelector('#adl-settings-search-input')).toBeNull();
+  });
+
+  it('冷缓存下选择异步挂载的 treeCache 锚点：待 stats 回包后仍滚动并高亮（R15）', async () => {
+    setupStore();
+    // 冷缓存：清空模块级 tree stats 缓存 → StorageSettings 挂载时 treeStats=null，
+    // treeCache 块（含锚点）须等 getTreeCacheStats 异步回包后才渲染。
+    resetStorageSettingsCache();
+    // 故意让 stats 跨 3 个动画帧才回包：保证「首帧 rAF 时锚点尚不存在」，
+    // 从而真实复现单帧实现静默 no-op（不依赖挂钟时间，只依赖帧顺序）。
+    const getTreeCacheStats = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          let frames = 0;
+          const poll = () => {
+            frames += 1;
+            if (frames >= 3) {
+              resolve({
+                ok: true,
+                data: {
+                  workspaceCount: 0,
+                  totalBytes: 0,
+                  oldestCapturedAt: null,
+                  newestCapturedAt: null,
+                  enabled: true,
+                  ttlMinutes: 15,
+                },
+              });
+              return;
+            }
+            window.requestAnimationFrame(poll);
+          };
+          window.requestAnimationFrame(poll);
+        }),
+    );
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            mode: 'unified',
+            root: '',
+            defaultRoot: '',
+            locatorPath: '',
+            categories: [],
+            pending: null,
+            lastReport: null,
+          },
+        }),
+        getTreeCacheStats,
+      },
+    };
+    renderSearchPanel([]);
+    // 切组前锚点不存在：确保本用例走的是「锚点异步挂载」路径。
+    expect(document.querySelector('[data-settings-anchor="storage:treeCache"]')).toBeNull();
+    typeQuery('treecache');
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: (name) => name.replace(/\s+/g, '').toLowerCase() === 'treecachetitle',
+      }),
+    );
+    expect(useAppStore.getState().activeSettingsGroup).toBe('storage');
+    await waitFor(() => {
+      const anchor = document.querySelector('[data-settings-anchor="storage:treeCache"]');
+      expect(anchor).not.toBeNull();
+      expect(anchor?.classList.contains('adl-settings-search-highlight')).toBe(true);
+    });
   });
 });

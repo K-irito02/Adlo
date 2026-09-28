@@ -77,6 +77,18 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
 /** 跳转落点高亮：类名（R6 要求 `adl-` 前缀）与停留时长（与 CSS 动画同值）。 */
 const SEARCH_HIGHLIGHT_CLASS = 'adl-settings-search-highlight';
 const SEARCH_HIGHLIGHT_MS = 1200;
+/**
+ * 跳转锚点的有界等待（R15）：部分锚点异步挂载（如存储组 `treeCache` 需等树缓存
+ * stats 回包），故在锚点出现前逐帧重试，最多 `SEARCH_JUMP_MAX_ATTEMPTS` 帧
+ * （≈0.5s @60fps）；用尽即放弃，避免锚点确实缺席时意图永久悬挂。
+ */
+const SEARCH_JUMP_MAX_ATTEMPTS = 30;
+
+/** 待解析的跳转意图：切组后由 effect 等锚点出现，再滚动 + 高亮。 */
+interface PendingJump {
+  group: SettingsGroupId;
+  anchor: string;
+}
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
   const { t } = useTCopy();
@@ -450,14 +462,31 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const [resetAllOpen, setResetAllOpen] = useState(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const returnFocusToSearchRef = useRef(false);
+  /** 待解析的跳转意图：搜索选中后先切组，由下方 effect 等锚点出现再滚动 + 高亮。 */
+  const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
+  /** 当前落点高亮（元素 + 移除定时器）：下一次跳转或面板卸载时清理。 */
+  const highlightRef = useRef<{ element: HTMLElement; timer: number } | null>(null);
 
   const collapseSearch = useCallback(() => {
     setSearchQuery('');
     setSearchOpen(false);
   }, [setSearchQuery]);
 
+  /** 清除当前落点高亮（含移除定时器）：下一次跳转前与面板卸载时调用。 */
+  const clearCurrentHighlight = useCallback(() => {
+    const current = highlightRef.current;
+    if (!current) {
+      return;
+    }
+    window.clearTimeout(current.timer);
+    current.element.classList.remove(SEARCH_HIGHLIGHT_CLASS);
+    highlightRef.current = null;
+  }, []);
+
   /**
-   * 跳转到命中条目：收起搜索 → 切换到该组 → 下一帧把锚点滚入视口居中 + 短暂高亮。
+   * 跳转到命中条目：收起搜索 → 切换到该组 → 置待解析跳转意图。
+   * 滚动与高亮由下方 `pendingJump` effect 完成 —— 部分锚点异步挂载（如存储组
+   * `treeCache` 需等 stats 回包），单帧定位会静默 no-op（R15：改为有界等待）。
    * 高亮只落在锚点元素自身（general/shortcuts/workspace 为整行，storage/browser/dsh 为块头），
    * 不扩展到后继卡片：避免与相邻行/卡片形成双重描边，也避免误高亮无关兄弟节点（见报告）。
    */
@@ -465,24 +494,55 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     (entry: SettingsSearchEntry) => {
       collapseSearch();
       setActiveGroup(entry.group);
-      window.requestAnimationFrame(() => {
-        const target = document.querySelector(
-          `[data-settings-anchor="${anchorFor(entry.group, entry.anchorId)}"]`,
-        );
-        if (!(target instanceof HTMLElement)) {
-          return;
-        }
-        if (typeof target.scrollIntoView === 'function') {
-          target.scrollIntoView({ block: 'center' });
-        }
-        target.classList.add(SEARCH_HIGHLIGHT_CLASS);
-        window.setTimeout(() => {
-          target.classList.remove(SEARCH_HIGHLIGHT_CLASS);
-        }, SEARCH_HIGHLIGHT_MS);
-      });
+      setPendingJump({ group: entry.group, anchor: anchorFor(entry.group, entry.anchorId) });
     },
     [collapseSearch, setActiveGroup],
   );
+
+  // 跳转意图解析：待 activeGroup 生效后定位锚点；锚点尚未挂载则逐帧重试至有界预算。
+  // 命中后滚动居中 + 高亮 1.2s（移除定时器存于 ref，避免意图清空时被 effect 清理误杀）。
+  useEffect(() => {
+    if (!pendingJump || activeGroup !== pendingJump.group) {
+      return;
+    }
+    const selector = `[data-settings-anchor="${pendingJump.anchor}"]`;
+    let attempts = 0;
+    let frame = 0;
+    const tick = () => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) {
+        attempts += 1;
+        if (attempts >= SEARCH_JUMP_MAX_ATTEMPTS) {
+          setPendingJump(null);
+          return;
+        }
+        frame = window.requestAnimationFrame(tick);
+        return;
+      }
+      clearCurrentHighlight();
+      if (typeof element.scrollIntoView === 'function') {
+        element.scrollIntoView({ block: 'center' });
+      }
+      element.classList.add(SEARCH_HIGHLIGHT_CLASS);
+      highlightRef.current = {
+        element,
+        timer: window.setTimeout(() => {
+          element.classList.remove(SEARCH_HIGHLIGHT_CLASS);
+          highlightRef.current = null;
+        }, SEARCH_HIGHLIGHT_MS),
+      };
+      setPendingJump(null);
+    };
+    tick();
+    return () => {
+      if (frame) {
+        window.cancelAnimationFrame(frame);
+      }
+    };
+  }, [pendingJump, activeGroup, clearCurrentHighlight]);
+
+  // 面板卸载：清掉高亮移除定时器并摘除残留类（元素此时可能已分离，操作无害）。
+  useEffect(() => clearCurrentHighlight, [clearCurrentHighlight]);
 
   /** mod+F：焦点在面板内时拦截浏览器/编辑器查找，改为打开面板搜索输入框。 */
   const handlePanelKeyDown = useCallback((event: React.KeyboardEvent<HTMLDivElement>) => {
