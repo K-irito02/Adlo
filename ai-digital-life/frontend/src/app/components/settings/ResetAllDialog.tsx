@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
@@ -98,6 +98,9 @@ export function ResetAllDialog({
   const [retainSource, setRetainSource] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<GroupKey | null>(null);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -150,6 +153,41 @@ export function ResetAllDialog({
   const coreNeeded = plan !== null && plan.blocks.coreNeeded;
   const preflight = plan?.preflight ?? null;
   const preflightBlocked = preflight !== null && !preflight.ok;
+
+  // 打开时记录触发元素（设置面板的「恢复全部默认」按钮），关闭时归还焦点；
+  // 若 opener 已不可用，至少把焦点从已卸载的 portal 节点上挪走（jsdom 不做焦点修正）。
+  useEffect(() => {
+    if (open) {
+      openerRef.current =
+        document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+          ? document.activeElement
+          : null;
+      return;
+    }
+    const opener = openerRef.current;
+    openerRef.current = null;
+    if (opener !== null && document.body.contains(opener)) {
+      opener.focus();
+      return;
+    }
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && !document.body.contains(active)) {
+      active.blur();
+    }
+  }, [open]);
+
+  // 焦点管理：打开即进入对话框（计划计算中先落「取消」键）；计划就绪后移到主确认键，
+  // 主键被预检禁用时回落到「取消」键。执行中（busy）不搬动焦点，避免打断进度展示。
+  useEffect(() => {
+    if (!open || busy) {
+      return;
+    }
+    if (planState.status === 'ready' && !preflightBlocked) {
+      confirmRef.current?.focus();
+      return;
+    }
+    cancelRef.current?.focus();
+  }, [open, busy, planState, preflightBlocked]);
 
   /** 执行时组装完整编排 deps：存储取自 props，其余组取 store 实时值（R2）。 */
   const buildDeps = useCallback((): ResetAllDeps => {
@@ -204,6 +242,7 @@ export function ResetAllDialog({
         {t.storageMigrateLater}
       </button>
       <button
+        ref={confirmRef}
         type="button"
         className="adl-btn adl-btn--secondary"
         disabled={busy || preflightBlocked}
@@ -215,6 +254,7 @@ export function ResetAllDialog({
   ) : (
     /* 核心无需迁移（含计划为 null）：单确认键，迁移时机默认「下次启动」。 */
     <button
+      ref={confirmRef}
       type="button"
       className="adl-btn adl-btn--secondary"
       disabled={busy}
@@ -296,6 +336,7 @@ export function ResetAllDialog({
         </div>
         <div className="adl-confirm-dialog__footer">
           <button
+            ref={cancelRef}
             type="button"
             className="adl-btn adl-btn--secondary"
             disabled={busy}

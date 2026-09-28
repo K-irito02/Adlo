@@ -255,4 +255,53 @@ describe('ResetAllDialog', () => {
         .disabled,
     ).toBe(true);
   });
+
+  it('打开即把焦点移入对话框：计算中先落在取消键，而非停留在 body', async () => {
+    installStoreActions();
+    renderDialog({ deps: makeDeps({ bridge: { preflight: () => new Promise(() => {}) } }) });
+    const dialog = screen.getByRole('dialog');
+    const active = document.activeElement as HTMLElement;
+    // jsdom 不实现浏览器焦点修正：这里只断言 activeElement 已被搬进对话框。
+    expect(active).not.toBe(document.body);
+    expect(dialog.contains(active)).toBe(true);
+    expect(screen.getByRole('button', { name: 'cancel' })).toBe(active);
+  });
+
+  it('计划就绪且主确认键可用：焦点移到主确认键', async () => {
+    installStoreActions();
+    renderDialog({});
+    const now = (await screen.findByRole('button', {
+      name: 'storageMigrateNow',
+    })) as HTMLButtonElement;
+    expect(now.disabled).toBe(false);
+    await waitFor(() => expect(document.activeElement).toBe(now));
+  });
+
+  it('预检报错禁用主确认键：焦点回落到取消键', async () => {
+    installStoreActions();
+    renderDialog({
+      deps: makeDeps({
+        bridge: {
+          preflight: async () => ({
+            ok: true,
+            data: {
+              ok: false,
+              errors: [{ category: null, message: 'source and target are identical' }],
+              warnings: [],
+              totalFiles: 0,
+              totalBytes: 0,
+              freeBytes: 0,
+            },
+          }),
+        },
+      }),
+    });
+    const now = (await screen.findByRole('button', {
+      name: 'storageMigrateNow',
+    })) as HTMLButtonElement;
+    await waitFor(() => expect(now.disabled).toBe(true));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'cancel' })),
+    );
+  });
 });
