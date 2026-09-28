@@ -214,6 +214,8 @@ export const settingsEn = {
     'Cannot create the folder at the new location. Check that the path is valid and you have permission.',
   storagePreflightNotWritable:
     'The new location is not writable (possibly no permission). Choose a different location.',
+  storagePreflightDiskSpace:
+    'Not enough disk space at the target location (need ~{need}, {free} free). Free up space and try again.',
   browserGroupResetTitle: 'Reset all Browser defaults?',
   browserGroupResetMessage:
     'Suspend duration (back to 15 minutes), download mode (back to auto-save), and the default download folder (back to the system default with auto-migration turned off) will all be reset to their defaults.',

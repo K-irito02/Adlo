@@ -194,6 +194,7 @@ export const settingsZh = {
     '新位置与当前数据位置互相包含（一个在另一个里面），无法迁移，请换一个位置。',
   storagePreflightCreateDir: '无法创建新位置的文件夹，请检查路径是否有效、是否有权限。',
   storagePreflightNotWritable: '新位置不可写入（可能没有权限），请换一个位置。',
+  storagePreflightDiskSpace: '目标位置磁盘空间不足（约需 {need}，可用 {free}），请清理后重试。',
   browserGroupResetTitle: '恢复「浏览器」全部默认？',
   // 文案中的 15 分钟/自动保存与 DEFAULT_BROWSER_SUSPEND_MS / DEFAULT_DOWNLOAD_MODE
   // 同源，改产品默认时同步此处（L-8）。

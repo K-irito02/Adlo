@@ -6,7 +6,11 @@ import { formatT } from '@i18n/formatT';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { IconResetDefaults } from '../../icons';
 import { BrowserDownloadPathSection } from './BrowserDownloadPathSection';
-import { isDownloadPathAtDefault, useDownloadPathReset } from './downloadPathReset';
+import {
+  downloadResetBlockVariant,
+  isDownloadPathAtDefault,
+  useDownloadPathReset,
+} from './downloadPathReset';
 
 /**
  * 「浏览器下载路径」块（块头 + 卡片 + 恢复默认确认对话框），自包含状态。
@@ -121,12 +125,21 @@ export function DownloadPathBlock({ onOpenChange }: { onOpenChange?: (open: bool
                 </div>
                 <div className="adl-confirm-dialog__body">
                   <p className="adl-confirm-dialog__message">
-                    {/* 事项 10：路径已是系统默认（仅开关非默认可开框）→ 只提示开关恢复。 */}
-                    {downloadSettings.default_path === '' && migrateAtOpenRef.current
-                      ? t.storageDownloadResetConfirmSwitchOnly
-                      : migrateAtOpenRef.current
-                        ? t.storageDownloadResetConfirmMigrateOn
-                        : t.storageDownloadResetConfirmMigrateOff}
+                    {/* 事项 10：路径已是系统默认（仅开关非默认可开框）→ 只提示开关恢复。
+                        变体判定与组级清单同源（`downloadResetBlockVariant`，Phase 4 R2-R10-L2）。 */}
+                    {(() => {
+                      // 开框快照开关（M4-R），非实时值：展示文案与搬运行为同源。
+                      const variant = downloadResetBlockVariant(
+                        downloadSettings,
+                        downloadSettingsLoaded,
+                        migrateAtOpenRef.current,
+                      );
+                      return variant === 'switchOnly'
+                        ? t.storageDownloadResetConfirmSwitchOnly
+                        : variant === 'on'
+                          ? t.storageDownloadResetConfirmMigrateOn
+                          : t.storageDownloadResetConfirmMigrateOff;
+                    })()}
                   </p>
                 </div>
                 <div className="adl-confirm-dialog__footer">

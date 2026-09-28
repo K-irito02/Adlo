@@ -57,12 +57,16 @@ export function getDefaultPreferences(): AppPreferencePatch {
     maxConcurrentWorkspaces: DEFAULT_MAX_CONCURRENT_WORKSPACES,
     workspacePriorityIds: [...DEFAULT_WORKSPACE_PRIORITY_IDS],
     workspaceDeferredIds: [...DEFAULT_WORKSPACE_DEFERRED_IDS],
+    // 注意：组级「工作区恢复默认」刻意不含此字段（事项 12b：自动同步会重建），
+    // 但「恢复全部默认」仍重置加载顺序 —— 两重置作用域分歧是有意的（Phase 4 R1-1.1 记录）。
     workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
     terminalHistoryBudgetBytes: DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES,
     browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
   };
 }
 
+/** 行/组设置项的默认值查询。注意：`language` 返回 `'system'`（用户基线），
+ * 它不是合法 `Locale`——消费前必须经 `resolveAppLanguage` 解析（Phase 4 R1-1.3）。 */
 export function getDefaultForSetting(id: string): string | boolean | number | string[] | undefined {
   switch (id) {
     case 'language':

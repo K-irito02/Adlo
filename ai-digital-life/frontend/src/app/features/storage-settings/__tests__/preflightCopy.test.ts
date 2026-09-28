@@ -21,13 +21,39 @@ const dict = {
 } as unknown as CopyDict;
 
 describe('preflightMessageKey', () => {
-  it('maps the four known Rust preflight messages to i18n keys', () => {
+  it('maps known Rust preflight messages to i18n keys', () => {
     expect(preflightMessageKey('source and target are identical')).toBe(
       'storagePreflightIdentical',
     );
     expect(preflightMessageKey('target is inside source')).toBe('storagePreflightInside');
     expect(preflightMessageKey('cannot create target parent')).toBe('storagePreflightCreateDir');
     expect(preflightMessageKey('target is not writable')).toBe('storagePreflightNotWritable');
+  });
+
+  it('maps the DTO-layer disk-space message (Phase 4 R2-R9-M1)', () => {
+    // 生产者：src-tauri storage.rs "insufficient disk space on target: need ~{} bytes, free {} bytes"。
+    expect(
+      preflightMessageKey('insufficient disk space on target: need ~1234 bytes, free 56 bytes'),
+    ).toBe('storagePreflightDiskSpace');
+    expect(localizePreflightMessage('INSUFFICIENT DISK SPACE ON TARGET', t)).toBe(
+      'L:storagePreflightDiskSpace',
+    );
+  });
+
+  it('keeps the need/free byte counts in the localized disk-space copy (Phase 4 R2-N1)', () => {
+    const diskDict = {
+      storagePreflightDiskSpace: 'need {need} free {free}',
+    } as unknown as CopyDict;
+    expect(
+      localizePreflightMessage(
+        'insufficient disk space on target: need ~126976 bytes, free 789 bytes',
+        diskDict,
+      ),
+    ).toBe('need 124.0 KB free 789.0 B');
+    // 解析失败回退静态文案（不断言数字，只不断言 key 文案）。
+    expect(localizePreflightMessage('insufficient disk space', diskDict)).toBe(
+      'need {need} free {free}',
+    );
   });
 
   it('matches case-insensitively and returns null for unknown messages', () => {

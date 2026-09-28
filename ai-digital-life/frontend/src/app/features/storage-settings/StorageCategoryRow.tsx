@@ -70,8 +70,15 @@ export function ManualPathInput({
       onChange={(e) => {
         dirtyRef.current = true;
         setDraft(e.target.value);
-        if (commitOnChange) {
+        // 逐键提交在 IME 组词中暂停（Phase 4 R2-R8-L1）：组词中间态直接进草稿
+        // 会闪脏条；组词结束经 onCompositionEnd 补提交一次。
+        if (commitOnChange && !(e.nativeEvent as InputEvent).isComposing) {
           onCommit(e.target.value);
+        }
+      }}
+      onCompositionEnd={(e) => {
+        if (commitOnChange) {
+          onCommit((e.target as HTMLInputElement).value);
         }
       }}
       onBlur={commit}

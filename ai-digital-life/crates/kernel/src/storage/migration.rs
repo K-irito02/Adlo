@@ -331,7 +331,13 @@ pub fn category_usage(category: StorageCategory, path: &Path) -> (u64, u64) {
             return (0, 0);
         }
         if path.is_dir() {
-            // 防御：单文件类落点不应是目录，退化为有界目录统计而非静默 (0,0)。
+            // 防御：单文件类落点不应是目录，退化为有界目录统计而非静默 (0,0)；
+            // warn 留痕，防"落点配成目录"的配置错误被正常占用值掩盖（Phase 4 R3-L6）。
+            tracing::warn!(
+                category = ?category,
+                path = %path.display(),
+                "single-file category path is a directory; falling back to bounded dir walk"
+            );
             return dir_usage_limited(path);
         }
         let mut bytes = 0u64;
@@ -423,8 +429,9 @@ fn db_files(category: StorageCategory, paths: &StoragePaths) -> Vec<PathBuf> {
     let Some(primary) = primary_db_file(category, paths) else {
         return Vec::new();
     };
-    let s = primary.to_string_lossy().to_string();
-    vec![primary, PathBuf::from(format!("{s}-wal")), PathBuf::from(format!("{s}-shm"))]
+    // 后缀构造与 `companion_paths` 同源（存在不过滤：复制层跳过缺失项，
+    // 与过滤调用方语义区分，Phase 4 R2-R9-L2 去重）。
+    companion_paths(&primary)
 }
 
 /// 该分类的「目录 → 目录」映射（单文件类返回空）。
@@ -1173,6 +1180,24 @@ mod tests {
         // 主库 7 字节 + 既有 wal 5 字节：total 与复制搬移口径一致（事项 11c）。
         assert_eq!(report.total_files, 2);
         assert_eq!(report.total_bytes, 12);
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn single_file_category_set_matches_db_file_coverage() {
+        // "单文件类"集合必须与 `db_files`/`primary_db_file` 覆盖类一致（文本级同源，
+        // Phase 4 R3-L5）：未来新增 DB 类若只改一处，此断言失败。
+        let base = temp_base("db-category-consistency");
+        let old_root = base.join("old");
+        let paths = paths_for(&StorageLocator::default().selection, &old_root.to_string_lossy());
+        for category in StorageCategory::ALL {
+            assert_eq!(
+                is_single_file_category(category),
+                primary_db_file(category, &paths).is_some(),
+                "single-file set must match db_files coverage for {:?}",
+                category
+            );
+        }
         let _ = std::fs::remove_dir_all(&base);
     }
 

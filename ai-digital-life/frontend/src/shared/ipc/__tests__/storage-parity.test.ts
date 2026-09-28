@@ -187,4 +187,22 @@ describe('storage bridge method parity', () => {
       vi.unstubAllGlobals();
     }
   });
+
+  it('mock preflight errors/warnings use the object shape { category, message } (Phase 4 R2-R9-L4)', async () => {
+    // IPC 破坏性变更（string[] → StoragePreflightIssue[]）：桥实现必须同步形状。
+    // tauri/http 为泛型透传（由共享类型约束），此处锁定 mock 端可构造非空对象形态。
+    // 注意：`preflight()` 直接返回 StoragePreflight（非 ApplyResult 包装）。
+    const res = await createMockStorage({
+      preflightIssues: [{ category: 'database', message: 'target is not writable' }],
+    }).preflight({ mode: 'unified', categories: {}, retainSource: false });
+    expect(res.ok).toBe(true);
+    if (!res.ok) {
+      return;
+    }
+    expect(res.data.ok).toBe(false);
+    expect(res.data.errors).toHaveLength(1);
+    expect(res.data.errors[0]).toMatchObject({ category: 'database' });
+    expect(typeof res.data.errors[0].message).toBe('string');
+    expect(res.data.warnings).toEqual([]);
+  });
 });

@@ -3,7 +3,9 @@ import type { StorageStatus, TreeCacheOptions, TreeCacheStats } from '@shared/ip
 import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 import { isDownloadPathAtDefault } from './downloadPathReset';
 
-/** Rust 缺省（`TreeCacheOptions::default`）：stats 不可用时开关/TTL 的回退值。 */
+/** Rust 缺省（`TreeCacheOptions::default`）：stats 不可用时开关/TTL 的回退值。
+ * 注意：`stores/actions/generalActions.ts` 有同值字面量 `RUST_TREE_CACHE_DEFAULTS`
+ *（层级原因不直接引用本导出；改 Rust 缺省时两处同步，Phase 4 R1-7.4 记录）。 */
 export const TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
 /** 核心数据路径是否已持久化为默认（统一根 + 根等于默认根；有未应用路径草稿则否）。 */

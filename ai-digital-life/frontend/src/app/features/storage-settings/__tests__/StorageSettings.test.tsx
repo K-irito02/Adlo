@@ -2114,6 +2114,29 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
   });
 
+  it('does not commit mid-composition keystrokes, commits on composition end (IME, Phase 4 R2-R8-L1)', async () => {
+    mockStorageBridge();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    fireEvent.click(screen.getByRole('radio', { name: 'storageModePerCategory' }));
+    const pathInputs = screen.getAllByRole('textbox', { name: 'storageManualInput' });
+    const input = pathInputs[0] as HTMLInputElement;
+    // 模拟 IME 组词中（isComposing=true）的 input 事件：不触发 onCommit，
+    // 父级草稿不变 → 脏条不出现（本地 draft 仍更新，无需断言）。
+    const nativeSetter = Object.getOwnPropertyDescriptor(
+      window.HTMLInputElement.prototype,
+      'value',
+    )?.set;
+    nativeSetter?.call(input, '拼音');
+    fireEvent(input, new window.InputEvent('input', { bubbles: true, isComposing: true }));
+    expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+    // 组词结束 → 补提交一次 → 脏条出现。
+    fireEvent.compositionEnd(input);
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+  });
+
   it('group reset with core at default skips preflight and renders the single-confirm dialog (5/6-F1)', async () => {
     // preflight 桩永不 settle：若被调用，开框会挂住 → 断言未调用即可锁定跳过语义。
     const preflight = vi.fn();
@@ -3499,7 +3522,9 @@ describe('事项 13：应用+确认后脏条/CTA 消失（挂起提交快照语�
    * 即撤销 —— getStatus 按当前后台态返回，不依赖调用次数（冷启动加载 / 成功后
    * refresh / 取消后 refresh 均正确）。
    */
-  function makeBridgeWithPendingToggle() {
+  function makeBridgeWithPendingToggle(
+    opts: { restartRequired?: boolean; restartOk?: boolean } = {},
+  ) {
     let backendPending = false;
     const bridge = {
       getStatus: vi.fn().mockImplementation(async () => ({
@@ -3513,13 +3538,22 @@ describe('事项 13：应用+确认后脏条/CTA 消失（挂起提交快照语�
       }),
       setPaths: vi.fn().mockImplementation(async () => {
         backendPending = true;
-        return { ok: true, data: { preflight: { ok: true }, restartRequired: false } };
+        return {
+          ok: true,
+          data: { preflight: { ok: true }, restartRequired: opts.restartRequired ?? false },
+        };
       }),
       cancelPending: vi.fn().mockImplementation(async () => {
         backendPending = false;
         return { ok: true, data: undefined };
       }),
-      restartApp: vi.fn(),
+      restartApp: vi
+        .fn()
+        .mockImplementation(async () =>
+          opts.restartOk === false
+            ? { ok: false, error: { message: 'no-host' } }
+            : { ok: true, data: undefined },
+        ),
       getTreeCacheStats: vi.fn().mockResolvedValue({
         ok: true,
         data: {
@@ -3609,6 +3643,94 @@ describe('事项 13：应用+确认后脏条/CTA 消失（挂起提交快照语�
     await waitFor(() => {
       expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
       expect(screen.getByTestId('storage-bottom-cta')).toBeTruthy();
+    });
+  });
+
+  it('per-category apply hides the bar via drafts-map comparison (Phase 4 R4-L1)', async () => {
+    // 模式感知相等：per_category 只比分类映射（根输入无关）。
+    makeBridgeWithPendingToggle();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    fireEvent.click(screen.getByRole('radio', { name: 'storageModePerCategory' }));
+    const pathInputs = screen.getAllByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(pathInputs[0], { target: { value: 'D:/moved/category' } });
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+    fireEvent.click(
+      within(screen.getByTestId('storage-dirtybar')).getByRole('button', { name: 'storageApply' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-pending-card')).toBeTruthy();
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+      expect(screen.queryByTestId('storage-bottom-cta')).toBeNull();
+    });
+    // 再改同一分类 → 与快照不等 → 脏条恢复。
+    fireEvent.change(pathInputs[0], { target: { value: 'D:/moved/category-2' } });
+    expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+  });
+
+  it('setPaths success + refresh failure keeps the bar (cannot prove pending, Phase 4 R4-M1)', async () => {
+    const bridge = makeBridgeWithPendingToggle();
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    const rootInput = screen.getByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(rootInput, { target: { value: 'D:/new-root' } });
+    fireEvent.click(
+      within(screen.getByTestId('storage-dirtybar')).getByRole('button', { name: 'storageApply' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    // 确认后的 refresh 失败 → 不记快照（无法证明挂起已登记）。
+    bridge.getStatus.mockImplementationOnce(async () => ({
+      ok: false,
+      error: { message: 'disk-gone' },
+    }));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    // 脏条保持显示（与"无法证明挂起"诚实一致），而非矛盾地消失。
+    await waitFor(() => {
+      expect(screen.getByTestId('storage-dirtybar')).toBeTruthy();
+    });
+    expect(screen.queryByTestId('storage-pending-card')).toBeNull();
+  });
+
+  it('apply-now with failing restart still hides the bar once pending is confirmed', async () => {
+    const bridge = makeBridgeWithPendingToggle({ restartRequired: true, restartOk: false });
+    renderSettings();
+    await waitFor(() => {
+      expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
+    });
+    const rootInput = screen.getByRole('textbox', { name: 'storageManualInput' });
+    fireEvent.change(rootInput, { target: { value: 'D:/new-root' } });
+    fireEvent.click(
+      within(screen.getByTestId('storage-dirtybar')).getByRole('button', { name: 'storageApply' }),
+    );
+    const dialog = await screen.findByRole('dialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateNow' }));
+    await waitFor(() => {
+      expect(bridge.restartApp).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-pending-card')).toBeTruthy();
+    });
+    // 重启失败但挂起已登记（refresh 证实）→ 脏条消失。
+    await waitFor(() => {
+      expect(screen.queryByTestId('storage-dirtybar')).toBeNull();
+      expect(screen.queryByTestId('storage-bottom-cta')).toBeNull();
     });
   });
 });

@@ -5,6 +5,7 @@ import type {
   StorageCategoryStatus,
   StorageMode,
   StoragePending,
+  StoragePreflightIssue,
   StorageStatus,
   TreeCacheOptions,
   TreeCacheStats,
@@ -36,6 +37,11 @@ export interface MockStorageConfig {
    * 供 coreAtDefault 分歧场景验证。
    */
   defaultRoot?: string;
+  /**
+   * 预检 issues 注入（可选）：缺省空数组。供形状契约测试构造非空
+   * `errors/warnings`（对象形式 `{category, message}`，Phase 4 R2-R9-L4）。
+   */
+  preflightIssues?: StoragePreflightIssue[];
 }
 
 /** 为给定根构造 11 类分类状态（`downloads_default` 不可移动，与后端一致）。 */
@@ -68,8 +74,8 @@ export function createMockStorage(config: MockStorageConfig = {}): StorageBridge
   let treeCacheOptions: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 
   const preflightOk = (): StorageApplyResult['preflight'] => ({
-    ok: true,
-    errors: [],
+    ok: (config.preflightIssues ?? []).length === 0,
+    errors: config.preflightIssues ?? [],
     warnings: [],
     totalFiles: 0,
     totalBytes: 0,

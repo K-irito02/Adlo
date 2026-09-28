@@ -21,6 +21,6 @@ export function resolveAppLanguage(language: string | undefined): Locale {
   if (normalized === 'zh-cn') {
     return 'zh-CN';
   }
-  const nav = typeof navigator !== 'undefined' ? (navigator.language ?? '') : '';
+  const nav = typeof navigator !== 'undefined' ? navigator.language || '' : '';
   return nav.toLowerCase().startsWith('zh') ? 'zh-CN' : 'en-US';
 }

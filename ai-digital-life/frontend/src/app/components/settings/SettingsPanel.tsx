@@ -160,17 +160,32 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     if (activeGroup === 'storage') {
       return;
     }
-    const value = computeStorageBlocksAtDefault({
-      status: getCachedStorageStatus(),
-      treeStats: getCachedTreeStats(),
-      budgetBytes,
-      downloadSettings,
-      downloadSettingsLoaded,
-      draftsDirty: false,
+    // Phase 4 R1-7.1：预取填充缓存后重算一次 —— 挂载预热是异步的，仅靠同步读
+    // 缓存会使"从未进过存储组"恒为未知（null → 侧边栏启用），直到首次进组才收敛。
+    // prefetch 自带在途去重 latch，重复调用廉价；写入仍受 null/相等守卫约束，无循环。
+    const compute = () => {
+      const value = computeStorageBlocksAtDefault({
+        status: getCachedStorageStatus(),
+        treeStats: getCachedTreeStats(),
+        budgetBytes,
+        downloadSettings,
+        downloadSettingsLoaded,
+        draftsDirty: false,
+      });
+      if (value !== null && value !== useAppStore.getState().storageBlocksAtDefault) {
+        setStorageBlocksAtDefault(value);
+      }
+    };
+    compute();
+    let cancelled = false;
+    void prefetchStorageSettings().then(() => {
+      if (!cancelled) {
+        compute();
+      }
     });
-    if (value !== null && value !== useAppStore.getState().storageBlocksAtDefault) {
-      setStorageBlocksAtDefault(value);
-    }
+    return () => {
+      cancelled = true;
+    };
   }, [
     activeGroup,
     budgetBytes,

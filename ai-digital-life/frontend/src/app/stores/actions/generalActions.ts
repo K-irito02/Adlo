@@ -19,6 +19,8 @@ const SCOPE = 'general';
  * T7 校准门选项：T9 起经 `storage.getTreeCacheStats` 读真实值
  *（stats 与 `get_options()` 同源）；桥不可用/失败时回退 Rust 缺省。
  * 测试经 `setCalibrationOptionsForTesting` 注入覆盖（覆盖优先于真实值，T9 保留）。
+ * 注意：此处字面量与 `storageAtDefault.ts` 的 `TREE_CACHE_DEFAULTS` 同值双份
+ *（stores/actions 不得依赖 features/ 层，见 Phase 4 R1-7.4 记录；改 Rust 缺省时两处同步）。
  */
 const RUST_TREE_CACHE_DEFAULTS: TreeCacheOptions = { enabled: true, ttlMinutes: 15 };
 

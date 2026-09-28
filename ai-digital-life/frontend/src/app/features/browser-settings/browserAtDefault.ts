@@ -21,6 +21,7 @@ export function computeBrowserBlocksAtDefault(
   return (
     suspendMs === DEFAULT_BROWSER_SUSPEND_MS &&
     downloadSettings.mode === DEFAULT_DOWNLOAD_MODE &&
-    isDownloadPathAtDefault(downloadSettings, true)
+    // 传变量而非字面量 true：与上方早返同义，但未来若删早返语义不变（Phase 4 R3-L9）。
+    isDownloadPathAtDefault(downloadSettings, downloadSettingsLoaded)
   );
 }

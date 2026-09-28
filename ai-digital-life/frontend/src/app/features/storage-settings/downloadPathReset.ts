@@ -14,6 +14,25 @@ export function isDownloadPathAtDefault(settings: DownloadSettings, loaded: bool
   return loaded && settings.default_path === '' && !settings.auto_migrate_on_path_change;
 }
 
+/** 下载恢复分支变体（Phase 4 R2-R10-L2 抽取，块级对话框与组级清单同源，防漂移）。
+ * `migrateOverride`：块级对话框传开框快照开关（M4-R：展示文案与搬运行为同源）；
+ * 组级清单用实时值（不传）。 */
+export type DownloadResetVariant = 'on' | 'off' | 'switchOnly' | 'hidden';
+export function downloadResetBlockVariant(
+  settings: DownloadSettings,
+  loaded: boolean,
+  migrateOverride?: boolean,
+): DownloadResetVariant {
+  if (isDownloadPathAtDefault(settings, loaded)) {
+    return 'hidden';
+  }
+  const migrate = migrateOverride ?? settings.auto_migrate_on_path_change;
+  if (settings.default_path !== '') {
+    return migrate ? 'on' : 'off';
+  }
+  return migrate ? 'switchOnly' : 'off';
+}
+
 /**
  * 下载路径恢复默认的共享序列（单块/存储组级/浏览器组级共用，防漂移）：路径写回
  * 系统默认（空串，migrate 按调用方传入的开框快照）+ 开关复位关闭（解耦，成败都执行）。

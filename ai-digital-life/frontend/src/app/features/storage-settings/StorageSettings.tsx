@@ -24,7 +24,7 @@ import { StorageCategoryRow } from './StorageCategoryRow';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { DownloadPathBlock } from './DownloadPathBlock';
-import { isDownloadPathAtDefault, useDownloadPathReset } from './downloadPathReset';
+import { downloadResetBlockVariant, useDownloadPathReset } from './downloadPathReset';
 import { localizePreflightIssues } from './preflightCopy';
 import {
   TREE_CACHE_DEFAULTS,
@@ -173,7 +173,9 @@ export function StorageSettings() {
   );
   /** 事项 13：最近一次成功提交的路径草稿快照（挂起迁移 setPaths+preflight 成功时记录）。
    *  草稿与其一致 → 改动已作为待迁移提交，不算未应用修改（脏条/CTA 消失）；
-   *  仅在 `status.pending` 存在时生效（取消待迁移/迁移完成即失效），取消成功时显式清除。 */
+   *  仅在 `status.pending` 存在时生效（取消待迁移/迁移完成即失效），取消成功时显式清除。
+   *  已知取舍（Phase 4 R4-M2）：快照是 per-mount 内存态，切出存储组再回来/整页重载
+   *  会丢失（pending 仍在后端）；此时脏条重新出现（fail-open 安全方向），属可接受不一致。 */
   const appliedDraftsRef = useRef<{
     mode: StorageMode;
     root: string;
@@ -601,6 +603,8 @@ export function StorageSettings() {
       // 重播种），per_category 下的未应用编辑在切走后丢失 —— 已知取舍：切换即
       // "换上下文"（见事项 3"切换不算修改"决策）；rootDraft 保留，切回 unified
       // 脏条重现。未来如需保留对侧编辑需产品决策，另起事项（Phase 4 R1-5 记录）。
+      // 此处 draftsDirtyRef 置位仅是重播种守卫（语言切换重取时保护已编辑草稿），
+      // 与脏条无关 —— 模式切换本身不算值修改（Phase 4 R1-3.1 命名注记）。
       draftsDirtyRef.current = true;
       setMode(next);
       if (next === 'unified') {
@@ -776,18 +780,8 @@ export function StorageSettings() {
               ? 'reenable'
               : 'full';
       const budgetBlock = !isBudgetAtDefault(budget);
-      const downloadBlock: 'on' | 'off' | 'switchOnly' | 'hidden' = !isDownloadPathAtDefault(
-        dl,
-        dlLoaded,
-      )
-        ? dl.default_path !== ''
-          ? dl.auto_migrate_on_path_change
-            ? 'on'
-            : 'off'
-          : dl.auto_migrate_on_path_change
-            ? 'switchOnly'
-            : 'off'
-        : 'hidden';
+      // 下载分支变体与块级对话框同源（`downloadResetBlockVariant`，Phase 4 R2-R10-L2）。
+      const downloadBlock = downloadResetBlockVariant(dl, dlLoaded);
 
       // 全部四块均已是默认值：不出空白清单，直接提示（事项 10 空态）。
       if (!coreNeeded && treeBlock === 'hidden' && !budgetBlock && downloadBlock === 'hidden') {
@@ -867,10 +861,6 @@ export function StorageSettings() {
           return;
         }
         setDialogOpen(false);
-        // 事项 13：提交成功 → 记录草稿快照（草稿保留展示新路径；挂起在途期间
-        // 快照使脏条/CTA 消失）。applyNow（立即重启）同样记录：重启失败
-        //（浏览器模式）时 pending 已登记，快照同样生效。
-        appliedDraftsRef.current = { mode, root: rootDraft, drafts: categoryDrafts };
         if (applyNow && result.data.restartRequired) {
           const restarted = await bridge.restartApp();
           if (!restarted.ok) {
@@ -879,10 +869,21 @@ export function StorageSettings() {
           } else {
             showToast(t.storageRestartRequired, 'success');
           }
-        } else {
-          showToast(t.storagePendingBanner, 'success');
         }
         const fresh = await refresh();
+        // 事项 13 + Phase 4 R4-M1：仅当 refresh 证实 pending 已登记才记录草稿快照
+        //（草稿保留展示新路径；挂起在途期间快照使脏条/CTA 消失）。refresh 失败
+        //（fresh null）时不记 —— 脏条保持显示，与"无法证明挂起"诚实一致
+        //（此前先记快照后 refresh，失败时 toast 与脏条信号矛盾）。
+        // applyNow（立即重启）同样记录：重启失败（浏览器模式）时 pending 已登记。
+        if (fresh?.pending != null) {
+          appliedDraftsRef.current = { mode, root: rootDraft, drafts: categoryDrafts };
+        }
+        // Phase 4 R4-rev2-L1：成功 toast 后移至 refresh 证实之后 —— refresh 失败时
+        // 只显示刷新错误 toast，不再出现"成功+失败"矛盾对。
+        if (!(applyNow && result.data.restartRequired) && fresh?.pending != null) {
+          showToast(t.storagePendingBanner, 'success');
+        }
         // 恢复流程回填：草稿曾被清成空串，用最新解析根回填，避免输入框空显示。
         // 待迁移（下次启动生效）时回填的仍是旧根——数据确实还在旧位置，诚实展示。
         if (resetReseedRef.current && fresh) {
@@ -1081,8 +1082,11 @@ export function StorageSettings() {
     status?.pending != null &&
     appliedDraftsRef.current !== null &&
     appliedDraftsRef.current.mode === mode &&
-    appliedDraftsRef.current.root.trim() === rootDraft.trim() &&
-    isSameDrafts(appliedDraftsRef.current.drafts, categoryDrafts);
+    // 模式感知比较（Phase 4 R4-L1，与 isDirty/ buildPatch 同口径）：
+    // unified 只比根（分类草稿恒 {}），per_category 只比分类映射（根输入无关）。
+    (mode === 'unified'
+      ? appliedDraftsRef.current.root.trim() === rootDraft.trim()
+      : isSameDrafts(appliedDraftsRef.current.drafts, categoryDrafts));
   const isDirty = Boolean(
     status &&
     !draftEqualsApplied &&
@@ -1343,9 +1347,15 @@ export function StorageSettings() {
             Object.fromEntries(fresh.categories.map((category) => [category.key, category.path])),
           );
           draftsDirtyRef.current = false;
+          // 组恢复重播种后草稿 == status（本来就不脏）：顺手清除单块入口的已提交
+          // 快照，防陈旧快照与重播种草稿的"巧合正确"（Phase 4 R1-5.1 卫生清理）。
+          appliedDraftsRef.current = null;
         } else if (lastKnownRootRef.current ?? status?.root) {
           // refresh 失败也回填上次已知根，避免输入框空显示（L3/L-6）。
           setRootDraft(lastKnownRootRef.current ?? status?.root ?? '');
+          // 失败路径同样清除单块入口的已提交快照（Phase 4 R1-R2-LOW-1）：
+          // 草稿已被回填改写，旧快照再无对照意义，对称于成功路径的卫生清理。
+          appliedDraftsRef.current = null;
         }
         if (failed) {
           // 任一分支失败：只发汇总错误，不发成功 toast，且保持对话框打开供检查（M5-R）。

@@ -510,7 +510,9 @@ describe('storage group reset dialog + dirty bar styles (2026-09-27 decisions)',
     const body = ruleBody(settingsCss, '.adl-storage-settings__dirtybar');
     expect(body).not.toBeNull();
     expect(body).toContain('border-radius: var(--radius-sm)');
-    expect(body).not.toContain('var(--radius-md)');
+    // 仅断言 border-radius 声明本身（Phase 4 R1-4.1）：规则体未来新增其它
+    // radius-md 用途时不脆断。
+    expect(body).not.toMatch(/border-radius:\s*var\(--radius-md\)/);
   });
 
   it('retain-source checkbox gets an explicit monochrome accent (item 6-F2)', () => {

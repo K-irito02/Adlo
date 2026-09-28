@@ -1,5 +1,6 @@
 import type { CopyDict } from '../../i18n';
 import { formatT } from '../../i18n/formatT';
+import { formatBytes } from '@root/design-system/html';
 import type { StoragePreflightIssue } from '@shared/ipc/storage';
 import { CATEGORY_COPY } from './storageCategoryCopy';
 
@@ -25,12 +26,25 @@ export function preflightMessageKey(message: string): keyof CopyDict | null {
   if (m.includes('is not writable')) {
     return 'storagePreflightNotWritable';
   }
+  // 磁盘空间不足（DTO 层追加，category 为 null 的根级问题；Phase 4 R2-R9-M1：
+  // 此前无映射 → 英文原文直达用户，重现事项 9 要消除的中英混排）。
+  if (m.includes('insufficient disk space')) {
+    return 'storagePreflightDiskSpace';
+  }
   return null;
 }
 
 /** 本地化单条预检消息：命中映射用本地文案，否则原文回退。 */
 export function localizePreflightMessage(message: string, t: CopyDict): string {
   const key = preflightMessageKey(message);
+  if (key === 'storagePreflightDiskSpace') {
+    // Phase 4 R2-N1：后端文案携带 need/free 字节数 → 本地化保留数量级
+    //（缺 50GB 与缺 50MB 的处置动作不同）；解析失败回退静态文案。
+    const m = message.match(/need ~(\d+) bytes, free (\d+) bytes/);
+    if (m) {
+      return formatT(t, key, { need: formatBytes(Number(m[1])), free: formatBytes(Number(m[2])) });
+    }
+  }
   return key !== null ? t[key] : message;
 }
 

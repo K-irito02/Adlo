@@ -77,7 +77,13 @@ impl StoragePaths {
             | StorageCategory::SiteMetaDb
             | StorageCategory::TreeCache
             | StorageCategory::Dsh => {
-                actual.parent().map(Path::to_path_buf).unwrap_or(actual)
+                // `Path::parent()` 对无父目录的裸文件名返回 `Some("")` 而非 `None`——
+                // 空父目录同样回退实际路径，禁止返回空路径（Phase 4 R2-R9-L1）。
+                actual
+                    .parent()
+                    .filter(|p| !p.as_os_str().is_empty())
+                    .map(Path::to_path_buf)
+                    .unwrap_or(actual)
             },
             _ => actual,
         }
@@ -328,6 +334,19 @@ mod tests {
         // 关键防回归：DB 类不得出现双重嵌套（data.db/data.db）。
         assert!(!second.data_db.to_string_lossy().contains("data.db/data.db"));
         assert_eq!(second.dsh_versions_dir, PathBuf::from("E:/dsh/dsh-versions"));
+    }
+
+    #[test]
+    fn override_dir_never_returns_empty_parent() {
+        // `Path::parent()` 对裸文件名返回 `Some("")`——守卫必须回退实际路径
+        // 而非空路径（Phase 4 R2-R9-L1；`resolve` 恒拼接根目录，生产不可达）。
+        let mut paths =
+            StoragePaths::from_locator(&StorageLocator::default(), &defaults());
+        paths.data_db = PathBuf::from("data.db");
+        assert_eq!(
+            paths.override_dir(StorageCategory::Database),
+            PathBuf::from("data.db")
+        );
     }
 
     #[test]

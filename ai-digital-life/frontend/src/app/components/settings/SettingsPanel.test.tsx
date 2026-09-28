@@ -392,6 +392,65 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
+  it('initializes the storage aggregate from prefetch on first open (Phase 4 R1-7.1)', async () => {
+    // 从未进过存储组：挂载预热填充缓存后，校正 effect 重算并写入聚合
+    //（此前同步读空缓存恒 null，直到首次进组才收敛）。
+    setupStore();
+    const prevAppInfo = useAppStore.getState().appInfo;
+    const prevAggregate = useAppStore.getState().storageBlocksAtDefault;
+    const prevDownload = useAppStore.getState().downloadSettings;
+    const prevDownloadLoaded = useAppStore.getState().downloadSettingsLoaded;
+    const prevBridge = (window as unknown as { digitalLife?: unknown }).digitalLife;
+    setNavConfig();
+    useAppStore.setState({
+      downloadSettings: { mode: 'auto', default_path: '', auto_migrate_on_path_change: false },
+      downloadSettingsLoaded: true,
+      storageBlocksAtDefault: null,
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            mode: 'unified',
+            root: 'C:/data',
+            defaultRoot: 'C:/data',
+            categories: [],
+            locatorPath: 'C:/data/storage-locator.json',
+            pending: null,
+            lastReport: null,
+          },
+        }),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+      },
+    };
+    try {
+      renderPanel();
+      await waitFor(() => {
+        expect(useAppStore.getState().storageBlocksAtDefault).toBe(true);
+      });
+      expect(navResetDisabled('Reset storageTitle all defaults')).toBe(true);
+    } finally {
+      useAppStore.setState({
+        storageBlocksAtDefault: prevAggregate,
+        appInfo: prevAppInfo,
+        downloadSettings: prevDownload,
+        downloadSettingsLoaded: prevDownloadLoaded,
+      });
+      (window as unknown as { digitalLife?: unknown }).digitalLife = prevBridge;
+    }
+  });
+
   it('browser nav reset disabled only when browser aggregate reports all-default', () => {
     setupStore();
     const prevAppInfo = useAppStore.getState().appInfo;
