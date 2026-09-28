@@ -82,6 +82,18 @@ export const settingsZh = {
   settingsResetConfirmMessage: '所有设置将恢复为默认值，此操作不可撤销。',
   settingsResetGroupConfirmTitle: '恢复 {group} 全部默认？',
   settingsResetGroupConfirmMessage: '{group} 分组下的全部设置项将恢复为默认值，此操作不可撤销。',
+  settingsResetAllScopeIntro: '以下分组的设置将恢复为默认值：',
+  settingsResetAllScopePreferences: '通用、工作区与快捷键',
+  settingsResetAllScopeBrowser: '浏览器（挂起时长、下载模式与下载路径）',
+  settingsResetAllScopeDsh: 'DSH（下载源与代理）',
+  settingsResetAllScopeStorage: '存储（核心路径、树缓存、终端预算与下载路径）',
+  settingsResetAllStorageCompute: '正在计算存储迁移范围…',
+  settingsResetAllStorageSkipped: '存储将跳过',
+  settingsResetAllStorageUnavailable: '存储不可用，已跳过',
+  settingsResetAllProgress: '正在恢复：{group}',
+  settingsResetAllFailedSummary: '已恢复：{done}；失败：{group}（{reason}）',
+  settingsResetAllSkippedNote: '未执行：{groups}',
+  settingsResetAllDoneAll: '已恢复全部默认设置',
 
   // 无障碍
   settingsToggleVisibility: '切换可见性',

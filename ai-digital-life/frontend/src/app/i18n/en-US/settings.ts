@@ -88,6 +88,18 @@ export const settingsEn = {
   settingsResetGroupConfirmTitle: 'Reset {group} to defaults?',
   settingsResetGroupConfirmMessage:
     'Every setting in the {group} group will be restored to its default. This cannot be undone.',
+  settingsResetAllScopeIntro: 'The following groups will be reset to defaults:',
+  settingsResetAllScopePreferences: 'General, workspace and shortcuts',
+  settingsResetAllScopeBrowser: 'Browser (suspend delay, download mode and path)',
+  settingsResetAllScopeDsh: 'DSH (download source and proxy)',
+  settingsResetAllScopeStorage: 'Storage (core paths, tree cache, terminal budget, download path)',
+  settingsResetAllStorageCompute: 'Calculating storage migration scope…',
+  settingsResetAllStorageSkipped: 'Storage will be skipped',
+  settingsResetAllStorageUnavailable: 'Storage unavailable, skipped',
+  settingsResetAllProgress: 'Resetting: {group}',
+  settingsResetAllFailedSummary: 'Reset: {done}; failed: {group} ({reason})',
+  settingsResetAllSkippedNote: 'Not executed: {groups}',
+  settingsResetAllDoneAll: 'All default settings restored',
 
   // Accessibility
   settingsToggleVisibility: 'Toggle visibility',

@@ -109,6 +109,55 @@ describe('i18n en-US namespace keys', () => {
     expect(zhCN.settingsResetConfirmMessage).toBe('所有设置将恢复为默认值，此操作不可撤销。');
   });
 
+  it('includes reset-all scope copy in both locales', () => {
+    expect(enUS.settingsResetAllDoneAll).toBe('All default settings restored');
+    expect(zhCN.settingsResetAllDoneAll).toBe('已恢复全部默认设置');
+    expect(zhCN.settingsResetAllScopeIntro).toBe('以下分组的设置将恢复为默认值：');
+  });
+
+  it('includes reset-all scope/progress keys in both locales', () => {
+    const keys = [
+      'settingsResetAllScopeIntro',
+      'settingsResetAllScopePreferences',
+      'settingsResetAllScopeBrowser',
+      'settingsResetAllScopeDsh',
+      'settingsResetAllScopeStorage',
+      'settingsResetAllStorageCompute',
+      'settingsResetAllStorageSkipped',
+      'settingsResetAllStorageUnavailable',
+      'settingsResetAllProgress',
+      'settingsResetAllFailedSummary',
+      'settingsResetAllSkippedNote',
+      'settingsResetAllDoneAll',
+    ] as const;
+    for (const key of keys) {
+      expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
+      expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
+    }
+    // 插值占位符两侧一致（失败摘要用人类可读的 {reason}，不得回落到内部步骤码）。
+    expect(String(enUS.settingsResetAllFailedSummary)).toBe(
+      'Reset: {done}; failed: {group} ({reason})',
+    );
+    expect(String(zhCN.settingsResetAllFailedSummary)).toBe(
+      '已恢复：{done}；失败：{group}（{reason}）',
+    );
+    expect(String(enUS.settingsResetAllProgress)).toContain('{group}');
+    expect(String(zhCN.settingsResetAllProgress)).toContain('{group}');
+    expect(String(enUS.settingsResetAllSkippedNote)).toContain('{groups}');
+    expect(String(zhCN.settingsResetAllSkippedNote)).toContain('{groups}');
+  });
+
+  it('does not add unused search-only reset keys (group label / no-results reuse)', () => {
+    // R4: 分组标题复用 SETTINGS_GROUPS[].labelKey，无需 settingsSearchGroupLabel。
+    expect(enUS).not.toHaveProperty('settingsSearchGroupLabel');
+    expect(zhCN).not.toHaveProperty('settingsSearchGroupLabel');
+    // R11: 无结果空态复用既有 settings 作用域键 settingsNoResults，不新增 settingsSearchNoResults。
+    expect(enUS).not.toHaveProperty('settingsSearchNoResults');
+    expect(zhCN).not.toHaveProperty('settingsSearchNoResults');
+    expect(enUS.settingsNoResults).toBe('No matching settings');
+    expect(zhCN.settingsNoResults).toBe('无匹配设置项');
+  });
+
   it('no longer exposes the legacy settingsModels or settingsProviders keys', () => {
     expect(enUS).not.toHaveProperty('settingsModels');
     expect(enUS).not.toHaveProperty('settingsModelsDesc');
