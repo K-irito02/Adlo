@@ -10,7 +10,6 @@ import {
   executeStorageResetPlan,
   type StorageResetDeps,
   type StorageResetPlan,
-  type StorageResetPredicates,
 } from '@shared/settings-reset/storageReset';
 import type { GroupKey, GroupResetResult } from '@shared/settings-reset/types';
 
@@ -19,7 +18,6 @@ export interface ResetAllDeps {
   browser: BrowserResetDeps;
   dsh: DshResetDeps;
   storage: StorageResetDeps;
-  storagePredicates: StorageResetPredicates;
 }
 
 export interface ResetAllOutcome {

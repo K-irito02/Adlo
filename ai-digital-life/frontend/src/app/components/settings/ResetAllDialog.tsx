@@ -8,7 +8,7 @@ import type { TreeCacheStats } from '@shared/ipc/storage';
 import {
   computeStorageResetPlan,
   type StorageResetDeps,
-  type StorageResetPlan,
+  type StorageResetPlanResult,
   type StorageResetPredicates,
 } from '@shared/settings-reset/storageReset';
 import type { GroupKey } from '@shared/settings-reset/types';
@@ -27,8 +27,8 @@ export interface ResetAllDialogProps {
   onCommitted: (outcome: ResetAllOutcome) => void;
 }
 
-/** 计划状态：计算中 → 就绪（计划可能为 null = 存储无事可做或不可用）。 */
-type PlanState = { status: 'computing' } | { status: 'ready'; plan: StorageResetPlan | null };
+/** 计划状态：计算中 → 就绪（判别结果区分「就绪 / 全默认 / 不可用」）。 */
+type PlanState = { status: 'computing' } | { status: 'ready'; result: StorageResetPlanResult };
 
 /**
  * 取最新树缓存统计：已有值直接用；为空时现拉一次（与 `StorageSettings.openGroupResetDialog`
@@ -54,13 +54,27 @@ async function resolveTreeStats(current: TreeCacheStats | null): Promise<TreeCac
 async function computePlan(
   deps: StorageResetDeps,
   predicates: StorageResetPredicates,
-): Promise<StorageResetPlan | null> {
+): Promise<StorageResetPlanResult> {
   const treeStats = await resolveTreeStats(deps.readTreeStats());
   return computeStorageResetPlan({ ...deps, readTreeStats: () => treeStats }, predicates);
 }
 
 function groupLabel(t: Record<string, string>, key: GroupKey): string {
   return t[RESET_ALL_GROUP_LABEL_KEYS[key]];
+}
+
+/** 存储行范围文案：计算中 / 就绪 / 全默认（无事可做）/ 不可用（无法判定）。 */
+function storageScopeText(state: PlanState, t: Record<string, string>): string {
+  if (state.status === 'computing') {
+    return t.settingsResetAllStorageCompute;
+  }
+  if (state.result.status === 'ready') {
+    return t.settingsResetAllScopeStorage;
+  }
+  if (state.result.status === 'allDefault') {
+    return t.settingsResetAllStorageSkipped;
+  }
+  return t.settingsResetAllStorageUnavailable;
 }
 
 /**
@@ -92,9 +106,9 @@ export function ResetAllDialog({
     setPlanState({ status: 'computing' });
     setRetainSource(false);
     setProgress(null);
-    void computePlan(deps, storagePredicates).then((plan) => {
+    void computePlan(deps, storagePredicates).then((result) => {
       if (!cancelled) {
-        setPlanState({ status: 'ready', plan });
+        setPlanState({ status: 'ready', result });
       }
     });
     return () => {
@@ -120,7 +134,10 @@ export function ResetAllDialog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, busy, onClose]);
 
-  const plan = planState.status === 'ready' ? planState.plan : null;
+  const plan =
+    planState.status === 'ready' && planState.result.status === 'ready'
+      ? planState.result.plan
+      : null;
   const coreNeeded = plan !== null && plan.blocks.coreNeeded;
   const preflight = plan?.preflight ?? null;
   const preflightBlocked = preflight !== null && !preflight.ok;
@@ -141,9 +158,8 @@ export function ResetAllDialog({
       },
       dsh: { saveSourceConfig: (config) => store.saveSourceConfig(config) },
       storage: deps,
-      storagePredicates,
     };
-  }, [deps, storagePredicates]);
+  }, [deps]);
 
   const handleConfirm = useCallback(
     async (applyNow: boolean) => {
@@ -165,12 +181,7 @@ export function ResetAllDialog({
     return null;
   }
 
-  const storageScopeText =
-    planState.status === 'computing'
-      ? t.settingsResetAllStorageCompute
-      : plan === null
-        ? t.settingsResetAllStorageUnavailable
-        : t.settingsResetAllScopeStorage;
+  const storageRowText = storageScopeText(planState, t);
 
   const confirmControls = coreNeeded ? (
     <>
@@ -222,7 +233,7 @@ export function ResetAllDialog({
             <li>{t.settingsResetAllScopePreferences}</li>
             <li>{t.settingsResetAllScopeBrowser}</li>
             <li>{t.settingsResetAllScopeDsh}</li>
-            <li>{storageScopeText}</li>
+            <li>{storageRowText}</li>
           </ul>
 
           {coreNeeded ? (

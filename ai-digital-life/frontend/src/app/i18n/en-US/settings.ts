@@ -83,8 +83,6 @@ export const settingsEn = {
   settingsUpdateFailed: 'Failed to update settings',
   settingsResetComplete: 'Settings reset to defaults',
   settingsResetConfirmTitle: 'Reset all to defaults?',
-  settingsResetConfirmMessage:
-    'All settings will be restored to their defaults. This cannot be undone.',
   settingsResetGroupConfirmTitle: 'Reset {group} to defaults?',
   settingsResetGroupConfirmMessage:
     'Every setting in the {group} group will be restored to its default. This cannot be undone.',

@@ -79,6 +79,58 @@ function installResetAllActions() {
   return () => useAppStore.setState(prev as never);
 }
 
+/**
+ * 聚合恢复的存储桥桩：核心路径非默认（plan.coreNeeded=true）+ setPaths 报 restartRequired，
+ * 用于验证「立即迁移并重启」路径。`restartApp` 由用例定制成败。
+ */
+function mockStorageBridge(restartApp: () => Promise<unknown>) {
+  return {
+    getStatus: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        mode: 'unified',
+        root: '/custom',
+        defaultRoot: '/data',
+        locatorPath: '',
+        categories: [],
+        pending: null,
+        lastReport: null,
+      },
+    }),
+    preflight: vi.fn().mockResolvedValue({
+      ok: true,
+      data: { ok: true, errors: [], warnings: [], totalFiles: 1, totalBytes: 1, freeBytes: 0 },
+    }),
+    setPaths: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        restartRequired: true,
+        preflight: {
+          ok: true,
+          errors: [],
+          warnings: [],
+          totalFiles: 0,
+          totalBytes: 0,
+          freeBytes: 0,
+        },
+      },
+    }),
+    getTreeCacheStats: vi.fn().mockResolvedValue({
+      ok: true,
+      data: {
+        workspaceCount: 0,
+        totalBytes: 0,
+        oldestCapturedAt: null,
+        newestCapturedAt: null,
+        enabled: true,
+        ttlMinutes: 15,
+      },
+    }),
+    setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
+    restartApp,
+  };
+}
+
 function renderPanel() {
   return render(
     <TestProvider>
@@ -197,6 +249,48 @@ describe('SettingsPanel shell header', () => {
       expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
     } finally {
       restoreActions();
+    }
+  });
+
+  it('聚合恢复「立即迁移并重启」调用重启桥（成功→重启提示）', async () => {
+    const { showToast } = setupStore();
+    const restoreActions = installResetAllActions();
+    const restartApp = vi.fn().mockResolvedValue({ ok: true, data: undefined });
+    (window as unknown as { digitalLife?: unknown }).digitalLife = {
+      storage: mockStorageBridge(restartApp),
+    };
+    try {
+      renderPanel();
+      fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'storageMigrateNow' }));
+      await waitFor(() => expect(restartApp).toHaveBeenCalledTimes(1));
+      expect(showToast).toHaveBeenCalledWith('storageRestartRequired', 'success');
+      expect(showToast).not.toHaveBeenCalledWith('storageRestartUnavailableInBrowser', 'error');
+    } finally {
+      restoreActions();
+      delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    }
+  });
+
+  it('聚合恢复「立即迁移并重启」：桥拒绝重启时提示浏览器不可重启', async () => {
+    const { showToast } = setupStore();
+    const restoreActions = installResetAllActions();
+    const restartApp = vi
+      .fn()
+      .mockResolvedValue({ ok: false, error: { code: 'NOT_SUPPORTED', message: 'no restart' } });
+    (window as unknown as { digitalLife?: unknown }).digitalLife = {
+      storage: mockStorageBridge(restartApp),
+    };
+    try {
+      renderPanel();
+      fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'storageMigrateNow' }));
+      await waitFor(() => expect(restartApp).toHaveBeenCalledTimes(1));
+      expect(showToast).toHaveBeenCalledWith('storageRestartUnavailableInBrowser', 'error');
+      expect(showToast).not.toHaveBeenCalledWith('storageRestartRequired', 'success');
+    } finally {
+      restoreActions();
+      delete (window as unknown as { digitalLife?: unknown }).digitalLife;
     }
   });
 

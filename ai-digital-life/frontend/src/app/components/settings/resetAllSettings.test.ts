@@ -46,13 +46,6 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
         updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
       },
     },
-    storagePredicates: {
-      isCorePathsAtDefault: () => true,
-      isTreeCacheAtDefault: () => true,
-      isBudgetAtDefault: () => true,
-      treeBlockOf: () => 'hidden',
-      downloadBlockOf: () => 'hidden',
-    },
     ...overrides,
   };
 }

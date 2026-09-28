@@ -79,7 +79,6 @@ export const settingsZh = {
   settingsUpdateFailed: '设置更新失败',
   settingsResetComplete: '已恢复默认设置',
   settingsResetConfirmTitle: '恢复全部默认？',
-  settingsResetConfirmMessage: '所有设置将恢复为默认值，此操作不可撤销。',
   settingsResetGroupConfirmTitle: '恢复 {group} 全部默认？',
   settingsResetGroupConfirmMessage: '{group} 分组下的全部设置项将恢复为默认值，此操作不可撤销。',
   settingsResetAllScopeIntro: '以下分组的设置将恢复为默认值：',

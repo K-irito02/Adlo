@@ -31,6 +31,17 @@ export interface StorageResetPlan {
   migrateAtOpen: boolean;
 }
 
+/**
+ * 存储恢复计划的计算结果（判别联合，供对话框区分「无事可做」与「不可用」）：
+ * - `ready`：得到可执行计划；
+ * - `allDefault`：四块均已默认，存储无事可做（正常跳过）；
+ * - `unavailable`：无桥 / 状态不可读 / 核心预检 IPC 调用失败（无法判定）。
+ */
+export type StorageResetPlanResult =
+  | { status: 'ready'; plan: StorageResetPlan }
+  | { status: 'allDefault' }
+  | { status: 'unavailable' };
+
 export interface StorageResetDeps {
   bridge?: StorageBridgeLike;
   refreshStatus: () => Promise<StorageStatus | null>;
@@ -68,19 +79,22 @@ const CORE_RESET_PATCH: StoragePathPatch = {
 };
 
 /**
- * 计算「恢复存储默认」的四块计划；无桥、状态不可用、或核心预检 IPC 失败时返回 null。
- * 核心预检成功但报错（`preflight.ok === false`）仍返回计划，供对话框展示错误并禁用确认键。
+ * 计算「恢复存储默认」的四块计划，返回判别结果：
+ * - `unavailable`：无桥、状态不可用、或核心预检 IPC 调用失败；
+ * - `allDefault`：四块均已默认（存储无事可做）；
+ * - `ready`：返回计划；核心预检 IPC 成功但 `data.ok === false`（目标不可写等）仍返回计划，
+ *   供对话框展示错误并禁用确认键。
  */
 export async function computeStorageResetPlan(
   deps: StorageResetDeps,
   predicates: StorageResetPredicates,
-): Promise<StorageResetPlan | null> {
+): Promise<StorageResetPlanResult> {
   if (!deps.bridge) {
-    return null;
+    return { status: 'unavailable' };
   }
   const status = await deps.refreshStatus();
   if (status === null) {
-    return null;
+    return { status: 'unavailable' };
   }
   const download = deps.previewDownload();
   const treeStats = deps.readTreeStats();
@@ -94,7 +108,7 @@ export async function computeStorageResetPlan(
     !budgetBlock &&
     downloadBlock === 'hidden'
   ) {
-    return null;
+    return { status: 'allDefault' };
   }
   const blocks: StorageResetBlocks = {
     coreNeeded,
@@ -104,13 +118,13 @@ export async function computeStorageResetPlan(
   };
   const migrateAtOpen = download.settings.auto_migrate_on_path_change;
   if (!coreNeeded) {
-    return { blocks, preflight: null, migrateAtOpen };
+    return { status: 'ready', plan: { blocks, preflight: null, migrateAtOpen } };
   }
   const preflight = await deps.bridge.preflight(CORE_RESET_PATCH);
   if (!preflight.ok) {
-    return null;
+    return { status: 'unavailable' };
   }
-  return { blocks, preflight: preflight.data, migrateAtOpen };
+  return { status: 'ready', plan: { blocks, preflight: preflight.data, migrateAtOpen } };
 }
 
 /**

@@ -50,6 +50,12 @@ const PREDICATES: StorageResetPredicates = {
   downloadBlockOf: () => 'hidden',
 };
 
+/** 四块均已默认的谓词：核心/树/预算默认、下载块隐藏 → 计划应为 allDefault。 */
+const ALL_DEFAULT_PREDICATES: StorageResetPredicates = {
+  ...PREDICATES,
+  isCorePathsAtDefault: () => true,
+};
+
 const TREE_STATS: TreeCacheStats = {
   workspaceCount: 0,
   totalBytes: 0,
@@ -120,6 +126,7 @@ afterEach(() => {
 
 function renderDialog(options: {
   deps?: StorageResetDeps;
+  predicates?: StorageResetPredicates;
   onClose?: () => void;
   onCommitted?: (outcome: ResetAllOutcome) => void;
 }) {
@@ -131,7 +138,7 @@ function renderDialog(options: {
         open
         onClose={onClose}
         deps={options.deps ?? makeDeps()}
-        storagePredicates={PREDICATES}
+        storagePredicates={options.predicates ?? PREDICATES}
         onCommitted={onCommitted}
       />
     </TCopyProvider>,
@@ -188,7 +195,7 @@ describe('ResetAllDialog', () => {
     expect(screen.getByText('storagePreflightIdentical')).not.toBeNull();
   });
 
-  it('计划为 null：存储行标注不可用，单确认键仍执行其余三组', async () => {
+  it('存储不可用（无桥）：存储行标注不可用，单确认键仍执行其余三组', async () => {
     installStoreActions();
     const onCommitted = vi.fn();
     const { onClose } = renderDialog({
@@ -196,11 +203,31 @@ describe('ResetAllDialog', () => {
       onCommitted,
     });
     expect(await screen.findByText('settingsResetAllStorageUnavailable')).not.toBeNull();
+    expect(screen.queryByText('settingsResetAllStorageSkipped')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
     const outcome = onCommitted.mock.calls[0][0] as ResetAllOutcome;
     expect(outcome.done).toEqual(['preferences', 'browser', 'dsh']);
     expect(outcome.failedAt).toBeUndefined();
+    expect(outcome.skipped).toEqual(['storage']);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('四块全默认：存储行标注「将跳过」而非「不可用」，单确认键仍执行其余三组', async () => {
+    installStoreActions();
+    const onCommitted = vi.fn();
+    const { onClose } = renderDialog({
+      deps: makeDeps(),
+      predicates: ALL_DEFAULT_PREDICATES,
+      onCommitted,
+    });
+    // allDefault 渲染 skipped 文案，绝不渲染 unavailable（Finding 2：区分「无事可做」与「不可用」）。
+    expect(await screen.findByText('settingsResetAllStorageSkipped')).not.toBeNull();
+    expect(screen.queryByText('settingsResetAllStorageUnavailable')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'storageGroupResetConfirm' }));
+    await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
+    const outcome = onCommitted.mock.calls[0][0] as ResetAllOutcome;
+    expect(outcome.done).toEqual(['preferences', 'browser', 'dsh']);
     expect(outcome.skipped).toEqual(['storage']);
     expect(onClose).toHaveBeenCalledTimes(1);
   });

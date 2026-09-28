@@ -100,13 +100,12 @@ describe('i18n en-US namespace keys', () => {
     expect(String(zhCN.treeCacheTtlMinutes)).toContain('{minutes}');
   });
 
-  it('includes reset-all confirm copy in both locales', () => {
+  it('includes reset-all confirm title (message key retired) in both locales', () => {
     expect(enUS.settingsResetConfirmTitle).toBe('Reset all to defaults?');
-    expect(enUS.settingsResetConfirmMessage).toBe(
-      'All settings will be restored to their defaults. This cannot be undone.',
-    );
     expect(zhCN.settingsResetConfirmTitle).toBe('恢复全部默认？');
-    expect(zhCN.settingsResetConfirmMessage).toBe('所有设置将恢复为默认值，此操作不可撤销。');
+    // 通用确认框恒用组模板（Finding 4）：裸「恢复全部」消息键已删除，两语均不得再暴露。
+    expect(enUS).not.toHaveProperty('settingsResetConfirmMessage');
+    expect(zhCN).not.toHaveProperty('settingsResetConfirmMessage');
   });
 
   it('includes reset-all scope copy in both locales', () => {

@@ -255,11 +255,18 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   /** 聚合恢复结束：成功/失败/跳过汇总提示（组名经统一 labelKey 表解析，防两处漂移）。 */
   const handleResetAllCommitted = useCallback(
-    (outcome: ResetAllOutcome) => {
+    async (outcome: ResetAllOutcome) => {
       const labelOf = (key: GroupKey) => t[RESET_ALL_GROUP_LABEL_KEYS[key]];
       if (outcome.failedAt === undefined) {
         showToast(t.settingsResetAllDoneAll, 'success');
         if (outcome.restartRequired) {
+          // 与 StorageSettings 组级尾部同源：applyNow 已写入待迁移补丁，此处触发立即重启；
+          // 桥不可重启（浏览器 / mock）时提示改由下次启动生效。
+          const restarted = await window.digitalLife?.storage.restartApp();
+          if (!restarted?.ok) {
+            showToast(t.storageRestartUnavailableInBrowser, 'error');
+            return;
+          }
           showToast(t.storageRestartRequired, 'success');
         }
         return;
@@ -686,12 +693,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // deps 无需再含 settingsNavigatorWidth（revB-R3：原依据不成立）。
   const hostScrollbar = useRevealScrollbar([effectiveGroup, searchQuery], 'horizontal');
 
-  // 组级重置沿用同一个 ConfirmDialog，文案按 pendingResetGroup 切换，避免"恢复全部"误导。
-  const pendingGroupLabel = pendingResetGroup
-    ? (t[
-        SETTINGS_GROUPS.find((g) => g.id === pendingResetGroup)?.labelKey ?? 'settingsGeneral'
-      ] as string)
-    : null;
+  // 组级重置沿用同一个 ConfirmDialog；此框仅由组级流程打开（pendingResetGroup 恒非空），
+  // 文案恒用组模板。「恢复全部」由 ResetAllDialog 承接，不再走此路径。
+  const pendingGroupLabel = t[
+    SETTINGS_GROUPS.find((g) => g.id === pendingResetGroup)?.labelKey ?? 'settingsGeneral'
+  ] as string;
 
   return (
     <div className="adl-settings-panel" onKeyDown={handlePanelKeyDown}>
@@ -766,16 +772,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       />
       <ConfirmDialog
         open={confirmResetOpen}
-        title={
-          pendingGroupLabel
-            ? formatT(t, 'settingsResetGroupConfirmTitle', { group: pendingGroupLabel })
-            : t.settingsResetConfirmTitle
-        }
-        message={
-          pendingGroupLabel
-            ? formatT(t, 'settingsResetGroupConfirmMessage', { group: pendingGroupLabel })
-            : t.settingsResetConfirmMessage
-        }
+        title={formatT(t, 'settingsResetGroupConfirmTitle', { group: pendingGroupLabel })}
+        message={formatT(t, 'settingsResetGroupConfirmMessage', { group: pendingGroupLabel })}
         confirmLabel={t.confirm}
         cancelLabel={t.cancel}
         onConfirm={handleConfirmClick}

@@ -58,8 +58,8 @@ function predicates(): StorageResetPredicates {
 }
 
 describe('computeStorageResetPlan', () => {
-  it('四块全默认时返回 null（无事可做）', async () => {
-    expect(await computeStorageResetPlan(deps(), predicates())).toBeNull();
+  it('四块全默认时返回 allDefault（无事可做，调用方按跳过处理）', async () => {
+    expect(await computeStorageResetPlan(deps(), predicates())).toEqual({ status: 'allDefault' });
   });
 
   it('核心非默认时做 preflight 并带出 coreNeeded', async () => {
@@ -75,17 +75,48 @@ describe('computeStorageResetPlan', () => {
           }) as never,
       ),
     });
-    const plan = await computeStorageResetPlan(d, predicates());
+    const result = await computeStorageResetPlan(d, predicates());
+    expect(result.status).toBe('ready');
+    const plan = result.status === 'ready' ? result.plan : null;
     expect(plan?.blocks.coreNeeded).toBe(true);
     expect(d.bridge?.preflight).toHaveBeenCalledTimes(1);
     expect(plan?.preflight?.ok).toBe(true);
   });
 
-  it('桥缺失时返回 null（调用方按跳过处理）', async () => {
-    expect(await computeStorageResetPlan(deps({ bridge: undefined }), predicates())).toBeNull();
+  it('桥缺失时返回 unavailable（无法判定，调用方按跳过处理）', async () => {
+    expect(await computeStorageResetPlan(deps({ bridge: undefined }), predicates())).toEqual({
+      status: 'unavailable',
+    });
   });
 
-  it('核心预检 IPC 成功但 data.ok=false → 仍返回非 null 计划并携带该 preflight（Task 10 依赖）', async () => {
+  it('状态不可读或预检 IPC 调用失败时返回 unavailable', async () => {
+    expect(
+      await computeStorageResetPlan(deps({ refreshStatus: vi.fn(async () => null) }), predicates()),
+    ).toEqual({ status: 'unavailable' });
+    const failingIpc = deps({
+      bridge: {
+        preflight: vi.fn(async () => ({
+          ok: false as const,
+          error: { code: 'Internal' as const, message: 'boom' },
+        })),
+      },
+      refreshStatus: vi.fn(
+        async () =>
+          ({
+            mode: 'perCategory',
+            root: '/x',
+            defaultRoot: '/data',
+            pending: null,
+            categories: [],
+          }) as never,
+      ),
+    });
+    expect(await computeStorageResetPlan(failingIpc, predicates())).toEqual({
+      status: 'unavailable',
+    });
+  });
+
+  it('核心预检 IPC 成功但 data.ok=false → 仍返回 ready 计划并携带该 preflight（Task 10 依赖）', async () => {
     const failingPreflight = {
       ok: false,
       totalFiles: 0,
@@ -107,8 +138,9 @@ describe('computeStorageResetPlan', () => {
           }) as never,
       ),
     });
-    const plan = await computeStorageResetPlan(d, predicates());
-    expect(plan).not.toBeNull();
+    const result = await computeStorageResetPlan(d, predicates());
+    expect(result.status).toBe('ready');
+    const plan = result.status === 'ready' ? result.plan : null;
     expect(plan?.blocks.coreNeeded).toBe(true);
     expect(plan?.preflight?.ok).toBe(false);
   });
@@ -118,7 +150,7 @@ describe('computeStorageResetPlan', () => {
     // tree 谓词为 false（未默认），但 treeBlockOf 谎报 'hidden'：短路必须以谓词为准。
     p.isTreeCacheAtDefault = vi.fn(() => false);
     p.treeBlockOf = vi.fn(() => 'hidden' as const);
-    expect(await computeStorageResetPlan(deps(), p)).not.toBeNull();
+    expect((await computeStorageResetPlan(deps(), p)).status).toBe('ready');
   });
 });
 
