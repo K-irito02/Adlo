@@ -30,8 +30,9 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
 
 /**
  * 「恢复全部默认」执行组（`GroupKey`）→ 展示名 i18n key。
- * `preferences` 为 general + workspace + shortcuts 的合称（无单组标签），复用范围清单
- * 第一条 `settingsResetAllScopePreferences`；其余三组与 `SETTINGS_GROUPS[].labelKey` 同源。
+ * `preferences` 为 general + workspace + shortcuts 的合称（无单组标签），沿用
+ * `settingsResetAllScopePreferences`（分组清单 UI 已删，仅此键保留作组展示名）；
+ * 其余三组与 `SETTINGS_GROUPS[].labelKey` 同源。
  * 供 ResetAllDialog 的进度文案与 SettingsPanel 的失败汇总共用，防两处漂移。
  */
 export const RESET_ALL_GROUP_LABEL_KEYS: Record<GroupKey, keyof CopyDict> = {

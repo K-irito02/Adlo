@@ -111,20 +111,15 @@ describe('i18n en-US namespace keys', () => {
   it('includes reset-all scope copy in both locales', () => {
     expect(enUS.settingsResetAllDoneAll).toBe('All default settings restored');
     expect(zhCN.settingsResetAllDoneAll).toBe('已恢复全部默认设置');
-    expect(zhCN.settingsResetAllScopeIntro).toBe('以下分组的设置将恢复为默认值：');
+    // 分组清单已删（仅 ScopePreferences 作为 preferences 组展示名保留）：ScopeIntro 不再暴露。
+    expect(enUS).not.toHaveProperty('settingsResetAllScopeIntro');
+    expect(zhCN).not.toHaveProperty('settingsResetAllScopeIntro');
   });
 
   it('includes reset-all scope/progress keys in both locales', () => {
     const keys = [
-      'settingsResetAllScopeIntro',
       'settingsResetAllScopePreferences',
-      'settingsResetAllScopeBrowser',
-      'settingsResetAllScopeDsh',
-      'settingsResetAllScopeStorage',
       'settingsResetAllConfirmMessage',
-      'settingsResetAllStorageCompute',
-      'settingsResetAllStorageSkipped',
-      'settingsResetAllStorageUnavailable',
       'settingsResetAllProgress',
       'settingsResetAllFailedSummary',
       'settingsResetAllFailedSummaryNoDone',
