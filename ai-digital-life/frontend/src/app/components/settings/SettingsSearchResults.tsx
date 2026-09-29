@@ -2,7 +2,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { EmptyRow } from '@components/LoadingRow';
 import { SETTINGS_GROUPS } from './settingsGroups';
 import { anchorFor, matchedDetail, type SettingsSearchEntry } from './settingsSearchIndex';
-import { highlightMatch } from './settingsHighlight';
+import { highlightMatch, detailWindow } from './settingsHighlight';
 
 interface SettingsSearchResultsProps {
   /** 已按查询过滤的跨组索引条目（`filterSearchIndex` 输出）。 */
@@ -54,7 +54,7 @@ export function SettingsSearchResults({ entries, query, onSelect }: SettingsSear
                     </span>
                     {detail && (
                       <span className="adl-settings-search-results__detail">
-                        {highlightMatch(detail.text, query)}
+                        {highlightMatch(detailWindow(detail.text, query), query)}
                       </span>
                     )}
                   </button>

@@ -149,6 +149,43 @@ describe('设置面板搜索历史卡片', () => {
     expect(document.activeElement).toBe(input);
   });
 
+  it('收起后重新打开搜索，卡片会回来（已收起状态按搜索会话复位）', () => {
+    seedStore(['theme']);
+    renderPanel();
+    const input = openSearch();
+    fireEvent.click(document.querySelector('.adl-settings-search-history__close') as Element);
+    expect(card()).toBeNull();
+    // 收起搜索（Esc）再重开：复位点是 `searchOpen` 边沿（唯一复位处）。
+    fireEvent.keyDown(input, { key: 'Escape' });
+    expect(document.querySelector('#adl-settings-search-input')).toBeNull();
+    openSearch();
+    expect(card()).not.toBeNull();
+  });
+
+  it('卡片内点击非可聚焦区域（标题/留白）不会关掉整个搜索', () => {
+    seedStore(['theme']);
+    renderPanel();
+    const input = openSearch();
+    // 卡片内多处不可聚焦：不阻止 mousedown 默认行为时浏览器会先清掉输入框焦点，
+    // 触发面板的失焦收起（搜索栏整体消失）。此处断言「默认行为已被阻止」。
+    const title = document.querySelector('.adl-settings-search-history__title') as Element;
+    const notPrevented = fireEvent.mouseDown(title);
+    expect(notPrevented).toBe(false);
+    expect(card()).not.toBeNull();
+    expect(input).not.toBeNull();
+  });
+
+  it('焦点在卡片内按 Escape：只收起卡片，查询与搜索态保留', () => {
+    seedStore(['theme']);
+    renderPanel();
+    const input = openSearch();
+    const close = document.querySelector('.adl-settings-search-history__close') as Element;
+    fireEvent.keyDown(close, { key: 'Escape' });
+    expect(card()).toBeNull();
+    expect(document.querySelector('#adl-settings-search-input')).toBe(input);
+    expect(useAppStore.getState().settingsSearchQuery).toBe('');
+  });
+
   it('点击卡片与输入框以外即收起卡片（搜索态本身不变）', () => {
     seedStore(['theme']);
     renderPanel();

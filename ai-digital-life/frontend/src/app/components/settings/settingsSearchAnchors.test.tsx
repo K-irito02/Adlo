@@ -13,8 +13,12 @@ import { StorageSettings } from '@features/storage-settings/StorageSettings';
 import { BrowserSettings } from '@features/browser-settings/BrowserSettings';
 import { DshSettings } from '@features/dsh/DshSettings';
 import { KeybindSettings } from './KeybindSettings';
+import { settingsZh } from '@i18n/zh-CN/settings';
+import { browserZh } from '@i18n/zh-CN/browser';
+import { dshZh } from '@i18n/zh-CN/dsh';
 import { SettingsControls } from './SettingsControls';
 import { buildSettingsSearchIndex, anchorFor } from './settingsSearchIndex';
+import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
 
 // DshSettings 经 useAppActions 触达 IPC：与 DshSettings.test.tsx 同法打桩，
 // 只保留渲染所需的最小组件前置条件（挂载拉取 / 自动检测均走静默桩）。
@@ -132,15 +136,22 @@ const storageStatus = {
 
 /**
  * 条件渲染的设置行：其 `data-settings-row` 标记只在特定编辑态/数据态下出现，
- * 无法在默认渲染里恒见 —— 逐条给出条件（并用「白名单不得滞留」断言兜住删行后的残留）。
+ * 无法在默认渲染里恒见，故 DOM 断言只要求「登记不滞留」（删行后必须同步删本清单）。
+ * 每行给出条件；条件恒真的行**不得**进本清单（那会让守卫失去拦截力）。
  */
-const CONDITIONAL_ROW_MARKERS = new Map<string, string>([
-  ['dshSettingsCustomUrl', '仅下载源为「自定义」时渲染'],
-  ['dshSettingsProxyHttp', '仅代理模式为「手动」时渲染'],
-  ['dshSettingsProxyHttps', '仅代理模式为「手动」时渲染'],
-  ['dshSettingsProxyNoProxy', '仅代理模式为「手动」时渲染'],
-  ['settingsTerminalHistoryBudgetFollowDiskDesc', '仅终端历史预算选「跟随磁盘」时渲染'],
-]);
+const CONDITIONAL_ROW_MARKERS: string[] = [
+  // 注意：**默认渲染下真实存在**的条件行不得列入本清单 —— 列进去等于放弃对它的断言。
+  // 例：`storageRootLabel` 只在「统一根目录」模式渲染，但测试种子就是 unified，
+  // 故它必须留在断言范围内（每类独立模式下它落点回退块锚点，属设计内降级）。
+  // 仅下载源为「自定义」时渲染。
+  'dshSettingsCustomUrl',
+  // 仅代理模式为「手动」时渲染。
+  'dshSettingsProxyHttp',
+  'dshSettingsProxyHttps',
+  'dshSettingsProxyNoProxy',
+  // 仅终端历史预算选「跟随磁盘」时渲染。
+  'settingsTerminalHistoryBudgetFollowDiskDesc',
+];
 
 // 六组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。
 const CASES: { group: SettingsGroupId; render: () => ReturnType<typeof render> }[] = [
@@ -259,21 +270,56 @@ describe('settings search anchors', () => {
       settings: buildGeneralItems(),
       keybinds: {},
     });
+    /** 每条行文案的定位文案（mockT 下即 key 名，与 DOM 属性值同源）。 */
     const locatesOf = (entries: typeof index) =>
-      new Set(
-        entries.flatMap((entry) => (entry.details ?? []).map((detail) => detail.locate as string)),
-      );
+      entries.flatMap((entry) =>
+        (entry.details ?? []).map((detail) => detail.locate as string),
+      ) as string[];
 
-    // 白名单不得滞留：每个条件行的定位文案必须仍是登记在册的行（删行后必须同步删白名单）。
-    const registered = locatesOf(index);
-    for (const key of CONDITIONAL_ROW_MARKERS.keys()) {
+    const registered = new Set(locatesOf(index));
+    // 条件清单不得滞留：每条仍必须是登记在册的行（删行后必须同步删清单）。
+    for (const key of CONDITIONAL_ROW_MARKERS) {
       expect(registered.has(key), `stale conditional row marker ${key}`).toBe(true);
     }
+    // 同一组内**不同块**不得共用同一条行定位文案：`findSettingsRow` 取首个等值命中，
+    // 跨块重复会让落点静默落到另一个块的行上（同块内两行同文案由 i18n 文案唯一性保证，
+    // 属已知边界 —— 索引是扁平结构，此处无法逐行区分）。
+    for (const group of ['workspace', 'storage', 'browser', 'dsh'] as const) {
+      const locates = index
+        .filter((entry) => entry.group === group)
+        .flatMap((entry) => [...new Set((entry.details ?? []).map((detail) => detail.locate))]);
+      const duplicates = locates.filter((locate, position) => locates.indexOf(locate) !== position);
+      expect(duplicates, `${group} has duplicate row markers across blocks`).toEqual([]);
+    }
+
+    // mockT 下的 locate 是 **key 名**，只能证明「key 不重复」；落点靠**运行时文案值**等值匹配，
+    // 故再用真实中文文案核对一遍：每个 locate 都能译出文案，且同组内文案值两两不同。
+    const zh = { ...settingsZh, ...browserZh, ...dshZh } as Record<string, string>;
+    for (const group of ['workspace', 'storage', 'browser', 'dsh'] as const) {
+      const texts = index
+        .filter((entry) => entry.group === group)
+        .flatMap((entry) => [
+          ...new Set((entry.details ?? []).map((detail) => detail.locate as string)),
+        ])
+        .map((locate) => {
+          const text = zh[locate];
+          expect(text, `${group}/${locate} missing in zh copy`).toBeTruthy();
+          return text;
+        });
+      const duplicates = texts.filter((text, position) => texts.indexOf(text) !== position);
+      expect(duplicates, `${group} has duplicate row copy values`).toEqual([]);
+    }
+
+    // 防「静默跳过」：除 general/shortcuts 外至少两组带有块内行文案，否则本用例形同虚设。
+    const groupsWithRows = CASES.filter(
+      ({ group }) => locatesOf(index.filter((e) => e.group === group)).length > 0,
+    );
+    expect(groupsWithRows.length).toBeGreaterThanOrEqual(3);
 
     for (const { group, render: doRender } of CASES) {
-      const expected = [...locatesOf(index.filter((entry) => entry.group === group))].filter(
-        (locate) => !CONDITIONAL_ROW_MARKERS.has(locate),
-      );
+      const expected = [
+        ...new Set(locatesOf(index.filter((entry) => entry.group === group))),
+      ].filter((locate) => !CONDITIONAL_ROW_MARKERS.includes(locate));
       // 通用/快捷键组由 SettingItem / 命令派生（行本身即锚点），没有块内行文案：跳过。
       if (expected.length === 0) {
         continue;
@@ -281,8 +327,8 @@ describe('settings search anchors', () => {
       const { container, unmount } = doRender();
       await waitFor(() => {
         const present = new Set(
-          Array.from(container.querySelectorAll('[data-settings-row]')).map((el) =>
-            el.getAttribute('data-settings-row'),
+          Array.from(container.querySelectorAll(`[${SETTINGS_ROW_ATTRIBUTE}]`)).map((el) =>
+            el.getAttribute(SETTINGS_ROW_ATTRIBUTE),
           ),
         );
         for (const locate of expected) {

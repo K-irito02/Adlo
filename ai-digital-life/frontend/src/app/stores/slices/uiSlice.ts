@@ -6,7 +6,11 @@ import type { StoreState } from '../StoreState';
 import { persistField } from '../persisted/apply';
 import { persist } from '../persisted/persist';
 import type { UISlice } from './uiSliceTypes';
-import { defaultNavigatorCollapsed, SETTINGS_SEARCH_HISTORY_MAX } from './uiSliceTypes';
+import {
+  defaultNavigatorCollapsed,
+  SETTINGS_SEARCH_HISTORY_MAX,
+  SETTINGS_SEARCH_HISTORY_MAX_LENGTH,
+} from './uiSliceTypes';
 import { createUIWidthSlice } from './uiSliceWidths';
 import { createUIExpansionSlice } from './uiSliceExpansion';
 
@@ -166,8 +170,9 @@ export const createUISlice = (
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
     recordSettingsSearch: (query) => {
-      const entry = query.trim();
-      // 空白查询不入历史；已在首位即无变化，避免每次跳转都写一次盘。
+      // 单条截断到上限（与读盘侧同值收敛）；空白查询不入历史。
+      const entry = query.trim().slice(0, SETTINGS_SEARCH_HISTORY_MAX_LENGTH);
+      // 已在首位即无变化：避免每次跳转都写一次盘。
       if (entry === '' || get().settingsSearchHistory[0] === entry) {
         return;
       }

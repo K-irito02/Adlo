@@ -85,6 +85,30 @@ describe('reveal highlight overlay', () => {
     expect(revealHighlightSource).toContain("'--adl-reveal-highlight-duration'");
     expect(revealHighlightSource).toContain('setProperty(DURATION_VAR');
     expect(revealHighlightCss).toContain('var(--adl-reveal-highlight-duration');
+    // CSS 兜底值与 TS 常量必须同值（兜底虽被 JS 覆盖，仍是「两份时长」的漂移点）。
+    const tsDuration = Number(
+      /REVEAL_HIGHLIGHT_DURATION_MS = (\d+)/.exec(revealHighlightSource)![1],
+    );
+    const cssFallback = Number(
+      /var\(--adl-reveal-highlight-duration,\s*([\d.]+)s\)/.exec(revealHighlightCss)![1],
+    );
+    expect(cssFallback * 1000).toBe(tsDuration);
+  });
+
+  it('keeps the host non-scrolling precondition that the alignment math relies on', () => {
+    // 对齐只按 offsetParent 的矩形差计算：宿主一旦真滚动，高亮条不会跟随。
+    // 文件面板宿主声明了 overflow-y: auto，靠填充规则把直接子元素夹在 100% 高才实际不滚 —— 锁住该前提。
+    // 断言必须落在**该规则的规则体**内：切到文件末尾会让后面的 .adl-cm-editor { height: 100% } 顶上，
+    // 规则被改后本断言仍绿（名不副实的护栏）。
+    const start = editorSurfaceCss.indexOf('.adl-tool-editor__surface > div:not(');
+    expect(start).toBeGreaterThanOrEqual(0);
+    const bodyStart = editorSurfaceCss.indexOf('{', start);
+    const fillRule = editorSurfaceCss.slice(
+      bodyStart + 1,
+      editorSurfaceCss.indexOf('}', bodyStart),
+    );
+    expect(fillRule).toContain('height: 100%');
+    expect(fillRule).toContain('width: 100%');
   });
 
   it('expresses the two color variants as variable rebinding on the same keyframes', () => {
@@ -93,8 +117,10 @@ describe('reveal highlight overlay', () => {
     expect(revealHighlightCss).toContain('.adl-reveal-highlight--accent');
     expect(revealHighlightCss).toContain('--adl-reveal-highlight-bg: var(--warning-soft)');
     expect(revealHighlightCss).toContain('--adl-reveal-highlight-accent: var(--warning)');
-    expect(revealHighlightCss).toContain('--adl-reveal-highlight-bg: var(--accent-subtle)');
-    expect(revealHighlightCss).toContain('--adl-reveal-highlight-accent: var(--accent)');
+    // 变体重绑断言必须落在**变体规则体**内：基础规则带中性兜底后，全文件 toContain 会恒真。
+    const accentBody = extractCssBlock(revealHighlightCss, '.adl-reveal-highlight--accent {\n');
+    expect(accentBody).toContain('--adl-reveal-highlight-bg: var(--accent-subtle)');
+    expect(accentBody).toContain('--adl-reveal-highlight-accent: var(--accent)');
     expect(revealHighlightCss.match(/@keyframes adl-reveal-highlight-fade/g)).toHaveLength(1);
   });
 

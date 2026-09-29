@@ -143,6 +143,44 @@ describe('块条目携带的行文案（details）', () => {
   it('DSH「测试连接」块主标题入索引（此前无锚点、搜不到）', () => {
     expect(blockOf('test').label).toBe('dshSettingsTestConnection');
   });
+
+  it('存储「数据位置索引」卡片入索引（恒常渲染、此前无锚点无登记）', () => {
+    const locator = blockOf('locator');
+    expect(locator.label).toBe('storageLocatorTitle');
+    expect(locator.details?.map((detail) => detail.text)).toEqual(['storageLocatorHint']);
+    expect(locator.details?.[0].locate).toBe('storageLocatorTitle');
+  });
+
+  it('与块主标题同值的行文案不重复登记，但该行仍参与行级落点', () => {
+    // 命中块主标题时 matchedDetail 本就不会返回行文案：重复登记只会多一条永不返回的匹配文本。
+    for (const anchorId of ['performance', 'source']) {
+      const entry = blockOf(anchorId);
+      const texts = entry.details!.map((detail) => detail.text);
+      expect(texts).not.toContain(entry.label);
+      expect(entry.details!.some((detail) => detail.locate === entry.label)).toBe(true);
+    }
+  });
+
+  it('模板文案折叠占位符（补显不出现 {used} 这类内部名），定位文案仍是原文', () => {
+    // mockT 返回 key 名、不含占位符，故这里用真模板观察折叠行为。
+    const templateT = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        key === 'settingsTerminalHistoryBudgetUsed'
+          ? '已用 {used}，上限 {limit}'
+          : typeof key === 'string'
+            ? key
+            : '',
+    }) as unknown as CopyDict;
+    const budget = buildSettingsSearchIndex({
+      t: templateT,
+      settings: [] as SettingItem[],
+      keybinds: {},
+    }).find((entry) => entry.anchorId === 'terminalBudget')!;
+    // 该行只有提示说明、没有副标题 → 定位文案即其文案原文（含占位符，与 DOM 属性逐字相同）。
+    const used = budget.details!.find((detail) => detail.text === '已用 …，上限 …');
+    expect(used?.text).not.toContain('{');
+    expect(used?.locate).toBe('已用 {used}，上限 {limit}');
+  });
 });
 
 describe('matchedDetail：命中行 + 跳转落点文案', () => {

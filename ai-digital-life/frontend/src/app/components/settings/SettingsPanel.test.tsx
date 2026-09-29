@@ -6,6 +6,7 @@ import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { SettingsPanel } from './SettingsPanel';
+import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
 import {
   resetStorageSettingsCache,
   setCachedStorageStatus,
@@ -150,6 +151,9 @@ describe('SettingsPanel shell header', () => {
     cleanup();
     useAppStore.setState((s) => ({
       settingsSearchQuery: '',
+      // 本文件是模块级单例 store：历史字段也必须复位，否则沿用上一用例的历史，
+      // 会让后续「查询为空」的瞬间渲染出历史卡片（顺序耦合的隐性脆弱点）。
+      settingsSearchHistory: [],
       navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
     }));
   });
@@ -422,6 +426,9 @@ describe('SettingsPanel group reset', () => {
     cleanup();
     useAppStore.setState((s) => ({
       settingsSearchQuery: '',
+      // 本文件是模块级单例 store：历史字段也必须复位，否则沿用上一用例的历史，
+      // 会让后续「查询为空」的瞬间渲染出历史卡片（顺序耦合的隐性脆弱点）。
+      settingsSearchHistory: [],
       navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
     }));
   });
@@ -1329,6 +1336,8 @@ describe('SettingsPanel cross-group search', () => {
     delete (window as unknown as { digitalLife?: unknown }).digitalLife;
     useAppStore.setState((s) => ({
       settingsSearchQuery: '',
+      // 本组用例会点结果 → 写历史：不复位会让后续「查询为空」的瞬间多渲染出历史卡片。
+      settingsSearchHistory: [],
       activeSettingsGroup: 'general',
       navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
     }));
@@ -1562,7 +1571,7 @@ describe('SettingsPanel cross-group search', () => {
     );
     expect(useAppStore.getState().activeSettingsGroup).toBe('storage');
     await waitFor(() => {
-      const row = document.querySelector('[data-settings-row="treeCacheEnabled"]');
+      const row = document.querySelector(`[${SETTINGS_ROW_ATTRIBUTE}="treeCacheEnabled"]`);
       expect(row).not.toBeNull();
       // 焦点随落点走（a11y 把焦点交给落点元素）→ 以此观测「落到哪一行」。
       expect(document.activeElement).toBe(row);

@@ -76,14 +76,31 @@ const STORAGE_IMMUTABLE_ROWS: BlockRowEntry[] = Object.values(IMMOVABLE_COPY).ma
 }));
 
 /**
+ * 「浏览器下载路径」块的行：存储组（`browserDownload`）与浏览器组（`downloadPath`）
+ * 渲染的是同一个组件（`DownloadPathBlock`），行文案自然同源，登记也只留一份。
+ */
+const DOWNLOAD_PATH_ROWS: BlockRowEntry[] = [
+  { labelKey: 'storageDownloadMigrateLabel', hintKeys: ['storageDownloadMigrateHint'] },
+  { labelKey: 'browserDownloadSettingsPath', hintKeys: ['browserDownloadSettingsPathDesc'] },
+];
+
+/**
  * 各组「段/块」锚点与文案 key 的就近声明（单一真源：此处登记 + 组件挂同名锚点）。
  * 仅覆盖由固定块构成、且不由传入 `settings` 派生的组：workspace / storage / browser / dsh。
  * `general` 由传入 `settings` 逐项派生，`shortcuts` 由 `DEFAULT_COMMANDS` 逐命令派生。
  *
  * `rows` 覆盖块内的行副标题与提示说明：块级固定组件的行文案写在各自 JSX 里，
- * 不像 `general` 那样有 `SettingItem` 可派生，故在此逐行登记 key（TS 保证 key 存在）。
- * 登记与渲染的一致性由 `settingsSearchAnchors.test.tsx` 的守卫用例强制（缺行即失败）。
- * 有意不登记的文案：运行时数值（路径/用量/时间/计数）、下拉选项 label、纯 aria 标签。
+ * 不像 `general` 那样有 `SettingItem` 可派生，故在此逐行登记 key（TS 保证 key 存在）；
+ * 展开后的每一条即条目侧的 `SettingsSearchEntry.details`（登记叫 `rows`、条目叫 `details`，
+ * 前者是「块里有哪些行」、后者是「展开出的可搜索文案」）。
+ * 登记与渲染的一致性由 `settingsSearchAnchors.test.tsx` 的守卫用例强制（锚点 + 行标记双断言）。
+ *
+ * 有意不登记的文案（范围口径）：
+ * - 运行时数值 / 状态读数（路径、用量、时间、计数、`{占位符}` 插值后的结果）；
+ * - 下拉选项 label、纯 aria 标签；
+ * - 条件渲染的块（如「待迁移任务」，仅 `status.pending` 时出现）—— 登记它会产生一条
+ *   默认渲染下不存在的锚点，索引里留下永远够不到的落点；
+ * - 非 `.adl-settings-row` 的卡片内容（如工作区块内的清单卡片，其文案不是「块内行」）。
  */
 const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
   {
@@ -128,16 +145,21 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     group: 'storage',
     anchorId: 'browserDownload',
     labelKey: 'storageBrowserDownloadTitle',
-    rows: [
-      { labelKey: 'storageDownloadMigrateLabel', hintKeys: ['storageDownloadMigrateHint'] },
-      { labelKey: 'browserDownloadSettingsPath', hintKeys: ['browserDownloadSettingsPathDesc'] },
-    ],
+    rows: DOWNLOAD_PATH_ROWS,
   },
   {
     group: 'storage',
     anchorId: 'immutable',
     labelKey: 'storageImmutableTitle',
     rows: STORAGE_IMMUTABLE_ROWS,
+  },
+  {
+    // 「数据位置索引」卡片：恒常渲染但没有块主标题（行主文案即其标题），
+    // 故与 workspace 的 maxConcurrentWorkspaces 同法：块主标题就是该行文案。
+    group: 'storage',
+    anchorId: 'locator',
+    labelKey: 'storageLocatorTitle',
+    rows: [{ labelKey: 'storageLocatorTitle', hintKeys: ['storageLocatorHint'] }],
   },
   {
     group: 'browser',
@@ -157,10 +179,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     group: 'browser',
     anchorId: 'downloadPath',
     labelKey: 'storageBrowserDownloadTitle',
-    rows: [
-      { labelKey: 'storageDownloadMigrateLabel', hintKeys: ['storageDownloadMigrateHint'] },
-      { labelKey: 'browserDownloadSettingsPath', hintKeys: ['browserDownloadSettingsPathDesc'] },
-    ],
+    rows: DOWNLOAD_PATH_ROWS,
   },
   {
     group: 'dsh',
@@ -201,8 +220,21 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
   },
 ];
 
-/** 展开一个块内所有行的文案（每行：主文案作定位、副标题在前提示在后），供匹配与「命中行」补显。 */
+/** 模板占位符（如 `{used}` / `{limit}`）：对用户可见文案而言它们不该出现，索引里折叠成省略号。 */
+const PLACEHOLDER_PATTERN = /\{[^}]*\}/g;
+
+/**
+ * 展开一个块内所有行的文案（每行：主文案作定位、副标题在前提示在后），供匹配与「命中行」补显。
+ *
+ * 两条有意规则：
+ * 1. `locate` 取**原文**（与 DOM 上 `data-settings-row` 的取值逐字相同，同一个 i18n key）；
+ *    `text` 才做占位符折叠 —— 例如终端预算「已用」行的可见文本是插值结果，
+ *    若把模板原样当搜索/补显文案，用户会看到 `已用 {used}，上限 {limit}`。
+ * 2. 与块主标题**同值**的行文案不重复登记：命中块主标题时 `matchedDetail` 本就不会返回行文案，
+ *    登记只会给索引多一条永不返回的匹配文本（该行仍靠 `locate` 参与行级落点）。
+ */
 function blockDetails(entry: BlockEntry, t: CopyDict): SettingsSearchDetail[] {
+  const blockLabel = t[entry.labelKey];
   const details: SettingsSearchDetail[] = [];
   for (const row of entry.rows ?? []) {
     const labelText = row.labelKey ? t[row.labelKey] : undefined;
@@ -213,10 +245,11 @@ function blockDetails(entry: BlockEntry, t: CopyDict): SettingsSearchDetail[] {
     if (!locate) {
       continue;
     }
-    for (const text of [labelText, ...hintTexts]) {
-      if (text) {
-        details.push({ text, locate });
+    for (const raw of [labelText, ...hintTexts]) {
+      if (!raw || raw === blockLabel) {
+        continue;
       }
+      details.push({ text: raw.replace(PLACEHOLDER_PATTERN, '…'), locate });
     }
   }
   return details;

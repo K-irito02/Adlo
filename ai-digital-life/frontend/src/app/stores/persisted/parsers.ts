@@ -186,10 +186,12 @@ export function readStringArrayRecord(raw: unknown): Record<string, string[]> | 
   }
   const result: Record<string, string[]> = {};
   for (const [key, value] of Object.entries(raw)) {
-    if (!Array.isArray(value) || value.some((item) => typeof item !== 'string')) {
+    // 复用 readStringArray 的逐项校验：同一条「字符串数组」口径只留一份实现。
+    const entries = readStringArray(value);
+    if (!entries) {
       return undefined;
     }
-    result[key] = [...(value as string[])];
+    result[key] = entries;
   }
   return result;
 }

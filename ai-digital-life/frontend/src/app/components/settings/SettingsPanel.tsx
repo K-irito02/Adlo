@@ -27,7 +27,7 @@ import { ResetAllDialog } from './ResetAllDialog';
 import type { ResetAllOutcome } from './resetAllSettings';
 import { SettingsControls } from './SettingsControls';
 import { SettingsSearchResults } from './SettingsSearchResults';
-import { SettingsSearchHistoryCard } from './SettingsSearchHistoryCard';
+import { SettingsSearchHistoryCard, SEARCH_HISTORY_CARD_ID } from './SettingsSearchHistoryCard';
 import {
   anchorFor,
   buildSettingsSearchIndex,
@@ -637,7 +637,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const collapseSearch = useCallback(() => {
     setPreviewQuery(null);
-    setHistoryDismissed(false);
     setSearchQuery('');
     setSearchOpen(false);
   }, [setSearchQuery]);
@@ -658,7 +657,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
   }, [searchOpen]);
 
-  /** 重新打开搜索即复位「已收起」：否则上一轮的主动收起会让卡片再也回不来。 */
+  /** 重新打开搜索即复位「已收起」（唯一复位点：`historyDismissed` 只按搜索会话生效）。 */
   useEffect(() => {
     if (searchOpen) {
       setHistoryDismissed(false);
@@ -781,9 +780,12 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     const deadline = Date.now() + SEARCH_JUMP_DEADLINE_MS;
     // 逐帧重试的句柄用 const 容器承载（项目禁止 `let` 重赋值）：闭包跨调用读写其字段。
     const pendingFrame = { current: 0 };
+    // 落点为 best-effort：命中行取不到（该行在**当前编辑态**下不渲染，如每类独立模式下的
+    // 「数据根目录」行）时，用块锚点收敛。块锚点与行同生同灭，故两类元素都不会出现
+    // 「只有行、没有锚点」的情况；两者皆无（块尚未挂载）时下面的重试生效。
     const tick = () => {
       const element =
-        findSettingsRow(contentOuterRef.current, pendingJump.locate ?? '') ??
+        findSettingsRow(contentOuterRef.current, pendingJump.locate) ??
         document.querySelector<HTMLElement>(selector);
       if (!element) {
         if (Date.now() >= deadline) {
@@ -1032,6 +1034,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
                 placeholder={t.settingsSearch}
                 value={previewQuery ?? searchQuery}
                 autoFocus
+                // 浮层绑定：让 AT 知道输入框旁出现了历史列表（卡片本身给同一 id）。
+                // 有意不加 `aria-expanded` —— 该属性对 `searchbox` 角色不成立，
+                // 而完整的 combobox 模式（`aria-activedescendant` + 方向键导航）本轮未实现，
+                // 不宣称未实现的可访问性语义。
+                aria-controls={historyVisible ? SEARCH_HISTORY_CARD_ID : undefined}
                 onChange={(e) => {
                   setPreviewQuery(null);
                   setSearchQuery(e.target.value);
@@ -1112,8 +1119,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
             disabledResetGroups={disabledResetGroups}
             onPreheatGroup={handleNavPreheatGroup}
           />
+          {/* 拖拽线复用导航家族的共享类（命中区 = 右缘 3px 细线，容器不吃指针事件）：
+              设置面板不再自带一份同规格规则，避免与文件/变更/左侧栏出现两份口径。 */}
           <div
-            className="adl-settings-nav__resize-handle"
+            className="adl-tool-navigator__resize-handle"
             onPointerDown={handleNavResizeStart}
             role="separator"
             aria-orientation="vertical"

@@ -63,7 +63,14 @@
 `frontend/src/app/components/settings/settingsSearchIndex.ts` 的 `anchorFor(group, anchorId)` 单点生成，
 索引条目与实际挂载点必须一一对应（由 `settingsSearchAnchors.test.tsx` 的「锚点必存在」用例锁定）。
 
-命中后落点元素会获得 `adl-settings-search-highlight` 类，约 1.2 秒后移除。
+命中后由**共享落点高亮**提示：内容宿主内常驻覆盖层 `.adl-reveal-highlight`（视口夹层
+`.adl-reveal-highlight-viewport` 裁剪溢出）播放 1.4 秒淡出动画，本面板带主题蓝变体类
+`adl-reveal-highlight--accent`（文件面板检索→预览用 `--warning`，同一实现两套配色，
+见 `frontend/src/app/utils/revealHighlight.ts`、`frontend/src/app/components/RevealHighlight.tsx`）。
+
+落点元素：命中块主标题时落在块锚点容器；命中**块内某行的副标题/提示说明**时落在那一行
+（行容器带 `data-settings-row="<该行主文案>"`，取值与索引 `SettingsSearchDetail.locate` 同源同 key；
+取不到该行时回退块锚点，见 `settingsRowLocate.ts`）。
 
 ### 操作流程
 
@@ -78,11 +85,12 @@ await page.keyboard.press('Control+f');   // macOS: Meta+f
 // 输入查询（跨组命中；快捷键组还可按快捷键文本检索）
 await page.fill('#adl-settings-search-input', 'tree');
 
-// 点击某条结果 → 收起搜索、切到该组、滚动到锚点并短暂高亮
+// 点击某条结果 → 收起搜索、切到该组、滚动到落点并短暂高亮
 await page.click('.adl-settings-search-results >> text=工作区树缓存');
 
-// 断言落点（跳转后）
-await page.waitForSelector('[data-settings-anchor="storage:treeCache"].adl-settings-search-highlight');
+// 断言落点（跳转后）：命中块内行文案时落在那一行，否则落在块锚点
+await page.waitForSelector('.adl-reveal-highlight.is-active.adl-reveal-highlight--accent');
+await page.waitForSelector('[data-settings-row="<该行主文案>"], [data-settings-anchor="storage:treeCache"]');
 
 // 无命中时显示既有空态键 settingsNoResults（「无匹配设置项」/「No matching settings」）
 ```
@@ -249,8 +257,9 @@ await page.click('button:has-text("确认")');
 | 首行工具栏 | `.adl-settings-panel__header` | 导航折叠 / 搜索 / 恢复全部默认 |
 | 设置导航 | `.adl-settings-nav` | 设置组导航（搜索态仍可见） |
 | 搜索结果 | `.adl-settings-search-results` | 跨组搜索结果列表 |
-| 搜索高亮 | `.adl-settings-search-highlight` | 跳转落点临时高亮（约 1.2s） |
-| 设置项行 | `.adl-settings-row` | 带 `data-settings-anchor` |
+| 落点高亮 | `.adl-reveal-highlight`（`.is-active` 播放中，本面板带 `--accent` 变体） | 跳转落点临时高亮（1.4s，共享实现） |
+| 设置项行 | `.adl-settings-row` | 带 `data-settings-anchor`；块内行另带 `data-settings-row`（行级落点） |
+| 搜索历史卡片 | `.adl-settings-search-history`（`#adl-settings-search-history`） | 输入框聚焦且查询为空时列出历史（自建，替代浏览器原生自动填充下拉） |
 | 聚合确认框 | `.adl-settings-reset-all-dialog`（复用 `.adl-confirm-*` 类） | 恢复全部默认 |
 | DSH设置 | `.adl-dsh-settings` | DSH设置容器 |
 

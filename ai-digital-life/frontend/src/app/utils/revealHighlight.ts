@@ -38,14 +38,19 @@ function findOverlay(host: HTMLElement): HTMLElement | null {
   return host.querySelector<HTMLElement>(`.${REVEAL_HIGHLIGHT_CLASS}`);
 }
 
-function stopTracking(overlay: HTMLElement): void {
+/**
+ * 收尾一次高亮：停掉跟踪（定时器 + 逐帧 rAF）、摘掉激活类、清掉 WeakMap 条目。
+ * 超时到期与「覆盖层已脱离文档」早退**共用本函数** —— 两条出口对「收尾」的定义必须一致，
+ * 否则早退路径会留下永久 `is-active`（`prefers-reduced-motion` 下它是静态常显色带）。
+ */
+function finishHighlight(overlay: HTMLElement): void {
   const tracking = highlightTracking.get(overlay);
-  if (!tracking) {
-    return;
+  if (tracking) {
+    window.clearTimeout(tracking.timer);
+    window.cancelAnimationFrame(tracking.raf);
+    highlightTracking.delete(overlay);
   }
-  window.clearTimeout(tracking.timer);
-  window.cancelAnimationFrame(tracking.raf);
-  highlightTracking.delete(overlay);
+  overlay.classList.remove(ACTIVE_CLASS);
 }
 
 /**
@@ -78,14 +83,13 @@ function alignOverlay(overlay: HTMLElement, target: HTMLElement): void {
   }
 }
 
-/** 立即收起宿主内的落点高亮（面板卸载 / 下一次跳转前调用；宿主无覆盖层时无操作）。 */
+/** 立即收起宿主内的落点高亮（面板卸载 / 下一次跳转前调用；宿主无覆盖层时无操作）。幂等。 */
 export function clearHighlight(host: HTMLElement | null): void {
   const overlay = host ? findOverlay(host) : null;
   if (!overlay) {
     return;
   }
-  stopTracking(overlay);
-  overlay.classList.remove(ACTIVE_CLASS);
+  finishHighlight(overlay);
   overlay.style.height = '0px';
 }
 
@@ -103,9 +107,8 @@ export function highlightElement(
   if (!overlay) {
     return false;
   }
-  stopTracking(overlay);
-  overlay.classList.remove(ACTIVE_CLASS);
-  // 变体与时长都在这里落定：先摘旧的变体类，避免上一次的配色残留到本次。
+  // 上一次的播放先整段收尾（含摘 is-active），再落本次的变体与时长 —— 否则旧配色/旧定时器会与本次叠加。
+  finishHighlight(overlay);
   overlay.classList.toggle(`${REVEAL_HIGHLIGHT_CLASS}--warning`, options.variant === 'warning');
   overlay.classList.toggle(`${REVEAL_HIGHLIGHT_CLASS}--accent`, options.variant === 'accent');
   const duration = options.durationMs ?? REVEAL_HIGHLIGHT_DURATION_MS;
@@ -116,9 +119,9 @@ export function highlightElement(
   overlay.classList.add(ACTIVE_CLASS);
   const tracking: HighlightTracking = { raf: 0, timer: 0 };
   const track = () => {
-    // 覆盖层已脱离文档（宿主卸载 / 整片替换）：逐帧对齐再无意义，就地收束而不等满时长。
+    // 覆盖层已脱离文档（宿主卸载 / 整片替换）：逐帧对齐再无意义，就地收尾而不等满时长。
     if (!overlay.isConnected) {
-      stopTracking(overlay);
+      finishHighlight(overlay);
       return;
     }
     alignOverlay(overlay, target);
@@ -126,9 +129,7 @@ export function highlightElement(
   };
   tracking.raf = window.requestAnimationFrame(track);
   tracking.timer = window.setTimeout(() => {
-    window.cancelAnimationFrame(tracking.raf);
-    overlay.classList.remove(ACTIVE_CLASS);
-    highlightTracking.delete(overlay);
+    finishHighlight(overlay);
   }, duration);
   highlightTracking.set(overlay, tracking);
   return true;

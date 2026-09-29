@@ -106,5 +106,29 @@ describe('SettingsSearchResults', () => {
       expect(details).toHaveLength(1);
       expect(details[0].textContent).toBe('what it relates to');
     });
+
+    it('命中词落在长文案中后段时，补显行以命中词为中心截窗口（省略号裁不掉 mark）', () => {
+      const long = `${'前置说明'.repeat(12)}聚焦目标${'后置补充'.repeat(12)}`;
+      const { container } = render(
+        <TCopyProvider t={mockT} locale="en-US">
+          <SettingsSearchResults
+            entries={[
+              {
+                group: 'storage',
+                anchorId: 'corePaths',
+                label: 'Core paths',
+                details: [{ text: long, locate: 'Clipboard' }],
+              },
+            ]}
+            query="聚焦目标"
+            onSelect={vi.fn()}
+          />
+        </TCopyProvider>,
+      );
+      const detail = container.querySelector('.adl-settings-search-results__detail');
+      expect(detail?.textContent).toContain('聚焦目标');
+      expect(detail?.querySelector('mark.adl-settings-highlight')?.textContent).toBe('聚焦目标');
+      expect(detail?.textContent?.startsWith('…')).toBe(true);
+    });
   });
 });

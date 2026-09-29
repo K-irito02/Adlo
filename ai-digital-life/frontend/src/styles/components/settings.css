@@ -26,8 +26,8 @@
   position: relative;
   /* 搜索历史卡片从头部溢出到内容区之上，故头部必须压过面板内所有同级层：
      - `.adl-settings-panel__content-outer`（position: relative，无 z-index → z auto）
-     - `.adl-settings-nav__resize-handle`（z-index = --z-raised，且在 DOM 中位于头部**之后**，
-       同层时后者胜 → 卡片会被那条 12px 拖拽线盖住并抢走指针事件）
+     - 设置导航的拖拽线（复用共享类 `.adl-tool-navigator__resize-handle`，`z-index: 10`，
+       且在 DOM 中位于头部**之后**，同层时后者胜 → 卡片会被那条 12px 拖拽线盖住并抢走指针事件）
      取值 --z-dropdown（20）高出这两层，仍低于对话框遮罩（50）。 */
   z-index: var(--z-dropdown);
   display: flex;
@@ -172,45 +172,6 @@
   padding: var(--space-1) 0 var(--space-2);
   overflow: hidden;
   background: var(--bg);
-}
-
-.adl-settings-nav__resize-handle {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 12px;
-  z-index: var(--z-raised);
-  touch-action: none;
-  -webkit-user-select: none;
-  user-select: none;
-  /* 容器不吃指针事件，命中区只留右缘 3px 细线（`::before`）——与文件/变更/左侧栏共用的
-     `.adl-tool-navigator__resize-handle` 同口径。容器若设 auto，整条 12px 宽的高列都会
-     抢走指针事件，压住任何与它重叠的浮层（如搜索历史卡片）。 */
-  pointer-events: none;
-}
-
-.adl-settings-nav__resize-handle::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: auto;
-  right: 0;
-  width: 3px;
-  background: transparent;
-  opacity: 0;
-  pointer-events: auto;
-  cursor: col-resize;
-  transition:
-    opacity var(--duration-150) var(--ease-default),
-    background-color var(--duration-150) var(--ease-default);
-}
-
-.adl-settings-nav__resize-handle:hover::before,
-.adl-settings-nav__resize-handle:active::before {
-  opacity: 1;
-  background: var(--text-secondary);
 }
 
 .adl-settings-nav ul {
@@ -489,7 +450,7 @@
   transition: var(--transition-colors);
 }
 
-.adl-settings-input:hover:not(:readonly) {
+.adl-settings-input:hover:not(:read-only) {
   background: var(--surface-hover);
   border-color: var(--border-strong);
 }
@@ -1666,10 +1627,11 @@
   top: calc(100% + 6px);
   left: var(--adl-history-left, 0px);
   /* 上限 200px：卡片只是「历史提示」，比搜索框（输入框 120px / 容器约 150px）略宽即可；
-     宽上限 + 左对齐曾让它盖到面板导航右缘、与拖拽线抢指针事件。 */
+     宽上限 + 左对齐曾让它盖到面板导航右缘、与拖拽线抢指针事件。
+     只减一次 --space-2 是有意的：`100%` 解析为头部的 padding box，减一次右内边距后
+     卡片右缘落在头部内 8px，不会溢出。不设 min-width —— 与上界 `min()` 打架（min-width
+     会赢），而当前头宽远大于两值，声明只会误导后人。 */
   width: min(200px, calc(100% - var(--adl-history-left, 0px) - var(--space-2)));
-  min-width: 160px;
-  z-index: var(--z-dropdown, 100);
   display: flex;
   flex-direction: column;
   padding: var(--space-1);
@@ -1743,15 +1705,14 @@
 .adl-settings-search-history__list {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: var(--space-px);
   margin: 0;
   padding: 0;
   list-style: none;
   /* 上限 20 条（SETTINGS_SEARCH_HISTORY_MAX）在窄面板/小窗口下仍可能超高：
-     滚动条沿用 base.css 的全局细条样式，不再单独引入 RevealScrollbar。 */
+     滚动与滚动条沿用共享口径 —— `adl-reveal-scroll`（隐藏原生条）+ `RevealScrollbar`（悬停显现），
+     与同面板的设置下拉列表一致，避免同一面板出现两种滚动观感。 */
   max-height: 220px;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .adl-settings-search-history__item {

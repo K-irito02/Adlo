@@ -6,6 +6,7 @@ import {
   clearHighlight,
   highlightElement,
   REVEAL_HIGHLIGHT_CLASS,
+  REVEAL_HIGHLIGHT_DURATION_MS,
   REVEAL_HIGHLIGHT_VIEWPORT_CLASS,
 } from '../revealHighlight';
 
@@ -73,6 +74,33 @@ describe('RevealHighlight', () => {
     expect(overlay.classList.contains('is-active')).toBe(false);
   });
 
+  it('falls back to the shared default duration when none is given', () => {
+    const { host, overlay, target } = hostFixture();
+    highlightElement(host, target, { variant: 'accent' });
+    expect(overlay.style.getPropertyValue('--adl-reveal-highlight-duration')).toBe(
+      `${REVEAL_HIGHLIGHT_DURATION_MS}ms`,
+    );
+    vi.advanceTimersByTime(REVEAL_HIGHLIGHT_DURATION_MS - 1);
+    expect(overlay.classList.contains('is-active')).toBe(true);
+    vi.advanceTimersByTime(1);
+    expect(overlay.classList.contains('is-active')).toBe(false);
+  });
+
+  it('finishes the highlight when the overlay left the document (no leftover active class)', () => {
+    const { host, overlay, target } = hostFixture();
+    highlightElement(host, target, { variant: 'accent' });
+    expect(overlay.classList.contains('is-active')).toBe(true);
+    // 覆盖层脱离文档 → 下一帧就地收尾：摘 is-active（reduced-motion 下它是静态常显色带）、
+    // 取消跟踪，不再空转到时长结束。
+    overlay.remove();
+    vi.advanceTimersByTime(16);
+    expect(overlay.classList.contains('is-active')).toBe(false);
+    // 已收尾：时长到期后不再有残留回调改动状态。
+    vi.advanceTimersByTime(2000);
+    expect(overlay.classList.contains('is-active')).toBe(false);
+    expect(() => clearHighlight(host)).not.toThrow();
+  });
+
   it('collapses the highlight when the target left the document', () => {
     const { host, overlay, target } = hostFixture();
     overlay.style.height = '40px';
@@ -100,5 +128,16 @@ describe('RevealHighlight', () => {
     expect(highlightElement(host, target, { variant: 'accent' })).toBe(false);
     expect(() => clearHighlight(host)).not.toThrow();
     expect(() => clearHighlight(null)).not.toThrow();
+  });
+
+  it('clearHighlight is idempotent after the timer already fired', () => {
+    const { host, overlay, target } = hostFixture();
+    highlightElement(host, target, { variant: 'accent', durationMs: 100 });
+    vi.advanceTimersByTime(100);
+    // 计时结束后 WeakMap 条目已删：再次 clear 必须仍然安全（幂等），且不复活任何状态。
+    expect(() => clearHighlight(host)).not.toThrow();
+    expect(() => clearHighlight(host)).not.toThrow();
+    expect(overlay.classList.contains('is-active')).toBe(false);
+    expect(overlay.style.height).toBe('0px');
   });
 });

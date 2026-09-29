@@ -80,6 +80,7 @@ import {
   SETTINGS_NAVIGATOR_WIDTH_MAX,
   DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
   SETTINGS_SEARCH_HISTORY_MAX,
+  SETTINGS_SEARCH_HISTORY_MAX_LENGTH,
   BROWSER_NAVIGATOR_WIDTH_MIN,
   BROWSER_NAVIGATOR_WIDTH_MAX,
   DEFAULT_BROWSER_NAVIGATOR_WIDTH,
@@ -283,6 +284,28 @@ function readBrowserHistory(raw: unknown): BrowserHistoryState[] | undefined {
 }
 
 /**
+ * 设置搜索历史：读取侧同样**规整**后再交给 store —— trim → 丢空 → 去重（保留首个）→ 截断条数。
+ * 顺序有意如此：先规整再截断，否则超出上限的脏数据（如 `['', ' a ', 'a']`）会先吃掉名额、
+ * 把真正有效但排后的条目挤掉。写入侧只保证「本进程写出的」形态干净；手工改过 localStorage、
+ * 旧版本残留或未来写入路径变更都可能带入脏数据，而消费方（卡片的非空/已去重契约、`key={item}`）
+ * 依赖它成立。
+ */
+function readSettingsSearchHistory(raw: unknown): string[] | undefined {
+  const entries = readStringArray(raw);
+  if (!entries) {
+    return undefined;
+  }
+  const normalized: string[] = [];
+  for (const entry of entries) {
+    const trimmed = entry.trim().slice(0, SETTINGS_SEARCH_HISTORY_MAX_LENGTH);
+    if (trimmed !== '' && !normalized.includes(trimmed)) {
+      normalized.push(trimmed);
+    }
+  }
+  return normalized.slice(0, SETTINGS_SEARCH_HISTORY_MAX);
+}
+
+/**
  * 中心登记表 —— 全局唯一事实来源。
  *
  * 规则：
@@ -377,8 +400,7 @@ export const registry = {
     field: 'settingsSearchHistory',
     fallback: [],
     scope: 'global',
-    // 读取侧同样按上限截断：上限下调后旧数据在首次写盘前也不会超量渲染。
-    read: (raw) => readStringArray(raw, SETTINGS_SEARCH_HISTORY_MAX),
+    read: readSettingsSearchHistory,
   }),
   'adl:ui.navigatorCollapsed': defineEntry<Record<string, boolean>>({
     key: 'adl:ui.navigatorCollapsed',

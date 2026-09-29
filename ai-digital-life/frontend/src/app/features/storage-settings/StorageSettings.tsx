@@ -1934,9 +1934,14 @@ export function StorageSettings() {
         ))}
       </div>
 
-      {/* 数据位置索引沉底：放在不可移动块之后的最底部。 */}
-      <div className="adl-settings-card" data-testid="storage-locator-card">
-        <div className="adl-settings-row">
+      {/* 数据位置索引沉底：放在不可移动块之后的最底部。
+          本卡片无块主标题（行主文案即其标题），故锚点直接挂卡片、行标记取该标题文案。 */}
+      <div
+        className="adl-settings-card"
+        data-testid="storage-locator-card"
+        data-settings-anchor={anchorFor('storage', 'locator')}
+      >
+        <div className="adl-settings-row" data-settings-row={t.storageLocatorTitle}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               <HintCardTrigger content={t.storageLocatorHint}>

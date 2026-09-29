@@ -59,6 +59,13 @@ export const DEFAULT_SETTINGS_NAVIGATOR_WIDTH = 160;
  */
 export const SETTINGS_SEARCH_HISTORY_MAX = 20;
 
+/**
+ * 单条历史记录的长度上限（字符）。同步读盘预算（登记表要求单条序列化 ≤ 32KB）与
+ * 卡片「单行省略 + title 看全文」的预期都假设条目是短查询串；粘贴超长文本时按此截断，
+ * 读盘侧同值收敛（避免「写短读长」漂移）。
+ */
+export const SETTINGS_SEARCH_HISTORY_MAX_LENGTH = 200;
+
 // ════════════════════════════════════════════════════════
 // 类型定义
 // ════════════════════════════════════════════════════════

@@ -5,6 +5,11 @@
    - 设置面板搜索设置 → 跳转落点（`--accent` 变体）
    几何（铺满左右边缘、直角、左侧 3px 竖线）与动画完全共用，变体只换配色 token。 */
 
+/* 宿主内位于内容层之上的浮层：播放期间会短暂压过粘性工具栏与自绘滚动条滑块
+   （内容层带 container-type，其内部 z-index 逃不出该上下文）。着色 token 是半透明
+   （--accent-subtle / --warning-soft），文字可读性不受影响；`pointer-events: none`
+   保证不抢交互 —— 这是「铺满到主内容区左右边缘 + 裁剪在视口内」两个目标的既定代价。 */
+
 /* 视口夹层：铺满宿主并裁剪内部溢出 —— 高亮条在平滑滚动期间可能位于可视区之外，
    若不裁剪会给宿主制造可滚动溢出（凭空冒出滚动条）。 */
 .adl-reveal-highlight-viewport {
@@ -23,6 +28,10 @@
   left: 0;
   right: 0;
   height: 0;
+  /* 中性兜底：第三个消费方若漏挂变体类，退化为默认淡色提示而不是「静默不可见」
+     （未定义的自定义属性会让整条声明按无效值丢弃，不报错）。 */
+  --adl-reveal-highlight-bg: var(--accent-subtle);
+  --adl-reveal-highlight-accent: var(--accent);
   background-color: transparent;
   box-shadow: none;
 }
