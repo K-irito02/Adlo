@@ -107,24 +107,25 @@ await page.waitForSelector('[data-settings-anchor="storage:treeCache"].adl-setti
 
 ### 聚合确认框内容
 
+> 点击按钮后先后台算好存储计划再弹框（框内无“计算中”态；在途按钮禁用 + `aria-busy`）。
+> 确认框不列分组清单，仅保留决策项。
+
 | 区域 | 说明 |
 |------|------|
-| 范围清单 | 偏好 / 浏览器 / DSH / 存储四行 |
-| 存储行 | 计算中显示「正在计算存储迁移范围…」；`allDefault` 显示「存储将跳过」；桥不可用显示「存储不可用，已跳过」 |
+| 确认说明 | 通用文案「所有设置将恢复为默认值，此操作不可撤销。」 |
 | 预检汇总 | 核心路径需迁移时显示文件数与体积、errors/warnings；**预检有 error 时两个确认键均禁用** |
-| 保留源 | `t.storageRetainSource` 复选框，**默认不勾选**（迁移后删除旧路径数据） |
+| 保留源 | `t.storageRetainSource` 复选框，**默认不勾选**（迁移后删除旧路径数据）；预检阻塞时同步禁用 |
 | 确认键 | 核心需恢复 → 双键「下次启动时迁移」/「立即迁移并重启」；无需恢复 → 单键 |
-| 进度 | 执行中逐组显示「正在恢复：<组名>」；**执行期禁用关闭/取消/遮罩/Escape**（迁移不可中断） |
+| 进度 | 执行中逐组显示「正在恢复：<组名>」（恒占位，无布局跳动）；**执行期禁用关闭/取消/遮罩/Escape**（迁移不可中断） |
 
 ### 操作流程
 
 ```javascript
-// 打开聚合确认框
+// 打开聚合确认框（计划预计算完成后才出现，直接等待对话框即可，无框内加载态）
 await page.click('.adl-settings-panel__header-actions button');
+await page.waitForSelector('.adl-confirm-dialog');
 
-// 等待存储计划计算完成（双键出现即可确认）
-await page.waitForSelector('button:has-text("下次启动时迁移")');
-
+// 确认键：核心需恢复时为双键（下两行二选一），否则为单键
 // 可选：勾选「迁移后保留旧路径数据（不删除）」
 await page.check('.adl-confirm-dialog__retain input');
 
