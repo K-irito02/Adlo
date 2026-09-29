@@ -121,6 +121,7 @@ describe('i18n en-US namespace keys', () => {
       'settingsResetAllScopeBrowser',
       'settingsResetAllScopeDsh',
       'settingsResetAllScopeStorage',
+      'settingsResetAllConfirmMessage',
       'settingsResetAllStorageCompute',
       'settingsResetAllStorageSkipped',
       'settingsResetAllStorageUnavailable',
@@ -134,6 +135,13 @@ describe('i18n en-US namespace keys', () => {
       expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
       expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
     }
+    // 聚合确认框通用文案（分组清单已删，此句为 body 唯一说明）：双语值锁定。
+    expect(String(enUS.settingsResetAllConfirmMessage)).toBe(
+      'All settings will be restored to defaults. This cannot be undone.',
+    );
+    expect(String(zhCN.settingsResetAllConfirmMessage)).toBe(
+      '所有设置将恢复为默认值，此操作不可撤销。',
+    );
     // 插值占位符两侧一致（失败摘要用人类可读的 {reason}，不得回落到内部步骤码）。
     expect(String(enUS.settingsResetAllFailedSummary)).toBe(
       'Reset: {done}; failed: {group} ({reason})',

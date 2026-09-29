@@ -119,7 +119,7 @@ function renderDialog(options: {
     <TCopyProvider t={mockT} locale="en-US">
       <ResetAllDialog
         open
-        planResult={options.planResult ?? CORE_PLAN}
+        planResult={options.planResult === undefined ? CORE_PLAN : options.planResult}
         onClose={onClose}
         deps={options.deps ?? makeDeps()}
         onCommitted={onCommitted}
@@ -234,6 +234,16 @@ describe('ResetAllDialog', () => {
     expect(screen.getByRole('button', { name: 'storageGroupResetConfirm' })).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'storageMigrateLater' })).toBeNull();
     expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('防御分支 planResult=null：单确认键可用且焦点直落其上', async () => {
+    installStoreActions();
+    renderDialog({ planResult: null });
+    const confirm = (await screen.findByRole('button', {
+      name: 'storageGroupResetConfirm',
+    })) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(false);
+    await waitFor(() => expect(document.activeElement).toBe(confirm));
   });
 
   it('执行中锁定关闭/取消/遮罩/Esc，并展示当前组进度（进度区恒占位）', async () => {

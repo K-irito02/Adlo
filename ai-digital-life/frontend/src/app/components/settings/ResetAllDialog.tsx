@@ -23,6 +23,12 @@ export interface ResetAllDialogProps {
   /** 执行结束回调（成功/失败/跳过汇总由调用方展示）。 */
   onCommitted: (outcome: ResetAllOutcome) => void;
   onClose: () => void;
+  /**
+   * 触发元素（调用方在点击同步段捕获）：预计算期间触发按钮被禁用、焦点会被浏览器
+   * 移走，开框后读 activeElement 已 capture 不到，故由调用方显式传入用于关闭后归还焦点。
+   * 缺省时回落到开框瞬间 activeElement（直接挂载本框的用例与测试走此路径）。
+   */
+  opener?: HTMLElement | null;
 }
 
 function groupLabel(t: CopyDict, key: GroupKey): string {
@@ -35,6 +41,8 @@ function groupLabel(t: CopyDict, key: GroupKey): string {
  * 开框前计划已由调用方算好（`planResult`），本框为纯展示 + 执行：
  * body 不再列出各分组清单，仅保留需用户决策项（核心迁移摘要 + preflight issues +
  * retain 复选框 + 迁移时机两键）；非核心场景仅单确认键。
+ * 有意不区分 unavailable / allDefault：两者执行语义相同（存储腿跳过、其余三组照常），
+ * 且产品要求确认框不列分组细节，故统一渲染通用确认文案。
  * 执行走 `resetAllSettings`（preferences → browser → dsh → storage），进度逐组回调；
  * 执行期间锁定关闭/取消/遮罩/Esc（存储迁移不可中断）。结果交 `onCommitted` 由调用方汇总。
  * 偏好/浏览器/DSH 的依赖取执行时实时 store 值（R2：迁移开关不在开框时快照）。
@@ -45,6 +53,7 @@ export function ResetAllDialog({
   deps,
   onCommitted,
   onClose,
+  opener = null,
 }: ResetAllDialogProps) {
   const { t } = useTCopy();
   const [retainSource, setRetainSource] = useState(false);
@@ -54,18 +63,15 @@ export function ResetAllDialog({
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
 
-  // 开框重置本地态（retain/busy/进度）。计划来自 props，不再框内异步计算。
+  // 开框重置本地态（retain/busy/进度）。计划来自 props（开框快照，中途不变），故仅以
+  // open 边沿触发，不跟随 planResult 身份变化（否则框开着时父重算会清空用户已勾选项）。
   useEffect(() => {
     if (!open) {
       return;
     }
     setRetainSource(false);
     setProgress(null);
-    console.log('[ADL-DEBUG] ResetAllDialog open', {
-      status: planResult?.status ?? 'null',
-      coreNeeded: planResult?.status === 'ready' ? planResult.plan.blocks.coreNeeded : 'n/a',
-    });
-  }, [open, planResult]);
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -90,27 +96,33 @@ export function ResetAllDialog({
   const preflight = plan?.preflight ?? null;
   const preflightBlocked = preflight !== null && !preflight.ok;
 
-  // 打开时记录触发元素（设置面板的「恢复全部默认」按钮），关闭时归还焦点；
+  // 打开时记录触发元素用于关闭后归还焦点：优先调用方传入的 opener（预计算禁用了
+  // 触发按钮，开框瞬间 activeElement 已是 body）；缺省回落到 activeElement 捕获。
   // 若 opener 已不可用，至少把焦点从已卸载的 portal 节点上挪走（jsdom 不做焦点修正）。
+  // opener 仅在 open 上升沿读取（开框快照）；列入依赖仅为满足 exhaustive-deps，
+  // 关闭分支对 opener 变化无害（savedOpener 为空时至多 no-op）。
   useEffect(() => {
     if (open) {
       openerRef.current =
-        document.activeElement instanceof HTMLElement && document.activeElement !== document.body
-          ? document.activeElement
-          : null;
+        opener !== null && document.body.contains(opener)
+          ? opener
+          : document.activeElement instanceof HTMLElement &&
+              document.activeElement !== document.body
+            ? document.activeElement
+            : null;
       return;
     }
-    const opener = openerRef.current;
+    const savedOpener = openerRef.current;
     openerRef.current = null;
-    if (opener !== null && document.body.contains(opener)) {
-      opener.focus();
+    if (savedOpener !== null && document.body.contains(savedOpener)) {
+      savedOpener.focus();
       return;
     }
     const active = document.activeElement;
     if (active instanceof HTMLElement && !document.body.contains(active)) {
       active.blur();
     }
-  }, [open]);
+  }, [open, opener]);
 
   // 焦点管理：打开即进入对话框（预检禁用时落「取消」键，否则落主确认键）。
   // 执行中（busy）不搬动焦点，避免打断进度展示。
@@ -148,22 +160,19 @@ export function ResetAllDialog({
     async (applyNow: boolean) => {
       setBusy(true);
       setProgress(null);
-      console.log('[ADL-DEBUG] ResetAllDialog confirm start', { applyNow, retainSource });
-      const outcome = await resetAllSettings(
-        buildDeps(),
-        { storagePlan: plan, applyNow, retainSource },
-        (key) => {
-          setProgress(key);
-          console.log('[ADL-DEBUG] ResetAllDialog progress', { group: key });
-        },
-      );
-      console.log('[ADL-DEBUG] ResetAllDialog confirm done', {
-        done: outcome.done,
-        failedAt: outcome.failedAt,
-      });
-      setBusy(false);
-      onCommitted(outcome);
-      onClose();
+      try {
+        const outcome = await resetAllSettings(
+          buildDeps(),
+          { storagePlan: plan, applyNow, retainSource },
+          setProgress,
+        );
+        onCommitted(outcome);
+        onClose();
+      } finally {
+        // 异常安全：编排器理论上永不 reject（内部 attempt 兜底），但回调抛错时
+        // 仍须解锁，否则对话框永久锁定、用户只能杀进程。
+        setBusy(false);
+      }
     },
     [buildDeps, plan, retainSource, onCommitted, onClose],
   );
@@ -206,11 +215,13 @@ export function ResetAllDialog({
     </button>
   );
 
-  // 进度区恒占位（minHeight），避免执行中插入文案导致对话框跳动；闲时用零宽空格撑高。
+  // 进度区恒占位，避免执行中插入文案导致对话框跳动：闲时用 NBSP（U+00A0，不坍缩）
+  // 撑高，配 `.adl-confirm-dialog__progress` 的 min-height（单行 1.4em，与 message
+  // 行高对齐）与 margin-bottom 清零。
   const progressText =
     busy && progress !== null
       ? formatT(t, 'settingsResetAllProgress', { group: groupLabel(t, progress) })
-      : ' ';
+      : '\u00A0';
 
   return createPortal(
     <div
@@ -263,7 +274,7 @@ export function ResetAllDialog({
               <input
                 type="checkbox"
                 checked={retainSource}
-                disabled={busy}
+                disabled={busy || preflightBlocked}
                 onChange={(e) => setRetainSource(e.target.checked)}
               />
               <span>{t.storageRetainSource}</span>
@@ -273,7 +284,6 @@ export function ResetAllDialog({
           <p
             className="adl-confirm-dialog__message adl-confirm-dialog__progress"
             aria-live="polite"
-            style={{ minHeight: '1.4em', marginBottom: 0 }}
           >
             {progressText}
           </p>

@@ -223,6 +223,28 @@ describe('SettingsPanel shell header', () => {
     expect(updatePreferences).not.toHaveBeenCalled();
   });
 
+  it('预计算在途按钮禁用并 aria-busy，算好后恢复可用', async () => {
+    setupStore();
+    renderPanel();
+    const btn = screen.getByRole('button', { name: 'settingsResetAll' }) as HTMLButtonElement;
+    fireEvent.click(btn);
+    // 同步段已置 preparing：按钮禁用 + aria-busy（可感知反馈 + 防重复点击）。
+    expect(btn.disabled).toBe(true);
+    expect(btn.getAttribute('aria-busy')).toBe('true');
+    await screen.findByText('settingsResetConfirmTitle');
+    await waitFor(() => expect(btn.disabled).toBe(false));
+  });
+
+  it('对话框关闭后焦点归还触发按钮（预计算禁用不丢 opener）', async () => {
+    setupStore();
+    renderPanel();
+    const btn = screen.getByRole('button', { name: 'settingsResetAll' }) as HTMLButtonElement;
+    fireEvent.click(btn);
+    await screen.findByText('settingsResetConfirmTitle');
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
+    await waitFor(() => expect(document.activeElement).toBe(btn));
+  });
+
   it('聚合对话框确认后提交偏好默认 patch 并汇总提示，点取消不执行', async () => {
     const { updatePreferences, showToast } = setupStore();
     const restoreActions = installResetAllActions();

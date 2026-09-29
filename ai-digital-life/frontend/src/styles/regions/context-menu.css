@@ -101,6 +101,13 @@
   line-height: 1.4;
 }
 
+/* 聚合恢复框的执行进度行：恒占位（闲时 NBSP 撑高），执行中替换文本不增删节点，
+   对话框高度稳定；清掉 message 的下边距，避免闲时占位把 footer 顶开。 */
+.adl-confirm-dialog__message.adl-confirm-dialog__progress {
+  min-height: 1.4em;
+  margin-bottom: 0;
+}
+
 .adl-confirm-dialog__footer {
   display: flex;
   justify-content: flex-end;

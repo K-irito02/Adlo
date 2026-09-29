@@ -221,6 +221,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   /**
    * 「恢复全部默认」聚合对话框的存储组依赖：桥、状态刷新、路径写入、预算/树缓存恢复与下载
    * 路径序列。判定口径经 `resetAllStoragePredicates` 注入（与 StorageSettings UI 同源）。
+   * 桥调用一律执行时实时取（`window.digitalLife?.storage` 懒读）：避免 memo 冻结挂载时
+   * 旧桥，导致“计划用新桥算出 ready、执行却用旧桥报不可用”的分叉。
    */
   const resetAllStorageDeps = useMemo<StorageResetDeps>(() => {
     const bridge: StorageBridge | undefined = window.digitalLife?.storage;
@@ -229,10 +231,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       // 状态查询写入共享缓存：随后进入存储组即见刷新后的状态。
       refreshStatus: refreshStorageStatus,
       setPaths: async (patch, applyNow) => {
-        if (!bridge) {
+        const freshBridge: StorageBridge | undefined = window.digitalLife?.storage;
+        if (!freshBridge) {
           return { ok: false, error: { code: 'Internal', message: t.storageBridgeUnavailable } };
         }
-        const applied = await bridge.setPaths(patch, applyNow);
+        const applied = await freshBridge.setPaths(patch, applyNow);
         if (!applied.ok) {
           return { ok: false, error: applied.error };
         }
@@ -249,10 +252,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         }),
       // 树缓存恢复：写默认开关/TTL；不清缓存（恢复默认不含清除语义）。
       resetTreeCache: async () => {
-        if (!bridge) {
+        const freshBridge: StorageBridge | undefined = window.digitalLife?.storage;
+        if (!freshBridge) {
           return false;
         }
-        const result = await bridge.setTreeCacheOptions({ ...TREE_CACHE_DEFAULTS });
+        const result = await freshBridge.setTreeCacheOptions({ ...TREE_CACHE_DEFAULTS });
         return result.ok;
       },
       previewDownload: () => ({
@@ -277,10 +281,25 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     [],
   );
 
+  /** 顶部「恢复全部默认」聚合对话框状态（跨四组编排，替代原通用确认框路径）。 */
+  const [resetAllOpen, setResetAllOpen] = useState(false);
+  /** 开框前预计算好的存储计划：算好后才 setResetAllOpen(true)，框内无“计算中”闪烁。 */
+  const [resetAllPlan, setResetAllPlan] = useState<StorageResetPlanResult | null>(null);
+  /** 预计算在途：按钮禁用 + aria-busy，避免重复点击与无反馈等待。 */
+  const [resetAllPreparing, setResetAllPreparing] = useState(false);
+  const resetAllPreparingRef = useRef(false);
+  /**
+   * 开框触发元素（点击同步段捕获）：预计算期间按钮被禁用、焦点会被浏览器移走，
+   * 对话框关闭后凭此归还焦点（经 ResetAllDialog 的 opener prop）。
+   */
+  const [resetAllOpener, setResetAllOpener] = useState<HTMLElement | null>(null);
+
   /**
    * 顶部「恢复全部默认」开框：先后台算好存储计划，再弹框（等计算好再出现，
-   * 框内无“计算中”闪烁）。与 StorageSettings.openGroupResetDialog 同构
-   * （先 refresh/preflight/快照，再 setOpen(true)）。按钮在途禁用 + 日志埋点。
+   * 框内无“计算中”闪烁）。两段式（预计算→开框）与 StorageSettings.openGroupResetDialog
+   * 一致；失败策略不同：聚合框 fail-open（存储不可判定时仍开框、执行其余三组），
+   * 组框 fail-closed（toast 且不开框，见 StorageSettings openGroupResetDialog）。
+   * 按钮在途禁用 + aria-busy（可感知反馈），`resetAllPreparingRef` 防重复点击。
    */
   const handleOpenResetAll = useCallback(async () => {
     if (resetAllPreparingRef.current) {
@@ -288,15 +307,16 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
     resetAllPreparingRef.current = true;
     setResetAllPreparing(true);
-    const startedAt = Date.now();
-    console.log('[ADL-DEBUG] ResetAll open click, start computing plan');
     try {
+      // TODO: “缓存命中则用、否则现拉、异常→null”的 tree 解析与 StorageSettings
+      // openGroupResetDialog、旧 ResetAllDialog.resolveTreeStats 同语义三处并存，
+      // 后续抽共享 helper 收敛（本轮仅搬家，未新增第三份语义）。
       let treeStats: TreeCacheStats | null = getCachedTreeStats();
+      const freshBridge = window.digitalLife?.storage;
       if (treeStats === null) {
-        const bridge = window.digitalLife?.storage;
-        if (bridge?.getTreeCacheStats) {
+        if (freshBridge?.getTreeCacheStats) {
           try {
-            const result = await bridge.getTreeCacheStats();
+            const result = await freshBridge.getTreeCacheStats();
             treeStats = result.ok ? result.data : null;
           } catch {
             treeStats = null;
@@ -306,18 +326,21 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       const capturedTree = treeStats;
       let result: StorageResetPlanResult;
       try {
+        // 桥实时取用（memo 的 resetAllStorageDeps 可能捕获挂载时旧桥）：tree 与
+        // preflight 同源，避免“有桥却判 unavailable”的矛盾结果。
         result = await computeStorageResetPlan(
-          { ...resetAllStorageDeps, readTreeStats: () => capturedTree },
+          {
+            ...resetAllStorageDeps,
+            bridge: freshBridge
+              ? { preflight: (patch) => freshBridge.preflight(patch) }
+              : undefined,
+            readTreeStats: () => capturedTree,
+          },
           resetAllStoragePredicates,
         );
       } catch {
         result = { status: 'unavailable' };
       }
-      console.log('[ADL-DEBUG] ResetAll plan ready', {
-        status: result.status,
-        ms: Date.now() - startedAt,
-        coreNeeded: result.status === 'ready' ? result.plan.blocks.coreNeeded : 'n/a',
-      });
       setResetAllPlan(result);
       setResetAllOpen(true);
     } finally {
@@ -325,6 +348,22 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       setResetAllPreparing(false);
     }
   }, [resetAllStorageDeps, resetAllStoragePredicates]);
+
+  /** 关闭聚合对话框：关框即清计划与 opener（“无计划则无框”，避免残留快照）。 */
+  const handleCloseResetAll = useCallback(() => {
+    setResetAllOpen(false);
+    setResetAllPlan(null);
+    setResetAllOpener(null);
+  }, []);
+
+  /** 触发按钮点击：同步捕获 opener（供关闭后归还焦点）再进异步预计算。 */
+  const handleResetAllClick = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      setResetAllOpener(event.currentTarget);
+      void handleOpenResetAll();
+    },
+    [handleOpenResetAll],
+  );
 
   /** 聚合恢复结束：成功/失败/跳过汇总提示（组名经统一 labelKey 表解析，防两处漂移）。 */
   const handleResetAllCommitted = useCallback(
@@ -550,13 +589,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
-  /** 顶部「恢复全部默认」聚合对话框（跨四组编排，替代原通用确认框路径）。 */
-  const [resetAllOpen, setResetAllOpen] = useState(false);
-  /** 开框前预计算好的存储计划：算好后才 setResetAllOpen(true)，框内无“计算中”闪烁。 */
-  const [resetAllPlan, setResetAllPlan] = useState<StorageResetPlanResult | null>(null);
-  /** 预计算在途：按钮禁用 + aria-busy，避免重复点击与无反馈等待。 */
-  const [resetAllPreparing, setResetAllPreparing] = useState(false);
-  const resetAllPreparingRef = useRef(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const returnFocusToSearchRef = useRef(false);
   /** 待解析的跳转意图：搜索选中后先切组，由下方 effect 等锚点出现再滚动 + 高亮。 */
@@ -897,7 +929,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           <button
             type="button"
             className="adl-settings-reset-all"
-            onClick={() => void handleOpenResetAll()}
+            onClick={handleResetAllClick}
             aria-label={t.settingsResetAll}
             aria-busy={resetAllPreparing}
             disabled={allGroupsAtDefault || resetAllPreparing}
@@ -909,9 +941,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       <ResetAllDialog
         open={resetAllOpen}
         planResult={resetAllPlan}
-        onClose={() => setResetAllOpen(false)}
+        onClose={handleCloseResetAll}
         deps={resetAllStorageDeps}
         onCommitted={handleResetAllCommitted}
+        opener={resetAllOpener}
       />
       <ConfirmDialog
         open={confirmResetOpen}
