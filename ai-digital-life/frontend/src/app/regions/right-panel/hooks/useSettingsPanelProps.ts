@@ -17,8 +17,11 @@ export function useSettingsPanelProps(_panelProps: RightPanelProps): SettingsPan
   const handleChangeSetting = useCallback(
     (id: string, value: string | boolean | number) => {
       const patch = preferencePatchFromSettingChange(id, value);
+      console.error('[ADL-DEBUG-SETTINGS] onChangeSetting', { id, value, patch });
       if (patch) {
         void actions.updatePreferences(patch);
+      } else {
+        console.error('[ADL-DEBUG-SETTINGS] onChangeSetting no patch for id', { id });
       }
     },
     [actions],

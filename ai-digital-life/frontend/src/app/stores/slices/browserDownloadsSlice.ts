@@ -152,6 +152,12 @@ export const createBrowserDownloadsSlice = (
   },
 
   updateDownloadSettings: async (mode?: string, defaultPath?: string, autoMigrate?: boolean) => {
+    console.error('[ADL-DEBUG-SETTINGS] updateDownloadSettings entry', {
+      mode,
+      defaultPath,
+      autoMigrate,
+      stack: new Error().stack,
+    });
     // 与 changeDownloadPath 同构：浏览器模式 invoke 抛错转业务失败，避免未处理拒绝（F5/J2）。
     try {
       const result = await invoke<IpcResult<void>>('download_update_settings', {
@@ -159,9 +165,13 @@ export const createBrowserDownloadsSlice = (
         defaultPath: defaultPath ?? null,
         autoMigrate: autoMigrate ?? null,
       });
+      console.error('[ADL-DEBUG-SETTINGS] updateDownloadSettings invoke settled', {
+        ok: result.ok,
+      });
       if (result.ok) {
         // 写成功但回读失败同样不可静默：调用方按 DOWNLOAD_REFRESH_FAILED 展示专用 toast（M9）。
         const fresh = await get().fetchDownloadSettings();
+        console.error('[ADL-DEBUG-SETTINGS] updateDownloadSettings refresh settled', { fresh });
         if (!fresh) {
           return {
             ok: false as const,
@@ -171,6 +181,7 @@ export const createBrowserDownloadsSlice = (
       }
       return result;
     } catch (e) {
+      console.error('[ADL-DEBUG-SETTINGS] updateDownloadSettings threw', { e });
       return {
         ok: false as const,
         error: { code: 'Internal' as const, message: e instanceof Error ? e.message : String(e) },

@@ -151,26 +151,33 @@ export function SettingsSelect({
 
   const commit = useCallback(
     (v: string) => {
+      console.error('[ADL-DEBUG-SETTINGS] SettingsSelect commit', { label, from: value, to: v });
       onHoverOption?.(null);
       setOpen(false);
       // 菜单卸载后焦点无处可去，回落触发器（Esc 路径同理，见下方）。
       triggerRef.current?.focus();
       if (v !== value) {
         onChange(v);
+      } else {
+        console.error('[ADL-DEBUG-SETTINGS] SettingsSelect commit same value, skip onChange', {
+          label,
+          v,
+        });
       }
     },
-    [onChange, onHoverOption, value],
+    [onChange, onHoverOption, value, label],
   );
 
   // 打开时把高亮同步到已选项并置滚动旗：首帧即滚入可见（block nearest，可见则不动）。
   const openMenu = useCallback(() => {
+    console.error('[ADL-DEBUG-SETTINGS] SettingsSelect openMenu', { label, value });
     const idx = options.findIndex((o) => o.value === value);
     if (idx >= 0) {
       setActiveIndex(idx);
     }
     keyboardNavRef.current = true;
     setOpen(true);
-  }, [options, value]);
+  }, [options, value, label]);
 
   useEffect(() => {
     if (!open) {

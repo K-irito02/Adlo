@@ -148,17 +148,25 @@ impl LogManager {
     }
 
     pub fn set_mode(&self, target: LogTarget, mode: LogMode) -> LogResult<()> {
-        let mut config =
-            self.config.write().map_err(|_| LogError::Config("config lock poisoned".into()))?;
+        // 写守卫仅覆盖字段变更：守卫存活期间禁止打日志 —— tracing 文件层
+        // （`TerminalWriter::write`）会在同线程读同一把非重入配置 `RwLock`，
+        // 守卫内打日志即自死锁（终端日志模式一切换就卡死全进程，见回归测试）。
+        {
+            let mut config =
+                self.config.write().map_err(|_| LogError::Config("config lock poisoned".into()))?;
 
-        match target {
-            LogTarget::Terminal => {
-                config.terminal_log_mode = mode;
-                tracing::info!(%mode, "[ADL-LOG] terminal log mode changed");
-            },
-            LogTarget::Debug => {
-                config.debug_log_mode = mode;
-            },
+            match target {
+                LogTarget::Terminal => {
+                    config.terminal_log_mode = mode;
+                },
+                LogTarget::Debug => {
+                    config.debug_log_mode = mode;
+                },
+            }
+        }
+
+        if target == LogTarget::Terminal {
+            tracing::info!(%mode, "[ADL-LOG] terminal log mode changed");
         }
 
         if mode == LogMode::Multi {
@@ -449,6 +457,80 @@ mod tests {
         manager.set_mode(LogTarget::Debug, LogMode::Append).unwrap();
         let cfg = config.read().unwrap();
         assert_eq!(cfg.debug_log_mode, LogMode::Append);
+    }
+
+    /// 回归：终端日志模式切换不得自死锁（事项：设置面板下拉/复选框卡死→未响应→崩溃）。
+    ///
+    /// 生产链路：`set_mode(Terminal)` 在持有配置写锁期间打 `tracing::info!`，
+    /// 文件层 `TerminalWriter::write` 在同线程读同一把非重入 `RwLock` → 永久 park，
+    /// 并泄漏写锁，拖死后续所有 tracing 事件与偏好写入。
+    /// 本测试用同构 writer（落盘前先读同一把锁）复现：修复前超时失败，修复后毫秒级通过。
+    #[test]
+    fn set_mode_terminal_does_not_deadlock_event_writer() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+        use tracing_subscriber::fmt::writer::MakeWriter;
+
+        /// 与生产 `TerminalWriter::write` 首行同构：事件落盘前先读配置锁。
+        #[derive(Clone)]
+        struct ConfigReadingMakeWriter {
+            config: Arc<RwLock<LogConfig>>,
+        }
+        struct ConfigReadingWriter {
+            config: Arc<RwLock<LogConfig>>,
+        }
+        impl<'a> MakeWriter<'a> for ConfigReadingMakeWriter {
+            type Writer = ConfigReadingWriter;
+            fn make_writer(&'a self) -> Self::Writer {
+                ConfigReadingWriter { config: self.config.clone() }
+            }
+        }
+        impl std::io::Write for ConfigReadingWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                let _mode = self
+                    .config
+                    .read()
+                    .map(|c| c.terminal_log_mode)
+                    .map_err(|_| std::io::Error::other("config lock poisoned"))?;
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let dir = test_log_dir("setmode-deadlock");
+        let config = Arc::new(RwLock::new(LogConfig {
+            terminal_log_mode: LogMode::Overwrite,
+            debug_log_mode: LogMode::Overwrite,
+        }));
+        let manager = Arc::new(LogManager {
+            config: config.clone(),
+            log_dir: dir.clone(),
+            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "terminal-logs"))),
+            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "debug-logs"))),
+            terminal_file: Arc::new(Mutex::new(None)),
+        });
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(ConfigReadingMakeWriter { config: config.clone() })
+            .with_ansi(false)
+            .finish();
+
+        let (tx, rx) = mpsc::channel();
+        let m = manager.clone();
+        std::thread::spawn(move || {
+            let r = tracing::subscriber::with_default(subscriber, || {
+                m.set_mode(LogTarget::Terminal, LogMode::Append)
+            });
+            let _ = tx.send(r);
+        });
+
+        let result = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("set_mode(Terminal) timed out: writer re-entered the config lock (deadlock)");
+        result.unwrap();
+        assert_eq!(config.read().unwrap().terminal_log_mode, LogMode::Append);
     }
 
     #[tokio::test]
