@@ -66,3 +66,14 @@ tracing-subscriber 0.3.23 使用 `MakeWriter<'a>`（带生命周期参数）。�
 - **修改** `frontend/` — IPC 桥接新增 `setLogMode`
 - **移除** `kernel::logger` 的实际使用（代码保留但不再调用）
 - **移除** `std::mem::forget(guard)` 泄露出模式
+
+### 7. 持锁期间禁止打 tracing 日志（自死锁）
+
+**问题**：`LogManager::set_mode` 在持有配置 `RwLock` 写守卫期间调 `tracing::info!`，
+文件层 `TerminalWriter::write` 在同线程读同一把非重入锁 → 永久 park 并泄漏写锁，
+毒化后所有 tracing 事件卡死线程（设置面板下拉/复选框无响应直至崩溃，2026-09-29 实测）。
+同类：`prune_old_sessions` 在持有 sessions `Mutex` 期间的失败路径 `warn!`。
+
+**正确做法**：守卫作用域收窄到只覆盖字段变更，日志移到守卫 drop 之后；
+prune 类函数只收集失败（`PruneReport`/`PruneFailure`），由调用方在锁外统一打日志。
+回归测试用同构 writer（落盘前先读/锁同一把锁）+ `recv_timeout` 把死锁转为可断言的超时失败。
