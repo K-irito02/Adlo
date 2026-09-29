@@ -35,6 +35,43 @@ struct TerminalFileState {
 
 // ── LogManager ──
 
+/// prune 失败聚合日志上限：只打印前 N 条明细，避免权限风暴下刷屏 + 路径 PII 堆积。
+const MAX_PRUNE_LOG_SAMPLE: usize = 5;
+
+/// prune 失败聚合日志（必须在 sessions 锁外调用）：空失败静默，只记数 + 前 N 条明细。
+fn log_prune_failures(ctx: &str, report: &PruneReport) {
+    if report.failed.is_empty() {
+        return;
+    }
+    let sample_end = report.failed.len().min(MAX_PRUNE_LOG_SAMPLE);
+    tracing::warn!(
+        "{ctx} ({} files, showing {sample_end}): {:?}",
+        report.failed.len(),
+        &report.failed[..sample_end],
+    );
+}
+
+/// 启动期单类会话 prune：锁内只收集、守卫释放后再日志。terminal/debug 共用，防双分支漂移。
+fn prune_initial(sessions: &Mutex<SessionTracker>, name: &str) {
+    // 锁内禁 tracing：不用 `lock().map(...)` 链，Err 分支的 PoisonError 会持有守卫延长借用。
+    let result: Option<LogResult<PruneReport>> = match sessions.lock() {
+        Ok(guard) => Some(guard.prune_old_sessions()),
+        Err(_) => {
+            tracing::warn!("{name}_sessions lock poisoned, skipping initial prune");
+            None
+        },
+    };
+    match &result {
+        // 空失败不组装 ctx 字符串：helper 虽早返，format! 的 alloc 省得省（R2-2）。
+        Some(Ok(report)) if !report.failed.is_empty() => {
+            log_prune_failures(&format!("Initial {name} session prune failed"), report);
+        },
+        Some(Ok(_)) => {},
+        Some(Err(e)) => tracing::warn!("Initial {name} session prune failed: {e}"),
+        None => {},
+    }
+}
+
 pub struct LogManager {
     config: Arc<RwLock<LogConfig>>,
     log_dir: PathBuf,
@@ -91,43 +128,8 @@ impl LogManager {
         }
 
         // 锁内禁 tracing：prune 只收集失败，守卫释放后再打日志（R2 同类死锁治理）。
-        // 注意不用 `lock().map(...)` 链：Err 分支的 PoisonError 会持有守卫并延长借用。
-        let terminal_prune: Option<LogResult<PruneReport>> = match terminal_sessions.lock() {
-            Ok(sessions) => Some(sessions.prune_old_sessions()),
-            Err(_) => {
-                tracing::warn!("terminal_sessions lock poisoned, skipping initial prune");
-                None
-            },
-        };
-        if let Some(Ok(report)) = &terminal_prune {
-            if !report.failed.is_empty() {
-                tracing::warn!(
-                    "Initial terminal session prune failed for {} files: {:?}",
-                    report.failed.len(),
-                    report.failed
-                );
-            }
-        } else if let Some(Err(e)) = &terminal_prune {
-            tracing::warn!("Initial terminal session prune failed: {e}");
-        }
-        let debug_prune: Option<LogResult<PruneReport>> = match debug_sessions.lock() {
-            Ok(sessions) => Some(sessions.prune_old_sessions()),
-            Err(_) => {
-                tracing::warn!("debug_sessions lock poisoned, skipping initial prune");
-                None
-            },
-        };
-        if let Some(Ok(report)) = &debug_prune {
-            if !report.failed.is_empty() {
-                tracing::warn!(
-                    "Initial debug session prune failed for {} files: {:?}",
-                    report.failed.len(),
-                    report.failed
-                );
-            }
-        } else if let Some(Err(e)) = &debug_prune {
-            tracing::warn!("Initial debug session prune failed: {e}");
-        }
+        prune_initial(&terminal_sessions, "terminal");
+        prune_initial(&debug_sessions, "debug");
 
         Ok(Self {
             config,
@@ -203,13 +205,7 @@ impl LogManager {
                         .lock()
                         .map_err(|_| LogError::ModeSwitch("session lock".into()))?
                         .prune_old_sessions()?;
-                    if !report.failed.is_empty() {
-                        tracing::warn!(
-                            "terminal session prune failed for {} files: {:?}",
-                            report.failed.len(),
-                            report.failed
-                        );
-                    }
+                    log_prune_failures("terminal session prune failed", &report);
                 },
                 LogTarget::Debug => {
                     let report = self
@@ -217,13 +213,7 @@ impl LogManager {
                         .lock()
                         .map_err(|_| LogError::ModeSwitch("session lock".into()))?
                         .prune_old_sessions()?;
-                    if !report.failed.is_empty() {
-                        tracing::warn!(
-                            "debug session prune failed for {} files: {:?}",
-                            report.failed.len(),
-                            report.failed
-                        );
-                    }
+                    log_prune_failures("debug session prune failed", &report);
                 },
             }
         }
@@ -245,13 +235,8 @@ impl LogManager {
                 .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
                 .prune_old_sessions()?,
         };
-        if !report.failed.is_empty() {
-            tracing::warn!(
-                "session prune failed for {} files: {:?}",
-                report.failed.len(),
-                report.failed
-            );
-        }
+        // helper 内空失败早返，此处不再重复门控（与 set_mode/async 三处无条件调用保持一致）。
+        log_prune_failures("session prune failed", &report);
         Ok(report.removed)
     }
 
@@ -262,28 +247,24 @@ impl LogManager {
     pub async fn prune_sessions_async(&self, target: LogTarget) -> LogResult<usize> {
         let terminal_sessions = self.terminal_sessions.clone();
         let debug_sessions = self.debug_sessions.clone();
-        spawn_blocking(move || {
-            let report = match target {
+        // 日志在 `.await` 之后打：blocking 池线程不继承调用方 Span，且排序确定。
+        let report = spawn_blocking(move || -> LogResult<PruneReport> {
+            match target {
                 LogTarget::Terminal => terminal_sessions
                     .lock()
                     .map_err(|_| LogError::Session("terminal session lock poisoned".into()))?
-                    .prune_old_sessions()?,
+                    .prune_old_sessions(),
                 LogTarget::Debug => debug_sessions
                     .lock()
                     .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
-                    .prune_old_sessions()?,
-            };
-            if !report.failed.is_empty() {
-                tracing::warn!(
-                    "session prune failed for {} files: {:?}",
-                    report.failed.len(),
-                    report.failed
-                );
+                    .prune_old_sessions(),
             }
-            Ok(report.removed)
         })
         .await
-        .map_err(|e| LogError::Session(format!("spawn_blocking failed: {e}")))?
+        .map_err(|e| LogError::Session(format!("spawn_blocking failed: {e}")))?;
+        let report = report?;
+        log_prune_failures("session prune failed", &report);
+        Ok(report.removed)
     }
 
     pub fn config(&self) -> Result<LogConfig, LogError> {

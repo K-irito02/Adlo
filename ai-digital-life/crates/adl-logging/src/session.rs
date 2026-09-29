@@ -7,19 +7,21 @@ const MAX_SESSIONS: usize = 30;
 /// prune 结果：删除成功数 + 删除失败明细。失败明细由调用方在锁外打日志 ——
 // 本函数自身禁止 tracing（调用方持有 sessions `Mutex` 期间调本函数，函数内打日志会经
 // 文件层重入同一把非重入锁而自死锁，见根因事项）。
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct PruneReport {
     pub removed: usize,
     pub failed: Vec<PruneFailure>,
 }
 
 /// 单文件删除失败明细（含原因，避免相对修复前的可观测性退化）。
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct PruneFailure {
     pub path: PathBuf,
     pub error: String,
 }
 
+/// Per-target session-file tracker (prefix + log dir + current timestamp).
+/// 经 crate root 重导出（barrel 规则），供未来外部消费者直接引用。
 #[derive(Debug)]
 pub struct SessionTracker {
     prefix: String,
@@ -45,6 +47,10 @@ impl SessionTracker {
     }
 
     pub fn prune_old_sessions(&self) -> LogResult<PruneReport> {
+        // IO-UNDER-LOCK 注记：调用方在持有 sessions `Mutex` 期间调本函数，
+        // `read_dir` + `remove_file` 的 I/O 会短暂阻塞其它等锁线程（stall，非死锁；
+        // 持锁者只做 I/O 必释放）。无快照重构是刻意取舍：tracker 仅 3 字段，
+        // 拆快照 API 的 churn 收益不及成本；慢盘 + 文件超 30 个时才可观测。
         let sessions = list_session_files(&self.log_dir, &self.prefix)?;
 
         if sessions.len() <= MAX_SESSIONS {
@@ -73,6 +79,8 @@ fn list_session_files(log_dir: &Path, prefix: &str) -> LogResult<Vec<PathBuf>> {
     let entries = std::fs::read_dir(log_dir)
         .map_err(|e| LogError::Session(format!("read_dir failed: {e}")))?;
     Ok(entries
+        // 刻意跳过单条目错误（权限/瞬时 I/O）：prune 是尽力清理，
+        // 目录级失败仍经 `?` 传播；单条目失败不值得 abort 整轮。
         .filter_map(|entry| entry.ok())
         .map(|e| e.path())
         .filter(|p| {
@@ -89,6 +97,8 @@ fn remove_session_file(path: &Path) -> std::io::Result<()> {
 }
 
 fn session_timestamp() -> String {
+    // 时钟早于 epoch（虚拟机/测试时钟偏移）时回退 1970 时间戳：仅病态时钟可达，
+    // 可能与真实会话文件碰撞改变 prune 排序；可接受，不做兼容处理。
     let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default();
     let secs = now.as_secs();
     let time_of_day = secs % 86400;
