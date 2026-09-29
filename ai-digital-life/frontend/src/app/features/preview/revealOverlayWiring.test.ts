@@ -86,13 +86,19 @@ describe('reveal highlight overlay', () => {
     expect(revealHighlightSource).toContain('setProperty(DURATION_VAR');
     expect(revealHighlightCss).toContain('var(--adl-reveal-highlight-duration');
     // CSS 兜底值与 TS 常量必须同值（兜底虽被 JS 覆盖，仍是「两份时长」的漂移点）。
-    const tsDuration = Number(
-      /REVEAL_HIGHLIGHT_DURATION_MS = (\d+)/.exec(revealHighlightSource)![1],
+    // 正则失配要给出干净的 expect 失败而非 TypeError；兜底单位允许 s / ms。
+    const tsMatch = /REVEAL_HIGHLIGHT_DURATION_MS = (\d+)/.exec(revealHighlightSource);
+    expect(
+      tsMatch,
+      'revealHighlight.ts missing REVEAL_HIGHLIGHT_DURATION_MS literal',
+    ).not.toBeNull();
+    const tsDuration = Number(tsMatch![1]);
+    const cssMatch = /var\(--adl-reveal-highlight-duration,\s*([\d.]+)(ms|s)\)/.exec(
+      revealHighlightCss,
     );
-    const cssFallback = Number(
-      /var\(--adl-reveal-highlight-duration,\s*([\d.]+)s\)/.exec(revealHighlightCss)![1],
-    );
-    expect(cssFallback * 1000).toBe(tsDuration);
+    expect(cssMatch, 'reveal-highlight.css missing fallback duration').not.toBeNull();
+    const fallbackMs = cssMatch![2] === 'ms' ? Number(cssMatch![1]) : Number(cssMatch![1]) * 1000;
+    expect(fallbackMs).toBe(tsDuration);
   });
 
   it('keeps the host non-scrolling precondition that the alignment math relies on', () => {

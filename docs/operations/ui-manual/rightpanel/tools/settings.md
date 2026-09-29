@@ -92,6 +92,10 @@ await page.click('.adl-settings-search-results >> text=工作区树缓存');
 await page.waitForSelector('.adl-reveal-highlight.is-active.adl-reveal-highlight--accent');
 await page.waitForSelector('[data-settings-row="<该行主文案>"], [data-settings-anchor="storage:treeCache"]');
 
+// 注意：`.is-active` 是 1.4 秒瞬态类 —— 该断言须紧跟点击执行（慢 CI / 人工逐步执行时
+// 动画可能已结束）。只验证接线时可改为断言常驻的 `.adl-reveal-highlight--accent`
+// 与 `.adl-reveal-highlight-viewport`。
+
 // 无命中时显示既有空态键 settingsNoResults（「无匹配设置项」/「No matching settings」）
 ```
 

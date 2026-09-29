@@ -14,6 +14,10 @@ export interface CategoryCopy {
  * 渲染侧（StorageSettings 的展示过滤）与设置搜索索引共用本口径 —— 若只在渲染侧过滤，
  * 索引会登记一条永远不存在的行，行级落点会静默退化成「落到块主标题」
  *（该回归由 `settingsSearchAnchors.test.tsx` 的行标记守卫直接拦下）。
+ *
+ * 依赖方向说明：搜索索引侧（`app/components/settings`）对本文件（`app/features`）是
+ * 反向依赖，为「单一真源」的有据取舍；若未来跨层消费方继续增多，考虑把本映射
+ *（及 `storageImmutableCopy.ts`）迁至中立层（如 `@shared`）。
  */
 export const CATEGORY_KEYS_WITHOUT_OWN_ROW: readonly string[] = ['downloads_default'];
 

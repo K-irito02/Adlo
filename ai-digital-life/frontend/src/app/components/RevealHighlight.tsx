@@ -10,7 +10,10 @@ import { REVEAL_HIGHLIGHT_CLASS, REVEAL_HIGHLIGHT_VIEWPORT_CLASS } from '@utils/
  *   两处消费方按事实成立：设置面板 `.adl-settings-panel__content-outer` 无 `overflow` 声明；
  *   文件面板 `.adl-tool-editor__surface--preview` 虽声明 `overflow-y: auto`，但
  *   `editor-surface.css` 的填充规则把直接子元素夹在 `height: 100%`，故实际不滚
- *   —— 该前提由 `revealOverlayWiring.test.ts` 守护。
+ *   —— 该前提由 `revealOverlayWiring.test.ts` 守护；
+ * - **不得嵌套** —— `highlightElement` 按类名取宿主内**首个**覆盖层（`querySelector`），
+ *   宿主内再嵌套渲染另一份 `RevealHighlightLayers` 会让外层跳转对齐到内层几何。
+ *   当前两消费方（设置面板 / 文件预览面）互斥渲染，嵌套不可达。
  */
 export function RevealHighlightLayers() {
   return (

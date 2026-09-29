@@ -169,16 +169,22 @@ export const createUISlice = (
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
     recordSettingsSearch: (query) => {
-      // 单条截断到上限（与读盘侧同值收敛）；空白查询不入历史。
-      const entry = query.trim().slice(0, SETTINGS_SEARCH_HISTORY_MAX_LENGTH);
-      // 已在首位即无变化：避免每次跳转都写一次盘。
-      if (entry === '' || get().settingsSearchHistory[0] === entry) {
+      const trimmed = query.trim();
+      // 超长查询不入历史：历史条目须能完整复现原查询 —— 若存截断串，从历史点击后的
+      // 搜索结果可能与当初点击那次不同，「点历史 = 复现」被打破。单条长度上限是持久化
+      // 预算约束（登记表单条 ≤32KB）与卡片展示假设，不是存截断串的理由；读盘侧仍按
+      // 上限收敛旧数据（含旧版本写入的截断串）。
+      if (trimmed === '' || trimmed.length > SETTINGS_SEARCH_HISTORY_MAX_LENGTH) {
         return;
       }
-      const next = [entry, ...get().settingsSearchHistory.filter((item) => item !== entry)].slice(
-        0,
-        SETTINGS_SEARCH_HISTORY_MAX,
-      );
+      // 已在首位即无变化：避免每次跳转都写一次盘。
+      if (get().settingsSearchHistory[0] === trimmed) {
+        return;
+      }
+      const next = [
+        trimmed,
+        ...get().settingsSearchHistory.filter((item) => item !== trimmed),
+      ].slice(0, SETTINGS_SEARCH_HISTORY_MAX);
       set(persistField('adl:ui.settingsSearchHistory', next));
     },
     requestStorageGroupReset: () => set({ storageGroupResetPending: true }),

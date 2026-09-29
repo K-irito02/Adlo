@@ -71,6 +71,8 @@ export function SettingsSearchHistoryCard({
         if (event.key !== 'Escape') {
           return;
         }
+        // 有意阻断继续冒泡：焦点在卡片内时，document 级的 Esc 监听（如未来的全局
+        // 浮层管理器）不应再收到该事件 —— 「一次 Esc 只收卡片」由这里独占。
         event.stopPropagation();
         onClose();
       }}
@@ -108,6 +110,9 @@ export function SettingsSearchHistoryCard({
       <div className="adl-settings-search-history__scroll-host adl-reveal-scrollbar-host">
         <ul
           className="adl-settings-search-history__list adl-reveal-scroll"
+          // 双跳断言是当前类型约束下的必要形态：hook 与 `RevealScrollbar` 控制器类型
+          // 锚定 `HTMLDivElement`（`RefObject` 对元素类型不变），泛型化会波及全部消费方，
+          // 收益不成比例 —— 运行时 ref 只要求 `.current` 可写，挂 ul 完全成立。
           ref={scrollbar.scrollRef as unknown as RefObject<HTMLUListElement>}
         >
           {items.map((item) => (

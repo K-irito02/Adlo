@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
+import { findRuleGroups } from './testing/cssRules';
 
 /**
  * 设置面板「浮层 vs 导航拖拽线」的堆叠与命中区契约。
@@ -10,9 +11,9 @@ import { describe, it, expect } from 'vitest';
  * 拖拽线画在卡片之上并抢走指针事件（悬停卡片时拖拽线亮起、按下即开始拉伸）。
  *
  * 断言方式：
- * - 规则体用**注释感知 + 收集全部命中**的 `findRuleGroups`（同目录
- *   `center-reveal-scroll.test.ts` 的口径），再取「级联后最后一个声明」，避免
- *   「后置重复规则静默改写生效值而守卫仍绿」；
+ * - 规则体用**注释感知 + 收集全部命中**的 `findRuleGroups`（共享真源
+ *   `./testing/cssRules.ts`，与 `center-reveal-scroll.test.ts` 同源），再取
+ *   「级联后最后一个声明」，避免「后置重复规则静默改写生效值而守卫仍绿」；
  * - 层级关系按 `tokens.css` 的**数值**比较，而不是钉字面量 —— token 表改序也能拦住。
  */
 /** 读取仓库内的文件原文（CSS 注释由 `findRuleGroups` 的注释感知处理）。 */
@@ -24,44 +25,6 @@ const tokensCss = readRepoFile('./tokens.css');
 const settingsCss = readRepoFile('./components/settings.css');
 const filesNavigatorCss = readRepoFile('./regions/rightpanel/files-navigator.css');
 const settingsPanelSource = readRepoFile('../app/components/settings/SettingsPanel.tsx');
-
-function findRuleGroups(css: string, selector: string): string[] {
-  const blocks: string[] = [];
-  let from = 0;
-  while (from < css.length) {
-    const open = css.indexOf(selector, from);
-    if (open === -1) {
-      break;
-    }
-    from = open + selector.length;
-    const lastCommentEnd = css.lastIndexOf('*/', open);
-    const lastCommentStart = css.lastIndexOf('/*', open);
-    if (lastCommentStart > lastCommentEnd) {
-      continue;
-    }
-    const prev = open === 0 ? '' : css[open - 1];
-    if (prev && !/[\s,{>+~]/.test(prev)) {
-      continue;
-    }
-    const groupStart = Math.max(css.lastIndexOf('}', open), css.lastIndexOf(';', open)) + 1;
-    const bodyStart = css.indexOf('{', open);
-    if (bodyStart === -1) {
-      break;
-    }
-    let depth = 1;
-    let i = bodyStart + 1;
-    while (i < css.length && depth > 0) {
-      if (css[i] === '{') {
-        depth += 1;
-      } else if (css[i] === '}') {
-        depth -= 1;
-      }
-      i += 1;
-    }
-    blocks.push(css.slice(groupStart, i));
-  }
-  return blocks;
-}
 
 /**
  * 规则体：选择器里**作为一个完整片段**出现目标选择器的规则都算（含 `.panel .foo` 这类
@@ -129,10 +92,13 @@ describe('settings panel overlay stacking', () => {
   });
 
   it('reuses the shared navigator resize handle instead of a settings-local copy', () => {
-    // 标记绑定：挂共享类，或用共享组件 `NavigatorResizeHandle`（它内部就渲染该类）
-    // —— 二者取一即可，避免「CSS 断言的类名无人使用」时契约静默脱离。
+    // 标记绑定：JSX 必须以 `className` 形态挂共享类，或渲染共享组件
+    // `NavigatorResizeHandle`（它内部就渲染该类）—— 只匹配 JSX 形态而非任意出现，
+    // 注释里残留的类名字样不得满足断言（防「className 已改、契约静默脱离」）。
     expect(
-      /adl-tool-navigator__resize-handle|NavigatorResizeHandle/.test(settingsPanelSource),
+      /className="adl-tool-navigator__resize-handle"|<NavigatorResizeHandle\b/.test(
+        settingsPanelSource,
+      ),
     ).toBe(true);
     expect(settingsPanelSource).not.toContain('adl-settings-nav__resize-handle');
     // 不再自带一份同规格规则（避免与文件/变更/左侧栏出现两份口径）。

@@ -58,8 +58,11 @@ describe('recordSettingsSearch', () => {
     expect(history()).not.toContain('q0');
   });
 
-  it('truncates a single entry to the shared length limit', () => {
+  it('skips over-length queries entirely (history entries must reproduce the original query)', () => {
+    const before = history();
     record('x'.repeat(SETTINGS_SEARCH_HISTORY_MAX_LENGTH + 50));
-    expect(history()).toEqual(['x'.repeat(SETTINGS_SEARCH_HISTORY_MAX_LENGTH)]);
+    // 不截断入库：截断串的搜索结果可能与当初点击那次不同，「点历史 = 复现」被打破。
+    expect(history()).toBe(before);
+    expect(history()).toEqual([]);
   });
 });

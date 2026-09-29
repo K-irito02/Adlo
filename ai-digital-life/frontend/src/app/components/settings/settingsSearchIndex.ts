@@ -101,6 +101,10 @@ const DOWNLOAD_PATH_ROWS: BlockRowEntry[] = [
  * - 条件渲染的块（如「待迁移任务」，仅 `status.pending` 时出现）—— 登记它会产生一条
  *   默认渲染下不存在的锚点，索引里留下永远够不到的落点；
  * - 非 `.adl-settings-row` 的卡片内容（如工作区块内的清单卡片，其文案不是「块内行」）。
+ *
+ * 守卫覆盖范围：行标记守卫校验「locate ↔ DOM 属性」，**不**校验 `text` 是否真的被渲染
+ *（帮助卡/提示类文案默认不可见，无法用简单的 DOM 文本包含断言覆盖）—— text 侧的
+ * 登记正确性靠评审保证，新增行文案时须同步核对组件确实渲染了该 key。
  */
 const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
   {
@@ -249,10 +253,15 @@ function blockDetails(entry: BlockEntry, t: CopyDict): SettingsSearchDetail[] {
       if (!raw || raw === blockLabel) {
         continue;
       }
-      details.push({ text: raw.replace(PLACEHOLDER_PATTERN, '…'), locate });
+      details.push({ text: collapsePlaceholders(raw), locate });
     }
   }
   return details;
+}
+
+/** 模板占位符折叠为省略号：对用户可见的补显文案里不该出现 `{used}` 这类内部名。 */
+function collapsePlaceholders(text: string): string {
+  return text.replace(PLACEHOLDER_PATTERN, '…');
 }
 
 /**
@@ -273,7 +282,9 @@ export function matchedDetail(
     return row;
   }
   return entry.description && matchIndexOf(entry.description, query) !== -1
-    ? { text: entry.description }
+    ? // 块级说明与行文案同口径折叠占位符：未来任何 descriptionKey 带上 `{…}` 时，
+      // 补显行不会漏出内部占位名（26-F1 的同类回归在此一并防住）。
+      { text: collapsePlaceholders(entry.description) }
     : undefined;
 }
 

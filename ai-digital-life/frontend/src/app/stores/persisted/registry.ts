@@ -300,6 +300,11 @@ function readSettingsSearchHistory(raw: unknown): string[] | undefined {
     const trimmed = entry.trim().slice(0, SETTINGS_SEARCH_HISTORY_MAX_LENGTH);
     if (trimmed !== '' && !normalized.includes(trimmed)) {
       normalized.push(trimmed);
+      // 攒满上限即止：后续条目无论去重与否都会被末尾截掉 —— 纯加速（脏数据规模异常时
+      // 把最坏 O(n²) 的去重比较压回 O(n)），截断语义与不加早退严格等价。
+      if (normalized.length === SETTINGS_SEARCH_HISTORY_MAX) {
+        break;
+      }
     }
   }
   return normalized.slice(0, SETTINGS_SEARCH_HISTORY_MAX);

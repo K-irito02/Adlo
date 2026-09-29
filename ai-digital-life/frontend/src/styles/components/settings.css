@@ -643,11 +643,11 @@
      由行内 maxHeight 动态覆盖收窄（updateGeometry 按触发器上缘可用高度计算）。 */
   max-height: 240px;
   display: flex;
-  background: var(--bg-card, var(--surface-raised));
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.16));
-  z-index: var(--z-dropdown, 100);
+  box-shadow: var(--shadow-lg);
+  z-index: var(--z-dropdown);
   padding: var(--space-1);
 }
 
@@ -1609,7 +1609,7 @@
 /* 命中行：块主标题未命中、命中的是块内行副标题/提示说明时补显该行文案（带命中高亮）。 */
 .adl-settings-search-results__detail {
   display: block;
-  margin-top: 2px;
+  margin-top: var(--space-0-5);
   font-size: var(--text-xs);
   color: var(--text-muted);
   overflow: hidden;
@@ -1624,7 +1624,7 @@
    宽度上限按头部剩余宽度夹紧 —— 窄面板下卡片收窄而非溢出到窗口右缘。 */
 .adl-settings-search-history {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + var(--space-1-5));
   left: var(--adl-history-left, 0px);
   /* 上限 200px：卡片只是「历史提示」，比搜索框（输入框 120px / 容器约 150px）略宽即可；
      宽上限 + 左对齐曾让它盖到面板导航右缘、与拖拽线抢指针事件。
@@ -1635,10 +1635,10 @@
   display: flex;
   flex-direction: column;
   padding: var(--space-1);
-  background: var(--bg-card, var(--surface-raised));
+  background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.16));
+  box-shadow: var(--shadow-lg);
 }
 
 /* 指向搜索框的小箭头：两层三角（外层描边色、内层卡片底色）叠出 1px 边线。
@@ -1654,7 +1654,7 @@
 
 .adl-settings-search-history::before {
   top: -7px;
-  left: 12px;
+  left: var(--space-3);
   border-width: 0 7px 7px;
   border-color: transparent transparent var(--border-subtle);
 }
@@ -1663,7 +1663,7 @@
   top: -5px;
   left: 13px;
   border-width: 0 6px 6px;
-  border-color: transparent transparent var(--bg-card, var(--surface-raised));
+  border-color: transparent transparent var(--bg-card);
 }
 
 .adl-settings-search-history__header {

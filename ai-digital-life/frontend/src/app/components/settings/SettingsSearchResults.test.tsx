@@ -107,6 +107,30 @@ describe('SettingsSearchResults', () => {
       expect(details[0].textContent).toBe('what it relates to');
     });
 
+    it('general 组条目 description 命中时同样补显（matchedDetail 统一口径的有意设计）', () => {
+      // 行级落点只对块条目生效；general 条目无 details，description 命中时补显它、
+      // 落点仍为条目锚点（SettingsSearchDetail 无 locate → findSettingsRow 不介入）。
+      const { container } = render(
+        <TCopyProvider t={mockT} locale="en-US">
+          <SettingsSearchResults
+            entries={[
+              {
+                group: 'general',
+                anchorId: 'theme',
+                label: 'Theme',
+                description: 'Visual appearance',
+              },
+            ]}
+            query="appearance"
+            onSelect={vi.fn()}
+          />
+        </TCopyProvider>,
+      );
+      const detail = container.querySelector('.adl-settings-search-results__detail');
+      expect(detail?.textContent).toBe('Visual appearance');
+      expect(detail?.querySelector('mark.adl-settings-highlight')?.textContent).toBe('appearance');
+    });
+
     it('命中词落在长文案中后段时，补显行以命中词为中心截窗口（省略号裁不掉 mark）', () => {
       const long = `${'前置说明'.repeat(12)}聚焦目标${'后置补充'.repeat(12)}`;
       const { container } = render(

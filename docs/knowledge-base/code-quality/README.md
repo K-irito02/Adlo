@@ -67,3 +67,11 @@ OpenCode 功能对照、Phase 2 审计与缺陷修复。
 | [phase2-defect-fix-2026-07-06.md](./opencode-phase2-audit/phase2-defect-fix-2026-07-06.md) | Phase 2 缺陷修复经验 |
 | [opencode-audit-fix-2026-07.md](./opencode-phase2-audit/opencode-audit-fix-2026-07.md) | OpenCode 功能审计 10 项缺陷修复（Compaction 阈值、Plugin hook 链式传播、MCP 自动重连） |
 | [refactoring-insight-audit-fixes.md](./opencode-phase2-audit/refactoring-insight-audit-fixes.md) | 重构洞察审计修复经验 |
+
+### [根目录](./)
+
+CSS 守卫测试口径与工具链沉淀。
+
+| 文件 | 说明 |
+|------|------|
+| [css-guard-test-helpers-2026-09-30.md](./css-guard-test-helpers-2026-09-30.md) | CSS 结构契约守卫三件套口径（findRuleGroups 注释感知 + 规则体剥注释 + 属性名词边界）与「先规整后截断」持久化教训；共享真源 `src/styles/testing/cssRules.ts` |

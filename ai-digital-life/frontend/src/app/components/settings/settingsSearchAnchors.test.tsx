@@ -16,6 +16,9 @@ import { KeybindSettings } from './KeybindSettings';
 import { settingsZh } from '@i18n/zh-CN/settings';
 import { browserZh } from '@i18n/zh-CN/browser';
 import { dshZh } from '@i18n/zh-CN/dsh';
+import { settingsEn } from '@i18n/en-US/settings';
+import { browserEn } from '@i18n/en-US/browser';
+import { dshEn } from '@i18n/en-US/dsh';
 import { SettingsControls } from './SettingsControls';
 import { buildSettingsSearchIndex, anchorFor } from './settingsSearchIndex';
 import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
@@ -276,6 +279,18 @@ describe('settings search anchors', () => {
         (entry.details ?? []).map((detail) => detail.locate as string),
       ) as string[];
 
+    // 前置契约：索引中所有 detail 必有 locate（blockDetails 对取不到定位文案的行直接
+    // 跳过登记）。若该跳过逻辑日后放松，这里给出显式失败，而不是下方守卫抛出
+    // `missing row marker undefined` 的混淆信息。
+    for (const entry of index) {
+      for (const detail of entry.details ?? []) {
+        expect(
+          detail.locate,
+          `${anchorFor(entry.group, entry.anchorId)} has a detail without locate`,
+        ).toBeTruthy();
+      }
+    }
+
     const registered = new Set(locatesOf(index));
     // 条件清单不得滞留：每条仍必须是登记在册的行（删行后必须同步删清单）。
     for (const key of CONDITIONAL_ROW_MARKERS) {
@@ -292,22 +307,29 @@ describe('settings search anchors', () => {
       expect(duplicates, `${group} has duplicate row markers across blocks`).toEqual([]);
     }
 
-    // mockT 下的 locate 是 **key 名**，只能证明「key 不重复」；落点靠**运行时文案值**等值匹配，
-    // 故再用真实中文文案核对一遍：每个 locate 都能译出文案，且同组内文案值两两不同。
-    const zh = { ...settingsZh, ...browserZh, ...dshZh } as Record<string, string>;
-    for (const group of ['workspace', 'storage', 'browser', 'dsh'] as const) {
-      const texts = index
-        .filter((entry) => entry.group === group)
-        .flatMap((entry) => [
-          ...new Set((entry.details ?? []).map((detail) => detail.locate as string)),
-        ])
-        .map((locate) => {
-          const text = zh[locate];
-          expect(text, `${group}/${locate} missing in zh copy`).toBeTruthy();
-          return text;
-        });
-      const duplicates = texts.filter((text, position) => texts.indexOf(text) !== position);
-      expect(duplicates, `${group} has duplicate row copy values`).toEqual([]);
+    // mockT 下的 locate 是 **key 名**，只能证明「key 不重复」；落点靠**运行时文案值**
+    // 等值匹配，文案随 locale 变化 —— 故对 zh / en 两个 locale 各核对一遍：每个 locate
+    // 都能译出文案，且同组内文案值两两不同（单 locale 撞车会让该语言下跳转静默落到
+    // 同组第一行，另一 locale 的断言拦不住）。
+    const localeCopies: [string, Record<string, string>][] = [
+      ['zh-CN', { ...settingsZh, ...browserZh, ...dshZh } as Record<string, string>],
+      ['en-US', { ...settingsEn, ...browserEn, ...dshEn } as Record<string, string>],
+    ];
+    for (const [locale, dict] of localeCopies) {
+      for (const group of ['workspace', 'storage', 'browser', 'dsh'] as const) {
+        const texts = index
+          .filter((entry) => entry.group === group)
+          .flatMap((entry) => [
+            ...new Set((entry.details ?? []).map((detail) => detail.locate as string)),
+          ])
+          .map((locate) => {
+            const text = dict[locate];
+            expect(text, `${locale}: ${group}/${locate} missing in copy`).toBeTruthy();
+            return text;
+          });
+        const duplicates = texts.filter((text, position) => texts.indexOf(text) !== position);
+        expect(duplicates, `${locale}: ${group} has duplicate row copy values`).toEqual([]);
+      }
     }
 
     // 防「静默跳过」：除 general/shortcuts 外至少两组带有块内行文案，否则本用例形同虚设。

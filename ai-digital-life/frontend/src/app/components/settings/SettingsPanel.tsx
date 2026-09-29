@@ -657,7 +657,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }
   }, [searchOpen]);
 
-  /** 重新打开搜索即复位「已收起」（唯一复位点：`historyDismissed` 只按搜索会话生效）。 */
+  /** 重新打开搜索即复位「已收起」（唯一复位点：`historyDismissed` 只按搜索会话生效）。
+   *  重新聚焦输入框 / 清空查询**有意不复位** —— 与原生自动填充「重新聚焦即再现建议」
+   *  的心智不同，这里卡片按整个搜索会话生效，避免点外部收起后又被频繁召回。 */
   useEffect(() => {
     if (searchOpen) {
       setHistoryDismissed(false);
@@ -738,8 +740,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const handleSelectResult = useCallback(
     (entry: SettingsSearchEntry) => {
       const detail = matchedDetail(entry, searchQuery);
-      collapseSearch();
+      // 先记录历史再收起：`searchQuery` 是本次渲染闭包捕获的旧值，与执行顺序无关，
+      // 但「先记录后清空」的阅读顺序不会让后续维护者误以为记录的是清空后的查询。
       recordSearchHistory(searchQuery);
+      collapseSearch();
       setActiveGroup(entry.group);
       setPendingJump({
         group: entry.group,
@@ -817,6 +821,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         element,
         host,
         addedTabIndex,
+        // 摘除 tabindex 的定时器与共享高亮淡出共用 REVEAL_HIGHLIGHT_DURATION_MS：
+        // 若未来调用方给 highlightElement 传自定义 durationMs，这里必须同值，
+        // 否则焦点残留期与可见高亮期脱节（当前两处都用默认值，耦合不可达）。
         timer: window.setTimeout(() => {
           if (addedTabIndex) {
             element.removeAttribute('tabindex');

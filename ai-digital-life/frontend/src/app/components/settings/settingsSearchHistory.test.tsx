@@ -172,7 +172,8 @@ describe('设置面板搜索历史卡片', () => {
     const notPrevented = fireEvent.mouseDown(title);
     expect(notPrevented).toBe(false);
     expect(card()).not.toBeNull();
-    expect(input).not.toBeNull();
+    // 「保住输入框焦点」的另一半意图：preventDefault 后焦点仍在输入框上（activeElement）。
+    expect(document.activeElement).toBe(input);
   });
 
   it('焦点在卡片内按 Escape：只收起卡片，查询与搜索态保留', () => {

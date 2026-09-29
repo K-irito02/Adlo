@@ -205,4 +205,14 @@ describe('matchedDetail：命中行 + 跳转落点文案', () => {
     expect(detail).toEqual({ text: 'maxConcurrentWorkspacesDesc' });
     expect(detail?.locate).toBeUndefined();
   });
+
+  it('块级说明命中时同样折叠占位符（与行文案口径对称，防 `{used}` 漏出）', () => {
+    // 当前唯一 descriptionKey 不含占位符；构造带占位符的说明直接验证折叠路径。
+    const detail = matchedDetail(
+      { ...blockOf('maxConcurrentWorkspaces'), description: '已用 {used}，上限 {limit}' },
+      '已用',
+    );
+    expect(detail?.text).toBe('已用 …，上限 …');
+    expect(detail?.locate).toBeUndefined();
+  });
 });

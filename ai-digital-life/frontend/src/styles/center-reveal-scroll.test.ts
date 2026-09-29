@@ -1,46 +1,9 @@
 // @vitest-environment node
 import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
+import { findRuleGroups } from './testing/cssRules';
 
 const centerCss = readFileSync(new URL('./regions/center.css', import.meta.url), 'utf-8');
-
-function findRuleGroups(css: string, selector: string): string[] {
-  const blocks: string[] = [];
-  let from = 0;
-  while (from < css.length) {
-    const open = css.indexOf(selector, from);
-    if (open === -1) {
-      break;
-    }
-    from = open + selector.length;
-    const lastCommentEnd = css.lastIndexOf('*/', open);
-    const lastCommentStart = css.lastIndexOf('/*', open);
-    if (lastCommentStart > lastCommentEnd) {
-      continue;
-    }
-    const prev = open === 0 ? '' : css[open - 1];
-    if (prev && !/[\s,{>+~]/.test(prev)) {
-      continue;
-    }
-    const groupStart = Math.max(css.lastIndexOf('}', open), css.lastIndexOf(';', open)) + 1;
-    const bodyStart = css.indexOf('{', open);
-    if (bodyStart === -1) {
-      break;
-    }
-    let depth = 1;
-    let i = bodyStart + 1;
-    while (i < css.length && depth > 0) {
-      if (css[i] === '{') {
-        depth += 1;
-      } else if (css[i] === '}') {
-        depth -= 1;
-      }
-      i += 1;
-    }
-    blocks.push(css.slice(groupStart, i));
-  }
-  return blocks;
-}
 
 describe('welcome recent-workspaces reveal scrollbar', () => {
   it('caps the welcome scroll container above the natural height of 3 rows', () => {
