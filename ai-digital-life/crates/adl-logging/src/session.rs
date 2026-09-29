@@ -4,6 +4,22 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 const MAX_SESSIONS: usize = 30;
 
+/// prune 结果：删除成功数 + 删除失败明细。失败明细由调用方在锁外打日志 ——
+// 本函数自身禁止 tracing（调用方持有 sessions `Mutex` 期间调本函数，函数内打日志会经
+// 文件层重入同一把非重入锁而自死锁，见根因事项）。
+#[derive(Debug, Default)]
+pub struct PruneReport {
+    pub removed: usize,
+    pub failed: Vec<PruneFailure>,
+}
+
+/// 单文件删除失败明细（含原因，避免相对修复前的可观测性退化）。
+#[derive(Debug, Default)]
+pub struct PruneFailure {
+    pub path: PathBuf,
+    pub error: String,
+}
+
 #[derive(Debug)]
 pub struct SessionTracker {
     prefix: String,
@@ -28,27 +44,28 @@ impl SessionTracker {
         self.log_dir.join(format!("{}-{}.txt", self.prefix, self.current_ts))
     }
 
-    pub fn prune_old_sessions(&self) -> LogResult<usize> {
+    pub fn prune_old_sessions(&self) -> LogResult<PruneReport> {
         let sessions = list_session_files(&self.log_dir, &self.prefix)?;
 
         if sessions.len() <= MAX_SESSIONS {
-            return Ok(0);
+            return Ok(PruneReport::default());
         }
 
         let mut sessions = sessions;
         sessions.sort();
         let to_remove = sessions.len() - MAX_SESSIONS;
-        let mut removed = 0;
+        let mut report = PruneReport::default();
 
         for path in sessions.iter().take(to_remove) {
             if let Err(e) = remove_session_file(path) {
-                tracing::warn!("Failed to prune session file {:?}: {e}", path);
+                // 锁内禁 tracing：失败明细只收集，由调用方在 sessions 锁外统一打日志。
+                report.failed.push(PruneFailure { path: path.clone(), error: e.to_string() });
             } else {
-                removed += 1;
+                report.removed += 1;
             }
         }
 
-        Ok(removed)
+        Ok(report)
     }
 }
 
@@ -142,10 +159,84 @@ mod tests {
         }
 
         let removed = tracker.prune_old_sessions().unwrap();
-        assert!(removed >= 5, "removed {removed}, expected >=5");
+        assert!(removed.removed >= 5, "removed {}, expected >=5", removed.removed);
 
         let remaining: Vec<_> = std::fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).collect();
         assert!(remaining.len() <= MAX_SESSIONS);
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// 回归 R2：持 sessions 锁调 prune，失败路径不得打日志（否则经文件层重入同一把
+    /// 非重入 `Mutex` 自死锁）。用删不掉的目录项（`remove_file` 在目录上失败）强制走
+    /// 失败路径：修复前 `tracing::warn!` → writer 锁 sessions → 超时；修复后收集返回。
+    #[test]
+    fn prune_failure_does_not_log_while_holding_session_lock() {
+        use std::sync::{Arc, Mutex, mpsc};
+        use std::time::Duration;
+        use tracing_subscriber::fmt::writer::MakeWriter;
+
+        /// 与生产 `TerminalWriter` 同构：事件落盘前先锁 sessions。
+        #[derive(Clone)]
+        struct SessionLockingMakeWriter {
+            sessions: Arc<Mutex<SessionTracker>>,
+        }
+        struct SessionLockingWriter {
+            sessions: Arc<Mutex<SessionTracker>>,
+        }
+        impl<'a> MakeWriter<'a> for SessionLockingMakeWriter {
+            type Writer = SessionLockingWriter;
+            fn make_writer(&'a self) -> Self::Writer {
+                SessionLockingWriter { sessions: self.sessions.clone() }
+            }
+        }
+        impl std::io::Write for SessionLockingWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                let _guard = self
+                    .sessions
+                    .lock()
+                    .map_err(|_| std::io::Error::other("session lock poisoned"))?;
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let dir = std::env::temp_dir().join("adl-log-session-prune-fail");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        // 删不掉的条目：目录满足会话文件名前缀/后缀过滤，但 `remove_file` 必失败。
+        // 排序最前，保证落在待删除窗口内。
+        std::fs::create_dir(dir.join("test-000000.txt")).unwrap();
+        for i in 0..35 {
+            let path = dir.join(format!("test-2026-06-27_{:02}0000.txt", i));
+            std::fs::write(&path, "data").unwrap();
+        }
+
+        let sessions = Arc::new(Mutex::new(SessionTracker::new(&dir, "test")));
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(SessionLockingMakeWriter { sessions: sessions.clone() })
+            .with_ansi(false)
+            .finish();
+
+        let (tx, rx) = mpsc::channel();
+        std::thread::spawn(move || {
+            let r = tracing::subscriber::with_default(subscriber, || {
+                // 持锁调 prune：与 `set_mode(Multi)` / `prune_sessions_sync` 同构。
+                let guard = sessions.lock().unwrap();
+                guard.prune_old_sessions()
+            });
+            let _ = tx.send(r);
+        });
+
+        let report = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("prune timed out: failure path logged while holding the session lock")
+            .unwrap();
+        assert_eq!(report.failed.len(), 1);
+        assert!(!report.failed[0].error.is_empty());
+        assert!(report.removed >= 1);
 
         let _ = std::fs::remove_dir_all(&dir);
     }

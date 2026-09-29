@@ -520,23 +520,13 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      */
     updatePreferences: async (patch: AppPreferencePatch): Promise<boolean> => {
       const key = 'updatePreferences';
-      console.error('[ADL-DEBUG-SETTINGS] updatePreferences entry', {
-        patch,
-        isFetching: get().isFetching[key],
-        stack: new Error().stack,
-      });
       if (get().isFetching[key]) {
-        console.error('[ADL-DEBUG-SETTINGS] updatePreferences dropped: already fetching');
         return false;
       }
       clearError(get, SCOPE);
       set({ isFetching: { ...get().isFetching, [key]: true } });
       try {
         const result = await window.digitalLife.app.updatePreferences(patch);
-        console.error('[ADL-DEBUG-SETTINGS] updatePreferences invoke settled', {
-          ok: result.ok,
-          error: result.ok ? undefined : result.error,
-        });
         if (!result.ok) {
           captureError(get, result.error, SCOPE);
           return false;
@@ -547,14 +537,11 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         // Fix it here for store consistency; useThemeSync 会通过 appInfo 变化触发 setTheme。
         result.data.config.resolvedTheme = resolveCurrentTheme(responseMode);
         set({ appInfo: result.data });
-        console.error('[ADL-DEBUG-SETTINGS] updatePreferences success, appInfo updated');
         return true;
       } catch (error) {
-        console.error('[ADL-DEBUG-SETTINGS] updatePreferences threw', { error });
         captureError(get, error, SCOPE);
         return false;
       } finally {
-        console.error('[ADL-DEBUG-SETTINGS] updatePreferences finally, clearing isFetching');
         set({ isFetching: { ...get().isFetching, [key]: false } });
       }
     },

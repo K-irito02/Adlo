@@ -151,7 +151,6 @@ pub async fn app_update_preferences(
     app: tauri::AppHandle,
     patch: AppPreferencePatch,
 ) -> Result<IpcResult<AppInfo>, AppError> {
-    tracing::error!("[ADL-DEBUG-SETTINGS] app_update_preferences entry patch={:?}", patch);
     let state = app.state::<AppState>();
     {
         let mut config =
@@ -210,7 +209,6 @@ pub async fn app_update_preferences(
     }
     let config_clone =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
-    tracing::error!("[ADL-DEBUG-SETTINGS] app_update_preferences patch applied, saving");
     let config_dir = state.storage.paths().config_dir.clone();
     tokio::task::spawn_blocking(move || {
         crate::setup::save_config_to_dir(&config_dir, &config_clone)
@@ -218,11 +216,8 @@ pub async fn app_update_preferences(
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
     .map_err(|e| AppError::Config(e.to_string()))?;
-    tracing::error!("[ADL-DEBUG-SETTINGS] app_update_preferences saved, emitting ConfigChanged");
     state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
-    tracing::error!("[ADL-DEBUG-SETTINGS] app_update_preferences fetching workspace");
     let current_workspace = fetch_current_workspace(&state).await;
-    tracing::error!("[ADL-DEBUG-SETTINGS] app_update_preferences done");
     let info = build_app_info(&state, current_workspace)?;
     Ok(ipc(Ok(info)))
 }

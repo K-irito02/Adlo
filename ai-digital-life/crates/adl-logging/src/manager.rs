@@ -1,7 +1,7 @@
 use crate::config::{LogConfig, log_file_path, session_log_path};
 use crate::error::{LogError, LogResult};
 use crate::mode::{LogMode, LogTarget};
-use crate::session::SessionTracker;
+use crate::session::{PruneReport, SessionTracker};
 
 use std::fs::{self, File, OpenOptions};
 use std::io::{BufWriter, Write};
@@ -90,19 +90,43 @@ impl LogManager {
             tracing::warn!("global tracing subscriber already set, reusing it ({e})");
         }
 
-        if let Ok(sessions) = terminal_sessions.lock() {
-            if let Err(e) = sessions.prune_old_sessions() {
-                tracing::warn!("Initial terminal session prune failed: {e}");
+        // 锁内禁 tracing：prune 只收集失败，守卫释放后再打日志（R2 同类死锁治理）。
+        // 注意不用 `lock().map(...)` 链：Err 分支的 PoisonError 会持有守卫并延长借用。
+        let terminal_prune: Option<LogResult<PruneReport>> = match terminal_sessions.lock() {
+            Ok(sessions) => Some(sessions.prune_old_sessions()),
+            Err(_) => {
+                tracing::warn!("terminal_sessions lock poisoned, skipping initial prune");
+                None
+            },
+        };
+        if let Some(Ok(report)) = &terminal_prune {
+            if !report.failed.is_empty() {
+                tracing::warn!(
+                    "Initial terminal session prune failed for {} files: {:?}",
+                    report.failed.len(),
+                    report.failed
+                );
             }
-        } else {
-            tracing::warn!("terminal_sessions lock poisoned, skipping initial prune");
+        } else if let Some(Err(e)) = &terminal_prune {
+            tracing::warn!("Initial terminal session prune failed: {e}");
         }
-        if let Ok(sessions) = debug_sessions.lock() {
-            if let Err(e) = sessions.prune_old_sessions() {
-                tracing::warn!("Initial debug session prune failed: {e}");
+        let debug_prune: Option<LogResult<PruneReport>> = match debug_sessions.lock() {
+            Ok(sessions) => Some(sessions.prune_old_sessions()),
+            Err(_) => {
+                tracing::warn!("debug_sessions lock poisoned, skipping initial prune");
+                None
+            },
+        };
+        if let Some(Ok(report)) = &debug_prune {
+            if !report.failed.is_empty() {
+                tracing::warn!(
+                    "Initial debug session prune failed for {} files: {:?}",
+                    report.failed.len(),
+                    report.failed
+                );
             }
-        } else {
-            tracing::warn!("debug_sessions lock poisoned, skipping initial prune");
+        } else if let Some(Err(e)) = &debug_prune {
+            tracing::warn!("Initial debug session prune failed: {e}");
         }
 
         Ok(Self {
@@ -151,6 +175,7 @@ impl LogManager {
         // 写守卫仅覆盖字段变更：守卫存活期间禁止打日志 —— tracing 文件层
         // （`TerminalWriter::write`）会在同线程读同一把非重入配置 `RwLock`，
         // 守卫内打日志即自死锁（终端日志模式一切换就卡死全进程，见回归测试）。
+        // 同理 Multi 分支 prune 期间持有 sessions 锁，prune 内同样禁 tracing（R2）。
         {
             let mut config =
                 self.config.write().map_err(|_| LogError::Config("config lock poisoned".into()))?;
@@ -170,20 +195,35 @@ impl LogManager {
         }
 
         if mode == LogMode::Multi {
+            // 持 sessions 锁调 prune，prune 内禁 tracing；失败路径守卫释放后打日志（R2）。
             match target {
                 LogTarget::Terminal => {
-                    let _ = self
+                    let report = self
                         .terminal_sessions
                         .lock()
                         .map_err(|_| LogError::ModeSwitch("session lock".into()))?
-                        .prune_old_sessions();
+                        .prune_old_sessions()?;
+                    if !report.failed.is_empty() {
+                        tracing::warn!(
+                            "terminal session prune failed for {} files: {:?}",
+                            report.failed.len(),
+                            report.failed
+                        );
+                    }
                 },
                 LogTarget::Debug => {
-                    let _ = self
+                    let report = self
                         .debug_sessions
                         .lock()
                         .map_err(|_| LogError::ModeSwitch("session lock".into()))?
-                        .prune_old_sessions();
+                        .prune_old_sessions()?;
+                    if !report.failed.is_empty() {
+                        tracing::warn!(
+                            "debug session prune failed for {} files: {:?}",
+                            report.failed.len(),
+                            report.failed
+                        );
+                    }
                 },
             }
         }
@@ -192,18 +232,27 @@ impl LogManager {
     }
 
     pub fn prune_sessions_sync(&self, target: LogTarget) -> LogResult<usize> {
-        match target {
+        // 同 R2：锁内禁 tracing，失败守卫释放后打日志；返回语义不变（成功数）。
+        let report = match target {
             LogTarget::Terminal => self
                 .terminal_sessions
                 .lock()
                 .map_err(|_| LogError::Session("terminal session lock poisoned".into()))?
-                .prune_old_sessions(),
+                .prune_old_sessions()?,
             LogTarget::Debug => self
                 .debug_sessions
                 .lock()
                 .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
-                .prune_old_sessions(),
+                .prune_old_sessions()?,
+        };
+        if !report.failed.is_empty() {
+            tracing::warn!(
+                "session prune failed for {} files: {:?}",
+                report.failed.len(),
+                report.failed
+            );
         }
+        Ok(report.removed)
     }
 
     pub fn prune_sessions(&self, target: LogTarget) -> LogResult<usize> {
@@ -213,15 +262,25 @@ impl LogManager {
     pub async fn prune_sessions_async(&self, target: LogTarget) -> LogResult<usize> {
         let terminal_sessions = self.terminal_sessions.clone();
         let debug_sessions = self.debug_sessions.clone();
-        spawn_blocking(move || match target {
-            LogTarget::Terminal => terminal_sessions
-                .lock()
-                .map_err(|_| LogError::Session("terminal session lock poisoned".into()))?
-                .prune_old_sessions(),
-            LogTarget::Debug => debug_sessions
-                .lock()
-                .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
-                .prune_old_sessions(),
+        spawn_blocking(move || {
+            let report = match target {
+                LogTarget::Terminal => terminal_sessions
+                    .lock()
+                    .map_err(|_| LogError::Session("terminal session lock poisoned".into()))?
+                    .prune_old_sessions()?,
+                LogTarget::Debug => debug_sessions
+                    .lock()
+                    .map_err(|_| LogError::Session("debug session lock poisoned".into()))?
+                    .prune_old_sessions()?,
+            };
+            if !report.failed.is_empty() {
+                tracing::warn!(
+                    "session prune failed for {} files: {:?}",
+                    report.failed.len(),
+                    report.failed
+                );
+            }
+            Ok(report.removed)
         })
         .await
         .map_err(|e| LogError::Session(format!("spawn_blocking failed: {e}")))?

@@ -180,16 +180,8 @@ export function BrowserDownloadPathSection() {
   };
 
   const handleMigrateToggle = (checked: boolean) => {
-    console.error('[ADL-DEBUG-SETTINGS] migrate toggle', {
-      checked,
-      busy,
-      isLoadingSettings,
-      autoMigrate,
-      stack: new Error().stack,
-    });
     if (!checked) {
       void updateDownloadSettings(undefined, undefined, false).then((result) => {
-        console.error('[ADL-DEBUG-SETTINGS] migrate off settled', { ok: result.ok });
         if (!result.ok) {
           showToast(t.settingsUpdateFailed, 'error');
         }

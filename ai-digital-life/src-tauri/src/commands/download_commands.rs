@@ -95,19 +95,17 @@ pub fn download_update_settings(
     default_path: Option<String>,
     auto_migrate: Option<bool>,
 ) -> Result<IpcResult<()>, CommandError> {
-    tracing::error!(
+    tracing::debug!(
         mode = mode.as_deref(),
         default_path = default_path.as_deref(),
         auto_migrate = ?auto_migrate,
-        "[ADL-DEBUG-SETTINGS] download_update_settings entry"
+        "[ADL-DL] download_update_settings called"
     );
     let mode_enum = mode.as_deref().map(DownloadMode::from_str);
-    let r = state
+    state
         .download_manager
         .update_settings(mode_enum, default_path, auto_migrate)
-        .map_err(map_download_err);
-    tracing::error!("[ADL-DEBUG-SETTINGS] download_update_settings done ok={}", r.is_ok());
-    r?;
+        .map_err(map_download_err)?;
     Ok(ipc(Ok(())))
 }
 
