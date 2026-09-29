@@ -57,7 +57,7 @@ import {
   computeStorageResetPlan,
   type StorageResetPlanResult,
 } from '@shared/settings-reset/storageReset';
-import type { TreeCacheStats } from '@shared/ipc/storage';
+import { resolveTreeStats } from '@shared/settings-reset/treeStats';
 import type { GroupKey } from '@shared/settings-reset/types';
 import type { StorageBridge } from '@shared/ipc/storage';
 import { EMPTY_KEYBINDS } from '@shared/keybinds';
@@ -288,9 +288,19 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   /** 预计算在途：按钮禁用 + aria-busy，避免重复点击与无反馈等待。 */
   const [resetAllPreparing, setResetAllPreparing] = useState(false);
   const resetAllPreparingRef = useRef(false);
+  /** 卸载守卫：预计算在途时面板卸载则丢弃结果（React 18 下 setState 本无害，但开框已无意义）。 */
+  const resetAllMountedRef = useRef(true);
+  useEffect(
+    () => () => {
+      resetAllMountedRef.current = false;
+    },
+    [],
+  );
   /**
    * 开框触发元素（点击同步段捕获）：预计算期间按钮被禁用、焦点会被浏览器移走，
    * 对话框关闭后凭此归还焦点（经 ResetAllDialog 的 opener prop）。
+   * 有意用 state（而非 ref）：Dialog 经 prop 读取，preparing 的重渲染顺带传达，
+   * 避免“ref 写入 + 依赖另一次渲染才传播”的隐性时序耦合；关闭时清零。
    */
   const [resetAllOpener, setResetAllOpener] = useState<HTMLElement | null>(null);
 
@@ -300,6 +310,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
    * 一致；失败策略不同：聚合框 fail-open（存储不可判定时仍开框、执行其余三组），
    * 组框 fail-closed（toast 且不开框，见 StorageSettings openGroupResetDialog）。
    * 按钮在途禁用 + aria-busy（可感知反馈），`resetAllPreparingRef` 防重复点击。
+   * 已知可并行未做：tree 拉取与计划内 `refreshStatus` 无依赖但串行（本地 IPC 实测约 67ms，
+   * 收益可忽略；并行需把状态预取抽出 computeStorageResetPlan，改动共享函数得不偿失）。
    */
   const handleOpenResetAll = useCallback(async () => {
     if (resetAllPreparingRef.current) {
@@ -308,38 +320,21 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     resetAllPreparingRef.current = true;
     setResetAllPreparing(true);
     try {
-      // TODO: “缓存命中则用、否则现拉、异常→null”的 tree 解析与 StorageSettings
-      // openGroupResetDialog、旧 ResetAllDialog.resolveTreeStats 同语义三处并存，
-      // 后续抽共享 helper 收敛（本轮仅搬家，未新增第三份语义）。
-      let treeStats: TreeCacheStats | null = getCachedTreeStats();
       const freshBridge = window.digitalLife?.storage;
-      if (treeStats === null) {
-        if (freshBridge?.getTreeCacheStats) {
-          try {
-            const result = await freshBridge.getTreeCacheStats();
-            treeStats = result.ok ? result.data : null;
-          } catch {
-            treeStats = null;
-          }
-        }
-      }
-      const capturedTree = treeStats;
-      let result: StorageResetPlanResult;
-      try {
-        // 桥实时取用（memo 的 resetAllStorageDeps 可能捕获挂载时旧桥）：tree 与
-        // preflight 同源，避免“有桥却判 unavailable”的矛盾结果。
-        result = await computeStorageResetPlan(
-          {
-            ...resetAllStorageDeps,
-            bridge: freshBridge
-              ? { preflight: (patch) => freshBridge.preflight(patch) }
-              : undefined,
-            readTreeStats: () => capturedTree,
-          },
-          resetAllStoragePredicates,
-        );
-      } catch {
-        result = { status: 'unavailable' };
+      // 树统计与桥均实时取用（memo 的 resetAllStorageDeps 可能捕获挂载时旧桥）：
+      // tree 与 preflight 同源，避免“有桥却判 unavailable”的矛盾结果。
+      // 解析经共享 resolveTreeStats（与 StorageSettings.openGroupResetDialog 同源）。
+      const capturedTree = await resolveTreeStats(getCachedTreeStats(), freshBridge);
+      const result = await computeStorageResetPlan(
+        {
+          ...resetAllStorageDeps,
+          bridge: freshBridge ? { preflight: (patch) => freshBridge.preflight(patch) } : undefined,
+          readTreeStats: () => capturedTree,
+        },
+        resetAllStoragePredicates,
+      ).catch((): StorageResetPlanResult => ({ status: 'unavailable' }));
+      if (!resetAllMountedRef.current) {
+        return;
       }
       setResetAllPlan(result);
       setResetAllOpen(true);

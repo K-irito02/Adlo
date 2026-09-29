@@ -126,7 +126,7 @@ describe('i18n en-US namespace keys', () => {
     }
   });
 
-  it('includes reset-all scope/progress keys in both locales', () => {
+  it('includes reset-all confirm/progress keys in both locales', () => {
     const keys = [
       'settingsResetAllScopePreferences',
       'settingsResetAllConfirmMessage',
@@ -147,6 +147,9 @@ describe('i18n en-US namespace keys', () => {
     expect(String(zhCN.settingsResetAllConfirmMessage)).toBe(
       '所有设置将恢复为默认值，此操作不可撤销。',
     );
+    // 唯一幸存的 scope 键（preferences 组展示名，进度文案与失败汇总共用）：双语值锁定，防静默漂移。
+    expect(String(enUS.settingsResetAllScopePreferences)).toBe('General, workspace and shortcuts');
+    expect(String(zhCN.settingsResetAllScopePreferences)).toBe('通用、工作区与快捷键');
     // 插值占位符两侧一致（失败摘要用人类可读的 {reason}，不得回落到内部步骤码）。
     expect(String(enUS.settingsResetAllFailedSummary)).toBe(
       'Reset: {done}; failed: {group} ({reason})',

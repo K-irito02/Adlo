@@ -14,11 +14,15 @@ import type { ResetAllOutcome } from './resetAllSettings';
 afterEach(cleanup);
 
 // 插值键用真模板：裸 key 回退测不到 {files}/{size}/{group} 的实际替换（同 SettingsPanel.test 约定）。
+// 注意 mockT 为 Proxy：未知 key 回退为 key 名本身，因此 queryByText(<deadKey>)===null
+// 即“未渲染该 key”；若改此回退，下方死键守卫需同步重写。
+// ConfirmMessage 用生产真值（真值锁定另见 keys.test.ts，此处验 key 有渲染）。
 const TEMPLATES: Record<string, string> = {
   storageMigrateDialogSummary:
     'Core data paths: {files} file(s) (~{size}) will be moved to the new location',
   settingsResetAllProgress: 'Resetting: {group}',
-  settingsResetAllConfirmMessage: 'All settings will be restored.',
+  settingsResetAllConfirmMessage:
+    'All settings will be restored to defaults. This cannot be undone.',
   settingsResetAllScopePreferences: 'Preferences',
 };
 
@@ -55,6 +59,23 @@ const NON_CORE_PLAN: StorageResetPlanResult = {
 
 const UNAVAILABLE_PLAN: StorageResetPlanResult = { status: 'unavailable' };
 const ALL_DEFAULT_PLAN: StorageResetPlanResult = { status: 'allDefault' };
+
+/** 预检阻塞计划（ok=false）：两迁移键禁用、retain 同步禁用、焦点回落取消键。三处用例共用。 */
+const BLOCKED_PLAN: StorageResetPlanResult = {
+  status: 'ready',
+  plan: {
+    blocks: { coreNeeded: true, tree: 'hidden', budget: false, download: 'hidden' },
+    preflight: {
+      ok: false,
+      errors: [{ category: null, message: 'source and target are identical' }],
+      warnings: [],
+      totalFiles: 0,
+      totalBytes: 0,
+      freeBytes: 0,
+    },
+    migrateAtOpen: false,
+  },
+};
 
 function makeDeps(overrides: Partial<StorageResetExecuteDeps> = {}): StorageResetExecuteDeps {
   return {
@@ -112,10 +133,12 @@ function renderDialog(options: {
   deps?: StorageResetExecuteDeps;
   onClose?: () => void;
   onCommitted?: (outcome: ResetAllOutcome) => void;
+  opener?: HTMLElement | null;
 }) {
   const onClose = options.onClose ?? vi.fn();
   const onCommitted = options.onCommitted ?? vi.fn();
-  render(
+  const opener = options.opener;
+  const { rerender } = render(
     <TCopyProvider t={mockT} locale="en-US">
       <ResetAllDialog
         open
@@ -123,10 +146,27 @@ function renderDialog(options: {
         onClose={onClose}
         deps={options.deps ?? makeDeps()}
         onCommitted={onCommitted}
+        opener={opener}
       />
     </TCopyProvider>,
   );
-  return { onClose, onCommitted };
+  return {
+    onClose,
+    onCommitted,
+    close: () =>
+      rerender(
+        <TCopyProvider t={mockT} locale="en-US">
+          <ResetAllDialog
+            open={false}
+            planResult={options.planResult === undefined ? CORE_PLAN : options.planResult}
+            onClose={onClose}
+            deps={options.deps ?? makeDeps()}
+            onCommitted={onCommitted}
+            opener={opener}
+          />
+        </TCopyProvider>,
+      ),
+  };
 }
 
 describe('ResetAllDialog', () => {
@@ -139,6 +179,8 @@ describe('ResetAllDialog', () => {
     // 不再渲染分组清单与存储计算行（ScopePreferences 在 mock 中映射为 'Preferences'，
     // 故断言渲染文本而非键名，否则恒过无分辨力）。
     expect(screen.queryByText('settingsResetAllStorageCompute')).toBeNull();
+    // 'Preferences' 为 ScopePreferences 的 mock 简化值（生产真值见 keys.test.ts 双语锁）：
+    // 进度文案与下方的“无分组清单”断言均依赖此映射，改 mock 需同步两处。
     expect(screen.queryByText('Preferences')).toBeNull();
     // 恢复框绝不渲染搜索空态文案（该文案只属于搜索无结果）。
     expect(screen.queryByText('settingsNoResults')).toBeNull();
@@ -147,7 +189,9 @@ describe('ResetAllDialog', () => {
   it('不再列出分组清单，仅保留通用确认文案 + 决策项', () => {
     installStoreActions();
     renderDialog({});
-    expect(screen.getByText('All settings will be restored.')).not.toBeNull();
+    expect(
+      screen.getByText('All settings will be restored to defaults. This cannot be undone.'),
+    ).not.toBeNull();
     expect(screen.queryByText('settingsResetAllScopeIntro')).toBeNull();
     expect(screen.queryByText('settingsResetAllScopeBrowser')).toBeNull();
     expect(screen.queryByText('settingsResetAllScopeDsh')).toBeNull();
@@ -169,22 +213,7 @@ describe('ResetAllDialog', () => {
 
   it('预检含 error：两键禁用且展示本地化错误列表', async () => {
     installStoreActions();
-    const blockedPlan: StorageResetPlanResult = {
-      status: 'ready',
-      plan: {
-        blocks: { coreNeeded: true, tree: 'hidden', budget: false, download: 'hidden' },
-        preflight: {
-          ok: false,
-          errors: [{ category: null, message: 'source and target are identical' }],
-          warnings: [],
-          totalFiles: 0,
-          totalBytes: 0,
-          freeBytes: 0,
-        },
-        migrateAtOpen: false,
-      },
-    };
-    renderDialog({ planResult: blockedPlan });
+    renderDialog({ planResult: BLOCKED_PLAN });
     const later = (await screen.findByRole('button', {
       name: 'storageMigrateLater',
     })) as HTMLButtonElement;
@@ -194,6 +223,30 @@ describe('ResetAllDialog', () => {
     expect(screen.getByText('storagePreflightIdentical')).not.toBeNull();
   });
 
+  it('预检阻塞时保留源复选框同步禁用（不可提交即不可勾选）', async () => {
+    installStoreActions();
+    renderDialog({ planResult: BLOCKED_PLAN });
+    await screen.findByRole('button', { name: 'storageMigrateNow' });
+    expect((screen.getByRole('checkbox') as HTMLInputElement).disabled).toBe(true);
+  });
+
+  it('汇总回调抛错时仍解锁并关框（无 unhandled 锁定）', async () => {
+    installStoreActions();
+    const onCommitted = vi.fn().mockRejectedValue(new Error('toast down'));
+    const { onClose } = renderDialog({ planResult: UNAVAILABLE_PLAN, onCommitted });
+    fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
+    // 恢复已完成：汇总抛错不阻塞 onClose（真实关框由父组件 setState 完成，此处以回调为准）；
+    // vitest 若有 unhandled rejection 会单列 Unhandled Errors（本文件须零条）；
+    // finally 保解锁：即使 onClose mock 不卸载，取消键也须恢复可用（包 waitFor，
+    // 使重渲染 flush 有重试，避免极端调度下读到旧 disabled 值）。
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: 'cancel' }) as HTMLButtonElement).disabled).toBe(
+        false,
+      ),
+    );
+  });
+
   it('存储不可用：无分组行，单确认键仍执行其余三组', async () => {
     installStoreActions();
     const onCommitted = vi.fn();
@@ -201,7 +254,9 @@ describe('ResetAllDialog', () => {
       planResult: UNAVAILABLE_PLAN,
       onCommitted,
     });
-    expect(screen.getByText('All settings will be restored.')).not.toBeNull();
+    expect(
+      screen.getByText('All settings will be restored to defaults. This cannot be undone.'),
+    ).not.toBeNull();
     expect(screen.queryByText('settingsResetAllStorageUnavailable')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
@@ -219,7 +274,9 @@ describe('ResetAllDialog', () => {
       planResult: ALL_DEFAULT_PLAN,
       onCommitted,
     });
-    expect(screen.getByText('All settings will be restored.')).not.toBeNull();
+    expect(
+      screen.getByText('All settings will be restored to defaults. This cannot be undone.'),
+    ).not.toBeNull();
     expect(screen.queryByText('settingsResetAllStorageSkipped')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'storageGroupResetConfirm' }));
     await waitFor(() => expect(onCommitted).toHaveBeenCalledTimes(1));
@@ -235,6 +292,22 @@ describe('ResetAllDialog', () => {
     expect(screen.getByRole('button', { name: 'storageGroupResetConfirm' })).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'storageMigrateLater' })).toBeNull();
     expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
+  it('传入 opener 时关框焦点归还 opener（覆盖 activeElement 回落分支）', async () => {
+    installStoreActions();
+    const opener = document.createElement('button');
+    opener.textContent = 'opener-btn';
+    document.body.appendChild(opener);
+    try {
+      const { close } = renderDialog({ opener });
+      // 开框焦点已入框（主确认键可用，直落其上）。
+      await screen.findByRole('button', { name: 'storageMigrateNow' });
+      close();
+      await waitFor(() => expect(document.activeElement).toBe(opener));
+    } finally {
+      opener.remove();
+    }
   });
 
   it('防御分支 planResult=null：单确认键可用且焦点直落其上', async () => {
@@ -283,22 +356,7 @@ describe('ResetAllDialog', () => {
 
   it('预检报错禁用主确认键：焦点回落到取消键', async () => {
     installStoreActions();
-    const blockedPlan: StorageResetPlanResult = {
-      status: 'ready',
-      plan: {
-        blocks: { coreNeeded: true, tree: 'hidden', budget: false, download: 'hidden' },
-        preflight: {
-          ok: false,
-          errors: [{ category: null, message: 'source and target are identical' }],
-          warnings: [],
-          totalFiles: 0,
-          totalBytes: 0,
-          freeBytes: 0,
-        },
-        migrateAtOpen: false,
-      },
-    };
-    renderDialog({ planResult: blockedPlan });
+    renderDialog({ planResult: BLOCKED_PLAN });
     const now = (await screen.findByRole('button', {
       name: 'storageMigrateNow',
     })) as HTMLButtonElement;

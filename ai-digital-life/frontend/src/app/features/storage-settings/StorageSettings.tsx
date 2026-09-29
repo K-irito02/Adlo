@@ -23,6 +23,7 @@ import {
   type StorageResetExecutePlan,
   type StorageTreeBlock,
 } from '@shared/settings-reset/storageReset';
+import { resolveTreeStats } from '@shared/settings-reset/treeStats';
 import { IconCircleHelp, IconResetDefaults } from '../../icons';
 import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
@@ -752,19 +753,10 @@ export function StorageSettings() {
       const coreNeeded = current.mode !== 'unified' || current.root !== current.defaultRoot;
 
       // 事项 10：逐块真实非默认快照（显示与执行同源）。读最新值——闭包里的 treeStats
-      // 可能因 await 陈旧，空则现拉一次；store 值直接 getState 取新鲜态。
+      // 可能因 await 陈旧，空则现拉一次（共享 resolveTreeStats，与聚合恢复同源）；
+      // store 值直接 getState 取新鲜态。
       // 已默认的块 → 'hidden'/false：清单不出现、确认时跳过对应恢复腿；未知 fail-open 显示。
-      let tree = treeStats;
-      if (tree === null && bridge.getTreeCacheStats) {
-        try {
-          const result = await bridge.getTreeCacheStats();
-          if (result.ok) {
-            tree = result.data;
-          }
-        } catch {
-          // 拉取失败按未知处理（fail-open 显示）。
-        }
-      }
+      const tree = await resolveTreeStats(treeStats, bridge);
       const store = useAppStore.getState();
       const budget = store.appInfo?.config?.terminalHistoryBudgetBytes;
       const dl = store.downloadSettings;

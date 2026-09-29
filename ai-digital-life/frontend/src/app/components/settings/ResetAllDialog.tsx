@@ -20,8 +20,8 @@ export interface ResetAllDialogProps {
   planResult: StorageResetPlanResult | null;
   /** 存储组执行依赖（仅执行侧：setPaths / resetBudget / resetTreeCache / downloadPath）。 */
   deps: StorageResetExecuteDeps;
-  /** 执行结束回调（成功/失败/跳过汇总由调用方展示）。 */
-  onCommitted: (outcome: ResetAllOutcome) => void;
+  /** 执行结束回调（成功/失败/跳过汇总由调用方展示）。允许 async：汇总侧含刷新/重启等待。 */
+  onCommitted: (outcome: ResetAllOutcome) => void | Promise<void>;
   onClose: () => void;
   /**
    * 触发元素（调用方在点击同步段捕获）：预计算期间触发按钮被禁用、焦点会被浏览器
@@ -45,7 +45,8 @@ function groupLabel(t: CopyDict, key: GroupKey): string {
  * 且产品要求确认框不列分组细节，故统一渲染通用确认文案。
  * 执行走 `resetAllSettings`（preferences → browser → dsh → storage），进度逐组回调；
  * 执行期间锁定关闭/取消/遮罩/Esc（存储迁移不可中断）。结果交 `onCommitted` 由调用方汇总。
- * 偏好/浏览器/DSH 的依赖取执行时实时 store 值（R2：迁移开关不在开框时快照）。
+ * 偏好/浏览器/DSH 的依赖取执行时实时 store 值；下载迁移开关同样取实时值覆盖计划快照
+ *（R2：开关反映用户最新意图；preflight 与路径判定仍用开框快照）。
  */
 export function ResetAllDialog({
   open,
@@ -137,40 +138,64 @@ export function ResetAllDialog({
     cancelRef.current?.focus();
   }, [open, busy, preflightBlocked]);
 
-  /** 执行时组装完整编排 deps：存储取自 props，其余组取 store 实时值（R2）。 */
-  const buildDeps = useCallback((): ResetAllDeps => {
-    const store = useAppStore.getState();
-    return {
-      updatePreferences: store.updatePreferences,
-      browser: {
+  /**
+   * 执行时组装完整编排 deps：存储取自 props，偏好/浏览器/DSH 取执行时实时 store 值。
+   * 下载迁移开关由调用方传入（单源供给两腿，防 M-3 式分叉）：browser 腿与 storage 腿
+   * （经 handleConfirm 覆盖计划快照）用同一实时值；preflight 与路径判定仍用开框快照。
+   */
+  const buildDeps = useCallback(
+    (liveMigrateAtOpen: boolean): ResetAllDeps => {
+      const store = useAppStore.getState();
+      return {
         updatePreferences: store.updatePreferences,
-        updateDownloadSettings: store.updateDownloadSettings,
-        downloadPath: {
-          changeDownloadPath: store.changeDownloadPath,
+        browser: {
+          updatePreferences: store.updatePreferences,
           updateDownloadSettings: store.updateDownloadSettings,
+          downloadPath: {
+            changeDownloadPath: store.changeDownloadPath,
+            updateDownloadSettings: store.updateDownloadSettings,
+          },
+          migrateAtOpen: liveMigrateAtOpen,
         },
-        migrateAtOpen: store.downloadSettings.auto_migrate_on_path_change,
-      },
-      dsh: { saveSourceConfig: (config) => store.saveSourceConfig(config) },
-      storage: deps,
-    };
-  }, [deps]);
+        dsh: { saveSourceConfig: (config) => store.saveSourceConfig(config) },
+        storage: deps,
+      };
+    },
+    [deps],
+  );
 
   const handleConfirm = useCallback(
     async (applyNow: boolean) => {
       setBusy(true);
       setProgress(null);
+      // 依赖 resetAllSettings 的“永不 reject”契约（内部 attempt 全兜底）：
+      // try/finally 只保解锁，rejection 仅可能来自 onCommitted（下有 catch）。
       try {
+        // 下载迁移开关取执行时实时值（开框后用户改设置的极小窗口也按最新意图执行）；
+        // preflight 与路径判定仍用开框快照（同源）。
+        const liveMigrateAtOpen =
+          useAppStore.getState().downloadSettings.auto_migrate_on_path_change;
         const outcome = await resetAllSettings(
-          buildDeps(),
-          { storagePlan: plan, applyNow, retainSource },
+          buildDeps(liveMigrateAtOpen),
+          {
+            storagePlan: plan === null ? null : { ...plan, migrateAtOpen: liveMigrateAtOpen },
+            applyNow,
+            retainSource,
+          },
           setProgress,
         );
-        onCommitted(outcome);
+        // onCommitted 为显式等待的 fire-and-forget：汇总侧抛错不阻塞关框
+        //（恢复本身已完成，编排器永不 reject），catch 仅防 unhandled rejection
+        //（点击侧 `void handleConfirm()` 不会消费它）。
+        try {
+          await onCommitted(outcome);
+        } catch {
+          // 汇总展示失败：恢复已完成，直接关框，不打断用户。
+          // 注：汇总内的存储刷新失败同样静默——下次进入存储组时会自动重拉，无残留。
+        }
         onClose();
       } finally {
-        // 异常安全：编排器理论上永不 reject（内部 attempt 兜底），但回调抛错时
-        // 仍须解锁，否则对话框永久锁定、用户只能杀进程。
+        // 异常安全：任何抛错时仍须解锁，否则对话框永久锁定、用户只能杀进程。
         setBusy(false);
       }
     },
