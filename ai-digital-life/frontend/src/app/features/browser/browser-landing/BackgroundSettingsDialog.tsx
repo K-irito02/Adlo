@@ -223,7 +223,7 @@ export function BackgroundSettingsDialog({ open, t, onClose }: BackgroundSetting
             </div>
           )}
 
-          <div className="adl-bg-settings__actions adl-prompt-modal__actions--fill">
+          <div className="adl-bg-settings__actions adl-prompt-modal__actions adl-prompt-modal__actions--fill">
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--square"

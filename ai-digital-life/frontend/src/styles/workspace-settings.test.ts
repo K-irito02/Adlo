@@ -3,6 +3,10 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
 const settingsCss = readFileSync(new URL('./components/settings.css', import.meta.url), 'utf-8');
+const composerCoreCss = readFileSync(
+  new URL('./regions/composer-core.css', import.meta.url),
+  'utf-8',
+);
 const hintCardCss = readFileSync(new URL('./components/hintCard.css', import.meta.url), 'utf-8');
 const revealCss = readFileSync(
   new URL('./components/reveal-scrollbar.css', import.meta.url),
@@ -538,15 +542,32 @@ describe('storage group reset dialog + dirty bar styles (2026-09-27 decisions)',
   it('confirm dialog footer wraps so 3-button EN labels stay inside the dialog', () => {
     // 回归：英文 "Cancel + Migrate on next launch + Migrate now and restart"
     // 三键单行总宽超 400px 旧框内宽，按钮溢出到框外。footer 必须换行收进容器。
+    // 兼容性已确认：通用两键框与 dsh.css `--stacked` 变体（按钮 width: 100%）不受影响。
     const footer = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer');
     expect(footer).not.toBeNull();
     expect(footer).toContain('flex-wrap: wrap');
     const dialog = ruleBody(contextMenuCss, '.adl-confirm-dialog');
     expect(dialog).not.toBeNull();
+    expect(dialog).toContain('480px');
     expect(dialog).toContain('calc(100vw - 32px)');
-    // footer 内浏览器模式提示 <small> 独占一行，不与按钮挤在同一行。
-    const small = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer small');
-    expect(small).not.toBeNull();
-    expect(small).toContain('flex-basis: 100%');
+    // 超窄视口守卫：min-width 同样收进视口（<312px 时 280px 不再撑破）。
+    expect(dialog).toContain('min(280px');
+    // 按钮防超宽 guards：极长单个文案也不撑破对话框。
+    const btn = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer .adl-btn');
+    expect(btn).not.toBeNull();
+    expect(btn).toContain('min-width: 0');
+    expect(btn).toContain('max-width: 100%');
+    // footer 内浏览器模式提示独占一行，不与按钮挤在同一行。
+    const hint = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer .adl-confirm-dialog__hint');
+    expect(hint).not.toBeNull();
+    expect(hint).toContain('flex-basis: 100%');
+    // prompt 侧同类加固（面板更窄，仅 320px/360px）。
+    const promptActions = ruleBody(composerCoreCss, '.adl-prompt-modal__actions');
+    expect(promptActions).not.toBeNull();
+    expect(promptActions).toContain('flex-wrap: wrap');
+    const promptBtn = ruleBody(composerCoreCss, '.adl-prompt-modal__actions .adl-btn');
+    expect(promptBtn).not.toBeNull();
+    expect(promptBtn).toContain('min-width: 0');
+    expect(promptBtn).toContain('max-width: 100%');
   });
 });

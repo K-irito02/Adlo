@@ -159,7 +159,7 @@ export function PortConfigDialog({ open, t, onClose }: PortConfigDialogProps) {
           </div>
         </div>
 
-        <div className="adl-port-config__actions adl-prompt-modal__actions--fill">
+        <div className="adl-port-config__actions adl-prompt-modal__actions adl-prompt-modal__actions--fill">
           <button
             type="button"
             className="adl-btn adl-btn--ghost adl-btn--square"

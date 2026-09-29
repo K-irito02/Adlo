@@ -128,7 +128,11 @@ export function StorageMigrateDialog({
           >
             {t.storageMigrateNow}
           </button>
-          {!isTauriShell() ? <small>{t.storageRestartUnavailableInBrowser}</small> : null}
+          {!isTauriShell() ? (
+            <small className="adl-confirm-dialog__hint">
+              {t.storageRestartUnavailableInBrowser}
+            </small>
+          ) : null}
         </div>
       </div>
     </div>,

@@ -76,8 +76,9 @@
 
 .adl-confirm-dialog {
   box-sizing: border-box;
-  min-width: 280px;
+  min-width: min(280px, calc(100vw - 32px));
   width: min(480px, calc(100vw - 32px));
+  /* max-width 与 width 同值：防外部 width 覆盖时仍不超视口。 */
   max-width: min(480px, calc(100vw - 32px));
   padding: var(--space-4);
   border: 1px solid var(--border-subtle);
@@ -108,19 +109,20 @@
 }
 
 /* 三键确认框（Cancel + Migrate on next launch + Migrate now and restart）在英文等
-   长文案语言下单行总宽超过对话框内宽：允许按钮换行收进容器内，替代溢出到框外。
-   按钮自身不压缩、不截断（min-width: 0 + max-width: 100% 只防超宽，不过分挤压文案）。 */
+   长文案语言下单行总宽超过对话框内宽：按钮允许随 flex 压缩（min-width: 0），
+   主要靠 footer 换行收进容器内；不做截断省略。 */
 .adl-confirm-dialog__footer .adl-btn {
-  flex-shrink: 1;
   min-width: 0;
   max-width: 100%;
 }
 
-/* 迁移对话框 footer 内的浏览器模式提示（<small>）：独占一行右对齐，
+/* 迁移对话框 footer 内的浏览器模式提示：独占一行右对齐，
    避免作为 flex item 与按钮挤在同一行。 */
-.adl-confirm-dialog__footer small {
+.adl-confirm-dialog__footer .adl-confirm-dialog__hint {
   flex-basis: 100%;
   text-align: right;
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
 }
 
 /* 确认对话框内的变更明细列表（如存储组级恢复默认）：与 message 同字号色阶，条目收紧。 */

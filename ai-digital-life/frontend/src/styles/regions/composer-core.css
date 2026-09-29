@@ -257,6 +257,12 @@
   gap: var(--space-2);
 }
 
+/* prompt 面板更窄（320px / wide 360px）：单个长按钮也要能收进面板内（与 confirm 侧对称）。 */
+.adl-prompt-modal__actions .adl-btn {
+  min-width: 0;
+  max-width: 100%;
+}
+
 .adl-prompt-modal__actions--fill {
   display: grid;
   grid-template-columns: 1fr 1fr;
