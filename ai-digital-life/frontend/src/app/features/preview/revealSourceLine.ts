@@ -66,8 +66,9 @@ function chooseScrollBehavior(container: HTMLElement, target: HTMLElement): Scro
 /* ---------------- 落点高亮 ---------------- */
 
 /*
- * 覆盖层（视口夹层 + 高亮条）与「播放一次高亮」的实现在共享组件
- * `@components/RevealHighlight`：本模块只负责「行号 → 目标元素」的映射与滚动定位，
+ * 覆盖层（视口夹层 + 高亮条）与「播放一次高亮」的实现在共享模块
+ * `@utils/revealHighlight`（组件侧 `@components/RevealHighlight` 只渲染常驻覆盖层）：
+ * 本模块只负责「行号 → 目标元素」的映射与滚动定位，
  * 呈现交给共享实现（文件面板用 `warning` 变体，设置面板搜索跳转用 `accent` 变体）。
  */
 

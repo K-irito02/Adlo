@@ -144,12 +144,6 @@ describe('readStringArray', () => {
     expect(readStringArray([null])).toBeUndefined();
     expect(readStringArray(null)).toBeUndefined();
   });
-
-  it('truncates to maxLength (oldest entries dropped, read side converges on the cap)', () => {
-    expect(readStringArray(['a', 'b', 'c'], 2)).toEqual(['a', 'b']);
-    // 上限大于实际长度时不补位、不报错。
-    expect(readStringArray(['a'], 20)).toEqual(['a']);
-  });
 });
 
 describe('readObjectArray', () => {

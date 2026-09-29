@@ -1702,6 +1702,12 @@
   color: var(--text-primary);
 }
 
+/* 滚动宿主：让 `RevealScrollbar` 的轨道以**列表**为界（卡片根还含标题行，
+   以其为定位宿主会让滑块整体偏移）。 */
+.adl-settings-search-history__scroll-host {
+  min-height: 0;
+}
+
 .adl-settings-search-history__list {
   display: flex;
   flex-direction: column;

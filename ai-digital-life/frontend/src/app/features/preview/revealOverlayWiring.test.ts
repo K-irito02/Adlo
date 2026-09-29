@@ -115,12 +115,13 @@ describe('reveal highlight overlay', () => {
     // 变体只重绑两个变量；关键帧与几何完全共用（避免复制一份动画规则再各改各的）。
     expect(revealHighlightCss).toContain('.adl-reveal-highlight--warning');
     expect(revealHighlightCss).toContain('.adl-reveal-highlight--accent');
-    expect(revealHighlightCss).toContain('--adl-reveal-highlight-bg: var(--warning-soft)');
-    expect(revealHighlightCss).toContain('--adl-reveal-highlight-accent: var(--warning)');
-    // 变体重绑断言必须落在**变体规则体**内：基础规则带中性兜底后，全文件 toContain 会恒真。
+    // 两侧变体都按**规则体范围**断言：基础规则带中性兜底后，全文件 toContain 会恒真。
+    const warningBody = extractCssBlock(revealHighlightCss, '.adl-reveal-highlight--warning {\n');
+    expect(warningBody).toContain('--adl-reveal-highlight-bg: var(--warning-soft)');
+    expect(warningBody).toContain('--adl-reveal-highlight-line: var(--warning)');
     const accentBody = extractCssBlock(revealHighlightCss, '.adl-reveal-highlight--accent {\n');
     expect(accentBody).toContain('--adl-reveal-highlight-bg: var(--accent-subtle)');
-    expect(accentBody).toContain('--adl-reveal-highlight-accent: var(--accent)');
+    expect(accentBody).toContain('--adl-reveal-highlight-line: var(--accent)');
     expect(revealHighlightCss.match(/@keyframes adl-reveal-highlight-fade/g)).toHaveLength(1);
   });
 

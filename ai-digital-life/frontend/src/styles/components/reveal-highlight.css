@@ -21,19 +21,15 @@
 }
 
 /* 高亮条：横向 left/right 0 铺满，与主内容显示区域的左右边缘贴合（直角 + 左侧竖线）；
-   top/height 由 `highlightElement` 写入内联样式，短暂高亮后自动淡出。 */
+   top/height 由 `highlightElement` 写入内联样式，短暂高亮后自动淡出。
+   配色完全由变体类提供（`highlightElement` 对闭联合的 variant 恒挂其一，
+   故基础规则不设兜底 —— 兜底只会与 accent 变体形成两份等价绑定）。 */
 .adl-reveal-highlight {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
   height: 0;
-  /* 中性兜底：第三个消费方若漏挂变体类，退化为默认淡色提示而不是「静默不可见」
-     （未定义的自定义属性会让整条声明按无效值丢弃，不报错）。 */
-  --adl-reveal-highlight-bg: var(--accent-subtle);
-  --adl-reveal-highlight-accent: var(--accent);
-  background-color: transparent;
-  box-shadow: none;
 }
 
 .adl-reveal-highlight.is-active {
@@ -46,19 +42,19 @@
 /* 配色变体：仅重绑本元素上的两个变量，关键帧与几何不变。 */
 .adl-reveal-highlight--warning {
   --adl-reveal-highlight-bg: var(--warning-soft);
-  --adl-reveal-highlight-accent: var(--warning);
+  --adl-reveal-highlight-line: var(--warning);
 }
 
 .adl-reveal-highlight--accent {
   --adl-reveal-highlight-bg: var(--accent-subtle);
-  --adl-reveal-highlight-accent: var(--accent);
+  --adl-reveal-highlight-line: var(--accent);
 }
 
 @keyframes adl-reveal-highlight-fade {
   0%,
   55% {
     background-color: var(--adl-reveal-highlight-bg);
-    box-shadow: inset 3px 0 0 0 var(--adl-reveal-highlight-accent);
+    box-shadow: inset 3px 0 0 0 var(--adl-reveal-highlight-line);
   }
   100% {
     background-color: transparent;
@@ -70,6 +66,6 @@
   .adl-reveal-highlight.is-active {
     animation: none;
     background-color: var(--adl-reveal-highlight-bg);
-    box-shadow: inset 3px 0 0 0 var(--adl-reveal-highlight-accent);
+    box-shadow: inset 3px 0 0 0 var(--adl-reveal-highlight-line);
   }
 }

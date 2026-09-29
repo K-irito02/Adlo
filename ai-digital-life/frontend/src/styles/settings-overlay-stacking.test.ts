@@ -15,12 +15,9 @@ import { describe, it, expect } from 'vitest';
  *   「后置重复规则静默改写生效值而守卫仍绿」；
  * - 层级关系按 `tokens.css` 的**数值**比较，而不是钉字面量 —— token 表改序也能拦住。
  */
-/** 读取仓库内文件，并剥掉 CSS 注释（注释里的 `选择器 {` 会让朴素切片误匹配）。 */
+/** 读取仓库内的文件原文（CSS 注释由 `findRuleGroups` 的注释感知处理）。 */
 function readRepoFile(relativePath: string): string {
-  return readFileSync(new URL(relativePath, import.meta.url), 'utf-8').replace(
-    /\/\*[\s\S]*?\*\//g,
-    '',
-  );
+  return readFileSync(new URL(relativePath, import.meta.url), 'utf-8');
 }
 
 const tokensCss = readRepoFile('./tokens.css');
@@ -66,14 +63,35 @@ function findRuleGroups(css: string, selector: string): string[] {
   return blocks;
 }
 
-/** 规则体：只用**选择器逐字相等**的规则（前缀相同的 `::before` / `__child` 规则不得混入）。 */
+/**
+ * 规则体：选择器里**作为一个完整片段**出现目标选择器的规则都算（含 `.panel .foo` 这类
+ * 高特异度组合；`::before` 也算 —— 调用方传 `.foo::before` 时按整段匹配）。
+ * 按组合符切分后逐段等值比较，故 `.foo__item`（另一个类）与 `.foo.bar`（复合片段）不会误入。
+ * 用途：级联里真正生效的可能是高特异度规则，只查「选择器逐字相等」会漏。
+ */
 function ruleBodies(css: string, selector: string): string[] {
-  return findRuleGroups(css, selector)
-    .filter((block) => block.slice(0, block.indexOf('{')).trim() === selector)
-    .map((block) => block.slice(block.indexOf('{') + 1, block.lastIndexOf('}')));
+  return (
+    findRuleGroups(css, selector)
+      .filter((block) =>
+        block
+          .slice(0, block.indexOf('{'))
+          .trim()
+          .split(/[\s>+~]+/)
+          .includes(selector),
+      )
+      // 剥掉规则体内注释：注释里出现「属性: 值」字样（如解释性文字）不得算作生效声明。
+      .map((block) =>
+        block
+          .slice(block.indexOf('{') + 1, block.lastIndexOf('}'))
+          .replace(/\/\*[\s\S]*?\*\//g, ''),
+      )
+  );
 }
 
-/** 级联后**最后一个**声明值（同一属性多条声明时后者胜出）。属性名按词边界匹配：`border-width` 不得算作 `width`。 */
+/**
+ * 级联后**最后一个**声明值（同一属性多条声明时后者胜出）。
+ * 属性名按词边界匹配：`border-width` / `min-width` 不得算作 `width`。
+ */
 function lastDeclaration(css: string, selector: string, property: string): string | null {
   const pattern = new RegExp(`(?<![\\w-])${property}\\s*:\\s*([^;]+);`, 'g');
   const values = ruleBodies(css, selector).flatMap((body) =>
@@ -87,29 +105,6 @@ function zToken(name: string): number {
   const matched = new RegExp(`--${name}:\\s*(\\d+)\\s*;`).exec(tokensCss);
   expect(matched, `tokens.css missing --${name}`).not.toBeNull();
   return Number(matched![1]);
-}
-
-/**
- * 收集「选择器**包含**某个类」的全部规则体（含 `.foo` 与后代/高特异度组合如
- * `.panel .foo`），按 token 边界匹配 —— `.foo__item` 与 `.foo::before` 不得混入
- * （前者是另一个类，后者的三角箭头用 `width: 0` 会顶掉真实宽度声明）。
- * 用途：级联里真正生效的可能是高特异度规则，只查「选择器逐字相等」会漏。
- */
-function ruleBodiesContaining(css: string, className: string): string[] {
-  const escaped = className.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const boundary = new RegExp(`${escaped}(?![\\w-])(?!::)`);
-  return findRuleGroups(css, className)
-    .filter((block) => boundary.test(block.slice(0, block.indexOf('{'))))
-    .map((block) => block.slice(block.indexOf('{') + 1, block.lastIndexOf('}')));
-}
-
-/** 类名相关规则里**最后一个**声明值（含高特异度规则；取级联后的胜出者）。 */
-function lastDeclarationIncluding(css: string, className: string, property: string): string | null {
-  const pattern = new RegExp(`(?<![\\w-])${property}\\s*:\\s*([^;]+);`, 'g');
-  const values = ruleBodiesContaining(css, className).flatMap((body) =>
-    [...body.matchAll(pattern)].map((match) => match[1].trim()),
-  );
-  return values.length > 0 ? values[values.length - 1] : null;
 }
 
 /** 取声明里的 z-index 数值：`var(--z-dropdown)` 查 token 表，字面量直接取值。 */
@@ -156,7 +151,7 @@ describe('settings panel overlay stacking', () => {
 
   it('caps the search history card at the search-field scale, not the old 320px', () => {
     const card = '.adl-settings-search-history';
-    const width = lastDeclarationIncluding(settingsCss, card, 'width');
+    const width = lastDeclaration(settingsCss, card, 'width');
     expect(width, `${card} has no width declaration`).not.toBeNull();
     expect(width).toContain('min(');
     const matched = /min\((\d+)px,/.exec(width!);
@@ -167,7 +162,7 @@ describe('settings panel overlay stacking', () => {
     expect(cap).toBeGreaterThanOrEqual(160);
     expect(cap).toBeLessThanOrEqual(240);
     // 上界与 min-width 打架（min-width 会胜出）→ 不得再声明 min-width；层级由头部承担，卡片不再自带 z-index。
-    expect(lastDeclarationIncluding(settingsCss, card, 'min-width')).toBeNull();
-    expect(lastDeclarationIncluding(settingsCss, card, 'z-index')).toBeNull();
+    expect(lastDeclaration(settingsCss, card, 'min-width')).toBeNull();
+    expect(lastDeclaration(settingsCss, card, 'z-index')).toBeNull();
   });
 });

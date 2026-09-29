@@ -12,26 +12,28 @@ export function matchIndexOf(text: string, query: string): number {
   return text.toLowerCase().indexOf(needle);
 }
 
+/** 补显窗口：命中词前保留的字数 / 后保留的字数（够看清上下文，且不越过单行省略的宽度）。 */
+const DETAIL_WINDOW_LEAD = 10;
+const DETAIL_WINDOW_TAIL = 24;
+
 /**
  * 结果行「命中行」的显示窗口：补显行是**单行省略号**，命中词若落在段落中后段，
  * `<mark>` 会被省略号裁掉 —— 用户看到一行文案却看不到命中词。命中词靠后时以它为中心
  * 截一段（两端补 `…`），保证「看到的这一行里一定有命中词」。
  * 命中词本就靠前、或整段不长时原样返回。
  */
-export function detailWindow(
-  text: string,
-  query: string,
-  options: { lead?: number; tail?: number } = {},
-): string {
+export function detailWindow(text: string, query: string): string {
   const needle = query.trim();
   const idx = matchIndexOf(text, query);
-  const lead = options.lead ?? 10;
-  const tail = options.tail ?? 24;
-  if (idx === -1 || idx <= lead || text.length <= lead + tail + needle.length) {
+  if (
+    idx === -1 ||
+    idx <= DETAIL_WINDOW_LEAD ||
+    text.length <= DETAIL_WINDOW_LEAD + DETAIL_WINDOW_TAIL + needle.length
+  ) {
     return text;
   }
-  const end = Math.min(text.length, idx + needle.length + tail);
-  return `…${text.slice(Math.max(0, idx - lead), end)}${end < text.length ? '…' : ''}`;
+  const end = Math.min(text.length, idx + needle.length + DETAIL_WINDOW_TAIL);
+  return `…${text.slice(Math.max(0, idx - DETAIL_WINDOW_LEAD), end)}${end < text.length ? '…' : ''}`;
 }
 
 /**

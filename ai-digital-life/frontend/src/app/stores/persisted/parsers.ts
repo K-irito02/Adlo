@@ -110,12 +110,8 @@ export function readNumberArray(raw: unknown): number[] | undefined {
   return result;
 }
 
-/**
- * 字符串数组；任一元素非字符串即整字段判为不合法。
- * `maxLength` 传入时按前 `maxLength` 项截断（超出部分直接丢弃，不回写磁盘——
- * 与 `readBrowserHistory` 的 `slice(0, 100)` 同口径：收敛在读取侧，不做迁移）。
- */
-export function readStringArray(raw: unknown, maxLength?: number): string[] | undefined {
+/** 字符串数组；任一元素非字符串即整字段判为不合法 */
+export function readStringArray(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) {
     return undefined;
   }
@@ -126,7 +122,7 @@ export function readStringArray(raw: unknown, maxLength?: number): string[] | un
     }
     result.push(item);
   }
-  return maxLength === undefined ? result : result.slice(0, maxLength);
+  return result;
 }
 
 /**

@@ -54,7 +54,7 @@ export const DEFAULT_SETTINGS_NAVIGATOR_WIDTH = 160;
 
 /**
  * 设置面板「搜索设置」历史记录条数上限（最近在前）。
- * 读盘（`readStringArray` 的 maxLength）与写盘（`recordSettingsSearch` 的截断）共用此值，
+ * 读盘（`readSettingsSearchHistory` 的截断）与写盘（`recordSettingsSearch` 的截断）共用此值，
  * 两侧口径同源 —— 上限下调后旧数据在下次写盘自然收敛。
  */
 export const SETTINGS_SEARCH_HISTORY_MAX = 20;

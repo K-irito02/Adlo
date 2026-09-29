@@ -17,7 +17,11 @@
 export const REVEAL_HIGHLIGHT_CLASS = 'adl-reveal-highlight';
 export const REVEAL_HIGHLIGHT_VIEWPORT_CLASS = 'adl-reveal-highlight-viewport';
 
-/** 配色变体：只换 CSS 变量来源，几何、时长、关键帧完全共用。 */
+/**
+ * 配色变体：只换 CSS 变量来源，几何、时长、关键帧完全共用。
+ * 闭联合（消费方只可能传这两个字面量）；导出它是对外契约的一部分 ——
+ * 新增消费方时应以本类型标注 `variant`，新增变体时在此扩展即可被类型系统追踪。
+ */
 export type RevealHighlightVariant = 'warning' | 'accent';
 
 const ACTIVE_CLASS = 'is-active';

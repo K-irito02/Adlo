@@ -104,30 +104,33 @@ export function SettingsSearchHistoryCard({
           <IconClose size={12} decorative />
         </button>
       </div>
-      <ul
-        className="adl-settings-search-history__list adl-reveal-scroll"
-        ref={scrollbar.scrollRef as unknown as RefObject<HTMLUListElement>}
-      >
-        {items.map((item) => (
-          <li key={item}>
-            <button
-              type="button"
-              className="adl-settings-search-history__item"
-              // 只放记录文本本身：记录过长时卡片内省略号截断，悬停可看全文。
-              title={item}
-              onMouseEnter={() => onHoverItem(item)}
-              // 键盘 Tab 浏览条目时同样给预览（与悬停同源，故共用同一回调）。
-              onFocus={() => onHoverItem(item)}
-              onClick={() => onPick(item)}
-            >
-              {item}
-            </button>
-          </li>
-        ))}
-      </ul>
-      <RevealScrollbar
-        controller={scrollbar.scrollable ? { ...scrollbar, visible: true } : scrollbar}
-      />
+      {/* `adl-reveal-scrollbar-host`：共享的滚动条定位宿主（position: relative），与全项目口径一致。 */}
+      <div className="adl-settings-search-history__scroll-host adl-reveal-scrollbar-host">
+        <ul
+          className="adl-settings-search-history__list adl-reveal-scroll"
+          ref={scrollbar.scrollRef as unknown as RefObject<HTMLUListElement>}
+        >
+          {items.map((item) => (
+            <li key={item}>
+              <button
+                type="button"
+                className="adl-settings-search-history__item"
+                // 只放记录文本本身：记录过长时卡片内省略号截断，悬停可看全文。
+                title={item}
+                onMouseEnter={() => onHoverItem(item)}
+                // 键盘 Tab 浏览条目时同样给预览（与悬停同源，故共用同一回调）。
+                onFocus={() => onHoverItem(item)}
+                onClick={() => onPick(item)}
+              >
+                {item}
+              </button>
+            </li>
+          ))}
+        </ul>
+        {/* 滚动条轨道以其定位宿主为界：必须与列表同宿主，否则轨道会撑到整张卡片
+            （含历史标题与关闭键那一行），滑块位置整体偏移。 */}
+        <RevealScrollbar controller={scrollbar} />
+      </div>
     </div>
   );
 }
