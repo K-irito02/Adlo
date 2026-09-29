@@ -111,6 +111,25 @@ export function readNumberArray(raw: unknown): number[] | undefined {
 }
 
 /**
+ * 字符串数组；任一元素非字符串即整字段判为不合法。
+ * `maxLength` 传入时按前 `maxLength` 项截断（超出部分直接丢弃，不回写磁盘——
+ * 与 `readBrowserHistory` 的 `slice(0, 100)` 同口径：收敛在读取侧，不做迁移）。
+ */
+export function readStringArray(raw: unknown, maxLength?: number): string[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const result: string[] = [];
+  for (const item of raw) {
+    if (typeof item !== 'string') {
+      return undefined;
+    }
+    result.push(item);
+  }
+  return maxLength === undefined ? result : result.slice(0, maxLength);
+}
+
+/**
  * 对象数组 + 逐项校验：任一项不是普通对象、或不通过 `isItem` 即整字段判为不合法。
  *
  * 逐项校验是必要的 —— 数组元素随后会作为完整领域对象写入 store，

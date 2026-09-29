@@ -23,6 +23,13 @@
 }
 
 .adl-settings-panel__header {
+  position: relative;
+  /* 搜索历史卡片从头部溢出到内容区之上，故头部必须压过面板内所有同级层：
+     - `.adl-settings-panel__content-outer`（position: relative，无 z-index → z auto）
+     - `.adl-settings-nav__resize-handle`（z-index = --z-raised，且在 DOM 中位于头部**之后**，
+       同层时后者胜 → 卡片会被那条 12px 拖拽线盖住并抢走指针事件）
+     取值 --z-dropdown（20）高出这两层，仍低于对话框遮罩（50）。 */
+  z-index: var(--z-dropdown);
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -177,7 +184,10 @@
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
-  pointer-events: auto;
+  /* 容器不吃指针事件，命中区只留右缘 3px 细线（`::before`）——与文件/变更/左侧栏共用的
+     `.adl-tool-navigator__resize-handle` 同口径。容器若设 auto，整条 12px 宽的高列都会
+     抢走指针事件，压住任何与它重叠的浮层（如搜索历史卡片）。 */
+  pointer-events: none;
 }
 
 .adl-settings-nav__resize-handle::before {
@@ -1628,12 +1638,141 @@
   background: var(--surface-hover);
 }
 
-/* 跳转落点高亮：主题变量描边 + 背景强调（静态呈现，进入即显式、~1.2s 后移除；
-   不做动画，避免 background-color 补间触发 paint，符合「动画/过渡仅用 transform/opacity」规范）。
-   仅描边/背景，不改布局。 */
-.adl-settings-search-highlight {
+.adl-settings-search-results__label {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 命中行：块主标题未命中、命中的是块内行副标题/提示说明时补显该行文案（带命中高亮）。 */
+.adl-settings-search-results__detail {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- 搜索历史卡片 ----
+   自建卡片，替代 WebView2/Edge 在该输入框上的原生「自动填充」下拉（原生 UI 不归应用控制）。
+   绝对定位在面板头部内（头部 position: relative 且不滚动），横向与「搜索设置输入框」左对齐：
+   left 取 JS 测得的 `--adl-history-left`（搜索框相对头部的 offsetLeft）。
+   宽度上限按头部剩余宽度夹紧 —— 窄面板下卡片收窄而非溢出到窗口右缘。 */
+.adl-settings-search-history {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: var(--adl-history-left, 0px);
+  /* 上限 200px：卡片只是「历史提示」，比搜索框（输入框 120px / 容器约 150px）略宽即可；
+     宽上限 + 左对齐曾让它盖到面板导航右缘、与拖拽线抢指针事件。 */
+  width: min(200px, calc(100% - var(--adl-history-left, 0px) - var(--space-2)));
+  min-width: 160px;
+  z-index: var(--z-dropdown, 100);
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+  background: var(--bg-card, var(--surface-raised));
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-  background-color: var(--accent-subtle);
+  box-shadow: var(--shadow-lg, 0 8px 24px rgba(0, 0, 0, 0.16));
+}
+
+/* 指向搜索框的小箭头：两层三角（外层描边色、内层卡片底色）叠出 1px 边线。
+   尺寸收敛在 6~7px —— 只为「说明出处」，不抢视线。 */
+.adl-settings-search-history::before,
+.adl-settings-search-history::after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.adl-settings-search-history::before {
+  top: -7px;
+  left: 12px;
+  border-width: 0 7px 7px;
+  border-color: transparent transparent var(--border-subtle);
+}
+
+.adl-settings-search-history::after {
+  top: -5px;
+  left: 13px;
+  border-width: 0 6px 6px;
+  border-color: transparent transparent var(--bg-card, var(--surface-raised));
+}
+
+.adl-settings-search-history__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+}
+
+.adl-settings-search-history__title {
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+}
+
+/* 关闭键：与项目既有对话框右上角关闭图标同规格
+   （20×20 命中区、border-radius: --radius-sm、悬停 --bg-hover + 文字提亮）。 */
+.adl-settings-search-history__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: var(--transition-colors);
+}
+
+.adl-settings-search-history__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.adl-settings-search-history__list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  /* 上限 20 条（SETTINGS_SEARCH_HISTORY_MAX）在窄面板/小窗口下仍可能超高：
+     滚动条沿用 base.css 的全局细条样式，不再单独引入 RevealScrollbar。 */
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.adl-settings-search-history__item {
+  display: block;
+  width: 100%;
+  padding: var(--space-1) var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+  transition: var(--transition-colors);
+  /* 超长记录单行省略，全文由 title 承载 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.adl-settings-search-history__item:hover,
+.adl-settings-search-history__item:focus-visible {
+  background: var(--surface-hover);
 }

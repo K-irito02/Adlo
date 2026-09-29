@@ -1,7 +1,7 @@
 import { useTCopy } from '@i18n/useTCopy';
 import { EmptyRow } from '@components/LoadingRow';
 import { SETTINGS_GROUPS } from './settingsGroups';
-import { anchorFor, type SettingsSearchEntry } from './settingsSearchIndex';
+import { anchorFor, matchedDetail, type SettingsSearchEntry } from './settingsSearchIndex';
 import { highlightMatch } from './settingsHighlight';
 
 interface SettingsSearchResultsProps {
@@ -16,6 +16,9 @@ interface SettingsSearchResultsProps {
 /**
  * 跨组搜索结果列表：按 `SETTINGS_GROUPS` 顺序分组，组标题取各组 `labelKey`，
  * 命中词复用共享 `settingsHighlight.highlightMatch`（单一口径）。无结果时回落共享空态。
+ *
+ * 结果行下方按需补显「命中行」（块主标题没命中、命中的是块内某行的副标题/提示说明时
+ * 显示该行文案）—— 判定与面板的跳转落点共用 `settingsSearchIndex.matchedDetail`，防漂移。
  */
 export function SettingsSearchResults({ entries, query, onSelect }: SettingsSearchResultsProps) {
   const { t } = useTCopy();
@@ -37,16 +40,26 @@ export function SettingsSearchResults({ entries, query, onSelect }: SettingsSear
               {t[group.labelKey]}
             </h3>
             <div className="adl-settings-search-results__list">
-              {groupEntries.map((entry) => (
-                <button
-                  key={anchorFor(entry.group, entry.anchorId)}
-                  type="button"
-                  className="adl-settings-search-results__item"
-                  onClick={() => onSelect(entry)}
-                >
-                  {highlightMatch(entry.label, query)}
-                </button>
-              ))}
+              {groupEntries.map((entry) => {
+                const detail = matchedDetail(entry, query);
+                return (
+                  <button
+                    key={anchorFor(entry.group, entry.anchorId)}
+                    type="button"
+                    className="adl-settings-search-results__item"
+                    onClick={() => onSelect(entry)}
+                  >
+                    <span className="adl-settings-search-results__label">
+                      {highlightMatch(entry.label, query)}
+                    </span>
+                    {detail && (
+                      <span className="adl-settings-search-results__detail">
+                        {highlightMatch(detail.text, query)}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
           </div>
         );

@@ -1,7 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import type { CopyDict } from '@i18n';
 import type { SettingItem } from '@shared/ipc';
-import { buildSettingsSearchIndex, filterSearchIndex, anchorFor } from './settingsSearchIndex';
+import {
+  CATEGORY_COPY,
+  CATEGORY_KEYS_WITHOUT_OWN_ROW,
+} from '@features/storage-settings/storageCategoryCopy';
+import { IMMOVABLE_COPY } from '@features/storage-settings/storageImmutableCopy';
+import {
+  buildSettingsSearchIndex,
+  filterSearchIndex,
+  matchedDetail,
+  anchorFor,
+} from './settingsSearchIndex';
 
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
@@ -58,5 +68,103 @@ describe('filterSearchIndex', () => {
     expect(filterSearchIndex(index, 'WORKSPACE.NEW').some((e) => e.group === 'shortcuts')).toBe(
       true,
     );
+  });
+
+  it('命中块内行文案（details）时同样筛出该块', () => {
+    const hits = filterSearchIndex(index, 'storageCategoryClipboardDesc');
+    expect(hits.some((e) => e.group === 'storage' && e.anchorId === 'corePaths')).toBe(true);
+  });
+
+  it('命中行提示说明时同样筛出该块', () => {
+    const hits = filterSearchIndex(index, 'treeCacheEnabledHint');
+    expect(hits.some((e) => e.group === 'storage' && e.anchorId === 'treeCache')).toBe(true);
+  });
+});
+
+describe('块条目携带的行文案（details）', () => {
+  const blockOf = (anchorId: string) => index.find((e) => e.anchorId === anchorId)!;
+  const textsOf = (anchorId: string) => blockOf(anchorId).details!.map((detail) => detail.text);
+
+  it('存储分类行随 CATEGORY_COPY 派生（名称 + 说明 + 关联各一条），并排除不占行的分类', () => {
+    const corePaths = blockOf('corePaths');
+    const rowCategories = Object.entries(CATEGORY_COPY).filter(
+      ([key]) => !CATEGORY_KEYS_WITHOUT_OWN_ROW.includes(key),
+    );
+    // 两条固定行（模式 / 路径）+ 每个占行的分类 × (name + desc + related)
+    expect(corePaths.details).toHaveLength(4 + rowCategories.length * 3);
+    const texts = textsOf('corePaths');
+    for (const [, copy] of rowCategories) {
+      expect(texts).toContain(copy.name);
+      expect(texts).toContain(copy.desc);
+      expect(texts).toContain(copy.related);
+    }
+    // 不占分类行的分类（并入浏览器下载路径块）：索引不得登记「永远不存在的行」。
+    for (const key of CATEGORY_KEYS_WITHOUT_OWN_ROW) {
+      expect(texts).not.toContain(CATEGORY_COPY[key as keyof typeof CATEGORY_COPY].name);
+    }
+  });
+
+  it('每一条行文案都带「该行的定位文案」：有副标题取副标题，否则取首条提示', () => {
+    for (const entry of index) {
+      for (const detail of entry.details ?? []) {
+        expect(detail.locate, `${entry.anchorId}/${detail.text}`).toBeTruthy();
+      }
+    }
+    // 分类行的三条文案（名称/说明/关联）都指回同一行（名称）。
+    for (const detail of blockOf('corePaths').details!) {
+      if (detail.text === CATEGORY_COPY.clipboard.desc) {
+        expect(detail.locate).toBe(CATEGORY_COPY.clipboard.name);
+      }
+    }
+    // 只有提示、没有副标题的行（终端预算的跟随磁盘说明）：定位文案就是它自己的文案。
+    const budget = blockOf('terminalBudget').details!;
+    const followDisk = budget.find(
+      (detail) => detail.text === 'settingsTerminalHistoryBudgetFollowDiskDesc',
+    );
+    expect(followDisk?.locate).toBe('settingsTerminalHistoryBudgetFollowDiskDesc');
+  });
+
+  it('不可移动行随 IMMOVABLE_COPY 派生（名称 + 说明各一条）', () => {
+    const immutable = blockOf('immutable');
+    expect(immutable.details).toHaveLength(Object.keys(IMMOVABLE_COPY).length * 2);
+    const texts = textsOf('immutable');
+    for (const copy of Object.values(IMMOVABLE_COPY)) {
+      expect(texts).toContain(copy.name);
+      expect(texts).toContain(copy.desc);
+    }
+  });
+
+  it('工作区块的说明仍走 description（块主标题 + 说明的既有口径不回归）', () => {
+    const workspaceBlock = blockOf('maxConcurrentWorkspaces');
+    expect(workspaceBlock.description).toBe('maxConcurrentWorkspacesDesc');
+    expect(workspaceBlock.details).toEqual([]);
+  });
+
+  it('DSH「测试连接」块主标题入索引（此前无锚点、搜不到）', () => {
+    expect(blockOf('test').label).toBe('dshSettingsTestConnection');
+  });
+});
+
+describe('matchedDetail：命中行 + 跳转落点文案', () => {
+  const blockOf = (anchorId: string) => index.find((e) => e.anchorId === anchorId)!;
+
+  it('命中行提示说明时返回该行文案与其定位文案', () => {
+    const detail = matchedDetail(blockOf('treeCache'), 'treeCacheEnabledHint');
+    expect(detail).toEqual({ text: 'treeCacheEnabledHint', locate: 'treeCacheEnabled' });
+  });
+
+  it('命中行副标题时同样返回定位文案', () => {
+    const detail = matchedDetail(blockOf('corePaths'), 'storageCategoryClipboard');
+    expect(detail?.locate).toBe('storageCategoryClipboard');
+  });
+
+  it('块主标题自身命中时不返回命中行（命中词已在标题上高亮）', () => {
+    expect(matchedDetail(blockOf('treeCache'), 'treeCacheTitle')).toBeUndefined();
+  });
+
+  it('只有块级说明命中时回落该说明且无定位文案（落点回退块锚点）', () => {
+    const detail = matchedDetail(blockOf('maxConcurrentWorkspaces'), 'maxConcurrentWorkspacesDesc');
+    expect(detail).toEqual({ text: 'maxConcurrentWorkspacesDesc' });
+    expect(detail?.locate).toBeUndefined();
   });
 });

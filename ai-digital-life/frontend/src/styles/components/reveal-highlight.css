@@ -1,0 +1,66 @@
+/* ---------------- 落点高亮（主内容显示区域的「跳转命中」提示） ----------------
+   共享实现见 `@components/RevealHighlight`：宿主内常驻「视口夹层 + 高亮条」，
+   由 JS 写入 top/height 与时长变量。消费方：
+   - 文件面板检索 → 预览落点（`--warning` 变体）
+   - 设置面板搜索设置 → 跳转落点（`--accent` 变体）
+   几何（铺满左右边缘、直角、左侧 3px 竖线）与动画完全共用，变体只换配色 token。 */
+
+/* 视口夹层：铺满宿主并裁剪内部溢出 —— 高亮条在平滑滚动期间可能位于可视区之外，
+   若不裁剪会给宿主制造可滚动溢出（凭空冒出滚动条）。 */
+.adl-reveal-highlight-viewport {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+/* 高亮条：横向 left/right 0 铺满，与主内容显示区域的左右边缘贴合（直角 + 左侧竖线）；
+   top/height 由 `highlightElement` 写入内联样式，短暂高亮后自动淡出。 */
+.adl-reveal-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.adl-reveal-highlight.is-active {
+  /* 时长单一来源：TS 的 REVEAL_HIGHLIGHT_DURATION_MS 通过 `--adl-reveal-highlight-duration`
+     注入（此处 1.4s 为兜底） */
+  animation: adl-reveal-highlight-fade var(--adl-reveal-highlight-duration, 1.4s)
+    var(--ease-default) 1;
+}
+
+/* 配色变体：仅重绑本元素上的两个变量，关键帧与几何不变。 */
+.adl-reveal-highlight--warning {
+  --adl-reveal-highlight-bg: var(--warning-soft);
+  --adl-reveal-highlight-accent: var(--warning);
+}
+
+.adl-reveal-highlight--accent {
+  --adl-reveal-highlight-bg: var(--accent-subtle);
+  --adl-reveal-highlight-accent: var(--accent);
+}
+
+@keyframes adl-reveal-highlight-fade {
+  0%,
+  55% {
+    background-color: var(--adl-reveal-highlight-bg);
+    box-shadow: inset 3px 0 0 0 var(--adl-reveal-highlight-accent);
+  }
+  100% {
+    background-color: transparent;
+    box-shadow: inset 3px 0 0 0 transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-reveal-highlight.is-active {
+    animation: none;
+    background-color: var(--adl-reveal-highlight-bg);
+    box-shadow: inset 3px 0 0 0 var(--adl-reveal-highlight-accent);
+  }
+}

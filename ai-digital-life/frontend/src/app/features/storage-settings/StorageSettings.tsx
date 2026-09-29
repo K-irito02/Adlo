@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import type { CopyKey } from '@i18n';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
@@ -29,6 +28,8 @@ import { HintCardTrigger } from '../../components/HintCard';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { StorageCategoryRow } from './StorageCategoryRow';
+import { CATEGORY_KEYS_WITHOUT_OWN_ROW } from './storageCategoryCopy';
+import { IMMOVABLE_COPY } from './storageImmutableCopy';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
 import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { DownloadPathBlock } from './DownloadPathBlock';
@@ -59,22 +60,6 @@ import {
 } from './treeCacheTtl';
 import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
-
-/** 不可移动项 → i18n key（顺序固定，遍历 `IMMOVABLE_ENTRY_KEYS`）。 */
-const IMMOVABLE_COPY: Record<
-  (typeof IMMOVABLE_ENTRY_KEYS)[number],
-  { name: CopyKey; desc: CopyKey }
-> = {
-  keyring: { name: 'storageImmutableKeyringName', desc: 'storageImmutableKeyring' },
-  machineId: { name: 'storageImmutableMachineIdName', desc: 'storageImmutableMachineId' },
-  localStorage: { name: 'storageImmutableLocalStorageName', desc: 'storageImmutableLocalStorage' },
-  indexedDB: { name: 'storageImmutableIndexedDbName', desc: 'storageImmutableIndexedDb' },
-  webview2: { name: 'storageImmutableWebview2Name', desc: 'storageImmutableWebview2' },
-  workspaceCache: {
-    name: 'storageImmutableWorkspaceCacheName',
-    desc: 'storageImmutableWorkspaceCache',
-  },
-};
 
 /** 树缓存 TTL 下拉选项（分钟；1440 即 1 天），与服务端合法范围 1..=1440 一致。 */
 const TREE_CACHE_TTL_OPTIONS = [5, 15, 60, 1440] as const;
@@ -1052,8 +1037,11 @@ export function StorageSettings() {
 
   const categories = status?.categories ?? [];
 
-  /** 展示用分类：`downloads_default`（默认下载目标）已并入下方「浏览器下载路径」块，此处不再重复列出。 */
-  const displayCategories = categories.filter((category) => category.key !== 'downloads_default');
+  /** 展示用分类：`downloads_default`（默认下载目标）已并入下方「浏览器下载路径」块，此处不再重复列出。
+   *  排除口径与设置搜索索引同源（`CATEGORY_KEYS_WITHOUT_OWN_ROW`），避免索引登记一条不存在的行。 */
+  const displayCategories = categories.filter(
+    (category) => !CATEGORY_KEYS_WITHOUT_OWN_ROW.includes(category.key),
+  );
 
   /** 草稿与已持久化状态是否不一致：有未应用的修改（用于粘性提交条）。
    * 仅按路径值差异判定 —— 切换单选（路径模式）本身不算修改（产品决策 2026-09-27），
@@ -1604,6 +1592,7 @@ export function StorageSettings() {
       <div className="adl-settings-card">
         <div
           className={`adl-settings-row${mode === 'unified' ? ' adl-settings-row--no-divider' : ''}`}
+          data-settings-row={t.storageModeLabel}
         >
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
@@ -1643,7 +1632,10 @@ export function StorageSettings() {
         </div>
 
         {mode === 'unified' ? (
-          <div className="adl-settings-row adl-settings-row--path-center">
+          <div
+            className="adl-settings-row adl-settings-row--path-center"
+            data-settings-row={t.storageRootLabel}
+          >
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <HintCardTrigger content={t.storageRootHint}>
@@ -1752,7 +1744,11 @@ export function StorageSettings() {
           </div>
 
           <div className="adl-settings-card">
-            <div className="adl-settings-row" data-testid="tree-cache-section">
+            <div
+              className="adl-settings-row"
+              data-testid="tree-cache-section"
+              data-settings-row={t.treeCacheStatsLabel}
+            >
               <div className="adl-settings-row__label">
                 <div className="adl-settings-row__label-text">
                   <span>{t.treeCacheStatsLabel}</span>
@@ -1801,6 +1797,7 @@ export function StorageSettings() {
             <div
               className="adl-settings-row adl-settings-row--path-center"
               data-testid="tree-cache-enabled-row"
+              data-settings-row={t.treeCacheEnabled}
             >
               <div className="adl-settings-row__label">
                 <div className="adl-settings-row__label-text">
@@ -1921,7 +1918,12 @@ export function StorageSettings() {
       </div>
       <div className="adl-settings-card">
         {IMMOVABLE_ENTRY_KEYS.map((key) => (
-          <div className="adl-settings-row" key={key} data-testid="storage-immutable-item">
+          <div
+            className="adl-settings-row"
+            key={key}
+            data-testid="storage-immutable-item"
+            data-settings-row={t[IMMOVABLE_COPY[key].name]}
+          >
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <span>{t[IMMOVABLE_COPY[key].name]}</span>

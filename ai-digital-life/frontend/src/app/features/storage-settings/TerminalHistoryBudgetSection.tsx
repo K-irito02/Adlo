@@ -246,7 +246,10 @@ export function TerminalHistoryBudgetSection() {
   return (
     <div className="adl-settings-section adl-terminal-settings">
       {/* 预算行与下方「已用…」属同一语义分组：去分隔线、右侧控件垂直居中。 */}
-      <div className="adl-settings-row adl-settings-row--path-center adl-settings-row--no-divider">
+      <div
+        className="adl-settings-row adl-settings-row--path-center adl-settings-row--no-divider"
+        data-settings-row={t.settingsTerminalHistoryBudget}
+      >
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
             <span>{t.settingsTerminalHistoryBudget}</span>
@@ -290,14 +293,21 @@ export function TerminalHistoryBudgetSection() {
       </div>
 
       {isFollowDisk && !custom ? (
-        <div className="adl-settings-row adl-settings-row--no-divider">
+        <div
+          className="adl-settings-row adl-settings-row--no-divider"
+          // 该行只有提示说明、无副标题：定位标记就用它自己的文案（与索引同源）。
+          data-settings-row={t.settingsTerminalHistoryBudgetFollowDiskDesc}
+        >
           <div className="adl-settings-row__label">
             <small>{t.settingsTerminalHistoryBudgetFollowDiskDesc}</small>
           </div>
         </div>
       ) : null}
 
-      <div className="adl-settings-row adl-settings-row--compact">
+      <div
+        className="adl-settings-row adl-settings-row--compact"
+        data-settings-row={t.settingsTerminalHistoryBudgetUsed}
+      >
         <div className="adl-settings-row__label">
           <small>
             {t.settingsTerminalHistoryBudgetUsed

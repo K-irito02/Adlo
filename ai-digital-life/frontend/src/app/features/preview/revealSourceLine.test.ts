@@ -44,9 +44,9 @@ function overlayFixture(): {
   target: HTMLElement;
 } {
   const root = container(
-    '<div class="adl-md-flash-overlay"></div><p data-source-line-start="1" data-source-line-end="1">a</p>',
+    '<div class="adl-reveal-highlight-viewport"><div class="adl-reveal-highlight"></div></div><p data-source-line-start="1" data-source-line-end="1">a</p>',
   );
-  const overlay = root.querySelector('.adl-md-flash-overlay') as HTMLElement;
+  const overlay = root.querySelector('.adl-reveal-highlight') as HTMLElement;
   const target = root.querySelector('p') as HTMLElement;
   Object.defineProperty(overlay, 'offsetParent', { value: root });
   stubRect(root, 0, 1000);
@@ -127,6 +127,7 @@ describe('scrollAndFlash', () => {
     target.scrollIntoView = () => {};
     scrollAndFlash(root, target, { flash: true });
     expect(overlay.classList.contains('is-active')).toBe(true);
+    expect(overlay.classList.contains('adl-reveal-highlight--warning')).toBe(true);
     expect(overlay.style.top).toBe('100px');
     expect(overlay.style.height).toBe('24px');
   });

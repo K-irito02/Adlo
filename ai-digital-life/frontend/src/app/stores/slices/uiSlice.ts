@@ -6,7 +6,7 @@ import type { StoreState } from '../StoreState';
 import { persistField } from '../persisted/apply';
 import { persist } from '../persisted/persist';
 import type { UISlice } from './uiSliceTypes';
-import { defaultNavigatorCollapsed } from './uiSliceTypes';
+import { defaultNavigatorCollapsed, SETTINGS_SEARCH_HISTORY_MAX } from './uiSliceTypes';
 import { createUIWidthSlice } from './uiSliceWidths';
 import { createUIExpansionSlice } from './uiSliceExpansion';
 
@@ -37,6 +37,7 @@ export {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
   SETTINGS_NAVIGATOR_WIDTH_MAX,
   DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
+  SETTINGS_SEARCH_HISTORY_MAX,
 } from './uiSliceTypes';
 
 /**
@@ -71,6 +72,7 @@ export const createUISlice = (
     hoveredMenuCategory: null,
     activeSettingsGroup: 'general',
     settingsSearchQuery: '',
+    settingsSearchHistory: [],
     storageGroupResetPending: false,
     storageBlocksAtDefault: null,
     browserGroupResetPending: false,
@@ -163,6 +165,18 @@ export const createUISlice = (
       }),
     setActiveSettingsGroup: (group) => set({ activeSettingsGroup: group }),
     setSettingsSearchQuery: (query) => set({ settingsSearchQuery: query }),
+    recordSettingsSearch: (query) => {
+      const entry = query.trim();
+      // 空白查询不入历史；已在首位即无变化，避免每次跳转都写一次盘。
+      if (entry === '' || get().settingsSearchHistory[0] === entry) {
+        return;
+      }
+      const next = [entry, ...get().settingsSearchHistory.filter((item) => item !== entry)].slice(
+        0,
+        SETTINGS_SEARCH_HISTORY_MAX,
+      );
+      set(persistField('adl:ui.settingsSearchHistory', next));
+    },
     requestStorageGroupReset: () => set({ storageGroupResetPending: true }),
     consumeStorageGroupReset: () => set({ storageGroupResetPending: false }),
     setStorageBlocksAtDefault: (value) => {

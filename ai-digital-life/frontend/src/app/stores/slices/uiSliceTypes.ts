@@ -52,6 +52,13 @@ export const SETTINGS_NAVIGATOR_WIDTH_MIN = 160;
 export const SETTINGS_NAVIGATOR_WIDTH_MAX = 360;
 export const DEFAULT_SETTINGS_NAVIGATOR_WIDTH = 160;
 
+/**
+ * 设置面板「搜索设置」历史记录条数上限（最近在前）。
+ * 读盘（`readStringArray` 的 maxLength）与写盘（`recordSettingsSearch` 的截断）共用此值，
+ * 两侧口径同源 —— 上限下调后旧数据在下次写盘自然收敛。
+ */
+export const SETTINGS_SEARCH_HISTORY_MAX = 20;
+
 // ════════════════════════════════════════════════════════
 // 类型定义
 // ════════════════════════════════════════════════════════
@@ -122,6 +129,11 @@ export interface UISlice {
   hoveredMenuCategory: 'file' | 'view' | 'help' | null;
   activeSettingsGroup: SettingsGroupId;
   settingsSearchQuery: string;
+  /**
+   * 设置面板「搜索设置」的历史记录（最近在前，上限 `SETTINGS_SEARCH_HISTORY_MAX`）。
+   * 仅在用户点击某个搜索结果、跳转真正发生时记入 —— 只留用过的查询，不让半截输入污染历史。
+   */
+  settingsSearchHistory: string[];
   /**
    * 「存储」组级恢复默认**待处理**信号（transient，不持久化）：侧边栏重置按钮置 true，
    * StorageSettings 承接消费（开框前 consume）。布尔 pending 而非序号，是为了消除
@@ -210,6 +222,8 @@ export interface UISlice {
   closeAllMenus: () => void;
   setActiveSettingsGroup: (group: SettingsGroupId) => void;
   setSettingsSearchQuery: (query: string) => void;
+  /** 记入一次设置搜索历史（去重置顶 + 截断到上限；空白串与「已在首位」为无变化，不写盘）。 */
+  recordSettingsSearch: (query: string) => void;
   /** 置位组级恢复待处理（幂等：已 pending 再点保持 true）。 */
   requestStorageGroupReset: () => void;
   /** 消费组级恢复待处理（承接方开框前/丢弃信号时调用）。 */

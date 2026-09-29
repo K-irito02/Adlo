@@ -98,6 +98,7 @@ export const settingsEn = {
   // Accessibility
   settingsToggleVisibility: 'Toggle visibility',
   settingsSearchLabel: 'Search settings',
+  settingsSearchHistory: 'Search history',
 
   // Storage
   storageTitle: 'Storage',

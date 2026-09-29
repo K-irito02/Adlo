@@ -616,7 +616,7 @@ export function DshSettings() {
         <SettingsHeader title={t.dshSettingsSource} />
       </div>
       <div className="adl-settings-card">
-        <div className="adl-settings-row">
+        <div className="adl-settings-row" data-settings-row={t.dshSettingsSource}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               {hintButton(t.dshSettingsSourceHint)}
@@ -634,7 +634,7 @@ export function DshSettings() {
           </div>
         </div>
         {sourceType === 'custom' ? (
-          <div className="adl-settings-row">
+          <div className="adl-settings-row" data-settings-row={t.dshSettingsCustomUrl}>
             <div className="adl-settings-row__label">
               <div className="adl-settings-row__label-text">
                 <span>{t.dshSettingsCustomUrl}</span>
@@ -673,7 +673,7 @@ export function DshSettings() {
         <SettingsHeader title={t.dshSettingsProxy} />
       </div>
       <div className="adl-settings-card">
-        <div className="adl-settings-row">
+        <div className="adl-settings-row" data-settings-row={t.dshSettingsProxyMode}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               {hintButton(t.dshSettingsProxyHint)}
@@ -716,7 +716,7 @@ export function DshSettings() {
                 },
               ] as const
             ).map((field) => (
-              <div className="adl-settings-row" key={field.key}>
+              <div className="adl-settings-row" key={field.key} data-settings-row={field.label}>
                 <div className="adl-settings-row__label">
                   <div className="adl-settings-row__label-text">
                     <span>{field.label}</span>
@@ -737,7 +737,10 @@ export function DshSettings() {
           : null}
       </div>
 
-      <div className="adl-dsh-settings__header adl-dsh-settings__header--section">
+      <div
+        className="adl-dsh-settings__header adl-dsh-settings__header--section"
+        data-settings-anchor={anchorFor('dsh', 'test')}
+      >
         <span
           className="adl-settings-row__reset adl-settings-row__reset--static"
           aria-hidden="true"
@@ -747,7 +750,7 @@ export function DshSettings() {
         <SettingsHeader title={t.dshSettingsTestConnection} />
       </div>
       <div className="adl-settings-card">
-        <div className="adl-settings-row">
+        <div className="adl-settings-row" data-settings-row={t.dshSettingsTestLabel}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               {hintButton(t.dshSettingsTestHint)}

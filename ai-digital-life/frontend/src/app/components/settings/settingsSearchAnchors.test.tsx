@@ -130,6 +130,18 @@ const storageStatus = {
   lastReport: null,
 };
 
+/**
+ * 条件渲染的设置行：其 `data-settings-row` 标记只在特定编辑态/数据态下出现，
+ * 无法在默认渲染里恒见 —— 逐条给出条件（并用「白名单不得滞留」断言兜住删行后的残留）。
+ */
+const CONDITIONAL_ROW_MARKERS = new Map<string, string>([
+  ['dshSettingsCustomUrl', '仅下载源为「自定义」时渲染'],
+  ['dshSettingsProxyHttp', '仅代理模式为「手动」时渲染'],
+  ['dshSettingsProxyHttps', '仅代理模式为「手动」时渲染'],
+  ['dshSettingsProxyNoProxy', '仅代理模式为「手动」时渲染'],
+  ['settingsTerminalHistoryBudgetFollowDiskDesc', '仅终端历史预算选「跟随磁盘」时渲染'],
+]);
+
 // 六组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。
 const CASES: { group: SettingsGroupId; render: () => ReturnType<typeof render> }[] = [
   {
@@ -235,6 +247,46 @@ describe('settings search anchors', () => {
         );
         for (const anchor of expected) {
           expect(present.has(anchor), `${group} missing anchor ${anchor}`).toBe(true);
+        }
+      });
+      unmount();
+    }
+  });
+
+  it('索引中每条行文案的定位标记都能在对应组 DOM 命中', async () => {
+    const index = buildSettingsSearchIndex({
+      t: mockT,
+      settings: buildGeneralItems(),
+      keybinds: {},
+    });
+    const locatesOf = (entries: typeof index) =>
+      new Set(
+        entries.flatMap((entry) => (entry.details ?? []).map((detail) => detail.locate as string)),
+      );
+
+    // 白名单不得滞留：每个条件行的定位文案必须仍是登记在册的行（删行后必须同步删白名单）。
+    const registered = locatesOf(index);
+    for (const key of CONDITIONAL_ROW_MARKERS.keys()) {
+      expect(registered.has(key), `stale conditional row marker ${key}`).toBe(true);
+    }
+
+    for (const { group, render: doRender } of CASES) {
+      const expected = [...locatesOf(index.filter((entry) => entry.group === group))].filter(
+        (locate) => !CONDITIONAL_ROW_MARKERS.has(locate),
+      );
+      // 通用/快捷键组由 SettingItem / 命令派生（行本身即锚点），没有块内行文案：跳过。
+      if (expected.length === 0) {
+        continue;
+      }
+      const { container, unmount } = doRender();
+      await waitFor(() => {
+        const present = new Set(
+          Array.from(container.querySelectorAll('[data-settings-row]')).map((el) =>
+            el.getAttribute('data-settings-row'),
+          ),
+        );
+        for (const locate of expected) {
+          expect(present.has(locate), `${group} missing row marker ${locate}`).toBe(true);
         }
       });
       unmount();

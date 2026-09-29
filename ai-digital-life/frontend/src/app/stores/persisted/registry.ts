@@ -6,6 +6,7 @@ import {
   readStringEnum,
   readString,
   readStringRecord,
+  readStringArray,
   readStringArrayRecord,
   readSearchFlags,
   readClickedNodeRecord,
@@ -78,6 +79,7 @@ import {
   SETTINGS_NAVIGATOR_WIDTH_MIN,
   SETTINGS_NAVIGATOR_WIDTH_MAX,
   DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
+  SETTINGS_SEARCH_HISTORY_MAX,
   BROWSER_NAVIGATOR_WIDTH_MIN,
   BROWSER_NAVIGATOR_WIDTH_MAX,
   DEFAULT_BROWSER_NAVIGATOR_WIDTH,
@@ -369,6 +371,14 @@ export const registry = {
     fallback: DEFAULT_SETTINGS_NAVIGATOR_WIDTH,
     scope: 'global',
     read: readNumberInRange(SETTINGS_NAVIGATOR_WIDTH_MIN, SETTINGS_NAVIGATOR_WIDTH_MAX),
+  }),
+  'adl:ui.settingsSearchHistory': defineEntry<string[]>({
+    key: 'adl:ui.settingsSearchHistory',
+    field: 'settingsSearchHistory',
+    fallback: [],
+    scope: 'global',
+    // 读取侧同样按上限截断：上限下调后旧数据在首次写盘前也不会超量渲染。
+    read: (raw) => readStringArray(raw, SETTINGS_SEARCH_HISTORY_MAX),
   }),
   'adl:ui.navigatorCollapsed': defineEntry<Record<string, boolean>>({
     key: 'adl:ui.navigatorCollapsed',

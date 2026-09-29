@@ -1,9 +1,6 @@
 import React from 'react';
 import { LazyMarkdownPreviewWrapper } from '@features/preview';
-import {
-  FLASH_OVERLAY_CLASS,
-  FLASH_OVERLAY_VIEWPORT_CLASS,
-} from '@features/preview/revealSourceLine';
+import { RevealHighlightLayers } from '@components/RevealHighlight';
 import type { FileCategory } from './fileTypeRouter';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -105,9 +102,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
       >
         <LazyMarkdownPreviewWrapper content={fileContent ?? ''} theme={theme} />
         {/* 检索跳转落点高亮：视口夹层裁剪溢出，高亮条铺满预览面并与左右边缘贴合 */}
-        <div className={FLASH_OVERLAY_VIEWPORT_CLASS} aria-hidden="true">
-          <div className={FLASH_OVERLAY_CLASS} />
-        </div>
+        <RevealHighlightLayers />
       </div>
     );
   }

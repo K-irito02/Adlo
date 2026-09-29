@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState, useCallback, useEffect } from 'react';
+import React, { useMemo, useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
 import type { SettingItem, SettingsGroupId } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import { formatT } from '../../i18n/formatT';
@@ -7,6 +7,12 @@ import { useAppStore } from '../../stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { TooltipSimple } from '../Tooltip';
 import { ConfirmDialog } from '../ConfirmDialog';
+import { RevealHighlightLayers } from '../RevealHighlight';
+import {
+  clearHighlight,
+  highlightElement,
+  REVEAL_HIGHLIGHT_DURATION_MS,
+} from '@utils/revealHighlight';
 import { SettingsNav } from './SettingsNav';
 import {
   SETTINGS_GROUPS,
@@ -21,12 +27,15 @@ import { ResetAllDialog } from './ResetAllDialog';
 import type { ResetAllOutcome } from './resetAllSettings';
 import { SettingsControls } from './SettingsControls';
 import { SettingsSearchResults } from './SettingsSearchResults';
+import { SettingsSearchHistoryCard } from './SettingsSearchHistoryCard';
 import {
   anchorFor,
   buildSettingsSearchIndex,
   filterSearchIndex,
+  matchedDetail,
   type SettingsSearchEntry,
 } from './settingsSearchIndex';
+import { findSettingsRow } from './settingsRowLocate';
 import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
 import { RevealScrollbar } from '../RevealScrollbar';
 import { HScrollbar } from '../HScrollbar';
@@ -80,9 +89,6 @@ const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>>
   storage: StorageSettings,
 };
 
-/** 跳转落点高亮：类名（R6 要求 `adl-` 前缀）与停留时长（静态高亮，~1.2s 后移除）。 */
-const SEARCH_HIGHLIGHT_CLASS = 'adl-settings-search-highlight';
-const SEARCH_HIGHLIGHT_MS = 1200;
 /**
  * 跳转锚点的有界等待（R15）：部分锚点异步挂载（如存储组 `treeCache` 需等树缓存
  * stats 回包），故在锚点出现前逐帧重试，最多等待 `SEARCH_JUMP_DEADLINE_MS` 墙钟
@@ -95,6 +101,11 @@ const SEARCH_JUMP_DEADLINE_MS = 2000;
 interface PendingJump {
   group: SettingsGroupId;
   anchor: string;
+  /**
+   * 命中行的定位文案（`data-settings-row` 的值）。命中来自块内某行文案时，落点优先取该行；
+   * 缺省（命中块主标题/块级说明）落到块锚点，取不到该行时同样回退块锚点。
+   */
+  locate?: string;
 }
 
 export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps) {
@@ -104,6 +115,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     setActiveGroup,
     searchQuery,
     setSearchQuery,
+    searchHistory,
+    recordSearchHistory,
     updatePreferences,
     showToast,
     navigatorCollapsed,
@@ -123,6 +136,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       setActiveGroup: s.setActiveSettingsGroup,
       searchQuery: s.settingsSearchQuery,
       setSearchQuery: s.setSettingsSearchQuery,
+      searchHistory: s.settingsSearchHistory,
+      recordSearchHistory: s.recordSettingsSearch,
       updatePreferences: s.updatePreferences,
       showToast: s.showToast,
       navigatorCollapsed: s.navigatorCollapsedByTool.settings,
@@ -586,30 +601,126 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const returnFocusToSearchRef = useRef(false);
+  /** 搜索框容器（`.adl-settings-panel__search`）：历史卡片与它左对齐，也用于「点击在框内」判定。 */
+  const searchFieldRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const historyCardRef = useRef<HTMLDivElement | null>(null);
+  /** 历史卡片相对面板头部的左边距（px）：卡片绝对定位在头部内，由本值横向对齐搜索框。 */
+  const [historyLeft, setHistoryLeft] = useState(0);
+  /** 本次搜索是否已主动收起历史卡片（关闭键/外部点击/选中记录）；重新打开搜索时复位。 */
+  const [historyDismissed, setHistoryDismissed] = useState(false);
+  /**
+   * 悬停历史记录时的输入框预览串（null = 无预览）。预览只改显示值、不动 `settingsSearchQuery`：
+   * 移出卡片即还原，且预览文本被整体选中 —— 用户此刻按键会替换整段选中内容（与浏览器
+   * 原生自动填充预览同语义），不会把「记录 + 新字符」拼成一条脏查询。
+   */
+  const [previewQuery, setPreviewQuery] = useState<string | null>(null);
   /** 待解析的跳转意图：搜索选中后先切组，由下方 effect 等锚点出现再滚动 + 高亮。 */
   const [pendingJump, setPendingJump] = useState<PendingJump | null>(null);
-  /** 当前落点高亮（元素 + 移除定时器 + 是否由本次跳转补加 `tabindex`）：
-   *  下一次跳转或面板卸载时清理。 */
+  /**
+   * 落点高亮的宿主：`.adl-settings-panel__content-outer`（`position: relative` 且不滚动，
+   * 几何等于主内容视口）→ 高亮条自然铺到主内容显示区的右边缘；`RevealHighlightLayers`
+   * 常驻其内，由共享实现按类名查找并驱动。
+   */
+  const contentOuterRef = useRef<HTMLDivElement | null>(null);
+  /**
+   * 当前落点高亮（元素 + 摘除 `tabindex` 的定时器 + 是否由本次跳转补加 + 播放它的宿主）：
+   * 下一次跳转或面板卸载时清理。高亮条本身由共享实现负责淡出。
+   * 宿主随记录一起留存：卸载清理时该 ref 已被 React 置空，届时取不到内容宿主。
+   */
   const highlightRef = useRef<{
     element: HTMLElement;
+    host: HTMLElement | null;
     timer: number;
     addedTabIndex: boolean;
   } | null>(null);
 
   const collapseSearch = useCallback(() => {
+    setPreviewQuery(null);
+    setHistoryDismissed(false);
     setSearchQuery('');
     setSearchOpen(false);
   }, [setSearchQuery]);
 
+  /** 历史卡片可见性：搜索框开着、还没敲字、本次未主动收起、且确实有历史。 */
+  const historyVisible =
+    searchOpen && searchQuery.trim() === '' && !historyDismissed && searchHistory.length > 0;
+
+  /** 测量搜索框相对面板头部的左边距：卡片同用此值横向对齐（头部即卡片的 offsetParent）。
+   *  依赖 `searchOpen`：搜索框是开框后才挂载的（关框时该节点不存在）。 */
+  useLayoutEffect(() => {
+    if (!searchOpen) {
+      return;
+    }
+    const field = searchFieldRef.current;
+    if (field) {
+      setHistoryLeft(field.offsetLeft);
+    }
+  }, [searchOpen]);
+
+  /** 重新打开搜索即复位「已收起」：否则上一轮的主动收起会让卡片再也回不来。 */
+  useEffect(() => {
+    if (searchOpen) {
+      setHistoryDismissed(false);
+    }
+  }, [searchOpen]);
+
+  /** 预览写入后整体选中：选中态只覆盖文字本身，不会像原生自动填充那样向右铺满。 */
+  useEffect(() => {
+    if (previewQuery === null) {
+      return;
+    }
+    const input = searchInputRef.current;
+    input?.setSelectionRange(0, input.value.length);
+  }, [previewQuery]);
+
+  /** 点击卡片与搜索框以外任何地方即收起卡片（不改变搜索态本身）。 */
+  useEffect(() => {
+    if (!historyVisible) {
+      return;
+    }
+    const handlePointerDown = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) {
+        return;
+      }
+      if (searchFieldRef.current?.contains(target) || historyCardRef.current?.contains(target)) {
+        return;
+      }
+      setPreviewQuery(null);
+      setHistoryDismissed(true);
+    };
+    document.addEventListener('pointerdown', handlePointerDown);
+    return () => document.removeEventListener('pointerdown', handlePointerDown);
+  }, [historyVisible]);
+
+  /** 点击历史记录：以该串重新搜索（不记入历史 —— 它已在其中，跳转成功时才更新顺序）。 */
+  const handlePickHistory = useCallback(
+    (value: string) => {
+      setPreviewQuery(null);
+      setHistoryDismissed(true);
+      setSearchQuery(value);
+    },
+    [setSearchQuery],
+  );
+
+  /** 关闭历史卡片：仅收起并交还输入焦点，不删除任何历史记录。 */
+  const handleCloseHistory = useCallback(() => {
+    setPreviewQuery(null);
+    setHistoryDismissed(true);
+    searchInputRef.current?.focus();
+  }, []);
+
   /** 清除当前落点高亮（含移除定时器）：下一次跳转前与面板卸载时调用。
-   *  仅摘除本跳转补加的 `tabindex`（既有属性不动），不留永久可脚本聚焦的语义残留。 */
+   *  仅摘除本跳转补加的 `tabindex`（既有属性不动），不留永久可脚本聚焦的语义残留；
+   *  高亮条交给共享实现收起（宿主取记录里的那份 —— 卸载清理时 ref 已置空）。 */
   const clearCurrentHighlight = useCallback(() => {
     const current = highlightRef.current;
     if (!current) {
       return;
     }
     window.clearTimeout(current.timer);
-    current.element.classList.remove(SEARCH_HIGHLIGHT_CLASS);
+    clearHighlight(current.host);
     if (current.addedTabIndex) {
       current.element.removeAttribute('tabindex');
     }
@@ -617,19 +728,27 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   }, []);
 
   /**
-   * 跳转到命中条目：收起搜索 → 切换到该组 → 置待解析跳转意图。
+   * 跳转到命中条目：收起搜索 → 记入搜索历史 → 切换到该组 → 置待解析跳转意图。
    * 滚动与高亮由下方 `pendingJump` effect 完成 —— 部分锚点异步挂载（如存储组
    * `treeCache` 需等 stats 回包），单帧定位会静默 no-op（R15：改为有界等待）。
-   * 高亮只落在锚点元素自身（general/shortcuts/workspace 为整行，storage/browser/dsh 为块头），
-   * 不扩展到后继卡片：避免与相邻行/卡片形成双重描边，也避免误高亮无关兄弟节点（见报告）。
+   * 落点取「命中行」优先（命中块内某行文案时落到那一行；见 `matchedDetail`），
+   * 否则/取不到时落到块锚点 —— 锚点即块主标题所在容器。
+   * 历史只在「点开某条结果」这一步写入：它等价于「这次查询真的被用上了」，
+   * 逐键写入会让半截输入与无效查询挤满历史。
    */
   const handleSelectResult = useCallback(
     (entry: SettingsSearchEntry) => {
+      const detail = matchedDetail(entry, searchQuery);
       collapseSearch();
+      recordSearchHistory(searchQuery);
       setActiveGroup(entry.group);
-      setPendingJump({ group: entry.group, anchor: anchorFor(entry.group, entry.anchorId) });
+      setPendingJump({
+        group: entry.group,
+        anchor: anchorFor(entry.group, entry.anchorId),
+        locate: detail?.locate,
+      });
     },
-    [collapseSearch, setActiveGroup],
+    [collapseSearch, recordSearchHistory, searchQuery, setActiveGroup],
   );
 
   /**
@@ -646,8 +765,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     [collapseSearch, searchQuery, setActiveGroup],
   );
 
-  // 跳转意图解析：待 activeGroup 生效后定位锚点；锚点尚未挂载则逐帧重试至有界时间预算。
-  // 命中后滚动居中 + 高亮 1.2s（移除定时器存于 ref，避免意图清空时被 effect 清理误杀）。
+  // 跳转意图解析：待 activeGroup 生效后定位落点；落点尚未挂载则逐帧重试至有界时间预算。
+  // 落点优先取「命中行」（命中块内某行文案时落到那一行），取不到再回退块锚点。
+  // 命中后滚动居中 + 播放落点高亮（`tabindex` 摘除定时器存于 ref，避免意图清空时被 effect 清理误杀）。
   // 用户中途切到别的组时清除残留意图：否则之后手工回到该组会自发滚动+高亮（状态机残留）。
   useEffect(() => {
     if (!pendingJump) {
@@ -662,7 +782,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     // 逐帧重试的句柄用 const 容器承载（项目禁止 `let` 重赋值）：闭包跨调用读写其字段。
     const pendingFrame = { current: 0 };
     const tick = () => {
-      const element = document.querySelector<HTMLElement>(selector);
+      const element =
+        findSettingsRow(contentOuterRef.current, pendingJump.locate ?? '') ??
+        document.querySelector<HTMLElement>(selector);
       if (!element) {
         if (Date.now() >= deadline) {
           setPendingJump(null);
@@ -683,17 +805,22 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         element.setAttribute('tabindex', '-1');
       }
       element.focus({ preventScroll: true });
-      element.classList.add(SEARCH_HIGHLIGHT_CLASS);
+      // 落点提示走共享实现（与文件面板「检索 → 预览」同一套覆盖层），本面板取主题蓝变体：
+      // 左边缘竖线 + 横向铺满主内容显示区的淡背景，播放后自行淡出。
+      const host = contentOuterRef.current;
+      if (host) {
+        highlightElement(host, element, { variant: 'accent' });
+      }
       highlightRef.current = {
         element,
+        host,
         addedTabIndex,
         timer: window.setTimeout(() => {
-          element.classList.remove(SEARCH_HIGHLIGHT_CLASS);
           if (addedTabIndex) {
             element.removeAttribute('tabindex');
           }
           highlightRef.current = null;
-        }, SEARCH_HIGHLIGHT_MS),
+        }, REVEAL_HIGHLIGHT_DURATION_MS),
       };
       setPendingJump(null);
     };
@@ -705,7 +832,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     };
   }, [pendingJump, activeGroup, clearCurrentHighlight]);
 
-  // 面板卸载：清掉高亮移除定时器并摘除残留类（元素此时可能已分离，操作无害）。
+  // 面板卸载：清掉 `tabindex` 摘除定时器并收起落点高亮（元素此时可能已分离，操作无害）。
   useEffect(() => clearCurrentHighlight, [clearCurrentHighlight]);
 
   /** mod+F：焦点在面板内时拦截浏览器/编辑器查找，改为打开面板搜索输入框。 */
@@ -889,19 +1016,26 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           </TooltipSimple>
           <span className="adl-tool-context__separator" aria-hidden="true" />
           {searchOpen ? (
-            <div className="adl-settings-panel__search" role="search">
+            <div className="adl-settings-panel__search" role="search" ref={searchFieldRef}>
               <label htmlFor="adl-settings-search-input" className="sr-only">
                 {t.settingsSearchLabel}
               </label>
               <IconSearch size={12} decorative />
               <input
                 id="adl-settings-search-input"
+                ref={searchInputRef}
                 type="search"
+                // 关掉浏览器/WebView2 的原生自动填充下拉（Edge 会在该输入框上弹出「保存的信息」
+                // 卡片，其文案/尺寸/行为均不受应用控制），改由下方自建历史卡片承接。
+                autoComplete="off"
                 className="adl-settings-panel__search-input"
                 placeholder={t.settingsSearch}
-                value={searchQuery}
+                value={previewQuery ?? searchQuery}
                 autoFocus
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setPreviewQuery(null);
+                  setSearchQuery(e.target.value);
+                }}
                 onKeyDown={handleSearchKeyDown}
                 onBlur={handleSearchBlur}
               />
@@ -932,6 +1066,16 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
             {t.settingsResetAll}
           </button>
         </div>
+        {historyVisible && (
+          <SettingsSearchHistoryCard
+            items={searchHistory}
+            left={historyLeft}
+            cardRef={historyCardRef}
+            onHoverItem={setPreviewQuery}
+            onPick={handlePickHistory}
+            onClose={handleCloseHistory}
+          />
+        )}
       </header>
       <ResetAllDialog
         open={resetAllOpen}
@@ -981,6 +1125,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         </div>
         <div
           className="adl-settings-panel__content-outer adl-reveal-scrollbar-host"
+          ref={contentOuterRef}
           onMouseEnter={() => {
             contentScrollbar.hoverProps.onMouseEnter();
             hostScrollbar.hoverProps.onMouseEnter();
@@ -1014,6 +1159,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           <RevealScrollbar controller={contentScrollbar} />
           {/* 水平条用点态常驻设计（文件/变更面板同款 HScrollbar），区别于竖条的悬停显现 */}
           <HScrollbar controller={hostScrollbar} />
+          {/* 落点高亮覆盖层：常驻于不滚动的内容宿主内，横向铺满主内容显示区 */}
+          <RevealHighlightLayers />
         </div>
       </div>
     </div>

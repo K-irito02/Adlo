@@ -132,6 +132,9 @@ export function StorageCategoryRow({
     <div
       className={`adl-settings-row${controlsEnabled ? ' adl-settings-row--path-center' : ''}`}
       data-testid="storage-category-row"
+      // 设置搜索的行级落点标记：值 = 该分类名（与索引 `CATEGORY_COPY[key].name` 同源）。
+      // 未知分类 key（copy 缺席、name 回落原始 key）时与索引对不上 —— 落点自然回退到块锚点。
+      data-settings-row={name}
     >
       <div className="adl-settings-row__label">
         <div className="adl-settings-row__label-text">

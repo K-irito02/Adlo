@@ -92,6 +92,7 @@ export const settingsZh = {
   // 无障碍
   settingsToggleVisibility: '切换可见性',
   settingsSearchLabel: '搜索设置',
+  settingsSearchHistory: '搜索历史',
 
   // 存储
   storageTitle: '存储',

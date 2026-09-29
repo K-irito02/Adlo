@@ -196,6 +196,7 @@ export function BrowserDownloadPathSection() {
       <div
         className="adl-settings-row adl-settings-row--path-center adl-settings-row--no-divider"
         data-testid="download-migrate-row"
+        data-settings-row={t.storageDownloadMigrateLabel}
       >
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
@@ -219,6 +220,7 @@ export function BrowserDownloadPathSection() {
       <div
         className="adl-settings-row adl-settings-row--path-center"
         data-testid="download-path-row"
+        data-settings-row={t.browserDownloadSettingsPath}
       >
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">

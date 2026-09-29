@@ -118,7 +118,7 @@
   overflow-y: auto;
 }
 
-.adl-tool-editor__surface > div:not(.adl-sticky-context):not(.adl-md-flash-overlay-viewport) {
+.adl-tool-editor__surface > div:not(.adl-sticky-context):not(.adl-reveal-highlight-viewport) {
   height: 100%;
   width: 100%;
   min-width: 0;

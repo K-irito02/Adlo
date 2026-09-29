@@ -103,7 +103,7 @@ export function BrowserDownloadSettings({
         <SettingsHeader title={t.browserDownloadSettingsTitle} />
       </div>
       <div className="adl-settings-card adl-browser-settings">
-        <div className="adl-settings-row">
+        <div className="adl-settings-row" data-settings-row={t.browserDownloadSettingsMode}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
               <span>{t.browserDownloadSettingsMode}</span>

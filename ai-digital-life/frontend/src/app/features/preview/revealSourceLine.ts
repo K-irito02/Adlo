@@ -1,4 +1,5 @@
 import { buildSearchPattern } from '@utils/searchPattern';
+import { highlightElement } from '@utils/revealHighlight';
 import type { EditorRef } from '@stores/types';
 
 /** 块级源行映射：`end` 为闭区间末行号（单行块 `start === end`）。 */
@@ -64,93 +65,11 @@ function chooseScrollBehavior(container: HTMLElement, target: HTMLElement): Scro
 
 /* ---------------- 落点高亮 ---------------- */
 
-/**
- * 落点高亮覆盖层类名。
- *
- * 结构：预览面（`.adl-tool-editor__surface--preview`，`position: relative` 且不滚动）内常驻
- * 「视口夹层 `.adl-md-flash-overlay-viewport`」+ 本元素「高亮条」，横向 `left: 0; right: 0`
- * 铺满并与主内容显示区域左右边缘贴合（直角 + 左侧警示竖线）。
- *
- * 为何用覆盖层而非给目标块加背景：预览正文位于 `.adl-markdown-preview` 列内（该列左右各有
- * `var(--space-10)` = 40px 内边距，且**该列自身就是滚动容器**：`overflow-y: auto` 使 `overflow-x`
- * 计算值为 auto，会裁剪其内部溢出）。块级背景的左右边界止于该内边距、并被列的溢出裁剪，
- * 因此物理上无法抵达预览面边缘。
- * 为何需要夹层：高亮条在平滑滚动期间可能落在可视区之外，夹层裁剪掉这部分溢出，
- * 避免给预览面制造可滚动溢出。
+/*
+ * 覆盖层（视口夹层 + 高亮条）与「播放一次高亮」的实现在共享组件
+ * `@components/RevealHighlight`：本模块只负责「行号 → 目标元素」的映射与滚动定位，
+ * 呈现交给共享实现（文件面板用 `warning` 变体，设置面板搜索跳转用 `accent` 变体）。
  */
-export const FLASH_OVERLAY_CLASS = 'adl-md-flash-overlay';
-export const FLASH_OVERLAY_VIEWPORT_CLASS = 'adl-md-flash-overlay-viewport';
-const FLASH_ACTIVE_CLASS = 'is-active';
-/** 高亮时长（单一来源）：写入 `--adl-md-flash-duration`，CSS 关键帧与清除定时器共用同一值。 */
-const FLASH_DURATION_MS = 1400;
-/** CSS 自定义属性名：由本模块注入，避免 TS 与 CSS 各写一份时长导致漂移。 */
-const FLASH_DURATION_VAR = '--adl-md-flash-duration';
-
-interface FlashTracking {
-  raf: number;
-  timer: number;
-}
-
-/** WeakMap 跟踪：连续跳转时旧定时器/rAF 不得撕掉新加的类。 */
-const flashTracking = new WeakMap<HTMLElement, FlashTracking>();
-
-/**
- * 把覆盖层对齐到目标块。覆盖层的 offsetParent 是**不滚动**的视口夹层（其矩形与预览面一致），
- * 而被定位的块位于其内部滚动列中，故须按视口矩形差实时计算（滚动过程中每帧跟踪）。
- * 目标已脱离文档（切换文件后旧块被替换）或夹层不可测时**立即收起高亮条** ——
- * 既不压成错误位置，也不让它冻结在旧像素位置（冻结会留下一条错位的黄带）。
- */
-function alignOverlay(overlay: HTMLElement, target: HTMLElement): void {
-  const anchor = overlay.offsetParent;
-  if (!(anchor instanceof HTMLElement) || !target.isConnected) {
-    if (overlay.style.height !== '0px') {
-      overlay.style.height = '0px';
-    }
-    return;
-  }
-  const anchorRect = anchor.getBoundingClientRect();
-  const targetRect = target.getBoundingClientRect();
-  const top = `${targetRect.top - anchorRect.top}px`;
-  const height = `${targetRect.height}px`;
-  if (overlay.style.top !== top) {
-    overlay.style.top = top;
-  }
-  if (overlay.style.height !== height) {
-    overlay.style.height = height;
-  }
-}
-
-/** 播放一次落点高亮：对齐目标块并随滚动跟踪（连点可重放）。覆盖层不存在时不作提示。 */
-function flashRevealedElement(container: HTMLElement, target: HTMLElement): void {
-  const overlay = container.querySelector<HTMLElement>(`.${FLASH_OVERLAY_CLASS}`);
-  if (!overlay) {
-    return;
-  }
-  const previous = flashTracking.get(overlay);
-  if (previous) {
-    window.clearTimeout(previous.timer);
-    window.cancelAnimationFrame(previous.raf);
-  }
-  overlay.classList.remove(FLASH_ACTIVE_CLASS);
-  // 时长单一来源：TS 常量注入 CSS 变量，关键帧动画与下方清除定时器共用同一值
-  overlay.style.setProperty(FLASH_DURATION_VAR, `${FLASH_DURATION_MS}ms`);
-  alignOverlay(overlay, target);
-  // 强制重排以便连续跳转时动画可重放
-  void overlay.offsetWidth;
-  overlay.classList.add(FLASH_ACTIVE_CLASS);
-  const tracking: FlashTracking = { raf: 0, timer: 0 };
-  const track = () => {
-    alignOverlay(overlay, target);
-    tracking.raf = window.requestAnimationFrame(track);
-  };
-  tracking.raf = window.requestAnimationFrame(track);
-  tracking.timer = window.setTimeout(() => {
-    window.cancelAnimationFrame(tracking.raf);
-    overlay.classList.remove(FLASH_ACTIVE_CLASS);
-    flashTracking.delete(overlay);
-  }, FLASH_DURATION_MS);
-  flashTracking.set(overlay, tracking);
-}
 
 /** 滚动到指定元素并（可选）播放落点高亮；返回是否滚动成功。 */
 export function scrollAndFlash(
@@ -168,7 +87,7 @@ export function scrollAndFlash(
     return false;
   }
   if (options.flash) {
-    flashRevealedElement(container, target);
+    highlightElement(container, target, { variant: 'warning' });
   }
   return true;
 }

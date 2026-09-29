@@ -1342,6 +1342,11 @@ describe('SettingsPanel cross-group search', () => {
     );
   }
 
+  /** 共享落点高亮覆盖层（常驻于内容宿主内，由 `highlightElement` 驱动）。 */
+  function highlightOverlay(): HTMLElement | null {
+    return document.querySelector('.adl-reveal-highlight');
+  }
+
   function typeQuery(value: string): HTMLInputElement {
     fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
     const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
@@ -1380,7 +1385,10 @@ describe('SettingsPanel cross-group search', () => {
         '[data-settings-anchor="workspace:maxConcurrentWorkspaces"]',
       );
       expect(anchor).not.toBeNull();
-      expect(anchor?.classList.contains('adl-settings-search-highlight')).toBe(true);
+      // 落点提示走共享高亮覆盖层（与文件面板预览同款几何），本面板取主题蓝变体：
+      // 旧实现是给锚点挂描边/背景类，现改为铺满主内容显示区的高亮条 + 左竖线。
+      expect(highlightOverlay()?.classList.contains('is-active')).toBe(true);
+      expect(highlightOverlay()?.classList.contains('adl-reveal-highlight--accent')).toBe(true);
       // F3：跳转命中后焦点移交给落点锚点（结果项卸载不再把焦点丢给 <body>）。
       expect(document.activeElement).toBe(anchor);
     });
@@ -1510,7 +1518,55 @@ describe('SettingsPanel cross-group search', () => {
     await waitFor(() => {
       const anchor = document.querySelector('[data-settings-anchor="storage:treeCache"]');
       expect(anchor).not.toBeNull();
-      expect(anchor?.classList.contains('adl-settings-search-highlight')).toBe(true);
+      expect(highlightOverlay()?.classList.contains('is-active')).toBe(true);
+    });
+  });
+
+  it('命中块内行文案时落点落到那一行（而非块主标题）', async () => {
+    // treeCache 块的两行都要等 stats 回包才挂载：桥桩给成立即可的统计。
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      storage: {
+        getStatus: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            mode: 'unified',
+            root: '',
+            defaultRoot: '',
+            locatorPath: '',
+            categories: [],
+            pending: null,
+            lastReport: null,
+          },
+        }),
+        getTreeCacheStats: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            workspaceCount: 0,
+            totalBytes: 0,
+            oldestCapturedAt: null,
+            newestCapturedAt: null,
+            enabled: true,
+            ttlMinutes: 15,
+          },
+        }),
+      },
+    };
+    renderSearchPanel([]);
+    // 查询命中「启用树缓存」那行的提示说明（块主标题 treeCacheTitle 不含该串）。
+    typeQuery('treecacheenabledhint');
+    // 结果行的可访问名 = 块主标题 + 补显的命中行文案，故按前缀匹配标题部分。
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: (name) => name.replace(/\s+/g, '').toLowerCase().startsWith('treecachetitle'),
+      }),
+    );
+    expect(useAppStore.getState().activeSettingsGroup).toBe('storage');
+    await waitFor(() => {
+      const row = document.querySelector('[data-settings-row="treeCacheEnabled"]');
+      expect(row).not.toBeNull();
+      // 焦点随落点走（a11y 把焦点交给落点元素）→ 以此观测「落到哪一行」。
+      expect(document.activeElement).toBe(row);
+      expect(highlightOverlay()?.classList.contains('is-active')).toBe(true);
     });
   });
 });
