@@ -136,9 +136,10 @@ describe('ResetAllDialog', () => {
     // 核心需迁移：双迁移时机键立即可见，无需等待。
     expect(screen.getByRole('button', { name: 'storageMigrateLater' })).not.toBeNull();
     expect(screen.queryByRole('button', { name: 'storageGroupResetConfirm' })).toBeNull();
-    // 不再渲染分组清单与存储计算行。
+    // 不再渲染分组清单与存储计算行（ScopePreferences 在 mock 中映射为 'Preferences'，
+    // 故断言渲染文本而非键名，否则恒过无分辨力）。
     expect(screen.queryByText('settingsResetAllStorageCompute')).toBeNull();
-    expect(screen.queryByText('settingsResetAllScopePreferences')).toBeNull();
+    expect(screen.queryByText('Preferences')).toBeNull();
     // 恢复框绝不渲染搜索空态文案（该文案只属于搜索无结果）。
     expect(screen.queryByText('settingsNoResults')).toBeNull();
   });
