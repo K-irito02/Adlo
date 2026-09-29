@@ -534,4 +534,19 @@ describe('storage group reset dialog + dirty bar styles (2026-09-27 decisions)',
       'var(--pastel-warning-fg)',
     );
   });
+
+  it('confirm dialog footer wraps so 3-button EN labels stay inside the dialog', () => {
+    // 回归：英文 "Cancel + Migrate on next launch + Migrate now and restart"
+    // 三键单行总宽超 400px 旧框内宽，按钮溢出到框外。footer 必须换行收进容器。
+    const footer = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer');
+    expect(footer).not.toBeNull();
+    expect(footer).toContain('flex-wrap: wrap');
+    const dialog = ruleBody(contextMenuCss, '.adl-confirm-dialog');
+    expect(dialog).not.toBeNull();
+    expect(dialog).toContain('calc(100vw - 32px)');
+    // footer 内浏览器模式提示 <small> 独占一行，不与按钮挤在同一行。
+    const small = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer small');
+    expect(small).not.toBeNull();
+    expect(small).toContain('flex-basis: 100%');
+  });
 });
