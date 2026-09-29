@@ -5,12 +5,9 @@ import { formatT } from '@i18n/formatT';
 import type { CopyDict } from '@i18n';
 import { formatBytes } from '@root/design-system/html';
 import { useAppStore } from '@stores/slicedStore';
-import type { TreeCacheStats } from '@shared/ipc/storage';
-import {
-  computeStorageResetPlan,
-  type StorageResetDeps,
-  type StorageResetPlanResult,
-  type StorageResetPredicates,
+import type {
+  StorageResetExecuteDeps,
+  StorageResetPlanResult,
 } from '@shared/settings-reset/storageReset';
 import type { GroupKey } from '@shared/settings-reset/types';
 import { localizePreflightIssues } from '@features/storage-settings/preflightCopy';
@@ -19,82 +16,37 @@ import { resetAllSettings, type ResetAllDeps, type ResetAllOutcome } from './res
 
 export interface ResetAllDialogProps {
   open: boolean;
-  onClose: () => void;
-  /** 存储组依赖（bridge / refreshStatus / setPaths / resetBudget / resetTreeCache / ... / downloadPath）。 */
-  deps: StorageResetDeps;
-  /** 与 UI 同源的「是否已默认」判定（由 storageAtDefault / downloadPathReset 注入）。 */
-  storagePredicates: StorageResetPredicates;
+  /** 父组件预计算好的存储计划（开框前已就绪，开框即渲染，无框内“计算中”闪烁）。 */
+  planResult: StorageResetPlanResult | null;
+  /** 存储组执行依赖（仅执行侧：setPaths / resetBudget / resetTreeCache / downloadPath）。 */
+  deps: StorageResetExecuteDeps;
   /** 执行结束回调（成功/失败/跳过汇总由调用方展示）。 */
   onCommitted: (outcome: ResetAllOutcome) => void;
-}
-
-/** 计划状态：计算中 → 就绪（判别结果区分「就绪 / 全默认 / 不可用」）。 */
-type PlanState = { status: 'computing' } | { status: 'ready'; result: StorageResetPlanResult };
-
-/**
- * 取最新树缓存统计：已有值直接用；为空时现拉一次（与 `StorageSettings.openGroupResetDialog`
- * 同口径）——`readTreeStats` 注入的是可能陈旧的快照，直接判定会让树块基于旧值。
- */
-async function resolveTreeStats(current: TreeCacheStats | null): Promise<TreeCacheStats | null> {
-  if (current !== null) {
-    return current;
-  }
-  const bridge = window.digitalLife?.storage;
-  if (!bridge?.getTreeCacheStats) {
-    return null;
-  }
-  try {
-    const result = await bridge.getTreeCacheStats();
-    return result.ok ? result.data : null;
-  } catch {
-    return null;
-  }
-}
-
-/** 计算存储组恢复计划；无草稿在途 → `draftsDirty` 恒 false。 */
-async function computePlan(
-  deps: StorageResetDeps,
-  predicates: StorageResetPredicates,
-): Promise<StorageResetPlanResult> {
-  const treeStats = await resolveTreeStats(deps.readTreeStats());
-  return computeStorageResetPlan({ ...deps, readTreeStats: () => treeStats }, predicates);
+  onClose: () => void;
 }
 
 function groupLabel(t: CopyDict, key: GroupKey): string {
   return t[RESET_ALL_GROUP_LABEL_KEYS[key]];
 }
 
-/** 存储行范围文案：计算中 / 就绪 / 全默认（无事可做）/ 不可用（无法判定）。 */
-function storageScopeText(state: PlanState, t: CopyDict): string {
-  if (state.status === 'computing') {
-    return t.settingsResetAllStorageCompute;
-  }
-  if (state.result.status === 'ready') {
-    return t.settingsResetAllScopeStorage;
-  }
-  if (state.result.status === 'allDefault') {
-    return t.settingsResetAllStorageSkipped;
-  }
-  return t.settingsResetAllStorageUnavailable;
-}
-
 /**
  * 「恢复全部默认」聚合确认框（`createPortal` 到 body，复用 `.adl-confirm-dialog` 样式）。
  *
- * 打开即渲染范围清单并并行计算存储计划；计划就绪前存储行显示「计算中…」。
+ * 开框前计划已由调用方算好（`planResult`），本框为纯展示 + 执行：
+ * body 不再列出各分组清单，仅保留需用户决策项（核心迁移摘要 + preflight issues +
+ * retain 复选框 + 迁移时机两键）；非核心场景仅单确认键。
  * 执行走 `resetAllSettings`（preferences → browser → dsh → storage），进度逐组回调；
  * 执行期间锁定关闭/取消/遮罩/Esc（存储迁移不可中断）。结果交 `onCommitted` 由调用方汇总。
  * 偏好/浏览器/DSH 的依赖取执行时实时 store 值（R2：迁移开关不在开框时快照）。
  */
 export function ResetAllDialog({
   open,
-  onClose,
+  planResult,
   deps,
-  storagePredicates,
   onCommitted,
+  onClose,
 }: ResetAllDialogProps) {
   const { t } = useTCopy();
-  const [planState, setPlanState] = useState<PlanState>({ status: 'computing' });
   const [retainSource, setRetainSource] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<GroupKey | null>(null);
@@ -102,32 +54,18 @@ export function ResetAllDialog({
   const confirmRef = useRef<HTMLButtonElement | null>(null);
   const openerRef = useRef<HTMLElement | null>(null);
 
+  // 开框重置本地态（retain/busy/进度）。计划来自 props，不再框内异步计算。
   useEffect(() => {
     if (!open) {
       return;
     }
-    // 取消标记用 const 容器承载（项目禁止 `let` 重赋值）：闭包跨 then/catch/cleanup 读写其字段。
-    const cancelState = { cancelled: false };
-    setPlanState({ status: 'computing' });
     setRetainSource(false);
     setProgress(null);
-    void computePlan(deps, storagePredicates)
-      .then((result) => {
-        if (!cancelState.cancelled) {
-          setPlanState({ status: 'ready', result });
-        }
-      })
-      // 计划计算内的 IPC（refreshStatus / preflight）被拒时回落到「不可用」分支：
-      // 避免永久停在「计算中…」（仅剩取消键）并产生未处理的 rejection。
-      .catch(() => {
-        if (!cancelState.cancelled) {
-          setPlanState({ status: 'ready', result: { status: 'unavailable' } });
-        }
-      });
-    return () => {
-      cancelState.cancelled = true;
-    };
-  }, [open, deps, storagePredicates]);
+    console.log('[ADL-DEBUG] ResetAllDialog open', {
+      status: planResult?.status ?? 'null',
+      coreNeeded: planResult?.status === 'ready' ? planResult.plan.blocks.coreNeeded : 'n/a',
+    });
+  }, [open, planResult]);
 
   useEffect(() => {
     if (!open) {
@@ -147,10 +85,7 @@ export function ResetAllDialog({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [open, busy, onClose]);
 
-  const plan =
-    planState.status === 'ready' && planState.result.status === 'ready'
-      ? planState.result.plan
-      : null;
+  const plan = planResult?.status === 'ready' ? planResult.plan : null;
   const coreNeeded = plan !== null && plan.blocks.coreNeeded;
   const preflight = plan?.preflight ?? null;
   const preflightBlocked = preflight !== null && !preflight.ok;
@@ -177,18 +112,18 @@ export function ResetAllDialog({
     }
   }, [open]);
 
-  // 焦点管理：打开即进入对话框（计划计算中先落「取消」键）；计划就绪后移到主确认键，
-  // 主键被预检禁用时回落到「取消」键。执行中（busy）不搬动焦点，避免打断进度展示。
+  // 焦点管理：打开即进入对话框（预检禁用时落「取消」键，否则落主确认键）。
+  // 执行中（busy）不搬动焦点，避免打断进度展示。
   useEffect(() => {
     if (!open || busy) {
       return;
     }
-    if (planState.status === 'ready' && !preflightBlocked) {
+    if (!preflightBlocked) {
       confirmRef.current?.focus();
       return;
     }
     cancelRef.current?.focus();
-  }, [open, busy, planState, preflightBlocked]);
+  }, [open, busy, preflightBlocked]);
 
   /** 执行时组装完整编排 deps：存储取自 props，其余组取 store 实时值（R2）。 */
   const buildDeps = useCallback((): ResetAllDeps => {
@@ -213,11 +148,19 @@ export function ResetAllDialog({
     async (applyNow: boolean) => {
       setBusy(true);
       setProgress(null);
+      console.log('[ADL-DEBUG] ResetAllDialog confirm start', { applyNow, retainSource });
       const outcome = await resetAllSettings(
         buildDeps(),
         { storagePlan: plan, applyNow, retainSource },
-        setProgress,
+        (key) => {
+          setProgress(key);
+          console.log('[ADL-DEBUG] ResetAllDialog progress', { group: key });
+        },
       );
+      console.log('[ADL-DEBUG] ResetAllDialog confirm done', {
+        done: outcome.done,
+        failedAt: outcome.failedAt,
+      });
       setBusy(false);
       onCommitted(outcome);
       onClose();
@@ -228,8 +171,6 @@ export function ResetAllDialog({
   if (!open) {
     return null;
   }
-
-  const storageRowText = storageScopeText(planState, t);
 
   const confirmControls = coreNeeded ? (
     <>
@@ -265,6 +206,12 @@ export function ResetAllDialog({
     </button>
   );
 
+  // 进度区恒占位（minHeight），避免执行中插入文案导致对话框跳动；闲时用零宽空格撑高。
+  const progressText =
+    busy && progress !== null
+      ? formatT(t, 'settingsResetAllProgress', { group: groupLabel(t, progress) })
+      : ' ';
+
   return createPortal(
     <div
       className="adl-confirm-overlay"
@@ -278,13 +225,7 @@ export function ResetAllDialog({
           <h3 className="adl-confirm-dialog__title">{t.settingsResetConfirmTitle}</h3>
         </div>
         <div className="adl-confirm-dialog__body">
-          <p className="adl-confirm-dialog__message">{t.settingsResetAllScopeIntro}</p>
-          <ul className="adl-confirm-dialog__list">
-            <li>{t.settingsResetAllScopePreferences}</li>
-            <li>{t.settingsResetAllScopeBrowser}</li>
-            <li>{t.settingsResetAllScopeDsh}</li>
-            <li>{storageRowText}</li>
-          </ul>
+          <p className="adl-confirm-dialog__message">{t.settingsResetAllConfirmMessage}</p>
 
           {coreNeeded ? (
             <p className="adl-confirm-dialog__message">
@@ -329,11 +270,13 @@ export function ResetAllDialog({
             </label>
           ) : null}
 
-          {busy && progress !== null ? (
-            <p className="adl-confirm-dialog__message">
-              {formatT(t, 'settingsResetAllProgress', { group: groupLabel(t, progress) })}
-            </p>
-          ) : null}
+          <p
+            className="adl-confirm-dialog__message adl-confirm-dialog__progress"
+            aria-live="polite"
+            style={{ minHeight: '1.4em', marginBottom: 0 }}
+          >
+            {progressText}
+          </p>
         </div>
         <div className="adl-confirm-dialog__footer">
           <button
@@ -345,7 +288,7 @@ export function ResetAllDialog({
           >
             {t.cancel}
           </button>
-          {planState.status === 'ready' ? confirmControls : null}
+          {confirmControls}
         </div>
       </div>
     </div>,

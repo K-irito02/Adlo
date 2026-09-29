@@ -87,6 +87,8 @@ export const settingsEn = {
   settingsResetGroupConfirmMessage:
     'Every setting in the {group} group will be restored to its default. This cannot be undone.',
   settingsResetAllScopeIntro: 'The following groups will be reset to defaults:',
+  settingsResetAllConfirmMessage:
+    'All settings will be restored to defaults. This cannot be undone.',
   settingsResetAllScopePreferences: 'General, workspace and shortcuts',
   settingsResetAllScopeBrowser: 'Browser (suspend delay, download mode and path)',
   settingsResetAllScopeDsh: 'DSH (download source and proxy)',

@@ -53,6 +53,11 @@ import {
 import { downloadResetBlockVariant } from '@features/storage-settings/downloadPathReset';
 import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 import type { StorageResetDeps, StorageResetPredicates } from '@shared/settings-reset/storageReset';
+import {
+  computeStorageResetPlan,
+  type StorageResetPlanResult,
+} from '@shared/settings-reset/storageReset';
+import type { TreeCacheStats } from '@shared/ipc/storage';
 import type { GroupKey } from '@shared/settings-reset/types';
 import type { StorageBridge } from '@shared/ipc/storage';
 import { EMPTY_KEYBINDS } from '@shared/keybinds';
@@ -271,6 +276,55 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     }),
     [],
   );
+
+  /**
+   * 顶部「恢复全部默认」开框：先后台算好存储计划，再弹框（等计算好再出现，
+   * 框内无“计算中”闪烁）。与 StorageSettings.openGroupResetDialog 同构
+   * （先 refresh/preflight/快照，再 setOpen(true)）。按钮在途禁用 + 日志埋点。
+   */
+  const handleOpenResetAll = useCallback(async () => {
+    if (resetAllPreparingRef.current) {
+      return;
+    }
+    resetAllPreparingRef.current = true;
+    setResetAllPreparing(true);
+    const startedAt = Date.now();
+    console.log('[ADL-DEBUG] ResetAll open click, start computing plan');
+    try {
+      let treeStats: TreeCacheStats | null = getCachedTreeStats();
+      if (treeStats === null) {
+        const bridge = window.digitalLife?.storage;
+        if (bridge?.getTreeCacheStats) {
+          try {
+            const result = await bridge.getTreeCacheStats();
+            treeStats = result.ok ? result.data : null;
+          } catch {
+            treeStats = null;
+          }
+        }
+      }
+      const capturedTree = treeStats;
+      let result: StorageResetPlanResult;
+      try {
+        result = await computeStorageResetPlan(
+          { ...resetAllStorageDeps, readTreeStats: () => capturedTree },
+          resetAllStoragePredicates,
+        );
+      } catch {
+        result = { status: 'unavailable' };
+      }
+      console.log('[ADL-DEBUG] ResetAll plan ready', {
+        status: result.status,
+        ms: Date.now() - startedAt,
+        coreNeeded: result.status === 'ready' ? result.plan.blocks.coreNeeded : 'n/a',
+      });
+      setResetAllPlan(result);
+      setResetAllOpen(true);
+    } finally {
+      resetAllPreparingRef.current = false;
+      setResetAllPreparing(false);
+    }
+  }, [resetAllStorageDeps, resetAllStoragePredicates]);
 
   /** 聚合恢复结束：成功/失败/跳过汇总提示（组名经统一 labelKey 表解析，防两处漂移）。 */
   const handleResetAllCommitted = useCallback(
@@ -498,6 +552,11 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   const [confirmResetOpen, setConfirmResetOpen] = useState(false);
   /** 顶部「恢复全部默认」聚合对话框（跨四组编排，替代原通用确认框路径）。 */
   const [resetAllOpen, setResetAllOpen] = useState(false);
+  /** 开框前预计算好的存储计划：算好后才 setResetAllOpen(true)，框内无“计算中”闪烁。 */
+  const [resetAllPlan, setResetAllPlan] = useState<StorageResetPlanResult | null>(null);
+  /** 预计算在途：按钮禁用 + aria-busy，避免重复点击与无反馈等待。 */
+  const [resetAllPreparing, setResetAllPreparing] = useState(false);
+  const resetAllPreparingRef = useRef(false);
   const searchButtonRef = useRef<HTMLButtonElement | null>(null);
   const returnFocusToSearchRef = useRef(false);
   /** 待解析的跳转意图：搜索选中后先切组，由下方 effect 等锚点出现再滚动 + 高亮。 */
@@ -838,9 +897,10 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           <button
             type="button"
             className="adl-settings-reset-all"
-            onClick={() => setResetAllOpen(true)}
+            onClick={() => void handleOpenResetAll()}
             aria-label={t.settingsResetAll}
-            disabled={allGroupsAtDefault}
+            aria-busy={resetAllPreparing}
+            disabled={allGroupsAtDefault || resetAllPreparing}
           >
             {t.settingsResetAll}
           </button>
@@ -848,9 +908,9 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       </header>
       <ResetAllDialog
         open={resetAllOpen}
+        planResult={resetAllPlan}
         onClose={() => setResetAllOpen(false)}
         deps={resetAllStorageDeps}
-        storagePredicates={resetAllStoragePredicates}
         onCommitted={handleResetAllCommitted}
       />
       <ConfirmDialog

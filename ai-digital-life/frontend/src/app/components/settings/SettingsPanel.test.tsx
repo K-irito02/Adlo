@@ -214,11 +214,12 @@ describe('SettingsPanel shell header', () => {
     expect(header?.querySelector('.adl-tool-context__separator')).not.toBeNull();
   });
 
-  it('点击恢复全部默认先弹确认框，不直接执行', () => {
+  it('点击恢复全部默认先弹确认框，不直接执行', async () => {
     const { updatePreferences } = setupStore();
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+    // 开框前预计算存储计划（异步）：等算好后对话框才出现，无框内“计算中”闪烁。
+    expect(await screen.findByText('settingsResetConfirmTitle')).not.toBeNull();
     expect(updatePreferences).not.toHaveBeenCalled();
   });
 
@@ -228,7 +229,7 @@ describe('SettingsPanel shell header', () => {
     try {
       renderPanel();
       fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-      expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+      expect(await screen.findByText('settingsResetConfirmTitle')).not.toBeNull();
       expect(updatePreferences).not.toHaveBeenCalled();
       // 无存储桥 → 计划为 null → 单确认键（其余三组照常执行）。
       fireEvent.click(await screen.findByRole('button', { name: 'storageGroupResetConfirm' }));
@@ -244,7 +245,7 @@ describe('SettingsPanel shell header', () => {
 
       const callsAfterConfirm = updatePreferences.mock.calls.length;
       fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-      expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+      expect(await screen.findByText('settingsResetConfirmTitle')).not.toBeNull();
       fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
       expect(updatePreferences.mock.calls.length).toBe(callsAfterConfirm);
       expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
@@ -342,24 +343,27 @@ describe('SettingsPanel shell header', () => {
     });
   });
 
-  it('对话框按 Escape 与点 overlay 关闭且不执行', () => {
+  it('对话框按 Escape 与点 overlay 关闭且不执行', async () => {
     const { updatePreferences } = setupStore();
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    await screen.findByText('settingsResetConfirmTitle');
     fireEvent.keyDown(document.body, { key: 'Escape' });
     expect(updatePreferences).not.toHaveBeenCalled();
     expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
 
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    await screen.findByRole('dialog');
     fireEvent.click(screen.getByRole('dialog'));
     expect(updatePreferences).not.toHaveBeenCalled();
     expect(screen.queryByText('settingsResetConfirmTitle')).toBeNull();
   });
 
-  it('点击对话框内层不关闭', () => {
+  it('点击对话框内层不关闭', async () => {
     const { updatePreferences } = setupStore();
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
+    await screen.findByText('settingsResetConfirmTitle');
     const inner = document.querySelector('.adl-confirm-dialog') as HTMLElement;
     expect(inner).not.toBeNull();
     fireEvent.click(inner);
@@ -367,11 +371,11 @@ describe('SettingsPanel shell header', () => {
     expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
   });
 
-  it('确认框打开时搜索框 Escape 只关框不清空关键词', () => {
+  it('确认框打开时搜索框 Escape 只关框不清空关键词', async () => {
     setupStore();
     renderPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+    expect(await screen.findByText('settingsResetConfirmTitle')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'settingsSearchLabel' }));
     const input = document.querySelector('#adl-settings-search-input') as HTMLInputElement;
     fireEvent.change(input, { target: { value: 'theme' } });
@@ -433,7 +437,7 @@ describe('SettingsPanel group reset', () => {
 
     // 重开应回到全局文案（pendingResetGroup 已清零）。
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    expect(screen.getByText('settingsResetConfirmTitle')).not.toBeNull();
+    expect(await screen.findByText('settingsResetConfirmTitle')).not.toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'cancel' }));
 
     fireEvent.click(screen.getByRole('button', { name: 'Reset settingsGeneral all defaults' }));
@@ -1412,11 +1416,11 @@ describe('SettingsPanel cross-group search', () => {
     expect(document.querySelector('#adl-settings-search-input')).toBeNull();
   });
 
-  it('portal 对话框（React 树内、DOM 在面板外）内的 mod+F 不响应', () => {
+  it('portal 对话框（React 树内、DOM 在面板外）内的 mod+F 不响应', async () => {
     setupStore();
     renderSearchPanel();
     fireEvent.click(screen.getByRole('button', { name: 'settingsResetAll' }));
-    const dialog = screen.getByRole('dialog');
+    const dialog = await screen.findByRole('dialog');
     const notPrevented = fireEvent.keyDown(dialog, { key: 'f', metaKey: true });
     expect(notPrevented).toBe(true);
     expect(document.querySelector('#adl-settings-search-input')).toBeNull();

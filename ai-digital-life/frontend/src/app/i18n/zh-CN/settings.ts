@@ -82,6 +82,7 @@ export const settingsZh = {
   settingsResetGroupConfirmTitle: '恢复 {group} 全部默认？',
   settingsResetGroupConfirmMessage: '{group} 分组下的全部设置项将恢复为默认值，此操作不可撤销。',
   settingsResetAllScopeIntro: '以下分组的设置将恢复为默认值：',
+  settingsResetAllConfirmMessage: '所有设置将恢复为默认值，此操作不可撤销。',
   settingsResetAllScopePreferences: '通用、工作区与快捷键',
   settingsResetAllScopeBrowser: '浏览器（挂起时长、下载模式与下载路径）',
   settingsResetAllScopeDsh: 'DSH（下载源与代理）',
