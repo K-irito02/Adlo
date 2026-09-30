@@ -3,6 +3,7 @@ import { isTauriShell } from '@shared/env';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
+import { getOverlayManager } from '@shared/overlayManager';
 import { subscribeChannel } from '../../../tauri-bridge/tauri-shared';
 import type { RightPanelMode } from '../../regions/right-panel/rightPanelLayout';
 import type { ToolId } from '../../stores/types';
@@ -77,14 +78,35 @@ export function useDividerStrip(options: {
     );
 
   const browserToolVisible = activeRightTool === 'browser' && !collapsed;
-  const visible = shouldShowStrip({
-    isTauri,
-    dshOpen: dshOpen && !!dshUrl,
-    startupHidden,
-    browserToolVisible,
-    hasBrowserTabs: tabCount > 0,
-    centerObscured: rightPanelMode !== 'docked',
-  });
+  // 透明桥接条是 straddle 在边界上的**原生子窗口**，永远盖在 HTML 之上：任何
+  // DOM 浮层（对话框/菜单）与它重叠时都会被它抢走指针事件（"穿透"）。因此当
+  // OverlayManager 检测到可见浮层时，必须先把桥接条藏起来（与 DSH / 浏览器
+  // WebView2 的浮层隐藏策略一致）。
+  const [domOverlayActive, setDomOverlayActive] = useState(false);
+  useEffect(() => {
+    if (!isTauriShell()) {
+      return;
+    }
+    // panelRef 在首个 effect 即就绪（同一组件拥有的 aside）；若容器挂载滞后导致
+    //  lookup 失败，回退到文档级查询，避免"订阅丢失 → 桥接条永不隐藏"的静默失效。
+    const shell =
+      (panelRef.current?.closest('.adl-shell__body') as HTMLElement | null) ??
+      (document.querySelector('.adl-shell__body') as HTMLElement | null);
+    if (!shell) {
+      return;
+    }
+    return getOverlayManager().subscribe(shell, setDomOverlayActive);
+  }, [panelRef]);
+
+  const visible =
+    shouldShowStrip({
+      isTauri,
+      dshOpen: dshOpen && !!dshUrl,
+      startupHidden,
+      browserToolVisible,
+      hasBrowserTabs: tabCount > 0,
+      centerObscured: rightPanelMode !== 'docked',
+    }) && !domOverlayActive;
   const generation = stripGenerationKey({
     dshUrl: dshUrl ?? '',
     activeTabId: activeTabId ?? '',
@@ -256,7 +278,9 @@ export function useDividerStrip(options: {
         setResizing(true);
         return;
       }
-      if (!drag.active || payload.seq <= drag.lastSeq) {
+      // :269 全局保序已保证 seq > lastSeq，且 start 分支是唯一的 lastSeq 写入点
+      // 并直接 return，故此处 seq 比较恒为 false（死条件）——仅保留 active 守卫。
+      if (!drag.active) {
         return;
       }
       drag.lastSeq = payload.seq;

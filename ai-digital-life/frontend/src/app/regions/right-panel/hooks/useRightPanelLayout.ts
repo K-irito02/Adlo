@@ -6,6 +6,8 @@ import {
   applyRightPanelLastRestorableWidth,
   readCachedRightPanelMode,
   readCachedRightPanelLastRestorableWidth,
+  shouldPreserveOverlayFull,
+  shouldSkipPassiveLayoutSync,
 } from '../rightPanelLayout';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -254,9 +256,32 @@ export function useRightPanelLayout(collapsed: boolean) {
       if (draggingRef.current) {
         return;
       }
+      // 最小化/窗口被遮挡时视口瞬时坍缩（hidden、shell ≈ 0，或 Windows 最小化
+      // 过渡态 inner≈144x19 而 shell 矩形滞后）：此时按 rightMaxWidth 收窄会把
+      // 面板宽度错误地钳小并提交（恢复后右面板变窄），或把模式误判为 overlay_full
+      // 并在恢复后被 preserveFull 锁死为全宽。退化时跳过被动同步，待恢复再补算。
+      const metrics = readLayoutMetrics();
+      if (
+        shouldSkipPassiveLayoutSync(
+          document.hidden,
+          metrics.shellWidth,
+          window.innerWidth,
+          window.innerHeight,
+        )
+      ) {
+        return;
+      }
       const { nextWidth, nextMode } = applyPanelGeometry(rightPanelWidth, {
         commitRestorable: rightPanelMode !== 'overlay_full',
-        preserveFull: rightPanelMode === 'overlay_full',
+        // overlay_full 可能只是"窗口/侧栏曾更窄时宽度被钳满"的残留状态：若当前
+        // 宽度并未真正填满 shell（rightMaxW），窗口恢复/变宽后不能再按全宽保留，
+        // 否则会把中间区整块盖住（本次最小化→恢复回归的根因）。仅当面板确实
+        // 占据整个 shell（宽度 ≈ rightMaxW）时才保留 full。
+        preserveFull: shouldPreserveOverlayFull(
+          rightPanelMode,
+          rightPanelWidth,
+          metrics.rightMaxWidth,
+        ),
       });
       if (nextWidth !== rightPanelWidth) {
         setRightPanelWidth(nextWidth);
@@ -277,6 +302,7 @@ export function useRightPanelLayout(collapsed: boolean) {
 
     syncWidthToLayout();
     window.addEventListener('resize', queueSyncWidthToLayout);
+    document.addEventListener('visibilitychange', queueSyncWidthToLayout);
     const shellBody = panelRef.current?.closest('.adl-shell__body') as HTMLElement | null;
     const leftbar = shellBody?.querySelector('.adl-leftbar') as HTMLElement | null;
     const leftbarResizeObserver =
@@ -290,13 +316,21 @@ export function useRightPanelLayout(collapsed: boolean) {
 
     return () => {
       window.removeEventListener('resize', queueSyncWidthToLayout);
+      document.removeEventListener('visibilitychange', queueSyncWidthToLayout);
       if (syncFrameRef.current !== null) {
         window.cancelAnimationFrame(syncFrameRef.current);
         syncFrameRef.current = null;
       }
       leftbarResizeObserver?.disconnect();
     };
-  }, [applyPanelGeometry, leftCollapsed, rightPanelMode, rightPanelWidth, setRightPanelWidth]);
+  }, [
+    applyPanelGeometry,
+    leftCollapsed,
+    readLayoutMetrics,
+    rightPanelMode,
+    rightPanelWidth,
+    setRightPanelWidth,
+  ]);
 
   useEffect(() => {
     syncOverlayClasses(rightPanelMode);

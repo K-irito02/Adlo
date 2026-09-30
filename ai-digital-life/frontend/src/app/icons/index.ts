@@ -1,5 +1,5 @@
 export type { IconSize, IconProps, IconComponent } from './helper';
-export { make, makeThin, makeFilled } from './helper';
+export { make, makeThin, makeFilled, makeFilledStroked } from './helper';
 export {
   IconLogo,
   IconMenu,
@@ -59,6 +59,7 @@ export {
   IconFileTree,
   IconNewFile,
   IconNewFolder,
+  IconNewFolderBrowser,
   IconSnippetCollapse,
   IconSnippetExpand,
 } from './file';

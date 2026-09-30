@@ -39,8 +39,11 @@
   bottom: 0;
   left: -8px;
   width: 14px;
-  cursor: col-resize;
-  z-index: var(--z-tooltip);
+  /* 容器不吃指针事件：整条 14px 宽的高列若可命中，会压住任何与它重叠的浮层
+     （与 .adl-tool-navigator__resize-handle 同一契约）。z-index 保持在弹层遮罩
+     （--z-modal-backdrop）之下，避免拖拽线穿透对话框等悬浮层。 */
+  z-index: var(--z-raised);
+  pointer-events: none;
 }
 
 .adl-rightpanel__resize-handle::before {
@@ -49,18 +52,18 @@
   top: 0;
   bottom: 0;
   left: 8px;
-  width: 1px;
+  width: 3px;
+  cursor: col-resize;
   background: transparent;
   opacity: 0;
+  pointer-events: auto;
   transition:
-    width var(--duration-150) var(--ease-default),
     opacity var(--duration-150) var(--ease-default),
     background-color var(--duration-150) var(--ease-default);
 }
 
 .adl-rightpanel__resize-handle:hover::before,
 .adl-rightpanel__resize-handle:active::before {
-  width: 3px;
   opacity: 1;
   background: var(--text-secondary);
 }

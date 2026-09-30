@@ -69,3 +69,59 @@ export function deriveRightPanelOverlayState(
     overlayExpanded: mode === 'overlay_full',
   };
 }
+
+/**
+ * 被动几何同步是否应跳过。
+ *
+ * - 隐藏：页面 `hidden`（最小化/被遮挡）。
+ * - shell 尺寸退化（`shellWidth` ≈ 0）。
+ * - 视口最小化量级：Tauri 窗口有 640x480 最小尺寸约束（见 tauri.conf.json），
+ *   用户永远无法把窗口调到更小；`innerWidth/innerHeight` 远小于此（如 Windows
+ *   最小化过渡态的 144x19，而 shell 矩形会滞后给出 395 这种"看似正常"的值）
+ *   说明窗口正处在最小化过渡态。此时按 `rightMaxWidth` 收窄会把面板宽度错误
+ *   钳小并提交到 store（`setRightPanelWidth` 持久化），恢复后右面板变窄、
+ *   中间区侵占（2026-09-30 最小化→恢复 regression）。
+ *   浏览器模式下无最小尺寸约束、极小视口同样跳过：方向是安全的（只推迟同步、
+ *   不污染持久化宽度；窗口放大后即补算），而非显示回归。
+ */
+export const MINIMIZED_VIEWPORT_WIDTH_GUARD = 320;
+export const MINIMIZED_VIEWPORT_HEIGHT_GUARD = 240;
+
+export function shouldSkipPassiveLayoutSync(
+  hidden: boolean,
+  shellWidth: number,
+  innerWidth: number,
+  innerHeight: number,
+): boolean {
+  if (hidden) {
+    return true;
+  }
+  if (!Number.isFinite(shellWidth) || shellWidth <= 0) {
+    return true;
+  }
+  if (
+    !Number.isFinite(innerWidth) ||
+    !Number.isFinite(innerHeight) ||
+    innerWidth < MINIMIZED_VIEWPORT_WIDTH_GUARD ||
+    innerHeight < MINIMIZED_VIEWPORT_HEIGHT_GUARD
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * 被动几何同步时是否应保留 `overlay_full`（按新 shell 宽度补满）。
+ *
+ * `overlay_full` 可能只是"窗口/侧栏曾更窄时宽度被钳满"的残留状态：此时
+ * `width` 远小于当前 `rightMaxWidth`。窗口恢复/变宽后若仍按全宽保留，会把
+ * 中间区整块盖住（2026-09-30 最小化→恢复回归根因）。仅当面板确实占据整个
+ * shell（`width` ≈ `rightMaxWidth`）时才保留 full。
+ */
+export function shouldPreserveOverlayFull(
+  mode: RightPanelMode,
+  width: number,
+  rightMaxWidth: number,
+): boolean {
+  return mode === 'overlay_full' && width >= rightMaxWidth - 1;
+}
