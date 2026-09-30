@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBrowserPool } from './useBrowserPool';
+import { useAppStore } from '../../stores/slicedStore';
 
 vi.mock('../../../shared/env', () => ({
   isTauriShell: () => true,
@@ -40,6 +41,17 @@ describe('useBrowserPool', () => {
     });
     expect(result.current.poolSize).toBe(1);
     expect(result.current.isTabInPool('tab-1')).toBe(true);
+  });
+
+  it('bumps siblingWebviewNonce on native child creation（桥接条 z-order 重建信号）', async () => {
+    setMockBrowser();
+    const before = useAppStore.getState().siblingWebviewNonce;
+
+    const { result } = renderHook(() => useBrowserPool());
+    await act(async () => {
+      await result.current.createWebViewForTab('tab-nonce', 'https://example.com');
+    });
+    expect(useAppStore.getState().siblingWebviewNonce).toBe(before + 1);
   });
 
   it('does not evict on capacity (unbounded pool)', async () => {

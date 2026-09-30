@@ -47,6 +47,8 @@ import { useChangesPanelProps } from './right-panel/hooks/useChangesPanelProps';
 import { useBrowserPanelProps } from './right-panel/hooks/useBrowserPanelProps';
 
 import { useSettingsPanelProps } from './right-panel/hooks/useSettingsPanelProps';
+import { useAppStore } from '../stores/slicedStore';
+import { useDividerStrip } from '../features/divider-strip/useDividerStrip';
 
 export interface RightPanelProps {
   collapsed: boolean;
@@ -174,6 +176,17 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
     clampPanelWidthToShell,
     setRightPanelWidth,
   } = useRightPanelLayout(collapsed);
+
+  const leftCollapsed = useAppStore((s) => s.leftCollapsed);
+  useDividerStrip({
+    panelRef,
+    collapsed,
+    activeRightTool,
+    rightPanelWidth,
+    rightPanelMode,
+    leftCollapsed,
+    layout: { applyPanelGeometry, clampPanelWidthToShell, setRightPanelWidth },
+  });
 
   const filesProps = useFilesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);
   const changesProps = useChangesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);

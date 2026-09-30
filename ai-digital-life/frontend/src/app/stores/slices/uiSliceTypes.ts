@@ -175,6 +175,11 @@ export interface UISlice {
    * 供侧边栏 DSH 行 disabled 用。null = 未知 → 启用（fail-open）。
    */
   dshBlocksAtDefault: boolean | null;
+  /**
+   * 兄弟子窗口（dsh/浏览器 tab 原生 WebView）创建计数器（transient，不持久化）：
+   * 每次新建原生子窗口即 +1（新窗口盖在最上层），透明桥接条据此重建回到最上层。
+   */
+  siblingWebviewNonce: number;
   navigatorCollapsedByTool: Record<ToolId, boolean>;
   /** 变更状态过滤器（`adl:changes.statusFilter`，Task 23；空集 = 不过滤） */
   changesStatusFilter: Set<ChangeFileState>;
@@ -249,6 +254,8 @@ export interface UISlice {
   consumeDshGroupReset: () => void;
   /** 设置 DSH 两块全默认聚合信号（DshSettings 挂载维护，卸载清 null）。 */
   setDshBlocksAtDefault: (value: boolean | null) => void;
+  /** 兄弟子窗口新建即 +1（透明桥接条 z-order 重建信号）。 */
+  bumpSiblingWebviewNonce: () => void;
   setNavigatorCollapsed: (tool: ToolId, collapsed: boolean) => void;
   toggleNavigator: (tool: ToolId) => void;
   setChangesStatusFilter: (filter: Set<ChangeFileState>) => void;

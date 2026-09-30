@@ -48,6 +48,26 @@ export interface BrowserBridge {
   ) => Promise<void>;
   /** Set bounds for the standalone DSH WebView (not registered with BrowserManager). */
   setDshBounds: (bounds: { x: number; y: number; width: number; height: number }) => Promise<void>;
+  /**
+   * Show (idempotent recreate) the transparent divider-strip bridge over the
+   * center/right-panel seam. Tauri-only: browser mode needs no strip because
+   * the DOM resize handle already receives pointer events over iframes.
+   */
+  dividerStripShow: (
+    bounds: { x: number; y: number; width: number; height: number },
+    theme: { line: string; glow: string },
+    ariaLabel: string,
+    lang: string,
+  ) => Promise<void>;
+  /** Reposition the divider strip. No-op when absent. Tauri-only. */
+  dividerStripSetBounds: (bounds: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => Promise<void>;
+  /** Destroy the divider strip. Tauri-only. */
+  dividerStripHide: () => Promise<void>;
   /** Whether the system is under memory pressure (Tauri/Windows). False in browser mode. */
   memoryPressure: () => Promise<boolean>;
   /** Go back in a specific tab */

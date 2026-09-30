@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { isTauriShell } from '@shared/env';
+import { useAppStore } from '@stores/slicedStore';
 
 /**
  * Tracks which browser tabs have live WebViews (Tauri mode) or simulated pooled iframes.
@@ -43,6 +44,8 @@ export function useBrowserPool() {
           const bridge = window.digitalLife?.browser;
           if (bridge) {
             rustEvicted = await bridge.createForTab(tabId, _url, colorScheme);
+            // 新建原生子窗口盖在最上层，通知透明桥接条重建回到最上层。
+            useAppStore.getState().bumpSiblingWebviewNonce();
           }
         }
 

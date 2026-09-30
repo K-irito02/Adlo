@@ -9,6 +9,36 @@ pub struct Bounds {
     pub height: f64,
 }
 
+/// Divider-strip (panel sash bridge) width guardrail, in CSS pixels.
+///
+/// The strip is a transparent child webview straddling the center/right-panel
+/// boundary. It must stay a narrow band: wide enough to grab, narrow enough
+/// to keep the overlapped WebView edges usable.
+pub const DIVIDER_STRIP_WIDTH_MIN: f64 = 2.0;
+pub const DIVIDER_STRIP_WIDTH_MAX: f64 = 16.0;
+
+/// Clamp divider-strip bounds to sane values before sending them to WebView2.
+///
+/// Returns `None` for degenerate geometry (non-finite components): callers
+/// treat `None` as no-op `Ok` instead of flashing the strip at the origin.
+/// Guards against transient layout states (panel collapsing, window minimizing).
+pub fn sanitize_strip_bounds(bounds: &Bounds) -> Option<Bounds> {
+    if ![bounds.x, bounds.y, bounds.width, bounds.height]
+        .iter()
+        .all(|v| v.is_finite())
+    {
+        return None;
+    }
+    Some(Bounds {
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds
+            .width
+            .clamp(DIVIDER_STRIP_WIDTH_MIN, DIVIDER_STRIP_WIDTH_MAX),
+        height: bounds.height.max(1.0),
+    })
+}
+
 pub trait WebViewHandle: Send + Sync {
     fn navigate(&self, url: &str) -> Result<(), AppError>;
     fn close(&self) -> Result<(), AppError>;

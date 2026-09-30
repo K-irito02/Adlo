@@ -29,6 +29,11 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
         get().setDshOpen(true);
         get().setDshUrl(data.url);
+        // Tauri 下 open 成功意味着新建了 dsh 原生子窗口（盖在最上层），
+        // 通知透明桥接条重建回到最上层；浏览器模式无子窗口，此信号无害。
+        if (get().isTauri) {
+          get().bumpSiblingWebviewNonce();
+        }
         return data;
       }
       captureError(get, result.error, SCOPE);

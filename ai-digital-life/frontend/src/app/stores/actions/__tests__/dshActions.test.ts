@@ -16,6 +16,9 @@ interface DshTestStore {
   setDshUrl: (url: string | null) => void;
   setDshVersionStatus: (status: unknown) => void;
   setDshCloseDialogVisible: (visible: boolean) => void;
+  isTauri: boolean;
+  siblingWebviewNonce: number;
+  bumpSiblingWebviewNonce: () => void;
   fetchDshVersionStatus: () => Promise<boolean>;
   openDsh: () => Promise<DshOpenResult | null>;
   updateDsh: () => Promise<boolean>;
@@ -49,6 +52,10 @@ function makeStore() {
       setDshUrl: (url) => set({ url }),
       setDshVersionStatus: (status) => set({ versionStatus: status }),
       setDshCloseDialogVisible: (visible) => set({ closeDialogVisible: visible }),
+      isTauri: false,
+      siblingWebviewNonce: 0,
+      bumpSiblingWebviewNonce: () =>
+        set((s) => ({ siblingWebviewNonce: s.siblingWebviewNonce + 1 })),
       ...dshActions,
     } as DshTestStore;
   });
@@ -97,6 +104,39 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().errorToasts).toEqual([
       { code: 'TIMEOUT', detail: 'npx not ready', scope: 'dsh' },
     ]);
+  });
+
+  it('Tauri 下成功时递增 siblingWebviewNonce（桥接条 z-order 重建信号）', async () => {
+    (window as any).digitalLife.dsh.open.mockResolvedValue({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: true },
+    });
+    const store = makeStore();
+    store.setState({ isTauri: true });
+    await store.getState().openDsh();
+    expect(store.getState().siblingWebviewNonce).toBe(1);
+  });
+
+  it('失败或非 Tauri 时不递增 siblingWebviewNonce', async () => {
+    (window as any).digitalLife.dsh.open.mockResolvedValue({
+      ok: false,
+      error: { code: 'TIMEOUT', message: 'npx not ready' },
+    });
+    const store = makeStore();
+    store.setState({ isTauri: true });
+    await store.getState().openDsh();
+    expect(store.getState().siblingWebviewNonce).toBe(0);
+  });
+
+  it('非 Tauri 下成功也不递增 siblingWebviewNonce（无原生子窗口）', async () => {
+    (window as any).digitalLife.dsh.open.mockResolvedValue({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: true },
+    });
+    const store = makeStore();
+    expect(store.getState().isTauri).toBe(false);
+    await store.getState().openDsh();
+    expect(store.getState().siblingWebviewNonce).toBe(0);
   });
 });
 

@@ -162,6 +162,11 @@ export default defineConfig({
     sourcemap: false,
     chunkSizeWarningLimit: 950,
     rollupOptions: {
+      input: {
+        main: path.resolve(__dirname, 'index.html'),
+        // 透明桥接条（divider strip）独立入口：极简控制面，自带 @tauri-apps/api 调用。
+        'divider-strip': path.resolve(__dirname, 'divider-strip.html'),
+      },
       output: {
         manualChunks(id: string) {
           if (id.includes('react-dom') || id.includes('react/')) return 'vendor-react';

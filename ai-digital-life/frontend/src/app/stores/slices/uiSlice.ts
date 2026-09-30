@@ -82,6 +82,7 @@ export const createUISlice = (
     browserBlocksAtDefault: null,
     dshGroupResetPending: false,
     dshBlocksAtDefault: null,
+    siblingWebviewNonce: 0,
     navigatorCollapsedByTool: defaultNavigatorCollapsed(),
     changesStatusFilter: new Set(),
     changesOutlineExpanded: {},
@@ -214,6 +215,8 @@ export const createUISlice = (
       }
       set({ dshBlocksAtDefault: value });
     },
+    bumpSiblingWebviewNonce: () =>
+      set((state) => ({ siblingWebviewNonce: state.siblingWebviewNonce + 1 })),
     setNavigatorCollapsed: (tool, collapsed) =>
       set((state) => {
         const next = { ...state.navigatorCollapsedByTool, [tool]: collapsed };

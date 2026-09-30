@@ -21,6 +21,18 @@ export function createTauriBrowserBridge(): BrowserBridge {
     ) => invokeIpc<void>('browser_set_tab_bounds', { tabId, bounds }).then(() => undefined),
     setDshBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
       invokeIpc<void>('browser_set_dsh_bounds', { bounds }).then(() => undefined),
+    dividerStripShow: (
+      bounds: { x: number; y: number; width: number; height: number },
+      theme: { line: string; glow: string },
+      ariaLabel: string,
+      lang: string,
+    ) =>
+      invokeIpc<void>('divider_strip_show', { bounds, theme, ariaLabel, lang }).then(
+        () => undefined,
+      ),
+    dividerStripSetBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
+      invokeIpc<void>('divider_strip_set_bounds', { bounds }).then(() => undefined),
+    dividerStripHide: () => invokeIpc<void>('divider_strip_hide').then(() => undefined),
     memoryPressure: () =>
       invokeIpc<boolean>('browser_memory_pressure').then((r) => r.ok && !!r.data),
     goBackTab: (tabId: string) =>
