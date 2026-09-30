@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { getResolvedTheme } from './useBrowserThemeSync';
+import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { isDownloadUrl } from '@utils/downloadUrl';
 
 interface UseWebViewLifecycleOptions {
@@ -81,8 +82,8 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       if (isTabInPool(prevId)) {
         window.digitalLife?.browser
           ?.setTabBounds(prevId, {
-            x: -10000,
-            y: -10000,
+            x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+            y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
             width: 1,
             height: 1,
           })
@@ -101,8 +102,8 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       if (tab?.id && isTabInPool(tab.id)) {
         window.digitalLife?.browser
           ?.setTabBounds(tab.id, {
-            x: -10000,
-            y: -10000,
+            x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+            y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
             width: 1,
             height: 1,
           })

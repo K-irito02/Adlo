@@ -60,9 +60,12 @@ Tauri 桌面模式下，浏览器网页内容通过原生子 WebView（WebView2�
 
 ```typescript
 const hasOverlayActive =
+  !startupOverlayHidden ||
   createTabDialog.open || editTabDialog.open || bookmarkDialogOpen ||
-  renameFolderState.open || createDirDialog.open;
-// browserMenuOpen 和 contextMenu.open 已移除 —— 它们不总是重叠
+  renameFolderState.open || createDirDialog.open ||
+  browserMenuOpen || contextMenu.open;
+// 2026-09-30 修订：browserMenuOpen / contextMenu.open 重新纳入 —— 旧结论"工具栏菜单不重叠"
+// 已被推翻（菜单展开后可延伸进 WebView 区域，DOM 重叠检测兜底 + state 双保险）。
 ```
 
 **`frontend/src/app/features/browser/useBrowserWebView.ts`** — DOM-based + 重叠判定：
@@ -130,6 +133,48 @@ MutationObserver 初次实现使用 `setState` → `useEffect` 链路，每次 D
 
 ### 8. off-screen 策略一致性
 隐藏 WebView 使用 `(-10000,-10000,1,1)` 而非 `browser_hide`/`browser_show`，与项目中 WebView 禁用/面板切换的 off-screen 逻辑保持一致。创建时也使用此值避免初始闪露。
+
+> **2026-09-30 修订（幽灵条带事件）：** 上述移除结论已被推翻 ——
+> `browserMenuOpen` / `contextMenu.open` 重新纳入 `hasOverlayActive`（state 双保险；
+> DOM 重叠检测继续兜底 portal 定位飘移）。同时选择器移除 `.toast-card-region`
+> 与 `.tooltip`（前者见下，后者为 hover 提示不隐藏的用户需求）。
+
+## 2026-09-30 补充：常驻空容器幽灵条带导致 WebView 永久隐藏
+
+### 问题复现
+
+Tauri 桌面模式，无任何可见悬浮层时浏览器主内容区 WebView2 仍为隐藏状态（黑屏）。
+
+### 根因（日志实证）
+
+`ToastRegion` 把 `.toast-card-region` 常驻挂载到 body（无 toast 也不卸载）。
+其 CSS（`position:fixed; right/bottom:20px; width:400px; display:flex; gap:8px`）在两个
+空分组 div 之间撑出一条 **400×8 的隐形条带**（`pointer-events:none`），与 WebView 容器
+几何重叠。日志证据：
+
+```
+manager overlap=TRUE by toast-card-region overlay=[860,772,1260,780] container=[181,110,1280,800]
+dom-overlay transition hasOverlap=true → hideAllWebViews (bing 搜索页)
+updateBounds SKIP reason=dom-overlay   # 永久阻止恢复
+```
+
+### 修复
+
+1. 选择器移除 `.toast-card-region` —— 真实 toast 由条件挂载的 `.toast-card` /
+   `.adl-toast` 覆盖，出现时仍正常隐藏；
+2. `isVisibleOverlay` 增加 `pointer-events:none` 过滤 —— WebView2 是 OS 级表面，
+   此类元素既不可交互、视觉上也被 WebView 覆盖，永无需为它隐藏（同类常驻空容器免疫）；
+3. 附带加固：MutationObserver 增加 attributes 监听、订阅丢失重建（deps 补
+   `isVisible/activeTabId`）、bounds/ResizeObserver 补 `hideRequested` 守卫、
+   state→false 时同步复核 `checkOverlap` 后再恢复、DSH 侧对称实现 + 启动覆盖层纳入、
+   隐藏坐标统一为共享常量 `HIDDEN_WEBVIEW_OFFSCREEN_COORD`（32767）。
+
+### 经验教训
+
+1. **常驻挂载的空容器是重叠检测的头号敌人** —— 选择器只应包含"有内容才挂载"的
+   叶子浮层；`pointer-events:none` 可作为第二道通用防线。
+2. **诊断日志定位后必须删除** —— 本次 `[WV-DEBUG]` 全链路埋点在定位后已清零
+   （grep 确认），避免污染生产日志。
 
 ## 2026-07-01 补充修复：updateWebViewBounds 缺失覆盖层守卫
 

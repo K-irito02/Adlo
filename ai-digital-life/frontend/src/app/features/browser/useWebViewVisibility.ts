@@ -1,16 +1,10 @@
 import { useCallback, useEffect } from 'react';
 import { isTauriShell } from '@shared/env';
-import { getOverlayManager } from '@shared/overlayManager';
+import { getOverlayManager, HIDDEN_WEBVIEW_OFFSCREEN_COORD } from '@shared/overlayManager';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 export { WEBVIEW_OVERLAY_SELECTOR } from '@shared/overlayManager';
-
-/**
- * Offscreen coordinate used to hide a WebView by moving it far outside the
- * viewport. `32767` is `Int16.MAX_VALUE` — WebView2 treats this as "way
- * offscreen" without unloading the page (preserves SPA state).
- */
-const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
+export { HIDDEN_WEBVIEW_OFFSCREEN_COORD };
 
 interface UseWebViewVisibilityOptions {
   isVisible: boolean;
@@ -59,8 +53,8 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     if (tab && isTabInPool(tab.id)) {
       window.digitalLife?.browser
         ?.setTabBounds(tab.id, {
-          x: -10000,
-          y: -10000,
+          x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+          y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
           width: 1,
           height: 1,
         })
@@ -122,8 +116,14 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
       // overlay guard.  The MutationObserver may not have fired yet (e.g.
       // toast element still in DOM but invisible), leaving
       // hideWebViewRequestedRef stuck at true and blocking bounds updates.
-      hideWebViewRequestedRef.current = false;
-      updateWebViewBounds();
+      // 恢复前同步复核一次：若仍有其它 DOM 浮层重叠则不恢复，避免闪现一帧
+      // 后才被 observer 重新隐藏（checkOverlap 为同步纯读）。
+      hideWebViewRequestedRef.current = primaryRef.current
+        ? getOverlayManager().checkOverlap(primaryRef.current)
+        : false;
+      if (!hideWebViewRequestedRef.current) {
+        updateWebViewBounds();
+      }
     }
   }, [
     overlayActive,
@@ -132,6 +132,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     webViewActiveRef,
     hideWebViewRequestedRef,
     activeTabRef,
+    primaryRef,
   ]);
 
   // Visibility change

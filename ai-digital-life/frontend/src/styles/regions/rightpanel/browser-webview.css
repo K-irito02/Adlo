@@ -453,6 +453,11 @@
   margin-bottom: 0;
 }
 
+/* 空分类不占位：entries 无子节点时隐藏空容器（常展开渲染下的 DOM 降噪） */
+.adl-browser-category__entries:empty {
+  display: none;
+}
+
 /* Text label row (工作区目录 / 自建目录 / 历史目录) */
 .adl-browser-category__label {
   display: flex;

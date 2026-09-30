@@ -21,8 +21,9 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-menu__dropdown');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-search-engine-popover');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-download-menu');
-    // tooltip 故意不纳入：hover 提示不隐藏 WebView（2026-09-30 用户需求）
-    expect(WEBVIEW_OVERLAY_SELECTOR).not.toContain('.tooltip');
+    // tooltip 故意不纳入：hover 提示不隐藏 WebView（2026-09-30 用户需求）；精确 token 比对
+    const parts = WEBVIEW_OVERLAY_SELECTOR.split(',').map((s) => s.trim());
+    expect(parts).not.toContain('.tooltip');
   });
 
   it('选择器以逗号分隔拼接成合法的 querySelectorAll 输入', () => {

@@ -44,11 +44,13 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-statusbar__model-menu');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-conflict-modal-overlay');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-notif-dropdown');
-    // 项目自定义 tooltip 故意不隐藏 WebView（hover 即藏会导致页面闪烁，2026-09-30 用户需求）
-    expect(WEBVIEW_OVERLAY_SELECTOR).not.toContain('.tooltip');
+    // 项目自定义 tooltip 故意不隐藏 WebView（hover 即藏会导致页面闪烁，2026-09-30 用户需求）；
+    // 精确 token 比对，避免子串误杀（如日后的 .tooltip-custom）。
+    const parts = WEBVIEW_OVERLAY_SELECTOR.split(',').map((s) => s.trim());
+    expect(parts).not.toContain('.tooltip');
     // 常驻空容器 toast-card-region 故意不纳入：flex gap 撑出的 400x8 幽灵条带会被误判为
     // 永久遮挡导致 WebView 永不恢复（2026-09-30 日志定位）；真实 toast 由 .toast-card 覆盖
-    expect(WEBVIEW_OVERLAY_SELECTOR).not.toContain('.toast-card-region');
+    expect(parts).not.toContain('.toast-card-region');
   });
 
   it('以逗号分隔的合法 querySelectorAll 格式', () => {

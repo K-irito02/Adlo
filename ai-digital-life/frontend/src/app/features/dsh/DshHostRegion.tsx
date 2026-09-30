@@ -31,9 +31,11 @@ export function DshHostRegion() {
   const { containerRef, updateBounds } = useDshWebViewBounds({
     webViewDisabled: centerAreaHidden,
     hideRequestedRef: dshHideRequestedRef,
+    containerReady: isTauri && !!url,
   });
 
-  // MutationObserver for class changes on shell body
+  // MutationObserver for class changes on shell body.
+  // url 参与 deps：url 由空变有时容器才首次挂载，靠它重跑完成监听。
   useEffect(() => {
     if (!isTauri) {
       return;
@@ -52,7 +54,7 @@ export function DshHostRegion() {
     const observer = new MutationObserver(check);
     observer.observe(el, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
-  }, [isTauri, containerRef]);
+  }, [isTauri, containerRef, url]);
 
   useDshWebViewVisibility({
     containerRef,

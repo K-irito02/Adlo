@@ -57,7 +57,7 @@ export function BrowserCategorySection({
   const topLevelCount = category.nodes.length;
 
   return (
-    <div className="adl-browser-category">
+    <div className="adl-browser-category" role="group" aria-label={category.label}>
       <div className="adl-browser-category__label">
         <span className="adl-browser-category__label-text">{category.label}</span>
         <span className="adl-browser-category__label-count">{topLevelCount}</span>

@@ -1,13 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { isTauriShell } from '@shared/env';
-import { getOverlayManager } from '@shared/overlayManager';
+import { getOverlayManager, HIDDEN_WEBVIEW_OFFSCREEN_COORD } from '@shared/overlayManager';
 
-/**
- * Offscreen coordinate used to hide the DSH WebView by moving it far outside
- * the viewport. `32767` is `Int16.MAX_VALUE` — WebView2 treats this as "way
- * offscreen" without unloading the page (preserves SPA state).
- */
-const HIDDEN_WEBVIEW_OFFSCREEN_COORD = 32767;
+export { HIDDEN_WEBVIEW_OFFSCREEN_COORD };
 
 interface UseDshWebViewVisibilityOptions {
   isVisible: boolean;
@@ -107,10 +102,15 @@ export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions)
       // 与浏览器侧对称：state 切回非活跃时重置 DOM 守卫。MutationObserver
       // 可能尚未触发（如浮层元素仍在 DOM 但已不可见），否则
       // hideRequestedRef 卡在 true 会阻止后续 bounds 恢复。
-      hideRequestedRef.current = false;
-      restoreDshWebView();
+      // 恢复前同步复核一次：仍有重叠则不恢复，避免闪现一帧。
+      hideRequestedRef.current = containerRef.current
+        ? getOverlayManager().checkOverlap(containerRef.current)
+        : false;
+      if (!hideRequestedRef.current) {
+        restoreDshWebView();
+      }
     }
-  }, [overlayActive, hideDshWebView, restoreDshWebView, hideRequestedRef]);
+  }, [overlayActive, hideDshWebView, restoreDshWebView, hideRequestedRef, containerRef]);
 
   // Visibility change
   useEffect(() => {
