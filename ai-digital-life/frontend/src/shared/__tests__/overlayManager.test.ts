@@ -40,16 +40,20 @@ describe('WEBVIEW_OVERLAY_SELECTOR', () => {
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-clipboard-viewer');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-toast');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.toast-card');
-    expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.toast-card-region');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-statusbar__menu');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-statusbar__model-menu');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-conflict-modal-overlay');
     expect(WEBVIEW_OVERLAY_SELECTOR).toContain('.adl-notif-dropdown');
+    // 项目自定义 tooltip 故意不隐藏 WebView（hover 即藏会导致页面闪烁，2026-09-30 用户需求）
+    expect(WEBVIEW_OVERLAY_SELECTOR).not.toContain('.tooltip');
+    // 常驻空容器 toast-card-region 故意不纳入：flex gap 撑出的 400x8 幽灵条带会被误判为
+    // 永久遮挡导致 WebView 永不恢复（2026-09-30 日志定位）；真实 toast 由 .toast-card 覆盖
+    expect(WEBVIEW_OVERLAY_SELECTOR).not.toContain('.toast-card-region');
   });
 
   it('以逗号分隔的合法 querySelectorAll 格式', () => {
     const parts = WEBVIEW_OVERLAY_SELECTOR.split(',').map((s) => s.trim());
-    expect(parts.length).toBe(18);
+    expect(parts.length).toBe(17);
     expect(parts.every((s) => s.startsWith('.'))).toBe(true);
   });
 });
@@ -125,6 +129,49 @@ describe('OverlayManager', () => {
       setRect(container, RECT(50, 50, 150, 150));
       setRect(overlay, RECT(0, 0, 200, 200));
       expect(manager.checkOverlap(container)).toBe(true);
+    });
+
+    it('零面积浮层不计入重叠', () => {
+      const container = createDiv();
+      const overlay = createDiv('adl-sidebar-menu');
+      document.body.appendChild(container);
+      document.body.appendChild(overlay);
+      setRect(container, RECT(0, 0, 100, 100));
+      setRect(overlay, RECT(50, 50, 50, 50));
+      expect(manager.checkOverlap(container)).toBe(false);
+    });
+
+    it('pointer-events:none 的常驻容器不计入重叠', () => {
+      const container = createDiv();
+      const overlay = createDiv('adl-sidebar-menu');
+      overlay.style.pointerEvents = 'none';
+      document.body.appendChild(container);
+      document.body.appendChild(overlay);
+      setRect(container, RECT(0, 0, 100, 100));
+      setRect(overlay, RECT(50, 50, 150, 150));
+      expect(manager.checkOverlap(container)).toBe(false);
+    });
+
+    it('display:none 的浮层不计入重叠', () => {
+      const container = createDiv();
+      const overlay = createDiv('adl-sidebar-menu');
+      overlay.style.display = 'none';
+      document.body.appendChild(container);
+      document.body.appendChild(overlay);
+      setRect(container, RECT(0, 0, 100, 100));
+      setRect(overlay, RECT(50, 50, 150, 150));
+      expect(manager.checkOverlap(container)).toBe(false);
+    });
+
+    it('opacity:0 的退出动画残留不计入重叠', () => {
+      const container = createDiv();
+      const overlay = createDiv('adl-confirm-overlay');
+      overlay.style.opacity = '0';
+      document.body.appendChild(container);
+      document.body.appendChild(overlay);
+      setRect(container, RECT(0, 0, 100, 100));
+      setRect(overlay, RECT(50, 50, 150, 150));
+      expect(manager.checkOverlap(container)).toBe(false);
     });
   });
 

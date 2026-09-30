@@ -12,7 +12,6 @@ import {
   readClickedNodeRecord,
   readStringSet,
   readZoomByTab,
-  readBrowserCategoryExpanded,
   readNumberArray,
   readObjectArray,
   readObjectArrayRecord,
@@ -742,13 +741,6 @@ export const registry = {
     scope: 'byTabId',
     read: readZoomByTab,
     prune: pruneByTabId,
-  }),
-  'adl:browser.categoryExpanded': defineEntry<Record<string, boolean>>({
-    key: 'adl:browser.categoryExpanded',
-    field: 'browserCategoryExpanded',
-    fallback: {},
-    scope: 'global',
-    read: readBrowserCategoryExpanded,
   }),
 
   // ─────────────────────────────────────────────────────────────

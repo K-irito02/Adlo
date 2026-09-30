@@ -286,13 +286,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleDoubleClick,
   });
 
+  // 面板内浮层（state 已知）全部纳入：对话框 + 工具栏菜单 + 内容区右键菜单。
+  // 其余 portal 浮层（entry “…“ 菜单、toast、tooltip 等）由 OverlayManager 经 DOM 重叠检测覆盖。
   const hasOverlayActive =
     !startupOverlayHidden ||
     createTabDialog.open ||
     editTabDialog.open ||
     bookmarkDialogOpen ||
     renameFolderState.open ||
-    createDirDialog.open;
+    createDirDialog.open ||
+    browserMenuOpen ||
+    contextMenu.open;
 
   const {
     primaryRef,

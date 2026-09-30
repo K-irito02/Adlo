@@ -53,21 +53,4 @@ describe('browser panel sub-state persistence', () => {
       { 'tab-1': 1.5 },
     );
   });
-
-  it('folds categories independently and reads back false', () => {
-    expectPersistsAcrossRestart(
-      'adl:browser.categoryExpanded',
-      (value) => {
-        const state = useAppStore.getState();
-        for (const [category, expanded] of Object.entries(value)) {
-          state.setBrowserCategoryExpanded(
-            category as 'workspace' | 'userFolder' | 'history',
-            expanded,
-          );
-        }
-      },
-      () => hydrateAll().patch.browserCategoryExpanded,
-      { workspace: true, userFolder: false, history: true },
-    );
-  });
 });

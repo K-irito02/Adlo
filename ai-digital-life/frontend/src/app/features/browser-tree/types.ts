@@ -21,9 +21,6 @@ export interface BrowserTreeNode extends FileTreeRenderableNode {
 }
 
 export interface BrowserCategoryState {
-  id: BrowserCategoryType;
   label: string;
-  isExpanded: boolean;
-  isPermanent: boolean;
   nodes: BrowserTreeNode[];
 }

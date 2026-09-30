@@ -446,7 +446,11 @@
 /* ===== Browser Tab Tree Categories ===== */
 
 .adl-browser-category {
-  margin-bottom: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.adl-browser-category:last-child {
+  margin-bottom: 0;
 }
 
 /* Text label row (工作区目录 / 自建目录 / 历史目录) */
@@ -454,8 +458,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  padding: 2px var(--space-3);
-  min-height: 24px;
+  padding: var(--space-0-5) var(--space-3) 0;
+  min-height: 20px;
   user-select: none;
   cursor: default;
 }
@@ -466,12 +470,6 @@
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 0.3px;
-}
-
-.adl-browser-category__label-action {
-  display: flex;
-  align-items: center;
-  flex-shrink: 0;
 }
 
 .adl-browser-category__label-count {

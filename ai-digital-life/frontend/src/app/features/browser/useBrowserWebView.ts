@@ -79,6 +79,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     activeTabRef,
     updateWebViewBounds,
     updateWebViewBoundsRef,
+    activeTabId: activeTab?.id,
   });
 
   useBrowserSuspendScheduler({

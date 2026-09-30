@@ -29,6 +29,7 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     activeTabRef,
     overlayActiveRef,
     webViewActiveRef,
+    hideWebViewRequestedRef,
   } = options;
 
   const primaryRef = useRef<HTMLDivElement | null>(null);
@@ -44,8 +45,12 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     if (webViewDisabled) {
       return;
     }
-    // Don't restore webview position while an overlay (dialog/menu) is active
+    // Don't restore webview position while an overlay (dialog/menu) is active —
+    // neither React state overlays nor DOM-detected overlays (hide requested).
     if (overlayActiveRef.current) {
+      return;
+    }
+    if (hideWebViewRequestedRef.current) {
       return;
     }
 
@@ -64,7 +69,7 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     window.digitalLife?.browser?.setTabBounds(tab.id, bounds).catch((err) => {
       console.warn('webview set bounds failed', err);
     });
-  }, [isTabInPool, webViewDisabled, activeTabRef, overlayActiveRef]);
+  }, [isTabInPool, webViewDisabled, activeTabRef, overlayActiveRef, hideWebViewRequestedRef]);
 
   const updateWebViewBoundsRef = useRef(updateWebViewBounds);
   useEffect(() => {
@@ -91,7 +96,12 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     }
 
     const handleUpdate = () => {
-      if (webViewActiveRef.current && isVisible) {
+      if (
+        webViewActiveRef.current &&
+        isVisible &&
+        !overlayActiveRef.current &&
+        !hideWebViewRequestedRef.current
+      ) {
         updateWebViewBounds();
       }
     };
@@ -109,7 +119,7 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
       observer.disconnect();
       window.removeEventListener('resize', onWindowResize);
     };
-  }, [updateWebViewBounds, isVisible, webViewActiveRef]);
+  }, [updateWebViewBounds, isVisible, webViewActiveRef, overlayActiveRef, hideWebViewRequestedRef]);
 
   return {
     primaryRef,

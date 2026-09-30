@@ -15,6 +15,7 @@ import { useDshWebViewVisibility } from './useDshWebViewVisibility';
 export function DshHostRegion() {
   const { t } = useTCopy();
   const url = useAppStore((s) => s.url);
+  const startupOverlayHidden = useAppStore((s) => s.startupOverlayHidden);
   const isTauri = useMemo(() => isTauriShell(), []);
   const [iframeBlocked, setIframeBlocked] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -25,7 +26,12 @@ export function DshHostRegion() {
   // the center area becomes opacity:0 and the DSH WebView should be hidden.
   const [centerAreaHidden, setCenterAreaHidden] = useState(false);
 
-  const { containerRef, updateBounds } = useDshWebViewBounds({ webViewDisabled: centerAreaHidden });
+  // 与 visibility 侧共享的 DOM 浮层隐藏守卫：bounds 侧 resize 时读取，避免把已隐藏的 WebView 拉回
+  const dshHideRequestedRef = useRef(false);
+  const { containerRef, updateBounds } = useDshWebViewBounds({
+    webViewDisabled: centerAreaHidden,
+    hideRequestedRef: dshHideRequestedRef,
+  });
 
   // MutationObserver for class changes on shell body
   useEffect(() => {
@@ -51,8 +57,10 @@ export function DshHostRegion() {
   useDshWebViewVisibility({
     containerRef,
     isVisible: isTauri && !!url,
-    overlayActive: centerAreaHidden,
+    // 启动覆盖层显示期间中间区被全屏遮挡，DSH WebView 同样需要移出画面
+    overlayActive: centerAreaHidden || !startupOverlayHidden,
     updateBounds,
+    hideRequestedRef: dshHideRequestedRef,
   });
 
   const handleOpenExternal = useCallback(() => {
@@ -61,12 +69,13 @@ export function DshHostRegion() {
     }
   }, [url]);
 
-  // Tauri 模式：挂载后立即同步一次精确 bounds（ ResizeObserver 首次回调可能延迟）
+  // Tauri 模式：挂载后立即同步一次精确 bounds（ ResizeObserver 首次回调可能延迟）。
+  // 启动覆盖层/右面板 overlay 显示期间跳过，避免把应隐藏的 WebView 拉回画面闪现一帧。
   useEffect(() => {
-    if (isTauri && url) {
+    if (isTauri && url && startupOverlayHidden && !centerAreaHidden) {
       updateBounds();
     }
-  }, [isTauri, url, updateBounds]);
+  }, [isTauri, url, updateBounds, startupOverlayHidden, centerAreaHidden]);
 
   // 检测 iframe 是否被 CSP/X-Frame-Options 拦截：
   // load 事件触发后，尝试访问 contentDocument；若跨域则为 blocked。

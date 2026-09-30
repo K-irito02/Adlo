@@ -173,8 +173,6 @@ export const browserEn = {
   browserBookmark: 'Bookmark tab',
   browserUnbookmark: 'Unbookmark',
   browserNewTabAlways: 'Always new tab',
-  browserCollapse: 'Collapse',
-  browserExpand: 'Expand',
   browserExpandAll: 'Expand all',
   browserCollapseAll: 'Collapse all',
   browserBookmarkToFolderTitle: 'Bookmark Tab',

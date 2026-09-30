@@ -19,7 +19,10 @@ import { isTauriShell } from '@shared/env';
  * 原理与 `useWebViewBounds` 一致：ResizeObserver 监听容器 → getBoundingClientRect
  * 读取精确坐标 → 调用 `browser_set_dsh_bounds` IPC 更新原生 WebView 位置。
  */
-export function useDshWebViewBounds(options?: { webViewDisabled?: boolean }) {
+export function useDshWebViewBounds(options?: {
+  webViewDisabled?: boolean;
+  hideRequestedRef?: React.RefObject<boolean>;
+}) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const webViewDisabledRef = useRef(options?.webViewDisabled ?? false);
 
@@ -27,9 +30,14 @@ export function useDshWebViewBounds(options?: { webViewDisabled?: boolean }) {
   useEffect(() => {
     webViewDisabledRef.current = options?.webViewDisabled ?? false;
   }, [options?.webViewDisabled]);
+  const hideRequestedRef = options?.hideRequestedRef;
 
   const updateBounds = useCallback(() => {
     if (!containerRef.current || !isTauriShell()) {
+      return;
+    }
+    // DOM 浮层隐藏期间不恢复位置，避免 ResizeObserver 把已移出画面的 WebView 拉回盖住浮层
+    if (hideRequestedRef?.current) {
       return;
     }
     const rect = containerRef.current.getBoundingClientRect();
@@ -45,6 +53,7 @@ export function useDshWebViewBounds(options?: { webViewDisabled?: boolean }) {
     window.digitalLife?.browser?.setDshBounds(bounds).catch((err) => {
       console.warn('dsh set bounds failed', err);
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hideRequestedRef 为稳定 ref，只读 current
   }, []);
 
   const updateBoundsRef = useRef(updateBounds);
@@ -60,10 +69,14 @@ export function useDshWebViewBounds(options?: { webViewDisabled?: boolean }) {
       if (webViewDisabledRef.current) {
         return;
       }
+      if (hideRequestedRef?.current) {
+        return;
+      }
       updateBoundsRef.current();
     });
     observer.observe(containerRef.current);
     return () => observer.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hideRequestedRef 为稳定 ref，只读 current
   }, []);
 
   return { containerRef, updateBounds };

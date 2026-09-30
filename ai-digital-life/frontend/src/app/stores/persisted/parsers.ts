@@ -293,28 +293,6 @@ export function readZoomByTab(raw: unknown): Record<string, number> | undefined 
 }
 
 /**
- * 浏览器三大类区展开的读侧校验（Task 24）。
- * 只接受 workspace / userFolder / history 三类已知 id（未知键即整字段不合法，
- * 防止笔误键产生"合法但不同"的记录）；值必须为布尔。无记录时调用方默认展开。
- */
-export function readBrowserCategoryExpanded(raw: unknown): Record<string, boolean> | undefined {
-  if (!isPlainRecord(raw)) {
-    return undefined;
-  }
-  const result: Record<string, boolean> = {};
-  for (const [key, value] of Object.entries(raw)) {
-    if (key !== 'workspace' && key !== 'userFolder' && key !== 'history') {
-      return undefined;
-    }
-    if (typeof value !== 'boolean') {
-      return undefined;
-    }
-    result[key] = value;
-  }
-  return result;
-}
-
-/**
  * 读取单个工作区的文件树展开态（`TreeExpansion`）。
  *
  * 形状校验：

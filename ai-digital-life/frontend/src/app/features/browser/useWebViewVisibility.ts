@@ -23,6 +23,8 @@ interface UseWebViewVisibilityOptions {
   activeTabRef: React.RefObject<BrowserTabState | undefined>;
   updateWebViewBounds: () => void;
   updateWebViewBoundsRef: React.RefObject<() => void>;
+  /** 活动 Tab id（可选）：容器挂载时序晚于首个 effect 时，靠它变化重建订阅，避免 DOM 检测永久丢失 */
+  activeTabId?: string;
 }
 
 /**
@@ -46,6 +48,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     activeTabRef,
     updateWebViewBounds,
     updateWebViewBoundsRef,
+    activeTabId,
   } = options;
 
   const hideAllWebViews = useCallback(() => {
@@ -67,7 +70,9 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     }
   }, [isTabInPool, activeTabRef]);
 
-  // DOM overlay detection — delegated to OverlayManager singleton
+  // DOM overlay detection — delegated to OverlayManager singleton.
+  // isVisible / activeTabId 参与 deps：容器挂载晚于首个 effect 时（首轮
+  // primaryRef.current 为空直接返回），靠后续变化重建订阅，避免检测永久丢失。
   useEffect(() => {
     if (!isTauriShell()) {
       return;
@@ -100,6 +105,9 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     primaryRef,
     updateWebViewBoundsRef,
     webViewActiveRef,
+    activeTabRef,
+    isVisible,
+    activeTabId,
   ]);
 
   // Overlay state-driven hide
@@ -123,6 +131,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     updateWebViewBounds,
     webViewActiveRef,
     hideWebViewRequestedRef,
+    activeTabRef,
   ]);
 
   // Visibility change

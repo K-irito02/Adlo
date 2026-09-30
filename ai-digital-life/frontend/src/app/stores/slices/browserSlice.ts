@@ -21,7 +21,6 @@ import { persist } from '../persisted/persist';
 import { BROWSER_ZOOM_MIN, BROWSER_ZOOM_MAX } from './browserSliceShared';
 import type { BrowserNavigatorMode } from '../../features/browser/useBrowserTabs';
 import type { BrowserSearchScope } from '../../features/browser/useBrowserSearch';
-import type { BrowserCategoryType } from '../../features/browser-tree/types';
 
 import type { BrowserTabState } from './browserSliceShared';
 
@@ -64,12 +63,6 @@ export interface BrowserSlice {
   /** 每标签缩放（`adl:browser.zoomByTab`，Task 24；无记录标签取 1.0） */
   browserZoomByTab: Record<string, number>;
   setBrowserZoomByTab: (tabId: string, zoom: number) => void;
-  /**
-   * 三大类区展开（`adl:browser.categoryExpanded`，Task 24）。
-   * 无记录的大类默认展开（保持既有观感）；读侧只接受三类已知 id。
-   */
-  browserCategoryExpanded: Record<string, boolean>;
-  setBrowserCategoryExpanded: (category: BrowserCategoryType, expanded: boolean) => void;
 }
 
 export const createBrowserSlice = (
@@ -82,7 +75,6 @@ export const createBrowserSlice = (
     browserSearchScope: 'all',
     browserSelectedTreePath: null,
     browserZoomByTab: {},
-    browserCategoryExpanded: {},
 
     browserNavigateActiveTab: (url: string, title?: string) => {
       set((state) => {
@@ -159,13 +151,6 @@ export const createBrowserSlice = (
           ...state.browserZoomByTab,
           // 写侧钳制与读侧 readZoomByTab 同源（常量见 browserSliceShared）
           [tabId]: clamp(zoom, BROWSER_ZOOM_MIN, BROWSER_ZOOM_MAX),
-        }),
-      ),
-    setBrowserCategoryExpanded: (category, expanded) =>
-      set((state) =>
-        persistField('adl:browser.categoryExpanded', {
-          ...state.browserCategoryExpanded,
-          [category]: expanded,
         }),
       ),
   };

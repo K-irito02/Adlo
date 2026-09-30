@@ -14,6 +14,8 @@ interface UseDshWebViewVisibilityOptions {
   overlayActive: boolean;
   containerRef: React.RefObject<HTMLDivElement | null>;
   updateBounds: () => void;
+  /** 外部共享的隐藏守卫（可选）：传入时 bounds 侧可同步读取，避免 resize 拉回已隐藏的 WebView */
+  hideRequestedRef?: React.RefObject<boolean>;
 }
 
 /**
@@ -30,7 +32,8 @@ interface UseDshWebViewVisibilityOptions {
 export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions) {
   const { isVisible, overlayActive, containerRef, updateBounds } = options;
 
-  const hideRequestedRef = useRef(false);
+  const internalHideRequestedRef = useRef(false);
+  const hideRequestedRef = options.hideRequestedRef ?? internalHideRequestedRef;
   const activeRef = useRef(false);
   const overlayActiveRef = useRef(overlayActive);
 
@@ -64,7 +67,8 @@ export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions)
     updateBounds();
   }, [updateBounds]);
 
-  // DOM overlay detection — delegated to OverlayManager singleton
+  // DOM overlay detection — delegated to OverlayManager singleton.
+  // isVisible 参与 deps：容器挂载晚于首个 effect 时重建订阅，避免检测永久丢失。
   useEffect(() => {
     if (!isTauriShell()) {
       return;
@@ -90,7 +94,7 @@ export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions)
         restoreDshWebView();
       }
     });
-  }, [containerRef, hideDshWebView, restoreDshWebView]);
+  }, [containerRef, hideDshWebView, restoreDshWebView, isVisible, hideRequestedRef]);
 
   // Overlay state-driven hide
   useEffect(() => {
@@ -100,9 +104,13 @@ export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions)
     if (overlayActive) {
       hideDshWebView();
     } else {
+      // 与浏览器侧对称：state 切回非活跃时重置 DOM 守卫。MutationObserver
+      // 可能尚未触发（如浮层元素仍在 DOM 但已不可见），否则
+      // hideRequestedRef 卡在 true 会阻止后续 bounds 恢复。
+      hideRequestedRef.current = false;
       restoreDshWebView();
     }
-  }, [overlayActive, hideDshWebView, restoreDshWebView]);
+  }, [overlayActive, hideDshWebView, restoreDshWebView, hideRequestedRef]);
 
   // Visibility change
   useEffect(() => {
@@ -116,7 +124,7 @@ export function useDshWebViewVisibility(options: UseDshWebViewVisibilityOptions)
     } else if (!isVisible) {
       hideDshWebView();
     }
-  }, [isVisible, hideDshWebView, restoreDshWebView]);
+  }, [isVisible, hideDshWebView, restoreDshWebView, hideRequestedRef]);
 
   return { hideRequestedRef, activeRef };
 }

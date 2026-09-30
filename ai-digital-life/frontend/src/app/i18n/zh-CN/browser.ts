@@ -164,8 +164,6 @@ export const browserZh = {
   browserDeleteHistoryYearLabel: '删除全部历史记录 · 年',
   browserDeleteHistoryMonthLabel: '删除全部历史记录 · 月',
   browserDeleteHistoryDayLabel: '删除全部历史记录 · 日',
-  browserCollapse: '收起',
-  browserExpand: '展开',
   browserExpandAll: '全部展开',
   browserCollapseAll: '全部折叠',
   browserBookmarkToFolderTitle: '收藏标签',
