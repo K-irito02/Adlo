@@ -460,10 +460,7 @@ mod tests {
             (0, 0)
         );
         // 其它分类仍正常统计，证明只是该分类被短路。
-        assert_eq!(
-            st::category_usage(adl_kernel::storage::StorageCategory::Config, &dir),
-            (13, 1)
-        );
+        assert_eq!(st::category_usage(adl_kernel::storage::StorageCategory::Config, &dir), (13, 1));
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

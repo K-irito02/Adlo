@@ -115,3 +115,26 @@ WebView 是 OS 级渲染表面，但 HTML 元素可以通过改变自身位置�
 
 ### 6. Flexbox 中隐藏元素需要同时修改 flex-basis
 `width: 0` + `flex-shrink: 0` 不会真正释放 flex 空间。必须同时设置 `flex: 0 0 0` 覆盖 `flex-basis`（或 `flex-grow/shrink`），否则逻辑布局空间仍然保留，相邻元素无法扩展。grid 布局无此问题（grid 列宽是绝对的）。
+
+## 后续演进（2026-09-30）：dsh 打破"区域逃逸"前提 → 透明桥接条
+
+### 前提失效
+区域逃逸成立的前提是"中心区无 WebView"。dsh 打开后，中心区 `DshHostRegion`（`.adl-app-host { inset: 0 }`）被 dsh WebView2 子窗口全覆盖；叠加浏览器侧边栏收起后浏览器 tab WebView2 贴到面板左缘（仅隔 1px border），14px 命中带两侧全灭，仅剩顶栏 ToolSwitcher 行约 40px×6px 可达——"很难触发拖拽"。拖拽一旦起手即正常（ResizeObserver→bounds 镜像自动跟随），难点只在第一次抓取。
+
+### 方案对比
+
+| 方案 | 描述 | 最终状态 |
+|------|------|---------|
+| 常驻 DOM 沟槽 | dsh 容器右缩 8px + 浏览器主容器左缩 6px，露出真实分隔条；bounds 镜像自动跟随，零 Rust/IPC 改动（commit `741c5057` 留档） | ❌ 功能成立，用户否决视觉（两侧间隙） |
+| **✅ 透明桥接条** | 接缝上架 6px 全高透明子 WebView（`adl-divider-strip`），同层夺回命中权，只回传 X 增量，主窗口复用既有几何逻辑；双 WebView 全幅零间隙（commit `fd3802fe`） | ✅ 当前方案 |
+
+### 桥接条关键设计
+- **z-order**：`add_child` 新子窗口天然最上层；兄弟窗口（重）建会盖住条 → store 瞬态 `siblingWebviewNonce`（dsh open / tab 建窗双 bump 点）驱动销毁重建回到最上层。
+- **拖拽协议自愈**：条页 `seq` 按文档重置，主窗口 show 成功即重置 `lastSeq`（否则重建后首轮拖拽被保序守卫误杀）；`end` 自带尾帧位移，关闭 move/end 乱序窗口。
+- **主题/语言/无障碍**：条页零硬编码，主题色与 aria-label 经 init script 注入（`serde_json::to_string` 转义）；主题实值比较后才重建（`<html>` 内联抖动不重建）。
+- **命令**：`divider_strip_show/set_bounds/hide/drag`（async + `run_on_main_thread` 惯例；`drag` 校验后 `app.emit` 转交主窗口），4 端 bridge 同步（Tauri 实现 + preview/mock/http no-op）。
+
+### 新增经验
+1. **命中权问题必须在 OS 窗口层解决**：布局层让位（沟槽）功能可修复但可能付出视觉代价，先确认美学约束再选层。
+2. **跨文档序号必须配代际重置**：子页面重建会重置本地计数器，主窗口保序守卫须在重建点同步重置，否则"安全修复"制造新假死。
+3. **快照基线决定复审有效性**：`git diff <range>` 看不见未提交改动，复审快照必须用工作区级 diff，否则复审结论无证据。

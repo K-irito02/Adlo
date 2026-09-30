@@ -311,16 +311,12 @@ mod tests {
         loc.selection.categories.insert(StorageCategory::TreeCache, PathBuf::from("/xtree"));
         loc.selection.categories.insert(StorageCategory::Dsh, PathBuf::from("E:/dsh"));
         loc.selection.categories.insert(StorageCategory::Clipboard, PathBuf::from("E:/clip"));
-        loc.selection
-            .categories
-            .insert(StorageCategory::DownloadsDefault, PathBuf::from("E:/dl"));
+        loc.selection.categories.insert(StorageCategory::DownloadsDefault, PathBuf::from("E:/dl"));
         let first = StoragePaths::from_locator(&loc, &defaults());
         let mut loc2 = StorageLocator::default();
         loc2.selection.mode = StorageMode::PerCategory;
         for category in StorageCategory::ALL {
-            loc2.selection
-                .categories
-                .insert(category, first.override_dir(category));
+            loc2.selection.categories.insert(category, first.override_dir(category));
         }
         let second = StoragePaths::from_locator(&loc2, &defaults());
         for category in StorageCategory::ALL {
@@ -340,13 +336,9 @@ mod tests {
     fn override_dir_never_returns_empty_parent() {
         // `Path::parent()` 对裸文件名返回 `Some("")`——守卫必须回退实际路径
         // 而非空路径（Phase 4 R2-R9-L1；`resolve` 恒拼接根目录，生产不可达）。
-        let mut paths =
-            StoragePaths::from_locator(&StorageLocator::default(), &defaults());
+        let mut paths = StoragePaths::from_locator(&StorageLocator::default(), &defaults());
         paths.data_db = PathBuf::from("data.db");
-        assert_eq!(
-            paths.override_dir(StorageCategory::Database),
-            PathBuf::from("data.db")
-        );
+        assert_eq!(paths.override_dir(StorageCategory::Database), PathBuf::from("data.db"));
     }
 
     #[test]

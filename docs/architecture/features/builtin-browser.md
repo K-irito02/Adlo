@@ -117,6 +117,7 @@
 | `browser_create` invoke 永不返回 | Tauri `#[tauri::command]` 默认运行在线程池，`window.add_child()` 在 Windows 下创建 HWND 子窗口必须在主线程 | 改为 `async` 命令，通过 `app.run_on_main_thread()` 分派到主线程，`oneshot::channel` 等待结果 | `src-tauri/src/commands/browser.rs` |
 | React Strict Mode 双重挂载导致 invoke 冲突 | 开发环境下 React 18 mount→unmount→remount，两次 `browser_create` 竞争导致 IPC 序列化混乱 | 引入 `creatingRef` 防止重复调用；`Promise.race` + 10s 超时防止无限挂起；清理时仅在真正的卸载阶段才销毁 WebView | `BrowserPanel.tsx` |
 | WebView 覆盖标题栏导致按钮失效 | `add_child` 使用 `getBoundingClientRect()` 坐标可能错误定位，WebView2 HWND 覆盖 HTML 内容 | WebView 始终创建在屏幕外 `(-10000,-10000)`，创建成功后再通过 `set_bounds` 移动到正确位置 | `crates/browser/src/lib.rs`, `BrowserPanel.tsx` |
+| dsh↔浏览器 WebView 零间隙贴边时分隔线拖不动（2026-09-30） | 两个 OS 级 WebView2 子窗口吃掉右面板 resize handle 命中带（`z-index` 对子窗口无效）；旧"区域逃逸"前提（中心区无 WebView）被 dsh 打破 | 接缝上架 6px 透明桥接条（`adl-divider-strip`）夺回命中权，只回传 X 增量，主窗口复用面板几何；兄弟窗口新建经 store `siblingWebviewNonce` 重建回到最上层 | `src-tauri/src/commands/divider_strip.rs`, `frontend/src/app/features/divider-strip/`, `frontend/divider-strip.html` |
 
 > 经验教训已迁移至 [knowledge-base/browser/builtin-browser.md](../../knowledge-base/browser/builtin-browser.md)
 

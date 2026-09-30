@@ -98,6 +98,9 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 ### IPC 域拆分
 桥接层按功能域拆分为多个子接口文件（`shared/ipc/` 目录），每个域文件定义该域的接口类型。
 
+### Divider Strip（分隔线桥接条）
+dsh WebView2（中间区）与浏览器 tab WebView2（右侧面板）零间隙贴边时，两者均为 OS 级子窗口，吃掉右面板 resize handle 命中带。修复是在接缝上架一条 6px 全高透明子 WebView（`adl-divider-strip`），夺回命中权并把拖拽增量回传主窗口；兄弟窗口（重）建经 store `siblingWebviewNonce` 重建回到最上层。
+
 ### Branded Types（标记类型）
 编译时名义类型（nominal typing）模式，定义在 `frontend/src/shared/branded.ts`。使用 TypeScript `unique symbol` 交叉类型实现零运行时开销的类型安全：
 - `WorkspaceID`、`TerminalSessionID` 等 ID 类型

@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { subscribeChannel } from '../../../tauri-bridge/tauri-shared';
 import type { RightPanelMode } from '../../regions/right-panel/rightPanelLayout';
+import type { ToolId } from '../../stores/types';
 import {
   shouldShowStrip,
   stripBoundsFromPanelRect,
@@ -53,7 +54,7 @@ function resolveStripTheme(): StripTheme {
 export function useDividerStrip(options: {
   panelRef: React.RefObject<HTMLElement | null>;
   collapsed: boolean;
-  activeRightTool: string;
+  activeRightTool: ToolId;
   rightPanelWidth: number;
   rightPanelMode: RightPanelMode;
   leftCollapsed: boolean;
@@ -92,11 +93,23 @@ export function useDividerStrip(options: {
   });
 
   const [themeTick, setThemeTick] = useState(0);
+  const [initialTheme] = useState(resolveStripTheme);
+  const themeRef = useRef<StripTheme>(initialTheme);
+  const labelRef = useRef('');
+  const langRef = useRef(locale);
+
   useEffect(() => {
     if (!isTauriShell()) {
       return;
     }
-    const observer = new MutationObserver(() => setThemeTick((v) => v + 1));
+    // M-2：只在主题色实值变化时才 tick（style 内联抖动不再触发条带销毁重建）。
+    const observer = new MutationObserver(() => {
+      const next = resolveStripTheme();
+      if (next.line !== themeRef.current.line || next.glow !== themeRef.current.glow) {
+        themeRef.current = next;
+        setThemeTick((v) => v + 1);
+      }
+    });
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme', 'class', 'style'],
@@ -104,17 +117,11 @@ export function useDividerStrip(options: {
     return () => observer.disconnect();
   }, []);
 
-  // 主题只在 tick/locale 变化时读取（S8：渲染体不再逐帧 getComputedStyle）。
-  const [initialTheme] = useState(resolveStripTheme);
-  const themeRef = useRef<StripTheme>(initialTheme);
-  const labelRef = useRef('');
-  const langRef = useRef(locale);
-  labelRef.current = t.resizeSidebar;
-  langRef.current = locale;
-
+  // L-4：渲染体不写 ref（StrictMode/并发安全），每 commit 同步一次等价。
   useEffect(() => {
-    themeRef.current = resolveStripTheme();
-  }, [themeTick, locale]);
+    labelRef.current = t.resizeSidebar;
+    langRef.current = locale;
+  });
 
   const layoutRef = useRef(options.layout);
   layoutRef.current = options.layout;
@@ -124,6 +131,8 @@ export function useDividerStrip(options: {
   visibleRef.current = visible;
 
   const shownRef = useRef(false);
+  const dragRef = useRef({ active: false, startWidth: 0, totalDx: 0, latestWidth: 0, lastSeq: 0 });
+  const rafRef = useRef<number | null>(null);
   const computeBounds = useCallback(() => {
     const panel = panelRef.current;
     if (!panel) {
@@ -160,6 +169,15 @@ export function useDividerStrip(options: {
             langRef.current,
           );
           shownRef.current = true;
+          // N-1：show 即加载全新条页，其 seq 从 0 重计——旧 lastSeq 作废，
+          // 否则重建后首轮拖拽被 M-1 守卫误杀。N-3：若重建恰发生在拖拽按住
+          // 期间（极窄窗口），同步脱可能残留的拖拽态（与 M-3 卸载清理等价）。
+          dragRef.current.lastSeq = 0;
+          if (dragRef.current.active) {
+            dragRef.current.active = false;
+            document.body.classList.remove('adl-is-resizing');
+            panelRef.current?.closest('.adl-shell__body')?.classList.remove('is-resizing');
+          }
         } else {
           await bridge.dividerStripSetBounds(bounds);
         }
@@ -167,7 +185,7 @@ export function useDividerStrip(options: {
         shownRef.current = false;
       }
     },
-    [computeBounds],
+    [computeBounds, panelRef],
   );
   const reconcileRef = useRef(reconcile);
   reconcileRef.current = reconcile;
@@ -188,10 +206,9 @@ export function useDividerStrip(options: {
     return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const dragRef = useRef({ active: false, startWidth: 0, totalDx: 0, latestWidth: 0, lastSeq: 0 });
-  const rafRef = useRef<number | null>(null);
-
   useEffect(() => {
+    const dragState = dragRef.current;
+    const panel = panelRef.current;
     const hideNow = () => {
       shownRef.current = false;
       window.digitalLife?.browser?.dividerStripHide().catch(() => {
@@ -205,9 +222,14 @@ export function useDividerStrip(options: {
         window.cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
+      // M-3：拖拽中途卸载时同步脱 resizing 态，防 body/shell 类泄漏。
+      // 与 setResizing(false) 等价（同一 hook 生命周期，DOM 手柄侧无存活拖拽）。
+      dragState.active = false;
+      document.body.classList.remove('adl-is-resizing');
+      panel?.closest('.adl-shell__body')?.classList.remove('is-resizing');
       hideNow();
     };
-  }, []);
+  }, [panelRef]);
 
   useEffect(() => {
     if (!isTauriShell()) {
@@ -221,6 +243,10 @@ export function useDividerStrip(options: {
 
     return subscribeChannel<StripDragPayload>('digital-life://divider-strip-drag', (payload) => {
       const drag = dragRef.current;
+      // M-1：start 同样保序——迟到/重复的旧 start 不得复活已结束的拖拽。
+      if (payload.seq <= drag.lastSeq) {
+        return;
+      }
       if (payload.phase === 'start') {
         drag.lastSeq = payload.seq;
         drag.active = true;

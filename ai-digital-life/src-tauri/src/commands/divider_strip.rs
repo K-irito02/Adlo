@@ -51,9 +51,8 @@ pub async fn divider_strip_show(
                 .ok_or_else(|| AppError::Internal("main window not found".into()))?;
             // Validate before destroying: a transient bad input must not take
             // down a healthy strip (S19).
-            let sanitized = sanitize_strip_bounds(&bounds).ok_or_else(|| {
-                AppError::Internal("divider strip: non-finite bounds".into())
-            })?;
+            let sanitized = sanitize_strip_bounds(&bounds)
+                .ok_or_else(|| AppError::Internal("divider strip: non-finite bounds".into()))?;
             destroy_strip_view(&window)?;
 
             let config_script = strip_init_script(&theme, &aria_label, &lang)?;
@@ -86,7 +85,10 @@ pub async fn divider_strip_show(
                     tauri::LogicalSize::new(800.0, 600.0),
                 )
                 .map_err(|e| AppError::Internal(format!("failed to create divider strip: {e}")))?;
-            set_strip_bounds(&window, &sanitized)?;
+            // 建窗失败不留离屏残留：失败原子化（L-1）。
+            set_strip_bounds(&window, &sanitized).inspect_err(|_| {
+                let _ = destroy_strip_view(&window);
+            })?;
             Ok(())
         })();
         let _ = tx.send(result);
@@ -211,8 +213,8 @@ fn set_strip_bounds(window: &tauri::Window<tauri::Wry>, bounds: &Bounds) -> Resu
 
 /// Inject the strip runtime config before page scripts run.
 fn strip_init_script(theme: &StripTheme, aria_label: &str, lang: &str) -> Result<String, AppError> {
-    let theme_json =
-        serde_json::to_string(theme).map_err(|e| AppError::Internal(format!("strip theme: {e}")))?;
+    let theme_json = serde_json::to_string(theme)
+        .map_err(|e| AppError::Internal(format!("strip theme: {e}")))?;
     let label_json = serde_json::to_string(aria_label)
         .map_err(|e| AppError::Internal(format!("strip label: {e}")))?;
     let lang_json =

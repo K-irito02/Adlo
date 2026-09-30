@@ -23,18 +23,13 @@ pub const DIVIDER_STRIP_WIDTH_MAX: f64 = 16.0;
 /// treat `None` as no-op `Ok` instead of flashing the strip at the origin.
 /// Guards against transient layout states (panel collapsing, window minimizing).
 pub fn sanitize_strip_bounds(bounds: &Bounds) -> Option<Bounds> {
-    if ![bounds.x, bounds.y, bounds.width, bounds.height]
-        .iter()
-        .all(|v| v.is_finite())
-    {
+    if ![bounds.x, bounds.y, bounds.width, bounds.height].iter().all(|v| v.is_finite()) {
         return None;
     }
     Some(Bounds {
         x: bounds.x,
         y: bounds.y,
-        width: bounds
-            .width
-            .clamp(DIVIDER_STRIP_WIDTH_MIN, DIVIDER_STRIP_WIDTH_MAX),
+        width: bounds.width.clamp(DIVIDER_STRIP_WIDTH_MIN, DIVIDER_STRIP_WIDTH_MAX),
         height: bounds.height.max(1.0),
     })
 }

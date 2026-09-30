@@ -310,11 +310,7 @@ fn is_single_file_category(category: StorageCategory) -> bool {
 /// 单文件类的主库路径 `path` 加上伴生后缀（不改变文件名前缀）。
 fn companion_paths(path: &Path) -> Vec<PathBuf> {
     let s = path.to_string_lossy().to_string();
-    vec![
-        path.to_path_buf(),
-        PathBuf::from(format!("{s}-wal")),
-        PathBuf::from(format!("{s}-shm")),
-    ]
+    vec![path.to_path_buf(), PathBuf::from(format!("{s}-wal")), PathBuf::from(format!("{s}-shm"))]
 }
 
 /// 某分类的占用统计（双端 `category_statuses` 共用，事项 11c 统一口径）：
@@ -383,10 +379,7 @@ fn owned_files(category: StorageCategory, base: &Path) -> Result<Vec<PathBuf>, A
         // 以主库文件为基，伴生路径天然不在其下（白名单语义按目录结构判定，此处已验主库归属）。
         // 后缀构造复用 `companion_paths`（Phase 4 R3-11c-L1 去重），只收已存在文件。
         if is_single_file_category(category) {
-            return Ok(companion_paths(base)
-                .into_iter()
-                .filter(|p| p.is_file())
-                .collect());
+            return Ok(companion_paths(base).into_iter().filter(|p| p.is_file()).collect());
         }
         return Ok(vec![base.to_path_buf()]);
     }
@@ -1133,10 +1126,7 @@ mod tests {
         // 目录类保持有界遍历口径（本夹具 3 文件 / 15 字节）。
         assert_eq!(category_usage(StorageCategory::Config, &base), (15, 3));
         // 缺失落点 → (0, 0)。
-        assert_eq!(
-            category_usage(StorageCategory::Database, &base.join("missing.db")),
-            (0, 0)
-        );
+        assert_eq!(category_usage(StorageCategory::Database, &base.join("missing.db")), (0, 0));
         let _ = std::fs::remove_dir_all(&base);
     }
 

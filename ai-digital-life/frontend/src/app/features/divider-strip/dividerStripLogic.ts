@@ -23,7 +23,12 @@ export interface StripBounds {
   height: number;
 }
 
-/** 由面板 border-box 矩形推算桥接条 bounds（client 坐标，取整对齐 Physical 惯例）。 */
+/** 由面板 border-box 矩形推算桥接条 bounds（client 坐标，取整对齐 Physical 惯例）。
+ *
+ * 与 dsh/浏览器 tab WebView 同尺子（client px = physical px，scaleFactor≠1
+ * 时三者同向偏差、对齐仍成立）。若任一兄弟 bounds 改为 scaleFactor 换算，
+ * 本函数须同步，否则条带错位。
+ */
 export function stripBoundsFromPanelRect(rect: PanelRectLike): StripBounds | null {
   if (![rect.left, rect.top, rect.height].every(Number.isFinite) || rect.height <= 0) {
     return null;

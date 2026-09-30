@@ -117,13 +117,11 @@ fn sanitize_strip_bounds_keeps_sane_values() {
 
 #[test]
 fn sanitize_strip_bounds_clamps_degenerate_values() {
-    let narrow =
-        sanitize_strip_bounds(&Bounds { x: 0.0, y: 0.0, width: 0.0, height: 600.0 })
-            .expect("zero width clamps");
+    let narrow = sanitize_strip_bounds(&Bounds { x: 0.0, y: 0.0, width: 0.0, height: 600.0 })
+        .expect("zero width clamps");
     assert_eq!(narrow.width, DIVIDER_STRIP_WIDTH_MIN);
-    let wide =
-        sanitize_strip_bounds(&Bounds { x: 0.0, y: 0.0, width: 100.0, height: 600.0 })
-            .expect("huge width clamps");
+    let wide = sanitize_strip_bounds(&Bounds { x: 0.0, y: 0.0, width: 100.0, height: 600.0 })
+        .expect("huge width clamps");
     assert_eq!(wide.width, DIVIDER_STRIP_WIDTH_MAX);
     let flat = sanitize_strip_bounds(&Bounds { x: 0.0, y: 0.0, width: 6.0, height: 0.0 })
         .expect("zero height clamps");
