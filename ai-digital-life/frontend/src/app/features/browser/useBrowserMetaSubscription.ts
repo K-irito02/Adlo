@@ -26,6 +26,11 @@ export function useBrowserMetaSubscription(
       if (!eventTab) {
         return;
       }
+      // IPC 边界校验：畸形 meta（url 非字符串）会使下游归一化抛错并中断后续
+      // 事件分发，直接丢弃（正常后端恒发送有效载荷）。
+      if (!meta || typeof meta.url !== 'string') {
+        return;
+      }
       const normalizedMetaUrl = normalizeUrlForCompare(meta.url);
       // 注意：此处 URL 身份比较剥离 modal_id（normalizeUrlForCompare），与 handlePageMeta
       // 内部归一不完全一致——下游精确匹配为准，此处仅做事件标签的快速 URL 同步，

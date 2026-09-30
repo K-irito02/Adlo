@@ -88,10 +88,12 @@ export function useDividerStrip(options: {
       return;
     }
     // panelRef 在首个 effect 即就绪（同一组件拥有的 aside）；若容器挂载滞后导致
-    //  lookup 失败，回退到文档级查询，避免"订阅丢失 → 桥接条永不隐藏"的静默失效。
+    // lookup 失败，逐级回退到文档级查询直至 body（恒存在），避免"订阅丢失 →
+    // 桥接条永不隐藏"的静默失效。回退到 body 时 conservative：任一浮层即隐藏。
     const shell =
       (panelRef.current?.closest('.adl-shell__body') as HTMLElement | null) ??
-      (document.querySelector('.adl-shell__body') as HTMLElement | null);
+      document.querySelector<HTMLElement>('.adl-shell__body') ??
+      document.body;
     if (!shell) {
       return;
     }
@@ -265,6 +267,14 @@ export function useDividerStrip(options: {
 
     return subscribeChannel<StripDragPayload>('digital-life://divider-strip-drag', (payload) => {
       const drag = dragRef.current;
+      // IPC 边界校验：seq 必须有限（排序依据），phase 必须合法；畸形 payload
+      // 直接丢弃，不得写入 lastSeq（NaN 会毒化后续所有比较）或挂起拖拽态。
+      if (!payload || !Number.isFinite(payload.seq)) {
+        return;
+      }
+      if (payload.phase !== 'start' && payload.phase !== 'move' && payload.phase !== 'end') {
+        return;
+      }
       // M-1：start 同样保序——迟到/重复的旧 start 不得复活已结束的拖拽。
       if (payload.seq <= drag.lastSeq) {
         return;
@@ -281,6 +291,10 @@ export function useDividerStrip(options: {
       // :269 全局保序已保证 seq > lastSeq，且 start 分支是唯一的 lastSeq 写入点
       // 并直接 return，故此处 seq 比较恒为 false（死条件）——仅保留 active 守卫。
       if (!drag.active) {
+        return;
+      }
+      // move/end 消费 dx：必须有限，否则 totalDx 变 NaN 会污染面板宽度。
+      if (!Number.isFinite(payload.dx)) {
         return;
       }
       drag.lastSeq = payload.seq;

@@ -41,9 +41,13 @@
   width: 14px;
   /* 容器不吃指针事件：整条 14px 宽的高列若可命中，会压住任何与它重叠的浮层
      （与 .adl-tool-navigator__resize-handle 同一契约）。z-index 保持在弹层遮罩
-     （--z-modal-backdrop）之下，避免拖拽线穿透对话框等悬浮层。 */
+     （--z-modal-backdrop）之下，避免拖拽线穿透对话框等悬浮层。
+     命中区有意保持 3px（与文件导航/左侧栏拖拽线一致），不做更宽的隐形热区。 */
   z-index: var(--z-raised);
   pointer-events: none;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .adl-rightpanel__resize-handle::before {

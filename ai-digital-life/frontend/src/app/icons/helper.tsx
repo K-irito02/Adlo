@@ -108,4 +108,7 @@ export const makeFilledStroked = (
  *   - 用户提供的 SVG 可能使用不同的 viewBox（如 256x256 或 16x16）
  *   - SVG 会自动缩放到指定的 size，不同 viewBox 不影响最终显示效果
  *   - 保持原始 viewBox 可确保路径精度，避免缩放失真
+ * - 填充 + 描边图标使用 makeFilledStroked()，viewBox 由 SVG 源决定，
+ *   `strokeWidth` 以 viewBox 单位给出、随 `size` 等比缩放；用于大 viewBox
+ *   线框风格填充路径在小尺寸下的加粗
  */

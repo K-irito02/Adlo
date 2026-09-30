@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { useBrowserMetaSubscription } from './useBrowserMetaSubscription';
+import { normalizeUrlForCompare } from './browserUrlUtils';
 
 vi.mock('@shared/env', () => ({
   isTauriShell: () => true,
@@ -98,13 +99,68 @@ describe('useBrowserMetaSubscription', () => {
 
     renderHook(() => useBrowserMetaSubscription(handlePageMeta));
     const callback = listener.mock.calls[0][0];
-    callback('browser-1', {
+    const meta = {
       title: 'A',
       favicon: 'https://a.example/favicon.ico',
       url: 'https://a.example/page',
-    });
+    };
+    callback('browser-1', meta);
 
-    expect(browserUpdateTab).toHaveBeenCalledWith('browser-1', { url: expect.any(String) });
+    expect(browserUpdateTab).toHaveBeenCalledWith('browser-1', {
+      url: normalizeUrlForCompare(meta.url),
+    });
     expect(handlePageMeta).toHaveBeenCalledTimes(1);
+    expect(handlePageMeta).toHaveBeenCalledWith(meta);
+  });
+
+  it('attributes a background known tab without touching the active tab', () => {
+    const listener = vi.fn((_cb: MetaChangedCb) => () => {});
+    setMockBrowser({ onMetaChanged: listener });
+    const browserUpdateTab = vi.fn();
+    getState.mockReturnValue({
+      browserTabs: [
+        { id: 'browser-1', url: 'https://a.example' },
+        { id: 'browser-2', url: 'https://b.example' },
+      ],
+      browserUpdateTab,
+    });
+    const handlePageMeta = vi.fn();
+
+    renderHook(() => useBrowserMetaSubscription(handlePageMeta));
+    const callback = listener.mock.calls[0][0];
+    const meta = {
+      title: 'B2',
+      favicon: 'https://b.example/favicon.ico',
+      url: 'https://b.example/page2',
+    };
+    callback('browser-2', meta);
+
+    expect(browserUpdateTab).toHaveBeenCalledTimes(1);
+    expect(browserUpdateTab).toHaveBeenCalledWith('browser-2', {
+      url: normalizeUrlForCompare(meta.url),
+    });
+    expect(handlePageMeta).toHaveBeenCalledTimes(1);
+    expect(handlePageMeta).toHaveBeenCalledWith(meta);
+  });
+
+  it('drops malformed meta without throwing or writing', () => {
+    const listener = vi.fn((_cb: MetaChangedCb) => () => {});
+    setMockBrowser({ onMetaChanged: listener });
+    const browserUpdateTab = vi.fn();
+    getState.mockReturnValue({
+      browserTabs: [{ id: 'browser-1', url: 'https://a.example' }],
+      browserUpdateTab,
+    });
+    const handlePageMeta = vi.fn();
+
+    renderHook(() => useBrowserMetaSubscription(handlePageMeta));
+    const callback = listener.mock.calls[0][0];
+    expect(() => callback('browser-1', undefined as never)).not.toThrow();
+    expect(() =>
+      callback('browser-1', { title: 'X', favicon: '', url: undefined } as never),
+    ).not.toThrow();
+
+    expect(browserUpdateTab).not.toHaveBeenCalled();
+    expect(handlePageMeta).not.toHaveBeenCalled();
   });
 });

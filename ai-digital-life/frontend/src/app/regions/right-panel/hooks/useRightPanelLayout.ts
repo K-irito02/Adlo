@@ -4,6 +4,7 @@ import { persist } from '@stores/persisted/persist';
 import {
   applyRightPanelMode,
   applyRightPanelLastRestorableWidth,
+  OVERLAY_FULL_EPSILON_PX,
   readCachedRightPanelMode,
   readCachedRightPanelLastRestorableWidth,
   shouldPreserveOverlayFull,
@@ -103,7 +104,7 @@ export function useRightPanelLayout(collapsed: boolean) {
 
   const deriveRightPanelMode = useCallback(
     (width: number, metrics: RightPanelLayoutMetrics): RightPanelMode => {
-      if (width >= metrics.rightMaxWidth - 1) {
+      if (width >= metrics.rightMaxWidth - OVERLAY_FULL_EPSILON_PX) {
         return 'overlay_full';
       }
       if (width >= metrics.overlayThreshold) {
@@ -301,8 +302,22 @@ export function useRightPanelLayout(collapsed: boolean) {
     };
 
     syncWidthToLayout();
+    // 可见性恢复时直接同步：隐藏期间挂起的 rAF 可能被浏览器暂停而不触发，
+    // 不能把恢复寄托在它身上；先取消挂起帧再同步，保证恢复必算一次。
+    // resize 与 visibility 同时触发时由 syncFrame 合并与 sync 幂等消化。
+    const onVisibilityChange = () => {
+      if (document.hidden) {
+        queueSyncWidthToLayout();
+        return;
+      }
+      if (syncFrameRef.current !== null) {
+        window.cancelAnimationFrame(syncFrameRef.current);
+        syncFrameRef.current = null;
+      }
+      syncWidthToLayout();
+    };
     window.addEventListener('resize', queueSyncWidthToLayout);
-    document.addEventListener('visibilitychange', queueSyncWidthToLayout);
+    document.addEventListener('visibilitychange', onVisibilityChange);
     const shellBody = panelRef.current?.closest('.adl-shell__body') as HTMLElement | null;
     const leftbar = shellBody?.querySelector('.adl-leftbar') as HTMLElement | null;
     const leftbarResizeObserver =
@@ -316,7 +331,7 @@ export function useRightPanelLayout(collapsed: boolean) {
 
     return () => {
       window.removeEventListener('resize', queueSyncWidthToLayout);
-      document.removeEventListener('visibilitychange', queueSyncWidthToLayout);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
       if (syncFrameRef.current !== null) {
         window.cancelAnimationFrame(syncFrameRef.current);
         syncFrameRef.current = null;

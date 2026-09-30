@@ -84,8 +84,17 @@ export function deriveRightPanelOverlayState(
  *   浏览器模式下无最小尺寸约束、极小视口同样跳过：方向是安全的（只推迟同步、
  *   不污染持久化宽度；窗口放大后即补算），而非显示回归。
  */
+// 最小化过渡态判定阈值：取 Tauri 最小窗口约束（640x480）的一半作余量，覆盖
+// 边框/DPI 偏差；用户正常缩放永远到不了这么小，浏览器模式极小窗口同样推迟
+// 同步（只推迟、不污染持久化，窗口放大后即补算——安全方向）。
 export const MINIMIZED_VIEWPORT_WIDTH_GUARD = 320;
 export const MINIMIZED_VIEWPORT_HEIGHT_GUARD = 240;
+
+/**
+ * 判定"面板占满 shell"的容差（px）：`deriveRightPanelMode`（hook 内）与
+ * `shouldPreserveOverlayFull` 共用，避免两处漂移重演"陈旧 full 锁死"回归。
+ */
+export const OVERLAY_FULL_EPSILON_PX = 1;
 
 export function shouldSkipPassiveLayoutSync(
   hidden: boolean,
@@ -123,5 +132,5 @@ export function shouldPreserveOverlayFull(
   width: number,
   rightMaxWidth: number,
 ): boolean {
-  return mode === 'overlay_full' && width >= rightMaxWidth - 1;
+  return mode === 'overlay_full' && width >= rightMaxWidth - OVERLAY_FULL_EPSILON_PX;
 }

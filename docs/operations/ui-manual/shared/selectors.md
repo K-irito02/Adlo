@@ -183,7 +183,7 @@ a[aria-label="帮助"]
 | 审计面板     | `#audit-panel` 或 `[aria-labelledby*="audit"]`       |
 | 模型面板     | `#models-panel` 或 `[aria-labelledby*="models"]`     |
 | 设置面板     | `#settings-panel` 或 `[aria-labelledby*="settings"]` |
-| 调整手柄     | `.adl-rightpanel__resize-handle`                     |
+| 调整手柄     | `.adl-rightpanel__resize-handle`                     | ⚠️ 仅 3px `::before` 线可拖拽（容器不吃指针，层级低于弹层遮罩） |
 
 ## 注意事项
 
