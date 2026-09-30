@@ -231,7 +231,12 @@
 /* -------- Host region (iframe / WebView container) -------- */
 .adl-app-host {
   position: absolute;
-  inset: 0;
+  top: 0;
+  /* 常驻 DOM 沟槽：右缘内缩让出分隔线命中带（右面板 resize handle），
+     WebView bounds 经 getBoundingClientRect 镜像自动跟随。契约见 divider-gutter.test.ts */
+  right: 8px;
+  bottom: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
   background: var(--bg);

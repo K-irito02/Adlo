@@ -109,6 +109,9 @@
 .adl-tool-primary--browser {
   position: relative;
   overflow: hidden;
+  /* 常驻 DOM 沟槽：与 .adl-app-host 的 right 内缩共同覆盖 resize handle 命中带，
+     侧边栏收起时浏览器 WebView 不再贴边遮挡分隔线。契约见 divider-gutter.test.ts */
+  margin-left: 6px;
 }
 
 .adl-browser-iframe {
