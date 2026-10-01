@@ -620,7 +620,6 @@ const CommitTableRows = React.memo(
                     />
                   }
                   placement="right"
-                  showArrow
                   maxWidth={400}
                   className="adl-hint-card"
                 >

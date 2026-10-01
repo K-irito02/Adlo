@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tooltip 三种悬浮样式预览（A / B / C）</title>
+<style>
+  :root {
+    --page-bg: #f3f4f6;
+    --page-fg: #171717;
+    --card-bg: #ffffff;
+    --card-border: #e5e7eb;
+    --muted: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--page-bg);
+    color: var(--page-fg);
+    padding: 32px 24px 80px;
+  }
+  h1 { font-size: 22px; margin: 0 0 8px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+  .sub code { background: #eef0f3; padding: 1px 6px; border-radius: 4px; font-size: 12px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 20px; max-width: 1200px; }
+  .variant-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05);
+  }
+  .variant-card h2 { font-size: 16px; margin: 0 0 4px; }
+  .variant-card p.desc { font-size: 13px; color: var(--muted); margin: 0 0 16px; line-height: 1.6; }
+  .spec { font-size: 12px; color: var(--muted); background: #f8fafc; border: 1px solid #eef1f4; border-radius: 6px; padding: 8px 10px; margin-bottom: 16px; line-height: 1.7; }
+  .demo-row { border-radius: 8px; padding: 36px 16px 30px; display: flex; gap: 28px; justify-content: center; align-items: center; margin-bottom: 12px; }
+  .demo-row.light { background: #ffffff; border: 1px solid #e5e7eb; color: #171717; }
+  .demo-row.dark { background: #1b1d21; border: 1px solid #2c2f36; color: #f3f4f6; }
+  .demo-label { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 16px; }
+
+  /* ---- trigger button ---- */
+  .trigger {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 120px;
+    padding: 8px 16px;
+    font-size: 13px;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
+    background: #fff;
+    color: #111;
+    cursor: default;
+    user-select: none;
+  }
+  .demo-row.dark .trigger { background: #26292f; border-color: #3a3e47; color: #f3f4f6; }
+
+  /* ---- tooltip base (no arrow, same-theme surface, transition) ---- */
+  .tip {
+    position: absolute;
+    bottom: calc(100% + 10px);
+    left: 50%;
+    white-space: nowrap;
+    font-size: 12px;
+    line-height: 1.5;
+    padding: 6px 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 150ms ease, transform 150ms ease;
+  }
+  .trigger:hover .tip, .trigger:focus-visible .tip {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  /* keep visible for screenshot-style comparison too */
+  .tip.always { opacity: 1; }
+
+  /* ---- A: 轻悬浮纸片 ---- */
+  .tip-a { border-radius: 4px; transform: translate(-50%, 4px); transition: opacity 150ms ease-out, transform 150ms ease-out; }
+  .trigger:hover .tip-a { transform: translate(-50%, 0); }
+  .demo-row.light .tip-a { background: #ffffff; color: #171717; border: 1px solid #e2e4e9; box-shadow: 0 8px 24px rgba(0,0,0,.18), 0 2px 6px rgba(0,0,0,.12); }
+  .demo-row.dark .tip-a { background: #26292f; color: #f3f4f6; border: 1px solid #3a3e47; box-shadow: 0 8px 24px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.4); }
+
+  /* ---- B: 强悬浮玻璃层 ---- */
+  .tip-b { border-radius: 2px; transform: translate(-50%, 3px) scale(.96); transition: opacity 180ms ease-out, transform 180ms ease-out; }
+  .trigger:hover .tip-b { transform: translate(-50%, 0) scale(1); }
+  .demo-row.light .tip-b { background: rgba(255,255,255,.92); color: #171717; border: 1px solid #dfe2e8; box-shadow: 0 16px 40px rgba(0,0,0,.24), 0 4px 12px rgba(0,0,0,.16); backdrop-filter: blur(8px); }
+  .demo-row.dark .tip-b { background: rgba(38,41,47,.92); color: #f3f4f6; border: 1px solid #434854; box-shadow: 0 16px 40px rgba(0,0,0,.65), 0 4px 12px rgba(0,0,0,.45); backdrop-filter: blur(8px); }
+
+  /* ---- C: 脆边小浮签 ---- */
+  .tip-c { border-radius: 3px; transform: translate(-50%, 2px); transition: opacity 120ms ease-out, transform 120ms ease-out; }
+  .trigger:hover .tip-c { transform: translate(-50%, 0); }
+  .demo-row.light .tip-c { background: #fafbfc; color: #1c1e21; border: 1px solid #c9cdd4; box-shadow: 0 4px 16px rgba(0,0,0,.16), 0 1px 2px rgba(0,0,0,.10); }
+  .demo-row.dark .tip-c { background: #202329; color: #eef0f3; border: 1px solid #4a505c; box-shadow: 0 4px 16px rgba(0,0,0,.6), 0 1px 2px rgba(0,0,0,.4); }
+
+  .hint { max-width: 1200px; margin-top: 24px; font-size: 13px; color: var(--muted); line-height: 1.8; }
+  @media (prefers-reduced-motion: reduce) {
+    .tip { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+  <h1>Tooltip 悬浮样式预览 — A / B / C</h1>
+  <div class="sub">把鼠标悬停在每个按钮上查看出现 / 消失过渡动画。共性：<code>同主题表面色（非反色）</code> · <code>无箭头</code> · <code>偏直角</code> · <code>悬浮阴影</code>。左边浅色行 = 亮主题，右边深色行 = 暗主题。</div>
+
+  <div class="grid">
+    <section class="variant-card">
+      <h2>A — 轻悬浮纸片（推荐）</h2>
+      <p class="desc">干净通用，最像原生悬浮层。动效：透明度 + 上浮 4px。</p>
+      <div class="spec">圆角 4px · 1px 边框 · 阴影 0 8px 24px + 0 2px 6px<br/>进入 150ms / 退出 100ms</div>
+      <div class="demo-label">亮主题</div>
+      <div class="demo-row light">
+        <span class="trigger" tabindex="0">悬停我<span class="tip tip-a">这是轻悬浮纸片 tooltip</span></span>
+        <span class="trigger" tabindex="0">较长文本<span class="tip tip-a">支持较长的提示文本内容换行显示效果</span></span>
+      </div>
+      <div class="demo-label">暗主题</div>
+      <div class="demo-row dark">
+        <span class="trigger" tabindex="0">悬停我<span class="tip tip-a">这是轻悬浮纸片 tooltip</span></span>
+        <span class="trigger" tabindex="0">较长文本<span class="tip tip-a">支持较长的提示文本内容换行显示效果</span></span>
+      </div>
+    </section>
+
+    <section class="variant-card">
+      <h2>B — 强悬浮玻璃层</h2>
+      <p class="desc">存在感最强，明显漂在界面之上。动效：透明度 + 缩放 .96→1 + 上浮。</p>
+      <div class="spec">圆角 2px（最直角）· 双层深阴影 · backdrop-blur(8px)<br/>进入 180ms / 带轻微 spring 感</div>
+      <div class="demo-label">亮主题</div>
+      <div class="demo-row light">
+        <span class="trigger" tabindex="0">悬停我<span class="tip tip-b">这是强悬浮玻璃层 tooltip</span></span>
+        <span class="trigger" tabindex="0">较长文本<span class="tip tip-b">支持较长的提示文本内容换行显示效果</span></span>
+      </div>
+      <div class="demo-label">暗主题</div>
+      <div class="demo-row dark">
+        <span class="trigger" tabindex="0">悬停我<span class="tip tip-b">这是强悬浮玻璃层 tooltip</span></span>
+        <span class="trigger" tabindex="0">较长文本<span class="tip tip-b">支持较长的提示文本内容换行显示效果</span></span>
+      </div>
+    </section>
+
+    <section class="variant-card">
+      <h2>C — 脆边小浮签</h2>
+      <p class="desc">最克制，接近编辑器 hover 提示。动效：只有透明度 + 2px 微浮，无缩放。</p>
+      <div class="spec">圆角 3px · 高对比边框 · 小阴影 0 4px 16px + 0 1px 2px<br/>进入/退出 120ms，最稳不晃</div>
+      <div class="demo-label">亮主题</div>
+      <div class="demo-row light">
+        <span class="trigger" tabindex="0">悬停我<span class="tip tip-c">这是脆边小浮签 tooltip</span></span>
+        <span class="trigger" tabindex="0">较长文本<span class="tip tip-c">支持较长的提示文本内容换行显示效果</span></span>
+      </div>
+      <div class="demo-label">暗主题</div>
+      <div class="demo-row dark">
+        <span class="trigger" tabindex="0">悬停我<span class="tip tip-c">这是脆边小浮签 tooltip</span></span>
+        <span class="trigger" tabindex="0">较长文本<span class="tip tip-c">支持较长的提示文本内容换行显示效果</span></span>
+      </div>
+    </section>
+  </div>
+
+  <div class="hint">
+    挑选方式：直接回复 A / B / C，或混搭（例如“A 的阴影 + C 的动效”“B 的圆角 + A 的阴影”）。<br/>
+    选定后我才会去改 <code>frontend/src/styles/components/tooltip.css</code> 与 token，当前项目代码未做任何改动。
+  </div>
+</body>
+</html>

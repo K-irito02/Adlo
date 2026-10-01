@@ -571,10 +571,12 @@ html:not(.no-transition) [data-theme] {
   /* === Border Alias (unified) === */
   --border: var(--border-default);
 
-  /* === Tooltip (inverse: light bg + dark text on dark bg) === */
-  --tooltip-bg: rgba(255, 255, 255, 0.86);
-  --tooltip-fg: #111;
-  --tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  /* === Tooltip (same-theme 3D button surface; bg/fg inherit tokens.css mapping) === */
+  --tooltip-bg-top: #33363d;
+  --tooltip-bg-bottom: #212329;
+  --tooltip-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.13), 0 2px 6px rgba(0, 0, 0, 0.35),
+    0 8px 18px -4px rgba(0, 0, 0, 0.5);
 
   /* === Horizontal Scrollbar (dot indicator) === */
   --hscroll-thumb-bg: rgba(255, 255, 255, 1);

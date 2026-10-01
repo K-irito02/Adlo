@@ -1,8 +1,8 @@
 /* ==========================================================================
    Tooltip
    --------------------------------------------------------------------------
-   - Fixed-position tooltip with CSS arrow
-   - Open/closed state transitions
+   - Fixed-position floating tooltip (same-theme surface, no arrow)
+   - Open/closed state transitions (opacity + rise)
    - Dismissible mode with close button
    - Reduced motion support
    ========================================================================== */
@@ -11,9 +11,10 @@
 .tooltip {
   position: fixed;
   z-index: var(--z-tooltip);
-  background: var(--tooltip-bg);
+  background: linear-gradient(to bottom, var(--tooltip-bg-top), var(--tooltip-bg-bottom));
   color: var(--tooltip-fg);
   padding: var(--space-1-5) var(--space-3);
+  border: none;
   border-radius: var(--tooltip-radius);
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
@@ -22,49 +23,24 @@
   overflow-wrap: break-word;
   pointer-events: auto;
   box-shadow: var(--tooltip-shadow);
+  transform: translateY(4px);
 }
 
 .tooltip[data-state='open'] {
-  transition: opacity var(--duration-150) var(--ease-enter);
+  transition:
+    opacity var(--duration-150) var(--ease-enter),
+    transform var(--duration-150) var(--ease-enter);
   opacity: 1;
+  transform: translateY(0);
 }
 
 .tooltip[data-state='closed'] {
-  transition: opacity var(--duration-100) var(--ease-exit);
+  transition:
+    opacity var(--duration-100) var(--ease-exit),
+    transform var(--duration-100) var(--ease-exit);
   opacity: 0;
+  transform: translateY(4px);
   pointer-events: none;
-}
-
-/* --- Arrow (CSS-only via clip-path) --- */
-.tooltip__arrow {
-  position: absolute;
-  width: 8px;
-  height: 8px;
-  background: inherit;
-  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-}
-
-.tooltip[data-side='top'] .tooltip__arrow {
-  bottom: -7px;
-  left: calc(50% - 4px);
-  transform: rotate(180deg);
-}
-
-.tooltip[data-side='bottom'] .tooltip__arrow {
-  top: -7px;
-  left: calc(50% - 4px);
-}
-
-.tooltip[data-side='left'] .tooltip__arrow {
-  right: -6px;
-  top: calc(50% - 4px);
-  transform: rotate(90deg);
-}
-
-.tooltip[data-side='right'] .tooltip__arrow {
-  left: -6px;
-  top: calc(50% - 4px);
-  transform: rotate(-90deg);
 }
 
 /* --- Content wrapper --- */

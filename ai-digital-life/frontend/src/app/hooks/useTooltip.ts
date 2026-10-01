@@ -5,6 +5,7 @@ import {
   computePosition,
   type PositionResult,
 } from '../utils/tooltipPosition';
+import { getWebViewAvoidRects } from '../utils/webviewAvoidRects';
 
 export interface UseTooltipOptions {
   trigger?: 'hover' | 'focus' | 'click' | 'manual';
@@ -109,6 +110,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       placement: defaultPlacement,
       alignment: align,
       offset: sideOffset,
+      avoidRects: getWebViewAvoidRects(),
     });
 
     setPosition(result);

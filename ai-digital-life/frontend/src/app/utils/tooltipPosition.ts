@@ -5,8 +5,17 @@ export interface PositionResult {
   x: number;
   y: number;
   placement: Placement;
-  arrowX?: number;
-  arrowY?: number;
+}
+
+/**
+ * WebView2 是 OS 级渲染表面，DOM tooltip 永远盖不住它。
+ * 调用方可传入 WebView 容器矩形，定位时优先选择不与之重叠的一侧。
+ */
+export interface AvoidRect {
+  left: number;
+  top: number;
+  right: number;
+  bottom: number;
 }
 
 export interface TooltipPositionOptions {
@@ -16,6 +25,7 @@ export interface TooltipPositionOptions {
   alignment?: Alignment;
   offset?: number;
   viewportPadding?: number;
+  avoidRects?: AvoidRect[];
 }
 
 const OPPOSITE_MAP: Record<Placement, Placement> = {
@@ -69,50 +79,6 @@ function setCrossAxisCoord(result: PositionResult, placement: Placement, value: 
     case 'left':
     case 'right':
       result.y = value;
-      break;
-  }
-}
-
-function computeArrowPosition(
-  result: PositionResult,
-  triggerRect: DOMRect,
-  placement: Placement,
-  alignment: Alignment,
-): void {
-  const arrowSize = 8;
-
-  switch (placement) {
-    case 'top':
-      result.arrowX =
-        alignment === 'center'
-          ? triggerRect.left + triggerRect.width / 2 - result.x - arrowSize / 2
-          : alignment === 'start'
-            ? triggerRect.left - result.x + triggerRect.width * 0.25
-            : triggerRect.right - result.x - triggerRect.width * 0.25 - arrowSize;
-      break;
-    case 'bottom':
-      result.arrowX =
-        alignment === 'center'
-          ? triggerRect.left + triggerRect.width / 2 - result.x - arrowSize / 2
-          : alignment === 'start'
-            ? triggerRect.left - result.x + triggerRect.width * 0.25
-            : triggerRect.right - result.x - triggerRect.width * 0.25 - arrowSize;
-      break;
-    case 'left':
-      result.arrowY =
-        alignment === 'center'
-          ? triggerRect.top + triggerRect.height / 2 - result.y - arrowSize / 2
-          : alignment === 'start'
-            ? triggerRect.top - result.y + triggerRect.height * 0.25
-            : triggerRect.bottom - result.y - triggerRect.height * 0.25 - arrowSize;
-      break;
-    case 'right':
-      result.arrowY =
-        alignment === 'center'
-          ? triggerRect.top + triggerRect.height / 2 - result.y - arrowSize / 2
-          : alignment === 'start'
-            ? triggerRect.top - result.y + triggerRect.height * 0.25
-            : triggerRect.bottom - result.y - triggerRect.height * 0.25 - arrowSize;
       break;
   }
 }
@@ -211,9 +177,42 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
       setCrossAxisCoord(localResult, placementToUse, clampedCross);
     }
 
-    computeArrowPosition(localResult, triggerRect, placementToUse, alignment);
-
     return localResult;
+  }
+
+  // 仅当传入 avoidRects 时走避让分支：按 首选 → 对侧 → 其余两侧 依次试算，
+  // 第一个"视口内 + 不与任何避让矩形重叠"的位置胜出；都不满足则回退到原有逻辑。
+  // avoidRects 为空时保持原有行为不变（不尝试左右侧，避免窄视口行为变化）。
+  if (options.avoidRects && options.avoidRects.length > 0) {
+    const avoidRects = options.avoidRects;
+    const others: Placement[] = (['top', 'bottom', 'left', 'right'] as Placement[]).filter(
+      (p) => p !== placement && p !== OPPOSITE_MAP[placement],
+    );
+    const trialOrder: Placement[] = [placement, OPPOSITE_MAP[placement], ...others];
+
+    const overlapsAvoid = (result: PositionResult): boolean => {
+      const left = result.x;
+      const top = result.y;
+      const right = result.x + tooltipRect.width;
+      const bottom = result.y + tooltipRect.height;
+      return avoidRects.some(
+        (r) => left < r.right && right > r.left && top < r.bottom && bottom > r.top,
+      );
+    };
+
+    const mainAxisFits = (result: PositionResult, placementToUse: Placement): boolean => {
+      const horizontal = placementToUse === 'top' || placementToUse === 'bottom';
+      const size = horizontal ? tooltipRect.height : tooltipRect.width;
+      const coord = getMainAxisCoord(result, placementToUse);
+      return fitsInViewport(coord, size, (horizontal ? 'y' : 'x') as 'x' | 'y', viewportPadding);
+    };
+
+    for (const trial of trialOrder) {
+      const candidate = calculate(trial);
+      if (mainAxisFits(candidate, trial) && !overlapsAvoid(candidate)) {
+        return candidate;
+      }
+    }
   }
 
   const initialResult = calculate(currentPlacement);

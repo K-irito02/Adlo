@@ -27,7 +27,6 @@ export const FoldTooltipContent = React.memo(function FoldTooltipContent({
       className="tooltip"
       style={style}
     >
-      <span className="tooltip__arrow" />
       <span className="tooltip__content">{text}</span>
     </div>,
     document.body,

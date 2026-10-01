@@ -127,7 +127,19 @@ describe('tooltipPosition', () => {
       expect(result.x).toBe(120);
     });
 
-    it('calculates arrow position for top placement', () => {
+    it('returns position without arrow fields (arrow removed)', () => {
+      const triggerRect = createMockDOMRect({ top: 200, left: 100, width: 100, height: 50 });
+      const tooltipRect = { width: 80, height: 30 };
+
+      for (const placement of ['top', 'bottom', 'left', 'right'] as const) {
+        const result = computePosition({ triggerRect, tooltipRect, placement });
+        expect(result.placement).toBe(placement);
+        expect('arrowX' in result).toBe(false);
+        expect('arrowY' in result).toBe(false);
+      }
+    });
+
+    it('keeps preferred placement when it does not overlap avoidRects', () => {
       const triggerRect = createMockDOMRect({ top: 200, left: 100, width: 100, height: 50 });
       const tooltipRect = { width: 80, height: 30 };
 
@@ -135,48 +147,99 @@ describe('tooltipPosition', () => {
         triggerRect,
         tooltipRect,
         placement: 'top',
+        offset: 8,
+        avoidRects: [{ left: 1500, top: 800, right: 1900, bottom: 1000 }],
       });
 
-      expect(result.arrowX).toBeDefined();
+      expect(result.placement).toBe('top');
+      expect(result.y).toBe(200 - 30 - 8);
     });
 
-    it('calculates arrow position for bottom placement', () => {
-      const triggerRect = createMockDOMRect({ top: 100, left: 100, width: 100, height: 50 });
+    it('flips to opposite side when preferred placement overlaps avoidRects', () => {
+      const triggerRect = createMockDOMRect({
+        top: 200,
+        left: 100,
+        width: 100,
+        height: 50,
+        right: 200,
+        bottom: 250,
+      });
       const tooltipRect = { width: 80, height: 30 };
 
+      // 盖住 top 位置（x:110..190, y:162..192）
       const result = computePosition({
         triggerRect,
         tooltipRect,
-        placement: 'bottom',
+        placement: 'top',
+        offset: 8,
+        avoidRects: [{ left: 0, top: 150, right: 300, bottom: 200 }],
       });
 
-      expect(result.arrowX).toBeDefined();
+      expect(result.placement).toBe('bottom');
+      expect(result.y).toBe(250 + 8);
     });
 
-    it('calculates arrow position for left placement', () => {
-      const triggerRect = createMockDOMRect({ top: 100, left: 200, width: 100, height: 50 });
+    it('tries remaining sides when both preferred and opposite overlap', () => {
+      const triggerRect = createMockDOMRect({
+        top: 500,
+        left: 900,
+        width: 100,
+        height: 50,
+        right: 1000,
+        bottom: 550,
+      });
       const tooltipRect = { width: 80, height: 30 };
 
+      // 上下都被盖住，左右空旷 → 应选 left（trialOrder 中 left 先于 right）
       const result = computePosition({
         triggerRect,
         tooltipRect,
-        placement: 'left',
+        placement: 'top',
+        offset: 8,
+        avoidRects: [
+          { left: 0, top: 400, right: 1920, bottom: 500 },
+          { left: 0, top: 550, right: 1920, bottom: 650 },
+        ],
       });
 
-      expect(result.arrowY).toBeDefined();
+      expect(result.placement).toBe('left');
+      const tip = {
+        left: result.x,
+        top: result.y,
+        right: result.x + tooltipRect.width,
+        bottom: result.y + tooltipRect.height,
+      };
+      const avoidRects = [
+        { left: 0, top: 400, right: 1920, bottom: 500 },
+        { left: 0, top: 550, right: 1920, bottom: 650 },
+      ];
+      const overlaps = avoidRects.some(
+        (r) => tip.left < r.right && tip.right > r.left && tip.top < r.bottom && tip.bottom > r.top,
+      );
+      expect(overlaps).toBe(false);
     });
 
-    it('calculates arrow position for right placement', () => {
-      const triggerRect = createMockDOMRect({ top: 100, left: 100, width: 100, height: 50 });
+    it('falls back to original behavior when every side overlaps avoidRects', () => {
+      const triggerRect = createMockDOMRect({ top: 10, left: 100, width: 100, height: 50 });
       const tooltipRect = { width: 80, height: 30 };
+      const giant = [{ left: 0, top: 0, right: 1920, bottom: 1080 }];
 
-      const result = computePosition({
+      const withAvoid = computePosition({
         triggerRect,
         tooltipRect,
-        placement: 'right',
+        placement: 'top',
+        offset: 8,
+        avoidRects: giant,
+      });
+      const withoutAvoid = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
       });
 
-      expect(result.arrowY).toBeDefined();
+      expect(withAvoid).toEqual(withoutAvoid);
+      expect(withAvoid.placement).toBe('bottom');
     });
 
     it('flips placement when not fitting in viewport', () => {

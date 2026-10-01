@@ -14,7 +14,6 @@ import { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from '../ho
 
 interface TooltipContextValue extends UseTooltipReturn {
   dismissible: boolean;
-  showArrow: boolean;
 }
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
@@ -50,7 +49,6 @@ export interface TooltipProps {
   sideOffset?: number;
   align?: Alignment;
   dismissible?: boolean;
-  showArrow?: boolean;
 }
 
 export function Tooltip({
@@ -65,7 +63,6 @@ export function Tooltip({
   sideOffset,
   align = 'center',
   dismissible = false,
-  showArrow = true,
 }: TooltipProps) {
   const tooltip = useTooltip({
     trigger,
@@ -83,9 +80,8 @@ export function Tooltip({
     () => ({
       ...tooltip,
       dismissible,
-      showArrow,
     }),
-    [tooltip, dismissible, showArrow],
+    [tooltip, dismissible],
   );
 
   return <TooltipContext.Provider value={contextValue}>{children}</TooltipContext.Provider>;
@@ -204,7 +200,6 @@ const TooltipContentInner = memo(function TooltipContentInner({
   handleTooltipEnter,
   handleTooltipLeave,
   dismissible,
-  showArrow,
   className,
   id,
 }: {
@@ -218,7 +213,6 @@ const TooltipContentInner = memo(function TooltipContentInner({
   handleTooltipEnter: () => void;
   handleTooltipLeave: () => void;
   dismissible: boolean;
-  showArrow: boolean;
   className?: string;
   id?: string;
 }) {
@@ -246,15 +240,6 @@ const TooltipContentInner = memo(function TooltipContentInner({
       onMouseEnter={handleTooltipEnter}
       onMouseLeave={handleTooltipLeave}
     >
-      {showArrow && position && (
-        <span
-          className="tooltip__arrow"
-          style={{
-            left: position.arrowX !== null ? `${position.arrowX}px` : undefined,
-            top: position.arrowY !== null ? `${position.arrowY}px` : undefined,
-          }}
-        />
-      )}
       <span className="tooltip__content">{children}</span>
       {dismissible && (
         <button
@@ -309,7 +294,6 @@ export function TooltipContent({
     handleTooltipEnter,
     handleTooltipLeave,
     dismissible,
-    showArrow,
   } = useTooltipContext();
 
   const [mounted, setMounted] = useState(false);
@@ -342,7 +326,6 @@ export function TooltipContent({
       handleTooltipEnter={handleTooltipEnter}
       handleTooltipLeave={handleTooltipLeave}
       dismissible={dismissible}
-      showArrow={showArrow}
       className={className}
       id={id}
     >
@@ -361,7 +344,6 @@ export interface TooltipSimpleProps {
   hideDelay?: number;
   trigger?: UseTooltipOptions['trigger'];
   dismissible?: boolean;
-  showArrow?: boolean;
   maxWidth?: number;
   className?: string;
   open?: boolean;
@@ -379,7 +361,6 @@ export function TooltipSimple({
   hideDelay,
   trigger,
   dismissible,
-  showArrow,
   maxWidth,
   className,
   open,
@@ -393,7 +374,6 @@ export function TooltipSimple({
       showDelay={showDelay}
       hideDelay={hideDelay}
       dismissible={dismissible}
-      showArrow={showArrow}
       maxWidth={maxWidth}
       open={open}
       onOpenChange={onOpenChange}
