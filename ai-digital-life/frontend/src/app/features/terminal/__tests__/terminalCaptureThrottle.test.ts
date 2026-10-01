@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createThrottledRunner } from '../useTerminalPtyLifecycle';
+import { createThrottledRunner } from '../terminalPtyRuntime';
 
 afterEach(() => {
   vi.useRealTimers();

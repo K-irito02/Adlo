@@ -4,6 +4,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { STORAGE_HYDRATION_DELAY_MS } from '@stores/constants';
 import type { TerminalTabState } from '@stores/slices/terminalSliceTypes';
 import { useTerminalPtyLifecycle } from '../useTerminalPtyLifecycle';
+import { terminalPtyRuntime } from '../terminalPtyRuntime';
 import { terminalOutputStore } from '../terminalOutputStore';
 import { terminalHistoryStore, type TerminalHistorySegment } from '../terminalHistoryStore';
 import {
@@ -93,6 +94,8 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // 运行时是应用级单例：测试间必须重置，否则第二个用例不会用新 spy 重新订阅。
+  terminalPtyRuntime.reset();
   delete (window as unknown as { digitalLife?: unknown }).digitalLife;
   useAppStore.setState({
     terminalTabs: [],

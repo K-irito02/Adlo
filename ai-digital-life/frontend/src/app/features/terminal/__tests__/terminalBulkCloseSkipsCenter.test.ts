@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { selectTerminalTabsToClose } from '../useTerminalPtyLifecycle';
+import { selectTerminalTabsToClose } from '../terminalPtyRuntime';
 
 interface Tab {
   id: string;
