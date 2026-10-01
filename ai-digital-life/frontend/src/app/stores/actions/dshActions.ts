@@ -15,10 +15,10 @@ async function refreshVersionStatusSilently(get: () => StoreState): Promise<void
 export function createDshActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
-     * [openDsh - 打开中间区 dsh 宿主，拉起 dsh 进程并返回就绪信息]
+     * [openDsh - 拉起 dsh 进程，并把它显示为一个普通浏览器中心标签]
      * @returns 成功返回 `{url, freedPort}`；失败返回 `null` 并已记录全局错误卡片
      * @reads 无
-     * @writes dshSlice.isOpen, dshSlice.url
+     * @writes dshSlice.isOpen, dshSlice.url, browserSlice.browserTabs/browserActiveTabId, centerTabs
      * @see httpBridge.ts → dsh.open (/dsh/open)
      * @see mock-bridge.ts → mockDsh.open
      */
@@ -29,10 +29,14 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
         get().setDshOpen(true);
         get().setDshUrl(data.url);
-        // Tauri 下 open 成功意味着新建了 dsh 原生子窗口（盖在最上层），
-        // 通知透明桥接条重建回到最上层；浏览器模式无子窗口，此信号无害。
-        if (get().isTauri) {
-          get().bumpSiblingWebviewNonce();
+        // dsh 统一为普通浏览器中心标签：拉起进程后创建承载标签并标记 isDsh
+        //（关闭标签时联动停进程，见 useBrowserTabs / CenterTabStrip）。
+        // 浏览器池的 create 路径会自行建立 WebView，无需再 bump 桥接条 z-order。
+        get().browserOpenTab(data.url ?? '', 'dsh');
+        const tabId = get().browserActiveTabId;
+        if (tabId) {
+          get().browserUpdateTab(tabId, { isDsh: true });
+          get().centerShowBrowserTab(tabId);
         }
         return data;
       }

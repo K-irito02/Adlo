@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
-import { DshVersionManagement } from '@features/dsh/WelcomePage';
+import { DshVersionManagement } from '@features/dsh/DshVersionManagement';
 
 interface CenterLauncherPageProps {
   centerTabId: string;
@@ -10,15 +10,13 @@ interface CenterLauncherPageProps {
 /**
  * 中心 launcher 引导页（三入口 + dsh 版本管理卡片）。
  *
- * 三入口**就地转换当前 launcher 标签**（`centerUpdateTab`），不新增中心标签：
- * - 打开 dsh：过渡态（Ruling-12）——dsh 仍是全局单例，仅调用 `openDsh()`，
- *   由 `CenterPane` 的 `isOpen → DshHostRegion` 分支承载，**不转换**标签；
- *   Task 15 才把 dsh 统一为普通浏览器中心标签。
+ * 三入口：
+ * - 打开 dsh：`openDsh()` 拉起进程并创建承载它的普通浏览器中心标签，成功后移除
+ *   当前 launcher 标签，让新建的 dsh 浏览器标签（已设为活动）显示出来。
  * - 打开浏览器欢迎页：新建空 URL 浏览器标签 → 移到中心 → 就地转为 browser。
  * - 打开终端欢迎页：就地转为 `kind='terminal', refId=null`（渲染终端选择器）。
  *
- * 下方复用 `WelcomePage` 拆出的 `DshVersionManagement`（当前/最新版本、检查更新、
- * 升级、卸载、重装），与欢迎页保持功能一致。
+ * 下方复用 `DshVersionManagement`（当前/最新版本、检查更新、升级、卸载、重装）。
  */
 export function CenterLauncherPage({ centerTabId }: CenterLauncherPageProps) {
   const { t } = useTCopy();
@@ -26,10 +24,15 @@ export function CenterLauncherPage({ centerTabId }: CenterLauncherPageProps) {
   const browserOpenTab = useAppStore((s) => s.browserOpenTab);
   const browserSetLocation = useAppStore((s) => s.browserSetLocation);
   const centerUpdateTab = useAppStore((s) => s.centerUpdateTab);
+  const centerRemoveTab = useAppStore((s) => s.centerRemoveTab);
 
-  const handleOpenDsh = useCallback(() => {
-    void openDsh();
-  }, [openDsh]);
+  const handleOpenDsh = useCallback(async () => {
+    const result = await openDsh();
+    if (result) {
+      // openDsh 已创建并激活 dsh 浏览器中心标签；移除 launcher 以免其抢占视图。
+      centerRemoveTab(centerTabId);
+    }
+  }, [openDsh, centerRemoveTab, centerTabId]);
 
   const handleOpenBrowser = useCallback(() => {
     browserOpenTab();

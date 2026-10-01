@@ -18,29 +18,6 @@ const MOCK_VERSION_TIMELINE: Record<string, string> = {
   '0.1.0': '2026-08-20 10:00',
 };
 
-/**
- * DeepSeek 官方 SVG 图标（currentColor 继承，不使用蓝色）。
- */
-function DeepSeekIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 600 600"
-      fill="currentColor"
-    >
-      <g clipPath="url(#dsh-icon-clip)">
-        <path d="M593.7 112c-6.3-3-9.1 2.9-12.8 5.9q-1.9 1.6-3.4 3.4c-9.3 10-20.2 16.4-34.3 15.6a67 67 0 0 0-54.1 21.3 49 49 0 0 0-31.2-38.7c-8.8-4-17.7-7.8-23.9-16.3-4.3-6-5.4-12.8-7.6-19.4-1.4-4-2.7-8-7.3-8.7-5-.8-7 3.4-9 6.9a91 91 0 0 0-10.5 46 99 99 0 0 0 46 84.8c3.4 2.3 4.3 4.7 3.2 8.1-2 7-4.5 13.8-6.6 20.8-1.4 4.5-3.5 5.5-8.3 3.5-16.2-7-31-17-43.4-29.5-21.4-20.7-40.7-43.5-64.9-61.4q-8.4-6.2-17.2-11.8c-24.6-24 3.2-43.6 9.7-45.9 6.7-2.5 2.3-10.8-19.5-10.7s-41.7 7.4-67.2 17.1a76 76 0 0 1-11.6 3.4q-35.8-6.7-72-2.5a155 155 0 0 0-112.5 65.5c-33.2 45.8-41 97.7-31.5 151.9a232 232 0 0 0 84 141.3 224 224 0 0 0 161 53.5c37-2.1 78.3-7.1 124.8-46.5 11.8 5.8 24 8.1 44.5 9.9 15.8 1.5 30.9-.7 42.6-3.2 18.4-3.9 17.1-21 10.5-24-53.9-25.1-42-14.9-52.8-23.2 27.4-32.4 68.6-66 84.8-175 1.2-8.7.2-14.2 0-21.2-.1-4.2.9-5.9 5.7-6.4q20.6-2.2 38.7-11.8c34.9-19.1 49-50.4 52.3-88 .5-5.7-.1-11.6-6.2-14.7M289.5 450c-52.2-41-77.5-54.6-88-54-9.8.6-8 11.8-5.8 19a70 70 0 0 0 9.2 18.6c2.9 4.1 4.8 10.3-2.8 15-16.8 10.4-46-3.5-47.4-4.2-34-20-62.5-46.4-82.5-82.6a253 253 0 0 1-32.5-112c-.5-9.7 2.3-13.1 12-14.9q18.9-3.6 38.2-1a240 240 0 0 1 136.7 69.4c21.7 21.5 38 47.2 55 72.3 18 26.6 37.4 52 62 72.8a195 195 0 0 0 22.3 17c-20 2.2-53.5 2.7-76.4-15.4m25-161a7.6 7.6 0 0 1 10.4-7.2 7.5 7.5 0 0 1 5 7.2 7.7 7.7 0 0 1-10.7 7.1 8 8 0 0 1-4.7-7.1m77.8 39.9c-5 2-10 3.8-14.8 4-7.2.3-14.2-2-20-6.3-6.8-5.8-11.7-9-13.7-19q-1-7.4.4-14.7c1.7-8.2-.2-13.4-6-18.2-4.7-3.9-10.6-5-17.2-5a14 14 0 0 1-6.3-1.9 6.3 6.3 0 0 1-2.9-9c.7-1.3 4-4.6 4.8-5.2 8.9-5 19.2-3.4 28.7.4 8.8 3.6 15.4 10.2 25 19.6 9.8 11.2 11.5 14.3 17.1 22.8a95 95 0 0 1 11.1 21.2q2.5 7.4-6.2 11.3" />
-      </g>
-      <defs>
-        <clipPath id="dsh-icon-clip">
-          <path fill="#fff" d="M0 0h600v600H0z" />
-        </clipPath>
-      </defs>
-    </svg>
-  );
-}
-
 /** 检查更新图标（刷新箭头） */
 function CheckUpdateIcon() {
   return (
@@ -227,8 +204,8 @@ function TrashIcon() {
 /**
  * dsh 版本管理卡片（当前/最新版本 + 检查更新 / 升级 / 卸载 / 重装 / 版本选择）。
  *
- * 从 `WelcomePage` 拆出，供欢迎引导页与中心 launcher 复用。
- * `leading` 渲染在顶部操作栏左侧（欢迎页放「打开 dsh」CTA，launcher 放三入口）；
+ * 由中心 launcher 承载（原 `WelcomePage` 已随 dsh 统一为普通浏览器标签而退役）。
+ * `leading` 渲染在顶部操作栏左侧（launcher 放三入口）；
  * 右侧为版本操作图标组，下方为版本信息卡片。
  */
 export function DshVersionManagement({ leading }: { leading?: ReactNode }) {
@@ -667,67 +644,5 @@ export function DshVersionManagement({ leading }: { leading?: ReactNode }) {
         </div>
       </div>
     </>
-  );
-}
-
-/**
- * 中间区欢迎引导页（dsh 关闭后显示）。
- * - 主导按钮"打开 DeepSeek Harness" → 进入中间区 dsh。
- * - 复用 `DshVersionManagement`（版本管理区）。
- *
- * 注意：组件命名使用 `adl-app-welcome` 前缀，支持未来扩展其他第三方 WebApp。
- */
-export function WelcomePage() {
-  const { t } = useTCopy();
-  const actions = useAppActions();
-  const appReady = useAppStore((s) => s.appReady);
-  const showToast = useAppStore((s) => s.showToast);
-  const reportError = useAppStore((s) => s.reportError);
-
-  const [opening, setOpening] = useState(false);
-  const openingRef = useRef(false);
-
-  const handleOpen = useCallback(async () => {
-    if (openingRef.current) {
-      return;
-    }
-    openingRef.current = true;
-    setOpening(true);
-    try {
-      const result = await actions.openDsh();
-      // 固定 3080 端口被残留 dsh 占用时后端自动释放并重启 → 弹右下角 info 卡片。
-      if (result?.freedPort) {
-        reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
-      }
-    } catch {
-      // 意外异常兜底；常规失败（openDsh 返回 null）已由 action 记录全局错误卡片。
-      showToast(t.dshOpenFailed, 'error');
-    } finally {
-      openingRef.current = false;
-      setOpening(false);
-    }
-  }, [actions, reportError, showToast, t]);
-
-  return (
-    <section className="adl-center adl-center--dsh-placeholder" aria-label={t.dshTitle}>
-      <div className="adl-app-welcome">
-        <DshVersionManagement
-          leading={
-            appReady ? (
-              <button
-                type="button"
-                className="adl-app-welcome__cta"
-                onClick={handleOpen}
-                disabled={opening}
-                title={t.dshOpenButtonHint}
-              >
-                {opening ? <Spinner size="sm" speed="normal" /> : <DeepSeekIcon />}
-                {t.dshOpenButton}
-              </button>
-            ) : null
-          }
-        />
-      </div>
-    </section>
   );
 }

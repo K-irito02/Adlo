@@ -19,8 +19,6 @@ export function createTauriBrowserBridge(): BrowserBridge {
       tabId: string,
       bounds: { x: number; y: number; width: number; height: number },
     ) => invokeIpc<void>('browser_set_tab_bounds', { tabId, bounds }).then(() => undefined),
-    setDshBounds: (bounds: { x: number; y: number; width: number; height: number }) =>
-      invokeIpc<void>('browser_set_dsh_bounds', { bounds }).then(() => undefined),
     dividerStripShow: (
       bounds: { x: number; y: number; width: number; height: number },
       theme: { line: string; glow: string },

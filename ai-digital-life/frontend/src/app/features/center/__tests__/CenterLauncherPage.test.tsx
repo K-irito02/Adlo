@@ -6,9 +6,9 @@ import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import type { CopyDict } from '@i18n/types';
 
-// 版本管理卡片复用 `WelcomePage` 的 `DshVersionManagement`（挂载即走 dsh 桥），
-// 本套件只验证 launcher 的三入口与就地转换，故隔离该卡片；版本管理由 dsh 套件覆盖。
-vi.mock('@features/dsh/WelcomePage', () => ({
+// 版本管理卡片 `DshVersionManagement`（挂载即走 dsh 桥），
+// 本套件只验证 launcher 的三入口与 dsh 标签行为，故隔离该卡片；版本管理由 dsh 套件覆盖。
+vi.mock('@features/dsh/DshVersionManagement', () => ({
   DshVersionManagement: () => null,
 }));
 
@@ -74,16 +74,27 @@ describe('CenterLauncherPage', () => {
     expect(center).toMatchObject({ kind: 'terminal', refId: null });
   });
 
-  it('点击「打开 dsh」调用 openDsh 且不转换标签（过渡态）', async () => {
-    const open = vi.fn(async () => ({ ok: true, data: { url: null, freedPort: false } }));
+  it('点击「打开 dsh」成功后移除 launcher 标签（显示新建的 dsh 浏览器中心标签）', async () => {
+    const open = vi.fn(async () => ({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+    }));
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
 
     renderLauncher();
     fireEvent.click(screen.getByRole('button', { name: /dsh/i }));
 
     await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1));
-    const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');
-    expect(center?.kind).toBe('launcher');
+    // launcher 标签在 openDsh 成功后被异步移除；等待该状态落地再做断言。
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(false),
+    );
+    const s = useAppStore.getState();
+    // 新建的 dsh 浏览器标签带 isDsh 且位于中心。
+    const dshTab = s.browserTabs.find((tab) => tab.isDsh);
+    expect(dshTab).toBeTruthy();
+    expect(dshTab?.location).toBe('center');
+    expect(s.centerTabs.some((c) => c.kind === 'browser' && c.refId === dshTab?.id)).toBe(true);
   });
 });
 

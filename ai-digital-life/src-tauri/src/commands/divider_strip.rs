@@ -190,8 +190,8 @@ fn destroy_strip_view(window: &tauri::Window<tauri::Wry>) -> Result<(), AppError
 
 /// Position a labelled strip child webview to physical bounds.
 ///
-/// Mirrors the `browser_set_dsh_bounds` convention (CSS pixels treated as
-/// physical) so the strip aligns pixel-perfect with its sibling webviews.
+/// Treats CSS pixels as physical so the strip aligns pixel-perfect with its
+/// sibling webviews.
 fn set_strip_bounds(window: &tauri::Window<tauri::Wry>, bounds: &Bounds) -> Result<(), AppError> {
     let webview = window.get_webview(STRIP_VIEW_LABEL).ok_or_else(|| {
         AppError::Internal(format!("failed to set bounds: {STRIP_VIEW_LABEL} not found"))

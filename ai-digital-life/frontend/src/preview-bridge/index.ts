@@ -193,8 +193,6 @@ export async function setupPreviewBridge(): Promise<void> {
         _tabId: string,
         _bounds: { x: number; y: number; width: number; height: number },
       ) => Promise.resolve(),
-      setDshBounds: (_bounds: { x: number; y: number; width: number; height: number }) =>
-        Promise.resolve(),
       dividerStripShow: (
         _bounds: { x: number; y: number; width: number; height: number },
         _theme: { line: string; glow: string },

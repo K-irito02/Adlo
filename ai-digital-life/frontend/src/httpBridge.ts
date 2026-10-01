@@ -808,7 +808,6 @@ export function createHttpBridge({
       destroyTab: () => Promise.resolve(),
       navigateTab: () => Promise.resolve(),
       setTabBounds: () => Promise.resolve(),
-      setDshBounds: () => Promise.resolve(),
       dividerStripShow: (
         _bounds: { x: number; y: number; width: number; height: number },
         _theme: { line: string; glow: string },

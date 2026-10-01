@@ -29,6 +29,8 @@ export interface BrowserTabStateUpdate {
   isPlayingAudio?: boolean;
   isAudioMuted?: boolean;
   isDownloading?: boolean;
+  /** dsh 承载标签标记（打开 dsh 时打标，关闭时联动停进程）。 */
+  isDsh?: boolean;
 }
 
 export interface BookmarkTabItem {

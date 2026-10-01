@@ -23,6 +23,19 @@ interface DshTestStore {
   openDsh: () => Promise<DshOpenResult | null>;
   updateDsh: () => Promise<boolean>;
   closeDsh: (keep: boolean) => Promise<boolean>;
+  /** 浏览器标签 + 中心标签的最小真实语义（供 openDsh 创建 isDsh 中心标签断言） */
+  browserTabs: {
+    id: string;
+    url: string;
+    title: string;
+    isDsh?: boolean;
+    location?: 'panel' | 'center';
+  }[];
+  browserActiveTabId: string;
+  centerTabs: { id: string; kind: string; refId: string | null }[];
+  browserOpenTab: (url?: string, title?: string) => void;
+  browserUpdateTab: (tabId: string, patch: { isDsh?: boolean }) => void;
+  centerShowBrowserTab: (browserTabId: string) => void;
 }
 
 function makeStore() {
@@ -56,6 +69,31 @@ function makeStore() {
       siblingWebviewNonce: 0,
       bumpSiblingWebviewNonce: () =>
         set((s) => ({ siblingWebviewNonce: s.siblingWebviewNonce + 1 })),
+      browserTabs: [],
+      browserActiveTabId: '',
+      centerTabs: [],
+      browserOpenTab: (url, title) =>
+        set((s) => {
+          const id = `bt${s.browserTabs.length + 1}`;
+          return {
+            browserTabs: [...s.browserTabs, { id, url: url ?? '', title: title ?? '' }],
+            browserActiveTabId: id,
+          };
+        }),
+      browserUpdateTab: (tabId, patch) =>
+        set((s) => ({
+          browserTabs: s.browserTabs.map((t) => (t.id === tabId ? { ...t, ...patch } : t)),
+        })),
+      centerShowBrowserTab: (browserTabId) =>
+        set((s) => ({
+          browserTabs: s.browserTabs.map((t) =>
+            t.id === browserTabId ? { ...t, location: 'center' as const } : t,
+          ),
+          centerTabs: [
+            ...s.centerTabs,
+            { id: `c${s.centerTabs.length + 1}`, kind: 'browser', refId: browserTabId },
+          ],
+        })),
       ...dshActions,
     } as DshTestStore;
   });
@@ -70,7 +108,7 @@ describe('dshActions.openDsh', () => {
     vi.unstubAllGlobals();
   });
 
-  it('成功时映射 {url, freedPort} 并写入 dsh 状态', async () => {
+  it('成功时映射 {url, freedPort}、写入 dsh 状态并创建 isDsh 中心浏览器标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: true },
@@ -81,18 +119,31 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().isOpen).toBe(true);
     expect(store.getState().url).toBe('http://127.0.0.1:3080');
     expect(store.getState().errorToasts).toEqual([]);
+
+    // 成功即创建承载 dsh 的普通浏览器标签，并移到中心（isDsh 标记随标签持久化）。
+    const tab = store.getState().browserTabs[0];
+    expect(tab).toBeTruthy();
+    expect(tab.isDsh).toBe(true);
+    expect(tab.location).toBe('center');
+    expect(tab.url).toBe('http://127.0.0.1:3080');
+    expect(
+      store.getState().centerTabs.some((c) => c.kind === 'browser' && c.refId === tab.id),
+    ).toBe(true);
   });
 
-  it('成功但 data 为空时回落 url:null,freedPort:false', async () => {
+  it('成功但 data 为空时回落 url:null,freedPort:false（仍创建 isDsh 中心标签）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({ ok: true, data: null });
     const store = makeStore();
     const result = await store.getState().openDsh();
     expect(result).toEqual({ url: null, freedPort: false });
     expect(store.getState().isOpen).toBe(true);
     expect(store.getState().url).toBeNull();
+    const tab = store.getState().browserTabs[0];
+    expect(tab?.isDsh).toBe(true);
+    expect(tab?.location).toBe('center');
   });
 
-  it('失败返回 null 并记录 scope=dsh 的错误卡片', async () => {
+  it('失败返回 null、记录 scope=dsh 的错误卡片且不创建标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: false,
       error: { code: 'TIMEOUT', message: 'npx not ready' },
@@ -101,40 +152,20 @@ describe('dshActions.openDsh', () => {
     const result = await store.getState().openDsh();
     expect(result).toBeNull();
     expect(store.getState().isOpen).toBe(false);
+    expect(store.getState().browserTabs).toEqual([]);
+    expect(store.getState().centerTabs).toEqual([]);
     expect(store.getState().errorToasts).toEqual([
       { code: 'TIMEOUT', detail: 'npx not ready', scope: 'dsh' },
     ]);
   });
 
-  it('Tauri 下成功时递增 siblingWebviewNonce（桥接条 z-order 重建信号）', async () => {
+  it('成功后不递增 siblingWebviewNonce（不再创建 dsh 专属视图）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: true },
     });
     const store = makeStore();
     store.setState({ isTauri: true });
-    await store.getState().openDsh();
-    expect(store.getState().siblingWebviewNonce).toBe(1);
-  });
-
-  it('失败或非 Tauri 时不递增 siblingWebviewNonce', async () => {
-    (window as any).digitalLife.dsh.open.mockResolvedValue({
-      ok: false,
-      error: { code: 'TIMEOUT', message: 'npx not ready' },
-    });
-    const store = makeStore();
-    store.setState({ isTauri: true });
-    await store.getState().openDsh();
-    expect(store.getState().siblingWebviewNonce).toBe(0);
-  });
-
-  it('非 Tauri 下成功也不递增 siblingWebviewNonce（无原生子窗口）', async () => {
-    (window as any).digitalLife.dsh.open.mockResolvedValue({
-      ok: true,
-      data: { url: 'http://127.0.0.1:3080', freedPort: true },
-    });
-    const store = makeStore();
-    expect(store.getState().isTauri).toBe(false);
     await store.getState().openDsh();
     expect(store.getState().siblingWebviewNonce).toBe(0);
   });

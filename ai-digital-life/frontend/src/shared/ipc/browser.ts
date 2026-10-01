@@ -46,8 +46,6 @@ export interface BrowserBridge {
     tabId: string,
     bounds: { x: number; y: number; width: number; height: number },
   ) => Promise<void>;
-  /** Set bounds for the standalone DSH WebView (not registered with BrowserManager). */
-  setDshBounds: (bounds: { x: number; y: number; width: number; height: number }) => Promise<void>;
   /**
    * Show (idempotent recreate) the transparent divider-strip bridge over the
    * center/right-panel seam. Tauri-only: browser mode needs no strip because
