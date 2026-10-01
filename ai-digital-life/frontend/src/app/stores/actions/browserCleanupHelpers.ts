@@ -25,7 +25,10 @@ export function stripWorkspaceFromBrowserState(
   currentFolders: TabFolderState[],
   currentActiveTabId: string,
 ): BrowserCleanupResult {
-  const browserTabs = currentTabs.filter((t) => t.workspaceId !== workspaceId);
+  // 中心标签不受面板「移除工作区」影响：只移除该工作区的面板标签。
+  const browserTabs = currentTabs.filter(
+    (t) => t.location === 'center' || t.workspaceId !== workspaceId,
+  );
   const browserTabFolders = currentFolders.filter(
     (f) => !(f.parentType === 'workspace' && f.parentId === workspaceId),
   );

@@ -217,10 +217,11 @@ export const createTerminalSlice = (
 
     terminalCloseAllTabs: (workspaceId?: string) => {
       set((state) => {
-        const filtered =
-          workspaceId !== undefined
-            ? state.terminalTabs.filter((tab) => tab.workspaceId !== workspaceId)
-            : [];
+        const filtered = state.terminalTabs.filter((tab) => {
+          if (tab.location === 'center') return true; // 中心标签不受面板清空影响
+          if (workspaceId !== undefined) return tab.workspaceId !== workspaceId;
+          return false; // 全局清空：移除所有面板标签
+        });
         const nextTabs = sortTabs(filtered);
         const nextActive =
           nextTabs.find((tab) => tab.id === state.terminalActiveTabId) !== undefined

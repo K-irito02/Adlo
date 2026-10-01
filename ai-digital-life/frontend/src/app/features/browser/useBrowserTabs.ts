@@ -109,6 +109,9 @@ export function useBrowserTabs() {
     (tabId: string) => {
       const state = useAppStore.getState();
       const tab = state.browserTabs.find((t) => t.id === tabId);
+      if (tab?.isDsh) {
+        void useAppStore.getState().closeDsh(false);
+      }
       browserCloseTab(tabId);
       if (tab?.url) {
         removeSiteMetaIfUnreferenced(tab.url);
@@ -120,13 +123,17 @@ export function useBrowserTabs() {
   const handleCloseAllTabs = useCallback(
     (workspaceId?: string) => {
       const state = useAppStore.getState();
-      const closingUrls = (
+      const closingTabs = (
         workspaceId
           ? state.browserTabs.filter((t) => t.workspaceId === workspaceId)
           : state.browserTabs
-      )
-        .map((t) => t.url)
-        .filter((u): u is string => !!u);
+      ).filter((t) => t.location !== 'center');
+      for (const tab of closingTabs) {
+        if (tab.isDsh) {
+          void useAppStore.getState().closeDsh(false);
+        }
+      }
+      const closingUrls = closingTabs.map((t) => t.url).filter((u): u is string => !!u);
       browserCloseAllTabs(workspaceId);
       for (const url of closingUrls) {
         removeSiteMetaIfUnreferenced(url);

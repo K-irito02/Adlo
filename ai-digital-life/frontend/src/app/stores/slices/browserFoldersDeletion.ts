@@ -78,7 +78,9 @@ export function computeDeleteAllTabsOutcome(
 
   if (nodePath.startsWith('workspace:')) {
     const wsId = nodePath.slice('workspace:'.length);
-    tabIdsToDelete = state.browserTabs.filter((t) => t.workspaceId === wsId).map((t) => t.id);
+    tabIdsToDelete = state.browserTabs
+      .filter((t) => t.workspaceId === wsId && t.location !== 'center')
+      .map((t) => t.id);
     const wsRootFolders = state.browserTabFolders.filter(
       (f) => f.parentType === 'workspace' && f.parentId === wsId,
     );
@@ -196,7 +198,9 @@ export function computeDeleteOwnTabsOutcome(
 
   if (nodePath.startsWith('workspace:')) {
     const wsId = nodePath.slice('workspace:'.length);
-    const allWsTabIds = state.browserTabs.filter((t) => t.workspaceId === wsId).map((t) => t.id);
+    const allWsTabIds = state.browserTabs
+      .filter((t) => t.workspaceId === wsId && t.location !== 'center')
+      .map((t) => t.id);
     const folderTabIds = collectAllFolderTabIds(state.browserTabFolders, wsId);
     tabIdsToDelete = allWsTabIds.filter((id) => !folderTabIds.includes(id));
     // Collect workspace bookmark tabIds separately — they must NOT be in tabIdsToDelete

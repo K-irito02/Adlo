@@ -240,18 +240,19 @@ export const createBrowserTabsSlice = (
 
   browserCloseAllTabs: (workspaceId) => {
     set((state) => {
-      let nextTabs: BrowserTabState[];
-      if (workspaceId) {
-        nextTabs = state.browserTabs.filter((tab) => tab.workspaceId !== workspaceId);
-      } else {
-        nextTabs = [];
-      }
-      const nextActive = nextTabs.length > 0 ? nextTabs[nextTabs.length - 1].id : '';
-      persist('adl:browser.tabs', nextTabs);
+      const kept = state.browserTabs.filter((tab) => {
+        if (tab.location === 'center') return true; // 中心标签不受面板清空影响
+        if (workspaceId) return tab.workspaceId !== workspaceId;
+        return false; // 全局清空：移除所有面板标签
+      });
+      const nextActive = kept.some((t) => t.id === state.browserActiveTabId)
+        ? state.browserActiveTabId
+        : (kept[kept.length - 1]?.id ?? '');
+      persist('adl:browser.tabs', kept);
       persist('adl:browser.activeTabId', nextActive);
       return {
-        browserTabs: nextTabs,
-        browserTabsById: buildTabsById(nextTabs),
+        browserTabs: kept,
+        browserTabsById: buildTabsById(kept),
         browserActiveTabId: nextActive,
       };
     });
