@@ -8,6 +8,14 @@ import {
   collectAllDescendantTabUrlsLocal,
 } from './browserTreeUtils';
 
+/** 该 tabId 对应的存活标签是否为中心标签（中心标签不受面板树删除影响）。 */
+function isCenterTabId(
+  tabs: { id: string; location?: 'panel' | 'center' }[],
+  tabId: string,
+): boolean {
+  return tabs.find((t) => t.id === tabId)?.location === 'center';
+}
+
 function collectFolderTabSnapshotUrls(
   folders: { id: string; parentId?: string; tabs?: { tabId: string; url: string }[] }[],
   rootFolderId: string,
@@ -70,7 +78,9 @@ export function useBrowserFolderCrud() {
 
       if (nodePath.startsWith('workspace:')) {
         const wsId = nodePath.slice('workspace:'.length);
-        const tabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
+        const tabs = state.browserTabs.filter(
+          (t) => t.workspaceId === wsId && t.location !== 'center',
+        );
         tabIds = tabs.map((t) => t.id);
         urls = tabs.map((t) => t.url).filter((u): u is string => !!u);
         const rootFolderIds = state.browserTabFolders
@@ -201,7 +211,7 @@ export function useBrowserFolderCrud() {
         }
       }
       for (const { tabId, url } of allTabUrls) {
-        if (tabId && url) {
+        if (tabId && url && !isCenterTabId(state.browserTabs, tabId)) {
           browserRemoveTabBookmarks(tabId, url);
         }
       }
@@ -225,7 +235,9 @@ export function useBrowserFolderCrud() {
 
       if (nodePath.startsWith('workspace:')) {
         const wsId = nodePath.slice('workspace:'.length);
-        const allTabs = state.browserTabs.filter((t) => t.workspaceId === wsId);
+        const allTabs = state.browserTabs.filter(
+          (t) => t.workspaceId === wsId && t.location !== 'center',
+        );
         const folderTabIds: string[] = [];
         const rootFolderIds = state.browserTabFolders
           .filter(
@@ -306,7 +318,7 @@ export function useBrowserFolderCrud() {
         const folder = state.browserTabFolders.find((f) => f.id === folderId);
         if (folder?.tabs) {
           for (const item of folder.tabs) {
-            if (item.tabId && item.url) {
+            if (item.tabId && item.url && !isCenterTabId(state.browserTabs, item.tabId)) {
               browserRemoveTabBookmarks(item.tabId, item.url);
             }
           }
@@ -314,7 +326,7 @@ export function useBrowserFolderCrud() {
       } else {
         for (const tabId of tabIds) {
           const url = state.browserTabs.find((t) => t.id === tabId)?.url || '';
-          if (tabId && url) {
+          if (tabId && url && !isCenterTabId(state.browserTabs, tabId)) {
             browserRemoveTabBookmarks(tabId, url);
           }
         }

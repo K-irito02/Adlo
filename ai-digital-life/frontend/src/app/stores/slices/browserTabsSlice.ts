@@ -241,8 +241,12 @@ export const createBrowserTabsSlice = (
   browserCloseAllTabs: (workspaceId) => {
     set((state) => {
       const kept = state.browserTabs.filter((tab) => {
-        if (tab.location === 'center') return true; // 中心标签不受面板清空影响
-        if (workspaceId) return tab.workspaceId !== workspaceId;
+        if (tab.location === 'center') {
+          return true; // 中心标签不受面板清空影响
+        }
+        if (workspaceId) {
+          return tab.workspaceId !== workspaceId;
+        }
         return false; // 全局清空：移除所有面板标签
       });
       const nextActive = kept.some((t) => t.id === state.browserActiveTabId)

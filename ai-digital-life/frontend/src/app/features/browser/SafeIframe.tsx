@@ -5,8 +5,6 @@ interface SafeIframeProps {
   title: string;
   className: string;
   sandbox: string;
-  /** 标签 id，落到容器 `data-tab-id` 供批量清理按标签过滤。 */
-  dataTabId?: string;
   style?: React.CSSProperties;
   iframeRef: React.RefObject<HTMLIFrameElement | null>;
   onLoad: () => void;
@@ -18,7 +16,6 @@ export function SafeIframe({
   title,
   className,
   sandbox,
-  dataTabId,
   style,
   iframeRef,
   onLoad,
@@ -96,5 +93,5 @@ export function SafeIframe({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src, title, className, sandbox]);
 
-  return <div ref={containerRef} className={className} style={style} data-tab-id={dataTabId} />;
+  return <div ref={containerRef} className={className} style={style} />;
 }

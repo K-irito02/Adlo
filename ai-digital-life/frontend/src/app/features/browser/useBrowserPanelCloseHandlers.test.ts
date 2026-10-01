@@ -51,26 +51,17 @@ describe('useBrowserPanelCloseHandlers 批量关闭跳过中心标签', () => {
     expect(removeFromPool).not.toHaveBeenCalledWith(centerId);
   });
 
-  it('浏览器模式只清空面板标签的 iframe', () => {
-    const { panelId, centerId } = openPanelAndCenterTabs();
-    const makeIframe = (tabId: string) => {
-      const el = document.createElement('iframe');
-      el.className = 'adl-browser-iframe';
-      el.setAttribute('data-tab-id', tabId);
-      document.body.appendChild(el);
-      return el;
-    };
-    const panelEl = makeIframe(panelId);
-    const centerEl = makeIframe(centerId);
-    const { result } = renderCloseHandlers();
+  it('非 Tauri 模式不触碰 WebView 池（卸载由 React 负责）', () => {
+    useAppStore.setState({ isTauri: false });
+    openPanelAndCenterTabs();
+    const { result, removeFromPool } = renderCloseHandlers();
 
     act(() => result.current.handleCloseAllTabs());
 
-    expect(panelEl.getAttribute('src')).toBe('about:blank');
-    expect(centerEl.getAttribute('src')).toBeNull();
+    expect(removeFromPool).not.toHaveBeenCalled();
   });
 
-  it('传 workspaceId 时不触碰任何 WebView / iframe', () => {
+  it('传 workspaceId 时不触碰任何 WebView', () => {
     useAppStore.setState({ isTauri: true });
     openPanelAndCenterTabs();
     const { result, removeFromPool } = renderCloseHandlers();

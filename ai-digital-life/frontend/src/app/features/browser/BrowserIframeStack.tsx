@@ -106,7 +106,6 @@ export const BrowserIframeStack = memo(function BrowserIframeStack() {
                       iframeRef={isActive ? iframeRef : inactiveIframeRef}
                       src={tab.url!}
                       className="adl-browser-iframe"
-                      dataTabId={tab.id}
                       title={tab.title}
                       onLoad={isActive ? handleIframeLoad : () => {}}
                       onError={isActive ? handleIframeError : () => {}}

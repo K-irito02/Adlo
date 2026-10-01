@@ -30,29 +30,14 @@ export function useBrowserPanelCloseHandlers({
   const handleCloseAllTabs = useCallback(
     (workspaceId?: string) => {
       const beforeState = useAppStore.getState();
-      // 中心标签不受面板批量关闭影响：只销毁面板标签的原生 WebView / iframe。
+      // 中心标签不受面板批量关闭影响：只销毁面板标签的原生 WebView。
       const tabIdsToDestroy = beforeState.browserTabs
         .filter((t) => t.location !== 'center')
         .map((t) => t.id);
       originalCloseAllTabs(workspaceId);
-      if (!workspaceId) {
-        if (useAppStore.getState().isTauri) {
-          for (const tid of tabIdsToDestroy) {
-            removeFromPool(tid);
-          }
-        } else {
-          const destroySet = new Set(tabIdsToDestroy);
-          document.querySelectorAll<HTMLIFrameElement>('.adl-browser-iframe').forEach((el) => {
-            const tabId = el.getAttribute('data-tab-id');
-            if (!tabId || !destroySet.has(tabId)) {
-              return;
-            }
-            try {
-              el.src = 'about:blank';
-            } catch {
-              /* ignore */
-            }
-          });
+      if (!workspaceId && useAppStore.getState().isTauri) {
+        for (const tid of tabIdsToDestroy) {
+          removeFromPool(tid);
         }
       }
     },
