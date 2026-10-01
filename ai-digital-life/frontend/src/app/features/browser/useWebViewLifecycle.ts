@@ -6,6 +6,8 @@ import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { isDownloadUrl } from '@utils/downloadUrl';
 
 interface UseWebViewLifecycleOptions {
+  /** 宿主标识（panel / center）：仅用于诊断日志，refs 天然 per-hook-instance。 */
+  hostId: 'panel' | 'center';
   activeTab?: BrowserTabState;
   webViewDisabled: boolean;
   isTabInPool: (tabId: string) => boolean;
@@ -32,6 +34,7 @@ interface UseWebViewLifecycleOptions {
  */
 export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
   const {
+    hostId,
     activeTab,
     webViewDisabled,
     isTabInPool,
@@ -44,6 +47,10 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
 
   const [loadingTabId, setLoadingTabId] = useState<string | null>(null);
   const prevActiveTabIdRef = useRef<string | null>(null);
+  /** 最新 activeTab 的镜像：供仅卸载时运行的 cleanup 读取，避免将 activeTab
+   *  放入 cleanup effect 依赖而每次切换都触发隐藏。 */
+  const activeTabSnapshotRef = useRef(activeTab);
+  activeTabSnapshotRef.current = activeTab;
   /** Tracks the URL each tab's WebView is currently showing, so we can detect
    *  same-tab URL changes (e.g. "current tab" mode navigation) and call
    *  `navigateTab` instead of just `activateTab`. */
@@ -176,14 +183,29 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     webViewActiveRef,
   ]);
 
-  // Cleanup on unmount
+  // Cleanup on unmount: clear active flag/fresh set AND hide the host's current
+  // active tab WebView, so unmounting a host (e.g. switching center tabs or
+  // closing the center host) never leaves a stale native surface behind.
   useEffect(() => {
     const freshTabIds = freshTabIdsRef.current;
     return () => {
       webViewActiveRef.current = false;
       freshTabIds.clear();
+      const tab = activeTabSnapshotRef.current;
+      if (tab?.id && isTabInPool(tab.id)) {
+        window.digitalLife?.browser
+          ?.setTabBounds(tab.id, {
+            x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+            y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+            width: 1,
+            height: 1,
+          })
+          .catch((e) => {
+            console.warn(`[useWebViewLifecycle] failed to hide WebView on unmount (${hostId}):`, e);
+          });
+      }
     };
-  }, [webViewActiveRef]);
+  }, [webViewActiveRef, isTabInPool, hostId]);
 
   /** Mark a tab as freshly created (current session, not restart-hydrated).
    *  Call this immediately after creating a new tab so the lifecycle hook

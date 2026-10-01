@@ -10,6 +10,12 @@ interface UseWebViewBoundsOptions {
   overlayActiveRef: React.RefObject<boolean>;
   webViewActiveRef: React.RefObject<boolean>;
   hideWebViewRequestedRef: React.RefObject<boolean>;
+  /**
+   * 可选：面板缩放动画容器选择器。仅面板宿主传入 `.adl-rightpanel__content`
+   * 时，在面板可见时重置其 transform（消除 CSS 过渡延迟导致的 rect 偏移）。
+   * 中心宿主不传 —— 无对应容器，行为不变。
+   */
+  contentSelector?: string;
 }
 
 /**
@@ -30,6 +36,7 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
     overlayActiveRef,
     webViewActiveRef,
     hideWebViewRequestedRef,
+    contentSelector,
   } = options;
 
   const primaryRef = useRef<HTMLDivElement | null>(null);
@@ -82,13 +89,17 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
       return;
     }
 
-    // Reset content transform immediately when panel becomes visible.
-    // The CSS transition on .adl-rightpanel__content has a delay that causes
+    // Reset content transform immediately when the host becomes visible.
+    // The CSS transition on the panel content container has a delay that causes
     // getBoundingClientRect() to return the pre-expansion offset position.
     // Force transform to 0 so WebView2 bounds are based on the final layout.
+    // Only the panel host supplies `contentSelector`; the center host has no
+    // such animated ancestor and skips this reset.
     let rafId: number | undefined;
     if (isVisible) {
-      const content = primaryRef.current.closest('.adl-rightpanel__content') as HTMLElement | null;
+      const content = contentSelector
+        ? (primaryRef.current.closest(contentSelector) as HTMLElement | null)
+        : null;
       if (content) {
         content.style.transform = 'translateX(0)';
       }
@@ -119,7 +130,14 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
       observer.disconnect();
       window.removeEventListener('resize', onWindowResize);
     };
-  }, [updateWebViewBounds, isVisible, webViewActiveRef, overlayActiveRef, hideWebViewRequestedRef]);
+  }, [
+    updateWebViewBounds,
+    isVisible,
+    webViewActiveRef,
+    overlayActiveRef,
+    hideWebViewRequestedRef,
+    contentSelector,
+  ]);
 
   return {
     primaryRef,
