@@ -71,7 +71,7 @@ Tracing 日志系统的配置层，支持文件输出和结构化字段。
 桌面端启动的独立后端子进程（当前 Tauri 模式）。未来移动端可通过 SSH/Sidecar 连接桌面端或服务器。
 
 ### DSH (DeepSeek Shell)
-DeepSeek Harness 的简称，一个基于 npm 的 Web 应用，通过 WebView2 子窗口嵌入到应用中间区域。启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。
+DeepSeek Harness 的简称，一个基于 npm 的 Web 应用，启动方式为 `npx @deepseek-ai/dsh@<version> --profile web --no-open`。在应用中作为**普通浏览器标签**承载于中间部分的多标签宿主（`location='center'` + `isDsh`），面板↔中心为同一原生 WebView 的位置移动；关闭 dsh 标签即彻底退出进程（`dsh.close(false)`），不跨重启持久化。
 
 ### DSH Bundle
 内置的 DSH 预安装包，位于 `<data_dir>/dsh-bundle/`。包含 `manifest.json`（版本元数据）和 `package/` 目录（实际 dsh 代码）。离线环境下可直接使用，无需 npm 下载。
@@ -97,6 +97,9 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 
 ### IPC 域拆分
 桥接层按功能域拆分为多个子接口文件（`shared/ipc/` 目录），每个域文件定义该域的接口类型。
+
+### 中心标签（Center Tab）
+中间部分多标签宿主中的标签，`kind` 为 `launcher`（三入口引导页）/`browser`（浏览器视图）/`terminal`（终端视图）。浏览器/终端中心标签通过 `refId` 指向底层标签；底层标签以 `location: 'panel' | 'center'` 标记所属宿主，位置排他。面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签；标题栏标签条支持切换、真关闭与移回对应面板。
 
 ### Divider Strip（分隔线桥接条）
 dsh WebView2（中间区）与浏览器 tab WebView2（右侧面板）零间隙贴边时，两者均为 OS 级子窗口，吃掉右面板 resize handle 命中带。修复是在接缝上架一条 6px 全高透明子 WebView（`adl-divider-strip`），夺回命中权并把拖拽增量回传主窗口；兄弟窗口（重）建经 store `siblingWebviewNonce` 重建回到最上层。
