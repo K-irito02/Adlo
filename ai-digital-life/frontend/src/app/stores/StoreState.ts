@@ -36,6 +36,7 @@ import type { ErrorToastSlice } from './slices/errorToastSlice';
 import type { NotificationSlice } from './slices/notificationSlice';
 import type { FileOpNoticeSlice } from './slices/fileOpNoticeSlice';
 import type { BrowserDownloadsSlice } from './slices/browserDownloadsSlice';
+import type { CenterTabsSlice } from './slices/centerTabsSlice';
 import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import type { WorkspaceID } from '../../shared/branded';
 import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../shared/ipc/dsh';
@@ -105,6 +106,7 @@ type AllSlices = [
   NotificationSlice,
   FileOpNoticeSlice,
   BrowserDownloadsSlice,
+  CenterTabsSlice,
 ];
 
 interface WorkspaceActions {
