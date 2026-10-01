@@ -134,9 +134,9 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       } else {
         setInternalOpen(nextOpen);
       }
-      if (!nextOpen) {
-        setPosition(null);
-      }
+      // 关闭时保留最后一次定位，让退出过渡在原地播放；
+      // 若清空调位，退出动画会在屏外 (-9999) 空播，用户看到的是瞬间消失。
+      // 下次打开时 updatePosition 会重新计算，无需在此清理。
     },
     [isControlled, onOpenChange],
   );

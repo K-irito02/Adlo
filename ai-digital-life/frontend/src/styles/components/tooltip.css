@@ -23,23 +23,24 @@
   overflow-wrap: break-word;
   pointer-events: auto;
   box-shadow: var(--tooltip-shadow);
-  transform: translateY(4px);
+  transform: translateY(8px);
 }
 
+/* 进入用柔和起手的 expo 曲线（--ease-enter 起手太冲、滑行像"跳"）；退出过渡现在真实可见，给 150ms */
 .tooltip[data-state='open'] {
   transition:
-    opacity var(--duration-150) var(--ease-enter),
-    transform var(--duration-150) var(--ease-enter);
+    opacity 350ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 350ms cubic-bezier(0.16, 1, 0.3, 1);
   opacity: 1;
   transform: translateY(0);
 }
 
 .tooltip[data-state='closed'] {
   transition:
-    opacity var(--duration-100) var(--ease-exit),
-    transform var(--duration-100) var(--ease-exit);
+    opacity 150ms var(--ease-exit),
+    transform 150ms var(--ease-exit);
   opacity: 0;
-  transform: translateY(4px);
+  transform: translateY(8px);
   pointer-events: none;
 }
 

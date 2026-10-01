@@ -195,6 +195,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
   placement,
   position,
   isOpen,
+  entered,
   tooltipRef,
   close,
   handleTooltipEnter,
@@ -208,6 +209,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
   placement: Placement;
   position: PositionResult | null;
   isOpen: boolean;
+  entered: boolean;
   tooltipRef: React.RefCallback<HTMLElement>;
   close: () => void;
   handleTooltipEnter: () => void;
@@ -218,7 +220,9 @@ const TooltipContentInner = memo(function TooltipContentInner({
 }) {
   const effectiveSide = side ?? placement;
 
-  const isOffscreen = !position || !isOpen;
+  // 仅 position 为空才移出画面：退出过渡（isOpen=false 但仍挂载）必须留在原地播放，
+  // 否则淡出会在屏外空播、用户看到瞬间消失。
+  const isOffscreen = !position;
   const left = isOffscreen ? -9999 : position.x;
   const top = isOffscreen ? -9999 : position.y;
 
@@ -226,7 +230,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
     <div
       role="tooltip"
       id={id}
-      data-state={isOpen ? 'open' : 'closed'}
+      data-state={isOpen && entered ? 'open' : 'closed'}
       data-side={effectiveSide}
       data-testid="tooltip-content"
       ref={tooltipRef}
@@ -297,11 +301,28 @@ export function TooltipContent({
   } = useTooltipContext();
 
   const [mounted, setMounted] = useState(false);
+  const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     if (isOpen && !mounted) {
       requestAnimationFrame(() => setMounted(true));
     }
+  }, [isOpen, mounted]);
+
+  // Enter transition needs a closed→open flip on separate frames:
+  // mounting directly in open state skips the CSS transition entirely.
+  useEffect(() => {
+    if (isOpen && mounted) {
+      let raf2 = 0;
+      const raf1 = requestAnimationFrame(() => {
+        raf2 = requestAnimationFrame(() => setEntered(true));
+      });
+      return () => {
+        cancelAnimationFrame(raf1);
+        cancelAnimationFrame(raf2);
+      };
+    }
+    setEntered(false);
   }, [isOpen, mounted]);
 
   useEffect(() => {
@@ -321,6 +342,7 @@ export function TooltipContent({
       placement={placement}
       position={position}
       isOpen={isOpen}
+      entered={entered}
       tooltipRef={tooltipRef}
       close={close}
       handleTooltipEnter={handleTooltipEnter}
