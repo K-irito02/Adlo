@@ -125,6 +125,10 @@ export const commonEn = {
   clearAllOpenTabs: 'Clear all open tabs',
   deleteAllTabDirs: 'Delete all workspace and custom directory tabs (keep directory structure)',
   newTabPage: 'New tab page',
+  centerNewTab: 'New tab',
+  centerTabShowInBrowserPanel: 'Show in browser panel',
+  centerTabShowInTerminalPanel: 'Show in terminal panel',
+  centerTabShowInCenter: 'Show in center',
 
   jobCount: '{count} jobs',
   debugCopyLogs: 'Copy Debug Logs',

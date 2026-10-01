@@ -25,6 +25,7 @@ import { useAppZoom } from '../hooks/useAppZoom';
 import { HamburgerMenu } from './HamburgerMenu';
 import { WindowControls } from './WindowControls';
 import { TitleBarNotifications } from './TitleBarNotifications';
+import { CenterTabStrip } from './CenterTabStrip';
 
 interface TitleBarProps {
   appInfo?: AppInfo;
@@ -121,7 +122,7 @@ const TitleBar = React.memo(function TitleBar({
       <div className="adl-titlebar__left">
         <HamburgerMenu t={t} fileItems={fileItems} viewItems={viewItems} helpItems={helpItems} />
       </div>
-      <div className="adl-titlebar__drag" aria-hidden="true" data-tauri-drag-region />
+      <CenterTabStrip />
       <div className="adl-titlebar__right">
         <div className="adl-titlebar__action-group">
           <TooltipSimple
