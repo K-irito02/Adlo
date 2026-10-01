@@ -69,6 +69,18 @@ interface PtyLifecycleParams {
   activeTab: { id: string; sessionId?: string } | undefined;
 }
 
+/**
+ * 批量关闭时选出应清理的标签：限定工作区（可选）且**跳过中心标签**。
+ * 中心标签的 PTY / xterm 池 / 历史由中心宿主自行管理，不受面板批量关闭影响。
+ */
+export function selectTerminalTabsToClose<
+  T extends { workspaceId?: string; location?: 'panel' | 'center' },
+>(tabs: T[], workspaceId?: string): T[] {
+  const scoped =
+    workspaceId !== undefined ? tabs.filter((tab) => tab.workspaceId === workspaceId) : tabs;
+  return scoped.filter((tab) => tab.location !== 'center');
+}
+
 export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const xtermRef = useRef<XtermTerminalHandle | null>(null);
   // 每个会话一个采集器（只读历史行块的状态机）与一条节流触发线。
@@ -1123,8 +1135,7 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   const handleCloseAllTabs = useCallback(
     (workspaceId?: string) => {
       const tabs = useAppStore.getState().terminalTabs;
-      const tabsToClose =
-        workspaceId !== undefined ? tabs.filter((tab) => tab.workspaceId === workspaceId) : tabs;
+      const tabsToClose = selectTerminalTabsToClose(tabs, workspaceId);
       tabsToClose.forEach((tab) => {
         void deleteHistoryForTab(tab.id);
         tabCwdRef.current.delete(tab.id);
