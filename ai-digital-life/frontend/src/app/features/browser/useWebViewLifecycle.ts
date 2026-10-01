@@ -192,7 +192,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       webViewActiveRef.current = false;
       freshTabIds.clear();
       const tab = activeTabSnapshotRef.current;
-      if (tab?.id && isTabInPool(tab.id)) {
+      if (isTauriShell() && tab?.id && isTabInPool(tab.id)) {
         window.digitalLife?.browser
           ?.setTabBounds(tab.id, {
             x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
