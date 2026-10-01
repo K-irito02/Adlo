@@ -1,0 +1,153 @@
+import { isTauriShell } from '@shared/env';
+import { useAppStore } from '@stores/slicedStore';
+
+/**
+ * Shared WebView pool — a module-level singleton consumed by BOTH browser hosts
+ * (right panel + center). It is the single source of truth for which tabs have
+ * live WebViews (Tauri mode) or simulated pooled iframes.
+ *
+ * Architecture note:
+ * - The pool is unbounded — suspension is driven by the frontend scheduler through
+ *   `destroyTab`, not by a fixed-capacity LRU.
+ * - Tauri mode: Rust's BrowserPool remains the source of truth for pool membership and
+ *   eviction hints returned by `createForTab()`. The frontend Set stays in sync.
+ * - Browser mode: there is no Rust pool; the Set mirrors membership and the iframe lifecycle
+ *   is managed separately by `evictedIframeTabsRef` in BrowserPanelContent.
+ * - `subscribe`/`getVersion` form a tiny external store for `useSyncExternalStore`,
+ *   so every host re-renders when a shared member changes.
+ */
+
+type PoolListener = () => void;
+
+let poolSet = new Set<string>();
+let insertionOrder: string[] = [];
+/** Tabs whose WebView creation is currently in flight — guards against
+ *  duplicate concurrent creation for the same tab (URL canonicalization can
+ *  refire the lifecycle effect before the async create completes). */
+let creatingSet = new Set<string>();
+let version = 0;
+const listeners = new Set<PoolListener>();
+
+function bump(): void {
+  version += 1;
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+function addToPool(tabId: string): void {
+  poolSet.add(tabId);
+  insertionOrder = insertionOrder.filter((id) => id !== tabId);
+  insertionOrder.push(tabId);
+}
+
+function removeFromPoolInternal(tabId: string): void {
+  poolSet.delete(tabId);
+  insertionOrder = insertionOrder.filter((id) => id !== tabId);
+}
+
+async function createForTab(
+  tabId: string,
+  url: string,
+  colorScheme?: 'light' | 'dark',
+): Promise<string | null> {
+  if (creatingSet.has(tabId)) {
+    return null;
+  }
+  if (poolSet.has(tabId)) {
+    return null;
+  }
+  creatingSet.add(tabId);
+  let rustEvicted: string | null = null;
+  try {
+    if (isTauriShell()) {
+      const bridge = window.digitalLife?.browser;
+      if (bridge) {
+        rustEvicted = await bridge.createForTab(tabId, url, colorScheme);
+        // 新建原生子窗口盖在最上层，通知透明桥接条重建回到最上层。
+        useAppStore.getState().bumpSiblingWebviewNonce();
+      }
+    }
+
+    // Remove Rust-returned evicted tab
+    if (rustEvicted) {
+      removeFromPoolInternal(rustEvicted);
+    }
+
+    // Add new tab
+    addToPool(tabId);
+
+    bump();
+
+    return rustEvicted;
+  } finally {
+    creatingSet.delete(tabId);
+  }
+}
+
+async function activateTab(tabId: string): Promise<void> {
+  if (isTauriShell()) {
+    const bridge = window.digitalLife?.browser;
+    if (bridge) {
+      await bridge.activateTab(tabId);
+    }
+  }
+}
+
+async function navigateTab(tabId: string, url: string): Promise<void> {
+  if (isTauriShell()) {
+    const bridge = window.digitalLife?.browser;
+    if (bridge) {
+      await bridge.navigateTab(tabId, url);
+    }
+  }
+}
+
+async function destroyTab(tabId: string): Promise<void> {
+  // F-M2：先同步从池中移除（isTabInPool 立即 false、emit），
+  // 再 await 后端 destroy。否则"destroy 在途用户重激活 → isTabInPool 仍 true →
+  // 创建被跳过 → tab 空白"的竞态。若 destroy 失败则回滚重新加入池。
+  removeFromPoolInternal(tabId);
+  bump();
+  if (isTauriShell()) {
+    const bridge = window.digitalLife?.browser;
+    if (bridge) {
+      try {
+        await bridge.destroyTab(tabId);
+      } catch (e) {
+        console.warn('destroyTab failed, re-adding tab to pool:', e);
+        addToPool(tabId);
+        bump();
+      }
+    }
+  }
+}
+
+export const browserPool = {
+  isTabInPool(tabId: string): boolean {
+    return poolSet.has(tabId);
+  },
+  getSize(): number {
+    return poolSet.size;
+  },
+  createForTab,
+  activateTab,
+  navigateTab,
+  destroyTab,
+  subscribe(listener: PoolListener): () => void {
+    listeners.add(listener);
+    return () => {
+      listeners.delete(listener);
+    };
+  },
+  getVersion(): number {
+    return version;
+  },
+  reset(): void {
+    poolSet = new Set();
+    insertionOrder = [];
+    creatingSet = new Set();
+    version = 0;
+    listeners.clear();
+  },
+};

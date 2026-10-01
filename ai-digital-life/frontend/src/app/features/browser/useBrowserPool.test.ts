@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBrowserPool } from './useBrowserPool';
+import { browserPool } from './browserPoolSingleton';
 import { useAppStore } from '../../stores/slicedStore';
 
 vi.mock('../../../shared/env', () => ({
@@ -21,6 +22,7 @@ function setMockBrowser(overrides: Partial<typeof DEFAULT_BROWSER_MOCK> = {}) {
 
 describe('useBrowserPool', () => {
   beforeEach(() => {
+    browserPool.reset();
     vi.clearAllMocks();
     delete (window as unknown as Record<string, unknown>).digitalLife;
   });
