@@ -35,6 +35,22 @@ const OPPOSITE_MAP: Record<Placement, Placement> = {
   right: 'left',
 };
 
+// 矫正手写/四舍五入产生的非法矩形（left > right 等）并丢弃零面积，
+// 与 webviewAvoidRects 的零面积跳过形成双层保证。
+function normalizeAvoidRects(rects: AvoidRect[]): AvoidRect[] {
+  const out: AvoidRect[] = [];
+  for (const r of rects) {
+    const left = Math.min(r.left, r.right);
+    const right = Math.max(r.left, r.right);
+    const top = Math.min(r.top, r.bottom);
+    const bottom = Math.max(r.top, r.bottom);
+    if (right > left && bottom > top) {
+      out.push({ left, top, right, bottom });
+    }
+  }
+  return out;
+}
+
 function getMainAxisCoord(result: PositionResult, placement: Placement): number {
   switch (placement) {
     case 'top':
@@ -83,16 +99,29 @@ function setCrossAxisCoord(result: PositionResult, placement: Placement, value: 
   }
 }
 
+function isHorizontalPlacement(placement: Placement): boolean {
+  return placement === 'top' || placement === 'bottom';
+}
+
+function mainAxisOf(placement: Placement): 'x' | 'y' {
+  return isHorizontalPlacement(placement) ? 'y' : 'x';
+}
+
+function viewportLength(axis: 'x' | 'y'): number {
+  if (typeof window === 'undefined') {
+    return 0;
+  }
+  return axis === 'x' ? window.innerWidth : window.innerHeight;
+}
+
 function fitsInViewport(
   coord: number,
   size: number,
   axis: 'x' | 'y',
   viewportPadding: number,
 ): boolean {
-  if (axis === 'x') {
-    return coord >= viewportPadding && coord + size <= window.innerWidth - viewportPadding;
-  }
-  return coord >= viewportPadding && coord + size <= window.innerHeight - viewportPadding;
+  const len = viewportLength(axis);
+  return coord >= viewportPadding && coord + size <= len - viewportPadding;
 }
 
 export function computePosition(options: TooltipPositionOptions): PositionResult {
@@ -129,18 +158,15 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
         break;
     }
 
-    const isHorizontal = placementToUse === 'top' || placementToUse === 'bottom';
+    const isHorizontal = isHorizontalPlacement(placementToUse);
     const crossAxisSize = isHorizontal ? tooltipRect.width : tooltipRect.height;
 
     const crossAxis = isHorizontal ? 'x' : 'y';
 
     const crossCoord = getCrossAxisCoord(localResult, placementToUse);
 
-    if (!fitsInViewport(crossCoord, crossAxisSize, crossAxis as 'x' | 'y', viewportPadding)) {
-      const maxCross =
-        (crossAxis === 'x' ? window.innerWidth : window.innerHeight) -
-        viewportPadding -
-        crossAxisSize;
+    if (!fitsInViewport(crossCoord, crossAxisSize, crossAxis, viewportPadding)) {
+      const maxCross = viewportLength(crossAxis) - viewportPadding - crossAxisSize;
       const clampedCross = Math.max(viewportPadding, Math.min(maxCross, crossCoord));
       setCrossAxisCoord(localResult, placementToUse, clampedCross);
     }
@@ -166,13 +192,8 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
 
     const finalCrossCoord = getCrossAxisCoord(localResult, placementToUse);
     const finalCrossAxisSize = isHorizontal ? tooltipRect.width : tooltipRect.height;
-    if (
-      !fitsInViewport(finalCrossCoord, finalCrossAxisSize, crossAxis as 'x' | 'y', viewportPadding)
-    ) {
-      const maxCross =
-        (crossAxis === 'x' ? window.innerWidth : window.innerHeight) -
-        viewportPadding -
-        finalCrossAxisSize;
+    if (!fitsInViewport(finalCrossCoord, finalCrossAxisSize, crossAxis, viewportPadding)) {
+      const maxCross = viewportLength(crossAxis) - viewportPadding - finalCrossAxisSize;
       const clampedCross = Math.max(viewportPadding, Math.min(maxCross, finalCrossCoord));
       setCrossAxisCoord(localResult, placementToUse, clampedCross);
     }
@@ -181,34 +202,37 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
   }
 
   // 仅当传入 avoidRects 时走避让分支：按 首选 → 对侧 → 其余两侧 依次试算，
-  // 第一个"视口内 + 不与任何避让矩形重叠"的位置胜出；都不满足则回退到原有逻辑。
+  // 第一个"视口内 + 不与任何避让矩形重叠"的位置胜出；都不满足则回退到原有逻辑
+  // （回退 = 可能与 WebView 重叠，调用方不得把 avoidRects 理解为硬保证）。
   // avoidRects 为空时保持原有行为不变（不尝试左右侧，避免窄视口行为变化）。
   if (options.avoidRects && options.avoidRects.length > 0) {
-    const avoidRects = options.avoidRects;
+    const avoidRects = normalizeAvoidRects(options.avoidRects);
     const others: Placement[] = (['top', 'bottom', 'left', 'right'] as Placement[]).filter(
       (p) => p !== placement && p !== OPPOSITE_MAP[placement],
     );
     const trialOrder: Placement[] = [placement, OPPOSITE_MAP[placement], ...others];
 
     const mainAxisFits = (result: PositionResult, placementToUse: Placement): boolean => {
-      const horizontal = placementToUse === 'top' || placementToUse === 'bottom';
+      const horizontal = isHorizontalPlacement(placementToUse);
       const size = horizontal ? tooltipRect.height : tooltipRect.width;
       const coord = getMainAxisCoord(result, placementToUse);
-      return fitsInViewport(coord, size, (horizontal ? 'y' : 'x') as 'x' | 'y', viewportPadding);
+      return fitsInViewport(coord, size, mainAxisOf(placementToUse), viewportPadding);
     };
 
     // 横轴滑移：纵轴（主轴）已放下但横向压住 Webview 时，沿横轴平移到最近的
     // 空位（仍钳在视口内），而不是直接换边。触发点紧贴 Webview、tooltip 又宽
     // （如导航栏长标签）时，这是唯一能"留在首选边又不被盖"的解。
+    // 注意：滑移后 tooltip 可能远离触发点正上方（无箭头、无视觉锚点，属预期行为）。
+    // 逃逸点为启发式（各矩形两侧边缘），多矩形窄缝可能漏解（此时换边/回退接管）。
     const slideCrossAxis = (
       base: PositionResult,
       placementToUse: Placement,
     ): PositionResult | null => {
-      const horizontal = placementToUse === 'top' || placementToUse === 'bottom';
+      const horizontal = isHorizontalPlacement(placementToUse);
       const crossSize = horizontal ? tooltipRect.width : tooltipRect.height;
       const mainLo = horizontal ? base.y : base.x;
       const mainHi = mainLo + (horizontal ? tooltipRect.height : tooltipRect.width);
-      const viewportLen = horizontal ? window.innerWidth : window.innerHeight;
+      const viewportLen = viewportLength(horizontal ? 'x' : 'y');
       const baseCoord = horizontal ? base.x : base.y;
 
       const isClear = (coord: number): boolean =>
@@ -282,44 +306,33 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
 
   const initialResult = calculate(currentPlacement);
 
-  const isHorizontal = currentPlacement === 'top' || currentPlacement === 'bottom';
+  const isHorizontal = isHorizontalPlacement(currentPlacement);
   const mainAxisSize = isHorizontal ? tooltipRect.height : tooltipRect.width;
   const mainCoord = getMainAxisCoord(initialResult, currentPlacement);
-  const mainAxis = isHorizontal ? 'y' : 'x';
+  const mainAxis = mainAxisOf(currentPlacement);
 
-  if (!fitsInViewport(mainCoord, mainAxisSize, mainAxis as 'x' | 'y', viewportPadding)) {
+  if (!fitsInViewport(mainCoord, mainAxisSize, mainAxis, viewportPadding)) {
     const flippedPlacement = OPPOSITE_MAP[currentPlacement];
     const flippedResult = calculate(flippedPlacement);
 
-    const flippedIsHorizontal = flippedPlacement === 'top' || flippedPlacement === 'bottom';
+    const flippedIsHorizontal = isHorizontalPlacement(flippedPlacement);
     const flippedMainAxisSize = flippedIsHorizontal ? tooltipRect.height : tooltipRect.width;
     const flippedMainCoord = getMainAxisCoord(flippedResult, flippedPlacement);
-    const flippedMainAxis = flippedIsHorizontal ? 'y' : 'x';
+    const flippedMainAxis = mainAxisOf(flippedPlacement);
 
-    if (
-      fitsInViewport(
-        flippedMainCoord,
-        flippedMainAxisSize,
-        flippedMainAxis as 'x' | 'y',
-        viewportPadding,
-      )
-    ) {
+    if (fitsInViewport(flippedMainCoord, flippedMainAxisSize, flippedMainAxis, viewportPadding)) {
       return flippedResult;
     }
 
     const fallbackPlacement: Placement = isHorizontal ? 'bottom' : 'right';
     const fallbackResult = calculate(fallbackPlacement);
 
-    const fbIsHorizontal = isHorizontal;
-    const fbMainAxisSize = fbIsHorizontal ? tooltipRect.height : tooltipRect.width;
+    const fbMainAxisSize = isHorizontal ? tooltipRect.height : tooltipRect.width;
     const fbMainCoord = getMainAxisCoord(fallbackResult, fallbackPlacement);
-    const fbMainAxis = fbIsHorizontal ? 'y' : 'x';
+    const fbMainAxis = mainAxisOf(fallbackPlacement);
 
-    if (!fitsInViewport(fbMainCoord, fbMainAxisSize, fbMainAxis as 'x' | 'y', viewportPadding)) {
-      const maxMain =
-        (fbMainAxis === 'y' ? window.innerHeight : window.innerWidth) -
-        viewportPadding -
-        fbMainAxisSize;
+    if (!fitsInViewport(fbMainCoord, fbMainAxisSize, fbMainAxis, viewportPadding)) {
+      const maxMain = viewportLength(fbMainAxis) - viewportPadding - fbMainAxisSize;
       const clampedMain = Math.max(viewportPadding, Math.min(maxMain, fbMainCoord));
       setMainAxisCoord(fallbackResult, fallbackPlacement, clampedMain);
     }

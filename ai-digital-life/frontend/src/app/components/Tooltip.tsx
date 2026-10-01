@@ -11,6 +11,11 @@ import React, {
 import { createPortal } from 'react-dom';
 import type { Placement, Alignment, PositionResult } from '../utils/tooltipPosition';
 import { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from '../hooks/useTooltip';
+import { TCopyContext } from '../i18n/TCopyContext';
+
+// 退出卸载延迟（ms）：必须 ≥ CSS 退出过渡时长（tooltip.css closed 态），
+// 否则退出动画被提前掐断。改 CSS 时长时同步此处。
+export const TOOLTIP_EXIT_MS = 200;
 
 interface TooltipContextValue extends UseTooltipReturn {
   dismissible: boolean;
@@ -74,7 +79,6 @@ export function Tooltip({
     onOpenChange,
     sideOffset,
     align,
-    maxWidth,
   });
 
   const contextValue = useMemo<TooltipContextValue>(
@@ -204,6 +208,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
   handleTooltipLeave,
   dismissible,
   maxWidth,
+  closeLabel,
   className,
   id,
 }: {
@@ -213,6 +218,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
   position: PositionResult | null;
   isOpen: boolean;
   entered: boolean;
+  closeLabel: string;
   tooltipRef: React.RefCallback<HTMLElement>;
   close: () => void;
   handleTooltipEnter: () => void;
@@ -254,7 +260,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
         <button
           type="button"
           className="tooltip__close"
-          aria-label="Close"
+          aria-label={closeLabel}
           onClick={(e) => {
             e.stopPropagation();
             close();
@@ -298,6 +304,7 @@ export function TooltipContent({
     tooltipRef,
     isOpen,
     position,
+    resetPosition,
     placement,
     close,
     handleTooltipEnter,
@@ -306,12 +313,17 @@ export function TooltipContent({
     maxWidth,
   } = useTooltipContext();
 
+  // dismiss 关闭按钮文案走 i18n；无 provider（单测）时回退英文。
+  const copyCtx = useContext(TCopyContext);
+  const closeLabel = copyCtx?.t.close ?? 'Close';
+
   const [mounted, setMounted] = useState(false);
   const [entered, setEntered] = useState(false);
 
   useEffect(() => {
     if (isOpen && !mounted) {
-      requestAnimationFrame(() => setMounted(true));
+      const id = requestAnimationFrame(() => setMounted(true));
+      return () => cancelAnimationFrame(id);
     }
   }, [isOpen, mounted]);
 
@@ -333,10 +345,14 @@ export function TooltipContent({
 
   useEffect(() => {
     if (!isOpen && mounted) {
-      const timer = setTimeout(() => setMounted(false), 200);
+      // 退出过渡播完才卸载；卸载同时清空调位，避免下次打开首帧旧址闪现。
+      const timer = setTimeout(() => {
+        setMounted(false);
+        resetPosition();
+      }, TOOLTIP_EXIT_MS);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, mounted]);
+  }, [isOpen, mounted, resetPosition]);
 
   if (!isOpen && !mounted) {
     return null;
@@ -355,6 +371,7 @@ export function TooltipContent({
       handleTooltipLeave={handleTooltipLeave}
       dismissible={dismissible}
       maxWidth={maxWidth}
+      closeLabel={closeLabel}
       className={className}
       id={id}
     >

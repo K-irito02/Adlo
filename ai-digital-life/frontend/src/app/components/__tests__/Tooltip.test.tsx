@@ -1,6 +1,12 @@
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, act, screen } from '@testing-library/react';
-import { Tooltip, TooltipTrigger, TooltipContent, TooltipSimple } from '../Tooltip';
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+  TooltipSimple,
+  TOOLTIP_EXIT_MS,
+} from '../Tooltip';
 
 afterEach(cleanup);
 
@@ -139,7 +145,25 @@ describe('TooltipContent enter/exit states', () => {
     expect(screen.getByTestId('tooltip-content').style.left).not.toBe('-9999px');
 
     await act(async () => {
-      vi.advanceTimersByTime(200);
+      vi.advanceTimersByTime(TOOLTIP_EXIT_MS);
+    });
+    expect(screen.queryByTestId('tooltip-content')).toBeNull();
+  });
+
+  it('does not ghost-mount when closed before the mount frame fires', async () => {
+    const view = renderControlled(true);
+    // 未推进任何 timer 就立刻关闭：mount rAF 必须被取消，不得闪现。
+    view.rerender(
+      <Tooltip open={false}>
+        <TooltipTrigger>
+          <button type="button">hello</button>
+        </TooltipTrigger>
+        <TooltipContent>tip</TooltipContent>
+      </Tooltip>,
+    );
+    expect(screen.queryByTestId('tooltip-content')).toBeNull();
+    await act(async () => {
+      vi.advanceTimersByTime(TOOLTIP_EXIT_MS + 64);
     });
     expect(screen.queryByTestId('tooltip-content')).toBeNull();
   });

@@ -376,6 +376,63 @@ describe('tooltipPosition', () => {
       expect(result.x).toBeGreaterThanOrEqual(8);
     });
 
+    it('treats empty avoidRects the same as omitting them', () => {
+      const triggerRect = createMockDOMRect({ top: 200, left: 100, width: 100, height: 50 });
+      const tooltipRect = { width: 80, height: 30 };
+
+      const withEmpty = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        avoidRects: [],
+      });
+      const without = computePosition({ triggerRect, tooltipRect, placement: 'top' });
+
+      expect(withEmpty).toEqual(without);
+    });
+
+    it('does not throw for zero-size tooltip rect', () => {
+      const triggerRect = createMockDOMRect({ top: 200, left: 100, width: 100, height: 50 });
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect: { width: 0, height: 0 },
+        placement: 'top',
+      });
+
+      expect(result.placement).toBe('top');
+      expect(result.y).toBe(200 - 0 - 8);
+    });
+
+    it('normalizes inverted and drops zero-area avoidRects', () => {
+      const triggerRect = createMockDOMRect({ top: 200, left: 100, width: 100, height: 50 });
+      const tooltipRect = { width: 80, height: 30 };
+
+      // 反转矩形应被矫正为正常矩形；零面积应被丢弃（等价于无避让）
+      const inverted = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        avoidRects: [{ left: 300, top: 200, right: 0, bottom: 150 }],
+      });
+      const normalized = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        avoidRects: [{ left: 0, top: 150, right: 300, bottom: 200 }],
+      });
+      expect(inverted).toEqual(normalized);
+
+      const zeroArea = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        avoidRects: [{ left: 100, top: 100, right: 100, bottom: 100 }],
+      });
+      const without = computePosition({ triggerRect, tooltipRect, placement: 'top' });
+      expect(zeroArea).toEqual(without);
+    });
+
     it('handles centered alignment by default', () => {
       const triggerRect = createMockDOMRect({ top: 100, left: 100, width: 100, height: 50 });
       const tooltipRect = { width: 80, height: 30 };

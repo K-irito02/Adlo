@@ -1,6 +1,10 @@
-import { describe, it, expect, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { BrowserNavUtilityButtons } from './BrowserNavUtilityButtons';
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const labels = {
   newTab: '新建书签',
@@ -43,6 +47,33 @@ describe('BrowserNavUtilityButtons', () => {
     setup('tabs');
     const plus = screen.getByRole('button', { name: labels.newTab });
     expect(plus).not.toHaveAttribute('title');
+  });
+
+  it('shows tooltip content carrying the button label on hover', async () => {
+    vi.useFakeTimers();
+    try {
+      setup('open');
+      const plus = screen.getByRole('button', { name: labels.alwaysNewTab });
+      fireEvent.mouseEnter(plus);
+      // showDelay(300) + mount rAF + enter double-rAF
+      await act(async () => {
+        vi.advanceTimersByTime(300);
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(16);
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(16);
+      });
+      await act(async () => {
+        vi.advanceTimersByTime(16);
+      });
+      const tip = screen.getByRole('tooltip');
+      expect(tip).toHaveTextContent(labels.alwaysNewTab);
+      expect(tip.getAttribute('data-state')).toBe('open');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('invokes onAlwaysNewTab when always-new-tab button clicked', () => {

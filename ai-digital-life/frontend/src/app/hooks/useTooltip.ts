@@ -16,7 +16,6 @@ export interface UseTooltipOptions {
   onOpenChange?: (open: boolean) => void;
   sideOffset?: number;
   align?: Alignment;
-  maxWidth?: number;
 }
 
 export interface UseTooltipReturn {
@@ -24,6 +23,7 @@ export interface UseTooltipReturn {
   tooltipRef: React.RefCallback<HTMLElement>;
   isOpen: boolean;
   position: PositionResult | null;
+  resetPosition: () => void;
   placement: Placement;
   close: () => void;
   handleTriggerEnter: () => void;
@@ -90,6 +90,8 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
   const rafRef = useRef<number | null>(null);
   const isPointerInTooltipRef = useRef(false);
 
+  // WebView 矩形按次查询是有意为之（bounds 会随面板拖拽变化，不可缓存；
+  // 容器至多 2 个，单次成本可接受，且已由 rAF 节流）。
   const updatePosition = useCallback(() => {
     const triggerEl = triggerElRef.current;
     const tooltipEl = tooltipElRef.current;
@@ -136,10 +138,16 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       }
       // 关闭时保留最后一次定位，让退出过渡在原地播放；
       // 若清空调位，退出动画会在屏外 (-9999) 空播，用户看到的是瞬间消失。
-      // 下次打开时 updatePosition 会重新计算，无需在此清理。
+      // 定位清理由卸载时的 resetPosition 承担（见 Tooltip.tsx），避免下次打开首帧旧址闪现。
     },
     [isControlled, onOpenChange],
   );
+
+  // 卸载时清空调位：退出过渡已播完，此时清理不影响动画，
+  // 且下次打开首帧回到屏外（而非旧址），等待 updatePosition 回写。
+  const resetPosition = useCallback(() => {
+    setPosition(null);
+  }, []);
 
   const clearTimers = useCallback(() => {
     if (showTimerRef.current !== null) {
@@ -336,6 +344,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       tooltipRef,
       isOpen,
       position,
+      resetPosition,
       placement,
       close,
       handleTriggerEnter,
@@ -351,6 +360,7 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       tooltipRef,
       isOpen,
       position,
+      resetPosition,
       placement,
       close,
       handleTriggerEnter,
