@@ -1,6 +1,5 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
-import type { TabLocation } from '../slices/tabLocation';
 
 export function createCenterActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   const clampPanelActiveTab = () => {

@@ -3,7 +3,12 @@ import { useAppStore } from '@stores/slicedStore';
 
 describe('centerActions', () => {
   beforeEach(() => {
-    useAppStore.setState({ centerTabs: [], centerActiveTabId: '', browserTabs: [], browserActiveTabId: '' });
+    useAppStore.setState({
+      centerTabs: [],
+      centerActiveTabId: '',
+      browserTabs: [],
+      browserActiveTabId: '',
+    });
   });
 
   it('centerShowBrowserTab 移动标签到中心并重夹面板活动标签', () => {
