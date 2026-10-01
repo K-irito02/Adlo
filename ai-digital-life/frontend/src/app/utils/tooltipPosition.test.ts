@@ -434,10 +434,19 @@ describe('tooltipPosition', () => {
     });
 
     it('ignores zero-area avoidRects even when preferred side does not fit viewport', () => {
-      // 归一化后变空必须等价于未传入：走原有"首选→对侧→fallback"路径，
-      // 而不是 avoid 分支的四边试算（两者在首选边放不下时返回不同 placement）。
-      const triggerRect = createMockDOMRect({ top: 10, left: 100, width: 100, height: 50 });
-      const tooltipRect = { width: 80, height: 30 };
+      // 归一化后变空必须等价于未传入：走原有"首选→对侧→fallback"路径。
+      // 几何经挑选具判别力：top/bottom 主轴都放不下时，
+      // 旧分支（未短路）会试出 left，而原有逻辑回退 bottom——两者 placement 不同。
+      // （tooltip 高度取值仅为构造分支分歧，非真实尺寸。）
+      const triggerRect = createMockDOMRect({
+        top: 500,
+        left: 100,
+        width: 100,
+        height: 50,
+        right: 200,
+        bottom: 550,
+      });
+      const tooltipRect = { width: 80, height: 1000 };
 
       const zeroArea = computePosition({
         triggerRect,
