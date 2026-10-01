@@ -60,6 +60,7 @@ export interface TerminalSlice {
   terminalTogglePin: (tabId: string) => void;
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
   terminalCloseAllTabs: (workspaceId?: string) => void;
+  terminalSetLocation: (tabId: string, location: 'panel' | 'center') => void;
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
   setWorkspaceDefaultTerminalProfile: (workspaceId: string, profile: TerminalProfile) => void;
   setTerminalNavigatorWidth: (width: number) => void;
@@ -161,6 +162,15 @@ export const createTerminalSlice = (
       set((state) => {
         const nextTabs = sortTabs(
           state.terminalTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab)),
+        );
+        persist('adl:terminal.tabs', nextTabs);
+        return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
+      }),
+
+    terminalSetLocation: (tabId, location) =>
+      set((state) => {
+        const nextTabs = sortTabs(
+          state.terminalTabs.map((tab) => (tab.id === tabId ? { ...tab, location } : tab)),
         );
         persist('adl:terminal.tabs', nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };

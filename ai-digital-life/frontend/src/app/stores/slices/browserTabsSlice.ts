@@ -40,6 +40,7 @@ export interface BrowserTabsSlice {
   browserTogglePin: (tabId: string) => void;
   browserReorderTabs: (newOrder: BrowserTabState[]) => void;
   browserCloseAllTabs: (workspaceId?: string) => void;
+  browserSetLocation: (tabId: string, location: 'panel' | 'center') => void;
   browserUpdateTabAudioState: (tabId: string, isPlaying?: boolean, isMuted?: boolean) => void;
   browserToggleTabMute: (tabId: string) => void;
 }
@@ -153,6 +154,15 @@ export const createBrowserTabsSlice = (
     set((state) => {
       const nextTabs = sortTabs(
         state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab)),
+      );
+      persist('adl:browser.tabs', nextTabs);
+      return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };
+    }),
+
+  browserSetLocation: (tabId, location) =>
+    set((state) => {
+      const nextTabs = sortTabs(
+        state.browserTabs.map((tab) => (tab.id === tabId ? { ...tab, location } : tab)),
       );
       persist('adl:browser.tabs', nextTabs);
       return { browserTabs: nextTabs, browserTabsById: buildTabsById(nextTabs) };

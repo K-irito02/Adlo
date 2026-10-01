@@ -40,6 +40,7 @@ import {
 } from './slices';
 import { createGitVisSlice } from './slices/gitVisSlice';
 import { createCenterTabsSlice } from './slices/centerTabsSlice';
+import { createCenterActions } from './actions/centerActions';
 import type { StoreState as FullStoreState } from './StoreState';
 
 import {
@@ -124,6 +125,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createReferenceActions(set, get), // 参考代码仓库操作
   ...createUtilitiesActions(set, get), // 系统工具操作（剪贴板历史、系统监控）
   ...createDshActions(set, get), // dsh 宿主壳操作（打开/关闭/版本管理）
+  ...createCenterActions(set, get), // 中心标签宿主编排（移入中心/移回面板）
 }));
 
 import { hydrateAll } from './persisted/hydrate';

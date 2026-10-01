@@ -255,6 +255,13 @@ interface DshActions {
   testSource: (url: string, silent?: boolean) => Promise<DshTestResult | null>;
 }
 
+interface CenterActions {
+  clampPanelActiveTab: () => void;
+  centerShowBrowserTab: (browserTabId: string) => void;
+  centerShowTerminalTab: (terminalTabId: string) => void;
+  centerReturnToPanel: (centerTabId: string) => void;
+}
+
 type AllActions = [
   WorkspaceActions,
   EditorActions,
@@ -265,6 +272,7 @@ type AllActions = [
   ReferenceActions,
   UtilitiesActions,
   DshActions,
+  CenterActions,
 ];
 
 export type StoreState = StoreStateRootFields &
