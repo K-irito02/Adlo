@@ -57,12 +57,20 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
       if (tab.kind === 'browser' && tab.refId) {
         const browserTab = browserTabsById[tab.refId];
         if (browserTab?.isDsh) {
-          void useAppStore.getState().closeDsh(false);
+          // dsh 承载标签关闭即终止进程（closeDsh 失败已记卡，此处 catch 仅防未处理 rejection）。
+          // 与 browserCloseTab/destroyTab 无重复清理：closeDsh 只停进程，WebView 销毁
+          // 归下行的 browserPool.destroyTab，store 状态归 browserCloseTab。
+          void useAppStore
+            .getState()
+            .closeDsh(false)
+            .catch((e) => console.warn('[center] closeDsh on tab close failed:', e));
         }
         browserCloseTab(tab.refId);
         // browserCloseTab 只删 store 状态：中心路径不走面板关闭 wrapper，必须显式回收
         // 共享池条目与原生 WebView2，否则该 tabId 的 WebView 永久存活且无法再被回收。
-        void browserPool.destroyTab(tab.refId);
+        void browserPool.destroyTab(tab.refId).catch((e) => {
+          console.warn('[center] browserPool.destroyTab failed:', e);
+        });
         if (browserTab?.url) {
           removeSiteMetaIfUnreferenced(browserTab.url);
         }

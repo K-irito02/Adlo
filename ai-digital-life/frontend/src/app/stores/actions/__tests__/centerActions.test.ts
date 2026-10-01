@@ -53,4 +53,58 @@ describe('centerActions', () => {
     expect(s.centerTabs[0].kind).toBe('launcher');
     expect(s.browserActiveTabId).toBe(id);
   });
+
+  it('centerShowBrowserTab 对不存在的标签直接返回（不创建中心标签）', () => {
+    useAppStore.getState().browserOpenTab('https://a.test', 'A');
+    const before = useAppStore.getState().centerTabs.length;
+    useAppStore.getState().centerShowBrowserTab('browser-gone');
+    const s = useAppStore.getState();
+    expect(s.centerTabs).toHaveLength(before);
+    expect(s.browserTabs.some((t) => t.location === 'center')).toBe(false);
+  });
+
+  it('centerShowTerminalTab 对不存在的标签直接返回（不创建中心标签）', () => {
+    useAppStore.getState().terminalCreateTab('powershell', '');
+    const before = useAppStore.getState().centerTabs.length;
+    useAppStore.getState().centerShowTerminalTab('terminal-gone');
+    const s = useAppStore.getState();
+    expect(s.centerTabs).toHaveLength(before);
+    expect(s.terminalTabs.some((t) => t.location === 'center')).toBe(false);
+  });
+
+  it('centerReturnToPanel 底层浏览器标签已删除时只摘除中心标签并重夹面板活动标签', () => {
+    useAppStore.getState().browserOpenTab('https://a.test', 'A');
+    useAppStore.getState().browserOpenTab('https://b.test', 'B');
+    const [a, b] = useAppStore.getState().browserTabs.map((t) => t.id);
+    useAppStore.getState().centerShowBrowserTab(a);
+    const centerTab = useAppStore.getState().centerTabs.find((t) => t.refId === a)!;
+    // 底层标签先被删（中心标签悬空），再移回面板：不得抛错，不得写已删标签。
+    useAppStore.getState().browserCloseTab(a);
+    useAppStore.getState().centerReturnToPanel(centerTab.id);
+
+    const s = useAppStore.getState();
+    expect(s.centerTabs.some((t) => t.id === centerTab.id)).toBe(false);
+    expect(s.browserTabsById[a]).toBeUndefined();
+    // 面板活动标签被重夹到存活的面板标签。
+    expect(s.browserActiveTabId).toBe(b);
+  });
+
+  it('centerReturnToPanel 底层终端标签已删除时只摘除中心标签并重夹面板活动标签', () => {
+    const countBefore = useAppStore.getState().terminalTabs.length;
+    useAppStore.getState().terminalCreateTab('powershell', '');
+    useAppStore.getState().terminalCreateTab('bash', '');
+    const [a, b] = useAppStore
+      .getState()
+      .terminalTabs.slice(countBefore)
+      .map((t) => t.id);
+    useAppStore.getState().centerShowTerminalTab(a);
+    const centerTab = useAppStore.getState().centerTabs.find((t) => t.refId === a)!;
+    useAppStore.getState().terminalCloseTab(a);
+    useAppStore.getState().centerReturnToPanel(centerTab.id);
+
+    const s = useAppStore.getState();
+    expect(s.centerTabs.some((t) => t.id === centerTab.id)).toBe(false);
+    expect(s.terminalTabsById[a]).toBeUndefined();
+    expect(s.terminalActiveTabId).toBe(b);
+  });
 });

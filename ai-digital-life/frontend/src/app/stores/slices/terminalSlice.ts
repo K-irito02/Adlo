@@ -55,8 +55,13 @@ export interface TerminalSlice {
   terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   terminalSelectTab: (tabId: string) => void;
   terminalCloseTab: (tabId: string) => void;
-  terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, 'id'>>) => void;
-  terminalUpdateTab: (tabId: string, patch: Partial<Omit<TerminalTabState, 'id'>>) => void;
+  // patch 不含 location（与浏览器侧 BrowserTabStateUpdate 对齐）：宿主迁移必须走
+  // terminalSetLocation，全仓无经 update 路径改 location 的合法使用。
+  terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, 'id' | 'location'>>) => void;
+  terminalUpdateTab: (
+    tabId: string,
+    patch: Partial<Omit<TerminalTabState, 'id' | 'location'>>,
+  ) => void;
   terminalTogglePin: (tabId: string) => void;
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
   terminalCloseAllTabs: (workspaceId?: string) => void;
@@ -227,10 +232,13 @@ export const createTerminalSlice = (
           return false; // 全局清空：移除所有面板标签
         });
         const nextTabs = sortTabs(filtered);
+        // 与 browserCloseAllTabs 同语义：回退取最后一个**面板**标签；仅剩中心标签
+        // 时清空为 ''，不得指向中心标签。
+        const panelKept = nextTabs.filter((tab) => tab.location !== 'center');
         const nextActive =
-          nextTabs.find((tab) => tab.id === state.terminalActiveTabId) !== undefined
+          panelKept.find((tab) => tab.id === state.terminalActiveTabId) !== undefined
             ? state.terminalActiveTabId
-            : (nextTabs[nextTabs.length - 1]?.id ?? '');
+            : (panelKept[panelKept.length - 1]?.id ?? '');
         persist('adl:terminal.tabs', nextTabs);
         persist('adl:terminal.activeTabId', nextActive);
         return {

@@ -94,6 +94,19 @@ describe('prune wiring', () => {
     expect(useAppStore.getState().expandedFileTreePaths.workspace_gone).toBeDefined();
   });
 
+  it('空工作区 + 空中心时仍补齐 launcher（中心不变量不依赖工作区）', () => {
+    useAppStore.setState({
+      recentWorkspaces: [],
+      centerTabs: [],
+      centerActiveTabId: '',
+    });
+    applyWorkspacePrune();
+    const s = useAppStore.getState();
+    expect(s.centerTabs).toHaveLength(1);
+    expect(s.centerTabs[0].kind).toBe('launcher');
+    expect(s.centerActiveTabId).toBe(s.centerTabs[0].id);
+  });
+
   it('drops the removed workspace once the list is known', () => {
     useAppStore.setState({
       recentWorkspaces: [workspaceEntry('workspace_a')],

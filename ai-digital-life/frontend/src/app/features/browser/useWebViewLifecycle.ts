@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { useAppStore } from '@stores/slicedStore';
+import { shouldHostHideTab } from './browserPoolSingleton';
 import { getResolvedTheme } from './useBrowserThemeSync';
 import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { isDownloadUrl } from '@utils/downloadUrl';
@@ -83,20 +85,25 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       return;
     }
 
-    // Hide previous tab's WebView when switching away (including to an empty new tab)
+    // Hide previous tab's WebView when switching away (including to an empty new tab).
+    // E1 双宿主竞态守卫：按 store 最新归属判定 —— 若该 tab 已被移入另一宿主
+    // （面板→中心或反向），本宿主不得隐藏，否则会盖掉新宿主的显示。
     if (prevActiveTabIdRef.current && prevActiveTabIdRef.current !== tab?.id) {
       const prevId = prevActiveTabIdRef.current;
       if (isTabInPool(prevId)) {
-        window.digitalLife?.browser
-          ?.setTabBounds(prevId, {
-            x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
-            y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
-            width: 1,
-            height: 1,
-          })
-          .catch((e) => {
-            console.warn('[useWebViewLifecycle] failed to hide previous tab WebView:', e);
-          });
+        const freshPrev = useAppStore.getState().browserTabsById[prevId];
+        if (shouldHostHideTab(hostId, freshPrev)) {
+          window.digitalLife?.browser
+            ?.setTabBounds(prevId, {
+              x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+              y: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
+              width: 1,
+              height: 1,
+            })
+            .catch((e) => {
+              console.warn('[useWebViewLifecycle] failed to hide previous tab WebView:', e);
+            });
+        }
       }
     }
     prevActiveTabIdRef.current = tab?.id ?? null;
@@ -173,6 +180,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       console.warn('[useWebViewLifecycle] activateOrCreate failed:', e);
     });
   }, [
+    hostId,
     activeTab,
     webViewDisabled,
     isTabInPool,
@@ -186,6 +194,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
   // Cleanup on unmount: clear active flag/fresh set AND hide the host's current
   // active tab WebView, so unmounting a host (e.g. switching center tabs or
   // closing the center host) never leaves a stale native surface behind.
+  // E1 守卫同上：tab 已归属另一宿主时不隐藏（另一宿主正在显示它）。
   useEffect(() => {
     const freshTabIds = freshTabIdsRef.current;
     return () => {
@@ -193,6 +202,10 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
       freshTabIds.clear();
       const tab = activeTabSnapshotRef.current;
       if (isTauriShell() && tab?.id && isTabInPool(tab.id)) {
+        const fresh = useAppStore.getState().browserTabsById[tab.id];
+        if (!shouldHostHideTab(hostId, fresh)) {
+          return;
+        }
         window.digitalLife?.browser
           ?.setTabBounds(tab.id, {
             x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,

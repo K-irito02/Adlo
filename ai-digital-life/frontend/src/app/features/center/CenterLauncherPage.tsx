@@ -53,7 +53,9 @@ export function CenterLauncherPage({ centerTabId }: CenterLauncherPageProps) {
   }, [centerUpdateTab, centerTabId]);
 
   return (
-    <div className="adl-app-welcome">
+    // 页面地标：带 aria-label 的 section（DshVersionManagement 的调用方契约要求
+    // 调用方提供地标，组件自身只渲染操作栏 + 版本卡片，不自建 section）。
+    <section className="adl-app-welcome" aria-label={t.centerLauncherLabel}>
       <div className="adl-app-welcome__card">
         <button
           type="button"
@@ -82,6 +84,6 @@ export function CenterLauncherPage({ centerTabId }: CenterLauncherPageProps) {
       </div>
 
       <DshVersionManagement />
-    </div>
+    </section>
   );
 }

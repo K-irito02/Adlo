@@ -8,12 +8,15 @@ import {
   collectAllDescendantTabUrlsLocal,
 } from './browserTreeUtils';
 
-/** 该 tabId 对应的存活标签是否为中心标签（中心标签不受面板树删除影响）。 */
-function isCenterTabId(
-  tabs: { id: string; location?: 'panel' | 'center' }[],
-  tabId: string,
-): boolean {
-  return tabs.find((t) => t.id === tabId)?.location === 'center';
+/** 存活的中心标签 id 集合（一次建成，循环内 O(1) 判定，避免逐项 find 的 O(n²)）。 */
+function buildCenterTabIdSet(tabs: { id: string; location?: 'panel' | 'center' }[]): Set<string> {
+  const ids = new Set<string>();
+  for (const t of tabs) {
+    if (t.location === 'center') {
+      ids.add(t.id);
+    }
+  }
+  return ids;
 }
 
 function collectFolderTabSnapshotUrls(
@@ -72,6 +75,8 @@ export function useBrowserFolderCrud() {
   const handleDeleteAllChildTabs = useCallback(
     (_categoryType: string, nodePath: string) => {
       const state = useAppStore.getState();
+      // 中心标签不受面板树删除影响：一次建成 id 集合，循环内 O(1) 判定。
+      const centerTabIds = buildCenterTabIdSet(state.browserTabs);
       let tabIds: string[] = [];
       let urls: string[] = [];
       let wsSnapshotUrls: Map<string, string> | null = null;
@@ -211,7 +216,8 @@ export function useBrowserFolderCrud() {
         }
       }
       for (const { tabId, url } of allTabUrls) {
-        if (tabId && url && !isCenterTabId(state.browserTabs, tabId)) {
+        // 中心标签不受面板树删除影响（Set 已在循环外一次建成，循环内 O(1) 判定）。
+        if (tabId && url && !centerTabIds.has(tabId)) {
           browserRemoveTabBookmarks(tabId, url);
         }
       }
@@ -230,6 +236,7 @@ export function useBrowserFolderCrud() {
   const handleDeleteOwnChildTabs = useCallback(
     (_categoryType: string, nodePath: string) => {
       const state = useAppStore.getState();
+      const centerTabIds = buildCenterTabIdSet(state.browserTabs);
       let tabIds: string[] = [];
       let urls: string[] = [];
 
@@ -318,7 +325,7 @@ export function useBrowserFolderCrud() {
         const folder = state.browserTabFolders.find((f) => f.id === folderId);
         if (folder?.tabs) {
           for (const item of folder.tabs) {
-            if (item.tabId && item.url && !isCenterTabId(state.browserTabs, item.tabId)) {
+            if (item.tabId && item.url && !centerTabIds.has(item.tabId)) {
               browserRemoveTabBookmarks(item.tabId, item.url);
             }
           }
@@ -326,7 +333,7 @@ export function useBrowserFolderCrud() {
       } else {
         for (const tabId of tabIds) {
           const url = state.browserTabs.find((t) => t.id === tabId)?.url || '';
-          if (tabId && url && !isCenterTabId(state.browserTabs, tabId)) {
+          if (tabId && url && !centerTabIds.has(tabId)) {
             browserRemoveTabBookmarks(tabId, url);
           }
         }
@@ -405,6 +412,7 @@ export function useBrowserFolderCrud() {
           ? folderId.slice('folder:'.length)
           : folderId;
         const state = useAppStore.getState();
+        const centerTabIds = buildCenterTabIdSet(state.browserTabs);
         const folder = findFolderByIdLocal(
           state.browserTabFolders as {
             id: string;
@@ -458,7 +466,7 @@ export function useBrowserFolderCrud() {
           };
           collectFolderTabEntries(actualId);
           for (const { tabId, url } of allTabUrls) {
-            if (tabId && url && !isCenterTabId(state.browserTabs, tabId)) {
+            if (tabId && url && !centerTabIds.has(tabId)) {
               browserRemoveTabBookmarks(tabId, url);
             }
           }

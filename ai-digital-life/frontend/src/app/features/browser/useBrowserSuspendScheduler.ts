@@ -81,18 +81,11 @@ interface SchedulerOptions {
   isVisible: boolean;
   removeFromPool: (tabId: string) => Promise<void>;
   isTabInPool: (tabId: string) => boolean;
-  activeTabId: string;
 }
 
 export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
   const lastActivatedMsRef = useRef<Record<string, number>>({});
-  const { isVisible, removeFromPool, isTabInPool, activeTabId } = opts;
-
-  useEffect(() => {
-    if (activeTabId) {
-      lastActivatedMsRef.current[activeTabId] = Date.now();
-    }
-  }, [activeTabId]);
+  const { isVisible, removeFromPool, isTabInPool } = opts;
 
   useEffect(() => {
     if (!isVisible) {
@@ -108,6 +101,13 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
       const state = useAppStore.getState();
       const isProtected = (t: BrowserTabState): boolean =>
         t.isPinned || t.isPlayingAudio || t.isDownloading;
+      // 受保护的活动标签（面板活动 + 中心活动浏览器 + 全部 dsh）每 tick 现算，
+      // 在此刷新它们的激活时间戳：单宿主 prop 已删除，双宿主下仅靠传入 activeTabId
+      // 会漏记另一宿主的活动标签，导致其 lastActivated 陈旧而被误挂起。
+      const protectedActiveTabIds = collectProtectedActiveTabIds(state);
+      for (const id of protectedActiveTabIds) {
+        lastActivatedMsRef.current[id] = now;
+      }
       // Tabs whose removeFromPool was already issued this tick (Set deletion is
       // async inside destroyTabWebView), so isTabInPool may still report them in-pool.
       const suspendedThisTick = new Set<string>();
@@ -122,7 +122,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
       if (idleMs > 0) {
         for (const id of applyIdlePass({
           tabs: state.browserTabs,
-          protectedActiveTabIds: collectProtectedActiveTabIds(state),
+          protectedActiveTabIds,
           inPool: isTabInPool,
           lastActivatedMs: lastActivatedMsRef.current,
           idleMs,

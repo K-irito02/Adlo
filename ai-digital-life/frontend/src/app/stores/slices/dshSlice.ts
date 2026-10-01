@@ -2,7 +2,8 @@ import type { DshVersionStatus, DshSourceStatus } from '../../../shared/ipc/dsh'
 import type { StoreState } from '../StoreState';
 
 export interface DshSlice {
-  /** dsh 中间区宿主是否打开（true=铺满中间区，false=欢迎引导页） */
+  /** dsh 进程是否就绪（true=已拉起并承载于普通浏览器中心标签）。WebView 归浏览器池
+   * 所有，本切片不持有任何视图状态（无专属视图/宿主分支）。 */
   isOpen: boolean;
   /** 当前 dsh 进程就绪 URL（null 表示未拉起） */
   url: string | null;

@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { CenterBrowserView } from '../CenterBrowserView';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
+import { browserPool } from '@features/browser/browserPoolSingleton';
 import type { CopyDict } from '@i18n/types';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { ShortcutSite } from '@stores/slices/browserLandingSlice';
@@ -125,5 +126,49 @@ describe('CenterBrowserView', () => {
     });
     renderView('b1');
     expect(screen.getByRole('button', { name: 'Open externally' })).toBeTruthy();
+  });
+
+  it('data-webview-active 门控：仅已入池的原生 WebView 才标记', async () => {
+    const tab = makeTab('b1', 'https://x.test');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+      isTauri: true,
+    });
+    await browserPool.createForTab('b1', 'https://x.test');
+    try {
+      const { container, unmount } = renderView('b1');
+      expect(
+        container
+          .querySelector('.adl-center-browser__content')
+          ?.hasAttribute('data-webview-active'),
+      ).toBe(true);
+      unmount();
+    } finally {
+      browserPool.reset();
+      useAppStore.setState({ isTauri: false });
+    }
+  });
+
+  it('data-webview-active 门控：未入池时不标记（tooltip 无需避让）', () => {
+    const tab = makeTab('b1', 'https://x.test');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+      isTauri: true,
+    });
+    try {
+      const { container, unmount } = renderView('b1');
+      expect(
+        container
+          .querySelector('.adl-center-browser__content')
+          ?.hasAttribute('data-webview-active'),
+      ).toBe(false);
+      unmount();
+    } finally {
+      useAppStore.setState({ isTauri: false });
+    }
   });
 });

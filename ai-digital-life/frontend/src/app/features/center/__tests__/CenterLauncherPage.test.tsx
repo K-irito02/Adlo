@@ -14,6 +14,9 @@ vi.mock('@features/dsh/DshVersionManagement', () => ({
 
 const t = {
   dshTitle: 'DeepSeek Harness',
+  centerLauncherLabel: '中心起始页',
+  centerContentLabel: '中心内容区',
+  centerBrowserTabMissing: '浏览器标签不可用',
   centerLauncherOpenDsh: '打开 dsh',
   centerLauncherOpenBrowser: '打开浏览器欢迎页',
   centerLauncherOpenTerminal: '打开终端欢迎页',
@@ -49,6 +52,11 @@ describe('CenterLauncherPage', () => {
     expect(screen.getByRole('button', { name: /dsh/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /浏览器/ })).toBeTruthy();
     expect(screen.getByRole('button', { name: /终端/ })).toBeTruthy();
+  });
+
+  it('渲染带 aria-label 的 section 地标', () => {
+    renderLauncher();
+    expect(screen.getByRole('region', { name: '中心起始页' })).toBeTruthy();
   });
 
   it('点击「打开浏览器欢迎页」就地转换当前 launcher 为浏览器中心标签', () => {
@@ -113,5 +121,60 @@ describe('CenterPane 调度', () => {
     expect(s.centerTabs).toHaveLength(1);
     expect(s.centerTabs[0].kind).toBe('launcher');
     expect(s.centerActiveTabId).toBe(s.centerTabs[0].id);
+  });
+
+  it('内容区地标用专用 centerContentLabel（不复用标签条标签）', () => {
+    useAppStore.setState({
+      centerTabs: [{ id: 'c1', kind: 'launcher', refId: null, createdAt: 1 }],
+      centerActiveTabId: 'c1',
+      isOpen: false,
+    });
+
+    render(
+      <TCopyProvider t={t} locale="zh-CN">
+        <CenterPane />
+      </TCopyProvider>,
+    );
+
+    expect(screen.getByRole('region', { name: '中心内容区' })).toBeTruthy();
+  });
+
+  it('centerActiveTabId 悬空时用 centerSelectTab(首个) 修复 store', () => {
+    useAppStore.setState({
+      centerTabs: [
+        { id: 'c1', kind: 'launcher', refId: null, createdAt: 1 },
+        { id: 'c2', kind: 'launcher', refId: null, createdAt: 2 },
+      ],
+      centerActiveTabId: 'gone',
+      isOpen: false,
+    });
+
+    render(
+      <TCopyProvider t={t} locale="zh-CN">
+        <CenterPane />
+      </TCopyProvider>,
+    );
+
+    // 修复 effect 把活动标签指向首个，而不是静默渲染首个。
+    expect(useAppStore.getState().centerActiveTabId).toBe('c1');
+    expect(screen.getByRole('button', { name: /dsh/i })).toBeTruthy();
+  });
+
+  it('browser 中心标签 refId 为空时渲染占位，不渲染空工具栏', () => {
+    useAppStore.setState({
+      centerTabs: [{ id: 'c1', kind: 'browser', refId: null, createdAt: 1 }],
+      centerActiveTabId: 'c1',
+      isOpen: false,
+    });
+
+    render(
+      <TCopyProvider t={t} locale="zh-CN">
+        <CenterPane />
+      </TCopyProvider>,
+    );
+
+    expect(screen.getByText('浏览器标签不可用')).toBeTruthy();
+    // 空工具栏的地址栏 input 不得出现。
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 });

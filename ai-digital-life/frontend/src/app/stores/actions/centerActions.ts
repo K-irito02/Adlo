@@ -18,12 +18,18 @@ export function createCenterActions(set: StoreApi<StoreState>['setState'], get: 
     clampPanelActiveTab,
 
     centerShowBrowserTab: (browserTabId: string) => {
+      if (!get().browserTabsById[browserTabId]) {
+        return;
+      }
       get().browserSetLocation(browserTabId, 'center');
       get().centerAddTab('browser', browserTabId);
       clampPanelActiveTab();
     },
 
     centerShowTerminalTab: (terminalTabId: string) => {
+      if (!get().terminalTabsById[terminalTabId]) {
+        return;
+      }
       get().terminalSetLocation(terminalTabId, 'center');
       get().centerAddTab('terminal', terminalTabId);
       clampPanelActiveTab();
@@ -35,9 +41,20 @@ export function createCenterActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       if (tab.kind === 'browser' && tab.refId) {
+        if (!get().browserTabsById[tab.refId]) {
+          // 底层标签已不存在：跳过 setLocation+select，只摘除中心标签并重夹面板活动标签。
+          get().centerRemoveTab(centerTabId);
+          clampPanelActiveTab();
+          return;
+        }
         get().browserSetLocation(tab.refId, 'panel');
         get().browserSelectTab(tab.refId);
       } else if (tab.kind === 'terminal' && tab.refId) {
+        if (!get().terminalTabsById[tab.refId]) {
+          get().centerRemoveTab(centerTabId);
+          clampPanelActiveTab();
+          return;
+        }
         get().terminalSetLocation(tab.refId, 'panel');
         get().terminalSelectTab(tab.refId);
       }

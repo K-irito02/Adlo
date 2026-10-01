@@ -249,9 +249,12 @@ export const createBrowserTabsSlice = (
         }
         return false; // 全局清空：移除所有面板标签
       });
-      const nextActive = kept.some((t) => t.id === state.browserActiveTabId)
+      // 面板清空只重夹面板活动标签：回退取最后一个**面板**标签；无面板标签（仅剩中心
+      // 标签或全空）时清空为 ''，不得指向中心标签。
+      const panelKept = kept.filter((tab) => tab.location !== 'center');
+      const nextActive = panelKept.some((t) => t.id === state.browserActiveTabId)
         ? state.browserActiveTabId
-        : (kept[kept.length - 1]?.id ?? '');
+        : (panelKept[panelKept.length - 1]?.id ?? '');
       persist('adl:browser.tabs', kept);
       persist('adl:browser.activeTabId', nextActive);
       return {

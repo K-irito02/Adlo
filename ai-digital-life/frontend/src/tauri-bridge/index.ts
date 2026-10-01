@@ -65,9 +65,8 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
       await invoke('app_set_log_mode', { target, mode });
     },
 
-    // The dsh host runs in a standalone WebView2 sub-window (Task 7) that the
-    // native bridge creates/destroys alongside the HTTP dsh.open / dsh.close
-    // business routes. Browser-preview keeps the httpBridge iframe.
+    // dsh 无专属视图：进程拉起/终止走 ad-server HTTP `/dsh/*`，承载页是普通浏览器
+    // 中心标签，其 WebView 归浏览器池所有（见 tauri-dsh.ts）。
     dsh: createTauriDshBridge(http.dsh),
 
     window: createTauriWindowBridge(),

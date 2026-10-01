@@ -46,10 +46,23 @@ describe('getWebViewAvoidRects', () => {
 
     const center = document.createElement('div');
     center.className = 'adl-center-browser__content';
+    // 中心视图只在确有原生 WebView 时设置该属性（见 CenterBrowserView）。
+    center.setAttribute('data-webview-active', 'true');
     mockRect(center, { left: 300, top: 50, right: 1000, bottom: 1000, width: 700, height: 950 });
     document.body.appendChild(center);
 
     expect(getWebViewAvoidRects()).toEqual([{ left: 300, top: 50, right: 1000, bottom: 1000 }]);
+  });
+
+  it('skips the center content without data-webview-active (no native WebView)', () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+
+    const center = document.createElement('div');
+    center.className = 'adl-center-browser__content';
+    mockRect(center, { left: 300, top: 50, right: 1000, bottom: 1000, width: 700, height: 950 });
+    document.body.appendChild(center);
+
+    expect(getWebViewAvoidRects()).toEqual([]);
   });
 
   it('skips zero-area containers (collapsed panels / not mounted)', () => {

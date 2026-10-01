@@ -22,6 +22,9 @@ import { useBrowserPanelActions } from './BrowserPanelActionsContext';
 import { useAppStore } from '@stores/slicedStore';
 
 export const BrowserToolbar = React.memo(function BrowserToolbar() {
+  // 注意：中心浏览器视图的工具栏（`CenterBrowserView` 内联实现，有意不复用本组件 ——
+  // 本组件读面板上下文，忠实抽取风险高）与此处是两套实现。改动工具栏按钮/行为时请
+  // 同步检查中心视图，避免双端漂移。
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [searchEnginePopoverOpen, setSearchEnginePopoverOpen] = useState(false);
   const searchEngineBtnRef = useRef<HTMLButtonElement>(null);

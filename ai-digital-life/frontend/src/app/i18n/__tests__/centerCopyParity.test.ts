@@ -17,6 +17,9 @@ const KEYS = [
   'centerLauncherOpenDsh',
   'centerLauncherOpenBrowser',
   'centerLauncherOpenTerminal',
+  'centerContentLabel',
+  'centerLauncherLabel',
+  'centerBrowserTabMissing',
 ] as const;
 
 describe('center i18n parity', () => {

@@ -84,7 +84,17 @@ export function useCenterBrowserAddressSubmit({
     let blocked = false;
     if (!state.isTauri) {
       const cached = isEmbedBlocked(finalUrl);
-      blocked = cached === undefined ? await checkEmbed(finalUrl) : cached;
+      if (cached !== undefined) {
+        blocked = cached;
+      } else {
+        // checkEmbed 走网络预检：失败（离线/代理异常）不得阻断导航，按"未拦截"继续。
+        try {
+          blocked = await checkEmbed(finalUrl);
+        } catch (e) {
+          console.warn('[centerAddressSubmit] checkEmbed failed, treating as embeddable:', e);
+          blocked = false;
+        }
+      }
     }
 
     setAddress(finalUrl);

@@ -26,6 +26,20 @@ describe('破坏性操作跳过中心标签', () => {
     expect(s.browserTabs.some((t) => t.id === b)).toBe(false);
   });
 
+  it('browserCloseAllTabs 仅剩中心标签时面板活动标签清空', () => {
+    useAppStore.getState().browserOpenTab('https://a.test', 'A');
+    useAppStore.getState().browserOpenTab('https://b.test', 'B');
+    const [a, b] = useAppStore.getState().browserTabs.map((t) => t.id);
+    useAppStore.getState().browserSetLocation(a, 'center');
+    useAppStore.getState().browserSelectTab(b);
+    useAppStore.getState().browserCloseAllTabs();
+    const s = useAppStore.getState();
+    // 中心标签保留，但回退只取面板标签：无面板标签则清空，不得指向中心标签。
+    expect(s.browserTabs).toHaveLength(1);
+    expect(s.browserTabs[0].id).toBe(a);
+    expect(s.browserActiveTabId).toBe('');
+  });
+
   it('terminalCloseAllTabs 不关闭中心标签', () => {
     useAppStore.getState().terminalCreateTab('powershell', 'ws-1');
     useAppStore.getState().terminalCreateTab('bash', 'ws-1');
@@ -35,6 +49,19 @@ describe('破坏性操作跳过中心标签', () => {
     const s = useAppStore.getState();
     expect(s.terminalTabs.some((t) => t.id === a)).toBe(true);
     expect(s.terminalTabs.some((t) => t.id === b)).toBe(false);
+  });
+
+  it('terminalCloseAllTabs 仅剩中心标签时面板活动标签清空', () => {
+    useAppStore.getState().terminalCreateTab('powershell', 'ws-1');
+    useAppStore.getState().terminalCreateTab('bash', 'ws-1');
+    const [a, b] = useAppStore.getState().terminalTabs.map((t) => t.id);
+    useAppStore.getState().terminalSetLocation(a, 'center');
+    useAppStore.getState().terminalSelectTab(b);
+    useAppStore.getState().terminalCloseAllTabs();
+    const s = useAppStore.getState();
+    expect(s.terminalTabs).toHaveLength(1);
+    expect(s.terminalTabs[0].id).toBe(a);
+    expect(s.terminalActiveTabId).toBe('');
   });
 
   it('browserDeleteAllTabsInNode 不删除工作区内的中心标签', () => {

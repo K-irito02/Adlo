@@ -2,11 +2,15 @@ import { useCallback, useEffect } from 'react';
 import { isTauriShell } from '@shared/env';
 import { getOverlayManager, HIDDEN_WEBVIEW_OFFSCREEN_COORD } from '@shared/overlayManager';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { useAppStore } from '@stores/slicedStore';
+import { shouldHostHideTab, type BrowserHostId } from './browserPoolSingleton';
 
 export { WEBVIEW_OVERLAY_SELECTOR } from '@shared/overlayManager';
 export { HIDDEN_WEBVIEW_OFFSCREEN_COORD };
 
 interface UseWebViewVisibilityOptions {
+  /** 宿主标识：E1 双宿主竞态守卫用，隐藏前确认 tab 仍归属本宿主。 */
+  hostId: BrowserHostId;
   isVisible: boolean;
   overlayActive: boolean;
   isTabInPool: (tabId: string) => boolean;
@@ -32,6 +36,7 @@ interface UseWebViewVisibilityOptions {
  */
 export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
   const {
+    hostId,
     isVisible,
     overlayActive,
     isTabInPool,
@@ -51,6 +56,11 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     }
     const tab = activeTabRef.current;
     if (tab && isTabInPool(tab.id)) {
+      // E1：按 store 最新归属判定，已被移入另一宿主的 tab 不得隐藏。
+      const fresh = useAppStore.getState().browserTabsById[tab.id];
+      if (!shouldHostHideTab(hostId, fresh)) {
+        return;
+      }
       window.digitalLife?.browser
         ?.setTabBounds(tab.id, {
           x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
@@ -62,7 +72,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
           console.warn('webview overlay hide set bounds failed', err);
         });
     }
-  }, [isTabInPool, activeTabRef]);
+  }, [hostId, isTabInPool, activeTabRef]);
 
   // DOM overlay detection — delegated to OverlayManager singleton.
   // isVisible / activeTabId 参与 deps：容器挂载晚于首个 effect 时（首轮
@@ -147,6 +157,11 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
     } else if (!isVisible) {
       const tab = activeTabRef.current;
       if (tab && isTabInPool(tab.id)) {
+        // E1：同上，已被移入另一宿主的 tab 不隐藏。
+        const fresh = useAppStore.getState().browserTabsById[tab.id];
+        if (!shouldHostHideTab(hostId, fresh)) {
+          return;
+        }
         window.digitalLife?.browser
           ?.setTabBounds(tab.id, {
             x: HIDDEN_WEBVIEW_OFFSCREEN_COORD,
@@ -160,6 +175,7 @@ export function useWebViewVisibility(options: UseWebViewVisibilityOptions) {
       }
     }
   }, [
+    hostId,
     isVisible,
     updateWebViewBounds,
     isTabInPool,

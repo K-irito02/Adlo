@@ -33,12 +33,14 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       if (openDshInFlight) {
         return openDshInFlight;
       }
-      // 已有 isDsh 标签：聚焦它（已居中则重新选中该中心标签，否则移入中心），
-      // 不新建标签、不重复拉起进程（dsh.open 幂等但双击仍会产生第二个标签）。
+      // 已有 isDsh 标签且进程仍在（isOpen）：聚焦它（已居中则重新选中该中心标签，
+      // 否则移入中心），不新建标签、不重复拉起进程（dsh.open 幂等但双击仍会产生第二个标签）。
+      // isOpen === false 说明进程已死而标签残留（死标签）：不复用，走正常拉起路径重建。
       const existing = get().browserTabs.find((tab) => tab.isDsh);
-      if (existing) {
+      if (existing && get().isOpen) {
         clearError(get, SCOPE);
         get().setDshOpen(true);
+        get().setDshUrl(existing.url);
         const centerTab = get().centerTabs.find(
           (tab) => tab.kind === 'browser' && tab.refId === existing.id,
         );
@@ -59,7 +61,9 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
           // dsh 统一为普通浏览器中心标签：拉起进程后创建承载标签并标记 isDsh
           //（关闭标签时联动停进程，见 useBrowserTabs / CenterTabStrip）。
           // 浏览器池的 create 路径会自行建立 WebView，无需再 bump 桥接条 z-order。
-          get().browserOpenTab(data.url ?? '', 'dsh');
+          // 初始标题留空：页面标题回写会覆盖它，空标题期间 UI 显示 i18n 新建标签页
+          // 占位（不得硬编码 'dsh' 等字面标题）。
+          get().browserOpenTab(data.url ?? '');
           const tabId = get().browserActiveTabId;
           if (tabId) {
             get().browserUpdateTab(tabId, { isDsh: true });
@@ -77,7 +81,9 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       }
     },
     /**
-     * [closeDsh - 关闭中间区 dsh 宿主。keep=true 保留进程；keep=false 停进程]
+     * [closeDsh - 终止 dsh 进程并关闭其中间区宿主]
+     * @param keep 透传桥接层的进程保留标志；中心标签关闭路径一律传 false（终止进程）。
+     * WebView 的销毁归浏览器池（`browserPool.destroyTab`）负责，不在此处理。
      * @returns true=成功；false=失败（已记录全局错误卡片）
      * @reads dshSlice.isOpen
      * @writes dshSlice.isOpen, dshSlice.url

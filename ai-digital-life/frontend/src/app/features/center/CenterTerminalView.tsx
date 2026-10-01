@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { terminalSelectors } from '@stores/selectors';
-import { IconAreaSwap, IconPlus } from '@icons';
+import { IconAlertTriangle, IconAreaSwap, IconPlus } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
 import { TerminalHistoryList } from '@components/terminal/TerminalHistoryList';
@@ -299,7 +299,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
 
             {tab.status === 'terminated' && !tab.sessionId && (
               <div className="adl-terminal-error-note">
-                <span>{'\u26A0'}</span>
+                <IconAlertTriangle size={14} decorative />
                 <span>{t.terminalShellNotFound}</span>
               </div>
             )}

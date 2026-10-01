@@ -568,6 +568,14 @@
   pointer-events: auto;
 }
 
+/* 无悬停设备（触屏）：悬停不可达，至少让活动标签的操作按钮常驻可见。 */
+@media (hover: none) {
+  .adl-center-tab.is-active .adl-center-tab__actions {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
 /* 标题栏通用 tooltip-trigger 会被拉伸为整高；标签条内的小按钮恢复自适应高度。 */
 .adl-center-tab-strip .tooltip-trigger {
   align-self: center;

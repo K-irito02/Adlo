@@ -6,7 +6,10 @@ import type { AvoidRect } from './tooltipPosition';
  *
  * - 仅 Tauri 桌面有效：浏览器模式是 iframe，tooltip 天然置顶，无需避让。
  * - 覆盖右侧浏览器面板主内容区（与 bounds 侧容器同源）。
- * - 覆盖中心浏览器宿主内容容器（`.adl-center-browser__content`，与中心 bounds 同源）。
+ * - 覆盖中心浏览器宿主内容容器（`.adl-center-browser__content`，与中心 bounds 同源），
+ *   但仅当其带有 `data-webview-active` 时上报 —— 中心视图只在确有已入池的原生
+ *   WebView 时才设置该属性（见 `CenterBrowserView`），空白页 / 未入池 / iframe
+ *   模式下不上报，避免 tooltip 无谓避让一块没有原生表面的区域。
  * - 零面积容器（面板收起/未挂载）自动跳过。
  *
  * 选择器耦合说明：以下选择器必须与实际传入 `setTabBounds` 的容器保持同源
@@ -16,7 +19,7 @@ import type { AvoidRect } from './tooltipPosition';
  */
 export const TOOLTIP_AVOID_SELECTORS = [
   '.adl-tool-primary--browser',
-  '.adl-center-browser__content',
+  '.adl-center-browser__content[data-webview-active]',
 ] as const;
 
 export function getWebViewAvoidRects(): AvoidRect[] {

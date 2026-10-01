@@ -86,7 +86,10 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
             {
               id: 'show-in-center',
               label: t.centerTabShowInCenter,
-              action: () => moveTabToCenter(tab.id),
+              action: () => {
+                moveTabToCenter(tab.id);
+                setContextMenu(null);
+              },
             },
           ]}
           position={contextMenu}

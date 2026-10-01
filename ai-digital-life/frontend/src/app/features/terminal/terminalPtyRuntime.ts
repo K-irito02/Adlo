@@ -385,6 +385,7 @@ export class TerminalPtyRuntime {
     this.historyIndex.clear();
     this.historyIndexLoaded = false;
     this.historyVersion = 0;
+    this.historyListeners.clear();
   };
 
   // ---------------------------------------------------------------- 历史索引
@@ -1011,7 +1012,10 @@ export class TerminalPtyRuntime {
     const tabs = useAppStore.getState().terminalTabs;
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.sessionId) {
-      void window.digitalLife.pty.kill(tab.sessionId);
+      // kill 失败仅日志：标签关闭流程（store / xterm 池 / 历史）不受影响。
+      void window.digitalLife.pty
+        .kill(tab.sessionId)
+        .catch((e) => console.warn('[pty] kill on tab close failed:', e));
       terminalXtermPool.release(tab.sessionId);
       this.liveSessionIds.delete(tab.sessionId);
       this.ptyDims.delete(tab.sessionId);
@@ -1035,7 +1039,9 @@ export class TerminalPtyRuntime {
       this.tabCwds.delete(tab.id);
       this.pendingInput.delete(tab.id);
       if (tab.sessionId) {
-        void window.digitalLife.pty.kill(tab.sessionId);
+        void window.digitalLife.pty
+          .kill(tab.sessionId)
+          .catch((e) => console.warn('[pty] kill on close-all failed:', e));
         terminalXtermPool.release(tab.sessionId);
         this.liveSessionIds.delete(tab.sessionId);
         this.ptyDims.delete(tab.sessionId);

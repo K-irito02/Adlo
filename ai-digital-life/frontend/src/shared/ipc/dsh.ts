@@ -62,7 +62,9 @@ export interface DshBridge {
    */
   open: () => Promise<IpcResult<DshOpenResult>>;
   /**
-   * 关闭 dsh。keep=true 保留进程运行；keep=false 停进程
+   * 关闭 dsh。keep=true 保留进程运行；keep=false 停进程。
+   * 中心标签关闭路径一律传 false（终止）；dsh 承载页是普通浏览器标签，其 WebView
+   * 的销毁归浏览器池（`browserPool.destroyTab`），不在本调用内处理。
    * @see httpBridge.ts → dsh.close (/dsh/close)
    */
   close: (keep: boolean) => Promise<IpcResult<boolean>>;

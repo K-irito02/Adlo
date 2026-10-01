@@ -107,11 +107,25 @@ function pruneExternalTabStores(ctx: PruneCtx): void {
   }
 }
 
+/** 中心标签不变量（spec §5）：中心至少有一个标签，不足则补一个 launcher。 */
+function ensureCenterLauncher(): void {
+  const ref = storeRef;
+  if (!ref) {
+    return;
+  }
+  if (ref.getState().centerTabs.length === 0) {
+    ref.getState().centerAddTab('launcher', null);
+  }
+}
+
 function runPrune(ctx: PruneCtx): void {
   const ref = storeRef;
   if (!ref) {
     return;
   }
+  // 中心不变量不依赖工作区：先补齐（空工作区 + 空中心时 early-return 也要留下 launcher），
+  // 剪枝后再复核一次（pruneCenterTabs 可能剪掉全部悬空引用）。
+  ensureCenterLauncher();
   if (ctx.workspaceIds.size === 0) {
     // 参照清单未就绪 —— 剪枝会误删，直接跳过（规格 §3.5.1 / 风险 R7）
     return;
@@ -128,11 +142,8 @@ function runPrune(ctx: PruneCtx): void {
   if (Object.keys(patch).length > 0) {
     ref.setState(patch as Partial<StoreState>);
   }
-  // 中心标签不变量（spec §5）：refId 悬空剪枝（pruneCenterTabs）可能清空 centerTabs，
-  // 此处统一补齐一个 launcher，保证任何剪枝入口之后中心都至少有一个标签。
-  if (ref.getState().centerTabs.length === 0) {
-    ref.getState().centerAddTab('launcher', null);
-  }
+  // refId 悬空剪枝（pruneCenterTabs）可能清空 centerTabs，此处复核补齐。
+  ensureCenterLauncher();
   pruneExternalTabStores(ctx);
 }
 

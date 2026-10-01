@@ -164,12 +164,12 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   });
 
   // store 中的标签 URL 变化（Tauri 事件 / iframe 内导航 / 新建标签回填）→ 同步地址栏
+  //（searchEngines 已在上层订阅，直接使用并列入 deps，不再经 getState() 快照读取）。
   useEffect(() => {
     const url = activeTab?.url ?? '';
     setAddress(url === 'about:blank' ? '' : url);
-    const engines = useAppStore.getState().searchEngines;
-    setSearchQueryDisplay(url ? extractSearchQueryFromUrl(url, engines) : '');
-  }, [activeTab?.id, activeTab?.url]);
+    setSearchQueryDisplay(url ? extractSearchQueryFromUrl(url, searchEngines) : '');
+  }, [activeTab?.id, activeTab?.url, searchEngines]);
 
   // 菜单 / 地址栏展开态：点击外部关闭
   useEffect(() => {
@@ -377,7 +377,18 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
         />
       </div>
 
-      <div className="adl-center-browser__content" ref={containerRef}>
+      <div
+        className="adl-center-browser__content"
+        ref={containerRef}
+        // 原生 WebView 存在门控：仅当中心确有已入池的原生 WebView 时上报避让矩形
+        // （见 webviewAvoidRects 的选择器门控）。无 WebView（浏览器模式 iframe /
+        // 空白页 / 未入池）时 tooltip 天然置顶，无需避让。
+        data-webview-active={
+          isTauri && !!activeTab?.id && !!activeTab.url && isTabInPool(activeTab.id)
+            ? true
+            : undefined
+        }
+      >
         {isEmptyUrl ? (
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--browser">
             <BrowserLandingPage t={t} onOpenUrl={handleLandingOpenUrl} />

@@ -76,6 +76,7 @@ export function useBrowserViewHost(options: UseBrowserViewHostOptions) {
   });
 
   useWebViewVisibility({
+    hostId,
     isVisible,
     overlayActive,
     isTabInPool,

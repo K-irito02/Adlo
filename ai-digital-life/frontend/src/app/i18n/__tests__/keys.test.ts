@@ -294,6 +294,25 @@ describe('i18n en-US namespace keys', () => {
     expect(zhCN.storageBrowserDownloadTitle).toBe('浏览器下载路径');
     expect(enUS.storageBrowserDownloadTitle).toBe('Browser download folder');
   });
+
+  it('retires the dsh close-dialog / legacy open-button copy (no consumers)', () => {
+    // 关闭对话框已随 dsh 统一为普通浏览器标签而退役；旧打开按钮/欢迎空态亦无调用方。
+    for (const key of [
+      'dshOpenButton',
+      'dshOpenButtonHint',
+      'dshCloseDialogTitle',
+      'dshCloseDialogDesc',
+      'dshCloseKeep',
+      'dshCloseKeepHint',
+      'dshCloseTerminate',
+      'dshCloseTerminateHint',
+      'dshCloseCancel',
+      'dshWelcomeEmpty',
+    ] as const) {
+      expect(enUS, `en:${key}`).not.toHaveProperty(key);
+      expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
+    }
+  });
 });
 
 describe('i18n zh-CN mirror', () => {

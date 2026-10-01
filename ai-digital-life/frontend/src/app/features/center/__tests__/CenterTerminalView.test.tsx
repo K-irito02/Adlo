@@ -132,4 +132,24 @@ describe('CenterTerminalView', () => {
     expect(screen.queryByRole('button', { name: '新建终端' })).toBeNull();
     expect(screen.queryByRole('button', { name: '终端目录' })).toBeNull();
   });
+
+  it('会话已终止且无 session 时用项目 warning SVG 图标（非硬编码字符）', () => {
+    const dead: TerminalTabState = {
+      ...makeTerminalTab('td', 'center'),
+      status: 'terminated',
+      sessionId: undefined,
+    };
+    useAppStore.setState({
+      terminalTabs: [dead],
+      terminalTabsById: { td: dead },
+      terminalActiveTabId: 'td',
+    });
+
+    const { container } = renderView('c1', 'td');
+
+    expect(screen.getByText('未找到终端程序')).toBeTruthy();
+    // 装饰性 SVG 图标，不再是 '⚠' 文字符。
+    expect(container.querySelector('.adl-terminal-error-note svg')).toBeTruthy();
+    expect(screen.queryByText('⚠')).toBeNull();
+  });
 });

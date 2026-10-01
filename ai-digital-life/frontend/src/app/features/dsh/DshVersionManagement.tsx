@@ -207,6 +207,12 @@ function TrashIcon() {
  * 由中心 launcher 承载（原 `WelcomePage` 已随 dsh 统一为普通浏览器标签而退役）。
  * `leading` 渲染在顶部操作栏左侧（launcher 放三入口）；
  * 右侧为版本操作图标组，下方为版本信息卡片。
+ *
+ * 调用方契约：页面地标（带 `aria-label` 的 `section`）由调用方
+ * （`CenterLauncherPage`）提供，本组件只渲染操作栏 + 版本卡片，不自建地标。
+ *
+ * 样式沿用 `adl-app-welcome__*`：本卡片历史上属于欢迎页，类名保留原命名以避免
+ * 大面积样式回归（不改名）。
  */
 export function DshVersionManagement({ leading }: { leading?: ReactNode }) {
   const { t } = useTCopy();

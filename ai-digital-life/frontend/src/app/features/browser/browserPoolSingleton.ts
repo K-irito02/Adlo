@@ -19,6 +19,33 @@ import { useAppStore } from '@stores/slicedStore';
 
 type PoolListener = () => void;
 
+export type BrowserHostId = 'panel' | 'center';
+
+/**
+ * 双宿主 hide/show 竞态守卫（E1）。
+ *
+ * 面板→中心移动标签时，两宿主的 lifecycle effect 都会跑：面板把刚移走的旧活动
+ * 标签隐藏（移出屏幕），中心把同一 WebView 显示出来。谁后跑谁赢 —— 若面板的
+ * 隐藏后跑，就会盖掉中心的显示，中心视图空白。反向（中心→面板）同理。
+ *
+ * 隐藏前必须确认该 tab 当前仍归属本宿主（`location` 判定：`'center'` 归中心，
+ * 其余归面板），否则跳过。store 在 effects 之前已更新，所以读到的归属是最新的，
+ * 与 effect 跑序无关：无论面板先跑还是后跑，最终都是中心的显示胜出。
+ *
+ * @param hostId 发起隐藏的宿主
+ * @param tab store 中该 tab 的最新快照；undefined（已删除）时返回 true ——
+ * 残留表面必须隐藏，不能因查不到归属而留下。
+ */
+export function shouldHostHideTab(
+  hostId: BrowserHostId,
+  tab: { location?: 'panel' | 'center' } | undefined,
+): boolean {
+  if (!tab) {
+    return true;
+  }
+  return hostId === 'center' ? tab.location === 'center' : tab.location !== 'center';
+}
+
 let poolSet = new Set<string>();
 /** Tabs whose WebView creation is currently in flight — guards against
  *  duplicate concurrent creation for the same tab (URL canonicalization can
@@ -140,6 +167,7 @@ export const browserPool = {
     return version;
   },
   reset(): void {
+    // test-only：清空池成员与版本监听。生产代码不得调用（单例状态全局共享）。
     poolSet = new Set();
     creatingSet = new Set();
     version = 0;

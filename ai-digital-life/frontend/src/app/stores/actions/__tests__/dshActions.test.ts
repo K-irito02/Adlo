@@ -182,6 +182,7 @@ describe('dshActions.openDsh', () => {
     const id = store.getState().browserActiveTabId;
     store.getState().browserUpdateTab(id, { isDsh: true });
     store.getState().centerShowBrowserTab(id);
+    store.setState({ isOpen: true });
     const centerCountBefore = store.getState().centerTabs.length;
 
     const result = await store.getState().openDsh();
@@ -193,6 +194,44 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
     expect(store.getState().centerActiveTabId).toBe(store.getState().centerTabs[0].id);
     expect(store.getState().isOpen).toBe(true);
+  });
+
+  it('复用已有 isDsh 标签时回填 setDshUrl(existing.url)', async () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
+    const id = store.getState().browserActiveTabId;
+    store.getState().browserUpdateTab(id, { isDsh: true });
+    store.getState().centerShowBrowserTab(id);
+    store.setState({ isOpen: true, url: null });
+
+    const result = await store.getState().openDsh();
+
+    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(store.getState().url).toBe('http://127.0.0.1:3080');
+    expect((window as any).digitalLife.dsh.open).not.toHaveBeenCalled();
+  });
+
+  it('死标签（isOpen=false）不复用，走正常拉起重建', async () => {
+    (window as any).digitalLife.dsh.open.mockResolvedValue({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+    });
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
+    const deadId = store.getState().browserActiveTabId;
+    store.getState().browserUpdateTab(deadId, { isDsh: true });
+    store.getState().centerShowBrowserTab(deadId);
+    // 进程已死：isOpen=false，残留死标签不得被复用聚焦。
+    expect(store.getState().isOpen).toBe(false);
+
+    const result = await store.getState().openDsh();
+
+    expect((window as any).digitalLife.dsh.open).toHaveBeenCalledTimes(1);
+    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    // 正常拉起创建了新的承载标签（而非只聚焦死标签）。
+    expect(store.getState().browserTabs.length).toBe(2);
+    expect(store.getState().isOpen).toBe(true);
+    expect(store.getState().url).toBe('http://127.0.0.1:3080');
   });
 
   it('并发调用（快速双击）只拉起一次且只创建一个 isDsh 标签', async () => {
