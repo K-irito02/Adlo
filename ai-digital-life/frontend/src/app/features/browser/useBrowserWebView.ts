@@ -39,12 +39,13 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     overlayActive,
   });
 
+  // 受保护集合由调度器每 tick 从 store 现算（面板活动 + 中心活动浏览器 + dsh 标签），
+  // 不在此传入：被移入中心的活动标签不再是面板活动标签，但仍须免于挂起（spec §6.2）。
   useBrowserSuspendScheduler({
     isVisible,
     removeFromPool,
     isTabInPool,
     activeTabId: activeTab?.id ?? '',
-    protectedActiveTabIds: new Set(activeTab ? [activeTab.id] : []),
   });
 
   return {

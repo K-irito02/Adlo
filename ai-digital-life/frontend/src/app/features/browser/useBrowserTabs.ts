@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { isPanelTab } from '@stores/slices/tabLocation';
 import { removeSiteMetaIfUnreferenced } from './siteMetaCleanup';
 
 export type BrowserNavigatorMode = 'open' | 'tabs' | 'list' | 'search';
@@ -74,9 +75,13 @@ export function useBrowserTabs() {
     })),
   );
 
+  // 面板只拥有 location !== 'center' 的标签：转入中心的标签不得在面板列表/树/计数中
+  // 重复显示，也不得由面板再次挂载同一 session（排他归属，spec 目标 #5）。
+  const panelBrowserTabs = useMemo(() => browserTabs.filter(isPanelTab), [browserTabs]);
+
   const activeTab = useMemo(
-    () => browserTabs.find((tab) => tab.id === browserActiveTabId) ?? browserTabs[0],
-    [browserActiveTabId, browserTabs],
+    () => panelBrowserTabs.find((tab) => tab.id === browserActiveTabId) ?? panelBrowserTabs[0],
+    [browserActiveTabId, panelBrowserTabs],
   );
 
   const hasActiveTab = activeTab !== null;
@@ -193,7 +198,7 @@ export function useBrowserTabs() {
     editingTabId,
     editValue,
     editInputRef,
-    browserTabs,
+    browserTabs: panelBrowserTabs,
     browserActiveTabId,
     activeTab,
     hasActiveTab,

@@ -125,7 +125,8 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().url).toBe('http://127.0.0.1:3080');
     expect(store.getState().errorToasts).toEqual([]);
 
-    // 成功即创建承载 dsh 的普通浏览器标签，并移到中心（isDsh 标记随标签持久化）。
+    // 成功即创建承载 dsh 的普通浏览器标签，并移到中心。isDsh 仅会话内有效，
+    // 不跨重启持久化（读盘处剔除，见 composite/registry）。
     const tab = store.getState().browserTabs[0];
     expect(tab).toBeTruthy();
     expect(tab.isDsh).toBe(true);

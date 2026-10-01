@@ -632,7 +632,8 @@ export const registry = {
     field: 'browserTabs',
     fallback: [],
     scope: 'global',
-    read: readObjectArray<BrowserTabState>(isBrowserTab),
+    // dsh 标签不跨重启持久化（spec §10.2/§11）：读盘即剔除，绝不把 isDsh 标签恢复进 store。
+    read: (raw) => readObjectArray<BrowserTabState>(isBrowserTab)(raw)?.filter((tab) => !tab.isDsh),
   }),
   'adl:browser.activeTabId': defineEntry<string>({
     key: 'adl:browser.activeTabId',

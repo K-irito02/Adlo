@@ -157,7 +157,7 @@ select:focus-visible {
   transition: var(--theme-transition);
 }
 
-.adl-center--dsh-placeholder {
+.adl-center--tab-host {
   display: flex;
   flex-direction: column;
   height: 100%;

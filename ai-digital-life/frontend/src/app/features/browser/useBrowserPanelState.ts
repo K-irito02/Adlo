@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
+import { isPanelTab } from '@stores/slices/tabLocation';
 import type { BrowserPanelState } from './BrowserPanelStateContext';
 
 type BrowserPanelStateInput = Omit<
@@ -42,7 +43,8 @@ export function useBrowserPanelState(
       !v.validatedUrlsRef.current.has(v.activeTab.url ?? '') &&
       !v.iframeBlockedDetected &&
       !v.iframeLoadError;
-    const openTabCount = v.browserTabs.length;
+    // 转入中心的标签不计入面板「已打开」计数（spec 目标 #5）。
+    const openTabCount = v.browserTabs.filter(isPanelTab).length;
     const navigatorTitle = v.t.toolBrowser;
     return {
       ...v,

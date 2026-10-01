@@ -36,6 +36,23 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
 const EMPTY_HISTORY: TerminalHistorySegment[] = [];
 
 /**
+ * 按标签归属（`location`）在**所属宿主**容器内查找实时终端画布。
+ *
+ * 面板与中心终端并存时页面里有两个 `.adl-terminal-canvas`；全局
+ * `document.querySelector` 会命中 DOM 顺序靠前者，导致 attachSession 量错容器、
+ * 初始 cols/rows 偏差。限定宿主后查即可消除歧义。
+ */
+export function findTerminalCanvasForHost(
+  location: 'panel' | 'center' | undefined,
+): Element | null {
+  const hostSelector =
+    location === 'center'
+      ? '.adl-center-terminal'
+      : '.adl-tool-panel--terminal:not(.adl-center-terminal)';
+  return document.querySelector(hostSelector)?.querySelector('.adl-terminal-canvas') ?? null;
+}
+
+/**
  * 节流执行器：**替代原来的尾去抖**。
  *
  * 为什么必须换：尾去抖在持续输出时每来一个事件就重置定时器，定时器永不触发，
@@ -780,9 +797,11 @@ export class TerminalPtyRuntime {
       // （querySelector 返回 null），或已挂载但尚未布局（零尺寸，量出的列数极小）。
       // 帧数 + 墙钟双上限：面板隐藏/窗口最小化时 rAF 会被节流甚至暂停。
       const deadline = performance.now() + 1000;
+      // 面板与中心终端并存时页面里有两个 `.adl-terminal-canvas`，全局 querySelector
+      // 会量错宿主容器导致初始 cols/rows 偏差。按标签归属（location）限定到所属宿主后再查。
       let container: HTMLElement | null = null;
       for (let frame = 0; frame < 60; frame++) {
-        const candidate = document.querySelector('.adl-terminal-canvas');
+        const candidate = findTerminalCanvasForHost(existingTab.location);
         if (
           candidate instanceof HTMLElement &&
           candidate.clientWidth > 0 &&

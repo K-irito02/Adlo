@@ -102,7 +102,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createFileOpNoticeSlice(set, get), // 文件操作提示卡片（右下角警告）
   ...createGitVisSlice(set, get), // Git 可视化数据缓存
   ...createBrowserDownloadsSlice(set, get), // 浏览器下载管理
-  ...createCenterTabsSlice(set), // 中心标签宿主
+  ...createCenterTabsSlice(set, get), // 中心标签宿主
 
   // ════════════════════════════════════════════════════════
   // 根级状态

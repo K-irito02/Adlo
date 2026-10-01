@@ -110,10 +110,12 @@ export const compositeHydrators: CompositeHydrator[] = [
     name: 'browserTabs',
     build: (read) => {
       const persistedTabs = readArrayInput<BrowserTabState>(isBrowserTab, read('adl:browser.tabs'));
-      if (persistedTabs === undefined || persistedTabs.length === 0) {
+      if (persistedTabs === undefined) {
         return {};
       }
-      const tabs = markResolvedTitles(persistedTabs);
+      // dsh 标签不跨重启持久化（spec §10.2/§11）：其承载的进程随退出而死，
+      // 恢复会得到一个已死的 127.0.0.1 标签并被 openDsh「复用」聚焦。读盘即剔除。
+      const tabs = markResolvedTitles(persistedTabs.filter((tab) => !tab.isDsh));
       const persistedActiveTabId = readString(read('adl:browser.activeTabId'));
       const activeTabId =
         persistedActiveTabId && tabs.some((tab) => tab.id === persistedActiveTabId)

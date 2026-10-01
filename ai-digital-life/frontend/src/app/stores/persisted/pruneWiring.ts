@@ -128,6 +128,11 @@ function runPrune(ctx: PruneCtx): void {
   if (Object.keys(patch).length > 0) {
     ref.setState(patch as Partial<StoreState>);
   }
+  // 中心标签不变量（spec §5）：refId 悬空剪枝（pruneCenterTabs）可能清空 centerTabs，
+  // 此处统一补齐一个 launcher，保证任何剪枝入口之后中心都至少有一个标签。
+  if (ref.getState().centerTabs.length === 0) {
+    ref.getState().centerAddTab('launcher', null);
+  }
   pruneExternalTabStores(ctx);
 }
 
@@ -152,10 +157,6 @@ export function applyTabPrune(tabIds?: ReadonlySet<string>): void {
     return;
   }
   runPrune(tabIds === undefined ? ctx : { ...ctx, tabIds });
-  const ref = storeRef;
-  if (ref && ref.getState().centerTabs.length === 0) {
-    ref.getState().centerAddTab('launcher', null);
-  }
 }
 
 /**

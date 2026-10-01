@@ -24,11 +24,22 @@ export interface CenterTabsSlice {
 
 export const createCenterTabsSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
+  get: () => StoreState,
 ): CenterTabsSlice => ({
   centerTabs: [],
   centerActiveTabId: '',
 
   centerAddTab: (kind, refId) => {
+    // 去重（spec 目标 #8）：同一 (kind, refId) 已有中心标签时选中已有项，不追加第二个。
+    // launcher（refId === null）允许多个，不去重。
+    if (refId !== null) {
+      const existing = get().centerTabs.find((tab) => tab.kind === kind && tab.refId === refId);
+      if (existing) {
+        persist('adl:center.activeTabId', existing.id);
+        set({ centerActiveTabId: existing.id });
+        return existing.id;
+      }
+    }
     const id = createUiId('center');
     set((state) => {
       const tab: CenterTabState = { id, kind, refId, createdAt: Date.now() };

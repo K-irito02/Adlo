@@ -42,20 +42,39 @@ export function applyIdlePass(input: SuspendPassInput): string[] {
     .map((t) => t.id);
 }
 
-export interface ComputeSuspendedTabIdsInput {
-  allTabIds: string[];
-  panelActiveId: string;
-  centerActiveId: string;
-  dshTabId: string;
-  maxLive?: number;
+export interface ProtectedActiveSources {
+  browserTabs: BrowserTabState[];
+  browserActiveTabId: string;
+  centerTabs: { id: string; kind: string; refId: string | null }[];
+  centerActiveTabId: string;
 }
 
-/** Protected active ids (panel / center / dsh) removed from the candidate pool,
- *  capped to `maxLive` survivors when provided. */
-export function computeSuspendedTabIds(input: ComputeSuspendedTabIdsInput): string[] {
-  const { allTabIds, panelActiveId, centerActiveId, dshTabId, maxLive } = input;
-  const protectedIds = new Set([panelActiveId, centerActiveId, dshTabId]);
-  return allTabIds.filter((id) => !protectedIds.has(id)).slice(0, maxLive ?? Infinity);
+/**
+ * 受挂起保护的活动标签 id 集合（spec §6.2）。
+ *
+ * 挂起调度每 tick 从 store 现算，覆盖两个宿主的活动浏览器标签与全部 dsh 标签：
+ * - 面板活动浏览器标签（`browserActiveTabId`）
+ * - 中心活动标签（若其 kind === 'browser'，取其 refId）
+ * - 全部 isDsh 标签（dsh 承载进程，销毁后中心视图会空白且无法重建）
+ *
+ * 被移入中心的活动标签仍在共享池中、且切到中心后面板 lifecycle effect 不再跑，
+ * 因此不能只依赖面板传入的活动 id —— 必须在销毁前于此处统一保护。
+ */
+export function collectProtectedActiveTabIds(state: ProtectedActiveSources): Set<string> {
+  const ids = new Set<string>();
+  if (state.browserActiveTabId) {
+    ids.add(state.browserActiveTabId);
+  }
+  const centerActive = state.centerTabs.find((tab) => tab.id === state.centerActiveTabId);
+  if (centerActive?.kind === 'browser' && centerActive.refId) {
+    ids.add(centerActive.refId);
+  }
+  for (const tab of state.browserTabs) {
+    if (tab.isDsh) {
+      ids.add(tab.id);
+    }
+  }
+  return ids;
 }
 
 interface SchedulerOptions {
@@ -63,17 +82,11 @@ interface SchedulerOptions {
   removeFromPool: (tabId: string) => Promise<void>;
   isTabInPool: (tabId: string) => boolean;
   activeTabId: string;
-  protectedActiveTabIds?: ReadonlySet<string>;
 }
 
 export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
   const lastActivatedMsRef = useRef<Record<string, number>>({});
-  const { isVisible, removeFromPool, isTabInPool, activeTabId, protectedActiveTabIds } = opts;
-  // Render-phase mirror: the effect below intentionally excludes tab changes from its deps
-  // (panel path must not remount the scheduler on every active-tab switch), so a captured
-  // set would go stale. The ref keeps the freshest protected set without touching effect timing.
-  const protectedActiveTabIdsRef = useRef(protectedActiveTabIds);
-  protectedActiveTabIdsRef.current = protectedActiveTabIds;
+  const { isVisible, removeFromPool, isTabInPool, activeTabId } = opts;
 
   useEffect(() => {
     if (activeTabId) {
@@ -109,9 +122,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
       if (idleMs > 0) {
         for (const id of applyIdlePass({
           tabs: state.browserTabs,
-          protectedActiveTabIds:
-            protectedActiveTabIdsRef.current ??
-            new Set(state.browserActiveTabId ? [state.browserActiveTabId] : []),
+          protectedActiveTabIds: collectProtectedActiveTabIds(state),
           inPool: isTabInPool,
           lastActivatedMs: lastActivatedMsRef.current,
           idleMs,
@@ -138,9 +149,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
               const state2 = useAppStore.getState();
               const candidates = applyIdlePass({
                 tabs: state2.browserTabs,
-                protectedActiveTabIds:
-                  protectedActiveTabIdsRef.current ??
-                  new Set(state2.browserActiveTabId ? [state2.browserActiveTabId] : []),
+                protectedActiveTabIds: collectProtectedActiveTabIds(state2),
                 inPool: isTabInPool,
                 lastActivatedMs: lastActivatedMsRef.current,
                 idleMs: 0, // memory pressure: suspend oldest unprotected inactive in-pool tab regardless of idle age

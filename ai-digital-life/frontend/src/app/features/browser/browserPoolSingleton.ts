@@ -20,7 +20,6 @@ import { useAppStore } from '@stores/slicedStore';
 type PoolListener = () => void;
 
 let poolSet = new Set<string>();
-let insertionOrder: string[] = [];
 /** Tabs whose WebView creation is currently in flight — guards against
  *  duplicate concurrent creation for the same tab (URL canonicalization can
  *  refire the lifecycle effect before the async create completes). */
@@ -37,13 +36,10 @@ function bump(): void {
 
 function addToPool(tabId: string): void {
   poolSet.add(tabId);
-  insertionOrder = insertionOrder.filter((id) => id !== tabId);
-  insertionOrder.push(tabId);
 }
 
 function removeFromPoolInternal(tabId: string): void {
   poolSet.delete(tabId);
-  insertionOrder = insertionOrder.filter((id) => id !== tabId);
 }
 
 async function createForTab(
@@ -145,7 +141,6 @@ export const browserPool = {
   },
   reset(): void {
     poolSet = new Set();
-    insertionOrder = [];
     creatingSet = new Set();
     version = 0;
     listeners.clear();

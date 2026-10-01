@@ -59,4 +59,28 @@ describe('useBrowserFolderCrud 树删除跳过中心标签书签', () => {
     expect(s.browserTabs.some((t) => t.id === centerId)).toBe(true);
     expect(s.browserTabs.some((t) => t.id === panelId)).toBe(false);
   });
+
+  it('handleDeleteDirectory 不清除存活中心标签的书签映射', () => {
+    const { panelId, centerId } = seedWorkspaceTabs();
+    useAppStore.setState({
+      browserTabFolders: [
+        {
+          id: 'f1',
+          name: 'F',
+          createdAt: 1,
+          tabs: [
+            { tabId: panelId, url: 'https://panel.test', title: 'Panel' },
+            { tabId: centerId, url: 'https://center.test', title: 'Center' },
+          ],
+        },
+      ],
+    });
+    const { result } = renderHook(() => useBrowserFolderCrud());
+
+    act(() => result.current.handleDeleteDirectory('folder:f1'));
+
+    const s = useAppStore.getState();
+    expect(s.browserBookmarkTabIdUrlMap[centerId]).toBe('https://center.test');
+    expect(s.browserBookmarkTabIdUrlMap[panelId]).toBeUndefined();
+  });
 });

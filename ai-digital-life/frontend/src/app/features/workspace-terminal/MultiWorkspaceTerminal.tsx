@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import type { RecentWorkspaceEntry } from '@shared/ipc';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
+import { isPanelTab } from '@stores/slices/tabLocation';
 import { MultiWorkspaceContainer } from '../multi-workspace/MultiWorkspaceContainer';
 import { WorkspaceTerminalEntry } from './WorkspaceTerminalEntry';
 import { useTCopy } from '@i18n/useTCopy';
@@ -51,7 +52,8 @@ export function MultiWorkspaceTerminal({
   const { t } = useTCopy();
   const tabsByWorkspace = useMemo(() => {
     const map: Record<string, TerminalTabState[]> = {};
-    for (const tab of terminalTabs) {
+    // 转入中心的终端标签不在面板目录树中重复显示（spec 目标 #5）。
+    for (const tab of terminalTabs.filter(isPanelTab)) {
       const key = tab.workspaceId || INDEPENDENT_WORKSPACE_ID;
       if (!map[key]) {
         map[key] = [];

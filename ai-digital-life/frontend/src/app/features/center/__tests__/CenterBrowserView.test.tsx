@@ -52,10 +52,10 @@ function makeTab(id: string, url: string): BrowserTabState {
   };
 }
 
-function renderView(browserTabId: string, centerTabId = 'c1') {
+function renderView(browserTabId: string) {
   return render(
     <TCopyProvider t={t} locale="zh-CN">
-      <CenterBrowserView centerTabId={centerTabId} browserTabId={browserTabId} />
+      <CenterBrowserView browserTabId={browserTabId} />
     </TCopyProvider>,
   );
 }

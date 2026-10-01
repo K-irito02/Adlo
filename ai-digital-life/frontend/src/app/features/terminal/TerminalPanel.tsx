@@ -30,6 +30,7 @@ import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
 import { MultiWorkspaceTerminal } from '../workspace-terminal';
 import { nextTerminalWorkspaceToggleValue } from './terminalWorkspaceToggle';
+import { isPanelTab } from '@stores/slices/tabLocation';
 import { useTCopy } from '@i18n/useTCopy';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
@@ -148,12 +149,14 @@ export function TerminalPanel() {
   }, [setTerminalWorkspaceExpanded]);
 
   const visibleTabCount = useMemo(() => {
+    // 转入中心的终端标签不计入面板计数（spec 目标 #5）。
+    const panelTabs = terminalTabs.filter(isPanelTab);
     let count = 0;
-    count += terminalTabs.filter(
+    count += panelTabs.filter(
       (t) => !t.workspaceId || t.workspaceId === INDEPENDENT_WORKSPACE_ID,
     ).length;
     for (const ws of visibleWorkspaces) {
-      count += terminalTabs.filter((t) => t.workspaceId === ws.id).length;
+      count += panelTabs.filter((t) => t.workspaceId === ws.id).length;
     }
     return count;
   }, [visibleWorkspaces, terminalTabs]);

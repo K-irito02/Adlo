@@ -1,6 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { pruneCenterTabs } from '../prune';
+import { applyWorkspacePrune } from '../pruneWiring';
 import { useAppStore } from '@stores/slicedStore';
+import type { RecentWorkspaceEntry } from '@shared/ipc';
 
 describe('pruneCenterTabs', () => {
   const ctx = {
@@ -21,6 +23,51 @@ describe('pruneCenterTabs', () => {
     const r = pruneCenterTabs([{ id: 'c2', kind: 'browser', refId: 'gone', createdAt: 2 }], ctx);
     expect(r.value).toHaveLength(0);
     expect(r.changed).toBe(true);
+  });
+});
+
+describe('center launcher 不变量（剪枝后）', () => {
+  const originalWorkspaces = useAppStore.getState().recentWorkspaces;
+
+  beforeEach(() => {
+    useAppStore.setState({
+      recentWorkspaces: [
+        {
+          id: 'ws-1',
+          name: 'W',
+          path: 'p',
+          rootPath: 'p',
+          available: true,
+          removedFromSidebar: false,
+          lastOpenedAt: 0,
+          isPinned: false,
+          pinnedOrder: 0,
+          unpinnedOrder: 0,
+        } as RecentWorkspaceEntry,
+      ],
+      centerTabs: [{ id: 'c1', kind: 'browser', refId: 'dead-dsh', createdAt: 1 }],
+      centerActiveTabId: 'c1',
+      browserTabs: [],
+      browserTabsById: {},
+      terminalTabs: [],
+      terminalTabsById: {},
+    });
+  });
+
+  afterEach(() => {
+    useAppStore.setState({
+      recentWorkspaces: originalWorkspaces,
+      centerTabs: [],
+      centerActiveTabId: '',
+    });
+  });
+
+  it('dsh 悬空引用被剪后补齐 launcher，中心不变量仍成立', () => {
+    applyWorkspacePrune();
+
+    const s = useAppStore.getState();
+    expect(s.centerTabs).toHaveLength(1);
+    expect(s.centerTabs[0].kind).toBe('launcher');
   });
 });
 

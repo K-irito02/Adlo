@@ -32,7 +32,6 @@ import { useCenterBrowserAddressSubmit } from './useCenterBrowserAddressSubmit';
 import './CenterBrowserView.css';
 
 interface CenterBrowserViewProps {
-  centerTabId: string;
   browserTabId: string;
 }
 
@@ -105,11 +104,15 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
       activeTabId: activeTab?.id,
     });
 
+  // 中心视图自己的浮层（菜单 / 地址栏展开 / 搜索引擎设置）必须回传作为 overlayActive，
+  // 否则这些浮层会被中心原生 WebView2 盖住（与面板宿主同语义）。
+  const centerOverlayActive = browserMenuOpen || addressExpanded || searchEnginePopoverOpen;
+
   const { containerRef, loadingTabId, isTabInPool, navigateTabInPool } = useBrowserViewHost({
     hostId: 'center',
     activeTab,
     isVisible: true,
-    overlayActive: false,
+    overlayActive: centerOverlayActive,
   });
 
   const { browserLookupIndex } = useBrowserSearch({

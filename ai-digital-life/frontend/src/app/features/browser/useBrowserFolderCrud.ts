@@ -458,7 +458,7 @@ export function useBrowserFolderCrud() {
           };
           collectFolderTabEntries(actualId);
           for (const { tabId, url } of allTabUrls) {
-            if (tabId && url) {
+            if (tabId && url && !isCenterTabId(state.browserTabs, tabId)) {
               browserRemoveTabBookmarks(tabId, url);
             }
           }

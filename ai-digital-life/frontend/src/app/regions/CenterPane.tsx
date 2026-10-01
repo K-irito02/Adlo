@@ -30,9 +30,9 @@ const CenterPane = React.memo(function CenterPane() {
   }, [centerTabs.length, centerAddTab]);
 
   return (
-    <section className="adl-center adl-center--dsh-placeholder" aria-label={t.dshTitle}>
+    <section className="adl-center adl-center--tab-host" aria-label={t.centerTabStripLabel}>
       {active?.kind === 'browser' ? (
-        <CenterBrowserView centerTabId={active.id} browserTabId={active.refId ?? ''} />
+        <CenterBrowserView browserTabId={active.refId ?? ''} />
       ) : active?.kind === 'terminal' ? (
         <CenterTerminalView centerTabId={active.id} terminalTabId={active.refId} />
       ) : (

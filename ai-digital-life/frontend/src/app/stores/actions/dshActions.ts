@@ -37,6 +37,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       // 不新建标签、不重复拉起进程（dsh.open 幂等但双击仍会产生第二个标签）。
       const existing = get().browserTabs.find((tab) => tab.isDsh);
       if (existing) {
+        clearError(get, SCOPE);
         get().setDshOpen(true);
         const centerTab = get().centerTabs.find(
           (tab) => tab.kind === 'browser' && tab.refId === existing.id,

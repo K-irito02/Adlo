@@ -24,6 +24,21 @@ describe('centerActions', () => {
     expect(s.browserActiveTabId).not.toBe(first);
   });
 
+  it('centerShowBrowserTab 重复同一标签只选中已有中心标签，不新增', () => {
+    useAppStore.getState().browserOpenTab('https://a.test', 'A');
+    const id = useAppStore.getState().browserTabs[0].id;
+    useAppStore.getState().centerShowBrowserTab(id);
+    const afterFirst = useAppStore.getState().centerTabs;
+    const centerId = afterFirst.find((t) => t.kind === 'browser' && t.refId === id)!.id;
+
+    useAppStore.getState().centerShowBrowserTab(id);
+
+    const s = useAppStore.getState();
+    expect(s.centerTabs.filter((t) => t.kind === 'browser' && t.refId === id)).toHaveLength(1);
+    expect(s.centerTabs).toHaveLength(afterFirst.length);
+    expect(s.centerActiveTabId).toBe(centerId);
+  });
+
   it('centerReturnToPanel 把标签移回面板', () => {
     useAppStore.getState().browserOpenTab('https://a.test', 'A');
     const id = useAppStore.getState().browserTabs[0].id;

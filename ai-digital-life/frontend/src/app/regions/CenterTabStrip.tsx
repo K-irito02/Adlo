@@ -8,6 +8,7 @@ import { IconClose, IconNewTabPage, IconPanelRight, IconPlus, IconTerminal } fro
 import { TerminalProfileIcon } from '@features/terminal/TerminalProfileIcon';
 import { terminalPtyRuntime } from '@features/terminal/terminalPtyRuntime';
 import { removeSiteMetaIfUnreferenced } from '@features/browser/siteMetaCleanup';
+import { browserPool } from '@features/browser/browserPoolSingleton';
 import type { CenterTabState } from '@stores/slices/centerTabsSlice';
 
 /**
@@ -59,6 +60,9 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
           void useAppStore.getState().closeDsh(false);
         }
         browserCloseTab(tab.refId);
+        // browserCloseTab 只删 store 状态：中心路径不走面板关闭 wrapper，必须显式回收
+        // 共享池条目与原生 WebView2，否则该 tabId 的 WebView 永久存活且无法再被回收。
+        void browserPool.destroyTab(tab.refId);
         if (browserTab?.url) {
           removeSiteMetaIfUnreferenced(browserTab.url);
         }

@@ -6,6 +6,7 @@ import type { CopyDict } from '../i18n/types';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { CenterTabStrip } from './CenterTabStrip';
+import { browserPool } from '@features/browser/browserPoolSingleton';
 
 afterEach(cleanup);
 
@@ -67,6 +68,36 @@ describe('CenterTabStrip', () => {
     const tabs = useAppStore.getState().centerTabs;
     expect(tabs.some((tab) => tab.id === a)).toBe(false);
     expect(tabs).toHaveLength(1);
+  });
+
+  it('关闭 browser 中心标签同时回收共享池中的 WebView', async () => {
+    browserPool.reset();
+    const refId = 'b-pool';
+    const browserTab: BrowserTabState = {
+      id: refId,
+      workspaceId: '',
+      title: 'Pooled',
+      url: 'https://pooled.test',
+      titleResolved: true,
+      isPinned: false,
+      sortOrder: 0,
+      isPlayingAudio: false,
+      isAudioMuted: false,
+      isDownloading: false,
+      location: 'center',
+    };
+    useAppStore.setState({
+      browserTabs: [browserTab],
+      browserTabsById: { [refId]: browserTab },
+    });
+    useAppStore.getState().centerAddTab('browser', refId);
+    await browserPool.createForTab(refId, browserTab.url);
+    expect(browserPool.isTabInPool(refId)).toBe(true);
+
+    renderStrip();
+    fireEvent.click(screen.getAllByRole('button', { name: 'close' })[0]);
+
+    expect(browserPool.isTabInPool(refId)).toBe(false);
   });
 
   it('关闭 browser 中心标签同时移除底层标签与中心项', () => {

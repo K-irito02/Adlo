@@ -41,6 +41,17 @@ describe('getWebViewAvoidRects', () => {
     expect(getWebViewAvoidRects()).toEqual([{ left: 1200, top: 50, right: 1900, bottom: 1000 }]);
   });
 
+  it('collects the center browser content rect inside Tauri shell', () => {
+    (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
+
+    const center = document.createElement('div');
+    center.className = 'adl-center-browser__content';
+    mockRect(center, { left: 300, top: 50, right: 1000, bottom: 1000, width: 700, height: 950 });
+    document.body.appendChild(center);
+
+    expect(getWebViewAvoidRects()).toEqual([{ left: 300, top: 50, right: 1000, bottom: 1000 }]);
+  });
+
   it('skips zero-area containers (collapsed panels / not mounted)', () => {
     (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__ = {};
 
