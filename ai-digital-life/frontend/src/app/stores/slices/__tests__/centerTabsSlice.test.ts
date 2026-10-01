@@ -29,6 +29,10 @@ describe('centerTabsSlice', () => {
     useAppStore.getState().centerRemoveTab(b);
     expect(useAppStore.getState().centerActiveTabId).toBe(a);
     useAppStore.getState().centerRemoveTab(a);
-    expect(useAppStore.getState().centerActiveTabId).toBe('');
+    // spec §5 不变量：关闭最后一个中心标签后自动新建 launcher 并激活。
+    const after = useAppStore.getState();
+    expect(after.centerTabs).toHaveLength(1);
+    expect(after.centerTabs[0].kind).toBe('launcher');
+    expect(after.centerActiveTabId).toBe(after.centerTabs[0].id);
   });
 });

@@ -1,6 +1,7 @@
 import type { PruneCtx, PruneResult } from './entry';
 import { registryEntries } from './registry';
 import { repairManualCollapsed } from './parsers';
+import type { CenterTabState } from '../slices/centerTabsTypes';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
 import type { WorkspaceTreeNode } from '@ai-digital-life/kernel';
 
@@ -97,6 +98,20 @@ export function pruneByTabId<T extends Record<string, unknown>>(
     }
   }
   return changed ? { value: next as T, changed: true } : { value, changed: false };
+}
+
+/**
+ * 按"引用的浏览器 / 终端标签是否仍存在"剪枝中心标签。
+ *
+ * launcher 标签与"终端选择器"中心标签的 refId 均为 null —— 无外部引用可剪，
+ * 永远保留；仅 browser / terminal kind 且 refId 已悬空的标签被剔除。
+ */
+export function pruneCenterTabs(
+  value: CenterTabState[],
+  ctx: PruneCtx,
+): { value: CenterTabState[]; changed: boolean } {
+  const next = value.filter((tab) => tab.refId === null || ctx.tabIds.has(tab.refId));
+  return { value: next, changed: next.length !== value.length };
 }
 
 /**

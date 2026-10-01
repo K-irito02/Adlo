@@ -152,6 +152,10 @@ export function applyTabPrune(tabIds?: ReadonlySet<string>): void {
     return;
   }
   runPrune(tabIds === undefined ? ctx : { ...ctx, tabIds });
+  const ref = storeRef;
+  if (ref && ref.getState().centerTabs.length === 0) {
+    ref.getState().centerAddTab('launcher', null);
+  }
 }
 
 /**

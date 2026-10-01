@@ -10,6 +10,7 @@ export const PERSIST_DOMAINS = [
   'terminal',
   'search',
   'session',
+  'center',
 ] as const;
 
 export type PersistDomain = (typeof PERSIST_DOMAINS)[number];

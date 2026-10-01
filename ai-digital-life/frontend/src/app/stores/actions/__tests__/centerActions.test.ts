@@ -28,7 +28,9 @@ describe('centerActions', () => {
 
     const s = useAppStore.getState();
     expect(s.browserTabsById[id].location).toBe('panel');
-    expect(s.centerTabs).toHaveLength(0);
+    // spec §5 不变量：移走最后一个中心标签后自动补一个 launcher。
+    expect(s.centerTabs).toHaveLength(1);
+    expect(s.centerTabs[0].kind).toBe('launcher');
     expect(s.browserActiveTabId).toBe(id);
   });
 });

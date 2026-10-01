@@ -39,10 +39,12 @@ import {
   NON_WORKSPACE_PRESERVED_KEYS,
   pruneByTabId,
   pruneBrowserTreeExpanded,
+  pruneCenterTabs,
   pruneDirExpansion,
   pruneDirPathsByWorkspace,
 } from './prune';
 import { DEFAULT_CONFIGURED_PORTS } from '../slices/browserSliceShared';
+import type { CenterTabState } from '../slices/centerTabsTypes';
 import type { TreeExpansion } from '../slices/uiSliceTypes';
 import type {
   BackgroundConfig,
@@ -211,6 +213,22 @@ const isSearchEngine = (item: Record<string, unknown>): boolean =>
   typeof item.urlTemplate === 'string' &&
   typeof item.isBuiltIn === 'boolean' &&
   typeof item.isDefault === 'boolean';
+
+// 中心标签（Task 5）：kind 白名单 + refId string|null + createdAt number。
+// 与浏览器/终端条目同构 —— 逐项校验，畸形元素整体拒绝，避免渲染期才暴露。
+const CENTER_TAB_KINDS = ['launcher', 'browser', 'terminal'] as const;
+export const isCenterTab = (item: Record<string, unknown>): boolean => {
+  if (typeof item.id !== 'string') {
+    return false;
+  }
+  if (!(CENTER_TAB_KINDS as readonly unknown[]).includes(item.kind)) {
+    return false;
+  }
+  if (item.refId !== null && typeof item.refId !== 'string') {
+    return false;
+  }
+  return typeof item.createdAt === 'number';
+};
 
 const BACKGROUND_MODES: readonly BackgroundMode[] = ['default', 'image', 'video'];
 const BACKGROUND_FITS: readonly BackgroundFit[] = ['cover', 'contain', 'repeat'];
@@ -1080,6 +1098,28 @@ export const registry = {
     fallback: Number.NaN,
     scope: 'global',
     read: readNumberInRange(RIGHT_PANEL_WIDTH_MIN, RIGHT_PANEL_WIDTH_MAX),
+  }),
+
+  // ─────────────────────────────────────────────────────────────
+  // 中心标签宿主（Task 5）：中间部分常驻的中心标签（launcher / browser / terminal）。
+  // 水合后、以及每次标签集合变化剪枝后，保证至少一个 launcher 的
+  // 不变量分别落在 pruneWiring.applyTabPrune 与 centerTabsSlice.centerRemoveTab。
+  // 剪枝参照 ctx.tabIds（终端 + 浏览器标签 id 并集，见 pruneWiring.currentCtx）。
+  // ─────────────────────────────────────────────────────────────
+  'adl:center.tabs': defineEntry<CenterTabState[]>({
+    key: 'adl:center.tabs',
+    field: 'centerTabs',
+    fallback: [],
+    scope: 'global',
+    read: readObjectArray<CenterTabState>(isCenterTab),
+    prune: pruneCenterTabs,
+  }),
+  'adl:center.activeTabId': defineEntry<string>({
+    key: 'adl:center.activeTabId',
+    field: 'centerActiveTabId',
+    fallback: '',
+    scope: 'global',
+    read: readString,
   }),
 } as const;
 

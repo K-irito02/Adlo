@@ -1,14 +1,9 @@
 import type { StoreState } from '../StoreState';
 import { createUiId } from '../shared';
-import { persist as persistStrict } from '../persisted/persist';
+import { persist } from '../persisted/persist';
 import type { CenterTabKind, CenterTabState } from './centerTabsTypes';
 
 export type { CenterTabKind, CenterTabState } from './centerTabsTypes';
-
-// 简报指定的持久化键尚未在 persisted/registry.ts 登记（登记表不在本任务文件清单内，
-// 不得改动）。persist() 的泛型签名只接受已登记键，为使 tsc 通过，此处做一次
-// 单点类型放宽，6 处调用保持简报逐字不变；运行时 persist 只是转发写盘，不做键校验。
-const persist = persistStrict as unknown as (key: string, value: unknown) => void;
 
 export interface CenterTabsSlice {
   centerTabs: CenterTabState[];
@@ -45,7 +40,16 @@ export const createCenterTabsSlice = (
 
   centerRemoveTab: (centerTabId) => {
     set((state) => {
-      const next = state.centerTabs.filter((t) => t.id !== centerTabId);
+      const filtered = state.centerTabs.filter((t) => t.id !== centerTabId);
+      // 不变量（spec §5）：关闭最后一个中心标签后自动新建一个 launcher，并激活它。
+      // 在同一 set 更新内完成，保证 centerTabs 永不为空且 active 原子地指向新标签。
+      const launcher: CenterTabState = {
+        id: createUiId('center'),
+        kind: 'launcher',
+        refId: null,
+        createdAt: Date.now(),
+      };
+      const next = filtered.length === 0 ? [launcher] : filtered;
       const activeStillExists = next.some((t) => t.id === state.centerActiveTabId);
       const nextActive = activeStillExists
         ? state.centerActiveTabId
