@@ -1,3 +1,5 @@
+import type { TabLocation } from './tabLocation';
+
 export interface BrowserTabState {
   id: string;
   workspaceId: string;
@@ -10,6 +12,10 @@ export interface BrowserTabState {
   isPlayingAudio: boolean;
   isAudioMuted: boolean;
   isDownloading: boolean;
+  /** 所属宿主；缺省（undefined）等同 'panel'。中心标签为 'center'。 */
+  location?: TabLocation;
+  /** dsh 承载标签（关闭时联动停止 dsh 进程）。 */
+  isDsh?: boolean;
 }
 
 export interface BrowserTabStateUpdate {

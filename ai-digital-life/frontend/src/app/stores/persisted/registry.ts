@@ -146,8 +146,22 @@ import type { ChangeFileState } from '../../regions/right-panel/changesTree';
 // 拒绝判定，把登记表已判损坏的值重新写回 store。
 // ─────────────────────────────────────────────────────────────
 
-export const isBrowserTab = (item: Record<string, unknown>): boolean =>
-  typeof item.id === 'string' && typeof item.title === 'string' && typeof item.url === 'string';
+export const isBrowserTab = (item: Record<string, unknown>): boolean => {
+  if (
+    typeof item.id !== 'string' ||
+    typeof item.title !== 'string' ||
+    typeof item.url !== 'string'
+  ) {
+    return false;
+  }
+  if (item.location !== undefined && item.location !== 'panel' && item.location !== 'center') {
+    return false;
+  }
+  if (item.isDsh !== undefined && typeof item.isDsh !== 'boolean') {
+    return false;
+  }
+  return true;
+};
 
 export const isBookmarkTabItem = (item: Record<string, unknown>): boolean =>
   typeof item.tabId === 'string' && typeof item.url === 'string' && typeof item.title === 'string';
@@ -231,6 +245,9 @@ export const isTerminalTabState = (item: Record<string, unknown>): boolean => {
     return false;
   }
   if (typeof item.sortOrder !== 'number') {
+    return false;
+  }
+  if (item.location !== undefined && item.location !== 'panel' && item.location !== 'center') {
     return false;
   }
   return true;

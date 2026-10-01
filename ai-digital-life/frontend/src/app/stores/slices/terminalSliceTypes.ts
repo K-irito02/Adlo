@@ -3,6 +3,7 @@
  * 从 terminalSlice.ts 提取，避免循环依赖
  */
 import type { TerminalProfile } from '../types';
+import type { TabLocation } from './tabLocation';
 
 export interface TerminalTabState {
   id: string;
@@ -14,6 +15,7 @@ export interface TerminalTabState {
   isPinned: boolean;
   pinnedAt?: number;
   sortOrder: number;
+  location?: TabLocation;
 }
 
 // 注意：“命令历史（最近命令）”功能已彻底删除，不再保留 CommandHistoryEntry 与
