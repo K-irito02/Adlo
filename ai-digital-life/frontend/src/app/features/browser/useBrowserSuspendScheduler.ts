@@ -10,7 +10,7 @@ const DEFAULT_IDLE_MS = DEFAULT_BROWSER_SUSPEND_MS;
 
 export interface SuspendPassInput {
   tabs: BrowserTabState[];
-  activeTabId: string;
+  protectedActiveTabIds: ReadonlySet<string>;
   inPool: (tabId: string) => boolean;
   lastActivatedMs: Record<string, number>;
   idleMs: number;
@@ -18,13 +18,21 @@ export interface SuspendPassInput {
   now: number;
 }
 
-/** Return tab IDs (unprotected, inactive, in-pool, idle) ordered oldest-activated-first. */
+/** Return tab IDs (unprotected, not protected-active, in-pool, idle) ordered oldest-activated-first. */
 export function applyIdlePass(input: SuspendPassInput): string[] {
-  const { tabs, activeTabId, inPool, lastActivatedMs, idleMs, protected: isProtected, now } = input;
+  const {
+    tabs,
+    protectedActiveTabIds,
+    inPool,
+    lastActivatedMs,
+    idleMs,
+    protected: isProtected,
+    now,
+  } = input;
   return tabs
     .filter(
       (t) =>
-        t.id !== activeTabId &&
+        !protectedActiveTabIds.has(t.id) &&
         inPool(t.id) &&
         !isProtected(t) &&
         lastActivatedMs[t.id] !== undefined &&
@@ -34,16 +42,38 @@ export function applyIdlePass(input: SuspendPassInput): string[] {
     .map((t) => t.id);
 }
 
+export interface ComputeSuspendedTabIdsInput {
+  allTabIds: string[];
+  panelActiveId: string;
+  centerActiveId: string;
+  dshTabId: string;
+  maxLive?: number;
+}
+
+/** Protected active ids (panel / center / dsh) removed from the candidate pool,
+ *  capped to `maxLive` survivors when provided. */
+export function computeSuspendedTabIds(input: ComputeSuspendedTabIdsInput): string[] {
+  const { allTabIds, panelActiveId, centerActiveId, dshTabId, maxLive } = input;
+  const protectedIds = new Set([panelActiveId, centerActiveId, dshTabId]);
+  return allTabIds.filter((id) => !protectedIds.has(id)).slice(0, maxLive ?? Infinity);
+}
+
 interface SchedulerOptions {
   isVisible: boolean;
   removeFromPool: (tabId: string) => Promise<void>;
   isTabInPool: (tabId: string) => boolean;
   activeTabId: string;
+  protectedActiveTabIds?: ReadonlySet<string>;
 }
 
 export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
   const lastActivatedMsRef = useRef<Record<string, number>>({});
-  const { isVisible, removeFromPool, isTabInPool, activeTabId } = opts;
+  const { isVisible, removeFromPool, isTabInPool, activeTabId, protectedActiveTabIds } = opts;
+  // Render-phase mirror: the effect below intentionally excludes tab changes from its deps
+  // (panel path must not remount the scheduler on every active-tab switch), so a captured
+  // set would go stale. The ref keeps the freshest protected set without touching effect timing.
+  const protectedActiveTabIdsRef = useRef(protectedActiveTabIds);
+  protectedActiveTabIdsRef.current = protectedActiveTabIds;
 
   useEffect(() => {
     if (activeTabId) {
@@ -79,7 +109,9 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
       if (idleMs > 0) {
         for (const id of applyIdlePass({
           tabs: state.browserTabs,
-          activeTabId: state.browserActiveTabId,
+          protectedActiveTabIds:
+            protectedActiveTabIdsRef.current ??
+            new Set(state.browserActiveTabId ? [state.browserActiveTabId] : []),
           inPool: isTabInPool,
           lastActivatedMs: lastActivatedMsRef.current,
           idleMs,
@@ -106,7 +138,9 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
               const state2 = useAppStore.getState();
               const candidates = applyIdlePass({
                 tabs: state2.browserTabs,
-                activeTabId: state2.browserActiveTabId,
+                protectedActiveTabIds:
+                  protectedActiveTabIdsRef.current ??
+                  new Set(state2.browserActiveTabId ? [state2.browserActiveTabId] : []),
                 inPool: isTabInPool,
                 lastActivatedMs: lastActivatedMsRef.current,
                 idleMs: 0, // memory pressure: suspend oldest unprotected inactive in-pool tab regardless of idle age

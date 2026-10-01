@@ -22,7 +22,7 @@ describe('applyIdlePass (idle)', () => {
     expect(
       applyIdlePass({
         tabs: [tab('old'), tab('new'), tab('active')],
-        activeTabId: 'active',
+        protectedActiveTabIds: new Set(['active']),
         inPool: (id) => id !== 'active',
         lastActivatedMs: { old: 1_000, new: 9_000 },
         idleMs: 5_000,
@@ -39,7 +39,7 @@ describe('applyIdlePass (idle)', () => {
           tab('audio', { isPlayingAudio: true }),
           tab('ok'),
         ],
-        activeTabId: 'none',
+        protectedActiveTabIds: new Set(),
         inPool: () => true,
         lastActivatedMs: { pinned: 0, audio: 0, ok: 0 },
         idleMs: 5_000,
@@ -52,7 +52,7 @@ describe('applyIdlePass (idle)', () => {
     expect(
       applyIdlePass({
         tabs: [tab('fresh')],
-        activeTabId: 'none',
+        protectedActiveTabIds: new Set(),
         inPool: () => true,
         lastActivatedMs: { fresh: 9_500 },
         idleMs: 5_000,
@@ -65,7 +65,7 @@ describe('applyIdlePass (idle)', () => {
     expect(
       applyIdlePass({
         tabs: [tab('never'), tab('old')],
-        activeTabId: 'none',
+        protectedActiveTabIds: new Set(),
         inPool: () => true,
         lastActivatedMs: { old: 0 }, // 'never' has no entry
         idleMs: 0,
@@ -81,7 +81,7 @@ describe('applyIdlePass (idle)', () => {
     expect(
       applyIdlePass({
         tabs: [tab('recent')],
-        activeTabId: 'none',
+        protectedActiveTabIds: new Set(),
         inPool: () => true,
         lastActivatedMs: { recent: now }, // 刚激活也满足 now - ms >= 0
         idleMs: 0,
@@ -94,7 +94,7 @@ describe('applyIdlePass (idle)', () => {
     expect(
       applyIdlePass({
         tabs: [tab('downloading', { isDownloading: true }), tab('ok')],
-        activeTabId: 'none',
+        protectedActiveTabIds: new Set(),
         inPool: () => true,
         lastActivatedMs: { downloading: 0, ok: 0 },
         idleMs: 5_000,

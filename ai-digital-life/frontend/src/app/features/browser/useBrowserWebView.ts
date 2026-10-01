@@ -44,6 +44,7 @@ export function useBrowserWebView(options: UseBrowserWebViewOptions) {
     removeFromPool,
     isTabInPool,
     activeTabId: activeTab?.id ?? '',
+    protectedActiveTabIds: new Set(activeTab ? [activeTab.id] : []),
   });
 
   return {
