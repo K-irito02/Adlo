@@ -15,9 +15,14 @@ import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {
   t: Record<string, string>;
+  /**
+   * 覆盖默认的「打开为新标签」回调：中心浏览器宿主用它把新标签移入中心
+   * （`browserOpenTab` 后 `centerShowBrowserTab`）。缺省保持面板行为不变。
+   */
+  onOpenUrl?: (url: string) => void;
 }
 
-export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
+export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
   const {
     browserBgConfig,
     browserOpenTab,
@@ -77,9 +82,13 @@ export function BrowserLandingPage({ t }: BrowserLandingPageProps) {
 
   const handleOpenUrl = useCallback(
     (url: string) => {
+      if (onOpenUrl) {
+        onOpenUrl(url);
+        return;
+      }
       browserOpenTab(url, undefined, undefined);
     },
-    [browserOpenTab],
+    [browserOpenTab, onOpenUrl],
   );
 
   const handleAddClick = () => {
