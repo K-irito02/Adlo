@@ -33,9 +33,11 @@ interface DshTestStore {
   }[];
   browserActiveTabId: string;
   centerTabs: { id: string; kind: string; refId: string | null }[];
+  centerActiveTabId: string;
   browserOpenTab: (url?: string, title?: string) => void;
   browserUpdateTab: (tabId: string, patch: { isDsh?: boolean }) => void;
   centerShowBrowserTab: (browserTabId: string) => void;
+  centerSelectTab: (centerTabId: string) => void;
 }
 
 function makeStore() {
@@ -72,6 +74,7 @@ function makeStore() {
       browserTabs: [],
       browserActiveTabId: '',
       centerTabs: [],
+      centerActiveTabId: '',
       browserOpenTab: (url, title) =>
         set((s) => {
           const id = `bt${s.browserTabs.length + 1}`;
@@ -85,15 +88,17 @@ function makeStore() {
           browserTabs: s.browserTabs.map((t) => (t.id === tabId ? { ...t, ...patch } : t)),
         })),
       centerShowBrowserTab: (browserTabId) =>
-        set((s) => ({
-          browserTabs: s.browserTabs.map((t) =>
-            t.id === browserTabId ? { ...t, location: 'center' as const } : t,
-          ),
-          centerTabs: [
-            ...s.centerTabs,
-            { id: `c${s.centerTabs.length + 1}`, kind: 'browser', refId: browserTabId },
-          ],
-        })),
+        set((s) => {
+          const centerId = `c${s.centerTabs.length + 1}`;
+          return {
+            browserTabs: s.browserTabs.map((t) =>
+              t.id === browserTabId ? { ...t, location: 'center' as const } : t,
+            ),
+            centerTabs: [...s.centerTabs, { id: centerId, kind: 'browser', refId: browserTabId }],
+            centerActiveTabId: centerId,
+          };
+        }),
+      centerSelectTab: (centerTabId) => set({ centerActiveTabId: centerTabId }),
       ...dshActions,
     } as DshTestStore;
   });
@@ -168,6 +173,51 @@ describe('dshActions.openDsh', () => {
     store.setState({ isTauri: true });
     await store.getState().openDsh();
     expect(store.getState().siblingWebviewNonce).toBe(0);
+  });
+
+  it('已有 isDsh 标签时聚焦已有标签，不新建、不重复拉起进程', async () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
+    const id = store.getState().browserActiveTabId;
+    store.getState().browserUpdateTab(id, { isDsh: true });
+    store.getState().centerShowBrowserTab(id);
+    const centerCountBefore = store.getState().centerTabs.length;
+
+    const result = await store.getState().openDsh();
+
+    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect((window as any).digitalLife.dsh.open).not.toHaveBeenCalled();
+    expect(store.getState().browserTabs.filter((t) => t.isDsh)).toHaveLength(1);
+    // 不新增中心标签；已有中心标签被重新选中。
+    expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
+    expect(store.getState().centerActiveTabId).toBe(store.getState().centerTabs[0].id);
+    expect(store.getState().isOpen).toBe(true);
+  });
+
+  it('并发调用（快速双击）只拉起一次且只创建一个 isDsh 标签', async () => {
+    let resolveOpen!: (value: unknown) => void;
+    const open = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        }),
+    );
+    (window as any).digitalLife.dsh.open = open;
+    const store = makeStore();
+
+    const first = store.getState().openDsh();
+    const second = store.getState().openDsh();
+    // 第二次调用复用进行中的 promise：尚未 resolve 时不产生标签。
+    expect(open).toHaveBeenCalledTimes(1);
+    expect(store.getState().browserTabs).toEqual([]);
+
+    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080', freedPort: false } });
+    const [r1, r2] = await Promise.all([first, second]);
+
+    expect(r1).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(r2).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(store.getState().browserTabs.filter((t) => t.isDsh)).toHaveLength(1);
+    expect(open).toHaveBeenCalledTimes(1);
   });
 });
 
