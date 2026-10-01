@@ -448,6 +448,7 @@ export function TerminalPanel() {
         contextMenu={contextMenu}
         onTogglePin={terminalActions.handleTogglePin}
         onRename={terminalActions.handleRenameFromMenu}
+        onOpenInCenter={terminalActions.handleOpenInCenterFromMenu}
         onDelete={terminalActions.handleDeleteFromMenu}
         onClose={terminalActions.closeContextMenu}
       />

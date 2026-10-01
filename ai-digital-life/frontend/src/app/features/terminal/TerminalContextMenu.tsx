@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { IconPin, IconPinOff, IconEdit, IconDelete } from '@icons';
+import { IconPin, IconPinOff, IconEdit, IconDelete, IconExpandCorners } from '@icons';
 import type { ContextMenuState } from './useTerminalPanel';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -8,6 +8,7 @@ interface TerminalContextMenuProps {
   contextMenu: ContextMenuState;
   onTogglePin: () => void;
   onRename: () => void;
+  onOpenInCenter: () => void;
   onDelete: () => void;
   onClose: () => void;
 }
@@ -16,6 +17,7 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
   contextMenu,
   onTogglePin,
   onRename,
+  onOpenInCenter,
   onDelete,
   onClose,
 }: TerminalContextMenuProps) {
@@ -79,6 +81,12 @@ export const TerminalContextMenu = React.memo(function TerminalContextMenu({
           <IconEdit size={16} decorative />
         </span>
         <span>{t.rename}</span>
+      </button>
+      <button type="button" className="adl-sidebar-menu__item" onClick={onOpenInCenter}>
+        <span className="adl-sidebar-menu__icon">
+          <IconExpandCorners size={16} decorative />
+        </span>
+        <span>{t.centerTabShowInCenter}</span>
       </button>
       <div className="adl-sidebar-menu__sep" role="separator" />
       <button type="button" className="adl-sidebar-menu__item is-danger" onClick={onDelete}>

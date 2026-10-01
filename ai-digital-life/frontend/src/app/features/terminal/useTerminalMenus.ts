@@ -49,6 +49,7 @@ export function useTerminalMenus({
     handleTogglePin,
     handleRenameFromMenu,
     handleDeleteFromMenu,
+    handleOpenInCenterFromMenu,
     closeContextMenu,
   } = useTerminalContextMenu(terminalTabs, handleDoubleClick, terminalTogglePin, handleCloseTab);
 
@@ -170,6 +171,7 @@ export function useTerminalMenus({
     handleTogglePin,
     handleRenameFromMenu,
     handleDeleteFromMenu,
+    handleOpenInCenterFromMenu,
     closeContextMenu,
     handleCopy,
     handlePaste,

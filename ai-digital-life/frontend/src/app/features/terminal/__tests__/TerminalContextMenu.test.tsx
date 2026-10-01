@@ -17,18 +17,20 @@ function renderMenu(overrides: Partial<ContextMenuState> = {}) {
   const onRename = vi.fn();
   const onDelete = vi.fn();
   const onTogglePin = vi.fn();
+  const onOpenInCenter = vi.fn();
   render(
     <TCopyProvider t={mockT as never} locale="en-US">
       <TerminalContextMenu
         contextMenu={{ ...baseMenu, ...overrides }}
         onTogglePin={onTogglePin}
         onRename={onRename}
+        onOpenInCenter={onOpenInCenter}
         onDelete={onDelete}
         onClose={onClose}
       />
     </TCopyProvider>,
   );
-  return { onClose, onRename, onDelete, onTogglePin };
+  return { onClose, onRename, onDelete, onTogglePin, onOpenInCenter };
 }
 
 describe('TerminalContextMenu', () => {
@@ -39,11 +41,17 @@ describe('TerminalContextMenu', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('菜单打开时渲染三个动作项', () => {
+  it('菜单打开时渲染四个动作项', () => {
     renderMenu();
     expect(screen.getByRole('menu')).toBeInTheDocument();
-    // 三个动作按钮（Pin / 重命名 / 删除）
-    expect(screen.getAllByRole('button')).toHaveLength(3);
+    // 四个动作按钮（Pin / 重命名 / 在中间部分显示 / 删除）
+    expect(screen.getAllByRole('button')).toHaveLength(4);
+  });
+
+  it('点击「在中间部分显示」触发对应动作', async () => {
+    const { onOpenInCenter } = renderMenu();
+    await userEvent.click(screen.getAllByRole('button')[2]);
+    expect(onOpenInCenter).toHaveBeenCalledTimes(1);
   });
 
   it('点击菜单外部关闭菜单（此前菜单会一直悬留）', () => {

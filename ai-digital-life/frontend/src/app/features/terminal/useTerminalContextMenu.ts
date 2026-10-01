@@ -1,5 +1,6 @@
 import { useCallback, useState, type SetStateAction, type Dispatch } from 'react';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
+import { useAppStore } from '@stores/slicedStore';
 
 export interface ContextMenuState {
   open: boolean;
@@ -16,6 +17,8 @@ export interface UseTerminalContextMenuReturn {
   handleTogglePin: () => void;
   handleRenameFromMenu: () => void;
   handleDeleteFromMenu: () => void;
+  /** 右键菜单「在中间部分显示」：把目标终端标签移动到中心区并关闭菜单 */
+  handleOpenInCenterFromMenu: () => void;
   /** 关闭菜单（外部点击 / Esc 由菜单组件调用） */
   closeContextMenu: () => void;
 }
@@ -70,6 +73,13 @@ export function useTerminalContextMenu(
     setContextMenu((prev) => ({ ...prev, open: false }));
   }, [contextMenu.tabId, handleCloseTab]);
 
+  const handleOpenInCenterFromMenu = useCallback(() => {
+    if (contextMenu.tabId) {
+      useAppStore.getState().centerShowTerminalTab(contextMenu.tabId);
+    }
+    setContextMenu((prev) => ({ ...prev, open: false }));
+  }, [contextMenu.tabId]);
+
   const closeContextMenu = useCallback(() => {
     setContextMenu((prev) => ({ ...prev, open: false }));
   }, []);
@@ -81,6 +91,7 @@ export function useTerminalContextMenu(
     handleTogglePin,
     handleRenameFromMenu,
     handleDeleteFromMenu,
+    handleOpenInCenterFromMenu,
     closeContextMenu,
   };
 }

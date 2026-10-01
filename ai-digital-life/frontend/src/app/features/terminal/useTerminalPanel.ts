@@ -113,6 +113,8 @@ export interface UseTerminalPanelReturn {
     handleRenameFromMenu: () => void;
     /** 右键菜单「删除」：走完整关闭清理（杀 PTY/释放池/删历史）并关闭菜单 */
     handleDeleteFromMenu: () => void;
+    /** 右键菜单「在中间部分显示」：把目标终端标签移动到中心区并关闭菜单 */
+    handleOpenInCenterFromMenu: () => void;
     /** 关闭右键菜单（菜单组件在外部点击 / Esc 时调用） */
     closeContextMenu: () => void;
   };
@@ -184,6 +186,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     handleTogglePin,
     handleRenameFromMenu,
     handleDeleteFromMenu,
+    handleOpenInCenterFromMenu,
     closeContextMenu,
     handleCopy,
     handlePaste,
@@ -323,6 +326,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       deleteHistory,
       handleRenameFromMenu,
       handleDeleteFromMenu,
+      handleOpenInCenterFromMenu,
       closeContextMenu,
     },
     dragHandlers: {

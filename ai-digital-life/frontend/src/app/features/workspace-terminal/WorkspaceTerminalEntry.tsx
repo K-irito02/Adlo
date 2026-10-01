@@ -19,6 +19,8 @@ import { TooltipSimple } from '@components/Tooltip';
 import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { TerminalTabBar } from '../terminal/TerminalTabBar';
+import { TerminalContextMenu } from '../terminal/TerminalContextMenu';
+import { useTerminalContextMenu } from '../terminal/useTerminalContextMenu';
 import { formatT } from '@i18n/formatT';
 import { useTerminalMenu } from './useTerminalMenu';
 
@@ -59,6 +61,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
   onCreateTab,
   onSelectTab,
   onCloseTab,
+  onTogglePin,
   onHideFromRightPanels,
   onCloseAllTabs,
   isIndependent = false,
@@ -101,6 +104,16 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
     onCloseAllTabs,
     onCreateTab,
   });
+
+  const {
+    contextMenu,
+    handleContextMenu,
+    handleTogglePin,
+    handleRenameFromMenu,
+    handleDeleteFromMenu,
+    handleOpenInCenterFromMenu,
+    closeContextMenu,
+  } = useTerminalContextMenu(tabs, onDoubleClick, onTogglePin, onCloseTab);
 
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
   const handleRequestRemove = useCallback(() => {
@@ -301,7 +314,7 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
               onDragEnd={() => {}}
               onDragOver={() => {}}
               onDrop={() => {}}
-              onContextMenu={() => {}}
+              onContextMenu={handleContextMenu}
               onDoubleClick={onDoubleClick}
               onEditChange={onEditChange}
               onEditSubmit={onEditSubmit}
@@ -328,6 +341,15 @@ export const WorkspaceTerminalEntry = React.memo(function WorkspaceTerminalEntry
         workspaceName={workspace.name}
         onConfirm={handleConfirmRemove}
         onCancel={() => setConfirmRemoveOpen(false)}
+      />
+
+      <TerminalContextMenu
+        contextMenu={contextMenu}
+        onTogglePin={handleTogglePin}
+        onRename={handleRenameFromMenu}
+        onOpenInCenter={handleOpenInCenterFromMenu}
+        onDelete={handleDeleteFromMenu}
+        onClose={closeContextMenu}
       />
     </div>
   );
