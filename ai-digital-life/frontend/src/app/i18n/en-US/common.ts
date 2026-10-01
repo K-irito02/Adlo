@@ -126,6 +126,7 @@ export const commonEn = {
   deleteAllTabDirs: 'Delete all workspace and custom directory tabs (keep directory structure)',
   newTabPage: 'New tab page',
   centerNewTab: 'New tab',
+  centerTabStripLabel: 'Center tabs',
   centerTabShowInBrowserPanel: 'Show in browser panel',
   centerTabShowInTerminalPanel: 'Show in terminal panel',
   centerTabShowInCenter: 'Show in center',

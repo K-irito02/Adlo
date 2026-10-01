@@ -136,6 +136,7 @@ export const commonZh = {
   deleteAllTabDirs: '删除工作区与非工作区全部标签 （保留目录结构）',
   newTabPage: '新建标签页',
   centerNewTab: '新建标签页',
+  centerTabStripLabel: '中心标签页',
   centerTabShowInBrowserPanel: '在浏览器面板显示',
   centerTabShowInTerminalPanel: '在终端面板显示',
   centerTabShowInCenter: '在中间部分显示',

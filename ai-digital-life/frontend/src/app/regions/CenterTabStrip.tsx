@@ -7,6 +7,7 @@ import { TooltipSimple } from '@components/Tooltip';
 import { IconClose, IconNewTabPage, IconPanelRight, IconPlus, IconTerminal } from '@icons';
 import { TerminalProfileIcon } from '@features/terminal/TerminalProfileIcon';
 import { terminalPtyRuntime } from '@features/terminal/terminalPtyRuntime';
+import { removeSiteMetaIfUnreferenced } from '@features/browser/siteMetaCleanup';
 import type { CenterTabState } from '@stores/slices/centerTabsSlice';
 
 /**
@@ -58,6 +59,9 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
           void useAppStore.getState().closeDsh(false);
         }
         browserCloseTab(tab.refId);
+        if (browserTab?.url) {
+          removeSiteMetaIfUnreferenced(browserTab.url);
+        }
       } else if (tab.kind === 'terminal' && tab.refId) {
         terminalPtyRuntime.handleCloseTab(tab.refId);
       }
@@ -76,7 +80,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
         ref={scrollRef}
         className="adl-center-tab-strip__scroll"
         role="tablist"
-        aria-label={t.centerNewTab}
+        aria-label={t.centerTabStripLabel}
         data-tauri-drag-region
         onWheel={handleWheel}
       >
@@ -127,7 +131,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
               </span>
               <span className="adl-center-tab__label">{label}</span>
               <span className="adl-center-tab__actions">
-                {tab.kind !== 'launcher' && (
+                {tab.kind !== 'launcher' && tab.refId !== null && (
                   <TooltipSimple content={showInPanelLabel} placement="bottom">
                     <button
                       type="button"

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { TCopyProvider } from '../i18n/TCopyContext';
 import type { CopyDict } from '../i18n/types';
 import { useAppStore } from '@stores/slicedStore';
+import type { BrowserTabState } from '@stores/slices/browserSlice';
 import { CenterTabStrip } from './CenterTabStrip';
 
 afterEach(cleanup);
@@ -66,5 +67,32 @@ describe('CenterTabStrip', () => {
     const tabs = useAppStore.getState().centerTabs;
     expect(tabs.some((tab) => tab.id === a)).toBe(false);
     expect(tabs).toHaveLength(1);
+  });
+
+  it('关闭 browser 中心标签同时移除底层标签与中心项', () => {
+    const refId = 'b1';
+    const browserTab: BrowserTabState = {
+      id: refId,
+      workspaceId: '',
+      title: 'Example',
+      url: 'https://example.test',
+      titleResolved: true,
+      isPinned: false,
+      sortOrder: 0,
+      isPlayingAudio: false,
+      isAudioMuted: false,
+      isDownloading: false,
+      location: 'center',
+    };
+    useAppStore.setState({
+      browserTabs: [browserTab],
+      browserTabsById: { [refId]: browserTab },
+    });
+    const centerId = useAppStore.getState().centerAddTab('browser', refId);
+    renderStrip();
+    fireEvent.click(screen.getAllByRole('button', { name: 'close' })[0]);
+    const state = useAppStore.getState();
+    expect(state.browserTabs.some((tab) => tab.id === refId)).toBe(false);
+    expect(state.centerTabs.some((tab) => tab.id === centerId)).toBe(false);
   });
 });
