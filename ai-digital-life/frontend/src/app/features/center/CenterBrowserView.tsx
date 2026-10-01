@@ -10,8 +10,10 @@ import {
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { CopyButton } from '@components/CopyButton';
+import { ErrorBoundary } from '@components/ErrorBoundary';
 import { BrowserLandingPage } from '@features/browser/browser-landing';
 import { BrowserIframeErrorOverlay } from '@features/browser/BrowserIframeErrorOverlay';
+import { ExternalLinkError } from '@features/browser/ExternalLinkError';
 import { BrowserDownloadButton } from '@features/browser/BrowserDownloadButton';
 import { BrowserMenuDropdown } from '@features/browser/BrowserMenuDropdown';
 import { SearchEnginePopover } from '@features/browser/SearchEnginePopover';
@@ -378,18 +380,30 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
             <BrowserLandingPage t={t} onOpenUrl={handleLandingOpenUrl} />
           </div>
         ) : showIframe && activeTab?.url ? (
-          <SafeIframe
-            iframeRef={iframeRef}
-            src={activeTab.url}
-            className="adl-browser-iframe"
-            title={activeTab.title}
-            onLoad={handleIframeLoad}
-            onError={handleIframeError}
-            sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
-          />
+          <ErrorBoundary
+            t={t}
+            fallback={
+              <ExternalLinkError
+                errorKey="browserCannotOpenEmbedded"
+                activeTabUrl={activeTab.url}
+                t={t}
+                variant="active"
+              />
+            }
+          >
+            <SafeIframe
+              iframeRef={iframeRef}
+              src={activeTab.url}
+              className="adl-browser-iframe"
+              title={activeTab.title}
+              onLoad={handleIframeLoad}
+              onError={handleIframeError}
+              sandbox="allow-scripts allow-forms allow-popups allow-same-origin"
+            />
+          </ErrorBoundary>
         ) : null}
 
-        {isTauri && (
+        {!isEmptyUrl && (
           <BrowserIframeErrorOverlay
             t={t}
             activeTab={activeTab}

@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CenterBrowserView } from '../CenterBrowserView';
 import { TCopyProvider } from '@i18n/TCopyContext';
@@ -6,6 +6,11 @@ import { useAppStore } from '@stores/slicedStore';
 import type { CopyDict } from '@i18n/types';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { ShortcutSite } from '@stores/slices/browserLandingSlice';
+
+vi.mock('@features/browser/checkEmbed', () => ({
+  isEmbedBlocked: () => true,
+  checkEmbed: async () => true,
+}));
 
 const t = {
   toolBrowser: 'Browser',
@@ -27,6 +32,8 @@ const t = {
   browserAddShortcutTitle: 'Add shortcut',
   browserAddManualPort: 'Add port',
   browserRefreshPorts: 'Refresh ports',
+  browserCannotOpenEmbedded: 'Cannot embed this site',
+  browserOpenExternal: 'Open externally',
 } as unknown as CopyDict;
 
 function makeTab(id: string, url: string): BrowserTabState {
@@ -60,6 +67,7 @@ afterEach(() => {
     browserActiveTabId: '',
     centerTabs: [],
     centerActiveTabId: '',
+    browserShortcuts: [],
   });
 });
 
@@ -106,6 +114,16 @@ describe('CenterBrowserView', () => {
     expect(created).toBeTruthy();
     expect(created?.location).toBe('center');
     expect(s.centerTabs.some((c) => c.refId === created?.id)).toBe(true);
-    useAppStore.setState({ browserShortcuts: [] });
+  });
+
+  it('嵌入被拒时渲染外部打开兜底', () => {
+    const tab = makeTab('b1', 'https://blocked.example.com');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+    });
+    renderView('b1');
+    expect(screen.getByRole('button', { name: 'Open externally' })).toBeTruthy();
   });
 });
