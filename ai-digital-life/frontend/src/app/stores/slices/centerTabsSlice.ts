@@ -13,6 +13,8 @@ export interface CenterTabsSlice {
   centerSelectTab: (centerTabId: string) => void;
   centerRemoveTab: (centerTabId: string) => void;
   centerReorderTabs: (newOrder: CenterTabState[]) => void;
+  /** 绑定/回填中心标签承载的底层标签 id（terminal 选择器选定后调用） */
+  centerSetTabRef: (centerTabId: string, refId: string) => void;
 }
 
 export const createCenterTabsSlice = (
@@ -63,5 +65,13 @@ export const createCenterTabsSlice = (
   centerReorderTabs: (newOrder) => {
     persist('adl:center.tabs', newOrder);
     set({ centerTabs: newOrder });
+  },
+
+  centerSetTabRef: (centerTabId, refId) => {
+    set((state) => {
+      const next = state.centerTabs.map((t) => (t.id === centerTabId ? { ...t, refId } : t));
+      persist('adl:center.tabs', next);
+      return { centerTabs: next };
+    });
   },
 });
