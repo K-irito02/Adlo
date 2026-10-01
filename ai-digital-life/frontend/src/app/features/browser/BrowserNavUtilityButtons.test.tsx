@@ -49,28 +49,52 @@ describe('BrowserNavUtilityButtons', () => {
     expect(plus).not.toHaveAttribute('title');
   });
 
+  async function hoverAndAssertTooltip(buttonName: string) {
+    const button = screen.getByRole('button', { name: buttonName });
+    fireEvent.mouseEnter(button);
+    // showDelay(300) + mount rAF + enter double-rAF
+    await act(async () => {
+      vi.advanceTimersByTime(300);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(16);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(16);
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(16);
+    });
+    const tip = screen.getByRole('tooltip');
+    expect(tip).toHaveTextContent(buttonName);
+    expect(tip.getAttribute('data-state')).toBe('open');
+  }
+
   it('shows tooltip content carrying the button label on hover', async () => {
     vi.useFakeTimers();
     try {
       setup('open');
-      const plus = screen.getByRole('button', { name: labels.alwaysNewTab });
-      fireEvent.mouseEnter(plus);
-      // showDelay(300) + mount rAF + enter double-rAF
-      await act(async () => {
-        vi.advanceTimersByTime(300);
-      });
-      await act(async () => {
-        vi.advanceTimersByTime(16);
-      });
-      await act(async () => {
-        vi.advanceTimersByTime(16);
-      });
-      await act(async () => {
-        vi.advanceTimersByTime(16);
-      });
-      const tip = screen.getByRole('tooltip');
-      expect(tip).toHaveTextContent(labels.alwaysNewTab);
-      expect(tip.getAttribute('data-state')).toBe('open');
+      await hoverAndAssertTooltip(labels.alwaysNewTab);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows tooltip content for the clear button on hover', async () => {
+    vi.useFakeTimers();
+    try {
+      setup('open');
+      await hoverAndAssertTooltip(labels.clearOpenTabs);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows tooltip content for the tabs-mode button on hover', async () => {
+    vi.useFakeTimers();
+    try {
+      setup('tabs');
+      await hoverAndAssertTooltip(labels.newTab);
     } finally {
       vi.useRealTimers();
     }

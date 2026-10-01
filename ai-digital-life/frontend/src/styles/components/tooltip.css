@@ -30,7 +30,8 @@
 }
 
 /* 进入用柔和起手的 expo 曲线（--ease-enter 起手太冲、滑行像"跳"）；
-   退出过渡真实可见，给 150ms（与 TOOLTIP_EXIT_MS 同源，见 Tooltip.tsx） */
+   退出 150ms，Tooltip.tsx 的 TOOLTIP_EXIT_MS=200 必须 ≥ 它（留 50ms 余量），
+   改任一侧时同步检查另一侧 */
 .tooltip[data-state='open'] {
   transition:
     opacity var(--duration-350) var(--ease-editorial),
@@ -87,7 +88,9 @@
 
 /* --- Reduced motion --- */
 @media (prefers-reduced-motion: reduce) {
-  .tooltip {
+  .tooltip,
+  .tooltip[data-state='open'],
+  .tooltip[data-state='closed'] {
     transition: none !important;
     transform: none;
   }

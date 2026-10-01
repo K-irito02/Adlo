@@ -207,6 +207,10 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
   // avoidRects 为空时保持原有行为不变（不尝试左右侧，避免窄视口行为变化）。
   if (options.avoidRects && options.avoidRects.length > 0) {
     const avoidRects = normalizeAvoidRects(options.avoidRects);
+    // 归一化后变空（全零面积）→ 等价于未传入，走原有逻辑。
+    if (avoidRects.length === 0) {
+      return legacyPosition();
+    }
     const others: Placement[] = (['top', 'bottom', 'left', 'right'] as Placement[]).filter(
       (p) => p !== placement && p !== OPPOSITE_MAP[placement],
     );
@@ -302,43 +306,48 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
         return cleared;
       }
     }
+    return legacyPosition();
   }
 
-  const initialResult = calculate(currentPlacement);
+  return legacyPosition();
 
-  const isHorizontal = isHorizontalPlacement(currentPlacement);
-  const mainAxisSize = isHorizontal ? tooltipRect.height : tooltipRect.width;
-  const mainCoord = getMainAxisCoord(initialResult, currentPlacement);
-  const mainAxis = mainAxisOf(currentPlacement);
+  function legacyPosition(): PositionResult {
+    const initialResult = calculate(currentPlacement);
 
-  if (!fitsInViewport(mainCoord, mainAxisSize, mainAxis, viewportPadding)) {
-    const flippedPlacement = OPPOSITE_MAP[currentPlacement];
-    const flippedResult = calculate(flippedPlacement);
+    const isHorizontal = isHorizontalPlacement(currentPlacement);
+    const mainAxisSize = isHorizontal ? tooltipRect.height : tooltipRect.width;
+    const mainCoord = getMainAxisCoord(initialResult, currentPlacement);
+    const mainAxis = mainAxisOf(currentPlacement);
 
-    const flippedIsHorizontal = isHorizontalPlacement(flippedPlacement);
-    const flippedMainAxisSize = flippedIsHorizontal ? tooltipRect.height : tooltipRect.width;
-    const flippedMainCoord = getMainAxisCoord(flippedResult, flippedPlacement);
-    const flippedMainAxis = mainAxisOf(flippedPlacement);
+    if (!fitsInViewport(mainCoord, mainAxisSize, mainAxis, viewportPadding)) {
+      const flippedPlacement = OPPOSITE_MAP[currentPlacement];
+      const flippedResult = calculate(flippedPlacement);
 
-    if (fitsInViewport(flippedMainCoord, flippedMainAxisSize, flippedMainAxis, viewportPadding)) {
-      return flippedResult;
+      const flippedIsHorizontal = isHorizontalPlacement(flippedPlacement);
+      const flippedMainAxisSize = flippedIsHorizontal ? tooltipRect.height : tooltipRect.width;
+      const flippedMainCoord = getMainAxisCoord(flippedResult, flippedPlacement);
+      const flippedMainAxis = mainAxisOf(flippedPlacement);
+
+      if (fitsInViewport(flippedMainCoord, flippedMainAxisSize, flippedMainAxis, viewportPadding)) {
+        return flippedResult;
+      }
+
+      const fallbackPlacement: Placement = isHorizontal ? 'bottom' : 'right';
+      const fallbackResult = calculate(fallbackPlacement);
+
+      const fbMainAxisSize = isHorizontal ? tooltipRect.height : tooltipRect.width;
+      const fbMainCoord = getMainAxisCoord(fallbackResult, fallbackPlacement);
+      const fbMainAxis = mainAxisOf(fallbackPlacement);
+
+      if (!fitsInViewport(fbMainCoord, fbMainAxisSize, fbMainAxis, viewportPadding)) {
+        const maxMain = viewportLength(fbMainAxis) - viewportPadding - fbMainAxisSize;
+        const clampedMain = Math.max(viewportPadding, Math.min(maxMain, fbMainCoord));
+        setMainAxisCoord(fallbackResult, fallbackPlacement, clampedMain);
+      }
+
+      return fallbackResult;
     }
 
-    const fallbackPlacement: Placement = isHorizontal ? 'bottom' : 'right';
-    const fallbackResult = calculate(fallbackPlacement);
-
-    const fbMainAxisSize = isHorizontal ? tooltipRect.height : tooltipRect.width;
-    const fbMainCoord = getMainAxisCoord(fallbackResult, fallbackPlacement);
-    const fbMainAxis = mainAxisOf(fallbackPlacement);
-
-    if (!fitsInViewport(fbMainCoord, fbMainAxisSize, fbMainAxis, viewportPadding)) {
-      const maxMain = viewportLength(fbMainAxis) - viewportPadding - fbMainAxisSize;
-      const clampedMain = Math.max(viewportPadding, Math.min(maxMain, fbMainCoord));
-      setMainAxisCoord(fallbackResult, fallbackPlacement, clampedMain);
-    }
-
-    return fallbackResult;
+    return initialResult;
   }
-
-  return initialResult;
 }

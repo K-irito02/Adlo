@@ -313,7 +313,8 @@ export function TooltipContent({
     maxWidth,
   } = useTooltipContext();
 
-  // dismiss 关闭按钮文案走 i18n；无 provider（单测）时回退英文。
+  // dismiss 关闭按钮文案走 i18n（t.close 中英字典均有，tsc 会校验存在性）。
+  // 无 provider（无 TCopy 的隔离单测）时回退英文，该分支生产不可达。
   const copyCtx = useContext(TCopyContext);
   const closeLabel = copyCtx?.t.close ?? 'Close';
 

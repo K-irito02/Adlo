@@ -433,6 +433,60 @@ describe('tooltipPosition', () => {
       expect(zeroArea).toEqual(without);
     });
 
+    it('ignores zero-area avoidRects even when preferred side does not fit viewport', () => {
+      // 归一化后变空必须等价于未传入：走原有"首选→对侧→fallback"路径，
+      // 而不是 avoid 分支的四边试算（两者在首选边放不下时返回不同 placement）。
+      const triggerRect = createMockDOMRect({ top: 10, left: 100, width: 100, height: 50 });
+      const tooltipRect = { width: 80, height: 30 };
+
+      const zeroArea = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [{ left: 500, top: 500, right: 500, bottom: 700 }],
+      });
+      const without = computePosition({ triggerRect, tooltipRect, placement: 'top', offset: 8 });
+
+      expect(zeroArea).toEqual(without);
+      expect(zeroArea.placement).toBe('bottom');
+    });
+
+    it('falls back to another side when the gap between avoidRects is too narrow to slide into', () => {
+      const triggerRect = createMockDOMRect({
+        top: 500,
+        left: 900,
+        width: 100,
+        height: 50,
+        right: 1000,
+        bottom: 550,
+      });
+      const tooltipRect = { width: 80, height: 30 };
+
+      // 两块 Webview 中间只剩 20px 缝（< tooltip 宽 80），滑移无解 → 必须换边，
+      // 且结果不得与任何一块重叠
+      const leftBlock = { left: 0, top: 400, right: 900, bottom: 650 };
+      const rightBlock = { left: 920, top: 400, right: 1920, bottom: 650 };
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [leftBlock, rightBlock],
+      });
+
+      const tip = {
+        left: result.x,
+        top: result.y,
+        right: result.x + tooltipRect.width,
+        bottom: result.y + tooltipRect.height,
+      };
+      const overlaps = [leftBlock, rightBlock].some(
+        (r) => tip.left < r.right && tip.right > r.left && tip.top < r.bottom && tip.bottom > r.top,
+      );
+      expect(overlaps).toBe(false);
+    });
+
     it('handles centered alignment by default', () => {
       const triggerRect = createMockDOMRect({ top: 100, left: 100, width: 100, height: 50 });
       const tooltipRect = { width: 80, height: 30 };
