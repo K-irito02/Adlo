@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
@@ -225,33 +225,27 @@ function TrashIcon() {
 }
 
 /**
- * 中间区欢迎引导页（dsh 关闭后显示）。
- * - 主导按钮"打开 DeepSeek Harness" → 进入中间区 dsh。
- * - 版本管理区：当前版本/最新版本/有更新徽标 + 检查更新 / 升级 / 版本选择与卸载 / 重装。
- * - 卸载当前选中版本时显示警告提示（不强行阻止）。
- * - 加载时拉取 dsh 版本状态。
+ * dsh 版本管理卡片（当前/最新版本 + 检查更新 / 升级 / 卸载 / 重装 / 版本选择）。
  *
- * 注意：组件命名使用 `adl-app-welcome` 前缀，支持未来扩展其他第三方 WebApp。
+ * 从 `WelcomePage` 拆出，供欢迎引导页与中心 launcher 复用。
+ * `leading` 渲染在顶部操作栏左侧（欢迎页放「打开 dsh」CTA，launcher 放三入口）；
+ * 右侧为版本操作图标组，下方为版本信息卡片。
  */
-export function WelcomePage() {
+export function DshVersionManagement({ leading }: { leading?: ReactNode }) {
   const { t } = useTCopy();
   const actions = useAppActions();
   const versionStatus = useAppStore((s) => s.versionStatus);
-  const appReady = useAppStore((s) => s.appReady);
   const showToast = useAppStore((s) => s.showToast);
-  const reportError = useAppStore((s) => s.reportError);
 
   const [uninstallConfirm, setUninstallConfirm] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [reinstalling, setReinstalling] = useState(false);
   const [reverting, setReverting] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [opening, setOpening] = useState(false);
   const [showDownloadIcon, setShowDownloadIcon] = useState(false);
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const [uninstallingVersion, setUninstallingVersion] = useState<string | null>(null);
   const checkingRef = useRef(false);
-  const openingRef = useRef(false);
   const downloadingRef = useRef(false);
   const reinstallingRef = useRef(false);
   const revertingRef = useRef(false);
@@ -313,27 +307,6 @@ export function WelcomePage() {
     document.addEventListener('mousedown', handleClickOutside, true);
     return () => document.removeEventListener('mousedown', handleClickOutside, true);
   }, [showVersionMenu]);
-
-  const handleOpen = useCallback(async () => {
-    if (openingRef.current) {
-      return;
-    }
-    openingRef.current = true;
-    setOpening(true);
-    try {
-      const result = await actions.openDsh();
-      // 固定 3080 端口被残留 dsh 占用时后端自动释放并重启 → 弹右下角 info 卡片。
-      if (result?.freedPort) {
-        reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
-      }
-    } catch {
-      // 意外异常兜底；常规失败（openDsh 返回 null）已由 action 记录全局错误卡片。
-      showToast(t.dshOpenFailed, 'error');
-    } finally {
-      openingRef.current = false;
-      setOpening(false);
-    }
-  }, [actions, reportError, showToast, t]);
 
   const handleCheckUpdate = useCallback(async () => {
     if (checkingRef.current) {
@@ -504,11 +477,243 @@ export function WelcomePage() {
 
   return (
     <>
-      <section className="adl-center adl-center--dsh-placeholder" aria-label={t.dshTitle}>
-        <div className="adl-app-welcome">
-          {/* Top action bar: CTA left, icon buttons right */}
-          <div className="adl-app-welcome__topbar">
-            {appReady ? (
+      {/* Top action bar: leading slot left, version icon buttons right */}
+      <div className="adl-app-welcome__topbar">
+        {leading}
+
+        <div className="adl-app-welcome__icon-group">
+          {/* Version select & uninstall — icon only, shows dropdown menu */}
+          {hasMultipleVersions ? (
+            <div className="adl-app-welcome__version-menu-anchor" ref={versionMenuRef}>
+              <button
+                type="button"
+                className="adl-btn adl-btn--icon"
+                onClick={() => setShowVersionMenu((v) => !v)}
+                disabled={reverting}
+                title={t.dshRevertHint}
+              >
+                {reverting ? <Spinner size="sm" speed="normal" /> : <VersionSelectIcon />}
+              </button>
+              {showVersionMenu ? (
+                <div className="adl-app-welcome__version-menu">
+                  <div className="adl-app-welcome__version-menu-list">
+                    {sortedVersions.map((v) => {
+                      const isCurrent = v === currentSelected;
+                      const isInstalled = installed.includes(v);
+                      const time = MOCK_VERSION_TIMELINE[v] ?? '';
+                      return (
+                        <button
+                          key={v}
+                          type="button"
+                          className={`adl-app-welcome__version-menu-item${isCurrent ? ' adl-app-welcome__version-menu-item--current' : ''}`}
+                          onClick={() => void handleRevertToVersion(v)}
+                          disabled={isCurrent || reverting}
+                        >
+                          <div className="adl-app-welcome__version-menu-item-info">
+                            <span className="adl-app-welcome__version-menu-item-version">{v}</span>
+                            {time ? (
+                              <span className="adl-app-welcome__version-menu-item-time">
+                                {time}
+                              </span>
+                            ) : null}
+                          </div>
+                          <div className="adl-app-welcome__version-menu-item-badges">
+                            {isInstalled ? (
+                              <span className="adl-app-welcome__version-menu-item-installed">
+                                {t.dshInstalledVersions}
+                              </span>
+                            ) : null}
+                            {isCurrent ? (
+                              <span className="adl-app-welcome__version-menu-item-check">
+                                <CheckIcon />
+                              </span>
+                            ) : null}
+                            {isInstalled && !isCurrent ? (
+                              <button
+                                type="button"
+                                className="adl-app-welcome__version-menu-item-uninstall"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleUninstallVersion(v);
+                                }}
+                                disabled={uninstallingVersion === v}
+                                title={t.dshUninstall}
+                              >
+                                {uninstallingVersion === v ? (
+                                  <Spinner size="sm" speed="normal" />
+                                ) : (
+                                  <TrashIcon />
+                                )}
+                              </button>
+                            ) : null}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+
+          {/* Reinstall — icon only */}
+          <button
+            type="button"
+            className="adl-btn adl-btn--icon"
+            onClick={handleReinstall}
+            disabled={reinstalling}
+            title={t.dshReinstallHint}
+          >
+            {reinstalling ? <Spinner size="sm" speed="normal" /> : <ReinstallIcon />}
+          </button>
+
+          {/* Check for updates — icon only */}
+          <button
+            type="button"
+            className="adl-btn adl-btn--icon"
+            onClick={handleCheckUpdate}
+            disabled={checkingUpdate}
+            title={t.dshCheckUpdate}
+          >
+            {checkingUpdate ? <Spinner size="sm" speed="normal" /> : <CheckUpdateIcon />}
+          </button>
+
+          {/* Download update — appears when hasUpdate */}
+          {showDownloadIcon && !downloading ? (
+            <button
+              type="button"
+              className="adl-btn adl-btn--icon adl-btn--accent"
+              onClick={handleDownloadUpdate}
+              title={t.dshUpdate}
+            >
+              <DownloadUpdateIcon />
+            </button>
+          ) : null}
+
+          {/* Download in progress — spinner */}
+          {downloading ? (
+            <button type="button" className="adl-btn adl-btn--icon" disabled title={t.dshUpdate}>
+              <Spinner size="sm" speed="normal" />
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Version management card */}
+      <div className="adl-app-welcome__card">
+        {/* Current version */}
+        {currentSelected ? (
+          <div className="adl-app-welcome__version">
+            <div className="adl-app-welcome__row">
+              <span>{t.dshVersion.replace('{version}', currentSelected)}</span>
+              {hasUpdate ? (
+                <span className="adl-app-welcome__badge adl-app-welcome__badge--update">
+                  {t.dshHasUpdate}
+                </span>
+              ) : (
+                <span className="adl-app-welcome__badge">{t.dshNoUpdate}</span>
+              )}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Latest version */}
+        {latestAvailable ? (
+          <div className="adl-app-welcome__row">
+            <span>{t.dshLatest.replace('{version}', latestAvailable)}</span>
+          </div>
+        ) : null}
+
+        {/* Uninstall current version hint */}
+        {uninstallConfirm && isCurrentSelected ? (
+          <div className="adl-app-welcome__hint">
+            <span>{t.dshUninstallCurrentHint}</span>
+          </div>
+        ) : null}
+
+        {/* Action buttons */}
+        <div className="adl-app-welcome__actions">
+          {/* Upgrade (direct) */}
+          {hasUpdate && !showDownloadIcon && !downloading ? (
+            <button
+              type="button"
+              className="adl-btn adl-btn--primary"
+              onClick={handleDownloadUpdate}
+            >
+              {t.dshUpdate}
+            </button>
+          ) : null}
+
+          {/* Uninstall */}
+          {currentSelected ? (
+            uninstallConfirm ? (
+              <button
+                type="button"
+                className="adl-btn adl-btn--danger"
+                onClick={handleConfirmUninstall}
+              >
+                {t.dshUninstall}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="adl-btn adl-btn--secondary"
+                onClick={handleUninstall}
+              >
+                {t.dshUninstall}
+              </button>
+            )
+          ) : null}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/**
+ * 中间区欢迎引导页（dsh 关闭后显示）。
+ * - 主导按钮"打开 DeepSeek Harness" → 进入中间区 dsh。
+ * - 复用 `DshVersionManagement`（版本管理区）。
+ *
+ * 注意：组件命名使用 `adl-app-welcome` 前缀，支持未来扩展其他第三方 WebApp。
+ */
+export function WelcomePage() {
+  const { t } = useTCopy();
+  const actions = useAppActions();
+  const appReady = useAppStore((s) => s.appReady);
+  const showToast = useAppStore((s) => s.showToast);
+  const reportError = useAppStore((s) => s.reportError);
+
+  const [opening, setOpening] = useState(false);
+  const openingRef = useRef(false);
+
+  const handleOpen = useCallback(async () => {
+    if (openingRef.current) {
+      return;
+    }
+    openingRef.current = true;
+    setOpening(true);
+    try {
+      const result = await actions.openDsh();
+      // 固定 3080 端口被残留 dsh 占用时后端自动释放并重启 → 弹右下角 info 卡片。
+      if (result?.freedPort) {
+        reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
+      }
+    } catch {
+      // 意外异常兜底；常规失败（openDsh 返回 null）已由 action 记录全局错误卡片。
+      showToast(t.dshOpenFailed, 'error');
+    } finally {
+      openingRef.current = false;
+      setOpening(false);
+    }
+  }, [actions, reportError, showToast, t]);
+
+  return (
+    <section className="adl-center adl-center--dsh-placeholder" aria-label={t.dshTitle}>
+      <div className="adl-app-welcome">
+        <DshVersionManagement
+          leading={
+            appReady ? (
               <button
                 type="button"
                 className="adl-app-welcome__cta"
@@ -519,202 +724,10 @@ export function WelcomePage() {
                 {opening ? <Spinner size="sm" speed="normal" /> : <DeepSeekIcon />}
                 {t.dshOpenButton}
               </button>
-            ) : null}
-
-            <div className="adl-app-welcome__icon-group">
-              {/* Version select & uninstall — icon only, shows dropdown menu */}
-              {hasMultipleVersions ? (
-                <div className="adl-app-welcome__version-menu-anchor" ref={versionMenuRef}>
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--icon"
-                    onClick={() => setShowVersionMenu((v) => !v)}
-                    disabled={reverting}
-                    title={t.dshRevertHint}
-                  >
-                    {reverting ? <Spinner size="sm" speed="normal" /> : <VersionSelectIcon />}
-                  </button>
-                  {showVersionMenu ? (
-                    <div className="adl-app-welcome__version-menu">
-                      <div className="adl-app-welcome__version-menu-list">
-                        {sortedVersions.map((v) => {
-                          const isCurrent = v === currentSelected;
-                          const isInstalled = installed.includes(v);
-                          const time = MOCK_VERSION_TIMELINE[v] ?? '';
-                          return (
-                            <button
-                              key={v}
-                              type="button"
-                              className={`adl-app-welcome__version-menu-item${isCurrent ? ' adl-app-welcome__version-menu-item--current' : ''}`}
-                              onClick={() => void handleRevertToVersion(v)}
-                              disabled={isCurrent || reverting}
-                            >
-                              <div className="adl-app-welcome__version-menu-item-info">
-                                <span className="adl-app-welcome__version-menu-item-version">
-                                  {v}
-                                </span>
-                                {time ? (
-                                  <span className="adl-app-welcome__version-menu-item-time">
-                                    {time}
-                                  </span>
-                                ) : null}
-                              </div>
-                              <div className="adl-app-welcome__version-menu-item-badges">
-                                {isInstalled ? (
-                                  <span className="adl-app-welcome__version-menu-item-installed">
-                                    {t.dshInstalledVersions}
-                                  </span>
-                                ) : null}
-                                {isCurrent ? (
-                                  <span className="adl-app-welcome__version-menu-item-check">
-                                    <CheckIcon />
-                                  </span>
-                                ) : null}
-                                {isInstalled && !isCurrent ? (
-                                  <button
-                                    type="button"
-                                    className="adl-app-welcome__version-menu-item-uninstall"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void handleUninstallVersion(v);
-                                    }}
-                                    disabled={uninstallingVersion === v}
-                                    title={t.dshUninstall}
-                                  >
-                                    {uninstallingVersion === v ? (
-                                      <Spinner size="sm" speed="normal" />
-                                    ) : (
-                                      <TrashIcon />
-                                    )}
-                                  </button>
-                                ) : null}
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {/* Reinstall — icon only */}
-              <button
-                type="button"
-                className="adl-btn adl-btn--icon"
-                onClick={handleReinstall}
-                disabled={reinstalling}
-                title={t.dshReinstallHint}
-              >
-                {reinstalling ? <Spinner size="sm" speed="normal" /> : <ReinstallIcon />}
-              </button>
-
-              {/* Check for updates — icon only */}
-              <button
-                type="button"
-                className="adl-btn adl-btn--icon"
-                onClick={handleCheckUpdate}
-                disabled={checkingUpdate}
-                title={t.dshCheckUpdate}
-              >
-                {checkingUpdate ? <Spinner size="sm" speed="normal" /> : <CheckUpdateIcon />}
-              </button>
-
-              {/* Download update — appears when hasUpdate */}
-              {showDownloadIcon && !downloading ? (
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--icon adl-btn--accent"
-                  onClick={handleDownloadUpdate}
-                  title={t.dshUpdate}
-                >
-                  <DownloadUpdateIcon />
-                </button>
-              ) : null}
-
-              {/* Download in progress — spinner */}
-              {downloading ? (
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--icon"
-                  disabled
-                  title={t.dshUpdate}
-                >
-                  <Spinner size="sm" speed="normal" />
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          {/* Version management card */}
-          <div className="adl-app-welcome__card">
-            {/* Current version */}
-            {currentSelected ? (
-              <div className="adl-app-welcome__version">
-                <div className="adl-app-welcome__row">
-                  <span>{t.dshVersion.replace('{version}', currentSelected)}</span>
-                  {hasUpdate ? (
-                    <span className="adl-app-welcome__badge adl-app-welcome__badge--update">
-                      {t.dshHasUpdate}
-                    </span>
-                  ) : (
-                    <span className="adl-app-welcome__badge">{t.dshNoUpdate}</span>
-                  )}
-                </div>
-              </div>
-            ) : null}
-
-            {/* Latest version */}
-            {latestAvailable ? (
-              <div className="adl-app-welcome__row">
-                <span>{t.dshLatest.replace('{version}', latestAvailable)}</span>
-              </div>
-            ) : null}
-
-            {/* Uninstall current version hint */}
-            {uninstallConfirm && isCurrentSelected ? (
-              <div className="adl-app-welcome__hint">
-                <span>{t.dshUninstallCurrentHint}</span>
-              </div>
-            ) : null}
-
-            {/* Action buttons */}
-            <div className="adl-app-welcome__actions">
-              {/* Upgrade (direct) */}
-              {hasUpdate && !showDownloadIcon && !downloading ? (
-                <button
-                  type="button"
-                  className="adl-btn adl-btn--primary"
-                  onClick={handleDownloadUpdate}
-                >
-                  {t.dshUpdate}
-                </button>
-              ) : null}
-
-              {/* Uninstall */}
-              {currentSelected ? (
-                uninstallConfirm ? (
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--danger"
-                    onClick={handleConfirmUninstall}
-                  >
-                    {t.dshUninstall}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="adl-btn adl-btn--secondary"
-                    onClick={handleUninstall}
-                  >
-                    {t.dshUninstall}
-                  </button>
-                )
-              ) : null}
-            </div>
-          </div>
-        </div>
-      </section>
-    </>
+            ) : null
+          }
+        />
+      </div>
+    </section>
   );
 }
