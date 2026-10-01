@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
+import { useOpenInCenterAction } from '@features/browser/useOpenInCenterAction';
 import { handleBookmarkToggle } from './browserEntrySubEntriesUtils';
 import { useHintCard, HintCard } from '../../components/HintCard';
 import type { BrowserTreeNode } from './types';
@@ -33,7 +34,7 @@ export interface BrowserTreeEntryMenuSlots {
 }
 
 export function useBrowserTreeEntryMenu({
-  node: _node,
+  node,
   callbacks,
   menuOpen,
   setMenuOpen,
@@ -52,6 +53,19 @@ export function useBrowserTreeEntryMenu({
     scheduleHide,
     hintCardProps,
   } = useHintCard();
+
+  const { openUrlInCenter, moveTabToCenter } = useOpenInCenterAction();
+
+  const showNodeInCenter = useCallback(
+    (target: BrowserTreeNode) => {
+      if (target.tabId) {
+        moveTabToCenter(target.tabId);
+      } else if (target.url) {
+        openUrlInCenter(target.url, target.name);
+      }
+    },
+    [moveTabToCenter, openUrlInCenter],
+  );
 
   const handleShowHint = useCallback(
     (e: React.MouseEvent, hintText: string) => {
@@ -157,7 +171,18 @@ export function useBrowserTreeEntryMenu({
               data-menu-id={menuId}
               style={{ top: menuPosition.top, left: menuPosition.left }}
             >
-              {entryMenuItems.map((item) => (
+              {[
+                ...entryMenuItems,
+                ...(node.url || node.tabId
+                  ? [
+                      {
+                        id: 'show-in-center',
+                        label: t.centerTabShowInCenter,
+                        action: () => showNodeInCenter(node),
+                      },
+                    ]
+                  : []),
+              ].map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -218,6 +243,14 @@ export function useBrowserTreeEntryMenu({
                         : contextMenuForTab.node.name,
                     );
                   }
+                  setContextMenuForTab(null);
+                },
+              },
+              {
+                id: 'show-in-center',
+                label: t.centerTabShowInCenter,
+                action: () => {
+                  showNodeInCenter(contextMenuForTab.node);
                   setContextMenuForTab(null);
                 },
               },

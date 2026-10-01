@@ -1,11 +1,13 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { TooltipSimple } from '@components/Tooltip';
+import { ContextMenu } from '@components/ContextMenu';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useTCopy } from '@i18n/useTCopy';
 import { ShimmeringText } from '@/components/shimmering-text';
 import { useAppStore } from '@stores/slicedStore';
 import { IconClose } from '@icons';
+import { useOpenInCenterAction } from './useOpenInCenterAction';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 interface BrowserOpenTabFlatListItemProps {
@@ -24,6 +26,8 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
   onCloseTab,
 }: BrowserOpenTabFlatListItemProps) {
   const { t } = useTCopy();
+  const { moveTabToCenter } = useOpenInCenterAction();
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
 
   return (
     <li
@@ -31,7 +35,14 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
       data-path={`tab:${tab.id}`}
       role="treeitem"
     >
-      <div className="adl-filetree__row" onClick={() => onSelectTab(tab.id)}>
+      <div
+        className="adl-filetree__row"
+        onClick={() => onSelectTab(tab.id)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          setContextMenu({ x: e.clientX, y: e.clientY });
+        }}
+      >
         <span className="adl-filetree__indent adl-filetree__indent--flat" aria-hidden="true" />
         <BrowserFavicon url={tab.url} />
         <BrowserAudioIndicator
@@ -69,6 +80,19 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
           </span>
         </span>
       </div>
+      {contextMenu && (
+        <ContextMenu
+          items={[
+            {
+              id: 'show-in-center',
+              label: t.centerTabShowInCenter,
+              action: () => moveTabToCenter(tab.id),
+            },
+          ]}
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
     </li>
   );
 });

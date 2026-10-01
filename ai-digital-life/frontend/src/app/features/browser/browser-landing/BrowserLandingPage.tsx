@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { invokeIpc } from '../../../../tauri-bridge/tauri-shared';
+import { useOpenInCenterAction } from '../useOpenInCenterAction';
 import { BackgroundLayer } from './BackgroundLayer';
 import { ShortcutGrid } from './ShortcutGrid';
 import { LocalPortSection } from './LocalPortSection';
@@ -91,6 +92,8 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
     [browserOpenTab, onOpenUrl],
   );
 
+  const { openUrlInCenter } = useOpenInCenterAction();
+
   const handleAddClick = () => {
     setDialogMode('add');
     setRenameSite(null);
@@ -129,6 +132,23 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
     setShortcutMenu({ open: false, x: 0, y: 0, site: null });
     setPortMenu({ open: false, x: 0, y: 0, port: null });
   }, []);
+
+  const handleShowShortcutInCenter = useCallback(() => {
+    if (shortcutMenu.site) {
+      openUrlInCenter(shortcutMenu.site.url, shortcutMenu.site.name);
+    }
+    handleContextMenuClose();
+  }, [shortcutMenu.site, openUrlInCenter, handleContextMenuClose]);
+
+  const handleShowPortInCenter = useCallback(() => {
+    if (portMenu.port) {
+      openUrlInCenter(
+        `http://${portMenu.port.host}:${portMenu.port.port}`,
+        portMenu.port.label ?? `localhost:${portMenu.port.port}`,
+      );
+    }
+    handleContextMenuClose();
+  }, [portMenu.port, openUrlInCenter, handleContextMenuClose]);
 
   const handleRenameShortcutFromMenu = useCallback(() => {
     if (shortcutMenu.site) {
@@ -225,6 +245,11 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
 
   const shortcutContextMenuItems = [
     {
+      id: 'show-in-center',
+      label: t.centerTabShowInCenter,
+      action: handleShowShortcutInCenter,
+    },
+    {
       id: 'rename',
       label: t.browserRename,
       action: handleRenameShortcutFromMenu,
@@ -238,6 +263,11 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
   ];
 
   const portContextMenuItems = [
+    {
+      id: 'show-in-center',
+      label: t.centerTabShowInCenter,
+      action: handleShowPortInCenter,
+    },
     {
       id: 'rename',
       label: t.browserLabelPort,
