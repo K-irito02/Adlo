@@ -144,8 +144,8 @@
   --tooltip-bg-bottom: #e8eaee;
   --tooltip-shadow:
     inset 0 1px 0 #ffffff, inset 0 2px 4px rgba(0, 0, 0, 0.06),
-    inset 0 -1px 3px rgba(0, 0, 0, 0.07), 0 -3px 8px rgba(0, 0, 0, 0.06),
-    0 1px 2px rgba(0, 0, 0, 0.22), 0 6px 14px -2px rgba(0, 0, 0, 0.2);
+    inset 0 -1px 2px rgba(0, 0, 0, 0.05), 0 -3px 8px rgba(0, 0, 0, 0.09),
+    0 1px 2px rgba(0, 0, 0, 0.15);
   --tooltip-radius: 7px;
 
   /* --- Z-index Layers --- */
