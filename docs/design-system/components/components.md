@@ -320,7 +320,7 @@ The stylesheet also ships ready-to-use classes that helpers don't expose yet but
 - `.skeleton` — loading shimmer (`@keyframes skeleton-shimmer`).
 - `.modal-backdrop`, `.modal`, `.modal__title`, `.modal__actions` — dialog primitives.
 - `.tooltip` — absolutely-positioned tooltip surface (paired with custom JS positioning logic when used).
-- `.tooltip__arrow` — CSS-only arrow via `clip-path: polygon(50% 0%, 0% 100%, 100% 100%)` (upward triangle), rotated per `data-side` attribute.
+- `.tooltip__arrow` — removed (no arrow design since 2026-10; `data-side` is positioning-only).
 - `.tooltip__content` — content wrapper with `white-space: pre-line`.
 - `.tooltip__close` — dismiss button for `dismissible` mode.
 
@@ -400,13 +400,15 @@ showToast('Terminal ready', 'success', 'terminal') // position 2
 
 | Feature | Value |
 |---------|-------|
-| Background | `var(--tooltip-bg)` (inverse theming) |
-| Text color | `var(--tooltip-fg)` |
-| Border radius | `var(--tooltip-radius)` (6px) |
-| Shadow | `var(--tooltip-shadow)` |
-| Animation | Pure opacity transition (no scale) |
-| Arrow | 8px × 8px clip-path triangle |
-| Placement | `data-side="top\|bottom\|left\|right"` (auto-flip on viewport overflow) |
+| Background | Same-theme 3D button gradient (`--tooltip-bg-top → --tooltip-bg-bottom`, no inverse) |
+| Text color | `var(--tooltip-fg)` (= `var(--text-primary)`) |
+| Border radius | `var(--tooltip-radius)` (7px) |
+| Border | None (depth from inner/outer shadows only) |
+| Shadow | `var(--tooltip-shadow)` (top inner highlight + bottom inner shade + contact/ambient projection) |
+| Animation | Slide-in `opacity + translateY(8px→0)` (350ms expo enter / 150ms exit, no scale) |
+| Arrow | None (removed; `data-side` kept for positioning only) |
+| Wrapping | `overflow-wrap: anywhere`; width via `maxWidth` prop (default 240) |
+| Placement | `data-side="top\|bottom\|left\|right"` (viewport flip/clamp + Webview2 avoid-rects + cross-axis slide) |
 
 React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../frontend/src/app/components/Tooltip.tsx)`.
 

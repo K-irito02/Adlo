@@ -443,7 +443,7 @@ await page.click('.adl-multitree-entry__expand-btn:first-child');
 
 | 按钮 | 图标 | 说明 |
 |------|------|------|
-| 关闭 | `IconClose` | 关闭标签（保留书签），悬停变红；悬停提示为系统原生 `title`（v2026-08-21 起不再使用自定义 Tooltip） |
+| 关闭 | `IconClose` | 关闭标签（保留书签），悬停变红；悬停提示为自定义 Tooltip（v2026-10 起改回，Webview2 遮挡由 tooltip 自身避让解决） |
 | 刷新Logo/标题 | `IconRefreshCw` | 与右键菜单"刷新Logo/标题"功能一致 |
 | 更多操作 | `IconMoreVertical` | 点击弹出右键菜单 |
 

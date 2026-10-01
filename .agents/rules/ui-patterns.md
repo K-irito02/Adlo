@@ -314,14 +314,27 @@ alwaysApply: true
 
 ### 视觉规范
 
-| 属性 | 值                                            |
-| ---- | --------------------------------------------- |
-| 背景 | `var(--tooltip-bg)`（反色主题：亮→暗，暗→亮） |
-| 文字 | `var(--tooltip-fg)`                           |
-| 圆角 | `var(--tooltip-radius)`（6px）                |
-| 阴影 | `var(--tooltip-shadow)`                       |
-| 动画 | 纯 opacity 过渡（无 scale）                   |
-| 箭头 | 8px clip-path 三角，按 `data-side` 旋转       |
+| 属性 | 值                                                                 |
+| ---- | ------------------------------------------------------------------ |
+| 背景 | 同主题 3D 按钮渐变（`--tooltip-bg-top → --tooltip-bg-bottom`，无反色） |
+| 文字 | `var(--tooltip-fg)`（即 `var(--text-primary)`）                     |
+| 圆角 | `var(--tooltip-radius)`（7px）                                       |
+| 边框 | 无（`border: none`，立体感只靠内外阴影）                             |
+| 阴影 | `var(--tooltip-shadow)`（顶内高光 + 底内收影 + 贴边/环境投影）        |
+| 动画 | `opacity + translateY(8px→0)` 滑入（`--duration-350` expo 进入 / `--duration-150` 退出，无缩放） |
+| 箭头 | 无（已删除；`data-side` 保留仅用于定位）                             |
+| 换行 | `overflow-wrap: anywhere`（长词/URL 强制断行，CJK 不受影响）         |
+| 宽度 | `maxWidth` prop（默认 240，接通到 `style.maxWidth`，定位用实测尺寸）  |
+
+### WebView2 避让（Tauri 桌面）
+
+- WebView2 是 OS 级渲染表面，任何 DOM（含 Tooltip）都盖不住它，`z-index` 无效。
+- 策略是 Tooltip 自己让路（不动 WebView，避免页面闪烁）：`computePosition` 接收
+  `avoidRects`，按"首选边 → 对侧 → 其余边"试算，第一个"视口内 + 不重叠"胜出；
+  主轴放下但横向压住时先沿横轴滑移到最近空位；四边全堵才回退老逻辑（可能被盖，属已接受的降级）。
+- 矩形来源：`getWebViewAvoidRects()`（仅 Tauri，采集 `#dsh-host-region` 与
+  `.adl-tool-primary--browser`，与 `setTabBounds` 容器同源；浏览器模式返回空）。
+- 经验：[tooltip-webview-avoidance-2026-10-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/tooltip-webview-avoidance-2026-10-01.md)
 
 ### 折叠 Tooltip
 

@@ -108,12 +108,14 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 
 | Token | Value | Source |
 |-------|-------|--------|
-| `--tooltip-bg` | `rgba(0, 0, 0, 0.86)` (default), `rgba(255, 255, 255, 0.86)` (dark mode) | `tokens.css`, `themes.css` |
-| `--tooltip-fg` | `#fff` (default), `#111` (dark mode) | `tokens.css`, `themes.css` |
-| `--tooltip-shadow` | `0 4px 12px rgba(0, 0, 0, 0.28)` (default), `0 4px 12px rgba(0, 0, 0, 0.08)` (dark mode) | `tokens.css`, `themes.css` |
-| `--tooltip-radius` | `6px` | `tokens.css` |
+| `--tooltip-bg` | `var(--bg-elevated)` (solid fallback under the gradient) | `tokens.css` |
+| `--tooltip-bg-top` / `--tooltip-bg-bottom` | `#ffffff` / `#e8eaee` (light), `#33363d` / `#212329` (dark) | `tokens.css`, `themes.css` |
+| `--tooltip-fg` | `var(--text-primary)` (both themes) | `tokens.css` |
+| `--tooltip-shadow` | 3D button stack, theme-specific (see `tooltip.css`) | `tokens.css`, `themes.css` |
+| `--tooltip-radius` | `7px` | `tokens.css` |
+| `--duration-350` | `350ms` (tooltip enter; `1ms` under reduced-motion) | `tokens.css` |
 
-Tooltip uses inverse theming: light mode → dark tooltip, dark mode → light tooltip. Arrow is rendered via `clip-path: polygon(50% 0%, 0% 100%, 100% 100%)` (upward triangle) with `rotate()` transforms for each side. Animation is pure opacity transition (no scale) to avoid conflict with arrow rotation.
+Tooltip uses same-theme 3D button surfaces (no inverse theming, no arrow, no border). Animation is slide-in `opacity + translateY(8px→0)` with `--ease-editorial` enter / `--ease-exit` exit. See `tooltip.css` and `.agents/rules/ui-patterns.md` §9.
 
 ## Reduced Motion / Reduced Data
 
