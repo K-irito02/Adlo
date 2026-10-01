@@ -92,6 +92,23 @@ describe('TooltipContent enter/exit states', () => {
     expect(screen.getByTestId('tooltip-content').getAttribute('data-state')).toBe('open');
   });
 
+  it('applies maxWidth to the tooltip element style', async () => {
+    render(
+      <Tooltip open maxWidth={180}>
+        <TooltipTrigger>
+          <button type="button">hello</button>
+        </TooltipTrigger>
+        <TooltipContent>tip</TooltipContent>
+      </Tooltip>,
+    );
+    expect(screen.getByTestId('tooltip-content').style.maxWidth).toBe('180px');
+  });
+
+  it('defaults maxWidth to 240px when not specified', async () => {
+    renderControlled(true);
+    expect(screen.getByTestId('tooltip-content').style.maxWidth).toBe('240px');
+  });
+
   it('flips to closed on exit and unmounts after the exit transition', async () => {
     const view = renderControlled(true);
     // jsdom 无布局引擎：mock tooltip 尺寸，否则 updatePosition 因 width=0 直接返回、

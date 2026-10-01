@@ -1,4 +1,5 @@
 import React from 'react';
+import { TooltipSimple } from '@components/Tooltip';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useTCopy } from '@i18n/useTCopy';
@@ -52,18 +53,19 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
         </button>
         <span className="adl-filetree__meta adl-tree-node__meta--inline">
           <span className="adl-browser-node__actions">
-            <button
-              type="button"
-              className="adl-icon-btn adl-icon-btn--xs adl-icon-btn--danger-hover"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCloseTab(tab.id);
-              }}
-              aria-label={t.browserClose}
-              title={t.browserClose}
-            >
-              <IconClose size={12} decorative />
-            </button>
+            <TooltipSimple content={t.browserClose} placement="top">
+              <button
+                type="button"
+                className="adl-icon-btn adl-icon-btn--xs adl-icon-btn--danger-hover"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCloseTab(tab.id);
+                }}
+                aria-label={t.browserClose}
+              >
+                <IconClose size={12} decorative />
+              </button>
+            </TooltipSimple>
           </span>
         </span>
       </div>

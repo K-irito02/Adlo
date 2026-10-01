@@ -153,6 +153,7 @@ export const browserZh = {
   browserSearchBookmarkHistory: '输入关键词搜索书签和历史记录',
   browserClearAllOpenTabs: '关闭所有已打开标签页',
   browserDeleteAllBookmarks: '删除工作区与非工作区全部书签（保留目录结构）',
+  browserDeleteAllBookmarksShort: '删除全部书签',
   browserDeleteAllBookmarksConfirmTitle: '确认删除',
   browserDeleteAllBookmarksConfirmMessage:
     '此操作将删除工作区与非工作区的全部书签，但会保留目录结构。',

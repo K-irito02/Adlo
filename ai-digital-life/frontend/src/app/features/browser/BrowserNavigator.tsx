@@ -226,15 +226,16 @@ export function BrowserNavigator() {
           <span
             style={{ display: navigatorMode === 'tabs' || navigatorMode === 'list' ? '' : 'none' }}
           >
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={() => setDeleteBookmarksConfirmOpen(true)}
-              aria-label={t.browserDeleteAllBookmarks}
-              title={t.browserDeleteAllBookmarks}
-            >
-              <IconDelete size={14} decorative />
-            </button>
+            <TooltipSimple content={t.browserDeleteAllBookmarksShort} placement="top">
+              <button
+                type="button"
+                className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                onClick={() => setDeleteBookmarksConfirmOpen(true)}
+                aria-label={t.browserDeleteAllBookmarks}
+              >
+                <IconDelete size={14} decorative />
+              </button>
+            </TooltipSimple>
           </span>
         </div>
       </div>

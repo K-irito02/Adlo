@@ -25,29 +25,24 @@ function setup(navigatorMode: 'tabs' | 'open' | 'list' | 'search') {
 }
 
 describe('BrowserNavUtilityButtons', () => {
-  it('renders always-new-tab button with native title and aria-label', () => {
+  it('renders always-new-tab button with aria-label and no native title (uses custom tooltip)', () => {
     setup('open');
     const plus = screen.getByRole('button', { name: labels.alwaysNewTab });
-    expect(plus).toHaveAttribute('title', labels.alwaysNewTab);
     expect(plus).toHaveAttribute('aria-label', labels.alwaysNewTab);
+    expect(plus).not.toHaveAttribute('title');
   });
 
-  it('renders clear-open-tabs button with native title and aria-label', () => {
+  it('renders clear-open-tabs button with aria-label and no native title (uses custom tooltip)', () => {
     setup('open');
     const trash = screen.getByRole('button', { name: labels.clearOpenTabs });
-    expect(trash).toHaveAttribute('title', labels.clearOpenTabs);
     expect(trash).toHaveAttribute('aria-label', labels.clearOpenTabs);
+    expect(trash).not.toHaveAttribute('title');
   });
 
   it('renders new-bookmark button (tabs mode) without native title (uses custom tooltip)', () => {
     setup('tabs');
     const plus = screen.getByRole('button', { name: labels.newTab });
     expect(plus).not.toHaveAttribute('title');
-  });
-
-  it('does not render custom tooltip content element', () => {
-    setup('open');
-    expect(document.querySelector('[role="tooltip"]')).toBeNull();
   });
 
   it('invokes onAlwaysNewTab when always-new-tab button clicked', () => {

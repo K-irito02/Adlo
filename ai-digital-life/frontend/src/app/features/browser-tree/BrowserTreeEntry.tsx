@@ -151,10 +151,9 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
 
   const actionButtonsSlot = (
     <>
-      {entryBtns.map((btn) =>
-        btn.id === 'more' ? (
+      {entryBtns.map((btn) => (
+        <TooltipSimple key={btn.id} content={btn.label} placement="top">
           <button
-            key={btn.id}
             type="button"
             className="adl-icon-btn adl-icon-btn--xs"
             ref={(el) => {
@@ -162,26 +161,11 @@ export const BrowserTreeEntry = React.memo(function BrowserTreeEntry({
             }}
             onClick={(e) => handleEntryBtnClick(btn.id, e)}
             aria-label={btn.label}
-            title={btn.label}
           >
             {btn.icon}
           </button>
-        ) : (
-          <TooltipSimple key={btn.id} content={btn.label} placement="top">
-            <button
-              type="button"
-              className="adl-icon-btn adl-icon-btn--xs"
-              ref={(el) => {
-                entryBtnRef.current[btn.id] = el;
-              }}
-              onClick={(e) => handleEntryBtnClick(btn.id, e)}
-              aria-label={btn.label}
-            >
-              {btn.icon}
-            </button>
-          </TooltipSimple>
-        ),
-      )}
+        </TooltipSimple>
+      ))}
     </>
   );
 

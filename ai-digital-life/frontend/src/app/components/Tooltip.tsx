@@ -14,6 +14,7 @@ import { useTooltip, type UseTooltipOptions, type UseTooltipReturn } from '../ho
 
 interface TooltipContextValue extends UseTooltipReturn {
   dismissible: boolean;
+  maxWidth: number;
 }
 
 const TooltipContext = createContext<TooltipContextValue | null>(null);
@@ -80,8 +81,9 @@ export function Tooltip({
     () => ({
       ...tooltip,
       dismissible,
+      maxWidth,
     }),
-    [tooltip, dismissible],
+    [tooltip, dismissible, maxWidth],
   );
 
   return <TooltipContext.Provider value={contextValue}>{children}</TooltipContext.Provider>;
@@ -201,6 +203,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
   handleTooltipEnter,
   handleTooltipLeave,
   dismissible,
+  maxWidth,
   className,
   id,
 }: {
@@ -215,6 +218,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
   handleTooltipEnter: () => void;
   handleTooltipLeave: () => void;
   dismissible: boolean;
+  maxWidth: number;
   className?: string;
   id?: string;
 }) {
@@ -239,6 +243,7 @@ const TooltipContentInner = memo(function TooltipContentInner({
         position: 'fixed',
         left,
         top,
+        maxWidth,
         pointerEvents: isOpen ? 'auto' : 'none',
       }}
       onMouseEnter={handleTooltipEnter}
@@ -298,6 +303,7 @@ export function TooltipContent({
     handleTooltipEnter,
     handleTooltipLeave,
     dismissible,
+    maxWidth,
   } = useTooltipContext();
 
   const [mounted, setMounted] = useState(false);
@@ -348,6 +354,7 @@ export function TooltipContent({
       handleTooltipEnter={handleTooltipEnter}
       handleTooltipLeave={handleTooltipLeave}
       dismissible={dismissible}
+      maxWidth={maxWidth}
       className={className}
       id={id}
     >

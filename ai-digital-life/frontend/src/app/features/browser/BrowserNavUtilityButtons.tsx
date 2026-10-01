@@ -37,32 +37,22 @@ export function BrowserNavUtilityButtons({
   );
   return (
     <>
-      {showPlus &&
-        (navigatorMode === 'tabs' ? (
-          <TooltipSimple content={plusLabel} placement="top">
-            {plusButton}
-          </TooltipSimple>
-        ) : (
+      {showPlus && (
+        <TooltipSimple content={plusLabel} placement="top">
+          {plusButton}
+        </TooltipSimple>
+      )}
+      {showClear && (
+        <TooltipSimple content={clearOpenTabsLabel} placement="top">
           <button
             type="button"
             className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-            onClick={onAlwaysNewTab}
-            aria-label={plusLabel}
-            title={plusLabel}
+            onClick={onClearOpenTabs}
+            aria-label={clearOpenTabsLabel}
           >
-            <IconPlus size={14} decorative />
+            <IconDelete size={14} decorative />
           </button>
-        ))}
-      {showClear && (
-        <button
-          type="button"
-          className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-          onClick={onClearOpenTabs}
-          aria-label={clearOpenTabsLabel}
-          title={clearOpenTabsLabel}
-        >
-          <IconDelete size={14} decorative />
-        </button>
+        </TooltipSimple>
       )}
     </>
   );

@@ -2,24 +2,22 @@ import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { BrowserNavModeSwitch } from './BrowserNavModeSwitch';
 
-describe('BrowserNavModeSwitch native title', () => {
-  it('renders the native title attribute from the title prop', () => {
+describe('BrowserNavModeSwitch labels', () => {
+  it('uses left/right labels as aria-label and no native title (tooltip provided by parent)', () => {
     render(
       <BrowserNavModeSwitch
         checked={false}
         onCheckedChange={() => {}}
         leftLabel="New tab"
         rightLabel="Current tab"
-        title="Current tab: sidebar/address bar links open in active tab"
       />,
     );
-    expect(screen.getByRole('switch')).toHaveAttribute(
-      'title',
-      'Current tab: sidebar/address bar links open in active tab',
-    );
+    const switchEl = screen.getByRole('switch');
+    expect(switchEl).toHaveAttribute('aria-label', 'New tab');
+    expect(switchEl).not.toHaveAttribute('title');
   });
 
-  it('keeps aria-label from labels when no title is given', () => {
+  it('uses right label as aria-label when checked', () => {
     render(
       <BrowserNavModeSwitch
         checked={true}

@@ -19,8 +19,10 @@
   font-size: var(--text-xs);
   line-height: var(--leading-normal);
   max-width: 240px;
+  /* 智能换行：长串（URL/英文长词）无断点时也强制断行，避免横向溢出；
+     CJK 本就按字断行，不受影响。 */
   word-wrap: break-word;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
   pointer-events: auto;
   box-shadow: var(--tooltip-shadow);
   transform: translateY(8px);

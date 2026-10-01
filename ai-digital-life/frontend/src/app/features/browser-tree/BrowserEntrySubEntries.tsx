@@ -144,17 +144,14 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                     }
                   }}
                   aria-label={btn.label}
-                  title={btn.id === 'close' ? undefined : btn.label}
                 >
                   {btn.icon}
                 </button>
               );
-              return btn.id === 'close' ? (
+              return (
                 <TooltipSimple key={btn.id} content={btn.label} placement="top">
                   {tabButton}
                 </TooltipSimple>
-              ) : (
-                <React.Fragment key={btn.id}>{tabButton}</React.Fragment>
               );
             })}
           </span>
@@ -191,14 +188,11 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
                   }
                 }}
                 aria-label={btn.label}
-                title={btn.id === 'more' ? btn.label : undefined}
               >
                 {btn.icon}
               </button>
             );
-            return btn.id === 'more' ? (
-              <React.Fragment key={btn.id}>{dirButton}</React.Fragment>
-            ) : (
+            return (
               <TooltipSimple key={btn.id} content={btn.label} placement="top">
                 {dirButton}
               </TooltipSimple>

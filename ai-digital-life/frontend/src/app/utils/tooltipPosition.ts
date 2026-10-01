@@ -190,16 +190,6 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
     );
     const trialOrder: Placement[] = [placement, OPPOSITE_MAP[placement], ...others];
 
-    const overlapsAvoid = (result: PositionResult): boolean => {
-      const left = result.x;
-      const top = result.y;
-      const right = result.x + tooltipRect.width;
-      const bottom = result.y + tooltipRect.height;
-      return avoidRects.some(
-        (r) => left < r.right && right > r.left && top < r.bottom && bottom > r.top,
-      );
-    };
-
     const mainAxisFits = (result: PositionResult, placementToUse: Placement): boolean => {
       const horizontal = placementToUse === 'top' || placementToUse === 'bottom';
       const size = horizontal ? tooltipRect.height : tooltipRect.width;
@@ -207,10 +197,85 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
       return fitsInViewport(coord, size, (horizontal ? 'y' : 'x') as 'x' | 'y', viewportPadding);
     };
 
+    // 横轴滑移：纵轴（主轴）已放下但横向压住 Webview 时，沿横轴平移到最近的
+    // 空位（仍钳在视口内），而不是直接换边。触发点紧贴 Webview、tooltip 又宽
+    // （如导航栏长标签）时，这是唯一能"留在首选边又不被盖"的解。
+    const slideCrossAxis = (
+      base: PositionResult,
+      placementToUse: Placement,
+    ): PositionResult | null => {
+      const horizontal = placementToUse === 'top' || placementToUse === 'bottom';
+      const crossSize = horizontal ? tooltipRect.width : tooltipRect.height;
+      const mainLo = horizontal ? base.y : base.x;
+      const mainHi = mainLo + (horizontal ? tooltipRect.height : tooltipRect.width);
+      const viewportLen = horizontal ? window.innerWidth : window.innerHeight;
+      const baseCoord = horizontal ? base.x : base.y;
+
+      const isClear = (coord: number): boolean =>
+        !avoidRects.some((r) => {
+          const mainOverlap = horizontal
+            ? mainLo < r.bottom && mainHi > r.top
+            : mainLo < r.right && mainHi > r.left;
+          if (!mainOverlap) {
+            return false;
+          }
+          const crossLo = horizontal ? r.left : r.top;
+          const crossHi = horizontal ? r.right : r.bottom;
+          return coord < crossHi && coord + crossSize > crossLo;
+        });
+
+      if (isClear(baseCoord)) {
+        return base;
+      }
+
+      // 逃逸点：每个相交矩形的两侧边缘（贴边不算重叠）；取视口内离原位最近的。
+      const escapePoints: number[] = [];
+      for (const r of avoidRects) {
+        const mainOverlap = horizontal
+          ? mainLo < r.bottom && mainHi > r.top
+          : mainLo < r.right && mainHi > r.left;
+        if (!mainOverlap) {
+          continue;
+        }
+        const crossLo = horizontal ? r.left : r.top;
+        const crossHi = horizontal ? r.right : r.bottom;
+        escapePoints.push(crossLo - crossSize, crossHi);
+      }
+      const minCoord = viewportPadding;
+      const maxCoord = viewportLen - viewportPadding - crossSize;
+      let best: number | null = null;
+      for (const p of escapePoints) {
+        if (p < minCoord || p > maxCoord) {
+          continue;
+        }
+        if (!isClear(p)) {
+          continue;
+        }
+        if (best === null || Math.abs(p - baseCoord) < Math.abs(best - baseCoord)) {
+          best = p;
+        }
+      }
+      if (best === null) {
+        return null;
+      }
+      const moved: PositionResult = { ...base, placement: placementToUse };
+      if (horizontal) {
+        moved.x = best;
+      } else {
+        moved.y = best;
+      }
+      return moved;
+    };
+
     for (const trial of trialOrder) {
-      const candidate = calculate(trial);
-      if (mainAxisFits(candidate, trial) && !overlapsAvoid(candidate)) {
-        return candidate;
+      const base = calculate(trial);
+      if (!mainAxisFits(base, trial)) {
+        continue;
+      }
+      // 视口内但横向压住 Webview → 先滑移；滑不动才换边。
+      const cleared = slideCrossAxis(base, trial);
+      if (cleared) {
+        return cleared;
       }
     }
   }

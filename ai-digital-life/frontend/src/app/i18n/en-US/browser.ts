@@ -165,6 +165,7 @@ export const browserEn = {
   browserClearAllOpenTabs: 'Close all open tabs',
   browserDeleteAllBookmarks:
     'Delete all workspace and custom directory bookmarks (keep directory structure)',
+  browserDeleteAllBookmarksShort: 'Delete all bookmarks',
   browserDeleteAllBookmarksConfirmTitle: 'Confirm Delete',
   browserDeleteAllBookmarksConfirmMessage:
     'This will delete all workspace and custom directory bookmarks while keeping the directory structure.',

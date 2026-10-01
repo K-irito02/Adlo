@@ -155,7 +155,7 @@ describe('tooltipPosition', () => {
       expect(result.y).toBe(200 - 30 - 8);
     });
 
-    it('flips to opposite side when preferred placement overlaps avoidRects', () => {
+    it('slides on preferred side when overlap can be cleared without flipping', () => {
       const triggerRect = createMockDOMRect({
         top: 200,
         left: 100,
@@ -166,13 +166,41 @@ describe('tooltipPosition', () => {
       });
       const tooltipRect = { width: 80, height: 30 };
 
-      // 盖住 top 位置（x:110..190, y:162..192）
+      // 盖住 top 位置（x:110..190, y:162..192），但右侧有空位 →
+      // 留在 top、右滑到 x=300（贴住避让区右缘），不翻边
+      const avoid = { left: 0, top: 150, right: 300, bottom: 200 };
       const result = computePosition({
         triggerRect,
         tooltipRect,
         placement: 'top',
         offset: 8,
-        avoidRects: [{ left: 0, top: 150, right: 300, bottom: 200 }],
+        avoidRects: [avoid],
+      });
+
+      expect(result.placement).toBe('top');
+      expect(result.y).toBe(200 - 30 - 8);
+      expect(result.x + tooltipRect.width).toBeLessThanOrEqual(avoid.right + 80);
+      expect(result.x).toBe(300);
+    });
+
+    it('flips to opposite side when sliding cannot clear the overlap', () => {
+      const triggerRect = createMockDOMRect({
+        top: 200,
+        left: 100,
+        width: 100,
+        height: 50,
+        right: 200,
+        bottom: 250,
+      });
+      const tooltipRect = { width: 80, height: 30 };
+
+      // 整条横带都被盖住：top 无论怎么滑都躲不开 → 翻到 bottom
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [{ left: 0, top: 150, right: 1920, bottom: 200 }],
       });
 
       expect(result.placement).toBe('bottom');
@@ -217,6 +245,84 @@ describe('tooltipPosition', () => {
         (r) => tip.left < r.right && tip.right > r.left && tip.top < r.bottom && tip.bottom > r.top,
       );
       expect(overlaps).toBe(false);
+    });
+
+    it('slides along cross axis to stay on preferred side instead of flipping', () => {
+      // 截图场景：导航栏删除按钮紧贴 Webview 左缘，tooltip 居中会压住 Webview。
+      // 期望：仍在 top，但 x 左移、右缘贴住 Webview 左缘。
+      const triggerRect = createMockDOMRect({
+        top: 155,
+        left: 411,
+        width: 28,
+        height: 28,
+        right: 439,
+        bottom: 183,
+      });
+      const tooltipRect = { width: 230, height: 46 };
+      const webview = { left: 445, top: 60, right: 1280, bottom: 1000 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [webview],
+      });
+
+      expect(result.placement).toBe('top');
+      expect(result.y).toBe(155 - 46 - 8);
+      // 右缘不得压入 Webview，且仍在视口内
+      expect(result.x + tooltipRect.width).toBeLessThanOrEqual(webview.left);
+      expect(result.x).toBeGreaterThanOrEqual(8);
+    });
+
+    it('slides vertically for left/right placements when overlapping avoidRects', () => {
+      const triggerRect = createMockDOMRect({
+        top: 400,
+        left: 411,
+        width: 28,
+        height: 28,
+        right: 439,
+        bottom: 428,
+      });
+      const tooltipRect = { width: 120, height: 40 };
+      // Webview 紧贴触发点右侧，right 位与之重叠
+      const webview = { left: 447, top: 0, right: 1280, bottom: 1080 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'right',
+        offset: 8,
+        avoidRects: [webview],
+      });
+
+      const tip = {
+        left: result.x,
+        top: result.y,
+        right: result.x + tooltipRect.width,
+        bottom: result.y + tooltipRect.height,
+      };
+      const overlaps = tip.left < webview.right && tip.right > webview.left;
+      expect(overlaps).toBe(false);
+      expect(tip.top).toBeGreaterThanOrEqual(8);
+      expect(tip.bottom).toBeLessThanOrEqual(1080 - 8);
+    });
+
+    it('keeps centered position when preferred side is already clear', () => {
+      const triggerRect = createMockDOMRect({ top: 400, left: 100, width: 100, height: 50 });
+      const tooltipRect = { width: 80, height: 30 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [{ left: 1500, top: 0, right: 1920, bottom: 1080 }],
+      });
+
+      expect(result.placement).toBe('top');
+      expect(result.x).toBe(100 + 50 - 40);
     });
 
     it('falls back to original behavior when every side overlaps avoidRects', () => {

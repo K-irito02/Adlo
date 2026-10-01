@@ -141,13 +141,17 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
             />
           </button>
         </TooltipSimple>
-        <BrowserNavModeSwitch
-          checked={browserNavigateInPlace}
-          onCheckedChange={handleToggleNavigateMode}
-          leftLabel={t.browserNavigateNewTab}
-          rightLabel={t.browserNavigateInPlace}
-          title={browserNavigateInPlace ? t.browserNavigateInPlace : t.browserNavigateNewTab}
-        />
+        <TooltipSimple
+          content={browserNavigateInPlace ? t.browserNavigateInPlace : t.browserNavigateNewTab}
+          placement="top"
+        >
+          <BrowserNavModeSwitch
+            checked={browserNavigateInPlace}
+            onCheckedChange={handleToggleNavigateMode}
+            leftLabel={t.browserNavigateNewTab}
+            rightLabel={t.browserNavigateInPlace}
+          />
+        </TooltipSimple>
         <label
           ref={addressSearchRef}
           className={`adl-tool-search adl-tool-search--address${addressExpanded ? ' is-expanded' : ''}`}
