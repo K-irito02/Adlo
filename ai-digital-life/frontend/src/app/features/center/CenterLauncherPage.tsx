@@ -39,6 +39,10 @@ export function CenterLauncherPage({ centerTabId }: CenterLauncherPageProps) {
     }
     browserSetLocation(newId, 'center');
     centerUpdateTab(centerTabId, { kind: 'browser', refId: newId });
+    // 位置排他：新标签已转中心，`browserOpenTab` 曾把它设为面板活动标签；
+    // 面板按 id 挂载（无 location 过滤），必须重夹，否则同一 session 双挂载
+    // （与 centerActions.clampPanelActiveTab 的规范路径一致）。
+    useAppStore.getState().clampPanelActiveTab();
   }, [browserOpenTab, browserSetLocation, centerUpdateTab, centerTabId]);
 
   const handleOpenTerminal = useCallback(() => {

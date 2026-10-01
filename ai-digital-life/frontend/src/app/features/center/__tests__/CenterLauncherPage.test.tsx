@@ -62,6 +62,8 @@ describe('CenterLauncherPage', () => {
     // 不新增中心标签；浏览器标签被移动到中心。
     expect(s.centerTabs).toHaveLength(1);
     expect(s.browserTabsById[center?.refId ?? '']?.location).toBe('center');
+    // 面板活动标签被重夹：不再指向已转中心的标签（否则面板会双挂载同一标签）。
+    expect(s.browserActiveTabId).not.toBe(center?.refId);
   });
 
   it('点击「打开终端欢迎页」就地转换为终端选择器', () => {

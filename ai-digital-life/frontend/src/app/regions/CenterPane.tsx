@@ -26,7 +26,9 @@ const CenterPane = React.memo(function CenterPane() {
   const active = centerTabs.find((tab) => tab.id === activeId) ?? centerTabs[0];
 
   useEffect(() => {
-    if (centerTabs.length === 0) {
+    // 读取实时 store（而非闭包快照）以保证 StrictMode 双跑 effect 的幂等性：
+    // 第二次运行读到已补齐的长度，不会重复创建 launcher。
+    if (useAppStore.getState().centerTabs.length === 0) {
       centerAddTab('launcher', null);
     }
   }, [centerTabs.length, centerAddTab]);
