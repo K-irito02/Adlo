@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { CenterBrowserView } from '../CenterBrowserView';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
@@ -168,6 +168,73 @@ describe('CenterBrowserView', () => {
       ).toBe(false);
       unmount();
     } finally {
+      useAppStore.setState({ isTauri: false });
+    }
+  });
+
+  it('工具栏复用面板作用域类（地址栏 / 菜单 / 收缩行为与右侧面板同源）', () => {
+    const tab = makeTab('b1', 'https://x.test');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+    });
+    const { container } = renderView('b1');
+    const root = container.querySelector('.adl-center-browser');
+    expect(root?.classList.contains('adl-tool-panel')).toBe(true);
+    expect(root?.classList.contains('adl-tool-panel--browser')).toBe(true);
+    expect(container.querySelector('.adl-tool-search--address')).toBeTruthy();
+  });
+
+  it('点击收藏标签按钮打开收藏目录对话框', async () => {
+    const tab = makeTab('b1', 'https://x.test');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+    });
+    renderView('b1');
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Bookmark' }));
+    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
+  });
+
+  it('右侧面板进入浮层态时隐藏中心 WebView 并撤销 tooltip 避让标记', async () => {
+    const shellBody = document.createElement('div');
+    shellBody.className = 'adl-shell__body';
+    document.body.appendChild(shellBody);
+
+    const tab = makeTab('b1', 'https://x.test');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+      isTauri: true,
+    });
+    await browserPool.createForTab('b1', 'https://x.test');
+
+    try {
+      const { container, unmount } = renderView('b1');
+      const content = container.querySelector('.adl-center-browser__content');
+      expect(content?.hasAttribute('data-webview-active')).toBe(true);
+
+      // 拖拽右侧面板覆盖中间区 → shell body 获得浮层类（useRightPanelLayout 写入）
+      await act(async () => {
+        shellBody.classList.add('is-rightpanel-overlay-expanded');
+      });
+      await waitFor(() => expect(content?.hasAttribute('data-webview-active')).toBe(false));
+
+      // 回到停靠态 → 恢复避让标记
+      await act(async () => {
+        shellBody.classList.remove('is-rightpanel-overlay-expanded');
+      });
+      await waitFor(() => expect(content?.hasAttribute('data-webview-active')).toBe(true));
+
+      unmount();
+    } finally {
+      shellBody.remove();
+      browserPool.reset();
       useAppStore.setState({ isTauri: false });
     }
   });

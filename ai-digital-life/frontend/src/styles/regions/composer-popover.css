@@ -76,7 +76,8 @@
   border: none;
   background: transparent;
   color: var(--text-primary);
-  border-radius: 0;
+  /* 悬停灰底（--bg-hover）需呈四角圆角，与全局按钮悬停观感一致 */
+  border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.12s;

@@ -9,9 +9,9 @@ use adl_types::IpcResult;
 /// WebView label for the transparent divider-strip child webview.
 ///
 /// The strip straddles the center/right-panel boundary so the panel resize
-/// handle stays grabbable when two OS-level WebView2 children (dsh host +
-/// browser tab) adjoin edge-to-edge with zero visual gap. Deliberately
-/// isolated from browser tab labels and never registered with
+/// handle stays grabbable when two OS-level WebView2 children (center host +
+/// right-panel browser tab) adjoin edge-to-edge with zero visual gap.
+/// Deliberately isolated from browser tab labels and never registered with
 /// `BrowserManager`.
 pub const STRIP_VIEW_LABEL: &str = "adl-divider-strip";
 

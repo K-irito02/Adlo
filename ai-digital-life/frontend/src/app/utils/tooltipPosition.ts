@@ -124,6 +124,37 @@ function fitsInViewport(
   return coord >= viewportPadding && coord + size <= len - viewportPadding;
 }
 
+/**
+ * 主轴是否完整落在视口内（可能违反内边距，但绝不会被裁切）。
+ *
+ * 贴边容差：`fitsInViewport` 同时要求留出 `viewportPadding`，而触发点上方的可用空间
+ * 常常刚好差几个像素 —— 顶部工具栏紧贴 36px 标题栏时，28px 按钮顶部只有 44px，而
+ * 30px tooltip + offset 8 + padding 8 需要 46px，于是首选 `top` 被判为“放不下”。
+ * 一旦翻到对侧 `bottom`，tooltip 便落进 WebView 避让矩形，被横轴滑移到矩形远缘
+ * （视觉上“Tooltip 离触发点非常远”）。只要 tooltip 本身没被裁切，就应留在首选侧、
+ * 把主轴钳进视口，而不是换边。
+ */
+function mainAxisFitsWithoutClipping(
+  result: PositionResult,
+  placementToUse: Placement,
+  size: number,
+): boolean {
+  const coord = getMainAxisCoord(result, placementToUse);
+  return coord >= 0 && coord + size <= viewportLength(mainAxisOf(placementToUse));
+}
+
+/** 把主轴坐标钳进视口（两侧各留出 `viewportPadding`）。 */
+function clampMainAxis(
+  result: PositionResult,
+  placementToUse: Placement,
+  size: number,
+  viewportPadding: number,
+): void {
+  const coord = getMainAxisCoord(result, placementToUse);
+  const maxCoord = viewportLength(mainAxisOf(placementToUse)) - viewportPadding - size;
+  setMainAxisCoord(result, placementToUse, Math.max(viewportPadding, Math.min(maxCoord, coord)));
+}
+
 export function computePosition(options: TooltipPositionOptions): PositionResult {
   const {
     triggerRect,
@@ -298,7 +329,13 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
     for (const trial of trialOrder) {
       const base = calculate(trial);
       if (!mainAxisFits(base, trial)) {
-        continue;
+        const mainSize = isHorizontalPlacement(trial) ? tooltipRect.height : tooltipRect.width;
+        // 贴边容差：仅因内边距不足（tooltip 未被裁切）时留在首选侧并钳进视口；
+        // 真正放不下（会被裁切）才换边。见 `mainAxisFitsWithoutClipping`。
+        if (!mainAxisFitsWithoutClipping(base, trial, mainSize)) {
+          continue;
+        }
+        clampMainAxis(base, trial, mainSize, viewportPadding);
       }
       // 视口内但横向压住 Webview → 先滑移；滑不动才换边。
       const cleared = slideCrossAxis(base, trial);
@@ -320,6 +357,13 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
     const mainAxis = mainAxisOf(currentPlacement);
 
     if (!fitsInViewport(mainCoord, mainAxisSize, mainAxis, viewportPadding)) {
+      // 贴边容差（与避让分支同一规则，保证浏览器 / Tauri 双端 tooltip 位置一致）：
+      // 仅内边距不足、tooltip 未被裁切时钳进视口，不翻边。
+      if (mainAxisFitsWithoutClipping(initialResult, currentPlacement, mainAxisSize)) {
+        clampMainAxis(initialResult, currentPlacement, mainAxisSize, viewportPadding);
+        return initialResult;
+      }
+
       const flippedPlacement = OPPOSITE_MAP[currentPlacement];
       const flippedResult = calculate(flippedPlacement);
 

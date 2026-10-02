@@ -26,9 +26,13 @@ import { useBrowserSearch } from '@features/browser/useBrowserSearch';
 import { useBrowserPanelMenuItems } from '@features/browser/useBrowserPanelMenuItems';
 import { useBrowserZoomState } from '@features/browser/useBrowserZoomState';
 import { extractSearchQueryFromUrl } from '@features/browser/browserUrlUtils';
+import { buildBookmarkDirectoryTree } from '@features/browser/browserPanelHelpers';
+import { useBookmarkToFolderDialog } from '@features/browser/useBookmarkToFolderDialog';
+import { BookmarkToFolderDialogs } from '@features/browser/BookmarkToFolderDialogs';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { useCenterBrowserAddressSubmit } from './useCenterBrowserAddressSubmit';
+import { useCenterObscured } from './useCenterObscured';
 import './CenterBrowserView.css';
 
 interface CenterBrowserViewProps {
@@ -54,8 +58,10 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   const browserTabs = useAppStore((s) => s.browserTabs);
   const browserBookmarks = useAppStore((s) => s.browserBookmarks);
   const browserHistory = useAppStore((s) => s.browserHistory);
+  const browserTabFolders = useAppStore((s) => s.browserTabFolders);
+  const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
+  const showToast = useAppStore((s) => s.showToast);
   const browserOpenTab = useAppStore((s) => s.browserOpenTab);
-  const browserToggleBookmark = useAppStore((s) => s.browserToggleBookmark);
   const browserNavigateInPlace = useAppStore((s) => s.browserNavigateInPlace);
   const centerShowBrowserTab = useAppStore((s) => s.centerShowBrowserTab);
   const isTauri = useAppStore((s) => s.isTauri);
@@ -104,14 +110,64 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
       activeTabId: activeTab?.id,
     });
 
-  // 中心视图自己的浮层（菜单 / 地址栏展开 / 搜索引擎设置）必须回传作为 overlayActive，
-  // 否则这些浮层会被中心原生 WebView2 盖住（与面板宿主同语义）。
-  const centerOverlayActive = browserMenuOpen || addressExpanded || searchEnginePopoverOpen;
+  const currentEngine = searchEngines.find((e) => e.id === defaultSearchEngineId);
+  const isBookmarked = activeTab?.url
+    ? browserBookmarks.some(
+        (bookmark) => bookmark.url === activeTab.url && bookmark.title === activeTab.title,
+      )
+    : false;
+
+  // 收藏标签流程（与右侧面板共用同一实现）：未收藏时点「收藏标签」打开目录选择
+  // 对话框，已收藏时点击即取消收藏。目录树口径与面板一致（可见工作区 + 标签目录）。
+  const visibleWorkspaces = useMemo(
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available),
+    [recentWorkspaces],
+  );
+  const bookmarkTreeData = useMemo(
+    () => buildBookmarkDirectoryTree(visibleWorkspaces, browserTabFolders),
+    [visibleWorkspaces, browserTabFolders],
+  );
+  const [createDirDialog, setCreateDirDialog] = useState<{
+    open: boolean;
+    parentPath: string | null;
+  }>({ open: false, parentPath: null });
+
+  const {
+    bookmarkDialogOpen,
+    setBookmarkDialogOpen,
+    bookmarkName,
+    setBookmarkName,
+    handleOpenBookmarkDialog,
+    handleBookmarkAddToFolder,
+    handleBookmarkCreateDir,
+  } = useBookmarkToFolderDialog({
+    t,
+    activeTab,
+    isBookmarked,
+    showToast,
+    onCreateDir: useCallback((parentPath: string | null) => {
+      setCreateDirDialog({ open: true, parentPath });
+    }, []),
+  });
+
+  // 中心视图自己的浮层（菜单 / 地址栏展开 / 搜索引擎设置 / 收藏目录对话框）必须回传作为
+  // overlayActive，否则这些浮层会被中心原生 WebView2 盖住（与面板宿主同语义）。
+  const centerOverlayActive =
+    browserMenuOpen ||
+    addressExpanded ||
+    searchEnginePopoverOpen ||
+    bookmarkDialogOpen ||
+    createDirDialog.open;
+
+  // 右侧面板进入浮层态时会以 absolute 盖住中间区 —— DOM 盖不住原生 WebView2，
+  // 必须主动把中心 WebView2 移出画面（否则原生表面反过来盖住右侧面板）。
+  const centerObscured = useCenterObscured();
 
   const { containerRef, loadingTabId, isTabInPool, navigateTabInPool } = useBrowserViewHost({
     hostId: 'center',
     activeTab,
-    isVisible: true,
+    isVisible: !centerObscured,
+    webViewDisabled: centerObscured,
     overlayActive: centerOverlayActive,
   });
 
@@ -198,20 +254,13 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     t,
   });
 
-  const currentEngine = searchEngines.find((e) => e.id === defaultSearchEngineId);
-  const isBookmarked = activeTab?.url
-    ? browserBookmarks.some(
-        (bookmark) => bookmark.url === activeTab.url && bookmark.title === activeTab.title,
-      )
-    : false;
-
   const handleBookmarkClick = useCallback(() => {
     const tab = useAppStore.getState().browserTabsById[browserTabId];
     if (!tab?.url) {
       return;
     }
-    browserToggleBookmark({ url: tab.url, title: tab.title || tab.url });
-  }, [browserToggleBookmark, browserTabId]);
+    handleOpenBookmarkDialog();
+  }, [handleOpenBookmarkDialog, browserTabId]);
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(false);
@@ -258,7 +307,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   );
 
   return (
-    <div className="adl-center-browser">
+    <div className="adl-tool-panel adl-tool-panel--browser adl-center-browser">
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolBrowser}>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
           <TooltipSimple content={t.browserBack} placement="top">
@@ -384,7 +433,11 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
         // （见 webviewAvoidRects 的选择器门控）。无 WebView（浏览器模式 iframe /
         // 空白页 / 未入池）时 tooltip 天然置顶，无需避让。
         data-webview-active={
-          isTauri && !!activeTab?.id && !!activeTab.url && isTabInPool(activeTab.id)
+          isTauri &&
+          !centerObscured &&
+          !!activeTab?.id &&
+          !!activeTab.url &&
+          isTabInPool(activeTab.id)
             ? true
             : undefined
         }
@@ -428,6 +481,24 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
           />
         )}
       </div>
+
+      <BookmarkToFolderDialogs
+        open={bookmarkDialogOpen}
+        t={t}
+        workspaceNodes={bookmarkTreeData.workspaceNodes}
+        userFolderNodes={bookmarkTreeData.userFolderNodes}
+        onAddToFolder={handleBookmarkAddToFolder}
+        onCreateDir={handleBookmarkCreateDir}
+        onCancel={() => {
+          setBookmarkDialogOpen(false);
+          setBookmarkName('');
+          useAppStore.getState().browserSetPendingBookmark(null);
+        }}
+        bookmarkName={bookmarkName}
+        onBookmarkNameChange={setBookmarkName}
+        createDirDialog={createDirDialog}
+        setCreateDirDialog={setCreateDirDialog}
+      />
     </div>
   );
 }

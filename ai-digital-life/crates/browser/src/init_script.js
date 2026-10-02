@@ -190,20 +190,6 @@
     document.addEventListener('click', function(event) {
         var target = event.target;
 
-        // Log ALL clicks for debugging
-        var clickInfo = {
-            tagName: target.tagName,
-            id: target.id || '',
-            className: (target.className || '').toString().substring(0, 100),
-            text: (target.textContent || '').substring(0, 50),
-            href: target.href || target.getAttribute('data-href') || '',
-            download: target.hasAttribute('download'),
-            onclick: target.onclick ? 'yes' : 'no',
-            parentTag: target.parentElement ? target.parentElement.tagName : ''
-        };
-        console.log('[ADL-DL-JS] CLICK EVENT:', clickInfo);
-        __adlSendLog('info', 'CLICK EVENT', clickInfo);
-
         while (target) {
             if (target.tagName === 'A' && target.href) {
                 var href = target.href;

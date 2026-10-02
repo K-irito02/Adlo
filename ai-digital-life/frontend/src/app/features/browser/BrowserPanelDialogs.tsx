@@ -1,7 +1,7 @@
 import { RenameDialog } from '@components/RenameDialog';
 import { ToastContainer } from '@components/Toast';
 import { CreateTabDialog } from './browser-landing';
-import { BookmarkToFolderDialog } from './BookmarkToFolderDialog';
+import { BookmarkToFolderDialogs } from './BookmarkToFolderDialogs';
 import { useAppStore } from '@stores/slicedStore';
 import type { CopyDict } from '@i18n/types';
 import type { ToastData } from '@components/Toast';
@@ -73,7 +73,7 @@ export function BrowserPanelDialogs({
         onCancel={createTabDialog.open ? handleCreateTabCancel : handleEditTabCancel}
       />
 
-      <BookmarkToFolderDialog
+      <BookmarkToFolderDialogs
         open={bookmarkDialogOpen}
         t={t}
         workspaceNodes={bookmarkTreeData.workspaceNodes}
@@ -87,6 +87,8 @@ export function BrowserPanelDialogs({
         }}
         bookmarkName={bookmarkName}
         onBookmarkNameChange={setBookmarkName}
+        createDirDialog={createDirDialog}
+        setCreateDirDialog={setCreateDirDialog}
       />
 
       <RenameDialog
@@ -99,26 +101,6 @@ export function BrowserPanelDialogs({
           setRenameFolderState((prev) => ({ ...prev, open: false }));
         }}
         onCancel={() => setRenameFolderState((prev) => ({ ...prev, open: false }))}
-      />
-
-      <RenameDialog
-        open={createDirDialog.open}
-        initialValue=""
-        title={t.browserCreateDir as string}
-        onConfirm={(name) => {
-          const parentPath = createDirDialog.parentPath;
-          if (parentPath?.startsWith('folder:')) {
-            const folderId = parentPath.slice('folder:'.length);
-            useAppStore.getState().browserCreateTabFolder(name, folderId, 'folder');
-          } else if (parentPath?.startsWith('workspace:')) {
-            const wsId = parentPath.slice('workspace:'.length);
-            useAppStore.getState().browserCreateTabFolder(name, wsId, 'workspace');
-          } else {
-            useAppStore.getState().browserCreateTabFolder(name, undefined, undefined);
-          }
-          setCreateDirDialog({ open: false, parentPath: null });
-        }}
-        onCancel={() => setCreateDirDialog({ open: false, parentPath: null })}
       />
 
       <ToastContainer toasts={toastMessages} onRemove={removeToast} />

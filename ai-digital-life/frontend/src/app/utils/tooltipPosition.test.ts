@@ -207,6 +207,60 @@ describe('tooltipPosition', () => {
       expect(result.y).toBe(250 + 8);
     });
 
+    it('keeps the preferred side by clamping when only viewport padding is short (toolbar above a WebView)', () => {
+      // 真机几何：中心工具栏 28px 按钮紧贴 36px 标题栏（顶部仅 44px），
+      // 30px tooltip + offset 8 + padding 8 需要 46px → 首选 top 差 2px 就“放不下”。
+      // 修复前会翻到 bottom，落进中心 WebView 避让矩形后被横轴滑到矩形右缘（≈x840）。
+      // 期望：留在 top、钳进视口，tooltip 仍悬在按钮正上方。
+      const triggerRect = createMockDOMRect({
+        top: 44,
+        left: 84,
+        width: 28,
+        height: 28,
+        right: 112,
+        bottom: 72,
+      });
+      const tooltipRect = { width: 40, height: 30 };
+      const webview = { left: 56, top: 80, right: 840, bottom: 1080 };
+
+      const withAvoid = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [webview],
+      });
+      const withoutAvoid = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+      });
+
+      expect(withAvoid.placement).toBe('top');
+      expect(withAvoid).toEqual(withoutAvoid);
+      expect(withAvoid.y).toBe(8);
+      // 不得被滑移到 WebView 远缘
+      expect(withAvoid.x).toBeLessThan(webview.right);
+    });
+
+    it('still flips when the preferred side would be clipped by the viewport', () => {
+      // 贴边容差只覆盖“内边距不足”，不覆盖“tooltip 被裁切”：
+      // 顶部仅 10px 空间、30px tooltip 会被裁掉 → 必须换边。
+      const triggerRect = createMockDOMRect({ top: 10, left: 100, width: 100, height: 50 });
+      const tooltipRect = { width: 80, height: 30 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [{ left: 0, top: 0, right: 1920, bottom: 1080 }],
+      });
+
+      expect(result.placement).toBe('bottom');
+    });
+
     it('tries remaining sides when both preferred and opposite overlap', () => {
       const triggerRect = createMockDOMRect({
         top: 500,

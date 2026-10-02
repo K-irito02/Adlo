@@ -4,7 +4,8 @@ import type { PageMeta, PageMetaUpdatedPayload } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import * as siteMetaCache from '@utils/siteMetaCache';
 import { useAppStore } from '@stores/slicedStore';
-import { resetFaviconSelfHealThrottleForTest, useBrowserDialogs } from '../useBrowserDialogs';
+import { resetFaviconSelfHealThrottleForTest } from '../faviconSelfHeal';
+import { useBrowserDialogs } from '../useBrowserDialogs';
 
 vi.mock('@utils/pageMetaClient', () => ({
   pageMetaClient: { peek: vi.fn(), get: vi.fn(), getSilent: vi.fn(), subscribeUpdated: vi.fn() },

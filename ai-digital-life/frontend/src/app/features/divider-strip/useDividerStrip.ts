@@ -5,9 +5,11 @@ import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
 import { getOverlayManager } from '@shared/overlayManager';
 import { subscribeChannel } from '../../../tauri-bridge/tauri-shared';
+import { useBrowserPool } from '@features/browser/useBrowserPool';
 import type { RightPanelMode } from '../../regions/right-panel/rightPanelLayout';
 import type { ToolId } from '../../stores/types';
 import {
+  resolveCenterWebView,
   shouldShowStrip,
   stripBoundsFromPanelRect,
   stripGenerationKey,
@@ -43,12 +45,13 @@ function resolveStripTheme(): StripTheme {
 }
 
 /**
- * 透明桥接条编排：dsh WebView 与浏览器 WebView 零间隙贴边时，
- * 在接缝上架起透明子 WebView（`adl-divider-strip`）并拥有拖拽。
+ * 透明桥接条编排：面板边界命中带被原生 WebView 盖住时，在接缝上架起透明子
+ * WebView（`adl-divider-strip`）并拥有拖拽。
  *
- * - 显隐：两侧 WebView 同时在线 + docked 相邻才展示；任一条件消失即销毁。
- * - 排序：兄弟子窗口的新建会盖住桥接条，generation（dshUrl/activeTab/tab 数）
- *   变化即销毁重建（重建即回到最上层）。
+ * - 显隐：面板浏览器 WebView 压住边界的命中带（= 面板导航器收起）才展示；
+ *   与中心区/面板处于 docked 还是 overlay 无关（详见 `shouldShowStrip`）。
+ * - 排序：兄弟子窗口的新建会盖住桥接条，generation（中心 tab / 面板活动 tab /
+ *   tab 数 / 兄弟创建计数）变化即销毁重建（重建即回到最上层）。
  * - 跟随：面板几何变化只调 bounds（子窗口随主窗口移动，无需跟随逻辑）。
  * - 拖拽：桥接条只回传增量，几何计算复用面板现有逻辑（clamp/overlay 阈值/持久化）。
  */
@@ -64,24 +67,49 @@ export function useDividerStrip(options: {
   const { panelRef, collapsed, activeRightTool, rightPanelWidth, rightPanelMode } = options;
   const { t, locale } = useTCopy();
 
-  const { isTauri, dshUrl, dshOpen, startupHidden, tabCount, activeTabId, siblingNonce } =
-    useAppStore(
-      useShallow((s) => ({
-        isTauri: s.isTauri,
-        dshUrl: s.url,
-        dshOpen: s.isOpen,
-        startupHidden: s.startupOverlayHidden,
-        tabCount: s.browserTabs.length,
-        activeTabId: s.browserActiveTabId,
-        siblingNonce: s.siblingWebviewNonce,
-      })),
-    );
+  const {
+    isTauri,
+    centerTabs,
+    centerActiveTabId,
+    browserTabsById,
+    activeTabId,
+    tabCount,
+    startupHidden,
+    navigatorCollapsedByTool,
+    siblingNonce,
+  } = useAppStore(
+    useShallow((s) => ({
+      isTauri: s.isTauri,
+      centerTabs: s.centerTabs,
+      centerActiveTabId: s.centerActiveTabId,
+      browserTabsById: s.browserTabsById,
+      activeTabId: s.browserActiveTabId,
+      tabCount: s.browserTabs.length,
+      startupHidden: s.startupOverlayHidden,
+      navigatorCollapsedByTool: s.navigatorCollapsedByTool,
+      siblingNonce: s.siblingWebviewNonce,
+    })),
+  );
+
+  // 面板导航器收起 → 面板内容整体左移，面板自己的 WebView 左缘与面板左缘重合，
+  // 正好把 DOM 手柄那条 3px（面板内侧）命中带盖住 → 必须由桥接条接管。
+  const navigatorCollapsed = navigatorCollapsedByTool.browser ?? false;
+
+  // 池成员是"该 tab 有活着的原生 WebView"的唯一权威来源（useBrowserPool 内部
+  // useSyncExternalStore 订阅，池变化会重渲染本 hook）。此处只服务排序指纹。
+  const { isTabInPool } = useBrowserPool();
+  const centerView = resolveCenterWebView({
+    centerTabs,
+    centerActiveTabId,
+    browserTabsById,
+    isTabInPool,
+  });
 
   const browserToolVisible = activeRightTool === 'browser' && !collapsed;
   // 透明桥接条是 straddle 在边界上的**原生子窗口**，永远盖在 HTML 之上：任何
   // DOM 浮层（对话框/菜单）与它重叠时都会被它抢走指针事件（"穿透"）。因此当
-  // OverlayManager 检测到可见浮层时，必须先把桥接条藏起来（与 DSH / 浏览器
-  // WebView2 的浮层隐藏策略一致）。
+  // OverlayManager 检测到可见浮层时，必须先把桥接条藏起来（与中心/面板
+  // 浏览器 WebView2 的浮层隐藏策略一致）。
   const [domOverlayActive, setDomOverlayActive] = useState(false);
   useEffect(() => {
     if (!isTauriShell()) {
@@ -103,14 +131,14 @@ export function useDividerStrip(options: {
   const visible =
     shouldShowStrip({
       isTauri,
-      dshOpen: dshOpen && !!dshUrl,
+      panelWebViewAtBoundary: navigatorCollapsed,
       startupHidden,
       browserToolVisible,
       hasBrowserTabs: tabCount > 0,
-      centerObscured: rightPanelMode !== 'docked',
     }) && !domOverlayActive;
   const generation = stripGenerationKey({
-    dshUrl: dshUrl ?? '',
+    centerTabId: centerView.tabId,
+    centerUrl: centerView.url,
     activeTabId: activeTabId ?? '',
     tabCount,
     siblingNonce,
@@ -205,7 +233,10 @@ export function useDividerStrip(options: {
         } else {
           await bridge.dividerStripSetBounds(bounds);
         }
-      } catch {
+      } catch (err) {
+        // 桥接条是"看不见的基础设施"：静默失败会表现为"边界线拖不动"且无从排查，
+        // 故显式 warn（与 useWebViewBounds 等 IPC 失败的处理口径一致）。
+        console.warn('[divider-strip] show/setBounds failed:', err);
         shownRef.current = false;
       }
     },

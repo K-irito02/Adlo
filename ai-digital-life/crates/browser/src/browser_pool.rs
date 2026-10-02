@@ -45,7 +45,7 @@ impl BrowserPool {
         lock_pool(&self.inner).len()
     }
 
-    /// All tab IDs in pool (for hiding inactive WebViews).
+    /// All tab IDs in pool (按最近使用顺序)。
     pub fn tab_ids(&self) -> Vec<String> {
         lock_pool(&self.inner).clone()
     }
