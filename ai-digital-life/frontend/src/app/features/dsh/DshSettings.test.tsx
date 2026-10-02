@@ -10,12 +10,23 @@ import type { DshSourceStatus } from '../../../shared/ipc/dsh';
 const fetchSourceStatus = vi.fn();
 const testSource = vi.fn();
 const saveSourceConfig = vi.fn();
+// 版本管理块（DshVersionManagement）挂载即拉取版本状态：静默桩。
+const fetchDshVersionStatus = vi.fn();
+const updateDsh = vi.fn();
+const revertDsh = vi.fn();
+const uninstallDsh = vi.fn();
+const reinstallDsh = vi.fn();
 
 vi.mock('../../hooks/useAppActions', () => ({
   useAppActions: () => ({
     fetchSourceStatus: (...args: unknown[]) => fetchSourceStatus(...args),
     testSource: (...args: unknown[]) => testSource(...args),
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
+    fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
+    updateDsh: (...args: unknown[]) => updateDsh(...args),
+    revertDsh: (...args: unknown[]) => revertDsh(...args),
+    uninstallDsh: (...args: unknown[]) => uninstallDsh(...args),
+    reinstallDsh: (...args: unknown[]) => reinstallDsh(...args),
   }),
 }));
 
@@ -64,9 +75,15 @@ describe('DshSettings', () => {
     fetchSourceStatus.mockReset();
     testSource.mockReset();
     saveSourceConfig.mockReset();
+    fetchDshVersionStatus.mockReset();
+    updateDsh.mockReset();
+    revertDsh.mockReset();
+    uninstallDsh.mockReset();
+    reinstallDsh.mockReset();
     fetchSourceStatus.mockResolvedValue(true);
     testSource.mockResolvedValue({ reachable: true, latency_ms: 12, error: null });
     saveSourceConfig.mockResolvedValue(true);
+    fetchDshVersionStatus.mockResolvedValue(true);
     useAppStore.setState({
       sourceStatus: null,
       dshGroupResetPending: false,
@@ -75,15 +92,16 @@ describe('DshSettings', () => {
     });
   });
 
-  it('三块结构：块头在卡外，每块头 + 卡片配对，测试块用装饰图标对齐', () => {
+  it('四块结构：块头在卡外，每块头 + 卡片配对，测试块/版本块用装饰图标对齐', () => {
     useAppStore.setState({ sourceStatus: makeStatus() });
     renderSettings();
     const root = document.querySelector('.adl-dsh-settings');
     expect(root).not.toBeNull();
     const headers = root?.querySelectorAll('.adl-dsh-settings__header') ?? [];
-    expect(headers.length).toBe(3);
+    expect(headers.length).toBe(4);
     const cards = root?.querySelectorAll(':scope > .adl-settings-card') ?? [];
-    expect(cards.length).toBe(3);
+    // 下载源/代理/测试连接各 1 张 + 版本块 1 张（内含当前版本 + 版本操作两行）。
+    expect(cards.length).toBe(4);
     // 块头在卡片之外（settings 组通用结构，不是卡内标题）。
     expect(root?.querySelector('.adl-settings-card .adl-dsh-settings__header')).toBeNull();
     // 前两块（下载源/代理设置）带恢复按钮，测试连接块带装饰图标（非按钮，仅对齐）。
@@ -94,6 +112,19 @@ describe('DshSettings', () => {
       'span.adl-settings-row__reset--static[aria-hidden="true"]',
     );
     expect(staticIcon).not.toBeNull();
+    // 第四块（版本管理）：装饰图标 + 一张 settings 卡（当前版本 + 版本操作两行）。
+    expect(headers[3]?.textContent).toContain('dshVersionManagement');
+    expect(headers[3]?.querySelector('button')).toBeNull();
+    expect(
+      headers[3]?.querySelector('span.adl-settings-row__reset--static[aria-hidden="true"]'),
+    ).not.toBeNull();
+    // 版本操作行渲染文字按钮（非图标按钮），且带行内提示说明图标。
+    const versionRow = root?.querySelector('[data-settings-row="dshVersionActions"]');
+    expect(versionRow).not.toBeNull();
+    expect(versionRow?.querySelector('.adl-btn--icon')).toBeNull();
+    expect(versionRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
+    const currentRow = root?.querySelector('[data-settings-row="dshCurrentVersionLabel"]');
+    expect(currentRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
   it('挂载即拉取 sourceStatus（预存缺陷修复：fetchSourceStatus 此前无调用点）', () => {
@@ -576,6 +607,14 @@ describe('DshSettings', () => {
     expect(screen.getByLabelText('dshSettingsSource').textContent).toContain(
       'dshSettingsSourceNpmmirror',
     );
+    // 收尾：被 500ms 防抖延迟的「新选择」落盘由本用例负责消费，避免该真实计时器在
+    // 组件卸载后（有意保留防抖，见 DshSettings 卸载清理注释）泄漏到后续用例。
+    await waitFor(() => {
+      expect(saveSourceConfig).toHaveBeenCalledWith(
+        expect.objectContaining({ npm_registry: NPMMIRROR_URL }),
+        true,
+      );
+    });
   });
 
   it('sourceStatus 后到更新不覆盖编辑中表单（seed-once 锁定）', () => {

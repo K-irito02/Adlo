@@ -222,6 +222,22 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
       },
     ],
   },
+  {
+    // 「版本管理」块：块内两行——「当前版本」信息行与「版本操作」行。
+    group: 'dsh',
+    anchorId: 'version',
+    labelKey: 'dshVersionManagement',
+    rows: [
+      {
+        labelKey: 'dshCurrentVersionLabel',
+        hintKeys: ['dshCurrentVersionDesc', 'dshCurrentVersionHint'],
+      },
+      {
+        labelKey: 'dshVersionActions',
+        hintKeys: ['dshVersionActionsDesc', 'dshVersionActionsHint'],
+      },
+    ],
+  },
 ];
 
 /** 模板占位符（如 `{used}` / `{limit}`）：对用户可见文案而言它们不该出现，索引里折叠成省略号。 */

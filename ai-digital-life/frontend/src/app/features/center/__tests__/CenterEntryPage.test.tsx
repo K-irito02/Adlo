@@ -1,31 +1,27 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { CenterLauncherPage } from '../CenterLauncherPage';
+import { CenterEntryPage } from '../CenterEntryPage';
 import { CenterPane } from '@regions/CenterPane';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import type { CopyDict } from '@i18n/types';
 
-// 版本管理卡片 `DshVersionManagement`（挂载即走 dsh 桥），
-// 本套件只验证 launcher 的三入口与 dsh 标签行为，故隔离该卡片；版本管理由 dsh 套件覆盖。
-vi.mock('@features/dsh/DshVersionManagement', () => ({
-  DshVersionManagement: () => null,
-}));
+// 新建入口页只渲染三入口（dsh 版本管理已移入设置面板「DSH」组）。
 
 const t = {
   dshTitle: 'DeepSeek Harness',
   centerLauncherLabel: '中心起始页',
   centerContentLabel: '中心内容区',
   centerBrowserTabMissing: '浏览器标签不可用',
-  centerLauncherOpenDsh: '打开 dsh',
-  centerLauncherOpenBrowser: '打开浏览器欢迎页',
-  centerLauncherOpenTerminal: '打开终端欢迎页',
+  centerLauncherOpenDsh: '打开 deepseek harness',
+  centerLauncherOpenBrowser: '打开浏览器',
+  centerLauncherOpenTerminal: '打开终端',
 } as unknown as CopyDict;
 
 function renderLauncher(centerTabId = 'c1') {
   return render(
     <TCopyProvider t={t} locale="zh-CN">
-      <CenterLauncherPage centerTabId={centerTabId} />
+      <CenterEntryPage centerTabId={centerTabId} />
     </TCopyProvider>,
   );
 }
@@ -46,12 +42,21 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('CenterLauncherPage', () => {
+describe('CenterEntryPage', () => {
   it('渲染三个入口', () => {
     renderLauncher();
-    expect(screen.getByRole('button', { name: /dsh/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /浏览器/ })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /终端/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /deepseek harness/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开浏览器' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '打开终端' })).toBeTruthy();
+  });
+
+  it('三入口按钮带图标（图标 + 名称）', () => {
+    const { container } = renderLauncher();
+    const buttons = container.querySelectorAll('.adl-launcher-entry');
+    expect(buttons).toHaveLength(3);
+    for (const button of buttons) {
+      expect(button.querySelector('svg')).toBeTruthy();
+    }
   });
 
   it('渲染带 aria-label 的 section 地标', () => {
@@ -59,9 +64,9 @@ describe('CenterLauncherPage', () => {
     expect(screen.getByRole('region', { name: '中心起始页' })).toBeTruthy();
   });
 
-  it('点击「打开浏览器欢迎页」就地转换当前 launcher 为浏览器中心标签', () => {
+  it('点击「打开浏览器」就地转换当前 launcher 为浏览器中心标签', () => {
     renderLauncher();
-    fireEvent.click(screen.getByRole('button', { name: /浏览器/ }));
+    fireEvent.click(screen.getByRole('button', { name: '打开浏览器' }));
 
     const s = useAppStore.getState();
     const center = s.centerTabs.find((c) => c.id === 'c1');
@@ -74,15 +79,15 @@ describe('CenterLauncherPage', () => {
     expect(s.browserActiveTabId).not.toBe(center?.refId);
   });
 
-  it('点击「打开终端欢迎页」就地转换为终端选择器', () => {
+  it('点击「打开终端」就地转换为终端选择器', () => {
     renderLauncher();
-    fireEvent.click(screen.getByRole('button', { name: /终端/ }));
+    fireEvent.click(screen.getByRole('button', { name: '打开终端' }));
 
     const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');
     expect(center).toMatchObject({ kind: 'terminal', refId: null });
   });
 
-  it('点击「打开 dsh」成功后移除 launcher 标签（显示新建的 dsh 浏览器中心标签）', async () => {
+  it('点击「打开 deepseek harness」成功后移除 launcher 标签（显示新建的 dsh 浏览器中心标签）', async () => {
     const open = vi.fn(async () => ({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: false },
@@ -90,7 +95,7 @@ describe('CenterLauncherPage', () => {
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
 
     renderLauncher();
-    fireEvent.click(screen.getByRole('button', { name: /dsh/i }));
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
 
     await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1));
     // launcher 标签在 openDsh 成功后被异步移除；等待该状态落地再做断言。
@@ -116,7 +121,7 @@ describe('CenterPane 调度', () => {
       </TCopyProvider>,
     );
 
-    expect(screen.getByRole('button', { name: /dsh/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /deepseek harness/i })).toBeTruthy();
     const s = useAppStore.getState();
     expect(s.centerTabs).toHaveLength(1);
     expect(s.centerTabs[0].kind).toBe('launcher');
@@ -157,7 +162,7 @@ describe('CenterPane 调度', () => {
 
     // 修复 effect 把活动标签指向首个，而不是静默渲染首个。
     expect(useAppStore.getState().centerActiveTabId).toBe('c1');
-    expect(screen.getByRole('button', { name: /dsh/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /deepseek harness/i })).toBeTruthy();
   });
 
   it('browser 中心标签 refId 为空时渲染占位，不渲染空工具栏', () => {

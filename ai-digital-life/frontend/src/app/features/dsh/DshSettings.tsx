@@ -5,6 +5,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeDshResetPlan, NPMJS_URL } from '@shared/settings-reset/dshReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { DshVersionManagement } from './DshVersionManagement';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { HintCardTrigger } from '../../components/HintCard';
@@ -23,9 +24,13 @@ const AUTOSAVE_DELAY_MS = 500;
 const TEST_RESULT_MS = 2000;
 
 /**
- * 「DSH」设置组：下载源 / 代理设置 / 测试连接三块，与浏览器/存储组同构——
+ * 「DSH」设置组：下载源 / 代理设置 / 测试连接 / 版本管理四块，与浏览器/存储组同构——
  * 块头（恢复默认图标 + 主标题）在卡外，卡内 `adl-settings-row` 副标题+提示图标
  * 在最左、控件在最右并垂直居中。
+ *
+ * 版本管理块复用 `DshVersionManagement`（当前/最新版本、检查更新、升级、卸载、
+ * 重装；原挂载于中心新建入口页）：块头用设置组样式，块体沿用该组件自有卡片，
+ * 直接充当本块卡片（不另套 `adl-settings-card`，避免双层卡嵌套）。
  *
  * 保存模型：变更即防抖静默落盘（`saveSourceConfig` PATCH），失败才 toast；
  * 恢复默认（块级/组级）经通用确认对话框乐观执行：点确认立刻关框并刷新卡片，
@@ -780,6 +785,20 @@ export function DshSettings() {
           </div>
         </div>
       </div>
+
+      <div
+        className="adl-dsh-settings__header adl-dsh-settings__header--section"
+        data-settings-anchor={anchorFor('dsh', 'version')}
+      >
+        <span
+          className="adl-settings-row__reset adl-settings-row__reset--static"
+          aria-hidden="true"
+        >
+          <IconResetDefaults size={14} decorative />
+        </span>
+        <SettingsHeader title={t.dshVersionManagement} />
+      </div>
+      <DshVersionManagement />
 
       <ConfirmDialog
         open={sourceResetOpen}

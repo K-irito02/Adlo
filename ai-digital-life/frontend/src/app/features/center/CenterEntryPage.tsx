@@ -1,24 +1,24 @@
 import { useCallback } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
-import { DshVersionManagement } from '@features/dsh/DshVersionManagement';
+import { IconDeepSeek, IconGlobe, IconTerminal } from '@icons';
 
-interface CenterLauncherPageProps {
+interface CenterEntryPageProps {
   centerTabId: string;
 }
 
 /**
- * 中心 launcher 引导页（三入口 + dsh 版本管理卡片）。
+ * 中心统一入口页（三入口）。
  *
- * 三入口：
- * - 打开 dsh：`openDsh()` 拉起进程并创建承载它的普通浏览器中心标签，成功后移除
- *   当前 launcher 标签，让新建的 dsh 浏览器标签（已设为活动）显示出来。
- * - 打开浏览器欢迎页：新建空 URL 浏览器标签 → 移到中心 → 就地转为 browser。
- * - 打开终端欢迎页：就地转为 `kind='terminal', refId=null`（渲染终端选择器）。
+ * 中间部分不再专属 dsh，而是统一入口，可打开三种内容之一：
+ * - 打开 deepseek harness：`openDsh()` 拉起进程并创建承载它的普通浏览器中心标签，
+ *   成功后移除当前入口页标签，让新建的 dsh 浏览器标签（已设为活动）显示出来。
+ * - 打开浏览器：新建空 URL 浏览器标签 → 移到中心 → 就地转为 browser。
+ * - 打开终端：就地转为 `kind='terminal', refId=null`（渲染终端选择器）。
  *
- * 下方复用 `DshVersionManagement`（当前/最新版本、检查更新、升级、卸载、重装）。
+ * dsh 版本管理已移入右侧设置面板「DSH」设置组，此处只保留三入口。
  */
-export function CenterLauncherPage({ centerTabId }: CenterLauncherPageProps) {
+export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
   const { t } = useTCopy();
   const openDsh = useAppStore((s) => s.openDsh);
   const browserOpenTab = useAppStore((s) => s.browserOpenTab);
@@ -53,37 +53,36 @@ export function CenterLauncherPage({ centerTabId }: CenterLauncherPageProps) {
   }, [centerUpdateTab, centerTabId]);
 
   return (
-    // 页面地标：带 aria-label 的 section（DshVersionManagement 的调用方契约要求
-    // 调用方提供地标，组件自身只渲染操作栏 + 版本卡片，不自建 section）。
     <section className="adl-app-welcome" aria-label={t.centerLauncherLabel}>
-      <div className="adl-app-welcome__card">
+      <div className="adl-launcher-entries">
         <button
           type="button"
-          className="adl-btn adl-btn--secondary"
+          className="adl-launcher-entry"
           aria-label={t.centerLauncherOpenDsh}
           onClick={handleOpenDsh}
         >
-          {t.centerLauncherOpenDsh}
+          <IconDeepSeek size={16} decorative />
+          <span>{t.centerLauncherOpenDsh}</span>
         </button>
         <button
           type="button"
-          className="adl-btn adl-btn--secondary"
+          className="adl-launcher-entry"
           aria-label={t.centerLauncherOpenBrowser}
           onClick={handleOpenBrowser}
         >
-          {t.centerLauncherOpenBrowser}
+          <IconGlobe size={16} decorative />
+          <span>{t.centerLauncherOpenBrowser}</span>
         </button>
         <button
           type="button"
-          className="adl-btn adl-btn--secondary"
+          className="adl-launcher-entry"
           aria-label={t.centerLauncherOpenTerminal}
           onClick={handleOpenTerminal}
         >
-          {t.centerLauncherOpenTerminal}
+          <IconTerminal size={16} decorative />
+          <span>{t.centerLauncherOpenTerminal}</span>
         </button>
       </div>
-
-      <DshVersionManagement />
     </section>
   );
 }

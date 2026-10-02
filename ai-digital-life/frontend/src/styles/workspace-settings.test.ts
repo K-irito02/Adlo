@@ -432,7 +432,7 @@ describe('settings panel narrow layout (方案 C+B+A)', () => {
     // 截到下一档边界（与 ≤600/≤320 同法，固定字符窗口会越界，rev3 L1）。
     const nextStage = settingsCss.indexOf('@container', start + 1);
     const block = settingsCss.slice(start, nextStage === -1 ? undefined : nextStage);
-    // dsh 锁死的 160px 下拉/测试按钮在极窄档解锁（提权选择器防 dsh.css 反覆盖）。
+    // dsh 锁死的 160px 下拉/测试按钮在极窄档解锁（提权选择器防 dsh-version.css 反覆盖）。
     expect(block).toContain(
       '.adl-settings-panel__content .adl-dsh-settings .adl-settings-dropdown',
     );
@@ -542,7 +542,7 @@ describe('storage group reset dialog + dirty bar styles (2026-09-27 decisions)',
   it('confirm dialog footer wraps so 3-button EN labels stay inside the dialog', () => {
     // 回归：英文 "Cancel + Migrate on next launch + Migrate now and restart"
     // 三键单行总宽超 400px 旧框内宽，按钮溢出到框外。footer 必须换行收进容器。
-    // 兼容性已确认：通用两键框与 dsh.css `--stacked` 变体（按钮 width: 100%）不受影响。
+    // 兼容性已确认：通用两键框与 dsh-version.css `--stacked` 变体（按钮 width: 100%）不受影响。
     const footer = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer');
     expect(footer).not.toBeNull();
     expect(footer).toContain('flex-wrap: wrap');

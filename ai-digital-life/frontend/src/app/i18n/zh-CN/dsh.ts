@@ -24,9 +24,9 @@ export const dshZh = {
   dshReinstallFailed: '重新安装失败',
   dshOpenFailed: '打开失败',
   dshPortFreed: '检测到 3080 端口被残留的 dsh 进程占用，已自动释放并重新启动',
-  centerLauncherOpenDsh: '打开 dsh',
-  centerLauncherOpenBrowser: '打开浏览器欢迎页',
-  centerLauncherOpenTerminal: '打开终端欢迎页',
+  centerLauncherOpenDsh: '打开 deepseek harness',
+  centerLauncherOpenBrowser: '打开浏览器',
+  centerLauncherOpenTerminal: '打开终端',
   dshSettingsSource: '下载源',
   dshSettingsSourceAuto: '自动检测',
   dshSettingsSourceNpmjs: 'npmjs（官方）',
@@ -71,4 +71,13 @@ export const dshZh = {
   dshStatusMirror: '镜像源：{name}',
   dshStatusMirrorNone: '镜像源：默认',
   dshStatusRunning: '运行中：端口 {port}',
+  dshVersionManagement: '版本管理',
+  dshCurrentVersionLabel: '当前版本',
+  dshCurrentVersionDesc: '当前选中并正在使用的 dsh 版本',
+  dshCurrentVersionHint:
+    '这里显示你现在正在使用的 deepseek harness 版本号，以及下载源里可用的最新版本；当出现「发现新版本」标记时，可以在下方「版本操作」里一键升级。',
+  dshVersionActions: '版本操作',
+  dshVersionActionsDesc: '检查更新、升级、重装、卸载或切换版本',
+  dshVersionActionsHint:
+    '在这里管理 deepseek harness 的版本：「检查更新」看看有没有新版本；「升级到最新版」安装最新版本；「重新安装」修复当前版本；「卸载版本」移除它；装了多个版本时还能「回退版本」切换到旧版本。',
 } as const;

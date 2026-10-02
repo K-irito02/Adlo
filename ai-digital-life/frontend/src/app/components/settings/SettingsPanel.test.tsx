@@ -916,6 +916,16 @@ describe('SettingsPanel group reset', () => {
             },
           },
         }),
+        // 版本管理块挂载即拉取版本状态：静默桩。
+        getVersionStatus: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            currentSelected: null,
+            latestAvailable: null,
+            hasUpdate: false,
+            installed: [],
+          },
+        }),
         saveSourceConfig: vi.fn().mockResolvedValue({ ok: true, data: true }),
         testSource: vi.fn().mockResolvedValue({
           ok: true,

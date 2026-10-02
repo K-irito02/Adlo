@@ -25,15 +25,22 @@ import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
 
 // DshSettings 经 useAppActions 触达 IPC：与 DshSettings.test.tsx 同法打桩，
 // 只保留渲染所需的最小组件前置条件（挂载拉取 / 自动检测均走静默桩）。
+// 版本管理块（DshVersionManagement）挂载即拉取版本状态：静默桩。
 const fetchSourceStatus = vi.fn();
 const testSource = vi.fn();
 const saveSourceConfig = vi.fn();
+const fetchDshVersionStatus = vi.fn();
 
 vi.mock('@hooks/useAppActions', () => ({
   useAppActions: () => ({
     fetchSourceStatus: (...args: unknown[]) => fetchSourceStatus(...args),
     testSource: (...args: unknown[]) => testSource(...args),
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
+    fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
+    updateDsh: vi.fn(),
+    revertDsh: vi.fn(),
+    uninstallDsh: vi.fn(),
+    reinstallDsh: vi.fn(),
   }),
 }));
 

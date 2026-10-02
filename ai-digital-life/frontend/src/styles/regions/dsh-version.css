@@ -1,0 +1,130 @@
+/* ==========================================================================
+   Regions: DSH 设置组局部样式（设置面板「DSH」组）
+   --------------------------------------------------------------------------
+   - 下载源 / 代理设置 / 测试连接三块的控件宽度与结果态颜色
+   - 版本管理块的版本号值与版本操作按钮组
+   块头（恢复默认 + 主标题）样式由 settings.css 共享选择器组单点维护。
+   ========================================================================== */
+
+/* DSH 设置面板：块头（恢复默认 + 主标题）样式由 settings.css 的共享选择器组
+   （.adl-dsh-settings__header / --section / section gap）单点维护，此处只放
+   组内局部样式——行控件垂直居中见 settings.css `.adl-dsh-settings .adl-settings-row`。 */
+
+/* 右侧控件与下拉框同宽：下拉框定宽 160px（含 min-width 锁定意图），测试按钮同宽；
+   输入框保持现状（200px）不动。过长结果文案省略显示（复用共享
+   `.adl-settings-dropdown__value` 的省略规则），title 透出全文。 */
+.adl-dsh-settings .adl-settings-dropdown {
+  width: 160px;
+  min-width: 160px;
+}
+
+/* 测试连接按钮：复用下拉触发器视觉（灰底 radius-sm、hover 描边、直角），
+   文案（含测试中/结果态）在按钮内水平居中。 */
+.adl-dsh-settings__test-button {
+  width: 160px;
+  min-width: 160px;
+  justify-content: center;
+}
+
+.adl-dsh-settings__test-button .adl-settings-dropdown__value {
+  min-width: 0;
+  text-align: center;
+}
+
+.adl-dsh-settings__test-button .adl-settings-dropdown__value.is-success {
+  color: var(--pastel-success-fg);
+}
+
+.adl-dsh-settings__test-button .adl-settings-dropdown__value.is-error {
+  color: var(--pastel-danger-fg);
+}
+
+/* 版本管理块：当前版本行右侧「版本号 + 状态徽标 + 最新版本」纵向读数，
+   版本操作行右侧文字按钮组。按钮组右对齐、允许换行；窄档换行时左对齐。 */
+
+/* 版本读数（版本号/徽标 + 最新版本说明）纵向排列、右对齐。 */
+.adl-dsh-settings__version-readout {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.adl-dsh-settings__version-latest {
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+}
+
+.adl-app-welcome__version-value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--text-primary);
+}
+
+.adl-app-welcome__version-value.is-empty {
+  font-family: inherit;
+  color: var(--text-muted);
+}
+
+/* 版本操作行按钮组：右对齐、允许换行。 */
+.adl-dsh-settings__version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+/* 版本操作按钮：与其它设置块控件同构——常驻灰底、无边框线、radius-sm 近直角；
+   悬停时加边框线。 */
+.adl-dsh-settings__action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-dsh-settings__action-btn:hover:not(:disabled) {
+  background: var(--surface-hover);
+  /* 浅色下 bg-muted 与 surface-hover 同值，hover 全靠边框变化保证可见 */
+  border-color: var(--border-strong);
+}
+
+.adl-dsh-settings__action-btn:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-dsh-settings__action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-dsh-settings__action-btn--danger {
+  color: var(--danger);
+}
+
+.adl-dsh-settings__row-warn {
+  color: var(--warning) !important;
+}
+
+/* 窄档：操作行改为纵向堆叠时，按钮组左对齐（换行后不再贴右），按钮随内容宽。 */
+@container settings-content (max-width: 600px) {
+  .adl-dsh-settings__version-actions {
+    justify-content: flex-start;
+  }
+
+  .adl-dsh-settings__version-readout {
+    align-items: flex-start;
+  }
+}

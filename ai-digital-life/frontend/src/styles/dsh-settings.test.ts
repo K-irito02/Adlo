@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-const dshCss = readFileSync(new URL('./regions/dsh.css', import.meta.url), 'utf-8');
+const dshCss = readFileSync(new URL('./regions/dsh-version.css', import.meta.url), 'utf-8');
 const settingsCss = readFileSync(new URL('./components/settings.css', import.meta.url), 'utf-8');
 
 function ruleBody(css: string, selector: string): string | null {
@@ -30,7 +30,7 @@ describe('dsh settings styles (control widths + test button centering)', () => {
   });
 
   it('relies on the shared value class for result ellipsis (locks the dependency)', () => {
-    // 省略规则由 settings.css 共享类提供，dsh.css 不重复声明；此处锁定依赖不断。
+    // 省略规则由 settings.css 共享类提供，dsh-version.css 不重复声明；此处锁定依赖不断。
     const shared = ruleBody(settingsCss, '.adl-settings-dropdown__value');
     expect(shared).not.toBeNull();
     expect(shared).toContain('overflow: hidden');

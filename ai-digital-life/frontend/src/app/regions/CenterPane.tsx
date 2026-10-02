@@ -1,14 +1,14 @@
 import React, { useEffect } from 'react';
 import { useTCopy } from '../i18n/useTCopy';
 import { useAppStore } from '../stores/slicedStore';
-import { CenterBrowserView, CenterLauncherPage, CenterTerminalView } from '../features/center';
+import { CenterBrowserView, CenterEntryPage, CenterTerminalView } from '../features/center';
 
 /**
  * 中部主区域 — 中心标签视图调度器。
  *
  * 按 `centerTabs` / `centerActiveTabId` 分发当前活动中心标签：
  * browser → `CenterBrowserView`；terminal → `CenterTerminalView`；launcher →
- * `CenterLauncherPage`。dsh 已统一为普通浏览器中心标签（Task 15），不再有专属视图分支。
+ * `CenterEntryPage`。dsh 已统一为普通浏览器中心标签（Task 15），不再有专属视图分支。
  *
  * 首启不变量（spec §5）：`centerTabs` 为空时补齐一个 launcher，这是启动时唯一
  * 创建 launcher 的位置。
@@ -61,7 +61,7 @@ const CenterPane = React.memo(function CenterPane() {
       ) : active.kind === 'terminal' ? (
         <CenterTerminalView centerTabId={active.id} terminalTabId={active.refId} />
       ) : (
-        <CenterLauncherPage centerTabId={active.id} />
+        <CenterEntryPage centerTabId={active.id} />
       )}
     </section>
   );

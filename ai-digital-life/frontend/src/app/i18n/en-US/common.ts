@@ -125,7 +125,7 @@ export const commonEn = {
   clearAllOpenTabs: 'Clear all open tabs',
   deleteAllTabDirs: 'Delete all workspace and custom directory tabs (keep directory structure)',
   newTabPage: 'New tab page',
-  centerNewTab: 'New tab',
+  centerNewTab: 'New entry page',
   centerTabStripLabel: 'Center tabs',
   centerContentLabel: 'Center content',
   centerLauncherLabel: 'Center start page',

@@ -139,6 +139,7 @@ export {
   IconMonitor,
   IconGlobe,
   IconWorld,
+  IconDeepSeek,
   IconLangZh,
   IconLangEn,
   IconTerminal,

@@ -25,9 +25,9 @@ export const dshEn = {
   dshReinstallFailed: 'Failed to reinstall',
   dshOpenFailed: 'Failed to open',
   dshPortFreed: 'Port 3080 was occupied by a stale dsh process; it has been released and restarted',
-  centerLauncherOpenDsh: 'Open dsh',
-  centerLauncherOpenBrowser: 'Open browser welcome page',
-  centerLauncherOpenTerminal: 'Open terminal welcome page',
+  centerLauncherOpenDsh: 'Open deepseek harness',
+  centerLauncherOpenBrowser: 'Open browser',
+  centerLauncherOpenTerminal: 'Open terminal',
   dshSettingsSource: 'Download Source',
   dshSettingsSourceAuto: 'Auto Detect',
   dshSettingsSourceNpmjs: 'npmjs (Official)',
@@ -74,4 +74,13 @@ export const dshEn = {
   dshStatusMirror: 'Mirror: {name}',
   dshStatusMirrorNone: 'Mirror: Default',
   dshStatusRunning: 'Running: port {port}',
+  dshVersionManagement: 'Version management',
+  dshCurrentVersionLabel: 'Current version',
+  dshCurrentVersionDesc: 'The currently selected dsh version in use',
+  dshCurrentVersionHint:
+    'Shows the deepseek harness version you are using now, plus the newest version available from the download source. When a "New version available" badge appears, use "Version actions" below to upgrade in one click.',
+  dshVersionActions: 'Version actions',
+  dshVersionActionsDesc: 'Check for updates, upgrade, reinstall, uninstall, or switch versions',
+  dshVersionActionsHint:
+    'Manage deepseek harness versions here: "Check for updates" looks for a newer version; "Upgrade to latest" installs the newest version; "Reinstall" repairs the current version; "Uninstall version" removes it; and when several versions are installed, "Revert version" switches to an older one.',
 } as const;

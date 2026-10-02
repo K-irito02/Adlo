@@ -5,7 +5,7 @@ import { zhCN } from '../zh-CN/index';
 /**
  * 中心标签宿主（center tab host）实际引用的 `t.center*` key 集合。
  * 由 `rg "t\.center[A-Z]" src` 收集而来：
- * - CenterTabStrip / CenterLauncherPage / CenterPane 等中心区域代码
+ * - CenterTabStrip / CenterEntryPage / CenterPane 等中心区域代码
  * - 浏览器标签菜单与终端的「在中间部分显示」入口
  */
 const KEYS = [
