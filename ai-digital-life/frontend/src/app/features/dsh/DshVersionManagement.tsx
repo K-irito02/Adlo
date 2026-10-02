@@ -3,8 +3,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { Spinner } from '@components/Spinner';
-import { HintCardTrigger } from '@components/HintCard';
-import { IconCircleHelp } from '@icons';
+import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 
 /** 模拟版本发布时间线数据（按版本号从新到旧排列） */
 const MOCK_VERSION_TIMELINE: Record<string, string> = {
@@ -64,29 +63,14 @@ function TrashIcon() {
   );
 }
 
-/** 行内「?」提示说明图标按钮：悬停打开帮助卡，与其它设置块同构。 */
-function HintButton({ content }: { content: string }) {
-  return (
-    <HintCardTrigger content={content}>
-      <button
-        type="button"
-        className="adl-icon-button adl-icon-button--info"
-        tabIndex={-1}
-        aria-label={content}
-      >
-        <IconCircleHelp size={16} />
-      </button>
-    </HintCardTrigger>
-  );
-}
-
 /**
- * dsh 版本管理块（当前/最新版本行 + 版本操作行）。
+ * dsh 版本管理块（当前版本行 + 版本操作行）。
  *
  * 由设置面板「DSH」设置组的「版本管理」块承载：与下载源/代理/测试连接三块同构，
- * 块头（`SettingsHeader`）在卡外，块体为两个 `adl-settings-card`——第一张卡为
- * 「当前版本 / 最新版本」信息行，第二张卡为「版本操作」行（右侧文字按钮组：
- * 回退版本 / 检查更新 / 升级到最新版 / 重新安装 / 卸载版本）。
+ * 块头（`SettingsHeader`）在卡外，块体为一张 `adl-settings-card`（两行）——
+ * 「当前版本」行右侧为版本读数（版本号 + 状态徽标 + 最新可用版本），
+ * 「版本操作」行右侧为文字按钮组（回退版本 / 检查更新 / 升级到最新版 /
+ * 重新安装 / 卸载版本）。两行副标题左侧带行内「?」提示图标（`SettingsHintButton`）。
  *
  * 调用方契约：本组件只渲染行卡片，不自建页面地标，也不渲染块头。
  */
@@ -118,16 +102,22 @@ export function DshVersionManagement() {
   const isCurrentSelected = installed.includes(currentSelected ?? '') && currentSelected !== null;
   const hasMultipleVersions = installed.length > 1;
 
-  // 构建菜单排序：当前版本 → 已装(新→旧) → 未装(新→旧)
+  // 构建菜单排序：当前版本 → 已装(新→旧) → 未装的最新版
   const sortedVersions = (() => {
     const installedSet = new Set(installed);
     const current = currentSelected ? [currentSelected] : [];
     const installedOthers = installed.filter((v) => v !== currentSelected);
-    const notInstalled = [latestAvailable, ...installed]
-      .filter((v): v is string => !!v && !installedSet.has(v))
-      .filter((v, i, arr) => arr.indexOf(v) === i);
+    // 只有「最新可用版本」可能未安装：installed 的元素必然已在 installedSet 中。
+    const notInstalled =
+      latestAvailable && !installedSet.has(latestAvailable) ? [latestAvailable] : [];
     return [...current, ...installedOthers, ...notInstalled];
   })();
+
+  // 目标版本变化（切换/回退/卸载完成）时清除卸载确认态，避免残留的 danger 样式
+  // 指向新的当前版本。
+  useEffect(() => {
+    setUninstallConfirm(false);
+  }, [currentSelected]);
 
   // 点击外部关闭版本菜单
   useEffect(() => {
@@ -209,7 +199,11 @@ export function DshVersionManagement() {
     [actions, currentSelected, showToast, t],
   );
 
-  const handleUninstallVersion = useCallback(
+  /**
+   * 执行一次卸载：防重入守卫 + busy 状态 + 请求 + 成功/失败提示 + 清理。
+   * 三处卸载入口（版本菜单单项、当前版本、当前版本确认）共用，避免逻辑漂移。
+   */
+  const runUninstall = useCallback(
     async (version: string) => {
       if (uninstallingRef.current) {
         return;
@@ -252,40 +246,25 @@ export function DshVersionManagement() {
     }
   }, [actions, showToast, t]);
 
-  const handleUninstall = useCallback(async () => {
+  const handleUninstall = useCallback(() => {
     if (!currentSelected) {
       return;
     }
+    // 当前版本卸载需二次确认（danger 态），确认后走 handleConfirmUninstall。
     if (isCurrentSelected) {
       setUninstallConfirm(true);
       return;
     }
-    try {
-      const ok = await actions.uninstallDsh(currentSelected);
-      if (ok) {
-        showToast(t.dshUninstallSuccess.replace('{version}', currentSelected), 'success');
-      }
-    } catch {
-      // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
-      showToast(t.dshUninstallFailed, 'error');
-    }
-  }, [actions, currentSelected, isCurrentSelected, showToast, t]);
+    void runUninstall(currentSelected);
+  }, [currentSelected, isCurrentSelected, runUninstall]);
 
-  const handleConfirmUninstall = useCallback(async () => {
+  const handleConfirmUninstall = useCallback(() => {
     if (!currentSelected) {
       return;
     }
     setUninstallConfirm(false);
-    try {
-      const ok = await actions.uninstallDsh(currentSelected);
-      if (ok) {
-        showToast(t.dshUninstallSuccess.replace('{version}', currentSelected), 'success');
-      }
-    } catch {
-      // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
-      showToast(t.dshUninstallFailed, 'error');
-    }
-  }, [actions, currentSelected, showToast, t]);
+    void runUninstall(currentSelected);
+  }, [currentSelected, runUninstall]);
 
   useEffect(() => {
     void actions.fetchDshVersionStatus();
@@ -297,7 +276,7 @@ export function DshVersionManagement() {
       <div className="adl-settings-row" data-settings-row={t.dshCurrentVersionLabel}>
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
-            <HintButton content={t.dshCurrentVersionHint} />
+            <SettingsHintButton content={t.dshCurrentVersionHint} />
             <span>{t.dshCurrentVersionLabel}</span>
           </div>
           <small>{t.dshCurrentVersionDesc}</small>
@@ -305,18 +284,18 @@ export function DshVersionManagement() {
         <div className="adl-settings-row__control">
           <div className="adl-dsh-settings__version-readout">
             {currentSelected ? (
-              <span className="adl-app-welcome__version-value">
+              <span className="adl-dsh-settings__version-value">
                 {currentSelected}
                 {hasUpdate ? (
-                  <span className="adl-app-welcome__badge adl-app-welcome__badge--update">
+                  <span className="adl-dsh-settings__badge adl-dsh-settings__badge--update">
                     {t.dshHasUpdate}
                   </span>
                 ) : (
-                  <span className="adl-app-welcome__badge">{t.dshNoUpdate}</span>
+                  <span className="adl-dsh-settings__badge">{t.dshNoUpdate}</span>
                 )}
               </span>
             ) : (
-              <span className="adl-app-welcome__version-value is-empty">
+              <span className="adl-dsh-settings__version-value is-empty">
                 {t.dshStatusSystemNone}
               </span>
             )}
@@ -333,7 +312,7 @@ export function DshVersionManagement() {
       <div className="adl-settings-row" data-settings-row={t.dshVersionActions}>
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
-            <HintButton content={t.dshVersionActionsHint} />
+            <SettingsHintButton content={t.dshVersionActionsHint} />
             <span>{t.dshVersionActions}</span>
           </div>
           <small>{t.dshVersionActionsDesc}</small>
@@ -344,19 +323,19 @@ export function DshVersionManagement() {
         <div className="adl-settings-row__control adl-dsh-settings__version-actions">
           {/* 版本选择/回退（多版本时）：文字按钮 + 下拉菜单 */}
           {hasMultipleVersions ? (
-            <div className="adl-app-welcome__version-menu-anchor" ref={versionMenuRef}>
+            <div className="adl-dsh-settings__version-menu-anchor" ref={versionMenuRef}>
               <button
                 type="button"
                 className="adl-dsh-settings__action-btn"
                 onClick={() => setShowVersionMenu((v) => !v)}
                 disabled={reverting}
-                aria-label={t.dshRevertHint}
+                title={t.dshRevertHint}
               >
                 {reverting ? <Spinner size="sm" speed="normal" /> : t.dshRevert}
               </button>
               {showVersionMenu ? (
-                <div className="adl-app-welcome__version-menu">
-                  <div className="adl-app-welcome__version-menu-list">
+                <div className="adl-dsh-settings__version-menu">
+                  <div className="adl-dsh-settings__version-menu-list">
                     {sortedVersions.map((v) => {
                       const isCurrent = v === currentSelected;
                       const isInstalled = installed.includes(v);
@@ -365,36 +344,36 @@ export function DshVersionManagement() {
                         <button
                           key={v}
                           type="button"
-                          className={`adl-app-welcome__version-menu-item${isCurrent ? ' adl-app-welcome__version-menu-item--current' : ''}`}
+                          className={`adl-dsh-settings__version-menu-item${isCurrent ? ' adl-dsh-settings__version-menu-item--current' : ''}`}
                           onClick={() => void handleRevertToVersion(v)}
                           disabled={isCurrent || reverting}
                         >
-                          <div className="adl-app-welcome__version-menu-item-info">
-                            <span className="adl-app-welcome__version-menu-item-version">{v}</span>
+                          <div className="adl-dsh-settings__version-menu-item-info">
+                            <span className="adl-dsh-settings__version-menu-item-version">{v}</span>
                             {time ? (
-                              <span className="adl-app-welcome__version-menu-item-time">
+                              <span className="adl-dsh-settings__version-menu-item-time">
                                 {time}
                               </span>
                             ) : null}
                           </div>
-                          <div className="adl-app-welcome__version-menu-item-badges">
+                          <div className="adl-dsh-settings__version-menu-item-badges">
                             {isInstalled ? (
-                              <span className="adl-app-welcome__version-menu-item-installed">
+                              <span className="adl-dsh-settings__version-menu-item-installed">
                                 {t.dshInstalledVersions}
                               </span>
                             ) : null}
                             {isCurrent ? (
-                              <span className="adl-app-welcome__version-menu-item-check">
+                              <span className="adl-dsh-settings__version-menu-item-check">
                                 <CheckIcon />
                               </span>
                             ) : null}
                             {isInstalled && !isCurrent ? (
                               <button
                                 type="button"
-                                className="adl-app-welcome__version-menu-item-uninstall"
+                                className="adl-dsh-settings__version-menu-item-uninstall"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  void handleUninstallVersion(v);
+                                  void runUninstall(v);
                                 }}
                                 disabled={uninstallingVersion === v}
                                 title={t.dshUninstall}
@@ -456,8 +435,13 @@ export function DshVersionManagement() {
                 uninstallConfirm ? ' adl-dsh-settings__action-btn--danger' : ''
               }`}
               onClick={uninstallConfirm ? handleConfirmUninstall : handleUninstall}
+              disabled={uninstallingVersion === currentSelected}
             >
-              {t.dshUninstall}
+              {uninstallingVersion === currentSelected ? (
+                <Spinner size="sm" speed="normal" />
+              ) : (
+                t.dshUninstall
+              )}
             </button>
           ) : null}
         </div>

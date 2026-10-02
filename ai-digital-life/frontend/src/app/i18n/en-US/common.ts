@@ -128,7 +128,7 @@ export const commonEn = {
   centerNewTab: 'New entry page',
   centerTabStripLabel: 'Center tabs',
   centerContentLabel: 'Center content',
-  centerLauncherLabel: 'Center start page',
+  centerLauncherLabel: 'Center entry page',
   centerBrowserTabMissing: 'Browser tab unavailable',
   centerTabShowInBrowserPanel: 'Show in browser panel',
   centerTabShowInTerminalPanel: 'Show in terminal panel',

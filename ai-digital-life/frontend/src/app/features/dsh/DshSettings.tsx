@@ -5,11 +5,10 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { executeDshResetPlan, NPMJS_URL } from '@shared/settings-reset/dshReset';
 import { SettingsHeader } from '../../components/settings/SettingsHeader';
+import { SettingsHintButton } from '@components/settings/SettingsHintButton';
 import { DshVersionManagement } from './DshVersionManagement';
 import { SettingsSelect } from '../../components/settings/SettingsSelect';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
-import { HintCardTrigger } from '../../components/HintCard';
-import { IconCircleHelp } from '../../icons/status';
 import { IconResetDefaults } from '../../icons';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 import type { DshSourceConfig } from '../../../shared/ipc/dsh';
@@ -22,6 +21,15 @@ const NPMMIRROR_URL = 'https://registry.npmmirror.com';
 const AUTOSAVE_DELAY_MS = 500;
 /** 测试结果在按钮内的展示时长，到时恢复按钮文案。 */
 const TEST_RESULT_MS = 2000;
+
+/** 无恢复按钮的块头占位图标：与带恢复按钮的块头左对齐（仅装饰、不可交互）。 */
+function StaticResetSpacer() {
+  return (
+    <span className="adl-settings-row__reset adl-settings-row__reset--static" aria-hidden="true">
+      <IconResetDefaults size={14} decorative />
+    </span>
+  );
+}
 
 /**
  * 「DSH」设置组：下载源 / 代理设置 / 测试连接 / 版本管理四块，与浏览器/存储组同构——
@@ -591,19 +599,6 @@ export function DshSettings() {
   const proxyResetDisabled = proxyAtDefault;
   const testDisabled = testing || (sourceType === 'custom' && !customUrl.trim());
 
-  const hintButton = (content: string) => (
-    <HintCardTrigger content={content}>
-      <button
-        type="button"
-        className="adl-icon-button adl-icon-button--info"
-        tabIndex={-1}
-        aria-label={content}
-      >
-        <IconCircleHelp size={16} />
-      </button>
-    </HintCardTrigger>
-  );
-
   return (
     <div className="adl-settings-section adl-dsh-settings">
       <div className="adl-dsh-settings__header" data-settings-anchor={anchorFor('dsh', 'source')}>
@@ -624,7 +619,7 @@ export function DshSettings() {
         <div className="adl-settings-row" data-settings-row={t.dshSettingsSource}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
-              {hintButton(t.dshSettingsSourceHint)}
+              <SettingsHintButton content={t.dshSettingsSourceHint} />
               <span>{t.dshSettingsSource}</span>
             </div>
             <small>{t.dshSettingsSourceDesc}</small>
@@ -681,7 +676,7 @@ export function DshSettings() {
         <div className="adl-settings-row" data-settings-row={t.dshSettingsProxyMode}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
-              {hintButton(t.dshSettingsProxyHint)}
+              <SettingsHintButton content={t.dshSettingsProxyHint} />
               <span>{t.dshSettingsProxyMode}</span>
             </div>
             <small>{t.dshSettingsProxyDesc}</small>
@@ -746,19 +741,14 @@ export function DshSettings() {
         className="adl-dsh-settings__header adl-dsh-settings__header--section"
         data-settings-anchor={anchorFor('dsh', 'test')}
       >
-        <span
-          className="adl-settings-row__reset adl-settings-row__reset--static"
-          aria-hidden="true"
-        >
-          <IconResetDefaults size={14} decorative />
-        </span>
+        <StaticResetSpacer />
         <SettingsHeader title={t.dshSettingsTestConnection} />
       </div>
       <div className="adl-settings-card">
         <div className="adl-settings-row" data-settings-row={t.dshSettingsTestLabel}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
-              {hintButton(t.dshSettingsTestHint)}
+              <SettingsHintButton content={t.dshSettingsTestHint} />
               <span>{t.dshSettingsTestLabel}</span>
             </div>
             <small>{t.dshSettingsTestDesc}</small>
@@ -790,12 +780,7 @@ export function DshSettings() {
         className="adl-dsh-settings__header adl-dsh-settings__header--section"
         data-settings-anchor={anchorFor('dsh', 'version')}
       >
-        <span
-          className="adl-settings-row__reset adl-settings-row__reset--static"
-          aria-hidden="true"
-        >
-          <IconResetDefaults size={14} decorative />
-        </span>
+        <StaticResetSpacer />
         <SettingsHeader title={t.dshVersionManagement} />
       </div>
       <DshVersionManagement />

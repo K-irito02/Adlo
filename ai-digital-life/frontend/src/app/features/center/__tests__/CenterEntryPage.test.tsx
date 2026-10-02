@@ -9,13 +9,14 @@ import type { CopyDict } from '@i18n/types';
 // 新建入口页只渲染三入口（dsh 版本管理已移入设置面板「DSH」组）。
 
 const t = {
-  dshTitle: 'DeepSeek Harness',
-  centerLauncherLabel: '中心起始页',
+  centerLauncherLabel: '中心入口页',
   centerContentLabel: '中心内容区',
   centerBrowserTabMissing: '浏览器标签不可用',
   centerLauncherOpenDsh: '打开 deepseek harness',
   centerLauncherOpenBrowser: '打开浏览器',
   centerLauncherOpenTerminal: '打开终端',
+  dshPortFreed: '端口已释放并重新启动',
+  dshOpenFailed: '打开失败',
 } as unknown as CopyDict;
 
 function renderLauncher(centerTabId = 'c1') {
@@ -34,6 +35,8 @@ beforeEach(() => {
     browserTabsById: {},
     browserActiveTabId: '',
     isOpen: false,
+    errorToasts: [],
+    toasts: [],
   });
 });
 
@@ -51,8 +54,8 @@ describe('CenterEntryPage', () => {
   });
 
   it('三入口按钮带图标（图标 + 名称）', () => {
-    const { container } = renderLauncher();
-    const buttons = container.querySelectorAll('.adl-launcher-entry');
+    renderLauncher();
+    const buttons = screen.getAllByRole('button');
     expect(buttons).toHaveLength(3);
     for (const button of buttons) {
       expect(button.querySelector('svg')).toBeTruthy();
@@ -61,7 +64,7 @@ describe('CenterEntryPage', () => {
 
   it('渲染带 aria-label 的 section 地标', () => {
     renderLauncher();
-    expect(screen.getByRole('region', { name: '中心起始页' })).toBeTruthy();
+    expect(screen.getByRole('region', { name: '中心入口页' })).toBeTruthy();
   });
 
   it('点击「打开浏览器」就地转换当前 launcher 为浏览器中心标签', () => {
@@ -108,6 +111,56 @@ describe('CenterEntryPage', () => {
     expect(dshTab).toBeTruthy();
     expect(dshTab?.location).toBe('center');
     expect(s.centerTabs.some((c) => c.kind === 'browser' && c.refId === dshTab?.id)).toBe(true);
+  });
+
+  it('freedPort=true 时报 DSH_FREED_PORT 信息卡并移除入口页标签', async () => {
+    const open = vi.fn(async () => ({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: true },
+    }));
+    (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
+
+    renderLauncher();
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
+
+    await vi.waitFor(() => {
+      expect(
+        useAppStore
+          .getState()
+          .errorToasts.some((e) => e.code === 'DSH_FREED_PORT' && e.scope === 'dsh'),
+      ).toBe(true);
+    });
+    await vi.waitFor(() =>
+      expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(false),
+    );
+  });
+
+  it('openDsh 失败（返回 null）时保留入口页标签', async () => {
+    const open = vi.fn(async () => ({ ok: false, error: { code: 'X', message: 'fail' } }));
+    (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
+
+    renderLauncher();
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
+
+    await vi.waitFor(() => expect(open).toHaveBeenCalledTimes(1));
+    // 失败分支不创建标签、不移除入口页（等微任务排空后断言）。
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(true);
+    expect(useAppStore.getState().browserTabs).toHaveLength(0);
+  });
+
+  it('openDsh 抛异常时弹出「打开失败」提示', async () => {
+    const open = vi.fn(async () => {
+      throw new Error('boom');
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
+    const showToast = vi.fn();
+    useAppStore.setState({ showToast });
+
+    renderLauncher();
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
+
+    await vi.waitFor(() => expect(showToast).toHaveBeenCalledWith('打开失败', 'error'));
   });
 });
 

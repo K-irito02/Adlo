@@ -1,6 +1,4 @@
 export const dshZh = {
-  dshTitle: 'DeepSeek Harness',
-  dshVersion: '当前版本：{version}',
   dshLatest: '最新版本：{version}',
   dshHasUpdate: '发现新版本',
   dshNoUpdate: '已是最新版本',
@@ -11,10 +9,7 @@ export const dshZh = {
   dshRevertedTo: '已回退到 {version}',
   dshUninstall: '卸载版本',
   dshReinstall: '重新安装',
-  dshReinstallHint: '重新安装当前版本',
-  dshRestart: '重新启动',
   dshInstalledVersions: '已装版本',
-  dshOpenExternal: '在外部浏览器打开',
   dshUninstallCurrentHint: '该版本为当前选中版本，卸载后需重装或切换其他版本后再使用',
   dshUninstallSuccess: '已卸载版本 {version}',
   dshCheckUpdateFailed: '检查更新失败',

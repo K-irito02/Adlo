@@ -25,14 +25,27 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
   const browserSetLocation = useAppStore((s) => s.browserSetLocation);
   const centerUpdateTab = useAppStore((s) => s.centerUpdateTab);
   const centerRemoveTab = useAppStore((s) => s.centerRemoveTab);
+  const reportError = useAppStore((s) => s.reportError);
+  const showToast = useAppStore((s) => s.showToast);
 
   const handleOpenDsh = useCallback(async () => {
-    const result = await openDsh();
-    if (result) {
-      // openDsh 已创建并激活 dsh 浏览器中心标签；移除 launcher 以免其抢占视图。
+    try {
+      const result = await openDsh();
+      if (!result) {
+        // openDsh 失败时已由 action 记录全局错误卡片，此处不重复提示。
+        return;
+      }
+      // 固定 3080 端口被残留 dsh 占用时后端自动释放并重启 → 右下角 info 卡片告知。
+      if (result.freedPort) {
+        reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
+      }
+      // openDsh 已创建并激活 dsh 浏览器中心标签；移除入口页标签以免其抢占视图。
       centerRemoveTab(centerTabId);
+    } catch {
+      // 意外异常兜底；常规失败（openDsh 返回 null）已由 action 记录全局错误卡片。
+      showToast(t.dshOpenFailed, 'error');
     }
-  }, [openDsh, centerRemoveTab, centerTabId]);
+  }, [openDsh, reportError, showToast, centerRemoveTab, centerTabId, t]);
 
   const handleOpenBrowser = useCallback(() => {
     browserOpenTab();
@@ -53,32 +66,17 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
   }, [centerUpdateTab, centerTabId]);
 
   return (
-    <section className="adl-app-welcome" aria-label={t.centerLauncherLabel}>
+    <section className="adl-center-entry" aria-label={t.centerLauncherLabel}>
       <div className="adl-launcher-entries">
-        <button
-          type="button"
-          className="adl-launcher-entry"
-          aria-label={t.centerLauncherOpenDsh}
-          onClick={handleOpenDsh}
-        >
+        <button type="button" className="adl-launcher-entry" onClick={handleOpenDsh}>
           <IconDeepSeek size={16} decorative />
           <span>{t.centerLauncherOpenDsh}</span>
         </button>
-        <button
-          type="button"
-          className="adl-launcher-entry"
-          aria-label={t.centerLauncherOpenBrowser}
-          onClick={handleOpenBrowser}
-        >
+        <button type="button" className="adl-launcher-entry" onClick={handleOpenBrowser}>
           <IconGlobe size={16} decorative />
           <span>{t.centerLauncherOpenBrowser}</span>
         </button>
-        <button
-          type="button"
-          className="adl-launcher-entry"
-          aria-label={t.centerLauncherOpenTerminal}
-          onClick={handleOpenTerminal}
-        >
+        <button type="button" className="adl-launcher-entry" onClick={handleOpenTerminal}>
           <IconTerminal size={16} decorative />
           <span>{t.centerLauncherOpenTerminal}</span>
         </button>

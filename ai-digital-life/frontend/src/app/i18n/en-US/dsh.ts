@@ -1,6 +1,4 @@
 export const dshEn = {
-  dshTitle: 'DeepSeek Harness',
-  dshVersion: 'Current version: {version}',
   dshLatest: 'Latest version: {version}',
   dshHasUpdate: 'New version available',
   dshNoUpdate: 'Up to date',
@@ -11,10 +9,7 @@ export const dshEn = {
   dshRevertedTo: 'Reverted to {version}',
   dshUninstall: 'Uninstall version',
   dshReinstall: 'Reinstall',
-  dshReinstallHint: 'Reinstall current version',
-  dshRestart: 'Restart',
   dshInstalledVersions: 'Installed versions',
-  dshOpenExternal: 'Open in external browser',
   dshUninstallCurrentHint:
     'This is the currently selected version. After uninstalling, reinstall it or switch to another version before use',
   dshUninstallSuccess: 'Uninstalled version {version}',

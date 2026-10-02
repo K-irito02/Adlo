@@ -138,7 +138,7 @@ export const commonZh = {
   centerNewTab: '新建入口页',
   centerTabStripLabel: '中心标签页',
   centerContentLabel: '中心内容区',
-  centerLauncherLabel: '中心起始页',
+  centerLauncherLabel: '中心入口页',
   centerBrowserTabMissing: '浏览器标签不可用',
   centerTabShowInBrowserPanel: '在浏览器面板显示',
   centerTabShowInTerminalPanel: '在终端面板显示',

@@ -542,7 +542,7 @@ describe('storage group reset dialog + dirty bar styles (2026-09-27 decisions)',
   it('confirm dialog footer wraps so 3-button EN labels stay inside the dialog', () => {
     // 回归：英文 "Cancel + Migrate on next launch + Migrate now and restart"
     // 三键单行总宽超 400px 旧框内宽，按钮溢出到框外。footer 必须换行收进容器。
-    // 兼容性已确认：通用两键框与 dsh-version.css `--stacked` 变体（按钮 width: 100%）不受影响。
+    // 兼容性已确认：通用两键框不受影响（原 dsh 堆叠页脚变体已随 dsh.css 作为死代码删除）。
     const footer = ruleBody(contextMenuCss, '.adl-confirm-dialog__footer');
     expect(footer).not.toBeNull();
     expect(footer).toContain('flex-wrap: wrap');

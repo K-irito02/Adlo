@@ -11,6 +11,8 @@ const fetchSourceStatus = vi.fn();
 const testSource = vi.fn();
 const saveSourceConfig = vi.fn();
 // 版本管理块（DshVersionManagement）挂载即拉取版本状态：静默桩。
+// update/revert/uninstall/reinstall 仅由点击处理器调用（本套件不触发），
+// 保留以维持 useAppActions mock 形状完整。
 const fetchDshVersionStatus = vi.fn();
 const updateDsh = vi.fn();
 const revertDsh = vi.fn();
@@ -118,10 +120,10 @@ describe('DshSettings', () => {
     expect(
       headers[3]?.querySelector('span.adl-settings-row__reset--static[aria-hidden="true"]'),
     ).not.toBeNull();
-    // 版本操作行渲染文字按钮（非图标按钮），且带行内提示说明图标。
+    // 版本操作行渲染文字按钮（设置组操作按钮样式）且带行内提示说明图标。
     const versionRow = root?.querySelector('[data-settings-row="dshVersionActions"]');
     expect(versionRow).not.toBeNull();
-    expect(versionRow?.querySelector('.adl-btn--icon')).toBeNull();
+    expect(versionRow?.querySelector('.adl-dsh-settings__action-btn')).not.toBeNull();
     expect(versionRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
     const currentRow = root?.querySelector('[data-settings-row="dshCurrentVersionLabel"]');
     expect(currentRow?.querySelector('.adl-icon-button--info')).not.toBeNull();

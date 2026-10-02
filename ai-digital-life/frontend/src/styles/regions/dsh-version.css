@@ -2,7 +2,7 @@
    Regions: DSH 设置组局部样式（设置面板「DSH」组）
    --------------------------------------------------------------------------
    - 下载源 / 代理设置 / 测试连接三块的控件宽度与结果态颜色
-   - 版本管理块的版本号值与版本操作按钮组
+   - 版本管理块：版本读数（版本号/徽标/最新版本）、版本操作按钮组、版本下拉菜单
    块头（恢复默认 + 主标题）样式由 settings.css 共享选择器组单点维护。
    ========================================================================== */
 
@@ -39,10 +39,9 @@
   color: var(--pastel-danger-fg);
 }
 
-/* 版本管理块：当前版本行右侧「版本号 + 状态徽标 + 最新版本」纵向读数，
-   版本操作行右侧文字按钮组。按钮组右对齐、允许换行；窄档换行时左对齐。 */
+/* -------- 版本管理块 -------- */
 
-/* 版本读数（版本号/徽标 + 最新版本说明）纵向排列、右对齐。 */
+/* 当前版本行右侧「版本号 + 状态徽标 + 最新版本」纵向读数。 */
 .adl-dsh-settings__version-readout {
   display: flex;
   flex-direction: column;
@@ -55,7 +54,7 @@
   font-size: var(--text-xs);
 }
 
-.adl-app-welcome__version-value {
+.adl-dsh-settings__version-value {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -64,9 +63,29 @@
   color: var(--text-primary);
 }
 
-.adl-app-welcome__version-value.is-empty {
+.adl-dsh-settings__version-value.is-empty {
   font-family: inherit;
   color: var(--text-muted);
+}
+
+/* 状态徽标（已是最新 / 发现新版本）——无边框。 */
+.adl-dsh-settings__badge {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-0-5) var(--space-2);
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: var(--font-semibold);
+  letter-spacing: var(--tracking-wide);
+  line-height: var(--leading-none);
+  min-height: 20px;
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.adl-dsh-settings__badge--update {
+  background: var(--warning-soft);
+  color: var(--warning);
 }
 
 /* 版本操作行按钮组：右对齐、允许换行。 */
@@ -83,7 +102,6 @@
 .adl-dsh-settings__action-btn {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
   background: var(--bg-muted);
   border: 1px solid transparent;
@@ -114,17 +132,162 @@
   color: var(--danger);
 }
 
-.adl-dsh-settings__row-warn {
-  color: var(--warning) !important;
+/* 卸载确认警告文案：`.adl-settings-row__label small`（0-1-1）会覆盖颜色，
+   用复合选择器（0-2-1）提权，避免 !important（同 settings.css 状态 pill 约定）。 */
+.adl-settings-row__label small.adl-dsh-settings__row-warn {
+  color: var(--warning);
 }
 
-/* 窄档：操作行改为纵向堆叠时，按钮组左对齐（换行后不再贴右），按钮随内容宽。 */
+/* 版本下拉菜单：锚点相对定位，菜单绝对定位在按钮下方右对齐。 */
+.adl-dsh-settings__version-menu-anchor {
+  position: relative;
+}
+
+.adl-dsh-settings__version-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: var(--z-overlay);
+  min-width: 280px;
+  max-width: 340px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.adl-dsh-settings__version-menu-list {
+  max-height: 280px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-default) transparent;
+  padding: var(--space-1) 0;
+}
+
+.adl-dsh-settings__version-menu-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.adl-dsh-settings__version-menu-list::-webkit-scrollbar-thumb {
+  background: var(--border-default);
+  border-radius: 3px;
+}
+
+.adl-dsh-settings__version-menu-list::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+.adl-dsh-settings__version-menu-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.adl-dsh-settings__version-menu-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  text-align: left;
+  cursor: pointer;
+  transition: background 120ms;
+}
+
+.adl-dsh-settings__version-menu-item:hover {
+  background: var(--bg-hover);
+}
+
+.adl-dsh-settings__version-menu-item--current {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.adl-dsh-settings__version-menu-item-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.adl-dsh-settings__version-menu-item-version {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+}
+
+.adl-dsh-settings__version-menu-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.adl-dsh-settings__version-menu-item-badges {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+.adl-dsh-settings__version-menu-item-check {
+  width: 16px;
+  height: 16px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.adl-dsh-settings__version-menu-item-installed {
+  padding: 1px 6px;
+  border-radius: var(--radius-full);
+  font-size: 10px;
+  font-weight: var(--font-semibold);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.adl-dsh-settings__version-menu-item-uninstall {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--theme-transition);
+}
+
+.adl-dsh-settings__version-menu-item-uninstall:hover:not(:disabled) {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.adl-dsh-settings__version-menu-item-uninstall:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.adl-dsh-settings__version-menu-item-uninstall svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 窄档：操作行改为纵向堆叠时，按钮组左对齐（换行后不再贴右），读数同档左对齐。
+   用 `.adl-settings-panel__content` 前缀提权（与本组 160px 解锁同约定），不依赖
+   跨样式表导入顺序。 */
 @container settings-content (max-width: 600px) {
-  .adl-dsh-settings__version-actions {
+  .adl-settings-panel__content .adl-dsh-settings__version-actions {
     justify-content: flex-start;
   }
 
-  .adl-dsh-settings__version-readout {
+  .adl-settings-panel__content .adl-dsh-settings__version-readout {
     align-items: flex-start;
   }
 }
