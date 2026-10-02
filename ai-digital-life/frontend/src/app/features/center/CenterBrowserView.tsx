@@ -258,12 +258,14 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   });
 
   const handleBookmarkClick = useCallback(() => {
-    const tab = useAppStore.getState().browserTabsById[browserTabId];
-    if (!tab?.url) {
+    // 与 `handleOpenBookmarkDialog` 使用**同一**渲染期快照（activeTab）：守卫读
+    // getState 最新值、流程用快照，导航瞬间会出现单帧错位（守卫放行的是新 tab、
+    // 流程落盘的是旧 tab）。快照口径下单帧内自洽。
+    if (!activeTab?.url) {
       return;
     }
     handleOpenBookmarkDialog();
-  }, [handleOpenBookmarkDialog, browserTabId]);
+  }, [handleOpenBookmarkDialog, activeTab?.url]);
 
   const handleIframeLoad = useCallback(() => {
     setIframeLoadError(false);

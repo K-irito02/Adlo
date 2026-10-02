@@ -26,10 +26,21 @@ export function isObscuredByPanelOverlay(shellBody: Element | null): boolean {
  *
  * 检测走 MutationObserver：浮层态是 DOM 类名切换（非 React 状态），没有可订阅的
  * React 数据源。浏览器模式无原生子窗口，本结果不被消费（保持同一判定口径即可）。
+ *
+ * **生命周期假设**：本 hook 挂载于 `CenterBrowserView`，其宿主链位于 shell body
+ * 内部 —— hook 的存活期 ≤ shell body 节点的存活期，故 effect 内 `querySelector`
+ * 为 null / observer 挂到 detached 节点的情形在生产中不可达（无重试/兜底是有意
+ * 取舍；若未来 shell body 改为可整树替换的结构，此处需改为文档级 subtree 订阅）。
+ *
+ * **已知残留竞态**（注释如实声明，未根治）：持久化 `rightPanelMode` 为 overlay 的
+ * 冷启动中，本 effect 与 `syncOverlayClasses` 的类名写入同为兄弟 effect、顺序不保证
+ * —— 首帧初值与 sync 都可能读到"类名尚未写入"的 false，中心 WebView 可能按可见
+ * 创建一帧（创建 IPC 异步，实际闪帧概率极低）。根治需把浮层态提升为 store 状态
+ * （MutationObserver 仅作过渡），或 `syncOverlayClasses` 改 useLayoutEffect。
  */
 export function useCenterObscured(): boolean {
-  // 惰性初值直接读一次 DOM：若挂载时面板**已经**处于浮层态，首帧为 false 会让中心
-  // WebView 先按“未遮挡”摆回画面、下一帧才被隐藏 → 闪过一帧原生表面。
+  // 惰性初值直接读一次 DOM：消除「挂载时面板**已经**处于浮层态」场景的首帧闪现
+  // （冷启动同 commit 类名未写的残留竞态见上方 docstring，未根治）。
   const [obscured, setObscured] = useState(() =>
     typeof document === 'undefined'
       ? false

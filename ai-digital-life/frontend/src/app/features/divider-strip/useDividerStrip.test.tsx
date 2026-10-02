@@ -103,7 +103,7 @@ function navigatorCollapsedFor(browser: boolean) {
   };
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   vi.clearAllMocks();
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     browser: {
@@ -124,6 +124,8 @@ beforeEach(() => {
     centerTabs: [],
     centerActiveTabId: '',
   });
+  // 显隐收紧后要求面板活动 tab 承载可见原生 WebView（已入池）：默认场景注册 b1。
+  await browserPool.createForTab('b1', 'https://x.test');
 });
 
 afterEach(() => {
@@ -142,6 +144,41 @@ describe('useDividerStrip 显隐口径', () => {
     renderStrip();
     await waitFor(() => expect(stripHide).toHaveBeenCalled());
     expect(stripShow).not.toHaveBeenCalled();
+  });
+
+  it('导航器收起但面板活动 tab 为生命周期页（未入池）时不展示（命中带未被 WebView 盖住）', async () => {
+    // panelWebViewAtBoundary 不能只看导航器收起这一几何代理：生命周期页的
+    // WebView 已被 useWebViewLifecycle 移出画面，DOM 命中带可命中，无需条带。
+    useAppStore.setState({
+      browserActiveTabId: 'blank',
+      browserTabs: [tab, { ...tab, id: 'blank', url: '' }],
+      browserTabsById: { b1: tab, blank: { ...tab, id: 'blank', url: '' } },
+    });
+    renderStrip();
+    await waitFor(() => expect(stripHide).toHaveBeenCalled());
+    expect(stripShow).not.toHaveBeenCalled();
+  });
+
+  it('show IPC 失败时复位状态并告警，下一轮 reconcile 重试 show（不滞留死状态）', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stripShow.mockRejectedValueOnce(new Error('ipc fail'));
+    const panelRef = makePanelRef();
+    const options = makeOptions(panelRef);
+    const { rerender } = renderHook((p: StripOptions) => useDividerStrip(p), {
+      initialProps: options,
+      wrapper,
+    });
+    // 挂载期两个 reconcile effect（visible/generation 与几何）都会跑：第 1 次 show
+    // 失败 → warn + shownRef 复位；第 2 次重试成功（mock 仅首个 reject）。
+    await act(async () => {});
+    expect(warnSpy).toHaveBeenCalledWith('[divider-strip] show failed:', expect.any(Error));
+    expect(stripShow).toHaveBeenCalledTimes(2);
+
+    // shownRef 已为真：后续几何变化只走 setBounds，不得再次 show（不放大为重建）。
+    rerender({ ...options, rightPanelMode: 'overlay_partial' });
+    await waitFor(() => expect(stripSetBounds).toHaveBeenCalled());
+    expect(stripShow).toHaveBeenCalledTimes(2);
+    warnSpy.mockRestore();
   });
 
   it('显隐只看面板侧：导航器展开时不展示，收起后同一中心状态才展示', async () => {

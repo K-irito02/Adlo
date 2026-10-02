@@ -57,7 +57,7 @@ export function BookmarkToFolderDialogs({
       <RenameDialog
         open={createDirDialog.open}
         initialValue=""
-        title={t.browserCreateDir as string}
+        title={t.browserCreateDir}
         onConfirm={(name) => {
           const parentPath = createDirDialog.parentPath;
           if (parentPath?.startsWith('folder:')) {

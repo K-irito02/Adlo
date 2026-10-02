@@ -6,6 +6,7 @@ import {
   shouldShowStrip,
   stripGenerationKey,
   applyStripDelta,
+  isLiveBrowserWebView,
   resolveCenterWebView,
 } from './dividerStripLogic';
 
@@ -42,6 +43,7 @@ describe('shouldShowStrip', () => {
     startupHidden: true,
     browserToolVisible: true,
     hasBrowserTabs: true,
+    domOverlayActive: false,
   };
 
   it('shows when the panel webview sits on the boundary hit band (navigator collapsed)', () => {
@@ -54,8 +56,27 @@ describe('shouldShowStrip', () => {
     ['startupHidden', { ...base, startupHidden: false }],
     ['browserToolVisible', { ...base, browserToolVisible: false }],
     ['hasBrowserTabs', { ...base, hasBrowserTabs: false }],
-  ])('hides when %s is off', (_name, input) => {
+    ['domOverlayActive', { ...base, domOverlayActive: true }],
+  ])('hides when %s is on/off', (_name, input) => {
     expect(shouldShowStrip(input)).toBe(false);
+  });
+});
+
+describe('isLiveBrowserWebView', () => {
+  const pool = (ids: string[]) => (tabId: string) => ids.includes(tabId);
+
+  it('有 URL、非 about:blank 且已入池时判定为活跃', () => {
+    expect(isLiveBrowserWebView('b1', { b1: { url: 'https://x.test' } }, pool(['b1']))).toBe(true);
+  });
+
+  it.each([
+    ['tabId 为空', '', { b1: { url: 'https://x.test' } }, ['b1']],
+    ['URL 为空', 'b1', { b1: { url: '' } }, ['b1']],
+    ['URL 为 about:blank', 'b1', { b1: { url: 'about:blank' } }, ['b1']],
+    ['未入池（无原生 WebView）', 'b1', { b1: { url: 'https://x.test' } }, []],
+    ['标签悬空', 'missing', { b1: { url: 'https://x.test' } }, ['b1']],
+  ])('非活跃：%s', (_name, tabId, tabsById, poolIds) => {
+    expect(isLiveBrowserWebView(tabId, tabsById, pool(poolIds as string[]))).toBe(false);
   });
 });
 
@@ -71,7 +92,7 @@ describe('resolveCenterWebView', () => {
         browserTabsById: { b1: { url: 'http://localhost:3080' } },
         isTabInPool: pool(['b1']),
       }),
-    ).toEqual({ active: true, tabId: 'b1', url: 'http://localhost:3080' });
+    ).toEqual({ active: true, tabId: 'b1' });
   });
 
   it('非 openDsh 路径（本地端口等任意网址）同样判定为活跃', () => {
@@ -119,7 +140,7 @@ describe('resolveCenterWebView', () => {
         browserTabsById,
         isTabInPool: pool(poolIds as string[]),
       }),
-    ).toEqual({ active: false, tabId: '', url: '' });
+    ).toEqual({ active: false, tabId: '' });
   });
 });
 
@@ -127,14 +148,12 @@ describe('stripGenerationKey', () => {
   it('changes when any sibling-ordering signal changes', () => {
     const base = {
       centerTabId: 'b1',
-      centerUrl: 'http://u',
       activeTabId: 't1',
       tabCount: 2,
       siblingNonce: 0,
     };
     const key = stripGenerationKey(base);
     expect(stripGenerationKey({ ...base, centerTabId: 'b2' })).not.toBe(key);
-    expect(stripGenerationKey({ ...base, centerUrl: 'http://v' })).not.toBe(key);
     expect(stripGenerationKey({ ...base, activeTabId: 't2' })).not.toBe(key);
     expect(stripGenerationKey({ ...base, tabCount: 3 })).not.toBe(key);
     expect(stripGenerationKey({ ...base, siblingNonce: 1 })).not.toBe(key);
@@ -144,14 +163,12 @@ describe('stripGenerationKey', () => {
   it('does not collide when values contain separators', () => {
     const a = stripGenerationKey({
       centerTabId: 'b1',
-      centerUrl: 'http://u|x',
       activeTabId: 't1',
       tabCount: 2,
       siblingNonce: 0,
     });
     const b = stripGenerationKey({
       centerTabId: 'b1',
-      centerUrl: 'http://u',
       activeTabId: 'x|t1',
       tabCount: 2,
       siblingNonce: 0,

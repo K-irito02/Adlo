@@ -323,7 +323,7 @@ describe('tooltipPosition', () => {
       },
     );
 
-    it('applies the same tolerance inside the avoidance branch (双端一致）', () => {
+    it('applies the same tolerance inside the avoidance branch (双端一致)', () => {
       const triggerRect = createMockDOMRect({
         top: 38,
         left: 300,
@@ -369,6 +369,10 @@ describe('tooltipPosition', () => {
       });
 
       expect(result.placement).toBe('bottom');
+      // 判别性锁定：bottom 侧 y = triggerRect.bottom + offset = 150 + 8 = 158
+      // （createMockDOMRect 默认 bottom=150，本用例 override 未覆盖）。若容差逻辑
+      // 误把"裁切"当"内边距不足"钳回 top，本断言（及 placement）即失败。
+      expect(result.y).toBe(158);
     });
 
     it('tries remaining sides when both preferred and opposite overlap', () => {

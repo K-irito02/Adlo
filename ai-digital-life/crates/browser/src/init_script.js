@@ -31,7 +31,7 @@
     function isDownloadUrl(url) {
         if (!url || typeof url !== 'string') return false;
         if (isBlobUrl(url)) {
-            console.log('[ADL-DL-JS] isDownloadUrl: blob URL detected');
+            console.debug('[ADL-DL-JS] isDownloadUrl: blob URL detected');
             __adlSendLog('debug', 'isDownloadUrl: blob URL detected', { url: url });
             return true;
         }
@@ -39,7 +39,7 @@
             var u = new URL(url, location.href);
             var path = u.pathname.toLowerCase();
             if (DOWNLOAD_EXTENSIONS.test(path)) {
-                console.log('[ADL-DL-JS] isDownloadUrl: extension match:', { url: url, path: path });
+                console.debug('[ADL-DL-JS] isDownloadUrl: extension match:', { url: url, path: path });
                 __adlSendLog('debug', 'isDownloadUrl: extension match', { url: url, path: path });
                 return true;
             }
@@ -51,12 +51,12 @@
                 if (key.toLowerCase() === 'download') _hasDownloadKey = true;
             });
             if (_hasDownloadKey) {
-                console.log('[ADL-DL-JS] isDownloadUrl: download query key match:', { url: url });
+                console.debug('[ADL-DL-JS] isDownloadUrl: download query key match:', { url: url });
                 __adlSendLog('debug', 'isDownloadUrl: download query key match', { url: url });
                 return true;
             }
             if (/\/download\//i.test(u.pathname)) {
-                console.log('[ADL-DL-JS] isDownloadUrl: path match:', { url: url });
+                console.debug('[ADL-DL-JS] isDownloadUrl: path match:', { url: url });
                 __adlSendLog('debug', 'isDownloadUrl: path match', { url: url });
                 return true;
             }

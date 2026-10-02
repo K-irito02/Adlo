@@ -105,16 +105,25 @@ impl BrowserManager {
             .clone()
     }
 
+    /// 锁定 handles 表并克隆目标 tab 的 handle；缺 tab 时返回 `Ok(None)`。
+    ///
+    /// 与 `with_handle` 的区别：缺 handle **不视为错误** —— `activate_tab` /
+    /// `can_go_*_tab` / `set_color_scheme_for_all` 的契约是「WebView 尚未创建时
+    /// 保持 Ok（前端会重试/禁用按钮）」，而非报错。
+    fn try_handle(&self, tab_id: &str) -> Result<Option<Arc<dyn WebViewHandle>>, AppError> {
+        let guard = self
+            .handles
+            .lock()
+            .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?;
+        Ok(guard.get(tab_id).cloned())
+    }
+
     fn with_handle<F, R>(&self, tab_id: &str, f: F) -> Result<R, AppError>
     where
         F: FnOnce(&Arc<dyn WebViewHandle>) -> Result<R, AppError>,
     {
         let handle = self
-            .handles
-            .lock()
-            .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?
-            .get(tab_id)
-            .cloned()
+            .try_handle(tab_id)?
             .ok_or_else(|| AppError::Internal(format!("webview for tab {tab_id} not found")))?;
         f(&handle)
     }
@@ -126,13 +135,17 @@ impl BrowserManager {
     ) -> Result<Option<String>, AppError> {
         let evicted = self.pool.register(tab_id.to_string());
 
-        if let Ok(mut handles) = self.handles.lock() {
-            let key = tab_id.to_string();
-            if let Some(old) = handles.insert(key, handle) {
-                // R-M2：同 tab 已存在旧 handle（重复创建覆盖）时先 close 旧 WebView，
-                // 复用 destroy_tab 的 close 语义，防止旧原生资源泄漏。
-                let _ = old.close();
-            }
+        // 锁中毒必须报错而非静默跳过：原生 WebView 已创建但 manager 无记录时，
+        // 后续 activate_tab 会 no-op、tab 永久不可见且无任何日志。
+        let mut handles = self
+            .handles
+            .lock()
+            .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?;
+        let key = tab_id.to_string();
+        if let Some(old) = handles.insert(key, handle) {
+            // R-M2：同 tab 已存在旧 handle（重复创建覆盖）时先 close 旧 WebView，
+            // 复用 destroy_tab 的 close 语义，防止旧原生资源泄漏。
+            let _ = old.close();
         }
 
         tracing::info!(tab_id = tab_id, "browser webview registered for tab");
@@ -147,16 +160,9 @@ impl BrowserManager {
     /// "面板激活自己的标签"顺手隐藏中心正在显示的 WebView，且中心生命周期不会重跑、
     /// 无法自愈。各宿主隐藏自己不再显示的 tab 由前端按 bounds 移出画面负责。
     pub fn activate_tab(&self, tab_id: &str) -> Result<(), AppError> {
-        let handle = {
-            let guard = self
-                .handles
-                .lock()
-                .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?;
-            guard.get(tab_id).cloned()
-        };
         // WebView 尚未创建（前端先 create 后 activate，正常路径下必存在）时保持 Ok：
         // 与旧实现一致 —— 缺 handle 不视为错误，前端会继续走 bounds 同步。
-        if let Some(handle) = handle {
+        if let Some(handle) = self.try_handle(tab_id)? {
             handle.show()?;
         }
 
@@ -211,30 +217,18 @@ impl BrowserManager {
     /// webview still being created) instead of an error — the frontend keeps the
     /// button disabled and re-queries after the webview is ready.
     pub fn can_go_back_tab(&self, tab_id: &str) -> Result<bool, AppError> {
-        let Some(handle) = self
-            .handles
-            .lock()
-            .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?
-            .get(tab_id)
-            .cloned()
-        else {
-            return Ok(false);
-        };
-        handle.can_go_back()
+        match self.try_handle(tab_id)? {
+            Some(handle) => handle.can_go_back(),
+            None => Ok(false),
+        }
     }
 
     /// Whether the tab's WebView has a forward history entry to go forward to.
     pub fn can_go_forward_tab(&self, tab_id: &str) -> Result<bool, AppError> {
-        let Some(handle) = self
-            .handles
-            .lock()
-            .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?
-            .get(tab_id)
-            .cloned()
-        else {
-            return Ok(false);
-        };
-        handle.can_go_forward()
+        match self.try_handle(tab_id)? {
+            Some(handle) => handle.can_go_forward(),
+            None => Ok(false),
+        }
     }
 
     pub fn reload_tab(&self, tab_id: &str) -> Result<(), AppError> {
@@ -263,14 +257,7 @@ impl BrowserManager {
         );
 
         for tab_id in &tab_ids {
-            let handle = {
-                let guard = self
-                    .handles
-                    .lock()
-                    .map_err(|e| AppError::Internal(format!("handles lock poisoned: {e}")))?;
-                guard.get(tab_id).cloned()
-            };
-            if let Some(handle) = handle {
+            if let Some(handle) = self.try_handle(tab_id)? {
                 tracing::info!(tab_id = tab_id, color_scheme, "calling set_color_scheme for tab");
                 handle.set_color_scheme(color_scheme)?;
             } else {

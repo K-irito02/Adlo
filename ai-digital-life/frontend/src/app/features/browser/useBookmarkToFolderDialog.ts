@@ -106,6 +106,35 @@ export function useBookmarkToFolderDialog({
     useAppStore.getState().browserSetPendingBookmark(null);
   }, []);
 
+  /**
+   * 落盘「标签 → 目录」关联：folder:/workspace: 前缀分派 + 冲突 toast。
+   * 返回 false 表示目录冲突已 toast（调用方据此中止后续流程）。
+   */
+  const addTabToDirectory = useCallback(
+    async (tabId: string, folderPath: string, title: string | undefined): Promise<boolean> => {
+      const folderId = folderPath.startsWith('folder:')
+        ? folderPath.slice('folder:'.length)
+        : undefined;
+      const workspaceId = folderPath.startsWith('workspace:')
+        ? folderPath.slice('workspace:'.length)
+        : undefined;
+      const result = await useAppStore
+        .getState()
+        .browserBookmarkTab(tabId, folderId, undefined, workspaceId, title);
+      if (result.ok === false && result.reason !== 'no-tab') {
+        const msg = result.pathLabel
+          ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
+              path: result.pathLabel,
+            })
+          : t.browserEditBookmarkDuplicate;
+        showToast(msg, 'warning');
+        return false;
+      }
+      return true;
+    },
+    [showToast, t],
+  );
+
   const handleBookmarkAddToFolder = useCallback(
     async (folderPath: string | null) => {
       if (pendingBookmark) {
@@ -143,44 +172,20 @@ export function useBookmarkToFolderDialog({
         });
 
         // Then try to associate with a folder if one was selected
-        if (folderPath) {
+        if (
+          folderPath &&
+          (folderPath.startsWith('folder:') || folderPath.startsWith('workspace:'))
+        ) {
           const tabId =
             useAppStore.getState().browserTabs.find((tab) => tab.url === pendingBookmark.url)?.id ||
             pendingBookmark.tabId;
 
           if (tabId) {
-            if (folderPath.startsWith('folder:')) {
-              const folderId = folderPath.slice('folder:'.length);
-              const result = await useAppStore
-                .getState()
-                .browserBookmarkTab(tabId, folderId, undefined, undefined, title);
-              if (result.ok === false && result.reason !== 'no-tab') {
-                const msg = result.pathLabel
-                  ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
-                      path: result.pathLabel,
-                    })
-                  : t.browserEditBookmarkDuplicate;
-                showToast(msg, 'warning');
-                setBookmarkDialogOpen(false);
-                setPendingBookmark(null);
-                return;
-              }
-            } else if (folderPath.startsWith('workspace:')) {
-              const workspaceId = folderPath.slice('workspace:'.length);
-              const result = await useAppStore
-                .getState()
-                .browserBookmarkTab(tabId, undefined, undefined, workspaceId, title);
-              if (result.ok === false && result.reason !== 'no-tab') {
-                const msg = result.pathLabel
-                  ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
-                      path: result.pathLabel,
-                    })
-                  : t.browserEditBookmarkDuplicate;
-                showToast(msg, 'warning');
-                setBookmarkDialogOpen(false);
-                setPendingBookmark(null);
-                return;
-              }
+            const added = await addTabToDirectory(tabId, folderPath, title);
+            if (!added) {
+              setBookmarkDialogOpen(false);
+              setPendingBookmark(null);
+              return;
             }
           }
         }
@@ -192,48 +197,17 @@ export function useBookmarkToFolderDialog({
         return;
       }
 
-      if (!folderPath) {
-        showToast(t.browserSelectDirFirst, 'warning');
-        return;
-      }
-      if (!activeTab?.id) {
+      if (!folderPath || !activeTab?.id) {
         showToast(t.browserSelectDirFirst, 'warning');
         return;
       }
 
       const trimmedName = bookmarkName.trim();
       const title = trimmedName || activeTab.title || '';
-      if (folderPath.startsWith('folder:')) {
-        const folderId = folderPath.slice('folder:'.length);
-        const result = await useAppStore
-          .getState()
-          .browserBookmarkTab(activeTab.id, folderId, undefined, undefined, title || undefined);
-        if (result.ok === false && result.reason !== 'no-tab') {
-          const msg = result.pathLabel
-            ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
-                path: result.pathLabel,
-              })
-            : t.browserEditBookmarkDuplicate;
-          showToast(msg, 'warning');
-          return;
-        }
-        if (activeTab.url) {
-          scheduleFaviconFetch(activeTab.url);
-        }
-        showToast(t.browserBookmarkAddedToast, 'success');
-        setBookmarkDialogOpen(false);
-      } else if (folderPath.startsWith('workspace:')) {
-        const workspaceId = folderPath.slice('workspace:'.length);
-        const result = await useAppStore
-          .getState()
-          .browserBookmarkTab(activeTab.id, undefined, undefined, workspaceId, title || undefined);
-        if (result.ok === false && result.reason !== 'no-tab') {
-          const msg = result.pathLabel
-            ? formatT(t as CopyDict, 'browserBookmarkDuplicateWithPath', {
-                path: result.pathLabel,
-              })
-            : t.browserEditBookmarkDuplicate;
-          showToast(msg, 'warning');
+      if (folderPath.startsWith('folder:') || folderPath.startsWith('workspace:')) {
+        const added = await addTabToDirectory(activeTab.id, folderPath, title || undefined);
+        if (!added) {
+          // 冲突已 toast；对话框保持打开（与原实现一致），便于改选目录重试。
           return;
         }
         if (activeTab.url) {
@@ -243,10 +217,9 @@ export function useBookmarkToFolderDialog({
         setBookmarkDialogOpen(false);
       } else {
         showToast(t.browserSelectDirFirst, 'warning');
-        return;
       }
     },
-    [activeTab, showToast, t, bookmarkName, pendingBookmark],
+    [activeTab, showToast, t, bookmarkName, pendingBookmark, addTabToDirectory],
   );
 
   const handleBookmarkCreateDir = useCallback(

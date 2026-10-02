@@ -45,8 +45,12 @@ export function stripBoundsFromPanelRect(rect: PanelRectLike): StripBounds | nul
 export interface StripVisibilityInput {
   isTauri: boolean;
   /**
-   * 面板侧浏览器 WebView 的左缘是否正压在面板边界上（等价于「面板导航器已收起」：
-   * `.adl-tool-surface--files.is-navigator-collapsed > .adl-tool-navigator` 宽度归 0）。
+   * 面板侧浏览器 WebView 的左缘是否正压在面板边界命中带上。由两个条件**同时**
+   * 构成：① 面板导航器已收起（`.adl-tool-surface--files.is-navigator-collapsed >
+   * .adl-tool-navigator` 宽度归 0，面板内容整体左移，WebView 左缘与面板左缘重合）；
+   * ② 面板活动 tab 确实承载着可见原生 WebView（生命周期页 about:blank/空 URL/未入池
+   * 的 WebView 已被 `useWebViewLifecycle` 移出画面，此时命中带可被 DOM 手柄命中，
+   * 无需条带）。
    *
    * 这是桥接条**唯一**的显隐依据：DOM 拖拽手柄的命中带只有 3px 且位于面板内部
    * （`.adl-rightpanel__resize-handle::before { left: 8px }`，容器 `left: -8px`），
@@ -59,6 +63,8 @@ export interface StripVisibilityInput {
   browserToolVisible: boolean;
   /** 面板是否有浏览器标签（宽松条件：条带多存在无害，误判缺失才会导致拖不动）。 */
   hasBrowserTabs: boolean;
+  /** 存在可见 DOM 浮层（OverlayManager 检测）：条带会抢走浮层指针事件，必须让位。 */
+  domOverlayActive: boolean;
 }
 
 /**
@@ -75,7 +81,8 @@ export function shouldShowStrip(input: StripVisibilityInput): boolean {
     input.panelWebViewAtBoundary &&
     input.startupHidden &&
     input.browserToolVisible &&
-    input.hasBrowserTabs
+    input.hasBrowserTabs &&
+    !input.domOverlayActive
   );
 }
 
@@ -88,12 +95,29 @@ export interface CenterWebViewInput {
 }
 
 export interface CenterWebViewState {
-  /** 中心区是否有可见的原生 WebView（true 时才可能与被板 WebView 贴边）。 */
+  /** 中心区是否有可见的原生 WebView（true 时才可能有新的原生子窗口压到条带上）。 */
   active: boolean;
   /** 中心活动浏览器标签 id（非 active 时为空串，避免把陈旧 id 喂给排序指纹）。 */
   tabId: string;
-  /** 中心活动浏览器标签 URL（非 active 时为空串）。 */
-  url: string;
+}
+
+/**
+ * 某浏览器标签当前是否承载着可见的原生 WebView。
+ *
+ * 判定口径与 `useWebViewLifecycle` 一致：无 URL / `about:blank` / 未入浏览器池的
+ * 标签，其 WebView 未创建或已被移出画面。中心与面板的「活跃 WebView」判定共用
+ * 本核心谓词（中心经由 `resolveCenterWebView` 先解析活动标签的 refId）。
+ */
+export function isLiveBrowserWebView(
+  tabId: string,
+  tabsById: Record<string, { url?: string } | undefined>,
+  isTabInPool: (tabId: string) => boolean,
+): boolean {
+  if (!tabId) {
+    return false;
+  }
+  const url = tabsById[tabId]?.url ?? '';
+  return !!url && url !== 'about:blank' && isTabInPool(tabId);
 }
 
 /**
@@ -113,15 +137,13 @@ export interface CenterWebViewState {
 export function resolveCenterWebView(input: CenterWebViewInput): CenterWebViewState {
   const centerTab = input.centerTabs.find((tab) => tab.id === input.centerActiveTabId);
   const tabId = centerTab?.kind === 'browser' ? (centerTab.refId ?? '') : '';
-  const url = tabId ? (input.browserTabsById[tabId]?.url ?? '') : '';
-  const active = !!tabId && !!url && url !== 'about:blank' && input.isTabInPool(tabId);
-  return active ? { active, tabId, url } : { active: false, tabId: '', url: '' };
+  const active = isLiveBrowserWebView(tabId, input.browserTabsById, input.isTabInPool);
+  return active ? { active, tabId } : { active: false, tabId: '' };
 }
 
 export interface StripGenerationParts {
-  /** 中心活动浏览器标签：换标签/换网址都可能新建子窗口并盖住桥接条。 */
+  /** 中心活动浏览器标签：换标签会新建子窗口并盖住桥接条。 */
   centerTabId: string;
-  centerUrl: string;
   activeTabId: string;
   tabCount: number;
   /** 兄弟子窗口创建计数：中心/面板浏览器 tab 视图的任何（重）建都递增。 */
@@ -131,16 +153,14 @@ export interface StripGenerationParts {
 /**
  * 兄弟 WebView 排序指纹：任一变化都可能新建子窗口并盖住桥接条，
  * 此时必须销毁重建桥接条（重建即回到最上层）。
- * JSON 序列化避免分隔符拼接的理论碰撞（如 URL 含 `|`）。
+ * JSON 序列化避免分隔符拼接的理论碰撞（如 tabId 含 `|`）。
+ *
+ * 刻意**不含 URL**：原地导航（`navigateTabInPool`）只导航既有子窗口，不改变
+ * z-order；换标签已由 tabId 覆盖、视图重建已由 siblingNonce 覆盖。把 URL 计入
+ * 会让 SPA pushState/重定向链把指纹打穿，造成无谓的 show/hide IPC 与闪烁。
  */
 export function stripGenerationKey(parts: StripGenerationParts): string {
-  return JSON.stringify([
-    parts.centerTabId,
-    parts.centerUrl,
-    parts.activeTabId,
-    parts.tabCount,
-    parts.siblingNonce,
-  ]);
+  return JSON.stringify([parts.centerTabId, parts.activeTabId, parts.tabCount, parts.siblingNonce]);
 }
 
 /** 桥接条拖拽增量换算：与 DOM 手柄同约定（左移加宽）。 */

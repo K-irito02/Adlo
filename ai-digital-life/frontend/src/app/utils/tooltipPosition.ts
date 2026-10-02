@@ -143,7 +143,14 @@ function mainAxisFitsWithoutClipping(
   return coord >= 0 && coord + size <= viewportLength(mainAxisOf(placementToUse));
 }
 
-/** 把主轴坐标钳进视口（两侧各留出 `viewportPadding`）。 */
+/** 把主轴坐标钳进视口（两侧各留出 `viewportPadding`）。
+ *
+ * 退化取舍：当 `size > 视口长 − 2·padding` 时 `maxCoord < padding`，
+ * `Math.max(padding, min(maxCoord, coord))` 恒返回 padding，tooltip 远缘可溢出
+ * 视口至多 padding px。此退化需要 tooltip ≈ 全屏高/宽才可达（现实中不存在），
+ * 且与 `calculate()` 内横轴钳制、legacy fallback 的既有钳制行为同构 ——
+ * 保持一致而非在此单独收敛。
+ */
 function clampMainAxis(
   result: PositionResult,
   placementToUse: Placement,

@@ -51,7 +51,7 @@ afterEach(() => {
 });
 
 describe('useBookmarkToFolderDialog', () => {
-  it('未选择目录时提示先选目录，不触发落盘', async () => {
+  it('未选择目录时提示先选目录：不落盘，且已打开的对话框保持打开', async () => {
     const spy = vi.fn().mockResolvedValue({ ok: true });
     const restore = stubAction('browserBookmarkTab', spy);
     try {
@@ -59,12 +59,17 @@ describe('useBookmarkToFolderDialog', () => {
       const { result } = renderHook((d) => useBookmarkToFolderDialog(d), {
         initialProps: makeDeps({ showToast }),
       });
+      // 先打开对话框，验证「空目录提交」路径不会把框关掉（判别性：旧实现若误关框即失败）。
+      act(() => {
+        result.current.handleOpenBookmarkDialog();
+      });
+      expect(result.current.bookmarkDialogOpen).toBe(true);
       await act(async () => {
         await result.current.handleBookmarkAddToFolder(null);
       });
       expect(showToast).toHaveBeenCalledWith('select dir first', 'warning');
       expect(spy).not.toHaveBeenCalled();
-      expect(result.current.bookmarkDialogOpen).toBe(false);
+      expect(result.current.bookmarkDialogOpen).toBe(true);
     } finally {
       restore();
     }

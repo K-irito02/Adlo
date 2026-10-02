@@ -9,6 +9,7 @@ import { useBrowserPool } from '@features/browser/useBrowserPool';
 import type { RightPanelMode } from '../../regions/right-panel/rightPanelLayout';
 import type { ToolId } from '../../stores/types';
 import {
+  isLiveBrowserWebView,
   resolveCenterWebView,
   shouldShowStrip,
   stripBoundsFromPanelRect,
@@ -48,8 +49,9 @@ function resolveStripTheme(): StripTheme {
  * 透明桥接条编排：面板边界命中带被原生 WebView 盖住时，在接缝上架起透明子
  * WebView（`adl-divider-strip`）并拥有拖拽。
  *
- * - 显隐：面板浏览器 WebView 压住边界的命中带（= 面板导航器收起）才展示；
- *   与中心区/面板处于 docked 还是 overlay 无关（详见 `shouldShowStrip`）。
+ * - 显隐：面板浏览器 WebView 压住边界的命中带（导航器收起 + 活动 tab 承载可见
+ *   原生 WebView）才展示；与中心区/面板处于 docked 还是 overlay 无关（详见
+ *   `shouldShowStrip`）。
  * - 排序：兄弟子窗口的新建会盖住桥接条，generation（中心 tab / 面板活动 tab /
  *   tab 数 / 兄弟创建计数）变化即销毁重建（重建即回到最上层）。
  * - 跟随：面板几何变化只调 bounds（子窗口随主窗口移动，无需跟随逻辑）。
@@ -128,17 +130,20 @@ export function useDividerStrip(options: {
     return getOverlayManager().subscribe(shell, setDomOverlayActive);
   }, [panelRef]);
 
-  const visible =
-    shouldShowStrip({
-      isTauri,
-      panelWebViewAtBoundary: navigatorCollapsed,
-      startupHidden,
-      browserToolVisible,
-      hasBrowserTabs: tabCount > 0,
-    }) && !domOverlayActive;
+  const visible = shouldShowStrip({
+    isTauri,
+    // ① 导航器收起（面板内容左移，WebView 贴边）且 ② 面板活动 tab 确实承载
+    // 可见原生 WebView。②收紧了纯几何代理：生命周期页（about:blank/空 URL/
+    // 未入池）时 WebView 已移出画面，命中带可被 DOM 手柄命中，无需条带。
+    panelWebViewAtBoundary:
+      navigatorCollapsed && isLiveBrowserWebView(activeTabId ?? '', browserTabsById, isTabInPool),
+    startupHidden,
+    browserToolVisible,
+    hasBrowserTabs: tabCount > 0,
+    domOverlayActive,
+  });
   const generation = stripGenerationKey({
     centerTabId: centerView.tabId,
-    centerUrl: centerView.url,
     activeTabId: activeTabId ?? '',
     tabCount,
     siblingNonce,
@@ -267,6 +272,10 @@ export function useDividerStrip(options: {
   // 重挂）会在同一 commit 内先 show 后 hide（异步 IPC 同序落地）→ 原生条被销毁，而
   // show 的 await 完成后又把 shownRef 置真 → 状态与原生不一致，条带持续缺失直到下次
   // generation/几何变化。前置声明后即为「先清陈旧条，再按当前条件 show」。
+  //
+  // 假设：panelRef 对象身份恒定（生产侧为 RightPanel 的 useRef；只有 props 变化、
+  // 无 ref 重绑）。若该假设被破坏（deps 变化触发 cleanup+重跑而 reconcile effects
+  // 不重跑），条带会缺失到下次 visible/generation/几何变化才恢复。
   useEffect(() => {
     const dragState = dragRef.current;
     const panel = panelRef.current;

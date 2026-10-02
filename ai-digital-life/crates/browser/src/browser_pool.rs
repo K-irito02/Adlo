@@ -1,5 +1,9 @@
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 
+/// 池锁中毒时静默恢复（`PoisonError::into_inner`）而非报错：池数据是
+/// `Vec<String>`、每个操作都是原子的整段替换/过滤，没有可被中毒破坏的不变量，
+/// 恢复安全。与 `BrowserManager` 的 handles 锁（报错）策略**有意不同**——
+/// 那里守卫的是原生 WebView handle 表，丢失记录会导致 tab 永久不可见。
 fn lock_pool(inner: &Mutex<Vec<String>>) -> MutexGuard<'_, Vec<String>> {
     inner.lock().unwrap_or_else(PoisonError::into_inner)
 }
@@ -36,7 +40,7 @@ impl BrowserPool {
         lock_pool(&self.inner).len()
     }
 
-    /// All tab IDs in pool（插入顺序）。
+    /// All tab IDs in pool, in insertion order.
     pub fn tab_ids(&self) -> Vec<String> {
         lock_pool(&self.inner).clone()
     }
