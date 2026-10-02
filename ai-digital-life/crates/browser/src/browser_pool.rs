@@ -14,21 +14,17 @@ impl BrowserPool {
         Self { inner: Arc::new(Mutex::new(Vec::new())) }
     }
 
-    /// Register a tab's recency. Pool is unbounded; never evicts.
+    /// Register a tab's membership. Pool is unbounded; never evicts.
+    ///
+    /// The `Option<String>` return is the documented eviction-hint contract with the
+    /// frontend pool singleton (`createForTab`): it is currently always `None` because
+    /// the pool never evicts. Kept as the extension point for a future bounded pool.
     pub fn register(&self, tab_id: String) -> Option<String> {
-        let mut order = lock_pool(&self.inner);
-        order.retain(|id| id != &tab_id);
-        order.push(tab_id);
-        None
-    }
-
-    /// Mark a tab as recently used (move to end of list). No-op if tab not in pool.
-    pub fn touch(&self, tab_id: &str) {
-        let mut order = lock_pool(&self.inner);
-        if order.iter().any(|id| id == tab_id) {
-            order.retain(|id| id != tab_id);
-            order.push(tab_id.to_string());
+        let mut tabs = lock_pool(&self.inner);
+        if !tabs.iter().any(|id| id == &tab_id) {
+            tabs.push(tab_id);
         }
+        None
     }
 
     /// Remove a tab from the pool.
@@ -36,23 +32,13 @@ impl BrowserPool {
         lock_pool(&self.inner).retain(|id| id != tab_id);
     }
 
-    /// Returns the least-recently-used tab_id, if any.
-    pub fn get_lru(&self) -> Option<String> {
-        lock_pool(&self.inner).first().cloned()
-    }
-
     pub fn size(&self) -> usize {
         lock_pool(&self.inner).len()
     }
 
-    /// All tab IDs in pool (按最近使用顺序)。
+    /// All tab IDs in pool（插入顺序）。
     pub fn tab_ids(&self) -> Vec<String> {
         lock_pool(&self.inner).clone()
-    }
-
-    /// Check if a tab_id is in the pool.
-    pub fn contains(&self, tab_id: &str) -> bool {
-        lock_pool(&self.inner).iter().any(|id| id == tab_id)
     }
 }
 

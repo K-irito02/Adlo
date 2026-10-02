@@ -139,16 +139,14 @@ impl BrowserManager {
         Ok(evicted)
     }
 
-    /// 标记 tab 为最近使用，并确保其原生表面处于显示态。
+    /// 确保目标 tab 的原生表面处于显示态。
     ///
     /// **只作用于目标 tab**：中心与右侧面板是两个独立宿主，共享同一个 WebView 池。
-    /// 历史上这里会遍历整个池并隐藏除激活者外的全部 tab —— 那是单宿主时代的语义
-    /// （当时同一时刻只允许一个浏览器 WebView 可见），引入第二宿主后会让"面板激活
-    /// 自己的标签"顺手隐藏中心正在显示的 WebView，且中心生命周期不会重跑、无法自愈。
-    /// 各宿主隐藏自己不再显示的 tab 由前端按 bounds 移出画面负责。
+    /// 历史上这里会先 `touch` 再遍历整个池并隐藏除激活者外的全部 tab —— 那是单宿主
+    /// 时代的语义（当时同一时刻只允许一个浏览器 WebView 可见），引入第二宿主后会让
+    /// "面板激活自己的标签"顺手隐藏中心正在显示的 WebView，且中心生命周期不会重跑、
+    /// 无法自愈。各宿主隐藏自己不再显示的 tab 由前端按 bounds 移出画面负责。
     pub fn activate_tab(&self, tab_id: &str) -> Result<(), AppError> {
-        self.pool.touch(tab_id);
-
         let handle = {
             let guard = self
                 .handles
@@ -281,10 +279,6 @@ impl BrowserManager {
         }
 
         Ok(())
-    }
-
-    pub fn has_tab_webview(&self, tab_id: &str) -> bool {
-        self.pool.contains(tab_id)
     }
 
     pub fn mute_tab(&self, tab_id: &str, muted: bool) -> Result<(), AppError> {

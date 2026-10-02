@@ -1,17 +1,14 @@
 use adl_browser::BrowserPool;
 
 #[test]
-fn test_pool_register_tracks_lru_order() {
+fn register_tracks_membership_without_duplicates() {
     let pool = BrowserPool::new();
     assert_eq!(pool.register("tab-1".into()), None);
     assert_eq!(pool.register("tab-2".into()), None);
-    assert_eq!(pool.register("tab-3".into()), None);
-    assert_eq!(pool.size(), 3);
-    assert_eq!(pool.get_lru(), Some("tab-1".into()));
-    pool.touch("tab-1");
-    assert_eq!(pool.get_lru(), Some("tab-2".into()));
-    assert_eq!(pool.register("tab-4".into()), None);
-    assert_eq!(pool.size(), 4);
+    // 同一 tab 重复注册不产生重复成员
+    assert_eq!(pool.register("tab-1".into()), None);
+    assert_eq!(pool.size(), 2);
+    assert_eq!(pool.tab_ids(), vec!["tab-1".to_string(), "tab-2".to_string()]);
 }
 
 #[test]
@@ -21,27 +18,8 @@ fn test_pool_remove_frees_slot() {
     pool.register("b".into());
     assert_eq!(pool.size(), 2);
     pool.remove("a");
-    assert!(!pool.contains("a"));
+    assert_eq!(pool.tab_ids(), vec!["b".to_string()]);
     assert_eq!(pool.size(), 1);
-    assert!(pool.contains("b"));
-}
-
-#[test]
-fn test_pool_touch_absent_does_not_panic() {
-    let pool = BrowserPool::new();
-    pool.touch("nonexistent");
-    assert_eq!(pool.size(), 0);
-}
-
-#[test]
-fn test_pool_lru_removes_oldest_even_after_multiple_touches() {
-    let pool = BrowserPool::new();
-    pool.register("a".into());
-    pool.register("b".into());
-    pool.touch("a");
-    pool.touch("b");
-    pool.touch("a");
-    assert_eq!(pool.get_lru(), Some("b".into()));
 }
 
 #[test]

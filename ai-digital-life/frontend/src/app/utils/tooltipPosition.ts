@@ -357,8 +357,10 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
     const mainAxis = mainAxisOf(currentPlacement);
 
     if (!fitsInViewport(mainCoord, mainAxisSize, mainAxis, viewportPadding)) {
-      // 贴边容差（与避让分支同一规则，保证浏览器 / Tauri 双端 tooltip 位置一致）：
-      // 仅内边距不足、tooltip 未被裁切时钳进视口，不翻边。
+      // 贴边容差（沿用与避让分支同一判据）：仅内边距不足、tooltip 未被裁切时钳进
+      // 视口，不翻边。两条路径对该判据一致，故「首选侧贴边」这一常见情形下浏览器模式
+      // 与 Tauri 模式给出同一位置；若首选侧被**真正裁切**，避让分支还会继续尝试其它
+      // 候选边（本分支只按 首选 → 对侧 → fallback 回退），此时两者本就允许不同。
       if (mainAxisFitsWithoutClipping(initialResult, currentPlacement, mainAxisSize)) {
         clampMainAxis(initialResult, currentPlacement, mainAxisSize, viewportPadding);
         return initialResult;

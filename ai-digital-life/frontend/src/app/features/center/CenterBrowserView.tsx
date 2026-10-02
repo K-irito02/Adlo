@@ -134,12 +134,12 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
 
   const {
     bookmarkDialogOpen,
-    setBookmarkDialogOpen,
     bookmarkName,
     setBookmarkName,
     handleOpenBookmarkDialog,
     handleBookmarkAddToFolder,
     handleBookmarkCreateDir,
+    handleCloseBookmarkDialog,
   } = useBookmarkToFolderDialog({
     t,
     activeTab,
@@ -148,6 +148,9 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     onCreateDir: useCallback((parentPath: string | null) => {
       setCreateDirDialog({ open: true, parentPath });
     }, []),
+    // 待收藏项投递（导航器条目树右键「收藏到目录」）唯一生产者是面板侧；中心订阅会
+    // 与面板同时挂载时双弹窗，故关闭订阅。
+    watchStorePending: false,
   });
 
   // 中心视图自己的浮层（菜单 / 地址栏展开 / 搜索引擎设置 / 收藏目录对话框）必须回传作为
@@ -489,11 +492,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
         userFolderNodes={bookmarkTreeData.userFolderNodes}
         onAddToFolder={handleBookmarkAddToFolder}
         onCreateDir={handleBookmarkCreateDir}
-        onCancel={() => {
-          setBookmarkDialogOpen(false);
-          setBookmarkName('');
-          useAppStore.getState().browserSetPendingBookmark(null);
-        }}
+        onCancel={handleCloseBookmarkDialog}
         bookmarkName={bookmarkName}
         onBookmarkNameChange={setBookmarkName}
         createDirDialog={createDirDialog}

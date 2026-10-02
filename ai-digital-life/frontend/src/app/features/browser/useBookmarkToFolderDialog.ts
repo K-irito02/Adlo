@@ -23,6 +23,14 @@ interface UseBookmarkToFolderDialogDeps {
    * 对话框，与各自的导航器入口共用实例），本 hook 不持有该对话框状态。
    */
   onCreateDir: (parentPath: string | null) => void;
+  /**
+   * 是否订阅 store 的待收藏项投递（`browserPendingBookmark`）。默认 true。
+   *
+   * 该投递只有**一个**生产者：面板导航器条目树的「收藏到目录」右键菜单
+   * （`browserEntrySubEntriesUtils`），它只在浏览器面板挂载时可达。因此**中心必须
+   * 传 false** —— 否则面板与中心同时挂载时，一次右键会打开两个对话框（双弹窗）。
+   */
+  watchStorePending?: boolean;
 }
 
 /**
@@ -40,6 +48,7 @@ export function useBookmarkToFolderDialog({
   isBookmarked,
   showToast,
   onCreateDir,
+  watchStorePending = true,
 }: UseBookmarkToFolderDialogDeps) {
   const [bookmarkDialogOpen, setBookmarkDialogOpen] = useState(false);
   const [bookmarkName, setBookmarkName] = useState('');
@@ -49,8 +58,11 @@ export function useBookmarkToFolderDialog({
     tabId?: string;
   } | null>(null);
 
-  // 非本流程入口（右键菜单等）通过 store 投递待收藏项
+  // 非本流程入口（右键菜单等）通过 store 投递待收藏项。仅面板侧订阅（见 dep 注释）。
   useEffect(() => {
+    if (!watchStorePending) {
+      return;
+    }
     const unsub = useAppStore.subscribe((state) => {
       const pending = state.browserPendingBookmark;
       if (pending) {
@@ -61,17 +73,25 @@ export function useBookmarkToFolderDialog({
       }
     });
     return unsub;
-  }, []);
+  }, [watchStorePending]);
 
   const handleOpenBookmarkDialog = useCallback(() => {
     if (isBookmarked) {
-      useAppStore.getState().browserToggleBookmark();
+      // 必须**显式**传本宿主活动标签的 (url,title)：无参形式取的是 store 的
+      // `browserActiveTabId`，而它被 `clampPanelActiveTab` 恒夹到**面板**标签
+      //（`browserTabsSlice` 明示不得指向中心标签）→ 中心侧会误删面板标签的书签。
+      // title 为空时回落 url，与无参路径的解析链（`input.title || active.title || url`）结果一致。
+      const url = activeTab?.url;
+      if (!url) {
+        return;
+      }
+      useAppStore.getState().browserToggleBookmark({ url, title: activeTab?.title || url });
       return;
     }
     setBookmarkName(activeTab?.title || '');
     setPendingBookmark(null);
     setBookmarkDialogOpen(true);
-  }, [isBookmarked, activeTab?.title]);
+  }, [isBookmarked, activeTab?.title, activeTab?.url]);
 
   const handleBookmarkFromUrl = useCallback((url: string, title: string) => {
     setPendingBookmark({ url, title });
@@ -238,7 +258,6 @@ export function useBookmarkToFolderDialog({
 
   return {
     bookmarkDialogOpen,
-    setBookmarkDialogOpen,
     bookmarkName,
     setBookmarkName,
     handleOpenBookmarkDialog,

@@ -28,9 +28,6 @@ impl WebViewHandle for MockHandle {
     fn show(&self) -> Result<(), adl_errors::AppError> {
         Ok(())
     }
-    fn hide(&self) -> Result<(), adl_errors::AppError> {
-        Ok(())
-    }
     fn set_zoom(&self, _factor: f64) -> Result<(), adl_errors::AppError> {
         Ok(())
     }
@@ -86,10 +83,9 @@ fn mock_handle_color_scheme() {
 }
 
 #[test]
-fn mock_handle_show_hide_zoom() {
+fn mock_handle_show_zoom() {
     let h = MockHandle { id: "view-test".into() };
     assert!(h.show().is_ok());
-    assert!(h.hide().is_ok());
     assert!(h.set_zoom(1.5).is_ok());
 }
 

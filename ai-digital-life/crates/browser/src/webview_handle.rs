@@ -42,7 +42,6 @@ pub trait WebViewHandle: Send + Sync {
     fn set_color_scheme(&self, scheme: &str) -> Result<(), AppError>;
     fn id(&self) -> &str;
     fn show(&self) -> Result<(), AppError>;
-    fn hide(&self) -> Result<(), AppError>;
     fn set_zoom(&self, factor: f64) -> Result<(), AppError>;
     fn mute(&self, muted: bool) -> Result<(), AppError>;
     fn clear_cookies(&self) -> Result<(), AppError>;

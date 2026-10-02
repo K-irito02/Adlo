@@ -208,10 +208,13 @@ describe('tooltipPosition', () => {
     });
 
     it('keeps the preferred side by clamping when only viewport padding is short (toolbar above a WebView)', () => {
-      // 真机几何：中心工具栏 28px 按钮紧贴 36px 标题栏（顶部仅 44px），
-      // 30px tooltip + offset 8 + padding 8 需要 46px → 首选 top 差 2px 就“放不下”。
-      // 修复前会翻到 bottom，落进中心 WebView 避让矩形后被横轴滑到矩形右缘（≈x840）。
-      // 期望：留在 top、钳进视口，tooltip 仍悬在按钮正上方。
+      // 真机几何：中心工具栏 28px 按钮紧贴 36px 标题栏（按钮顶 44px），
+      // 30px tooltip + offset 8 + padding 8 需要 46px → 首选 top 差 2px 被误判“放不下”。
+      // 修复前会翻到 bottom（y = 触发点 bottom(72) + offset(8) = 80）落进中心 WebView
+      // 避让矩形（top=80），再被 slideCrossAxis 沿横轴滑到**离 tooltip 原位最近的逃逸点**：
+      // 触发点中心 x=98、tooltip 宽 40 → 原位 x=78；矩形 [56,840] 的两个逃逸点
+      // （left-40=16、right=840）中 16 更近，故旧实现落在矩形左缘外侧 x=16（并非右缘）。
+      // 期望：留在 top、钳进视口，且保持相对触发点的居中位置。
       const triggerRect = createMockDOMRect({
         top: 44,
         left: 84,
@@ -240,8 +243,115 @@ describe('tooltipPosition', () => {
       expect(withAvoid.placement).toBe('top');
       expect(withAvoid).toEqual(withoutAvoid);
       expect(withAvoid.y).toBe(8);
-      // 不得被滑移到 WebView 远缘
-      expect(withAvoid.x).toBeLessThan(webview.right);
+      // 判别性断言：旧实现为 16（贴矩形左缘），新实现保持 84+14-20=78
+      expect(withAvoid.x).toBe(78);
+    });
+
+    it('keeps a right-side toolbar button tooltip centered instead of sliding to the WebView right edge', () => {
+      // 用户截图里的「Tooltip 飞到屏幕最右」即此类几何：触发点中心 x=830、tooltip 宽 40
+      // → 原位 x=810；矩形逃逸点 16/840 中 840 更近，故旧实现贴着矩形右缘 x=840 显示
+      // （即中心区/右侧面板交界处）。
+      const triggerRect = createMockDOMRect({
+        top: 44,
+        left: 816,
+        width: 28,
+        height: 28,
+        right: 844,
+        bottom: 72,
+      });
+      const tooltipRect = { width: 40, height: 30 };
+      const webview = { left: 56, top: 80, right: 840, bottom: 1080 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [webview],
+      });
+
+      expect(result.placement).toBe('top');
+      expect(result.y).toBe(8);
+      // 判别性断言：旧实现为 840（贴矩形右缘），新实现保持 816+14-20=810
+      expect(result.x).toBe(810);
+    });
+
+    it.each([
+      ['恰好贴边（coord=0）应接受并钳到 padding', 38, 'top', 8],
+      ['越界 1px 应翻边', 37, 'bottom', 73],
+    ])('贴边容差边界：%s', (_name, triggerTop, expectedPlacement, expectedY) => {
+      const triggerRect = createMockDOMRect({
+        top: triggerTop,
+        left: 300,
+        width: 28,
+        height: 28,
+        right: 328,
+        bottom: triggerTop + 28,
+      });
+      const result = computePosition({
+        triggerRect,
+        tooltipRect: { width: 40, height: 30 },
+        placement: 'top',
+        offset: 8,
+      });
+      expect(result.placement).toBe(expectedPlacement);
+      expect(result.y).toBe(expectedY);
+    });
+
+    it.each([
+      ['仅超出 padding（未被裁切）应钳回视口下界以内', 994, 44, 'bottom', 1042],
+      ['会被裁切则应翻到对侧', 1000, 44, 'top', 962],
+    ])(
+      '贴边容差边界（bottom 侧）：%s',
+      (_name, triggerTop, triggerHeight, expectedPlacement, expectedY) => {
+        const triggerRect = createMockDOMRect({
+          top: triggerTop,
+          left: 300,
+          width: 28,
+          height: triggerHeight,
+          right: 328,
+          bottom: triggerTop + triggerHeight,
+        });
+        const result = computePosition({
+          triggerRect,
+          tooltipRect: { width: 40, height: 30 },
+          placement: 'bottom',
+          offset: 8,
+        });
+        expect(result.placement).toBe(expectedPlacement);
+        expect(result.y).toBe(expectedY);
+      },
+    );
+
+    it('applies the same tolerance inside the avoidance branch (双端一致）', () => {
+      const triggerRect = createMockDOMRect({
+        top: 38,
+        left: 300,
+        width: 28,
+        height: 28,
+        right: 328,
+        bottom: 66,
+      });
+      const tooltipRect = { width: 40, height: 30 };
+      const webview = { left: 56, top: 80, right: 840, bottom: 1080 };
+
+      const withAvoid = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [webview],
+      });
+      const without = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+      });
+
+      expect(withAvoid).toEqual(without);
+      expect(withAvoid.placement).toBe('top');
+      expect(withAvoid.y).toBe(8);
     });
 
     it('still flips when the preferred side would be clipped by the viewport', () => {

@@ -25,11 +25,16 @@ export function isObscuredByPanelOverlay(shellBody: Element | null): boolean {
  * 删除；此处泛化到所有中心浏览器标签。
  *
  * 检测走 MutationObserver：浮层态是 DOM 类名切换（非 React 状态），没有可订阅的
- * React 数据源。浏览器模式虽无原生子窗口，仍返回同一结果（中心 iframe 由 DOM 层级
- * 遮挡），以保证双端行为一致。
+ * React 数据源。浏览器模式无原生子窗口，本结果不被消费（保持同一判定口径即可）。
  */
 export function useCenterObscured(): boolean {
-  const [obscured, setObscured] = useState(false);
+  // 惰性初值直接读一次 DOM：若挂载时面板**已经**处于浮层态，首帧为 false 会让中心
+  // WebView 先按“未遮挡”摆回画面、下一帧才被隐藏 → 闪过一帧原生表面。
+  const [obscured, setObscured] = useState(() =>
+    typeof document === 'undefined'
+      ? false
+      : isObscuredByPanelOverlay(document.querySelector(SHELL_BODY_SELECTOR)),
+  );
 
   useEffect(() => {
     if (typeof document === 'undefined') {

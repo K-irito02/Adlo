@@ -85,10 +85,6 @@ impl WebViewHandle for TauriWebViewHandle {
         self.webview()?.show().map_err(|e| AppError::Internal(e.to_string()))
     }
 
-    fn hide(&self) -> Result<(), AppError> {
-        self.webview()?.hide().map_err(|e| AppError::Internal(e.to_string()))
-    }
-
     fn set_zoom(&self, factor: f64) -> Result<(), AppError> {
         self.webview()?.set_zoom(factor).map_err(|e| AppError::Internal(e.to_string()))
     }

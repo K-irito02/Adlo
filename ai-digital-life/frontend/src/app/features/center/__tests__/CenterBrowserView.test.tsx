@@ -35,6 +35,9 @@ const t = {
   browserRefreshPorts: 'Refresh ports',
   browserCannotOpenEmbedded: 'Cannot embed this site',
   browserOpenExternal: 'Open externally',
+  browserBookmarkToFolderTitle: 'BookmarkToFolder',
+  browserBookmarkName: 'Bookmark name',
+  browserBookmarkNamePlaceholder: 'Bookmark name',
 } as unknown as CopyDict;
 
 function makeTab(id: string, url: string): BrowserTabState {
@@ -69,6 +72,7 @@ afterEach(() => {
     centerTabs: [],
     centerActiveTabId: '',
     browserShortcuts: [],
+    browserPendingBookmark: null,
   });
 });
 
@@ -186,8 +190,57 @@ describe('CenterBrowserView', () => {
     expect(container.querySelector('.adl-tool-search--address')).toBeTruthy();
   });
 
-  it('点击收藏标签按钮打开收藏目录对话框', async () => {
+  it('不订阅待收藏项投递：store 投递不会让中心开框（防与面板双弹窗）', async () => {
+    // 生产接线守卫：若 CenterBrowserView 漏传 watchStorePending:false，本用例必失败。
     const tab = makeTab('b1', 'https://x.test');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+    });
+    renderView('b1');
+
+    await act(async () => {
+      useAppStore.getState().browserSetPendingBookmark({ url: 'https://p.test', title: 'Pending' });
+    });
+    await act(async () => {});
+
+    expect(screen.queryByRole('dialog')).toBeNull();
+    // 投递仍留在 store 中，交由面板侧消费
+    expect(useAppStore.getState().browserPendingBookmark).not.toBeNull();
+  });
+
+  it('回归：已收藏时点击收藏按钮，取消的是中心标签的书签（而非面板活动标签）', () => {
+    // 无参 browserToggleBookmark() 取 store 的 browserActiveTabId，而它被
+    // clampPanelActiveTab 恒夹到面板标签 → 中心侧必须显式传自己的 (url,title)。
+    const centerTab = { ...makeTab('b1', 'https://x.test'), title: 'CenterTitle' };
+    const panelTab = {
+      ...makeTab('p1', 'https://panel.test'),
+      title: 'PanelTitle',
+      location: 'panel' as const,
+    };
+    const spy = vi.fn();
+    const realToggle = useAppStore.getState().browserToggleBookmark;
+    useAppStore.setState({
+      browserTabs: [centerTab, panelTab],
+      browserTabsById: { b1: centerTab, p1: panelTab },
+      browserActiveTabId: 'p1',
+      // 只关心 (url,title) 元组，其余字段与断言无关
+      browserBookmarks: [{ url: 'https://x.test', title: 'CenterTitle' }] as never,
+      browserToggleBookmark: spy as never,
+    });
+
+    try {
+      renderView('b1');
+      fireEvent.click(screen.getByRole('button', { name: 'Remove bookmark' }));
+      expect(spy).toHaveBeenCalledWith({ url: 'https://x.test', title: 'CenterTitle' });
+    } finally {
+      useAppStore.setState({ browserToggleBookmark: realToggle, browserBookmarks: [] });
+    }
+  });
+
+  it('点击收藏标签按钮打开收藏目录对话框（含中心活动标签的名称预填）', async () => {
+    const tab = { ...makeTab('b1', 'https://x.test'), title: 'CenterTitle' };
     useAppStore.setState({
       browserTabs: [tab],
       browserTabsById: { b1: tab },
@@ -197,7 +250,12 @@ describe('CenterBrowserView', () => {
 
     expect(screen.queryByRole('dialog')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Bookmark' }));
-    await waitFor(() => expect(screen.getByRole('dialog')).toBeTruthy());
+
+    // 无障碍名 = i18n 标题；名称输入预填中心活动标签标题 → 证明 hook 拿到了中心的 activeTab
+    await waitFor(() =>
+      expect(screen.getByRole('dialog', { name: 'BookmarkToFolder' })).toBeTruthy(),
+    );
+    expect(screen.getByDisplayValue('CenterTitle')).toBeTruthy();
   });
 
   it('右侧面板进入浮层态时隐藏中心 WebView 并撤销 tooltip 避让标记', async () => {
@@ -219,17 +277,23 @@ describe('CenterBrowserView', () => {
       const content = container.querySelector('.adl-center-browser__content');
       expect(content?.hasAttribute('data-webview-active')).toBe(true);
 
-      // 拖拽右侧面板覆盖中间区 → shell body 获得浮层类（useRightPanelLayout 写入）
-      await act(async () => {
-        shellBody.classList.add('is-rightpanel-overlay-expanded');
-      });
-      await waitFor(() => expect(content?.hasAttribute('data-webview-active')).toBe(false));
+      // 拖拽右侧面板覆盖中间区 → shell body 获得浮层类（useRightPanelLayout 写入）。
+      // 两个类都要覆盖：-expanded = overlay_full，-active = overlay_partial（含 expanded）。
+      for (const overlayClass of [
+        'is-rightpanel-overlay-expanded',
+        'is-rightpanel-overlay-active',
+      ]) {
+        await act(async () => {
+          shellBody.classList.add(overlayClass);
+        });
+        await waitFor(() => expect(content?.hasAttribute('data-webview-active')).toBe(false));
 
-      // 回到停靠态 → 恢复避让标记
-      await act(async () => {
-        shellBody.classList.remove('is-rightpanel-overlay-expanded');
-      });
-      await waitFor(() => expect(content?.hasAttribute('data-webview-active')).toBe(true));
+        // 回到停靠态 → 恢复避让标记
+        await act(async () => {
+          shellBody.classList.remove(overlayClass);
+        });
+        await waitFor(() => expect(content?.hasAttribute('data-webview-active')).toBe(true));
+      }
 
       unmount();
     } finally {

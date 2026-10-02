@@ -3,7 +3,7 @@ use adl_browser::{BrowserManager, BrowserPool, SiteMetaCacheStore};
 use adl_errors::AppError;
 use std::sync::{Arc, Mutex};
 
-/// 记录 show/hide 调用的桩，用于断言 `activate_tab` 的作用范围。
+/// 记录 show 调用的桩，用于断言 `activate_tab` 的作用范围。
 struct RecordingHandle {
     id: String,
     calls: Arc<Mutex<Vec<String>>>,
@@ -39,10 +39,6 @@ impl WebViewHandle for RecordingHandle {
         record(&self.calls, format!("show:{}", self.id));
         Ok(())
     }
-    fn hide(&self) -> Result<(), AppError> {
-        record(&self.calls, format!("hide:{}", self.id));
-        Ok(())
-    }
     fn set_zoom(&self, _factor: f64) -> Result<(), AppError> {
         Ok(())
     }
@@ -76,8 +72,7 @@ fn test_pool_integration_lifecycle() {
     assert_eq!(pool.register("tab-b".into()), None);
     assert_eq!(pool.register("tab-c".into()), None);
     assert_eq!(pool.size(), 3);
-    pool.touch("tab-a");
-    assert_eq!(pool.get_lru(), Some("tab-b".into()));
+    assert_eq!(pool.tab_ids(), vec!["tab-a".to_string(), "tab-b".to_string(), "tab-c".to_string()]);
     pool.remove("tab-a");
     assert_eq!(pool.size(), 2);
 }
@@ -90,7 +85,10 @@ fn test_pool_registration_never_evicts() {
     assert_eq!(pool.register("c".into()), None);
     assert_eq!(pool.register("d".into()), None);
     assert_eq!(pool.size(), 4);
-    assert_eq!(pool.get_lru(), Some("a".into()));
+    assert_eq!(
+        pool.tab_ids(),
+        vec!["a".to_string(), "b".to_string(), "c".to_string(), "d".to_string()]
+    );
 }
 
 #[test]
@@ -118,5 +116,8 @@ fn activate_tab_only_affects_the_target_tab() {
     let recorded = calls.lock().expect("calls mutex poisoned").clone();
     assert_eq!(recorded, vec!["show:center-tab".to_string(), "show:panel-tab".to_string()]);
 
+    // 先释放持有 SQLite 连接的 manager，否则 Windows 下目录被占用、remove_dir_all 失败
+    // （`let _ =` 会静默吞掉，临时目录残留）。
+    drop(manager);
     let _ = std::fs::remove_dir_all(&dir);
 }

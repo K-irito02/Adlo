@@ -175,19 +175,17 @@ export function BookmarkToFolderDialog({
     if (!open) {
       return;
     }
-    if (open) {
-      const all: string[] = [];
-      const collect = (nodes: FileTreeRenderableNode[]) => {
-        for (const n of nodes) {
-          all.push(n.path);
-          collect(n.children);
-        }
-      };
-      collect(workspaceNodes);
-      collect(userFolderNodes);
-      setExpandedSet(new Set(all));
-      setSelectedPath(null);
-    }
+    const all: string[] = [];
+    const collect = (nodes: FileTreeRenderableNode[]) => {
+      for (const n of nodes) {
+        all.push(n.path);
+        collect(n.children);
+      }
+    };
+    collect(workspaceNodes);
+    collect(userFolderNodes);
+    setExpandedSet(new Set(all));
+    setSelectedPath(null);
   }, [open, workspaceNodes, userFolderNodes]);
 
   const handleDeselect = useCallback((e: React.MouseEvent) => {

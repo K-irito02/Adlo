@@ -336,13 +336,13 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
   // 收藏流程已抽为宿主无关 hook，与本项目中心的浏览器视图共用同一实现。
   const {
     bookmarkDialogOpen,
-    setBookmarkDialogOpen,
     bookmarkName,
     setBookmarkName,
     handleOpenBookmarkDialog,
     handleBookmarkFromUrl,
     handleBookmarkAddToFolder,
     handleBookmarkCreateDir,
+    handleCloseBookmarkDialog,
   } = useBookmarkToFolderDialog({
     t,
     activeTab,
@@ -376,12 +376,12 @@ export function useBrowserDialogs(deps: UseBrowserDialogsDeps) {
     createDirDialog,
     setCreateDirDialog,
     bookmarkDialogOpen,
-    setBookmarkDialogOpen,
     bookmarkName,
     setBookmarkName,
     handleOpenBookmarkDialog,
     handleBookmarkFromUrl,
     handleBookmarkAddToFolder,
     handleBookmarkCreateDir,
+    handleCloseBookmarkDialog,
   };
 }

@@ -212,32 +212,49 @@ export function useDividerStrip(options: {
       if (!bounds) {
         return;
       }
-      try {
-        if (!shownRef.current || recreate) {
+      if (!shownRef.current || recreate) {
+        try {
           await bridge.dividerStripShow(
             bounds,
             themeRef.current,
             labelRef.current,
             langRef.current,
           );
-          shownRef.current = true;
-          // N-1：show 即加载全新条页，其 seq 从 0 重计——旧 lastSeq 作废，
-          // 否则重建后首轮拖拽被 M-1 守卫误杀。N-3：若重建恰发生在拖拽按住
-          // 期间（极窄窗口），同步脱可能残留的拖拽态（与 M-3 卸载清理等价）。
-          dragRef.current.lastSeq = 0;
-          if (dragRef.current.active) {
-            dragRef.current.active = false;
-            document.body.classList.remove('adl-is-resizing');
-            panelRef.current?.closest('.adl-shell__body')?.classList.remove('is-resizing');
-          }
-        } else {
-          await bridge.dividerStripSetBounds(bounds);
+        } catch (err) {
+          // 桥接条是"看不见的基础设施"：静默失败会表现为"边界线拖不动"且无从排查，
+          // 故显式 warn（与 useWebViewBounds 等 IPC 失败的处理口径一致）。
+          console.warn('[divider-strip] show failed:', err);
+          shownRef.current = false;
+          return;
         }
+        shownRef.current = true;
+        // 反向竞态：show 在途期间显隐条件可能已翻转（面板收起/切工具/导航器展开）。
+        // 此时原生条已建出但当前不再需要 —— 必须立即回收，否则 shownRef 与原生状态
+        // 不一致（后续只走 setBounds，条带会一直留在画面上）。
+        if (!visibleRef.current) {
+          shownRef.current = false;
+          await bridge.dividerStripHide().catch(() => {
+            /* already gone */
+          });
+          return;
+        }
+        // N-1：show 即加载全新条页，其 seq 从 0 重计——旧 lastSeq 作废，
+        // 否则重建后首轮拖拽被 M-1 守卫误杀。N-3：若重建恰发生在拖拽按住
+        // 期间（极窄窗口），同步脱可能残留的拖拽态（与 M-3 卸载清理等价）。
+        dragRef.current.lastSeq = 0;
+        if (dragRef.current.active) {
+          dragRef.current.active = false;
+          document.body.classList.remove('adl-is-resizing');
+          panelRef.current?.closest('.adl-shell__body')?.classList.remove('is-resizing');
+        }
+        return;
+      }
+      // setBounds 失败是瞬态的（常见于与 hide 竞态），**不得**把 shownRef 置假：
+      // 否则下一次 reconcile 会退化为 show（销毁重建），把一次瞬态失败放大成条带闪烁。
+      try {
+        await bridge.dividerStripSetBounds(bounds);
       } catch (err) {
-        // 桥接条是"看不见的基础设施"：静默失败会表现为"边界线拖不动"且无从排查，
-        // 故显式 warn（与 useWebViewBounds 等 IPC 失败的处理口径一致）。
-        console.warn('[divider-strip] show/setBounds failed:', err);
-        shownRef.current = false;
+        console.warn('[divider-strip] setBounds failed:', err);
       }
     },
     [computeBounds, panelRef],
@@ -245,22 +262,11 @@ export function useDividerStrip(options: {
   const reconcileRef = useRef(reconcile);
   reconcileRef.current = reconcile;
 
-  useEffect(() => {
-    void reconcileRef.current(true);
-  }, [visible, generation, themeTick, locale]);
-
-  useEffect(() => {
-    void reconcileRef.current(false);
-  }, [rightPanelWidth, rightPanelMode, options.leftCollapsed]);
-
-  useEffect(() => {
-    const onResize = () => {
-      void reconcileRef.current(false);
-    };
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
-  }, []);
-
+  // 挂载清理必须**先于**两个 reconcile effect 声明：effect 按声明顺序执行，若清理
+  // 排在后面，则「挂载时 visible 已为真」的情形（右面板懒挂载/Suspense/ErrorBoundary
+  // 重挂）会在同一 commit 内先 show 后 hide（异步 IPC 同序落地）→ 原生条被销毁，而
+  // show 的 await 完成后又把 shownRef 置真 → 状态与原生不一致，条带持续缺失直到下次
+  // generation/几何变化。前置声明后即为「先清陈旧条，再按当前条件 show」。
   useEffect(() => {
     const dragState = dragRef.current;
     const panel = panelRef.current;
@@ -285,6 +291,22 @@ export function useDividerStrip(options: {
       hideNow();
     };
   }, [panelRef]);
+
+  useEffect(() => {
+    void reconcileRef.current(true);
+  }, [visible, generation, themeTick, locale]);
+
+  useEffect(() => {
+    void reconcileRef.current(false);
+  }, [rightPanelWidth, rightPanelMode, options.leftCollapsed]);
+
+  useEffect(() => {
+    const onResize = () => {
+      void reconcileRef.current(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     if (!isTauriShell()) {
@@ -329,9 +351,6 @@ export function useDividerStrip(options: {
         return;
       }
       drag.lastSeq = payload.seq;
-      if (payload.phase !== 'move' && payload.phase !== 'end') {
-        return;
-      }
       if (payload.phase === 'move') {
         drag.totalDx += payload.dx;
         drag.latestWidth = applyStripDelta(

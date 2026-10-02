@@ -5,6 +5,7 @@ import { TCopyProvider } from '@i18n/TCopyContext';
 import type { CopyDict } from '@i18n/types';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { browserPool } from '@features/browser/browserPoolSingleton';
 import { useDividerStrip } from './useDividerStrip';
 
 vi.mock('@shared/env', () => ({ isTauriShell: () => true }));
@@ -106,6 +107,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     browser: {
+      createForTab: vi.fn().mockResolvedValue(null),
       dividerStripShow: stripShow,
       dividerStripHide: stripHide,
       dividerStripSetBounds: stripSetBounds,
@@ -126,6 +128,7 @@ beforeEach(() => {
 
 afterEach(() => {
   document.body.innerHTML = '';
+  browserPool.reset();
 });
 
 describe('useDividerStrip 显隐口径', () => {
@@ -139,6 +142,37 @@ describe('useDividerStrip 显隐口径', () => {
     renderStrip();
     await waitFor(() => expect(stripHide).toHaveBeenCalled());
     expect(stripShow).not.toHaveBeenCalled();
+  });
+
+  it('显隐只看面板侧：导航器展开时不展示，收起后同一中心状态才展示', async () => {
+    // 迭代 0 的条件在「中心有 WebView + docked」时无脑展示 → 本用例上半段即其反例；
+    // 下半段（收起后同一中心状态确实展示）同时是"中心确实处于活跃态"的阳性对照，
+    // 否则上半段会退化成空断言（中心 url 为空时 resolveCenterWebView 本就返回非活跃）。
+    const centerTab = {
+      ...tab,
+      id: 'center-1',
+      url: 'https://dsh.test',
+      location: 'center' as const,
+    };
+    useAppStore.setState({
+      navigatorCollapsedByTool: navigatorCollapsedFor(false),
+      centerTabs: [{ id: 'c1', kind: 'browser', refId: 'center-1', createdAt: 1 }],
+      centerActiveTabId: 'c1',
+      browserTabsById: { b1: tab, 'center-1': centerTab },
+    });
+    await browserPool.createForTab('center-1', 'https://dsh.test');
+
+    const panelRef = makePanelRef();
+    const options = makeOptions(panelRef);
+    renderHook((p: StripOptions) => useDividerStrip(p), { initialProps: options, wrapper });
+
+    // ① 导航器展开（DOM 命中带可命中）⇒ 不展示，即便中心侧确有活跃 WebView
+    await waitFor(() => expect(stripHide).toHaveBeenCalled());
+    expect(stripShow).not.toHaveBeenCalled();
+
+    // ② 仅切换导航器收起（中心侧状态不变）⇒ 展示
+    useAppStore.setState({ navigatorCollapsedByTool: navigatorCollapsedFor(true) });
+    await waitFor(() => expect(stripShow).toHaveBeenCalled());
   });
 
   it('回归：面板进入 overlay 态（中心 WebView 已被隐藏）后桥接条不得消失', async () => {

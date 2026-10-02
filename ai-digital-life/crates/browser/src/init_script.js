@@ -260,10 +260,12 @@
                     }
                     return;
                 } else {
-                    console.log('[ADL-DL-JS] click on <a> but NOT intercepted (invalid URL):', { href: href, tagName: target.tagName, download: target.hasAttribute('download') });
+                    // 点击路径诊断：只需在 devtools 的 Verbose 级按需查看（生产默认级别不可见），
+                    // 避免每次点击都刷控制台、且不把页面文本带到默认可见的日志里。
+                    console.debug('[ADL-DL-JS] click on <a> but NOT intercepted (invalid URL):', { href: href, tagName: target.tagName, download: target.hasAttribute('download') });
                 }
             } else if (target.tagName === 'BUTTON' || target.tagName === 'INPUT') {
-                console.log('[ADL-DL-JS] click on non-<a> element:', { tagName: target.tagName, text: target.textContent?.substring(0, 50) });
+                console.debug('[ADL-DL-JS] click on non-<a> element:', { tagName: target.tagName, text: target.textContent?.substring(0, 50) });
             }
 
             if (target.tagName === 'AREA' && target.href) {

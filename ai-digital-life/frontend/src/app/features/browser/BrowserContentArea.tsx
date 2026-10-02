@@ -70,7 +70,7 @@ export function BrowserContentArea(props: BrowserContentAreaProps) {
         bookmarkTreeData={props.bookmarkTreeData}
         handleBookmarkAddToFolder={props.handleBookmarkAddToFolder}
         handleBookmarkCreateDir={props.handleBookmarkCreateDir}
-        setBookmarkDialogOpen={props.setBookmarkDialogOpen}
+        handleCloseBookmarkDialog={props.handleCloseBookmarkDialog}
         setBookmarkName={props.setBookmarkName}
         bookmarkName={props.bookmarkName}
         renameFolderState={props.renameFolderState}

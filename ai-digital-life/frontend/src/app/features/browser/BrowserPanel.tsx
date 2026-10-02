@@ -182,7 +182,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     createDirDialog,
     setCreateDirDialog,
     bookmarkDialogOpen,
-    setBookmarkDialogOpen,
+    handleCloseBookmarkDialog,
     bookmarkName,
     setBookmarkName,
     handleOpenBookmarkDialog,
@@ -623,7 +623,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
           bookmarkTreeData={bookmarkTreeData}
           handleBookmarkAddToFolder={handleBookmarkAddToFolder}
           handleBookmarkCreateDir={handleBookmarkCreateDir}
-          setBookmarkDialogOpen={setBookmarkDialogOpen}
+          handleCloseBookmarkDialog={handleCloseBookmarkDialog}
           setBookmarkName={setBookmarkName}
           bookmarkName={bookmarkName}
           renameFolderState={renameFolderState}

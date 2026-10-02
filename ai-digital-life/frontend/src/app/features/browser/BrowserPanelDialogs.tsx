@@ -23,7 +23,7 @@ export interface BrowserPanelDialogsProps {
   };
   handleBookmarkAddToFolder: (path: string | null) => void;
   handleBookmarkCreateDir: (parentPath: string | null) => void;
-  setBookmarkDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
+  handleCloseBookmarkDialog: () => void;
   setBookmarkName: React.Dispatch<React.SetStateAction<string>>;
   bookmarkName: string;
   renameFolderState: { open: boolean; folderId: string; currentName: string };
@@ -51,7 +51,7 @@ export function BrowserPanelDialogs({
   bookmarkTreeData,
   handleBookmarkAddToFolder,
   handleBookmarkCreateDir,
-  setBookmarkDialogOpen,
+  handleCloseBookmarkDialog,
   setBookmarkName,
   bookmarkName,
   renameFolderState,
@@ -80,11 +80,7 @@ export function BrowserPanelDialogs({
         userFolderNodes={bookmarkTreeData.userFolderNodes}
         onAddToFolder={handleBookmarkAddToFolder}
         onCreateDir={handleBookmarkCreateDir}
-        onCancel={() => {
-          setBookmarkDialogOpen(false);
-          setBookmarkName('');
-          useAppStore.getState().browserSetPendingBookmark(null);
-        }}
+        onCancel={handleCloseBookmarkDialog}
         bookmarkName={bookmarkName}
         onBookmarkNameChange={setBookmarkName}
         createDirDialog={createDirDialog}
