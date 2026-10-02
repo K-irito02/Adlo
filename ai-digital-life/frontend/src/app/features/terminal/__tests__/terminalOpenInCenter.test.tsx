@@ -22,9 +22,7 @@ describe('useTerminalContextMenu.openInCenter', () => {
         () => {},
       ),
     );
-    act(() =>
-      result.current.setContextMenu({ open: true, x: 0, y: 0, tabId, isPinned: false }),
-    );
+    act(() => result.current.setContextMenu({ open: true, x: 0, y: 0, tabId, isPinned: false }));
     act(() => result.current.handleOpenInCenterFromMenu());
     expect(useAppStore.getState().centerTabs.some((t) => t.refId === tabId)).toBe(true);
   });

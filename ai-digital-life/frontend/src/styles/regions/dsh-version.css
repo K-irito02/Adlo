@@ -138,18 +138,11 @@
   color: var(--warning);
 }
 
-/* 版本下拉菜单：锚点相对定位，菜单绝对定位在按钮下方右对齐。 */
-.adl-dsh-settings__version-menu-anchor {
-  position: relative;
-}
-
+/* 版本下拉菜单：经 Portal 挂到 body（fixed 定位，坐标由 JS 计算），
+   不受设置面板滚动容器裁剪。 */
 .adl-dsh-settings__version-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
+  position: fixed;
   z-index: var(--z-overlay);
-  min-width: 280px;
-  max-width: 340px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
@@ -188,12 +181,8 @@
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
-  border: none;
-  background: transparent;
   color: var(--text-primary);
   font-size: var(--text-xs);
-  text-align: left;
-  cursor: pointer;
   transition: background 120ms;
 }
 
@@ -206,12 +195,25 @@
   color: var(--accent);
 }
 
-.adl-dsh-settings__version-menu-item-info {
+/* 回退动作按钮：占据行的信息区（版本 + 时间），与右侧徽标/卸载并列的原生按钮。 */
+.adl-dsh-settings__version-menu-item-revert {
   flex: 1;
   min-width: 0;
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.adl-dsh-settings__version-menu-item-revert:disabled {
+  cursor: default;
 }
 
 .adl-dsh-settings__version-menu-item-version {

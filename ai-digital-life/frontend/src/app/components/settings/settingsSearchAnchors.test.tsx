@@ -230,6 +230,7 @@ describe('settings search anchors', () => {
     fetchSourceStatus.mockReset().mockResolvedValue(true);
     testSource.mockReset().mockResolvedValue({ reachable: true, latency_ms: 12, error: null });
     saveSourceConfig.mockReset().mockResolvedValue(true);
+    fetchDshVersionStatus.mockReset().mockResolvedValue(true);
   });
 
   afterEach(() => {

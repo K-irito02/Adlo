@@ -200,8 +200,9 @@ await page.fill('.adl-settings-row__control input', 'value');
 
 ## DSH 设置
 
-> DeepSeek Harness 下载源和代理设置。三块结构（下载源 / 代理设置 / 测试连接）：
-> 块头在卡外（恢复默认图标 + 主标题），卡内副标题行左说明、右控件；变更即自动保存。
+> DeepSeek Harness 下载源、代理设置与版本管理。四块结构（下载源 / 代理设置 / 测试连接 / 版本管理）：
+> 块头在卡外（恢复默认图标 + 主标题），卡内副标题行左说明（行首「?」提示图标）、右控件；变更即自动保存。
+> 「版本管理」块两行：当前版本（版本号 + 更新徽标 + 最新可用版本）、版本操作（文字按钮组）。
 
 ### 定位选择器
 
@@ -219,6 +220,10 @@ await page.fill('.adl-settings-row__control input', 'value');
 | `.adl-settings-row__control .adl-settings-dropdown__trigger` | 下载源/代理模式下拉框（自动检测/npmjs/npmmirror/自定义；自动检测/自定义/无） |
 | `.adl-settings-input` | 自定义地址与代理配置字段（HTTP/HTTPS/直连名单） |
 | `[data-testid="dsh-test-button"]` | 测试连接按钮（结果显示在按钮内，2 秒后恢复） |
+| `[data-settings-anchor="dsh:version"]` | 版本管理块头（装饰图标，无恢复按钮） |
+| `.adl-dsh-settings__version-readout` | 当前版本读数（版本号 + 更新徽标 + 最新可用版本） |
+| `.adl-dsh-settings__action-btn` | 版本操作文字按钮（检查更新/升级到最新版/重新安装/卸载版本/回退版本） |
+| `.adl-dsh-settings__version-menu` | 版本回退菜单（多版本时；Portal 挂 body，Esc/外部点击关闭） |
 
 ### 操作流程
 
@@ -246,6 +251,18 @@ await page.click('[data-testid="dsh-test-button"]');
 // 块级恢复默认（经确认对话框，乐观执行）
 await page.click('[data-testid="dsh-source-reset"]');
 await page.click('button:has-text("确认")');
+
+// 版本管理块：检查更新 / 重新安装
+await page.click('button:has-text("检查更新")');
+await page.click('button:has-text("重新安装")');
+
+// 卸载当前版本需二次确认（首次点击进入危险确认态，再次点击执行）
+await page.click('button:has-text("卸载版本")');
+await page.click('button:has-text("卸载版本")');
+
+// 多版本时回退：打开 Portal 菜单选择目标版本
+await page.click('button:has-text("回退版本")');
+await page.click('.adl-dsh-settings__version-menu-item-revert:has-text("1.0.0")');
 ```
 
 > 组级恢复默认经侧栏触发；该流程会**取消在途的自动保存防抖并立即落盘**，避免旧快照补写。

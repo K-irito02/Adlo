@@ -37,17 +37,24 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 8px 16px;
+  max-width: 100%;
+  padding: var(--space-2) var(--space-4);
   background: transparent;
   border: none;
   border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
+  white-space: normal;
   cursor: pointer;
   transition: var(--theme-transition);
 }
 
-.adl-launcher-entry:hover {
+.adl-launcher-entry:hover:not(:disabled) {
   background: var(--bg-hover);
+}
+
+.adl-launcher-entry:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

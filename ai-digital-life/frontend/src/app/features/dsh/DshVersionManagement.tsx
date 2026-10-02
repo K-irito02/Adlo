@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
@@ -18,6 +19,25 @@ const MOCK_VERSION_TIMELINE: Record<string, string> = {
   '0.1.0-rc.1': '2026-08-25 17:40',
   '0.1.0': '2026-08-20 10:00',
 };
+
+/** 版本下拉菜单几何（Portal + fixed 定位），与 SettingsSelect 同口径。 */
+interface MenuGeometry {
+  /** 向下打开：菜单顶边相对视口（与 bottom 互斥） */
+  top?: number;
+  /** 向上打开：菜单底边锚定触发器上边缘（与 top 互斥） */
+  bottom?: number;
+  left: number;
+  width: number;
+  /** 向上打开且上方空间不足时收窄列表高（向下打开为 undefined，走 CSS 上限） */
+  maxHeight?: number;
+}
+
+const MENU_OFFSET = 6;
+const MENU_MAX_WIDTH = 340;
+const MENU_MIN_WIDTH = 280;
+const MENU_MAX_HEIGHT = 280;
+const MENU_MIN_HEIGHT = 80;
+const VIEWPORT_MARGIN = 8;
 
 /** 勾选图标 */
 function CheckIcon() {
@@ -87,12 +107,14 @@ export function DshVersionManagement() {
   const [downloading, setDownloading] = useState(false);
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const [uninstallingVersion, setUninstallingVersion] = useState<string | null>(null);
+  const [menuGeometry, setMenuGeometry] = useState<MenuGeometry | null>(null);
   const checkingRef = useRef(false);
   const downloadingRef = useRef(false);
   const reinstallingRef = useRef(false);
   const revertingRef = useRef(false);
   const uninstallingRef = useRef<string | null>(null);
   const versionMenuRef = useRef<HTMLDivElement>(null);
+  const versionMenuPanelRef = useRef<HTMLDivElement>(null);
 
   const currentSelected = versionStatus?.currentSelected ?? null;
   const latestAvailable = versionStatus?.latestAvailable ?? null;
@@ -101,8 +123,11 @@ export function DshVersionManagement() {
 
   const isCurrentSelected = installed.includes(currentSelected ?? '') && currentSelected !== null;
   const hasMultipleVersions = installed.length > 1;
+  // 任一版本操作在途时禁用全部操作按钮，避免并发卸载/回退/升级（防重入仅拦同种操作）。
+  const versionBusy =
+    checkingUpdate || downloading || reinstalling || reverting || uninstallingVersion !== null;
 
-  // 构建菜单排序：当前版本 → 已装(新→旧) → 未装的最新版
+  // 构建菜单排序：当前版本 → 其余已装版本（保持后端顺序）→ 未装的最新版
   const sortedVersions = (() => {
     const installedSet = new Set(installed);
     const current = currentSelected ? [currentSelected] : [];
@@ -119,19 +144,100 @@ export function DshVersionManagement() {
     setUninstallConfirm(false);
   }, [currentSelected]);
 
-  // 点击外部关闭版本菜单
+  /**
+   * 版本菜单几何：菜单经 Portal 挂到 body（fixed），不受设置面板滚动容器
+   * （`.adl-settings-panel__content` overflow-y:auto）裁剪。右对齐触发器并钳制在视口内；
+   * 下方空间不足则上翻并按上方高度收窄（同 SettingsSelect 口径）。
+   */
+  const updateMenuGeometry = useCallback(() => {
+    const anchor = versionMenuRef.current;
+    if (!anchor) {
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    const width = Math.min(
+      MENU_MAX_WIDTH,
+      Math.max(MENU_MIN_WIDTH, window.innerWidth - 2 * VIEWPORT_MARGIN),
+    );
+    const left = Math.max(
+      VIEWPORT_MARGIN,
+      Math.min(rect.right - width, window.innerWidth - width - VIEWPORT_MARGIN),
+    );
+    const belowTop = rect.bottom + MENU_OFFSET;
+    const fitsBelow = belowTop + MENU_MAX_HEIGHT <= window.innerHeight - VIEWPORT_MARGIN;
+    setMenuGeometry(
+      fitsBelow
+        ? { top: belowTop, left, width, maxHeight: undefined }
+        : {
+            top: undefined,
+            bottom: window.innerHeight - rect.top + MENU_OFFSET,
+            left,
+            width,
+            maxHeight: Math.min(
+              MENU_MAX_HEIGHT,
+              Math.max(MENU_MIN_HEIGHT, rect.top - MENU_OFFSET - VIEWPORT_MARGIN),
+            ),
+          },
+    );
+  }, []);
+
+  useLayoutEffect(() => {
+    if (showVersionMenu) {
+      updateMenuGeometry();
+    }
+  }, [showVersionMenu, updateMenuGeometry]);
+
+  // 点击外部关闭版本菜单（触发器与 Portal 菜单都在「内部」判定内）。
   useEffect(() => {
     if (!showVersionMenu) {
       return;
     }
     const handleClickOutside = (e: MouseEvent) => {
-      if (versionMenuRef.current && !versionMenuRef.current.contains(e.target as Node)) {
-        setShowVersionMenu(false);
+      const target = e.target as Node;
+      if (
+        versionMenuRef.current?.contains(target) ||
+        versionMenuPanelRef.current?.contains(target)
+      ) {
+        return;
       }
+      setShowVersionMenu(false);
     };
     document.addEventListener('mousedown', handleClickOutside, true);
     return () => document.removeEventListener('mousedown', handleClickOutside, true);
   }, [showVersionMenu]);
+
+  // Esc 关闭版本菜单（键盘可达性）。
+  useEffect(() => {
+    if (!showVersionMenu) {
+      return;
+    }
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowVersionMenu(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [showVersionMenu]);
+
+  // 菜单打开期间跟随触发器重定位（面板内滚动 capture + 视口 resize）；菜单自身滚动不重定位。
+  useEffect(() => {
+    if (!showVersionMenu) {
+      return;
+    }
+    const handleReposition = (e: Event) => {
+      if (e.target instanceof Node && versionMenuPanelRef.current?.contains(e.target)) {
+        return;
+      }
+      updateMenuGeometry();
+    };
+    document.addEventListener('scroll', handleReposition, true);
+    window.addEventListener('resize', handleReposition);
+    return () => {
+      document.removeEventListener('scroll', handleReposition, true);
+      window.removeEventListener('resize', handleReposition);
+    };
+  }, [showVersionMenu, updateMenuGeometry]);
 
   const handleCheckUpdate = useCallback(async () => {
     if (checkingRef.current) {
@@ -296,7 +402,7 @@ export function DshVersionManagement() {
               </span>
             ) : (
               <span className="adl-dsh-settings__version-value is-empty">
-                {t.dshStatusSystemNone}
+                {t.dshCurrentVersionNone}
               </span>
             )}
             {latestAvailable ? (
@@ -321,77 +427,109 @@ export function DshVersionManagement() {
           ) : null}
         </div>
         <div className="adl-settings-row__control adl-dsh-settings__version-actions">
-          {/* 版本选择/回退（多版本时）：文字按钮 + 下拉菜单 */}
+          {/* 版本选择/回退（多版本时）：文字按钮 + Portal 下拉菜单 */}
           {hasMultipleVersions ? (
             <div className="adl-dsh-settings__version-menu-anchor" ref={versionMenuRef}>
               <button
                 type="button"
                 className="adl-dsh-settings__action-btn"
                 onClick={() => setShowVersionMenu((v) => !v)}
-                disabled={reverting}
+                disabled={versionBusy}
+                aria-expanded={showVersionMenu}
                 title={t.dshRevertHint}
               >
                 {reverting ? <Spinner size="sm" speed="normal" /> : t.dshRevert}
               </button>
-              {showVersionMenu ? (
-                <div className="adl-dsh-settings__version-menu">
-                  <div className="adl-dsh-settings__version-menu-list">
-                    {sortedVersions.map((v) => {
-                      const isCurrent = v === currentSelected;
-                      const isInstalled = installed.includes(v);
-                      const time = MOCK_VERSION_TIMELINE[v] ?? '';
-                      return (
-                        <button
-                          key={v}
-                          type="button"
-                          className={`adl-dsh-settings__version-menu-item${isCurrent ? ' adl-dsh-settings__version-menu-item--current' : ''}`}
-                          onClick={() => void handleRevertToVersion(v)}
-                          disabled={isCurrent || reverting}
-                        >
-                          <div className="adl-dsh-settings__version-menu-item-info">
-                            <span className="adl-dsh-settings__version-menu-item-version">{v}</span>
-                            {time ? (
-                              <span className="adl-dsh-settings__version-menu-item-time">
-                                {time}
-                              </span>
-                            ) : null}
-                          </div>
-                          <div className="adl-dsh-settings__version-menu-item-badges">
-                            {isInstalled ? (
-                              <span className="adl-dsh-settings__version-menu-item-installed">
-                                {t.dshInstalledVersions}
-                              </span>
-                            ) : null}
-                            {isCurrent ? (
-                              <span className="adl-dsh-settings__version-menu-item-check">
-                                <CheckIcon />
-                              </span>
-                            ) : null}
-                            {isInstalled && !isCurrent ? (
+              {showVersionMenu && menuGeometry
+                ? createPortal(
+                    <div
+                      ref={versionMenuPanelRef}
+                      className="adl-dsh-settings__version-menu"
+                      style={{
+                        top: menuGeometry.top,
+                        bottom: menuGeometry.bottom,
+                        left: menuGeometry.left,
+                        width: menuGeometry.width,
+                      }}
+                    >
+                      <div
+                        className="adl-dsh-settings__version-menu-list"
+                        style={
+                          menuGeometry.maxHeight != null
+                            ? { maxHeight: menuGeometry.maxHeight - 8 }
+                            : undefined
+                        }
+                      >
+                        {sortedVersions.map((v) => {
+                          const isCurrent = v === currentSelected;
+                          const isInstalled = installed.includes(v);
+                          const time = MOCK_VERSION_TIMELINE[v] ?? '';
+                          const revertDisabled =
+                            isCurrent || reverting || uninstallingVersion !== null;
+                          return (
+                            // 行容器为普通 <div>：回退与卸载是两个并列的原生 <button>，
+                            // 避免「交互元素嵌套交互元素」（HTML 非法 / ARIA 子项被 presentational 吞掉）。
+                            <div
+                              key={v}
+                              className={`adl-dsh-settings__version-menu-item${
+                                isCurrent ? ' adl-dsh-settings__version-menu-item--current' : ''
+                              }`}
+                            >
                               <button
                                 type="button"
-                                className="adl-dsh-settings__version-menu-item-uninstall"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  void runUninstall(v);
-                                }}
-                                disabled={uninstallingVersion === v}
-                                title={t.dshUninstall}
+                                className="adl-dsh-settings__version-menu-item-revert"
+                                aria-current={isCurrent ? 'true' : undefined}
+                                onClick={() => void handleRevertToVersion(v)}
+                                disabled={revertDisabled}
                               >
-                                {uninstallingVersion === v ? (
-                                  <Spinner size="sm" speed="normal" />
-                                ) : (
-                                  <TrashIcon />
-                                )}
+                                <span className="adl-dsh-settings__version-menu-item-version">
+                                  {v}
+                                </span>
+                                {time ? (
+                                  <span className="adl-dsh-settings__version-menu-item-time">
+                                    {time}
+                                  </span>
+                                ) : null}
                               </button>
-                            ) : null}
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              ) : null}
+                              <div className="adl-dsh-settings__version-menu-item-badges">
+                                {isInstalled ? (
+                                  <span className="adl-dsh-settings__version-menu-item-installed">
+                                    {t.dshInstalledVersions}
+                                  </span>
+                                ) : null}
+                                {isCurrent ? (
+                                  <span className="adl-dsh-settings__version-menu-item-check">
+                                    <CheckIcon />
+                                  </span>
+                                ) : null}
+                                {isInstalled && !isCurrent ? (
+                                  <button
+                                    type="button"
+                                    className="adl-dsh-settings__version-menu-item-uninstall"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void runUninstall(v);
+                                    }}
+                                    disabled={versionBusy}
+                                    title={t.dshUninstall}
+                                    aria-label={t.dshUninstall}
+                                  >
+                                    {uninstallingVersion === v ? (
+                                      <Spinner size="sm" speed="normal" />
+                                    ) : (
+                                      <TrashIcon />
+                                    )}
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>,
+                    document.body,
+                  )
+                : null}
             </div>
           ) : null}
 
@@ -400,7 +538,8 @@ export function DshVersionManagement() {
             type="button"
             className="adl-dsh-settings__action-btn"
             onClick={handleCheckUpdate}
-            disabled={checkingUpdate}
+            disabled={versionBusy}
+            aria-label={checkingUpdate ? t.dshCheckUpdate : undefined}
           >
             {checkingUpdate ? <Spinner size="sm" speed="normal" /> : t.dshCheckUpdate}
           </button>
@@ -411,7 +550,8 @@ export function DshVersionManagement() {
               type="button"
               className="adl-dsh-settings__action-btn"
               onClick={handleDownloadUpdate}
-              disabled={downloading}
+              disabled={versionBusy}
+              aria-label={downloading ? t.dshUpdate : undefined}
             >
               {downloading ? <Spinner size="sm" speed="normal" /> : t.dshUpdate}
             </button>
@@ -422,7 +562,8 @@ export function DshVersionManagement() {
             type="button"
             className="adl-dsh-settings__action-btn"
             onClick={handleReinstall}
-            disabled={reinstalling}
+            disabled={versionBusy}
+            aria-label={reinstalling ? t.dshReinstall : undefined}
           >
             {reinstalling ? <Spinner size="sm" speed="normal" /> : t.dshReinstall}
           </button>
@@ -435,7 +576,8 @@ export function DshVersionManagement() {
                 uninstallConfirm ? ' adl-dsh-settings__action-btn--danger' : ''
               }`}
               onClick={uninstallConfirm ? handleConfirmUninstall : handleUninstall}
-              disabled={uninstallingVersion === currentSelected}
+              disabled={versionBusy}
+              aria-label={uninstallingVersion === currentSelected ? t.dshUninstall : undefined}
             >
               {uninstallingVersion === currentSelected ? (
                 <Spinner size="sm" speed="normal" />

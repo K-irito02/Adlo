@@ -42,6 +42,7 @@ beforeEach(() => {
 
 afterEach(() => {
   (window as unknown as { digitalLife?: unknown }).digitalLife = undefined;
+  vi.restoreAllMocks();
   vi.clearAllMocks();
 });
 
@@ -79,7 +80,8 @@ describe('CenterEntryPage', () => {
     expect(s.centerTabs).toHaveLength(1);
     expect(s.browserTabsById[center?.refId ?? '']?.location).toBe('center');
     // 面板活动标签被重夹：不再指向已转中心的标签（否则面板会双挂载同一标签）。
-    expect(s.browserActiveTabId).not.toBe(center?.refId);
+    // 本用例无面板标签，重夹后应为空串（而非仅"不等于中心标签"）。
+    expect(s.browserActiveTabId).toBe('');
   });
 
   it('点击「打开终端」就地转换为终端选择器', () => {
@@ -154,13 +156,52 @@ describe('CenterEntryPage', () => {
       throw new Error('boom');
     });
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
-    const showToast = vi.fn();
-    useAppStore.setState({ showToast });
+    // spyOn（afterEach restoreAllMocks 复位）而非 setState 覆写，避免污染后续用例的 store。
+    const showToast = vi.spyOn(useAppStore.getState(), 'showToast');
 
     renderLauncher();
     fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
 
     await vi.waitFor(() => expect(showToast).toHaveBeenCalledWith('打开失败', 'error'));
+  });
+
+  it('浏览器标签未激活时保留入口页标签（!newId 守卫）', () => {
+    // browserOpenTab 未激活任何标签（异常/边界）：不得就地转换、不得抛错。
+    vi.spyOn(useAppStore.getState(), 'browserOpenTab').mockImplementation(() => {
+      useAppStore.setState({ browserActiveTabId: '' });
+    });
+
+    renderLauncher();
+    fireEvent.click(screen.getByRole('button', { name: '打开浏览器' }));
+
+    const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');
+    expect(center?.kind).toBe('launcher');
+  });
+
+  it('openDsh 在途时禁用三个入口并置 aria-busy', async () => {
+    let resolveOpen: (v: unknown) => void = () => {};
+    const open = vi.fn(
+      () =>
+        new Promise((resolve) => {
+          resolveOpen = resolve;
+        }),
+    );
+    (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
+
+    const { container } = renderLauncher();
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
+
+    await vi.waitFor(() => {
+      for (const button of screen.getAllByRole('button')) {
+        expect((button as HTMLButtonElement).disabled).toBe(true);
+      }
+    });
+    expect(container.querySelector('.adl-launcher-entries')?.getAttribute('aria-busy')).toBe(
+      'true',
+    );
+
+    // 收尾：放行在途 promise，避免遗留未处理任务。
+    resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080', freedPort: false } });
   });
 });
 

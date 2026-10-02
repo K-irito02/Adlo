@@ -99,7 +99,7 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 桥接层按功能域拆分为多个子接口文件（`shared/ipc/` 目录），每个域文件定义该域的接口类型。
 
 ### 中心标签（Center Tab）
-中间部分多标签宿主中的标签，`kind` 为 `launcher`（三入口引导页）/`browser`（浏览器视图）/`terminal`（终端视图）。浏览器/终端中心标签通过 `refId` 指向底层标签；底层标签以 `location: 'panel' | 'center'` 标记所属宿主，位置排他。面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签；标题栏标签条支持切换、真关闭与移回对应面板。
+中间部分多标签宿主中的标签，`kind` 为 `launcher`（统一入口页 `CenterEntryPage`，三入口：deepseek harness / 浏览器 / 终端；标签与 `+` 按钮显示「新建入口页」）/`browser`（浏览器视图）/`terminal`（终端视图）。浏览器/终端中心标签通过 `refId` 指向底层标签；底层标签以 `location: 'panel' | 'center'` 标记所属宿主，位置排他。面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签；标题栏标签条支持切换、真关闭与移回对应面板。
 
 ### Divider Strip（分隔线桥接条）
 dsh WebView2（中间区）与浏览器 tab WebView2（右侧面板）零间隙贴边时，两者均为 OS 级子窗口，吃掉右面板 resize handle 命中带。修复是在接缝上架一条 6px 全高透明子 WebView（`adl-divider-strip`），夺回命中权并把拖拽增量回传主窗口；兄弟窗口（重）建经 store `siblingWebviewNonce` 重建回到最上层。

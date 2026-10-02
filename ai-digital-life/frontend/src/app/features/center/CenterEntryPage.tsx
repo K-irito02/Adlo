@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { IconDeepSeek, IconGlobe, IconTerminal } from '@icons';
@@ -27,8 +27,12 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
   const centerRemoveTab = useAppStore((s) => s.centerRemoveTab);
   const reportError = useAppStore((s) => s.reportError);
   const showToast = useAppStore((s) => s.showToast);
+  // openDsh 在途标志：拉起进程可能耗时数秒，期间禁用三个入口，避免用户在入口页
+  // 就地转换本标签（浏览器/终端）后，dsh 迟到完成时误删用户刚打开的标签。
+  const [openingDsh, setOpeningDsh] = useState(false);
 
   const handleOpenDsh = useCallback(async () => {
+    setOpeningDsh(true);
     try {
       const result = await openDsh();
       if (!result) {
@@ -40,10 +44,18 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
         reportError('DSH_FREED_PORT', t.dshPortFreed, 'dsh');
       }
       // openDsh 已创建并激活 dsh 浏览器中心标签；移除入口页标签以免其抢占视图。
-      centerRemoveTab(centerTabId);
+      // 仅当仍为本入口页标签时移除（防御性：并发/异常下标签可能已被就地转换）。
+      const stillLauncher =
+        useAppStore.getState().centerTabs.find((tab) => tab.id === centerTabId)?.kind ===
+        'launcher';
+      if (stillLauncher) {
+        centerRemoveTab(centerTabId);
+      }
     } catch {
       // 意外异常兜底；常规失败（openDsh 返回 null）已由 action 记录全局错误卡片。
       showToast(t.dshOpenFailed, 'error');
+    } finally {
+      setOpeningDsh(false);
     }
   }, [openDsh, reportError, showToast, centerRemoveTab, centerTabId, t]);
 
@@ -67,16 +79,31 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
 
   return (
     <section className="adl-center-entry" aria-label={t.centerLauncherLabel}>
-      <div className="adl-launcher-entries">
-        <button type="button" className="adl-launcher-entry" onClick={handleOpenDsh}>
+      <div className="adl-launcher-entries" aria-busy={openingDsh}>
+        <button
+          type="button"
+          className="adl-launcher-entry"
+          onClick={handleOpenDsh}
+          disabled={openingDsh}
+        >
           <IconDeepSeek size={16} decorative />
           <span>{t.centerLauncherOpenDsh}</span>
         </button>
-        <button type="button" className="adl-launcher-entry" onClick={handleOpenBrowser}>
+        <button
+          type="button"
+          className="adl-launcher-entry"
+          onClick={handleOpenBrowser}
+          disabled={openingDsh}
+        >
           <IconGlobe size={16} decorative />
           <span>{t.centerLauncherOpenBrowser}</span>
         </button>
-        <button type="button" className="adl-launcher-entry" onClick={handleOpenTerminal}>
+        <button
+          type="button"
+          className="adl-launcher-entry"
+          onClick={handleOpenTerminal}
+          disabled={openingDsh}
+        >
           <IconTerminal size={16} decorative />
           <span>{t.centerLauncherOpenTerminal}</span>
         </button>

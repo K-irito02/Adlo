@@ -295,6 +295,23 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS.storageBrowserDownloadTitle).toBe('Browser download folder');
   });
 
+  it('includes the dsh version-management block copy in both locales', () => {
+    const keys = [
+      'dshVersionManagement',
+      'dshCurrentVersionLabel',
+      'dshCurrentVersionNone',
+      'dshCurrentVersionDesc',
+      'dshCurrentVersionHint',
+      'dshVersionActions',
+      'dshVersionActionsDesc',
+      'dshVersionActionsHint',
+    ] as const;
+    for (const key of keys) {
+      expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
+      expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
+    }
+  });
+
   it('retires the dsh close-dialog / legacy open-button copy (no consumers)', () => {
     // 关闭对话框已随 dsh 统一为普通浏览器标签而退役；旧打开按钮/欢迎空态亦无调用方。
     for (const key of [
@@ -308,6 +325,21 @@ describe('i18n en-US namespace keys', () => {
       'dshCloseTerminateHint',
       'dshCloseCancel',
       'dshWelcomeEmpty',
+      // 版本管理改版后退役的旧文案（含被 dshCurrentVersionNone 取代的系统版本状态）。
+      'dshTitle',
+      'dshVersion',
+      'dshReinstallHint',
+      'dshRestart',
+      'dshOpenExternal',
+      'dshLatestVersionLabel',
+      'dshLatestVersionDesc',
+      'dshStatusBundled',
+      'dshStatusBundledNone',
+      'dshStatusSystem',
+      'dshStatusSystemNone',
+      'dshStatusMirror',
+      'dshStatusMirrorNone',
+      'dshStatusRunning',
     ] as const) {
       expect(enUS, `en:${key}`).not.toHaveProperty(key);
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);

@@ -114,7 +114,14 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      */
     fetchDshVersionStatus: async (): Promise<boolean> => {
       clearError(get, SCOPE);
-      const result = await window.digitalLife.dsh.getVersionStatus();
+      // 桥调用可能抛异常（与 fetchSourceStatus/saveSourceConfig/testSource 同口径兜底），
+      // 避免挂载路径产生未处理的 promise rejection。
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getVersionStatus>>;
+      try {
+        result = await window.digitalLife.dsh.getVersionStatus();
+      } catch {
+        return false;
+      }
       if (result.ok) {
         get().setDshVersionStatus(result.data);
         return true;
