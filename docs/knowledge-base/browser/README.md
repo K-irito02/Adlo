@@ -73,7 +73,7 @@ favicon、标题、站点元数据的同步/缓存/时序问题。
 
 | 文件 | 说明 |
 |------|------|
-| [browser-handlePageMeta-concurrent-dedup-2026-06-21.md](./favicon-meta/browser-handlePageMeta-concurrent-dedup-2026-06-21.md) | handlePageMeta 并发回调去重（两路径竞态导致重复标签/历史 + 刷新循环） |
+| [browser-handle-page-meta-concurrent-dedup-2026-06-21.md](./favicon-meta/browser-handle-page-meta-concurrent-dedup-2026-06-21.md) | handlePageMeta 并发回调去重（两路径竞态导致重复标签/历史 + 刷新循环） |
 | [browser-prefetch-title-lock-favicon-pin-2026-06-21.md](./favicon-meta/browser-prefetch-title-lock-favicon-pin-2026-06-21.md) | 预取 + 标题锁定 + Favicon Pin 重构（共享工具提取、显式 pin 机制） |
 | [browser-refresh-meta-optimization-2026-06-23.md](./favicon-meta/browser-refresh-meta-optimization-2026-06-23.md) | 浏览器刷新元数据优化 |
 | [browser-meta-sync-mechanism-2026-06-25.md](./favicon-meta/browser-meta-sync-mechanism-2026-06-25.md) | 标题/favicon 双层同步机制（WebView2 postMessage + Rust 轮询、延迟创建、质量评分） |

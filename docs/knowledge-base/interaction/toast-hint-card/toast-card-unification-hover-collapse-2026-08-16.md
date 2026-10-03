@@ -94,4 +94,4 @@ const handleDetailTransitionEnd = (e) => {
 - 组件：`frontend/src/app/components/ToastCard.tsx`、`ErrorToast.tsx`、`FileOpNotice.tsx`、`ToastRegion.tsx`
 - 样式：`frontend/src/styles/components/toast-card.css`（`.toast-card-region` / `.toast-card-region__group` / `.toast-card__detail.is-collapsed-settled`）
 - 测试：`frontend/src/app/components/__tests__/ErrorToast.test.tsx`、`ToastRegion.test.tsx`
-- 相关旧经验：[error-toast-severity-scope-popLayout-2026-08-12.md](./error-toast-severity-scope-popLayout-2026-08-12.md)（popLayout 部分已随本变更调整：卡片级不再设 layout，仅摘要卡保留）
+- 相关旧经验：[error-toast-severity-scope-pop-layout-2026-08-12.md](./error-toast-severity-scope-pop-layout-2026-08-12.md)（popLayout 部分已随本变更调整：卡片级不再设 layout，仅摘要卡保留）

@@ -4,7 +4,7 @@ Use this template when dispatching a spec document reviewer subagent.
 
 **Purpose:** Verify the spec is complete, consistent, and ready for implementation planning.
 
-**Dispatch after:** Spec document is written to docs/superpowers/specs/
+**Dispatch after:** Spec document is written to `docs/superpowers/specs/`（路径以仓库根目录为基准；即使 cwd 位于 `ai-digital-life/`，也写入根仓库 `docs/`，禁止在 `ai-digital-life/docs/` 下另建）。
 
 ```
 Subagent (general-purpose):

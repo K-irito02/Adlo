@@ -6,8 +6,8 @@
 |------|------|
 | [architecture/](./architecture/) | 系统架构、技术栈对齐、国际化、主题、工作区与检索 |
 | [design-system/](./design-system/) | 设计 Token、主题、组件规范、可访问性、响应式、测试 |
-| [development/](./development/) | 工程约束、Agent 路由与拓扑、Hook 策略、代码库治理检查清单 |
- | [plans/agent/](./plans/agent/) | Agent 系统实施计划（核心引擎、SSE 服务器、Tauri 接线、会话页面等） |
+| [development/](./development/) | 工程约束（技术栈、双端、安全、Store、i18n）与日志系统操作手册 |
+| [plans/agent/](./plans/agent/) | Agent 系统实施计划（核心引擎、SSE 服务器、Tauri 接线、会话页面等） |
 | [plans/infrastructure/](./plans/infrastructure/) | 基础设施实施计划（磁盘清理、构建优化等） |
 | [specs/agent/](./specs/agent/) | Agent 系统功能规格设计 |
 | [knowledge-base/](./knowledge-base/) | 经验教训与总结（按领域分类：重构、浏览器、交互优化、代码质量、CI 监控、多工作区、浏览器自动化、Tauri 后端） |
@@ -18,6 +18,8 @@
 | [specs/](./specs/) | 功能规格设计（与 plans/ 对应） |
 | [operations/](./operations/) | 操作手册与 UI 使用说明（ui-manual） |
 | [root-cause-resolution/](./root-cause-resolution/) | 根因排查进度记录（按月归档） |
+| [closing-workflow/](./closing-workflow/) | 收尾工作流分月归档（progress 执行记录与评审报告） |
+| [superpowers/](./superpowers/) | Superpowers 技能产出的实施计划（plans）与规格设计（specs） |
 
 ## 基础设施配置
 

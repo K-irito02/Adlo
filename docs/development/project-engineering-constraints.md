@@ -310,9 +310,6 @@
 若变更同时影响 Agent 路由、hook 策略或阶段边界，还必须同步：
 
 - [AGENTS.md](../../AGENTS.md)
-- [agents/topology.md](./agents/topology.md)
-- [agents/routing.md](./agents/routing.md)
-- [agents/hook-policy.md](./agents/hook-policy.md)
 
 ## 禁止项补充清单
 

@@ -11,6 +11,8 @@ Execute plan by dispatching a fresh implementer subagent per task, a task review
 
 **Core principle:** Fresh subagent per task + task review (spec + quality) + broad final review = high quality, fast iteration
 
+> **文档路径基准（重要）**：本技能中所有 `docs/...` 路径均以**仓库根目录**（含根 `AGENTS.md` 与 `docs/` 的治理根，即 `ai-digital-life/` 的父目录）为基准解析；`ai-digital-life/` 子工作区内不另设 `docs/` 文档目录。
+
 **Narration:** between tool calls, narrate at most one short line — the
 ledger and the tool results carry the record.
 

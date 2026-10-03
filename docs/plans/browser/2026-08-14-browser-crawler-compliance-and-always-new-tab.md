@@ -1790,12 +1790,12 @@ git commit -m "feat(frontend): use native title tooltips and refine bookmark/ope
 line 16 替换为：
 
 ```markdown
-| Tooltip | 自定义 Tooltip 组件与原生 `title` 均可使用，具体方案开发时由用户决策（详见 [ui-patterns.md](./ui-patterns.md#9-tooltip)） |
+| Tooltip | 自定义 Tooltip 组件与原生 `title` 均可使用，具体方案开发时由用户决策（详见 [ui-patterns.md](../../../.agents/rules/ui-patterns.md#9-tooltip)） |
 ```
 
 - [ ] **Step 3: 改根 `AGENTS.md` 禁止项**
 
-删除 line 91 `- 混合使用多种 Tooltip 方案（例外：纯文本路径展示可使用原生 \`title\`，见 [ui-patterns.md](./.agents/rules/ui-patterns.md#9-tooltip)）` 整行。
+删除 line 91 `- 混合使用多种 Tooltip 方案（例外：纯文本路径展示可使用原生 \`title\`，见 [ui-patterns.md](../../../.agents/rules/ui-patterns.md#9-tooltip)）` 整行。
 
 - [ ] **Step 4: 改 `ai-digital-life/AGENTS.md` 设计系统约束 Tooltip 行**
 

@@ -1,6 +1,6 @@
 # Themes
 
-Source of truth: `[frontend/src/styles/themes.css](../../frontend/src/styles/themes.css)` and `[frontend/src/design-system/theme.ts](../../frontend/src/design-system/theme.ts)`.
+Source of truth: `[frontend/src/styles/themes.css](../../../ai-digital-life/frontend/src/styles/themes.css)` and `[frontend/src/design-system/theme.ts](../../../ai-digital-life/frontend/src/design-system/theme.ts)`.
 
 The desktop renderer ships **2 appearance modes (light / dark)**. The Tauri backend additionally exposes `system` mode that resolves to either light or dark based on the OS preference.
 

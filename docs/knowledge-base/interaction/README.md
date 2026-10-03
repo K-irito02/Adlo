@@ -105,4 +105,4 @@ toast、错误提示、hint card 交互。
 | [hint-card-arrow-positioning-fix-2026-06-11.md](./toast-hint-card/hint-card-arrow-positioning-fix-2026-06-11.md) | Hint Card 箭头定位 + 动态 DOM 内存泄漏 + 父级 hover 背景隔离 |
 | [hint-card-dnd-fixes-2026-07-21.md](./toast-hint-card/hint-card-dnd-fixes-2026-07-21.md) | Hint Card 拖拽相关修复 |
 | [toast-card-unification-hover-collapse-2026-08-16.md](./toast-hint-card/toast-card-unification-hover-collapse-2026-08-16.md) | toast 卡片统一 + 悬停折叠 |
-| [error-toast-severity-scope-popLayout-2026-08-12.md](./toast-hint-card/error-toast-severity-scope-popLayout-2026-08-12.md) | 持久错误通知三级分级、模块作用域清除、popLayout 让位动画 |
+| [error-toast-severity-scope-pop-layout-2026-08-12.md](./toast-hint-card/error-toast-severity-scope-pop-layout-2026-08-12.md) | 持久错误通知三级分级、模块作用域清除、popLayout 让位动画 |

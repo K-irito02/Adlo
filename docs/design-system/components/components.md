@@ -1,8 +1,8 @@
 # Components
 
-Source of truth: `[frontend/src/styles/components.css](../../frontend/src/styles/components.css)` (visual rules) and `[frontend/src/design-system/components.ts](../../frontend/src/design-system/components.ts)` (renderer helpers).
+Source of truth: `[frontend/src/styles/components.css](../../../ai-digital-life/frontend/src/styles/components.css)` (visual rules) and `[frontend/src/design-system/components.ts](../../../ai-digital-life/frontend/src/design-system/components.ts)` (renderer helpers).
 
-All renderer helpers return `RawHtml` from the `[html](../../frontend/src/design-system/html.ts)` tagged template, so they compose safely with each other while interpolated user data is automatically HTML-escaped.
+All renderer helpers return `RawHtml` from the `[html](../../../ai-digital-life/frontend/src/design-system/html.ts)` tagged template, so they compose safely with each other while interpolated user data is automatically HTML-escaped.
 
 ## Button
 
@@ -410,7 +410,7 @@ showToast('Terminal ready', 'success', 'terminal') // position 2
 | Wrapping | `overflow-wrap: anywhere`; width via `maxWidth` prop (default 240) |
 | Placement | `data-side="top\|bottom\|left\|right"` (viewport flip/clamp + Webview2 avoid-rects + cross-axis slide) |
 
-React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../frontend/src/app/components/Tooltip.tsx)`.
+React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../../ai-digital-life/frontend/src/app/components/Tooltip.tsx)`.
 
 Fold gutter tooltips use `FoldTooltipOverlay` (CodeMirror 6 extension, portal to `document.body`): `[FoldTooltipOverlay.tsx](../../frontend/src/app/regions/right-panel/FoldTooltipOverlay.tsx)`.
 

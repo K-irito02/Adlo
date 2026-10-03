@@ -72,7 +72,7 @@
 - **树视图过滤**：历史树中过滤掉名称仍为空的条目（仅有 URL 占位标题的不可见）。
 
 **关键文件**：`useBrowserUrlChange.ts`, `useBrowserPageMeta.ts`, `browserDisplayUtils.ts`（`historyDedupKey`）, `browserSlice.ts`, `browserHistorySlice.ts`, `useBrowserTreeData.ts`
-**详细文档**：[browser-tab-meta-deferred-creation-2026-06-25.md](./2026-06/browser-tab-meta-deferred-creation-2026-06-25.md)
+**详细文档**：[browser-tab-meta-deferred-creation-2026-06-25.md](./favicon-meta/browser-tab-meta-deferred-creation-2026-06-25.md)
 
 ### 12. Favicon 预加载与标题同步
 **问题**：标签页创建时 favicon 图标（`<img>`）需异步从网络加载，比文本标题延迟显示 50-200ms，用户感知同步性差。

@@ -25,9 +25,9 @@
 
 ### 1. H1: 消除重复代码
 **文件修改**：
-- 新建：[`activityUtils.ts`](../../ai-digital-life/frontend/src/app/stores/activityUtils.ts)
-- 修改：[`sessionSlice.ts`](../../ai-digital-life/frontend/src/app/stores/slices/sessionSlice.ts)
-- 修改：[`fetchActions.ts`](../../ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts)
+- 新建：[`activityUtils.ts`](../../../../ai-digital-life/frontend/src/app/stores/activityUtils.ts)
+- 修改：[`sessionSlice.ts`](../../../../ai-digital-life/frontend/src/app/stores/slices/sessionSlice.ts)
+- 修改：[`fetchActions.ts`](../../../../ai-digital-life/frontend/src/app/stores/actions/fetchActions.ts)
 
 **改进**：
 - 将 `trimOldRuns()` 和 `trimActivityList()` 提取到共享模块
@@ -36,7 +36,7 @@
 
 ### 2. H2: 优化 Zustand 选择器
 **文件修改**：
-- 修改：[`slicedStore.ts`](../../ai-digital-life/frontend/src/app/stores/slicedStore.ts)
+- 修改：[`slicedStore.ts`](../../../../ai-digital-life/frontend/src/app/stores/slicedStore.ts)
 
 **改进**：
 - 导出 `shallow` 比较器供组件使用
@@ -44,8 +44,8 @@
 
 ### 3. H3: 改进全局缓存（TTL）
 **文件修改**：
-- 修改：[`shared.ts`](../../ai-digital-life/frontend/src/app/stores/shared.ts)
-- 修改：[`editorActions.ts`](../../ai-digital-life/frontend/src/app/stores/actions/editorActions.ts)
+- 修改：[`shared.ts`](../../../../ai-digital-life/frontend/src/app/stores/shared.ts)
+- 修改：[`editorActions.ts`](../../../../ai-digital-life/frontend/src/app/stores/actions/editorActions.ts)
 
 **改进**：
 - 添加 `TTLCacheEntry` 类型，包含 `expiresAt` 字段
@@ -63,7 +63,7 @@
 
 ### L3: 改进 TypeScript 断言可读性
 **文件修改**：
-- 修改：[`slicedStore.ts`](../../ai-digital-life/frontend/src/app/stores/slicedStore.ts#L198-L201)
+- 修改：[`slicedStore.ts`](../../../../ai-digital-life/frontend/src/app/stores/slicedStore.ts#L198-L201)
 
 **改进**：
 - 为类型断言添加详细注释说明
@@ -75,11 +75,11 @@
 
 ### M3: parse_config_outline 正则缓存
 - ✅ 已使用 `OnceLock` 缓存正则表达式
-- 文件：[`outline/src/lib.rs`](../../ai-digital-life/crates/outline/src/lib.rs#L169-L177)
+- 文件：[`outline/src/lib.rs`](../../../../ai-digital-life/crates/outline/src/lib.rs#L169-L177)
 
 ### L2: outline_family_map 缓存
 - ✅ 已使用 `OnceLock` 缓存
-- 文件：[`outline/src/lib.rs`](../../ai-digital-life/crates/outline/src/lib.rs#L54-L87)
+- 文件：[`outline/src/lib.rs`](../../../../ai-digital-life/crates/outline/src/lib.rs#L54-L87)
 
 ---
 

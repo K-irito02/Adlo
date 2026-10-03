@@ -98,7 +98,7 @@
 | 操作 | 入口位置 | 文档 |
 |------|----------|------|
 | 打开工作区 | 标题栏 → 文件菜单 → 打开文件夹 | [titlebar/menus/file-menu.md](./titlebar/menus/file-menu.md) |
-| 新建会话 | 左侧边栏 → 工作区旁的 + 按钮 | [leftbar/workspaces.md](./leftbar/workspaces.md) |
+| 新建会话 | 左侧边栏 → 工作区旁的 + 按钮 | [leftbar/README.md](./leftbar/README.md) |
 | 发送消息 | 中心面板 → Composer → 发送按钮 | [center/composer.md](./center/composer.md) |
 | 切换工具 | 右侧面板 → 工具切换器 | [rightpanel/tool-switcher.md](./rightpanel/tool-switcher.md) |
 | 切换主题 | 标题栏 → 主题按钮 | [titlebar/actions.md](./titlebar/actions.md) |

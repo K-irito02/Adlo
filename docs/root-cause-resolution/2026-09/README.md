@@ -2,6 +2,7 @@
 
 ## 进度文件索引
 
+- [progress-2026-09-10-151000.md](./progress-2026-09-10-151000.md) — 右侧工具面板终端创建失败（所有 Shell 类型）
 - [progress-2026-09-12-234500.md](./progress-2026-09-12-234500.md) — per-tab xterm 实例池架构重构 + 终端历史与实时终端分离 + 视图布局（12 个事项：窗口 resize 错乱、切换标签内容消失、首个终端 cat 错乱、终端提示符消失、重启后新 PTY 输出跳回顶部覆盖历史、重复创建 PTY 竞态、同容器 xterm 堆叠、死代码清理、历史分隔条间距与累积缺陷、可拖拽分界线、视图模式与双三角交换按钮、实时终端自持尺寸）
 - [progress-2026-09-13-175422.md](./progress-2026-09-13-175422.md) — 终端复合按钮悬停展开+绑定持久化、分界线中性提示色+提示色规范三目录同步、历史区主题跟随、菜单三区悬停 2s 自动消失
 - [progress-2026-09-13-215642.md](./progress-2026-09-13-215642.md) — 右侧终端面板 7 事项：内容贴边间距、滚动条细线/hover 变宽（xterm v6 自绘部件）、键盘复制粘贴（原生事件无弹窗）、拖拽裁剪、滚动条贴边、滑块过渡打磨 + Phase 4 双轮复审与死代码清理
@@ -34,3 +35,4 @@
 - [progress-2026-09-29-215250.md](./progress-2026-09-29-215250.md) — 设置面板「搜索设置」六事项：自建搜索历史卡片（替代 WebView2/Edge 原生自动填充下拉：历史落盘 `adl:ui.settingsSearchHistory`、悬停预览整体选中、根节点 mousedown 防误关）+ 搜索范围扩到块内副标题/提示说明（块+行两级登记表、命中行补显、补 DSH 测试连接锚点）+ 落点高亮提取共享模块（`utils/revealHighlight` + `RevealHighlightLayers`，warning/accent 变体，文件预览与设置面板共用）+ 卡片 320→200px + 悬停卡片穿透导航拖拽线（头部抬层 `--z-dropdown` + 拖拽线回归共享 3px 命中口径）+ 落点落到实际命中行（`data-settings-row` 行级定位 + `matchedDetail` 单一判定，守卫当场抓出 `downloads_default` 登记错行）；Phase 4 四轮子代理审查（A 验证 rev1→rev2 全量复审揪出声明不实/先截断再规整等并修复 + B 清理 rev3→rev4 复审：删死形参/死 re-export、变体去重、`--…-line` 改名、滚动条回归悬停显现与共享宿主类）+ 顺带修复 `:not(:readonly)` 拼写错误（hover 反馈此前从未生效）；提交 72eb3fa7 + 972e7154 + 清理 commit，285 文件 / 2741 用例全绿
 - [progress-2026-09-30-125738.md](./progress-2026-09-30-125738.md) — 右侧浏览器面板 3 事项：分类标题展开/收起按钮删除（常展开 + `adl:browser.categoryExpanded` 持久化链路全清理）+ 分类间距（标题与首目录收紧、分类间 8→16px）+ 悬浮层 WebView2 遮挡/不恢复全量修复（根因：常驻空 `.toast-card-region` flex gap 幽灵条带永久误触发 + 订阅丢失/恢复不对称/state 覆盖不全；另落实 tooltip 永不隐藏 WebView）；含一轮失败迭代（诊断日志定位真凶后删除）+ Phase 4 四路子代理审查与死代码清理（删 `BrowserCategoryState.id/isPermanent`、`browserCollapse/browserExpand` 死键）
 - [progress-2026-09-30-174534.md](./progress-2026-09-30-174534.md) — 分隔线拖拽 2 事项：1）dsh↔浏览器 WebView 贴边难抓取→常驻 DOM 沟槽方案已验证后用户否决视觉（提交 741c5057 留档）；2）零间隙约束→透明桥接条（6px 子 WebView 夺回命中权+增量回传，主窗口复用几何逻辑），用户 Tauri 实测+日志审计通过，Phase 4：A 验证 rev1（16 项）/rev2（S17-S22）+ B 死代码轮零清理项，门禁全绿后提交
+- [progress-2026-09-30-223655.md](./progress-2026-09-30-223655.md) — 浏览器面板新建目录图标替换, dsh 标题/图标覆盖浏览器标签, 最小化恢复布局错乱, 确认框被拖拽线穿透
