@@ -10,13 +10,11 @@
 
 ## 范围
 
-构建 **3 份独立图谱**：
+构建 **1 份图谱**：
 
 | 图谱 | 项目根 | 内容 |
 |------|--------|------|
 | 自己的项目 | `ai-digital-life/` | Rust + Tauri + 前端（`target/`、`node_modules/` 自动跳过） |
-| pi 参考 | `references/pi` | 全量索引 |
-| opencode 参考 | `references/opencode` | 全量索引 |
 
 SourceWorkspace 根目录**不**建图。
 
@@ -32,8 +30,8 @@ SourceWorkspace 根目录**不**建图。
 
 1. **安装**：`npm i -g @colbymchenry/codegraph`，验证 `codegraph version`
 2. **接入 opencode MCP**：`codegraph install`（先 `--print-config opencode` 预览），必要时手动补 `CODEGRAPH_MCP_TOOLS=explore,node,search,callers,callees,impact,files,status` 全量启用 8 个工具
-3. **建图**：三个项目根分别 `codegraph init`
-4. **验证**：`codegraph status` 检查三份图谱；抽样 `codegraph explore`/`impact` 验证可查询
+3. **建图**：项目根 `codegraph init`
+4. **验证**：`codegraph status` 检查图谱；抽样 `codegraph explore`/`impact` 验证可查询
 
 ## 双通道查询对应
 
@@ -50,11 +48,10 @@ SourceWorkspace 根目录**不**建图。
 
 - 自动增量同步，无需手动 `sync`；大改动用 `codegraph index` 全量重建
 - `codegraph upgrade` 升级；`codegraph status` 检查健康
-- MCP 按 cwd 定位 → 在 SourceWorkspace 根打开 agent 时三份图谱均不激活（正常）；使用某图谱需切工作目录或用 CLI
-- pi/opencode 克隆会被写入 `.codegraph/` 与 `.gitignore` 一行（本地改动，不影响后续 git pull）
+- MCP 按 cwd 定位 → 在 SourceWorkspace 根打开 agent 时图谱不激活（正常）；使用图谱需切工作目录或用 CLI
 - 与现有 `docs/analysis/` 渐进式源码地图体系互补共存（codegraph 管实时可查询图谱，docs/analysis 管深度解读）
 
 ## 验收标准
 
-- 三份图谱 `codegraph status` 均正常显示 node/edge/file 计数
+- 图谱 `codegraph status` 正常显示 node/edge/file 计数
 - 抽样查询返回真实源码、调用路径与影响范围

@@ -68,4 +68,4 @@ AppState 的 `config` 字段从 `RwLock<AppConfig>` 改为 `Arc<RwLock<AppConfig
 ## 相关文件
 
 - [修复计划](../../../plans/phase2/2026-07-06-phase2-defect-fix-plan.md)
-- [OpenCode 功能缺陷修复](opencode-feature-defects-2026-07-06.md)
+- [参考实现功能缺陷修复](opencode-feature-defects-2026-07-06.md)

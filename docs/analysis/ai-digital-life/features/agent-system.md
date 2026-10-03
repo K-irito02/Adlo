@@ -9,7 +9,7 @@
 | 模块 | 文件 | 核心类型/函数 | 职责 |
 |------|------|---------------|------|
 | Router | `router.rs` | `AgentRouter::select()`, `AgentRouter::select_subagent()` | 根据 ConversationScenario 和用户 prompt 选择 Agent (Plan 场景→Plan Agent；`/plan` 命令→Plan Agent；默认→Build Agent)；子 Agent 调度 (general/explore) |
-| Permission Check | `permission_check.rs` | `PermissionCheckResult` (Allow/Deny/Ask), `check_tool_permission()` | 工具执行前集中权限拦截。集成 `command_risk::evaluate_permission` + doom loop 检测 (连续失败≥3次升级为 Ask)。替代 OpenCode 的去中心化 `ctx.ask` |
+| Permission Check | `permission_check.rs` | `PermissionCheckResult` (Allow/Deny/Ask), `check_tool_permission()` | 工具执行前集中权限拦截。集成 `command_risk::evaluate_permission` + doom loop 检测 (连续失败≥3次升级为 Ask)。替代参考实现的去中心化 `ctx.ask` |
 | Plan Mode | `plan_mode.rs` | `PlanModeState`, `plan_mode_system_prompt()`, `filter_tools_for_plan_mode()`, `is_tool_allowed_in_plan_mode()`, `is_write_allowed_for_plan_file()` | Plan 模式激活/退出状态管理、只读工具白名单 (read/list_tree/search/outline/glob/grep/webfetch/websearch/write)、Plan system prompt 生成、write 路径约束（仅允许写入 plan file） |
 | Compaction | `compaction.rs` | `CompactionResult`, `compact_messages()`, `truncate_tool_output()` | 会话消息压缩：超出 `PRUNE_MINIMUM=20000` tokens 时触发，保留最后 2 轮对话 + 受保护的 skill 工具输出，摘要标记 |
 | Compaction Summary | `compaction_summary.rs` | — | Compaction 摘要清理辅助 |

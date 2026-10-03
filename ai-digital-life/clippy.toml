@@ -11,7 +11,7 @@ doc-valid-idents = [
     "IPC", "CLI", "MVP", "PTY",
     "CSS", "HTML", "DOM",
     "API", "JSON", "XML", "YAML", "Regex", "URI", "UUID",
-    "OpenCode", "DigitalLife", "ADL",
+    "DigitalLife", "ADL",
     "Zustand", "CodeMirror", "Xterm",
     "Serde", "Tokio", "Rusqlite", "Anyhow", "Thiserror",
     "TauriCommand", "IpcResult", "IpcErrorCode", "AppError",

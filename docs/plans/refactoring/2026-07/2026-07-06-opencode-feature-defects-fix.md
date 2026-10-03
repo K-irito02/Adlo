@@ -1,8 +1,8 @@
-# OpenCode 对照功能缺陷修复计划
+# 参考实现对照功能缺陷修复计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 修复审计发现的 4 个 HIGH 和 6 个 MEDIUM/LOW 严重度问题，确保所有 OpenCode 对照功能真实可用。
+**Goal:** 修复审计发现的 4 个 HIGH 和 6 个 MEDIUM/LOW 严重度问题，确保所有参考实现对照功能真实可用。
 
 **Architecture:** 按依赖顺序分 9 个任务推进：先修复单行/低风险问题（H3/M6/M7/M4/M5），再处理中等复杂度的权限系统改进（M2/M1），最后完成高复杂度的大任务（H2/H1）。
 
@@ -17,7 +17,6 @@
 - 类型检查：`cargo check --workspace --manifest-path ai-digital-life/Cargo.toml`
 - Lint：`cargo clippy --workspace --manifest-path ai-digital-life/Cargo.toml -- -D warnings`
 - 所有修改必须在 `ai-digital-life/` 目录下执行
-- 参考 OpenCode 源码位于 `references/opencode/`
 
 ---
 
@@ -351,14 +350,14 @@ git commit -m "fix(core): replace recursive walk with iterative to avoid stack o
 
 ### Task 6: `evaluate()` 改为 last-match-wins
 
-**目标**：仿 OpenCode 的 `findLast` 模式，将 `PermissionRuleset::evaluate()` 从 first-match-wins 改为 last-match-wins，使规则覆盖更可预测。
+**目标**：仿参考实现的 `findLast` 模式，将 `PermissionRuleset::evaluate()` 从 first-match-wins 改为 last-match-wins，使规则覆盖更可预测。
 
 **Files:**
 - Modify: `ai-digital-life/crates/kernel/src/command_risk.rs:120-128`
 
 **Interfaces:**
 - Changes: `PermissionRuleset::evaluate()` 的匹配方向
-- Produces: 后续规则覆盖前面规则（OpenCode 兼容语义）
+- Produces: 后续规则覆盖前面规则（参考实现兼容语义）
 
 - [ ] **Step 1: 改为 last-match-wins**
 
@@ -367,7 +366,7 @@ pub fn evaluate(&self, tool_name: &str, command: &str, args: &[String]) -> Permi
     let mut decision = default_decision(command, args);
     for rule in &self.rules {
         if rule_matches(rule, tool_name, command, args) {
-            decision = rule.decision;  // last match wins (OpenCode findLast pattern)
+            decision = rule.decision;  // last match wins (reference findLast pattern)
         }
     }
     decision
@@ -415,14 +414,14 @@ Expected: PASS
 
 ```bash
 git add ai-digital-life/crates/kernel/src/command_risk.rs
-git commit -m "fix(core): explicit last-match-wins in PermissionRuleset::evaluate (OpenCode findLast pattern)"
+git commit -m "fix(core): explicit last-match-wins in PermissionRuleset::evaluate (reference findLast pattern)"
 ```
 
 ---
 
 ### Task 7: `pattern_matches` 改为正则实现
 
-**目标**：将 `command_risk.rs` 中的手写 glob 模式匹配改为基于 `regex` crate 的正则方法，仿 OpenCode `Wildcard.match`。正确支持 `*`/`**`/`?` 通配符，修复 `**` 零段匹配问题。
+**目标**：将 `command_risk.rs` 中的手写 glob 模式匹配改为基于 `regex` crate 的正则方法，仿参考实现 `Wildcard.match`。正确支持 `*`/`**`/`?` 通配符，修复 `**` 零段匹配问题。
 
 **Files:**
 - Modify: `ai-digital-life/crates/kernel/Cargo.toml`（添加 `regex` 依赖）
@@ -446,7 +445,7 @@ use regex::Regex;
 
 /// Check if a pattern matches a string using regex-based glob matching.
 /// Supports `*` and `**` (match any sequence) and `?` (match single char).
-/// Inspired by OpenCode's Wildcard.match pattern.
+/// Inspired by the reference design's Wildcard.match pattern.
 pub fn pattern_matches(pattern: &str, text: &str) -> bool {
     if pattern == "**" {
         return true;
@@ -530,7 +529,7 @@ Expected: PASS
 
 ```bash
 git add ai-digital-life/crates/kernel/Cargo.toml ai-digital-life/crates/kernel/src/command_risk.rs
-git commit -m "fix(core): rewrite pattern_matches with regex (OpenCode Wildcard.match pattern), fix ** zero-segment match"
+git commit -m "fix(core): rewrite pattern_matches with regex (reference Wildcard.match pattern), fix ** zero-segment match"
 ```
 
 ---
@@ -843,9 +842,9 @@ git commit -m "fix(core): snapshot saves file copies instead of git-only metadat
 - Consumes: `rmcp::client::Client`, `rmcp` transport types
 - Produces: 真实 `connect()` 方法，返回支持的 tools/resources
 
-- [ ] **Step 1: 从 OpenCode 参考学习 rmcp 用法**
+- [ ] **Step 1: 从参考实现学习 rmcp 用法**
 
-阅读 OpenCode 源码中 MCP 相关部分了解 rmcp 的使用模式（OpenCode 是 TypeScript 项目用 `@modelcontextprotocol/sdk`，非 rmcp，但传输模式相同）。
+阅读参考实现中 MCP 相关部分了解 rmcp 的使用模式（参考实现是 TypeScript 项目用 `@modelcontextprotocol/sdk`，非 rmcp，但传输模式相同）。
 
 - [ ] **Step 2: 实现 StdioTransport**
 

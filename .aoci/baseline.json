@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-10-03T08:22:42Z",
-  "updated_at": "2026-10-03T17:58:30Z",
+  "updated_at": "2026-10-03T19:40:20Z",
   "files": {
     "ai-digital-life/.agents/rules/learn-analysis-result.json": {
       "role": "index",
@@ -47,9 +47,9 @@
     },
     "ai-digital-life/AGENTS.md": {
       "role": "index",
-      "sha256": "0d4d4944f0d64c29c3d61631e5416b524949c9b84c45098970bb199124cc7442",
-      "size": 17453,
-      "normalized_sha256": "0d4d4944f0d64c29c3d61631e5416b524949c9b84c45098970bb199124cc7442"
+      "sha256": "494e21986fc201d5650d9df31ccfc4a3a74f42d4e48adee83d854d1be1ec2aab",
+      "size": 17179,
+      "normalized_sha256": "494e21986fc201d5650d9df31ccfc4a3a74f42d4e48adee83d854d1be1ec2aab"
     },
     "ai-digital-life/CONTRIBUTING.md": {
       "role": "index",
@@ -71,15 +71,15 @@
     },
     "ai-digital-life/README.md": {
       "role": "index",
-      "sha256": "46cccc87033c022c7ab85b9c8b5a17dbfa41448045bfa688c619c8098d0b4dd9",
-      "size": 3288,
-      "normalized_sha256": "46cccc87033c022c7ab85b9c8b5a17dbfa41448045bfa688c619c8098d0b4dd9"
+      "sha256": "a5578cb7f9315d253147d94d3f95307d6e536fc92b7bf0ffbfaa463eed35e2dd",
+      "size": 2982,
+      "normalized_sha256": "a5578cb7f9315d253147d94d3f95307d6e536fc92b7bf0ffbfaa463eed35e2dd"
     },
     "ai-digital-life/clippy.toml": {
       "role": "index",
-      "sha256": "e1be9c479b9a3cb25c1ac78c0a423b7d6d728488eaff8a9f3cd99f8159967288",
-      "size": 1118,
-      "normalized_sha256": "e1be9c479b9a3cb25c1ac78c0a423b7d6d728488eaff8a9f3cd99f8159967288"
+      "sha256": "8526836dc53a901cc4e0a3923669fff71d431533478cde0d2036676f34d57ae3",
+      "size": 1106,
+      "normalized_sha256": "8526836dc53a901cc4e0a3923669fff71d431533478cde0d2036676f34d57ae3"
     },
     "ai-digital-life/crates/adl-logging/Cargo.toml": {
       "role": "index",
@@ -593,9 +593,9 @@
     },
     "ai-digital-life/crates/migration/src/lib.rs": {
       "role": "index",
-      "sha256": "4e38abae6d26f041535bfd9ee4d8d7a4c45185d9e53490fcc2de566c936c1af0",
-      "size": 13355,
-      "normalized_sha256": "4e38abae6d26f041535bfd9ee4d8d7a4c45185d9e53490fcc2de566c936c1af0"
+      "sha256": "7bb802b8cc0ba9dfff83f9c43250968c51419122cd988f91bc9044d389fe1769",
+      "size": 13321,
+      "normalized_sha256": "7bb802b8cc0ba9dfff83f9c43250968c51419122cd988f91bc9044d389fe1769"
     },
     "ai-digital-life/crates/outline/Cargo.toml": {
       "role": "index",
@@ -743,9 +743,9 @@
     },
     "ai-digital-life/crates/server/src/handlers/ci.rs": {
       "role": "index",
-      "sha256": "95686de654009d714ec1101ee25765d14dbc9d6f674076ec0aca75ba503f68e4",
-      "size": 6607,
-      "normalized_sha256": "95686de654009d714ec1101ee25765d14dbc9d6f674076ec0aca75ba503f68e4"
+      "sha256": "3be24492039a35098a95351fe9b98ab8c47c20a5cd6ae6b14a2b768ad15bc478",
+      "size": 6588,
+      "normalized_sha256": "3be24492039a35098a95351fe9b98ab8c47c20a5cd6ae6b14a2b768ad15bc478"
     },
     "ai-digital-life/crates/server/src/handlers/clipboard.rs": {
       "role": "index",
@@ -893,9 +893,9 @@
     },
     "ai-digital-life/crates/server/tests/ci_durable.rs": {
       "role": "index",
-      "sha256": "6cc240511042591b514602b8ba9eb2b69888d083e7a225694e65228be484a2b5",
-      "size": 12836,
-      "normalized_sha256": "6cc240511042591b514602b8ba9eb2b69888d083e7a225694e65228be484a2b5"
+      "sha256": "bbc9ebf6d00d959ac70e021ba86998440449468bd6f095df9af583a945e5b138",
+      "size": 12817,
+      "normalized_sha256": "bbc9ebf6d00d959ac70e021ba86998440449468bd6f095df9af583a945e5b138"
     },
     "ai-digital-life/crates/server/tests/common/mod.rs": {
       "role": "index",
@@ -923,9 +923,9 @@
     },
     "ai-digital-life/crates/server/tests/reference_retrieval.rs": {
       "role": "index",
-      "sha256": "892a02bacd1a417ed47bd950a02f9d29f61e5c7164047de7ddab405eb53da356",
-      "size": 7390,
-      "normalized_sha256": "892a02bacd1a417ed47bd950a02f9d29f61e5c7164047de7ddab405eb53da356"
+      "sha256": "4d5be730a34762e8d6b498e506105b9a897de01565f32aa15fbc1a5e587e35df",
+      "size": 7385,
+      "normalized_sha256": "4d5be730a34762e8d6b498e506105b9a897de01565f32aa15fbc1a5e587e35df"
     },
     "ai-digital-life/crates/server/tests/snapshot.rs": {
       "role": "index",
@@ -1193,9 +1193,9 @@
     },
     "ai-digital-life/crates/types/src/types/part.rs": {
       "role": "index",
-      "sha256": "9243ce7f56e8410b08ecd108f84c5568c476d59d371b31e27949be655b176f8e",
-      "size": 8651,
-      "normalized_sha256": "9243ce7f56e8410b08ecd108f84c5568c476d59d371b31e27949be655b176f8e"
+      "sha256": "07a2f1c3cbe2402b55d5be00730d7d4c94b666b19b2340834af623c38bf34d96",
+      "size": 8471,
+      "normalized_sha256": "07a2f1c3cbe2402b55d5be00730d7d4c94b666b19b2340834af623c38bf34d96"
     },
     "ai-digital-life/crates/types/src/types/patch_types.rs": {
       "role": "index",
@@ -1205,9 +1205,9 @@
     },
     "ai-digital-life/crates/types/src/types/reference.rs": {
       "role": "index",
-      "sha256": "06d746eb24b0bd519c5fdedd8b0e1dc90e534d86efe579c9477fa2fcc6d8aeba",
-      "size": 1112,
-      "normalized_sha256": "06d746eb24b0bd519c5fdedd8b0e1dc90e534d86efe579c9477fa2fcc6d8aeba"
+      "sha256": "0a2378695346fdda29a4f8d95db1b94dfd6e97f6fd8d878372f0a0897e38c4e9",
+      "size": 1109,
+      "normalized_sha256": "0a2378695346fdda29a4f8d95db1b94dfd6e97f6fd8d878372f0a0897e38c4e9"
     },
     "ai-digital-life/crates/types/src/types/reserved.rs": {
       "role": "index",
@@ -8792,9 +8792,9 @@
     },
     "ai-digital-life/frontend/src/mock/mock-reference.ts": {
       "role": "index",
-      "sha256": "ff970754874821e5ec9c2fb5138c28b3bdcedcdd5a0935958bd75793473e921e",
-      "size": 736,
-      "normalized_sha256": "ff970754874821e5ec9c2fb5138c28b3bdcedcdd5a0935958bd75793473e921e"
+      "sha256": "3b904ec4819e3a10b2625c3a013f406c9f25463c69f5a1b17a1cd89bf99d064e",
+      "size": 734,
+      "normalized_sha256": "3b904ec4819e3a10b2625c3a013f406c9f25463c69f5a1b17a1cd89bf99d064e"
     },
     "ai-digital-life/frontend/src/mock/mock-reserved.ts": {
       "role": "index",
@@ -10244,15 +10244,15 @@
     },
     "ai-digital-life/public/project-design-standard.html": {
       "role": "index",
-      "sha256": "146a7e6e7ba9fc172bba705e5172fe41d4dc2363cb0691360c5afb719798236c",
-      "size": 60456,
-      "normalized_sha256": "146a7e6e7ba9fc172bba705e5172fe41d4dc2363cb0691360c5afb719798236c"
+      "sha256": "2edb6632e4b111acb502870dae8fbff244b566137c4edb429626991ffbbb3553",
+      "size": 60248,
+      "normalized_sha256": "2edb6632e4b111acb502870dae8fbff244b566137c4edb429626991ffbbb3553"
     },
     "ai-digital-life/public/project-design-standard.md": {
       "role": "index",
-      "sha256": "d3e234388bed80bab0c94ca66a2190c44f2980133a3e4cf2da036ae0ffdc51e3",
-      "size": 26976,
-      "normalized_sha256": "d3e234388bed80bab0c94ca66a2190c44f2980133a3e4cf2da036ae0ffdc51e3"
+      "sha256": "50705d0a5f07e1fe6aa243b0e69007b90d58b7eaddb25c6769049e2d10d4c9ad",
+      "size": 25300,
+      "normalized_sha256": "50705d0a5f07e1fe6aa243b0e69007b90d58b7eaddb25c6769049e2d10d4c9ad"
     },
     "ai-digital-life/rustfmt.toml": {
       "role": "index",
@@ -10445,9 +10445,9 @@
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "52161591d0c27f2165b701a67b5236b301ea8e838b57dcfab39ec49b22fbdbcf",
-      "size": 779003,
-      "normalized_sha256": "52161591d0c27f2165b701a67b5236b301ea8e838b57dcfab39ec49b22fbdbcf"
+      "sha256": "09e6ede1ca0cd795f13f1c2a5e117011c86b5a46547ec0298de5b96291eee7fe",
+      "size": 778725,
+      "normalized_sha256": "09e6ede1ca0cd795f13f1c2a5e117011c86b5a46547ec0298de5b96291eee7fe"
     },
     "aoci.meta.txt": {
       "role": "index",

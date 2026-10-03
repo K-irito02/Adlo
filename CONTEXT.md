@@ -4,15 +4,6 @@
 
 ---
 
-## 参考项目
-
-### OpenCode
-本项目的主要参考开源项目（MIT 许可），由 SST/Anomaly 团队开发。终端优先的 AI 编码助手，支持 TUI/Web/Desktop 多客户端。本地副本位于 `references/opencode/`，源码地图见 [docs/analysis/opencode/](./docs/analysis/opencode/)。
-
-> 本项目的架构设计、编码模式与功能实现多处借鉴 OpenCode，包括但不限于：命名空间投影、Service+Layer 依赖注入、Schema 驱动类型系统、三态权限引擎、ConfigTransform 可重放配置变换。
-
----
-
 ## 架构概念
 
 ### 双根结构
@@ -121,14 +112,14 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 - `scheduleFlush(callback)` — 微任务级批量刷新
 
 ### ConfigTransform（可重放配置变换）
-前端 `frontend/src/app/stores/configStateMachine.ts` 和 Rust `crates/kernel/src/types/config.rs` 共同实现。借鉴 OpenCode 的 `State.transform() + reload()` 模式：
+前端 `frontend/src/app/stores/configStateMachine.ts` 和 Rust `crates/kernel/src/types/config.rs` 共同实现，采用可重放的配置变换模式：
 - `createConfigState(base)` — 创建状态 + transform 日志
 - `applyTransform(state, transform)` — 应用变换并追加日志
 - `reloadFromBase(base, transforms)` — 在新基线上重放
 - `rollbackLastTransform(state)` — 撤销最后一次变换
 
 ### PermissionEngine（三态权限引擎）
-Rust 端 `crates/kernel/src/command_risk.rs`，基于 OpenCode 的 deny/ask/allow 三态模型：
+Rust 端 `crates/kernel/src/command_risk.rs`，采用 deny/ask/allow 三态模型：
 - `PermissionDecision` 枚举：`Allow < Ask < Deny`（PartialOrd 优先级）
 - `PermissionRule` 结构：`pattern` 支持 `*`（单段）和 `**`（多段）通配符
 

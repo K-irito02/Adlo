@@ -67,7 +67,7 @@
 - `diff-viewer/` — 差异查看器修复（含 gutter-hover 汇编）（4）
 - `git-vis-charts/` — 图表/热力图/echarts-visx 迁移/ChartBrush（9）
 - `toolchain-lint/` — ESLint/Prettier/Clippy/rustfmt 门禁与工具链（5）
-- `opencode-phase2-audit/` — OpenCode 对照与 Phase 2 审计修复（6）
+- `opencode-phase2-audit/` — 参考实现对照与 Phase 2 审计修复（6）
 
 ### Multi-workspace
 

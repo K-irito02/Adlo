@@ -1,8 +1,8 @@
 # OpenCode 移植功能审计报告
 
 **生成日期**: 2026-07-07
-**审计范围**: Phase 2 全部 18 项 OpenCode 对照功能（2-A ~ 2-E）
-**审计方法**: 逐功能对比 OpenCode 源码（`references/opencode/`）与项目实现
+**审计范围**: Phase 2 全部 18 项参考实现对照功能（2-A ~ 2-E）
+**审计方法**: 逐功能对比参考实现源码与项目实现
 
 ---
 
@@ -31,7 +31,7 @@
 
 **问题**: `is_tool_allowed_in_plan_mode()` 仅允许 `read | list_tree | search | outline | glob | grep | webfetch | websearch`，但系统提示词（第 50 行）明确指示 Agent "Write the plan to the plan file using the write tool"。`write` 不在白名单中，Agent 无法创建计划文件。
 
-**OpenCode 对比**: OpenCode 的 Plan agent 允许 `write` 工具专门用于写计划文件，其权限系统通过路径限制（仅允许写入 `.opencode/plans/` 目录）来约束。
+**参考实现对比**: 参考实现的 Plan agent 允许 `write` 工具专门用于写计划文件，其权限系统通过路径限制（仅允许写入 `.opencode/plans/` 目录）来约束。
 
 **修复方向**: 将 `write` 加入 Plan Mode 白名单，并在 pipeline 中添加路径约束——仅允许写入计划文件路径。
 
@@ -47,7 +47,7 @@
 
 **问题**: `derive_subagent_permission(_parent, subagent)` 接收 `_parent` 参数但完全未使用（前缀 `_` 即标记为未使用）。函数仅设置 `allows_write_tools = false` 和 `mode = Subagent`，没有从父 Agent 继承任何权限规则（如允许的工具列表、deny 规则）。
 
-**OpenCode 对比**: OpenCode 的 `deriveSubagentSessionPermission` 会从父 session 的 permission ruleset 中提取子代理权限，子代理继承父级的 allow 规则但限制写入权限。
+**参考实现对比**: 参考实现的 `deriveSubagentSessionPermission` 会从父 session 的 permission ruleset 中提取子代理权限，子代理继承父级的 allow 规则但限制写入权限。
 
 **修复方向**: 实际读取 `_parent` 的 permission ruleset，将父级的 allow 规则复制给子代理（但覆盖 write 为 deny）。
 
@@ -61,13 +61,13 @@
 | 严重度 | 🔴 高 |
 | 影响 | Compaction 功能实质上不会正常工作 |
 
-**问题**: `compact_messages()` 用 `total_tokens < PRUNE_PROTECT`（40000）作为门控阈值。而 `token_counter.rs` 的 `needs_compaction()` 也用 `>= PRUNE_PROTECT`。但 OpenCode 的设计是：
+**问题**: `compact_messages()` 用 `total_tokens < PRUNE_PROTECT`（40000）作为门控阈值。而 `token_counter.rs` 的 `needs_compaction()` 也用 `>= PRUNE_PROTECT`。但参考实现的设计是：
 - `PRUNE_MINIMUM`（20000）: **触发** compaction 的最低阈值
 - `PRUNE_PROTECT`（40000）: compaction 时要**保护**的 token 数量
 
 即：当总 token >= 20000 时就应该开始 compaction，compaction 过程中保留最近 40000 token 不被裁剪。但当前实现把触发阈值设成了 40000，意味着需要更多 token 才能触发 compaction，且触发后保护区域与触发阈值相同，导致几乎没有内容可裁剪。
 
-**OpenCode 对比**: `compaction.ts` 第 28-29 行明确定义 `PRUNE_MINIMUM = 20_000` 作为触发阈值，`PRUNE_PROTECT = 40_000` 作为保护区域。`needsCompaction` 用 `PRUNE_MINIMUM` 判断。
+**参考实现对比**: `compaction.ts` 第 28-29 行明确定义 `PRUNE_MINIMUM = 20_000` 作为触发阈值，`PRUNE_PROTECT = 40_000` 作为保护区域。`needsCompaction` 用 `PRUNE_MINIMUM` 判断。
 
 **修复方向**: 将 `compact_messages` 的门控改为 `PRUNE_MINIMUM`（20000），`PRUNE_PROTECT` 仅用于保留尾部消息的计算。
 
@@ -83,13 +83,13 @@
 
 **问题**: `count(&self, text: &str, _provider: &str)` 接受 provider 参数但用 `_` 标记忽略。所有 Provider 共用同一个 `estimate_tokens` 估算函数，无法区分 tiktoken（OpenAI）、Anthropic tokenizer 等不同分词器。
 
-**OpenCode 对比**: OpenCode 使用 `@opencode-ai/core/token` 模块，根据 Provider 选择不同的 tokenizer（tiktoken for OpenAI, anthropic tokenizer for Anthropic 等）。
+**参考实现对比**: 参考实现使用 `@opencode-ai/core/token` 模块，根据 Provider 选择不同的 tokenizer（tiktoken for OpenAI, anthropic tokenizer for Anthropic 等）。
 
 **修复方向**: 引入 `tokenizers` crate 支持不同 Provider 的分词器，至少在 Anthropic（BPE）和 OpenAI（tiktoken）之间区分。
 
 ---
 
-### 1.5 Plugin Registry 全局单例 vs OpenCode 的 InstanceState
+### 1.5 Plugin Registry 全局单例 vs 参考实现的 InstanceState
 
 | 项目 | 值 |
 |------|-----|
@@ -99,7 +99,7 @@
 
 **问题**: 插件注册表使用 `LazyLock<PluginRegistry>` 全局单例。这意味着所有打开的工作区共享同一套插件配置。
 
-**OpenCode 对比**: OpenCode 使用 `InstanceState`（per-directory ScopedCache），每个工作区有独立的插件实例和状态。
+**参考实现对比**: 参考实现使用 `InstanceState`（per-directory ScopedCache），每个工作区有独立的插件实例和状态。
 
 **修复方向**: 将 PluginRegistry 移入 AppState 作为 per-workspace 实例，或在 PluginRegistry 中添加 workspace_id 维度的隔离。
 
@@ -115,7 +115,7 @@
 
 **问题**: `fire_hook()` 中当多个插件返回 `HookResult::Modify(val)` 时，后面的直接覆盖前面的（`result = HookResult::Modify(val)`）。
 
-**OpenCode 对比**: OpenCode 的 `trigger()` 方法将 `(input, output)` 传递给每个 hook，允许链式修改——每个插件基于上一个插件的输出来修改。
+**参考实现对比**: 参考实现的 `trigger()` 方法将 `(input, output)` 传递给每个 hook，允许链式修改——每个插件基于上一个插件的输出来修改。
 
 **修复方向**: 让 `Modify` 结果作为下一个插件的输入传递，实现链式 transform。
 
@@ -135,7 +135,7 @@
 
 ---
 
-## 2. WebFetch / WebSearch 与 OpenCode 的显著差距
+## 2. WebFetch / WebSearch 与参考实现的显著差距
 
 ### 2.1 WebFetch 能力严重不足
 
@@ -145,7 +145,7 @@
 | 严重度 | 🔴 高 |
 | 影响 | WebFetch 工具的实用性极低 |
 
-| 能力 | OpenCode | 项目 | 差距 |
+| 能力 | 参考实现 | 项目 | 差距 |
 |------|---------|------|------|
 | 响应大小限制 | 5MB | 50KB | 100倍 |
 | 默认超时 | 30s（最大 120s） | 10s（硬编码） | 过短 |
@@ -168,7 +168,7 @@
 | 严重度 | 🟡 中 |
 | 影响 | 搜索可靠性不足 |
 
-| 能力 | OpenCode | 项目 |
+| 能力 | 参考实现 | 项目 |
 |------|---------|------|
 | Provider | Exa + Parallel（双 Provider） | 仅 Tavily |
 | Provider 选择 | session hash mod 2 | 无 |
@@ -202,7 +202,7 @@
 | 严重度 | 🟡 中 |
 | 影响 | 需要认证的远程 MCP 服务器无法使用 |
 
-**OpenCode 对比**: OpenCode 实现了完整的 OAuth 流程：动态客户端注册 → 授权码获取 → 回调处理 → token 存储和刷新。项目的 `McpServerConfig` 有 `oauth: bool` 字段但未见实际 OAuth 流程实现。
+**参考实现对比**: 参考实现实现了完整的 OAuth 流程：动态客户端注册 → 授权码获取 → 回调处理 → token 存储和刷新。项目的 `McpServerConfig` 有 `oauth: bool` 字段但未见实际 OAuth 流程实现。
 
 ### 3.3 MCP 缺少重连和通知处理
 
@@ -212,7 +212,7 @@
 | 严重度 | 🟡 中 |
 | 影响 | 服务器断连后工具列表不更新 |
 
-**OpenCode 对比**: OpenCode 处理 `ToolListChangedNotificationSchema` 通知，自动重新发现工具。项目无此机制。
+**参考实现对比**: 参考实现处理 `ToolListChangedNotificationSchema` 通知，自动重新发现工具。项目无此机制。
 
 ---
 
@@ -261,7 +261,7 @@
 | 位置 | `crates/agent-runtime/src/compaction.rs` |
 | 严重度 | 🟡 中 |
 
-OpenCode 在 compaction 完成后启动新的 Context Epoch（新的 Baseline System Context），确保后续对话不受旧上下文影响。项目实现没有此机制，compaction 后旧的 system context 仍然保留。
+参考实现在 compaction 完成后启动新的 Context Epoch（新的 Baseline System Context），确保后续对话不受旧上下文影响。项目实现没有此机制，compaction 后旧的 system context 仍然保留。
 
 ### 4.6 Agent Router /plan 匹配 — 实际已修复
 
@@ -367,9 +367,9 @@ DurableSession 错误处理、Plugin Registry 工作区隔离、Plugin fire_hook
 
 ---
 
-## 8. OpenCode V2 架构差异说明
+## 8. 参考实现 V2 架构差异说明
 
-OpenCode 当前已进入 V2 Session 架构（durable prompt admission + process-local drains + Context Epoch + System Context algebra），这是一个根本性的架构演进。项目当前仍基于 V1 风格的直接 session loop 模型。以下 V2 概念在项目中没有对应物：
+参考实现当前已进入 V2 Session 架构（durable prompt admission + process-local drains + Context Epoch + System Context algebra），这是一个根本性的架构演进。项目当前仍基于 V1 风格的直接 session loop 模型。以下 V2 概念在项目中没有对应物：
 
 - **Durable prompt admission**: 输入先持久化再调度执行（项目是直接执行）
 - **Session Run Coordinator**: 进程级执行序列化 + wake 合并（项目无此机制）

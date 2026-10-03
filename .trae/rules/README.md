@@ -79,7 +79,7 @@ alwaysApply: true
 | CSS 架构变更 | `css-architecture.md` + `design-system.md` |
 | 错误处理/Loading 变更 | `error-handling.md` |
 | 重构验证 | `quality-gates.md`（重构门禁） |
-| 参考项目（references/）变更 | `project-overview.md`、`AGENTS.md` |
+| 外部参考源码（references/）变更 | `project-overview.md`、`AGENTS.md` |
 | IPC 包装模式变更 | `tauri-command-ipc-wrapper-pattern.md` |
 | Serde 序列化规范变更 | `tagged-enum-camelcase-serde-pattern.md` |
 | i18n 实现模式变更 | `usetcopy-i18n-context-pattern.md` |

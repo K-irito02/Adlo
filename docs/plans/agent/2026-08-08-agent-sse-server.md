@@ -4,7 +4,7 @@
 
 **Goal:** 补上 spec §6（SSE 事件流端点）与 §7.2（旧格式清理）：在 src-tauri 内建 axum HTTP 服务，暴露 `GET /event`（PartEventBus → SSE，支持 `Last-Event-ID` 重放 `event_log` 表）与 `POST /question/{id}/reply`；把 LoopExecutor 每步的 `SessionPartEvent` 同时持久化到 `event_log`；停用旧 `agent_pipeline` 的 `ConversationBlock`/`RunActivityEvents`/`ToolInvocations` 写入。
 
-**Architecture:** 三层（对齐 OpenCode `packages/opencode/src/server/`——HTTP 服务在应用主包内承载）：
+**Architecture:** 三层（对齐参考实现——HTTP 服务在应用主包内承载）：
 1. **SseEventBus**（src-tauri，`src-tauri/src/sse.rs`）：把 `PartEventBus`（agent-runtime）桥接到 HTTP——启动时订阅 PartEventBus，每事件写入 `event_log` 表 + 缓存供 SSE 重放。
 2. **axum 服务**（src-tauri，`src-tauri/src/sse_server.rs`）：`axum` 监听 `127.0.0.1` 随机端口，`GET /event`（SSE 流 + `after=` 重放）+ `POST /question/{id}/reply`。启动时在 `start_background_tasks` `tokio::spawn`，端口写入 `AppState.sse_port`。
 3. **旧格式清理**（`agent_pipeline`）：停用 `assistant_blocks`（ConversationBlock 写入）、`persist_run_activity`（RunActivityEvents 写入）、`ToolInvocations` 写入。

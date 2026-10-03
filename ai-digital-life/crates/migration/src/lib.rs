@@ -91,7 +91,7 @@ pub const MIGRATIONS: &[Migration] = &[
     },
     Migration {
         version: 6,
-        description: "Create OpenCode-aligned message/part/event_log tables",
+        description: "Create message/part/event_log tables",
         sql: r#"
             CREATE TABLE IF NOT EXISTS message (
                 id TEXT PRIMARY KEY,
@@ -294,7 +294,7 @@ mod tests {
         assert!(m5.sql.contains("until"));
         let m6 = &MIGRATIONS[5];
         assert_eq!(m6.version, 6);
-        assert_eq!(m6.description, "Create OpenCode-aligned message/part/event_log tables");
+        assert_eq!(m6.description, "Create message/part/event_log tables");
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS message"));
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS part"));
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS event_log"));

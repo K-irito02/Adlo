@@ -5,7 +5,7 @@
 
 ## 项目定位
 
-AI 数字生命（AI Digital Life）是一个 **AI 编码代理桌面应用**，基于 Rust + Tauri 2.x 构建，对标 OpenCode 的能力集。当前已完成 Phase 2 全部 18 项缺失能力实现。
+AI 数字生命（AI Digital Life）是一个 **AI 编码代理桌面应用**，基于 Rust + Tauri 2.x 构建，对标参考实现的能力集。当前已完成 Phase 2 全部 18 项缺失能力实现。
 
 | 特征 | 说明 |
 |------|------|

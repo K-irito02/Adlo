@@ -3,7 +3,7 @@
 //! served entirely by `ci_*` commands (there are no separate `github_*` tauri
 //! commands in the real code).
 //!
-//! The access token is **write-only over HTTP** (OpenCode-aligned): it is
+//! The access token is **write-only over HTTP**: it is
 //! submitted once in the request body, stored in the OS credential store via
 //! [`adl_credential`], and never read back — `POST /ci/access-token/has` returns
 //! only a boolean. Outbound `CiStatusClient` calls read the stored token

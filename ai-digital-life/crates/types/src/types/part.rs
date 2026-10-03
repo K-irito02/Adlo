@@ -16,7 +16,7 @@ pub enum PartType {
     Snapshot,
 }
 
-/// A message in a session (mirrors OpenCode `Session.Message`).
+/// A message in a session.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageRecord {
@@ -33,7 +33,7 @@ pub struct MessageRecord {
     pub time_completed: Option<TimestampMs>,
 }
 
-/// Tool invocation state machine (mirrors OpenCode `ToolState`).
+/// Tool invocation state machine.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ToolState {
@@ -108,7 +108,7 @@ pub struct PatchPartData {
     pub files: Vec<String>,
 }
 
-/// The payload of a Part (mirrors OpenCode `SessionV1.Part`).
+/// The payload of a Part.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum PartData {
@@ -122,7 +122,7 @@ pub enum PartData {
     Snapshot { snapshot: String },
 }
 
-/// A stored Part row (mirrors OpenCode `part` table hydration).
+/// A stored Part row.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PartRecord {
@@ -137,7 +137,7 @@ pub struct PartRecord {
     pub data: serde_json::Value,
 }
 
-/// Structured event broadcast to SSE clients (mirrors OpenCode session events).
+/// Structured event broadcast to SSE clients.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SessionPartEvent {

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 修复设置面板所有 C/H/M 级问题（类型契约、错误处理、i18n、CSS、无障碍等），并补全核心功能（快捷键录制、字体设置、日志级别、Toast 反馈、恢复默认、主题预览），对照 OpenCode 桌面端设置面板的优秀设计进行重构。
+**Goal:** 修复设置面板所有 C/H/M 级问题（类型契约、错误处理、i18n、CSS、无障碍等），并补全核心功能（快捷键录制、字体设置、日志级别、Toast 反馈、恢复默认、主题预览），对照参考实现桌面端设置面板的优秀设计进行重构。
 
 **Architecture:** 以"统一类型契约真源（ts-rs 生成类型）"为基石，建立"命令注册中心 + 快捷键录制 + 冲突检测"三层快捷键系统，引入"全局 Toast store"作为操作反馈基础设施，重构 SettingsControls 为可扩展的控件库（支持 keybind/slider/font 等新控件），所有设置变更遵循"即时保存 + 乐观更新 + 失败回滚 + Toast 反馈"模式。
 

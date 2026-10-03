@@ -2,7 +2,7 @@
 
 日期：2026-08-11（2026-08-11 更新：范围对齐 — 移除并发去重，新增 OpenAI 兼容缓存）
 状态：已批准（范围：断点注入 + OpenAI 兼容缓存 + 成本核算 + 前端展示）
-参考：OpenCode（MIT）`packages/llm/src/cache-policy.ts`、`packages/llm/src/protocols/anthropic-messages.ts`、`packages/core/src/config/provider.ts`、`packages/console/function/src/log-processor.ts`、`packages/console/app/src/routes/zen/util/provider/openai-compatible.ts`
+参考实现（MIT）`packages/llm/src/cache-policy.ts`、`packages/llm/src/protocols/anthropic-messages.ts`、`packages/core/src/config/provider.ts`、`packages/console/function/src/log-processor.ts`、`packages/console/app/src/routes/zen/util/provider/openai-compatible.ts`
 
 ## 目标
 
@@ -59,7 +59,7 @@ pub struct ChatOptions {
 
 ### 新增 `crates/model-gateway/src/cache-policy.rs`
 
-对齐 OpenCode `cache-policy.ts`：
+对齐参考实现 `cache-policy.ts`：
 
 - `CacheBreakpoints { remaining: u32, dropped: u32 }`，cap = 4（对齐 `ANTHROPIC_BREAKPOINT_CAP`）
 - 分配规则：最后一个 tool 定义 → 最后一条 system → 最新一条 user 消息
@@ -74,9 +74,9 @@ pub struct ChatOptions {
 - 最新一条 user 消息的 `content` → `[{ "type": "text", "text": …, "cache_control": { "type": "ephemeral" } }]`
 - 最后一个 `ToolDefinition` → 其 JSON 内加 `"cache_control": { "type": "ephemeral" }`（预留；当前 `ChatOptions.tools` 未被 agent loop 填充，不触发，不影响收益）
 
-TTL：默认 5m。与 OpenCode 一致，`Auto` 策略在数学上占优（write 1.25x / read 0.1x，5 分钟内一次复用即回本）。
+TTL：默认 5m。与参考实现一致，`Auto` 策略在数学上占优（write 1.25x / read 0.1x，5 分钟内一次复用即回本）。
 
-## ② Cache usage 解析（OpenCode `AnthropicUsage` / `oaCompatHelper.normalizeUsage` 移植）
+## ② Cache usage 解析（参考实现 `AnthropicUsage` / `oaCompatHelper.normalizeUsage` 移植）
 
 ### `ModelTokenUsage` 扩展（`crates/types/src/types/model.rs:17`）
 
@@ -102,7 +102,7 @@ pub struct ModelTokenUsage {
 
 ### `openai.rs` / `openrouter.rs` 解析（OpenAI 兼容族）
 
-对齐 OpenCode `oaCompatHelper.normalizeUsage`（`packages/console/app/src/routes/zen/util/provider/openai-compatible.ts`）——OpenAI 兼容族为**服务端自动前缀缓存（隐式，无需请求头注入）**，只需从 usage 识别缓存 token：
+对齐参考实现 `oaCompatHelper.normalizeUsage`（`packages/console/app/src/routes/zen/util/provider/openai-compatible.ts`）——OpenAI 兼容族为**服务端自动前缀缓存（隐式，无需请求头注入）**，只需从 usage 识别缓存 token：
 
 | usage 字段 | 语义 | 映射 |
 |---|---|---|
@@ -112,11 +112,11 @@ pub struct ModelTokenUsage {
 | `prompt_cache_miss_tokens` | 缓存未命中（DeepSeek） | 计入 `prompt_tokens`（正常输入价） |
 | `prompt_tokens_details.cache_creation_input_tokens` | 缓存写入（alibaba） | `cache_creation_input_tokens` |
 
-非流式 `chat` 与流式 `chat_stream`（`usage` 随最后一个 chunk / `[DONE]` 前携带）两条路径均需解析。OpenAI 流式需确保请求体带 `stream_options: { include_usage: true }`（对齐 OpenCode `modifyBody`）才能收到 usage 事件。
+非流式 `chat` 与流式 `chat_stream`（`usage` 随最后一个 chunk / `[DONE]` 前携带）两条路径均需解析。OpenAI 流式需确保请求体带 `stream_options: { include_usage: true }`（对齐参考实现 `modifyBody`）才能收到 usage 事件。
 
-> 说明：DeepSeek 自动缓存**无需注入任何请求头**，服务端按前缀自动命中；本项目不需要仿 OpenCode 的 `prompt_cache_key`（那是 deepinfra/cerebras 专有字段，非 OpenAI 兼容族通用）。
+> 说明：DeepSeek 自动缓存**无需注入任何请求头**，服务端按前缀自动命中；本项目不需要仿参考实现的 `prompt_cache_key`（那是 deepinfra/cerebras 专有字段，非 OpenAI 兼容族通用）。
 
-## ③ 成本计算 + 定价表（OpenCode `Cost` + `log-processor` 移植）
+## ③ 成本计算 + 定价表（参考实现 `Cost` + `log-processor` 移植）
 
 ### 新增类型（`crates/types/src/types/config.rs`）
 
@@ -144,7 +144,7 @@ input × input_per_mtok
 + completion × output_per_mtok
 ```
 
-- `ModelUsageCost { input_cost, output_cost, cache_read_cost, cache_write_cost, total_cost }`（USD，micro-USD 精度，对齐 OpenCode `cost_*_microcents` 思路）
+- `ModelUsageCost { input_cost, output_cost, cache_read_cost, cache_write_cost, total_cost }`（USD，micro-USD 精度，对齐参考实现 `cost_*_microcents` 思路）
 - `ModelUsageCost` 定义于 `crates/types/src/types/model.rs`（与 `ModelTokenUsage` 同文件，`#[derive(TS)]` 供前端同步）
 - `ModelTokenUsage` 新增 `cost: Option<ModelUsageCost>`
 
@@ -157,7 +157,7 @@ provider 构造 usage 时调用 `pricing::compute_cost(...)`，通过共享的 `
 ### 机制
 
 OpenAI 兼容族（DeepSeek / OpenAI / OpenRouter 等）采用**服务端自动前缀缓存**：
-- 无显式 `cache_control`（OpenCode `cache-policy.ts` 的 `RESPECTS_INLINE_HINTS` 集合只含 `anthropic-messages` / `bedrock-converse`，OpenAI 兼容被排除）
+- 无显式 `cache_control`（参考实现 `cache-policy.ts` 的 `RESPECTS_INLINE_HINTS` 集合只含 `anthropic-messages` / `bedrock-converse`，OpenAI 兼容被排除）
 - 服务端按相同前缀自动命中缓存，命中部分按低价计费
 - 本项目无需注入缓存请求头；只需**正确解析缓存 token 并计入成本**（见 ② 的字段映射表）
 
@@ -182,7 +182,7 @@ DeepSeek 自动缓存命中后，usage 返回 `prompt_cache_hit_tokens` / `promp
 
 | 模块 | 测试 |
 |------|------|
-| `cache-policy.rs` | 断点分配、上限 4 丢弃、空输入、TTL 分桶（对齐 OpenCode cache-policy.test.ts） |
+| `cache-policy.rs` | 断点分配、上限 4 丢弃、空输入、TTL 分桶（对齐参考实现 cache-policy.test.ts） |
 | `anthropic.rs` | cache_control body 结构断言（system 数组、最新 user 数组、断点耗尽降级）、流式 message_delta usage 解析 |
 | `openai.rs` / `openrouter.rs` | usage 各缓存字段映射（`prompt_tokens_details.cached_tokens`、顶层 `cached_tokens`、`prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`、`cache_creation_input_tokens`）、流式 usage 事件解析 |
 | `pricing.rs` | 已知/未知模型查找、成本计算、Ollama 零成本、micro-USD 精度 |

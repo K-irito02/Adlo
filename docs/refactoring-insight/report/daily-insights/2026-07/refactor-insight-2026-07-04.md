@@ -1,7 +1,7 @@
 # 🏗️ 重构洞察报告：OpenCode 借鉴改进
 
 **生成日期**：2026-07-04
-**重构目标**：借鉴 OpenCode 项目优点，改进项目文档、规则、技能系统
+**重构目标**：借鉴参考实现项目优点，改进项目文档、规则、技能系统
 **约束**：仅修改文件/文档，不涉及代码变更
 
 ---
@@ -11,7 +11,7 @@
 | 位置 | 问题描述 | 优化建议 | 优先级 |
 |------|----------|----------|--------|
 | `.github/workflows/` | 仅有 2 个工作流（quality-gates + binary-size），缺少 typecheck-only、lint-only 等专项 PR 检查 | 新增 `typecheck.yml`、`lint.yml` 专项流程，实现更细粒度 CI 并行 | 🟢 低 |
-| `.husky/` | 缺少 Git pre-push hooks | 添加 Husky pre-push hook：版本检查 + 类型检查（参考 OpenCode 做法） | 🟢 低 |
+| `.husky/` | 缺少 Git pre-push hooks | 添加 Husky pre-push hook：版本检查 + 类型检查（借鉴参考实现做法） | 🟢 低 |
 | `CONTEXT.md` | 已包含 30+ 术语，但缺少模块命名空间投影模式、全局/位置节点、Effect-Layer 等架构模式的术语定义 | 新增架构模式术语：Global vs Location 节点、Service+Layer 注入、命名空间投影、Schema 驱动类型系统 | 🟢 低 |
 | `AGENTS.md` 规则引用 | 规则文件引用路径为 `.trae/rules/`（gitignored），但 AI 代理实际读取 `.agents/rules/` 或 `.trae/rules/` | 明确标注 `.agents/rules/` 为真源路径，.trae/rules/ 为 TRAE 同步副本 | 🟡 中 |
 | `docs/README.md` | 缺少对 `.husky/`、`.editorconfig`、`.github/workflows/` 等基础设施配置的索引 | 补充基础设施配置索引章节 | 🟢 低 |
@@ -37,7 +37,6 @@
 
 | 位置 | 问题描述 | 优化建议 | 优先级 |
 |------|----------|----------|--------|
-| `docs/analysis/opencode/` | 上次已重构为 21 篇渐进式源码索引（快查/总览/架构/包索引/12 功能深度/3 编码模式/差距分析） | 保持现状，已完成 | ✅ 已完成 |
 | `.gitignore` | 已包含 `.trae/rules/`、`.trae/skills/` 等忽略规则 | 保持现状，已完成 | ✅ 已完成 |
 
 ---

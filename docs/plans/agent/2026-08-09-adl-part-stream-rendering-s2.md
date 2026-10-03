@@ -1,10 +1,10 @@
-# S2 · Part 渲染内核（OpenCode 对齐前端 Part 渲染）实施计划
+# S2 · Part 渲染内核（对齐参考实现的前端 Part 渲染）实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 用 React 实现 OpenCode `session-ui` 对齐的消息/Part/工具/问询渲染内核，接入 S1 的 SSE 事件流与 Part 历史数据，替换现有旧 `ConversationBlock` 渲染路径。
+**Goal:** 用 React 实现对齐参考实现的消息/Part/工具/问询渲染内核，接入 S1 的 SSE 事件流与 Part 历史数据，替换现有旧 `ConversationBlock` 渲染路径。
 
-**Architecture:** 新建 `frontend/src/app/features/part-stream/` 数据层（PartStore：session→messages→parts 嵌套映射，SSE one-way 更新）+ 组件层（PartRenderer 注册表 + BasicToolCard/ToolErrorCard/StreamingMarkdown/PartDiffPanel/ContextToolGroup/AskCard/TurnSummary），消费 S1 已交付的 `GET /session/{id}/message` 历史端点 + `/event` SSE（`message.part.*` / `message.created/updated` / `session.status` / `question.*`）。数据源为 S1 的 `MessageRecord`/`PartRecord`（Part 数据模型），渲染对标 OpenCode `message-part.tsx`（PART_MAPPING + groupParts）。
+**Architecture:** 新建 `frontend/src/app/features/part-stream/` 数据层（PartStore：session→messages→parts 嵌套映射，SSE one-way 更新）+ 组件层（PartRenderer 注册表 + BasicToolCard/ToolErrorCard/StreamingMarkdown/PartDiffPanel/ContextToolGroup/AskCard/TurnSummary），消费 S1 已交付的 `GET /session/{id}/message` 历史端点 + `/event` SSE（`message.part.*` / `message.created/updated` / `session.status` / `question.*`）。数据源为 S1 的 `MessageRecord`/`PartRecord`（Part 数据模型），渲染对标参考实现的 `message-part.tsx`（PART_MAPPING + groupParts）。
 
 **Tech Stack:** React 19 + TS、Zustand（Store 状态）、markdown-it + highlight.js（流式 Markdown）、CodeMirror lang 包（diff 渲染）、EventSource、vitest（红绿测试）。
 
@@ -640,7 +640,7 @@ describe('groupParts', () => {
   });
 });
 ```
-> 对标 OpenCode `message-part.tsx` groupParts（:663-705）。`CONTEXT_GROUP_TOOLS = { read, glob, grep, list }`。
+> 对标参考实现的 `message-part.tsx` groupParts（:663-705）。`CONTEXT_GROUP_TOOLS = { read, glob, grep, list }`。
 
 - [ ] **Step 2: 运行确认失败**
 
@@ -649,7 +649,7 @@ Expected: FAIL（模块不存在）。
 
 - [ ] **Step 3: 实现**
 
-`groupParts.ts`（对标 OpenCode :607-705，适配 ADL PartRecord）:
+`groupParts.ts`（对标参考实现 :607-705，适配 ADL PartRecord）:
 ```ts
 import type { PartRecord } from '../../../kernel/types-part';
 
@@ -916,7 +916,7 @@ Expected: FAIL。
 
 - [ ] **Step 3: 实现**
 
-`BasicToolCard.tsx`（对标 OpenCode basic-tool.tsx，状态机 + collapsible + i18n）:
+`BasicToolCard.tsx`（对标参考实现的 basic-tool.tsx，状态机 + collapsible + i18n）:
 ```tsx
 import { useMemo, useState } from 'react';
 import type { PartRecord } from '../../../kernel/types-part';
@@ -972,7 +972,7 @@ export function ToolErrorCard({ error }: { error: string }) {
 }
 ```
 
-`ContextToolGroup.tsx`（对标 OpenCode context 组件，聚合一行）:
+`ContextToolGroup.tsx`（对标参考实现的 context 组件，聚合一行）:
 ```tsx
 import type { PartRecord } from '../../../kernel/types-part';
 import { useTCopy } from '../../i18n/useTCopy';
@@ -1242,7 +1242,7 @@ Expected: FAIL。
 `part-stream.css`（局部作用域，不波及全局 UI）:
 ```css
 .adl-part-scope {
-  /* 会话区局部变量映射（近似 OpenCode 风格，但不改全局 tokens） */
+  /* 会话区局部变量映射（近似参考实现风格，但不改全局 tokens） */
   --adl-part-text: var(--text-primary);
   --adl-part-muted: var(--text-secondary);
   --adl-part-border: var(--border-default);
@@ -1329,7 +1329,7 @@ pnpm --dir frontend run typecheck                       # 0 errors
 
 - [ ] **Step 5: 文档 + 提交**
 
-更新 `docs/superpowers/specs/2026-08-09-agent-operation-frontend-opencode-alignment-design.md` §5 验收 → 标「完成」；`git commit -m "feat(frontend): session page part-stream rendering (OpenCode-aligned)"`
+更新 `docs/superpowers/specs/2026-08-09-agent-operation-frontend-opencode-alignment-design.md` §5 验收 → 标「完成」；`git commit -m "feat(frontend): session page part-stream rendering (reference-aligned)"`
 
 ---
 

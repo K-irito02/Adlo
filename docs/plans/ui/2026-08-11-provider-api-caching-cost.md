@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Reduce API spend by adding Anthropic prompt caching (cache_control breakpoints), OpenAI-compatible cache-token recognition, real usage parsing, per-call cost computation, and frontend cost display — aligned with the OpenCode reference implementation.
+**Goal:** Reduce API spend by adding Anthropic prompt caching (cache_control breakpoints), OpenAI-compatible cache-token recognition, real usage parsing, per-call cost computation, and frontend cost display — aligned with the reference implementation.
 
-**Architecture:** A "cost optimization layer" inside `crates/model-gateway` between `ModelGateway` and the provider adapters. `cache-policy.rs` allocates Anthropic breakpoints (cap 4, mirroring OpenCode `ANTHROPIC_BREAKPOINT_CAP`); `anthropic.rs` injects `cache_control` into system + latest user message when the session has >1 user message; `pricing.rs` holds a built-in per-model price table and computes `ModelUsageCost` from parsed usage; providers parse `cache_creation_input_tokens` / `cache_read_input_tokens` / OpenAI-compatible `cached_tokens` family. Cost is attached centrally in `provider.rs` (non-streaming) and via a stream map (streaming), so no provider repeats pricing logic.
+**Architecture:** A "cost optimization layer" inside `crates/model-gateway` between `ModelGateway` and the provider adapters. `cache-policy.rs` allocates Anthropic breakpoints (cap 4, mirroring the reference design's `ANTHROPIC_BREAKPOINT_CAP`); `anthropic.rs` injects `cache_control` into system + latest user message when the session has >1 user message; `pricing.rs` holds a built-in per-model price table and computes `ModelUsageCost` from parsed usage; providers parse `cache_creation_input_tokens` / `cache_read_input_tokens` / OpenAI-compatible `cached_tokens` family. Cost is attached centrally in `provider.rs` (non-streaming) and via a stream map (streaming), so no provider repeats pricing logic.
 
 **Tech Stack:** Rust (adl-types, adl-model-gateway, serde_json, ts-rs), React 19 + TypeScript (kernel types, TokenUsage.tsx, i18n).
 
@@ -29,7 +29,7 @@
 |------|----------------|
 | `crates/types/src/types/model.rs` | Extend `ModelTokenUsage` (+`cache_creation_input_tokens`, `cache_read_input_tokens`, `cost: Option<ModelUsageCost>`), add `ModelUsageCost`, add `#[derive(Default)]` |
 | `crates/types/src/types/config.rs` | Add `ModelCost` struct; add `cost: Option<ModelCost>` to `ModelDefinition` |
-| `crates/model-gateway/src/cache-policy.rs` | NEW: `CacheBreakpoints`, `ttl_bucket` (mirror OpenCode cache-policy) |
+| `crates/model-gateway/src/cache-policy.rs` | NEW: `CacheBreakpoints`, `ttl_bucket` (mirror the reference design cache-policy) |
 | `crates/model-gateway/src/adapter.rs` | Add `CachePolicy` enum + `cache_policy` field on `ChatOptions`; update stub usage constructors |
 | `crates/model-gateway/src/pricing.rs` | NEW: `lookup_cost`, `compute_cost`, `attach_cost` + price table |
 | `crates/model-gateway/src/providers/base.rs` | `SseEvent::Usage(ModelTokenUsage)` variant; `parse_sse_stream` records pending usage into `StreamChunk::Done` |
@@ -569,7 +569,7 @@ Expected: FAIL — module missing.
 `crates/model-gateway/src/cache-policy.rs`:
 
 ```rust
-//! Anthropic cache breakpoint allocation, mirroring OpenCode's
+//! Anthropic cache breakpoint allocation, mirroring the reference design's
 //! `ANTHROPIC_BREAKPOINT_CAP` (cap 4). Breakpoints are ephemeral TTL cache
 //! markers: exhausting them is safe — callers simply drop the marker.
 
@@ -721,7 +721,7 @@ In `anthropic.rs`, add a pure builder:
 /// Split messages into (system_value, body_messages) where the system prompt
 /// and the latest user message become Anthropic content-block arrays carrying
 /// an ephemeral cache breakpoint when caching is Auto and the session has more
-/// than one message (mirrors OpenCode `buildAnthropicMessages`).
+/// than one message (mirrors the reference design's `buildAnthropicMessages`).
 fn anthropic_system_and_messages(
     messages: &[ModelChatMessage],
     cache_policy: CachePolicy,
@@ -1093,7 +1093,7 @@ In `openai.rs`, add:
 ```rust
 /// Parse an OpenAI-compatible `usage` payload, normalizing the many cache
 /// token field spellings (DeepSeek, xAI, Alibaba, moonshot) into our
-/// `ModelTokenUsage`. Mirrors OpenCode `oaCompatHelper.normalizeUsage`.
+/// `ModelTokenUsage`. Mirrors the reference design's `oaCompatHelper.normalizeUsage`.
 pub fn parse_openai_compat_usage(json: &serde_json::Value) -> Option<ModelTokenUsage> {
     let u = json["usage"]?; // ? on Value indexing yields Value; use is_object check below
     if !u.is_object() {

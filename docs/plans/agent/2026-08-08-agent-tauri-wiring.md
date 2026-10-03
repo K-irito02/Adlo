@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 把 B3b 的 `LoopExecutor` 接入 Tauri：实现 `DbPartStore`（`adl_storage::Database` → `PartStore`），新增 `agent_loop_run` Tauri 命令（ModelGateway → stream_adapter → LLMEventStream → run_turn 多回合 while 循环，CancellationToken abort），复用现有 conversation 命令/Part 持久化。采用**新命令并存**（对齐 OpenCode：SessionV2 prompt 与旧 TUI 是独立入口），旧 `agent_start_run`/`agent_pipeline` 暂不动，前端下阶段切换。
+**Goal:** 把 B3b 的 `LoopExecutor` 接入 Tauri：实现 `DbPartStore`（`adl_storage::Database` → `PartStore`），新增 `agent_loop_run` Tauri 命令（ModelGateway → stream_adapter → LLMEventStream → run_turn 多回合 while 循环，CancellationToken abort），复用现有 conversation 命令/Part 持久化。采用**新命令并存**（对齐参考实现：SessionV2 prompt 与旧 TUI 是独立入口），旧 `agent_start_run`/`agent_pipeline` 暂不动，前端下阶段切换。
 
 **Architecture:** 三层：
 1. **DbPartStore**（src-tauri）：实现 `PartStore` trait，包 `adl_storage::Database`，用 `spawn_blocking`（rusqlite 是阻塞 API）。
@@ -185,7 +185,7 @@ git commit -m "feat(agent): add DbPartStore implementing PartStore"
   - `LoopRunResult { run_id, turn_count, status }`
   - `#[tauri::command] pub async fn agent_loop_abort(app, session_id) -> Result<IpcResult<()>, CommandError>`
 
-**核心：多回合 while 循环**（对齐 OpenCode `handle.process` 外层循环）：
+**核心：多回合 while 循环**（对齐参考实现的 `handle.process` 外层循环）：
 
 ```
 1. require_session / current_workspace

@@ -10,23 +10,6 @@
 
 ---
 
-## 参考项目（用于后续参考、借鉴源码）
-
-本标准的决策参照以下两个 MIT 许可开源项目，本地副本位于仓库 `references/` 下，供开发过程中查阅源码、借鉴设计模式与复用代码片段。
-
-| 项目 | GitHub 仓库 | 本地路径 | 说明 |
-|------|------------|----------|------|
-| **OpenCode** | <https://github.com/anomalyco/opencode> | [`references/opencode/`](../../references/opencode/) | 完整功能体系、精致交互（会话 Part 体系、Provider.Service、Effect 类型化错误、Ruleset 权限） |
-| **Pi** | <https://github.com/earendil-works/pi> | [`references/pi/`](../../references/pi/) | 轻量高效内核（状态持有 + 事件订阅 Agent、ToolRegistry 工具注册、append-only 树形 Fork、自动阈值压缩） |
-
-> **说明**：
->
-> - 两项目均为 **MIT** 许可。参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
-> - OpenCode 源码地图：[`docs/analysis/opencode/`](../../docs/analysis/opencode/)
-> - 查询、检索代码时优先使用 CodeGraph 知识图谱（三项目均有本地 `.codegraph/`，SQLite），详见技能 [`codegraph-knowledge-graph`](../../.opencode/skills/codegraph-knowledge-graph/SKILL.md)。
-
----
-
 ## 总览
 
 | 统计项 | 数量 |
@@ -61,9 +44,9 @@
 
 ### 决策 02 · Agent 设计（⛔ 已退役·存档）
 
-> **退役原因**：自研 Agent 体系已随 dsh 剥离删除（Pi 式"状态持有 + 事件订阅"Agent 不再由本仓库实现）。Agent 对话与编排能力由第三方 harness（当前为 deepseek dsh）提供，本仓库仅做宿主集成。以下为历史决策记录，不作为实现依据。
+> **退役原因**：自研 Agent 体系已随 dsh 剥离删除（状态持有 + 事件订阅式 Agent 不再由本仓库实现）。Agent 对话与编排能力由第三方 harness（当前为 deepseek dsh）提供，本仓库仅做宿主集成。以下为历史决策记录，不作为实现依据。
 
-原选择（历史）：状态持有 + 事件订阅（Pi 模式）——Agent 持有 state（messages + 上下文），通过 `subscribe()` 对外通知，状态由事件驱动更新。
+原选择（历史）：状态持有 + 事件订阅——Agent 持有 state（messages + 上下文），通过 `subscribe()` 对外通知，状态由事件驱动更新。
 
 ---
 
@@ -79,7 +62,7 @@
 
 > **退役原因**：`ToolRegistry` 及 Agent 工具注册体系已从 Rust/前端实现中移除，不再由本仓库提供。以下为历史决策记录，不作为实现依据。
 
-原选择（历史）：注册中心 + 运行时参数校验——通过工具注册中心动态注册工具，参数 Schema 运行时校验（Pi 用 TypeBox，本项目 Rust 侧用类型化结构体 + serde）。
+原选择（历史）：注册中心 + 运行时参数校验——通过工具注册中心动态注册工具，参数 Schema 运行时校验（本项目 Rust 侧用类型化结构体 + serde）。
 
 ---
 
@@ -129,11 +112,11 @@
 
 > **退役原因**：`session_fork` 命令、`forkSession` / `listSessionForks` IPC 与前端 Fork UI 已全部移除，代码中已无残留。会话分支能力（如需）由第三方 harness 提供。以下为历史决策记录，不作为实现依据。
 
-原选择（历史）：原生 Fork（DAG / 树结构）——任意会话点创建分支，子分支继承父上下文（与 Pi session-manager 的 append-only 树同构）。
+原选择（历史）：原生 Fork（DAG / 树结构）——任意会话点创建分支，子分支继承父上下文（append-only 树结构）。
 
 ---
 
-### 决策 10 · UI 组件风格（来自 OpenCode）
+### 决策 10 · UI 组件风格（现行）
 
 **选择**：设计感精致型
 
@@ -149,7 +132,7 @@
 
 **为什么这样选**：桌面 App 的用户对视觉体验有预期（参考 Linear、Notion 标准），目前已有设计系统基础，继续精致化路线可以形成品牌识别。
 
-> ⚠️ **说明**：OpenCode 的 UI 基于 SolidJS + Kobalte，本项目为 React，借鉴其审美与交互范式，不照搬组件实现。
+> ⚠️ **说明**：精致化路线以审美与交互范式为先，借鉴精致桌面应用的视觉语言，不照搬外部组件实现。
 
 ---
 
@@ -161,7 +144,7 @@
 
 ---
 
-### 决策 12 · 错误处理（来自 OpenCode，现行）
+### 决策 12 · 错误处理（现行）
 
 **选择**：双端结构化错误（Rust Result + TS 归类）
 
@@ -175,7 +158,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 **为什么这样选**：
 
-> ⚠️ **版本说明**：v1.0 主张"统一 Error Channel 总线"系夸大——OpenCode 实际是 Effect 类型化错误（9 类 NamedError）+ `fromError()` 归一化，经多条通道流动，并非单一总线。本项目对齐现有体系：Rust Result + TS captureTypedError，遵循 `error-handling.md` 规则，不做"大爆炸"式重构。
+> ⚠️ **版本说明**：v1.0 主张"统一 Error Channel 总线"系夸大——实际落地是多通道类型化错误，经多条通道流动，并非单一总线。本项目对齐现有体系：Rust Result + TS captureTypedError，遵循 `error-handling.md` 规则，不做"大爆炸"式重构。
 
 ---
 
@@ -209,15 +192,15 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 | 加密文件降级 | capabilities 白名单（禁通配） |
 | 禁止写入配置/日志 | 敏感操作审批确认（ApprovalRequired） |
 
-**为什么这样选**：项目治理硬规则（见 AGENTS.md 安全边界与禁止项）。Pi 明确无内置权限系统（依赖容器化隔离），OpenCode 有完整 Rule/Ruleset 权限体系可作借鉴——本项目取其思路，落地为 capabilities 白名单（禁 `"all"` / `"**"` 通配）+ 敏感操作审批确认（`ApprovalRequired`），Agent 侧 Ruleset 已随 Agent 体系退役。
+**为什么这样选**：项目治理硬规则（见 AGENTS.md 安全边界与禁止项）。权限思路落地为 capabilities 白名单（禁 `"all"` / `"**"` 通配）+ 敏感操作审批确认（`ApprovalRequired`），Agent 侧 Ruleset 已随 Agent 体系退役。
 
 ---
 
 ## Section 02 · 设计哲学与核心原则
 
-> Pi 与 OpenCode 作为**参考项目**（设计模式借鉴与源码查阅，见首节），其 Agent 体系相关借鉴已随自研 Agent 剥离退役；以下仅保留对宿主仍有指导意义的部分。
+> 以下原则中，Agent 体系相关借鉴已随自研 Agent 剥离退役；仅保留对宿主仍有指导意义的部分。
 
-### Pi 基因 · 轻量高效内核（历史借鉴）
+### 轻量高效内核（历史借鉴）
 
 **仍有效的：**
 
@@ -234,7 +217,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 - TUI 优先的极简 UI（不符合桌面用户预期）
 - 纯 JSONL 存储（项目采用 SQLite，JSONL 仅作调试日志）
 
-### OpenCode 基因 · 完整功能体系（历史借鉴）
+### 完整功能体系（历史借鉴）
 
 **仍有效的：**
 
@@ -248,7 +231,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 **我们刻意不选的：**
 
 - Effect-TS 函数式编程（学习曲线陡）
-- 代码级热重载（两项目均未实现，不承诺）
+- 代码级热重载（不承诺）
 - 单一 Error Channel 总线（实际为多通道类型化错误）
 
 ### 🎯 组合公式
@@ -455,7 +438,7 @@ WebView 若绕过 Tauri Command 直接触达系统能力，或 capabilities 使�
 ## 📝 本标准的使用说明
 
 - **✅ 当做决策时的依据**：遇到"要不要做 X？怎么做 X？"的问题时，先查对应决策项，按标准走。
-- **⚖️ 标准冲突时的优先级**：本标准 > 现有代码习惯 > Pi/OpenCode 原版实现。即"先按自己定的规矩来"。
+- **⚖️ 标准冲突时的优先级**：本标准 > 现有代码习惯 > 外部参考实现。即"先按自己定的规矩来"。
 - **🔄 修订机制**：遇到标准覆盖不到的新场景，按同样的"对比两方案优缺点 → 选一个 → 记录理由"流程补充本标准，不允许拍脑袋决定。
 - **🔒 冻结项**：现行决策（01/07/10/12/13/14）为宿主架构依据，其中 13–14 为项目硬规则，任何时候不得放宽。退役决策（02/03/04/05/06/08/09/11）仅为历史存档，不作为决策依据。频繁推翻架构是最大的开发杀手。
 

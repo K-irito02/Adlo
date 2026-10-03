@@ -1401,7 +1401,7 @@ git commit -m "test(core): add tests to infrastructure layers (kernel, i18n, tau
 - Modify: `crates/agent-runtime/src/lib.rs`
 - Read: `frontend/src/kernel/types.ts` — assess ts-rs migration status
 - List: `frontend/src/app/stores/slices/browser*.ts` — assess consolidation
-- Read: `references/opencode/` — check plugin usage patterns
+- Read: 参考实现 — check plugin usage patterns
 
 - [ ] **Step 1: Convert `AgentRouter` unit struct to module-level functions**
 

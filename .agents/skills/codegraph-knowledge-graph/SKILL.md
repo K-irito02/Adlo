@@ -1,19 +1,17 @@
 ---
 name: codegraph-knowledge-graph
-description: 查询 3 份本地 CodeGraph 代码知识图谱以追踪符号、调用链和变更影响范围。需要理解代码结构、追踪调用关系或评估变更影响时优先使用，替代 grep/read 逐文件爬取。
+description: 查询本地 CodeGraph 代码知识图谱以追踪符号、调用链和变更影响范围。需要理解代码结构、追踪调用关系或评估变更影响时优先使用，替代 grep/read 逐文件爬取。
 ---
 
 # CodeGraph 代码知识图谱
 
 ## 概述
 
-工作区包含 3 份预索引的本地 CodeGraph 代码知识图谱（`.codegraph/codegraph.db`，SQLite，100% 本地，文件变更自动同步）。
+工作区包含 1 份预索引的本地 CodeGraph 代码知识图谱（`.codegraph/codegraph.db`，SQLite，100% 本地，文件变更自动同步）。
 
 | 项目根 | 内容 |
 |--------|------|
 | `ai-digital-life/` | Rust + Tauri + TypeScript 主项目 |
-| `references/pi/` | TypeScript 参考项目 |
-| `references/opencode/` | OpenCode 参考 monorepo |
 
 `ai-digital-life/` 自动排除 `target/`、`node_modules/` 及 `.gitignore` 中的文件。
 

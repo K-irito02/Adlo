@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- Reference OpenCode: `references/opencode/packages/opencode/src/session/permission.ts` and `references/opencode/packages/schema/src/command.ts`
 - No new external dependencies — pure architecture/config changes
 - Backward compatible: existing RiskLevel-based code must continue to work (mapped to Ruleset decisions)
 - Permission rules support `*` (single segment) and `**` (multi-segment) wildcards
@@ -266,7 +265,7 @@ impl PermissionRuleset {
     }
 
     /// Evaluate a permission request against the ruleset.
-    /// Returns the decision from the LAST matching rule (OpenCode behavior).
+    /// Returns the decision from the LAST matching rule (reference implementation behavior).
     /// If no rule matches, returns the default decision (derived from RiskLevel).
     pub fn evaluate(&self, tool_name: &str, command: &str, args: &[String]) -> PermissionDecision {
         let mut decision = default_decision(command, args); // default

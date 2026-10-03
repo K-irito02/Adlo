@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 `adl-agent-runtime` 实现库级多步工具循环执行器 `LoopExecutor`（对齐 OpenCode `processor.ts` 的事件状态机）、`PartEventBus`（广播 `SessionPartEvent`）、库级 `Question` 服务（`ask`/`reply`/`reject` 挂起等待），并扩展 agent-runtime 依赖（model-gateway LLMEvent、storage Part CRUD）。这是 Agent 操作展示架构的核心执行层，B3c 将接入 Tauri。
+**Goal:** 在 `adl-agent-runtime` 实现库级多步工具循环执行器 `LoopExecutor`（对齐参考实现的事件状态机）、`PartEventBus`（广播 `SessionPartEvent`）、库级 `Question` 服务（`ask`/`reply`/`reject` 挂起等待），并扩展 agent-runtime 依赖（model-gateway LLMEvent、storage Part CRUD）。这是 Agent 操作展示架构的核心执行层，B3c 将接入 Tauri。
 
 **Architecture:** 三层：
 1. **PartEventBus**（`agent-runtime/src/part_event_bus.rs`）：`tokio::sync::broadcast<SessionPartEvent>`，对齐 kernel EventBus 模式。
@@ -17,9 +17,9 @@
 - Rust edition 2024，rust-version 1.85
 - `cargo clippy -- -D warnings` 必须 0 警告；避免 `unwrap_used`/`dbg_macro`/`todo`（测试可 unwrap）
 - 未发布阶段禁止数据迁移/兼容代码
-- `LLMEvent` 事件类型名与语义对齐 OpenCode `packages/llm/src/schema/events.ts`（B3a 已定义）
-- Part 生命周期对齐 OpenCode `processor.ts`：`step-start`（每响应一个 step）→ text/reasoning/tool parts → `step-finish`（含 snapshot/patch）→ `finish`
-- 工具并发执行（对齐 OpenCode `concurrency: "unbounded"`）；每个工具调用持 `oneshot` done
+- `LLMEvent` 事件类型名与语义对齐参考实现（B3a 已定义）
+- Part 生命周期对齐参考实现：`step-start`（每响应一个 step）→ text/reasoning/tool parts → `step-finish`（含 snapshot/patch）→ `finish`
+- 工具并发执行（对齐参考实现的 `concurrency: "unbounded"`）；每个工具调用持 `oneshot` done
 - Question 服务独立于现有 permission 系统；`question` 工具调用它
 - 现有 agent_pipeline/registry 行为不变（Loop 是新路径，B3c 才接线）
 
@@ -249,7 +249,7 @@ git commit -m "feat(agent-runtime): add PartEventBus and PartStore trait"
     - `pub fn reject(&self, request_id: &str) -> Result<(), AppError>`
     - `pub fn list(&self) -> Vec<QuestionRequest>`
 
-**对齐 OpenCode `packages/opencode/src/question/index.ts`**：`ask` 生成 request id、存 pending map、发布 `QuestionAsked` 事件、`oneshot::Receiver` await 等待答案；`reply` 发布 `QuestionReplied` 并 resolve sender；`reject` 发布 `QuestionRejected` 并 error。
+**对齐参考实现**：`ask` 生成 request id、存 pending map、发布 `QuestionAsked` 事件、`oneshot::Receiver` await 等待答案；`reply` 发布 `QuestionReplied` 并 resolve sender；`reject` 发布 `QuestionRejected` 并 error。
 
 - [ ] **Step 1: 编写失败的测试**
 
@@ -349,7 +349,7 @@ pub struct QuestionRequest {
     pub questions: Vec<serde_json::Value>,
 }
 
-/// Ask the user questions and wait for answers. Mirrors OpenCode's Question
+/// Ask the user questions and wait for answers. Mirrors the reference design's Question
 /// service: ask() publishes a question.asked event and awaits a oneshot;
 /// reply()/reject() resolve it.
 #[derive(Clone)]
@@ -472,7 +472,7 @@ git commit -m "feat(agent-runtime): add Question service"
     - `pub async fn run_turn(&self, session_id: &str, message_id: &str, model_response: impl Stream<Item = Result<LLMEvent, AppError>>) -> Result<TurnResult, AppError>`
   - `pub enum TurnResult { Continue, Stop, Error }`
 
-**核心：事件状态机**（对齐 OpenCode `processor.ts` `handleEvent`）：
+**核心：事件状态机**（对齐参考实现的 `handleEvent`）：
 
 ```
 维护状态：
@@ -521,7 +521,7 @@ git commit -m "feat(agent-runtime): add Question service"
 **关键细节**：
 - `run_turn` 接收一个 `Stream<Item = Result<LLMEvent, AppError>>`（由 B3c 用 `stream_chunks_to_llm_events` 从网关流转换），循环消费。
 - 工具并发执行：`ToolCall` 时 `tokio::spawn`，结果写回 tool part 并 `oneshot` 完成；`StepFinish` 前 `await` 所有 in-flight 工具。
-- doom_loop 检测：最近 N 个工具调用若同 tool 同 input 且均失败，则中止（对齐 OpenCode `DOOM_LOOP_THRESHOLD=3`）。本计划实现基础版：连续 3 次相同 `(tool, input)` 失败 → 返回 `TurnResult::Error`。
+- doom_loop 检测：最近 N 个工具调用若同 tool 同 input 且均失败，则中止（对齐参考实现的 `DOOM_LOOP_THRESHOLD=3`）。本计划实现基础版：连续 3 次相同 `(tool, input)` 失败 → 返回 `TurnResult::Error`。
 - abort/cleanup：`run_turn` 返回前，把所有仍 `pending`/`running` 的 tool part 置 `error`（interrupted），text/reasoning 收尾，关闭 step。
 - `TurnResult::Continue` 表示 LLM 还有后续工具回合（B3c 外层 while 循环继续调 LLM）；`Stop` 表示完成。
 
@@ -629,7 +629,7 @@ pub enum TurnResult {
 
 /// Library-level multi-step tool loop executor. Consumes a stream of
 /// provider-neutral LLMEvents, drives the event state machine (mirroring
-/// OpenCode's processor.ts handleEvent), persists Parts via PartStore, and
+/// the reference implementation's handleEvent), persists Parts via PartStore, and
 /// broadcasts SessionPartEvents. Tool calls execute concurrently.
 pub struct LoopExecutor {
     bus: PartEventBus,
@@ -997,10 +997,10 @@ Expected: 0 warnings
 - §8 测试（Loop 测试）→ Task 3 ✓
 
 **Gap 说明**：
-- doom_loop 仅基础版（连续 3 次同 tool 同 input 失败 → Error），未实现 OpenCode 的 `permission.ask` 交互（B3c 权限系统接入时增强）。
+- doom_loop 仅基础版（连续 3 次同 tool 同 input 失败 → Error），未实现参考实现的 `permission.ask` 交互（B3c 权限系统接入时增强）。
 - 工具执行写回在 spawn 内直接完成；`question` 工具的挂起等待（QuestionService.ask）尚未接入 Loop（B3c 把 question 工具 dispatch 到 QuestionService）。
 - `run_turn` 单回合（一个 LLM provider 调用）；多回合 while 循环由 B3c 外层驱动。
-- snapshot/patch 生命周期（OpenCode step-finish 的 snapshot.track/patch）未实现——ADL 的 change-engine snapshot 是文件级，与 Part 生命周期集成留 B3c/后续。
+- snapshot/patch 生命周期（参考实现 step-finish 的 snapshot.track/patch）未实现——ADL 的 change-engine snapshot 是文件级，与 Part 生命周期集成留 B3c/后续。
 
 **Placeholder scan**：Task 3 标注"implementer 需适配"的点（ToolRegistry Clone、events 参数类型、doom_loop 累积、MessageRecord parent_id）是明确的实现指引，非占位。
 

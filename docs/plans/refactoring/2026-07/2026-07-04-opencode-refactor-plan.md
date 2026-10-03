@@ -1,8 +1,8 @@
-# OpenCode 借鉴改进实施计划
+# 参考实现借鉴改进实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 借鉴 OpenCode 项目优点，改进项目文档、规则、技能系统
+**Goal:** 借鉴参考实现项目优点，改进项目文档、规则、技能系统
 
 **Architecture:** 在隔离工作区 `refactor-insight-main` 中操作，所有变更限定在文件/文档/配置层面，不涉及代码文件。完成后通过 squash merge 合并到本地 main。
 
@@ -21,7 +21,7 @@
 - Modify: `CONTEXT.md`
 
 **Interfaces:**
-- Consumes: `docs/analysis/opencode/` — OpenCode 架构分析
+- Consumes: 参考实现架构分析（历史参考，本地副本已移除）
 - Produces: 在 CONTEXT.md 中新增"架构模式"章节
 
 - [ ] **在 CONTEXT.md 中新增"架构模式"章节**

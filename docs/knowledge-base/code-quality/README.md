@@ -57,15 +57,15 @@ ESLint/Prettier/Clippy/rustfmt 门禁、工具链环境。
 
 ### [opencode-phase2-audit/](./opencode-phase2-audit/)
 
-OpenCode 功能对照、Phase 2 审计与缺陷修复。
+参考实现功能对照、Phase 2 审计与缺陷修复。
 
 | 文件 | 说明 |
 |------|------|
-| [opencode-feature-integration-2026-07-06.md](./opencode-phase2-audit/opencode-feature-integration-2026-07-06.md) | OpenCode 功能集成经验 |
-| [opencode-feature-defects-2026-07-06.md](./opencode-phase2-audit/opencode-feature-defects-2026-07-06.md) | OpenCode 对照 8 项实现缺陷修复（truncate_output、classify_profile、Snapshot 副本） |
+| [opencode-feature-integration-2026-07-06.md](./opencode-phase2-audit/opencode-feature-integration-2026-07-06.md) | 参考实现功能集成经验 |
+| [opencode-feature-defects-2026-07-06.md](./opencode-phase2-audit/opencode-feature-defects-2026-07-06.md) | 参考实现对照 8 项实现缺陷修复（truncate_output、classify_profile、Snapshot 副本） |
 | [phase2-audit-fixes-2026-07-06.md](./opencode-phase2-audit/phase2-audit-fixes-2026-07-06.md) | Phase 2 审计修复经验 |
 | [phase2-defect-fix-2026-07-06.md](./opencode-phase2-audit/phase2-defect-fix-2026-07-06.md) | Phase 2 缺陷修复经验 |
-| [opencode-audit-fix-2026-07.md](./opencode-phase2-audit/opencode-audit-fix-2026-07.md) | OpenCode 功能审计 10 项缺陷修复（Compaction 阈值、Plugin hook 链式传播、MCP 自动重连） |
+| [opencode-audit-fix-2026-07.md](./opencode-phase2-audit/opencode-audit-fix-2026-07.md) | 参考实现功能审计 10 项缺陷修复（Compaction 阈值、Plugin hook 链式传播、MCP 自动重连） |
 | [refactoring-insight-audit-fixes.md](./opencode-phase2-audit/refactoring-insight-audit-fixes.md) | 重构洞察审计修复经验 |
 
 ### [根目录](./)

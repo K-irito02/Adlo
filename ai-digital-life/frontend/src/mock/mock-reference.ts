@@ -5,9 +5,9 @@ export const mockReference: ReferenceBridge = {
     ok: true,
     data: [
       {
-        name: 'opencode',
+        name: 'example',
         source: 'local' as const,
-        path: '/references/opencode',
+        path: '/references/example',
         branch: null,
         enabled: true,
       },

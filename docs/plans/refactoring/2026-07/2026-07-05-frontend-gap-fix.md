@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- **Reference OpenCode:** `references/opencode/packages/opencode/src/session/session.ts` (fork pattern), `references/opencode/packages/opencode/src/tool/lsp.ts` (LSP UI), `references/opencode/packages/opencode/src/plugin/` (plugin management UI)
 - **No backward compatibility:** Existing broken code (e.g., CompactionIndicator without IPC, mock-bridge entries for preview-bridge that are missing) should be replaced, not preserved
 - **Best design over minimal diff:** New IPCs and store slices use the existing Zustand slice pattern + 3-bridge sync, but improve where warranted (e.g., reduce redundant action boilerplate)
 - **3-bridge sync:** Every IPC method must be present in all three bridges (tauri-bridge, mock-bridge, preview-bridge)

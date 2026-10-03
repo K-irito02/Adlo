@@ -1,8 +1,8 @@
-# OpenCode 移植功能深度审计修复计划
+# 参考实现移植功能深度审计修复计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 修复 2026-07-07 深度审计发现的 4 个 🔴 HIGH 和 11 个 🟡 MEDIUM 缺陷，确保 Phase 2 对照 OpenCode 移植的全部功能真实可用。
+**Goal:** 修复 2026-07-07 深度审计发现的 4 个 🔴 HIGH 和 11 个 🟡 MEDIUM 缺陷，确保 Phase 2 对照参考实现移植的全部功能真实可用。
 
 **Architecture:** 按依赖关系分 4 组推进。组 A（核心正确性）修复 Plan Mode / Compaction / Subagent 权限三个阻塞性缺陷；组 B（可靠性）修复 DurableSession 错误吞掉 / Plugin 全局隔离 / fire_hook 链式修改 / fallback 默认模型；组 C（WebTools 增强）改造 WebFetch / WebSearch；组 D（MCP 完善）修复传输区分 / 重连 / OAuth。前端 UI 补齐不在此计划范围。
 
@@ -19,7 +19,6 @@
 - 类型检查：`cargo check --workspace`
 - Lint：`cargo clippy --workspace --all-targets -- -D warnings`
 - 所有修改在 `ai-digital-life/` 目录下执行
-- OpenCode 源码参考位于 `references/opencode/`
 - 每个任务遵循红绿重构：先写失败测试 → 最小实现 → 重构 → 提交
 - 提交格式：`type(scope): summary`，scope 可选 `core` / `rust` / `frontend` / `ipc`
 
@@ -212,7 +211,7 @@ pub fn compact_messages(
 ) -> CompactionResult {
     let total_tokens: usize = messages.iter().map(|m| counter.count(&m.content, provider)).sum();
 
-    // 使用 PRUNE_MINIMUM 作为触发阈值（OpenCode 对齐）
+    // 使用 PRUNE_MINIMUM 作为触发阈值（参考实现对齐）
     if total_tokens < PRUNE_MINIMUM {
         return CompactionResult {
             preserved: messages.to_vec(),
@@ -765,7 +764,7 @@ git commit -m "fix(core): SubagentManager.update_status returns Result for unkno
 
 ### Task 8: WebFetch 增强 — 增大限制 + HTML 转换
 
-**目标**: 将 WebFetch 提升到 OpenCode 同等能力：5MB 限制、30s 超时、HTML→Markdown 转换、格式选择。
+**目标**: 将 WebFetch 提升到参考实现同等能力：5MB 限制、30s 超时、HTML→Markdown 转换、格式选择。
 
 **Files:**
 - Modify: `ai-digital-life/crates/agent-runtime/src/tools/webfetch.rs`
@@ -791,8 +790,8 @@ html2text = "0.13"
 use reqwest::Client;
 use std::time::Duration;
 
-const MAX_RESPONSE_SIZE: usize = 5 * 1024 * 1024; // 5MB (OpenCode parity)
-const DEFAULT_TIMEOUT_SECS: u64 = 30;              // 30s (OpenCode parity)
+const MAX_RESPONSE_SIZE: usize = 5 * 1024 * 1024; // 5MB (reference parity)
+const DEFAULT_TIMEOUT_SECS: u64 = 30;              // 30s (reference parity)
 const MAX_TIMEOUT_SECS: u64 = 120;                 // 120s max
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]

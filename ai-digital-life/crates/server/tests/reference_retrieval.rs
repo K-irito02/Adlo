@@ -48,7 +48,7 @@ async fn add_reference_persists_and_returns_list() {
     let state = common::state("ref-api").await;
     let dir = std::env::temp_dir().join(format!("adl-ref-src-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
-    let reference = local_reference("opencode", &dir);
+    let reference = local_reference("example", &dir);
 
     let (status, body) = common::send_post(
         state.clone(),
@@ -59,7 +59,7 @@ async fn add_reference_persists_and_returns_list() {
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     let refs = body["data"].as_array().unwrap();
     assert_eq!(refs.len(), 1, "one reference: {body}");
-    assert_eq!(refs[0]["name"], "opencode", "body: {body}");
+    assert_eq!(refs[0]["name"], "example", "body: {body}");
     assert_eq!(refs[0]["source"], "local", "body: {body}");
     assert_eq!(refs[0]["enabled"], true, "body: {body}");
 
@@ -68,7 +68,7 @@ async fn add_reference_persists_and_returns_list() {
         common::send_post(state.clone(), "/reference/list", Some(data_dir_body(&state))).await;
     let refs = body["data"].as_array().unwrap();
     assert_eq!(refs.len(), 1, "persisted: {body}");
-    assert_eq!(refs[0]["name"], "opencode", "body: {body}");
+    assert_eq!(refs[0]["name"], "example", "body: {body}");
 }
 
 /// POST /reference/remove deletes a reference and persists (covers
@@ -78,7 +78,7 @@ async fn remove_reference_removes_and_persists() {
     let state = common::state("ref-api").await;
     let dir = std::env::temp_dir().join(format!("adl-ref-src-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&dir).unwrap();
-    let reference = local_reference("opencode", &dir);
+    let reference = local_reference("example", &dir);
 
     let (_, body) = common::send_post(
         state.clone(),
@@ -91,7 +91,7 @@ async fn remove_reference_removes_and_persists() {
     let (status, body) = common::send_post(
         state.clone(),
         "/reference/remove",
-        Some(json!({ "name": "opencode", "dataDir": state.data_dir.to_string_lossy() })),
+        Some(json!({ "name": "example", "dataDir": state.data_dir.to_string_lossy() })),
     )
     .await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");

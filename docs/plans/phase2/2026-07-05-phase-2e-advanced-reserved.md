@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- Reference OpenCode: `references/opencode/packages/opencode/src/session/session.ts` (fork), `references/opencode/packages/opencode/src/tool/lsp.ts` (LSP), `references/opencode/packages/opencode/src/plugin/` (plugin system)
 - Add `lsp-server = "0.7"` and `lsp-types = "0.97"` to workspace `Cargo.toml` for LSP integration
 - ACP, HTTP API server, CodeMode are **interface-only** — no implementation, return `NotImplemented` error
 - Plugin system: define trait + hooks only, no third-party plugin loading (wasm/dylib) in this phase
@@ -1014,7 +1013,7 @@ mod tests {
         let config = ReferenceConfig {
             name: "opencode".to_string(),
             source: ReferenceSource::Local,
-            path: "/references/opencode".to_string(),
+            path: "/refs/opencode".to_string(),
             branch: None,
             enabled: true,
         };

@@ -1,10 +1,10 @@
-# S3 · 桌面布局（OpenCode 对齐会话页布局）实施计划
+# S3 · 桌面布局（对齐参考实现的会话页布局）实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 对标 OpenCode `packages/app/src/pages/session/` 的会话页布局（虚拟化 timeline、会话文件 tab、Composer dock、面板约束、侧面板会话上下文），在 ADL 现有 `regions/` 布局内对齐会话页内部。
+**Goal:** 对标参考实现的会话页布局（虚拟化 timeline、会话文件 tab、Composer dock、面板约束、侧面板会话上下文），在 ADL 现有 `regions/` 布局内对齐会话页内部。
 
-**Architecture:** 在 ADL 既有 `left-sidebar / center / right-panel` 三区布局内，仅对齐会话页内部。核心：把 S2 的 `PartConversation`（当前非虚拟化 `.map` 渲染）升级为基于 `react-window` 的虚拟化 timeline（对标 OpenCode `message-timeline.tsx`）；Composer 区补齐问询/待办/权限 dock；会话文件 tab 复用现有编辑器 tabs 体系并与会话绑定；面板宽度约束对齐 OpenCode `session-panel-layout` 语义；右侧面板按会话上下文呈现（文件树/变更/审核）。
+**Architecture:** 在 ADL 既有 `left-sidebar / center / right-panel` 三区布局内，仅对齐会话页内部。核心：把 S2 的 `PartConversation`（当前非虚拟化 `.map` 渲染）升级为基于 `react-window` 的虚拟化 timeline（对标参考实现的 `message-timeline.tsx`）；Composer 区补齐问询/待办/权限 dock；会话文件 tab 复用现有编辑器 tabs 体系并与会话绑定；面板宽度约束对齐参考实现的 `session-panel-layout` 语义；右侧面板按会话上下文呈现（文件树/变更/审核）。
 
 **Tech Stack:** React 19 + TS、Zustand、react-window（已存在依赖，`MessageStream` 已用）、CodeMirror（编辑器 tabs）、vitest、CSS 变量（设计 token）。
 
@@ -86,7 +86,7 @@ export function normalizeQuestions(questions: unknown[]): { text?: string }[] {
 }
 ```
 
-对标 `MessageStream.tsx` 的 react-window 用法（`List` + `useDynamicRowHeight` + `ListProps`）与 OpenCode `message-timeline.tsx` 的"仅渲染视口行"语义：
+对标 `MessageStream.tsx` 的 react-window 用法（`List` + `useDynamicRowHeight` + `ListProps`）与参考实现的 `message-timeline.tsx` 的"仅渲染视口行"语义：
 ```tsx
 // frontend/src/app/features/part-stream/PartTimeline.tsx
 import { List, useListRef, useDynamicRowHeight } from 'react-window';
@@ -186,7 +186,7 @@ export function PartTimeline({ state, userTextByMessageId, onReply }: PartTimeli
   );
 }
 ```
-> 说明：`TimelineRow` 通过共享的 `rowProps`（`partsByMessage`）解析每个消息的 parts（对标 OpenCode `message-timeline.tsx` 只渲染视口内行的语义）。react-window 的 `rowProps` 对象会传给每个 row 组件——若你的 react-window 版本签名不同，按实际 API 调整 `rowProps` 形状。本任务把消息行虚拟化；`state.questions`（AskCard）/ `TurnSummary` 留在 timeline 尾部非虚拟化（数量少）。Task 3 会把 questions/status 移到 Composer dock 并去重。`normalizeQuestions` 从 `./partTimelineUtils` 导入（本任务创建）；`AskCard`/`TurnSummary`/`mapPartTurnStatus` 从 `PartConversation` 导出复用。
+> 说明：`TimelineRow` 通过共享的 `rowProps`（`partsByMessage`）解析每个消息的 parts（对标参考实现的 `message-timeline.tsx` 只渲染视口内行的语义）。react-window 的 `rowProps` 对象会传给每个 row 组件——若你的 react-window 版本签名不同，按实际 API 调整 `rowProps` 形状。本任务把消息行虚拟化；`state.questions`（AskCard）/ `TurnSummary` 留在 timeline 尾部非虚拟化（数量少）。Task 3 会把 questions/status 移到 Composer dock 并去重。`normalizeQuestions` 从 `./partTimelineUtils` 导入（本任务创建）；`AskCard`/`TurnSummary`/`mapPartTurnStatus` 从 `PartConversation` 导出复用。
 
 - [ ] **Step 4: 让 PartConversation 使用 PartTimeline**
 
@@ -201,7 +201,7 @@ Expected: PASS / 0 errors。
 
 ```bash
 git add frontend/src/app/features/part-stream/
-git commit -m "feat(frontend): virtualized PartTimeline (react-window, OpenCode timeline-aligned)"
+git commit -m "feat(frontend): virtualized PartTimeline (react-window, reference timeline-aligned)"
 ```
 
 ---
@@ -316,7 +316,7 @@ describe('SessionDocks', () => {
   });
 });
 ```
-> 与 `PartConversation` 里的 questions/status 渲染是否重复？本任务把 questions + TurnSummary 从 PartTimeline/PartConversation 移到 Composer dock 区（对齐 OpenCode 的 `session-question-dock.tsx`）。**去重**：确认 questions/status 只渲染一处（dock 区），不在 timeline 尾部重复。
+> 与 `PartConversation` 里的 questions/status 渲染是否重复？本任务把 questions + TurnSummary 从 PartTimeline/PartConversation 移到 Composer dock 区（对齐参考实现的 `session-question-dock.tsx`）。**去重**：确认 questions/status 只渲染一处（dock 区），不在 timeline 尾部重复。
 
 - [ ] **Step 2: 运行确认失败**
 
@@ -379,7 +379,7 @@ git commit -m "feat(frontend): composer docks (AskCard + TurnSummary) bound to p
 - Modify: `frontend/src/app/regions/right-panel/hooks/useRightPanelLayout.ts`（若有会话上下文，应用会话面板约束）
 
 **Interfaces:**
-- Consumes: 现有 `rightPanelLayout.ts`（`RightPanelMode` docked/overlay）、`RIGHT_PANEL_WIDTH_MIN/MAX`（uiSlice）、`useRightPanelLayout`（shellWidth/leftWidth/rightMaxWidth）；OpenCode `session-panel-width.ts` 语义（`SESSION_PANEL_WIDTH_MIN = 450`、`REVIEW_PANE_WIDTH_MIN = 480`、`clampSessionPanelWidth`）
+- Consumes: 现有 `rightPanelLayout.ts`（`RightPanelMode` docked/overlay）、`RIGHT_PANEL_WIDTH_MIN/MAX`（uiSlice）、`useRightPanelLayout`（shellWidth/leftWidth/rightMaxWidth）；参考实现的 `session-panel-width.ts` 语义（`SESSION_PANEL_WIDTH_MIN = 450`、`REVIEW_PANE_WIDTH_MIN = 480`、`clampSessionPanelWidth`）
 - Produces: `sessionPanelLayout({ available, split }) -> number`（会话面板最大宽度）；`clampSessionPanelWidth({ width, available, split }) -> number`
 
 - [ ] **Step 1: 写失败测试**
@@ -401,7 +401,7 @@ describe('sessionPanelLayout', () => {
   });
 });
 ```
-> 对标 OpenCode `session-panel-width.ts`（SESSION_PANEL_WIDTH_MIN=450、REVIEW_PANE_WIDTH_MIN=480、REVIEW_PANE_WIDTH_MIN_SPLIT=800）。`available - 480`（非 split）/ `available - 800`（split），下限 450。
+> 对标参考实现的 `session-panel-width.ts`（SESSION_PANEL_WIDTH_MIN=450、REVIEW_PANE_WIDTH_MIN=480、REVIEW_PANE_WIDTH_MIN_SPLIT=800）。`available - 480`（非 split）/ `available - 800`（split），下限 450。
 
 - [ ] **Step 2: 运行确认失败**
 
@@ -410,7 +410,7 @@ Expected: FAIL。
 
 - [ ] **Step 3: 实现**
 
-`sessionPanelLayout.ts`（对标 OpenCode session-panel-width.ts）:
+`sessionPanelLayout.ts`（对标参考实现的 session-panel-width.ts）:
 ```ts
 export const SESSION_PANEL_WIDTH_MIN = 450;
 export const REVIEW_PANE_WIDTH_MIN = 480;
@@ -441,7 +441,7 @@ Expected: PASS / 0 errors。
 
 ```bash
 git add frontend/src/app/features/part-stream/sessionPanelLayout.ts frontend/src/app/regions/CenterPane.tsx
-git commit -m "feat(frontend): session panel width constraints (OpenCode-aligned)"
+git commit -m "feat(frontend): session panel width constraints (reference-aligned)"
 ```
 
 ---
@@ -597,7 +597,7 @@ cargo test --workspace -- --skip google
 cargo clippy --workspace --all-targets -- -D warnings
 ```
 更新 `docs/superpowers/specs/2026-08-09-agent-operation-frontend-opencode-alignment-design.md` §6 验收 → 标「完成」。提交：
-`feat(frontend): session page OpenCode-aligned layout (timeline/file-tabs/docks/panels)`
+`feat(frontend): session page reference-aligned layout (timeline/file-tabs/docks/panels)`
 
 ---
 

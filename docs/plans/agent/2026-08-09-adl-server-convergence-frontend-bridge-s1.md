@@ -14,7 +14,7 @@
 - 业务命令全部经 HTTP 迁移；系统能力（browser/WebView2、platform、window、app 日志模式）仍走 Tauri invoke
 - `shared/ipc/digital-life.ts`（`DigitalLifeBridge`、`IpcResult`）契约不改；新增桥必须三桥同步（tauri/preview/mock）
 - 错误体格式不变：`IpcResult<T>` + `adl_errors::AppError` code 同步到前端
-- 凭据只存 `crates/credential/`；API key 经 HTTP 为 write-only（对齐 OpenCode：请求体单次提交，响应不回读明文，`toPublicInfo` 仅暴露 `hasKey`）；loopback 本地服务端存储时解密使用
+- 凭据只存 `crates/credential/`；API key 经 HTTP 为 write-only（对齐参考实现：请求体单次提交，响应不回读明文，`toPublicInfo` 仅暴露 `hasKey`）；loopback 本地服务端存储时解密使用
 - `ad-server` 不得依赖 `src-tauri` 或 `tauri` crate；低层不得依赖高层
 - 未发布阶段禁止向后兼容 shim / 旧字段保留（迁移后删旧的 tauri handler）
 - `cargo clippy --workspace --all-targets -- -D warnings` 0 警告；`pnpm --dir frontend run lint` 0 errors
@@ -411,7 +411,7 @@ git commit -m "feat(server): ad-server binary with --port/--data-dir and /health
 - Produces: REST 路由——
   `POST /session`（create）、`GET /sessions`（list）、`GET /session/{id}`（get）、`GET /session/{id}/message`（Part/Message 历史读取，S2 初始加载用，见设计 §5.1）、`PATCH /session/{id}`（rename/pin/unpin/read/archive 子字段）、`DELETE /session/{id}`、`POST /session/{id}/message`、`POST /session/{id}/cancel`
   全部返回 `Json<IpcResult<T>>`，错误码 `adl_errors` 到 HTTP status 映射复用 `ipc_wrap`
-- **用户决策（2026-08-09）**：send_message 保持**异步 + SSE**（对齐 OpenCode 目标架构），契约满足推迟到 Task 7 前端桥；本 Task 补 `GET /session/{id}/message` 历史端点让循环写入对前端可见，并在循环终态将 `session.status` 持久化回 `Sessions` 表（修复 busy 卡死）
+- **用户决策（2026-08-09）**：send_message 保持**异步 + SSE**（对齐参考实现目标架构），契约满足推迟到 Task 7 前端桥；本 Task 补 `GET /session/{id}/message` 历史端点让循环写入对前端可见，并在循环终态将 `session.status` 持久化回 `Sessions` 表（修复 busy 卡死）
 - `/health` 增注入 router
 
 - [ ] **Step 1: 写失败测试（会话 CRUD + 消息发布）**
@@ -556,7 +556,7 @@ git commit -m "feat(server): migrate conversation domain to HTTP endpoints"
 | agent_pipeline | `agent_pipeline_*`、`agent_run_activity_*` | `/agent/pipeline/*`、`/agent/turn/*` | 状态经 part_bus |
 | subagent | `subagent_*` | `/subagent/*` | |
 | patch | `patch_*` | `/patch/*` | |
-| provider | `provider_*` | `/provider/*` | 凭据 write-only（对齐 OpenCode）：key 请求体单次提交入 credential store，**响应不读回明文**；`get_api_key`/`has` 仅返回布尔。前端 `getProviderApiKey` 移除属 Task 7 契约变更 |
+| provider | `provider_*` | `/provider/*` | 凭据 write-only（对齐参考实现）：key 请求体单次提交入 credential store，**响应不读回明文**；`get_api_key`/`has` 仅返回布尔。前端 `getProviderApiKey` 移除属 Task 7 契约变更 |
 | workspace | `workspace_*` | `/workspace/*` | |
 | workspace_git / sidebar / vis | `ws_git_*` `sidebar*` | `/workspace/git/*` `/sidebar` | |
 | retrieval | `retrieval_*` | `/retrieval/*` | |

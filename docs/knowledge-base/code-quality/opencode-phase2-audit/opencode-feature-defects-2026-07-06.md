@@ -2,7 +2,7 @@
 
 ## 背景
 
-Phase 2 功能（多 Agent / MCP / Snapshot / Permissions 等）落地后，对照 OpenCode 审计发现 8 项实现缺陷：
+Phase 2 功能（多 Agent / MCP / Snapshot / Permissions 等）落地后，对照参考实现审计发现 8 项实现缺陷：
 
 | 模块 | 缺陷 | 修复 |
 |------|------|------|
@@ -10,7 +10,7 @@ Phase 2 功能（多 Agent / MCP / Snapshot / Permissions 等）落地后，对�
 | command | `truncate_output` 超过 MAX_CAPTURE_CHARS | 减去截断标记长度（27 chars）|
 | agent-runtime | `/plan` 前缀匹配误触 `/planning` | 精确匹配 + 带参数检查 |
 | command | `classify_profile` 误将 echo 输出判为 Test | 前缀/后缀精确匹配；恢复 build/lint/install 宽匹配 |
-| kernel | `pattern_matches` `**` 不匹配零段 | 正则重写（OpenCode Wildcard.match 模式）|
+| kernel | `pattern_matches` `**` 不匹配零段 | 正则重写（参考实现 Wildcard.match 模式）|
 | change-engine | 快照仅记录元数据，revert 用 `git checkout -- .` 数据丢失 | 文件副本快照 + 安全 revert |
 | mcp-client | transport 为 stub | `rmcp` v1.8.0 真实实现（TokioChildProcess + StreamableHttpClientTransport）|
 | kernel | 无 last-match-wins 测试 | 新增显式测试 |
@@ -27,7 +27,7 @@ Phase 2 功能（多 Agent / MCP / Snapshot / Permissions 等）落地后，对�
 
 ### 3. 正则通配替换 glob 分段的陷阱
 
-`**` 在 glob 中匹配零个或多个路径段。手写分段逻辑难以正确处理零段场景（如 `dir/**/file` 匹配 `dir/file`）。改用 `regex` crate + OpenCode Wildcard.match 转换后，`**` → `(?:/.*)?` 首次正确。**教训**：通配匹配直接委托给正则引擎，避免手写状态机。
+`**` 在 glob 中匹配零个或多个路径段。手写分段逻辑难以正确处理零段场景（如 `dir/**/file` 匹配 `dir/file`）。改用 `regex` crate + 参考实现 Wildcard.match 转换后，`**` → `(?:/.*)?` 首次正确。**教训**：通配匹配直接委托给正则引擎，避免手写状态机。
 
 ### 4. Snapshot 文件副本优于 git 操作
 

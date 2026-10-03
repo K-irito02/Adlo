@@ -489,7 +489,7 @@ Bug 6 是最难排查的 Race Condition：
 
 ### 背景
 
-Phase 2 功能完成后，对照 OpenCode 进行功能审计，发现 10 项实现缺陷，分为 4 组修复：核心正确性（3项）、可靠性（4项）、WebTools 增强（1项）、MCP 完善（2项）。Squash commit `5a83ebfb` on `main`。
+Phase 2 功能完成后，对照参考实现进行功能审计，发现 10 项实现缺陷，分为 4 组修复：核心正确性（3项）、可靠性（4项）、WebTools 增强（1项）、MCP 完善（2项）。Squash commit `5a83ebfb` on `main`。
 
 ### 修改的文件
 

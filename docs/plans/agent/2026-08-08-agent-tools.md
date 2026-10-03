@@ -15,7 +15,7 @@
 - 未发布阶段禁止数据迁移/兼容代码
 - `adl-tools` 内各工具模块是**独立纯函数**（不依赖 agent-runtime 的 registry 类型），返回 `ToolOutput`；`ToolDefinition`/`ToolExecutionResult` 保持在 agent-runtime，由 Task 7 桥接（`ToolOutput.metadata` 直接作为 `ToolExecutionResult.metadata`）
 - 写/执行类工具（write/edit/bash/apply_patch）在 Task 7 注册时先经 `adl_agent_runtime::permission_check::check_tool_permission` 校验，`Ask` 结果返回 `success: false, metadata: { permission: "ask" }`（B3 的 Question 机制将挂起等待）
-- 工具 Input schema 对齐 OpenCode `packages/core/src/tool/*.ts` 的字段名（见各 Task 说明）
+- 工具 Input schema 对齐参考实现的字段名（见各 Task 说明）
 - 现有 5 个只读工具（read/glob/grep/webfetch/websearch）行为不变
 
 ---
@@ -46,9 +46,9 @@ pub struct ToolOutput {
 }
 ```
 
-**Input schema**（对齐 OpenCode `write.ts`）：`{ "type": "object", "properties": { "path": {"type":"string"}, "content": {"type":"string"} }, "required": ["path","content"] }`
+**Input schema**（对齐参考实现 `write.ts`）：`{ "type": "object", "properties": { "path": {"type":"string"}, "content": {"type":"string"} }, "required": ["path","content"] }`
 
-**Output**（对齐 OpenCode）：`{ operation: "write", target, resource, existed }`
+**Output**（对齐参考实现）：`{ operation: "write", target, resource, existed }`
 
 **metadata**：`{ "path": <path>, "existed": <bool> }`
 
@@ -128,7 +128,7 @@ pub const PARAMETERS: serde_json::Value = serde_json::json!({
     "required": ["path", "content"]
 });
 
-/// Write content to a file (creates parent directories). Mirrors OpenCode's
+/// Write content to a file (creates parent directories). Mirrors the reference design's
 /// write tool semantics.
 pub async fn execute(
     path: &str,
@@ -218,7 +218,7 @@ git commit -m "feat(tools): add write tool"
 - Consumes: `std::fs`, `adl_errors::AppError`, `crate::ToolOutput`, `crate::write::resolve_path`
 - Produces: `edit::execute(path, old_string, new_string, replace_all, workspace_root) -> Result<ToolOutput, AppError>`，`edit::PARAMETERS`（JSON schema 常量）
 
-**Input schema**（对齐 OpenCode `edit.ts`）：`{ path, old_string, new_string, replace_all? }`
+**Input schema**（对齐参考实现 `edit.ts`）：`{ path, old_string, new_string, replace_all? }`
 
 **metadata**：`{ "path": <path>, "filediff": { "file": <path>, "replacements": <count> }, "replacements": <count> }`
 
@@ -398,9 +398,9 @@ git commit -m "feat(tools): add edit tool"
 - Consumes: `adl_command::{build_request, run_command}`, `std::path::Path`, `adl_errors::AppError`
 - Produces: `bash::execute(command, workdir, workspace_root, timeout_secs) -> Result<ToolExecutionResult, AppError>`，`bash::definition()`
 
-**Input schema**（对齐 OpenCode `bash.ts`）：`{ command, workdir?, timeout? }`
+**Input schema**（对齐参考实现 `bash.ts`）：`{ command, workdir?, timeout? }`
 
-**metadata**（对齐 OpenCode）：`{ "command": <command>, "output": <stdout>, "exitCode": <code>, "truncated": <bool> }`
+**metadata**（对齐参考实现）：`{ "command": <command>, "output": <stdout>, "exitCode": <code>, "truncated": <bool> }`
 
 - [ ] **Step 1: 编写失败的测试**
 
@@ -546,7 +546,7 @@ git commit -m "feat(tools): add bash tool"
 - Consumes: `adl_change_engine::{create_single_file_patch_set, set_hunk_decision, apply_patch_set}`, `adl_types::{PatchHunkDecision}`, `adl_errors::AppError`, `std::path::Path`
 - Produces: `apply_patch::execute(relative_path: &str, before_content: &str, after_content: &str, workspace_root: &Path, session_id: &str) -> Result<ToolOutput, AppError>`，`apply_patch::PARAMETERS`（JSON schema 常量）
 
-**Input schema**（ADL 结构化 PatchSet 模型的适配；OpenCode 的 apply_patch 接受裸 diff 字符串，但 ADL change-engine 是结构化 PatchSet）：`{ "path": <relative path>, "before": <原内容>, "after": <新内容> }`
+**Input schema**（ADL 结构化 PatchSet 模型的适配；参考实现的 apply_patch 接受裸 diff 字符串，但 ADL change-engine 是结构化 PatchSet）：`{ "path": <relative path>, "before": <原内容>, "after": <新内容> }`
 
 **实现逻辑**：
 1. 用 `create_single_file_patch_set` 从 path/before/after 构造 PatchSet
@@ -694,7 +694,7 @@ git commit -m "feat(tools): add apply_patch tool"
 - Consumes: `adl_errors::AppError`
 - Produces: `question::execute(questions: &[QuestionInfo]) -> Result<ToolExecutionResult, AppError>`（同步返回 pending——真正的挂起等待由 B3 的 Question 机制处理），`question::definition()`
 
-**Input schema**（对齐 OpenCode `question.ts`）：`{ questions: [{ question: string, options?: string[] }] }`
+**Input schema**（对齐参考实现 `question.ts`）：`{ questions: [{ question: string, options?: string[] }] }`
 
 **metadata**：`{ "questions": [...], "answers": [...] }`
 
@@ -1087,7 +1087,7 @@ Expected: 0 warnings
 
 **Gap 说明**：
 - question 工具本阶段不真正挂起（B3 Question 服务实现 `Deferred` 等待）；task 工具的 dispatch 闭包由 B3 注入。这是合理的阶段划分——本计划交付"工具可被调用 + 产生 metadata"，挂起语义属于 Loop 层。
-- bash 命令 tokenize 用简单 `split_whitespace`，复杂引号由权限引擎/后续处理。OpenCode 用 shell 字符串直接执行；本计划经 `adl_command`（已具备 shell 元字符防护）。
+- bash 命令 tokenize 用简单 `split_whitespace`，复杂引号由权限引擎/后续处理。参考实现用 shell 字符串直接执行；本计划经 `adl_command`（已具备 shell 元字符防护）。
 
 **Placeholder scan**：Task 4（apply_patch）与 Task 6（task）标注"需先阅读 API 确认签名"，是让 implementer 基于真实代码适配的明确指引，非占位——这两处是本计划对既有基础设施的适配点。
 

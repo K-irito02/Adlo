@@ -4,7 +4,7 @@
 //! Each test drives `app_router` over a fresh `ServerState` via
 //! `tower::ServiceExt::oneshot` — no sockets, no subprocesses.
 //!
-//! The CI access token is **write-only over HTTP** (OpenCode-aligned): submitted
+//! The CI access token is **write-only over HTTP**: submitted
 //! once in the request body, stored in the OS credential store, and never read
 //! back — only `has` returns a boolean. The network-facing handlers
 //! (get-status / get-job-logs) are covered via their pre-network validation

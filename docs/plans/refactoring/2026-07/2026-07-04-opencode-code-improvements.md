@@ -1,8 +1,8 @@
-# OpenCode 借鉴 — 代码架构改进实施计划
+# 参考实现借鉴 — 代码架构改进实施计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 借鉴 OpenCode 架构模式（Branded Types、可重放状态机、Typed Errors、三态权限、事件流缓冲、配置分层），对本项目代码层面进行系统性改进。
+**Goal:** 借鉴参考实现架构模式（Branded Types、可重放状态机、Typed Errors、三态权限、事件流缓冲、配置分层），对本项目代码层面进行系统性改进。
 
 **Architecture:** 6 个独立任务模块，每个任务可独立测试和交付。改进覆盖：类型安全增强（Task 1-2）、状态与错误模型升级（Task 3-4）、权限与事件流优化（Task 5-6）。遵循 TDD：每个任务先写测试再实现。
 
@@ -36,7 +36,7 @@
   - `AgentRunID = Branded<string, "AgentRunID">`
 - Note: Rust backend already uses `String` for IDs via `create_id(prefix)`. For Phase 1, branded types are TypeScript-only (compile-time). Rust newtype wrapping is deferred to avoid breaking `serde`/`ts_rs` codegen until a later task.
 
-**Spec reference:** OpenCode uses `Schema.String.pipe(Schema.brand("Agent.ID"))` for compile-time ID type safety. This task brings equivalent `Branded<T, B>` utility types to the TypeScript frontend.
+**Spec reference:** The reference implementation uses `Schema.String.pipe(Schema.brand("Agent.ID"))` for compile-time ID type safety. This task brings equivalent `Branded<T, B>` utility types to the TypeScript frontend.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -319,7 +319,7 @@ git commit -m "feat(frontend): adopt branded ID types in StoreState action inter
   - `NotFoundError`, `InvalidInputError`, `StorageError`, `WorkspaceError`, `ConfigError`, `IOError`, `MigrationError`, `SecurityError`, `ApprovalRequiredError`, `PatchError`, `TerminalError`, `ModelError`, `InternalError`, `NetworkError`, `InvokeError`, `PreviewApiError` — concrete error classes matching Rust's `AppError` variants
   - `captureTypedError(get, error)` — store helper
 
-**Spec reference:** OpenCode uses `Schema.TaggedErrorClass` for typed errors. Rust backend already has `AppError` with 17 variants. This task adds matching TypeScript error classes so the frontend can handle specific error types without string matching.
+**Spec reference:** The reference implementation uses `Schema.TaggedErrorClass` for typed errors. Rust backend already has `AppError` with 17 variants. This task adds matching TypeScript error classes so the frontend can handle specific error types without string matching.
 
 - [ ] **Step 1: Write the failing test for typed error classes**
 
@@ -669,7 +669,7 @@ git commit -m "feat(frontend): add typed error classes matching Rust AppError va
   - `reloadFromBase(base, transforms)` — replay all transforms on a fresh base
   - `rollbackLastTransform(state)` — undo last transform
 
-**Spec reference:** OpenCode `State.transform()` + `reload()` pattern: plugins register transforms on state, scope closure auto-rolls back. This task implements a simpler single-level transform log for config changes — each `updatePreferences()` call creates a `ConfigTransform`, which can be replayed or rolled back. No scope/plugin integration yet (Phase 2).
+**Spec reference:** The reference implementation's `State.transform()` + `reload()` pattern: plugins register transforms on state, scope closure auto-rolls back. This task implements a simpler single-level transform log for config changes — each `updatePreferences()` call creates a `ConfigTransform`, which can be replayed or rolled back. No scope/plugin integration yet (Phase 2).
 
 - [ ] **Step 1: Write the failing test for the config state machine**
 
@@ -901,7 +901,7 @@ git commit -m "feat(core): add replayable config state machine with ConfigTransf
   - `PermissionEngine::evaluate(command, args) -> PermissionDecision`
   - `PermissionEngine::with_defaults() -> Self` — pre-populated with sensible wildcard rules
 
-**Spec reference:** OpenCode's permission system uses `deny/ask/allow` three-state with wildcard matching (`read:*`). The current project has binary `RiskLevel` (Low/Medium/High) + `requires_approval()`. This task upgrades to the three-state model where `Low → Allow`, `Medium → Ask`, `High → Deny` by default, with override rules supporting wildcard patterns like `git:*` or `npm:install`.
+**Spec reference:** The reference design's permission system uses `deny/ask/allow` three-state with wildcard matching (`read:*`). The current project has binary `RiskLevel` (Low/Medium/High) + `requires_approval()`. This task upgrades to the three-state model where `Low → Allow`, `Medium → Ask`, `High → Deny` by default, with override rules supporting wildcard patterns like `git:*` or `npm:install`.
 
 - [ ] **Step 1: Write the failing tests for PermissionEngine**
 
@@ -1244,7 +1244,7 @@ git commit -m "feat(core): add three-state permission model (Deny/Ask/Allow) wit
     - `flush(): T[]` — drain all buffered events
     - `drainWithReconciliation(mergeKey: (e: T) => string, reducer: (prev: T, next: T) => T): T[]` — merge duplicate events by key before draining
 
-**Spec reference:** OpenCode's `SyncProvider` batches SSE events then calls `setStore("session", reconcile(newData))` to merge updates. The current project directly emits Tauri events one-by-one to listeners. This task adds buffering with microtask-timed flush (collects events in a single microtask tick, then flushes) to reduce React re-render frequency for high-frequency events like terminal output and model streaming.
+**Spec reference:** The reference design's `SyncProvider` batches SSE events then calls `setStore("session", reconcile(newData))` to merge updates. The current project directly emits Tauri events one-by-one to listeners. This task adds buffering with microtask-timed flush (collects events in a single microtask tick, then flushes) to reduce React re-render frequency for high-frequency events like terminal output and model streaming.
 
 - [ ] **Step 1: Write the failing test**
 

@@ -3,7 +3,7 @@
 > 日期：2026-08-05
 > 状态：已评审（brainstorming 通过）
 > 范围：ai-digital-life（前端 React + 后端 Rust + Tauri 桥接）
-> 参考：OpenCode / Pi 源码（`references/`，MIT）
+> 参考实现（历史参考，本地副本已移除，MIT）
 
 ---
 

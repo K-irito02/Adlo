@@ -30,15 +30,15 @@ mod tests {
     #[test]
     fn config_serializes() {
         let config = ReferenceConfig {
-            name: "opencode".to_string(),
+            name: "example".to_string(),
             source: ReferenceSource::Local,
-            path: "/references/opencode".to_string(),
+            path: "/references/example".to_string(),
             branch: None,
             enabled: true,
         };
         let json = serde_json::to_string(&config).unwrap();
         let deserialized: ReferenceConfig = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.name, "opencode");
+        assert_eq!(deserialized.name, "example");
         assert_eq!(deserialized.source, ReferenceSource::Local);
     }
 }

@@ -170,9 +170,6 @@ app/stores/
 
 - [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则
 - [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
-- [references/opencode/](../references/opencode/) — 参考项目 OpenCode 本地源码（MIT 许可）
-- [references/pi/](../references/pi/) — 参考项目 Pi 本地源码（MIT 许可）
-- [docs/analysis/opencode/](../docs/analysis/opencode/) — OpenCode 源码地图
 - [docs/analysis/ai-digital-life/](../docs/analysis/ai-digital-life/) — ADL 源码地图（本项目的渐进式索引）
 
 ## 磁盘空间管理

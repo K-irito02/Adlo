@@ -12,24 +12,13 @@
 | `ai-digital-life/` | 实现工作区：Rust + Tauri 桌面应用 + WebView 前端 |
 | `references/` | 外部参考源码（本地拉取的开源项目，供开发参考与复用） |
 
-## 参考项目
-
-本项目的多项架构设计、编码模式与功能实现参考了以下两个 MIT 许可开源项目，本地副本位于 `references/`，用于开发过程中查阅源码、借鉴设计模式与复用代码片段：
-
-- [OpenCode](https://github.com/anomalyco/opencode)（MIT）
-- [Pi](https://github.com/earendil-works/pi)（MIT，Copyright Mario Zechner）
+## 源码地图与代码知识图谱
 
 | 参考项 | 说明 |
 |------|------|
-| 本地路径 (OpenCode) | `references/opencode/`（Git 子模块或手动拉取，不参与本项目构建） |
-| 上游仓库 (OpenCode) | [github.com/anomalyco/opencode](https://github.com/anomalyco/opencode) |
-| 本地路径 (Pi) | `references/pi/`（手动拉取，不参与本项目构建） |
-| 上游仓库 (Pi) | [github.com/earendil-works/pi](https://github.com/earendil-works/pi) |
-| 许可 | MIT |
-| 源码地图 (OpenCode) | [docs/analysis/opencode/](./docs/analysis/opencode/)（渐进式索引 — 快查/总览/架构/包索引/功能深度/编码模式/差距分析） |
 | 源码地图 (ADL) | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/)（本项目的渐进式索引） |
 
-> **代码知识图谱**：`ai-digital-life/`、`references/pi/`、`references/opencode/` 三个项目均配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（各项目根 `.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，详见技能 [`codegraph-knowledge-graph`](./.opencode/skills/codegraph-knowledge-graph/SKILL.md)。
+> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（项目根 `.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，详见技能 [`codegraph-knowledge-graph`](./.opencode/skills/codegraph-knowledge-graph/SKILL.md)。
 >
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 

@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 在 `adl-model-gateway` 新增 OpenCode 对齐的 `LLMEvent` 枚举（text-start/delta/end、reasoning-start/delta/end、tool-input-start/delta/end、tool-call、step-start/finish、finish）与 `StreamChunk → LLMEvent` 流转换器，供 B3b 的 Agent Loop 消费。
+**Goal:** 在 `adl-model-gateway` 新增对齐参考实现的 `LLMEvent` 枚举（text-start/delta/end、reasoning-start/delta/end、tool-input-start/delta/end、tool-call、step-start/finish、finish）与 `StreamChunk → LLMEvent` 流转换器，供 B3b 的 Agent Loop 消费。
 
-**Architecture:** 在 `crates/model-gateway/src` 新增 `llm_event.rs`（`LLMEvent` 枚举，serde tag="type" kebab-case，对齐 OpenCode `packages/llm/src/schema/events.ts` 的 16 事件子集）与 `stream_adapter.rs`（把 `StreamReader` 的 `StreamChunk` 流转换为 `LLMEvent` 流，含 tool-call 参数累积状态机）。转换器是无状态的纯流映射，内部用 `tokio_stream::StreamMap`/`filter_map` 维护跨 chunk 的工具参数缓冲。
+**Architecture:** 在 `crates/model-gateway/src` 新增 `llm_event.rs`（`LLMEvent` 枚举，serde tag="type" kebab-case，对齐参考实现的 16 事件子集）与 `stream_adapter.rs`（把 `StreamReader` 的 `StreamChunk` 流转换为 `LLMEvent` 流，含 tool-call 参数累积状态机）。转换器是无状态的纯流映射，内部用 `tokio_stream::StreamMap`/`filter_map` 维护跨 chunk 的工具参数缓冲。
 
 **Tech Stack:** Rust 2024 edition、serde、tokio-stream、`adl_errors`、`adl_types`。
 
@@ -13,7 +13,7 @@
 - Rust edition 2024，rust-version 1.85
 - `cargo clippy -- -D warnings` 必须 0 警告；避免 `unwrap_used`/`dbg_macro`/`todo`
 - 未发布阶段禁止数据迁移/兼容代码
-- `LLMEvent` 事件类型名（`type` tag）必须与 OpenCode 完全一致：`text-start`/`text-delta`/`text-end`/`reasoning-start`/`reasoning-delta`/`reasoning-end`/`tool-input-start`/`tool-input-delta`/`tool-input-end`/`tool-call`/`step-start`/`step-finish`/`finish`
+- `LLMEvent` 事件类型名（`type` tag）必须与参考实现完全一致：`text-start`/`text-delta`/`text-end`/`reasoning-start`/`reasoning-delta`/`reasoning-end`/`tool-input-start`/`tool-input-delta`/`tool-input-end`/`tool-call`/`step-start`/`step-finish`/`finish`
 - `StreamChunk` 现有语义不变；转换器只新增，不改现有 consume_stream
 - 现有 5 只读工具/网关 provider 行为不变
 
@@ -32,7 +32,7 @@
   - `pub type LLMEventStream = Pin<Box<dyn tokio_stream::Stream<Item = Result<LLMEvent, AppError>> + Send>>`
   - `impl LLMEvent { pub fn kind(&self) -> &'static str }`
 
-**事件类型**（对齐 OpenCode `packages/llm/src/schema/events.ts`）：
+**事件类型**（对齐参考实现）：
 
 | 事件 | 载荷 |
 |------|------|
@@ -122,8 +122,8 @@ use adl_errors::AppError;
 use adl_types::model::ModelTokenUsage;
 use serde::{Deserialize, Serialize};
 
-/// Provider-neutral LLM streaming event, mirroring OpenCode's `LLMEvent`
-/// (packages/llm/src/schema/events.ts). Consumed by the Agent Loop (B3b) to
+/// Provider-neutral LLM streaming event, mirroring the reference design's `LLMEvent`
+/// (reference events schema). Consumed by the Agent Loop (B3b) to
 /// drive the multi-step tool loop and build Parts.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "kebab-case")]
@@ -209,7 +209,7 @@ git commit -m "feat(model-gateway): add LLMEvent enum"
 - Consumes: `crate::adapter::{StreamChunk, StreamReader}`, `crate::llm_event::{LLMEvent, LLMEventStream}`, `adl_errors::AppError`
 - Produces: `pub fn stream_chunks_to_llm_events(chunks: StreamReader) -> LLMEventStream`
 
-**转换逻辑**（状态机，对齐 OpenCode 的 `tool-input-start/delta/end` + `tool-call` 组装）：
+**转换逻辑**（状态机，对齐参考实现的 `tool-input-start/delta/end` + `tool-call` 组装）：
 
 ```
 输入 StreamChunk:
@@ -230,8 +230,8 @@ git commit -m "feat(model-gateway): add LLMEvent enum"
 - `tool_args: HashMap<String, (String name, String accumulated)>`——工具参数累积
 
 **关键细节**：
-- `TextStart`/`ReasoningStart` 只在块切换时发出（OpenCode 中一个 content block 是 start→deltas→end；此处用当前块切换近似）
-- `ToolCallDelta` 的 `arguments_delta` 累积直到 `Done`；参数 JSON 解析失败时 fallback 空对象 `{}`（对齐 OpenCode `parseToolInput` 的空输入→`{}` 行为）
+- `TextStart`/`ReasoningStart` 只在块切换时发出（参考实现中一个 content block 是 start→deltas→end；此处用当前块切换近似）
+- `ToolCallDelta` 的 `arguments_delta` 累积直到 `Done`；参数 JSON 解析失败时 fallback 空对象 `{}`（对齐参考实现 `parseToolInput` 的空输入→`{}` 行为）
 - `StepStart`/`StepFinish` 由转换器在每次工具调用 batch 前后发出（`StepStart{index}` 在第一个工具参数开始时，`StepFinish{index}` 在 `Done` 前）——用 step_counter 追踪
 
 - [ ] **Step 1: 编写失败的测试**
@@ -408,7 +408,7 @@ struct ToolAccum {
 
 /// Convert a raw [`StreamChunk`] stream into provider-neutral [`LLMEvent`]s.
 ///
-/// Mirrors OpenCode's tool-input/tool-call assembly: tool-call arguments
+/// Mirrors the reference design's tool-input/tool-call assembly: tool-call arguments
 /// arrive as deltas, are accumulated per call id, and a `tool-call` event
 /// with parsed JSON input is emitted at `Done`. Text/reasoning are separated
 /// into content blocks with start/delta events.
@@ -557,13 +557,13 @@ Expected: 0 warnings
 ## Self-Review 记录
 
 **Spec coverage:**
-- §B3a LLMEvent 枚举（对齐 OpenCode events.ts）→ Task 1 ✓
+- §B3a LLMEvent 枚举（对齐参考实现）→ Task 1 ✓
 - §B3a StreamChunk→LLMEvent 转换（tool-call 参数累积、块切换）→ Task 2 ✓
 - §8 测试（转换器测试）→ Task 1/2 ✓
 
 **Gap 说明**：
-- `tool-result`/`tool-error`/`provider-error` 事件本计划不产出（B3b Loop 在工具执行层产生，对齐 OpenCode processor 中 `completeToolCall`/`failToolCall` 的职责，而非网关层）。
-- `StepStart`/`StepFinish` 的事件 index 语义从 OpenCode 的 provider step 近似为"工具调用 batch"——B3b Loop 主要消费 `tool-call` 事件执行工具，step 事件用于 Part 生命周期标记。这是合理的语义适配。
+- `tool-result`/`tool-error`/`provider-error` 事件本计划不产出（B3b Loop 在工具执行层产生，对齐参考实现 processor 中 `completeToolCall`/`failToolCall` 的职责，而非网关层）。
+- `StepStart`/`StepFinish` 的事件 index 语义从参考实现的 provider step 近似为"工具调用 batch"——B3b Loop 主要消费 `tool-call` 事件执行工具，step 事件用于 Part 生命周期标记。这是合理的语义适配。
 
 **Placeholder scan**：Task 2 的 Step 3 代码标注"implementer 需处理"的流操作细节（filter_map→flat_map 展平、current_text_id 状态、错误终止），是明确的实现指引——转换器的流类型体操（`LLMEventStream` item 为 `Result`）需要 implementer 用 tokio_stream API 正确实现，测试断言提供验收标准。非占位。
 

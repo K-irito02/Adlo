@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- Reference OpenCode source at `references/opencode/packages/opencode/src/agent/` for design patterns
 - Do NOT preserve obsolete code in `crates/task/` — delete and refactor if it conflicts with the new design
 - All new IPC methods must be synced across tauri-bridge, preview-bridge, mock-bridge
 - All UI text must use i18n keys (no hardcoded strings)

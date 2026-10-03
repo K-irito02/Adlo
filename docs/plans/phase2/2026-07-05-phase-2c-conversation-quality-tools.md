@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- Reference OpenCode: `references/opencode/packages/opencode/src/session/compaction.ts` and `references/opencode/packages/opencode/src/tool/webfetch.ts`, `websearch.ts`
 - Add `tokenizers = { version = "0.21", default-features = false }` to workspace `Cargo.toml`
 - Snapshot gitdir path: `<app_data>/snapshot/<project_hash>/<message_id>`
 - Snapshots must not block the Agent main flow — use `tokio::spawn` for async snapshot creation
@@ -126,7 +125,7 @@ use adl_kernel::types::config::ModelProviderId;
 use std::collections::HashMap;
 use std::sync::OnceLock;
 
-/// Compaction thresholds (matching OpenCode defaults).
+/// Compaction thresholds (matching reference implementation defaults).
 pub const PRUNE_MINIMUM: usize = 20_000;
 pub const PRUNE_PROTECT: usize = 40_000;
 pub const DEFAULT_TAIL_TURNS: usize = 2;
@@ -316,7 +315,7 @@ pub struct CompactionResult {
 
 /// Compact a conversation by pruning old messages while preserving recent context.
 ///
-/// Algorithm (matching OpenCode):
+/// Algorithm (matching reference implementation):
 /// 1. If total tokens < PRUNE_PROTECT, no compaction needed
 /// 2. Preserve the last DEFAULT_TAIL_TURNS turns (user+assistant pairs)
 /// 3. Preserve messages with protected tool outputs
@@ -1627,7 +1626,7 @@ git commit -m "chore: lint and format fixes from Phase 2-C verification"
 - `SnapshotRecord` field names match across Rust/TS (snake_case ↔ snake_case)
 - `WebFetchResult` fields: `content_type` uses snake_case in both (verify serde rename)
 - `CompactionResult` is Rust-only (not serialized to frontend)
-- Threshold constants match OpenCode: PRUNE_MINIMUM=20000, PRUNE_PROTECT=40000, DEFAULT_TAIL_TURNS=2
+- Threshold constants match reference implementation: PRUNE_MINIMUM=20000, PRUNE_PROTECT=40000, DEFAULT_TAIL_TURNS=2
 
 **Dependencies:**
 - `tokenizers` 0.21.x added in Task 1

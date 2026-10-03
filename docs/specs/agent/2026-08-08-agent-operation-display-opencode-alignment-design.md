@@ -9,14 +9,14 @@
 本项目是类 OpenCode/Codex/Trae SOLO 的桌面端 Agent 编程产品。用户希望界面能像 OpenCode
 一样展示 Agent 的思考过程、工具调用、执行过程、询问卡片交互、文件修改等信息。
 
-经调研 `references/opencode` 源码，OpenCode 的实现机制为：
+经调研参考实现源码，其实现机制为：
 
 1. **细粒度 Part 数据模型**：每条消息拆成多个 part 独立存储，part 可增量更新
 2. **Tool Part 状态机**：工具调用为 `pending → running → completed/error` 状态对象
 3. **事件驱动广播**：所有变更经服务端 EventEmitter + SSE 推送给客户端
 4. **前端查表渲染**：UI 按 part 类型 / 工具名查表渲染，只被动消费数据
 
-本次重构为**后端全面对齐 OpenCode 架构**：Part 数据模型 + 多步工具循环 + SSE 事件流，
+本次重构为**后端全面对齐参考实现架构**：Part 数据模型 + 多步工具循环 + SSE 事件流，
 废弃旧格式，前端下阶段实现。
 
 ## 2. 决策记录
@@ -97,7 +97,7 @@ error     { input, error, metadata?, time {start, end} }          // 失败
 
 ## 4. Agent Loop 多步工具循环
 
-新增 `crates/agent-loop` 作为多步工具循环执行器（对齐 OpenCode `processor.ts` +
+新增 `crates/agent-loop` 作为多步工具循环执行器（对齐参考实现 `processor.ts` +
 `message-updater.ts`）。
 
 ### 4.1 执行流程
@@ -238,7 +238,7 @@ pub enum StreamChunk {
 
 ## 10. 参考
 
-- OpenCode 本地源码：`references/opencode/`
+- 参考实现（历史参考，本地副本已移除）：
   - 数据模型：`packages/core/src/session/sql.ts`、`packages/schema/src/session-message.ts`
   - Agent 循环：`packages/opencode/src/session/processor.ts`、
     `packages/core/src/session/message-updater.ts`

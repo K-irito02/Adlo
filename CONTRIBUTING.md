@@ -52,7 +52,7 @@ pnpm run dev:both
 ├── SECURITY.md          # 安全策略
 ├── FUTURE-ROADMAP.md    # 远期规划
 ├── ai-digital-life/     # 实现工作区（Rust + Tauri + React）
-├── references/          # 外部参考源码（OpenCode 等）
+├── references/          # 外部参考源码（本地拉取的开源项目）
 └── docs/                # 架构、设计、知识库
 ```
 

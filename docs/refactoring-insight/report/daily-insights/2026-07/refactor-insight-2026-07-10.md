@@ -4,7 +4,7 @@
 **Project**: AI Digital Life (AI 数字生命)
 **Tech Stack**: Rust 1.77+ / Tauri 2.x / React 19 / Vite 8 / TypeScript 5.6 / Zustand 5 / Vitest 3 / pnpm 11
 **Scope**: `ai-digital-life/crates/` (22 Rust crates), `ai-digital-life/src-tauri/src/`, `ai-digital-life/frontend/src/`
-**Excluded**: `.worktrees/` (duplicate worktree), `references/` (external OpenCode source)
+**Excluded**: `.worktrees/` (duplicate worktree)
 
 ---
 

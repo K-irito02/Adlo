@@ -45,7 +45,7 @@
 
 - **GitHub / GitLab** 完整规则集（`blackmatrix7/ios_rule_script`）
 - **GitHub CDN 域补全**：`githubusercontent.com`、`githubassets.com`、`github.io`、`githubapp.com`、`objects.githubusercontent.com`、`codeload.github.com`
-- **OpenCode websearch 后端**（源码见 `references/opencode/packages/core/src/tool/websearch.ts`）：
+- **OpenCode websearch 后端**（opencode 内置工具）：
   - `exa.ai` → `https://mcp.exa.ai/mcp`（Exa MCP 端点）
   - `parallel.ai` → `https://search.parallel.ai/mcp`（Parallel MCP 端点）
 

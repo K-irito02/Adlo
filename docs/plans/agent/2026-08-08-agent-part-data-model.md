@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 建立 OpenCode 对齐的 Message + Part 数据模型（含 Tool 状态机）、事件类型定义，以及 message/part/event_log 三张 SQLite 表与 CRUD 层，全部单元测试覆盖。
+**Goal:** 建立对齐参考实现的 Message + Part 数据模型（含 Tool 状态机）、事件类型定义，以及 message/part/event_log 三张 SQLite 表与 CRUD 层，全部单元测试覆盖。
 
-**Architecture:** 在 `adl_types` 新增 Part/Message/Event 类型（`serde tag="type"`，与 OpenCode `session-message.ts` 对齐）；在 `crates/migration` 新增 v6 迁移建三张新表；在 `crates/storage` 新增 `part_crud.rs` 提供 CRUD。本计划是整体重构的最基础层，不依赖其他计划，后续 Agent Loop 与 SSE 建立在其上。
+**Architecture:** 在 `adl_types` 新增 Part/Message/Event 类型（`serde tag="type"`，与参考实现对齐）；在 `crates/migration` 新增 v6 迁移建三张新表；在 `crates/storage` 新增 `part_crud.rs` 提供 CRUD。本计划是整体重构的最基础层，不依赖其他计划，后续 Agent Loop 与 SSE 建立在其上。
 
 **Tech Stack:** Rust 2024 edition、serde、rusqlite、ts-rs（类型导出）、uuid。
 
@@ -15,8 +15,8 @@
 - 未发布阶段禁止数据迁移/兼容代码（新表一次性建，旧表不读写、不加兼容层）
 - 所有 UI 展示文本不得硬编码（本计划无 UI）
 - 类型命名遵循 ADL 现有 `camelCase` serde 约定（`#[serde(rename_all = "camelCase")]`）
-- Part 类型使用 `serde tag="type"`（对齐 OpenCode `session-message.ts` 的 tagged union）
-- 表结构对齐 OpenCode `packages/core/src/session/sql.ts`：message/part 表 `data` 列为 JSON 载荷
+- Part 类型使用 `serde tag="type"`（对齐参考实现的 tagged union）
+- 表结构对齐参考实现：message/part 表 `data` 列为 JSON 载荷
 
 ---
 
@@ -159,7 +159,7 @@ pub enum PartType {
     Patch,
 }
 
-/// A message in a session (mirrors OpenCode `Session.Message`).
+/// A message in a session (mirrors the reference design's `Session.Message`).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MessageRecord {
@@ -174,7 +174,7 @@ pub struct MessageRecord {
     pub time_completed: Option<TimestampMs>,
 }
 
-/// Tool invocation state machine (mirrors OpenCode `ToolState`).
+/// Tool invocation state machine (mirrors the reference design's `ToolState`).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "status", rename_all = "camelCase")]
 pub enum ToolState {
@@ -211,7 +211,7 @@ pub struct ToolTime {
     pub end: Option<TimestampMs>,
 }
 
-/// The payload of a Part (mirrors OpenCode `SessionV1.Part`).
+/// The payload of a Part (mirrors the reference design's `SessionV1.Part`).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "kebab-case")]
 pub enum PartData {
@@ -242,7 +242,7 @@ pub enum PartData {
     },
 }
 
-/// A stored Part row (mirrors OpenCode `part` table hydration).
+/// A stored Part row (mirrors the reference design's `part` table hydration).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PartRecord {
@@ -255,7 +255,7 @@ pub struct PartRecord {
     pub data: serde_json::Value,
 }
 
-/// Structured event broadcast to SSE clients (mirrors OpenCode session events).
+/// Structured event broadcast to SSE clients (mirrors the reference design's session events).
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub enum SessionPartEvent {
@@ -399,7 +399,7 @@ Expected: FAIL（当前 `MIGRATIONS.len() == 5`，`current_version == 5`，断�
 ```rust
     Migration {
         version: 6,
-        description: "Create OpenCode-aligned message/part/event_log tables",
+        description: "Create reference-aligned message/part/event_log tables",
         sql: r#"
             CREATE TABLE IF NOT EXISTS message (
                 id TEXT PRIMARY KEY,
@@ -448,7 +448,7 @@ Expected: FAIL（当前 `MIGRATIONS.len() == 5`，`current_version == 5`，断�
 ```rust
         let m6 = &MIGRATIONS[5];
         assert_eq!(m6.version, 6);
-        assert_eq!(m6.description, "Create OpenCode-aligned message/part/event_log tables");
+        assert_eq!(m6.description, "Create reference-aligned message/part/event_log tables");
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS message"));
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS part"));
         assert!(m6.sql.contains("CREATE TABLE IF NOT EXISTS event_log"));

@@ -6,30 +6,30 @@
 
 ## 1. 背景与目标
 
-上一阶段仓库已完成后端对 OpenCode 架构的对齐（Part 数据模型、多步工具循环、reasoning 流、
+上一阶段仓库已完成后端对参考实现架构的对齐（Part 数据模型、多步工具循环、reasoning 流、
 全套工具、SSE 事件流、旧格式清理），通过独立 axum HTTP 服务暴露：
 - `GET /event` → SSE 事件流（`message.created/updated`、`message.part.updated/delta`、
   `session.status`、`question.asked/replied`），带 `after`/`Last-Event-ID` 断点重放
 - `POST /question/{request_id}/reply` → 回答询问卡片
 
-本阶段目标是打通前端到引擎的完整链路，并使**桌面端与浏览器端对 UI/交互全面对齐 OpenCode**：
+本阶段目标是打通前端到引擎的完整链路，并使**桌面端与浏览器端对 UI/交互全面对齐参考实现**：
 
 1. **S1·Server 收敛**：把业务命令收敛进独立 Rust `adl-server` 二进制（axum HTTP）+ WebSocket PTY，
    前端 Bridge 统一走 HTTP/SSE，桌面 Tauri 仅保留系统能力 IPC
-2. **S2·Part 渲染内核**：用 React 重写 OpenCode `session-ui` 的消息/Part/工具/问询渲染，接入 SSE 流
-3. **S3·桌面布局**：对标 OpenCode `packages/app/src/pages/session` 的 timeline、文件 tab、Composer dock、窗口布局
+2. **S2·Part 渲染内核**：用 React 重写参考实现 `session-ui` 的消息/Part/工具/问询渲染，接入 SSE 流
+3. **S3·桌面布局**：对标参考实现 `packages/app/src/pages/session` 的 timeline、文件 tab、Composer dock、窗口布局
 
 ## 2. 决策记录
 
 | 决策点 | 结论 |
 |--------|------|
-| 前端渲染取向 | 完全对标 OpenCode（视觉 + 交互双高保真） |
+| 前端渲染取向 | 完全对标参考实现（视觉 + 交互双高保真） |
 | 迭代范围 | C 最大：完整桌面布局（S1 + S2 + S3） |
 | 浏览器模式事件源 | 双端真实 SSE（浏览器 preview 由 dev 脚本拉起 Rust `adl-server`） |
 | Rust 服务形态 | 新增独立 `crates/server` 二进制；桌面 Tauri 与浏览器都连它（与浏览器同协议） |
 | 桌面桥接 | 业务统一走 HTTP（彻底收敛）；仅系统能力保留 Tauri invoke |
 | PTY 归属 | WebSocket 全收敛（PTY 走 `adl-server` 的 `/pty` WebSocket，双端一致） |
-| 视觉 Token | 仅会话区对齐（局部）：保留现有 tokens.css，Part/会话组件内部映射 OpenCode 风格变量 |
+| 视觉 Token | 仅会话区对齐（局部）：保留现有 tokens.css，Part/会话组件内部映射参考实现风格变量 |
 | 旧前端格式 | `ConversationBlock` / `ConversationMessageRecord` 渲染路径逐步停用，由 Part 渲染替代 |
 | 数据链路 | 复用后端已实现的 `SessionPartEvent` + SSE；不改后端工作区已有协议 |
 
@@ -73,7 +73,7 @@
 | 系统 | platform（reveal/对话框）、app 部分（窗口事件/写入日志） | 留 Tauri invoke（tauri-bridge 注入） |
 
 `pty` 的 `SessionManager` 使用 `portable-pty`，不依赖 Tauri，可从 server 进程运行并桥接 WebSocket
-（对应 OpenCode `packages/server/src/handlers/pty.ts`）。
+（对应参考实现 `packages/server/src/handlers/pty.ts`）。
 
 ## 4. S1：Server 收敛
 
@@ -125,9 +125,9 @@
   EventSource（`Last-Event-ID` 续接）
 - `usePartStream(sessionId)` hook：打开/关闭 EventSource、自动重连、卸载清理
 
-### 5.2 组件（对标 OpenCode → React）
+### 5.2 组件（对标参考实现 → React）
 
-| OpenCode（references/opencode/packages/session-ui） | React 组件（新建） |
+| 参考实现 `packages/session-ui` | React 组件（新建） |
 |---|---|
 | `message-part.tsx`（PART_MAPPING 注册表） | `PartRenderer`（`PART_MAPPING` + `registerPart`） |
 | `basic-tool.tsx`（折叠工具卡 + 状态机） | `BasicToolCard`（collapsible，pending/running/completed/error） |
@@ -141,8 +141,8 @@
 ### 5.3 视觉（局部对齐）
 
 - 保留 `frontend/src/styles/tokens.css`；在现有 token 基础上新增一个**会话区副作用作用域**的
-  局部变量映射（例如 `.adl-part-scope` 下定义近似 OpenCode 的 `--color-quoted`、间距/圆角/状态色），
-  使会话渲染贴近 OpenCode，但不波及全局 UI
+  局部变量映射（例如 `.adl-part-scope` 下定义近似参考实现的 `--color-quoted`、间距/圆角/状态色），
+  使会话渲染贴近参考实现，但不波及全局 UI
 - 会话区组件（工具卡、折叠面板、文本框、问询卡、错误卡）统一在该作用域内使用
 
 ### 5.4 测试
@@ -171,9 +171,9 @@
 
 ## 6. S3：桌面布局
 
-对标 `references/opencode/packages/app/src/pages/session/`：
+对标参考实现 `packages/app/src/pages/session/`：
 
-| OpenCode | ADL |
+| 参考实现 | ADL |
 |----------|-----|
 | `timeline/message-timeline.tsx`（虚拟滚） | `SessionMessageList`（虚拟化，仅渲染视口内消息+占位） |
 | `file-tabs.tsx`（会话文件 tab） | 复用现有编辑器 tabs 体系，与会话绑定 |
@@ -219,7 +219,7 @@
 
 ## 9. 参考
 
-- OpenCode 本地源码：`references/opencode/`
+- 参考实现（历史参考，本地副本已移除）：
   - 服务端：`packages/server/src/handlers/*.ts`、`packages/server/src/api.ts`、`packages/server/src/handlers/event.ts`（SSE 流）
   - Part 渲染：`packages/session-ui/src/components/message-part.tsx`、`basic-tool.tsx`、
     `tool-error-card.tsx`、`markdown.tsx`、`session-diff.ts`、`v2/*`

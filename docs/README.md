@@ -13,13 +13,11 @@
 | [knowledge-base/](./knowledge-base/) | 经验教训与总结（按领域分类：重构、浏览器、交互优化、代码质量、CI 监控、多工作区、浏览器自动化、Tauri 后端） |
 | [refactoring-insight/](./refactoring-insight/) | 重构进度报告、洞察总结、每日洞察记录 |
 | [maoxiong-vpn/](./maoxiong-vpn/) | maoxiong-vpn 订阅规则源配置（sub_rules.toml：规则集与代理组生成逻辑） |
-| [analysis/opencode/](./analysis/opencode/) | OpenCode 源码地图 — 渐进式索引（快查/总览/架构/包索引/功能深度/编码模式/差距分析） |
- | [analysis/ai-digital-life/](./analysis/ai-digital-life/) | AI Digital Life 源码地图 — 渐进式索引（快查/总览/架构/包索引/10 功能深度/4 编码模式） |
+| [analysis/ai-digital-life/](./analysis/ai-digital-life/) | AI Digital Life 源码地图 — 渐进式索引（快查/总览/架构/包索引/10 功能深度/4 编码模式） |
 | [plans/](./plans/) | 功能实施计划（按领域与月份归档：browser/git/ui/refactoring/workspace 等） |
 | [specs/](./specs/) | 功能规格设计（与 plans/ 对应） |
 | [operations/](./operations/) | 操作手册与 UI 使用说明（ui-manual） |
 | [root-cause-resolution/](./root-cause-resolution/) | 根因排查进度记录（按月归档） |
-| [references/opencode/](../references/opencode/) | OpenCode 本地参考源码（MIT 许可，供开发参考与复用） |
 
 ## 基础设施配置
 
@@ -38,7 +36,6 @@
 - 日志系统手册 → [development/log-system-manual.md](./development/log-system-manual.md)
 - 重构进度 → [refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md](./refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)
 - 经验教训索引 → [knowledge-base/README.md](./knowledge-base/README.md)
-- OpenCode 源码地图 → [analysis/opencode/README.md](./analysis/opencode/README.md)
 - ADL 源码地图 → [analysis/ai-digital-life/README.md](./analysis/ai-digital-life/README.md)
 - 贡献指南 → [CONTRIBUTING.md](../CONTRIBUTING.md)
 - 安全策略 → [SECURITY.md](../SECURITY.md)

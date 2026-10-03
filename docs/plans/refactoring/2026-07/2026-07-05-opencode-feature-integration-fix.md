@@ -1,8 +1,8 @@
-# OpenCode 对照功能联动修复计划
+# 参考实现对照功能联动修复计划
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 激活项目中已实现但未接入主链路的 OpenCode 对照功能，让 Provider 路由、Permission 拦截、Plan Mode 运行时、Compaction Summary、Web 工具注册、Subagent 执行六大模块真实联动可运行。
+**Goal:** 激活项目中已实现但未接入主链路的参考实现对照功能，让 Provider 路由、Permission 拦截、Plan Mode 运行时、Compaction Summary、Web 工具注册、Subagent 执行六大模块真实联动可运行。
 
 **Architecture:** 采用"最小侵入式集成"策略——不引入新的重型框架（如 Effect），而是通过在现有 Tauri 命令和 agent-runtime 管线中接入已有但孤立的实现来打通链路。每个任务独立可测试，按依赖顺序执行。
 
@@ -25,7 +25,7 @@
 
 ## 问题诊断概览
 
-经对照 OpenCode 源码（`references/opencode/`）与本项目实现，识别出以下"已实现但未联动"的断点：
+经对照参考实现源码与本项目实现，识别出以下"已实现但未联动"的断点：
 
 | # | 断点 | 现状 | 影响 |
 |---|------|------|------|
@@ -433,7 +433,7 @@ git commit -m "feat(rust): activate provider routing for all 5 adapters (Anthrop
 
 ## Task 2: Permission 执行链集成
 
-**目标**：在 agent 工具执行前调用 `evaluate_permission`，根据决策 Allow/Ask/Deny 拦截工具调用。参考 OpenCode 的 `ctx.ask` 模式，但采用中心化拦截（在 `agent_pipeline` 层）以最小化侵入。
+**目标**：在 agent 工具执行前调用 `evaluate_permission`，根据决策 Allow/Ask/Deny 拦截工具调用。参考实现的 `ctx.ask` 模式，但采用中心化拦截（在 `agent_pipeline` 层）以最小化侵入。
 
 **Files:**
 - Create: `ai-digital-life/crates/agent-runtime/src/permission_check.rs`
@@ -466,7 +466,7 @@ pub enum PermissionCheckResult {
 /// Check permission for a tool call before execution.
 ///
 /// Integrates the permission ruleset with the agent tool execution chain.
-/// This is the central interception point (vs OpenCode's decentralized ctx.ask).
+/// This is the central interception point (vs the reference design's decentralized ctx.ask).
 pub fn check_tool_permission(
     tool_name: &str,
     tool_input: &str,
@@ -700,7 +700,7 @@ Expected: FAIL — `plan_mode_system_prompt` 和 `filter_tools_for_plan_mode` �
 在 `ai-digital-life/crates/agent-runtime/src/plan_mode.rs` 中添加：
 
 ```rust
-/// Plan Mode system prompt template (参考 OpenCode packages/opencode/src/session/prompt/plan-mode.txt)
+/// Plan Mode system prompt template (参考实现)
 const PLAN_MODE_TEMPLATE: &str = r#"You are operating in Plan Mode. Your goal is to create a detailed implementation plan, NOT to make any code changes.
 
 ## Workflow
@@ -915,7 +915,7 @@ git commit -m "feat(core): integrate Plan Mode into agent runtime (system prompt
 
 ## Task 4: Compaction Summary 生成
 
-**目标**：参考 OpenCode 的 `SUMMARY_TEMPLATE`，在 compaction 标记 `summary_needed = true` 时调用 LLM 生成 summary，并注入到下次对话。
+**目标**：参考实现的 `SUMMARY_TEMPLATE`，在 compaction 标记 `summary_needed = true` 时调用 LLM 生成 summary，并注入到下次对话。
 
 **Files:**
 - Create: `ai-digital-life/crates/agent-runtime/src/compaction_summary.rs`
@@ -937,7 +937,7 @@ use adl_errors::AppError;
 use adl_kernel::types::config::ModelProviderId;
 use adl_kernel::types::conversation::ConversationMessageRecord;
 
-/// Summary template (参考 OpenCode packages/core/src/session/compaction.ts line 16-39)
+/// Summary template (参考实现)
 const SUMMARY_TEMPLATE: &str = r#"Output exactly the Markdown structure shown inside <template> and keep the section order unchanged. Do not include the <template> tags in your response.
 <template>
 ## Objective
@@ -1485,7 +1485,7 @@ git commit -m "feat(core): add unified ToolRegistry with webfetch/websearch/read
 
 ## Task 6: Subagent 真实执行链
 
-**目标**：将 `spawn_subagent_inner` 从桩代码改为真实调用 `agent_runtime` 执行链，让子 agent 真实执行 LLM 调用并回流结果到父 session。参考 OpenCode 的 Task 工具模式。
+**目标**：将 `spawn_subagent_inner` 从桩代码改为真实调用 `agent_runtime` 执行链，让子 agent 真实执行 LLM 调用并回流结果到父 session。参考实现的 Task 工具模式。
 
 **Files:**
 - Modify: `ai-digital-life/src-tauri/src/commands/subagent.rs`

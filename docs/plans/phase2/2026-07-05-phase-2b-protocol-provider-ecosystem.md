@@ -10,7 +10,6 @@
 
 ## Global Constraints
 
-- Reference OpenCode source: `references/opencode/packages/opencode/src/provider/` and `references/opencode/packages/opencode/src/session/prompt/`
 - Add `rmcp = { version = "0.2", features = ["client", "server"] }` and `rmcp-macros = "0.2"` to workspace `Cargo.toml`
 - MCP client must be in Rust backend (not frontend); frontend only displays MCP server status and tool lists
 - OAuth tokens must be stored via `crates/credential/` (keyring), not in plaintext

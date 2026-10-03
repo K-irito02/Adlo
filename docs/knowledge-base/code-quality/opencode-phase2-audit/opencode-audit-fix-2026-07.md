@@ -2,7 +2,7 @@
 
 ## 背景
 
-Phase 2 功能落地后，对照 OpenCode 进行功能审计，发现 10 项实现缺陷。Squash commit `5a83ebfb`。
+Phase 2 功能落地后，对照参考实现进行功能审计，发现 10 项实现缺陷。Squash commit `5a83ebfb`。
 
 ## 关键经验
 
