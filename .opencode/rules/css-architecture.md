@@ -135,6 +135,32 @@ CSS 兄弟选择器 `~` 无法跨越扁平列表的兄弟节点。目录悬停�
 - `border-radius: 0` 确保直角延伸无缝隙
 - 参考实现：`communication-panel.css` 中 `.adl-github-timeline__step:hover::after`
 
+## 对话框按钮组防溢出（长文案语言）
+
+英文等长文案语言下，确认对话框按钮组单行总宽易超过定宽对话框内宽（如 400px 框 vs EN 三键约 430px+，2026-09-29 迁移对话框事故）。
+新写/改动对话框按钮组时必须同时满足：
+
+```css
+.adl-confirm-dialog {
+  box-sizing: border-box;
+  width: min(480px, calc(100vw - 32px));
+  max-width: min(480px, calc(100vw - 32px));
+}
+.adl-confirm-dialog__footer {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap; /* 长文案换行收进容器，禁止溢出到框外 */
+}
+.adl-confirm-dialog__footer .adl-btn {
+  min-width: 0;
+  max-width: 100%; /* 单个超长按钮也不撑破对话框；不做截断省略 */
+}
+```
+
+- footer 内的非按钮提示（如浏览器模式 `<small>`）必须用语义类（如 `.adl-confirm-dialog__hint`）独占一行，禁止裸元素选择器全局耦合
+- `--fill` 用法必须带基类（`adl-prompt-modal__actions adl-prompt-modal__actions--fill`），否则吃不到按钮防超宽守卫
+- 回归测试钉住 `flex-wrap` + 宽度上限 + 按钮守卫（见 `frontend/src/styles/workspace-settings.test.ts` 同名用例）
+
 ## 禁止项
 - 禁止使用 `!important`（除非覆盖第三方库样式或浏览器伪元素如 `::-webkit-scrollbar`）
 - 禁止硬编码颜色值（hex、rgb、hsl 等）

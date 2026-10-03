@@ -2,7 +2,7 @@
 
 ### 规则描述
 
-所有 SVG 图标按领域功能拆分为独立的文件模块，并通过统一的 `make()` 工厂函数创建。每个图标文件负责一个语义类别，所有图标通过 `index.ts` 桶导出。
+所有 SVG 图标按领域功能拆分为独立的文件模块，并通过统一的工厂函数家族创建（`make()` / `makeThin()` / `makeFilled()` / `makeFilledStroked()`）。每个图标文件负责一个语义类别，所有图标通过 `index.ts` 桶导出。
 
 ### 文件结构
 
@@ -67,7 +67,7 @@ import { IconPlus } from '@icons/actions';  // 应通过 @icons/index.ts 导入
 所有 SVG 图标组件。新增图标时：
 
 1. 确定图标语义类别（core/file/badges/actions/status）
-2. 在对应文件使用 `make()` 创建图标
+2. 在对应文件使用匹配的工厂创建图标（描边 `make()` / 细描边 `makeThin()` / 填充 `makeFilled()` / 填充+描边 `makeFilledStroked()`，后者用于大 viewBox 线框风格路径的小尺寸加粗）
 3. 在 `index.ts` 中添加导出
 4. 消费方统一从 `@icons/index.ts` 导入
 

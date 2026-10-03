@@ -314,14 +314,27 @@ alwaysApply: true
 
 ### 视觉规范
 
-| 属性 | 值                                            |
-| ---- | --------------------------------------------- |
-| 背景 | `var(--tooltip-bg)`（反色主题：亮→暗，暗→亮） |
-| 文字 | `var(--tooltip-fg)`                           |
-| 圆角 | `var(--tooltip-radius)`（6px）                |
-| 阴影 | `var(--tooltip-shadow)`                       |
-| 动画 | 纯 opacity 过渡（无 scale）                   |
-| 箭头 | 8px clip-path 三角，按 `data-side` 旋转       |
+| 属性 | 值                                                                 |
+| ---- | ------------------------------------------------------------------ |
+| 背景 | 同主题 3D 按钮渐变（`--tooltip-bg-top → --tooltip-bg-bottom`，无反色） |
+| 文字 | `var(--tooltip-fg)`（即 `var(--text-primary)`）                     |
+| 圆角 | `var(--tooltip-radius)`（7px）                                       |
+| 边框 | 无（`border: none`，立体感只靠内外阴影）                             |
+| 阴影 | `var(--tooltip-shadow)`（顶内高光 + 底内收影 + 贴边/环境投影）        |
+| 动画 | `opacity + translateY(8px→0)` 滑入（`--duration-350` expo 进入 / `--duration-150` 退出，无缩放） |
+| 箭头 | 无（已删除；`data-side` 保留仅用于定位）                             |
+| 换行 | `overflow-wrap: anywhere`（长词/URL 强制断行，CJK 不受影响）         |
+| 宽度 | `maxWidth` prop（默认 240，接通到 `style.maxWidth`，定位用实测尺寸）  |
+
+### WebView2 避让（Tauri 桌面）
+
+- WebView2 是 OS 级渲染表面，任何 DOM（含 Tooltip）都盖不住它，`z-index` 无效。
+- 策略是 Tooltip 自己让路（不动 WebView，避免页面闪烁）：`computePosition` 接收
+  `avoidRects`，按"首选边 → 对侧 → 其余边"试算，第一个"视口内 + 不重叠"胜出；
+  主轴放下但横向压住时先沿横轴滑移到最近空位；四边全堵才回退老逻辑（可能被盖，属已接受的降级）。
+- 矩形来源：`getWebViewAvoidRects()`（仅 Tauri，采集 `#dsh-host-region` 与
+  `.adl-tool-primary--browser`，与 `setTabBounds` 容器同源；浏览器模式返回空）。
+- 经验：[tooltip-webview-avoidance-2026-10-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/tooltip-webview-avoidance-2026-10-01.md)
 
 ### 折叠 Tooltip
 
@@ -833,3 +846,77 @@ const handleOutside = (e) => {
 ### 文档
 - CSS 变量 `--space-px: 1px`（`tokens.css:15`）
 - 详细分析：[knowledge-base/interaction/](../../docs/knowledge-base/interaction/)
+
+---
+
+## 25. 分栏拖拽分界线（Split Divider Drag）
+
+### 场景
+面板内两个区域（如终端「只读历史 / 实时终端」、导航器与内容区）之间需要用户可拖拽调整占比的 1px 分界线。
+
+### 实现（新实例必须复用此模式，不得另起炉灶）
+- 参考实现：`features/terminal/useTerminalViewPrefs.ts`（终端，含卸载兜底）、`hooks/useNavigatorResize.ts`（导航器，**缺卸载兜底**，勿照抄该缺口）
+- 分界线元素：`role="separator"` + `aria-orientation` + `aria-valuemin/max/now` + i18n `aria-label`；视觉 1px，命中区 `::before` 向两侧各外扩 ≥4px
+- 拖拽协议：`setPointerCapture` + `pointermove` 内 rAF 节流 + **拖拽期间只写 CSS 变量（不逐帧 setState）** + `pointerup` 提交状态并持久化（值未变化时不提交，避免纯点击产生冗余渲染/落盘）
+- **卸载兜底必须有**：`detach` 收尾函数存入 ref，卸载 effect 统一回收 pointer 监听 / rAF / body 上的 resizing 类
+- 比例换算抽成纯函数并配单测：像素下限换算成比例后与固定上下限双向钳制；极短面板（两像素下限矛盾）取包络区间兜底（先 `min` 后 `max`）
+- 区域换位用 flex `order`（DOM 顺序不变，避免重挂载有状态子树如 xterm）
+
+### 文档
+- 终端实例交互说明：[ui-manual/rightpanel/tools/terminal.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/operations/ui-manual/rightpanel/tools/terminal.md)「分界线拖拽」
+- 经验记录：[terminal-history-live-separation-2026-09-13.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/multi-workspace/terminal-history-live-separation-2026-09-13.md)
+---
+
+## 26. 进行中的破坏性操作：`aria-disabled` 而非 `disabled`（In-Flight Dialog Actions）
+
+### 概述
+
+确认对话框在**执行破坏性操作期间**（例如逐条删除最多 200 条剪贴板历史，秒级窗口）需要「按钮不可重复点击」，但**不能**用 `disabled`：Chromium / WebView2 会把被禁用且已聚焦的元素失焦到 `<body>`，焦点逃出 `aria-modal`；若同时把对话框内所有按钮都禁用，Tab 遍历也会直接离开模态框（`focusables.length === 0` 时任何焦点陷阱都无从接管）。
+
+### 实现
+
+- 按钮保持可聚焦，用 `aria-disabled="true"` 表达状态；**动作层**用重入守卫拦截（`clearingRef` / 早期 return）
+- 指针层用 CSS 拦截（视觉与 `disabled` 一致）：
+  ```css
+  .adl-prompt-modal [aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+  ```
+- 守卫用 **ref** 承载（`clearingRef`）而非 state：`closeConfirm` 的依赖数组才能是 `[]`，焦点陷阱 effect 仅依赖「对话框开合」→ 不会因 `clearing` 变化而 teardown/setup（重建瞬间的 cleanup 会把焦点归还到模态框背后）
+- 打开时聚焦主操作按钮，关闭时把焦点归还触发按钮；**触发按钮可能已禁用**（如清空后无可见条目）→ 回退聚焦常驻可聚焦的兄弟控件
+
+### 验证要求
+
+`toBeDisabled()` / `disabled` 属性相关的**焦点行为断言在 jsdom 中恒真（不会失焦），必须用真实 Chromium（Playwright，`channel: msedge`）验证**；jsdom 断言只能锁「属性存在与否」，不能锁「焦点是否仍在模态框内」。
+
+### 文档
+
+- 实现示例：`frontend/src/app/features/clipboard-history/ClipboardHistoryHeader.tsx`（焦点陷阱 + `clearingRef` + 触发按钮禁用回退）
+- 手册：[ui-manual/leftbar/clipboard-history.md](../../docs/operations/ui-manual/leftbar/clipboard-history.md)
+- 知识沉淀：[clipboard-history-panel-rework-2026-09-17.md](../../docs/knowledge-base/interaction/clipboard-history-panel-rework-2026-09-17.md)
+
+---
+
+## 27. 危险操作 hover 色的特异性（Danger Hover Specificity）
+
+### 概述
+
+`.adl-icon-btn` 家族的 hover 基类为 `.adl-icon-btn:hover:not(:disabled)`（特异性 **0,3,0**），且 `regions/titlebar.css` 通过 `styles/index.css` 在**多数 region 文件之后**加载。因此形如 `.adl-icon-btn--danger-hover:hover`（0,2,0）的修饰类规则**会被静默覆盖成死规则**。
+
+### 实现
+
+- 修饰类必须提权到 ≥ (0,4,0) 且与加载顺序无关：
+  ```css
+  .adl-icon-btn.adl-icon-btn--danger-hover:hover:not(:disabled) {
+    color: var(--danger);
+    background: var(--danger-soft);
+  }
+  ```
+- 颜色走主题 token（`--danger` / `--danger-soft`），不要用与主题无关的调色板（Tailwind `--color-red-*` 在暗色主题下背景近白）
+- 同一模式也适用于其他共享类覆盖：本文件先于 `titlebar.css` 加载时，覆盖必须显式提权（如 `.adl-icon-btn.adl-clipboard__searchbtn`）
+
+### 文档
+
+- 知识沉淀：[clipboard-history-panel-rework-2026-09-17.md](../../docs/knowledge-base/interaction/clipboard-history-panel-rework-2026-09-17.md)

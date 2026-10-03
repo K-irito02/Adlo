@@ -68,3 +68,16 @@ if (isTauri) { /* has code */ } else { /* nothing */ }
 - 所有 Tauri Command 调用的前端封装
 - 新增 IPC 能力时必须三端同步实现
 - UI 组件只能通过 `window.digitalLife` 或依赖注入访问能力，不直接调用 invoke
+## 同步返回方法（非 `Promise<IpcResult<T>>`）
+
+桥接接口中少数方法是**同步**返回的（例如纯 URL 构造器 `clipboard.getThumbUrl` / `clipboard.getImageUrl`、`workspace.onFileChanged` 的取消订阅函数）。它们与异步方法的三端实现规则不同：
+
+| 端 | 实现要求 |
+|----|---------|
+| `shared/ipc/*.ts` 接口 | 显式声明返回类型（如 `(thumbPath: string) => string`），并在 JSDoc 标注「同步返回，不发起网络请求」 |
+| `httpBridge.ts` | 常规实现（纯字符串/回调构造，无副作用） |
+| `tauri-bridge/index.ts` | 经 `...http`（`createHttpBridge`）继承，**无需单独实现**；`@see` 注释应写明"`...http` 继承"而非指向不存在的成员 |
+| `preview-bridge/index.ts` | **必须在 spread 之后显式 override 为 `http.<domain>.<method>`**。不能放进 `preferHttpWhenReachable` 的 `syncReturnMethods`（那是 fallback-first：会返回 mock 的桩值），否则预览模式下静默拿到空值（如 URL 恒为 `''`，图片渲染成占位图标） |
+| `mock/*` | 返回空实现/桩值（`''`、`() => {}`） |
+
+> 新增同步方法时，若忘记 preview-bridge 的 override，类型检查与测试都不会报错 —— 必须在 Code Review 中按名核对。
