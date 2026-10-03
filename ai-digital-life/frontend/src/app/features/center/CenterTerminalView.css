@@ -28,7 +28,9 @@
   background: var(--bg-panel, transparent);
 }
 
-.adl-center-terminal__chooser-title {
+/* 两个小标题（「新建终端」卡片标题 / 「绑定工作区」字段标题）统一字号、字重与亮度，单点维护 */
+.adl-center-terminal__chooser-title,
+.adl-center-terminal__workspace-label {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
@@ -43,42 +45,49 @@
   flex: 1;
   padding: var(--space-2, 8px) var(--space-3, 12px);
   border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.25));
-  border-radius: var(--radius-md, 6px);
+  /* 四角偏直角，与设置面板 SettingsSelect 触发按钮（--radius-sm）一致 */
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-primary);
   cursor: pointer;
 }
 
+/* 选中态用中性灰阶（不引入品牌蓝），亮暗主题下均可见 */
 .adl-center-terminal__profile.is-active {
-  border-color: var(--accent, #4e9a06);
-  color: var(--accent, #4e9a06);
+  border-color: var(--border-strong);
+  background: var(--surface-active);
+  color: var(--text-primary);
+  font-weight: var(--font-medium);
 }
 
 .adl-center-terminal__workspace {
   display: flex;
   flex-direction: column;
   gap: var(--space-1, 4px);
-  font-size: 12px;
-  color: var(--text-secondary);
 }
 
-.adl-center-terminal__workspace-select {
-  padding: var(--space-1, 4px) var(--space-2, 8px);
-  border: 1px solid var(--border-subtle, rgba(127, 127, 127, 0.25));
-  border-radius: var(--radius-md, 6px);
-  background: var(--bg-input, transparent);
-  color: var(--text-primary);
+/* 复用设置面板 SettingsSelect；撑满卡片内容宽，与上方终端类型按钮等宽对齐 */
+.adl-center-terminal__workspace-dropdown {
+  width: 100%;
 }
 
+/* 主操作按钮：中性高对比实心（亮=黑底浅字 / 暗=白底深字），与存储设置组主按钮同源 */
 .adl-center-terminal__create {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2, 8px);
   padding: var(--space-2, 8px) var(--space-3, 12px);
-  border: none;
-  border-radius: var(--radius-md, 6px);
-  background: var(--accent, #4e9a06);
-  color: var(--text-on-accent, #fff);
+  border: 1px solid transparent;
+  /* 四角偏直角，与设置面板 SettingsSelect 触发按钮（--radius-sm）一致 */
+  border-radius: var(--radius-sm);
+  background: var(--text-primary);
+  color: var(--bg-elevated);
   cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-center-terminal__create:hover:not(:disabled) {
+  background: var(--text-secondary);
+  border-color: var(--text-secondary);
 }

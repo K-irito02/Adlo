@@ -39,17 +39,22 @@ describe('两个区域的可见性组合（需求逐条对应）', () => {
 });
 
 /**
- * 面板「收起/展开」按钮的单点决策（Task 14 接线）。
- * 注意：这与 Task 12 的 `toggleRegion` 语义不同——面板里任意时刻只渲染可见区域的按钮，
- * 因此从「单区独显」状态必须能回到 `'none'`（还原两区），而不是在两种 solo 之间互切。
+ * 「最大化 / 还原」按钮的单点决策（面板与中心共用）。
+ * `RegionCollapse` 存的始终是**被隐藏的区域**：两区可见时点某区＝最大化该区（隐藏另一区）；
+ * 某区已独显时点该可见区＝还原两区。注意这与 Task 12 的 `toggleRegion` 语义不同
+ * （后者是通用三态互转），面板里任意时刻只渲染可见区域的按钮，故必然能回到 `'none'`。
  */
-describe('面板收起/展开按钮的单点决策（nextRegionCollapse）', () => {
-  it('两区都可见时点历史区 → 收起历史区', () => {
-    expect(nextRegionCollapse('none', 'history')).toBe('history');
+describe('区域最大化/还原按钮的单点决策（nextRegionCollapse）', () => {
+  it('两区都可见时点历史区 → 最大化历史区（收起实时区）', () => {
+    expect(nextRegionCollapse('none', 'history')).toBe('live');
+    expect(isRegionVisible('live', 'history', true)).toBe(true);
+    expect(isRegionVisible('live', 'live', true)).toBe(false);
   });
 
-  it('两区都可见时点实时区 → 收起实时区', () => {
-    expect(nextRegionCollapse('none', 'live')).toBe('live');
+  it('两区都可见时点实时区 → 最大化实时区（收起历史区）', () => {
+    expect(nextRegionCollapse('none', 'live')).toBe('history');
+    expect(isRegionVisible('history', 'live', true)).toBe(true);
+    expect(isRegionVisible('history', 'history', true)).toBe(false);
   });
 
   it('历史区独显时点实时区（可见区）→ 还原两区都可见', () => {
@@ -61,8 +66,8 @@ describe('面板收起/展开按钮的单点决策（nextRegionCollapse）', () 
   });
 
   it('从独显状态必然能回到 none（不会卡在两种 solo 互切）', () => {
-    // 历史独显点历史区 → none；再点历史区 → history。单点按钮即可来回切换。
+    // 历史独显点历史区 → none；再点历史区 → live（最大化历史）。单点按钮即可来回切换。
     expect(nextRegionCollapse('history', 'history')).toBe('none');
-    expect(nextRegionCollapse('none', 'history')).toBe('history');
+    expect(nextRegionCollapse('none', 'history')).toBe('live');
   });
 });

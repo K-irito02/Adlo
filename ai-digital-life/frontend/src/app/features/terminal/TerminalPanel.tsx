@@ -21,7 +21,6 @@ import {
   isCollapseButtonVisible,
   isRegionVisible,
 } from '@features/terminal/terminalRegionCollapse';
-import type { RegionName } from '@features/terminal/terminalRegionCollapse';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
 import { HISTORY_RATIO_MAX, HISTORY_RATIO_MIN } from './terminalViewPrefs';
@@ -94,18 +93,16 @@ export function TerminalPanel() {
   const liveVisible = isRegionVisible(regionCollapse, 'live', true);
   const canCollapse = isCollapseButtonVisible(hasHistory);
 
-  // 每个区域的叠加层文案都来自 i18n 键（无硬编码字符串）；
-  // regionName 是本区名（收起用），otherRegionName 是另一区名（单区独显时展开用）。
-  const regionActionTitles = (region: RegionName) => ({
+  // 两个区域共用同一份叠加层文案（最大化/还原不再带区域名，见 TerminalRegionActions）；
+  // 文案均来自 i18n 键（无硬编码字符串）。
+  const regionActionTitles = {
     collapse: t.terminalRegionCollapseTitle,
     expand: t.terminalRegionExpandTitle,
-    regionName: region === 'history' ? t.terminalHistoryRegionName : t.terminalLiveRegionName,
-    otherRegionName: region === 'history' ? t.terminalLiveRegionName : t.terminalHistoryRegionName,
     deleteLabel: t.terminalHistoryDeleteLabel,
     deleteTitle: t.terminalHistoryDeleteTitle,
     clearLabel: t.terminalLiveClearLabel,
     clearTitle: t.terminalLiveClearTitle,
-  });
+  };
 
   // 绑定当前 session：把 sessionId 缝进度量读取器，并 memo 化避免每个渲染帧都重建
   // 闭包（否则 TerminalHistoryList 的实测 effect 会随父组件重渲染反复重跑）。
@@ -396,7 +393,7 @@ export function TerminalPanel() {
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('history')}
                       onDelete={() => void terminalActions.deleteHistory(activeTab?.id ?? '')}
-                      titles={regionActionTitles('history')}
+                      titles={regionActionTitles}
                       alwaysVisible={!liveVisible}
                     />
                   </div>
@@ -430,7 +427,7 @@ export function TerminalPanel() {
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('live')}
                       onClear={terminalActions.handleClear}
-                      titles={regionActionTitles('live')}
+                      titles={regionActionTitles}
                       alwaysVisible={!historyVisible}
                     />
                   </div>

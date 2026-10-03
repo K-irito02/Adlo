@@ -344,10 +344,16 @@
   margin-right: var(--space-2, 8px);
 }
 
+/* 虚线：repeating-linear-gradient 的实/虚段长可控（Chromium 的 border-style:dashed
+   虚线间隔不可调，观感偏碎）。线段 4px + 间隔 4px。 */
 .adl-terminal-history-divider__line {
   flex: 1 1 auto;
   height: 1px;
-  background: var(--border-subtle);
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--border-subtle) 0 4px,
+    transparent 4px 8px
+  );
 }
 
 .adl-terminal-history-divider__label {
@@ -356,17 +362,22 @@
 }
 
 /* 只读历史虚拟列表：只挂载视口附近行，整段高度由 spacer 撑开。
-   list 绝对定位填满历史区，内缩必须与实时侧 hostEl 逐边同值（左/上/下 space-2、右 0），
+   宿主绝对定位填满历史区，内缩必须与实时侧 hostEl 逐边同值（左/上/下 space-2、右 0），
    因为列数由 clientWidth 换算（TerminalHistoryList 的 cols）——任一边不同，
    历史就会比实时少一列、提前换行，列对齐随之对不上。
    右侧不留白是实时的既有形态（xterm 自绘滚动条贴右边缘）；
    日期分隔线的左右留白改由分隔线自身的 margin 提供（见 __divider）。 */
-.adl-terminal-history-list {
+.adl-terminal-history-scroll-host {
   position: absolute;
   top: var(--space-2, 8px);
   left: var(--space-2, 8px);
   right: 0;
   bottom: var(--space-2, 8px);
+}
+
+.adl-terminal-history-list {
+  position: absolute;
+  inset: 0;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
@@ -375,6 +386,54 @@
 .adl-terminal-history-list::-webkit-scrollbar {
   width: 0;
   height: 0;
+}
+
+/* 只读历史垂直滚动条：与实时终端 xterm 自绘条同款——
+   区域悬停（未悬停滑块）时贴右边缘显现 3px 细线（右留 2px）；
+   悬停/拖拽滑块本体时变 14px 直角宽滑块并贴边（right: 0）。
+   颜色取 xterm 口径：前景色 20% 不透明，hover/active 40%
+   （见 @xterm/xterm ThemeService.ts 的 scrollbarSliderBackground 派生）。 */
+.adl-terminal-histscroll {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 14px;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-150) var(--ease-default);
+}
+
+.adl-terminal-histscroll[data-visible='true'] {
+  opacity: 1;
+}
+
+.adl-terminal-histscroll__thumb {
+  position: absolute;
+  top: 0;
+  right: 2px;
+  width: 3px;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
+  cursor: pointer;
+  touch-action: none;
+  /* 与 xterm 同：圆角不进 transition（宽与圆角同步渐变会出现中途态） */
+  transition:
+    width var(--duration-150) var(--ease-default),
+    right var(--duration-150) var(--ease-default);
+}
+
+.adl-terminal-histscroll[data-visible='true'] .adl-terminal-histscroll__thumb {
+  pointer-events: auto;
+}
+
+.adl-terminal-histscroll__thumb:hover,
+.adl-terminal-histscroll__thumb:active {
+  right: 0;
+  width: 14px;
+  border-radius: var(--radius-none);
+  background: color-mix(in srgb, var(--text-primary) 40%, transparent);
 }
 
 .adl-terminal-history-list__spacer {

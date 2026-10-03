@@ -55,10 +55,10 @@ function isBlankLine(line: HistoryRun[]): boolean {
  *    —— 这是「超出上限被拒收」被结构性消除的原因，而不是把阈值调大。
  * 3. **成功才推进水位**：写入失败时保留未满块与水位，下一次采集重试同一批行。
  *
- * 环回兜底：scrollback 溢出会裁掉最旧行、绝对行号失效。此时只重置采集器**内部状态**
- * （水位 / 暂存 / `written[]` 元信息 / seq），**磁盘上已写入的块不会被删除** —— 它们仍占着
- * 存储，必须由调用方以当前缓冲区内容整段重建：用同一 `seq` 推导出的块键覆盖写回，
- * 并同步重建分段索引。否则会写出错位的历史，比丢失更难排查。
+ * 绝对行号失效兜底（scrollback 环回 **或** 列数变化引起的 xterm 重排，见 `detectRewind`）：
+ * 此时只重置采集器**内部状态**（水位 / 暂存 / `written[]` 元信息 / seq / lastCols），
+ * **磁盘上已写入的块不会被删除** —— 它们仍占着存储，必须由调用方以当前缓冲区内容整段重建：
+ * 用同一 `seq` 推导出的块键覆盖写回，并同步重建分段索引。否则会写出错位的历史，比丢失更难排查。
  */
 export class TerminalHistoryCollector {
   private sessionId = '';
@@ -69,6 +69,8 @@ export class TerminalHistoryCollector {
   private written: TerminalHistoryChunkMeta[] = [];
   private seq = 0;
   private rebuilt = false;
+  /** 上次采集时的列数：列数变化＝xterm 重排，绝对行号失效（见 detectRewind） */
+  private lastCols = 0;
   /** 上次成功封块的时刻（ms）：检查点的空闲兜底据此判定 */
   private lastSealAt = 0;
 
@@ -87,6 +89,7 @@ export class TerminalHistoryCollector {
     this.written = [];
     this.seq = 0;
     this.rebuilt = false;
+    this.lastCols = 0;
     this.lastSealAt = this.now();
   }
 
@@ -186,12 +189,30 @@ export class TerminalHistoryCollector {
   }
 
   /**
-   * 环回兜底：绝对行号失效时重置内部状态并要求整段重建。
+   * 环回 + 重排兜底：绝对行号失效时重置内部状态并要求整段重建。
    * 这里**不删除磁盘上的块**：`written` 只是内存里的元信息，落盘的块仍留在原键上，
    * 等调用方重建时按同一 `seq` 覆盖写回（见类注释）。
+   *
+   * 增量采集依赖「已采集行的绝对行号不再变化」，两种情形会打破它，都必须整段重采：
+   * 1. **环回**：scrollback 溢出裁掉最旧行 → `buffer.length < watermark`；
+   * 2. **重排**：列数变化（拖拽分界线、窗口或区域宽度变化都会让 xterm `resize(cols)`）
+   *    → 重排后同一绝对行号对应的内容整体位移。此时长度未必变短，旧实现只判长度，
+   *    会从失效水位继续采 → 写进错位/重复/缺失的行（静默损坏，重启后表现为历史被裁剪）。
    */
   private detectRewind(buffer: BufferSnapshot): void {
-    if (this.watermark > 0 && buffer.length < this.watermark) {
+    const cols = this.deps.cols();
+    const overflowed = this.watermark > 0 && buffer.length < this.watermark;
+    const rewrapped = this.watermark > 0 && cols !== this.lastCols;
+    if (overflowed || rewrapped) {
+      console.warn('[TERMINAL-HISTORY] rebuild whole segment', {
+        sessionId: this.sessionId,
+        reason: overflowed ? 'scrollback-overflow' : 'reflow-cols-changed',
+        watermark: this.watermark,
+        bufferLength: buffer.length,
+        prevCols: this.lastCols,
+        cols,
+        staleChunks: this.written.length,
+      });
       this.rebuilt = true;
       this.watermark = 0;
       this.pending = [];
@@ -199,6 +220,7 @@ export class TerminalHistoryCollector {
       this.written = [];
       this.seq = 0;
     }
+    this.lastCols = cols;
   }
 
   private async append(buffer: BufferSnapshot, toRow: number): Promise<boolean> {

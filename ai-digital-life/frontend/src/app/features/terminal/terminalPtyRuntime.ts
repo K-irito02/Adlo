@@ -462,6 +462,13 @@ export class TerminalPtyRuntime {
     }
     const { start, count } = staleChunkRange(segment.chunks.length, nextCount);
     if (count > 0) {
+      console.info('[TERMINAL-HISTORY] evict stale chunks after rebuild', {
+        sessionId,
+        start,
+        count,
+        previousCount: segment.chunks.length,
+        newCount: nextCount,
+      });
       await this.deleteChunksForSession(sessionId, start, count);
     }
   };
@@ -580,8 +587,18 @@ export class TerminalPtyRuntime {
     if (written.length === before && !rebuilt) {
       return;
     }
+    // 重建后新代从 seq 0 起覆盖写回，旧代多出的尾部才是陈旧块，且**必须等新块已落盘**
+    // 才能按新块数淘汰：若此时一个新块都还没封（written.length === 0），淘汰区间会算成
+    // [0, previousCount) → 旧块先被全删、索引却仍指向它们（中途退出即永久丢历史）。
     if (rebuilt) {
-      await this.evictStaleChunksForRebuild(sessionId, written.length);
+      console.info('[TERMINAL-HISTORY] segment rebuilt', {
+        sessionId,
+        prevChunks: before,
+        newChunks: written.length,
+      });
+      if (written.length > 0) {
+        await this.evictStaleChunksForRebuild(sessionId, written.length);
+      }
     }
     this.upsertHistoryEntry(sessionId, written);
   };
@@ -642,6 +659,8 @@ export class TerminalPtyRuntime {
     const segmentExistedBefore = previousSegment !== undefined;
     const collector = this.collectorFor(sessionId);
     const flushed = await collector.flush();
+    // flush 同样过 detectRewind：退出前若发生过重排/环回，这里会整段重建。
+    const rebuilt = collector.consumeRebuild();
     const written = collector.getWrittenChunks();
     const segments = this.historyIndex.get(ownerTabId) ?? [];
     const at = segments.findIndex((s) => s.sessionId === sessionId);
@@ -691,6 +710,11 @@ export class TerminalPtyRuntime {
       }
       return;
     }
+    // 定稿前若发生过重建：新块已按 seq 从 0 覆盖写回，旧代多出的尾部整段淘汰，
+    // 否则它们会成为索引引用不到的磁盘孤儿（预算统计与删除路径都碰不到）。
+    if (rebuilt && at >= 0) {
+      await this.evictStaleChunksForRebuild(sessionId, written.length);
+    }
     const existingSegment = segments[at];
     const next: TerminalHistorySegment = {
       sessionId,
@@ -709,6 +733,11 @@ export class TerminalPtyRuntime {
     }
     this.historyIndex.set(ownerTabId, updated);
     this.persistHistoryIndex();
+    console.info('[TERMINAL-HISTORY] segment finalized', {
+      sessionId,
+      chunks: written.length,
+      rebuilt,
+    });
     if (!options?.skipBudget) {
       void this.settleHistoryBudget();
     }

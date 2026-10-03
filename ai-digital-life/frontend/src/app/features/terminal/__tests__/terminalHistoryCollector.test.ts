@@ -172,6 +172,33 @@ describe('TerminalHistoryCollector', () => {
     expect(c.getWrittenChunks().length).toBe(0);
   });
 
+  it('列数变化（xterm 重排）时同样整段重建：长度未缩水也必须重采，否则按失效行号续采', async () => {
+    const written: Record<string, string> = {};
+    let cols = 10;
+    const collector = new TerminalHistoryCollector({
+      readBuffer: () => makeBuffer(['a', 'b', 'c'], []),
+      cols: () => cols,
+      write: async (key, payload) => {
+        written[key] = payload;
+        return true;
+      },
+    });
+    collector.setSessionId('s');
+    await collector.flush();
+    expect(collector.consumeRebuild()).toBe(false);
+
+    // 行数完全不变、只改列数：旧实现（只判 length < watermark）不会重建，
+    // 会从已失效的绝对行号继续采 → 写进错位内容。
+    cols = 40;
+    await collector.collect();
+    expect(collector.consumeRebuild()).toBe(true);
+    expect(collector.getWrittenChunks().length).toBe(0);
+
+    // 重建后列数稳定 → 不再反复触发
+    await collector.flush();
+    expect(collector.consumeRebuild()).toBe(false);
+  });
+
   it('块上限常量取自设计（64 KiB）', () => {
     expect(TERMINAL_HISTORY_CHUNK_MAX_BYTES).toBe(64 * 1024);
   });

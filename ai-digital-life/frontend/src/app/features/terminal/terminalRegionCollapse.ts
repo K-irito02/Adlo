@@ -17,18 +17,22 @@ export function toggleRegion(collapse: RegionCollapse, region: RegionName): Regi
 }
 
 /**
- * 面板内「收起/展开」按钮的单点决策（Task 14 接线用）。
+ * 「最大化 / 还原」按钮的单点决策（面板与中心共用）。
  *
- * 与 Task 12 的 `toggleRegion` 不同：`toggleRegion` 是「点同区域还原、点异区域切换」的通用三态互转，
- * 而面板里任意时刻**只有可见区域**的按钮会被渲染。因此需要另一条规则：
- * - 两区都可见（`'none'`）→ 点这个区域，收起这个区域；
- * - 已经有区域被收起（某个区域单独可见）→ 点可见区域，还原两区都可见（`'none'`）。
+ * 语义以**用户视角**定义（`RegionCollapse` 存的始终是「被隐藏的区域」）：
+ * - 两区都可见（`'none'`）→ 点某区 = **最大化该区**：把**另一个区域**收起来给它让位，
+ *   于是该区域铺满、完全覆盖另一区；
+ * - 已有区域被收起（某区独显）→ 点该可见区 = **还原**：两区都可见（`'none'`）。
  *
- * 设 `next = current === 'none' ? region : 'none'` 即可同时满足两种模式，
- * 且从「单区独显」状态也必然能回到 `'none'`（不会卡在两种 solo 之间互切）。
+ * 因此两区可见时返回的是传入区域的**对立区域**（不是传入区域本身）。
+ * 面板里任意时刻只有可见区域的按钮被渲染，故从「单区独显」必然能回到 `'none'`，
+ * 不会卡在两种 solo 之间互切。
  */
 export function nextRegionCollapse(current: RegionCollapse, region: RegionName): RegionCollapse {
-  return current === 'none' ? region : 'none';
+  if (current !== 'none') {
+    return 'none';
+  }
+  return region === 'history' ? 'live' : 'history';
 }
 
 export function isRegionVisible(

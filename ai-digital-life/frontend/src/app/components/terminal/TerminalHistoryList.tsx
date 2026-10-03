@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRevealScrollbar } from '@hooks/useRevealScrollbar';
 import { TerminalHistoryRow } from './TerminalHistoryRow';
 import { TerminalHistoryDivider, formatDividerTime } from './TerminalHistoryDivider';
 import { buildLayout } from '@features/terminal/historyLayout';
@@ -42,35 +43,11 @@ export function TerminalHistoryList({
   readCellMetrics: () => { cellWidth: number; cellHeight: number };
   unavailableLabel: string;
 }) {
-  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [cols, setCols] = useState(80);
   const [rowHeight, setRowHeight] = useState(FALLBACK_ROW_HEIGHT);
   const [chunks, setChunks] = useState<Map<string, HistoryRun[][]>>(new Map());
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) {
-      return;
-    }
-    const remeasure = () => {
-      const metrics = readCellMetrics();
-      const cellHeight = metrics.cellHeight || FALLBACK_ROW_HEIGHT;
-      const cellWidth = metrics.cellWidth || FALLBACK_CELL_WIDTH;
-      // F6：把实测 cell 度量写进滚动容器，DOM 行高（CSS 读取 --adl-terminal-cell-height）
-      // 与虚拟化偏移（整数乘法）必须用同一份数值，否则两侧错位、行漂移。
-      el.style.setProperty('--adl-terminal-cell-height', `${cellHeight}px`);
-      el.style.setProperty('--adl-terminal-cell-width', `${cellWidth}px`);
-      setRowHeight(cellHeight);
-      setCols(Math.max(1, Math.floor(el.clientWidth / cellWidth)));
-      setViewportHeight(el.clientHeight);
-    };
-    remeasure();
-    const observer = new ResizeObserver(remeasure);
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [readCellMetrics]);
 
   const layout = useMemo(
     () =>
@@ -93,6 +70,36 @@ export function TerminalHistoryList({
       ),
     [segments, chunks, cols],
   );
+
+  // 滚动条几何/拖拽复用项目通用 hook，thumb 样式自绘成 xterm 自绘条同款
+  //（区域悬停 3px 细线、悬停滑块 14px 直角宽块，见 terminal-panel.css）。
+  // deps 必须传标量：hook 内部把 deps join 成字符串比较，传 Map/数组会退化成
+  // "[object Map]" 而永远测不到内容变化 → 块加载后滚动区变高也不重测。
+  const scrollbar = useRevealScrollbar([layout.length, rowHeight]);
+  const scrollRef = scrollbar.scrollRef;
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) {
+      return;
+    }
+    const remeasure = () => {
+      const metrics = readCellMetrics();
+      const cellHeight = metrics.cellHeight || FALLBACK_ROW_HEIGHT;
+      const cellWidth = metrics.cellWidth || FALLBACK_CELL_WIDTH;
+      // F6：把实测 cell 度量写进滚动容器，DOM 行高（CSS 读取 --adl-terminal-cell-height）
+      // 与虚拟化偏移（整数乘法）必须用同一份数值，否则两侧错位、行漂移。
+      el.style.setProperty('--adl-terminal-cell-height', `${cellHeight}px`);
+      el.style.setProperty('--adl-terminal-cell-width', `${cellWidth}px`);
+      setRowHeight(cellHeight);
+      setCols(Math.max(1, Math.floor(el.clientWidth / cellWidth)));
+      setViewportHeight(el.clientHeight);
+    };
+    remeasure();
+    const observer = new ResizeObserver(remeasure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [readCellMetrics, scrollRef]);
 
   const firstVisible = Math.max(0, Math.floor(scrollTop / rowHeight) - OVERSCAN_ROWS);
   const lastVisible = Math.min(
@@ -196,44 +203,54 @@ export function TerminalHistoryList({
     }
     prevSegmentKey.current = segmentKey;
     prevRowHeight.current = rowHeight;
-  }, [segmentKey, rowHeight, layout.length, viewportHeight]);
+    // scrollRef 来自 hook（useRef 实例，恒定）——列入 deps 只为满足 lint 对「非 useRef 直取」的判定。
+  }, [segmentKey, rowHeight, layout.length, viewportHeight, scrollRef]);
 
   return (
-    <div
-      ref={scrollRef}
-      className="adl-terminal-history-list"
-      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
-    >
+    <div className="adl-terminal-history-scroll-host" {...scrollbar.hoverProps}>
       <div
-        className="adl-terminal-history-list__spacer"
-        style={{ height: layout.length * rowHeight }}
+        ref={scrollRef}
+        className="adl-terminal-history-list"
+        onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
       >
-        {layout.slice(firstVisible, lastVisible).map((row, index) => {
-          const absolute = firstVisible + index;
-          const owner = ownerOf[absolute];
-          return (
-            <div
-              key={absolute}
-              className="adl-terminal-history-list__row"
-              style={{ top: absolute * rowHeight }}
-            >
-              {row.kind === 'divider' ? (
-                <TerminalHistoryDivider at={row.at} label={formatDividerTime} />
-              ) : (
-                <TerminalHistoryRow
-                  runs={
-                    owner
-                      ? (chunks.get(chunkKey(owner.sessionId, row.chunkIndex))?.[
-                          row.lineIndexInChunk
-                        ] ?? EMPTY_RUNS)
-                      : EMPTY_RUNS
-                  }
-                  palette={palette}
-                />
-              )}
-            </div>
-          );
-        })}
+        <div
+          className="adl-terminal-history-list__spacer"
+          style={{ height: layout.length * rowHeight }}
+        >
+          {layout.slice(firstVisible, lastVisible).map((row, index) => {
+            const absolute = firstVisible + index;
+            const owner = ownerOf[absolute];
+            return (
+              <div
+                key={absolute}
+                className="adl-terminal-history-list__row"
+                style={{ top: absolute * rowHeight }}
+              >
+                {row.kind === 'divider' ? (
+                  <TerminalHistoryDivider at={row.at} label={formatDividerTime} />
+                ) : (
+                  <TerminalHistoryRow
+                    runs={
+                      owner
+                        ? (chunks.get(chunkKey(owner.sessionId, row.chunkIndex))?.[
+                            row.lineIndexInChunk
+                          ] ?? EMPTY_RUNS)
+                        : EMPTY_RUNS
+                    }
+                    palette={palette}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+      <div className="adl-terminal-histscroll" data-visible={scrollbar.visible} aria-hidden="true">
+        <div
+          className="adl-terminal-histscroll__thumb"
+          style={scrollbar.thumbStyle}
+          {...scrollbar.thumbListeners}
+        />
       </div>
     </div>
   );

@@ -3,6 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { terminalSelectors } from '@stores/selectors';
 import { IconAlertTriangle, IconAreaSwap, IconPlus } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
+import { SettingsSelect } from '@components/settings/SettingsSelect';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
 import { TerminalHistoryList } from '@components/terminal/TerminalHistoryList';
 import { TerminalRegionActions } from '@components/terminal/TerminalRegionActions';
@@ -12,7 +13,6 @@ import {
   isCollapseButtonVisible,
   isRegionVisible,
 } from '@features/terminal/terminalRegionCollapse';
-import type { RegionName } from '@features/terminal/terminalRegionCollapse';
 import { HISTORY_RATIO_MAX, HISTORY_RATIO_MIN } from '@features/terminal/terminalViewPrefs';
 import type { TerminalProfile } from '@stores/types';
 import { useTCopy } from '@i18n/useTCopy';
@@ -69,6 +69,14 @@ function CenterTerminalChooser({ centerTabId }: { centerTabId: string }) {
     [recentWorkspaces],
   );
 
+  const workspaceOptions = useMemo(
+    () => [
+      { value: '', label: t.terminalIndependent },
+      ...visibleWorkspaces.map((workspace) => ({ value: workspace.id, label: workspace.name })),
+    ],
+    [visibleWorkspaces, t],
+  );
+
   const handleCreate = useCallback(() => {
     // terminalCreateTab 同步写入 store，随后回读新标签 id（与面板 handleCreateTab 同语义）。
     terminalCreateTab(profile, workspaceId);
@@ -111,22 +119,16 @@ function CenterTerminalChooser({ centerTabId }: { centerTabId: string }) {
             </button>
           ))}
         </div>
-        <label className="adl-center-terminal__workspace">
+        <div className="adl-center-terminal__workspace">
           <span className="adl-center-terminal__workspace-label">{t.terminalBindWorkspace}</span>
-          <select
-            className="adl-center-terminal__workspace-select"
+          <SettingsSelect
+            className="adl-center-terminal__workspace-dropdown"
             value={workspaceId}
-            aria-label={t.terminalBindWorkspace}
-            onChange={(event) => setWorkspaceId(event.target.value)}
-          >
-            <option value="">{t.terminalIndependent}</option>
-            {visibleWorkspaces.map((workspace) => (
-              <option key={workspace.id} value={workspace.id}>
-                {workspace.name}
-              </option>
-            ))}
-          </select>
-        </label>
+            options={workspaceOptions}
+            onChange={setWorkspaceId}
+            label={t.terminalBindWorkspace}
+          />
+        </div>
         <button
           type="button"
           className="adl-center-terminal__create"
@@ -166,21 +168,20 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   const liveVisible = isRegionVisible(view.regionCollapse, 'live', true);
   const canCollapse = isCollapseButtonVisible(hasHistory);
 
-  const regionActionTitles = (region: RegionName) => ({
+  // 两个区域共用同一份叠加层文案（最大化/还原不再带区域名，见 TerminalRegionActions）
+  const regionActionTitles = {
     collapse: t.terminalRegionCollapseTitle,
     expand: t.terminalRegionExpandTitle,
-    regionName: region === 'history' ? t.terminalHistoryRegionName : t.terminalLiveRegionName,
-    otherRegionName: region === 'history' ? t.terminalLiveRegionName : t.terminalHistoryRegionName,
     deleteLabel: t.terminalHistoryDeleteLabel,
     deleteTitle: t.terminalHistoryDeleteTitle,
     clearLabel: t.terminalLiveClearLabel,
     clearTitle: t.terminalLiveClearTitle,
-  });
+  };
 
   return (
     <div className="adl-tool-panel adl-tool-panel--terminal adl-center-terminal">
+      {/* 中间区工具栏：视图布局 + 交换位置靠左，更多操作靠右（与右面板工具栏顺序不同，按需求） */}
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
-        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files" />
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
           <TooltipSimple content={t.terminalViewLayoutLabel} placement="top">
             <div
@@ -222,6 +223,9 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
               />
             </button>
           </TooltipSimple>
+        </div>
+        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files" />
+        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
           <TerminalMenuDropdown
             menuOpen={view.terminalMenuOpen}
             menuRef={view.terminalMenuRef}
@@ -257,7 +261,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
                   canCollapse={canCollapse}
                   onToggleCollapse={() => view.toggleRegionCollapse('history')}
                   onDelete={() => void view.deleteHistory(tab.id)}
-                  titles={regionActionTitles('history')}
+                  titles={regionActionTitles}
                   alwaysVisible={!liveVisible}
                 />
               </div>
@@ -291,7 +295,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
                   canCollapse={canCollapse}
                   onToggleCollapse={() => view.toggleRegionCollapse('live')}
                   onClear={view.handleClear}
-                  titles={regionActionTitles('live')}
+                  titles={regionActionTitles}
                   alwaysVisible={!historyVisible}
                 />
               </div>
