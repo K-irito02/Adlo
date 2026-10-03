@@ -69,8 +69,8 @@ export class TerminalHistoryCollector {
   private written: TerminalHistoryChunkMeta[] = [];
   private seq = 0;
   private rebuilt = false;
-  /** 上次采集时的列数：列数变化＝xterm 重排，绝对行号失效（见 detectRewind） */
-  private lastCols = 0;
+  /** 上次采集时的列数：列数变化＝xterm 重排，绝对行号失效（见 detectRewind）。null = 尚未采集过 */
+  private lastCols: number | null = null;
   /** 上次成功封块的时刻（ms）：检查点的空闲兜底据此判定 */
   private lastSealAt = 0;
 
@@ -89,7 +89,7 @@ export class TerminalHistoryCollector {
     this.written = [];
     this.seq = 0;
     this.rebuilt = false;
-    this.lastCols = 0;
+    this.lastCols = null;
     this.lastSealAt = this.now();
   }
 
@@ -98,9 +98,21 @@ export class TerminalHistoryCollector {
   }
 
   /**
-   * 回卷（scrollback 溢出）是否已发生：返回 true 并**清除标志**（一次性消费）。
+   * 非破坏性窥视：是否已判定「绝对行号失效、需整段重建」（环回 **或** xterm 重排）。
+   *
+   * 与 `consumeRebuild` 的分工：重建的**后果**（淘汰旧代尾部块）必须等新代产出至少一个块
+   * 才能落实，调用方因此需要先窥视、待可执行时再消费。若直接消费而尚未落实，标志会丢失，
+   * 旧代尾部就永远无人淘汰（磁盘孤儿）。
+   */
+  hasRebuild(): boolean {
+    return this.rebuilt;
+  }
+
+  /**
+   * 重建标志的一次性消费（返回是否曾置位并清除）。
    * 一次性是关键：粘性标志会让调用方的「块数未变则跳过」保护永久失效，
    * 造成空闲期无意义 upsert；消费后由调用方决定是否重建索引。
+   * 仅当重建后果已落实（或本就无需落实）时才调用，见 `hasRebuild`。
    */
   consumeRebuild(): boolean {
     const rebuilt = this.rebuilt;
@@ -201,8 +213,14 @@ export class TerminalHistoryCollector {
    */
   private detectRewind(buffer: BufferSnapshot): void {
     const cols = this.deps.cols();
-    const overflowed = this.watermark > 0 && buffer.length < this.watermark;
-    const rewrapped = this.watermark > 0 && cols !== this.lastCols;
+    // 「是否已有需失效的增量状态」：除水位外，**未封块的 pending 也持有按旧排版提取的行**，
+    // 且它是续采锚点（`stagedTo = watermark + pending.length`）。故 pending 非空同样要纳入判定，
+    // 否则「新会话首帧采集未达封块上限」时（watermark 仍为 0）列数变化会被漏判，
+    // 下一次采集就会从新排版拼接旧排版的 pending → 行重复/缺失。
+    const hasState = this.watermark > 0 || this.pending.length > 0;
+    const overflowed = hasState && buffer.length < this.watermark;
+    // lastCols === null 表示尚未采集过：首帧只记录列数，不对全新会话误触发重建。
+    const rewrapped = hasState && this.lastCols !== null && cols !== this.lastCols;
     if (overflowed || rewrapped) {
       console.warn('[TERMINAL-HISTORY] rebuild whole segment', {
         sessionId: this.sessionId,

@@ -3,28 +3,7 @@ import {
   isCollapseButtonVisible,
   isRegionVisible,
   normalizeRegionCollapseMap,
-  toggleRegion,
 } from '../terminalRegionCollapse';
-
-describe('toggleRegion', () => {
-  it('两个区域都展开时收起指定区域', () => {
-    expect(toggleRegion('none', 'history')).toBe('history');
-    expect(toggleRegion('none', 'live')).toBe('live');
-  });
-
-  it('已收起某区域时再次点击即展开', () => {
-    expect(toggleRegion('history', 'history')).toBe('none');
-    expect(toggleRegion('live', 'live')).toBe('none');
-  });
-
-  it('三态值域天然保证不可能两个都收起', () => {
-    for (const state of ['none', 'history', 'live'] as const) {
-      for (const region of ['history', 'live'] as const) {
-        expect(['none', 'history', 'live']).toContain(toggleRegion(state, region));
-      }
-    }
-  });
-});
 
 describe('isRegionVisible', () => {
   it('被收起的区域不可见，另一个区域永远可见', () => {
@@ -40,7 +19,7 @@ describe('isRegionVisible', () => {
 });
 
 describe('isCollapseButtonVisible', () => {
-  it('只有两个区域都可能显示时才出现收起/展开按钮', () => {
+  it('只有两个区域都可能显示时才出现最大化/还原按钮', () => {
     expect(isCollapseButtonVisible(true)).toBe(true);
     expect(isCollapseButtonVisible(false)).toBe(false);
   });

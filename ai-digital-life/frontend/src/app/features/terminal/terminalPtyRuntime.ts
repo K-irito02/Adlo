@@ -448,11 +448,20 @@ export class TerminalPtyRuntime {
     }
   };
 
+  /**
+   * 淘汰被整段重建取代的旧代尾部块（键 `[nextCount, previousCount)`）。
+   *
+   * `ownerTabId` 可选：定稿路径已算出 owner（可能来自索引，而该会话重启恢复后已不在
+   * store 的 `terminalTabs` 里）；缺省才回退按 store 反查——否则那种情形会反查不到、
+   * 整个淘汰静默失效，旧代尾部永久成为磁盘孤儿。
+   */
   private evictStaleChunksForRebuild = async (
     sessionId: string,
     nextCount: number,
+    ownerTabId?: string,
   ): Promise<void> => {
-    const tabId = useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id;
+    const tabId =
+      ownerTabId ?? useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id;
     if (!tabId) {
       return;
     }
@@ -471,6 +480,30 @@ export class TerminalPtyRuntime {
       });
       await this.deleteChunksForSession(sessionId, start, count);
     }
+  };
+
+  /**
+   * 落实「采集器已判定整段重建」的后果：按新块数淘汰旧代尾部。
+   *
+   * 时机约束：必须等**新代已产出至少一个块**才淘汰——否则区间会被算成 `[0, previousCount)`，
+   * 旧块先被全删而索引仍指向它们（中途退出即永久丢历史）。因此「暂无淘汰依据」时**不消费**
+   * 重建标志，留待下次（封块后）再落实（见 `TerminalHistoryCollector.hasRebuild`）。
+   */
+  private settleRebuild = async (
+    sessionId: string,
+    collector: TerminalHistoryCollector,
+    written: TerminalHistoryChunkMeta[],
+    ownerTabId?: string,
+  ): Promise<void> => {
+    if (!collector.hasRebuild() || written.length === 0) {
+      return;
+    }
+    collector.consumeRebuild();
+    console.info('[TERMINAL-HISTORY] segment rebuilt', {
+      sessionId,
+      newChunks: written.length,
+    });
+    await this.evictStaleChunksForRebuild(sessionId, written.length, ownerTabId);
   };
 
   deleteHistoryForTab = async (tabId: string): Promise<void> => {
@@ -583,23 +616,13 @@ export class TerminalPtyRuntime {
     before: number,
   ): Promise<void> => {
     const written = collector.getWrittenChunks();
-    const rebuilt = collector.consumeRebuild();
+    // hasRebuild 只窥视不消费：重建的淘汰须待新代产出块后才落实（见 settleRebuild），
+    // 故「标志仍在」也要继续往下走，不能在标志被消费前就因「块数未变」提前返回。
+    const rebuilt = collector.hasRebuild();
     if (written.length === before && !rebuilt) {
       return;
     }
-    // 重建后新代从 seq 0 起覆盖写回，旧代多出的尾部才是陈旧块，且**必须等新块已落盘**
-    // 才能按新块数淘汰：若此时一个新块都还没封（written.length === 0），淘汰区间会算成
-    // [0, previousCount) → 旧块先被全删、索引却仍指向它们（中途退出即永久丢历史）。
-    if (rebuilt) {
-      console.info('[TERMINAL-HISTORY] segment rebuilt', {
-        sessionId,
-        prevChunks: before,
-        newChunks: written.length,
-      });
-      if (written.length > 0) {
-        await this.evictStaleChunksForRebuild(sessionId, written.length);
-      }
-    }
+    await this.settleRebuild(sessionId, collector, written);
     this.upsertHistoryEntry(sessionId, written);
   };
 
@@ -660,7 +683,6 @@ export class TerminalPtyRuntime {
     const collector = this.collectorFor(sessionId);
     const flushed = await collector.flush();
     // flush 同样过 detectRewind：退出前若发生过重排/环回，这里会整段重建。
-    const rebuilt = collector.consumeRebuild();
     const written = collector.getWrittenChunks();
     const segments = this.historyIndex.get(ownerTabId) ?? [];
     const at = segments.findIndex((s) => s.sessionId === sessionId);
@@ -675,6 +697,10 @@ export class TerminalPtyRuntime {
       this.throttled.delete(sessionId);
       return;
     }
+    // 落实重建后果（含下方 !flushed 的写失败重试路径）：新块已按 seq 从 0 覆盖写回，
+    // 旧代多出的尾部须整段淘汰，否则成为索引引用不到的磁盘孤儿（预算与删除路径都碰不到）。
+    // 传入 ownerTabId：重启恢复的旧段其 sessionId 已不在 store 的 terminalTabs 里。
+    await this.settleRebuild(sessionId, collector, written, ownerTabId);
     if (!flushed) {
       if (at >= 0 && segments[at].live) {
         const retry = segments.slice();
@@ -710,11 +736,6 @@ export class TerminalPtyRuntime {
       }
       return;
     }
-    // 定稿前若发生过重建：新块已按 seq 从 0 覆盖写回，旧代多出的尾部整段淘汰，
-    // 否则它们会成为索引引用不到的磁盘孤儿（预算统计与删除路径都碰不到）。
-    if (rebuilt && at >= 0) {
-      await this.evictStaleChunksForRebuild(sessionId, written.length);
-    }
     const existingSegment = segments[at];
     const next: TerminalHistorySegment = {
       sessionId,
@@ -733,10 +754,9 @@ export class TerminalPtyRuntime {
     }
     this.historyIndex.set(ownerTabId, updated);
     this.persistHistoryIndex();
-    console.info('[TERMINAL-HISTORY] segment finalized', {
+    console.debug('[TERMINAL-HISTORY] segment finalized', {
       sessionId,
       chunks: written.length,
-      rebuilt,
     });
     if (!options?.skipBudget) {
       void this.settleHistoryBudget();

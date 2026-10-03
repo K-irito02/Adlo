@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { CenterTerminalView } from '../CenterTerminalView';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
+import { terminalRegionCollapseStore } from '@features/terminal/terminalRegionCollapse';
 import type { CopyDict } from '@i18n/types';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 
@@ -42,8 +43,10 @@ const t = {
   terminalKillProcess: '杀死进程',
   terminalHistorySegmentUnavailable: '历史段不可用',
   terminalDividerLabel: '拖拽调整只读历史区大小',
-  terminalRegionCollapseTitle: '还原',
-  terminalRegionExpandTitle: '最大化',
+  terminalHistoryRegionName: '只读历史区域',
+  terminalLiveRegionName: '实时终端区域',
+  terminalRegionRestoreTitle: '还原',
+  terminalRegionMaximizeTitle: '最大化',
   terminalHistoryDeleteLabel: '删除历史',
   terminalHistoryDeleteTitle: '删除历史标题',
   terminalLiveClearLabel: '清空',
@@ -61,6 +64,22 @@ function makeTerminalTab(id: string, location: 'panel' | 'center'): TerminalTabS
     isPinned: false,
     sortOrder: 1,
     location,
+  };
+}
+
+/** 可用工作区条目（字段与 RecentWorkspaceEntry 结构一致，按需扩展） */
+function makeWorkspace(id: string, name: string) {
+  return {
+    id,
+    path: `E:\\${id}`,
+    rootPath: `E:\\${id}`,
+    name,
+    lastOpenedAt: 1,
+    isPinned: false,
+    pinnedOrder: 0,
+    unpinnedOrder: 0,
+    removedFromSidebar: false,
+    available: true,
   };
 }
 
@@ -112,6 +131,47 @@ describe('CenterTerminalView', () => {
     expect(s.terminalActiveTabId).not.toBe(created?.id);
   });
 
+  it('绑定工作区下拉可选并作用于新建终端：新标签带所选 workspaceId', () => {
+    useAppStore.setState({
+      recentWorkspaces: [makeWorkspace('ws-1', '工作区一'), makeWorkspace('ws-2', '工作区二')],
+    });
+
+    renderView('c1', null);
+
+    // SettingsSelect 为自定义 listbox：触发器 button + 经 Portal 挂 body 的菜单
+    fireEvent.click(screen.getByRole('button', { name: '绑定工作区' }));
+    fireEvent.click(screen.getByRole('option', { name: '工作区二' }));
+    expect(screen.getByRole('button', { name: '绑定工作区' }).textContent).toContain('工作区二');
+
+    fireEvent.click(screen.getByRole('button', { name: '新建终端' }));
+
+    const created = useAppStore.getState().terminalTabs.find((x) => x.location === 'center');
+    expect(created?.workspaceId).toBe('ws-2');
+  });
+
+  it('所选工作区变为不可用后回退为「默认终端目录」（不展示裸 ID、不绑定失效工作区）', () => {
+    useAppStore.setState({ recentWorkspaces: [makeWorkspace('ws-1', '工作区一')] });
+    renderView('c1', null);
+
+    fireEvent.click(screen.getByRole('button', { name: '绑定工作区' }));
+    fireEvent.click(screen.getByRole('option', { name: '工作区一' }));
+    expect(screen.getByRole('button', { name: '绑定工作区' }).textContent).toContain('工作区一');
+
+    // 卡片打开期间该工作区变为不可用 → 下拉与创建都回退到「默认终端目录」
+    act(() => {
+      useAppStore.setState({
+        recentWorkspaces: [{ ...makeWorkspace('ws-1', '工作区一'), available: false }],
+      });
+    });
+
+    expect(screen.getByRole('button', { name: '绑定工作区' }).textContent).toContain(
+      '默认终端目录',
+    );
+    fireEvent.click(screen.getByRole('button', { name: '新建终端' }));
+    const created = useAppStore.getState().terminalTabs.find((x) => x.location === 'center');
+    expect(created?.workspaceId).toBe('');
+  });
+
   it('terminalTabId 非空时渲染只含单双列/交换/菜单的工具栏', () => {
     const centerTerm = makeTerminalTab('tc', 'center');
     useAppStore.setState({
@@ -129,6 +189,22 @@ describe('CenterTerminalView', () => {
     // 无新建终端复合按钮、无左侧目录导航开关
     expect(screen.queryByRole('button', { name: '新建终端' })).toBeNull();
     expect(screen.queryByRole('button', { name: '终端目录' })).toBeNull();
+  });
+
+  it('历史不存在时忽略「隐藏实时区」的持久化折叠态：实时区仍渲染（渲染期归一化）', () => {
+    // 重启后历史索引惰性加载完成前 hasHistory=false；若持久化折叠态是 'live'（曾最大化历史），
+    // 不归一化就会两区皆不可见且无按钮可恢复。本用例锁定归一化确实生效。
+    terminalRegionCollapseStore.save({ tc: 'live' });
+    const centerTerm = makeTerminalTab('tc', 'center');
+    useAppStore.setState({
+      terminalTabs: [centerTerm],
+      terminalTabsById: { tc: centerTerm },
+      terminalActiveTabId: 'tc',
+    });
+
+    const { container } = renderView('c1', 'tc');
+
+    expect(container.querySelector('.adl-terminal-live')).not.toBeNull();
   });
 
   it('会话已终止且无 session 时用项目 warning SVG 图标（非硬编码字符）', () => {

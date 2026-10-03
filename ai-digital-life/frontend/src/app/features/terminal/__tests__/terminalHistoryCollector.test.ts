@@ -199,6 +199,53 @@ describe('TerminalHistoryCollector', () => {
     expect(collector.consumeRebuild()).toBe(false);
   });
 
+  it('未封块（watermark 仍为 0、pending 非空）时列数变化同样重建：pending 也是失效的续采锚点', async () => {
+    const written: Record<string, string> = {};
+    let cols = 10;
+    const collector = new TerminalHistoryCollector({
+      readBuffer: () => makeBuffer(['a', 'b', 'c'], []),
+      cols: () => cols,
+      write: async (key, payload) => {
+        written[key] = payload;
+        return true;
+      },
+    });
+    collector.setSessionId('s');
+    // 3 行远未达 64 KiB 封块上限 → 只进 pending，watermark 保持 0
+    await collector.collect();
+    expect(collector.getWrittenChunks()).toEqual([]);
+    expect(Object.keys(written)).toEqual([]);
+    expect(collector.consumeRebuild()).toBe(false); // 首帧只记录列数，不重建
+
+    cols = 40;
+    await collector.collect();
+    expect(collector.hasRebuild()).toBe(true);
+  });
+
+  it('hasRebuild 是非破坏性窥视：未消费前保持 true，consumeRebuild 后转 false', async () => {
+    const written: Record<string, string> = {};
+    let buffer = makeBuffer(['a', 'b', 'c'], []);
+    const collector = new TerminalHistoryCollector({
+      readBuffer: () => buffer,
+      cols: () => 10,
+      write: async (key, payload) => {
+        written[key] = payload;
+        return true;
+      },
+    });
+    collector.setSessionId('s');
+    await collector.flush();
+    expect(collector.hasRebuild()).toBe(false);
+
+    // 环回：总行数缩到水位之下
+    buffer = { length: 1, baseY: 0, activeType: 'normal', getLine: () => undefined };
+    await collector.collect();
+    expect(collector.hasRebuild()).toBe(true);
+    expect(collector.hasRebuild()).toBe(true); // 窥视不消费
+    expect(collector.consumeRebuild()).toBe(true);
+    expect(collector.hasRebuild()).toBe(false);
+  });
+
   it('块上限常量取自设计（64 KiB）', () => {
     expect(TERMINAL_HISTORY_CHUNK_MAX_BYTES).toBe(64 * 1024);
   });

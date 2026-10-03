@@ -106,9 +106,10 @@ export interface UseTerminalPanelReturn {
     swapAreas: () => void;
     /** 分界线拖拽起始（单列调高度、双列调宽度） */
     handleDividerPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
-    /** 收起/展开某个只读区域（'history' | 'live'）；再点一次还原 'none' */
+    /** 最大化某区域（'history' | 'live'，另一区让位）；已最大化时点可见区即还原两区可见（'none'） */
     toggleRegionCollapse: (region: RegionName) => void;
-    /** 删除当前标签的全部只读历史，并把折叠态复位为 'none'（实时区随之恢复展开） */
+    /** 删除当前标签的全部只读历史，并把折叠态复位为 'none'（实时区随之恢复展开；
+        消费点另有渲染期归一化兜底，见 terminalRegionCollapse.ts） */
     deleteHistory: (tabId: string) => Promise<void>;
     /** 右键菜单「重命名」：进入内联编辑并关闭菜单 */
     handleRenameFromMenu: () => void;
@@ -263,7 +264,7 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
 
   /**
    * 删除历史：清索引 + 清全部块 + 折叠状态复位为 'none'。
-   * 实时区若原本收起则随之恢复展开；历史没了 → 收起/展开按钮自然消失。
+   * 实时区若原本被隐藏则随之恢复可见；历史没了 → 最大化/还原按钮自然消失。
    */
   const deleteHistory = useCallback(
     async (tabId: string) => {

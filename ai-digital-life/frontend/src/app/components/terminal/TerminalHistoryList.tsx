@@ -47,19 +47,31 @@ export function TerminalHistoryList({
   const [viewportHeight, setViewportHeight] = useState(0);
   const [cols, setCols] = useState(80);
   const [rowHeight, setRowHeight] = useState(FALLBACK_ROW_HEIGHT);
-  const [chunks, setChunks] = useState<Map<string, HistoryRun[][]>>(new Map());
+  // 已加载块的**原始行**（采集时的行模型，与列数无关）。
+  const [rawChunks, setRawChunks] = useState<Map<string, HistoryRun[][]>>(new Map());
+
+  // 渲染用的折行结果按**当前 cols** 单独派生：列数变化（拖拽分界线 / 窗口宽度变化）后
+  // 已加载块必须重新折行，否则停留旧折行——变窄时超宽行会被滚动容器的
+  // `overflow-x: hidden` 裁掉右端文字，且行数与实时终端的列口径不一致。
+  const wrappedChunks = useMemo(() => {
+    const out = new Map<string, HistoryRun[][]>();
+    for (const [key, lines] of rawChunks) {
+      out.set(key, wrapLines(lines, cols));
+    }
+    return out;
+  }, [rawChunks, cols]);
 
   const layout = useMemo(
     () =>
       buildLayout(
         segments,
         // wrappedLinesOf：未加载的块回退到 meta.lines（采集时刻的屏幕行数），
-        // 加载完成后再用真实内容折行得到的行数覆盖它。二者在
+        // 加载完成后再用真实内容按**当前 cols** 折行得到的行数覆盖它。二者在
         // 「当前面板列数 ≠ 采集时列数」时可以不同，所以「加载一个块」可能改变
         // layout.length。这种高度纠正是 Finding 3 的锚定逻辑负责吸收的 —— 块加载
         // 时视图不跳到底部、滚动位置保持，于是行数变化对用户无感。
         (sessionId, seq) => {
-          const loaded = chunks.get(chunkKey(sessionId, seq));
+          const loaded = wrappedChunks.get(chunkKey(sessionId, seq));
           if (loaded) {
             return loaded.length;
           }
@@ -68,7 +80,7 @@ export function TerminalHistoryList({
         },
         cols,
       ),
-    [segments, chunks, cols],
+    [segments, wrappedChunks, cols],
   );
 
   // 滚动条几何/拖拽复用项目通用 hook，thumb 样式自绘成 xterm 自绘条同款
@@ -118,7 +130,9 @@ export function TerminalHistoryList({
       }
       const blockRows = segment.chunks.reduce(
         (sum, _c, seq) =>
-          sum + (chunks.get(chunkKey(segment.sessionId, seq))?.length ?? segment.chunks[seq].lines),
+          sum +
+          (wrappedChunks.get(chunkKey(segment.sessionId, seq))?.length ??
+            segment.chunks[seq].lines),
         0,
       );
       for (let i = 0; i < blockRows + 1; i += 1) {
@@ -126,7 +140,7 @@ export function TerminalHistoryList({
       }
     }
     return owners;
-  }, [segments, chunks]);
+  }, [segments, wrappedChunks]);
 
   // 段级稳定键：只有「段集合本身」变化（首屏挂载 / 历史被删 / 追加新段）才会改变。
   // 单个块加载完成、或 resize 后重新折行，都不会改变这个键 —— 那些情况应保持
@@ -142,7 +156,7 @@ export function TerminalHistoryList({
     [segments],
   );
 
-  // 块级懒加载：视口内的块才 load → parse → 按 cols 折行
+  // 块级懒加载：视口内的块才 load → parse → 存入原始行（折行由 wrappedChunks 按当前 cols 派生）
   useEffect(() => {
     let cancelled = false;
     const needed = new Set<string>();
@@ -155,13 +169,15 @@ export function TerminalHistoryList({
     }
     void (async () => {
       for (const key of needed) {
-        if (cancelled || chunks.has(key)) {
+        if (cancelled || rawChunks.has(key)) {
           continue;
         }
         const raw = await terminalOutputStore.load(key);
         if (cancelled) {
           continue;
         }
+        // 只缓存**原始行**：折行交给渲染侧的 wrappedChunks 按当前 cols 派生，
+        // 这样列数变化后已加载块能跟着重折行（否则会被 overflow-x 裁掉右端）。
         let lines: HistoryRun[][];
         if (raw === null) {
           // 内容确实缺失（非解析失败）：渲染「不可用」占位行，而非留空行。
@@ -169,18 +185,20 @@ export function TerminalHistoryList({
           lines = [[{ text: unavailableLabel }]];
         } else {
           try {
-            lines = wrapLines((JSON.parse(raw) as HistoryChunk).lines, cols);
+            lines = (JSON.parse(raw) as HistoryChunk).lines;
           } catch {
             lines = [[{ text: unavailableLabel }]];
           }
         }
-        setChunks((prev) => new Map(prev).set(key, lines));
+        setRawChunks((prev) => new Map(prev).set(key, lines));
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [firstVisible, lastVisible, layout, ownerOf, cols, chunks, unavailableLabel]);
+    // cols 不在依赖内：折行已移出本 effect（改由 wrappedChunks 派生），
+    // 列数变化不必重新拉取/解析块内容。
+  }, [firstVisible, lastVisible, layout, ownerOf, rawChunks, unavailableLabel]);
 
   // 定位到底部 —— 区分「段集合变化」与「块加载 / resize」两种 layout 变化来源：
   //  - segmentChanged：首屏 / 追加 / 删除 → 落到最新内容；
@@ -232,7 +250,7 @@ export function TerminalHistoryList({
                   <TerminalHistoryRow
                     runs={
                       owner
-                        ? (chunks.get(chunkKey(owner.sessionId, row.chunkIndex))?.[
+                        ? (wrappedChunks.get(chunkKey(owner.sessionId, row.chunkIndex))?.[
                             row.lineIndexInChunk
                           ] ?? EMPTY_RUNS)
                         : EMPTY_RUNS

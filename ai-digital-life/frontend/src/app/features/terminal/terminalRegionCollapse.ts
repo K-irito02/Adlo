@@ -6,15 +6,14 @@ export const TERMINAL_REGION_COLLAPSE_KEY = 'adl:terminal.regionCollapse';
 export type RegionCollapse = 'none' | 'history' | 'live';
 export type RegionName = 'history' | 'live';
 
-/**
- * 折叠状态按**标签**记录。
- *
- * 用三态而不是两个布尔：值域本身就排除了「两个区域都收起」这种非法组合，
- * 因此不需要额外的互斥校验，也不可能出现「两个区域都不可见」的空面板。
- */
-export function toggleRegion(collapse: RegionCollapse, region: RegionName): RegionCollapse {
-  return collapse === region ? 'none' : region;
-}
+// 折叠态按**标签**记录，且存的始终是「**被隐藏的**区域」。用三态而不是两个布尔：值域本身
+// 就排除了「两个区域都收起」这种非法组合，因此不需要额外的互斥校验。
+// 唯一的切换入口是下方的 `nextRegionCollapse` —— 不要再引入语义相反的第二套「折叠」切换，
+// 否则同模块并存两套相反语义极易误用。
+//
+// 注意：`(hasHistory=false, collapse='live')` 是**唯一**会两区皆不可见的组合。历史被删除时
+// `deleteHistory` 会把折叠态复位为 'none'；重启时历史索引惰性加载期间 `hasHistory` 短暂为
+// false，故消费点（TerminalPanel / CenterTerminalView）另做渲染期归一化兜底。
 
 /**
  * 「最大化 / 还原」按钮的单点决策（面板与中心共用）。
@@ -47,8 +46,8 @@ export function isRegionVisible(
 }
 
 /**
- * 「收起/展开」按钮只在**两个区域都可能显示**时出现。
- * 历史被删除后只剩实时区，按钮自然消失 —— 这正是需求里「不再显示收起/展开」的来源。
+ * 「最大化/还原」按钮只在**两个区域都可能显示**时出现。
+ * 历史被删除后只剩实时区，按钮自然消失 —— 这正是需求里「不再显示该按钮」的来源。
  */
 export function isCollapseButtonVisible(hasHistory: boolean): boolean {
   return hasHistory;

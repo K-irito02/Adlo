@@ -77,9 +77,16 @@ function CenterTerminalChooser({ centerTabId }: { centerTabId: string }) {
     [visibleWorkspaces, t],
   );
 
+  // 已选工作区可能在卡片打开期间被移出侧栏 / 变为不可用 → 回退到「默认终端目录」：
+  // 既避免下拉展示裸 ID（SettingsSelect 对未知 value 回退显示 value 本身），
+  // 也避免用已失效的工作区去建终端。
+  const effectiveWorkspaceId = workspaceOptions.some((option) => option.value === workspaceId)
+    ? workspaceId
+    : '';
+
   const handleCreate = useCallback(() => {
     // terminalCreateTab 同步写入 store，随后回读新标签 id（与面板 handleCreateTab 同语义）。
-    terminalCreateTab(profile, workspaceId);
+    terminalCreateTab(profile, effectiveWorkspaceId);
     const newTabId = useAppStore.getState().terminalActiveTabId;
     if (!newTabId) {
       return;
@@ -90,7 +97,7 @@ function CenterTerminalChooser({ centerTabId }: { centerTabId: string }) {
     clampPanelActiveTab();
   }, [
     profile,
-    workspaceId,
+    effectiveWorkspaceId,
     centerTabId,
     terminalCreateTab,
     terminalSetLocation,
@@ -123,7 +130,7 @@ function CenterTerminalChooser({ centerTabId }: { centerTabId: string }) {
           <span className="adl-center-terminal__workspace-label">{t.terminalBindWorkspace}</span>
           <SettingsSelect
             className="adl-center-terminal__workspace-dropdown"
-            value={workspaceId}
+            value={effectiveWorkspaceId}
             options={workspaceOptions}
             onChange={setWorkspaceId}
             label={t.terminalBindWorkspace}
@@ -164,14 +171,19 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
 
   const hasHistory = view.historySegments.length > 0;
   const isDual = view.viewPrefs.mode === 'dual';
-  const historyVisible = isRegionVisible(view.regionCollapse, 'history', hasHistory);
-  const liveVisible = isRegionVisible(view.regionCollapse, 'live', true);
+  // 渲染期归一化：历史不存在时只允许「两区都可见」。否则 (hasHistory=false, collapse='live')
+  // 会让两区皆不可见且无按钮可恢复 —— 重启后历史索引惰性加载完成前 hasHistory 会短暂为 false，
+  // 正是该窗口（详见 terminalRegionCollapse.ts 的约定注释）。
+  const collapse = hasHistory ? view.regionCollapse : 'none';
+  const historyVisible = isRegionVisible(collapse, 'history', hasHistory);
+  const liveVisible = isRegionVisible(collapse, 'live', true);
   const canCollapse = isCollapseButtonVisible(hasHistory);
 
-  // 两个区域共用同一份叠加层文案（最大化/还原不再带区域名，见 TerminalRegionActions）
+  // 两个区域共用同一份叠加层文案；「最大化/还原」的可见 title 不带区域名，
+  // 区域名只进各自按钮的 aria-label（见 TerminalRegionActions 文件头）。
   const regionActionTitles = {
-    collapse: t.terminalRegionCollapseTitle,
-    expand: t.terminalRegionExpandTitle,
+    restore: t.terminalRegionRestoreTitle,
+    maximize: t.terminalRegionMaximizeTitle,
     deleteLabel: t.terminalHistoryDeleteLabel,
     deleteTitle: t.terminalHistoryDeleteTitle,
     clearLabel: t.terminalLiveClearLabel,
@@ -257,11 +269,12 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
                 />
                 <TerminalRegionActions
                   region="history"
-                  collapsedRegion={view.regionCollapse}
+                  collapsedRegion={collapse}
                   canCollapse={canCollapse}
                   onToggleCollapse={() => view.toggleRegionCollapse('history')}
                   onDelete={() => void view.deleteHistory(tab.id)}
                   titles={regionActionTitles}
+                  regionName={t.terminalHistoryRegionName}
                   alwaysVisible={!liveVisible}
                 />
               </div>
@@ -291,11 +304,12 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
                 />
                 <TerminalRegionActions
                   region="live"
-                  collapsedRegion={view.regionCollapse}
+                  collapsedRegion={collapse}
                   canCollapse={canCollapse}
                   onToggleCollapse={() => view.toggleRegionCollapse('live')}
                   onClear={view.handleClear}
                   titles={regionActionTitles}
+                  regionName={t.terminalLiveRegionName}
                   alwaysVisible={!historyVisible}
                 />
               </div>

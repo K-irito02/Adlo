@@ -4,9 +4,9 @@ import { IconClearDisplay, IconDelete, IconRegionCollapse, IconRegionExpand } fr
 
 export interface TerminalRegionActionsTitles {
   /** 单区独显时（本区已覆盖另一区）的按钮文案：还原两区 */
-  collapse: string;
+  restore: string;
   /** 两区都可见时的按钮文案：最大化本区（另一区让位） */
-  expand: string;
+  maximize: string;
   /** 以下四项必填：调用方恒按区域成对提供（历史区给删除、实时区给清空），
       设为可选会让漏传变成「按钮无 aria-label/title」的静默缺陷。 */
   deleteLabel: string;
@@ -30,6 +30,8 @@ interface TerminalRegionActionsProps {
   onDelete?: () => void;
   onClear?: () => void;
   titles: TerminalRegionActionsTitles;
+  /** 本区域的显示名（如「只读历史区域」）：仅进 `aria-label`，不进可见 title（见文件头第 3 条） */
+  regionName: string;
   /** 常驻显示（该区域已是唯一可见区域），不依赖 hover */
   alwaysVisible?: boolean;
 }
@@ -37,9 +39,12 @@ interface TerminalRegionActionsProps {
 /**
  * 区域右上角按钮叠加层。
  *
- * 两个约束来自需求与既有实现：
- * 1. 顺序固定为「删除/清空在左，收起/展开在右」；
- * 2. 用**系统原生 title**（不是组件的自定义 Tooltip）—— 直接写在 `title` 属性上。
+ * 三个约束来自需求与既有实现：
+ * 1. 顺序固定为「删除/清空在左，最大化/还原在右」；
+ * 2. 用**系统原生 title**（不是组件的自定义 Tooltip）—— 直接写在 `title` 属性上；
+ * 3. 可见 `title` 按需求保持短文案（「最大化 / 还原」，不带区域名），
+ *    而 `aria-label` 额外拼上区域名 —— 两区都可见时会出现两个同名按钮，
+ *    必须靠 `aria-label` 让 AT 能区分各自作用于哪个区域。
  */
 export function TerminalRegionActions({
   region,
@@ -49,17 +54,19 @@ export function TerminalRegionActions({
   onDelete,
   onClear,
   titles,
+  regionName,
   alwaysVisible,
 }: TerminalRegionActionsProps) {
   // 被收起的区不应渲染本组件（调用方契约）；误渲染时返回 null，
-  // 避免把“展开另一区”显示在错误的按钮上。
+  // 避免把「最大化/还原」安在本不该出现的按钮上。
   if (collapsedRegion === region) {
     return null;
   }
   // 本区是否已「最大化」（另一区被收起、本区覆盖全屏）：
   // 已最大化 → 按钮是「还原」（四角内收）；两区都可见 → 按钮是「最大化本区」（四角外扩）。
   const isMaximized = collapsedRegion !== 'none';
-  const toggleTitle = isMaximized ? titles.collapse : titles.expand;
+  const toggleTitle = isMaximized ? titles.restore : titles.maximize;
+  const toggleAriaLabel = `${toggleTitle} ${regionName}`;
 
   return (
     <div className={`adl-terminal-region-actions${alwaysVisible ? ' is-always-visible' : ''}`}>
@@ -89,7 +96,7 @@ export function TerminalRegionActions({
         <button
           type="button"
           className="adl-terminal-region-actions__btn"
-          aria-label={toggleTitle}
+          aria-label={toggleAriaLabel}
           title={toggleTitle}
           onClick={onToggleCollapse}
           data-region={region}

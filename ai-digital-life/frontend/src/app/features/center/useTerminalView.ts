@@ -29,6 +29,7 @@ export interface UseTerminalViewReturn {
   setViewMode: (mode: TerminalViewMode) => void;
   swapAreas: () => void;
   handleDividerPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
+  /** 最大化某区域（另一区让位）；已最大化时点可见区即还原两区可见 */
   toggleRegionCollapse: (region: RegionName) => void;
   deleteHistory: (tabId: string) => Promise<void>;
   handleXtermData: (data: string) => void;

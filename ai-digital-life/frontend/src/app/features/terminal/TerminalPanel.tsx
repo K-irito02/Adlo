@@ -89,15 +89,19 @@ export function TerminalPanel() {
   const isDual = viewPrefs.mode === 'dual';
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
-  const historyVisible = isRegionVisible(regionCollapse, 'history', hasHistory);
-  const liveVisible = isRegionVisible(regionCollapse, 'live', true);
+  // 渲染期归一化：历史不存在时只允许「两区都可见」。否则 (hasHistory=false, collapse='live')
+  // 会让两区皆不可见且无按钮可恢复 —— 重启后历史索引惰性加载完成前 hasHistory 会短暂为 false，
+  // 正是该窗口（详见 terminalRegionCollapse.ts 的约定注释）。
+  const collapse = hasHistory ? regionCollapse : 'none';
+  const historyVisible = isRegionVisible(collapse, 'history', hasHistory);
+  const liveVisible = isRegionVisible(collapse, 'live', true);
   const canCollapse = isCollapseButtonVisible(hasHistory);
 
-  // 两个区域共用同一份叠加层文案（最大化/还原不再带区域名，见 TerminalRegionActions）；
-  // 文案均来自 i18n 键（无硬编码字符串）。
+  // 两个区域共用同一份叠加层文案；「最大化/还原」的可见 title 不带区域名，
+  // 区域名只进各自按钮的 aria-label（见 TerminalRegionActions 文件头）。文案均来自 i18n 键。
   const regionActionTitles = {
-    collapse: t.terminalRegionCollapseTitle,
-    expand: t.terminalRegionExpandTitle,
+    restore: t.terminalRegionRestoreTitle,
+    maximize: t.terminalRegionMaximizeTitle,
     deleteLabel: t.terminalHistoryDeleteLabel,
     deleteTitle: t.terminalHistoryDeleteTitle,
     clearLabel: t.terminalLiveClearLabel,
@@ -389,11 +393,12 @@ export function TerminalPanel() {
                     />
                     <TerminalRegionActions
                       region="history"
-                      collapsedRegion={regionCollapse}
+                      collapsedRegion={collapse}
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('history')}
                       onDelete={() => void terminalActions.deleteHistory(activeTab?.id ?? '')}
                       titles={regionActionTitles}
+                      regionName={t.terminalHistoryRegionName}
                       alwaysVisible={!liveVisible}
                     />
                   </div>
@@ -423,11 +428,12 @@ export function TerminalPanel() {
                     />
                     <TerminalRegionActions
                       region="live"
-                      collapsedRegion={regionCollapse}
+                      collapsedRegion={collapse}
                       canCollapse={canCollapse}
                       onToggleCollapse={() => terminalActions.toggleRegionCollapse('live')}
                       onClear={terminalActions.handleClear}
                       titles={regionActionTitles}
+                      regionName={t.terminalLiveRegionName}
                       alwaysVisible={!historyVisible}
                     />
                   </div>

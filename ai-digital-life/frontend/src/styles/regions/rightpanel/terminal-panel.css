@@ -392,7 +392,9 @@
    区域悬停（未悬停滑块）时贴右边缘显现 3px 细线（右留 2px）；
    悬停/拖拽滑块本体时变 14px 直角宽滑块并贴边（right: 0）。
    颜色取 xterm 口径：前景色 20% 不透明，hover/active 40%
-   （见 @xterm/xterm ThemeService.ts 的 scrollbarSliderBackground 派生）。 */
+   （见 @xterm/xterm `src/browser/services/ThemeService.ts` 的
+   `scrollbarSliderBackground = color.opacity(foreground, 0.2)` /
+   `scrollbarSliderHoverBackground = color.opacity(foreground, 0.4)` 派生）。 */
 .adl-terminal-histscroll {
   position: absolute;
   top: 0;
@@ -406,6 +408,12 @@
 }
 
 .adl-terminal-histscroll[data-visible='true'] {
+  opacity: 1;
+}
+
+/* 拖拽期间指针离开区域时 hook 的 onMouseLeave 会置 hovered=false → 容器 opacity 归零、
+   正被拖拽的滑块消失；与 xterm 的 `.slider.active` 同旨：按住滑块期间保持可见。 */
+.adl-terminal-histscroll:has(.adl-terminal-histscroll__thumb:active) {
   opacity: 1;
 }
 

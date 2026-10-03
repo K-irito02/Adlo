@@ -31,8 +31,8 @@
 /* 两个小标题（「新建终端」卡片标题 / 「绑定工作区」字段标题）统一字号、字重与亮度，单点维护 */
 .adl-center-terminal__chooser-title,
 .adl-center-terminal__workspace-label {
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
   color: var(--text-primary);
 }
 
