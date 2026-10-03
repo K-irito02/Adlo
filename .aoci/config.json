@@ -159,6 +159,72 @@
         "created_by": "human",
         "order": 201,
         "enabled": true
+      },
+      {
+        "rule_id": "exclude-adl-cache",
+        "action": "exclude",
+        "pattern": "**/.adl-cache/**",
+        "pattern_kind": "glob",
+        "reason": "预览/站点元数据生成缓存（.gitignore 已忽略），非源码",
+        "source": "user",
+        "created_by": "human",
+        "order": 210,
+        "enabled": true
+      },
+      {
+        "rule_id": "exclude-adl-logs",
+        "action": "exclude",
+        "pattern": "ai-digital-life/.adl-logs/**",
+        "pattern_kind": "glob",
+        "reason": "运行时 tracing 日志（根 .gitignore 已忽略），索引它会因每次运行变更而永久 stale",
+        "source": "user",
+        "created_by": "human",
+        "order": 210,
+        "enabled": true
+      },
+      {
+        "rule_id": "exclude-codegraph",
+        "action": "exclude",
+        "pattern": "ai-digital-life/.codegraph/**",
+        "pattern_kind": "glob",
+        "reason": "CodeGraph 工具内部数据（.gitignore 已忽略），非项目源码",
+        "source": "user",
+        "created_by": "human",
+        "order": 210,
+        "enabled": true
+      },
+      {
+        "rule_id": "exclude-server-config",
+        "action": "exclude",
+        "pattern": "ai-digital-life/crates/server/config/**",
+        "pattern_kind": "glob",
+        "reason": "ad-server 生成的测试污染配置（.gitignore 已忽略）",
+        "source": "user",
+        "created_by": "human",
+        "order": 210,
+        "enabled": true
+      },
+      {
+        "rule_id": "exclude-tauri-gen",
+        "action": "exclude",
+        "pattern": "ai-digital-life/src-tauri/gen/**",
+        "pattern_kind": "glob",
+        "reason": "Tauri 自动生成的 schema（.gitignore 已忽略）",
+        "source": "user",
+        "created_by": "human",
+        "order": 210,
+        "enabled": true
+      },
+      {
+        "rule_id": "exclude-tsbuildinfo",
+        "action": "exclude",
+        "pattern": "**/*.tsbuildinfo",
+        "pattern_kind": "glob",
+        "reason": "TypeScript 增量编译缓存（.gitignore 已忽略）",
+        "source": "user",
+        "created_by": "human",
+        "order": 210,
+        "enabled": true
       }
     ]
   },

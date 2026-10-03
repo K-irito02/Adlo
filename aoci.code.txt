@@ -2,9 +2,6 @@
 
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/===
 
-===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/.adl-logs/===
-terminal-logs.txt[OO3T]: F:运行期tracing日志落盘（时间戳/级别/ThreadId/target），记录PTY、存储与dsh宿主事件供排查取证 | R:code:ai-digital-life/crates/adl-logging/src/manager.rs | A:tracing fmt行格式与[ADL-DEBUG]探针标记约定 | S:运行时产物非手写源码；含本机绝对路径与用户目录，外发前须脱敏
-
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/.agents/rules/===
 learn-analysis-result.json[SG4S]: F:存储learn技能产出的5条高影响代码模式分析（ts-rs类型生成、Bridge三实现、IpcResult错误镜像、实体表宏、serde双注解） | R:code:ai-digital-life/frontend/src/shared/typedErrors.ts,code:ai-digital-life/frontend/src/shared/ipc/shared.ts | A:findings数组结构（title/category/impactScore/evidence/content） | S:抽样分析快照（45/5149文件），结论非全量覆盖，勿当现时事实引用
 
@@ -13,9 +10,6 @@ clean-target.ps1[XV5T]: F:磁盘护理脚本：target/debug超30GB阈值即全�
 clean-target.tests.ps1[TV4T]: F:clean-target.ps1红绿回归测试：阈值内跳过、超阈值WhatIf不删、Full干跑安全三场景断言 | R:code:ai-digital-life/.cargo/clean-target.ps1 | A:powershell -File直跑，退出码0/1（ALL TESTS PASSED/TEST FAILED） | S:三场景均断言干跑不得删除文件——改动清理脚本须保持该不变量
 config.toml[FV6T]: F:Cargo工作区配置：第三方依赖debug=1+opt-level=1、自有crate debug=2白名单、regex/glob发布级优化、rebuild/prune别名 | R:code:ai-digital-life/Cargo.toml,code:ai-digital-life/.cargo/clean-target.ps1 | A:alias rebuild/prune与profile.dev.package.*调试符号策略 | S:新增自有crate须同步补debug=2白名单，否则静默降为行号级调试、断点查不到类型
 test-targeted.ps1[TQ4S]: F:按git变更映射受影响crate定向跑cargo test，支持-Crate/-TestFile/-TestName/-Full，未映射时回退全量 | R:code:ai-digital-life/Cargo.toml | A:CLI参数契约与cargo test退出码透传 | S:crateMap缺download-source/dsh-bundle映射，其变更会静默回退全量workspace测试
-
-===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/.codegraph/===
-.gitignore[FZ2T]: F:忽略.codegraph全部数据文件仅保留本说明，防SQLite图谱与daemon临时文件入库 | R:- | A:*全忽略加!.gitignore白名单的git模式 | S:-
 
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/===
 .gitignore[FC5T]: F:声明实现工作区忽略规则：构建产物、node_modules、生成schema、日志、缓存与临时目录 | R:- | A:/target、/frontend/node_modules、/src-tauri/gen、*.tsbuildinfo等模式清单 | S:被此文件忽略的路径同时退出AOCI受管索引（scan按git忽略权威取文件）
@@ -212,9 +206,6 @@ windows_compat.rs[TR4S]: F:Windows PTY 兼容测试：cmd/powershell 真实 ConP
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/crates/server/===
 Cargo.toml[FN4T]: F:adl-server crate清单：16 个 adl-* 内部 crate 与 axum(ws)/tokio/rusqlite/serde 依赖，dev 用 tokio-tungstenite/tower/uuid | R:code:ai-digital-life/crates/server/src/engine.rs | A:crate名adl-server（bin adl-server） | S:-
 
-===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/crates/server/config/===
-config.json[FC3T]: F:adl-server 开发/测试配置样例：语言/主题/日志模式/工作区加载顺序/浏览器挂起/终端预算 | R:code:ai-digital-life/crates/server/src/engine.rs,code:ai-digital-life/crates/kernel/src/config.rs | A:与 kernel AppConfig 同 schema 的 config.json | S:含本机绝对路径属开发态勿当模板；挂起值 3600000 非产品默认 900000
-
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/crates/server/src/bin/===
 adl-server.rs[ER4T]: F:adl-server 可执行入口：解析 --port/--data-dir，构造 StorageDefaults，迁移后建 storage 与 state，serve 并打印 AD_SERVER_PORT | R:code:ai-digital-life/crates/server/src/engine.rs | A:CLI 参数 --port/--data-dir、stdout 输出 AD_SERVER_PORT、退出码 | S:迁移须早于任何 DB/日志句柄及 storage 构造；端口默认 0 由 OS 分配
 
@@ -392,9 +383,6 @@ progress-2026-10-02-193500.md[SW3M]: F:根因进度（2026-10-02）：中心浏�
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/docs/superpowers/specs/===
 2026-09-10-pty-subsystem-redesign.md[SW3L]: F:PTY 子系统重设计规格：背景(ConPTY 问题)、目标架构、模块设计、WebSocket 协议、测试策略、风险与回退方案 | R:code:ai-digital-life/docs/superpowers/plans/2026-09-10-pty-subsystem-redesign.md | A:设计文档结构（概述/架构/模块/协议/测试/风险） | S:描述设计意图；WebSocket 仅新增 terminated 事件
 
-===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/.adl-cache/===
-site-meta-cache.json[PD2T]: F:预览端网站元数据磁盘缓存：URL 到 标题/来源/favicon URL/data-URI 的映射 | R:- | A:JSON 对象（URL 键，title/titleSource/faviconUrl/faviconDataUri 值） | S:运行时生成产物（非手写）；含 favicon 与真实站点数据，勿手工编辑
-
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/frontend/===
 .prettierignore[FV3T]: F:Prettier 忽略清单：dist/node_modules/coverage、生成的 ipc-types 与 vite-env、test-fixtures/mock/types、*.config.* 与 *.d.ts | R:code:ai-digital-life/frontend/.prettierrc | A:glob 忽略模式列表 | S:与 ESLint ignore 镜像，生成文件不参与格式检查
 .prettierrc[FV3T]: F:Prettier 配置：semi/singleQuote/trailingComma=all/printWidth=100/tabWidth=2/arrowParens=always/endOfLine=lf | R:code:ai-digital-life/frontend/.prettierignore | A:JSON 配置键 | S:endOfLine=lf 与仓库 LF 约定一致，脚本须显式写 LF
@@ -404,7 +392,6 @@ eslint.config.js[FQ6S]: F:ESLint v9 flat config：ignores、TS/React/Hooks/Prett
 index.html[EU5T]: F:应用入口 HTML：内联脚本渲染前同步设置 data-theme（localStorage 优先、OS 兜底）消闪烁，preload-overlay 遮罩，挂载 /src/main.tsx | R:code:ai-digital-life/frontend/src/main.tsx | A:#app 与 #preload-overlay 元素 | S:主题 key 为 adl-theme-mode/adl-resolved-theme，须与 ThemeController 共享；preload-overlay z-index 99999
 package.json[FV6S]: F:前端包清单与脚本：dev/build/typecheck/test/lint/format/check:i18n，依赖含 CodeMirror/xterm/visx/react19/zustand/tauri-api 等 | R:code:ai-digital-life/frontend/eslint.config.js,code:ai-digital-life/frontend/vite.config.ts | A:scripts 命令集与 pnpm.overrides | S:pnpm overrides 固定 @codemirror/state 6.6.0；format/format:check 仅覆盖 src/**，不含 dev/scripts
 tsconfig.json[FV6T]: F:前端 TypeScript 配置：ES2022/bundler 解析/react-jsx/strict/noEmit，及 @app/@features/@stores/@tauri-bridge/@shared 等路径别名映射。 | R:code:ai-digital-life/frontend/vite.config.ts, code:ai-digital-life/frontend/vitest.config.ts | A:compilerOptions.paths 别名集；include: ["src"] | S:别名集须与 vite.config/vitest.config 的 resolve.alias 保持一致。
-tsconfig.tsbuildinfo[FV1T]: F:TypeScript 增量编译缓存（tsc 生成）：记录根文件列表与各文件签名/依赖，供下次编译增量复用。 | R:code:ai-digital-life/frontend/tsconfig.json | A:生成产物（无导出）；由 tsc 读写 | S:机器生成产物，不应手工编辑，会随编译自动重写。
 vite.config.ts[FV6M]: F:Vite 构建/开发配置：Tailwind+React 插件、可选 visualizer、preview 中间件（check-embed/scan-ports/workspace API）、别名与 dedupe、dev server CSP frame-ancestors、双入口与 manualChunks。 | R:code:ai-digital-life/frontend/dev/previewWorkspaceService.ts, code:ai-digital-life/frontend/dev/previewTerminalService.ts, code:ai-digital-life/frontend/vitest.config.ts | A:defineConfig：plugins/resolve.alias/server/build(rollupOptions.input main+divider-strip, manualChunks)/optimizeDeps | S:check-embed 用 HEAD 预检 X-Frame-Options/CSP frame-ancestors；CSP 设 frame-ancestors * 允许 iframe 嵌入。
 vitest.config.ts[TQ5T]: F:Vitest 配置：jsdom + forks 池、setupFiles test-setup.ts、与 vite 对齐的别名、coverage(v8, lcov) 并排除 test-fixtures/mock/types/生成物/测试文件。 | R:code:ai-digital-life/frontend/src/test-setup.ts, code:ai-digital-life/frontend/vite.config.ts | A:defineConfig：plugins/resolve/test(pool/environment/setupFiles/coverage) | S:coverage 显式排除 src/test-fixtures、src/mock、src/types 等。
 
@@ -2123,12 +2110,6 @@ tauri.conf.json[FV6T]: F:Tauri 应用配置：productName/identifier、构建（
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/src-tauri/capabilities/===
 browser-remote.json[FS6T]: F:远程 WebView 最小能力：授予 adl-browser-view-* 远程 https://* 页面仅 core:default 权限。 | R:code:ai-digital-life/src-tauri/capabilities/default.json | A:capability：webviews、remote.urls、permissions:[core:default] | S:浏览器 WebView 访问远程站点时只给最小 IPC 面（仅 core:default，不含业务命令）。
 default.json[FS6T]: F:主窗口默认能力：授予 core:default/window/webview 系列（关闭/destroy/隐藏/最小化/最大化/缩放/devtools 等）、dialog/shell 默认及自定义 digital-life-commands。 | R:code:ai-digital-life/src-tauri/capabilities/browser-remote.json | A:capability：windows:["main"]、permissions 列表 | S:白名单逐项登记，禁用 "all"/"**" 通配；业务命令经 digital-life-commands 暴露。
-
-===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/src-tauri/gen/schemas/===
-acl-manifests.json[FS3T]: F:生成的 ACL manifest：由 tauri-build 汇总 permissions/ 下的命令白名单（digital-life-commands 等）。 | R:code:ai-digital-life/src-tauri/permissions/digital-life.toml, code:ai-digital-life/src-tauri/build.rs | A:生成产物（__app-acl__ 等）；tauri-build 写入 | S:机器生成，勿手改；随 build.rs 重建。
-capabilities.json[FS3T]: F:生成的 capability 汇总：browser-remote 与 default 两个 capability 的解析结果。 | R:code:ai-digital-life/src-tauri/capabilities/default.json, code:ai-digital-life/src-tauri/capabilities/browser-remote.json | A:生成产物；tauri-build 写入 | S:机器生成，勿手改。
-desktop-schema.json[FS3L]: F:Tauri 能力文件 JSON Schema（桌面）：定义 Capability/CapabilityRemote 等结构，供 capabilities/*.json 的 $schema 引用与校验。 | R:code:ai-digital-life/src-tauri/capabilities/default.json | A:JSON Schema（draft-07，title CapabilityFile） | S:tauri-build 生成，勿手改。
-windows-schema.json[FS3L]: F:Tauri 能力文件 JSON Schema（Windows 目标，内容与 desktop-schema 相同）。 | R:code:ai-digital-life/src-tauri/capabilities/default.json | A:JSON Schema（draft-07） | S:与 desktop-schema.json 内容相同，均由 tauri-build 生成。
 
 ===E:/AI-DIGITAL-LIFE/SourceWorkspace/ai-digital-life/src-tauri/permissions/===
 digital-life.toml[FS6T]: F:自定义权限清单：identifier digital-life-commands 枚举系统壳允许的全部 Tauri 命令（app/browser/platform/reserved/workspace-picker/storage/download/divider-strip 等）。 | R:code:ai-digital-life/src-tauri/capabilities/default.json, code:ai-digital-life/src-tauri/src/main.rs | A:[[permission]] identifier/description/commands.allow（约 76 条命令） | S:白名单逐项登记；业务命令由 ad-server HTTP 提供，此处仅系统壳命令；新增命令必须同步登记。
