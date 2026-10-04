@@ -163,7 +163,7 @@
 /* 中间区中心视图工具栏：仅中间部分降高，与右侧面板「面板切换导航栏」
    （.adl-toolswitcher / .adl-iconstrip，30px 按钮 + 1px 底边 = 31px）等高；
    右侧面板工具栏不变。本元素为 border-box，min-height 31px 已含 1px 底边，
-   故与导航栏总高一致；内部控件统一 26px，上下各留约 2px，视觉不拥挤。 */
+   故与导航栏总高一致。控件高度：图标按钮 30px（直角整高，见下），地址框/分段切换 26px。 */
 .adl-center-browser .adl-tool-context--files,
 .adl-center-terminal .adl-tool-context--files {
   min-height: 31px;

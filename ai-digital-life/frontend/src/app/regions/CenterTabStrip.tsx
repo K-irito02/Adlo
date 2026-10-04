@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
+import { useTabTitleRename } from '../hooks/useTabTitleRename';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { TooltipSimple } from '@components/Tooltip';
 import { IconClose, IconNewTabPage, IconPanelRight, IconPlus, IconTerminal } from '@icons';
@@ -46,37 +47,13 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
 
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // 终端类型中心标签的双击重命名（与右侧终端面板同语义，复用 terminalUpdateTab）。
-  // editingTabId 存的是底层终端标签 id（tab.refId），非中心标签 id。
-  const [editingTabId, setEditingTabId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const editInputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (editingTabId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingTabId]);
-
-  const handleEditSubmit = useCallback(() => {
-    if (editingTabId && editValue.trim()) {
-      terminalUpdateTab(editingTabId, { title: editValue.trim() });
-    }
-    setEditingTabId(null);
-    setEditValue('');
-  }, [editingTabId, editValue, terminalUpdateTab]);
-
-  const handleEditKeyDown = useCallback(
-    (event: React.KeyboardEvent) => {
-      if (event.key === 'Enter') {
-        handleEditSubmit();
-      } else if (event.key === 'Escape') {
-        setEditingTabId(null);
-        setEditValue('');
-      }
-    },
-    [handleEditSubmit],
+  // 终端类型中心标签的双击重命名（共享 useTabTitleRename；editingTabId 存底层终端
+  // 标签 id = tab.refId，非中心标签 id）。
+  const rename = useTabTitleRename(
+    useCallback(
+      (tabId: string, title: string) => terminalUpdateTab(tabId, { title }),
+      [terminalUpdateTab],
+    ),
   );
 
   const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
@@ -157,9 +134,11 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
 
           const showInPanelLabel =
             tab.kind === 'browser' ? t.centerTabShowInBrowserPanel : t.centerTabShowInTerminalPanel;
+          // 是否展示「回到面板」按钮：单一判定，供 data-actions 与实际渲染共用
+          const showReturn = tab.kind !== 'launcher' && tab.refId !== null;
           const isEditing =
-            tab.kind === 'terminal' && tab.refId !== null && editingTabId === tab.refId;
-          const actionCount = tab.kind !== 'launcher' && tab.refId !== null ? 2 : 1;
+            tab.kind === 'terminal' && tab.refId !== null && rename.editingTabId === tab.refId;
+          const actionCount = showReturn ? 2 : 1;
 
           return (
             <div
@@ -176,8 +155,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
                   return;
                 }
                 if (tab.kind === 'terminal' && tab.refId) {
-                  setEditValue(terminalTab?.title || '');
-                  setEditingTabId(tab.refId);
+                  rename.handleDoubleClick(tab.refId, terminalTab?.title || '');
                 }
               }}
               onKeyDown={(event) => {
@@ -194,12 +172,12 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
             >
               {isEditing ? (
                 <input
-                  ref={editInputRef}
+                  ref={rename.editInputRef}
                   type="text"
-                  value={editValue}
-                  onChange={(event) => setEditValue(event.target.value)}
-                  onBlur={handleEditSubmit}
-                  onKeyDown={handleEditKeyDown}
+                  value={rename.editValue}
+                  onChange={(event) => rename.setEditValue(event.target.value)}
+                  onBlur={rename.handleEditSubmit}
+                  onKeyDown={rename.handleEditKeyDown}
                   className="adl-center-tab__edit"
                   aria-label={t.rename}
                 />
@@ -210,7 +188,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
                   </span>
                   <span className="adl-center-tab__label adl-clip-tab__label">{label}</span>
                   <span className="adl-center-tab__actions adl-clip-tab__actions">
-                    {tab.kind !== 'launcher' && tab.refId !== null && (
+                    {showReturn && (
                       <TooltipSimple content={showInPanelLabel} placement="bottom">
                         <button
                           type="button"

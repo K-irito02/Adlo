@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
+import { useTabTitleRename } from '../../hooks/useTabTitleRename';
 import { useTerminalPtyLifecycle } from './useTerminalPtyLifecycle';
 
 interface UseTerminalTabActionsParams {
@@ -13,14 +14,9 @@ interface UseTerminalTabActionsParams {
  * 职责：
  * - 终端会话的创建/切换/关闭/杀进程（委托 useTerminalPtyLifecycle）
  * - xterm 实例引用与数据/尺寸回调（委托 useTerminalPtyLifecycle）
- * - 标签双击重命名的内联编辑状态与回调
+ * - 标签双击重命名的内联编辑状态与回调（委托共享 useTabTitleRename）
  */
 export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams) {
-  const [editingTabId, setEditingTabId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-
-  const editInputRef = useRef<HTMLInputElement | null>(null);
-
   const { terminalUpdateTab } = useAppStore(
     useShallow((state) => ({
       terminalUpdateTab: state.terminalUpdateTab,
@@ -40,37 +36,12 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
     deleteHistoryForTab,
   } = useTerminalPtyLifecycle({ activeTab });
 
-  const handleDoubleClick = useCallback((tabId: string, title: string) => {
-    setEditValue(title);
-    setEditingTabId(tabId);
-  }, []);
-
-  const handleEditSubmit = useCallback(() => {
-    if (editingTabId && editValue.trim()) {
-      terminalUpdateTab(editingTabId, { title: editValue.trim() });
-    }
-    setEditingTabId(null);
-    setEditValue('');
-  }, [editingTabId, editValue, terminalUpdateTab]);
-
-  const handleEditKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
-        handleEditSubmit();
-      } else if (e.key === 'Escape') {
-        setEditingTabId(null);
-        setEditValue('');
-      }
-    },
-    [handleEditSubmit],
+  const rename = useTabTitleRename(
+    useCallback(
+      (tabId: string, title: string) => terminalUpdateTab(tabId, { title }),
+      [terminalUpdateTab],
+    ),
   );
-
-  useEffect(() => {
-    if (editingTabId && editInputRef.current) {
-      editInputRef.current.focus();
-      editInputRef.current.select();
-    }
-  }, [editingTabId]);
 
   return {
     xtermRef,
@@ -83,12 +54,6 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
     handleCloseAllTabs,
     handleKill,
     deleteHistoryForTab,
-    editingTabId,
-    editValue,
-    editInputRef,
-    setEditValue,
-    handleDoubleClick,
-    handleEditSubmit,
-    handleEditKeyDown,
+    ...rename,
   };
 }

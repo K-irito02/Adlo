@@ -211,4 +211,66 @@ describe('CenterTabStrip', () => {
     // 守卫 event.target !== event.currentTarget：父标签未抢走选择
     expect(useAppStore.getState().centerActiveTabId).toBe(other);
   });
+
+  it('重命名按 Escape 取消，不写入 store 且退出编辑', () => {
+    const refId = 't-esc';
+    const terminalTab: TerminalTabState = {
+      id: refId,
+      workspaceId: '',
+      title: 'Old',
+      profile: 'powershell',
+      status: 'running',
+      isPinned: false,
+      sortOrder: 0,
+      location: 'center',
+    };
+    useAppStore.setState({
+      terminalTabs: [terminalTab],
+      terminalTabsById: { [refId]: terminalTab },
+    });
+    useAppStore.getState().centerAddTab('terminal', refId);
+    renderStrip();
+
+    fireEvent.doubleClick(screen.getByRole('tab'));
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'Changed' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(useAppStore.getState().terminalTabsById[refId].title).toBe('Old');
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('双击非终端标签不进入重命名', () => {
+    useAppStore.getState().centerAddTab('launcher', null);
+    renderStrip();
+    fireEvent.doubleClick(screen.getByRole('tab'));
+    expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('空白标题提交不覆盖原标题', () => {
+    const refId = 't-blank';
+    const terminalTab: TerminalTabState = {
+      id: refId,
+      workspaceId: '',
+      title: 'Keep',
+      profile: 'powershell',
+      status: 'running',
+      isPinned: false,
+      sortOrder: 0,
+      location: 'center',
+    };
+    useAppStore.setState({
+      terminalTabs: [terminalTab],
+      terminalTabsById: { [refId]: terminalTab },
+    });
+    useAppStore.getState().centerAddTab('terminal', refId);
+    renderStrip();
+
+    fireEvent.doubleClick(screen.getByRole('tab'));
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '   ' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(useAppStore.getState().terminalTabsById[refId].title).toBe('Keep');
+  });
 });

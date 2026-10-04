@@ -282,6 +282,12 @@
   opacity: 1;
 }
 
+/* 键盘聚焦时关闭按钮同样可见：与共享卷帘门类 .adl-clip-tab__label 的 :has(:focus-visible)
+   遮挡保持同步，避免名称被遮挡而按钮不可见。 */
+.adl-tool-list__item:has(:focus-visible) .adl-tool-list__item-close {
+  opacity: 1;
+}
+
 .adl-tool-list__item-close:hover {
   color: var(--text-primary);
   background: var(--bg-hover);

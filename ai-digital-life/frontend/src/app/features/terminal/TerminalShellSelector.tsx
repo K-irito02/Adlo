@@ -296,7 +296,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
             onClick={onToggle}
             onMouseEnter={handleToggleMouseEnter}
             onMouseLeave={handleToggleMouseLeave}
-            // 名称在窄宽/触屏下可能被裁剪且无 tooltip，可访问名需含完整工作区名
+            // 可见名称在窄宽下被省略号截断、触屏下 tooltip 不显示，故可访问名补全完整工作区名
             aria-label={`${t.shellTypeSelect} ${boundWorkspaceLabel}`}
             aria-haspopup="menu"
             aria-expanded={menuOpen}

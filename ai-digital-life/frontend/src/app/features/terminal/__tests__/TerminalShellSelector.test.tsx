@@ -146,15 +146,25 @@ describe('TerminalShellSelector hover open', () => {
         } as never,
       ],
     });
+    const { container } = render(
+      <TestProvider>
+        <Harness />
+      </TestProvider>,
+    );
+    const label = container.querySelector('.adl-split-pill__workspace-label');
+    // 完整名称进入 DOM（截断交给 CSS 宽度驱动，不再做 JS substring）
+    expect(label?.textContent).toBe(workspaceName);
+    // 可访问名包含完整名称（窄宽/触屏下裁剪后仍可获知）
+    expect(screen.getByLabelText(`Select shell type ${workspaceName}`)).not.toBeNull();
+  });
+
+  it('renders the fallback accessible name when no workspace is bound', () => {
     render(
       <TestProvider>
         <Harness />
       </TestProvider>,
     );
-    const label = document.querySelector('.adl-split-pill__workspace-label');
-    // 完整名称进入 DOM（截断交给 CSS 宽度驱动，不再做 JS substring）
-    expect(label?.textContent).toBe(workspaceName);
-    // 可访问名包含完整名称（窄宽/触屏下裁剪后仍可获知）
-    expect(screen.getByLabelText(`Select shell type ${workspaceName}`)).toBeDefined();
+    // 未绑定工作区时 boundWorkspaceLabel 回退为 t.terminalIndependent
+    expect(screen.getByLabelText('Select shell type Independent')).not.toBeNull();
   });
 });
