@@ -127,6 +127,8 @@
   gap: 0;
   align-self: stretch;
   height: 100%;
+  /* 中间标签区（含最右侧「新建入口页」+ 按钮）与右侧控件组之间的分隔线 */
+  border-left: 1px solid var(--border-subtle);
 }
 
 .adl-titlebar__action-group,
@@ -141,7 +143,8 @@
   height: 100%;
 }
 
-/* 添加工作区按钮与右侧操作按钮组之间的自然分界线（与区域边缘同款：整高 + 细微边框色） */
+/* 区域边缘分割线（与按钮组/窗口组之间的自然分界线同款：整高 + 细微边框色） */
+.adl-titlebar__left-divider,
 .adl-titlebar__action-divider {
   align-self: stretch;
   width: 1px;
@@ -511,12 +514,17 @@
   white-space: nowrap;
 }
 
+/* 标签等宽：均分标签条可用宽度，并受最小/最大宽度钳制；
+   到达最小宽度后标签溢出，由 __scroll 横向滚动承载。 */
 .adl-center-tab {
+  --adl-center-tab-min-width: 100px;
+  --adl-center-tab-max-width: 180px;
   display: inline-flex;
   align-items: center;
   gap: var(--space-1-5);
-  flex-shrink: 0;
-  max-width: 180px;
+  flex: 1 1 0;
+  min-width: var(--adl-center-tab-min-width);
+  max-width: var(--adl-center-tab-max-width);
   height: 26px;
   padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
@@ -528,13 +536,31 @@
 }
 
 .adl-center-tab:hover {
-  background: var(--adl-tree-row-hover-bg);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.adl-center-tab.is-active {
-  background: var(--adl-tree-row-active-bg);
+/* 选中（当前在中间区显示的）标签：中性灰底 + 四角偏直角（--radius-sm）。
+   未选中的标签不显示底色；选中标签即使被悬停也保持选中灰底。 */
+.adl-center-tab.is-active,
+.adl-center-tab.is-active:hover {
+  background: var(--bg-active);
   color: var(--text-primary);
+}
+
+/* 两个相邻且都未选中的标签之间：中段式细微分割线，用于区分没有底色的标签边界。
+   与选中标签相邻、以及首/末标签外侧都不出现。
+   `+` 相邻兄弟选择器使分割线随选中态转移与未来拖拽排序自动更新。 */
+.adl-center-tab:not(.is-active) + .adl-center-tab:not(.is-active)::before {
+  content: '';
+  position: absolute;
+  left: calc(var(--space-1) * -0.5 - 0.5px);
+  top: 50%;
+  width: 1px;
+  height: 12px;
+  transform: translateY(-50%);
+  background: var(--border-subtle);
+  pointer-events: none;
 }
 
 .adl-center-tab__icon {
@@ -546,26 +572,54 @@
   height: 14px;
 }
 
+/* 名称：卷帘门裁剪由共享 .adl-clip-tab__label 提供，这里只管伸展占位。 */
 .adl-center-tab__label {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 auto;
 }
 
+/* 名称被操作按钮遮挡时的雾感宽度：按操作按钮数量给定（覆盖按钮及其左缘一小段）。
+   按钮 22px / 间距 2px、容器 right 6px、标签 padding 8px 时为推导值。 */
+.adl-center-tab[data-actions='2'] {
+  --adl-clip-tab-cover: 54px;
+  --adl-clip-tab-blend: 44px;
+}
+
+.adl-center-tab[data-actions='1'] {
+  --adl-clip-tab-cover: 30px;
+  --adl-clip-tab-blend: 20px;
+}
+
+/* 操作按钮：位置由共享 .adl-clip-tab__actions 提供，这里只管显示/隐藏。 */
 .adl-center-tab__actions {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  flex-shrink: 0;
   opacity: 0;
   pointer-events: none;
 }
 
+/* 仅「真实悬停」或「键盘聚焦可见」时出现；普通鼠标点击（:focus-visible 不成立）
+   不再让按钮常驻。 */
 .adl-center-tab:hover .adl-center-tab__actions,
-.adl-center-tab:focus-within .adl-center-tab__actions {
+.adl-center-tab:focus-visible .adl-center-tab__actions,
+.adl-center-tab:has(:focus-visible) .adl-center-tab__actions {
   opacity: 1;
   pointer-events: auto;
+}
+
+/* 双击标签名进入重命名时的内联输入框（终端类型标签）。 */
+.adl-center-tab__edit {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 20px;
+  padding: 0 var(--space-1-5);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  outline: none;
+}
+
+.adl-center-tab__edit:focus {
+  box-shadow: 0 0 0 2px var(--surface-hover);
 }
 
 /* 无悬停设备（触屏）：悬停不可达，至少让活动标签的操作按钮常驻可见。 */
@@ -582,6 +636,8 @@
   height: auto;
 }
 
+/* 「新建入口页」+ 按钮：固定在中间标签区最右侧（滚动区之外），
+   与标签同属中间区；与右侧控件组的分隔线由 .adl-titlebar__right 提供。 */
 .adl-center-tab-strip__add {
   display: flex;
   align-items: center;
@@ -589,6 +645,5 @@
   flex-shrink: 0;
   height: 100%;
   padding: 0 var(--space-1);
-  border-left: 1px solid var(--border-subtle);
   -webkit-app-region: no-drag;
 }

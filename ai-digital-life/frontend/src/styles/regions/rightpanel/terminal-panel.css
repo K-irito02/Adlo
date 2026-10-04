@@ -34,6 +34,11 @@
   background: var(--surface-subtle);
   color: var(--text-secondary);
   overflow: hidden;
+  /* 允许随工具栏收缩（文字由子级 .adl-clip-x 卷帘门裁剪），但整体锁在
+     「主按钮(+图标) 32px + 右侧 toggle(下箭头) 32px」= 64px 之上，
+     否则 pill 的 overflow:hidden 会把右端下箭头裁掉。 */
+  min-width: 64px;
+  max-width: 100%;
 }
 
 .adl-tool-primary__scroll--terminal {
@@ -152,6 +157,32 @@
 .adl-tool-context__group--terminal-actions {
   display: flex;
   align-items: center;
+  /* 下限 = 复合按钮最小宽度，避免容器收缩时把复合按钮压到 64px 以下 */
+  min-width: 64px;
+}
+
+/* 终端工具栏右侧操作组保持固定、不参与压缩：面板变窄时由左侧（含工作区名）
+   收缩裁剪（.adl-clip-x），避免图标按钮被压扁或相互重叠。 */
+.adl-tool-panel--terminal .adl-tool-context__group--files-actions {
+  flex-shrink: 0;
+}
+
+/* 左侧组下限 = 目录导航按钮(26) + 分隔线(9) + 复合按钮最小宽(64) = 99px：
+   低于此宽度时不再收缩，避免左侧内容溢出并压到右侧操作组上。 */
+.adl-tool-panel--terminal .adl-tool-context__group--grow {
+  min-width: 99px;
+}
+
+/* 复合按钮所在菜单容器（flex item）下限同复合按钮最小宽，避免被父级压到更小。
+   仅限「复合按钮载体」（内含 .adl-split-pill）——同名的「更多操作」下拉容器不含
+   复合按钮，若也吃到此 min-width 会变宽、把按钮挤到左侧留下右侧空隙。 */
+.adl-tool-panel--terminal .adl-file-context__menu:has(.adl-split-pill) {
+  min-width: 64px;
+}
+
+/* 左侧目录导航按钮保持固定尺寸，不参与压缩 */
+.adl-tool-panel--terminal .adl-tool-context__iconbtn--leading {
+  flex-shrink: 0;
 }
 
 .adl-tool-context__group--spacer {

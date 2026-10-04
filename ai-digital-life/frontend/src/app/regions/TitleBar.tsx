@@ -121,6 +121,7 @@ const TitleBar = React.memo(function TitleBar({
     <header className="adl-titlebar" role="banner">
       <div className="adl-titlebar__left">
         <HamburgerMenu t={t} fileItems={fileItems} viewItems={viewItems} helpItems={helpItems} />
+        <span className="adl-titlebar__left-divider" aria-hidden="true" />
       </div>
       <CenterTabStrip />
       <div className="adl-titlebar__right">

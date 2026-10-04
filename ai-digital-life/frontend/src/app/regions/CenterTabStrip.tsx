@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
@@ -28,6 +28,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
     centerAddTab,
     centerReturnToPanel,
     browserCloseTab,
+    terminalUpdateTab,
   } = useAppStore(
     useShallow((state) => ({
       centerTabs: state.centerTabs,
@@ -39,10 +40,44 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
       centerAddTab: state.centerAddTab,
       centerReturnToPanel: state.centerReturnToPanel,
       browserCloseTab: state.browserCloseTab,
+      terminalUpdateTab: state.terminalUpdateTab,
     })),
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 终端类型中心标签的双击重命名（与右侧终端面板同语义，复用 terminalUpdateTab）。
+  // editingTabId 存的是底层终端标签 id（tab.refId），非中心标签 id。
+  const [editingTabId, setEditingTabId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const editInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingTabId && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [editingTabId]);
+
+  const handleEditSubmit = useCallback(() => {
+    if (editingTabId && editValue.trim()) {
+      terminalUpdateTab(editingTabId, { title: editValue.trim() });
+    }
+    setEditingTabId(null);
+    setEditValue('');
+  }, [editingTabId, editValue, terminalUpdateTab]);
+
+  const handleEditKeyDown = useCallback(
+    (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        handleEditSubmit();
+      } else if (event.key === 'Escape') {
+        setEditingTabId(null);
+        setEditValue('');
+      }
+    },
+    [handleEditSubmit],
+  );
 
   const handleWheel = useCallback((event: React.WheelEvent<HTMLDivElement>) => {
     const el = scrollRef.current;
@@ -122,6 +157,9 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
 
           const showInPanelLabel =
             tab.kind === 'browser' ? t.centerTabShowInBrowserPanel : t.centerTabShowInTerminalPanel;
+          const isEditing =
+            tab.kind === 'terminal' && tab.refId !== null && editingTabId === tab.refId;
+          const actionCount = tab.kind !== 'launcher' && tab.refId !== null ? 2 : 1;
 
           return (
             <div
@@ -129,8 +167,15 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
               role="tab"
               aria-selected={isActive}
               tabIndex={0}
-              className={`adl-center-tab${isActive ? ' is-active' : ''}`}
+              data-actions={actionCount}
+              className={`adl-center-tab adl-clip-tab${isActive ? ' is-active' : ''}`}
               onClick={() => centerSelectTab(tab.id)}
+              onDoubleClick={() => {
+                if (tab.kind === 'terminal' && tab.refId) {
+                  setEditValue(terminalTab?.title || '');
+                  setEditingTabId(tab.refId);
+                }
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
@@ -138,40 +183,55 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
                 }
               }}
             >
-              <span className="adl-center-tab__icon" aria-hidden="true">
-                {icon}
-              </span>
-              <span className="adl-center-tab__label">{label}</span>
-              <span className="adl-center-tab__actions">
-                {tab.kind !== 'launcher' && tab.refId !== null && (
-                  <TooltipSimple content={showInPanelLabel} placement="bottom">
-                    <button
-                      type="button"
-                      className="adl-icon-btn adl-icon-btn--xs"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        centerReturnToPanel(tab.id);
-                      }}
-                      aria-label={showInPanelLabel}
-                    >
-                      <IconPanelRight size={12} decorative />
-                    </button>
-                  </TooltipSimple>
-                )}
-                <TooltipSimple content={t.close} placement="bottom">
-                  <button
-                    type="button"
-                    className="adl-icon-btn adl-icon-btn--xs adl-icon-btn--danger-hover"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleClose(tab);
-                    }}
-                    aria-label={t.close}
-                  >
-                    <IconClose size={12} decorative />
-                  </button>
-                </TooltipSimple>
-              </span>
+              {isEditing ? (
+                <input
+                  ref={editInputRef}
+                  type="text"
+                  value={editValue}
+                  onChange={(event) => setEditValue(event.target.value)}
+                  onBlur={handleEditSubmit}
+                  onKeyDown={handleEditKeyDown}
+                  className="adl-center-tab__edit"
+                  aria-label={t.rename}
+                />
+              ) : (
+                <>
+                  <span className="adl-center-tab__icon" aria-hidden="true">
+                    {icon}
+                  </span>
+                  <span className="adl-center-tab__label adl-clip-tab__label">{label}</span>
+                  <span className="adl-center-tab__actions adl-clip-tab__actions">
+                    {tab.kind !== 'launcher' && tab.refId !== null && (
+                      <TooltipSimple content={showInPanelLabel} placement="bottom">
+                        <button
+                          type="button"
+                          className="adl-icon-btn adl-icon-btn--xs"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            centerReturnToPanel(tab.id);
+                          }}
+                          aria-label={showInPanelLabel}
+                        >
+                          <IconPanelRight size={12} decorative />
+                        </button>
+                      </TooltipSimple>
+                    )}
+                    <TooltipSimple content={t.close} placement="bottom">
+                      <button
+                        type="button"
+                        className="adl-icon-btn adl-icon-btn--xs adl-icon-btn--danger-hover"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleClose(tab);
+                        }}
+                        aria-label={t.close}
+                      >
+                        <IconClose size={12} decorative />
+                      </button>
+                    </TooltipSimple>
+                  </span>
+                </>
+              )}
             </div>
           );
         })}

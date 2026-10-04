@@ -114,6 +114,18 @@
   white-space: nowrap;
 }
 
+/* --- Responsive clip（「卷帘门」自适应裁剪策略）---
+   用于自适应布局中可能被 flex 压缩的文本：强制单行硬裁剪（不显示省略号），
+   并允许其收缩到 0。容器变窄时内容从右端渐进裁切消失，而不是换行、撑高容器
+   或与相邻元素重叠。适合工具栏、按钮组等会随面板/窗口宽度收缩的区域。 */
+.adl-clip-x {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: clip;
+}
+
 .text-break {
   word-break: break-word;
   overflow-wrap: break-word;

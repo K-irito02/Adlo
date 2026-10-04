@@ -214,7 +214,9 @@
   flex: 0 0 auto;
 }
 
-/* 标签名：单行「卷帘门式」硬裁剪（不显示省略号），且不为关闭按钮预留宽度 */
+/* 标签名：单行「卷帘门式」硬裁剪（不显示省略号），且不为关闭按钮预留宽度。
+   裁剪与悬停遮挡的通用形态由共享类 .adl-clip-tab__label 提供（default cover 20px /
+   blend 10px，与本面板历史取值一致）；此处仅保留本面板的排版尺寸。 */
 .adl-multitree--terminal .adl-tool-list__title {
   flex: 1 1 auto;
   display: block;
@@ -223,19 +225,6 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: clip;
-}
-
-/* 悬停时（关闭按钮出现）的「卷帘门」遮挡：
-   - 关闭按钮左边缘（距标题右端 10px）到右端：完全遮挡，标签名不可见
-   - 紧邻按钮左边缘的一小段（10px）：雾气式渐隐过渡
-   编辑态不会命中此规则——此时渲染的是 input，没有标题元素。 */
-.adl-multitree--terminal .adl-tool-list__item--terminal-tab:hover .adl-tool-list__title {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    #000 calc(100% - 20px),
-    transparent calc(100% - 10px)
-  );
-  mask-image: linear-gradient(to right, #000 calc(100% - 20px), transparent calc(100% - 10px));
 }
 
 /* 关闭按钮：绝对定位覆盖在名称之上，不参与布局（不再挤占名称宽度） */

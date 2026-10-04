@@ -286,7 +286,7 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
             aria-label={t.menuNewTerminal}
           >
             <IconPlus size={12} decorative />
-            <span>{currentProfileLabel}</span>
+            <span className="adl-clip-x">{currentProfileLabel}</span>
           </button>
         </TooltipSimple>
         <TooltipSimple content={boundWorkspaceLabel} placement="top">
@@ -300,10 +300,8 @@ export const TerminalShellSelector = React.memo(function TerminalShellSelector({
             aria-haspopup="menu"
             aria-expanded={menuOpen}
           >
-            <span className="adl-split-pill__workspace-label">
-              {boundWorkspaceLabel.length > 12
-                ? boundWorkspaceLabel.substring(0, 12) + '...'
-                : boundWorkspaceLabel}
+            <span className="adl-split-pill__workspace-label adl-clip-x">
+              {boundWorkspaceLabel}
             </span>
             <IconChevronDown size={12} decorative />
           </button>

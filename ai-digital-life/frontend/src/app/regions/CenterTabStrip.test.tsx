@@ -5,6 +5,7 @@ import { TCopyProvider } from '../i18n/TCopyContext';
 import type { CopyDict } from '../i18n/types';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import { CenterTabStrip } from './CenterTabStrip';
 import { browserPool } from '@features/browser/browserPoolSingleton';
 
@@ -125,5 +126,32 @@ describe('CenterTabStrip', () => {
     const state = useAppStore.getState();
     expect(state.browserTabs.some((tab) => tab.id === refId)).toBe(false);
     expect(state.centerTabs.some((tab) => tab.id === centerId)).toBe(false);
+  });
+
+  it('终端中心标签双击进入重命名，Enter 提交新名称到 store', () => {
+    const refId = 't-rename';
+    const terminalTab: TerminalTabState = {
+      id: refId,
+      workspaceId: '',
+      title: 'Old Name',
+      profile: 'powershell',
+      status: 'running',
+      isPinned: false,
+      sortOrder: 0,
+      location: 'center',
+    };
+    useAppStore.setState({
+      terminalTabs: [terminalTab],
+      terminalTabsById: { [refId]: terminalTab },
+    });
+    useAppStore.getState().centerAddTab('terminal', refId);
+    renderStrip();
+
+    fireEvent.doubleClick(screen.getByRole('tab'));
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'New Name' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(useAppStore.getState().terminalTabsById[refId].title).toBe('New Name');
   });
 });

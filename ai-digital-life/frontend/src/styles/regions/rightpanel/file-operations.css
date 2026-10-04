@@ -93,11 +93,50 @@
 .adl-split-pill__main {
   gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
+  /* 可随 pill 收缩（文字卷帘门裁剪），但下限锁为「+ 图标 12 + gap 4 + 左右 padding 16」
+     = 32px，保证 "+" 图标始终可见、且与右侧 toggle 不重叠。 */
+  min-width: 32px;
+  white-space: nowrap;
+}
+
+.adl-split-pill__main > svg {
+  flex-shrink: 0;
+}
+
+/* TooltipTrigger 包裹层（.tooltip-trigger）是 pill 的直接 flex 子项；其默认
+   min-width:auto 会按内容最小宽度把按钮撑在原宽，导致 pill 收缩时按钮不随之收窄
+   （下箭头被挤出并被 pill 的 overflow:hidden 裁掉）。放开为 32px（按钮最小宽）。 */
+.adl-split-pill > .tooltip-trigger {
+  min-width: 32px;
 }
 
 .adl-split-pill__toggle {
-  padding: var(--space-1) 10px;
+  position: relative;
+  /* 右侧预留 22px = 下箭头(12) + 右间距(10)：标签只占左侧内容区，
+     下箭头绝对定位在右侧固定位置，不会随标签收缩被挤出或裁剪。 */
+  padding: var(--space-1) 22px var(--space-1) 10px;
   border-left: 1px solid var(--border-subtle);
+  justify-content: flex-start;
+  min-width: 32px;
+  /* 右半部分最大宽度限制：名称超长时按省略截断，不再无限撑宽 */
+  max-width: 160px;
+  flex-shrink: 1;
+}
+
+.adl-split-pill__toggle > .adl-split-pill__workspace-label {
+  flex: 1 1 0;
+  min-width: 0;
+  /* 超过最大宽度时以省略号截断（覆盖 .adl-clip-x 的 clip） */
+  text-overflow: ellipsis;
+}
+
+/* 下箭头：绝对定位锁定在右侧，恒定可见 */
+.adl-split-pill__toggle > svg {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .adl-split-pill__main:hover,

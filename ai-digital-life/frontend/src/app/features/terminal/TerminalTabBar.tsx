@@ -57,7 +57,7 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
       {tabs.map((tab) => (
         <li
           key={tab.id}
-          className={`adl-tool-list__item adl-tool-list__item--terminal-tab${tab.id === activeTabId ? ' is-active' : ''}${isDragging && dragOverTabId === tab.id ? ' is-drag-over' : ''}${tab.isPinned ? ' is-pinned' : ''}`}
+          className={`adl-tool-list__item adl-tool-list__item--terminal-tab adl-clip-tab${tab.id === activeTabId ? ' is-active' : ''}${isDragging && dragOverTabId === tab.id ? ' is-drag-over' : ''}${tab.isPinned ? ' is-pinned' : ''}`}
           draggable
           onDragStart={(e) => onDragStart(e, tab.id, tab.isPinned)}
           onDragEnd={onDragEnd}
@@ -95,7 +95,7 @@ export const TerminalTabBar = React.memo(function TerminalTabBar({
                 title={tab.title}
               >
                 <TerminalProfileIcon profile={tab.profile} size={14} />
-                <span className="adl-tool-list__title">{tab.title}</span>
+                <span className="adl-tool-list__title adl-clip-tab__label">{tab.title}</span>
               </button>
               <TooltipSimple content={t.close} placement="top">
                 <button

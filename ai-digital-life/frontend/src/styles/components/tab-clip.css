@@ -1,0 +1,56 @@
+/* ==========================================================================
+   可复用「卷帘门式」标签名 + 悬停遮挡
+   --------------------------------------------------------------------------
+   抽取自右侧终端面板标签（.adl-tool-list__item--terminal-tab）的设计，
+   供中间区中心标签（.adl-center-tab）等复用：
+
+   - 名称常态：单行硬裁剪（text-overflow: clip），不显示省略号，也不为操作按钮预留宽度；
+   - 悬停 / 键盘聚焦：名称右端被绝对定位的操作按钮覆盖，并在按钮左缘做雾感渐隐；
+   - 遮挡宽度可用 --adl-clip-tab-cover / --adl-clip-tab-blend 按按钮数量微调。
+
+   结构约定：
+     <X class="adl-clip-tab">
+       <span class="adl-clip-tab__label">名称</span>
+       <span class="adl-clip-tab__actions">…按钮…</span>
+     </X>
+   ========================================================================== */
+
+.adl-clip-tab {
+  position: relative;
+}
+
+.adl-clip-tab__label {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+
+/* 悬停 / 键盘聚焦时：名称右端被操作按钮遮挡，并在按钮左缘做雾感过渡。 */
+.adl-clip-tab:hover .adl-clip-tab__label,
+.adl-clip-tab:focus-visible .adl-clip-tab__label,
+.adl-clip-tab:has(:focus-visible) .adl-clip-tab__label {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - var(--adl-clip-tab-cover, 20px)),
+    transparent calc(100% - var(--adl-clip-tab-blend, 10px))
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - var(--adl-clip-tab-cover, 20px)),
+    transparent calc(100% - var(--adl-clip-tab-blend, 10px))
+  );
+}
+
+/* 操作按钮组：绝对定位覆盖在名称之上，不参与布局（不再挤占名称宽度）。 */
+.adl-clip-tab__actions {
+  position: absolute;
+  right: var(--adl-clip-tab-actions-right, 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
