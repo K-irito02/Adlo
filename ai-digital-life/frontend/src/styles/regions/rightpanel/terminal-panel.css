@@ -161,15 +161,17 @@
   min-width: 64px;
 }
 
-/* 终端工具栏右侧操作组保持固定、不参与压缩：面板变窄时由左侧（含工作区名）
-   收缩裁剪（.adl-clip-x），避免图标按钮被压扁或相互重叠。 */
-.adl-tool-panel--terminal .adl-tool-context__group--files-actions {
+/* 右侧面板终端工具栏右侧操作组保持固定、不参与压缩：面板变窄时由左侧（含工作区名）
+   收缩裁剪（.adl-clip-x），避免图标按钮被压扁或相互重叠。
+   限定非中心终端——中心终端工具栏有自己的布局（空占位组 + 两端操作组），不套用此规则。 */
+.adl-tool-panel--terminal:not(.adl-center-terminal) .adl-tool-context__group--files-actions {
   flex-shrink: 0;
 }
 
-/* 左侧组下限 = 目录导航按钮(26) + 分隔线(9) + 复合按钮最小宽(64) = 99px：
-   低于此宽度时不再收缩，避免左侧内容溢出并压到右侧操作组上。 */
-.adl-tool-panel--terminal .adl-tool-context__group--grow {
+/* 右侧面板终端工具栏左侧组下限 = 目录导航按钮(26) + 分隔线(9) + 复合按钮最小宽(64)
+   = 99px：低于此宽度时不再收缩，避免左侧内容溢出并压到右侧操作组上。
+   同样限定非中心终端（中心终端的 --grow 是空占位组，不应被此下限影响）。 */
+.adl-tool-panel--terminal:not(.adl-center-terminal) .adl-tool-context__group--grow {
   min-width: 99px;
 }
 

@@ -170,20 +170,12 @@
   padding: 0;
 }
 
+/* 浏览器与终端工具栏的图标按钮（前进/后退/刷新、搜索引擎设置、下载、更多操作、
+   交换位置等）：悬停灰底与右侧「面板切换导航栏」（.adl-iconstrip__button）一致——
+   四角直角、整高填满按钮整格（贴合上下边缘，左右即按钮自身宽度）。
+   「终端视图布局」分段切换、终端目录导航（仅右面板存在）与右侧面板工具栏各保原样。 */
 .adl-center-browser .adl-tool-context--files .adl-tool-context__iconbtn,
 .adl-center-terminal .adl-tool-context--files .adl-tool-context__iconbtn {
-  width: 26px;
-  height: 26px;
-}
-
-/* 浏览器工具栏全部图标按钮、终端工具栏「交换位置 / 更多操作」按钮：
-   悬停灰底与右侧「面板切换导航栏」（.adl-iconstrip__button）一致——
-   四角直角、整高填满按钮整格（贴合上下边缘，左右即按钮自身宽度）。
-   终端目录导航按钮（--leading）与「终端视图布局」分段切换保持原样。 */
-.adl-center-browser .adl-tool-context--files .adl-tool-context__iconbtn,
-.adl-center-terminal
-  .adl-tool-context--files
-  .adl-tool-context__iconbtn:not(.adl-tool-context__iconbtn--leading) {
   width: 30px;
   min-width: 30px;
   height: 30px;

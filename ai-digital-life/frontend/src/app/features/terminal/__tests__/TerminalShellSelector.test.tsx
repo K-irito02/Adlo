@@ -86,7 +86,7 @@ describe('TerminalShellSelector hover open', () => {
         <Harness onToggleSpy={onToggleSpy} />
       </TestProvider>,
     );
-    fireEvent.mouseEnter(screen.getByLabelText('Select shell type'));
+    fireEvent.mouseEnter(screen.getByLabelText(/Select shell type/));
     expect(onToggleSpy).not.toHaveBeenCalled();
     act(() => {
       vi.advanceTimersByTime(120);
@@ -102,7 +102,7 @@ describe('TerminalShellSelector hover open', () => {
         <Harness onToggleSpy={onToggleSpy} />
       </TestProvider>,
     );
-    fireEvent.mouseEnter(screen.getByLabelText('Select shell type'));
+    fireEvent.mouseEnter(screen.getByLabelText(/Select shell type/));
     act(() => {
       vi.advanceTimersByTime(500);
     });
@@ -118,7 +118,7 @@ describe('TerminalShellSelector hover open', () => {
       </TestProvider>,
     );
     // open via click (works on every device; click alone fires no mouseenter)
-    fireEvent.click(screen.getByLabelText('Select shell type'));
+    fireEvent.click(screen.getByLabelText(/Select shell type/));
     expect(screen.getByRole('menu')).toBeDefined();
     // leave the menu card: its own 2s timer fires exactly once (idempotent close)
     fireEvent.mouseLeave(screen.getByRole('menu'));
@@ -130,5 +130,31 @@ describe('TerminalShellSelector hover open', () => {
       vi.advanceTimersByTime(1);
     });
     expect(onCloseSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('renders the full workspace name (width-driven truncation) and exposes it in the accessible name', () => {
+    mockHoverCapable(true);
+    const workspaceName = 'A Very Long Workspace Name';
+    useAppStore.setState({
+      terminalWorkspaceId: 'ws-1',
+      recentWorkspaces: [
+        {
+          id: 'ws-1',
+          name: workspaceName,
+          removedFromSidebar: false,
+          available: true,
+        } as never,
+      ],
+    });
+    render(
+      <TestProvider>
+        <Harness />
+      </TestProvider>,
+    );
+    const label = document.querySelector('.adl-split-pill__workspace-label');
+    // 完整名称进入 DOM（截断交给 CSS 宽度驱动，不再做 JS substring）
+    expect(label?.textContent).toBe(workspaceName);
+    // 可访问名包含完整名称（窄宽/触屏下裁剪后仍可获知）
+    expect(screen.getByLabelText(`Select shell type ${workspaceName}`)).toBeDefined();
   });
 });

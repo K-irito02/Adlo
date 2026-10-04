@@ -154,4 +154,61 @@ describe('CenterTabStrip', () => {
 
     expect(useAppStore.getState().terminalTabsById[refId].title).toBe('New Name');
   });
+
+  it('重命名输入框内双击不会重置已输入文本', () => {
+    const refId = 't-dbl';
+    const terminalTab: TerminalTabState = {
+      id: refId,
+      workspaceId: '',
+      title: 'Old',
+      profile: 'powershell',
+      status: 'running',
+      isPinned: false,
+      sortOrder: 0,
+      location: 'center',
+    };
+    useAppStore.setState({
+      terminalTabs: [terminalTab],
+      terminalTabsById: { [refId]: terminalTab },
+    });
+    useAppStore.getState().centerAddTab('terminal', refId);
+    renderStrip();
+
+    fireEvent.doubleClick(screen.getByRole('tab'));
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'Edited' } });
+    fireEvent.doubleClick(input);
+
+    expect(input.value).toBe('Edited');
+  });
+
+  it('重命名输入框内的按键不会冒泡被父标签吞掉并抢走选择', () => {
+    const refId = 't-space';
+    const terminalTab: TerminalTabState = {
+      id: refId,
+      workspaceId: '',
+      title: 'Old',
+      profile: 'powershell',
+      status: 'running',
+      isPinned: false,
+      sortOrder: 0,
+      location: 'center',
+    };
+    useAppStore.setState({
+      terminalTabs: [terminalTab],
+      terminalTabsById: { [refId]: terminalTab },
+    });
+    useAppStore.getState().centerAddTab('terminal', refId);
+    const other = useAppStore.getState().centerAddTab('launcher', null);
+    useAppStore.getState().centerSelectTab(other);
+    renderStrip();
+
+    // 双击第一个（终端）标签进入编辑；当前活动标签仍是 other
+    fireEvent.doubleClick(screen.getAllByRole('tab')[0]);
+    const input = screen.getByRole('textbox');
+    fireEvent.keyDown(input, { key: ' ' });
+
+    // 守卫 event.target !== event.currentTarget：父标签未抢走选择
+    expect(useAppStore.getState().centerActiveTabId).toBe(other);
+  });
 });

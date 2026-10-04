@@ -171,12 +171,21 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
               className={`adl-center-tab adl-clip-tab${isActive ? ' is-active' : ''}`}
               onClick={() => centerSelectTab(tab.id)}
               onDoubleClick={() => {
+                // 编辑态内双击（如选中词）不得重置已输入文本
+                if (isEditing) {
+                  return;
+                }
                 if (tab.kind === 'terminal' && tab.refId) {
                   setEditValue(terminalTab?.title || '');
                   setEditingTabId(tab.refId);
                 }
               }}
               onKeyDown={(event) => {
+                // 仅处理标签本体聚焦的按键：不吞掉内部输入框/操作按钮冒泡上来的
+                // Enter/Space（否则重命名无法输入空格、按钮无法键盘激活）。
+                if (event.target !== event.currentTarget) {
+                  return;
+                }
                 if (event.key === 'Enter' || event.key === ' ') {
                   event.preventDefault();
                   centerSelectTab(tab.id);

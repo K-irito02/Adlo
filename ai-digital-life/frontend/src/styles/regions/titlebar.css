@@ -616,17 +616,33 @@
   color: var(--text-primary);
   font-size: var(--text-xs);
   outline: none;
+  /* 标题栏/标签的 user-select:none 会抑制输入框内文本选中，显式恢复 */
+  user-select: text;
 }
 
 .adl-center-tab__edit:focus {
   box-shadow: 0 0 0 2px var(--surface-hover);
 }
 
-/* 无悬停设备（触屏）：悬停不可达，至少让活动标签的操作按钮常驻可见。 */
+/* 无悬停设备（触屏）：悬停不可达，至少让活动标签的操作按钮常驻可见，
+   并同步施加与悬停一致的名称遮挡，避免按钮压在未遮挡的长名称上。 */
 @media (hover: none) {
   .adl-center-tab.is-active .adl-center-tab__actions {
     opacity: 1;
     pointer-events: auto;
+  }
+
+  .adl-center-tab.is-active .adl-center-tab__label {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - var(--adl-clip-tab-cover, 20px)),
+      transparent calc(100% - var(--adl-clip-tab-blend, 10px))
+    );
+    mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - var(--adl-clip-tab-cover, 20px)),
+      transparent calc(100% - var(--adl-clip-tab-blend, 10px))
+    );
   }
 }
 
