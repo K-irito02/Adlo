@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-10-03T08:22:42Z",
-  "updated_at": "2026-10-03T19:40:20Z",
+  "updated_at": "2026-10-04T11:56:32Z",
   "files": {
     "ai-digital-life/.agents/rules/learn-analysis-result.json": {
       "role": "index",
@@ -4592,15 +4592,15 @@
     },
     "ai-digital-life/frontend/src/app/features/terminal/TerminalShellSelector.tsx": {
       "role": "index",
-      "sha256": "6a7c2f4c2841be570056800f4863b2c37588f52e8481d980557c2412d39421f7",
-      "size": 14453,
-      "normalized_sha256": "6a7c2f4c2841be570056800f4863b2c37588f52e8481d980557c2412d39421f7"
+      "sha256": "e23d83549ea01becbac13b3de3a35a4c31df3420db7d90984f9857b26aaa6d71",
+      "size": 14511,
+      "normalized_sha256": "e23d83549ea01becbac13b3de3a35a4c31df3420db7d90984f9857b26aaa6d71"
     },
     "ai-digital-life/frontend/src/app/features/terminal/TerminalTabBar.tsx": {
       "role": "index",
-      "sha256": "28382303905828096b729b3f43d4cb05d0e2f87472fcd168e10ee789766114de",
-      "size": 4058,
-      "normalized_sha256": "28382303905828096b729b3f43d4cb05d0e2f87472fcd168e10ee789766114de"
+      "sha256": "78936e6a0857f9c21d7b29b116987f7712dce92840142b9ca9a797c5e90c89ba",
+      "size": 4091,
+      "normalized_sha256": "78936e6a0857f9c21d7b29b116987f7712dce92840142b9ca9a797c5e90c89ba"
     },
     "ai-digital-life/frontend/src/app/features/terminal/__tests__/TerminalContextMenu.test.tsx": {
       "role": "index",
@@ -4610,9 +4610,9 @@
     },
     "ai-digital-life/frontend/src/app/features/terminal/__tests__/TerminalShellSelector.test.tsx": {
       "role": "index",
-      "sha256": "91a0a1d62cc3a31fd02cc703bcdc5266b44428aba919676cbb3ab93f5e407cec",
-      "size": 3677,
-      "normalized_sha256": "91a0a1d62cc3a31fd02cc703bcdc5266b44428aba919676cbb3ab93f5e407cec"
+      "sha256": "4e8be9ae3babeebc8c9052a2ed8be5c4fe7760dd6fff903de0eecdb9f5e381b8",
+      "size": 4603,
+      "normalized_sha256": "4e8be9ae3babeebc8c9052a2ed8be5c4fe7760dd6fff903de0eecdb9f5e381b8"
     },
     "ai-digital-life/frontend/src/app/features/terminal/__tests__/historyLayout.test.ts": {
       "role": "index",
@@ -5654,15 +5654,15 @@
     },
     "ai-digital-life/frontend/src/app/regions/CenterTabStrip.test.tsx": {
       "role": "index",
-      "sha256": "8bcb4c831353208b793cacbbfffa57f5a169f9d10235329d419b94b45a5b2d0a",
-      "size": 4184,
-      "normalized_sha256": "8bcb4c831353208b793cacbbfffa57f5a169f9d10235329d419b94b45a5b2d0a"
+      "sha256": "9dee5a3786d2a20bbf7fa32e81eded397c3585bc43c839f3496d5024dc91ac54",
+      "size": 6975,
+      "normalized_sha256": "9dee5a3786d2a20bbf7fa32e81eded397c3585bc43c839f3496d5024dc91ac54"
     },
     "ai-digital-life/frontend/src/app/regions/CenterTabStrip.tsx": {
       "role": "index",
-      "sha256": "ccc22d57318f101a8c44731517a9d1ac2e34e5df634d359ad59da944f4f1ae64",
-      "size": 7515,
-      "normalized_sha256": "ccc22d57318f101a8c44731517a9d1ac2e34e5df634d359ad59da944f4f1ae64"
+      "sha256": "cde21d18514df9694c90382f3e6af4ded07cb148d63cdb7dea8c8d50877119fb",
+      "size": 10365,
+      "normalized_sha256": "cde21d18514df9694c90382f3e6af4ded07cb148d63cdb7dea8c8d50877119fb"
     },
     "ai-digital-life/frontend/src/app/regions/HamburgerMenu.tsx": {
       "role": "index",
@@ -5696,9 +5696,9 @@
     },
     "ai-digital-life/frontend/src/app/regions/TitleBar.tsx": {
       "role": "index",
-      "sha256": "9262fbc984eeb78214cfa5f7bf7af847bc9110992f1ad67c219202b28032093f",
-      "size": 7463,
-      "normalized_sha256": "9262fbc984eeb78214cfa5f7bf7af847bc9110992f1ad67c219202b28032093f"
+      "sha256": "dcf18ffdd358e26efe6ce954c7ee632c95a105e906117181c6b7cbe4561fcf29",
+      "size": 7538,
+      "normalized_sha256": "dcf18ffdd358e26efe6ce954c7ee632c95a105e906117181c6b7cbe4561fcf29"
     },
     "ai-digital-life/frontend/src/app/regions/TitleBarNotifications.tsx": {
       "role": "index",
@@ -9482,9 +9482,9 @@
     },
     "ai-digital-life/frontend/src/styles/components.css": {
       "role": "index",
-      "sha256": "03f113fde76fd62345679d7ec84bd8f44ba103e644016a247788d9f4b0ad50f9",
-      "size": 1860,
-      "normalized_sha256": "03f113fde76fd62345679d7ec84bd8f44ba103e644016a247788d9f4b0ad50f9"
+      "sha256": "491c558a25f48912f5f8750c7aa9bf46cbe9f60224509ba5a1b4627a0616e680",
+      "size": 1897,
+      "normalized_sha256": "491c558a25f48912f5f8750c7aa9bf46cbe9f60224509ba5a1b4627a0616e680"
     },
     "ai-digital-life/frontend/src/styles/components/badge.css": {
       "role": "index",
@@ -9665,6 +9665,12 @@
       "sha256": "a9aee1524a93710fdf23ffeb6d6de4d1f247b95b285f9ab5bd3f28dff0dfd41c",
       "size": 1387,
       "normalized_sha256": "a9aee1524a93710fdf23ffeb6d6de4d1f247b95b285f9ab5bd3f28dff0dfd41c"
+    },
+    "ai-digital-life/frontend/src/styles/components/tab-clip.css": {
+      "role": "index",
+      "sha256": "00fbd5396c5785c512cb3da2bf05d2b8502889b090384e0515d3aa4e4d4c505c",
+      "size": 2041,
+      "normalized_sha256": "00fbd5396c5785c512cb3da2bf05d2b8502889b090384e0515d3aa4e4d4c505c"
     },
     "ai-digital-life/frontend/src/styles/components/terminal-output.css": {
       "role": "index",
@@ -9914,9 +9920,9 @@
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/file-operations.css": {
       "role": "index",
-      "sha256": "cf69d57b73fce216a01e26f29d484b92cd650869978c7d2af77a9e7e684c29ca",
-      "size": 6448,
-      "normalized_sha256": "cf69d57b73fce216a01e26f29d484b92cd650869978c7d2af77a9e7e684c29ca"
+      "sha256": "f4ce242d3b9be648b9bef5270492cf01b4ba0e6c63966c0abcbaae20c932a08b",
+      "size": 7917,
+      "normalized_sha256": "f4ce242d3b9be648b9bef5270492cf01b4ba0e6c63966c0abcbaae20c932a08b"
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/file-tree-browser.css": {
       "role": "index",
@@ -9926,9 +9932,9 @@
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/file-tree-core.css": {
       "role": "index",
-      "sha256": "7d0536706569686db3fa7d7985d64b873f6a4e3cbf7d9cf853d2da4862cbd939",
-      "size": 11503,
-      "normalized_sha256": "7d0536706569686db3fa7d7985d64b873f6a4e3cbf7d9cf853d2da4862cbd939"
+      "sha256": "68924d3cc51787ff3a50ae96d377da3def82f66b92f06a7c3017f20b1d043081",
+      "size": 10959,
+      "normalized_sha256": "68924d3cc51787ff3a50ae96d377da3def82f66b92f06a7c3017f20b1d043081"
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/file-tree-lines.css": {
       "role": "index",
@@ -9956,9 +9962,9 @@
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/files-panel-core.css": {
       "role": "index",
-      "sha256": "e297ed8da6fa23ba556d43a902574183d9e6b89f5fb91157e83b5227d81c7859",
-      "size": 12667,
-      "normalized_sha256": "e297ed8da6fa23ba556d43a902574183d9e6b89f5fb91157e83b5227d81c7859"
+      "sha256": "a942f6dd91492accf50dda95930f7902e5684e79615d163706c99fe2f92ce490",
+      "size": 14189,
+      "normalized_sha256": "a942f6dd91492accf50dda95930f7902e5684e79615d163706c99fe2f92ce490"
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/files-panel-list.css": {
       "role": "index",
@@ -10004,9 +10010,9 @@
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/terminal-panel.css": {
       "role": "index",
-      "sha256": "f1352057ab0096f123b50abae507c81c7cb39609794e5ded66ba0fe51c028d92",
-      "size": 15703,
-      "normalized_sha256": "f1352057ab0096f123b50abae507c81c7cb39609794e5ded66ba0fe51c028d92"
+      "sha256": "af96c9cdfabafcd12fe929a129f115f0f1be5faadad04735c9a9baf1cf894a1f",
+      "size": 17566,
+      "normalized_sha256": "af96c9cdfabafcd12fe929a129f115f0f1be5faadad04735c9a9baf1cf894a1f"
     },
     "ai-digital-life/frontend/src/styles/regions/rightpanel/tool-switcher.css": {
       "role": "index",
@@ -10040,9 +10046,9 @@
     },
     "ai-digital-life/frontend/src/styles/regions/titlebar.css": {
       "role": "index",
-      "sha256": "2fc2f54538b32122af9ed6bb9452c89d7e3a7438070173c367f640c29d3b7c34",
-      "size": 12574,
-      "normalized_sha256": "2fc2f54538b32122af9ed6bb9452c89d7e3a7438070173c367f640c29d3b7c34"
+      "sha256": "6be7246ab960d45833b10ef28489b79c075ea9f5734df3240bd2992127138717",
+      "size": 15712,
+      "normalized_sha256": "6be7246ab960d45833b10ef28489b79c075ea9f5734df3240bd2992127138717"
     },
     "ai-digital-life/frontend/src/styles/resize-handle-stacking.test.ts": {
       "role": "index",
@@ -10088,9 +10094,9 @@
     },
     "ai-digital-life/frontend/src/styles/utilities.css": {
       "role": "index",
-      "sha256": "a70fc10c130832cb151209c76245adcac4fbf84021192b7e8646f62ba29bd9c2",
-      "size": 2428,
-      "normalized_sha256": "a70fc10c130832cb151209c76245adcac4fbf84021192b7e8646f62ba29bd9c2"
+      "sha256": "ced10fc5077656e687037569189b13f80f8b6fcddb21f5a54306e69c5aed8644",
+      "size": 2940,
+      "normalized_sha256": "ced10fc5077656e687037569189b13f80f8b6fcddb21f5a54306e69c5aed8644"
     },
     "ai-digital-life/frontend/src/styles/workspace-settings.test.ts": {
       "role": "index",
@@ -10445,9 +10451,9 @@
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "09e6ede1ca0cd795f13f1c2a5e117011c86b5a46547ec0298de5b96291eee7fe",
-      "size": 778725,
-      "normalized_sha256": "09e6ede1ca0cd795f13f1c2a5e117011c86b5a46547ec0298de5b96291eee7fe"
+      "sha256": "cc1b867f3667426468d703fa8a37f3fc5f4edeb17c56f1e33d1072cc6d26f673",
+      "size": 776808,
+      "normalized_sha256": "cc1b867f3667426468d703fa8a37f3fc5f4edeb17c56f1e33d1072cc6d26f673"
     },
     "aoci.meta.txt": {
       "role": "index",
