@@ -314,7 +314,7 @@ async fn run_open(
                         }
                         let detect_start = std::time::Instant::now();
                         let new_source =
-                            adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref());
+                            adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref()).await;
                         tracing::info!(
                             detect_ms = detect_start.elapsed().as_millis(),
                             source = ?new_source,
@@ -337,7 +337,8 @@ async fn run_open(
             }
         } else {
             let detect_start = std::time::Instant::now();
-            let new_source = adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref());
+            let new_source =
+                adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref()).await;
             tracing::info!(
                 detect_ms = detect_start.elapsed().as_millis(),
                 source = ?new_source,
@@ -551,14 +552,14 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     let bundled = adl_dsh_bundle::detect(data_dir)?
         .map(|b| serde_json::json!({ "version": b.version, "path": b.path }));
 
-    let system = adl_dsh_version::detect_system_dsh().map(|info| {
+    let system = adl_dsh_version::detect_system_dsh().await.map(|info| {
         serde_json::json!({
             "path": info.path,
             "version": info.version,
         })
     });
 
-    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).map(|info| {
+    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await.map(|info| {
         serde_json::json!({
             "url": info.url,
             "port": info.port,

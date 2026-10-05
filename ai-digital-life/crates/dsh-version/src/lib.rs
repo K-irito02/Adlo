@@ -1,6 +1,7 @@
-use std::net::TcpStream;
 use std::path::{Path, PathBuf};
-use std::process::Command as StdCommand;
+
+use tokio::net::TcpStream;
+use tokio::process::Command as TokioCommand;
 
 use serde::{Deserialize, Serialize};
 
@@ -211,11 +212,11 @@ pub enum DshSource {
 /// - Unix: `which dsh`
 ///
 /// On success, attempts `dsh --version` to obtain the version string.
-pub fn detect_system_dsh() -> Option<SystemDshInfo> {
+pub async fn detect_system_dsh() -> Option<SystemDshInfo> {
     let which_result = if cfg!(target_os = "windows") {
-        StdCommand::new("where").arg("dsh").output()
+        TokioCommand::new("where").arg("dsh").output().await
     } else {
-        StdCommand::new("which").arg("dsh").output()
+        TokioCommand::new("which").arg("dsh").output().await
     };
 
     let output = match which_result {
@@ -236,24 +237,26 @@ pub fn detect_system_dsh() -> Option<SystemDshInfo> {
 /// 1. Probe `TcpStream::connect` to confirm the port is listening.
 /// 2. HTTP GET `http://127.0.0.1:{port}/` and check for a dsh-related response
 ///    (status 200 and body not empty).
-pub fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
+///
+/// 全异步实现：调用方运行在 ad-server 的 tokio 运行时内，绝不可使用
+/// `reqwest::blocking`（其内部会在异步上下文里构建并 drop 一个 runtime，
+/// debug 构建下 tokio 直接 panic，导致 handler 连接被重置）。
+pub async fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
     let addr = format!("127.0.0.1:{port}");
-    if TcpStream::connect(&addr).is_err() {
+    if TcpStream::connect(&addr).await.is_err() {
         return None;
     }
 
     let url = format!("http://{addr}/");
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_millis(500))
-        .build()
-        .ok()?;
+    let client =
+        reqwest::Client::builder().timeout(std::time::Duration::from_millis(500)).build().ok()?;
 
-    let resp = client.get(&url).send().ok()?;
+    let resp = client.get(&url).send().await.ok()?;
     if !resp.status().is_success() {
         return None;
     }
 
-    let body = resp.text().ok()?;
+    let body = resp.text().await.ok()?;
     if body.is_empty() {
         return None;
     }
@@ -269,15 +272,15 @@ const DSH_DEFAULT_PORT: u16 = 3080;
 /// 2. System-installed (`dsh` on PATH)
 /// 3. Bundled (via `adl-dsh-bundle`)
 /// 4. Download (fallback — no local copy available)
-pub fn select_dsh_source(
+pub async fn select_dsh_source(
     data_dir: &Path,
     bundled: Option<&adl_dsh_bundle::BundledDsh>,
 ) -> DshSource {
-    if let Some(running) = detect_running_dsh(DSH_DEFAULT_PORT) {
+    if let Some(running) = detect_running_dsh(DSH_DEFAULT_PORT).await {
         return DshSource::ReuseRunning { url: running.url, port: running.port };
     }
 
-    if let Some(info) = detect_system_dsh() {
+    if let Some(info) = detect_system_dsh().await {
         return DshSource::System { info };
     }
 
