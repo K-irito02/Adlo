@@ -152,6 +152,30 @@ it('recovers from degraded state when mirror updates bring a new data-URI', () =
   expect(iconLink?.style.display).toBe('none');
 });
 
+it('retries a transiently failing favicon without a URL change (recovers when the server comes up)', () => {
+  // 重启恢复场景：镜像已有 favicon URL，但本地服务尚未就绪时首次 <img> 失败。
+  // 组件应有限次重试，服务就绪后恢复真实图标（而非永久兜底字母）。
+  vi.useFakeTimers();
+  try {
+    mirrorFavicon('https://retry.example', 'https://retry.example/favicon.ico');
+    const { container } = render(<BrowserFavicon url="https://retry.example" />);
+    const img = container.querySelector('.adl-browser-tree__favicon') as HTMLImageElement | null;
+    expect(img).not.toBeNull();
+    // 首次加载失败 → 降级（显示兜底字母），但安排一次重试
+    act(() => {
+      fireEvent.error(img!);
+    });
+    expect(container.querySelector('.adl-browser-tree__favicon')).toBeNull();
+    // 重试间隔到 → 重新挂载 <img> 再次尝试
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(container.querySelector('.adl-browser-tree__favicon')).not.toBeNull();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 it('stays degraded when a broadcast keeps the same data-URI (no remount flicker)', () => {
   // L6：data-URI 未变化时保持降级态，避免每次广播重挂 img → 失败 → 再降级的闪烁
   mirrorFavicon(

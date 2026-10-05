@@ -14,8 +14,6 @@ export interface BrowserTabState {
   isDownloading: boolean;
   /** 所属宿主；缺省（undefined）等同 'panel'。中心标签为 'center'。 */
   location?: TabLocation;
-  /** dsh 承载标签（关闭时联动停止 dsh 进程）。 */
-  isDsh?: boolean;
 }
 
 export interface BrowserTabStateUpdate {
@@ -29,8 +27,6 @@ export interface BrowserTabStateUpdate {
   isPlayingAudio?: boolean;
   isAudioMuted?: boolean;
   isDownloading?: boolean;
-  /** dsh 承载标签标记（打开 dsh 时打标，关闭时联动停进程）。 */
-  isDsh?: boolean;
 }
 
 export interface BookmarkTabItem {

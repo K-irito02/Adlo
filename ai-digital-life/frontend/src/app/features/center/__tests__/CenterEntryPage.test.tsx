@@ -108,8 +108,8 @@ describe('CenterEntryPage', () => {
       expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(false),
     );
     const s = useAppStore.getState();
-    // 新建的 dsh 浏览器标签带 isDsh 且位于中心。
-    const dshTab = s.browserTabs.find((tab) => tab.isDsh);
+    // 新建的普通浏览器标签位于中心，URL 为 dsh URL（不再带任何 dsh 专属标记）。
+    const dshTab = s.browserTabs.find((tab) => tab.url === 'http://127.0.0.1:3080');
     expect(dshTab).toBeTruthy();
     expect(dshTab?.location).toBe('center');
     expect(s.centerTabs.some((c) => c.kind === 'browser' && c.refId === dshTab?.id)).toBe(true);

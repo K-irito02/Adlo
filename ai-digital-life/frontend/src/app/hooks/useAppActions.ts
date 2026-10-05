@@ -41,7 +41,6 @@ export function useAppActions() {
       switchGitBranch: state.switchGitBranch,
       createGitBranch: state.createGitBranch,
       openDsh: state.openDsh,
-      closeDsh: state.closeDsh,
       fetchDshVersionStatus: state.fetchDshVersionStatus,
       updateDsh: state.updateDsh,
       revertDsh: state.revertDsh,
@@ -52,7 +51,6 @@ export function useAppActions() {
       testSource: state.testSource,
       setDshOpen: state.setDshOpen,
       setDshUrl: state.setDshUrl,
-      setDshCloseDialogVisible: state.setDshCloseDialogVisible,
     })),
   );
 }

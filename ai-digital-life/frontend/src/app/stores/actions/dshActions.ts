@@ -2,11 +2,12 @@ import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
 import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../../shared/ipc/dsh';
 import { captureError, clearError } from '../shared';
+import { historyDedupKey } from '@utils/browserDisplayUtils';
 const SCOPE = 'dsh';
 
 /**
  * openDsh 进行中标志（模块级）：快速双击/并发调用时复用同一 promise，
- * 避免重复拉起 dsh 进程与创建多个 isDsh 标签。
+ * 避免重复拉起 dsh 进程与创建多个承载标签。
  */
 let openDshInFlight: Promise<DshOpenResult | null> | null = null;
 
@@ -21,7 +22,11 @@ async function refreshVersionStatusSilently(get: () => StoreState): Promise<void
 export function createDshActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
   return {
     /**
-     * [openDsh - 拉起 dsh 进程，并把它显示为一个普通浏览器中心标签]
+     * [openDsh - 确保 dsh 进程就绪，并打开/聚焦一个承载它的普通浏览器标签]
+     *
+     * 「打开 deepseek harness」等价于自动快捷跳转：确保进程就绪后，按 URL 复用已有
+     * 标签（聚焦到中心），否则新建一个**普通**浏览器标签并移到中心。该标签不带任何
+     * dsh 专属标记 —— 跨重启持久化、关闭不联动停进程、可被正常挂起。
      * @returns 成功返回 `{url, freedPort}`；失败返回 `null` 并已记录全局错误卡片
      * @reads 无
      * @writes dshSlice.isOpen, dshSlice.url, browserSlice.browserTabs/browserActiveTabId, centerTabs
@@ -33,75 +38,45 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       if (openDshInFlight) {
         return openDshInFlight;
       }
-      // 已有 isDsh 标签且进程仍在（isOpen）：聚焦它（已居中则重新选中该中心标签，
-      // 否则移入中心），不新建标签、不重复拉起进程（dsh.open 幂等但双击仍会产生第二个标签）。
-      // isOpen === false 说明进程已死而标签残留（死标签）：不复用，走正常拉起路径重建。
-      const existing = get().browserTabs.find((tab) => tab.isDsh);
-      if (existing && get().isOpen) {
-        clearError(get, SCOPE);
-        get().setDshOpen(true);
-        get().setDshUrl(existing.url);
-        const centerTab = get().centerTabs.find(
-          (tab) => tab.kind === 'browser' && tab.refId === existing.id,
-        );
-        if (centerTab) {
-          get().centerSelectTab(centerTab.id);
-        } else {
-          get().centerShowBrowserTab(existing.id);
-        }
-        return { url: existing.url, freedPort: false };
-      }
       openDshInFlight = (async () => {
         clearError(get, SCOPE);
         const result = await window.digitalLife.dsh.open();
-        if (result.ok) {
-          const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
-          get().setDshOpen(true);
-          get().setDshUrl(data.url);
-          // dsh 统一为普通浏览器中心标签：拉起进程后创建承载标签并标记 isDsh
-          //（关闭标签时联动停进程，见 useBrowserTabs / CenterTabStrip）。
-          // 浏览器池的 create 路径会自行建立 WebView，无需再 bump 桥接条 z-order。
-          // 初始标题留空：页面标题回写会覆盖它，空标题期间 UI 显示 i18n 新建标签页
-          // 占位（不得硬编码 'dsh' 等字面标题）。
-          get().browserOpenTab(data.url ?? '');
-          const tabId = get().browserActiveTabId;
-          if (tabId) {
-            get().browserUpdateTab(tabId, { isDsh: true });
-            get().centerShowBrowserTab(tabId);
-          }
-          return data;
+        if (!result.ok) {
+          captureError(get, result.error, SCOPE);
+          return null;
         }
-        captureError(get, result.error, SCOPE);
-        return null;
+        const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
+        get().setDshOpen(true);
+        get().setDshUrl(data.url);
+        const url = data.url?.trim() ?? '';
+        if (url) {
+          const existing = get().browserTabs.find(
+            (tab) => historyDedupKey(tab.url) === historyDedupKey(url),
+          );
+          if (existing) {
+            const centerTab = get().centerTabs.find(
+              (tab) => tab.kind === 'browser' && tab.refId === existing.id,
+            );
+            if (centerTab) {
+              get().centerSelectTab(centerTab.id);
+            } else {
+              get().centerShowBrowserTab(existing.id);
+            }
+            return data;
+          }
+        }
+        get().browserOpenTab(url);
+        const tabId = get().browserActiveTabId;
+        if (tabId) {
+          get().centerShowBrowserTab(tabId);
+        }
+        return data;
       })();
       try {
         return await openDshInFlight;
       } finally {
         openDshInFlight = null;
       }
-    },
-    /**
-     * [closeDsh - 终止 dsh 进程并关闭其中间区宿主]
-     * @param keep 透传桥接层的进程保留标志；中心标签关闭路径一律传 false（终止进程）。
-     * WebView 的销毁归浏览器池（`browserPool.destroyTab`）负责，不在此处理。
-     * @returns true=成功；false=失败（已记录全局错误卡片）
-     * @reads dshSlice.isOpen
-     * @writes dshSlice.isOpen, dshSlice.url
-     * @see httpBridge.ts → dsh.close (/dsh/close)
-     * @see mock-bridge.ts → mockDsh.close
-     */
-    closeDsh: async (keep: boolean): Promise<boolean> => {
-      clearError(get, SCOPE);
-      const result = await window.digitalLife.dsh.close(keep);
-      if (result.ok) {
-        get().setDshOpen(false);
-        get().setDshUrl(null);
-        get().setDshCloseDialogVisible(false);
-        return true;
-      }
-      captureError(get, result.error, SCOPE);
-      get().setDshCloseDialogVisible(false);
-      return false;
     },
 
     /**

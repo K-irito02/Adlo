@@ -52,13 +52,13 @@ export interface ProtectedActiveSources {
 /**
  * 受挂起保护的活动标签 id 集合（spec §6.2）。
  *
- * 挂起调度每 tick 从 store 现算，覆盖两个宿主的活动浏览器标签与全部 dsh 标签：
+ * 挂起调度每 tick 从 store 现算，覆盖两个宿主的活动浏览器标签：
  * - 面板活动浏览器标签（`browserActiveTabId`）
  * - 中心活动标签（若其 kind === 'browser'，取其 refId）
- * - 全部 isDsh 标签（dsh 承载进程，销毁后中心视图会空白且无法重建）
  *
  * 被移入中心的活动标签仍在共享池中、且切到中心后面板 lifecycle effect 不再跑，
  * 因此不能只依赖面板传入的活动 id —— 必须在销毁前于此处统一保护。
+ * dsh 标签是普通标签，不再享有额外免挂起保护。
  */
 export function collectProtectedActiveTabIds(state: ProtectedActiveSources): Set<string> {
   const ids = new Set<string>();
@@ -68,11 +68,6 @@ export function collectProtectedActiveTabIds(state: ProtectedActiveSources): Set
   const centerActive = state.centerTabs.find((tab) => tab.id === state.centerActiveTabId);
   if (centerActive?.kind === 'browser' && centerActive.refId) {
     ids.add(centerActive.refId);
-  }
-  for (const tab of state.browserTabs) {
-    if (tab.isDsh) {
-      ids.add(tab.id);
-    }
   }
   return ids;
 }

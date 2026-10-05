@@ -244,8 +244,6 @@ interface UtilitiesActions {
 
 interface DshActions {
   openDsh: () => Promise<DshOpenResult | null>;
-  /** 终止 dsh（中心标签关闭路径传 false；WebView 销毁归浏览器池）。 */
-  closeDsh: (keep: boolean) => Promise<boolean>;
   fetchDshVersionStatus: () => Promise<boolean>;
   updateDsh: () => Promise<boolean>;
   revertDsh: (version: string) => Promise<boolean>;

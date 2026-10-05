@@ -6,6 +6,7 @@ import { shouldHostHideTab } from './browserPoolSingleton';
 import { getResolvedTheme } from './useBrowserThemeSync';
 import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { isDownloadUrl } from '@utils/downloadUrl';
+import { isLoopbackHttpUrl, waitForLoopbackReachable } from './loopbackReadiness';
 
 interface UseWebViewLifecycleOptions {
   /** 宿主标识（panel / center）：仅用于诊断日志，refs 天然 per-hook-instance。 */
@@ -149,6 +150,12 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
             );
             webViewActiveRef.current = false;
             return;
+          }
+          // 重启恢复的 loopback 标签：先等服务可达再导航，避免首帧 ERR_CONNECTION_REFUSED
+          // （以及失败窗口把站点元数据判成"无图标" → favicon 兜底字母）。
+          if (!isFresh && isLoopbackHttpUrl(tab.url)) {
+            setLoadingTabId(currentTabId);
+            await waitForLoopbackReachable(tab.url);
           }
           // Real WebView creation: show loading.
           setLoadingTabId(currentTabId);

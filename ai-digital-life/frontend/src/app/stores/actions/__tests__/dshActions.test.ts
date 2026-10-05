@@ -8,34 +8,29 @@ interface DshTestStore {
   isOpen: boolean;
   url: string | null;
   versionStatus: unknown;
-  closeDialogVisible: boolean;
   errorToasts: { code: string; detail: string; scope?: string }[];
   reportError: (code: string, detail: string, scope?: string) => string;
   clearErrorToasts: (scope?: string) => void;
   setDshOpen: (open: boolean) => void;
   setDshUrl: (url: string | null) => void;
   setDshVersionStatus: (status: unknown) => void;
-  setDshCloseDialogVisible: (visible: boolean) => void;
   isTauri: boolean;
   siblingWebviewNonce: number;
   bumpSiblingWebviewNonce: () => void;
   fetchDshVersionStatus: () => Promise<boolean>;
   openDsh: () => Promise<DshOpenResult | null>;
   updateDsh: () => Promise<boolean>;
-  closeDsh: (keep: boolean) => Promise<boolean>;
-  /** 浏览器标签 + 中心标签的最小真实语义（供 openDsh 创建 isDsh 中心标签断言） */
+  /** 普通浏览器标签 + 中心标签的最小真实语义（供 openDsh 断言） */
   browserTabs: {
     id: string;
     url: string;
     title: string;
-    isDsh?: boolean;
     location?: 'panel' | 'center';
   }[];
   browserActiveTabId: string;
   centerTabs: { id: string; kind: string; refId: string | null }[];
   centerActiveTabId: string;
   browserOpenTab: (url?: string, title?: string) => void;
-  browserUpdateTab: (tabId: string, patch: { isDsh?: boolean }) => void;
   centerShowBrowserTab: (browserTabId: string) => void;
   centerSelectTab: (centerTabId: string) => void;
 }
@@ -44,13 +39,12 @@ function makeStore() {
   const store = createStore<DshTestStore>((set, get) => {
     const dshActions = createDshActions(set as never, () => get() as never) as unknown as Pick<
       DshTestStore,
-      'openDsh' | 'fetchDshVersionStatus' | 'updateDsh' | 'closeDsh'
+      'openDsh' | 'fetchDshVersionStatus' | 'updateDsh'
     >;
     return {
       isOpen: false,
       url: null,
       versionStatus: null,
-      closeDialogVisible: false,
       errorToasts: [],
       reportError: (code, detail, scope) => {
         set((s) => ({ errorToasts: [...s.errorToasts, { code, detail, scope }] }));
@@ -66,7 +60,6 @@ function makeStore() {
       setDshOpen: (open) => set({ isOpen: open }),
       setDshUrl: (url) => set({ url }),
       setDshVersionStatus: (status) => set({ versionStatus: status }),
-      setDshCloseDialogVisible: (visible) => set({ closeDialogVisible: visible }),
       isTauri: false,
       siblingWebviewNonce: 0,
       bumpSiblingWebviewNonce: () =>
@@ -83,10 +76,6 @@ function makeStore() {
             browserActiveTabId: id,
           };
         }),
-      browserUpdateTab: (tabId, patch) =>
-        set((s) => ({
-          browserTabs: s.browserTabs.map((t) => (t.id === tabId ? { ...t, ...patch } : t)),
-        })),
       centerShowBrowserTab: (browserTabId) =>
         set((s) => {
           const centerId = `c${s.centerTabs.length + 1}`;
@@ -113,7 +102,7 @@ describe('dshActions.openDsh', () => {
     vi.unstubAllGlobals();
   });
 
-  it('成功时映射 {url, freedPort}、写入 dsh 状态并创建 isDsh 中心浏览器标签', async () => {
+  it('成功时映射 {url, freedPort}、写入 dsh 状态并创建普通中心浏览器标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: true },
@@ -125,19 +114,18 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().url).toBe('http://127.0.0.1:3080');
     expect(store.getState().errorToasts).toEqual([]);
 
-    // 成功即创建承载 dsh 的普通浏览器标签，并移到中心。isDsh 仅会话内有效，
-    // 不跨重启持久化（读盘处剔除，见 composite/registry）。
+    // 成功即创建一个**普通**浏览器标签（无任何 dsh 专属标记）并移到中心。
     const tab = store.getState().browserTabs[0];
     expect(tab).toBeTruthy();
-    expect(tab.isDsh).toBe(true);
     expect(tab.location).toBe('center');
     expect(tab.url).toBe('http://127.0.0.1:3080');
+    expect('isDsh' in tab).toBe(false);
     expect(
       store.getState().centerTabs.some((c) => c.kind === 'browser' && c.refId === tab.id),
     ).toBe(true);
   });
 
-  it('成功但 data 为空时回落 url:null,freedPort:false（仍创建 isDsh 中心标签）', async () => {
+  it('成功但 data 为空时回落 url:null,freedPort:false（仍创建中心标签）', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({ ok: true, data: null });
     const store = makeStore();
     const result = await store.getState().openDsh();
@@ -145,7 +133,6 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().isOpen).toBe(true);
     expect(store.getState().url).toBeNull();
     const tab = store.getState().browserTabs[0];
-    expect(tab?.isDsh).toBe(true);
     expect(tab?.location).toBe('center');
   });
 
@@ -176,65 +163,28 @@ describe('dshActions.openDsh', () => {
     expect(store.getState().siblingWebviewNonce).toBe(0);
   });
 
-  it('已有 isDsh 标签时聚焦已有标签，不新建、不重复拉起进程', async () => {
-    const store = makeStore();
-    store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
-    const id = store.getState().browserActiveTabId;
-    store.getState().browserUpdateTab(id, { isDsh: true });
-    store.getState().centerShowBrowserTab(id);
-    store.setState({ isOpen: true });
-    const centerCountBefore = store.getState().centerTabs.length;
-
-    const result = await store.getState().openDsh();
-
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
-    expect((window as any).digitalLife.dsh.open).not.toHaveBeenCalled();
-    expect(store.getState().browserTabs.filter((t) => t.isDsh)).toHaveLength(1);
-    // 不新增中心标签；已有中心标签被重新选中。
-    expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
-    expect(store.getState().centerActiveTabId).toBe(store.getState().centerTabs[0].id);
-    expect(store.getState().isOpen).toBe(true);
-  });
-
-  it('复用已有 isDsh 标签时回填 setDshUrl(existing.url)', async () => {
-    const store = makeStore();
-    store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
-    const id = store.getState().browserActiveTabId;
-    store.getState().browserUpdateTab(id, { isDsh: true });
-    store.getState().centerShowBrowserTab(id);
-    store.setState({ isOpen: true, url: null });
-
-    const result = await store.getState().openDsh();
-
-    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
-    expect(store.getState().url).toBe('http://127.0.0.1:3080');
-    expect((window as any).digitalLife.dsh.open).not.toHaveBeenCalled();
-  });
-
-  it('死标签（isOpen=false）不复用，走正常拉起重建', async () => {
+  it('已有同 URL 的普通标签时聚焦它，不新建标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: false },
     });
     const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
-    const deadId = store.getState().browserActiveTabId;
-    store.getState().browserUpdateTab(deadId, { isDsh: true });
-    store.getState().centerShowBrowserTab(deadId);
-    // 进程已死：isOpen=false，残留死标签不得被复用聚焦。
-    expect(store.getState().isOpen).toBe(false);
+    const id = store.getState().browserActiveTabId;
+    store.getState().centerShowBrowserTab(id);
+    const centerCountBefore = store.getState().centerTabs.length;
 
     const result = await store.getState().openDsh();
 
-    expect((window as any).digitalLife.dsh.open).toHaveBeenCalledTimes(1);
     expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
-    // 正常拉起创建了新的承载标签（而非只聚焦死标签）。
-    expect(store.getState().browserTabs.length).toBe(2);
-    expect(store.getState().isOpen).toBe(true);
+    expect(store.getState().browserTabs).toHaveLength(1);
+    // 不新增中心标签；已有中心标签被重新选中。
+    expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
+    expect(store.getState().centerActiveTabId).toBe(store.getState().centerTabs[0].id);
     expect(store.getState().url).toBe('http://127.0.0.1:3080');
   });
 
-  it('并发调用（快速双击）只拉起一次且只创建一个 isDsh 标签', async () => {
+  it('并发调用（快速双击）只拉起一次且只创建一个标签', async () => {
     let resolveOpen!: (value: unknown) => void;
     const open = vi.fn(
       () =>
@@ -256,7 +206,7 @@ describe('dshActions.openDsh', () => {
 
     expect(r1).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
     expect(r2).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
-    expect(store.getState().browserTabs.filter((t) => t.isDsh)).toHaveLength(1);
+    expect(store.getState().browserTabs).toHaveLength(1);
     expect(open).toHaveBeenCalledTimes(1);
   });
 });

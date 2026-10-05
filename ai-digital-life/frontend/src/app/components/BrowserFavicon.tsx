@@ -30,12 +30,34 @@ interface BrowserFaviconProps {
   size?: IconSize;
 }
 
+/**
+ * `<img>` 加载失败的重试预算与间隔。
+ *
+ * 失败可能是**瞬时的**——典型：应用启动时标签已恢复、站点元数据镜像里已有 favicon URL，
+ * 但本地服务（如 dsh）尚未就绪，首次 `<img>` 请求被拒。若一次性永久降级为兜底字母，
+ * 服务随后就绪也不会恢复（且相同 URL 的元数据广播因 `prev === next` 不会清降级）。
+ * 故在此做有限次重试；耗尽后仍失败才永久降级（避免"永远闪烁"）。
+ */
+const FAVICON_RETRY_MAX = 6;
+const FAVICON_RETRY_DELAY_MS = 2000;
+
 export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const [ready, setReady] = useState(isSiteMetaCacheReady());
   const [faviconUrl, setFaviconUrl] = useState('');
   const [degraded, setDegraded] = useState(false);
   const faviconUrlRef = useRef('');
   const [resolvedFaviconEmpty, setResolvedFaviconEmpty] = useState(false);
+  // 重试预算/计时器 + 强制重挂 <img> 的 key（瞬时失败恢复用）。
+  const [retryKey, setRetryKey] = useState(0);
+  const retryLeftRef = useRef(FAVICON_RETRY_MAX);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearRetryTimer = useCallback(() => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current);
+      retryTimerRef.current = null;
+    }
+  }, []);
 
   const applyMetaUpdate = useCallback(() => {
     const prev = faviconUrlRef.current;
@@ -44,12 +66,15 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
       faviconUrlRef.current = next;
       setFaviconUrl(next);
       setDegraded(false);
+      // 拿到（变化的）favicon → 重置重试预算并取消在途重试。
+      retryLeftRef.current = FAVICON_RETRY_MAX;
+      clearRetryTimer();
     }
     // 已结算但 favicon URL 仍为空，标记为"确认无 favicon"（无条件检查，处理初始已结算场景）
     if (url && isSiteMetaResolvedOrRedirected(url) && !next) {
       setResolvedFaviconEmpty(true);
     }
-  }, [url]);
+  }, [url, clearRetryTimer]);
 
   useEffect(() => {
     void initSiteMetaCache();
@@ -71,7 +96,12 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     setDegraded(false);
     setFaviconUrl('');
     faviconUrlRef.current = '';
-  }, [url]);
+    retryLeftRef.current = FAVICON_RETRY_MAX;
+    clearRetryTimer();
+  }, [url, clearRetryTimer]);
+
+  // 卸载时取消在途重试计时器（避免对已卸载组件的 setState）。
+  useEffect(() => clearRetryTimer, [clearRetryTimer]);
 
   useEffect(() => {
     applyMetaUpdate();
@@ -122,7 +152,18 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
   const showLetter = resolvedFaviconEmpty || degraded;
   const handleError = useCallback(() => {
     setDegraded(true);
-  }, []);
+    // 有限次重试：瞬时失败（本地服务未就绪等）可恢复；预算耗尽后才永久降级。
+    if (retryLeftRef.current > 0) {
+      retryLeftRef.current -= 1;
+      clearRetryTimer();
+      retryTimerRef.current = setTimeout(() => {
+        retryTimerRef.current = null;
+        // 清降级 + 重挂 <img>（key 变化）再试一次。
+        setDegraded(false);
+        setRetryKey((k) => k + 1);
+      }, FAVICON_RETRY_DELAY_MS);
+    }
+  }, [clearRetryTimer]);
 
   // 新标签页（无 URL/about:blank）没有站点 favicon：显示内置"新标签页"图标，
   // 避免空白占位（用户 2026-08-20 报告：open 模式下新建标签页标签图标缺失）。
@@ -140,6 +181,7 @@ export function BrowserFavicon({ url, size = 14 }: BrowserFaviconProps) {
     >
       {showImg && (
         <img
+          key={retryKey}
           src={current}
           alt=""
           className="adl-browser-tree__favicon"

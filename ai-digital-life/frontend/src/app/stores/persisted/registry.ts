@@ -159,9 +159,6 @@ export const isBrowserTab = (item: Record<string, unknown>): boolean => {
   if (item.location !== undefined && item.location !== 'panel' && item.location !== 'center') {
     return false;
   }
-  if (item.isDsh !== undefined && typeof item.isDsh !== 'boolean') {
-    return false;
-  }
   return true;
 };
 
@@ -632,8 +629,8 @@ export const registry = {
     field: 'browserTabs',
     fallback: [],
     scope: 'global',
-    // dsh 标签不跨重启持久化（spec §10.2/§11）：读盘即剔除，绝不把 isDsh 标签恢复进 store。
-    read: (raw) => readObjectArray<BrowserTabState>(isBrowserTab)(raw)?.filter((tab) => !tab.isDsh),
+    // dsh 标签是普通浏览器标签，跨重启持久化（其承载的 dsh 进程由应用启动期重新拉起）。
+    read: (raw) => readObjectArray<BrowserTabState>(isBrowserTab)(raw),
   }),
   'adl:browser.activeTabId': defineEntry<string>({
     key: 'adl:browser.activeTabId',

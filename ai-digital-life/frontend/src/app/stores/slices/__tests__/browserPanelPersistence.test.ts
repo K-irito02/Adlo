@@ -84,7 +84,7 @@ describe('browser panel persistence — write → simulated restart → read bac
     expect(Object.keys(patch.browserTabsById as Record<string, unknown>)).toEqual([tabId]);
   });
 
-  it('drops isDsh tabs on restart (dsh tabs never cross restarts)', () => {
+  it('persists dsh-URL tabs across restart (dsh tabs are ordinary tabs)', () => {
     localStorage.setItem(
       'adl:browser.tabs',
       JSON.stringify([
@@ -93,7 +93,6 @@ describe('browser panel persistence — write → simulated restart → read bac
           id: 'browser-dsh',
           title: 'dsh',
           url: 'http://127.0.0.1:3080',
-          isDsh: true,
           location: 'center',
         },
       ]),
@@ -102,31 +101,11 @@ describe('browser panel persistence — write → simulated restart → read bac
 
     const patch = restart();
 
-    expect(patch.browserTabs).toHaveLength(1);
-    expect((patch.browserTabs as { id: string }[])[0].id).toBe('browser-1');
-    expect((patch.browserTabs as { isDsh?: boolean }[]).some((tab) => tab.isDsh)).toBe(false);
-    expect(patch.browserActiveTabId).toBe('browser-1');
-  });
-
-  it('rehydrating a lone dsh tab yields an empty browser tab set', () => {
-    localStorage.setItem(
-      'adl:browser.tabs',
-      JSON.stringify([
-        {
-          id: 'browser-dsh',
-          title: 'dsh',
-          url: 'http://127.0.0.1:3080',
-          isDsh: true,
-          location: 'center',
-        },
-      ]),
+    expect(patch.browserTabs).toHaveLength(2);
+    expect((patch.browserTabs as { id: string }[]).some((tab) => tab.id === 'browser-dsh')).toBe(
+      true,
     );
-    localStorage.setItem('adl:browser.activeTabId', JSON.stringify('browser-dsh'));
-
-    const patch = restart();
-
-    expect(patch.browserTabs).toEqual([]);
-    expect(patch.browserActiveTabId).toBe('');
+    expect(patch.browserActiveTabId).toBe('browser-dsh');
   });
 
   it('falls back to the last tab when the persisted active tab id is stale', () => {

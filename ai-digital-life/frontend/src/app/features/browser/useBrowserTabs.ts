@@ -114,14 +114,6 @@ export function useBrowserTabs() {
     (tabId: string) => {
       const state = useAppStore.getState();
       const tab = state.browserTabs.find((t) => t.id === tabId);
-      if (tab?.isDsh) {
-        // dsh 承载标签关闭即终止进程；closeDsh 失败已记全局错误卡片，此处 catch 仅防
-        // 未处理 rejection 告警。
-        void useAppStore
-          .getState()
-          .closeDsh(false)
-          .catch((e) => console.warn('[browser] closeDsh on tab close failed:', e));
-      }
       browserCloseTab(tabId);
       if (tab?.url) {
         removeSiteMetaIfUnreferenced(tab.url);
@@ -138,14 +130,6 @@ export function useBrowserTabs() {
           ? state.browserTabs.filter((t) => t.workspaceId === workspaceId)
           : state.browserTabs
       ).filter((t) => t.location !== 'center');
-      for (const tab of closingTabs) {
-        if (tab.isDsh) {
-          void useAppStore
-            .getState()
-            .closeDsh(false)
-            .catch((e) => console.warn('[browser] closeDsh on close-all failed:', e));
-        }
-      }
       const closingUrls = closingTabs.map((t) => t.url).filter((u): u is string => !!u);
       browserCloseAllTabs(workspaceId);
       for (const url of closingUrls) {
