@@ -19,11 +19,6 @@ const tab = (id: string, patch: Partial<BrowserTabState> = {}): BrowserTabState 
 describe('面板挂起调度保护中心活动标签（dsh 标签按普通标签处理）', () => {
   it('受保护集合覆盖面板活动与中心活动浏览器标签，不含非活动标签', () => {
     const ids = collectProtectedActiveTabIds({
-      browserTabs: [
-        tab('panel'),
-        tab('center', { location: 'center' }),
-        tab('other-center', { location: 'center' }),
-      ],
       browserActiveTabId: 'panel',
       centerTabs: [
         { id: 'c1', kind: 'launcher', refId: null },

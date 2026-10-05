@@ -29,30 +29,52 @@ export function isLoopbackHttpUrl(url: string): boolean {
 }
 
 /** 单次可达性探测：no-cors GET 成功解析即视为服务可达（连接被拒会 reject）。 */
-async function probeReachable(url: string): Promise<boolean> {
+async function probeReachable(url: string, signal?: AbortSignal): Promise<boolean> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), PROBE_TIMEOUT_MS);
+  const onAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) {
+      clearTimeout(timer);
+      return false;
+    }
+    signal.addEventListener('abort', onAbort, { once: true });
+  }
   try {
     await fetch(url, {
       method: 'GET',
       mode: 'no-cors',
       cache: 'no-store',
       redirect: 'follow',
-      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+      signal: controller.signal,
     });
     return true;
   } catch {
     return false;
+  } finally {
+    clearTimeout(timer);
+    signal?.removeEventListener('abort', onAbort);
   }
 }
 
 /**
- * 等待 loopback URL 可达；超时后返回（调用方照常创建 WebView，届时显示错误页）。
- * 返回 `true` 表示探测到可达，`false` 表示超时。
+ * 等待 loopback URL 可达；超时或被 `signal` 取消后返回。
+ * @returns `true` 探测到可达；`false` 超时或已取消。
  */
-export async function waitForLoopbackReachable(url: string): Promise<boolean> {
+export async function waitForLoopbackReachable(
+  url: string,
+  signal?: AbortSignal,
+): Promise<boolean> {
   const deadline = Date.now() + LOOPBACK_READY_MAX_MS;
   for (;;) {
-    if (await probeReachable(url)) {
+    if (signal?.aborted) {
+      return false;
+    }
+    if (await probeReachable(url, signal)) {
       return true;
+    }
+    if (signal?.aborted) {
+      return false;
     }
     if (Date.now() >= deadline) {
       return false;

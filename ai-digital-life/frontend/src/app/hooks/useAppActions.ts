@@ -49,8 +49,6 @@ export function useAppActions() {
       fetchSourceStatus: state.fetchSourceStatus,
       saveSourceConfig: state.saveSourceConfig,
       testSource: state.testSource,
-      setDshOpen: state.setDshOpen,
-      setDshUrl: state.setDshUrl,
     })),
   );
 }

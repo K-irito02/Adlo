@@ -2,8 +2,23 @@ import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
 import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../../shared/ipc/dsh';
 import { captureError, clearError } from '../shared';
-import { historyDedupKey } from '@utils/browserDisplayUtils';
 const SCOPE = 'dsh';
+
+/**
+ * 两个 URL 是否指向同一个本地服务（**按 origin，含端口**）。
+ *
+ * 不能复用 `historyDedupKey`——它只用 hostname（**忽略端口**），会把
+ * `127.0.0.1:3080` 与 `127.0.0.1:5173` 视为同一个，导致 openDsh 误聚焦错误标签。
+ * 只比较 origin（scheme+host+port）：同一 origin 即同一本地服务，路径/query/hash
+ * 不参与 —— dsh SPA 路由到子路径后仍应复用同一标签，避免产生重复标签。
+ */
+function sameServiceOrigin(a: string, b: string): boolean {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return a.trim() === b.trim();
+  }
+}
 
 /**
  * openDsh 进行中标志（模块级）：快速双击/并发调用时复用同一 promise，
@@ -28,8 +43,8 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * 标签（聚焦到中心），否则新建一个**普通**浏览器标签并移到中心。该标签不带任何
      * dsh 专属标记 —— 跨重启持久化、关闭不联动停进程、可被正常挂起。
      * @returns 成功返回 `{url, freedPort}`；失败返回 `null` 并已记录全局错误卡片
-     * @reads 无
-     * @writes dshSlice.isOpen, dshSlice.url, browserSlice.browserTabs/browserActiveTabId, centerTabs
+     * @reads browserSlice.browserTabs, browserSlice.browserActiveTabId, centerTabs
+     * @writes browserSlice.browserTabs/browserActiveTabId, centerTabs
      * @see httpBridge.ts → dsh.open (/dsh/open)
      * @see mock-bridge.ts → mockDsh.open
      */
@@ -46,13 +61,9 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
           return null;
         }
         const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
-        get().setDshOpen(true);
-        get().setDshUrl(data.url);
         const url = data.url?.trim() ?? '';
         if (url) {
-          const existing = get().browserTabs.find(
-            (tab) => historyDedupKey(tab.url) === historyDedupKey(url),
-          );
+          const existing = get().browserTabs.find((tab) => sameServiceOrigin(tab.url, url));
           if (existing) {
             const centerTab = get().centerTabs.find(
               (tab) => tab.kind === 'browser' && tab.refId === existing.id,

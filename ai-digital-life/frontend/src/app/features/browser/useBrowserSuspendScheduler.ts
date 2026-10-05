@@ -43,7 +43,6 @@ export function applyIdlePass(input: SuspendPassInput): string[] {
 }
 
 export interface ProtectedActiveSources {
-  browserTabs: BrowserTabState[];
   browserActiveTabId: string;
   centerTabs: { id: string; kind: string; refId: string | null }[];
   centerActiveTabId: string;
@@ -96,7 +95,7 @@ export function useBrowserSuspendScheduler(opts: SchedulerOptions) {
       const state = useAppStore.getState();
       const isProtected = (t: BrowserTabState): boolean =>
         t.isPinned || t.isPlayingAudio || t.isDownloading;
-      // 受保护的活动标签（面板活动 + 中心活动浏览器 + 全部 dsh）每 tick 现算，
+      // 受保护的活动标签（面板活动 + 中心活动浏览器）每 tick 现算，
       // 在此刷新它们的激活时间戳：单宿主 prop 已删除，双宿主下仅靠传入 activeTabId
       // 会漏记另一宿主的活动标签，导致其 lastActivated 陈旧而被误挂起。
       const protectedActiveTabIds = collectProtectedActiveTabIds(state);

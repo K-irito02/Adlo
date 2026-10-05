@@ -86,7 +86,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/sysmon/snapshot", get(handlers::system_monitor::snapshot))
         // Dsh-harness domain
         .route("/dsh/open", post(handlers::dsh::open))
-        .route("/dsh/close", post(handlers::dsh::close))
         .route("/dsh/get-version-status", post(handlers::dsh::get_version_status))
         .route("/dsh/update", post(handlers::dsh::update))
         .route("/dsh/revert", post(handlers::dsh::revert))

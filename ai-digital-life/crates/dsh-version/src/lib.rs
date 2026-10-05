@@ -195,7 +195,6 @@ pub struct SystemDshInfo {
 pub struct RunningDshInfo {
     pub url: String,
     pub port: u16,
-    pub pid: Option<u32>,
 }
 
 #[derive(Debug, Clone)]
@@ -211,7 +210,7 @@ pub enum DshSource {
 /// - Windows: `where dsh`
 /// - Unix: `which dsh`
 ///
-/// On success, attempts `dsh --version` to obtain the version string.
+/// 当前**不**检测版本号（`dsh --version` 约 1.5s，仅用于展示），故 `version` 恒为 `None`。
 pub async fn detect_system_dsh() -> Option<SystemDshInfo> {
     let which_result = if cfg!(target_os = "windows") {
         TokioCommand::new("where").arg("dsh").output().await
@@ -228,7 +227,7 @@ pub async fn detect_system_dsh() -> Option<SystemDshInfo> {
     let first_line = stdout.lines().next()?.trim();
     let path = PathBuf::from(first_line);
 
-    // 跳过 --version 检测（耗时 ~1.5s），仅用于日志，非功能必需
+    // 不检测版本（见函数文档），version 恒为 None。
     Some(SystemDshInfo { path, version: None })
 }
 
@@ -243,13 +242,24 @@ pub async fn detect_system_dsh() -> Option<SystemDshInfo> {
 /// debug 构建下 tokio 直接 panic，导致 handler 连接被重置）。
 pub async fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
     let addr = format!("127.0.0.1:{port}");
-    if TcpStream::connect(&addr).await.is_err() {
+    // 快速 TCP 探测（100ms，与 `webapp-host::check_port_fast` 对齐）：本机端口若被防火墙
+    // 黑洞（SYN 无响应），裸 connect 会退化到 OS 默认超时（Windows ~21s），拖住 `/dsh/open`。
+    let connected =
+        tokio::time::timeout(std::time::Duration::from_millis(100), TcpStream::connect(&addr))
+            .await
+            .is_ok_and(|r| r.is_ok());
+    if !connected {
         return None;
     }
 
     let url = format!("http://{addr}/");
-    let client =
-        reqwest::Client::builder().timeout(std::time::Duration::from_millis(500)).build().ok()?;
+    // 探测目标是本机 loopback：显式禁用代理（含系统代理），避免配置了系统代理的环境
+    // 把 127.0.0.1 请求路由到代理而误判 dsh 未运行。
+    let client = reqwest::Client::builder()
+        .no_proxy()
+        .timeout(std::time::Duration::from_millis(500))
+        .build()
+        .ok()?;
 
     let resp = client.get(&url).send().await.ok()?;
     if !resp.status().is_success() {
@@ -261,7 +271,7 @@ pub async fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
         return None;
     }
 
-    Some(RunningDshInfo { url, port, pid: None })
+    Some(RunningDshInfo { url, port })
 }
 
 const DSH_DEFAULT_PORT: u16 = 3080;

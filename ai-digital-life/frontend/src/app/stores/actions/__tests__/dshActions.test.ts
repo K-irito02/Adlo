@@ -5,14 +5,10 @@ import type { DshOpenResult } from '../../../../shared/ipc/dsh';
 
 /** dshActions 依赖的最小 store 表面（其余动作字段以 unknown 桩代） */
 interface DshTestStore {
-  isOpen: boolean;
-  url: string | null;
   versionStatus: unknown;
   errorToasts: { code: string; detail: string; scope?: string }[];
   reportError: (code: string, detail: string, scope?: string) => string;
   clearErrorToasts: (scope?: string) => void;
-  setDshOpen: (open: boolean) => void;
-  setDshUrl: (url: string | null) => void;
   setDshVersionStatus: (status: unknown) => void;
   isTauri: boolean;
   siblingWebviewNonce: number;
@@ -42,8 +38,6 @@ function makeStore() {
       'openDsh' | 'fetchDshVersionStatus' | 'updateDsh'
     >;
     return {
-      isOpen: false,
-      url: null,
       versionStatus: null,
       errorToasts: [],
       reportError: (code, detail, scope) => {
@@ -57,8 +51,6 @@ function makeStore() {
         }
         set((s) => ({ errorToasts: s.errorToasts.filter((t) => t.scope !== scope) }));
       },
-      setDshOpen: (open) => set({ isOpen: open }),
-      setDshUrl: (url) => set({ url }),
       setDshVersionStatus: (status) => set({ versionStatus: status }),
       isTauri: false,
       siblingWebviewNonce: 0,
@@ -102,7 +94,7 @@ describe('dshActions.openDsh', () => {
     vi.unstubAllGlobals();
   });
 
-  it('成功时映射 {url, freedPort}、写入 dsh 状态并创建普通中心浏览器标签', async () => {
+  it('成功时映射 {url, freedPort} 并创建普通中心浏览器标签', async () => {
     (window as any).digitalLife.dsh.open.mockResolvedValue({
       ok: true,
       data: { url: 'http://127.0.0.1:3080', freedPort: true },
@@ -110,8 +102,6 @@ describe('dshActions.openDsh', () => {
     const store = makeStore();
     const result = await store.getState().openDsh();
     expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: true });
-    expect(store.getState().isOpen).toBe(true);
-    expect(store.getState().url).toBe('http://127.0.0.1:3080');
     expect(store.getState().errorToasts).toEqual([]);
 
     // 成功即创建一个**普通**浏览器标签（无任何 dsh 专属标记）并移到中心。
@@ -130,8 +120,6 @@ describe('dshActions.openDsh', () => {
     const store = makeStore();
     const result = await store.getState().openDsh();
     expect(result).toEqual({ url: null, freedPort: false });
-    expect(store.getState().isOpen).toBe(true);
-    expect(store.getState().url).toBeNull();
     const tab = store.getState().browserTabs[0];
     expect(tab?.location).toBe('center');
   });
@@ -144,7 +132,6 @@ describe('dshActions.openDsh', () => {
     const store = makeStore();
     const result = await store.getState().openDsh();
     expect(result).toBeNull();
-    expect(store.getState().isOpen).toBe(false);
     expect(store.getState().browserTabs).toEqual([]);
     expect(store.getState().centerTabs).toEqual([]);
     expect(store.getState().errorToasts).toEqual([
@@ -181,7 +168,59 @@ describe('dshActions.openDsh', () => {
     // 不新增中心标签；已有中心标签被重新选中。
     expect(store.getState().centerTabs).toHaveLength(centerCountBefore);
     expect(store.getState().centerActiveTabId).toBe(store.getState().centerTabs[0].id);
-    expect(store.getState().url).toBe('http://127.0.0.1:3080');
+  });
+
+  it('端口不同（同 host）的本地标签不被误复用，而是新建 dsh 标签', async () => {
+    (window as any).digitalLife.dsh.open.mockResolvedValue({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+    });
+    const store = makeStore();
+    // 已打开同 host、不同端口的本地标签（如开发服务器 5173）。
+    store.getState().browserOpenTab('http://127.0.0.1:5173/', 'dev');
+
+    const result = await store.getState().openDsh();
+
+    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    // 原 5173 标签不被改动；新建了 dsh 标签。
+    expect(store.getState().browserTabs).toHaveLength(2);
+    expect(store.getState().browserTabs.some((t) => t.url === 'http://127.0.0.1:5173/')).toBe(true);
+    expect(store.getState().browserTabs.some((t) => t.url === 'http://127.0.0.1:3080')).toBe(true);
+  });
+
+  it('面板内的同服务标签被复用并移入中心（不新建）', async () => {
+    (window as any).digitalLife.dsh.open.mockResolvedValue({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+    });
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080', 'dsh');
+    const id = store.getState().browserActiveTabId; // 仍在面板（location 未设）
+    const centerCountBefore = store.getState().centerTabs.length;
+
+    const result = await store.getState().openDsh();
+
+    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    expect(store.getState().browserTabs).toHaveLength(1);
+    expect(store.getState().centerTabs).toHaveLength(centerCountBefore + 1);
+    expect(store.getState().browserTabs.find((t) => t.id === id)?.location).toBe('center');
+  });
+
+  it('同 origin 的子路径标签也被复用（SPA 路由后不重复开标签）', async () => {
+    (window as any).digitalLife.dsh.open.mockResolvedValue({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+    });
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080/chat/123', 'dsh');
+    const id = store.getState().browserActiveTabId;
+
+    const result = await store.getState().openDsh();
+
+    expect(result).toEqual({ url: 'http://127.0.0.1:3080', freedPort: false });
+    // 复用同 origin 的子路径标签，不新建。
+    expect(store.getState().browserTabs).toHaveLength(1);
+    expect(store.getState().browserTabs.find((t) => t.id === id)?.location).toBe('center');
   });
 
   it('并发调用（快速双击）只拉起一次且只创建一个标签', async () => {

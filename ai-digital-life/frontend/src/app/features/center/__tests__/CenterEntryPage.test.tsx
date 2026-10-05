@@ -34,7 +34,6 @@ beforeEach(() => {
     browserTabs: [],
     browserTabsById: {},
     browserActiveTabId: '',
-    isOpen: false,
     errorToasts: [],
     toasts: [],
   });
@@ -207,7 +206,7 @@ describe('CenterEntryPage', () => {
 
 describe('CenterPane 调度', () => {
   it('centerTabs 为空时渲染 launcher 并补齐一个 launcher 标签（首启不变量）', () => {
-    useAppStore.setState({ centerTabs: [], centerActiveTabId: '', isOpen: false });
+    useAppStore.setState({ centerTabs: [], centerActiveTabId: '' });
 
     render(
       <TCopyProvider t={t} locale="zh-CN">
@@ -226,7 +225,6 @@ describe('CenterPane 调度', () => {
     useAppStore.setState({
       centerTabs: [{ id: 'c1', kind: 'launcher', refId: null, createdAt: 1 }],
       centerActiveTabId: 'c1',
-      isOpen: false,
     });
 
     render(
@@ -245,7 +243,6 @@ describe('CenterPane 调度', () => {
         { id: 'c2', kind: 'launcher', refId: null, createdAt: 2 },
       ],
       centerActiveTabId: 'gone',
-      isOpen: false,
     });
 
     render(
@@ -263,7 +260,6 @@ describe('CenterPane 调度', () => {
     useAppStore.setState({
       centerTabs: [{ id: 'c1', kind: 'browser', refId: null, createdAt: 1 }],
       centerActiveTabId: 'c1',
-      isOpen: false,
     });
 
     render(

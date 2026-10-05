@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { browserPool } from './browserPoolSingleton';
+import { resetRevealGateForTest } from './browserRevealGate';
 import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { useBrowserViewHost } from './useBrowserViewHost';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
@@ -60,6 +61,7 @@ function makeContainer(left: number, top: number, width: number, height: number)
 describe('useBrowserViewHost', () => {
   beforeEach(() => {
     browserPool.reset();
+    resetRevealGateForTest();
     vi.clearAllMocks();
     envState.tauri = false;
     pageReadyListener = null;
@@ -132,5 +134,46 @@ describe('useBrowserViewHost', () => {
       width: 1,
       height: 1,
     });
+  });
+
+  it('page-ready 缺失时，兜底定时器仍应用边界（F1 回归）', async () => {
+    vi.useFakeTimers();
+    try {
+      envState.tauri = true;
+      const browser = setMockBrowser();
+      const tab = makeTab('tab-fb', 'https://example.com');
+
+      const { result } = renderHook(() =>
+        useBrowserViewHost({
+          hostId: 'panel',
+          activeTab: tab,
+          isVisible: true,
+          overlayActive: false,
+        }),
+      );
+      result.current.containerRef.current = makeContainer(5, 6, 300, 200);
+
+      // 排空 create/activate 的微任务；始终不触发 page-ready（模拟页面迟迟不就绪）。
+      await act(async () => {
+        for (let i = 0; i < 10; i += 1) {
+          await Promise.resolve();
+        }
+      });
+      expect(browser.createForTab).toHaveBeenCalled();
+      expect(browser.setTabBounds).not.toHaveBeenCalled();
+
+      // 推进兜底定时器 → 强制揭示（门控 deadline 与延时相同，必须走强制路径）。
+      await act(async () => {
+        vi.advanceTimersByTime(12_000);
+      });
+      expect(browser.setTabBounds).toHaveBeenCalledWith('tab-fb', {
+        x: 5,
+        y: 6,
+        width: 300,
+        height: 200,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -38,4 +38,14 @@ describe('waitForLoopbackReachable', () => {
     await expect(waitForLoopbackReachable('http://localhost:3080')).resolves.toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  it('signal 已取消时立即返回 false，不再发起探测', async () => {
+    const fetchMock = vi.fn().mockRejectedValue(new Error('refused'));
+    vi.stubGlobal('fetch', fetchMock);
+    const ac = new AbortController();
+    ac.abort();
+
+    await expect(waitForLoopbackReachable('http://127.0.0.1:3080', ac.signal)).resolves.toBe(false);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
 });

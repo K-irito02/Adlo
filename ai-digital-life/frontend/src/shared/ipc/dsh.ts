@@ -52,7 +52,7 @@ export interface DshTestResult {
 /**
  * dsh（DeepSeek Harness）宿主壳桥接能力。
  * 业务逻辑位于 `crates/server` 的 `/dsh/*` HTTP handler（httpBridge 直连）。
- * 用于: 拉起/关闭 dsh 进程、查询/升级/回退/卸载/重装 dsh cli 版本。
+ * 用于: 拉起 dsh 进程、查询/升级/回退/卸载/重装 dsh cli 版本。
  */
 export interface DshBridge {
   /**
@@ -61,13 +61,6 @@ export interface DshBridge {
    * @see httpBridge.ts → dsh.open (/dsh/open)
    */
   open: () => Promise<IpcResult<DshOpenResult>>;
-  /**
-   * 关闭 dsh。keep=true 保留进程运行；keep=false 停进程。
-   * 中心标签关闭路径一律传 false（终止）；dsh 承载页是普通浏览器标签，其 WebView
-   * 的销毁归浏览器池（`browserPool.destroyTab`），不在本调用内处理。
-   * @see httpBridge.ts → dsh.close (/dsh/close)
-   */
-  close: (keep: boolean) => Promise<IpcResult<boolean>>;
   /**
    * 查询 dsh 版本目录状态（当前选中/已装列表/最新可用/是否有更新）
    * @see httpBridge.ts → dsh.getVersionStatus (/dsh/get-version-status)

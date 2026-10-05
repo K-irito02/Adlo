@@ -14,7 +14,6 @@ import type { DshBridge } from '../shared/ipc/dsh';
 export function createTauriDshBridge(httpDsh: DshBridge): DshBridge {
   return {
     open: () => httpDsh.open(),
-    close: (keep: boolean) => httpDsh.close(keep),
     getVersionStatus: httpDsh.getVersionStatus,
     update: httpDsh.update,
     revert: httpDsh.revert,

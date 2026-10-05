@@ -1,4 +1,4 @@
-//! Dsh-harness domain HTTP handlers — dsh 宿主壳业务（拉起/关闭 + 版本管理）。
+//! Dsh-harness domain HTTP handlers — dsh 宿主壳业务（拉起 + 版本管理）。
 //!
 //! 遵循 retrieval 域配方：`State(state): State<ServerState>` 提取状态，
 //! 结果用 [`crate::ipc::to_response`] 包装为 `IpcResult<T>`。dsh 进程宿主在
@@ -31,17 +31,6 @@ pub fn dsh_root(state: &ServerState) -> PathBuf {
 /// 含数据根目录的 dsh 版本目录拼接（纯函数，便于单测）。
 fn dsh_root_dir(paths: &adl_kernel::storage::StoragePaths) -> PathBuf {
     paths.dsh_versions_dir.clone()
-}
-
-#[derive(serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct CloseInput {
-    #[serde(default = "default_true")]
-    keep: bool,
-}
-
-fn default_true() -> bool {
-    true
 }
 
 #[derive(serde::Deserialize)]
@@ -456,32 +445,6 @@ pub async fn pre_start_dsh(state: &ServerState) {
     }
 }
 
-/// POST `/dsh/close` — 关闭 dsh 进程。`keep=true`（缺省）：保留进程运行；
-/// `keep=false`：kill 子进程并置 `dsh_state` 为 `None`。返回 `true`。
-pub async fn close(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
-    let input: CloseInput = match ipc::json_body(body).await {
-        Ok(v) => v,
-        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
-    };
-    let result = close_inner(&state, input.keep).await;
-    ipc::to_response(result)
-}
-
-async fn close_inner(state: &ServerState, keep: bool) -> Result<serde_json::Value, AppError> {
-    // tokio Mutex 只在此 async 作用域短暂持有（不跨 spawn_blocking），符合规范。
-    let mut guard = state.dsh_state.lock().await;
-    if !keep {
-        if let Some(mut hp) = guard.take() {
-            let _ = hp.child.kill().await;
-        }
-        // 清除来源缓存，下次 open 时重新检测
-        if let Ok(mut cache) = state.dsh_source_cache.write() {
-            *cache = None;
-        }
-    }
-    Ok(serde_json::json!(true))
-}
-
 /// POST `/dsh/get-version-status` — 查询 dsh 版本目录状态（`VersionStatus`）。
 pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
@@ -716,31 +679,6 @@ mod tests {
             &dir,
         );
         assert_eq!(dsh_root_dir(storage.paths()), PathBuf::from("/tmp/data/dsh-versions"));
-    }
-
-    /// close 在进程未运行时（keep=任意）幂等返回 `true`，不 panic。
-    #[tokio::test]
-    async fn close_without_process_is_ok() {
-        let dir = std::env::temp_dir().join(format!(
-            "adl-dsh-close-{}",
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
-        ));
-        let state = crate::engine::init_server_state(
-            &dir,
-            crate::engine::storage_from_locator(
-                &adl_kernel::storage::StorageLocator::default(),
-                &dir,
-            ),
-        )
-        .await
-        .unwrap();
-        let result = close_inner(&state, true).await.unwrap();
-        assert_eq!(result, serde_json::json!(true));
-        let result = close_inner(&state, false).await.unwrap();
-        assert_eq!(result, serde_json::json!(true));
-        let guard = state.dsh_state.lock().await;
-        assert!(guard.is_none());
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// `revert`/`uninstall` 对非法 body 返回 BAD_REQUEST（INVALID_INPUT），不触达版本逻辑。
