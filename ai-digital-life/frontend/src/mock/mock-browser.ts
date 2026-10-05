@@ -28,6 +28,7 @@ export const mockBrowser: BrowserBridge = {
   reloadTab: (_tabId: string) => Promise.resolve(),
   onUrlChanged: (_listener: (tabId: string, url: string) => void) => () => {},
   onMetaChanged: (_listener: (tabId: string, meta: PageMeta) => void) => () => {},
+  onPageReady: (_listener: (tabId: string) => void) => () => {},
   onOpenNewTab: (_listener: (url: string) => void) => () => {},
   muteTab: (_tabId: string, _muted: boolean) => Promise.resolve(),
   onAudioStateChanged: (_listener: (payload: AudioStatePayload) => void) => () => {},

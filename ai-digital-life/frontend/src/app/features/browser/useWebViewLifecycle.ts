@@ -7,6 +7,10 @@ import { getResolvedTheme } from './useBrowserThemeSync';
 import { HIDDEN_WEBVIEW_OFFSCREEN_COORD } from './useWebViewVisibility';
 import { isDownloadUrl } from '@utils/downloadUrl';
 import { isLoopbackHttpUrl, waitForLoopbackReachable } from './loopbackReadiness';
+import { clearRevealPending, isRevealPending, markRevealPending } from './browserRevealGate';
+
+/** 首帧揭示门控的兜底上限：页面迟迟不发元数据（或加载失败）时仍按时揭示。 */
+const REVEAL_FALLBACK_MS = 12_000;
 
 interface UseWebViewLifecycleOptions {
   /** 宿主标识（panel / center）：仅用于诊断日志，refs 天然 per-hook-instance。 */
@@ -34,6 +38,10 @@ interface UseWebViewLifecycleOptions {
  * - overlay 激活期间跳过激活以避免 undo 隐藏机制
  * - 卸载时清理 webViewActiveRef
  * - 持有 loadingTabId 状态与 prevActiveTabIdRef
+ *
+ * 首帧揭示（避免空白/白闪）：新建的 WebView2 位于屏外，登记 browserRevealGate 后
+ * **暂不应用边界**（保持屏外、加载动画可见）；等页面首个元数据事件或超时揭示时，
+ * 才解除门控并应用边界，实现「加载动画 → 内容」无缝替换。
  */
 export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
   const {
@@ -63,6 +71,65 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
    *  clicked in-page (target="_blank") can open a new tab and trigger
    *  DownloadStarting normally. Only hydrated restart tabs are suppressed. */
   const freshTabIdsRef = useRef<Set<string>>(new Set());
+  /** Per-tab fallback timers for the reveal gate (see `revealTab`). */
+  const revealTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  /** Tabs that have emitted a meta event since their current WebView was created.
+   *  Covers the race where the page's first meta arrives during creation (before the
+   *  reveal gate is registered) — the post-create check reveals it immediately. */
+  const pageReadyRef = useRef<Set<string>>(new Set());
+
+  const clearRevealTimer = useCallback((tabId: string) => {
+    const timer = revealTimersRef.current.get(tabId);
+    if (timer) {
+      clearTimeout(timer);
+      revealTimersRef.current.delete(tabId);
+    }
+  }, []);
+
+  /**
+   * 解除 tab 的揭示门控并应用边界。
+   *
+   * 关键：门控是**跨宿主共享**的模块级集合，而只有「该 tab 所属宿主」才能应用它的
+   * 边界。因此本宿主活动 Tab 不是该 tab 时**必须保留门控**（不清除）——否则先处理
+   * 该信号的非所属宿主会清掉门控却不揭示，导致所属宿主永远无法揭示（表现为一直加载，
+   * 直到某次 resize 才恢复）。
+   */
+  const revealTab = useCallback(
+    (tabId: string) => {
+      if (!isRevealPending(tabId)) {
+        return;
+      }
+      if (activeTabSnapshotRef.current?.id !== tabId) {
+        return;
+      }
+      clearRevealPending(tabId);
+      clearRevealTimer(tabId);
+      updateWebViewBounds();
+      setLoadingTabId((prev) => (prev === tabId ? null : prev));
+    },
+    [clearRevealTimer, updateWebViewBounds],
+  );
+
+  // 页面就绪信号：原生「页面加载完成」事件（页面已完成文档加载并渲染出内容）。
+  // 用页面加载完成（而非标题元数据——它可能早于首帧绘制）作为揭示时机，避免空白首帧闪烁。
+  useEffect(() => {
+    if (!isTauriShell()) {
+      return;
+    }
+    const bridge = window.digitalLife?.browser;
+    if (!bridge?.onPageReady) {
+      return;
+    }
+    const unsub = bridge.onPageReady((tabId) => {
+      if (tabId) {
+        pageReadyRef.current.add(tabId);
+        revealTab(tabId);
+      }
+    });
+    return () => {
+      unsub();
+    };
+  }, [revealTab]);
 
   // When active tab changes: create WebView if not in pool, then activate
   useEffect(() => {
@@ -80,8 +147,8 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     // handled by the visibility hook's MutationObserver; the lifecycle must
     // still run to create/activate/bounds-update the WebView.
     // Historical: hideWebViewRequestedRef was previously checked here to
-    // prevent hide↔show ping-pong (flickering) — this is now avoided by
-    // the MutationObserver-based approach in useWebViewVisibility.
+    // prevent hide↔show ping-pong (flickering) — this is now avoided by the
+    // MutationObserver-based approach in useWebViewVisibility.
     if (tab?.id != null && tab.id === prevActiveTabIdRef.current && overlayActiveRef.current) {
       return;
     }
@@ -151,7 +218,7 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
             webViewActiveRef.current = false;
             return;
           }
-          // 重启恢复的 loopback 标签：先等服务可达再导航，避免首帧 ERR_CONNECTION_REFUSED
+          // 重启恢复的 loopback 标签：先等服务可达再创建，避免首帧 ERR_CONNECTION_REFUSED
           // （以及失败窗口把站点元数据判成"无图标" → favicon 兜底字母）。
           if (!isFresh && isLoopbackHttpUrl(tab.url)) {
             setLoadingTabId(currentTabId);
@@ -159,8 +226,37 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
           }
           // Real WebView creation: show loading.
           setLoadingTabId(currentTabId);
+          // 新建 WebView → 清掉上一轮的就绪标记（可能来自被销毁重建前的旧 WebView）。
+          pageReadyRef.current.delete(currentTabId);
           await createWebViewForTab(currentTabId, tab.url, getResolvedTheme());
+
+          webViewActiveRef.current = true;
+          tabUrlMapRef.current.set(currentTabId, tab.url);
+          await activateTabInPool(currentTabId);
+
+          // 首帧揭示门控：WebView2 创建在屏外，登记门控后**暂不应用边界**，
+          // 保持屏外、加载动画可见；等首个元数据或超时后由 revealTab 揭示。
+          markRevealPending(currentTabId, REVEAL_FALLBACK_MS);
+          clearRevealTimer(currentTabId);
+          if (pageReadyRef.current.has(currentTabId)) {
+            // 页面在创建期间就已就绪（元数据早到）→ 立即揭示。
+            revealTab(currentTabId);
+          } else {
+            revealTimersRef.current.set(
+              currentTabId,
+              setTimeout(() => revealTab(currentTabId), REVEAL_FALLBACK_MS),
+            );
+          }
+          return;
         }
+
+        if (isRevealPending(currentTabId)) {
+          // 仍在等待页面就绪：保持屏外与加载态（切换到此标签也不提前露出空白首帧）。
+          webViewActiveRef.current = true;
+          setLoadingTabId(currentTabId);
+          return;
+        }
+
         await activateTabInPool(currentTabId);
         webViewActiveRef.current = true;
         tabUrlMapRef.current.set(currentTabId, tab.url);
@@ -196,6 +292,8 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
     updateWebViewBounds,
     overlayActiveRef,
     webViewActiveRef,
+    revealTab,
+    clearRevealTimer,
   ]);
 
   // Cleanup on unmount: clear active flag/fresh set AND hide the host's current
@@ -204,9 +302,14 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
   // E1 守卫同上：tab 已归属另一宿主时不隐藏（另一宿主正在显示它）。
   useEffect(() => {
     const freshTabIds = freshTabIdsRef.current;
+    const revealTimers = revealTimersRef.current;
     return () => {
       webViewActiveRef.current = false;
       freshTabIds.clear();
+      for (const timer of revealTimers.values()) {
+        clearTimeout(timer);
+      }
+      revealTimers.clear();
       const tab = activeTabSnapshotRef.current;
       if (isTauriShell() && tab?.id && isTabInPool(tab.id)) {
         const fresh = useAppStore.getState().browserTabsById[tab.id];

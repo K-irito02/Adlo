@@ -15,7 +15,10 @@ interface BrowserMock {
   navigateTab: ReturnType<typeof vi.fn>;
   destroyTab: ReturnType<typeof vi.fn>;
   setTabBounds: ReturnType<typeof vi.fn>;
+  onPageReady: ReturnType<typeof vi.fn>;
 }
+
+let pageReadyListener: ((tabId: string) => void) | null = null;
 
 function setMockBrowser(): BrowserMock {
   const mock: BrowserMock = {
@@ -24,6 +27,10 @@ function setMockBrowser(): BrowserMock {
     navigateTab: vi.fn().mockResolvedValue(undefined),
     destroyTab: vi.fn().mockResolvedValue(undefined),
     setTabBounds: vi.fn().mockResolvedValue(undefined),
+    onPageReady: vi.fn((cb: (tabId: string) => void) => {
+      pageReadyListener = cb;
+      return () => {};
+    }),
   };
   (window as unknown as Record<string, unknown>).digitalLife = { browser: mock };
   return mock;
@@ -55,6 +62,7 @@ describe('useBrowserViewHost', () => {
     browserPool.reset();
     vi.clearAllMocks();
     envState.tauri = false;
+    pageReadyListener = null;
     delete (window as unknown as Record<string, unknown>).digitalLife;
   });
 
@@ -101,7 +109,13 @@ describe('useBrowserViewHost', () => {
     );
     expect(browser.activateTab).toHaveBeenCalledWith('tab-1');
 
-    // 按容器几何同步边界。
+    // 首帧揭示门控：页面就绪前不应用边界（WebView2 保持屏外，加载动画可见）。
+    expect(browser.setTabBounds).not.toHaveBeenCalled();
+
+    // 模拟页面就绪（原生 page-ready 事件）→ 解除门控并按容器几何应用边界。
+    act(() => {
+      pageReadyListener?.('tab-1');
+    });
     expect(browser.setTabBounds).toHaveBeenCalledWith('tab-1', {
       x: 10,
       y: 20,

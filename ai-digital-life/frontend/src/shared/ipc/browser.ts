@@ -82,6 +82,12 @@ export interface BrowserBridge {
   onUrlChanged: (listener: (tabId: string, url: string) => void) => () => void;
   /** Subscribe to page meta changes */
   onMetaChanged: (listener: (tabId: string, meta: PageMeta) => void) => () => void;
+  /**
+   * Subscribe to native "page finished loading" (Tauri only; no-op in browser/preview).
+   * Fired after the WebView2's document load completes — used to reveal a freshly
+   * created (off-screen) WebView2 only once it has rendered content (no blank flash).
+   */
+  onPageReady: (listener: (tabId: string) => void) => () => void;
   /** Mute or unmute a tab */
   muteTab: (tabId: string, muted: boolean) => Promise<void>;
   /** Subscribe to audio state changes */

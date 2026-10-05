@@ -91,6 +91,25 @@ export function createTauriBrowserBridge(): BrowserBridge {
     },
     muteTab: (tabId: string, muted: boolean) =>
       invoke('browser_mute_tab', { tabId, muted }).then(() => undefined),
+    onPageReady: (listener: (tabId: string) => void) => {
+      let active = true;
+      let ul: UnlistenFn | undefined;
+      void listen<{ tabId: string }>('digital-life://browser-page-ready', (event) => {
+        if (active) {
+          listener(event.payload.tabId);
+        }
+      }).then((unlisten) => {
+        if (active) {
+          ul = unlisten;
+        } else {
+          void Promise.resolve(unlisten()).catch(() => {});
+        }
+      });
+      return () => {
+        active = false;
+        void Promise.resolve(ul?.()).catch(() => {});
+      };
+    },
     onOpenNewTab: (listener: (url: string) => void) => {
       let active = true;
       let ul: UnlistenFn | undefined;

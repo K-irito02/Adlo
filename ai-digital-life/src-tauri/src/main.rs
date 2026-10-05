@@ -6,6 +6,7 @@
 
 use adl_logging::LogMode;
 use std::sync::Arc;
+use tauri::Emitter;
 use tauri::Manager;
 use tauri::webview::PageLoadEvent;
 use tracing::info;
@@ -95,6 +96,17 @@ fn main() {
                 return;
             }
             tracing::info!(url = %payload.url(), "browser page finished loading");
+            // 通知前端该标签页面已加载完成（用于把新建的屏外 WebView2 在内容就绪后揭示，
+            // 避免空白首帧闪烁）。标签格式 `adl-browser-view-{tabId}`。
+            // 只对真实 http(s) 页面发（跳过初始 about:blank，否则会在真实页面加载前就揭示）。
+            if matches!(payload.url().scheme(), "http" | "https") {
+                if let Some(tab_id) = webview.label().strip_prefix("adl-browser-view-") {
+                    let _ = webview.app_handle().emit(
+                        "digital-life://browser-page-ready",
+                        serde_json::json!({ "tabId": tab_id }),
+                    );
+                }
+            }
             let app = webview.app_handle().clone();
             let wv_label = webview.label().to_string();
             // Use std::thread instead of tokio::spawn because on_page_load runs

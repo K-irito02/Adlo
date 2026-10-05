@@ -210,6 +210,7 @@ export async function setupPreviewBridge(): Promise<void> {
       reloadTab: (_tabId: string) => Promise.resolve(),
       onUrlChanged: (_listener: (tabId: string, url: string) => void) => () => {},
       onMetaChanged: (_listener: (tabId: string, meta: PageMeta) => void) => () => {},
+      onPageReady: (_listener: (tabId: string) => void) => () => {},
       onOpenNewTab: (_listener: (url: string) => void) => () => {},
       muteTab: (tabId: string, muted: boolean) => {
         audioMonitor.setMuted(tabId, muted);

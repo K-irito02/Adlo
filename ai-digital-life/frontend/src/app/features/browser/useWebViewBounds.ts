@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { isTauriShell } from '@shared/env';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { isRevealPending } from './browserRevealGate';
 
 interface UseWebViewBoundsOptions {
   webViewDisabled: boolean;
@@ -58,6 +59,10 @@ export function useWebViewBounds(options: UseWebViewBoundsOptions) {
       return;
     }
     if (hideWebViewRequestedRef.current) {
+      return;
+    }
+    // 首帧揭示门控：新建 WebView2 在页面就绪前保持屏外，避免空白首帧闪烁。
+    if (isRevealPending(tab.id)) {
       return;
     }
 

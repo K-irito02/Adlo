@@ -825,6 +825,7 @@ export function createHttpBridge({
       reloadTab: () => Promise.resolve(),
       onUrlChanged: () => () => {},
       onMetaChanged: () => () => {},
+      onPageReady: () => () => {},
       onOpenNewTab: () => () => {},
       muteTab: () => Promise.resolve(),
       onAudioStateChanged: () => () => {},
