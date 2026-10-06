@@ -276,9 +276,10 @@ describe('tooltipPosition', () => {
       expect(result.x).toBe(810);
     });
 
-    it('拒绝过远滑移：顶部放不下且底部压住 WebView 时换边而非甩到右缘（事项 9）', () => {
-      // 真实日志几何：工具栏按钮 y=36（贴近视口顶部，top 槽 y=-2 被裁切），
-      // bottom 槽 y=74..104 压住中心内容矩形（top=67）→ 旧实现沿 X 滑到矩形右缘 x=571。
+    it('顶部差一点放不下时钳住留在上方（事项 9：按钮上方标题栏区）', () => {
+      // 真实日志几何：工具栏按钮 y=36（贴近视口顶部，top 槽 y=-2 差 2px），
+      // 旧实现翻到底部（y=74..104 压住中心内容矩形 top=67）再沿 X 滑到矩形右缘 x=571。
+      // 新实现：钳进视口留在 top，落在标题栏区，不压 WebView。
       const triggerRect = createMockDOMRect({
         top: 36,
         left: 72,
@@ -299,14 +300,16 @@ describe('tooltipPosition', () => {
         avoidRects: [panelContent, centerContent],
       });
 
-      // 不接受滑移 508px 到 x=571；换到左侧边，紧贴按钮。
-      expect(result.placement).toBe('left');
-      expect(result.x).toBe(72 - 8 - 48);
-      expect(result.x + tooltipRect.width).toBeLessThanOrEqual(571);
+      // 顶部居中、钳进视口（y=8），不翻边、不滑移。
+      expect(result.placement).toBe('top');
+      expect(result.x).toBe(72 + 15 - 24);
+      expect(result.y).toBe(8);
     });
 
     it.each([
       ['恰好贴边（coord=0）应接受并钳到 padding', 38, 'top', 8],
+      // 无避让矩形走 legacy 路径：越界 1px 仍翻边（浏览器模式底边槽可见，翻边无害）。
+      // 有避让矩形时见事项 9 用例（钳住留在首选侧）。
       ['越界 1px 应翻边', 37, 'bottom', 73],
     ])('贴边容差边界：%s', (_name, triggerTop, expectedPlacement, expectedY) => {
       const triggerRect = createMockDOMRect({

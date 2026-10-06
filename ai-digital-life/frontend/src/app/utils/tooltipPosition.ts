@@ -342,11 +342,11 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
       const base = calculate(trial);
       if (!mainAxisFits(base, trial)) {
         const mainSize = isHorizontalPlacement(trial) ? tooltipRect.height : tooltipRect.width;
-        // 贴边容差：仅因内边距不足（tooltip 未被裁切）时留在首选侧并钳进视口；
-        // 真正放不下（会被裁切）才换边。见 `mainAxisFitsWithoutClipping`。
-        if (!mainAxisFitsWithoutClipping(base, trial, mainSize)) {
-          continue;
-        }
+        // 首选侧差一点放不下时钳进视口、留在该侧（事项 9）：翻边常把 tooltip
+        // 送进 WebView 覆盖区（底边）或触发远滑移（右侧），远差于贴边显示。
+        // 如顶部工具栏（按钮顶 y=36）：top 槽 y=-2 仅被裁 2px，钳到 padding 后
+        // 落在标题栏区、不压 WebView，正是用户要的"按钮上方"。钳后是否与避让
+        // 矩形重叠由随后的 slideCrossAxis 校验，重叠仍会换边。
         clampMainAxis(base, trial, mainSize, viewportPadding);
       }
       // 视口内但横向压住 Webview → 先滑移；滑不动才换边。
