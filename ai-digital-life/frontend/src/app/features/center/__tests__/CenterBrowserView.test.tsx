@@ -128,8 +128,10 @@ describe('CenterBrowserView', () => {
       browserTabs: [tab],
       browserTabsById: { b1: tab },
       browserActiveTabId: 'b1',
-      // 开关切到"新建标签"模式：中心仍必须就地导航。
+      // 开关切到"新建标签"模式：中心仍必须就地导航。isTauri 显式 false
+      //（浏览器模式），不依赖运行环境默认值，防 flaky。
       browserNavigateInPlace: false,
+      isTauri: false,
     });
     renderView('b1');
     const input = screen.getByRole('textbox') as HTMLInputElement;

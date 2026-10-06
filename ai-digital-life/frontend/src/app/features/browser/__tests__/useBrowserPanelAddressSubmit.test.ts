@@ -2,11 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useBrowserPanelAddressSubmit } from '../useBrowserPanelAddressSubmit';
 import { useAppStore } from '@stores/slicedStore';
+import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
 vi.mock('@features/browser/checkEmbed', () => ({
-  isEmbedBlocked: () => false,
-  checkEmbed: async () => false,
+  isEmbedBlocked: vi.fn(() => false),
+  checkEmbed: vi.fn(async () => false),
 }));
 
 vi.mock('@utils/pageMetaClient', () => ({
@@ -84,5 +85,50 @@ describe('useBrowserPanelAddressSubmit', () => {
     // 期望导航绑定 null（任意事件可消费），绝不能是 stale 的中心 id。
     expect(expectedNavigationUrlRef.current?.url).toBe('https://panel-empty.test');
     expect(expectedNavigationUrlRef.current?.tabId).toBeNull();
+  });
+
+  it('嵌入被拒时落错误兜底且不导航（blocked=true 分支）', async () => {
+    const center = makeCenterTab('c1', 'https://center.example.com');
+    useAppStore.setState({
+      browserTabs: [center],
+      browserTabsById: { c1: center },
+      browserActiveTabId: 'c1',
+      isTauri: false,
+    });
+    vi.mocked(isEmbedBlocked).mockReturnValueOnce(true);
+    const setIframeBlockedDetected = vi.fn();
+    const setIframeLoadError = vi.fn();
+    const navigateBrowser = vi.fn();
+    const expectedNavigationUrlRef: {
+      current: { url: string; at: number; tabId: string | null } | null;
+    } = { current: null };
+    const { result } = renderHook(() =>
+      useBrowserPanelAddressSubmit({
+        address: 'https://blocked.example.com',
+        setAddress: vi.fn(),
+        setSearchQueryDisplay: vi.fn(),
+        browserLookupIndex: [],
+        handleNavigationStart: vi.fn(),
+        expectedNavigationUrlRef,
+        navigateBrowser,
+        browserNavigatePanelTab: vi.fn(),
+        setIframeLoadError,
+        setIframeBlockedDetected,
+        handlePageMeta: vi.fn(),
+        addressSubmittedForTabRef: { current: '' },
+        submitVersionRef: { current: 0 },
+        validatedUrlsRef: { current: new Set<string>() },
+      }),
+    );
+
+    await act(async () => {
+      await result.current.submitAddress();
+    });
+
+    expect(setIframeBlockedDetected).toHaveBeenCalledWith(true);
+    expect(setIframeLoadError).toHaveBeenCalledWith(true);
+    expect(navigateBrowser).not.toHaveBeenCalled();
+    expect(checkEmbed).not.toHaveBeenCalled();
+    expect(useAppStore.getState().browserTabsById['c1'].url).toBe('https://center.example.com');
   });
 });

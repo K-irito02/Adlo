@@ -175,6 +175,8 @@ export const createBrowserSlice = (
               return {
                 ...tab,
                 url,
+                // 有意覆盖旧标题：面板提交常带搜索占位标题（"引擎名：query"），
+                // 必须替换掉旧标题；与中心着陆（无标题清空等真实标题）策略不同。
                 title: title || '',
                 titleResolved: isRealTitle(tabTitle, url),
               };

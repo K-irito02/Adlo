@@ -40,7 +40,7 @@ pub use page_meta_service::PageMetaService;
 pub use site_meta_cache::{SiteMetaCacheEntry, SiteMetaCacheStore, normalize_cache_key};
 pub use webview_handle::{Bounds, EventBridgeRef, WebView2EventBridge, WebViewHandle};
 pub use webview2_audio::{mute_tab, setup_audio_changed_handler};
-pub use webview2_background::theme_to_rgb;
+pub use webview2_background::{normalize_color_scheme, theme_to_rgb};
 pub use webview2_cleanup::{clear_cache, clear_cookies};
 pub use webview2_profile::set_profile_color_scheme as webview2_set_profile_color_scheme;
 

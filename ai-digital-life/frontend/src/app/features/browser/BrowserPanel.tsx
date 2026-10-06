@@ -68,7 +68,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const { toastMessages, showToast, removeToast } = useBrowserToast();
 
-  // 经 useBrowserWebView 在每次 render 时赋值，供 navigateActiveTabExplicit 在
+  // 经 useBrowserWebView 在每次 render 时赋值，供 navigatePanelTabExplicit 在
   // 显式导航时判断"目标 tab 的 WebView 是否已入池"并真正调用 Navigate。
   const navigationHelpersRef = useRef<{
     isTabInPool: (tabId: string) => boolean;
@@ -87,18 +87,22 @@ export function BrowserPanel(props: BrowserPanelProps) {
   // 池中无 WebView 时不要 navigate（会失败或 no-op）。
   // 事项 6：必须走面板归属 action——全局活动 id 可能指向中心标签，直接导航会
   // 劫持中心 WebView；无面板标签时新建面板标签。
-  const navigateActiveTabExplicit = useCallback(
-    async (url: string, title?: string) => {
+  // 同步 void 风格（H2）：内部池导航失败自行 catch 打 warn，调用方无需 await，
+  // 杜绝悬空 Promise 导致的 unhandled rejection。
+  const navigatePanelTabExplicit = useCallback(
+    (url: string, title?: string) => {
       browserNavigatePanelTab(url, title);
       const id = useAppStore.getState().browserActiveTabId;
       if (isTauriShell() && id && navigationHelpersRef.current.isTabInPool(id)) {
-        await navigationHelpersRef.current.navigateTabInPool(id, url);
+        navigationHelpersRef.current.navigateTabInPool(id, url).catch((err) => {
+          console.warn('[panelNavigate] navigateTabInPool failed:', err);
+        });
       }
     },
     [browserNavigatePanelTab],
   );
 
-  // 标签感知的显式导航（D4）：活动标签走 navigateActiveTabExplicit；非活动标签
+  // 标签感知的显式导航（D4）：活动标签走 navigatePanelTabExplicit；非活动标签
   // 更新其 URL 后直接 Navigate 其已入池 WebView（池外/新建交由 lifecycle 创建时导航）。
   // 供新建/编辑标签对话框"就地打开"、树"在当下标签打开"等显式入口复用，避免
   // store action 更新 URL 后 Tauri 下 WebView 停在旧页的双端分叉。
@@ -106,7 +110,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     async (tabId: string, url: string, title?: string) => {
       const s = useAppStore.getState();
       if (tabId === s.browserActiveTabId) {
-        await navigateActiveTabExplicit(url, title);
+        navigatePanelTabExplicit(url, title);
       } else {
         s.browserUpdateTab(tabId, {
           url,
@@ -115,11 +119,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
           ...(title ? { titleResolved: isRealTitle(title, url) } : {}),
         });
         if (isTauriShell() && navigationHelpersRef.current.isTabInPool(tabId)) {
-          await navigationHelpersRef.current.navigateTabInPool(tabId, url);
+          try {
+            await navigationHelpersRef.current.navigateTabInPool(tabId, url);
+          } catch (err) {
+            // 调用方多为 fire-and-forget（对话框确认等），此处吞掉池导航失败，
+            // 避免 unhandled rejection；store 更新已生效，lifecycle 会兜底。
+            console.warn('[panelNavigate] navigateTabInPool failed:', err);
+          }
         }
       }
     },
-    [navigateActiveTabExplicit],
+    [navigatePanelTabExplicit],
   );
 
   const activatedTabIdsRef = useRef(new Set<string>());
@@ -159,7 +169,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handlePointerDown,
   } = useBrowserPanelHandlers({
     browserOpenTab,
-    browserNavigatePanelTab: navigateActiveTabExplicit,
+    browserNavigatePanelTab: navigatePanelTabExplicit,
     browserSelectTab,
     browserNavigateInPlace,
     setBrowserNavigateInPlace,
@@ -340,7 +350,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddress,
     setSearchQueryDisplay,
     setIframeLoadError,
-    browserNavigateActiveTab: browserNavigatePanelTab,
+    browserNavigatePanelTab,
     browserUpdateTab,
     onNavigationStart: handleNavigationStart,
   });
@@ -382,7 +392,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleNavigationStart,
     expectedNavigationUrlRef,
     navigateBrowser,
-    browserNavigatePanelTab: navigateActiveTabExplicit,
+    browserNavigatePanelTab: navigatePanelTabExplicit,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta: _handlePageMeta,

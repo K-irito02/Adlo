@@ -132,6 +132,10 @@ export const createBrowserTabsSlice = (
     set({ browserActiveTabId: tabId });
   },
 
+  // 不变量（事项 6/M5）：`browserActiveTabId` 恒为面板活动标签 id（可空），永不指向
+  // 中心标签；中心活动由各中心视图自持（如 CenterBrowserView 的 browserTabId）。
+  // 读全局活动 id 的面板外链路若需面板语义，必须显式过滤 location（见
+  // browserNavigatePanelTab），不得 assume 全局活动即面板。
   browserCloseTab: (tabId) => {
     set((state) => {
       const filtered = state.browserTabs.filter((tab) => tab.id !== tabId);

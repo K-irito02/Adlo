@@ -92,6 +92,9 @@ DSH 版本管理系统，位于 `crates/dsh-version/`。管理已安装版本列
 ### 中心标签（Center Tab）
 中间部分多标签宿主中的标签，`kind` 为 `launcher`（统一入口页 `CenterEntryPage`，三入口：deepseek harness / 浏览器 / 终端；标签与 `+` 按钮显示「新建入口页」）/`browser`（浏览器视图）/`terminal`（终端视图）。浏览器/终端中心标签通过 `refId` 指向底层标签；底层标签以 `location: 'panel' | 'center'` 标记所属宿主，位置排他。面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签；标题栏标签条支持切换、真关闭与移回对应面板。
 
+### 浏览器宿主会话隔离（UDF Isolation）
+WebView2 的 `PreferredColorScheme` 在同一用户数据目录（UDF）会话内实际全局（上游 WebView2Feedback #4920），新建控制器会闪到另一宿主。故面板沿用默认 UDF，中心/静默各走独立 `data_directory`（`webview/center`、`webview/silent`）。代价：独立 UDF = 独立空 profile，中心与面板的 Cookie/localStorage/登录态互不共享（中心升级后需重新登录一次）；后端主题另有"是否已显式同步"状态位，启动窗口内用创建时刻前端值，防重启首帧落到硬编码默认主题。
+
 ### Divider Strip（分隔线桥接条）
 中心区浏览器 WebView2 与右侧面板浏览器 WebView2（面板导航器收起时）零间隙贴边时，两者均为 OS 级子窗口，吃掉右面板 resize handle 命中带。修复是在接缝上架一条 6px 全高透明子 WebView（`adl-divider-strip`），夺回命中权并把拖拽增量回传主窗口；兄弟窗口（重）建经 store `siblingWebviewNonce` 重建回到最上层。显隐只看面板侧不变量（导航器收起 **且** 面板活动 tab 已入池承载可见 WebView，见 `shouldShowStrip`）；排序指纹仅含 z-order 信号（tabId/tab 数/nonce，不含 URL）；面板进入 overlay 态（中心 WebView 已隐藏）时**仍需**条带兜底。
 

@@ -280,9 +280,14 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
 
   // 中心恒为"当前标签"模式（事项 7）：着陆页快捷导航/本地端口一律就地导航
   // 当前中心标签，不新建标签、不跟随面板"新建标签/当前标签"开关。
+  // 版本守卫（M7）：快速连点 A→B 时，慢返回的 A 预检不得覆盖 B 的导航。
+  const landingNavVersionRef = useRef(0);
   const handleLandingOpenUrl = useCallback(
     async (url: string) => {
+      const version = ++landingNavVersionRef.current;
       const s = useAppStore.getState();
+      // 无标题清空等真实标题（与面板提交"有标题覆盖"不同：着陆页无占位标题可写，
+      // 清空可避免旧标题配新 URL 的错配闪烁）。
       s.browserUpdateTab(browserTabId, { url, title: '', titleResolved: false });
       s.browserAddToHistory(url, url);
       if (isTauri) {
@@ -299,9 +304,13 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
       const blocked =
         cachedBlocked ??
         (await checkEmbed(url).catch((e) => {
-          console.warn('[centerLanding] checkEmbed failed, treating as embeddable:', e);
+          console.warn('[centerBrowser] checkEmbed failed, treating as embeddable:', e);
           return false;
         }));
+      // 预检在途用户又点了一次：过期结果直接丢弃（M7）。
+      if (landingNavVersionRef.current !== version) {
+        return;
+      }
       if (blocked) {
         setIframeBlockedDetected(true);
         setIframeLoadError(true);

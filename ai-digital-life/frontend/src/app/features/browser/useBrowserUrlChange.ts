@@ -46,7 +46,8 @@ interface UseBrowserUrlChangeOptions {
   expectedNavigationUrlRef: ExpectedNavigationRef;
   setAddress: (address: string) => void;
   setSearchQueryDisplay: (query: string) => void;
-  browserNavigateActiveTab: (url: string, title?: string) => void;
+  /** 面板归属显式导航（只认面板标签；调用方不得传全局 action，见事项 6）。 */
+  browserNavigatePanelTab: (url: string, title?: string) => void;
   browserUpdateTab: (id: string, data: Partial<BrowserTabState>) => void;
   onPageMeta?: (meta: PageMeta, source?: MetaSource) => void;
   onNavigationStart?: (url: string) => void;
@@ -62,7 +63,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     expectedNavigationUrlRef,
     setAddress,
     setSearchQueryDisplay,
-    browserNavigateActiveTab,
+    browserNavigatePanelTab,
     browserUpdateTab,
     onPageMeta,
     onNavigationStart,
@@ -105,7 +106,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
             ) as HTMLLinkElement | null;
             iframeFavicon = iconLink?.href || '';
           }
-          browserNavigateActiveTab(href, iframeTitle || undefined);
+          browserNavigatePanelTab(href, iframeTitle || undefined);
           if (iframeTitle || iframeFavicon) {
             onPageMeta?.({
               title: iframeTitle || activeTab.title,
@@ -119,7 +120,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
           }
         } catch {
           /* cross-origin: navigate without title, fetch via proxy */
-          browserNavigateActiveTab(href);
+          browserNavigatePanelTab(href);
           pageMetaClient.get(href).then((meta) => {
             if (!meta) {
               const s = useAppStore.getState();
@@ -198,7 +199,7 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
     activeTab,
     activeTabRef,
     iframeRef,
-    browserNavigateActiveTab,
+    browserNavigatePanelTab,
     browserUpdateTab,
     setAddress,
     onPageMeta,

@@ -110,3 +110,4 @@ WebView 池、iframe 嵌入、覆盖层级与 WebView2 特性。
 | [browser-webview-pool-lru-2026-06-26.md](./webview-embed/browser-webview-pool-lru-2026-06-26.md) | WebView 池 LRU 缓存策略实现 |
 | [browser-theme-sync-final-2026-06-29.md](./webview-embed/browser-theme-sync-final-2026-06-29.md) | 浏览器主题同步最终修复 |
 | [divider-strip-dual-host-2026-10-02.md](./webview-embed/divider-strip-dual-host-2026-10-02.md) | 桥接条双宿主化：显隐判据（几何代理 + 池成员复合）、排序指纹去 URL、Rust 全局互斥清除、tooltip 贴边容差 |
+| [webview2-profile-colorscheme-udf-isolation-2026-10-06.md](./webview-embed/webview2-profile-colorscheme-udf-isolation-2026-10-06.md) | PreferredColorScheme 同 UDF 实际全局（#4920）→ 按 UDF 会话隔离 + 后端主题初始化状态位 + 命令入口归一化 |

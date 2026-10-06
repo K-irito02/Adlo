@@ -14,3 +14,4 @@ WebView 嵌入经验：iframe 嵌入检查与双模式隔离、Shadow DOM 沙箱
 | [browser-webview-pool-lru-2026-06-26.md](./browser-webview-pool-lru-2026-06-26.md) | WebView 池 LRU 缓存策略实现 |
 | [browser-theme-sync-final-2026-06-29.md](./browser-theme-sync-final-2026-06-29.md) | 浏览器主题同步最终修复 |
 | [divider-strip-dual-host-2026-10-02.md](./divider-strip-dual-host-2026-10-02.md) | 桥接条双宿主化：显隐判据（几何代理 + 池成员复合）、排序指纹去 URL、Rust 全局互斥清除、tooltip 贴边容差 |
+| [webview2-profile-colorscheme-udf-isolation-2026-10-06.md](./webview2-profile-colorscheme-udf-isolation-2026-10-06.md) | PreferredColorScheme 同 UDF 实际全局（#4920）→ 按 UDF 会话隔离 + 后端主题初始化状态位 + 命令入口归一化 |

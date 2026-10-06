@@ -37,6 +37,8 @@ export interface BrowserBridge {
     /** 宿主分组：Tauri 按此选择 WebView2 用户数据目录（UDF 隔离主题回退）；缺省按面板处理。 */
     location?: 'panel' | 'center',
   ) => Promise<string | null>;
+  // 注：非 Tauri 宿主（mock/preview/http）当前忽略 location（无原生 WebView2/UDF
+  // 概念），签名保留以便将来按宿主分区前端缓存时直接复用。
   /** Activate tab: show its WebView, hide others, update LRU. */
   activateTab: (tabId: string) => Promise<void>;
   /** Destroy a tab's WebView (on tab close). */

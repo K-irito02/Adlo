@@ -43,6 +43,8 @@ export function useBrowserUrlState(options: UseBrowserUrlStateOptions) {
         // 或让揭示期的边界同步被跳过（WebView 停在屏外），直到切换/缩放才恢复。
         // 回车后收起是标准浏览器行为（Chrome 回车即聚焦回页面），面板不受影响
         // （面板 overlay 本就不含地址展开态）。
+        // 时序说明：blur 的恢复写（旧 URL）先跑，提交写（finalUrl）后跑覆盖，
+        // 最终一致；中间闪一次旧值可接受（L4）。
         setAddressExpanded(false);
         addressInputRef.current?.blur();
         submitAddress();

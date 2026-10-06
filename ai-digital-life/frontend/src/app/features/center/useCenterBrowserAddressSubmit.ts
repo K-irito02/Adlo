@@ -89,7 +89,7 @@ export function useCenterBrowserAddressSubmit({
         try {
           blocked = await checkEmbed(finalUrl);
         } catch (e) {
-          console.warn('[centerAddressSubmit] checkEmbed failed, treating as embeddable:', e);
+          console.warn('[centerBrowser] checkEmbed failed, treating as embeddable:', e);
           blocked = false;
         }
       }

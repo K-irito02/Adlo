@@ -8,6 +8,7 @@ use crate::download_manager::DownloadManager;
 use crate::page_meta_service::PageMetaService;
 use crate::site_meta_cache::SiteMetaCacheStore;
 use crate::webview_handle::{Bounds, WebView2EventBridge, WebViewHandle};
+use crate::webview2_background::normalize_color_scheme;
 
 pub const BROWSER_WEBVIEW_LABEL: &str = "adl-browser-view";
 
@@ -103,6 +104,8 @@ impl BrowserManager {
     }
 
     pub fn current_color_scheme(&self) -> String {
+        // 警告：启动窗口内可能返回 new() 硬编码默认值（dark）。可见创建路径必须用
+        // current_color_scheme_or；直接读本方法仅允许确知已同步后或接受默认值的场景。
         self.current_color_scheme
             .lock()
             .unwrap_or_else(|e| {
@@ -265,6 +268,9 @@ impl BrowserManager {
     }
 
     pub fn set_color_scheme_for_all(&self, color_scheme: &str) -> Result<(), AppError> {
+        // 存储侧归一化（关闭审查）：非法输入在此收敛为 dark，随后存储/下发的值恒为
+        // "light"|"dark"，首帧背景与 Profile 不再分裂。
+        let color_scheme = normalize_color_scheme(color_scheme);
         {
             let mut cs = self.current_color_scheme.lock().unwrap_or_else(|e| {
                 tracing::warn!("current_color_scheme mutex was poisoned, recovering");
@@ -284,7 +290,7 @@ impl BrowserManager {
         for tab_id in &tab_ids {
             if let Some(handle) = self.try_handle(tab_id)? {
                 tracing::info!(tab_id = tab_id, color_scheme, "calling set_color_scheme for tab");
-                handle.set_color_scheme(color_scheme)?;
+                handle.set_color_scheme(&color_scheme)?;
             } else {
                 tracing::warn!(tab_id = tab_id, "browser webview not found for set_color_scheme");
             }
@@ -352,6 +358,14 @@ mod tests {
         assert_eq!(manager.current_color_scheme_or("light"), "dark");
         manager.set_color_scheme_for_all("light").unwrap();
         assert_eq!(manager.current_color_scheme_or("dark"), "light");
+
+        // 存储侧同样归一化：非法输入落盘即收敛，后续重读不再分裂。
+        manager.set_color_scheme_for_all("LIGHT").unwrap();
+        assert_eq!(manager.current_color_scheme_or("light"), "dark");
+
+        // 归一化 helper 本体。
+        assert_eq!(crate::webview2_background::normalize_color_scheme("light"), "light");
+        assert_eq!(crate::webview2_background::normalize_color_scheme("auto"), "dark");
     }
 
     #[tokio::test]

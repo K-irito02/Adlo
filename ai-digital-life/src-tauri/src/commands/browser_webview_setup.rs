@@ -1058,6 +1058,17 @@ mod tests {
     }
 
     #[test]
+    fn normalize_color_scheme_collapses_unknown_to_dark() {
+        use adl_browser::normalize_color_scheme;
+        assert_eq!(normalize_color_scheme("light"), "light");
+        assert_eq!(normalize_color_scheme("dark"), "dark");
+        // 非法/大小写变体一律 dark，保证首帧背景与 Profile 同色、不分裂。
+        assert_eq!(normalize_color_scheme(""), "dark");
+        assert_eq!(normalize_color_scheme("auto"), "dark");
+        assert_eq!(normalize_color_scheme("Light"), "dark");
+    }
+
+    #[test]
     fn new_window_target_opens_http_and_https() {
         let http = url::Url::parse("http://example.com/page").unwrap();
         let https = url::Url::parse("https://www.bilibili.com/video/BV1xx").unwrap();

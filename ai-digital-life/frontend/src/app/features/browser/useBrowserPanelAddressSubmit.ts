@@ -95,7 +95,15 @@ export function useBrowserPanelAddressSubmit({
           navigateBrowser(finalUrl);
         }
       } else {
-        const blocked = await checkEmbed(finalUrl);
+        // 中心提交同序：checkEmbed 走网络预检，失败（离线/代理异常）不得阻断导航，
+        // 按"未拦截"继续，避免回车无响应 + unhandled rejection。
+        let blocked: boolean;
+        try {
+          blocked = await checkEmbed(finalUrl);
+        } catch (e) {
+          console.warn('[addressSubmit] checkEmbed failed, treating as embeddable:', e);
+          blocked = false;
+        }
         if (submitVersionRef.current !== version) {
           return;
         }

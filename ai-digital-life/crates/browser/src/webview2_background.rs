@@ -64,3 +64,14 @@ mod imp {
 pub use imp::theme_to_rgb;
 #[cfg(windows)]
 pub use imp::{navigate_core, set_default_background_color};
+
+/// 归一化主题字符串（关闭审查）：命令签名接受任意 String（直接 IPC 可达），但
+/// 下游语义分裂（`theme_to_rgb`/init 脚本偏 dark，`set_profile` 偏 Auto）。
+/// 所有主题入口（创建、存储同步）统一归一化为 `"light" | "dark"`，保证首帧背景
+/// 与 Profile 一致；未知值一律 dark。
+pub fn normalize_color_scheme(scheme: &str) -> String {
+    match scheme {
+        "light" => "light".to_string(),
+        _ => "dark".to_string(),
+    }
+}
