@@ -54,12 +54,14 @@ export function useBrowserPanelHandlers(
       // 绑定真实 tabId 后，后台池化 WebView 的跨站事件不会误吞期望（H1-C）。
       expectedNavigationUrlRef.current = { url, at: Date.now(), tabId: null };
       if (browserNavigateInPlace) {
-        // "Current tab" mode → navigate within the active tab
-        const activeTabId = getActiveTabId();
-        if (activeTabId) {
-          expectedNavigationUrlRef.current = { url, at: Date.now(), tabId: activeTabId };
-        }
+        // "Current tab" mode → navigate within the panel tab.传入的 wrapper
+        // （面板归属）会同步把被导航的面板标签设为活动，调用后回读即为目标 id
+        // （面板为空时会新建面板标签，绝不绑定中心标签）。
         browserNavigateActiveTab(url);
+        const targetId = getActiveTabId();
+        if (targetId) {
+          expectedNavigationUrlRef.current = { url, at: Date.now(), tabId: targetId };
+        }
       } else {
         // "New tab" mode → open a new tab
         browserOpenTab(url, url);

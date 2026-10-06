@@ -28,6 +28,8 @@ const t = {
   browserContextMore: 'More actions',
   newTabPage: 'New tab page',
   browserShortcuts: 'Shortcuts',
+  browserLocalPreview: 'Local preview',
+  browserBlankTab: 'New tab',
   browserLocalPorts: 'Local ports',
   browserAddShortcut: 'Add shortcut',
   browserAddShortcutTitle: 'Add shortcut',
@@ -94,7 +96,7 @@ describe('CenterBrowserView', () => {
     expect(screen.getByText('Local ports')).toBeTruthy();
   });
 
-  it('落地页点击快捷站点新建中心浏览器标签', () => {
+  it('落地页点击快捷站点就地导航当前中心标签（事项 7，不新建标签）', () => {
     const tab = makeTab('b1', '');
     const site: ShortcutSite = {
       id: 's1',
@@ -115,10 +117,29 @@ describe('CenterBrowserView', () => {
     fireEvent.click(card);
 
     const s = useAppStore.getState();
-    const created = s.browserTabs.find((x) => x.url === 'https://example.com');
-    expect(created).toBeTruthy();
-    expect(created?.location).toBe('center');
-    expect(s.centerTabs.some((c) => c.refId === created?.id)).toBe(true);
+    // 不新建标签：仍只有一个标签，且就是原来的 b1，就地导航到快捷站点。
+    expect(s.browserTabs).toHaveLength(1);
+    expect(s.browserTabsById['b1'].url).toBe('https://example.com');
+  });
+
+  it('中心地址栏提交就地导航，不跟随面板新建/当前开关（事项 7）', async () => {
+    const tab = makeTab('b1', 'https://old.example.com');
+    useAppStore.setState({
+      browserTabs: [tab],
+      browserTabsById: { b1: tab },
+      browserActiveTabId: 'b1',
+      // 开关切到"新建标签"模式：中心仍必须就地导航。
+      browserNavigateInPlace: false,
+    });
+    renderView('b1');
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'https://new.example.com' } });
+    fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+
+    await waitFor(() => {
+      expect(useAppStore.getState().browserTabs).toHaveLength(1);
+    });
+    expect(useAppStore.getState().browserTabsById['b1'].url).toBe('https://new.example.com');
   });
 
   it('嵌入被拒时渲染外部打开兜底', () => {

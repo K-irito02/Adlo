@@ -16,8 +16,6 @@ interface UseBrowserPanelAddressSubmitParams {
   expectedNavigationUrlRef: ExpectedNavigationRef;
   navigateBrowser: (url: string) => void;
   browserNavigateActiveTab: (url: string, title?: string) => void;
-  navigateTabInPool: (tabId: string, url: string) => Promise<void>;
-  isTabInPool: (tabId: string) => boolean;
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   handlePageMeta: (meta: PageMeta, source?: MetaSource) => void;
@@ -35,8 +33,6 @@ export function useBrowserPanelAddressSubmit({
   expectedNavigationUrlRef,
   navigateBrowser,
   browserNavigateActiveTab,
-  navigateTabInPool,
-  isTabInPool,
   setIframeLoadError,
   setIframeBlockedDetected,
   handlePageMeta,
@@ -117,8 +113,8 @@ export function useBrowserPanelAddressSubmit({
     handleNavigationStart(finalUrl);
     // 显式导航入口：记录期望导航 URL，供 onUrlChanged 检测跨域重定向
     // （Chrome/Edge 重定向链消化语义）。绑定目标 tab id：地址栏提交导航的是
-    // 当前活动 tab（无 tab 时 browserNavigateActiveTab 会新建），仅该 tab 的
-    // URL 变化参与检测，避免后台 tab 跨站导航在窗口内误触发历史改写。
+    // 面板归属 tab（无面板 tab 时 browserNavigatePanelTab 会新建，绝不碰中心标签），
+    // 仅该 tab 的 URL 变化参与检测，避免后台 tab 跨站导航在窗口内误触发历史改写。
     const activeTabId = useAppStore.getState().browserActiveTabId;
     expectedNavigationUrlRef.current = {
       url: finalUrl,
@@ -137,19 +133,12 @@ export function useBrowserPanelAddressSubmit({
         .browserAddToHistory(finalUrl, `${searchInfo.engineName}: ${searchInfo.query}`);
     }
     if (useAppStore.getState().isTauri) {
+      // 面板归属显式导航：更新 tab.url/新建面板 tab，并对已入池 tab 补一次
+      // navigateTabInPool（均在传入的 wrapper 内用最新 id 完成）。
       browserNavigateActiveTab(
         finalUrl,
         searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined,
       );
-      // Directly navigate the existing WebView if the tab is already in the pool.
-      // This ensures the WebView navigates immediately without waiting for the
-      // lifecycle effect to re-fire (which may be blocked by overlay state).
-      const activeTabId = useAppStore.getState().browserActiveTabId;
-      if (activeTabId && isTabInPool(activeTabId)) {
-        await navigateTabInPool(activeTabId, finalUrl).catch((err) => {
-          console.warn('[addressSubmit] navigateTabInPool failed:', err);
-        });
-      }
       // O3：无活动 tab 时初始期望 tabId 为 null（任意 tab 事件都可能消费）。
       // browserNavigateActiveTab 已同步创建 tab 并设为活动，回读新 id 重绑期望，
       // 避免后台 tab 事件在窗口内抢先消费（与树点击 F7 的行为一致）。
@@ -187,8 +176,6 @@ export function useBrowserPanelAddressSubmit({
     expectedNavigationUrlRef,
     navigateBrowser,
     browserNavigateActiveTab,
-    navigateTabInPool,
-    isTabInPool,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta,

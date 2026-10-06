@@ -75,6 +75,30 @@ describe('破坏性操作跳过中心标签', () => {
     expect(s.browserTabs.some((t) => t.id === b)).toBe(false);
   });
 
+  it('browserCloseTab 关闭最后一个面板标签时不回退到中心标签（事项 6）', () => {
+    useAppStore.getState().browserOpenTab('https://c.test', 'C');
+    useAppStore.getState().browserOpenTab('https://p.test', 'P');
+    const [c, p] = useAppStore.getState().browserTabs.map((t) => t.id);
+    useAppStore.getState().browserSetLocation(c, 'center');
+    useAppStore.getState().browserSelectTab(p);
+    useAppStore.getState().browserCloseTab(p);
+    const s = useAppStore.getState();
+    expect(s.browserTabs.some((t) => t.id === c)).toBe(true);
+    expect(s.browserActiveTabId).toBe('');
+  });
+
+  it('browserCloseTab 回退取最后一个面板标签而非中心标签', () => {
+    useAppStore.getState().browserOpenTab('https://a.test', 'A');
+    useAppStore.getState().browserOpenTab('https://b.test', 'B');
+    useAppStore.getState().browserOpenTab('https://c.test', 'C');
+    const [a, b, c] = useAppStore.getState().browserTabs.map((t) => t.id);
+    useAppStore.getState().browserSetLocation(c, 'center');
+    useAppStore.getState().browserSelectTab(b);
+    useAppStore.getState().browserCloseTab(b);
+    const s = useAppStore.getState();
+    expect(s.browserActiveTabId).toBe(a);
+  });
+
   it('移除工作区时保留中心标签', () => {
     const makeTab = (id: string, location?: 'panel' | 'center'): BrowserTabState => ({
       id,

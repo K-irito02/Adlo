@@ -12,7 +12,6 @@ interface UseCenterBrowserAddressSubmitParams {
   setAddress: (address: string) => void;
   setSearchQueryDisplay: (query: string) => void;
   browserLookupIndex: { title: string; url: string }[];
-  browserNavigateInPlace: boolean;
   /** 浏览器模式：驱动当前中心标签的 iframe 导航。 */
   navigateBrowser: (url: string) => void;
   /** Tauri 模式：显式导航已入池的原生 WebView。 */
@@ -21,8 +20,6 @@ interface UseCenterBrowserAddressSubmitParams {
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
-  /** 新建标签模式：打开一个新标签并将其移入中心宿主。 */
-  openCenterTab: (url: string, title?: string) => void;
 }
 
 /**
@@ -30,10 +27,13 @@ interface UseCenterBrowserAddressSubmitParams {
  *
  * 不复用 `useBrowserPanelAddressSubmit`：后者写死 `browserActiveTabId`（全局活动
  * 标签，可能与中心承载的标签不同），并在浏览器模式下无条件导航面板 iframe；
- * 还会把期望导航写入面板级 ref。中心需要以传入的 `browserTabId` 为目标，
- * 且「新建标签」模式下不导航旧 iframe。因此这里复用 URL 解析工具
+ * 还会把期望导航写入面板级 ref。中心需要以传入的 `browserTabId` 为目标。
+ * 因此这里复用 URL 解析工具
  * （`browserUrlUtils` / `findInBrowserLookupIndex` / `checkEmbed`）与共享池，
  * 实现等价的最小逻辑。
+ *
+ * 中心恒为"当前标签"模式（事项 7）：提交一律就地导航当前中心标签，不跟随
+ * 面板"新建标签/当前标签"开关（`browserNavigateInPlace`），也不新建标签。
  */
 export function useCenterBrowserAddressSubmit({
   browserTabId,
@@ -41,14 +41,12 @@ export function useCenterBrowserAddressSubmit({
   setAddress,
   setSearchQueryDisplay,
   browserLookupIndex,
-  browserNavigateInPlace,
   navigateBrowser,
   navigateTabInPool,
   isTabInPool,
   setIframeLoadError,
   setIframeBlockedDetected,
   validatedUrlsRef,
-  openCenterTab,
 }: UseCenterBrowserAddressSubmitParams): { submitAddress: () => Promise<void> } {
   const submitAddress = useCallback(async () => {
     const state = useAppStore.getState();
@@ -105,11 +103,7 @@ export function useCenterBrowserAddressSubmit({
       state.browserAddToHistory(finalUrl, title!);
     }
 
-    if (!browserNavigateInPlace) {
-      openCenterTab(finalUrl, title);
-      return;
-    }
-
+    // 中心恒就地：直接更新当前中心标签并导航其 WebView/iframe，不新建标签。
     useAppStore.getState().browserUpdateTab(browserTabId, {
       url: finalUrl,
       ...(title ? { title, titleResolved: isRealTitle(title, finalUrl) } : {}),
@@ -135,14 +129,12 @@ export function useCenterBrowserAddressSubmit({
     address,
     browserTabId,
     browserLookupIndex,
-    browserNavigateInPlace,
     isTabInPool,
     navigateBrowser,
     navigateTabInPool,
-    openCenterTab,
-    setAddress,
-    setIframeBlockedDetected,
     setIframeLoadError,
+    setIframeBlockedDetected,
+    setAddress,
     setSearchQueryDisplay,
     validatedUrlsRef,
   ]);

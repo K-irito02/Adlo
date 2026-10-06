@@ -43,6 +43,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
   const {
     browserOpenTab,
     browserNavigateActiveTab,
+    browserNavigatePanelTab,
     browserUpdateTab,
     browserBookmarks,
     browserHistory,
@@ -55,6 +56,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
       browserNavigateActiveTab: state.browserNavigateActiveTab,
+      browserNavigatePanelTab: state.browserNavigatePanelTab,
       browserUpdateTab: state.browserUpdateTab,
       browserBookmarks: state.browserBookmarks,
       browserHistory: state.browserHistory,
@@ -85,15 +87,17 @@ export function BrowserPanel(props: BrowserPanelProps) {
   // 对"已入池 tab"显式补一次 navigateTabInPool（= WebView2.Navigate）。
   // 未入池/新建 tab 交由 lifecycle createWebViewForTab(tab.url) 创建并导航，
   // 池中无 WebView 时不要 navigate（会失败或 no-op）。
+  // 事项 6：必须走面板归属 action——全局活动 id 可能指向中心标签，直接导航会
+  // 劫持中心 WebView；无面板标签时新建面板标签。
   const navigateActiveTabExplicit = useCallback(
     async (url: string, title?: string) => {
+      browserNavigatePanelTab(url, title);
       const id = useAppStore.getState().browserActiveTabId;
-      browserNavigateActiveTab(url, title);
       if (isTauriShell() && id && navigationHelpersRef.current.isTabInPool(id)) {
         await navigationHelpersRef.current.navigateTabInPool(id, url);
       }
     },
-    [browserNavigateActiveTab],
+    [browserNavigatePanelTab],
   );
 
   // 标签感知的显式导航（D4）：活动标签走 navigateActiveTabExplicit；非活动标签
@@ -381,8 +385,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     expectedNavigationUrlRef,
     navigateBrowser,
     browserNavigateActiveTab: navigateActiveTabExplicit,
-    navigateTabInPool,
-    isTabInPool,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta: _handlePageMeta,

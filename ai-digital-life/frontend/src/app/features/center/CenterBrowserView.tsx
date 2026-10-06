@@ -61,9 +61,6 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   const browserTabFolders = useAppStore((s) => s.browserTabFolders);
   const recentWorkspaces = useAppStore((s) => s.recentWorkspaces);
   const showToast = useAppStore((s) => s.showToast);
-  const browserOpenTab = useAppStore((s) => s.browserOpenTab);
-  const browserNavigateInPlace = useAppStore((s) => s.browserNavigateInPlace);
-  const centerShowBrowserTab = useAppStore((s) => s.centerShowBrowserTab);
   const isTauri = useAppStore((s) => s.isTauri);
   const searchEngines = useAppStore((s) => s.searchEngines);
   const defaultSearchEngineId = useAppStore((s) => s.defaultSearchEngineId);
@@ -180,31 +177,18 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     browserTabs,
   });
 
-  const openCenterTab = useCallback(
-    (url: string, title?: string) => {
-      browserOpenTab(url, title, undefined, undefined);
-      const newId = useAppStore.getState().browserActiveTabId;
-      if (newId) {
-        centerShowBrowserTab(newId);
-      }
-    },
-    [browserOpenTab, centerShowBrowserTab],
-  );
-
   const { submitAddress } = useCenterBrowserAddressSubmit({
     browserTabId,
     address,
     setAddress,
     setSearchQueryDisplay,
     browserLookupIndex,
-    browserNavigateInPlace,
     navigateBrowser,
     navigateTabInPool,
     isTabInPool,
     setIframeLoadError,
     setIframeBlockedDetected,
     validatedUrlsRef,
-    openCenterTab,
   });
 
   const activeTabUrl = activeTab?.url && activeTab.url !== 'about:blank' ? activeTab.url : '';
@@ -293,7 +277,26 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     setIframeLoadError(true);
   }, [setIframeLoadError]);
 
-  const handleLandingOpenUrl = useCallback((url: string) => openCenterTab(url), [openCenterTab]);
+  // 中心恒为"当前标签"模式（事项 7）：着陆页快捷导航/本地端口一律就地导航
+  // 当前中心标签，不新建标签、不跟随面板"新建标签/当前标签"开关。
+  const handleLandingOpenUrl = useCallback(
+    (url: string) => {
+      const s = useAppStore.getState();
+      s.browserUpdateTab(browserTabId, { url, title: '', titleResolved: false });
+      s.browserAddToHistory(url, url);
+      if (isTauri) {
+        if (isTabInPool(browserTabId)) {
+          void navigateTabInPool(browserTabId, url).catch((err) => {
+            console.warn('[centerLanding] navigateTabInPool failed:', err);
+          });
+        }
+        return;
+      }
+      validatedUrlsRef.current.add(url);
+      navigateBrowser(url);
+    },
+    [browserTabId, isTauri, isTabInPool, navigateTabInPool, navigateBrowser, validatedUrlsRef],
+  );
 
   const isEmptyUrl = !activeTab?.url || activeTab.url === 'about:blank';
   const isEmbedPending =

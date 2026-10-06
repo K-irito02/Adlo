@@ -133,9 +133,12 @@ export const createBrowserTabsSlice = (
     set((state) => {
       const filtered = state.browserTabs.filter((tab) => tab.id !== tabId);
       const nextTabs = sortTabs(filtered);
+      // 关闭回退只取面板标签：中心标签不得成为全局活动标签（与 browserCloseAllTabs
+      // “不得指向中心标签”同规则），否则面板提交链路会误导航中心标签（事项 6）。
+      const panelTabs = nextTabs.filter((tab) => tab.location !== 'center');
       const nextActive =
         state.browserActiveTabId === tabId
-          ? (nextTabs[nextTabs.length - 1]?.id ?? '')
+          ? (panelTabs[panelTabs.length - 1]?.id ?? '')
           : state.browserActiveTabId;
 
       persist('adl:browser.tabs', nextTabs);

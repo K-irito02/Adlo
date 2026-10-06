@@ -47,6 +47,11 @@ function buildTabsById(tabs: BrowserTabState[]): Record<string, BrowserTabState>
 export interface BrowserSlice {
   browserNavigateInPlace: boolean;
   browserNavigateActiveTab: (url: string, title?: string) => void;
+  /**
+   * 面板归属导航（事项 6）：只认 `location !== 'center'` 的面板标签；无面板标签
+   * 时新建面板标签。面板提交链路必须用它，绝不能用全局活动 id 导航到中心标签。
+   */
+  browserNavigatePanelTab: (url: string, title?: string) => void;
   setBrowserNavigateInPlace: (value: boolean) => void;
   /** 导航子视图模式（`adl:browser.navigatorMode`，Task 24） */
   browserNavigatorMode: BrowserNavigatorMode;
@@ -125,6 +130,64 @@ export const createBrowserSlice = (
         // History entry is created by handlePageMeta (via browserAddToHistory)
         // when it receives the real title from COM/poll. Do NOT create an entry
         // here with URL as placeholder — that would flash a raw URL in the panel.
+        return {
+          browserTabs: nextTabs,
+          browserTabsById: buildTabsById(nextTabs),
+          browserActiveTabId: nextActiveTabId,
+        };
+      });
+    },
+
+    browserNavigatePanelTab: (url: string, title?: string) => {
+      set((state) => {
+        // 与面板 `activeTab` 口径一致（`useBrowserTabs`）：全局活动 id 命中面板标签
+        // 则用它，否则回退第一个面板标签；无面板标签则新建（绝不碰中心标签）。
+        const panelTabs = state.browserTabs.filter((tab) => tab.location !== 'center');
+        let activeTab =
+          panelTabs.find((tab) => tab.id === state.browserActiveTabId) ?? panelTabs[0];
+        let nextTabs = state.browserTabs;
+        let nextActiveTabId = activeTab?.id ?? state.browserActiveTabId;
+
+        if (!activeTab) {
+          const maxSortOrder =
+            nextTabs.length > 0 ? Math.max(...nextTabs.map((t) => t.sortOrder)) : 0;
+          const tabTitle = title?.trim() || '';
+          const newTab: BrowserTabState = {
+            id: createUiId('browser'),
+            workspaceId: '',
+            title: tabTitle,
+            url,
+            titleResolved: isRealTitle(tabTitle, url),
+            isPinned: false,
+            isPlayingAudio: false,
+            isAudioMuted: false,
+            sortOrder: maxSortOrder + 1,
+            isDownloading: false,
+          };
+          nextTabs = [...nextTabs, newTab];
+          nextActiveTabId = newTab.id;
+          activeTab = newTab;
+          persist('adl:browser.tabs', nextTabs);
+          persist('adl:browser.activeTabId', nextActiveTabId);
+        } else {
+          const tabTitle = title?.trim() || '';
+          const targetId = activeTab.id;
+          nextTabs = nextTabs.map((tab) => {
+            if (tab.id === targetId) {
+              return {
+                ...tab,
+                url,
+                title: title || '',
+                titleResolved: isRealTitle(tabTitle, url),
+              };
+            }
+            return tab;
+          });
+          nextActiveTabId = activeTab.id;
+          persist('adl:browser.tabs', nextTabs);
+          persist('adl:browser.activeTabId', nextActiveTabId);
+        }
+
         return {
           browserTabs: nextTabs,
           browserTabsById: buildTabsById(nextTabs),

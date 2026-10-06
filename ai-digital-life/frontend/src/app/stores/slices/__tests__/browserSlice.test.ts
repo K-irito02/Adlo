@@ -90,4 +90,64 @@ describe('browserSlice', () => {
     expect(tabs[0].url).toBe('https://new.example');
     expect(tabs[0].title).toBe('New');
   });
+
+  function panelTab(id: string, sortOrder: number) {
+    return {
+      id,
+      workspaceId: 'ws-1',
+      title: id,
+      url: `https://${id}.example`,
+      isPinned: false,
+      isPlayingAudio: false,
+      isAudioMuted: false,
+      sortOrder,
+    };
+  }
+
+  function centerTab(id: string) {
+    return { ...panelTab(id, 99), location: 'center' as const, url: 'https://center.example' };
+  }
+
+  it('browserNavigatePanelTab 绝不导航中心标签：全局活动指向中心时回退首个面板标签', () => {
+    const { get } = createMockStore();
+    const s = get() as Record<string, unknown>;
+    s.browserTabs = [panelTab('p1', 0), panelTab('p2', 1), centerTab('c1')];
+    s.browserActiveTabId = 'c1';
+    (get() as unknown as BrowserSlice).browserNavigatePanelTab('https://new.example', 'New');
+    const tabs = get().browserTabs as { id: string; url: string; location?: string }[];
+    // 中心标签 untouched
+    expect(tabs.find((t) => t.id === 'c1')?.url).toBe('https://center.example');
+    // 回退首个面板标签并将其设为活动
+    expect(tabs.find((t) => t.id === 'p1')?.url).toBe('https://new.example');
+    expect(tabs.find((t) => t.id === 'p2')?.url).toBe('https://p2.example');
+    expect(get().browserActiveTabId).toBe('p1');
+    expect(tabs).toHaveLength(3);
+  });
+
+  it('browserNavigatePanelTab 无面板标签时新建面板标签（事项 6：面板空时搜索建新标签）', () => {
+    const { get } = createMockStore();
+    const s = get() as Record<string, unknown>;
+    s.browserTabs = [centerTab('c1')];
+    s.browserActiveTabId = 'c1';
+    (get() as unknown as BrowserSlice).browserNavigatePanelTab('https://new.example');
+    const tabs = get().browserTabs as { id: string; url: string; location?: string }[];
+    expect(tabs).toHaveLength(2);
+    expect(tabs.find((t) => t.id === 'c1')?.url).toBe('https://center.example');
+    const created = tabs.find((t) => t.id !== 'c1');
+    expect(created?.url).toBe('https://new.example');
+    expect(created?.location).not.toBe('center');
+    expect(get().browserActiveTabId).toBe(created?.id);
+  });
+
+  it('browserNavigatePanelTab 活动为面板标签时就地导航', () => {
+    const { get } = createMockStore();
+    const s = get() as Record<string, unknown>;
+    s.browserTabs = [panelTab('p1', 0), centerTab('c1')];
+    s.browserActiveTabId = 'p1';
+    (get() as unknown as BrowserSlice).browserNavigatePanelTab('https://new.example');
+    const tabs = get().browserTabs as { id: string; url: string }[];
+    expect(tabs).toHaveLength(2);
+    expect(tabs.find((t) => t.id === 'p1')?.url).toBe('https://new.example');
+    expect(tabs.find((t) => t.id === 'c1')?.url).toBe('https://center.example');
+  });
 });
