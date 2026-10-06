@@ -22,6 +22,7 @@ interface UseWebViewLifecycleOptions {
     tabId: string,
     url: string,
     colorScheme?: 'light' | 'dark',
+    location?: 'panel' | 'center',
   ) => Promise<string | null>;
   activateTabInPool: (tabId: string) => Promise<void>;
   webViewActiveRef: React.RefObject<boolean>;
@@ -251,7 +252,10 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
           // 避免该窗口里 `updateWebViewBounds` 提前露出空白首帧（F6）。
           markRevealPending(currentTabId, REVEAL_FALLBACK_MS);
           clearRevealTimer(currentTabId);
-          await createWebViewForTab(currentTabId, tab.url, getResolvedTheme());
+
+          // UDF 隔离后不再需要创建期隐藏另一宿主：中心与面板处于不同 WebView2 会话，
+          // 新建控制器不会触碰另一宿主的 PreferredColorScheme。
+          await createWebViewForTab(currentTabId, tab.url, getResolvedTheme(), hostId);
 
           webViewActiveRef.current = true;
           tabUrlMapRef.current.set(currentTabId, tab.url);

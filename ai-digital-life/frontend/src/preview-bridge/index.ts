@@ -181,8 +181,12 @@ export async function setupPreviewBridge(): Promise<void> {
     dsh: mockDigitalLifeBridge.dsh,
     patch: preferHttpWhenReachable<PatchBridge>(adlServerBaseUrl, http.patch, patchBridge),
     browser: {
-      createForTab: (_tabId: string, _url: string, _colorScheme?: 'light' | 'dark') =>
-        Promise.resolve(null),
+      createForTab: (
+        _tabId: string,
+        _url: string,
+        _colorScheme?: 'light' | 'dark',
+        _location?: 'panel' | 'center',
+      ) => Promise.resolve(null),
       activateTab: (_tabId: string) => Promise.resolve(),
       destroyTab: (_tabId: string) => {
         audioMonitor.stopMonitoring(_tabId);

@@ -5,10 +5,18 @@ import { invokeIpc } from './tauri-shared';
 
 export function createTauriBrowserBridge(): BrowserBridge {
   return {
-    createForTab: (tabId: string, url: string, colorScheme?: 'light' | 'dark') =>
-      invokeIpc<string | null>('browser_create_for_tab', { tabId, url, colorScheme }).then((r) =>
-        r.ok ? r.data : null,
-      ),
+    createForTab: (
+      tabId: string,
+      url: string,
+      colorScheme?: 'light' | 'dark',
+      location?: 'panel' | 'center',
+    ) =>
+      invokeIpc<string | null>('browser_create_for_tab', {
+        tabId,
+        url,
+        colorScheme,
+        location,
+      }).then((r) => (r.ok ? r.data : null)),
     activateTab: (tabId: string) =>
       invokeIpc<void>('browser_activate_tab', { tabId }).then(() => undefined),
     destroyTab: (tabId: string) =>

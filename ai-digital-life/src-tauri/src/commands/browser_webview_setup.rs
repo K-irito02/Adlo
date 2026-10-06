@@ -146,6 +146,37 @@ pub(super) fn resolve_window_and_url(
     Ok((window, target))
 }
 
+/// WebView2 用户数据目录（UDF）分组：把“会互相闪主题”的 WebView 放进不同会话隔离。
+///
+/// 背景：`CoreWebView2Profile.PreferredColorScheme` 在同一 UDF 会话内实际是全局的
+/// （WebView2Feedback #4920：同一 UDF 下即使 ProfileName 不同，新建控制器也会把其它
+/// 窗口的主题一起改掉）。仅换 ProfileName 不可靠，必须按 UDF/会话隔离。
+///
+/// - `panel`（默认/`None`）：沿用 Tauri 默认 UDF，保留现有浏览会话/登录态，不做迁移。
+/// - `center`：中心宿主全部 WebView 使用独立 UDF，与面板彻底隔离。
+/// - `silent`：后台取标题/favicon 的不可见 WebView 使用独立 UDF，避免后台创建反过来
+///   闪到可见组。
+///
+/// 主界面 WebView 留在默认 UDF（与面板同组），不新增第 4 个环境。
+pub(super) fn data_subdir_for_location(location: Option<&str>) -> Option<&'static str> {
+    match location {
+        Some("center") => Some("center"),
+        Some("silent") => Some("silent"),
+        _ => None,
+    }
+}
+
+/// 由分组名解析出完整的 `data_directory`（`None` = 沿用 Tauri 默认 UDF）。
+/// 目录不存在时由 Tauri 在创建 WebView 时自动建立。
+pub(super) fn webview_data_directory(
+    app: &tauri::AppHandle,
+    location: Option<&str>,
+) -> Option<std::path::PathBuf> {
+    let sub = data_subdir_for_location(location)?;
+    let base = app.path().app_data_dir().ok()?;
+    Some(base.join("webview").join(sub))
+}
+
 pub(super) fn build_webview_builder(
     label: &str,
     tab_id: &str,
@@ -157,6 +188,7 @@ pub(super) fn build_webview_builder(
     let app_nav = app_handle.clone();
     let tab_id_owned = tab_id.to_string();
     let init_script = adl_browser::init_script_with_background(color_scheme);
+    let (r, g, b) = adl_browser::theme_to_rgb(color_scheme);
     tracing::debug!(color_scheme, "build_webview_builder: generated init_script with background");
 
     let download_manager = app_handle.state::<AppState>().download_manager.clone();
@@ -174,6 +206,9 @@ pub(super) fn build_webview_builder(
     let last_id_for_monitor = last_record_id.clone();
 
     tauri::webview::WebviewBuilder::new(label, tauri::WebviewUrl::External(target))
+        // 在 builder 上声明主题背景色：wry 会在创建期用它初始化控制器默认背景（其官方
+        // 消除 WebView2 首帧白闪的机制），避免创建新子 WebView 时共享合成面短暂露出默认色。
+        .background_color(tauri::utils::config::Color(r, g, b, 255))
         .initialization_script(init_script)
         .on_navigation(move |url| {
             // Skip about:blank — used as the initial URL during WebView creation
@@ -978,6 +1013,16 @@ pub(super) fn register_webview_with_manager(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn data_subdir_groups_center_and_silent_apart_from_panel() {
+        assert_eq!(data_subdir_for_location(Some("center")), Some("center"));
+        assert_eq!(data_subdir_for_location(Some("silent")), Some("silent"));
+        // 面板/默认/未知一律沿用默认 UDF（None），保留现有浏览会话。
+        assert_eq!(data_subdir_for_location(Some("panel")), None);
+        assert_eq!(data_subdir_for_location(None), None);
+        assert_eq!(data_subdir_for_location(Some("unknown")), None);
+    }
 
     #[test]
     fn new_window_target_opens_http_and_https() {

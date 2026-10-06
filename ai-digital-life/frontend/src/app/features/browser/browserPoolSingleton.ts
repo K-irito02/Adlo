@@ -73,6 +73,7 @@ async function createForTab(
   tabId: string,
   url: string,
   colorScheme?: 'light' | 'dark',
+  location?: 'panel' | 'center',
 ): Promise<string | null> {
   if (creatingSet.has(tabId)) {
     return null;
@@ -86,7 +87,7 @@ async function createForTab(
     if (isTauriShell()) {
       const bridge = window.digitalLife?.browser;
       if (bridge) {
-        rustEvicted = await bridge.createForTab(tabId, url, colorScheme);
+        rustEvicted = await bridge.createForTab(tabId, url, colorScheme, location);
         // 新建原生子窗口盖在最上层，通知透明桥接条重建回到最上层。
         useAppStore.getState().bumpSiblingWebviewNonce();
       }

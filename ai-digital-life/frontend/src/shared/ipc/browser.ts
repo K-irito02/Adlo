@@ -34,6 +34,8 @@ export interface BrowserBridge {
     tabId: string,
     url: string,
     colorScheme?: 'light' | 'dark',
+    /** 宿主分组：Tauri 按此选择 WebView2 用户数据目录（UDF 隔离主题回退）；缺省按面板处理。 */
+    location?: 'panel' | 'center',
   ) => Promise<string | null>;
   /** Activate tab: show its WebView, hide others, update LRU. */
   activateTab: (tabId: string) => Promise<void>;

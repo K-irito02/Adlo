@@ -4,6 +4,7 @@ use crate::commands::browser_memory::system_memory_pressured;
 use crate::commands::browser_webview_setup::{
     apply_theme_and_navigate_for_platform, build_silent_webview_builder, build_webview_builder,
     register_webview_with_manager, resolve_window_and_url, setup_webview2_handlers_for_platform,
+    webview_data_directory,
 };
 use crate::commands::ipc;
 use crate::error::CommandError;
@@ -25,6 +26,7 @@ pub async fn browser_create_for_tab(
     tab_id: String,
     url: String,
     color_scheme: Option<String>,
+    location: Option<String>,
 ) -> Result<IpcResult<Option<String>>, CommandError> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let app_inner = app.clone();
@@ -32,7 +34,7 @@ pub async fn browser_create_for_tab(
     app.run_on_main_thread(move || {
         let state = app_inner.state::<AppState>();
         let label = webview_label(&tab_id);
-        tracing::debug!(tab_id = &tab_id, url = &url, color_scheme = ?&color_scheme, "browser_create_for_tab: ENTER");
+        tracing::debug!(tab_id = &tab_id, url = &url, color_scheme = ?&color_scheme, location = ?&location, "browser_create_for_tab: ENTER");
 
         let result = (|| -> Result<Option<String>, AppError> {
             let (window, _target) = resolve_window_and_url(&app_inner, &url)?;
@@ -51,7 +53,15 @@ pub async fn browser_create_for_tab(
             // setup in apply_theme_and_navigate_for_platform.
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
-            let webview_builder = build_webview_builder(&label, &tab_id, blank_url, app_inner.clone(), &cs, false);
+            // UDF 隔离：中心宿主走独立用户数据目录，与面板/默认会话隔离，
+            // 新建控制器不再触碰另一宿主的 PreferredColorScheme。
+            let data_directory = webview_data_directory(&app_inner, location.as_deref());
+            let builder =
+                build_webview_builder(&label, &tab_id, blank_url, app_inner.clone(), &cs, false);
+            let webview_builder = match data_directory {
+                Some(dir) => builder.data_directory(dir),
+                None => builder,
+            };
 
             // Off-screen child attachment + WebView2 handler setup — shared with
             // the silent-tab path so both paths keep identical creation semantics.
@@ -170,7 +180,13 @@ pub fn create_silent_webview(
             let (window, _target) = resolve_window_and_url(&app_inner, &url_owned)?;
             let blank_url = url::Url::parse("about:blank")
                 .map_err(|e| AppError::Internal(format!("failed to parse about:blank: {e}")))?;
-            let webview_builder = build_silent_webview_builder(&label, blank_url, &cs, true);
+            // 静默 WebView 走独立 UDF：后台创建同样会重置同会话 profile 主题，
+            // 隔离后不会闪到面板/中心任一可见组。
+            let silent_builder = build_silent_webview_builder(&label, blank_url, &cs, true);
+            let webview_builder = match webview_data_directory(&app_inner, Some("silent")) {
+                Some(dir) => silent_builder.data_directory(dir),
+                None => silent_builder,
+            };
             attach_webview_child(
                 &window,
                 &label,

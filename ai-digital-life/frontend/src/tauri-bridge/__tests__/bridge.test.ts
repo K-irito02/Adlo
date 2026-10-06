@@ -212,8 +212,22 @@ describe('createTauriBridge system-capability domains stay on Tauri', () => {
       tabId: 't1',
       url: 'https://example.com',
       colorScheme: undefined,
+      location: undefined,
     });
     expect(res).toBe('tab-1');
+  });
+
+  it('browser.createForTab forwards the host location for UDF grouping', async () => {
+    mockInvoke.mockResolvedValue(okResult(null));
+    const bridge = createTauriBridge('http://127.0.0.1:9999');
+    await bridge.browser.createForTab('t2', 'https://example.com', 'light', 'center');
+
+    expect(mockInvoke).toHaveBeenCalledWith('browser_create_for_tab', {
+      tabId: 't2',
+      url: 'https://example.com',
+      colorScheme: 'light',
+      location: 'center',
+    });
   });
 });
 
