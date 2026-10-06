@@ -35,6 +35,11 @@ const OPPOSITE_MAP: Record<Placement, Placement> = {
   right: 'left',
 };
 
+// 滑移贴边上限（事项 9）：滑移后 tooltip 与原位边沿间距超过该值即视为与触发点
+// 失去视觉关联（如被甩到内容区右缘），拒绝并继续换边。常规贴边滑移（导航栏长
+// 标签约 100px、双 WebView 窄缝约 110px）远小于此值，不受影响。
+const MAX_SLIDE_DETACH_PX = 200;
+
 // 矫正手写/四舍五入产生的非法矩形（left > right 等）并丢弃零面积，
 // 与 webviewAvoidRects 的零面积跳过形成双层保证。
 function normalizeAvoidRects(rects: AvoidRect[]): AvoidRect[] {
@@ -347,7 +352,18 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
       // 视口内但横向压住 Webview → 先滑移；滑不动才换边。
       const cleared = slideCrossAxis(base, trial);
       if (cleared) {
-        return cleared;
+        // 过远滑移拒绝并继续换边（事项 9）：只接受"贴边"级滑移——滑移后 tooltip
+        // 与原位边沿间距超过该阈值，即认为已与触发点失去视觉关联（如工具栏按钮
+        // tooltip 被甩到内容区右缘），宁可换一条更近的边。小幅贴边滑移
+        // （如导航栏长标签、双 WebView 窄缝）不受影响。
+        const horizontal = isHorizontalPlacement(trial);
+        const crossSize = horizontal ? tooltipRect.width : tooltipRect.height;
+        const edgeGap =
+          Math.abs((horizontal ? cleared.x : cleared.y) - (horizontal ? base.x : base.y)) -
+          crossSize;
+        if (edgeGap <= MAX_SLIDE_DETACH_PX) {
+          return cleared;
+        }
       }
     }
     return legacyPosition();

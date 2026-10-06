@@ -106,13 +106,14 @@ export function useTooltip(options: UseTooltipOptions = {}): UseTooltipReturn {
       return;
     }
 
+    const avoidRects = getWebViewAvoidRects();
     const result = computePosition({
       triggerRect,
       tooltipRect: { width: tooltipRect.width, height: tooltipRect.height },
       placement: defaultPlacement,
       alignment: align,
       offset: sideOffset,
-      avoidRects: getWebViewAvoidRects(),
+      avoidRects,
     });
 
     setPosition(result);

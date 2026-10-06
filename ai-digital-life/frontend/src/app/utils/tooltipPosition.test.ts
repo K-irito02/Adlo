@@ -276,6 +276,35 @@ describe('tooltipPosition', () => {
       expect(result.x).toBe(810);
     });
 
+    it('拒绝过远滑移：顶部放不下且底部压住 WebView 时换边而非甩到右缘（事项 9）', () => {
+      // 真实日志几何：工具栏按钮 y=36（贴近视口顶部，top 槽 y=-2 被裁切），
+      // bottom 槽 y=74..104 压住中心内容矩形（top=67）→ 旧实现沿 X 滑到矩形右缘 x=571。
+      const triggerRect = createMockDOMRect({
+        top: 36,
+        left: 72,
+        width: 30,
+        height: 30,
+        right: 102,
+        bottom: 66,
+      });
+      const tooltipRect = { width: 48, height: 30 };
+      const centerContent = { left: 0, top: 67, right: 571, bottom: 800 };
+      const panelContent = { left: 752, top: 110, right: 1280, bottom: 800 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [panelContent, centerContent],
+      });
+
+      // 不接受滑移 508px 到 x=571；换到左侧边，紧贴按钮。
+      expect(result.placement).toBe('left');
+      expect(result.x).toBe(72 - 8 - 48);
+      expect(result.x + tooltipRect.width).toBeLessThanOrEqual(571);
+    });
+
     it.each([
       ['恰好贴边（coord=0）应接受并钳到 padding', 38, 'top', 8],
       ['越界 1px 应翻边', 37, 'bottom', 73],
