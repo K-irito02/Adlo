@@ -928,16 +928,24 @@ pub(super) fn setup_webview2_handlers_for_platform(
 ///   2. closure_B (from set_color_scheme_for_all) sets Profile=dark
 ///   3. YouTube detects the change and triggers ?themeRefresh=1 (flicker)
 ///
+/// **Startup exception (事项 10)**: at restart-restore time the backend scheme
+/// may never have been explicitly synced yet (it still holds `new()`'s hardcoded
+/// default), so the re-read would yield a stale value. `fallback_color_scheme`
+/// (the creation-time frontend-resolved value) is used until the first explicit
+/// `set_color_scheme_for_all` arrives; afterwards the backend value always wins.
+///
 /// On non-Windows, there is no WebView2 flash issue, so we simply navigate.
 pub(super) fn apply_theme_and_navigate_for_platform(
     webview: &tauri::Webview<tauri::Wry>,
     app_handle: tauri::AppHandle,
     real_url: &str,
+    fallback_color_scheme: &str,
 ) {
     #[cfg(windows)]
     {
         let url_owned = real_url.to_string();
         let app_for_closure = app_handle.clone();
+        let fallback_owned = fallback_color_scheme.to_string();
         tracing::debug!(url = &url_owned, "apply_theme_and_navigate_for_platform: ENTER (windows)");
         let _ = webview.with_webview(move |platform_wv| unsafe {
             let controller = platform_wv.controller();
@@ -948,8 +956,12 @@ pub(super) fn apply_theme_and_navigate_for_platform(
             // value ensures the Profile and Navigate use the same theme, avoiding
             // a stale-theme -> new-theme transition that triggers YouTube's
             // ?themeRefresh=1 flicker.
+            // 事项 10：后端尚未显式同步过时用创建时刻值（fallback），否则重读
+            // 会拿到 new() 硬编码默认值（dark），重启恢复的首帧落到旧主题。
             let cs = match app_for_closure.try_state::<AppState>() {
-                Some(state) => state.browser_manager.current_color_scheme(),
+                Some(state) => state
+                    .browser_manager
+                    .current_color_scheme_or(&fallback_owned),
                 None => {
                     tracing::warn!("apply_theme: AppState not found, falling back to dark");
                     "dark".to_string()

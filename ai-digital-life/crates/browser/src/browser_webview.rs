@@ -64,6 +64,11 @@ pub struct BrowserManager {
     pool: BrowserPool,
     handles: Mutex<HashMap<String, Arc<dyn WebViewHandle>>>,
     current_color_scheme: Mutex<String>,
+    /// 后端主题是否已被前端显式同步过（`set_color_scheme_for_all` 调用即置位）。
+    /// 启动窗口内该标志为 false，此时 `current_color_scheme` 只是 `new()` 的硬编码
+    /// 默认值（dark），不得作为主题真相；调用方应使用 `current_color_scheme_or`
+    /// 并以后端传入的创建时刻值做 fallback（事项 10）。
+    theme_initialized: std::sync::atomic::AtomicBool,
     site_meta_cache: Arc<SiteMetaCacheStore>,
     page_meta_service: Arc<PageMetaService>,
 }
@@ -74,6 +79,7 @@ impl BrowserManager {
             pool: BrowserPool::new(),
             handles: Mutex::new(HashMap::new()),
             current_color_scheme: Mutex::new("dark".to_string()),
+            theme_initialized: std::sync::atomic::AtomicBool::new(false),
             site_meta_cache: store.clone(),
             page_meta_service: Arc::new(PageMetaService::new(store)),
         }
@@ -103,6 +109,18 @@ impl BrowserManager {
                 e.into_inner()
             })
             .clone()
+    }
+
+    /// 主题真相（含启动窗口修正）：后端已被显式同步过则用后端最新值，否则用
+    /// 调用方传入的创建时刻值（前端 localStorage 解析，重启恢复时正确）。
+    /// 保留了“创建与闭包之间用户切换主题”的防竞态语义——会话内一旦同步过，
+    /// 后端值永远更新鲜。
+    pub fn current_color_scheme_or(&self, fallback: &str) -> String {
+        if self.theme_initialized.load(std::sync::atomic::Ordering::SeqCst) {
+            self.current_color_scheme()
+        } else {
+            fallback.to_string()
+        }
     }
 
     /// 锁定 handles 表并克隆目标 tab 的 handle；缺 tab 时返回 `Ok(None)`。
@@ -248,6 +266,7 @@ impl BrowserManager {
             });
             *cs = color_scheme.to_string();
         }
+        self.theme_initialized.store(true, std::sync::atomic::Ordering::SeqCst);
 
         let tab_ids = self.pool.tab_ids();
         tracing::info!(
@@ -307,6 +326,26 @@ mod tests {
     fn test_webview_label_format() {
         let label = webview_label("test-tab-123");
         assert_eq!(label, "adl-browser-view-test-tab-123");
+    }
+
+    #[test]
+    fn current_color_scheme_or_uses_fallback_before_first_sync() {
+        // 事项 10：启动窗口内后端主题从未显式同步，后端默认值（dark）是脏的；
+        // 此时必须用创建时刻的前端值（fallback），否则首帧 WebView 落到旧主题。
+        let dir =
+            std::env::temp_dir().join(format!("adl-bwm-theme-fallback-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let store = crate::site_meta_cache::SiteMetaCacheStore::open(&dir).unwrap();
+        let manager = BrowserManager::new(store);
+
+        assert_eq!(manager.current_color_scheme_or("light"), "light");
+
+        // 首次显式同步后，后端最新值永远优先（保留创建/闭包竞态防护语义）。
+        manager.set_color_scheme_for_all("dark").unwrap();
+        assert_eq!(manager.current_color_scheme_or("light"), "dark");
+        manager.set_color_scheme_for_all("light").unwrap();
+        assert_eq!(manager.current_color_scheme_or("dark"), "light");
     }
 
     #[tokio::test]

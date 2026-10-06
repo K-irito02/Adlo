@@ -82,7 +82,12 @@ pub async fn browser_create_for_tab(
             match register_result {
                 Ok(result) => {
                     if let Some(webview) = window.get_webview(&label) {
-                        apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url);
+                        apply_theme_and_navigate_for_platform(
+                            &webview,
+                            app_inner.clone(),
+                            &url,
+                            &cs,
+                        );
                     }
                     Ok(result)
                 },
@@ -196,7 +201,7 @@ pub fn create_silent_webview(
                 true,
             )?;
             if let Some(webview) = window.get_webview(&label) {
-                apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url_owned);
+                apply_theme_and_navigate_for_platform(&webview, app_inner.clone(), &url_owned, &cs);
             }
             Ok(())
         })();
