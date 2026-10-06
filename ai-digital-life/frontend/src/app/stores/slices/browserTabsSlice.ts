@@ -54,6 +54,9 @@ export const createBrowserTabsSlice = (
   browserActiveTabId: '',
 
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => {
+    // 注意：新建标签会同步把全局活动切到新标签（含中心语境调用者，如着陆页/入口页）。
+    // 中心视图持有自己的 browserTabId，不依赖全局活动；面板提交等链路若需面板归属
+    // 判定，必须显式过滤 location（见 browserNavigatePanelTab），不得 assume 全局活动即面板。
     set((state) => {
       const maxSortOrder =
         state.browserTabs.length > 0 ? Math.max(...state.browserTabs.map((t) => t.sortOrder)) : 0;
@@ -135,6 +138,7 @@ export const createBrowserTabsSlice = (
       const nextTabs = sortTabs(filtered);
       // 关闭回退只取面板标签：中心标签不得成为全局活动标签（与 browserCloseAllTabs
       // “不得指向中心标签”同规则），否则面板提交链路会误导航中心标签（事项 6）。
+      // 取末（≈最近使用）；面板展示 fallback 取首（≈稳定默认），职责不同，不要"统一"。
       const panelTabs = nextTabs.filter((tab) => tab.location !== 'center');
       const nextActive =
         state.browserActiveTabId === tabId

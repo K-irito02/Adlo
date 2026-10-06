@@ -157,7 +157,10 @@ pub(super) fn resolve_window_and_url(
 /// - `silent`：后台取标题/favicon 的不可见 WebView 使用独立 UDF，避免后台创建反过来
 ///   闪到可见组。
 ///
-/// 主界面 WebView 留在默认 UDF（与面板同组），不新增第 4 个环境。
+/// 代价（用户可感知，见事项 5）：独立 UDF = 独立空 profile（cookie/localStorage/缓存/
+/// 登录态与默认 UDF 不共享）。升级后中心标签需重新登录一次；磁盘常驻多份 WebView2
+/// 用户数据（默认 + center + silent）。主界面 WebView 留在默认 UDF（与面板同组），
+/// 不新增第 4 个环境。
 pub(super) fn data_subdir_for_location(location: Option<&str>) -> Option<&'static str> {
     match location {
         Some("center") => Some("center"),
@@ -172,9 +175,26 @@ pub(super) fn webview_data_directory(
     app: &tauri::AppHandle,
     location: Option<&str>,
 ) -> Option<std::path::PathBuf> {
-    let sub = data_subdir_for_location(location)?;
-    let base = app.path().app_data_dir().ok()?;
-    Some(base.join("webview").join(sub))
+    let sub = match data_subdir_for_location(location) {
+        Some(sub) => sub,
+        None => {
+            // 未知 location 与面板显式缺省都会落到这里；未知值打 warn，
+            // 面板（None/"panel"）静默——沿用默认 UDF 是其既定语义。
+            if !matches!(location, None | Some("panel")) {
+                tracing::warn!(location = ?location, "unknown browser location; using default UDF (shares panel session)");
+            }
+            return None;
+        },
+    };
+    match app.path().app_data_dir() {
+        Ok(base) => Some(base.join("webview").join(sub)),
+        Err(e) => {
+            // 失败即 fail-open 回默认 UDF（与面板同会话，跨宿主闪主题可能复发），
+            // 必须留痕，否则静默复发无从排查。
+            tracing::warn!(error = %e, location = ?location, "app_data_dir unavailable; using default UDF (shares panel session)");
+            None
+        },
+    }
 }
 
 pub(super) fn build_webview_builder(
@@ -959,12 +979,12 @@ pub(super) fn apply_theme_and_navigate_for_platform(
             // 事项 10：后端尚未显式同步过时用创建时刻值（fallback），否则重读
             // 会拿到 new() 硬编码默认值（dark），重启恢复的首帧落到旧主题。
             let cs = match app_for_closure.try_state::<AppState>() {
-                Some(state) => state
-                    .browser_manager
-                    .current_color_scheme_or(&fallback_owned),
+                Some(state) => state.browser_manager.current_color_scheme_or(&fallback_owned),
                 None => {
-                    tracing::warn!("apply_theme: AppState not found, falling back to dark");
-                    "dark".to_string()
+                    // AppState 缺失比主题未同步更深层：连 manager 都没有。仍用创建时刻
+                    // 值（事项 10），绝不回退到硬编码 dark。
+                    tracing::warn!("apply_theme: AppState not found, using creation-time scheme");
+                    fallback_owned
                 }
             };
             tracing::debug!(
@@ -1006,6 +1026,7 @@ pub(super) fn apply_theme_and_navigate_for_platform(
             let _ = webview.navigate(parsed);
         }
         let _ = app_handle;
+        let _ = fallback_color_scheme;
     }
 }
 

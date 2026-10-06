@@ -45,7 +45,18 @@ pub async fn browser_create_for_tab(
             // before page CSS loads. apply_theme_and_navigate_for_platform will
             // re-read the latest color scheme at closure execution time, so this
             // value only affects the INIT_SCRIPT background color.
-            let cs = color_scheme.unwrap_or_else(|| state.browser_manager.current_color_scheme());
+            let cs = match color_scheme {
+                Some(cs) => cs,
+                None => {
+                    // 无显式传参时没有可用的 fallback：后端尚未同步过则读到的是
+                    // 硬编码默认值（事项 10）。前端创建链路恒传 Some，此分支仅
+                    // 直接 IPC 调用可达，留痕以便排查。
+                    if !state.browser_manager.is_theme_initialized() {
+                        tracing::warn!("browser_create_for_tab: no color_scheme provided and backend theme never synced; using backend default (may be stale)");
+                    }
+                    state.browser_manager.current_color_scheme()
+                }
+            };
 
             // Create the WebView with about:blank as the initial URL to prevent
             // the real page from loading before the background color and Profile
@@ -169,6 +180,8 @@ pub fn create_silent_webview(
 > {
     // 静默 tab 不可见，配色仅用于 INIT_SCRIPT 背景色，无需像可见 tab 那样处理
     // 主题闪烁的竞态（apply_theme... 命名处仍会在主线程闭包执行时重读最新配色）。
+    // 诚实说明：启动期此处读到的仍可能是后端默认值（脏），随后作为 fallback
+    // 原样返回——可接受，因为静默面不可见且已隔离到独立 UDF，不污染可见组。
     let cs = state.browser_manager.current_color_scheme();
     let url_owned = url.to_string();
     let silent_tab_id = adl_types::create_id("silent");

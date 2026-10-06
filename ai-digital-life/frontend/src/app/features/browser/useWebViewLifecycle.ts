@@ -228,9 +228,6 @@ export function useWebViewLifecycle(options: UseWebViewLifecycleOptions) {
             freshTabIdsRef.current.delete(currentTabId);
           }
           if (!isFresh && isDownloadUrl(tab.url)) {
-            console.debug(
-              `[useWebViewLifecycle] skipping WebView creation for download URL (restart suppression): ${tab.url}`,
-            );
             webViewActiveRef.current = false;
             return;
           }

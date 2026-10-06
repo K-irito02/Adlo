@@ -5,7 +5,7 @@ import type { ExpectedNavigationRef } from './browserUrlUtils';
 
 function setup(browserNavigateInPlace: boolean, activeTabId = 'tab-active') {
   const browserOpenTab = vi.fn();
-  const browserNavigateActiveTab = vi.fn();
+  const browserNavigatePanelTab = vi.fn();
   const browserSelectTab = vi.fn();
   const setBrowserNavigateInPlace = vi.fn();
   const getActiveTabId = vi.fn(() => activeTabId);
@@ -13,7 +13,7 @@ function setup(browserNavigateInPlace: boolean, activeTabId = 'tab-active') {
   const { result } = renderHook(() =>
     useBrowserPanelHandlers({
       browserOpenTab,
-      browserNavigateActiveTab,
+      browserNavigatePanelTab,
       browserSelectTab,
       browserNavigateInPlace,
       setBrowserNavigateInPlace,
@@ -24,7 +24,7 @@ function setup(browserNavigateInPlace: boolean, activeTabId = 'tab-active') {
   return {
     result,
     browserOpenTab,
-    browserNavigateActiveTab,
+    browserNavigatePanelTab,
     browserSelectTab,
     expectedNavigationUrlRef,
   };
@@ -43,18 +43,18 @@ describe('useBrowserPanelHandlers.handleAlwaysNewTab', () => {
 
 describe('useBrowserPanelHandlers.handleOpenTabFromTree (regression)', () => {
   it('keeps respecting the toggle', () => {
-    const { result, browserNavigateActiveTab, browserSelectTab, browserOpenTab } = setup(true);
+    const { result, browserNavigatePanelTab, browserSelectTab, browserOpenTab } = setup(true);
     act(() => result.current.handleOpenTabFromTree('https://x.com'));
-    expect(browserNavigateActiveTab).toHaveBeenCalledWith('https://x.com');
+    expect(browserNavigatePanelTab).toHaveBeenCalledWith('https://x.com');
     expect(browserSelectTab).not.toHaveBeenCalled();
     expect(browserOpenTab).not.toHaveBeenCalled();
   });
 
   it('existing tab switch still unaffected by toggle', () => {
-    const { result, browserSelectTab, browserNavigateActiveTab } = setup(true);
+    const { result, browserSelectTab, browserNavigatePanelTab } = setup(true);
     act(() => result.current.handleOpenTabFromTree('https://x.com', 'tab-1'));
     expect(browserSelectTab).toHaveBeenCalledWith('tab-1');
-    expect(browserNavigateActiveTab).not.toHaveBeenCalled();
+    expect(browserNavigatePanelTab).not.toHaveBeenCalled();
   });
 
   it('records expected navigation URL (with timestamp + bound tabId) on explicit tree open', () => {

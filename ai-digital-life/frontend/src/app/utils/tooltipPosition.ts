@@ -35,9 +35,12 @@ const OPPOSITE_MAP: Record<Placement, Placement> = {
   right: 'left',
 };
 
-// 滑移贴边上限（事项 9）：滑移后 tooltip 与原位边沿间距超过该值即视为与触发点
-// 失去视觉关联（如被甩到内容区右缘），拒绝并继续换边。常规贴边滑移（导航栏长
-// 标签约 100px、双 WebView 窄缝约 110px）远小于此值，不受影响。
+// 滑移贴边上限（事项 9）：滑移后矩形与原位矩形的边沿间距（位移减 tooltip 自身
+// 尺寸，贴边滑移 gap≈0）超过该值即视为与触发点失去视觉关联，拒绝并继续换边。
+// 取值来源：事项 9 实测远甩边沿间距 460px，常规贴边滑移约 100–110px（导航栏长标签、
+// 双 WebView 窄缝，见单测），取二者之间约 2 倍常规值。
+// 已知取舍：超宽 tooltip 在窄缝中的合法远贴边可能被误杀，回退埋进 WebView（低概率），
+// 宁要近边/回退、不要远甩；远期可遥测观察。
 const MAX_SLIDE_DETACH_PX = 200;
 
 // 矫正手写/四舍五入产生的非法矩形（left > right 等）并丢弃零面积，
@@ -131,6 +134,8 @@ function fitsInViewport(
 
 /**
  * 主轴是否完整落在视口内（可能违反内边距，但绝不会被裁切）。
+ * （legacy 分支专用；避让分支见事项 9 注释——两条路径判据不同，改一处时不要
+ * 想当然同步另一处。）
  *
  * 贴边容差：`fitsInViewport` 同时要求留出 `viewportPadding`，而触发点上方的可用空间
  * 常常刚好差几个像素 —— 顶部工具栏紧贴 36px 标题栏时，28px 按钮顶部只有 44px，而
@@ -342,11 +347,12 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
       const base = calculate(trial);
       if (!mainAxisFits(base, trial)) {
         const mainSize = isHorizontalPlacement(trial) ? tooltipRect.height : tooltipRect.width;
-        // 首选侧差一点放不下时钳进视口、留在该侧（事项 9）：翻边常把 tooltip
+        // （避让分支）首选侧差一点放不下时钳进视口、留在该侧（事项 9）：翻边常把
         // 送进 WebView 覆盖区（底边）或触发远滑移（右侧），远差于贴边显示。
         // 如顶部工具栏（按钮顶 y=36）：top 槽 y=-2 仅被裁 2px，钳到 padding 后
-        // 落在标题栏区、不压 WebView，正是用户要的"按钮上方"。钳后是否与避让
-        // 矩形重叠由随后的 slideCrossAxis 校验，重叠仍会换边。
+        // 落在标题栏区、不压 WebView，正是用户要的"按钮上方"。钳后允许至多
+        // padding 量级的触发器边缘覆盖（瞬态层，远优于翻边远甩），钳后重叠仍由
+        // 滑移/换边接管。
         clampMainAxis(base, trial, mainSize, viewportPadding);
       }
       // 视口内但横向压住 Webview → 先滑移；滑不动才换边。
@@ -364,6 +370,7 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
         if (edgeGap <= MAX_SLIDE_DETACH_PX) {
           return cleared;
         }
+        // 否则继续换边。
       }
     }
     return legacyPosition();
@@ -380,10 +387,10 @@ export function computePosition(options: TooltipPositionOptions): PositionResult
     const mainAxis = mainAxisOf(currentPlacement);
 
     if (!fitsInViewport(mainCoord, mainAxisSize, mainAxis, viewportPadding)) {
-      // 贴边容差（沿用与避让分支同一判据）：仅内边距不足、tooltip 未被裁切时钳进
-      // 视口，不翻边。两条路径对该判据一致，故「首选侧贴边」这一常见情形下浏览器模式
-      // 与 Tauri 模式给出同一位置；若首选侧被**真正裁切**，避让分支还会继续尝试其它
-      // 候选边（本分支只按 首选 → 对侧 → fallback 回退），此时两者本就允许不同。
+      // 贴边容差（本分支 legacy、无避让矩形专用，与避让分支判据不同，见事项 9）：
+      // 仅内边距不足、tooltip 未被裁切时钳进视口，不翻边。避让分支是一律钳住留
+      // 首选侧（Tauri 底边常是 WebView，翻边有害）；本分支真裁切仍翻边（浏览器
+      // 模式底边槽可见，翻边无害）。改一处时不要想当然同步另一处。
       if (mainAxisFitsWithoutClipping(initialResult, currentPlacement, mainAxisSize)) {
         clampMainAxis(initialResult, currentPlacement, mainAxisSize, viewportPadding);
         return initialResult;

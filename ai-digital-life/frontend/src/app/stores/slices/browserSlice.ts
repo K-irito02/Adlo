@@ -83,7 +83,7 @@ export const createBrowserSlice = (
 
     browserNavigateActiveTab: (url: string, title?: string) => {
       set((state) => {
-        let activeTab = state.browserTabs.find((tab) => tab.id === state.browserActiveTabId);
+        const activeTab = state.browserTabs.find((tab) => tab.id === state.browserActiveTabId);
         let nextTabs = state.browserTabs;
         let nextActiveTabId = state.browserActiveTabId;
 
@@ -107,7 +107,6 @@ export const createBrowserSlice = (
           };
           nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;
-          activeTab = newTab;
           persist('adl:browser.tabs', nextTabs);
           persist('adl:browser.activeTabId', nextActiveTabId);
         } else {
@@ -143,7 +142,7 @@ export const createBrowserSlice = (
         // 与面板 `activeTab` 口径一致（`useBrowserTabs`）：全局活动 id 命中面板标签
         // 则用它，否则回退第一个面板标签；无面板标签则新建（绝不碰中心标签）。
         const panelTabs = state.browserTabs.filter((tab) => tab.location !== 'center');
-        let activeTab =
+        const activeTab =
           panelTabs.find((tab) => tab.id === state.browserActiveTabId) ?? panelTabs[0];
         let nextTabs = state.browserTabs;
         let nextActiveTabId = activeTab?.id ?? state.browserActiveTabId;
@@ -166,7 +165,6 @@ export const createBrowserSlice = (
           };
           nextTabs = [...nextTabs, newTab];
           nextActiveTabId = newTab.id;
-          activeTab = newTab;
           persist('adl:browser.tabs', nextTabs);
           persist('adl:browser.activeTabId', nextActiveTabId);
         } else {

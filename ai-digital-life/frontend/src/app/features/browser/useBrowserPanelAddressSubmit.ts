@@ -15,7 +15,8 @@ interface UseBrowserPanelAddressSubmitParams {
   handleNavigationStart: (url: string) => void;
   expectedNavigationUrlRef: ExpectedNavigationRef;
   navigateBrowser: (url: string) => void;
-  browserNavigateActiveTab: (url: string, title?: string) => void;
+  /** 面板归属显式导航（只认面板标签，无则新建；绝不碰中心标签）。 */
+  browserNavigatePanelTab: (url: string, title?: string) => void;
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   handlePageMeta: (meta: PageMeta, source?: MetaSource) => void;
@@ -32,7 +33,7 @@ export function useBrowserPanelAddressSubmit({
   handleNavigationStart,
   expectedNavigationUrlRef,
   navigateBrowser,
-  browserNavigateActiveTab,
+  browserNavigatePanelTab,
   setIframeLoadError,
   setIframeBlockedDetected,
   handlePageMeta,
@@ -44,7 +45,10 @@ export function useBrowserPanelAddressSubmit({
     const input = address.trim();
     if (!input) {
       const state = useAppStore.getState();
-      const activeTab = state.browserTabs.find((t) => t.id === state.browserActiveTabId);
+      // 面板归属回填（P1）：空回车只回填面板标签 URL；全局活动指向中心时不回填，
+      // 避免把中心 URL 灌进面板地址栏。
+      const panelTabs = state.browserTabs.filter((t) => t.location !== 'center');
+      const activeTab = panelTabs.find((t) => t.id === state.browserActiveTabId) ?? panelTabs[0];
       const currentUrl = activeTab?.url ?? '';
       addressSubmittedForTabRef.current = currentUrl || 'about:blank';
       setAddress(currentUrl === 'about:blank' ? '' : currentUrl);
@@ -115,11 +119,16 @@ export function useBrowserPanelAddressSubmit({
     // （Chrome/Edge 重定向链消化语义）。绑定目标 tab id：地址栏提交导航的是
     // 面板归属 tab（无面板 tab 时 browserNavigatePanelTab 会新建，绝不碰中心标签），
     // 仅该 tab 的 URL 变化参与检测，避免后台 tab 跨站导航在窗口内误触发历史改写。
-    const activeTabId = useAppStore.getState().browserActiveTabId;
+    // 面板归属预绑定（F1）：浏览器模式不走下面的重绑，预绑定不能用可能指向
+    // 中心标签的全局活动 id；无面板标签时置 null（任意事件可消费）。
+    const panelState = useAppStore.getState();
+    const panelTabsForBind = panelState.browserTabs.filter((t) => t.location !== 'center');
+    const panelBindTab =
+      panelTabsForBind.find((t) => t.id === panelState.browserActiveTabId) ?? panelTabsForBind[0];
     expectedNavigationUrlRef.current = {
       url: finalUrl,
       at: Date.now(),
-      tabId: activeTabId || null,
+      tabId: panelBindTab?.id ?? null,
     };
     if (searchInfo) {
       setSearchQueryDisplay(searchInfo.query);
@@ -135,12 +144,12 @@ export function useBrowserPanelAddressSubmit({
     if (useAppStore.getState().isTauri) {
       // 面板归属显式导航：更新 tab.url/新建面板 tab，并对已入池 tab 补一次
       // navigateTabInPool（均在传入的 wrapper 内用最新 id 完成）。
-      browserNavigateActiveTab(
+      browserNavigatePanelTab(
         finalUrl,
         searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined,
       );
       // O3：无活动 tab 时初始期望 tabId 为 null（任意 tab 事件都可能消费）。
-      // browserNavigateActiveTab 已同步创建 tab 并设为活动，回读新 id 重绑期望，
+      // browserNavigatePanelTab 已同步创建 tab 并设为活动，回读新 id 重绑期望，
       // 避免后台 tab 事件在窗口内抢先消费（与树点击 F7 的行为一致）。
       const createdTabId = useAppStore.getState().browserActiveTabId;
       if (createdTabId) {
@@ -175,7 +184,7 @@ export function useBrowserPanelAddressSubmit({
     handleNavigationStart,
     expectedNavigationUrlRef,
     navigateBrowser,
-    browserNavigateActiveTab,
+    browserNavigatePanelTab,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta,

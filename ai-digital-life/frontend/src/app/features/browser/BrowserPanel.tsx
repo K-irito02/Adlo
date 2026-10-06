@@ -42,7 +42,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
 
   const {
     browserOpenTab,
-    browserNavigateActiveTab,
     browserNavigatePanelTab,
     browserUpdateTab,
     browserBookmarks,
@@ -55,7 +54,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
   } = useAppStore(
     useShallow((state) => ({
       browserOpenTab: state.browserOpenTab,
-      browserNavigateActiveTab: state.browserNavigateActiveTab,
       browserNavigatePanelTab: state.browserNavigatePanelTab,
       browserUpdateTab: state.browserUpdateTab,
       browserBookmarks: state.browserBookmarks,
@@ -161,7 +159,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handlePointerDown,
   } = useBrowserPanelHandlers({
     browserOpenTab,
-    browserNavigateActiveTab: navigateActiveTabExplicit,
+    browserNavigatePanelTab: navigateActiveTabExplicit,
     browserSelectTab,
     browserNavigateInPlace,
     setBrowserNavigateInPlace,
@@ -342,7 +340,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setAddress,
     setSearchQueryDisplay,
     setIframeLoadError,
-    browserNavigateActiveTab,
+    browserNavigateActiveTab: browserNavigatePanelTab,
     browserUpdateTab,
     onNavigationStart: handleNavigationStart,
   });
@@ -384,7 +382,7 @@ export function BrowserPanel(props: BrowserPanelProps) {
     handleNavigationStart,
     expectedNavigationUrlRef,
     navigateBrowser,
-    browserNavigateActiveTab: navigateActiveTabExplicit,
+    browserNavigatePanelTab: navigateActiveTabExplicit,
     setIframeLoadError,
     setIframeBlockedDetected,
     handlePageMeta: _handlePageMeta,

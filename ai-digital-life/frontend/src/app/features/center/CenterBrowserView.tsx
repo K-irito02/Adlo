@@ -32,6 +32,7 @@ import { BookmarkToFolderDialogs } from '@features/browser/BookmarkToFolderDialo
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { useCenterBrowserAddressSubmit } from './useCenterBrowserAddressSubmit';
+import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { useCenterObscured } from './useCenterObscured';
 import './CenterBrowserView.css';
 
@@ -280,7 +281,7 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
   // 中心恒为"当前标签"模式（事项 7）：着陆页快捷导航/本地端口一律就地导航
   // 当前中心标签，不新建标签、不跟随面板"新建标签/当前标签"开关。
   const handleLandingOpenUrl = useCallback(
-    (url: string) => {
+    async (url: string) => {
       const s = useAppStore.getState();
       s.browserUpdateTab(browserTabId, { url, title: '', titleResolved: false });
       s.browserAddToHistory(url, url);
@@ -292,10 +293,33 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
         }
         return;
       }
+      // 浏览器模式与地址栏提交同序：先嵌入预检，被拒则落错误兜底而不导航
+      // （F5；此前直接 validated + 导航，会先加载一次失败 iframe）。
+      const cachedBlocked = isEmbedBlocked(url);
+      const blocked =
+        cachedBlocked ??
+        (await checkEmbed(url).catch((e) => {
+          console.warn('[centerLanding] checkEmbed failed, treating as embeddable:', e);
+          return false;
+        }));
+      if (blocked) {
+        setIframeBlockedDetected(true);
+        setIframeLoadError(true);
+        return;
+      }
       validatedUrlsRef.current.add(url);
       navigateBrowser(url);
     },
-    [browserTabId, isTauri, isTabInPool, navigateTabInPool, navigateBrowser, validatedUrlsRef],
+    [
+      browserTabId,
+      isTauri,
+      isTabInPool,
+      navigateTabInPool,
+      navigateBrowser,
+      validatedUrlsRef,
+      setIframeBlockedDetected,
+      setIframeLoadError,
+    ],
   );
 
   const isEmptyUrl = !activeTab?.url || activeTab.url === 'about:blank';

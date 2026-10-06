@@ -803,7 +803,12 @@ export function createHttpBridge({
         taskNotSupported<AppInfo>('app.updatePreferences'),
     } satisfies AppBridge,
     browser: {
-      createForTab: () => Promise.resolve(null),
+      createForTab: (
+        _tabId: string,
+        _url: string,
+        _colorScheme?: 'light' | 'dark',
+        _location?: 'panel' | 'center',
+      ) => Promise.resolve(null),
       activateTab: () => Promise.resolve(),
       destroyTab: () => Promise.resolve(),
       navigateTab: () => Promise.resolve(),

@@ -1,5 +1,6 @@
 use adl_errors::AppError;
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use crate::browser_pool::BrowserPool;
@@ -68,7 +69,7 @@ pub struct BrowserManager {
     /// 启动窗口内该标志为 false，此时 `current_color_scheme` 只是 `new()` 的硬编码
     /// 默认值（dark），不得作为主题真相；调用方应使用 `current_color_scheme_or`
     /// 并以后端传入的创建时刻值做 fallback（事项 10）。
-    theme_initialized: std::sync::atomic::AtomicBool,
+    theme_initialized: AtomicBool,
     site_meta_cache: Arc<SiteMetaCacheStore>,
     page_meta_service: Arc<PageMetaService>,
 }
@@ -79,7 +80,7 @@ impl BrowserManager {
             pool: BrowserPool::new(),
             handles: Mutex::new(HashMap::new()),
             current_color_scheme: Mutex::new("dark".to_string()),
-            theme_initialized: std::sync::atomic::AtomicBool::new(false),
+            theme_initialized: AtomicBool::new(false),
             site_meta_cache: store.clone(),
             page_meta_service: Arc::new(PageMetaService::new(store)),
         }
@@ -113,14 +114,19 @@ impl BrowserManager {
 
     /// 主题真相（含启动窗口修正）：后端已被显式同步过则用后端最新值，否则用
     /// 调用方传入的创建时刻值（前端 localStorage 解析，重启恢复时正确）。
-    /// 保留了“创建与闭包之间用户切换主题”的防竞态语义——会话内一旦同步过，
-    /// 后端值永远更新鲜。
+    /// 初始化后以后端值为准（与创建-闭包竞态处理一致：以最后一次显式同步的值
+    /// 为准；在途的主题切换在下一次同步生效）。
     pub fn current_color_scheme_or(&self, fallback: &str) -> String {
-        if self.theme_initialized.load(std::sync::atomic::Ordering::SeqCst) {
+        if self.theme_initialized.load(Ordering::Acquire) {
             self.current_color_scheme()
         } else {
             fallback.to_string()
         }
+    }
+
+    /// 后端主题是否已被前端显式同步过（供调用方在没有可用 fallback 时诚实降级）。
+    pub fn is_theme_initialized(&self) -> bool {
+        self.theme_initialized.load(Ordering::Acquire)
     }
 
     /// 锁定 handles 表并克隆目标 tab 的 handle；缺 tab 时返回 `Ok(None)`。
@@ -266,7 +272,7 @@ impl BrowserManager {
             });
             *cs = color_scheme.to_string();
         }
-        self.theme_initialized.store(true, std::sync::atomic::Ordering::SeqCst);
+        self.theme_initialized.store(true, Ordering::Release);
 
         let tab_ids = self.pool.tab_ids();
         tracing::info!(

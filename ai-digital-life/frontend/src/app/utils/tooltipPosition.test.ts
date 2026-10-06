@@ -300,9 +300,90 @@ describe('tooltipPosition', () => {
         avoidRects: [panelContent, centerContent],
       });
 
-      // 顶部居中、钳进视口（y=8），不翻边、不滑移。
+      // 顶部居中、钳进视口（y=8），不翻边、不滑移。允许覆盖按钮顶部 2px
+      //（tooltip 8..38 vs 按钮 36..66，瞬态层，远优于翻边远甩）。
       expect(result.placement).toBe('top');
       expect(result.x).toBe(72 + 15 - 24);
+      expect(result.y).toBe(8);
+    });
+
+    it('left 槽差一点放不下时同样钳住留左侧（与 top 同理）', () => {
+      // 触发器贴视口左缘：left 槽 x=-8 被裁 8px → 钳到 x=8 留在左侧，
+      // tooltip 8..48 覆盖触发器左缘 8px（已接受的同类取舍）。
+      const triggerRect = createMockDOMRect({
+        top: 300,
+        left: 40,
+        width: 28,
+        height: 28,
+        right: 68,
+        bottom: 328,
+      });
+      const tooltipRect = { width: 40, height: 30 };
+      const farRect = { left: 500, top: 0, right: 1920, bottom: 1080 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'left',
+        offset: 8,
+        avoidRects: [farRect],
+      });
+
+      expect(result.placement).toBe('left');
+      expect(result.x).toBe(8);
+    });
+
+    it('纵向远滑移同样被拒绝并换边（事项 9 阈值的纵向镜像）', () => {
+      // 右侧触发器：right 槽 y=640..670 压住右缘竖条矩形（100..1200，底边超出
+      // 视口故其逃逸点无效），纵向唯一有效逃逸点 y=70 距原位 570px（边沿间距
+      // 540 > 200）→ 拒绝，换到 left（x=744，纵向居中 y=640，不压矩形）。
+      const triggerRect = createMockDOMRect({
+        top: 640,
+        left: 800,
+        width: 30,
+        height: 30,
+        right: 830,
+        bottom: 670,
+      });
+      const tooltipRect = { width: 48, height: 30 };
+      const edgeStrip = { left: 878, top: 100, right: 960, bottom: 1200 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'right',
+        offset: 8,
+        avoidRects: [edgeStrip],
+      });
+
+      expect(result.placement).toBe('left');
+      expect(result.x).toBe(800 - 8 - 48);
+    });
+
+    it('严重裁切 + 无重叠时锁定留首选侧（事项 9 取舍：钳住，不翻边）', () => {
+      // 按钮顶 y=10、tooltip 高 30：top 槽 y=-28 严重被裁；远处小矩形无重叠。
+      // 按"一律钳住"取舍返回 top y=8（盖住按钮大部），锁定该行为，
+      // 防止后人误当作 bug"修复"回翻边。
+      const triggerRect = createMockDOMRect({
+        top: 10,
+        left: 300,
+        width: 28,
+        height: 28,
+        right: 328,
+        bottom: 38,
+      });
+      const tooltipRect = { width: 40, height: 30 };
+      const farRect = { left: 1000, top: 0, right: 1920, bottom: 1080 };
+
+      const result = computePosition({
+        triggerRect,
+        tooltipRect,
+        placement: 'top',
+        offset: 8,
+        avoidRects: [farRect],
+      });
+
+      expect(result.placement).toBe('top');
       expect(result.y).toBe(8);
     });
 
@@ -387,7 +468,10 @@ describe('tooltipPosition', () => {
     });
 
     it('still flips when the preferred side would be clipped by the viewport', () => {
-      // 贴边容差只覆盖“内边距不足”，不覆盖“tooltip 被裁切”：
+      // 注意：本用例的翻边来自"四边全灭后的 legacyPosition 回退"（全屏避让矩形下
+      // 各边滑移均无解），而非"被裁切即换边"规则——避让分支已改为一律钳住留首选侧
+      //（事项 9），钳住后重叠才换边。此处 top 钳住后仍压全屏矩形、bottom/left/right
+      // 同理无解，最终回退翻到底部。
       // 顶部仅 10px 空间、30px tooltip 会被裁掉 → 必须换边。
       const triggerRect = createMockDOMRect({ top: 10, left: 100, width: 100, height: 50 });
       const tooltipRect = { width: 80, height: 30 };

@@ -3,7 +3,8 @@ import type { ExpectedNavigationRef } from './browserUrlUtils';
 
 export interface UseBrowserPanelHandlersParams {
   browserOpenTab: (url?: string, title?: string, workspaceId?: string, folderId?: string) => void;
-  browserNavigateActiveTab: (url: string, title?: string) => void;
+  /** 面板归属显式导航（只认面板标签，无则新建；调用方不得传全局 action）。 */
+  browserNavigatePanelTab: (url: string, title?: string) => void;
   browserSelectTab: (tabId: string) => void;
   browserNavigateInPlace: boolean;
   setBrowserNavigateInPlace: (value: boolean) => void;
@@ -25,7 +26,7 @@ export function useBrowserPanelHandlers(
 ): UseBrowserPanelHandlersResult {
   const {
     browserOpenTab,
-    browserNavigateActiveTab,
+    browserNavigatePanelTab,
     browserSelectTab,
     browserNavigateInPlace,
     setBrowserNavigateInPlace,
@@ -57,7 +58,7 @@ export function useBrowserPanelHandlers(
         // "Current tab" mode → navigate within the panel tab.传入的 wrapper
         // （面板归属）会同步把被导航的面板标签设为活动，调用后回读即为目标 id
         // （面板为空时会新建面板标签，绝不绑定中心标签）。
-        browserNavigateActiveTab(url);
+        browserNavigatePanelTab(url);
         const targetId = getActiveTabId();
         if (targetId) {
           expectedNavigationUrlRef.current = { url, at: Date.now(), tabId: targetId };
@@ -73,7 +74,7 @@ export function useBrowserPanelHandlers(
     },
     [
       browserOpenTab,
-      browserNavigateActiveTab,
+      browserNavigatePanelTab,
       browserSelectTab,
       browserNavigateInPlace,
       getActiveTabId,
