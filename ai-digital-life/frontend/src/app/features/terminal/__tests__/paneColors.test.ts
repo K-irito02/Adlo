@@ -13,6 +13,12 @@ describe('paneColors', () => {
     });
   });
 
+  it('maps the first 8 indices to the --pane-color-N design tokens', () => {
+    for (let index = 0; index < PANE_COLORS.length; index += 1) {
+      expect(paneColor(index)).toBe(`var(--pane-color-${index + 1})`);
+    }
+  });
+
   it('gives every pane a distinct color past the curated palette (spec §9)', () => {
     const colors = Array.from({ length: 16 }, (_, index) => paneColor(index));
     expect(new Set(colors).size).toBe(16);

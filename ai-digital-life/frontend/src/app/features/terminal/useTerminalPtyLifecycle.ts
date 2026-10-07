@@ -33,6 +33,14 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     if (!activeTab) {
       return;
     }
+    // 剪枝：丢弃已不属于当前活动标签的记账键（切标签会带出新键，旧键必须清理，
+    // 否则长期运行会持续累积）。同一个 paneId 不会跨标签复用。
+    const activeKeys = new Set(activeTab.panes.map((pane) => `${activeTab.id}:${pane.id}`));
+    for (const key of attemptedPanesRef.current) {
+      if (!activeKeys.has(key)) {
+        attemptedPanesRef.current.delete(key);
+      }
+    }
     for (const pane of activeTab.panes) {
       // 本次运行已建过的会话无需再激活；无会话的窗格（上次建会话中途退出）也要补建。
       if (pane.sessionId && terminalPtyRuntime.isCreatedSession(pane.sessionId)) {

@@ -80,7 +80,7 @@ export function createTerminalPane(profile: TerminalProfile, colorIndex: number)
 
 /**
  * 标注限 1 个码点：按 Unicode 码点取首个，避免把代理对 / emoji 截半。
- * 卡片内联输入与两处 Hook 共用同一实现（与 `<input maxLength={1}>` 构成双保险）；
+ * 卡片内联输入与两处 Hook 共用同一实现（输入框不设 `maxLength`，提交时统一在此收口）；
  * 空串表示清除标注。
  */
 export function clampPaneLabel(value: string): string {
@@ -155,20 +155,6 @@ export function readTerminalPanes(raw: unknown): TerminalPane[] | undefined {
 /** 活动窗格：优先匹配 `activePaneId`，否则回退首个窗格；无窗格时 `undefined`。 */
 export function activePaneOf(tab: TerminalTabState): TerminalPane | undefined {
   return tab.panes.find((pane) => pane.id === tab.activePaneId) ?? tab.panes[0];
-}
-
-/** 标签级派生状态：全部 terminated → terminated；有 running → running；否则 idle。 */
-export function tabStatusOf(tab: TerminalTabState): TerminalPaneStatus {
-  if (tab.panes.length === 0) {
-    return 'idle';
-  }
-  if (tab.panes.every((pane) => pane.status === 'terminated')) {
-    return 'terminated';
-  }
-  if (tab.panes.some((pane) => pane.status === 'running')) {
-    return 'running';
-  }
-  return 'idle';
 }
 
 /** 返回 0..N 中第一个未被占用的颜色下标；0..N-1 全部占用时返回 `panes.length`。 */

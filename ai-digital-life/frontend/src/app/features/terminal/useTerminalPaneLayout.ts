@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   autoRectForIndex,
+  cumulativePercent,
   defaultPaneLayout,
+  fractionTracks,
   MIN_PANE_H,
   MIN_PANE_W,
   normalizePaneLayout,
@@ -101,6 +103,11 @@ function numbersEqual(a: number[], b: number[]): boolean {
   return a.length === b.length && a.every((value, index) => value === b[index]);
 }
 
+/** 归一化矩形逐字段相等：自由模式纯点击（无 pointermove）时用于跳过提交/落盘。 */
+function rectsEqual(a: PaneRect, b: PaneRect): boolean {
+  return a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h;
+}
+
 /**
  * `free` 模式 rect 归一：以 `paneIds` 为唯一身份来源，按 `paneIds` 顺序补齐缺失项
  * （`autoRectForIndex`）并剪掉不在 `paneIds` 中的陈旧键。未知/缺失容器 DOM 不再影响结果。
@@ -188,17 +195,11 @@ export function applyFreeDrag(
   return { x, y, w, h };
 }
 
-function fractionTracks(fractions: number[]): string {
-  return fractions.map((f) => `${f}fr`).join(' ');
-}
-
 /** 各边界线的累计比例（百分比）：第 i 条 = `fractions[0..i]` 之和，共 `length-1` 条。 */
 function dividerPercents(fractions: number[]): string[] {
   const percents: string[] = [];
-  let sum = 0;
   for (let index = 0; index < fractions.length - 1; index += 1) {
-    sum += fractions[index] ?? 0;
-    percents.push(`${sum * 100}%`);
+    percents.push(`${cumulativePercent(fractions, index + 1)}%`);
   }
   return percents;
 }
@@ -220,13 +221,6 @@ function applyRectStyle(el: HTMLElement, rect: PaneRect): void {
   el.style.top = `${rect.y * 100}%`;
   el.style.width = `${rect.w * 100}%`;
   el.style.height = `${rect.h * 100}%`;
-}
-
-function clearRectStyle(el: HTMLElement): void {
-  el.style.left = '';
-  el.style.top = '';
-  el.style.width = '';
-  el.style.height = '';
 }
 
 /**
@@ -501,15 +495,18 @@ export function useTerminalPaneLayout({
         target.removeEventListener('pointerup', handleUp);
         target.removeEventListener('pointercancel', handleUp);
         target.removeEventListener('lostpointercapture', handleUp);
-        if (paneEl) {
-          clearRectStyle(paneEl);
-        }
       };
 
       const handleUp = () => {
         teardown();
         unregisterDrag(teardown);
         target.releasePointerCapture?.(e.pointerId);
+        // 纯点击（无位移 / 被夹取到与起点相同）：不提交、不落盘。自由模式几何由
+        // React 拥有并以内联样式渲染，teardown 不再清理（清理会在 React 未重写时
+        // 抹掉窗格几何 → 窗格塌陷）。
+        if (rectsEqual(latest, base)) {
+          return;
+        }
         commit({
           ...layoutRef.current,
           rects: { ...layoutRef.current.rects, [paneId]: latest },

@@ -27,7 +27,12 @@ export function TerminalPaneActions({
 }: TerminalPaneActionsProps) {
   const maximizeTitle = isMaximized ? titles.restore : titles.maximize;
   return (
-    <div className={`adl-terminal-region-actions${alwaysVisible ? ' is-always-visible' : ''}`}>
+    <div
+      className={`adl-terminal-region-actions${alwaysVisible ? ' is-always-visible' : ''}`}
+      // 阻止按钮 pointerdown 冒泡到 TerminalPaneView 的 onPointerDown={onActivate}：
+      // 否则点击动作按钮会先激活窗格并为其新建一个 shell（再立即被关闭）。
+      onPointerDown={(event) => event.stopPropagation()}
+    >
       <button
         type="button"
         className="adl-terminal-region-actions__btn"

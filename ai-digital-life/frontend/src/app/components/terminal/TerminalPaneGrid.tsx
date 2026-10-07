@@ -13,6 +13,8 @@ import { RevealScrollbar } from '@components/RevealScrollbar';
 import {
   autoRectForIndex,
   computeGrid,
+  cumulativePercent,
+  fractionTracks,
   MIN_PANE_H,
   MIN_PANE_W,
   type PaneRect,
@@ -37,20 +39,6 @@ export interface TerminalPaneGridProps {
 
 /** free 模式八向拖拽手柄（四边 + 四角）。 */
 const FREE_DRAG_EDGES: FreeDragEdge[] = ['n', 'e', 's', 'w', 'ne', 'nw', 'se', 'sw'];
-
-/** equal 轨道串：`[0.5,0.5] → "0.5fr 0.5fr"`；空数组回退 `1fr` 避免 `var()` 空回退值。 */
-function fractionTracks(fractions: number[]): string {
-  return fractions.length > 0 ? fractions.map((fraction) => `${fraction}fr`).join(' ') : '1fr';
-}
-
-/** 第 boundary 条边界线处的累计比例（百分比），用于绝对定位。 */
-function cumulativePercent(fractions: number[], boundary: number): number {
-  let sum = 0;
-  for (let index = 0; index < boundary; index += 1) {
-    sum += fractions[index] ?? 0;
-  }
-  return sum * 100;
-}
 
 /**
  * free 窗格几何：优先按测量到的容器尺寸换算像素（随容器缩放等比映射）；
@@ -189,12 +177,16 @@ export function TerminalPaneGrid({
                       <div
                         key={edge}
                         className={`adl-terminal-free-handle adl-terminal-free-handle--${edge}`}
+                        role="button"
+                        aria-label={dividerLabel}
                         onPointerDown={(event) => onFreeDragPointerDown(pane.id, edge, event)}
                       />
                     ))}
                     {/* 专用移动手柄（不采用整窗格拖动，避免吞掉 xterm 输入/选择） */}
                     <div
                       className="adl-terminal-free-handle adl-terminal-free-handle--move"
+                      role="button"
+                      aria-label={dividerLabel}
                       onPointerDown={(event) => onFreeDragPointerDown(pane.id, 'move', event)}
                     />
                   </>

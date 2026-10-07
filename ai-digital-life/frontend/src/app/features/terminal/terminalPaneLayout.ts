@@ -57,11 +57,18 @@ export function equalFractions(count: number): number[] {
   return Array.from({ length: safe }, () => 1 / safe);
 }
 
-export function fractionToPx(fraction: number, total: number): number {
-  if (!Number.isFinite(fraction) || !Number.isFinite(total)) {
-    return 0;
+/** equal 轨道串：`[0.5,0.5] → "0.5fr 0.5fr"`；空数组回退 `1fr` 避免 `var()` 空回退值。 */
+export function fractionTracks(fractions: number[]): string {
+  return fractions.length > 0 ? fractions.map((fraction) => `${fraction}fr`).join(' ') : '1fr';
+}
+
+/** 第 `boundary` 条边界线处的累计比例（百分比），用于绝对定位。 */
+export function cumulativePercent(fractions: number[], boundary: number): number {
+  let sum = 0;
+  for (let index = 0; index < boundary; index += 1) {
+    sum += fractions[index] ?? 0;
   }
-  return fraction * total;
+  return sum * 100;
 }
 
 export function defaultPaneLayout(n: number): TerminalPaneLayout {
@@ -203,6 +210,13 @@ export function resizeFractions(
   const second = next[index + 1];
   const sum = first + second;
   const minFraction = totalPx > 0 ? minPx / totalPx : 0;
+  if (sum < 2 * minFraction) {
+    // 退化：两条轨道之和都不足以同时满足最小像素。此时把任一侧夹到 minFraction 都会使
+    // 另一侧跌破 minFraction，故按文档化的降级情况各取一半（`sum/2`）。
+    next[index] = sum / 2;
+    next[index + 1] = sum / 2;
+    return next;
+  }
   let nextFirst = first + delta;
   let nextSecond = second - delta;
   if (nextFirst < minFraction) {

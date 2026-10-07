@@ -1,5 +1,5 @@
 // src/app/components/terminal/TerminalLayoutCard.tsx
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { IconClose } from '@icons';
 import { paneColor } from '@features/terminal/paneColors';
 import { useTCopy } from '@i18n/useTCopy';
@@ -30,6 +30,12 @@ export function TerminalLayoutCard({
   const [editingPaneId, setEditingPaneId] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState('');
   const dragFromIndexRef = useRef<number | null>(null);
+  const cardRef = useRef<HTMLDivElement | null>(null);
+
+  // 打开时把焦点移入卡片，使 role="dialog" 的内容在键盘/读屏下可达。
+  useEffect(() => {
+    cardRef.current?.focus();
+  }, []);
 
   const enterSwap = () => {
     setSwapMode(true);
@@ -83,7 +89,14 @@ export function TerminalLayoutCard({
   };
 
   return (
-    <div className="adl-layout-card" role="dialog" aria-label={t.terminalCustomLayout}>
+    <div
+      className="adl-layout-card"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t.terminalCustomLayout}
+      tabIndex={-1}
+      ref={cardRef}
+    >
       <div className="adl-layout-card__header">
         <span className="adl-layout-card__title">{t.terminalCustomLayout}</span>
         <button
@@ -116,7 +129,8 @@ export function TerminalLayoutCard({
               onDragOver={(event) => {
                 event.preventDefault();
               }}
-              onDrop={() => {
+              onDrop={(event) => {
+                event.preventDefault();
                 const fromIndex = dragFromIndexRef.current;
                 dragFromIndexRef.current = null;
                 if (fromIndex !== null && fromIndex !== index) {
@@ -152,7 +166,6 @@ export function TerminalLayoutCard({
                 <input
                   className="adl-layout-card__label-input"
                   value={draftLabel}
-                  maxLength={1}
                   autoFocus
                   onChange={(event) => setDraftLabel(event.target.value)}
                   onDoubleClick={(event) => event.stopPropagation()}

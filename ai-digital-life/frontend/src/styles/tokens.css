@@ -138,6 +138,19 @@
     fill var(--duration-200) var(--ease-default), stroke var(--duration-200) var(--ease-default),
     opacity var(--duration-200) var(--ease-default);
 
+  /* --- Custom layout pane identity colors ---
+     固定卡片色板（见 paneColors.ts）：语义无关、区分度高、亮暗主题下保持稳定的身份色。
+     组件必须通过 var(--pane-color-N) / var(--text-on-pane) 消费，不写裸色值。 */
+  --pane-color-1: #e5484d; /* 红 */
+  --pane-color-2: #f76b15; /* 橙 */
+  --pane-color-3: #f5b700; /* 黄 */
+  --pane-color-4: #30a46c; /* 绿 */
+  --pane-color-5: #12a594; /* 青 */
+  --pane-color-6: #0091ff; /* 蓝 */
+  --pane-color-7: #6e56cf; /* 紫 */
+  --pane-color-8: #d6409f; /* 品红 */
+  --text-on-pane: #ffffff;
+
   /* --- Tooltip tokens (same-theme 3D button surface, not inverse, no border) ---
      Gradient stops are a bespoke bevel shade (top = --bg-strong white,
      bottom = custom gray for the button bevel), intentionally NOT mapped to a

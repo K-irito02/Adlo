@@ -416,7 +416,9 @@ describe('useTerminalPaneLayout drag', () => {
     act(() => dispatchPointer(handle, 'pointerup', { clientX: 80, clientY: 0 }));
     expect(h.current().layout.rects.p0.w).toBeCloseTo(0.6);
     expect(terminalPaneLayoutStore.loadForTab('t-free-drag')?.rects.p0.w).toBeCloseTo(0.6);
-    expect(paneEl?.style.width).toBe('');
+    // H1：teardown 不再清理内联几何（自由模式几何归 React 所有）；此处 hook 无 React
+    // 重渲染，故保留拖拽期写入的预览值。旧实现会清空为 ''。
+    expect(paneEl?.style.width).toBe('60%');
   });
 
   it('ignores a free drag for a pane id that is not in paneIds', () => {
@@ -566,5 +568,22 @@ describe('useTerminalPaneLayout divider no-op click', () => {
     expect(h.current().layout.colFractions[0]).toBeCloseTo(0.6);
     flushCrossSliceWrites();
     expect(terminalPaneLayoutStore.loadForTab('t-moved')?.colFractions[0]).toBeCloseTo(0.6);
+  });
+
+  it('does not commit or persist when a free drag produces no movement (M3)', () => {
+    const h = renderLayout({ activeTabId: 't-free-noop', paneCount: 1, paneIds: ['p0'] });
+    const handle = document.createElement('div');
+    const before = h.current().layout;
+
+    act(() =>
+      h
+        .current()
+        .handleFreeDragPointerDown('p0', 'e', fakePointerDown(handle, { clientX: 40, clientY: 0 })),
+    );
+    act(() => dispatchPointer(handle, 'pointerup', { clientX: 40, clientY: 0 }));
+
+    expect(h.current().layout).toBe(before);
+    flushCrossSliceWrites();
+    expect(terminalPaneLayoutStore.loadForTab('t-free-noop')).toBeUndefined();
   });
 });

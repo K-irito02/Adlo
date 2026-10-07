@@ -101,6 +101,14 @@ describe('TerminalLayoutCard', () => {
     fireEvent.click(screen.getByRole('button', { name: COPY.close }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
+
+  it('exposes modal dialog semantics and moves focus into the card on open (L7)', () => {
+    const { container } = renderCard(makePanes(2));
+    const card = container.querySelector<HTMLElement>('.adl-layout-card');
+    expect(card?.getAttribute('role')).toBe('dialog');
+    expect(card?.getAttribute('aria-modal')).toBe('true');
+    expect(document.activeElement).toBe(card);
+  });
 });
 
 describe('TerminalLayoutCard reorder', () => {
@@ -221,7 +229,7 @@ describe('TerminalLayoutCard label editing', () => {
     await user.dblClick(squaresOf(container)[0]);
 
     const input = screen.getByRole('textbox');
-    expect(input).toHaveAttribute('maxLength', '1');
+    expect(input).not.toHaveAttribute('maxLength');
     await user.type(input, '中');
     await user.keyboard('{Enter}');
 

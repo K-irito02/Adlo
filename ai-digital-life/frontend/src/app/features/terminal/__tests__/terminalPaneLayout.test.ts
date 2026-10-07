@@ -5,7 +5,6 @@ import {
   computeGrid,
   defaultPaneLayout,
   equalFractions,
-  fractionToPx,
   normalizePaneLayout,
   normalizePaneLayoutMap,
   resizeFractions,
@@ -63,14 +62,16 @@ describe('terminal pane layout math', () => {
     expect(clamped[0] * 400).toBeGreaterThanOrEqual(100 - 0.001);
   });
 
+  it('resizeFractions splits evenly when the total is below twice the minimum (L8)', () => {
+    // minPx=100 / totalPx=100 → minFraction=1；两轨道 sum=1 < 2 → 各取一半。
+    const out = resizeFractions([0.5, 0.5], 0, 0.3, 100, 100);
+    expect(out[0]).toBeCloseTo(0.5);
+    expect(out[1]).toBeCloseTo(0.5);
+  });
+
   it('autoRectForIndex tiles the grid', () => {
     expect(autoRectForIndex(0, 4)).toEqual({ x: 0, y: 0, w: 0.5, h: 0.5 });
     expect(autoRectForIndex(3, 4)).toEqual({ x: 0.5, y: 0.5, w: 0.5, h: 0.5 });
-  });
-
-  it('fractionToPx maps a fraction onto a pixel total', () => {
-    expect(fractionToPx(0.25, 800)).toBe(200);
-    expect(fractionToPx(Number.NaN, 800)).toBe(0);
   });
 
   it('defaultPaneLayout derives fractions from the grid', () => {

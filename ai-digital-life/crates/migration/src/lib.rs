@@ -239,6 +239,10 @@ mod tests {
         db.init_schema().unwrap();
         let result = run_pending(&db);
         assert!(result.is_ok());
+        // 链尾即最高版本：新增迁移时必须同步更新此断言，防止静默漂移。
+        let last = MIGRATIONS.last().expect("at least one migration");
+        assert_eq!(last.version, 8);
+        assert_eq!(last.description, "Add resume support columns to download_history");
         let version = current_version(&db).unwrap();
         assert_eq!(version, 8);
         let _ = std::fs::remove_file(&path);
@@ -293,10 +297,17 @@ mod tests {
         assert_eq!(m7.version, 7);
         assert_eq!(m7.description, "Add download_history table");
         assert!(m7.sql.contains("CREATE TABLE IF NOT EXISTS download_history"));
+        let m8 = &MIGRATIONS[7];
+        assert_eq!(m8.version, 8);
+        assert_eq!(m8.description, "Add resume support columns to download_history");
+        assert!(m8.sql.contains("auto_resume_count"));
+        assert!(m8.sql.contains("etag"));
+        // 链尾版本必须与最高版本一致。
+        assert_eq!(MIGRATIONS.last().unwrap().version, 8);
     }
 
     #[test]
-    fn v7_creates_download_history_table() {
+    fn run_pending_creates_download_history_table() {
         let path =
             std::env::temp_dir().join(format!("adl-migration-v7-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
@@ -304,6 +315,7 @@ mod tests {
         db.init_schema().unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
+        assert_eq!(version, MIGRATIONS.last().unwrap().version);
         assert_eq!(version, 8);
 
         let conn = db.conn().unwrap();
@@ -314,12 +326,12 @@ mod tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(count, 1, "v7 should create download_history table");
+        assert_eq!(count, 1, "run_pending should create download_history table");
         let _ = std::fs::remove_file(&path);
     }
 
     #[test]
-    fn run_pending_v7_is_idempotent() {
+    fn run_pending_is_idempotent_at_latest_version() {
         let path =
             std::env::temp_dir().join(format!("adl-migration-v7-idem-{}.db", uuid::Uuid::new_v4()));
         let _ = std::fs::remove_file(&path);
@@ -328,6 +340,7 @@ mod tests {
         run_pending(&db).unwrap();
         run_pending(&db).unwrap();
         let version = current_version(&db).unwrap();
+        assert_eq!(version, MIGRATIONS.last().unwrap().version);
         assert_eq!(version, 8);
         let _ = std::fs::remove_file(&path);
     }

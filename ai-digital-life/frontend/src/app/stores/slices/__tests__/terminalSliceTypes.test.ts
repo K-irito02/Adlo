@@ -5,7 +5,6 @@ import {
   readTerminalPane,
   readTerminalPanes,
   activePaneOf,
-  tabStatusOf,
   nextPaneColorIndex,
   clampPaneLabel,
   type TerminalPane,
@@ -125,31 +124,6 @@ describe('activePaneOf', () => {
 
   it('returns undefined for a tab without panes', () => {
     expect(activePaneOf(makeTab([]))).toBeUndefined();
-  });
-});
-
-describe('tabStatusOf', () => {
-  it('is idle for an empty tab', () => {
-    expect(tabStatusOf(makeTab([]))).toBe('idle');
-  });
-
-  it('is terminated when every pane is terminated', () => {
-    expect(
-      tabStatusOf(
-        makeTab([makePane({ status: 'terminated' }), makePane({ id: 'b', status: 'terminated' })]),
-      ),
-    ).toBe('terminated');
-  });
-
-  it('is running when any pane is running', () => {
-    expect(tabStatusOf(makeTab([makePane({ status: 'running' })]))).toBe('running');
-    expect(tabStatusOf(makeTab([makePane(), makePane({ id: 'b', status: 'running' })]))).toBe(
-      'running',
-    );
-  });
-
-  it('is idle when panes are idle but not all terminated', () => {
-    expect(tabStatusOf(makeTab([makePane({ status: 'idle' })]))).toBe('idle');
   });
 });
 

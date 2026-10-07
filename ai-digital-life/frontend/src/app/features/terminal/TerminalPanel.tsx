@@ -401,7 +401,7 @@ export function TerminalPanel() {
             {hasActiveTab && activeTab ? (
               <TerminalPaneGrid
                 panes={activeTab.panes}
-                activePaneId={activeTab.activePaneId}
+                activePaneId={terminalState.activePane?.id}
                 maximizedPaneId={maximizedPaneId}
                 layout={paneLayout}
                 dividerLabel={t.terminalPaneResizeDivider}
@@ -411,7 +411,7 @@ export function TerminalPanel() {
                 renderPane={(pane) => (
                   <TerminalPaneView
                     pane={pane}
-                    isActive={pane.id === activeTab.activePaneId}
+                    isActive={pane.id === terminalState.activePane?.id}
                     isMaximized={maximizedPaneId === pane.id}
                     onActivate={() => terminalActions.handleSelectPane(pane.id)}
                     onClose={() => terminalActions.handleClosePane(pane.id)}

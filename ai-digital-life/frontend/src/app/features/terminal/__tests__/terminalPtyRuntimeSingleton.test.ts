@@ -126,6 +126,31 @@ describe('terminalPtyRuntime 应用级单例', () => {
     expect(after?.sessionId).toBe('s1');
   });
 
+  it('handleSelectPane 重新激活已 kill 的窗格时先释放旧 xterm 池条目（修复池泄漏，H2）', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
+    const pane = useAppStore.getState().terminalTabsById[tabId].panes[1];
+    expect(pane.sessionId).toBe('s1');
+
+    // kill 后窗格仍在、sessionId 仍在，但会话已不存活（Ruling C-7 保留缓冲）。
+    terminalPtyRuntime.handleKillPane({ tabId, paneId: pane.id, sessionId: 's1' });
+    expect(terminalPtyRuntime.hasLiveSession('s1')).toBe(false);
+
+    const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
+
+    // 重新激活：attachSession 必须先经 teardown 释放旧池条目，再建新会话。
+    terminalPtyRuntime.handleSelectPane(tabId, pane.id);
+
+    await waitFor(() => {
+      expect(releaseSpy).toHaveBeenCalledWith('s1');
+    });
+    const after = useAppStore
+      .getState()
+      .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
+    expect(after?.sessionId).toBeTruthy();
+  });
+
   it('handleKillPane swallows a rejected kill (no floating promise), still marks terminated', async () => {
     useAppStore.getState().terminalCreateTab('powershell');
     const tabId = useAppStore.getState().terminalActiveTabId;

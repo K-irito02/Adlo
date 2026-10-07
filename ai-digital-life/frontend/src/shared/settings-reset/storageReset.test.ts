@@ -243,32 +243,21 @@ describe('executeStorageResetPlan', () => {
     expect(d.resetTreeCache).not.toHaveBeenCalled();
   });
 
-  it('树缓存失败不短路：下载块仍执行（组级聚合语义）', async () => {
-    const d = deps({
-      resetTreeCache: vi.fn(async () => false),
-    });
-    const plan: StorageResetPlan = {
-      blocks: { coreNeeded: false, tree: 'ttl', download: 'off' },
-      preflight: null,
-      migrateAtOpen: true,
-    };
-    const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
-    expect(out.result).toEqual({ ok: false, failedStep: 'treeCache' });
-    expect(d.resetTreeCache).toHaveBeenCalledTimes(1);
-    expect(d.downloadPath.changeDownloadPath).toHaveBeenCalledWith('', true);
-  });
-
-  it('树缓存失败时 failedStep=treeCache，且下载块仍被执行', async () => {
-    const d = deps({ resetTreeCache: vi.fn(async () => false) });
-    const plan: StorageResetPlan = {
-      blocks: { coreNeeded: false, tree: 'full', download: 'off' },
-      preflight: null,
-      migrateAtOpen: false,
-    };
-    const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
-    expect(out.result).toEqual({ ok: false, failedStep: 'treeCache' });
-    expect(d.downloadPath.changeDownloadPath).toHaveBeenCalledTimes(1);
-  });
+  it.each(['ttl', 'full'] as const)(
+    '树缓存失败（tree=%s）不短路：failedStep=treeCache 且下载块仍执行（组级聚合语义）',
+    async (tree) => {
+      const d = deps({ resetTreeCache: vi.fn(async () => false) });
+      const plan: StorageResetPlan = {
+        blocks: { coreNeeded: false, tree, download: 'off' },
+        preflight: null,
+        migrateAtOpen: true,
+      };
+      const out = await executeStorageResetPlan(d, plan, { applyNow: false, retainSource: false });
+      expect(out.result).toEqual({ ok: false, failedStep: 'treeCache' });
+      expect(d.resetTreeCache).toHaveBeenCalledTimes(1);
+      expect(d.downloadPath.changeDownloadPath).toHaveBeenCalledWith('', true);
+    },
+  );
 
   it('下载失败时保留自身 failedStep 与 error（供调用方复现下载族失败文案）', async () => {
     const d = deps({

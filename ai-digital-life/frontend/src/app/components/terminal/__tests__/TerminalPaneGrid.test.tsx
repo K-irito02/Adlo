@@ -1,5 +1,6 @@
 // src/app/components/terminal/__tests__/TerminalPaneGrid.test.tsx
-import { describe, expect, it, vi } from 'vitest';
+import { useRef } from 'react';
+import { describe, expect, it, vi, afterEach } from 'vitest';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
 import {
@@ -7,9 +8,11 @@ import {
   defaultPaneLayout,
   MIN_PANE_H,
   MIN_PANE_W,
+  terminalPaneLayoutStore,
   type PaneRect,
   type TerminalPaneLayout,
 } from '@features/terminal/terminalPaneLayout';
+import { useTerminalPaneLayout } from '@features/terminal/useTerminalPaneLayout';
 import { TerminalPaneGrid } from '../TerminalPaneGrid';
 
 function makePanes(count: number): TerminalPane[] {
@@ -143,6 +146,12 @@ describe('TerminalPaneGrid', () => {
     const move = container.querySelector('.adl-terminal-free-handle--move') as HTMLElement;
     fireEvent.pointerDown(move, { pointerId: 2 });
     expect(onFreeDragPointerDown).toHaveBeenCalledWith('p1', 'move', expect.anything());
+
+    // a11y：手柄为具名 button，复用注入的 dividerLabel。
+    for (const handle of handles) {
+      expect(handle.getAttribute('role')).toBe('button');
+      expect(handle.getAttribute('aria-label')).toBe('Resize pane');
+    }
   });
 
   it('maximizedPaneId 时只渲染该窗格且网格标记 is-maximized', () => {
@@ -208,5 +217,70 @@ describe('TerminalPaneGrid', () => {
     const active = container.querySelector('.adl-terminal-pane.is-active');
     expect(active).not.toBeNull();
     expect(active?.querySelector('[data-testid="pane-p2"]')).not.toBeNull();
+  });
+});
+
+/**
+ * H1 回归：自由模式下纯点击（pointerdown + pointerup 无位移）手柄不得抹掉窗格内联
+ * 几何。旧实现的拖拽 teardown 无条件 clearRectStyle，而 React 样式 diff 看到值未变
+ * 就不会重写内联样式 → 窗格失去 left/top/width/height 而塌陷。
+ */
+function FreeGridHarness({ tabId }: { tabId: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const panes = makePanes(1);
+  const hook = useTerminalPaneLayout({
+    containerRef,
+    activeTabId: tabId,
+    paneCount: panes.length,
+    paneIds: panes.map((pane) => pane.id),
+  });
+  return (
+    <div ref={containerRef}>
+      <TerminalPaneGrid
+        panes={panes}
+        maximizedPaneId={null}
+        layout={hook.layout}
+        dividerLabel="Resize pane"
+        onColDividerPointerDown={hook.handleColDividerPointerDown}
+        onRowDividerPointerDown={hook.handleRowDividerPointerDown}
+        onFreeDragPointerDown={hook.handleFreeDragPointerDown}
+        renderPane={(pane) => <div className="adl-terminal-live" data-pane-id={pane.id} />}
+      />
+    </div>
+  );
+}
+
+describe('TerminalPaneGrid free-mode no-move handle click (H1 regression)', () => {
+  afterEach(() => {
+    localStorage.clear();
+    terminalPaneLayoutStore.apply({});
+  });
+
+  it('纯点击（无位移）不会抹掉窗格内联几何', () => {
+    localStorage.clear();
+    terminalPaneLayoutStore.apply({});
+    const panes = makePanes(1);
+    terminalPaneLayoutStore.saveForTab('t1', freeLayout(panes));
+
+    const { container } = render(<FreeGridHarness tabId="t1" />);
+
+    const pane = container.querySelector<HTMLElement>('.adl-terminal-pane');
+    expect(pane).not.toBeNull();
+    // React 已按 free 布局写入内联几何。
+    expect(pane?.style.left).not.toBe('');
+    expect(pane?.style.width).not.toBe('');
+
+    const moveHandle = container.querySelector<HTMLElement>(
+      '.adl-terminal-free-handle--move',
+    ) as HTMLElement;
+    act(() => {
+      fireEvent.pointerDown(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
+      fireEvent.pointerUp(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+
+    expect(pane?.style.left).not.toBe('');
+    expect(pane?.style.top).not.toBe('');
+    expect(pane?.style.width).not.toBe('');
+    expect(pane?.style.height).not.toBe('');
   });
 });

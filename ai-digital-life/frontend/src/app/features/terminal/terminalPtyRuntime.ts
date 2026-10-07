@@ -258,8 +258,14 @@ export class TerminalPtyRuntime {
     if (!existingPane) {
       return;
     }
-    if (existingPane.sessionId && this.liveSessionIds.has(existingPane.sessionId)) {
-      return;
+    if (existingPane.sessionId) {
+      if (this.liveSessionIds.has(existingPane.sessionId)) {
+        return;
+      }
+      // 死会话（kill → 再次点击，或后端 terminated → 再次点击）：先经唯一 teardown 出口
+      // 释放旧 xterm 池条目并清运行时账本，再创建新 PTY。否则每次替换都会泄漏一个
+      // xterm + 最多 5000 行缓冲。Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
+      this.teardownPane(paneId, existingPane.sessionId, 'replaced-session');
     }
 
     try {

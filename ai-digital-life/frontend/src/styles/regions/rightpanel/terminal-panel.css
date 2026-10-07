@@ -582,10 +582,9 @@
   aspect-ratio: 1 / 1;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  /* 无合适设计 token：唯一的「反色前景」候选 `--text-on-accent` 在暗主题下会翻成
-     近黑色（#141414），落在饱和色板方块上不可读。方块底色是固定卡片色板
-     （paneColors，非主题语义色），故此处用固定白色，保证 8 色在亮暗两主题下均可读。 */
-  color: #ffffff;
+  /* 方块底色为固定卡片色板（paneColors，非主题语义色）：亮暗主题下均需可读的
+     反色前景，故走专用 token `--text-on-pane`（定义于 tokens.css），不写裸色值。 */
+  color: var(--text-on-pane);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
   line-height: var(--leading-none);

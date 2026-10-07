@@ -154,6 +154,10 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   const gridContainerRef = useRef<HTMLDivElement | null>(null);
   const view = useTerminalView(tab, gridContainerRef);
 
+  // 有效的活动窗格：优先 `activePaneId`，缺失/悬空时回退首个窗格。网格高亮与
+  // 菜单动作（shell 管理用的 `view.activePane`）必须指向同一窗格，故此处派生一次。
+  const effectiveActivePaneId = view.activePane?.id;
+
   // 窗格最大化态为视图本地态：切换标签、增删窗格或切换布局模式时复位
   // （spec §8：均分/自由切换清空最大化）。
   // 用 useLayoutEffect 在 DOM 变更后、浏览器绘制前复位，避免切标签时出现一帧“空窗格”。
@@ -264,7 +268,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
           >
             <TerminalPaneGrid
               panes={tab.panes}
-              activePaneId={tab.activePaneId}
+              activePaneId={effectiveActivePaneId}
               maximizedPaneId={maximizedPaneId}
               layout={view.layout}
               dividerLabel={t.terminalPaneResizeDivider}
@@ -274,7 +278,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
               renderPane={(pane) => (
                 <TerminalPaneView
                   pane={pane}
-                  isActive={pane.id === tab.activePaneId}
+                  isActive={pane.id === effectiveActivePaneId}
                   isMaximized={maximizedPaneId === pane.id}
                   onActivate={() => view.handleSelectPane(pane.id)}
                   onClose={() => view.handleClosePane(pane.id)}
