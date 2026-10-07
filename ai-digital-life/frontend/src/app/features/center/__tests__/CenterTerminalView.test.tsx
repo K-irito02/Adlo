@@ -62,6 +62,7 @@ const t = {
   terminalLayoutFree: '自由',
   terminalLayoutModeLabel: '终端布局模式',
   terminalAutoLayout: '恢复自动布局',
+  terminalPaneResizeDivider: '调整窗格大小',
 } as unknown as CopyDict;
 
 function makeTerminalTab(id: string, location: 'panel' | 'center'): TerminalTabState {

@@ -69,6 +69,39 @@ function findPaneElement(container: HTMLElement | null, paneId: string): HTMLEle
 }
 
 /**
+ * 拖拽换算的「分母」：优先取内层网格 `.adl-terminal-pane-grid` 的实测尺寸。
+ *
+ * 网格有 `min-width/min-height = MIN_PANE_*×cols/rows`，面板比网格窄/矮时网格会在
+ * `.adl-terminal-pane-grid-scroll` 内溢出滚动；此时边界线的 `left/top` 百分比是
+ * **网格宽度**的百分比，自由窗格像素几何也按网格尺寸换算。若仍用外层滚动容器宽度
+ * 当分母，`Δpx/容器宽` 会比实际拖拽量偏大 `网格/容器` 倍（拖拽跑得比光标快）。
+ *
+ * 容器自身即网格（测试 / 简化 DOM）时直接用容器；否则查其后代。尺寸取元素 rect 与
+ * `scroll*` 的较大值，兜底 1 以避免零除。
+ */
+export function measureGridContent(container: HTMLElement | null): {
+  width: number;
+  height: number;
+} {
+  if (!container) {
+    return { width: 1, height: 1 };
+  }
+  const grid = container.matches('.adl-terminal-pane-grid')
+    ? container
+    : container.querySelector<HTMLElement>('.adl-terminal-pane-grid');
+  const target = grid ?? container;
+  const rect = target.getBoundingClientRect();
+  const width = Math.max(rect.width, target.scrollWidth) || 1;
+  const height = Math.max(rect.height, target.scrollHeight) || 1;
+  return { width, height };
+}
+
+/** 数值数组逐项相等：纯点击（无 pointermove）时用于跳过提交/落盘。 */
+function numbersEqual(a: number[], b: number[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+/**
  * `free` 模式 rect 归一：以 `paneIds` 为唯一身份来源，按 `paneIds` 顺序补齐缺失项
  * （`autoRectForIndex`）并剪掉不在 `paneIds` 中的陈旧键。未知/缺失容器 DOM 不再影响结果。
  */
@@ -270,7 +303,7 @@ export function useTerminalPaneLayout({
       e.preventDefault();
       const target = e.currentTarget as HTMLElement;
       target.setPointerCapture?.(e.pointerId);
-      const width = container.getBoundingClientRect().width || 1;
+      const { width } = measureGridContent(container);
       const startX = e.clientX;
       const base = layoutRef.current.colFractions;
       let latest = base;
@@ -321,6 +354,9 @@ export function useTerminalPaneLayout({
         teardown();
         unregisterDrag(teardown);
         target.releasePointerCapture?.(e.pointerId);
+        if (numbersEqual(latest, base)) {
+          return;
+        }
         commit({ ...layoutRef.current, colFractions: latest });
       };
 
@@ -342,7 +378,7 @@ export function useTerminalPaneLayout({
       e.preventDefault();
       const target = e.currentTarget as HTMLElement;
       target.setPointerCapture?.(e.pointerId);
-      const height = container.getBoundingClientRect().height || 1;
+      const { height } = measureGridContent(container);
       const startY = e.clientY;
       const base = layoutRef.current.rowFractions;
       let latest = base;
@@ -393,6 +429,9 @@ export function useTerminalPaneLayout({
         teardown();
         unregisterDrag(teardown);
         target.releasePointerCapture?.(e.pointerId);
+        if (numbersEqual(latest, base)) {
+          return;
+        }
         commit({ ...layoutRef.current, rowFractions: latest });
       };
 
@@ -418,9 +457,7 @@ export function useTerminalPaneLayout({
       e.preventDefault();
       const target = e.currentTarget as HTMLElement;
       target.setPointerCapture?.(e.pointerId);
-      const box = container.getBoundingClientRect();
-      const width = box.width || 1;
-      const height = box.height || 1;
+      const { width, height } = measureGridContent(container);
       const startX = e.clientX;
       const startY = e.clientY;
       const paneEl = findPaneElement(container, paneId);

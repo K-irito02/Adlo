@@ -8,7 +8,7 @@ import {
   terminalPaneLayoutStore,
   type TerminalPaneLayout,
 } from '../terminalPaneLayout';
-import { useTerminalPaneLayout } from '../useTerminalPaneLayout';
+import { useTerminalPaneLayout, measureGridContent } from '../useTerminalPaneLayout';
 
 if (typeof window.PointerEvent === 'undefined') {
   class PointerEventPolyfill extends MouseEvent {
@@ -92,6 +92,45 @@ function makeContainer(paneIds: string[], width = 800, height = 600): HTMLDivEle
   return container;
 }
 
+function rectOf(width: number, height: number): DOMRect {
+  return {
+    width,
+    height,
+    left: 0,
+    top: 0,
+    right: width,
+    bottom: height,
+  } as DOMRect;
+}
+
+/**
+ * 真实卷帘门结构：外层滚动容器（视口）+ 内层 `.adl-terminal-pane-grid`（内容，
+ * min-width/min-height 撑到比视口大）。用于验证拖拽分母取「网格内容」而非视口。
+ */
+function makeOverflowContainer(
+  paneIds: string[],
+  grid: { width: number; height: number },
+  viewport: { width: number; height: number },
+): HTMLDivElement {
+  const outer = document.createElement('div');
+  outer.className = 'adl-terminal-pane-grid-scroll';
+  outer.getBoundingClientRect = () => rectOf(viewport.width, viewport.height);
+  const gridEl = document.createElement('div');
+  gridEl.className = 'adl-terminal-pane-grid';
+  gridEl.getBoundingClientRect = () => rectOf(grid.width, grid.height);
+  for (const id of paneIds) {
+    const wrap = document.createElement('div');
+    wrap.className = 'adl-terminal-pane';
+    const pane = document.createElement('div');
+    pane.className = 'adl-terminal-live';
+    pane.dataset.paneId = id;
+    wrap.appendChild(pane);
+    gridEl.appendChild(wrap);
+  }
+  outer.appendChild(gridEl);
+  return outer;
+}
+
 interface InitialProps {
   activeTabId: string | undefined;
   paneCount: number;
@@ -105,8 +144,11 @@ interface Harness {
   current: () => ReturnType<typeof useTerminalPaneLayout>;
 }
 
-function renderLayout(initial: InitialProps & { withDomPanes?: boolean }): Harness {
-  const container = makeContainer(initial.withDomPanes === false ? [] : initial.paneIds);
+function renderLayout(
+  initial: InitialProps & { withDomPanes?: boolean; container?: HTMLDivElement },
+): Harness {
+  const container =
+    initial.container ?? makeContainer(initial.withDomPanes === false ? [] : initial.paneIds);
   const containerRef = { current: container } as RefObject<HTMLDivElement | null>;
   const { result, rerender, unmount } = renderHook(
     (props: InitialProps) =>
@@ -414,5 +456,115 @@ describe('useTerminalPaneLayout drag', () => {
 
     act(() => h.unmount());
     expect(h.container.style.getPropertyValue('--adl-term-col-fractions')).toBe('');
+  });
+});
+
+describe('useTerminalPaneLayout drag scale (grid content, not scroll viewport)', () => {
+  it('measureGridContent prefers the inner grid element over the outer scroll viewport', () => {
+    const outer = makeOverflowContainer(
+      ['p0', 'p1'],
+      { width: 1600, height: 900 },
+      { width: 800, height: 600 },
+    );
+    expect(measureGridContent(outer)).toEqual({ width: 1600, height: 900 });
+    // 容器自身即网格（简化 DOM / 测试）时直接用容器
+    const self = makeContainer(['p0', 'p1'], 800, 600);
+    expect(measureGridContent(self)).toEqual({ width: 800, height: 600 });
+    expect(measureGridContent(null)).toEqual({ width: 1, height: 1 });
+  });
+
+  it('scales an equal column drag by grid content width, not the overflowing viewport', () => {
+    // 外层视口 800px，网格 min-width 1600px 溢出：160px 拖动 = 160/1600 = 0.1 → 0.6。
+    // 若误用外层视口（800）当分母，将得到 0.7。
+    const container = makeOverflowContainer(
+      ['p0', 'p1'],
+      { width: 1600, height: 600 },
+      { width: 800, height: 600 },
+    );
+    const h = renderLayout({
+      activeTabId: 't-overflow-col',
+      paneCount: 2,
+      paneIds: ['p0', 'p1'],
+      container,
+    });
+    const divider = document.createElement('div');
+
+    act(() =>
+      h
+        .current()
+        .handleColDividerPointerDown(0, fakePointerDown(divider, { clientX: 0, clientY: 0 })),
+    );
+    act(() => dispatchPointer(divider, 'pointermove', { clientX: 160, clientY: 0 }));
+    act(() => dispatchPointer(divider, 'pointerup', { clientX: 160, clientY: 0 }));
+
+    expect(h.current().layout.colFractions[0]).toBeCloseTo(0.6);
+  });
+
+  it('scales a free edge drag by grid content size, not the overflowing viewport', () => {
+    terminalPaneLayoutStore.saveForTab('t-overflow-free', {
+      mode: 'free',
+      colFractions: [1],
+      rowFractions: [1],
+      rects: { p0: { x: 0, y: 0, w: 0.5, h: 0.5 } },
+    });
+    const container = makeOverflowContainer(
+      ['p0'],
+      { width: 1600, height: 800 },
+      { width: 800, height: 600 },
+    );
+    const h = renderLayout({
+      activeTabId: 't-overflow-free',
+      paneCount: 1,
+      paneIds: ['p0'],
+      container,
+    });
+    const handle = document.createElement('div');
+
+    act(() =>
+      h
+        .current()
+        .handleFreeDragPointerDown('p0', 'e', fakePointerDown(handle, { clientX: 0, clientY: 0 })),
+    );
+    act(() => dispatchPointer(handle, 'pointermove', { clientX: 160, clientY: 0 }));
+    act(() => dispatchPointer(handle, 'pointerup', { clientX: 160, clientY: 0 }));
+
+    // 160/1600 = 0.1 → 0.5 + 0.1 = 0.6（误用外层 800 则为 0.7）
+    expect(h.current().layout.rects.p0.w).toBeCloseTo(0.6);
+  });
+});
+
+describe('useTerminalPaneLayout divider no-op click', () => {
+  it('does not commit or persist when a divider drag produces no movement', () => {
+    const h = renderLayout({ activeTabId: 't-noop', paneCount: 2, paneIds: ['p0', 'p1'] });
+    const divider = document.createElement('div');
+    const before = h.current().layout;
+
+    act(() =>
+      h
+        .current()
+        .handleColDividerPointerDown(0, fakePointerDown(divider, { clientX: 40, clientY: 0 })),
+    );
+    act(() => dispatchPointer(divider, 'pointerup', { clientX: 40, clientY: 0 }));
+
+    expect(h.current().layout).toBe(before);
+    flushCrossSliceWrites();
+    expect(terminalPaneLayoutStore.loadForTab('t-noop')).toBeUndefined();
+  });
+
+  it('still commits when the divider actually moves', () => {
+    const h = renderLayout({ activeTabId: 't-moved', paneCount: 2, paneIds: ['p0', 'p1'] });
+    const divider = document.createElement('div');
+
+    act(() =>
+      h
+        .current()
+        .handleColDividerPointerDown(0, fakePointerDown(divider, { clientX: 0, clientY: 0 })),
+    );
+    act(() => dispatchPointer(divider, 'pointermove', { clientX: 80, clientY: 0 }));
+    act(() => dispatchPointer(divider, 'pointerup', { clientX: 80, clientY: 0 }));
+
+    expect(h.current().layout.colFractions[0]).toBeCloseTo(0.6);
+    flushCrossSliceWrites();
+    expect(terminalPaneLayoutStore.loadForTab('t-moved')?.colFractions[0]).toBeCloseTo(0.6);
   });
 });

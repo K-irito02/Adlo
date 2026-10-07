@@ -152,13 +152,14 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   const gridContainerRef = useRef<HTMLDivElement | null>(null);
   const view = useTerminalView(tab, gridContainerRef);
 
-  // 窗格最大化态为视图本地态：切换标签或增删窗格时复位。
+  // 窗格最大化态为视图本地态：切换标签、增删窗格或切换布局模式时复位
+  // （spec §8：均分/自由切换清空最大化）。
   // 用 useLayoutEffect 在 DOM 变更后、浏览器绘制前复位，避免切标签时出现一帧“空窗格”。
   const [maximizedPaneId, setMaximizedPaneId] = useState<string | null>(null);
   const paneCount = tab?.panes.length ?? 0;
   useLayoutEffect(() => {
     setMaximizedPaneId(null);
-  }, [terminalTabId, paneCount]);
+  }, [terminalTabId, paneCount, view.layout.mode]);
 
   if (!tab) {
     return null;
@@ -233,6 +234,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
               activePaneId={tab.activePaneId}
               maximizedPaneId={maximizedPaneId}
               layout={view.layout}
+              dividerLabel={t.terminalPaneResizeDivider}
               onColDividerPointerDown={view.handleColDividerPointerDown}
               onRowDividerPointerDown={view.handleRowDividerPointerDown}
               onFreeDragPointerDown={view.handleFreeDragPointerDown}

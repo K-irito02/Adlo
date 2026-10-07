@@ -68,13 +68,10 @@ export function TerminalPanel() {
     editInputRef,
   } = terminalState;
 
-  // 窗格最大化态为面板本地态：切换标签或增删窗格时复位（避免指向已不存在的窗格）。
-  // 用 useLayoutEffect 在 DOM 变更后、浏览器绘制前复位，避免切标签时出现一帧“空窗格”。
+  // 窗格最大化态为面板本地态：切换标签、增删窗格或切换布局模式时复位
+  // （spec §8：均分/自由切换清空最大化，避免指向被模式切换改变几何的窗格）。
   const [maximizedPaneId, setMaximizedPaneId] = useState<string | null>(null);
   const paneCount = activeTab?.panes.length ?? 0;
-  useLayoutEffect(() => {
-    setMaximizedPaneId(null);
-  }, [terminalActiveTabId, paneCount]);
 
   // 布局容器：包裹终端网格的滚动区。C2 布局 Hook 拖拽期在其上写 CSS 变量
   // （`--adl-term-*`），并测量其尺寸换算拖拽比例；变量沿 DOM 继承到内层网格。
@@ -93,6 +90,11 @@ export function TerminalPanel() {
     paneCount,
     paneIds,
   });
+
+  // 用 useLayoutEffect 在 DOM 变更后、浏览器绘制前复位，避免切标签/切模式时出现一帧“空窗格”。
+  useLayoutEffect(() => {
+    setMaximizedPaneId(null);
+  }, [terminalActiveTabId, paneCount, paneLayout.mode]);
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
@@ -367,6 +369,7 @@ export function TerminalPanel() {
                 activePaneId={activeTab.activePaneId}
                 maximizedPaneId={maximizedPaneId}
                 layout={paneLayout}
+                dividerLabel={t.terminalPaneResizeDivider}
                 onColDividerPointerDown={handleColDividerPointerDown}
                 onRowDividerPointerDown={handleRowDividerPointerDown}
                 onFreeDragPointerDown={handleFreeDragPointerDown}

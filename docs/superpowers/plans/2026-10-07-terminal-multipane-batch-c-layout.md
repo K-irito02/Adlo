@@ -21,7 +21,7 @@
 
 ## 与 Spec 的偏差 / 纳入的遗留项
 
-- **Ruling C-1：批次 C 同时纳入 B 阶段遗留的两个代码 minor**：(a) `handleKillPane` 对齐 `teardownPane`（释放 xterm 池与 `createdSessionIds`）；(b) 修正 `terminalPtyRuntime.ts` 中「attachSession 可能被 handleCreateTab/handleCreatePane 直接调用」的过时注释。
+- **Ruling C-1：批次 C 同时纳入 B 阶段遗留的两个代码 minor**：(a) ~~`handleKillPane` 对齐 `teardownPane`（释放 xterm 池与 `createdSessionIds`）~~ **已被 Ruling C-7 取代——`handleKillPane` 杀死 PTY 后保留窗格缓冲（不释放 xterm 池），与 `teardownPane` 的分歧以代码注释显式记录**；(b) 修正 `terminalPtyRuntime.ts` 中「attachSession 可能被 handleCreateTab/handleCreatePane 直接调用」的过时注释。
 - **Ruling C-2：网格排布为「按行主序填充的 `cols×rows` 网格」**，`cols = ceil(sqrt(n))`、`rows = ceil(n/cols)`；不足最后一行留空。比例拖拽调整相邻列/行轨道（总和守恒）。
 - **Ruling C-3：自由模式采用归一化 rect（0..1）**，随容器缩放等比映射；拖拽边缘/角改 `w/h`、拖拽体改 `x/y`，各边设最小像素。
 - **Ruling C-4：`IconCustomLayout` 在 C 阶段一并加入 `icons`**（按钮与卡片在批次 D 使用），避免重复改 `icons/index.ts`。
@@ -279,9 +279,9 @@ git commit -m "feat(terminal): pane grid with equal/free layout and curtain clip
 
 增：`terminalLayoutEqual: '均分'`、`terminalLayoutFree: '自由'`、`terminalLayoutModeLabel: '终端布局模式'`、`terminalAutoLayout: '恢复自动布局'`（en-US 对应）。
 
-- [ ] **Step 4: C-1 遗留修复**
+- [ ] **Step 4: C-1 遗留修复（Ruling C-7 修订）**
 
-- `handleKillPane` 改为调用 `teardownPane`（释放 xterm 池 + 清 `createdSessionIds`），保持「标记 terminated」语义。
+- `handleKillPane` **不**对齐 `teardownPane`（Ruling C-7）：杀死 PTY、清理 `liveSessionIds`/`ptyDims`/`oscCarry`、标记窗格 `terminated`，但**保留 xterm 池缓冲**。`teardownPane` 用于关闭/移除窗格并会释放池；「杀死进程」后窗格仍存在，必须保留缓冲——`XtermTerminal` 的 effect 只依赖 `[sessionId]`，若释放条目却保留 `sessionId` 会得到无状态说明的空白矩形。该分歧由代码块注释显式记录（**有意分歧**，非疏漏）。
 - 修正 `terminalPtyRuntime.ts` 过时注释（attachSession 现由 activatePane 唯一调用）。
 
 - [ ] **Step 5: tsc + 测试 + commit**

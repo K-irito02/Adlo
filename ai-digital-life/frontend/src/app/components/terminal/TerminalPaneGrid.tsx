@@ -27,6 +27,8 @@ export interface TerminalPaneGridProps {
   activePaneId?: string;
   maximizedPaneId: string | null;
   layout: TerminalPaneLayout;
+  /** 列/行边界线的可访问名称（i18n 注入；键盘调整尺寸未实现，仅提供标签）。 */
+  dividerLabel: string;
   onColDividerPointerDown: (colIndex: number, e: ReactPointerEvent) => void;
   onRowDividerPointerDown: (rowIndex: number, e: ReactPointerEvent) => void;
   onFreeDragPointerDown: (paneId: string, edge: FreeDragEdge, e: ReactPointerEvent) => void;
@@ -88,6 +90,7 @@ export function TerminalPaneGrid({
   activePaneId,
   maximizedPaneId,
   layout,
+  dividerLabel,
   onColDividerPointerDown,
   onRowDividerPointerDown,
   onFreeDragPointerDown,
@@ -213,6 +216,7 @@ export function TerminalPaneGrid({
                 }}
                 onPointerDown={(event) => onColDividerPointerDown(index, event)}
                 role="separator"
+                aria-label={dividerLabel}
                 aria-orientation="vertical"
               />
             ))}
@@ -231,6 +235,7 @@ export function TerminalPaneGrid({
                 }}
                 onPointerDown={(event) => onRowDividerPointerDown(index, event)}
                 role="separator"
+                aria-label={dividerLabel}
                 aria-orientation="horizontal"
               />
             ))}

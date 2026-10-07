@@ -48,6 +48,7 @@ function renderGrid(overrides: Overrides = {}) {
       activePaneId={overrides.activePaneId}
       maximizedPaneId={overrides.maximizedPaneId ?? null}
       layout={layout}
+      dividerLabel="Resize pane"
       onColDividerPointerDown={onColDividerPointerDown}
       onRowDividerPointerDown={onRowDividerPointerDown}
       onFreeDragPointerDown={onFreeDragPointerDown}
@@ -166,6 +167,11 @@ describe('TerminalPaneGrid', () => {
     expect(four.container.querySelector<HTMLElement>('.adl-terminal-row-divider')?.style.top).toBe(
       'var(--adl-term-row-divider-0, 50%)',
     );
+    // a11y：边界线为 separator，带注入的可访问名称
+    const colDivider = four.container.querySelector<HTMLElement>('.adl-terminal-col-divider');
+    const rowDivider = four.container.querySelector<HTMLElement>('.adl-terminal-row-divider');
+    expect(colDivider?.getAttribute('aria-label')).toBe('Resize pane');
+    expect(rowDivider?.getAttribute('aria-label')).toBe('Resize pane');
 
     // 3 窗格仍是 2x2 网格，不足最后一行不多渲染边界线
     const three = renderGrid({ panes: makePanes(3) });
