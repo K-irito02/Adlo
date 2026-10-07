@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen } from '@testing-library/react';
 import { CenterTerminalView } from '../CenterTerminalView';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
-import { terminalRegionCollapseStore } from '@features/terminal/terminalRegionCollapse';
 import type { CopyDict } from '@i18n/types';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 
@@ -13,7 +12,6 @@ import type { TerminalTabState } from '@stores/slices/terminalSlice';
 vi.mock('@features/terminal/useTerminalPtyLifecycle', () => ({
   useTerminalPtyLifecycle: () => ({
     xtermRef: { current: null },
-    historySegments: [],
     handleXtermData: vi.fn(),
     handleXtermResize: vi.fn(),
     handleCreateTab: vi.fn(),
@@ -21,7 +19,6 @@ vi.mock('@features/terminal/useTerminalPtyLifecycle', () => ({
     handleCloseTab: vi.fn(),
     handleCloseAllTabs: vi.fn(),
     handleKill: vi.fn(),
-    deleteHistoryForTab: vi.fn(async () => undefined),
   }),
 }));
 
@@ -32,23 +29,11 @@ const t = {
   terminalIndependent: '默认终端目录',
   terminalShellLabel: 'Shell',
   toolTerminal: '终端',
-  terminalViewLayoutLabel: '终端视图布局',
-  terminalViewSingle: '单列',
-  terminalViewDual: '双列',
-  terminalSwapAreas: '交换历史与实时终端位置',
   terminalMoreActions: '更多终端操作',
   terminalCopy: '复制',
   terminalPaste: '粘贴',
   terminalClear: '清除',
   terminalKillProcess: '杀死进程',
-  terminalHistorySegmentUnavailable: '历史段不可用',
-  terminalDividerLabel: '拖拽调整只读历史区大小',
-  terminalHistoryRegionName: '只读历史区域',
-  terminalLiveRegionName: '实时终端区域',
-  terminalRegionRestoreTitle: '还原',
-  terminalRegionMaximizeTitle: '最大化',
-  terminalHistoryDeleteLabel: '删除历史',
-  terminalHistoryDeleteTitle: '删除历史标题',
   terminalLiveClearLabel: '清空',
   terminalLiveClearTitle: '清空标题',
   terminalShellNotFound: '未找到终端程序',
@@ -172,29 +157,7 @@ describe('CenterTerminalView', () => {
     expect(created?.workspaceId).toBe('');
   });
 
-  it('terminalTabId 非空时渲染只含单双列/交换/菜单的工具栏', () => {
-    const centerTerm = makeTerminalTab('tc', 'center');
-    useAppStore.setState({
-      terminalTabs: [centerTerm],
-      terminalTabsById: { tc: centerTerm },
-      terminalActiveTabId: 'tc',
-    });
-
-    renderView('c1', 'tc');
-
-    expect(screen.getByRole('button', { name: '单列' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '双列' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '交换历史与实时终端位置' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: '更多终端操作' })).toBeTruthy();
-    // 无新建终端复合按钮、无左侧目录导航开关
-    expect(screen.queryByRole('button', { name: '新建终端' })).toBeNull();
-    expect(screen.queryByRole('button', { name: '终端目录' })).toBeNull();
-  });
-
-  it('历史不存在时忽略「隐藏实时区」的持久化折叠态：实时区仍渲染（渲染期归一化）', () => {
-    // 重启后历史索引惰性加载完成前 hasHistory=false；若持久化折叠态是 'live'（曾最大化历史），
-    // 不归一化就会两区皆不可见且无按钮可恢复。本用例锁定归一化确实生效。
-    terminalRegionCollapseStore.save({ tc: 'live' });
+  it('terminalTabId 非空时工具栏只剩菜单，主区只有一个实时终端画布', () => {
     const centerTerm = makeTerminalTab('tc', 'center');
     useAppStore.setState({
       terminalTabs: [centerTerm],
@@ -204,6 +167,15 @@ describe('CenterTerminalView', () => {
 
     const { container } = renderView('c1', 'tc');
 
+    expect(screen.getByRole('button', { name: '更多终端操作' })).toBeTruthy();
+    // 旧的单双列 / 交换 / 新建终端 / 目录导航入口全部移除
+    expect(screen.queryByRole('button', { name: '单列' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '双列' })).toBeNull();
+    expect(screen.queryByRole('button', { name: /交换/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: '新建终端' })).toBeNull();
+    expect(screen.queryByRole('button', { name: '终端目录' })).toBeNull();
+    // 主区只渲染一个实时终端
+    expect(container.querySelectorAll('.adl-terminal-canvas')).toHaveLength(1);
     expect(container.querySelector('.adl-terminal-live')).not.toBeNull();
   });
 

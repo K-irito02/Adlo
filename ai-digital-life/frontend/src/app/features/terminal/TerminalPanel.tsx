@@ -8,22 +8,14 @@ import {
   IconPanelLeftClose,
   IconDelete,
   IconUnfoldVertical,
-  IconAreaSwap,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { asWorkspaceID } from '@shared/branded';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
-import { TerminalHistoryList } from '@components/terminal/TerminalHistoryList';
 import { TerminalRegionActions } from '@components/terminal/TerminalRegionActions';
-import { readTerminalPalette, readTerminalCellMetrics } from '@features/terminal/terminalXtermPool';
-import {
-  isCollapseButtonVisible,
-  isRegionVisible,
-} from '@features/terminal/terminalRegionCollapse';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
-import { HISTORY_RATIO_MAX, HISTORY_RATIO_MIN } from './terminalViewPrefs';
 import { TerminalShellSelector } from './TerminalShellSelector';
 import { TerminalMenuDropdown } from './TerminalMenuDropdown';
 import { TerminalContextMenu } from './TerminalContextMenu';
@@ -31,16 +23,9 @@ import { MultiWorkspaceTerminal } from '../workspace-terminal';
 import { nextTerminalWorkspaceToggleValue } from './terminalWorkspaceToggle';
 import { isPanelTab } from '@stores/slices/tabLocation';
 import { useTCopy } from '@i18n/useTCopy';
-import { useResolvedTheme } from '@hooks/useResolvedTheme';
 
 export function TerminalPanel() {
   const { t } = useTCopy();
-  // 订阅主题：手动切换亮/暗主题只改 data-theme 属性，不触发重渲染；
-  // 不订阅的话本次渲染不会重新求值 palette，只读历史颜色就跟不上。
-  // 返回值本身不用（仅借订阅驱动重渲染）；palette 的直接求值即可，
-  // readTerminalPalette 内部按 fg/bg 签名缓存，同主题下引用稳定（memo 化行组件不抖动）。
-  useResolvedTheme();
-  const historyPalette = readTerminalPalette();
 
   const {
     recentWorkspaces,
@@ -62,7 +47,6 @@ export function TerminalPanel() {
   const {
     activeTab,
     hasActiveTab,
-    regionCollapse,
     navigatorCollapsed,
     terminalNavigatorWidth,
     terminalTabs,
@@ -76,44 +60,13 @@ export function TerminalPanel() {
     terminalMenuItems,
     terminalActiveTabId,
     xtermRef,
-    viewContainerRef,
-    viewPrefs,
-    historySegments,
     contextMenu,
     editingTabId,
     editValue,
     editInputRef,
   } = terminalState;
 
-  const hasHistory = historySegments.length > 0;
-  const isDual = viewPrefs.mode === 'dual';
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
-
-  // 渲染期归一化：历史不存在时只允许「两区都可见」。否则 (hasHistory=false, collapse='live')
-  // 会让两区皆不可见且无按钮可恢复 —— 重启后历史索引惰性加载完成前 hasHistory 会短暂为 false，
-  // 正是该窗口（详见 terminalRegionCollapse.ts 的约定注释）。
-  const collapse = hasHistory ? regionCollapse : 'none';
-  const historyVisible = isRegionVisible(collapse, 'history', hasHistory);
-  const liveVisible = isRegionVisible(collapse, 'live', true);
-  const canCollapse = isCollapseButtonVisible(hasHistory);
-
-  // 两个区域共用同一份叠加层文案；「最大化/还原」的可见 title 不带区域名，
-  // 区域名只进各自按钮的 aria-label（见 TerminalRegionActions 文件头）。文案均来自 i18n 键。
-  const regionActionTitles = {
-    restore: t.terminalRegionRestoreTitle,
-    maximize: t.terminalRegionMaximizeTitle,
-    deleteLabel: t.terminalHistoryDeleteLabel,
-    deleteTitle: t.terminalHistoryDeleteTitle,
-    clearLabel: t.terminalLiveClearLabel,
-    clearTitle: t.terminalLiveClearTitle,
-  };
-
-  // 绑定当前 session：把 sessionId 缝进度量读取器，并 memo 化避免每个渲染帧都重建
-  // 闭包（否则 TerminalHistoryList 的实测 effect 会随父组件重渲染反复重跑）。
-  const readHistoryCellMetrics = useCallback(
-    () => readTerminalCellMetrics(activeTab?.sessionId ?? null),
-    [activeTab?.sessionId],
-  );
 
   const visibleWorkspaces = useMemo(
     () => recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available),
@@ -130,8 +83,8 @@ export function TerminalPanel() {
       : independentExpanded && allWorkspaceExpanded;
   }, [visibleWorkspaces, terminalWorkspaceExpanded]);
 
-  // 左侧导航标题固定为“终端目录”。“命令历史”模式已彻底删除（无入口、无 store），
-  // 不要在此处加回 navigatorMode 分支；只读历史区仍在主内容区按标签展示，不受影响。
+  // 左侧导航标题固定为“终端目录”。“命令历史”模式与只读历史区均已彻底删除
+  // （无入口、无 store、无主区展示），不要在此处加回 navigatorMode 分支。
   const terminalNavigatorTitle = t.terminalLabel;
 
   const handleExpandAllTerminal = useCallback(() => {
@@ -222,46 +175,6 @@ export function TerminalPanel() {
           </div>
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple content={t.terminalViewLayoutLabel} placement="top">
-            <div
-              className="adl-tool-context__diff-view"
-              role="group"
-              aria-label={t.terminalViewLayoutLabel}
-            >
-              <button
-                type="button"
-                className={`adl-tool-context__toggle-btn${isDual ? '' : ' is-active'}`}
-                aria-pressed={isDual ? 'false' : 'true'}
-                onClick={() => terminalActions.setViewMode('single')}
-              >
-                {t.terminalViewSingle}
-              </button>
-              <button
-                type="button"
-                className={`adl-tool-context__toggle-btn${isDual ? ' is-active' : ''}`}
-                aria-pressed={isDual ? 'true' : 'false'}
-                onClick={() => terminalActions.setViewMode('dual')}
-              >
-                {t.terminalViewDual}
-              </button>
-            </div>
-          </TooltipSimple>
-          <TooltipSimple content={t.terminalSwapAreas} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn"
-              onClick={terminalActions.swapAreas}
-              aria-label={t.terminalSwapAreas}
-              disabled={!hasHistory}
-            >
-              <IconAreaSwap
-                size={14}
-                decorative
-                orientation={isDual ? 'horizontal' : 'vertical'}
-                firstSolid={viewPrefs.historyFirst}
-              />
-            </button>
-          </TooltipSimple>
           <TerminalMenuDropdown
             menuOpen={terminalMenuOpen}
             menuRef={terminalMenuRef}
@@ -322,8 +235,7 @@ export function TerminalPanel() {
                   <IconTerminalDirectory size={14} decorative />
                 </button>
               </TooltipSimple>
-              {/* “命令历史”按钮已彻底删除：不再提供最近命令模式切换入口。
-                  只读历史区仍在主内容区（TerminalHistoryList）按标签展示，此处无需恢复。 */}
+              {/* “命令历史”按钮与只读历史区均已彻底删除，此处无需恢复。 */}
             </div>
             <div className="adl-tool-navigator__context-group adl-tool-navigator__context-group--utility">
               <TooltipSimple content={t.terminalClearAllTabs} placement="top">
@@ -373,71 +285,27 @@ export function TerminalPanel() {
 
         <div className="adl-tool-primary">
           <div
-            ref={viewContainerRef}
-            className={`adl-tool-primary__scroll adl-tool-primary__scroll--terminal${isDual ? ' is-dual' : ' is-single'}${viewPrefs.historyFirst ? '' : ' is-history-last'}${hasActiveTab ? '' : ' is-empty'}`}
-            style={
-              {
-                '--adl-terminal-history-ratio': `${viewPrefs.historyRatio}`,
-              } as React.CSSProperties
-            }
+            className={`adl-tool-primary__scroll adl-tool-primary__scroll--terminal${hasActiveTab ? '' : ' is-empty'}`}
           >
             {hasActiveTab ? (
               <>
-                {historyVisible ? (
-                  <div className={`adl-terminal-history${liveVisible ? '' : ' is-solo'}`}>
-                    <TerminalHistoryList
-                      segments={historySegments}
-                      palette={historyPalette}
-                      readCellMetrics={readHistoryCellMetrics}
-                      unavailableLabel={t.terminalHistorySegmentUnavailable}
-                    />
-                    <TerminalRegionActions
-                      region="history"
-                      collapsedRegion={collapse}
-                      canCollapse={canCollapse}
-                      onToggleCollapse={() => terminalActions.toggleRegionCollapse('history')}
-                      onDelete={() => void terminalActions.deleteHistory(activeTab?.id ?? '')}
-                      titles={regionActionTitles}
-                      regionName={t.terminalHistoryRegionName}
-                      alwaysVisible={!liveVisible}
-                    />
-                  </div>
-                ) : null}
-
-                {historyVisible && liveVisible ? (
-                  <div
-                    className="adl-terminal-divider"
-                    role="separator"
-                    aria-orientation={isDual ? 'vertical' : 'horizontal'}
-                    aria-label={t.terminalDividerLabel}
-                    aria-valuemin={HISTORY_RATIO_MIN}
-                    aria-valuemax={HISTORY_RATIO_MAX}
-                    aria-valuenow={Math.round(viewPrefs.historyRatio * 100) / 100}
-                    onPointerDown={terminalActions.handleDividerPointerDown}
+                <div className="adl-terminal-live">
+                  <XtermTerminal
+                    ref={xtermRef}
+                    sessionId={activeTab?.sessionId ?? null}
+                    className="adl-terminal-canvas"
+                    onData={terminalActions.handleXtermData}
+                    onResize={terminalActions.handleXtermResize}
                   />
-                ) : null}
-
-                {liveVisible ? (
-                  <div className="adl-terminal-live">
-                    <XtermTerminal
-                      ref={xtermRef}
-                      sessionId={activeTab?.sessionId ?? null}
-                      className="adl-terminal-canvas"
-                      onData={terminalActions.handleXtermData}
-                      onResize={terminalActions.handleXtermResize}
-                    />
-                    <TerminalRegionActions
-                      region="live"
-                      collapsedRegion={collapse}
-                      canCollapse={canCollapse}
-                      onToggleCollapse={() => terminalActions.toggleRegionCollapse('live')}
-                      onClear={terminalActions.handleClear}
-                      titles={regionActionTitles}
-                      regionName={t.terminalLiveRegionName}
-                      alwaysVisible={!historyVisible}
-                    />
-                  </div>
-                ) : null}
+                  <TerminalRegionActions
+                    onClear={terminalActions.handleClear}
+                    titles={{
+                      clearLabel: t.terminalLiveClearLabel,
+                      clearTitle: t.terminalLiveClearTitle,
+                    }}
+                    alwaysVisible
+                  />
+                </div>
                 {activeTab?.status === 'terminated' && !activeTab?.sessionId && (
                   <div className="adl-terminal-error-note">
                     <span>{'\u26A0'}</span>

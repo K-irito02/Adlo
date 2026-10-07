@@ -48,105 +48,15 @@
   position: relative;
   display: flex;
   background: var(--bg-terminal);
-  /* 只读历史区占主轴长度的比例；由分界线拖拽更新并持久化 */
-  --adl-terminal-history-ratio: 0.32;
 }
 
-/* 视图模式：单列 = 上下布局，双列 = 左右布局 */
-.adl-tool-primary__scroll--terminal.is-single {
-  flex-direction: column;
-}
-
-.adl-tool-primary__scroll--terminal.is-dual {
-  flex-direction: row;
-}
-
-/* 只读历史区：独立滚动；主轴长度由比例决定，交叉轴占满。
-   min-*:0 必需：flex 子项默认 min-*:auto，xterm 内容最小尺寸会阻止收缩，
-   拖大后再拖小就缩不回去，溢出部分被容器 overflow:hidden 裁掉且滚轮找不回。
-   100% - 1px：使 1px 分界线空间按比例分摊，避免其空间被 flex:1 的 live 独吞 1px。 */
-.adl-terminal-history {
-  flex: 0 0 auto;
-  order: 0;
-  position: relative;
-  overflow: hidden;
-  min-width: 0;
-  min-height: 0;
-  background: var(--bg-terminal);
-}
-
-.is-single .adl-terminal-history {
-  height: calc(var(--adl-terminal-history-ratio) * (100% - 1px));
-}
-
-.is-dual .adl-terminal-history {
-  width: calc(var(--adl-terminal-history-ratio) * (100% - 1px));
-}
-
-/* 实时终端区：占满剩余空间，保持全高/全宽可用（vim/less 等不受影响） */
+/* 实时终端区：占满主内容区，保持全高/全宽可用（vim/less 等不受影响）。
+   min-*:0 必需：flex 子项默认 min-*:auto，xterm 内容最小尺寸会阻止收缩。 */
 .adl-terminal-live {
   position: relative;
   flex: 1 1 auto;
-  order: 2;
   min-width: 0;
   min-height: 0;
-}
-
-/* 交换位置：只读历史区排到主轴末位 */
-.is-history-last .adl-terminal-history {
-  order: 2;
-}
-
-.is-history-last .adl-terminal-live {
-  order: 0;
-}
-
-/* 可拖拽分界线：视觉上是一条细线，命中区域向两侧各外扩 4px */
-.adl-terminal-divider {
-  flex: 0 0 auto;
-  order: 1;
-  position: relative;
-  z-index: 3;
-  background: var(--border-subtle);
-  touch-action: none;
-  transition: background-color var(--duration-150) var(--ease-default);
-}
-
-.adl-terminal-divider::before {
-  content: '';
-  position: absolute;
-}
-
-.is-single .adl-terminal-divider {
-  height: 1px;
-  cursor: row-resize;
-}
-
-.is-single .adl-terminal-divider::before {
-  left: 0;
-  right: 0;
-  top: -4px;
-  bottom: -4px;
-}
-
-.is-dual .adl-terminal-divider {
-  width: 1px;
-  cursor: col-resize;
-}
-
-.is-dual .adl-terminal-divider::before {
-  top: 0;
-  bottom: 0;
-  left: -4px;
-  right: -4px;
-}
-
-.adl-terminal-divider:hover,
-.adl-terminal-divider:active {
-  /* 中性提示色：与其它拖拽手柄一致使用 --text-secondary（亮 #767676 / 暗 #9a9a9a），
-     在终端底色（亮 #f8f8f8 / 暗 #0c0c0c）下对比度亮 ≈4.3:1 / 暗 ≈7.0:1，
-     按非文本指示器 ≥3:1 满足可见；禁用 --accent 蓝色，避免与选中/焦点语义混淆 */
-  background: var(--text-secondary);
 }
 
 /* 无任何终端标签时，主内容区底色与当前主题背景一致（有标签时保留终端底色） */
@@ -309,17 +219,9 @@
   color: var(--text-warning, #ffa726);
   font-size: var(--text-xs, 12px);
   border-top: 1px solid var(--border-warning, #5a3e00);
-  /* 作为主内容区的 flex 子项排在最后；双列视图下贴底覆盖在实时终端上 */
+  /* 作为主内容区的 flex 子项排在最后 */
   order: 3;
   flex: 0 0 auto;
-}
-
-.is-dual .adl-terminal-error-note {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 4;
 }
 
 .adl-tool-navigator__context--search {
@@ -330,163 +232,6 @@
   （`.adl-terminal-runner` / `.adl-terminal-output` / `.adl-select`）经代码区扫描
    确认零挂载引用（`__actions` / `__list` / `__search` / `--sm` 变体为他文件独立类；docs 进度记录提及除外），整段删除。
    复证检索式（仅命中本注释即干净）：git grep -nE "adl-terminal-(runner|output)([^A-Za-z0-9_-]|$)|adl-tool-sidebar([^A-Za-z0-9_-]|$)|adl-select([^A-Za-z0-9_-]|$)" -- . ":(exclude)docs" */
-
-.adl-terminal-history-row {
-  /* 行高与字符宽由实时终端 DOM 实测后写入这两个变量，保证两侧视觉延续。
-     字体栈必须与 xterm 完全一致（--font-mono 全 token，JetBrains Mono 优先），
-     否则回退字体步进不同、CJK 列逐列漂移；连字与字距调整必须关闭
-     （xterm canvas 默认无连字；等宽连字会吞掉列宽，见 xterm.js #5164）。 */
-  height: var(--adl-terminal-cell-height, 17px);
-  line-height: var(--adl-terminal-cell-height, 17px);
-  white-space: pre;
-  font-family: var(--font-mono, monospace);
-  font-size: 13px;
-  font-kerning: none;
-  font-variant-ligatures: none;
-}
-
-/* 逐字钉格的 run 与单元格：每个字形钉死在 w×cell 宽的格里，
-   与 xterm 按单元格绝对定位字形同网格。 */
-.adl-terminal-history-run {
-  white-space: pre;
-}
-
-.adl-terminal-history-cell {
-  display: inline-block;
-  /* vertical-align: top 必须与行盒基线策略成对保留：默认 baseline 会按字形基线
-     对齐，不同字形的基线差会把该格整体下移，破坏行内网格；
-     overflow: hidden 配合定宽裁掉超宽字形溢出（既不换行也不错位）。
-     text-decoration: inherit 必不可少：下划线不向原子内联级后代（inline-block）传播，
-     不继承的话钉格行里的下划线文字（如 ls 的软链）会丢掉下划线。 */
-  vertical-align: top;
-  overflow: hidden;
-  white-space: pre;
-  text-decoration: inherit;
-}
-
-.adl-terminal-history-divider {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  height: var(--adl-terminal-cell-height, 17px);
-  color: var(--text-secondary);
-  font-size: var(--text-xs, 12px);
-  /* 只补右侧留白：列表容器左侧已有 space-2 内缩（右侧必须为 0 才能与实时终端
-     同宽、列数一致），若此处再补左右各 8px，左端会变成 16px、右端 8px 而不对称。
-     因此右侧补 8px → 左 8px / 右 8px 视觉对称，且不影响列数换算。 */
-  margin-right: var(--space-2, 8px);
-}
-
-/* 虚线：repeating-linear-gradient 的实/虚段长可控（Chromium 的 border-style:dashed
-   虚线间隔不可调，观感偏碎）。线段 4px + 间隔 4px。 */
-.adl-terminal-history-divider__line {
-  flex: 1 1 auto;
-  height: 1px;
-  background-image: repeating-linear-gradient(
-    to right,
-    var(--border-subtle) 0 4px,
-    transparent 4px 8px
-  );
-}
-
-.adl-terminal-history-divider__label {
-  flex: 0 0 auto;
-  white-space: nowrap;
-}
-
-/* 只读历史虚拟列表：只挂载视口附近行，整段高度由 spacer 撑开。
-   宿主绝对定位填满历史区，内缩必须与实时侧 hostEl 逐边同值（左/上/下 space-2、右 0），
-   因为列数由 clientWidth 换算（TerminalHistoryList 的 cols）——任一边不同，
-   历史就会比实时少一列、提前换行，列对齐随之对不上。
-   右侧不留白是实时的既有形态（xterm 自绘滚动条贴右边缘）；
-   日期分隔线的左右留白改由分隔线自身的 margin 提供（见 __divider）。 */
-.adl-terminal-history-scroll-host {
-  position: absolute;
-  top: var(--space-2, 8px);
-  left: var(--space-2, 8px);
-  right: 0;
-  bottom: var(--space-2, 8px);
-}
-
-.adl-terminal-history-list {
-  position: absolute;
-  inset: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-width: none;
-}
-
-.adl-terminal-history-list::-webkit-scrollbar {
-  width: 0;
-  height: 0;
-}
-
-/* 只读历史垂直滚动条：与实时终端 xterm 自绘条同款——
-   区域悬停（未悬停滑块）时贴右边缘显现 3px 细线（右留 2px）；
-   悬停/拖拽滑块本体时变 14px 直角宽滑块并贴边（right: 0）。
-   颜色取 xterm 口径：前景色 20% 不透明，hover/active 40%
-   （见 @xterm/xterm `src/browser/services/ThemeService.ts` 的
-   `scrollbarSliderBackground = color.opacity(foreground, 0.2)` /
-   `scrollbarSliderHoverBackground = color.opacity(foreground, 0.4)` 派生）。 */
-.adl-terminal-histscroll {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 14px;
-  z-index: 3;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity var(--duration-150) var(--ease-default);
-}
-
-.adl-terminal-histscroll[data-visible='true'] {
-  opacity: 1;
-}
-
-/* 拖拽期间指针离开区域时 hook 的 onMouseLeave 会置 hovered=false → 容器 opacity 归零、
-   正被拖拽的滑块消失；与 xterm 的 `.slider.active` 同旨：按住滑块期间保持可见。 */
-.adl-terminal-histscroll:has(.adl-terminal-histscroll__thumb:active) {
-  opacity: 1;
-}
-
-.adl-terminal-histscroll__thumb {
-  position: absolute;
-  top: 0;
-  right: 2px;
-  width: 3px;
-  border-radius: var(--radius-full);
-  background: color-mix(in srgb, var(--text-primary) 20%, transparent);
-  cursor: pointer;
-  touch-action: none;
-  /* 与 xterm 同：圆角不进 transition（宽与圆角同步渐变会出现中途态） */
-  transition:
-    width var(--duration-150) var(--ease-default),
-    right var(--duration-150) var(--ease-default);
-}
-
-.adl-terminal-histscroll[data-visible='true'] .adl-terminal-histscroll__thumb {
-  pointer-events: auto;
-}
-
-.adl-terminal-histscroll__thumb:hover,
-.adl-terminal-histscroll__thumb:active {
-  right: 0;
-  width: 14px;
-  border-radius: var(--radius-none);
-  background: color-mix(in srgb, var(--text-primary) 40%, transparent);
-}
-
-.adl-terminal-history-list__spacer {
-  position: relative;
-  width: 100%;
-}
-
-.adl-terminal-history-list__row {
-  position: absolute;
-  left: 0;
-  right: 0;
-}
 
 .adl-terminal-region-actions {
   position: absolute;
@@ -502,7 +247,6 @@
 }
 
 /* 悬停区域时显露；常驻态由 is-always-visible 驱动，不依赖 hover */
-.adl-terminal-history:hover .adl-terminal-region-actions,
 .adl-terminal-live:hover .adl-terminal-region-actions,
 .adl-terminal-region-actions.is-always-visible {
   opacity: 1;
@@ -522,11 +266,4 @@
 
 .adl-terminal-region-actions__btn:hover {
   color: var(--text-primary);
-}
-
-/* 只剩一个区域时铺满：历史区默认按比例占主轴，独存时必须改为占满 */
-.adl-terminal-history.is-solo {
-  flex: 1 1 auto;
-  height: auto;
-  width: auto;
 }

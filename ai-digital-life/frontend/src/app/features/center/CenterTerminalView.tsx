@@ -1,22 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { terminalSelectors } from '@stores/selectors';
-import { IconAlertTriangle, IconAreaSwap, IconPlus } from '@icons';
-import { TooltipSimple } from '@components/Tooltip';
+import { IconAlertTriangle, IconPlus } from '@icons';
 import { SettingsSelect } from '@components/settings/SettingsSelect';
 import { XtermTerminal } from '@components/terminal/XtermTerminal';
-import { TerminalHistoryList } from '@components/terminal/TerminalHistoryList';
 import { TerminalRegionActions } from '@components/terminal/TerminalRegionActions';
 import { TerminalMenuDropdown } from '@features/terminal/TerminalMenuDropdown';
-import { readTerminalCellMetrics, readTerminalPalette } from '@features/terminal/terminalXtermPool';
-import {
-  isCollapseButtonVisible,
-  isRegionVisible,
-} from '@features/terminal/terminalRegionCollapse';
-import { HISTORY_RATIO_MAX, HISTORY_RATIO_MIN } from '@features/terminal/terminalViewPrefs';
 import type { TerminalProfile } from '@stores/types';
 import { useTCopy } from '@i18n/useTCopy';
-import { useResolvedTheme } from '@hooks/useResolvedTheme';
 import { useTerminalView } from './useTerminalView';
 import './CenterTerminalView.css';
 
@@ -37,8 +28,8 @@ const PROFILES: TerminalProfile[] = ['powershell', 'bash', 'cmd'];
 /**
  * 中心终端视图：承载一个 `location === 'center'` 的终端标签，或（`refId === null`）终端选择器。
  *
- * 顶部工具栏**只含**「单双列 / 区域交换 / 菜单」，不含新建终端复合按钮与左侧目录导航；
- * 主区复用只读历史区 + 分界线 + 实时 `XtermTerminal`（含区域折叠、删除历史）。
+ * 顶部工具栏**只含**「菜单」，不含新建终端复合按钮与左侧目录导航；
+ * 主区渲染单个实时 `XtermTerminal`（含清空按钮）。
  * 视图与叶子 Hook 的接线见 `useTerminalView`。
  */
 export function CenterTerminalView({ centerTabId, terminalTabId }: CenterTerminalViewProps) {
@@ -150,92 +141,21 @@ function CenterTerminalChooser({ centerTabId }: { centerTabId: string }) {
   );
 }
 
-/** 已绑定终端标签的中心视图：工具栏子集 + 只读历史/分界线/实时终端主区。 */
+/** 已绑定终端标签的中心视图：工具栏子集 + 单个实时终端主区。 */
 function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   const { t } = useTCopy();
-  // 订阅主题以在亮/暗切换时刷新只读历史配色（与 TerminalPanel 同因）。
-  useResolvedTheme();
-  const historyPalette = readTerminalPalette();
 
   const tab = useAppStore((s) => s.terminalTabsById[terminalTabId]);
   const view = useTerminalView(tab);
-
-  const readHistoryCellMetrics = useCallback(
-    () => readTerminalCellMetrics(tab?.sessionId ?? null),
-    [tab?.sessionId],
-  );
 
   if (!tab) {
     return null;
   }
 
-  const hasHistory = view.historySegments.length > 0;
-  const isDual = view.viewPrefs.mode === 'dual';
-  // 渲染期归一化：历史不存在时只允许「两区都可见」。否则 (hasHistory=false, collapse='live')
-  // 会让两区皆不可见且无按钮可恢复 —— 重启后历史索引惰性加载完成前 hasHistory 会短暂为 false，
-  // 正是该窗口（详见 terminalRegionCollapse.ts 的约定注释）。
-  const collapse = hasHistory ? view.regionCollapse : 'none';
-  const historyVisible = isRegionVisible(collapse, 'history', hasHistory);
-  const liveVisible = isRegionVisible(collapse, 'live', true);
-  const canCollapse = isCollapseButtonVisible(hasHistory);
-
-  // 两个区域共用同一份叠加层文案；「最大化/还原」的可见 title 不带区域名，
-  // 区域名只进各自按钮的 aria-label（见 TerminalRegionActions 文件头）。
-  const regionActionTitles = {
-    restore: t.terminalRegionRestoreTitle,
-    maximize: t.terminalRegionMaximizeTitle,
-    deleteLabel: t.terminalHistoryDeleteLabel,
-    deleteTitle: t.terminalHistoryDeleteTitle,
-    clearLabel: t.terminalLiveClearLabel,
-    clearTitle: t.terminalLiveClearTitle,
-  };
-
   return (
     <div className="adl-tool-panel adl-tool-panel--terminal adl-center-terminal">
-      {/* 中间区工具栏：视图布局 + 交换位置靠左，更多操作靠右（与右面板工具栏顺序不同，按需求） */}
+      {/* 中间区工具栏：仅保留「更多操作」菜单 */}
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
-        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
-          <TooltipSimple content={t.terminalViewLayoutLabel} placement="top">
-            <div
-              className="adl-tool-context__diff-view"
-              role="group"
-              aria-label={t.terminalViewLayoutLabel}
-            >
-              <button
-                type="button"
-                className={`adl-tool-context__toggle-btn${isDual ? '' : ' is-active'}`}
-                aria-pressed={isDual ? 'false' : 'true'}
-                onClick={() => view.setViewMode('single')}
-              >
-                {t.terminalViewSingle}
-              </button>
-              <button
-                type="button"
-                className={`adl-tool-context__toggle-btn${isDual ? ' is-active' : ''}`}
-                aria-pressed={isDual ? 'true' : 'false'}
-                onClick={() => view.setViewMode('dual')}
-              >
-                {t.terminalViewDual}
-              </button>
-            </div>
-          </TooltipSimple>
-          <TooltipSimple content={t.terminalSwapAreas} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn"
-              onClick={view.swapAreas}
-              aria-label={t.terminalSwapAreas}
-              disabled={!hasHistory}
-            >
-              <IconAreaSwap
-                size={14}
-                decorative
-                orientation={isDual ? 'horizontal' : 'vertical'}
-                firstSolid={view.viewPrefs.historyFirst}
-              />
-            </button>
-          </TooltipSimple>
-        </div>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files" />
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
           <TerminalMenuDropdown
@@ -250,70 +170,24 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
 
       <div className="adl-tool-surface adl-tool-surface--files">
         <div className="adl-tool-primary">
-          <div
-            ref={view.viewContainerRef}
-            className={`adl-tool-primary__scroll adl-tool-primary__scroll--terminal${isDual ? ' is-dual' : ' is-single'}${view.viewPrefs.historyFirst ? '' : ' is-history-last'}`}
-            style={
-              {
-                '--adl-terminal-history-ratio': `${view.viewPrefs.historyRatio}`,
-              } as React.CSSProperties
-            }
-          >
-            {historyVisible ? (
-              <div className={`adl-terminal-history${liveVisible ? '' : ' is-solo'}`}>
-                <TerminalHistoryList
-                  segments={view.historySegments}
-                  palette={historyPalette}
-                  readCellMetrics={readHistoryCellMetrics}
-                  unavailableLabel={t.terminalHistorySegmentUnavailable}
-                />
-                <TerminalRegionActions
-                  region="history"
-                  collapsedRegion={collapse}
-                  canCollapse={canCollapse}
-                  onToggleCollapse={() => view.toggleRegionCollapse('history')}
-                  onDelete={() => void view.deleteHistory(tab.id)}
-                  titles={regionActionTitles}
-                  regionName={t.terminalHistoryRegionName}
-                  alwaysVisible={!liveVisible}
-                />
-              </div>
-            ) : null}
-
-            {historyVisible && liveVisible ? (
-              <div
-                className="adl-terminal-divider"
-                role="separator"
-                aria-orientation={isDual ? 'vertical' : 'horizontal'}
-                aria-label={t.terminalDividerLabel}
-                aria-valuemin={HISTORY_RATIO_MIN}
-                aria-valuemax={HISTORY_RATIO_MAX}
-                aria-valuenow={Math.round(view.viewPrefs.historyRatio * 100) / 100}
-                onPointerDown={view.handleDividerPointerDown}
+          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
+            <div className="adl-terminal-live">
+              <XtermTerminal
+                ref={view.xtermRef}
+                sessionId={tab.sessionId ?? null}
+                className="adl-terminal-canvas"
+                onData={view.handleXtermData}
+                onResize={view.handleXtermResize}
               />
-            ) : null}
-
-            {liveVisible ? (
-              <div className="adl-terminal-live">
-                <XtermTerminal
-                  ref={view.xtermRef}
-                  sessionId={tab.sessionId ?? null}
-                  className="adl-terminal-canvas"
-                  onData={view.handleXtermData}
-                  onResize={view.handleXtermResize}
-                />
-                <TerminalRegionActions
-                  region="live"
-                  collapsedRegion={collapse}
-                  canCollapse={canCollapse}
-                  onToggleCollapse={() => view.toggleRegionCollapse('live')}
-                  onClear={view.handleClear}
-                  titles={regionActionTitles}
-                  regionName={t.terminalLiveRegionName}
-                  alwaysVisible={!historyVisible}
-                />
-              </div>
-            ) : null}
+              <TerminalRegionActions
+                onClear={view.handleClear}
+                titles={{
+                  clearLabel: t.terminalLiveClearLabel,
+                  clearTitle: t.terminalLiveClearTitle,
+                }}
+                alwaysVisible
+              />
+            </div>
 
             {tab.status === 'terminated' && !tab.sessionId && (
               <div className="adl-terminal-error-note">
