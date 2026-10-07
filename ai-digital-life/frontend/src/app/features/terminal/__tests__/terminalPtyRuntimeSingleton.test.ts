@@ -43,11 +43,6 @@ beforeEach(() => {
       resize: vi.fn(),
       kill: vi.fn(),
     },
-    terminalOutput: {
-      save: vi.fn(async () => ({ ok: true })),
-      load: vi.fn(async () => ({ ok: false })),
-      delete: vi.fn(async () => ({ ok: true })),
-    },
     systemMonitor: { snapshot: vi.fn(async () => ({ ok: false })) },
   };
   useAppStore.setState({

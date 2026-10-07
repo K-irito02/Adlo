@@ -13,7 +13,6 @@ interface UseTerminalViewportParams {
  *
  * 说明：“命令历史（最近命令）”模式已彻底删除，此处不再维护
  * sessions/history 模式切换、命令历史列表与标题/计数派生。
- * 只读历史区仍在主内容区（TerminalHistoryList）按标签展示，不受影响。
  */
 export function useTerminalViewport({ terminalTabs }: UseTerminalViewportParams) {
   void terminalTabs;

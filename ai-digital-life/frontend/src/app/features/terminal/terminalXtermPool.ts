@@ -1,21 +1,12 @@
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { TERMINAL_CAPTURE_SCROLLBACK_LINES } from './terminalHistoryCollector';
-import type { HistoryPalette } from './historyModel';
 
-/**
- * 终端字号：xterm 实例与临时测量实例必须同值（两处各写一个字面量迟早会漂移）。
- * CSS 侧 `.adl-terminal-history-row` 的 font-size 无法读 TS 常量，保持同值并互相注释指向。
- */
+/** 终端字号：xterm 实例按此值创建。 */
 export const TERMINAL_FONT_SIZE = 13;
 
-/**
- * cell 度量兜底：无实时终端实例可读时（历史区独立存在）用固定默认值。
- * 只读历史的行高/虚拟化换算复用同一组值（避免两处各写一份而漂移）。
- */
-export const FALLBACK_CELL_WIDTH = 8;
-export const FALLBACK_CELL_HEIGHT = 17;
+/** 实时终端回滚缓冲行数。 */
+const TERMINAL_SCROLLBACK_LINES = 5000;
 
 export interface PooledXterm {
   terminal: Terminal;
@@ -82,7 +73,7 @@ export class TerminalXtermPool {
     }
 
     const hostEl = document.createElement('div');
-    // 内缩一个间距：与只读历史视图同理，绝对定位子元素相对 padding 盒布局，
+    // 内缩一个间距：绝对定位子元素相对 padding 盒布局，
     // 必须显式内缩才能让终端内容与区域边缘保持 var(--space-2) 间距。
     // 右侧不内缩：xterm 自绘滚动条需贴住区域右边缘（事项 5）。各边距须与容器
     // padding 同值，容器见 terminal-panel.css `.adl-terminal-canvas`（改一边必须改另一边）。
@@ -95,8 +86,7 @@ export class TerminalXtermPool {
       fontFamily: readTerminalFontFamily(),
       theme: readTerminalTheme(),
       allowProposedApi: true,
-      // 采集侧 scrollback 提到 5000：否则采集间隙的输出会从环里丢掉，持久化层看不到。
-      scrollback: TERMINAL_CAPTURE_SCROLLBACK_LINES,
+      scrollback: TERMINAL_SCROLLBACK_LINES,
       scrollSensitivity: 1,
       disableStdin: false,
       cursorStyle: 'bar',
@@ -189,76 +179,3 @@ export function readTerminalTheme() {
 
 /** Singleton pool instance */
 export const terminalXtermPool = new TerminalXtermPool();
-
-/**
- * xterm 默认 16 色（Tango 色板）：历史区与实时终端共用同一套调色板。
- * 取值逐字抄自所装 `@xterm/xterm` 的 `DEFAULT_ANSI_COLORS`
- * （node_modules/@xterm/xterm/lib/xterm.js），不是 VGA 标准色
- * （旧值 `#0000ee` 等与实时终端实际渲染的 `#3465a4` 对不上，就是颜色不一致的根因）。
- * 主题未给出 fg/bg 时才退到纯黑底白字；ANSI 本身跟主题无关，
- * 与实时终端（theme 未配 ansi 色 → xterm 回退同一套 Tango）天然一致。
- */
-export const HISTORY_ANSI_DEFAULTS: readonly string[] = Object.freeze([
-  '#2e3436',
-  '#cc0000',
-  '#4e9a06',
-  '#c4a000',
-  '#3465a4',
-  '#75507b',
-  '#06989a',
-  '#d3d7cf',
-  '#555753',
-  '#ef2929',
-  '#8ae234',
-  '#fce94f',
-  '#729fcf',
-  '#ad7fa8',
-  '#34e2e2',
-  '#eeeeec',
-]);
-
-let cachedHistoryPalette: HistoryPalette | null = null;
-let cachedHistoryPaletteSig = '';
-
-/**
- * 从实时终端主题读取配色 → 历史与实时共用同一套调色板。
- * 用模块级缓存保证「同一主题下返回同一个对象引用」，这样下游
- * `TerminalHistoryRow`（React.memo）收到的 `palette` 在普通重渲染中保持稳定、
- * memo 真正生效；仅当主题 fg/bg 变化时返回新对象触发重着色。
- */
-export function readTerminalPalette(): HistoryPalette {
-  const theme = readTerminalTheme();
-  const foreground = theme.foreground || '#ffffff';
-  const background = theme.background || '#000000';
-  const sig = `${background}|${foreground}`;
-  if (cachedHistoryPalette && cachedHistoryPaletteSig === sig) {
-    return cachedHistoryPalette;
-  }
-  const palette: HistoryPalette = { foreground, background, ansi: HISTORY_ANSI_DEFAULTS };
-  cachedHistoryPalette = palette;
-  cachedHistoryPaletteSig = sig;
-  return palette;
-}
-
-/**
- * 从实时终端 DOM 实测 cell 宽高：历史行高必须与实时终端完全一致，否则两侧对不齐。
- * 池没有 `first()` 访问器（不该为这一个度量暴露宽泛入口），这里由调用方带上
- * 它关心的 sessionId；sessionId 为空或对应实例 / `.xterm-screen` 缺失时退回固定默认值。
- */
-export function readTerminalCellMetrics(sessionId: string | null): {
-  cellWidth: number;
-  cellHeight: number;
-} {
-  if (sessionId === null) {
-    return { cellWidth: FALLBACK_CELL_WIDTH, cellHeight: FALLBACK_CELL_HEIGHT };
-  }
-  const entry = terminalXtermPool.get(sessionId);
-  const screen = entry?.hostEl.querySelector('.xterm-screen') as HTMLElement | null;
-  if (!screen || !entry) {
-    return { cellWidth: FALLBACK_CELL_WIDTH, cellHeight: FALLBACK_CELL_HEIGHT };
-  }
-  return {
-    cellWidth: screen.offsetWidth / Math.max(1, entry.terminal.cols),
-    cellHeight: screen.offsetHeight / Math.max(1, entry.terminal.rows),
-  };
-}
