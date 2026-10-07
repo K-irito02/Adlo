@@ -50,9 +50,7 @@ export const terminalEn = {
   terminalNewTerminal: 'New terminal',
   terminalAddPane: 'Add terminal',
   terminalPaneClose: 'Close window',
-  terminalPaneClearLabel: 'Clear content',
-  terminalPaneClearTitle:
-    'Clear what this terminal window currently shows (same as the clear command)',
+  terminalPaneClearLabel: 'Clear contents',
   terminalPaneMaximize: 'Maximize',
   terminalPaneRestore: 'Restore',
 } as const;

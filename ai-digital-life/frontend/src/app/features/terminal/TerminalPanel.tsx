@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -67,9 +67,10 @@ export function TerminalPanel() {
   } = terminalState;
 
   // 窗格最大化态为面板本地态：切换标签或增删窗格时复位（避免指向已不存在的窗格）。
+  // 用 useLayoutEffect 在 DOM 变更后、浏览器绘制前复位，避免切标签时出现一帧“空窗格”。
   const [maximizedPaneId, setMaximizedPaneId] = useState<string | null>(null);
   const paneCount = activeTab?.panes.length ?? 0;
-  useEffect(() => {
+  useLayoutEffect(() => {
     setMaximizedPaneId(null);
   }, [terminalActiveTabId, paneCount]);
 
@@ -309,11 +310,6 @@ export function TerminalPanel() {
                 panes={activeTab.panes}
                 activePaneId={activeTab.activePaneId}
                 maximizedPaneId={maximizedPaneId}
-                onActivate={(paneId) => terminalActions.handleSelectPane(paneId)}
-                onClose={(paneId) => terminalActions.handleClosePane(paneId)}
-                onToggleMaximize={(paneId) =>
-                  setMaximizedPaneId((cur) => (cur === paneId ? null : paneId))
-                }
                 renderPane={(pane) => (
                   <TerminalPaneView
                     pane={pane}

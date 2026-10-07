@@ -51,7 +51,6 @@ export const terminalZh = {
   terminalAddPane: '增加终端',
   terminalPaneClose: '关闭窗口',
   terminalPaneClearLabel: '清空内容',
-  terminalPaneClearTitle: '清空该终端窗口当前显示的内容（等同 clear 命令）',
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',
 } as const;
