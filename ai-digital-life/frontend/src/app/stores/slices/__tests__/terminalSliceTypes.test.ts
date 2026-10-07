@@ -93,13 +93,18 @@ describe('readTerminalPanes', () => {
     expect(readTerminalPanes({})).toBeUndefined();
   });
 
-  it('returns valid panes and drops invalid items', () => {
+  it('returns the valid panes in order when every item is valid', () => {
     expect(readTerminalPanes([])).toEqual([]);
     expect(readTerminalPanes([makePane(), makePane({ id: 'pane-2', colorIndex: 1 })])).toEqual([
       makePane(),
       makePane({ id: 'pane-2', colorIndex: 1 }),
     ]);
-    expect(readTerminalPanes([makePane(), { id: 1 }, 'nope'])).toEqual([makePane()]);
+  });
+
+  it('rejects the whole array when any item is invalid (整项拒绝)', () => {
+    expect(readTerminalPanes([makePane(), { id: 1 }, 'nope'])).toBeUndefined();
+    expect(readTerminalPanes([{ id: 1 }])).toBeUndefined();
+    expect(readTerminalPanes([makePane(), makePane({ status: 'bogus' as never })])).toBeUndefined();
   });
 });
 

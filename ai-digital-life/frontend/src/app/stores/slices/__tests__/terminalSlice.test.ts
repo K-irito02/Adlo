@@ -326,14 +326,19 @@ describe('terminalSlice', () => {
     const { get } = createMockStore();
     (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
     const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
-    const paneId = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0].id;
-    (get() as unknown as TerminalSlice).terminalUpdatePane(tabId, paneId, {
-      sessionId: 's1',
+    const first = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0].id;
+    const second = (get() as unknown as TerminalSlice).terminalAddPane(tabId);
+    (get() as unknown as TerminalSlice).terminalUpdatePane(tabId, second, {
+      sessionId: 's2',
       status: 'running',
     });
-    const pane = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0];
-    expect(pane.sessionId).toBe('s1');
-    expect(pane.status).toBe('running');
+    const panes = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes;
+    const patched = panes.find((p) => p.id === second);
+    const untouched = panes.find((p) => p.id === first);
+    expect(patched?.sessionId).toBe('s2');
+    expect(patched?.status).toBe('running');
+    expect(untouched?.sessionId).toBeUndefined();
+    expect(untouched?.status).toBe('idle');
   });
 
   it('terminalSetActivePane switches the active pane', () => {

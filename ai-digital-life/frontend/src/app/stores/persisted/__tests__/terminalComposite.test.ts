@@ -46,6 +46,13 @@ describe('terminal composite hydration', () => {
     expect(patch.terminalTabsById).toBeUndefined();
   });
 
+  it('rejects a tab whose panes contain a malformed item (整项拒绝)', () => {
+    const mixedTab = { ...VALID_TAB, panes: [VALID_PANE, { id: 1 }] };
+    localStorage.setItem('adl:terminal.tabs', JSON.stringify([mixedTab]));
+    const patch = hydrateAll().patch;
+    expect(patch.terminalTabsById).toBeUndefined();
+  });
+
   it('uses its own shellSelectorProfile when valid', () => {
     localStorage.setItem('adl:terminal.shellSelectorProfile', JSON.stringify('bash'));
     expect(hydrateAll().patch.shellSelectorProfile).toBe('bash');

@@ -125,7 +125,8 @@ export function readTerminalPane(raw: unknown): TerminalPane | undefined {
 
 /**
  * 窗格数组读盘校验器：非数组 → `undefined`；数组内**逐项**校验，
- * 任一非法项被拒绝（丢弃），合法项按原顺序保留。
+ * 任一非法项即整体判为不合法（`undefined`）—— 与 `readObjectArray` 的
+ * 「整项拒绝」一致，绝不逐项剔除畸形元素后继续（否则畸形窗格会被原样写回 store）。
  */
 export function readTerminalPanes(raw: unknown): TerminalPane[] | undefined {
   if (!Array.isArray(raw)) {
@@ -134,9 +135,10 @@ export function readTerminalPanes(raw: unknown): TerminalPane[] | undefined {
   const panes: TerminalPane[] = [];
   for (const item of raw) {
     const pane = readTerminalPane(item);
-    if (pane !== undefined) {
-      panes.push(pane);
+    if (pane === undefined) {
+      return undefined;
     }
+    panes.push(pane);
   }
   return panes;
 }

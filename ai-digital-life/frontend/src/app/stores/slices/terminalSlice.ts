@@ -41,9 +41,16 @@ function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
   });
 }
 
+/** 标签数组的唯一写盘出口：落盘 + 重建 `terminalTabsById`。 */
+function commitTabs(nextTabs: TerminalTabState[]): Partial<StoreState> {
+  persist('adl:terminal.tabs', nextTabs);
+  return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
+}
+
 /**
  * 对单个标签做「窗格变更」：updater 返回新标签，或返回 undefined 表示无操作。
- * 成功时统一写盘并重建 `terminalTabsById`（所有窗格动作的唯一副作用出口）。
+ * 成功时经 `commitTabs` 统一写盘（`terminalAddPane` 因需先同步生成 paneId，
+ * 直接复用 `commitTabs`，不经过本函数）。
  */
 function applyPaneChange(
   state: StoreState,
@@ -58,9 +65,7 @@ function applyPaneChange(
   if (!nextTab) {
     return state;
   }
-  const nextTabs = sortTabs(state.terminalTabs.map((t) => (t.id === tabId ? nextTab : t)));
-  persist('adl:terminal.tabs', nextTabs);
-  return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
+  return commitTabs(sortTabs(state.terminalTabs.map((t) => (t.id === tabId ? nextTab : t))));
 }
 
 const initialTerminalTabs: TerminalTabState[] = [];
@@ -226,8 +231,7 @@ export const createTerminalSlice = (
         activePaneId: pane.id,
       };
       const nextTabs = sortTabs(state.terminalTabs.map((t) => (t.id === tabId ? nextTab : t)));
-      persist('adl:terminal.tabs', nextTabs);
-      set({ terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) });
+      set(commitTabs(nextTabs));
       return pane.id;
     },
 
@@ -291,6 +295,10 @@ export const createTerminalSlice = (
             if (byId.has(pane.id)) {
               reordered.push(pane);
             }
+          }
+          // 顺序未变则视为无操作，避免无谓写盘。
+          if (reordered.every((pane, index) => pane.id === tab.panes[index]?.id)) {
+            return undefined;
           }
           return { ...tab, panes: reordered };
         }),
