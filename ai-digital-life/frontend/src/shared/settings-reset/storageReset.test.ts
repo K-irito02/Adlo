@@ -24,8 +24,8 @@ function deps(overrides: Partial<StorageResetDeps> = {}): StorageResetDeps {
       ok: true as const,
       restartRequired: false,
       preflight: { ok: true, totalFiles: 0, totalBytes: 0, errors: [], warnings: [], freeBytes: 0 },
-      })),
-      resetTreeCache: vi.fn(async () => true),
+    })),
+    resetTreeCache: vi.fn(async () => true),
     previewDownload: () => ({
       settings: { mode: 'auto', default_path: '', auto_migrate_on_path_change: false } as never,
       loaded: true,
@@ -39,7 +39,7 @@ function deps(overrides: Partial<StorageResetDeps> = {}): StorageResetDeps {
   };
 }
 
-// 一组简单 stub 谓词：树/下载块恒 'hidden'、预算恒默认；核心按 unified + root===defaultRoot 判定。
+// 一组简单 stub 谓词：树/下载块恒 'hidden'；核心按 unified + root===defaultRoot 判定。
 // 注：`isTreeCacheAtDefault` 与 `treeBlockOf: 'hidden'` 保持一致（同为「树已默认」），
 // 与 R2a 后短路判定改用该谓词的口径对齐。
 function predicates(): StorageResetPredicates {

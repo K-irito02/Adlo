@@ -99,7 +99,7 @@ function seedStore() {
 }
 
 /** 存储组桥桩（照搬 StorageSettings.test.tsx）：getStatus + tree stats 齐备，
- * 使 corePaths / treeCache / terminalBudget / browserDownload / immutable 五块全渲染。 */
+ * 使 corePaths / treeCache / browserDownload / immutable 各块全渲染。 */
 function seedStorageBridge() {
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     storage: {

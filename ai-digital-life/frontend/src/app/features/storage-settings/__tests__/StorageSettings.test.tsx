@@ -2281,7 +2281,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     }
   });
 
-  it('all four storage blocks already default → no dialog, info toast instead (10)', async () => {
+  it('all storage blocks already default → no dialog, info toast instead (10)', async () => {
     mockStorageBridge({ statusData: statusAtDefault });
     const showToast = vi.fn();
     const prevShowToast = useAppStore.getState().showToast;
