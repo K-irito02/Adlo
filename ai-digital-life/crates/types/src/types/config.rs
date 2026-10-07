@@ -99,9 +99,6 @@ pub struct AppPreferencePatch {
     pub workspace_natural_order: Option<Vec<String>>,
     #[ts(optional)]
     pub browser_inactive_tab_suspend_ms: Option<u64>,
-    /// 只读历史的磁盘预算（字节）；None = 不改。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub terminal_history_budget_bytes: Option<u64>,
 }
 
 /// User-defined font preferences. All fields optional — `None` means "use default".
@@ -138,9 +135,6 @@ pub struct ConfigSnapshot {
     pub workspace_natural_order: Vec<String>,
     #[serde(default = "default_browser_inactive_tab_suspend_ms")]
     pub browser_inactive_tab_suspend_ms: u64,
-    /// 只读历史的磁盘预算（字节）。0 = 跟随磁盘剩余空间。
-    #[serde(default = "default_terminal_history_budget_bytes_snapshot")]
-    pub terminal_history_budget_bytes: u64,
 }
 
 fn default_max_concurrent_workspaces_snapshot() -> usize {
@@ -150,10 +144,6 @@ fn default_max_concurrent_workspaces_snapshot() -> usize {
 /// 与 `kernel::config` 同名字段是同一产品默认（15 分钟 = 900_000），改动时两处同步。
 fn default_browser_inactive_tab_suspend_ms() -> u64 {
     900_000
-}
-
-fn default_terminal_history_budget_bytes_snapshot() -> u64 {
-    1 << 30
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -199,15 +189,5 @@ mod tests {
         let json = serde_json::to_string(&t).unwrap();
         assert!(json.contains("SET_LANGUAGE"));
         assert!(json.contains("en-US"));
-    }
-
-    #[test]
-    fn app_preference_patch_deserializes_budget_bytes() {
-        // 前端档位/恢复默认经此字段下发（issue 2026-09-24：后端曾直接丢弃导致恒显 1 GB）。
-        let patch: AppPreferencePatch =
-            serde_json::from_str(r#"{"terminalHistoryBudgetBytes": 2147483648}"#).unwrap();
-        assert_eq!(patch.terminal_history_budget_bytes, Some(2147483648));
-        let empty: AppPreferencePatch = serde_json::from_str(r#"{"language": "zh-CN"}"#).unwrap();
-        assert_eq!(empty.terminal_history_budget_bytes, None);
     }
 }

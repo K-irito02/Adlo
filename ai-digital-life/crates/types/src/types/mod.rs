@@ -126,7 +126,6 @@ mod tests {
                 workspace_natural_order: vec![],
                 // 任意非默认值（序列化透传冒烟，非产品默认断言）。
                 browser_inactive_tab_suspend_ms: 3_600_000,
-                terminal_history_budget_bytes: 1 << 30,
             },
             current_workspace: None,
             recent_logs: vec![],

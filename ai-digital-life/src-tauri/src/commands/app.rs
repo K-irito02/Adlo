@@ -140,12 +140,6 @@ pub fn app_get_diagnostics(
     }))
 }
 
-/// 只读历史磁盘预算钳制（与前端 `budgetBytesFromCustom` 同口径）：
-/// 0 = 跟随磁盘剩余空间直通；其余钳制到 1GiB..=2000GiB，防止手造 patch 写入非法值。
-fn clamp_terminal_history_budget_bytes(v: u64) -> u64 {
-    if v == 0 { 0 } else { v.clamp(1 << 30, 2000 * (1 << 30)) }
-}
-
 #[tauri::command]
 pub async fn app_update_preferences(
     app: tauri::AppHandle,
@@ -201,11 +195,6 @@ pub async fn app_update_preferences(
         if let Some(v) = patch.browser_inactive_tab_suspend_ms {
             config.browser_inactive_tab_suspend_ms = v;
         }
-        // 只读历史磁盘预算：0 = 跟随磁盘剩余空间直通；其余钳制到 1GiB..=2000GiB
-        //（与前端 budgetBytesFromCustom 同口径；缺失此分支时前端选择档位/恢复默认会静默失效）。
-        if let Some(v) = patch.terminal_history_budget_bytes {
-            config.terminal_history_budget_bytes = clamp_terminal_history_budget_bytes(v);
-        }
     }
     let config_clone =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
@@ -256,7 +245,6 @@ pub fn build_app_info(
             workspace_deferred_ids: config.workspace_deferred_ids.clone(),
             workspace_natural_order: config.workspace_natural_order.clone(),
             browser_inactive_tab_suspend_ms: config.browser_inactive_tab_suspend_ms,
-            terminal_history_budget_bytes: config.terminal_history_budget_bytes,
         },
         current_workspace,
         recent_logs: vec![LogEntrySummary {
@@ -424,20 +412,6 @@ mod workspace_loading_tests {
     }
 
     #[test]
-    fn clamp_terminal_history_budget_bytes_passes_through_follow_disk() {
-        assert_eq!(clamp_terminal_history_budget_bytes(0), 0);
-        assert_eq!(clamp_terminal_history_budget_bytes(1 << 30), 1 << 30);
-        assert_eq!(clamp_terminal_history_budget_bytes(2000 * (1 << 30)), 2000 * (1 << 30));
-    }
-
-    #[test]
-    fn clamp_terminal_history_budget_bytes_clamps_out_of_range() {
-        // 与前端 budgetBytesFromCustom 同口径：非法小值抬下限、超大钳上限。
-        assert_eq!(clamp_terminal_history_budget_bytes(1), 1 << 30);
-        assert_eq!(clamp_terminal_history_budget_bytes(u64::MAX), 2000 * (1 << 30));
-    }
-
-    #[test]
     fn config_snapshot_deserializes_old_format_with_defaults() {
         let json = r#"{
             "language": "zh-CN",
@@ -475,7 +449,6 @@ mod workspace_loading_tests {
             workspace_deferred_ids: vec!["b".into()],
             workspace_natural_order: vec!["c".into()],
             browser_inactive_tab_suspend_ms: 3_600_000,
-            terminal_history_budget_bytes: 1 << 30,
         };
         let json = serde_json::to_string(&snap).unwrap();
         assert!(json.contains("\"maxConcurrentWorkspaces\":4"));

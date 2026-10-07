@@ -206,8 +206,3 @@ CREATE TABLE IF NOT EXISTS event_log (
 );
 CREATE INDEX IF NOT EXISTS idx_event_log_session
     ON event_log(session_id, seq);
-CREATE TABLE IF NOT EXISTS terminal_output (
-    session_id TEXT PRIMARY KEY,
-    output     BLOB NOT NULL,
-    updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
