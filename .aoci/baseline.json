@@ -1,7 +1,7 @@
 {
   "version": 1,
   "created_at": "2026-10-03T08:22:42Z",
-  "updated_at": "2026-10-04T11:56:32Z",
+  "updated_at": "2026-10-07T10:44:21Z",
   "files": {
     "ai-digital-life/.agents/rules/learn-analysis-result.json": {
       "role": "index",
@@ -10451,9 +10451,9 @@
     },
     "aoci.code.txt": {
       "role": "index",
-      "sha256": "cc1b867f3667426468d703fa8a37f3fc5f4edeb17c56f1e33d1072cc6d26f673",
-      "size": 776808,
-      "normalized_sha256": "cc1b867f3667426468d703fa8a37f3fc5f4edeb17c56f1e33d1072cc6d26f673"
+      "sha256": "a54a3556cccb1ffd7f588cffd8d0aadec5ddcaf7dfb5e95325dfaf404baa01c6",
+      "size": 772769,
+      "normalized_sha256": "a54a3556cccb1ffd7f588cffd8d0aadec5ddcaf7dfb5e95325dfaf404baa01c6"
     },
     "aoci.meta.txt": {
       "role": "index",
