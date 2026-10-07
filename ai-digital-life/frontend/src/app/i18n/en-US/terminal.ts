@@ -53,4 +53,8 @@ export const terminalEn = {
   terminalPaneClearLabel: 'Clear contents',
   terminalPaneMaximize: 'Maximize',
   terminalPaneRestore: 'Restore',
+  terminalLayoutEqual: 'Equal',
+  terminalLayoutFree: 'Free',
+  terminalLayoutModeLabel: 'Terminal layout mode',
+  terminalAutoLayout: 'Restore auto layout',
 } as const;

@@ -53,4 +53,8 @@ export const terminalZh = {
   terminalPaneClearLabel: '清空内容',
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',
+  terminalLayoutEqual: '均分',
+  terminalLayoutFree: '自由',
+  terminalLayoutModeLabel: '终端布局模式',
+  terminalAutoLayout: '恢复自动布局',
 } as const;

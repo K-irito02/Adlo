@@ -5,6 +5,8 @@ import { activePaneOf } from '@stores/slices/terminalSliceTypes';
 import { terminalPtyRuntime } from '@features/terminal/terminalPtyRuntime';
 import { useTerminalTabActions } from '@features/terminal/useTerminalTabActions';
 import { useTerminalShellManagement } from '@features/terminal/useTerminalShellManagement';
+import { useTerminalPaneLayout, type FreeDragEdge } from '@features/terminal/useTerminalPaneLayout';
+import type { PaneLayoutMode, TerminalPaneLayout } from '@features/terminal/terminalPaneLayout';
 import type { TerminalMenuItem } from '@features/terminal/useTerminalPanel';
 
 export interface UseTerminalViewReturn {
@@ -19,6 +21,12 @@ export interface UseTerminalViewReturn {
   handleSelectPane: (paneId: string) => void;
   handleXtermData: (paneId: string, data: string) => void;
   handleXtermResize: (paneId: string, cols: number, rows: number) => void;
+  layout: TerminalPaneLayout;
+  setMode: (mode: PaneLayoutMode) => void;
+  resetAuto: () => void;
+  handleColDividerPointerDown: (colIndex: number, e: React.PointerEvent) => void;
+  handleRowDividerPointerDown: (rowIndex: number, e: React.PointerEvent) => void;
+  handleFreeDragPointerDown: (paneId: string, edge: FreeDragEdge, e: React.PointerEvent) => void;
 }
 
 /**
@@ -34,9 +42,27 @@ export interface UseTerminalViewReturn {
  * 故不会把同一 session 的 xterm 同时挂到两处；但真实输出订阅目前仍是每个
  * `useTerminalPtyLifecycle` 实例各订阅一次（见 task-11 报告「PTY 双实例安全性」）。
  */
-export function useTerminalView(tab: TerminalTabState | undefined): UseTerminalViewReturn {
+export function useTerminalView(
+  tab: TerminalTabState | undefined,
+  containerRef: RefObject<HTMLDivElement | null>,
+): UseTerminalViewReturn {
   const panes = useMemo(() => tab?.panes ?? [], [tab]);
   const activePane = useMemo(() => (tab ? activePaneOf(tab) : undefined), [tab]);
+  const paneIds = useMemo(() => panes.map((pane) => pane.id), [panes]);
+
+  const {
+    layout,
+    setMode,
+    resetAuto,
+    handleColDividerPointerDown,
+    handleRowDividerPointerDown,
+    handleFreeDragPointerDown,
+  } = useTerminalPaneLayout({
+    containerRef,
+    activeTabId: tab?.id,
+    paneCount: panes.length,
+    paneIds,
+  });
 
   const {
     handleXtermData,
@@ -93,5 +119,11 @@ export function useTerminalView(tab: TerminalTabState | undefined): UseTerminalV
     handleSelectPane,
     handleXtermData,
     handleXtermResize,
+    layout,
+    setMode,
+    resetAuto,
+    handleColDividerPointerDown,
+    handleRowDividerPointerDown,
+    handleFreeDragPointerDown,
   };
 }

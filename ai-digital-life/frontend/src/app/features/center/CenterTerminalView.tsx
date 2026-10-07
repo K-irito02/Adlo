@@ -1,7 +1,7 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { terminalSelectors } from '@stores/selectors';
-import { IconPlus, IconAddTerminal } from '@icons';
+import { IconPlus, IconAddTerminal, IconAutoLayout } from '@icons';
 import { SettingsSelect } from '@components/settings/SettingsSelect';
 import { TooltipSimple } from '@components/Tooltip';
 import { TerminalPaneGrid } from '@components/terminal/TerminalPaneGrid';
@@ -147,7 +147,10 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   const { t } = useTCopy();
 
   const tab = useAppStore((s) => s.terminalTabsById[terminalTabId]);
-  const view = useTerminalView(tab);
+  // 布局容器：包裹终端网格的滚动区。C2 布局 Hook 拖拽期在其上写 CSS 变量
+  // （`--adl-term-*`），并测量其尺寸换算拖拽比例；变量沿 DOM 继承到内层网格。
+  const gridContainerRef = useRef<HTMLDivElement | null>(null);
+  const view = useTerminalView(tab, gridContainerRef);
 
   // 窗格最大化态为视图本地态：切换标签或增删窗格时复位。
   // 用 useLayoutEffect 在 DOM 变更后、浏览器绘制前复位，避免切标签时出现一帧“空窗格”。
@@ -167,6 +170,38 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files" />
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <div
+            className="adl-tool-context__diff-view"
+            role="group"
+            aria-label={t.terminalLayoutModeLabel}
+          >
+            <button
+              type="button"
+              className={`adl-tool-context__toggle-btn${view.layout.mode === 'equal' ? ' is-active' : ''}`}
+              aria-pressed={view.layout.mode === 'equal'}
+              onClick={() => view.setMode('equal')}
+            >
+              {t.terminalLayoutEqual}
+            </button>
+            <button
+              type="button"
+              className={`adl-tool-context__toggle-btn${view.layout.mode === 'free' ? ' is-active' : ''}`}
+              aria-pressed={view.layout.mode === 'free'}
+              onClick={() => view.setMode('free')}
+            >
+              {t.terminalLayoutFree}
+            </button>
+          </div>
+          <TooltipSimple content={t.terminalAutoLayout} placement="top">
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn"
+              onClick={view.resetAuto}
+              aria-label={t.terminalAutoLayout}
+            >
+              <IconAutoLayout size={14} decorative />
+            </button>
+          </TooltipSimple>
           <TooltipSimple content={t.terminalAddPane} placement="top">
             <button
               type="button"
@@ -189,11 +224,18 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
 
       <div className="adl-tool-surface adl-tool-surface--files">
         <div className="adl-tool-primary">
-          <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
+          <div
+            className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal"
+            ref={gridContainerRef}
+          >
             <TerminalPaneGrid
               panes={tab.panes}
               activePaneId={tab.activePaneId}
               maximizedPaneId={maximizedPaneId}
+              layout={view.layout}
+              onColDividerPointerDown={view.handleColDividerPointerDown}
+              onRowDividerPointerDown={view.handleRowDividerPointerDown}
+              onFreeDragPointerDown={view.handleFreeDragPointerDown}
               renderPane={(pane) => (
                 <TerminalPaneView
                   pane={pane}

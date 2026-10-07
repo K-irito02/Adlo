@@ -248,7 +248,8 @@ export class TerminalPtyRuntime {
     const cwd = cwdOverride ?? (workspaceId ? (workspace?.path ?? undefined) : undefined);
 
     // 双保险：activatePane 已用 activating Map 汇流并发激活，这里再拦一次
-    // 「该窗格已有存活 PTY」的调用（attachSession 也可能被 handleCreateTab / handleCreatePane 直接调用）。
+    // 「该窗格已有存活 PTY」的调用。attachSession 现由 activatePane 唯一调用
+    // （handleCreateTab / handleCreatePane 也都经 activatePane 收口）。
     const existingTab = useAppStore.getState().terminalTabsById[tabId];
     if (!existingTab) {
       return;
@@ -446,11 +447,9 @@ export class TerminalPtyRuntime {
     if (!pane || !sessionId) {
       return;
     }
-    window.digitalLife.pty.kill(sessionId);
-    this.liveSessionIds.delete(sessionId);
-    this.ptyDims.delete(sessionId);
-    this.oscCarry.delete(sessionId);
-    // 按窗格更新：一个标签有多个窗格，必须只标记被 kill 的那个。
+    // 与关闭窗格共用同一条拆解出口：kill PTY + 释放 xterm 池 + 清运行时账本
+    // （live / dims / created / oscCarry）与缓冲输入；随后按窗格标记 terminated。
+    this.teardownPane(pane.paneId, sessionId, 'on pane kill');
     useAppStore.getState().terminalUpdatePane(pane.tabId, pane.paneId, { status: 'terminated' });
   };
 

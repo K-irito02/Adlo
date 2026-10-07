@@ -10,7 +10,7 @@ export interface IconProps extends Omit<React.SVGProps<SVGSVGElement>, 'children
 
 export type IconComponent = (props: IconProps) => React.JSX.Element;
 
-function resolveA11y(title?: string, decorative?: boolean) {
+export function resolveA11y(title?: string, decorative?: boolean) {
   return decorative || !title
     ? { 'aria-hidden': true as const, focusable: 'false' as const }
     : { role: 'img' as const, 'aria-label': title };

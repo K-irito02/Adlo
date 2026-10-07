@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -9,6 +9,7 @@ import {
   IconDelete,
   IconUnfoldVertical,
   IconAddTerminal,
+  IconAutoLayout,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
@@ -24,6 +25,7 @@ import { MultiWorkspaceTerminal } from '../workspace-terminal';
 import { nextTerminalWorkspaceToggleValue } from './terminalWorkspaceToggle';
 import { isPanelTab } from '@stores/slices/tabLocation';
 import { useTCopy } from '@i18n/useTCopy';
+import { useTerminalPaneLayout } from './useTerminalPaneLayout';
 
 export function TerminalPanel() {
   const { t } = useTCopy();
@@ -73,6 +75,24 @@ export function TerminalPanel() {
   useLayoutEffect(() => {
     setMaximizedPaneId(null);
   }, [terminalActiveTabId, paneCount]);
+
+  // 布局容器：包裹终端网格的滚动区。C2 布局 Hook 拖拽期在其上写 CSS 变量
+  // （`--adl-term-*`），并测量其尺寸换算拖拽比例；变量沿 DOM 继承到内层网格。
+  const gridContainerRef = useRef<HTMLDivElement | null>(null);
+  const paneIds = useMemo(() => activeTab?.panes.map((pane) => pane.id) ?? [], [activeTab]);
+  const {
+    layout: paneLayout,
+    setMode: setPaneLayoutMode,
+    resetAuto: resetPaneLayout,
+    handleColDividerPointerDown,
+    handleRowDividerPointerDown,
+    handleFreeDragPointerDown,
+  } = useTerminalPaneLayout({
+    containerRef: gridContainerRef,
+    activeTabId: activeTab?.id,
+    paneCount,
+    paneIds,
+  });
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
@@ -183,6 +203,38 @@ export function TerminalPanel() {
           </div>
         </div>
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <div
+            className="adl-tool-context__diff-view"
+            role="group"
+            aria-label={t.terminalLayoutModeLabel}
+          >
+            <button
+              type="button"
+              className={`adl-tool-context__toggle-btn${paneLayout.mode === 'equal' ? ' is-active' : ''}`}
+              aria-pressed={paneLayout.mode === 'equal'}
+              onClick={() => setPaneLayoutMode('equal')}
+            >
+              {t.terminalLayoutEqual}
+            </button>
+            <button
+              type="button"
+              className={`adl-tool-context__toggle-btn${paneLayout.mode === 'free' ? ' is-active' : ''}`}
+              aria-pressed={paneLayout.mode === 'free'}
+              onClick={() => setPaneLayoutMode('free')}
+            >
+              {t.terminalLayoutFree}
+            </button>
+          </div>
+          <TooltipSimple content={t.terminalAutoLayout} placement="top">
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn"
+              onClick={resetPaneLayout}
+              aria-label={t.terminalAutoLayout}
+            >
+              <IconAutoLayout size={14} decorative />
+            </button>
+          </TooltipSimple>
           <TooltipSimple content={t.terminalAddPane} placement="top">
             <button
               type="button"
@@ -304,12 +356,17 @@ export function TerminalPanel() {
         <div className="adl-tool-primary">
           <div
             className={`adl-tool-primary__scroll adl-tool-primary__scroll--terminal${hasActiveTab ? '' : ' is-empty'}`}
+            ref={gridContainerRef}
           >
             {hasActiveTab && activeTab ? (
               <TerminalPaneGrid
                 panes={activeTab.panes}
                 activePaneId={activeTab.activePaneId}
                 maximizedPaneId={maximizedPaneId}
+                layout={paneLayout}
+                onColDividerPointerDown={handleColDividerPointerDown}
+                onRowDividerPointerDown={handleRowDividerPointerDown}
+                onFreeDragPointerDown={handleFreeDragPointerDown}
                 renderPane={(pane) => (
                   <TerminalPaneView
                     pane={pane}
