@@ -1,0 +1,186 @@
+// src/app/components/terminal/__tests__/TerminalPaneGrid.test.tsx
+import { describe, expect, it, vi } from 'vitest';
+import { act, fireEvent, render, screen } from '@testing-library/react';
+import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
+import {
+  autoRectForIndex,
+  defaultPaneLayout,
+  MIN_PANE_H,
+  MIN_PANE_W,
+  type PaneRect,
+  type TerminalPaneLayout,
+} from '@features/terminal/terminalPaneLayout';
+import { TerminalPaneGrid } from '../TerminalPaneGrid';
+
+function makePanes(count: number): TerminalPane[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `p${index + 1}`,
+    profile: 'bash' as const,
+    status: 'idle' as const,
+    colorIndex: 0,
+  }));
+}
+
+function freeLayout(panes: TerminalPane[]): TerminalPaneLayout {
+  const rects: Record<string, PaneRect> = {};
+  panes.forEach((pane, index) => {
+    rects[pane.id] = autoRectForIndex(index, panes.length);
+  });
+  return { mode: 'free', colFractions: [], rowFractions: [], rects };
+}
+
+interface Overrides {
+  panes?: TerminalPane[];
+  activePaneId?: string;
+  maximizedPaneId?: string | null;
+  layout?: TerminalPaneLayout;
+}
+
+function renderGrid(overrides: Overrides = {}) {
+  const panes = overrides.panes ?? makePanes(4);
+  const layout = overrides.layout ?? defaultPaneLayout(panes.length);
+  const onColDividerPointerDown = vi.fn();
+  const onRowDividerPointerDown = vi.fn();
+  const onFreeDragPointerDown = vi.fn();
+  const { container } = render(
+    <TerminalPaneGrid
+      panes={panes}
+      activePaneId={overrides.activePaneId}
+      maximizedPaneId={overrides.maximizedPaneId ?? null}
+      layout={layout}
+      onColDividerPointerDown={onColDividerPointerDown}
+      onRowDividerPointerDown={onRowDividerPointerDown}
+      onFreeDragPointerDown={onFreeDragPointerDown}
+      renderPane={(pane) => <div data-testid={`pane-${pane.id}`}>{pane.id}</div>}
+    />,
+  );
+  return { container, onColDividerPointerDown, onRowDividerPointerDown, onFreeDragPointerDown };
+}
+
+describe('TerminalPaneGrid', () => {
+  it('equal 模式渲染 is-equal，grid-template 先取拖拽 CSS 变量、回退到 fractions 派生值', () => {
+    const { container } = renderGrid({ panes: makePanes(4) });
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    expect(grid.classList.contains('is-equal')).toBe(true);
+    expect(grid.style.gridTemplateColumns).toBe('var(--adl-term-col-fractions, 0.5fr 0.5fr)');
+    expect(grid.style.gridTemplateRows).toBe('var(--adl-term-row-fractions, 0.5fr 0.5fr)');
+  });
+
+  it('卷帘门裁剪：外层滚动容器 + 内层最小尺寸随窗格数增长', () => {
+    const { container } = renderGrid({ panes: makePanes(5) });
+    expect(container.querySelector('.adl-terminal-pane-grid-scroll')).not.toBeNull();
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    // 5 窗格 → 3 列 2 行
+    expect(grid.style.minWidth).toBe(`${MIN_PANE_W * 3}px`);
+    expect(grid.style.minHeight).toBe(`${MIN_PANE_H * 2}px`);
+  });
+
+  it('free 模式渲染 is-free，每窗格带内联 left/top/width/height', () => {
+    const panes = makePanes(2);
+    const { container } = renderGrid({ panes, layout: freeLayout(panes) });
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    expect(grid.classList.contains('is-free')).toBe(true);
+    const wrappers = container.querySelectorAll<HTMLElement>('.adl-terminal-pane');
+    expect(wrappers).toHaveLength(2);
+    for (const wrapper of wrappers) {
+      expect(wrapper.style.left).not.toBe('');
+      expect(wrapper.style.top).not.toBe('');
+      expect(wrapper.style.width).not.toBe('');
+      expect(wrapper.style.height).not.toBe('');
+    }
+    // 未测量到容器尺寸时回退为归一化百分比
+    expect(wrappers[0].style.left).toBe('0%');
+    expect(wrappers[0].style.width).toBe('50%');
+    expect(wrappers[0].style.height).toBe('100%');
+  });
+
+  it('free 模式测量到容器尺寸后按像素定位', () => {
+    const callbacks: ResizeObserverCallback[] = [];
+    class CapturingResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        callbacks.push(callback);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    const original = globalThis.ResizeObserver;
+    vi.stubGlobal('ResizeObserver', CapturingResizeObserver);
+    try {
+      const panes = makePanes(2);
+      const { container } = renderGrid({ panes, layout: freeLayout(panes) });
+      const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+      grid.getBoundingClientRect = () =>
+        ({ width: 400, height: 300, left: 0, top: 0, right: 400, bottom: 300 }) as DOMRect;
+      act(() => {
+        for (const callback of callbacks) {
+          callback([], {} as ResizeObserver);
+        }
+      });
+      const first = container.querySelectorAll<HTMLElement>('.adl-terminal-pane')[0];
+      expect(first.style.left).toBe('0px');
+      expect(first.style.width).toBe('200px');
+      expect(first.style.height).toBe('300px');
+    } finally {
+      vi.stubGlobal('ResizeObserver', original);
+    }
+  });
+
+  it('free 模式为每个窗格渲染八个边角拖拽手柄并回调对应 edge', () => {
+    const panes = makePanes(1);
+    const { container, onFreeDragPointerDown } = renderGrid({ panes, layout: freeLayout(panes) });
+    const handles = container.querySelectorAll('.adl-terminal-free-handle');
+    expect(handles).toHaveLength(8);
+    const east = container.querySelector('.adl-terminal-free-handle--e') as HTMLElement;
+    fireEvent.pointerDown(east, { pointerId: 1 });
+    expect(onFreeDragPointerDown).toHaveBeenCalledWith('p1', 'e', expect.anything());
+  });
+
+  it('maximizedPaneId 时只渲染该窗格且网格标记 is-maximized', () => {
+    const { container } = renderGrid({ panes: makePanes(3), maximizedPaneId: 'p2' });
+    expect(screen.queryByTestId('pane-p1')).toBeNull();
+    expect(screen.queryByTestId('pane-p3')).toBeNull();
+    expect(screen.getByTestId('pane-p2')).toBeInTheDocument();
+    expect(container.querySelector('.adl-terminal-pane-grid.is-maximized')).not.toBeNull();
+    expect(container.querySelectorAll('.adl-terminal-pane')).toHaveLength(1);
+  });
+
+  it('列/行边界线数量 = cols-1 / rows-1', () => {
+    const four = renderGrid({ panes: makePanes(4) });
+    expect(four.container.querySelectorAll('.adl-terminal-col-divider')).toHaveLength(1);
+    expect(four.container.querySelectorAll('.adl-terminal-row-divider')).toHaveLength(1);
+
+    // 3 窗格仍是 2x2 网格，不足最后一行不多渲染边界线
+    const three = renderGrid({ panes: makePanes(3) });
+    expect(three.container.querySelectorAll('.adl-terminal-col-divider')).toHaveLength(1);
+    expect(three.container.querySelectorAll('.adl-terminal-row-divider')).toHaveLength(1);
+
+    // 5 窗格 = 3 列 2 行
+    const five = renderGrid({ panes: makePanes(5) });
+    expect(five.container.querySelectorAll('.adl-terminal-col-divider')).toHaveLength(2);
+    expect(five.container.querySelectorAll('.adl-terminal-row-divider')).toHaveLength(1);
+  });
+
+  it('拖拽边界线回调携带对应下标；free / maximized 不渲染边界线', () => {
+    const equal = renderGrid({ panes: makePanes(5) });
+    const colDivider = equal.container.querySelectorAll<HTMLElement>(
+      '.adl-terminal-col-divider',
+    )[1];
+    fireEvent.pointerDown(colDivider, { pointerId: 1 });
+    expect(equal.onColDividerPointerDown).toHaveBeenCalledWith(1, expect.anything());
+
+    const panes = makePanes(2);
+    const free = renderGrid({ panes, layout: freeLayout(panes) });
+    expect(free.container.querySelector('.adl-terminal-col-divider')).toBeNull();
+
+    const max = renderGrid({ panes: makePanes(4), maximizedPaneId: 'p1' });
+    expect(max.container.querySelector('.adl-terminal-col-divider')).toBeNull();
+  });
+
+  it('活动窗格包装层带 is-active', () => {
+    const { container } = renderGrid({ panes: makePanes(2), activePaneId: 'p2' });
+    const active = container.querySelector('.adl-terminal-pane.is-active');
+    expect(active).not.toBeNull();
+    expect(active?.querySelector('[data-testid="pane-p2"]')).not.toBeNull();
+  });
+});
