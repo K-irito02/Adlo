@@ -320,12 +320,17 @@ describe('useTerminalPaneLayout drag', () => {
 
     const preview = h.container.style.getPropertyValue('--adl-term-col-fractions');
     expect(preview.startsWith('0.6')).toBe(true);
+    // 边界线位置变量与轨道同步发布，使 C3 的 1px 边界线跟随实时预览
+    const dividerPreview = h.container.style.getPropertyValue('--adl-term-col-divider-0');
+    expect(dividerPreview.startsWith('60')).toBe(true);
+    expect(dividerPreview.endsWith('%')).toBe(true);
 
     act(() => dispatchPointer(divider, 'pointerup', { clientX: 80, clientY: 0 }));
     expect(h.current().layout.colFractions[0]).toBeCloseTo(0.6);
     expect(h.current().layout.colFractions[0] + h.current().layout.colFractions[1]).toBeCloseTo(1);
     expect(terminalPaneLayoutStore.loadForTab('t-col')?.colFractions[0]).toBeCloseTo(0.6);
     expect(h.container.style.getPropertyValue('--adl-term-col-fractions')).toBe('');
+    expect(h.container.style.getPropertyValue('--adl-term-col-divider-0')).toBe('');
   });
 
   it('keeps the latest drag delta when released before the rAF frame fires (Important #3)', () => {

@@ -258,6 +258,24 @@
   cursor: nwse-resize;
 }
 
+/* 专用移动手柄：顶部居中的细条，拖动移动整窗格（不采用整窗格拖动以保留 xterm 输入/选择）。
+   z-index 高于边手柄，命中其中央 28px；两侧仍由 --n 手柄负责纵向缩放。 */
+.adl-terminal-free-handle--move {
+  top: 3px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 28px;
+  height: 12px;
+  z-index: 4;
+  cursor: move;
+  border-radius: var(--radius-full);
+  background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+}
+
+.adl-terminal-free-handle--move:hover {
+  background: color-mix(in srgb, var(--text-muted) 70%, transparent);
+}
+
 /* 窗格内的错误横幅贴底（画布为绝对定位，横幅脱离其覆盖） */
 .adl-terminal-pane .adl-terminal-error-note {
   position: absolute;

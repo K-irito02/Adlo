@@ -39,6 +39,13 @@ export interface UseTerminalPaneLayoutReturn {
 const COL_FRACTIONS_VAR = '--adl-term-col-fractions';
 const ROW_FRACTIONS_VAR = '--adl-term-row-fractions';
 
+/**
+ * 拖拽期边界线位置变量前缀：`--adl-term-col-divider-<i>` / `--adl-term-row-divider-<i>`（百分比）。
+ * 与轨道 `--adl-term-*-fractions` 同步写入，使 C3 网格的 1px 边界线跟随实时预览（不依赖 setState）。
+ */
+const COL_DIVIDER_VAR_PREFIX = '--adl-term-col-divider-';
+const ROW_DIVIDER_VAR_PREFIX = '--adl-term-row-divider-';
+
 /** 窗格 id → 网格下标；未知 id 返回 -1（调用方应视为 no-op）。 */
 function paneIndexOf(paneIds: string[], paneId: string): number {
   return paneIds.indexOf(paneId);
@@ -150,6 +157,29 @@ export function applyFreeDrag(
 
 function fractionTracks(fractions: number[]): string {
   return fractions.map((f) => `${f}fr`).join(' ');
+}
+
+/** 各边界线的累计比例（百分比）：第 i 条 = `fractions[0..i]` 之和，共 `length-1` 条。 */
+function dividerPercents(fractions: number[]): string[] {
+  const percents: string[] = [];
+  let sum = 0;
+  for (let index = 0; index < fractions.length - 1; index += 1) {
+    sum += fractions[index] ?? 0;
+    percents.push(`${sum * 100}%`);
+  }
+  return percents;
+}
+
+function publishDividerVars(container: HTMLElement, prefix: string, fractions: number[]): void {
+  dividerPercents(fractions).forEach((percent, index) => {
+    container.style.setProperty(`${prefix}${index}`, percent);
+  });
+}
+
+function clearDividerVars(container: HTMLElement, prefix: string, boundaryCount: number): void {
+  for (let index = 0; index < boundaryCount; index += 1) {
+    container.style.removeProperty(`${prefix}${index}`);
+  }
 }
 
 function applyRectStyle(el: HTMLElement, rect: PaneRect): void {
@@ -265,6 +295,7 @@ export function useTerminalPaneLayout({
             ROW_FRACTIONS_VAR,
             fractionTracks(layoutRef.current.rowFractions),
           );
+          publishDividerVars(container, COL_DIVIDER_VAR_PREFIX, latest);
         });
       };
 
@@ -283,6 +314,7 @@ export function useTerminalPaneLayout({
         target.removeEventListener('lostpointercapture', handleUp);
         container.style.removeProperty(COL_FRACTIONS_VAR);
         container.style.removeProperty(ROW_FRACTIONS_VAR);
+        clearDividerVars(container, COL_DIVIDER_VAR_PREFIX, Math.max(0, base.length - 1));
       };
 
       const handleUp = () => {
@@ -335,6 +367,7 @@ export function useTerminalPaneLayout({
             COL_FRACTIONS_VAR,
             fractionTracks(layoutRef.current.colFractions),
           );
+          publishDividerVars(container, ROW_DIVIDER_VAR_PREFIX, latest);
         });
       };
 
@@ -353,6 +386,7 @@ export function useTerminalPaneLayout({
         target.removeEventListener('lostpointercapture', handleUp);
         container.style.removeProperty(ROW_FRACTIONS_VAR);
         container.style.removeProperty(COL_FRACTIONS_VAR);
+        clearDividerVars(container, ROW_DIVIDER_VAR_PREFIX, Math.max(0, base.length - 1));
       };
 
       const handleUp = () => {

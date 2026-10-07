@@ -126,14 +126,19 @@ describe('TerminalPaneGrid', () => {
     }
   });
 
-  it('free 模式为每个窗格渲染八个边角拖拽手柄并回调对应 edge', () => {
+  it('free 模式为每个窗格渲染八向边角手柄 + 专用移动手柄并回调对应 edge', () => {
     const panes = makePanes(1);
     const { container, onFreeDragPointerDown } = renderGrid({ panes, layout: freeLayout(panes) });
     const handles = container.querySelectorAll('.adl-terminal-free-handle');
-    expect(handles).toHaveLength(8);
+    expect(handles).toHaveLength(9);
+
     const east = container.querySelector('.adl-terminal-free-handle--e') as HTMLElement;
     fireEvent.pointerDown(east, { pointerId: 1 });
     expect(onFreeDragPointerDown).toHaveBeenCalledWith('p1', 'e', expect.anything());
+
+    const move = container.querySelector('.adl-terminal-free-handle--move') as HTMLElement;
+    fireEvent.pointerDown(move, { pointerId: 2 });
+    expect(onFreeDragPointerDown).toHaveBeenCalledWith('p1', 'move', expect.anything());
   });
 
   it('maximizedPaneId 时只渲染该窗格且网格标记 is-maximized', () => {
@@ -143,12 +148,24 @@ describe('TerminalPaneGrid', () => {
     expect(screen.getByTestId('pane-p2')).toBeInTheDocument();
     expect(container.querySelector('.adl-terminal-pane-grid.is-maximized')).not.toBeNull();
     expect(container.querySelectorAll('.adl-terminal-pane')).toHaveLength(1);
+
+    // 最大化按可见窗格（1×1）计算卷帘门最小尺寸，避免被整表窗格数撑大而误出滚动条
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    expect(grid.style.minWidth).toBe(`${MIN_PANE_W}px`);
+    expect(grid.style.minHeight).toBe(`${MIN_PANE_H}px`);
   });
 
-  it('列/行边界线数量 = cols-1 / rows-1', () => {
+  it('列/行边界线数量 = cols-1 / rows-1，且位置取自拖拽预览变量并回退到派生值', () => {
     const four = renderGrid({ panes: makePanes(4) });
     expect(four.container.querySelectorAll('.adl-terminal-col-divider')).toHaveLength(1);
     expect(four.container.querySelectorAll('.adl-terminal-row-divider')).toHaveLength(1);
+    // 2×2 网格：唯一边界在 50%，消费 C2 拖拽期发布的 `--adl-term-*-divider-<i>`
+    expect(four.container.querySelector<HTMLElement>('.adl-terminal-col-divider')?.style.left).toBe(
+      'var(--adl-term-col-divider-0, 50%)',
+    );
+    expect(four.container.querySelector<HTMLElement>('.adl-terminal-row-divider')?.style.top).toBe(
+      'var(--adl-term-row-divider-0, 50%)',
+    );
 
     // 3 窗格仍是 2x2 网格，不足最后一行不多渲染边界线
     const three = renderGrid({ panes: makePanes(3) });

@@ -94,10 +94,11 @@ export function TerminalPaneGrid({
   renderPane,
 }: TerminalPaneGridProps) {
   const isFree = layout.mode === 'free';
-  const { cols, rows } = computeGrid(panes.length);
   const visiblePanes = maximizedPaneId
     ? panes.filter((pane) => pane.id === maximizedPaneId)
     : panes;
+  // 网格规模取自「可见窗格」：最大化时 1×1，避免卷帘门最小尺寸被整表窗格数撑大而误出滚动条。
+  const { cols, rows } = computeGrid(visiblePanes.length);
 
   const gridRef = useRef<HTMLDivElement | null>(null);
   const [gridSize, setGridSize] = useState({ w: 0, h: 0 });
@@ -178,15 +179,22 @@ export function TerminalPaneGrid({
                 style={paneStyle}
               >
                 {renderPane(pane)}
-                {!maximizedPaneId &&
-                  isFree &&
-                  FREE_DRAG_EDGES.map((edge) => (
+                {!maximizedPaneId && isFree && (
+                  <>
+                    {FREE_DRAG_EDGES.map((edge) => (
+                      <div
+                        key={edge}
+                        className={`adl-terminal-free-handle adl-terminal-free-handle--${edge}`}
+                        onPointerDown={(event) => onFreeDragPointerDown(pane.id, edge, event)}
+                      />
+                    ))}
+                    {/* 专用移动手柄（不采用整窗格拖动，避免吞掉 xterm 输入/选择） */}
                     <div
-                      key={edge}
-                      className={`adl-terminal-free-handle adl-terminal-free-handle--${edge}`}
-                      onPointerDown={(event) => onFreeDragPointerDown(pane.id, edge, event)}
+                      className="adl-terminal-free-handle adl-terminal-free-handle--move"
+                      onPointerDown={(event) => onFreeDragPointerDown(pane.id, 'move', event)}
                     />
-                  ))}
+                  </>
+                )}
               </div>
             );
           })}
@@ -197,7 +205,12 @@ export function TerminalPaneGrid({
               <div
                 key={`col-divider-${index}`}
                 className="adl-terminal-col-divider"
-                style={{ left: `${cumulativePercent(layout.colFractions, index + 1)}%` }}
+                style={{
+                  left: `var(--adl-term-col-divider-${index}, ${cumulativePercent(
+                    layout.colFractions,
+                    index + 1,
+                  )}%)`,
+                }}
                 onPointerDown={(event) => onColDividerPointerDown(index, event)}
                 role="separator"
                 aria-orientation="vertical"
@@ -210,7 +223,12 @@ export function TerminalPaneGrid({
               <div
                 key={`row-divider-${index}`}
                 className="adl-terminal-row-divider"
-                style={{ top: `${cumulativePercent(layout.rowFractions, index + 1)}%` }}
+                style={{
+                  top: `var(--adl-term-row-divider-${index}, ${cumulativePercent(
+                    layout.rowFractions,
+                    index + 1,
+                  )}%)`,
+                }}
                 onPointerDown={(event) => onRowDividerPointerDown(index, event)}
                 role="separator"
                 aria-orientation="horizontal"
