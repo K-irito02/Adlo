@@ -239,9 +239,9 @@ export const settingsEn = {
   storageCategoryCredentialsFallback: 'Backup credential files',
   storageCategoryDownloadsDefault: 'Default download folder',
   storageCategoryDatabaseDesc:
-    "The app's core database, storing workspaces, sessions, tasks, approvals, patches and rollbacks, read-only terminal history, clipboard metadata, Git visualization cache, and more.",
+    "The app's core database, storing workspaces, sessions, tasks, approvals, patches and rollbacks, clipboard metadata, Git visualization cache, and more.",
   storageCategoryDatabaseRelated:
-    'Relates to workspace navigation, the session panel, the terminal history area, clipboard history, and Git visualization.',
+    'Relates to workspace navigation, the session panel, clipboard history, and Git visualization.',
   storageCategoryDownloadsDbDesc:
     'Records of browser download tasks, including file name, source, time, and status.',
   storageCategoryDownloadsDbRelated:
