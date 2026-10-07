@@ -26,7 +26,6 @@ import type { SnapshotBridge } from './snapshot';
 import type { ReferenceBridge } from './reference';
 import type { DurableBridge } from './durable';
 import type { ReservedBridge } from './reserved';
-import type { TerminalOutputBridge } from './terminal-output';
 import type { StorageBridge } from './storage';
 
 /** SSE wire event type (formerly in part-stream/partStoreTypes) */
@@ -163,8 +162,6 @@ export interface DigitalLifeBridge {
   clipboard: ClipboardBridge;
   /** 系统状态监控子模块 */
   systemMonitor: SystemMonitorBridge;
-  /** 终端输出持久化子模块 */
-  terminalOutput: TerminalOutputBridge;
   /** 存储路径管理子模块 (状态/预检/切换/重启) */
   storage: StorageBridge;
 }

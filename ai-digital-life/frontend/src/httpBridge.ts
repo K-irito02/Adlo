@@ -1137,15 +1137,6 @@ export function createHttpBridge({
       snapshot: () => call<SystemSnapshot>(baseUrl, '/sysmon/snapshot', GET()),
     } satisfies SystemMonitorBridge,
 
-    // ── Terminal-output domain.
-    terminalOutput: {
-      save: (sessionId: string, output: string) =>
-        call<void>(baseUrl, '/terminal/save', POST({ sessionId, output })),
-      load: (sessionId: string) =>
-        call<string | null>(baseUrl, '/terminal/load', POST({ sessionId })),
-      delete: (sessionId: string) => call<void>(baseUrl, '/terminal/delete', POST({ sessionId })),
-    },
-
     // ── Storage domain (crates/server/src/handlers/storage.rs). B5: no
     // `/storage/restart-backend` route exists — adl-server never restarts
     // itself, and the browser cannot restart the host process, so `restartApp`

@@ -260,7 +260,6 @@ export async function setupPreviewBridge(): Promise<void> {
       // getImageUrl 同理：纯 URL 构造器，恒走 http 实现。
       getImageUrl: http.clipboard.getImageUrl,
     },
-    terminalOutput: http.terminalOutput,
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
       adlServerBaseUrl,
       http.systemMonitor,
