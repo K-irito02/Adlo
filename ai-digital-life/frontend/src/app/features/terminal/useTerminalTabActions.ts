@@ -25,7 +25,6 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
 
   const {
     xtermRef,
-    historySegments,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,
@@ -33,7 +32,6 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
     handleCloseTab,
     handleCloseAllTabs,
     handleKill,
-    deleteHistoryForTab,
   } = useTerminalPtyLifecycle({ activeTab });
 
   const rename = useTabTitleRename(
@@ -45,7 +43,6 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
 
   return {
     xtermRef,
-    historySegments,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,
@@ -53,7 +50,6 @@ export function useTerminalTabActions({ activeTab }: UseTerminalTabActionsParams
     handleCloseTab,
     handleCloseAllTabs,
     handleKill,
-    deleteHistoryForTab,
     ...rename,
   };
 }

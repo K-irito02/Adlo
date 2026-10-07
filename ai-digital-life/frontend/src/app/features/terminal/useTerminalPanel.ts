@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
@@ -7,16 +7,8 @@ import { useTerminalDragDrop } from './useTerminalDragDrop';
 import { useTerminalTabActions } from './useTerminalTabActions';
 import { useTerminalShellManagement } from './useTerminalShellManagement';
 import { useTerminalViewport } from './useTerminalViewport';
-import { useTerminalViewPrefs } from './useTerminalViewPrefs';
 import type { TerminalProfile } from '@stores/types';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
-import type { TerminalHistorySegment } from './terminalHistoryStore';
-import type { TerminalViewMode, TerminalViewPrefs } from './terminalViewPrefs';
-import { nextRegionCollapse, terminalRegionCollapseStore } from './terminalRegionCollapse';
-import type { RegionCollapse, RegionName } from './terminalRegionCollapse';
-
-// 注意：“命令历史（最近命令）”功能已彻底删除，不再提供 TerminalNavigatorMode。
-// 左侧导航固定展示终端目录；只读历史区仍在主内容区按标签展示。
 
 export type TerminalMenuItem =
   | { id: string; separator: true }
@@ -50,12 +42,6 @@ export interface ContextMenuState {
 export interface UseTerminalPanelReturn {
   terminalState: {
     xtermRef: React.RefObject<XtermTerminalHandle | null>;
-    /** 承载「历史区 + 分界线 + 实时终端」的容器引用（拖拽分界线需要它换算比例） */
-    viewContainerRef: React.RefObject<HTMLDivElement | null>;
-    /** 终端视图偏好：单列/双列、历史区位置、历史区占比 */
-    viewPrefs: TerminalViewPrefs;
-    /** 活动标签的只读历史段（重启前的会话快照），供历史视图回放 */
-    historySegments: TerminalHistorySegment[];
     editInputRef: React.RefObject<HTMLInputElement | null>;
     shellMenuRef: React.RefObject<HTMLDivElement | null>;
     terminalMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -72,8 +58,6 @@ export interface UseTerminalPanelReturn {
     navigatorCollapsed: boolean;
     activeTab?: ReturnType<typeof terminalSelectors.useActiveTerminalTab>;
     hasActiveTab: boolean;
-    /** 当前活动标签的只读/实时区域折叠态（'none' = 两区都展开） */
-    regionCollapse: RegionCollapse;
     currentProfile: TerminalProfile;
     currentProfileLabel: string;
     shellMenuItems: TerminalShellMenuItem[];
@@ -101,19 +85,9 @@ export interface UseTerminalPanelReturn {
     setShellMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setTerminalMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setEditValue: React.Dispatch<React.SetStateAction<string>>;
-    setViewMode: (mode: TerminalViewMode) => void;
-    /** 交换「只读历史区」与「实时终端」在主轴上的位置 */
-    swapAreas: () => void;
-    /** 分界线拖拽起始（单列调高度、双列调宽度） */
-    handleDividerPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void;
-    /** 最大化某区域（'history' | 'live'，另一区让位）；已最大化时点可见区即还原两区可见（'none'） */
-    toggleRegionCollapse: (region: RegionName) => void;
-    /** 删除当前标签的全部只读历史，并把折叠态复位为 'none'（实时区随之恢复展开；
-        消费点另有渲染期归一化兜底，见 terminalRegionCollapse.ts） */
-    deleteHistory: (tabId: string) => Promise<void>;
     /** 右键菜单「重命名」：进入内联编辑并关闭菜单 */
     handleRenameFromMenu: () => void;
-    /** 右键菜单「删除」：走完整关闭清理（杀 PTY/释放池/删历史）并关闭菜单 */
+    /** 右键菜单「删除」：走完整关闭清理（杀 PTY/释放池）并关闭菜单 */
     handleDeleteFromMenu: () => void;
     /** 右键菜单「在中间部分显示」：把目标终端标签移动到中心区并关闭菜单 */
     handleOpenInCenterFromMenu: () => void;
@@ -156,7 +130,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
 
   const {
     xtermRef,
-    historySegments,
     handleXtermData,
     handleXtermResize,
     handleCreateTab,
@@ -171,7 +144,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     handleDoubleClick,
     handleEditSubmit,
     handleEditKeyDown,
-    deleteHistoryForTab,
   } = useTerminalTabActions({ activeTab });
 
   const {
@@ -212,74 +184,9 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     handleNavigatorResizeStart,
   } = useTerminalViewport({ terminalTabs });
 
-  const viewContainerRef = useRef<HTMLDivElement | null>(null);
-  const { viewPrefs, setViewMode, swapAreas, handleDividerPointerDown } = useTerminalViewPrefs({
-    containerRef: viewContainerRef,
-    activeTabId: activeTab?.id,
-  });
-
-  // 区域折叠态：按标签记录，持久化到磁盘（重启后记住每个标签的折叠选择）。
-  const [collapseMap, setCollapseMap] = useState<Record<string, RegionCollapse>>(() =>
-    terminalRegionCollapseStore.load(),
-  );
-  useEffect(() => {
-    terminalRegionCollapseStore.save(collapseMap);
-  }, [collapseMap]);
-
-  // 标签关闭后剪掉其折叠态记录：标签 id 每次创建都不同，不剪会随使用无限累积。
-  useEffect(() => {
-    setCollapseMap((prev) => {
-      const liveTabIds = new Set(terminalTabs.map((tab) => tab.id));
-      const stale = Object.keys(prev).filter((tabId) => !liveTabIds.has(tabId));
-      if (stale.length === 0) {
-        return prev;
-      }
-      const next: Record<string, RegionCollapse> = {};
-      for (const [tabId, value] of Object.entries(prev)) {
-        if (liveTabIds.has(tabId)) {
-          next[tabId] = value;
-        }
-      }
-      return next;
-    });
-  }, [terminalTabs]);
-
-  const collapseTabId = activeTab?.id ?? '';
-  const regionCollapse: RegionCollapse = collapseTabId
-    ? (collapseMap[collapseTabId] ?? 'none')
-    : 'none';
-
-  const toggleRegionCollapse = useCallback(
-    (region: RegionName) => {
-      if (!collapseTabId) {
-        return;
-      }
-      setCollapseMap((prev) => ({
-        ...prev,
-        [collapseTabId]: nextRegionCollapse(prev[collapseTabId] ?? 'none', region),
-      }));
-    },
-    [collapseTabId],
-  );
-
-  /**
-   * 删除历史：清索引 + 清全部块 + 折叠状态复位为 'none'。
-   * 实时区若原本被隐藏则随之恢复可见；历史没了 → 最大化/还原按钮自然消失。
-   */
-  const deleteHistory = useCallback(
-    async (tabId: string) => {
-      await deleteHistoryForTab(tabId);
-      setCollapseMap((prev) => ({ ...prev, [tabId]: 'none' }));
-    },
-    [deleteHistoryForTab],
-  );
-
   return {
     terminalState: {
       xtermRef,
-      viewContainerRef,
-      viewPrefs,
-      historySegments,
       editInputRef,
       shellMenuRef,
       terminalMenuRef,
@@ -296,7 +203,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       navigatorCollapsed,
       activeTab,
       hasActiveTab,
-      regionCollapse,
       currentProfile,
       currentProfileLabel,
       shellMenuItems,
@@ -324,11 +230,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       setShellMenuOpen,
       setTerminalMenuOpen,
       setEditValue,
-      setViewMode,
-      swapAreas,
-      handleDividerPointerDown,
-      toggleRegionCollapse,
-      deleteHistory,
       handleRenameFromMenu,
       handleDeleteFromMenu,
       handleOpenInCenterFromMenu,

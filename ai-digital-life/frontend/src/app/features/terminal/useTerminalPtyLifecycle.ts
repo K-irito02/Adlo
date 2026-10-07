@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 import { terminalXtermPool } from './terminalXtermPool';
 import { terminalPtyRuntime } from './terminalPtyRuntime';
@@ -10,10 +10,9 @@ interface PtyLifecycleParams {
 /**
  * 终端 PTY 生命周期的**视图侧 Hook**。
  *
- * 真正的共享状态与全局副作用（输出订阅、历史采集、检查点、关闭落盘）都在应用级
- * 单例 `terminalPtyRuntime` 中；本 Hook 只做三件事：
+ * 真正的共享状态与全局副作用（输出订阅、beforeunload）都在应用级
+ * 单例 `terminalPtyRuntime` 中；本 Hook 只做两件事：
  * - 确保单例已启动（幂等）；
- * - 订阅单例的历史版本，供本视图重渲染只读历史；
  * - 用本视图的 `activeTab` 把输入/缩放/kill 转发给单例，并暴露按标签动作。
  *
  * 因此右面板与中心各挂载一次是安全的：全局工作只跑一份，共享状态由单例拥有。
@@ -24,19 +23,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
   useEffect(() => {
     terminalPtyRuntime.ensureStarted();
   }, []);
-
-  const historyVersion = useSyncExternalStore(
-    terminalPtyRuntime.subscribeHistory,
-    terminalPtyRuntime.getHistoryVersion,
-    terminalPtyRuntime.getHistoryVersion,
-  );
-
-  const historySegments = useMemo(
-    () => terminalPtyRuntime.historySegmentsFor(activeTab?.id),
-    // historyVersion 只是「索引已变化」的渲染触发器，本身不参与计算（版本号驱动重新取值）。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [activeTab?.id, historyVersion],
-  );
 
   // 启动激活：恢复的标签其会话必然已不存在（应用退出时会话被 kill），
   // 因此在启动时对「上一次运行遗留的活动标签」走一次激活（重建会话）。
@@ -83,8 +69,6 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
 
   return {
     xtermRef,
-    historySegments,
-    deleteHistoryForTab: terminalPtyRuntime.deleteHistoryForTab,
     handleXtermData,
     handleXtermResize,
     handleCreateTab: terminalPtyRuntime.handleCreateTab,
