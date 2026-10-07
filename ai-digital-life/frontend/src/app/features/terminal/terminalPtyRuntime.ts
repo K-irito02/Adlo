@@ -1,5 +1,6 @@
 import { useAppStore } from '@stores/slicedStore';
 import type { TerminalProfile } from '@stores/types';
+import { activePaneOf } from '@stores/slices/terminalSliceTypes';
 import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
 import { terminalXtermPool, readTerminalFontFamily, TERMINAL_FONT_SIZE } from './terminalXtermPool';
@@ -14,9 +15,8 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
 /**
  * 按标签归属（`location`）在**所属宿主**容器内查找实时终端画布。
  *
- * 面板与中心终端并存时页面里有两个 `.adl-terminal-canvas`；全局
- * `document.querySelector` 会命中 DOM 顺序靠前者，导致 attachSession 量错容器、
- * 初始 cols/rows 偏差。限定宿主后查即可消除歧义。
+ * 遗留的按宿主定位辅助：多窗格改造后运行时改按窗格身份（`findPaneCanvas`）定位，
+ * 本函数不再被 attachSession 使用（其测试 `terminalCanvasHost.test.ts` 仍覆盖）。
  */
 export function findTerminalCanvasForHost(
   location: 'panel' | 'center' | undefined,
@@ -26,6 +26,17 @@ export function findTerminalCanvasForHost(
       ? '.adl-center-terminal'
       : '.adl-tool-panel--terminal:not(.adl-center-terminal)';
   return document.querySelector(hostSelector)?.querySelector('.adl-terminal-canvas') ?? null;
+}
+
+/**
+ * 按**窗格身份**在其宿主容器内查找实时终端画布。
+ *
+ * 一个标签可含多个窗格，`.adl-terminal-canvas` 在页面里可能有多个；只有按
+ * 窗格 id 限定宿主（B4 在窗格容器上写 `data-pane-id`）才能量到正确的容器尺寸。
+ * B4 落地前页面无 `data-pane-id`，此处返回 null → 退回默认 80×24（可接受的中间态）。
+ */
+export function findPaneCanvas(paneId: string): Element | null {
+  return document.querySelector(`[data-pane-id="${CSS.escape(paneId)}"] .adl-terminal-canvas`);
 }
 
 /**
@@ -40,8 +51,10 @@ export function selectTerminalTabsToClose<
   return scoped.filter((tab) => tab.location !== 'center');
 }
 
-interface ActiveTerminalTab {
-  id: string;
+/** 视图侧转发输入 / 缩放 / kill 时携带的窗格身份。 */
+export interface PaneRef {
+  tabId: string;
+  paneId: string;
   sessionId?: string;
 }
 
@@ -55,15 +68,17 @@ interface ActiveTerminalTab {
  *
  * 所有共享状态（live/created session、pendingInput、activating、ptyDims、tabCwds、
  * oscCarry）都由本类拥有；全局回调只读写这里的字段，第二个实例不再持有空 refs。
+ *
+ * 身份：PTY 会话按**窗格**（`paneId`）归属；`pendingInput` / `activating` 以 paneId 为键。
  */
 export class TerminalPtyRuntime {
   /** 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」） */
   private createdSessionIds = new Set<string>();
   /** 当前仍然存活的 PTY 会话（应用重启后恢复的标签不在其中 → 需要重建） */
   private liveSessionIds = new Set<string>();
-  /** tabId → 重建期间缓冲的用户输入（PTY 就绪后补发） */
+  /** paneId → 重建期间缓冲的用户输入（PTY 就绪后补发） */
   private pendingInput = new Map<string, string>();
-  /** tabId → 进行中的激活 promise（并发激活汇流成一次） */
+  /** paneId → 进行中的激活 promise（并发激活汇流成一次） */
   private activating = new Map<string, Promise<void>>();
   /** sessionId → 已上报 PTY 的尺寸（同尺寸 resize 去重） */
   private ptyDims = new Map<string, { cols: number; rows: number }>();
@@ -101,10 +116,13 @@ export class TerminalPtyRuntime {
       if (event.terminated) {
         this.liveSessionIds.delete(event.sessionId);
         this.ptyDims.delete(event.sessionId);
-        const tabs = useAppStore.getState().terminalTabs;
-        const tab = tabs.find((t) => t.sessionId === event.sessionId);
-        if (tab) {
-          useAppStore.getState().terminalUpdateTab(tab.id, { status: 'terminated' });
+        const state = useAppStore.getState();
+        for (const tab of state.terminalTabs) {
+          const pane = tab.panes.find((p) => p.sessionId === event.sessionId);
+          if (pane) {
+            state.terminalUpdatePane(tab.id, pane.id, { status: 'terminated' });
+            break;
+          }
         }
         return;
       }
@@ -119,10 +137,13 @@ export class TerminalPtyRuntime {
       if (oscScan.cwds.length > 0) {
         const ownerTab = useAppStore
           .getState()
-          .terminalTabs.find((t) => t.sessionId === event.sessionId);
+          .terminalTabs.find((t) => t.panes.some((p) => p.sessionId === event.sessionId));
         if (ownerTab) {
+          const ownerPane = ownerTab.panes.find((p) => p.sessionId === event.sessionId);
           const latestCwd = oscScan.cwds[oscScan.cwds.length - 1];
-          const normalized = normalizeReportedCwd(latestCwd, { msys: ownerTab.profile === 'bash' });
+          const normalized = normalizeReportedCwd(latestCwd, {
+            msys: ownerPane?.profile === 'bash',
+          });
           if (normalized && this.tabCwds.get(ownerTab.id) !== normalized) {
             this.tabCwds.set(ownerTab.id, normalized);
             this.persistTabCwds();
@@ -205,8 +226,33 @@ export class TerminalPtyRuntime {
     window.digitalLife.pty.resize(sessionId, cols, rows);
   };
 
+  /**
+   * 拆解单个窗格的会话资源：kill PTY、释放 xterm 池、清空运行时账本与缓冲输入。
+   * 关闭窗格 / 关闭标签 / 批量关闭共用这一条出口。
+   */
+  private teardownPane = (
+    paneId: string,
+    sessionId: string | undefined,
+    logLabel: string,
+  ): void => {
+    this.pendingInput.delete(paneId);
+    if (!sessionId) {
+      return;
+    }
+    // kill 失败仅日志：关闭流程（store / xterm 池）不受影响。
+    void window.digitalLife.pty
+      .kill(sessionId)
+      .catch((e) => console.warn(`[pty] kill ${logLabel} failed:`, e));
+    terminalXtermPool.release(sessionId);
+    this.liveSessionIds.delete(sessionId);
+    this.ptyDims.delete(sessionId);
+    this.createdSessionIds.delete(sessionId);
+    this.oscCarry.delete(sessionId);
+  };
+
   private attachSession = async (
     tabId: string,
+    paneId: string,
     profile: TerminalProfile,
     workspaceId: string,
     options?: { cwdOverride?: string },
@@ -217,13 +263,17 @@ export class TerminalPtyRuntime {
     this.ensureTabCwdsLoaded();
     const cwd = cwdOverride ?? (workspaceId ? (workspace?.path ?? undefined) : undefined);
 
-    // 双保险：activateTab 已用 activating Map 汇流并发激活，这里再拦一次
-    // 「该标签已有存活 PTY」的调用（attachSession 也可能被 handleCreateTab 等路径直接调用）。
-    const existingTab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
+    // 双保险：activatePane 已用 activating Map 汇流并发激活，这里再拦一次
+    // 「该窗格已有存活 PTY」的调用（attachSession 也可能被 handleCreateTab / handleCreatePane 直接调用）。
+    const existingTab = useAppStore.getState().terminalTabsById[tabId];
     if (!existingTab) {
       return;
     }
-    if (existingTab.sessionId && this.liveSessionIds.has(existingTab.sessionId)) {
+    const existingPane = existingTab.panes.find((p) => p.id === paneId);
+    if (!existingPane) {
+      return;
+    }
+    if (existingPane.sessionId && this.liveSessionIds.has(existingPane.sessionId)) {
       return;
     }
 
@@ -232,11 +282,11 @@ export class TerminalPtyRuntime {
       // （querySelector 返回 null），或已挂载但尚未布局（零尺寸，量出的列数极小）。
       // 帧数 + 墙钟双上限：面板隐藏/窗口最小化时 rAF 会被节流甚至暂停。
       const deadline = performance.now() + 1000;
-      // 面板与中心终端并存时页面里有两个 `.adl-terminal-canvas`，全局 querySelector
-      // 会量错宿主容器导致初始 cols/rows 偏差。按标签归属（location）限定到所属宿主后再查。
+      // 一个标签可含多个窗格，页面里可能有多个 `.adl-terminal-canvas`；按窗格身份
+      // （data-pane-id 宿主）限定后再查，避免量错容器导致初始 cols/rows 偏差。
       let container: HTMLElement | null = null;
       for (let frame = 0; frame < 60; frame++) {
-        const candidate = findTerminalCanvasForHost(existingTab.location);
+        const candidate = findPaneCanvas(paneId);
         if (
           candidate instanceof HTMLElement &&
           candidate.clientWidth > 0 &&
@@ -297,13 +347,16 @@ export class TerminalPtyRuntime {
       if (!result.ok) {
         const errorMsg = result.error?.message || 'Unknown error';
         console.error('Terminal creation failed:', errorMsg);
-        useAppStore.getState().terminalUpdateTab(tabId, { status: 'terminated' });
+        useAppStore.getState().terminalUpdatePane(tabId, paneId, { status: 'terminated' });
         return;
       }
 
       const sessionId = result.data.sessionId;
-      // PTY 创建期间标签可能已被关闭：此时这个 PTY 已成孤儿，立即回收。
-      if (!useAppStore.getState().terminalTabs.some((t) => t.id === tabId)) {
+      // PTY 创建期间窗格（或其标签）可能已被关闭：此时这个 PTY 已成孤儿，立即回收。
+      const paneStillExists = useAppStore
+        .getState()
+        .terminalTabsById[tabId]?.panes.some((p) => p.id === paneId);
+      if (!paneStillExists) {
         void window.digitalLife.pty.kill(sessionId);
         return;
       }
@@ -312,29 +365,32 @@ export class TerminalPtyRuntime {
       this.ptyDims.set(sessionId, { cols, rows });
       // 出生尺寸同步给池：XtermTerminal 挂载时 acquire 消费。
       terminalXtermPool.setBirthDims(sessionId, cols, rows);
-      useAppStore.getState().terminalUpdateTab(tabId, { sessionId, status: 'running' });
+      useAppStore.getState().terminalUpdatePane(tabId, paneId, { sessionId, status: 'running' });
     } catch (err) {
       console.error('Terminal creation error:', err);
-      useAppStore.getState().terminalUpdateTab(tabId, { status: 'terminated' });
+      useAppStore.getState().terminalUpdatePane(tabId, paneId, { status: 'terminated' });
     }
   };
 
-  activateTab = (tabId: string): Promise<void> => {
-    const inFlight = this.activating.get(tabId);
+  activatePane = (tabId: string, paneId: string): Promise<void> => {
+    const inFlight = this.activating.get(paneId);
     if (inFlight) {
       return inFlight;
     }
 
     const run = (async () => {
       try {
-        const tab = useAppStore.getState().terminalTabs.find((t) => t.id === tabId);
+        const tab = useAppStore.getState().terminalTabsById[tabId];
         if (!tab) {
           return;
         }
-        const sessionId = tab.sessionId;
-        if (sessionId && this.liveSessionIds.has(sessionId)) {
+        const pane = tab.panes.find((p) => p.id === paneId);
+        if (!pane) {
+          return;
+        }
+        if (pane.sessionId && this.liveSessionIds.has(pane.sessionId)) {
           // PTY 存活：pool entry 已有完整 buffer，只需 fit 和 focus。
-          const pooled = terminalXtermPool.get(sessionId);
+          const pooled = terminalXtermPool.get(pane.sessionId);
           if (pooled) {
             pooled.fitAddon.fit();
             pooled.terminal.focus();
@@ -345,16 +401,16 @@ export class TerminalPtyRuntime {
         this.ensureTabCwdsLoaded();
         const rememberedCwd = this.tabCwds.get(tabId);
 
-        await this.attachSession(tabId, tab.profile, tab.workspaceId, {
+        await this.attachSession(tabId, paneId, pane.profile, tab.workspaceId, {
           cwdOverride: rememberedCwd,
         });
 
         // 补发 PTY 创建前缓冲的输入。只补发给「本次新建、且确实存活」的会话。
-        const pending = this.pendingInput.get(tabId) ?? '';
-        this.pendingInput.delete(tabId);
+        const pending = this.pendingInput.get(paneId) ?? '';
+        this.pendingInput.delete(paneId);
         const liveSessionId = useAppStore
           .getState()
-          .terminalTabs.find((t) => t.id === tabId)?.sessionId;
+          .terminalTabsById[tabId]?.panes.find((p) => p.id === paneId)?.sessionId;
         if (pending && liveSessionId && this.liveSessionIds.has(liveSessionId)) {
           window.digitalLife.pty.input(liveSessionId, pending);
         }
@@ -363,10 +419,10 @@ export class TerminalPtyRuntime {
       }
     })();
 
-    this.activating.set(tabId, run);
+    this.activating.set(paneId, run);
     void run.then(() => {
-      if (this.activating.get(tabId) === run) {
-        this.activating.delete(tabId);
+      if (this.activating.get(paneId) === run) {
+        this.activating.delete(paneId);
       }
     });
     return run;
@@ -374,45 +430,75 @@ export class TerminalPtyRuntime {
 
   // ---------------------------------------------------------------- 实例动作
 
-  handleXtermData = (activeTab: ActiveTerminalTab | undefined, data: string): void => {
-    if (!activeTab) {
+  handleXtermData = (pane: PaneRef | undefined, data: string): void => {
+    if (!pane) {
       return;
     }
-    const sessionId = activeTab.sessionId;
+    const sessionId = pane.sessionId;
     if (!sessionId || !this.liveSessionIds.has(sessionId)) {
       // PTY 尚未就绪：缓冲输入并触发激活。xterm 焦点上报的 \x1b[I/\x1b[O 不算用户输入。
       // eslint-disable-next-line no-control-regex
       const userInput = data.replace(/\x1b\[[IO]/g, '');
       if (userInput) {
-        const buffered = this.pendingInput.get(activeTab.id) ?? '';
-        this.pendingInput.set(activeTab.id, buffered + userInput);
+        const buffered = this.pendingInput.get(pane.paneId) ?? '';
+        this.pendingInput.set(pane.paneId, buffered + userInput);
       }
-      void this.activateTab(activeTab.id);
+      void this.activatePane(pane.tabId, pane.paneId);
       return;
     }
     window.digitalLife.pty.input(sessionId, data);
   };
 
-  handleXtermResize = (
-    activeTab: ActiveTerminalTab | undefined,
-    cols: number,
-    rows: number,
-  ): void => {
-    const targetSession = activeTab?.sessionId;
+  handleXtermResize = (pane: PaneRef | undefined, cols: number, rows: number): void => {
+    const targetSession = pane?.sessionId;
     if (!targetSession || !this.liveSessionIds.has(targetSession)) {
       return;
     }
     this.applySessionSize(targetSession, cols, rows);
   };
 
-  handleKill = (activeTab: ActiveTerminalTab | undefined): void => {
-    const sessionId = activeTab?.sessionId;
-    if (sessionId) {
-      window.digitalLife.pty.kill(sessionId);
-      this.liveSessionIds.delete(sessionId);
-      // 按标签更新：中心标签不是面板的 terminalActiveTabId，必须用 per-tab setter。
-      useAppStore.getState().terminalUpdateTab(activeTab.id, { status: 'terminated' });
+  handleKillPane = (pane: PaneRef | undefined): void => {
+    const sessionId = pane?.sessionId;
+    if (!pane || !sessionId) {
+      return;
     }
+    window.digitalLife.pty.kill(sessionId);
+    this.liveSessionIds.delete(sessionId);
+    this.ptyDims.delete(sessionId);
+    this.oscCarry.delete(sessionId);
+    // 按窗格更新：一个标签有多个窗格，必须只标记被 kill 的那个。
+    useAppStore.getState().terminalUpdatePane(pane.tabId, pane.paneId, { status: 'terminated' });
+  };
+
+  handleCreatePane = async (tabId: string, profile?: TerminalProfile): Promise<void> => {
+    const tab = useAppStore.getState().terminalTabsById[tabId];
+    if (!tab) {
+      return;
+    }
+    const paneId = useAppStore.getState().terminalAddPane(tabId, profile);
+    if (!paneId) {
+      return;
+    }
+    await this.attachSession(tabId, paneId, profile ?? tab.profile, tab.workspaceId);
+  };
+
+  handleClosePane = (tabId: string, paneId: string): void => {
+    const tab = useAppStore.getState().terminalTabsById[tabId];
+    if (!tab) {
+      return;
+    }
+    // 最后一个窗格：不再删窗格，改走「关闭整个标签」。
+    if (tab.panes.length === 1) {
+      this.handleCloseTab(tabId);
+      return;
+    }
+    const pane = tab.panes.find((p) => p.id === paneId);
+    if (!pane) {
+      return;
+    }
+    this.teardownPane(paneId, pane.sessionId, 'on pane close');
+    // store 内在移除活动窗格时重设 activePaneId。
+    useAppStore.getState().terminalRemovePane(tabId, paneId);
   };
 
   handleCreateTab = async (profile?: TerminalProfile, workspaceId?: string): Promise<void> => {
@@ -429,8 +515,13 @@ export class TerminalPtyRuntime {
     }
 
     useAppStore.getState().terminalCreateTab(finalProfile, workspaceId ?? '');
-    const createdTabId = useAppStore.getState().terminalActiveTabId;
-    await this.attachSession(createdTabId, finalProfile, workspaceId ?? '');
+    const createdTab =
+      useAppStore.getState().terminalTabsById[useAppStore.getState().terminalActiveTabId];
+    const firstPane = createdTab?.panes[0];
+    if (!createdTab || !firstPane) {
+      return;
+    }
+    await this.attachSession(createdTab.id, firstPane.id, finalProfile, workspaceId ?? '');
   };
 
   handleSelectTab = (tabId: string): void => {
@@ -439,24 +530,19 @@ export class TerminalPtyRuntime {
       return;
     }
     useAppStore.getState().terminalSelectTab(tabId);
-    void this.activateTab(tabId);
+    const tab = useAppStore.getState().terminalTabsById[tabId];
+    if (!tab) {
+      return;
+    }
+    const pane = activePaneOf(tab);
+    if (pane) {
+      void this.activatePane(tab.id, pane.id);
+    }
   };
 
   handleCloseTab = (tabId: string): void => {
-    const tabs = useAppStore.getState().terminalTabs;
-    const tab = tabs.find((t) => t.id === tabId);
-    if (tab?.sessionId) {
-      // kill 失败仅日志：标签关闭流程（store / xterm 池）不受影响。
-      void window.digitalLife.pty
-        .kill(tab.sessionId)
-        .catch((e) => console.warn('[pty] kill on tab close failed:', e));
-      terminalXtermPool.release(tab.sessionId);
-      this.liveSessionIds.delete(tab.sessionId);
-      this.ptyDims.delete(tab.sessionId);
-      this.createdSessionIds.delete(tab.sessionId);
-      this.oscCarry.delete(tab.sessionId);
-    }
-    this.pendingInput.delete(tabId);
+    const tab = useAppStore.getState().terminalTabsById[tabId];
+    tab?.panes.forEach((pane) => this.teardownPane(pane.id, pane.sessionId, 'on tab close'));
     if (this.tabCwds.delete(tabId)) {
       this.persistTabCwds();
     }
@@ -468,17 +554,7 @@ export class TerminalPtyRuntime {
     const tabsToClose = selectTerminalTabsToClose(tabs, workspaceId);
     tabsToClose.forEach((tab) => {
       this.tabCwds.delete(tab.id);
-      this.pendingInput.delete(tab.id);
-      if (tab.sessionId) {
-        void window.digitalLife.pty
-          .kill(tab.sessionId)
-          .catch((e) => console.warn('[pty] kill on close-all failed:', e));
-        terminalXtermPool.release(tab.sessionId);
-        this.liveSessionIds.delete(tab.sessionId);
-        this.ptyDims.delete(tab.sessionId);
-        this.createdSessionIds.delete(tab.sessionId);
-        this.oscCarry.delete(tab.sessionId);
-      }
+      tab.panes.forEach((pane) => this.teardownPane(pane.id, pane.sessionId, 'on close-all'));
     });
     this.persistTabCwds();
     useAppStore.getState().terminalCloseAllTabs(workspaceId);

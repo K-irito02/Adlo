@@ -81,4 +81,24 @@ describe('terminalPtyRuntime 应用级单例', () => {
 
     expect(writeSpy).toHaveBeenCalledTimes(2);
   });
+
+  it('handleCreatePane adds a pane and creates its PTY', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
+    const tab = useAppStore.getState().terminalTabsById[tabId];
+    expect(tab.panes).toHaveLength(2);
+    expect(tab.panes[1].sessionId).toBeTruthy();
+  });
+
+  it('handleClosePane kills only that pane; last pane closes the tab', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    const paneId = useAppStore.getState().terminalAddPane(tabId, 'bash');
+    terminalPtyRuntime.handleClosePane(tabId, paneId);
+    expect(useAppStore.getState().terminalTabsById[tabId].panes).toHaveLength(1);
+    const only = useAppStore.getState().terminalTabsById[tabId].panes[0].id;
+    terminalPtyRuntime.handleClosePane(tabId, only);
+    expect(useAppStore.getState().terminalTabsById[tabId]).toBeUndefined();
+  });
 });
