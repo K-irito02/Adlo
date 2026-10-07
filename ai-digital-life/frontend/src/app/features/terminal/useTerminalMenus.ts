@@ -184,9 +184,6 @@ export function useTerminalMenus({
     handleDeleteFromMenu,
     handleOpenInCenterFromMenu,
     closeContextMenu,
-    handleCopy,
-    handlePaste,
-    handleClear,
     updateProfile,
   };
 }

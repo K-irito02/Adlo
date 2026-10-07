@@ -63,6 +63,37 @@
   min-height: 0;
 }
 
+/* 多窗格容器：批次 B 为纵向单列平铺，各窗格均分高度（均分/自由布局由批次 C 引入） */
+.adl-terminal-pane-grid {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+}
+
+/* 单个窗格包装层：flex 子项均分高度，承载该窗格的 .adl-terminal-live 与错误横幅 */
+.adl-terminal-pane {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-height: 0;
+  position: relative;
+}
+
+/* 相邻窗格间的分隔线 */
+.adl-terminal-pane + .adl-terminal-pane {
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* 窗格内的错误横幅贴底（画布为绝对定位，横幅脱离其覆盖） */
+.adl-terminal-pane .adl-terminal-error-note {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
 /* 无任何终端标签时，主内容区底色与当前主题背景一致（有标签时保留终端底色） */
 .adl-tool-primary__scroll--terminal.is-empty {
   background: var(--bg);
@@ -270,4 +301,10 @@
 
 .adl-terminal-region-actions__btn:hover {
   color: var(--text-primary);
+}
+
+/* 「关闭窗口」按钮：hover 变红，复用项目 danger-hover 配色 */
+.adl-terminal-region-actions__btn--danger:hover {
+  color: var(--danger);
+  background: var(--danger-soft);
 }

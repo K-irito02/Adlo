@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { terminalSelectors } from '@stores/selectors';
-import { IconAlertTriangle, IconPlus } from '@icons';
+import { IconPlus, IconAddTerminal } from '@icons';
 import { SettingsSelect } from '@components/settings/SettingsSelect';
-import { XtermTerminal } from '@components/terminal/XtermTerminal';
-import { TerminalRegionActions } from '@components/terminal/TerminalRegionActions';
+import { TooltipSimple } from '@components/Tooltip';
+import { TerminalPaneGrid } from '@components/terminal/TerminalPaneGrid';
+import { TerminalPaneView } from '@components/terminal/TerminalPaneView';
 import { TerminalMenuDropdown } from '@features/terminal/TerminalMenuDropdown';
 import type { TerminalProfile } from '@stores/types';
 import { useTCopy } from '@i18n/useTCopy';
@@ -148,6 +149,13 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
   const tab = useAppStore((s) => s.terminalTabsById[terminalTabId]);
   const view = useTerminalView(tab);
 
+  // 窗格最大化态为视图本地态：切换标签或增删窗格时复位。
+  const [maximizedPaneId, setMaximizedPaneId] = useState<string | null>(null);
+  const paneCount = tab?.panes.length ?? 0;
+  useEffect(() => {
+    setMaximizedPaneId(null);
+  }, [terminalTabId, paneCount]);
+
   if (!tab) {
     return null;
   }
@@ -158,6 +166,16 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
         <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files" />
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          <TooltipSimple content={t.terminalAddPane} placement="top">
+            <button
+              type="button"
+              className="adl-tool-context__iconbtn"
+              onClick={() => view.handleAddPane()}
+              aria-label={t.terminalAddPane}
+            >
+              <IconAddTerminal size={14} decorative />
+            </button>
+          </TooltipSimple>
           <TerminalMenuDropdown
             menuOpen={view.terminalMenuOpen}
             menuRef={view.terminalMenuRef}
@@ -171,30 +189,36 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
       <div className="adl-tool-surface adl-tool-surface--files">
         <div className="adl-tool-primary">
           <div className="adl-tool-primary__scroll adl-tool-primary__scroll--terminal">
-            <div className="adl-terminal-live">
-              <XtermTerminal
-                ref={view.xtermRef}
-                sessionId={tab.sessionId ?? null}
-                className="adl-terminal-canvas"
-                onData={view.handleXtermData}
-                onResize={view.handleXtermResize}
-              />
-              <TerminalRegionActions
-                onClear={view.handleClear}
-                titles={{
-                  clearLabel: t.terminalLiveClearLabel,
-                  clearTitle: t.terminalLiveClearTitle,
-                }}
-                alwaysVisible
-              />
-            </div>
-
-            {tab.status === 'terminated' && !tab.sessionId && (
-              <div className="adl-terminal-error-note">
-                <IconAlertTriangle size={14} decorative />
-                <span>{t.terminalShellNotFound}</span>
-              </div>
-            )}
+            <TerminalPaneGrid
+              panes={tab.panes}
+              activePaneId={tab.activePaneId}
+              maximizedPaneId={maximizedPaneId}
+              onActivate={(paneId) => view.handleSelectPane(paneId)}
+              onClose={(paneId) => view.handleClosePane(paneId)}
+              onToggleMaximize={(paneId) =>
+                setMaximizedPaneId((cur) => (cur === paneId ? null : paneId))
+              }
+              renderPane={(pane) => (
+                <TerminalPaneView
+                  pane={pane}
+                  isActive={pane.id === tab.activePaneId}
+                  isMaximized={maximizedPaneId === pane.id}
+                  onActivate={() => view.handleSelectPane(pane.id)}
+                  onClose={() => view.handleClosePane(pane.id)}
+                  onToggleMaximize={() =>
+                    setMaximizedPaneId((cur) => (cur === pane.id ? null : pane.id))
+                  }
+                  onData={(data) => view.handleXtermData(pane.id, data)}
+                  onResize={(cols, rows) => view.handleXtermResize(pane.id, cols, rows)}
+                  titles={{
+                    clear: t.terminalPaneClearLabel,
+                    maximize: t.terminalPaneMaximize,
+                    restore: t.terminalPaneRestore,
+                    close: t.terminalPaneClose,
+                  }}
+                />
+              )}
+            />
           </div>
         </div>
       </div>

@@ -13,12 +13,19 @@ const mockT = new Proxy({} as Record<string, string>, {
 }) as unknown as CopyDict;
 
 function makeTab(id: string, title: string, location?: 'panel' | 'center'): TerminalTabState {
+  const pane = {
+    id: `${id}-pane`,
+    profile: 'powershell',
+    status: 'idle',
+    colorIndex: 0,
+  } as const;
   return {
     id,
     workspaceId: '',
     title,
     profile: 'powershell',
-    status: 'idle',
+    panes: [pane],
+    activePaneId: pane.id,
     isPinned: false,
     sortOrder: 0,
     location,

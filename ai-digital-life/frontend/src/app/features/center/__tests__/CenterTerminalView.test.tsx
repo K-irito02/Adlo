@@ -11,14 +11,15 @@ import type { TerminalTabState } from '@stores/slices/terminalSlice';
 // terminal 回归套件覆盖。
 vi.mock('@features/terminal/useTerminalPtyLifecycle', () => ({
   useTerminalPtyLifecycle: () => ({
-    xtermRef: { current: null },
     handleXtermData: vi.fn(),
     handleXtermResize: vi.fn(),
+    handleKillPane: vi.fn(),
+    handleCreatePane: vi.fn(),
+    handleClosePane: vi.fn(),
     handleCreateTab: vi.fn(),
     handleSelectTab: vi.fn(),
     handleCloseTab: vi.fn(),
     handleCloseAllTabs: vi.fn(),
-    handleKill: vi.fn(),
   }),
 }));
 
@@ -34,18 +35,29 @@ const t = {
   terminalPaste: '粘贴',
   terminalClear: '清除',
   terminalKillProcess: '杀死进程',
-  terminalLiveClearLabel: '清空',
-  terminalLiveClearTitle: '清空标题',
+  terminalAddPane: '增加终端',
+  terminalPaneClose: '关闭窗口',
+  terminalPaneClearLabel: '清空内容',
+  terminalPaneClearTitle: '清空该终端窗口当前显示的内容（等同 clear 命令）',
+  terminalPaneMaximize: '最大化',
+  terminalPaneRestore: '还原',
   terminalShellNotFound: '未找到终端程序',
 } as unknown as CopyDict;
 
 function makeTerminalTab(id: string, location: 'panel' | 'center'): TerminalTabState {
+  const pane = {
+    id: `${id}-pane0`,
+    profile: 'powershell',
+    status: 'idle',
+    colorIndex: 0,
+  } as const;
   return {
     id,
     workspaceId: '',
     title: 'PowerShell',
     profile: 'powershell',
-    status: 'idle',
+    panes: [pane],
+    activePaneId: pane.id,
     isPinned: false,
     sortOrder: 1,
     location,
@@ -157,7 +169,7 @@ describe('CenterTerminalView', () => {
     expect(created?.workspaceId).toBe('');
   });
 
-  it('terminalTabId 非空时工具栏只剩菜单，主区只有一个实时终端画布', () => {
+  it('terminalTabId 非空时工具栏含菜单与增加终端，主区渲染一个窗格', () => {
     const centerTerm = makeTerminalTab('tc', 'center');
     useAppStore.setState({
       terminalTabs: [centerTerm],
@@ -168,22 +180,30 @@ describe('CenterTerminalView', () => {
     const { container } = renderView('c1', 'tc');
 
     expect(screen.getByRole('button', { name: '更多终端操作' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '增加终端' })).toBeTruthy();
     // 旧的单双列 / 交换 / 新建终端 / 目录导航入口全部移除
     expect(screen.queryByRole('button', { name: '单列' })).toBeNull();
     expect(screen.queryByRole('button', { name: '双列' })).toBeNull();
     expect(screen.queryByRole('button', { name: /交换/ })).toBeNull();
     expect(screen.queryByRole('button', { name: '新建终端' })).toBeNull();
     expect(screen.queryByRole('button', { name: '终端目录' })).toBeNull();
-    // 主区只渲染一个实时终端
+    // 主区渲染一个窗格，内含一个实时终端
+    expect(container.querySelectorAll('.adl-terminal-pane')).toHaveLength(1);
     expect(container.querySelectorAll('.adl-terminal-canvas')).toHaveLength(1);
     expect(container.querySelector('.adl-terminal-live')).not.toBeNull();
   });
 
   it('会话已终止且无 session 时用项目 warning SVG 图标（非硬编码字符）', () => {
+    const deadPane = {
+      id: 'td-pane0',
+      profile: 'powershell',
+      status: 'terminated',
+      colorIndex: 0,
+    } as const;
     const dead: TerminalTabState = {
       ...makeTerminalTab('td', 'center'),
-      status: 'terminated',
-      sessionId: undefined,
+      panes: [deadPane],
+      activePaneId: deadPane.id,
     };
     useAppStore.setState({
       terminalTabs: [dead],

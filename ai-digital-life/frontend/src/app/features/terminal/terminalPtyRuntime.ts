@@ -13,27 +13,11 @@ const SHELL_MAP: Record<TerminalProfile, string> = {
 };
 
 /**
- * 按标签归属（`location`）在**所属宿主**容器内查找实时终端画布。
- *
- * 遗留的按宿主定位辅助：多窗格改造后运行时改按窗格身份（`findPaneCanvas`）定位，
- * 本函数不再被 attachSession 使用（其测试 `terminalCanvasHost.test.ts` 仍覆盖）。
- */
-export function findTerminalCanvasForHost(
-  location: 'panel' | 'center' | undefined,
-): Element | null {
-  const hostSelector =
-    location === 'center'
-      ? '.adl-center-terminal'
-      : '.adl-tool-panel--terminal:not(.adl-center-terminal)';
-  return document.querySelector(hostSelector)?.querySelector('.adl-terminal-canvas') ?? null;
-}
-
-/**
  * 按**窗格身份**在其宿主容器内查找实时终端画布。
  *
  * 一个标签可含多个窗格，`.adl-terminal-canvas` 在页面里可能有多个；只有按
- * 窗格 id 限定宿主（B4 在窗格容器上写 `data-pane-id`）才能量到正确的容器尺寸。
- * B4 落地前页面无 `data-pane-id`，此处返回 null → 退回默认 80×24（可接受的中间态）。
+ * 窗格 id 限定宿主（`TerminalPaneView` 在窗格容器上写 `data-pane-id`）才能量到
+ * 正确的容器尺寸。
  */
 export function findPaneCanvas(paneId: string): Element | null {
   return document.querySelector(`[data-pane-id="${CSS.escape(paneId)}"] .adl-terminal-canvas`);
