@@ -58,4 +58,8 @@ export const terminalZh = {
   terminalLayoutModeLabel: '终端布局模式',
   terminalAutoLayout: '恢复自动布局',
   terminalPaneResizeDivider: '调整窗格大小',
+  terminalLayoutCardSwap: '交换位置',
+  terminalLayoutCardSwapConfirm: '确认交换位置',
+  terminalLayoutCardSwapCancel: '取消',
+  terminalLayoutCardAnnotateHint: '双击方块标注（限 1 字符）',
 } as const;

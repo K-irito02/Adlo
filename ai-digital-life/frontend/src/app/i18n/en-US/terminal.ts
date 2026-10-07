@@ -58,4 +58,8 @@ export const terminalEn = {
   terminalLayoutModeLabel: 'Terminal layout mode',
   terminalAutoLayout: 'Restore auto layout',
   terminalPaneResizeDivider: 'Resize pane',
+  terminalLayoutCardSwap: 'Swap positions',
+  terminalLayoutCardSwapConfirm: 'Confirm swap',
+  terminalLayoutCardSwapCancel: 'Cancel',
+  terminalLayoutCardAnnotateHint: 'Double-click a tile to label it (1 character)',
 } as const;

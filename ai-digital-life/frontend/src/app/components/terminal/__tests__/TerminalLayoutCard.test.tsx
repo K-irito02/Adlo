@@ -1,9 +1,22 @@
 // src/app/components/terminal/__tests__/TerminalLayoutCard.test.tsx
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
 import { paneColor } from '@features/terminal/paneColors';
 import { TerminalLayoutCard } from '../TerminalLayoutCard';
+
+// 用哨兵文案 mock useTCopy，断言卡片显示的是 copy（而非硬编码字面量）。
+const COPY = vi.hoisted(() => ({
+  terminalLayoutCardSwap: 'SWAP_TOGGLE',
+  terminalLayoutCardSwapConfirm: 'SWAP_CONFIRM',
+  terminalLayoutCardSwapCancel: 'SWAP_CANCEL',
+  terminalLayoutCardAnnotateHint: 'ANNOTATE_HINT',
+}));
+
+vi.mock('@i18n/useTCopy', () => ({
+  useTCopy: () => ({ t: COPY, locale: 'en-US', formatT: vi.fn() }),
+}));
 
 function makePanes(count: number): TerminalPane[] {
   return Array.from({ length: count }, (_, index) => ({
@@ -68,10 +81,126 @@ describe('TerminalLayoutCard', () => {
     expect(squares[1].textContent).toBe('中');
   });
 
-  it('exposes a swap-mode entry button', () => {
+  it('renders copy from useTCopy rather than hardcoded literals', () => {
     const { container } = renderCard(makePanes(2));
-    const toggle = container.querySelector('.adl-layout-card__swap-toggle');
-    expect(toggle).not.toBeNull();
-    expect(screen.getByRole('button', { name: '交换位置' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap })).not.toBeNull();
+    expect(container.querySelector('.adl-layout-card__hint')?.textContent).toBe(
+      COPY.terminalLayoutCardAnnotateHint,
+    );
+  });
+});
+
+describe('TerminalLayoutCard reorder', () => {
+  it('calls onMove(fromIndex, toIndex) when a square is dropped onto another', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    fireEvent.dragStart(squares[0]);
+    fireEvent.dragOver(squares[2]);
+    fireEvent.drop(squares[2]);
+    expect(onMove).toHaveBeenCalledWith(0, 2);
+  });
+
+  it('does not call onMove when a square is dropped on itself', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    fireEvent.dragStart(squares[1]);
+    fireEvent.drop(squares[1]);
+    expect(onMove).not.toHaveBeenCalled();
+  });
+});
+
+describe('TerminalLayoutCard swap mode', () => {
+  it('confirms onSwap(a, b) after selecting two squares, then exits mode', async () => {
+    const user = userEvent.setup();
+    const { container, onSwap } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+
+    const squares = squaresOf(container);
+    await user.click(squares[0]);
+    await user.click(squares[2]);
+
+    const confirm = screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm });
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+
+    expect(onSwap).toHaveBeenCalledWith('p1', 'p3');
+    expect(screen.queryByRole('button', { name: COPY.terminalLayoutCardSwapConfirm })).toBeNull();
+  });
+
+  it('disables confirm until two squares are selected', async () => {
+    const user = userEvent.setup();
+    const { container, onSwap } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+
+    const confirm = screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm });
+    expect(confirm).toBeDisabled();
+
+    await user.click(squaresOf(container)[0]);
+    expect(confirm).toBeDisabled();
+
+    await user.click(squaresOf(container)[1]);
+    expect(confirm).toBeEnabled();
+    expect(onSwap).not.toHaveBeenCalled();
+  });
+
+  it('exits swap mode via cancel without swapping', async () => {
+    const user = userEvent.setup();
+    const { container, onSwap } = renderCard(makePanes(2));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+    await user.click(squaresOf(container)[0]);
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapCancel }));
+
+    expect(onSwap).not.toHaveBeenCalled();
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap })).not.toBeNull();
+    expect(screen.queryByRole('button', { name: COPY.terminalLayoutCardSwapConfirm })).toBeNull();
+  });
+});
+
+describe('TerminalLayoutCard label editing', () => {
+  it('commits the label on Enter after a double-click', async () => {
+    const user = userEvent.setup();
+    const { container, onLabelChange } = renderCard(makePanes(2));
+    await user.dblClick(squaresOf(container)[0]);
+
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveAttribute('maxLength', '1');
+    await user.type(input, '中');
+    await user.keyboard('{Enter}');
+
+    expect(onLabelChange).toHaveBeenCalledWith('p1', '中');
+  });
+
+  it('truncates input to the first code point on commit', () => {
+    const { container, onLabelChange } = renderCard(makePanes(2));
+    fireEvent.doubleClick(squaresOf(container)[0]);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '中文' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(onLabelChange).toHaveBeenCalledWith('p1', '中');
+  });
+
+  it('commits the label on blur', () => {
+    const { container, onLabelChange } = renderCard(makePanes(2));
+    fireEvent.doubleClick(squaresOf(container)[0]);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '中' } });
+    fireEvent.blur(input);
+
+    expect(onLabelChange).toHaveBeenCalledWith('p1', '中');
+  });
+
+  it('cancels editing on Escape without committing', () => {
+    const { container, onLabelChange } = renderCard(makePanes(2));
+    fireEvent.doubleClick(squaresOf(container)[0]);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '中' } });
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(onLabelChange).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).toBeNull();
   });
 });
