@@ -74,6 +74,12 @@ export interface UseTerminalPanelReturn {
     handleAddPane: () => void;
     handleClosePane: (paneId: string) => void;
     handleSelectPane: (paneId: string) => void;
+    /** 自定义布局卡片：按索引移动窗格（复用 `terminalReorderPanes`） */
+    handleReorderPanes: (fromIndex: number, toIndex: number) => void;
+    /** 自定义布局卡片：交换两个窗格（复用 `terminalSwapPanes`） */
+    handleSwapPanes: (a: string, b: string) => void;
+    /** 自定义布局卡片：写入窗格标注（限 1 码点，复用 `terminalUpdatePane`） */
+    handlePaneLabelChange: (paneId: string, label: string) => void;
     handleTogglePin: () => void;
     handleDoubleClick: (tabId: string, title: string) => void;
     handleEditSubmit: () => void;
@@ -113,11 +119,15 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   const terminalTabs = useMemo(() => allTerminalTabs.filter(isPanelTab), [allTerminalTabs]);
   const terminalActiveTabId = terminalSelectors.useTerminalActiveTabId();
 
-  const { terminalReorderTabs } = useAppStore(
-    useShallow((state) => ({
-      terminalReorderTabs: state.terminalReorderTabs,
-    })),
-  );
+  const { terminalReorderTabs, terminalReorderPanes, terminalSwapPanes, terminalUpdatePane } =
+    useAppStore(
+      useShallow((state) => ({
+        terminalReorderTabs: state.terminalReorderTabs,
+        terminalReorderPanes: state.terminalReorderPanes,
+        terminalSwapPanes: state.terminalSwapPanes,
+        terminalUpdatePane: state.terminalUpdatePane,
+      })),
+    );
 
   const activeTab = useMemo(
     () => terminalTabs.find((tab) => tab.id === terminalActiveTabId) ?? terminalTabs[0],
@@ -174,6 +184,49 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       }
     },
     [activeTab],
+  );
+
+  // 自定义布局卡片动作：以当前标签的 `panes` 顺序为基准，复用 B 阶段 store 动作。
+  const handleReorderPanes = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (!activeTab) {
+        return;
+      }
+      const ids = activeTab.panes.map((pane) => pane.id);
+      if (
+        fromIndex < 0 ||
+        fromIndex >= ids.length ||
+        toIndex < 0 ||
+        toIndex >= ids.length ||
+        fromIndex === toIndex
+      ) {
+        return;
+      }
+      const [moved] = ids.splice(fromIndex, 1);
+      ids.splice(toIndex, 0, moved);
+      terminalReorderPanes(activeTab.id, ids);
+    },
+    [activeTab, terminalReorderPanes],
+  );
+
+  const handleSwapPanes = useCallback(
+    (a: string, b: string) => {
+      if (activeTab) {
+        terminalSwapPanes(activeTab.id, a, b);
+      }
+    },
+    [activeTab, terminalSwapPanes],
+  );
+
+  const handlePaneLabelChange = useCallback(
+    (paneId: string, label: string) => {
+      if (activeTab) {
+        terminalUpdatePane(activeTab.id, paneId, {
+          label: Array.from(label).slice(0, 1).join(''),
+        });
+      }
+    },
+    [activeTab, terminalUpdatePane],
   );
 
   const {
@@ -244,6 +297,9 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       handleAddPane,
       handleClosePane,
       handleSelectPane,
+      handleReorderPanes,
+      handleSwapPanes,
+      handlePaneLabelChange,
       handleTogglePin,
       handleDoubleClick,
       handleEditSubmit,

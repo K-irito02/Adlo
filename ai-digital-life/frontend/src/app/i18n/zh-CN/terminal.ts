@@ -57,6 +57,7 @@ export const terminalZh = {
   terminalLayoutFree: '自由',
   terminalLayoutModeLabel: '终端布局模式',
   terminalAutoLayout: '恢复自动布局',
+  terminalCustomLayout: '自定义布局',
   terminalPaneResizeDivider: '调整窗格大小',
   terminalLayoutCardSwap: '交换位置',
   terminalLayoutCardSwapConfirm: '确认交换位置',

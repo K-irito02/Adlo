@@ -498,3 +498,132 @@
   color: var(--danger);
   background: var(--danger-soft);
 }
+
+/* ==========================================================================
+   自定义布局卡片（批次 D）
+   ========================================================================== */
+
+/* 锚点：卡片相对此容器绝对定位，锚定在「自定义布局」按钮下方 */
+.adl-layout-card-anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* 浮层：高于工具栏的 z 层，背景/边框/阴影/圆角全部走设计 token（亮暗自适应） */
+.adl-layout-card {
+  position: absolute;
+  top: calc(100% + var(--space-1, 4px));
+  right: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+  width: 220px;
+  padding: var(--space-3, 12px);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 正方形网格：固定 4 列，窗格数不足时末行自动留空 */
+.adl-layout-card__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-2, 8px);
+}
+
+.adl-layout-card__square {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  /* 方块底色为固定卡片色板（paneColors，非主题语义色），其上标注统一用白色，
+     保证 8 色在亮暗两主题下均可读，故此处不取主题前景 token。 */
+  color: #ffffff;
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  line-height: var(--leading-none);
+  cursor: grab;
+  user-select: none;
+  transition:
+    transform var(--duration-150) var(--ease-default),
+    box-shadow var(--duration-150) var(--ease-default);
+}
+
+.adl-layout-card__square:active {
+  cursor: grabbing;
+}
+
+/* 交换模式选中态：描边 + 缩放 + 外发光，明显区别于未选中方块 */
+.adl-layout-card__square.is-selected {
+  border-color: var(--text-on-accent);
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 10px var(--accent-soft);
+  transform: scale(1.08);
+}
+
+/* 标注编辑态：组件在方块内以 input 覆盖，保留该类作为编辑中的高亮钩子 */
+.adl-layout-card__square.is-editing {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+/* 内联标注输入：单字符，居中覆盖方块 */
+.adl-layout-card__label-input {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  font: inherit;
+  font-weight: var(--font-semibold);
+  text-align: center;
+  outline: none;
+}
+
+.adl-layout-card__hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading-snug);
+  color: var(--text-muted);
+}
+
+.adl-layout-card__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1-5, 6px);
+}
+
+.adl-layout-card__actions button {
+  padding: var(--space-1, 4px) var(--space-2-5, 10px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-layout-card__actions button:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.adl-layout-card__actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 「确认交换位置」为卡片主操作：仅在可选（恰好两块）时用强调色实心 */
+.adl-layout-card__swap-confirm:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent);
+}

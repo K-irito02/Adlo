@@ -57,6 +57,7 @@ export const terminalEn = {
   terminalLayoutFree: 'Free',
   terminalLayoutModeLabel: 'Terminal layout mode',
   terminalAutoLayout: 'Restore auto layout',
+  terminalCustomLayout: 'Custom layout',
   terminalPaneResizeDivider: 'Resize pane',
   terminalLayoutCardSwap: 'Swap positions',
   terminalLayoutCardSwapConfirm: 'Confirm swap',

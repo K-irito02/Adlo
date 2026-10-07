@@ -62,7 +62,12 @@ const t = {
   terminalLayoutFree: '自由',
   terminalLayoutModeLabel: '终端布局模式',
   terminalAutoLayout: '恢复自动布局',
+  terminalCustomLayout: '自定义布局',
   terminalPaneResizeDivider: '调整窗格大小',
+  terminalLayoutCardSwap: '交换位置',
+  terminalLayoutCardSwapConfirm: '确认交换位置',
+  terminalLayoutCardSwapCancel: '取消',
+  terminalLayoutCardAnnotateHint: '双击方块标注（限 1 字符）',
 } as unknown as CopyDict;
 
 function makeTerminalTab(id: string, location: 'panel' | 'center'): TerminalTabState {
@@ -98,6 +103,26 @@ function makeWorkspace(id: string, name: string) {
     unpinnedOrder: 0,
     removedFromSidebar: false,
     available: true,
+  };
+}
+
+function makeMultiPaneTab(id: string, count: number): TerminalTabState {
+  const panes = Array.from({ length: count }, (_, index) => ({
+    id: `${id}-pane${index}`,
+    profile: 'powershell' as const,
+    status: 'idle' as const,
+    colorIndex: index,
+  }));
+  return {
+    id,
+    workspaceId: '',
+    title: 'PowerShell',
+    profile: 'powershell',
+    panes,
+    activePaneId: panes[0].id,
+    isPinned: false,
+    sortOrder: 1,
+    location: 'center',
   };
 }
 
@@ -262,5 +287,75 @@ describe('CenterTerminalView', () => {
     // 装饰性 SVG 图标，不再是 '⚠' 文字符。
     expect(container.querySelector('.adl-terminal-error-note svg')).toBeTruthy();
     expect(screen.queryByText('⚠')).toBeNull();
+  });
+});
+
+describe('CenterTerminalView 自定义布局卡片接线', () => {
+  function setTwoPaneTab(): void {
+    const tab = makeMultiPaneTab('tc', 2);
+    useAppStore.setState({
+      terminalTabs: [tab],
+      terminalTabsById: { tc: tab },
+      terminalActiveTabId: 'tc',
+    });
+  }
+
+  it('自定义布局按钮开合卡片，渲染与窗格数一致的方块，外部点击关闭', () => {
+    setTwoPaneTab();
+    const { container } = renderView('c1', 'tc');
+
+    expect(container.querySelector('.adl-layout-card')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    expect(container.querySelector('.adl-layout-card')).not.toBeNull();
+    expect(container.querySelectorAll('.adl-layout-card__square')).toHaveLength(2);
+
+    fireEvent.mouseDown(document.body);
+    expect(container.querySelector('.adl-layout-card')).toBeNull();
+  });
+
+  it('卡片拖拽排序接线到 store（terminalReorderPanes）', () => {
+    setTwoPaneTab();
+    const { container } = renderView('c1', 'tc');
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    const squares = container.querySelectorAll('.adl-layout-card__square');
+    fireEvent.dragStart(squares[0]);
+    fireEvent.dragOver(squares[1]);
+    fireEvent.drop(squares[1]);
+
+    expect(useAppStore.getState().terminalTabsById['tc'].panes.map((pane) => pane.id)).toEqual([
+      'tc-pane1',
+      'tc-pane0',
+    ]);
+  });
+
+  it('卡片交换接线到 store（terminalSwapPanes）', () => {
+    setTwoPaneTab();
+    const { container } = renderView('c1', 'tc');
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    fireEvent.click(screen.getByRole('button', { name: '交换位置' }));
+    const squares = container.querySelectorAll('.adl-layout-card__square');
+    fireEvent.click(squares[0]);
+    fireEvent.click(squares[1]);
+    fireEvent.click(screen.getByRole('button', { name: '确认交换位置' }));
+
+    expect(useAppStore.getState().terminalTabsById['tc'].panes.map((pane) => pane.id)).toEqual([
+      'tc-pane1',
+      'tc-pane0',
+    ]);
+  });
+
+  it('卡片双击标注接线到 store（terminalUpdatePane，限 1 码点）', () => {
+    setTwoPaneTab();
+    const { container } = renderView('c1', 'tc');
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    fireEvent.doubleClick(container.querySelectorAll('.adl-layout-card__square')[0]);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '中文' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(useAppStore.getState().terminalTabsById['tc'].panes[0].label).toBe('中');
   });
 });

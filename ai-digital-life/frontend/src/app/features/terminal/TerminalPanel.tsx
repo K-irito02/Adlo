@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -10,12 +10,14 @@ import {
   IconUnfoldVertical,
   IconAddTerminal,
   IconAutoLayout,
+  IconCustomLayout,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { NavigatorResizeHandle } from '@components/NavigatorResizeHandle';
 import { asWorkspaceID } from '@shared/branded';
 import { TerminalPaneGrid } from '@components/terminal/TerminalPaneGrid';
 import { TerminalPaneView } from '@components/terminal/TerminalPaneView';
+import { TerminalLayoutCard } from '@components/terminal/TerminalLayoutCard';
 import type { TerminalProfile } from '@stores/types';
 import { useTerminalPanel } from './useTerminalPanel';
 import { TerminalShellSelector } from './TerminalShellSelector';
@@ -95,6 +97,33 @@ export function TerminalPanel() {
   useLayoutEffect(() => {
     setMaximizedPaneId(null);
   }, [terminalActiveTabId, paneCount, paneLayout.mode]);
+
+  // 自定义布局卡片：开关为面板本地态，锚点 ref 用于外部点击判定。
+  const [layoutCardOpen, setLayoutCardOpen] = useState(false);
+  const layoutCardRef = useRef<HTMLDivElement | null>(null);
+
+  // 外部点击 / Esc 关闭卡片（与既有菜单下拉的关闭方式一致）。
+  useEffect(() => {
+    if (!layoutCardOpen) {
+      return;
+    }
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!layoutCardRef.current?.contains(event.target as Node)) {
+        setLayoutCardOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setLayoutCardOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [layoutCardOpen]);
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
@@ -250,6 +279,29 @@ export function TerminalPanel() {
               <IconAddTerminal size={14} decorative />
             </button>
           </TooltipSimple>
+          <div className="adl-layout-card-anchor" ref={layoutCardRef}>
+            <TooltipSimple content={t.terminalCustomLayout} placement="top">
+              <button
+                type="button"
+                className={`adl-tool-context__iconbtn${layoutCardOpen ? ' is-open' : ''}`}
+                onClick={() => setLayoutCardOpen((value) => !value)}
+                aria-label={t.terminalCustomLayout}
+                aria-expanded={layoutCardOpen}
+                disabled={!hasActiveTab}
+              >
+                <IconCustomLayout size={14} decorative />
+              </button>
+            </TooltipSimple>
+            {layoutCardOpen && activeTab ? (
+              <TerminalLayoutCard
+                panes={activeTab.panes}
+                onMove={terminalActions.handleReorderPanes}
+                onSwap={terminalActions.handleSwapPanes}
+                onLabelChange={terminalActions.handlePaneLabelChange}
+                onClose={() => setLayoutCardOpen(false)}
+              />
+            ) : null}
+          </div>
           <TerminalMenuDropdown
             menuOpen={terminalMenuOpen}
             menuRef={terminalMenuRef}

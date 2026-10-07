@@ -1,5 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
+import { useAppStore } from '@stores/slicedStore';
+import { useShallow } from 'zustand/react/shallow';
 import type { TerminalPane, TerminalTabState } from '@stores/slices/terminalSlice';
 import { activePaneOf } from '@stores/slices/terminalSliceTypes';
 import { terminalPtyRuntime } from '@features/terminal/terminalPtyRuntime';
@@ -19,6 +21,12 @@ export interface UseTerminalViewReturn {
   handleAddPane: () => void;
   handleClosePane: (paneId: string) => void;
   handleSelectPane: (paneId: string) => void;
+  /** 自定义布局卡片：按索引移动窗格（复用 `terminalReorderPanes`） */
+  handleReorderPanes: (fromIndex: number, toIndex: number) => void;
+  /** 自定义布局卡片：交换两个窗格（复用 `terminalSwapPanes`） */
+  handleSwapPanes: (a: string, b: string) => void;
+  /** 自定义布局卡片：写入窗格标注（限 1 码点，复用 `terminalUpdatePane`） */
+  handlePaneLabelChange: (paneId: string, label: string) => void;
   handleXtermData: (paneId: string, data: string) => void;
   handleXtermResize: (paneId: string, cols: number, rows: number) => void;
   layout: TerminalPaneLayout;
@@ -49,6 +57,14 @@ export function useTerminalView(
   const panes = useMemo(() => tab?.panes ?? [], [tab]);
   const activePane = useMemo(() => (tab ? activePaneOf(tab) : undefined), [tab]);
   const paneIds = useMemo(() => panes.map((pane) => pane.id), [panes]);
+
+  const { terminalReorderPanes, terminalSwapPanes, terminalUpdatePane } = useAppStore(
+    useShallow((state) => ({
+      terminalReorderPanes: state.terminalReorderPanes,
+      terminalSwapPanes: state.terminalSwapPanes,
+      terminalUpdatePane: state.terminalUpdatePane,
+    })),
+  );
 
   const {
     layout,
@@ -107,6 +123,49 @@ export function useTerminalView(
       handleKillPane,
     });
 
+  // 自定义布局卡片动作：以当前标签的 `panes` 顺序为基准，复用 B 阶段 store 动作。
+  const handleReorderPanes = useCallback(
+    (fromIndex: number, toIndex: number) => {
+      if (!tab) {
+        return;
+      }
+      const ids = tab.panes.map((pane) => pane.id);
+      if (
+        fromIndex < 0 ||
+        fromIndex >= ids.length ||
+        toIndex < 0 ||
+        toIndex >= ids.length ||
+        fromIndex === toIndex
+      ) {
+        return;
+      }
+      const [moved] = ids.splice(fromIndex, 1);
+      ids.splice(toIndex, 0, moved);
+      terminalReorderPanes(tab.id, ids);
+    },
+    [tab, terminalReorderPanes],
+  );
+
+  const handleSwapPanes = useCallback(
+    (a: string, b: string) => {
+      if (tab) {
+        terminalSwapPanes(tab.id, a, b);
+      }
+    },
+    [tab, terminalSwapPanes],
+  );
+
+  const handlePaneLabelChange = useCallback(
+    (paneId: string, label: string) => {
+      if (tab) {
+        terminalUpdatePane(tab.id, paneId, {
+          label: Array.from(label).slice(0, 1).join(''),
+        });
+      }
+    },
+    [tab, terminalUpdatePane],
+  );
+
   return {
     terminalMenuOpen,
     setTerminalMenuOpen,
@@ -117,6 +176,9 @@ export function useTerminalView(
     handleAddPane,
     handleClosePane,
     handleSelectPane,
+    handleReorderPanes,
+    handleSwapPanes,
+    handlePaneLabelChange,
     handleXtermData,
     handleXtermResize,
     layout,
