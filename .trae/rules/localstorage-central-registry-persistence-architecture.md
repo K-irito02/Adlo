@@ -35,21 +35,21 @@
 5. **apply() 汇聚器**：构造期水合把校验后值交回模块缓存
 
 ```ts
-let cache: Record<string, TerminalViewPrefs> = {};
+let cache: Record<string, TerminalPaneLayout> = {};
 let cacheSet = false;
 
-export const terminalViewPrefsStore = {
-  loadForTab(tabId: string | undefined): TerminalViewPrefs {
+export const terminalPaneLayoutStore = {
+  loadForTab(tabId: string | undefined): TerminalPaneLayout | undefined {
     if (!cacheSet) { cache = readStored(); cacheSet = true; }
-    return tabId === undefined ? DEFAULT_TERMINAL_VIEW_PREFS : cache[tabId] ?? DEFAULT_TERMINAL_VIEW_PREFS;
+    return tabId ? cache[tabId] : undefined;
   },
-  saveForTab(tabId: string, prefs: TerminalViewPrefs): void {
+  saveForTab(tabId: string, layout: TerminalPaneLayout): void {
     if (!cacheSet) { cache = readStored(); cacheSet = true; }
-    cache = { ...cache, [tabId]: prefs };
-    persist(TERMINAL_VIEW_PREFS_KEY, cache);
+    cache = { ...cache, [tabId]: layout };
+    persist(TERMINAL_PANE_LAYOUT_KEY, cache);
   },
   // 构造期水合回调（乙类条目 apply）
-  apply(value: Record<string, TerminalViewPrefs>): void { cache = value; cacheSet = true; },
+  apply(value: Record<string, TerminalPaneLayout>): void { cache = value; cacheSet = true; },
 };
 ```
 

@@ -139,16 +139,55 @@ describe('terminalPtyRuntime 应用级单例', () => {
 
     const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
 
-    // 重新激活：attachSession 必须先经 teardown 释放旧池条目，再建新会话。
+    // 重新激活：attachSession 先经 teardown 释放旧池条目，再建新会话并写回新 sessionId。
     terminalPtyRuntime.handleSelectPane(tabId, pane.id);
 
-    await waitFor(() => {
-      expect(releaseSpy).toHaveBeenCalledWith('s1');
-    });
-    const after = useAppStore
-      .getState()
-      .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
-    expect(after?.sessionId).toBeTruthy();
+    await waitFor(
+      () => {
+        const after = useAppStore
+          .getState()
+          .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
+        expect(releaseSpy).toHaveBeenCalledWith('s1');
+        expect(after?.sessionId).toBeTruthy();
+      },
+      { timeout: 5000 },
+    );
+  });
+
+  it('会话替换时创建失败：旧 sessionId 已先清空，窗格回落错误态（H2 边界）', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
+    const pane = useAppStore.getState().terminalTabsById[tabId].panes[1];
+    expect(pane.sessionId).toBe('s1');
+
+    // kill 后窗格仍在、sessionId 仍在，但会话已不存活（Ruling C-7 保留缓冲）。
+    terminalPtyRuntime.handleKillPane({ tabId, paneId: pane.id, sessionId: 's1' });
+    expect(terminalPtyRuntime.hasLiveSession('s1')).toBe(false);
+
+    const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
+    const createSpy = (
+      window as unknown as { digitalLife: { pty: { create: ReturnType<typeof vi.fn> } } }
+    ).digitalLife.pty.create;
+    // 替换创建失败：旧会话 id 必须已清空，失败分支置 terminated 后 hasError 成立。
+    createSpy.mockResolvedValueOnce({ ok: false, error: { message: 'shell not found' } });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    terminalPtyRuntime.handleSelectPane(tabId, pane.id);
+
+    await waitFor(
+      () => {
+        const after = useAppStore
+          .getState()
+          .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
+        expect(after?.status).toBe('terminated');
+        expect(after?.sessionId).toBeUndefined();
+      },
+      { timeout: 5000 },
+    );
+    // 池条目仍在替换开始时释放：创建失败不改变「先释放旧池」的行为。
+    expect(releaseSpy).toHaveBeenCalledWith('s1');
+    expect(errorSpy).toHaveBeenCalled();
   });
 
   it('handleKillPane swallows a rejected kill (no floating promise), still marks terminated', async () => {

@@ -266,6 +266,13 @@ export class TerminalPtyRuntime {
       // 释放旧 xterm 池条目并清运行时账本，再创建新 PTY。否则每次替换都会泄漏一个
       // xterm + 最多 5000 行缓冲。Ruling C-7 保留「杀死进程」后的缓冲直到本次重新激活。
       this.teardownPane(paneId, existingPane.sessionId, 'replaced-session');
+      // 创建新 PTY 前先清掉 store 里残留的死会话 id：若创建失败（如 shell 不存在），
+      // 失败分支置 status='terminated' 时 hasError（terminated 且无 sessionId）才成立，
+      // 窗格显示「未找到终端程序」而非空白矩形。成功分支随后写入新 sessionId。
+      useAppStore.getState().terminalUpdatePane(tabId, paneId, {
+        sessionId: undefined,
+        status: 'idle',
+      });
     }
 
     try {
