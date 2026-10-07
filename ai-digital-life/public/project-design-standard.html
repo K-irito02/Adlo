@@ -782,7 +782,7 @@
         <div class="card-body">
           所有应用数据路径由 adl-kernel::storage 的 StoragePaths 统一解析，locator 文件记录指针。
           SQLite 存结构化状态（工作区、补丁快照索引、站点元数据、剪贴板等），文件存大体量内容
-          （终端历史归档、日志、dsh bundle）。路径变更走启动期迁移，不做运行中热迁移。
+          （日志、dsh bundle）。路径变更走启动期迁移，不做运行中热迁移。
         </div>
         <div class="card-compare">
           <div class="compare-col">
@@ -1209,7 +1209,7 @@
         💾 存储层
         <div class="arch-layer-modules">
           <span class="arch-module">SQLite 状态（工作区/快照索引/站点元数据/剪贴板…）</span>
-          <span class="arch-module">文件（终端历史归档/日志/dsh bundle）</span>
+          <span class="arch-module">文件（日志/dsh bundle）</span>
           <span class="arch-module">storage-locator 指针</span>
           <span class="arch-module">启动期迁移</span>
         </div>
@@ -1282,7 +1282,7 @@
           想象搬家公司 + 档案室：<br>
           • locator 是"新家地址卡"，所有东西按卡上的地址放<br>
           • SQLite 是档案柜：工作区清单、补丁快照索引、网站元数据、剪贴板各就各位<br>
-          • 文件是仓库：终端历史归档、日志、dsh 安装包放架子上<br>
+          • 文件是仓库：日志、dsh 安装包放架子上<br>
           • 搬家（迁移）只在开门前进行：先复印、再验货、再换地址卡，最后清理旧家；验货失败就不换卡
         </div>
       </div>
@@ -1305,8 +1305,8 @@
 <span class="model-comment">// ===== 迁移语义：复制 → 校验 → 切换指针 → 清理旧源 =====</span>
 <span class="model-comment">// 失败不切换指针、不删源文件、不自动重试；清理用 base-aware 白名单，外部文件永不删除</span>
 
-<span class="model-comment">// ===== 终端历史：会话结束即定稿归档，按标签累积跨重启保留 =====</span>
-<span class="model-comment">// 超磁盘预算时最旧优先整段淘汰，始终保留最近 20 段</span></pre>
+<span class="model-comment">// ===== 终端：一个标签内多窗格，各自独立 PTY；窗格为内存会话，不落盘历史 =====</span>
+<span class="model-comment">// 重启按标签恢复窗格结构/布局并逐窗格新建 shell</span></pre>
     </div>
   </div>
 </section>

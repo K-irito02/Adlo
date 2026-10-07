@@ -29,7 +29,6 @@ alwaysApply: false
 
 ## 适用选择器（已统一，hover/active（拖拽态含 `--dragging` 类）均为 `var(--text-secondary)`）
 
-- `.adl-terminal-divider`（只读历史区 / 实时终端分界线）
 - `.adl-tool-navigator__resize-handle`
 - `.adl-rightpanel__resize-handle`
 - `.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`

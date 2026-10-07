@@ -119,7 +119,7 @@ function isSameDrafts(a: Record<string, string>, b: Record<string, string>): boo
  * 组成：模式切换 → （统一模式）根目录行 → 10 条可迁移分类行（核心/高级；
  * `downloads_default` 为设置值路径、不占分类行）→ 应用
  * → 工作区树缓存（统计/清除/开关/TTL）
- * → 存储引擎（搬入的终端历史预算、浏览器下载路径）→ 数据位置索引（只读）
+ * → 存储引擎（浏览器默认下载路径）→ 数据位置索引（只读）
  * → 不可移动说明 6 项；顶部首块为「待迁移任务」（pending 提示 + 上次迁移报告，事项 11a）。
  *
  * 数据流：挂载时 `storage.getStatus()` 填充；「应用」先 `preflight` 校验，

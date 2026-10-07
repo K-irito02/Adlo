@@ -227,7 +227,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
   },
 ];
 
-/** 模板占位符（如 `{used}` / `{limit}`）：对用户可见文案而言它们不该出现，索引里折叠成省略号。 */
+/** 模板占位符（如 `{size}` / `{count}`）：对用户可见文案而言它们不该出现，索引里折叠成省略号。 */
 const PLACEHOLDER_PATTERN = /\{[^}]*\}/g;
 
 /**
@@ -262,7 +262,7 @@ function blockDetails(entry: BlockEntry, t: CopyDict): SettingsSearchDetail[] {
   return details;
 }
 
-/** 模板占位符折叠为省略号：对用户可见的补显文案里不该出现 `{used}` 这类内部名。 */
+/** 模板占位符折叠为省略号：对用户可见的补显文案里不该出现 `{size}` 这类内部名。 */
 function collapsePlaceholders(text: string): string {
   return text.replace(PLACEHOLDER_PATTERN, '…');
 }

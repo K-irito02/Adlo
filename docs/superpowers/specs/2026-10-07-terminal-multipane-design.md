@@ -1,7 +1,7 @@
 # 终端多窗口布局改造设计（彻底移除只读历史 + 一个终端标签内多终端窗口）
 
 - 日期：2026-10-07
-- 状态：待用户复审
+- 状态：已实施（批次 A/B/C/D 已落地）
 - 影响工作区：`ai-digital-life/`
 - 前置设计：`2026-09-14-terminal-history-regions-design.md`（本设计**整体废弃**该历史区方案）
 
@@ -90,7 +90,7 @@ per-tab 持久化：adl:terminal.tabs（panes 结构） + adl:terminal.paneLayou
 - `crates/kernel/src/config.rs`、`crates/types/src/types/config.rs`：删除 `terminalHistoryBudgetBytes` 字段。
 - `src-tauri/src/commands/app.rs`：删除预算钳制逻辑。
 - `crates/server/src/handlers/terminal_output.rs`、`crates/migration` 中 `terminal_output` 表与仓储：删除（该 IPC 仅服务只读历史）。
-- `frontend/src/shared/ipc/terminal-output.ts`、`frontend/src/mock/mock-terminal.ts`：删除对应方法与 mock。
+- `frontend/src/shared/ipc/terminal-output.ts`、`frontend/src/mock-bridge.ts`：删除对应方法与 mock。
 - 相关测试同步删除/改写（`terminalHistory*`、`terminalOutputStore`、`terminalHistoryEviction/Collector/List/Budget` 等）。
 
 ## 5. 数据模型

@@ -4,6 +4,8 @@
 
 **Goal:** 全链路移除「只读历史」功能与设置面板「终端历史磁盘预算」，把两处终端视图收敛为单一实时终端显示区，为后续多窗口（批次 B/C/D）让位。
 
+> **历史计划说明（superseded by Batch B/D implementation）：** 本计划是批次 A 的原始记录。Task A10 Step 1 要求「保留 `terminalLiveClearLabel` / `terminalLiveClearTitle`（Task B 再改文案）」的做法已被批次 B/D 最终实现取代——两键最终被删除，窗格清空仅使用 `terminalPaneClearLabel`。以最终代码为准。
+
 **Architecture:** 删除前端归档链（store / collector / budget / DOM 回放组件 / 输出持久化）、Rust `terminal_output` 服务与路由、`terminal_history_budget_bytes` 配置字段，以及所有消费点（运行时单例、Hook、两处视图、持久化登记表、设置组）。批量关闭应用前的落盘链改为仅同步去抖写入（`flushCrossSliceWrites`），不再有历史 flush。
 
 **Tech Stack:** React 19 + Vite + Zustand + TypeScript（前端）；Rust + Tauri 2.x + axum + rusqlite（后端）。

@@ -86,7 +86,7 @@
 
 **选择**：SQLite + 文件 + storage-locator 统一解析
 
-所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析，locator 文件记录指针；SQLite（rusqlite）存结构化状态（工作区、补丁快照索引、站点元数据、剪贴板等），文件存大体量内容（终端历史归档、日志、dsh bundle）。路径变更走启动期迁移（复制 → 校验 → 切换指针 → 清理旧源），不做运行中热迁移。
+所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析，locator 文件记录指针；SQLite（rusqlite）存结构化状态（工作区、补丁快照索引、站点元数据、剪贴板等），文件存大体量内容（日志、dsh bundle）。路径变更走启动期迁移（复制 → 校验 → 切换指针 → 清理旧源），不做运行中热迁移。
 
 | 存储 | 恢复 |
 |------|------|
@@ -286,7 +286,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 `Tauri Commands / HTTP handlers` `Domain Crates（workspace/command/pty/browser/clipboard/credential/storage…）` `结构化错误 (AppError)` `capabilities 白名单`
 
 **💾 存储层**
-`SQLite 状态（工作区/补丁快照索引/站点元数据/剪贴板…）` `文件（终端历史归档/日志/dsh bundle）` `storage-locator 指针` `启动期迁移`
+`SQLite 状态（工作区/补丁快照索引/站点元数据/剪贴板…）` `文件（日志/dsh bundle）` `storage-locator 指针` `启动期迁移`
 
 **🤖 外部 harness（非层内，宿主集成）**
 `webapp-host 拉起 + 健康检查` `dsh-bundle 内嵌版本` `dsh-version 系统版本检测/升级回退` `download-source 下载源/镜像` `中间区宿主渲染`
@@ -324,7 +324,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 - locator 是"新家地址卡"，所有东西按卡上的地址放
 - SQLite 是档案柜：工作区清单、补丁快照索引、网站元数据、剪贴板各就各位
-- 文件是仓库：终端历史归档、日志、dsh 安装包放架子上
+- 文件是仓库：日志、dsh 安装包放架子上
 - 搬家（迁移）只在开门前进行：先复印、再验货、再换地址卡，最后清理旧家；验货失败就不换卡，旧家东西完好
 
 ### 📦 存储布局
@@ -346,7 +346,7 @@ Rust 侧 `Result<T, AppError>` 结构化传播（`ErrorKind` 全覆盖：存储/
 
 - 可迁移 9 分类（顺序与 `StorageCategory::key()` 一致）：`database`、`downloads_db`、`site_meta_db`、`config`、`clipboard`、`snapshot`、`dsh`、`logs`、`credentials_fallback`；另有 1 设置值路径（`downloads_default`，仅记录不迁移）与不可移动项（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）
 - 迁移语义：按分类复制 → 校验（尺寸 + SQLite `PRAGMA quick_check`）→ 切换 locator 指针并落盘 → 清理旧源（base-aware 白名单，外部文件永不删除）；失败不切换指针、不删源、不自动重试
-- 终端历史：会话结束即定稿归档，按标签累积跨重启保留，超磁盘预算时最旧优先整段淘汰（始终保留最近 20 段）
+- 终端：一个终端标签可容纳多个窗格（各自独立 PTY 会话）；窗格为内存会话，不产生历史归档文件，应用重启后按标签恢复窗格结构/布局并逐窗格新建 shell
 
 ---
 

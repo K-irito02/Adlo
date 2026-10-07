@@ -11,7 +11,7 @@ alwaysApply: true
 
 - 架构底座：Rust + Tauri 2.x 桌面壳、SQLite 持久化、安全边界（capability 白名单）、双端一致（Tauri / 浏览器预览 / mock 三桥接）
 - 工作区：多工作区管理、文件树、大纲解析、搜索、Git 可视化、补丁预览/应用/回滚、快照
-- 终端：xterm.js 多会话 PTY + 只读历史归档
+- 终端：xterm.js 多会话 PTY + 一个终端标签内多终端窗格（各窗格独立 PTY、数量无上限；均分/自由布局、比例与自由像素拖拽、卷帘门裁剪 + 自定义滚动条、恢复自动布局、自定义布局卡片：拖拽排序/交换位置/双击标注）
 - 编辑器：CodeMirror + 文件预览 + 差异查看器（inline/side-by-side）
 - 内置浏览器：Tauri WebView / iframe 双模式、标签/书签/历史/下载、站点元数据缓存
 - 第三方 harness 宿主集成：进程托管、内嵌与系统版本管理、下载源/镜像配置、独立 WebView2 子窗口 / iframe 宿主渲染
