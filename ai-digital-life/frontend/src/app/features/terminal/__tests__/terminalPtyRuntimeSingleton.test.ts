@@ -17,6 +17,7 @@ const initialActiveRightTool = useAppStore.getState().activeRightTool;
 let emitPtyOutput: ((event: PtyEvent) => void) | null;
 let subscribeSpy: ReturnType<typeof vi.fn>;
 let writeSpy: ReturnType<typeof vi.fn>;
+let killSpy: ReturnType<typeof vi.fn>;
 
 function fakePooledEntry(): PooledXterm {
   return {
@@ -42,7 +43,7 @@ beforeEach(() => {
       create: vi.fn(async () => ({ ok: true, data: { sessionId: 's1' } })),
       input: vi.fn(),
       resize: vi.fn(),
-      kill: vi.fn(),
+      kill: (killSpy = vi.fn()),
     },
     systemMonitor: { snapshot: vi.fn(async () => ({ ok: false })) },
   };
@@ -101,6 +102,28 @@ describe('terminalPtyRuntime 应用级单例', () => {
     const only = useAppStore.getState().terminalTabsById[tabId].panes[0].id;
     terminalPtyRuntime.handleClosePane(tabId, only);
     expect(useAppStore.getState().terminalTabsById[tabId]).toBeUndefined();
+  });
+
+  it('handleKillPane 杀死 PTY、标记窗格 terminated，但不释放 xterm 池（保留缓冲，Ruling C-7）', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
+    const pane = useAppStore.getState().terminalTabsById[tabId].panes[1];
+    expect(pane.sessionId).toBe('s1');
+    expect(terminalPtyRuntime.hasLiveSession('s1')).toBe(true);
+    const releaseSpy = vi.spyOn(terminalXtermPool, 'release');
+
+    terminalPtyRuntime.handleKillPane({ tabId, paneId: pane.id, sessionId: pane.sessionId });
+
+    expect(killSpy).toHaveBeenCalledWith('s1');
+    // Ruling C-7：杀死进程 ≠ 关闭窗格，池条目（最后一段输出）必须保留。
+    expect(releaseSpy).not.toHaveBeenCalled();
+    expect(terminalPtyRuntime.hasLiveSession('s1')).toBe(false);
+    const after = useAppStore
+      .getState()
+      .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
+    expect(after?.status).toBe('terminated');
+    expect(after?.sessionId).toBe('s1');
   });
 
   it('非初始标签变为活动时，其全部无会话窗格都重建 shell（spec §10）', async () => {

@@ -442,14 +442,26 @@ export class TerminalPtyRuntime {
     this.applySessionSize(targetSession, cols, rows);
   };
 
+  /**
+   * 杀死窗格进程（保留窗格本身）。
+   *
+   * **有意与 `teardownPane` 不同**（Ruling C-7）：`teardownPane` 用于关闭 / 移除窗格，
+   * 会释放 xterm 池；而「杀死进程」后窗格仍然存在，必须**保留 xterm 池条目**（即保留
+   * 最后一段输出）。否则 `XtermTerminal`（其 effect 只依赖 `[sessionId]`，且 sessionId
+   * 仍留在 store）不会重新 acquire，窗格会变成没有任何状态提示的空白矩形，且与后端退出
+   * （terminated 事件）路径的表现不一致。因此这里只 kill PTY、清运行时账本，不释放池、
+   * 不清 `createdSessionIds`。
+   */
   handleKillPane = (pane: PaneRef | undefined): void => {
     const sessionId = pane?.sessionId;
     if (!pane || !sessionId) {
       return;
     }
-    // 与关闭窗格共用同一条拆解出口：kill PTY + 释放 xterm 池 + 清运行时账本
-    // （live / dims / created / oscCarry）与缓冲输入；随后按窗格标记 terminated。
-    this.teardownPane(pane.paneId, sessionId, 'on pane kill');
+    window.digitalLife.pty.kill(sessionId);
+    this.liveSessionIds.delete(sessionId);
+    this.ptyDims.delete(sessionId);
+    this.oscCarry.delete(sessionId);
+    // 按窗格更新：一个标签有多个窗格，必须只标记被 kill 的那个。
     useAppStore.getState().terminalUpdatePane(pane.tabId, pane.paneId, { status: 'terminated' });
   };
 

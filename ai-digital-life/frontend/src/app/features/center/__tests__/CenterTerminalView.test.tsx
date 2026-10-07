@@ -23,6 +23,23 @@ vi.mock('@features/terminal/useTerminalPtyLifecycle', () => ({
   }),
 }));
 
+// 布局 Hook 的 spy：断言工具栏控件确实调用 setMode / resetAuto（C4 接线）。
+const paneLayoutMock = vi.hoisted(() => ({
+  setMode: vi.fn(),
+  resetAuto: vi.fn(),
+}));
+
+vi.mock('@features/terminal/useTerminalPaneLayout', () => ({
+  useTerminalPaneLayout: () => ({
+    layout: { mode: 'equal', colFractions: [1], rowFractions: [1], rects: {} },
+    setMode: paneLayoutMock.setMode,
+    resetAuto: paneLayoutMock.resetAuto,
+    handleColDividerPointerDown: vi.fn(),
+    handleRowDividerPointerDown: vi.fn(),
+    handleFreeDragPointerDown: vi.fn(),
+  }),
+}));
+
 const t = {
   menuNewTerminal: '新建终端',
   terminalNewTerminal: '新建终端',
@@ -41,6 +58,10 @@ const t = {
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',
   terminalShellNotFound: '未找到终端程序',
+  terminalLayoutEqual: '均分',
+  terminalLayoutFree: '自由',
+  terminalLayoutModeLabel: '终端布局模式',
+  terminalAutoLayout: '恢复自动布局',
 } as unknown as CopyDict;
 
 function makeTerminalTab(id: string, location: 'panel' | 'center'): TerminalTabState {
@@ -190,6 +211,30 @@ describe('CenterTerminalView', () => {
     expect(container.querySelectorAll('.adl-terminal-pane')).toHaveLength(1);
     expect(container.querySelectorAll('.adl-terminal-canvas')).toHaveLength(1);
     expect(container.querySelector('.adl-terminal-live')).not.toBeNull();
+  });
+
+  it('工具栏渲染均分/自由分段与恢复自动布局，并分别调用 setMode / resetAuto', () => {
+    const centerTerm = makeTerminalTab('tc', 'center');
+    useAppStore.setState({
+      terminalTabs: [centerTerm],
+      terminalTabsById: { tc: centerTerm },
+      terminalActiveTabId: 'tc',
+    });
+
+    renderView('c1', 'tc');
+
+    const equalBtn = screen.getByRole('button', { name: '均分' });
+    const freeBtn = screen.getByRole('button', { name: '自由' });
+    const resetBtn = screen.getByRole('button', { name: '恢复自动布局' });
+    // 分段选择器：aria-pressed 反映当前 mode（mock 为 equal）。
+    expect(equalBtn.getAttribute('aria-pressed')).toBe('true');
+    expect(freeBtn.getAttribute('aria-pressed')).toBe('false');
+
+    fireEvent.click(freeBtn);
+    expect(paneLayoutMock.setMode).toHaveBeenCalledWith('free');
+
+    fireEvent.click(resetBtn);
+    expect(paneLayoutMock.resetAuto).toHaveBeenCalledTimes(1);
   });
 
   it('会话已终止且无 session 时用项目 warning SVG 图标（非硬编码字符）', () => {

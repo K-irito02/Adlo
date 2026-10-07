@@ -212,6 +212,7 @@ export function TerminalPanel() {
               type="button"
               className={`adl-tool-context__toggle-btn${paneLayout.mode === 'equal' ? ' is-active' : ''}`}
               aria-pressed={paneLayout.mode === 'equal'}
+              disabled={!hasActiveTab}
               onClick={() => setPaneLayoutMode('equal')}
             >
               {t.terminalLayoutEqual}
@@ -220,6 +221,7 @@ export function TerminalPanel() {
               type="button"
               className={`adl-tool-context__toggle-btn${paneLayout.mode === 'free' ? ' is-active' : ''}`}
               aria-pressed={paneLayout.mode === 'free'}
+              disabled={!hasActiveTab}
               onClick={() => setPaneLayoutMode('free')}
             >
               {t.terminalLayoutFree}
@@ -231,6 +233,7 @@ export function TerminalPanel() {
               className="adl-tool-context__iconbtn"
               onClick={resetPaneLayout}
               aria-label={t.terminalAutoLayout}
+              disabled={!hasActiveTab}
             >
               <IconAutoLayout size={14} decorative />
             </button>
