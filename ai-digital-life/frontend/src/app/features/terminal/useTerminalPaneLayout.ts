@@ -18,6 +18,8 @@ export interface UseTerminalPaneLayoutParams {
   containerRef: React.RefObject<HTMLDivElement | null>;
   activeTabId: string | undefined;
   paneCount: number;
+  /** 该标签当前窗格 id，按网格顺序排列（真源，取代 DOM 查询）。 */
+  paneIds: string[];
 }
 
 export interface UseTerminalPaneLayoutReturn {
@@ -37,20 +39,15 @@ export interface UseTerminalPaneLayoutReturn {
 const COL_FRACTIONS_VAR = '--adl-term-col-fractions';
 const ROW_FRACTIONS_VAR = '--adl-term-row-fractions';
 
-function listPaneIds(container: HTMLElement | null): string[] {
-  if (!container) {
-    return [];
-  }
-  return Array.from(container.querySelectorAll<HTMLElement>('[data-pane-id]'))
-    .map((el) => el.dataset.paneId)
-    .filter((id): id is string => typeof id === 'string' && id.length > 0);
+/** 窗格 id → 网格下标；未知 id 返回 -1（调用方应视为 no-op）。 */
+function paneIndexOf(paneIds: string[], paneId: string): number {
+  return paneIds.indexOf(paneId);
 }
 
-function paneIndexOf(container: HTMLElement | null, paneId: string): number {
-  const index = listPaneIds(container).indexOf(paneId);
-  return index < 0 ? 0 : index;
-}
-
+/**
+ * 仅用于拖拽期就地写入自由模式几何预览：按 paneId 找到 `.adl-terminal-pane` 元素。
+ * **窗格身份来自 `paneIds`，与此 DOM 查询无关**；查不到只是没有实时预览，提交仍正确。
+ */
 function findPaneElement(container: HTMLElement | null, paneId: string): HTMLElement | null {
   if (!container) {
     return null;
@@ -65,27 +62,42 @@ function findPaneElement(container: HTMLElement | null, paneId: string): HTMLEle
 }
 
 /**
- * 归一化后补齐 `free` 模式缺失的 rect：按窗格在网格中的下标取 `autoRectForIndex`。
- * 窗格身份只有在 `free` 模式下才有意义；`equal` 自动布局必须保持 `rects` 为空（spec §6.5）。
+ * `free` 模式 rect 归一：以 `paneIds` 为唯一身份来源，按 `paneIds` 顺序补齐缺失项
+ * （`autoRectForIndex`）并剪掉不在 `paneIds` 中的陈旧键。未知/缺失容器 DOM 不再影响结果。
  */
+function reconcileFreeRects(
+  existing: Record<string, PaneRect>,
+  paneCount: number,
+  paneIds: string[],
+): Record<string, PaneRect> {
+  const rects: Record<string, PaneRect> = {};
+  paneIds.forEach((paneId, index) => {
+    rects[paneId] = existing[paneId] ?? autoRectForIndex(index, paneCount);
+  });
+  return rects;
+}
+
+/**
+ * 设定模式并让 `rects` 与模式一致：`free` 补齐 + 剪枝；`equal` 恒清空。
+ * 即不变量：`rects` 非空 ⇔ `mode === 'free'`（`resetAuto` 走 `defaultPaneLayout`，同为等分空 rects）。
+ */
+function withMode(
+  layout: TerminalPaneLayout,
+  mode: PaneLayoutMode,
+  paneCount: number,
+  paneIds: string[],
+): TerminalPaneLayout {
+  const rects = mode === 'free' ? reconcileFreeRects(layout.rects, paneCount, paneIds) : {};
+  return { ...layout, mode, rects };
+}
+
 function repairLayout(
   stored: TerminalPaneLayout,
   paneCount: number,
-  container: HTMLElement | null,
+  paneIds: string[],
 ): TerminalPaneLayout {
   const normalized = normalizePaneLayout(stored, paneCount);
-  if (normalized.mode !== 'free') {
-    return normalized;
-  }
-  const rects = { ...normalized.rects };
-  let changed = false;
-  listPaneIds(container).forEach((paneId, index) => {
-    if (!rects[paneId]) {
-      rects[paneId] = autoRectForIndex(index, paneCount);
-      changed = true;
-    }
-  });
-  return changed ? { ...normalized, rects } : normalized;
+  return withMode(normalized, normalized.mode, paneCount, paneIds);
 }
 
 /** 按拖拽边调整归一化 rect，最小像素夹取并收敛在 0..1 容器内。纯函数便于推理。 */
@@ -157,33 +169,46 @@ function clearRectStyle(el: HTMLElement): void {
 /**
  * 按标签加载/保存多窗格布局并驱动拖拽交互的 Hook。
  *
- * 载入：`activeTabId` / `paneCount` 变化时读取该标签存储、修复后 setState。
+ * 载入：`activeTabId` / `paneCount` / `paneIds` 顺序变化时读取该标签存储、修复后 setState。
  * 提交：`commit(next)` setState + 按标签落盘（无标签 id 时只更新内存态）。
  * 拖拽：`setPointerCapture` + rAF 节流；拖拽期仅写 CSS（比例写 CSS 变量、自由模式写内联
- * 几何），松手才提交并落盘，避免逐帧 setState。
+ * 几何），松手才提交并落盘，避免逐帧 setState。每次 move 同步计算最新值，rAF 只节流 DOM 写入，
+ * 保证松手前的最后一帧不丢失。卸载时清理进行中的拖拽预览。
  */
 export function useTerminalPaneLayout({
   containerRef,
   activeTabId,
   paneCount,
+  paneIds,
 }: UseTerminalPaneLayoutParams): UseTerminalPaneLayoutReturn {
   const [layout, setLayout] = useState<TerminalPaneLayout>(() => defaultPaneLayout(paneCount));
   const layoutRef = useRef(layout);
+  const activeDragsRef = useRef<Set<() => void>>(new Set());
 
   useEffect(() => {
     layoutRef.current = layout;
   }, [layout]);
 
+  // 稳定的顺序键：调用方常传内联数组，直接依赖 `paneIds` 会在每次渲染跑 effect。
+  const paneOrderKey = paneIds.join('\u0000');
+
   useEffect(() => {
+    const orderedPaneIds = paneOrderKey.length > 0 ? paneOrderKey.split('\u0000') : [];
     const stored = terminalPaneLayoutStore.loadForTab(activeTabId);
     const next = stored
-      ? repairLayout(stored, paneCount, containerRef.current)
+      ? repairLayout(stored, paneCount, orderedPaneIds)
       : defaultPaneLayout(paneCount);
     layoutRef.current = next;
     setLayout(next);
-    // containerRef 是稳定 ref，只读取挂载后 DOM；无需进入依赖。
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTabId, paneCount]);
+  }, [activeTabId, paneCount, paneOrderKey]);
+
+  useEffect(
+    () => () => {
+      activeDragsRef.current.forEach((teardown) => teardown());
+      activeDragsRef.current.clear();
+    },
+    [],
+  );
 
   const commit = useCallback(
     (next: TerminalPaneLayout) => {
@@ -195,6 +220,16 @@ export function useTerminalPaneLayout({
     },
     [activeTabId],
   );
+
+  /** 注册一次拖拽的清理函数（卸载/松手共用；幂等）。 */
+  const registerDrag = useCallback((teardown: () => void) => {
+    activeDragsRef.current.add(teardown);
+    return teardown;
+  }, []);
+
+  const unregisterDrag = useCallback((teardown: () => void) => {
+    activeDragsRef.current.delete(teardown);
+  }, []);
 
   const handleColDividerPointerDown = useCallback(
     (colIndex: number, e: React.PointerEvent) => {
@@ -210,6 +245,7 @@ export function useTerminalPaneLayout({
       const base = layoutRef.current.colFractions;
       let latest = base;
       let frame = 0;
+      let settled = false;
 
       const handleMove = (moveEvent: PointerEvent) => {
         latest = resizeFractions(
@@ -232,18 +268,27 @@ export function useTerminalPaneLayout({
         });
       };
 
-      const handleUp = () => {
+      const teardown = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         if (frame) {
           window.cancelAnimationFrame(frame);
           frame = 0;
         }
-        target.releasePointerCapture?.(e.pointerId);
         target.removeEventListener('pointermove', handleMove);
         target.removeEventListener('pointerup', handleUp);
         target.removeEventListener('pointercancel', handleUp);
         target.removeEventListener('lostpointercapture', handleUp);
         container.style.removeProperty(COL_FRACTIONS_VAR);
         container.style.removeProperty(ROW_FRACTIONS_VAR);
+      };
+
+      const handleUp = () => {
+        teardown();
+        unregisterDrag(teardown);
+        target.releasePointerCapture?.(e.pointerId);
         commit({ ...layoutRef.current, colFractions: latest });
       };
 
@@ -251,8 +296,9 @@ export function useTerminalPaneLayout({
       target.addEventListener('pointerup', handleUp);
       target.addEventListener('pointercancel', handleUp);
       target.addEventListener('lostpointercapture', handleUp);
+      registerDrag(teardown);
     },
-    [commit, containerRef],
+    [commit, containerRef, registerDrag, unregisterDrag],
   );
 
   const handleRowDividerPointerDown = useCallback(
@@ -269,6 +315,7 @@ export function useTerminalPaneLayout({
       const base = layoutRef.current.rowFractions;
       let latest = base;
       let frame = 0;
+      let settled = false;
 
       const handleMove = (moveEvent: PointerEvent) => {
         latest = resizeFractions(
@@ -291,18 +338,27 @@ export function useTerminalPaneLayout({
         });
       };
 
-      const handleUp = () => {
+      const teardown = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         if (frame) {
           window.cancelAnimationFrame(frame);
           frame = 0;
         }
-        target.releasePointerCapture?.(e.pointerId);
         target.removeEventListener('pointermove', handleMove);
         target.removeEventListener('pointerup', handleUp);
         target.removeEventListener('pointercancel', handleUp);
         target.removeEventListener('lostpointercapture', handleUp);
         container.style.removeProperty(ROW_FRACTIONS_VAR);
         container.style.removeProperty(COL_FRACTIONS_VAR);
+      };
+
+      const handleUp = () => {
+        teardown();
+        unregisterDrag(teardown);
+        target.releasePointerCapture?.(e.pointerId);
         commit({ ...layoutRef.current, rowFractions: latest });
       };
 
@@ -310,14 +366,19 @@ export function useTerminalPaneLayout({
       target.addEventListener('pointerup', handleUp);
       target.addEventListener('pointercancel', handleUp);
       target.addEventListener('lostpointercapture', handleUp);
+      registerDrag(teardown);
     },
-    [commit, containerRef],
+    [commit, containerRef, registerDrag, unregisterDrag],
   );
 
   const handleFreeDragPointerDown = useCallback(
     (paneId: string, edge: FreeDragEdge, e: React.PointerEvent) => {
       const container = containerRef.current;
       if (!container) {
+        return;
+      }
+      const index = paneIndexOf(paneIds, paneId);
+      if (index < 0) {
         return;
       }
       e.preventDefault();
@@ -329,13 +390,12 @@ export function useTerminalPaneLayout({
       const startX = e.clientX;
       const startY = e.clientY;
       const paneEl = findPaneElement(container, paneId);
-      const base =
-        layoutRef.current.rects[paneId] ??
-        autoRectForIndex(paneIndexOf(container, paneId), paneCount);
+      const base = layoutRef.current.rects[paneId] ?? autoRectForIndex(index, paneCount);
       const minW = MIN_PANE_W / width;
       const minH = MIN_PANE_H / height;
       let latest = base;
       let frame = 0;
+      let settled = false;
 
       const handleMove = (moveEvent: PointerEvent) => {
         latest = applyFreeDrag(
@@ -357,12 +417,15 @@ export function useTerminalPaneLayout({
         });
       };
 
-      const handleUp = () => {
+      const teardown = () => {
+        if (settled) {
+          return;
+        }
+        settled = true;
         if (frame) {
           window.cancelAnimationFrame(frame);
           frame = 0;
         }
-        target.releasePointerCapture?.(e.pointerId);
         target.removeEventListener('pointermove', handleMove);
         target.removeEventListener('pointerup', handleUp);
         target.removeEventListener('pointercancel', handleUp);
@@ -370,6 +433,12 @@ export function useTerminalPaneLayout({
         if (paneEl) {
           clearRectStyle(paneEl);
         }
+      };
+
+      const handleUp = () => {
+        teardown();
+        unregisterDrag(teardown);
+        target.releasePointerCapture?.(e.pointerId);
         commit({
           ...layoutRef.current,
           rects: { ...layoutRef.current.rects, [paneId]: latest },
@@ -380,15 +449,16 @@ export function useTerminalPaneLayout({
       target.addEventListener('pointerup', handleUp);
       target.addEventListener('pointercancel', handleUp);
       target.addEventListener('lostpointercapture', handleUp);
+      registerDrag(teardown);
     },
-    [commit, containerRef, paneCount],
+    [commit, containerRef, paneCount, paneIds, registerDrag, unregisterDrag],
   );
 
   const setMode = useCallback(
     (mode: PaneLayoutMode) => {
-      commit({ ...layoutRef.current, mode });
+      commit(withMode(layoutRef.current, mode, paneCount, paneIds));
     },
-    [commit],
+    [commit, paneCount, paneIds],
   );
 
   const resetAuto = useCallback(() => {
