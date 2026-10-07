@@ -17,7 +17,6 @@ export type GroupResetStep =
   | 'saveSourceConfig'
   | 'corePaths'
   | 'corePathsPreflight'
-  | 'budget'
   | 'treeCache';
 
 export type GroupResetResult =

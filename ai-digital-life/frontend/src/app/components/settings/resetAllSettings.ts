@@ -81,7 +81,7 @@ async function runStorage(
   opts: { applyNow: boolean; retainSource: boolean },
 ): Promise<StepResult> {
   const out = await executeStorageResetPlan(deps, plan, opts);
-  // 首个失败块为预算/树（不携带 error）而下载族亦失败时，回落到下载族的结构化错误，
+  // 首个失败块为树（不携带 error）而下载族亦失败时，回落到下载族的结构化错误，
   // 避免聚合流程只能展示通用文案、下载族原因被静默吞掉（F1）。
   if (!out.result.ok && out.result.error === undefined && out.downloadFailure?.error) {
     return {

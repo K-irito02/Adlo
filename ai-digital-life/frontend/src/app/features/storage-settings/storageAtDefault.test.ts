@@ -1,10 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { DownloadSettings } from '@shared/ipc/download';
 import type { StorageStatus, TreeCacheStats } from '@shared/ipc/storage';
-import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 import {
   computeStorageBlocksAtDefault,
-  isBudgetAtDefault,
   isCorePathsAtDefault,
   isTreeCacheAtDefault,
   TREE_CACHE_DEFAULTS,
@@ -41,7 +39,6 @@ describe('storageAtDefault', () => {
   ): StorageBlocksAtDefaultInput => ({
     status,
     treeStats,
-    budgetBytes: TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
     downloadSettings: download,
     downloadSettingsLoaded: true,
     draftsDirty: false,
@@ -52,7 +49,7 @@ describe('storageAtDefault', () => {
     expect(computeStorageBlocksAtDefault(input({ status: null }))).toBeNull();
   });
 
-  it('returns true only when all four blocks are at default', () => {
+  it('returns true only when all blocks are at default', () => {
     expect(computeStorageBlocksAtDefault(input())).toBe(true);
   });
 
@@ -61,8 +58,6 @@ describe('storageAtDefault', () => {
     expect(computeStorageBlocksAtDefault(input({ draftsDirty: true }))).toBe(false);
     // 树 stats 未加载 → 非默认。
     expect(computeStorageBlocksAtDefault(input({ treeStats: null }))).toBe(false);
-    // 预算未知 → 非默认。
-    expect(computeStorageBlocksAtDefault(input({ budgetBytes: undefined }))).toBe(false);
     // 下载未回读 → 非默认。
     expect(computeStorageBlocksAtDefault(input({ downloadSettingsLoaded: false }))).toBe(false);
   });
@@ -75,12 +70,10 @@ describe('storageAtDefault', () => {
     expect(isCorePathsAtDefault({ ...status, root: 'D:/other' }, false)).toBe(false);
   });
 
-  it('isTreeCacheAtDefault / isBudgetAtDefault treat unknown as non-default', () => {
+  it('isTreeCacheAtDefault treats unknown as non-default', () => {
     expect(isTreeCacheAtDefault(treeStats)).toBe(true);
     expect(isTreeCacheAtDefault(null)).toBe(false);
     expect(isTreeCacheAtDefault({ ...treeStats, enabled: false })).toBe(false);
-    expect(isBudgetAtDefault(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES)).toBe(true);
-    expect(isBudgetAtDefault(undefined)).toBe(false);
   });
 
   it('treeBlockOf maps every tree state to its reset variant (at-default → hidden)', () => {

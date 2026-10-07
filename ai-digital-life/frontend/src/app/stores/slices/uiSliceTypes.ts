@@ -148,8 +148,8 @@ export interface UISlice {
    */
   storageGroupResetPending: boolean;
   /**
-   * 存储四块是否全默认的聚合信号（transient，不持久化）：StorageSettings 挂载时按
-   * 四块判定写入并在卸载时清 null，供侧边栏存储行 disabled 用。null = 未知 → 启用。
+   * 存储各块是否全默认的聚合信号（transient，不持久化）：StorageSettings 挂载时按
+   * 各块判定写入并在卸载时清 null，供侧边栏存储行 disabled 用。null = 未知 → 启用。
    */
   storageBlocksAtDefault: boolean | null;
   /**
@@ -240,7 +240,7 @@ export interface UISlice {
   requestStorageGroupReset: () => void;
   /** 消费组级恢复待处理（承接方开框前/丢弃信号时调用）。 */
   consumeStorageGroupReset: () => void;
-  /** 设置存储四块全默认聚合信号（StorageSettings 挂载维护，卸载清 null）。 */
+  /** 设置存储各块全默认聚合信号（StorageSettings 挂载维护，卸载清 null）。 */
   setStorageBlocksAtDefault: (value: boolean | null) => void;
   /** 置位浏览器组级恢复待处理（幂等：已 pending 再点保持 true）。 */
   requestBrowserGroupReset: () => void;

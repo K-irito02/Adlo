@@ -116,12 +116,6 @@ describe('块条目携带的行文案（details）', () => {
         expect(detail.locate).toBe(CATEGORY_COPY.clipboard.name);
       }
     }
-    // 只有提示、没有副标题的行（终端预算的跟随磁盘说明）：定位文案就是它自己的文案。
-    const budget = blockOf('terminalBudget').details!;
-    const followDisk = budget.find(
-      (detail) => detail.text === 'settingsTerminalHistoryBudgetFollowDiskDesc',
-    );
-    expect(followDisk?.locate).toBe('settingsTerminalHistoryBudgetFollowDiskDesc');
   });
 
   it('不可移动行随 IMMOVABLE_COPY 派生（名称 + 说明各一条）', () => {
@@ -163,21 +157,21 @@ describe('块条目携带的行文案（details）', () => {
 
   it('模板文案折叠占位符（补显不出现 {used} 这类内部名），定位文案仍是原文', () => {
     // mockT 返回 key 名、不含占位符，故这里用真模板观察折叠行为。
+    // 借 corePaths 块「模式」行的副标题注入占位符模板：text 折叠、locate 保留原文。
     const templateT = new Proxy({} as Record<string, string>, {
       get: (_, key) =>
-        key === 'settingsTerminalHistoryBudgetUsed'
+        key === 'storageModeLabel'
           ? '已用 {used}，上限 {limit}'
           : typeof key === 'string'
             ? key
             : '',
     }) as unknown as CopyDict;
-    const budget = buildSettingsSearchIndex({
+    const corePaths = buildSettingsSearchIndex({
       t: templateT,
       settings: [] as SettingItem[],
       keybinds: {},
-    }).find((entry) => entry.anchorId === 'terminalBudget')!;
-    // 该行只有提示说明、没有副标题 → 定位文案即其文案原文（含占位符，与 DOM 属性逐字相同）。
-    const used = budget.details!.find((detail) => detail.text === '已用 …，上限 …');
+    }).find((entry) => entry.anchorId === 'corePaths')!;
+    const used = corePaths.details!.find((detail) => detail.text === '已用 …，上限 …');
     expect(used?.text).not.toContain('{');
     expect(used?.locate).toBe('已用 {used}，上限 {limit}');
   });

@@ -122,7 +122,6 @@ export const appInfo: AppInfo = {
     workspaceDeferredIds: [],
     workspaceNaturalOrder: [],
     browserInactiveTabSuspendMs: 900_000,
-    terminalHistoryBudgetBytes: 1 << 30,
   },
   currentWorkspace: {
     id: "workspace-mock-1",

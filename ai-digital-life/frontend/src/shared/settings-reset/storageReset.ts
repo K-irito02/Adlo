@@ -20,7 +20,6 @@ export type StorageDownloadBlock = 'on' | 'off' | 'switchOnly' | 'hidden';
 export interface StorageResetBlocks {
   coreNeeded: boolean;
   tree: StorageTreeBlock;
-  budget: boolean;
   download: StorageDownloadBlock;
 }
 
@@ -38,7 +37,7 @@ export interface StorageResetPlan extends StorageResetExecutePlan {
 /**
  * 存储恢复计划的计算结果（判别联合，供对话框区分「无事可做」与「不可用」）：
  * - `ready`：得到可执行计划；
- * - `allDefault`：四块均已默认，存储无事可做（正常跳过）；
+ * - `allDefault`：各块均已默认，存储无事可做（正常跳过）；
  * - `unavailable`：无桥 / 状态不可读 / 核心预检 IPC 调用失败（无法判定）。
  */
 export type StorageResetPlanResult =
@@ -51,12 +50,11 @@ export interface StorageResetComputeDeps {
   bridge?: StorageBridgeLike;
   refreshStatus: () => Promise<StorageStatus | null>;
   previewDownload: () => { settings: DownloadSettings; loaded: boolean };
-  /** 传入当前 tree 统计与预算（由调用方从 store/缓存读取）。 */
+  /** 传入当前 tree 统计（由调用方从 store/缓存读取）。 */
   readTreeStats: () => TreeCacheStats | null;
-  readBudgetBytes: () => number | undefined;
 }
 
-/** 计划执行所需依赖：路径写入 / 预算 / 树缓存 / 下载序列（不含只读计算依赖）。 */
+/** 计划执行所需依赖：路径写入 / 树缓存 / 下载序列（不含只读计算依赖）。 */
 export interface StorageResetExecuteDeps {
   setPaths: (
     patch: StoragePathPatch,
@@ -65,7 +63,6 @@ export interface StorageResetExecuteDeps {
     | { ok: true; restartRequired: boolean; preflight: StoragePreflight }
     | { ok: false; error: IpcError }
   >;
-  resetBudget: () => Promise<boolean>;
   resetTreeCache: () => Promise<boolean>;
   /** 下载分支执行用的纯序列依赖（由调用方注入 store action）。 */
   downloadPath: DownloadPathResetDeps;
@@ -78,7 +75,6 @@ export interface StorageResetDeps extends StorageResetComputeDeps, StorageResetE
 export interface StorageResetPredicates {
   isCorePathsAtDefault: (status: StorageStatus | null, draftsDirty: boolean) => boolean;
   isTreeCacheAtDefault: (treeStats: TreeCacheStats | null) => boolean;
-  isBudgetAtDefault: (budgetBytes: number | undefined) => boolean;
   treeBlockOf: (treeStats: TreeCacheStats | null) => StorageTreeBlock;
   downloadBlockOf: (settings: DownloadSettings, loaded: boolean) => StorageDownloadBlock;
 }
@@ -95,9 +91,9 @@ export const CORE_RESET_PATCH: StoragePathPatch = {
 };
 
 /**
- * 计算「恢复存储默认」的四块计划，返回判别结果：
+ * 计算「恢复存储默认」的各块计划，返回判别结果：
  * - `unavailable`：无桥、状态不可用、或核心预检 IPC 调用失败；
- * - `allDefault`：四块均已默认（存储无事可做）；
+ * - `allDefault`：各块均已默认（存储无事可做）；
  * - `ready`：返回计划；核心预检 IPC 成功但 `data.ok === false`（目标不可写等）仍返回计划，
  *   供对话框展示错误并禁用确认键。
  */
@@ -116,20 +112,13 @@ export async function computeStorageResetPlan(
   const treeStats = deps.readTreeStats();
   const coreNeeded = !predicates.isCorePathsAtDefault(status, false);
   const treeBlock = predicates.treeBlockOf(treeStats);
-  const budgetBlock = !predicates.isBudgetAtDefault(deps.readBudgetBytes());
   const downloadBlock = predicates.downloadBlockOf(download.settings, download.loaded);
-  if (
-    !coreNeeded &&
-    predicates.isTreeCacheAtDefault(treeStats) &&
-    !budgetBlock &&
-    downloadBlock === 'hidden'
-  ) {
+  if (!coreNeeded && predicates.isTreeCacheAtDefault(treeStats) && downloadBlock === 'hidden') {
     return { status: 'allDefault' };
   }
   const blocks: StorageResetBlocks = {
     coreNeeded,
     tree: treeBlock,
-    budget: budgetBlock,
     download: downloadBlock,
   };
   const migrateAtOpen = download.settings.auto_migrate_on_path_change;
@@ -144,10 +133,10 @@ export async function computeStorageResetPlan(
 }
 
 /**
- * 按计划顺序执行四块恢复：核心路径 → 预算 → 树缓存 → 下载路径。
- * 核心块失败即早返（其后三块不可逆且互不阻塞，全部尝试——组级「一次聚合失败」语义）；
+ * 按计划顺序执行恢复：核心路径 → 树缓存 → 下载路径。
+ * 核心块失败即早返（其后两块不可逆且互不阻塞，全部尝试——组级「一次聚合失败」语义）；
  * 非核心块首个失败决定整体 `failedStep`（沿用组级行为，不短路后续块）；`restartRequired`
- * 透传核心块结果。下载块自身结果另经 `downloadFailure` 暴露：调用方据此在预算/树亦失败时
+ * 透传核心块结果。下载块自身结果另经 `downloadFailure` 暴露：调用方据此在树亦失败时
  * 仍能复现下载族失败文案（R6/R9），无需从 `failedStep`（首个失败块）反推。
  */
 export async function executeStorageResetPlan(
@@ -169,9 +158,6 @@ export async function executeStorageResetPlan(
   // 收集失败块的完整结果：下载块是唯一携带 `error` 的块，调用方需其 `failedStep`+`error`
   // 复现下载族失败文案（R6）。
   const failures: GroupResetResult[] = [];
-  if (plan.blocks.budget && !(await deps.resetBudget())) {
-    failures.push({ ok: false, failedStep: 'budget' });
-  }
   if (plan.blocks.tree !== 'hidden' && !(await deps.resetTreeCache())) {
     failures.push({ ok: false, failedStep: 'treeCache' });
   }

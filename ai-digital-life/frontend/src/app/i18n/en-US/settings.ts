@@ -16,17 +16,6 @@ export const settingsEn = {
 
   // Terminal settings
   settingsTerminalHistoryGroupDesc: 'Manage terminal history storage and display behavior',
-  settingsTerminalHistoryBudget: 'Read-only history disk budget',
-  settingsTerminalHistoryBudgetDesc:
-    'This is a usage cap for read-only history, not reserved space. Nothing is deleted below the cap; above it, the oldest entries are evicted first, and the most recent 20 segments are always kept.',
-  settingsTerminalHistoryBudgetCustom: 'Custom…',
-  settingsTerminalHistoryBudgetFollowDisk: 'Follow free disk space',
-  settingsTerminalHistoryBudgetFollowDiskDesc:
-    'Estimates the cap from free space on the system drive, reserving 1GB for the system. The tighter the disk, the less history is kept.',
-  settingsTerminalHistoryBudgetUsed: 'Using {used} of {limit}',
-  settingsTerminalHistoryBudgetUnitLabel: 'Size unit',
-  settingsTerminalHistoryBudgetUnitMb: 'MB',
-  settingsTerminalHistoryBudgetUnitGb: 'GB',
 
   // Common settings
   settingsLanguage: 'Language',
@@ -166,7 +155,6 @@ export const settingsEn = {
   storageImmutableWebview2Name: 'WebView2 runtime data',
   storageImmutableWorkspaceCacheName: 'Workspace-level cache',
   storageRestartRequired: 'Saved. Restart the app to complete the migration.',
-  storageTerminalBudgetTitle: 'Terminal history disk budget',
   storageRestartUnavailableInBrowser:
     'The browser mode cannot restart the app; this change will apply on next launch.',
   storageBrowserDownloadTitle: 'Browser download folder',
@@ -189,7 +177,7 @@ export const settingsEn = {
   storageGroupResetTitle: 'Reset all Storage defaults?',
   // No hardcoded count: each item is filtered by the open-time snapshot — already-default blocks are hidden entirely (item 10).
   storageGroupResetIntro: 'The following settings will be reset to their defaults:',
-  // All four blocks already default → toast instead of opening an empty dialog (item 10 empty state).
+  // All blocks already default → toast instead of opening an empty dialog (item 10 empty state).
   storageGroupResetAllDefault: 'Storage settings are already at their defaults; nothing to reset.',
   storageGroupResetItemCore:
     'Core data paths: back to the "unified root" at the default location; a migration flow follows and takes effect after restarting the app (or on next launch).',
@@ -200,8 +188,6 @@ export const settingsEn = {
     'Workspace tree cache: turned back on; cached content is kept; applies immediately.',
   storageGroupResetItemTreeTtl:
     'Workspace tree cache: retention back to 15 minutes; cached content is kept; applies immediately.',
-  storageGroupResetItemBudget:
-    'Terminal history disk budget: back to {default}; applies immediately.',
   storageGroupResetItemDownloadMigrateOn:
     "Browser default download folder: back to the system default; files under the old path are moved over first, and the old folder is removed only after everything succeeds (exception: system-owned folders — e.g. the system drive's Downloads/Documents/Desktop, Windows, Program Files — only have files moved out; the folder itself is never deleted); the auto-migration switch is turned back off.",
   storageGroupResetItemDownloadMigrateOff:
@@ -273,7 +259,7 @@ export const settingsEn = {
   storageCategoryTreeCacheRelated:
     'Relates to instant cold-start rendering and silent background calibration of workspace file trees.',
   storageCategoryConfigDesc:
-    'App settings (language, theme, log mode, terminal budget, browser thresholds, DSH sources, etc.).',
+    'App settings (language, theme, log mode, browser thresholds, DSH sources, etc.).',
   storageCategoryConfigRelated: 'Relates to persisting every setting in the settings panel.',
   storageCategoryClipboardDesc: 'Image and thumbnail files in clipboard history.',
   storageCategoryClipboardRelated:

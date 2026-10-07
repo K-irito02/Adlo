@@ -70,7 +70,6 @@ function setConfig(suspendMs: number) {
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
         browserInactiveTabSuspendMs: suspendMs,
-        terminalHistoryBudgetBytes: 1 << 30,
       },
       currentWorkspace: undefined,
       recentLogs: [],

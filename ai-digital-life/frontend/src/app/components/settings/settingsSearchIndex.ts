@@ -134,19 +134,6 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
   },
   {
     group: 'storage',
-    anchorId: 'terminalBudget',
-    labelKey: 'storageTerminalBudgetTitle',
-    rows: [
-      {
-        labelKey: 'settingsTerminalHistoryBudget',
-        hintKeys: ['settingsTerminalHistoryBudgetDesc'],
-      },
-      { hintKeys: ['settingsTerminalHistoryBudgetFollowDiskDesc'] },
-      { hintKeys: ['settingsTerminalHistoryBudgetUsed'] },
-    ],
-  },
-  {
-    group: 'storage',
     anchorId: 'browserDownload',
     labelKey: 'storageBrowserDownloadTitle',
     rows: DOWNLOAD_PATH_ROWS,
@@ -248,8 +235,8 @@ const PLACEHOLDER_PATTERN = /\{[^}]*\}/g;
  *
  * 两条有意规则：
  * 1. `locate` 取**原文**（与 DOM 上 `data-settings-row` 的取值逐字相同，同一个 i18n key）；
- *    `text` 才做占位符折叠 —— 例如终端预算「已用」行的可见文本是插值结果，
- *    若把模板原样当搜索/补显文案，用户会看到 `已用 {used}，上限 {limit}`。
+ *    `text` 才做占位符折叠 —— 例如含 `{count}` 的行，可见文本是插值结果，
+ *    若把模板原样当搜索/补显文案，用户会看到 `{count}` 这类内部名。
  * 2. 与块主标题**同值**的行文案不重复登记：命中块主标题时 `matchedDetail` 本就不会返回行文案，
  *    登记只会给索引多一条永不返回的匹配文本（该行仍靠 `locate` 参与行级落点）。
  */

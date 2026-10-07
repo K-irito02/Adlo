@@ -103,18 +103,6 @@ describe('defaultPreferences', () => {
   });
 });
 
-import { DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES } from './defaultPreferences';
-
-describe('terminal history budget default', () => {
-  it('默认预算为 1 GiB', () => {
-    expect(DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES).toBe(1 << 30);
-  });
-
-  it('可作为设置项取到默认值', () => {
-    expect(getDefaultForSetting('terminalHistoryBudgetBytes')).toBe(1 << 30);
-  });
-});
-
 it('exposes 14 customizable commands with stable defaults', () => {
   expect(DEFAULT_KEYBINDS['view.terminal']).toBe('mod+shift+`');
   expect(DEFAULT_KEYBINDS['zoom.in']).toBe('mod+shift+plus');

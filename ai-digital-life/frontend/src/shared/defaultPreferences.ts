@@ -30,11 +30,6 @@ export const DEFAULT_WORKSPACE_PRIORITY_IDS: string[] = [];
 export const DEFAULT_WORKSPACE_DEFERRED_IDS: string[] = [];
 export const DEFAULT_WORKSPACE_NATURAL_ORDER: string[] = [];
 
-// 与 app/features/terminal/terminalHistoryBudget.ts 的 TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES
-// 是同一默认值，但 shared/ 不能 import app/features/，故在此重复定义。
-// 改动默认值时两处必须同步。
-export const DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES = 1 << 30;
-
 // 与 app/features/browser/useBrowserSuspendScheduler.ts 的 DEFAULT_IDLE_MS 是同一产品默认
 // （15 分钟；Rust 侧 serde default 同步为 900_000，见 crates/kernel/src/config.rs）。
 // 调度器侧 DEFAULT_IDLE_MS 为本常量的别名引用：改动默认值时只改此处，
@@ -60,7 +55,6 @@ export function getDefaultPreferences(): AppPreferencePatch {
     // 注意：组级「工作区恢复默认」刻意不含此字段（事项 12b：自动同步会重建），
     // 但「恢复全部默认」仍重置加载顺序 —— 两重置作用域分歧是有意的（Phase 4 R1-1.1 记录）。
     workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
-    terminalHistoryBudgetBytes: DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES,
     browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
   };
 }
@@ -87,8 +81,6 @@ export function getDefaultForSetting(id: string): string | boolean | number | st
       return DEFAULT_WORKSPACE_DEFERRED_IDS;
     case 'workspaceNaturalOrder':
       return DEFAULT_WORKSPACE_NATURAL_ORDER;
-    case 'terminalHistoryBudgetBytes':
-      return DEFAULT_TERMINAL_HISTORY_BUDGET_BYTES;
     case 'browserInactiveTabSuspendMs':
       return DEFAULT_BROWSER_SUSPEND_MS;
     case 'font:ui':

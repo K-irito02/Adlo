@@ -60,7 +60,6 @@ beforeEach(() => {
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
         browserInactiveTabSuspendMs: 3_600_000,
-        terminalHistoryBudgetBytes: 1 << 30,
       },
       recentLogs: [],
     },

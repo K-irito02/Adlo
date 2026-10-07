@@ -17,7 +17,6 @@ import {
 } from '../storageStatusCache';
 import { formatMinutesForUnit, treeTtlMinutesFromCustom } from '../treeCacheTtl';
 import { useAppStore } from '@stores/slicedStore';
-import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 
 const status = {
   mode: 'unified' as const,
@@ -90,8 +89,8 @@ function headerResetButton(): HTMLElement | null {
   return document.querySelector('[data-testid="storage-reset-defaults"]');
 }
 
-/** 预算 store 播种（WorkspaceSettings.test.ts 同构的全量 config 字面量 + 预算覆盖）。 */
-function setStoreBudgetBytes(bytes: number) {
+/** 设置 store 的 appInfo 播种（WorkspaceSettings.test.ts 同构的全量 config 字面量）。 */
+function setStoreAppInfo() {
   useAppStore.setState({
     appInfo: {
       appName: 'test',
@@ -112,7 +111,6 @@ function setStoreBudgetBytes(bytes: number) {
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
         browserInactiveTabSuspendMs: 3_600_000,
-        terminalHistoryBudgetBytes: bytes,
       },
       currentWorkspace: undefined,
       recentLogs: [],
@@ -153,33 +151,21 @@ describe('StorageSettings', () => {
     expect(header?.querySelector('[data-testid="storage-reset-defaults"]')).not.toBeNull();
   });
 
-  it('splits terminal budget and download path into separate cards with block headers', async () => {
+  it('renders the download path block as its own card with a section header', async () => {
     renderSettings();
     await waitFor(() => {
       expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
     });
-    const budgetHeader = document
-      .querySelector('[data-testid="terminal-budget-reset"]')
-      ?.closest('.adl-settings-storage__header');
-    expect(budgetHeader).not.toBeNull();
-    expect(budgetHeader?.classList.contains('adl-settings-storage__header--section')).toBe(true);
-    expect(budgetHeader?.querySelector('.adl-settings-header')).not.toBeNull();
-
     const downloadHeader = document
       .querySelector('[data-testid="download-path-reset"]')
       ?.closest('.adl-settings-storage__header');
     expect(downloadHeader).not.toBeNull();
     expect(downloadHeader?.classList.contains('adl-settings-storage__header--section')).toBe(true);
 
-    // 各自独立成卡：预算卡与下载卡之间无共享 h4 合并标题。
-    const budgetCard = budgetHeader?.nextElementSibling;
-    expect(budgetCard?.classList.contains('adl-settings-card')).toBe(true);
-    expect(budgetCard?.querySelector('[data-testid="terminal-budget-reset"]')).toBeNull();
     const downloadCard = downloadHeader?.nextElementSibling;
     expect(downloadCard?.classList.contains('adl-settings-card')).toBe(true);
     expect(downloadCard?.querySelector('[data-testid="download-path-row"]')).not.toBeNull();
     expect(downloadCard?.querySelector('[data-testid="download-migrate-row"]')).not.toBeNull();
-    expect(budgetCard).not.toBe(downloadCard);
   });
 
   it('download path reset opens a confirm dialog reflecting migrate state', async () => {
@@ -597,7 +583,6 @@ describe('StorageSettings', () => {
       for (const key of [
         'storageGroupResetItemCore',
         'storageGroupResetItemTree',
-        'storageGroupResetItemBudget',
         'storageGroupResetItemDownloadMigrateOff',
       ]) {
         expect(within(dialog).getByText(key)).toBeTruthy();
@@ -1125,100 +1110,6 @@ describe('StorageSettings', () => {
       (window as unknown as { digitalLife: { storage: { setPaths: ReturnType<typeof vi.fn> } } })
         .digitalLife.storage.setPaths,
     ).not.toHaveBeenCalled();
-  });
-
-  it('budget reset failure surfaces an error toast (M3)', async () => {
-    const showToast = vi.fn();
-    const prevShowToast = useAppStore.getState().showToast;
-    useAppStore.setState({ showToast });
-    // 未更改禁用语义下默认预算即禁用：播种偏离预算使按钮可用（updatePreferences
-    // 仍为真实实现，无 app 桥 → 返回 false → 失败 toast）。
-    setStoreBudgetBytes(2 * TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
-    try {
-      renderSettings();
-      await waitFor(() => {
-        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
-      });
-      // beforeEach 仅装 storage 桥：无 app 桥 → updatePreferences 返回 false → 失败 toast。
-      fireEvent.click(screen.getByTestId('terminal-budget-reset'));
-      await waitFor(() => {
-        expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
-      });
-    } finally {
-      // 还原真实 showToast：文件内其它用例断言 store `toasts`，替换泄漏会使其全部落空。
-      useAppStore.setState({ showToast: prevShowToast, appInfo: undefined });
-    }
-  });
-
-  it('group reset surfaces an error toast when the budget write fails (M3 group path)', async () => {
-    const showToast = vi.fn();
-    const prevShowToast = useAppStore.getState().showToast;
-    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
-    useAppStore.setState({
-      showToast,
-      updatePreferences: vi.fn(async () => false),
-    });
-    try {
-      const preflight = vi.fn().mockResolvedValue({
-        ok: true,
-        data: {
-          ok: true,
-          errors: [],
-          warnings: [],
-          totalFiles: 0,
-          totalBytes: 0,
-          freeBytes: 0,
-        },
-      });
-      const setPaths = vi.fn().mockResolvedValue({
-        ok: true,
-        data: { preflight: { ok: true }, restartRequired: false },
-      });
-      (window as unknown as { digitalLife: unknown }).digitalLife = {
-        storage: {
-          getStatus: vi.fn().mockResolvedValue({ ok: true, data: status }),
-          scanForeign: vi.fn().mockResolvedValue({ ok: true, data: [] }),
-          preflight,
-          setPaths,
-          cancelPending: vi.fn(),
-          restartApp: vi.fn(),
-          getTreeCacheStats: vi.fn().mockResolvedValue({
-            ok: true,
-            data: {
-              workspaceCount: 0,
-              totalBytes: 0,
-              oldestCapturedAt: null,
-              newestCapturedAt: null,
-              enabled: true,
-              ttlMinutes: 15,
-            },
-          }),
-          setTreeCacheOptions: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
-          clearTreeCache: vi.fn().mockResolvedValue({ ok: true, data: undefined }),
-        },
-      };
-      useAppStore.setState({
-        downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
-      });
-      renderSettings();
-      await waitFor(() => {
-        expect(screen.getAllByTestId('storage-category-row')).toHaveLength(10);
-      });
-      act(() => {
-        useAppStore.getState().requestStorageGroupReset();
-      });
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(within(dialog).getByRole('button', { name: 'storageMigrateLater' }));
-      // 预算写失败 → error toast；核心先行已落盘成功，其余块继续（setPaths 仍执行）。
-      await waitFor(() => {
-        expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
-      });
-      await waitFor(() => {
-        expect(setPaths).toHaveBeenCalledTimes(1);
-      });
-    } finally {
-      useAppStore.setState({ showToast: prevShowToast, updatePreferences: prevUpdatePreferences });
-    }
   });
 
   it('group reset without the storage bridge toasts and does not open the dialog', async () => {
@@ -2167,9 +2058,8 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
       expect(within(dialog).queryByRole('checkbox', { name: 'storageRetainSource' })).toBeNull();
       expect(within(dialog).queryByText('storagePreflightErrors')).toBeNull();
       // 事项 10：树缓存已是默认值（fixture enabled+15min）→ 树项整项不出现；
-      // 预算（appInfo 未加载→非默认）与下载（未加载→非默认）仍列示。
+      // 下载（未加载→非默认）仍列示。
       expect(within(dialog).queryByText('storageGroupResetItemTree')).toBeNull();
-      expect(within(dialog).getByText('storageGroupResetItemBudget')).toBeTruthy();
       expect(within(dialog).getByText('storageGroupResetItemDownloadMigrateOff')).toBeTruthy();
       // footer 退化为 取消 + 单一确认键（无迁移时机双键）。
       expect(within(dialog).getByRole('button', { name: 'storageGroupResetConfirm' })).toBeTruthy();
@@ -2233,24 +2123,37 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     }
   });
 
-  it('group reset keeps the download-family toast when budget also fails (R9)', async () => {
-    // 预算与下载同一组恢复内同时失败：聚合裁决取首个失败块（budget），但下载家族文案
-    // 仍须发出（改前下载腿无条件执行且自行 toast）——不得因 failedStep=budget 被吞。
-    const bridge = mockStorageBridge({ statusData: statusAtDefault });
-    const prevUpdatePreferences = useAppStore.getState().updatePreferences;
+  it('group reset keeps the download-family toast when the tree leg also fails (R9)', async () => {
+    // 树与下载同一组恢复内同时失败：聚合裁决取首个失败块（treeCache），但下载家族文案
+    // 仍须发出——不得因 failedStep=treeCache 被吞。
+    const bridge = mockStorageBridge({
+      statusData: statusAtDefault,
+      treeResult: {
+        ok: true,
+        data: {
+          workspaceCount: 0,
+          totalBytes: 0,
+          oldestCapturedAt: null,
+          newestCapturedAt: null,
+          enabled: true,
+          ttlMinutes: 30,
+        },
+      },
+    });
+    bridge.setTreeCacheOptions.mockResolvedValue({
+      ok: false,
+      error: { code: 'Internal', message: 'tree boom' },
+    });
     const prevChangeDownloadPath = useAppStore.getState().changeDownloadPath;
     const prevUpdateDownloadSettings = useAppStore.getState().updateDownloadSettings;
     const prevShowToast = useAppStore.getState().showToast;
-    const prevAppInfo = useAppStore.getState().appInfo;
     const prevDownload = useAppStore.getState().downloadSettings;
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     const showToast = vi.fn();
     try {
-      // 预算偏离默认（该腿可执行）→ 写失败；下载非默认且开迁移 → 路径写失败。
-      setStoreBudgetBytes(2 * TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      // 树非默认（ttl 30）→ 该腿可执行且写失败；下载非默认且开迁移 → 路径写失败。
       useAppStore.setState({
         showToast,
-        updatePreferences: vi.fn(async () => false),
         changeDownloadPath: vi.fn(async () => ({
           ok: false as const,
           error: { code: 'Internal' as const, message: 'migrate boom' },
@@ -2272,21 +2175,16 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
       await waitFor(() => {
         expect(showToast).toHaveBeenCalledWith('storageDownloadMigrateFailed', 'error');
       });
-      // 预算腿 toast 与尾部汇总错误都在（同一文案 → 恰两次）。
+      // 尾部汇总错误也在（树腿自身错误另有独立文案）。
       expect(showToast).toHaveBeenCalledWith('settingsUpdateFailed', 'error');
-      expect(
-        showToast.mock.calls.filter((call) => call[0] === 'settingsUpdateFailed'),
-      ).toHaveLength(2);
       // 失败不关框（保持对话框供检查/重试）。
       expect(screen.queryByRole('dialog')).not.toBeNull();
       expect(bridge.setPaths).not.toHaveBeenCalled();
     } finally {
       useAppStore.setState({
-        updatePreferences: prevUpdatePreferences,
         changeDownloadPath: prevChangeDownloadPath,
         updateDownloadSettings: prevUpdateDownloadSettings,
         showToast: prevShowToast,
-        appInfo: prevAppInfo,
         downloadSettings: prevDownload,
         downloadSettingsLoaded: prevLoaded,
       });
@@ -2392,8 +2290,8 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     try {
       useAppStore.setState({ showToast });
-      // 四块全默认：核心 root===defaultRoot、树 enabled+15、预算默认、下载已加载且系统默认。
-      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      // 各块全默认：核心 root===defaultRoot、树 enabled+15、下载已加载且系统默认。
+      setStoreAppInfo();
       setStoreDownloadSettings('', false);
       renderSettings();
       await waitFor(() => {
@@ -2418,7 +2316,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
   });
 
   it('group dialog lists only really non-default blocks and picks truthful tree copy (10)', async () => {
-    // 树 disabled+TTL=30 → 需"重新开启+恢复时长"（full 变体）；预算/下载默认 → 整项不出现。
+    // 树 disabled+TTL=30 → 需"重新开启+恢复时长"（full 变体）；其余块默认 → 整项不出现。
     mockStorageBridge({
       statusData: statusAtDefault,
       treeResult: {
@@ -2437,7 +2335,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     const prevDownload = useAppStore.getState().downloadSettings;
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     try {
-      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreAppInfo();
       setStoreDownloadSettings('', false);
       renderSettings();
       await waitFor(() => {
@@ -2447,10 +2345,9 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
         useAppStore.getState().requestStorageGroupReset();
       });
       const dialog = await screen.findByRole('dialog');
-      // 树非默认 → 出现（且文案与真实形态一致）；核心/预算/下载默认 → 整项不出现。
+      // 树非默认 → 出现（且文案与真实形态一致）；核心/下载默认 → 整项不出现。
       expect(within(dialog).getByText('storageGroupResetItemTree')).toBeTruthy();
       expect(within(dialog).queryByText('storageGroupResetItemCore')).toBeNull();
-      expect(within(dialog).queryByText('storageGroupResetItemBudget')).toBeNull();
       expect(within(dialog).queryByText('storageGroupResetItemDownloadMigrateOff')).toBeNull();
       expect(within(dialog).queryByText('storageGroupResetItemDownloadMigrateOn')).toBeNull();
       expect(within(dialog).getByRole('button', { name: 'storageGroupResetConfirm' })).toBeTruthy();
@@ -2490,7 +2387,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
       view.unmount();
     };
     try {
-      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreAppInfo();
       setStoreDownloadSettings('', false);
       // 仅需重新开启（disabled + TTL 已是 15）→ reenable 变体。
       await openAndAssert(
@@ -2537,7 +2434,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     const prevDownload = useAppStore.getState().downloadSettings;
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     try {
-      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreAppInfo();
       // 路径已是系统默认，仅迁移开关非默认 → 只提示开关恢复，不提路径。
       setStoreDownloadSettings('', true);
       renderSettings();
@@ -2565,8 +2462,8 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
   });
 
   it('group apply skips legs of already-default blocks (execution mirrors the list) (10)', async () => {
-    // 核心/树/预算/下载全默认 → 开框即被空态拦截；这里核心非默认（唯一待恢复腿），
-    // 其余三块默认 → 确认后仅 setPaths 执行，预算/树/下载写全部跳过。
+    // 核心/树/下载全默认 → 开框即被空态拦截；这里核心非默认（唯一待恢复腿），
+    // 其余块默认 → 确认后仅 setPaths 执行，树/下载写全部跳过。
     const bridge = mockStorageBridge({
       preflight: vi.fn().mockResolvedValue({
         ok: true,
@@ -2603,7 +2500,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
         changeDownloadPath,
         updateDownloadSettings,
       });
-      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreAppInfo();
       setStoreDownloadSettings('', false);
       renderSettings();
       await waitFor(() => {
@@ -2643,7 +2540,7 @@ describe('StorageSettings 2026-09-27 decisions lock (mode dirty / core-default g
     const prevDownload = useAppStore.getState().downloadSettings;
     const prevLoaded = useAppStore.getState().downloadSettingsLoaded;
     try {
-      setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+      setStoreAppInfo();
       // 路径系统默认 + 迁移开关开 → 块按钮可用（非默认），确认框只提示关开关。
       setStoreDownloadSettings('', true);
       renderSettings();
@@ -3274,19 +3171,18 @@ describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () =>
     });
   }
 
-  it('disables all four block resets when everything is at defaults', async () => {
-    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+  it('disables all block resets when everything is at defaults', async () => {
+    setStoreAppInfo();
     setStoreDownloadSettings('', false);
     mockResetDisabledBridge();
     await renderLoaded();
     expect(headerResetButton()).toBeDisabled();
     expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
-    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
     expect(screen.getByTestId('download-path-reset')).toBeDisabled();
   });
 
   it('enables core reset when root differs from defaultRoot', async () => {
-    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreAppInfo();
     setStoreDownloadSettings('', false);
     mockResetDisabledBridge({
       statusData: { ...status, root: 'D:/custom-root', defaultRoot: DEFAULT_ROOT },
@@ -3294,57 +3190,31 @@ describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () =>
     await renderLoaded();
     expect(headerResetButton()).not.toBeDisabled();
     expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
-    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
     expect(screen.getByTestId('download-path-reset')).toBeDisabled();
   });
 
   it('enables tree reset when ttl differs', async () => {
-    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreAppInfo();
     setStoreDownloadSettings('', false);
     mockResetDisabledBridge({ treeTtlMinutes: 30 });
     await renderLoaded();
     expect(headerResetButton()).toBeDisabled();
     expect(screen.getByTestId('tree-cache-reset')).not.toBeDisabled();
-    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
-    expect(screen.getByTestId('download-path-reset')).toBeDisabled();
-  });
-
-  it('enables budget reset when budget differs', async () => {
-    setStoreBudgetBytes(2 * TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
-    setStoreDownloadSettings('', false);
-    mockResetDisabledBridge();
-    await renderLoaded();
-    expect(headerResetButton()).toBeDisabled();
-    expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
-    expect(screen.getByTestId('terminal-budget-reset')).not.toBeDisabled();
-    expect(screen.getByTestId('download-path-reset')).toBeDisabled();
-  });
-
-  it('enables budget reset when budget config is unknown (fail-open)', async () => {
-    // 预算未知（appInfo 缺席）→ 不得禁用，保持启用。
-    useAppStore.setState({ appInfo: undefined });
-    setStoreDownloadSettings('', false);
-    mockResetDisabledBridge();
-    await renderLoaded();
-    expect(headerResetButton()).toBeDisabled();
-    expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
-    expect(screen.getByTestId('terminal-budget-reset')).not.toBeDisabled();
     expect(screen.getByTestId('download-path-reset')).toBeDisabled();
   });
 
   it('enables download reset when path customized', async () => {
-    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    setStoreAppInfo();
     setStoreDownloadSettings('D:/custom-downloads', false);
     mockResetDisabledBridge();
     await renderLoaded();
     expect(headerResetButton()).toBeDisabled();
     expect(screen.getByTestId('tree-cache-reset')).toBeDisabled();
-    expect(screen.getByTestId('terminal-budget-reset')).toBeDisabled();
     expect(screen.getByTestId('download-path-reset')).not.toBeDisabled();
   });
 
   it('keeps resets enabled when status failed to load', async () => {
-    // fail-open：status 未知走错误 UI，四块恢复按钮不渲染为 disabled（无禁用态）。
+    // fail-open：status 未知走错误 UI，各块恢复按钮不渲染为 disabled（无禁用态）。
     mockResetDisabledBridge({
       getStatusResult: { ok: false, error: { message: 'disk-gone' } },
     });
@@ -3354,13 +3224,12 @@ describe('StorageSettings reset-disabled (storage-reset-disabled Task 3)', () =>
     });
     expect(screen.queryByTestId('storage-reset-defaults')).toBeNull();
     expect(screen.queryByTestId('tree-cache-reset')).toBeNull();
-    expect(screen.queryByTestId('terminal-budget-reset')).toBeNull();
     expect(screen.queryByTestId('download-path-reset')).toBeNull();
   });
 
   it('aggregate is false when tree stats fail even if everything else is default', async () => {
-    // 树未知不得计为默认：其余三块全默认 + 树 stats 失败 → 聚合 false（侧边栏行保持启用）。
-    setStoreBudgetBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES);
+    // 树未知不得计为默认：其余块全默认 + 树 stats 失败 → 聚合 false（侧边栏行保持启用）。
+    setStoreAppInfo();
     setStoreDownloadSettings('', false);
     mockResetDisabledBridge();
     (

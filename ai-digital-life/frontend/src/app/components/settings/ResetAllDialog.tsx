@@ -18,7 +18,7 @@ export interface ResetAllDialogProps {
   open: boolean;
   /** 父组件预计算好的存储计划（开框前已就绪，开框即渲染，无框内“计算中”闪烁）。 */
   planResult: StorageResetPlanResult | null;
-  /** 存储组执行依赖（仅执行侧：setPaths / resetBudget / resetTreeCache / downloadPath）。 */
+  /** 存储组执行依赖（仅执行侧：setPaths / resetTreeCache / downloadPath）。 */
   deps: StorageResetExecuteDeps;
   /** 执行结束回调（成功/失败/跳过汇总由调用方展示）。允许 async：汇总侧含刷新/重启等待。 */
   onCommitted: (outcome: ResetAllOutcome) => void | Promise<void>;

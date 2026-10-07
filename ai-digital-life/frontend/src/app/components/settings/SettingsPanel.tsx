@@ -54,13 +54,11 @@ import {
 import { computeStorageBlocksAtDefault } from '../../features/storage-settings/storageAtDefault';
 import {
   TREE_CACHE_DEFAULTS,
-  isBudgetAtDefault,
   isCorePathsAtDefault,
   isTreeCacheAtDefault,
   treeBlockOf,
 } from '@features/storage-settings/storageAtDefault';
 import { downloadResetBlockVariant } from '@features/storage-settings/downloadPathReset';
-import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 import type { StorageResetDeps, StorageResetPredicates } from '@shared/settings-reset/storageReset';
 import {
   computeStorageResetPlan,
@@ -234,7 +232,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   }, []);
 
   /**
-   * 「恢复全部默认」聚合对话框的存储组依赖：桥、状态刷新、路径写入、预算/树缓存恢复与下载
+   * 「恢复全部默认」聚合对话框的存储组依赖：桥、状态刷新、路径写入、树缓存恢复与下载
    * 路径序列。判定口径经 `resetAllStoragePredicates` 注入（与 StorageSettings UI 同源）。
    * 桥调用一律执行时实时取（`window.digitalLife?.storage` 懒读）：避免 memo 冻结挂载时
    * 旧桥，导致“计划用新桥算出 ready、执行却用旧桥报不可用”的分叉。
@@ -260,11 +258,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
           preflight: applied.data.preflight,
         };
       },
-      // 预算恢复：直接写默认字节数（与 StorageSettings 单块恢复同源）。
-      resetBudget: () =>
-        updatePreferences({
-          terminalHistoryBudgetBytes: TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
-        }),
       // 树缓存恢复：写默认开关/TTL；不清缓存（恢复默认不含清除语义）。
       resetTreeCache: async () => {
         const freshBridge: StorageBridge | undefined = window.digitalLife?.storage;
@@ -279,16 +272,14 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
         loaded: useAppStore.getState().downloadSettingsLoaded,
       }),
       readTreeStats: () => getCachedTreeStats(),
-      readBudgetBytes: () => useAppStore.getState().appInfo?.config?.terminalHistoryBudgetBytes,
       downloadPath: { changeDownloadPath, updateDownloadSettings },
     };
-  }, [changeDownloadPath, updateDownloadSettings, updatePreferences, t, refreshStorageStatus]);
+  }, [changeDownloadPath, updateDownloadSettings, t, refreshStorageStatus]);
 
-  /** 存储四块「是否已默认」判定注入：复用 storageAtDefault / downloadPathReset 的真实 helper。 */
+  /** 存储各块「是否已默认」判定注入：复用 storageAtDefault / downloadPathReset 的真实 helper。 */
   const resetAllStoragePredicates = useMemo<StorageResetPredicates>(
     () => ({
       isCorePathsAtDefault,
-      isBudgetAtDefault,
       isTreeCacheAtDefault,
       treeBlockOf,
       downloadBlockOf: (settings, loaded) => downloadResetBlockVariant(settings, loaded),
@@ -440,7 +431,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
   // 此处跳过，防双写者漂移。
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
-  const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
   const setStorageBlocksAtDefault = useAppStore((s) => s.setStorageBlocksAtDefault);
   useEffect(() => {
     if (activeGroup === 'storage') {
@@ -453,7 +443,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       const value = computeStorageBlocksAtDefault({
         status: getCachedStorageStatus(),
         treeStats: getCachedTreeStats(),
-        budgetBytes,
         downloadSettings,
         downloadSettingsLoaded,
         draftsDirty: false,
@@ -474,7 +463,6 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     };
   }, [
     activeGroup,
-    budgetBytes,
     downloadSettings,
     downloadSettingsLoaded,
     storageStatusRevision,

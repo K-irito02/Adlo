@@ -86,7 +86,6 @@ function seedStore() {
         workspaceDeferredIds: [],
         workspaceNaturalOrder: [],
         browserInactiveTabSuspendMs: 3_600_000,
-        terminalHistoryBudgetBytes: 1 << 30,
       },
       currentWorkspace: undefined,
       recentLogs: [],
@@ -160,8 +159,6 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'dshSettingsProxyHttp',
   'dshSettingsProxyHttps',
   'dshSettingsProxyNoProxy',
-  // 仅终端历史预算选「跟随磁盘」时渲染。
-  'settingsTerminalHistoryBudgetFollowDiskDesc',
 ];
 
 // 六组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。

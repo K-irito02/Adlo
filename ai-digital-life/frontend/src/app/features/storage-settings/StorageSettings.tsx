@@ -31,14 +31,12 @@ import { StorageCategoryRow } from './StorageCategoryRow';
 import { CATEGORY_KEYS_WITHOUT_OWN_ROW } from './storageCategoryCopy';
 import { IMMOVABLE_COPY } from './storageImmutableCopy';
 import { StorageMigrateDialog } from './StorageMigrateDialog';
-import { TerminalHistoryBudgetSection } from './TerminalHistoryBudgetSection';
 import { DownloadPathBlock } from './DownloadPathBlock';
 import { downloadResetBlockVariant, downloadResetFailureCopy } from './downloadPathReset';
 import { localizePreflightIssues } from './preflightCopy';
 import {
   TREE_CACHE_DEFAULTS,
   computeStorageBlocksAtDefault,
-  isBudgetAtDefault,
   isCorePathsAtDefault,
   isTreeCacheAtDefault,
   treeBlockOf,
@@ -58,7 +56,6 @@ import {
   treeTtlUnitMax,
   type TreeTtlUnit,
 } from './treeCacheTtl';
-import { TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES } from '@features/terminal/terminalHistoryBudget';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
 
 /** 树缓存 TTL 下拉选项（分钟；1440 即 1 天），与服务端合法范围 1..=1440 一致。 */
@@ -196,16 +193,14 @@ export function StorageSettings() {
   // 'hidden' = 该块已是默认值，清单不出现且确认时跳过对应恢复腿；未知态 fail-open 显示。
   const [groupResetBlocks, setGroupResetBlocks] = useState<{
     tree: StorageTreeBlock;
-    budget: boolean;
     download: StorageDownloadBlock;
-  }>({ tree: 'hidden', budget: false, download: 'hidden' });
+  }>({ tree: 'hidden', download: 'hidden' });
   const groupResetConfirmRef = useRef<HTMLButtonElement | null>(null);
   const downloadSettings = useAppStore((s) => s.downloadSettings);
   const downloadSettingsLoaded = useAppStore((s) => s.downloadSettingsLoaded);
   /** 组级恢复经共享执行器直接调 store 下载 action（不再经 `useDownloadPathReset` hook）。 */
   const changeDownloadPath = useAppStore((s) => s.changeDownloadPath);
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);
-  const budgetBytes = useAppStore((s) => s.appInfo?.config?.terminalHistoryBudgetBytes);
   /** 组级恢复待处理信号 + 消费动作（pending 布尔消除挂载播种吞信号的首跳竞态）。 */
   const storageGroupResetPending = useAppStore((s) => s.storageGroupResetPending);
   const consumeStorageGroupReset = useAppStore((s) => s.consumeStorageGroupReset);
@@ -336,24 +331,6 @@ export function StorageSettings() {
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
   }, [groupResetOpen, groupResetBusy]);
-
-  /** 终端预算恢复默认：直接写默认字节数，无需确认（产品决策 2026-09-24）。
-   * 返回写入结果：单块点击按需 toast；组级恢复 await 后失败可见（Phase 4 M3）。
-   * `updatePreferences` 契约恒 resolve boolean（实现内全量 try/catch，见 generalActions），
-   * 不再挂第二层 `.catch`（Phase 4 B-P1）。 */
-  const handleTerminalBudgetReset = useCallback((): Promise<boolean> => {
-    return useAppStore.getState().updatePreferences({
-      terminalHistoryBudgetBytes: TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
-    });
-  }, []);
-
-  const handleTerminalBudgetResetClick = useCallback(() => {
-    void handleTerminalBudgetReset().then((ok) => {
-      if (!ok) {
-        showToast(t.settingsUpdateFailed, 'error');
-      }
-    });
-  }, [handleTerminalBudgetReset, showToast, t]);
 
   // 下载路径恢复默认的共享序列（单块/组级共用，防漂移）：抽入 downloadPathReset.ts，
   // 与「浏览器」组同源；单块确认对话框随块抽入 DownloadPathBlock，组级经共享执行器直调 store。
@@ -740,19 +717,17 @@ export function StorageSettings() {
       // 事项 10：逐块真实非默认快照（显示与执行同源）。读最新值——闭包里的 treeStats
       // 可能因 await 陈旧，空则现拉一次（共享 resolveTreeStats，与聚合恢复同源）；
       // store 值直接 getState 取新鲜态。
-      // 已默认的块 → 'hidden'/false：清单不出现、确认时跳过对应恢复腿；未知 fail-open 显示。
+      // 已默认的块 → 'hidden'：清单不出现、确认时跳过对应恢复腿；未知 fail-open 显示。
       const tree = await resolveTreeStats(treeStats, bridge);
       const store = useAppStore.getState();
-      const budget = store.appInfo?.config?.terminalHistoryBudgetBytes;
       const dl = store.downloadSettings;
       const dlLoaded = store.downloadSettingsLoaded;
       const treeBlock = treeBlockOf(tree);
-      const budgetBlock = !isBudgetAtDefault(budget);
       // 下载分支变体与块级对话框同源（`downloadResetBlockVariant`，Phase 4 R2-R10-L2）。
       const downloadBlock = downloadResetBlockVariant(dl, dlLoaded);
 
-      // 全部四块均已是默认值：不出空白清单，直接提示（事项 10 空态）。
-      if (!coreNeeded && treeBlock === 'hidden' && !budgetBlock && downloadBlock === 'hidden') {
+      // 各块均已是默认值：不出空白清单，直接提示（事项 10 空态）。
+      if (!coreNeeded && treeBlock === 'hidden' && downloadBlock === 'hidden') {
         showToast(t.storageGroupResetAllDefault, 'success');
         return;
       }
@@ -771,7 +746,7 @@ export function StorageSettings() {
       setGroupResetRetain(false);
       groupMigrateAtOpenRef.current = dl.auto_migrate_on_path_change;
       setGroupResetCoreNeeded(coreNeeded);
-      setGroupResetBlocks({ tree: treeBlock, budget: budgetBlock, download: downloadBlock });
+      setGroupResetBlocks({ tree: treeBlock, download: downloadBlock });
       setGroupResetOpen(true);
     } finally {
       groupResetOpeningRef.current = false;
@@ -1099,21 +1074,19 @@ export function StorageSettings() {
   const treeEnabled = treeStats?.enabled ?? TREE_CACHE_DEFAULTS.enabled;
   const treeTtlMinutes = treeStats?.ttlMinutes ?? TREE_CACHE_DEFAULTS.ttlMinutes;
 
-  // 四块「恢复默认」按钮的禁用判定（spec §3）：各块在其数据源未知时保持启用
+  // 各块「恢复默认」按钮的禁用判定（spec §3）：各块在其数据源未知时保持启用
   //（fail-open），未知态不禁用。per_category 模式下核心按钮恒启用是有意的：
   // 一键回到统一默认本身就是有效操作（CORE_RESET_PATCH），不存在"无事可做"态。
   const coreAtDefault = isCorePathsAtDefault(status, isDirty);
   const treeAtDefault = isTreeCacheAtDefault(treeStats);
-  const budgetAtDefault = isBudgetAtDefault(budgetBytes);
 
-  // 侧边栏存储行 disabled 聚合信号：四块全默认才为 true（口径单一真源见
+  // 侧边栏存储行 disabled 聚合信号：各块全默认才为 true（口径单一真源见
   // storageAtDefault.ts，与 SettingsPanel 预取初始化共用）。卸载**不清空**（事项 7）：
   // 切出存储组保持最近一次判定，避免"切出即回启用"；聚合未知（从未进过存储组）
   // 由 SettingsPanel 预取完成后一次性初始化（只写 null → 已知，不覆盖实时判定）。
   const storageAtDefault = computeStorageBlocksAtDefault({
     status,
     treeStats,
-    budgetBytes,
     downloadSettings,
     downloadSettingsLoaded,
     draftsDirty: isDirty,
@@ -1244,8 +1217,8 @@ export function StorageSettings() {
    * （`groupResetBlocks`/`groupResetCoreNeeded`/`groupMigrateAtOpenRef`），显示与执行同源。
    * 语义与改前逐字一致：
    * 1. 桥检查前移（L4）；2. **核心先行**：核心 setPaths（含后端二次 preflight）失败即早返，
-   *    不再执行预算/树/下载——缩小不可逆部分生效窗口（closing H-1）；其余三块（预算/树/下载）
-   *    互不阻塞、全部尝试，失败各自 toast（预算腿经注入包装即时 toast；树写自带 toast；下载族
+   *    不再执行树/下载——缩小不可逆部分生效窗口（closing H-1）；其余块（树/下载）
+   *    互不阻塞、全部尝试，失败各自 toast（树写自带 toast；下载族
    *    经 `downloadResetFailureCopy` 复现，R6）；
    * 3. 核心路径落盘用**开框预检的补丁快照**（仅替换 retainSource），不读实时草稿（M2）；
    * 4. 下载搬运的 migrate 开关用**开框快照**，与对话框展示文案同源（M4-R）；
@@ -1272,7 +1245,6 @@ export function StorageSettings() {
           blocks: {
             coreNeeded: groupResetCoreNeeded,
             tree: groupResetBlocks.tree,
-            budget: groupResetBlocks.budget,
             download: groupResetBlocks.download,
           },
           migrateAtOpen: groupMigrateAtOpenRef.current,
@@ -1291,14 +1263,6 @@ export function StorageSettings() {
                   restartRequired: applied.data.restartRequired,
                   preflight: applied.data.preflight,
                 };
-              },
-              resetBudget: async () => {
-                const ok = await handleTerminalBudgetReset();
-                if (!ok) {
-                  // 预算腿失败即时 toast（与改前同点，不挪到汇总之后，避免重排提示）。
-                  showToast(t.settingsUpdateFailed, 'error');
-                }
-                return ok;
               },
               // 树写自带错误 toast；返回值纳入汇总（N4）。
               resetTreeCache: handleTreeResetDefaults,
@@ -1320,7 +1284,7 @@ export function StorageSettings() {
         }
         if (downloadFailure) {
           // 下载族失败文案与改前逐字一致（R6）：由下载块自身结果触发，与 `failedStep`
-          //（首个失败块）解耦 —— 预算/树先失败时下载腿仍已执行、也仍要提示（R9）。
+          //（首个失败块）解耦 —— 树先失败时下载腿仍已执行、也仍要提示（R9）。
           showToast(
             downloadResetFailureCopy(
               t,
@@ -1331,7 +1295,7 @@ export function StorageSettings() {
             'error',
           );
         }
-        // 树/预算走独立桥，此处 refresh 回填核心并重播种草稿（L5）：组恢复是
+        // 树走独立桥，此处 refresh 回填核心并重播种草稿（L5）：组恢复是
         // 用户意图的整体改写 —— 成功后草稿统一回到新持久化值（含丢弃未应用的
         // 核心编辑，组恢复语义），避免旧 mode/分类草稿残留误报脏。
         const fresh = await refresh();
@@ -1371,7 +1335,7 @@ export function StorageSettings() {
             showToast(t.storagePendingBanner, 'success');
           }
         } else {
-          // 核心已默认（跳过 setPaths）：其余三块均为立即生效写入，无待迁移项。
+          // 核心已默认（跳过 setPaths）：其余块均为立即生效写入，无待迁移项。
           showToast(t.settingsResetComplete, 'success');
         }
       } finally {
@@ -1379,7 +1343,6 @@ export function StorageSettings() {
       }
     },
     [
-      handleTerminalBudgetReset,
       handleTreeResetDefaults,
       changeDownloadPath,
       updateDownloadSettings,
@@ -1422,9 +1385,6 @@ export function StorageSettings() {
   });
   const treeResetLabel = formatT(t, 'settingsResetGroupToDefault', {
     group: t.treeCacheTitle,
-  });
-  const budgetResetLabel = formatT(t, 'settingsResetGroupToDefault', {
-    group: t.storageTerminalBudgetTitle,
   });
 
   if (loading) {
@@ -1882,27 +1842,6 @@ export function StorageSettings() {
         </>
       ) : null}
 
-      <div
-        className="adl-settings-storage__header adl-settings-storage__header--section"
-        data-settings-anchor={anchorFor('storage', 'terminalBudget')}
-      >
-        <button
-          type="button"
-          className="adl-settings-row__reset"
-          aria-label={budgetResetLabel}
-          title={budgetResetLabel}
-          data-testid="terminal-budget-reset"
-          disabled={budgetAtDefault || groupResetBusy}
-          onClick={handleTerminalBudgetResetClick}
-        >
-          <IconResetDefaults size={14} decorative />
-        </button>
-        <SettingsHeader title={t.storageTerminalBudgetTitle} />
-      </div>
-      <div className="adl-settings-card">
-        <TerminalHistoryBudgetSection />
-      </div>
-
       <DownloadPathBlock
         onOpenChange={setDownloadResetOpen}
         anchor={anchorFor('storage', 'browserDownload')}
@@ -2082,13 +2021,6 @@ export function StorageSettings() {
                     {groupResetBlocks.tree === 'ttl' ? (
                       <li>{t.storageGroupResetItemTreeTtl}</li>
                     ) : null}
-                    {groupResetBlocks.budget ? (
-                      <li>
-                        {formatT(t, 'storageGroupResetItemBudget', {
-                          default: formatBytes(TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES),
-                        })}
-                      </li>
-                    ) : null}
                     {groupResetBlocks.download === 'on' ? (
                       <li>{t.storageGroupResetItemDownloadMigrateOn}</li>
                     ) : null}
@@ -2185,7 +2117,7 @@ export function StorageSettings() {
                       </button>
                     </>
                   ) : (
-                    /* 核心已默认：无迁移时机可选，单一确认键直接执行其余三块恢复。 */
+                    /* 核心已默认：无迁移时机可选，单一确认键直接执行其余块恢复。 */
                     <button
                       ref={groupResetConfirmRef}
                       type="button"

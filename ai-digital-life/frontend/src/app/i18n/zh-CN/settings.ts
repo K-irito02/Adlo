@@ -16,17 +16,6 @@ export const settingsZh = {
 
   // 终端设置
   settingsTerminalHistoryGroupDesc: '管理终端的历史存储与显示行为',
-  settingsTerminalHistoryBudget: '只读历史磁盘预算',
-  settingsTerminalHistoryBudgetDesc:
-    '这是只读历史在磁盘上的占用上限，不是预留空间。低于上限时不会自动删除任何历史；超过后才按「最旧优先」淘汰，并且始终至少保留最近 20 段。',
-  settingsTerminalHistoryBudgetCustom: '自定义…',
-  settingsTerminalHistoryBudgetFollowDisk: '跟随磁盘剩余空间',
-  settingsTerminalHistoryBudgetFollowDiskDesc:
-    '按系统盘剩余空间估算上限，并预留 1GB 给系统；磁盘越紧，可保留的历史越少。',
-  settingsTerminalHistoryBudgetUsed: '已用 {used}，上限 {limit}',
-  settingsTerminalHistoryBudgetUnitLabel: '容量单位',
-  settingsTerminalHistoryBudgetUnitMb: 'MB',
-  settingsTerminalHistoryBudgetUnitGb: 'GB',
 
   // 通用设置项
   settingsLanguage: '语言',
@@ -153,7 +142,6 @@ export const settingsZh = {
   storageImmutableWebview2Name: 'WebView2 运行时数据',
   storageImmutableWorkspaceCacheName: '工作区级缓存',
   storageRestartRequired: '已保存。请重启应用以完成迁移。',
-  storageTerminalBudgetTitle: '终端历史磁盘预算',
   storageRestartUnavailableInBrowser: '浏览器模式无法重启应用，此变更将在下次启动时生效。',
   storageBrowserDownloadTitle: '浏览器下载路径',
   storageDownloadMigrateLabel: '更改路径时自动迁移文件',
@@ -175,7 +163,7 @@ export const settingsZh = {
   storageGroupResetTitle: '恢复「存储」全部默认？',
   // 不写死数量：清单按开框时快照逐块过滤——已默认的块整项不出现（事项 10）。
   storageGroupResetIntro: '以下设置将一起恢复为默认值：',
-  // 全部四块均已是默认值时不开对话框，直接提示（事项 10 空态）。
+  // 所有块均已是默认值时不开对话框，直接提示（事项 10 空态）。
   storageGroupResetAllDefault: '存储设置均已为默认值，无需恢复。',
   storageGroupResetItemCore:
     '核心数据路径：回到「统一根目录」+ 默认位置；随后走迁移流程，需重启应用（或下次启动）后生效。',
@@ -184,7 +172,6 @@ export const settingsZh = {
     '工作区树缓存：重新开启，保留时长恢复 15 分钟，已缓存内容保留；立即生效。',
   storageGroupResetItemTreeReenable: '工作区树缓存：重新开启，已缓存内容保留；立即生效。',
   storageGroupResetItemTreeTtl: '工作区树缓存：保留时长恢复 15 分钟，已缓存内容保留；立即生效。',
-  storageGroupResetItemBudget: '终端历史磁盘预算：恢复为 {default}；立即生效。',
   storageGroupResetItemDownloadMigrateOn:
     '浏览器默认下载路径：恢复为系统默认；旧路径文件先搬过去，全部成功后才删除旧目录（例外：系统自带目录——如系统盘的下载/文档/桌面、Windows、Program Files 等——只搬文件，从不删除目录本身）；自动迁移开关恢复为关闭。',
   storageGroupResetItemDownloadMigrateOff:
@@ -245,7 +232,7 @@ export const settingsZh = {
   storageCategoryTreeCacheDesc:
     '保存到磁盘的工作区文件树缓存，用于启动时快速显示目录树（可随时清除，清除后下次访问自动重建）。',
   storageCategoryTreeCacheRelated: '与工作区文件树的冷启动秒级渲染与后台静默校准有关。',
-  storageCategoryConfigDesc: '应用设置（语言、主题、日志模式、终端预算、浏览器阈值、DSH 源等）。',
+  storageCategoryConfigDesc: '应用设置（语言、主题、日志模式、浏览器阈值、DSH 源等）。',
   storageCategoryConfigRelated: '与设置面板全部设置项的持久化有关。',
   storageCategoryClipboardDesc: '剪贴板历史中的图片与缩略图文件。',
   storageCategoryClipboardRelated: '与剪贴板历史面板的图片预览与回填有关。',

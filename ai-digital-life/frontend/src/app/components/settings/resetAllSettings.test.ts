@@ -29,7 +29,6 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
           freeBytes: 0,
         },
       })),
-      resetBudget: vi.fn(async () => true),
       resetTreeCache: vi.fn(async () => true),
       downloadPath: {
         changeDownloadPath: vi.fn(async () => ({ ok: true as const, data: undefined })),
@@ -41,7 +40,7 @@ function deps(overrides: Partial<ResetAllDeps> = {}): ResetAllDeps {
 }
 
 const STORAGE_PLAN = {
-  blocks: { coreNeeded: false, tree: 'hidden' as const, budget: true, download: 'hidden' as const },
+  blocks: { coreNeeded: false, tree: 'hidden' as const, download: 'hidden' as const },
   migrateAtOpen: false,
 };
 
@@ -76,7 +75,6 @@ describe('resetAllSettings', () => {
     });
     expect(d.browser.updatePreferences).not.toHaveBeenCalled();
     expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
-    expect(d.storage.resetBudget).not.toHaveBeenCalled();
   });
 
   it('browser 失败即停：dsh 与 storage 都不执行，且计入 skipped', async () => {
@@ -94,7 +92,6 @@ describe('resetAllSettings', () => {
       restartRequired: false,
     });
     expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
-    expect(d.storage.resetBudget).not.toHaveBeenCalled();
   });
 
   it('storagePlan 为 null 时存储计入 skipped，其余照常执行', async () => {
@@ -155,7 +152,6 @@ describe('resetAllSettings', () => {
     expect(outcome.done).toEqual(['preferences']);
     expect(outcome.skipped).toEqual(['dsh', 'storage']);
     expect(d.dsh.saveSourceConfig).not.toHaveBeenCalled();
-    expect(d.storage.resetBudget).not.toHaveBeenCalled();
   });
 
   it('抛出原生 Error 时把 message 透传到 outcome.error（不再吞掉错误信息）', async () => {
@@ -219,13 +215,13 @@ describe('resetAllSettings', () => {
   });
 
   it('storage 首个失败块无 error 时回落到下载块的结构化 error（F1）', async () => {
-    // 预算腿失败（失败块不携带 error）+ 下载腿失败（携带结构化 error）：
+    // 树缓存腿失败（失败块不携带 error）+ 下载腿失败（携带结构化 error）：
     // runStorage 的回落分支须把下载族的结构化错误带出，避免原因被静默吞掉。
     const downloadError = { code: 'Internal' as const, message: 'migrate failed' };
     const d = deps({
       storage: {
         ...deps().storage,
-        resetBudget: vi.fn(async () => false),
+        resetTreeCache: vi.fn(async () => false),
         downloadPath: {
           changeDownloadPath: vi.fn(async () => ({ ok: false as const, error: downloadError })),
           updateDownloadSettings: vi.fn(async () => ({ ok: true as const, data: undefined })),
@@ -234,15 +230,15 @@ describe('resetAllSettings', () => {
     });
     const outcome = await resetAllSettings(d, {
       storagePlan: {
-        blocks: { coreNeeded: false, tree: 'hidden', budget: true, download: 'on' },
+        blocks: { coreNeeded: false, tree: 'ttl', download: 'on' },
         migrateAtOpen: true,
       },
       applyNow: false,
       retainSource: false,
     });
     expect(outcome.failedAt).toBe('storage');
-    // 首个失败块为预算（不携带 error）：failedStep 保留其码不改写。
-    expect(outcome.failedStep).toBe('budget');
+    // 首个失败块为树缓存（不携带 error）：failedStep 保留其码不改写。
+    expect(outcome.failedStep).toBe('treeCache');
     // error 回落到下载块的下载族结构化错误（直接覆盖 runStorage 的回落分支）。
     expect(outcome.error).toEqual(downloadError);
   });

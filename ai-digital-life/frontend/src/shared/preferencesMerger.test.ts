@@ -23,7 +23,6 @@ const baseConfig: ConfigSnapshot = {
   workspaceDeferredIds: [],
   workspaceNaturalOrder: [],
   browserInactiveTabSuspendMs: 3_600_000,
-  terminalHistoryBudgetBytes: 1 << 30,
 };
 
 describe('applyPreferencePatch', () => {
@@ -43,34 +42,6 @@ describe('applyPreferencePatch', () => {
     const patch: AppPreferencePatch = { debugLogMode: 'multi' };
     const result = applyPreferencePatch(baseConfig, patch);
     expect(result.debugLogMode).toBe('multi');
-  });
-
-  it('applies terminalHistoryBudgetBytes patch (preset select / reset writes through)', () => {
-    const result = applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 2 * (1 << 30) });
-    expect(result.terminalHistoryBudgetBytes).toBe(2 * (1 << 30));
-    const followDisk = applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 0 });
-    expect(followDisk.terminalHistoryBudgetBytes).toBe(0);
-  });
-
-  it('clamps out-of-range terminalHistoryBudgetBytes (0 passes through)', () => {
-    expect(
-      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 1 })
-        .terminalHistoryBudgetBytes,
-    ).toBe(1 << 30);
-    expect(
-      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: Number.MAX_SAFE_INTEGER })
-        .terminalHistoryBudgetBytes,
-    ).toBe(2000 * (1 << 30));
-    // NaN 不写入 config，回落下限。
-    expect(
-      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: Number.NaN })
-        .terminalHistoryBudgetBytes,
-    ).toBe(1 << 30);
-    // float 取整（Rust u64 不收小数）。
-    expect(
-      applyPreferencePatch(baseConfig, { terminalHistoryBudgetBytes: 1.5 * (1 << 30) })
-        .terminalHistoryBudgetBytes,
-    ).toBe(1610612736);
   });
 
   it('preserves existing fields when patching logLevel only', () => {

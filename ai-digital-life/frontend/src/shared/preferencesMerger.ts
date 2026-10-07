@@ -81,16 +81,6 @@ export function applyPreferencePatch(
   if (patch.browserInactiveTabSuspendMs !== undefined) {
     nextConfig.browserInactiveTabSuspendMs = patch.browserInactiveTabSuspendMs;
   }
-  // 只读历史磁盘预算：0 = 跟随磁盘直通；其余钳制到 1GiB..=2000GiB（与 Tauri 后端
-  // clamp_terminal_history_budget_bytes 同口径，防手造 patch 绕过前端钳制；
-  // 非有限值（NaN）回落下限，不向 config 写 NaN）。
-  if (patch.terminalHistoryBudgetBytes !== undefined) {
-    const raw = Number.isFinite(patch.terminalHistoryBudgetBytes)
-      ? Math.trunc(patch.terminalHistoryBudgetBytes)
-      : 1 << 30;
-    nextConfig.terminalHistoryBudgetBytes =
-      raw === 0 ? 0 : Math.min(2000 * (1 << 30), Math.max(1 << 30, raw));
-  }
 
   return nextConfig;
 }

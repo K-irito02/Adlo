@@ -42,7 +42,7 @@ const OK_PREFLIGHT: StoragePreflight = {
 const CORE_PLAN: StorageResetPlanResult = {
   status: 'ready',
   plan: {
-    blocks: { coreNeeded: true, tree: 'hidden', budget: false, download: 'hidden' },
+    blocks: { coreNeeded: true, tree: 'hidden', download: 'hidden' },
     preflight: OK_PREFLIGHT,
     migrateAtOpen: false,
   },
@@ -51,7 +51,7 @@ const CORE_PLAN: StorageResetPlanResult = {
 const NON_CORE_PLAN: StorageResetPlanResult = {
   status: 'ready',
   plan: {
-    blocks: { coreNeeded: false, tree: 'hidden', budget: false, download: 'hidden' },
+    blocks: { coreNeeded: false, tree: 'hidden', download: 'hidden' },
     preflight: null,
     migrateAtOpen: false,
   },
@@ -64,7 +64,7 @@ const ALL_DEFAULT_PLAN: StorageResetPlanResult = { status: 'allDefault' };
 const BLOCKED_PLAN: StorageResetPlanResult = {
   status: 'ready',
   plan: {
-    blocks: { coreNeeded: true, tree: 'hidden', budget: false, download: 'hidden' },
+    blocks: { coreNeeded: true, tree: 'hidden', download: 'hidden' },
     preflight: {
       ok: false,
       errors: [{ category: null, message: 'source and target are identical' }],
@@ -80,7 +80,6 @@ const BLOCKED_PLAN: StorageResetPlanResult = {
 function makeDeps(overrides: Partial<StorageResetExecuteDeps> = {}): StorageResetExecuteDeps {
   return {
     setPaths: async () => ({ ok: true, restartRequired: false, preflight: OK_PREFLIGHT }),
-    resetBudget: async () => true,
     resetTreeCache: async () => true,
     downloadPath: {
       changeDownloadPath: async () => ({ ok: true, data: undefined }),
