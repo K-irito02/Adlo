@@ -18,9 +18,19 @@ export const PANE_COLORS: readonly string[] = [
 ];
 
 /**
- * 取某个窗格的颜色；越界（含负数）按调色板长度取模，保证始终返回合法颜色。
+ * 取某个窗格的颜色，保证「每块各不相同」（spec §9）。
+ *
+ * 前 `PANE_COLORS.length` 个索引使用策展色板；超出部分按黄金角生成 HSL 色相，
+ * 相邻/后续窗格不再取模重复。取 60% 饱和 / 45% 明度，使白色方块文字保持可读。
+ * 越界（含负数）色相归一化进 0..359，始终返回合法颜色。
  */
+const GOLDEN_ANGLE_DEG = 137.508;
+
 export function paneColor(colorIndex: number): string {
   const length = PANE_COLORS.length;
-  return PANE_COLORS[((colorIndex % length) + length) % length];
+  if (Number.isInteger(colorIndex) && colorIndex >= 0 && colorIndex < length) {
+    return PANE_COLORS[colorIndex];
+  }
+  const hue = ((Math.round(colorIndex * GOLDEN_ANGLE_DEG) % 360) + 360) % 360;
+  return `hsl(${hue} 60% 45%)`;
 }

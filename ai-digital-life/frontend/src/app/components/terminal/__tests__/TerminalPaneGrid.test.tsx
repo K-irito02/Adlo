@@ -81,6 +81,9 @@ describe('TerminalPaneGrid', () => {
     const { container } = renderGrid({ panes, layout: freeLayout(panes) });
     const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
     expect(grid.classList.contains('is-free')).toBe(true);
+    // 自由模式不按网格铺排：容器最小尺寸为单窗格最小值，而非 computeGrid 派生的网格尺寸。
+    expect(grid.style.minWidth).toBe(`${MIN_PANE_W}px`);
+    expect(grid.style.minHeight).toBe(`${MIN_PANE_H}px`);
     const wrappers = container.querySelectorAll<HTMLElement>('.adl-terminal-pane');
     expect(wrappers).toHaveLength(2);
     for (const wrapper of wrappers) {

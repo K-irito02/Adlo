@@ -79,6 +79,15 @@ export function createTerminalPane(profile: TerminalProfile, colorIndex: number)
 }
 
 /**
+ * 标注限 1 个码点：按 Unicode 码点取首个，避免把代理对 / emoji 截半。
+ * 卡片内联输入与两处 Hook 共用同一实现（与 `<input maxLength={1}>` 构成双保险）；
+ * 空串表示清除标注。
+ */
+export function clampPaneLabel(value: string): string {
+  return Array.from(value).slice(0, 1).join('');
+}
+
+/**
  * 单个窗格的读盘校验器：任一字段非法即返回 `undefined`（拒绝该项）。
  * 可选字段 `sessionId` / `label` 仅在存在时要求为 string（缺失合法）。
  */

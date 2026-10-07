@@ -331,7 +331,9 @@ describe('CenterTerminalView 自定义布局卡片接线', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
     const squares = container.querySelectorAll('.adl-layout-card__square');
-    fireEvent.dragStart(squares[0]);
+    fireEvent.dragStart(squares[0], {
+      dataTransfer: { setData: vi.fn(), effectAllowed: 'none' },
+    });
     fireEvent.dragOver(squares[1]);
     fireEvent.drop(squares[1]);
 
@@ -369,5 +371,47 @@ describe('CenterTerminalView 自定义布局卡片接线', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(useAppStore.getState().terminalTabsById['tc'].panes[0].label).toBe('中');
+  });
+
+  it('清空标注写入 undefined，使序列化时省略 label 键', () => {
+    setTwoPaneTab();
+    const { container } = renderView('c1', 'tc');
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    fireEvent.doubleClick(container.querySelectorAll('.adl-layout-card__square')[0]);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    const pane = useAppStore.getState().terminalTabsById['tc'].panes[0];
+    expect(pane.label).toBeUndefined();
+    expect(JSON.stringify(pane)).not.toContain('"label"');
+  });
+
+  it('编辑标注时按 Esc 只取消编辑，不关闭卡片', () => {
+    setTwoPaneTab();
+    const { container } = renderView('c1', 'tc');
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    fireEvent.doubleClick(container.querySelectorAll('.adl-layout-card__square')[0]);
+    const input = screen.getByRole('textbox');
+
+    fireEvent.keyDown(input, { key: 'Escape' });
+
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(container.querySelector('.adl-layout-card')).not.toBeNull();
+  });
+
+  it('中心宿主每个窗格都渲染「清空内容」按钮（aria-label 来自 i18n）', () => {
+    const tab = makeMultiPaneTab('tc', 2);
+    useAppStore.setState({
+      terminalTabs: [tab],
+      terminalTabsById: { tc: tab },
+      terminalActiveTabId: 'tc',
+    });
+
+    renderView('c1', 'tc');
+
+    expect(screen.getAllByRole('button', { name: '清空内容' })).toHaveLength(2);
   });
 });

@@ -3,7 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
 import { isPanelTab } from '@stores/slices/tabLocation';
-import { activePaneOf, type TerminalPane } from '@stores/slices/terminalSliceTypes';
+import { activePaneOf, clampPaneLabel, type TerminalPane } from '@stores/slices/terminalSliceTypes';
 import { useTerminalDragDrop } from './useTerminalDragDrop';
 import { terminalPtyRuntime } from './terminalPtyRuntime';
 import { useTerminalTabActions } from './useTerminalTabActions';
@@ -221,8 +221,10 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   const handlePaneLabelChange = useCallback(
     (paneId: string, label: string) => {
       if (activeTab) {
+        const clamped = clampPaneLabel(label);
+        // 空标注写 undefined（而非 ''），JSON 序列化时省略该键，持久化更干净。
         terminalUpdatePane(activeTab.id, paneId, {
-          label: Array.from(label).slice(0, 1).join(''),
+          label: clamped === '' ? undefined : clamped,
         });
       }
     },

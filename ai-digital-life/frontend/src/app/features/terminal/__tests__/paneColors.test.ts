@@ -7,16 +7,24 @@ describe('paneColors', () => {
     expect(new Set(PANE_COLORS).size).toBe(PANE_COLORS.length);
   });
 
+  it('uses the curated palette for the first PANE_COLORS.length indices', () => {
+    PANE_COLORS.forEach((color, index) => {
+      expect(paneColor(index)).toBe(color);
+    });
+  });
+
+  it('gives every pane a distinct color past the curated palette (spec §9)', () => {
+    const colors = Array.from({ length: 16 }, (_, index) => paneColor(index));
+    expect(new Set(colors).size).toBe(16);
+  });
+
   it('maps neighbouring indices to different colors', () => {
     expect(paneColor(0)).not.toBe(paneColor(1));
+    expect(paneColor(PANE_COLORS.length)).not.toBe(paneColor(PANE_COLORS.length - 1));
   });
 
-  it('wraps out-of-range indices modulo the palette length', () => {
-    expect(paneColor(PANE_COLORS.length)).toBe(paneColor(0));
-    expect(paneColor(PANE_COLORS.length + 2)).toBe(paneColor(2));
-  });
-
-  it('normalizes negative indices into range', () => {
-    expect(paneColor(-1)).toBe(paneColor(PANE_COLORS.length - 1));
+  it('always returns a valid color, including for negative indices', () => {
+    expect(paneColor(PANE_COLORS.length)).toMatch(/^hsl\(\d+ 60% 45%\)$/);
+    expect(paneColor(-1)).toMatch(/^hsl\(\d+ 60% 45%\)$/);
   });
 });

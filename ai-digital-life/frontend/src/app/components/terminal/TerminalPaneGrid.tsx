@@ -138,10 +138,11 @@ export function TerminalPaneGrid({
     [verticalRef, horizontalRef],
   );
 
-  const gridStyle: CSSProperties = {
-    minWidth: `${MIN_PANE_W * cols}px`,
-    minHeight: `${MIN_PANE_H * rows}px`,
-  };
+  // 卷帘门最小尺寸：equal 按网格规模派生（随窗格数增长）；free 不按网格铺排，
+  // 取单窗格最小值，避免用网格语义把容器最小尺寸无谓撑大。
+  const gridStyle: CSSProperties = isFree
+    ? { minWidth: `${MIN_PANE_W}px`, minHeight: `${MIN_PANE_H}px` }
+    : { minWidth: `${MIN_PANE_W * cols}px`, minHeight: `${MIN_PANE_H * rows}px` };
   if (!maximizedPaneId && !isFree) {
     gridStyle.gridTemplateColumns = `var(--adl-term-col-fractions, ${fractionTracks(layout.colFractions)})`;
     gridStyle.gridTemplateRows = `var(--adl-term-row-fractions, ${fractionTracks(layout.rowFractions)})`;

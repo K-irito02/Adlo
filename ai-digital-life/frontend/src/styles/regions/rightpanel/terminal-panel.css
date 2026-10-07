@@ -503,14 +503,21 @@
    自定义布局卡片（批次 D）
    ========================================================================== */
 
-/* 锚点：卡片相对此容器绝对定位，锚定在「自定义布局」按钮下方 */
+/* 锚点：卡片使其成为普通内联 flex 项（不做定位上下文），让卡片相对整个工具栏
+   定位（见 `.adl-tool-panel--terminal .adl-tool-context--files`），从而宽度可随
+   面板收窄。外部点击判定仍依赖此容器包含卡片 DOM。 */
 .adl-layout-card-anchor {
-  position: relative;
   display: inline-flex;
   align-items: center;
 }
 
-/* 浮层：高于工具栏的 z 层，背景/边框/阴影/圆角全部走设计 token（亮暗自适应） */
+/* 终端工具栏作为卡片定位上下文：宽度≈面板宽度，卡片据此在窄面板内收窄。 */
+.adl-tool-panel--terminal .adl-tool-context--files {
+  position: relative;
+}
+
+/* 浮层：高于工具栏的 z 层，背景/边框/阴影/圆角全部走设计 token（亮暗自适应）。
+   宽度随面板收窄（`100%` 相对工具栏定位上下文），窄面板下不再被左缘裁剪。 */
 .adl-layout-card {
   position: absolute;
   top: calc(100% + var(--space-1, 4px));
@@ -519,7 +526,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2, 8px);
-  width: 220px;
+  width: min(220px, calc(100% - 8px));
   padding: var(--space-3, 12px);
   background: var(--bg-card);
   border: 1px solid var(--border);

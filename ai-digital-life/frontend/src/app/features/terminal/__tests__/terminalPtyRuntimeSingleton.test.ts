@@ -43,7 +43,7 @@ beforeEach(() => {
       create: vi.fn(async () => ({ ok: true, data: { sessionId: 's1' } })),
       input: vi.fn(),
       resize: vi.fn(),
-      kill: (killSpy = vi.fn()),
+      kill: (killSpy = vi.fn(() => Promise.resolve())),
     },
     systemMonitor: { snapshot: vi.fn(async () => ({ ok: false })) },
   };
@@ -124,6 +124,24 @@ describe('terminalPtyRuntime 应用级单例', () => {
       .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
     expect(after?.status).toBe('terminated');
     expect(after?.sessionId).toBe('s1');
+  });
+
+  it('handleKillPane swallows a rejected kill (no floating promise), still marks terminated', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    await terminalPtyRuntime.handleCreatePane(tabId, 'bash');
+    const pane = useAppStore.getState().terminalTabsById[tabId].panes[1];
+    killSpy.mockRejectedValueOnce(new Error('boom'));
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    terminalPtyRuntime.handleKillPane({ tabId, paneId: pane.id, sessionId: pane.sessionId });
+    await Promise.resolve();
+
+    expect(warnSpy).toHaveBeenCalledWith('[pty] kill pane failed:', expect.any(Error));
+    const after = useAppStore
+      .getState()
+      .terminalTabsById[tabId].panes.find((p) => p.id === pane.id);
+    expect(after?.status).toBe('terminated');
   });
 
   it('非初始标签变为活动时，其全部无会话窗格都重建 shell（spec §10）', async () => {

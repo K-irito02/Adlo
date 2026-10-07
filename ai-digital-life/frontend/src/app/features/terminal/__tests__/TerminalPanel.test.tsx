@@ -153,7 +153,9 @@ describe('TerminalPanel 自定义布局卡片接线', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
     const squares = container.querySelectorAll('.adl-layout-card__square');
-    fireEvent.dragStart(squares[0]);
+    fireEvent.dragStart(squares[0], {
+      dataTransfer: { setData: vi.fn(), effectAllowed: 'none' },
+    });
     fireEvent.dragOver(squares[1]);
     fireEvent.drop(squares[1]);
 

@@ -457,7 +457,9 @@ export class TerminalPtyRuntime {
     if (!pane || !sessionId) {
       return;
     }
-    window.digitalLife.pty.kill(sessionId);
+    void window.digitalLife.pty
+      .kill(sessionId)
+      .catch((e) => console.warn('[pty] kill pane failed:', e));
     this.liveSessionIds.delete(sessionId);
     this.ptyDims.delete(sessionId);
     this.oscCarry.delete(sessionId);

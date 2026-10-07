@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { IconClose } from '@icons';
 import { paneColor } from '@features/terminal/paneColors';
 import { useTCopy } from '@i18n/useTCopy';
-import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
+import { clampPaneLabel, type TerminalPane } from '@stores/slices/terminalSliceTypes';
 
 export interface TerminalLayoutCardProps {
   panes: TerminalPane[];
@@ -11,14 +11,6 @@ export interface TerminalLayoutCardProps {
   onSwap: (paneIdA: string, paneIdB: string) => void;
   onLabelChange: (paneId: string, label: string) => void;
   onClose: () => void;
-}
-
-/**
- * 标注限 1 个码点：按 Unicode 码点取首个，避免把代理对 / emoji 截半。
- * 与 `<input maxLength={1}>` 构成双保险。
- */
-function clampLabel(value: string): string {
-  return Array.from(value).slice(0, 1).join('');
 }
 
 /**
@@ -70,6 +62,10 @@ export function TerminalLayoutCard({
   };
 
   const beginLabelEdit = (pane: TerminalPane) => {
+    // 双保险：编辑输入框上的双击会冒泡回方块，此处直接短路，避免把草稿重置为已存值。
+    if (editingPaneId === pane.id) {
+      return;
+    }
     setEditingPaneId(pane.id);
     setDraftLabel(pane.label ?? '');
   };
@@ -78,7 +74,7 @@ export function TerminalLayoutCard({
     if (editingPaneId === null) {
       return;
     }
-    onLabelChange(editingPaneId, clampLabel(draftLabel));
+    onLabelChange(editingPaneId, clampPaneLabel(draftLabel));
     setEditingPaneId(null);
   };
 
@@ -108,9 +104,14 @@ export function TerminalLayoutCard({
               key={pane.id}
               className={`adl-layout-card__square${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
               style={{ background: paneColor(pane.colorIndex) }}
+              role="button"
+              tabIndex={0}
+              aria-pressed={selected}
               draggable={!swapMode}
-              onDragStart={() => {
+              onDragStart={(event) => {
                 dragFromIndexRef.current = index;
+                event.dataTransfer.setData('text/plain', String(index));
+                event.dataTransfer.effectAllowed = 'move';
               }}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -132,6 +133,20 @@ export function TerminalLayoutCard({
                   beginLabelEdit(pane);
                 }
               }}
+              onKeyDown={(event) => {
+                // 编辑中：键盘事件由输入框处理（Enter 提交 / Esc 取消），方块不再介入。
+                if (editingPaneId === pane.id) {
+                  return;
+                }
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  if (swapMode) {
+                    toggleSelection(pane.id);
+                  } else {
+                    beginLabelEdit(pane);
+                  }
+                }
+              }}
             >
               {editing ? (
                 <input
@@ -140,10 +155,13 @@ export function TerminalLayoutCard({
                   maxLength={1}
                   autoFocus
                   onChange={(event) => setDraftLabel(event.target.value)}
+                  onDoubleClick={(event) => event.stopPropagation()}
                   onKeyDown={(event) => {
                     if (event.key === 'Enter') {
                       commitLabel();
                     } else if (event.key === 'Escape') {
+                      // 先只取消编辑：阻止冒泡，避免文档级 Esc 监听同时关闭卡片。
+                      event.stopPropagation();
                       cancelLabel();
                     }
                   }}

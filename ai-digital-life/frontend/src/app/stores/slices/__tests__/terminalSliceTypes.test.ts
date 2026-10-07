@@ -7,6 +7,7 @@ import {
   activePaneOf,
   tabStatusOf,
   nextPaneColorIndex,
+  clampPaneLabel,
   type TerminalPane,
   type TerminalTabState,
 } from '../terminalSliceTypes';
@@ -172,5 +173,17 @@ describe('nextPaneColorIndex', () => {
         makePane({ id: 'c', colorIndex: 2 }),
       ]),
     ).toBe(3);
+  });
+});
+
+describe('clampPaneLabel', () => {
+  it('keeps only the first code point', () => {
+    expect(clampPaneLabel('中文')).toBe('中');
+    expect(clampPaneLabel('abc')).toBe('a');
+    expect(clampPaneLabel('')).toBe('');
+  });
+
+  it('does not split surrogate pairs (emoji survives intact)', () => {
+    expect(clampPaneLabel('😀x')).toBe('😀');
   });
 });

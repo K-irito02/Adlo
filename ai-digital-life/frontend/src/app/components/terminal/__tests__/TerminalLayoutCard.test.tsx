@@ -57,6 +57,11 @@ function squaresOf(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll<HTMLElement>('.adl-layout-card__square'));
 }
 
+// jsdom 26 无 DataTransfer：拖拽测试显式注入一个可断言的 dataTransfer 替身。
+function dragDataTransfer() {
+  return { setData: vi.fn(), effectAllowed: 'none' };
+}
+
 describe('TerminalLayoutCard', () => {
   it('renders one square per pane inside the card grid', () => {
     const { container } = renderCard(makePanes(3));
@@ -102,7 +107,7 @@ describe('TerminalLayoutCard reorder', () => {
   it('calls onMove(fromIndex, toIndex) when a square is dropped onto another', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const squares = squaresOf(container);
-    fireEvent.dragStart(squares[0]);
+    fireEvent.dragStart(squares[0], { dataTransfer: dragDataTransfer() });
     fireEvent.dragOver(squares[2]);
     fireEvent.drop(squares[2]);
     expect(onMove).toHaveBeenCalledWith(0, 2);
@@ -111,9 +116,17 @@ describe('TerminalLayoutCard reorder', () => {
   it('does not call onMove when a square is dropped on itself', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const squares = squaresOf(container);
-    fireEvent.dragStart(squares[1]);
+    fireEvent.dragStart(squares[1], { dataTransfer: dragDataTransfer() });
     fireEvent.drop(squares[1]);
     expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('sets dataTransfer on drag start so native DnD (Firefox) can start the drag', () => {
+    const { container } = renderCard(makePanes(3));
+    const dataTransfer = dragDataTransfer();
+    fireEvent.dragStart(squaresOf(container)[0], { dataTransfer });
+    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', '0');
+    expect(dataTransfer.effectAllowed).toBe('move');
   });
 });
 
@@ -164,6 +177,43 @@ describe('TerminalLayoutCard swap mode', () => {
   });
 });
 
+describe('TerminalLayoutCard keyboard', () => {
+  it('Enter in swap mode toggles selection via aria-pressed', async () => {
+    const user = userEvent.setup();
+    const { container } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+
+    const square = squaresOf(container)[0];
+    expect(square).toHaveAttribute('aria-pressed', 'false');
+    square.focus();
+
+    await user.keyboard('{Enter}');
+    expect(squaresOf(container)[0]).toHaveAttribute('aria-pressed', 'true');
+
+    await user.keyboard('{Enter}');
+    expect(squaresOf(container)[0]).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('Space in swap mode toggles selection', async () => {
+    const user = userEvent.setup();
+    const { container } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+
+    squaresOf(container)[0].focus();
+    await user.keyboard(' ');
+    expect(squaresOf(container)[0]).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('Enter outside swap mode enters label editing', async () => {
+    const user = userEvent.setup();
+    const { container } = renderCard(makePanes(2));
+
+    squaresOf(container)[0].focus();
+    await user.keyboard('{Enter}');
+    expect(screen.getByRole('textbox')).not.toBeNull();
+  });
+});
+
 describe('TerminalLayoutCard label editing', () => {
   it('commits the label on Enter after a double-click', async () => {
     const user = userEvent.setup();
@@ -198,6 +248,17 @@ describe('TerminalLayoutCard label editing', () => {
     fireEvent.blur(input);
 
     expect(onLabelChange).toHaveBeenCalledWith('p1', '中');
+  });
+
+  it('keeps the typed draft when the editing input itself is double-clicked', () => {
+    const { container } = renderCard(makePanes(2));
+    fireEvent.doubleClick(squaresOf(container)[0]);
+
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: '中' } });
+    fireEvent.doubleClick(input);
+
+    expect(screen.getByRole('textbox')).toHaveValue('中');
   });
 
   it('cancels editing on Escape without committing', () => {
