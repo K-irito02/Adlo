@@ -219,8 +219,7 @@ export const settingsZh = {
   storageCategoryDownloadsDefault: '默认下载目标',
   storageCategoryDatabaseDesc:
     '应用的核心数据库，保存工作区、会话、任务、审批、补丁与回滚、剪贴板元数据、Git 可视化缓存等。',
-  storageCategoryDatabaseRelated:
-    '与工作区导航、会话面板、剪贴板历史、Git 可视化等有关。',
+  storageCategoryDatabaseRelated: '与工作区导航、会话面板、剪贴板历史、Git 可视化等有关。',
   storageCategoryDownloadsDbDesc: '浏览器下载任务的记录，包含文件名、来源、时间和状态。',
   storageCategoryDownloadsDbRelated: '与内置浏览器的「下载」列表与管理有关。',
   storageCategorySiteMetaDbDesc: '保存访问过网站的标题与图标，让浏览器标签页打开更流畅。',
