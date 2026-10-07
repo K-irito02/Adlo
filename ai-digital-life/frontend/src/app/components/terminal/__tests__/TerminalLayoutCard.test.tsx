@@ -8,6 +8,8 @@ import { TerminalLayoutCard } from '../TerminalLayoutCard';
 
 // 用哨兵文案 mock useTCopy，断言卡片显示的是 copy（而非硬编码字面量）。
 const COPY = vi.hoisted(() => ({
+  terminalCustomLayout: 'CUSTOM_LAYOUT',
+  close: 'CLOSE',
   terminalLayoutCardSwap: 'SWAP_TOGGLE',
   terminalLayoutCardSwapConfirm: 'SWAP_CONFIRM',
   terminalLayoutCardSwapCancel: 'SWAP_CANCEL',
@@ -87,6 +89,12 @@ describe('TerminalLayoutCard', () => {
     expect(container.querySelector('.adl-layout-card__hint')?.textContent).toBe(
       COPY.terminalLayoutCardAnnotateHint,
     );
+  });
+
+  it('renders a close button that calls onClose', () => {
+    const { onClose } = renderCard(makePanes(2));
+    fireEvent.click(screen.getByRole('button', { name: COPY.close }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

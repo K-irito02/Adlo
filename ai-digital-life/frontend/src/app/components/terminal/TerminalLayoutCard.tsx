@@ -1,5 +1,6 @@
 // src/app/components/terminal/TerminalLayoutCard.tsx
 import { useRef, useState } from 'react';
+import { IconClose } from '@icons';
 import { paneColor } from '@features/terminal/paneColors';
 import { useTCopy } from '@i18n/useTCopy';
 import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
@@ -22,13 +23,14 @@ function clampLabel(value: string): string {
 
 /**
  * 自定义布局卡片：按 `panes` 顺序渲染彩色方块，提供拖拽排序、交换模式与双击标注。
- * 所有可见文案走 `useTCopy()`；`onClose` 由外层宿主接线（本卡片不渲染关闭入口）。
+ * 所有可见文案走 `useTCopy()`；卡片头部渲染关闭按钮并调用 `onClose`（宿主负责开合与外部点击/Esc）。
  */
 export function TerminalLayoutCard({
   panes,
   onMove,
   onSwap,
   onLabelChange,
+  onClose,
 }: TerminalLayoutCardProps) {
   const { t } = useTCopy();
   const [swapMode, setSwapMode] = useState(false);
@@ -85,7 +87,18 @@ export function TerminalLayoutCard({
   };
 
   return (
-    <div className="adl-layout-card">
+    <div className="adl-layout-card" role="dialog" aria-label={t.terminalCustomLayout}>
+      <div className="adl-layout-card__header">
+        <span className="adl-layout-card__title">{t.terminalCustomLayout}</span>
+        <button
+          type="button"
+          className="adl-layout-card__close"
+          onClick={onClose}
+          aria-label={t.close}
+        >
+          <IconClose size={12} decorative />
+        </button>
+      </div>
       <div className="adl-layout-card__grid">
         {panes.map((pane, index) => {
           const selected = selectedIds.includes(pane.id);
@@ -93,7 +106,7 @@ export function TerminalLayoutCard({
           return (
             <div
               key={pane.id}
-              className={`adl-layout-card__square${selected ? ' is-selected' : ''}`}
+              className={`adl-layout-card__square${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}`}
               style={{ background: paneColor(pane.colorIndex) }}
               draggable={!swapMode}
               onDragStart={() => {

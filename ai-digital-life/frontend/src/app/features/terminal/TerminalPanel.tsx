@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -28,6 +28,7 @@ import { nextTerminalWorkspaceToggleValue } from './terminalWorkspaceToggle';
 import { isPanelTab } from '@stores/slices/tabLocation';
 import { useTCopy } from '@i18n/useTCopy';
 import { useTerminalPaneLayout } from './useTerminalPaneLayout';
+import { useLayoutCard } from './useLayoutCard';
 
 export function TerminalPanel() {
   const { t } = useTCopy();
@@ -98,32 +99,13 @@ export function TerminalPanel() {
     setMaximizedPaneId(null);
   }, [terminalActiveTabId, paneCount, paneLayout.mode]);
 
-  // 自定义布局卡片：开关为面板本地态，锚点 ref 用于外部点击判定。
-  const [layoutCardOpen, setLayoutCardOpen] = useState(false);
-  const layoutCardRef = useRef<HTMLDivElement | null>(null);
-
-  // 外部点击 / Esc 关闭卡片（与既有菜单下拉的关闭方式一致）。
-  useEffect(() => {
-    if (!layoutCardOpen) {
-      return;
-    }
-    const handlePointerDown = (event: MouseEvent) => {
-      if (!layoutCardRef.current?.contains(event.target as Node)) {
-        setLayoutCardOpen(false);
-      }
-    };
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        setLayoutCardOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handlePointerDown);
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown);
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [layoutCardOpen]);
+  // 自定义布局卡片：开合本地态 + 锚点 ref + 外部点击/Esc 关闭（共享 Hook）。
+  const {
+    open: layoutCardOpen,
+    anchorRef: layoutCardRef,
+    toggle: toggleLayoutCard,
+    close: closeLayoutCard,
+  } = useLayoutCard();
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
@@ -284,8 +266,9 @@ export function TerminalPanel() {
               <button
                 type="button"
                 className={`adl-tool-context__iconbtn${layoutCardOpen ? ' is-open' : ''}`}
-                onClick={() => setLayoutCardOpen((value) => !value)}
+                onClick={toggleLayoutCard}
                 aria-label={t.terminalCustomLayout}
+                aria-haspopup="dialog"
                 aria-expanded={layoutCardOpen}
                 disabled={!hasActiveTab}
               >
@@ -298,7 +281,7 @@ export function TerminalPanel() {
                 onMove={terminalActions.handleReorderPanes}
                 onSwap={terminalActions.handleSwapPanes}
                 onLabelChange={terminalActions.handlePaneLabelChange}
-                onClose={() => setLayoutCardOpen(false)}
+                onClose={closeLayoutCard}
               />
             ) : null}
           </div>

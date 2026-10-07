@@ -527,6 +527,40 @@
   box-shadow: var(--shadow-lg);
 }
 
+/* 卡片头部：标题 + 关闭按钮 */
+.adl-layout-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2, 8px);
+}
+
+.adl-layout-card__title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  color: var(--text-primary);
+}
+
+.adl-layout-card__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-layout-card__close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 /* 正方形网格：固定 4 列，窗格数不足时末行自动留空 */
 .adl-layout-card__grid {
   display: grid;
@@ -541,8 +575,9 @@
   aspect-ratio: 1 / 1;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  /* 方块底色为固定卡片色板（paneColors，非主题语义色），其上标注统一用白色，
-     保证 8 色在亮暗两主题下均可读，故此处不取主题前景 token。 */
+  /* 无合适设计 token：唯一的「反色前景」候选 `--text-on-accent` 在暗主题下会翻成
+     近黑色（#141414），落在饱和色板方块上不可读。方块底色是固定卡片色板
+     （paneColors，非主题语义色），故此处用固定白色，保证 8 色在亮暗两主题下均可读。 */
   color: #ffffff;
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
@@ -567,7 +602,7 @@
   transform: scale(1.08);
 }
 
-/* 标注编辑态：组件在方块内以 input 覆盖，保留该类作为编辑中的高亮钩子 */
+/* 标注编辑态：组件在方块内以 input 覆盖，同时给方块加 is-editing 高亮描边 */
 .adl-layout-card__square.is-editing {
   box-shadow: 0 0 0 2px var(--accent);
 }

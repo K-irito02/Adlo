@@ -63,6 +63,7 @@ const t = {
   terminalLayoutModeLabel: '终端布局模式',
   terminalAutoLayout: '恢复自动布局',
   terminalCustomLayout: '自定义布局',
+  close: '关闭',
   terminalPaneResizeDivider: '调整窗格大小',
   terminalLayoutCardSwap: '交换位置',
   terminalLayoutCardSwapConfirm: '确认交换位置',
@@ -310,6 +311,17 @@ describe('CenterTerminalView 自定义布局卡片接线', () => {
     expect(container.querySelectorAll('.adl-layout-card__square')).toHaveLength(2);
 
     fireEvent.mouseDown(document.body);
+    expect(container.querySelector('.adl-layout-card')).toBeNull();
+  });
+
+  it('Esc 关闭卡片', () => {
+    setTwoPaneTab();
+    const { container } = renderView('c1', 'tc');
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    expect(container.querySelector('.adl-layout-card')).not.toBeNull();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(container.querySelector('.adl-layout-card')).toBeNull();
   });
 

@@ -64,6 +64,7 @@ const t = {
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',
   terminalPaneClose: '关闭窗口',
+  close: '关闭',
   resizeTerminalNavigator: '调整终端导航宽度',
   terminalLayoutCardSwap: '交换位置',
   terminalLayoutCardSwapConfirm: '确认交换位置',
@@ -107,7 +108,6 @@ beforeEach(() => {
     terminalActiveTabId: 'tp',
     recentWorkspaces: [],
     terminalWorkspaceExpanded: {},
-    navigatorCollapsed: {},
   });
 });
 
@@ -125,6 +125,26 @@ describe('TerminalPanel 自定义布局卡片接线', () => {
     expect(container.querySelectorAll('.adl-layout-card__square')).toHaveLength(2);
 
     fireEvent.mouseDown(document.body);
+    expect(container.querySelector('.adl-layout-card')).toBeNull();
+  });
+
+  it('Esc 关闭卡片', () => {
+    const { container } = renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    expect(container.querySelector('.adl-layout-card')).not.toBeNull();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(container.querySelector('.adl-layout-card')).toBeNull();
+  });
+
+  it('卡片头部关闭按钮调用宿主 onClose 关闭卡片', () => {
+    const { container } = renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
+    expect(container.querySelector('.adl-layout-card')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: '关闭' }));
     expect(container.querySelector('.adl-layout-card')).toBeNull();
   });
 
