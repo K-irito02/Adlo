@@ -99,6 +99,7 @@ import type { HeatmapTab, ChartColorPreset } from '../slices/uiSliceTypes';
 import {
   isTerminalProfile,
   readTerminalProfile,
+  readTerminalPanes,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
@@ -238,7 +239,13 @@ export const isTerminalTabState = (item: Record<string, unknown>): boolean => {
   if (!isTerminalProfile(item.profile)) {
     return false;
   }
-  if (item.status !== 'idle' && item.status !== 'running' && item.status !== 'terminated') {
+  // 窗格数组必须存在且至少含一个合法窗格（spec §5.1「至少 1 个」）。
+  // 旧标签数据（无 panes）在此被整体拒绝，由 readObjectArray 回退空数组，不做迁移。
+  const panes = readTerminalPanes(item.panes);
+  if (panes === undefined || panes.length === 0) {
+    return false;
+  }
+  if (item.activePaneId !== undefined && typeof item.activePaneId !== 'string') {
     return false;
   }
   if (typeof item.isPinned !== 'boolean') {

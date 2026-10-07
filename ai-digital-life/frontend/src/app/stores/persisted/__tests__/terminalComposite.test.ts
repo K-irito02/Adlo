@@ -3,12 +3,20 @@ import { hydrateAll, resetHydrationForTest } from '@stores/persisted/hydrate';
 import { terminalCompositeHydrators } from '@stores/persisted/terminalComposite';
 import type { StoreState } from '@stores/StoreState';
 
+const VALID_PANE = {
+  id: 'p1',
+  profile: 'powershell',
+  status: 'idle',
+  colorIndex: 0,
+} as const;
+
 const VALID_TAB = {
   id: 't1',
   workspaceId: 'ws-1',
   title: 'PowerShell',
   profile: 'powershell',
-  status: 'idle',
+  panes: [VALID_PANE],
+  activePaneId: 'p1',
   isPinned: false,
   sortOrder: 1,
 } as const;
@@ -27,6 +35,13 @@ describe('terminal composite hydration', () => {
 
   it('does not contribute terminalTabsById when tabs are corrupt', () => {
     localStorage.setItem('adl:terminal.tabs', JSON.stringify('not-an-array'));
+    const patch = hydrateAll().patch;
+    expect(patch.terminalTabsById).toBeUndefined();
+  });
+
+  it('rejects a legacy tab without panes (whole array falls back to empty)', () => {
+    const legacyTab = { ...VALID_TAB, panes: undefined };
+    localStorage.setItem('adl:terminal.tabs', JSON.stringify([legacyTab]));
     const patch = hydrateAll().patch;
     expect(patch.terminalTabsById).toBeUndefined();
   });

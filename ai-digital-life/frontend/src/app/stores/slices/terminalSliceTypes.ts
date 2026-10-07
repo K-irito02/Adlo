@@ -2,16 +2,32 @@
  * 终端切片类型定义与常量
  * 从 terminalSlice.ts 提取，避免循环依赖
  */
+import { createUiId } from '../shared';
 import type { TerminalProfile } from '../types';
 import type { TabLocation } from './tabLocation';
+
+export type TerminalPaneStatus = 'idle' | 'running' | 'terminated';
+
+/**
+ * 一个终端标签内的一个实时终端窗口，对应一个**独立 PTY 会话**。
+ * `id` 稳定不变（`createUiId('pane')`）；`sessionId` 落盘但**重启忽略并重建**。
+ */
+export interface TerminalPane {
+  id: string;
+  sessionId?: string;
+  profile: TerminalProfile;
+  status: TerminalPaneStatus;
+  label?: string;
+  colorIndex: number;
+}
 
 export interface TerminalTabState {
   id: string;
   workspaceId: string;
   title: string;
   profile: TerminalProfile;
-  sessionId?: string;
-  status: 'idle' | 'running' | 'terminated';
+  panes: TerminalPane[];
+  activePaneId?: string;
   isPinned: boolean;
   pinnedAt?: number;
   sortOrder: number;
@@ -49,6 +65,109 @@ export function isTerminalProfile(value: unknown): value is TerminalProfile {
  */
 export function readTerminalProfile(raw: unknown): TerminalProfile | undefined {
   return isTerminalProfile(raw) ? raw : undefined;
+}
+
+const TERMINAL_PANE_STATUS_SET: Record<TerminalPaneStatus, true> = {
+  idle: true,
+  running: true,
+  terminated: true,
+};
+
+/** 由给定 profile 与颜色下标创建一个全新的空窗格（`status: 'idle'`，无会话）。 */
+export function createTerminalPane(profile: TerminalProfile, colorIndex: number): TerminalPane {
+  return { id: createUiId('pane'), profile, status: 'idle', colorIndex };
+}
+
+/**
+ * 单个窗格的读盘校验器：任一字段非法即返回 `undefined`（拒绝该项）。
+ * 可选字段 `sessionId` / `label` 仅在存在时要求为 string（缺失合法）。
+ */
+export function readTerminalPane(raw: unknown): TerminalPane | undefined {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) {
+    return undefined;
+  }
+  const record = raw as Record<string, unknown>;
+  if (typeof record.id !== 'string') {
+    return undefined;
+  }
+  if (!isTerminalProfile(record.profile)) {
+    return undefined;
+  }
+  if (
+    typeof record.status !== 'string' ||
+    !(TERMINAL_PANE_STATUS_SET as Record<string, true>)[record.status]
+  ) {
+    return undefined;
+  }
+  if (typeof record.colorIndex !== 'number') {
+    return undefined;
+  }
+  if (record.sessionId !== undefined && typeof record.sessionId !== 'string') {
+    return undefined;
+  }
+  if (record.label !== undefined && typeof record.label !== 'string') {
+    return undefined;
+  }
+  const pane: TerminalPane = {
+    id: record.id,
+    profile: record.profile,
+    status: record.status as TerminalPaneStatus,
+    colorIndex: record.colorIndex,
+  };
+  if (typeof record.sessionId === 'string') {
+    pane.sessionId = record.sessionId;
+  }
+  if (typeof record.label === 'string') {
+    pane.label = record.label;
+  }
+  return pane;
+}
+
+/**
+ * 窗格数组读盘校验器：非数组 → `undefined`；数组内**逐项**校验，
+ * 任一非法项被拒绝（丢弃），合法项按原顺序保留。
+ */
+export function readTerminalPanes(raw: unknown): TerminalPane[] | undefined {
+  if (!Array.isArray(raw)) {
+    return undefined;
+  }
+  const panes: TerminalPane[] = [];
+  for (const item of raw) {
+    const pane = readTerminalPane(item);
+    if (pane !== undefined) {
+      panes.push(pane);
+    }
+  }
+  return panes;
+}
+
+/** 活动窗格：优先匹配 `activePaneId`，否则回退首个窗格；无窗格时 `undefined`。 */
+export function activePaneOf(tab: TerminalTabState): TerminalPane | undefined {
+  return tab.panes.find((pane) => pane.id === tab.activePaneId) ?? tab.panes[0];
+}
+
+/** 标签级派生状态：全部 terminated → terminated；有 running → running；否则 idle。 */
+export function tabStatusOf(tab: TerminalTabState): TerminalPaneStatus {
+  if (tab.panes.length === 0) {
+    return 'idle';
+  }
+  if (tab.panes.every((pane) => pane.status === 'terminated')) {
+    return 'terminated';
+  }
+  if (tab.panes.some((pane) => pane.status === 'running')) {
+    return 'running';
+  }
+  return 'idle';
+}
+
+/** 返回 0..N 中第一个未被占用的颜色下标；0..N-1 全部占用时返回 `panes.length`。 */
+export function nextPaneColorIndex(panes: TerminalPane[]): number {
+  const used = new Set(panes.map((pane) => pane.colorIndex));
+  let index = 0;
+  while (used.has(index)) {
+    index += 1;
+  }
+  return index;
 }
 
 /**

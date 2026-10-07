@@ -4,18 +4,20 @@
  */
 import type { StoreState } from '../StoreState';
 import type { TerminalProfile } from '../types';
-import type { TerminalTabState } from './terminalSliceTypes';
+import type { TerminalPane, TerminalTabState } from './terminalSliceTypes';
 import { persistField } from '../persisted/apply';
 import { applyTabPrune } from '../persisted/pruneWiring';
 import { persist } from '../persisted/persist';
 import {
   buildTabsById,
+  createTerminalPane,
+  nextPaneColorIndex,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
 } from './terminalSliceTypes';
 
-export type { TerminalTabState };
+export type { TerminalPane, TerminalTabState };
 export {
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
@@ -39,6 +41,28 @@ function sortTabs(tabs: TerminalTabState[]): TerminalTabState[] {
   });
 }
 
+/**
+ * 对单个标签做「窗格变更」：updater 返回新标签，或返回 undefined 表示无操作。
+ * 成功时统一写盘并重建 `terminalTabsById`（所有窗格动作的唯一副作用出口）。
+ */
+function applyPaneChange(
+  state: StoreState,
+  tabId: string,
+  update: (tab: TerminalTabState) => TerminalTabState | undefined,
+): Partial<StoreState> {
+  const tab = state.terminalTabsById[tabId];
+  if (!tab) {
+    return state;
+  }
+  const nextTab = update(tab);
+  if (!nextTab) {
+    return state;
+  }
+  const nextTabs = sortTabs(state.terminalTabs.map((t) => (t.id === tabId ? nextTab : t)));
+  persist('adl:terminal.tabs', nextTabs);
+  return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
+}
+
 const initialTerminalTabs: TerminalTabState[] = [];
 
 // Type and slice definition
@@ -57,15 +81,29 @@ export interface TerminalSlice {
   terminalCloseTab: (tabId: string) => void;
   // patch 不含 location（与浏览器侧 BrowserTabStateUpdate 对齐）：宿主迁移必须走
   // terminalSetLocation，全仓无经 update 路径改 location 的合法使用。
-  terminalUpdateActiveTab: (patch: Partial<Omit<TerminalTabState, 'id' | 'location'>>) => void;
+  // 亦不含 panes：窗格集合只能经 terminalAddPane/Remove/Reorder/Swap 变更。
+  terminalUpdateActiveTab: (
+    patch: Partial<Omit<TerminalTabState, 'id' | 'location' | 'panes'>>,
+  ) => void;
   terminalUpdateTab: (
     tabId: string,
-    patch: Partial<Omit<TerminalTabState, 'id' | 'location'>>,
+    patch: Partial<Omit<TerminalTabState, 'id' | 'location' | 'panes'>>,
   ) => void;
   terminalTogglePin: (tabId: string) => void;
   terminalReorderTabs: (newOrder: TerminalTabState[]) => void;
   terminalCloseAllTabs: (workspaceId?: string) => void;
   terminalSetLocation: (tabId: string, location: 'panel' | 'center') => void;
+  // 窗格动作。terminalAddPane 返回新窗格 id（调用方需立即建会话）。
+  terminalAddPane: (tabId: string, profile?: TerminalProfile) => string;
+  terminalRemovePane: (tabId: string, paneId: string) => void;
+  terminalUpdatePane: (
+    tabId: string,
+    paneId: string,
+    patch: Partial<Omit<TerminalPane, 'id'>>,
+  ) => void;
+  terminalSetActivePane: (tabId: string, paneId: string) => void;
+  terminalReorderPanes: (tabId: string, orderedIds: string[]) => void;
+  terminalSwapPanes: (tabId: string, a: string, b: string) => void;
   setDefaultTerminalProfile: (profile: TerminalProfile) => void;
   setWorkspaceDefaultTerminalProfile: (workspaceId: string, profile: TerminalProfile) => void;
   setTerminalNavigatorWidth: (width: number) => void;
@@ -77,7 +115,7 @@ export interface TerminalSlice {
 
 export const createTerminalSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState,
+  get: () => StoreState,
 ): TerminalSlice => {
   return {
     terminalTabs: initialTerminalTabs,
@@ -107,12 +145,14 @@ export const createTerminalSlice = (
           state.terminalTabs.length > 0
             ? Math.max(...state.terminalTabs.map((t) => t.sortOrder))
             : 0;
+        const pane = createTerminalPane(finalProfile, 0);
         const tab: TerminalTabState = {
           id: createUiId('terminal'),
           workspaceId,
           title: deriveTerminalTitle(finalProfile, existingCount),
           profile: finalProfile,
-          status: 'idle',
+          panes: [pane],
+          activePaneId: pane.id,
           isPinned: false,
           sortOrder: maxSortOrder + 1,
         };
@@ -171,6 +211,106 @@ export const createTerminalSlice = (
         persist('adl:terminal.tabs', nextTabs);
         return { terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) };
       }),
+
+    terminalAddPane: (tabId, profile) => {
+      const state = get();
+      const tab = state.terminalTabsById[tabId];
+      if (!tab) {
+        return '';
+      }
+      const finalProfile = profile ?? tab.profile;
+      const pane = createTerminalPane(finalProfile, nextPaneColorIndex(tab.panes));
+      const nextTab: TerminalTabState = {
+        ...tab,
+        panes: [...tab.panes, pane],
+        activePaneId: pane.id,
+      };
+      const nextTabs = sortTabs(state.terminalTabs.map((t) => (t.id === tabId ? nextTab : t)));
+      persist('adl:terminal.tabs', nextTabs);
+      set({ terminalTabs: nextTabs, terminalTabsById: buildTabsById(nextTabs) });
+      return pane.id;
+    },
+
+    terminalRemovePane: (tabId, paneId) =>
+      set((state) =>
+        applyPaneChange(state, tabId, (tab) => {
+          // 最后一个窗格不在此删除：UI 改走「关闭标签」。
+          if (tab.panes.length <= 1) {
+            return undefined;
+          }
+          const index = tab.panes.findIndex((pane) => pane.id === paneId);
+          if (index === -1) {
+            return undefined;
+          }
+          const panes = tab.panes.filter((pane) => pane.id !== paneId);
+          const activePaneId =
+            tab.activePaneId === paneId
+              ? panes[Math.min(index, panes.length - 1)]?.id
+              : tab.activePaneId;
+          return { ...tab, panes, activePaneId };
+        }),
+      ),
+
+    terminalUpdatePane: (tabId, paneId, patch) =>
+      set((state) =>
+        applyPaneChange(state, tabId, (tab) => {
+          if (!tab.panes.some((pane) => pane.id === paneId)) {
+            return undefined;
+          }
+          return {
+            ...tab,
+            panes: tab.panes.map((pane) => (pane.id === paneId ? { ...pane, ...patch } : pane)),
+          };
+        }),
+      ),
+
+    terminalSetActivePane: (tabId, paneId) =>
+      set((state) =>
+        applyPaneChange(state, tabId, (tab) => {
+          if (tab.activePaneId === paneId || !tab.panes.some((pane) => pane.id === paneId)) {
+            return undefined;
+          }
+          return { ...tab, activePaneId: paneId };
+        }),
+      ),
+
+    terminalReorderPanes: (tabId, orderedIds) =>
+      set((state) =>
+        applyPaneChange(state, tabId, (tab) => {
+          const byId = new Map(tab.panes.map((pane) => [pane.id, pane]));
+          const reordered: TerminalPane[] = [];
+          for (const id of orderedIds) {
+            const pane = byId.get(id);
+            if (pane !== undefined) {
+              reordered.push(pane);
+              byId.delete(id);
+            }
+          }
+          // 未出现在 orderedIds 的窗格按原顺序补回，保证不丢窗格。
+          for (const pane of tab.panes) {
+            if (byId.has(pane.id)) {
+              reordered.push(pane);
+            }
+          }
+          return { ...tab, panes: reordered };
+        }),
+      ),
+
+    terminalSwapPanes: (tabId, a, b) =>
+      set((state) =>
+        applyPaneChange(state, tabId, (tab) => {
+          const indexA = tab.panes.findIndex((pane) => pane.id === a);
+          const indexB = tab.panes.findIndex((pane) => pane.id === b);
+          if (a === b || indexA === -1 || indexB === -1) {
+            return undefined;
+          }
+          const panes = [...tab.panes];
+          const swap = panes[indexA];
+          panes[indexA] = panes[indexB];
+          panes[indexB] = swap;
+          return { ...tab, panes };
+        }),
+      ),
 
     terminalSetLocation: (tabId, location) =>
       set((state) => {

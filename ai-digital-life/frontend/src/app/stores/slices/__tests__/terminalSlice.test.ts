@@ -71,7 +71,8 @@ describe('terminalSlice', () => {
     expect(state.terminalTabs[0].profile).toBe('powershell');
     expect(state.terminalTabs[0].title).toBe('PowerShell');
     expect(state.terminalTabs[0].isPinned).toBe(false);
-    expect(state.terminalTabs[0].status).toBe('idle');
+    expect(state.terminalTabs[0].panes).toHaveLength(1);
+    expect(state.terminalTabs[0].panes[0].status).toBe('idle');
   });
 
   it('terminalCreateTab creates tab with specified profile', () => {
@@ -165,13 +166,9 @@ describe('terminalSlice', () => {
     const { get } = createMockStore();
     (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
     const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
-    (get() as unknown as TerminalSlice).terminalUpdateActiveTab({
-      title: 'Updated',
-      status: 'running',
-    });
+    (get() as unknown as TerminalSlice).terminalUpdateActiveTab({ title: 'Updated' });
     const state = get() as unknown as TerminalSlice;
     expect(state.terminalTabs[0].title).toBe('Updated');
-    expect(state.terminalTabs[0].status).toBe('running');
     expect(state.terminalTabs[0].id).toBe(tabId);
   });
 
@@ -273,5 +270,81 @@ describe('terminalSlice', () => {
     const state = get() as unknown as TerminalSlice;
     expect(state.shellSelectorProfile).toBe('bash');
     expect(state.defaultTerminalProfile).toBe('powershell');
+  });
+
+  it('terminalCreateTab creates a tab with exactly one pane', () => {
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
+    const tab = (get() as unknown as TerminalSlice).terminalTabs[0];
+    expect(tab.panes).toHaveLength(1);
+    expect(tab.panes[0].profile).toBe('powershell');
+    expect(tab.panes[0].status).toBe('idle');
+    expect(tab.activePaneId).toBe(tab.panes[0].id);
+  });
+
+  it('terminalAddPane appends an independent pane and activates it', () => {
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
+    const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
+    const paneId = (get() as unknown as TerminalSlice).terminalAddPane(tabId, 'bash');
+    const tab = (get() as unknown as TerminalSlice).terminalTabsById[tabId];
+    expect(tab.panes).toHaveLength(2);
+    expect(tab.panes[1].id).toBe(paneId);
+    expect(tab.panes[1].profile).toBe('bash');
+    expect(tab.activePaneId).toBe(paneId);
+  });
+
+  it('terminalRemovePane removes a pane but keeps the last one', () => {
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
+    const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
+    const only = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0].id;
+    (get() as unknown as TerminalSlice).terminalRemovePane(tabId, only);
+    expect((get() as unknown as TerminalSlice).terminalTabsById[tabId].panes).toHaveLength(1);
+    const second = (get() as unknown as TerminalSlice).terminalAddPane(tabId);
+    (get() as unknown as TerminalSlice).terminalRemovePane(tabId, second);
+    expect((get() as unknown as TerminalSlice).terminalTabsById[tabId].panes).toHaveLength(1);
+  });
+
+  it('terminalReorderPanes and terminalSwapPanes reorder by id', () => {
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
+    const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
+    const a = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0].id;
+    const b = (get() as unknown as TerminalSlice).terminalAddPane(tabId);
+    (get() as unknown as TerminalSlice).terminalReorderPanes(tabId, [b, a]);
+    expect(
+      (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes.map((p) => p.id),
+    ).toEqual([b, a]);
+    (get() as unknown as TerminalSlice).terminalSwapPanes(tabId, a, b);
+    expect(
+      (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes.map((p) => p.id),
+    ).toEqual([a, b]);
+  });
+
+  it('terminalUpdatePane patches only the target pane', () => {
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
+    const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
+    const paneId = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0].id;
+    (get() as unknown as TerminalSlice).terminalUpdatePane(tabId, paneId, {
+      sessionId: 's1',
+      status: 'running',
+    });
+    const pane = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0];
+    expect(pane.sessionId).toBe('s1');
+    expect(pane.status).toBe('running');
+  });
+
+  it('terminalSetActivePane switches the active pane', () => {
+    const { get } = createMockStore();
+    (get() as unknown as TerminalSlice).terminalCreateTab('powershell');
+    const tabId = (get() as unknown as TerminalSlice).terminalTabs[0].id;
+    const first = (get() as unknown as TerminalSlice).terminalTabsById[tabId].panes[0].id;
+    const second = (get() as unknown as TerminalSlice).terminalAddPane(tabId);
+    (get() as unknown as TerminalSlice).terminalSetActivePane(tabId, first);
+    expect((get() as unknown as TerminalSlice).terminalTabsById[tabId].activePaneId).toBe(first);
+    (get() as unknown as TerminalSlice).terminalSetActivePane(tabId, second);
+    expect((get() as unknown as TerminalSlice).terminalTabsById[tabId].activePaneId).toBe(second);
   });
 });
