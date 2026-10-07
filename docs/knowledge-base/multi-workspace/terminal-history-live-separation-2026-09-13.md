@@ -1,5 +1,7 @@
 # 终端历史与实时终端分离 — 根因与可复用经验（2026-09-13）
 
+> ⚠️ 已废弃（2026-10-08）：只读历史功能已整体移除，本文仅作历史记录。现状见 [interaction/terminal/terminal-multipane-layout-2026-10-08.md](../interaction/terminal/terminal-multipane-layout-2026-10-08.md)。
+
 > 来源：`docs/root-cause-resolution/2026-09/progress-2026-09-12-234500.md`（事项 1–12 完整取证与三轮审查记录）。
 > 本文只提炼跨会话可复用的结论。
 

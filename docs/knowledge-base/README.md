@@ -44,7 +44,7 @@
 → [interaction/README.md](./interaction/README.md)
 
 - `github-panel/` — GitHub CI 面板 UI/菜单/对话框/i18n（8）
-- `terminal/` — 终端面板交互（悬停菜单、xterm 滚动条、历史一致性）（3）
+- `terminal/` — 终端面板交互（多窗口窗格/布局引擎/自定义布局卡片、悬停菜单、xterm 滚动条）
 - `search/` — 检索交互、加载态、设置弹窗（4）
 - `git-vis/` — 分支图、热力图、文件热点、loading（5）
 - `outline-file-tree/` — 大纲树与文件树连接线/导航（3）
