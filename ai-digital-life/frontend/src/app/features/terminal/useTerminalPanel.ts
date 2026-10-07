@@ -1,14 +1,14 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
 import { isPanelTab } from '@stores/slices/tabLocation';
+import { activePaneOf, type TerminalPane } from '@stores/slices/terminalSliceTypes';
 import { useTerminalDragDrop } from './useTerminalDragDrop';
 import { useTerminalTabActions } from './useTerminalTabActions';
 import { useTerminalShellManagement } from './useTerminalShellManagement';
 import { useTerminalViewport } from './useTerminalViewport';
 import type { TerminalProfile } from '@stores/types';
-import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
 
 export type TerminalMenuItem =
   | { id: string; separator: true }
@@ -41,7 +41,6 @@ export interface ContextMenuState {
 
 export interface UseTerminalPanelReturn {
   terminalState: {
-    xtermRef: React.RefObject<XtermTerminalHandle | null>;
     editInputRef: React.RefObject<HTMLInputElement | null>;
     shellMenuRef: React.RefObject<HTMLDivElement | null>;
     terminalMenuRef: React.RefObject<HTMLDivElement | null>;
@@ -58,6 +57,8 @@ export interface UseTerminalPanelReturn {
     navigatorCollapsed: boolean;
     activeTab?: ReturnType<typeof terminalSelectors.useActiveTerminalTab>;
     hasActiveTab: boolean;
+    panes: TerminalPane[];
+    activePane?: TerminalPane;
     currentProfile: TerminalProfile;
     currentProfileLabel: string;
     shellMenuItems: TerminalShellMenuItem[];
@@ -69,19 +70,18 @@ export interface UseTerminalPanelReturn {
     handleSelectTab: (tabId: string) => void;
     handleCloseTab: (tabId: string) => void;
     handleCloseAllTabs: (workspaceId?: string) => void;
+    handleAddPane: () => void;
+    handleClosePane: (paneId: string) => void;
+    handleSelectPane: (paneId: string) => void;
     handleTogglePin: () => void;
     handleDoubleClick: (tabId: string, title: string) => void;
     handleEditSubmit: () => void;
     handleEditKeyDown: (e: React.KeyboardEvent) => void;
-    handleCopy: () => void;
-    handlePaste: () => void;
-    handleClear: () => void;
-    handleKill: () => void;
     updateProfile: (profile: TerminalProfile) => void;
     toggleNavigator: (tool: string) => void;
     handleNavigatorResizeStart: (event: React.PointerEvent<HTMLDivElement>) => void;
-    handleXtermData: (data: string) => void;
-    handleXtermResize: (cols: number, rows: number) => void;
+    handleXtermData: (paneId: string, data: string) => void;
+    handleXtermResize: (paneId: string, cols: number, rows: number) => void;
     setShellMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setTerminalMenuOpen: React.Dispatch<React.SetStateAction<boolean>>;
     setEditValue: React.Dispatch<React.SetStateAction<string>>;
@@ -112,9 +112,10 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   const terminalTabs = useMemo(() => allTerminalTabs.filter(isPanelTab), [allTerminalTabs]);
   const terminalActiveTabId = terminalSelectors.useTerminalActiveTabId();
 
-  const { terminalReorderTabs } = useAppStore(
+  const { terminalReorderTabs, terminalSetActivePane } = useAppStore(
     useShallow((state) => ({
       terminalReorderTabs: state.terminalReorderTabs,
+      terminalSetActivePane: state.terminalSetActivePane,
     })),
   );
 
@@ -125,18 +126,22 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
 
   const hasActiveTab = activeTab != null;
 
+  const panes = useMemo(() => activeTab?.panes ?? [], [activeTab]);
+  const activePane = useMemo(() => (activeTab ? activePaneOf(activeTab) : undefined), [activeTab]);
+
   const { isDragging, dragOverTabId, handleDragStart, handleDragEnd, handleDragOver, handleDrop } =
     useTerminalDragDrop(terminalTabs, terminalReorderTabs);
 
   const {
-    xtermRef,
     handleXtermData,
     handleXtermResize,
+    handleKillPane,
+    handleCreatePane,
+    handleClosePane: closePane,
     handleCreateTab,
     handleSelectTab,
     handleCloseTab,
     handleCloseAllTabs,
-    handleKill,
     editingTabId,
     editValue,
     editInputRef,
@@ -145,6 +150,30 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     handleEditSubmit,
     handleEditKeyDown,
   } = useTerminalTabActions({ activeTab });
+
+  const handleAddPane = useCallback(() => {
+    if (activeTab) {
+      void handleCreatePane(activeTab.id);
+    }
+  }, [activeTab, handleCreatePane]);
+
+  const handleClosePane = useCallback(
+    (paneId: string) => {
+      if (activeTab) {
+        closePane(activeTab.id, paneId);
+      }
+    },
+    [activeTab, closePane],
+  );
+
+  const handleSelectPane = useCallback(
+    (paneId: string) => {
+      if (activeTab) {
+        terminalSetActivePane(activeTab.id, paneId);
+      }
+    },
+    [activeTab, terminalSetActivePane],
+  );
 
   const {
     currentProfile,
@@ -165,16 +194,12 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     handleDeleteFromMenu,
     handleOpenInCenterFromMenu,
     closeContextMenu,
-    handleCopy,
-    handlePaste,
-    handleClear,
     updateProfile,
   } = useTerminalShellManagement({
-    xtermRef,
-    activeTab,
+    activePane,
     handleCloseTab,
     handleDoubleClick,
-    handleKill,
+    handleKillPane,
   });
 
   const {
@@ -186,7 +211,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
 
   return {
     terminalState: {
-      xtermRef,
       editInputRef,
       shellMenuRef,
       terminalMenuRef,
@@ -203,6 +227,8 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       navigatorCollapsed,
       activeTab,
       hasActiveTab,
+      panes,
+      activePane,
       currentProfile,
       currentProfileLabel,
       shellMenuItems,
@@ -214,14 +240,13 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
       handleSelectTab,
       handleCloseTab,
       handleCloseAllTabs,
+      handleAddPane,
+      handleClosePane,
+      handleSelectPane,
       handleTogglePin,
       handleDoubleClick,
       handleEditSubmit,
       handleEditKeyDown,
-      handleCopy,
-      handlePaste,
-      handleClear,
-      handleKill,
       updateProfile,
       toggleNavigator,
       handleNavigatorResizeStart,

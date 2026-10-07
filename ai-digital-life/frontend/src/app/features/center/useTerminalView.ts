@@ -1,19 +1,24 @@
+import { useCallback, useMemo } from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import type { TerminalTabState } from '@stores/slices/terminalSlice';
-import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
+import { useAppStore } from '@stores/slicedStore';
+import type { TerminalPane, TerminalTabState } from '@stores/slices/terminalSlice';
+import { activePaneOf } from '@stores/slices/terminalSliceTypes';
 import { useTerminalTabActions } from '@features/terminal/useTerminalTabActions';
 import { useTerminalShellManagement } from '@features/terminal/useTerminalShellManagement';
 import type { TerminalMenuItem } from '@features/terminal/useTerminalPanel';
 
 export interface UseTerminalViewReturn {
-  xtermRef: RefObject<XtermTerminalHandle | null>;
   terminalMenuOpen: boolean;
   setTerminalMenuOpen: Dispatch<SetStateAction<boolean>>;
   terminalMenuRef: RefObject<HTMLDivElement | null>;
   terminalMenuItems: TerminalMenuItem[];
-  handleXtermData: (data: string) => void;
-  handleXtermResize: (cols: number, rows: number) => void;
-  handleClear: () => void;
+  panes: TerminalPane[];
+  activePane?: TerminalPane;
+  handleAddPane: () => void;
+  handleClosePane: (paneId: string) => void;
+  handleSelectPane: (paneId: string) => void;
+  handleXtermData: (paneId: string, data: string) => void;
+  handleXtermResize: (paneId: string, cols: number, rows: number) => void;
 }
 
 /**
@@ -30,32 +35,64 @@ export interface UseTerminalViewReturn {
  * `useTerminalPtyLifecycle` 实例各订阅一次（见 task-11 报告「PTY 双实例安全性」）。
  */
 export function useTerminalView(tab: TerminalTabState | undefined): UseTerminalViewReturn {
+  const terminalSetActivePane = useAppStore((s) => s.terminalSetActivePane);
+
+  const panes = useMemo(() => tab?.panes ?? [], [tab]);
+  const activePane = useMemo(() => (tab ? activePaneOf(tab) : undefined), [tab]);
+
   const {
-    xtermRef,
     handleXtermData,
     handleXtermResize,
+    handleKillPane,
+    handleCreatePane,
+    handleClosePane: closePane,
     handleCloseTab,
-    handleKill,
     handleDoubleClick,
   } = useTerminalTabActions({ activeTab: tab });
 
-  const { terminalMenuOpen, setTerminalMenuOpen, terminalMenuRef, terminalMenuItems, handleClear } =
+  const handleAddPane = useCallback(() => {
+    if (tab) {
+      void handleCreatePane(tab.id);
+    }
+  }, [tab, handleCreatePane]);
+
+  const handleClosePane = useCallback(
+    (paneId: string) => {
+      if (tab) {
+        closePane(tab.id, paneId);
+      }
+    },
+    [tab, closePane],
+  );
+
+  const handleSelectPane = useCallback(
+    (paneId: string) => {
+      if (tab) {
+        terminalSetActivePane(tab.id, paneId);
+      }
+    },
+    [tab, terminalSetActivePane],
+  );
+
+  const { terminalMenuOpen, setTerminalMenuOpen, terminalMenuRef, terminalMenuItems } =
     useTerminalShellManagement({
-      xtermRef,
-      activeTab: tab,
+      activePane,
       handleCloseTab,
       handleDoubleClick,
-      handleKill,
+      handleKillPane,
     });
 
   return {
-    xtermRef,
     terminalMenuOpen,
     setTerminalMenuOpen,
     terminalMenuRef,
     terminalMenuItems,
+    panes,
+    activePane,
+    handleAddPane,
+    handleClosePane,
+    handleSelectPane,
     handleXtermData,
     handleXtermResize,
-    handleClear,
   };
 }

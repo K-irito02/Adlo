@@ -4,7 +4,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
 import { useTerminalContextMenu } from './useTerminalContextMenu';
 import type { TerminalProfile } from '@stores/types';
-import type { XtermTerminalHandle } from '@components/terminal/XtermTerminal';
+import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
+import { terminalXtermPool } from './terminalXtermPool';
 import type {
   TerminalMenuItem,
   TerminalShellMenuItem,
@@ -13,19 +14,17 @@ import type {
 import { useTCopy } from '@i18n/useTCopy';
 
 interface TerminalMenusParams {
-  xtermRef: React.RefObject<XtermTerminalHandle | null>;
-  activeTab: { sessionId?: string } | undefined;
+  activePane: TerminalPane | undefined;
   handleCloseTab: (tabId: string) => void;
   handleDoubleClick: (tabId: string, title: string) => void;
-  handleKill: () => void;
+  handleKillPane: (paneId: string) => void;
 }
 
 export function useTerminalMenus({
-  xtermRef,
-  activeTab,
+  activePane,
   handleCloseTab,
   handleDoubleClick,
-  handleKill,
+  handleKillPane,
 }: TerminalMenusParams) {
   const { t } = useTCopy();
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
@@ -54,30 +53,42 @@ export function useTerminalMenus({
   } = useTerminalContextMenu(terminalTabs, handleDoubleClick, terminalTogglePin, handleCloseTab);
 
   const handleCopy = useCallback(() => {
-    const selection = xtermRef.current?.getSelection();
+    const selection = activePane?.sessionId
+      ? terminalXtermPool.get(activePane.sessionId)?.terminal.getSelection()
+      : undefined;
     if (selection) {
       navigator.clipboard.writeText(selection).catch((err) => {
         console.warn('terminal copy failed', err);
       });
     }
-  }, [xtermRef]);
+  }, [activePane]);
 
   const handlePaste = useCallback(() => {
+    const sessionId = activePane?.sessionId;
+    if (!sessionId) {
+      return;
+    }
     navigator.clipboard
       .readText()
       .then((text) => {
-        if (activeTab?.sessionId) {
-          window.digitalLife.pty.input(activeTab.sessionId, text);
-        }
+        window.digitalLife.pty.input(sessionId, text);
       })
       .catch((err) => {
         console.warn('terminal paste failed', err);
       });
-  }, [activeTab]);
+  }, [activePane]);
 
   const handleClear = useCallback(() => {
-    xtermRef.current?.clear();
-  }, [xtermRef]);
+    const entry = activePane?.sessionId ? terminalXtermPool.get(activePane.sessionId) : undefined;
+    entry?.terminal.clear();
+    setTimeout(() => entry?.terminal.scrollToBottom(), 0);
+  }, [activePane]);
+
+  const handleKill = useCallback(() => {
+    if (activePane) {
+      handleKillPane(activePane.id);
+    }
+  }, [activePane, handleKillPane]);
 
   const updateProfile = useCallback(
     (profile: TerminalProfile) => {
