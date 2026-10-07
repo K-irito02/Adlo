@@ -1,5 +1,4 @@
-import React from 'react';
-import { iconProps, make, makeFilled, makeThin, type IconProps } from './helper';
+import { make, makeFilled } from './helper';
 
 export const IconTerminalDirectory = make(
   <>
@@ -7,59 +6,6 @@ export const IconTerminalDirectory = make(
     <path d="m14 10.5 2 2.5-2 2.5" />
     <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />
   </>,
-);
-
-export type AreaSwapOrientation = 'vertical' | 'horizontal';
-
-export interface IconAreaSwapProps extends IconProps {
-  /** vertical = 上下三角（单列视图）；horizontal = 左右三角（双列视图） */
-  orientation: AreaSwapOrientation;
-  /** 主轴起点侧（单列 = 上，双列 = 左）是否为实心；实心标记「只读历史区」所在的一侧 */
-  firstSolid: boolean;
-}
-
-const AREA_SWAP_PATHS: Record<AreaSwapOrientation, [string, string]> = {
-  // 形状与 Tabler arrows 系列一致：两个 12x6 的三角形，分别贴在主轴两端
-  vertical: ['M6 10L12 4L18 10Z', 'M6 14L12 20L18 14Z'],
-  horizontal: ['M10 6L4 12L10 18Z', 'M14 6L20 12L14 18Z'],
-};
-
-export function IconAreaSwap({
-  orientation,
-  firstSolid,
-  size = 16,
-  ...rest
-}: IconAreaSwapProps): React.JSX.Element {
-  const [first, second] = AREA_SWAP_PATHS[orientation];
-  return (
-    <svg {...iconProps(size, rest)}>
-      <path d={first} fill={firstSolid ? 'currentColor' : 'none'} />
-      <path d={second} fill={firstSolid ? 'none' : 'currentColor'} />
-    </svg>
-  );
-}
-
-/**
- * 收起：四条角括号路径。
- * 原 SVG 未声明 stroke-width（浏览器默认 1），在 14px 尺寸下过细，故取 1.5。
- */
-export const IconRegionCollapse = makeThin(
-  <>
-    <path d="M9 4V7C9 8.10457 8.10457 9 7 9H4" />
-    <path d="M15 20L15 17C15 15.8954 15.8954 15 17 15L20 15" />
-    <path d="M20 9L17 9C15.8954 9 15 8.10457 15 7L15 4" />
-    <path d="M4 15L7 15C8.10457 15 9 15.8954 9 17L9 20" />
-  </>,
-  1.5,
-);
-
-export const IconRegionExpand = makeFilled(
-  '0 0 15 15',
-  <path
-    fillRule="evenodd"
-    clipRule="evenodd"
-    d="M7.5 0.75L9.75 3H5.25L7.5 0.75ZM7.5 14.25L9.75 12H5.25L7.5 14.25ZM3 5.25L0.75 7.5L3 9.75V5.25ZM14.25 7.5L12 5.25V9.75L14.25 7.5Z"
-  />,
 );
 
 export const IconClearDisplay = makeFilled(

@@ -14,9 +14,6 @@ export const settingsZh = {
   settingsBrowser: '浏览器',
   settingsDsh: 'DSH',
 
-  // 终端设置
-  settingsTerminalHistoryGroupDesc: '管理终端的历史存储与显示行为',
-
   // 通用设置项
   settingsLanguage: '语言',
   settingsLanguageDesc: '应用界面的显示语言，切换后立即生效',

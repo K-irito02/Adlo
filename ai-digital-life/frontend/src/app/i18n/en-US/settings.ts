@@ -14,9 +14,6 @@ export const settingsEn = {
   settingsBrowser: 'Browser',
   settingsDsh: 'DSH',
 
-  // Terminal settings
-  settingsTerminalHistoryGroupDesc: 'Manage terminal history storage and display behavior',
-
   // Common settings
   settingsLanguage: 'Language',
   settingsLanguageDesc: 'Display language of the app interface, applies immediately',

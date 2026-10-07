@@ -156,12 +156,5 @@ export {
   IconPendingCommit,
   IconCircleHelp,
 } from './status';
-export {
-  IconTerminalDirectory,
-  IconAreaSwap,
-  IconRegionCollapse,
-  IconRegionExpand,
-  IconClearDisplay,
-} from './terminal-nav';
-export type { IconAreaSwapProps, AreaSwapOrientation } from './terminal-nav';
+export { IconTerminalDirectory, IconClearDisplay } from './terminal-nav';
 export { IconProfilePowerShell, IconProfileBash, IconProfileCmd } from './terminal-profiles';
