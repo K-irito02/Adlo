@@ -212,18 +212,18 @@ export function useTerminalPaneLayout({
       let frame = 0;
 
       const handleMove = (moveEvent: PointerEvent) => {
+        latest = resizeFractions(
+          base,
+          colIndex,
+          (moveEvent.clientX - startX) / width,
+          MIN_PANE_W,
+          width,
+        );
         if (frame) {
           return;
         }
         frame = window.requestAnimationFrame(() => {
           frame = 0;
-          latest = resizeFractions(
-            base,
-            colIndex,
-            (moveEvent.clientX - startX) / width,
-            MIN_PANE_W,
-            width,
-          );
           container.style.setProperty(COL_FRACTIONS_VAR, fractionTracks(latest));
           container.style.setProperty(
             ROW_FRACTIONS_VAR,
@@ -271,18 +271,18 @@ export function useTerminalPaneLayout({
       let frame = 0;
 
       const handleMove = (moveEvent: PointerEvent) => {
+        latest = resizeFractions(
+          base,
+          rowIndex,
+          (moveEvent.clientY - startY) / height,
+          MIN_PANE_H,
+          height,
+        );
         if (frame) {
           return;
         }
         frame = window.requestAnimationFrame(() => {
           frame = 0;
-          latest = resizeFractions(
-            base,
-            rowIndex,
-            (moveEvent.clientY - startY) / height,
-            MIN_PANE_H,
-            height,
-          );
           container.style.setProperty(ROW_FRACTIONS_VAR, fractionTracks(latest));
           container.style.setProperty(
             COL_FRACTIONS_VAR,
@@ -338,19 +338,19 @@ export function useTerminalPaneLayout({
       let frame = 0;
 
       const handleMove = (moveEvent: PointerEvent) => {
+        latest = applyFreeDrag(
+          base,
+          edge,
+          (moveEvent.clientX - startX) / width,
+          (moveEvent.clientY - startY) / height,
+          minW,
+          minH,
+        );
         if (frame) {
           return;
         }
         frame = window.requestAnimationFrame(() => {
           frame = 0;
-          latest = applyFreeDrag(
-            base,
-            edge,
-            (moveEvent.clientX - startX) / width,
-            (moveEvent.clientY - startY) / height,
-            minW,
-            minH,
-          );
           if (paneEl) {
             applyRectStyle(paneEl, latest);
           }
