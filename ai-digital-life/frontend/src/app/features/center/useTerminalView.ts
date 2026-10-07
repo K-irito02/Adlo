@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from 'react';
 import type { Dispatch, RefObject, SetStateAction } from 'react';
-import { useAppStore } from '@stores/slicedStore';
 import type { TerminalPane, TerminalTabState } from '@stores/slices/terminalSlice';
 import { activePaneOf } from '@stores/slices/terminalSliceTypes';
+import { terminalPtyRuntime } from '@features/terminal/terminalPtyRuntime';
 import { useTerminalTabActions } from '@features/terminal/useTerminalTabActions';
 import { useTerminalShellManagement } from '@features/terminal/useTerminalShellManagement';
 import type { TerminalMenuItem } from '@features/terminal/useTerminalPanel';
@@ -35,8 +35,6 @@ export interface UseTerminalViewReturn {
  * `useTerminalPtyLifecycle` 实例各订阅一次（见 task-11 报告「PTY 双实例安全性」）。
  */
 export function useTerminalView(tab: TerminalTabState | undefined): UseTerminalViewReturn {
-  const terminalSetActivePane = useAppStore((s) => s.terminalSetActivePane);
-
   const panes = useMemo(() => tab?.panes ?? [], [tab]);
   const activePane = useMemo(() => (tab ? activePaneOf(tab) : undefined), [tab]);
 
@@ -68,10 +66,11 @@ export function useTerminalView(tab: TerminalTabState | undefined): UseTerminalV
   const handleSelectPane = useCallback(
     (paneId: string) => {
       if (tab) {
-        terminalSetActivePane(tab.id, paneId);
+        // 经运行时统一处理：切换活动窗格，并在该窗格无存活会话时重建 shell。
+        terminalPtyRuntime.handleSelectPane(tab.id, paneId);
       }
     },
-    [tab, terminalSetActivePane],
+    [tab],
   );
 
   const { terminalMenuOpen, setTerminalMenuOpen, terminalMenuRef, terminalMenuItems } =

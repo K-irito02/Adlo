@@ -268,15 +268,20 @@ export const createTerminalSlice = (
         }),
       ),
 
-    terminalSetActivePane: (tabId, paneId) =>
-      set((state) =>
-        applyPaneChange(state, tabId, (tab) => {
-          if (tab.activePaneId === paneId || !tab.panes.some((pane) => pane.id === paneId)) {
-            return undefined;
-          }
-          return { ...tab, activePaneId: paneId };
-        }),
-      ),
+    terminalSetActivePane: (tabId, paneId) => {
+      // 点按已活动的窗格是彻底的无操作：提前返回，连 set 更新器都不进入。
+      // （applyPaneChange 的 no-op 分支返回同一个 state 引用，Zustand 会经
+      // Object.is 短路而不发通知；这里再把「不触碰 set」这一层也显式化。）
+      const current = get().terminalTabsById[tabId];
+      if (
+        !current ||
+        current.activePaneId === paneId ||
+        !current.panes.some((pane) => pane.id === paneId)
+      ) {
+        return;
+      }
+      set((state) => applyPaneChange(state, tabId, (tab) => ({ ...tab, activePaneId: paneId })));
+    },
 
     terminalReorderPanes: (tabId, orderedIds) =>
       set((state) =>

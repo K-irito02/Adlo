@@ -463,7 +463,9 @@ export class TerminalPtyRuntime {
     if (!paneId) {
       return;
     }
-    await this.attachSession(tabId, paneId, profile ?? tab.profile, tab.workspaceId);
+    // 走 activatePane 而非直接 attachSession：视图侧激活 effect 也会对同一新窗格
+    // 调用 activatePane，经其 activating 汇流避免同一窗格被创建出两个 PTY。
+    await this.activatePane(tabId, paneId);
   };
 
   handleClosePane = (tabId: string, paneId: string): void => {
@@ -505,7 +507,17 @@ export class TerminalPtyRuntime {
     if (!createdTab || !firstPane) {
       return;
     }
-    await this.attachSession(createdTab.id, firstPane.id, finalProfile, workspaceId ?? '');
+    // 同 handleCreatePane：经 activatePane 去重，避免与视图侧激活 effect 双建 PTY。
+    await this.activatePane(createdTab.id, firstPane.id);
+  };
+
+  handleSelectPane = (tabId: string, paneId: string): void => {
+    useAppStore.getState().terminalSetActivePane(tabId, paneId);
+    const pane = useAppStore.getState().terminalTabsById[tabId]?.panes.find((p) => p.id === paneId);
+    // 无存活会话（空白 / 已退出）时点按即重建 shell；存活会话仅切换活动态。
+    if (pane && !(pane.sessionId && this.liveSessionIds.has(pane.sessionId))) {
+      void this.activatePane(tabId, paneId);
+    }
   };
 
   handleSelectTab = (tabId: string): void => {

@@ -5,6 +5,7 @@ import { terminalSelectors } from '@stores/selectors';
 import { isPanelTab } from '@stores/slices/tabLocation';
 import { activePaneOf, type TerminalPane } from '@stores/slices/terminalSliceTypes';
 import { useTerminalDragDrop } from './useTerminalDragDrop';
+import { terminalPtyRuntime } from './terminalPtyRuntime';
 import { useTerminalTabActions } from './useTerminalTabActions';
 import { useTerminalShellManagement } from './useTerminalShellManagement';
 import { useTerminalViewport } from './useTerminalViewport';
@@ -112,10 +113,9 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   const terminalTabs = useMemo(() => allTerminalTabs.filter(isPanelTab), [allTerminalTabs]);
   const terminalActiveTabId = terminalSelectors.useTerminalActiveTabId();
 
-  const { terminalReorderTabs, terminalSetActivePane } = useAppStore(
+  const { terminalReorderTabs } = useAppStore(
     useShallow((state) => ({
       terminalReorderTabs: state.terminalReorderTabs,
-      terminalSetActivePane: state.terminalSetActivePane,
     })),
   );
 
@@ -169,10 +169,11 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   const handleSelectPane = useCallback(
     (paneId: string) => {
       if (activeTab) {
-        terminalSetActivePane(activeTab.id, paneId);
+        // 经运行时统一处理：切换活动窗格，并在该窗格无存活会话时重建 shell。
+        terminalPtyRuntime.handleSelectPane(activeTab.id, paneId);
       }
     },
-    [activeTab, terminalSetActivePane],
+    [activeTab],
   );
 
   const {

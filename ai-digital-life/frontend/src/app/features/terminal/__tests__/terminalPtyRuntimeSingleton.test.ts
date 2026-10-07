@@ -1,6 +1,7 @@
-import { renderHook } from '@testing-library/react';
+import { renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAppStore } from '@stores/slicedStore';
+import type { TerminalTabState } from '@stores/slices/terminalSliceTypes';
 import { useTerminalPtyLifecycle } from '../useTerminalPtyLifecycle';
 import { terminalPtyRuntime } from '../terminalPtyRuntime';
 import { terminalXtermPool, type PooledXterm } from '../terminalXtermPool';
@@ -100,5 +101,73 @@ describe('terminalPtyRuntime 应用级单例', () => {
     const only = useAppStore.getState().terminalTabsById[tabId].panes[0].id;
     terminalPtyRuntime.handleClosePane(tabId, only);
     expect(useAppStore.getState().terminalTabsById[tabId]).toBeUndefined();
+  });
+
+  it('非初始标签变为活动时，其全部无会话窗格都重建 shell（spec §10）', async () => {
+    // 恢复场景：应用重启后会话被 kill，持久化的窗格没有存活会话。
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabBId = useAppStore.getState().terminalActiveTabId;
+    useAppStore.getState().terminalAddPane(tabBId, 'bash');
+    const tabB = useAppStore.getState().terminalTabsById[tabBId];
+    expect(tabB.panes).toHaveLength(2);
+    expect(tabB.panes.every((pane) => !pane.sessionId)).toBe(true);
+
+    const { rerender } = renderHook(
+      ({ activeTab }: { activeTab: TerminalTabState | undefined }) =>
+        useTerminalPtyLifecycle({ activeTab }),
+      { initialProps: { activeTab: undefined as TerminalTabState | undefined } },
+    );
+
+    // 该标签成为活动标签：其每个无会话窗格都应被激活并拿到 sessionId。
+    rerender({ activeTab: tabB });
+
+    await waitFor(
+      () => {
+        const panes = useAppStore.getState().terminalTabsById[tabBId].panes;
+        expect(panes.every((pane) => pane.sessionId)).toBe(true);
+      },
+      { timeout: 5000 },
+    );
+  });
+
+  it('terminalSetActivePane 点按已活动窗格时不发通知，切换窗格时才通知', () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    const first = useAppStore.getState().terminalTabsById[tabId].panes[0].id;
+    const second = useAppStore.getState().terminalAddPane(tabId, 'bash');
+
+    let notifications = 0;
+    const unsub = useAppStore.subscribe(() => {
+      notifications += 1;
+    });
+
+    // addPane 刚把 second 置为活动窗格：再次点按它是彻底的无操作。
+    useAppStore.getState().terminalSetActivePane(tabId, second);
+    expect(notifications).toBe(0);
+
+    // 切到另一个窗格是真实变化：恰好通知一次。
+    useAppStore.getState().terminalSetActivePane(tabId, first);
+    expect(notifications).toBe(1);
+
+    unsub();
+  });
+
+  it('handleSelectPane 激活无会话的窗格（点击空白窗格重建 shell）', async () => {
+    useAppStore.getState().terminalCreateTab('powershell');
+    const tabId = useAppStore.getState().terminalActiveTabId;
+    const paneId = useAppStore.getState().terminalAddPane(tabId, 'bash');
+    expect(useAppStore.getState().terminalTabsById[tabId].panes[1].sessionId).toBeUndefined();
+
+    terminalPtyRuntime.handleSelectPane(tabId, paneId);
+
+    await waitFor(
+      () => {
+        const pane = useAppStore
+          .getState()
+          .terminalTabsById[tabId].panes.find((p) => p.id === paneId);
+        expect(pane?.sessionId).toBeTruthy();
+      },
+      { timeout: 5000 },
+    );
   });
 });

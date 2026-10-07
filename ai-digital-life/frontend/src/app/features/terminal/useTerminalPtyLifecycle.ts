@@ -22,14 +22,14 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     terminalPtyRuntime.ensureStarted();
   }, []);
 
-  // 启动激活：恢复的标签其会话必然已不存在（应用退出时会话被 kill），
-  // 因此在启动时对「上一次运行遗留的活动标签」的每个窗格各走一次激活（重建会话）。
-  const startupHandledRef = useRef(false);
+  // 激活：活动标签的每个无会话窗格都必须拿到会话。应用退出时会话被 kill，
+  // 重启后恢复的标签其窗格均无存活会话；若只处理启动时的首个标签，之后切换到的
+  // 非初始标签的其余窗格会滞留空白（spec §10：为每个窗格新建 shell 会话）。
+  // 因此每次 activeTab 变化都要补齐激活（activatePane 内部对并发/存活会话去重）。
+  // attempted 记账防止 PTY 创建失败时 store 更新触发 effect 重入而无限重试；
+  // 失败窗格改由用户点击（handleSelectPane）重试。
+  const attemptedPanesRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    if (startupHandledRef.current) {
-      return;
-    }
-    startupHandledRef.current = true;
     if (!activeTab) {
       return;
     }
@@ -38,6 +38,11 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
       if (pane.sessionId && terminalPtyRuntime.isCreatedSession(pane.sessionId)) {
         continue;
       }
+      const key = `${activeTab.id}:${pane.id}`;
+      if (attemptedPanesRef.current.has(key)) {
+        continue;
+      }
+      attemptedPanesRef.current.add(key);
       void terminalPtyRuntime.activatePane(activeTab.id, pane.id);
     }
   }, [activeTab]);
