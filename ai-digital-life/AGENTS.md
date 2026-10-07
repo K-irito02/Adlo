@@ -35,7 +35,7 @@
 
 #### 存储设置组（Plan C）
 
-- 设置面板新增「存储」组：统一根 / 每类独立两种模式；终端历史磁盘预算与浏览器默认下载路径已搬入该组统一管理，行为不变。
+- 设置面板新增「存储」组：统一根 / 每类独立两种模式；浏览器默认下载路径已搬入该组统一管理，行为不变。
 - 双端实现策略：Tauri 经 `storage_*` 命令直写 locator 并可 `app_restart` 立即迁移；浏览器（preview/http + mock 四端 `StorageBridge` 方法集一致，见 `frontend/src/shared/ipc/__tests__/storage-parity.test.ts`）手输路径，`restartApp` 返回 `NOT_SUPPORTED` 并提示下次启动生效。
 - 可配置 10 条可迁移路径（`database`、`downloads_db`、`site_meta_db`、`tree_cache`、`config`、`clipboard`、`snapshot`、`dsh`、`logs`、`credentials_fallback`，顺序与 `StorageCategory::key()` 一致）+ 1 个设置值路径（`downloads_default` 为用户文件落点，仅记录浏览器默认下载目录，不迁移、不统计占用、不扫描外部文件）与不可移动 6 项（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）在 UI 中全部列出并附原因说明。
 - 磁盘空间分歧（已接受）：服务端 `freeBytes` 恒为 0（"unknown"）；UI 不渲染空间 verdict，`freeBytes == 0` 即视为未知并跳过空间判定（与壳层 `free_bytes > 0` 门控同约定）。
@@ -47,7 +47,7 @@
 
 - Tauri 桌面壳、SQLite 状态
 - 工作区管理、补丁预览/应用/回滚、快照
-- xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）+ 只读历史（会话结束即定稿归档、按标签累积跨重启保留、DOM 虚拟列表按 xterm 单元格网格渲染；关闭应用时窗口先隐藏、后台落盘完成再退出）
+- xterm.js 交互式终端（多会话 PTY，支持 CMD / PowerShell / Bash）+ 一个终端标签内多终端窗口（每个窗口独立 PTY、数量无上限；均分/自由布局、比例与自由像素拖拽、卷帘门裁剪 + 自定义滚动条、恢复自动布局、自定义布局卡片：拖拽排序/交换位置/双击标注）；按标签持久化布局与标注、重启逐窗格新建 shell
 - CodeMirror 编辑器系统 + 文件预览 + 差异查看器（inline/side-by-side）
 - 文件检索结果新鲜度（工作区 watcher 自动重算 + 点击校验重定位 + 「已失效」行内标记 + App 级错误边界；开文件就绪才切换＋失败主区友好错误）+ 检索结果分页窗口（Rust `SearchWindow` offset/limit + 精确 `hasMore` 多探一条判定 + 服务端硬上限钳制 20000（默认 5000，用户可在检索设置自定义步长/上限，超 5000 出卡顿警告）+ 前端单一来源 `searchWindow.ts` 四端同语义 + 「加载更多/显示全部/!」说明卡）+ 检索设置（工具栏齿轮入口 + 忽略/限制双 tab：手动勾选树（复用文件树行 chrome + 三态勾选 + 半选圆点 + 祖先展开）与 `.gitignore` 链（类 git 语义自动合并，前后两端镜像实现）并集生效 + 按工作区持久化）+ 跳转落点高亮（预览覆盖层直角贴边 + 远距瞬时定位）与编辑器揭示"渲染实测闭环 + 语言扩展就绪闸门"（首次点击即精准居中）
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 4模式导航栏（open/tabs/list/search）+ SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效 + 已打开标签过滤（filterTabIds）+ 多 iframe 状态保持（activatedTabIdsRef）+ 悬停关闭按钮（danger-hover）+ Flat 模式 ::after 渐变蒙版 + text-overflow: clip + 网站元数据持久化缓存（favicon data-URI + 标题，三层：Rust SQLite `site_meta_cache.rs` / preview JSON `.adl-cache/` / 前端 `siteMetaCache.ts`，预载门控 + 成功才写 + 引用计数删除）+ 标签加载状态（favicon 加载中 spinner + 标题未结算时"新建标签页"扫光动效，`titleResolved` 状态机 + `isRealTitle` 统一判定）+ 跨域重定向 favicon/标题兜底（方案 A 历史 URL 回写 `browserUpdateHistoryUrl` + 方案 B 会话级 `redirectMap`，`expectedNavigationUrlRef={url,at,tabId}` 显式导航检测 + 10s 新鲜度 + 发起 tab 绑定，参考 Chrome/Edge 重定向链消化语义 + Chromium `page_url_type`）+ 分隔线透明桥接条（dsh↔浏览器 WebView 零间隙贴边时 6px 透明子窗口夺回拖拽命中权，`divider_strip_*` 命令 + `siblingWebviewNonce` z-order 重建））

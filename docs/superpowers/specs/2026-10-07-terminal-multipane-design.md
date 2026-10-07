@@ -74,7 +74,7 @@ per-tab 持久化：adl:terminal.tabs（panes 结构） + adl:terminal.paneLayou
 
 ### 4.2 运行时（`terminalPtyRuntime.ts`）
 
-移除：`collectors`、`throttled`、`historyIndex`、`subscribeHistory` / `getHistoryVersion` / `bumpHistory`、`checkpointTimer`、`beforeunload` 落盘、Tauri `onCloseRequested` 的 flush 落盘链、`settleHistoryBudget`、`finalizeSegment` / `finalizeStaleSegments` / `upsertHistoryEntry` / `persistCollected*` / `deleteChunksForSession` / `evictStaleChunksForRebuild` / `settleRebuild` / `deleteHistoryForTab` / `deleteSegmentRecords` / `collectThrottled` / `createThrottledRunner`（若他处不用）。
+移除：`collectors`、`throttled`、`historyIndex`、`subscribeHistory` / `getHistoryVersion` / `bumpHistory`、`checkpointTimer`、`beforeunload` 的历史落盘（保留并仅调用 `flushCrossSliceWrites()`）、Tauri `onCloseRequested` 的 flush 落盘链、`settleHistoryBudget`、`finalizeSegment` / `finalizeStaleSegments` / `upsertHistoryEntry` / `persistCollected*` / `deleteChunksForSession` / `evictStaleChunksForRebuild` / `settleRebuild` / `deleteHistoryForTab` / `deleteSegmentRecords` / `collectThrottled` / `createThrottledRunner`（若他处不用）。
 
 单例保留：PTY 会话表、OSC 9;9 目录记忆、xterm 池、激活汇流、输出订阅、`ensureStarted`。
 
@@ -200,9 +200,9 @@ type TerminalPaneLayoutMap = Record<string /* tabId */, TerminalPaneLayout>;
 
 - 点击「自定义布局」按钮弹出锚定卡片；点击外部 / Esc 关闭。
 - **方块**：数量 = 当前标签窗格数，按 `panes` 顺序排列；`colorIndex` 取自内置调色板，保证同标签内每块各不相同。
-- **拖拽排序**：卡片内长按拖动方块 → `terminalReorderPanes`。
+- **拖拽排序**：卡片内拖动方块（HTML5 drag）→ `terminalReorderPanes`。
 - **交换模式**：开启后点选两个方块（高亮）→ 点「确认交换位置」按钮 → `terminalSwapPanes` 应用到显示区。
-- **双击标注**：复用终端标签重命名的内联编辑交互，输入**限 1 字符**（一个简体中文字计 1 字符），回车/失焦提交写入 `pane.label`，超出拒绝。
+- **双击标注**：复用终端标签重命名的内联编辑交互，输入**限 1 字符**（一个简体中文字计 1 字符），回车/失焦提交写入 `pane.label`；超出按首个码点截断（`Array.from(value).slice(0,1)`）。
 - 卡片反映顺序/颜色/标注，与布局模式解耦（两种模式下均可用）。
 
 ## 10. 持久化与恢复
