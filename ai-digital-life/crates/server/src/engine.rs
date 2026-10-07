@@ -132,7 +132,7 @@ pub async fn init_server_state(
     // 使本函数在全新 data_dir 上也能自给自足（测试直接构造 state 时同样可用）。
     db.init_schema()
         .map_err(|e| AppError::Internal(format!("Database init_schema failed: {e}")))?;
-    // 运行待处理的 schema 迁移（如 terminal_output 表等）
+    // 运行待处理的 schema 迁移
     adl_migration::run_pending(&db)
         .map_err(|e| AppError::Internal(format!("Database migration failed: {e}")))?;
     eprintln!("[ad-server] database opened");

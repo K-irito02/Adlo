@@ -139,10 +139,6 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/storage/tree-cache/stats", post(handlers::storage::tree_cache_stats))
         .route("/storage/tree-cache/options", post(handlers::storage::tree_cache_options))
         .route("/storage/tree-cache/clear", post(handlers::storage::tree_cache_clear))
-        // Terminal-output persistence domain
-        .route("/terminal/save", post(handlers::terminal_output::save))
-        .route("/terminal/load", post(handlers::terminal_output::load))
-        .route("/terminal/delete", post(handlers::terminal_output::delete))
         // PTY WebSocket domain
         .route("/pty", get(crate::pty_ws::ws_handler))
         // Workspace event stream (file watcher push)
