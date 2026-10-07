@@ -190,7 +190,7 @@ describe('workspace settings styles (narrow input + right angles + merged-card c
     expect(base).not.toContain('margin-top');
   });
 
-  it('adds extra top margin to stacked block headers (budget/download) like tree-cache', () => {
+  it('adds extra top margin to stacked section block headers like tree-cache', () => {
     const header = groupRuleBody(settingsCss, '.adl-settings-storage__header--section');
     expect(header).not.toBeNull();
     expect(header).toContain('margin-top');

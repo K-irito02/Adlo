@@ -47,6 +47,10 @@
   overflow: hidden;
   position: relative;
   display: flex;
+  /* 单列布局：实时终端占满，终止错误横幅（.adl-terminal-error-note）作为
+     兄弟节点排在其下方全宽展示。缺省 flex-direction:row 会把错误横幅挤成
+     终端旁的竖条（旧 is-single 修饰符已随只读历史移除，由本规则承载该方向）。 */
+  flex-direction: column;
   background: var(--bg-terminal);
 }
 

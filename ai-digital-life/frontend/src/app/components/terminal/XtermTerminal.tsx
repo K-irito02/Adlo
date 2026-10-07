@@ -90,7 +90,7 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
       entry.terminal.attachCustomKeyEventHandler(customKeyHandler);
 
       // 自身容器尺寸变化时重新 fit 并把尺寸上报给 PTY。
-      // 覆盖：面板缩放、视图模式切换（单列/双列）、分界线拖拽、历史区出现/消失。
+      // 覆盖：面板缩放、主题切换、容器尺寸变化。
       // 去抖 120ms：连续拖拽不会把 ConPTY 打成整屏重绘风暴（ConPTY 每次 resize 都会重发整屏）。
       let resizeTimer: ReturnType<typeof setTimeout> | null = null;
       const observer = new ResizeObserver(() => {
