@@ -4,6 +4,7 @@ import { applyPrunePatch, pruneByTabId } from './prune';
 import { persist } from './persist';
 import { registryEntries, type RegistryKey } from './registry';
 import { terminalCwdStore } from '../../features/terminal/terminalCwdStore';
+import { terminalPaneLayoutStore } from '../../features/terminal/terminalPaneLayout';
 
 /**
  * 懒剪五入口的接线层（规格 §3.5.1）。
@@ -84,6 +85,11 @@ function pruneExternalTabStores(ctx: PruneCtx): void {
   const prunedCwd = pruneByTabId(cwdByTab, ctx);
   if (prunedCwd.changed) {
     terminalCwdStore.saveAll(prunedCwd.value);
+  }
+  const paneLayout = terminalPaneLayoutStore.loadAll();
+  const prunedPaneLayout = pruneByTabId(paneLayout, ctx);
+  if (prunedPaneLayout.changed) {
+    terminalPaneLayoutStore.saveAll(prunedPaneLayout.value);
   }
 }
 

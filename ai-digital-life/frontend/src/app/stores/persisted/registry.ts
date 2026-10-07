@@ -106,6 +106,11 @@ import {
   type TerminalTabState,
 } from '../slices/terminalSliceTypes';
 import { terminalCwdStore } from '../../features/terminal/terminalCwdStore';
+import {
+  normalizePaneLayoutMap,
+  terminalPaneLayoutStore,
+  type TerminalPaneLayout,
+} from '../../features/terminal/terminalPaneLayout';
 import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
 import type { PlatformId } from '../slices/communicateSlice';
@@ -846,6 +851,13 @@ export const registry = {
     fallback: {},
     scope: 'byTabId',
     read: readStringRecord,
+  }),
+  'adl:terminal.paneLayout': defineEntry<Record<string, TerminalPaneLayout>>({
+    key: 'adl:terminal.paneLayout',
+    apply: (value) => terminalPaneLayoutStore.apply(value),
+    fallback: {},
+    scope: 'byTabId',
+    read: normalizePaneLayoutMap,
   }),
   // ─────────────────────────────────────────────────────────────
   // 检索面板迁移批次（Task 11）：以下键取代 adl-search:* 遗留键。

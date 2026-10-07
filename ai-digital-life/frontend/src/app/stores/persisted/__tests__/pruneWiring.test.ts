@@ -9,6 +9,10 @@ import {
 } from '../pruneWiring';
 import { flushCrossSliceWrites } from '@stores/storageHelpers';
 import { terminalCwdStore } from '../../../features/terminal/terminalCwdStore';
+import {
+  defaultPaneLayout,
+  terminalPaneLayoutStore,
+} from '../../../features/terminal/terminalPaneLayout';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 function workspaceEntry(id: string): RecentWorkspaceEntry {
@@ -178,6 +182,22 @@ describe('prune wiring', () => {
     expect(terminalCwdStore.loadAll()).toEqual({ 'term-live': '/work' });
     flushCrossSliceWrites();
     expect(readJsonKey('adl:terminal.cwdByTab')).toEqual({ 'term-live': '/work' });
+  });
+
+  it('prunes external per-tab pane layouts for tabs that no longer exist', () => {
+    terminalPaneLayoutStore.apply({});
+    terminalPaneLayoutStore.saveAll({
+      'term-live': defaultPaneLayout(2),
+      'term-orphan': defaultPaneLayout(2),
+    });
+    useAppStore.setState({
+      recentWorkspaces: [workspaceEntry('ws-a')],
+      terminalTabs: [{ id: 'term-live' } as never],
+    });
+    applyTabPrune();
+    expect(terminalPaneLayoutStore.loadAll()).toEqual({ 'term-live': defaultPaneLayout(2) });
+    flushCrossSliceWrites();
+    expect(readJsonKey('adl:terminal.paneLayout')).toEqual({ 'term-live': defaultPaneLayout(2) });
   });
 
   it('prunes an orphan directory after the tree loads successfully', async () => {
