@@ -8,9 +8,7 @@ import {
   isPruneStoreRegistered,
 } from '../pruneWiring';
 import { flushCrossSliceWrites } from '@stores/storageHelpers';
-import { terminalRegionCollapseStore } from '../../../features/terminal/terminalRegionCollapse';
 import { terminalCwdStore } from '../../../features/terminal/terminalCwdStore';
-import { terminalHistoryStore } from '../../../features/terminal/terminalHistoryStore';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
 
 function workspaceEntry(id: string): RecentWorkspaceEntry {
@@ -169,30 +167,17 @@ describe('prune wiring', () => {
   });
 
   it('prunes external per-tab stores for tabs that no longer exist', () => {
-    // 乙类（Task 10 延期）：三个外部微型存储无 store 字段，不在 pruneRegistry 内，
+    // 乙类（Task 10 延期）：cwdByTab 无 store 字段，不在 pruneRegistry 内，
     // 由 prune 入口经模块自身的 load/save 清理（persist 唯一写通道）。
     terminalCwdStore.saveAll({ 'term-live': '/work', 'term-orphan': '/gone' });
-    terminalRegionCollapseStore.save({ 'term-live': 'none', 'term-orphan': 'history' });
-    terminalHistoryStore.saveAll({
-      'term-live': [{ sessionId: 's1', endedAt: 1, live: false, chunks: [{ lines: 1, size: 10 }] }],
-      'term-orphan': [
-        { sessionId: 's9', endedAt: 1, live: false, chunks: [{ lines: 1, size: 10 }] },
-      ],
-    });
     useAppStore.setState({
       recentWorkspaces: [workspaceEntry('ws-a')],
       terminalTabs: [{ id: 'term-live' } as never],
     });
     applyTabPrune();
     expect(terminalCwdStore.loadAll()).toEqual({ 'term-live': '/work' });
-    expect(terminalRegionCollapseStore.load()).toEqual({ 'term-live': 'none' });
-    expect(Object.keys(terminalHistoryStore.loadAll())).toEqual(['term-live']);
     flushCrossSliceWrites();
     expect(readJsonKey('adl:terminal.cwdByTab')).toEqual({ 'term-live': '/work' });
-    expect(readJsonKey('adl:terminal.regionCollapse')).toEqual({ 'term-live': 'none' });
-    expect(
-      Object.keys(readJsonKey('adl:terminal.historyIndex') as Record<string, unknown>),
-    ).toEqual(['term-live']);
   });
 
   it('prunes an orphan directory after the tree loads successfully', async () => {

@@ -1,5 +1,4 @@
 import { readJson } from '@stores/storageHelpers';
-import { persist } from '@stores/persisted/persist';
 
 /**
  * 按**标签 id** 持久化「历史分段索引」：该标签历次 PTY 会话的 sessionId 列表（旧 → 新）。
@@ -93,9 +92,10 @@ export function normalizeHistoryIndex(raw: unknown): Record<string, TerminalHist
   return result;
 }
 
-// 模块级缓存：historyIndex 是唯一 sync:false 条目，构造期 hydrateAll 不调用其 apply，
+// 模块级缓存：historyIndex 登记项已随本批次移除，hydrateAll 不再接入本模块，
 // 缓存可能始终为空。loadAll 必须按需读一次存储再返回缓存（沿用 ensureHistoryIndexLoaded 思路），
 // 否则 TerminalHistoryBudgetSection 的 useMemo 统计已用字节会显示 0。
+// （本模块整体在后续任务中删除。）
 let cache: Record<string, TerminalHistorySegment[]> = {};
 let loaded = false;
 
@@ -107,12 +107,7 @@ export const terminalHistoryStore = {
     }
     return cache;
   },
-  saveAll(map: Record<string, TerminalHistorySegment[]>): void {
-    cache = map;
-    loaded = true;
-    persist(TERMINAL_HISTORY_INDEX_KEY, map);
-  },
-  /** 构造期水合汇聚器（sync:false 不会被 hydrateAll 调用，但登记表需声明以保类型一致） */
+  /** 构造期水合汇聚器 */
   apply(value: Record<string, TerminalHistorySegment[]>): void {
     cache = value;
     loaded = true;

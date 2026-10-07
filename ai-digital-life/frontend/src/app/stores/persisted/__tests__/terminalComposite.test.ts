@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { hydrateAll, resetHydrationForTest } from '@stores/persisted/hydrate';
 import { terminalCompositeHydrators } from '@stores/persisted/terminalComposite';
 import type { StoreState } from '@stores/StoreState';
-import { terminalHistoryStore } from '@features/terminal/terminalHistoryStore';
 
 const VALID_TAB = {
   id: 't1',
@@ -66,26 +65,6 @@ describe('terminal composite hydration', () => {
     const patch = hydrateAll().patch;
     expect(patch.terminalWorkspaceId).toBe('ws-7');
     expect(patch.shellSelectorProfile).toBe('bash');
-  });
-
-  it('historyIndex loadAll reads storage on demand (sync:false, never hydrated at construction)', () => {
-    localStorage.setItem(
-      'adl:terminal.historyIndex',
-      JSON.stringify({
-        'terminal-1': [
-          { sessionId: 's1', endedAt: 1, live: false, chunks: [{ lines: 1, size: 10 }] },
-        ],
-      }),
-    );
-    // 构造期 hydrateAll 不触及 historyIndex（sync:false）→ 缓存未填、补丁不含它
-    const { patch } = hydrateAll();
-    expect((patch as Record<string, unknown>).terminalHistoryIndex).toBeUndefined();
-    // loadAll 必须按需读一次存储，否则预算面板会显示 0
-    expect(terminalHistoryStore.loadAll()).toEqual({
-      'terminal-1': [
-        { sessionId: 's1', endedAt: 1, live: false, chunks: [{ lines: 1, size: 10 }] },
-      ],
-    });
   });
 
   it('hands every composite the simple-entry snapshot, never a previous composite derived value', () => {

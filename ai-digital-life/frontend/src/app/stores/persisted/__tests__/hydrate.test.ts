@@ -57,11 +57,4 @@ describe('hydrateAll', () => {
     const second = hydrateAll();
     expect(second).toEqual(first);
   });
-
-  it('skips entries declared as non-sync', () => {
-    // adl:terminal.historyIndex 等大对象在后续任务中以 sync: false 声明，
-    // 本用例断言"同步补丁里不出现该字段"
-    const { patch } = hydrateAll();
-    expect(Object.keys(patch)).not.toContain('terminalHistoryIndex');
-  });
 });

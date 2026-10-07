@@ -104,22 +104,7 @@ import {
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
   type TerminalTabState,
 } from '../slices/terminalSliceTypes';
-import {
-  terminalViewPrefsStore,
-  normalizeTerminalViewPrefsMap,
-} from '../../features/terminal/terminalViewPrefs';
-import {
-  terminalRegionCollapseStore,
-  normalizeRegionCollapseMap,
-  type RegionCollapse,
-} from '../../features/terminal/terminalRegionCollapse';
 import { terminalCwdStore } from '../../features/terminal/terminalCwdStore';
-import {
-  terminalHistoryStore,
-  normalizeHistoryIndex,
-  type TerminalHistorySegment,
-} from '../../features/terminal/terminalHistoryStore';
-import type { TerminalViewPrefs } from '../../features/terminal/terminalViewPrefs';
 import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
 import type { PlatformId } from '../slices/communicateSlice';
@@ -782,7 +767,7 @@ export const registry = {
   // terminalSlice 的 requestIdleCallback/setTimeout 延迟水合已随本任务删除。
   //
   // 甲类（store 字段）：hydrateAll 写补丁；乙类（外部模块级微型存储）：hydrateAll 调 apply
-  // 交回模块缓存。乙类无 prune（见 brief：剪枝归 Task 15/17）。historyIndex 唯一 sync:false。
+  // 交回模块缓存。乙类无 prune（见 brief：剪枝归 Task 15/17）。
   // ─────────────────────────────────────────────────────────────
   'adl:terminal.tabs': defineEntry<TerminalTabState[]>({
     key: 'adl:terminal.tabs',
@@ -848,23 +833,6 @@ export const registry = {
   }),
 
   // 乙类：水合目标为 features/terminal/* 的模块级微型存储（apply 交回缓存）
-  // viewPrefs 按标签记录（Task 25，scope byTabId + 关标签剪枝；无记录标签取
-  // DEFAULT_TERMINAL_VIEW_PREFS，等同旧全局默认）。单偏好约 60B，千级标签才近
-  // 32KB 同步读准入线 —— 实际标签数远低于此，故保持 sync（默认 true）。
-  'adl:terminal.viewPrefs': defineEntry<Record<string, TerminalViewPrefs>>({
-    key: 'adl:terminal.viewPrefs',
-    apply: (value) => terminalViewPrefsStore.apply(value),
-    fallback: {},
-    scope: 'byTabId',
-    read: normalizeTerminalViewPrefsMap,
-  }),
-  'adl:terminal.regionCollapse': defineEntry<Record<string, RegionCollapse>>({
-    key: 'adl:terminal.regionCollapse',
-    apply: (value) => terminalRegionCollapseStore.apply(value),
-    fallback: {},
-    scope: 'byTabId',
-    read: normalizeRegionCollapseMap,
-  }),
   'adl:terminal.cwdByTab': defineEntry<Record<string, string>>({
     key: 'adl:terminal.cwdByTab',
     apply: (value) => terminalCwdStore.apply(value),
@@ -872,15 +840,6 @@ export const registry = {
     scope: 'byTabId',
     read: readStringRecord,
   }),
-  'adl:terminal.historyIndex': defineEntry<Record<string, TerminalHistorySegment[]>>({
-    key: 'adl:terminal.historyIndex',
-    apply: (value) => terminalHistoryStore.apply(value),
-    fallback: {},
-    scope: 'byTabId',
-    read: normalizeHistoryIndex,
-    sync: false,
-  }),
-
   // ─────────────────────────────────────────────────────────────
   // 检索面板迁移批次（Task 11）：以下键取代 adl-search:* 遗留键。
   // 全部写盘走 persist()/persistField()，全部读取走 hydrateAll()（同步，唯一水合时机）。
