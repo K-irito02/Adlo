@@ -1,39 +1,15 @@
 import { useAppStore } from '@stores/slicedStore';
 import type { TerminalProfile } from '@stores/types';
-import { terminalOutputStore } from './terminalOutputStore';
 import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
 import { terminalXtermPool, readTerminalFontFamily, TERMINAL_FONT_SIZE } from './terminalXtermPool';
-import {
-  terminalHistoryStore,
-  chunkKey,
-  staleChunkRange,
-  type TerminalHistoryChunkMeta,
-  type TerminalHistorySegment,
-} from './terminalHistoryStore';
-import { TerminalHistoryCollector, TERMINAL_CAPTURE_THROTTLE_MS } from './terminalHistoryCollector';
-import {
-  selectSegmentsToEvict,
-  effectiveBudgetBytes,
-  diskAvailableBytesFrom,
-  TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES,
-  TERMINAL_HISTORY_BUDGET_FOLLOW_DISK,
-} from './terminalHistoryBudget';
-import type { ExtractLine } from './historyModel';
-import { isTauriShell } from '@shared/env';
 import { flushCrossSliceWrites } from '@stores/storageHelpers';
-
-/** 关闭时等待历史落盘的总超时：IPC 挂起也不能卡死窗口关闭 */
-const CLOSE_FLUSH_TIMEOUT_MS = 5000;
 
 const SHELL_MAP: Record<TerminalProfile, string> = {
   powershell: 'powershell',
   bash: 'bash',
   cmd: 'cmd',
 };
-
-/** 空历史数组的稳定引用：无标签/无历史时避免每次渲染返回新数组 */
-const EMPTY_HISTORY: TerminalHistorySegment[] = [];
 
 /**
  * 按标签归属（`location`）在**所属宿主**容器内查找实时终端画布。
@@ -53,37 +29,8 @@ export function findTerminalCanvasForHost(
 }
 
 /**
- * 节流执行器：**替代原来的尾去抖**。
- *
- * 为什么必须换：尾去抖在持续输出时每来一个事件就重置定时器，定时器永不触发，
- * 只能靠 30 秒周期兜底 —— 那 30 秒里的输出可能已超出 xterm scrollback 环而从源头丢失。
- * 节流保证「输出期间最多每 intervalMs 采一次」，把积压行数压到远小于环容量。
- */
-export function createThrottledRunner(run: () => void, intervalMs: number): () => void {
-  let lastRanAt = Number.NEGATIVE_INFINITY;
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return () => {
-    const now = Date.now();
-    const elapsed = now - lastRanAt;
-    if (elapsed >= intervalMs) {
-      lastRanAt = now;
-      run();
-      return;
-    }
-    if (timer) {
-      return;
-    }
-    timer = setTimeout(() => {
-      timer = null;
-      lastRanAt = Date.now();
-      run();
-    }, intervalMs - elapsed);
-  };
-}
-
-/**
  * 批量关闭时选出应清理的标签：限定工作区（可选）且**跳过中心标签**。
- * 中心标签的 PTY / xterm 池 / 历史由中心宿主自行管理，不受面板批量关闭影响。
+ * 中心标签的 PTY / xterm 池由中心宿主自行管理，不受面板批量关闭影响。
  */
 export function selectTerminalTabsToClose<
   T extends { workspaceId?: string; location?: 'panel' | 'center' },
@@ -101,21 +48,15 @@ interface ActiveTerminalTab {
 /**
  * 终端 PTY「运行时」——**应用级单例**。
  *
- * 为什么必须是单例：输出订阅、历史采集、30s 检查点、beforeunload、Tauri
- * onCloseRequested 都是与「哪个视图正在渲染」无关的全局工作。右面板与中心会各挂载
- * 一次 `useTerminalPtyLifecycle`；若这些全局工作按实例各做一遍，就会输出双写、
- * 历史重复采集、关闭路径重复 flush/close。因此把所有跨实例共享状态与全局副作用
- * 收敛到本单例，实例只负责「渲染 xterm + 转发输入 + 触发激活」。
+ * 为什么必须是单例：输出订阅与 beforeunload 都是与「哪个视图正在渲染」无关的全局工作。
+ * 右面板与中心会各挂载一次 `useTerminalPtyLifecycle`；若这些全局工作按实例各做一遍，
+ * 就会输出双写。因此把所有跨实例共享状态与全局副作用收敛到本单例，实例只负责
+ * 「渲染 xterm + 转发输入 + 触发激活」。
  *
- * 所有共享状态（live/created session、collectors、throttle、pendingInput、
- * activating、ptyDims、tabCwds、oscCarry、historyIndex）都由本类拥有；全局回调
- * 只读写这里的字段，第二个实例不再持有空 refs。
+ * 所有共享状态（live/created session、pendingInput、activating、ptyDims、tabCwds、
+ * oscCarry）都由本类拥有；全局回调只读写这里的字段，第二个实例不再持有空 refs。
  */
 export class TerminalPtyRuntime {
-  /** sessionId → 只读历史采集器 */
-  private collectors = new Map<string, TerminalHistoryCollector>();
-  /** sessionId → 输出节流触发线 */
-  private throttled = new Map<string, () => void>();
   /** 本次运行中新建的会话（用于区分「重启恢复的标签」与「新建标签」） */
   private createdSessionIds = new Set<string>();
   /** 当前仍然存活的 PTY 会话（应用重启后恢复的标签不在其中 → 需要重建） */
@@ -131,49 +72,11 @@ export class TerminalPtyRuntime {
   private tabCwdsLoaded = false;
   /** sessionId → OSC 9;9 跨块尾部片段 */
   private oscCarry = new Map<string, string>();
-  /** tabId → 历史分段索引（旧 → 新） */
-  private historyIndex = new Map<string, TerminalHistorySegment[]>();
-  private historyIndexLoaded = false;
-
-  // 索引是 Map（便于在回调里同步读写）；用版本号 + 监听器驱动两个实例重渲染。
-  private historyVersion = 0;
-  private historyListeners = new Set<() => void>();
 
   // 全局副作用只启动一次
   private started = false;
   private unsubPtyOutput: (() => void) | null = null;
-  private checkpointTimer: ReturnType<typeof setInterval> | null = null;
   private beforeUnloadHandler: (() => void) | null = null;
-  private tauriCleanup: (() => void) | null = null;
-
-  // ---------------------------------------------------------------- history 订阅
-
-  subscribeHistory = (listener: () => void): (() => void) => {
-    this.historyListeners.add(listener);
-    return () => {
-      this.historyListeners.delete(listener);
-    };
-  };
-
-  getHistoryVersion = (): number => this.historyVersion;
-
-  private bumpHistory = (): void => {
-    this.historyVersion += 1;
-    for (const listener of this.historyListeners) {
-      listener();
-    }
-  };
-
-  /** 当前活动标签的「只读历史段」列表（旧 → 新，已过滤正在进行的 live 段） */
-  historySegmentsFor = (tabId: string | undefined): TerminalHistorySegment[] => {
-    if (!tabId) {
-      return EMPTY_HISTORY;
-    }
-    this.ensureHistoryIndexLoaded();
-    // 已过滤正在进行的段：只读历史区绝不能把「实时终端当前内容」再渲染一遍。
-    const all = this.historyIndex.get(tabId) ?? EMPTY_HISTORY;
-    return all.filter((s) => !s.live);
-  };
 
   isCreatedSession = (sessionId: string): boolean => this.createdSessionIds.has(sessionId);
 
@@ -187,11 +90,7 @@ export class TerminalPtyRuntime {
     }
     this.started = true;
     this.startOutputSubscription();
-    this.startCheckpoint();
     this.startBeforeUnload();
-    this.startTauriClose();
-    // 启动定稿：残留的 live 段其 PTY 必然已随进程退出而死 → 定稿；空段直接剪枝。
-    this.finalizeStaleSegments();
   };
 
   private startOutputSubscription = (): void => {
@@ -207,8 +106,6 @@ export class TerminalPtyRuntime {
         if (tab) {
           useAppStore.getState().terminalUpdateTab(tab.id, { status: 'terminated' });
         }
-        // 会话结束即定稿（flush 封块 + live=false）：历史无需等到应用重启才可见。
-        void this.finalizeSegment(event.sessionId);
         return;
       }
 
@@ -239,31 +136,8 @@ export class TerminalPtyRuntime {
       if (pooled) {
         pooled.terminal.write(event.data);
       }
-
-      // 节流采集：输出期间最多每 TERMINAL_CAPTURE_THROTTLE_MS 采一次。
-      this.collectThrottled(event.sessionId);
     });
     this.unsubPtyOutput = unsub;
-  };
-
-  private startCheckpoint = (): void => {
-    if (this.checkpointTimer) {
-      return;
-    }
-    this.checkpointTimer = setInterval(() => {
-      const sessionIds = new Set(
-        useAppStore
-          .getState()
-          .terminalTabs.map((tab) => tab.sessionId)
-          .filter((id): id is string => Boolean(id)),
-      );
-      for (const sessionId of sessionIds) {
-        if (!this.liveSessionIds.has(sessionId)) {
-          continue;
-        }
-        void this.persistCheckpoint(sessionId);
-      }
-    }, 30_000);
   };
 
   private startBeforeUnload = (): void => {
@@ -271,109 +145,21 @@ export class TerminalPtyRuntime {
       return;
     }
     this.beforeUnloadHandler = () => {
-      // 同关闭路径：两处都跳过预算结算（结算先删块再写索引，被进程退出截断会留下
-      // 指向已删块的索引），淘汰交给下次启动的 finalizeStaleSegments。
-      this.collectors.forEach((collector, sessionId) => {
-        this.upsertHistoryEntry(sessionId, collector.getWrittenChunks(), { skipBudget: true });
-        void this.finalizeSegment(sessionId, { skipBudget: true });
-      });
-      // 同步落盘去抖中的 localStorage 写入（标签、历史索引等），否则重启后丢失。
+      // 同步落盘去抖中的 localStorage 写入（标签等），否则重启后丢失。
       flushCrossSliceWrites();
     };
     window.addEventListener('beforeunload', this.beforeUnloadHandler);
-  };
-
-  private startTauriClose = (): void => {
-    if (!isTauriShell()) {
-      return;
-    }
-    let active = true;
-    let unlisten: (() => void) | undefined;
-    // 关闭处理只能跑一次：短时间内重复关闭请求会并发触发两轮「hide → flush → destroy」。
-    let closing = false;
-    void import('@tauri-apps/api/window')
-      .then(({ getCurrentWindow }) => {
-        if (!active) {
-          return;
-        }
-        void getCurrentWindow()
-          .onCloseRequested(async (event) => {
-            event.preventDefault();
-            if (closing) {
-              return;
-            }
-            closing = true;
-            const win = getCurrentWindow();
-            try {
-              await win.hide();
-            } catch (err) {
-              console.error('terminal history close hide failed', { error: String(err) });
-            }
-            try {
-              let timedOut = false;
-              await Promise.race([
-                this.flushAllHistories(),
-                new Promise((resolve) => {
-                  setTimeout(() => {
-                    timedOut = true;
-                    resolve(undefined);
-                  }, CLOSE_FLUSH_TIMEOUT_MS);
-                }),
-              ]);
-              if (timedOut) {
-                console.error('terminal history close flush timed out', {
-                  timeoutMs: CLOSE_FLUSH_TIMEOUT_MS,
-                });
-              }
-            } finally {
-              flushCrossSliceWrites();
-              try {
-                await win.destroy();
-              } catch (err) {
-                console.error('terminal history close destroy failed', { error: String(err) });
-                closing = false;
-                try {
-                  await win.show();
-                } catch (showErr) {
-                  console.error('terminal history close restore failed', {
-                    error: String(showErr),
-                  });
-                }
-              }
-            }
-          })
-          .then((ul) => {
-            if (active) {
-              unlisten = ul;
-            } else {
-              ul();
-            }
-          });
-      })
-      .catch(() => {});
-    this.tauriCleanup = () => {
-      active = false;
-      unlisten?.();
-    };
   };
 
   /** 停止全局副作用并清空共享状态（仅供测试隔离使用） */
   reset = (): void => {
     this.unsubPtyOutput?.();
     this.unsubPtyOutput = null;
-    if (this.checkpointTimer) {
-      clearInterval(this.checkpointTimer);
-      this.checkpointTimer = null;
-    }
     if (this.beforeUnloadHandler) {
       window.removeEventListener('beforeunload', this.beforeUnloadHandler);
       this.beforeUnloadHandler = null;
     }
-    this.tauriCleanup?.();
-    this.tauriCleanup = null;
     this.started = false;
-    this.collectors.clear();
-    this.throttled.clear();
     this.createdSessionIds.clear();
     this.liveSessionIds.clear();
     this.pendingInput.clear();
@@ -382,407 +168,6 @@ export class TerminalPtyRuntime {
     this.tabCwds.clear();
     this.tabCwdsLoaded = false;
     this.oscCarry.clear();
-    this.historyIndex.clear();
-    this.historyIndexLoaded = false;
-    this.historyVersion = 0;
-    this.historyListeners.clear();
-  };
-
-  // ---------------------------------------------------------------- 历史索引
-
-  private ensureHistoryIndexLoaded = (): void => {
-    if (this.historyIndexLoaded) {
-      return;
-    }
-    this.historyIndexLoaded = true;
-    for (const [tabId, segments] of Object.entries(terminalHistoryStore.loadAll())) {
-      this.historyIndex.set(tabId, segments);
-    }
-  };
-
-  private persistHistoryIndex = (): void => {
-    const snapshot: Record<string, TerminalHistorySegment[]> = {};
-    this.historyIndex.forEach((segments, tabId) => {
-      snapshot[tabId] = segments;
-    });
-    terminalHistoryStore.saveAll(snapshot);
-    this.bumpHistory();
-  };
-
-  private collectorFor = (sessionId: string): TerminalHistoryCollector => {
-    let collector = this.collectors.get(sessionId);
-    if (!collector) {
-      collector = new TerminalHistoryCollector({
-        readBuffer: () => {
-          const entry = terminalXtermPool.get(sessionId);
-          const buffer = entry?.terminal.buffer;
-          return {
-            length: buffer?.active.length ?? 0,
-            baseY: buffer?.active.baseY ?? 0,
-            activeType: buffer?.active.type === 'alternate' ? 'alternate' : 'normal',
-            getLine: (y) => buffer?.active.getLine(y) as unknown as ExtractLine | undefined,
-          };
-        },
-        cols: () => terminalXtermPool.get(sessionId)?.terminal.cols ?? 80,
-        write: (key, payload) => terminalOutputStore.save(key, payload),
-      });
-      collector.setSessionId(sessionId);
-      this.collectors.set(sessionId, collector);
-    }
-    return collector;
-  };
-
-  private deleteChunksForSession = async (
-    sessionId: string,
-    start: number,
-    count: number,
-  ): Promise<void> => {
-    const DELETE_BATCH = 4;
-    for (let offset = 0; offset < count; offset += DELETE_BATCH) {
-      const batch = Math.min(DELETE_BATCH, count - offset);
-      await Promise.all(
-        Array.from({ length: batch }, (_unused, index) =>
-          terminalOutputStore.delete(chunkKey(sessionId, start + offset + index)),
-        ),
-      );
-    }
-  };
-
-  /**
-   * 淘汰被整段重建取代的旧代尾部块（键 `[nextCount, previousCount)`）。
-   *
-   * `ownerTabId` 可选：定稿路径已算出 owner（可能来自索引，而该会话重启恢复后已不在
-   * store 的 `terminalTabs` 里）；缺省才回退按 store 反查——否则那种情形会反查不到、
-   * 整个淘汰静默失效，旧代尾部永久成为磁盘孤儿。
-   */
-  private evictStaleChunksForRebuild = async (
-    sessionId: string,
-    nextCount: number,
-    ownerTabId?: string,
-  ): Promise<void> => {
-    const tabId =
-      ownerTabId ?? useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id;
-    if (!tabId) {
-      return;
-    }
-    const segment = (this.historyIndex.get(tabId) ?? []).find((s) => s.sessionId === sessionId);
-    if (!segment) {
-      return;
-    }
-    const { start, count } = staleChunkRange(segment.chunks.length, nextCount);
-    if (count > 0) {
-      console.info('[TERMINAL-HISTORY] evict stale chunks after rebuild', {
-        sessionId,
-        start,
-        count,
-        previousCount: segment.chunks.length,
-        newCount: nextCount,
-      });
-      await this.deleteChunksForSession(sessionId, start, count);
-    }
-  };
-
-  /**
-   * 落实「采集器已判定整段重建」的后果：按新块数淘汰旧代尾部。
-   *
-   * 时机约束：必须等**新代已产出至少一个块**才淘汰——否则区间会被算成 `[0, previousCount)`，
-   * 旧块先被全删而索引仍指向它们（中途退出即永久丢历史）。因此「暂无淘汰依据」时**不消费**
-   * 重建标志，留待下次（封块后）再落实（见 `TerminalHistoryCollector.hasRebuild`）。
-   */
-  private settleRebuild = async (
-    sessionId: string,
-    collector: TerminalHistoryCollector,
-    written: TerminalHistoryChunkMeta[],
-    ownerTabId?: string,
-  ): Promise<void> => {
-    if (!collector.hasRebuild() || written.length === 0) {
-      return;
-    }
-    collector.consumeRebuild();
-    console.info('[TERMINAL-HISTORY] segment rebuilt', {
-      sessionId,
-      newChunks: written.length,
-    });
-    await this.evictStaleChunksForRebuild(sessionId, written.length, ownerTabId);
-  };
-
-  deleteHistoryForTab = async (tabId: string): Promise<void> => {
-    // 先确保索引已加载：否则「启动后立刻关闭上次遗留标签」时 Map 还是空的。
-    this.ensureHistoryIndexLoaded();
-    const segments = this.historyIndex.get(tabId) ?? [];
-    for (const segment of segments) {
-      await this.deleteChunksForSession(segment.sessionId, 0, segment.chunks.length);
-      this.collectors.delete(segment.sessionId);
-      this.throttled.delete(segment.sessionId);
-    }
-    this.historyIndex.delete(tabId);
-    this.persistHistoryIndex();
-  };
-
-  private deleteSegmentRecords = async (segment: TerminalHistorySegment): Promise<void> => {
-    await this.deleteChunksForSession(segment.sessionId, 0, segment.chunks.length);
-    this.collectors.delete(segment.sessionId);
-    this.throttled.delete(segment.sessionId);
-  };
-
-  private settleHistoryBudget = async (): Promise<void> => {
-    const all: { tabId: string; seg: TerminalHistorySegment }[] = [];
-    this.historyIndex.forEach((segments, tabId) => {
-      segments.forEach((seg) => all.push({ tabId, seg }));
-    });
-
-    const settingBytes =
-      useAppStore.getState().appInfo?.config?.terminalHistoryBudgetBytes ??
-      TERMINAL_HISTORY_BUDGET_DEFAULT_BYTES;
-
-    let diskAvailableBytes: number | null = null;
-    if (settingBytes === TERMINAL_HISTORY_BUDGET_FOLLOW_DISK) {
-      try {
-        const result = await window.digitalLife.systemMonitor.snapshot();
-        if (result.ok) {
-          diskAvailableBytes = diskAvailableBytesFrom(result.data?.disks);
-        }
-      } catch {
-        diskAvailableBytes = null;
-      }
-    }
-
-    const budget = effectiveBudgetBytes(settingBytes, diskAvailableBytes);
-    const doomed = selectSegmentsToEvict(all, budget);
-    if (doomed.length === 0) {
-      return;
-    }
-    const doomedByTab = new Map<string, Set<string>>();
-    for (const { tabId, sessionId } of doomed) {
-      const set = doomedByTab.get(tabId) ?? new Set<string>();
-      set.add(sessionId);
-      doomedByTab.set(tabId, set);
-      const segment = all.find((e) => e.tabId === tabId && e.seg.sessionId === sessionId)?.seg;
-      if (segment) {
-        await this.deleteSegmentRecords(segment);
-      }
-    }
-    for (const [tabId, sessionIds] of doomedByTab) {
-      const segments = this.historyIndex.get(tabId) ?? [];
-      const kept = segments.filter((s) => !sessionIds.has(s.sessionId));
-      if (kept.length > 0) {
-        this.historyIndex.set(tabId, kept);
-      } else {
-        this.historyIndex.delete(tabId);
-      }
-    }
-    this.persistHistoryIndex();
-  };
-
-  private upsertHistoryEntry = (
-    sessionId: string,
-    written: TerminalHistoryChunkMeta[],
-    options?: { ownerTabId?: string; skipBudget?: boolean },
-  ): void => {
-    if (written.length === 0) {
-      return;
-    }
-    this.ensureHistoryIndexLoaded();
-    const tabId =
-      options?.ownerTabId ??
-      useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id;
-    if (!tabId) {
-      return;
-    }
-    const segments = this.historyIndex.get(tabId) ?? [];
-    const at = segments.findIndex((s) => s.sessionId === sessionId);
-    const existing = segments[at];
-    const next: TerminalHistorySegment = {
-      sessionId,
-      endedAt: existing?.live === false ? existing.endedAt : Date.now(),
-      live: existing?.live === false ? false : true,
-      chunks: written,
-    };
-    if (at >= 0) {
-      segments[at] = next;
-    } else {
-      segments.push(next);
-    }
-    this.historyIndex.set(tabId, segments);
-    this.persistHistoryIndex();
-    if (!options?.skipBudget) {
-      void this.settleHistoryBudget();
-    }
-  };
-
-  private persistCollectedTail = async (
-    sessionId: string,
-    collector: TerminalHistoryCollector,
-    before: number,
-  ): Promise<void> => {
-    const written = collector.getWrittenChunks();
-    // hasRebuild 只窥视不消费：重建的淘汰须待新代产出块后才落实（见 settleRebuild），
-    // 故「标志仍在」也要继续往下走，不能在标志被消费前就因「块数未变」提前返回。
-    const rebuilt = collector.hasRebuild();
-    if (written.length === before && !rebuilt) {
-      return;
-    }
-    await this.settleRebuild(sessionId, collector, written);
-    this.upsertHistoryEntry(sessionId, written);
-  };
-
-  private persistCollectedChunks = async (sessionId: string): Promise<void> => {
-    const collector = this.collectorFor(sessionId);
-    const before = collector.getWrittenChunks().length;
-    const ok = await collector.collect();
-    if (!ok) {
-      return;
-    }
-    await this.persistCollectedTail(sessionId, collector, before);
-  };
-
-  private persistCheckpoint = async (sessionId: string): Promise<void> => {
-    const collector = this.collectorFor(sessionId);
-    const before = collector.getWrittenChunks().length;
-    const ok = await collector.checkpoint();
-    if (!ok) {
-      return;
-    }
-    await this.persistCollectedTail(sessionId, collector, before);
-  };
-
-  private collectThrottled = (sessionId: string): void => {
-    let trigger = this.throttled.get(sessionId);
-    if (!trigger) {
-      trigger = createThrottledRunner(
-        () => void this.persistCollectedChunks(sessionId),
-        TERMINAL_CAPTURE_THROTTLE_MS,
-      );
-      this.throttled.set(sessionId, trigger);
-    }
-    trigger();
-  };
-
-  private finalizeSegment = async (
-    sessionId: string,
-    options?: { skipBudget?: boolean },
-  ): Promise<void> => {
-    this.ensureHistoryIndexLoaded();
-    let ownerTabId: string | null = null;
-    for (const [tabId, segments] of this.historyIndex) {
-      if (segments.some((s) => s.sessionId === sessionId)) {
-        ownerTabId = tabId;
-        break;
-      }
-    }
-    ownerTabId ??=
-      useAppStore.getState().terminalTabs.find((t) => t.sessionId === sessionId)?.id ?? null;
-    if (!ownerTabId) {
-      this.collectors.delete(sessionId);
-      this.throttled.delete(sessionId);
-      return;
-    }
-    const previousSegments = this.historyIndex.get(ownerTabId) ?? [];
-    const previousSegment = previousSegments.find((s) => s.sessionId === sessionId);
-    const segmentExistedBefore = previousSegment !== undefined;
-    const collector = this.collectorFor(sessionId);
-    const flushed = await collector.flush();
-    // flush 同样过 detectRewind：退出前若发生过重排/环回，这里会整段重建。
-    const written = collector.getWrittenChunks();
-    const segments = this.historyIndex.get(ownerTabId) ?? [];
-    const at = segments.findIndex((s) => s.sessionId === sessionId);
-    const tabStillExists = useAppStore.getState().terminalTabs.some((t) => t.id === ownerTabId);
-    if (!tabStillExists || (segmentExistedBefore && at < 0)) {
-      await this.deleteChunksForSession(
-        sessionId,
-        0,
-        Math.max(previousSegment?.chunks.length ?? 0, written.length),
-      );
-      this.collectors.delete(sessionId);
-      this.throttled.delete(sessionId);
-      return;
-    }
-    // 落实重建后果（含下方 !flushed 的写失败重试路径）：新块已按 seq 从 0 覆盖写回，
-    // 旧代多出的尾部须整段淘汰，否则成为索引引用不到的磁盘孤儿（预算与删除路径都碰不到）。
-    // 传入 ownerTabId：重启恢复的旧段其 sessionId 已不在 store 的 terminalTabs 里。
-    await this.settleRebuild(sessionId, collector, written, ownerTabId);
-    if (!flushed) {
-      if (at >= 0 && segments[at].live) {
-        const retry = segments.slice();
-        retry[at] = {
-          ...retry[at],
-          endedAt: Date.now(),
-          chunks: written.length > 0 ? written : segments[at].chunks,
-        };
-        this.historyIndex.set(ownerTabId, retry);
-        this.persistHistoryIndex();
-      } else if (at < 0) {
-        this.upsertHistoryEntry(sessionId, written, {
-          ownerTabId,
-          skipBudget: options?.skipBudget,
-        });
-      }
-      return;
-    }
-    if (written.length === 0) {
-      if (at >= 0) {
-        await this.deleteChunksForSession(sessionId, 0, segments[at].chunks.length);
-        const latest = this.historyIndex.get(ownerTabId) ?? [];
-        const latestAt = latest.findIndex((s) => s.sessionId === sessionId);
-        if (latestAt >= 0) {
-          const next = latest.filter((_, i) => i !== latestAt);
-          if (next.length > 0) {
-            this.historyIndex.set(ownerTabId, next);
-          } else {
-            this.historyIndex.delete(ownerTabId);
-          }
-          this.persistHistoryIndex();
-        }
-      }
-      return;
-    }
-    const existingSegment = segments[at];
-    const next: TerminalHistorySegment = {
-      sessionId,
-      endedAt:
-        existingSegment?.live === false
-          ? existingSegment.endedAt
-          : Math.max(existingSegment?.endedAt ?? 0, Date.now()),
-      live: false,
-      chunks: written,
-    };
-    const updated = segments.slice();
-    if (at >= 0) {
-      updated[at] = next;
-    } else {
-      updated.push(next);
-    }
-    this.historyIndex.set(ownerTabId, updated);
-    this.persistHistoryIndex();
-    console.debug('[TERMINAL-HISTORY] segment finalized', {
-      sessionId,
-      chunks: written.length,
-    });
-    if (!options?.skipBudget) {
-      void this.settleHistoryBudget();
-    }
-  };
-
-  private finalizeStaleSegments = (): void => {
-    this.ensureHistoryIndexLoaded();
-    let changed = false;
-    for (const [tabId, segments] of this.historyIndex) {
-      const next = segments
-        .filter((s) => s.chunks.length > 0)
-        .map((s) => (s.live ? { ...s, live: false } : s));
-      if (next.length !== segments.length || next.some((s, i) => s !== segments[i])) {
-        if (next.length > 0) {
-          this.historyIndex.set(tabId, next);
-        } else {
-          this.historyIndex.delete(tabId);
-        }
-        changed = true;
-      }
-    }
-    if (changed) {
-      this.persistHistoryIndex();
-    }
-    void this.settleHistoryBudget();
   };
 
   // ---------------------------------------------------------------- 目录
@@ -1061,7 +446,7 @@ export class TerminalPtyRuntime {
     const tabs = useAppStore.getState().terminalTabs;
     const tab = tabs.find((t) => t.id === tabId);
     if (tab?.sessionId) {
-      // kill 失败仅日志：标签关闭流程（store / xterm 池 / 历史）不受影响。
+      // kill 失败仅日志：标签关闭流程（store / xterm 池）不受影响。
       void window.digitalLife.pty
         .kill(tab.sessionId)
         .catch((e) => console.warn('[pty] kill on tab close failed:', e));
@@ -1070,10 +455,8 @@ export class TerminalPtyRuntime {
       this.ptyDims.delete(tab.sessionId);
       this.createdSessionIds.delete(tab.sessionId);
       this.oscCarry.delete(tab.sessionId);
-      void terminalOutputStore.delete(tab.sessionId);
     }
     this.pendingInput.delete(tabId);
-    void this.deleteHistoryForTab(tabId);
     if (this.tabCwds.delete(tabId)) {
       this.persistTabCwds();
     }
@@ -1084,7 +467,6 @@ export class TerminalPtyRuntime {
     const tabs = useAppStore.getState().terminalTabs;
     const tabsToClose = selectTerminalTabsToClose(tabs, workspaceId);
     tabsToClose.forEach((tab) => {
-      void this.deleteHistoryForTab(tab.id);
       this.tabCwds.delete(tab.id);
       this.pendingInput.delete(tab.id);
       if (tab.sessionId) {
@@ -1096,44 +478,10 @@ export class TerminalPtyRuntime {
         this.ptyDims.delete(tab.sessionId);
         this.createdSessionIds.delete(tab.sessionId);
         this.oscCarry.delete(tab.sessionId);
-        void terminalOutputStore.delete(tab.sessionId);
       }
     });
     this.persistTabCwds();
     useAppStore.getState().terminalCloseAllTabs(workspaceId);
-  };
-
-  private flushAllHistories = async (): Promise<void> => {
-    this.ensureHistoryIndexLoaded();
-    const pending = new Set<string>();
-    this.historyIndex.forEach((segments) => {
-      segments.forEach((s) => {
-        if (s.live) {
-          pending.add(s.sessionId);
-        }
-      });
-    });
-    const ownedSessionIds = new Set(
-      useAppStore
-        .getState()
-        .terminalTabs.map((t) => t.sessionId)
-        .filter((id): id is string => Boolean(id)),
-    );
-    this.collectors.forEach((_collector, sessionId) => {
-      if (ownedSessionIds.has(sessionId)) {
-        pending.add(sessionId);
-      }
-    });
-    for (const sessionId of pending) {
-      try {
-        await this.finalizeSegment(sessionId, { skipBudget: true });
-      } catch (err) {
-        console.error('terminal history close flush failed', {
-          sessionId,
-          error: String(err),
-        });
-      }
-    }
   };
 }
 
