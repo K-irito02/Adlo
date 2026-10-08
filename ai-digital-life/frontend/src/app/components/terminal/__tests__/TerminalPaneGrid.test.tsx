@@ -37,6 +37,8 @@ interface Overrides {
   activePaneId?: string;
   maximizedPaneId?: string | null;
   layout?: TerminalPaneLayout;
+  showBorders?: boolean;
+  showActiveHighlight?: boolean;
 }
 
 function renderGrid(overrides: Overrides = {}) {
@@ -51,6 +53,8 @@ function renderGrid(overrides: Overrides = {}) {
       activePaneId={overrides.activePaneId}
       maximizedPaneId={overrides.maximizedPaneId ?? null}
       layout={layout}
+      showBorders={overrides.showBorders ?? true}
+      showActiveHighlight={overrides.showActiveHighlight ?? true}
       dividerLabel="Resize pane"
       onColDividerPointerDown={onColDividerPointerDown}
       onRowDividerPointerDown={onRowDividerPointerDown}
@@ -240,6 +244,8 @@ function FreeGridHarness({ tabId }: { tabId: string }) {
         panes={panes}
         maximizedPaneId={null}
         layout={hook.layout}
+        showBorders
+        showActiveHighlight
         dividerLabel="Resize pane"
         onColDividerPointerDown={hook.handleColDividerPointerDown}
         onRowDividerPointerDown={hook.handleRowDividerPointerDown}
@@ -249,6 +255,47 @@ function FreeGridHarness({ tabId }: { tabId: string }) {
     </div>
   );
 }
+
+describe('TerminalPaneGrid pane borders toggle', () => {
+  it('showBorders 开：网格带 has-borders，分割线渲染', () => {
+    const { container } = renderGrid({ panes: makePanes(4), showBorders: true });
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    expect(grid.classList.contains('has-borders')).toBe(true);
+    expect(grid.classList.contains('no-borders')).toBe(false);
+    expect(container.querySelector('.adl-terminal-col-divider')).not.toBeNull();
+  });
+
+  it('showBorders 关：网格带 no-borders（CSS 隐藏分割线/自由边框）', () => {
+    const { container } = renderGrid({ panes: makePanes(4), showBorders: false });
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    expect(grid.classList.contains('no-borders')).toBe(true);
+    expect(grid.classList.contains('has-borders')).toBe(false);
+  });
+
+  it('自由模式下开关类名随 showBorders 切换', () => {
+    const panes = makePanes(2);
+    const on = renderGrid({ panes, layout: freeLayout(panes), showBorders: true });
+    expect(
+      on.container.querySelector('.adl-terminal-pane-grid')?.classList.contains('has-borders'),
+    ).toBe(true);
+    const off = renderGrid({ panes, layout: freeLayout(panes), showBorders: false });
+    expect(
+      off.container.querySelector('.adl-terminal-pane-grid')?.classList.contains('no-borders'),
+    ).toBe(true);
+  });
+
+  it('showActiveHighlight 关：网格带 no-active-highlight（CSS 去活动描边）', () => {
+    const { container } = renderGrid({ panes: makePanes(2), showActiveHighlight: false });
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    expect(grid.classList.contains('no-active-highlight')).toBe(true);
+  });
+
+  it('showActiveHighlight 开（默认）：无 no-active-highlight 类', () => {
+    const { container } = renderGrid({ panes: makePanes(2) });
+    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
+    expect(grid.classList.contains('no-active-highlight')).toBe(false);
+  });
+});
 
 describe('TerminalPaneGrid free-mode no-move handle click (H1 regression)', () => {
   afterEach(() => {

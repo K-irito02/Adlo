@@ -7,8 +7,6 @@ export interface TerminalPaneActionsProps {
   isMaximized: boolean;
   onToggleMaximize: () => void;
   titles: { close: string; clear: string; maximize: string; restore: string };
-  /** 常驻显示（不再依赖 hover） */
-  alwaysVisible?: boolean;
 }
 
 /**
@@ -23,12 +21,11 @@ export function TerminalPaneActions({
   isMaximized,
   onToggleMaximize,
   titles,
-  alwaysVisible,
 }: TerminalPaneActionsProps) {
   const maximizeTitle = isMaximized ? titles.restore : titles.maximize;
   return (
     <div
-      className={`adl-terminal-region-actions${alwaysVisible ? ' is-always-visible' : ''}`}
+      className="adl-terminal-region-actions"
       // 阻止按钮 pointerdown 冒泡到 TerminalPaneView 的 onPointerDown={onActivate}：
       // 否则点击动作按钮会先激活窗格并为其新建一个 shell（再立即被关闭）。
       onPointerDown={(event) => event.stopPropagation()}

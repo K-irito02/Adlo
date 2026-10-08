@@ -157,5 +157,10 @@ export {
   IconCircleHelp,
 } from './status';
 export { IconTerminalDirectory, IconClearDisplay } from './terminal-nav';
-export { IconAddTerminal, IconAutoLayout, IconCustomLayout } from './terminal-pane';
+export {
+  IconAddTerminal,
+  IconAutoLayout,
+  IconCustomLayout,
+  IconSwapPositions,
+} from './terminal-pane';
 export { IconProfilePowerShell, IconProfileBash, IconProfileCmd } from './terminal-profiles';

@@ -29,13 +29,40 @@ export const terminalCompositeHydrators: CompositeHydrator[] = [
     name: 'terminalDerived',
     build: (read, priorPatch) => {
       const rawTabs = read('adl:terminal.tabs');
-      const tabs =
+      const parsed =
         rawTabs === undefined ? [] : readObjectArray<TerminalTabState>(isTerminalTabState)(rawTabs);
 
+      // 重启恢复：PTY 会话随进程退出全部失效，落盘的 sessionId 必须剥离；
+      // 全部窗格回到 idle、无会话，由视图侧生命周期为每个窗格新建 shell
+      //（spec §10）。否则 XtermTerminal 先绑定死会话，teardown→重建竞态下
+      // 仅活动格成功，其余滞留空白。
+      let strippedSessions = 0;
+      const tabs = parsed?.map((tab) => ({
+        ...tab,
+        panes: tab.panes.map((pane) => {
+          if (pane.sessionId !== undefined) {
+            strippedSessions += 1;
+          }
+          const { sessionId: _dead, ...rest } = pane;
+          return {
+            ...rest,
+            status: 'idle' as const,
+          };
+        }),
+      }));
+      // [ADL-DEBUG] 临时诊断日志（跟进 5：重启恢复排查，用户复测后删除）：
+      // 确认水合是否剥离死会话；若启动日志无此行，说明运行的不是最新构建。
+      console.log(
+        `[ADL-DEBUG] terminal-hydrate: tabs=${tabs?.length ?? 0} strippedSessions=${strippedSessions}`,
+      );
+
       const patch: Partial<StoreState> = {};
-      // 标签损坏（非数组 / 含畸形元素）⇒ 不产出 terminalTabsById，store 初始即为 {}，
-      // 与简单条目把 terminalTabs 回退 [] 自洽；标签空或缺失 ⇒ 同样留 {}。
+      // 标签损坏（非数组 / 含畸形元素）⇒ 不产出 terminalTabs/ById，store 初始即为 []/{}
+      //（简单条目侧同步回退 []，此处不再覆盖）；标签空或缺失 ⇒ 同样留空。
+      // 清洗后的 tabs 同时覆盖 terminalTabs，保证 tabs 与 tabsById 一致，
+      // 否则简单条目的死 sessionId 会与此处清洗结果分叉。
       if (tabs !== undefined && tabs.length > 0) {
+        patch.terminalTabs = tabs;
         patch.terminalTabsById = buildTabsById(tabs);
       }
 

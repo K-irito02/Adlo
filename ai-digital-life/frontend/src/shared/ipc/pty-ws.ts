@@ -93,7 +93,19 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectDelay = reconnectDelayMs;
   let closed = false;
-  let pendingCreate: CreateResolver | null = null;
+  /**
+   * 待匹配的 create 请求队列（FIFO）。
+   *
+   * 服务端在单读循环里串行处理 create 并保序回复 `created`
+   *（见 `crates/server/src/pty_ws.rs::handle_socket`），故按到达顺序
+   * 依次匹配队首即正确。
+   *
+   * 曾经的单槽位 `pendingCreate` 在重启恢复等多窗格并发激活时，
+   * 后一次 create 会覆盖前一次的 resolver：只有最后一个窗格能拿到会话，
+   * 其余窗格的 promise 永久挂起（连超时都因槽位被清空而失效），
+   * 页面呈现"多窗格仅一格有提示符"（跟进 5/11 根因）。
+   */
+  const pendingCreates: CreateResolver[] = [];
   const outbox: string[] = [];
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let lastPongTime = Date.now();
@@ -159,14 +171,14 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     }
   }
 
-  function resolveCreate(result: IpcResult<{ sessionId: string }>): void {
-    if (pendingCreate === null) {
+  /** 取出队首并结算；空队列时为无操作（多余的 created 帧直接丢弃）。 */
+  function resolveOldestCreate(result: IpcResult<{ sessionId: string }>): void {
+    const oldest = pendingCreates.shift();
+    if (oldest === undefined) {
       return;
     }
-    clearTimeout(pendingCreate.timer);
-    const { resolve } = pendingCreate;
-    pendingCreate = null;
-    resolve(result);
+    clearTimeout(oldest.timer);
+    oldest.resolve(result);
   }
 
   function handleMessage(raw: string): void {
@@ -198,7 +210,8 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       case 'created': {
         const sessionId = frame.sessionId ?? '';
         if (sessionId !== '') {
-          const input = pendingCreate?.input;
+          // 用队首请求的输入参数登记会话元信息（与下面 resolve 的是同一项）。
+          const input = pendingCreates[0]?.input;
           knownSessions.set(sessionId, {
             sessionId,
             shell: input?.shell ?? '',
@@ -208,7 +221,7 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
             status: 'Running',
           });
         }
-        resolveCreate({ ok: true, data: { sessionId } });
+        resolveOldestCreate({ ok: true, data: { sessionId } });
         return;
       }
       case 'terminated': {
@@ -221,9 +234,11 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       }
       case 'error': {
         const message = frame.message ?? 'PTY server error';
-        if (pendingCreate !== null) {
+        // 无 sessionId 的错误无法归因到具体请求，按保序归于队首
+        //（create 失败服务端即回此帧，见 `dispatch_frame` 的 Err 分支）。
+        if (pendingCreates.length > 0) {
           console.error(`PTY create failed: ${message}`);
-          resolveCreate(ptyError(message));
+          resolveOldestCreate(ptyError(message));
         } else {
           console.warn('[pty-ws] server error:', message);
         }
@@ -312,17 +327,20 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     }
     ensureConnected();
     return new Promise((resolve) => {
-      pendingCreate = {
+      const entry: CreateResolver = {
         input,
         resolve,
         timer: setTimeout(() => {
-          if (pendingCreate !== null) {
+          // 只移除自己：其它并发 create 不受影响，各自独立超时。
+          const index = pendingCreates.indexOf(entry);
+          if (index !== -1) {
+            pendingCreates.splice(index, 1);
             console.error(`PTY create timed out after ${CREATE_TIMEOUT_MS}ms`);
-            pendingCreate = null;
             resolve(ptyError('PTY create timed out'));
           }
         }, CREATE_TIMEOUT_MS),
       };
+      pendingCreates.push(entry);
       const frame = {
         kind: 'create',
         shell: input.shell,
@@ -368,8 +386,12 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
   function close(): void {
     closed = true;
     stopHeartbeat();
-    if (pendingCreate !== null) {
-      resolveCreate(ptyError('PTY connection closed'));
+    // 结算全部挂起的 create（逐个清定时器），避免调用方永久挂起。
+    let pending = pendingCreates.shift();
+    while (pending !== undefined) {
+      clearTimeout(pending.timer);
+      pending.resolve(ptyError('PTY connection closed'));
+      pending = pendingCreates.shift();
     }
     closeSocket();
     listeners.clear();

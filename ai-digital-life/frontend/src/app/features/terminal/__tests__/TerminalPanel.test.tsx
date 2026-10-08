@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { TerminalPanel } from '../TerminalPanel';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
@@ -64,12 +64,19 @@ const t = {
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',
   terminalPaneClose: '关闭窗口',
+  terminalPaneBorders: '边界线',
+  terminalActiveHighlight: '活动窗口高亮',
+  terminalFontIncrease: '增大字号',
+  terminalFontDecrease: '减小字号',
   close: '关闭',
   resizeTerminalNavigator: '调整终端导航宽度',
   terminalLayoutCardSwap: '交换位置',
-  terminalLayoutCardSwapConfirm: '确认交换位置',
+  terminalLayoutCardSwapConfirm: '交换',
+  terminalLayoutCardSwapRevert: '撤回',
   terminalLayoutCardSwapCancel: '取消',
+  terminalLayoutCardSwapMode: '进入交换位置模式',
   terminalLayoutCardAnnotateHint: '双击方块标注（限 1 字符）',
+  terminalLayoutCardSwapHint: '点击两个需要交换位置的方块',
 } as unknown as CopyDict;
 
 function makePanelTab(id: string, count: number): TerminalTabState {
@@ -100,6 +107,19 @@ function renderPanel() {
   );
 }
 
+/** jsdom PointerEvent 构造丢弃坐标，改用带坐标的 MouseEvent 派发（与卡片测试同因）。 */
+function dispatchPointer(
+  target: Element | Document,
+  type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+  init: MouseEventInit = {},
+): void {
+  act(() => {
+    target.dispatchEvent(
+      new MouseEvent(type, { bubbles: true, cancelable: true, composed: true, ...init }),
+    );
+  });
+}
+
 beforeEach(() => {
   const tab = makePanelTab('tp', 2);
   useAppStore.setState({
@@ -122,7 +142,11 @@ describe('TerminalPanel 自定义布局卡片接线', () => {
     expect(container.querySelector('.adl-layout-card')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
     expect(container.querySelector('.adl-layout-card')).not.toBeNull();
-    expect(container.querySelectorAll('.adl-layout-card__square')).toHaveLength(2);
+    expect(
+      container.querySelectorAll(
+        '.adl-layout-card__square:not(.adl-layout-card__square--placeholder)',
+      ),
+    ).toHaveLength(2);
 
     fireEvent.mouseDown(document.body);
     expect(container.querySelector('.adl-layout-card')).toBeNull();
@@ -152,12 +176,16 @@ describe('TerminalPanel 自定义布局卡片接线', () => {
     const { container } = renderPanel();
 
     fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
-    const squares = container.querySelectorAll('.adl-layout-card__square');
-    fireEvent.dragStart(squares[0], {
-      dataTransfer: { setData: vi.fn(), effectAllowed: 'none' },
-    });
-    fireEvent.dragOver(squares[1]);
-    fireEvent.drop(squares[1]);
+    // 2 窗格（cols=2）：槽位中心 slot0=(20,20) slot1=(68,20)；
+    // jsdom PointerEvent 构造丢弃坐标，改用带坐标的 MouseEvent 派发。
+    const squares = Array.from(
+      container.querySelectorAll(
+        '.adl-layout-card__square:not(.adl-layout-card__square--placeholder)',
+      ),
+    );
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 68, clientY: 20 });
+    dispatchPointer(document, 'pointerup');
 
     expect(useAppStore.getState().terminalTabsById['tp'].panes.map((pane) => pane.id)).toEqual([
       'tp-pane1',
@@ -175,5 +203,59 @@ describe('TerminalPanel 自定义布局卡片接线', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(useAppStore.getState().terminalTabsById['tp'].panes[0].label).toBe('中');
+  });
+});
+
+describe('TerminalPanel 更多终端操作 → 边界线', () => {
+  it('开关切换 store 并落到网格 has-borders/no-borders 类名', () => {
+    useAppStore.setState({ terminalShowPaneBorders: true });
+    const { container } = renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '更多终端操作' }));
+    const checkbox = screen.getByRole('menuitemcheckbox', { name: '边界线' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(checkbox);
+    expect(useAppStore.getState().terminalShowPaneBorders).toBe(false);
+    expect(
+      container.querySelector('.adl-terminal-pane-grid')?.classList.contains('no-borders'),
+    ).toBe(true);
+
+    fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '边界线' }));
+    expect(useAppStore.getState().terminalShowPaneBorders).toBe(true);
+    expect(
+      container.querySelector('.adl-terminal-pane-grid')?.classList.contains('has-borders'),
+    ).toBe(true);
+  });
+
+  it('活动窗口高亮开关切换 store 并落到网格类名', () => {
+    useAppStore.setState({ terminalShowActiveHighlight: true });
+    const { container } = renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '更多终端操作' }));
+    const checkbox = screen.getByRole('menuitemcheckbox', { name: '活动窗口高亮' });
+    expect(checkbox.getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(checkbox);
+    expect(useAppStore.getState().terminalShowActiveHighlight).toBe(false);
+    expect(
+      container.querySelector('.adl-terminal-pane-grid')?.classList.contains('no-active-highlight'),
+    ).toBe(true);
+  });
+
+  it('增大/减小字号步进 store（上界禁用增大）', () => {
+    useAppStore.setState({ terminalFontSize: 13 });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '更多终端操作' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '增大字号' }));
+    expect(useAppStore.getState().terminalFontSize).toBe(14);
+
+    act(() => {
+      useAppStore.setState({ terminalFontSize: 24 });
+    });
+    expect(screen.getByRole('menuitem', { name: '增大字号' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('menuitem', { name: '减小字号' }));
+    expect(useAppStore.getState().terminalFontSize).toBe(23);
   });
 });

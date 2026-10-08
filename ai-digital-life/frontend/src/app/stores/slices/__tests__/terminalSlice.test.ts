@@ -232,6 +232,42 @@ describe('terminalSlice', () => {
     expect(window.localStorage.getItem('adl:terminal.workspaceId')).toBe(JSON.stringify('ws-9'));
   });
 
+  it('setTerminalShowPaneBorders toggles the flag and persists to the registry key', () => {
+    window.localStorage.clear();
+    const { get } = createMockStore();
+    expect((get() as unknown as TerminalSlice).terminalShowPaneBorders).toBe(true);
+    (get() as unknown as TerminalSlice).setTerminalShowPaneBorders(false);
+    expect((get() as unknown as TerminalSlice).terminalShowPaneBorders).toBe(false);
+    flushCrossSliceWrites();
+    expect(window.localStorage.getItem('adl:terminal.showPaneBorders')).toBe(JSON.stringify(false));
+  });
+
+  it('setTerminalShowActiveHighlight toggles the flag and persists to the registry key', () => {
+    window.localStorage.clear();
+    const { get } = createMockStore();
+    expect((get() as unknown as TerminalSlice).terminalShowActiveHighlight).toBe(true);
+    (get() as unknown as TerminalSlice).setTerminalShowActiveHighlight(false);
+    expect((get() as unknown as TerminalSlice).terminalShowActiveHighlight).toBe(false);
+    flushCrossSliceWrites();
+    expect(window.localStorage.getItem('adl:terminal.showActiveHighlight')).toBe(
+      JSON.stringify(false),
+    );
+  });
+
+  it('setTerminalFontSize clamps to [10, 24] and persists', () => {
+    window.localStorage.clear();
+    const { get } = createMockStore();
+    expect((get() as unknown as TerminalSlice).terminalFontSize).toBe(13);
+    (get() as unknown as TerminalSlice).setTerminalFontSize(99);
+    expect((get() as unknown as TerminalSlice).terminalFontSize).toBe(24);
+    (get() as unknown as TerminalSlice).setTerminalFontSize(-5);
+    expect((get() as unknown as TerminalSlice).terminalFontSize).toBe(10);
+    (get() as unknown as TerminalSlice).setTerminalFontSize(16);
+    expect((get() as unknown as TerminalSlice).terminalFontSize).toBe(16);
+    flushCrossSliceWrites();
+    expect(window.localStorage.getItem('adl:terminal.fontSize')).toBe(JSON.stringify(16));
+  });
+
   it('setShellSelectorProfile writes through to the registry key', () => {
     window.localStorage.clear();
     const { get } = createMockStore();

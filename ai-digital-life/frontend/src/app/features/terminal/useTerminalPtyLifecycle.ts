@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { useAppStore } from '@stores/slicedStore';
 import type { TerminalTabState } from '@stores/slices/terminalSliceTypes';
 import { terminalXtermPool } from './terminalXtermPool';
 import { terminalPtyRuntime, type PaneRef } from './terminalPtyRuntime';
@@ -44,13 +45,22 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     for (const pane of activeTab.panes) {
       // 本次运行已建过的会话无需再激活；无会话的窗格（上次建会话中途退出）也要补建。
       if (pane.sessionId && terminalPtyRuntime.isCreatedSession(pane.sessionId)) {
+        console.log(
+          `[ADL-DEBUG] pty-lifecycle: skip tab=${activeTab.id} pane=${pane.id} reason=created-session`,
+        );
         continue;
       }
       const key = `${activeTab.id}:${pane.id}`;
       if (attemptedPanesRef.current.has(key)) {
+        console.log(
+          `[ADL-DEBUG] pty-lifecycle: skip tab=${activeTab.id} pane=${pane.id} reason=attempted session=${pane.sessionId ?? 'none'} status=${pane.status}`,
+        );
         continue;
       }
       attemptedPanesRef.current.add(key);
+      console.log(
+        `[ADL-DEBUG] pty-lifecycle: activate tab=${activeTab.id} pane=${pane.id} session=${pane.sessionId ?? 'none'} status=${pane.status}`,
+      );
       void terminalPtyRuntime.activatePane(activeTab.id, pane.id);
     }
   }, [activeTab]);
@@ -65,6 +75,12 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     });
     return () => observer.disconnect();
   }, []);
+
+  // 字号跟随：菜单增大/减小字号时全量套用到存活 xterm（新建实例在 acquire 时即取最新值）。
+  const terminalFontSize = useAppStore((state) => state.terminalFontSize);
+  useEffect(() => {
+    terminalXtermPool.setFontSize(terminalFontSize);
+  }, [terminalFontSize]);
 
   // 调用方（窗格组件）只传自己的 paneId；这里从活动标签的窗格集合里组成 PaneRef。
   const paneRefOf = useCallback(

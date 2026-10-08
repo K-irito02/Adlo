@@ -83,7 +83,6 @@ export function useTerminalView(
   const {
     handleXtermData,
     handleXtermResize,
-    handleKillPane,
     handleCreatePane,
     handleClosePane: closePane,
     handleCloseTab,
@@ -117,10 +116,8 @@ export function useTerminalView(
 
   const { terminalMenuOpen, setTerminalMenuOpen, terminalMenuRef, terminalMenuItems } =
     useTerminalShellManagement({
-      activePane,
       handleCloseTab,
       handleDoubleClick,
-      handleKillPane,
     });
 
   // 自定义布局卡片动作：以当前标签的 `panes` 顺序为基准，复用 B 阶段 store 动作。

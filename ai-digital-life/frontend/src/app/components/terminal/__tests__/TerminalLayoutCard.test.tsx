@@ -1,6 +1,6 @@
 // src/app/components/terminal/__tests__/TerminalLayoutCard.test.tsx
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
 import { paneColor } from '@features/terminal/paneColors';
@@ -12,8 +12,11 @@ const COPY = vi.hoisted(() => ({
   close: 'CLOSE',
   terminalLayoutCardSwap: 'SWAP_TOGGLE',
   terminalLayoutCardSwapConfirm: 'SWAP_CONFIRM',
+  terminalLayoutCardSwapRevert: 'SWAP_REVERT',
   terminalLayoutCardSwapCancel: 'SWAP_CANCEL',
+  terminalLayoutCardSwapMode: 'SWAP_MODE',
   terminalLayoutCardAnnotateHint: 'ANNOTATE_HINT',
+  terminalLayoutCardSwapHint: 'SWAP_HINT',
 }));
 
 vi.mock('@i18n/useTCopy', () => ({
@@ -54,12 +57,36 @@ function normalize(color: string): string {
 }
 
 function squaresOf(container: HTMLElement): HTMLElement[] {
-  return Array.from(container.querySelectorAll<HTMLElement>('.adl-layout-card__square'));
+  return Array.from(
+    container.querySelectorAll<HTMLElement>(
+      '.adl-layout-card__square:not(.adl-layout-card__square--placeholder)',
+    ),
+  );
 }
 
-// jsdom 26 无 DataTransfer：拖拽测试显式注入一个可断言的 dataTransfer 替身。
-function dragDataTransfer() {
-  return { setData: vi.fn(), effectAllowed: 'none' };
+/** 指针事件派发：本仓库 jsdom 的 PointerEvent 构造丢弃坐标 init，
+ * 故用携带坐标的 MouseEvent 按指针类型名派发（React 与文档监听均按类型名订阅）。 */
+function dispatchPointer(
+  target: Element | Document,
+  type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+  init: MouseEventInit = {},
+): void {
+  act(() => {
+    target.dispatchEvent(
+      new MouseEvent(type, { bubbles: true, cancelable: true, composed: true, ...init }),
+    );
+  });
+}
+
+/** 3 窗格（cols=2）：槽位中心 slot0=(20,20) slot1=(68,20) slot2=(20,68)。 */
+function pointerDragTo(squares: HTMLElement[], fromPoint: number[], toPoint: number[]): void {
+  dispatchPointer(squares[0], 'pointerdown', {
+    button: 0,
+    clientX: fromPoint[0],
+    clientY: fromPoint[1],
+  });
+  dispatchPointer(document, 'pointermove', { clientX: toPoint[0], clientY: toPoint[1] });
+  dispatchPointer(document, 'pointerup', { clientX: toPoint[0], clientY: toPoint[1] });
 }
 
 describe('TerminalLayoutCard', () => {
@@ -90,7 +117,7 @@ describe('TerminalLayoutCard', () => {
 
   it('renders copy from useTCopy rather than hardcoded literals', () => {
     const { container } = renderCard(makePanes(2));
-    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap })).not.toBeNull();
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode })).not.toBeNull();
     expect(container.querySelector('.adl-layout-card__hint')?.textContent).toBe(
       COPY.terminalLayoutCardAnnotateHint,
     );
@@ -111,38 +138,84 @@ describe('TerminalLayoutCard', () => {
   });
 });
 
-describe('TerminalLayoutCard reorder', () => {
-  it('calls onMove(fromIndex, toIndex) when a square is dropped onto another', () => {
+describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
+  it('拖到目标槽位松手 → onMove(原下标, 落点下标)', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const squares = squaresOf(container);
-    fireEvent.dragStart(squares[0], { dataTransfer: dragDataTransfer() });
-    fireEvent.dragOver(squares[2]);
-    fireEvent.drop(squares[2]);
+    pointerDragTo(squares, [20, 20], [20, 68]);
     expect(onMove).toHaveBeenCalledWith(0, 2);
   });
 
-  it('does not call onMove when a square is dropped on itself', () => {
+  it('拖拽中本地顺序实时变化（其它方块让位），松手才提交一次', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const panes = makePanes(3);
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
+    // 本地已重排为 [p2,p3,p1]，但尚未提交
+    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
+      [panes[1], panes[2], panes[0]].map((pane) => normalize(paneColor(pane.colorIndex))),
+    );
+    expect(onMove).not.toHaveBeenCalled();
+    dispatchPointer(document, 'pointerup');
+    expect(onMove).toHaveBeenCalledTimes(1);
+    expect(onMove).toHaveBeenCalledWith(0, 2);
+  });
+
+  it('阈值内微移视为点击，不提交', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const squares = squaresOf(container);
-    fireEvent.dragStart(squares[1], { dataTransfer: dragDataTransfer() });
-    fireEvent.drop(squares[1]);
+    pointerDragTo(squares, [68, 20], [70, 22]);
     expect(onMove).not.toHaveBeenCalled();
   });
 
-  it('sets dataTransfer on drag start so native DnD (Firefox) can start the drag', () => {
+  it('纯点击（无位移）不提交', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 0, clientY: 0 });
+    dispatchPointer(document, 'pointerup');
+    expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('取消拖拽不提交（本地顺序丢弃）', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
+    dispatchPointer(document, 'pointercancel');
+    expect(onMove).not.toHaveBeenCalled();
+    // 本地顺序已回退
+    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
+      makePanes(3).map((pane) => normalize(paneColor(pane.colorIndex))),
+    );
+  });
+
+  it('拖拽源高亮 is-dragging，结束后清除', () => {
     const { container } = renderCard(makePanes(3));
-    const dataTransfer = dragDataTransfer();
-    fireEvent.dragStart(squaresOf(container)[0], { dataTransfer });
-    expect(dataTransfer.setData).toHaveBeenCalledWith('text/plain', '0');
-    expect(dataTransfer.effectAllowed).toBe('move');
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
+    // keyed DOM 节点复用：原数组下标 0 的节点仍是被拖方块
+    expect(squares[0].classList.contains('is-dragging')).toBe(true);
+    dispatchPointer(document, 'pointerup');
+    expect(squares[0].classList.contains('is-dragging')).toBe(false);
+  });
+
+  it('交换模式下指针拖拽被忽略', async () => {
+    const user = userEvent.setup();
+    const { container, onMove } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
+    const squares = squaresOf(container);
+    pointerDragTo(squares, [20, 20], [20, 68]);
+    expect(onMove).not.toHaveBeenCalled();
   });
 });
 
 describe('TerminalLayoutCard swap mode', () => {
-  it('confirms onSwap(a, b) after selecting two squares, then exits mode', async () => {
+  it('交换后保留模式：onSwap 被调用、选择清空、可连续交换', async () => {
     const user = userEvent.setup();
     const { container, onSwap } = renderCard(makePanes(3));
-    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
 
     const squares = squaresOf(container);
     await user.click(squares[0]);
@@ -153,13 +226,17 @@ describe('TerminalLayoutCard swap mode', () => {
     await user.click(confirm);
 
     expect(onSwap).toHaveBeenCalledWith('p1', 'p3');
-    expect(screen.queryByRole('button', { name: COPY.terminalLayoutCardSwapConfirm })).toBeNull();
+    // 仍在交换模式：确认按钮还在，但选择已清空故禁用
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm })).toBeDisabled();
+    expect(container.querySelector('.adl-layout-card__hint')?.textContent).toBe(
+      COPY.terminalLayoutCardSwapHint,
+    );
   });
 
   it('disables confirm until two squares are selected', async () => {
     const user = userEvent.setup();
     const { container, onSwap } = renderCard(makePanes(3));
-    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
 
     const confirm = screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm });
     expect(confirm).toBeDisabled();
@@ -175,13 +252,100 @@ describe('TerminalLayoutCard swap mode', () => {
   it('exits swap mode via cancel without swapping', async () => {
     const user = userEvent.setup();
     const { container, onSwap } = renderCard(makePanes(2));
-    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
     await user.click(squaresOf(container)[0]);
     await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapCancel }));
 
     expect(onSwap).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap })).not.toBeNull();
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode })).not.toBeNull();
     expect(screen.queryByRole('button', { name: COPY.terminalLayoutCardSwapConfirm })).toBeNull();
+  });
+});
+
+describe('TerminalLayoutCard swap revert', () => {
+  it('撤回撤销上次交换（再交换一次），保留模式；历史清空后禁用撤回', async () => {
+    const user = userEvent.setup();
+    const { container, onSwap } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
+
+    const revert = screen.getByRole('button', { name: COPY.terminalLayoutCardSwapRevert });
+    // 无历史时禁用
+    expect(revert).toBeDisabled();
+
+    const squares = squaresOf(container);
+    await user.click(squares[0]);
+    await user.click(squares[1]);
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm }));
+    expect(onSwap).toHaveBeenCalledTimes(1);
+    expect(revert).toBeEnabled();
+
+    await user.click(revert);
+    // 撤回 = 把最后一对再交换一次
+    expect(onSwap).toHaveBeenCalledTimes(2);
+    expect(onSwap).toHaveBeenNthCalledWith(2, 'p1', 'p2');
+    expect(revert).toBeDisabled();
+    // 仍在交换模式
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm })).not.toBeNull();
+  });
+
+  it('退出模式清空历史：重新进入后撤回禁用', async () => {
+    const user = userEvent.setup();
+    const { container } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
+
+    const squares = squaresOf(container);
+    await user.click(squares[0]);
+    await user.click(squares[1]);
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm }));
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapRevert })).toBeEnabled();
+
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapCancel }));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapRevert })).toBeDisabled();
+  });
+
+  it('进入交换模式后提示文案切换，退出后恢复', async () => {
+    const user = userEvent.setup();
+    const { container } = renderCard(makePanes(2));
+    expect(container.querySelector('.adl-layout-card__hint')?.textContent).toBe(
+      COPY.terminalLayoutCardAnnotateHint,
+    );
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
+    expect(container.querySelector('.adl-layout-card__hint')?.textContent).toBe(
+      COPY.terminalLayoutCardSwapHint,
+    );
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapCancel }));
+    expect(container.querySelector('.adl-layout-card__hint')?.textContent).toBe(
+      COPY.terminalLayoutCardAnnotateHint,
+    );
+  });
+});
+
+describe('TerminalLayoutCard grid mirrors terminal area', () => {
+  it('列数与 computeGrid 一致（固定 40px 方块），末行不足留空占位', () => {
+    const { container } = renderCard(makePanes(3));
+    const grid = container.querySelector<HTMLElement>('.adl-layout-card__grid');
+    expect(grid?.style.gridTemplateColumns).toBe('repeat(2, 40px)');
+    // 3 窗格 → 2×2 网格，1 个占位
+    expect(container.querySelectorAll('.adl-layout-card__square--placeholder')).toHaveLength(1);
+    expect(squaresOf(container)).toHaveLength(3);
+  });
+
+  it('方块列宽固定（px），不随窗格数量用 1fr 拉伸', () => {
+    for (const count of [1, 2, 5]) {
+      const { container, unmount } = render(
+        <TerminalLayoutCard
+          panes={makePanes(count)}
+          onMove={vi.fn()}
+          onSwap={vi.fn()}
+          onLabelChange={vi.fn()}
+          onClose={vi.fn()}
+        />,
+      );
+      const grid = container.querySelector<HTMLElement>('.adl-layout-card__grid');
+      expect(grid?.style.gridTemplateColumns).toMatch(/^repeat\(\d+, 40px\)$/);
+      unmount();
+    }
   });
 });
 
@@ -189,7 +353,7 @@ describe('TerminalLayoutCard keyboard', () => {
   it('Enter in swap mode toggles selection via aria-pressed', async () => {
     const user = userEvent.setup();
     const { container } = renderCard(makePanes(3));
-    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
 
     const square = squaresOf(container)[0];
     expect(square).toHaveAttribute('aria-pressed', 'false');
@@ -205,7 +369,7 @@ describe('TerminalLayoutCard keyboard', () => {
   it('Space in swap mode toggles selection', async () => {
     const user = userEvent.setup();
     const { container } = renderCard(makePanes(3));
-    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwap }));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
 
     squaresOf(container)[0].focus();
     await user.keyboard(' ');

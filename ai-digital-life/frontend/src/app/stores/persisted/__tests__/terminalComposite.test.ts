@@ -33,6 +33,26 @@ describe('terminal composite hydration', () => {
     expect(patch.terminalTabsById).toEqual({ t1: VALID_TAB });
   });
 
+  it('strips dead sessionIds on hydration so every pane rebuilds a shell after restart', () => {
+    const deadTab = {
+      ...VALID_TAB,
+      panes: [
+        { ...VALID_PANE, id: 'p1', sessionId: 'dead-1', status: 'running' },
+        { ...VALID_PANE, id: 'p2', sessionId: 'dead-2', status: 'running' },
+      ],
+    };
+    localStorage.setItem('adl:terminal.tabs', JSON.stringify([deadTab]));
+    const patch = hydrateAll().patch;
+    const tabs = patch.terminalTabs as (typeof deadTab)[];
+    expect(tabs[0].panes).toEqual([
+      expect.objectContaining({ id: 'p1', status: 'idle' }),
+      expect.objectContaining({ id: 'p2', status: 'idle' }),
+    ]);
+    expect(tabs[0].panes[0]).not.toHaveProperty('sessionId');
+    expect(tabs[0].panes[1]).not.toHaveProperty('sessionId');
+    expect(patch.terminalTabsById).toEqual({ t1: tabs[0] });
+  });
+
   it('does not contribute terminalTabsById when tabs are corrupt', () => {
     localStorage.setItem('adl:terminal.tabs', JSON.stringify('not-an-array'));
     const patch = hydrateAll().patch;

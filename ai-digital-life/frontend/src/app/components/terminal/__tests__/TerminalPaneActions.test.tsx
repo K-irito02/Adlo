@@ -69,13 +69,9 @@ describe('TerminalPaneActions', () => {
     expect(container.querySelector('.adl-terminal-region-actions__btn--danger')).not.toBeNull();
   });
 
-  it('alwaysVisible 时加 is-always-visible 类，未设时不加', () => {
-    const { container } = renderActions({ alwaysVisible: true });
-    expect(
-      container.querySelector('.adl-terminal-region-actions.is-always-visible'),
-    ).not.toBeNull();
-
-    const second = renderActions();
-    expect(second.container.querySelector('.is-always-visible')).toBeNull();
+  it('默认不常驻显示（仅悬停/聚焦显露，由 CSS 控制）', () => {
+    const { container } = renderActions();
+    expect(container.querySelector('.adl-terminal-region-actions')).not.toBeNull();
+    expect(container.querySelector('.is-always-visible')).toBeNull();
   });
 });

@@ -58,7 +58,6 @@ export function TerminalPaneView({
         isMaximized={isMaximized}
         onToggleMaximize={onToggleMaximize}
         titles={titles}
-        alwaysVisible
       />
       {hasError && (
         <div className="adl-terminal-error-note">

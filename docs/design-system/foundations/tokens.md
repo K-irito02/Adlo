@@ -93,11 +93,17 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 - 明度变化只走中性灰阶（白 → 灰 → 黑方向）。
 - 适用（完整清单见真源规则，hover/active/拖拽态均为 `--text-secondary`）：
   - `.adl-terminal-divider`
+  - `.adl-terminal-col-divider` / `.adl-terminal-row-divider`（终端均分模式分割边界线）
+  - `.adl-terminal-free-handle--move`（终端自由模式移动手柄，默认小圆点、悬停/拖拽展开）
   - `.adl-tool-navigator__resize-handle`
   - `.adl-rightpanel__resize-handle`
   - `.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`
   - `.adl-cm-diff-viewer .adl-cm-diff-resizer`（拖拽中为 `--dragging` 类，同色）
 - 规则真源见 [.agents/rules/hint-color-usage.md](../../../.agents/rules/hint-color-usage.md)（同步到 `.opencode/rules/`、`.trae/rules/`；改 docs 侧数值前先读真源规则）。
+
+## 特殊提示警醒色 / 填充色（用户指令）
+
+特殊提示、警醒、填充等场景一律使用白 / 灰 / 黑中性色（明度、纯度、配比自行设计，须同时兼顾亮、暗主题可见性）。未经用户允许，不得擅自使用蓝色（含 `var(--accent)` 系）或其他彩色；需其它颜色时先与用户确认。选中态、焦点环、主操作、链接仍走 `var(--accent)` 系。
 
 ## Focus
 

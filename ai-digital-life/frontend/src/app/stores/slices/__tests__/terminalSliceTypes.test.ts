@@ -7,6 +7,8 @@ import {
   activePaneOf,
   nextPaneColorIndex,
   clampPaneLabel,
+  clampTerminalFontSize,
+  TERMINAL_FONT_SIZE_DEFAULT,
   type TerminalPane,
   type TerminalTabState,
 } from '../terminalSliceTypes';
@@ -159,5 +161,25 @@ describe('clampPaneLabel', () => {
 
   it('does not split surrogate pairs (emoji survives intact)', () => {
     expect(clampPaneLabel('😀x')).toBe('😀');
+  });
+});
+
+describe('clampTerminalFontSize', () => {
+  it('passes through in-range integers', () => {
+    expect(clampTerminalFontSize(13)).toBe(13);
+    expect(clampTerminalFontSize(10)).toBe(10);
+    expect(clampTerminalFontSize(24)).toBe(24);
+  });
+
+  it('clamps out-of-range values and rounds', () => {
+    expect(clampTerminalFontSize(99)).toBe(24);
+    expect(clampTerminalFontSize(0)).toBe(10);
+    expect(clampTerminalFontSize(13.7)).toBe(14);
+  });
+
+  it('falls back to default for non-numbers', () => {
+    expect(clampTerminalFontSize(undefined)).toBe(TERMINAL_FONT_SIZE_DEFAULT);
+    expect(clampTerminalFontSize('16')).toBe(TERMINAL_FONT_SIZE_DEFAULT);
+    expect(clampTerminalFontSize(Number.NaN)).toBe(TERMINAL_FONT_SIZE_DEFAULT);
   });
 });

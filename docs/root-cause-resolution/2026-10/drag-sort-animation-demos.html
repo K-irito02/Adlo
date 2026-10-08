@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>自定义布局卡片 · 拖拽排序动画挑选</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 24px;
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #141414; color: #e8e8e8;
+  }
+  @media (prefers-color-scheme: light) {
+    body { background: #f4f4f4; color: #222; }
+    .demo-card { background: #fff; border-color: #ddd; }
+    .demo-note { color: #666; }
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .page-hint { font-size: 13px; color: #9a9a9a; margin: 0 0 20px; }
+  .demos { display: flex; flex-wrap: wrap; gap: 16px; }
+  .demo-card {
+    width: 250px; padding: 14px;
+    background: #1e1e1e; border: 1px solid #333; border-radius: 8px;
+  }
+  .demo-card h3 { font-size: 14px; margin: 0 0 4px; }
+  .demo-card h3 .tag {
+    display: inline-block; min-width: 20px; text-align: center;
+    background: #333; border-radius: 4px;
+    font-size: 12px; padding: 1px 6px; margin-right: 6px;
+  }
+  .demo-note { font-size: 12px; color: #9a9a9a; margin: 0 0 10px; min-height: 48px; }
+  .demo-grid {
+    position: relative; width: 88px; height: 88px;
+    margin: 6px auto 2px; touch-action: none; user-select: none;
+  }
+  .tile {
+    position: absolute; top: 0; left: 0;
+    width: 40px; height: 40px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 700; color: #141414;
+    cursor: grab;
+    transition: transform 180ms ease, opacity 150ms ease, box-shadow 150ms ease;
+  }
+  .tile:active { cursor: grabbing; }
+  .tile.c0 { background: #e57373; }
+  .tile.c1 { background: #64b5f6; }
+  .tile.c2 { background: #81c784; }
+  .tile.c3 { background: #ffb74d; }
+
+  /* A：基准（当前卡片实现） */
+  .demo-a .tile.is-dragging { opacity: 0.45; }
+  .demo-a .tile.is-drop-target { box-shadow: 0 0 0 2px #9a9a9a; }
+
+  /* B：缝隙滑动（FLIP）：其它块平滑让位，拖拽项跟随指针 */
+  .demo-b .tile { transition: transform 220ms cubic-bezier(0.2, 0.8, 0.25, 1), box-shadow 150ms ease; }
+  .demo-b .tile.is-dragging {
+    transition: none; z-index: 5;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  }
+
+  /* C：提起 + 虚线占位：拖拽项放大旋转，目标槽位显示虚线框 */
+  .demo-c .tile.is-dragging {
+    transition: none; z-index: 5;
+    transform-origin: center;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+  }
+  .demo-c .tile.is-dragging.lift { scale: 1.12; rotate: 2deg; }
+  .demo-c .slot-ph {
+    position: absolute; width: 40px; height: 40px; border-radius: 4px;
+    border: 2px dashed #9a9a9a; box-sizing: border-box;
+    transition: transform 180ms ease; pointer-events: none;
+  }
+
+  /* D：弹性回放：松手后落位块缩放弹跳一下 */
+  .demo-d .tile.is-dragging { opacity: 0.45; }
+  .demo-d .tile.is-drop-target { box-shadow: 0 0 0 2px #9a9a9a; }
+  .demo-d .tile.pop { animation: tile-pop 260ms ease; }
+  @keyframes tile-pop {
+    0% { scale: 1; } 40% { scale: 1.18; } 100% { scale: 1; }
+  }
+
+  /* E：源缩小 + 目标整块高亮 */
+  .demo-e .tile.is-dragging { opacity: 0.5; scale: 0.85; filter: grayscale(0.6); }
+  .demo-e .tile.is-drop-target { box-shadow: 0 0 0 2px #d8d8d8, 0 0 12px rgba(255, 255, 255, 0.25); }
+</style>
+</head>
+<body>
+  <h1>自定义布局卡片 · 拖拽排序动画挑选</h1>
+  <p class="page-hint">直接用鼠标拖动每个卡片里的色块试试。看中哪一款（可以多选），回复字母即可，例如“B、D”。全部基于指针事件实现，与卡片当前技术路线一致。</p>
+  <div class="demos">
+    <section class="demo-card">
+      <h3><span class="tag">A</span>基准（当前实现）</h3>
+      <p class="demo-note">拖拽项半透明，目标项灰色描边。其它方块不动，松手瞬间换位。最安静，零位移成本。</p>
+      <div class="demo-grid demo-a" data-variant="a"></div>
+    </section>
+    <section class="demo-card">
+      <h3><span class="tag">B</span>缝隙滑动</h3>
+      <p class="demo-note">拖拽项跟随指针，其它方块平滑滑动让位。位置关系实时可见，最符合“所见即所得”。</p>
+      <div class="demo-grid demo-b" data-variant="b"></div>
+    </section>
+    <section class="demo-card">
+      <h3><span class="tag">C</span>提起 + 虚线占位</h3>
+      <p class="demo-note">拖拽项放大微倾斜并带阴影（被“拿起”），目标槽位显示虚线占位框，其它方块不动。</p>
+      <div class="demo-grid demo-c" data-variant="c"></div>
+    </section>
+    <section class="demo-card">
+      <h3><span class="tag">D</span>弹性回放</h3>
+      <p class="demo-note">拖拽过程同 A，松手后落位的方块缩放弹跳一下，确认“放好了”。动效只出现一瞬。</p>
+      <div class="demo-grid demo-d" data-variant="d"></div>
+    </section>
+    <section class="demo-card">
+      <h3><span class="tag">E</span>源缩小 + 目标高亮</h3>
+      <p class="demo-note">拖拽项缩小灰化，目标整块强高亮描边。目标指向性最强，拖拽项存在感最弱。</p>
+      <div class="demo-grid demo-e" data-variant="e"></div>
+    </section>
+  </div>
+
+<script>
+(function () {
+  'use strict';
+  var STEP = 48; // 40 tile + 8 gap
+
+  function slotXY(i) {
+    return { x: (i % 2) * STEP, y: Math.floor(i / 2) * STEP };
+  }
+
+  function place(tile, i, animate) {
+    var p = slotXY(i);
+    if (!animate) {
+      tile.style.transition = 'none';
+    }
+    tile.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px)';
+    if (!animate) {
+      void tile.offsetWidth; // flush
+      tile.style.transition = '';
+    }
+  }
+
+  document.querySelectorAll('.demo-grid').forEach(function (grid) {
+    var variant = grid.getAttribute('data-variant');
+    var labels = ['1', '2', '3', '4'];
+    var tiles = labels.map(function (text, i) {
+      var el = document.createElement('div');
+      el.className = 'tile c' + i;
+      el.textContent = text;
+      grid.appendChild(el);
+      place(el, i, false);
+      return el;
+    });
+    var order = tiles.slice();
+    var ph = null;
+    if (variant === 'c') {
+      ph = document.createElement('div');
+      ph.className = 'slot-ph';
+      ph.style.display = 'none';
+      grid.appendChild(ph);
+    }
+
+    var drag = null; // {from, startX, startY, over, active, dx, dy}
+
+    function relayout(except) {
+      order.forEach(function (tile, i) {
+        if (tile !== except) {
+          place(tile, i, true);
+        }
+      });
+    }
+
+    function targetFromPoint(x, y) {
+      var rect = grid.getBoundingClientRect();
+      var px = x - rect.left, py = y - rect.top;
+      var best = -1, bestD = Infinity;
+      order.forEach(function (tile, i) {
+        if (tile === drag.tile) {
+          return;
+        }
+        var p = slotXY(i);
+        var cx = p.x + 20, cy = p.y + 20;
+        var d = Math.hypot(px - cx, py - cy);
+        if (d < bestD) {
+          bestD = d;
+          best = i;
+        }
+      });
+      return best;
+    }
+
+    tiles.forEach(function (tile, i) {
+      tile.addEventListener('pointerdown', function (e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) {
+          return;
+        }
+        var rect = tile.getBoundingClientRect();
+        drag = {
+          tile: tile,
+          from: order.indexOf(tile),
+          startX: e.clientX, startY: e.clientY,
+          dx: e.clientX - rect.left, dy: e.clientY - rect.top,
+          over: null, active: false,
+        };
+      });
+    });
+
+    document.addEventListener('pointermove', function (e) {
+      if (!drag) {
+        return;
+      }
+      if (!drag.active) {
+        if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) <= 6) {
+          return;
+        }
+        drag.active = true;
+        drag.tile.classList.add('is-dragging');
+        if (variant === 'c') {
+          drag.tile.classList.add('lift');
+        }
+      }
+      var rect = grid.getBoundingClientRect();
+      var x = e.clientX - rect.left - drag.dx;
+      var y = e.clientY - rect.top - drag.dy;
+      if (variant === 'b' || variant === 'c') {
+        drag.tile.style.transform = 'translate(' + x + 'px,' + y + 'px)';
+      }
+      var t = targetFromPoint(e.clientX, e.clientY);
+      if (t !== drag.over) {
+        if (drag.over !== null && order[drag.over]) {
+          order[drag.over].classList.remove('is-drop-target');
+        }
+        drag.over = t;
+        // B 的反馈就是其它块的实时让位，不再额外描边（splice 后下标会错位）
+        if (variant !== 'b' && t !== null && t !== drag.from) {
+          order[t].classList.add('is-drop-target');
+        }
+        // B：其它块实时让位；C：只移动虚线框
+        if (variant === 'b' && t !== null) {
+          var moved = order.splice(drag.from, 1)[0];
+          order.splice(t, 0, moved);
+          drag.from = t;
+          relayout(drag.tile);
+        }
+        if (variant === 'c' && ph) {
+          if (t !== null && t !== order.indexOf(drag.tile)) {
+            var p = slotXY(t);
+            ph.style.display = 'block';
+            ph.style.transform = 'translate(' + p.x + 'px,' + p.y + 'px)';
+          } else {
+            ph.style.display = 'none';
+          }
+        }
+      }
+    });
+
+    function finish(e, cancelled) {
+      if (!drag) {
+        return;
+      }
+      var d = drag;
+      drag = null;
+      d.tile.classList.remove('is-dragging', 'lift');
+      if (ph) {
+        ph.style.display = 'none';
+      }
+      order.forEach(function (tile) {
+        tile.classList.remove('is-drop-target');
+      });
+      if (!d.active) {
+        return; // 纯点击
+      }
+      if (!cancelled && d.over !== null && variant !== 'b') {
+        var from = order.indexOf(d.tile);
+        if (from !== d.over) {
+          var moved = order.splice(from, 1)[0];
+          order.splice(d.over, 0, moved);
+        }
+      }
+      order.forEach(function (tile, i) {
+        place(tile, i, variant !== 'c' || tile !== d.tile);
+      });
+      if (!cancelled && variant === 'd') {
+        var landed = d.tile;
+        landed.classList.add('pop');
+        setTimeout(function () {
+          landed.classList.remove('pop');
+        }, 300);
+      }
+      void e;
+    }
+    document.addEventListener('pointerup', function (e) {
+      finish(e, false);
+    });
+    document.addEventListener('pointercancel', function (e) {
+      finish(e, true);
+    });
+  });
+})();
+</script>
+</body>
+</html>

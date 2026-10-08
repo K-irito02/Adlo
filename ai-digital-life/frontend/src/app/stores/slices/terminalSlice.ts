@@ -10,8 +10,10 @@ import { applyTabPrune } from '../persisted/pruneWiring';
 import { persist } from '../persisted/persist';
 import {
   buildTabsById,
+  clampTerminalFontSize,
   createTerminalPane,
   nextPaneColorIndex,
+  TERMINAL_FONT_SIZE_DEFAULT,
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
@@ -80,6 +82,12 @@ export interface TerminalSlice {
   terminalNavigatorWidth: number;
   terminalWorkspaceExpanded: Record<string, boolean>;
   terminalWorkspaceId: string;
+  /** 窗格边界线总开关（更多终端操作 → 边界线，默认开：均分见分割线、自由见窗格边框） */
+  terminalShowPaneBorders: boolean;
+  /** 活动窗格高亮总开关（更多终端操作 → 活动窗口高亮，默认开，中性描边） */
+  terminalShowActiveHighlight: boolean;
+  /** 终端字号（更多终端操作 → 增大/减小字号，10–24，默认 13） */
+  terminalFontSize: number;
 
   terminalCreateTab: (profile?: TerminalProfile, workspaceId?: string) => void;
   terminalSelectTab: (tabId: string) => void;
@@ -114,6 +122,9 @@ export interface TerminalSlice {
   setTerminalNavigatorWidth: (width: number) => void;
   setTerminalWorkspaceExpanded: (expanded: Record<string, boolean>) => void;
   setTerminalWorkspaceId: (workspaceId: string) => void;
+  setTerminalShowPaneBorders: (enabled: boolean) => void;
+  setTerminalShowActiveHighlight: (enabled: boolean) => void;
+  setTerminalFontSize: (size: number) => void;
   shellSelectorProfile: TerminalProfile;
   setShellSelectorProfile: (profile: TerminalProfile) => void;
 }
@@ -131,6 +142,9 @@ export const createTerminalSlice = (
     terminalNavigatorWidth: DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
     terminalWorkspaceExpanded: {},
     terminalWorkspaceId: '',
+    terminalShowPaneBorders: true,
+    terminalShowActiveHighlight: true,
+    terminalFontSize: TERMINAL_FONT_SIZE_DEFAULT,
     shellSelectorProfile: 'powershell',
 
     terminalCreateTab: (profile: TerminalProfile | undefined, workspaceId = '') =>
@@ -429,6 +443,18 @@ export const createTerminalSlice = (
     setTerminalWorkspaceId: (workspaceId) => {
       persist('adl:terminal.workspaceId', workspaceId);
       set({ terminalWorkspaceId: workspaceId });
+    },
+
+    setTerminalShowPaneBorders: (enabled) => {
+      set(persistField('adl:terminal.showPaneBorders', enabled));
+    },
+
+    setTerminalShowActiveHighlight: (enabled) => {
+      set(persistField('adl:terminal.showActiveHighlight', enabled));
+    },
+
+    setTerminalFontSize: (size) => {
+      set(persistField('adl:terminal.fontSize', clampTerminalFontSize(size)));
     },
 
     setShellSelectorProfile: (profile) => {

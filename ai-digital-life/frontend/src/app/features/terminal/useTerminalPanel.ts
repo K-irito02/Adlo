@@ -13,7 +13,14 @@ import type { TerminalProfile } from '@stores/types';
 
 export type TerminalMenuItem =
   | { id: string; separator: true }
-  | { id: string; label: string; disabled?: boolean; action?: () => void };
+  | {
+      id: string;
+      label: string;
+      disabled?: boolean;
+      /** 开关型菜单项（仿文件面板行号）：传 boolean 即渲染为 menuitemcheckbox + 打勾 */
+      checked?: boolean;
+      action?: () => void;
+    };
 
 export interface WorkspaceMenuItem {
   id: string;
@@ -145,7 +152,6 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
   const {
     handleXtermData,
     handleXtermResize,
-    handleKillPane,
     handleCreatePane,
     handleClosePane: closePane,
     handleCreateTab,
@@ -252,10 +258,8 @@ export function useTerminalPanel(): UseTerminalPanelReturn {
     closeContextMenu,
     updateProfile,
   } = useTerminalShellManagement({
-    activePane,
     handleCloseTab,
     handleDoubleClick,
-    handleKillPane,
   });
 
   const {

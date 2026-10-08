@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -99,13 +99,24 @@ export function TerminalPanel() {
     setMaximizedPaneId(null);
   }, [terminalActiveTabId, paneCount, paneLayout.mode]);
 
+  // 窗格边界线 / 活动高亮总开关（更多终端操作），经 TerminalPaneGrid 落到分割线/描边。
+  const terminalShowPaneBorders = useAppStore((state) => state.terminalShowPaneBorders);
+  const terminalShowActiveHighlight = useAppStore((state) => state.terminalShowActiveHighlight);
+
   // 自定义布局卡片：开合本地态 + 锚点 ref + 外部点击/Esc 关闭（共享 Hook）。
+  // 仅均分模式提供入口：自由模式下不渲染按钮，已打开的卡片随模式切换关闭。
   const {
     open: layoutCardOpen,
     anchorRef: layoutCardRef,
     toggle: toggleLayoutCard,
     close: closeLayoutCard,
   } = useLayoutCard();
+
+  useEffect(() => {
+    if (paneLayout.mode !== 'equal' && layoutCardOpen) {
+      closeLayoutCard();
+    }
+  }, [paneLayout.mode, layoutCardOpen, closeLayoutCard]);
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
@@ -262,20 +273,22 @@ export function TerminalPanel() {
             </button>
           </TooltipSimple>
           <div className="adl-layout-card-anchor" ref={layoutCardRef}>
-            <TooltipSimple content={t.terminalCustomLayout} placement="top">
-              <button
-                type="button"
-                className={`adl-tool-context__iconbtn${layoutCardOpen ? ' is-open' : ''}`}
-                onClick={toggleLayoutCard}
-                aria-label={t.terminalCustomLayout}
-                aria-haspopup="dialog"
-                aria-expanded={layoutCardOpen}
-                disabled={!hasActiveTab}
-              >
-                <IconCustomLayout size={14} decorative />
-              </button>
-            </TooltipSimple>
-            {layoutCardOpen && activeTab ? (
+            {paneLayout.mode === 'equal' ? (
+              <TooltipSimple content={t.terminalCustomLayout} placement="top">
+                <button
+                  type="button"
+                  className={`adl-tool-context__iconbtn${layoutCardOpen ? ' is-open' : ''}`}
+                  onClick={toggleLayoutCard}
+                  aria-label={t.terminalCustomLayout}
+                  aria-haspopup="dialog"
+                  aria-expanded={layoutCardOpen}
+                  disabled={!hasActiveTab}
+                >
+                  <IconCustomLayout size={14} decorative />
+                </button>
+              </TooltipSimple>
+            ) : null}
+            {layoutCardOpen && activeTab && paneLayout.mode === 'equal' ? (
               <TerminalLayoutCard
                 panes={activeTab.panes}
                 onMove={terminalActions.handleReorderPanes}
@@ -404,6 +417,8 @@ export function TerminalPanel() {
                 activePaneId={terminalState.activePane?.id}
                 maximizedPaneId={maximizedPaneId}
                 layout={paneLayout}
+                showBorders={terminalShowPaneBorders}
+                showActiveHighlight={terminalShowActiveHighlight}
                 dividerLabel={t.terminalPaneResizeDivider}
                 onColDividerPointerDown={handleColDividerPointerDown}
                 onRowDividerPointerDown={handleRowDividerPointerDown}

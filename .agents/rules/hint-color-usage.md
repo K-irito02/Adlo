@@ -34,8 +34,16 @@ alwaysApply: false
 - `.adl-leftbar__resize-handle` / `.adl-leftbar__conversation-resize`
 - `.adl-settings-nav__resize-handle`
 - `.adl-cm-diff-viewer .adl-cm-diff-resizer`
+- `.adl-terminal-col-divider` / `.adl-terminal-row-divider`（终端均分模式分割边界线）
+- `.adl-terminal-free-handle--move`（终端自由模式移动手柄，默认小圆点、悬停/拖拽展开）
 
 新增可拖拽分界线/手柄时直接复用本规范，不得重新发明悬停色。
+
+## 特殊提示警醒色 / 填充色通用规则（用户指令）
+
+- 特殊提示、警醒、填充等场景**一律使用白 / 灰 / 黑中性色**；明度、纯度、配比由实现方自行设计，但必须同时兼顾亮、暗两个主题下的可见性（非文本指示器对比度 ≥3:1，正文 ≥4.5:1）。
+- **未经用户允许，不得擅自使用蓝色（含 `var(--accent)` 系）或其他彩色**作为上述场景的颜色；需其它颜色时先与用户确认。
+- 选中态、焦点环、主操作、链接等承载语义的场景仍走 `var(--accent)` 系，不与本条中性提示色混用。
 
 ## 相关文件
 

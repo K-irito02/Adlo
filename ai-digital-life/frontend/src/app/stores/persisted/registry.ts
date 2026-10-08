@@ -103,6 +103,9 @@ import {
   TERMINAL_NAVIGATOR_WIDTH_MIN,
   TERMINAL_NAVIGATOR_WIDTH_MAX,
   DEFAULT_TERMINAL_NAVIGATOR_WIDTH,
+  TERMINAL_FONT_SIZE_DEFAULT,
+  TERMINAL_FONT_SIZE_MIN,
+  TERMINAL_FONT_SIZE_MAX,
   type TerminalTabState,
 } from '../slices/terminalSliceTypes';
 import { terminalCwdStore } from '../../features/terminal/terminalCwdStore';
@@ -842,6 +845,28 @@ export const registry = {
     fallback: '',
     scope: 'global',
     read: readString,
+  }),
+  'adl:terminal.showPaneBorders': defineEntry<boolean>({
+    key: 'adl:terminal.showPaneBorders',
+    field: 'terminalShowPaneBorders',
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:terminal.showActiveHighlight': defineEntry<boolean>({
+    key: 'adl:terminal.showActiveHighlight',
+    field: 'terminalShowActiveHighlight',
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:terminal.fontSize': defineEntry<number>({
+    key: 'adl:terminal.fontSize',
+    field: 'terminalFontSize',
+    fallback: TERMINAL_FONT_SIZE_DEFAULT,
+    scope: 'global',
+    // 读写同源：写侧经 clampTerminalFontSize 钳到 [MIN, MAX]，读侧同范围校验。
+    read: readNumberInRange(TERMINAL_FONT_SIZE_MIN, TERMINAL_FONT_SIZE_MAX),
   }),
 
   // 乙类：水合目标为 features/terminal/* 的模块级微型存储（apply 交回缓存）

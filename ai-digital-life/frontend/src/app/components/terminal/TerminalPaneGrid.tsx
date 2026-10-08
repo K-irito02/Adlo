@@ -29,6 +29,14 @@ export interface TerminalPaneGridProps {
   activePaneId?: string;
   maximizedPaneId: string | null;
   layout: TerminalPaneLayout;
+  /**
+   * 窗格边界线总开关（更多终端操作 → 边界线）：
+   * - 开：均分模式显示列/行分割线，自由模式每个窗格显示边框；
+   * - 关：两者都不显示。
+   */
+  showBorders: boolean;
+  /** 活动窗格高亮总开关（更多终端操作 → 活动窗口高亮，关即无描边）。 */
+  showActiveHighlight: boolean;
   /** 列/行边界线的可访问名称（i18n 注入；键盘调整尺寸未实现，仅提供标签）。 */
   dividerLabel: string;
   onColDividerPointerDown: (colIndex: number, e: ReactPointerEvent) => void;
@@ -78,6 +86,8 @@ export function TerminalPaneGrid({
   activePaneId,
   maximizedPaneId,
   layout,
+  showBorders,
+  showActiveHighlight,
   dividerLabel,
   onColDividerPointerDown,
   onRowDividerPointerDown,
@@ -138,6 +148,8 @@ export function TerminalPaneGrid({
 
   const gridClassName = `adl-terminal-pane-grid ${
     maximizedPaneId ? 'is-maximized' : isFree ? 'is-free' : 'is-equal'
+  }${showBorders ? ' has-borders' : ' no-borders'}${
+    showActiveHighlight ? '' : ' no-active-highlight'
   }`;
 
   return (

@@ -51,6 +51,10 @@ export const XtermTerminal = forwardRef<XtermTerminalHandle, XtermTerminalProps>
         return;
       }
 
+      // [ADL-DEBUG] 临时诊断日志（跟进 5：重启恢复排查，用户复测后删除）。
+      console.log(
+        `[ADL-DEBUG] xterm-acquire: session=${sessionId} size=${container.clientWidth}x${container.clientHeight}`,
+      );
       const entry = terminalXtermPool.acquire(sessionId, container);
       entryRef.current = entry;
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { IconMoreVertical } from '@icons';
+import { IconCheck, IconMoreVertical } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import type { TerminalMenuItem } from './useTerminalPanel';
 import { useTCopy } from '@i18n/useTCopy';
@@ -43,15 +43,27 @@ export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
               <button
                 key={item.id}
                 type="button"
-                role="menuitem"
+                role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+                aria-checked={
+                  item.checked === undefined ? undefined : item.checked ? 'true' : 'false'
+                }
                 className="adl-menu__item"
                 disabled={item.disabled}
                 onClick={() => {
                   item.action?.();
-                  onClose();
+                  // 开关型菜单项（有 action）保持展开以便连续切换，
+                  // 与文件面板行号开关一致；无 action 才关闭。
+                  if (!item.action) {
+                    onClose();
+                  }
                 }}
               >
                 <span>{item.label}</span>
+                {item.checked ? (
+                  <span className="adl-menu__check">
+                    <IconCheck size={14} decorative />
+                  </span>
+                ) : null}
               </button>
             ),
           )}

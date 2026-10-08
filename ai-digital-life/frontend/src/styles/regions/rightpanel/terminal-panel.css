@@ -127,10 +127,32 @@
   overflow: hidden;
 }
 
-/* 活动窗格标识：贴边内描边，不参与布局 */
+/* 边界线总开关（更多终端操作 → 边界线）：
+   - 关：均分分割线隐藏，自由窗格无边框；
+   - 开：均分分割线如常（即窗格边界），自由窗格描边。
+   自由边框用 border + border-box：不以外扩影响绝对定位几何。 */
+.adl-terminal-pane-grid.no-borders .adl-terminal-col-divider,
+.adl-terminal-pane-grid.no-borders .adl-terminal-row-divider {
+  display: none;
+}
+
+.adl-terminal-pane-grid.has-borders.is-free .adl-terminal-pane {
+  border: 1px solid var(--border-subtle);
+  box-sizing: border-box;
+}
+
+/* 活动窗格标识：贴边内描边，不参与布局。
+   中性色（--text-secondary，与分割线/手柄同族）：亮底 #767676 / 终端底 #f8f8f8
+   对比 ≈4.3:1，暗底 #9a9a9a / #0c0c0c 对比 ≈7:1（非文本指示器 ≥3:1 即可）。
+   禁用 accent 蓝，避免与选中/焦点语义混淆（跟进 13）。 */
 .adl-terminal-pane.is-active {
-  outline: 1px solid var(--accent);
+  outline: 1px solid var(--text-secondary);
   outline-offset: -1px;
+}
+
+/* 活动高亮总开关（更多终端操作 → 活动窗口高亮）：关即无描边。 */
+.adl-terminal-pane-grid.no-active-highlight .adl-terminal-pane.is-active {
+  outline: none;
 }
 
 /* 最大化窗格铺满显示区 */
@@ -183,8 +205,10 @@
 }
 
 .adl-terminal-col-divider:hover,
-.adl-terminal-row-divider:hover {
-  background: var(--accent);
+.adl-terminal-row-divider:hover,
+.adl-terminal-col-divider:active,
+.adl-terminal-row-divider:active {
+  background: var(--text-secondary);
 }
 
 /* free 模式：八向拖拽手柄（四边 + 四角） */
@@ -258,21 +282,45 @@
   cursor: nwse-resize;
 }
 
-/* 专用移动手柄：顶部居中的细条，拖动移动整窗格（不采用整窗格拖动以保留 xterm 输入/选择）。
-   z-index 高于边手柄，命中其中央 28px；两侧仍由 --n 手柄负责纵向缩放。 */
+/* 专用移动手柄：默认隐藏；悬停/聚焦对应窗格时显现为细宽小椭圆（20×4），
+   悬停手柄本身时展开为椭圆 pill（28×12）便于抓握拖动。
+   不采用整窗格拖动以保留 xterm 输入/选择。z-index 高于边手柄。
+   两侧仍由 --n 手柄负责纵向缩放。
+   隐藏态 pointer-events:none：不可见手柄不得挡住 xterm 顶部中央的点击/选择。 */
 .adl-terminal-free-handle--move {
-  top: 3px;
+  top: 4px;
   left: 50%;
   transform: translateX(-50%);
-  width: 28px;
-  height: 12px;
+  width: 20px;
+  height: 4px;
   z-index: 4;
   cursor: move;
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--text-muted) 45%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-150) var(--ease-default),
+    width var(--duration-150) var(--ease-default),
+    height var(--duration-150) var(--ease-default),
+    top var(--duration-150) var(--ease-default),
+    background-color var(--duration-150) var(--ease-default);
 }
 
-.adl-terminal-free-handle--move:hover {
+/* 与窗格右上角三按钮同语义：仅悬停/聚焦对应窗格时显露。
+   注意祖先是 `.adl-terminal-pane`（手柄与 `.adl-terminal-live` 是兄弟节点，
+   同挂在 pane 包装层下——曾误写成 live 后代导致永不显示，见跟进 8）。 */
+.adl-terminal-pane:hover .adl-terminal-free-handle--move,
+.adl-terminal-pane:focus-within .adl-terminal-free-handle--move {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.adl-terminal-free-handle--move:hover,
+.adl-terminal-free-handle--move:active {
+  top: 3px;
+  width: 28px;
+  height: 12px;
   background: color-mix(in srgb, var(--text-muted) 70%, transparent);
 }
 
@@ -471,9 +519,10 @@
   transition: opacity var(--duration-150) var(--ease-default);
 }
 
-/* 悬停区域时显露；常驻态由 is-always-visible 驱动，不依赖 hover */
-.adl-terminal-live:hover .adl-terminal-region-actions,
-.adl-terminal-region-actions.is-always-visible {
+/* 悬停对应窗格时显露（含键盘 focus-within 可达性）；其余时间隐藏。
+   祖先取 `.adl-terminal-pane`（与自由手柄同级语义，见跟进 8）。 */
+.adl-terminal-pane:hover .adl-terminal-region-actions,
+.adl-terminal-pane:focus-within .adl-terminal-region-actions {
   opacity: 1;
   pointer-events: auto;
 }
@@ -534,7 +583,7 @@
   box-shadow: var(--shadow-lg);
 }
 
-/* 卡片头部：标题 + 关闭按钮 */
+/* 卡片头部：标题 + 右侧动作（交换图标 + 关闭） */
 .adl-layout-card__header {
   display: flex;
   align-items: center;
@@ -548,7 +597,14 @@
   color: var(--text-primary);
 }
 
-.adl-layout-card__close {
+.adl-layout-card__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+}
+
+.adl-layout-card__close,
+.adl-layout-card__swap-iconbtn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -563,15 +619,19 @@
   transition: var(--transition-colors);
 }
 
-.adl-layout-card__close:hover {
+.adl-layout-card__close:hover,
+.adl-layout-card__swap-iconbtn:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-/* 正方形网格：固定 4 列，窗格数不足时末行自动留空 */
+/* 方块网格：列数与终端实时显示区一致（computeGrid 行主序 cols×rows），
+   组件以内联 gridTemplateColumns 注入固定列宽（LAYOUT_CARD_TILE_PX）；
+   此处仅保留兜底与间距。窗格数不足末行留空占位（--placeholder）。 */
 .adl-layout-card__grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, 40px);
+  justify-content: start;
   gap: var(--space-2, 8px);
 }
 
@@ -579,7 +639,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1 / 1;
+  /* 固定尺寸：与窗格数量无关（LAYOUT_CARD_TILE_PX = 40，改一边必须改另一边） */
+  width: 40px;
+  height: 40px;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
   /* 方块底色为固定卡片色板（paneColors，非主题语义色）：亮暗主题下均需可读的
@@ -590,27 +652,43 @@
   line-height: var(--leading-none);
   cursor: grab;
   user-select: none;
+  /* 触摸下指针移动即拖拽（不滚动卡片）；桌面端无影响 */
+  touch-action: none;
   transition:
     transform var(--duration-150) var(--ease-default),
-    box-shadow var(--duration-150) var(--ease-default);
+    scale var(--duration-150) var(--ease-default),
+    box-shadow var(--duration-150) var(--ease-default),
+    opacity var(--duration-150) var(--ease-default);
 }
 
 .adl-layout-card__square:active {
   cursor: grabbing;
 }
 
-/* 交换模式选中态：描边 + 缩放 + 外发光，明显区别于未选中方块 */
+/* 指针拖拽源（B 缝隙滑动）：提起效果。用独立 `scale` 属性实现放大，
+   不与 FLIP 补间写的 inline `transform` 冲突。 */
+.adl-layout-card__square.is-dragging {
+  scale: 1.08;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+  z-index: 1;
+}
+
+/* 空位占位：与真实网格末行留空对应，不可交互 */
+.adl-layout-card__square--placeholder {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* 交换模式选中态：中性描边 + 缩放，避免 accent 蓝与选中语义混淆 */
 .adl-layout-card__square.is-selected {
-  border-color: var(--text-on-accent);
-  box-shadow:
-    0 0 0 2px var(--accent),
-    0 0 10px var(--accent-soft);
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 2px var(--text-secondary);
   transform: scale(1.08);
 }
 
-/* 标注编辑态：组件在方块内以 input 覆盖，同时给方块加 is-editing 高亮描边 */
+/* 标注编辑态：中性描边 */
 .adl-layout-card__square.is-editing {
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--text-secondary);
 }
 
 /* 内联标注输入：单字符，居中覆盖方块 */
@@ -662,9 +740,24 @@
   cursor: not-allowed;
 }
 
-/* 「确认交换位置」为卡片主操作：仅在可选（恰好两块）时用强调色实心 */
-.adl-layout-card__swap-confirm:not(:disabled) {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--text-on-accent);
+/* 交换模式底部三按钮：复用重命名对话框底部按钮语义
+   （`adl-btn adl-btn--ghost adl-btn--square`：全直角、无边框），
+   三列均分整行；底色/悬停与对话框一致（常驻 bg-elevated、悬停 bg-hover，
+   中性色、无蓝填，亮暗主题自适应）。 */
+.adl-layout-card__actions--swap {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.adl-layout-card__actions--swap .adl-btn {
+  width: 100%;
+  text-align: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+  border: none;
+}
+
+.adl-layout-card__actions--swap .adl-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
 }

@@ -185,3 +185,16 @@ export function buildTabsById(tabs: TerminalTabState[]): Record<string, Terminal
 export const TERMINAL_NAVIGATOR_WIDTH_MIN = 180;
 export const TERMINAL_NAVIGATOR_WIDTH_MAX = 300;
 export const DEFAULT_TERMINAL_NAVIGATOR_WIDTH = 240;
+
+/** 终端字号：默认 13，可调 10–24（更多终端操作 → 增大/减小字号，持久化）。 */
+export const TERMINAL_FONT_SIZE_DEFAULT = 13;
+export const TERMINAL_FONT_SIZE_MIN = 10;
+export const TERMINAL_FONT_SIZE_MAX = 24;
+
+/** 字号钳制：非有限数回退默认，越界钳到 [MIN, MAX]，取整。 */
+export function clampTerminalFontSize(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return TERMINAL_FONT_SIZE_DEFAULT;
+  }
+  return Math.max(TERMINAL_FONT_SIZE_MIN, Math.min(TERMINAL_FONT_SIZE_MAX, Math.round(value)));
+}

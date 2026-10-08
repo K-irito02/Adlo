@@ -64,6 +64,7 @@
 - Tauri 桌面模式下依赖 CSS z-index 覆盖浏览器原生 WebView（WebView2 是 OS 级渲染表面。浮动菜单/对话框出现时：必须通过 `browser_set_bounds` 移出画面，使用 State + MutationObserver 双路检测协同。面板 Resize Handle 被覆盖时：采用"区域逃逸"方案——handle 向左扩展 8px 进入中心区域（无 WebView），无需 IPC 干预）
 - 未发布产品的开发阶段禁止添加/保留数据格式兼容或旧版本迁移代码（产品发布后需添加时须先与用户确认）
 - 禁止「向后兼容」重导出或类似仅为旧导入路径保留的兼容层
+- 未经用户允许禁止擅自使用蓝色（含 `var(--accent)` 系）作为特殊提示警醒色、填充色等；此类场景一律使用白/灰/黑中性色（明度/纯度自行设计，须兼顾亮暗主题可见性），需其它颜色时先与用户确认（规范见 `.agents/rules/hint-color-usage.md`）
 
 ## 双端一致性
 

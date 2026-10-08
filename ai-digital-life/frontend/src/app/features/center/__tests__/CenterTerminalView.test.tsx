@@ -54,6 +54,10 @@ const t = {
   terminalKillProcess: '杀死进程',
   terminalAddPane: '增加终端',
   terminalPaneClose: '关闭窗口',
+  terminalPaneBorders: '边界线',
+  terminalActiveHighlight: '活动窗口高亮',
+  terminalFontIncrease: '增大字号',
+  terminalFontDecrease: '减小字号',
   terminalPaneClearLabel: '清空内容',
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',
@@ -66,9 +70,12 @@ const t = {
   close: '关闭',
   terminalPaneResizeDivider: '调整窗格大小',
   terminalLayoutCardSwap: '交换位置',
-  terminalLayoutCardSwapConfirm: '确认交换位置',
+  terminalLayoutCardSwapConfirm: '交换',
+  terminalLayoutCardSwapRevert: '撤回',
   terminalLayoutCardSwapCancel: '取消',
+  terminalLayoutCardSwapMode: '进入交换位置模式',
   terminalLayoutCardAnnotateHint: '双击方块标注（限 1 字符）',
+  terminalLayoutCardSwapHint: '点击两个需要交换位置的方块',
 } as unknown as CopyDict;
 
 function makeTerminalTab(id: string, location: 'panel' | 'center'): TerminalTabState {
@@ -133,6 +140,19 @@ function renderView(centerTabId: string, terminalTabId: string | null) {
       <CenterTerminalView centerTabId={centerTabId} terminalTabId={terminalTabId} />
     </TCopyProvider>,
   );
+}
+
+/** jsdom PointerEvent 构造丢弃坐标，改用带坐标的 MouseEvent 派发（与卡片测试同因）。 */
+function dispatchPointer(
+  target: Element | Document,
+  type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+  init: MouseEventInit = {},
+): void {
+  act(() => {
+    target.dispatchEvent(
+      new MouseEvent(type, { bubbles: true, cancelable: true, composed: true, ...init }),
+    );
+  });
 }
 
 beforeEach(() => {
@@ -308,7 +328,11 @@ describe('CenterTerminalView 自定义布局卡片接线', () => {
     expect(container.querySelector('.adl-layout-card')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
     expect(container.querySelector('.adl-layout-card')).not.toBeNull();
-    expect(container.querySelectorAll('.adl-layout-card__square')).toHaveLength(2);
+    expect(
+      container.querySelectorAll(
+        '.adl-layout-card__square:not(.adl-layout-card__square--placeholder)',
+      ),
+    ).toHaveLength(2);
 
     fireEvent.mouseDown(document.body);
     expect(container.querySelector('.adl-layout-card')).toBeNull();
@@ -330,12 +354,16 @@ describe('CenterTerminalView 自定义布局卡片接线', () => {
     const { container } = renderView('c1', 'tc');
 
     fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
-    const squares = container.querySelectorAll('.adl-layout-card__square');
-    fireEvent.dragStart(squares[0], {
-      dataTransfer: { setData: vi.fn(), effectAllowed: 'none' },
-    });
-    fireEvent.dragOver(squares[1]);
-    fireEvent.drop(squares[1]);
+    // 2 窗格（cols=2）：槽位中心 slot0=(20,20) slot1=(68,20)；
+    // jsdom PointerEvent 构造丢弃坐标，改用带坐标的 MouseEvent 派发。
+    const squares = Array.from(
+      container.querySelectorAll(
+        '.adl-layout-card__square:not(.adl-layout-card__square--placeholder)',
+      ),
+    );
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 68, clientY: 20 });
+    dispatchPointer(document, 'pointerup');
 
     expect(useAppStore.getState().terminalTabsById['tc'].panes.map((pane) => pane.id)).toEqual([
       'tc-pane1',
@@ -348,11 +376,13 @@ describe('CenterTerminalView 自定义布局卡片接线', () => {
     const { container } = renderView('c1', 'tc');
 
     fireEvent.click(screen.getByRole('button', { name: '自定义布局' }));
-    fireEvent.click(screen.getByRole('button', { name: '交换位置' }));
-    const squares = container.querySelectorAll('.adl-layout-card__square');
+    fireEvent.click(screen.getByRole('button', { name: '进入交换位置模式' }));
+    const squares = container.querySelectorAll(
+      '.adl-layout-card__square:not(.adl-layout-card__square--placeholder)',
+    );
     fireEvent.click(squares[0]);
     fireEvent.click(squares[1]);
-    fireEvent.click(screen.getByRole('button', { name: '确认交换位置' }));
+    fireEvent.click(screen.getByRole('button', { name: '交换' }));
 
     expect(useAppStore.getState().terminalTabsById['tc'].panes.map((pane) => pane.id)).toEqual([
       'tc-pane1',

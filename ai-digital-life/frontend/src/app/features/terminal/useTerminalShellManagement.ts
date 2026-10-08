@@ -1,13 +1,10 @@
 import { terminalSelectors } from '@stores/selectors';
 import { useTerminalMenus } from './useTerminalMenus';
 import type { TerminalProfile } from '@stores/types';
-import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
 
 interface UseTerminalShellManagementParams {
-  activePane: TerminalPane | undefined;
   handleCloseTab: (tabId: string) => void;
   handleDoubleClick: (tabId: string, title: string) => void;
-  handleKillPane: (paneId: string) => void;
 }
 
 /**
@@ -16,13 +13,11 @@ interface UseTerminalShellManagementParams {
  * 职责：
  * - 复合按钮的独立 shell profile 与当前 profile 标签派生
  * - 终端菜单/Shell 菜单/右键菜单状态与项（委托 useTerminalMenus）
- * - 菜单动作（复制/粘贴/清屏/杀进程）作用于**活动窗格**，Pin/切换 profile 等标签级动作
+ * - 更多终端操作菜单：窗格边界线开关（仿文件面板行号开关）
  */
 export function useTerminalShellManagement({
-  activePane,
   handleCloseTab,
   handleDoubleClick,
-  handleKillPane,
 }: UseTerminalShellManagementParams) {
   const shellSelectorProfile = terminalSelectors.useShellSelectorProfile();
 
@@ -45,10 +40,8 @@ export function useTerminalShellManagement({
     closeContextMenu,
     updateProfile,
   } = useTerminalMenus({
-    activePane,
     handleCloseTab,
     handleDoubleClick,
-    handleKillPane,
   });
 
   const currentProfile: TerminalProfile = shellSelectorProfile;

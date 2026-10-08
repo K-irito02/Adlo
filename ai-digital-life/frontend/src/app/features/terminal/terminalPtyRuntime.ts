@@ -3,7 +3,11 @@ import type { TerminalProfile } from '@stores/types';
 import { activePaneOf } from '@stores/slices/terminalSliceTypes';
 import { normalizeReportedCwd, scanOsc99 } from './terminalCwdOsc';
 import { terminalCwdStore } from './terminalCwdStore';
-import { terminalXtermPool, readTerminalFontFamily, TERMINAL_FONT_SIZE } from './terminalXtermPool';
+import {
+  terminalXtermPool,
+  readTerminalFontFamily,
+  readTerminalFontSize,
+} from './terminalXtermPool';
 import { flushCrossSliceWrites } from '@stores/storageHelpers';
 
 const SHELL_MAP: Record<TerminalProfile, string> = {
@@ -305,6 +309,11 @@ export class TerminalPtyRuntime {
         });
       }
 
+      // [ADL-DEBUG] 临时诊断日志（跟进 5：重启恢复排查，用户复测后删除）。
+      console.log(
+        `[ADL-DEBUG] pty-attach: tab=${tabId} pane=${paneId} container=${container ? `${container.clientWidth}x${container.clientHeight}` : 'missing'}`,
+      );
+
       let cols = 80;
       let rows = 24;
       if (container) {
@@ -318,7 +327,7 @@ export class TerminalPtyRuntime {
         const { Terminal } = await import('@xterm/xterm');
         const { FitAddon } = await import('@xterm/addon-fit');
         const tempTerminal = new Terminal({
-          fontSize: TERMINAL_FONT_SIZE,
+          fontSize: readTerminalFontSize(),
           fontFamily: readTerminalFontFamily(),
           rows: 24,
           cols: 80,
@@ -345,11 +354,13 @@ export class TerminalPtyRuntime {
       if (!result.ok) {
         const errorMsg = result.error?.message || 'Unknown error';
         console.error('Terminal creation failed:', errorMsg);
+        console.log(`[ADL-DEBUG] pty-create-fail: tab=${tabId} pane=${paneId} error=${errorMsg}`);
         useAppStore.getState().terminalUpdatePane(tabId, paneId, { status: 'terminated' });
         return;
       }
 
       const sessionId = result.data.sessionId;
+      console.log(`[ADL-DEBUG] pty-created: tab=${tabId} pane=${paneId} session=${sessionId}`);
       // PTY 创建期间窗格（或其标签）可能已被关闭：此时这个 PTY 已成孤儿，立即回收。
       const paneStillExists = useAppStore
         .getState()

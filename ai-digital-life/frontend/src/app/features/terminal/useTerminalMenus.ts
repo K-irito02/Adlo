@@ -1,11 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
 import { useTerminalContextMenu } from './useTerminalContextMenu';
 import type { TerminalProfile } from '@stores/types';
-import type { TerminalPane } from '@stores/slices/terminalSliceTypes';
-import { terminalXtermPool } from './terminalXtermPool';
+import { TERMINAL_FONT_SIZE_MAX, TERMINAL_FONT_SIZE_MIN } from '@stores/slices/terminalSliceTypes';
 import type {
   TerminalMenuItem,
   TerminalShellMenuItem,
@@ -14,18 +13,11 @@ import type {
 import { useTCopy } from '@i18n/useTCopy';
 
 interface TerminalMenusParams {
-  activePane: TerminalPane | undefined;
   handleCloseTab: (tabId: string) => void;
   handleDoubleClick: (tabId: string, title: string) => void;
-  handleKillPane: (paneId: string) => void;
 }
 
-export function useTerminalMenus({
-  activePane,
-  handleCloseTab,
-  handleDoubleClick,
-  handleKillPane,
-}: TerminalMenusParams) {
+export function useTerminalMenus({ handleCloseTab, handleDoubleClick }: TerminalMenusParams) {
   const { t } = useTCopy();
   const [terminalMenuOpen, setTerminalMenuOpen] = useState(false);
   const [shellMenuOpen, setShellMenuOpen] = useState(false);
@@ -34,13 +26,21 @@ export function useTerminalMenus({
   const shellMenuRef = useRef<HTMLDivElement | null>(null);
 
   const terminalTabs = terminalSelectors.useTerminalTabs();
-  const { terminalTogglePin, setShellSelectorProfile, recentWorkspaces } = useAppStore(
+  const { terminalTogglePin, recentWorkspaces } = useAppStore(
     useShallow((state) => ({
       terminalTogglePin: state.terminalTogglePin,
-      setShellSelectorProfile: state.setShellSelectorProfile,
       recentWorkspaces: state.recentWorkspaces,
     })),
   );
+  // 窗格边界线 / 活动高亮总开关（更多终端操作，仿文件面板行号开关）
+  const terminalShowPaneBorders = useAppStore((state) => state.terminalShowPaneBorders);
+  const setTerminalShowPaneBorders = useAppStore((state) => state.setTerminalShowPaneBorders);
+  const terminalShowActiveHighlight = useAppStore((state) => state.terminalShowActiveHighlight);
+  const setTerminalShowActiveHighlight = useAppStore(
+    (state) => state.setTerminalShowActiveHighlight,
+  );
+  const terminalFontSize = useAppStore((state) => state.terminalFontSize);
+  const setTerminalFontSize = useAppStore((state) => state.setTerminalFontSize);
 
   const {
     contextMenu,
@@ -52,50 +52,7 @@ export function useTerminalMenus({
     closeContextMenu,
   } = useTerminalContextMenu(terminalTabs, handleDoubleClick, terminalTogglePin, handleCloseTab);
 
-  const handleCopy = useCallback(() => {
-    const selection = activePane?.sessionId
-      ? terminalXtermPool.get(activePane.sessionId)?.terminal.getSelection()
-      : undefined;
-    if (selection) {
-      navigator.clipboard.writeText(selection).catch((err) => {
-        console.warn('terminal copy failed', err);
-      });
-    }
-  }, [activePane]);
-
-  const handlePaste = useCallback(() => {
-    const sessionId = activePane?.sessionId;
-    if (!sessionId) {
-      return;
-    }
-    navigator.clipboard
-      .readText()
-      .then((text) => {
-        window.digitalLife.pty.input(sessionId, text);
-      })
-      .catch((err) => {
-        console.warn('terminal paste failed', err);
-      });
-  }, [activePane]);
-
-  const handleClear = useCallback(() => {
-    const entry = activePane?.sessionId ? terminalXtermPool.get(activePane.sessionId) : undefined;
-    entry?.terminal.clear();
-    setTimeout(() => entry?.terminal.scrollToBottom(), 0);
-  }, [activePane]);
-
-  const handleKill = useCallback(() => {
-    if (activePane) {
-      handleKillPane(activePane.id);
-    }
-  }, [activePane, handleKillPane]);
-
-  const updateProfile = useCallback(
-    (profile: TerminalProfile) => {
-      setShellSelectorProfile(profile);
-    },
-    [setShellSelectorProfile],
-  );
+  const updateProfile = useAppStore((state) => state.setShellSelectorProfile);
 
   useEffect(() => {
     if (!terminalMenuOpen && !shellMenuOpen) {
@@ -115,11 +72,31 @@ export function useTerminalMenus({
   }, [shellMenuOpen, terminalMenuOpen]);
 
   const terminalMenuItems: TerminalMenuItem[] = [
-    { id: 'copy', label: t.terminalCopy, action: handleCopy },
-    { id: 'paste', label: t.terminalPaste, action: handlePaste },
-    { id: 'clear', label: t.terminalClear, action: handleClear },
-    { id: 'sep-1', separator: true },
-    { id: 'kill', label: t.terminalKillProcess, action: handleKill },
+    {
+      id: 'pane-borders',
+      label: t.terminalPaneBorders,
+      checked: terminalShowPaneBorders,
+      action: () => setTerminalShowPaneBorders(!terminalShowPaneBorders),
+    },
+    {
+      id: 'active-highlight',
+      label: t.terminalActiveHighlight,
+      checked: terminalShowActiveHighlight,
+      action: () => setTerminalShowActiveHighlight(!terminalShowActiveHighlight),
+    },
+    { id: 'sep-view', separator: true },
+    {
+      id: 'font-increase',
+      label: t.terminalFontIncrease,
+      disabled: terminalFontSize >= TERMINAL_FONT_SIZE_MAX,
+      action: () => setTerminalFontSize(terminalFontSize + 1),
+    },
+    {
+      id: 'font-decrease',
+      label: t.terminalFontDecrease,
+      disabled: terminalFontSize <= TERMINAL_FONT_SIZE_MIN,
+      action: () => setTerminalFontSize(terminalFontSize - 1),
+    },
   ];
 
   const workspaceMenuItems = useMemo(() => {
