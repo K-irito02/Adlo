@@ -447,3 +447,30 @@ describe('CenterTerminalView 自定义布局卡片接线', () => {
     expect(screen.getAllByRole('button', { name: '清空内容' })).toHaveLength(2);
   });
 });
+
+describe('CenterTerminalView 工具栏布局（跟进 24，中心专属）', () => {
+  it('操作控件靠左、右侧只留更多终端操作（均分模式 5 控件在左）', () => {
+    const tab = makeMultiPaneTab('tc', 2);
+    useAppStore.setState({
+      terminalTabs: [tab],
+      terminalTabsById: { tc: tab },
+      terminalActiveTabId: 'tc',
+    });
+    const { container } = renderView('c1', 'tc');
+
+    const toolbar = container.querySelector('.adl-tool-context--files') as HTMLElement;
+    const groups = toolbar.querySelectorAll(':scope > .adl-tool-context__group');
+    expect(groups).toHaveLength(2);
+    const [leftGroup, rightGroup] = Array.from(groups);
+
+    const leftNames = Array.from(leftGroup.querySelectorAll('button')).map(
+      // 分段按钮无 aria-label，取文本；图标按钮取 aria-label
+      (button) => button.textContent?.trim() || button.getAttribute('aria-label'),
+    );
+    expect(leftNames).toEqual(['均分', '自由', '恢复自动布局', '增加终端', '自定义布局']);
+
+    const rightButtons = rightGroup.querySelectorAll('button');
+    expect(rightButtons).toHaveLength(1);
+    expect(rightButtons[0].getAttribute('aria-label')).toBe('更多终端操作');
+  });
+});

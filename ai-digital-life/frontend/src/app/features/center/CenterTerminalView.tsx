@@ -191,10 +191,14 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
 
   return (
     <div className="adl-tool-panel adl-tool-panel--terminal adl-center-terminal">
-      {/* 中间区工具栏：仅保留「更多操作」菜单 */}
+      {/* 中间区终端工具栏布局（跟进 24，中心专属）：
+          - 左侧组：分段控制器（均分/自由）+ 恢复自动布局 + 增加终端 +
+            自定义布局（含卡片锚点），全部靠左；
+          - 右侧组：只留「更多终端操作」菜单。
+          注意：这只是中心视图的排布，右侧面板 TerminalPanel 的工具栏保持原样
+          （左侧导航 + 右侧操作组），改这里不要动那边。 */}
       <div className="adl-tool-context adl-tool-context--files" aria-label={t.toolTerminal}>
-        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files" />
-        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+        <div className="adl-tool-context__group adl-tool-context__group--grow adl-tool-context__group--files">
           <div
             className="adl-tool-context__diff-view"
             role="group"
@@ -237,6 +241,9 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
               <IconAddTerminal size={14} decorative />
             </button>
           </TooltipSimple>
+          {/* 自定义布局按钮（含卡片锚点）同样靠左：卡片相对整个工具栏定位，
+              锚点容器搬到左组不影响开合与外部点击判定（判定只看是否包含卡片 DOM）。
+              仅均分模式渲染，自由模式隐藏（跟进 2 既有语义，保持不变）。 */}
           <div className="adl-layout-card-anchor" ref={layoutCardRef}>
             {view.layout.mode === 'equal' ? (
               <TooltipSimple content={t.terminalCustomLayout} placement="top">
@@ -262,6 +269,8 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
               />
             ) : null}
           </div>
+        </div>
+        <div className="adl-tool-context__group adl-tool-context__group--files-actions">
           <TerminalMenuDropdown
             menuOpen={view.terminalMenuOpen}
             menuRef={view.terminalMenuRef}

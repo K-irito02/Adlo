@@ -105,9 +105,14 @@
   position: relative;
 }
 
-/* free 模式：窗格绝对定位，几何由组件内联 left/top/width/height 提供 */
+/* free 模式：窗格绝对定位，几何由组件内联 left/top/width/height 提供。
+   每个窗格自成层叠上下文（z-index 非 auto）：子元素手柄/按钮的高 z-index
+   （3/4）只在窗格内部生效，不得越过窗格边界——否则被遮挡窗格的按钮/手柄
+   会画在顶层窗格画布之上并可交互（跟进 25 截图实证：a 在上，b 的按钮仍
+   可悬停）。配合下面的活动 z2 与拖拽内联 z10，层叠完全由窗格顺序决定。 */
 .adl-terminal-pane-grid.is-free .adl-terminal-pane {
   position: absolute;
+  z-index: 0;
 }
 
 /* free 层叠规则（跟进 19，无状态、可预测）：
@@ -291,11 +296,13 @@
   cursor: nwse-resize;
 }
 
-/* 专用移动手柄：默认隐藏；悬停/聚焦对应窗格时显现为细宽小椭圆（20×4），
-   悬停手柄本身时展开为椭圆 pill（28×12）便于抓握拖动。
+/* 专用移动手柄：默认隐藏（opacity 0）；悬停/聚焦对应窗格时显现为细宽小椭圆
+   （20×4），悬停手柄本身时展开为椭圆 pill（28×12）便于抓握拖动。
    不采用整窗格拖动以保留 xterm 输入/选择。z-index 高于边手柄。
    两侧仍由 --n 手柄负责纵向缩放。
-   隐藏态 pointer-events:none：不可见手柄不得挡住 xterm 顶部中央的点击/选择。 */
+   隐藏态仍常驻可命中（无 pointer-events:none）：透明像素若穿透，会误触发
+   下层被遮挡窗格的边手柄（跟进 23）；而落在自家手柄上只会显形，无位移的
+   点击即无操作，代价远小于串改下层几何。 */
 .adl-terminal-free-handle--move {
   top: 4px;
   left: 50%;
@@ -307,7 +314,6 @@
   border-radius: var(--radius-full);
   background: color-mix(in srgb, var(--text-muted) 45%, transparent);
   opacity: 0;
-  pointer-events: none;
   transition:
     opacity var(--duration-150) var(--ease-default),
     width var(--duration-150) var(--ease-default),
@@ -322,7 +328,6 @@
 .adl-terminal-pane:hover .adl-terminal-free-handle--move,
 .adl-terminal-pane:focus-within .adl-terminal-free-handle--move {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .adl-terminal-free-handle--move:hover,
@@ -524,7 +529,9 @@
   gap: var(--space-1, 4px);
   z-index: 4;
   opacity: 0;
-  pointer-events: none;
+  /* 隐藏态仍常驻可命中：透明区若穿透，会误触发下层被遮挡窗格的手柄
+     （跟进 23）；落在本容器上的点击经冒泡仍能激活本窗格（按钮自带的
+     stopPropagation 除外），故无代价。悬停即显形，行为自洽。 */
   transition: opacity var(--duration-150) var(--ease-default);
 }
 
@@ -533,7 +540,6 @@
 .adl-terminal-pane:hover .adl-terminal-region-actions,
 .adl-terminal-pane:focus-within .adl-terminal-region-actions {
   opacity: 1;
-  pointer-events: auto;
 }
 
 .adl-terminal-region-actions__btn {
