@@ -148,9 +148,7 @@ export function TerminalPaneGrid({
 
   const gridClassName = `adl-terminal-pane-grid ${
     maximizedPaneId ? 'is-maximized' : isFree ? 'is-free' : 'is-equal'
-  }${showBorders ? ' has-borders' : ' no-borders'}${
-    showActiveHighlight ? '' : ' no-active-highlight'
-  }`;
+  }${showBorders ? ' has-borders' : ' no-borders'}`;
 
   return (
     <div
@@ -183,6 +181,12 @@ export function TerminalPaneGrid({
                 style={paneStyle}
               >
                 {renderPane(pane)}
+                {/* 活动高亮框（跟进 20）：必须是独立覆盖层——pane 内边缘的
+                    inset outline 会被全覆盖不透明画布（.adl-terminal-canvas）
+                    按绘制顺序盖住而完全不可见，故改放画布上层。 */}
+                {showActiveHighlight && pane.id === activePaneId ? (
+                  <div className="adl-terminal-active-frame" aria-hidden="true" />
+                ) : null}
                 {!maximizedPaneId && isFree && (
                   <>
                     {FREE_DRAG_EDGES.map((edge) => (

@@ -58,6 +58,8 @@ const t = {
   terminalActiveHighlight: '活动窗口高亮',
   terminalFontIncrease: '增大字号',
   terminalFontDecrease: '减小字号',
+  terminalKillProcessHintTitle: '结束鼠标最近一次所点击的终端窗口',
+  terminalKillProcessHintBody: '· 只影响这一格',
   terminalPaneClearLabel: '清空内容',
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',

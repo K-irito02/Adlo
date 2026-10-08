@@ -45,6 +45,9 @@ export const terminalEn = {
   terminalActiveHighlight: 'Active pane highlight',
   terminalFontIncrease: 'Increase font size',
   terminalFontDecrease: 'Decrease font size',
+  terminalKillProcessHintTitle: 'Stop the program in the most recently clicked terminal window',
+  terminalKillProcessHintBody:
+    '· Only stops the program in this terminal window. Other windows and tabs are not affected.\n· The window stays open, but its previous output is cleared because a new session starts automatically.\n· To close the window itself, use the close button at its top-right corner.',
   terminalPaneClearLabel: 'Clear contents',
   terminalPaneMaximize: 'Maximize',
   terminalPaneRestore: 'Restore',

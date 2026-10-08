@@ -19,6 +19,8 @@ export type TerminalMenuItem =
       disabled?: boolean;
       /** 开关型菜单项（仿文件面板行号）：传 boolean 即渲染为 menuitemcheckbox + 打勾 */
       checked?: boolean;
+      /** 最右侧感叹号提示（仿浏览器面板菜单）：悬停出提示卡 */
+      hint?: string;
       action?: () => void;
     };
 

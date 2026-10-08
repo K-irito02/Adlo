@@ -68,6 +68,8 @@ const t = {
   terminalActiveHighlight: '活动窗口高亮',
   terminalFontIncrease: '增大字号',
   terminalFontDecrease: '减小字号',
+  terminalKillProcessHintTitle: '结束鼠标最近一次所点击的终端窗口',
+  terminalKillProcessHintBody: '· 只影响这一格',
   close: '关闭',
   resizeTerminalNavigator: '调整终端导航宽度',
   terminalLayoutCardSwap: '交换位置',
@@ -228,19 +230,18 @@ describe('TerminalPanel 更多终端操作 → 边界线', () => {
     ).toBe(true);
   });
 
-  it('活动窗口高亮开关切换 store 并落到网格类名', () => {
+  it('活动窗口高亮开关切换 store 并增删覆盖层高亮框', () => {
     useAppStore.setState({ terminalShowActiveHighlight: true });
     const { container } = renderPanel();
 
     fireEvent.click(screen.getByRole('button', { name: '更多终端操作' }));
     const checkbox = screen.getByRole('menuitemcheckbox', { name: '活动窗口高亮' });
     expect(checkbox.getAttribute('aria-checked')).toBe('true');
+    expect(container.querySelector('.adl-terminal-active-frame')).not.toBeNull();
 
     fireEvent.click(checkbox);
     expect(useAppStore.getState().terminalShowActiveHighlight).toBe(false);
-    expect(
-      container.querySelector('.adl-terminal-pane-grid')?.classList.contains('no-active-highlight'),
-    ).toBe(true);
+    expect(container.querySelector('.adl-terminal-active-frame')).toBeNull();
   });
 
   it('增大/减小字号步进 store（上界禁用增大）', () => {
@@ -257,5 +258,19 @@ describe('TerminalPanel 更多终端操作 → 边界线', () => {
     expect(screen.getByRole('menuitem', { name: '增大字号' })).toBeDisabled();
     fireEvent.click(screen.getByRole('menuitem', { name: '减小字号' }));
     expect(useAppStore.getState().terminalFontSize).toBe(23);
+  });
+
+  it('杀死进程项带感叹号提示；无会话窗格点击为无操作（不崩溃）', () => {
+    const { container } = renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '更多终端操作' }));
+    // 可访问名含感叹号附加文本，用正则匹配标签部分
+    const killItem = screen.getByRole('menuitem', { name: /杀死进程/ });
+    expect(killItem.querySelector('.adl-menu-item__hint')?.textContent).toBe('!');
+
+    fireEvent.click(killItem);
+    // idle 无会话：不杀、不改 store、不抛错
+    expect(useAppStore.getState().terminalTabsById['tp'].panes).toHaveLength(2);
+    expect(container.querySelector('.adl-terminal-pane-grid')).not.toBeNull();
   });
 });

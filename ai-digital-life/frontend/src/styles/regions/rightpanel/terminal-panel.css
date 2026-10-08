@@ -110,6 +110,14 @@
   position: absolute;
 }
 
+/* free 层叠规则（跟进 19，无状态、可预测）：
+   - 平时：活动窗格置顶（z 2），点谁谁到前面；
+   - 拖拽/缩放中：被拖窗格经内联 z 10 再置顶，保证全程可见。
+   均分模式无重叠，z-index 无视觉影响。 */
+.adl-terminal-pane-grid.is-free .adl-terminal-pane.is-active {
+  z-index: 2;
+}
+
 .adl-terminal-pane-grid.is-maximized {
   display: grid;
   grid-template-columns: 1fr;
@@ -141,19 +149,20 @@
   box-sizing: border-box;
 }
 
-/* 活动窗格标识：贴边内描边，不参与布局。
-   中性色（--text-secondary，与分割线/手柄同族）：亮底 #767676 / 终端底 #f8f8f8
-   对比 ≈4.3:1，暗底 #9a9a9a / #0c0c0c 对比 ≈7:1（非文本指示器 ≥3:1 即可）。
-   禁用 accent 蓝，避免与选中/焦点语义混淆（跟进 13）。 */
-.adl-terminal-pane.is-active {
-  outline: 1px solid var(--text-secondary);
-  outline-offset: -1px;
+/* 活动窗格标识：独立覆盖层描边（.adl-terminal-active-frame），不参与布局。
+   不用 pane 的 inset outline：全覆盖不透明画布按绘制顺序盖住内嵌描边，
+   会导致完全不可见（跟进 20 截图实证）。覆盖层放画布上层、手柄下层，
+   中性强灰 `--text-primary`，亮暗主题均醒目（仍禁用 accent 蓝）。 */
+.adl-terminal-active-frame {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--text-primary);
+  pointer-events: none;
+  z-index: 2;
 }
 
-/* 活动高亮总开关（更多终端操作 → 活动窗口高亮）：关即无描边。 */
-.adl-terminal-pane-grid.no-active-highlight .adl-terminal-pane.is-active {
-  outline: none;
-}
+/* 活动高亮总开关（更多终端操作 → 活动窗口高亮）由组件条件渲染承载，
+   此处无门控类（旧 no-active-highlight 机制已随覆盖层移除）。 */
 
 /* 最大化窗格铺满显示区 */
 .adl-terminal-pane.is-maximized {
@@ -552,6 +561,19 @@
    自定义布局卡片（批次 D）
    ========================================================================== */
 
+/* 终端菜单的 `!` 提示标记：脱离全局 absolute 定位——行按钮本身无定位时，
+   absolute 的包含块会塌到下拉容器，导致标记锚在下拉纵中右侧、与所属行脱离
+   且右缘贴边（跟进 21 截图实证）。改为行内 flex 尾项，落进 hover 背景内边距。 */
+.adl-tool-panel--terminal .adl-menu__item {
+  position: relative;
+}
+
+.adl-tool-panel--terminal .adl-menu-item__hint {
+  position: static;
+  transform: none;
+  margin-left: auto;
+}
+
 /* 锚点：卡片使其成为普通内联 flex 项（不做定位上下文），让卡片相对整个工具栏
    定位（见 `.adl-tool-panel--terminal .adl-tool-context--files`），从而宽度可随
    面板收窄。外部点击判定仍依赖此容器包含卡片 DOM。 */
@@ -654,8 +676,10 @@
   user-select: none;
   /* 触摸下指针移动即拖拽（不滚动卡片）；桌面端无影响 */
   touch-action: none;
+  /* 位移（FLIP 缝隙滑动）单独给 300ms ease-out：减速收尾显平滑；
+     其余状态保持 150ms 跟手。时长走 token，reduced-motion 下自动压到 1ms。 */
   transition:
-    transform var(--duration-150) var(--ease-default),
+    transform var(--duration-300) var(--ease-enter),
     scale var(--duration-150) var(--ease-default),
     box-shadow var(--duration-150) var(--ease-default),
     opacity var(--duration-150) var(--ease-default);

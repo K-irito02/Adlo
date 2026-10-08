@@ -45,6 +45,9 @@ export const terminalZh = {
   terminalActiveHighlight: '活动窗口高亮',
   terminalFontIncrease: '增大字号',
   terminalFontDecrease: '减小字号',
+  terminalKillProcessHintTitle: '结束鼠标最近一次所点击的终端窗口',
+  terminalKillProcessHintBody:
+    '· 只会结束这一格终端窗口里的程序，其它窗口、其它终端标签都不会受到影响。\n· 结束后窗口还在，但是之前的内容会清空，因为会自动起一个新的。\n· 如果想把整个窗口关掉，请点窗口右上角的关闭按钮。',
   terminalPaneClearLabel: '清空内容',
   terminalPaneMaximize: '最大化',
   terminalPaneRestore: '还原',

@@ -455,6 +455,12 @@ export function useTerminalPaneLayout({
       const startX = e.clientX;
       const startY = e.clientY;
       const paneEl = findPaneElement(container, paneId);
+      // 拖拽中置顶（跟进 19）：被拖窗格全程可见，不被其它窗格覆盖；
+      // z-index 非 React 渲染几何，由本拖拽会话拥有并在 teardown 归还
+      //（归还后回落到 CSS：活动窗格 z 2 置顶）。
+      if (paneEl) {
+        paneEl.style.zIndex = '10';
+      }
       const base = layoutRef.current.rects[paneId] ?? autoRectForIndex(index, paneCount);
       const minW = MIN_PANE_W / width;
       const minH = MIN_PANE_H / height;
@@ -495,6 +501,11 @@ export function useTerminalPaneLayout({
         target.removeEventListener('pointerup', handleUp);
         target.removeEventListener('pointercancel', handleUp);
         target.removeEventListener('lostpointercapture', handleUp);
+        // 归还拖拽置顶（跟进 19）：纯点击路径同样经过 teardown，统一清理；
+        // 几何仍由 React 拥有，此处只动 z-index。
+        if (paneEl) {
+          paneEl.style.zIndex = '';
+        }
       };
 
       const handleUp = () => {

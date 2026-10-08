@@ -4,6 +4,8 @@ import { useShallow } from 'zustand/react/shallow';
 import { terminalSelectors } from '@stores/selectors';
 import { useTerminalContextMenu } from './useTerminalContextMenu';
 import type { TerminalProfile } from '@stores/types';
+import { activePaneOf } from '@stores/slices/terminalSliceTypes';
+import { terminalPtyRuntime } from './terminalPtyRuntime';
 import { TERMINAL_FONT_SIZE_MAX, TERMINAL_FONT_SIZE_MIN } from '@stores/slices/terminalSliceTypes';
 import type {
   TerminalMenuItem,
@@ -41,6 +43,35 @@ export function useTerminalMenus({ handleCloseTab, handleDoubleClick }: Terminal
   );
   const terminalFontSize = useAppStore((state) => state.terminalFontSize);
   const setTerminalFontSize = useAppStore((state) => state.setTerminalFontSize);
+
+  // 杀死进程的目标：当前标签的活动窗格（仅此一格，其它标签/窗格不受影响）。
+  // 直接读 store 派生，不经调用方透传（菜单消费链精简，能力仍走运行时统一出口）。
+  // 对象选择器必须经 useShallow 比较字段，否则每次 store 更新都重渲染。
+  const killTarget = useAppStore(
+    useShallow((state) => {
+      const tab = state.terminalTabsById[state.terminalActiveTabId];
+      if (!tab) {
+        return undefined;
+      }
+      const pane = activePaneOf(tab);
+      if (!pane) {
+        return undefined;
+      }
+      return { tabId: tab.id, paneId: pane.id, sessionId: pane.sessionId };
+    }),
+  );
+
+  const handleKillActivePane = () => {
+    if (!killTarget?.sessionId) {
+      return;
+    }
+    // 用户语义（跟进 22）：结束旧进程后立即为同一窗格起新会话并清空显示，
+    // 而不是停在"已终止+留旧输出"。activatePane 内部经 teardown 释放旧池条目，
+    // 故旧内容随新会话建立而清空。
+    console.log(`[ADL-DEBUG] terminal kill-restart pane=${killTarget.paneId}`);
+    terminalPtyRuntime.handleKillPane(killTarget);
+    void terminalPtyRuntime.activatePane(killTarget.tabId, killTarget.paneId);
+  };
 
   const {
     contextMenu,
@@ -96,6 +127,14 @@ export function useTerminalMenus({ handleCloseTab, handleDoubleClick }: Terminal
       label: t.terminalFontDecrease,
       disabled: terminalFontSize <= TERMINAL_FONT_SIZE_MIN,
       action: () => setTerminalFontSize(terminalFontSize - 1),
+    },
+    { id: 'sep-kill', separator: true },
+    {
+      id: 'kill-pane',
+      label: t.terminalKillProcess,
+      hint: `# ${t.terminalKillProcessHintTitle}\n${t.terminalKillProcessHintBody}`,
+      disabled: !killTarget?.sessionId,
+      action: handleKillActivePane,
     },
   ];
 

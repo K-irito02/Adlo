@@ -284,16 +284,26 @@ describe('TerminalPaneGrid pane borders toggle', () => {
     ).toBe(true);
   });
 
-  it('showActiveHighlight 关：网格带 no-active-highlight（CSS 去活动描边）', () => {
-    const { container } = renderGrid({ panes: makePanes(2), showActiveHighlight: false });
-    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
-    expect(grid.classList.contains('no-active-highlight')).toBe(true);
+  it('showActiveHighlight 关：不渲染活动高亮框', () => {
+    const { container } = renderGrid({
+      panes: makePanes(2),
+      activePaneId: 'p1',
+      showActiveHighlight: false,
+    });
+    expect(container.querySelector('.adl-terminal-active-frame')).toBeNull();
   });
 
-  it('showActiveHighlight 开（默认）：无 no-active-highlight 类', () => {
-    const { container } = renderGrid({ panes: makePanes(2) });
-    const grid = container.querySelector('.adl-terminal-pane-grid') as HTMLElement;
-    expect(grid.classList.contains('no-active-highlight')).toBe(false);
+  it('showActiveHighlight 开（默认）：活动窗格渲染覆盖层高亮框', () => {
+    const { container } = renderGrid({ panes: makePanes(2), activePaneId: 'p1' });
+    const activeWrapper = container.querySelectorAll('.adl-terminal-pane')[0];
+    expect(activeWrapper.classList.contains('is-active')).toBe(true);
+    expect(activeWrapper.querySelector('.adl-terminal-active-frame')).not.toBeNull();
+    // 非活动窗格无框
+    expect(
+      container
+        .querySelectorAll('.adl-terminal-pane')[1]
+        .querySelector('.adl-terminal-active-frame'),
+    ).toBeNull();
   });
 });
 
@@ -322,8 +332,12 @@ describe('TerminalPaneGrid free-mode no-move handle click (H1 regression)', () =
     ) as HTMLElement;
     act(() => {
       fireEvent.pointerDown(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
+      // 拖拽中置顶（跟进 19）：被拖窗格 z 10，不被其它窗格覆盖
+      expect(pane?.style.zIndex).toBe('10');
       fireEvent.pointerUp(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
     });
+    // 松手归还（回落到 CSS：活动窗格 z 2）
+    expect(pane?.style.zIndex).toBe('');
 
     expect(pane?.style.left).not.toBe('');
     expect(pane?.style.top).not.toBe('');
