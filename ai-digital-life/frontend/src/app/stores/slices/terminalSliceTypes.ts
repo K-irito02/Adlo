@@ -191,7 +191,7 @@ export const TERMINAL_FONT_SIZE_DEFAULT = 13;
 export const TERMINAL_FONT_SIZE_MIN = 10;
 export const TERMINAL_FONT_SIZE_MAX = 24;
 
-/** 字号钳制：非有限数回退默认，越界钳到 [MIN, MAX]，取整。 */
+/** 字号钳制：非有限数（含 Infinity/NaN）一律回默认——视为脏输入而非越界，不钳 MAX。 */
 export function clampTerminalFontSize(value: unknown): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return TERMINAL_FONT_SIZE_DEFAULT;

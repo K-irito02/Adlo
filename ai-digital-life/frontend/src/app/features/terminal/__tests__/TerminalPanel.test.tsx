@@ -5,6 +5,12 @@ import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import type { CopyDict } from '@i18n/types';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
+import { terminalPtyRuntime } from '../terminalPtyRuntime';
+
+// useTerminalMenus 直调运行时单例：mock 后断言 kill/重建接线（PTY 生命周期另见其 mock）。
+vi.mock('../terminalPtyRuntime', () => ({
+  terminalPtyRuntime: { handleKillPane: vi.fn(), activatePane: vi.fn() },
+}));
 
 // 本文件只验证右面板「自定义布局」按钮 → 卡片 → store 动作的接线；
 // PTY 生命周期、布局 Hook 与工作区树均与卡片无关，予以隔离。
@@ -281,5 +287,55 @@ describe('TerminalPanel 更多终端操作 → 边界线', () => {
     // handleKillActivePane 早退分支：不杀、不改 store、不抛错
     expect(useAppStore.getState().terminalTabsById['tp'].panes).toHaveLength(2);
     expect(container.querySelector('.adl-terminal-pane-grid')).not.toBeNull();
+  });
+
+  it('有会话窗格：杀死进程调运行时 kill+重建并关闭菜单', () => {
+    const livePane = {
+      id: 'tp-pane0',
+      profile: 'powershell' as const,
+      status: 'running' as const,
+      sessionId: 's-1',
+      colorIndex: 0,
+    };
+    const idlePane = {
+      id: 'tp-pane1',
+      profile: 'powershell' as const,
+      status: 'idle' as const,
+      colorIndex: 1,
+    };
+    const tab: TerminalTabState = {
+      id: 'tp',
+      workspaceId: '',
+      title: 'PowerShell',
+      profile: 'powershell',
+      panes: [livePane, idlePane],
+      activePaneId: livePane.id,
+      isPinned: false,
+      sortOrder: 1,
+      location: 'panel',
+    };
+    useAppStore.setState({
+      terminalTabs: [tab],
+      terminalTabsById: { tp: tab },
+      terminalActiveTabId: 'tp',
+      recentWorkspaces: [],
+      terminalWorkspaceExpanded: {},
+    });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '更多终端操作' }));
+    const killItem = screen.getByRole('menuitem', { name: /杀死进程/ });
+    expect(killItem).not.toBeDisabled();
+    fireEvent.click(killItem);
+
+    // 只杀活动窗格：其它标签/窗格不受影响由 killTarget 派生保证，此处锁定调用参数
+    expect(vi.mocked(terminalPtyRuntime.handleKillPane)).toHaveBeenCalledWith({
+      tabId: 'tp',
+      paneId: 'tp-pane0',
+      sessionId: 's-1',
+    });
+    expect(vi.mocked(terminalPtyRuntime.activatePane)).toHaveBeenCalledWith('tp', 'tp-pane0');
+    // 破坏性动作无 keepOpen：执行后菜单关闭
+    expect(screen.queryByRole('menu')).toBeNull();
   });
 });

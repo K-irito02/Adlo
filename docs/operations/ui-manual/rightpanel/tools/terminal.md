@@ -172,7 +172,7 @@ await source.dragTo(target);
 | `.adl-terminal-canvas` | 单个窗格内的 xterm.js 挂载容器 |
 | `.adl-terminal-col-divider` / `.adl-terminal-row-divider` | 均分模式列/行边界线（`role="separator"`，可拖拽） |
 | `.adl-terminal-free-handle`（`--n` / `--e` / `--s` / `--w` / `--ne` / `--nw` / `--se` / `--sw` / `--move`） | 自由模式八向缩放 + 专用移动手柄 |
-| `.adl-terminal-region-actions` | 单窗格右上角操作叠加层（`is-always-visible` 常驻） |
+| `.adl-terminal-region-actions` | 单窗格右上角操作叠加层（仅悬停/聚焦对应窗格时显现） |
 | `.adl-terminal-region-actions__btn` / `__btn--danger` | 叠加层按钮 / 「关闭窗口」危险色按钮 |
 | `.adl-terminal-error-note` | Shell 启动失败的错误提示（仅活跃错误状态显示） |
 
@@ -183,9 +183,21 @@ await source.dragTo(target);
 | 布局模式分段选择器 | `.adl-tool-context__diff-view`（`role="group"`，`aria-label`=终端布局模式） | `均分` / `自由` 两键（`.adl-tool-context__toggle-btn`）切换布局模式 |
 | 恢复自动布局 | `.adl-tool-context__iconbtn`（`aria-label`=恢复自动布局） | 回到均分自动布局（比例归一均分 + 清空自由 rect） |
 | 增加终端 | `.adl-tool-context__iconbtn`（`aria-label`=增加终端） | 在当前标签追加一个独立 PTY 窗格，数量无上限 |
-| 自定义布局 | `.adl-tool-context__iconbtn`（`aria-label`=自定义布局，`aria-haspopup="dialog"`） | 开合自定义布局卡片 |
+| 自定义布局 | `.adl-tool-context__iconbtn`（`aria-label`=自定义布局，`aria-haspopup="dialog"`） | 开合自定义布局卡片（仅均分模式显示入口） |
+| 更多终端操作 | `.adl-tool-context__iconbtn`（`aria-label`=更多终端操作，`aria-haspopup="menu"`） | 开合下拉菜单：边界线 / 活动窗口高亮 / 增大字号 / 减小字号 / 杀死进程（见下） |
 
-布局模式、窗格比例 / 自由 rect、窗格顺序 / 标注按标签独立持久化（结构存 `adl:terminal.tabs`、布局存 `adl:terminal.paneLayout`），重启后恢复窗格结构/布局并逐窗格新建 shell。
+布局模式、窗格比例 / 自由 rect、窗格顺序 / 标注、边界线 / 活动高亮 / 字号按标签独立持久化（结构存 `adl:terminal.tabs`、布局存 `adl:terminal.paneLayout`、视图偏好存 `adl:terminal.showPaneBorders` / `showActiveHighlight` / `fontSize`），重启后恢复窗格结构/布局并逐窗格新建 shell。
+
+> 中间部分终端视图工具栏排布不同：分段控制器、恢复自动布局、增加终端、自定义布局（含卡片锚点）全部靠左，右侧只留「更多终端操作」；右侧面板保持左侧导航 + 右侧操作组不变。
+
+### 更多终端操作菜单
+
+| 选项 | `role` | 行为 |
+|------|--------|------|
+| 边界线 | `menuitemcheckbox`（打勾 state） | 总开关：开=均分分割线可见、自由窗格描边；关=两者都不显示 |
+| 活动窗口高亮 | `menuitemcheckbox`（打勾 state） | 总开关：活动窗格独立覆盖层描边（中性色）；关即无描边 |
+| 增大字号 / 减小字号 | `menuitem`（到界禁用） | 终端字号 10–24 步进，即时生效并持久化 |
+| 杀死进程 | `menuitem` + 最右侧 `!` 提示标记 | 只结束当前活动窗格的 shell 进程，随后自动起新会话并清空显示；悬停/聚焦 `!` 出提示卡（`HintCard`，`#标题` + `·分点` 排版）；点 `!` 本身不触发动作；无会话时禁用 |
 
 ### 边界线拖拽（均分模式）
 
@@ -217,16 +229,16 @@ await page.mouse.up();
 | 选择器 | 说明 |
 |--------|------|
 | `.adl-layout-card` | 卡片容器（`role="dialog"`，`aria-label`=自定义布局） |
-| `.adl-layout-card__header` / `__title` / `__close` | 头部 / 标题 / 关闭按钮 |
+| `.adl-layout-card__header` / `__title` / `__header-actions` / `__close` | 头部 / 标题 / 右侧动作（交换图标 + 关闭按钮） |
 | `.adl-layout-card__grid` | 方块网格 |
-| `.adl-layout-card__square` | 单个窗格方块（背景 = `paneColor(colorIndex)`；`is-selected` 交换选中、`is-editing` 标注编辑中） |
-| `.adl-layout-card__label-input` | 标注输入框（`maxLength=1`） |
-| `.adl-layout-card__hint` | 双击标注提示（限 1 字符） |
-| `.adl-layout-card__actions` / `__swap-toggle` / `__swap-confirm` / `__swap-cancel` | 交换模式开关 / 确认交换位置 / 取消 |
+| `.adl-layout-card__square` | 单个窗格方块（背景 = `paneColor(colorIndex)`；`is-selected` 交换选中、`is-dragging` 拖拽提起） |
+| `.adl-layout-card__label-input` | 标注输入框（不限长，提交时按首个码点截断） |
+| `.adl-layout-card__hint` | 双击标注提示（限 1 字符；交换模式下切换为选块提示） |
+| `.adl-layout-card__actions--swap` | 交换模式底部三按钮（`adl-btn adl-btn--ghost adl-btn--square`，与重命名对话框同款：全直角、无边框、常驻底色悬停灰） |
 
-- **拖拽排序**：拖动方块（HTML5 drag）调整窗格顺序
-- **交换位置**：点「交换位置」进入交换模式，点选两个方块后点「确认交换位置」应用
-- **双击标注**：双击方块进入内联编辑，限 1 字符（一个简体中文字计 1 字符），回车/失焦提交；超出按首个码点截断
+- **拖拽排序**：按住方块拖动（指针事件，B 缝隙滑动：拖拽中本地重排 + FLIP 滑动，松手一次提交；取消/失焦/滚动即丢弃），交换模式下禁用拖拽
+- **交换位置**：点头部交换图标进入交换模式，点选两个方块后点「交换」应用（保留模式可连续交换）；「撤回」撤销上次交换，「取消」退出并清空历史；拖拽提交会清空撤回栈
+- **双击标注**：双击方块进入内联编辑（编辑态方块无额外描边，输入框即焦点），限 1 字符（一个简体中文字计 1 字符），回车/失焦提交；超出按首个码点截断
 
 ### 持久化与重启恢复
 

@@ -30,7 +30,9 @@ function renderDropdown(items: TerminalMenuItem[], onClose = vi.fn()) {
 
 describe('TerminalMenuDropdown checkbox items', () => {
   it('开关项渲染为 menuitemcheckbox，checked 时打勾', () => {
+    // 顺带证明 COPY mock 生效（按钮名取自 mock 字典）。
     renderDropdown([{ id: 'borders', label: '边界线', checked: true, action: vi.fn() }]);
+    expect(screen.getByRole('button', { name: 'MORE_ACTIONS' })).not.toBeNull();
     const item = screen.getByRole('menuitemcheckbox', { name: '边界线' });
     expect(item.getAttribute('aria-checked')).toBe('true');
     expect(item.querySelector('.adl-menu__check')).not.toBeNull();

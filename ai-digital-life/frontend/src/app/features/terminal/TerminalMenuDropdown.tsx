@@ -28,11 +28,9 @@ interface TerminalMenuDropdownProps {
 function TerminalMenuItemRow({
   item,
   onClose,
-  menuRef,
 }: {
   item: Extract<TerminalMenuItem, { label: string }>;
   onClose: () => void;
-  menuRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const triggerRef = useRef<HTMLSpanElement>(null);
   const { hintState, showHint, hideHint, scheduleHide, hintCardProps } = useHintCard(
@@ -42,8 +40,13 @@ function TerminalMenuItemRow({
 
   const handleShowHint = (event: React.MouseEvent | React.FocusEvent) => {
     event.stopPropagation();
-    const menuEl = menuRef.current;
-    if (!menuEl || !item.hint) {
+    if (!item.hint) {
+      return;
+    }
+    // 对准感叹号自身（而非整行），箭头落位更准；取不到时回退整行。
+    const markRect = triggerRef.current?.getBoundingClientRect();
+    if (markRect && markRect.width > 0) {
+      showHint(item.hint, markRect);
       return;
     }
     const button = (event.target as HTMLElement).closest('button');
@@ -78,6 +81,7 @@ function TerminalMenuItemRow({
           </span>
         ) : null}
         {item.hint ? (
+          // 意图：全语言统一的提示标记（`!` 各语言同形），非文案，不进 i18n。
           <span
             ref={triggerRef}
             className="adl-menu-item__hint"
@@ -130,7 +134,7 @@ export const TerminalMenuDropdown = React.memo(function TerminalMenuDropdown({
             'separator' in item ? (
               <div key={item.id} className="adl-menu__sep" role="separator" />
             ) : (
-              <TerminalMenuItemRow key={item.id} item={item} onClose={onClose} menuRef={menuRef} />
+              <TerminalMenuItemRow key={item.id} item={item} onClose={onClose} />
             ),
           )}
         </div>

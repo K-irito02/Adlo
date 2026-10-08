@@ -27,8 +27,8 @@ const SLOT_STEP_PX = LAYOUT_CARD_TILE_PX + TILE_GAP_PX;
 /** 指针拖拽判定为拖拽的最小位移（px），小于此视为点击。 */
 const DRAG_THRESHOLD_PX = 6;
 
-/** 拖后 click 抑制有效期（毫秒）：覆盖浏览器紧随 pointerup 派发的 click，过期自清。 */
-const SUPPRESS_CLICK_MS = 500;
+/** 拖后 click 抑制有效期（毫秒）：浏览器 click 紧随 pointerup 同任务派发，300ms 足够覆盖，过期自清。 */
+const SUPPRESS_CLICK_MS = 300;
 
 interface CardDragState {
   paneId: string;
@@ -229,10 +229,13 @@ export function TerminalLayoutCard({
         const next = [...current];
         const [moved] = next.splice(from, 1);
         next.splice(target, 0, moved);
+        // ref 与 state 同步写：pointerup 可能与 pointermove 同帧到达，
+        // 若只靠渲染期回写，finishDocDrag 会读到上一帧旧序导致落点偏旧。
+        localOrderRef.current = next;
         setLocalOrder(next);
       }
     };
-    const finishDocDrag = (kind: string) => {
+    const finishDocDrag = (kind: 'drop' | 'cancel') => {
       const drag = dragRef.current;
       if (!drag) {
         return;
@@ -244,12 +247,9 @@ export function TerminalLayoutCard({
       if (!drag.active) {
         return;
       }
-      // 拖拽后的 click 由浏览器照常派发，此处记 suppression 有效期（500ms），
-      // 由方块 onClickCapture 消费：避免"拖完即选中/进编辑"误触；过期自清，
-      // 后续正常点击不受影响。
-      if (kind === 'drop') {
-        suppressClickUntilRef.current = Date.now() + SUPPRESS_CLICK_MS;
-      }
+      // 拖拽后的 click 由浏览器照常派发：仅当真正发生位移提交时记 suppression
+      // 有效期，由方块 onClickCapture 消费，避免"拖完即选中/进编辑"误触；
+      // 未移动的 drop 不记，后续点击不受影响。过期自清。
       if (kind === 'cancel' || !finalOrder) {
         return;
       }
@@ -258,6 +258,9 @@ export function TerminalLayoutCard({
       const fromOrig = paneIdsRef.current.indexOf(drag.paneId);
       const toFinal = finalOrder.indexOf(drag.paneId);
       if (fromOrig !== -1 && toFinal !== -1 && fromOrig !== toFinal) {
+        if (kind === 'drop') {
+          suppressClickUntilRef.current = Date.now() + SUPPRESS_CLICK_MS;
+        }
         onMoveRef.current(fromOrig, toFinal);
         // 拖拽提交使顺序脱离交换历史的前提（历史只对"交换后未动过顺序"自逆成立），
         // 故清空撤回栈（结构性保证，不依赖"交换模式禁拖拽"的 UI 门控）。
@@ -269,14 +272,18 @@ export function TerminalLayoutCard({
     const handleDocCancel = () => finishDocDrag('cancel');
     // 窗口失焦（切应用/锁屏）时 pointerup 可能丢失，兜底取消避免拖拽态粘住。
     const handleBlur = () => finishDocDrag('cancel');
+    // 拖拽中滚动会使冻结原点系统性偏移：直接取消（与 blur 同级，可预测）。
+    const handleScroll = () => finishDocDrag('cancel');
     document.addEventListener('pointermove', handleDocMove);
     document.addEventListener('pointerup', handleDocUp);
     document.addEventListener('pointercancel', handleDocCancel);
+    document.addEventListener('scroll', handleScroll, true);
     window.addEventListener('blur', handleBlur);
     return () => {
       document.removeEventListener('pointermove', handleDocMove);
       document.removeEventListener('pointerup', handleDocUp);
       document.removeEventListener('pointercancel', handleDocCancel);
+      document.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('blur', handleBlur);
     };
   }, [cols, rows]);
@@ -512,7 +519,7 @@ export function TerminalLayoutCard({
           />
         ))}
       </div>
-      <p className="adl-layout-card__hint">
+      <p className="adl-layout-card__hint" role="status">
         {swapMode ? t.terminalLayoutCardSwapHint : t.terminalLayoutCardAnnotateHint}
       </p>
       {swapMode ? (

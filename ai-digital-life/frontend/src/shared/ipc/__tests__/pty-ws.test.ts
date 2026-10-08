@@ -191,4 +191,33 @@ describe('pty-ws concurrent creates (FIFO)', () => {
     await expect(pa).resolves.toMatchObject({ ok: false });
     await expect(pb).resolves.toMatchObject({ ok: false });
   });
+
+  it('空 sessionId 的 created 被丢弃，不结算排队项', async () => {
+    makeClient();
+    const sock = socket as unknown as FakeSocket;
+    const cl = client as unknown as PtyWsClient;
+
+    const pa = cl.pty.create({ cols: 80, rows: 24 });
+    sock.serverPush({ kind: 'created', sessionId: '' });
+
+    let paSettled = false;
+    void pa.then(() => {
+      paSettled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(paSettled).toBe(false);
+
+    sock.serverPush({ kind: 'created', sessionId: 's1' });
+    await expect(pa).resolves.toEqual({ ok: true, data: { sessionId: 's1' } });
+  });
+
+  it('无主 created 被丢弃，不进 knownSessions', async () => {
+    makeClient();
+    const sock = socket as unknown as FakeSocket;
+    const cl = client as unknown as PtyWsClient;
+
+    sock.serverPush({ kind: 'created', sessionId: 'ghost' });
+    const list = await cl.pty.list();
+    expect(list).toEqual({ ok: true, data: [] });
+  });
 });

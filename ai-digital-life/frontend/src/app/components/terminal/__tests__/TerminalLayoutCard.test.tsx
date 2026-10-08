@@ -220,6 +220,20 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
     expect(squares[0].classList.contains('is-dragging')).toBe(false);
   });
 
+  it('同一帧内 move+up：落点取最新本地序，不偏旧', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    // move 与 up 同一 act 内派发（重渲染来不及 flush）：ref 同步写保证落点新鲜
+    act(() => {
+      document.dispatchEvent(
+        new MouseEvent('pointermove', { bubbles: true, clientX: 20, clientY: 68 }),
+      );
+      document.dispatchEvent(new MouseEvent('pointerup', { bubbles: true }));
+    });
+    expect(onMove).toHaveBeenCalledWith(0, 2);
+  });
+
   it('交换模式下指针拖拽被忽略', async () => {
     const user = userEvent.setup();
     const { container, onMove } = renderCard(makePanes(3));
@@ -279,6 +293,20 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
     dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
     act(() => {
       window.dispatchEvent(new Event('blur'));
+    });
+    expect(onMove).not.toHaveBeenCalled();
+    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
+      makePanes(3).map((pane) => normalize(paneColor(pane.colorIndex))),
+    );
+  });
+
+  it('拖拽中滚动取消拖拽，不提交且本地回退', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
+    act(() => {
+      document.dispatchEvent(new Event('scroll'));
     });
     expect(onMove).not.toHaveBeenCalled();
     expect(squaresOf(container).map((square) => square.style.background)).toEqual(

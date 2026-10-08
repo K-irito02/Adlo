@@ -51,12 +51,16 @@ describe('terminal composite hydration', () => {
     expect(tabs[0].panes[0]).not.toHaveProperty('sessionId');
     expect(tabs[0].panes[1]).not.toHaveProperty('sessionId');
     expect(patch.terminalTabsById).toEqual({ t1: tabs[0] });
+    // 回填出口与 ById 同源（同一清洗结果对象）
+    expect(patch.terminalTabs?.[0]).toBe(tabs[0]);
   });
 
   it('does not contribute terminalTabsById when tabs are corrupt', () => {
     localStorage.setItem('adl:terminal.tabs', JSON.stringify('not-an-array'));
     const patch = hydrateAll().patch;
     expect(patch.terminalTabsById).toBeUndefined();
+    // 回填出口同样不产出脏 tabs：简单条目侧回退 []，composite 不覆盖
+    expect(patch.terminalTabs).toEqual([]);
   });
 
   it('falls back for dirty view-preference values (non-boolean borders, non-number fontSize)', () => {
@@ -69,9 +73,22 @@ describe('terminal composite hydration', () => {
     expect(patch.terminalFontSize).toBe(13);
   });
 
+  it('replays legal persisted view preferences (false borders, boundary font sizes)', () => {
+    localStorage.setItem('adl:terminal.showPaneBorders', JSON.stringify(false));
+    localStorage.setItem('adl:terminal.fontSize', JSON.stringify(10));
+    const first = hydrateAll().patch;
+    expect(first.terminalShowPaneBorders).toBe(false);
+    expect(first.terminalFontSize).toBe(10);
+  });
+
   it('rounds a fractional persisted fontSize like the write path', () => {
     localStorage.setItem('adl:terminal.fontSize', JSON.stringify(13.7));
     expect(hydrateAll().patch.terminalFontSize).toBe(14);
+  });
+
+  it('clamps an out-of-range persisted fontSize like the write path (99→24, not fallback)', () => {
+    localStorage.setItem('adl:terminal.fontSize', JSON.stringify(99));
+    expect(hydrateAll().patch.terminalFontSize).toBe(24);
   });
 
   it('rejects a legacy tab without panes (whole array falls back to empty)', () => {

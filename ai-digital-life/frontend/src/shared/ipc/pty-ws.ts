@@ -112,6 +112,8 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
   /** 并发 create 软上限：防编程错误无界堆积（正常场景个位数）。 */
   const MAX_PENDING_CREATES = 32;
   const outbox: string[] = [];
+  /** 发件箱软上限：正常个位数；超限只告警（仍入队保证语义），防编程错误无界堆积。 */
+  const MAX_OUTBOX_FRAMES = 64;
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let lastPongTime = Date.now();
 
@@ -123,6 +125,9 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     if (socket !== null && socket.readyState === WS_OPEN) {
       socket.send(text);
     } else {
+      if (outbox.length >= MAX_OUTBOX_FRAMES) {
+        console.warn(`[pty-ws] outbox overflow (${outbox.length} frames), still queueing`);
+      }
       outbox.push(text);
     }
   }

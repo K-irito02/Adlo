@@ -68,8 +68,11 @@ export function useTerminalMenus({ handleCloseTab, handleDoubleClick }: Terminal
     }
     // 用户语义（跟进 22）：结束旧进程后立即为同一窗格起新会话并清空显示。
     // 机理：kill 只清 PTY 与运行时账本、刻意不释放 xterm 池（Ruling C-7，
-    // 保留旧输出直到新会话就绪）；随后 activatePane 建新会话并更新 store 的
-    // sessionId，XtermTerminal 因 sessionId 变化重建，旧内容随之清空。
+    // 保留旧输出直到新会话就绪）；随后 activatePane 建新会话并更新 store sessionId，
+    // XtermTerminal 因 sessionId 变化重建，旧内容随之清空。
+    // 时序安全：handleKillPane 的状态变更全同步（IPC kill 自身 fire-and-forget），
+    // activatePane 内部永不 reject（自 catch），故 void 调用无未处理 rejection；
+    // 并发经 activating 按 paneId 汇流，不会建出双 PTY。
     terminalPtyRuntime.handleKillPane(killTarget);
     void terminalPtyRuntime.activatePane(killTarget.tabId, killTarget.paneId);
   }, [killTarget]);

@@ -313,7 +313,8 @@ export class TerminalPtyRuntime {
       let rows = 24;
       if (container) {
         // 直接测量容器尺寸，不创建临时 pool entry（临时 entry 会导致 DOM 中有两个
-        // 重叠的 hostEl，干扰布局）。
+        // 重叠的 hostEl，干扰布局）。临时终端/dispose 进 finally：import/fit
+        // 抛异常也不泄漏隐藏 div。
         const tempDiv = document.createElement('div');
         tempDiv.style.cssText =
           'position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;visibility:hidden;';
@@ -327,17 +328,24 @@ export class TerminalPtyRuntime {
           rows: 24,
           cols: 80,
         });
-        const tempFit = new FitAddon();
-        tempTerminal.loadAddon(tempFit);
-        tempTerminal.open(tempDiv);
-        tempFit.fit();
-        const dims = tempFit.proposeDimensions();
-        if (dims && dims.cols > 0 && dims.rows > 0) {
-          cols = dims.cols;
-          rows = dims.rows;
+        try {
+          const tempFit = new FitAddon();
+          tempTerminal.loadAddon(tempFit);
+          tempTerminal.open(tempDiv);
+          tempFit.fit();
+          const dims = tempFit.proposeDimensions();
+          if (dims && dims.cols > 0 && dims.rows > 0) {
+            cols = dims.cols;
+            rows = dims.rows;
+          }
+        } finally {
+          try {
+            tempTerminal.dispose();
+          } catch {
+            // 构造期失败也尽力释放
+          }
+          tempDiv.remove();
         }
-        tempTerminal.dispose();
-        tempDiv.remove();
       }
 
       const result = await window.digitalLife.pty.create({

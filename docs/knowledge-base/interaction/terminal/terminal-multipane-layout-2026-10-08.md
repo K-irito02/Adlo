@@ -21,6 +21,25 @@
 本仓库 AOCI 索引达 1722 条 / 约 26 万 token，`aoci_maintain` 的前置全量 overview 超出单会话上下文；Volumes v1 又禁止 `aoci_remove_entry`，orphan/drift 只能经 overview 门控的 `maintain → update_entry` 处理。规模收敛（缩小 scope）代价是砍掉大半 `frontend/src`，认知价值受损。
 **结论**：大型仓库宜在专门的大上下文会话/自动化中维护 AOCI，或在仓库规模较大时评估该工具的边际价值。
 
+## 教训 5：单槽位异步槽位在并发下互相覆盖（2026-10-09 跟进 5/11）
+
+`pty-ws.ts` 的 `pendingCreate` 单槽位：重启恢复时 4 窗格并发 `create()`，后一次覆盖前一次 resolver——只有最后一格拿到会话（且拿错成第 1 个会话），其余 promise 永久挂起（连 30s 超时都因槽位被清空而失效），页面呈现"多窗格仅一格有提示符"。生产日志实证：仅 1 个 `pty-created`，其余 3 格永远 `attempted`。
+**修法**：改为 FIFO 队列（独立超时、close 全结算）；正确性依赖服务端单读循环串行保序——这是当前服务端实现的属性，不是协议保证，注释必须如实收窄；根治需协议加请求 ID（跟踪项，未做）。
+
+## 教训 6：inset outline 会被全覆盖不透明子元素画盖住（2026-10-09 跟进 20）
+
+活动高亮最初用 `.adl-terminal-pane` 的 `outline + outline-offset: -1px`（画在内边缘 1px），但 `.adl-terminal-canvas` 是全覆盖不透明绝对定位子元素，按绘制顺序盖住父级内嵌描边——结果是**完全不可见**，且与"颜色太淡"无法区分，极易误诊为样式未加载。
+**修法**：高亮改独立覆盖层（`position:absolute; inset:0`，画布上层、手柄下层，`pointer-events:none`）。凡"容器描边 + 全覆盖不透明子元素"组合，一律用覆盖层而不用 inset outline。
+
+## 教训 7：`z-index:auto` 的窗格拦不住高 z-index 子元素越界（2026-10-09 跟进 25）
+
+自由窗格 `position:relative + z-index:auto` 不产生层叠上下文，其子元素手柄/按钮（z 3/4）直接参与根层叠，与顶层窗格整体（z 2）比较——4 > 2，被遮挡窗格的按钮会画在顶层画布之上**且可交互**（截图实证；且 `:hover` 非排他，两套按钮可同现）。隐藏态 `pointer-events:none` 的透明孔更会穿透。
+**修法**：自由窗格统一 `z-index: 0` 自成层叠上下文（活动 z 2、拖拽内联 z 10，层叠表写进 CSS 注释双向引用）；隐藏手柄/按钮区保持可命中（穿透只到自家，不串改下层）。层叠语义必须"改一处核对余下"。
+
+## 教训 8：jsdom 的 PointerEvent 构造丢弃坐标 init（2026-10-09 跟进 12）
+
+`fireEvent.pointerDown(el, { clientX, clientY })` 在本仓库 jsdom 下读到的坐标全是 `undefined`（阈值比较 `NaN <= 6` 恒假，旧测试靠该旁路"碰巧"通过）。凡涉坐标的指针测试，必须用携带坐标的 `MouseEvent` 按指针类型名派发，并在 helper 注释写明局限（右键门控/多指分支此替身测不到，以代码审查覆盖）。
+
 ## 相关
 
 - [terminal-history-live-parity-2026-09-15.md](./terminal-history-live-parity-2026-09-15.md)（已废弃）

@@ -33,10 +33,11 @@ export interface TerminalPaneGridProps {
    * 窗格边界线总开关（更多终端操作 → 边界线）：
    * - 开：均分模式显示列/行分割线，自由模式每个窗格显示边框；
    * - 关：两者都不显示。
+   * 默认为开（与 store 初始值/持久化回退一致，调用方显式透传亦可）。
    */
-  showBorders: boolean;
-  /** 活动窗格高亮总开关（更多终端操作 → 活动窗口高亮，关即无描边）。 */
-  showActiveHighlight: boolean;
+  showBorders?: boolean;
+  /** 活动窗格高亮总开关（更多终端操作 → 活动窗口高亮，关即无描边）。默认为开。 */
+  showActiveHighlight?: boolean;
   /** 列/行边界线的可访问名称（i18n 注入；键盘调整尺寸未实现，仅提供标签）。 */
   dividerLabel: string;
   onColDividerPointerDown: (colIndex: number, e: ReactPointerEvent) => void;
@@ -86,8 +87,8 @@ export function TerminalPaneGrid({
   activePaneId,
   maximizedPaneId,
   layout,
-  showBorders,
-  showActiveHighlight,
+  showBorders = true,
+  showActiveHighlight = true,
   dividerLabel,
   onColDividerPointerDown,
   onRowDividerPointerDown,
