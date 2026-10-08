@@ -1,6 +1,10 @@
 import React, { useRef } from 'react';
 import { useHintCard, HintCard } from '../../components/HintCard';
 
+// TODO(复用)：与 `features/terminal/TerminalMenuDropdown.tsx` 的行组件约 60 行重复。
+// 抽公共 MenuHintRow 时两处一起迁移（注意项目禁兼容层：直接改两处调用，不留重导出），
+// 且注意两处关闭语义已分叉（本菜单恒关闭，终端侧看 keepOpen）。
+
 interface BrowserMenuHintItemProps {
   id: string;
   label: string;

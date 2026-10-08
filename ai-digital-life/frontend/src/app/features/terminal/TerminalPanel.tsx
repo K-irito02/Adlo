@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import {
@@ -28,7 +28,7 @@ import { nextTerminalWorkspaceToggleValue } from './terminalWorkspaceToggle';
 import { isPanelTab } from '@stores/slices/tabLocation';
 import { useTCopy } from '@i18n/useTCopy';
 import { useTerminalPaneLayout } from './useTerminalPaneLayout';
-import { useLayoutCard } from './useLayoutCard';
+import { useEqualOnlyLayoutCardCloser, useLayoutCard } from './useLayoutCard';
 
 export function TerminalPanel() {
   const { t } = useTCopy();
@@ -112,11 +112,9 @@ export function TerminalPanel() {
     close: closeLayoutCard,
   } = useLayoutCard();
 
-  useEffect(() => {
-    if (paneLayout.mode !== 'equal' && layoutCardOpen) {
-      closeLayoutCard();
-    }
-  }, [paneLayout.mode, layoutCardOpen, closeLayoutCard]);
+  useEqualOnlyLayoutCardCloser(paneLayout.mode, layoutCardOpen, closeLayoutCard);
+
+  const isEqualLayout = paneLayout.mode === 'equal';
 
   const INDEPENDENT_WORKSPACE_ID = '__independent__';
 
@@ -273,7 +271,7 @@ export function TerminalPanel() {
             </button>
           </TooltipSimple>
           <div className="adl-layout-card-anchor" ref={layoutCardRef}>
-            {paneLayout.mode === 'equal' ? (
+            {isEqualLayout ? (
               <TooltipSimple content={t.terminalCustomLayout} placement="top">
                 <button
                   type="button"
@@ -288,7 +286,7 @@ export function TerminalPanel() {
                 </button>
               </TooltipSimple>
             ) : null}
-            {layoutCardOpen && activeTab && paneLayout.mode === 'equal' ? (
+            {layoutCardOpen && activeTab && isEqualLayout ? (
               <TerminalLayoutCard
                 panes={activeTab.panes}
                 onMove={terminalActions.handleReorderPanes}

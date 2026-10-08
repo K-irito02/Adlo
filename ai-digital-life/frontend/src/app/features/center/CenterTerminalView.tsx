@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { terminalSelectors } from '@stores/selectors';
 import { IconPlus, IconAddTerminal, IconAutoLayout, IconCustomLayout } from '@icons';
@@ -8,7 +8,7 @@ import { TerminalPaneGrid } from '@components/terminal/TerminalPaneGrid';
 import { TerminalPaneView } from '@components/terminal/TerminalPaneView';
 import { TerminalLayoutCard } from '@components/terminal/TerminalLayoutCard';
 import { TerminalMenuDropdown } from '@features/terminal/TerminalMenuDropdown';
-import { useLayoutCard } from '@features/terminal/useLayoutCard';
+import { useEqualOnlyLayoutCardCloser, useLayoutCard } from '@features/terminal/useLayoutCard';
 import type { TerminalProfile } from '@stores/types';
 import { useTCopy } from '@i18n/useTCopy';
 import { useTerminalView } from './useTerminalView';
@@ -179,11 +179,10 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
     close: closeLayoutCard,
   } = useLayoutCard();
 
-  useEffect(() => {
-    if (view.layout.mode !== 'equal' && layoutCardOpen) {
-      closeLayoutCard();
-    }
-  }, [view.layout.mode, layoutCardOpen, closeLayoutCard]);
+  useEqualOnlyLayoutCardCloser(view.layout.mode, layoutCardOpen, closeLayoutCard);
+
+  // 布局卡片双重门控共用同一判定（按钮渲染 + 卡片渲染），与上面的自动关闭 hook 一致。
+  const isEqualLayout = view.layout.mode === 'equal';
 
   if (!tab) {
     return null;
@@ -245,7 +244,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
               锚点容器搬到左组不影响开合与外部点击判定（判定只看是否包含卡片 DOM）。
               仅均分模式渲染，自由模式隐藏（跟进 2 既有语义，保持不变）。 */}
           <div className="adl-layout-card-anchor" ref={layoutCardRef}>
-            {view.layout.mode === 'equal' ? (
+            {isEqualLayout ? (
               <TooltipSimple content={t.terminalCustomLayout} placement="top">
                 <button
                   type="button"
@@ -259,7 +258,7 @@ function CenterTerminalSession({ terminalTabId }: { terminalTabId: string }) {
                 </button>
               </TooltipSimple>
             ) : null}
-            {layoutCardOpen && view.layout.mode === 'equal' ? (
+            {layoutCardOpen && isEqualLayout ? (
               <TerminalLayoutCard
                 panes={tab.panes}
                 onMove={view.handleReorderPanes}

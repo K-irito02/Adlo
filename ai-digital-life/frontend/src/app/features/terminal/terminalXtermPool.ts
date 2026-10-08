@@ -2,22 +2,11 @@ import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
 import { useAppStore } from '@stores/slicedStore';
-import {
-  TERMINAL_FONT_SIZE_DEFAULT,
-  TERMINAL_FONT_SIZE_MIN,
-  TERMINAL_FONT_SIZE_MAX,
-} from '@stores/slices/terminalSliceTypes';
+import { clampTerminalFontSize } from '@stores/slices/terminalSliceTypes';
 
-/** 终端字号：默认 13；运行值存 store `terminalFontSize`，菜单可调 10–24（本常量仅为回退默认）。 */
-export const TERMINAL_FONT_SIZE = TERMINAL_FONT_SIZE_DEFAULT;
-
-/** 当前生效字号：优先 store 值，非法回退默认（ clamp 上下游：写侧已钳制，此处防御）。 */
+/** 当前生效字号：store 值经统一钳制（与写侧/读侧同口径）。 */
 export function readTerminalFontSize(): number {
-  const stored = useAppStore.getState().terminalFontSize;
-  if (typeof stored !== 'number' || !Number.isFinite(stored)) {
-    return TERMINAL_FONT_SIZE_DEFAULT;
-  }
-  return Math.max(TERMINAL_FONT_SIZE_MIN, Math.min(TERMINAL_FONT_SIZE_MAX, Math.round(stored)));
+  return clampTerminalFontSize(useAppStore.getState().terminalFontSize);
 }
 
 /** 实时终端回滚缓冲行数。 */
@@ -167,13 +156,18 @@ export class TerminalXtermPool {
   }
 
   /**
-   * 全量套用新字号（菜单增大/减小字号）：逐实例 set + 重 fit 上报由各
+   * 全量套用新字号（菜单增大/减小字号）：逐实例设值 + 重 fit 上报由各
    * XtermTerminal 的 ResizeObserver/fit 链路自然收敛，此处直接 fit 保证即时生效。
+   * 入口即钳制取整，与读侧 `readTerminalFontSize` 同口径（非法回退默认）。
    */
   setFontSize(size: number): void {
+    const effective = clampTerminalFontSize(size);
     for (const entry of this.pool.values()) {
+      // 赋值在 try 之外：options 写入失败是真缺陷，应直接抛出而不是吞掉；
+      // 只有 fit()（隐藏容器量不到尺寸）是预期内失败，才静默并交由挂载侧
+      // ResizeObserver 在可见时重 fit。
+      entry.terminal.options.fontSize = effective;
       try {
-        entry.terminal.options.fontSize = size;
         entry.fitAddon.fit();
       } catch {
         // 容器未布局：挂载侧 ResizeObserver 会重 fit

@@ -34,8 +34,10 @@ export const terminalCompositeHydrators: CompositeHydrator[] = [
 
       // 重启恢复：PTY 会话随进程退出全部失效，落盘的 sessionId 必须剥离；
       // 全部窗格回到 idle、无会话，由视图侧生命周期为每个窗格新建 shell
-      //（spec §10）。否则 XtermTerminal 先绑定死会话，teardown→重建竞态下
-      // 仅活动格成功，其余滞留空白。
+      //（spec §10）。注意这是无条件覆盖：上次已 terminated 的窗格也会复活重建，
+      // 语义即"重启后全部窗格都有可用 shell"，是刻意选择（对应用户"重启后每格
+      // 都应有命令提示符"的期望），不是误伤——窄化为仅 running 才改写反而会
+      // 留下空白格。
       const tabs = parsed?.map((tab) => ({
         ...tab,
         panes: tab.panes.map((pane) => {

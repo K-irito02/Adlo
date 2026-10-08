@@ -55,9 +55,6 @@ const t = {
   shellTypeSelect: 'Shell 类型',
   terminalIndependent: '默认终端目录',
   terminalBindWorkspace: '绑定工作区',
-  terminalCopy: '复制',
-  terminalPaste: '粘贴',
-  terminalClear: '清除',
   terminalKillProcess: '杀死进程',
   terminalPaneResizeDivider: '调整窗格大小',
   terminalPaneClearLabel: '清空内容',
@@ -260,6 +257,16 @@ describe('TerminalPanel 更多终端操作 → 边界线', () => {
     expect(useAppStore.getState().terminalFontSize).toBe(23);
   });
 
+  it('同一菜单展开态下连续两次增大字号 = +2（步进无合并）', () => {
+    useAppStore.setState({ terminalFontSize: 13 });
+    renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: '更多终端操作' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '增大字号' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: '增大字号' }));
+    expect(useAppStore.getState().terminalFontSize).toBe(15);
+  });
+
   it('杀死进程项带感叹号提示；无会话窗格点击为无操作（不崩溃）', () => {
     const { container } = renderPanel();
 
@@ -267,9 +274,11 @@ describe('TerminalPanel 更多终端操作 → 边界线', () => {
     // 可访问名含感叹号附加文本，用正则匹配标签部分
     const killItem = screen.getByRole('menuitem', { name: /杀死进程/ });
     expect(killItem.querySelector('.adl-menu-item__hint')?.textContent).toBe('!');
+    // idle 无会话：菜单项本身即禁用（真实语义），点击为无操作
+    expect(killItem).toBeDisabled();
 
     fireEvent.click(killItem);
-    // idle 无会话：不杀、不改 store、不抛错
+    // handleKillActivePane 早退分支：不杀、不改 store、不抛错
     expect(useAppStore.getState().terminalTabsById['tp'].panes).toHaveLength(2);
     expect(container.querySelector('.adl-terminal-pane-grid')).not.toBeNull();
   });

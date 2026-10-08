@@ -13,7 +13,8 @@ interface UseTerminalShellManagementParams {
  * 职责：
  * - 复合按钮的独立 shell profile 与当前 profile 标签派生
  * - 终端菜单/Shell 菜单/右键菜单状态与项（委托 useTerminalMenus）
- * - 更多终端操作菜单：窗格边界线开关（仿文件面板行号开关）
+ * - 更多终端操作菜单：窗格边界线/活动高亮开关、字号增减、杀死活动窗格进程
+ *  （目标由 useTerminalMenus 直读 store 派生，不经本层透传）
  */
 export function useTerminalShellManagement({
   handleCloseTab,

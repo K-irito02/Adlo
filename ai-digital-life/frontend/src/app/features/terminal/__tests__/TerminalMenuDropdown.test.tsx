@@ -43,17 +43,42 @@ describe('TerminalMenuDropdown checkbox items', () => {
     expect(item.querySelector('.adl-menu__check')).toBeNull();
   });
 
-  it('开关项点击后执行 action 且保持菜单展开（仿行号）', () => {
+  it('开关项（keepOpen）点击后执行 action 且保持菜单展开（仿行号）', () => {
     const action = vi.fn();
-    const { onClose } = renderDropdown([{ id: 'borders', label: '边界线', checked: true, action }]);
+    const { onClose } = renderDropdown([
+      { id: 'borders', label: '边界线', checked: true, keepOpen: true, action },
+    ]);
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: '边界线' }));
     expect(action).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('破坏性动作项（无 keepOpen）点击后关闭菜单，防重复误触', () => {
+    const action = vi.fn();
+    const { onClose } = renderDropdown([{ id: 'kill', label: '杀死进程', action }]);
+    fireEvent.click(screen.getByRole('menuitem', { name: '杀死进程' }));
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('普通动作项仍渲染为 menuitem', () => {
     renderDropdown([{ id: 'x', label: '普通项', action: vi.fn() }]);
     expect(screen.getByRole('menuitem', { name: '普通项' })).not.toBeNull();
+  });
+
+  it('提示标记可键盘聚焦并带无障碍名称', () => {
+    renderDropdown([
+      {
+        id: 'kill',
+        label: '杀死进程',
+        hint: '# 标题\n· 内容',
+        hintLabel: '杀死进程说明',
+        action: vi.fn(),
+      },
+    ]);
+    const mark = document.querySelector('.adl-menu-item__hint') as HTMLElement;
+    expect(mark.getAttribute('tabindex')).toBe('0');
+    expect(mark.getAttribute('aria-label')).toBe('杀死进程说明');
   });
 });
 

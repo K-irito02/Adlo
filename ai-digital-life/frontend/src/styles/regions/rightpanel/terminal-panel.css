@@ -105,11 +105,11 @@
   position: relative;
 }
 
-/* free 模式：窗格绝对定位，几何由组件内联 left/top/width/height 提供。
-   每个窗格自成层叠上下文（z-index 非 auto）：子元素手柄/按钮的高 z-index
-   （3/4）只在窗格内部生效，不得越过窗格边界——否则被遮挡窗格的按钮/手柄
-   会画在顶层窗格画布之上并可交互（跟进 25 截图实证：a 在上，b 的按钮仍
-   可悬停）。配合下面的活动 z2 与拖拽内联 z10，层叠完全由窗格顺序决定。 */
+/* free 层叠全表（同一体系，改一处须核对余下；JS 拖拽置顶值见 useTerminalPaneLayout 的 DRAG_Z_INDEX）：
+   - 0：非活动窗格（自成层叠上下文，子元素不得越界）；
+   - 2：活动窗格 / 活动覆盖层 / 均分分割线；
+   - 3/4：自由边手柄 / 移动手柄与右上按钮区；
+   - 10：拖拽中窗格（内联，teardown 归还）。 */
 .adl-terminal-pane-grid.is-free .adl-terminal-pane {
   position: absolute;
   z-index: 0;
@@ -161,6 +161,7 @@
 .adl-terminal-active-frame {
   position: absolute;
   inset: 0;
+  box-sizing: border-box;
   border: 1px solid var(--text-primary);
   pointer-events: none;
   z-index: 2;
@@ -175,7 +176,8 @@
   height: 100%;
 }
 
-/* equal 模式：列 / 行边界线，绝对定位于轨道缝隙；命中带经伪元素加宽。 */
+/* equal 模式：列 / 行边界线，绝对定位于轨道缝隙（纯覆盖层，不占 grid 轨道，
+   故开关隐藏用 display:none 不会打乱轨道分布）；命中带经伪元素加宽。 */
 .adl-terminal-col-divider,
 .adl-terminal-row-divider {
   position: absolute;
@@ -302,7 +304,9 @@
    两侧仍由 --n 手柄负责纵向缩放。
    隐藏态仍常驻可命中（无 pointer-events:none）：透明像素若穿透，会误触发
    下层被遮挡窗格的边手柄（跟进 23）；而落在自家手柄上只会显形，无位移的
-   点击即无操作，代价远小于串改下层几何。 */
+   点击即无操作，代价远小于串改下层几何。
+   TODO(touch)：触屏无 hover，手柄永不可见却仍可命中；触屏场景需常显小椭圆
+   或长按进入移动模式的替代手势，桌面优先暂不做。 */
 .adl-terminal-free-handle--move {
   top: 4px;
   left: 50%;
@@ -718,7 +722,10 @@
   pointer-events: none;
 }
 
-/* 交换模式选中态：中性描边 + 缩放，避免 accent 蓝与选中语义混淆 */
+/* 交换模式选中态：中性描边 + 缩放，避免 accent 蓝与选中语义混淆。
+   注意与 is-dragging 的两种放大机制不同：选中用 `transform: scale()`（静态态，
+   无 FLIP 写入冲突）；拖拽提起用独立 `scale` 属性（FLIP 会写 inline transform，
+   若同用 transform 会互相覆盖）。统一迁移前勿动此分工。 */
 .adl-layout-card__square.is-selected {
   border-color: var(--text-primary);
   box-shadow: 0 0 0 2px var(--text-secondary);
@@ -782,7 +789,7 @@
 .adl-layout-card__actions--swap {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: var(--space-2, 8px);
 }
 
 .adl-layout-card__actions--swap .adl-btn {

@@ -61,7 +61,8 @@ export interface PtyWsClientOptions {
 const WS_CONNECTING = 0;
 const WS_OPEN = 1;
 
-const CREATE_TIMEOUT_MS = 30_000;
+/** create 超时毫秒数（测试绑定此常量，改值须同步改单测）。 */
+export const CREATE_TIMEOUT_MS = 30_000;
 /** 心跳超时阈值：超过该时长未收到 pong 才判定连接失效（60s，宽松阈值避免误杀活跃会话） */
 const HEARTBEAT_TIMEOUT_MS = 60_000;
 
@@ -97,8 +98,10 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
    * 待匹配的 create 请求队列（FIFO）。
    *
    * 服务端在单读循环里串行处理 create 并保序回复 `created`
-   *（见 `crates/server/src/pty_ws.rs::handle_socket`），故按到达顺序
-   * 依次匹配队首即正确。
+   *（`crates/server/src/pty_ws.rs::handle_socket` 在请求间 `await`，
+   * 无并发交错——这是当前服务端实现的（一）属性，不是协议保证；
+   * 若服务端将来改为并发处理，此处必须改走请求 ID 精确匹配）。
+   * 故按到达顺序依次匹配队首在当前实现下成立。
    *
    * 曾经的单槽位 `pendingCreate` 在重启恢复等多窗格并发激活时，
    * 后一次 create 会覆盖前一次的 resolver：只有最后一个窗格能拿到会话，
@@ -106,6 +109,8 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
    * 页面呈现"多窗格仅一格有提示符"（跟进 5/11 根因）。
    */
   const pendingCreates: CreateResolver[] = [];
+  /** 并发 create 软上限：防编程错误无界堆积（正常场景个位数）。 */
+  const MAX_PENDING_CREATES = 32;
   const outbox: string[] = [];
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   let lastPongTime = Date.now();
@@ -171,14 +176,17 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
     }
   }
 
-  /** 取出队首并结算；空队列时为无操作（多余的 created 帧直接丢弃）。 */
-  function resolveOldestCreate(result: IpcResult<{ sessionId: string }>): void {
+  /** 取出队首并结算，返回被结算项（调用方用其 input 登记会话元信息，避免二次索引）。 */
+  function resolveOldestCreate(
+    result: IpcResult<{ sessionId: string }>,
+  ): CreateResolver | undefined {
     const oldest = pendingCreates.shift();
     if (oldest === undefined) {
-      return;
+      return undefined;
     }
     clearTimeout(oldest.timer);
     oldest.resolve(result);
+    return oldest;
   }
 
   function handleMessage(raw: string): void {
@@ -209,19 +217,27 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       }
       case 'created': {
         const sessionId = frame.sessionId ?? '';
-        if (sessionId !== '') {
-          // 用队首请求的输入参数登记会话元信息（与下面 resolve 的是同一项）。
-          const input = pendingCreates[0]?.input;
-          knownSessions.set(sessionId, {
-            sessionId,
-            shell: input?.shell ?? '',
-            cwd: input?.cwd ?? '',
-            cols: input?.cols ?? 80,
-            rows: input?.rows ?? 24,
-            status: 'Running',
-          });
+        if (sessionId === '') {
+          // 畸形帧：不结算任何排队请求（空 id 绑定会导致空白窗格），等其超时。
+          console.warn('[pty-ws] created frame without sessionId, dropping');
+          return;
         }
-        resolveOldestCreate({ ok: true, data: { sessionId } });
+        // 结算即取回被结算项，用其输入参数登记会话元信息（一次索引，无双访）；
+        // 空队列返回 undefined 即无主丢弃（防幽灵会话进 knownSessions）。
+        // resolve 只排队微任务，同步的 set 在回调之前执行，无撕裂。
+        const settled = resolveOldestCreate({ ok: true, data: { sessionId } });
+        if (settled === undefined) {
+          return;
+        }
+        const input = settled.input;
+        knownSessions.set(sessionId, {
+          sessionId,
+          shell: input?.shell ?? '',
+          cwd: input?.cwd ?? '',
+          cols: input?.cols ?? 80,
+          rows: input?.rows ?? 24,
+          status: 'Running',
+        });
         return;
       }
       case 'terminated': {
@@ -234,8 +250,16 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       }
       case 'error': {
         const message = frame.message ?? 'PTY server error';
-        // 无 sessionId 的错误无法归因到具体请求，按保序归于队首
-        //（create 失败服务端即回此帧，见 `dispatch_frame` 的 Err 分支）。
+        // 带 sessionId 的错误来自 input/resize/kill 等点对点操作（服务端发错必带 sid，
+        // 见 dispatch_frame），与排队中的 create 无关：只记录，不归因。
+        // 空串 sid 视为无 ID（服务端从不以空串发错），走下面的无 ID 归因。
+        // 无 ID 的 error 当前服务端只在 create 失败时发送（dispatch_frame 的 Err 分支），
+        // 故归于队首；这是无 ID 协议下的权宜归因，若服务端将来为其它操作也发无 ID
+        // error，此处会误结算——届时必须改走请求 ID（见 pendingCreates 注释）。
+        if (frame.sessionId !== undefined && frame.sessionId !== '') {
+          console.warn('[pty-ws] server error:', message);
+          return;
+        }
         if (pendingCreates.length > 0) {
           console.error(`PTY create failed: ${message}`);
           resolveOldestCreate(ptyError(message));
@@ -325,6 +349,13 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       console.error('PTY create failed: connection closed');
       return Promise.resolve(ptyError('PTY connection closed'));
     }
+    // 上限检查在连接副作用之前：超限即拒，不触发重连/建连。
+    // 调用方必须处理返回的 {ok:false}（恢复流程把超限视为本次激活失败，
+    // 由用户点击重试，不静默丢弃）。
+    if (pendingCreates.length >= MAX_PENDING_CREATES) {
+      console.error(`PTY create rejected: ${pendingCreates.length} pending creates`);
+      return Promise.resolve(ptyError('too many pending creates'));
+    }
     ensureConnected();
     return new Promise((resolve) => {
       const entry: CreateResolver = {
@@ -332,6 +363,9 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
         resolve,
         timer: setTimeout(() => {
           // 只移除自己：其它并发 create 不受影响，各自独立超时。
+          // 已知接受的风险（无 ID 协议固有）：若服务端在超时后仍回 created，
+          // 该迟到帧会被 FIFO 归给队首（错配）或被丢弃；服务端会话侧不做取消。
+          // 30s 超时远大于本地建会话耗时（实测 <1s），仅服务端故障时可达。
           const index = pendingCreates.indexOf(entry);
           if (index !== -1) {
             pendingCreates.splice(index, 1);
@@ -393,6 +427,8 @@ export function createPtyWsClient(baseUrl = '', options: PtyWsClientOptions = {}
       pending.resolve(ptyError('PTY connection closed'));
       pending = pendingCreates.shift();
     }
+    // 清空未发送队列：连接已死，残留帧永不发送，留着只会造成重放歧义。
+    outbox.length = 0;
     closeSocket();
     listeners.clear();
   }

@@ -12,7 +12,7 @@ import {
   type PaneRect,
   type TerminalPaneLayout,
 } from '@features/terminal/terminalPaneLayout';
-import { useTerminalPaneLayout } from '@features/terminal/useTerminalPaneLayout';
+import { useTerminalPaneLayout, DRAG_Z_INDEX } from '@features/terminal/useTerminalPaneLayout';
 import { TerminalPaneGrid } from '../TerminalPaneGrid';
 
 function makePanes(count: number): TerminalPane[] {
@@ -332,8 +332,8 @@ describe('TerminalPaneGrid free-mode no-move handle click (H1 regression)', () =
     ) as HTMLElement;
     act(() => {
       fireEvent.pointerDown(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
-      // 拖拽中置顶（跟进 19）：被拖窗格 z 10，不被其它窗格覆盖
-      expect(pane?.style.zIndex).toBe('10');
+      // 拖拽中置顶（跟进 19）：被拖窗格置顶，不被其它窗格覆盖
+      expect(pane?.style.zIndex).toBe(DRAG_Z_INDEX);
       fireEvent.pointerUp(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
     });
     // 松手归还（回落到 CSS：活动窗格 z 2）
@@ -343,5 +343,47 @@ describe('TerminalPaneGrid free-mode no-move handle click (H1 regression)', () =
     expect(pane?.style.top).not.toBe('');
     expect(pane?.style.width).not.toBe('');
     expect(pane?.style.height).not.toBe('');
+  });
+
+  it('pointercancel 同样归还拖拽置顶', () => {
+    localStorage.clear();
+    terminalPaneLayoutStore.apply({});
+    const panes = makePanes(1);
+    terminalPaneLayoutStore.saveForTab('t1', freeLayout(panes));
+
+    const { container } = render(<FreeGridHarness tabId="t1" />);
+    const pane = container.querySelector<HTMLElement>('.adl-terminal-pane');
+    const moveHandle = container.querySelector<HTMLElement>(
+      '.adl-terminal-free-handle--move',
+    ) as HTMLElement;
+    act(() => {
+      fireEvent.pointerDown(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
+      expect(pane?.style.zIndex).toBe(DRAG_Z_INDEX);
+      fireEvent.pointerCancel(moveHandle, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    expect(pane?.style.zIndex).toBe('');
+  });
+
+  it('边缩放（east）同样走拖拽置顶与归还（与 move 同一入口）', () => {
+    localStorage.clear();
+    terminalPaneLayoutStore.apply({});
+    const panes = makePanes(1);
+    terminalPaneLayoutStore.saveForTab('t1', freeLayout(panes));
+
+    const { container } = render(<FreeGridHarness tabId="t1" />);
+    const pane = container.querySelector<HTMLElement>('.adl-terminal-pane');
+    const edgeHandle = container.querySelector<HTMLElement>(
+      '.adl-terminal-free-handle--e',
+    ) as HTMLElement;
+    act(() => {
+      fireEvent.pointerDown(edgeHandle, { pointerId: 1, clientX: 0, clientY: 0 });
+      expect(pane?.style.zIndex).toBe(DRAG_Z_INDEX);
+      fireEvent.pointerUp(edgeHandle, { pointerId: 1, clientX: 0, clientY: 0 });
+    });
+    expect(pane?.style.zIndex).toBe('');
+  });
+
+  it('DRAG_Z_INDEX 字面锚：拖拽层级恒为 10（高于活动 2/手柄 3/4，见 CSS 层叠表）', () => {
+    expect(DRAG_Z_INDEX).toBe('10');
   });
 });

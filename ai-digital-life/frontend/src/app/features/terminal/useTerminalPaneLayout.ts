@@ -16,6 +16,12 @@ import {
 
 export type FreeDragEdge = 'move' | 'n' | 's' | 'e' | 'w' | 'ne' | 'nw' | 'se' | 'sw';
 
+/**
+ * 自由拖拽中窗格的置顶层级：高于活动窗格（z 2）与手柄（z 3/4），保证拖拽全程可见。
+ * 完整层叠表见 terminal-panel.css（free 层叠全表注释），改值须两边同步。
+ */
+export const DRAG_Z_INDEX = '10';
+
 export interface UseTerminalPaneLayoutParams {
   containerRef: React.RefObject<HTMLDivElement | null>;
   activeTabId: string | undefined;
@@ -439,6 +445,8 @@ export function useTerminalPaneLayout({
   );
 
   const handleFreeDragPointerDown = useCallback(
+    // 单一入口覆盖全部 9 种 FreeDragEdge（move + 8 向边/角）：置顶→几何预览→
+    // 提交/归还全走同一套逻辑，edge-resize 与 move 手柄行为一致，无需分入口。
     (paneId: string, edge: FreeDragEdge, e: React.PointerEvent) => {
       const container = containerRef.current;
       if (!container) {
@@ -459,7 +467,7 @@ export function useTerminalPaneLayout({
       // z-index 非 React 渲染几何，由本拖拽会话拥有并在 teardown 归还
       //（归还后回落到 CSS：活动窗格 z 2 置顶）。
       if (paneEl) {
-        paneEl.style.zIndex = '10';
+        paneEl.style.zIndex = DRAG_Z_INDEX;
       }
       const base = layoutRef.current.rects[paneId] ?? autoRectForIndex(index, paneCount);
       const minW = MIN_PANE_W / width;

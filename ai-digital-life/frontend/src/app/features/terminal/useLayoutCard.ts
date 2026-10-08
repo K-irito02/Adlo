@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import type { PaneLayoutMode } from './terminalPaneLayout';
 
 export interface UseLayoutCardReturn {
   open: boolean;
@@ -44,4 +45,20 @@ export function useLayoutCard(): UseLayoutCardReturn {
   }, [open]);
 
   return { open, anchorRef, toggle, close };
+}
+
+/**
+ * 均分专属卡片门控：切到自由模式时自动关闭已打开的卡片。
+ * 右面板与中心视图共用，避免两处各写一遍 effect 漂移。
+ */
+export function useEqualOnlyLayoutCardCloser(
+  mode: PaneLayoutMode,
+  open: boolean,
+  close: () => void,
+): void {
+  useEffect(() => {
+    if (mode !== 'equal' && open) {
+      close();
+    }
+  }, [mode, open, close]);
 }

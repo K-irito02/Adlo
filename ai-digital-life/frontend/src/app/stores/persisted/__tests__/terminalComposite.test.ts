@@ -59,6 +59,21 @@ describe('terminal composite hydration', () => {
     expect(patch.terminalTabsById).toBeUndefined();
   });
 
+  it('falls back for dirty view-preference values (non-boolean borders, non-number fontSize)', () => {
+    localStorage.setItem('adl:terminal.showPaneBorders', JSON.stringify('yes'));
+    localStorage.setItem('adl:terminal.showActiveHighlight', JSON.stringify(1));
+    localStorage.setItem('adl:terminal.fontSize', JSON.stringify('16'));
+    const patch = hydrateAll().patch;
+    expect(patch.terminalShowPaneBorders).toBe(true);
+    expect(patch.terminalShowActiveHighlight).toBe(true);
+    expect(patch.terminalFontSize).toBe(13);
+  });
+
+  it('rounds a fractional persisted fontSize like the write path', () => {
+    localStorage.setItem('adl:terminal.fontSize', JSON.stringify(13.7));
+    expect(hydrateAll().patch.terminalFontSize).toBe(14);
+  });
+
   it('rejects a legacy tab without panes (whole array falls back to empty)', () => {
     const legacyTab = { ...VALID_TAB, panes: undefined };
     localStorage.setItem('adl:terminal.tabs', JSON.stringify([legacyTab]));

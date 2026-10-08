@@ -14,23 +14,31 @@ export interface TerminalLayoutCardProps {
   onClose: () => void;
 }
 
-/** 卡片方块固定边长（px）：与窗格数量无关；CSS 侧 `.adl-layout-card__square` 同值（改一边必须改另一边）。 */
+/** 卡片方块固定边长（px）：视觉尺寸唯一事实源在 CSS（`.adl-layout-card__square`），
+ * 此处仅作无样式环境（测试）与兜底计算的回退；运行时步长优先从 CSS 实测（见 readSlotMetrics）。 */
 export const LAYOUT_CARD_TILE_PX = 40;
 
-/** 方块间距（px）：与 CSS 侧 `gap: var(--space-2, 8px)` 同值（改一边必须改另一边）。 */
+/** 方块间距回退值（px）：运行时优先读 CSS `column-gap`，此处仅无样式环境兜底。 */
 const TILE_GAP_PX = 8;
 
-/** 槽位步长 = 边长 + 间距：FLIP 位移动画与落点换算共用。 */
+/** 槽位步长回退值 = 边长 + 间距：同上，仅无样式环境兜底。 */
 const SLOT_STEP_PX = LAYOUT_CARD_TILE_PX + TILE_GAP_PX;
 
 /** 指针拖拽判定为拖拽的最小位移（px），小于此视为点击。 */
 const DRAG_THRESHOLD_PX = 6;
+
+/** 拖后 click 抑制有效期（毫秒）：覆盖浏览器紧随 pointerup 派发的 click，过期自清。 */
+const SUPPRESS_CLICK_MS = 500;
 
 interface CardDragState {
   paneId: string;
   startX: number;
   startY: number;
   active: boolean;
+  /** 落点换算原点/步长：拖起瞬间从 CSS 实测并冻结，拖拽中不再重算。 */
+  originX: number;
+  originY: number;
+  step: number;
 }
 
 /**
@@ -73,6 +81,8 @@ export function TerminalLayoutCard({
   const { cols, rows } = computeGrid(panes.length);
   const placeholderCount = Math.max(0, cols * rows - panes.length);
 
+  // 身份键：pane id 系 createUiId 生成（不含空格），空格分隔无碰撞；
+  // rows 不参与槽位数学（slotCol/slotRow 只用 cols），故 FLIP effect 依赖不列 rows。
   const paneIds = panes.map((pane) => pane.id);
   const idsKey = paneIds.join(' ');
   // 本地顺序仅在 id 集合一致时有效；外部增删窗格即回退到 prop（拖拽一并中止）。
@@ -82,21 +92,65 @@ export function TerminalLayoutCard({
     localOrder.every((id) => paneIds.includes(id));
   const displayIds = localValid && localOrder !== null ? localOrder : paneIds;
   const displayKey = displayIds.join(' ');
+  // 拖后 click 抑制有效期（毫秒时间戳，0=无）：捕获期消费，过期自清。
+  const suppressClickUntilRef = useRef(0);
+  const swapHistoryRef = useRef(swapHistory);
+  swapHistoryRef.current = swapHistory;
+  const prevSetRef = useRef<string | null>(null);
 
   // 打开时把焦点移入卡片，使 role="dialog" 的内容在键盘/读屏下可达。
   useEffect(() => {
-    cardRef.current?.focus();
+    cardRef.current?.focus({ preventScroll: true });
   }, []);
 
-  // 外部 panes 集合变化（提交落盘回流/增删窗格/交换）：丢弃本地顺序，
-  // 中止拖拽视觉；纯顺序变化（交换/提交）由 FLIP 补间。
+  // 外部 panes 变化：丢弃本地顺序并中止拖拽视觉；id 集合变化（增删窗格）时
+  // 一并失效选择与撤回历史（历史引用旧身份，留着撤回会换错窗格）；纯顺序变化
+  //（交换确认/提交落盘回流）保留历史，由 FLIP 补间。
   useEffect(() => {
     setLocalOrder(null);
     if (dragRef.current) {
       dragRef.current = null;
       setDraggingId(null);
     }
+    const setKey = [...paneIds].sort().join(' ');
+    if (prevSetRef.current !== null && prevSetRef.current !== setKey) {
+      setSelectedIds([]);
+      setSwapHistory([]);
+      swapHistoryRef.current = [];
+    }
+    prevSetRef.current = setKey;
+    // idsKey 即 paneIds 的字符串身份（同值同内容），内部再读 paneIds 不会过期。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idsKey]);
+
+  // 落点换算度量：从 CSS 实测（原点扣内边距+边框、步长取实测块宽+列间距），
+  // 逻辑不再硬依赖 40/8 常量；无样式环境（测试）回退常量。拖拽中冻结一份，
+  // FLIP 每次现测（低频，无性能问题）。
+  const readSlotMetrics = () => {
+    const grid = gridRef.current;
+    if (!grid) {
+      return { originX: 0, originY: 0, step: SLOT_STEP_PX };
+    }
+    const rect = grid.getBoundingClientRect();
+    const style = getComputedStyle(grid);
+    const num = (value: string): number | undefined => {
+      const parsed = Number.parseFloat(value);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
+    const padL = num(style.paddingLeft) ?? 0;
+    const padT = num(style.paddingTop) ?? 0;
+    const borderL = num(style.borderLeftWidth) ?? 0;
+    const borderT = num(style.borderTopWidth) ?? 0;
+    const gap = num(style.columnGap);
+    // 首块实测宽（失败回退常量；jsdom 无样式时 rect 全 0，同样回退）。
+    const firstTile = grid.querySelector('.adl-layout-card__square');
+    const tileW = firstTile ? firstTile.getBoundingClientRect().width : 0;
+    return {
+      originX: rect.left + padL + borderL,
+      originY: rect.top + padT + borderT,
+      step: (tileW > 0 ? tileW : LAYOUT_CARD_TILE_PX) + (gap ?? TILE_GAP_PX),
+    };
+  };
 
   // FLIP：displayIds 变化时，把新旧槽位差补间成位移动画。
   useLayoutEffect(() => {
@@ -107,6 +161,8 @@ export function TerminalLayoutCard({
       window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const sameSet = prev.size === displayIds.length && displayIds.every((id) => prev.has(id));
     if (sameSet && !reduceMotion) {
+      // 步长与拖拽落点换算同源（实测），避免主题变更时拖时与动画距离分叉。
+      const { step } = readSlotMetrics();
       const slotCol = (slot: number) => slot % Math.max(1, cols);
       const slotRow = (slot: number) => Math.floor(slot / Math.max(1, cols));
       for (let slot = 0; slot < displayIds.length; slot += 1) {
@@ -119,8 +175,8 @@ export function TerminalLayoutCard({
         if (!el) {
           continue;
         }
-        const dx = (slotCol(prevSlot) - slotCol(slot)) * SLOT_STEP_PX;
-        const dy = (slotRow(prevSlot) - slotRow(slot)) * SLOT_STEP_PX;
+        const dx = (slotCol(prevSlot) - slotCol(slot)) * step;
+        const dy = (slotRow(prevSlot) - slotRow(slot)) * step;
         // 起点先摆回去（无过渡），强制回流后再松手让 CSS 过渡接管滑动。
         el.style.transition = 'none';
         el.style.transform = `translate(${dx}px, ${dy}px)`;
@@ -142,15 +198,11 @@ export function TerminalLayoutCard({
 
   // 文档级 move/up：一次注册，读 ref 里的拖拽态（避免闭包过期）。
   useEffect(() => {
-    const slotFromPoint = (clientX: number, clientY: number): number => {
-      const grid = gridRef.current;
+    // 调用方 handleDocMove 入口已判空（单线程无交错），drag 以参数传入，不再二次守卫。
+    const slotFromPoint = (drag: CardDragState, clientX: number, clientY: number): number => {
       const lane = Math.max(1, cols);
-      if (!grid) {
-        return 0;
-      }
-      const rect = grid.getBoundingClientRect();
-      const col = Math.floor((clientX - rect.left) / SLOT_STEP_PX);
-      const row = Math.floor((clientY - rect.top) / SLOT_STEP_PX);
+      const col = Math.floor((clientX - drag.originX) / drag.step);
+      const row = Math.floor((clientY - drag.originY) / drag.step);
       const slot = row * lane + col;
       // 钳到网格内；占位槽映射到末尾。
       const clamped = Math.max(0, Math.min(slot, lane * rows - 1));
@@ -172,7 +224,7 @@ export function TerminalLayoutCard({
       }
       const current = localOrderRef.current ?? paneIdsRef.current;
       const from = current.indexOf(drag.paneId);
-      const target = slotFromPoint(event.clientX, event.clientY);
+      const target = slotFromPoint(drag, event.clientX, event.clientY);
       if (from !== -1 && target !== from) {
         const next = [...current];
         const [moved] = next.splice(from, 1);
@@ -192,6 +244,12 @@ export function TerminalLayoutCard({
       if (!drag.active) {
         return;
       }
+      // 拖拽后的 click 由浏览器照常派发，此处记 suppression 有效期（500ms），
+      // 由方块 onClickCapture 消费：避免"拖完即选中/进编辑"误触；过期自清，
+      // 后续正常点击不受影响。
+      if (kind === 'drop') {
+        suppressClickUntilRef.current = Date.now() + SUPPRESS_CLICK_MS;
+      }
       if (kind === 'cancel' || !finalOrder) {
         return;
       }
@@ -201,17 +259,25 @@ export function TerminalLayoutCard({
       const toFinal = finalOrder.indexOf(drag.paneId);
       if (fromOrig !== -1 && toFinal !== -1 && fromOrig !== toFinal) {
         onMoveRef.current(fromOrig, toFinal);
+        // 拖拽提交使顺序脱离交换历史的前提（历史只对"交换后未动过顺序"自逆成立），
+        // 故清空撤回栈（结构性保证，不依赖"交换模式禁拖拽"的 UI 门控）。
+        setSwapHistory([]);
+        swapHistoryRef.current = [];
       }
     };
     const handleDocUp = () => finishDocDrag('drop');
     const handleDocCancel = () => finishDocDrag('cancel');
+    // 窗口失焦（切应用/锁屏）时 pointerup 可能丢失，兜底取消避免拖拽态粘住。
+    const handleBlur = () => finishDocDrag('cancel');
     document.addEventListener('pointermove', handleDocMove);
     document.addEventListener('pointerup', handleDocUp);
     document.addEventListener('pointercancel', handleDocCancel);
+    window.addEventListener('blur', handleBlur);
     return () => {
       document.removeEventListener('pointermove', handleDocMove);
       document.removeEventListener('pointerup', handleDocUp);
       document.removeEventListener('pointercancel', handleDocCancel);
+      window.removeEventListener('blur', handleBlur);
     };
   }, [cols, rows]);
 
@@ -224,16 +290,20 @@ export function TerminalLayoutCard({
     setSwapMode(false);
     setSelectedIds([]);
     setSwapHistory([]);
+    swapHistoryRef.current = [];
   };
 
-  /** 撤回上次交换：把历史最后一对再交换一次（自逆），保留模式。 */
+  /** 撤回上次交换：把历史最后一对再交换一次（自逆），保留模式。
+   * 经 ref 同步消费：快速连点也不会把同一对换两次（第二次读到已消费即无操作）。 */
   const revertLastSwap = () => {
-    const last = swapHistory[swapHistory.length - 1];
+    const hist = swapHistoryRef.current;
+    const last = hist[hist.length - 1];
     if (!last) {
       return;
     }
+    swapHistoryRef.current = hist.slice(0, -1);
     onSwap(last[0], last[1]);
-    setSwapHistory(swapHistory.slice(0, -1));
+    setSwapHistory(swapHistoryRef.current);
   };
 
   const toggleSelection = (paneId: string) => {
@@ -253,8 +323,12 @@ export function TerminalLayoutCard({
       return;
     }
     // 交换后保留模式（不清历史）：用户可连续交换，撤回逐次撤销。
-    onSwap(selectedIds[0], selectedIds[1]);
-    setSwapHistory((prev) => [...prev, [selectedIds[0], selectedIds[1]]]);
+    // ref 与 state 双写，保持两者一致（revert 经 ref 同步消费）。
+    const pair: [string, string] = [selectedIds[0], selectedIds[1]];
+    onSwap(pair[0], pair[1]);
+    const nextHist: [string, string][] = [...swapHistoryRef.current, pair];
+    swapHistoryRef.current = nextHist;
+    setSwapHistory(nextHist);
     setSelectedIds([]);
   };
 
@@ -286,11 +360,19 @@ export function TerminalLayoutCard({
     if (event.pointerType === 'mouse' && event.button !== 0) {
       return;
     }
+    // 多点触摸只跟主触点，第二指直接忽略，避免劫持进行中的拖拽。
+    if (event.isPrimary === false) {
+      return;
+    }
+    const metrics = readSlotMetrics();
     dragRef.current = {
       paneId,
       startX: event.clientX,
       startY: event.clientY,
       active: false,
+      originX: metrics.originX,
+      originY: metrics.originY,
+      step: metrics.step,
     };
   };
 
@@ -361,7 +443,18 @@ export function TerminalLayoutCard({
               aria-pressed={selected}
               onPointerDown={(event) => beginPotentialDrag(pane.id, event)}
               // 禁用原生 HTML5 拖拽：排序走指针事件，避免双通道冲突。
+              draggable={false}
               onDragStart={(event) => event.preventDefault()}
+              // 拖拽后的 click 由浏览器照常派发：finishDocDrag 记有效期，
+              // 此处捕获期消费（过期自清），避免"拖完即选中/进编辑"误触，
+              // 也不会吞掉稍后的正常点击。
+              onClickCapture={(event) => {
+                if (Date.now() < suppressClickUntilRef.current) {
+                  suppressClickUntilRef.current = 0;
+                  event.stopPropagation();
+                  event.preventDefault();
+                }
+              }}
               onClick={() => {
                 if (swapMode) {
                   toggleSelection(pane.id);

@@ -37,7 +37,7 @@ function renderCard(panes: TerminalPane[]) {
   const onSwap = vi.fn();
   const onLabelChange = vi.fn();
   const onClose = vi.fn();
-  const { container } = render(
+  const { container, rerender } = render(
     <TerminalLayoutCard
       panes={panes}
       onMove={onMove}
@@ -46,7 +46,24 @@ function renderCard(panes: TerminalPane[]) {
       onClose={onClose}
     />,
   );
-  return { container, onMove, onSwap, onLabelChange, onClose };
+  const props = { onMove, onSwap, onLabelChange, onClose };
+  return {
+    container,
+    onMove,
+    onSwap,
+    onLabelChange,
+    onClose,
+    rerenderWith: (next: TerminalPane[]) =>
+      rerender(
+        <TerminalLayoutCard
+          panes={next}
+          onMove={props.onMove}
+          onSwap={props.onSwap}
+          onLabelChange={props.onLabelChange}
+          onClose={props.onClose}
+        />,
+      ),
+  };
 }
 
 // jsdom 会把 hex 归一化为 `rgb(...)`；两侧都过一遍同样的归一化再比对。
@@ -65,7 +82,9 @@ function squaresOf(container: HTMLElement): HTMLElement[] {
 }
 
 /** 指针事件派发：本仓库 jsdom 的 PointerEvent 构造丢弃坐标 init，
- * 故用携带坐标的 MouseEvent 按指针类型名派发（React 与文档监听均按类型名订阅）。 */
+ * 故用携带坐标的 MouseEvent 按指针类型名派发（React 与文档监听均按类型名订阅）。
+ * 局限：右键门控（button 非 0）、多点触摸（isPrimary=false）走真实 PointerEvent
+ * 分支，此替身测不到——相关门控以代码审查覆盖，见实现注释。 */
 function dispatchPointer(
   target: Element | Document,
   type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
@@ -79,8 +98,8 @@ function dispatchPointer(
 }
 
 /** 3 窗格（cols=2）：槽位中心 slot0=(20,20) slot1=(68,20) slot2=(20,68)。 */
-function pointerDragTo(squares: HTMLElement[], fromPoint: number[], toPoint: number[]): void {
-  dispatchPointer(squares[0], 'pointerdown', {
+function pointerDragSquare(fromEl: HTMLElement, toPoint: number[], fromPoint = [20, 20]): void {
+  dispatchPointer(fromEl, 'pointerdown', {
     button: 0,
     clientX: fromPoint[0],
     clientY: fromPoint[1],
@@ -142,7 +161,7 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
   it('拖到目标槽位松手 → onMove(原下标, 落点下标)', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const squares = squaresOf(container);
-    pointerDragTo(squares, [20, 20], [20, 68]);
+    pointerDragSquare(squares[0], [20, 68]);
     expect(onMove).toHaveBeenCalledWith(0, 2);
   });
 
@@ -165,7 +184,7 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
   it('阈值内微移视为点击，不提交', () => {
     const { container, onMove } = renderCard(makePanes(3));
     const squares = squaresOf(container);
-    pointerDragTo(squares, [68, 20], [70, 22]);
+    pointerDragSquare(squares[0], [70, 22], [68, 20]);
     expect(onMove).not.toHaveBeenCalled();
   });
 
@@ -206,8 +225,79 @@ describe('TerminalLayoutCard reorder (B 缝隙滑动)', () => {
     const { container, onMove } = renderCard(makePanes(3));
     await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
     const squares = squaresOf(container);
-    pointerDragTo(squares, [20, 20], [20, 68]);
+    pointerDragSquare(squares[0], [20, 68]);
     expect(onMove).not.toHaveBeenCalled();
+  });
+
+  it('反向拖拽 2→0 → onMove(2, 0)', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    // slot2 中心 (20,68) → slot0 中心 (20,20)
+    dispatchPointer(squares[2], 'pointerdown', { button: 0, clientX: 20, clientY: 68 });
+    dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointerup');
+    expect(onMove).toHaveBeenCalledWith(2, 0);
+  });
+
+  it('4 窗格 0→2 → onMove(0, 2)（remove+insert 终序语义）', () => {
+    const { container, onMove } = renderCard(makePanes(4));
+    const squares = squaresOf(container);
+    expect(squares).toHaveLength(4);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
+    dispatchPointer(document, 'pointerup');
+    expect(onMove).toHaveBeenCalledWith(0, 2);
+  });
+
+  it('拖出卡片再松手仍提交且卡片不崩', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    // 远拖出卡片：槽位钳到末尾 slot2
+    dispatchPointer(document, 'pointermove', { clientX: 500, clientY: 500 });
+    dispatchPointer(document, 'pointerup');
+    expect(onMove).toHaveBeenCalledWith(0, 2);
+    // 卡片不受宿主关闭竞跑影响（关闭只监听卡片外 mousedown，本次手势无第二次按下）
+    expect(container.querySelector('.adl-layout-card')).not.toBeNull();
+  });
+
+  it('拖入末行占位格 → 移到末尾', () => {
+    // 5 窗格 → cols=3 rows=2，slot5 为占位；slot5 中心约 (116,68)
+    const { container, onMove } = renderCard(makePanes(5));
+    const squares = squaresOf(container);
+    expect(squares).toHaveLength(5);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 116, clientY: 68 });
+    dispatchPointer(document, 'pointerup');
+    expect(onMove).toHaveBeenCalledWith(0, 4);
+  });
+
+  it('窗口失焦取消拖拽，不提交且本地回退', () => {
+    const { container, onMove } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    dispatchPointer(squares[0], 'pointerdown', { button: 0, clientX: 20, clientY: 20 });
+    dispatchPointer(document, 'pointermove', { clientX: 20, clientY: 68 });
+    act(() => {
+      window.dispatchEvent(new Event('blur'));
+    });
+    expect(onMove).not.toHaveBeenCalled();
+    expect(squaresOf(container).map((square) => square.style.background)).toEqual(
+      makePanes(3).map((pane) => normalize(paneColor(pane.colorIndex))),
+    );
+  });
+
+  it('拖后紧跟的 click 被吞掉，不误选中（交换模式）', async () => {
+    const user = userEvent.setup();
+    const { container } = renderCard(makePanes(3));
+    const squares = squaresOf(container);
+    // 普通模式拖拽一次，浏览器随后派发的 click 应被抑制
+    pointerDragSquare(squares[0], [20, 68]);
+    // 再进入交换模式并点击方块：若抑制失效，此次点击会选中
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
+    fireEvent.click(squaresOf(container)[0]);
+    for (const square of squaresOf(container)) {
+      expect(square).toHaveAttribute('aria-pressed', 'false');
+    }
   });
 });
 
@@ -302,6 +392,23 @@ describe('TerminalLayoutCard swap revert', () => {
     await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapCancel }));
     await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
     expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapRevert })).toBeDisabled();
+  });
+
+  it('增删窗格后选择与撤回历史失效（引用旧身份不再还原）', async () => {
+    const user = userEvent.setup();
+    const { container, onSwap, rerenderWith } = renderCard(makePanes(3));
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapMode }));
+
+    const squares = squaresOf(container);
+    await user.click(squares[0]);
+    await user.click(squares[1]);
+    await user.click(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapConfirm }));
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapRevert })).toBeEnabled();
+
+    // 外部删掉一个窗格：选择与历史一并失效
+    rerenderWith(makePanes(2));
+    expect(screen.getByRole('button', { name: COPY.terminalLayoutCardSwapRevert })).toBeDisabled();
+    expect(onSwap).toHaveBeenCalledTimes(1);
   });
 
   it('进入交换模式后提示文案切换，退出后恢复', async () => {

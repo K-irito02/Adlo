@@ -865,8 +865,12 @@ export const registry = {
     field: 'terminalFontSize',
     fallback: TERMINAL_FONT_SIZE_DEFAULT,
     scope: 'global',
-    // 读写同源：写侧经 clampTerminalFontSize 钳到 [MIN, MAX]，读侧同范围校验。
-    read: readNumberInRange(TERMINAL_FONT_SIZE_MIN, TERMINAL_FONT_SIZE_MAX),
+    // 读写同源：写侧 clampTerminalFontSize（钳制 + 取整），读侧同范围钳制后再取整。
+    // 不直接用 readFlooredNumberInRange：它是 floor 语义（13.7→13），与写侧 round 分叉。
+    read: (raw: unknown) => {
+      const value = readNumberInRange(TERMINAL_FONT_SIZE_MIN, TERMINAL_FONT_SIZE_MAX)(raw);
+      return value === undefined ? undefined : Math.round(value);
+    },
   }),
 
   // 乙类：水合目标为 features/terminal/* 的模块级微型存储（apply 交回缓存）

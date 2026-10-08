@@ -21,6 +21,10 @@ export type TerminalMenuItem =
       checked?: boolean;
       /** 最右侧感叹号提示（仿浏览器面板菜单）：悬停出提示卡 */
       hint?: string;
+      /** 提示标记的无障碍名称（hint 标题）；传了 hint 就该传 */
+      hintLabel?: string;
+      /** 有 action 的项默认执行后关闭菜单；传 true 则保持展开（开关/步进类） */
+      keepOpen?: boolean;
       action?: () => void;
     };
 

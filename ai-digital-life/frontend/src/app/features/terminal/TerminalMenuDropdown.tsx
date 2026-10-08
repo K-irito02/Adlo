@@ -17,7 +17,13 @@ interface TerminalMenuDropdownProps {
  * 单个菜单项行：开关渲染（menuitemcheckbox + 打勾）与感叹号提示（悬停出提示卡）
  * 均在此收口，分别仿文件面板行号开关与浏览器面板菜单提示。
  *
+ * TODO(复用)：与 `features/browser/BrowserMenuHintItem.tsx` 约 60 行重复
+ * （triggerRef 取 rect、useHintCard、HintCard）。抽公共 MenuHintRow 时两处
+ * 一起迁移（注意项目禁兼容层：直接改两处调用，不留重导出），且注意两处关闭
+ * 语义已分叉（浏览器恒关闭，本菜单看 keepOpen）。
+ *
  * 提示图标自身吞掉点击（不触发行动作）：点 `!` 只看说明，不会误执行。
+ * 关闭策略：有 action 默认执行后关闭；`keepOpen` 的开关/步进类保持展开以便连续操作。
  */
 function TerminalMenuItemRow({
   item,
@@ -29,9 +35,12 @@ function TerminalMenuItemRow({
   menuRef: React.RefObject<HTMLDivElement | null>;
 }) {
   const triggerRef = useRef<HTMLSpanElement>(null);
-  const { hintState, showHint, scheduleHide, hintCardProps } = useHintCard(undefined, triggerRef);
+  const { hintState, showHint, hideHint, scheduleHide, hintCardProps } = useHintCard(
+    undefined,
+    triggerRef,
+  );
 
-  const handleShowHint = (event: React.MouseEvent) => {
+  const handleShowHint = (event: React.MouseEvent | React.FocusEvent) => {
     event.stopPropagation();
     const menuEl = menuRef.current;
     if (!menuEl || !item.hint) {
@@ -45,20 +54,19 @@ function TerminalMenuItemRow({
     showHint(item.hint, btnRect);
   };
 
+  const isToggle = item.checked !== undefined;
+
   return (
     <>
       <button
-        key={item.id}
         type="button"
-        role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
-        aria-checked={item.checked === undefined ? undefined : item.checked ? 'true' : 'false'}
+        role={isToggle ? 'menuitemcheckbox' : 'menuitem'}
+        aria-checked={isToggle ? (item.checked ? 'true' : 'false') : undefined}
         className="adl-menu__item"
         disabled={item.disabled}
         onClick={() => {
           item.action?.();
-          // 开关型菜单项（有 action）保持展开以便连续切换，
-          // 与文件面板行号开关一致；无 action 才关闭。
-          if (!item.action) {
+          if (!item.keepOpen) {
             onClose();
           }
         }}
@@ -73,8 +81,14 @@ function TerminalMenuItemRow({
           <span
             ref={triggerRef}
             className="adl-menu-item__hint"
+            role="img"
+            // 缺 hintLabel 时回退读 label（不读 markdown 全文，避免把 `#`/`·` 念给读屏用户）。
+            aria-label={item.hintLabel ?? item.label}
+            tabIndex={0}
             onMouseEnter={handleShowHint}
             onMouseLeave={scheduleHide}
+            onFocus={handleShowHint}
+            onBlur={hideHint}
             onClick={(event) => event.stopPropagation()}
           >
             !
