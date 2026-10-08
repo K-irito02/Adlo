@@ -68,7 +68,6 @@ export function useTerminalMenus({ handleCloseTab, handleDoubleClick }: Terminal
     // 用户语义（跟进 22）：结束旧进程后立即为同一窗格起新会话并清空显示，
     // 而不是停在"已终止+留旧输出"。activatePane 内部经 teardown 释放旧池条目，
     // 故旧内容随新会话建立而清空。
-    console.log(`[ADL-DEBUG] terminal kill-restart pane=${killTarget.paneId}`);
     terminalPtyRuntime.handleKillPane(killTarget);
     void terminalPtyRuntime.activatePane(killTarget.tabId, killTarget.paneId);
   };

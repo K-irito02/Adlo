@@ -93,7 +93,6 @@ export function TerminalLayoutCard({
   useEffect(() => {
     setLocalOrder(null);
     if (dragRef.current) {
-      console.log('[ADL-DEBUG] layout-card drag aborted by external panes change');
       dragRef.current = null;
       setDraggingId(null);
     }
@@ -170,7 +169,6 @@ export function TerminalLayoutCard({
         }
         drag.active = true;
         setDraggingId(drag.paneId);
-        console.log(`[ADL-DEBUG] layout-card dragstart pane=${drag.paneId}`);
       }
       const current = localOrderRef.current ?? paneIdsRef.current;
       const from = current.indexOf(drag.paneId);
@@ -180,10 +178,9 @@ export function TerminalLayoutCard({
         const [moved] = next.splice(from, 1);
         next.splice(target, 0, moved);
         setLocalOrder(next);
-        console.log(`[ADL-DEBUG] layout-card dragmove pane=${drag.paneId} ${from}->${target}`);
       }
     };
-    const finishDocDrag = (event: PointerEvent, kind: string) => {
+    const finishDocDrag = (kind: string) => {
       const drag = dragRef.current;
       if (!drag) {
         return;
@@ -195,9 +192,6 @@ export function TerminalLayoutCard({
       if (!drag.active) {
         return;
       }
-      console.log(
-        `[ADL-DEBUG] layout-card ${kind} pane=${drag.paneId} x=${event.clientX} y=${event.clientY}`,
-      );
       if (kind === 'cancel' || !finalOrder) {
         return;
       }
@@ -209,8 +203,8 @@ export function TerminalLayoutCard({
         onMoveRef.current(fromOrig, toFinal);
       }
     };
-    const handleDocUp = (event: PointerEvent) => finishDocDrag(event, 'drop');
-    const handleDocCancel = (event: PointerEvent) => finishDocDrag(event, 'cancel');
+    const handleDocUp = () => finishDocDrag('drop');
+    const handleDocCancel = () => finishDocDrag('cancel');
     document.addEventListener('pointermove', handleDocMove);
     document.addEventListener('pointerup', handleDocUp);
     document.addEventListener('pointercancel', handleDocCancel);
@@ -238,7 +232,6 @@ export function TerminalLayoutCard({
     if (!last) {
       return;
     }
-    console.log(`[ADL-DEBUG] layout-card revert swap ${last[0]} <-> ${last[1]}`);
     onSwap(last[0], last[1]);
     setSwapHistory(swapHistory.slice(0, -1));
   };
@@ -260,7 +253,6 @@ export function TerminalLayoutCard({
       return;
     }
     // 交换后保留模式（不清历史）：用户可连续交换，撤回逐次撤销。
-    console.log(`[ADL-DEBUG] layout-card swap ${selectedIds[0]} <-> ${selectedIds[1]}`);
     onSwap(selectedIds[0], selectedIds[1]);
     setSwapHistory((prev) => [...prev, [selectedIds[0], selectedIds[1]]]);
     setSelectedIds([]);
@@ -300,7 +292,6 @@ export function TerminalLayoutCard({
       startY: event.clientY,
       active: false,
     };
-    console.log(`[ADL-DEBUG] layout-card pointerdown pane=${paneId}`);
   };
 
   const paneById = new Map(panes.map((pane) => [pane.id, pane] as const));
@@ -363,7 +354,7 @@ export function TerminalLayoutCard({
                   tileEls.current.delete(pane.id);
                 }
               }}
-              className={`adl-layout-card__square${selected ? ' is-selected' : ''}${editing ? ' is-editing' : ''}${isDragging ? ' is-dragging' : ''}`}
+              className={`adl-layout-card__square${selected ? ' is-selected' : ''}${isDragging ? ' is-dragging' : ''}`}
               style={{ background: paneColor(pane.colorIndex) }}
               role="button"
               tabIndex={0}

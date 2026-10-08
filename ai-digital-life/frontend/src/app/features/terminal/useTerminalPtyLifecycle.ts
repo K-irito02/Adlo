@@ -45,22 +45,13 @@ export function useTerminalPtyLifecycle({ activeTab }: PtyLifecycleParams) {
     for (const pane of activeTab.panes) {
       // 本次运行已建过的会话无需再激活；无会话的窗格（上次建会话中途退出）也要补建。
       if (pane.sessionId && terminalPtyRuntime.isCreatedSession(pane.sessionId)) {
-        console.log(
-          `[ADL-DEBUG] pty-lifecycle: skip tab=${activeTab.id} pane=${pane.id} reason=created-session`,
-        );
         continue;
       }
       const key = `${activeTab.id}:${pane.id}`;
       if (attemptedPanesRef.current.has(key)) {
-        console.log(
-          `[ADL-DEBUG] pty-lifecycle: skip tab=${activeTab.id} pane=${pane.id} reason=attempted session=${pane.sessionId ?? 'none'} status=${pane.status}`,
-        );
         continue;
       }
       attemptedPanesRef.current.add(key);
-      console.log(
-        `[ADL-DEBUG] pty-lifecycle: activate tab=${activeTab.id} pane=${pane.id} session=${pane.sessionId ?? 'none'} status=${pane.status}`,
-      );
       void terminalPtyRuntime.activatePane(activeTab.id, pane.id);
     }
   }, [activeTab]);

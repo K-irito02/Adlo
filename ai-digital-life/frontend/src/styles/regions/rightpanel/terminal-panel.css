@@ -594,7 +594,8 @@
 }
 
 /* 浮层：高于工具栏的 z 层，背景/边框/阴影/圆角全部走设计 token（亮暗自适应）。
-   宽度随面板收窄（`100%` 相对工具栏定位上下文），窄面板下不再被左缘裁剪。 */
+   宽度随面板收窄（`100%` 相对工具栏定位上下文），窄面板下不再被左缘裁剪。
+   默认锚右缘：右侧面板的自定义布局按钮在工具栏最右侧（保持不变）。 */
 .adl-layout-card {
   position: absolute;
   top: calc(100% + var(--space-1, 4px));
@@ -609,6 +610,14 @@
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-lg);
+}
+
+/* 中心终端卡片跟随左侧按钮组（跟进 24 把按钮搬到左组后，卡片仍锚在工具栏
+   右缘即错位，见跟进 26 截图）：只改水平锚点为左缘，宽度仍相对工具栏，
+   窄面板安全不变；右侧面板不受影响（仍走上面的 right:0）。 */
+.adl-center-terminal .adl-layout-card {
+  left: 0;
+  right: auto;
 }
 
 /* 卡片头部：标题 + 右侧动作（交换图标 + 关闭） */
@@ -716,12 +725,8 @@
   transform: scale(1.08);
 }
 
-/* 标注编辑态：中性描边 */
-.adl-layout-card__square.is-editing {
-  box-shadow: 0 0 0 2px var(--text-secondary);
-}
-
-/* 内联标注输入：单字符，居中覆盖方块 */
+/* 内联标注输入：单字符，居中覆盖方块（编辑态方块本身无额外描边，
+   输入框即视觉焦点——用户要求去掉双击后的灰色边框）。 */
 .adl-layout-card__label-input {
   width: 100%;
   height: 100%;

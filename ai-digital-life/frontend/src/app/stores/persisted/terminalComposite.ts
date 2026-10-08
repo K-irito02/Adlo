@@ -36,13 +36,9 @@ export const terminalCompositeHydrators: CompositeHydrator[] = [
       // 全部窗格回到 idle、无会话，由视图侧生命周期为每个窗格新建 shell
       //（spec §10）。否则 XtermTerminal 先绑定死会话，teardown→重建竞态下
       // 仅活动格成功，其余滞留空白。
-      let strippedSessions = 0;
       const tabs = parsed?.map((tab) => ({
         ...tab,
         panes: tab.panes.map((pane) => {
-          if (pane.sessionId !== undefined) {
-            strippedSessions += 1;
-          }
           const { sessionId: _dead, ...rest } = pane;
           return {
             ...rest,
@@ -50,11 +46,6 @@ export const terminalCompositeHydrators: CompositeHydrator[] = [
           };
         }),
       }));
-      // [ADL-DEBUG] 临时诊断日志（跟进 5：重启恢复排查，用户复测后删除）：
-      // 确认水合是否剥离死会话；若启动日志无此行，说明运行的不是最新构建。
-      console.log(
-        `[ADL-DEBUG] terminal-hydrate: tabs=${tabs?.length ?? 0} strippedSessions=${strippedSessions}`,
-      );
 
       const patch: Partial<StoreState> = {};
       // 标签损坏（非数组 / 含畸形元素）⇒ 不产出 terminalTabs/ById，store 初始即为 []/{}
