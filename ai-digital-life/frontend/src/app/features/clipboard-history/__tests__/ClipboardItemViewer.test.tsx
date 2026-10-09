@@ -92,15 +92,37 @@ describe('ClipboardItemViewer', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it('traps Tab inside the panel and restores focus on unmount', () => {
+  it('keeps Tab focus cycling inside the panel and restores focus on unmount', () => {
     const trigger = document.createElement('button');
     document.body.appendChild(trigger);
     trigger.focus();
     renderViewer(makeItem());
     const closeButton = screen.getByRole('button', { name: '关闭' });
     expect(document.activeElement).toBe(closeButton);
+
+    const panel = screen.getByRole('dialog');
+    const focusables = Array.from(
+      panel.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])',
+      ),
+    );
+    expect(focusables.length).toBeGreaterThan(1);
+
+    // Tab 前进到面板内的下一个可聚焦控件（不再永远停在关闭按钮）
     fireEvent.keyDown(document, { key: 'Tab' });
-    expect(document.activeElement).toBe(closeButton);
+    expect(panel.contains(document.activeElement)).toBe(true);
+    expect(document.activeElement).not.toBe(closeButton);
+
+    // 最后一个 → Tab 环绕回第一个
+    focusables[focusables.length - 1].focus();
+    fireEvent.keyDown(document, { key: 'Tab' });
+    expect(document.activeElement).toBe(focusables[0]);
+
+    // 第一个 → Shift+Tab 环绕到最后一个
+    focusables[0].focus();
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(focusables[focusables.length - 1]);
+
     cleanup();
     expect(document.activeElement).toBe(trigger);
     trigger.remove();
@@ -341,5 +363,40 @@ describe('ClipboardItemViewer', () => {
     await userEvent.click(screen.getByRole('button', { name: '复制' }));
     expect(writeClipboardItem).toHaveBeenCalledTimes(2);
     expect(writeClipboardItem).toHaveBeenLastCalledWith('c1');
+  });
+
+  it('keeps edit mode and does not advance the baseline when a save fails', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(false);
+    mockStore({ updateClipboardItem });
+    const onClose = renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'willfail');
+    await userEvent.keyboard('{Control>}s{/Control}');
+
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenCalledWith('c1', 'willfail'));
+    // 保存失败：保持编辑态（可重试）、草稿不丢，且不关闭弹窗
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('willfail');
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('does not expose a navigable export link when the export URL is empty (mock fallback)', () => {
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      clipboard: {
+        exportUrl: () => '',
+        getImageUrl: () => '',
+        getThumbUrl: () => '',
+        getHtmlUrl: () => '',
+        getRtfUrl: () => '',
+      },
+    };
+    renderViewer(makeItem());
+    const anchor = document.querySelector(
+      '.adl-clipboard-viewer__header a',
+    ) as HTMLAnchorElement | null;
+    expect(anchor).not.toBeNull();
+    expect(anchor?.hasAttribute('href')).toBe(false);
   });
 });

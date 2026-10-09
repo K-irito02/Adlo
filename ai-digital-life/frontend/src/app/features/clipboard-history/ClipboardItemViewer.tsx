@@ -39,11 +39,15 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   const updateClipboardItem = useAppStore((s) => s.updateClipboardItem);
   const writeClipboardItem = useAppStore((s) => s.writeClipboardItem);
   const closeRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const canEdit = item.kind === 'text';
   const isImage = item.kind === 'image';
   const isHtml = item.kind === 'html';
   const imageUrl = isImage ? window.digitalLife.clipboard.getImageUrl(item.imagePath ?? '') : '';
   const thumbUrl = isImage ? window.digitalLife.clipboard.getThumbUrl(item.thumbPath ?? '') : '';
+  // 保存为文件链接：mock / 离线回退模式下 `exportUrl` 返回空串，此时不渲染为可用链接，
+  // 以免 href="" 被解析为当前文档而触发导航/刷新。
+  const exportHref = window.digitalLife.clipboard.exportUrl(item.id);
   // 原图 → 缩略图 → 图标占位，逐级回退（原图 URL 缺失时直接从缩略图起步）
   const [imageStage, setImageStage] = useState<'original' | 'thumb' | 'none'>(() =>
     imageUrl ? 'original' : 'thumb',
@@ -88,8 +92,13 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     if (item.kind !== 'html' || !item.htmlPath) {
       return;
     }
+    // 空 URL 不可 fetch：`fetch('')` 会相对当前文档解析，抓取 SPA 自身的 HTML 作为 srcDoc。
+    const url = window.digitalLife.clipboard.getHtmlUrl(item.htmlPath);
+    if (!url) {
+      return;
+    }
     let cancelled = false;
-    void fetch(window.digitalLife.clipboard.getHtmlUrl(item.htmlPath))
+    void fetch(url)
       .then((r) => r.text())
       .then((text) => {
         if (!cancelled) setHtmlText(text);
@@ -125,15 +134,19 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
         for (let round = 0; round < 2; round += 1) {
           const target = draftRef.current;
           if (!target.trim() || target === baselineRef.current) {
+            break;
+          }
+          const ok = await updateClipboardItem(item.id, target);
+          if (!ok) {
+            // 保存失败：不推进基线、保持编辑态，让用户可重试（关闭时会再次尝试落盘）。
             return;
           }
-          await updateClipboardItem(item.id, target);
           // 更新基线：既让下一轮判断"是否还有新改动"，也让随后的 Esc 撤回到已保存内容。
           baselineRef.current = target;
         }
+        setEditing(false);
       } finally {
         savingRef.current = null;
-        setEditing(false);
       }
     })();
     savingRef.current = saving;
@@ -197,10 +210,32 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
         onClose();
         return;
       }
-      // 面板内只有关闭按钮可聚焦：把 Tab 圈在面板内，兑现 aria-modal 契约。
+      // 焦点循环：Tab / Shift+Tab 在面板内的可聚焦控件间环绕（兑现 aria-modal 契约）。
+      // 此前一律聚焦关闭按钮，会让复制/导出/缩放/编辑/预览/iframe 等控件键盘不可达。
       if (event.key === 'Tab') {
+        const panel = panelRef.current;
+        if (!panel) {
+          return;
+        }
+        const focusables = Array.from(
+          panel.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])',
+          ),
+        );
+        if (focusables.length === 0) {
+          return;
+        }
         event.preventDefault();
-        closeRef.current?.focus();
+        const current = document.activeElement as HTMLElement | null;
+        const idx = current ? focusables.indexOf(current) : -1;
+        const step = event.shiftKey ? -1 : 1;
+        const next =
+          idx === -1
+            ? event.shiftKey
+              ? focusables.length - 1
+              : 0
+            : (idx + step + focusables.length) % focusables.length;
+        focusables[next].focus();
       }
     };
     document.addEventListener('keydown', onKeyDown);
@@ -240,6 +275,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       }}
     >
       <div
+        ref={panelRef}
         className="adl-clipboard-viewer__panel"
         role="dialog"
         aria-modal="true"
@@ -256,7 +292,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
           />
           <a
             className="adl-icon-btn adl-icon-btn--xs"
-            href={window.digitalLife.clipboard.exportUrl(item.id)}
+            href={exportHref || undefined}
             download
             aria-label={t.clipboardExport}
           >

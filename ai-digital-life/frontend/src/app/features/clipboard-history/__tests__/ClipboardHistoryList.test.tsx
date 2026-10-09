@@ -77,12 +77,12 @@ function renderList(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
   vi.mocked(useAppStore).mockImplementation((selector: (s: any) => any) => selector(state));
-  render(
+  const result = render(
     <TCopyProvider t={mockT as never} locale="zh-CN">
       <ClipboardHistoryList />
     </TCopyProvider>,
   );
-  return { fetchClipboardHistory };
+  return { fetchClipboardHistory, unmount: result.unmount };
 }
 
 beforeEach(() => {
@@ -129,5 +129,22 @@ describe('ClipboardHistoryList', () => {
     fakeBridge.clipboard.emitChange(); // leading edge → immediate refetch
     fakeBridge.clipboard.emitChange(); // inside window → deferred trailing refetch
     await waitFor(() => expect(fetchClipboardHistory).toHaveBeenCalledTimes(3));
+  });
+
+  it('coalesces a burst of changes into one trailing refetch (upper bound)', async () => {
+    const { fetchClipboardHistory } = renderList();
+    for (let i = 0; i < 5; i += 1) {
+      fakeBridge.clipboard.emitChange();
+    }
+    // 初次挂载 1 + 前缘 1 + 后缘 1 = 3；事件再多也不应线性增长（节流上界）。
+    await waitFor(() => expect(fetchClipboardHistory).toHaveBeenCalledTimes(3));
+  });
+
+  it('does not refetch after unmount', () => {
+    const { fetchClipboardHistory, unmount } = renderList();
+    const before = fetchClipboardHistory.mock.calls.length;
+    unmount();
+    fakeBridge.clipboard.emitChange();
+    expect(fetchClipboardHistory).toHaveBeenCalledTimes(before);
   });
 });

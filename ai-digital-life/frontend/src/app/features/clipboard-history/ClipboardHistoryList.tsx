@@ -62,8 +62,9 @@ export function ClipboardHistoryList() {
       void fetchClipboardHistory(true);
     };
     const onVisibilityChange = () => {
+      // 先清掉可能存在的旧 interval：连续两次非 hidden 事件不该泄漏前一个计时器。
+      window.clearInterval(timerId);
       if (document.hidden) {
-        window.clearInterval(timerId);
         return;
       }
       poll();

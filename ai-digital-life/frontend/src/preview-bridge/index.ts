@@ -265,7 +265,9 @@ export async function setupPreviewBridge(): Promise<void> {
       // 前端 `<a download>` 触发下载），必须覆盖在 spread 之后，避免被 Proxy 异步包裹。
       exportUrl: http.clipboard.exportUrl,
       // onChanged 返回同步 unsubscribe（与 workspace.onFilesChanged 同契约），
-      // 必须放在 spread 之外：Proxy 会把方法异步包裹，破坏"同步返回 unsubscribe"。
+      // 必须放在 spread 之外：Proxy 会把方法异步包裹，破坏「同步返回 unsubscribe」。
+      // 代价：离线预览下它恒绑定 http WS（不走可达性 / mock 回退），会按退避策略反复尝试
+      // 连接 `/ws/workspace` 并在控制台留下重连噪声——订阅方仍有 10s 轮询兜底，功能不受影响。
       onChanged: http.clipboard.onChanged,
     },
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
