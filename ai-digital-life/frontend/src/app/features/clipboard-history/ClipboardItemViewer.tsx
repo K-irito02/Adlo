@@ -129,6 +129,18 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     if (savingRef.current) {
       return savingRef.current;
     }
+    // 无改动 / 空白草稿：无需保存，直接返回（空白保持编辑态供用户修正）。
+    // 这两条前置判定**不可**下移进下面的保存任务体（也不可与任务体内的同名判定合并）：
+    // 若任务体不经过任何 `await` 就同步跑完，其 `finally` 会先于 `savingRef.current = saving`
+    // 执行，于是 `savingRef` 会被一个已 resolve 的 promise 永久占住，之后所有保存/关闭都会
+    // 直接复用它而被静默跳过（数据丢失）。任务体内的判定只用于第 2 轮起的再校验。
+    if (!draftRef.current.trim()) {
+      return;
+    }
+    if (draftRef.current === baselineRef.current) {
+      setEditing(false);
+      return;
+    }
     const saving = (async () => {
       try {
         for (let round = 0; round < MAX_SAVE_ROUNDS; round += 1) {

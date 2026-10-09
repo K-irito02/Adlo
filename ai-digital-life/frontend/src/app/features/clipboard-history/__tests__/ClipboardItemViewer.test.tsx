@@ -382,6 +382,25 @@ describe('ClipboardItemViewer', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('still saves later edits after a no-op Ctrl+S (no stale in-flight lock)', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(true);
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    // 未做任何修改就 Ctrl+S：不得把单飞锁（savingRef）永久占住。
+    await userEvent.keyboard('{Control>}s{/Control}');
+    expect(updateClipboardItem).not.toHaveBeenCalled();
+    expect(screen.queryByRole('textbox')).toBeNull();
+
+    // 再次编辑并关闭：本次修改必须真正落盘（回归保护）。
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.type(box, 'X');
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenCalledWith('c1', 'helloX'));
+  });
+
   it('does not expose a navigable export link when the export URL is empty (mock fallback)', () => {
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       clipboard: {
