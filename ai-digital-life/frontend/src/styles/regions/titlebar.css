@@ -44,9 +44,9 @@
   align-items: center;
   align-self: stretch;
   height: 100%;
-  /* 锁定左侧宽度：标签再多也不压缩汉堡菜单（flex 默认 shrink=1 会被挤）。 */
+  /* 锁定左侧宽度：标签再多也不压缩汉堡菜单（flex 默认 shrink=1 会被挤）。
+     `flex: 0 0 auto` 的 shrink 分量已为 0，不再重复声明。 */
   flex: 0 0 auto;
-  flex-shrink: 0;
 }
 
 .adl-menu {
@@ -133,9 +133,9 @@
   gap: 0;
   align-self: stretch;
   height: 100%;
-  /* 锁定右侧宽度：标签溢出时由中间滚动区内部消化，右侧控件组永不压缩/裁剪。 */
+  /* 锁定右侧宽度：标签溢出时由中间滚动区内部消化，右侧控件组永不压缩/裁剪。
+     `flex: 0 0 auto` 的 shrink 分量已为 0，不再重复声明。 */
   flex: 0 0 auto;
-  flex-shrink: 0;
   /* 中间标签区（含最右侧「新建入口页」+ 按钮）与右侧控件组之间的分隔线 */
   border-left: 1px solid var(--border-subtle);
 }
@@ -526,7 +526,7 @@
   padding: 0 var(--space-1);
   overflow-y: hidden;
   overflow-x: auto;
-  white-space: nowrap;
+  /* flex 容器默认不换行（flex-wrap: nowrap），无需 white-space。 */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
@@ -722,8 +722,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* `flex: 0 0 auto` 的 shrink 分量已为 0，不再重复声明。 */
   flex: 0 0 auto;
-  flex-shrink: 0;
   height: 100%;
   padding: 0 var(--space-1);
   -webkit-app-region: no-drag;

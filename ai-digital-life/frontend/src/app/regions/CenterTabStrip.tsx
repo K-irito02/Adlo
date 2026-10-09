@@ -259,6 +259,10 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
    * 返回落位标签 id（供清理后滚入视口），中止/无变化时返回 null。
    */
   const commitDrag = useCallback((drag: TabDragState): string | null => {
+    // 防守：target 为初始 -1（激活后未经过 move）时不得写入首位。
+    if (drag.target < 0) {
+      return null;
+    }
     const { centerTabs, centerReorderTabs } = useAppStore.getState();
     const from = centerTabs.findIndex((tab) => tab.id === drag.id);
     if (from < 0) {
@@ -278,8 +282,10 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
       const clamped = Math.max(0, Math.min(without.length, drag.target));
       const next = [...without.slice(0, clamped), centerTabs[from], ...without.slice(clamped)];
       centerReorderTabs(next);
+      return drag.id;
     }
-    return drag.id;
+    // 原地松手：零副作用，不滚不动。
+    return null;
   }, []);
 
   /** 落位标签滚入视口（必须在清理 transform 之后调用，否则滚动量被污染）。 */
@@ -292,7 +298,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
   );
 
   const finishDrag = useCallback(
-    (commit: boolean) => {
+    (shouldCommit: boolean) => {
       const drag = dragRef.current;
       if (!drag) {
         return;
@@ -302,13 +308,13 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
         cancelAnimationFrame(drag.raf);
       }
       // 先算提交（只读布局+写 store），再清样式，最后滚动：滚动时 transform 已卸。
-      const movedId = commit && wasActive ? commitDrag(drag) : null;
+      const movedId = shouldCommit && wasActive ? commitDrag(drag) : null;
       cleanupDragStyles();
       if (movedId) {
         scrollTabIntoView(movedId);
       }
       // 拖拽后的 pointerup 连带 click 必须吞掉；cancel/blur/Escape 后无 click 跟随，不设。
-      if (wasActive && commit) {
+      if (wasActive && shouldCommit) {
         suppressClickRef.current = true;
       }
     },
@@ -316,16 +322,21 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
   );
 
   /**
-   * 指针抬起/取消的统一出口：校验一路指针，只处理属于本次拖拽的事件。
+   * 指针抬起/取消的统一出口：校验一路指针与释放按键，只处理属于本次拖拽的事件。
    * 元素级 handler（pointer capture 正常时）与 window 兜底都会走到这里，幂等。
+   * @param shouldCommit true = pointerup 路径（激活态才写 store）；false = cancel/blur/Escape，直接丢弃。
    */
   const handlePointerSettle = useCallback(
-    (tabId: string, pointerId: number, commit: boolean) => {
+    (tabId: string, pointerId: number, button: number | undefined, shouldCommit: boolean) => {
       const drag = dragRef.current;
       if (!drag || drag.id !== tabId || drag.pointerId !== pointerId) {
         return;
       }
-      finishDrag(commit);
+      // 非左键释放（如拖拽中误触右键抬起，同鼠标共享 pointerId）不得提交/取消本次拖拽。
+      if (button !== undefined && button !== 0) {
+        return;
+      }
+      finishDrag(shouldCommit);
     },
     [finishDrag],
   );
@@ -336,6 +347,9 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
     const onPointerUp = (event: PointerEvent) => {
       const drag = dragRef.current;
       if (drag && event.pointerId === drag.pointerId) {
+        if (event.button !== undefined && event.button !== 0) {
+          return;
+        }
         finishDrag(true);
       }
     };
@@ -360,6 +374,8 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
     window.addEventListener('blur', onBlur);
     window.addEventListener('keydown', onKeyDown);
     return () => {
+      // 卸载即中止进行中拖拽，避免迟到事件在卸载后写 store。
+      finishDrag(false);
       window.removeEventListener('pointerup', onPointerUp);
       window.removeEventListener('pointercancel', onPointerCancel);
       window.removeEventListener('blur', onBlur);
@@ -369,6 +385,13 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
 
   const handleTabPointerDown = useCallback(
     (tab: CenterTabState, event: React.PointerEvent<HTMLDivElement>) => {
+      // 陈旧 suppress 在任何指针按下时清除（含触屏点按，故必须在 pointerType 门控之前）；
+      // 拖拽自带的连带 click 之前无新 pointerdown，不受影响。
+      suppressClickRef.current = false;
+      // mouse-only：触屏/触控笔不进入拖拽（触屏横滑保留原生滚动查看）。
+      if (event.pointerType !== 'mouse') {
+        return;
+      }
       // 单次只处理一路拖拽（防多触第二指抢占）；非主键、操作按钮/输入框、
       // 重命名编辑态均不进入拖拽。
       if (dragRef.current) {
@@ -414,6 +437,11 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
       if (!drag || drag.id !== tab.id || drag.pointerId !== event.pointerId) {
         return;
       }
+      // 左键位丢失（捕获丢失后无键划过）即安全中止，不让拖拽无键跟随。
+      if (event.buttons !== undefined && (event.buttons & 1) === 0) {
+        finishDrag(false);
+        return;
+      }
       if (!drag.active) {
         if (Math.abs(event.clientX - drag.startClientX) <= CENTER_TAB_DRAG_THRESHOLD_PX) {
           return;
@@ -426,7 +454,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
         startEdgeLoop(drag);
       }
     },
-    [activateDrag, moveDrag, startEdgeLoop],
+    [activateDrag, finishDrag, moveDrag, startEdgeLoop],
   );
 
   /** 鼠标 click 路径：拖拽后的连带 click 在此被吞掉一次。 */
@@ -515,7 +543,6 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
               key={tab.id}
               role="tab"
               aria-selected={isActive}
-              aria-grabbed={draggingId === tab.id ? true : undefined}
               tabIndex={0}
               data-actions={actionCount}
               data-tab-id={tab.id}
@@ -523,8 +550,12 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
               onClick={() => handleTabClick(tab)}
               onPointerDown={(event) => handleTabPointerDown(tab, event)}
               onPointerMove={(event) => handleTabPointerMove(tab, event)}
-              onPointerUp={(event) => handlePointerSettle(tab.id, event.pointerId, true)}
-              onPointerCancel={(event) => handlePointerSettle(tab.id, event.pointerId, false)}
+              onPointerUp={(event) =>
+                handlePointerSettle(tab.id, event.pointerId, event.button, true)
+              }
+              onPointerCancel={(event) =>
+                handlePointerSettle(tab.id, event.pointerId, event.button, false)
+              }
               onDragStart={(event) => event.preventDefault()}
               onDoubleClick={() => {
                 // 编辑态内双击（如选中词）不得重置已输入文本

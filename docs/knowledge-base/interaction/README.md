@@ -24,6 +24,7 @@
 | [settings-cross-group-search-and-reset-all-2026-09-29.md](./settings-cross-group-search-and-reset-all-2026-09-29.md) | 设置面板跨组搜索与「恢复全部默认」：异步锚点跳转须有界重试（单帧必失败）、导航常显后所有切组入口须收搜索、模态焦点契约、复用同语文案须同复动作、判别联合勿塌缩为 null |
 | [tooltip-webview-avoidance-2026-10-01.md](./tooltip-webview-avoidance-2026-10-01.md) | Tooltip 躲 WebView2（自己让路+横轴滑移）与过渡动画两处真 bug（挂载即 open 跳过出现、关闭清空定位致退出屏外空播） |
 | [center-tab-terminal-toolbar-and-clip-pattern-2026-10-04.md](./center-tab-terminal-toolbar-and-clip-pattern-2026-10-04.md) | 中心标签条/终端工具栏：4 类 CSS 根因（作用域变量未定义、`:focus-within`、TooltipTrigger 包裹层 `min-width`、类名复用误伤）+ 可复用「卷帘门」裁剪/悬停遮挡与共享重命名 hook |
+| [center-tab-strip-overflow-drag-2026-10-09.md](./center-tab-strip-overflow-drag-2026-10-09.md) | 中心标签条：grid 隐式列撑爆真根因（先锁内部后查外层）+ Pointer Events 拖拽排序模式（阈值/单写 store/offsetParent 锚点/mask 联动/mouse-only 门控） |
 
 ## 子主题
 

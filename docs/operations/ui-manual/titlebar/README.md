@@ -15,6 +15,7 @@
 | 编号 | 名称 | 文档 | 说明 |
 |------|------|------|------|
 | [1] | Hamburger Menu | [hamburger-menu.md](./hamburger-menu.md) | 汉堡菜单（文件/视图/帮助/命令面板） |
+| [2] | Center Tabs | [center-tabs.md](./center-tabs.md) | 中心标签条（切换/关闭/拖拽排序/溢出滚动） |
 | [4] | Theme Toggle | [actions.md](./actions.md#主题切换) | 主题切换按钮 |
 | [5] | Language Toggle | [actions.md](./actions.md#语言切换) | 语言切换按钮 |
 | [6] | Settings | [actions.md](./actions.md#设置按钮) | 设置按钮 |
@@ -36,6 +37,8 @@
 | 选择器 | 说明 |
 |--------|------|
 | `.adl-hamburger` | 汉堡菜单容器 |
+| `.adl-center-tab-strip` | 中心标签条容器 |
+| `.adl-center-tab` | 中心标签 |
 | `.adl-titlebar__action-group` | 操作按钮组（主题/语言/设置） |
 | `.adl-titlebar__panel-group` | 面板控制组 |
 | `.adl-titlebar__window-group` | 窗口控制组 |

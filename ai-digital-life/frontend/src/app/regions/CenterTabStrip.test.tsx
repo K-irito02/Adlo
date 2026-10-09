@@ -309,19 +309,24 @@ describe('CenterTabStrip 拖拽排序（B·滑动让位）', () => {
   }
 
   /** jsdom 无 PointerEvent：fireEvent.pointer* 会丢 clientX，
-      用 MouseEvent 冒充 pointer 事件派发（类型名字即一切，React 认类型）。 */
+      用 MouseEvent 冒充 pointer 事件派发（类型名字即一切，React 认类型）。
+      pointerType/buttons 需手工定义（MouseEvent 无 pointerType，buttons 默认为 0；
+      实现要求 mouse 且左键位 buttons & 1，故默认 pointerType 'mouse'、buttons 1）。 */
   function pointer(
     el: HTMLElement,
     type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
     clientX: number,
+    opts?: { pointerId?: number; pointerType?: string; button?: number; buttons?: number },
   ) {
     const evt = new window.MouseEvent(type, {
       bubbles: true,
       cancelable: true,
       clientX,
-      button: 0,
+      button: opts?.button ?? 0,
     });
-    Object.defineProperty(evt, 'pointerId', { value: 1 });
+    Object.defineProperty(evt, 'pointerId', { value: opts?.pointerId ?? 1 });
+    Object.defineProperty(evt, 'pointerType', { value: opts?.pointerType ?? 'mouse' });
+    Object.defineProperty(evt, 'buttons', { value: opts?.buttons ?? 1 });
     act(() => {
       el.dispatchEvent(evt);
     });
@@ -501,6 +506,67 @@ describe('CenterTabStrip 拖拽排序（B·滑动让位）', () => {
     pointer(tabs[0], 'pointerup', 300);
     // 拖拽后的连带 click 被吞，但键盘激活走独立入口，不受影响。
     fireEvent.keyDown(tabs[1], { key: 'Enter' });
+    expect(useAppStore.getState().centerActiveTabId).toBe(ids[1]);
+  });
+
+  it('触屏不进入拖拽，点击仍选中', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50, { pointerType: 'touch' });
+    pointer(tabs[0], 'pointermove', 300, { pointerType: 'touch' });
+    pointer(tabs[0], 'pointerup', 300, { pointerType: 'touch' });
+    expect(tabs[0].classList.contains('is-dragging')).toBe(false);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+    fireEvent.click(tabs[0]);
+    expect(useAppStore.getState().centerActiveTabId).toBe(ids[0]);
+  });
+
+  it('拖拽中右键抬起不提交，左键松手才提交', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    // 同鼠标右键抬起：忽略，拖拽继续。
+    pointer(tabs[0], 'pointerup', 300, { button: 2 });
+    expect(tabs[0].classList.contains('is-dragging')).toBe(true);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+    pointer(tabs[0], 'pointerup', 300);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[1], ids[2], ids[0]]);
+  });
+
+  it('window blur 中止拖拽不提交', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    act(() => {
+      window.dispatchEvent(new window.Event('blur'));
+    });
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+    expect(tabs[0].classList.contains('is-dragging')).toBe(false);
+  });
+
+  it('calcDropIndex 中点相等时归入右侧', () => {
+    expect(calcDropIndex([50, 150, 250], 150)).toBe(1);
+  });
+
+  it('window 兜底提交后触屏点按仍可选中', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    // 元素外松手：window 兜底提交，suppress 武装且无 click 跟随。
+    const outside = new window.MouseEvent('pointerup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 300,
+      button: 0,
+    });
+    Object.defineProperty(outside, 'pointerId', { value: 1 });
+    act(() => {
+      document.body.dispatchEvent(outside);
+    });
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[1], ids[2], ids[0]]);
+    // 触屏点按 tabs[1]：down 先清陈旧 suppress（pointerType 门控之后不清的回归锁），click 选中。
+    pointer(tabs[1], 'pointerdown', 150, { pointerType: 'touch' });
+    pointer(tabs[1], 'pointerup', 150, { pointerType: 'touch' });
+    fireEvent.click(tabs[1]);
     expect(useAppStore.getState().centerActiveTabId).toBe(ids[1]);
   });
 });
