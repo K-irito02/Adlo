@@ -1322,6 +1322,44 @@ Expected: PASS。
 
 i18n 新增 key：`clipboardStatsSummary`（zh：`{chars} 字符 · {noSpace} 不含空格 · {lines} 行`）、`clipboardZoomIn`（`放大字号`）、`clipboardZoomOut`（`缩小字号`）、`clipboardZoomReset`（`重置字号`）、`clipboardWrapToggle`（`切换自动换行`）。
 
+`html` 条目另需**安全富文本预览**（spec §8.3）：
+
+```tsx
+  const [previewRich, setPreviewRich] = useState(false);
+  const [htmlText, setHtmlText] = useState('');
+  useEffect(() => {
+    if (item.kind !== 'html' || !item.htmlPath) {
+      return;
+    }
+    let cancelled = false;
+    void fetch(window.digitalLife.clipboard.getHtmlUrl(item.htmlPath))
+      .then((r) => r.text())
+      .then((text) => {
+        if (!cancelled) setHtmlText(text);
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [item.id, item.kind, item.htmlPath]);
+```
+
+渲染：`previewRich && htmlText ? <iframe className="adl-clipboard-viewer__rich" sandbox="" srcDoc={htmlText} title={t.clipboardHtml} /> : <pre … />`。工具区加切换按钮：
+
+```tsx
+              <button
+                type="button"
+                className="adl-icon-btn adl-icon-btn--xs"
+                aria-pressed={previewRich ? 'true' : 'false'}
+                onClick={() => setPreviewRich((v) => !v)}
+                aria-label={t.clipboardPreviewRich}
+              >
+                <IconEye size={12} decorative />
+              </button>
+```
+
+`sandbox=""` 同时禁用脚本与同源，**禁止**直接 `innerHTML` 渲染剪贴板 HTML。i18n 增 `clipboardPreviewRich`（zh `预览富文本` / en `Preview rich text`）。
+
 - [ ] **Step 7: 运行测试**
 
 Run: `cd ai-digital-life/frontend && pnpm vitest run src/app/features/clipboard-history`
@@ -2088,7 +2126,7 @@ git commit -m "feat(clipboard): push clipboard changes over /ws/workspace for in
 - `createUndoStack` 返回的 `current/push/undo/redo/canUndo/canRedo` 在 Task 13 定义、Task 14 使用一致。
 - `clipboard-changed` / `clipboard.changed` 两个契约名在 Task 15 内一致（WS 用 `kind`，诊断用 `type`，与既有约定一致）。
 
-**已知缺口（需在 Task 8/10 内显式落一个子步骤）**：spec §8.3 的「富文本安全预览（`sandbox=""` iframe）」在 Task 10 中未展开。实施 Task 10 时**必须**追加：`const [previewRich, setPreviewRich] = useState(false);`，`html` 条目渲染 `<iframe className="adl-clipboard-viewer__rich" sandbox="" srcDoc={htmlText} title={t.clipboardHtml} />`（`htmlText` 经 `fetch(getHtmlUrl(item.htmlPath))` 取得），并提供切换按钮（`aria-pressed`）；**禁止**直接 `innerHTML` 渲染剪贴板 HTML。
+**已知缺口（已消除）**：spec §8.3 的「富文本安全预览（`sandbox=""` iframe）」已作为 Task 10 Step 6 的一部分落地（取 `getHtmlUrl` → `srcDoc` → `sandbox=""`），无需额外任务。
 
 ---
 
