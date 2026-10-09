@@ -133,6 +133,8 @@ mod tests {
             thumb_path: None,
             image_width: None,
             image_height: None,
+            html_path: None,
+            rtf_path: None,
             source_app: None,
             created_at,
         }

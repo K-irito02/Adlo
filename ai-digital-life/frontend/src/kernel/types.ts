@@ -445,6 +445,10 @@ export interface ClipboardItem {
   thumbPath?: string;
   imageWidth?: number;
   imageHeight?: number;
+  /** 富文本 HTML 载荷的 sidecar 文件路径 */
+  htmlPath?: string;
+  /** 富文本 RTF 载荷的 sidecar 文件路径 */
+  rtfPath?: string;
   sourceApp?: string;
   createdAt: number;
 }
