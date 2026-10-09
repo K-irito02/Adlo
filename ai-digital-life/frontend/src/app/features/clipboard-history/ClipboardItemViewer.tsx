@@ -95,6 +95,14 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       >
         <div className="adl-clipboard-viewer__header">
           <span className="adl-clipboard-viewer__title">{getClipboardKindLabel(item.kind, t)}</span>
+          <a
+            className="adl-icon-btn adl-icon-btn--xs"
+            href={window.digitalLife.clipboard.exportUrl(item.id)}
+            download
+            aria-label={t.clipboardExport}
+          >
+            <IconDownload size={12} decorative />
+          </a>
           <TooltipSimple content={t.close} placement="left">
             <button
               ref={closeRef}
@@ -151,14 +159,6 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
               >
                 ↩
               </button>
-              <a
-                className="adl-icon-btn adl-icon-btn--xs"
-                href={window.digitalLife?.clipboard.exportUrl(item.id) ?? ''}
-                download
-                aria-label={t.clipboardExport}
-              >
-                <IconDownload size={12} decorative />
-              </a>
               {isHtml && (
                 <button
                   type="button"
