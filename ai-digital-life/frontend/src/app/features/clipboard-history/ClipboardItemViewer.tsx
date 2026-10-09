@@ -45,6 +45,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   const [draft, setDraft] = useState(item.content ?? '');
   const baselineRef = useRef(item.content ?? '');
   const stackRef = useRef(createUndoStack(item.content ?? ''));
+  // 单飞：同一时刻至多一次 updateClipboardItem 在途，避免并发/重复写入。
+  const savingRef = useRef<Promise<void> | null>(null);
   const stats = useMemo(() => clipboardTextStats(draft), [draft]);
 
   useEffect(() => {
@@ -53,10 +55,11 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     return () => previouslyFocused?.focus?.();
   }, []);
 
-  // 条目变化时重置草稿与撤销栈，保证 Esc 撤回到该条目的最新文本。
+  // 条目变化时重置草稿/撤销栈并退出编辑，保证 Esc 撤回到该条目的最新文本，且不会复用编辑态。
   useEffect(() => {
     const initial = item.content ?? '';
     setDraft(initial);
+    setEditing(false);
     baselineRef.current = initial;
     stackRef.current = createUndoStack(initial);
   }, [item.id, item.content]);
@@ -77,20 +80,36 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     };
   }, [item.id, item.kind, item.htmlPath]);
 
-  /** 若正在编辑且有改动则落盘，然后退出编辑模式；空白内容不可保存。 */
+  /**
+   * 若正在编辑且有改动则落盘，然后退出编辑模式；空白内容不可保存。
+   * 单飞：已有保存进行中时不做新写入，直接返回在途 Promise，供调用方（关闭路径）等待其落盘。
+   */
   const commitIfEditing = useCallback(async () => {
     if (!editing) {
       return;
     }
+    if (savingRef.current) {
+      return savingRef.current;
+    }
     if (!draft.trim()) {
       return;
     }
-    if (draft !== baselineRef.current) {
-      await updateClipboardItem(item.id, draft);
-      // 更新基线：既避免关闭路径的重复落盘，也让随后的 Esc 撤回到已保存内容。
-      baselineRef.current = draft;
+    if (draft === baselineRef.current) {
+      setEditing(false);
+      return;
     }
-    setEditing(false);
+    const saving = (async () => {
+      try {
+        await updateClipboardItem(item.id, draft);
+        // 更新基线：既避免关闭路径的重复落盘，也让随后的 Esc 撤回到已保存内容。
+        baselineRef.current = draft;
+      } finally {
+        savingRef.current = null;
+      }
+      setEditing(false);
+    })();
+    savingRef.current = saving;
+    return saving;
   }, [editing, draft, item.id, updateClipboardItem]);
 
   const commitIfEditingRef = useRef(commitIfEditing);

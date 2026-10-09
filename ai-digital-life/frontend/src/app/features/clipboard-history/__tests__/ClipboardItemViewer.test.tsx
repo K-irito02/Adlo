@@ -213,4 +213,28 @@ describe('ClipboardItemViewer', () => {
     expect(screen.getByRole('dialog')).toBeTruthy();
     expect(screen.getByText('saved')).toBeTruthy();
   });
+
+  it('issues a single save when Ctrl+S is pressed again while a save is in flight', async () => {
+    let resolveSave: (value: boolean) => void = () => {};
+    const updateClipboardItem = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveSave = resolve;
+        }),
+    );
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'once');
+
+    await userEvent.keyboard('{Control>}s{/Control}');
+    await userEvent.keyboard('{Control>}s{/Control}');
+    expect(updateClipboardItem).toHaveBeenCalledTimes(1);
+
+    resolveSave(true);
+    await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
+  });
 });
