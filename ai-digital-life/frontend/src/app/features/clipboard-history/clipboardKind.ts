@@ -1,6 +1,8 @@
 interface ClipboardKindLabels {
   clipboardText: string;
   clipboardImage: string;
+  clipboardHtml: string;
+  clipboardRtf: string;
 }
 
 /**
@@ -12,6 +14,12 @@ export function getClipboardKindLabel(kind: string, t: ClipboardKindLabels): str
   }
   if (kind === 'text') {
     return t.clipboardText;
+  }
+  if (kind === 'html') {
+    return t.clipboardHtml;
+  }
+  if (kind === 'rtf') {
+    return t.clipboardRtf;
   }
   return kind;
 }

@@ -15,7 +15,7 @@ export interface ClipboardKindCount {
 }
 
 /** 已知类型的固定展示顺序；未在表中的类型按字典序排在其后。 */
-const KIND_ORDER = ['text', 'image'];
+const KIND_ORDER = ['text', 'image', 'html', 'rtf'];
 
 /**
  * 由当前筛选/搜索状态组装过滤入参（header 计数、清空判定、列表渲染共用同一份，

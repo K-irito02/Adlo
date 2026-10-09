@@ -20,6 +20,8 @@ export const utilitiesZh = {
   clipboardZoomView: '放大查看',
   clipboardText: '文本',
   clipboardImage: '图片',
+  clipboardHtml: '富文本',
+  clipboardRtf: '富文本(RTF)',
   systemMonitor: '系统监控',
   sysCpu: 'CPU',
   sysMemory: '内存',

@@ -91,10 +91,10 @@ describe('ClipboardItemRow', () => {
     expect(navigator.clipboard.writeText).not.toHaveBeenCalled();
   });
 
-  it('copies text from the copy button without opening the zoom viewer', () => {
+  it('copies text from the copy button without opening the zoom viewer', async () => {
     const onZoom = renderRow(makeItem());
     fireEvent.click(screen.getByRole('button', { name: '复制' }));
-    expect(navigator.clipboard.writeText).toHaveBeenCalledWith('hello clipboard');
+    await waitFor(() => expect(writeClipboardItem).toHaveBeenCalledWith('c1'));
     expect(onZoom).not.toHaveBeenCalled();
   });
 

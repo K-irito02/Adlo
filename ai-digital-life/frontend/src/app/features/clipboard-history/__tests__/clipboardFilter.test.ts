@@ -53,6 +53,23 @@ describe('getClipboardKindCounts', () => {
     ]);
   });
 
+  it('orders html and rtf after image, before unknown kinds', () => {
+    const items = [
+      { kind: 'rtf', id: 'c' },
+      { kind: 'text', id: 'a' },
+      { kind: 'files', id: 'e' },
+      { kind: 'image', id: 'b' },
+      { kind: 'html', id: 'd' },
+    ] as never;
+    expect(getClipboardKindCounts(items).map((c) => c.kind)).toEqual([
+      'text',
+      'image',
+      'html',
+      'rtf',
+      'files',
+    ]);
+  });
+
   it('returns empty for empty history', () => {
     expect(getClipboardKindCounts([])).toEqual([]);
   });

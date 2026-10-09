@@ -21,6 +21,8 @@ export const utilitiesEn = {
   clipboardZoomView: 'Zoom in',
   clipboardText: 'Text',
   clipboardImage: 'Image',
+  clipboardHtml: 'Rich text',
+  clipboardRtf: 'Rich text (RTF)',
   systemMonitor: 'System Monitor',
   sysCpu: 'CPU',
   sysMemory: 'Memory',

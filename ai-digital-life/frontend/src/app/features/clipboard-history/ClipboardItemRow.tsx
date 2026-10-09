@@ -52,12 +52,16 @@ export const ClipboardItemRow = memo(function ClipboardItemRow({
   const thumbUrl =
     item.kind === 'image' ? window.digitalLife.clipboard.getThumbUrl(item.thumbPath ?? '') : '';
 
-  // 文本条目由 CopyButton 写文本；图片条目由 CopyButton 调用后端把落盘 PNG 写回系统剪贴板。
+  // 所有类型均走后端写回：CopyButton 调 writeClipboardItem，由后端按 kind 把 text/html/rtf/图片写回系统剪贴板。
   const isImage = item.kind === 'image';
-  const copyProps = isImage
-    ? { onCopy: () => writeClipboardItem(item.id) }
-    : { text: item.content ?? '' };
-  const canCopy = isImage ? Boolean(item.imagePath) : Boolean(item.content);
+  const copyProps = { onCopy: () => writeClipboardItem(item.id) };
+  const canCopy = isImage
+    ? Boolean(item.imagePath)
+    : item.kind === 'html'
+      ? Boolean(item.htmlPath) || Boolean(item.content)
+      : item.kind === 'rtf'
+        ? Boolean(item.rtfPath) || Boolean(item.content)
+        : Boolean(item.content);
   const timestamp = formatRelativeTime(item.createdAt, t);
 
   return (
