@@ -6,7 +6,7 @@
 //! `RgbaImage`，再调用 `crate::image::write_image_files` 落盘为 PNG 原图 + 缩略图。
 //! 否则退化为文本（`formats::Unicode`），content 存完整文本，空剪贴板返回 `Ok(None)`。
 
-use clipboard_win::{Clipboard, Format, Getter, formats, set_clipboard};
+use clipboard_win::{Clipboard, Format, Getter, formats};
 use image::RgbaImage;
 use std::io::Cursor;
 use std::path::Path;
@@ -48,17 +48,6 @@ pub(crate) fn png_to_bmp24(path: &Path) -> Result<Vec<u8>, AppError> {
         .write_to(&mut Cursor::new(&mut bmp), image::ImageFormat::Bmp)
         .map_err(|e| AppError::Io(format!("bmp encode: {e}")))?;
     Ok(bmp)
-}
-
-/// 把本地 PNG 图片文件写回系统剪贴板（作为位图）。供剪贴板历史"再次复制"
-/// 使用：从 history 里选中的图片条目，其 `image_path` 指向落盘的 PNG 原图。
-/// 读 PNG → 经 `image` crate 编码为 BMP 文件字节 → `clipboard-win` 的
-/// `set_bitmap`（期望 `BITMAPFILEHEADER + BITMAPINFOHEADER + 像素`）写系统剪贴板。
-pub fn write_image_to_clipboard(path: &Path) -> Result<(), AppError> {
-    let bmp = png_to_bmp24(path)?;
-    set_clipboard(formats::Bitmap, &bmp)
-        .map_err(|e| AppError::Io(format!("clipboard write: {e}")))?;
-    Ok(())
 }
 
 /// 读取系统剪贴板并归一化，同时调用 `store.insert_or_bump` 入库。

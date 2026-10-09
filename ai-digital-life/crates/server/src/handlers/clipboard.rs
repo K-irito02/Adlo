@@ -3,7 +3,7 @@
 //! `clipboard_list/remove/clear` commands (Task 6) over
 //! `crate::ipc::to_response` (`IpcResult`).
 //!
-//! Routes: `list` / `remove` / `clear` / `write-image` (store CRUD + image
+//! Routes: `list` / `remove` / `clear` / `write` (store CRUD + clipboard
 //! write-back) plus the static assets `thumb/:filename` (thumbnail) and
 //! `image/:filename` (full-resolution original, for the zoom-in viewer).
 //!
@@ -13,7 +13,6 @@
 
 use crate::ServerState;
 use crate::ipc;
-use adl_clipboard::write_image_to_clipboard;
 use adl_errors::AppError;
 use axum::extract::{Query, State};
 use axum::http::{StatusCode, header};
@@ -92,20 +91,14 @@ pub async fn clear(State(state): State<ServerState>) -> impl IntoResponse {
 
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct WriteImageBody {
+struct WriteBody {
     id: String,
 }
 
-/// POST `/clipboard/write-image` — body `{ "id": string }`. Loads the image
-/// `ClipboardItem` by id, reads its stored PNG (`image_path`), and writes it
-/// back to the system clipboard as a bitmap (via `adl_clipboard`). Returns
-/// `true` on success. This is the image write-back path — text items are not
-/// routed here (the frontend uses `navigator.clipboard.writeText`).
-pub async fn write_image(
-    State(state): State<ServerState>,
-    body: axum::body::Bytes,
-) -> impl IntoResponse {
-    let input: WriteImageBody = match ipc::json_body(body).await {
+/// POST `/clipboard/write` — body `{ "id": string }`. 加载条目并按 kind 写回系统剪贴板
+/// （text / html / rtf / image），写前统一清空剪贴板（见 `adl_clipboard::write_item_to_clipboard`）。
+pub async fn write(State(state): State<ServerState>, body: axum::body::Bytes) -> impl IntoResponse {
+    let input: WriteBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
@@ -114,13 +107,7 @@ pub async fn write_image(
         let item = store
             .get(&input.id)?
             .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
-        if item.kind != "image" {
-            return Err(AppError::InvalidInput("clipboard item is not an image".into()));
-        }
-        let path = item
-            .image_path
-            .ok_or_else(|| AppError::InvalidInput("image item has no stored file".into()))?;
-        write_image_to_clipboard(Path::new(&path))?;
+        adl_clipboard::write_item_to_clipboard(&item)?;
         Ok(serde_json::json!(true))
     })
     .await;
@@ -276,14 +263,14 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn write_image_unknown_id_returns_not_found() {
+    async fn write_unknown_id_returns_not_found() {
         let state = test_server_state();
         let app = app_router(state.clone()).with_state(state.clone());
         let resp = app
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/clipboard/write-image")
+                    .uri("/clipboard/write")
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"id":"ghost"}"#))
                     .unwrap(),
@@ -297,7 +284,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn write_image_on_text_item_returns_invalid_input() {
+    async fn write_text_item_succeeds() {
         let state = test_server_state();
         state.clipboard_store.insert_or_bump(&sample_item("c-1", "hello")).unwrap();
         let app = app_router(state.clone()).with_state(state.clone());
@@ -305,17 +292,17 @@ mod tests {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/clipboard/write-image")
+                    .uri("/clipboard/write")
                     .header("content-type", "application/json")
                     .body(Body::from(r#"{"id":"c-1"}"#))
                     .unwrap(),
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), axum::http::StatusCode::BAD_REQUEST);
+        assert!(resp.status().is_success());
         let body = body_json(resp).await;
-        assert_eq!(body["ok"], serde_json::json!(false));
-        assert_eq!(body["error"]["code"], "INVALID_INPUT");
+        assert_eq!(body["ok"], serde_json::json!(true));
+        assert_eq!(body["data"], serde_json::json!(true));
     }
 
     #[tokio::test]
