@@ -40,7 +40,8 @@ impl ClipboardStore {
     }
 
     /// 以 `item.id` 原地覆盖一条已有条目（写入 `item` 的完整 JSON）。
-    /// 编辑保存（内容变更、`created_at` 由调用方原样带回）与去重合并（顶替旧行）共用此入口。
+    /// 新建入库（`insert_or_bump`）、编辑保存（`created_at` 由调用方原样带回）与去重合并
+    /// （顶替旧行）共用此入口。
     pub fn save(&self, item: &ClipboardItem) -> Result<(), AppError> {
         self.db.save_entity(
             EntityTable::ClipboardItems,

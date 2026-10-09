@@ -90,19 +90,25 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
             if fmt.read_clipboard(&mut s).is_ok() && !s.trim().is_empty() { Some(s) } else { None }
         });
 
-        // 3) RTF（"Rich Text Format"，无内建类型 → 注册后按原始字节读）
-        let rtf = register_format("Rich Text Format").and_then(|code| {
-            let fmt = formats::RawData(code.get());
-            if !fmt.is_format_avail() || !within_rich_cap(code.get()) {
-                return None;
-            }
-            let mut bytes: Vec<u8> = Vec::new();
-            if fmt.read_clipboard(&mut bytes).is_ok() && !bytes.is_empty() {
-                Some(bytes)
-            } else {
-                None
-            }
-        });
+        // 3) RTF（"Rich Text Format"，无内建类型 → 注册后按原始字节读）。
+        // HTML 可用时 RTF 恒不会被消费（kind 固定为 html，只落盘与 kind 匹配的载荷），故仅在
+        // HTML 缺失（或读后为空白）时才读取，避免多读一份可达 1 MiB 的载荷。
+        let rtf = if html.is_none() {
+            register_format("Rich Text Format").and_then(|code| {
+                let fmt = formats::RawData(code.get());
+                if !fmt.is_format_avail() || !within_rich_cap(code.get()) {
+                    return None;
+                }
+                let mut bytes: Vec<u8> = Vec::new();
+                if fmt.read_clipboard(&mut bytes).is_ok() && !bytes.is_empty() {
+                    Some(bytes)
+                } else {
+                    None
+                }
+            })
+        } else {
+            None
+        };
 
         // 4) 纯文本
         let mut raw = String::new();
