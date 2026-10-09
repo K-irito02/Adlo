@@ -8,6 +8,8 @@ pub struct ClipboardStore {
     db: Database,
     images_dir: PathBuf,
     thumbs_dir: PathBuf,
+    html_dir: PathBuf,
+    rtf_dir: PathBuf,
 }
 
 impl ClipboardStore {
@@ -15,9 +17,13 @@ impl ClipboardStore {
         let clipboard_dir = clipboard_dir.into();
         let images_dir = clipboard_dir.join("images");
         let thumbs_dir = clipboard_dir.join("thumbs");
+        let html_dir = clipboard_dir.join("html");
+        let rtf_dir = clipboard_dir.join("rtf");
         std::fs::create_dir_all(&images_dir).ok();
         std::fs::create_dir_all(&thumbs_dir).ok();
-        Self { db, images_dir, thumbs_dir }
+        std::fs::create_dir_all(&html_dir).ok();
+        std::fs::create_dir_all(&rtf_dir).ok();
+        Self { db, images_dir, thumbs_dir, html_dir, rtf_dir }
     }
 
     pub fn list(&self, limit: usize) -> Result<Vec<ClipboardItem>, AppError> {
@@ -90,11 +96,21 @@ impl ClipboardStore {
                 let _ = std::fs::remove_file(e.path());
             }
         }
+        for dir in [&self.html_dir, &self.rtf_dir] {
+            if let Ok(rd) = std::fs::read_dir(dir) {
+                for e in rd.flatten() {
+                    let _ = std::fs::remove_file(e.path());
+                }
+            }
+        }
         Ok(n)
     }
 
     fn delete_files(&self, item: &ClipboardItem) {
-        for p in [&item.image_path, &item.thumb_path].into_iter().flatten() {
+        for p in [&item.image_path, &item.thumb_path, &item.html_path, &item.rtf_path]
+            .into_iter()
+            .flatten()
+        {
             let _ = std::fs::remove_file(Path::new(p));
         }
     }
@@ -104,6 +120,12 @@ impl ClipboardStore {
     }
     pub fn thumbs_dir(&self) -> &Path {
         &self.thumbs_dir
+    }
+    pub fn html_dir(&self) -> &Path {
+        &self.html_dir
+    }
+    pub fn rtf_dir(&self) -> &Path {
+        &self.rtf_dir
     }
 }
 
@@ -269,5 +291,43 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(temp_dir().join("clip-data-img-dedup"));
         let _ = std::fs::remove_file(temp_dir().join("clip-img-dedup.db"));
+    }
+
+    #[test]
+    fn html_rtf_dirs_created_and_cleaned() {
+        let store = temp_store("richtext");
+        assert_eq!(
+            store.html_dir().to_path_buf(),
+            temp_dir().join("clip-data-richtext").join("html")
+        );
+        assert!(store.html_dir().exists());
+        assert!(store.rtf_dir().exists());
+
+        let hp = store.html_dir().join("a.html");
+        let rp = store.rtf_dir().join("a.rtf");
+        std::fs::write(&hp, b"<b>x</b>").unwrap();
+        std::fs::write(&rp, b"{\\rtf1}").unwrap();
+        let mut it = item("rt-1", "html", now_ms());
+        it.content = Some("x".into());
+        it.html_path = Some(hp.to_string_lossy().into_owned());
+        it.rtf_path = Some(rp.to_string_lossy().into_owned());
+        assert!(store.insert_or_bump(&it).unwrap());
+
+        // 删除单条 → 富文本文件一并删除
+        assert!(store.remove("rt-1").unwrap());
+        assert!(!hp.exists());
+        assert!(!rp.exists());
+
+        // clear → 目录清空
+        std::fs::write(&hp, b"y").unwrap();
+        let mut it2 = item("rt-2", "html", now_ms());
+        it2.content = Some("y".into());
+        it2.html_path = Some(hp.to_string_lossy().into_owned());
+        assert!(store.insert_or_bump(&it2).unwrap());
+        assert_eq!(store.clear().unwrap(), 1);
+        assert!(std::fs::read_dir(store.html_dir()).unwrap().next().is_none());
+
+        let _ = std::fs::remove_dir_all(temp_dir().join("clip-data-richtext"));
+        let _ = std::fs::remove_file(temp_dir().join("clip-richtext.db"));
     }
 }
