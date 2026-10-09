@@ -4,9 +4,9 @@ export type { ClipboardItem, IpcResult };
 
 /**
  * 系统剪贴板历史桥接能力
- * 用于: 查询最近剪贴板历史、删除单项、清空所有历史、图片写回、缩略图/原图 URL
+ * 用于: 查询最近剪贴板历史、删除单项、清空所有历史、写回、缩略图/原图 URL
  * 后端路由: GET /clipboard/list / POST /clipboard/remove / POST /clipboard/clear
- *          / POST /clipboard/write-image / GET /clipboard/thumb/:filename / GET /clipboard/image/:filename
+ *          / POST /clipboard/write / GET /clipboard/thumb/:filename / GET /clipboard/image/:filename
  * Tauri 模式：clipboard 域由 `tauri-bridge/index.ts` 的 `...http` 继承 `createHttpBridge` 实现，
  * 因此以下 `@see tauri-bridge` 指该继承点，而非 Tauri 侧独立实现。
  */
@@ -41,15 +41,24 @@ export interface ClipboardBridge {
    */
   clear: () => Promise<IpcResult<number>>;
   /**
-   * 把一条图片剪贴板历史写回系统剪贴板（"再次复制"）
-   * @param id 图片条目 ID
-   * @returns 是否写入成功
-   * @command POST /clipboard/write-image (body { id })
-   * @see tauri-bridge/index.ts（...http 继承）→ clipboard.writeImage
-   * @see mock-bridge.ts → clipboard.writeImage
-   * @see preview-bridge/index.ts → clipboard.writeImage
+   * 把一条剪贴板历史写回系统剪贴板（"再次复制"），按 kind 分发 text/html/rtf/image。
+   * @param id 条目 ID
+   * @command POST /clipboard/write (body { id })
+   * @see httpBridge.ts → clipboard.write
+   * @see mock-bridge.ts → clipboard.write
+   * @see preview-bridge/index.ts → clipboard.write
    */
-  writeImage: (id: string) => Promise<IpcResult<boolean>>;
+  write: (id: string) => Promise<IpcResult<boolean>>;
+  /**
+   * 把 HTML 载荷 sidecar 路径转成可访问 URL（`/clipboard/html/<filename>`）。
+   * @see httpBridge.ts → clipboard.getHtmlUrl
+   */
+  getHtmlUrl: (htmlPath: string) => string;
+  /**
+   * 把 RTF 载荷 sidecar 路径转成可访问 URL（`/clipboard/rtf/<filename>`）。
+   * @see httpBridge.ts → clipboard.getHtmlUrl
+   */
+  getRtfUrl: (rtfPath: string) => string;
   /**
    * 把一条图片条目的缩略图路径（后端落盘的 `thumbPath`）转成前端可访问的 URL
    * （ad-server `/clipboard/thumb/<filename>` 静态路由）。同步返回，不发起网络请求。

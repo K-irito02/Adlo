@@ -8,7 +8,9 @@ export const mockClipboard: ClipboardBridge = {
   list: async (_limit?: number) => ({ ok: true, data: [] }),
   remove: async (_id: string) => ({ ok: true, data: true }),
   clear: async () => ({ ok: true, data: 0 }),
-  writeImage: async (_id: string) => ({ ok: true, data: true }),
+  write: async (_id: string) => ({ ok: true, data: true }),
   getThumbUrl: () => '',
   getImageUrl: () => '',
+  getHtmlUrl: (_htmlPath: string) => '',
+  getRtfUrl: (_rtfPath: string) => '',
 };

@@ -259,6 +259,8 @@ export async function setupPreviewBridge(): Promise<void> {
       getThumbUrl: http.clipboard.getThumbUrl,
       // getImageUrl 同理：纯 URL 构造器，恒走 http 实现。
       getImageUrl: http.clipboard.getImageUrl,
+      getHtmlUrl: http.clipboard.getHtmlUrl,
+      getRtfUrl: http.clipboard.getRtfUrl,
     },
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
       adlServerBaseUrl,

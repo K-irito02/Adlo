@@ -70,15 +70,15 @@ export function createUtilitiesActions(
 
     /**
      * [writeClipboardItem - 把单条剪贴板历史写回系统剪贴板]
-     * 图片条目走后端 `/clipboard/write-image`；返回是否写入成功，供 UI 展示 toast。
+     * 按 kind 分发 text/html/rtf/image，走后端 `/clipboard/write`；返回是否写入成功，供 UI 展示 toast。
      * @reads 无
      * @writes 无
-     * @see shared/ipc.ts → clipboard.writeImage
-     * @see mock-bridge.ts → clipboard.writeImage
-     * @see preview-bridge/index.ts → clipboard.writeImage
+     * @see shared/ipc.ts → clipboard.write
+     * @see mock-bridge.ts → clipboard.write
+     * @see preview-bridge/index.ts → clipboard.write
      */
     writeClipboardItem: async (id: string) => {
-      const result = await window.digitalLife.clipboard.writeImage(id);
+      const result = await window.digitalLife.clipboard.write(id);
       if (result.ok && result.data === true) {
         return true;
       }
