@@ -21,21 +21,50 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const confirmRef = useRef<HTMLButtonElement | null>(null);
+  const dialogRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!open) {
       return;
     }
-    const handleEscape = (event: KeyboardEvent) => {
+    const handleKeydown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.stopPropagation();
         event.preventDefault();
         onCancel();
+        return;
+      }
+      // 最小焦点陷阱：Tab / Shift+Tab 在对话框内可聚焦控件间环绕，
+      // 兑现 aria-modal 契约（键盘焦点不得逃逸到下层界面）。
+      if (event.key === 'Tab') {
+        const dialog = dialogRef.current;
+        if (!dialog) {
+          return;
+        }
+        const focusables = Array.from(
+          dialog.querySelectorAll<HTMLElement>(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        );
+        if (focusables.length === 0) {
+          return;
+        }
+        event.preventDefault();
+        const current = document.activeElement as HTMLElement | null;
+        const idx = current ? focusables.indexOf(current) : -1;
+        const step = event.shiftKey ? -1 : 1;
+        const next =
+          idx === -1
+            ? event.shiftKey
+              ? focusables.length - 1
+              : 0
+            : (idx + step + focusables.length) % focusables.length;
+        focusables[next].focus();
       }
     };
-    window.addEventListener('keydown', handleEscape, true);
+    window.addEventListener('keydown', handleKeydown, true);
     confirmRef.current?.focus();
-    return () => window.removeEventListener('keydown', handleEscape, true);
+    return () => window.removeEventListener('keydown', handleKeydown, true);
   }, [open, onCancel]);
 
   if (!open) {
@@ -50,7 +79,7 @@ export function ConfirmDialog({
       aria-modal="true"
       aria-label={title}
     >
-      <div className="adl-confirm-dialog" onClick={(e) => e.stopPropagation()}>
+      <div ref={dialogRef} className="adl-confirm-dialog" onClick={(e) => e.stopPropagation()}>
         <div className="adl-confirm-dialog__header">
           <h3 className="adl-confirm-dialog__title">{title}</h3>
         </div>

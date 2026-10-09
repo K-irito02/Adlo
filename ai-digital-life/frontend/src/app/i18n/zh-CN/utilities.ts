@@ -38,7 +38,7 @@ export const utilitiesZh = {
   clipboardImageZoomOut: '缩小图片',
   clipboardImageFitWindow: '适应窗口',
   clipboardSaveFailedTitle: '更改尚未保存',
-  clipboardSaveFailedMessage: '保存失败，更改尚未保存。放弃更改并关闭弹窗？',
+  clipboardSaveFailedMessage: '更改尚未保存到剪贴板历史。放弃更改并关闭弹窗？',
   clipboardDiscardChanges: '放弃更改',
   clipboardKeepEditing: '继续编辑',
   systemMonitor: '系统监控',

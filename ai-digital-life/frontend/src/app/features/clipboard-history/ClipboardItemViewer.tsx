@@ -185,15 +185,27 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   }, [commitIfEditing]);
 
   // 关闭即保存：所有关闭路径先落盘再关闭；落盘失败则保持打开并弹出确认框（绝不静默丢稿）。
+  // 重入守卫：关闭按钮双击 / 确认框交互期间再点关闭，不得重复触发保存或 onClose。
+  const closingRef = useRef(false);
   const closeAndMaybeSave = async () => {
-    if (editing) {
-      const result = await commitIfEditing();
-      if (result === false) {
-        setDiscardConfirmOpen(true);
-        return;
-      }
+    if (closingRef.current) {
+      return;
     }
-    onClose();
+    closingRef.current = true;
+    try {
+      if (editing) {
+        const result = await commitIfEditing();
+        // 等待在途保存期间用户可能已按 Esc 撤回更改（草稿回到基线）——
+        // 此时已无未保存改动，即使保存任务以失败收尾也不得再弹确认框。
+        if (result === false && draftRef.current !== baselineRef.current) {
+          setDiscardConfirmOpen(true);
+          return;
+        }
+      }
+      onClose();
+    } finally {
+      closingRef.current = false;
+    }
   };
 
   // 「放弃更改」：跳过卸载兜底保存后关闭。

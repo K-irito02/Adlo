@@ -170,8 +170,11 @@ fn build_rich_or_text_item(
     let digest = match kind {
         ClipboardKind::Html => html.as_deref().map(|h| fnv1a_digest(h.as_bytes())),
         ClipboardKind::Rtf => rtf.as_deref().map(fnv1a_digest),
-        _ => None,
+        ClipboardKind::Text | ClipboardKind::Image => None,
     };
+    // 下方两个 `(kind, Option)` 元组 match 的 `_` 臂是**有意保留**的防御性兜底：
+    // 兜住「kind 与载荷不匹配」的非法组合（如 kind=html 却无 HTML 载荷）。新增枚举成员
+    // 时必须同步在此显式扩展其载荷落盘分支，而不是依赖 `_`。
     let html_path = match (kind, html.as_deref()) {
         (ClipboardKind::Html, Some(h)) => {
             let p = store.html_dir().join(format!("{id}.html"));

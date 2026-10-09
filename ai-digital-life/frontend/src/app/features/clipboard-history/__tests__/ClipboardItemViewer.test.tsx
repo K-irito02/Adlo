@@ -417,6 +417,36 @@ describe('ClipboardItemViewer', () => {
     expect(updateClipboardItem).toHaveBeenCalledTimes(2);
   });
 
+  it('closes directly after a successful retry without prompting the confirm again', async () => {
+    const updateClipboardItem = vi
+      .fn<() => Promise<boolean>>()
+      .mockResolvedValueOnce(false)
+      .mockResolvedValueOnce(true);
+    mockStore({ updateClipboardItem });
+    const onClose = renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'retry');
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+
+    // 首次保存失败 → 确认框弹出 → 继续编辑
+    await waitFor(() => expect(screen.getByRole('dialog', { name: '更改尚未保存' })).toBeTruthy());
+    await userEvent.click(screen.getByRole('button', { name: '继续编辑' }));
+
+    // Ctrl+S 重试成功 → 自动退出编辑态
+    await userEvent.keyboard('{Control>}s{/Control}');
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenNthCalledWith(2, 'c1', 'retry'));
+    await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
+
+    // 此后关闭：草稿已落盘 → 直接关闭，确认框不再出现
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('dialog', { name: '更改尚未保存' })).toBeNull();
+    expect(updateClipboardItem).toHaveBeenCalledTimes(2);
+  });
+
   it('skips the best-effort save on unmount after discarding changes', async () => {
     const updateClipboardItem = vi.fn().mockResolvedValue(false);
     mockStore({ updateClipboardItem });

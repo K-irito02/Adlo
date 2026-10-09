@@ -40,7 +40,7 @@ export const utilitiesEn = {
   clipboardImageFitWindow: 'Fit to window',
   clipboardSaveFailedTitle: 'Changes not saved',
   clipboardSaveFailedMessage:
-    'Saving failed and your changes are not saved yet. Discard changes and close?',
+    'Your changes have not been saved to the clipboard history. Discard changes and close?',
   clipboardDiscardChanges: 'Discard changes',
   clipboardKeepEditing: 'Keep editing',
   systemMonitor: 'System Monitor',

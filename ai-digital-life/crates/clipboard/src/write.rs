@@ -132,14 +132,24 @@ fn read_optional_sidecar(path: Option<&str>) -> Result<Option<Vec<u8>>, AppError
 /// 一条 `ClipboardItem` 的完整写回：加载富文本载荷 → 计划 → 执行。
 /// 富载荷缺失时降级为纯文本；无任何可写载荷时报错（不静默成功）。
 pub fn write_item_to_clipboard(item: &ClipboardItem) -> Result<(), AppError> {
+    // 富载荷读取按 kind 门控（与下方 bmp 的门控同理）：跨 kind 残留的 sidecar 路径
+    // （如编辑/降级后的旧行）不去读，避免无关载荷的损坏使整次写回失败。
     // HTML sidecar 恒由 `String` 写出，故此处额外要求合法 UTF-8（损坏则显式报错）。
-    let html = read_optional_sidecar(item.html_path.as_deref())?
-        .map(String::from_utf8)
-        .transpose()
-        .map_err(|e| {
-            AppError::Io(format!("clipboard html sidecar not utf-8: {}", e.utf8_error()))
-        })?;
-    let rtf = read_optional_sidecar(item.rtf_path.as_deref())?;
+    let html = if item.kind == ClipboardKind::Html {
+        read_optional_sidecar(item.html_path.as_deref())?
+            .map(String::from_utf8)
+            .transpose()
+            .map_err(|e| {
+                AppError::Io(format!("clipboard html sidecar not utf-8: {}", e.utf8_error()))
+            })?
+    } else {
+        None
+    };
+    let rtf = if item.kind == ClipboardKind::Rtf {
+        read_optional_sidecar(item.rtf_path.as_deref())?
+    } else {
+        None
+    };
     // 仅图片条目才需要位图载荷：避免对非图片条目做无谓解码，或在 `image_path` 意外残留时
     // 因 PNG 缺失而使整次写回失败。
     let bmp = if item.kind == ClipboardKind::Image {
