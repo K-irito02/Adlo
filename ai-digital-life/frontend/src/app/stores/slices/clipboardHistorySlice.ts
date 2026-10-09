@@ -18,6 +18,7 @@ export interface ClipboardHistorySlice {
   setClipboardHistory: (items: ClipboardItem[]) => void;
   clearClipboardHistory: () => void;
   removeClipboardHistoryItem: (id: string) => void;
+  replaceClipboardHistoryItem: (item: ClipboardItem) => void;
   setClipboardSearch: (query: string) => void;
   setClipboardSearchOpen: (open: boolean) => void;
   setClipboardMatchCase: (value: boolean) => void;
@@ -44,6 +45,10 @@ export const createClipboardHistorySlice = (
   removeClipboardHistoryItem: (id) =>
     set((state) => ({
       clipboardHistory: state.clipboardHistory.filter((item) => item.id !== id),
+    })),
+  replaceClipboardHistoryItem: (item) =>
+    set((state) => ({
+      clipboardHistory: state.clipboardHistory.map((it) => (it.id === item.id ? item : it)),
     })),
   setClipboardSearch: (query) => set({ clipboardSearch: query }),
   setClipboardSearchOpen: (open) => set({ clipboardSearchOpen: open }),

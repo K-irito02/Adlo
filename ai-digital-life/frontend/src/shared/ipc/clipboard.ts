@@ -6,7 +6,7 @@ export type { ClipboardItem, IpcResult };
  * 系统剪贴板历史桥接能力
  * 用于: 查询最近剪贴板历史、删除单项、清空所有历史、写回、缩略图/原图 URL
  * 后端路由: GET /clipboard/list / POST /clipboard/remove / POST /clipboard/clear
- *          / POST /clipboard/write / GET /clipboard/thumb/:filename / GET /clipboard/image/:filename
+ *          / POST /clipboard/write / POST /clipboard/update / GET /clipboard/thumb/:filename / GET /clipboard/image/:filename
  *          / GET /clipboard/html/:filename / GET /clipboard/rtf/:filename / GET /clipboard/export
  * Tauri 模式：clipboard 域由 `tauri-bridge/index.ts` 的 `...http` 继承 `createHttpBridge` 实现，
  * 因此以下 `@see tauri-bridge` 指该继承点，而非 Tauri 侧独立实现。
@@ -51,6 +51,18 @@ export interface ClipboardBridge {
    * @see preview-bridge/index.ts → clipboard.write
    */
   write: (id: string) => Promise<IpcResult<boolean>>;
+  /**
+   * 原地保存一条文本条目的编辑结果（仅 `kind === 'text'` 可编辑）。
+   * 保持条目 id 与 `createdAt` 不变（列表按 createdAt 倒序 → 位置不变）。
+   * @param id 条目 ID
+   * @param content 编辑后的文本内容（空白内容会被后端拒绝）
+   * @returns 更新后的剪贴板条目
+   * @command POST /clipboard/update (body { id, content })
+   * @see tauri-bridge/index.ts（...http 继承）→ clipboard.update
+   * @see mock-bridge.ts → clipboard.update
+   * @see preview-bridge/index.ts → clipboard.update
+   */
+  update: (id: string, content: string) => Promise<IpcResult<ClipboardItem>>;
   /**
    * 把一条剪贴板条目的载荷转成可下载文件的 URL（`/clipboard/export?id=<id>`），
    * 供"保存为文件"的 `<a download>` 触发浏览器下载。同步返回，不发起网络请求。

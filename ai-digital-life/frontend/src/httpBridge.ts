@@ -1132,6 +1132,8 @@ export function createHttpBridge({
       remove: (id: string) => call<boolean>(baseUrl, '/clipboard/remove', POST({ id })),
       clear: () => call<number>(baseUrl, '/clipboard/clear', POST({})),
       write: (id: string) => call<boolean>(baseUrl, '/clipboard/write', POST({ id })),
+      update: (id: string, content: string) =>
+        call<ClipboardItem>(baseUrl, '/clipboard/update', POST({ id, content })),
       exportUrl: (id: string) => `${baseUrl}/clipboard/export?id=${encodeURIComponent(id)}`,
       getThumbUrl: (thumbPath: string) => clipboardAssetUrl(baseUrl, 'thumb', thumbPath),
       getImageUrl: (imagePath: string) => clipboardAssetUrl(baseUrl, 'image', imagePath),

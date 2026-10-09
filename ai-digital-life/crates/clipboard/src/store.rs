@@ -39,6 +39,18 @@ impl ClipboardStore {
         Ok(self.list(1)?.into_iter().next())
     }
 
+    /// 原地覆盖一条已有条目（保持其 `created_at`，仅供编辑保存使用）。
+    pub fn save(&self, item: &ClipboardItem) -> Result<(), AppError> {
+        self.db.save_entity(
+            EntityTable::ClipboardItems,
+            &item.id,
+            None,
+            None,
+            Some(&item.kind),
+            item,
+        )
+    }
+
     pub fn insert_or_bump(&self, item: &ClipboardItem) -> Result<bool, AppError> {
         if let Some(prev) = self.latest()? {
             // 去重：同 kind 且内容/指纹相同 + 时间窗内即判定重复。

@@ -3,8 +3,9 @@
 //! `clipboard_list/remove/clear` commands (Task 6) over
 //! `crate::ipc::to_response` (`IpcResult`).
 //!
-//! Routes: `list` / `remove` / `clear` / `write` (store CRUD + clipboard
-//! write-back) plus the static assets `thumb/:filename` (thumbnail),
+//! Routes: `list` / `remove` / `clear` / `write` / `update` (store CRUD +
+//! clipboard write-back + in-place text edit) plus the static assets
+//! `thumb/:filename` (thumbnail),
 //! `image/:filename` (full-resolution original, for the zoom-in viewer),
 //! `html/:filename` / `rtf/:filename` (rich-text sidecars) and
 //! `export?id=N` (the item payload streamed as a downloadable file).
@@ -111,6 +112,42 @@ pub async fn write(State(state): State<ServerState>, body: axum::body::Bytes) ->
             .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
         adl_clipboard::write_item_to_clipboard(&item)?;
         Ok(serde_json::json!(true))
+    })
+    .await;
+    ipc::to_response(result)
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateBody {
+    id: String,
+    content: String,
+}
+
+/// POST `/clipboard/update` — body `{ id, content }`。仅 `text` 条目可编辑；
+/// 原地更新 `content` 并**保留 `created_at`**（列表按 createdAt 倒序 → 位置不变）。
+pub async fn update(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: UpdateBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let store = state.clipboard_store.clone();
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let mut item = store
+            .get(&input.id)?
+            .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
+        if item.kind != "text" {
+            return Err(AppError::InvalidInput("only text items are editable".into()));
+        }
+        if input.content.trim().is_empty() {
+            return Err(AppError::InvalidInput("content must not be empty".into()));
+        }
+        item.content = Some(input.content);
+        store.save(&item)?;
+        Ok(serde_json::to_value(&item)?)
     })
     .await;
     ipc::to_response(result)
@@ -574,5 +611,43 @@ mod tests {
         assert!(resp.headers().get(axum::http::header::CONTENT_DISPOSITION).is_some());
         let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20).await.unwrap();
         assert_eq!(bytes.as_ref(), b"hello");
+    }
+
+    #[tokio::test]
+    async fn update_edits_text_in_place_and_keeps_created_at() {
+        let state = test_server_state();
+        let mut it = sample_item("u-1", "before");
+        it.created_at = 111;
+        state.clipboard_store.insert_or_bump(&it).unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/clipboard/update")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"id":"u-1","content":"after"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status().is_success());
+        let body = body_json(resp).await;
+        assert_eq!(body["data"]["content"], serde_json::json!("after"));
+        assert_eq!(body["data"]["createdAt"], serde_json::json!(111));
+
+        let missing = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/clipboard/update")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"id":"u-1","content":"  "}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), axum::http::StatusCode::BAD_REQUEST);
     }
 }

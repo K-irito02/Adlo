@@ -89,6 +89,25 @@ export function createUtilitiesActions(
     },
 
     /**
+     * [updateClipboardItem - 保存一条文本条目的编辑结果]
+     * 仅文本条目可编辑；成功后用返回的新条目原位替换历史列表中的对应项（保持 createdAt → 位置不变）。
+     * @reads 无
+     * @writes clipboardHistorySlice.clipboardHistory
+     * @see shared/ipc.ts → clipboard.update
+     * @see mock-bridge.ts → clipboard.update
+     * @see preview-bridge/index.ts → clipboard.update
+     */
+    updateClipboardItem: async (id: string, content: string) => {
+      const result = await window.digitalLife.clipboard.update(id, content);
+      if (result.ok) {
+        get().replaceClipboardHistoryItem(result.data);
+        return true;
+      }
+      captureError(get, result.error, SCOPE);
+      return false;
+    },
+
+    /**
      * [fetchSystemSnapshot - 拉取最新系统资源快照]
      * @reads 无
      * @writes systemMonitorSlice.sysmonSnapshot

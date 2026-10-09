@@ -239,6 +239,7 @@ interface UtilitiesActions {
   removeClipboardItem: (id: string) => Promise<void>;
   clearAllClipboard: () => Promise<void>;
   writeClipboardItem: (id: string) => Promise<boolean>;
+  updateClipboardItem: (id: string, content: string) => Promise<boolean>;
   fetchSystemSnapshot: () => Promise<void>;
 }
 
