@@ -129,6 +129,8 @@ async fn serve_asset(dir: &Path, filename: &str, content_type: &'static str) -> 
     match tokio::fs::read(dir.join(&safe)).await {
         Ok(bytes) => ([(header::CONTENT_TYPE, content_type)], bytes).into_response(),
         Err(e) => {
+            // 对外统一 404（静态资产不泄露服务端内情），但区分"文件不存在"与真实读失败，
+            // 便于排查"图不显示"的根因（权限/磁盘/路径过长等）。
             if e.kind() != std::io::ErrorKind::NotFound {
                 tracing::warn!(
                     error = %e,
@@ -463,6 +465,10 @@ mod tests {
             .await
             .unwrap();
         assert!(html.status().is_success());
+        assert_eq!(
+            html.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
+            "text/plain; charset=utf-8"
+        );
         let bytes = axum::body::to_bytes(html.into_body(), 1024).await.unwrap();
         assert_eq!(bytes.as_ref(), b"<b>hi</b>");
 
@@ -478,6 +484,12 @@ mod tests {
             .await
             .unwrap();
         assert!(rtf.status().is_success());
+        assert_eq!(
+            rtf.headers().get(axum::http::header::CONTENT_TYPE).unwrap(),
+            "text/plain; charset=utf-8"
+        );
+        let rtf_bytes = axum::body::to_bytes(rtf.into_body(), 1024).await.unwrap();
+        assert_eq!(rtf_bytes.as_ref(), b"{\\rtf1}");
 
         let missing = app
             .oneshot(
