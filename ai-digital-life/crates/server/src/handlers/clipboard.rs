@@ -4,11 +4,12 @@
 //! `crate::ipc::to_response` (`IpcResult`).
 //!
 //! Routes: `list` / `remove` / `clear` / `write` (store CRUD + clipboard
-//! write-back) plus the static assets `thumb/:filename` (thumbnail) and
-//! `image/:filename` (full-resolution original, for the zoom-in viewer).
+//! write-back) plus the static assets `thumb/:filename` (thumbnail),
+//! `image/:filename` (full-resolution original, for the zoom-in viewer) and
+//! `html/:filename` / `rtf/:filename` (rich-text sidecars).
 //!
 //! Browser-mode clipboard updates rely on frontend polling, so these handlers
-//! expose the store CRUD surface plus the two static asset routes; change
+//! expose the store CRUD surface plus the static asset routes; change
 //! events are not part of the HTTP contract.
 
 use crate::ServerState;
@@ -114,9 +115,10 @@ pub async fn write(State(state): State<ServerState>, body: axum::body::Bytes) ->
     ipc::to_response(result)
 }
 
-/// Serve a stored PNG from `dir`. `filename` is sanitised to its basename to
-/// prevent path traversal; empty or unknown names return 404.
-async fn serve_png(dir: &Path, filename: &str) -> Response {
+/// Serve a stored asset from `dir` under the given `content_type`. `filename`
+/// is sanitised to its basename to prevent path traversal; empty or unknown
+/// names return 404.
+async fn serve_asset(dir: &Path, filename: &str, content_type: &'static str) -> Response {
     let safe = Path::new(filename)
         .file_name()
         .map(|s| s.to_string_lossy().into_owned())
@@ -125,10 +127,8 @@ async fn serve_png(dir: &Path, filename: &str) -> Response {
         return (StatusCode::NOT_FOUND, "not found").into_response();
     }
     match tokio::fs::read(dir.join(&safe)).await {
-        Ok(bytes) => ([(header::CONTENT_TYPE, "image/png")], bytes).into_response(),
+        Ok(bytes) => ([(header::CONTENT_TYPE, content_type)], bytes).into_response(),
         Err(e) => {
-            // 对外统一 404（静态资产不泄露服务端内情），但区分"文件不存在"与真实读失败，
-            // 便于排查"图不显示"的根因（权限/磁盘/路径过长等）。
             if e.kind() != std::io::ErrorKind::NotFound {
                 tracing::warn!(
                     error = %e,
@@ -149,7 +149,7 @@ pub async fn thumb(
     State(state): State<ServerState>,
     axum::extract::Path(filename): axum::extract::Path<String>,
 ) -> Response {
-    serve_png(state.clipboard_store.thumbs_dir(), &filename).await
+    serve_asset(state.clipboard_store.thumbs_dir(), &filename, "image/png").await
 }
 
 /// GET `/clipboard/image/:filename` — serves the stored full-resolution PNG from
@@ -159,7 +159,23 @@ pub async fn image(
     State(state): State<ServerState>,
     axum::extract::Path(filename): axum::extract::Path<String>,
 ) -> Response {
-    serve_png(state.clipboard_store.images_dir(), &filename).await
+    serve_asset(state.clipboard_store.images_dir(), &filename, "image/png").await
+}
+
+/// GET `/clipboard/html/:filename` — 服务 HTML 载荷 sidecar（供富文本预览 iframe 取源）。
+pub async fn html(
+    State(state): State<ServerState>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Response {
+    serve_asset(state.clipboard_store.html_dir(), &filename, "text/plain; charset=utf-8").await
+}
+
+/// GET `/clipboard/rtf/:filename` — 服务 RTF 载荷 sidecar。
+pub async fn rtf(
+    State(state): State<ServerState>,
+    axum::extract::Path(filename): axum::extract::Path<String>,
+) -> Response {
+    serve_asset(state.clipboard_store.rtf_dir(), &filename, "text/plain; charset=utf-8").await
 }
 
 #[cfg(test)]
@@ -414,6 +430,8 @@ mod tests {
             "/clipboard/image/..%2Fsecret.png",
             "/clipboard/image/a%2F..%2F..%2Fsecret.png",
             "/clipboard/thumb/%2e%2e%2fsecret.png",
+            "/clipboard/html/%2e%2e%2fsecret.html",
+            "/clipboard/rtf/..",
         ] {
             let resp = app
                 .clone()
@@ -424,5 +442,53 @@ mod tests {
         }
 
         let _ = std::fs::remove_file(&secret);
+    }
+
+    #[tokio::test]
+    async fn html_and_rtf_routes_serve_sidecars() {
+        let state = test_server_state();
+        std::fs::write(state.clipboard_store.html_dir().join("a.html"), b"<b>hi</b>").unwrap();
+        std::fs::write(state.clipboard_store.rtf_dir().join("a.rtf"), b"{\\rtf1}").unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+
+        let html = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/html/a.html")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(html.status().is_success());
+        let bytes = axum::body::to_bytes(html.into_body(), 1024).await.unwrap();
+        assert_eq!(bytes.as_ref(), b"<b>hi</b>");
+
+        let rtf = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/rtf/a.rtf")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(rtf.status().is_success());
+
+        let missing = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/html/nope.html")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(missing.status(), axum::http::StatusCode::NOT_FOUND);
     }
 }
