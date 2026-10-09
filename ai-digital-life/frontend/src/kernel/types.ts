@@ -445,6 +445,8 @@ export interface ClipboardItem {
   thumbPath?: string;
   imageWidth?: number;
   imageHeight?: number;
+  /** 原图 PNG 文件体积（字节），供放大查看的"体积"读数；非图片或旧行为 undefined */
+  imageBytes?: number;
   /** 富文本 HTML 载荷的 sidecar 文件路径 */
   htmlPath?: string;
   /** 富文本 RTF 载荷的 sidecar 文件路径 */

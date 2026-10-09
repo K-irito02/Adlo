@@ -16,6 +16,14 @@ const mockT = {
   clipboardZoomView: '放大查看',
   clipboardExport: '保存为文件',
   clipboardEdit: '编辑',
+  clipboardCopy: '复制',
+  clipboardImageDimensions: '尺寸 {width}×{height}',
+  clipboardImageFormat: '格式 {format}',
+  clipboardImageByteSize: '体积 {size}',
+  clipboardImageMetaSeparator: ' · ',
+  clipboardImageZoomIn: '放大图片',
+  clipboardImageZoomOut: '缩小图片',
+  clipboardImageFitWindow: '适应窗口',
   close: '关闭',
 } as never;
 
@@ -47,7 +55,10 @@ afterEach(cleanup);
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockStore({ updateClipboardItem: vi.fn().mockResolvedValue(true) });
+  mockStore({
+    updateClipboardItem: vi.fn().mockResolvedValue(true),
+    writeClipboardItem: vi.fn().mockResolvedValue(true),
+  });
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     clipboard: {
       exportUrl: (id: string) => `http://test/clipboard/export?id=${id}`,
@@ -236,5 +247,99 @@ describe('ClipboardItemViewer', () => {
 
     resolveSave(true);
     await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
+  });
+
+  it('persists the newest draft typed during an in-flight save before closing', async () => {
+    const resolvers: Array<(value: boolean) => void> = [];
+    const updateClipboardItem = vi.fn(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolvers.push(resolve);
+        }),
+    );
+    mockStore({ updateClipboardItem });
+    const onClose = renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'first');
+    // 触发首轮保存（在途）
+    await userEvent.keyboard('{Control>}s{/Control}');
+    expect(updateClipboardItem).toHaveBeenNthCalledWith(1, 'c1', 'first');
+
+    // 保存仍在途时继续输入，然后关闭：关闭需等待在途保存并补写最新草稿
+    await userEvent.type(box, 'X');
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+
+    resolvers[0](true);
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenCalledTimes(2));
+    expect(updateClipboardItem).toHaveBeenNthCalledWith(2, 'c1', 'firstX');
+
+    resolvers[1](true);
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+  });
+
+  it('shows image dimensions, format and byte size, omitting unknown parts', () => {
+    renderViewer(
+      makeItem({
+        kind: 'image',
+        content: undefined,
+        imagePath: 'C:/a.png',
+        imageWidth: 1920,
+        imageHeight: 1080,
+        imageBytes: 2048,
+      }),
+    );
+    expect(screen.getByText('尺寸 1920×1080 · 格式 PNG · 体积 2.0 KB')).toBeTruthy();
+
+    cleanup();
+    // 尺寸与体积未知 → 只保留恒定的格式读数，不打印占位符
+    renderViewer(makeItem({ kind: 'image', content: undefined, imagePath: 'C:/a.png' }));
+    expect(screen.getByText('格式 PNG')).toBeTruthy();
+  });
+
+  it('zooms the image between 25% and 400% and resets fit-to-window to 100%', async () => {
+    renderViewer(
+      makeItem({
+        kind: 'image',
+        content: undefined,
+        imagePath: 'C:/a.png',
+        imageWidth: 1000,
+        imageHeight: 500,
+      }),
+    );
+    const img = screen.getByRole('img') as HTMLImageElement;
+    expect(img.style.width).toBe('1000px');
+    expect(img.style.maxWidth).toBe('100%');
+
+    await userEvent.click(screen.getByRole('button', { name: '放大图片' }));
+    expect(img.style.width).toBe('1100px');
+    expect(img.style.maxWidth).toBe('none');
+
+    await userEvent.click(screen.getByRole('button', { name: '适应窗口' }));
+    expect(img.style.width).toBe('1000px');
+    expect(img.style.maxWidth).toBe('100%');
+
+    // 缩小到 25% 下限后不再继续变小
+    for (let i = 0; i < 10; i += 1) {
+      await userEvent.click(screen.getByRole('button', { name: '缩小图片' }));
+    }
+    expect(img.style.width).toBe('250px');
+  });
+
+  it('offers a copy control for every kind wired to writeClipboardItem', async () => {
+    const writeClipboardItem = vi.fn().mockResolvedValue(true);
+    mockStore({ updateClipboardItem: vi.fn().mockResolvedValue(true), writeClipboardItem });
+
+    renderViewer(makeItem());
+    await userEvent.click(screen.getByRole('button', { name: '复制' }));
+    expect(writeClipboardItem).toHaveBeenCalledWith('c1');
+
+    cleanup();
+    renderViewer(makeItem({ kind: 'image', content: undefined, imagePath: 'C:/a.png' }));
+    await userEvent.click(screen.getByRole('button', { name: '复制' }));
+    expect(writeClipboardItem).toHaveBeenCalledTimes(2);
+    expect(writeClipboardItem).toHaveBeenLastCalledWith('c1');
   });
 });

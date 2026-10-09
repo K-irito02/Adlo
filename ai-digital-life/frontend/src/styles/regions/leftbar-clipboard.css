@@ -384,6 +384,12 @@
   color: var(--text-secondary);
 }
 
+/* 头部复制按钮与相邻 adl-icon-btn--xs (22px) 对齐（覆盖 .adl-copy-btn 的 24px）。 */
+.adl-copy-btn.adl-clipboard-viewer__copy {
+  width: 22px;
+  height: 22px;
+}
+
 .adl-clipboard-viewer__body {
   flex: 1;
   min-height: 0;
@@ -420,6 +426,21 @@
   padding: 0 var(--space-1);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
+}
+
+/* 图片缩放：中间为只读百分比读数，右侧"适应窗口"按钮容纳较长文案。 */
+.adl-clipboard-viewer__zoom-readout {
+  min-width: 34px;
+  text-align: center;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.adl-clipboard-viewer__tools .adl-clipboard-viewer__fit {
+  width: auto;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
 }
 
 .adl-clipboard-viewer__text {
@@ -466,8 +487,9 @@
 
 .adl-clipboard-viewer__image-wrap {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  /* safe：放大到超出容器时退回 flex-start，避免居中所致的左侧溢出无法滚动到 */
+  align-items: safe center;
+  justify-content: safe center;
   min-height: 100%;
   padding: var(--space-3);
 }

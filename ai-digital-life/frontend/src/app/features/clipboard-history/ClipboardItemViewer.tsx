@@ -1,12 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconClose, IconDownload, IconEdit, IconEye, IconFileImage } from '@icons';
+import { CopyButton } from '@components/CopyButton';
 import { TooltipSimple } from '@components/Tooltip';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { clipboardTextStats } from './clipboardTextStats';
+import { formatClipboardBytes } from './clipboardBytes';
 import { getClipboardKindLabel } from './clipboardKind';
 import { createUndoStack } from './clipboardUndoStack';
 
@@ -15,17 +17,27 @@ interface ClipboardItemViewerProps {
   onClose: () => void;
 }
 
+/** 图片缩放比例范围与步长（与文本字号缩放同为 0.1 步长）。 */
+const IMAGE_ZOOM_MIN = 0.25;
+const IMAGE_ZOOM_MAX = 4;
+const ZOOM_STEP = 0.1;
+/** 存储的图片原图恒为 PNG。 */
+const IMAGE_FORMAT = 'PNG';
+
 /**
  * 剪贴板条目放大查看覆盖层（createPortal + 遮罩 + 卡片）。
  * - 文本条目：工具栏（字符统计 / 字号缩放 / 自动换行 / 编辑）+ 全文展示，超出卡片高度时滚动查看完整内容
  * - 文本条目可进入编辑模式：Ctrl+Z 撤回 / Ctrl+Y 重做 / Ctrl+S 保存 / Esc 取消更改
  * - HTML 条目：可安全切换富文本预览（沙箱 iframe，`sandbox=""` 禁用脚本与同源），默认仍显示纯文本
- * - 图片条目：展示后端原图；原图缺失/加载失败时回退缩略图，再退到图标占位
+ * - 图片条目：工具栏展示尺寸/格式/体积读数与 25%~400% 缩放（适应窗口复位到 100%），
+ *   原图缺失/加载失败时回退缩略图，再退到图标占位
+ * - 头部对所有类型提供"复制"（走 `writeClipboardItem` 写回系统剪贴板）与保存为文件、关闭
  * - 遮罩点击 / Escape / 关闭按钮均可关闭；关闭即保存（含卸载时的未落盘改动）；关闭后焦点归还打开它的元素
  */
 export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps) {
   const { t, formatT } = useTCopy();
   const updateClipboardItem = useAppStore((s) => s.updateClipboardItem);
+  const writeClipboardItem = useAppStore((s) => s.writeClipboardItem);
   const closeRef = useRef<HTMLButtonElement | null>(null);
   const canEdit = item.kind === 'text';
   const isImage = item.kind === 'image';
@@ -37,17 +49,25 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     imageUrl ? 'original' : 'thumb',
   );
   const [fontScale, setFontScale] = useState(1);
+  const [imageScale, setImageScale] = useState(1);
   const [wrap, setWrap] = useState(true);
   const [previewRich, setPreviewRich] = useState(false);
   const [htmlText, setHtmlText] = useState('');
   const [editing, setEditing] = useState(false);
   // 本查看器会话内的当前文本：编辑时实时更新；撤回到此前的基线即「取消更改」。
   const [draft, setDraft] = useState(item.content ?? '');
+  // 始终持有最新草稿（状态更新是异步的），供保存流程在 await 之后判断是否需要补写。
+  const draftRef = useRef(item.content ?? '');
   const baselineRef = useRef(item.content ?? '');
   const stackRef = useRef(createUndoStack(item.content ?? ''));
-  // 单飞：同一时刻至多一次 updateClipboardItem 在途，避免并发/重复写入。
+  // 单飞：同一时刻至多一个保存任务在途（任务内部逐轮串行写入），避免并发/重复写入。
   const savingRef = useRef<Promise<void> | null>(null);
   const stats = useMemo(() => clipboardTextStats(draft), [draft]);
+  // 文本与草稿同步推进：ref 用于异步保存读取，state 用于渲染。
+  const updateDraft = useCallback((next: string) => {
+    draftRef.current = next;
+    setDraft(next);
+  }, []);
 
   useEffect(() => {
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -58,11 +78,11 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   // 条目变化时重置草稿/撤销栈并退出编辑，保证 Esc 撤回到该条目的最新文本，且不会复用编辑态。
   useEffect(() => {
     const initial = item.content ?? '';
-    setDraft(initial);
+    updateDraft(initial);
     setEditing(false);
     baselineRef.current = initial;
     stackRef.current = createUndoStack(initial);
-  }, [item.id, item.content]);
+  }, [item.id, item.content, updateDraft]);
 
   useEffect(() => {
     if (item.kind !== 'html' || !item.htmlPath) {
@@ -82,7 +102,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
 
   /**
    * 若正在编辑且有改动则落盘，然后退出编辑模式；空白内容不可保存。
-   * 单飞：已有保存进行中时不做新写入，直接返回在途 Promise，供调用方（关闭路径）等待其落盘。
+   * 单飞：同一时刻至多一个保存任务在途；已有在途任务时直接返回它，供调用方（关闭路径）等待其落盘。
+   * 保存任务内部逐轮串行写入：每写完一轮，若"实时草稿"（`draftRef`）已不同于刚落盘的内容，
+   * 再补写一轮 —— 保证关闭时最新草稿一定持久化；轮数封顶（首轮 + 一次补写），失败也不会死循环。
    */
   const commitIfEditing = useCallback(async () => {
     if (!editing) {
@@ -91,26 +113,32 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     if (savingRef.current) {
       return savingRef.current;
     }
-    if (!draft.trim()) {
+    if (!draftRef.current.trim()) {
       return;
     }
-    if (draft === baselineRef.current) {
+    if (draftRef.current === baselineRef.current) {
       setEditing(false);
       return;
     }
     const saving = (async () => {
       try {
-        await updateClipboardItem(item.id, draft);
-        // 更新基线：既避免关闭路径的重复落盘，也让随后的 Esc 撤回到已保存内容。
-        baselineRef.current = draft;
+        for (let round = 0; round < 2; round += 1) {
+          const target = draftRef.current;
+          if (!target.trim() || target === baselineRef.current) {
+            return;
+          }
+          await updateClipboardItem(item.id, target);
+          // 更新基线：既让下一轮判断"是否还有新改动"，也让随后的 Esc 撤回到已保存内容。
+          baselineRef.current = target;
+        }
       } finally {
         savingRef.current = null;
+        setEditing(false);
       }
-      setEditing(false);
     })();
     savingRef.current = saving;
     return saving;
-  }, [editing, draft, item.id, updateClipboardItem]);
+  }, [editing, item.id, updateClipboardItem]);
 
   const commitIfEditingRef = useRef(commitIfEditing);
   useEffect(() => {
@@ -134,8 +162,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   );
 
   const startEditing = () => {
-    baselineRef.current = draft;
-    stackRef.current = createUndoStack(draft);
+    baselineRef.current = draftRef.current;
+    stackRef.current = createUndoStack(draftRef.current);
     setEditing(true);
   };
 
@@ -144,12 +172,12 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       if (editing) {
         if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
           event.preventDefault();
-          setDraft(stackRef.current.undo());
+          updateDraft(stackRef.current.undo());
           return;
         }
         if ((event.ctrlKey || event.metaKey) && event.key === 'y') {
           event.preventDefault();
-          setDraft(stackRef.current.redo());
+          updateDraft(stackRef.current.redo());
           return;
         }
         if ((event.ctrlKey || event.metaKey) && event.key === 's') {
@@ -160,7 +188,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
         if (event.key === 'Escape') {
           // 编辑中 Esc = 取消更改：撤回到本次编辑开始前的文本，弹窗保持打开。
           event.preventDefault();
-          setDraft(baselineRef.current);
+          updateDraft(baselineRef.current);
           stackRef.current = createUndoStack(baselineRef.current);
           setEditing(false);
           return;
@@ -177,8 +205,29 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [editing, onClose]);
+  }, [editing, onClose, updateDraft]);
   const displayUrl = imageStage === 'original' ? imageUrl : imageStage === 'thumb' ? thumbUrl : '';
+  // 图片读数：尺寸 / 格式 / 体积，未知项整体省略（不打印占位符）。
+  const imageMetaParts: string[] = [];
+  if (item.imageWidth != null && item.imageHeight != null) {
+    imageMetaParts.push(
+      formatT(t, 'clipboardImageDimensions', {
+        width: String(item.imageWidth),
+        height: String(item.imageHeight),
+      }),
+    );
+  }
+  imageMetaParts.push(formatT(t, 'clipboardImageFormat', { format: IMAGE_FORMAT }));
+  const imageBytes = item.imageBytes != null ? formatClipboardBytes(item.imageBytes) : '';
+  if (imageBytes) {
+    imageMetaParts.push(formatT(t, 'clipboardImageByteSize', { size: imageBytes }));
+  }
+  const imageMeta = imageMetaParts.join(t.clipboardImageMetaSeparator);
+  // 显示宽度 = 原始宽度 × 比例，放大时放开 max-width 让滚动容器可横向滚动；100% 时回到 max-width:100% 自适应。
+  const imageStyle =
+    item.imageWidth != null
+      ? { width: Math.round(item.imageWidth * imageScale), maxWidth: imageScale > 1 ? 'none' : '100%' }
+      : undefined;
 
   return createPortal(
     <div
@@ -199,6 +248,12 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       >
         <div className="adl-clipboard-viewer__header">
           <span className="adl-clipboard-viewer__title">{getClipboardKindLabel(item.kind, t)}</span>
+          <CopyButton
+            onCopy={() => writeClipboardItem(item.id)}
+            size={12}
+            className="adl-clipboard-viewer__copy"
+            tooltip={t.clipboardCopy}
+          />
           <a
             className="adl-icon-btn adl-icon-btn--xs"
             href={window.digitalLife.clipboard.exportUrl(item.id)}
@@ -221,72 +276,105 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
         </div>
 
         <div className="adl-clipboard-viewer__body">
-          {!isImage && (
-            <div className="adl-clipboard-viewer__tools">
-              <span className="adl-clipboard-viewer__stats">
-                {formatT(t, 'clipboardStatsSummary', {
-                  chars: String(stats.chars),
-                  noSpace: String(stats.charsNoSpace),
-                  lines: String(stats.lines),
-                })}
-              </span>
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                onClick={() => setFontScale((s) => Math.max(0.5, +(s - 0.1).toFixed(2)))}
-                aria-label={t.clipboardZoomOut}
-              >
-                A-
-              </button>
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__zoom"
-                onClick={() => setFontScale(1)}
-                aria-label={t.clipboardZoomReset}
-              >
-                {Math.round(fontScale * 100)}%
-              </button>
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                onClick={() => setFontScale((s) => Math.min(4, +(s + 0.1).toFixed(2)))}
-                aria-label={t.clipboardZoomIn}
-              >
-                A+
-              </button>
-              <button
-                type="button"
-                className="adl-icon-btn adl-icon-btn--xs"
-                aria-pressed={wrap ? 'true' : 'false'}
-                onClick={() => setWrap((w) => !w)}
-                aria-label={t.clipboardWrapToggle}
-              >
-                ↩
-              </button>
-              {canEdit && (
+          <div className="adl-clipboard-viewer__tools">
+            {isImage ? (
+              <>
+                <span className="adl-clipboard-viewer__stats">{imageMeta}</span>
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
-                  aria-pressed={editing ? 'true' : 'false'}
-                  onClick={startEditing}
-                  aria-label={t.clipboardEdit}
+                  onClick={() => setImageScale((s) => Math.max(IMAGE_ZOOM_MIN, +(s - ZOOM_STEP).toFixed(2)))}
+                  aria-label={t.clipboardImageZoomOut}
                 >
-                  <IconEdit size={12} decorative />
+                  −
                 </button>
-              )}
-              {isHtml && (
+                <span className="adl-clipboard-viewer__zoom-readout">
+                  {Math.round(imageScale * 100)}%
+                </span>
                 <button
                   type="button"
                   className="adl-icon-btn adl-icon-btn--xs"
-                  aria-pressed={previewRich ? 'true' : 'false'}
-                  onClick={() => setPreviewRich((v) => !v)}
-                  aria-label={t.clipboardPreviewRich}
+                  onClick={() => setImageScale((s) => Math.min(IMAGE_ZOOM_MAX, +(s + ZOOM_STEP).toFixed(2)))}
+                  aria-label={t.clipboardImageZoomIn}
                 >
-                  <IconEye size={12} decorative />
+                  +
                 </button>
-              )}
-            </div>
-          )}
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__fit"
+                  onClick={() => setImageScale(1)}
+                  aria-label={t.clipboardImageFitWindow}
+                >
+                  {t.clipboardImageFitWindow}
+                </button>
+              </>
+            ) : (
+              <>
+                <span className="adl-clipboard-viewer__stats">
+                  {formatT(t, 'clipboardStatsSummary', {
+                    chars: String(stats.chars),
+                    noSpace: String(stats.charsNoSpace),
+                    lines: String(stats.lines),
+                  })}
+                </span>
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  onClick={() => setFontScale((s) => Math.max(0.5, +(s - 0.1).toFixed(2)))}
+                  aria-label={t.clipboardZoomOut}
+                >
+                  A-
+                </button>
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs adl-clipboard-viewer__zoom"
+                  onClick={() => setFontScale(1)}
+                  aria-label={t.clipboardZoomReset}
+                >
+                  {Math.round(fontScale * 100)}%
+                </button>
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  onClick={() => setFontScale((s) => Math.min(4, +(s + 0.1).toFixed(2)))}
+                  aria-label={t.clipboardZoomIn}
+                >
+                  A+
+                </button>
+                <button
+                  type="button"
+                  className="adl-icon-btn adl-icon-btn--xs"
+                  aria-pressed={wrap ? 'true' : 'false'}
+                  onClick={() => setWrap((w) => !w)}
+                  aria-label={t.clipboardWrapToggle}
+                >
+                  ↩
+                </button>
+                {canEdit && (
+                  <button
+                    type="button"
+                    className="adl-icon-btn adl-icon-btn--xs"
+                    aria-pressed={editing ? 'true' : 'false'}
+                    onClick={startEditing}
+                    aria-label={t.clipboardEdit}
+                  >
+                    <IconEdit size={12} decorative />
+                  </button>
+                )}
+                {isHtml && (
+                  <button
+                    type="button"
+                    className="adl-icon-btn adl-icon-btn--xs"
+                    aria-pressed={previewRich ? 'true' : 'false'}
+                    onClick={() => setPreviewRich((v) => !v)}
+                    aria-label={t.clipboardPreviewRich}
+                  >
+                    <IconEye size={12} decorative />
+                  </button>
+                )}
+              </>
+            )}
+          </div>
           <CustomScrollArea
             shellClassName="adl-clipboard-viewer__scroll-shell"
             scrollClassName="adl-clipboard-viewer__scroll"
@@ -300,6 +388,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                     className="adl-clipboard-viewer__image"
                     src={displayUrl}
                     alt={t.clipboardImage}
+                    style={imageStyle}
                     onError={() =>
                       setImageStage((prev) => (prev === 'original' ? 'thumb' : 'none'))
                     }
@@ -315,7 +404,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                 onChange={(event) => {
                   const next = event.target.value;
                   stackRef.current.push(next);
-                  setDraft(next);
+                  updateDraft(next);
                 }}
                 style={{
                   fontSize: `calc(var(--text-sm) * ${fontScale})`,
