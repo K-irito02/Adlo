@@ -245,10 +245,31 @@ pub(crate) fn restart_workspace_watcher(state: &ServerState, root: &std::path::P
 /// clipboard listener (writes history to `data.db`) plus a parked keep-alive
 /// thread that holds the listener handle alive. Called from `serve()` so tests
 /// that build `ServerState` directly (`init_server_state`) never spawn these.
+///
+/// Also bridges the clipboard monitor's broadcast into `EventBus` as
+/// `AppEvent::ClipboardChanged`, so `/ws/workspace` can push an instant
+/// "clipboard changed" frame (previously the broadcast had no subscriber and
+/// the event was never emitted — the UI fell back to a 2s poll).
 pub fn start_background_services(state: &ServerState) {
     // 启动剪贴板监听。句柄必须存续至进程生命周期，否则 Drop 会触发监听线程立即退出；
     // 放入独立 thread，持句柄阻塞保活（与桌面端 setup::start_clipboard_monitor 同思路）。
-    let monitor_handle = ClipboardMonitor::new().spawn(state.clipboard_store.clone());
+    //
+    // 订阅必须先于 `spawn`：`spawn` 以值语义消费 `monitor`，之后无法再 `subscribe`。
+    let monitor = ClipboardMonitor::new();
+    let mut changes = monitor.subscribe();
+    let monitor_handle = monitor.spawn(state.clipboard_store.clone());
+
+    // 监听广播 → 事件总线：此前该 broadcast 无订阅者、ClipboardChanged 从未 emit，
+    // 前端只能靠轮询。`EventBus` 为 `Clone`，桥接线程持有其克隆即可。
+    // 用 `blocking_recv()` 阻塞等待：该线程非 async 上下文，可用 tokio sync 的阻塞原语
+    // （不会忙等）。
+    let bus = state.event_bus.clone();
+    std::thread::spawn(move || {
+        while let Ok(_signal) = changes.blocking_recv() {
+            bus.emit(adl_kernel::events::AppEvent::ClipboardChanged);
+        }
+    });
+
     std::thread::spawn(move || {
         let _handle = monitor_handle; // 保持监听线程存活
         std::thread::park();

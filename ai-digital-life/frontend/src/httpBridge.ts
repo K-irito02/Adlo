@@ -1139,6 +1139,7 @@ export function createHttpBridge({
       getImageUrl: (imagePath: string) => clipboardAssetUrl(baseUrl, 'image', imagePath),
       getHtmlUrl: (htmlPath: string) => clipboardAssetUrl(baseUrl, 'html', htmlPath),
       getRtfUrl: (rtfPath: string) => clipboardAssetUrl(baseUrl, 'rtf', rtfPath),
+      onChanged: (listener: () => void) => getWorkspaceEvents().onClipboardChanged(listener),
     } satisfies ClipboardBridge,
 
     // ── System-monitor domain.

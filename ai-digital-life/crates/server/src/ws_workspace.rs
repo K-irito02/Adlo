@@ -29,6 +29,12 @@ fn overflow_frame() -> Message {
     Message::Text(files_changed_frame(&[], &[], true).to_string())
 }
 
+/// 构造 `clipboard-changed` WS 帧：与 `files_changed_frame` 同构，形状由单测锁定。
+/// 无载荷 —— 消费端只需"剪贴板有变化"信号即可立即重取历史。
+pub(crate) fn clipboard_changed_frame() -> serde_json::Value {
+    serde_json::json!({ "kind": "clipboard-changed" })
+}
+
 /// 非阻塞发送一帧：成功 true；接收端已死 false（调用方 break）；
 /// 队列满则置 coalesce 标志并返回 true（丢帧不断连，由 overflow 帧兜底）。
 fn try_send_frame(tx: &mpsc::Sender<Message>, frame: Message, pending_overflow: &mut bool) -> bool {
@@ -77,6 +83,13 @@ async fn handle_socket(state: ServerState, socket: WebSocket) {
                         continue;
                     }
                     let frame = files_changed_frame(&changed, &removed, false);
+                    if !try_send_frame(&tx, Message::Text(frame.to_string()), &mut pending_overflow)
+                    {
+                        break;
+                    }
+                },
+                Ok(adl_kernel::events::AppEvent::ClipboardChanged) => {
+                    let frame = clipboard_changed_frame();
                     if !try_send_frame(&tx, Message::Text(frame.to_string()), &mut pending_overflow)
                     {
                         break;
@@ -137,5 +150,11 @@ mod tests {
         assert_eq!(frame["overflow"], true);
         assert_eq!(frame["changed"].as_array().unwrap().len(), 0);
         assert_eq!(frame["removed"].as_array().unwrap().len(), 0);
+    }
+
+    #[test]
+    fn clipboard_changed_frame_shape_is_locked() {
+        let frame = clipboard_changed_frame();
+        assert_eq!(frame["kind"], "clipboard-changed");
     }
 }

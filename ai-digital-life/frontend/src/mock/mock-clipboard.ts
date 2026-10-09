@@ -18,4 +18,5 @@ export const mockClipboard: ClipboardBridge = {
   getImageUrl: () => '',
   getHtmlUrl: (_htmlPath: string) => '',
   getRtfUrl: (_rtfPath: string) => '',
+  onChanged: () => () => {},
 };

@@ -116,4 +116,15 @@ export interface ClipboardBridge {
    * @see preview-bridge/index.ts → clipboard.getImageUrl
    */
   getImageUrl: (imagePath: string) => string;
+  /**
+   * 订阅"剪贴板历史发生变化"信号（无载荷）：ad-server 经 `/ws/workspace` 推送
+   * `{"kind":"clipboard-changed"}` 时触发，消费端应立即重取历史（节流合并突发）。
+   * 同步返回 unsubscribe（与 `workspace.onFilesChanged` 同契约，勿被异步包装）。
+   * @param listener 变化回调（无参数）
+   * @returns 同步 unsubscribe；mock 模式返回空操作。
+   * @see tauri-bridge/index.ts（...http 继承）→ clipboard.onChanged
+   * @see mock-bridge.ts → clipboard.onChanged
+   * @see preview-bridge/index.ts → clipboard.onChanged
+   */
+  onChanged: (listener: () => void) => () => void;
 }

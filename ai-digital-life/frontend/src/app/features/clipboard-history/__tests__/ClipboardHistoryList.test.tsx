@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { ClipboardHistoryList } from '../ClipboardHistoryList';
@@ -8,6 +8,22 @@ import { useAppStore } from '@stores/slicedStore';
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: vi.fn(),
 }));
+
+// 捕获列表注册的 onChanged 监听器，暴露 emitChange() 让测试模拟一次剪贴板变化推送。
+const clipboardListeners = new Set<() => void>();
+const fakeBridge = {
+  clipboard: {
+    getThumbUrl: () => '',
+    getImageUrl: () => '',
+    onChanged: (listener: () => void) => {
+      clipboardListeners.add(listener);
+      return () => clipboardListeners.delete(listener);
+    },
+    emitChange: () => {
+      clipboardListeners.forEach((fn) => fn());
+    },
+  },
+};
 
 const dict: Record<string, string> = {
   clipboardHistory: '剪贴板历史',
@@ -39,6 +55,7 @@ function makeItem(id: string, content: string): ClipboardItem {
 }
 
 function renderList(overrides: Record<string, unknown> = {}) {
+  const fetchClipboardHistory = vi.fn().mockResolvedValue(undefined);
   const state: Record<string, unknown> = {
     clipboardHistory: [],
     clipboardHistoryLoading: false,
@@ -56,7 +73,7 @@ function renderList(overrides: Record<string, unknown> = {}) {
     setClipboardKindFilter: vi.fn(),
     clearAllClipboard: vi.fn(),
     removeClipboardItem: vi.fn(),
-    fetchClipboardHistory: vi.fn().mockResolvedValue(undefined),
+    fetchClipboardHistory,
     ...overrides,
   };
   vi.mocked(useAppStore).mockImplementation((selector: (s: any) => any) => selector(state));
@@ -65,13 +82,13 @@ function renderList(overrides: Record<string, unknown> = {}) {
       <ClipboardHistoryList />
     </TCopyProvider>,
   );
+  return { fetchClipboardHistory };
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
-  (window as unknown as { digitalLife: unknown }).digitalLife = {
-    clipboard: { getThumbUrl: () => '', getImageUrl: () => '' },
-  };
+  clipboardListeners.clear();
+  (window as unknown as { digitalLife: unknown }).digitalLife = fakeBridge;
 });
 
 afterEach(cleanup);
@@ -99,5 +116,11 @@ describe('ClipboardHistoryList', () => {
   it('excludes the row list from rendering while loading', () => {
     renderList({ clipboardHistory: [makeItem('1', 'alpha')], clipboardHistoryLoading: true });
     expect(screen.queryByRole('listitem')).toBeNull();
+  });
+
+  it('refetches immediately when clipboard changes', async () => {
+    const { fetchClipboardHistory } = renderList();
+    fakeBridge.clipboard.emitChange();
+    await waitFor(() => expect(fetchClipboardHistory).toHaveBeenCalledTimes(2));
   });
 });

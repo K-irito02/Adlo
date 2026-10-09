@@ -115,4 +115,18 @@ describe('createWorkspaceEventsClient', () => {
     unsubscribe();
     client.dispose();
   });
+
+  it('routes clipboard-changed frames to clipboard listeners', () => {
+    const client = createWorkspaceEventsClient('http://h', { wsFactory, reconnectDelayMs: 10 });
+    const onFiles = vi.fn();
+    const onClip = vi.fn();
+    client.onFilesChanged(onFiles);
+    client.onClipboardChanged(onClip);
+    const socket = FakeSocket.instances[0];
+    socket.serverOpen();
+    socket.serverSend(JSON.stringify({ kind: 'clipboard-changed' }));
+    expect(onClip).toHaveBeenCalledTimes(1);
+    expect(onFiles).not.toHaveBeenCalled();
+    client.dispose();
+  });
 });

@@ -264,6 +264,9 @@ export async function setupPreviewBridge(): Promise<void> {
       // exportUrl 同样是纯 URL 构造器（返回 `/clipboard/export?id=…`，由
       // 前端 `<a download>` 触发下载），必须覆盖在 spread 之后，避免被 Proxy 异步包裹。
       exportUrl: http.clipboard.exportUrl,
+      // onChanged 返回同步 unsubscribe（与 workspace.onFilesChanged 同契约），
+      // 必须放在 spread 之外：Proxy 会把方法异步包裹，破坏"同步返回 unsubscribe"。
+      onChanged: http.clipboard.onChanged,
     },
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
       adlServerBaseUrl,

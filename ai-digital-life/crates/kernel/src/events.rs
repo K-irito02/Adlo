@@ -48,8 +48,8 @@ pub enum AppEvent {
         removed: Vec<String>,
         overflow: bool,
     },
-    /// 剪贴板历史新增/变更，携带最新条目 id。
-    ClipboardChanged(String),
+    /// 剪贴板历史新增/变更信号（无负载：消费端只需"有变化"触发重取）。
+    ClipboardChanged,
 }
 
 #[derive(Clone)]
@@ -109,7 +109,7 @@ impl AppEvent {
             // 新代码一律走批量 `FilesChanged`，两者不得并存触发同一刷新。
             Self::FileChanged { .. } => "workspace.file-changed",
             Self::FilesChanged { .. } => "workspace.files-changed",
-            Self::ClipboardChanged(_) => "clipboard.changed",
+            Self::ClipboardChanged => "clipboard.changed",
         }
     }
 
@@ -160,5 +160,10 @@ mod tests {
         assert_eq!(json["changed"][0], "a.txt");
         assert_eq!(json["removed"].as_array().unwrap().len(), 0);
         assert_eq!(json["overflow"], false);
+    }
+
+    #[test]
+    fn clipboard_changed_kind_is_stable() {
+        assert_eq!(AppEvent::ClipboardChanged.kind(), "clipboard.changed");
     }
 }

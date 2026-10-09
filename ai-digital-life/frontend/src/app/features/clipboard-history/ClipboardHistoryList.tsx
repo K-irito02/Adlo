@@ -11,7 +11,8 @@ import { ClipboardItemRow } from './ClipboardItemRow';
 import { ClipboardItemViewer } from './ClipboardItemViewer';
 import { buildClipboardFilterInput, filterClipboardItems } from './clipboardFilter';
 
-const REFRESH_INTERVAL_MS = 2000;
+const REFRESH_INTERVAL_MS = 10000;
+const CHANGE_THROTTLE_MS = 100;
 const CLIPBOARD_SCROLL_TOP_KEY = 'adl:ui.clipboardScrollTop';
 
 /**
@@ -22,7 +23,8 @@ const CLIPBOARD_SCROLL_TOP_KEY = 'adl:ui.clipboardScrollTop';
  * - 列表用 CustomScrollArea 承载（与文件树一致的自定义滚动条）
  * - 空状态使用 EmptyRow（居中、无句号）
  * - 挂载时触发 fetchClipboardHistory()
- * - 以 2s 间隔轮询刷新；页面隐藏（document.hidden）时暂停、恢复可见时立即刷新并恢复轮询
+ * - 订阅剪贴板推送（`clipboard.onChanged`），变化到达即立即重取（100ms 节流合并突发），
+ *   数十毫秒内出现新条目；10s 轮询仅作兜底，页面隐藏时暂停、恢复可见时立即刷新并恢复轮询
  */
 export function ClipboardHistoryList() {
   const { t, formatT } = useTCopy();
@@ -40,6 +42,7 @@ export function ClipboardHistoryList() {
   const clipboardHistoryLoading = useAppStore((s) => s.clipboardHistoryLoading);
   const fetchClipboardHistory = useAppStore((s) => s.fetchClipboardHistory);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const changeThrottleRef = useRef<number | undefined>(undefined);
   const [viewerItem, setViewerItem] = useState<ClipboardItem | null>(null);
   const { scrollRef: clipboardScrollRef, tryRestore: tryRestoreClipboardScroll } =
     usePersistedScrollTop(CLIPBOARD_SCROLL_TOP_KEY, { usePersistChannel: true });
@@ -72,6 +75,27 @@ export function ClipboardHistoryList() {
     return () => {
       window.clearInterval(timerId);
       document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [fetchClipboardHistory]);
+
+  // 剪贴板推送：收到变化信号即立即重取，100ms 节流使一串复制合并为一次刷新
+  // （前缘触发：首个变化立刻刷新，节流窗内的其余变化被合并）。轮询仅作兜底。
+  useEffect(() => {
+    const unsubscribe = window.digitalLife.clipboard.onChanged(() => {
+      if (changeThrottleRef.current !== undefined) {
+        return;
+      }
+      changeThrottleRef.current = window.setTimeout(() => {
+        changeThrottleRef.current = undefined;
+      }, CHANGE_THROTTLE_MS);
+      void fetchClipboardHistory(true);
+    });
+    return () => {
+      unsubscribe();
+      if (changeThrottleRef.current !== undefined) {
+        window.clearTimeout(changeThrottleRef.current);
+        changeThrottleRef.current = undefined;
+      }
     };
   }, [fetchClipboardHistory]);
 

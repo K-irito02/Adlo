@@ -18,6 +18,8 @@ export interface WorkspaceEventsClientOptions {
 
 export interface WorkspaceEventsClient {
   onFilesChanged(listener: (batch: WorkspaceFilesChangedBatch) => void): () => void;
+  /** 剪贴板历史变更（无载荷）：到达即应立即重取，无需等待轮询。 */
+  onClipboardChanged(listener: () => void): () => void;
   dispose(): void;
 }
 
@@ -27,14 +29,19 @@ export function createWorkspaceEventsClient(
   options: WorkspaceEventsClientOptions = {},
 ): WorkspaceEventsClient {
   const { wsFactory, reconnectDelayMs = 1000, maxReconnectDelayMs = 30_000 } = options;
-  const listeners = new Set<(batch: WorkspaceFilesChangedBatch) => void>();
+  const filesListeners = new Set<(batch: WorkspaceFilesChangedBatch) => void>();
+  const clipboardListeners = new Set<() => void>();
   let socket: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   let reconnectDelay = reconnectDelayMs;
   let disposed = false;
   // 首连成功后即有过连接：之后每次 onopen 都是"重连"，断线窗口的变更已丢失，
   // 补发 overflow 批次唤醒消费端全量重搜（kernel 溢出退化契约在 WS 路径的落实）。
+  // 剪贴板监听器同样在重连时收到通知，使断线窗口内的复制触发一次重取。
   let hasConnected = false;
+
+  /** 任一订阅池非空即需要连接（文件 / 剪贴板共用同一 socket）。 */
+  const hasListeners = () => filesListeners.size > 0 || clipboardListeners.size > 0;
 
   const sanitizeList = (value: unknown): string[] =>
     Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
@@ -46,7 +53,14 @@ export function createWorkspaceEventsClient(
     } catch {
       return;
     }
-    if (!frame || typeof frame !== 'object' || frame.kind !== 'files-changed') {
+    if (!frame || typeof frame !== 'object') {
+      return;
+    }
+    if (frame.kind === 'clipboard-changed') {
+      clipboardListeners.forEach((fn) => fn());
+      return;
+    }
+    if (frame.kind !== 'files-changed') {
       return;
     }
     const batch: WorkspaceFilesChangedBatch = {
@@ -54,11 +68,11 @@ export function createWorkspaceEventsClient(
       removed: sanitizeList(frame.removed),
       overflow: frame.overflow === true,
     };
-    listeners.forEach((fn) => fn(batch));
+    filesListeners.forEach((fn) => fn(batch));
   };
 
   const connect = () => {
-    if (disposed || socket !== null || listeners.size === 0) {
+    if (disposed || socket !== null || !hasListeners()) {
       return;
     }
     const ws = (wsFactory ?? ((url: string) => new WebSocket(url)))(toWorkspaceWsUrl(baseUrl));
@@ -67,7 +81,8 @@ export function createWorkspaceEventsClient(
       reconnectDelay = reconnectDelayMs;
       if (hasConnected) {
         const batch: WorkspaceFilesChangedBatch = { changed: [], removed: [], overflow: true };
-        listeners.forEach((fn) => fn(batch));
+        filesListeners.forEach((fn) => fn(batch));
+        clipboardListeners.forEach((fn) => fn());
       }
       hasConnected = true;
     };
@@ -81,7 +96,7 @@ export function createWorkspaceEventsClient(
         return;
       }
       socket = null;
-      if (!disposed && listeners.size > 0) {
+      if (!disposed && hasListeners()) {
         reconnectTimer = setTimeout(() => {
           reconnectTimer = null;
           connect();
@@ -117,20 +132,33 @@ export function createWorkspaceEventsClient(
     }
   };
 
+  /** 两个订阅池都空时才断连：任一池仍有监听器即保持 socket。 */
+  const releaseIfIdle = () => {
+    if (hasListeners()) {
+      return;
+    }
+    if (reconnectTimer !== null) {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    releaseSocket();
+  };
+
   return {
     onFilesChanged(listener) {
-      listeners.add(listener);
+      filesListeners.add(listener);
       connect();
       return () => {
-        listeners.delete(listener);
-        if (listeners.size !== 0) {
-          return;
-        }
-        if (reconnectTimer !== null) {
-          clearTimeout(reconnectTimer);
-          reconnectTimer = null;
-        }
-        releaseSocket();
+        filesListeners.delete(listener);
+        releaseIfIdle();
+      };
+    },
+    onClipboardChanged(listener) {
+      clipboardListeners.add(listener);
+      connect();
+      return () => {
+        clipboardListeners.delete(listener);
+        releaseIfIdle();
       };
     },
     dispose() {
@@ -141,7 +169,8 @@ export function createWorkspaceEventsClient(
         reconnectTimer = null;
       }
       releaseSocket();
-      listeners.clear();
+      filesListeners.clear();
+      clipboardListeners.clear();
     },
   };
 }
