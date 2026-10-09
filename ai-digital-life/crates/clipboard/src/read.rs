@@ -22,15 +22,36 @@ use crate::store::ClipboardStore;
 /// 缩略图最长边。
 const THUMB_MAX_SIDE: u32 = 256;
 
+/// 把落盘 PNG 编码为 **经典 24 位 BI_RGB BMP**。
+///
+/// `image` 0.25 的 BMP 编码器对 `Rgba8` 会输出 108 字节 BITMAPV4HEADER + `biCompression=3
+/// (BI_BITFIELDS)`；而 `clipboard-win` 的 `raw::set_bitmap_inner` 只拷贝 **40 字节**
+/// BITMAPINFOHEADER，颜色掩码会落到未初始化内存上被误读 → 粘贴出现随机彩色叠加层（缺陷 A）。
+/// 转 `Rgb8` 后编码器改用 40 字节头 + `BI_RGB`，与 `set_bitmap_inner` 的假设一致。
+/// alpha 无法在 CF_BITMAP 中保留，故透明像素合成到白底（避免透明区变黑）。
+pub(crate) fn png_to_bmp24(path: &Path) -> Result<Vec<u8>, AppError> {
+    let img = image::open(path).map_err(|e| AppError::Io(format!("image open: {e}")))?;
+    let rgba = img.to_rgba8();
+    let (width, height) = (rgba.width(), rgba.height());
+    let mut rgb = image::RgbImage::new(width, height);
+    for (x, y, px) in rgba.enumerate_pixels() {
+        let a = u32::from(px.0[3]);
+        let over_white = |c: u8| ((u32::from(c) * a + 255 * (255 - a)) / 255) as u8;
+        rgb.put_pixel(x, y, image::Rgb([over_white(px.0[0]), over_white(px.0[1]), over_white(px.0[2])]));
+    }
+    let mut bmp: Vec<u8> = Vec::new();
+    image::DynamicImage::ImageRgb8(rgb)
+        .write_to(&mut Cursor::new(&mut bmp), image::ImageFormat::Bmp)
+        .map_err(|e| AppError::Io(format!("bmp encode: {e}")))?;
+    Ok(bmp)
+}
+
 /// 把本地 PNG 图片文件写回系统剪贴板（作为位图）。供剪贴板历史"再次复制"
 /// 使用：从 history 里选中的图片条目，其 `image_path` 指向落盘的 PNG 原图。
 /// 读 PNG → 经 `image` crate 编码为 BMP 文件字节 → `clipboard-win` 的
 /// `set_bitmap`（期望 `BITMAPFILEHEADER + BITMAPINFOHEADER + 像素`）写系统剪贴板。
 pub fn write_image_to_clipboard(path: &Path) -> Result<(), AppError> {
-    let img = image::open(path).map_err(|e| AppError::Io(format!("image open: {e}")))?;
-    let mut bmp: Vec<u8> = Vec::new();
-    img.write_to(&mut Cursor::new(&mut bmp), image::ImageFormat::Bmp)
-        .map_err(|e| AppError::Io(format!("bmp encode: {e}")))?;
+    let bmp = png_to_bmp24(path)?;
     set_clipboard(formats::Bitmap, &bmp)
         .map_err(|e| AppError::Io(format!("clipboard write: {e}")))?;
     Ok(())
@@ -272,5 +293,26 @@ mod tests {
         // 编译期确认 RgbaImage 类型可被 `image` 0.25 稳定导入（防未来 API 漂移）。
         let rgba: RgbaImage = ImageBuffer::new(1, 1);
         assert_eq!(rgba.width(), 1);
+    }
+
+    #[test]
+    fn png_to_bmp24_is_classic_24bit_birgb() {
+        let path = std::env::temp_dir().join("clip-bmp24-src.png");
+        let mut img = image::RgbaImage::new(3, 2);
+        img.put_pixel(0, 0, image::Rgba([255, 0, 0, 128])); // 半透明红 → 应合成到白底
+        img.put_pixel(1, 0, image::Rgba([0, 255, 0, 0])); // 全透明 → 白底
+        img.save(&path).unwrap();
+
+        let bmp = png_to_bmp24(&path).expect("encode ok");
+        assert_eq!(&bmp[0..2], b"BM");
+        let dib = 14usize;
+        let bi_size = u32::from_le_bytes(bmp[dib..dib + 4].try_into().unwrap());
+        assert_eq!(bi_size, 40, "必须是经典 BITMAPINFOHEADER（40 字节）");
+        let bit_count = u16::from_le_bytes(bmp[dib + 14..dib + 16].try_into().unwrap());
+        assert_eq!(bit_count, 24, "必须 24bpp");
+        let compression = u32::from_le_bytes(bmp[dib + 16..dib + 20].try_into().unwrap());
+        assert_eq!(compression, 0, "必须 BI_RGB（不得为 BI_BITFIELDS=3）");
+
+        let _ = std::fs::remove_file(&path);
     }
 }
