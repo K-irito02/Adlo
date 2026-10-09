@@ -1,4 +1,4 @@
-# 剪贴板历史功能增强设计（类型扩展 + 弹窗查看器与编辑 + 两个复制缺陷根因修复）
+# 剪贴板历史功能增强设计（类型扩展 + 弹窗查看器与编辑 + 复制缺陷根因修复 + 刷新实时性优化）
 
 - 日期：2026-10-10
 - 状态：待实施（设计已获用户批准，等待 spec 审阅）
@@ -21,6 +21,7 @@
 5. **编辑模式**（仅 `text`）：可编辑内容，支持取消更改 / 撤回 / 重做 / 保存更改，绑定 Windows 快捷键；未点「保存更改」即关闭弹窗时**默认保存**，确保更改不丢失。
 6. **默认字号调大**：文本弹窗默认字号偏小，需提升默认值。
 7. **双端一致**：Tauri 桌面模式与浏览器模式功能行为一致。
+8. **刷新实时性**：在别处复制后，剪贴板历史应**近乎即时**出现新条目（事件推送），不再依赖 2 s 轮询（见 §14）。
 
 ### 非目标
 
@@ -252,6 +253,9 @@ Clipboard::new_attempts(10)      // 打开剪贴板（Windows 独占）
 | `crates/clipboard/src/read.rs` | 格式探测与优先级；HTML/RTF 落盘；**图片写回改 24 位 BMP**；新增统一写回 helper（`empty()` + 按 kind 写） |
 | `crates/clipboard/src/store.rs` | `html/`、`rtf/` 目录；`delete_files` / `clear` / 去重顶替扩展 |
 | `crates/clipboard/src/lib.rs` | 导出新写回 API |
+| `crates/kernel/src/events.rs` | `AppEvent::ClipboardChanged` 改为无负载变体并接通（见 §14） |
+| `crates/server/src/engine.rs` | 监听广播 → `EventBus` 事件桥（见 §14） |
+| `crates/server/src/ws_workspace.rs` | 新增 `clipboard-changed` 帧转发（见 §14） |
 | `crates/server/src/router.rs` | 新路由 `POST /clipboard/write`、`POST /clipboard/update`、`GET /clipboard/html/:filename`、`GET /clipboard/rtf/:filename`、`POST /clipboard/export` |
 | `crates/server/src/handlers/clipboard.rs` | 实现上述 handler；**移除** `write-image` 路由与 `write_image` handler（由 `write` 取代） |
 
@@ -269,6 +273,8 @@ Clipboard::new_attempts(10)      // 打开剪贴板（Windows 独占）
 | `features/clipboard-history/clipboardFilter.ts` | `KIND_ORDER` 增 `html` / `rtf` |
 | `features/clipboard-history/ClipboardItemRow.tsx` | 图片/富文本徽章与预览；复制统一走 `write` |
 | `features/clipboard-history/ClipboardItemViewer.tsx` | 工具栏、统计、缩放、换行、预览切换、编辑模式、保存为文件、默认字号 |
+| `features/clipboard-history/ClipboardHistoryList.tsx` | `clipboard.onChanged` 即时刷新 + 轮询降级兜底（见 §14） |
+| `shared/ipc/workspace-events-ws.ts` | 新增 `onClipboardChanged`，按 `kind` 分派帧（见 §14） |
 | `i18n/zh-CN/utilities.ts`（及对应 en） | 新增所有文案 key（禁止硬编码） |
 
 > 遵循项目规则：新增 IPC 必须同步 `tauri-bridge`（继承 http）/ `preview-bridge` / `mock-bridge`。所有 UI 文案走 i18n。
@@ -299,6 +305,8 @@ Clipboard::new_attempts(10)      // 打开剪贴板（Windows 独占）
 5. **写回触发监听**：写回图片/富文本会触发监听器回读并可能新增一行（用户已接受）；修复编码后同一图片往返指纹一致，若为最新条目则会被去重顶替。
 6. **保存为文件**：Tauri 原生对话框与浏览器下载行为需保持一致的用户可感知结果；导出失败需提示。
 7. **编辑兜底保存**：所有关闭路径（`X` / 遮罩 / 触发关闭的快捷键）在编辑模式下统一"先 `await` 落库、再关闭"，组件卸载亦先完成保存，避免"保存未完成即销毁"导致更改丢失。
+8. **推送链路可用性**：`/ws/workspace` 不可用（引擎未起、断线）时，剪贴板历史退化为 10 s 轮询兜底，功能不缺失但实时性下降；重连后主动补刷一次。
+9. **事件密集**：连续快速复制会触发密集事件，前端以 ~100 ms 节流合并为一次重拉，避免 IPC 抖动。
 
 ## 13. 实施批次建议
 
@@ -308,3 +316,52 @@ Clipboard::new_attempts(10)      // 打开剪贴板（Windows 独占）
 | B | 类型扩展：数据模型 + 捕获管线 + sidecar 存储 + IPC + 前端 kind/筛选/预览 |
 | C | 弹窗查看器：统计 / 缩放 / 自动换行 / 保存为文件 / 默认字号 |
 | D | 编辑模式：撤销栈 + 快捷键 + 关闭即保存 + `clipboard.update` IPC + 测试 |
+| E | 刷新实时性：事件推送（`ClipboardChanged` → `/ws/workspace` → 前端即时刷新）+ 轮询降级兜底（见 §14） |
+
+## 14. 刷新实时性优化（事件推送，批次 E）
+
+### 14.1 问题与根因
+
+在系统其它应用复制内容后，剪贴板历史需要一段时间才出现新条目。
+
+**根因（已确证）：剪贴板历史没有任何推送，仅靠前端固定轮询。**
+
+- `ClipboardHistoryList.tsx` 以 `REFRESH_INTERVAL_MS = 2000` 固定 2 s 轮询 `fetchClipboardHistory(true)`，最坏约 2 s 才可见，Tauri 与浏览器模式同样如此。
+- **更严重**：应用窗口失焦 / 被遮挡时，Chromium / WebView2 会对 `setInterval` 做后台节流，实际延迟可被拉长到数秒甚至更久，表现为"时快时慢"。
+- 推送能力**已存在但未接线**：`ClipboardMonitor` 变化时已通过 `broadcast` 广播（`crates/clipboard/src/monitor.rs:76-91`），但 `crates/server/src/engine.rs:251` 仅 `spawn` 监听、**无任何订阅者**；`AppEvent::ClipboardChanged`（`crates/kernel/src/events.rs:52`）**定义但从未 emit**。
+- 推送通道**已现成**：`/ws/workspace` WebSocket（`crates/server/src/ws_workspace.rs`）已在为工作区文件变更推送 `AppEvent::FilesChanged`，前端有共享客户端 `frontend/src/shared/ipc/workspace-events-ws.ts`。
+
+### 14.2 方案：补全事件链路（复用现有 WS 通道）
+
+```
+ClipboardMonitor(broadcast) ──▶ engine 事件桥 ──▶ AppEvent::ClipboardChanged
+        └─▶ EventBus ──▶ /ws/workspace 推 {kind:"clipboard-changed"}
+                                   └─▶ 前端共享 WS 客户端 ──▶ 列表立即重拉
+```
+
+| 位置 | 改动 |
+|---|---|
+| `crates/kernel/src/events.rs` | `ClipboardChanged(String)` → **无负载单元变体 `ClipboardChanged`**（无消费者依赖其 `String`）；同步更新 `kind()` 与 `to_json()` 分支 |
+| `crates/server/src/engine.rs` | `start_background_services`：先 `monitor.subscribe()` 取得接收端，再 `spawn` 监听；新增事件桥把收到的信号 `state.event_bus.emit(AppEvent::ClipboardChanged)`（`EventBus` 为 `Clone`，桥运行在独立线程） |
+| `crates/server/src/ws_workspace.rs` | 新增 `clipboard_changed_frame() -> {"kind":"clipboard-changed"}`（形状由单测锁定，与 `files_changed_frame` 同构）；forwarder 增加 `AppEvent::ClipboardChanged` 分支推该帧 |
+| `frontend/src/shared/ipc/workspace-events-ws.ts` | 客户端新增 `onClipboardChanged(listener)`；`handleFrame` 按 `kind` 分派（`files-changed` / `clipboard-changed`）；重连成功时同样通知剪贴板订阅者（补断线窗口） |
+| `frontend/src/shared/ipc/clipboard.ts` | `ClipboardBridge` 新增 `onChanged(listener: () => void): () => void` |
+| `frontend/src/httpBridge.ts` | `clipboard.onChanged` 接到共享 `getWorkspaceEvents()` 客户端 |
+| `frontend/src/preview-bridge/index.ts` | `clipboard.onChanged` **恒走 http 实现**（与 `getThumbUrl` 同理：纯本地订阅，mock 无意义） |
+| `frontend/src/mock-bridge.ts` / `mock/mock-clipboard.ts` | `onChanged: () => () => {}`（空订阅，满足桥接契约） |
+| `frontend/src/app/features/clipboard-history/ClipboardHistoryList.tsx` | 订阅 `clipboard.onChanged` → 立即 `fetchClipboardHistory(true)`（**节流 ~100 ms** 合并密集事件）；轮询间隔 `2000 → 10000 ms` 降级为断线兜底；保留 `visibilitychange` 处理 |
+
+### 14.3 设计要点
+
+- **双端一致**：Tauri 与浏览器模式都经同一 `/ws/workspace` 通道，行为天然一致（实现相同）。
+- **降级安全**：WS 不可用时轮询（10 s）仍能兜底；重连后主动补一次刷新。
+- **事件语义**：帧不带 id（仅"有变更"信号），前端整体重拉列表——与现有 `files-changed` 的消费模式一致，避免增量同步复杂度。
+- **路由命名**：保持 `/ws/workspace` 路径不变，仅扩展帧类型；更新相关文档注释说明该通道已承载多域事件（不做无收益的路径重命名）。
+- **`EventBus` 为 `broadcast`**：桥接循环对 `Lagged`/`Closed` 做与 `ws_workspace` 相同的收敛处理。
+
+### 14.4 测试
+
+| 层 | 用例 |
+|---|---|
+| Rust `adl-server` | `clipboard_changed_frame` 形状锁定；forwarder 对 `ClipboardChanged` 产出该帧 |
+| 前端 vitest | WS 客户端按 `kind` 分派 `clipboard-changed`；重连通知剪贴板订阅者；`ClipboardHistoryList` 在 `onChanged` 触发时立即重拉；桥接契约含 `onChanged` |
