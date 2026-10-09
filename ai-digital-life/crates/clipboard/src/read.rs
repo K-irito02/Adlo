@@ -37,7 +37,11 @@ pub(crate) fn png_to_bmp24(path: &Path) -> Result<Vec<u8>, AppError> {
     for (x, y, px) in rgba.enumerate_pixels() {
         let a = u32::from(px.0[3]);
         let over_white = |c: u8| ((u32::from(c) * a + 255 * (255 - a)) / 255) as u8;
-        rgb.put_pixel(x, y, image::Rgb([over_white(px.0[0]), over_white(px.0[1]), over_white(px.0[2])]));
+        rgb.put_pixel(
+            x,
+            y,
+            image::Rgb([over_white(px.0[0]), over_white(px.0[1]), over_white(px.0[2])]),
+        );
     }
     let mut bmp: Vec<u8> = Vec::new();
     image::DynamicImage::ImageRgb8(rgb)
@@ -312,6 +316,12 @@ mod tests {
         assert_eq!(bit_count, 24, "必须 24bpp");
         let compression = u32::from_le_bytes(bmp[dib + 16..dib + 20].try_into().unwrap());
         assert_eq!(compression, 0, "必须 BI_RGB（不得为 BI_BITFIELDS=3）");
+
+        // 断言合成结果：仅校验头部无法区分白底合成与裸 `to_rgb8()`。
+        // 解码回像素，透明区必须为白、半透明红必须按公式合成（整数除法截断）。
+        let decoded = image::load_from_memory(&bmp).expect("decode ok").to_rgba8();
+        assert_eq!(decoded.get_pixel(0, 0).0, [255, 127, 127, 255]); // 半透明红 → 白底合成
+        assert_eq!(decoded.get_pixel(1, 0).0, [255, 255, 255, 255]); // 全透明 → 白底
 
         let _ = std::fs::remove_file(&path);
     }
