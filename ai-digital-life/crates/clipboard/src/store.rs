@@ -67,25 +67,11 @@ impl ClipboardStore {
                 // 覆盖旧行：保留旧行 id，避免同内容累积为新行导致去重失效
                 let mut merged = item.clone();
                 merged.id = prev.id.clone();
-                self.db.save_entity(
-                    EntityTable::ClipboardItems,
-                    &merged.id,
-                    None,
-                    None,
-                    Some(&merged.kind),
-                    &merged,
-                )?;
+                self.save(&merged)?;
                 return Ok(false);
             }
         }
-        self.db.save_entity(
-            EntityTable::ClipboardItems,
-            &item.id,
-            None,
-            None,
-            Some(&item.kind),
-            item,
-        )?;
+        self.save(item)?;
         Ok(true)
     }
 
@@ -167,6 +153,7 @@ mod tests {
             thumb_path: None,
             image_width: None,
             image_height: None,
+            image_bytes: None,
             html_path: None,
             rtf_path: None,
             source_app: None,

@@ -10,9 +10,10 @@
 //! `html/:filename` / `rtf/:filename` (rich-text sidecars) and
 //! `export?id=N` (the item payload streamed as a downloadable file).
 //!
-//! Browser-mode clipboard updates rely on frontend polling, so these handlers
-//! expose the store CRUD surface plus the static asset routes; change
-//! events are not part of the HTTP contract.
+//! Clipboard change notifications are pushed to the frontend over the WebSocket
+//! route (`/ws/workspace` → `clipboard-changed`), not through this HTTP surface.
+//! These handlers expose the store CRUD surface plus the static asset routes;
+//! change events are deliberately not part of the HTTP contract.
 
 use crate::ServerState;
 use crate::ipc;
@@ -288,6 +289,7 @@ mod tests {
             thumb_path: None,
             image_width: None,
             image_height: None,
+            image_bytes: None,
             html_path: None,
             rtf_path: None,
             source_app: None,

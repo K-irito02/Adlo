@@ -184,6 +184,7 @@ fn build_rich_or_text_item(
         thumb_path: None,
         image_width: None,
         image_height: None,
+        image_bytes: None,
         html_path,
         rtf_path,
         source_app: None,
@@ -202,7 +203,7 @@ fn build_image_item(store: &ClipboardStore, bmp: &[u8]) -> Result<ClipboardItem,
     let original_path = store.images_dir().join(format!("{id}.png"));
     let thumb_path = store.thumbs_dir().join(format!("thumb-{id}.png"));
 
-    let (_, _tw, _th) = write_image_files(
+    let (bytes, _tw, _th) = write_image_files(
         rgba.as_raw(),
         width,
         height,
@@ -220,6 +221,7 @@ fn build_image_item(store: &ClipboardStore, bmp: &[u8]) -> Result<ClipboardItem,
         thumb_path: Some(thumb_path.to_string_lossy().into_owned()),
         image_width: Some(width),
         image_height: Some(height),
+        image_bytes: Some(bytes),
         html_path: None,
         rtf_path: None,
         source_app: None,
@@ -341,6 +343,8 @@ mod tests {
         assert_eq!(item.kind, "image");
         assert_eq!(item.image_width, Some(2));
         assert_eq!(item.image_height, Some(2));
+        // 原图字节数必须接线到 image_bytes（来自 write_image_files 的返回值）
+        assert!(item.image_bytes.is_some_and(|b| b > 0));
         assert!(item.digest.is_some());
         let orig = std::path::Path::new(item.image_path.as_deref().unwrap());
         let thumb = std::path::Path::new(item.thumb_path.as_deref().unwrap());
