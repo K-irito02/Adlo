@@ -148,13 +148,20 @@ describe('ClipboardHistoryList', () => {
     expect(fetchClipboardHistory).toHaveBeenCalledTimes(before);
   });
 
-  it('cancels a pending trailing refetch on unmount', async () => {
-    const { fetchClipboardHistory, unmount } = renderList();
-    fakeBridge.clipboard.emitChange(); // leading refetch + schedules the trailing timer
-    const afterLeading = fetchClipboardHistory.mock.calls.length;
-    unmount();
-    // 越过 100ms 节流窗：卸载时必须清掉挂起的后缘定时器，不再触发重取。
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    expect(fetchClipboardHistory).toHaveBeenCalledTimes(afterLeading);
+  it('clears all pending timers on unmount', () => {
+    vi.useFakeTimers();
+    try {
+      const { fetchClipboardHistory, unmount } = renderList();
+      fakeBridge.clipboard.emitChange(); // leading refetch + schedules the 100ms trailing timer
+      fakeBridge.clipboard.emitChange(); // marks a trailing refetch as pending
+      const callsBeforeUnmount = fetchClipboardHistory.mock.calls.length;
+      unmount();
+      // 卸载必须清掉挂起的后缘定时器与 10s 兜底轮询：否则推进时钟会触发多余重取。
+      expect(vi.getTimerCount()).toBe(0);
+      vi.advanceTimersByTime(20000);
+      expect(fetchClipboardHistory).toHaveBeenCalledTimes(callsBeforeUnmount);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

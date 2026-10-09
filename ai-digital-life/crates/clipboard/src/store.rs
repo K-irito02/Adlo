@@ -39,7 +39,8 @@ impl ClipboardStore {
         Ok(self.list(1)?.into_iter().next())
     }
 
-    /// 原地覆盖一条已有条目（保持其 `created_at`，仅供编辑保存使用）。
+    /// 以 `item.id` 原地覆盖一条已有条目（写入 `item` 的完整 JSON）。
+    /// 编辑保存（内容变更、`created_at` 由调用方原样带回）与去重合并（顶替旧行）共用此入口。
     pub fn save(&self, item: &ClipboardItem) -> Result<(), AppError> {
         self.db.save_entity(
             EntityTable::ClipboardItems,
@@ -61,13 +62,11 @@ impl ClipboardStore {
                 && prev.digest == item.digest
                 && (item.created_at.saturating_sub(prev.created_at)) <= 3000
             {
-                // 去重命中：旧条目被 merged 顶替，先删除旧条目引用的图片文件，
-                // 避免其成为孤儿文件（新条目 image_path 每次复制都不同）。
-                // 覆盖旧行：保留旧行 id，避免同内容累积为新行导致去重失效
+                // 去重命中：先用 merged（保留旧行 id）覆盖旧行，避免同内容累积为新行导致去重失效；
+                // 落库成功后再删除旧条目引用的文件——顺序反了会在 save 失败时删掉仍被旧行引用的文件。
                 let mut merged = item.clone();
                 merged.id = prev.id.clone();
                 self.save(&merged)?;
-                // 落库成功后再删除旧条目引用的文件：顺序反了会在 save 失败时删掉仍被旧行引用的文件。
                 self.delete_files(&prev);
                 return Ok(false);
             }
