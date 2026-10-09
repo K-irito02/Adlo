@@ -1,12 +1,18 @@
-//! 系统剪贴板读取与归一化（文本/图片 → `ClipboardItem`，图片转 PNG）。
+//! 系统剪贴板读取与归一化（图片 / HTML / RTF / 文本 → `ClipboardItem`）。
 //!
 //! 依赖 Windows 剪贴板 API（通过 `clipboard-win` crate，见 `Cargo.toml`）。
-//! 图片优先：`clipboard-win` 的 `formats::Bitmap` 读取结果为完整 BMP 文件字节
-//! （`BITMAPFILEHEADER` + `BITMAPINFOHEADER` + BGR 像素）。先用 `image` 解码为
-//! `RgbaImage`，再调用 `crate::image::write_image_files` 落盘为 PNG 原图 + 缩略图。
-//! 否则退化为文本（`formats::Unicode`），content 存完整文本，空剪贴板返回 `Ok(None)`。
+//! 主类型优先级固定为 `image > html > rtf > text`：
+//! - `image`（`formats::Bitmap`）：读取结果为完整 BMP 文件字节（`BITMAPFILEHEADER` +
+//!   `BITMAPINFOHEADER` + BGR 像素），先用 `image` 解码为 `RgbaImage`，再调用
+//!   `crate::image::write_image_files` 落盘为 PNG 原图 + 缩略图。
+//! - `html`（`formats::Html`，注册格式 "HTML Format"）：其 Getter 自动剥离 CF_HTML 头，原文落盘 sidecar。
+//! - `rtf`（注册格式 "Rich Text Format"，无内建类型 → `formats::RawData` 读原始字节）：落盘 sidecar。
+//! - `text`（`formats::Unicode`）：去首尾空白后内联 `content`。
+//!
+//! 富载荷（HTML / RTF）超过 `MAX_RICH_PAYLOAD_BYTES` 时不落盘，条目降级为 `text`（无纯文本则不入库）。
+//! 空剪贴板返回 `Ok(None)`。
 
-use clipboard_win::{Clipboard, Format, Getter, formats};
+use clipboard_win::{Clipboard, Format, Getter, formats, register_format};
 use image::RgbaImage;
 use std::io::Cursor;
 use std::path::Path;
@@ -21,6 +27,29 @@ use crate::store::ClipboardStore;
 
 /// 缩略图最长边。
 const THUMB_MAX_SIDE: u32 = 256;
+
+/// 富文本（HTML / RTF）载荷体积上限：超限则不落盘富载荷、降级为纯文本。
+pub(crate) const MAX_RICH_PAYLOAD_BYTES: usize = 1024 * 1024;
+
+/// 依据各格式是否存在选出主类型。优先级：`image > html > rtf > text`。
+pub(crate) fn pick_kind(
+    has_image: bool,
+    has_html: bool,
+    has_rtf: bool,
+    has_text: bool,
+) -> Option<&'static str> {
+    if has_image {
+        Some("image")
+    } else if has_html {
+        Some("html")
+    } else if has_rtf {
+        Some("rtf")
+    } else if has_text {
+        Some("text")
+    } else {
+        None
+    }
+}
 
 /// 把落盘 PNG 编码为 **经典 24 位 BI_RGB BMP**。
 ///
@@ -57,33 +86,59 @@ pub(crate) fn png_to_bmp24(path: &Path) -> Result<Vec<u8>, AppError> {
 /// 表示触发去重合并（覆盖旧行、保旧 id，仅更新时间戳）。`bool` 供调用方决定
 /// 是否对外推送 `Some(id)` 事件（Task 6 桌面事件 / Task 7 HTTP 复用）。
 pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, bool)>, AppError> {
-    // 打开剪贴板并保持期间完成图片 / 文本两条读取路径（Windows 只允许一个持有者）。
+    // 打开剪贴板并保持期间完成全部格式读取（Windows 只允许一个持有者）。
     let _clip = Clipboard::new_attempts(5)
         .map_err(|e| AppError::Io(format!("clipboard open failed: {e}")))?;
 
-    if formats::Bitmap.is_format_avail() {
-        let mut bmp: Vec<u8> = Vec::new();
-        // `read_clipboard` 会产生完整 BMP 字节（header + BGR 像素），为空代表读取失败/无内容。
-        if formats::Bitmap.read_clipboard(&mut bmp).is_ok() && !bmp.is_empty() {
-            let item = build_image_item(store, &bmp)?;
-            let is_new = store.insert_or_bump(&item)?;
-            return Ok(Some((item, is_new)));
-        }
-    }
+    // 1) 图片（CF_BITMAP / CF_DIB）
+    let mut bmp: Vec<u8> = Vec::new();
+    let has_image = formats::Bitmap.is_format_avail()
+        && formats::Bitmap.read_clipboard(&mut bmp).is_ok()
+        && !bmp.is_empty();
 
-    if formats::Unicode.is_format_avail() {
+    // 2) HTML（"HTML Format" 注册格式，Getter<String> 自动剥离 CF_HTML 头）
+    let html = formats::Html::new().and_then(|fmt| {
+        if !fmt.is_format_avail() {
+            return None;
+        }
         let mut s = String::new();
-        // 读 UTF-16 文本（`Unicode` 的 Getter<String>` 或 `Getter<Vec<u8>>` 均可）。
-        if formats::Unicode.read_clipboard(&mut s).is_ok() {
-            if let Some(text) = normalized_text(&s) {
-                let item = build_text_item(store, &text)?;
-                let is_new = store.insert_or_bump(&item)?;
-                return Ok(Some((item, is_new)));
-            }
-        }
-    }
+        if fmt.read_clipboard(&mut s).is_ok() && !s.trim().is_empty() { Some(s) } else { None }
+    });
+    let html = html.filter(|h| h.len() <= MAX_RICH_PAYLOAD_BYTES);
 
-    Ok(None)
+    // 3) RTF（"Rich Text Format"，无内建类型 → 注册后按原始字节读）
+    let rtf = register_format("Rich Text Format").and_then(|code| {
+        let fmt = formats::RawData(code.get());
+        if !fmt.is_format_avail() {
+            return None;
+        }
+        let mut bytes: Vec<u8> = Vec::new();
+        if fmt.read_clipboard(&mut bytes).is_ok() && !bytes.is_empty() { Some(bytes) } else { None }
+    });
+    let rtf = rtf.filter(|r| r.len() <= MAX_RICH_PAYLOAD_BYTES);
+
+    // 4) 纯文本
+    let mut raw = String::new();
+    let text = if formats::Unicode.is_format_avail()
+        && formats::Unicode.read_clipboard(&mut raw).is_ok()
+    {
+        normalized_text(&raw)
+    } else {
+        None
+    };
+
+    let kind = match pick_kind(has_image, html.is_some(), rtf.is_some(), text.is_some()) {
+        Some(k) => k,
+        None => return Ok(None),
+    };
+
+    let item = if kind == "image" {
+        build_image_item(store, &bmp)?
+    } else {
+        build_rich_or_text_item(store, kind, text, html, rtf)?
+    };
+    let is_new = store.insert_or_bump(&item)?;
+    Ok(Some((item, is_new)))
 }
 
 /// 文本归一化：去首尾空白；空串 / 纯空白返回 `None`（空剪贴板不入库）。
@@ -92,20 +147,45 @@ pub(crate) fn normalized_text(raw: &str) -> Option<String> {
     if trimmed.is_empty() { None } else { Some(trimmed.to_string()) }
 }
 
-/// 构造文本类型 `ClipboardItem`（content 存完整文本）。仅负责组装，不落库。
-fn build_text_item(store: &ClipboardStore, text: &str) -> Result<ClipboardItem, AppError> {
-    let _ = store; // 文本条目不落盘文件，仅占位对齐签名
+/// 组装 text / html / rtf 条目：纯文本内联 `content`，富载荷落盘 sidecar。
+///
+/// 仅落盘与所选 `kind` 匹配的富载荷（`html` 只写 HTML，`rtf` 只写 RTF），
+/// 另一格式即便剪贴板同时存在也不持久化（写回只消费主类型）。
+fn build_rich_or_text_item(
+    store: &ClipboardStore,
+    kind: &str,
+    text: Option<String>,
+    html: Option<String>,
+    rtf: Option<Vec<u8>>,
+) -> Result<ClipboardItem, AppError> {
+    let id = Uuid::new_v4().to_string();
+    let html_path = match (kind, html.as_deref()) {
+        ("html", Some(h)) => {
+            let p = store.html_dir().join(format!("{id}.html"));
+            std::fs::write(&p, h).map_err(|e| AppError::Io(format!("html write: {e}")))?;
+            Some(p.to_string_lossy().into_owned())
+        },
+        _ => None,
+    };
+    let rtf_path = match (kind, rtf.as_deref()) {
+        ("rtf", Some(r)) => {
+            let p = store.rtf_dir().join(format!("{id}.rtf"));
+            std::fs::write(&p, r).map_err(|e| AppError::Io(format!("rtf write: {e}")))?;
+            Some(p.to_string_lossy().into_owned())
+        },
+        _ => None,
+    };
     Ok(ClipboardItem {
-        id: Uuid::new_v4().to_string(),
-        kind: "text".into(),
-        content: Some(text.to_string()),
+        id,
+        kind: kind.to_string(),
+        content: text,
         digest: None,
         image_path: None,
         thumb_path: None,
         image_width: None,
         image_height: None,
-        html_path: None,
-        rtf_path: None,
+        html_path,
+        rtf_path,
         source_app: None,
         created_at: now_ms(),
     })
@@ -286,6 +366,20 @@ mod tests {
         // 编译期确认 RgbaImage 类型可被 `image` 0.25 稳定导入（防未来 API 漂移）。
         let rgba: RgbaImage = ImageBuffer::new(1, 1);
         assert_eq!(rgba.width(), 1);
+    }
+
+    #[test]
+    fn pick_kind_follows_precedence() {
+        assert_eq!(pick_kind(true, true, true, true), Some("image"));
+        assert_eq!(pick_kind(false, true, true, true), Some("html"));
+        assert_eq!(pick_kind(false, false, true, true), Some("rtf"));
+        assert_eq!(pick_kind(false, false, false, true), Some("text"));
+        assert_eq!(pick_kind(false, false, false, false), None);
+    }
+
+    #[test]
+    fn rich_payload_cap_is_one_mib() {
+        assert_eq!(MAX_RICH_PAYLOAD_BYTES, 1024 * 1024);
     }
 
     #[test]
