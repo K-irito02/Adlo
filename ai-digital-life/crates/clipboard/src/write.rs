@@ -6,7 +6,9 @@
 use std::path::Path;
 
 use clipboard_win::SysResult;
-use clipboard_win::{Clipboard, ErrorCode, formats, register_format, set};
+use clipboard_win::options::NoClear;
+use clipboard_win::raw;
+use clipboard_win::{Clipboard, ErrorCode, formats, register_format};
 
 use adl_errors::AppError;
 use adl_types::types::clipboard::ClipboardItem;
@@ -50,22 +52,28 @@ pub fn plan_formats(input: WriteInputs<'_>) -> Vec<FormatWrite> {
 }
 
 /// 真正写系统剪贴板：打开 → `EmptyClipboard`（治缺陷 B）→ 逐格式写入 → 关闭。
+///
+/// 循环内一律使用 `raw::*_with(..., NoClear)` 变体：这些 helper 的默认变体
+/// （`set_string`/`set_html`/`set`/`set_bitmap` 等）各自会调用 `EmptyClipboard`，
+/// 会**清掉本循环里已经写好的先前格式**（例如 [Unicode(text), Rtf] 中 Rtf 写回时
+/// 把 text 抹掉，导致「RTF + 纯文本」只剩 RTF）。因此清空只做一次——即上面的显式
+/// `empty()`——循环内一律 NoClear。请勿"简化"回默认变体。
 fn apply(writes: &[FormatWrite]) -> SysResult<()> {
     let _clip = Clipboard::new_attempts(10)?;
     clipboard_win::empty()?;
     for w in writes {
         match w {
-            FormatWrite::Unicode(text) => set(formats::Unicode, text.as_str())?,
+            FormatWrite::Unicode(text) => raw::set_string_with(text.as_str(), NoClear)?,
             FormatWrite::Html(html) => {
                 let fmt = formats::Html::new().ok_or_else(ErrorCode::last_system)?;
-                set(fmt, html.as_str())?;
+                raw::set_html_with(fmt.code(), html.as_str(), NoClear)?;
             },
             FormatWrite::Rtf(bytes) => {
                 let code =
                     register_format("Rich Text Format").ok_or_else(ErrorCode::last_system)?;
-                set(formats::RawData(code.get()), bytes.as_slice())?;
+                raw::set_without_clear(code.get(), bytes.as_slice())?;
             },
-            FormatWrite::Bitmap(bytes) => set(formats::Bitmap, bytes.as_slice())?,
+            FormatWrite::Bitmap(bytes) => raw::set_bitmap_with(bytes.as_slice(), NoClear)?,
         }
     }
     Ok(())
@@ -75,7 +83,7 @@ fn read_to_string(path: &Path) -> Option<String> {
     std::fs::read_to_string(path).ok()
 }
 
-/// 一条 `ClipboardItem` 的完整写回：加载富文本载荷（超限/缺失返回 None）→ 计划 → 执行。
+/// 一条 `ClipboardItem` 的完整写回：加载富文本载荷（文件缺失 / 读取失败时为 None）→ 计划 → 执行。
 pub fn write_item_to_clipboard(item: &ClipboardItem) -> Result<(), AppError> {
     let html = item.html_path.as_deref().and_then(|p| read_to_string(Path::new(p)));
     let rtf = item.rtf_path.as_deref().and_then(|p| std::fs::read(Path::new(p)).ok());
@@ -157,6 +165,18 @@ mod tests {
     fn missing_richtext_falls_back_to_text() {
         let got = plan_formats(WriteInputs {
             kind: "html",
+            content: Some("t"),
+            html: None,
+            rtf: None,
+            bmp: None,
+        });
+        assert_eq!(got, vec![FormatWrite::Unicode("t".into())]);
+    }
+
+    #[test]
+    fn missing_rtf_falls_back_to_text() {
+        let got = plan_formats(WriteInputs {
+            kind: "rtf",
             content: Some("t"),
             html: None,
             rtf: None,
