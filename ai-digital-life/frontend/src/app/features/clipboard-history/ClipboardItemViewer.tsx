@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { IconClose, IconDownload, IconEdit, IconEye, IconFileImage } from '@icons';
 import { CopyButton } from '@components/CopyButton';
+import { ConfirmDialog } from '@components/ConfirmDialog';
 import { TooltipSimple } from '@components/Tooltip';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { useTCopy } from '@i18n/useTCopy';
@@ -71,7 +72,11 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   const baselineRef = useRef(item.content ?? '');
   const stackRef = useRef(createUndoStack(item.content ?? ''));
   // 单飞：同一时刻至多一个保存任务在途（任务内部逐轮串行写入），避免并发/重复写入。
-  const savingRef = useRef<Promise<void> | null>(null);
+  const savingRef = useRef<Promise<boolean> | null>(null);
+  // 「放弃更改并关闭」已确认：卸载时的兜底保存必须跳过（否则确认框形同虚设）。
+  const discardRef = useRef(false);
+  const [discardConfirmOpen, setDiscardConfirmOpen] = useState(false);
+  const editorRef = useRef<HTMLTextAreaElement | null>(null);
   const stats = useMemo(() => clipboardTextStats(draft), [draft]);
   // 文本与草稿同步推进：ref 用于异步保存读取，state 用于渲染。
   const updateDraft = useCallback((next: string) => {
@@ -118,11 +123,14 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   /**
    * 若正在编辑且有改动则落盘，然后退出编辑模式；空白内容不可保存。
    * 单飞：同一时刻至多一个保存任务在途；已有在途任务时直接返回它，供调用方（关闭路径）等待其落盘。
+   * 返回值：`undefined` = 无需保存（未编辑 / 无改动 / 空白草稿）；`true` = 已完全落盘；
+   * `false` = 保存失败或仍有未落盘改动 —— 关闭路径据此**保持弹窗打开**并弹出
+   * 「放弃更改 / 继续编辑」确认框，绝不静默丢稿。
    * 保存任务内部逐轮串行写入：每写完一轮，若"实时草稿"（`draftRef`）已不同于刚落盘的内容，
    * 再补写一轮；轮数封顶（`MAX_SAVE_ROUNDS`），达上限仍未落盘则保持编辑态交由后续保存，
    * 失败（返回 `false`）也不会死循环。
    */
-  const commitIfEditing = useCallback(async () => {
+  const commitIfEditing = useCallback(async (): Promise<boolean | undefined> => {
     if (!editing) {
       return;
     }
@@ -141,7 +149,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       setEditing(false);
       return;
     }
-    const saving = (async () => {
+    const saving = (async (): Promise<boolean> => {
       try {
         for (let round = 0; round < MAX_SAVE_ROUNDS; round += 1) {
           const target = draftRef.current;
@@ -151,7 +159,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
           const ok = await updateClipboardItem(item.id, target);
           if (!ok) {
             // 保存失败：不推进基线、保持编辑态，让用户可重试（关闭时会再次尝试落盘）。
-            return;
+            return false;
           }
           // 更新基线：既让下一轮判断"是否还有新改动"，也让随后的 Esc 撤回到已保存内容。
           baselineRef.current = target;
@@ -160,7 +168,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
         // 让后续 Ctrl+S / 关闭继续保存 —— 避免达到轮数上限时静默丢弃最后的新输入。
         if (draftRef.current === baselineRef.current) {
           setEditing(false);
+          return true;
         }
+        return false;
       } finally {
         savingRef.current = null;
       }
@@ -174,18 +184,35 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     commitIfEditingRef.current = commitIfEditing;
   }, [commitIfEditing]);
 
-  // 关闭即保存：所有关闭路径先落盘再关闭。
+  // 关闭即保存：所有关闭路径先落盘再关闭；落盘失败则保持打开并弹出确认框（绝不静默丢稿）。
   const closeAndMaybeSave = async () => {
     if (editing) {
-      await commitIfEditing();
+      const result = await commitIfEditing();
+      if (result === false) {
+        setDiscardConfirmOpen(true);
+        return;
+      }
     }
     onClose();
   };
 
-  // 卸载时仍在编辑则把未落盘的改动保存下来。
+  // 「放弃更改」：跳过卸载兜底保存后关闭。
+  const discardAndClose = () => {
+    discardRef.current = true;
+    setDiscardConfirmOpen(false);
+    onClose();
+  };
+
+  // 「继续编辑」：留在编辑态（草稿原样保留，可 Ctrl+S 重试），焦点交还编辑器。
+  const keepEditing = () => {
+    setDiscardConfirmOpen(false);
+    editorRef.current?.focus();
+  };
+
+  // 卸载时仍在编辑则把未落盘的改动保存下来（用户已确认放弃更改时跳过）。
   useEffect(
     () => () => {
-      void commitIfEditingRef.current();
+      if (!discardRef.current) void commitIfEditingRef.current();
     },
     [],
   );
@@ -198,6 +225,10 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      // 确认框打开期间由 ConfirmDialog 接管键盘（其 Esc 在 window 捕获段拦截并停止传播）。
+      if (discardConfirmOpen) {
+        return;
+      }
       if (editing) {
         if ((event.ctrlKey || event.metaKey) && event.key === 'z') {
           event.preventDefault();
@@ -256,7 +287,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
-  }, [editing, onClose, updateDraft]);
+  }, [editing, discardConfirmOpen, onClose, updateDraft]);
   const displayUrl = imageStage === 'original' ? imageUrl : imageStage === 'thumb' ? thumbUrl : '';
   // 图片读数：尺寸 / 格式 / 体积，未知项整体省略（不打印占位符）。
   const imageMetaParts: string[] = [];
@@ -451,6 +482,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
               </div>
             ) : editing ? (
               <textarea
+                ref={editorRef}
                 className="adl-clipboard-viewer__editor"
                 value={draft}
                 onChange={(event) => {
@@ -484,6 +516,16 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
           </CustomScrollArea>
         </div>
       </div>
+      {/* 保存失败时的关闭确认：弹窗保持打开，由用户决定放弃更改或继续编辑（可重试）。 */}
+      <ConfirmDialog
+        open={discardConfirmOpen}
+        title={t.clipboardSaveFailedTitle}
+        message={t.clipboardSaveFailedMessage}
+        confirmLabel={t.clipboardDiscardChanges}
+        cancelLabel={t.clipboardKeepEditing}
+        onConfirm={discardAndClose}
+        onCancel={keepEditing}
+      />
     </div>,
     document.body,
   );

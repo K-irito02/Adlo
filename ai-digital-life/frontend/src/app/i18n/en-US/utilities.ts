@@ -38,6 +38,11 @@ export const utilitiesEn = {
   clipboardImageZoomIn: 'Zoom in image',
   clipboardImageZoomOut: 'Zoom out image',
   clipboardImageFitWindow: 'Fit to window',
+  clipboardSaveFailedTitle: 'Changes not saved',
+  clipboardSaveFailedMessage:
+    'Saving failed and your changes are not saved yet. Discard changes and close?',
+  clipboardDiscardChanges: 'Discard changes',
+  clipboardKeepEditing: 'Keep editing',
   systemMonitor: 'System Monitor',
   sysCpu: 'CPU',
   sysMemory: 'Memory',

@@ -24,6 +24,10 @@ const mockT = {
   clipboardImageZoomIn: '放大图片',
   clipboardImageZoomOut: '缩小图片',
   clipboardImageFitWindow: '适应窗口',
+  clipboardSaveFailedTitle: '更改尚未保存',
+  clipboardSaveFailedMessage: '保存失败，更改尚未保存。放弃更改并关闭弹窗？',
+  clipboardDiscardChanges: '放弃更改',
+  clipboardKeepEditing: '继续编辑',
   close: '关闭',
 } as never;
 
@@ -380,6 +384,56 @@ describe('ClipboardItemViewer', () => {
     // 保存失败：保持编辑态（可重试）、草稿不丢，且不关闭弹窗
     expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('willfail');
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('keeps the viewer open with a discard/keep confirm when closing after a failed save', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(false);
+    mockStore({ updateClipboardItem });
+    const onClose = renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'unsaved');
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+
+    // 保存失败：弹窗不关闭，弹出「放弃更改 / 继续编辑」确认框
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenCalledWith('c1', 'unsaved'));
+    expect(onClose).not.toHaveBeenCalled();
+    const confirm = screen.getByRole('dialog', { name: '更改尚未保存' });
+    expect(confirm).toBeTruthy();
+
+    // 「继续编辑」：确认框关闭，仍在编辑态，草稿原样保留可重试
+    await userEvent.click(screen.getByRole('button', { name: '继续编辑' }));
+    expect(screen.queryByRole('dialog', { name: '更改尚未保存' })).toBeNull();
+    expect((screen.getByRole('textbox') as HTMLTextAreaElement).value).toBe('unsaved');
+    expect(onClose).not.toHaveBeenCalled();
+
+    // 再次关闭 → 再次确认 → 「放弃更改」：不再重试保存，直接关闭
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: '更改尚未保存' })).toBeTruthy());
+    await userEvent.click(screen.getByRole('button', { name: '放弃更改' }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(updateClipboardItem).toHaveBeenCalledTimes(2);
+  });
+
+  it('skips the best-effort save on unmount after discarding changes', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(false);
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'gone');
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: '更改尚未保存' })).toBeTruthy());
+    await userEvent.click(screen.getByRole('button', { name: '放弃更改' }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: '更改尚未保存' })).toBeNull());
+
+    // 父组件随后卸载查看器：已确认放弃更改 → 卸载兜底保存必须跳过
+    cleanup();
+    expect(updateClipboardItem).toHaveBeenCalledTimes(1);
   });
 
   it('still saves later edits after a no-op Ctrl+S (no stale in-flight lock)', async () => {
