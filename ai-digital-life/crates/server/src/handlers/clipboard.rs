@@ -5,8 +5,9 @@
 //!
 //! Routes: `list` / `remove` / `clear` / `write` (store CRUD + clipboard
 //! write-back) plus the static assets `thumb/:filename` (thumbnail),
-//! `image/:filename` (full-resolution original, for the zoom-in viewer) and
-//! `html/:filename` / `rtf/:filename` (rich-text sidecars).
+//! `image/:filename` (full-resolution original, for the zoom-in viewer),
+//! `html/:filename` / `rtf/:filename` (rich-text sidecars) and
+//! `export?id=N` (the item payload streamed as a downloadable file).
 //!
 //! Browser-mode clipboard updates rely on frontend polling, so these handlers
 //! expose the store CRUD surface plus the static asset routes; change
@@ -113,6 +114,56 @@ pub async fn write(State(state): State<ServerState>, body: axum::body::Bytes) ->
     })
     .await;
     ipc::to_response(result)
+}
+
+#[derive(serde::Deserialize)]
+pub struct ExportQuery {
+    pub id: String,
+}
+
+/// GET `/clipboard/export?id=N` — 以文件形式返回条目载荷（text→.txt / html→.html / rtf→.rtf / image→.png）。
+pub async fn export(State(state): State<ServerState>, Query(q): Query<ExportQuery>) -> Response {
+    let store = state.clipboard_store.clone();
+    let loaded = run_blocking(move || -> Result<(Vec<u8>, String, &'static str), AppError> {
+        let item = store
+            .get(&q.id)?
+            .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
+        match item.kind.as_str() {
+            "image" => {
+                let p = item.image_path.ok_or_else(|| AppError::NotFound("no image".into()))?;
+                let bytes = std::fs::read(&p).map_err(|e| AppError::Io(e.to_string()))?;
+                Ok((bytes, format!("clipboard-{}.png", item.id), "image/png"))
+            },
+            "html" => {
+                let p = item.html_path.ok_or_else(|| AppError::NotFound("no html".into()))?;
+                let bytes = std::fs::read(&p).map_err(|e| AppError::Io(e.to_string()))?;
+                Ok((bytes, format!("clipboard-{}.html", item.id), "text/plain; charset=utf-8"))
+            },
+            "rtf" => {
+                let p = item.rtf_path.ok_or_else(|| AppError::NotFound("no rtf".into()))?;
+                let bytes = std::fs::read(&p).map_err(|e| AppError::Io(e.to_string()))?;
+                Ok((bytes, format!("clipboard-{}.rtf", item.id), "text/plain; charset=utf-8"))
+            },
+            _ => Ok((
+                item.content.unwrap_or_default().into_bytes(),
+                format!("clipboard-{}.txt", item.id),
+                "text/plain; charset=utf-8",
+            )),
+        }
+    })
+    .await;
+    match loaded {
+        Ok((bytes, filename, ctype)) => (
+            [
+                (header::CONTENT_TYPE, ctype.to_string()),
+                (header::CONTENT_DISPOSITION, format!("attachment; filename=\"{filename}\"")),
+            ],
+            bytes,
+        )
+            .into_response(),
+        // 失败时沿用本文件的统一 JSON `IpcResult` 错误体（非裸状态码）。
+        Err(e) => ipc::to_response(Err(e)).into_response(),
+    }
 }
 
 /// Serve a stored asset from `dir` under the given `content_type`. `filename`
@@ -502,5 +553,26 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(missing.status(), axum::http::StatusCode::NOT_FOUND);
+    }
+
+    #[tokio::test]
+    async fn export_returns_payload_with_filename() {
+        let state = test_server_state();
+        state.clipboard_store.insert_or_bump(&sample_item("e-1", "hello")).unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri("/clipboard/export?id=e-1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status().is_success());
+        assert!(resp.headers().get(axum::http::header::CONTENT_DISPOSITION).is_some());
+        let bytes = axum::body::to_bytes(resp.into_body(), 1 << 20).await.unwrap();
+        assert_eq!(bytes.as_ref(), b"hello");
     }
 }

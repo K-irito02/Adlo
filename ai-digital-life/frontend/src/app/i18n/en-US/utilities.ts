@@ -29,6 +29,7 @@ export const utilitiesEn = {
   clipboardZoomReset: 'Reset font size',
   clipboardWrapToggle: 'Toggle word wrap',
   clipboardPreviewRich: 'Preview rich text',
+  clipboardExport: 'Save to file',
   systemMonitor: 'System Monitor',
   sysCpu: 'CPU',
   sysMemory: 'Memory',

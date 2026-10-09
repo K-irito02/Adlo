@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { IconClose, IconEye, IconFileImage } from '@icons';
+import { IconClose, IconDownload, IconEye, IconFileImage } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { CustomScrollArea } from '@features/file-tree/CustomScrollArea';
 import { useTCopy } from '@i18n/useTCopy';
@@ -151,6 +151,14 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
               >
                 ↩
               </button>
+              <a
+                className="adl-icon-btn adl-icon-btn--xs"
+                href={window.digitalLife?.clipboard.exportUrl(item.id) ?? ''}
+                download
+                aria-label={t.clipboardExport}
+              >
+                <IconDownload size={12} decorative />
+              </a>
               {isHtml && (
                 <button
                   type="button"

@@ -261,6 +261,9 @@ export async function setupPreviewBridge(): Promise<void> {
       getImageUrl: http.clipboard.getImageUrl,
       getHtmlUrl: http.clipboard.getHtmlUrl,
       getRtfUrl: http.clipboard.getRtfUrl,
+      // exportUrl 同样是纯 URL 构造器（返回 `/clipboard/export?id=…`，由
+      // 前端 `<a download>` 触发下载），必须覆盖在 spread 之后，避免被 Proxy 异步包裹。
+      exportUrl: http.clipboard.exportUrl,
     },
     systemMonitor: preferHttpWhenReachable<SystemMonitorBridge>(
       adlServerBaseUrl,

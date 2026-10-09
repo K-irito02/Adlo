@@ -6,6 +6,7 @@ describe('clipboard bridge contract', () => {
 
   it('exposes write + asset url builders, not writeImage', () => {
     expect(typeof bridge.clipboard.write).toBe('function');
+    expect(typeof bridge.clipboard.exportUrl).toBe('function');
     expect(typeof bridge.clipboard.getHtmlUrl).toBe('function');
     expect(typeof bridge.clipboard.getRtfUrl).toBe('function');
     expect('writeImage' in bridge.clipboard).toBe(false);
@@ -16,5 +17,11 @@ describe('clipboard bridge contract', () => {
       'http://127.0.0.1:1/clipboard/html/abc.html',
     );
     expect(bridge.clipboard.getRtfUrl('')).toBe('');
+  });
+
+  it('builds the export url from the ad-server base url and the item id', () => {
+    const url = bridge.clipboard.exportUrl('abc-1');
+    expect(url).toContain('abc-1');
+    expect(url).toBe('http://127.0.0.1:1/clipboard/export?id=abc-1');
   });
 });
