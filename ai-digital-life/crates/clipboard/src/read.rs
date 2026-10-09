@@ -27,7 +27,7 @@ use crate::store::ClipboardStore;
 const THUMB_MAX_SIDE: u32 = 256;
 
 /// 富文本（HTML / RTF）载荷体积上限：超限则不落盘富载荷、降级为纯文本。
-pub(crate) const MAX_RICH_PAYLOAD_BYTES: usize = 1024 * 1024;
+const MAX_RICH_PAYLOAD_BYTES: usize = 1024 * 1024;
 
 /// 依据各格式是否存在选出主类型。优先级：`image > html > rtf > text`。
 pub(crate) fn pick_kind(

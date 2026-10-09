@@ -9,6 +9,14 @@ export function clipboardTextStats(text: string): ClipboardTextStats {
   if (text.length === 0) {
     return { chars: 0, charsNoSpace: 0, lines: 0 };
   }
-  const charsNoSpace = [...text].filter((ch) => !/\s/.test(ch)).length;
-  return { chars: [...text].length, charsNoSpace, lines: text.split('\n').length };
+  const whitespace = /\s/;
+  let chars = 0;
+  let charsNoSpace = 0;
+  for (const ch of text) {
+    chars += 1;
+    if (!whitespace.test(ch)) {
+      charsNoSpace += 1;
+    }
+  }
+  return { chars, charsNoSpace, lines: text.split('\n').length };
 }

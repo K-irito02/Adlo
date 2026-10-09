@@ -119,7 +119,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
    * 若正在编辑且有改动则落盘，然后退出编辑模式；空白内容不可保存。
    * 单飞：同一时刻至多一个保存任务在途；已有在途任务时直接返回它，供调用方（关闭路径）等待其落盘。
    * 保存任务内部逐轮串行写入：每写完一轮，若"实时草稿"（`draftRef`）已不同于刚落盘的内容，
-   * 再补写一轮 —— 保证关闭时最新草稿一定持久化；轮数封顶（首轮 + 一次补写），失败也不会死循环。
+   * 再补写一轮；轮数封顶（`MAX_SAVE_ROUNDS`），达上限仍未落盘则保持编辑态交由后续保存，
+   * 失败（返回 `false`）也不会死循环。
    */
   const commitIfEditing = useCallback(async () => {
     if (!editing) {
@@ -127,13 +128,6 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     }
     if (savingRef.current) {
       return savingRef.current;
-    }
-    if (!draftRef.current.trim()) {
-      return;
-    }
-    if (draftRef.current === baselineRef.current) {
-      setEditing(false);
-      return;
     }
     const saving = (async () => {
       try {
