@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { ReactNode } from 'react';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, act } from '@testing-library/react';
 import { TCopyProvider } from '../i18n/TCopyContext';
 import type { CopyDict } from '../i18n/types';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 import type { TerminalTabState } from '@stores/slices/terminalSlice';
 import { CenterTabStrip } from './CenterTabStrip';
+import { calcDropIndex } from './centerTabDrag';
 import { browserPool } from '@features/browser/browserPoolSingleton';
 
 afterEach(cleanup);
@@ -277,5 +278,229 @@ describe('CenterTabStrip', () => {
     fireEvent.keyDown(input, { key: 'Enter' });
 
     expect(useAppStore.getState().terminalTabsById[refId].title).toBe('Keep');
+  });
+});
+
+describe('CenterTabStrip 拖拽排序（B·滑动让位）', () => {
+  beforeEach(() =>
+    useAppStore.setState({
+      centerTabs: [],
+      centerActiveTabId: '',
+      browserTabs: [],
+      browserTabsById: {},
+      terminalTabs: [],
+      terminalTabsById: {},
+    }),
+  );
+
+  it('calcDropIndex 按中点统计插入序号', () => {
+    expect(calcDropIndex([50, 150, 250], 10)).toBe(0);
+    expect(calcDropIndex([50, 150, 250], 160)).toBe(2);
+    expect(calcDropIndex([50, 150, 250], 400)).toBe(3);
+    expect(calcDropIndex([], 100)).toBe(0);
+  });
+
+  /** jsdom 无布局：为标签 mock offsetLeft/offsetWidth（内容坐标）。 */
+  function mockLayout(tabs: HTMLElement[], width = 100, gap = 4) {
+    tabs.forEach((el, i) => {
+      Object.defineProperty(el, 'offsetLeft', { value: i * (width + gap), configurable: true });
+      Object.defineProperty(el, 'offsetWidth', { value: width, configurable: true });
+    });
+  }
+
+  /** jsdom 无 PointerEvent：fireEvent.pointer* 会丢 clientX，
+      用 MouseEvent 冒充 pointer 事件派发（类型名字即一切，React 认类型）。 */
+  function pointer(
+    el: HTMLElement,
+    type: 'pointerdown' | 'pointermove' | 'pointerup' | 'pointercancel',
+    clientX: number,
+  ) {
+    const evt = new window.MouseEvent(type, {
+      bubbles: true,
+      cancelable: true,
+      clientX,
+      button: 0,
+    });
+    Object.defineProperty(evt, 'pointerId', { value: 1 });
+    act(() => {
+      el.dispatchEvent(evt);
+    });
+  }
+
+  function renderThreeTabs() {
+    const a = useAppStore.getState().centerAddTab('launcher', null);
+    const b = useAppStore.getState().centerAddTab('launcher', null);
+    const c = useAppStore.getState().centerAddTab('launcher', null);
+    renderStrip();
+    const tabs = screen.getAllByRole('tab') as HTMLElement[];
+    mockLayout(tabs);
+    return { ids: [a, b, c], tabs };
+  }
+
+  it('阈值内移动不进入拖拽，单击仍选中', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 52);
+    pointer(tabs[0], 'pointerup', 52);
+    fireEvent.click(tabs[0]);
+    expect(useAppStore.getState().centerActiveTabId).toBe(ids[0]);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+  });
+
+  it('拖首标签到末尾松手提交新顺序，且不改变选中', () => {
+    const { ids, tabs } = renderThreeTabs();
+    const activeBefore = useAppStore.getState().centerActiveTabId;
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    pointer(tabs[0], 'pointerup', 300);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[1], ids[2], ids[0]]);
+    // 拖拽只排序不切换选中；拖拽后的 click 被吞掉。
+    expect(useAppStore.getState().centerActiveTabId).toBe(activeBefore);
+    fireEvent.click(tabs[0]);
+    expect(useAppStore.getState().centerActiveTabId).toBe(activeBefore);
+  });
+
+  it('原地松手（目标即原位）不写 store', () => {
+    const { ids, tabs } = renderThreeTabs();
+    const before = useAppStore.getState().centerTabs;
+    pointer(tabs[1], 'pointerdown', 150);
+    pointer(tabs[1], 'pointermove', 170);
+    pointer(tabs[1], 'pointerup', 170);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+    expect(useAppStore.getState().centerTabs).toBe(before);
+  });
+
+  it('操作按钮上按下不启动拖拽', () => {
+    const { ids } = renderThreeTabs();
+    const closeBtn = screen.getAllByRole('button', { name: 'close' })[0] as HTMLElement;
+    pointer(closeBtn, 'pointerdown', 90);
+    pointer(closeBtn, 'pointermove', 300);
+    pointer(closeBtn, 'pointerup', 300);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+  });
+
+  it('Escape 取消拖拽不提交', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    fireEvent.keyDown(window, { key: 'Escape' });
+    pointer(tabs[0], 'pointerup', 300);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+  });
+
+  it('拖拽中挂 is-dragging 与 data-dragging（CSS 由此隐藏按钮并取消名称遮挡）', () => {
+    renderThreeTabs();
+    const scroller = screen.getAllByRole('tab')[0].parentElement as HTMLElement;
+    const tabs = screen.getAllByRole('tab') as HTMLElement[];
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    // CSS 契约：被拖项 is-dragging（提起来）+ 条 data-dragging（藏按钮、去名称 mask）。
+    expect(tabs[0].classList.contains('is-dragging')).toBe(true);
+    expect(scroller.getAttribute('data-dragging')).toBe('true');
+    pointer(tabs[0], 'pointerup', 300);
+    expect(tabs[0].classList.contains('is-dragging')).toBe(false);
+    expect(scroller.getAttribute('data-dragging')).toBeNull();
+  });
+
+  it('捕获缺失时元素外松手仍提交（window 兜底）', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    // 元素外松手：只冒泡到 window，不经过标签本体 handler。
+    const evt = new window.MouseEvent('pointerup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 300,
+      button: 0,
+    });
+    Object.defineProperty(evt, 'pointerId', { value: 1 });
+    act(() => {
+      document.body.dispatchEvent(evt);
+    });
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[1], ids[2], ids[0]]);
+  });
+
+  it('第二路指针的移动与松手不干扰本次拖拽', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    // 第二指（pointerId 2）在同一标签上移动与松手：应被忽略。
+    const move2 = new window.MouseEvent('pointermove', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 60,
+      button: 0,
+    });
+    Object.defineProperty(move2, 'pointerId', { value: 2 });
+    act(() => {
+      tabs[0].dispatchEvent(move2);
+    });
+    const up2 = new window.MouseEvent('pointerup', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 60,
+      button: 0,
+    });
+    Object.defineProperty(up2, 'pointerId', { value: 2 });
+    act(() => {
+      tabs[0].dispatchEvent(up2);
+    });
+    // 本次拖拽仍在：第一指松手正常提交。
+    pointer(tabs[0], 'pointerup', 300);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[1], ids[2], ids[0]]);
+  });
+
+  it('pointercancel 后直接点击仍可选中（不吞点击）', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    pointer(tabs[0], 'pointercancel', 300);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual(ids);
+    fireEvent.click(tabs[1]);
+    expect(useAppStore.getState().centerActiveTabId).toBe(ids[1]);
+  });
+
+  it('拖拽中途外部删除标签则中止提交', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    // 中途外部删除第三个标签：快照失配，松手不得提交重排。
+    useAppStore.getState().centerRemoveTab(ids[2]);
+    pointer(tabs[0], 'pointermove', 310);
+    pointer(tabs[0], 'pointerup', 310);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[0], ids[1]]);
+  });
+
+  it('反向拖尾标签到首位', () => {
+    const { ids, tabs } = renderThreeTabs();
+    // tab2 中点 258，从右侧（clientX 260）向左拖到 30。
+    pointer(tabs[2], 'pointerdown', 260);
+    pointer(tabs[2], 'pointermove', 30);
+    pointer(tabs[2], 'pointerup', 30);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[2], ids[0], ids[1]]);
+  });
+
+  it('拖拽中途外部纯重排则中止提交', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    // 中途外部纯重排（同集合不同顺序）：快照有序失配，松手不得提交。
+    const reordered = [ids[2], ids[0], ids[1]].map(
+      (id) => useAppStore.getState().centerTabs.find((t) => t.id === id)!,
+    );
+    useAppStore.getState().centerReorderTabs(reordered);
+    pointer(tabs[0], 'pointermove', 310);
+    pointer(tabs[0], 'pointerup', 310);
+    expect(useAppStore.getState().centerTabs.map((t) => t.id)).toEqual([ids[2], ids[0], ids[1]]);
+  });
+
+  it('拖拽提交后键盘 Enter 不被吞', () => {
+    const { ids, tabs } = renderThreeTabs();
+    pointer(tabs[0], 'pointerdown', 50);
+    pointer(tabs[0], 'pointermove', 300);
+    pointer(tabs[0], 'pointerup', 300);
+    // 拖拽后的连带 click 被吞，但键盘激活走独立入口，不受影响。
+    fireEvent.keyDown(tabs[1], { key: 'Enter' });
+    expect(useAppStore.getState().centerActiveTabId).toBe(ids[1]);
   });
 });

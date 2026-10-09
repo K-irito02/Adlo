@@ -512,7 +512,11 @@
   overflow: hidden;
 }
 
+/* __scroll 设 relative：一是收敛 offsetParent 到滚动区（拖拽数学要求 offsetLeft
+   与 pointerContentX 同坐标系，勿删），二是不创建层叠上下文（无 z-index），
+   不影响后代定位与绘制顺序。 */
 .adl-center-tab-strip__scroll {
+  position: relative;
   display: flex;
   align-items: center;
   gap: var(--space-1);
@@ -520,11 +524,16 @@
   min-width: 0;
   height: 100%;
   padding: 0 var(--space-1);
-  overflow: hidden;
+  overflow-y: hidden;
   overflow-x: auto;
   white-space: nowrap;
   scrollbar-width: none;
   -ms-overflow-style: none;
+}
+
+.adl-center-tab-strip__scroll[data-dragging='true'],
+.adl-center-tab-strip__scroll[data-dragging='true'] .adl-center-tab {
+  cursor: grabbing;
 }
 
 .adl-center-tab-strip__scroll::-webkit-scrollbar {
@@ -540,7 +549,6 @@
   align-items: center;
   gap: var(--space-1-5);
   flex: 1 1 0;
-  flex-shrink: 1;
   min-width: var(--adl-center-tab-min-width);
   max-width: var(--adl-center-tab-max-width);
   height: 26px;
@@ -551,11 +559,49 @@
   cursor: pointer;
   user-select: none;
   -webkit-app-region: no-drag;
+  /* 拖拽排序（B·滑动让位）：其余标签用 transform 让位（token 过渡保证跟手平滑）。 */
+  transition:
+    var(--transition-transform),
+    var(--transition-colors);
 }
 
 .adl-center-tab:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+}
+
+.adl-center-tab.is-dragging {
+  /* 显式 relative：z-index 只对定位元素生效，不依赖 .adl-clip-tab 附带的 relative。 */
+  position: relative;
+  /* 压过同条兄弟与操作按钮（z 2），仍在下拉菜单（20）之下。 */
+  z-index: var(--z-raised);
+  transition: none;
+  /* 非活动被拖项的提起底面；被拖活动标签仍显示 bg-active（后方 .is-active 同分胜出，
+     有意为之：保持选中身份，阴影+置顶已足够表达提起，勿追加覆盖）。 */
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-lg);
+}
+
+/* 拖拽中隐藏悬停操作按钮：(0,4,0) 压过后方的 hover 显示规则，无需 !important。 */
+.adl-center-tab-strip__scroll[data-dragging='true'] .adl-center-tab .adl-center-tab__actions {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* 拖拽中条内所有标签名取消雾感遮挡：名称右端的 mask 是为“被操作按钮覆盖”准备的，
+   拖拽中按钮已全部隐藏（见上），且指针仍悬停在被拖项上（:hover 持续成立），
+   不取消则名称像被看不见的按钮裁掉一半。
+   (0,4,0)：压过 hover/focus 规则（(0,3,0)，靠后加载胜）与同文件更晚的
+   hover:none 常驻规则（(0,3,0)，触屏拖拽同样生效）。 */
+.adl-center-tab-strip__scroll[data-dragging='true'] .adl-center-tab .adl-clip-tab__label {
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .adl-center-tab {
+    transition: none;
+  }
 }
 
 /* 选中（当前在中间区显示的）标签：中性灰底 + 四角偏圆弧（--radius-md）。

@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>标题栏标签 · 拖拽排序效果挑选</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px;
+    font-family: system-ui, -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: #141414; color: #e8e8e8;
+  }
+  h1 { font-size: 18px; margin: 0 0 4px; }
+  .page-hint { font-size: 13px; color: #9a9a9a; margin: 0 0 20px; }
+  .demos { display: flex; flex-direction: column; gap: 18px; max-width: 860px; }
+  .demo-card {
+    background: #1e1e1e; border: 1px solid #333; border-radius: 8px;
+    padding: 14px 14px 16px;
+  }
+  .demo-card h3 { font-size: 14px; margin: 0 0 4px; }
+  .demo-card h3 .tag {
+    display: inline-block; text-align: center;
+    background: #333; border-radius: 4px;
+    font-size: 12px; padding: 1px 6px; margin-right: 6px;
+  }
+  .demo-card h3 .rec {
+    font-size: 11px; color: #7fd08a; border: 1px solid #2c5b34;
+    border-radius: 4px; padding: 1px 6px; margin-left: 6px;
+  }
+  .demo-note { font-size: 12px; color: #9a9a9a; margin: 0 0 10px; }
+  .demo-note b { color: #cfcfcf; font-weight: 600; }
+  /* —— 仿真标题栏 —— */
+  .fake-titlebar {
+    display: flex; align-items: center; height: 36px;
+    background: #191919; border: 1px solid #333; border-bottom: 1px solid #2a2a2a;
+    border-radius: 6px; padding: 0 4px 0 8px; user-select: none;
+  }
+  .fake-burger { color: #aaa; font-size: 14px; margin-right: 6px; }
+  .strip {
+    position: relative; display: flex; align-items: center; gap: 4px;
+    flex: 1; min-width: 0; height: 100%; padding: 0 4px;
+    touch-action: none;
+  }
+  .tab {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-width: 100px; max-width: 150px; flex: 1 1 0; height: 26px;
+    padding: 0 8px; border-radius: 6px;
+    font-size: 12px; color: #aaa; white-space: nowrap; cursor: grab;
+    position: relative;
+  }
+  .tab .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .tab .lbl { flex: 1; overflow: hidden; text-overflow: clip; }
+  .tab .x { color: #777; font-size: 12px; line-height: 1; }
+  .tab:hover { background: #2c2c2c; color: #eee; }
+  .tab.is-active, .tab.is-active:hover { background: #3a3a3a; color: #fff; }
+  .tab:active { cursor: grabbing; }
+  .strip .add {
+    flex-shrink: 0; border: none; background: transparent; color: #aaa;
+    font-size: 14px; cursor: pointer; padding: 2px 6px; border-radius: 4px;
+  }
+  .strip .add:hover { background: #2c2c2c; color: #fff; }
+  .demo-actions { margin-top: 10px; display: flex; gap: 8px; align-items: center; }
+  .demo-actions button {
+    background: #2c2c2c; color: #ddd; border: 1px solid #444;
+    border-radius: 4px; font-size: 12px; padding: 3px 10px; cursor: pointer;
+  }
+  .demo-actions button:hover { background: #3a3a3a; }
+  .order-line { font-size: 12px; color: #888; }
+  .order-line b { color: #ccc; font-weight: 600; }
+
+  /* —— A：插入线指示（VS Code 式） —— */
+  .demo-a .tab.is-dragging { opacity: 0.4; }
+  .insert-line {
+    position: absolute; top: 4px; bottom: 4px; width: 2px;
+    background: #4c9aff; border-radius: 1px; z-index: 5;
+    pointer-events: none; display: none;
+  }
+
+  /* —— B：Chrome 式滑动让位（FLIP） —— */
+  .demo-b .tab { transition: transform 200ms cubic-bezier(0.2, 0.8, 0.25, 1); }
+  .demo-b .tab.is-dragging {
+    transition: none; z-index: 5; opacity: 1;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  }
+
+  /* —— C：幽灵跟随 + 虚线占位 —— */
+  .demo-c .tab.is-dragging {
+    transition: none; z-index: 5; opacity: 0.85;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.55);
+  }
+  .demo-c .tab.is-dragging.ghost { scale: 0.96; }
+  .slot-ph {
+    flex: 0 0 auto; width: 110px; height: 26px; border-radius: 6px;
+    border: 2px dashed #666; display: none; pointer-events: none;
+  }
+</style>
+</head>
+<body>
+<h1>标题栏标签 · 拖拽排序效果挑选</h1>
+<p class="page-hint">下面三条都是可实际拖拽的仿真标题栏（深色贴着当前样式：26px 高、6px 圆角）。按住某个标签左右拖，松手落位；右下角可重置。选好后告诉我编号，我再动仓库实现。</p>
+
+<div class="demos">
+  <section class="demo-card demo-a" id="demoA">
+    <h3><span class="tag">A</span>插入线指示（VS Code 式）</h3>
+    <p class="demo-note"><b>手感：</b>拖起的标签半透明留在原位，其它标签不动；落点处出现一条蓝色插入线。最克制、视觉噪音最小；缺点是拖的过程中看不到最终排列。</p>
+    <div class="fake-titlebar"><span class="fake-burger">☰</span><div class="strip"><div class="insert-line"></div></div></div>
+    <div class="demo-actions"><button data-reset>重置</button><span class="order-line">当前顺序：<b></b></span></div>
+  </section>
+
+  <section class="demo-card demo-b" id="demoB">
+    <h3><span class="tag">B</span>滑动让位（Chrome 式）<span class="rec">推荐</span></h3>
+    <p class="demo-note"><b>手感：</b>拖起的标签提起（阴影、跟随指针），其它标签平滑滑动让出空位，所见即所得。主流浏览器手感，用户零学习成本；实现用 FLIP，约多几十行。</p>
+    <div class="fake-titlebar"><span class="fake-burger">☰</span><div class="strip"></div></div>
+    <div class="demo-actions"><button data-reset>重置</button><span class="order-line">当前顺序：<b></b></span></div>
+  </section>
+
+  <section class="demo-card demo-c" id="demoC">
+    <h3><span class="tag">C</span>幽灵跟随 + 虚线占位</h3>
+    <p class="demo-note"><b>手感：</b>拖起的标签变成半透明幽灵跟随指针，原位留虚线占位框，其它标签直接跳位（无滑动动画）。动效最省、指向明确；缺点是跳位略生硬。</p>
+    <div class="fake-titlebar"><span class="fake-burger">☰</span><div class="strip"><div class="slot-ph"></div></div></div>
+    <div class="demo-actions"><button data-reset>重置</button><span class="order-line">当前顺序：<b></b></span></div>
+  </section>
+</div>
+
+<script>
+const NAMES = ['新建标签页', 'PowerShell', 'CMD', 'Bash', 'DeepSeek', '终端 2'];
+const COLORS = ['#888', '#64b5f6', '#81c784', '#ffb74d', '#ba68c8', '#4db6ac'];
+
+function makeTabs(strip, activeIdx = 4) {
+  strip.querySelectorAll('.tab').forEach((t) => t.remove());
+  const addBtn = strip.querySelector('.add');
+  NAMES.forEach((name, i) => {
+    const tab = document.createElement('div');
+    tab.className = 'tab' + (i === activeIdx ? ' is-active' : '');
+    tab.dataset.name = name;
+    tab.innerHTML = `<span class="dot" style="background:${COLORS[i]}"></span><span class="lbl">${name}</span><span class="x">×</span>`;
+    strip.insertBefore(tab, addBtn || null);
+  });
+  if (!addBtn) {
+    const b = document.createElement('button');
+    b.className = 'add'; b.textContent = '+'; b.tabIndex = -1;
+    strip.appendChild(b);
+  }
+}
+function orderLine(card) {
+  const names = [...card.querySelectorAll('.tab')].map((t) => t.dataset.name);
+  card.querySelector('.order-line b').textContent = names.join(' → ');
+}
+function centerX(el) {
+  const r = el.getBoundingClientRect();
+  return r.left + r.width / 2;
+}
+
+/* ---------- A：插入线 ---------- */
+(function () {
+  const card = document.getElementById('demoA');
+  const strip = card.querySelector('.strip');
+  const line = strip.querySelector('.insert-line');
+  makeTabs(strip); orderLine(card);
+  let drag = null;
+  strip.addEventListener('pointerdown', (e) => {
+    const tab = e.target.closest('.tab');
+    if (!tab || e.target.classList.contains('x')) return;
+    tab.setPointerCapture(e.pointerId);
+    drag = { tab };
+    tab.classList.add('is-dragging');
+  });
+  strip.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const tabs = [...strip.querySelectorAll('.tab')];
+    const sr = strip.getBoundingClientRect();
+    let idx = tabs.length;
+    for (let i = 0; i < tabs.length; i++) {
+      if (e.clientX < centerX(tabs[i])) { idx = i; break; }
+    }
+    // 插入线位置：目标序号处（跳过被拖项自身）
+    const others = tabs.filter((t) => t !== drag.tab);
+    let x;
+    if (idx >= tabs.length) x = sr.right - 8;
+    else {
+      const t = tabs[idx] === drag.tab ? others[Math.min(idx, others.length - 1)] : tabs[idx];
+      x = idx === 0 ? t.getBoundingClientRect().left - 5 : t.getBoundingClientRect().left - 3;
+      if (tabs[idx] === drag.tab) x = centerX(tabs[idx]);
+    }
+    line.style.display = 'block';
+    line.style.left = x - sr.left + 'px';
+    drag.idx = idx;
+  });
+  const end = () => {
+    if (!drag) return;
+    const tabs = [...strip.querySelectorAll('.tab')];
+    const from = tabs.indexOf(drag.tab);
+    let to = Math.min(drag.idx ?? from, tabs.length - 1);
+    strip.insertBefore(drag.tab, tabs[to] || null);
+    if (to > from) strip.insertBefore(drag.tab, tabs[to].nextSibling);
+    drag.tab.classList.remove('is-dragging');
+    line.style.display = 'none';
+    drag = null; orderLine(card);
+  };
+  strip.addEventListener('pointerup', end);
+  strip.addEventListener('pointercancel', () => { if (drag) { drag.tab.classList.remove('is-dragging'); line.style.display = 'none'; drag = null; } });
+  card.querySelector('[data-reset]').onclick = () => { makeTabs(strip); orderLine(card); };
+})();
+
+/* ---------- B：Chrome 式 FLIP ---------- */
+(function () {
+  const card = document.getElementById('demoB');
+  const strip = card.querySelector('.strip');
+  makeTabs(strip); orderLine(card);
+  let drag = null;
+  const GAP = 4;
+  function layout(except) {
+    // 按 children 顺序以固定宽度横向排布（FLIP 目标态来自真实 DOM 顺序）
+    let x = 0;
+    [...strip.querySelectorAll('.tab')].forEach((t) => {
+      if (t === except) return;
+      const w = t.getBoundingClientRect().width;
+      t.dataset.fx = x;
+      x += w + GAP;
+    });
+  }
+  function applyTransforms() {
+    [...strip.querySelectorAll('.tab')].forEach((t) => {
+      if (t === (drag && drag.tab)) return;
+      const cur = t.getBoundingClientRect().left;
+      const base = parseFloat(t.dataset.bx || cur);
+      const target = parseFloat(t.dataset.fx || 0);
+      // 目标态：以 strip 左缘为基准的绝对偏移 → 转为相对位移
+      t.style.transform = `translateX(${target - (base - strip.getBoundingClientRect().left)}px)`;
+    });
+  }
+  strip.addEventListener('pointerdown', (e) => {
+    const tab = e.target.closest('.tab');
+    if (!tab || e.target.classList.contains('x')) return;
+    tab.setPointerCapture(e.pointerId);
+    const r = tab.getBoundingClientRect();
+    const sr = strip.getBoundingClientRect();
+    [...strip.querySelectorAll('.tab')].forEach((t) => {
+      t.dataset.bx = t.getBoundingClientRect().left;
+      t.style.transform = 'translateX(0px)';
+    });
+    drag = { tab, dx: e.clientX - r.left, w: r.width, baseLeft: r.left - sr.left };
+    tab.classList.add('is-dragging');
+    tab.style.width = drag.w + 'px';
+    tab.style.flex = 'none';
+  });
+  strip.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const sr = strip.getBoundingClientRect();
+    let left = e.clientX - sr.left - drag.dx;
+    left = Math.max(-drag.w / 2, Math.min(sr.width - drag.w / 2, left));
+    drag.tab.style.transform = `translateX(${left - drag.baseLeft}px)`;
+    // 按拖拽项中心计算应插入序号，重排 DOM（除拖拽项），FLIP 动画跟上
+    const mid = left + drag.w / 2;
+    const tabs = [...strip.querySelectorAll('.tab')].filter((t) => t !== drag.tab);
+    let idx = tabs.length;
+    for (let i = 0; i < tabs.length; i++) {
+      const r = tabs[i].getBoundingClientRect();
+      if (mid < r.left - sr.left + r.width / 2 + parseFloat(getComputedStyle(tabs[i]).transform.split(',')[4] || 0)) { idx = i; break; }
+    }
+    const ref = strip.querySelectorAll('.tab');
+    const without = [...ref].filter((t) => t !== drag.tab);
+    const before = without[idx] || null;
+    if (drag.tab.nextElementSibling !== before || (before === null && drag.tab.nextElementSibling !== strip.querySelector('.add'))) {
+      strip.insertBefore(drag.tab, before);
+    }
+    layout(drag.tab); applyTransforms();
+  });
+  const end = (commit) => {
+    if (!drag) return;
+    const { tab } = drag;
+    tab.classList.remove('is-dragging');
+    tab.style.transform = '';
+    tab.style.width = '';
+    tab.style.flex = '';
+    [...strip.querySelectorAll('.tab')].forEach((t) => { t.style.transform = ''; });
+    drag = null; orderLine(card);
+  };
+  strip.addEventListener('pointerup', () => end(true));
+  strip.addEventListener('pointercancel', () => end(false));
+  card.querySelector('[data-reset]').onclick = () => { makeTabs(strip); orderLine(card); };
+})();
+
+/* ---------- C：幽灵 + 占位 ---------- */
+(function () {
+  const card = document.getElementById('demoC');
+  const strip = card.querySelector('.strip');
+  const ph = strip.querySelector('.slot-ph');
+  makeTabs(strip); orderLine(card);
+  let drag = null;
+  strip.addEventListener('pointerdown', (e) => {
+    const tab = e.target.closest('.tab');
+    if (!tab || e.target.classList.contains('x')) return;
+    tab.setPointerCapture(e.pointerId);
+    const r = tab.getBoundingClientRect();
+    const sr = strip.getBoundingClientRect();
+    drag = { tab, dx: e.clientX - r.left, w: r.width, baseLeft: r.left - sr.left };
+    ph.style.width = drag.w + 'px';
+    ph.style.display = 'block';
+    strip.insertBefore(ph, tab);
+    tab.classList.add('is-dragging', 'ghost');
+    tab.style.width = drag.w + 'px';
+    tab.style.flex = 'none';
+    tab.style.position = 'absolute';
+    tab.style.left = drag.baseLeft + 'px';
+    tab.style.top = '50%';
+    tab.style.marginTop = '-13px';
+  });
+  strip.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const sr = strip.getBoundingClientRect();
+    let left = e.clientX - sr.left - drag.dx;
+    left = Math.max(-drag.w / 2, Math.min(sr.width - drag.w / 2, left));
+    drag.tab.style.left = left + 'px';
+    const mid = left + drag.w / 2;
+    const tabs = [...strip.querySelectorAll('.tab')].filter((t) => t !== drag.tab);
+    let idx = tabs.length;
+    for (let i = 0; i < tabs.length; i++) {
+      const r = tabs[i].getBoundingClientRect();
+      if (mid < r.left - sr.left + r.width / 2) { idx = i; break; }
+    }
+    const without = tabs;
+    strip.insertBefore(ph, without[idx] || strip.querySelector('.add'));
+  });
+  const end = () => {
+    if (!drag) return;
+    const { tab } = drag;
+    strip.insertBefore(tab, ph);
+    ph.style.display = 'none';
+    tab.classList.remove('is-dragging', 'ghost');
+    tab.style.cssText = '';
+    drag = null; orderLine(card);
+  };
+  strip.addEventListener('pointerup', end);
+  strip.addEventListener('pointercancel', end);
+  card.querySelector('[data-reset]').onclick = () => { makeTabs(strip); orderLine(card); };
+})();
+</script>
+</body>
+</html>
