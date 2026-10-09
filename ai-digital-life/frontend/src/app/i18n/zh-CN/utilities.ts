@@ -29,6 +29,7 @@ export const utilitiesZh = {
   clipboardWrapToggle: '切换自动换行',
   clipboardPreviewRich: '预览富文本',
   clipboardExport: '保存为文件',
+  clipboardEdit: '编辑',
   systemMonitor: '系统监控',
   sysCpu: 'CPU',
   sysMemory: '内存',

@@ -434,6 +434,27 @@
   user-select: text;
 }
 
+/* 文本编辑控件：与 __text 同排版，去掉控件默认外观，铺满正文区可滚动编辑。 */
+.adl-clipboard-viewer__editor {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  user-select: text;
+}
+
 /* 富文本预览：沙箱 iframe 填满正文区，中性底色。 */
 .adl-clipboard-viewer__rich {
   display: block;

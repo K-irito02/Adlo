@@ -30,6 +30,7 @@ export const utilitiesEn = {
   clipboardWrapToggle: 'Toggle word wrap',
   clipboardPreviewRich: 'Preview rich text',
   clipboardExport: 'Save to file',
+  clipboardEdit: 'Edit',
   systemMonitor: 'System Monitor',
   sysCpu: 'CPU',
   sysMemory: 'Memory',

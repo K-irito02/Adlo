@@ -1,14 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
+import { useAppStore } from '@stores/slicedStore';
 import { ClipboardItemViewer } from '../ClipboardItemViewer';
+
+vi.mock('@stores/slicedStore', () => ({
+  useAppStore: vi.fn(),
+}));
 
 const mockT = {
   clipboardText: '文本',
   clipboardImage: '图片',
   clipboardZoomView: '放大查看',
   clipboardExport: '保存为文件',
+  clipboardEdit: '编辑',
   close: '关闭',
 } as never;
 
@@ -20,6 +27,10 @@ function makeItem(overrides: Partial<ClipboardItem> = {}): ClipboardItem {
     createdAt: Date.now(),
     ...overrides,
   } as unknown as ClipboardItem;
+}
+
+function mockStore(store: Record<string, unknown>) {
+  vi.mocked(useAppStore).mockImplementation((selector: (s: any) => any) => selector(store));
 }
 
 function renderViewer(item: ClipboardItem) {
@@ -35,6 +46,8 @@ function renderViewer(item: ClipboardItem) {
 afterEach(cleanup);
 
 beforeEach(() => {
+  vi.clearAllMocks();
+  mockStore({ updateClipboardItem: vi.fn().mockResolvedValue(true) });
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     clipboard: {
       exportUrl: (id: string) => `http://test/clipboard/export?id=${id}`,
@@ -115,5 +128,89 @@ describe('ClipboardItemViewer', () => {
     expect(
       screen.getByRole('link', { name: '保存为文件' }).getAttribute('href'),
     ).toBe('http://test/clipboard/export?id=c1');
+  });
+
+  it('offers the edit affordance for text items only', () => {
+    renderViewer(makeItem());
+    expect(screen.getByRole('button', { name: '编辑' })).toBeTruthy();
+
+    cleanup();
+    renderViewer(makeItem({ kind: 'image', content: undefined, imagePath: 'C:/a.png' }));
+    expect(screen.queryByRole('button', { name: '编辑' })).toBeNull();
+  });
+
+  it('saves on close while editing', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(true);
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'changed');
+    await userEvent.click(screen.getByRole('button', { name: '关闭' }));
+
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenCalledWith('c1', 'changed'));
+  });
+
+  it('persists pending edits when the viewer unmounts mid-edit', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(true);
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'late');
+
+    cleanup();
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenCalledWith('c1', 'late'));
+  });
+
+  it('Ctrl+Z undoes and Esc cancels back to the original', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(true);
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox') as HTMLTextAreaElement;
+    await userEvent.type(box, 'X');
+    await userEvent.keyboard('{Control>}z{/Control}');
+    expect(box.value).toBe('hello');
+
+    await userEvent.type(box, 'Y');
+    await userEvent.keyboard('{Escape}');
+    expect(updateClipboardItem).not.toHaveBeenCalled();
+  });
+
+  it('Ctrl+Y redoes after an undo', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(true);
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox') as HTMLTextAreaElement;
+    await userEvent.type(box, 'X');
+    await userEvent.keyboard('{Control>}z{/Control}');
+    expect(box.value).toBe('hello');
+    await userEvent.keyboard('{Control>}y{/Control}');
+    expect(box.value).toBe('helloX');
+  });
+
+  it('Ctrl+S saves, exits edit mode and keeps the modal open', async () => {
+    const updateClipboardItem = vi.fn().mockResolvedValue(true);
+    mockStore({ updateClipboardItem });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    const box = screen.getByRole('textbox');
+    await userEvent.clear(box);
+    await userEvent.type(box, 'saved');
+    await userEvent.keyboard('{Control>}s{/Control}');
+
+    await waitFor(() => expect(updateClipboardItem).toHaveBeenCalledWith('c1', 'saved'));
+    await waitFor(() => expect(screen.queryByRole('textbox')).toBeNull());
+    expect(screen.getByRole('dialog')).toBeTruthy();
+    expect(screen.getByText('saved')).toBeTruthy();
   });
 });
