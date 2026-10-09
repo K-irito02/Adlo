@@ -18,6 +18,7 @@
 use crate::ServerState;
 use crate::ipc;
 use adl_errors::AppError;
+use adl_types::types::clipboard::ClipboardKind;
 use axum::extract::{Query, State};
 use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
@@ -140,7 +141,7 @@ pub async fn update(
         let mut item = store
             .get(&input.id)?
             .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
-        if item.kind != "text" {
+        if item.kind != ClipboardKind::Text {
             return Err(AppError::InvalidInput("only text items are editable".into()));
         }
         if input.content.trim().is_empty() {
@@ -166,23 +167,23 @@ pub async fn export(State(state): State<ServerState>, Query(q): Query<ExportQuer
         let item = store
             .get(&q.id)?
             .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
-        match item.kind.as_str() {
-            "image" => {
+        match item.kind {
+            ClipboardKind::Image => {
                 let p = item.image_path.ok_or_else(|| AppError::NotFound("no image".into()))?;
                 let bytes = std::fs::read(&p).map_err(|e| AppError::Io(e.to_string()))?;
                 Ok((bytes, format!("clipboard-{}.png", item.id), "image/png"))
             },
-            "html" => {
+            ClipboardKind::Html => {
                 let p = item.html_path.ok_or_else(|| AppError::NotFound("no html".into()))?;
                 let bytes = std::fs::read(&p).map_err(|e| AppError::Io(e.to_string()))?;
                 Ok((bytes, format!("clipboard-{}.html", item.id), "text/plain; charset=utf-8"))
             },
-            "rtf" => {
+            ClipboardKind::Rtf => {
                 let p = item.rtf_path.ok_or_else(|| AppError::NotFound("no rtf".into()))?;
                 let bytes = std::fs::read(&p).map_err(|e| AppError::Io(e.to_string()))?;
                 Ok((bytes, format!("clipboard-{}.rtf", item.id), "text/plain; charset=utf-8"))
             },
-            _ => Ok((
+            ClipboardKind::Text => Ok((
                 item.content.unwrap_or_default().into_bytes(),
                 format!("clipboard-{}.txt", item.id),
                 "text/plain; charset=utf-8",
@@ -277,7 +278,7 @@ mod tests {
     use crate::router::app_router;
     use crate::test_util::test_server_state;
     use adl_types::now_ms;
-    use adl_types::types::clipboard::ClipboardItem;
+    use adl_types::types::clipboard::{ClipboardItem, ClipboardKind};
     use axum::body::Body;
     use axum::http::Request;
     use tower::ServiceExt;
@@ -285,7 +286,7 @@ mod tests {
     fn sample_item(id: &str, content: &str) -> ClipboardItem {
         ClipboardItem {
             id: id.into(),
-            kind: "text".into(),
+            kind: ClipboardKind::Text,
             content: Some(content.into()),
             digest: None,
             image_path: None,

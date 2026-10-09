@@ -48,7 +48,7 @@ impl ClipboardStore {
             &item.id,
             None,
             None,
-            Some(&item.kind),
+            Some(item.kind.as_str()),
             item,
         )
     }
@@ -107,11 +107,7 @@ impl ClipboardStore {
 
     /// 删除条目引用的落盘文件（不存在则忽略）。供读取管线在入库失败时回滚刚写入的
     /// sidecar / 图片，避免留下无任何行引用的孤儿文件。
-    pub(crate) fn delete_item_files(&self, item: &ClipboardItem) {
-        self.delete_files(item);
-    }
-
-    fn delete_files(&self, item: &ClipboardItem) {
+    pub(crate) fn delete_files(&self, item: &ClipboardItem) {
         for p in [&item.image_path, &item.thumb_path, &item.html_path, &item.rtf_path]
             .into_iter()
             .flatten()
@@ -138,6 +134,7 @@ impl ClipboardStore {
 mod tests {
     use super::*;
     use adl_types::now_ms;
+    use adl_types::types::clipboard::ClipboardKind;
     use std::env::temp_dir;
 
     fn temp_store(name: &str) -> ClipboardStore {
@@ -150,10 +147,10 @@ mod tests {
         ClipboardStore::new(db, &dir)
     }
 
-    fn item(id: &str, kind: &str, created_at: i64) -> ClipboardItem {
+    fn item(id: &str, kind: ClipboardKind, created_at: i64) -> ClipboardItem {
         ClipboardItem {
             id: id.into(),
-            kind: kind.into(),
+            kind,
             content: Some(format!("content-{id}")),
             digest: None,
             image_path: None,
@@ -188,8 +185,8 @@ mod tests {
     #[test]
     fn insert_list_remove_clear() {
         let store = temp_store("crud");
-        assert!(store.insert_or_bump(&item("1", "text", now_ms())).unwrap());
-        assert!(store.insert_or_bump(&item("2", "text", now_ms() + 100)).unwrap());
+        assert!(store.insert_or_bump(&item("1", ClipboardKind::Text, now_ms())).unwrap());
+        assert!(store.insert_or_bump(&item("2", ClipboardKind::Text, now_ms() + 100)).unwrap());
         assert_eq!(store.list(10).unwrap().len(), 2);
         assert!(store.remove("1").unwrap());
         assert_eq!(store.list(10).unwrap().len(), 1);
@@ -210,7 +207,7 @@ mod tests {
         assert!(orig.exists());
         assert!(thumb.exists());
 
-        let mut im = item("img-1", "image", now_ms());
+        let mut im = item("img-1", ClipboardKind::Image, now_ms());
         im.image_path = Some(orig.to_string_lossy().into_owned());
         im.thumb_path = Some(thumb.to_string_lossy().into_owned());
         assert!(store.insert_or_bump(&im).unwrap());
@@ -226,7 +223,7 @@ mod tests {
         let orig2 = store.images_dir().join("img-2.png");
         let thumb2 = store.thumbs_dir().join("thumb-2.png");
         crate::image::write_image_files(&rgba, 32, 24, &orig2, &thumb2, 16).unwrap();
-        let mut im2 = item("img-2", "image", now_ms());
+        let mut im2 = item("img-2", ClipboardKind::Image, now_ms());
         im2.image_path = Some(orig2.to_string_lossy().into_owned());
         im2.thumb_path = Some(thumb2.to_string_lossy().into_owned());
         assert!(store.insert_or_bump(&im2).unwrap());
@@ -241,9 +238,9 @@ mod tests {
     #[test]
     fn dedup_consecutive_same_content() {
         let store = temp_store("dedup");
-        assert!(store.insert_or_bump(&item("1", "text", now_ms())).unwrap());
+        assert!(store.insert_or_bump(&item("1", ClipboardKind::Text, now_ms())).unwrap());
         // 模拟真实读取：内容相同但每次生成新 id，紧邻时间 → 判定重复，覆盖旧行
-        let mut dup = item("2", "text", now_ms() + 1);
+        let mut dup = item("2", ClipboardKind::Text, now_ms() + 1);
         dup.content = Some("content-1".into());
         assert!(!store.insert_or_bump(&dup).unwrap());
         let rows = store.list(10).unwrap();
@@ -263,7 +260,7 @@ mod tests {
         let path1 = store.images_dir().join("path-1.png");
         std::fs::write(&path1, b"png-1-bytes").unwrap();
         assert!(path1.exists());
-        let mut img1 = item("img-1", "image", now);
+        let mut img1 = item("img-1", ClipboardKind::Image, now);
         img1.content = None;
         img1.digest = Some("deadbeef".into());
         img1.image_path = Some(path1.to_string_lossy().into_owned());
@@ -272,7 +269,7 @@ mod tests {
         // 为 path-2 造真实物理文件（merged 引用的新文件，去重后应保留）
         let path2 = store.images_dir().join("path-2.png");
         std::fs::write(&path2, b"png-2-bytes").unwrap();
-        let mut img2 = item("img-2", "image", now + 1);
+        let mut img2 = item("img-2", ClipboardKind::Image, now + 1);
         img2.content = None;
         img2.digest = Some("deadbeef".into());
         img2.image_path = Some("path-2.png".into());
@@ -288,7 +285,7 @@ mod tests {
         assert!(path2.exists());
 
         // 不同 digest 的同 kind 图片 → 判定为新条目
-        let mut img3 = item("img-3", "image", now + 2);
+        let mut img3 = item("img-3", ClipboardKind::Image, now + 2);
         img3.content = None;
         img3.digest = Some("cafebabe".into());
         img3.image_path = Some("path-3.png".into());
@@ -313,7 +310,7 @@ mod tests {
         let rp = store.rtf_dir().join("a.rtf");
         std::fs::write(&hp, b"<b>x</b>").unwrap();
         std::fs::write(&rp, b"{\\rtf1}").unwrap();
-        let mut it = item("rt-1", "html", now_ms());
+        let mut it = item("rt-1", ClipboardKind::Html, now_ms());
         it.content = Some("x".into());
         it.html_path = Some(hp.to_string_lossy().into_owned());
         it.rtf_path = Some(rp.to_string_lossy().into_owned());
@@ -326,7 +323,7 @@ mod tests {
 
         // clear → 目录清空
         std::fs::write(&hp, b"y").unwrap();
-        let mut it2 = item("rt-2", "html", now_ms());
+        let mut it2 = item("rt-2", ClipboardKind::Html, now_ms());
         it2.content = Some("y".into());
         it2.html_path = Some(hp.to_string_lossy().into_owned());
         assert!(store.insert_or_bump(&it2).unwrap());

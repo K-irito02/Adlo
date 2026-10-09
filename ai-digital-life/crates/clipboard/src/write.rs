@@ -12,11 +12,11 @@ use clipboard_win::raw;
 use clipboard_win::{Clipboard, ErrorCode, formats, register_format};
 
 use adl_errors::AppError;
-use adl_types::types::clipboard::ClipboardItem;
+use adl_types::types::clipboard::{ClipboardItem, ClipboardKind};
 
 /// 一次写回要落到的具体格式。
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum FormatWrite {
+pub(crate) enum FormatWrite {
     Unicode(String),
     Html(String),
     Rtf(Vec<u8>),
@@ -24,29 +24,34 @@ pub enum FormatWrite {
 }
 
 /// `plan_formats` 的输入（纯数据，便于单测）。
-pub struct WriteInputs<'a> {
-    pub kind: &'a str,
+pub(crate) struct WriteInputs<'a> {
+    pub kind: ClipboardKind,
     pub content: Option<&'a str>,
     pub html: Option<&'a str>,
     pub rtf: Option<&'a [u8]>,
     pub bmp: Option<&'a [u8]>,
 }
 
-/// 决定一条条目要写哪些格式。载荷缺失时降级到纯文本；都不存在则返回空（不写）。
-pub fn plan_formats(input: WriteInputs<'_>) -> Vec<FormatWrite> {
+/// 决定一条条目要写哪些格式。载荷缺失**或为空**时降级到纯文本；都不存在则返回空（不写）。
+pub(crate) fn plan_formats(input: WriteInputs<'_>) -> Vec<FormatWrite> {
     let text = input.content.filter(|t| !t.is_empty());
     let unicode = || text.map(|t| FormatWrite::Unicode(t.to_string()));
     match input.kind {
-        "image" => input.bmp.map(|b| vec![FormatWrite::Bitmap(b.to_vec())]).unwrap_or_default(),
-        "html" => match input.html {
+        // 空载荷视同缺失：否则会「清空剪贴板却返回成功」（零字节 sidecar 场景）。
+        ClipboardKind::Image => input
+            .bmp
+            .filter(|b| !b.is_empty())
+            .map(|b| vec![FormatWrite::Bitmap(b.to_vec())])
+            .unwrap_or_default(),
+        ClipboardKind::Html => match input.html.filter(|h| !h.is_empty()) {
             Some(h) => unicode().into_iter().chain([FormatWrite::Html(h.to_string())]).collect(),
             None => unicode().into_iter().collect(),
         },
-        "rtf" => match input.rtf {
+        ClipboardKind::Rtf => match input.rtf.filter(|r| !r.is_empty()) {
             Some(r) => unicode().into_iter().chain([FormatWrite::Rtf(r.to_vec())]).collect(),
             None => unicode().into_iter().collect(),
         },
-        _ => unicode().into_iter().collect(),
+        ClipboardKind::Text => unicode().into_iter().collect(),
     }
 }
 
@@ -87,6 +92,10 @@ pub(crate) fn png_to_bmp24(path: &Path) -> Result<Vec<u8>, AppError> {
 /// `set_html`/`set_bitmap` 默认虽为 NoClear，仍统一走显式 NoClear 变体以保持一致。
 /// 清空因此只做一次——即上面的显式 `empty()`。请勿"简化"回默认变体。
 fn apply(writes: &[FormatWrite]) -> SysResult<()> {
+    // 空计划绝不得清空剪贴板 —— 由函数自身保证，不依赖调用方的 `writes.is_empty()` 守卫。
+    if writes.is_empty() {
+        return Ok(());
+    }
     let _clip = Clipboard::new_attempts(10)?;
     clipboard_win::empty()?;
     for w in writes {
@@ -107,23 +116,39 @@ fn apply(writes: &[FormatWrite]) -> SysResult<()> {
     Ok(())
 }
 
-fn read_to_string(path: &Path) -> Option<String> {
-    std::fs::read_to_string(path).ok()
+/// 读取可选 sidecar：路径为 `None` 或文件缺失 → `Ok(None)`（既定降级语义：回退纯文本）；
+/// **真实**读取失败（权限/损坏等）→ `Err`，避免「再次复制」静默退化成纯文本而无任何信号。
+fn read_optional_sidecar(path: Option<&str>) -> Result<Option<Vec<u8>>, AppError> {
+    let Some(p) = path else {
+        return Ok(None);
+    };
+    match std::fs::read(p) {
+        Ok(bytes) => Ok(Some(bytes)),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(e) => Err(AppError::Io(format!("clipboard sidecar read failed: {p} ({e})"))),
+    }
 }
 
-/// 一条 `ClipboardItem` 的完整写回：加载富文本载荷（文件缺失 / 读取失败时为 None）→ 计划 → 执行。
+/// 一条 `ClipboardItem` 的完整写回：加载富文本载荷 → 计划 → 执行。
+/// 富载荷缺失时降级为纯文本；无任何可写载荷时报错（不静默成功）。
 pub fn write_item_to_clipboard(item: &ClipboardItem) -> Result<(), AppError> {
-    let html = item.html_path.as_deref().and_then(|p| read_to_string(Path::new(p)));
-    let rtf = item.rtf_path.as_deref().and_then(|p| std::fs::read(Path::new(p)).ok());
+    // HTML sidecar 恒由 `String` 写出，故此处额外要求合法 UTF-8（损坏则显式报错）。
+    let html = read_optional_sidecar(item.html_path.as_deref())?
+        .map(String::from_utf8)
+        .transpose()
+        .map_err(|e| {
+            AppError::Io(format!("clipboard html sidecar not utf-8: {}", e.utf8_error()))
+        })?;
+    let rtf = read_optional_sidecar(item.rtf_path.as_deref())?;
     // 仅图片条目才需要位图载荷：避免对非图片条目做无谓解码，或在 `image_path` 意外残留时
     // 因 PNG 缺失而使整次写回失败。
-    let bmp = if item.kind == "image" {
+    let bmp = if item.kind == ClipboardKind::Image {
         item.image_path.as_deref().map(|p| png_to_bmp24(Path::new(p))).transpose()?
     } else {
         None
     };
     let writes = plan_formats(WriteInputs {
-        kind: &item.kind,
+        kind: item.kind,
         content: item.content.as_deref(),
         html: html.as_deref(),
         rtf: rtf.as_deref(),
@@ -145,7 +170,7 @@ mod tests {
     fn image_plans_only_bitmap() {
         let b = vec![1u8, 2, 3];
         let got = plan_formats(WriteInputs {
-            kind: "image",
+            kind: ClipboardKind::Image,
             content: None,
             html: None,
             rtf: None,
@@ -157,7 +182,7 @@ mod tests {
     #[test]
     fn image_without_payload_writes_nothing() {
         let got = plan_formats(WriteInputs {
-            kind: "image",
+            kind: ClipboardKind::Image,
             content: Some("x"),
             html: None,
             rtf: None,
@@ -169,7 +194,7 @@ mod tests {
     #[test]
     fn html_plans_text_then_html() {
         let got = plan_formats(WriteInputs {
-            kind: "html",
+            kind: ClipboardKind::Html,
             content: Some("plain"),
             html: Some("<b>hi</b>"),
             rtf: None,
@@ -185,7 +210,7 @@ mod tests {
     fn rtf_plans_text_then_rtf() {
         let r = b"{\\rtf1}".to_vec();
         let got = plan_formats(WriteInputs {
-            kind: "rtf",
+            kind: ClipboardKind::Rtf,
             content: Some("plain"),
             html: None,
             rtf: Some(&r),
@@ -197,7 +222,7 @@ mod tests {
     #[test]
     fn missing_richtext_falls_back_to_text() {
         let got = plan_formats(WriteInputs {
-            kind: "html",
+            kind: ClipboardKind::Html,
             content: Some("t"),
             html: None,
             rtf: None,
@@ -209,7 +234,7 @@ mod tests {
     #[test]
     fn missing_rtf_falls_back_to_text() {
         let got = plan_formats(WriteInputs {
-            kind: "rtf",
+            kind: ClipboardKind::Rtf,
             content: Some("t"),
             html: None,
             rtf: None,
@@ -221,13 +246,45 @@ mod tests {
     #[test]
     fn empty_text_is_not_written() {
         let got = plan_formats(WriteInputs {
-            kind: "text",
+            kind: ClipboardKind::Text,
             content: Some(""),
             html: None,
             rtf: None,
             bmp: None,
         });
         assert!(got.is_empty());
+    }
+
+    #[test]
+    fn empty_payloads_are_treated_as_absent() {
+        // 零字节 rtf/html/bmp 不得进入计划：否则会「清空剪贴板却返回成功」。
+        let empty: &[u8] = &[];
+        let rtf = plan_formats(WriteInputs {
+            kind: ClipboardKind::Rtf,
+            content: Some("t"),
+            html: None,
+            rtf: Some(empty),
+            bmp: None,
+        });
+        assert_eq!(rtf, vec![FormatWrite::Unicode("t".into())]);
+
+        let html = plan_formats(WriteInputs {
+            kind: ClipboardKind::Html,
+            content: Some("t"),
+            html: Some(""),
+            rtf: None,
+            bmp: None,
+        });
+        assert_eq!(html, vec![FormatWrite::Unicode("t".into())]);
+
+        let bmp = plan_formats(WriteInputs {
+            kind: ClipboardKind::Image,
+            content: None,
+            html: None,
+            rtf: None,
+            bmp: Some(empty),
+        });
+        assert!(bmp.is_empty());
     }
 
     /// 写一张 3×2 的测试 PNG（含半透明红与全透明像素）到临时文件，返回其路径。

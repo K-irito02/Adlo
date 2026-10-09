@@ -18,7 +18,7 @@ use uuid::Uuid;
 
 use adl_errors::AppError;
 use adl_types::now_ms;
-use adl_types::types::clipboard::ClipboardItem;
+use adl_types::types::clipboard::{ClipboardItem, ClipboardKind};
 
 use crate::image::write_image_files;
 use crate::store::ClipboardStore;
@@ -35,15 +35,15 @@ pub(crate) fn pick_kind(
     has_html: bool,
     has_rtf: bool,
     has_text: bool,
-) -> Option<&'static str> {
+) -> Option<ClipboardKind> {
     if has_image {
-        Some("image")
+        Some(ClipboardKind::Image)
     } else if has_html {
-        Some("html")
+        Some(ClipboardKind::Html)
     } else if has_rtf {
-        Some("rtf")
+        Some(ClipboardKind::Rtf)
     } else if has_text {
-        Some("text")
+        Some(ClipboardKind::Text)
     } else {
         None
     }
@@ -82,6 +82,8 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
     } else {
         // 2) HTML（"HTML Format" 注册格式，Getter<String> 自动剥离 CF_HTML 头）
         // 读取前用 `raw::size` 预检尺寸：超限直接跳过，避免把超限载荷整体读入内存后才丢弃。
+        // 注意：此处把「HTML 缺失」与「HTML 超限」一并视为「HTML 不可用」，故超限时若 RTF 可用
+        // 或纯文本存在，会**择优**保留可用格式（而非一律降级为 text）——这是有意取舍。
         let html = formats::Html::new().and_then(|fmt| {
             if !fmt.is_format_avail() || !within_rich_cap(fmt.code()) {
                 return None;
@@ -111,11 +113,11 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
         };
 
         // 4) 纯文本
-        let mut raw = String::new();
+        let mut text_raw = String::new();
         let text = if formats::Unicode.is_format_avail()
-            && formats::Unicode.read_clipboard(&mut raw).is_ok()
+            && formats::Unicode.read_clipboard(&mut text_raw).is_ok()
         {
-            normalized_text(&raw)
+            normalized_text(&text_raw)
         } else {
             None
         };
@@ -128,7 +130,7 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
         None => return Ok(None),
     };
 
-    let item = if kind == "image" {
+    let item = if kind == ClipboardKind::Image {
         build_image_item(store, &bmp)?
     } else {
         build_rich_or_text_item(store, kind, text, html, rtf)?
@@ -138,7 +140,7 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
     let is_new = match store.insert_or_bump(&item) {
         Ok(v) => v,
         Err(e) => {
-            store.delete_item_files(&item);
+            store.delete_files(&item);
             return Err(e);
         },
     };
@@ -157,7 +159,7 @@ pub(crate) fn normalized_text(raw: &str) -> Option<String> {
 /// 另一格式即便剪贴板同时存在也不持久化（写回只消费主类型）。
 fn build_rich_or_text_item(
     store: &ClipboardStore,
-    kind: &str,
+    kind: ClipboardKind,
     text: Option<String>,
     html: Option<String>,
     rtf: Option<Vec<u8>>,
@@ -166,12 +168,12 @@ fn build_rich_or_text_item(
     // 富载荷指纹：去重键需覆盖载荷本身——html/rtf 的纯文本可能相同、甚至缺失（生产者未写
     // CF_UNICODETEXT），仅比较 `content` 会把不同的富内容在时间窗内误判为重复而静默合并。
     let digest = match kind {
-        "html" => html.as_deref().map(|h| fnv1a_digest(h.as_bytes())),
-        "rtf" => rtf.as_deref().map(fnv1a_digest),
+        ClipboardKind::Html => html.as_deref().map(|h| fnv1a_digest(h.as_bytes())),
+        ClipboardKind::Rtf => rtf.as_deref().map(fnv1a_digest),
         _ => None,
     };
     let html_path = match (kind, html.as_deref()) {
-        ("html", Some(h)) => {
+        (ClipboardKind::Html, Some(h)) => {
             let p = store.html_dir().join(format!("{id}.html"));
             std::fs::write(&p, h).map_err(|e| AppError::Io(format!("html write: {e}")))?;
             Some(p.to_string_lossy().into_owned())
@@ -179,7 +181,7 @@ fn build_rich_or_text_item(
         _ => None,
     };
     let rtf_path = match (kind, rtf.as_deref()) {
-        ("rtf", Some(r)) => {
+        (ClipboardKind::Rtf, Some(r)) => {
             let p = store.rtf_dir().join(format!("{id}.rtf"));
             std::fs::write(&p, r).map_err(|e| AppError::Io(format!("rtf write: {e}")))?;
             Some(p.to_string_lossy().into_owned())
@@ -188,7 +190,7 @@ fn build_rich_or_text_item(
     };
     Ok(ClipboardItem {
         id,
-        kind: kind.to_string(),
+        kind,
         content: text,
         digest,
         image_path: None,
@@ -225,7 +227,7 @@ fn build_image_item(store: &ClipboardStore, bmp: &[u8]) -> Result<ClipboardItem,
 
     Ok(ClipboardItem {
         id,
-        kind: "image".into(),
+        kind: ClipboardKind::Image,
         content: None,
         digest: Some(digest),
         image_path: Some(original_path.to_string_lossy().into_owned()),
@@ -355,7 +357,7 @@ mod tests {
         let store = ClipboardStore::new(db, &data_dir);
 
         let item = build_image_item(&store, &bmp).expect("build image ok");
-        assert_eq!(item.kind, "image");
+        assert_eq!(item.kind, ClipboardKind::Image);
         assert_eq!(item.image_width, Some(2));
         assert_eq!(item.image_height, Some(2));
         // 原图字节数必须接线到 image_bytes（来自 write_image_files 的返回值）
@@ -389,10 +391,10 @@ mod tests {
 
     #[test]
     fn pick_kind_follows_precedence() {
-        assert_eq!(pick_kind(true, true, true, true), Some("image"));
-        assert_eq!(pick_kind(false, true, true, true), Some("html"));
-        assert_eq!(pick_kind(false, false, true, true), Some("rtf"));
-        assert_eq!(pick_kind(false, false, false, true), Some("text"));
+        assert_eq!(pick_kind(true, true, true, true), Some(ClipboardKind::Image));
+        assert_eq!(pick_kind(false, true, true, true), Some(ClipboardKind::Html));
+        assert_eq!(pick_kind(false, false, true, true), Some(ClipboardKind::Rtf));
+        assert_eq!(pick_kind(false, false, false, true), Some(ClipboardKind::Text));
         assert_eq!(pick_kind(false, false, false, false), None);
     }
 
@@ -414,7 +416,7 @@ mod tests {
 
         let a = build_rich_or_text_item(
             &store,
-            "html",
+            ClipboardKind::Html,
             Some("same".into()),
             Some("<b>a</b>".into()),
             None,
@@ -422,7 +424,7 @@ mod tests {
         .unwrap();
         let b = build_rich_or_text_item(
             &store,
-            "html",
+            ClipboardKind::Html,
             Some("same".into()),
             Some("<b>b</b>".into()),
             None,
@@ -432,13 +434,26 @@ mod tests {
         assert_ne!(a.digest, b.digest, "不同富载荷的指纹必须不同");
 
         // rtf 同样按载荷而非纯文本取指纹
-        let c = build_rich_or_text_item(&store, "rtf", None, None, Some(b"{\\rtf1 a}".to_vec()))
-            .unwrap();
-        let d = build_rich_or_text_item(&store, "rtf", None, None, Some(b"{\\rtf1 b}".to_vec()))
-            .unwrap();
+        let c = build_rich_or_text_item(
+            &store,
+            ClipboardKind::Rtf,
+            None,
+            None,
+            Some(b"{\\rtf1 a}".to_vec()),
+        )
+        .unwrap();
+        let d = build_rich_or_text_item(
+            &store,
+            ClipboardKind::Rtf,
+            None,
+            None,
+            Some(b"{\\rtf1 b}".to_vec()),
+        )
+        .unwrap();
         assert_ne!(c.digest, d.digest);
         // 纯文本条目仍不携带指纹（沿用原有语义）
-        let e = build_rich_or_text_item(&store, "text", Some("t".into()), None, None).unwrap();
+        let e = build_rich_or_text_item(&store, ClipboardKind::Text, Some("t".into()), None, None)
+            .unwrap();
         assert!(e.digest.is_none());
 
         let _ = std::fs::remove_dir_all(&data_dir);

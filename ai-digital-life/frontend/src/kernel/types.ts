@@ -435,9 +435,15 @@ export interface ReferenceItem {
 // Clipboard / System Monitor
 // ════════════════════════════════════════════════════════
 
+/**
+ * 剪贴板条目类型 —— 与 Rust `ClipboardKind` 枚举（serde lowercase）的 JSON 取值一一对应，
+ * 后端新增类型时需在此同步扩展联合。
+ */
+export type ClipboardKind = 'text' | 'image' | 'html' | 'rtf';
+
 export interface ClipboardItem {
   id: string;
-  kind: string;
+  kind: ClipboardKind;
   content?: string;
   /** 内容指纹：图片为像素哈希（去重），文本为 null */
   digest?: string | null;

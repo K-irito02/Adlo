@@ -1,24 +1,60 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
+/// 剪贴板条目类型 —— 跨 Rust / TS / DB 的**单一事实源**。
+///
+/// JSON 取值（`text` / `image` / `html` / `rtf`）与历史字符串字面量完全一致，
+/// 故 DB 中已存行的反序列化不受影响；Rust 侧 `match` 由编译器强制穷尽。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum ClipboardKind {
+    Text,
+    Image,
+    Html,
+    Rtf,
+}
+
+impl ClipboardKind {
+    /// 与 JSON 序列化一致的字符串取值（供只接受 `&str` 的场景，如 DB 的 `status` 列）。
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Text => "text",
+            Self::Image => "image",
+            Self::Html => "html",
+            Self::Rtf => "rtf",
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ClipboardItem {
     pub id: String,
-    pub kind: String,
+    pub kind: ClipboardKind,
+    #[serde(default)]
     pub content: Option<String>,
-    /// 内容指纹：图片为像素哈希（用于去重，相同图片不同文件名仍可识别），文本为 None
+    /// 内容指纹：图片为像素哈希（用于去重，相同图片不同文件名仍可识别）；text 为 None，
+    /// html/rtf 为富载荷指纹。
+    #[serde(default)]
     pub digest: Option<String>,
+    #[serde(default)]
     pub image_path: Option<String>,
+    #[serde(default)]
     pub thumb_path: Option<String>,
+    #[serde(default)]
     pub image_width: Option<u32>,
+    #[serde(default)]
     pub image_height: Option<u32>,
     /// 原图 PNG 文件体积（字节），用于放大查看的"体积"读数；非图片或旧行为 None
+    #[serde(default)]
     pub image_bytes: Option<u64>,
     /// HTML Format 载荷的 sidecar 文件路径（`clipboard/html/<id>.html`）
+    #[serde(default)]
     pub html_path: Option<String>,
     /// Rich Text Format 载荷的 sidecar 文件路径（`clipboard/rtf/<id>.rtf`）
+    #[serde(default)]
     pub rtf_path: Option<String>,
+    #[serde(default)]
     pub source_app: Option<String>,
     pub created_at: i64,
 }
@@ -36,6 +72,7 @@ mod tests {
             "sourceApp":null,"createdAt":1
         }"#;
         let item: ClipboardItem = serde_json::from_str(legacy).unwrap();
+        assert_eq!(item.kind, ClipboardKind::Text);
         assert_eq!(item.html_path, None);
         assert_eq!(item.rtf_path, None);
         // 旧行不含 imageBytes → 反序列化为 None（未发布阶段不做迁移）
@@ -51,5 +88,19 @@ mod tests {
         assert_eq!(back.html_path.as_deref(), Some("/x/a.html"));
         assert_eq!(back.rtf_path.as_deref(), Some("/x/a.rtf"));
         assert_eq!(back.image_bytes, Some(2048));
+    }
+
+    #[test]
+    fn kind_json_values_match_as_str() {
+        // 钉死「单一事实源」：serde 取值必须与 `as_str()` 一致（DB status 列复用 as_str）。
+        for (kind, expected) in [
+            (ClipboardKind::Text, "\"text\""),
+            (ClipboardKind::Image, "\"image\""),
+            (ClipboardKind::Html, "\"html\""),
+            (ClipboardKind::Rtf, "\"rtf\""),
+        ] {
+            assert_eq!(serde_json::to_string(&kind).unwrap(), expected);
+            assert_eq!(kind.as_str(), expected.trim_matches('"'));
+        }
     }
 }
