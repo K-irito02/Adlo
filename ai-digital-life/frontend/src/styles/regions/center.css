@@ -34,6 +34,9 @@ select:focus-visible {
 .adl-shell {
   display: grid;
   grid-template-rows: var(--titlebar-height) 1fr;
+  /* 单隐式列必须卡住：否则标题栏的 min-content（标签多时可达 1400px+）
+     会把轨道撑出视口，右端被 overflow:hidden 裁掉。 */
+  grid-template-columns: minmax(0, 1fr);
   height: 100vh;
   height: 100dvh;
   background: var(--bg);
@@ -55,6 +58,9 @@ select:focus-visible {
   display: grid;
   grid-template-columns: var(--leftbar-width) minmax(0, 1fr) minmax(0, var(--rightpanel-width));
   min-height: 0;
+  /* 作为 .adl-shell 的 grid item：默认 min-width:auto 会用 min-content
+     把外层轨道顶开，必须压到 0（与 .adl-center 既有做法一致）。 */
+  min-width: 0;
   background: var(--bg);
   position: relative;
   z-index: 0;

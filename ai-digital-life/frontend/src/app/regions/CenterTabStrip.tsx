@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
@@ -13,8 +13,9 @@ import { browserPool } from '@features/browser/browserPoolSingleton';
 import type { CenterTabState } from '@stores/slices/centerTabsSlice';
 
 /**
- * 标题栏中心标签条：单行、溢出裁切（滚动条隐藏，`onWheel` 把纵向滚轮映射到横向
- * `scrollLeft`），可拖拽区由容器的 `data-tauri-drag-region` 提供（标签/按钮不设该属性，
+ * 标题栏中心标签条：单行、溢出时内部横向滚动（滚动条隐藏，`onWheel` 把纵向滚轮映射到横向
+ * `scrollLeft`，活动标签自动滚入视口），左右两侧控件组锁定宽度永不压缩。
+ * 可拖拽区由容器的 `data-tauri-drag-region` 提供（标签/按钮不设该属性，
  * 点击标签不会拖动窗口）。右端 `+` 固定不随标签滚动。
  */
 export const CenterTabStrip = React.memo(function CenterTabStrip() {
@@ -46,6 +47,20 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
   );
 
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // 活动标签始终滚入视口：标签溢出后新增/切换的标签可能落在滚动区外，
+  // 此时右侧控件组不再被挤压，改为内部滚动消化，此处保证活动标签可见。
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller || !centerActiveTabId) {
+      return;
+    }
+    const active = scroller.querySelector('[role="tab"][aria-selected="true"]');
+    if (active instanceof HTMLElement) {
+      // jsdom 无 scrollIntoView 实现：可选调用，生产浏览器才执行。
+      active.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+    }
+  }, [centerActiveTabId, centerTabs.length]);
 
   // 终端类型中心标签的双击重命名（共享 useTabTitleRename；editingTabId 存底层终端
   // 标签 id = tab.refId，非中心标签 id）。
