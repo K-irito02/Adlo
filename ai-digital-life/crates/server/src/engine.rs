@@ -11,6 +11,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
+use tokio::sync::broadcast::error::RecvError;
 use tracing::info;
 
 /// 由 locator + 默认根构造存储服务。adl-server 的默认根即 `--data-dir`。
@@ -262,11 +263,21 @@ pub fn start_background_services(state: &ServerState) {
     // 监听广播 → 事件总线：此前该 broadcast 无订阅者、ClipboardChanged 从未 emit，
     // 前端只能靠轮询。`EventBus` 为 `Clone`，桥接线程持有其克隆即可。
     // 用 `blocking_recv()` 阻塞等待：该线程非 async 上下文，可用 tokio sync 的阻塞原语
-    // （不会忙等）。
+    // （不会忙等）。`Lagged` 仅表示落后于广播环形缓冲，non-terminal：记录后继续，
+    // 否则线程永久退出会静默掐断推送路径；`Closed`（发送端消失）才终止。
     let bus = state.event_bus.clone();
     std::thread::spawn(move || {
-        while let Ok(_signal) = changes.blocking_recv() {
-            bus.emit(adl_kernel::events::AppEvent::ClipboardChanged);
+        loop {
+            match changes.blocking_recv() {
+                Ok(_signal) => bus.emit(adl_kernel::events::AppEvent::ClipboardChanged),
+                Err(RecvError::Lagged(skipped)) => {
+                    tracing::warn!(
+                        skipped,
+                        "clipboard bridge: monitor broadcast lagged; continuing"
+                    );
+                },
+                Err(RecvError::Closed) => break,
+            }
         }
     });
 

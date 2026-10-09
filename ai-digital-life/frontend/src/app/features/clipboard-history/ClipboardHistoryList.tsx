@@ -43,6 +43,7 @@ export function ClipboardHistoryList() {
   const fetchClipboardHistory = useAppStore((s) => s.fetchClipboardHistory);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const changeThrottleRef = useRef<number | undefined>(undefined);
+  const changeTrailingPendingRef = useRef(false);
   const [viewerItem, setViewerItem] = useState<ClipboardItem | null>(null);
   const { scrollRef: clipboardScrollRef, tryRestore: tryRestoreClipboardScroll } =
     usePersistedScrollTop(CLIPBOARD_SCROLL_TOP_KEY, { usePersistChannel: true });
@@ -78,17 +79,25 @@ export function ClipboardHistoryList() {
     };
   }, [fetchClipboardHistory]);
 
-  // 剪贴板推送：收到变化信号即立即重取，100ms 节流使一串复制合并为一次刷新
-  // （前缘触发：首个变化立刻刷新，节流窗内的其余变化被合并）。轮询仅作兜底。
+  // 剪贴板推送：收到变化信号即重取，采用前缘+后缘 100ms 节流——首个变化立即刷新（前缘），
+  // 节流窗内到达的变化合并为窗口结束时的一次补刷（后缘），保证每次变化 ~100ms 内可见；
+  // 轮询仅作兜底。
   useEffect(() => {
     const unsubscribe = window.digitalLife.clipboard.onChanged(() => {
-      if (changeThrottleRef.current !== undefined) {
+      if (changeThrottleRef.current === undefined) {
+        void fetchClipboardHistory(true);
+        changeThrottleRef.current = window.setTimeout(() => {
+          changeThrottleRef.current = undefined;
+          // 后缘：窗口内还有变化则补刷一次（合并为一次，避免窗口内多次重取）。
+          if (changeTrailingPendingRef.current) {
+            changeTrailingPendingRef.current = false;
+            void fetchClipboardHistory(true);
+          }
+        }, CHANGE_THROTTLE_MS);
         return;
       }
-      changeThrottleRef.current = window.setTimeout(() => {
-        changeThrottleRef.current = undefined;
-      }, CHANGE_THROTTLE_MS);
-      void fetchClipboardHistory(true);
+      // 节流窗内的变化：标记待补刷，由窗口结束时的定时器统一执行。
+      changeTrailingPendingRef.current = true;
     });
     return () => {
       unsubscribe();
@@ -96,6 +105,7 @@ export function ClipboardHistoryList() {
         window.clearTimeout(changeThrottleRef.current);
         changeThrottleRef.current = undefined;
       }
+      changeTrailingPendingRef.current = false;
     };
   }, [fetchClipboardHistory]);
 

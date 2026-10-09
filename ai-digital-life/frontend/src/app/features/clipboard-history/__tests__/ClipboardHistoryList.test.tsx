@@ -123,4 +123,11 @@ describe('ClipboardHistoryList', () => {
     fakeBridge.clipboard.emitChange();
     await waitFor(() => expect(fetchClipboardHistory).toHaveBeenCalledTimes(2));
   });
+
+  it('refetches again for a change arriving inside the throttle window (trailing edge)', async () => {
+    const { fetchClipboardHistory } = renderList();
+    fakeBridge.clipboard.emitChange(); // leading edge → immediate refetch
+    fakeBridge.clipboard.emitChange(); // inside window → deferred trailing refetch
+    await waitFor(() => expect(fetchClipboardHistory).toHaveBeenCalledTimes(3));
+  });
 });
