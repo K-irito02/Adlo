@@ -104,6 +104,12 @@ impl ClipboardStore {
         Ok(n)
     }
 
+    /// 删除条目引用的落盘文件（不存在则忽略）。供读取管线在入库失败时回滚刚写入的
+    /// sidecar / 图片，避免留下无任何行引用的孤儿文件。
+    pub(crate) fn delete_item_files(&self, item: &ClipboardItem) {
+        self.delete_files(item);
+    }
+
     fn delete_files(&self, item: &ClipboardItem) {
         for p in [&item.image_path, &item.thumb_path, &item.html_path, &item.rtf_path]
             .into_iter()

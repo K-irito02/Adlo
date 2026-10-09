@@ -253,7 +253,10 @@ pub async fn image(
     serve_asset(state.clipboard_store.images_dir(), &filename, "image/png").await
 }
 
-/// GET `/clipboard/html/:filename` — 服务 HTML 载荷 sidecar（供富文本预览 iframe 取源）。
+/// GET `/clipboard/html/:filename` — 服务 HTML 载荷 sidecar。
+///
+/// 以 `text/plain` 返回（**刻意**不返回 `text/html`）：前端 `fetch().text()` 取源后注入
+/// `sandbox=""` 的 iframe 预览，避免浏览器把存储的 HTML 当文档渲染而引入 XSS。请勿改回 `text/html`。
 pub async fn html(
     State(state): State<ServerState>,
     axum::extract::Path(filename): axum::extract::Path<String>,

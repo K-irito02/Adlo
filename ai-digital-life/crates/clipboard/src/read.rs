@@ -12,10 +12,8 @@
 //! 富载荷（HTML / RTF）超过 `MAX_RICH_PAYLOAD_BYTES` 时不落盘，条目降级为 `text`（无纯文本则不入库）。
 //! 空剪贴板返回 `Ok(None)`。
 
-use clipboard_win::{Clipboard, Format, Getter, formats, register_format};
+use clipboard_win::{Clipboard, Format, Getter, formats, raw, register_format};
 use image::RgbaImage;
-use std::io::Cursor;
-use std::path::Path;
 use uuid::Uuid;
 
 use adl_errors::AppError;
@@ -51,32 +49,13 @@ pub(crate) fn pick_kind(
     }
 }
 
-/// 把落盘 PNG 编码为 **经典 24 位 BI_RGB BMP**。
+/// 读取前判断剪贴板中该格式的载荷是否在富文本上限内。
 ///
-/// `image` 0.25 的 BMP 编码器对 `Rgba8` 会输出 108 字节 BITMAPV4HEADER + `biCompression=3
-/// (BI_BITFIELDS)`；而 `clipboard-win` 的 `raw::set_bitmap_inner` 只拷贝 **40 字节**
-/// BITMAPINFOHEADER，颜色掩码会落到未初始化内存上被误读 → 粘贴出现随机彩色叠加层（缺陷 A）。
-/// 转 `Rgb8` 后编码器改用 40 字节头 + `BI_RGB`，与 `set_bitmap_inner` 的假设一致。
-/// alpha 无法在 CF_BITMAP 中保留，故透明像素合成到白底（避免透明区变黑）。
-pub(crate) fn png_to_bmp24(path: &Path) -> Result<Vec<u8>, AppError> {
-    let img = image::open(path).map_err(|e| AppError::Io(format!("image open: {e}")))?;
-    let rgba = img.to_rgba8();
-    let (width, height) = (rgba.width(), rgba.height());
-    let mut rgb = image::RgbImage::new(width, height);
-    for (x, y, px) in rgba.enumerate_pixels() {
-        let a = u32::from(px.0[3]);
-        let over_white = |c: u8| ((u32::from(c) * a + 255 * (255 - a)) / 255) as u8;
-        rgb.put_pixel(
-            x,
-            y,
-            image::Rgb([over_white(px.0[0]), over_white(px.0[1]), over_white(px.0[2])]),
-        );
-    }
-    let mut bmp: Vec<u8> = Vec::new();
-    image::DynamicImage::ImageRgb8(rgb)
-        .write_to(&mut Cursor::new(&mut bmp), image::ImageFormat::Bmp)
-        .map_err(|e| AppError::Io(format!("bmp encode: {e}")))?;
-    Ok(bmp)
+/// `raw::size` 在格式存在时返回 `GlobalSize`（格式不存在 / 句柄不可锁则 `None`）；调用前
+/// 已用 `is_format_avail()` 确认存在，故尺寸未知一律按超限处理（跳过读取，宁缺勿 OOM）——
+/// 避免把超限载荷整体读入内存后才丢弃。
+fn within_rich_cap(code: u32) -> bool {
+    raw::size(code).is_some_and(|n| n.get() <= MAX_RICH_PAYLOAD_BYTES)
 }
 
 /// 读取系统剪贴板并归一化，同时调用 `store.insert_or_bump` 入库。
@@ -97,25 +76,24 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
         && !bmp.is_empty();
 
     // 2) HTML（"HTML Format" 注册格式，Getter<String> 自动剥离 CF_HTML 头）
+    // 读取前用 `raw::size` 预检尺寸：超限直接跳过，避免把超限载荷整体读入内存后才丢弃。
     let html = formats::Html::new().and_then(|fmt| {
-        if !fmt.is_format_avail() {
+        if !fmt.is_format_avail() || !within_rich_cap(fmt.code()) {
             return None;
         }
         let mut s = String::new();
         if fmt.read_clipboard(&mut s).is_ok() && !s.trim().is_empty() { Some(s) } else { None }
     });
-    let html = html.filter(|h| h.len() <= MAX_RICH_PAYLOAD_BYTES);
 
     // 3) RTF（"Rich Text Format"，无内建类型 → 注册后按原始字节读）
     let rtf = register_format("Rich Text Format").and_then(|code| {
         let fmt = formats::RawData(code.get());
-        if !fmt.is_format_avail() {
+        if !fmt.is_format_avail() || !within_rich_cap(code.get()) {
             return None;
         }
         let mut bytes: Vec<u8> = Vec::new();
         if fmt.read_clipboard(&mut bytes).is_ok() && !bytes.is_empty() { Some(bytes) } else { None }
     });
-    let rtf = rtf.filter(|r| r.len() <= MAX_RICH_PAYLOAD_BYTES);
 
     // 4) 纯文本
     let mut raw = String::new();
@@ -137,7 +115,15 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
     } else {
         build_rich_or_text_item(store, kind, text, html, rtf)?
     };
-    let is_new = store.insert_or_bump(&item)?;
+    // 条目引用的 sidecar / 图片文件在组装时已落盘；入库失败则回滚删除刚写入的文件，
+    // 避免留下无任何行引用的孤儿文件。
+    let is_new = match store.insert_or_bump(&item) {
+        Ok(v) => v,
+        Err(e) => {
+            store.delete_item_files(&item);
+            return Err(e);
+        },
+    };
     Ok(Some((item, is_new)))
 }
 
@@ -159,6 +145,13 @@ fn build_rich_or_text_item(
     rtf: Option<Vec<u8>>,
 ) -> Result<ClipboardItem, AppError> {
     let id = Uuid::new_v4().to_string();
+    // 富载荷指纹：去重键需覆盖载荷本身——html/rtf 的纯文本可能相同、甚至缺失（生产者未写
+    // CF_UNICODETEXT），仅比较 `content` 会把不同的富内容在时间窗内误判为重复而静默合并。
+    let digest = match kind {
+        "html" => html.as_deref().map(|h| fnv1a_digest(h.as_bytes())),
+        "rtf" => rtf.as_deref().map(fnv1a_digest),
+        _ => None,
+    };
     let html_path = match (kind, html.as_deref()) {
         ("html", Some(h)) => {
             let p = store.html_dir().join(format!("{id}.html"));
@@ -179,7 +172,7 @@ fn build_rich_or_text_item(
         id,
         kind: kind.to_string(),
         content: text,
-        digest: None,
+        digest,
         image_path: None,
         thumb_path: None,
         image_width: None,
@@ -236,16 +229,20 @@ pub(crate) fn bitmap_to_rgba(bmp: &[u8]) -> Result<RgbaImage, AppError> {
     Ok(img.to_rgba8())
 }
 
-/// 对解码后像素字节计算 FNV-1a 64-bit 指纹，作为图片内容指纹（用于去重）。
-/// 同一张图即使文件名（image_path）每次不同，像素内容相同 → 指纹相同 → 可去重；
-/// 不同尺寸/内容 → 指纹不同 → 正确区分。文本条目不使用此函数（digest 为 None）。
-fn compute_digest(rgba: &RgbaImage) -> String {
+/// FNV-1a 64-bit 内容指纹（十六进制串）。
+fn fnv1a_digest(bytes: &[u8]) -> String {
     let mut hash: u64 = 0xcbf2_9ce4_8422_2325;
-    for &b in rgba.as_raw() {
+    for &b in bytes {
         hash ^= u64::from(b);
         hash = hash.wrapping_mul(0x0000_0100_0000_01b3);
     }
     format!("{hash:016x}")
+}
+
+/// 图片内容指纹（对解码后像素字节计算）。同一张图即使 `image_path` 每次不同，
+/// 像素内容相同 → 指纹相同 → 可去重；不同尺寸/内容 → 指纹不同 → 正确区分。
+fn compute_digest(rgba: &RgbaImage) -> String {
+    fnv1a_digest(rgba.as_raw())
 }
 
 #[cfg(test)]
@@ -387,29 +384,46 @@ mod tests {
     }
 
     #[test]
-    fn png_to_bmp24_is_classic_24bit_birgb() {
-        let path = std::env::temp_dir().join("clip-bmp24-src.png");
-        let mut img = image::RgbaImage::new(3, 2);
-        img.put_pixel(0, 0, image::Rgba([255, 0, 0, 128])); // 半透明红 → 应合成到白底
-        img.put_pixel(1, 0, image::Rgba([0, 255, 0, 0])); // 全透明 → 白底
-        img.save(&path).unwrap();
+    fn rich_payload_digest_covers_payload_not_just_text() {
+        // 纯文本相同、富载荷不同的两条 html：digest 必须不同，否则时间窗内会被去重静默合并。
+        let db_path = std::env::temp_dir().join("clip-rich-digest.db");
+        let _ = std::fs::remove_file(&db_path);
+        let db = adl_storage::Database::open(&db_path).unwrap();
+        db.init_schema().unwrap();
+        let data_dir = std::env::temp_dir().join("clip-rich-digest-data");
+        let _ = std::fs::remove_dir_all(&data_dir);
+        let store = ClipboardStore::new(db, &data_dir);
 
-        let bmp = png_to_bmp24(&path).expect("encode ok");
-        assert_eq!(&bmp[0..2], b"BM");
-        let dib = 14usize;
-        let bi_size = u32::from_le_bytes(bmp[dib..dib + 4].try_into().unwrap());
-        assert_eq!(bi_size, 40, "必须是经典 BITMAPINFOHEADER（40 字节）");
-        let bit_count = u16::from_le_bytes(bmp[dib + 14..dib + 16].try_into().unwrap());
-        assert_eq!(bit_count, 24, "必须 24bpp");
-        let compression = u32::from_le_bytes(bmp[dib + 16..dib + 20].try_into().unwrap());
-        assert_eq!(compression, 0, "必须 BI_RGB（不得为 BI_BITFIELDS=3）");
+        let a = build_rich_or_text_item(
+            &store,
+            "html",
+            Some("same".into()),
+            Some("<b>a</b>".into()),
+            None,
+        )
+        .unwrap();
+        let b = build_rich_or_text_item(
+            &store,
+            "html",
+            Some("same".into()),
+            Some("<b>b</b>".into()),
+            None,
+        )
+        .unwrap();
+        assert!(a.digest.is_some(), "html 条目必须带载荷指纹");
+        assert_ne!(a.digest, b.digest, "不同富载荷的指纹必须不同");
 
-        // 断言合成结果：仅校验头部无法区分白底合成与裸 `to_rgb8()`。
-        // 解码回像素，透明区必须为白、半透明红必须按公式合成（整数除法截断）。
-        let decoded = image::load_from_memory(&bmp).expect("decode ok").to_rgba8();
-        assert_eq!(decoded.get_pixel(0, 0).0, [255, 127, 127, 255]); // 半透明红 → 白底合成
-        assert_eq!(decoded.get_pixel(1, 0).0, [255, 255, 255, 255]); // 全透明 → 白底
+        // rtf 同样按载荷而非纯文本取指纹
+        let c = build_rich_or_text_item(&store, "rtf", None, None, Some(b"{\\rtf1 a}".to_vec()))
+            .unwrap();
+        let d = build_rich_or_text_item(&store, "rtf", None, None, Some(b"{\\rtf1 b}".to_vec()))
+            .unwrap();
+        assert_ne!(c.digest, d.digest);
+        // 纯文本条目仍不携带指纹（沿用原有语义）
+        let e = build_rich_or_text_item(&store, "text", Some("t".into()), None, None).unwrap();
+        assert!(e.digest.is_none());
 
-        let _ = std::fs::remove_file(&path);
+        let _ = std::fs::remove_dir_all(&data_dir);
+        let _ = std::fs::remove_file(&db_path);
     }
 }

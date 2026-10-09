@@ -253,7 +253,7 @@ pub(crate) fn restart_workspace_watcher(state: &ServerState, root: &std::path::P
 /// the event was never emitted — the UI fell back to a 10 s poll).
 pub fn start_background_services(state: &ServerState) {
     // 启动剪贴板监听。句柄必须存续至进程生命周期，否则 Drop 会触发监听线程立即退出；
-    // 放入独立 thread，持句柄阻塞保活（与桌面端 setup::start_clipboard_monitor 同思路）。
+    // 放入独立 thread，持句柄阻塞保活（与其它后台服务的保活线程同思路）。
     //
     // 订阅必须先于 `spawn`：`spawn` 以值语义消费 `monitor`，之后无法再 `subscribe`。
     let monitor = ClipboardMonitor::new();
