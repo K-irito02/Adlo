@@ -75,34 +75,46 @@ pub fn read_current(store: &ClipboardStore) -> Result<Option<(ClipboardItem, boo
         && formats::Bitmap.read_clipboard(&mut bmp).is_ok()
         && !bmp.is_empty();
 
-    // 2) HTML（"HTML Format" 注册格式，Getter<String> 自动剥离 CF_HTML 头）
-    // 读取前用 `raw::size` 预检尺寸：超限直接跳过，避免把超限载荷整体读入内存后才丢弃。
-    let html = formats::Html::new().and_then(|fmt| {
-        if !fmt.is_format_avail() || !within_rich_cap(fmt.code()) {
-            return None;
-        }
-        let mut s = String::new();
-        if fmt.read_clipboard(&mut s).is_ok() && !s.trim().is_empty() { Some(s) } else { None }
-    });
-
-    // 3) RTF（"Rich Text Format"，无内建类型 → 注册后按原始字节读）
-    let rtf = register_format("Rich Text Format").and_then(|code| {
-        let fmt = formats::RawData(code.get());
-        if !fmt.is_format_avail() || !within_rich_cap(code.get()) {
-            return None;
-        }
-        let mut bytes: Vec<u8> = Vec::new();
-        if fmt.read_clipboard(&mut bytes).is_ok() && !bytes.is_empty() { Some(bytes) } else { None }
-    });
-
-    // 4) 纯文本
-    let mut raw = String::new();
-    let text = if formats::Unicode.is_format_avail()
-        && formats::Unicode.read_clipboard(&mut raw).is_ok()
-    {
-        normalized_text(&raw)
+    // 图片胜出时其余格式不会被消费（`build_image_item` 只落盘位图，`content` 为 None），
+    // 故直接跳过 HTML/RTF/文本的读取，避免每次复制图片都额外读入可达 1 MiB 的富载荷。
+    let (html, rtf, text) = if has_image {
+        (None, None, None)
     } else {
-        None
+        // 2) HTML（"HTML Format" 注册格式，Getter<String> 自动剥离 CF_HTML 头）
+        // 读取前用 `raw::size` 预检尺寸：超限直接跳过，避免把超限载荷整体读入内存后才丢弃。
+        let html = formats::Html::new().and_then(|fmt| {
+            if !fmt.is_format_avail() || !within_rich_cap(fmt.code()) {
+                return None;
+            }
+            let mut s = String::new();
+            if fmt.read_clipboard(&mut s).is_ok() && !s.trim().is_empty() { Some(s) } else { None }
+        });
+
+        // 3) RTF（"Rich Text Format"，无内建类型 → 注册后按原始字节读）
+        let rtf = register_format("Rich Text Format").and_then(|code| {
+            let fmt = formats::RawData(code.get());
+            if !fmt.is_format_avail() || !within_rich_cap(code.get()) {
+                return None;
+            }
+            let mut bytes: Vec<u8> = Vec::new();
+            if fmt.read_clipboard(&mut bytes).is_ok() && !bytes.is_empty() {
+                Some(bytes)
+            } else {
+                None
+            }
+        });
+
+        // 4) 纯文本
+        let mut raw = String::new();
+        let text = if formats::Unicode.is_format_avail()
+            && formats::Unicode.read_clipboard(&mut raw).is_ok()
+        {
+            normalized_text(&raw)
+        } else {
+            None
+        };
+
+        (html, rtf, text)
     };
 
     let kind = match pick_kind(has_image, html.is_some(), rtf.is_some(), text.is_some()) {

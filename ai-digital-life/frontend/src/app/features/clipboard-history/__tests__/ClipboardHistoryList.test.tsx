@@ -147,4 +147,14 @@ describe('ClipboardHistoryList', () => {
     fakeBridge.clipboard.emitChange();
     expect(fetchClipboardHistory).toHaveBeenCalledTimes(before);
   });
+
+  it('cancels a pending trailing refetch on unmount', async () => {
+    const { fetchClipboardHistory, unmount } = renderList();
+    fakeBridge.clipboard.emitChange(); // leading refetch + schedules the trailing timer
+    const afterLeading = fetchClipboardHistory.mock.calls.length;
+    unmount();
+    // 越过 100ms 节流窗：卸载时必须清掉挂起的后缘定时器，不再触发重取。
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    expect(fetchClipboardHistory).toHaveBeenCalledTimes(afterLeading);
+  });
 });

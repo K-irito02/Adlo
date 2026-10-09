@@ -23,6 +23,12 @@ const IMAGE_ZOOM_MAX = 4;
 const ZOOM_STEP = 0.1;
 /** 存储的图片原图恒为 PNG。 */
 const IMAGE_FORMAT = 'PNG';
+/**
+ * 单次保存任务内最多写入轮数（首轮 + 若干次补写）。封顶以防写入失败时死循环；
+ * 若达到上限时草稿仍未落盘，保存任务会**保持编辑态**（不静默丢弃新输入），
+ * 由后续 Ctrl+S / 关闭继续保存。
+ */
+const MAX_SAVE_ROUNDS = 8;
 
 /**
  * 剪贴板条目放大查看覆盖层（createPortal + 遮罩 + 卡片）。
@@ -131,7 +137,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     }
     const saving = (async () => {
       try {
-        for (let round = 0; round < 2; round += 1) {
+        for (let round = 0; round < MAX_SAVE_ROUNDS; round += 1) {
           const target = draftRef.current;
           if (!target.trim() || target === baselineRef.current) {
             break;
@@ -144,7 +150,11 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
           // 更新基线：既让下一轮判断"是否还有新改动"，也让随后的 Esc 撤回到已保存内容。
           baselineRef.current = target;
         }
-        setEditing(false);
+        // 仅当草稿已完全落盘（保存期间无新输入）时才退出编辑；否则保持编辑态，
+        // 让后续 Ctrl+S / 关闭继续保存 —— 避免达到轮数上限时静默丢弃最后的新输入。
+        if (draftRef.current === baselineRef.current) {
+          setEditing(false);
+        }
       } finally {
         savingRef.current = null;
       }
@@ -219,7 +229,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
         }
         const focusables = Array.from(
           panel.querySelectorAll<HTMLElement>(
-            'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), iframe, [tabindex]:not([tabindex="-1"])',
+            'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])',
           ),
         );
         if (focusables.length === 0) {

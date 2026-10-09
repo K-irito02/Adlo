@@ -63,11 +63,12 @@ impl ClipboardStore {
             {
                 // 去重命中：旧条目被 merged 顶替，先删除旧条目引用的图片文件，
                 // 避免其成为孤儿文件（新条目 image_path 每次复制都不同）。
-                self.delete_files(&prev);
                 // 覆盖旧行：保留旧行 id，避免同内容累积为新行导致去重失效
                 let mut merged = item.clone();
                 merged.id = prev.id.clone();
                 self.save(&merged)?;
+                // 落库成功后再删除旧条目引用的文件：顺序反了会在 save 失败时删掉仍被旧行引用的文件。
+                self.delete_files(&prev);
                 return Ok(false);
             }
         }
