@@ -265,6 +265,7 @@ export function createWorkspaceActions(
         set({
           selectedFilePath: undefined,
           fileContent: undefined,
+          fileMedia: null,
           openTabs: get().openTabs.filter((t) => t.path !== relativePath),
         });
       }

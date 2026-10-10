@@ -61,6 +61,7 @@ import type {
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
   WorkspaceFilesChangedBatch,
+  WorkspaceMediaDocument,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -905,6 +906,14 @@ export function createHttpBridge({
         call<WorkspaceFileDocument>(
           baseUrl,
           '/workspace/read',
+          POST({ workspacePath, relativePath }),
+        ),
+      readMediaFile: (relativePath: string) =>
+        call<WorkspaceMediaDocument>(baseUrl, '/workspace/read-media', POST({ relativePath })),
+      readMediaFileForWorkspace: (workspacePath: string, relativePath: string) =>
+        call<WorkspaceMediaDocument>(
+          baseUrl,
+          '/workspace/read-media',
           POST({ workspacePath, relativePath }),
         ),
       getChangePreview: (relativePath: string) =>

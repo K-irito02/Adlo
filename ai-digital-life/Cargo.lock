@@ -140,6 +140,7 @@ version = "0.1.0"
 dependencies = [
  "adl-errors",
  "sha2",
+ "uuid",
 ]
 
 [[package]]
@@ -309,6 +310,7 @@ dependencies = [
  "adl-kernel",
  "adl-outline",
  "adl-types",
+ "base64 0.22.1",
  "notify",
  "rusqlite",
  "serde",

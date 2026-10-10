@@ -46,17 +46,114 @@ pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>,
 }
 
 use adl_types::WorkspaceFileDocument;
+use adl_types::WorkspaceMediaDocument;
 use std::path::Path;
 
 pub(crate) const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
 
+/// 媒体/办公二进制读取上限（50 MiB）：图片/文档通常远小于此值；
+/// 大视频超限时返回 InvalidInput，前端展示居中友好错误（含重试与体积说明）。
+pub(crate) const DEFAULT_MAX_MEDIA_BYTES: u64 = 50 * 1024 * 1024;
+
+/// 开文件文本上限（8MB）：搜索/树扫描/变更预览继续共用上面的 1MB，
+/// 只有用户主动打开文件的 read_file 走这里；超 1MB 内容由前端重型门
+/// 先提示、确认后才渲染，避免大文件解码/高亮卡住界面。
+pub(crate) const DEFAULT_MAX_TEXT_FILE_BYTES: u64 = 8 * 1024 * 1024;
+
 pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocument, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
-    let content = adl_fs_ops::read_text_file(root, relative_path, DEFAULT_MAX_FILE_BYTES)?;
+    let content = adl_fs_ops::read_text_file(root, relative_path, DEFAULT_MAX_TEXT_FILE_BYTES)?;
     let modified = crate::fs::file_modified_at(&path);
     Ok(WorkspaceFileDocument {
         path: relative_path.replace('\\', "/"),
         content,
+        last_modified_at: modified,
+    })
+}
+
+/// 按扩展名推断媒体 MIME（仅用于前端 Blob 构造与原生标签渲染，不做安全判定）。
+pub fn guess_media_mime(relative_path: &str) -> &'static str {
+    let ext = relative_path
+        .rsplit('/')
+        .next()
+        .unwrap_or(relative_path)
+        .rsplit('.')
+        .next()
+        .unwrap_or("")
+        .to_ascii_lowercase();
+    match ext.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "bmp" => "image/bmp",
+        "ico" => "image/x-icon",
+        "webp" => "image/webp",
+        "avif" => "image/avif",
+        "apng" => "image/apng",
+        "svg" => "image/svg+xml",
+        "tif" | "tiff" => "image/tiff",
+        "heic" => "image/heic",
+        "heif" => "image/heif",
+        "mp3" => "audio/mpeg",
+        "wav" => "audio/wav",
+        "ogg" | "oga" => "audio/ogg",
+        "m4a" => "audio/mp4",
+        "flac" => "audio/flac",
+        "aac" => "audio/aac",
+        "opus" => "audio/opus",
+        "weba" => "audio/webm",
+        "wma" => "audio/x-ms-wma",
+        "aiff" | "aif" => "audio/aiff",
+        "mid" | "midi" => "audio/midi",
+        "mp4" | "m4v" => "video/mp4",
+        "webm" => "video/webm",
+        "mov" => "video/quicktime",
+        "mkv" => "video/x-matroska",
+        "avi" => "video/x-msvideo",
+        "ogv" => "video/ogg",
+        "wmv" => "video/x-ms-wmv",
+        "flv" | "f4v" => "video/x-flv",
+        "mpg" | "mpeg" => "video/mpeg",
+        "3gp" => "video/3gpp",
+        "3g2" => "video/3gpp2",
+        "pdf" => "application/pdf",
+        "csv" => "text/csv",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "doc" => "application/msword",
+        "xlsx" | "xlsm" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xls" | "xlsb" => "application/vnd.ms-excel",
+        "ods" => "application/vnd.oasis.opendocument.spreadsheet",
+        "pptx" => "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "ppsx" => "application/vnd.openxmlformats-officedocument.presentationml.slideshow",
+        "ppt" => "application/vnd.ms-powerpoint",
+        "odp" => "application/vnd.oasis.opendocument.presentation",
+        _ => "application/octet-stream",
+    }
+}
+
+pub fn read_media_file(
+    root: &Path,
+    relative_path: &str,
+) -> Result<WorkspaceMediaDocument, AppError> {
+    read_media_file_with_limit(root, relative_path, DEFAULT_MAX_MEDIA_BYTES)
+}
+
+pub(crate) fn read_media_file_with_limit(
+    root: &Path,
+    relative_path: &str,
+    max_bytes: u64,
+) -> Result<WorkspaceMediaDocument, AppError> {
+    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    let bytes = adl_fs_ops::read_binary_file(root, relative_path, max_bytes)?;
+    let modified = crate::fs::file_modified_at(&path);
+    Ok(WorkspaceMediaDocument {
+        path: relative_path.replace('\\', "/"),
+        mime: guess_media_mime(relative_path).to_string(),
+        base64: base64::Engine::encode(
+            &base64::engine::general_purpose::STANDARD,
+            &bytes,
+        ),
+        size: bytes.len() as u64,
         last_modified_at: modified,
     })
 }
@@ -283,6 +380,64 @@ mod tests {
         assert!(!preview.current_exists);
         assert!(preview.base_content.contains("resume"));
         assert!(preview.current_content.is_empty());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn guess_media_mime_covers_common_types() {
+        assert_eq!(guess_media_mime("a.png"), "image/png");
+        assert_eq!(guess_media_mime("a.JPG"), "image/jpeg");
+        assert_eq!(guess_media_mime("a.svg"), "image/svg+xml");
+        assert_eq!(guess_media_mime("clip.mp4"), "video/mp4");
+        assert_eq!(guess_media_mime("clip.wmv"), "video/x-ms-wmv");
+        assert_eq!(guess_media_mime("sound.mp3"), "audio/mpeg");
+        assert_eq!(guess_media_mime("sound.wma"), "audio/x-ms-wma");
+        assert_eq!(guess_media_mime("doc/a.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assert_eq!(guess_media_mime("doc/a.pdf"), "application/pdf");
+        assert_eq!(guess_media_mime("doc/a.csv"), "text/csv");
+        assert_eq!(guess_media_mime("a.unknown-ext"), "application/octet-stream");
+    }
+
+    #[test]
+    fn read_media_file_returns_base64_with_mime() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-workspace-media-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("clip.mp4"), [0u8, 1u8, 2u8, 3u8]).unwrap();
+
+        let doc = read_media_file(&dir, "clip.mp4").unwrap();
+        assert_eq!(doc.path, "clip.mp4");
+        assert_eq!(doc.mime, "video/mp4");
+        assert_eq!(doc.size, 4);
+        assert_eq!(doc.base64, "AAECAw==");
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn read_file_allows_text_above_legacy_1mb_limit() {
+        // 开文件文本上限 8MB：2MB 文本可读（旧 1MB 上限会拒），渲染侧由前端重型门把关。
+        let dir =
+            std::env::temp_dir().join(format!("adl-workspace-text-limit-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let big = "x".repeat(2 * 1024 * 1024);
+        std::fs::write(dir.join("big.txt"), &big).unwrap();
+
+        let doc = read_file(&dir, "big.txt").unwrap();
+        assert_eq!(doc.content.len(), big.len());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn read_media_file_rejects_over_limit() {        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-media-limit-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("big.mp4"), vec![9u8; 32]).unwrap();
+
+        let err = read_media_file_with_limit(&dir, "big.mp4", 8).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
 
         let _ = std::fs::remove_dir_all(dir);
     }

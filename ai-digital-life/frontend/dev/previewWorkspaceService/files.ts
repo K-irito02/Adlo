@@ -6,6 +6,8 @@ import { buildOutlineFromContent } from '../../src/shared/outline';
 import { captureGitSnapshot } from './git';
 
 export const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
+export const DEFAULT_MAX_TEXT_FILE_BYTES = 8 * 1024 * 1024;
+export const DEFAULT_MAX_MEDIA_BYTES = 50 * 1024 * 1024;
 export const MAX_TREE_DEPTH = 64;
 export const MAX_TREE_NODES = 200_000;
 export const MAX_COLLECTED_FILES = 50_000;
@@ -18,7 +20,14 @@ export const IGNORED_DIRS = new Set([
   '.next',
   '.cache',
 ]);
-export const ROOT_MARKERS = ['.git', 'Cargo.toml', 'package.json', 'pyproject.toml', 'go.mod', 'pom.xml'];
+export const ROOT_MARKERS = [
+  '.git',
+  'Cargo.toml',
+  'package.json',
+  'pyproject.toml',
+  'go.mod',
+  'pom.xml',
+];
 const CACHE_TTL_MS = 10_000;
 
 interface RetrievalCacheEntry {
@@ -53,7 +62,10 @@ export function resolveWorkspacePath(rootPath: string, relativeTarget: string): 
   const resolved = path.resolve(rootPath, relativeTarget);
   const normalizedRoot = `${path.resolve(rootPath)}${path.sep}`;
   const normalizedResolved = path.resolve(resolved);
-  if (normalizedResolved !== path.resolve(rootPath) && !normalizedResolved.startsWith(normalizedRoot)) {
+  if (
+    normalizedResolved !== path.resolve(rootPath) &&
+    !normalizedResolved.startsWith(normalizedRoot)
+  ) {
     throw new Error(`path escapes workspace: ${relativeTarget}`);
   }
   return normalizedResolved;
@@ -77,7 +89,9 @@ export async function detectWorkspaceRoot(inputPath: string): Promise<string> {
   }
 }
 
-export async function inferWorkspaceType(rootPath: string): Promise<import('../src/kernel/index').WorkspaceType> {
+export async function inferWorkspaceType(
+  rootPath: string,
+): Promise<import('../src/kernel/index').WorkspaceType> {
   const markers: Array<[string, import('../src/kernel/index').WorkspaceType]> = [
     ['Cargo.toml', 'rust'],
     ['package.json', 'node'],
@@ -88,7 +102,11 @@ export async function inferWorkspaceType(rootPath: string): Promise<import('../s
     ['build.gradle', 'java'],
   ];
   for (const [marker, workspaceType] of markers) {
-    if (ROOT_MARKERS.includes(marker) || marker === 'requirements.txt' || marker === 'build.gradle') {
+    if (
+      ROOT_MARKERS.includes(marker) ||
+      marker === 'requirements.txt' ||
+      marker === 'build.gradle'
+    ) {
       if (await pathExists(path.join(rootPath, marker))) {
         return workspaceType;
       }
@@ -106,9 +124,19 @@ export function createWorkspaceId(rootPath: string): string {
   return `workspace_${Math.abs(hash).toString(16).padStart(8, '0')}`;
 }
 
-export async function listTree(rootPath: string): Promise<import('../src/kernel/index').WorkspaceTreeNode[]> {
+export async function listTree(
+  rootPath: string,
+): Promise<import('../src/kernel/index').WorkspaceTreeNode[]> {
   let remaining = MAX_TREE_NODES;
-  return listTreeInner(rootPath, rootPath, 0, () => remaining, (next) => { remaining = next; });
+  return listTreeInner(
+    rootPath,
+    rootPath,
+    0,
+    () => remaining,
+    (next) => {
+      remaining = next;
+    },
+  );
 }
 
 async function listTreeInner(
@@ -116,7 +144,7 @@ async function listTreeInner(
   currentPath: string,
   depth: number,
   getRemaining: () => number,
-  setRemaining: (value: number) => void
+  setRemaining: (value: number) => void,
 ): Promise<import('../src/kernel/index').WorkspaceTreeNode[]> {
   if (getRemaining() === 0 || depth > MAX_TREE_DEPTH) return [];
   let entries;
@@ -153,10 +181,15 @@ async function listTreeInner(
   return nodes;
 }
 
-export async function readFile(rootPath: string, relativeTarget: string): Promise<import('../src/kernel/index').WorkspaceFileDocument> {
+export async function readFile(
+  rootPath: string,
+  relativeTarget: string,
+): Promise<import('../src/kernel/index').WorkspaceFileDocument> {
   const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
   const stats = await fs.stat(absolutePath);
-  if (stats.size > DEFAULT_MAX_FILE_BYTES) {
+  // 与 Rust read_file 对齐：开文件文本上限 8MB（树扫描/检索另走 1MB 常量）；
+  // 超 1MB 内容由前端重型门先提示、确认后才渲染。
+  if (stats.size > DEFAULT_MAX_TEXT_FILE_BYTES) {
     throw new Error(`file too large: ${relativeTarget}`);
   }
   const content = await fs.readFile(absolutePath, 'utf8');
@@ -167,7 +200,142 @@ export async function readFile(rootPath: string, relativeTarget: string): Promis
   };
 }
 
-export async function createFile(rootPath: string, relativeTarget: string, content = ''): Promise<import('../src/kernel/index').WorkspaceFileDocument> {
+export async function readMediaFile(
+  rootPath: string,
+  relativeTarget: string,
+): Promise<import('../src/kernel/index').WorkspaceMediaDocument> {
+  const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
+  const stats = await fs.stat(absolutePath);
+  if (stats.size > DEFAULT_MAX_MEDIA_BYTES) {
+    throw new Error(
+      `file exceeds media read limit (${DEFAULT_MAX_MEDIA_BYTES} bytes): ${relativeTarget}`,
+    );
+  }
+  const bytes = await fs.readFile(absolutePath);
+  return {
+    path: normalizePath(relativeTarget),
+    mime: guessMediaMime(relativeTarget),
+    base64: bytes.toString('base64'),
+    size: stats.size,
+    lastModifiedAt: stats.mtimeMs,
+  };
+}
+
+export function guessMediaMime(relativeTarget: string): string {
+  const fileName = relativeTarget.split('/').pop() ?? relativeTarget;
+  const dot = fileName.lastIndexOf('.');
+  const ext = (dot > 0 ? fileName.slice(dot + 1) : '').toLowerCase();
+  switch (ext) {
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'gif':
+      return 'image/gif';
+    case 'bmp':
+      return 'image/bmp';
+    case 'ico':
+      return 'image/x-icon';
+    case 'webp':
+      return 'image/webp';
+    case 'avif':
+      return 'image/avif';
+    case 'apng':
+      return 'image/apng';
+    case 'svg':
+      return 'image/svg+xml';
+    case 'tif':
+    case 'tiff':
+      return 'image/tiff';
+    case 'heic':
+      return 'image/heic';
+    case 'heif':
+      return 'image/heif';
+    case 'mp3':
+      return 'audio/mpeg';
+    case 'wav':
+      return 'audio/wav';
+    case 'ogg':
+    case 'oga':
+      return 'audio/ogg';
+    case 'm4a':
+      return 'audio/mp4';
+    case 'flac':
+      return 'audio/flac';
+    case 'aac':
+      return 'audio/aac';
+    case 'opus':
+      return 'audio/opus';
+    case 'weba':
+      return 'audio/webm';
+    case 'wma':
+      return 'audio/x-ms-wma';
+    case 'aiff':
+    case 'aif':
+      return 'audio/aiff';
+    case 'mid':
+    case 'midi':
+      return 'audio/midi';
+    case 'mp4':
+    case 'm4v':
+      return 'video/mp4';
+    case 'webm':
+      return 'video/webm';
+    case 'mov':
+      return 'video/quicktime';
+    case 'mkv':
+      return 'video/x-matroska';
+    case 'avi':
+      return 'video/x-msvideo';
+    case 'ogv':
+      return 'video/ogg';
+    case 'wmv':
+      return 'video/x-ms-wmv';
+    case 'flv':
+    case 'f4v':
+      return 'video/x-flv';
+    case 'mpg':
+    case 'mpeg':
+      return 'video/mpeg';
+    case '3gp':
+      return 'video/3gpp';
+    case '3g2':
+      return 'video/3gpp2';
+    case 'pdf':
+      return 'application/pdf';
+    case 'csv':
+      return 'text/csv';
+    case 'docx':
+      return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    case 'doc':
+      return 'application/msword';
+    case 'xlsx':
+    case 'xlsm':
+      return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+    case 'xls':
+    case 'xlsb':
+      return 'application/vnd.ms-excel';
+    case 'ods':
+      return 'application/vnd.oasis.opendocument.spreadsheet';
+    case 'pptx':
+      return 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    case 'ppsx':
+      return 'application/vnd.openxmlformats-officedocument.presentationml.slideshow';
+    case 'ppt':
+      return 'application/vnd.ms-powerpoint';
+    case 'odp':
+      return 'application/vnd.oasis.opendocument.presentation';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+export async function createFile(
+  rootPath: string,
+  relativeTarget: string,
+  content = '',
+): Promise<import('../src/kernel/index').WorkspaceFileDocument> {
   const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
   let stats;
   try {
@@ -196,7 +364,11 @@ export async function createFolder(rootPath: string, relativeTarget: string): Pr
   return true;
 }
 
-export async function renameFile(rootPath: string, relativePath: string, newName: string): Promise<boolean> {
+export async function renameFile(
+  rootPath: string,
+  relativePath: string,
+  newName: string,
+): Promise<boolean> {
   const src = resolveWorkspacePath(rootPath, relativePath);
   if (!fsSync.existsSync(src)) throw new Error(`path not found: ${relativePath}`);
   const parent = path.dirname(src);
@@ -219,8 +391,12 @@ export async function deleteFileEntry(rootPath: string, relativePath: string): P
     await new Promise<void>((resolve, reject) => {
       const child = spawn(
         'powershell',
-        ['-NoProfile', '-Command', `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${method}(${args})`],
-        { windowsHide: true }
+        [
+          '-NoProfile',
+          '-Command',
+          `Add-Type -AssemblyName Microsoft.VisualBasic; [Microsoft.VisualBasic.FileIO.FileSystem]::${method}(${args})`,
+        ],
+        { windowsHide: true },
       );
       child.on('error', reject);
       child.on('close', (code) => {
@@ -238,7 +414,11 @@ export async function deleteFileEntry(rootPath: string, relativePath: string): P
   return true;
 }
 
-export async function duplicateFile(rootPath: string, srcRelativePath: string, dstRelativePath: string): Promise<boolean> {
+export async function duplicateFile(
+  rootPath: string,
+  srcRelativePath: string,
+  dstRelativePath: string,
+): Promise<boolean> {
   const src = resolveWorkspacePath(rootPath, srcRelativePath);
   if (!fsSync.existsSync(src)) throw new Error(`source not found: ${srcRelativePath}`);
   let dst = path.resolve(rootPath, dstRelativePath);
@@ -263,7 +443,11 @@ export async function duplicateFile(rootPath: string, srcRelativePath: string, d
   return true;
 }
 
-export async function moveFile(rootPath: string, relativePath: string, newPath: string): Promise<boolean> {
+export async function moveFile(
+  rootPath: string,
+  relativePath: string,
+  newPath: string,
+): Promise<boolean> {
   const src = resolveWorkspacePath(rootPath, relativePath);
   if (!fsSync.existsSync(src)) throw new Error(`source not found: ${relativePath}`);
   const dst = resolveWorkspacePath(rootPath, newPath);
@@ -279,12 +463,19 @@ export async function getAbsolutePath(rootPath: string, relativeTarget: string):
   return normalizePath(resolved);
 }
 
-export async function outline(rootPath: string, relativeTarget: string): Promise<import('../src/kernel/index').FileOutlineItem[]> {
+export async function outline(
+  rootPath: string,
+  relativeTarget: string,
+): Promise<import('../src/kernel/index').FileOutlineItem[]> {
   const document = await readFile(rootPath, relativeTarget);
   return buildOutlineFromContent(document.content, normalizePath(relativeTarget));
 }
 
-export async function collectTextFiles(rootPath: string, currentPath: string, results: string[]): Promise<void> {
+export async function collectTextFiles(
+  rootPath: string,
+  currentPath: string,
+  results: string[],
+): Promise<void> {
   let entries;
   try {
     entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -327,12 +518,17 @@ async function collectFilesAndBuildTree(rootPath: string): Promise<CollectResult
   let fileRemaining = MAX_COLLECTED_FILES;
   let nodeRemaining = MAX_TREE_NODES;
 
-  await collectInner(rootPath, rootPath, 0, files, entries,
+  await collectInner(
+    rootPath,
+    rootPath,
+    0,
+    files,
+    entries,
     () => ({ fileRemaining, nodeRemaining }),
     (updates: { fileRemaining?: number; nodeRemaining?: number }) => {
       if (updates.fileRemaining !== undefined) fileRemaining = updates.fileRemaining;
       if (updates.nodeRemaining !== undefined) nodeRemaining = updates.nodeRemaining;
-    }
+    },
   );
 
   entries.sort((left, right) => {
@@ -350,7 +546,7 @@ async function collectInner(
   files: string[],
   nodes: import('../src/kernel/index').WorkspaceTreeNode[],
   getRemaining: () => { fileRemaining: number; nodeRemaining: number },
-  setRemaining: (updates: { fileRemaining?: number; nodeRemaining?: number }) => void
+  setRemaining: (updates: { fileRemaining?: number; nodeRemaining?: number }) => void,
 ): Promise<void> {
   if (depth > MAX_TREE_DEPTH) return;
   const { fileRemaining, nodeRemaining } = getRemaining();
@@ -374,7 +570,15 @@ async function collectInner(
       setRemaining({ nodeRemaining: nr - 1 });
 
       const childNodes: import('../src/kernel/index').WorkspaceTreeNode[] = [];
-      await collectInner(rootPath, entryPath, depth + 1, files, childNodes, getRemaining, setRemaining);
+      await collectInner(
+        rootPath,
+        entryPath,
+        depth + 1,
+        files,
+        childNodes,
+        getRemaining,
+        setRemaining,
+      );
       childNodes.sort((left, right) => {
         if (left.kind !== right.kind) return left.kind === 'directory' ? -1 : 1;
         return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
@@ -414,7 +618,10 @@ async function collectInner(
   }
 }
 
-export async function buildRetrievalSnapshot(workspaceId: string, rootPath: string): Promise<import('../src/kernel/index').RetrievalSnapshot> {
+export async function buildRetrievalSnapshot(
+  workspaceId: string,
+  rootPath: string,
+): Promise<import('../src/kernel/index').RetrievalSnapshot> {
   const now = nowMs();
   const cached = retrievalCache.get(workspaceId);
   if (cached && now - cached.capturedAt < CACHE_TTL_MS) {
@@ -425,7 +632,10 @@ export async function buildRetrievalSnapshot(workspaceId: string, rootPath: stri
   return snapshot;
 }
 
-async function buildRetrievalSnapshotInner(workspaceId: string, rootPath: string): Promise<import('../src/kernel/index').RetrievalSnapshot> {
+async function buildRetrievalSnapshotInner(
+  workspaceId: string,
+  rootPath: string,
+): Promise<import('../src/kernel/index').RetrievalSnapshot> {
   const { files, tree } = await collectFilesAndBuildTree(rootPath);
 
   const extensionCounts = new Map<string, number>();
@@ -433,12 +643,17 @@ async function buildRetrievalSnapshotInner(workspaceId: string, rootPath: string
     const extension = path.extname(filePath) || '[none]';
     extensionCounts.set(extension, (extensionCounts.get(extension) ?? 0) + 1);
   }
-  const topExtensions: import('../src/kernel/index').RetrievalFileTypeCount[] = Array.from(extensionCounts.entries())
+  const topExtensions: import('../src/kernel/index').RetrievalFileTypeCount[] = Array.from(
+    extensionCounts.entries(),
+  )
     .map(([extension, count]) => ({ extension, count }))
     .sort((left, right) => right.count - left.count)
     .slice(0, 12);
 
-  const flattenTree = (nodes: import('../src/kernel/index').WorkspaceTreeNode[], repoMap: import('../src/kernel/index').RepoMapEntry[]) => {
+  const flattenTree = (
+    nodes: import('../src/kernel/index').WorkspaceTreeNode[],
+    repoMap: import('../src/kernel/index').RepoMapEntry[],
+  ) => {
     for (const node of nodes) {
       repoMap.push({ path: node.path, type: node.kind });
       if (node.children.length > 0) {

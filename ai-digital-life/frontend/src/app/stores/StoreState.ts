@@ -189,7 +189,7 @@ interface GitActions {
   collapseAllWorkspaceChanges: () => void;
   expandAllWorkspaceChanges: () => Promise<void>;
   fetchGitStatus: () => Promise<void>;
-  fetchGitBranches: () => Promise<void>;
+  fetchGitBranches: (options?: { silent?: boolean }) => Promise<void>;
   switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
   createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
   stageWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;

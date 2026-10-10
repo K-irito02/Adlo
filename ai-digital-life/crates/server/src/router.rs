@@ -41,6 +41,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/file", post(handlers::workspace::create_file))
         .route("/workspace/folder", post(handlers::workspace::create_folder))
         .route("/workspace/read", post(handlers::workspace::read_file))
+        .route("/workspace/read-media", post(handlers::workspace::read_media_file))
         .route("/workspace/change-preview", post(handlers::workspace::get_change_preview))
         .route("/workspace/tree", post(handlers::workspace::list_tree))
         .route("/workspace/search", post(handlers::workspace::search))

@@ -249,6 +249,18 @@ pub struct WorkspaceFileDocument {
     pub last_modified_at: TimestampMs,
 }
 
+/// 二进制/媒体文件文档：字节以 base64 承载（JSON IPC 无原生字节类型），
+/// 前端解码为 Blob 后经 object URL 交给原生标签/第三方预览库渲染。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceMediaDocument {
+    pub path: String,
+    pub mime: String,
+    pub base64: String,
+    pub size: u64,
+    pub last_modified_at: TimestampMs,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "lowercase")]
 pub enum WorkspaceChangeKind {

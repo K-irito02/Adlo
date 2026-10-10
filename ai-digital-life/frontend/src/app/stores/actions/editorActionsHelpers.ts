@@ -14,6 +14,7 @@ import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
 import { createEditorTab } from '@utils/editorTabs';
 import { buildOutlineFromContent } from '@shared/outline';
+import { TEXT_HEAVY_PREVIEW_CHARS } from '../../regions/right-panel/heavyPreviewLimits';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import {
   fileRequestSeq,
@@ -29,6 +30,7 @@ import type {
   FileOutlineItem,
   IpcResult,
   WorkspaceFileDocument,
+  WorkspaceMediaDocument,
   WorkspaceChangePreview,
 } from '@ai-digital-life/kernel';
 
@@ -49,7 +51,7 @@ export interface OpenFileConfig {
 function submitOpenFailure(
   set: StoreApi<StoreState>['setState'],
   relativePath: string,
-  config: OpenFileConfig,
+  config: Pick<OpenFileConfig, 'workspaceId' | 'workspacePath'>,
   error: unknown,
 ) {
   const raw = error as { code?: unknown; message?: unknown } | null | undefined;
@@ -59,6 +61,7 @@ function submitOpenFailure(
     selectedFilePath: relativePath,
     selectedFileWorkspaceId: config.workspaceId,
     fileContent: undefined,
+    fileMedia: null,
     fileLastModifiedAt: undefined,
     outline: [],
     positioningPath: null,
@@ -83,7 +86,13 @@ export async function openFileGeneric(
   const cachedDocument = getCachedFileDocument(config.cacheKey);
 
   const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
-    const nextOutline = outlineOverride ?? buildOutlineFromContent(document.content, relativePath);
+    // 重型文本（超阈值）跳过大纲解析：大文件大纲 walk 是确认前卡顿来源之一，
+    // 且巨型压缩文件的符号大纲本就无意义；渲染由内容区重型门把关。
+    const nextOutline =
+      outlineOverride ??
+      (document.content.length > TEXT_HEAVY_PREVIEW_CHARS
+        ? []
+        : buildOutlineFromContent(document.content, relativePath));
     const norm = normalizeWorkspaceRelativePath(relativePath);
     set((state: StoreState) => {
       const nextDirty = state.dirtyEditorPaths.filter(
@@ -97,6 +106,7 @@ export async function openFileGeneric(
         selectedFilePath: relativePath,
         selectedFileWorkspaceId: config.workspaceId,
         fileContent: document.content,
+        fileMedia: null,
         fileLastModifiedAt: document.lastModifiedAt,
         fileOpenError: null,
         externalFileChange:
@@ -142,13 +152,87 @@ export async function openFileGeneric(
     submitOpenFailure(set, relativePath, config, fileResult.error);
     return false;
   }
-  const nextOutline = buildOutlineFromContent(fileResult.data.content, relativePath);
+  // 重型文本（超阈值）跳过大纲解析：大文件大纲 walk 是确认前卡顿来源之一，
+  // 且巨型压缩文件的符号大纲本就无意义；渲染由内容区重型门把关。
+  const nextOutline =
+    fileResult.data.content.length > TEXT_HEAVY_PREVIEW_CHARS
+      ? []
+      : buildOutlineFromContent(fileResult.data.content, relativePath);
   const nextDocument: CachedFileDocument = {
     content: fileResult.data.content,
     lastModifiedAt: fileResult.data.lastModifiedAt,
   };
   setCachedFileDocument(config.cacheKey, nextDocument);
   applyDocument(nextDocument, nextOutline);
+  return true;
+}
+
+export interface OpenMediaFileConfig {
+  cacheKey: string;
+  workspaceId: string | undefined;
+  workspacePath?: string;
+  readMediaFile: () => Promise<IpcResult<WorkspaceMediaDocument>>;
+}
+
+/**
+ * 媒体/办公二进制打开（与 openFileGeneric 同"就绪才切换"语义）：
+ * 成功时置 fileMedia 并清空 fileContent/outline；失败走同一 submitOpenFailure。
+ * 媒体不进文本缓存（base64 体积大，按次读取）。
+ */
+export async function openMediaFileGeneric(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState,
+  relativePath: string,
+  requestSeq: number,
+  config: OpenMediaFileConfig,
+): Promise<boolean> {
+  clearError(get, SCOPE);
+  set((state: StoreState) => ({
+    openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+      ? state.openTabs
+      : [...state.openTabs, createEditorTab(relativePath)],
+  }));
+
+  let mediaResult: IpcResult<WorkspaceMediaDocument>;
+  try {
+    mediaResult = await config.readMediaFile();
+  } catch (err) {
+    if (requestSeq !== fileRequestSeq) {
+      return false;
+    }
+    captureError(get, err, SCOPE);
+    submitOpenFailure(set, relativePath, config, err);
+    return false;
+  }
+  if (requestSeq !== fileRequestSeq) {
+    return false;
+  }
+  if (!mediaResult.ok) {
+    captureError(get, mediaResult.error, SCOPE);
+    submitOpenFailure(set, relativePath, config, mediaResult.error);
+    return false;
+  }
+  set((state: StoreState) => {
+    const nextDirty = state.dirtyEditorPaths.filter(
+      (p) => normalizeWorkspaceRelativePath(p) !== normalizeWorkspaceRelativePath(relativePath),
+    );
+    void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+    return {
+      openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+        ? state.openTabs
+        : [...state.openTabs, createEditorTab(relativePath)],
+      selectedFilePath: relativePath,
+      selectedFileWorkspaceId: config.workspaceId,
+      fileContent: undefined,
+      fileMedia: mediaResult.ok ? mediaResult.data : null,
+      fileLastModifiedAt: mediaResult.ok ? mediaResult.data.lastModifiedAt : undefined,
+      fileOpenError: null,
+      externalFileChange:
+        state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
+      outline: [],
+      dirtyEditorPaths: nextDirty,
+    };
+  });
   return true;
 }
 

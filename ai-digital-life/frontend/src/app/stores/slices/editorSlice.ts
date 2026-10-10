@@ -2,7 +2,11 @@
  * 编辑器切片
  * 管理编辑器标签页、文件内容、大纲等状态
  */
-import type { FileOutlineItem, WorkspaceChangePreview } from '@ai-digital-life/kernel';
+import type {
+  FileOutlineItem,
+  WorkspaceChangePreview,
+  WorkspaceMediaDocument,
+} from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import type { EditorTabState } from '@utils/editorTabs';
 import type { PersistedViewport } from '../persisted/viewport';
@@ -47,6 +51,12 @@ export interface EditorSlice {
   changePreviewLoading: boolean;
   fileContent?: string;
   fileLastModifiedAt?: number;
+  /**
+   * 媒体/办公二进制文档（图片/音视频/docx/pdf/表格/演示）。
+   * 与 fileContent 互斥：媒体打开成功时置位并清空 fileContent；
+   * 文本打开成功/失败时清空。承载 base64 字节，前端解码为 Blob 后渲染。
+   */
+  fileMedia?: WorkspaceMediaDocument | null;
   /**
    * 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，
    * 不回退显示旧文件内容；成功打开任意文件时清掉。
@@ -109,6 +119,7 @@ export interface EditorSlice {
   setChangePreviewLoading: (loading: boolean) => void;
   setFileContent: (content: string | undefined) => void;
   setFileLastModifiedAt: (timestamp: number | undefined) => void;
+  setFileMedia: (media: WorkspaceMediaDocument | null) => void;
   setFileOpenError: (error: FileOpenError | null) => void;
   setPositioningPath: (path: string | null) => void;
   setExternalFileChange: (change: { path: string; lastModifiedAt: number } | undefined) => void;
@@ -167,6 +178,7 @@ export const createEditorSlice = (
   setChangePreviewLoading: (loading) => set({ changePreviewLoading: loading }),
   setFileContent: (fileContent) => set({ fileContent }),
   setFileLastModifiedAt: (fileLastModifiedAt) => set({ fileLastModifiedAt }),
+  setFileMedia: (fileMedia) => set({ fileMedia }),
   setFileOpenError: (fileOpenError) => set({ fileOpenError }),
   setPositioningPath: (positioningPath) => set({ positioningPath }),
   setExternalFileChange: (externalFileChange) => set({ externalFileChange }),
@@ -304,6 +316,7 @@ export const createEditorSlice = (
       changePreviewLoading: false,
       fileContent: undefined,
       fileLastModifiedAt: undefined,
+      fileMedia: null,
       fileOpenError: null,
       positioningPath: null,
       externalFileChange: undefined,

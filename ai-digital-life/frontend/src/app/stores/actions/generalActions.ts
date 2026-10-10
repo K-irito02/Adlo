@@ -477,7 +477,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
           if (requestSeq !== workspaceRequestSeq) {
             return;
           }
-          await Promise.allSettled([get().fetchGitBranches()]);
+          await Promise.allSettled([get().fetchGitBranches({ silent: true })]);
           await runWorkspaceLoadCascade();
         });
         return;
@@ -493,6 +493,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         changePreviewLoading: false,
         fileContent: undefined,
         fileLastModifiedAt: undefined,
+        fileMedia: null,
         outline: [],
         indexingStatus: undefined,
         repoMap: [],

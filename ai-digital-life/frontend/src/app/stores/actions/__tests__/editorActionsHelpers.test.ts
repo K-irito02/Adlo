@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { openFileGeneric } from '../editorActionsHelpers';
+import { openFileGeneric, openMediaFileGeneric } from '../editorActionsHelpers';
 import { getNextFileRequestSeq } from '../../cacheHelpers';
 import type { StoreState } from '../../StoreState';
 
@@ -302,5 +302,118 @@ describe('openFileGeneric hold-until-ready (事项 46 调整项)', () => {
     gate.resolve({ ok: true, data: { content: 'new content', lastModifiedAt: 2 } });
     await pending;
     expect(get().selectedFilePath).toBe('new.md');
+  });
+});
+
+describe('openMediaFileGeneric', () => {
+  it('sets fileMedia and clears text content on success', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const media = {
+      path: 'clip.mp4',
+      mime: 'video/mp4',
+      base64: 'AAECAw==',
+      size: 4,
+      lastModifiedAt: 7,
+    };
+
+    const opened = await openMediaFileGeneric(
+      set as never,
+      get as never,
+      'clip.mp4',
+      getNextFileRequestSeq(),
+      {
+        cacheKey: `media-ok-${Date.now()}`,
+        workspaceId: 'ws-1',
+        readMediaFile: () => Promise.resolve({ ok: true, data: media }) as never,
+      },
+    );
+
+    expect(opened).toBe(true);
+    expect(get().selectedFilePath).toBe('clip.mp4');
+    expect(get().fileContent).toBeUndefined();
+    expect((get() as unknown as { fileMedia: typeof media }).fileMedia).toEqual(media);
+    expect((get() as unknown as Snap).fileOpenError).toBeNull();
+  });
+
+  it('submits the shared failure state without stale content on error', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    mockReportError(get);
+
+    const opened = await openMediaFileGeneric(
+      set as never,
+      get as never,
+      'huge.mp4',
+      getNextFileRequestSeq(),
+      {
+        cacheKey: `media-fail-${Date.now()}`,
+        workspaceId: 'ws-1',
+        readMediaFile: () =>
+          Promise.resolve({
+            ok: false,
+            error: { code: 'INVALID_INPUT', message: 'too large' },
+          }) as never,
+      },
+    );
+
+    expect(opened).toBe(false);
+    expect(get().selectedFilePath).toBe('huge.mp4');
+    expect(get().fileContent).not.toBe('old content');
+    expect((get() as unknown as Snap).fileOpenError?.path).toBe('huge.mp4');
+  });
+});
+
+describe('openFileGeneric heavy text', () => {
+  it('builds an outline for normal text', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+
+    await openFileGeneric(set as never, get as never, 'doc.md', getNextFileRequestSeq(), {
+      cacheKey: `heavy-normal-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () =>
+        Promise.resolve({
+          ok: true,
+          data: { content: '# Title\n\nbody\n', lastModifiedAt: 1 },
+        }) as never,
+    });
+
+    expect(get().fileContent).toContain('# Title');
+    expect((get() as unknown as { outline: unknown[] }).outline.length).toBeGreaterThan(0);
+  });
+
+  it('skips outline parsing for text above the heavy threshold', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const { TEXT_HEAVY_PREVIEW_CHARS } =
+      await import('../../../regions/right-panel/heavyPreviewLimits');
+    const huge = `# Title\n${'x'.repeat(TEXT_HEAVY_PREVIEW_CHARS + 16)}`;
+
+    await openFileGeneric(set as never, get as never, 'huge.md', getNextFileRequestSeq(), {
+      cacheKey: `heavy-skip-${Date.now()}`,
+      workspaceId: 'ws-1',
+      readFile: () =>
+        Promise.resolve({
+          ok: true,
+          data: { content: huge, lastModifiedAt: 1 },
+        }) as never,
+    });
+
+    // 内容照常到达（渲染由内容区重型门把关），但大纲为空以避免确认前卡顿。
+    expect((get() as unknown as { fileContent: string }).fileContent.length).toBe(huge.length);
+    expect((get() as unknown as { outline: unknown[] }).outline).toEqual([]);
   });
 });

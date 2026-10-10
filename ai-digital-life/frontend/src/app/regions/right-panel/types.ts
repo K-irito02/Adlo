@@ -4,6 +4,7 @@ import type {
   FileOutlineItem,
   FilePatch,
   WorkspaceChangePreview,
+  WorkspaceMediaDocument,
   GitSnapshot,
   PatchApplicationResult,
   PatchSet,
@@ -30,6 +31,8 @@ export interface RightPanelViewProps {
   changePreviewLoading: boolean;
   fileContent?: string;
   fileLastModifiedAt?: number;
+  /** 媒体/办公二进制文档（与 fileContent 互斥，见 editorSlice.fileMedia） */
+  fileMedia?: WorkspaceMediaDocument | null;
   /** 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，不回退旧内容 */
   fileOpenError?: FileOpenError | null;
   /** 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成 */
@@ -131,6 +134,7 @@ export type FilesPanelProps = Pick<
   | 'selectedFilePath'
   | 'selectedFileWorkspaceId'
   | 'fileContent'
+  | 'fileMedia'
   | 'fileOpenError'
   | 'positioningPath'
   | 'filePatch'

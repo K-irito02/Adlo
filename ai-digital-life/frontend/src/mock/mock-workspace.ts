@@ -140,6 +140,22 @@ export const mockWorkspace: WorkspaceBridge = {
       lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
     }
   }),
+  // mock 工作区只有内存文本文档，无二进制字节：媒体读取恒返回不可用，
+  // 调用端展示居中友好错误（与超限/失败同一视觉）。
+  readMediaFile: async (relativePath: string) => ({
+    ok: false as const,
+    error: {
+      code: "WORKSPACE_ERROR",
+      message: `media files are not readable in mock workspace: ${relativePath}`
+    }
+  }),
+  readMediaFileForWorkspace: async (_workspacePath: string, relativePath: string) => ({
+    ok: false as const,
+    error: {
+      code: "WORKSPACE_ERROR",
+      message: `media files are not readable in mock workspace: ${relativePath}`
+    }
+  }),
   getChangePreview: async (relativePath: string) => ({
     ok: true,
     data: buildMockChangePreview(relativePath)

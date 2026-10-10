@@ -33,7 +33,9 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
     async function renderPage() {
       try {
         await initPdfjs();
-        const pdf = await pdfjs!.getDocument({ data }).promise;
+        // pdf.js 会转移（detach）传入的 ArrayBuffer：每次渲染前复制，
+        // 否则翻页时复用同一 buffer 会报 "detached ArrayBuffer"。
+        const pdf = await pdfjs!.getDocument({ data: data.slice(0) }).promise;
         if (cancelled) {
           return;
         }

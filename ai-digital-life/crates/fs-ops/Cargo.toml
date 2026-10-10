@@ -9,3 +9,6 @@ workspace = true
 [dependencies]
 adl-errors = { path = "../errors" }
 sha2.workspace = true
+
+[dev-dependencies]
+uuid.workspace = true

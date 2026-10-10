@@ -10,7 +10,12 @@ import {
 import type { StoreApi } from 'zustand';
 import { clearError, captureError } from '../cacheHelpers';
 import { persistField } from '../persisted/apply';
-import { openFileGeneric, openChangePreviewGeneric } from './editorActionsHelpers';
+import {
+  openFileGeneric,
+  openMediaFileGeneric,
+  openChangePreviewGeneric,
+} from './editorActionsHelpers';
+import { categorizeFile, isMediaFileCategory } from '../../regions/right-panel/fileTypeRouter';
 import { refreshTreeByWorkspacePath } from './workspaceActions';
 import { insertTreeNode } from './workspaceTreeRename';
 import { asWorkspaceID } from '../../../shared/branded';
@@ -92,12 +97,20 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      */
     openFile: async (relativePath: string) => {
       const workspaceId = get().appInfo?.currentWorkspace?.id;
-      const opened = await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
-        cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
-        workspaceId,
-        workspacePath: get().appInfo?.currentWorkspace?.path,
-        readFile: () => window.digitalLife.workspace.readFile(relativePath),
-      });
+      const category = categorizeFile(relativePath);
+      const opened = isMediaFileCategory(category)
+        ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+            cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
+            workspaceId,
+            workspacePath: get().appInfo?.currentWorkspace?.path,
+            readMediaFile: () => window.digitalLife.workspace.readMediaFile(relativePath),
+          })
+        : await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+            cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
+            workspaceId,
+            workspacePath: get().appInfo?.currentWorkspace?.path,
+            readFile: () => window.digitalLife.workspace.readFile(relativePath),
+          });
       if (opened) {
         if (workspaceId) {
           get().rememberLastOpenedFile(workspaceId, relativePath);
@@ -120,13 +133,22 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       workspacePath: string,
       relativePath: string,
     ) => {
-      const opened = await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
-        cacheKey: `${workspacePath}:${relativePath}`,
-        workspaceId,
-        workspacePath,
-        readFile: () =>
-          window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
-      });
+      const category = categorizeFile(relativePath);
+      const opened = isMediaFileCategory(category)
+        ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+            cacheKey: `${workspacePath}:${relativePath}`,
+            workspaceId,
+            workspacePath,
+            readMediaFile: () =>
+              window.digitalLife.workspace.readMediaFileForWorkspace(workspacePath, relativePath),
+          })
+        : await openFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
+            cacheKey: `${workspacePath}:${relativePath}`,
+            workspaceId,
+            workspacePath,
+            readFile: () =>
+              window.digitalLife.workspace.readFileForWorkspace(workspacePath, relativePath),
+          });
       if (opened) {
         get().rememberLastOpenedFile(workspaceId, relativePath);
       }
@@ -276,6 +298,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
             : [...state.openTabs, createEditorTab(relativePath)],
           selectedFilePath: relativePath,
           fileContent: result.data.content,
+          fileMedia: null,
           fileLastModifiedAt: result.data.lastModifiedAt,
           externalFileChange:
             state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,

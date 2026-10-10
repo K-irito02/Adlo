@@ -33,6 +33,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     selectedFilePath,
     selectedFileWorkspaceId,
     fileContent,
+    fileMedia,
     fileOpenError,
     positioningPath,
     filePatch,
@@ -601,6 +602,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
               <LazyEditorSurface
                 selectedFilePath={selectedFilePath}
                 fileContent={fileContent}
+                fileMedia={fileMedia}
                 fileOpenError={fileOpenError}
                 positioningPath={positioningPath}
                 filePatch={filePatch}

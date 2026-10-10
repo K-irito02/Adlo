@@ -6,6 +6,7 @@ import type {
   RetrievalSnapshot,
   WorkspaceChangePreview,
   WorkspaceFileDocument,
+  WorkspaceMediaDocument,
   WorkspaceMeta,
   WorkspaceTreeNode,
   WorkspaceTreePayload,
@@ -180,6 +181,16 @@ export function createPreviewWorkspaceBridge(
     readFileForWorkspace: async (workspacePath: string, relativePath: string) => {
       const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
       return requestPreviewApi<WorkspaceFileDocument>(`/workspace/file?${params.toString()}`);
+    },
+    readMediaFile: withWorkspace<WorkspaceMediaDocument, [string]>(
+      async (rootPath, relativePath) => {
+        const params = new URLSearchParams({ rootPath, relativePath });
+        return requestPreviewApi<WorkspaceMediaDocument>(`/workspace/media?${params.toString()}`);
+      },
+    ),
+    readMediaFileForWorkspace: async (workspacePath: string, relativePath: string) => {
+      const params = new URLSearchParams({ rootPath: workspacePath, relativePath });
+      return requestPreviewApi<WorkspaceMediaDocument>(`/workspace/media?${params.toString()}`);
     },
     getChangePreview: withWorkspace<WorkspaceChangePreview, [string]>(
       async (rootPath, relativePath) => {

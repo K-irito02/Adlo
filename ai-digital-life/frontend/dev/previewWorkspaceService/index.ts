@@ -662,6 +662,17 @@ const routes: Route[] = [
   },
   {
     method: 'GET',
+    pathname: makePath('/workspace/media'),
+    handler: async (_req, _body, searchParams) => {
+      const rootPath = searchParams.get('rootPath');
+      const relativePath = searchParams.get('relativePath');
+      if (!rootPath?.trim() || !relativePath?.trim())
+        return fail('rootPath and relativePath are required', 'INVALID_INPUT');
+      return ok(await files.readMediaFile(rootPath, relativePath));
+    },
+  },
+  {
+    method: 'GET',
     pathname: makePath('/workspace/change-preview'),
     handler: async (_req, _body, searchParams) => {
       const rootPath = searchParams.get('rootPath');

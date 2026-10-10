@@ -8,6 +8,15 @@ import { clearError, captureError, postMutationRefresh } from '../shared';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 const SCOPE = 'git';
 
+/** 预期态判定：非 Git 工作区的 git 命令失败是正常行为，不应打扰用户。 */
+function isExpectedNonGitError(error: unknown): boolean {
+  const message =
+    error && typeof error === 'object' && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : '';
+  return message.toLowerCase().includes('not a git repository');
+}
+
 async function refreshAfterBranchChange(get: () => StoreState) {
   await postMutationRefresh(get);
   if (get().selectedFilePath) {
@@ -22,20 +31,19 @@ export function createGitBranchActions(
   return {
     /**
      * [fetchGitBranches - 获取 Git 分支列表]
-     * @reads workspaceSlice.appInfo
-     * @writes gitSlice.gitBranches
-     * @see shared/ipc.ts → workspace.listGitBranches
-     * @see mock-bridge.ts → workspace.listGitBranches
-     * @see preview-bridge/index.ts → workspace.listGitBranches
+     * 非 Git 工作区没有分支是预期态（用户主动添加的非 Git 工作区很常见），
+     * 此时只清空列表、不弹全局提示；silent（启动级联）则所有失败都不打扰。
      */
-    fetchGitBranches: async () => {
+    fetchGitBranches: async (options?: { silent?: boolean }) => {
       if (!get().appInfo?.currentWorkspace) {
         set({ gitBranches: [] });
         return;
       }
       const result = await window.digitalLife.workspace.listGitBranches();
       if (!result.ok) {
-        captureError(get, result.error, SCOPE);
+        if (!options?.silent && !isExpectedNonGitError(result.error)) {
+          captureError(get, result.error, SCOPE);
+        }
         set({ gitBranches: [] });
         return;
       }

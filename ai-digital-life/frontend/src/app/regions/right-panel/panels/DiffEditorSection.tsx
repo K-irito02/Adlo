@@ -3,7 +3,7 @@ import type { ChangesPanelProps } from '../types';
 import type { DiffEditorRef, EditorRef } from '@stores/types';
 
 import { detectEditorLanguage } from '@utils/workspacePaths';
-import { categorizeFile } from '../fileTypeRouter';
+import { categorizeFile, isMediaFileCategory } from '../fileTypeRouter';
 import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
 import { LazyMarkdownPreviewWrapper } from '@features/preview';
@@ -30,6 +30,7 @@ interface DiffEditorSectionProps extends Pick<
   | 'latestPatchApplication'
   | 'appInfo'
   | 'onDiffMount'
+  | 'onOpenFile'
 > {
   totalChangeCount: number;
   visibleWorkspacesLength: number;
@@ -51,6 +52,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   lineNumbersEnabled,
   wordWrapEnabled,
   onDiffMount,
+  onOpenFile,
   previewContainerRef,
 }: DiffEditorSectionProps) {
   const { t } = useTCopy();
@@ -148,6 +150,50 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       return <ChangesEmptyState hasWorkspaces={visibleWorkspacesLength > 0} />;
     }
     return null;
+  }
+
+  // 媒体与办公文件不在变更面板做逐行对比：居中友好占位 + 前往文件面板预览。
+  // 与文件面板共用 .adl-unsupported-preview 视觉（已居中）。
+  if (isMediaFileCategory(categorizeFile(changePreview.path))) {
+    const previewPath = changePreview.path;
+    return (
+      <div
+        ref={setPreviewShellRef}
+        className="adl-tool-editor adl-tool-editor--changes"
+        data-testid="changes-preview-shell"
+      >
+        <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+          <div className="adl-unsupported-preview">
+            <svg
+              className="adl-unsupported-preview__icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+              <path d="M14 2v6h6" />
+              <path d="M9 15h6" />
+            </svg>
+            <span className="adl-unsupported-preview__text">
+              {t.changesPreviewMediaInChanges as string}
+            </span>
+            <span className="adl-unsupported-preview__hint" title={previewPath}>
+              {previewPath}
+            </span>
+            <button
+              type="button"
+              className="adl-unsupported-preview__action"
+              onClick={() => onOpenFile(previewPath)}
+            >
+              {t.changesPreviewOpenInFiles as string}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

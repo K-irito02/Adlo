@@ -9,10 +9,22 @@ const LazyDocxPreview = React.lazy(() =>
 const LazyPdfPreview = React.lazy(() =>
   import('./PdfPreview').then((m) => ({ default: m.PdfPreview })),
 );
+const LazyMediaPreview = React.lazy(() =>
+  import('./MediaPreview').then((m) => ({ default: m.MediaPreview })),
+);
+const LazyXlsxPreview = React.lazy(() =>
+  import('./XlsxPreview').then((m) => ({ default: m.XlsxPreview })),
+);
+const LazyPptxPreview = React.lazy(() =>
+  import('./PptxPreview').then((m) => ({ default: m.PptxPreview })),
+);
 
 export type { MarkdownPreviewProps } from './markdownPreviewUtils';
 export type { DocxPreviewProps } from './DocxPreview';
 export type { PdfPreviewProps } from './PdfPreview';
+export type { MediaPreviewProps, MediaKind } from './MediaPreview';
+export type { XlsxPreviewProps } from './XlsxPreview';
+export type { PptxPreviewProps } from './PptxPreview';
 
 export function LazyMarkdownPreviewWrapper(
   props: React.ComponentProps<typeof LazyMarkdownPreview>,
@@ -36,6 +48,30 @@ export function LazyPdfPreviewWrapper(props: React.ComponentProps<typeof LazyPdf
   return (
     <Suspense fallback={null}>
       <LazyPdfPreview {...props} />
+    </Suspense>
+  );
+}
+
+export function LazyMediaPreviewWrapper(props: React.ComponentProps<typeof LazyMediaPreview>) {
+  return (
+    <Suspense fallback={null}>
+      <LazyMediaPreview {...props} />
+    </Suspense>
+  );
+}
+
+export function LazyXlsxPreviewWrapper(props: React.ComponentProps<typeof LazyXlsxPreview>) {
+  return (
+    <Suspense fallback={null}>
+      <LazyXlsxPreview {...props} />
+    </Suspense>
+  );
+}
+
+export function LazyPptxPreviewWrapper(props: React.ComponentProps<typeof LazyPptxPreview>) {
+  return (
+    <Suspense fallback={null}>
+      <LazyPptxPreview {...props} />
     </Suspense>
   );
 }

@@ -90,6 +90,19 @@ export interface WorkspaceFileDocument {
   lastModifiedAt: number;
 }
 
+/**
+ * 二进制/媒体文件文档（与 Rust `WorkspaceMediaDocument` 逐字段对齐，
+ * `#[serde(rename_all = "camelCase")]`）。
+ * 字节以 base64 承载，前端解码为 Blob 后经 object URL 交给原生标签/第三方预览库渲染。
+ */
+export interface WorkspaceMediaDocument {
+  path: string;
+  mime: string;
+  base64: string;
+  size: number;
+  lastModifiedAt: number;
+}
+
 export type WorkspaceChangeKind = 'added' | 'modified' | 'deleted';
 export type WorkspaceChangeStatus = 'staged' | 'modified' | 'untracked' | 'conflicted';
 

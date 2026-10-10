@@ -73,6 +73,7 @@
     "d3-array": "^3.2.4",
     "d3-sankey": "^0.12.3",
     "d3-shape": "^3.2.0",
+    "docx-preview": "^0.4.1",
     "dompurify": "^3.4.12",
     "highlight.js": "^11.11.1",
     "lucide-animated": "^1.0.4",
@@ -80,12 +81,14 @@
     "markdown-it": "^14.1.1",
     "motion": "^12.40.0",
     "pdfjs-dist": "^5.7.284",
+    "pptx-preview": "^1.0.7",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-file-icon": "^1.6.0",
     "react-window": "^2.2.7",
     "tailwind-merge": "^3.6.0",
     "tailwindcss": "^4.3.2",
+    "xlsx": "^0.18.5",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

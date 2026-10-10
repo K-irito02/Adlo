@@ -1,6 +1,8 @@
-import React, { lazy, Suspense, useCallback } from 'react';
+import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { EditorView } from '@codemirror/view';
 import { FilePreviewRenderers } from './FilePreviewRenderers';
+import { TEXT_HEAVY_PREVIEW_CHARS, isHeavyTextCategory } from './heavyPreviewLimits';
+import { formatBytes } from '@root/design-system/html';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
@@ -31,6 +33,7 @@ interface EditorSurfaceShellProps extends Pick<
   RightPanelViewProps,
   | 'selectedFilePath'
   | 'fileContent'
+  | 'fileMedia'
   | 'fileOpenError'
   | 'positioningPath'
   | 'filePatch'
@@ -70,6 +73,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   const {
     selectedFilePath,
     fileContent,
+    fileMedia,
     fileOpenError,
     positioningPath,
     filePatch,
@@ -131,6 +135,20 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
 
   useEditorStateCache(cmViewRef, selectedFilePath, selectedFileWorkspaceId);
 
+  // 文本重型门确认态（按路径记忆）：txt/md/代码超阈值时先提示，确认后才渲染
+  // 编辑器/预览（高亮 + 大纲是渲染卡顿主因；store 侧超阈值已跳过大纲解析）。
+  const [heavyTextConfirmedPath, setHeavyTextConfirmedPath] = useState<string | null>(null);
+  const heavyTextBytes = useMemo(() => {
+    if (!fileContent || fileContent.length <= TEXT_HEAVY_PREVIEW_CHARS) {
+      return 0;
+    }
+    try {
+      return new TextEncoder().encode(fileContent).length;
+    } catch {
+      return fileContent.length;
+    }
+  }, [fileContent]);
+
   const handleStandardEditorMount = useCallback(
     (editor: EditorRef) => {
       const domNode = editor.getDomNode?.();
@@ -160,6 +178,51 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
 
   if (!selectedFilePath) {
     return editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null;
+  }
+
+  // 文本重型门：txt/md/代码超 1MB 时先显示友好提示 + "仍然打开"，确认后才渲染。
+  // 失败分支优先（超 8MB 传输上限仍走错误视图）；补丁 diff 分支内容来自变更预览
+  //（服务端 1MB 钳制），不受此门影响。
+  if (
+    fileContent !== undefined &&
+    fileContent.length > TEXT_HEAVY_PREVIEW_CHARS &&
+    isHeavyTextCategory(fileCategory) &&
+    heavyTextConfirmedPath !== selectedFilePath
+  ) {
+    return (
+      <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+        <div className="adl-unsupported-preview">
+          <svg
+            className="adl-unsupported-preview__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+            <path d="M14 2v6h6" />
+            <path d="M12 11v6" />
+            <path d="M9 14h6" />
+          </svg>
+          <span className="adl-unsupported-preview__text">{t.heavyPreviewTitle as string}</span>
+          <span className="adl-unsupported-preview__hint">
+            {formatT(t, 'heavyPreviewHint', {
+              name: selectedFilePath,
+              size: formatBytes(heavyTextBytes),
+            })}
+          </span>
+          <button
+            type="button"
+            className="adl-unsupported-preview__action"
+            onClick={() => setHeavyTextConfirmedPath(selectedFilePath)}
+          >
+            {t.heavyPreviewOpen as string}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   // 开文件失败：主区展示友好错误，不回退显示旧文件内容（事项 46 调整项，用户决策）。
@@ -326,6 +389,11 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     (fileCategory === 'markdown' && previewEnabled) ||
     fileCategory === 'docx' ||
     fileCategory === 'pdf' ||
+    fileCategory === 'image' ||
+    fileCategory === 'audio' ||
+    fileCategory === 'video' ||
+    fileCategory === 'spreadsheet' ||
+    fileCategory === 'presentation' ||
     fileCategory === 'binary'
   ) {
     return (
@@ -333,6 +401,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         editorSurfaceRef={editorSurfaceRef}
         fileCategory={fileCategory}
         fileContent={fileContent ?? null}
+        fileMedia={fileMedia ?? null}
         theme={resolvedTheme}
       />
     );

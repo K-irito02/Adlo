@@ -1,4 +1,15 @@
-export type FileCategory = 'code' | 'markdown' | 'text' | 'docx' | 'pdf' | 'binary';
+export type FileCategory =
+  | 'code'
+  | 'markdown'
+  | 'text'
+  | 'docx'
+  | 'pdf'
+  | 'image'
+  | 'audio'
+  | 'video'
+  | 'spreadsheet'
+  | 'presentation'
+  | 'binary';
 
 const CODE_EXTENSIONS = new Set([
   'ts',
@@ -18,7 +29,6 @@ const CODE_EXTENSIONS = new Set([
   'py',
   'rs',
   'xml',
-  'svg',
   'vue',
   'sh',
   'bash',
@@ -51,7 +61,7 @@ const CODE_EXTENSIONS = new Set([
 
 const MARKDOWN_EXTENSIONS = new Set(['md', 'markdown']);
 
-const BINARY_EXTENSIONS = new Set([
+const IMAGE_EXTENSIONS = new Set([
   'png',
   'jpg',
   'jpeg',
@@ -59,14 +69,54 @@ const BINARY_EXTENSIONS = new Set([
   'bmp',
   'ico',
   'webp',
+  'avif',
+  'apng',
   'svg',
+  'tif',
+  'tiff',
+  'heic',
+  'heif',
+]);
+
+const AUDIO_EXTENSIONS = new Set([
   'mp3',
-  'mp4',
   'wav',
-  'avi',
+  'ogg',
+  'oga',
+  'm4a',
+  'flac',
+  'aac',
+  'opus',
+  'weba',
+  'wma',
+  'aiff',
+  'aif',
+  'mid',
+  'midi',
+]);
+
+const VIDEO_EXTENSIONS = new Set([
+  'mp4',
+  'm4v',
+  'webm',
   'mov',
   'mkv',
-  'webm',
+  'avi',
+  'ogv',
+  'wmv',
+  'flv',
+  'f4v',
+  'mpg',
+  'mpeg',
+  '3gp',
+  '3g2',
+]);
+
+const SPREADSHEET_EXTENSIONS = new Set(['xls', 'xlsx', 'xlsm', 'xlsb', 'ods', 'csv']);
+
+const PRESENTATION_EXTENSIONS = new Set(['ppt', 'pptx', 'ppsx', 'odp']);
+
+const BINARY_EXTENSIONS = new Set([
   'zip',
   'tar',
   'gz',
@@ -83,6 +133,10 @@ const BINARY_EXTENSIONS = new Set([
   'ttf',
   'eot',
   'otf',
+  'bin',
+  'dat',
+  'iso',
+  'dmg',
 ]);
 
 export function categorizeFile(filePath: string | undefined): FileCategory {
@@ -114,6 +168,21 @@ export function categorizeFile(filePath: string | undefined): FileCategory {
   if (ext === 'pdf') {
     return 'pdf';
   }
+  if (IMAGE_EXTENSIONS.has(ext)) {
+    return 'image';
+  }
+  if (AUDIO_EXTENSIONS.has(ext)) {
+    return 'audio';
+  }
+  if (VIDEO_EXTENSIONS.has(ext)) {
+    return 'video';
+  }
+  if (SPREADSHEET_EXTENSIONS.has(ext)) {
+    return 'spreadsheet';
+  }
+  if (PRESENTATION_EXTENSIONS.has(ext)) {
+    return 'presentation';
+  }
   if (CODE_EXTENSIONS.has(ext)) {
     return 'code';
   }
@@ -121,4 +190,34 @@ export function categorizeFile(filePath: string | undefined): FileCategory {
     return 'binary';
   }
   return 'text';
+}
+
+/**
+ * 是否走二进制媒体通道（图片/音视频/办公文档）：调用端据此选择
+ * readMediaFile（字节）还是 readFile（文本），与 EditorSurfaceShell 渲染分支保持一致。
+ */
+export function isMediaFileCategory(category: FileCategory): boolean {
+  return (
+    category === 'image' ||
+    category === 'audio' ||
+    category === 'video' ||
+    category === 'docx' ||
+    category === 'pdf' ||
+    category === 'spreadsheet' ||
+    category === 'presentation'
+  );
+}
+
+/**
+ * 是否 Office 临时锁定文件（Word/Excel/PowerPoint 打开文档时产生的 `~$xxx` 文件）：
+ * 体积很小且不是 zip/文档本身，任何解析库都会报"not a zip"类错误，
+ * 应直接给出转存指引而不调库。
+ */
+export function isOfficeTempFile(filePath: string | undefined): boolean {
+  if (!filePath) {
+    return false;
+  }
+  const segments = filePath.split('/');
+  const fileName = segments[segments.length - 1] ?? '';
+  return fileName.startsWith('~$');
 }

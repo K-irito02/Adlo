@@ -76,6 +76,21 @@ pub fn read_text_file(
     String::from_utf8(bytes).map_err(|e| AppError::InvalidInput(e.to_string()))
 }
 
+pub fn read_binary_file(
+    root: &Path,
+    relative_path: &str,
+    max_bytes: u64,
+) -> Result<Vec<u8>, AppError> {
+    let path = resolve_workspace_path(root, relative_path)?;
+    let meta = fs::metadata(&path)?;
+    if meta.len() > max_bytes {
+        return Err(AppError::InvalidInput(format!(
+            "file exceeds configured media read limit ({max_bytes} bytes): {relative_path}"
+        )));
+    }
+    fs::read(&path).map_err(AppError::from)
+}
+
 pub fn atomic_write(root: &Path, relative_path: &str, content: &str) -> Result<(), AppError> {
     let path = resolve_workspace_path(root, relative_path)?;
     if let Some(parent) = path.parent() {
@@ -183,5 +198,26 @@ mod tests {
         let mut large = vec![b'x'; 5000];
         large[100] = 0;
         assert!(looks_binary(&large));
+    }
+
+    #[test]
+    fn read_binary_file_rejects_over_limit() {
+        let dir = std::env::temp_dir().join(format!("adl-fs-ops-media-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("clip.mp4"), vec![0u8; 16]).unwrap();
+        let err = read_binary_file(dir.as_path(), "clip.mp4", 8).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn read_binary_file_returns_bytes_within_limit() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-fs-ops-media-ok-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.bin"), [1u8, 2u8, 3u8]).unwrap();
+        let bytes = read_binary_file(dir.as_path(), "a.bin", 1024).unwrap();
+        assert_eq!(bytes, vec![1u8, 2u8, 3u8]);
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

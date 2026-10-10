@@ -390,6 +390,32 @@ pub async fn read_file(
     ipc::to_response(result)
 }
 
+/// POST `/workspace/read-media` — read a binary/media file from the active
+/// workspace (or an explicit workspace path). Bytes are base64-encoded
+/// (`WorkspaceMediaDocument`) for JSON IPC transport.
+pub async fn read_media_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: FileOpsBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let doc = adl_workspace::read_media_file(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+        )?;
+        Ok(serde_json::to_value(doc)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
 /// POST `/workspace/change-preview` — diff preview for a file.
 pub async fn get_change_preview(
     State(state): State<ServerState>,

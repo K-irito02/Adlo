@@ -33,6 +33,7 @@ export function useFilesPanelProps(
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
   const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
   const fileContent = useAppStore((s) => s.fileContent);
+  const fileMedia = useAppStore(useShallow((s) => s.fileMedia));
   const fileOpenError = useAppStore(useShallow((s) => s.fileOpenError));
   const positioningPath = useAppStore((s) => s.positioningPath);
   const externalFileChange = useAppStore(useShallow((s) => s.externalFileChange));
@@ -214,6 +215,7 @@ export function useFilesPanelProps(
       selectedFilePath,
       selectedFileWorkspaceId,
       fileContent,
+      fileMedia,
       fileOpenError,
       positioningPath,
       filePatch,
@@ -263,6 +265,7 @@ export function useFilesPanelProps(
       selectedFilePath,
       selectedFileWorkspaceId,
       fileContent,
+      fileMedia,
       fileOpenError,
       positioningPath,
       filePatch,

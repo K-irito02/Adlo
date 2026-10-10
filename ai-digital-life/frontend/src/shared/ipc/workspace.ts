@@ -15,6 +15,7 @@ import type {
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
   WorkspaceFilesChangedBatch,
+  WorkspaceMediaDocument,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -43,6 +44,7 @@ export type {
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
   WorkspaceFilesChangedBatch,
+  WorkspaceMediaDocument,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
@@ -192,6 +194,30 @@ export interface WorkspaceBridge {
     workspacePath: string,
     relativePath: string,
   ) => Promise<IpcResult<WorkspaceFileDocument>>;
+  /**
+   * 读取当前工作区内的二进制/媒体文件（图片/音视频/办公文档）
+   * @param relativePath 相对于工作区的路径
+   * @returns base64 字节 + MIME + 体积及元信息（50 MiB 上限，超限返回 InvalidInput）
+   * @command workspace_read_media_file（HTTP: POST /workspace/read-media）
+   * @see tauri-bridge.ts → workspace.readMediaFile（继承 http 实现）
+   * @see mock-bridge.ts → workspace.readMediaFile
+   * @see preview-bridge/index.ts → workspace.readMediaFile
+   */
+  readMediaFile: (relativePath: string) => Promise<IpcResult<WorkspaceMediaDocument>>;
+  /**
+   * 读取指定工作区内的二进制/媒体文件
+   * @param workspacePath 工作区的绝对路径
+   * @param relativePath 相对于工作区的路径
+   * @returns base64 字节 + MIME + 体积及元信息
+   * @command workspace_read_media_file（HTTP: POST /workspace/read-media）
+   * @see tauri-bridge.ts → workspace.readMediaFileForWorkspace（继承 http 实现）
+   * @see mock-bridge.ts → workspace.readMediaFileForWorkspace
+   * @see preview-bridge/index.ts → workspace.readMediaFileForWorkspace
+   */
+  readMediaFileForWorkspace: (
+    workspacePath: string,
+    relativePath: string,
+  ) => Promise<IpcResult<WorkspaceMediaDocument>>;
   /**
    * 获取当前工作区内文件的变更预览 (diff)
    * @param relativePath 相对于工作区的路径
