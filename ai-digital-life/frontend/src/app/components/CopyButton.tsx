@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CopyIcon } from 'lucide-animated';
 import type { CopyIconHandle } from 'lucide-animated';
 import { TooltipSimple } from './Tooltip';
-import type { Placement } from '../utils/tooltipPosition';
+import type { Placement } from '@utils/tooltipPosition';
 import { useTCopy } from '@i18n/useTCopy';
 
 interface CopyButtonProps {

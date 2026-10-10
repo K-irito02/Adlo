@@ -542,8 +542,9 @@ const routes: Route[] = [
         // 异步写盘：Base64 图片可达数十 MB，同步写会阻塞预览服务事件循环。
         await writeFile(target, Buffer.from(b.dataBase64, 'base64'));
       } catch (e) {
+        // 错误信息只带基名：绝对路径进 IPC 错误体是路径信息外泄（dev 本地风险低，仍收敛）。
         return fail(
-          `failed to write ${target}: ${e instanceof Error ? e.message : String(e)}`,
+          `failed to write ${path.basename(target)}: ${e instanceof Error ? e.message : String(e)}`,
           'IO_ERROR',
         );
       }

@@ -7,7 +7,7 @@ import type { GitHubBridge } from '../shared/ipc/github';
 import type { ReferenceBridge } from '../shared/ipc/reference';
 import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
-import type { ClipboardBridge, ClipboardSaveToFileResult } from '../shared/ipc/clipboard';
+import type { ClipboardBridge, ClipboardSaveToFileRequest, ClipboardSaveToFileResult } from '../shared/ipc/clipboard';
 import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
 import type { StorageBridge } from '../shared/ipc/storage';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
@@ -270,7 +270,7 @@ export async function setupPreviewBridge(): Promise<void> {
       // dev 预览服务实现（Windows SaveFileDialog / macOS choose file name /
       // Linux zenity），与桌面端 Tauri 命令行为一致 —— 必须覆盖在 spread 之后。
       // `requestPreviewApi` 自带 try/catch，失败恒返回结构化 IpcResult，不抛。
-      saveToFile: (request) =>
+      saveToFile: (request: ClipboardSaveToFileRequest) =>
         requestPreviewApi<ClipboardSaveToFileResult>('/clipboard/save-file', {
           method: 'POST',
           body: JSON.stringify({

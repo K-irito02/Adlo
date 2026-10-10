@@ -42,8 +42,9 @@ const ZOOM_STEP = 0.1;
 /** 存储的图片原图恒为 PNG。 */
 const IMAGE_FORMAT = 'PNG';
 /** 各 kind 的导出扩展名：与 ad-server `GET /clipboard/export` 的文件名后缀一致，
- *  保证"另存为"对话框预填的文件名与服务端产出一致。 */
-const EXPORT_EXTENSIONS: Record<string, string> = {
+ *  保证"另存为"对话框预填的文件名与服务端产出一致。类型锁死 kind 全集，
+ *  拼写错误编译期即暴露；未知 kind 回退 'txt'（type 上不可达，防未来扩展）。 */
+const EXPORT_EXTENSIONS: Record<ClipboardItem['kind'], string> = {
   text: 'txt',
   html: 'html',
   rtf: 'rtf',
@@ -146,6 +147,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   const editingRef = useRef(false);
   editingRef.current = editing;
   const [savingToFile, setSavingToFile] = useState(false);
+  // 存文件单飞的同步互斥（见 handleSaveToFile；state 只做渲染）。
+  const savingToFileRef = useRef(false);
   // 条目的纯文本内容（`content`）：非编辑态的纯文本视图与统计读数都基于它。
   const [draft, setDraft] = useState(item.content ?? '');
   const draftRef = useRef(item.content ?? '');
@@ -275,16 +278,19 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
    * 用户取消对话框不算错误（`path` 为空即静默返回）；取载荷 / 落盘失败走错误 toast。
    */
   const handleSaveToFile = useCallback(async () => {
-    if (savingToFile) {
+    // ref 做同步互斥（state 更新异步，同 tick 双击会双双穿透各弹一次对话框），
+    // state 只负责按钮 disabled 渲染。
+    if (savingToFileRef.current) {
       return;
     }
-    const suggestedName = `clipboard-${item.id}.${EXPORT_EXTENSIONS[item.kind] ?? 'txt'}`;
-    if (item.kind !== 'text' && !exportUrl) {
-      reportError('CLIPBOARD_EXPORT_UNAVAILABLE', t.clipboardExportFailed, 'clipboard');
-      return;
-    }
+    savingToFileRef.current = true;
     setSavingToFile(true);
     try {
+      const suggestedName = `clipboard-${item.id}.${EXPORT_EXTENSIONS[item.kind] ?? 'txt'}`;
+      if (item.kind !== 'text' && !exportUrl) {
+        reportError('CLIPBOARD_EXPORT_UNAVAILABLE', t.clipboardExportFailed, 'clipboard');
+        return;
+      }
       const bytes =
         item.kind === 'text'
           ? new TextEncoder().encode(editing ? editTextRef.current : draftRef.current)
@@ -300,9 +306,10 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     } catch {
       reportError('CLIPBOARD_EXPORT_FAILED', t.clipboardExportFailed, 'clipboard');
     } finally {
+      savingToFileRef.current = false;
       setSavingToFile(false);
     }
-  }, [editing, exportUrl, item.id, item.kind, reportError, savingToFile, t]);
+  }, [editing, exportUrl, item.id, item.kind, reportError, t]);
 
   /**
    * 若正在编辑且有改动则落盘，然后退出编辑模式；空白内容不可保存。
@@ -383,7 +390,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     closingRef.current = true;
     try {
       if (editing) {
-        const result = await commitIfEditing();
+        // commit 按契约永不 reject，catch 只防未来 bridge 实现抛错（无 unhandledrejection）。
+        const result = await commitIfEditing().catch(() => false);
         // 等待在途保存期间用户可能已按 Esc 撤回更改（草稿回到基线）——
         // 此时已无未保存改动，即使保存任务以失败收尾也不得再弹确认框。
         if (result === false && editTextRef.current !== baselineRef.current) {
@@ -413,9 +421,10 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   // 卸载时仍在编辑则把未落盘的改动保存下来（用户已确认放弃更改时跳过）。
   // 卸载后任务的成功/失败分支不再 setState（无主更新）也不 toast（无处可显），
   // 静默是兜底的有意代价；有 UI 时的失败走确认框路径。
+  // commit 按契约永不 reject，catch 只防未来 bridge 实现抛错（无 unhandledrejection）。
   useEffect(
     () => () => {
-      if (!discardRef.current) void commitIfEditingRef.current();
+      if (!discardRef.current) void commitIfEditingRef.current().catch(() => undefined);
     },
     [],
   );
@@ -438,7 +447,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       startEditing();
       return;
     }
-    void commitIfEditing();
+    // commit 按契约永不 reject（各 bridge 内 catch），catch 只是防未来实现抛错的硬化。
+    void commitIfEditing().catch(() => false);
   };
 
   /**
@@ -470,7 +480,7 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
       return;
     }
     void (async () => {
-      const result = await commitIfEditing();
+      const result = await commitIfEditing().catch(() => false);
       if (result === false) {
         return;
       }
@@ -589,6 +599,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   const textTypography = {
     fontSize: `calc(var(--text-sm) * ${fontScale})`,
     whiteSpace: wrap ? ('pre-wrap' as const) : ('pre' as const),
+    // `word-break: break-word` 虽是废弃别名，但此处是"关闭换行"根因修复的现行载体
+    // （CSS 层已无 word-break，全靠本内联切回 normal），保留并由测试锁定，不做规范性清理。
     wordBreak: wrap ? ('break-word' as const) : ('normal' as const),
     overflowWrap: wrap ? ('anywhere' as const) : ('normal' as const),
   };
@@ -664,6 +676,8 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                   className={`adl-icon-btn adl-icon-btn--xs${previewing ? ' is-toggled' : ''}`}
                   aria-pressed={previewing ? 'true' : 'false'}
                   onClick={enterPreview}
+                  // 空白编辑态禁用：空白不可保存，点预览只会静默无反应，禁用比静默诚实。
+                  disabled={editing && !editText.trim()}
                   aria-label={previewLabel}
                 >
                   <IconEye size={12} decorative />

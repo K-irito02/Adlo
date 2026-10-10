@@ -6,7 +6,8 @@ export type { ClipboardItem, IpcResult };
 export interface ClipboardSaveToFileRequest {
   /** 对话框预填文件名（含扩展名），用户可改名与改位置。 */
   suggestedName: string;
-  /** 条目字节的 base64 编码（标准字母表 + padding）。 */
+  /** 条目字节的 base64 编码（标准字母表 + padding）。
+   *  当前剪贴板载荷均为 KB 级；MB 级以上行为未定义（无背压/分块约定）。 */
   dataBase64: string;
 }
 

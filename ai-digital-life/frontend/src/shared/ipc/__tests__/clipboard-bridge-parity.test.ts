@@ -28,6 +28,8 @@ describe('clipboard bridge contract', () => {
     });
     expect(result.ok).toBe(false);
     expect(result.ok === false && result.error.code).toBe('NOT_SUPPORTED');
+    // message 带方法名，排查时可定位到具体能力而非笼统 NOT_SUPPORTED。
+    expect(result.ok === false && result.error.message).toContain('clipboard.saveToFile');
   });
 
   it('builds asset urls from basename only', () => {

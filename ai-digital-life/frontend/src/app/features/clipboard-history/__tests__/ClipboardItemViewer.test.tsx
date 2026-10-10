@@ -383,6 +383,29 @@ describe('ClipboardItemViewer', () => {
     ).toBe('hello!');
   });
 
+  it('opens only one save dialog on a same-tick double click', async () => {
+    const saveToFile = vi.fn().mockResolvedValue({ ok: true, data: {} });
+    setClipboardBridge({ saveToFile });
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    // 同 tick 两次点击：state 守卫来不及更新，ref 互斥必须拦住第二次
+    const saveButton = screen.getByRole('button', { name: '保存为文件' });
+    fireEvent.click(saveButton);
+    fireEvent.click(saveButton);
+
+    await waitFor(() => expect(saveToFile).toHaveBeenCalledTimes(1));
+  });
+
+  it('disables preview while editing a blank draft instead of silently ignoring', async () => {
+    renderViewer(makeItem({ id: 'c1', content: 'hello' }));
+
+    await userEvent.click(screen.getByRole('button', { name: '编辑' }));
+    await userEvent.clear(screen.getByRole('textbox'));
+
+    // 空白不可保存：预览按钮禁用（诚实），而非点击无反应
+    expect(screen.getByRole('button', { name: '预览文本' })).toBeDisabled();
+  });
+
   it('reports an error toast when the export fetch is not ok', async () => {
     const reportError = vi.fn();
     const saveToFile = vi.fn().mockResolvedValue({ ok: true, data: {} });
@@ -1068,6 +1091,17 @@ describe('ClipboardItemViewer', () => {
       () => expect(screen.getByRole('button', { name: '重置字号' }).textContent).toBe('100%'),
       { timeout: 2000 },
     );
+  });
+
+  it('resets immediately on keyboard activation of the readout', async () => {
+    renderViewer(makeItem());
+    await userEvent.click(screen.getByRole('button', { name: '放大字号' }));
+    await userEvent.click(screen.getByRole('button', { name: '放大字号' }));
+    expect(screen.getByRole('button', { name: '重置字号' }).textContent).toBe('120%');
+
+    // 键盘 Enter/Space 的 click detail 为 0：不等消歧窗口，立即重置
+    fireEvent.click(screen.getByRole('button', { name: '重置字号' }));
+    expect(screen.getByRole('button', { name: '重置字号' }).textContent).toBe('100%');
   });
 
   it('renders the zoom step buttons with the compact text size', () => {

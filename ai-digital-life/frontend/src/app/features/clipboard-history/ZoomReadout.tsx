@@ -124,6 +124,11 @@ export function ZoomReadout({
       onClick={(event) => {
         // 双击的第 2 次 click（detail>1）忽略，交给 onDoubleClick；
         // 第 1 次 click 延迟执行，可被随后到达的 dblclick 取消。
+        // 键盘 Enter/Space 的 detail 为 0：立即执行，无需等消歧窗口。
+        if (event.detail === 0) {
+          onReset();
+          return;
+        }
         if (event.detail > 1) {
           return;
         }

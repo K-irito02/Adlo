@@ -1,10 +1,12 @@
+use std::path::Path;
+
+use base64::Engine;
+use tauri_plugin_dialog::DialogExt;
+use tokio::sync::oneshot;
+
 use crate::commands::ipc;
 use adl_errors::AppError;
 use adl_types::IpcResult;
-use base64::Engine;
-use std::path::Path;
-use tauri_plugin_dialog::DialogExt;
-use tokio::sync::oneshot;
 
 /// 「保存为文件」的请求载荷。
 ///
@@ -28,9 +30,10 @@ pub struct SaveToFilePayload {
 /// 在 Unix 上不会，两端行为不一致，而本函数的输出会同时喂给两端的「另存为」对话框。
 fn sanitize_suggested_name(raw: &str) -> String {
     let normalized = raw.trim().replace('\\', "/");
-    // `rsplit` 恒产出至少一个子串：expect 标记该不可达性，而非静默兜底空串
-    // （空结果仍由下方 `cleaned.is_empty()` 兜底为 "clipboard"）。
-    let base = normalized.rsplit('/').next().expect("rsplit yields at least one item");
+    // `rsplit` 恒产出至少一个子串，`next()` 永不返回 `None`；
+    // 保留 `unwrap_or("")` 而不用 `expect`：后端禁止 panic 路径，
+    // 空结果自然落入下方 `"clipboard"` 兜底，语义不变。
+    let base = normalized.rsplit('/').next().unwrap_or("");
     let cleaned: String = base
         .chars()
         .map(|c| {
@@ -72,6 +75,16 @@ pub async fn clipboard_save_to_file(
 ) -> IpcResult<Option<String>> {
     let suggested_name = sanitize_suggested_name(&payload.suggested_name);
 
+    // base64 先解码：纯 CPU 操作无需 spawn_blocking；非法载荷直接 InvalidInput，
+    // 不打扰用户选路径（与预览路由"先校验后弹框"顺序对齐）。
+    let bytes =
+        match base64::engine::general_purpose::STANDARD.decode(payload.data_base64.as_bytes()) {
+            Ok(bytes) => bytes,
+            Err(err) => {
+                return ipc(Err(AppError::InvalidInput(format!("invalid base64 payload: {err}"))));
+            },
+        };
+
     let (tx, rx) = oneshot::channel();
     let mut dialog = app.dialog().file().set_file_name(&suggested_name);
     if let Some(extensions) = filter_extensions(&suggested_name) {
@@ -101,14 +114,6 @@ pub async fn clipboard_save_to_file(
             return ipc(Err(AppError::Io(format!("failed to resolve save path: {err}"))));
         },
     };
-
-    let bytes =
-        match base64::engine::general_purpose::STANDARD.decode(payload.data_base64.as_bytes()) {
-            Ok(bytes) => bytes,
-            Err(err) => {
-                return ipc(Err(AppError::InvalidInput(format!("invalid base64 payload: {err}"))));
-            },
-        };
 
     // 落盘路径在闭包内被移动，先留一份字符串供返回值使用。
     let saved_path = target.to_string_lossy().into_owned();

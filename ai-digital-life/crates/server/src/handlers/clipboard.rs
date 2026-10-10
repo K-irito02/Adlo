@@ -127,9 +127,11 @@ struct UpdateBody {
 }
 
 /// POST `/clipboard/update` — body `{ id, content }`。`text` 与 `html` 条目可编辑
-/// （html 编辑的是纯文本侧 `content`，与 sidecar 无关；sidecar 只由捕获写入）；
+/// （html 编辑的是纯文本侧 `content`，与 sidecar 无关；sidecar 只由捕获写入；
+/// `rtf` 结构虽同但富格式回写风险未评估，暂不放行）；
 /// 原地更新 `content` 并**保留 `created_at`**（列表按 createdAt 倒序 → 位置不变），
-/// 不动去重指纹（html 的 digest 仍按 sidecar 载荷）。
+/// 指纹不动（仍按捕获时 sidecar 载荷；注意去重三元组含 `content`，改后再次捕获
+/// 同 HTML 会因 content 不同而新建一行，而非顶替旧行）。
 pub async fn update(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -141,7 +143,7 @@ pub async fn update(
     let store = state.clipboard_store.clone();
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let mut item = store
-            .get(&input.id)?
+            .get(input.id.trim())?
             .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
         if item.kind != ClipboardKind::Text && item.kind != ClipboardKind::Html {
             return Err(AppError::InvalidInput("only text and html items are editable".into()));
@@ -176,6 +178,8 @@ pub async fn export(State(state): State<ServerState>, Query(q): Query<ExportQuer
                 Ok((bytes, format!("clipboard-{}.png", item.id), "image/png"))
             },
             ClipboardKind::Html => {
+                // 已知分歧（有意）：html 的纯文本编辑只改 `content`，此处恒服务捕获时的
+                // sidecar —— 导出与富预览仍是原文，不跟随文本编辑，不是"编辑未生效"。
                 let p = item.html_path.ok_or_else(|| AppError::NotFound("no html".into()))?;
                 let bytes = std::fs::read(&p).map_err(|e| AppError::Io(e.to_string()))?;
                 Ok((bytes, format!("clipboard-{}.html", item.id), "text/plain; charset=utf-8"))
