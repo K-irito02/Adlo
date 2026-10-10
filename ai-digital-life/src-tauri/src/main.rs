@@ -140,6 +140,7 @@ fn main() {
             commands::app::app_set_log_mode,
             commands::app::app_get_server_info,
             commands::workspace::workspace_pick_directory,
+            commands::clipboard::clipboard_save_to_file,
             commands::platform::workspace_reveal_in_file_manager,
             commands::browser::browser_create_for_tab,
             commands::browser::browser_activate_tab,
@@ -208,4 +209,44 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
+}
+
+#[cfg(test)]
+mod tests {
+    /// `generate_handler!` 里注册的每条命令都必须在
+    /// `permissions/digital-life.toml` 的 `commands.allow` 白名单中登记。
+    ///
+    /// Tauri v2 在 invoke 层做能力校验：漏登记的命令会被直接拒绝，前端只会看到
+    /// 一个没有原因的 `INVOKE_ERROR`（开发期表现为"点了没反应"）。白名单是手工维护的，
+    /// 新增命令极易漏登（`clipboard_save_to_file` 就这样漏过一次），故在此做机器校验。
+    #[test]
+    fn every_registered_command_is_allowlisted() {
+        let main_src = include_str!("main.rs");
+        let permissions = include_str!("../permissions/digital-life.toml");
+
+        let handler = main_src
+            .split_once("generate_handler![")
+            .and_then(|(_, rest)| rest.split_once("])"))
+            .map(|(body, _)| body)
+            .expect("generate_handler! block not found in main.rs");
+        let allowlist = permissions
+            .split_once("commands.allow = [")
+            .and_then(|(_, rest)| rest.split_once(']'))
+            .map(|(body, _)| body)
+            .expect("commands.allow list not found in digital-life.toml");
+
+        let missing: Vec<&str> = handler
+            .split(',')
+            .filter_map(|entry| entry.trim().rsplit("::").next())
+            .filter(|name| !name.is_empty())
+            .filter(|name| !allowlist.contains(&format!("\"{name}\"")))
+            .collect();
+
+        assert!(
+            missing.is_empty(),
+            "commands registered in generate_handler! but missing from \
+             permissions/digital-life.toml commands.allow (Tauri will reject them \
+             at invoke time with a bare INVOKE_ERROR): {missing:?}"
+        );
+    }
 }

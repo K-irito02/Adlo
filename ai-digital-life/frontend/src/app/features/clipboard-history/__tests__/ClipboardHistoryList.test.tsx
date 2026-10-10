@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import type { ClipboardItem } from '@shared/ipc/clipboard';
 import { ClipboardHistoryList } from '../ClipboardHistoryList';
@@ -15,6 +15,10 @@ const fakeBridge = {
   clipboard: {
     getThumbUrl: () => '',
     getImageUrl: () => '',
+    getHtmlUrl: () => '',
+    getRtfUrl: () => '',
+    exportUrl: () => '',
+    saveToFile: vi.fn().mockResolvedValue({ ok: true, data: {} }),
     onChanged: (listener: () => void) => {
       clipboardListeners.add(listener);
       return () => clipboardListeners.delete(listener);
@@ -82,7 +86,7 @@ function renderList(overrides: Record<string, unknown> = {}) {
       <ClipboardHistoryList />
     </TCopyProvider>,
   );
-  return { fetchClipboardHistory, unmount: result.unmount };
+  return { fetchClipboardHistory, unmount: result.unmount, rerender: result.rerender, state };
 }
 
 beforeEach(() => {
@@ -163,5 +167,23 @@ describe('ClipboardHistoryList', () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it('feeds store updates into the open viewer instead of a stale open-time snapshot', async () => {
+    const { rerender, state } = renderList({ clipboardHistory: [makeItem('1', 'alpha')] });
+    fireEvent.click(screen.getByRole('button', { name: '放大查看' }));
+    // 按浏览面断言：预览面常驻挂载（隐藏），懒分包到达后同文本会重复
+    const viewerText = () =>
+      (document.querySelector('.adl-clipboard-viewer__text') as HTMLElement).textContent;
+    expect(viewerText()).toBe('alpha');
+
+    // 模拟保存成功后的 store 原位替换：弹窗必须跟进最新条目，而非停在打开时快照。
+    state.clipboardHistory = [makeItem('1', 'beta')];
+    rerender(
+      <TCopyProvider t={mockT as never} locale="zh-CN">
+        <ClipboardHistoryList />
+      </TCopyProvider>,
+    );
+    await waitFor(() => expect(viewerText()).toBe('beta'));
   });
 });

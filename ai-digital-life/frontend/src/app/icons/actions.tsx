@@ -152,6 +152,22 @@ export const IconDownload = make(
   </>,
 );
 
+/**
+ * "保存为文件"（软盘）。取自用户提供的 24×24 SVG：源 `<g fill="none" fill-rule="evenodd">`
+ * 的裁剪矩形与 `fill="#ffffff"` 已剔除，仅保留图形本体，改由 `makeFilled` 的
+ * `fill="currentColor"` 继承主题色。`fillRule="evenodd"` 保留 —— 软盘窗口与
+ * 上方标签的镂空依赖它（默认 nonzero 会把内部子路径填实）。
+ */
+export const IconSaveAsFile = makeFilled(
+  '0 0 24 24',
+  <>
+    <path
+      fillRule="evenodd"
+      d="M15.586 3A2 2 0 0 1 17 3.586L19.414 6A2 2 0 0 1 20 7.414V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2zM8 5H5v14h2v-5a2 2 0 0 1 2-2h5a2 2 0 0 1 2 2v5h2V7.414L15.586 5H15v2.5A1.5 1.5 0 0 1 13.5 9h-4A1.5 1.5 0 0 1 8 7.5zm6 9H9v5h5zm-1-9h-3v2h3z"
+    />
+  </>,
+);
+
 export const IconDownloadSettings = make(
   <>
     <path d="M12 3v12" />

@@ -7,7 +7,8 @@ export interface UndoStack {
   canRedo(): boolean;
 }
 
-/** 快照式撤销栈：每次编辑压栈；`push` 会丢弃 redo 尾部（标准编辑器语义）。 */
+/** 快照式撤销栈：每次编辑压栈；`push` 会丢弃 redo 尾部（标准编辑器语义）。
+ * TODO: MB 级长文逐字符全量快照是 O(n²) 内存；体量上来后加栈深上限（如 100）或空闲合并。 */
 export function createUndoStack(initial: string): UndoStack {
   const stack: string[] = [initial];
   let index = 0;

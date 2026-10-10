@@ -49,6 +49,9 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
       if (url.includes('/__adl_preview_api__/workspace/reveal')) {
         return Promise.resolve(okJson({ ok: true, data: true }));
       }
+      if (url.includes('/__adl_preview_api__/clipboard/save-file')) {
+        return Promise.resolve(okJson({ ok: true, data: { path: 'E:/out.txt' } }));
+      }
       if (url.includes('/sidebar/list')) {
         return Promise.resolve(okJson({ ok: true, data: [] }));
       }
@@ -73,6 +76,32 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
         expect.stringContaining('/__adl_preview_api__/workspace/pick-directory'),
         expect.anything(),
       );
+    },
+  );
+
+  it(
+    'clipboard.saveToFile routes to the dev preview service (not the NOT_SUPPORTED httpBridge stub)',
+    { timeout: 10000 },
+    async () => {
+      const { bridge, fetchMock } = await setupBridge();
+      const res = await bridge.clipboard.saveToFile({
+        suggestedName: 'clipboard-c1.txt',
+        dataBase64: 'aGk=',
+      });
+
+      expect(res).toEqual({ ok: true, data: { path: 'E:/out.txt' } });
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining('/__adl_preview_api__/clipboard/save-file'),
+        expect.objectContaining({ method: 'POST' }),
+      );
+      const body = JSON.parse(
+        (
+          fetchMock.mock.calls.find((c) =>
+            String(c[0]).includes('/clipboard/save-file'),
+          )?.[1] as RequestInit
+        ).body as string,
+      );
+      expect(body).toEqual({ suggestedName: 'clipboard-c1.txt', dataBase64: 'aGk=' });
     },
   );
 
@@ -108,6 +137,14 @@ describe('preview-bridge reachable-server workspace merge (Task 7 wave 4)', () =
       expect(revealed.data).toBe(true);
     },
   );
+
+  it('keeps the composed clipboard key set identical to http', { timeout: 10000 }, async () => {
+    // preview clipboard 系 http-or-mock spread + 全覆盖：加专属键而不同步契约时告警。
+    const { bridge } = await setupBridge();
+    const { createHttpBridge } = await import('../httpBridge');
+    const http = createHttpBridge({ baseUrl: 'http://127.0.0.1:1' });
+    expect(Object.keys(bridge.clipboard).sort()).toEqual(Object.keys(http.clipboard).sort());
+  });
 
   it(
     'workspace.pickDirectory / revealInFileManager still use the preview impl in the fallback (unreachable) case',

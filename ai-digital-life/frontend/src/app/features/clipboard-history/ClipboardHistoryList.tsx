@@ -45,6 +45,12 @@ export function ClipboardHistoryList() {
   const changeThrottleRef = useRef<number | undefined>(undefined);
   const changeTrailingPendingRef = useRef(false);
   const [viewerItem, setViewerItem] = useState<ClipboardItem | null>(null);
+  // 弹窗展示走 store 实时条目而非打开时快照：编辑保存后 `replaceClipboardHistoryItem`
+  // 原位替换列表项，快照会让弹窗的 prop 永远停在旧内容（默认浏览态不刷新、重进编辑
+  // 甚至用旧草稿覆盖新存档）；找不到（条目已删）则沿用快照，保持弹窗不闪退。
+  const liveViewerItem = viewerItem
+    ? (clipboardHistory.find((candidate) => candidate.id === viewerItem.id) ?? viewerItem)
+    : null;
   const { scrollRef: clipboardScrollRef, tryRestore: tryRestoreClipboardScroll } =
     usePersistedScrollTop(CLIPBOARD_SCROLL_TOP_KEY, { usePersistChannel: true });
 
@@ -226,7 +232,9 @@ export function ClipboardHistoryList() {
           </ul>
         </CustomScrollArea>
       )}
-      {viewerItem ? <ClipboardItemViewer item={viewerItem} onClose={handleCloseViewer} /> : null}
+      {liveViewerItem ? (
+        <ClipboardItemViewer item={liveViewerItem} onClose={handleCloseViewer} />
+      ) : null}
     </section>
   );
 }

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { CopyIcon } from 'lucide-animated';
 import type { CopyIconHandle } from 'lucide-animated';
 import { TooltipSimple } from './Tooltip';
+import type { Placement } from '../utils/tooltipPosition';
 import { useTCopy } from '@i18n/useTCopy';
 
 interface CopyButtonProps {
@@ -11,6 +12,8 @@ interface CopyButtonProps {
   className?: string;
   tooltip?: string;
   tooltipCopied?: string;
+  /** Tooltip 出现方位（默认 `'top'`，保持既有调用处行为不变）。 */
+  tooltipPlacement?: Placement;
   /**
    * 复制动作。省略 `text`（自定义复制路径）时必须由它负责复制；
    * 该路径下返回 `false` 时不显示"已复制"状态（有 `text` 时返回值被忽略）。
@@ -36,6 +39,7 @@ export function CopyButton({
   tooltipCopied,
   onCopy,
   nativeTooltip,
+  tooltipPlacement = 'top',
 }: CopyButtonProps) {
   const { t } = useTCopy();
   const [copied, setCopied] = useState(false);
@@ -125,7 +129,7 @@ export function CopyButton({
   return nativeTooltip ? (
     btn
   ) : (
-    <TooltipSimple content={content} placement="top">
+    <TooltipSimple content={content} placement={tooltipPlacement}>
       {btn}
     </TooltipSimple>
   );

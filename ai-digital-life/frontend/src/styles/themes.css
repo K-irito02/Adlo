@@ -131,6 +131,9 @@ html:not(.no-transition) [data-theme] {
   --surface-hover: rgba(34, 34, 34, 0.06);
   --surface-active: rgba(34, 34, 34, 0.08);
   --surface-raised: #ffffff;
+  /* 编辑态底色（可编辑区域：剪贴板正文编辑器、缩放百分比输入框）。
+     中性灰，不使用 accent 系；与相邻 surface-raised 拉开明度以在亮色下可见。 */
+  --surface-editing: #f0f0f1;
 
   /* === Text Hierarchy (WCAG AA Compliant) === */
   --text-primary: #222222;
@@ -392,6 +395,9 @@ html:not(.no-transition) [data-theme] {
   --surface-hover: rgba(255, 255, 255, 0.08);
   --surface-active: rgba(255, 255, 255, 0.12);
   --surface-raised: #1c1c1c;
+  /* 编辑态底色（可编辑区域：剪贴板正文编辑器、缩放百分比输入框）。
+     中性灰，不使用 accent 系；较 surface-raised 提亮以在暗色下可见。 */
+  --surface-editing: #242427;
 
   /* === Text Hierarchy (WCAG AA Compliant) === */
   --text-primary: #d8d8d8;

@@ -2,6 +2,19 @@ import type { ClipboardItem, IpcResult } from '@ai-digital-life/kernel';
 
 export type { ClipboardItem, IpcResult };
 
+/** 「保存为文件」请求：条目字节由前端取回，壳层只负责弹对话框并写盘。 */
+export interface ClipboardSaveToFileRequest {
+  /** 对话框预填文件名（含扩展名），用户可改名与改位置。 */
+  suggestedName: string;
+  /** 条目字节的 base64 编码（标准字母表 + padding）。 */
+  dataBase64: string;
+}
+
+/** 「保存为文件」结果：`path` 为用户确认的绝对路径；取消对话框时为 `undefined`。 */
+export interface ClipboardSaveToFileResult {
+  path?: string;
+}
+
 /**
  * 系统剪贴板历史桥接能力
  * 用于: 查询最近剪贴板历史、删除单项、清空所有历史、写回、缩略图/原图 URL
@@ -52,7 +65,8 @@ export interface ClipboardBridge {
    */
   write: (id: string) => Promise<IpcResult<boolean>>;
   /**
-   * 原地保存一条文本条目的编辑结果（仅 `kind === 'text'` 可编辑）。
+   * 原地保存一条文本条目的编辑结果（`kind === 'text'` 与 `'html'` 可编辑；
+   * html 编辑的是纯文本侧 `content`，sidecar 只由捕获写入）。
    * 保持条目 id 与 `createdAt` 不变（列表按 createdAt 倒序 → 位置不变）。
    * @param id 条目 ID
    * @param content 编辑后的文本内容（空白内容会被后端拒绝）
@@ -64,8 +78,9 @@ export interface ClipboardBridge {
    */
   update: (id: string, content: string) => Promise<IpcResult<ClipboardItem>>;
   /**
-   * 把一条剪贴板条目的载荷转成可下载文件的 URL（`/clipboard/export?id=<id>`），
-   * 供"保存为文件"的 `<a download>` 触发浏览器下载。同步返回，不发起网络请求。
+   * 把一条剪贴板条目的载荷转成可下载文件 URL（`/clipboard/export?id=<id>`），
+   * **作为 `saveToFile` 的取字节来源**（非直接下载通道：跨域 `<a download>`
+   * 不生效，落盘走 `saveToFile`）。同步返回，不发起网络请求。
    * @param id 条目 ID
    * @returns 可下载文件 URL；mock 模式返回空串。
    * @see tauri-bridge/index.ts（...http 继承）→ clipboard.exportUrl
@@ -73,6 +88,23 @@ export interface ClipboardBridge {
    * @see preview-bridge/index.ts → clipboard.exportUrl
    */
   exportUrl: (id: string) => string;
+  /**
+   * 弹系统原生「另存为」对话框，把条目字节写到用户选定位置（取消对话框返回 `path: undefined`）。
+   *
+   * 与 `exportUrl` 的分工：payload 是"载荷来源"，本方法是"落盘"。
+   * 两者不能互相替代 —— `exportUrl` 指向 ad-server 的 `/clipboard/export`，与页面源跨域，
+   * `<a download>` 只对同源（及 `blob:` / `data:`）生效，跨源时 Chromium 直接忽略该属性；
+   * 且主窗口 WebView2 未注册 `on_download`（只有浏览器子 WebView 有），下载请求无人接管 ——
+   * 点击后没有任何反应。本方法才是可用的落盘通道。
+   * @param request 预填文件名 + 条目字节（base64）
+   * @returns 落盘路径；取消对话框时 `data.path` 为 `undefined`
+   * @see tauri-bridge/index.ts（...http 继承）→ clipboard.saveToFile
+   * @see mock-bridge.ts → clipboard.saveToFile
+   * @see preview-bridge/index.ts → clipboard.saveToFile
+   */
+  saveToFile: (
+    request: ClipboardSaveToFileRequest,
+  ) => Promise<IpcResult<ClipboardSaveToFileResult>>;
   /**
    * 把 HTML 载荷 sidecar 路径转成可访问 URL（`/clipboard/html/<filename>`）。
    * 同步返回，不发起网络请求。

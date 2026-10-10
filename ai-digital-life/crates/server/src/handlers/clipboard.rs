@@ -126,8 +126,10 @@ struct UpdateBody {
     content: String,
 }
 
-/// POST `/clipboard/update` — body `{ id, content }`。仅 `text` 条目可编辑；
-/// 原地更新 `content` 并**保留 `created_at`**（列表按 createdAt 倒序 → 位置不变）。
+/// POST `/clipboard/update` — body `{ id, content }`。`text` 与 `html` 条目可编辑
+/// （html 编辑的是纯文本侧 `content`，与 sidecar 无关；sidecar 只由捕获写入）；
+/// 原地更新 `content` 并**保留 `created_at`**（列表按 createdAt 倒序 → 位置不变），
+/// 不动去重指纹（html 的 digest 仍按 sidecar 载荷）。
 pub async fn update(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -141,8 +143,8 @@ pub async fn update(
         let mut item = store
             .get(&input.id)?
             .ok_or_else(|| AppError::NotFound("clipboard item not found".into()))?;
-        if item.kind != ClipboardKind::Text {
-            return Err(AppError::InvalidInput("only text items are editable".into()));
+        if item.kind != ClipboardKind::Text && item.kind != ClipboardKind::Html {
+            return Err(AppError::InvalidInput("only text and html items are editable".into()));
         }
         if input.content.trim().is_empty() {
             return Err(AppError::InvalidInput("content must not be empty".into()));
@@ -655,5 +657,71 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(missing.status(), axum::http::StatusCode::BAD_REQUEST);
+    }
+
+    #[tokio::test]
+    async fn update_edits_html_text_side_and_leaves_sidecar_alone() {
+        let state = test_server_state();
+        let mut it = sample_item("h-1", "old text");
+        it.kind = ClipboardKind::Html;
+        it.html_path = Some("h-1.html".into());
+        // 真实 Html 条目恒带载荷指纹：fixture 同样带上，否则"指纹不动"断言无意义。
+        it.digest = Some("abc123".into());
+        it.created_at = 222;
+        state.clipboard_store.insert_or_bump(&it).unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+        let resp = app
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/clipboard/update")
+                    .header("content-type", "application/json")
+                    .body(Body::from(r#"{"id":"h-1","content":"new text"}"#))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert!(resp.status().is_success());
+        let body = body_json(resp).await;
+        assert_eq!(body["data"]["content"], serde_json::json!("new text"));
+        // sidecar 与指纹不动：文本编辑不碰富载荷（响应体 + 落库行双确认）。
+        assert_eq!(body["data"]["htmlPath"], serde_json::json!("h-1.html"));
+        assert_eq!(body["data"]["digest"], serde_json::json!("abc123"));
+        assert_eq!(body["data"]["createdAt"], serde_json::json!(222));
+        let stored = state.clipboard_store.get("h-1").unwrap().unwrap();
+        assert_eq!(stored.content.as_deref(), Some("new text"));
+        assert_eq!(stored.digest.as_deref(), Some("abc123"));
+        assert_eq!(stored.html_path.as_deref(), Some("h-1.html"));
+    }
+
+    #[tokio::test]
+    async fn update_rejects_non_editable_kinds_and_missing_ids() {
+        let state = test_server_state();
+        let mut img = sample_item("img-9", "x");
+        img.kind = ClipboardKind::Image;
+        state.clipboard_store.insert_or_bump(&img).unwrap();
+        let mut rtf = sample_item("rtf-9", "x");
+        rtf.kind = ClipboardKind::Rtf;
+        state.clipboard_store.insert_or_bump(&rtf).unwrap();
+        let app = app_router(state.clone()).with_state(state.clone());
+        for (id, content, status) in [
+            ("img-9", "new", axum::http::StatusCode::BAD_REQUEST),
+            ("rtf-9", "new", axum::http::StatusCode::BAD_REQUEST),
+            ("missing-9", "new", axum::http::StatusCode::NOT_FOUND),
+        ] {
+            let resp = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method("POST")
+                        .uri("/clipboard/update")
+                        .header("content-type", "application/json")
+                        .body(Body::from(format!(r#"{{"id":"{id}","content":"{content}"}}"#)))
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(resp.status(), status);
+        }
     }
 }

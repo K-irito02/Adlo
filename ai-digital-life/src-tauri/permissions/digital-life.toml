@@ -1,6 +1,6 @@
 [[permission]]
 identifier = "digital-life-commands"
-description = "Allow AI Digital Life system-shell Tauri commands (app/browser/platform/provider/reserved/workspace-picker). Business commands are served by the ad-server over HTTP."
+description = "Allow AI Digital Life system-shell Tauri commands (app/browser/platform/provider/reserved/workspace-picker/clipboard). Business commands are served by the ad-server over HTTP."
 commands.allow = [
   "app_get_info",
   "app_get_health",
@@ -14,6 +14,7 @@ commands.allow = [
   "workspace_pick_directory",
   "workspace_reveal_in_file_manager",
   "workspace_open_in_file_manager",
+  "clipboard_save_to_file",
   "get_provider_api_key",
   "has_provider_api_key",
   "browser_create_for_tab",
@@ -40,6 +41,7 @@ commands.allow = [
   "browser_page_meta_report",
   "browser_page_meta_refresh",
   "browser_page_meta_warmup",
+  "browser_memory_pressure",
   "divider_strip_show",
   "divider_strip_set_bounds",
   "divider_strip_hide",

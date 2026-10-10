@@ -117,6 +117,11 @@
   min-height: 0;
   min-width: 0;
   overflow: hidden;
+}
+
+/* 自绘滑块宽度。列表侧挂在滚动壳上；查看器侧挂在弹窗根上 ——
+   横向条（.adl-hscroll）是滚动壳的兄弟节点，取不到壳上的变量。 */
+.adl-clipboard__scroll-shell {
   --adl-clipboard-scrollbar-width: 7px;
 }
 
@@ -351,6 +356,7 @@
   justify-content: center;
   background: var(--bg-overlay, rgba(0, 0, 0, 0.5));
   z-index: var(--z-modal-backdrop);
+  --adl-clipboard-scrollbar-width: 7px;
 }
 
 .adl-clipboard-viewer__panel {
@@ -366,7 +372,10 @@
 }
 
 .adl-clipboard-viewer__header {
-  display: flex;
+  /* 三列 grid：标题 / 居中按钮组 / 关闭。中间列 `auto` + 两侧等宽 `1fr`
+     才能让按钮组真正居中 —— 若沿用 flex + 标题 `flex:1`，按钮组会被标题挤偏。 */
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: var(--space-2);
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
@@ -374,7 +383,7 @@
 }
 
 .adl-clipboard-viewer__title {
-  flex: 1;
+  justify-self: start;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -382,6 +391,46 @@
   font-size: var(--text-xs);
   font-weight: var(--font-medium);
   color: var(--text-secondary);
+}
+
+/* 居中按钮组：复制 / 换行 / 编辑 / 预览 / 保存为文件（预览与编辑仅文本、富文本条目有）。 */
+.adl-clipboard-viewer__header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  justify-self: center;
+}
+
+/* 关闭按钮所在格：TooltipSimple 会多包一层 .tooltip-trigger，而**那层**才是
+   header 的 grid 子项 —— 靠右对齐必须落在这里，写在 button 上对 grid 无效。
+   编辑态时关闭左侧出现文字按钮组（保存 / 放弃本次编辑）：组内常规间距，
+   组与关闭之间用区域型大间距（--space-3）分区。 */
+.adl-clipboard-viewer__close-cell {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.adl-clipboard-viewer__edit-text-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* 编辑态文字按钮：偏直角（radius-sm 2px）；灰底非常驻，仅悬停/聚焦可见
+   （ghost 透明底自带 hover 灰，此处补 focus-visible，键盘可达同反馈）。
+   定高 22px 与图标按钮齐平（sm 的纵向内边距会撑高头部），体量改由横向加宽保证。 */
+.adl-btn.adl-clipboard-viewer__edit-text-btn {
+  height: 22px;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-radius: var(--radius-sm);
+}
+
+.adl-btn.adl-clipboard-viewer__edit-text-btn:focus-visible {
+  background: var(--bg-hover);
+  outline: none;
 }
 
 /* 头部复制按钮与相邻 adl-icon-btn--xs (22px) 对齐（覆盖 .adl-copy-btn 的 24px）。 */
@@ -395,9 +444,44 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+  /* .adl-hscroll 是绝对定位的底部横向条，需以本容器为定位上下文。 */
+  position: relative;
 }
 
-/* 工具栏：统计读数靠左（margin-right:auto 顶开），缩放/换行/富文本按钮靠右。
+/* 编辑态 / 预览态内容区底色（配合 .adl-clipboard-viewer__scroll-shell--active）：
+   二者共用同一中性灰 token（用户要求两者视觉一致），不使用 accent 系；
+   编辑器与预览面本身保持透明，底色由本层铺满整个内容区。
+   150ms 过渡：底色切换不再与内容显隐同帧硬切，减弱"闪一下"的体感。 */
+.adl-clipboard-viewer__scroll-shell--active {
+  background: var(--surface-editing);
+}
+
+.adl-clipboard-viewer__scroll-shell {
+  transition: background-color var(--duration-150) var(--ease-default);
+}
+
+/* 浏览/预览面常驻挂载、只翻 `hidden`：`__text/__rich` 自带 `display:block`，
+   会覆盖 UA 的 `[hidden]{display:none}`，此处以 (0,2,0) 兜底隐藏。 */
+.adl-clipboard-viewer__scroll > [hidden] {
+  display: none;
+}
+
+/* Markdown 预览在弹窗内的适配：右侧面板那份自带 `overflow-y:auto; height:100%`
+   与 20vh 底部留白，直接复用会与外层 CustomScrollArea 打架（出现双层滚动）。
+   改为让内容自然撑高、由外层自绘滚动条接管 —— 顺带让纯文本预览也用上项目的
+   竖向/横向自定义滚动条。 */
+.adl-clipboard-viewer__scroll .adl-markdown-preview {
+  height: auto;
+  overflow: visible;
+  padding: var(--space-3);
+}
+
+/* 横向点态条让出右侧竖向滑块的宽度（两者在右下角会重叠）。 */
+.adl-clipboard-viewer__body .adl-hscroll {
+  right: var(--adl-clipboard-scrollbar-width);
+}
+
+/* 工具栏（位于弹窗底部）：统计读数靠左（margin-right:auto 顶开），缩放按钮靠右。
    中性配色，不使用 var(--accent) 系。 */
 .adl-clipboard-viewer__tools {
   display: flex;
@@ -405,7 +489,7 @@
   gap: var(--space-1);
   flex-shrink: 0;
   padding: var(--space-1) var(--space-2);
-  border-bottom: 1px solid var(--border-subtle);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .adl-clipboard-viewer__stats {
@@ -419,22 +503,40 @@
   color: var(--text-muted);
 }
 
-/* 百分比读数按钮需容纳 "100%"，覆盖 adl-icon-btn--xs 的固定宽度。 */
-.adl-clipboard-viewer__tools .adl-clipboard-viewer__zoom {
-  width: auto;
-  min-width: 22px;
+/* 百分比读数：固定宽度，读数按钮与就地输入框共用同一值 ——
+   若读数按文本自适应（约 3.5–4ch）而输入框另定宽度，双击切换时框会变宽、
+   把左侧的 `A-` 顶走。居中对齐保证两种形态下文字位置也不跳。 */
+.adl-clipboard-viewer__tools .adl-clipboard-viewer__zoom,
+.adl-clipboard-viewer__zoom-input {
+  box-sizing: border-box;
+  width: 5.5ch;
+  min-width: 0;
   padding: 0 var(--space-1);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--surface-editing);
+  color: var(--text-primary);
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
 }
 
-/* 图片缩放：中间为只读百分比读数，右侧"适应窗口"按钮容纳较长文案。 */
-.adl-clipboard-viewer__zoom-readout {
-  min-width: 34px;
-  text-align: center;
-  font-size: var(--text-xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--text-muted);
+/* 读数按钮未进入编辑时保持透明底，进入就地输入时才显出编辑底色（无边框线）。
+   键盘 Tab 进入输入框时给 1px 焦点环（常态仍无边框，不破坏设计）。 */
+.adl-clipboard-viewer__tools .adl-clipboard-viewer__zoom {
+  background: transparent;
+}
+
+.adl-clipboard-viewer__zoom-input:focus-visible {
+  box-shadow: 0 0 0 1px var(--border);
+  background: var(--surface-editing);
+}
+
+/* 字号步进（A-/A+）：`.adl-icon-btn` 无 font-size 而继承正文，在 22px 按钮里显大，
+   收敛到 11px。 */
+.adl-clipboard-viewer__tools .adl-clipboard-viewer__zoom-step {
+  font-size: 11px;
 }
 
 .adl-clipboard-viewer__tools .adl-clipboard-viewer__fit {
@@ -450,8 +552,12 @@
   font-size: var(--text-sm);
   line-height: 1.6;
   color: var(--text-primary);
+  /* white-space / word-break / overflow-wrap 由组件内联给出：
+     「关闭自动换行」必须能把 word-break 切回 normal，否则超长无空格串仍会折行。
+     此处保留最弱兜底：未来新增内容面忘记内联时不至于横向溢出；
+     内联 `normal` 会覆盖它，不影响 nowrap。 */
   white-space: pre-wrap;
-  word-break: break-word;
+  overflow-wrap: anywhere;
   user-select: text;
 }
 
@@ -468,7 +574,6 @@
   line-height: 1.6;
   color: var(--text-primary);
   white-space: pre-wrap;
-  word-break: break-word;
   background: transparent;
   border: none;
   outline: none;
@@ -476,13 +581,15 @@
   user-select: text;
 }
 
-/* 富文本预览：沙箱 iframe 填满正文区，中性底色。 */
+/* 富文本预览：沙箱 iframe 填满正文区。自身背景透明 —— iframe 默认白底会盖住
+   容器的主题底色（暗色主题下预览仍是一片亮色）；主题底色与注入文档内的默认
+   前景色由 previewDocument.ts 负责，滚动条改写为项目同款外观亦在其中。 */
 .adl-clipboard-viewer__rich {
   display: block;
   width: 100%;
   height: 100%;
   border: 0;
-  background: var(--surface-subtle);
+  background: transparent;
 }
 
 .adl-clipboard-viewer__image-wrap {

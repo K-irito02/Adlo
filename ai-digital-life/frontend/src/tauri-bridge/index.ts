@@ -18,6 +18,7 @@ import { createTauriDshBridge } from './tauri-dsh';
 import { createTauriReservedBridge } from './tauri-reserved';
 import { createTauriWindowBridge } from './tauri-window';
 import { createTauriWorkspaceBridge } from './tauri-workspace';
+import { createTauriClipboardBridge } from './tauri-clipboard';
 import { invokeIpc } from './tauri-shared';
 
 /**
@@ -39,6 +40,7 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
   const resolvedBaseUrl = baseUrl ?? resolveAdlServerBaseUrl();
   const http = createHttpBridge({ baseUrl: resolvedBaseUrl });
   const tauriWorkspace = createTauriWorkspaceBridge();
+  const tauriClipboard = createTauriClipboardBridge();
   // Shared `/pty` WebSocket client — both `pty` RPC and `subscribePtyOutput`
   // share one socket (matches the preview `createPtyBridge`).
   const ptyWs = createPtyWsClient(resolvedBaseUrl);
@@ -53,6 +55,14 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
       pickDirectory: tauriWorkspace.pickDirectory,
       revealInFileManager: tauriWorkspace.revealInFileManager,
       onFileChanged: tauriWorkspace.onFileChanged,
+    },
+
+    // `clipboard.saveToFile` (native "Save as…" dialog + write) is a Tauri shell
+    // capability with NO ad-server HTTP route — the ad-server only serves the
+    // payload (`GET /clipboard/export`), the shell owns the destination.
+    clipboard: {
+      ...http.clipboard,
+      saveToFile: tauriClipboard.saveToFile,
     },
 
     // PTY goes over the shared `/pty` WebSocket client (Task 6 protocol); the

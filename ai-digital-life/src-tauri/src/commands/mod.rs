@@ -2,6 +2,7 @@ pub mod app;
 pub mod browser;
 pub mod browser_memory;
 pub(crate) mod browser_webview_setup;
+pub mod clipboard;
 pub mod divider_strip;
 pub mod download_commands;
 pub mod platform;

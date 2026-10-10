@@ -90,7 +90,9 @@ export function createUtilitiesActions(
 
     /**
      * [updateClipboardItem - 保存一条文本条目的编辑结果]
-     * 仅文本条目可编辑；成功后用返回的新条目原位替换历史列表中的对应项（保持 createdAt → 位置不变）。
+     * 文本与富文本（html）条目都走这里：改的都是纯文本侧 `content`
+     * （html 的 sidecar 只由捕获写入，编辑不动它）。
+     * 成功后用返回的新条目原位替换历史列表中的对应项（保持 createdAt → 位置不变）。
      * @reads 无
      * @writes clipboardHistorySlice.clipboardHistory
      * @see shared/ipc.ts → clipboard.update

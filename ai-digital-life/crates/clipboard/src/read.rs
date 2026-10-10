@@ -167,6 +167,7 @@ fn build_rich_or_text_item(
     let id = Uuid::new_v4().to_string();
     // 富载荷指纹：去重键需覆盖载荷本身——html/rtf 的纯文本可能相同、甚至缺失（生产者未写
     // CF_UNICODETEXT），仅比较 `content` 会把不同的富内容在时间窗内误判为重复而静默合并。
+    // 该指纹在捕获时计算；文本侧编辑（`POST /clipboard/update`）不动它，去重键保持稳定。
     let digest = match kind {
         ClipboardKind::Html => html.as_deref().map(|h| fnv1a_digest(h.as_bytes())),
         ClipboardKind::Rtf => rtf.as_deref().map(fnv1a_digest),
