@@ -52,6 +52,9 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
   const level = resolveErrorToastLevel(entry.code, entry.detail);
   const title =
     level === 'info' ? t.errorsInfo : t[ERROR_TITLE_BY_CODE[entry.code] ?? 'errorsGenericTitle'];
+  // 重复计数后缀（Phase 4 F7）：纯数字标记、与语言无关；仅 count > 1 时显示。
+  const detail =
+    entry.count != null && entry.count > 1 ? `${entry.detail} ×${entry.count}` : entry.detail;
 
   return (
     <ToastCard
@@ -59,7 +62,7 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
       tone={level}
       icon={LEVEL_ICON[level]}
       title={title}
-      detail={entry.detail}
+      detail={detail}
       onDismiss={() => onDismiss(entry.id)}
       role={level === 'info' ? 'status' : 'alert'}
       ariaLive={level === 'info' ? 'polite' : 'assertive'}

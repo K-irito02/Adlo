@@ -60,6 +60,21 @@ describe('parseLogFlags', () => {
     expect(warn).toHaveBeenCalled();
     expect(env).toEqual({});
   });
+
+  it("skips a bare '--' separator (pnpm/npm pass-through) without forwarding it", () => {
+    // Phase 4 F3：裸 `--` 不得进入 restArgs（否则被拼进 vite args，行为未定义）。
+    const warn = vi.fn();
+    const { env, restArgs } = parseLogFlags(['--', '--log-level', 'trace'], warn);
+    expect(env).toEqual({ ADL_LOG_LEVEL: 'trace' });
+    expect(restArgs).toEqual([]);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('lets the last duplicate flag win', () => {
+    // Phase 4 F5：重复 flag 取最后一次（与 Rust from_cli_args 一致），注释锁定语义。
+    const { env } = parseLogFlags(['--log-level', 'info', '--log-level', 'trace']);
+    expect(env).toEqual({ ADL_LOG_LEVEL: 'trace' });
+  });
 });
 
 describe('debugLogModeForVite', () => {

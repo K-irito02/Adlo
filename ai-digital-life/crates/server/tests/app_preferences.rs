@@ -38,9 +38,11 @@ async fn update_preferences_applies_all_three_log_settings() {
     .await;
 
     assert_eq!(status, StatusCode::OK, "unexpected: {body}");
-    assert_eq!(body["data"]["config"]["logLevel"], "trace");
-    assert_eq!(body["data"]["config"]["terminalLogMode"], "multi");
-    assert_eq!(body["data"]["config"]["debugLogMode"], "append");
+    assert_eq!(body["data"]["info"]["config"]["logLevel"], "trace");
+    assert_eq!(body["data"]["info"]["config"]["terminalLogMode"], "multi");
+    assert_eq!(body["data"]["info"]["config"]["debugLogMode"], "append");
+    // 无会话覆盖时锁定集为空。
+    assert_eq!(body["data"]["sessionLockedFields"], serde_json::json!([]));
 
     // 运行期已对 LogManager 生效（不只是写进了响应）。
     let live = st.log_manager.config().expect("log config");
@@ -99,9 +101,48 @@ async fn update_preferences_ignores_absent_log_fields() {
         send_post(st.clone(), "/app/preferences", Some(json!({ "language": "en-US" }))).await;
 
     assert_eq!(status, StatusCode::OK, "unexpected: {body}");
-    assert_eq!(body["data"]["config"]["language"], "en-US");
+    assert_eq!(body["data"]["info"]["config"]["language"], "en-US");
     // 未被补丁触及的日志字段保持默认。
     let live = st.log_manager.config().expect("log config");
     assert_eq!(live.log_level.to_string(), "info");
     assert_eq!(live.terminal_log_mode.to_string(), "overwrite");
+}
+
+#[tokio::test]
+async fn update_preferences_reports_session_locked_fields() {
+    use adl_types::types::config::LogLevel;
+    let mut st = state("app-prefs-locked").await;
+    // 模拟 CLI 会话覆盖：logLevel 被锁定（按生产顺序先叠加到内存 + 运行期）。
+    st.log_overrides =
+        adl_logging::LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
+    {
+        let mut cfg = st.config.write().expect("config lock");
+        cfg.apply_log_overrides(&st.log_overrides);
+    }
+    st.log_manager
+        .apply_change(&adl_logging::LogSettingsChange {
+            log_level: Some(LogLevel::Trace),
+            ..Default::default()
+        })
+        .expect("seed runtime level");
+
+    let (status, body) = send_post(
+        st.clone(),
+        "/app/preferences",
+        Some(json!({ "logLevel": "warn", "terminalLogMode": "multi" })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK, "unexpected: {body}");
+    // 被锁字段上报（前端弹"下次启动生效"），且运行期保持 CLI 值。
+    assert_eq!(body["data"]["sessionLockedFields"], serde_json::json!(["logLevel"]));
+    let live = st.log_manager.config().expect("log config");
+    assert_eq!(live.log_level, LogLevel::Trace, "locked field keeps CLI value at runtime");
+    assert_eq!(live.terminal_log_mode.to_string(), "multi");
+    // 但落盘用的是用户选择的值（下次无 CLI 启动时生效）。
+    let config_path = st.storage.paths().config_dir.join("config.json");
+    let persisted: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).expect("read config.json"))
+            .expect("parse config.json");
+    assert_eq!(persisted["log_level"], "warn");
 }

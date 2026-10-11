@@ -7,6 +7,12 @@ import type {
 import type { AppInfo, SettingItem } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
 
+const LOG_LEVELS: readonly string[] = ['error', 'warn', 'info', 'debug', 'trace'];
+
+function isLogLevel(value: unknown): value is LogLevel {
+  return typeof value === 'string' && LOG_LEVELS.includes(value);
+}
+
 export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[] {
   if (!appInfo) {
     return [];
@@ -129,7 +135,9 @@ export function preferencePatchFromSettingChange(
     return { themeMode: value as ThemeMode };
   }
   if (id === 'logLevel') {
-    return { logLevel: value as LogLevel };
+    // 纵深守卫（Phase 4 R10）：UI select 已约束取值，运行时误传（如外部直调）
+    // 在此拦截；主防线仍是 Rust serde 校验（非法值 HTTP 400）。
+    return isLogLevel(value) ? { logLevel: value } : undefined;
   }
   if (id === 'terminalLogMode') {
     return { terminalLogMode: value as LogMode };

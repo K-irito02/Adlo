@@ -1,7 +1,9 @@
 use serde::{Deserialize, Serialize};
 use ts_rs::TS;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, Default)]
+// 注：`rename_all` 现仅约束序列化（反序列化走下方手写 `Deserialize`，复用
+// 大小写不敏感的 `FromStr`）；线格式仍为全小写 snake_case。
 #[serde(rename_all = "snake_case")]
 pub enum LogMode {
     #[default]
@@ -10,14 +12,26 @@ pub enum LogMode {
     Multi,
 }
 
+// 手写反序列化（复用大小写不敏感的 `FromStr`）：手写/历史 `config.json` 中的
+// `"Multi"` / `"APPEND"` 不应导致整份配置加载失败（`load_from` 遇错整体返回 Err）。
+// 序列化仍为全小写，线格式不变。
+impl<'de> serde::Deserialize<'de> for LogMode {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
 impl std::str::FromStr for LogMode {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
+        // 与 `LogLevel::from_str` 同口径：手输通道做大小写/空白归一，
+        // `ADL_TERMINAL_LOG_MODE=Multi` 与 `--terminal-log-mode Multi` 均可生效。
+        match s.trim().to_ascii_lowercase().as_str() {
             "overwrite" => Ok(Self::Overwrite),
             "append" => Ok(Self::Append),
             "multi" => Ok(Self::Multi),
-            other => Err(format!("Invalid LogMode: {other}. Expected overwrite|append|multi")),
+            _ => Err(format!("Invalid LogMode: {s}. Expected overwrite|append|multi")),
         }
     }
 }
@@ -65,9 +79,8 @@ impl LanguageCode {
 
 /// 日志详细程度。声明顺序即 verbosity 顺序（`Error` 最粗 … `Trace` 最细），
 /// 因此 `Ord` 可直接用于 `max_verbosity`（取更详细者）。
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize, TS, Default,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, TS, Default)]
+// 注：`rename_all` 现仅约束序列化（反序列化走下方手写 `Deserialize`）。
 #[serde(rename_all = "lowercase")]
 pub enum LogLevel {
     Error,
@@ -76,6 +89,15 @@ pub enum LogLevel {
     Info,
     Debug,
     Trace,
+}
+
+// 手写反序列化（复用大小写不敏感的 `FromStr`）：手写/历史 `config.json` 中的
+// `"INFO"` / `"Warn"` / `"warning"` 不应导致整份配置加载失败。序列化仍为全小写。
+impl<'de> serde::Deserialize<'de> for LogLevel {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
 }
 
 impl LogLevel {
@@ -90,7 +112,7 @@ impl std::str::FromStr for LogLevel {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_ascii_lowercase().as_str() {
             "error" => Ok(Self::Error),
-            "warn" => Ok(Self::Warn),
+            "warn" | "warning" => Ok(Self::Warn),
             "info" => Ok(Self::Info),
             "debug" => Ok(Self::Debug),
             "trace" => Ok(Self::Trace),
@@ -198,6 +220,19 @@ pub struct AppInfo {
     pub recent_logs: Vec<LogEntrySummary>,
 }
 
+/// `updatePreferences` 的响应体：更新后的应用信息 + 本次被会话级 CLI/env 覆盖
+/// 锁定的日志字段（JSON 补丁名，如 `"logLevel"`）。
+///
+/// 被锁字段仍会落盘（下次无 CLI 覆盖启动时生效），但本次运行期保持 CLI 值；
+/// 前端凭此弹"下次启动生效"提示，消除双进程静默分歧（Phase 4 F3）。
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePreferencesResult {
+    pub info: AppInfo,
+    #[serde(default)]
+    pub session_locked_fields: Vec<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct LogEntrySummary {
@@ -207,31 +242,9 @@ pub struct LogEntrySummary {
     pub message: String,
 }
 
-/// 后端侧 ConfigTransform（序列化格式）。
-/// shape: `{"type":"SET_LANGUAGE","language":"en-US"}`
-/// 前端侧 ConfigTransform（frontend/src/app/stores/configStateMachine.ts）使用不同 shape：
-/// `{type:"SET_LANGUAGE", payload:{language:"en-US"}, timestamp:...}` — 二者有意不同，
-/// Rust 端为 IPC 线格式，前端为内部状态机追踪格式。
-#[derive(Debug, Clone, Serialize, Deserialize, TS)]
-#[serde(tag = "type", rename_all = "SCREAMING_SNAKE_CASE")]
-pub enum ConfigTransform {
-    SetLanguage { language: String },
-    SetTheme { theme_mode: ThemeMode },
-    SetLogLevel { log_level: LogLevel },
-    SetPreference { key: String, value: serde_json::Value },
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn config_transform_serializes_correctly() {
-        let t = ConfigTransform::SetLanguage { language: "en-US".into() };
-        let json = serde_json::to_string(&t).unwrap();
-        assert!(json.contains("SET_LANGUAGE"));
-        assert!(json.contains("en-US"));
-    }
 
     #[test]
     fn log_level_parses_case_insensitively_and_rejects_unknown() {
@@ -259,5 +272,24 @@ mod tests {
         assert_eq!(serde_json::from_str::<LogLevel>("\"trace\"").unwrap(), LogLevel::Trace);
         assert_eq!(LogLevel::default(), LogLevel::Info);
         assert_eq!(LogLevel::Debug.to_string(), "debug");
+    }
+
+    #[test]
+    fn log_level_serde_accepts_mixed_case_from_hand_edited_config() {
+        // 手写 config.json 的大小写不应导致整份配置加载失败（Phase 4 R3）。
+        assert_eq!(serde_json::from_str::<LogLevel>("\"INFO\"").unwrap(), LogLevel::Info);
+        assert_eq!(serde_json::from_str::<LogLevel>("\"Warn\"").unwrap(), LogLevel::Warn);
+        assert_eq!(serde_json::from_str::<LogLevel>("\"warning\"").unwrap(), LogLevel::Warn);
+        assert!(serde_json::from_str::<LogLevel>("\"verbose\"").is_err());
+    }
+
+    #[test]
+    fn log_mode_from_str_and_serde_accept_mixed_case() {
+        // 与 LogLevel 同口径：手输通道大小写不敏感（Phase 4 R5）。
+        assert_eq!("Multi".parse::<LogMode>().unwrap(), LogMode::Multi);
+        assert_eq!(" APPEND ".parse::<LogMode>().unwrap(), LogMode::Append);
+        assert_eq!(serde_json::from_str::<LogMode>("\"Multi\"").unwrap(), LogMode::Multi);
+        assert_eq!(serde_json::to_string(&LogMode::Append).unwrap(), "\"append\"");
+        assert!("rotate".parse::<LogMode>().is_err());
     }
 }

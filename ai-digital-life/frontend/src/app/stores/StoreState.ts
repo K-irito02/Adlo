@@ -72,6 +72,14 @@ interface StoreStateRootFields {
   isFetching: Record<string, boolean>;
   isTauri: boolean;
   bootstrap: () => Promise<void>;
+  /**
+   * ad-server 可达性（浏览器预览）：`null` = 尚未探测；`true` = 已连通；
+   * `false` = 不可达（部分域回退 mock/预览实现）。由 `useAppStartup` 订阅
+   * `onAdServerReachabilityChange` 后写入；设置面板凭此显示离线标识。
+   * Tauri 桌面壳恒为 `true`（bootstrap 成功即连通）。
+   */
+  adServerReachable: boolean | null;
+  setAdServerReachable: (reachable: boolean) => void;
 }
 
 type AllSlices = [

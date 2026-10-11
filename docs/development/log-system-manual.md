@@ -61,17 +61,21 @@ pnpm dev:tauri -- --log-level debug
 | `--debug-log-mode <mode>` | `ADL_DEBUG_LOG_MODE` | `overwrite` / `append` / `multi` | 前端调试日志的写入方式 |
 | `--log-mode <mode>`（简写） | `ADL_CLI_LOG_MODE` | `overwrite` / `append` / `multi` | **同时**设置上面两个模式 |
 
-- 取值**大小写不敏感**（`TRACE` 与 `trace` 等价）
+- 取值**大小写不敏感**（`TRACE` 与 `trace` 等价；手写 `config.json` 同理，`"INFO"` 照收，不会导致整份配置加载失败）
 - 非法取值会打印 `[ADL-CLI] ignoring invalid …` 并**忽略该项**（不会阻断启动）
 - 缺值（如 `--log-level --log-mode multi`）同样只告警并跳过
+- 重复 flag 取**最后一次**（与 Rust 侧一致）
 
 ### 2.2 优先级（高 → 低）
 
 ```
-CLI flag  >  RUST_LOG  >  ADL_* 环境变量  >  config.json  >  内置默认值
+CLI flag  >  ADL_* 环境变量  >  config.json  >  内置默认值
 ```
 
-- `RUST_LOG` 是 `tracing` 生态的标准环境变量，会接管**基础过滤**（放行到逐层 gate 之前）
+另有 `RUST_LOG` 作为**硬顶**（不参与上式排序）：它是 `tracing` 生态的标准
+环境变量，接管**基础过滤**；多层 filter 按 AND 语义组合 —— `RUST_LOG=error`
+会同时掐掉 stdout 层和文件层低于 error 的一切事件，**CLI `--log-level trace`
+也无法将其顶开**。想要运行期调高级别，先 unset `RUST_LOG`。
 - CLI flag 会先转成 `ADL_*` 环境变量再被读取 —— 因此**直接设环境变量等价于传 flag**：
 
 ```powershell
@@ -102,7 +106,7 @@ pnpm dev:tauri
 |------|------|
 | `ADL_LOG_LEVEL` / `ADL_TERMINAL_LOG_MODE` / `ADL_DEBUG_LOG_MODE` | 与同名 flag 等价 |
 | `ADL_CLI_LOG_MODE` | `--log-mode` 简写的等价变量（同时设两个模式） |
-| `RUST_LOG` | 覆盖基础过滤（优先级高于 `ADL_*`，低于 CLI flag） |
+| `RUST_LOG` | 基础过滤的**硬顶**（设了就掐住两层，CLI 也顶不开；运行期调高前先 unset） |
 
 环境变量还有一个隐藏好处：**shell 派生的 adl-server 子进程会继承它**，所以一条环境变量可同时覆盖两个后端进程（详见 §4.4）。
 
@@ -162,6 +166,11 @@ Select-String -Path "E:\AI-DIGITAL-LIFE\SourceWorkspace\.adl-logs\terminal-logs.
 
 - **Tauri 桌面**：立即对**壳**生效并落盘；同时转发给 adl-server（**仅运行时**，不重复落盘）
 - **浏览器模式**：经 `POST /app/preferences`，落盘并立即对 adl-server 生效
+- **会话覆盖锁定**：若某字段正被 CLI/env 覆盖（如 `--log-level trace` 启动后在 UI
+  改级别），运行期**保持 CLI 值**、仅落盘，前端弹顶部提示"下次启动生效"
+  —— 下次无覆盖启动时落盘值生效。落盘失败会回滚运行期并报错。
+  - 壳与 server 各自按自己进程的 env 计算锁定（正常经同一 env 继承而一致；
+    双端 flag 传得不一致时以各自进程为准）。
 
 ### 5.2 通过 HTTP（推荐给 agent / 脚本）
 
@@ -268,7 +277,10 @@ Get-ChildItem "$dir" -Filter "terminal-logs-*.txt" |
 
 > 想验证"日志级别 / 终端模式"请用 `dev:tauri` 或 `dev:preview`。`dev:browser` 没有后端，只有前端调试日志可调。
 >
-> 另外：后端不可达时，浏览器界面会**回退到 mock 渲染**（应用仍可用，只是没有真实数据），这些回退会记录在 `debug-logs-browser*.txt` 中（`[adl-bridge] … falls back to the preview/mock implementation`）。
+> 后端不可达时的行为（用户决策 2026-10-12）：`app` 域（设置/配置）**失败即失败**，
+> 以错误卡响亮呈现，不回退 mock；其它业务域仍可能回退预览/mock 实现，这些回退会
+> 记录在 `debug-logs-browser*.txt` 中（`[adl-bridge] … falls back to the preview/mock
+> implementation`），设置面板同时显示"未连接后端"离线标识。
 
 ---
 
@@ -296,22 +308,27 @@ crates/adl-logging/            # 统一日志 crate
 ### Q: 传了 `--log-level trace` 但日志没变详细
 1. 看启动行有没有 `[ADL-CLI] level=trace …`。没有 → 参数没被消费（**检查是否漏了 `--`**）
 2. 有启动行但仍不详细 → 确认看的是**正确的文件**（两处目录！后端是 `adl-server-logs*`）
-3. 若设过 `RUST_LOG`，它优先级高于 `ADL_*` 环境变量
+3. 若设过 `RUST_LOG`，它是**硬顶**：先 unset 再重测（CLI 顶不开它）
 
 ### Q: `pnpm dev:tauri -- --log-level trace` 报 `cargo run … unexpected argument '--log-level'`
 已修复（v2026-10-12）：日志 flag **只经环境变量**传递，不再作为 argv 透传给 `cargo tauri dev`。若仍复现，说明脚本不是最新版。
 
 ### Q: 浏览器模式界面空白（只有"复制调试日志"按钮）
-历史上曾因两件事导致，均已修复：
-1. 启动脚本找不到后端产物（曾误用 `ad-server` 名字，实际是 `adl-server`）→ 后端没起来 → 前端落兜底地址不可达
-2. `app` 域缺少不可达回退 → `getInfo` 失败 → 界面不渲染
+历史上有启动脚本找不到后端产物的问题（曾误用 `ad-server` 名字，实际是
+`adl-server`），已修复并加命名契约测试。现在的语义是**失败即失败**：`app` 域
+不再回退 mock（用户决策 2026-10-12 —— 静默 mock 曾掩盖"后端没起来"的真实故障），
+`getInfo` 失败即以错误卡响亮呈现。
 
 排查：看 `debug-logs-browser*.txt`。
 - 出现 `[adl-bridge] using ad-server at http://127.0.0.1:<端口>` → 已连上后端 ✅
 - 出现 `… at http://127.0.0.1:61234 is not reachable` → 该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（常见原因：浏览器打开的是上次遗留的 5173，而不是脚本本次打印的地址）
 
 ### Q: 用 `Y` 中断后，右下角不断弹出"网络错误"卡片
-后端退出后，轮询类调用会持续失败。已加入**按 `(silent, scope, code, detail)` 去重**：内容相同的错误只提示一张卡片。若仍看到多张**内容不同**的卡片，那是不同故障源，需要按模块单独排查。
+后端退出后，轮询类调用会持续失败。去重键为 `(silent, scope, code, 归一化 detail)`：
+端口/时间戳/attempt 计数等易变片段会被剥离后再比较，内容相同**或仅易变片段不同**
+的错误只提示一张卡片，并附"×N"计数（命中时更新；卡片展示首次上报的原文，
+不会更新为最新 detail）。若仍看到多张**归一化后仍不同**的卡片，
+那是不同故障源，需要按模块单独排查。
 
 ### Q: `.adl-logs/terminal-logs.txt` 为空
 确认文件层过滤器未被 `RUST_LOG` 收紧到 `error` 以上；并且 `OpenOptions` 带 `.write(true)`（`.append(false)` 不隐含写权限）。

@@ -19,6 +19,8 @@ pub fn build(config: &AppConfig, current_workspace: Option<WorkspaceMeta>) -> Ap
     };
     AppInfo {
         app_name: adl_types::APP_NAME.into(),
+        // 取 kernel crate 版本：全 workspace 统一 `version.workspace = true`
+        // （当前同为 0.1.0），故与应用版本同源；若版本各自演进，需改由调用方传入。
         version: env!("CARGO_PKG_VERSION").to_string(),
         config: ConfigSnapshot {
             language: config.language.clone(),

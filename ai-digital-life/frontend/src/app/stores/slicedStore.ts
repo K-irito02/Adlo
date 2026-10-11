@@ -111,6 +111,8 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   appReady: false,
   isFetching: {},
   isTauri: false,
+  adServerReachable: null,
+  setAdServerReachable: (reachable: boolean) => set({ adServerReachable: reachable }),
 
   // ════════════════════════════════════════════════════════
   // 跨切片 Actions（10 个领域模块）

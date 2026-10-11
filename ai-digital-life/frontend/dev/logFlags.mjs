@@ -13,13 +13,17 @@ export const LOG_FLAG_ENV = {
 };
 
 /**
- * @param {string[]} argv 模式参数之后的透传参数（如 `process.argv.slice(3)`）
+ * @param {string[]} argv 调用方切掉已消费前缀后的透传参数（`run-project-surface`
+ *   用 `process.argv.slice(3)`（含 mode 位），`ad-server-launch` 用 `slice(2)`）
  * @param {(msg: string) => void} [warn]
  * @returns {{ env: Record<string,string>, restArgs: string[] }}
  *   - `env`：注入给子进程环境（shell 派生的 ad-server 会继承）——**唯一的传递通道**：
  *     `cargo tauri dev` 会把 `--` 之后的参数当作 cargo 参数（实测报
  *     `unexpected argument '--log-level'`），故不依赖 argv 透传。
  *   - `restArgs`：未消费的其余参数（原样转发给 Vite 等）
+ *
+ * 语义：重复 flag 取最后一次（与 Rust `from_cli_args` 一致）；裸 `--`
+ * 分隔符直接跳过（pnpm/npm 透传时常见，不进入 restArgs）。
  */
 export function parseLogFlags(argv, warn = console.warn) {
   const env = {};
@@ -27,6 +31,9 @@ export function parseLogFlags(argv, warn = console.warn) {
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
+    if (arg === '--') {
+      continue;
+    }
     const key = LOG_FLAG_ENV[arg];
     if (!key) {
       restArgs.push(arg);

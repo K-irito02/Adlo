@@ -38,6 +38,26 @@ describe('mergePrefPatches', () => {
     expect(merged.keybinds).toEqual({ b: 'Ctrl+B' });
   });
 
+  it('merges modelPreferences per provider so disjoint providers coexist', () => {
+    // 与 mock 侧 preferencesMerger 的逐 provider 语义对齐（Phase 4 R3）。
+    const merged = mergePrefPatches(
+      { modelPreferences: { deepseek: { priority: 2 } } },
+      { modelPreferences: { openai: { priority: 5 } } },
+    );
+    expect(merged.modelPreferences).toEqual({
+      deepseek: { priority: 2 },
+      openai: { priority: 5 },
+    });
+  });
+
+  it('later provider patch wins for the same provider', () => {
+    const merged = mergePrefPatches(
+      { modelPreferences: { deepseek: { priority: 2 } } },
+      { modelPreferences: { deepseek: { priority: 7 } } },
+    );
+    expect(merged.modelPreferences).toEqual({ deepseek: { priority: 7 } });
+  });
+
   it('does not mutate either input', () => {
     const a = { fonts: { uiFont: 'Inter' } };
     const b = { fonts: { codeFont: 'Fira' } };

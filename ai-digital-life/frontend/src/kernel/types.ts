@@ -340,6 +340,17 @@ export interface AppInfo {
   recentLogs: LogEntrySummary[];
 }
 
+/**
+ * `updatePreferences` 响应体（镜像 Rust `UpdatePreferencesResult`）：
+ * 更新后的应用信息 + 本次被会话级 CLI/env 覆盖锁定的日志字段
+ * （JSON 补丁名，如 `"logLevel"`）。被锁字段已落盘但运行期保持 CLI 值，
+ * 调用方凭此弹"下次启动生效"提示。
+ */
+export interface UpdatePreferencesResult {
+  info: AppInfo;
+  sessionLockedFields: string[];
+}
+
 // ════════════════════════════════════════════════════════
 // Tool Invocation / Base Event
 // ════════════════════════════════════════════════════════

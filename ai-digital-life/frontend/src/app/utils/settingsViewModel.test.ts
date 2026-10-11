@@ -126,6 +126,12 @@ describe('preferencePatchFromSettingChange', () => {
     expect(patch?.logLevel).toBe('debug');
   });
 
+  it('rejects invalid logLevel values before they reach the backend', () => {
+    // 纵深守卫（Phase 4 R10）：非法值本地拦截，主防线仍是 Rust 400。
+    expect(preferencePatchFromSettingChange('logLevel', 'verbose')).toBeUndefined();
+    expect(preferencePatchFromSettingChange('logLevel', 'INFO')).toBeUndefined();
+  });
+
   it('converts terminalLogMode change to patch', () => {
     const patch = preferencePatchFromSettingChange('terminalLogMode', 'append');
     expect(patch?.terminalLogMode).toBe('append');

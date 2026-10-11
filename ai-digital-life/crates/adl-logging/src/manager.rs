@@ -34,8 +34,14 @@ fn to_tracing_level(level: LogLevel) -> Level {
     }
 }
 
-/// 全局基础 filter：`RUST_LOG` 优先（其语义为最高优先级覆盖），否则用 `trace`
+/// 全局基础 filter：`RUST_LOG` 已设置时采用它（tracing 惯例），否则用 `trace`
 /// 放行到逐层 gate 再各自收紧。
+///
+/// 注意这是**硬顶**（多层 filter 按 AND 语义组合）：`RUST_LOG=error` 会同时掐掉
+/// stdout 层和文件层低于 error 的一切事件，CLI `--log-level trace` 也无法将其顶开。
+/// 想要运行期调高级别，先 unset `RUST_LOG`。缺省必须保持最宽松级别 —— 收紧此处
+/// 会破坏 `set_log_level` 的运行期热生效（全局 max 被收紧后 interest-cache 不再
+/// 向上传递，调高级别静默失效且极难排查）。
 fn initial_base_filter() -> EnvFilter {
     EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace"))
 }
@@ -187,6 +193,9 @@ impl LogManager {
         // Tolerate a second init in the same process (integration tests spin up
         // multiple engine instances per binary). The production path calls this
         // exactly once; re-init only means "subscriber already installed".
+        // 注意：复用旧订阅者时，旧 gate 指向首次 init 的 manager 的 level_cell，
+        // 新 manager 的 `set_log_level` 对实际生效的订阅者无影响 —— 运行期调级别
+        // 请使用首次返回的 manager（生产路径单次 init，不受影响）。
         if let Err(e) = subscriber.try_init() {
             tracing::warn!("global tracing subscriber already set, reusing it ({e})");
         }
@@ -225,7 +234,7 @@ impl LogManager {
             *cell = level;
         }
 
-        tracing::info!(%level, "[ADL-LOG] log level changed");
+        tracing::warn!(%level, "[ADL-LOG] log level changed");
         Ok(())
     }
 
@@ -238,21 +247,33 @@ impl LogManager {
     }
 
     /// 应用运行期日志变更集（偏好补丁 / 外部配置重载）。
-    /// 任一字段失败即提前返回；已生效的字段保持生效。
+    /// 任一字段失败即提前返回；已生效的字段保持生效（调用方决定是否回滚，
+    /// 见 shell `app_update_preferences` / server `update_preferences`）。
     pub fn apply_change(&self, change: &crate::overrides::LogSettingsChange) -> LogResult<()> {
         if let Some(level) = change.log_level {
-            self.set_log_level(level)?;
+            if let Err(e) = self.set_log_level(level) {
+                tracing::warn!(%level, error = %e, "[ADL-LOG] log level change failed; no fields applied yet");
+                return Err(e);
+            }
         }
         if let Some(mode) = change.terminal_log_mode {
-            self.set_mode(LogTarget::Terminal, mode)?;
+            if let Err(e) = self.set_mode(LogTarget::Terminal, mode) {
+                tracing::warn!(?mode, error = %e, "[ADL-LOG] terminal mode change failed; log level (if any) already applied");
+                return Err(e);
+            }
         }
         if let Some(mode) = change.debug_log_mode {
-            self.set_mode(LogTarget::Debug, mode)?;
+            if let Err(e) = self.set_mode(LogTarget::Debug, mode) {
+                tracing::warn!(?mode, error = %e, "[ADL-LOG] debug mode change failed; earlier fields already applied");
+                return Err(e);
+            }
         }
         if !change.is_empty() {
             // 自证行：设置项经 UI/HTTP 生效时留痕，便于用户与 agent 核对
             // （guards 均已释放，此处打日志不触达非重入锁）。
-            tracing::info!(
+            // 用 warn 级别：调到 warn/error 后 info 行会被新门限自己过滤，
+            // 用户将看到"无任何回显"而误判设置未生效。
+            tracing::warn!(
                 level = ?change.log_level,
                 terminal = ?change.terminal_log_mode,
                 debug = ?change.debug_log_mode,
@@ -320,7 +341,9 @@ impl LogManager {
         }
 
         if target == LogTarget::Terminal {
-            tracing::info!(%mode, "[ADL-LOG] terminal log mode changed");
+            // 与 set_log_level/apply_change 同口径用 warn：先调级别到 error 再切模式时，
+            // info 确认行会被新门限自己过滤（R4 同类误判），warn 恒可见。
+            tracing::warn!(%mode, "[ADL-LOG] terminal log mode changed");
         }
 
         if mode == LogMode::Multi {
@@ -365,10 +388,6 @@ impl LogManager {
         // helper 内空失败早返，此处不再重复门控（与 set_mode/async 三处无条件调用保持一致）。
         log_prune_failures("session prune failed", &report);
         Ok(report.removed)
-    }
-
-    pub fn prune_sessions(&self, target: LogTarget) -> LogResult<usize> {
-        self.prune_sessions_sync(target)
     }
 
     pub async fn prune_sessions_async(&self, target: LogTarget) -> LogResult<usize> {
@@ -674,6 +693,30 @@ mod tests {
             manager.set_log_level(level).unwrap();
             assert_eq!(manager.log_level().unwrap(), level);
         }
+    }
+
+    /// 运行期热切换语义回归（Phase 4 R8）：`LevelGate` 直接读共享级别单元，
+    /// stdout 层有效级别 = 当前级别，文件层 = `max(level, debug)`。此测试钉住
+    /// 门控逻辑本身；其"调高即时生效"还依赖全局 base filter 缺省最宽松
+    /// （见 `initial_base_filter` 注释），后者由启动期 e2e 覆盖。
+    #[test]
+    fn level_gate_tracks_runtime_level_changes() {
+        use std::sync::{Arc, RwLock};
+        let cell = Arc::new(RwLock::new(LogLevel::Info));
+        let stdout_gate = LevelGate { level: cell.clone(), floor: None };
+        let file_gate = LevelGate { level: cell.clone(), floor: Some(LogLevel::Debug) };
+
+        assert_eq!(stdout_gate.effective_level(), Some(tracing::Level::INFO));
+        assert_eq!(file_gate.effective_level(), Some(tracing::Level::DEBUG));
+
+        *cell.write().unwrap() = LogLevel::Trace;
+        assert_eq!(stdout_gate.effective_level(), Some(tracing::Level::TRACE));
+        assert_eq!(file_gate.effective_level(), Some(tracing::Level::TRACE));
+
+        *cell.write().unwrap() = LogLevel::Error;
+        assert_eq!(stdout_gate.effective_level(), Some(tracing::Level::ERROR));
+        // 文件层下限恒为 debug：调到 error 仍保留 post-mortem 能力。
+        assert_eq!(file_gate.effective_level(), Some(tracing::Level::DEBUG));
     }
 
     /// F1：不同进程前缀的终端日志写入不同文件，互不截断。

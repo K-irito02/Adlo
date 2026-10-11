@@ -119,8 +119,10 @@ pub async fn init_server_state(
     eprintln!("[ad-server] loading config...");
     let mut config = adl_config::load_from(&storage.paths().config_dir)
         .map_err(|e| AppError::Internal(format!("Config load failed: {e}")))?;
+    eprintln!("[ad-server] config loaded");
     let log_overrides = adl_logging::LogOverrides::from_env();
-    if log_overrides.any() {
+    let has_log_overrides = log_overrides.any();
+    if has_log_overrides {
         config.apply_log_overrides(&log_overrides);
     }
     eprintln!("[ad-server] initializing LogManager...");
@@ -130,10 +132,10 @@ pub async fn init_server_state(
     eprintln!(
         "[ADL-LOG] logger ready level={} prefix={} dir={}",
         config.log_level,
-        adl_logging::SERVER_TERMINAL_PREFIX,
+        log_manager.terminal_prefix(),
         log_dir.display()
     );
-    if log_overrides.any() {
+    if has_log_overrides {
         eprintln!("[ADL-CLI] {} (session override, not persisted)", log_overrides.summary());
     }
 
@@ -162,8 +164,6 @@ pub async fn init_server_state(
             restored_current_workspace.as_ref().map(|w| w.name.as_str()).unwrap_or("")
         );
     }
-
-    eprintln!("[ad-server] config loaded");
 
     let event_bus = EventBus::new(256);
     let restored_root = restored_current_workspace.as_ref().map(|w| w.root_path.clone());

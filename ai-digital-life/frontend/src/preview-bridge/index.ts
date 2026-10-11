@@ -161,24 +161,15 @@ export async function setupPreviewBridge(): Promise<void> {
     subscribePtyOutput: ptyBridge.subscribePtyOutput,
     pty: ptyBridge.pty,
     window: windowBridge.window,
-    // app 域必须走 `preferHttpWhenReachable`（与 workspace 等域一致）：ad-server
-    // 可达时用真实 `/app/*`；**不可达时回退到 mock**（`ad-server-launch.mjs` 明示
-    // 「回退时浏览器 demo 仍可工作」）。此前 app 域直接绑定 `http.app.*` 且无回退，
-    // 一旦不可达（如 dev:browser 无后端、或端口注入未生效落到 61234）`getInfo` 失败
-    // → `appInfo` 恒 undefined → 语言包 `t` 不加载 → 整个应用壳渲染空白。
-    app: preferHttpWhenReachable<AppBridge>(
-      adlServerBaseUrl,
-      {
-        ...diagnosticBridge,
-        getInfo: http.app.getInfo,
-        updatePreferences: http.app.updatePreferences,
-      },
-      {
-        ...diagnosticBridge,
-        getInfo: mockDigitalLifeBridge.app.getInfo,
-        updatePreferences: mockDigitalLifeBridge.app.updatePreferences,
-      },
-    ) satisfies AppBridge,
+    // app 域必须直连真实 `/app/*`（Phase 4 R5，用户决策）：不可达即失败，
+    // 不回退 mock —— 静默 mock 会掩盖"后端没起来"的真实故障（如 Coulson 命名漂移
+    // 致端口未注入），失败经 bootstrap 的 captureError 以错误卡响亮呈现。
+    // mock.app 仅供测试等明确批准的场景直接使用。
+    app: {
+      ...diagnosticBridge,
+      getInfo: http.app.getInfo,
+      updatePreferences: http.app.updatePreferences,
+    } satisfies AppBridge,
     workspace: preferHttpWhenReachable<WorkspaceBridge>(
       adlServerBaseUrl,
       workspaceHttp,

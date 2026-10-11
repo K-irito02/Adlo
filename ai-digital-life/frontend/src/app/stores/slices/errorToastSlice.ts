@@ -32,6 +32,10 @@ export interface ErrorToastEntry {
    * 用于启动级联等"打扰比信息价值更大"的场景；真实故障仍可观测。
    */
   silent?: boolean;
+  /** 同一归一化错误的重复次数（首次为 1；命中去重时 +1，供卡片显"×N"） */
+  count?: number;
+  /** 同一归一化错误最近一次发生的时间（Date.now()，供"仍在发生"感知） */
+  lastSeenAt?: number;
 }
 
 export interface ErrorToastSlice {
@@ -48,11 +52,31 @@ export interface ErrorToastSlice {
 }
 
 /**
- * 去重键：`(silent, scope, code, detail)` 完全相同的错误只保留一条。
+ * 去重前的 detail 归一化（Phase 4 F6）：剥离每次变化的易变片段（时间戳/端口/
+ * IPv4/attempt 计数/时长），使轮询/重连类错误的重复上报折叠为同一张卡。
+ * 原始 detail 仍原样展示（首见版本），归一化键仅用于去重。
+ *
+ * 顺序依赖：时间戳规则必须先于端口规则 —— 否则 `00:52:40` 中的 `:52`/`:40`
+ * 会先被端口规则吃掉（两侧同等坍缩，折叠效果虽等价，但 time 规则即失效）。
+ */
+export function normalizeErrorDetail(detail: string): string {
+  return detail
+    .replace(/\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?\b/g, '#time#')
+    .replace(/\b\d{1,3}(\.\d{1,3}){3}\b/g, '#ipv4#')
+    .replace(/:\d{1,5}\b/g, ':#port#')
+    .replace(/\b(attempt|retry|tried)\s*#?\d+/gi, '$1 #n#')
+    .replace(/\b\d+\s?(ms|s)\b/gi, '#dur#');
+}
+
+/**
+ * 去重键：`(silent, scope, code, 归一化 detail)` 相同的错误只保留一条。
  *
  * 动机：后端进程退出后，轮询/重连类调用会**反复**失败并各自 `captureError`，
  * 于是右下角不断堆出内容完全一致的卡片（用户实测：`Y` 中断后网络错误卡片刷屏）。
- * 同一错误只应提示一次；不同 detail（真实不同的故障）仍各自成卡。
+ * 同一错误只应提示一次；归一化后仍不同的 detail（真实不同的故障）各自成卡。
+ *
+ * scope 用三态区分（Phase 4 F8）：`undefined`（缺省）与 `''`（显式空串）是
+ * 不同的键 —— 与 `clearErrorToasts` 的清除语义一致（`''` 只清显式空串条目）。
  */
 function dedupeKey(
   code: string,
@@ -60,7 +84,7 @@ function dedupeKey(
   scope: string | undefined,
   silent: boolean,
 ): string {
-  return `${silent ? 'S' : 'V'}\u0000${scope ?? ''}\u0000${code}\u0000${detail}`;
+  return JSON.stringify([silent, scope ?? null, code, normalizeErrorDetail(detail)]);
 }
 
 /** 已存在同键条目时返回其 id（不再入队），否则返回 null。 */
@@ -87,11 +111,23 @@ export const createErrorToastSlice = (
   reportError: (code, detail, scope) => {
     const duplicateId = findDuplicateId(get().errorToasts, code, detail, scope, false);
     if (duplicateId) {
+      // 命中去重：不入队，但更新计数与最近发生时间（Phase 4 F7 —— 故障持续
+      // 发生时用户能从"×N"感知"仍在发生"，而非一张静止旧卡）。
+      const now = Date.now();
+      set((state) => ({
+        errorToasts: state.errorToasts.map((entry) =>
+          entry.id === duplicateId
+            ? { ...entry, count: (entry.count ?? 1) + 1, lastSeenAt: now }
+            : entry,
+        ),
+      }));
       return duplicateId;
     }
     const id = createUiId('error-toast');
     const entry: ErrorToastEntry =
-      scope !== undefined ? { id, code, detail, scope } : { id, code, detail };
+      scope !== undefined
+        ? { id, code, detail, scope, count: 1, lastSeenAt: Date.now() }
+        : { id, code, detail, count: 1, lastSeenAt: Date.now() };
     set((state) => ({
       errorToasts: keepVisibleFirst([...state.errorToasts, entry]),
     }));
@@ -100,10 +136,26 @@ export const createErrorToastSlice = (
   reportSilentError: (code, detail, scope) => {
     const duplicateId = findDuplicateId(get().errorToasts, code, detail, scope, true);
     if (duplicateId) {
+      const now = Date.now();
+      set((state) => ({
+        errorToasts: state.errorToasts.map((entry) =>
+          entry.id === duplicateId
+            ? { ...entry, count: (entry.count ?? 1) + 1, lastSeenAt: now }
+            : entry,
+        ),
+      }));
       return duplicateId;
     }
     const id = createUiId('error-toast');
-    const entry: ErrorToastEntry = { id, code, detail, scope, silent: true };
+    const entry: ErrorToastEntry = {
+      id,
+      code,
+      detail,
+      scope,
+      silent: true,
+      count: 1,
+      lastSeenAt: Date.now(),
+    };
     set((state) => ({
       errorToasts: keepVisibleFirst([...state.errorToasts, entry]),
     }));

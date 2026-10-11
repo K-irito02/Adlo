@@ -43,14 +43,15 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `--debug-log-mode` | `ADL_DEBUG_LOG_MODE` | `overwrite` / `append` / `multi` |
 | `--log-mode` | `ADL_CLI_LOG_MODE` | 同时设终端与调试 |
 
-- 优先级：CLI flag > `RUST_LOG` > `ADL_*` env > `config.json` > 默认
+- 优先级：CLI flag > `ADL_*` env > `config.json` > 默认；另有 `RUST_LOG` 为**硬顶**（设了就掐住两层，CLI 也顶不开；调高前先 unset）
 - **传递通道只有 env**：flag 由启动脚本转成 `ADL_*` 环境变量（`cargo tauri dev` 会把 `--` 之后的参数当成 cargo 参数而报错，不依赖 argv 透传）
 - 运行期同步：桌面 UI 改设置 → 壳生效并落盘 + 推送 adl-server `/app/log-settings`（仅运行时）；浏览器模式经 `/app/preferences`（含落盘）
+- 会话覆盖锁定：CLI/env 锁定的字段，UI 改后运行期保持 CLI 值、仅落盘（下次启动生效），前端弹"下次启动生效"提示；落盘失败回滚运行期
 - `--log-level` 控制 stdout；**文件层下限恒为 `debug`**（可调高到 trace，不会低于 debug）
 - 启动自证行：`[ADL-LOG] logger ready level=… prefix=…` / `[ADL-CLI] … (session override, not persisted)`
 - 日志文件按进程分离：shell → `terminal-logs*.txt`，adl-server → `adl-server-logs*.txt`
 - 浏览器模式（`dev:browser`，无 ad-server）下 `--log-level` / `--terminal-log-mode` 无后端可作用；需完整后端日志请用 `dev:preview` / `dev:tauri` / `dev:both`
-- ad-server 不可达时 `app` 域回退 mock（应用仍可渲染，不会白屏）；若页面日志出现兜底地址 `127.0.0.1:61234`，说明该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（请打开启动脚本打印的那个地址）
+- ad-server 不可达时 `app` 域**失败即失败**（不再回退 mock，以错误卡呈现）；若页面日志出现兜底地址 `127.0.0.1:61234`，说明该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（请打开启动脚本打印的那个地址）
 
 ## 测试命令
 

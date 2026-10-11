@@ -6,6 +6,7 @@
 import { isTauriShell } from '../../tauri-bridge';
 import { loadLocale } from '@app/i18n/i18nLoader';
 import { resolveBrowserDebugLogMode } from '@utils/debugLogMode';
+import type { LogMode } from '@shared/ipc-types.generated';
 
 // ============================================
 // 类型定义
@@ -232,10 +233,11 @@ async function writeLogsToProjectFile() {
  * 读当前生效的调试日志模式（浏览器模式）。
  *
  * 优先级：CLI/env 覆盖（启动脚本注入的 `VITE_ADL_DEBUG_LOG_MODE`）→ 用户设置
- * （`appInfo.config.debugLogMode`）→ 默认 `overwrite`。此前读取的
- * `localStorage['adl_log_mode_debug']` 全仓库无人写入，设置项因此恒不生效。
+ * （`appInfo.config.debugLogMode`，经 `/app/info` 读取）→ 默认 `overwrite`。
+ * 取代此前读取 `localStorage['adl_log_mode_debug']` 的实现 —— 该键的写端
+ * `setLogMode` 全仓库零调用方，实践中恒为 fallback，设置项因此不生效（Issue 5）。
  */
-async function resolveEffectiveDebugLogMode(): Promise<string> {
+async function resolveEffectiveDebugLogMode(): Promise<LogMode> {
   return resolveBrowserDebugLogMode(
     import.meta.env.VITE_ADL_DEBUG_LOG_MODE,
     await readAppInfoDebugLogMode(),

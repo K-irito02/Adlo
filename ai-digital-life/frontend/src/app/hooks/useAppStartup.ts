@@ -5,6 +5,9 @@ import { loadLocale } from '../i18n/i18nLoader';
 import { resolveAppLanguage } from '../i18n/resolveLanguage';
 import { useAppActions } from './useAppActions';
 import { useThemeSync } from './useThemeSync';
+import { useAppStore } from '@stores/slicedStore';
+import { isTauriShell } from '../../tauri-bridge';
+import { onAdServerReachabilityChange } from '../../preview-bridge/preview-reachability';
 import { initSiteMetaCache } from '@utils/siteMetaCache';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { collectWarmupUrls } from '@utils/warmupUrls';
@@ -60,6 +63,18 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   useEffect(() => {
     return actions.subscribeWorkspaceFilesChanged();
   }, [actions]);
+
+  useEffect(() => {
+    // ad-server 可达性 → store（Phase 4 R2）：Tauri 壳恒连通；浏览器预览订阅
+    // 探针变化，供设置面板显示"未连接后端"离线标识。
+    if (isTauriShell()) {
+      useAppStore.getState().setAdServerReachable(true);
+      return;
+    }
+    return onAdServerReachabilityChange((_baseUrl, reachable) => {
+      useAppStore.getState().setAdServerReachable(reachable);
+    });
+  }, []);
 
   return {
     locale,

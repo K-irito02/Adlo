@@ -102,8 +102,10 @@ pub fn init_app_state(
     info!("[ADL-PERF] config load: {}ms", t0.elapsed().as_millis());
 
     // CLI / env 会话级日志覆盖（不写回 config.json）：优先级 CLI flag > env > config.json。
+    // （RUST_LOG 另作全局硬顶，由 LogManager 内部处理。）
     let log_overrides = adl_logging::LogOverrides::from_env();
-    if log_overrides.any() {
+    let has_log_overrides = log_overrides.any();
+    if has_log_overrides {
         config.apply_log_overrides(&log_overrides);
     }
 
@@ -125,11 +127,11 @@ pub fn init_app_state(
 
     info!(
         level = %config.log_level,
-        prefix = adl_logging::SHELL_TERMINAL_PREFIX,
+        prefix = log_manager.terminal_prefix(),
         dir = %log_dir.display(),
         "[ADL-LOG] logger ready"
     );
-    if log_overrides.any() {
+    if has_log_overrides {
         info!("[ADL-CLI] {} (session override, not persisted)", log_overrides.summary());
     }
 
@@ -233,14 +235,25 @@ pub fn start_background_tasks(state: &AppState) {
                 while watcher_rx.changed().await.is_ok() {
                     let new_config = watcher_rx.borrow().clone();
                     // 外部改 config.json → 同步日志子系统（跳过 CLI/env 会话覆盖字段）。
-                    if let Ok(current) = log_manager.config() {
-                        let delta = log_settings_delta(&current, &new_config, &log_overrides);
-                        if !delta.is_empty() {
-                            if let Err(e) = log_manager.apply_change(&delta) {
-                                tracing::warn!(error = %e, "failed to apply reloaded log settings");
+                    match log_manager.config() {
+                        Ok(current) => {
+                            let delta = log_settings_delta(&current, &new_config, &log_overrides);
+                            if !delta.is_empty() {
+                                if let Err(e) = log_manager.apply_change(&delta) {
+                                    tracing::warn!(error = %e, "failed to apply reloaded log settings");
+                                }
                             }
-                        }
+                        },
+                        Err(_) => {
+                            // 锁 poison 时本次外部变更的日志差集被丢弃（Phase 4 D7）：
+                            // 仅告警，不改变控制流；触发概率极低。
+                            tracing::warn!("log manager config lock poisoned; skipping reloaded log settings");
+                        },
                     }
+                    // 语义声明（Phase 4 F15）：内存被磁盘值整体替换 —— 若某字段正被
+                    // CLI/env 会话覆盖，内存显示值会回到磁盘值，而运行期保持 CLI 值
+                    // （显示与运行期分歧，但与 server 侧"持久化新值/运行期旧值"的
+                    // session-only 语义自洽；`get_info` 返回磁盘值，下次无覆盖启动生效）。
                     match config_arc_watcher.write() {
                         Ok(mut cfg) => *cfg = (*new_config).clone(),
                         Err(poisoned) => {

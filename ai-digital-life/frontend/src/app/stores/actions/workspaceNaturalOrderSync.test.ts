@@ -36,7 +36,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     app: {
-      updatePreferences: mockUpdatePreferences.mockResolvedValue({ ok: true, data: {} }),
+      updatePreferences: mockUpdatePreferences.mockResolvedValue({
+        ok: true,
+        data: { info: null, sessionLockedFields: [] },
+      }),
       getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
     },
   };

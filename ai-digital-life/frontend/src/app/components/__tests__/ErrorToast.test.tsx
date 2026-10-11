@@ -267,4 +267,18 @@ describe('ErrorToastContainer', () => {
     expect(toastIcon?.getAttribute('class')).toContain('icon--md');
     expect(summaryIcon?.getAttribute('class')).toContain('icon--md');
   });
+
+  it('appends a ×N suffix when the entry was folded multiple times (Phase 4 F7)', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[entry({ count: 3 }), entry({ id: 'e2', detail: 'once' })]}
+          onDismiss={vi.fn()}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    expect(screen.getByText('Workspace error: fatal ×3')).toBeTruthy();
+    expect(screen.getByText('once')).toBeTruthy();
+  });
 });

@@ -62,7 +62,9 @@ async function main() {
 
   console.log(`[adl-run] mode=${mode} url=${devUrl}`);
 
-  // 开发阶段日志 CLI 覆盖：透传参数 → env（子进程继承）+ Tauri 应用 argv。
+  // 开发阶段日志 CLI 覆盖：透传参数 → env（子进程继承）——唯一的传递通道，
+  // 刻意不拼 Tauri 应用 argv（`cargo tauri dev` 会把 `--` 之后的参数当作 cargo
+  // 自身参数并报 `unexpected argument`）。
   // 用法：`pnpm dev:tauri -- --log-level trace --terminal-log-mode multi`
   const logFlags = parseLogFlags(process.argv.slice(3));
   const childEnv = {

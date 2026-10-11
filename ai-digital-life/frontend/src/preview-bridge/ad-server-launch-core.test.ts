@@ -15,18 +15,35 @@ import { probeAdServerHealth, decideServerBaseUrl } from '../../dev/ad-server-la
 import { AD_SERVER_BIN_NAME, AD_SERVER_PACKAGE } from '../../dev/ad-server-launch.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-/** jsdom 环境下 `import.meta.url` 不是 file:// URL，故从 cwd 向上找 Cargo.toml。 */
+/**
+ * 从测试文件自身位置向上找 Cargo.toml（优先），cwd 启动目录兜底。
+ * 原先只认 `process.cwd()`（vitest 启动目录一换即 brittle），现双锚点。
+ */
 function findServerCargoToml(): string {
+  const candidates: string[] = [];
+  try {
+    const selfUrl = import.meta.url;
+    if (selfUrl.startsWith('file://')) {
+      // 本文件在 <root>/frontend/src/preview-bridge/ 下，上 3 级即 ai-digital-life/。
+      const testDir = path.dirname(fileURLToPath(selfUrl));
+      candidates.push(path.resolve(testDir, '..', '..', '..', 'crates', 'server', 'Cargo.toml'));
+    }
+  } catch {
+    // jsdom 等环境下 import.meta.url 不是 file:// URL，走 cwd 兜底。
+  }
   let dir = process.cwd();
-  for (let i = 0; i < 4; i += 1) {
-    const candidate = path.resolve(dir, 'crates', 'server', 'Cargo.toml');
+  for (let i = 0; i < 6; i += 1) {
+    candidates.push(path.resolve(dir, 'crates', 'server', 'Cargo.toml'));
+    dir = path.resolve(dir, '..');
+  }
+  for (const candidate of candidates) {
     if (existsSync(candidate)) {
       return candidate;
     }
-    dir = path.resolve(dir, '..');
   }
-  throw new Error(`crates/server/Cargo.toml not found searching upward from ${process.cwd()}`);
+  throw new Error(`crates/server/Cargo.toml not found (tried ${candidates.join(', ')})`);
 }
 
 /**
@@ -44,6 +61,15 @@ describe('ad-server naming contract', () => {
 
   it('looks for the platform-correct binary artifact name', () => {
     expect(AD_SERVER_BIN_NAME).toBe(process.platform === 'win32' ? 'adl-server.exe' : 'adl-server');
+  });
+
+  it('derives the binary name from the package name (no [[bin]] override)', () => {
+    // 包—产物单点约束（Phase 4 F1）：默认产物名即包名；若将来加 [[bin]] 改名，
+    // 本断言失败即提醒同步 AD_SERVER_BIN_NAME，而不是默默漂移。
+    const cargo = readFileSync(findServerCargoToml(), 'utf8');
+    expect(cargo).not.toMatch(/\[\[bin\]\]/);
+    const withoutExe = AD_SERVER_BIN_NAME.replace(/\.exe$/, '');
+    expect(withoutExe).toBe(AD_SERVER_PACKAGE);
   });
 });
 

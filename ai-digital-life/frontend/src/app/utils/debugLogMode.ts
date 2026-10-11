@@ -7,8 +7,8 @@ import type { LogMode } from '@shared/ipc-types.generated';
  * `--debug-log-mode` / `ADL_DEBUG_LOG_MODE` 注入）→ **用户设置**
  * （`appInfo.config.debugLogMode`，经 `/app/info` 读取）→ 默认 `overwrite`。
  *
- * 取代此前读取 `localStorage['adl_log_mode_debug']` 的实现 —— 该键全仓库无人写入，
- * 导致浏览器模式下「调试日志模式」设置恒不生效（Issue 5）。
+ * 取代此前读取 `localStorage['adl_log_mode_debug']` 的实现 —— 该键的写端
+ * `setLogMode` 全仓库零调用方，实践中恒为 fallback，设置项因此不生效（Issue 5）。
  */
 export function isLogMode(value: unknown): value is LogMode {
   return value === 'overwrite' || value === 'append' || value === 'multi';

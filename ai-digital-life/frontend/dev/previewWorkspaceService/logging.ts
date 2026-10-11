@@ -37,10 +37,17 @@ export async function writeDebugLogs(rootPath: string, content: string, mode: 'o
     case 'append':
       await fs.appendFile(fixedFile, content, 'utf8');
       break;
-    case 'multi':
+    case 'multi': {
+      // `session` 在 multi 分支恒非空（见 browserDebugLogFileNames）：显式守卫
+      // 代替 `as string`，避免未来 mode 联合扩展而此处忘更新时把 null 变成运行时
+      // TypeError（Phase 4 F11；编译期即可发现）。
+      if (session === null) {
+        throw new Error('browserDebugLogFileNames returned no session file for multi mode');
+      }
       await fs.writeFile(fixedFile, content, 'utf8');
-      await fs.writeFile(path.join(logDir, session as string), content, 'utf8');
+      await fs.writeFile(path.join(logDir, session), content, 'utf8');
       break;
+    }
   }
   return true;
 }

@@ -119,3 +119,35 @@ describe('useAppStartup warmup', () => {
     expect(new Set(urls).size).toBe(200);
   });
 });
+
+describe('useAppStartup ad-server reachability (Phase 4 R2)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupWindowDigitalLife();
+    useAppStore.setState({ adServerReachable: null });
+  });
+
+  afterEach(() => {
+    (window as unknown as { digitalLife?: unknown }).digitalLife = undefined;
+    vi.unstubAllGlobals();
+  });
+
+  it('writes probe results into the store via the reachability subscription', async () => {
+    // jsdom 非 Tauri：走订阅分支。getInfo 挂起使 bootstrap 不写 store，
+    // 探针成功后的 true 只能来自订阅写入（确定性归因）。
+    (window as unknown as { digitalLife: { app: { getInfo: unknown } } }).digitalLife.app.getInfo =
+      vi.fn(() => new Promise(() => {}));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, status: 200 })),
+    );
+    renderHook(() => useAppStartup(undefined));
+    const { isAdServerReachable, resetAdServerReachability } =
+      await import('../../../preview-bridge/preview-reachability');
+    resetAdServerReachability();
+    await act(async () => {
+      await isAdServerReachable('http://127.0.0.1:59991');
+    });
+    expect(useAppStore.getState().adServerReachable).toBe(true);
+  });
+});

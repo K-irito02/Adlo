@@ -15,13 +15,6 @@ pub struct LogConfig {
     pub log_level: LogLevel,
 }
 
-impl LogConfig {
-    pub fn merge_cli(&mut self, cli_mode: LogMode) {
-        self.terminal_log_mode = cli_mode;
-        self.debug_log_mode = cli_mode;
-    }
-}
-
 pub fn log_file_path(log_dir: &Path, prefix: &str) -> std::path::PathBuf {
     log_dir.join(format!("{prefix}.txt"))
 }

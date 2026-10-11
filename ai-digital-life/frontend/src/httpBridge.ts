@@ -37,6 +37,7 @@ import type {
   ModelTokenUsage,
   RuntimeDiagnosticsSnapshot,
   SystemSnapshot,
+  UpdatePreferencesResult,
 } from '@ai-digital-life/kernel';
 import type { DigitalLifeBridge } from './shared/ipc/digital-life';
 import type { AppBridge } from './shared/ipc/app';
@@ -808,7 +809,7 @@ export function createHttpBridge({
       getDiagnostics: () => taskNotSupported<RuntimeDiagnosticsSnapshot>('app.getDiagnostics'),
       getModelHealth: () => taskNotSupported<ModelGatewayHealthSnapshot>('app.getModelHealth'),
       updatePreferences: (patch: AppPreferencePatch) =>
-        call<AppInfo>(baseUrl, '/app/preferences', {
+        call<UpdatePreferencesResult>(baseUrl, '/app/preferences', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch),

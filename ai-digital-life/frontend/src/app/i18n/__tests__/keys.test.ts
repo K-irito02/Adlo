@@ -108,6 +108,14 @@ describe('i18n en-US namespace keys', () => {
     expect(zhCN).not.toHaveProperty('settingsResetConfirmMessage');
   });
 
+  it('includes session-lock and offline badge copy in both locales (Phase 4)', () => {
+    // "key→真实文案"链路钉死：面板单测的 t 替身只回显 key，本用例覆盖真实文案。
+    expect(zhCN.settingsSessionOverrideTakesEffectOnRestart).toContain('下次启动生效');
+    expect(enUS.settingsSessionOverrideTakesEffectOnRestart).toContain('next launch');
+    expect(zhCN.settingsBackendOfflineBadge).toBe('未连接后端');
+    expect(enUS.settingsBackendOfflineBadge).toBe('Backend unreachable');
+  });
+
   it('retires reset-all group-list copy except the preferences label', () => {
     expect(enUS.settingsResetAllDoneAll).toBe('All default settings restored');
     expect(zhCN.settingsResetAllDoneAll).toBe('已恢复全部默认设置');

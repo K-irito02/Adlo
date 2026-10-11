@@ -174,6 +174,26 @@ describe('SettingsPanel shell header', () => {
     expect(document.activeElement).toBe(input);
   });
 
+  it('后端不可达时显示离线标识，可达/未探测时不显示', () => {
+    // Phase 4 R2：adServerReachable === false 才显示（null = 尚未探测）。
+    setupStore();
+    useAppStore.setState({ adServerReachable: false });
+    renderPanel();
+    expect(screen.getByText('settingsBackendOfflineBadge')).not.toBeNull();
+    cleanup();
+
+    setupStore();
+    useAppStore.setState({ adServerReachable: true });
+    renderPanel();
+    expect(screen.queryByText('settingsBackendOfflineBadge')).toBeNull();
+    cleanup();
+
+    setupStore();
+    useAppStore.setState({ adServerReachable: null });
+    renderPanel();
+    expect(screen.queryByText('settingsBackendOfflineBadge')).toBeNull();
+  });
+
   it('输入框按 Escape 收起并清空关键词，焦点回到搜索图标', () => {
     setupStore();
     renderPanel();

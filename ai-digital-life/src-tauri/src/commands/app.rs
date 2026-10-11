@@ -5,10 +5,11 @@ use adl_errors::AppError;
 use adl_types::{
     AppInfo, AppPreferencePatch, EventDiagnostics, HealthComponent, HealthSnapshot, HealthStatus,
     IpcResult, MigrationDiagnostics, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot,
-    WorkspaceMeta, now_ms,
+    UpdatePreferencesResult, WorkspaceMeta, now_ms,
 };
 use adl_workspace::strip_verbatim_prefix;
 use serde::Serialize;
+use std::sync::OnceLock;
 use tauri::Manager;
 
 #[derive(Serialize)]
@@ -50,11 +51,18 @@ const AD_SERVER_FETCH_TIMEOUT: std::time::Duration = std::time::Duration::from_s
 /// Build an HTTP client with a bounded timeout for adl-server fetches. `reqwest`
 /// `Client::new()`/`reqwest::get` carry no default timeout; a hung child would
 /// otherwise block the async shell indefinitely.
+///
+/// 全局复用单个 Client（连接池复用；Phase 4 F8）。
 fn adl_server_http_client() -> reqwest::Client {
-    reqwest::Client::builder()
-        .timeout(AD_SERVER_FETCH_TIMEOUT)
-        .build()
-        .expect("failed to build adl-server HTTP client")
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .timeout(AD_SERVER_FETCH_TIMEOUT)
+                .build()
+                .expect("failed to build adl-server HTTP client")
+        })
+        .clone()
 }
 
 /// Fetch the active workspace from the spawned adl-server (`GET /workspace/current`).
@@ -95,25 +103,31 @@ fn log_settings_patch_body(change: &adl_logging::LogSettingsChange) -> AppPrefer
 /// 走 `/app/log-settings`（仅运行时、不落盘）——落盘由壳在调用处一次性完成，
 /// 避免 server 用其旧内存快照覆盖壳刚写入的其它字段。失败**不阻断**：壳侧已生效，
 /// 且 config.json 已落盘，server 下次启动仍会读到正确值。
-async fn forward_log_settings_to_server(state: &AppState, change: &adl_logging::LogSettingsChange) {
+///
+/// 后台发送（Phase 4 F7）：forward 的结果本就不影响返回值，server 半死时同步等待
+/// 会把设置保存 UI 拖住至多约 3s；调用方传 owned 数据，不借用 AppState。
+fn forward_log_settings_to_server(
+    client: reqwest::Client,
+    base_url: String,
+    change: adl_logging::LogSettingsChange,
+) {
     if change.is_empty() {
         return;
     }
-    let Some(base_url) = state.ad_server.base_url() else {
-        return;
-    };
-    let resp = adl_server_http_client()
-        .post(format!("{base_url}/app/log-settings"))
-        .json(&log_settings_patch_body(change))
-        .send()
-        .await;
-    match resp {
-        Ok(r) if r.status().is_success() => {},
-        Ok(r) => {
-            tracing::warn!(status = %r.status(), "ad-server rejected forwarded log settings");
-        },
-        Err(e) => tracing::warn!(error = %e, "forwarding log settings to ad-server failed"),
-    }
+    tauri::async_runtime::spawn(async move {
+        let resp = client
+            .post(format!("{base_url}/app/log-settings"))
+            .json(&log_settings_patch_body(&change))
+            .send()
+            .await;
+        match resp {
+            Ok(r) if r.status().is_success() => {},
+            Ok(r) => {
+                tracing::warn!(status = %r.status(), "ad-server rejected forwarded log settings");
+            },
+            Err(e) => tracing::warn!(error = %e, "forwarding log settings to ad-server failed"),
+        }
+    });
 }
 
 #[tauri::command]
@@ -180,37 +194,71 @@ pub fn app_get_diagnostics(
 pub async fn app_update_preferences(
     app: tauri::AppHandle,
     patch: AppPreferencePatch,
-) -> Result<IpcResult<AppInfo>, AppError> {
+) -> Result<IpcResult<UpdatePreferencesResult>, AppError> {
     let state = app.state::<AppState>();
     // 1) 日志字段先运行时生效：失败即返回，内存 config 尚未改写 → 无
     //    「config 已变但 LogManager 未生效」的永久漂移（原 `let _ =` 吞错缺陷）。
-    let log_change = adl_logging::LogSettingsChange::from_patch(&patch);
+    //    会话覆盖锁定的字段跳过运行期（仅落盘，下次启动生效；与 server 同语义）。
+    //    顺序语义：日志字段先行校验，失败则整个补丁被拒绝（含无关字段）。
+    let locked_fields =
+        adl_logging::session_locked_field_names(&patch, &state.log_overrides);
+    let full_change = adl_logging::LogSettingsChange::from_patch(&patch);
+    let log_change = adl_logging::lock_out_session_overrides(&full_change, &state.log_overrides);
+    // 回滚锚点：落盘失败时把运行期恢复到补丁前的值（best-effort，Phase 4 F1）。
+    let previous_log_config = state.log_manager.config().ok();
     state
         .log_manager
         .apply_change(&log_change)
         .map_err(|e| AppError::Config(format!("failed to apply log settings: {e}")))?;
     // 2) 应用补丁到内存 config（与 ad-server 共用同一字段映射）。
-    {
+    //    回滚锚点 + 落盘副本在同一次写锁临界区内取得（Phase 4 D8）：省一次加锁与
+    //    全量 clone，且两者互斥一致（watcher 线程也可能并发写内存，不可分两次读）。
+    let (previous_config, config_clone) = {
         let mut config =
             state.config.write().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
+        let previous = config.clone();
         config.apply_patch(&patch);
-    }
+        let snapshot = config.clone();
+        (previous, snapshot)
+    };
     // 3) 落盘 + 广播 ConfigChanged。
-    let config_clone =
-        state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
     let config_dir = state.storage.paths().config_dir.clone();
-    tokio::task::spawn_blocking(move || {
+    let persist_result = tokio::task::spawn_blocking(move || {
         crate::setup::save_config_to_dir(&config_dir, &config_clone)
     })
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
-    .map_err(|e| AppError::Config(e.to_string()))?;
-    // 4) 把日志字段推给 adl-server 子进程（运行期同步；失败仅告警，见 helper 注释）。
-    forward_log_settings_to_server(&state, &log_change).await;
+    .map_err(|e| AppError::Config(e.to_string()));
+    if let Err(persist_error) = persist_result {
+        // 落盘失败：回滚运行期 + 内存，避免"当时似乎生效、重启又没了"的
+        //  confusing 行为（回滚本身 best-effort，失败仅告警）。
+        if let Some(previous) = previous_log_config {
+            let rollback = adl_logging::LogSettingsChange {
+                log_level: Some(previous.log_level),
+                terminal_log_mode: Some(previous.terminal_log_mode),
+                debug_log_mode: Some(previous.debug_log_mode),
+            };
+            if let Err(e) = state.log_manager.apply_change(&rollback) {
+                tracing::warn!(error = %e, "persist failed and runtime rollback failed");
+            }
+        }
+        if let Ok(mut config) =
+            state.config.write().map_err(|_| AppError::Internal("config lock poisoned".into()))
+        {
+            *config = previous_config;
+        }
+        // 保留原始错误信息（磁盘满/权限等根因应在 UI 错误卡可见，Phase 4 R1）。
+        return Err(persist_error);
+    }
+    // 4) 把日志字段推给 adl-server 子进程（运行期同步；后台发送，失败仅告警，
+    //    见 helper 注释）。转发完整变更：server 侧用同样的锁定语义自行丢弃被锁字段。
+    if let Some(base_url) = state.ad_server.base_url() {
+        forward_log_settings_to_server(adl_server_http_client(), base_url, full_change);
+    }
     state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
     let current_workspace = fetch_current_workspace(&state).await;
     let info = build_app_info(&state, current_workspace)?;
-    Ok(ipc(Ok(info)))
+    Ok(ipc(Ok(UpdatePreferencesResult { info, session_locked_fields: locked_fields })))
 }
 
 pub fn build_app_info(

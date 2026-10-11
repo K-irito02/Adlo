@@ -106,8 +106,7 @@ function currentLogFlags() {
   return parseLogFlags(process.argv.slice(2));
 }
 
-function startVite(adServerBaseUrl) {
-  const logFlags = currentLogFlags();
+function startVite(adServerBaseUrl, logFlags) {
   // 日志 flag 已被 parseLogFlags 消费，其余参数原样转发给 vite
   // （如 `node dev/ad-server-launch.mjs --port 5174`）。
   const viteArgs = logFlags.restArgs;
@@ -146,8 +145,7 @@ function startVite(adServerBaseUrl) {
   });
 }
 
-function spawnAdServer() {
-  const logFlags = currentLogFlags();
+function spawnAdServer(logFlags) {
   const args = ['--port', String(requestedPort), '--data-dir', dataDir];
   const env = { ...process.env, ...logFlags.env };
   if (existsSync(AD_SERVER_BIN)) {
@@ -165,7 +163,8 @@ function spawnAdServer() {
       { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env },
     );
   }
-  serverLog(`spawned ad-server (pid ${adServer.pid}, kind ${adServer.kind ?? 'subprocess'})`);
+  // Node ChildProcess 没有 `kind` 属性（恒走 fallback）：只记 pid（Phase 4 D1）。
+  serverLog(`spawned ad-server (pid ${adServer.pid})`);
   adServer.exited = false;
   adServer.on('exit', (code, signal) => {
     adServer.exited = true;
@@ -252,7 +251,10 @@ export function decideServerBaseUrl(port, healthy) {
 }
 
 async function main() {
-  adServer = spawnAdServer();
+  // 单次解析 argv 后分发（此前 startVite/spawnAdServer 各调一次 currentLogFlags，
+  // 无值 flag 的 warn 会打印两次；Phase 4 F4）。
+  const logFlags = currentLogFlags();
+  adServer = spawnAdServer(logFlags);
   const port = await readBoundPort(adServer);
   if (port === null) {
     warn(
@@ -260,7 +262,7 @@ async function main() {
         `Falling back to the preview/mock implementations — run \`cargo build -p ${AD_SERVER_PACKAGE}\` for the real engine.`,
     );
     cleanup();
-    startVite(null);
+    startVite(null, logFlags);
     return;
   }
 
@@ -273,12 +275,12 @@ async function main() {
         'Falling back to the preview/mock implementations.',
     );
     cleanup();
-    startVite(null);
+    startVite(null, logFlags);
     return;
   }
 
   log(`ad-server healthy at ${baseUrl}`);
-  startVite(baseUrl);
+  startVite(baseUrl, logFlags);
 }
 
 const isMainModule =

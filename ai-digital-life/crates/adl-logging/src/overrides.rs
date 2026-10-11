@@ -1,4 +1,3 @@
-use crate::config::LogConfig;
 use crate::mode::LogMode;
 
 use adl_types::types::config::{AppPreferencePatch, LogLevel};
@@ -65,7 +64,8 @@ impl LogOverrides {
                 },
             }
         }
-        Self::from_lookup(|k| pairs.iter().find(|(pk, _)| *pk == k).map(|(_, v)| (*v).to_string()))
+        // 重复 flag 取最后一次（常规 CLI 语义；脚本拼接参数时可预测）。
+        Self::from_lookup(|k| pairs.iter().rfind(|(pk, _)| *pk == k).map(|(_, v)| (*v).to_string()))
     }
 
     /// 导出为环境变量 —— 跨进程传输通道：shell 派生的 adl-server 子进程自动继承，
@@ -85,19 +85,6 @@ impl LogOverrides {
         }
     }
 
-    /// 把覆盖应用到 `LogConfig`（仅覆盖已提供项）。
-    pub fn apply(&self, config: &mut LogConfig) {
-        if let Some(v) = self.log_level {
-            config.log_level = v;
-        }
-        if let Some(v) = self.terminal_log_mode {
-            config.terminal_log_mode = v;
-        }
-        if let Some(v) = self.debug_log_mode {
-            config.debug_log_mode = v;
-        }
-    }
-
     /// 启动日志行内容（供用户/agent 自证 flag 已生效）。
     pub fn summary(&self) -> String {
         format!(
@@ -107,6 +94,48 @@ impl LogOverrides {
             self.debug_log_mode.map_or_else(|| "-".to_string(), |v| v.to_string()),
         )
     }
+}
+
+/// 会话级 CLI/env 覆盖锁定的运行期字段：调用方不得把运行期值从 CLI 指定值
+/// 改回去（`config.json` 仍按用户选择持久化，下次无 CLI 覆盖时生效）。
+///
+/// 单一真源（Phase 4 D5）：Tauri 壳与 ad-server 共用本函数，杜绝双份实现漂移。
+pub fn lock_out_session_overrides(
+    change: &LogSettingsChange,
+    overrides: &LogOverrides,
+) -> LogSettingsChange {
+    LogSettingsChange {
+        log_level: if overrides.log_level.is_some() { None } else { change.log_level },
+        terminal_log_mode: if overrides.terminal_log_mode.is_some() {
+            None
+        } else {
+            change.terminal_log_mode
+        },
+        debug_log_mode: if overrides.debug_log_mode.is_some() {
+            None
+        } else {
+            change.debug_log_mode
+        },
+    }
+}
+
+/// 本次补丁中被会话覆盖锁定的字段（JSON 补丁名，如 `"logLevel"`）：已落盘但
+/// 运行期保持 CLI 值，前端凭此弹"下次启动生效"提示。
+pub fn session_locked_field_names(
+    patch: &AppPreferencePatch,
+    overrides: &LogOverrides,
+) -> Vec<String> {
+    let mut locked = Vec::new();
+    if patch.log_level.is_some() && overrides.log_level.is_some() {
+        locked.push("logLevel".to_string());
+    }
+    if patch.terminal_log_mode.is_some() && overrides.terminal_log_mode.is_some() {
+        locked.push("terminalLogMode".to_string());
+    }
+    if patch.debug_log_mode.is_some() && overrides.debug_log_mode.is_some() {
+        locked.push("debugLogMode".to_string());
+    }
+    locked
 }
 
 /// 需要应用到 `LogManager` 的日志字段变更集（补丁或配置重载后计算）。
@@ -223,20 +252,6 @@ mod tests {
     }
 
     #[test]
-    fn apply_only_overwrites_provided_fields() {
-        let mut config = LogConfig {
-            terminal_log_mode: LogMode::Overwrite,
-            debug_log_mode: LogMode::Overwrite,
-            log_level: LogLevel::Info,
-        };
-        let overrides = LogOverrides { log_level: Some(LogLevel::Debug), ..Default::default() };
-        overrides.apply(&mut config);
-        assert_eq!(config.log_level, LogLevel::Debug);
-        assert_eq!(config.terminal_log_mode, LogMode::Overwrite);
-        assert_eq!(config.debug_log_mode, LogMode::Overwrite);
-    }
-
-    #[test]
     fn summary_uses_dash_for_unset_fields() {
         let overrides = LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
         assert_eq!(overrides.summary(), "level=trace terminal=- debug=-");
@@ -287,5 +302,47 @@ mod tests {
         let overrides =
             LogOverrides::from_cli_args(&argv(&["--log-level", "verbose", "--log-mode", "rotate"]));
         assert!(!overrides.any());
+    }
+
+    #[test]
+    fn cli_args_last_duplicate_flag_wins() {
+        // 重复 flag 取最后一次（常规 CLI 语义，Phase 4 R6）。
+        let overrides =
+            LogOverrides::from_cli_args(&argv(&["--log-level", "info", "--log-level", "trace"]));
+        assert_eq!(overrides.log_level, Some(LogLevel::Trace));
+    }
+
+    #[test]
+    fn session_overrides_lock_out_runtime_change_only() {
+        // 双端单一真源（Phase 4 D5；原 server/handlers/app.rs 单测下沉至此）。
+        let change = LogSettingsChange {
+            log_level: Some(LogLevel::Debug),
+            terminal_log_mode: Some(LogMode::Multi),
+            debug_log_mode: Some(LogMode::Append),
+        };
+        let overrides = LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
+        let locked = lock_out_session_overrides(&change, &overrides);
+        assert_eq!(locked.log_level, None, "CLI-locked level must not be overridden at runtime");
+        assert_eq!(locked.terminal_log_mode, Some(LogMode::Multi));
+        assert_eq!(locked.debug_log_mode, Some(LogMode::Append));
+    }
+
+    #[test]
+    fn no_overrides_passes_change_through() {
+        let change = LogSettingsChange { log_level: Some(LogLevel::Warn), ..Default::default() };
+        let locked = lock_out_session_overrides(&change, &LogOverrides::default());
+        assert_eq!(locked.log_level, Some(LogLevel::Warn));
+    }
+
+    #[test]
+    fn locked_field_names_use_json_patch_names() {
+        let patch = AppPreferencePatch {
+            log_level: Some(LogLevel::Warn),
+            terminal_log_mode: Some(LogMode::Multi),
+            ..Default::default()
+        };
+        let overrides = LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
+        assert_eq!(session_locked_field_names(&patch, &overrides), vec!["logLevel".to_string()]);
+        assert!(session_locked_field_names(&patch, &LogOverrides::default()).is_empty());
     }
 }

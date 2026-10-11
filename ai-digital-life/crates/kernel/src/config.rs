@@ -85,12 +85,19 @@ impl AppConfig {
 
     /// 应用会话级日志覆盖（CLI flag / 环境变量）：**只改内存，不落盘**。
     /// `RUST_LOG` 的优先级由 `LogManager` 内部处理（作为全局基础 filter）。
+    ///
+    /// 调用方必须保证此实例随后不被 `save_to`（否则 session-only 值即被持久化；
+    /// "不落盘"完全依赖调用方自律，类型上无标记）。
     pub fn apply_log_overrides(&mut self, overrides: &adl_logging::LogOverrides) {
-        let mut log_config = self.to_log_config();
-        overrides.apply(&mut log_config);
-        self.log_level = log_config.log_level;
-        self.terminal_log_mode = log_config.terminal_log_mode;
-        self.debug_log_mode = log_config.debug_log_mode;
+        if let Some(v) = overrides.log_level {
+            self.log_level = v;
+        }
+        if let Some(v) = overrides.terminal_log_mode {
+            self.terminal_log_mode = v;
+        }
+        if let Some(v) = overrides.debug_log_mode {
+            self.debug_log_mode = v;
+        }
     }
 
     /// 应用偏好补丁（shell 的 `app_update_preferences` 与 ad-server 的
@@ -223,6 +230,20 @@ mod tests {
         let log_config = config.to_log_config();
         assert_eq!(log_config.terminal_log_mode, LogMode::Overwrite);
         assert_eq!(log_config.debug_log_mode, LogMode::Multi);
+    }
+
+    #[test]
+    fn apply_log_overrides_only_overwrites_provided_fields() {
+        // 原 `LogOverrides::apply` 的等价网（Phase 4 D5 去重后唯一实现即此）。
+        let mut config = AppConfig::default();
+        let overrides = adl_logging::LogOverrides {
+            log_level: Some(LogLevel::Debug),
+            ..Default::default()
+        };
+        config.apply_log_overrides(&overrides);
+        assert_eq!(config.log_level, LogLevel::Debug);
+        assert_eq!(config.terminal_log_mode, LogMode::default());
+        assert_eq!(config.debug_log_mode, LogMode::default());
     }
 
     #[test]

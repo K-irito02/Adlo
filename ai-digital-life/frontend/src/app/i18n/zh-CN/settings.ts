@@ -74,6 +74,9 @@ export const settingsZh = {
   settingsResetAllFailedSummaryNoDone: '失败：{group}（{reason}）',
   settingsResetAllSkippedNote: '未执行：{groups}',
   settingsResetAllDoneAll: '已恢复全部默认设置',
+  settingsSessionOverrideTakesEffectOnRestart:
+    '该设置已保存，但本次启动正被命令行参数覆盖，下次启动生效',
+  settingsBackendOfflineBadge: '未连接后端',
 
   // 无障碍
   settingsToggleVisibility: '切换可见性',

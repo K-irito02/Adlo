@@ -128,6 +128,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     storageBlocksAtDefault,
     browserBlocksAtDefault,
     dshBlocksAtDefault,
+    adServerReachable,
   } = useAppStore(
     useShallow((s) => ({
       activeGroup: s.activeSettingsGroup,
@@ -149,6 +150,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       storageBlocksAtDefault: s.storageBlocksAtDefault,
       browserBlocksAtDefault: s.browserBlocksAtDefault,
       dshBlocksAtDefault: s.dshBlocksAtDefault,
+      adServerReachable: s.adServerReachable,
     })),
   );
 
@@ -1147,6 +1149,19 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
               className="adl-settings-panel__content adl-settings-panel__content--cards adl-reveal-scroll"
               ref={contentScrollbar.scrollRef}
             >
+              {/* 离线标识（Phase 4 R2）：浏览器预览下 ad-server 不可达。文案只说
+                  "未连接后端"，不承诺"本地预览"——设置读写域（app）失败即失败、
+                  不回退（错误卡呈现），其它业务域才可能回退预览实现。
+                  null = 尚未探测，不显示。 */}
+              {adServerReachable === false && (
+                <div className="adl-settings-row">
+                  <div className="adl-settings-row__label">
+                    <small className="adl-settings-status adl-settings-status--warning">
+                      {t.settingsBackendOfflineBadge}
+                    </small>
+                  </div>
+                </div>
+              )}
               {ActiveComponent ? (
                 React.createElement(ActiveComponent)
               ) : isSearching ? (

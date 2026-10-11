@@ -14,7 +14,21 @@ import { mergePrefPatches } from './preferencePatchMerge';
 import { collectDirPaths } from '../persisted/prune';
 import { applyTreeLoadedPrune, applyWorkspacePrune } from '../persisted/pruneWiring';
 import type { StoreApi } from 'zustand';
+import { zhCN } from '../../i18n/zh-CN/index';
+import { enUS } from '../../i18n/en-US/index';
+import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 const SCOPE = 'general';
+
+/**
+ * 会话覆盖提示文案（Phase 4 F3）：设置面板经 fire-and-forget 调用
+ * `updatePreferences`（见 `useSettingsPanelProps`），UI 层无法 await 结果，
+ * 故提示必须在此统一弹。文案取静态语言包（与当前语言一致），不走 hook。
+ */
+function sessionOverrideNotice(get: () => StoreState): string {
+  const locale = resolveAppLanguage(get().appInfo?.config.language);
+  const dict = locale === 'en-US' ? enUS : zhCN;
+  return dict.settingsSessionOverrideTakesEffectOnRestart;
+}
 
 /**
  * T7 校准门选项：T9 起经 `storage.getTreeCacheStats` 读真实值
@@ -120,33 +134,45 @@ interface PendingPrefCall {
   resolve: (ok: boolean) => void;
 }
 
-let prefQueue: PendingPrefCall[] = [];
-let prefDraining = false;
+/**
+ * 合并队列的 per-store 状态（Phase 4 R4）：队列收进 `createGeneralActions`
+ * 闭包、随 store 生命周期，不再是模块级单例（多 store 实例/测试/HMR 下后续
+ * 调用的状态更新不再写到第一个 store）。
+ */
+interface PrefQueueState {
+  queue: PendingPrefCall[];
+  draining: boolean;
+}
 
 async function drainPrefQueue(
   set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
+  prefState: PrefQueueState,
 ): Promise<void> {
-  if (prefDraining) {
+  if (prefState.draining) {
     return;
   }
-  prefDraining = true;
+  prefState.draining = true;
+  // 对外可观察的 loading 信号（Phase 4 D1）：生产尚无读取方（防重入由闭包内
+  // prefState.draining 承担），保留供未来保存中 spinner 使用；测试锁定该行为。
   set({ isFetching: { ...get().isFetching, updatePreferences: true } });
   try {
-    while (prefQueue.length > 0) {
-      const batch = prefQueue;
-      prefQueue = [];
+    while (prefState.queue.length > 0) {
+      const batch = prefState.queue;
+      prefState.queue = [];
       const merged = batch.reduce<AppPreferencePatch>(
         (acc, call) => mergePrefPatches(acc, call.patch),
         {},
       );
       const ok = await sendPreferencePatch(set, get, merged);
+      // 同一批次共享一个 ok（all-or-nothing 语义：合并 IPC 失败时批次内
+      // 所有调用者都得 false，无归因；注释锁定该语义）。
       for (const call of batch) {
         call.resolve(ok);
       }
     }
   } finally {
-    prefDraining = false;
+    prefState.draining = false;
     set({ isFetching: { ...get().isFetching, updatePreferences: false } });
   }
 }
@@ -165,8 +191,16 @@ async function sendPreferencePatch(
     // result.data from Rust backend has stale resolvedTheme for system mode
     // (build_app_info hardcodes Theme::Light for ThemeMode::System).
     // Fix it here for store consistency; useThemeSync 会通过 appInfo 变化触发 setTheme。
-    result.data.config.resolvedTheme = resolveCurrentTheme(result.data.config.themeMode);
-    set({ appInfo: result.data });
+    result.data.info.config.resolvedTheme = resolveCurrentTheme(result.data.info.config.themeMode);
+    // 提示文案必须在 set 之前解析：set 会用响应覆盖 appInfo，而语言取自旧 appInfo。
+    const lockedNotice =
+      result.data.sessionLockedFields.length > 0 ? sessionOverrideNotice(get) : null;
+    set({ appInfo: result.data.info });
+    // 会话级 CLI/env 覆盖锁定的字段：已落盘但运行期保持 CLI 值 → 顶部提示
+    // "下次启动生效"，消除静默分歧（Phase 4 F3，用户决策）。
+    if (lockedNotice) {
+      get().showToast(lockedNotice, 'warning');
+    }
     return true;
   } catch (error) {
     captureError(get, error, SCOPE);
@@ -175,6 +209,7 @@ async function sendPreferencePatch(
 }
 
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
+  const prefState: PrefQueueState = { queue: [], draining: false };
   return {
     /**
      * [bootstrap - 启动应用，获取工作区、Git 状态和补丁]
@@ -197,7 +232,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       }
 
       if (!appInfoResult.ok) {
-        set({ loading: false });
+        set({ loading: false, adServerReachable: false });
         captureError(get, appInfoResult.error, SCOPE);
         return;
       }
@@ -216,6 +251,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
       const nextState: Partial<StoreState> = {
         isTauri: isTauriShell(),
         appInfo: appInfoResult.data,
+        adServerReachable: true,
         recentWorkspaces,
         loading: false,
         dirtyEditorPaths: [],
@@ -593,11 +629,15 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      * @writes workspaceSlice.appInfo
      */
     updatePreferences: (patch: AppPreferencePatch): Promise<boolean> => {
+      // 已知小竞态：入队时即 clear，可能擦掉在途批次刚 captureError 的错误条；
+      // 用户再次操作即视为已阅旧错，接受该语义（Phase 4 R4）。
       clearError(get, SCOPE);
       const settled = new Promise<boolean>((resolve) => {
-        prefQueue.push({ patch, resolve });
+        prefState.queue.push({ patch, resolve });
       });
-      void drainPrefQueue(set, get);
+      // drain 今日不 reject（sendPreferencePatch 全捕获、合并纯函数），catch 仅防
+      // 未来改动引入未处理 rejection 导致调用方 promise 悬挂（Phase 4 R4）。
+      void drainPrefQueue(set, get, prefState).catch((error) => captureError(get, error, SCOPE));
       return settled;
     },
   };

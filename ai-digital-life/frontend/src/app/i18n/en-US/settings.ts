@@ -80,6 +80,9 @@ export const settingsEn = {
   settingsResetAllFailedSummaryNoDone: 'Failed: {group} ({reason})',
   settingsResetAllSkippedNote: 'Not executed: {groups}',
   settingsResetAllDoneAll: 'All default settings restored',
+  settingsSessionOverrideTakesEffectOnRestart:
+    'Saved, but a command-line flag overrides it for this session; takes effect on next launch',
+  settingsBackendOfflineBadge: 'Backend unreachable',
 
   // Accessibility
   settingsToggleVisibility: 'Toggle visibility',

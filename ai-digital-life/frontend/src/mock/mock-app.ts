@@ -69,6 +69,13 @@ export const mockApp: AppBridge = {
     const nextConfig = applyPreferencePatch(appInfo.config, patch);
     appInfo.config = nextConfig;
     onMockStateChange?.();
-    return { ok: true, data: { ...appInfo, currentWorkspace: currentWorkspaceMeta } };
+    // mock 无 CLI 会话覆盖概念：锁定集恒为空（与桌面/真实后端行为一致的形状）。
+    return {
+      ok: true,
+      data: {
+        info: { ...appInfo, currentWorkspace: currentWorkspaceMeta },
+        sessionLockedFields: [],
+      },
+    };
   },
 };

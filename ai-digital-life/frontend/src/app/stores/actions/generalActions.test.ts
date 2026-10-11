@@ -52,6 +52,7 @@ describe('updatePreferences action', () => {
     useAppStore.setState({
       isFetching: {},
       errorToasts: [],
+      toasts: [],
     });
   });
 
@@ -59,6 +60,8 @@ describe('updatePreferences action', () => {
     useAppStore.setState({
       isFetching: {},
       errorToasts: [],
+      toasts: [],
+      appInfo: undefined,
     });
   });
 
@@ -77,11 +80,14 @@ describe('updatePreferences action', () => {
     resolvePromise!({
       ok: true,
       data: {
-        config: { themeMode: 'system' },
-        recentLogs: [],
-        currentWorkspace: null,
-        appName: 'test',
-        version: '0.0.0',
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: [],
       },
     });
     await promise;
@@ -98,11 +104,14 @@ describe('updatePreferences action', () => {
     mockUpdatePreferences.mockResolvedValue({
       ok: true,
       data: {
-        config: { themeMode: 'system' },
-        recentLogs: [],
-        currentWorkspace: null,
-        appName: 'test',
-        version: '0.0.0',
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: [],
       },
     });
 
@@ -115,11 +124,14 @@ describe('updatePreferences action', () => {
     resolveFirst!({
       ok: true,
       data: {
-        config: { themeMode: 'system' },
-        recentLogs: [],
-        currentWorkspace: null,
-        appName: 'test',
-        version: '0.0.0',
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: [],
       },
     });
 
@@ -155,11 +167,14 @@ describe('updatePreferences action', () => {
     mockUpdatePreferences.mockResolvedValue({
       ok: true,
       data: {
-        config: { themeMode: 'system' },
-        recentLogs: [],
-        currentWorkspace: null,
-        appName: 'test',
-        version: '0.0.0',
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: [],
       },
     });
 
@@ -178,11 +193,14 @@ describe('updatePreferences action', () => {
     mockUpdatePreferences.mockResolvedValue({
       ok: true,
       data: {
-        config: { themeMode: 'system' },
-        recentLogs: [],
-        currentWorkspace: null,
-        appName: 'test',
-        version: '0.0.0',
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: [],
       },
     });
     const store = useAppStore.getState();
@@ -191,6 +209,57 @@ describe('updatePreferences action', () => {
 
     expect(ok).toBe(true);
     expect(mockUpdatePreferences).toHaveBeenCalledWith({ language: 'en-US' });
+  });
+
+  it('shows a next-launch toast when the backend reports session-locked fields', async () => {
+    // Phase 4 F3：被 CLI 锁定的字段已落盘但运行期保持 CLI 值 → 顶部提示。
+    mockUpdatePreferences.mockResolvedValue({
+      ok: true,
+      data: {
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: ['logLevel'],
+      },
+    });
+    // 提示文案跟随当前语言：显式设为 zh-CN 走中文分支（默认跟随系统语言）。
+    useAppStore.setState({
+      appInfo: { config: { language: 'zh-CN' } } as unknown as StoreState['appInfo'],
+    });
+
+    const store = useAppStore.getState();
+    const ok = await store.updatePreferences({ logLevel: 'debug' } as AppPreferencePatch);
+
+    expect(ok).toBe(true);
+    const toasts = useAppStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toContain('下次启动生效');
+  });
+
+  it('shows no next-launch toast when nothing is session-locked', async () => {
+    mockUpdatePreferences.mockResolvedValue({
+      ok: true,
+      data: {
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: [],
+      },
+    });
+
+    const store = useAppStore.getState();
+    const ok = await store.updatePreferences({ logLevel: 'debug' } as AppPreferencePatch);
+
+    expect(ok).toBe(true);
+    expect(useAppStore.getState().toasts).toHaveLength(0);
   });
 });
 

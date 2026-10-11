@@ -7,6 +7,7 @@ import type {
   RuntimeDiagnosticsSnapshot,
   SettingItem,
   SettingsGroupId,
+  UpdatePreferencesResult,
 } from '@ai-digital-life/kernel';
 
 export type {
@@ -18,6 +19,7 @@ export type {
   RuntimeDiagnosticsSnapshot,
   SettingItem,
   SettingsGroupId,
+  UpdatePreferencesResult,
 };
 
 /**
@@ -66,11 +68,11 @@ export interface AppBridge {
   /**
    * 更新应用偏好设置
    * @param patch 对现有配置的增量修改
-   * @returns 更新后的完整应用信息
+   * @returns 更新后的完整应用信息 + 被会话级 CLI/env 覆盖锁定的字段
    * @command app_update_preferences
    * @see tauri-bridge.ts → app.updatePreferences
    * @see mock-bridge.ts → app.updatePreferences
    * @see preview-bridge/index.ts → app.updatePreferences
    */
-  updatePreferences: (patch: AppPreferencePatch) => Promise<IpcResult<AppInfo>>;
+  updatePreferences: (patch: AppPreferencePatch) => Promise<IpcResult<UpdatePreferencesResult>>;
 }
