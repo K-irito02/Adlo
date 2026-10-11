@@ -234,6 +234,13 @@ pub fn start_background_tasks(state: &AppState) {
             let config_update_handle = tokio::spawn(async move {
                 while watcher_rx.changed().await.is_ok() {
                     let new_config = watcher_rx.borrow().clone();
+                    // 与 app_update_preferences 取同一把写锁（Closing M2/L6）：
+                    // watcher 的全量内存替换若与命令的"内存改写→落盘"窗口交错，
+                    // 落盘会把旧 clone 写回去。持锁使两侧互斥。
+                    // 残留说明（Closing N3）：对文件的读取仍在锁外（ConfigWatcher
+                    // 内部），极端交错（读到旧文件→命令写新文件→旧内容替换内存）
+                    // 仍可能导致内存回退，靠下次 watcher 事件自愈；窗口已窄一个数量级。
+                    let _write_guard = crate::commands::app::CONFIG_WRITE_LOCK.lock().await;
                     // 外部改 config.json → 同步日志子系统（跳过 CLI/env 会话覆盖字段）。
                     match log_manager.config() {
                         Ok(current) => {

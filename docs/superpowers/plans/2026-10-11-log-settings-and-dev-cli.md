@@ -340,6 +340,7 @@ fn distinct_terminal_prefixes_do_not_truncate_each_other() {
 - [ ] **Step 1: 写失败测试** — `parseLogFlags(argv)` 与 `buildAdServerEnv(overrides)` 纯函数
 - [ ] **Step 2: 跑测试确认失败**
 - [ ] **Step 3: 实现**：`run-project-surface.mjs` 用 `process.argv.slice(3)` 解析 → 注入 Vite 子进程 env；tauri 模式经 `cargo tauri dev --config X -- <args>` 透传；`ad-server-launch.mjs` 把 env 传给 ad-server 并注入 `VITE_ADL_DEBUG_LOG_MODE`
+  > ⚠️ 时效修正（2026-10-12 实测）：`cargo tauri dev` 会把 `--` 之后的参数当作 cargo 自身参数（`unexpected argument`），`-- <args>` 透传已取消，**只走 env**（见手册 §9 同名 Q）。本行保留为历史记录，以 env-only 实现为准。
 - [ ] **Step 4: 跑测试确认通过**
 - [ ] **Step 5: Commit** — `feat(frontend): forward log CLI flags through launch scripts`
 

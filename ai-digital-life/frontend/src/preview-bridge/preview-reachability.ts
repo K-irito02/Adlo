@@ -7,8 +7,20 @@
  * offline.
  */
 const AD_SERVER_PROBE_TIMEOUT_MS = 2000;
+/**
+ * 失败探针的负缓存 TTL（Closing H-1）：失败后 5s 内直接返回 false，不重探。
+ * 否则 ad-server 宕机期间每个业务调用都要先付一次最高 2s 的 `/health` 超时。
+ * 成功仍长期缓存；慢启动（5s 内起来）下次调用即重探接住。
+ */
+const NEGATIVE_CACHE_TTL_MS = 5000;
 
-const probeCache = new Map<string, Promise<boolean>>();
+interface ProbeEntry {
+  promise: Promise<boolean>;
+  /** 失败时间戳（成功为 null，即长期有效）。 */
+  failedAt: number | null;
+}
+
+const probeCache = new Map<string, ProbeEntry>();
 const reachabilityListeners = new Set<(baseUrl: string, reachable: boolean) => void>();
 const lastNotified = new Map<string, boolean>();
 
@@ -41,16 +53,22 @@ export function onAdServerReachabilityChange(
 
 /**
  * Probe the ad-server `/health` endpoint (cached per baseUrl). A FAILED probe
- * is NOT cached long-term — the next call re-probes, so an ad-server that
- * starts slower than the first probe still gets picked up without a page
- * reload (Phase 4 R2). Successful probes stay cached (the server rarely
- * disappears; callers observe per-call NETWORK_ERROR for mid-session drops).
+ * is cached for `NEGATIVE_CACHE_TTL_MS` (no per-call 2s stall while down),
+ * then re-probed — so an ad-server that starts slower than the first probe
+ * still gets picked up without a page reload (Phase 4 R2). Successful probes
+ * stay cached (the server rarely disappears; callers observe per-call
+ * NETWORK_ERROR for mid-session drops).
  */
 export function isAdServerReachable(baseUrl: string): Promise<boolean> {
   const cached = probeCache.get(baseUrl);
   if (cached) {
-    return cached;
+    // 成功长期有效；失败在 TTL 内直接返回，不重探（Closing H-1）。
+    if (cached.failedAt === null || Date.now() - cached.failedAt < NEGATIVE_CACHE_TTL_MS) {
+      return cached.promise;
+    }
+    probeCache.delete(baseUrl);
   }
+  const startedAt = Date.now();
   const probe = (async () => {
     try {
       const res = await fetch(`${baseUrl}/health`, {
@@ -58,19 +76,23 @@ export function isAdServerReachable(baseUrl: string): Promise<boolean> {
         signal: AbortSignal.timeout(AD_SERVER_PROBE_TIMEOUT_MS),
       });
       const reachable = res.ok;
-      // 失败不长期缓存：删键使下次调用重探；成功则保留缓存。
-      if (!reachable) {
-        probeCache.delete(baseUrl);
+      // 失败只记时间戳：TTL 内复用本次结果，过期后删键重探。
+      const entry = probeCache.get(baseUrl);
+      if (entry) {
+        entry.failedAt = reachable ? null : startedAt;
       }
       notify(baseUrl, reachable);
       return reachable;
     } catch {
-      probeCache.delete(baseUrl);
+      const entry = probeCache.get(baseUrl);
+      if (entry) {
+        entry.failedAt = startedAt;
+      }
       notify(baseUrl, false);
       return false;
     }
   })();
-  probeCache.set(baseUrl, probe);
+  probeCache.set(baseUrl, { promise: probe, failedAt: null });
   return probe;
 }
 

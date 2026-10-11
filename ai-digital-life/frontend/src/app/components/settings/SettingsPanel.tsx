@@ -1154,7 +1154,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
                   不回退（错误卡呈现），其它业务域才可能回退预览实现。
                   null = 尚未探测，不显示。 */}
               {adServerReachable === false && (
-                <div className="adl-settings-row">
+                <div className="adl-settings-row" role="status">
                   <div className="adl-settings-row__label">
                     <small className="adl-settings-status adl-settings-status--warning">
                       {t.settingsBackendOfflineBadge}

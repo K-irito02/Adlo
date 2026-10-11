@@ -75,6 +75,15 @@ describe('parseLogFlags', () => {
     const { env } = parseLogFlags(['--log-level', 'info', '--log-level', 'trace']);
     expect(env).toEqual({ ADL_LOG_LEVEL: 'trace' });
   });
+
+  it('treats an empty-string value as missing (Closing L2)', () => {
+    // `--log-level ''` 不得污染 env（否则 `??` 链胜出并注入 VITE_*，而 Rust 判非法忽略）。
+    const warn = vi.fn();
+    const { env, restArgs } = parseLogFlags(['--log-level', ''], warn);
+    expect(env).toEqual({});
+    expect(restArgs).toEqual([]);
+    expect(warn).toHaveBeenCalledWith('[adl-run] ignoring --log-level with no value');
+  });
 });
 
 describe('debugLogModeForVite', () => {

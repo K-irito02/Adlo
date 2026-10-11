@@ -1,3 +1,4 @@
+use crate::config::LogConfig;
 use crate::mode::LogMode;
 
 use adl_types::types::config::{AppPreferencePatch, LogLevel};
@@ -50,6 +51,14 @@ impl LogOverrides {
         let mut i = 0;
         while i < args.len() {
             let Some(key) = cli_flag_env_key(&args[i]) else {
+                // 形如 `--log-level=trace` 的等号形式：提示空格写法后跳过
+                // （Closing L5；cargo 风格用户易踩，无声跳过会迷惑）。
+                if args[i].starts_with("--log-") && args[i].contains('=') {
+                    eprintln!(
+                        "[ADL-CLI] ignoring {} (use space-separated form: --flag value)",
+                        args[i]
+                    );
+                }
                 i += 1;
                 continue;
             };
@@ -162,6 +171,16 @@ impl LogSettingsChange {
             log_level: patch.log_level,
             terminal_log_mode: patch.terminal_log_mode,
             debug_log_mode: patch.debug_log_mode,
+        }
+    }
+
+    /// 为落盘失败回滚构造变更（Closing L1/L8，双端单一真源）：仅恢复本次实际
+    /// 应用的字段；`applied` 为空时返回空变更（调用方直接跳过，不打误导性自证行）。
+    pub fn rollback_for(applied: &LogSettingsChange, previous: &LogConfig) -> LogSettingsChange {
+        Self {
+            log_level: applied.log_level.map(|_| previous.log_level),
+            terminal_log_mode: applied.terminal_log_mode.map(|_| previous.terminal_log_mode),
+            debug_log_mode: applied.debug_log_mode.map(|_| previous.debug_log_mode),
         }
     }
 }
@@ -335,6 +354,13 @@ mod tests {
     }
 
     #[test]
+    fn cli_args_equals_form_warns_and_skips() {
+        // Closing L5：`--log-level=trace` 等号形式提示空格写法后跳过，不静默吞掉。
+        let overrides = LogOverrides::from_cli_args(&argv(&["--log-level=trace"]));
+        assert!(!overrides.any());
+    }
+
+    #[test]
     fn locked_field_names_use_json_patch_names() {
         let patch = AppPreferencePatch {
             log_level: Some(LogLevel::Warn),
@@ -344,5 +370,26 @@ mod tests {
         let overrides = LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
         assert_eq!(session_locked_field_names(&patch, &overrides), vec!["logLevel".to_string()]);
         assert!(session_locked_field_names(&patch, &LogOverrides::default()).is_empty());
+    }
+
+    #[test]
+    fn rollback_for_only_restores_applied_fields() {
+        let previous = LogConfig {
+            terminal_log_mode: LogMode::Overwrite,
+            debug_log_mode: LogMode::Append,
+            log_level: LogLevel::Info,
+        };
+        let applied = LogSettingsChange {
+            log_level: Some(LogLevel::Trace),
+            terminal_log_mode: None,
+            debug_log_mode: Some(LogMode::Multi),
+        };
+        let rollback = LogSettingsChange::rollback_for(&applied, &previous);
+        assert_eq!(rollback.log_level, Some(LogLevel::Info));
+        assert_eq!(rollback.terminal_log_mode, None);
+        assert_eq!(rollback.debug_log_mode, Some(LogMode::Append));
+
+        let empty = LogSettingsChange::rollback_for(&LogSettingsChange::default(), &previous);
+        assert!(empty.is_empty(), "空变更回滚仍为空（无误导性自证行）");
     }
 }

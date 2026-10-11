@@ -261,6 +261,89 @@ describe('updatePreferences action', () => {
     expect(ok).toBe(true);
     expect(useAppStore.getState().toasts).toHaveLength(0);
   });
+
+  it('uses the patch language for the lock toast when language itself changed', async () => {
+    // Closing M-5：补丁改了语言 → 提示跟新语言（英文），不跟旧 appInfo。
+    mockUpdatePreferences.mockResolvedValue({
+      ok: true,
+      data: {
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: ['logLevel'],
+      },
+    });
+    useAppStore.setState({
+      appInfo: { config: { language: 'zh-CN' } } as unknown as StoreState['appInfo'],
+    });
+
+    const store = useAppStore.getState();
+    const ok = await store.updatePreferences({
+      language: 'en-US',
+      logLevel: 'debug',
+    } as AppPreferencePatch);
+
+    expect(ok).toBe(true);
+    const toasts = useAppStore.getState().toasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].message).toContain('next launch');
+  });
+
+  it('treats a missing sessionLockedFields as empty instead of throwing', async () => {
+    // Closing M-8：旧信封/异常信封无数组 → 视为空集，更新照常成功。
+    mockUpdatePreferences.mockResolvedValue({
+      ok: true,
+      data: {
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+      },
+    });
+
+    const store = useAppStore.getState();
+    const ok = await store.updatePreferences({ logLevel: 'debug' } as AppPreferencePatch);
+
+    expect(ok).toBe(true);
+    expect(useAppStore.getState().toasts).toHaveLength(0);
+  });
+
+  it('keeps an in-flight failure visible when a second call joins the batch', async () => {
+    // Closing M-2：并入在途批次不再 clearError，错误卡保留。
+    mockUpdatePreferences.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'CONFIG_ERROR', message: 'boom' },
+    });
+    mockUpdatePreferences.mockResolvedValue({
+      ok: true,
+      data: {
+        info: {
+          config: { themeMode: 'system' },
+          recentLogs: [],
+          currentWorkspace: null,
+          appName: 'test',
+          version: '0.0.0',
+        },
+        sessionLockedFields: [],
+      },
+    });
+
+    const store = useAppStore.getState();
+    // 占住 drain：首次调用发出后，在其 resolve 前第二次调用并入同一批次。
+    const first = store.updatePreferences({ logLevel: 'debug' } as AppPreferencePatch);
+    const second = store.updatePreferences({ themeMode: 'dark' } as AppPreferencePatch);
+    const [r1, r2] = await Promise.all([first, second]);
+    expect(r1).toBe(false);
+    expect(r2).toBe(true);
+    expect(useAppStore.getState().errorToasts.length).toBeGreaterThan(0);
+  });
 });
 
 describe('accumulateBatch', () => {

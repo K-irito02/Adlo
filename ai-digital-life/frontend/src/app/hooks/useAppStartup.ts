@@ -67,8 +67,12 @@ export function useAppStartup(appInfo: AppInfo | undefined) {
   useEffect(() => {
     // ad-server 可达性 → store（Phase 4 R2）：Tauri 壳恒连通；浏览器预览订阅
     // 探针变化，供设置面板显示"未连接后端"离线标识。
+    // 只在尚未探测时置 true（Closing L-9）：HMR 重挂载不得把 bootstrap 已写
+    // 的 false 翻回 true；bootstrap 成功分支本就会写 true。
     if (isTauriShell()) {
-      useAppStore.getState().setAdServerReachable(true);
+      if (useAppStore.getState().adServerReachable === null) {
+        useAppStore.getState().setAdServerReachable(true);
+      }
       return;
     }
     return onAdServerReachabilityChange((_baseUrl, reachable) => {

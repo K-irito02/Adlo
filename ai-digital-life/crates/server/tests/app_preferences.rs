@@ -109,6 +109,48 @@ async fn update_preferences_ignores_absent_log_fields() {
 }
 
 #[tokio::test]
+async fn update_preferences_does_not_leak_session_overrides_to_disk() {
+    // Closing M1：无关补丁保存时，被锁且补丁未提供的字段不得把 CLI 值写进 config.json。
+    use adl_types::types::config::LogLevel;
+    let mut st = state("app-prefs-no-leak").await;
+    st.log_overrides = adl_logging::LogOverrides {
+        log_level: Some(LogLevel::Trace),
+        ..Default::default()
+    };
+    {
+        let mut cfg = st.config.write().expect("config lock");
+        cfg.apply_log_overrides(&st.log_overrides);
+    }
+    st.log_manager
+        .apply_change(&adl_logging::LogSettingsChange {
+            log_level: Some(LogLevel::Trace),
+            ..Default::default()
+        })
+        .expect("seed runtime level");
+
+    let (status, body) = send_post(
+        st.clone(),
+        "/app/preferences",
+        Some(json!({ "language": "en-US" })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK, "unexpected: {body}");
+    // 磁盘：CLI 值未泄漏，仍是旧持久化值。
+    let config_path = st.storage.paths().config_dir.join("config.json");
+    let persisted: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&config_path).expect("read config.json"))
+            .expect("parse config.json");
+    assert_eq!(persisted["log_level"], "info");
+    assert_eq!(persisted["language"], "en-US");
+    // 内存与运行期：保持 CLI 值（UI 显示与实际一致）。
+    let mem = st.config.read().expect("config lock");
+    assert_eq!(mem.log_level, LogLevel::Trace);
+    let live = st.log_manager.config().expect("log config");
+    assert_eq!(live.log_level, LogLevel::Trace);
+}
+
+#[tokio::test]
 async fn update_preferences_reports_session_locked_fields() {
     use adl_types::types::config::LogLevel;
     let mut st = state("app-prefs-locked").await;

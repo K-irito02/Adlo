@@ -132,6 +132,14 @@ describe('preferencePatchFromSettingChange', () => {
     expect(preferencePatchFromSettingChange('logLevel', 'INFO')).toBeUndefined();
   });
 
+  it('rejects invalid themeMode and log modes before they reach the backend', () => {
+    // Closing L-7：与 logLevel 同语义，非法一律返回 undefined。
+    expect(preferencePatchFromSettingChange('themeMode', 'blue')).toBeUndefined();
+    expect(preferencePatchFromSettingChange('terminalLogMode', 'rotate')).toBeUndefined();
+    expect(preferencePatchFromSettingChange('debugLogMode', 'MULTI')).toBeUndefined();
+    expect(preferencePatchFromSettingChange('themeMode', 'dark')?.themeMode).toBe('dark');
+  });
+
   it('converts terminalLogMode change to patch', () => {
     const patch = preferencePatchFromSettingChange('terminalLogMode', 'append');
     expect(patch?.terminalLogMode).toBe('append');

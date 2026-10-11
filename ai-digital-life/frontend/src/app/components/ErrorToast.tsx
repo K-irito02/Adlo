@@ -53,8 +53,9 @@ const ErrorToast = forwardRef<HTMLDivElement, ErrorToastProps>(function ErrorToa
   const title =
     level === 'info' ? t.errorsInfo : t[ERROR_TITLE_BY_CODE[entry.code] ?? 'errorsGenericTitle'];
   // 重复计数后缀（Phase 4 F7）：纯数字标记、与语言无关；仅 count > 1 时显示。
+  // 读屏会把"×3"读作"乘 3"，恰好传达重复含义，无需额外 aria（Closing L-5 结论）。
   const detail =
-    entry.count != null && entry.count > 1 ? `${entry.detail} ×${entry.count}` : entry.detail;
+    entry.count !== undefined && entry.count > 1 ? `${entry.detail} ×${entry.count}` : entry.detail;
 
   return (
     <ToastCard

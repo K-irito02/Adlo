@@ -5,7 +5,7 @@
 
 import { isTauriShell } from '../../tauri-bridge';
 import { loadLocale } from '@app/i18n/i18nLoader';
-import { resolveBrowserDebugLogMode } from '@utils/debugLogMode';
+import { resolveEffectiveDebugLogModeFromParts } from '@utils/debugLogMode';
 import type { LogMode } from '@shared/ipc-types.generated';
 
 // ============================================
@@ -238,7 +238,7 @@ async function writeLogsToProjectFile() {
  * `setLogMode` 全仓库零调用方，实践中恒为 fallback，设置项因此不生效（Issue 5）。
  */
 async function resolveEffectiveDebugLogMode(): Promise<LogMode> {
-  return resolveBrowserDebugLogMode(
+  return resolveEffectiveDebugLogModeFromParts(
     import.meta.env.VITE_ADL_DEBUG_LOG_MODE,
     await readAppInfoDebugLogMode(),
   );

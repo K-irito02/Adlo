@@ -32,17 +32,18 @@ static CONFIG_WRITE_LOCK: StdMutex<()> = StdMutex::new(());
 
 /// 落盘失败后的运行期回滚（best-effort，忽略回滚错误，仅告警）。
 /// `ctx` 标记触发来源（persist/join），便于日志区分。
+/// 仅恢复本次实际应用的字段（`rollback_for`；空变更直接跳过，无误导性自证行）。
 fn rollback_runtime(
     log_manager: &adl_logging::LogManager,
     previous: &Option<adl_logging::config::LogConfig>,
+    applied: &adl_logging::LogSettingsChange,
     ctx: &str,
 ) {
     if let Some(previous) = previous {
-        let rollback = adl_logging::LogSettingsChange {
-            log_level: Some(previous.log_level),
-            terminal_log_mode: Some(previous.terminal_log_mode),
-            debug_log_mode: Some(previous.debug_log_mode),
-        };
+        let rollback = adl_logging::LogSettingsChange::rollback_for(applied, previous);
+        if rollback.is_empty() {
+            return;
+        }
         if let Err(e) = log_manager.apply_change(&rollback) {
             tracing::warn!(ctx, error = %e, "persist failed and runtime rollback failed");
         }
@@ -96,28 +97,34 @@ pub async fn update_preferences(
         &adl_logging::LogSettingsChange::from_patch(&patch),
         &state.log_overrides,
     );
-    // 回滚锚点：落盘失败时把运行期恢复到补丁前的值（best-effort，忽略回滚错误）。
+    // 回滚锚点：落盘失败时把运行期恢复到补丁前的值（best-effort）。
+    // apply_change 失败仅 poison 可触发（锁损坏即进程状态不可信），不回滚。
     let previous_log_config = state.log_manager.config().ok();
-    if let Err(e) = state.log_manager.apply_change(&change) {
-        return ipc::to_response(Err(AppError::Internal(format!(
-            "failed to apply log settings: {e}"
-        ))));
-    }
+    let log_manager = state.log_manager.clone();
 
     let config_dir = state.storage.paths().config_dir.clone();
     let config_arc = state.config.clone();
+    let overrides = state.log_overrides;
     let spawned = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
         let _guard = CONFIG_WRITE_LOCK
             .lock()
             .map_err(|_| AppError::Internal("config write lock poisoned".into()))?;
+        // 运行期应用移入锁内（Closing N1）：与"内存改写→落盘"同序，
+        // 并发请求不再出现"运行期 A→B、落盘 B→A"的错序分歧。
+        // apply_change 内的 warn 日志在 blocking 线程打是安全的。
+        if let Err(e) = log_manager.apply_change(&change) {
+            return Err(AppError::Internal(format!("failed to apply log settings: {e}")));
+        }
         let mut config = config_arc
             .read()
             .map_err(|_| AppError::Internal("config lock poisoned".into()))?
             .clone();
         config.apply_patch(&patch);
-        // 落盘错误直接透传（UI 错误卡可见原始根因）；调用方凭 Err 即回滚，
-        // 不再用字符串前缀判别（Phase 4 D6 已消除）。
-        adl_kernel::config::save_to(&config_dir, &config)?;
+        // 落盘前剥离会话覆盖泄漏（Closing M1）：被锁且补丁未提供的字段恢复磁盘值。
+        let disk = adl_kernel::config::load_from(&config_dir).unwrap_or_default();
+        let to_save =
+            adl_kernel::config::resolve_persisted_config(&config, &patch, &overrides, &disk);
+        adl_kernel::config::save_to(&config_dir, &to_save)?;
         *config_arc.write().map_err(|_| AppError::Internal("config lock poisoned".into()))? =
             config.clone();
         // workspace 快照与 config 同一次锁内读取：避免与并发的
@@ -139,7 +146,7 @@ pub async fn update_preferences(
         Err(e) => {
             // Join 失败意味着落盘状态未知而运行期已变 —— 同样回滚运行期
             // （Phase 4 R2；概率极低：需闭包 panic/取消）。
-            rollback_runtime(&state.log_manager, &previous_log_config, "join");
+            rollback_runtime(&state.log_manager, &previous_log_config, &change, "join");
             return ipc::to_response(Err(AppError::Internal(format!(
                 "spawn_blocking failed: {e}"
             ))));
@@ -148,7 +155,7 @@ pub async fn update_preferences(
     // spawn 链上任何失败（落盘/锁/序列化）→ 回滚运行期，避免"运行期新 +
     // 磁盘旧"的三方漂移（Phase 4 F2；"凡非成功值即回滚"，不再用字符串判别）。
     if value.is_err() {
-        rollback_runtime(&state.log_manager, &previous_log_config, "persist");
+        rollback_runtime(&state.log_manager, &previous_log_config, &change, "persist");
         return ipc::to_response(value.map(|_| serde_json::json!(null)));
     }
     state.event_bus.emit(AppEvent::ConfigChanged);

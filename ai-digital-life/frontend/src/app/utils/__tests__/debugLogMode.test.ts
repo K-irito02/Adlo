@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { isLogMode, resolveBrowserDebugLogMode } from '../debugLogMode';
+import {
+  isLogMode,
+  resolveBrowserDebugLogMode,
+  resolveEffectiveDebugLogModeFromParts,
+} from '../debugLogMode';
 
 describe('resolveBrowserDebugLogMode', () => {
   it('prefers the CLI/env override over the user setting', () => {
@@ -27,5 +31,16 @@ describe('resolveBrowserDebugLogMode', () => {
     expect(isLogMode('')).toBe(false);
     expect(isLogMode(undefined)).toBe(false);
     expect(isLogMode('Overwrite')).toBe(false);
+  });
+});
+
+describe('resolveEffectiveDebugLogModeFromParts', () => {
+  // Closing L-8：collector 真实函数读 env + 动态 import，不便单测；
+  // 此处钉死"env → 用户设置 → 默认"的合成语义。
+  it('chains env, setting and default in order', () => {
+    expect(resolveEffectiveDebugLogModeFromParts('multi', 'append')).toBe('multi');
+    expect(resolveEffectiveDebugLogModeFromParts(undefined, 'append')).toBe('append');
+    expect(resolveEffectiveDebugLogModeFromParts('bogus', undefined)).toBe('overwrite');
+    expect(resolveEffectiveDebugLogModeFromParts(undefined, undefined)).toBe('overwrite');
   });
 });

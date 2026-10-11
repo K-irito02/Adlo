@@ -79,7 +79,9 @@ async function main() {
     childEnv.VITE_ADL_DEBUG_LOG_MODE = debugModeForVite;
   }
   if (Object.keys(logFlags.env).length > 0) {
-    console.log(`[adl-run] log overrides: ${JSON.stringify(logFlags.env)} (session-only)`);
+    // "已转发"而非"已生效"（Closing L1）：取值合法性由 Rust 侧统一校验，
+    // 非法值随后会被 `[ADL-CLI] ignoring invalid …` 忽略，此处不断言生效。
+    console.log(`[adl-run] log overrides forwarded: ${JSON.stringify(logFlags.env)} (session-only)`);
   }
 
   const vite = spawnChecked(

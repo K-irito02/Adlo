@@ -1,9 +1,5 @@
-import type {
-  AppPreferencePatch,
-  LogLevel,
-  LogMode,
-  ThemeMode,
-} from '../../shared/ipc-types.generated';
+import type { AppPreferencePatch, LogLevel, ThemeMode } from '../../shared/ipc-types.generated';
+import { isLogMode } from './debugLogMode';
 import type { AppInfo, SettingItem } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
 
@@ -11,6 +7,12 @@ const LOG_LEVELS: readonly string[] = ['error', 'warn', 'info', 'debug', 'trace'
 
 function isLogLevel(value: unknown): value is LogLevel {
   return typeof value === 'string' && LOG_LEVELS.includes(value);
+}
+
+const THEME_MODES: readonly string[] = ['light', 'dark', 'system'];
+
+function isThemeMode(value: unknown): value is ThemeMode {
+  return typeof value === 'string' && THEME_MODES.includes(value);
 }
 
 export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[] {
@@ -132,7 +134,7 @@ export function preferencePatchFromSettingChange(
     return { language: value as string };
   }
   if (id === 'themeMode') {
-    return { themeMode: value as ThemeMode };
+    return isThemeMode(value) ? { themeMode: value } : undefined;
   }
   if (id === 'logLevel') {
     // 纵深守卫（Phase 4 R10）：UI select 已约束取值，运行时误传（如外部直调）
@@ -140,10 +142,10 @@ export function preferencePatchFromSettingChange(
     return isLogLevel(value) ? { logLevel: value } : undefined;
   }
   if (id === 'terminalLogMode') {
-    return { terminalLogMode: value as LogMode };
+    return isLogMode(value) ? { terminalLogMode: value } : undefined;
   }
   if (id === 'debugLogMode') {
-    return { debugLogMode: value as LogMode };
+    return isLogMode(value) ? { debugLogMode: value } : undefined;
   }
   if (id === 'font:ui') {
     return { fonts: { uiFont: value as string } };

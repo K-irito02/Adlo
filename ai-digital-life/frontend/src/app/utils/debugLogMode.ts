@@ -26,3 +26,15 @@ export function resolveBrowserDebugLogMode(
   }
   return 'overwrite';
 }
+
+/**
+ * 生效模式合成（Closing L-8）：把"env → 用户设置 → 默认"链条抽成纯函数，
+ * 供单测直接注入（collector 的真实函数读 `import.meta.env` + 动态 import store，
+ * 不便单测；此处钉死合成语义）。
+ */
+export function resolveEffectiveDebugLogModeFromParts(
+  envValue: string | undefined,
+  configValue: string | undefined,
+): LogMode {
+  return resolveBrowserDebugLogMode(envValue, configValue);
+}

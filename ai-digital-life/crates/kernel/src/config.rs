@@ -105,7 +105,7 @@ impl AppConfig {
     ///
     /// 仅覆盖补丁中显式提供的字段；`fonts` 逐子字段覆盖（不整体替换）。
     /// 日志字段的**运行时生效**由调用方转交 `LogManager`（见
-    /// [`LogSettingsChange`]），本方法只改内存配置。
+    /// `adl_logging::LogSettingsChange`），本方法只改内存配置。
     pub fn apply_patch(&mut self, patch: &AppPreferencePatch) {
         if let Some(language) = patch.language.as_ref() {
             self.language = language.clone();
@@ -155,6 +155,31 @@ impl AppConfig {
 }
 
 // 需要同步到 `LogManager` 的日志字段变更集见 `adl_logging::LogSettingsChange`。
+
+/// 落盘前剥离会话覆盖泄漏（Closing M1）：被 CLI/env 覆盖锁定**且本次补丁未提供**
+/// 的日志字段，用磁盘现值覆盖内存值后再落盘。内存与运行期保持 CLI 值不变
+/// （UI 显示与实际运行一致），仅磁盘恢复为用户上次持久化的选择，`session-only`
+/// 承诺不被无关 UI 保存打破。被锁**且补丁内提供**的字段按用户选择落盘（下次生效）。
+pub fn resolve_persisted_config(
+    memory: &AppConfig,
+    patch: &AppPreferencePatch,
+    overrides: &adl_logging::LogOverrides,
+    disk: &AppConfig,
+) -> AppConfig {
+    let mut out = memory.clone();
+    // 补丁内提供的字段按用户选择落盘（锁定与否都落盘；锁定仅影响运行期），
+    // 故只处理"补丁未提供且被锁定"的泄漏组合。
+    if patch.log_level.is_none() && overrides.log_level.is_some() {
+        out.log_level = disk.log_level;
+    }
+    if patch.terminal_log_mode.is_none() && overrides.terminal_log_mode.is_some() {
+        out.terminal_log_mode = disk.terminal_log_mode;
+    }
+    if patch.debug_log_mode.is_none() && overrides.debug_log_mode.is_some() {
+        out.debug_log_mode = disk.debug_log_mode;
+    }
+    out
+}
 
 impl Default for AppConfig {
     fn default() -> Self {
@@ -244,6 +269,44 @@ mod tests {
         assert_eq!(config.log_level, LogLevel::Debug);
         assert_eq!(config.terminal_log_mode, LogMode::default());
         assert_eq!(config.debug_log_mode, LogMode::default());
+    }
+
+    #[test]
+    fn resolve_persisted_config_keeps_cli_values_out_of_disk() {
+        // Closing M1：无关补丁保存时，被锁且补丁未提供的字段恢复磁盘值。
+        let disk = AppConfig::default();
+        let mut memory = AppConfig::default();
+        let overrides = adl_logging::LogOverrides {
+            log_level: Some(LogLevel::Trace),
+            ..Default::default()
+        };
+        memory.apply_log_overrides(&overrides);
+        assert_eq!(memory.log_level, LogLevel::Trace);
+
+        // 生产流程：内存先打补丁，再算落盘值。
+        let patch = AppPreferencePatch { language: Some("en-US".into()), ..Default::default() };
+        memory.apply_patch(&patch);
+        let to_save = resolve_persisted_config(&memory, &patch, &overrides, &disk);
+        assert_eq!(to_save.log_level, LogLevel::Info, "CLI 值不得泄漏进 config.json");
+        assert_eq!(to_save.language, "en-US", "用户选择正常落盘");
+        // 内存不受影响（UI 显示与运行期一致）。
+        assert_eq!(memory.log_level, LogLevel::Trace);
+    }
+
+    #[test]
+    fn resolve_persisted_config_keeps_user_choice_for_patched_locked_fields() {
+        // 被锁且补丁内提供的字段按用户选择落盘（下次启动生效）。
+        let disk = AppConfig::default();
+        let mut memory = AppConfig::default();
+        let overrides = adl_logging::LogOverrides {
+            log_level: Some(LogLevel::Trace),
+            ..Default::default()
+        };
+        memory.apply_log_overrides(&overrides);
+        let patch = AppPreferencePatch { log_level: Some(LogLevel::Warn), ..Default::default() };
+        memory.apply_patch(&patch);
+        let to_save = resolve_persisted_config(&memory, &patch, &overrides, &disk);
+        assert_eq!(to_save.log_level, LogLevel::Warn);
     }
 
     #[test]

@@ -12,7 +12,12 @@ import { describe, it, expect, vi } from 'vitest';
  * so importing it here is side-effect free).
  */
 import { probeAdServerHealth, decideServerBaseUrl } from '../../dev/ad-server-launch.mjs';
-import { AD_SERVER_BIN_NAME, AD_SERVER_PACKAGE } from '../../dev/ad-server-launch.mjs';
+import {
+  AD_SERVER_BIN_NAME,
+  AD_SERVER_PACKAGE,
+  buildAdServerEnv,
+  buildViteEnv,
+} from '../../dev/ad-server-launch.mjs';
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,7 +60,7 @@ function findServerCargoToml(): string {
 describe('ad-server naming contract', () => {
   it('uses a package name that exists in crates/server/Cargo.toml', () => {
     const cargo = readFileSync(findServerCargoToml(), 'utf8');
-    expect(cargo).toMatch(new RegExp(`^name\\s*=\\s*"${AD_SERVER_PACKAGE}"`, 'm'));
+    expect(packageNameOf(cargo)).toBe(AD_SERVER_PACKAGE);
     expect(AD_SERVER_PACKAGE).toBe('adl-server');
   });
 
@@ -67,11 +72,74 @@ describe('ad-server naming contract', () => {
     // 包—产物单点约束（Phase 4 F1）：默认产物名即包名；若将来加 [[bin]] 改名，
     // 本断言失败即提醒同步 AD_SERVER_BIN_NAME，而不是默默漂移。
     const cargo = readFileSync(findServerCargoToml(), 'utf8');
-    expect(cargo).not.toMatch(/\[\[bin\]\]/);
+    expect(binNamesOf(cargo)).toEqual([]);
     const withoutExe = AD_SERVER_BIN_NAME.replace(/\.exe$/, '');
     expect(withoutExe).toBe(AD_SERVER_PACKAGE);
+    // 合法添加场景的约束自解释（Closing N3）：若将来加了 [[bin]]，
+    // 其 name 必须等于产物名，而不是"不应有 bin"。
+    for (const name of binNamesOf(cargo)) {
+      expect(name).toBe(AD_SERVER_PACKAGE);
+    }
+  });
+
+  it('honours an explicit [[bin]] name if one is ever added', () => {
+    // 约束的另一半：合法添加 [[bin]] 时，其 name 必须等于产物名（去 .exe 后缀）。
+    expect(binNamesOf('[[bin]]\nname = "adl-server"\npath = "src/bin/adl-server.rs"')).toEqual([
+      'adl-server',
+    ]);
   });
 });
+
+/**
+ * 轻量 TOML 小节解析（Closing M3）：`^name = …` 正则会误命中
+ * `[dependencies.adl-server]` 或注释，`[[bin]]` 否定断言则分不清合法添加与漂移。
+ * 只取 `[package]` 小节内的 name。
+ */
+function sectionOf(cargo: string, header: string): string {
+  // Closing N4：节头允许 `[ package ]` 间距与行尾注释。
+  const headerPattern = header === '[package]' ? /^\[\s*package\s*\]/ : /^\[\[\s*bin\s*\]\]/;
+  const lines = cargo.split('\n');
+  let capture = false;
+  const out: string[] = [];
+  for (const line of lines) {
+    const withoutComment = line.split('#')[0];
+    const trimmed = withoutComment.trim();
+    if (trimmed.startsWith('[')) {
+      capture = headerPattern.test(trimmed);
+      continue;
+    }
+    if (capture && trimmed !== '') {
+      out.push(line);
+    }
+  }
+  return out.join('\n');
+}
+
+function packageNameOf(cargo: string): string | null {
+  const match = sectionOf(cargo, '[package]').match(/^name\s*=\s*"([^"]+)"/m);
+  return match ? match[1] : null;
+}
+
+function binNamesOf(cargo: string): string[] {
+  const names: string[] = [];
+  const lines = cargo.split('\n');
+  let inBin = false;
+  for (const line of lines) {
+    const withoutComment = line.split('#')[0];
+    const trimmed = withoutComment.trim();
+    if (trimmed.startsWith('[')) {
+      inBin = /^\[\[\s*bin\s*\]\]/.test(trimmed);
+      continue;
+    }
+    if (inBin && trimmed !== '') {
+      const match = trimmed.match(/^name\s*=\s*"([^"]+)"/);
+      if (match) {
+        names.push(match[1]);
+      }
+    }
+  }
+  return names;
+}
 
 function okHealth(): Response {
   return { ok: true, status: 200 } as Response;
@@ -172,5 +240,32 @@ describe('ad-server-launch fallback wiring (probe → inject or mock)', () => {
       fetchImpl,
     });
     expect(decideServerBaseUrl(port, healthy)).toBeNull();
+  });
+});
+
+describe('ad-server-launch env builders (Closing L6)', () => {
+  it('buildViteEnv merges base + log flags and maps debug mode to VITE_ key', () => {
+    const env = buildViteEnv(
+      { PATH: '/bin', VITE_ADL_SERVER_URL: 'stale' },
+      { ADL_LOG_LEVEL: 'trace', ADL_DEBUG_LOG_MODE: 'append' },
+      'http://127.0.0.1:61234',
+    );
+    expect(env.VITE_ADL_SERVER_URL).toBe('http://127.0.0.1:61234');
+    expect(env.ADL_LOG_LEVEL).toBe('trace');
+    expect(env.VITE_ADL_DEBUG_LOG_MODE).toBe('append');
+    expect(env.PATH).toBe('/bin');
+  });
+
+  it('buildViteEnv omits VITE_ keys when no server and no debug override', () => {
+    const env = buildViteEnv({ PATH: '/bin' }, {}, null);
+    expect(env.VITE_ADL_SERVER_URL).toBeUndefined();
+    expect(env.VITE_ADL_DEBUG_LOG_MODE).toBeUndefined();
+  });
+
+  it('buildAdServerEnv merges base + log flags without VITE_ mapping', () => {
+    const env = buildAdServerEnv({ PATH: '/bin' }, { ADL_LOG_LEVEL: 'debug' });
+    expect(env.ADL_LOG_LEVEL).toBe('debug');
+    expect(env.PATH).toBe('/bin');
+    expect(env.VITE_ADL_SERVER_URL).toBeUndefined();
   });
 });

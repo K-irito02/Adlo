@@ -109,6 +109,8 @@ impl LogLevel {
 
 impl std::str::FromStr for LogLevel {
     type Err = String;
+    /// 输入侧宽容（含 `"warning"` 别名）；序列化/TS 线格式恒为 `"warn"`
+    ///（input-only alias，后人勿误以为 wire 格式含 `warning`）。
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.trim().to_ascii_lowercase().as_str() {
             "error" => Ok(Self::Error),

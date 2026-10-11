@@ -28,3 +28,17 @@ export function decideServerBaseUrl(
   port: number | null | undefined,
   healthy: boolean,
 ): string | null;
+
+/** 组装 Vite 子进程 env（日志 flag 经 env 注入 + VITE_ 映射；Closing L6）。 */
+export function buildViteEnv(
+  baseEnv: Record<string, string | undefined>,
+  logFlagsEnv: Record<string, string>,
+  adServerBaseUrl: string | null,
+): Record<string, string | undefined>;
+
+/** 组装 ad-server 子进程 env（env 是唯一传递通道；Closing L6）。 */
+export function buildAdServerEnv(
+  baseEnv: Record<string, string | undefined>,
+  logFlagsEnv: Record<string, string>,
+): Record<string, string | undefined>;
+

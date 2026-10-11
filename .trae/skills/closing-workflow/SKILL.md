@@ -342,6 +342,7 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 - 规则更新：以 `.agents/rules/` 为真源，同步到 `.trae/rules/`
 - 技能更新：以 `.opencode/skills/` 为真源，同步到 `.agents/skills/`、`.trae/skills/`
 - 同步后检查 `.gitignore` 确保必要文件被 Git 跟踪
+- 三副本一致性校验（Closing L11）：改任一 `commands.md`/`dev-rules.md`（或任一技能副本）后，用 `Get-FileHash` 比对三路哈希，不一致即未同步 complete：`.agents/rules/` ↔ `.opencode/rules/` ↔ `.trae/rules/`，`.opencode/skills/` ↔ `.agents/skills/` ↔ `.trae/skills/`
 
 ### 4d. 设计规范提取
 

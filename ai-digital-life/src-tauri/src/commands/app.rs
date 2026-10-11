@@ -106,6 +106,8 @@ fn log_settings_patch_body(change: &adl_logging::LogSettingsChange) -> AppPrefer
 ///
 /// 后台发送（Phase 4 F7）：forward 的结果本就不影响返回值，server 半死时同步等待
 /// 会把设置保存 UI 拖住至多约 3s；调用方传 owned 数据，不借用 AppState。
+/// 已知边界（Closing L4）：每次 spawn 独立 POST、无序号——快速连改可能后发先至，
+/// server 短暂停在旧值，下次保存/重启自愈。后天若需严格保序，加单调序号或防抖合并。
 fn forward_log_settings_to_server(
     client: reqwest::Client,
     base_url: String,
@@ -190,16 +192,23 @@ pub fn app_get_diagnostics(
     }))
 }
 
+/// 串行化并发 `app_update_preferences` 的进程内写锁（Closing M2）：内存改写与
+/// 落盘结果必须同序。tokio 锁可持有跨 `.await`；watcher 线程取同一把锁。
+/// 与 server 侧 `CONFIG_WRITE_LOCK`（进程内串行 read-modify-write）同形。
+pub(crate) static CONFIG_WRITE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[tauri::command]
 pub async fn app_update_preferences(
     app: tauri::AppHandle,
     patch: AppPreferencePatch,
 ) -> Result<IpcResult<UpdatePreferencesResult>, AppError> {
     let state = app.state::<AppState>();
+    let _write_guard = CONFIG_WRITE_LOCK.lock().await;
     // 1) 日志字段先运行时生效：失败即返回，内存 config 尚未改写 → 无
     //    「config 已变但 LogManager 未生效」的永久漂移（原 `let _ =` 吞错缺陷）。
     //    会话覆盖锁定的字段跳过运行期（仅落盘，下次启动生效；与 server 同语义）。
     //    顺序语义：日志字段先行校验，失败则整个补丁被拒绝（含无关字段）。
+    //    apply_change 失败仅 poison 可触发（锁损坏即进程状态不可信），不回滚。
     let locked_fields =
         adl_logging::session_locked_field_names(&patch, &state.log_overrides);
     let full_change = adl_logging::LogSettingsChange::from_patch(&patch);
@@ -222,24 +231,41 @@ pub async fn app_update_preferences(
         (previous, snapshot)
     };
     // 3) 落盘 + 广播 ConfigChanged。
+    //    落盘前剥离会话覆盖泄漏（Closing M1）：被锁且补丁未提供的字段恢复磁盘值。
     let config_dir = state.storage.paths().config_dir.clone();
+    let overrides = state.log_overrides;
     let persist_result = tokio::task::spawn_blocking(move || {
-        crate::setup::save_config_to_dir(&config_dir, &config_clone)
+        let to_save = match adl_kernel::config::load_from(&config_dir) {
+            Ok(disk) => {
+                adl_kernel::config::resolve_persisted_config(&config_clone, &patch, &overrides, &disk)
+            },
+            Err(e) => {
+                // 预读失败也走剥离（Closing N2）：用默认磁盘值而非内存原样保存，
+                // 否则 M1 泄漏在该异常路径重现（读不到盘时 save 多半也会失败，
+                // 回滚路径兜底；此处先保证"能落盘即不泄漏"）。
+                tracing::warn!(error = %e, "persist pre-read failed, stripping locked fields against defaults");
+                adl_kernel::config::resolve_persisted_config(
+                    &config_clone,
+                    &patch,
+                    &overrides,
+                    &adl_kernel::config::AppConfig::default(),
+                )
+            },
+        };
+        crate::setup::save_config_to_dir(&config_dir, &to_save)
     })
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
     .map_err(|e| AppError::Config(e.to_string()));
     if let Err(persist_error) = persist_result {
         // 落盘失败：回滚运行期 + 内存，避免"当时似乎生效、重启又没了"的
-        //  confusing 行为（回滚本身 best-effort，失败仅告警）。
+        //  confusing 行为（回滚本身 best-effort，失败仅告警；仅恢复本次应用字段）。
         if let Some(previous) = previous_log_config {
-            let rollback = adl_logging::LogSettingsChange {
-                log_level: Some(previous.log_level),
-                terminal_log_mode: Some(previous.terminal_log_mode),
-                debug_log_mode: Some(previous.debug_log_mode),
-            };
-            if let Err(e) = state.log_manager.apply_change(&rollback) {
-                tracing::warn!(error = %e, "persist failed and runtime rollback failed");
+            let rollback = adl_logging::LogSettingsChange::rollback_for(&log_change, &previous);
+            if !rollback.is_empty() {
+                if let Err(e) = state.log_manager.apply_change(&rollback) {
+                    tracing::warn!(error = %e, "persist failed and runtime rollback failed");
+                }
             }
         }
         if let Ok(mut config) =
@@ -250,6 +276,8 @@ pub async fn app_update_preferences(
         // 保留原始错误信息（磁盘满/权限等根因应在 UI 错误卡可见，Phase 4 R1）。
         return Err(persist_error);
     }
+    // 落盘完成即释放写锁：转发与 workspace 获取是只读下游，不必串行化。
+    drop(_write_guard);
     // 4) 把日志字段推给 adl-server 子进程（运行期同步；后台发送，失败仅告警，
     //    见 helper 注释）。转发完整变更：server 侧用同样的锁定语义自行丢弃被锁字段。
     if let Some(base_url) = state.ad_server.base_url() {

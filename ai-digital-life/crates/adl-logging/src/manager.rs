@@ -72,6 +72,9 @@ impl<S: tracing::Subscriber> Filter<S> for LevelGate {
     }
 
     fn max_level_hint(&self) -> Option<LevelFilter> {
+        // poison 时 effective_level 为 None：enabled() 恒 false（fail-closed，
+        // 刻意选择——脏配置下不写日志）；hint 回 None 仅表示"无优化提示"，
+        // 仍逐事件调 enabled()，故 hint 与 enabled 无实质矛盾（Closing L3 结论）。
         self.effective_level().map(LevelFilter::from_level)
     }
 }
@@ -233,6 +236,11 @@ impl LogManager {
                 .map_err(|_| LogError::Config("level cell lock poisoned".into()))?;
             *cell = level;
         }
+        // 重建全局 interest 缓存：tracing 会按 `max_level_hint`/callsite interest
+        // 缓存各层的放行结论，调低后被记为 `never` 的 callsite 在调高后不会自动重算，
+        // `enabled()` 根本不再被调用 → "调高静默失效"（Closing H1 实证）。
+        // 级别切换是罕见操作，重建成本可接受。
+        tracing::callsite::rebuild_interest_cache();
 
         tracing::warn!(%level, "[ADL-LOG] log level changed");
         Ok(())
@@ -717,6 +725,77 @@ mod tests {
         assert_eq!(stdout_gate.effective_level(), Some(tracing::Level::ERROR));
         // 文件层下限恒为 debug：调到 error 仍保留 post-mortem 能力。
         assert_eq!(file_gate.effective_level(), Some(tracing::Level::DEBUG));
+    }
+
+    /// 线程级共享缓冲 writer（供 live 订阅者实验）：每次写入时加锁追加，
+    /// 避免返回借用内部缓冲的 guard（生命周期无法满足 `MakeWriter`）。
+    #[derive(Clone)]
+    struct SharedVecWriter {
+        buf: Arc<Mutex<Vec<u8>>>,
+    }
+
+    impl std::io::Write for SharedVecWriter {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.buf.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl<'a> tracing_subscriber::fmt::writer::MakeWriter<'a> for SharedVecWriter {
+        type Writer = SharedVecWriter;
+
+        fn make_writer(&'a self) -> Self::Writer {
+            self.clone()
+        }
+    }
+
+    /// 运行期"调高即时生效"的 live 实证（Closing H1）：经真实订阅者验证，
+    /// error → trace 热切换后 trace 事件真实到达 writer（排除 interest-cache
+    /// 陈旧导致的"调高静默失效"）。用线程级 `set_default` 隔离，不碰全局订阅者；
+    /// 门控与 manager 共用同一级别单元，走真实路径实证。
+    #[test]
+    fn runtime_level_raise_reaches_live_subscriber() {
+        let buf = Arc::new(Mutex::new(Vec::<u8>::new()));
+        let level_cell = Arc::new(RwLock::new(LogLevel::Error));
+        let layer = fmt::layer()
+            .with_ansi(false)
+            .with_writer(SharedVecWriter { buf: buf.clone() })
+            .with_filter(LevelGate { level: level_cell.clone(), floor: None });
+        let subscriber = Registry::default().with(layer);
+        let _guard = tracing::subscriber::set_default(subscriber);
+        // 门控与 manager 共用同一级别单元，走真实 `set_log_level` 路径（含重建缓存）。
+        let dir = test_log_dir("live-raise");
+        let config = Arc::new(RwLock::new(LogConfig {
+            terminal_log_mode: LogMode::Overwrite,
+            debug_log_mode: LogMode::Overwrite,
+            log_level: LogLevel::Error,
+        }));
+        let manager = LogManager {
+            config,
+            log_dir: dir.clone(),
+            terminal_prefix: SHELL_TERMINAL_PREFIX.to_string(),
+            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, SHELL_TERMINAL_PREFIX))),
+            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, DEBUG_LOG_PREFIX))),
+            level_cell: level_cell.clone(),
+            terminal_file: Arc::new(Mutex::new(None)),
+        };
+
+        tracing::debug!("hidden-before-raise");
+        assert!(
+            !String::from_utf8_lossy(&buf.lock().unwrap()).contains("hidden-before-raise"),
+            "error 门限下 debug 事件必须被过滤"
+        );
+
+        manager.set_log_level(LogLevel::Trace).unwrap();
+        tracing::debug!("shown-after-raise");
+        assert!(
+            String::from_utf8_lossy(&buf.lock().unwrap()).contains("shown-after-raise"),
+            "调高到 trace 后 debug 事件必须到达（interest-cache 不得过期）"
+        );
     }
 
     /// F1：不同进程前缀的终端日志写入不同文件，互不截断。

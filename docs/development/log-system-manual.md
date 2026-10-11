@@ -41,7 +41,7 @@ pnpm dev:tauri -- --log-level debug
 终端会打印两行自证信息：
 
 ```
-[ADL-LOG] logger ready level=trace prefix="terminal-logs" dir=E:\...\SourceWorkspace\.adl-logs
+[ADL-LOG] logger ready level=trace prefix="terminal-logs" dir=<仓库根>\.adl-logs
 [ADL-CLI] level=trace terminal=multi debug=- (session override, not persisted)
 ```
 
@@ -65,6 +65,7 @@ pnpm dev:tauri -- --log-level debug
 - 非法取值会打印 `[ADL-CLI] ignoring invalid …` 并**忽略该项**（不会阻断启动）
 - 缺值（如 `--log-level --log-mode multi`）同样只告警并跳过
 - 重复 flag 取**最后一次**（与 Rust 侧一致）
+- 不要透传 `--host` / `--port` 给启动脚本（端口由脚本统一分配；重复 flag 的胜出语义未锁定，实际监听端口可能偏离脚本打印的地址）
 
 ### 2.2 优先级（高 → 低）
 
@@ -143,14 +144,17 @@ pnpm dev:tauri
 ### 4.1 常见组合示例
 
 ```powershell
+# 仓库根（按你的实际检出路径替换 <仓库根>）
+$RepoRoot = (git rev-parse --show-toplevel).Trim()
+
 # 列出两处日志目录（按时间倒序）
-Get-ChildItem "E:\AI-DIGITAL-LIFE\SourceWorkspace\.adl-logs" |
+Get-ChildItem "$RepoRoot\.adl-logs" |
   Sort-Object LastWriteTime -Descending | Select-Object -First 10 Name, Length, LastWriteTime
-Get-ChildItem "E:\AI-DIGITAL-LIFE\SourceWorkspace\ai-digital-life\.adl-logs" |
+Get-ChildItem "$RepoRoot\ai-digital-life\.adl-logs" |
   Sort-Object LastWriteTime -Descending | Select-Object -First 10 Name, Length, LastWriteTime
 
 # 只看关键的日志开关事件
-Select-String -Path "E:\AI-DIGITAL-LIFE\SourceWorkspace\.adl-logs\terminal-logs.txt" `
+Select-String -Path "$RepoRoot\.adl-logs\terminal-logs.txt" `
   -Pattern "ADL-LOG|ADL-CLI|ADL-SETTINGS"
 ```
 
@@ -239,12 +243,12 @@ $env:ADL_LOG_LEVEL='error';  cargo run -p adl-server -- --port 0 --data-dir $env
 $env:ADL_LOG_LEVEL='trace';  cargo run -p adl-server -- --port 0 --data-dir $env:TEMP\adl-trace
 ```
 
-（实测参考：`error` → stdout 0 条 INFO；`trace` → stdout 13 条 INFO。）
+（2026-10-11 快照，仅供量级参考：`error` 下 stdout 几乎无 INFO；`trace` 下大量 INFO。）
 
 ### 6.4 常用断言片段
 
 ```powershell
-$dir = "E:\AI-DIGITAL-LIFE\SourceWorkspace\.adl-logs"
+$dir = Join-Path (git rev-parse --show-toplevel).Trim() '.adl-logs'
 
 # 1) 启动行是否体现本次覆盖
 Select-String -Path "$dir\terminal-logs.txt" -Pattern "\[ADL-CLI\]" -SimpleMatch
@@ -352,11 +356,12 @@ cd ai-digital-life
 pnpm dev:tauri -- --log-level trace --terminal-log-mode multi
 
 # 启动后终端应出现：
-#   [ADL-LOG] logger ready level=trace prefix="terminal-logs" dir=…\SourceWorkspace\.adl-logs
+#   [ADL-LOG] logger ready level=trace prefix="terminal-logs" dir=<仓库根>\.adl-logs
 #   [ADL-CLI] level=trace terminal=multi debug=- (session override, not persisted)
 
 # 复现问题后，读最新会话文件（注意：后端日志在另一个目录）
-Get-ChildItem "E:\AI-DIGITAL-LIFE\SourceWorkspace\.adl-logs" -Filter "terminal-logs-*.txt" |
+$RepoRoot = (git rev-parse --show-toplevel).Trim()
+Get-ChildItem "$RepoRoot\.adl-logs" -Filter "terminal-logs-*.txt" |
   Sort-Object LastWriteTime -Descending | Select-Object -First 1 |
   ForEach-Object { Get-Content $_.FullName -Tail 50 }
 ```

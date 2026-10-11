@@ -18,6 +18,8 @@
 // clear warning and STILL start Vite WITHOUT `VITE_ADL_SERVER_URL`. The
 // preview-bridge then falls back to its preview/mock implementations (the
 // current no-server behavior), so the browser demo keeps working.
+// 注（Closing L5）：此处是 launcher 级兜底；`app` 域（设置/配置）已改为失败即
+// 失败、不再静默回退 mock（见手册 §7），两者并存，不要混淆。
 //
 // Lifecycle: when Vite exits (or on SIGINT/SIGTERM), the ad-server child (and
 // its tree — `cargo run` spawns it as a grandchild) is killed.
@@ -106,19 +108,34 @@ function currentLogFlags() {
   return parseLogFlags(process.argv.slice(2));
 }
 
-function startVite(adServerBaseUrl, logFlags) {
-  // 日志 flag 已被 parseLogFlags 消费，其余参数原样转发给 vite
-  // （如 `node dev/ad-server-launch.mjs --port 5174`）。
-  const viteArgs = logFlags.restArgs;
-  const env = { ...process.env, ...logFlags.env };
+/**
+ * 纯函数：组装 Vite 子进程 env（Closing L6，可单测）。
+ * 日志 flag 已被 parseLogFlags 消费进 `logFlagsEnv`，其余参数原样转发给 vite；
+ * `VITE_ADL_SERVER_URL` 缺席即 preview/mock 回退；调试模式经 `VITE_` 前缀注入。
+ */
+export function buildViteEnv(baseEnv, logFlagsEnv, adServerBaseUrl) {
+  const env = { ...baseEnv, ...logFlagsEnv };
   if (adServerBaseUrl) {
     env.VITE_ADL_SERVER_URL = adServerBaseUrl;
   }
-  const debugModeForVite = debugLogModeForVite(logFlags.env);
+  const debugModeForVite = debugLogModeForVite(logFlagsEnv);
   if (debugModeForVite) {
     // 浏览器前端只暴露 VITE_ 前缀（调试日志模式经此到达 debugLogCollector）。
     env.VITE_ADL_DEBUG_LOG_MODE = debugModeForVite;
   }
+  return env;
+}
+
+/** 纯函数：组装 ad-server 子进程 env（env 是唯一传递通道，Closing L6，可单测）。 */
+export function buildAdServerEnv(baseEnv, logFlagsEnv) {
+  return { ...baseEnv, ...logFlagsEnv };
+}
+
+function startVite(adServerBaseUrl, logFlags) {
+  // 日志 flag 已被 parseLogFlags 消费，其余参数原样转发给 vite
+  // （如 `node dev/ad-server-launch.mjs --port 5174`）。
+  const viteArgs = logFlags.restArgs;
+  const env = buildViteEnv(process.env, logFlags.env, adServerBaseUrl);
   log(
     `starting Vite dev server (VITE_ADL_SERVER_URL=${
       adServerBaseUrl ?? '(unset → preview/mock fallback)'
@@ -147,16 +164,16 @@ function startVite(adServerBaseUrl, logFlags) {
 
 function spawnAdServer(logFlags) {
   const args = ['--port', String(requestedPort), '--data-dir', dataDir];
-  const env = { ...process.env, ...logFlags.env };
+  const env = buildAdServerEnv(process.env, logFlags.env);
   if (existsSync(AD_SERVER_BIN)) {
-    log(`launching prebuilt ad-server: ${AD_SERVER_BIN} --port ${requestedPort}`);
+    log(`launching prebuilt ${AD_SERVER_BIN} --port ${requestedPort}`);
     adServer = spawn(AD_SERVER_BIN, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
       env,
     });
   } else {
-    log(`prebuilt ad-server not found; falling back to \`cargo run -p ${AD_SERVER_PACKAGE}\` (first run builds)`);
+    log(`prebuilt ${AD_SERVER_BIN_NAME} not found; falling back to \`cargo run -p ${AD_SERVER_PACKAGE}\` (first run builds)`);
     adServer = spawn(
       process.platform === 'win32' ? 'cargo.exe' : 'cargo',
       ['run', '-p', AD_SERVER_PACKAGE, '--', ...args],

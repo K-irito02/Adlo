@@ -58,14 +58,24 @@ export interface ErrorToastSlice {
  *
  * 顺序依赖：时间戳规则必须先于端口规则 —— 否则 `00:52:40` 中的 `:52`/`:40`
  * 会先被端口规则吃掉（两侧同等坍缩，折叠效果虽等价，但 time 规则即失效）。
+ *
+ * 过拟合护栏（Closing M-3）：端口要求 host 侧含非数字字符 —— 纯 `数字:数字`
+ * 计数器（行号 `line 10:20`、配比 `3:2`）原样保留；时长只收 `ms|sec(s)|second(s)`，
+ * 裸 `3s`/`404s` 不碰（版本号与时长拼写相同，无法区分，宁漏勿错）。
  */
 export function normalizeErrorDetail(detail: string): string {
-  return detail
-    .replace(/\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?\b/g, '#time#')
-    .replace(/\b\d{1,3}(\.\d{1,3}){3}\b/g, '#ipv4#')
-    .replace(/:\d{1,5}\b/g, ':#port#')
-    .replace(/\b(attempt|retry|tried)\s*#?\d+/gi, '$1 #n#')
-    .replace(/\b\d+\s?(ms|s)\b/gi, '#dur#');
+  return (
+    detail
+      .replace(/\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?\b/g, '#time#')
+      .replace(/\b\d{1,3}(\.\d{1,3}){3}\b/g, '#ipv4#')
+      // host 侧含 `#`（归一化中间产物如 `#ipv4#`）同样放行；纯数字 host 原样保留。
+      .replace(/([A-Za-z0-9_.\-#[\]]+):(\d{1,5})\b/g, (m, host: string) =>
+        /[^\d.]/.test(host) ? `${host}:#port#` : m,
+      )
+      .replace(/\b(attempt|retry|tried)\s*#?\d+/gi, '$1 #n#')
+      // 时长只收 ms/sec(s)/second(s)：裸 `3s`/`404s` 与版本号拼写相同，宁漏勿错。
+      .replace(/\b\d+\s?(ms|secs?|seconds?)\b/gi, '#dur#')
+  );
 }
 
 /**
@@ -113,14 +123,21 @@ export const createErrorToastSlice = (
     if (duplicateId) {
       // 命中去重：不入队，但更新计数与最近发生时间（Phase 4 F7 —— 故障持续
       // 发生时用户能从"×N"感知"仍在发生"，而非一张静止旧卡）。
+      // 同时移到队尾（Closing M-6）：持续刷新的旧卡不占坑，新 distinct 错误
+      // 才能进入可见的最近 5 张；`lastSeenAt` 与数组顺序一致。
       const now = Date.now();
-      set((state) => ({
-        errorToasts: state.errorToasts.map((entry) =>
-          entry.id === duplicateId
-            ? { ...entry, count: (entry.count ?? 1) + 1, lastSeenAt: now }
-            : entry,
-        ),
-      }));
+      set((state) => {
+        const hit = state.errorToasts.find((entry) => entry.id === duplicateId);
+        if (!hit) {
+          return {};
+        }
+        return {
+          errorToasts: keepVisibleFirst([
+            ...state.errorToasts.filter((entry) => entry.id !== duplicateId),
+            { ...hit, count: (hit.count ?? 1) + 1, lastSeenAt: now },
+          ]),
+        };
+      });
       return duplicateId;
     }
     const id = createUiId('error-toast');
@@ -137,25 +154,26 @@ export const createErrorToastSlice = (
     const duplicateId = findDuplicateId(get().errorToasts, code, detail, scope, true);
     if (duplicateId) {
       const now = Date.now();
-      set((state) => ({
-        errorToasts: state.errorToasts.map((entry) =>
-          entry.id === duplicateId
-            ? { ...entry, count: (entry.count ?? 1) + 1, lastSeenAt: now }
-            : entry,
-        ),
-      }));
+      set((state) => {
+        const hit = state.errorToasts.find((entry) => entry.id === duplicateId);
+        if (!hit) {
+          return {};
+        }
+        return {
+          errorToasts: keepVisibleFirst([
+            ...state.errorToasts.filter((entry) => entry.id !== duplicateId),
+            { ...hit, count: (hit.count ?? 1) + 1, lastSeenAt: now },
+          ]),
+        };
+      });
       return duplicateId;
     }
     const id = createUiId('error-toast');
-    const entry: ErrorToastEntry = {
-      id,
-      code,
-      detail,
-      scope,
-      silent: true,
-      count: 1,
-      lastSeenAt: Date.now(),
-    };
+    // 与 reportError 同形：scope 缺省时省略该键（Closing L-6 统一）。
+    const entry: ErrorToastEntry =
+      scope !== undefined
+        ? { id, code, detail, scope, silent: true, count: 1, lastSeenAt: Date.now() }
+        : { id, code, detail, silent: true, count: 1, lastSeenAt: Date.now() };
     set((state) => ({
       errorToasts: keepVisibleFirst([...state.errorToasts, entry]),
     }));

@@ -42,7 +42,7 @@
 | 5a log_level 校验 | 做 | 类型级：引入 `LogLevel` 枚举（消灭 Issue 8） |
 | 5b 死 API | **删** | 删除 `app_set_log_mode` 命令 + 四端 `setLogMode` 方法 |
 | 6a 持久化 | **S1 session-only** | CLI/env 覆盖只对本次进程生效，**不写 config.json** |
-| 6b 参数面 | flag + env 双通道 | 优先级 `CLI flag > RUST_LOG > ADL_* env > config.json > 默认` |
+| 6b 参数面 | flag + env 双通道 | 优先级 `CLI flag > ADL_* env > config.json > 默认`，另有 `RUST_LOG` 为链外硬顶（2026-10-12 修正） |
 | 6e 生效范围 | **R1 启动时** | 不做运行中热改 CLI 入口 |
 
 ---
@@ -85,8 +85,10 @@
 解析顺序（两进程一致）：
 
 ```
-CLI flag  →  RUST_LOG  →  ADL_* env  →  config.json  →  默认值
+CLI flag  →  ADL_* env  →  config.json  →  默认值
 ```
+
+另有 `RUST_LOG` 为链外**硬顶**（2026-10-12 修正：多层 filter AND 语义，设了就掐住两层，CLI 也顶不开；此前此处写作链内排序，特此更正）。
 
 - CLI flag（`--log-level` / `--terminal-log-mode` / `--debug-log-mode` / 兼容 `--log-mode`）→ 启动时写入 `ADL_LOG_LEVEL` / `ADL_TERMINAL_LOG_MODE` / `ADL_DEBUG_LOG_MODE` env，再被本进程读取。
 - env 作为**跨进程传输通道**：shell 经 `AdServerHandle::spawn` 派生的 ad-server 子进程自动继承 → 单一 env 同时覆盖两个后端进程。
@@ -153,7 +155,7 @@ CLI flag  →  RUST_LOG  →  ADL_* env  →  config.json  →  默认值
 | `crates/server/src/bin/adl-server.rs` | 新增解析 3+1 个 flag → 写 env（保留 `--port` / `--data-dir`） |
 | `src-tauri/src/setup.rs` | 读 env 覆盖 → session-only 应用 + 打印 `[ADL-CLI]` 行 |
 | `crates/server/src/engine.rs` | 读 config.json → 应用 env 覆盖 → 传 `LogConfig{...}` 给 init；LogManager 存入 state |
-| `scripts/run-project-surface.mjs` | `process.argv.slice(3)` 透传解析 → ① 注入 env 给 Vite 子进程 ② 经 `cargo tauri dev --config X -- <args>` 传给应用 ③ env 自动继承给 shell 派生的 ad-server |
+| `scripts/run-project-surface.mjs` | `process.argv.slice(3)` 透传解析 → ① 注入 env 给 Vite 子进程 ~~② 经 `cargo tauri dev --config X -- <args>` 传给应用~~ ③ env 自动继承给 shell 派生的 ad-server |
 | `frontend/dev/ad-server-launch.mjs` | 显式把 env 传给 ad-server 子进程；并把 `debugLogMode` 注入为 `VITE_ADL_DEBUG_LOG_MODE` 给 Vite |
 
 **已知边界（写入文档）**：`dev:browser`（纯 Vite、无 ad-server）下「日志级别 / 终端日志模式」无后端可作用，仅「调试日志模式」经 `VITE_ADL_DEBUG_LOG_MODE` 生效；需要完整后端日志请用 `dev:preview` / `dev:tauri` / `dev:both`。
@@ -212,6 +214,6 @@ H. 验收: mandatory-testing 全流程 + 文档同步（AGENTS.md / commands.md 
 | 契约从 `logLevel: string` → 联合类型，波及生成类型与多处测试 | 字面量兼容（`'info'` 仍可赋值）；逐处核对编译错误 |
 | reload handle 与既有"持锁禁 tracing"纪律冲突 | `reload::Handle` 操作不发 tracing；仍严格守卫外调用 |
 | shell/server 双写 config.json 竞态 | 桌面走 Tauri、浏览器走 HTTP，实际不并发；server 侧 `Mutex` 串行化 |
-| `cargo tauri dev` 参数透传语法 | 实现时以 `--config X -- <args>` 实测验证；失败则退回纯 env 通道 |
+| `cargo tauri dev` 参数透传语法 | ~~实现时以 `--config X -- <args>` 实测验证；失败则退回纯 env 通道~~ → 2026-10-12 已实测失败（`unexpected argument`），定稿只走 env 通道 |
 | 删除 `setLogMode` 影响面 | 全仓库 grep 确认零调用后再删（已初步确认） |
 | 浏览器 `dev:browser` 无后端 | 文档明示边界，推荐 `dev:preview` |

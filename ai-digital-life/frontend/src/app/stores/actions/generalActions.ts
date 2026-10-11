@@ -14,8 +14,9 @@ import { mergePrefPatches } from './preferencePatchMerge';
 import { collectDirPaths } from '../persisted/prune';
 import { applyTreeLoadedPrune, applyWorkspacePrune } from '../persisted/pruneWiring';
 import type { StoreApi } from 'zustand';
-import { zhCN } from '../../i18n/zh-CN/index';
-import { enUS } from '../../i18n/en-US/index';
+// 只导入 settings 命名空间而非全量语言包索引（Closing L-1：减小 action chunk 体积）。
+import { settingsZh } from '../../i18n/zh-CN/settings';
+import { settingsEn } from '../../i18n/en-US/settings';
 import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 const SCOPE = 'general';
 
@@ -24,9 +25,10 @@ const SCOPE = 'general';
  * `updatePreferences`（见 `useSettingsPanelProps`），UI 层无法 await 结果，
  * 故提示必须在此统一弹。文案取静态语言包（与当前语言一致），不走 hook。
  */
-function sessionOverrideNotice(get: () => StoreState): string {
-  const locale = resolveAppLanguage(get().appInfo?.config.language);
-  const dict = locale === 'en-US' ? enUS : zhCN;
+function sessionOverrideNotice(get: () => StoreState, patch?: AppPreferencePatch): string {
+  // 本次补丁若改了语言，按用户刚选的语言出提示（Closing M-5），否则跟随旧 appInfo。
+  const locale = resolveAppLanguage(patch?.language ?? get().appInfo?.config.language);
+  const dict = locale === 'en-US' ? settingsEn : settingsZh;
   return dict.settingsSessionOverrideTakesEffectOnRestart;
 }
 
@@ -153,13 +155,19 @@ async function drainPrefQueue(
     return;
   }
   prefState.draining = true;
-  // 对外可观察的 loading 信号（Phase 4 D1）：生产尚无读取方（防重入由闭包内
-  // prefState.draining 承担），保留供未来保存中 spinner 使用；测试锁定该行为。
-  set({ isFetching: { ...get().isFetching, updatePreferences: true } });
+  // 凡入队必决议（Closing M-1/N-1）：drain 体内任何同步抛错（今日 merge/set
+  // 均不抛，仅防未来改动）都把已取批次 + 排队中未取批次全部 resolve(false)，
+  // 不许悬挂；入口 set 也纳入保护（抛错同样决议已入队）。
+  const pending: PendingPrefCall[] = [];
   try {
+    // 对外可观察的 loading 信号（Phase 4 D1）：生产尚无读取方（防重入由闭包内
+    // prefState.draining 承担），保留供未来保存中 spinner 使用；测试锁定该行为。
+    // 函数式更新防并发写互相覆盖（Closing L-2）。
+    set((s) => ({ isFetching: { ...s.isFetching, updatePreferences: true } }));
     while (prefState.queue.length > 0) {
       const batch = prefState.queue;
       prefState.queue = [];
+      pending.push(...batch);
       const merged = batch.reduce<AppPreferencePatch>(
         (acc, call) => mergePrefPatches(acc, call.patch),
         {},
@@ -170,10 +178,21 @@ async function drainPrefQueue(
       for (const call of batch) {
         call.resolve(ok);
       }
+      pending.length = 0;
     }
+  } catch (error) {
+    for (const call of [...pending, ...prefState.queue]) {
+      try {
+        call.resolve(false);
+      } catch {
+        // resolve 本身不应抛；防御性吞掉，保证 finally 复位。
+      }
+    }
+    prefState.queue = [];
+    throw error;
   } finally {
     prefState.draining = false;
-    set({ isFetching: { ...get().isFetching, updatePreferences: false } });
+    set((s) => ({ isFetching: { ...s.isFetching, updatePreferences: false } }));
   }
 }
 
@@ -192,9 +211,11 @@ async function sendPreferencePatch(
     // (build_app_info hardcodes Theme::Light for ThemeMode::System).
     // Fix it here for store consistency; useThemeSync 会通过 appInfo 变化触发 setTheme。
     result.data.info.config.resolvedTheme = resolveCurrentTheme(result.data.info.config.themeMode);
-    // 提示文案必须在 set 之前解析：set 会用响应覆盖 appInfo，而语言取自旧 appInfo。
-    const lockedNotice =
-      result.data.sessionLockedFields.length > 0 ? sessionOverrideNotice(get) : null;
+    // 提示文案必须在 set 之前解析：set 会用响应覆盖 appInfo，而语言取自旧 appInfo
+    // 或本次补丁（语言切换场景跟新语言，Closing M-5）。
+    // 旧信封/异常信封无数组即视为空集（Closing M-8），不抛 TypeError。
+    const lockedFields = result.data.sessionLockedFields ?? [];
+    const lockedNotice = lockedFields.length > 0 ? sessionOverrideNotice(get, patch) : null;
     set({ appInfo: result.data.info });
     // 会话级 CLI/env 覆盖锁定的字段：已落盘但运行期保持 CLI 值 → 顶部提示
     // "下次启动生效"，消除静默分歧（Phase 4 F3，用户决策）。
@@ -629,9 +650,11 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
      * @writes workspaceSlice.appInfo
      */
     updatePreferences: (patch: AppPreferencePatch): Promise<boolean> => {
-      // 已知小竞态：入队时即 clear，可能擦掉在途批次刚 captureError 的错误条；
-      // 用户再次操作即视为已阅旧错，接受该语义（Phase 4 R4）。
-      clearError(get, SCOPE);
+      // 只在开启新一轮 drain 时 clear（Closing M-2）：并入在途批次的调用不再擦掉
+      // 刚上报的错误卡 —— 错误保留到下一次新操作（失败仍可见，不一闪而没）。
+      if (prefState.queue.length === 0 && !prefState.draining) {
+        clearError(get, SCOPE);
+      }
       const settled = new Promise<boolean>((resolve) => {
         prefState.queue.push({ patch, resolve });
       });

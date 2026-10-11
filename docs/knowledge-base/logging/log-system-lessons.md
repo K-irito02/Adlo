@@ -72,7 +72,7 @@ tracing-subscriber 0.3.23 使用 `MakeWriter<'a>`（带生命周期参数）。�
 - **修改** `commands/app.rs` — 调试日志写入委托给 LogManager（原新增的 `app_set_log_mode` 已于 2026-10-12 删除）
 - **修改** `main.rs` — 新增 `--log-mode` CLI 解析（2026-10-12 扩展为 `--log-level` 等四项）
 - **修改** `frontend/` — IPC 桥接新增 `setLogMode`（**已于 2026-10-12 删除**：无调用方）
-- **移除** `kernel::logger` 的实际使用（代码保留但不再调用）
+- **移除** `kernel::logger`（2026-10-12 删除：`init()` 全仓零引用，旧实现 `File::create` 硬截断 + `expect` panic 比 `LogManager` 脆弱）
 - **移除** `std::mem::forget(guard)` 泄露出模式
 
 ### 7. 持锁期间禁止打 tracing 日志（自死锁）
@@ -85,3 +85,25 @@ tracing-subscriber 0.3.23 使用 `MakeWriter<'a>`（带生命周期参数）。�
 **正确做法**：守卫作用域收窄到只覆盖字段变更，日志移到守卫 drop 之后；
 prune 类函数只收集失败（`PruneReport`/`PruneFailure`），由调用方在锁外统一打日志。
 回归测试用同构 writer（落盘前先读/锁同一把锁）+ `recv_timeout` 把死锁转为可断言的超时失败。
+
+### 8. 运行时调高日志级别必须重建 interest 缓存（2026-10-12 实证）
+
+**问题**：`LevelGate` 只改写共享级别单元时，"调低"即时生效，"调高"静默失效
+（error→trace 后 trace 事件不到达）。根因：tracing 按 callsite 缓存各层放行结论，
+调低后被记为 `never` 的 callsite 在调高后不会自动重算，`enabled()` 不再被调用。
+启动期 `--log-level` 判别性验证覆盖不到该路径（只证明启动值），单元测试只断言
+`effective_level()` 纯逻辑同样覆盖不到。
+
+**正确做法**：`set_log_level` 改写单元后调 `tracing::callsite::rebuild_interest_cache()`；
+回归测试用线程级 `set_default` 隔离 + 共享缓冲 writer，走真实 `set_log_level` 路径
+断言"调高后到达"。级别切换是罕见操作，重建成本可接受。
+
+### 9. session-only 覆盖值不得经无关保存泄漏进 config.json（2026-10-12 实证）
+
+**问题**：启动期 `apply_log_overrides` 把 CLI 值写进内存后无来源标记，用户改任意无关
+字段保存时全量落盘把 CLI 值永久化（`--log-level trace` 运行中改一次主题 →
+`config.json` 永久变 trace，下次干净启动仍是 trace，易误判为 bug）。
+
+**正确做法**：落盘前用 `resolve_persisted_config` 把"被锁定且补丁未提供"的字段恢复
+磁盘值（内存/运行期保持 CLI 值，UI 显示与实际一致）；`update_preferences_does_not_leak_session_overrides_to_disk`
+集成测试锁定。详见 [操作手册 §5.1](../../development/log-system-manual.md#5-运行时修改不重启)。

@@ -98,6 +98,19 @@ describe('errorToastSlice 去重', () => {
     expect(current()[0].lastSeenAt).toBeGreaterThanOrEqual(firstSeen ?? 0);
   });
 
+  it('moves the bumped entry to the tail so fresh errors stay visible', () => {
+    // Closing M-6：持续刷新的旧卡不占坑，新 distinct 错误进入最近 5 张。
+    const { slice, current } = makeSlice();
+    const first = slice.reportError('NETWORK_ERROR', 'old-fault', 'sysmon');
+    slice.reportError('IO_ERROR', 'new-fault', 'sysmon');
+    expect(current().map((e) => e.id)).toEqual([first, current()[1].id]);
+
+    slice.reportError('NETWORK_ERROR', 'old-fault', 'sysmon');
+    const ids = current().map((e) => e.id);
+    expect(ids[ids.length - 1]).toBe(first);
+    expect(current()[current().length - 1].count).toBe(2);
+  });
+
   it('treats undefined scope and empty-string scope as different keys', () => {
     // Phase 4 F8：去重维度与清除维度一致 —— `clearErrorToasts('')` 清不掉
     // undefined 条目，故去重时两者也不得互斥占位。
@@ -181,6 +194,22 @@ describe('normalizeErrorDetail', () => {
   it('keeps genuinely different messages distinct', () => {
     expect(normalizeErrorDetail('Network error: A')).not.toBe(
       normalizeErrorDetail('Network error: B'),
+    );
+  });
+
+  it('does not fold pure counters, ratios or version-like tokens (Closing M-3)', () => {
+    // `line 10:20` 不是端口；`v2s`/`404s` 不是时长 —— 宁漏勿错。
+    expect(normalizeErrorDetail('line 10:20')).not.toBe(normalizeErrorDetail('line 10:21'));
+    expect(normalizeErrorDetail('ratio 3:2')).not.toBe(normalizeErrorDetail('ratio 3:3'));
+    expect(normalizeErrorDetail('build v2s failed')).not.toBe(
+      normalizeErrorDetail('build v3s failed'),
+    );
+    expect(normalizeErrorDetail('code 404s')).not.toBe(normalizeErrorDetail('code 405s'));
+  });
+
+  it('still folds durations with explicit units', () => {
+    expect(normalizeErrorDetail('timeout after 3 seconds')).toBe(
+      normalizeErrorDetail('timeout after 5 seconds'),
     );
   });
 

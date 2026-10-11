@@ -10,9 +10,15 @@ import type {
   BrowserHistoryState,
 } from '@stores/slices/browserTypes';
 import { useAppStartup } from '../useAppStartup';
+import { isTauriShell } from '../../../tauri-bridge';
 
 vi.mock('@utils/pageMetaClient', () => ({
   pageMetaClient: { warmup: vi.fn() },
+}));
+
+// 默认非 Tauri（jsdom）；Tauri 分支用例内按需翻转。
+vi.mock('../../../tauri-bridge', () => ({
+  isTauriShell: vi.fn(() => false),
 }));
 
 function makeTab(id: string, url: string): BrowserTabState {
@@ -149,5 +155,28 @@ describe('useAppStartup ad-server reachability (Phase 4 R2)', () => {
       await isAdServerReachable('http://127.0.0.1:59991');
     });
     expect(useAppStore.getState().adServerReachable).toBe(true);
+  });
+
+  it('sets true on Tauri mount only when never probed, never flips a bootstrap false', async () => {
+    // Closing N-2：HMR 重挂载不得把 bootstrap 已写的 false 翻回 true。
+    // getInfo 挂起使 bootstrap 不写 store，两次断言只观测 mount effect。
+    (window as unknown as { digitalLife: { app: { getInfo: unknown } } }).digitalLife.app.getInfo =
+      vi.fn(() => new Promise(() => {}));
+    const mockedShell = vi.mocked(isTauriShell);
+
+    mockedShell.mockReturnValue(true);
+    try {
+      useAppStore.setState({ adServerReachable: null });
+      renderHook(() => useAppStartup(undefined));
+      await act(async () => {});
+      expect(useAppStore.getState().adServerReachable).toBe(true);
+
+      useAppStore.setState({ adServerReachable: false });
+      renderHook(() => useAppStartup(undefined));
+      await act(async () => {});
+      expect(useAppStore.getState().adServerReachable).toBe(false);
+    } finally {
+      mockedShell.mockReturnValue(false);
+    }
   });
 });

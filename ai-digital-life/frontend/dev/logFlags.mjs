@@ -44,6 +44,14 @@ export function parseLogFlags(argv, warn = console.warn) {
       warn(`[adl-run] ignoring ${arg} with no value`);
       continue;
     }
+    // 空串视同缺值（Closing L2）：否则 `ADL_LOG_LEVEL=''` 进 env，`??` 链看到
+    // 非 null 会胜出并注入 `VITE_*`，而 Rust 侧判非法忽略 —— 两端分叉。
+    // 注意空槽位仍要消费（`i += 1`），否则空串会掉进 restArgs 转发给 Vite。
+    if (value === '') {
+      warn(`[adl-run] ignoring ${arg} with no value`);
+      i += 1;
+      continue;
+    }
     env[key] = value;
     i += 1;
   }
