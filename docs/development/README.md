@@ -7,7 +7,7 @@
 | 文件 | 内容 |
 |------|------|
 | [project-engineering-constraints.md](./project-engineering-constraints.md) | 核心工程约束（技术栈、构建、双端、安全、Store、i18n） |
-| [log-system-manual.md](./log-system-manual.md) | 日志系统操作手册（配置、宏、双端、过滤） |
+| [log-system-manual.md](./log-system-manual.md) | 日志系统操作手册（CLI 命令、级别/模式语义、文件落点、面向用户与 agent 的核实配方） |
 
 ## 相关文档
 

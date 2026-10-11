@@ -1,5 +1,13 @@
 # 日志系统统一改造经验
 
+> **时效声明（2026-10-12 更新）**
+> 本文记录 2026-09 的统一改造经验，其中 §1–§4、§7 等**底层经验仍然有效**。
+> 但下面的机制**已被后续改动取代**，当前做法请看 [日志系统操作手册](../../development/log-system-manual.md)：
+> - `setLogMode` 桥接命令与 `localStorage['adl_log_mode_debug']` —— **已删除**（死 API / 幻影 key）
+> - 浏览器调试日志模式 → 改为解析链 `VITE_ADL_DEBUG_LOG_MODE` → `appInfo.config.debugLogMode` → 默认
+> - `app_set_log_mode` 命令 —— 已删除；改设置统一走 `app_update_preferences` / `POST /app/preferences`
+> - 新增：`LogLevel` 强类型与运行时级别热切换、`--log-level` 等 CLI 覆盖、按进程前缀分文件
+
 ## 概述
 
 将分散的终端 tracing 日志（`kernel::logger` + `tracing-appender`）和前端调试日志（`debugLogCollector.ts` + `previewWorkspaceService.ts`）统一为 `adl-logging` crate，支持 overwrite/append/multi 三种模式。
@@ -45,15 +53,15 @@ tracing-subscriber 0.3.23 使用 `MakeWriter<'a>`（带生命周期参数）。�
 
 **问题**：浏览器模式下 Tauri Rust 后端不存在，日志走预览服务器 HTTP API。预览服务器的 `writeDebugLogs` 是独立实现，需与 Rust 端保持行为一致。
 
-**正确做法**：预览服务器维护同一份 `.adl-logs/` 日志目录，通过 localStorage 读取 `setLogMode` 设置的模式参数。
+**正确做法（2026-10-12 起）**：预览服务器写 `<仓库根>/.adl-logs/debug-logs-browser*.txt`（与 Tauri 壳的 `debug-logs*.txt` **分名**，避免 `dev:both` 下互相覆盖）；模式来源为解析链 `VITE_ADL_DEBUG_LOG_MODE`（CLI/env 注入）→ `appInfo.config.debugLogMode`（用户设置）→ `'overwrite'`。详见 [操作手册](../../development/log-system-manual.md)。
 
 ### 6. 双端一致性检查清单
 
 | 检查项 | Tauri | Browser |
 |--------|-------|---------|
-| 调试日志写入 .adl-logs/ | IPC → LogManager | HTTP → previewServer |
-| 模式参数传递 | 内部 config | localStorage + 请求体 |
-| setLogMode 桥接 | Tauri invoke | localStorage 存储 |
+| 调试日志写入 `.adl-logs/` | IPC → LogManager（`debug-logs*.txt`） | HTTP → previewServer（`debug-logs-browser*.txt`） |
+| 模式参数传递 | 内部 config / `--debug-log-mode` | 解析链：`VITE_ADL_DEBUG_LOG_MODE` → `appInfo.config.debugLogMode` → 默认 |
+| 改日志设置 | `app_update_preferences`（+ 转发 `/app/log-settings`） | `POST /app/preferences`（落盘）/ `/app/log-settings`（仅运行时） |
 
 ## 架构变化
 
@@ -61,9 +69,9 @@ tracing-subscriber 0.3.23 使用 `MakeWriter<'a>`（带生命周期参数）。�
 - **修改** `kernel::types::config` 新增 `LogMode` 枚举
 - **修改** `kernel::config::AppConfig` 新增 `terminal_log_mode` / `debug_log_mode` 字段
 - **修改** `setup.rs` — 用 `LogManager::init()` 替代旧的 `adl_logger::init_with_log_dir()`
-- **修改** `commands/app.rs` — 调试日志写入委托给 LogManager，新增 `app_set_log_mode` 命令
-- **修改** `main.rs` — 新增 `--log-mode` CLI 解析
-- **修改** `frontend/` — IPC 桥接新增 `setLogMode`
+- **修改** `commands/app.rs` — 调试日志写入委托给 LogManager（原新增的 `app_set_log_mode` 已于 2026-10-12 删除）
+- **修改** `main.rs` — 新增 `--log-mode` CLI 解析（2026-10-12 扩展为 `--log-level` 等四项）
+- **修改** `frontend/` — IPC 桥接新增 `setLogMode`（**已于 2026-10-12 删除**：无调用方）
 - **移除** `kernel::logger` 的实际使用（代码保留但不再调用）
 - **移除** `std::mem::forget(guard)` 泄露出模式
 
