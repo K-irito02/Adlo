@@ -11,6 +11,7 @@ vi.mock('@i18n/useTCopy', () => ({
       changesPdfNextPage: 'Next page',
       changesPdfPageNumber: 'Page number',
       changesPdfGo: 'Go',
+      loading: 'Loading…',
     },
     locale: 'en-US',
     formatT: (dict: Record<string, string>, key: string, params?: Record<string, unknown>) => {
@@ -99,6 +100,65 @@ describe('PdfPreview navigation', () => {
     fireEvent.submit(form);
     await waitFor(() => {
       expect(screen.getByText('3 / 3')).toBeTruthy();
+    });
+  });
+
+  it('commits the page on blur', async () => {
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    const input = screen.getByRole('spinbutton', { name: 'Page number' });
+    fireEvent.change(input, { target: { value: '2' } });
+    fireEvent.blur(input);
+    await waitFor(() => {
+      expect(screen.getByText('2 / 3')).toBeTruthy();
+    });
+  });
+
+  it('hides the toolbar for single-page documents', async () => {
+    const pdfjs = await import('pdfjs-dist');
+    vi.mocked(pdfjs.getDocument).mockReturnValueOnce({
+      promise: Promise.resolve({
+        numPages: 1,
+        getPage: vi.fn().mockResolvedValue({
+          getViewport: () => ({ width: 100, height: 200 }),
+          render: vi.fn().mockReturnValue({ promise: Promise.resolve() }),
+        }),
+      }),
+    } as never);
+    const { container } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(container.querySelector('canvas')).toBeTruthy();
+    });
+    expect(container.querySelector('.adl-pdf-preview-nav')).toBeNull();
+  });
+
+  it('resets page state when switching documents', async () => {
+    const pdfjs = await import('pdfjs-dist');
+    const { rerender } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Page number' }), {
+      target: { value: '3' },
+    });
+    fireEvent.submit(document.querySelector('.adl-pdf-preview-jump') as HTMLFormElement);
+    await waitFor(() => {
+      expect(screen.getByText('3 / 3')).toBeTruthy();
+    });
+    vi.mocked(pdfjs.getDocument).mockReturnValueOnce({
+      promise: Promise.resolve({
+        numPages: 2,
+        getPage: vi.fn().mockResolvedValue({
+          getViewport: () => ({ width: 100, height: 200 }),
+          render: vi.fn().mockReturnValue({ promise: Promise.resolve() }),
+        }),
+      }),
+    } as never);
+    rerender(<PdfPreview data={new ArrayBuffer(16)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 2')).toBeTruthy();
     });
   });
 });
