@@ -47,12 +47,48 @@ export interface ErrorToastSlice {
   clearErrorToasts: (scope?: string) => void;
 }
 
+/**
+ * 去重键：`(silent, scope, code, detail)` 完全相同的错误只保留一条。
+ *
+ * 动机：后端进程退出后，轮询/重连类调用会**反复**失败并各自 `captureError`，
+ * 于是右下角不断堆出内容完全一致的卡片（用户实测：`Y` 中断后网络错误卡片刷屏）。
+ * 同一错误只应提示一次；不同 detail（真实不同的故障）仍各自成卡。
+ */
+function dedupeKey(
+  code: string,
+  detail: string,
+  scope: string | undefined,
+  silent: boolean,
+): string {
+  return `${silent ? 'S' : 'V'}\u0000${scope ?? ''}\u0000${code}\u0000${detail}`;
+}
+
+/** 已存在同键条目时返回其 id（不再入队），否则返回 null。 */
+function findDuplicateId(
+  entries: ErrorToastEntry[],
+  code: string,
+  detail: string,
+  scope: string | undefined,
+  silent: boolean,
+): string | null {
+  const key = dedupeKey(code, detail, scope, silent);
+  return (
+    entries.find(
+      (entry) => dedupeKey(entry.code, entry.detail, entry.scope, !!entry.silent) === key,
+    )?.id ?? null
+  );
+}
+
 export const createErrorToastSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
-  _get: () => StoreState,
+  get: () => StoreState,
 ): ErrorToastSlice => ({
   errorToasts: [],
   reportError: (code, detail, scope) => {
+    const duplicateId = findDuplicateId(get().errorToasts, code, detail, scope, false);
+    if (duplicateId) {
+      return duplicateId;
+    }
     const id = createUiId('error-toast');
     const entry: ErrorToastEntry =
       scope !== undefined ? { id, code, detail, scope } : { id, code, detail };
@@ -62,6 +98,10 @@ export const createErrorToastSlice = (
     return id;
   },
   reportSilentError: (code, detail, scope) => {
+    const duplicateId = findDuplicateId(get().errorToasts, code, detail, scope, true);
+    if (duplicateId) {
+      return duplicateId;
+    }
     const id = createUiId('error-toast');
     const entry: ErrorToastEntry = { id, code, detail, scope, silent: true };
     set((state) => ({
