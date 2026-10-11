@@ -58,6 +58,11 @@ export interface EditorSlice {
    */
   fileMedia?: WorkspaceMediaDocument | null;
   /**
+   * 媒体读取中（Phase 4 审查 F4）：openMediaFileGeneric 置 true，落定置 false，
+   * 用于区分"加载中"与"空"，内容区据此显示骨架而非白屏。
+   */
+  fileMediaLoading?: boolean;
+  /**
    * 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，
    * 不回退显示旧文件内容；成功打开任意文件时清掉。
    */
@@ -317,6 +322,7 @@ export const createEditorSlice = (
       fileContent: undefined,
       fileLastModifiedAt: undefined,
       fileMedia: null,
+      fileMediaLoading: false,
       fileOpenError: null,
       positioningPath: null,
       externalFileChange: undefined,

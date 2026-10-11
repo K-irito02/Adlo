@@ -33,6 +33,8 @@ export interface RightPanelViewProps {
   fileLastModifiedAt?: number;
   /** 媒体/办公二进制文档（与 fileContent 互斥，见 editorSlice.fileMedia） */
   fileMedia?: WorkspaceMediaDocument | null;
+  /** 媒体读取中：区分加载骨架与空态（见 editorSlice.fileMediaLoading） */
+  fileMediaLoading?: boolean;
   /** 主区开文件失败信息（事项 46 调整项）：失败时主区展示友好错误，不回退旧内容 */
   fileOpenError?: FileOpenError | null;
   /** 正在定位中的路径（事项 46 调整项）：主区隐藏该文件表面直到揭示完成 */
@@ -135,6 +137,7 @@ export type FilesPanelProps = Pick<
   | 'selectedFileWorkspaceId'
   | 'fileContent'
   | 'fileMedia'
+  | 'fileMediaLoading'
   | 'fileOpenError'
   | 'positioningPath'
   | 'filePatch'

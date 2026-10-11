@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 export interface FidelityWatermarkProps {
   /** 保真提示文案（调用端经 i18n 传入） */
@@ -10,20 +10,22 @@ export interface FidelityWatermarkProps {
 /**
  * 保真提示水印：右上角纯加粗文字，无边框装饰，不拦截交互；
  * 呈现 5 秒后淡出并移出 DOM（动效敏感用户保持常显）。
- * 非滚动容器（pptx）用 absolute 固定；滚动容器（docx/xlsx）见 CSS sticky 变体。
+ * 定位：三类预览（docx/xlsx/pptx）均为"外层 relative 不滚动 + 内层滚动"结构，
+ * 水印绝对定位锚定外层，滚动不影响位置（原 sticky 变体已删除，见 CSS）。
+ * 注意：调用处须把 `key={fileKey}` 写在组件上（而非内部 `<p>`），
+ * 否则同挂载换文件不会重置 `gone`、水印永不重现（Phase 4 审查 R-05）。
  */
 export function FidelityWatermark({ text, fileKey }: FidelityWatermarkProps) {
   const [gone, setGone] = useState(false);
+  // 同挂载换文件（fileKey 变化）时重现水印；整树 remount 时自然重置。
+  useEffect(() => {
+    setGone(false);
+  }, [fileKey]);
   if (gone) {
     return null;
   }
   return (
-    <p
-      key={fileKey}
-      className="adl-fidelity-watermark"
-      role="note"
-      onAnimationEnd={() => setGone(true)}
-    >
+    <p className="adl-fidelity-watermark" role="note" onAnimationEnd={() => setGone(true)}>
       {text}
     </p>
   );

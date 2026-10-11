@@ -260,13 +260,17 @@ export function createWorkspaceActions(
         await refreshTreeByWorkspacePath(get, workspacePath);
         return;
       }
-      // 删除成功后，若被删除的正是当前打开文件，则关闭编辑器标签并清空其内容。
+      // 删除成功后：被删路径的标签一律关闭（Phase 4 审查 P1：此前仅当前文件清标签，
+      // 后台已打开文件的残留标签点击即跌入失败视图），再清空当前文件内容。
+      set({
+        openTabs: get().openTabs.filter((t) => t.path !== relativePath),
+      });
       if (currentPath === relativePath) {
         set({
           selectedFilePath: undefined,
           fileContent: undefined,
           fileMedia: null,
-          openTabs: get().openTabs.filter((t) => t.path !== relativePath),
+          fileMediaLoading: false,
         });
       }
       // 删除成功后：剔除被删路径自身及其子孙的展开态（内存 + 落盘），

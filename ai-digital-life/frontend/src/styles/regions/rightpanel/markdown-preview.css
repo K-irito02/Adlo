@@ -63,6 +63,7 @@
   width: 100%;
   max-height: calc(100% - 40px);
   object-fit: contain;
+  /* 保真硬编码（有意不跟随主题）：letterbox 黑边，仿播放器 */
   background: #000;
   border-radius: var(--radius-md, 6px);
 }
@@ -205,6 +206,7 @@
 }
 
 .adl-docx-preview .adl-docx-paper {
+  /* 保真硬编码（有意不跟随主题）：纸面恒白，仿 Word；auto 色正文继承为纸面黑 */
   background: #ffffff;
   color: #111111;
   box-sizing: border-box;
@@ -294,6 +296,14 @@
 .adl-xlsx-preview__table thead,
 .adl-xlsx-preview__table tr:first-child {
   background: var(--surface-subtle, rgba(128, 128, 128, 0.06));
+}
+
+.adl-xlsx-preview__empty {
+  margin: 0;
+  padding: var(--space-6);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+  text-align: center;
 }
 
 .adl-pptx-preview {

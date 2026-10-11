@@ -26,8 +26,3 @@ export function base64ToArrayBuffer(base64: string): ArrayBuffer {
   }
   return bytes.buffer;
 }
-
-/** 由 Blob 创建 object URL（调用端负责 revoke）。 */
-export function createMediaObjectUrl(blob: Blob): string {
-  return URL.createObjectURL(blob);
-}

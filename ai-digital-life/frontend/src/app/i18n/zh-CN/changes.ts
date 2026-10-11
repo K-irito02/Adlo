@@ -84,6 +84,10 @@ export const changesZh = {
   changesPreviewUnknown: '未知文件类型',
   changesPreviewFailedSpreadsheet: '表格预览失败: {error}',
   changesPreviewFailedPresentation: '演示文稿预览失败: {error}',
+  spreadsheetUnreadable: '该文件不是有效的表格文档，可能已损坏，请用 Excel 重新保存后再打开。',
+  spreadsheetEmpty: '工作簿为空，没有可显示的工作表。',
+  presentationUnreadable:
+    '该文件不是有效的演示文稿，可能已损坏，请用 PowerPoint 重新保存后再打开。',
   officeLegacyFormat:
     '旧版 Office 格式，暂不支持直接预览。请用新版 Office 另存为 {suggest} 后再打开。',
   officeTempFileTitle: 'Office 临时文件',

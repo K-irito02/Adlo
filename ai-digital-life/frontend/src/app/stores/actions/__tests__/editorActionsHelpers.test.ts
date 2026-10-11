@@ -417,3 +417,89 @@ describe('openFileGeneric heavy text', () => {
     expect((get() as unknown as { outline: unknown[] }).outline).toEqual([]);
   });
 });
+
+describe('cross-type open race', () => {
+  it('discards the slower text open when a media open wins the race', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const textGate = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+    const mediaGate = deferred<{
+      ok: true;
+      data: { path: string; mime: string; base64: string; size: number; lastModifiedAt: number };
+    }>();
+
+    const textPending = openFileGeneric(
+      set as never,
+      get as never,
+      'slow.md',
+      getNextFileRequestSeq(),
+      {
+        cacheKey: `race-text-${Date.now()}`,
+        workspaceId: 'ws-1',
+        readFile: () => textGate.promise as never,
+      },
+    );
+    const mediaPending = openMediaFileGeneric(
+      set as never,
+      get as never,
+      'fast.mp4',
+      getNextFileRequestSeq(),
+      {
+        cacheKey: `race-media-${Date.now()}`,
+        workspaceId: 'ws-1',
+        readMediaFile: () => mediaGate.promise as never,
+      },
+    );
+
+    mediaGate.resolve({
+      ok: true,
+      data: { path: 'fast.mp4', mime: 'video/mp4', base64: 'AA==', size: 1, lastModifiedAt: 1 },
+    });
+    await mediaPending;
+    expect(get().selectedFilePath).toBe('fast.mp4');
+    // 媒体落定即熄灭加载态，骨架不残留。
+    expect((get() as unknown as { fileMediaLoading: boolean }).fileMediaLoading).toBe(false);
+    // 后完成的文本打开是过期响应，必须丢弃，不得覆盖媒体终态。
+    textGate.resolve({ ok: true, data: { content: 'stale text', lastModifiedAt: 2 } });
+    await textPending;
+    expect(get().selectedFilePath).toBe('fast.mp4');
+    expect(get().fileContent).not.toBe('stale text');
+  });
+});
+
+describe('fileMediaLoading flag', () => {
+  it('is true while pending and false after success', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const gate = deferred<{
+      ok: true;
+      data: { path: string; mime: string; base64: string; size: number; lastModifiedAt: number };
+    }>();
+
+    const pending = openMediaFileGeneric(
+      set as never,
+      get as never,
+      'clip.mp4',
+      getNextFileRequestSeq(),
+      {
+        cacheKey: `loading-flag-${Date.now()}`,
+        workspaceId: 'ws-1',
+        readMediaFile: () => gate.promise as never,
+      },
+    );
+    expect((get() as unknown as { fileMediaLoading: boolean }).fileMediaLoading).toBe(true);
+
+    gate.resolve({
+      ok: true,
+      data: { path: 'clip.mp4', mime: 'video/mp4', base64: 'AA==', size: 1, lastModifiedAt: 1 },
+    });
+    await pending;
+    expect((get() as unknown as { fileMediaLoading: boolean }).fileMediaLoading).toBe(false);
+  });
+});

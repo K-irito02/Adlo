@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
+import { isZipUnpackError } from './officeErrors';
 
 export interface PptxPreviewProps {
   data: ArrayBuffer;
@@ -26,18 +27,14 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
   const scalerRef = useRef<HTMLDivElement | null>(null);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [legacy, setLegacy] = useState(false);
-  const [viewport, setViewport] = useState({ scale: 1, left: 0, sizerHeight: 0 });
+  const [unreadable, setUnreadable] = useState(false);
+  const [viewport, setViewport] = useState({ scale: 1, sizerHeight: 0 });
   const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
 
-  useEffect(() => {
-    if ((fileName ?? '').toLowerCase().endsWith('.ppt')) {
-      setLegacy(true);
-      return undefined;
-    }
-    setLegacy(false);
-    return undefined;
-  }, [fileName]);
+  // 旧版 .ppt 与 DocxPreview 同式：在渲染 effect 内同步派生，不单独 effect
+  //（Phase 4 审查 R-06：独立 effect 会让首轮渲染 effect 读到 stale legacy=false，
+  // 白下载懒块并解析一次，虽被 cancelled 丢弃仍浪费）。
+  const legacy = useMemo(() => (fileName ?? '').toLowerCase().endsWith('.ppt'), [fileName]);
 
   // 单次渲染：解析一次挂载自然尺寸，后续尺寸变化只走 CSS 缩放。
   useEffect(() => {
@@ -49,6 +46,7 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
     const el: HTMLElement = body;
     el.innerHTML = '';
     setError(null);
+    setUnreadable(false);
 
     async function renderDeck() {
       try {
@@ -72,7 +70,12 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : String(err));
+          const message = err instanceof Error ? err.message : String(err);
+          if (isZipUnpackError(message)) {
+            setUnreadable(true);
+          } else {
+            setError(message);
+          }
         }
       }
     }
@@ -80,9 +83,11 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
     void renderDeck();
     return () => {
       cancelled = true;
+      // pptx-preview 无公开销毁 API（库内无 dispose/destroy 导出）：
+      // innerHTML 清空即释放全部 DOM 持有，无监听器/Worker 残留。
       el.innerHTML = '';
     };
-  }, [data, legacy, fileName]);
+  }, [data, legacy]);
 
   // 宽度贴合：k=容器宽/自然宽；纵向原生滚动。只更新系数，不触碰 DOM 内容。
   useEffect(() => {
@@ -98,14 +103,13 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
       if (stageWidth <= 0) {
         return;
       }
+      // k=容器宽/自然宽时视觉宽度恒等于容器宽，left 恒为 0（不保留居中保留位）。
       const scale = stageWidth / naturalSize.width;
-      const left = Math.max(0, (stageWidth - naturalSize.width * scale) / 2);
       setViewport((prev) => {
         const sizerHeight = naturalSize.height * scale;
         return Math.abs(prev.scale - scale) > 0.001 ||
-          Math.abs(prev.left - left) > 0.5 ||
           Math.abs(prev.sizerHeight - sizerHeight) > 0.5
-          ? { scale, left, sizerHeight }
+          ? { scale, sizerHeight }
           : prev;
       });
     };
@@ -138,9 +142,21 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
     );
   }
 
+  if (unreadable) {
+    return (
+      <div className={`adl-pptx-preview adl-pptx-preview--${theme} adl-pptx-preview--error`}>
+        <p>{t.presentationUnreadable as string}</p>
+      </div>
+    );
+  }
+
   return (
     <div className={`adl-pptx-preview adl-pptx-preview--${theme}`}>
-      <FidelityWatermark text={t.presentationFidelityHint as string} fileKey={fileName} />
+      <FidelityWatermark
+        key={fileName}
+        text={t.presentationFidelityHint as string}
+        fileKey={fileName}
+      />
       <div ref={scalerRef} className="adl-pptx-preview__stage">
         <div className="adl-pptx-preview__sizer" style={{ height: `${viewport.sizerHeight}px` }}>
           <div
@@ -150,7 +166,6 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
               naturalSize.width > 0
                 ? {
                     width: `${naturalSize.width}px`,
-                    left: `${viewport.left}px`,
                     transform: `scale(${viewport.scale})`,
                   }
                 : undefined

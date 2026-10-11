@@ -6,21 +6,26 @@ interface TestStore {
   gitBranches: unknown[];
   appInfo?: { currentWorkspace?: { id: string } };
   reportError: (...args: unknown[]) => string;
+  reportSilentError: (...args: unknown[]) => string;
+  errorToasts: { silent?: boolean }[];
   fetchGitBranches: (options?: { silent?: boolean }) => Promise<void>;
 }
 
 function makeStore() {
   const reportError = vi.fn(() => 'toast-id');
+  const reportSilentError = vi.fn(() => 'silent-id');
   const store = createStore<TestStore>((set, get) => {
     const actions = createGitBranchActions(set as never, () => get() as never);
     return {
       gitBranches: [],
       appInfo: { currentWorkspace: { id: 'ws-1' } },
       reportError,
+      reportSilentError,
+      errorToasts: [],
       ...actions,
     } as unknown as TestStore;
   });
-  return { store, reportError };
+  return { store, reportError, reportSilentError };
 }
 
 describe('fetchGitBranches non-git silence', () => {
@@ -64,6 +69,21 @@ describe('fetchGitBranches non-git silence', () => {
     const { store, reportError } = makeStore();
     await store.getState().fetchGitBranches({ silent: true });
     expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it('silent 真实故障记静默诊断（不上报但可观测）', async () => {
+    (
+      window as unknown as {
+        digitalLife: { workspace: { listGitBranches: ReturnType<typeof vi.fn> } };
+      }
+    ).digitalLife.workspace.listGitBranches.mockResolvedValue({
+      ok: false,
+      error: { code: 'IO_ERROR', message: 'disk gone' },
+    });
+    const { store, reportError, reportSilentError } = makeStore();
+    await store.getState().fetchGitBranches({ silent: true });
+    expect(reportError).not.toHaveBeenCalled();
+    expect(reportSilentError).toHaveBeenCalledTimes(1);
   });
 
   it('非 silent 的真实失败仍上报', async () => {

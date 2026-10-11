@@ -13,6 +13,7 @@ vi.mock('@i18n/useTCopy', () => ({
       changesPreviewFailedPresentation: 'Presentation preview failed: {error}',
       presentationFidelityHint: 'fidelity hint',
       officeLegacyFormat: 'Legacy format, re-save as {suggest}',
+      presentationUnreadable: 'not a valid presentation',
     },
     formatT: (dict: Record<string, string>, key: string, params?: Record<string, unknown>) => {
       let out = dict[key] ?? key;
@@ -47,5 +48,13 @@ describe('PptxPreview', () => {
     });
     const pptx = await import('pptx-preview');
     expect(pptx.init).not.toHaveBeenCalled();
+  });
+
+  it('maps zip unpack failures to a friendly message', async () => {
+    previewFn.mockRejectedValueOnce(new Error('not a zip file'));
+    render(<PptxPreview data={new ArrayBuffer(8)} fileName="docs/broken.pptx" />);
+    await waitFor(() => {
+      expect(screen.getByText('not a valid presentation')).toBeTruthy();
+    });
   });
 });

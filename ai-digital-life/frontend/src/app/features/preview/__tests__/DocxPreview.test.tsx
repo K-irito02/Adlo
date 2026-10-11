@@ -45,9 +45,7 @@ describe('DocxPreview (docx-preview)', () => {
   it('shows the fidelity hint as a floating watermark', async () => {
     render(<DocxPreview data={new ArrayBuffer(8)} />);
     await waitFor(() => {
-      expect(screen.getByText('docx fidelity hint').className).toContain(
-        'adl-fidelity-watermark',
-      );
+      expect(screen.getByText('docx fidelity hint').className).toContain('adl-fidelity-watermark');
     });
   });
 

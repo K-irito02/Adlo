@@ -37,6 +37,32 @@ describe('categorizeFile media/office split', () => {
     expect(categorizeFile('docs/a.pdf')).toBe('pdf');
   });
 
+  it('routes macro/template OOXML variants to docx', () => {
+    for (const ext of ['docm', 'dotx', 'dotm']) {
+      expect(categorizeFile(`docs/a.${ext}`)).toBe('docx');
+    }
+  });
+
+  it('routes legacy dot template to docx for guided fallback', () => {
+    expect(categorizeFile('docs/a.dot')).toBe('docx');
+  });
+
+  it('routes odt to binary instead of garbled text', () => {
+    expect(categorizeFile('docs/a.odt')).toBe('binary');
+  });
+
+  it('routes legacy pot/pps to binary', () => {
+    expect(categorizeFile('docs/a.pot')).toBe('binary');
+    expect(categorizeFile('docs/a.pps')).toBe('binary');
+    expect(categorizeFile('docs/a.ppsx')).toBe('presentation');
+  });
+
+  it('matches extensions case-insensitively', () => {
+    expect(categorizeFile('assets/PHOTO.PNG')).toBe('image');
+    expect(categorizeFile('assets/CLIP.MP4')).toBe('video');
+    expect(categorizeFile('docs/REPORT.XLSX')).toBe('spreadsheet');
+  });
+
   it('keeps archives and executables as binary', () => {
     for (const ext of ['zip', 'tar', 'gz', 'exe', 'dll', 'woff2', 'ttf']) {
       expect(categorizeFile(`assets/a.${ext}`)).toBe('binary');

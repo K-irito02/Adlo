@@ -34,6 +34,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     selectedFileWorkspaceId,
     fileContent,
     fileMedia,
+    fileMediaLoading,
     fileOpenError,
     positioningPath,
     filePatch,
@@ -603,6 +604,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
                 selectedFilePath={selectedFilePath}
                 fileContent={fileContent}
                 fileMedia={fileMedia}
+                fileMediaLoading={fileMediaLoading}
                 fileOpenError={fileOpenError}
                 positioningPath={positioningPath}
                 filePatch={filePatch}

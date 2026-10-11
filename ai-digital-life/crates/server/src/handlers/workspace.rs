@@ -236,6 +236,16 @@ struct FileOpsBody {
     workspace_path: Option<String>,
 }
 
+/// POST `/workspace/read-media` 请求体：与 `FileOpsBody` 同形但无 `content`
+///（Phase 4 审查 D5：媒体读取静默忽略 `content` 易误导，独立类型显式收敛）。
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MediaReadBody {
+    relative_path: String,
+    #[serde(default)]
+    workspace_path: Option<String>,
+}
+
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RenameBody {
@@ -397,7 +407,7 @@ pub async fn read_media_file(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
-    let input: FileOpsBody = match ipc::json_body(body).await {
+    let input: MediaReadBody = match ipc::json_body(body).await {
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };

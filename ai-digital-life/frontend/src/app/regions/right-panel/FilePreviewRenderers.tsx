@@ -10,9 +10,12 @@ import {
 import { base64ToArrayBuffer } from '@features/preview/mediaBlob';
 import { RevealHighlightLayers } from '@components/RevealHighlight';
 import { formatBytes } from '@root/design-system/html';
-import type { FileCategory } from './fileTypeRouter';
-import { HEAVY_PREVIEW_BYTES } from './heavyPreviewLimits';
-import { isOfficeTempFile } from './fileTypeRouter';
+import { type FileCategory, isMediaFileCategory, isOfficeTempFile } from './fileTypeRouter';
+import {
+  HEAVY_PREVIEW_BYTES,
+  confirmHeavyPreview,
+  isHeavyPreviewConfirmed,
+} from './heavyPreviewLimits';
 import type { WorkspaceMediaDocument } from '@ai-digital-life/kernel';
 import { useTCopy } from '@i18n/useTCopy';
 
@@ -22,6 +25,12 @@ interface FilePreviewRenderersProps {
   fileContent: string | null;
   /** 二进制媒体文档（图片/音视频/办公）：image/audio/video/docx/pdf/spreadsheet/presentation 分支使用 */
   fileMedia: WorkspaceMediaDocument | null;
+  /** 当前文件路径：markdown 预览 key 挂载用（切换文件重置滚动/状态，防串扰） */
+  filePath?: string;
+  /** 当前文件所属工作区：与 filePath 共同组成重型门确认 key（跨工作区同路径隔离） */
+  workspaceId?: string;
+  /** 媒体读取中：fileMedia 为空时区分加载骨架与真空（见 editorSlice.fileMediaLoading） */
+  fileMediaLoading?: boolean;
   theme: 'dark' | 'light';
 }
 
@@ -88,16 +97,12 @@ function PreviewSurface({
  * 大文件直接渲染阈值见 ./heavyPreviewLimits（媒体/办公分支与文本分支同源）。
  */
 
-const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
-  editorSurfaceRef,
-  fileCategory,
-  fileContent,
-  fileMedia,
-  theme,
-}: FilePreviewRenderersProps) {
-  const { t, formatT } = useTCopy();
-
-  const mediaBytes = useMemo(() => {
+/**
+ * 办公分支壳（Phase 4 审查 F3/S-01）：base64 解码只在分支挂载后执行——
+ * 即重型门确认之后，确认前零解码、零 ArrayBuffer 分配。
+ */
+function useOfficeBytes(fileMedia: WorkspaceMediaDocument | null): ArrayBuffer | null {
+  return useMemo(() => {
     if (!fileMedia) {
       return null;
     }
@@ -107,16 +112,57 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
       return null;
     }
   }, [fileMedia]);
+}
+
+type OfficeBranchKind = 'docx' | 'pdf' | 'spreadsheet' | 'presentation';
+
+/** 四个办公分支的通用壳：解码 + 按品类渲染，消除四份重复分支（B34 优化项）。 */
+function OfficeBranch({
+  fileMedia,
+  kind,
+  theme,
+}: {
+  fileMedia: WorkspaceMediaDocument;
+  kind: OfficeBranchKind;
+  theme: 'dark' | 'light';
+}) {
+  const data = useOfficeBytes(fileMedia);
+  if (!data) {
+    return null;
+  }
+  switch (kind) {
+    case 'docx':
+      return <LazyDocxPreviewWrapper data={data} theme={theme} fileName={fileMedia.path} />;
+    case 'pdf':
+      return <LazyPdfPreviewWrapper data={data} theme={theme} />;
+    case 'spreadsheet':
+      return <LazyXlsxPreviewWrapper data={data} theme={theme} fileName={fileMedia.path} />;
+    case 'presentation':
+      return <LazyPptxPreviewWrapper data={data} theme={theme} fileName={fileMedia.path} />;
+  }
+}
+
+const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
+  editorSurfaceRef,
+  fileCategory,
+  fileContent,
+  fileMedia,
+  fileMediaLoading,
+  filePath,
+  workspaceId,
+  theme,
+}: FilePreviewRenderersProps) {
+  const { t, formatT } = useTCopy();
 
   // 大文件确认门：超过分类阈值时先显示友好提示，用户点"仍然打开"才渲染。
-  // 确认态按路径记忆（切走再回来仍有效，同一文件不重复打扰）。
-  const [heavyConfirmedPath, setHeavyConfirmedPath] = useState<string | null>(null);
+  // 确认态模块级 Set 记忆（多文件往返不重复打扰），tick 仅触发重渲染。
+  const [, setHeavyConfirmTick] = useState(0);
   const heavyThreshold = HEAVY_PREVIEW_BYTES[fileCategory];
   if (
     fileMedia &&
     heavyThreshold !== undefined &&
     fileMedia.size > heavyThreshold &&
-    heavyConfirmedPath !== fileMedia.path
+    !isHeavyPreviewConfirmed(workspaceId, fileMedia.path)
   ) {
     return (
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
@@ -145,7 +191,10 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
           <button
             type="button"
             className="adl-unsupported-preview__action"
-            onClick={() => setHeavyConfirmedPath(fileMedia.path)}
+            onClick={() => {
+              confirmHeavyPreview(workspaceId, fileMedia.path);
+              setHeavyConfirmTick((tick) => tick + 1);
+            }}
           >
             {t.heavyPreviewOpen as string}
           </button>
@@ -155,7 +204,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   }
 
   // Office 临时锁定文件（~$）：不是文档本身，任何解析库都会报 not-a-zip，
-  // 直接给转存指引而不调库（docx/xlsx/pptx/pdf 共用）。
+  // 直接给转存指引而不调库（docx/pdf/xlsx/pptx 共用）。
   if (
     fileMedia &&
     (fileCategory === 'docx' ||
@@ -174,13 +223,29 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     );
   }
 
+  // 媒体加载骨架（Phase 4 审查 F4）：fileMedia 为空时区分"读取中"与"真空"，
+  // 前者给骨架占位，后者（失败/未发起）保持 null 由错误视图接管。
+  if (!fileMedia && fileMediaLoading && isMediaFileCategory(fileCategory)) {
+    return (
+      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
+        <div className="adl-unsupported-preview" role="status">
+          <span className="adl-unsupported-preview__text">{t.fileMediaLoading as string}</span>
+        </div>
+      </PreviewSurface>
+    );
+  }
+
   if (fileCategory === 'markdown') {
     return (
       <div
         ref={editorSurfaceRef}
         className="adl-tool-editor__surface adl-tool-editor__surface--preview"
       >
-        <LazyMarkdownPreviewWrapper content={fileContent ?? ''} theme={theme} />
+        <LazyMarkdownPreviewWrapper
+          key={filePath ?? ''}
+          content={fileContent ?? ''}
+          theme={theme}
+        />
         {/* 检索跳转落点高亮：视口夹层裁剪溢出，高亮条铺满预览面并与左右边缘贴合 */}
         <RevealHighlightLayers />
       </div>
@@ -199,60 +264,22 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
     );
   }
 
-  if (fileCategory === 'docx') {
-    if (!mediaBytes || !fileMedia) {
+  if (
+    fileCategory === 'docx' ||
+    fileCategory === 'pdf' ||
+    fileCategory === 'spreadsheet' ||
+    fileCategory === 'presentation'
+  ) {
+    if (!fileMedia) {
       return null;
     }
     return (
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
-        <LazyDocxPreviewWrapper
+        <OfficeBranch
           key={fileMedia.path}
-          data={mediaBytes}
+          fileMedia={fileMedia}
+          kind={fileCategory}
           theme={theme}
-          fileName={fileMedia.path}
-        />
-      </PreviewSurface>
-    );
-  }
-
-  if (fileCategory === 'pdf') {
-    if (!mediaBytes || !fileMedia) {
-      return null;
-    }
-    return (
-      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
-        <LazyPdfPreviewWrapper key={fileMedia.path} data={mediaBytes} theme={theme} />
-      </PreviewSurface>
-    );
-  }
-
-  if (fileCategory === 'spreadsheet') {
-    if (!mediaBytes || !fileMedia) {
-      return null;
-    }
-    return (
-      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
-        <LazyXlsxPreviewWrapper
-          key={fileMedia.path}
-          data={mediaBytes}
-          theme={theme}
-          fileName={fileMedia.path}
-        />
-      </PreviewSurface>
-    );
-  }
-
-  if (fileCategory === 'presentation') {
-    if (!mediaBytes || !fileMedia) {
-      return null;
-    }
-    return (
-      <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
-        <LazyPptxPreviewWrapper
-          key={fileMedia.path}
-          data={mediaBytes}
-          theme={theme}
-          fileName={fileMedia.path}
         />
       </PreviewSurface>
     );

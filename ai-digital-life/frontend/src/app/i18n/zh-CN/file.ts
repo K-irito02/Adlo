@@ -127,6 +127,8 @@ export const fileZh = {
   fileOpenErrorDetail: '原因：{message}',
   fileOpenErrorRetry: '重试',
   mediaPreviewFailed: '媒体预览失败: {error}',
+  mediaEmptyFile: '文件为空，无内容可预览',
+  fileMediaLoading: '正在加载文件…',
   heavyPreviewTitle: '文件较大，暂未直接打开',
   heavyPreviewHint: '{name}（{size}）渲染可能较慢，甚至导致界面卡顿。',
   heavyPreviewOpen: '仍然打开',

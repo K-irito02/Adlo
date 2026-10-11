@@ -84,6 +84,11 @@ export const changesEn = {
   changesPreviewUnknown: 'Unknown file type',
   changesPreviewFailedSpreadsheet: 'Spreadsheet preview failed: {error}',
   changesPreviewFailedPresentation: 'Presentation preview failed: {error}',
+  spreadsheetUnreadable:
+    'This file is not a valid spreadsheet and may be corrupted. Re-save it in Excel and reopen it.',
+  spreadsheetEmpty: 'The workbook is empty, no sheets to display.',
+  presentationUnreadable:
+    'This file is not a valid presentation and may be corrupted. Re-save it in PowerPoint and reopen it.',
   officeLegacyFormat:
     'Legacy Office format is not supported for preview. Re-save it as {suggest} in a newer Office and reopen it.',
   officeTempFileTitle: 'Office temporary file',

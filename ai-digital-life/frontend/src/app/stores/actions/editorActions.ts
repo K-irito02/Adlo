@@ -299,6 +299,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
           selectedFilePath: relativePath,
           fileContent: result.data.content,
           fileMedia: null,
+          fileMediaLoading: false,
           fileLastModifiedAt: result.data.lastModifiedAt,
           externalFileChange:
             state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,

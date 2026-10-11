@@ -16,6 +16,8 @@ vi.mock('@i18n/useTCopy', () => ({
       changesPreviewFailedSpreadsheet: 'Spreadsheet preview failed: {error}',
       spreadsheetSheet: 'Sheet',
       spreadsheetFidelityHint: 'xlsx fidelity hint',
+      spreadsheetUnreadable: 'not a valid spreadsheet',
+      spreadsheetEmpty: 'workbook is empty',
     },
     formatT: (dict: Record<string, string>, key: string, params?: Record<string, unknown>) => {
       let out = dict[key] ?? key;
@@ -46,6 +48,26 @@ describe('XlsxPreview', () => {
     render(<XlsxPreview data={new ArrayBuffer(8)} fileName="docs/report.xlsx" />);
     await waitFor(() => {
       expect(screen.getByText('xlsx fidelity hint').className).toContain('adl-fidelity-watermark');
+    });
+  });
+
+  it('maps zip unpack failures to a friendly message', async () => {
+    const XLSX = await import('xlsx');
+    vi.mocked(XLSX.read).mockImplementationOnce(() => {
+      throw new Error('invalid zip file');
+    });
+    render(<XlsxPreview data={new ArrayBuffer(8)} fileName="docs/broken.xlsx" />);
+    await waitFor(() => {
+      expect(screen.getByText('not a valid spreadsheet')).toBeTruthy();
+    });
+  });
+
+  it('shows an empty notice for workbooks without sheets', async () => {
+    const XLSX = await import('xlsx');
+    vi.mocked(XLSX.read).mockImplementationOnce(() => ({ SheetNames: [], Sheets: {} }) as never);
+    render(<XlsxPreview data={new ArrayBuffer(8)} fileName="docs/empty.xlsx" />);
+    await waitFor(() => {
+      expect(screen.getByText('workbook is empty')).toBeTruthy();
     });
   });
 });

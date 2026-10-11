@@ -55,19 +55,46 @@ fn resolve_existing_parent(path: &Path) -> Result<PathBuf, AppError> {
     current.canonicalize().map_err(AppError::from)
 }
 
+/// 解析工作区内必须已存在的文件：除父目录校验外，对最终文件本身做
+/// canonicalize + 界内校验，拒绝指向界外的 symlink（Phase 4 审查 R1）。
+/// 写通道（目标可不存在）继续走 `resolve_workspace_path`，不受影响。
+pub fn resolve_workspace_file(root: &Path, relative_path: &str) -> Result<PathBuf, AppError> {
+    let root_canonical = root
+        .canonicalize()
+        .map_err(|e| AppError::Workspace(format!("failed to resolve workspace root: {e}")))?;
+    let path = resolve_workspace_path(root, relative_path)?;
+    let canonical = path.canonicalize().map_err(AppError::from)?;
+    if !canonical.starts_with(&root_canonical) {
+        return Err(AppError::Security(format!(
+            "path escapes workspace boundary: {relative_path}"
+        )));
+    }
+    Ok(canonical)
+}
+
 pub fn read_text_file(
     root: &Path,
     relative_path: &str,
     max_bytes: u64,
 ) -> Result<String, AppError> {
-    let path = resolve_workspace_path(root, relative_path)?;
+    let path = resolve_workspace_file(root, relative_path)?;
     let meta = fs::metadata(&path)?;
+    if !meta.is_file() {
+        return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
+    }
     if meta.len() > max_bytes {
         return Err(AppError::InvalidInput(format!(
             "file exceeds configured read limit: {relative_path}"
         )));
     }
     let bytes = fs::read(&path)?;
+    // TOCTOU 二次守门（Phase 4 审查 R2）：metadata 与 read 之间文件可被替换，
+    // 读后按实际长度再校验一次，上限只剩内存峰值本身。
+    if bytes.len() as u64 > max_bytes {
+        return Err(AppError::InvalidInput(format!(
+            "file exceeds configured read limit: {relative_path}"
+        )));
+    }
     if looks_binary(&bytes) {
         return Err(AppError::InvalidInput(format!(
             "binary files are not readable as context: {relative_path}"
@@ -81,14 +108,24 @@ pub fn read_binary_file(
     relative_path: &str,
     max_bytes: u64,
 ) -> Result<Vec<u8>, AppError> {
-    let path = resolve_workspace_path(root, relative_path)?;
+    let path = resolve_workspace_file(root, relative_path)?;
     let meta = fs::metadata(&path)?;
+    if !meta.is_file() {
+        return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
+    }
     if meta.len() > max_bytes {
         return Err(AppError::InvalidInput(format!(
             "file exceeds configured media read limit ({max_bytes} bytes): {relative_path}"
         )));
     }
-    fs::read(&path).map_err(AppError::from)
+    let bytes = fs::read(&path).map_err(AppError::from)?;
+    // TOCTOU 二次守门（Phase 4 审查 R2），同 read_text_file。
+    if bytes.len() as u64 > max_bytes {
+        return Err(AppError::InvalidInput(format!(
+            "file exceeds configured media read limit ({max_bytes} bytes): {relative_path}"
+        )));
+    }
+    Ok(bytes)
 }
 
 pub fn atomic_write(root: &Path, relative_path: &str, content: &str) -> Result<(), AppError> {
@@ -111,10 +148,8 @@ pub fn content_hash(content: &str) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-pub fn file_hash(root: &Path, relative_path: &str) -> Result<String, AppError> {
-    let content = read_text_file(root, relative_path, u64::MAX)?;
-    Ok(content_hash(&content))
-}
+// 注：已删除无界 `file_hash`（Phase 4 审查 P2）：它以 u64::MAX 读全文件且零调用方，
+// 属于死代码 + OOM 面；需要文件哈希时应走流式实现并重建调用点。
 
 pub fn looks_binary(bytes: &[u8]) -> bool {
     bytes.iter().take(4096).any(|byte| *byte == 0)
@@ -219,5 +254,44 @@ mod tests {
         let bytes = read_binary_file(dir.as_path(), "a.bin", 1024).unwrap();
         assert_eq!(bytes, vec![1u8, 2u8, 3u8]);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn read_binary_file_rejects_directories() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-fs-ops-media-dir-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(dir.join("sub")).unwrap();
+        let err = read_binary_file(dir.as_path(), "sub", 1024).unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn read_binary_file_returns_empty_for_empty_file() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-fs-ops-media-empty-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("empty.bin"), []).unwrap();
+        let bytes = read_binary_file(dir.as_path(), "empty.bin", 1024).unwrap();
+        assert!(bytes.is_empty());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn read_binary_file_rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+        let outside =
+            std::env::temp_dir().join(format!("adl-fs-ops-outside-{}", uuid::Uuid::new_v4()));
+        let inside =
+            std::env::temp_dir().join(format!("adl-fs-ops-inside-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&outside).unwrap();
+        std::fs::create_dir_all(&inside).unwrap();
+        std::fs::write(outside.join("secret.bin"), [9u8; 8]).unwrap();
+        symlink(outside.join("secret.bin"), inside.join("evil-link")).unwrap();
+        let err = read_binary_file(inside.as_path(), "evil-link", 1024).unwrap_err();
+        assert!(matches!(err, AppError::Security(_)));
+        let _ = std::fs::remove_dir_all(outside);
+        let _ = std::fs::remove_dir_all(inside);
     }
 }

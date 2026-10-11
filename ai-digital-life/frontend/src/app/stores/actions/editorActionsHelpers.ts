@@ -62,6 +62,7 @@ function submitOpenFailure(
     selectedFileWorkspaceId: config.workspaceId,
     fileContent: undefined,
     fileMedia: null,
+    fileMediaLoading: false,
     fileLastModifiedAt: undefined,
     outline: [],
     positioningPath: null,
@@ -75,6 +76,23 @@ function submitOpenFailure(
   });
 }
 
+/**
+ * 打开文件前奏（Phase 4 审查 D2 抽取，双 generic 共用）：清作用域错误 +
+ * 乐观插入标签页（点击反馈）。pending 期其余派生状态保持旧值（就绪才切换）。
+ */
+function beginFileOpen(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState,
+  relativePath: string,
+) {
+  clearError(get, SCOPE);
+  set((state: StoreState) => ({
+    openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+      ? state.openTabs
+      : [...state.openTabs, createEditorTab(relativePath)],
+  }));
+}
+
 export async function openFileGeneric(
   set: StoreApi<StoreState>['setState'],
   get: () => StoreState,
@@ -82,7 +100,6 @@ export async function openFileGeneric(
   requestSeq: number,
   config: OpenFileConfig,
 ): Promise<boolean> {
-  clearError(get, SCOPE);
   const cachedDocument = getCachedFileDocument(config.cacheKey);
 
   const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
@@ -107,6 +124,7 @@ export async function openFileGeneric(
         selectedFileWorkspaceId: config.workspaceId,
         fileContent: document.content,
         fileMedia: null,
+        fileMediaLoading: false,
         fileLastModifiedAt: document.lastModifiedAt,
         fileOpenError: null,
         externalFileChange:
@@ -126,11 +144,7 @@ export async function openFileGeneric(
   // pending 期不变量：除 openTabs 外一切派生状态（selected/content/outline/
   // diagnostics/preview/fileOpenError）均保持旧值；fileOpenError 刻意不清，
   // 使重试 pending 期仍显示错误视图而非跌落空编辑器（Phase 4 审查 M2）。
-  set((state: StoreState) => ({
-    openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-      ? state.openTabs
-      : [...state.openTabs, createEditorTab(relativePath)],
-  }));
+  beginFileOpen(set, get, relativePath);
 
   let fileResult: IpcResult<WorkspaceFileDocument>;
   try {
@@ -162,7 +176,11 @@ export async function openFileGeneric(
     content: fileResult.data.content,
     lastModifiedAt: fileResult.data.lastModifiedAt,
   };
-  setCachedFileDocument(config.cacheKey, nextDocument);
+  // 重型文本不入文本缓存（Phase 4 审查 S1）：缓存按 32 条数淘汰，
+  // 8MB 条目最坏常驻 256MB；超阈值按次读取（本地读 + 大纲已跳过，成本可接受）。
+  if (nextDocument.content.length <= TEXT_HEAVY_PREVIEW_CHARS) {
+    setCachedFileDocument(config.cacheKey, nextDocument);
+  }
   applyDocument(nextDocument, nextOutline);
   return true;
 }
@@ -186,12 +204,8 @@ export async function openMediaFileGeneric(
   requestSeq: number,
   config: OpenMediaFileConfig,
 ): Promise<boolean> {
-  clearError(get, SCOPE);
-  set((state: StoreState) => ({
-    openTabs: state.openTabs.some((tab) => tab.path === relativePath)
-      ? state.openTabs
-      : [...state.openTabs, createEditorTab(relativePath)],
-  }));
+  beginFileOpen(set, get, relativePath);
+  set({ fileMediaLoading: true });
 
   let mediaResult: IpcResult<WorkspaceMediaDocument>;
   try {
@@ -202,14 +216,18 @@ export async function openMediaFileGeneric(
     }
     captureError(get, err, SCOPE);
     submitOpenFailure(set, relativePath, config, err);
+    set({ fileMediaLoading: false });
     return false;
   }
   if (requestSeq !== fileRequestSeq) {
+    // 过期返回不碰 fileMediaLoading：新请求拥有该 flag 的后续状态，
+    // 此处清零会熄灭仍在 pending 的新请求的骨架。
     return false;
   }
   if (!mediaResult.ok) {
     captureError(get, mediaResult.error, SCOPE);
     submitOpenFailure(set, relativePath, config, mediaResult.error);
+    set({ fileMediaLoading: false });
     return false;
   }
   set((state: StoreState) => {
@@ -225,6 +243,7 @@ export async function openMediaFileGeneric(
       selectedFileWorkspaceId: config.workspaceId,
       fileContent: undefined,
       fileMedia: mediaResult.ok ? mediaResult.data : null,
+      fileMediaLoading: false,
       fileLastModifiedAt: mediaResult.ok ? mediaResult.data.lastModifiedAt : undefined,
       fileOpenError: null,
       externalFileChange:

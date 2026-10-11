@@ -41,7 +41,15 @@ export function createGitBranchActions(
       }
       const result = await window.digitalLife.workspace.listGitBranches();
       if (!result.ok) {
-        if (!options?.silent && !isExpectedNonGitError(result.error)) {
+        // 非 Git 是预期态：永不打扰。silent（启动级联）下真实故障记静默诊断，
+        // 不弹卡片但可从 errorToasts 排查（Phase 4 审查 S3）。
+        if (isExpectedNonGitError(result.error)) {
+          set({ gitBranches: [] });
+          return;
+        }
+        if (options?.silent) {
+          get().reportSilentError(result.error.code, result.error.message, SCOPE);
+        } else {
           captureError(get, result.error, SCOPE);
         }
         set({ gitBranches: [] });

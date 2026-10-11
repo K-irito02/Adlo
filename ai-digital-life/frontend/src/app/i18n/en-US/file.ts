@@ -128,6 +128,8 @@ export const fileEn = {
   fileOpenErrorDetail: 'Reason: {message}',
   fileOpenErrorRetry: 'Retry',
   mediaPreviewFailed: 'Media preview failed: {error}',
+  mediaEmptyFile: 'The file is empty, nothing to preview',
+  fileMediaLoading: 'Loading file...',
   heavyPreviewTitle: 'This file is large, so it was not opened directly',
   heavyPreviewHint: '{name} ({size}) may render slowly or freeze the interface.',
   heavyPreviewOpen: 'Open anyway',

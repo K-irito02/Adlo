@@ -152,70 +152,83 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
     return null;
   }
 
-  // 媒体与办公文件不在变更面板做逐行对比：居中友好占位 + 前往文件面板预览。
+  // 校验横幅（rev2 复审 N3）：媒体占位 early return 会跳过它，
+  // 抽为变量使占位路径同样展示 applied/rolledBack 状态。
+  const validationBanner = validation ? (
+    <div className="adl-banner adl-banner--info">
+      <strong>{validation.status}</strong>
+      <span>{validation.summary}</span>
+      {latestPatchApplication?.rolledBack ? (
+        <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span>
+      ) : null}
+      {latestPatchApplication?.patchSet.status === 'applied' ? (
+        <span className="adl-chip adl-chip--success">{t.changesApplied}</span>
+      ) : null}
+    </div>
+  ) : null;
+
+  // 媒体、办公与二进制文件不在变更面板做逐行对比：居中友好占位 + 前往文件面板预览。
   // 与文件面板共用 .adl-unsupported-preview 视觉（已居中）。
-  if (isMediaFileCategory(categorizeFile(changePreview.path))) {
+  // binary 一并占位：二进制变更预览本就失败闭合（changePreview 为空），
+  // 避免落入 DiffViewer 面对空内容（Phase 4 审查 F6）。
+  const changePreviewCategory = categorizeFile(changePreview.path);
+  if (isMediaFileCategory(changePreviewCategory) || changePreviewCategory === 'binary') {
     const previewPath = changePreview.path;
+    const isBinary = changePreviewCategory === 'binary';
     return (
-      <div
-        ref={setPreviewShellRef}
-        className="adl-tool-editor adl-tool-editor--changes"
-        data-testid="changes-preview-shell"
-      >
-        <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-          <div className="adl-unsupported-preview">
-            <svg
-              className="adl-unsupported-preview__icon"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-              <path d="M14 2v6h6" />
-              <path d="M9 15h6" />
-            </svg>
-            <span className="adl-unsupported-preview__text">
-              {t.changesPreviewMediaInChanges as string}
-            </span>
-            <span className="adl-unsupported-preview__hint" title={previewPath}>
-              {previewPath}
-            </span>
-            <button
-              type="button"
-              className="adl-unsupported-preview__action"
-              onClick={() => onOpenFile(previewPath)}
-            >
-              {t.changesPreviewOpenInFiles as string}
-            </button>
+      <>
+        {validationBanner}
+        <div
+          ref={setPreviewShellRef}
+          className="adl-tool-editor adl-tool-editor--changes"
+          data-testid="changes-preview-shell"
+        >
+          <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+            <div className="adl-unsupported-preview">
+              <svg
+                className="adl-unsupported-preview__icon"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+                <path d="M14 2v6h6" />
+                <path d="M9 15h6" />
+              </svg>
+              <span className="adl-unsupported-preview__text">
+                {isBinary
+                  ? (t.changesPreviewBinary as string)
+                  : (t.changesPreviewMediaInChanges as string)}
+              </span>
+              <span className="adl-unsupported-preview__hint" title={previewPath}>
+                {previewPath}
+              </span>
+              <button
+                type="button"
+                className="adl-unsupported-preview__action"
+                onClick={() => onOpenFile(previewPath)}
+              >
+                {t.changesPreviewOpenInFiles as string}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <>
-      {validation ? (
-        <div className="adl-banner adl-banner--info">
-          <strong>{validation.status}</strong>
-          <span>{validation.summary}</span>
-          {latestPatchApplication?.rolledBack ? (
-            <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span>
-          ) : null}
-          {latestPatchApplication?.patchSet.status === 'applied' ? (
-            <span className="adl-chip adl-chip--success">{t.changesApplied}</span>
-          ) : null}
-        </div>
-      ) : null}
+      {validationBanner}
       <div
         ref={setPreviewShellRef}
         className="adl-tool-editor adl-tool-editor--changes"
         data-testid="changes-preview-shell"
       >
-        {previewEnabled && categorizeFile(changePreview.path) === 'markdown' ? (
+        {changePreviewCategory === 'markdown' && previewEnabled ? (
           <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
             <LazyMarkdownPreviewWrapper
               content={changePreview.currentContent}

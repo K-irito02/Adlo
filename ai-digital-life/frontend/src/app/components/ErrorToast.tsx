@@ -79,8 +79,10 @@ export function ErrorToastContainer({
   onClearAll,
 }: ErrorToastContainerProps) {
   const { t } = useTCopy();
-  const visible = errorToasts.slice(-ERROR_TOAST_VISIBLE_LIMIT);
-  const hiddenCount = errorToasts.length - visible.length;
+  // 静默记录只进诊断队列，不渲染（Phase 4 审查 S3）。
+  const notifyToasts = errorToasts.filter((entry) => !entry.silent);
+  const visible = notifyToasts.slice(-ERROR_TOAST_VISIBLE_LIMIT);
+  const hiddenCount = notifyToasts.length - visible.length;
   const hasContent = visible.length > 0;
 
   return (

@@ -40,17 +40,21 @@ use adl_errors::AppError;
 use adl_types::FileOutlineItem;
 
 pub fn outline(root: &Path, relative_path: &str) -> Result<Vec<FileOutlineItem>, AppError> {
-    let doc = read_file(root, relative_path)?;
-    let total_lines = doc.content.lines().count().max(1);
-    adl_outline::outline(&doc.content, relative_path, total_lines)
+    // 大纲解析锁定 1MB（Phase 4 审查 R7）：read_file 的 8MB 只服务用户主动打开，
+    // outline 走检索级门限，避免 8MB 全量 walk 拖慢后台任务。
+    let content = adl_fs_ops::read_text_file(root, relative_path, DEFAULT_MAX_FILE_BYTES)?;
+    let total_lines = content.lines().count().max(1);
+    adl_outline::outline(&content, relative_path, total_lines)
 }
 
 use adl_types::WorkspaceFileDocument;
 use adl_types::WorkspaceMediaDocument;
+use base64::Engine as _;
 use std::path::Path;
 
+/// 检索/树扫描/变更预览/大纲共用门限（1MB）：语义是"后台批量通道上限"，
+/// 不要把它也提到 8MB；用户主动开文件走下面的 TEXT/MEDIA 常量。
 pub(crate) const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
-
 /// 媒体/办公二进制读取上限（50 MiB）：图片/文档通常远小于此值；
 /// 大视频超限时返回 InvalidInput，前端展示居中友好错误（含重试与体积说明）。
 pub(crate) const DEFAULT_MAX_MEDIA_BYTES: u64 = 50 * 1024 * 1024;
@@ -72,11 +76,15 @@ pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocume
 }
 
 /// 按扩展名推断媒体 MIME（仅用于前端 Blob 构造与原生标签渲染，不做安全判定）。
+/// 未命中时回落 `application/octet-stream`：前端按扩展名二次路由渲染器，
+/// MIME 只决定 Blob 类型串（见 FilePreviewRenderers）；SVG 脚本风险由前端承担——
+/// SVG 必须只经 `<img>` 渲染，禁止内联/iframe/object（见 MediaPreview）。
 pub fn guess_media_mime(relative_path: &str) -> &'static str {
-    let ext = relative_path
+    let normalized = relative_path.replace('\\', "/");
+    let ext = normalized
         .rsplit('/')
         .next()
-        .unwrap_or(relative_path)
+        .unwrap_or(&normalized)
         .rsplit('.')
         .next()
         .unwrap_or("")
@@ -149,10 +157,7 @@ pub(crate) fn read_media_file_with_limit(
     Ok(WorkspaceMediaDocument {
         path: relative_path.replace('\\', "/"),
         mime: guess_media_mime(relative_path).to_string(),
-        base64: base64::Engine::encode(
-            &base64::engine::general_purpose::STANDARD,
-            &bytes,
-        ),
+        base64: base64::engine::general_purpose::STANDARD.encode(&bytes),
         size: bytes.len() as u64,
         last_modified_at: modified,
     })
@@ -393,10 +398,36 @@ mod tests {
         assert_eq!(guess_media_mime("clip.wmv"), "video/x-ms-wmv");
         assert_eq!(guess_media_mime("sound.mp3"), "audio/mpeg");
         assert_eq!(guess_media_mime("sound.wma"), "audio/x-ms-wma");
-        assert_eq!(guess_media_mime("doc/a.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assert_eq!(
+            guess_media_mime("doc/a.docx"),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
         assert_eq!(guess_media_mime("doc/a.pdf"), "application/pdf");
         assert_eq!(guess_media_mime("doc/a.csv"), "text/csv");
         assert_eq!(guess_media_mime("a.unknown-ext"), "application/octet-stream");
+    }
+
+    #[test]
+    fn guess_media_mime_handles_backslash_and_edge_names() {
+        assert_eq!(guess_media_mime("doc\\clip.MP4"), "video/mp4");
+        assert_eq!(guess_media_mime("noext"), "application/octet-stream");
+        assert_eq!(guess_media_mime(".gitignore"), "application/octet-stream");
+        assert_eq!(guess_media_mime("archive.tar.gz"), "application/octet-stream");
+    }
+
+    #[test]
+    fn outline_keeps_1mb_limit_for_large_text() {
+        // 大纲锁定检索级门限：2MB 文本 outline 应拒绝而非全量解析（R7）。
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-outline-limit-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let big = format!("# Title\n{}", "x".repeat(2 * 1024 * 1024));
+        std::fs::write(dir.join("big.md"), &big).unwrap();
+
+        let err = outline(&dir, "big.md").unwrap_err();
+        assert!(matches!(err, AppError::InvalidInput(_)));
+
+        let _ = std::fs::remove_dir_all(dir);
     }
 
     #[test]
@@ -431,7 +462,8 @@ mod tests {
     }
 
     #[test]
-    fn read_media_file_rejects_over_limit() {        let dir = std::env::temp_dir()
+    fn read_media_file_rejects_over_limit() {
+        let dir = std::env::temp_dir()
             .join(format!("adl-workspace-media-limit-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("big.mp4"), vec![9u8; 32]).unwrap();

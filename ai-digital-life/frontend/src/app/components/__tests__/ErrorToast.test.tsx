@@ -79,6 +79,23 @@ describe('ErrorToastContainer', () => {
     expect(detail?.className).toContain('is-collapsed-settled');
   });
 
+  it('skips silent entries in rendering while keeping them in the queue', () => {
+    render(
+      <TestProvider>
+        <ErrorToastContainer
+          errorToasts={[
+            entry({ id: 's1', code: 'IO_ERROR', detail: 'disk gone', silent: true }),
+            entry({ id: 'e2', code: 'STORAGE_ERROR', detail: 'disk full' }),
+          ]}
+          onDismiss={vi.fn()}
+          onClearAll={vi.fn()}
+        />
+      </TestProvider>,
+    );
+    expect(screen.queryByText('disk gone')).toBeNull();
+    expect(screen.getByText('disk full')).toBeTruthy();
+  });
+
   it('marks collapse/copy as hover-only detail buttons and close as always visible', () => {
     render(
       <TestProvider>

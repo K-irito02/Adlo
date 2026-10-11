@@ -189,6 +189,9 @@ export async function readFile(
   const stats = await fs.stat(absolutePath);
   // 与 Rust read_file 对齐：开文件文本上限 8MB（树扫描/检索另走 1MB 常量）；
   // 超 1MB 内容由前端重型门先提示、确认后才渲染。
+  if (!stats.isFile()) {
+    throw new Error(`not a file: ${relativeTarget}`);
+  }
   if (stats.size > DEFAULT_MAX_TEXT_FILE_BYTES) {
     throw new Error(`file too large: ${relativeTarget}`);
   }
@@ -206,17 +209,25 @@ export async function readMediaFile(
 ): Promise<import('../src/kernel/index').WorkspaceMediaDocument> {
   const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
   const stats = await fs.stat(absolutePath);
+  if (!stats.isFile()) {
+    throw new Error(`not a file: ${relativeTarget}`);
+  }
   if (stats.size > DEFAULT_MAX_MEDIA_BYTES) {
     throw new Error(
       `file exceeds media read limit (${DEFAULT_MAX_MEDIA_BYTES} bytes): ${relativeTarget}`,
     );
   }
   const bytes = await fs.readFile(absolutePath);
+  if (bytes.length > DEFAULT_MAX_MEDIA_BYTES) {
+    throw new Error(
+      `file exceeds media read limit (${DEFAULT_MAX_MEDIA_BYTES} bytes): ${relativeTarget}`,
+    );
+  }
   return {
     path: normalizePath(relativeTarget),
     mime: guessMediaMime(relativeTarget),
     base64: bytes.toString('base64'),
-    size: stats.size,
+    size: bytes.length,
     lastModifiedAt: stats.mtimeMs,
   };
 }
@@ -467,6 +478,12 @@ export async function outline(
   rootPath: string,
   relativeTarget: string,
 ): Promise<import('../src/kernel/index').FileOutlineItem[]> {
+  // 与 Rust outline() 对齐锁定 1MB（dev readFile 是 8MB，大纲不跟随放宽）。
+  const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
+  const stats = await fs.stat(absolutePath);
+  if (stats.size > DEFAULT_MAX_FILE_BYTES) {
+    throw new Error(`outline too large: ${relativeTarget}`);
+  }
   const document = await readFile(rootPath, relativeTarget);
   return buildOutlineFromContent(document.content, normalizePath(relativeTarget));
 }

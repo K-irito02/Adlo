@@ -16,4 +16,12 @@ describe('FidelityWatermark', () => {
     fireEvent.animationEnd(screen.getByText('hint text'));
     expect(screen.queryByText('hint text')).toBeNull();
   });
+
+  it('reappears when the file key changes after fading out', () => {
+    const { rerender } = render(<FidelityWatermark text="hint text" fileKey="a.docx" />);
+    fireEvent.animationEnd(screen.getByText('hint text'));
+    expect(screen.queryByText('hint text')).toBeNull();
+    rerender(<FidelityWatermark text="hint text" fileKey="b.docx" />);
+    expect(screen.getByText('hint text')).toBeTruthy();
+  });
 });

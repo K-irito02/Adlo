@@ -74,6 +74,15 @@ describe('errorToastSlice', () => {
     expect(useAppStore.getState().errorToasts).toEqual([]);
   });
 
+  it('reportSilentError stores a silent entry in the same bounded queue', () => {
+    const s = useAppStore.getState();
+    s.reportSilentError('IO_ERROR', 'disk gone', 'git');
+    const toasts = useAppStore.getState().errorToasts;
+    expect(toasts).toHaveLength(1);
+    expect(toasts[0].silent).toBe(true);
+    expect(toasts[0].detail).toBe('disk gone');
+  });
+
   it('clearErrorToasts with empty string clears only empty-scope entries', () => {
     const s = useAppStore.getState();
     s.reportError('NOT_FOUND', 'empty-scope err', '');

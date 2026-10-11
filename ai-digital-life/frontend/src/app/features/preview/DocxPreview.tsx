@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
+import { isZipUnpackError } from './officeErrors';
 
 export interface DocxPreviewProps {
   data: ArrayBuffer;
@@ -29,24 +30,24 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unreadable, setUnreadable] = useState(false);
-  const [legacy, setLegacy] = useState(false);
+
+  // 旧版 .doc/.dot 是 OLE 二进制格式（与 PptxPreview 的 legacy 同式，用 memo 同步派生，
+  // 不单独 effect，避免首轮渲染读到 stale 值）。
+  const legacy = useMemo(() => {
+    const lowerName = (fileName ?? '').toLowerCase();
+    return lowerName.endsWith('.doc') || lowerName.endsWith('.dot');
+  }, [fileName]);
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) {
+    if (!container || legacy) {
       return undefined;
     }
     let cancelled = false;
-    container.innerHTML = '';
+    const el: HTMLElement = container;
+    el.innerHTML = '';
     setError(null);
     setUnreadable(false);
-    // 旧版 .doc 是 OLE 二进制格式，docx-preview（OOXML zip 解析）无法渲染：
-    // 不调库，直接给转存指引，避免 "not a zip" 类晦涩报错。
-    if ((fileName ?? '').toLowerCase().endsWith('.doc')) {
-      setLegacy(true);
-      return undefined;
-    }
-    setLegacy(false);
 
     async function renderDocx() {
       try {
@@ -54,7 +55,9 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
         if (cancelled) {
           return;
         }
-        await docx.renderAsync(data.slice(0), container as HTMLElement, undefined, {
+        // 不调库的情况（旧版 .doc/.dot）已在 effect 入口经 legacy 拦截，
+        // 此处只处理 OOXML zip。
+        await docx.renderAsync(data.slice(0), el, undefined, {
           className: 'adl-docx',
           inWrapper: false,
           breakPages: false,
@@ -66,9 +69,9 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
       } catch (err) {
         if (!cancelled) {
           const message = err instanceof Error ? err.message : String(err);
-          // zip 解包失败（损坏/非文档/临时文件残留）：JSZip 原文是英文技术细节，
+          // zip 解包失败（损坏/非文档/临时文件残留）：库原文是英文技术细节，
           // 直接展示会吓到用户，映射为中文友好提示（~$ 临时文件已在渲染器层拦截）。
-          if (/central directory|is this a zip|not .*zip|invalid.*zip/i.test(message)) {
+          if (isZipUnpackError(message)) {
             setUnreadable(true);
           } else {
             setError(message);
@@ -80,9 +83,9 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
     void renderDocx();
     return () => {
       cancelled = true;
-      container.innerHTML = '';
+      el.innerHTML = '';
     };
-  }, [data, fileName]);
+  }, [data, legacy]);
 
   if (legacy) {
     return (
@@ -110,7 +113,7 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
 
   return (
     <div className={`adl-docx-preview adl-docx-preview--${theme}`}>
-      <FidelityWatermark text={t.docxFidelityHint as string} fileKey={fileName} />
+      <FidelityWatermark key={fileName} text={t.docxFidelityHint as string} fileKey={fileName} />
       <div className="adl-docx-scroll">
         <div ref={containerRef} className="adl-docx-preview__body adl-docx-paper" />
       </div>

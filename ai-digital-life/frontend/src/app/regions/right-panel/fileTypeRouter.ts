@@ -137,6 +137,11 @@ const BINARY_EXTENSIONS = new Set([
   'dat',
   'iso',
   'dmg',
+  // odt 是 ODF zip：解析库读不了，走诚实占位而不以文本乱码呈现。
+  // pot/pps 是旧版 OLE 模板与幻灯片：同理走占位（ppsx 是 OOXML，走 presentation）。
+  'odt',
+  'pot',
+  'pps',
 ]);
 
 export function categorizeFile(filePath: string | undefined): FileCategory {
@@ -162,7 +167,16 @@ export function categorizeFile(filePath: string | undefined): FileCategory {
   if (MARKDOWN_EXTENSIONS.has(ext)) {
     return 'markdown';
   }
-  if (ext === 'docx' || ext === 'doc') {
+  if (
+    ext === 'docx' ||
+    ext === 'doc' ||
+    ext === 'docm' ||
+    ext === 'dotx' ||
+    ext === 'dotm' ||
+    ext === 'dot'
+  ) {
+    // docm/dotx/dotm 与 docx 同为 OOXML zip，解析库可处理内容（宏被忽略）；
+    // dot（旧模板，OLE 二进制）渲染必失败，走 DocxPreview 的 legacy 指引而非文本乱码。
     return 'docx';
   }
   if (ext === 'pdf') {

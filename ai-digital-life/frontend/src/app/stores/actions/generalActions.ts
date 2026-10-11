@@ -494,6 +494,7 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
         fileContent: undefined,
         fileLastModifiedAt: undefined,
         fileMedia: null,
+        fileMediaLoading: false,
         outline: [],
         indexingStatus: undefined,
         repoMap: [],

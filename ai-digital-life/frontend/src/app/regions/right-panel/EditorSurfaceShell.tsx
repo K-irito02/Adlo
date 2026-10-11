@@ -1,7 +1,12 @@
 import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
 import { EditorView } from '@codemirror/view';
 import { FilePreviewRenderers } from './FilePreviewRenderers';
-import { TEXT_HEAVY_PREVIEW_CHARS, isHeavyTextCategory } from './heavyPreviewLimits';
+import {
+  TEXT_HEAVY_PREVIEW_CHARS,
+  confirmHeavyPreview,
+  isHeavyPreviewConfirmed,
+  isHeavyTextCategory,
+} from './heavyPreviewLimits';
 import { formatBytes } from '@root/design-system/html';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
 import { useAppStore } from '@stores/slicedStore';
@@ -34,6 +39,7 @@ interface EditorSurfaceShellProps extends Pick<
   | 'selectedFilePath'
   | 'fileContent'
   | 'fileMedia'
+  | 'fileMediaLoading'
   | 'fileOpenError'
   | 'positioningPath'
   | 'filePatch'
@@ -74,6 +80,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     selectedFilePath,
     fileContent,
     fileMedia,
+    fileMediaLoading,
     fileOpenError,
     positioningPath,
     filePatch,
@@ -135,9 +142,9 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
 
   useEditorStateCache(cmViewRef, selectedFilePath, selectedFileWorkspaceId);
 
-  // 文本重型门确认态（按路径记忆）：txt/md/代码超阈值时先提示，确认后才渲染
-  // 编辑器/预览（高亮 + 大纲是渲染卡顿主因；store 侧超阈值已跳过大纲解析）。
-  const [heavyTextConfirmedPath, setHeavyTextConfirmedPath] = useState<string | null>(null);
+  // 文本重型门确认：模块级 Set 记忆（Phase 4 审查 F2），多重型文件往返不重复打扰；
+  // tick 仅用于确认后触发重渲染。
+  const [, setHeavyConfirmTick] = useState(0);
   const heavyTextBytes = useMemo(() => {
     if (!fileContent || fileContent.length <= TEXT_HEAVY_PREVIEW_CHARS) {
       return 0;
@@ -180,52 +187,8 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
     return editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null;
   }
 
-  // 文本重型门：txt/md/代码超 1MB 时先显示友好提示 + "仍然打开"，确认后才渲染。
-  // 失败分支优先（超 8MB 传输上限仍走错误视图）；补丁 diff 分支内容来自变更预览
-  //（服务端 1MB 钳制），不受此门影响。
-  if (
-    fileContent !== undefined &&
-    fileContent.length > TEXT_HEAVY_PREVIEW_CHARS &&
-    isHeavyTextCategory(fileCategory) &&
-    heavyTextConfirmedPath !== selectedFilePath
-  ) {
-    return (
-      <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-        <div className="adl-unsupported-preview">
-          <svg
-            className="adl-unsupported-preview__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-            <path d="M14 2v6h6" />
-            <path d="M12 11v6" />
-            <path d="M9 14h6" />
-          </svg>
-          <span className="adl-unsupported-preview__text">{t.heavyPreviewTitle as string}</span>
-          <span className="adl-unsupported-preview__hint">
-            {formatT(t, 'heavyPreviewHint', {
-              name: selectedFilePath,
-              size: formatBytes(heavyTextBytes),
-            })}
-          </span>
-          <button
-            type="button"
-            className="adl-unsupported-preview__action"
-            onClick={() => setHeavyTextConfirmedPath(selectedFilePath)}
-          >
-            {t.heavyPreviewOpen as string}
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // 开文件失败：主区展示友好错误，不回退显示旧文件内容（事项 46 调整项，用户决策）。
+  // 开文件失败优先：主区展示友好错误，不回退显示旧文件内容（事项 46 调整项，用户决策）。
+  // 必须在重型门之前——失败时 store 可能残留旧 fileContent，门会遮蔽错误视图。
   if (fileOpenError && fileOpenError.path === selectedFilePath) {
     const isNotFound = isNotFoundCode(fileOpenError.code);
     // scoped 重试目标齐全才走工作区入口，否则回退单文件入口（Phase 4 审查 O3：无非空断言）。
@@ -267,6 +230,53 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         >
           {t.fileOpenErrorRetry}
         </button>
+      </div>
+    );
+  }
+
+  // 文本重型门：txt/md/代码超 1MB 时先显示友好提示 + "仍然打开"，确认后才渲染。
+  // 补丁 diff 分支内容来自变更预览（服务端 1MB 钳制），不受此门影响。
+  if (
+    fileContent !== undefined &&
+    fileContent.length > TEXT_HEAVY_PREVIEW_CHARS &&
+    isHeavyTextCategory(fileCategory) &&
+    !isHeavyPreviewConfirmed(selectedFileWorkspaceId, selectedFilePath)
+  ) {
+    return (
+      <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+        <div className="adl-unsupported-preview">
+          <svg
+            className="adl-unsupported-preview__icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+            <path d="M14 2v6h6" />
+            <path d="M12 11v6" />
+            <path d="M9 14h6" />
+          </svg>
+          <span className="adl-unsupported-preview__text">{t.heavyPreviewTitle as string}</span>
+          <span className="adl-unsupported-preview__hint">
+            {formatT(t, 'heavyPreviewHint', {
+              name: selectedFilePath,
+              size: formatBytes(heavyTextBytes),
+            })}
+          </span>
+          <button
+            type="button"
+            className="adl-unsupported-preview__action"
+            onClick={() => {
+              confirmHeavyPreview(selectedFileWorkspaceId, selectedFilePath);
+              setHeavyConfirmTick((tick) => tick + 1);
+            }}
+          >
+            {t.heavyPreviewOpen as string}
+          </button>
+        </div>
       </div>
     );
   }
@@ -402,6 +412,9 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
         fileCategory={fileCategory}
         fileContent={fileContent ?? null}
         fileMedia={fileMedia ?? null}
+        fileMediaLoading={fileMediaLoading}
+        filePath={selectedFilePath}
+        workspaceId={selectedFileWorkspaceId}
         theme={resolvedTheme}
       />
     );
