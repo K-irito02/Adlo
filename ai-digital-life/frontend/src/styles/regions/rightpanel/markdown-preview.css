@@ -157,6 +157,23 @@
   overflow-wrap: break-word;
   /* 保真水印的定位锚点 */
   position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.adl-pdf-preview--error {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* PDF 内层滚动区：画布超高时纵滚，工具栏常驻顶部不参与滚动 */
+.adl-pdf-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  box-sizing: border-box;
+  padding: var(--space-4) var(--space-6);
 }
 
 /* pptx 纵滚连续翻页：高度只决定一屏可见多少，不影响阅读，故吃满内容区——
@@ -236,6 +253,7 @@
 }
 
 .adl-pdf-preview-nav {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -261,6 +279,31 @@
 .adl-pdf-preview-nav button:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.adl-pdf-preview-jump {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  margin-left: var(--space-1);
+}
+
+.adl-pdf-preview-jump input {
+  width: 52px;
+  font-size: var(--text-xs);
+  color: var(--text-primary);
+  background: var(--bg-input, var(--surface-subtle));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm, 4px);
+  padding: var(--space-0-5) var(--space-1-5);
+  text-align: center;
+}
+
+.adl-pdf-preview-jump button {
+  width: auto;
+  padding-left: var(--space-2);
+  padding-right: var(--space-2);
+  font-size: var(--text-xs);
 }
 
 .adl-xlsx-preview__sheets {

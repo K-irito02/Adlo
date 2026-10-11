@@ -80,6 +80,8 @@ export const changesEn = {
   changesPreviewVideo: 'Video',
   changesPdfPrevPage: 'Previous page',
   changesPdfNextPage: 'Next page',
+  changesPdfPageNumber: 'Page number',
+  changesPdfGo: 'Go',
   changesPreviewBinary: 'Binary file',
   changesPreviewUnknown: 'Unknown file type',
   changesPreviewFailedSpreadsheet: 'Spreadsheet preview failed: {error}',

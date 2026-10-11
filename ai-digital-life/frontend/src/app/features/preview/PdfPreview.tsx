@@ -15,6 +15,7 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
   const [error, setError] = useState<string | null>(null);
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
+  const [pageInput, setPageInput] = useState('1');
 
   useEffect(() => {
     let cancelled = false;
@@ -69,6 +70,21 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
     };
   }, [data, currentPage]);
 
+  // 按钮翻页后输入框同步；输入非法时回滚显示当前页。
+  useEffect(() => {
+    setPageInput(String(currentPage));
+  }, [currentPage]);
+
+  const commitPageInput = () => {
+    if (numPages <= 0) {
+      return;
+    }
+    const parsed = Number.parseInt(pageInput, 10);
+    const target = Number.isNaN(parsed) ? currentPage : Math.min(Math.max(parsed, 1), numPages);
+    setCurrentPage(target);
+    setPageInput(String(target));
+  };
+
   if (error) {
     return (
       <div className={`adl-pdf-preview adl-pdf-preview--${theme} adl-pdf-preview--error`}>
@@ -79,7 +95,6 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
 
   return (
     <div className={`adl-pdf-preview adl-pdf-preview--${theme}`}>
-      <canvas ref={canvasRef} />
       {numPages > 1 && (
         <div className="adl-pdf-preview-nav">
           <button
@@ -101,8 +116,32 @@ export function PdfPreview({ data, theme = 'dark' }: PdfPreviewProps) {
           >
             <IconChevronRight size={14} decorative />
           </button>
+          <form
+            className="adl-pdf-preview-jump"
+            onSubmit={(event) => {
+              event.preventDefault();
+              commitPageInput();
+            }}
+          >
+            <input
+              type="number"
+              value={pageInput}
+              inputMode="numeric"
+              min={1}
+              max={numPages}
+              onChange={(event) => setPageInput(event.target.value)}
+              onBlur={commitPageInput}
+              aria-label={t.changesPdfPageNumber as string}
+            />
+            <button type="submit" aria-label={t.changesPdfGo as string}>
+              {t.changesPdfGo as string}
+            </button>
+          </form>
         </div>
       )}
+      <div className="adl-pdf-scroll">
+        <canvas ref={canvasRef} />
+      </div>
     </div>
   );
 }
