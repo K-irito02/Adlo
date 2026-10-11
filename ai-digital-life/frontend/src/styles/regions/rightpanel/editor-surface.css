@@ -257,3 +257,10 @@
 .adl-unsupported-preview__action:hover {
   background: var(--bg-hover, rgba(128, 128, 128, 0.14));
 }
+
+.adl-tool-editor__open-error-retry:focus-visible,
+.adl-unsupported-preview__action:focus-visible {
+  outline: 2px solid var(--text-secondary);
+  outline-offset: 2px;
+  background: var(--bg-hover, rgba(128, 128, 128, 0.14));
+}

@@ -1,6 +1,7 @@
-import React, { lazy, Suspense, useCallback, useMemo, useState } from 'react';
+import React, { lazy, Suspense, useCallback, useState } from 'react';
 import { EditorView } from '@codemirror/view';
 import { FilePreviewRenderers } from './FilePreviewRenderers';
+import { HeavyPreviewGate } from './HeavyPreviewGate';
 import {
   TEXT_HEAVY_PREVIEW_CHARS,
   confirmHeavyPreview,
@@ -145,16 +146,9 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   // 文本重型门确认：模块级 Set 记忆（Phase 4 审查 F2），多重型文件往返不重复打扰；
   // tick 仅用于确认后触发重渲染。
   const [, setHeavyConfirmTick] = useState(0);
-  const heavyTextBytes = useMemo(() => {
-    if (!fileContent || fileContent.length <= TEXT_HEAVY_PREVIEW_CHARS) {
-      return 0;
-    }
-    try {
-      return new TextEncoder().encode(fileContent).length;
-    } catch {
-      return fileContent.length;
-    }
-  }, [fileContent]);
+  // 文本体积展示用字符数近似（收尾 M2）：精确 TextEncoder 全量编码正是设门想避免的
+  // 主线程 jank；hint 体积为示意值，CJK 下偏保守。
+  const heavyTextBytes = fileContent?.length ?? 0;
 
   const handleStandardEditorMount = useCallback(
     (editor: EditorRef) => {
@@ -235,48 +229,25 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
   }
 
   // 文本重型门：txt/md/代码超 1MB 时先显示友好提示 + "仍然打开"，确认后才渲染。
-  // 补丁 diff 分支内容来自变更预览（服务端 1MB 钳制），不受此门影响。
+  // 活跃补丁不受此门影响（补丁 diff 内容来自服务端 1MB 钳制的变更预览，
+  // 全文再大 diff 本身也很小；门排在错误分支之后、补丁分支之前，顺序即语义）。
   if (
     fileContent !== undefined &&
     fileContent.length > TEXT_HEAVY_PREVIEW_CHARS &&
     isHeavyTextCategory(fileCategory) &&
+    !(hasActivePatch && filePatch) &&
     !isHeavyPreviewConfirmed(selectedFileWorkspaceId, selectedFilePath)
   ) {
     return (
       <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-        <div className="adl-unsupported-preview">
-          <svg
-            className="adl-unsupported-preview__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-            <path d="M14 2v6h6" />
-            <path d="M12 11v6" />
-            <path d="M9 14h6" />
-          </svg>
-          <span className="adl-unsupported-preview__text">{t.heavyPreviewTitle as string}</span>
-          <span className="adl-unsupported-preview__hint">
-            {formatT(t, 'heavyPreviewHint', {
-              name: selectedFilePath,
-              size: formatBytes(heavyTextBytes),
-            })}
-          </span>
-          <button
-            type="button"
-            className="adl-unsupported-preview__action"
-            onClick={() => {
-              confirmHeavyPreview(selectedFileWorkspaceId, selectedFilePath);
-              setHeavyConfirmTick((tick) => tick + 1);
-            }}
-          >
-            {t.heavyPreviewOpen as string}
-          </button>
-        </div>
+        <HeavyPreviewGate
+          name={selectedFilePath}
+          sizeText={formatBytes(heavyTextBytes)}
+          onConfirm={() => {
+            confirmHeavyPreview(selectedFileWorkspaceId, selectedFilePath);
+            setHeavyConfirmTick((tick) => tick + 1);
+          }}
+        />
       </div>
     );
   }

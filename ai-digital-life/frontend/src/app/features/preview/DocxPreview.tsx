@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
 import { isZipUnpackError } from './officeErrors';
+import { isLegacyOfficeFile } from '@regions/right-panel/fileTypeRouter';
 
 export interface DocxPreviewProps {
   data: ArrayBuffer;
@@ -13,8 +14,10 @@ export interface DocxPreviewProps {
 /**
  * DOCX 高保真预览（第三方：docx-preview，Apache-2.0，
  * https://github.com/VolodymyrBaydalka/docxjs ，懒加载）。
- * renderAsync 直接构造 DOM 节点（文本经 textContent 写入，无 HTML 字符串拼接），
- * 因此不需要 DOMPurify 字符串消毒链路。
+ * 安全审计结论（收尾 F-07/G3-M07：已审计 0.4.1 dist）：库内无 script/iframe
+ * 创建、无 javascript: 字符串、无内联事件处理器（onerror 仅 FileReader 辅助），
+ * DOM 经 textContent/DOM API 构造——故不需要 DOMPurify 字符串消毒链路。
+ *（Xlsx 仍保留 DOMPurify，因其走 HTML 字符串拼接后 innerHTML。）
  *
  * 集成要点（docx-A）：
  * - inWrapper:false：不要库自带的灰底 wrapper + 白页阴影 chrome，只留我们一层纸面，
@@ -30,13 +33,11 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [unreadable, setUnreadable] = useState(false);
+  const [rendering, setRendering] = useState(true);
 
-  // 旧版 .doc/.dot 是 OLE 二进制格式（与 PptxPreview 的 legacy 同式，用 memo 同步派生，
-  // 不单独 effect，避免首轮渲染读到 stale 值）。
-  const legacy = useMemo(() => {
-    const lowerName = (fileName ?? '').toLowerCase();
-    return lowerName.endsWith('.doc') || lowerName.endsWith('.dot');
-  }, [fileName]);
+  // 旧版格式判定与打开链路共用同一 helper（fileTypeRouter.isLegacyOfficeFile），
+  // `.xls` 不在此列（SheetJS 可读 BIFF）。
+  const legacy = useMemo(() => isLegacyOfficeFile(fileName), [fileName]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -48,6 +49,7 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
     el.innerHTML = '';
     setError(null);
     setUnreadable(false);
+    setRendering(true);
 
     async function renderDocx() {
       try {
@@ -66,8 +68,12 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
           renderFootnotes: true,
           renderEndnotes: true,
         });
+        if (!cancelled) {
+          setRendering(false);
+        }
       } catch (err) {
         if (!cancelled) {
+          setRendering(false);
           const message = err instanceof Error ? err.message : String(err);
           // zip 解包失败（损坏/非文档/临时文件残留）：库原文是英文技术细节，
           // 直接展示会吓到用户，映射为中文友好提示（~$ 临时文件已在渲染器层拦截）。
@@ -89,7 +95,10 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
 
   if (legacy) {
     return (
-      <div className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}>
+      <div
+        className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}
+        role="alert"
+      >
         <p>{formatT(t, 'officeLegacyFormat', { suggest: '.docx' })}</p>
       </div>
     );
@@ -97,7 +106,10 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
 
   if (unreadable) {
     return (
-      <div className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}>
+      <div
+        className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}
+        role="alert"
+      >
         <p>{t.docxUnreadable as string}</p>
       </div>
     );
@@ -105,7 +117,10 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
 
   if (error) {
     return (
-      <div className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}>
+      <div
+        className={`adl-docx-preview adl-docx-preview--${theme} adl-docx-preview--error`}
+        role="alert"
+      >
         <p>{formatT(t, 'changesPreviewFailedDocx', { error: String(error) })}</p>
       </div>
     );
@@ -115,6 +130,11 @@ export function DocxPreview({ data, theme = 'dark', fileName }: DocxPreviewProps
     <div className={`adl-docx-preview adl-docx-preview--${theme}`}>
       <FidelityWatermark key={fileName} text={t.docxFidelityHint as string} fileKey={fileName} />
       <div className="adl-docx-scroll">
+        {rendering ? (
+          <p className="adl-docx-preview-loading" role="status">
+            {t.fileMediaLoading as string}
+          </p>
+        ) : null}
         <div ref={containerRef} className="adl-docx-preview__body adl-docx-paper" />
       </div>
     </div>

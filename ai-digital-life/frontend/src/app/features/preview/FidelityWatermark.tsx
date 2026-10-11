@@ -21,6 +21,12 @@ export function FidelityWatermark({ text, fileKey }: FidelityWatermarkProps) {
   useEffect(() => {
     setGone(false);
   }, [fileKey]);
+  // 兜底移除（L-04）：CSS 缺失/类名漂移导致动画不跑时，水印不永久驻留；
+  // 动效敏感分支同样超时移除（信息已可访问，超时与淡出等效）。
+  useEffect(() => {
+    const timer = window.setTimeout(() => setGone(true), 6000);
+    return () => window.clearTimeout(timer);
+  }, [fileKey]);
   if (gone) {
     return null;
   }

@@ -237,7 +237,8 @@ struct FileOpsBody {
 }
 
 /// POST `/workspace/read-media` 请求体：与 `FileOpsBody` 同形但无 `content`
-///（Phase 4 审查 D5：媒体读取静默忽略 `content` 易误导，独立类型显式收敛）。
+///（收尾 D5：媒体读取静默忽略 `content` 易误导，独立类型显式收敛；
+/// serde 默认忽略未知字段，本类型仅做文档性收敛，不做严格拒绝）。
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct MediaReadBody {

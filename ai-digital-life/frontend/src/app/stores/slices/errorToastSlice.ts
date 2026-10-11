@@ -8,6 +8,19 @@ import { createUiId } from '../shared';
 /** store 级错误 toast 队列上限（UI 仅显示最近 5 条，这里保留更多供关闭后补位） */
 export const ERROR_TOAST_STORE_LIMIT = 50;
 
+/** 静默诊断保留上限（收尾 F-12）：静默条目不挤占可见提示的配额，单独截断。 */
+export const SILENT_DIAGNOSTIC_LIMIT = 10;
+
+/**
+ * 队列裁剪：可见提示优先占满配额，静默诊断单独截断（收尾 F-12）。
+ * 高频 silent 场景不再挤掉用户可见的错误提示。
+ */
+function keepVisibleFirst(entries: ErrorToastEntry[]): ErrorToastEntry[] {
+  const visible = entries.filter((entry) => !entry.silent);
+  const silent = entries.filter((entry) => entry.silent);
+  return [...visible.slice(-ERROR_TOAST_STORE_LIMIT), ...silent.slice(-SILENT_DIAGNOSTIC_LIMIT)];
+}
+
 export interface ErrorToastEntry {
   id: string;
   code: string;
@@ -43,19 +56,17 @@ export const createErrorToastSlice = (
     const id = createUiId('error-toast');
     const entry: ErrorToastEntry =
       scope !== undefined ? { id, code, detail, scope } : { id, code, detail };
-    set((state) => {
-      const next = [...state.errorToasts, entry];
-      return { errorToasts: next.slice(-ERROR_TOAST_STORE_LIMIT) };
-    });
+    set((state) => ({
+      errorToasts: keepVisibleFirst([...state.errorToasts, entry]),
+    }));
     return id;
   },
   reportSilentError: (code, detail, scope) => {
     const id = createUiId('error-toast');
     const entry: ErrorToastEntry = { id, code, detail, scope, silent: true };
-    set((state) => {
-      const next = [...state.errorToasts, entry];
-      return { errorToasts: next.slice(-ERROR_TOAST_STORE_LIMIT) };
-    });
+    set((state) => ({
+      errorToasts: keepVisibleFirst([...state.errorToasts, entry]),
+    }));
     return id;
   },
   dismissErrorToast: (id) => {
@@ -63,6 +74,7 @@ export const createErrorToastSlice = (
       errorToasts: state.errorToasts.filter((t) => t.id !== id),
     }));
   },
+  // 注意：无 scope 的全清同样清除静默诊断（显式用户动作，排查链以本次动作为界）。
   clearErrorToasts: (scope) =>
     set((state) => {
       const next = scope !== undefined ? state.errorToasts.filter((t) => t.scope !== scope) : [];

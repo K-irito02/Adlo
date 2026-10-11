@@ -98,6 +98,7 @@ export const changesEn = {
     'This is a temporary lock file created while Office has the document open, not the document itself. Please open the original file.',
   docxUnreadable:
     'This file is not a valid DOCX document and may be corrupted. Re-save it in Word and reopen it.',
+  officeDecodeFailed: 'Failed to load document data, please retry.',
   changesPreviewMediaInChanges:
     'Media and office files are not diffed line by line here. Open the preview in the Files panel.',
   spreadsheetSheet: 'Sheet',
@@ -117,6 +118,9 @@ export const changesEn = {
   cmFoldAccept: 'Accept',
   cmFoldReject: 'Reject',
   changesStage: 'Stage',
+  changesValidationPassed: 'Validation passed',
+  changesValidationFailed: 'Validation failed',
+  changesValidationSkipped: 'Validation skipped',
   changesUnstage: 'Unstage',
   changesDiscard: 'Discard',
   gitVisualization: 'Git Visualization',

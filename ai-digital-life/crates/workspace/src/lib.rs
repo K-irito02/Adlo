@@ -65,9 +65,11 @@ pub(crate) const DEFAULT_MAX_MEDIA_BYTES: u64 = 50 * 1024 * 1024;
 pub(crate) const DEFAULT_MAX_TEXT_FILE_BYTES: u64 = 8 * 1024 * 1024;
 
 pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocument, AppError> {
-    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    // mtime 取数走同一最终 canonical 路径（收尾 M1），与读内容同信任链，
+    // 避免弱 resolve 与强 canonical 两条路径分裂。
+    let canonical = adl_fs_ops::resolve_workspace_file(root, relative_path)?;
     let content = adl_fs_ops::read_text_file(root, relative_path, DEFAULT_MAX_TEXT_FILE_BYTES)?;
-    let modified = crate::fs::file_modified_at(&path);
+    let modified = crate::fs::file_modified_at(&canonical);
     Ok(WorkspaceFileDocument {
         path: relative_path.replace('\\', "/"),
         content,
@@ -81,10 +83,13 @@ pub fn read_file(root: &Path, relative_path: &str) -> Result<WorkspaceFileDocume
 /// SVG 必须只经 `<img>` 渲染，禁止内联/iframe/object（见 MediaPreview）。
 pub fn guess_media_mime(relative_path: &str) -> &'static str {
     let normalized = relative_path.replace('\\', "/");
-    let ext = normalized
-        .rsplit('/')
-        .next()
-        .unwrap_or(&normalized)
+    let file_name = normalized.rsplit('/').next().unwrap_or(&normalized);
+    // 无点文件名（Makefile 等）显式回落，不拿整名比较；
+    // 点文件（.gitignore）按后缀走表，未命中即 octet-stream。
+    if !file_name.contains('.') {
+        return "application/octet-stream";
+    }
+    let ext = file_name
         .rsplit('.')
         .next()
         .unwrap_or("")
@@ -126,8 +131,10 @@ pub fn guess_media_mime(relative_path: &str) -> &'static str {
         "3g2" => "video/3gpp2",
         "pdf" => "application/pdf",
         "csv" => "text/csv",
-        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        "doc" => "application/msword",
+        "docx" | "docm" | "dotx" | "dotm" => {
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        }
+        "doc" | "dot" => "application/msword",
         "xlsx" | "xlsm" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "xls" | "xlsb" => "application/vnd.ms-excel",
         "ods" => "application/vnd.oasis.opendocument.spreadsheet",
@@ -151,9 +158,10 @@ pub(crate) fn read_media_file_with_limit(
     relative_path: &str,
     max_bytes: u64,
 ) -> Result<WorkspaceMediaDocument, AppError> {
-    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    // mtime 取数走同一最终 canonical 路径（收尾 M1），与读内容同信任链。
+    let canonical = adl_fs_ops::resolve_workspace_file(root, relative_path)?;
     let bytes = adl_fs_ops::read_binary_file(root, relative_path, max_bytes)?;
-    let modified = crate::fs::file_modified_at(&path);
+    let modified = crate::fs::file_modified_at(&canonical);
     Ok(WorkspaceMediaDocument {
         path: relative_path.replace('\\', "/"),
         mime: guess_media_mime(relative_path).to_string(),
@@ -398,10 +406,9 @@ mod tests {
         assert_eq!(guess_media_mime("clip.wmv"), "video/x-ms-wmv");
         assert_eq!(guess_media_mime("sound.mp3"), "audio/mpeg");
         assert_eq!(guess_media_mime("sound.wma"), "audio/x-ms-wma");
-        assert_eq!(
-            guess_media_mime("doc/a.docx"),
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        );
+        assert_eq!(guess_media_mime("doc/a.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assert_eq!(guess_media_mime("doc/a.docm"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assert_eq!(guess_media_mime("doc/a.dot"), "application/msword");
         assert_eq!(guess_media_mime("doc/a.pdf"), "application/pdf");
         assert_eq!(guess_media_mime("doc/a.csv"), "text/csv");
         assert_eq!(guess_media_mime("a.unknown-ext"), "application/octet-stream");

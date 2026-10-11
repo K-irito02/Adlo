@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
 import { isZipUnpackError } from './officeErrors';
+import { isLegacyOfficeFile } from '@regions/right-panel/fileTypeRouter';
 
 export interface PptxPreviewProps {
   data: ArrayBuffer;
@@ -34,7 +35,7 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
   // 旧版 .ppt 与 DocxPreview 同式：在渲染 effect 内同步派生，不单独 effect
   //（Phase 4 审查 R-06：独立 effect 会让首轮渲染 effect 读到 stale legacy=false，
   // 白下载懒块并解析一次，虽被 cancelled 丢弃仍浪费）。
-  const legacy = useMemo(() => (fileName ?? '').toLowerCase().endsWith('.ppt'), [fileName]);
+  const legacy = useMemo(() => isLegacyOfficeFile(fileName), [fileName]);
 
   // 单次渲染：解析一次挂载自然尺寸，后续尺寸变化只走 CSS 缩放。
   useEffect(() => {
@@ -83,8 +84,10 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
     void renderDeck();
     return () => {
       cancelled = true;
-      // pptx-preview 无公开销毁 API（库内无 dispose/destroy 导出）：
-      // innerHTML 清空即释放全部 DOM 持有，无监听器/Worker 残留。
+      // pptx-preview 无公开销毁 API（库内无 dispose/destroy/addEventListener/Worker，
+      // 已审计 1.0.7 dist 确认；唯一残留是库内为嵌入音视频创建且不 revoke 的
+      // object URL，随文档切换累积、页签关闭释放——属已知局限）。
+      // innerHTML 清空释放全部 DOM 持有。
       el.innerHTML = '';
     };
   }, [data, legacy]);
@@ -128,7 +131,10 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
 
   if (legacy) {
     return (
-      <div className={`adl-pptx-preview adl-pptx-preview--${theme} adl-pptx-preview--error`}>
+      <div
+        className={`adl-pptx-preview adl-pptx-preview--${theme} adl-pptx-preview--error`}
+        role="alert"
+      >
         <p>{formatT(t, 'officeLegacyFormat', { suggest: '.pptx' })}</p>
       </div>
     );
@@ -136,7 +142,10 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
 
   if (error) {
     return (
-      <div className={`adl-pptx-preview adl-pptx-preview--${theme} adl-pptx-preview--error`}>
+      <div
+        className={`adl-pptx-preview adl-pptx-preview--${theme} adl-pptx-preview--error`}
+        role="alert"
+      >
         <p>{formatT(t, 'changesPreviewFailedPresentation', { error: String(error) })}</p>
       </div>
     );
@@ -144,7 +153,10 @@ export function PptxPreview({ data, theme = 'dark', fileName }: PptxPreviewProps
 
   if (unreadable) {
     return (
-      <div className={`adl-pptx-preview adl-pptx-preview--${theme} adl-pptx-preview--error`}>
+      <div
+        className={`adl-pptx-preview adl-pptx-preview--${theme} adl-pptx-preview--error`}
+        role="alert"
+      >
         <p>{t.presentationUnreadable as string}</p>
       </div>
     );

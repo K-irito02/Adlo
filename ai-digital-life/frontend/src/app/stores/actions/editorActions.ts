@@ -100,7 +100,6 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const category = categorizeFile(relativePath);
       const opened = isMediaFileCategory(category)
         ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
-            cacheKey: getWorkspaceScopedCacheKey(get().appInfo, relativePath),
             workspaceId,
             workspacePath: get().appInfo?.currentWorkspace?.path,
             readMediaFile: () => window.digitalLife.workspace.readMediaFile(relativePath),
@@ -136,7 +135,6 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       const category = categorizeFile(relativePath);
       const opened = isMediaFileCategory(category)
         ? await openMediaFileGeneric(set, get, relativePath, getNextFileRequestSeq(), {
-            cacheKey: `${workspacePath}:${relativePath}`,
             workspaceId,
             workspacePath,
             readMediaFile: () =>

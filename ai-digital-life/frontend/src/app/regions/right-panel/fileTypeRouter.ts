@@ -112,7 +112,9 @@ const VIDEO_EXTENSIONS = new Set([
   '3g2',
 ]);
 
-const SPREADSHEET_EXTENSIONS = new Set(['xls', 'xlsx', 'xlsm', 'xlsb', 'ods', 'csv']);
+const SPREADSHEET_EXTENSIONS = new Set(['xls', 'xlsx', 'xlsm', 'xlsb', 'ods']);
+// csv 有意留在文本通道（收尾 F-01/H-02）：它是可编辑的纯文本数据格式，
+// 划入 spreadsheet 会失去编辑入口；表格渲染可后续做"预览/源码"双模式。
 
 const PRESENTATION_EXTENSIONS = new Set(['ppt', 'pptx', 'ppsx', 'odp']);
 
@@ -148,7 +150,9 @@ export function categorizeFile(filePath: string | undefined): FileCategory {
   if (!filePath) {
     return 'text';
   }
-  const segments = filePath.split('/');
+  // 反斜杠归一化（收尾 F-03）：Windows 风格路径与 Rust 侧对齐，
+  // isOfficeTempFile 的 basename 判定同样依赖此切分。
+  const segments = filePath.split(/[\\/]/);
   const fileName = segments[segments.length - 1] ?? '';
   const dotIndex = fileName.lastIndexOf('.');
   if (dotIndex <= 0) {
@@ -223,6 +227,25 @@ export function isMediaFileCategory(category: FileCategory): boolean {
 }
 
 /**
+ * 是否 Office 旧版二进制格式（收尾 F-18：`.doc/.dot/.ppt`，OLE 非 zip）。
+ * 解析库读不了，调用端据此跳过字节读取、直接给转存指引。
+ * 注意：`.xls/.xlsb` 不在此列——SheetJS 可读 BIFF，有意不拦截。
+ */
+export function isLegacyOfficeFile(filePath: string | undefined): boolean {
+  if (!filePath) {
+    return false;
+  }
+  const segments = filePath.split(/[\\/]/);
+  const fileName = segments[segments.length - 1] ?? '';
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex <= 0) {
+    return false;
+  }
+  const ext = fileName.slice(dotIndex + 1).toLowerCase();
+  return ext === 'doc' || ext === 'dot' || ext === 'ppt';
+}
+
+/**
  * 是否 Office 临时锁定文件（Word/Excel/PowerPoint 打开文档时产生的 `~$xxx` 文件）：
  * 体积很小且不是 zip/文档本身，任何解析库都会报"not a zip"类错误，
  * 应直接给出转存指引而不调库。
@@ -231,7 +254,7 @@ export function isOfficeTempFile(filePath: string | undefined): boolean {
   if (!filePath) {
     return false;
   }
-  const segments = filePath.split('/');
+  const segments = filePath.split(/[\\/]/);
   const fileName = segments[segments.length - 1] ?? '';
   return fileName.startsWith('~$');
 }

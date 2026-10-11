@@ -8,6 +8,20 @@ import { captureGitSnapshot } from './git';
 export const DEFAULT_MAX_FILE_BYTES = 1024 * 1024;
 export const DEFAULT_MAX_TEXT_FILE_BYTES = 8 * 1024 * 1024;
 export const DEFAULT_MAX_MEDIA_BYTES = 50 * 1024 * 1024;
+
+/**
+ * 携带 IPC 错误码的服务错误（收尾 F-05）：dev-server 顶层 catch 透传其 code，
+ * 使浏览器预览与 Rust（INVALID_INPUT 等）错误码对齐，前端错误视图双端一致。
+ */
+export class PreviewServiceError extends Error {
+  readonly code: string;
+
+  constructor(message: string, code = 'INVALID_INPUT') {
+    super(message);
+    this.name = 'PreviewServiceError';
+    this.code = code;
+  }
+}
 export const MAX_TREE_DEPTH = 64;
 export const MAX_TREE_NODES = 200_000;
 export const MAX_COLLECTED_FILES = 50_000;
@@ -190,12 +204,18 @@ export async function readFile(
   // 与 Rust read_file 对齐：开文件文本上限 8MB（树扫描/检索另走 1MB 常量）；
   // 超 1MB 内容由前端重型门先提示、确认后才渲染。
   if (!stats.isFile()) {
-    throw new Error(`not a file: ${relativeTarget}`);
+    throw new PreviewServiceError(`not a file: ${relativeTarget}`);
   }
   if (stats.size > DEFAULT_MAX_TEXT_FILE_BYTES) {
-    throw new Error(`file too large: ${relativeTarget}`);
+    throw new PreviewServiceError(`file too large: ${relativeTarget}`);
   }
-  const content = await fs.readFile(absolutePath, 'utf8');
+  const buffer = await fs.readFile(absolutePath);
+  // 与 Rust looks_binary 对齐：二进制走文本通道时拒绝，避免双端行为分叉
+  //（桌面端报 InvalidInput 友好错误，浏览器端此前直接 mojibake）。
+  if (buffer.subarray(0, 4096).includes(0)) {
+    throw new PreviewServiceError(`binary files are not readable as context: ${relativeTarget}`);
+  }
+  const content = buffer.toString('utf8');
   return {
     path: normalizePath(relativeTarget),
     content,
@@ -210,16 +230,16 @@ export async function readMediaFile(
   const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
   const stats = await fs.stat(absolutePath);
   if (!stats.isFile()) {
-    throw new Error(`not a file: ${relativeTarget}`);
+    throw new PreviewServiceError(`not a file: ${relativeTarget}`);
   }
   if (stats.size > DEFAULT_MAX_MEDIA_BYTES) {
-    throw new Error(
+    throw new PreviewServiceError(
       `file exceeds media read limit (${DEFAULT_MAX_MEDIA_BYTES} bytes): ${relativeTarget}`,
     );
   }
   const bytes = await fs.readFile(absolutePath);
   if (bytes.length > DEFAULT_MAX_MEDIA_BYTES) {
-    throw new Error(
+    throw new PreviewServiceError(
       `file exceeds media read limit (${DEFAULT_MAX_MEDIA_BYTES} bytes): ${relativeTarget}`,
     );
   }
@@ -233,7 +253,8 @@ export async function readMediaFile(
 }
 
 export function guessMediaMime(relativeTarget: string): string {
-  const fileName = relativeTarget.split('/').pop() ?? relativeTarget;
+  // 与 Rust guess_media_mime 对齐：先归一化反斜杠再取扩展名。
+  const fileName = relativeTarget.replace(/\\/g, '/').split('/').pop() ?? relativeTarget;
   const dot = fileName.lastIndexOf('.');
   const ext = (dot > 0 ? fileName.slice(dot + 1) : '').toLowerCase();
   switch (ext) {
@@ -318,8 +339,12 @@ export function guessMediaMime(relativeTarget: string): string {
     case 'csv':
       return 'text/csv';
     case 'docx':
+    case 'docm':
+    case 'dotx':
+    case 'dotm':
       return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     case 'doc':
+    case 'dot':
       return 'application/msword';
     case 'xlsx':
     case 'xlsm':
@@ -482,7 +507,7 @@ export async function outline(
   const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
   const stats = await fs.stat(absolutePath);
   if (stats.size > DEFAULT_MAX_FILE_BYTES) {
-    throw new Error(`outline too large: ${relativeTarget}`);
+    throw new PreviewServiceError(`outline too large: ${relativeTarget}`);
   }
   const document = await readFile(rootPath, relativeTarget);
   return buildOutlineFromContent(document.content, normalizePath(relativeTarget));

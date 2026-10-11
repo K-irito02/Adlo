@@ -4,6 +4,13 @@ import type { DiffEditorRef, EditorRef } from '@stores/types';
 
 import { detectEditorLanguage } from '@utils/workspacePaths';
 import { categorizeFile, isMediaFileCategory } from '../fileTypeRouter';
+import {
+  TEXT_HEAVY_PREVIEW_CHARS,
+  confirmHeavyPreview,
+  isHeavyPreviewConfirmed,
+} from '../heavyPreviewLimits';
+import { HeavyPreviewGate } from '../HeavyPreviewGate';
+import { formatBytes } from '@root/design-system/html';
 import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
 import { LazyMarkdownPreviewWrapper } from '@features/preview';
@@ -11,6 +18,7 @@ import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
 import { buildOutlineFromContent } from '@features/outline';
 import { ChangesEmptyState } from './ChangesEmptyState';
+import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { resolveAppLanguage } from '@i18n/resolveLanguage';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
@@ -31,6 +39,7 @@ interface DiffEditorSectionProps extends Pick<
   | 'appInfo'
   | 'onDiffMount'
   | 'onOpenFile'
+  | 'selectedChangePreviewWorkspaceId'
 > {
   totalChangeCount: number;
   visibleWorkspacesLength: number;
@@ -53,6 +62,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   wordWrapEnabled,
   onDiffMount,
   onOpenFile,
+  selectedChangePreviewWorkspaceId,
   previewContainerRef,
 }: DiffEditorSectionProps) {
   const { t } = useTCopy();
@@ -70,6 +80,8 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   const [_collapsedUnchangedDiffRanges, setCollapsedUnchangedDiffRanges] = useState<
     PreviewDiffCollapsedRange[]
   >([]);
+  // 大变更确认（收尾 R34-H2）：与 Files 面板文本门同阈值同文案，确认态跨面板共享。
+  const [, setChangeConfirmTick] = useState(0);
 
   const validation = latestPatchApplication?.validation;
   const changePreviewContent = changePreview?.currentContent ?? '';
@@ -154,9 +166,18 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   // 校验横幅（rev2 复审 N3）：媒体占位 early return 会跳过它，
   // 抽为变量使占位路径同样展示 applied/rolledBack 状态。
+  // status 为固定枚举走 i18n 映射（收尾 M7），summary 为自由诊断文本保持原文。
+  const validationStatusText =
+    validation?.status === 'passed'
+      ? (t.changesValidationPassed as string)
+      : validation?.status === 'failed'
+        ? (t.changesValidationFailed as string)
+        : validation?.status === 'skipped'
+          ? (t.changesValidationSkipped as string)
+          : '';
   const validationBanner = validation ? (
     <div className="adl-banner adl-banner--info">
-      <strong>{validation.status}</strong>
+      <strong>{validationStatusText}</strong>
       <span>{validation.summary}</span>
       {latestPatchApplication?.rolledBack ? (
         <span className="adl-chip adl-chip--warning">{t.changesRolledBack}</span>
@@ -184,7 +205,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
           data-testid="changes-preview-shell"
         >
           <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-            <div className="adl-unsupported-preview">
+            <div className="adl-unsupported-preview" role="status">
               <svg
                 className="adl-unsupported-preview__icon"
                 viewBox="0 0 24 24"
@@ -209,11 +230,47 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
               <button
                 type="button"
                 className="adl-unsupported-preview__action"
-                onClick={() => onOpenFile(previewPath)}
+                onClick={() => {
+                  onOpenFile(previewPath);
+                  // 切到文件面板（收尾 M6）：光打开 store 不切面板，用户视觉无变化即断头。
+                  useAppStore.getState().setActiveRightTool('files');
+                }}
               >
                 {t.changesPreviewOpenInFiles as string}
               </button>
             </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // 大变更确认门（收尾 R34-H2）：markdown 预览 whole-document 解析与 DiffViewer
+  // 全量 diff 计算同样怕巨型内容，与 Files 文本门同阈值（字符数近似即可）。
+  if (
+    (changePreviewCategory === 'markdown' ||
+      changePreviewCategory === 'code' ||
+      changePreviewCategory === 'text') &&
+    changePreview.currentContent.length > TEXT_HEAVY_PREVIEW_CHARS &&
+    !isHeavyPreviewConfirmed(selectedChangePreviewWorkspaceId, changePreview.path)
+  ) {
+    return (
+      <>
+        {validationBanner}
+        <div
+          ref={setPreviewShellRef}
+          className="adl-tool-editor adl-tool-editor--changes"
+          data-testid="changes-preview-shell"
+        >
+          <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
+            <HeavyPreviewGate
+              name={changePreview.path}
+              sizeText={formatBytes(changePreview.currentContent.length)}
+              onConfirm={() => {
+                confirmHeavyPreview(selectedChangePreviewWorkspaceId, changePreview.path);
+                setChangeConfirmTick((tick) => tick + 1);
+              }}
+            />
           </div>
         </div>
       </>

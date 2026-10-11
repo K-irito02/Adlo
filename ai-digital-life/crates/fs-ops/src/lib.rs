@@ -59,11 +59,24 @@ fn resolve_existing_parent(path: &Path) -> Result<PathBuf, AppError> {
 /// canonicalize + 界内校验，拒绝指向界外的 symlink（Phase 4 审查 R1）。
 /// 写通道（目标可不存在）继续走 `resolve_workspace_path`，不受影响。
 pub fn resolve_workspace_file(root: &Path, relative_path: &str) -> Result<PathBuf, AppError> {
+    let relative = normalize_relative_path(relative_path)?;
+    // root 只 canonicalize 一次（L1）：复用已解析结果，避免重复 syscall。
     let root_canonical = root
         .canonicalize()
         .map_err(|e| AppError::Workspace(format!("failed to resolve workspace root: {e}")))?;
-    let path = resolve_workspace_path(root, relative_path)?;
-    let canonical = path.canonicalize().map_err(AppError::from)?;
+    let joined = root_canonical.join(relative);
+    let parent = joined.parent().unwrap_or(&root_canonical);
+    let canonical_parent =
+        if parent.exists() { parent.canonicalize()? } else { resolve_existing_parent(parent)? };
+    if !canonical_parent.starts_with(&root_canonical) {
+        return Err(AppError::Security(format!(
+            "path escapes workspace boundary: {relative_path}"
+        )));
+    }
+    // 最终文件本身 canonicalize + 界内校验：拒绝指向界外的 symlink。
+    // 注意：canonicalize 与 open 之间仍有理论替换窗口（见 read_* 的句柄读取），
+    // 此处拦截静态 symlink 逃逸，动态替换由句柄读取兜底。
+    let canonical = joined.canonicalize().map_err(AppError::from)?;
     if !canonical.starts_with(&root_canonical) {
         return Err(AppError::Security(format!(
             "path escapes workspace boundary: {relative_path}"
@@ -78,7 +91,17 @@ pub fn read_text_file(
     max_bytes: u64,
 ) -> Result<String, AppError> {
     let path = resolve_workspace_file(root, relative_path)?;
-    let meta = fs::metadata(&path)?;
+    // 目录预检（跨平台一致：Windows 上 File::open(dir) 直接失败走 Io，
+    // 到不了句柄 is_file；此处先统一拒绝为 InvalidInput）。
+    // symlink_metadata 不跟随链接：指向目录的界内 symlink 由 open 后句柄复检。
+    if fs::symlink_metadata(&path)?.is_dir() {
+        return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
+    }
+    // 句柄为准（收尾 H1）：open 后用句柄 metadata 做 is_file + 长度预检，
+    // 再限量读到 max+1 字节；Unix rename 替换不影响已打开句柄的旧 inode，
+    // Windows 打开后替换/删除被锁——读到的内容与校验时一致。
+    let handle = fs::File::open(&path)?;
+    let meta = handle.metadata()?;
     if !meta.is_file() {
         return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
     }
@@ -87,9 +110,9 @@ pub fn read_text_file(
             "file exceeds configured read limit: {relative_path}"
         )));
     }
-    let bytes = fs::read(&path)?;
-    // TOCTOU 二次守门（Phase 4 审查 R2）：metadata 与 read 之间文件可被替换，
-    // 读后按实际长度再校验一次，上限只剩内存峰值本身。
+    let mut bytes = Vec::new();
+    use std::io::Read as _;
+    handle.take(max_bytes.saturating_add(1)).read_to_end(&mut bytes)?;
     if bytes.len() as u64 > max_bytes {
         return Err(AppError::InvalidInput(format!(
             "file exceeds configured read limit: {relative_path}"
@@ -109,7 +132,12 @@ pub fn read_binary_file(
     max_bytes: u64,
 ) -> Result<Vec<u8>, AppError> {
     let path = resolve_workspace_file(root, relative_path)?;
-    let meta = fs::metadata(&path)?;
+    // 目录预检（跨平台一致，见 read_text_file）：symlink 本体不跟随。
+    if fs::symlink_metadata(&path)?.is_dir() {
+        return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
+    }
+    let handle = fs::File::open(&path)?;
+    let meta = handle.metadata()?;
     if !meta.is_file() {
         return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
     }
@@ -118,8 +146,9 @@ pub fn read_binary_file(
             "file exceeds configured media read limit ({max_bytes} bytes): {relative_path}"
         )));
     }
-    let bytes = fs::read(&path).map_err(AppError::from)?;
-    // TOCTOU 二次守门（Phase 4 审查 R2），同 read_text_file。
+    let mut bytes = Vec::new();
+    use std::io::Read as _;
+    handle.take(max_bytes.saturating_add(1)).read_to_end(&mut bytes)?;
     if bytes.len() as u64 > max_bytes {
         return Err(AppError::InvalidInput(format!(
             "file exceeds configured media read limit ({max_bytes} bytes): {relative_path}"
@@ -293,5 +322,19 @@ mod tests {
         assert!(matches!(err, AppError::Security(_)));
         let _ = std::fs::remove_dir_all(outside);
         let _ = std::fs::remove_dir_all(inside);
+    }
+
+    #[test]
+    fn missing_files_map_to_io_error_code() {
+        // 收尾 F-11：不存在的文件经 canonicalize/metadata 失败，映射须稳定为
+        // IO_ERROR（前端 isNotFoundCode 只认 NOT_FOUND/ENOENT，此处锁定"通用错误"
+        // 语义，防止未来误改为友好不存在文案）。
+        let dir = std::env::temp_dir().join(format!("adl-fs-ops-missing-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let text_err = read_text_file(dir.as_path(), "missing.txt", 1024).unwrap_err();
+        assert_eq!(text_err.error_code(), "IO_ERROR");
+        let bin_err = read_binary_file(dir.as_path(), "missing.bin", 1024).unwrap_err();
+        assert_eq!(bin_err.error_code(), "IO_ERROR");
+        let _ = std::fs::remove_dir_all(dir);
     }
 }

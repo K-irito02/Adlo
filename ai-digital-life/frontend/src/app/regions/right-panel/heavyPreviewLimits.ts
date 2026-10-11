@@ -35,6 +35,9 @@ export function isHeavyTextCategory(category: FileCategory): boolean {
  */
 const confirmedHeavyPaths = new Set<string>();
 
+/** 确认集上限：路径短字符串，会话内累积可忽略，设万级兜底防无限增长。 */
+const CONFIRMED_PATHS_LIMIT = 10000;
+
 export function heavyConfirmKey(workspaceId: string | undefined, path: string): string {
   return `${workspaceId ?? ''}:${path}`;
 }
@@ -44,5 +47,8 @@ export function isHeavyPreviewConfirmed(workspaceId: string | undefined, path: s
 }
 
 export function confirmHeavyPreview(workspaceId: string | undefined, path: string): void {
+  if (confirmedHeavyPaths.size >= CONFIRMED_PATHS_LIMIT) {
+    confirmedHeavyPaths.clear();
+  }
   confirmedHeavyPaths.add(heavyConfirmKey(workspaceId, path));
 }

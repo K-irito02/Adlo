@@ -13,6 +13,7 @@
 | [mock-bridge-data-safety-demo-2026-08-08.md](./mock-bridge-data-safety-demo-2026-08-08.md) | Mock Bridge 数据安全与流式模拟正确性（订阅透传、写操作拦截、单一消息源） |
 | [review-snapshot-and-shape-pitfalls-2026-09-28.md](./review-snapshot-and-shape-pitfalls-2026-09-28.md) | 收尾审查快照必须含工作区（`git diff <base>` 而非 `A..B`）、ref 快照禁简写字段名（先跑 tsc）、删代码前核对 live 源码 |
 | [i18n-mock-assertion-and-floating-promise-pitfalls-2026-09-29.md](./i18n-mock-assertion-and-floating-promise-pitfalls-2026-09-29.md) | i18n mock 键名断言恒过陷阱（查渲染文本+注释回退依赖）、`void` async 入口 rejection 归属（catch 关框+回归测试先红后绿） |
+| [vitest-dynamic-import-mock-flake-2026-10-11.md](./vitest-dynamic-import-mock-flake-2026-10-11.md) | 同一文件多次动态 import 时 vi.mock 偶发失效（堆栈定位真实模块求值）+ 条件挂载 canvas 首屏竞态（单例加载器 + 绘制 effect 补画） |
 
 ## 子主题
 

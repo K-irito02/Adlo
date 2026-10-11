@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import { useTCopy } from '@i18n/useTCopy';
 import { FidelityWatermark } from './FidelityWatermark';
 import { isZipUnpackError } from './officeErrors';
+import type { WorkBook, WorkSheet } from 'xlsx';
 
 export interface XlsxPreviewProps {
   data: ArrayBuffer;
@@ -25,11 +26,9 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
   const [error, setError] = useState<string | null>(null);
   const [unreadable, setUnreadable] = useState(false);
   const [loaded, setLoaded] = useState(false);
-  // 工作簿缓存（Phase 4 审查 D-03）：切表是高频操作，解析一次，
-  // 切表只转单表 HTML，不再全量 XLSX.read。
-  const workbookRef = useRef<{ SheetNames: string[]; Sheets: Record<string, unknown> } | null>(
-    null,
-  );
+  // 工作簿缓存（收尾 D-03）：切表是高频操作，解析一次，
+  // 切表只转单表 HTML，不再全量 XLSX.read。类型与 xlsx 包内 WorkBook 对齐。
+  const workbookRef = useRef<WorkBook | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,10 +50,7 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
         if (cancelled) {
           return;
         }
-        workbookRef.current = workbook as unknown as {
-          SheetNames: string[];
-          Sheets: Record<string, unknown>;
-        };
+        workbookRef.current = workbook;
         setSheetNames(workbook.SheetNames);
         const first = workbook.Sheets[workbook.SheetNames[0]];
         setHtml(first ? XLSX.utils.sheet_to_html(first) : '');
@@ -80,10 +76,10 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
   const switchSheet = async (index: number) => {
     try {
       const cached = workbookRef.current;
-      const sheet = cached?.Sheets[cached.SheetNames[index] ?? ''];
+      const sheet = cached?.Sheets[cached.SheetNames[index] ?? ''] as WorkSheet | undefined;
       if (sheet !== undefined) {
         const XLSX = await import('xlsx');
-        setHtml(XLSX.utils.sheet_to_html(sheet as never));
+        setHtml(XLSX.utils.sheet_to_html(sheet));
         // 解析成功才移动选中态（rev2 复审 N-03）：失败时 select 保持旧值，
         // 与已渲染表格一致，不出现"选中 B 表、显示报错"的错位。
         setActiveSheet(index);
@@ -109,7 +105,10 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
 
   if (unreadable) {
     return (
-      <div className={`adl-xlsx-preview adl-xlsx-preview--${theme} adl-xlsx-preview--error`}>
+      <div
+        className={`adl-xlsx-preview adl-xlsx-preview--${theme} adl-xlsx-preview--error`}
+        role="alert"
+      >
         <p>{t.spreadsheetUnreadable as string}</p>
       </div>
     );
@@ -117,7 +116,10 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
 
   if (error) {
     return (
-      <div className={`adl-xlsx-preview adl-xlsx-preview--${theme} adl-xlsx-preview--error`}>
+      <div
+        className={`adl-xlsx-preview adl-xlsx-preview--${theme} adl-xlsx-preview--error`}
+        role="alert"
+      >
         <p>{formatT(t, 'changesPreviewFailedSpreadsheet', { error: String(error) })}</p>
       </div>
     );
@@ -147,7 +149,7 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
             </select>
           </label>
         ) : null}
-        {loaded && sheetNames.length === 0 ? (
+        {loaded && (sheetNames.length === 0 || html.trim() === '') ? (
           <p className="adl-xlsx-preview__empty">{t.spreadsheetEmpty as string}</p>
         ) : (
           <div

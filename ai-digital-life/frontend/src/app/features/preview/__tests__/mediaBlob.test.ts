@@ -16,4 +16,10 @@ describe('mediaBlob', () => {
   it('round-trips empty input', () => {
     expect(base64ToBlob('', 'image/png').size).toBe(0);
   });
+
+  it('tolerates data-URL prefixes and chunked whitespace', () => {
+    const buffer = base64ToArrayBuffer('data:video/mp4;base64,AAEC\nAw==');
+    expect(new Uint8Array(buffer)).toEqual(new Uint8Array([0, 1, 2, 3]));
+    expect(base64ToBlob('data:image/png;base64,AAEC Aw==', 'image/png').size).toBe(4);
+  });
 });

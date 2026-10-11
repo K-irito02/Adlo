@@ -15,6 +15,7 @@ import type { StoreState } from '../StoreState';
 import { createEditorTab } from '@utils/editorTabs';
 import { buildOutlineFromContent } from '@shared/outline';
 import { TEXT_HEAVY_PREVIEW_CHARS } from '../../regions/right-panel/heavyPreviewLimits';
+import { isLegacyOfficeFile } from '../../regions/right-panel/fileTypeRouter';
 import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import {
   fileRequestSeq,
@@ -186,7 +187,6 @@ export async function openFileGeneric(
 }
 
 export interface OpenMediaFileConfig {
-  cacheKey: string;
   workspaceId: string | undefined;
   workspacePath?: string;
   readMediaFile: () => Promise<IpcResult<WorkspaceMediaDocument>>;
@@ -206,6 +206,42 @@ export async function openMediaFileGeneric(
 ): Promise<boolean> {
   beginFileOpen(set, get, relativePath);
   set({ fileMediaLoading: true });
+
+  // 已知旧格式短路（收尾 F-18）：`.doc/.dot/.ppt` 解析必失败，不读字节，
+  // 直接落占位文档；渲染层按 fileName 给转存指引。lastModifiedAt 取此刻
+  // （占位文档不参与外部变更比对，可接受）。
+  if (isLegacyOfficeFile(relativePath)) {
+    const norm = normalizeWorkspaceRelativePath(relativePath);
+    set((state: StoreState) => {
+      const nextDirty = state.dirtyEditorPaths.filter(
+        (p) => normalizeWorkspaceRelativePath(p) !== norm,
+      );
+      void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+      return {
+        openTabs: state.openTabs.some((tab) => tab.path === relativePath)
+          ? state.openTabs
+          : [...state.openTabs, createEditorTab(relativePath)],
+        selectedFilePath: relativePath,
+        selectedFileWorkspaceId: config.workspaceId,
+        fileContent: undefined,
+        fileMedia: {
+          path: relativePath,
+          mime: 'application/octet-stream',
+          base64: '',
+          size: 0,
+          lastModifiedAt: Date.now(),
+        },
+        fileMediaLoading: false,
+        fileLastModifiedAt: undefined,
+        fileOpenError: null,
+        externalFileChange:
+          state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,
+        outline: [],
+        dirtyEditorPaths: nextDirty,
+      };
+    });
+    return true;
+  }
 
   let mediaResult: IpcResult<WorkspaceMediaDocument>;
   try {
@@ -242,9 +278,9 @@ export async function openMediaFileGeneric(
       selectedFilePath: relativePath,
       selectedFileWorkspaceId: config.workspaceId,
       fileContent: undefined,
-      fileMedia: mediaResult.ok ? mediaResult.data : null,
+      fileMedia: mediaResult.data,
       fileMediaLoading: false,
-      fileLastModifiedAt: mediaResult.ok ? mediaResult.data.lastModifiedAt : undefined,
+      fileLastModifiedAt: mediaResult.data.lastModifiedAt,
       fileOpenError: null,
       externalFileChange:
         state.externalFileChange?.path === relativePath ? undefined : state.externalFileChange,

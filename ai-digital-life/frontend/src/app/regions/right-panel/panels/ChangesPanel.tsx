@@ -224,6 +224,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
                 wordWrapEnabled={wordWrapEnabled}
                 onDiffMount={handleDiffMount}
                 onOpenFile={props.onOpenFile}
+                selectedChangePreviewWorkspaceId={selectedChangePreviewWorkspaceId}
                 previewContainerRef={changesPreviewContainerRef}
               />
             </SuspenseWrapper>

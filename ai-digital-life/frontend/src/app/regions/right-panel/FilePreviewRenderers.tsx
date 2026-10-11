@@ -9,6 +9,7 @@ import {
 } from '@features/preview';
 import { base64ToArrayBuffer } from '@features/preview/mediaBlob';
 import { RevealHighlightLayers } from '@components/RevealHighlight';
+import { HeavyPreviewGate } from './HeavyPreviewGate';
 import { formatBytes } from '@root/design-system/html';
 import { type FileCategory, isMediaFileCategory, isOfficeTempFile } from './fileTypeRouter';
 import {
@@ -126,9 +127,16 @@ function OfficeBranch({
   kind: OfficeBranchKind;
   theme: 'dark' | 'light';
 }) {
+  const { t } = useTCopy();
   const data = useOfficeBytes(fileMedia);
+  // 解码失败不再静默 blank（收尾 F-06/H1）：base64 来自可信后端，
+  // 触发率极低，但空白面无任何反馈；此处给友好错误 + alert。
   if (!data) {
-    return null;
+    return (
+      <div className="adl-unsupported-preview" role="alert">
+        <span className="adl-unsupported-preview__text">{t.officeDecodeFailed as string}</span>
+      </div>
+    );
   }
   switch (kind) {
     case 'docx':
@@ -152,7 +160,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   workspaceId,
   theme,
 }: FilePreviewRenderersProps) {
-  const { t, formatT } = useTCopy();
+  const { t } = useTCopy();
 
   // 大文件确认门：超过分类阈值时先显示友好提示，用户点"仍然打开"才渲染。
   // 确认态模块级 Set 记忆（多文件往返不重复打扰），tick 仅触发重渲染。
@@ -166,39 +174,14 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
   ) {
     return (
       <PreviewSurface editorSurfaceRef={editorSurfaceRef}>
-        <div className="adl-unsupported-preview">
-          <svg
-            className="adl-unsupported-preview__icon"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
-            <path d="M14 2v6h6" />
-            <path d="M12 11v6" />
-            <path d="M9 14h6" />
-          </svg>
-          <span className="adl-unsupported-preview__text">{t.heavyPreviewTitle as string}</span>
-          <span className="adl-unsupported-preview__hint">
-            {formatT(t, 'heavyPreviewHint', {
-              name: fileMedia.path,
-              size: formatBytes(fileMedia.size),
-            })}
-          </span>
-          <button
-            type="button"
-            className="adl-unsupported-preview__action"
-            onClick={() => {
-              confirmHeavyPreview(workspaceId, fileMedia.path);
-              setHeavyConfirmTick((tick) => tick + 1);
-            }}
-          >
-            {t.heavyPreviewOpen as string}
-          </button>
-        </div>
+        <HeavyPreviewGate
+          name={fileMedia.path}
+          sizeText={formatBytes(fileMedia.size)}
+          onConfirm={() => {
+            confirmHeavyPreview(workspaceId, fileMedia.path);
+            setHeavyConfirmTick((tick) => tick + 1);
+          }}
+        />
       </PreviewSurface>
     );
   }
@@ -237,15 +220,14 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
 
   if (fileCategory === 'markdown') {
     return (
+      // key 挂外层滚动容器（收尾 M4）：切换文件重置滚动与高亮，避免复用残留；
+      // '__none__' 避免无路径态空串碰撞。
       <div
+        key={filePath ?? '__none__'}
         ref={editorSurfaceRef}
         className="adl-tool-editor__surface adl-tool-editor__surface--preview"
       >
-        <LazyMarkdownPreviewWrapper
-          key={filePath ?? ''}
-          content={fileContent ?? ''}
-          theme={theme}
-        />
+        <LazyMarkdownPreviewWrapper content={fileContent ?? ''} theme={theme} />
         {/* 检索跳转落点高亮：视口夹层裁剪溢出，高亮条铺满预览面并与左右边缘贴合 */}
         <RevealHighlightLayers />
       </div>

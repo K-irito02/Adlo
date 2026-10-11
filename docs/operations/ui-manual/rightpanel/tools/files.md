@@ -248,6 +248,17 @@ await page.keyboard.type('new content');
 await page.locator('.adl-tool-context__group--files-actions .adl-tool-context__iconbtn').first().click();
 ```
 
+### 媒体与办公文档预览
+
+> 图片（png/jpg/svg/webp 等）、音频、视频（原生播放器）、docx（含 docm/dotx，旧版 doc/dot 给转存指引）、pdf（顶部翻页工具栏 + 页码直达）、xlsx（含多表切换）、pptx（含 ppsx，旧版 ppt 给转存指引）直接在内容区打开；`~$` 临时锁定文件显示指引而非报错；打不开的类型居中友好提示。
+
+| 行为 | 说明 |
+|------|------|
+| 大文件确认门 | 图片/音频 20MB、视频 30MB、docx/表格 10MB、pdf/演示 15MB、文本 1MB 字符，超限先提示 + “仍然打开”（按路径记忆）；文本上限 8MB |
+| 保真水印 | docx/xlsx/pptx 右上角纯文字水印，5 秒淡出（动效敏感常显），不拦截交互 |
+| PDF 工具栏 | 置顶常驻：上一页/页码/下一页 + 页码输入跳转（非法回滚、超范围钳制） |
+| 非 Git 工作区 | 无分支是预期态，启动不再弹全局提示 |
+
 ---
 
 ## 右键菜单

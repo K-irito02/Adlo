@@ -62,20 +62,27 @@ export function MediaPreview({ media, kind }: MediaPreviewProps) {
   }, [media.base64, media.mime]);
 
   if (!settled) {
-    return null;
+    // 解码中骨架（与办公端 fileMediaLoading 同文案），避免纯空白。
+    return (
+      <div className="adl-media-preview adl-media-preview--error" role="status">
+        <p>{t.fileMediaLoading as string}</p>
+      </div>
+    );
   }
 
+  // 空文件是中性信息态（收尾 F-20），错误才是警报态：role 区分，避免打断读屏用户。
   if (error !== null || !objectUrl) {
-    return (
-      <div className="adl-media-preview adl-media-preview--error" role="alert">
-        {error ? (
+    if (error) {
+      return (
+        <div className="adl-media-preview adl-media-preview--error" role="alert">
           <p>{formatT(t, 'mediaPreviewFailed', { error })}</p>
-        ) : (
-          <>
-            <p>{t.changesPreviewBinary as string}</p>
-            <p>{t.mediaEmptyFile as string}</p>
-          </>
-        )}
+        </div>
+      );
+    }
+    return (
+      <div className="adl-media-preview adl-media-preview--error" role="status">
+        <p>{t.changesPreviewBinary as string}</p>
+        <p>{t.mediaEmptyFile as string}</p>
       </div>
     );
   }

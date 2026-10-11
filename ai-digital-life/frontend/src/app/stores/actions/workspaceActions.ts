@@ -7,6 +7,7 @@ import { createWorkspaceTreeActions } from './workspaceTreeActions';
 import { createWorkspaceLifecycleActions } from './workspaceLifecycleActions';
 import { renameTreeNodePaths, remapTreeExpansion, removeTreeNode } from './workspaceTreeRename';
 import { persistField } from '../persisted/apply';
+import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { prunePathPrefix } from '../persisted/prune';
 import { repairManualCollapsed } from '../persisted/parsers';
 const SCOPE = 'workspace';
@@ -260,10 +261,16 @@ export function createWorkspaceActions(
         await refreshTreeByWorkspacePath(get, workspacePath);
         return;
       }
-      // 删除成功后：被删路径的标签一律关闭（Phase 4 审查 P1：此前仅当前文件清标签，
-      // 后台已打开文件的残留标签点击即跌入失败视图），再清空当前文件内容。
+      // 删除成功后：被删路径自身及子孙的标签一律关闭（收尾 F-19：
+      // 此前仅精确路径匹配，删除文件夹时其下已打开文件的残留标签点击即跌入失败视图），
+      // 再清空当前文件内容。路径归一化复用编辑器脏路径同口径。
+      const normDeleted = normalizeWorkspaceRelativePath(relativePath);
+      const isUnderDeleted = (p: string) => {
+        const norm = normalizeWorkspaceRelativePath(p);
+        return norm === normDeleted || norm.startsWith(`${normDeleted}/`);
+      };
       set({
-        openTabs: get().openTabs.filter((t) => t.path !== relativePath),
+        openTabs: get().openTabs.filter((t) => !isUnderDeleted(t.path)),
       });
       if (currentPath === relativePath) {
         set({

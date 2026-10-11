@@ -33,7 +33,7 @@ export function useFilesPanelProps(
   const selectedFilePath = useAppStore((s) => s.selectedFilePath);
   const selectedFileWorkspaceId = useAppStore((s) => s.selectedFileWorkspaceId);
   const fileContent = useAppStore((s) => s.fileContent);
-  const fileMedia = useAppStore(useShallow((s) => s.fileMedia));
+  const fileMedia = useAppStore((s) => s.fileMedia);
   const fileMediaLoading = useAppStore((s) => s.fileMediaLoading);
   const fileOpenError = useAppStore(useShallow((s) => s.fileOpenError));
   const positioningPath = useAppStore((s) => s.positioningPath);

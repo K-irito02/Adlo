@@ -27,7 +27,7 @@ vi.mock('@i18n/useTCopy', () => ({
 }));
 
 vi.mock('pdfjs-dist', () => {
-  const render = vi.fn().mockReturnValue({ promise: Promise.resolve() });
+  const render = vi.fn().mockReturnValue({ promise: Promise.resolve(), cancel: vi.fn() });
   const getPage = vi.fn().mockResolvedValue({
     getViewport: () => ({ width: 100, height: 200 }),
     render,
@@ -83,6 +83,8 @@ describe('PdfPreview navigation', () => {
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
+    // 注意：type=number 下 JSDOM 把非数字输入强制为空串，此处 'abc' 实际覆盖
+    // "空输入回滚当前页"；严格整数正则由 commitPageInput 单元语义保证。
     const input = screen.getByRole('spinbutton', { name: 'Page number' });
     const form = container.querySelector('.adl-pdf-preview-jump') as HTMLFormElement;
     fireEvent.change(input, { target: { value: '2' } });
@@ -96,7 +98,9 @@ describe('PdfPreview navigation', () => {
     await waitFor(() => {
       expect(screen.getByText('3 / 3')).toBeTruthy();
     });
-    fireEvent.change(input, { target: { value: 'abc' } });
+    // 注意：type=number 下 JSDOM 把非数字输入强制为空串，此断言实际覆盖
+    // "空输入回滚当前页"；严格整数语义由 commitPageInput 的 /^\d+$/ 保证。
+    fireEvent.change(input, { target: { value: '' } });
     fireEvent.submit(form);
     await waitFor(() => {
       expect(screen.getByText('3 / 3')).toBeTruthy();
@@ -123,7 +127,7 @@ describe('PdfPreview navigation', () => {
         numPages: 1,
         getPage: vi.fn().mockResolvedValue({
           getViewport: () => ({ width: 100, height: 200 }),
-          render: vi.fn().mockReturnValue({ promise: Promise.resolve() }),
+          render: vi.fn().mockReturnValue({ promise: Promise.resolve(), cancel: vi.fn() }),
         }),
       }),
     } as never);
@@ -133,17 +137,16 @@ describe('PdfPreview navigation', () => {
     });
     expect(container.querySelector('.adl-pdf-preview-nav')).toBeNull();
   });
-
   it('resets page state when switching documents', async () => {
     const pdfjs = await import('pdfjs-dist');
-    const { rerender } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+    const { rerender, container } = render(<PdfPreview data={new ArrayBuffer(8)} />);
     await waitFor(() => {
       expect(screen.getByText('1 / 3')).toBeTruthy();
     });
     fireEvent.change(screen.getByRole('spinbutton', { name: 'Page number' }), {
       target: { value: '3' },
     });
-    fireEvent.submit(document.querySelector('.adl-pdf-preview-jump') as HTMLFormElement);
+    fireEvent.submit(container.querySelector('.adl-pdf-preview-jump') as HTMLFormElement);
     await waitFor(() => {
       expect(screen.getByText('3 / 3')).toBeTruthy();
     });
@@ -152,13 +155,60 @@ describe('PdfPreview navigation', () => {
         numPages: 2,
         getPage: vi.fn().mockResolvedValue({
           getViewport: () => ({ width: 100, height: 200 }),
-          render: vi.fn().mockReturnValue({ promise: Promise.resolve() }),
+          render: vi.fn().mockReturnValue({ promise: Promise.resolve(), cancel: vi.fn() }),
         }),
       }),
     } as never);
     rerender(<PdfPreview data={new ArrayBuffer(16)} />);
     await waitFor(() => {
       expect(screen.getByText('1 / 2')).toBeTruthy();
+    });
+  });
+
+  it('shows an error when document parsing fails', async () => {
+    const pdfjs = await import('pdfjs-dist');
+    vi.mocked(pdfjs.getDocument).mockRejectedValueOnce(new Error('boom'));
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText(/PDF preview failed/u)).toBeTruthy();
+    });
+  });
+
+  it('shows a loading placeholder before the document resolves', async () => {
+    const pdfjs = await import('pdfjs-dist');
+    let resolveDoc!: (doc: unknown) => void;
+    vi.mocked(pdfjs.getDocument).mockReturnValueOnce({
+      promise: new Promise((resolve) => {
+        resolveDoc = resolve;
+      }),
+    } as never);
+    render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('Loading…')).toBeTruthy();
+    });
+    resolveDoc({
+      numPages: 1,
+      getPage: vi.fn().mockResolvedValue({
+        getViewport: () => ({ width: 100, height: 200 }),
+        render: vi.fn().mockReturnValue({ promise: Promise.resolve(), cancel: vi.fn() }),
+      }),
+    });
+    await waitFor(() => {
+      expect(screen.queryByText('Loading…')).toBeNull();
+    });
+  });
+
+  it('paints the first page after parsing (no blank first frame)', async () => {
+    const { container } = render(<PdfPreview data={new ArrayBuffer(8)} />);
+    await waitFor(() => {
+      expect(screen.getByText('1 / 3')).toBeTruthy();
+    });
+    const canvas = container.querySelector('canvas') as HTMLCanvasElement | null;
+    // 首屏绘制真实发生（收尾 R34-H1 回归锁）：画布尺寸被设为视口尺寸，
+    // 而非默认 300x150 空白。
+    await waitFor(() => {
+      expect(canvas?.width).toBe(100);
+      expect(canvas?.height).toBe(200);
     });
   });
 });

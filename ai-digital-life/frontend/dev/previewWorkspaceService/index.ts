@@ -1013,7 +1013,10 @@ export async function handlePreviewWorkspaceApi(
     return true;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    writeJson(response, fail(message));
+    // 携带 code 的服务错误透传 code（与 Rust 错误码对齐），其余保持默认码。
+    const code =
+      error instanceof files.PreviewServiceError ? error.code : 'PREVIEW_WORKSPACE_ERROR';
+    writeJson(response, fail(message, code));
     return true;
   }
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categorizeFile, isOfficeTempFile } from '../fileTypeRouter';
+import { categorizeFile, isLegacyOfficeFile, isOfficeTempFile } from '../fileTypeRouter';
 
 describe('categorizeFile media/office split', () => {
   it('routes common image extensions to image', () => {
@@ -21,9 +21,13 @@ describe('categorizeFile media/office split', () => {
   });
 
   it('routes spreadsheet extensions to spreadsheet', () => {
-    for (const ext of ['xls', 'xlsx', 'ods', 'csv']) {
+    for (const ext of ['xls', 'xlsx', 'ods']) {
       expect(categorizeFile(`docs/report.${ext}`)).toBe('spreadsheet');
     }
+  });
+
+  it('keeps csv in the text channel for editing', () => {
+    expect(categorizeFile('docs/report.csv')).toBe('text');
   });
 
   it('routes presentation extensions to presentation', () => {
@@ -81,7 +85,21 @@ describe('categorizeFile media/office split', () => {
 
   it('detects Office temporary lock files', () => {
     expect(isOfficeTempFile('docs/~$report.docx')).toBe(true);
+    expect(isOfficeTempFile('docs\\~$report.docx')).toBe(true);
     expect(isOfficeTempFile('docs/report.docx')).toBe(false);
     expect(isOfficeTempFile(undefined)).toBe(false);
+  });
+
+  it('detects legacy Office binaries for read short-circuit', () => {
+    expect(isLegacyOfficeFile('docs/old.doc')).toBe(true);
+    expect(isLegacyOfficeFile('docs/old.dot')).toBe(true);
+    expect(isLegacyOfficeFile('docs/old.ppt')).toBe(true);
+    expect(isLegacyOfficeFile('docs/new.docx')).toBe(false);
+    expect(isLegacyOfficeFile('docs/sheet.xls')).toBe(false);
+    expect(isLegacyOfficeFile(undefined)).toBe(false);
+  });
+
+  it('splits Windows-style paths for extension lookup', () => {
+    expect(categorizeFile('docs\\clip.MP4')).toBe('video');
   });
 });
