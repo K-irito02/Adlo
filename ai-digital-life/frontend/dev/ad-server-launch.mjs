@@ -45,12 +45,12 @@ const frontendRoot = path.resolve(__dirname, '..');
 const repoRoot = path.resolve(frontendRoot, '..');
 const viteBin = path.join(frontendRoot, 'node_modules', 'vite', 'bin', 'vite.js');
 
-const AD_SERVER_BIN = path.join(
-  repoRoot,
-  'target',
-  'debug',
-  process.platform === 'win32' ? 'ad-server.exe' : 'ad-server',
-);
+/** 后端引擎的 Cargo 包名与产物名（与 `crates/server/Cargo.toml` 的 `name` 同源；
+ *  单测会读该 Cargo.toml 校验，防止再次出现 `ad-server` 这类过时名字）。 */
+export const AD_SERVER_PACKAGE = 'adl-server';
+export const AD_SERVER_BIN_NAME = process.platform === 'win32' ? 'adl-server.exe' : 'adl-server';
+
+const AD_SERVER_BIN = path.join(repoRoot, 'target', 'debug', AD_SERVER_BIN_NAME);
 
 // Fixed port override for E2E / manual runs; default 0 = ephemeral (no conflicts).
 const requestedPort = Number.parseInt(process.env.ADL_AD_SERVER_PORT ?? '0', 10);
@@ -158,10 +158,10 @@ function spawnAdServer() {
       env,
     });
   } else {
-    log('prebuilt ad-server not found; falling back to `cargo run -p ad-server` (first run builds)');
+    log(`prebuilt ad-server not found; falling back to \`cargo run -p ${AD_SERVER_PACKAGE}\` (first run builds)`);
     adServer = spawn(
       process.platform === 'win32' ? 'cargo.exe' : 'cargo',
-      ['run', '-p', 'ad-server', '--', ...args],
+      ['run', '-p', AD_SERVER_PACKAGE, '--', ...args],
       { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env },
     );
   }
@@ -257,7 +257,7 @@ async function main() {
   if (port === null) {
     warn(
       `ad-server did not report AD_SERVER_PORT (exit/error within ${portLineTimeoutMs}ms). ` +
-        'Falling back to the preview/mock implementations — run `cargo build -p ad-server` for the real engine.',
+        `Falling back to the preview/mock implementations — run \`cargo build -p ${AD_SERVER_PACKAGE}\` for the real engine.`,
     );
     cleanup();
     startVite(null);

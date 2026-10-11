@@ -182,6 +182,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 - env 是跨进程通道：shell 派生的 `adl-server` 子进程自动继承，单一 env 同时覆盖两个后端进程
 - **传递通道只有 env**：flag 由启动脚本转成 `ADL_*` 环境变量后注入子进程。**不要**把 flag 透传给 `cargo tauri dev`——实测它会把 `--` 之后的参数当作 cargo 自身的参数并报 `unexpected argument '--log-level'`
 - **运行期同步**：桌面 UI 改设置 → 壳立即生效并落盘，同时 POST 到 adl-server 的 `/app/log-settings`（仅运行时、**不落盘**，避免用 server 的旧内存快照覆盖壳刚写的其它字段）；浏览器模式经 `/app/preferences`（含落盘）
+- **浏览器模式降级**：ad-server 不可达时 `app` 域回退 mock（应用仍可渲染，不再是白屏）；此时「日志级别 / 终端日志模式」无后端可作用，仅「调试日志模式」经 `VITE_ADL_DEBUG_LOG_MODE` 生效
 
 ### 日志文件落点（debug 构建；实证 2026-10-11）
 

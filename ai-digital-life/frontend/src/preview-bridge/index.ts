@@ -161,11 +161,24 @@ export async function setupPreviewBridge(): Promise<void> {
     subscribePtyOutput: ptyBridge.subscribePtyOutput,
     pty: ptyBridge.pty,
     window: windowBridge.window,
-    app: {
-      ...diagnosticBridge,
-      getInfo: http.app.getInfo,
-      updatePreferences: http.app.updatePreferences,
-    } satisfies AppBridge,
+    // app 域必须走 `preferHttpWhenReachable`（与 workspace 等域一致）：ad-server
+    // 可达时用真实 `/app/*`；**不可达时回退到 mock**（`ad-server-launch.mjs` 明示
+    // 「回退时浏览器 demo 仍可工作」）。此前 app 域直接绑定 `http.app.*` 且无回退，
+    // 一旦不可达（如 dev:browser 无后端、或端口注入未生效落到 61234）`getInfo` 失败
+    // → `appInfo` 恒 undefined → 语言包 `t` 不加载 → 整个应用壳渲染空白。
+    app: preferHttpWhenReachable<AppBridge>(
+      adlServerBaseUrl,
+      {
+        ...diagnosticBridge,
+        getInfo: http.app.getInfo,
+        updatePreferences: http.app.updatePreferences,
+      },
+      {
+        ...diagnosticBridge,
+        getInfo: mockDigitalLifeBridge.app.getInfo,
+        updatePreferences: mockDigitalLifeBridge.app.updatePreferences,
+      },
+    ) satisfies AppBridge,
     workspace: preferHttpWhenReachable<WorkspaceBridge>(
       adlServerBaseUrl,
       workspaceHttp,

@@ -17,6 +17,8 @@ describe('browserDebugLogFileNames', () => {
   it('adds a timestamped session file only in multi mode', () => {
     expect(browserDebugLogFileNames('overwrite', at).session).toBeNull();
     expect(browserDebugLogFileNames('append', at).session).toBeNull();
-    expect(browserDebugLogFileNames('multi', at).session).toBe('debug-logs-browser-2026-10-11_230509.txt');
+    expect(browserDebugLogFileNames('multi', at).session).toBe(
+      'debug-logs-browser-2026-10-11_230509.txt',
+    );
   });
 });

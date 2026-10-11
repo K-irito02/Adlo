@@ -17,6 +17,12 @@ export function probeAdServerHealth(
   options?: ProbeHealthOptions,
 ): Promise<boolean>;
 
+/** 后端引擎的 Cargo 包名（与 `crates/server/Cargo.toml` 的 `name` 同源，单测校验）。 */
+export const AD_SERVER_PACKAGE: string;
+
+/** 后端引擎产物名（win32 带 `.exe`）。 */
+export const AD_SERVER_BIN_NAME: string;
+
 /** Decide the injected baseUrl; `null` means fall back to the preview/mock bridge. */
 export function decideServerBaseUrl(
   port: number | null | undefined,

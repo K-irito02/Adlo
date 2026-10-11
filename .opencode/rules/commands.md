@@ -50,6 +50,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 - 启动自证行：`[ADL-LOG] logger ready level=… prefix=…` / `[ADL-CLI] … (session override, not persisted)`
 - 日志文件按进程分离：shell → `terminal-logs*.txt`，adl-server → `adl-server-logs*.txt`
 - 浏览器模式（`dev:browser`，无 ad-server）下 `--log-level` / `--terminal-log-mode` 无后端可作用；需完整后端日志请用 `dev:preview` / `dev:tauri` / `dev:both`
+- ad-server 不可达时 `app` 域回退 mock（应用仍可渲染，不会白屏）；若页面日志出现兜底地址 `127.0.0.1:61234`，说明该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（请打开启动脚本打印的那个地址）
 
 ## 测试命令
 

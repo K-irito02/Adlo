@@ -12,6 +12,40 @@ import { describe, it, expect, vi } from 'vitest';
  * so importing it here is side-effect free).
  */
 import { probeAdServerHealth, decideServerBaseUrl } from '../../dev/ad-server-launch.mjs';
+import { AD_SERVER_BIN_NAME, AD_SERVER_PACKAGE } from '../../dev/ad-server-launch.mjs';
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
+/** jsdom 环境下 `import.meta.url` 不是 file:// URL，故从 cwd 向上找 Cargo.toml。 */
+function findServerCargoToml(): string {
+  let dir = process.cwd();
+  for (let i = 0; i < 4; i += 1) {
+    const candidate = path.resolve(dir, 'crates', 'server', 'Cargo.toml');
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+    dir = path.resolve(dir, '..');
+  }
+  throw new Error(`crates/server/Cargo.toml not found searching upward from ${process.cwd()}`);
+}
+
+/**
+ * 命名契约回归：启动脚本曾使用过时的 `ad-server`（实际 crate/产物为 `adl-` 前缀），
+ * 导致「找不到预编译产物 → cargo run -p ad-server 报 package not found → 拿不到端口 →
+ * 不注入 VITE_ADL_SERVER_URL → 前端落兜底 127.0.0.1:61234 不可达 → 白屏」。此测试直接
+ * 读 Cargo.toml 钉住名字，防止再次漂移。
+ */
+describe('ad-server naming contract', () => {
+  it('uses a package name that exists in crates/server/Cargo.toml', () => {
+    const cargo = readFileSync(findServerCargoToml(), 'utf8');
+    expect(cargo).toMatch(new RegExp(`^name\\s*=\\s*"${AD_SERVER_PACKAGE}"`, 'm'));
+    expect(AD_SERVER_PACKAGE).toBe('adl-server');
+  });
+
+  it('looks for the platform-correct binary artifact name', () => {
+    expect(AD_SERVER_BIN_NAME).toBe(process.platform === 'win32' ? 'adl-server.exe' : 'adl-server');
+  });
+});
 
 function okHealth(): Response {
   return { ok: true, status: 200 } as Response;

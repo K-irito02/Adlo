@@ -68,13 +68,23 @@ describe('preview-bridge app domain parity (getInfo / updatePreferences)', () =>
     delete (window as { digitalLife?: unknown }).digitalLife;
   });
 
-  async function setupBridge() {
+  async function setupBridge(options: { reachable?: boolean } = {}) {
+    const reachable = options.reachable ?? true;
     const server = createAppServerMock(BASE_CONFIG);
-    vi.stubGlobal('fetch', server.fetchMock);
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      if (url.includes('/health')) {
+        return reachable
+          ? okJson({})
+          : ({ ok: false, status: 503, json: async () => ({}) } as Response);
+      }
+      return server.fetchMock(input, init);
+    });
+    vi.stubGlobal('fetch', fetchMock);
     const { setupPreviewBridge } = await import('../index');
     await setupPreviewBridge();
     const bridge = (window as { digitalLife: DigitalLifeBridge }).digitalLife;
-    return { bridge, ...server };
+    return { bridge, fetchMock, config: server.config };
   }
 
   it('app.getInfo returns ok with the server config (not NOT_SUPPORTED)', async () => {
@@ -119,5 +129,20 @@ describe('preview-bridge app domain parity (getInfo / updatePreferences)', () =>
       terminalLogMode: 'append',
       debugLogMode: 'multi',
     });
+  });
+
+  it('falls back to the mock app domain when the ad-server is unreachable (no blank shell)', async () => {
+    // 回归：app 域若不做可达性回退，getInfo 会网络失败 → appInfo 恒 undefined →
+    // 语言包 t 不加载 → 整个应用壳渲染空白（只剩调试按钮）。
+    const { bridge } = await setupBridge({ reachable: false });
+
+    const info = await bridge.app.getInfo();
+    expect(info.ok).toBe(true);
+    if (info.ok) {
+      expect(info.data.config.logLevel).toBeDefined();
+    }
+
+    const prefs = await bridge.app.updatePreferences({ logLevel: 'debug' });
+    expect(prefs.ok).toBe(true);
   });
 });
