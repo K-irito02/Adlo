@@ -24,10 +24,6 @@ alwaysApply: false
 3. 验证视觉效果与交互功能
 4. **双端验证**：在 Tauri 桌面和浏览器模式下分别确认功能一致
 
-### 使用浏览器自动化工具验证
-
-> 工具选择和详细用法参见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
-
 ## 验证清单
 
 修改 UI 后必须在 Tauri 桌面和浏览器模式下分别验证：
@@ -47,4 +43,3 @@ alwaysApply: false
 
 - [mandatory-testing.md](./mandatory-testing.md)
 - [design-system.md](./design-system.md)
-- [browser-automation.md](./browser-automation.md)

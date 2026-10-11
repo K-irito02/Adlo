@@ -103,8 +103,6 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 | `cargo build --workspace` | 完整编译（首次/新增依赖时较慢） |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Lint 检查 |
 
-> 浏览器自动化工具选择、经验教训和快速参考见 [browser-automation.md](./browser-automation.md)。
-
 ## ⚠️ Node.js 环境变量
 
 部分终端**不自动继承**系统/用户 PATH 环境变量。
@@ -115,8 +113,3 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 # 按实际安装路径调整
 $env:Path = "C:\Program Files\nodejs;$env:Path"
 ```
-
-## 相关文件
-
-- [browser-automation.md](./browser-automation.md) — 浏览器自动化
-- [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)

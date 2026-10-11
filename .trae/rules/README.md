@@ -22,7 +22,6 @@ alwaysApply: true
 | `hint-color-usage.md` | 提示色使用规范（拖拽手柄/分界线悬停中性色，禁用 accent 蓝） | UI/样式 |
 | `quality-gates.md` | 测试、类型检查、合并前检查、重构门禁 | 测试/构建/重构 |
 | `commands.md` | 常用命令速查、脚本入口、环境设置 | 执行命令 |
-| `browser-automation.md` | 浏览器自动化工具选择、经验教训、操作规范 | 浏览器自动化/测试 |
 | `desktop-ui-verification.md` | 桌面端 UI 验证流程、双端验证清单 | 修改 UI |
 | `dev-rules.md` | 代理交互与执行规则（询问卡片、终端命令、代码修改、问题排查、编码风格） | 始终应用 |
 | `mandatory-testing.md` | 结束验收流程、强制红绿测试、测试材料管理 | 始终应用 |
@@ -71,8 +70,6 @@ alwaysApply: true
 | UI 模式变更 | `ui-patterns.md` |
 | 项目形态/范围边界变更 | `phase-boundary.md` |
 | 双端一致性变更 | `tauri-shell.md`、`project-overview.md`、`desktop-ui-verification.md` |
-| 浏览器自动化工具/脚本变更 | `browser-automation.md`、`browser-automation` 技能 |
-| Trae 内置浏览器（integrated_browser）工具变更 | `browser-automation.md`、`browser-automation` 技能 |
 | Store / 状态变更 | `zustand-patterns.md` |
 | Rust 模式/架构变更 | `rust-patterns.md` |
 | 组件拆分/架构变更 | `component-architecture.md` |
@@ -97,14 +94,6 @@ alwaysApply: true
 | 多维度架构变更 | `multi-dimensional-architecture-design.md` |
 | 领域 ID 名义类型变更 | `branded-nominal-type-id.md` |
 
-## MCP 服务器说明
-
-### integrated_browser
-
-Trae IDE 内置浏览器自动化工具（16 个 MCP 工具，含 `browser_evaluate` 执行 JS），支持导航、点击、输入、截图、JS 求值等全功能。可用性取决于会话 MCP 配置。
-
-详细说明见 [browser-automation.md](./browser-automation.md) 和 [browser-automation 技能](../../.opencode/skills/browser-automation/SKILL.md)
-
 ## 规则层级
 
 | 层级 | 覆盖范围 | 规则文件 |
@@ -112,12 +101,12 @@ Trae IDE 内置浏览器自动化工具（16 个 MCP 工具，含 `browser_evalu
 | 项目总览 | 全局架构 | `multi-dimensional-architecture-design.md`, `project-overview.md`, `phase-boundary.md`, `codebase-map.md` |
 | 语言/Framework | 特定技术栈 | `rust-patterns.md`, `zustand-patterns.md`, `component-architecture.md`, `css-architecture.md` |
 | 质量保障 | 测试/门禁 | `quality-gates.md`, `mandatory-testing.md`, `error-handling.md` |
-| 操作指南 | 命令/工具 | `commands.md`, `browser-automation.md`, `desktop-ui-verification.md` |
+| 操作指南 | 命令/工具 | `commands.md`, `desktop-ui-verification.md` |
 | 专项领域 | 安全/设计 | `tauri-shell.md`, `design-system.md`, `ui-patterns.md` |
 
 ## 技能系统
 
-本项目使用 **Superpowers 技能系统** 增强 AI 代理能力，共 28 个技能（含项目定制 14 个）。
+本项目使用 **Superpowers 技能系统** 增强 AI 代理能力，共 27 个技能（含项目定制 13 个）。
 
 | 项目 | 说明 |
 |------|------|

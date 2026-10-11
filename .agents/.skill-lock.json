@@ -121,15 +121,6 @@
       "installedAt": "2026-04-17T20:04:04.779Z",
       "updatedAt": "2026-04-17T20:04:04.779Z"
     },
-    "agent-browser": {
-      "source": "vercel-labs/agent-browser",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/vercel-labs/agent-browser.git",
-      "skillPath": "skills/agent-browser/SKILL.md",
-      "skillFolderHash": "121eecacd86c0aab06aef5cd4663e80c5397cd41",
-      "installedAt": "2026-04-17T20:04:19.539Z",
-      "updatedAt": "2026-04-17T20:04:19.539Z"
-    },
     "api-design-principles": {
       "source": "wshobson/agents",
       "sourceType": "github",
@@ -364,15 +355,6 @@
       "skillFolderHash": "cc384fa24e1cb8e9adddb9d7491164415d156a32",
       "installedAt": "2026-05-01T08:03:17.035Z",
       "updatedAt": "2026-05-01T08:03:17.035Z"
-    },
-    "Browser Automation": {
-      "source": "claude-office-skills/skills",
-      "sourceType": "github",
-      "sourceUrl": "https://github.com/claude-office-skills/skills.git",
-      "skillPath": "browser-automation/SKILL.md",
-      "skillFolderHash": "093efef521d89ec9720038361e6e5429c85748bb",
-      "installedAt": "2026-05-02T09:44:49.397Z",
-      "updatedAt": "2026-05-02T09:44:49.397Z"
     },
     "vitest-testing-patterns": {
       "source": "erichowens/some_claude_skills",

@@ -89,6 +89,5 @@ cargo build -p ad-server
 
 ## 相关
 
-- 启动后的浏览器交互：使用 [browser-automation](../browser-automation/SKILL.md) 技能
 - 包装脚本实现：`ai-digital-life/scripts/run-project-surface.mjs`
 - 常用命令速查：[commands.md](../../rules/commands.md)
