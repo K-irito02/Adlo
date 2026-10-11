@@ -88,6 +88,53 @@ describe('updatePreferences action', () => {
     expect(useAppStore.getState().isFetching['updatePreferences']).toBe(false);
   });
 
+  it('coalesces patches arriving while in flight instead of dropping them', async () => {
+    let resolveFirst: (value: { ok: true; data: unknown }) => void;
+    mockUpdatePreferences.mockReturnValueOnce(
+      new Promise((resolve) => {
+        resolveFirst = resolve;
+      }),
+    );
+    mockUpdatePreferences.mockResolvedValue({
+      ok: true,
+      data: {
+        config: { themeMode: 'system' },
+        recentLogs: [],
+        currentWorkspace: null,
+        appName: 'test',
+        version: '0.0.0',
+      },
+    });
+
+    const store = useAppStore.getState();
+    // 首次请求在途中，后两个补丁（快速连改设置）到达 → 入队。
+    const p1 = store.updatePreferences({ logLevel: 'debug' } as AppPreferencePatch);
+    const p2 = store.updatePreferences({ terminalLogMode: 'multi' } as AppPreferencePatch);
+    const p3 = store.updatePreferences({ debugLogMode: 'append' } as AppPreferencePatch);
+
+    resolveFirst!({
+      ok: true,
+      data: {
+        config: { themeMode: 'system' },
+        recentLogs: [],
+        currentWorkspace: null,
+        appName: 'test',
+        version: '0.0.0',
+      },
+    });
+
+    const results = await Promise.all([p1, p2, p3]);
+    expect(results).toEqual([true, true, true]);
+    // 三次调用只发两次 IPC：in-flight 期间的两个补丁合并为一次。
+    expect(mockUpdatePreferences).toHaveBeenCalledTimes(2);
+    expect(mockUpdatePreferences.mock.calls[0][0]).toEqual({ logLevel: 'debug' });
+    expect(mockUpdatePreferences.mock.calls[1][0]).toEqual({
+      terminalLogMode: 'multi',
+      debugLogMode: 'append',
+    });
+    expect(useAppStore.getState().isFetching['updatePreferences']).toBe(false);
+  });
+
   it('captures typed error on failure and clears isFetching', async () => {
     mockUpdatePreferences.mockResolvedValue({
       ok: false,
@@ -124,12 +171,26 @@ describe('updatePreferences action', () => {
     expect(useAppStore.getState().errorToasts).toEqual([]);
   });
 
-  it('does not re-enter when isFetching is already true', async () => {
+  it('queues (rather than silently drops) a call while another is in flight', async () => {
+    // 语义变更（P1 合并式排队）：旧实现把 `isFetching` 守卫当防重入、直接 return false
+    // 丢弃并发补丁 —— 快速连改设置会真实丢项。现在改为入队合并，必然发出 IPC。
     useAppStore.setState({ isFetching: { updatePreferences: true } });
+    mockUpdatePreferences.mockResolvedValue({
+      ok: true,
+      data: {
+        config: { themeMode: 'system' },
+        recentLogs: [],
+        currentWorkspace: null,
+        appName: 'test',
+        version: '0.0.0',
+      },
+    });
     const store = useAppStore.getState();
-    await store.updatePreferences({ language: 'en-US' } as AppPreferencePatch);
-    // 不应调用 mock（防重入）
-    expect(mockUpdatePreferences).not.toHaveBeenCalled();
+
+    const ok = await store.updatePreferences({ language: 'en-US' } as AppPreferencePatch);
+
+    expect(ok).toBe(true);
+    expect(mockUpdatePreferences).toHaveBeenCalledWith({ language: 'en-US' });
   });
 });
 

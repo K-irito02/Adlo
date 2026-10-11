@@ -13,8 +13,9 @@
  *     a non-2xx with an unparseable body degrades to `HTTP__ERROR`, and a
  *     network failure to `NETWORK_ERROR`.
  *
- * System (shell) domains — `window`, `app`, `browser`, `pty`, `reserved`,
- * `setLogMode` and the four `subscribe*` streams — have no fetch routes:
+ * System (shell) domains — `window`, `app` (health/diagnostics only; `getInfo` /
+ * `updatePreferences` are real `/app/*` routes), `browser`, `pty`, `reserved`,
+ * and the four `subscribe*` streams — have no fetch routes:
  * they are typed fallbacks here. The Tauri shell (`tauri-bridge`) and browser
  * preview (`preview-bridge`) override them with their real implementations.
  * The `subscribe*` streams run over the ad-server SSE `/event` endpoint
@@ -779,10 +780,6 @@ export function createHttpBridge({
     subscribePtyOutput: (listener: (event: PtyOutputEvent) => void) =>
       getPtyClient().subscribePtyOutput(listener),
 
-    setLogMode: async (_target: 'terminal' | 'debug', _mode: 'overwrite' | 'append' | 'multi') => {
-      console.warn('[httpBridge] setLogMode is a Tauri shell capability; no-op over HTTP.');
-    },
-
     // ── System (shell) domains: typed fallbacks — the shell bridges override.
     window: {
       minimize: () => Promise.resolve(),
@@ -800,12 +797,22 @@ export function createHttpBridge({
       },
     },
     app: {
-      getInfo: () => taskNotSupported<AppInfo>('app.getInfo'),
+      // `getInfo` / `updatePreferences` are REAL over HTTP (`/app/info` +
+      // `/app/preferences`, crates/server/src/handlers/app.rs): config.json is the
+      // single source of truth for preferences on both surfaces, so the browser
+      // settings panel renders and persists exactly like the desktop one. The
+      // remaining `app.*` methods stay typed fallbacks (health/diagnostics come
+      // from the preview/mock diagnostic bridge).
+      getInfo: () => call<AppInfo>(baseUrl, '/app/info', { method: 'GET' }),
       getHealth: () => taskNotSupported<HealthSnapshot>('app.getHealth'),
       getDiagnostics: () => taskNotSupported<RuntimeDiagnosticsSnapshot>('app.getDiagnostics'),
       getModelHealth: () => taskNotSupported<ModelGatewayHealthSnapshot>('app.getModelHealth'),
-      updatePreferences: (_patch: AppPreferencePatch) =>
-        taskNotSupported<AppInfo>('app.updatePreferences'),
+      updatePreferences: (patch: AppPreferencePatch) =>
+        call<AppInfo>(baseUrl, '/app/preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        }),
     } satisfies AppBridge,
     browser: {
       createForTab: (

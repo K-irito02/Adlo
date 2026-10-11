@@ -1,4 +1,9 @@
-import type { AppPreferencePatch, LogMode, ThemeMode } from '../../shared/ipc-types.generated';
+import type {
+  AppPreferencePatch,
+  LogLevel,
+  LogMode,
+  ThemeMode,
+} from '../../shared/ipc-types.generated';
 import type { AppInfo, SettingItem } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
 
@@ -124,7 +129,7 @@ export function preferencePatchFromSettingChange(
     return { themeMode: value as ThemeMode };
   }
   if (id === 'logLevel') {
-    return { logLevel: value as string };
+    return { logLevel: value as LogLevel };
   }
   if (id === 'terminalLogMode') {
     return { terminalLogMode: value as LogMode };

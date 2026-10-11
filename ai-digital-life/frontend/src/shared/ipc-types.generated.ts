@@ -5,6 +5,7 @@
 // serde-tagged Rust definitions in crates/*.
 
 export type LogMode = "overwrite" | "append" | "multi";
+export type LogLevel = "error" | "warn" | "info" | "debug" | "trace";
 export type ThemeMode = "light" | "dark" | "system";
 export type Theme = "light" | "dark";
 export type ModelCapability = "text" | "vision" | "tooluse" | "streaming" | "reasoning";
@@ -57,7 +58,7 @@ export interface ModelPreferences {
 export interface AppPreferencePatch {
   language?: string;
   themeMode?: ThemeMode;
-  logLevel?: string;
+  logLevel?: LogLevel;
   terminalLogMode?: LogMode;
   debugLogMode?: LogMode;
   modelPreferences?: Record<string, ModelProviderPreferencePatch>;
@@ -74,7 +75,7 @@ export interface ConfigSnapshot {
   language: string;
   themeMode: ThemeMode;
   resolvedTheme: Theme;
-  logLevel: string;
+  logLevel: LogLevel;
   terminalLogMode: LogMode;
   debugLogMode: LogMode;
   maxRecentWorkspaces: number;

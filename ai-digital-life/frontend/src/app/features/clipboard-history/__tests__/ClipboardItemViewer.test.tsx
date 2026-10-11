@@ -710,7 +710,7 @@ describe('ClipboardItemViewer', () => {
   });
 
   it('persists the newest draft typed during an in-flight save before closing', async () => {
-    const resolvers: Array<(value: boolean) => void> = [];
+    const resolvers: ((value: boolean) => void)[] = [];
     const updateClipboardItem = vi.fn(
       () =>
         new Promise<boolean>((resolve) => {

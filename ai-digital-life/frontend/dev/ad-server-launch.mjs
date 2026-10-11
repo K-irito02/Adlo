@@ -37,6 +37,7 @@ import { existsSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { debugLogModeForVite, parseLogFlags } from './logFlags.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -100,12 +101,24 @@ function cleanup() {
   }
 }
 
+/** 惰性解析日志 flag（保持模块导入无副作用：测试 import 本文件时不得触发解析）。 */
+function currentLogFlags() {
+  return parseLogFlags(process.argv.slice(2));
+}
+
 function startVite(adServerBaseUrl) {
-  // Extra args pass through to vite, e.g. `node dev/ad-server-launch.mjs --port 5174`.
-  const viteArgs = process.argv.slice(2);
-  const env = { ...process.env };
+  const logFlags = currentLogFlags();
+  // 日志 flag 已被 parseLogFlags 消费，其余参数原样转发给 vite
+  // （如 `node dev/ad-server-launch.mjs --port 5174`）。
+  const viteArgs = logFlags.restArgs;
+  const env = { ...process.env, ...logFlags.env };
   if (adServerBaseUrl) {
     env.VITE_ADL_SERVER_URL = adServerBaseUrl;
+  }
+  const debugModeForVite = debugLogModeForVite(logFlags.env);
+  if (debugModeForVite) {
+    // 浏览器前端只暴露 VITE_ 前缀（调试日志模式经此到达 debugLogCollector）。
+    env.VITE_ADL_DEBUG_LOG_MODE = debugModeForVite;
   }
   log(
     `starting Vite dev server (VITE_ADL_SERVER_URL=${
@@ -134,19 +147,22 @@ function startVite(adServerBaseUrl) {
 }
 
 function spawnAdServer() {
+  const logFlags = currentLogFlags();
   const args = ['--port', String(requestedPort), '--data-dir', dataDir];
+  const env = { ...process.env, ...logFlags.env };
   if (existsSync(AD_SERVER_BIN)) {
     log(`launching prebuilt ad-server: ${AD_SERVER_BIN} --port ${requestedPort}`);
     adServer = spawn(AD_SERVER_BIN, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
+      env,
     });
   } else {
     log('prebuilt ad-server not found; falling back to `cargo run -p ad-server` (first run builds)');
     adServer = spawn(
       process.platform === 'win32' ? 'cargo.exe' : 'cargo',
       ['run', '-p', 'ad-server', '--', ...args],
-      { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true },
+      { cwd: repoRoot, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, env },
     );
   }
   serverLog(`spawned ad-server (pid ${adServer.pid}, kind ${adServer.kind ?? 'subprocess'})`);

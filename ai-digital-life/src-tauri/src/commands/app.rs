@@ -3,9 +3,9 @@ use crate::error::CommandError;
 use crate::state::AppState;
 use adl_errors::AppError;
 use adl_types::{
-    APP_NAME, AppInfo, AppPreferencePatch, ConfigSnapshot, EventDiagnostics, HealthComponent,
-    HealthSnapshot, HealthStatus, IpcResult, LogEntrySummary, MigrationDiagnostics,
-    RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot, WorkspaceMeta, now_ms,
+    AppInfo, AppPreferencePatch, EventDiagnostics, HealthComponent, HealthSnapshot, HealthStatus,
+    IpcResult, MigrationDiagnostics, RuntimeDiagnosticsSnapshot, RuntimeLifecycleSnapshot,
+    WorkspaceMeta, now_ms,
 };
 use adl_workspace::strip_verbatim_prefix;
 use serde::Serialize;
@@ -80,6 +80,42 @@ async fn fetch_current_workspace_with_client(
     parse_current_workspace_wire(&wire)
 }
 
+/// 供 `/app/log-settings` 的最小补丁体（只带日志字段，其余为 `None`）。
+fn log_settings_patch_body(change: &adl_logging::LogSettingsChange) -> AppPreferencePatch {
+    AppPreferencePatch {
+        log_level: change.log_level,
+        terminal_log_mode: change.terminal_log_mode,
+        debug_log_mode: change.debug_log_mode,
+        ..AppPreferencePatch::default()
+    }
+}
+
+/// 把日志设置推给 adl-server 子进程（其 LogManager 只在**启动时**读 config.json）。
+///
+/// 走 `/app/log-settings`（仅运行时、不落盘）——落盘由壳在调用处一次性完成，
+/// 避免 server 用其旧内存快照覆盖壳刚写入的其它字段。失败**不阻断**：壳侧已生效，
+/// 且 config.json 已落盘，server 下次启动仍会读到正确值。
+async fn forward_log_settings_to_server(state: &AppState, change: &adl_logging::LogSettingsChange) {
+    if change.is_empty() {
+        return;
+    }
+    let Some(base_url) = state.ad_server.base_url() else {
+        return;
+    };
+    let resp = adl_server_http_client()
+        .post(format!("{base_url}/app/log-settings"))
+        .json(&log_settings_patch_body(change))
+        .send()
+        .await;
+    match resp {
+        Ok(r) if r.status().is_success() => {},
+        Ok(r) => {
+            tracing::warn!(status = %r.status(), "ad-server rejected forwarded log settings");
+        },
+        Err(e) => tracing::warn!(error = %e, "forwarding log settings to ad-server failed"),
+    }
+}
+
 #[tauri::command]
 pub async fn app_get_info(
     state: tauri::State<'_, AppState>,
@@ -146,56 +182,20 @@ pub async fn app_update_preferences(
     patch: AppPreferencePatch,
 ) -> Result<IpcResult<AppInfo>, AppError> {
     let state = app.state::<AppState>();
+    // 1) 日志字段先运行时生效：失败即返回，内存 config 尚未改写 → 无
+    //    「config 已变但 LogManager 未生效」的永久漂移（原 `let _ =` 吞错缺陷）。
+    let log_change = adl_logging::LogSettingsChange::from_patch(&patch);
+    state
+        .log_manager
+        .apply_change(&log_change)
+        .map_err(|e| AppError::Config(format!("failed to apply log settings: {e}")))?;
+    // 2) 应用补丁到内存 config（与 ad-server 共用同一字段映射）。
     {
         let mut config =
             state.config.write().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-        if let Some(language) = patch.language {
-            config.language = language;
-        }
-        if let Some(mode) = patch.theme_mode {
-            config.theme_mode = mode;
-        }
-        if let Some(level) = patch.log_level {
-            config.log_level = level;
-        }
-        if let Some(mode) = patch.terminal_log_mode {
-            config.terminal_log_mode = mode;
-            let _ = state.log_manager.set_mode(adl_logging::LogTarget::Terminal, mode);
-        }
-        if let Some(mode) = patch.debug_log_mode {
-            config.debug_log_mode = mode;
-            let _ = state.log_manager.set_mode(adl_logging::LogTarget::Debug, mode);
-        }
-        if let Some(keybinds) = patch.keybinds {
-            config.keybinds = keybinds;
-        }
-        if let Some(fonts) = patch.fonts {
-            if let Some(ui) = fonts.ui_font {
-                config.fonts.ui_font = Some(ui);
-            }
-            if let Some(code) = fonts.code_font {
-                config.fonts.code_font = Some(code);
-            }
-            if let Some(term) = fonts.terminal_font {
-                config.fonts.terminal_font = Some(term);
-            }
-        }
-        if let Some(v) = patch.max_concurrent_workspaces {
-            config.max_concurrent_workspaces = v.clamp(1, 20);
-        }
-        if let Some(v) = patch.workspace_priority_ids {
-            config.workspace_priority_ids = v;
-        }
-        if let Some(v) = patch.workspace_deferred_ids {
-            config.workspace_deferred_ids = v;
-        }
-        if let Some(v) = patch.workspace_natural_order {
-            config.workspace_natural_order = v;
-        }
-        if let Some(v) = patch.browser_inactive_tab_suspend_ms {
-            config.browser_inactive_tab_suspend_ms = v;
-        }
+        config.apply_patch(&patch);
     }
+    // 3) 落盘 + 广播 ConfigChanged。
     let config_clone =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?.clone();
     let config_dir = state.storage.paths().config_dir.clone();
@@ -205,6 +205,8 @@ pub async fn app_update_preferences(
     .await
     .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
     .map_err(|e| AppError::Config(e.to_string()))?;
+    // 4) 把日志字段推给 adl-server 子进程（运行期同步；失败仅告警，见 helper 注释）。
+    forward_log_settings_to_server(&state, &log_change).await;
     state.event_bus.emit(adl_kernel::events::AppEvent::ConfigChanged);
     let current_workspace = fetch_current_workspace(&state).await;
     let info = build_app_info(&state, current_workspace)?;
@@ -217,43 +219,13 @@ pub fn build_app_info(
 ) -> Result<AppInfo, AppError> {
     let config =
         state.config.read().map_err(|_| AppError::Internal("config lock poisoned".into()))?;
-    let resolved = match config.theme_mode {
-        adl_types::ThemeMode::Light => adl_types::Theme::Light,
-        adl_types::ThemeMode::Dark => adl_types::Theme::Dark,
-        adl_types::ThemeMode::System => adl_types::Theme::Light,
-    };
+    // verbatim 前缀剥离留在 shell 侧（helper 属 workspace crate，kernel 不得反向依赖）。
     let current_workspace = current_workspace.map(|mut w| {
         w.path = strip_verbatim_prefix(&w.path);
         w.root_path = strip_verbatim_prefix(&w.root_path);
         w
     });
-    Ok(AppInfo {
-        app_name: APP_NAME.into(),
-        version: env!("CARGO_PKG_VERSION").to_string(),
-        config: ConfigSnapshot {
-            language: config.language.clone(),
-            theme_mode: config.theme_mode,
-            resolved_theme: resolved,
-            log_level: config.log_level.clone(),
-            terminal_log_mode: config.terminal_log_mode,
-            debug_log_mode: config.debug_log_mode,
-            max_recent_workspaces: config.max_recent_workspaces,
-            keybinds: config.keybinds.clone(),
-            fonts: config.fonts.clone(),
-            max_concurrent_workspaces: config.max_concurrent_workspaces,
-            workspace_priority_ids: config.workspace_priority_ids.clone(),
-            workspace_deferred_ids: config.workspace_deferred_ids.clone(),
-            workspace_natural_order: config.workspace_natural_order.clone(),
-            browser_inactive_tab_suspend_ms: config.browser_inactive_tab_suspend_ms,
-        },
-        current_workspace,
-        recent_logs: vec![LogEntrySummary {
-            timestamp: now_ms(),
-            level: "info".into(),
-            scope: "tauri".into(),
-            message: "Backend ready.".into(),
-        }],
-    })
+    Ok(adl_kernel::app_info::build(&config, current_workspace))
 }
 
 /// 写入调试日志到项目目录（委托 LogManager，按当前模式处理）
@@ -281,46 +253,28 @@ pub async fn write_debug_logs(
     Ok(ipc(Ok(())))
 }
 
-/// 运行时切换日志模式
-#[tauri::command]
-pub async fn app_set_log_mode(
-    app: tauri::AppHandle,
-    target: String,
-    mode: String,
-) -> Result<(), String> {
-    let state = app.state::<AppState>();
-    let log_target: adl_logging::LogTarget = match target.as_str() {
-        "terminal" => adl_logging::LogTarget::Terminal,
-        "debug" => adl_logging::LogTarget::Debug,
-        other => return Err(format!("Invalid log target: {other}")),
-    };
-    let log_mode: adl_logging::LogMode =
-        mode.parse().map_err(|e: String| format!("Invalid log mode: {e}"))?;
-
-    state.log_manager.set_mode(log_target, log_mode).map_err(|e| e.to_string())?;
-
-    {
-        let mut config = state.config.write().map_err(|_| "config lock poisoned".to_string())?;
-        match log_target {
-            adl_logging::LogTarget::Terminal => config.terminal_log_mode = log_mode,
-            adl_logging::LogTarget::Debug => config.debug_log_mode = log_mode,
-        }
-    }
-    let config_clone = state.config.read().map_err(|_| "config lock poisoned".to_string())?.clone();
-    let config_dir = state.storage.paths().config_dir.clone();
-    tokio::task::spawn_blocking(move || {
-        crate::setup::save_config_to_dir(&config_dir, &config_clone)
-    })
-    .await
-    .map_err(|e| format!("spawn_blocking failed: {e}"))?
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
 #[cfg(test)]
 mod server_info_tests {
     use super::*;
+
+    #[test]
+    fn log_settings_patch_body_carries_only_log_fields() {
+        let change = adl_logging::LogSettingsChange {
+            log_level: Some(adl_types::types::config::LogLevel::Trace),
+            terminal_log_mode: Some(adl_types::LogMode::Multi),
+            debug_log_mode: None,
+        };
+        let body = log_settings_patch_body(&change);
+        assert_eq!(body.log_level, Some(adl_types::types::config::LogLevel::Trace));
+        assert_eq!(body.terminal_log_mode, Some(adl_types::LogMode::Multi));
+        assert_eq!(body.debug_log_mode, None);
+        // 其余字段必须为空 —— 该端点只做运行时应用，不得携带会落盘的无关字段。
+        let json = serde_json::to_value(&body).unwrap();
+        assert_eq!(json["language"], serde_json::Value::Null);
+        assert_eq!(json["themeMode"], serde_json::Value::Null);
+        assert_eq!(json["keybinds"], serde_json::Value::Null);
+        assert_eq!(json["fonts"], serde_json::Value::Null);
+    }
 
     #[test]
     fn server_info_serializes_camel_case() {
@@ -381,7 +335,7 @@ mod server_info_tests {
 
 #[cfg(test)]
 mod workspace_loading_tests {
-    use super::*;
+    use adl_types::ConfigSnapshot;
     use adl_types::types::config::AppPreferencePatch;
 
     #[test]
@@ -438,7 +392,7 @@ mod workspace_loading_tests {
             language: "zh-CN".into(),
             theme_mode: adl_types::ThemeMode::System,
             resolved_theme: adl_types::Theme::Light,
-            log_level: "info".into(),
+            log_level: adl_types::types::config::LogLevel::Info,
             terminal_log_mode: adl_types::LogMode::Overwrite,
             debug_log_mode: adl_types::LogMode::Overwrite,
             max_recent_workspaces: 10,

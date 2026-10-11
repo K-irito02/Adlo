@@ -23,6 +23,9 @@ pub struct AppState {
     pub event_bus: EventBus,
     pub browser_manager: BrowserManager,
     pub log_manager: Arc<LogManager>,
+    /// 本次进程的会话级日志覆盖（CLI/env）。供 ConfigWatcher 跳过被覆盖字段，
+    /// 避免外部改 config.json 时冲掉 CLI 指定值。
+    pub log_overrides: adl_logging::LogOverrides,
     pub started_at: i64,
     /// The spawned `adl-server` child + its discovered base URL (`None` when the
     /// engine could not start → system-only desktop).

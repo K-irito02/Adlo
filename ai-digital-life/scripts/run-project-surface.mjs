@@ -4,6 +4,7 @@ import fs from "node:fs";
 import process from "node:process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { debugLogModeForVite, parseLogFlags } from "../frontend/dev/logFlags.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -61,10 +62,28 @@ async function main() {
 
   console.log(`[adl-run] mode=${mode} url=${devUrl}`);
 
+  // 开发阶段日志 CLI 覆盖：透传参数 → env（子进程继承）+ Tauri 应用 argv。
+  // 用法：`pnpm dev:tauri -- --log-level trace --terminal-log-mode multi`
+  const logFlags = parseLogFlags(process.argv.slice(3));
+  const childEnv = {
+    ADL_HOST: host,
+    ADL_PORT: String(port),
+    PORT: String(port),
+    ...logFlags.env,
+  };
+  const debugModeForVite = debugLogModeForVite(logFlags.env);
+  if (debugModeForVite) {
+    // 浏览器前端只暴露 VITE_ 前缀。
+    childEnv.VITE_ADL_DEBUG_LOG_MODE = debugModeForVite;
+  }
+  if (Object.keys(logFlags.env).length > 0) {
+    console.log(`[adl-run] log overrides: ${JSON.stringify(logFlags.env)} (session-only)`);
+  }
+
   const vite = spawnChecked(
     process.execPath,
-    [viteEntry, "--host", host, "--port", String(port)],
-    { ADL_HOST: host, ADL_PORT: String(port), PORT: String(port) },
+    [viteEntry, "--host", host, "--port", String(port), ...logFlags.restArgs],
+    childEnv,
     path.join(repoRoot, "frontend"),
   );
   children.push(vite);
@@ -104,7 +123,7 @@ async function main() {
   const tauri = spawnChecked(
     cargoCommand,
     ["tauri", "dev", "--config", tauriConfig],
-    { ADL_HOST: host, ADL_PORT: String(port), PORT: String(port) },
+    childEnv,
   );
   children.push(tauri);
 

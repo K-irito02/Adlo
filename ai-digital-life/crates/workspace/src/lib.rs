@@ -89,11 +89,7 @@ pub fn guess_media_mime(relative_path: &str) -> &'static str {
     if !file_name.contains('.') {
         return "application/octet-stream";
     }
-    let ext = file_name
-        .rsplit('.')
-        .next()
-        .unwrap_or("")
-        .to_ascii_lowercase();
+    let ext = file_name.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
     match ext.as_str() {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
@@ -133,7 +129,7 @@ pub fn guess_media_mime(relative_path: &str) -> &'static str {
         "csv" => "text/csv",
         "docx" | "docm" | "dotx" | "dotm" => {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        }
+        },
         "doc" | "dot" => "application/msword",
         "xlsx" | "xlsm" => "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         "xls" | "xlsb" => "application/vnd.ms-excel",
@@ -406,8 +402,14 @@ mod tests {
         assert_eq!(guess_media_mime("clip.wmv"), "video/x-ms-wmv");
         assert_eq!(guess_media_mime("sound.mp3"), "audio/mpeg");
         assert_eq!(guess_media_mime("sound.wma"), "audio/x-ms-wma");
-        assert_eq!(guess_media_mime("doc/a.docx"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
-        assert_eq!(guess_media_mime("doc/a.docm"), "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assert_eq!(
+            guess_media_mime("doc/a.docx"),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
+        assert_eq!(
+            guess_media_mime("doc/a.docm"),
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        );
         assert_eq!(guess_media_mime("doc/a.dot"), "application/msword");
         assert_eq!(guess_media_mime("doc/a.pdf"), "application/pdf");
         assert_eq!(guess_media_mime("doc/a.csv"), "text/csv");

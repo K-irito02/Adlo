@@ -10,6 +10,7 @@ import { asWorkspaceID } from '../../../shared/branded';
 import { runWithConcurrency } from '../../shared/asyncUtils';
 import { computeLoadPhases } from './workspaceLoadOrder';
 import { syncNewWorkspacesToNaturalOrder } from './workspaceNaturalOrderSync';
+import { mergePrefPatches } from './preferencePatchMerge';
 import { collectDirPaths } from '../persisted/prune';
 import { applyTreeLoadedPrune, applyWorkspacePrune } from '../persisted/pruneWiring';
 import type { StoreApi } from 'zustand';
@@ -103,6 +104,74 @@ export function accumulateBatch<K extends keyof StoreState>(
     batch[key] = { ...(get()[key] as Record<string, unknown>) } as StoreState[K];
   }
   (batch[key] as Record<string, unknown>)[id] = value;
+}
+
+/**
+ * `updatePreferences` 的合并式排队（P1）。
+ *
+ * 原实现用 `isFetching` 守卫直接 `return false` 静默丢弃并发补丁 —— 而一次
+ * `updatePreferences` 含 `spawn_blocking` 写盘 + 3s 超时的 workspace fetch，
+ * 用户在设置面板快速连改三项（日志级别/终端模式/调试模式）时会真实丢设置。
+ * 现改为：in-flight 期间的补丁入队，本次完成后把整批合并为**单次** IPC 发出，
+ * 因此既不丢操作，也不产生并发写 config.json 的竞态。
+ */
+interface PendingPrefCall {
+  patch: AppPreferencePatch;
+  resolve: (ok: boolean) => void;
+}
+
+let prefQueue: PendingPrefCall[] = [];
+let prefDraining = false;
+
+async function drainPrefQueue(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState,
+): Promise<void> {
+  if (prefDraining) {
+    return;
+  }
+  prefDraining = true;
+  set({ isFetching: { ...get().isFetching, updatePreferences: true } });
+  try {
+    while (prefQueue.length > 0) {
+      const batch = prefQueue;
+      prefQueue = [];
+      const merged = batch.reduce<AppPreferencePatch>(
+        (acc, call) => mergePrefPatches(acc, call.patch),
+        {},
+      );
+      const ok = await sendPreferencePatch(set, get, merged);
+      for (const call of batch) {
+        call.resolve(ok);
+      }
+    }
+  } finally {
+    prefDraining = false;
+    set({ isFetching: { ...get().isFetching, updatePreferences: false } });
+  }
+}
+
+async function sendPreferencePatch(
+  set: StoreApi<StoreState>['setState'],
+  get: () => StoreState,
+  patch: AppPreferencePatch,
+): Promise<boolean> {
+  try {
+    const result = await window.digitalLife.app.updatePreferences(patch);
+    if (!result.ok) {
+      captureError(get, result.error, SCOPE);
+      return false;
+    }
+    // result.data from Rust backend has stale resolvedTheme for system mode
+    // (build_app_info hardcodes Theme::Light for ThemeMode::System).
+    // Fix it here for store consistency; useThemeSync 会通过 appInfo 变化触发 setTheme。
+    result.data.config.resolvedTheme = resolveCurrentTheme(result.data.config.themeMode);
+    set({ appInfo: result.data });
+    return true;
+  } catch (error) {
+    captureError(get, error, SCOPE);
+    return false;
+  }
 }
 
 export function createGeneralActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
@@ -518,34 +587,18 @@ export function createGeneralActions(set: StoreApi<StoreState>['setState'], get:
 
     /**
      * [updatePreferences - 更新应用偏好设置（主题、语言等）]
+     *
+     * 合并式排队（P1）：in-flight 期间到达的补丁入队并在本次完成后合并发出，
+     * 不再静默丢弃并发操作。
      * @writes workspaceSlice.appInfo
      */
-    updatePreferences: async (patch: AppPreferencePatch): Promise<boolean> => {
-      const key = 'updatePreferences';
-      if (get().isFetching[key]) {
-        return false;
-      }
+    updatePreferences: (patch: AppPreferencePatch): Promise<boolean> => {
       clearError(get, SCOPE);
-      set({ isFetching: { ...get().isFetching, [key]: true } });
-      try {
-        const result = await window.digitalLife.app.updatePreferences(patch);
-        if (!result.ok) {
-          captureError(get, result.error, SCOPE);
-          return false;
-        }
-        const responseMode = result.data.config.themeMode;
-        // result.data from Rust backend has stale resolvedTheme for system mode
-        // (build_app_info hardcodes Theme::Light for ThemeMode::System).
-        // Fix it here for store consistency; useThemeSync 会通过 appInfo 变化触发 setTheme。
-        result.data.config.resolvedTheme = resolveCurrentTheme(responseMode);
-        set({ appInfo: result.data });
-        return true;
-      } catch (error) {
-        captureError(get, error, SCOPE);
-        return false;
-      } finally {
-        set({ isFetching: { ...get().isFetching, [key]: false } });
-      }
+      const settled = new Promise<boolean>((resolve) => {
+        prefQueue.push({ patch, resolve });
+      });
+      void drainPrefQueue(set, get);
+      return settled;
     },
   };
 }

@@ -101,12 +101,10 @@ pub fn init_app_state(
     };
     info!("[ADL-PERF] config load: {}ms", t0.elapsed().as_millis());
 
-    // CLI log mode override
-    if let Ok(cli_mode) = std::env::var("ADL_CLI_LOG_MODE") {
-        if let Ok(mode) = cli_mode.parse() {
-            config.terminal_log_mode = mode;
-            config.debug_log_mode = mode;
-        }
+    // CLI / env 会话级日志覆盖（不写回 config.json）：优先级 CLI flag > env > config.json。
+    let log_overrides = adl_logging::LogOverrides::from_env();
+    if log_overrides.any() {
+        config.apply_log_overrides(&log_overrides);
     }
 
     // 开发态（debug）保留写仓库根 .adl-logs，release 使用 <root>/logs。
@@ -116,15 +114,24 @@ pub fn init_app_state(
     std::fs::create_dir_all(&log_dir)?;
 
     let t1 = std::time::Instant::now();
+    // shell 侧终端日志前缀：与 adl-server 分离，避免两进程 Overwrite 互踩同一文件。
     let log_manager = adl_logging::LogManager::init(
-        &adl_logging::LogConfig {
-            terminal_log_mode: config.terminal_log_mode,
-            debug_log_mode: config.debug_log_mode,
-        },
+        &config.to_log_config(),
         &log_dir,
+        adl_logging::SHELL_TERMINAL_PREFIX,
     )
     .context("failed to init log manager")?;
     info!("[ADL-PERF] log init: {}ms", t1.elapsed().as_millis());
+
+    info!(
+        level = %config.log_level,
+        prefix = adl_logging::SHELL_TERMINAL_PREFIX,
+        dir = %log_dir.display(),
+        "[ADL-LOG] logger ready"
+    );
+    if log_overrides.any() {
+        info!("[ADL-CLI] {} (session override, not persisted)", log_overrides.summary());
+    }
 
     let event_bus = EventBus::default();
 
@@ -159,10 +166,29 @@ pub fn init_app_state(
         event_bus,
         browser_manager,
         log_manager: Arc::new(log_manager),
+        log_overrides,
         started_at: now_ms(),
         ad_server,
         download_manager,
     })
+}
+
+/// 计算需要同步到 LogManager 的字段：仅当值变化**且**该字段未被 CLI/env 会话覆盖。
+fn log_settings_delta(
+    current: &adl_logging::LogConfig,
+    reloaded: &adl_config::AppConfig,
+    overrides: &adl_logging::LogOverrides,
+) -> adl_logging::LogSettingsChange {
+    adl_logging::LogSettingsChange {
+        log_level: (overrides.log_level.is_none() && reloaded.log_level != current.log_level)
+            .then_some(reloaded.log_level),
+        terminal_log_mode: (overrides.terminal_log_mode.is_none()
+            && reloaded.terminal_log_mode != current.terminal_log_mode)
+            .then_some(reloaded.terminal_log_mode),
+        debug_log_mode: (overrides.debug_log_mode.is_none()
+            && reloaded.debug_log_mode != current.debug_log_mode)
+            .then_some(reloaded.debug_log_mode),
+    }
 }
 
 /// Start background tasks for the system shell: hot-reload `config.json` into
@@ -172,6 +198,8 @@ pub fn init_app_state(
 pub fn start_background_tasks(state: &AppState) {
     let config_dir = state.storage.paths().config_dir.clone();
     let config_arc = state.config.clone();
+    let log_manager = state.log_manager.clone();
+    let log_overrides = state.log_overrides;
     let page_meta_svc = state.browser_manager.page_meta_service().clone();
 
     std::thread::spawn(move || {
@@ -204,6 +232,15 @@ pub fn start_background_tasks(state: &AppState) {
             let config_update_handle = tokio::spawn(async move {
                 while watcher_rx.changed().await.is_ok() {
                     let new_config = watcher_rx.borrow().clone();
+                    // 外部改 config.json → 同步日志子系统（跳过 CLI/env 会话覆盖字段）。
+                    if let Ok(current) = log_manager.config() {
+                        let delta = log_settings_delta(&current, &new_config, &log_overrides);
+                        if !delta.is_empty() {
+                            if let Err(e) = log_manager.apply_change(&delta) {
+                                tracing::warn!(error = %e, "failed to apply reloaded log settings");
+                            }
+                        }
+                    }
                     match config_arc_watcher.write() {
                         Ok(mut cfg) => *cfg = (*new_config).clone(),
                         Err(poisoned) => {
@@ -279,5 +316,52 @@ mod tests {
         // 探针写入后应已清理。
         assert!(!root.join(".adl-write-probe").exists());
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    fn log_config(level: adl_types::types::config::LogLevel) -> adl_logging::LogConfig {
+        adl_logging::LogConfig {
+            terminal_log_mode: adl_logging::LogMode::Overwrite,
+            debug_log_mode: adl_logging::LogMode::Overwrite,
+            log_level: level,
+        }
+    }
+
+    #[test]
+    fn delta_empty_when_config_unchanged() {
+        let current = log_config(adl_types::types::config::LogLevel::Info);
+        let reloaded = adl_config::AppConfig::default();
+        let delta = log_settings_delta(&current, &reloaded, &adl_logging::LogOverrides::default());
+        assert!(delta.is_empty());
+    }
+
+    #[test]
+    fn delta_reports_changed_fields() {
+        let current = log_config(adl_types::types::config::LogLevel::Info);
+        let reloaded = adl_config::AppConfig {
+            log_level: adl_types::types::config::LogLevel::Trace,
+            debug_log_mode: adl_logging::LogMode::Multi,
+            ..adl_config::AppConfig::default()
+        };
+        let delta = log_settings_delta(&current, &reloaded, &adl_logging::LogOverrides::default());
+        assert_eq!(delta.log_level, Some(adl_types::types::config::LogLevel::Trace));
+        assert_eq!(delta.debug_log_mode, Some(adl_logging::LogMode::Multi));
+        assert_eq!(delta.terminal_log_mode, None);
+    }
+
+    #[test]
+    fn delta_skips_session_overridden_fields() {
+        let current = log_config(adl_types::types::config::LogLevel::Info);
+        let reloaded = adl_config::AppConfig {
+            log_level: adl_types::types::config::LogLevel::Trace,
+            debug_log_mode: adl_logging::LogMode::Multi,
+            ..adl_config::AppConfig::default()
+        };
+        let overrides = adl_logging::LogOverrides {
+            log_level: Some(adl_types::types::config::LogLevel::Error),
+            debug_log_mode: Some(adl_logging::LogMode::Append),
+            ..Default::default()
+        };
+        let delta = log_settings_delta(&current, &reloaded, &overrides);
+        assert!(delta.is_empty(), "session-overridden fields must not be synced: {delta:?}");
     }
 }

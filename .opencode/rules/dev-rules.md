@@ -100,7 +100,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 无法定位根因时，不要凭空猜测。按以下优先级执行：
 
-1. **调试日志收起器**（最高优先级）：在代码中添加 `console.log/warn/error/info/debug` 输出调试信息（无需特殊前缀）。应用启动后通过右上角"复制调试日志"按钮查看，或直接查看项目根目录日志文件（Tauri 模式 `debug-logs.txt`，浏览器模式 `debug-logs-browser.txt`）。控制台可执行 `__clearDebugLogs()` 清除旧日志，`__exportDebugLogs()` 手动导出。
+1. **调试日志收起器**（最高优先级）：在代码中添加 `console.log/warn/error/info/debug` 输出调试信息（无需特殊前缀）。应用启动后通过右上角"复制调试日志"按钮查看，或直接查看日志文件（debug 构建均落 `<仓库根>/.adl-logs/`：Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt`；后端引擎另在 `<仓库根>/ai-digital-life/.adl-logs/adl-server-logs*.txt`）。控制台可执行 `__clearDebugLogs()` 清除旧日志，`__exportDebugLogs()` 手动导出。
 2. **复制调试日志**：引导用户通过界面上的"复制调试日志"按钮获取调试信息。
 3. **其他调试手段**：在前述方式不可行时，采用合适的替代调试方案。
 

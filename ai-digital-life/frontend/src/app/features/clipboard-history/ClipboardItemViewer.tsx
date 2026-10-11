@@ -259,7 +259,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
     void fetchExport(url)
       .then((r) => r.text())
       .then((text) => {
-        if (!cancelled) setHtmlText(text);
+        if (!cancelled) {
+          setHtmlText(text);
+        }
       })
       .catch(() => undefined);
     return () => {
@@ -424,7 +426,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
   // commit 按契约永不 reject，catch 只防未来 bridge 实现抛错（无 unhandledrejection）。
   useEffect(
     () => () => {
-      if (!discardRef.current) void commitIfEditingRef.current().catch(() => undefined);
+      if (!discardRef.current) {
+        void commitIfEditingRef.current().catch(() => undefined);
+      }
     },
     [],
   );

@@ -91,13 +91,13 @@ impl ConfigWatcher {
 mod tests {
     use super::*;
     use adl_logging::LogMode;
-    use adl_types::types::config::ThemeMode;
+    use adl_types::types::config::{LogLevel, ThemeMode};
 
     fn test_config() -> AppConfig {
         AppConfig {
             language: "en-US".to_string(),
             theme_mode: ThemeMode::System,
-            log_level: "info".to_string(),
+            log_level: LogLevel::Info,
             terminal_log_mode: LogMode::Overwrite,
             debug_log_mode: LogMode::Overwrite,
             max_recent_workspaces: 10,

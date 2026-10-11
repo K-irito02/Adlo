@@ -8,11 +8,67 @@ use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 
+use adl_types::types::config::LogLevel;
 use tokio::task::spawn_blocking;
+use tracing::{Level, Metadata};
 
-use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::filter::LevelFilter;
+use tracing_subscriber::layer::{Context, Filter, SubscriberExt};
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer, Registry, fmt};
+
+/// 日志文件前缀：终端日志（stdout 层镜像）按进程角色分文件，避免 shell 与
+/// adl-server 两个进程以 Overwrite 模式互写同一文件而互相截断。
+pub const SHELL_TERMINAL_PREFIX: &str = "terminal-logs";
+pub const SERVER_TERMINAL_PREFIX: &str = "adl-server-logs";
+/// 调试日志仅由 shell 侧 `write_debug_logs` 写入，无进程冲突。
+pub const DEBUG_LOG_PREFIX: &str = "debug-logs";
+
+fn to_tracing_level(level: LogLevel) -> Level {
+    match level {
+        LogLevel::Error => Level::ERROR,
+        LogLevel::Warn => Level::WARN,
+        LogLevel::Info => Level::INFO,
+        LogLevel::Debug => Level::DEBUG,
+        LogLevel::Trace => Level::TRACE,
+    }
+}
+
+/// 全局基础 filter：`RUST_LOG` 优先（其语义为最高优先级覆盖），否则用 `trace`
+/// 放行到逐层 gate 再各自收紧。
+fn initial_base_filter() -> EnvFilter {
+    EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("trace"))
+}
+
+/// 运行时可变级别过滤器：从共享的 `Arc<RwLock<LogLevel>>` 读当前级别，按层需求
+/// （可选下限）决定放行。用于替代 `reload::Handle` —— 后者的 `S` 依赖其被组合的
+/// 位置（`Filtered<.., S>` / `Layered<.., S>`），无法在结构体字段中命名。
+struct LevelGate {
+    level: Arc<RwLock<LogLevel>>,
+    /// `Some(floor)` ⇒ 有效级别 = `max(level, floor)`（文件层的 debug 下限）。
+    floor: Option<LogLevel>,
+}
+
+impl LevelGate {
+    fn effective_level(&self) -> Option<Level> {
+        let level = *self.level.read().ok()?;
+        let effective = match self.floor {
+            Some(floor) => LogLevel::max_verbosity(level, floor),
+            None => level,
+        };
+        Some(to_tracing_level(effective))
+    }
+}
+
+impl<S: tracing::Subscriber> Filter<S> for LevelGate {
+    fn enabled(&self, meta: &Metadata<'_>, _cx: &Context<'_, S>) -> bool {
+        self.effective_level().is_some_and(|max| *meta.level() <= max)
+    }
+
+    fn max_level_hint(&self) -> Option<LevelFilter> {
+        self.effective_level().map(LevelFilter::from_level)
+    }
+}
 
 // ── CST (UTC+8) time formatter ──
 
@@ -75,20 +131,29 @@ fn prune_initial(sessions: &Mutex<SessionTracker>, name: &str) {
 pub struct LogManager {
     config: Arc<RwLock<LogConfig>>,
     log_dir: PathBuf,
+    /// 终端日志文件前缀（按进程角色区分：shell / adl-server）。
+    terminal_prefix: String,
     terminal_sessions: Arc<Mutex<SessionTracker>>,
     debug_sessions: Arc<Mutex<SessionTracker>>,
+    /// stdout / 文件两层共享的运行时级别单元（`set_log_level` 直接改写）。
+    level_cell: Arc<RwLock<LogLevel>>,
     #[allow(dead_code)]
     // Lifetime anchor: keeps the Arc alive so TerminalMakeWriter's clone remains valid
     terminal_file: Arc<Mutex<Option<TerminalFileState>>>,
 }
 
 impl LogManager {
-    pub fn init(config: &LogConfig, log_dir: &Path) -> LogResult<Self> {
+    /// 初始化全局 tracing 订阅者。`terminal_prefix` 区分进程角色
+    /// （`SHELL_TERMINAL_PREFIX` / `SERVER_TERMINAL_PREFIX`），避免两进程互写同一
+    /// 终端日志文件而互相截断。
+    pub fn init(config: &LogConfig, log_dir: &Path, terminal_prefix: &str) -> LogResult<Self> {
         fs::create_dir_all(log_dir)?;
 
+        let level = config.log_level;
+        let level_cell = Arc::new(RwLock::new(level));
         let config = Arc::new(RwLock::new(config.clone()));
-        let terminal_sessions = Arc::new(Mutex::new(SessionTracker::new(log_dir, "terminal-logs")));
-        let debug_sessions = Arc::new(Mutex::new(SessionTracker::new(log_dir, "debug-logs")));
+        let terminal_sessions = Arc::new(Mutex::new(SessionTracker::new(log_dir, terminal_prefix)));
+        let debug_sessions = Arc::new(Mutex::new(SessionTracker::new(log_dir, DEBUG_LOG_PREFIX)));
         let terminal_file: Arc<Mutex<Option<TerminalFileState>>> = Arc::new(Mutex::new(None));
 
         let make_writer = TerminalMakeWriter {
@@ -96,21 +161,17 @@ impl LogManager {
             config: config.clone(),
             sessions: terminal_sessions.clone(),
             inner: terminal_file.clone(),
+            prefix: terminal_prefix.to_string(),
         };
 
-        let stdout_filter =
-            || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-
-        // File layer writes ALL levels (debug+) so diagnostic tracing::debug!
-        // calls are preserved in terminal-logs.txt for post-mortem analysis.
-        let file_filter =
-            || EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug"));
-
+        // File layer writes at max(log_level, debug) so diagnostic tracing::debug!
+        // calls are preserved in the terminal log for post-mortem analysis, while
+        // stdout stays at the user-selected level.
         let stdout_layer = fmt::layer()
             .with_timer(CstTime)
             .with_target(true)
             .with_thread_ids(true)
-            .with_filter(stdout_filter());
+            .with_filter(LevelGate { level: level_cell.clone(), floor: None });
 
         let file_layer = fmt::layer()
             .with_ansi(false)
@@ -118,26 +179,92 @@ impl LogManager {
             .with_target(true)
             .with_thread_ids(true)
             .with_writer(make_writer)
-            .with_filter(file_filter());
+            .with_filter(LevelGate { level: level_cell.clone(), floor: Some(LogLevel::Debug) });
+
+        let subscriber =
+            Registry::default().with(initial_base_filter()).with(stdout_layer).with(file_layer);
 
         // Tolerate a second init in the same process (integration tests spin up
         // multiple engine instances per binary). The production path calls this
         // exactly once; re-init only means "subscriber already installed".
-        if let Err(e) = Registry::default().with(stdout_layer).with(file_layer).try_init() {
+        if let Err(e) = subscriber.try_init() {
             tracing::warn!("global tracing subscriber already set, reusing it ({e})");
         }
 
         // 锁内禁 tracing：prune 只收集失败，守卫释放后再打日志（R2 同类死锁治理）。
-        prune_initial(&terminal_sessions, "terminal");
-        prune_initial(&debug_sessions, "debug");
+        prune_initial(&terminal_sessions, terminal_prefix);
+        prune_initial(&debug_sessions, DEBUG_LOG_PREFIX);
 
         Ok(Self {
             config,
             log_dir: log_dir.to_path_buf(),
+            terminal_prefix: terminal_prefix.to_string(),
             terminal_sessions,
             debug_sessions,
+            level_cell,
             terminal_file,
         })
+    }
+
+    /// 运行时切换日志级别：stdout 层 = `level`，文件层 = `max(level, debug)`。
+    ///
+    /// 与 [`Self::set_mode`] 同约束：写守卫仅覆盖字段变更，守卫存活期间禁止打日志
+    /// （tracing 文件层会在同线程读同一把非重入配置 `RwLock`，守卫内打日志即自死锁）。
+    pub fn set_log_level(&self, level: LogLevel) -> LogResult<()> {
+        {
+            let mut config =
+                self.config.write().map_err(|_| LogError::Config("config lock poisoned".into()))?;
+            config.log_level = level;
+        }
+        // 守卫已释放：改写共享级别单元即对两层 filter 生效（无重入锁风险）。
+        {
+            let mut cell = self
+                .level_cell
+                .write()
+                .map_err(|_| LogError::Config("level cell lock poisoned".into()))?;
+            *cell = level;
+        }
+
+        tracing::info!(%level, "[ADL-LOG] log level changed");
+        Ok(())
+    }
+
+    pub fn log_level(&self) -> LogResult<LogLevel> {
+        Ok(self
+            .config
+            .read()
+            .map_err(|_| LogError::Config("config lock poisoned".into()))?
+            .log_level)
+    }
+
+    /// 应用运行期日志变更集（偏好补丁 / 外部配置重载）。
+    /// 任一字段失败即提前返回；已生效的字段保持生效。
+    pub fn apply_change(&self, change: &crate::overrides::LogSettingsChange) -> LogResult<()> {
+        if let Some(level) = change.log_level {
+            self.set_log_level(level)?;
+        }
+        if let Some(mode) = change.terminal_log_mode {
+            self.set_mode(LogTarget::Terminal, mode)?;
+        }
+        if let Some(mode) = change.debug_log_mode {
+            self.set_mode(LogTarget::Debug, mode)?;
+        }
+        if !change.is_empty() {
+            // 自证行：设置项经 UI/HTTP 生效时留痕，便于用户与 agent 核对
+            // （guards 均已释放，此处打日志不触达非重入锁）。
+            tracing::info!(
+                level = ?change.log_level,
+                terminal = ?change.terminal_log_mode,
+                debug = ?change.debug_log_mode,
+                "[ADL-SETTINGS] runtime log settings applied"
+            );
+        }
+        Ok(())
+    }
+
+    /// 终端日志文件前缀（供启动日志行自证进程角色）。
+    pub fn terminal_prefix(&self) -> &str {
+        &self.terminal_prefix
     }
 
     pub fn write_debug_logs(&self, content: &str) -> LogResult<()> {
@@ -147,7 +274,7 @@ impl LogManager {
             .map_err(|_| LogError::Config("config lock poisoned".into()))?
             .debug_log_mode;
 
-        let fixed_path = log_file_path(&self.log_dir, "debug-logs");
+        let fixed_path = log_file_path(&self.log_dir, DEBUG_LOG_PREFIX);
 
         match mode {
             LogMode::Overwrite => {
@@ -164,7 +291,7 @@ impl LogManager {
                     .map_err(|_| LogError::Config("session lock poisoned".into()))?
                     .current_timestamp()
                     .to_string();
-                let session_path = session_log_path(&self.log_dir, "debug-logs", &ts);
+                let session_path = session_log_path(&self.log_dir, DEBUG_LOG_PREFIX, &ts);
                 fs::write(&fixed_path, content)?;
                 fs::write(&session_path, content)?;
             },
@@ -282,6 +409,7 @@ struct TerminalMakeWriter {
     config: Arc<RwLock<LogConfig>>,
     sessions: Arc<Mutex<SessionTracker>>,
     inner: Arc<Mutex<Option<TerminalFileState>>>,
+    prefix: String,
 }
 
 impl<'a> tracing_subscriber::fmt::writer::MakeWriter<'a> for TerminalMakeWriter {
@@ -293,6 +421,7 @@ impl<'a> tracing_subscriber::fmt::writer::MakeWriter<'a> for TerminalMakeWriter 
             config: self.config.clone(),
             sessions: self.sessions.clone(),
             inner: self.inner.clone(),
+            prefix: self.prefix.clone(),
         }
     }
 }
@@ -302,6 +431,7 @@ struct TerminalWriter {
     config: Arc<RwLock<LogConfig>>,
     sessions: Arc<Mutex<SessionTracker>>,
     inner: Arc<Mutex<Option<TerminalFileState>>>,
+    prefix: String,
 }
 
 impl Drop for TerminalWriter {
@@ -343,7 +473,7 @@ impl Write for TerminalWriter {
         };
 
         if needs_reopen {
-            let file = open_terminal_file(&self.log_dir, mode, &session_ts)?;
+            let file = open_terminal_file(&self.log_dir, &self.prefix, mode, &session_ts)?;
             let mut guard =
                 self.inner.lock().map_err(|_| std::io::Error::other("file lock poisoned"))?;
             *guard = Some(TerminalFileState {
@@ -371,18 +501,23 @@ impl Write for TerminalWriter {
     }
 }
 
-fn open_terminal_file(log_dir: &Path, mode: LogMode, session_ts: &str) -> std::io::Result<File> {
+fn open_terminal_file(
+    log_dir: &Path,
+    prefix: &str,
+    mode: LogMode,
+    session_ts: &str,
+) -> std::io::Result<File> {
     match mode {
         LogMode::Overwrite => {
-            let path = log_file_path(log_dir, "terminal-logs");
+            let path = log_file_path(log_dir, prefix);
             OpenOptions::new().write(true).create(true).truncate(true).open(&path)
         },
         LogMode::Append => {
-            let path = log_file_path(log_dir, "terminal-logs");
+            let path = log_file_path(log_dir, prefix);
             OpenOptions::new().append(true).create(true).open(&path)
         },
         LogMode::Multi => {
-            let path = session_log_path(log_dir, "terminal-logs", session_ts);
+            let path = session_log_path(log_dir, prefix, session_ts);
             File::create(&path)
         },
     }
@@ -401,20 +536,55 @@ mod tests {
         dir
     }
 
+    fn test_config(terminal: LogMode, debug: LogMode) -> LogConfig {
+        LogConfig { terminal_log_mode: terminal, debug_log_mode: debug, log_level: LogLevel::Info }
+    }
+
+    /// 直接构造 LogManager（跳过 `init` 的全局订阅者安装），并补齐 reload 句柄。
+    fn test_manager_with(
+        dir: &Path,
+        config: Arc<RwLock<LogConfig>>,
+        terminal_prefix: &str,
+    ) -> LogManager {
+        let level_cell = Arc::new(RwLock::new(config.read().unwrap().log_level));
+        LogManager {
+            config,
+            log_dir: dir.to_path_buf(),
+            terminal_prefix: terminal_prefix.to_string(),
+            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(dir, terminal_prefix))),
+            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(dir, DEBUG_LOG_PREFIX))),
+            level_cell,
+            terminal_file: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn test_manager(dir: &Path, config: LogConfig, prefix: &str) -> LogManager {
+        test_manager_with(dir, Arc::new(RwLock::new(config)), prefix)
+    }
+
+    /// 与生产 `TerminalMakeWriter` 同构，用于断言文件层落到哪个前缀。
+    fn test_make_writer(
+        dir: &Path,
+        config: Arc<RwLock<LogConfig>>,
+        prefix: &str,
+    ) -> TerminalMakeWriter {
+        TerminalMakeWriter {
+            log_dir: dir.to_path_buf(),
+            config,
+            sessions: Arc::new(Mutex::new(SessionTracker::new(dir, prefix))),
+            inner: Arc::new(Mutex::new(None)),
+            prefix: prefix.to_string(),
+        }
+    }
+
     #[test]
     fn write_debug_logs_overwrite() {
         let dir = test_log_dir("overwrite");
-        let config = Arc::new(RwLock::new(LogConfig {
-            terminal_log_mode: LogMode::Overwrite,
-            debug_log_mode: LogMode::Overwrite,
-        }));
-        let manager = LogManager {
-            config: config.clone(),
-            log_dir: dir.clone(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "terminal-logs"))),
-            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "debug-logs"))),
-            terminal_file: Arc::new(Mutex::new(None)),
-        };
+        let manager = test_manager(
+            &dir,
+            test_config(LogMode::Overwrite, LogMode::Overwrite),
+            SHELL_TERMINAL_PREFIX,
+        );
 
         manager.write_debug_logs("hello").unwrap();
         let content = fs::read_to_string(dir.join("debug-logs.txt")).unwrap();
@@ -428,17 +598,11 @@ mod tests {
     #[test]
     fn write_debug_logs_append() {
         let dir = test_log_dir("append");
-        let config = Arc::new(RwLock::new(LogConfig {
-            terminal_log_mode: LogMode::Overwrite,
-            debug_log_mode: LogMode::Append,
-        }));
-        let manager = LogManager {
-            config,
-            log_dir: dir.clone(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "terminal-logs"))),
-            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "debug-logs"))),
-            terminal_file: Arc::new(Mutex::new(None)),
-        };
+        let manager = test_manager(
+            &dir,
+            test_config(LogMode::Overwrite, LogMode::Append),
+            SHELL_TERMINAL_PREFIX,
+        );
 
         manager.write_debug_logs("line1\n").unwrap();
         manager.write_debug_logs("line2\n").unwrap();
@@ -449,17 +613,11 @@ mod tests {
     #[test]
     fn write_debug_logs_multi() {
         let dir = test_log_dir("multi");
-        let config = Arc::new(RwLock::new(LogConfig {
-            terminal_log_mode: LogMode::Overwrite,
-            debug_log_mode: LogMode::Multi,
-        }));
-        let manager = LogManager {
-            config,
-            log_dir: dir.clone(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "terminal-logs"))),
-            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "debug-logs"))),
-            terminal_file: Arc::new(Mutex::new(None)),
-        };
+        let manager = test_manager(
+            &dir,
+            test_config(LogMode::Overwrite, LogMode::Multi),
+            SHELL_TERMINAL_PREFIX,
+        );
 
         manager.write_debug_logs("session-data").unwrap();
 
@@ -482,21 +640,70 @@ mod tests {
     #[test]
     fn set_mode_persists() {
         let dir = test_log_dir("setmode");
-        let config = Arc::new(RwLock::new(LogConfig {
-            terminal_log_mode: LogMode::Overwrite,
-            debug_log_mode: LogMode::Overwrite,
-        }));
-        let manager = LogManager {
-            config: config.clone(),
-            log_dir: dir.clone(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "terminal-logs"))),
-            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "debug-logs"))),
-            terminal_file: Arc::new(Mutex::new(None)),
-        };
+        let config = Arc::new(RwLock::new(test_config(LogMode::Overwrite, LogMode::Overwrite)));
+        let manager = test_manager_with(&dir, config.clone(), SHELL_TERMINAL_PREFIX);
 
         manager.set_mode(LogTarget::Debug, LogMode::Append).unwrap();
         let cfg = config.read().unwrap();
         assert_eq!(cfg.debug_log_mode, LogMode::Append);
+    }
+
+    #[test]
+    fn set_log_level_updates_config_and_getter() {
+        let dir = test_log_dir("setlevel");
+        let manager = test_manager(
+            &dir,
+            test_config(LogMode::Overwrite, LogMode::Overwrite),
+            SHELL_TERMINAL_PREFIX,
+        );
+        assert_eq!(manager.log_level().unwrap(), LogLevel::Info);
+
+        manager.set_log_level(LogLevel::Trace).unwrap();
+        assert_eq!(manager.log_level().unwrap(), LogLevel::Trace);
+    }
+
+    #[test]
+    fn set_log_level_rejects_nothing_but_persists_every_valid_level() {
+        let dir = test_log_dir("setlevel-all");
+        let manager = test_manager(
+            &dir,
+            test_config(LogMode::Overwrite, LogMode::Overwrite),
+            SHELL_TERMINAL_PREFIX,
+        );
+        for level in [LogLevel::Error, LogLevel::Warn, LogLevel::Debug, LogLevel::Trace] {
+            manager.set_log_level(level).unwrap();
+            assert_eq!(manager.log_level().unwrap(), level);
+        }
+    }
+
+    /// F1：不同进程前缀的终端日志写入不同文件，互不截断。
+    #[test]
+    fn distinct_terminal_prefixes_write_to_distinct_files() {
+        use tracing_subscriber::fmt::writer::MakeWriter;
+
+        let dir = test_log_dir("f1-split");
+        let shell = test_make_writer(
+            &dir,
+            Arc::new(RwLock::new(test_config(LogMode::Overwrite, LogMode::Overwrite))),
+            SHELL_TERMINAL_PREFIX,
+        );
+        let server = test_make_writer(
+            &dir,
+            Arc::new(RwLock::new(test_config(LogMode::Overwrite, LogMode::Overwrite))),
+            SERVER_TERMINAL_PREFIX,
+        );
+
+        {
+            let mut w = shell.make_writer();
+            w.write_all(b"shell-line\n").unwrap();
+        }
+        {
+            let mut w = server.make_writer();
+            w.write_all(b"server-line\n").unwrap();
+        }
+
+        assert_eq!(fs::read_to_string(dir.join("terminal-logs.txt")).unwrap(), "shell-line\n");
+        assert_eq!(fs::read_to_string(dir.join("adl-server-logs.txt")).unwrap(), "server-line\n");
     }
 
     /// 回归：终端日志模式切换不得自死锁（事项：设置面板下拉/复选框卡死→未响应→崩溃）。
@@ -540,17 +747,8 @@ mod tests {
         }
 
         let dir = test_log_dir("setmode-deadlock");
-        let config = Arc::new(RwLock::new(LogConfig {
-            terminal_log_mode: LogMode::Overwrite,
-            debug_log_mode: LogMode::Overwrite,
-        }));
-        let manager = Arc::new(LogManager {
-            config: config.clone(),
-            log_dir: dir.clone(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "terminal-logs"))),
-            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, "debug-logs"))),
-            terminal_file: Arc::new(Mutex::new(None)),
-        });
+        let config = Arc::new(RwLock::new(test_config(LogMode::Overwrite, LogMode::Overwrite)));
+        let manager = Arc::new(test_manager_with(&dir, config.clone(), SHELL_TERMINAL_PREFIX));
 
         let subscriber = tracing_subscriber::fmt()
             .with_writer(ConfigReadingMakeWriter { config: config.clone() })
@@ -573,23 +771,72 @@ mod tests {
         assert_eq!(config.read().unwrap().terminal_log_mode, LogMode::Append);
     }
 
+    /// 与上同构：`set_log_level` 在守卫外 reload，不得死锁。
+    #[test]
+    fn set_log_level_does_not_deadlock_event_writer() {
+        use std::sync::mpsc;
+        use std::time::Duration;
+        use tracing_subscriber::fmt::writer::MakeWriter;
+
+        #[derive(Clone)]
+        struct ConfigReadingMakeWriter {
+            config: Arc<RwLock<LogConfig>>,
+        }
+        struct ConfigReadingWriter {
+            config: Arc<RwLock<LogConfig>>,
+        }
+        impl<'a> MakeWriter<'a> for ConfigReadingMakeWriter {
+            type Writer = ConfigReadingWriter;
+            fn make_writer(&'a self) -> Self::Writer {
+                ConfigReadingWriter { config: self.config.clone() }
+            }
+        }
+        impl std::io::Write for ConfigReadingWriter {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                let _level = self
+                    .config
+                    .read()
+                    .map(|c| c.log_level)
+                    .map_err(|_| std::io::Error::other("config lock poisoned"))?;
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+
+        let dir = test_log_dir("setlevel-deadlock");
+        let config = Arc::new(RwLock::new(test_config(LogMode::Overwrite, LogMode::Overwrite)));
+        let manager = Arc::new(test_manager_with(&dir, config.clone(), SHELL_TERMINAL_PREFIX));
+
+        let subscriber = tracing_subscriber::fmt()
+            .with_writer(ConfigReadingMakeWriter { config: config.clone() })
+            .with_ansi(false)
+            .finish();
+
+        let (tx, rx) = mpsc::channel();
+        let m = manager.clone();
+        std::thread::spawn(move || {
+            let r =
+                tracing::subscriber::with_default(subscriber, || m.set_log_level(LogLevel::Trace));
+            let _ = tx.send(r);
+        });
+
+        let result = rx
+            .recv_timeout(Duration::from_secs(5))
+            .expect("set_log_level timed out: writer re-entered the config lock (deadlock)");
+        result.unwrap();
+        assert_eq!(config.read().unwrap().log_level, LogLevel::Trace);
+    }
+
     #[tokio::test]
     async fn prune_sessions_async_works() {
         let dir = tempdir().unwrap();
-        let config = Arc::new(RwLock::new(LogConfig {
-            terminal_log_mode: LogMode::Overwrite,
-            debug_log_mode: LogMode::Overwrite,
-        }));
-        let manager = LogManager {
-            config: config.clone(),
-            log_dir: dir.path().to_path_buf(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(
-                dir.path(),
-                "terminal-logs",
-            ))),
-            debug_sessions: Arc::new(Mutex::new(SessionTracker::new(dir.path(), "debug-logs"))),
-            terminal_file: Arc::new(Mutex::new(None)),
-        };
+        let manager = test_manager(
+            dir.path(),
+            test_config(LogMode::Overwrite, LogMode::Overwrite),
+            SHELL_TERMINAL_PREFIX,
+        );
 
         for i in 0..35 {
             let path = dir.path().join(format!("terminal-logs-2026-06-27_{:02}0000.txt", i));

@@ -315,7 +315,6 @@ export async function setupPreviewBridge(): Promise<void> {
     // the other SSE subscriptions — the PartStore needs the full wire, so this
     // is intentionally not the preview/mock fallback (which no-ops).
     subscribeSessionPartEvents: http.subscribeSessionPartEvents,
-    setLogMode: mockDigitalLifeBridge.setLogMode,
   };
 
   (window as { digitalLife: DigitalLifeBridge }).digitalLife = previewBridge;

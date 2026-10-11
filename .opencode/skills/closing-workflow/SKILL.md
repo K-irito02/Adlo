@@ -126,9 +126,12 @@ powershell -File "ai-digital-life\.cargo\clean-target.ps1"
 
 | 路径 | 说明 |
 |------|------|
-| `<workspace_root>/.adl-logs/` | 应用运行时日志 |
-| `<workspace_root>/debug-logs.txt` | Tauri 桌面调试日志 |
-| `<workspace_root>/debug-logs-browser.txt` | 浏览器预览调试日志 |
+| `<仓库根>/.adl-logs/` | Tauri 桌面壳与浏览器前端的运行时日志 |
+| `<仓库根>/.adl-logs/terminal-logs*.txt` | 桌面壳 tracing（`multi` 模式另有 `-<时间戳>` 会话文件） |
+| `<仓库根>/.adl-logs/debug-logs*.txt` | 桌面壳调试日志（`write_debug_logs_to_project`） |
+| `<仓库根>/.adl-logs/debug-logs-browser*.txt` | 浏览器预览调试日志（dev preview service） |
+| `<仓库根>/ai-digital-life/.adl-logs/adl-server-logs*.txt` | adl-server 后端引擎 tracing（与壳不同目录） |
+| `<数据根>/logs/`（release 构建） | 发布态统一日志落点（无 `.adl-logs`） |
 | `<workspace_root>/ai-digital-life/.run-logs/` | 本地开发运行日志 |
 | `<workspace_root>/ai-digital-life/diagnostic-logs/` | 诊断服务日志 |
 
@@ -352,8 +355,8 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 
 ## Step 5: 项目清理
 
-1. 移除 `.adl-logs/` 中超过 7 天的日志文件
-2. 移除 `debug-logs.txt`、`debug-logs-browser.txt`（若存在）
+1. 移除两处 `.adl-logs/`（`<仓库根>/.adl-logs/` 与 `<仓库根>/ai-digital-life/.adl-logs/`）中超过 7 天的日志文件
+2. 移除 `.adl-logs/` 内的 `debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt`（若存在）
 3. 移除 `test-artifacts/` 中超过 3 天的临时文件
 4. 移除 `.review-diffs/` 全部快照文件（Step 2 临时审查产物）
 

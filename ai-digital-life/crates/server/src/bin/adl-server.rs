@@ -7,9 +7,15 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() {
+    let argv: Vec<String> = std::env::args().skip(1).collect();
+
+    // CLI 日志覆盖（session-only）：ad-server 由 shell 派生时继承 shell 的环境变量，
+    // 独立启动（`dev:preview`）时则由本入口解析自身 flag 并写回环境，供 engine 读取。
+    adl_logging::LogOverrides::from_cli_args(&argv).export_to_env();
+
     let mut port: u16 = 0;
     let mut data_dir = std::env::temp_dir();
-    let mut args = std::env::args().skip(1);
+    let mut args = argv.iter();
     while let Some(arg) = args.next() {
         match arg.as_str() {
             "--port" => {

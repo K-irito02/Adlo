@@ -4,7 +4,6 @@
 // the linker_messages lint to avoid a spurious warning on every build.
 #![allow(linker_messages)]
 
-use adl_logging::LogMode;
 use std::sync::Arc;
 use tauri::Emitter;
 use tauri::Manager;
@@ -21,20 +20,14 @@ mod webview_event_bridge;
 
 const BROWSER_TITLE_SCRIPT: &str = include_str!("../scripts/browser-title-eval.js");
 
-fn parse_cli_log_mode() -> Option<LogMode> {
-    let args: Vec<String> = std::env::args().collect();
-    let mut i = 0;
-    while i < args.len() {
-        if args[i] == "--log-mode" && i + 1 < args.len() {
-            return args[i + 1].parse().ok();
-        }
-        i += 1;
-    }
-    None
-}
-
 fn main() {
     tracing::info!("[ADL-PERF] app start");
+
+    // CLI 日志覆盖（session-only，不写 config.json）：解析成环境变量，供本 shell 与
+    // 它派生的 adl-server 子进程共同读取（子进程继承环境变量）。
+    // 支持 --log-level / --terminal-log-mode / --debug-log-mode 与兼容简写 --log-mode。
+    adl_logging::LogOverrides::from_cli_args(&std::env::args().collect::<Vec<String>>())
+        .export_to_env();
 
     // 移除了 --disable-gpu-compositing 以启用 GPU 合成加速，
     // 解决软件渲染导致的启动绘制缓慢和主线程阻塞问题。
@@ -45,11 +38,6 @@ fn main() {
             "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS",
             "--disable-features=msWebOOUI,msPdfOOUI,msSmartScreenProtection",
         );
-    }
-
-    if let Some(mode) = parse_cli_log_mode() {
-        // SAFETY: Called once at startup before any other threads.
-        unsafe { std::env::set_var("ADL_CLI_LOG_MODE", mode.to_string()) };
     }
 
     tauri::Builder::default()
@@ -137,7 +125,6 @@ fn main() {
             commands::app::app_update_preferences,
             commands::app::write_debug_logs,
             commands::app::write_debug_logs_to_project,
-            commands::app::app_set_log_mode,
             commands::app::app_get_server_info,
             commands::workspace::workspace_pick_directory,
             commands::clipboard::clipboard_save_to_file,

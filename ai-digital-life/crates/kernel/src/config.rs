@@ -2,6 +2,7 @@ use adl_errors::AppError;
 use adl_logging::LogMode;
 use adl_types::CommandConfig;
 use adl_types::types::ThemeMode;
+use adl_types::types::config::{AppPreferencePatch, LogLevel};
 use adl_types::types::reference::ReferenceConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -11,7 +12,6 @@ use ts_rs::TS;
 /// 跟随系统语言，前端经 `i18n/resolveLanguage.ts` 解析 zh* → zh-CN，其余 → en-US）。
 /// 改动时两处必须同步（跨语言契约）。
 const DEFAULT_LANGUAGE: &str = "system";
-const DEFAULT_LOG_LEVEL: &str = "info";
 const DEFAULT_MAX_RECENT_WORKSPACES: usize = 10;
 
 fn default_max_concurrent_workspaces() -> usize {
@@ -29,7 +29,9 @@ fn default_browser_inactive_tab_suspend_ms() -> u64 {
 pub struct AppConfig {
     pub language: String,
     pub theme_mode: ThemeMode,
-    pub log_level: String,
+    /// 日志详细程度（派生为 LogConfig.log_level）。缺省 = `info`。
+    #[serde(default)]
+    pub log_level: LogLevel,
     /// 终端日志模式（派生为 LogConfig.terminal_log_mode）。
     #[serde(default)]
     pub terminal_log_mode: LogMode,
@@ -77,16 +79,82 @@ impl AppConfig {
         adl_logging::config::LogConfig {
             terminal_log_mode: self.terminal_log_mode,
             debug_log_mode: self.debug_log_mode,
+            log_level: self.log_level,
+        }
+    }
+
+    /// 应用会话级日志覆盖（CLI flag / 环境变量）：**只改内存，不落盘**。
+    /// `RUST_LOG` 的优先级由 `LogManager` 内部处理（作为全局基础 filter）。
+    pub fn apply_log_overrides(&mut self, overrides: &adl_logging::LogOverrides) {
+        let mut log_config = self.to_log_config();
+        overrides.apply(&mut log_config);
+        self.log_level = log_config.log_level;
+        self.terminal_log_mode = log_config.terminal_log_mode;
+        self.debug_log_mode = log_config.debug_log_mode;
+    }
+
+    /// 应用偏好补丁（shell 的 `app_update_preferences` 与 ad-server 的
+    /// `/app/preferences` 共用，杜绝两份字段映射漂移）。
+    ///
+    /// 仅覆盖补丁中显式提供的字段；`fonts` 逐子字段覆盖（不整体替换）。
+    /// 日志字段的**运行时生效**由调用方转交 `LogManager`（见
+    /// [`LogSettingsChange`]），本方法只改内存配置。
+    pub fn apply_patch(&mut self, patch: &AppPreferencePatch) {
+        if let Some(language) = patch.language.as_ref() {
+            self.language = language.clone();
+        }
+        if let Some(mode) = patch.theme_mode {
+            self.theme_mode = mode;
+        }
+        if let Some(level) = patch.log_level {
+            self.log_level = level;
+        }
+        if let Some(mode) = patch.terminal_log_mode {
+            self.terminal_log_mode = mode;
+        }
+        if let Some(mode) = patch.debug_log_mode {
+            self.debug_log_mode = mode;
+        }
+        if let Some(keybinds) = patch.keybinds.as_ref() {
+            self.keybinds = keybinds.clone();
+        }
+        if let Some(fonts) = patch.fonts.as_ref() {
+            if fonts.ui_font.is_some() {
+                self.fonts.ui_font = fonts.ui_font.clone();
+            }
+            if fonts.code_font.is_some() {
+                self.fonts.code_font = fonts.code_font.clone();
+            }
+            if fonts.terminal_font.is_some() {
+                self.fonts.terminal_font = fonts.terminal_font.clone();
+            }
+        }
+        if let Some(v) = patch.max_concurrent_workspaces {
+            self.max_concurrent_workspaces = v.clamp(1, 20);
+        }
+        if let Some(v) = patch.workspace_priority_ids.as_ref() {
+            self.workspace_priority_ids = v.clone();
+        }
+        if let Some(v) = patch.workspace_deferred_ids.as_ref() {
+            self.workspace_deferred_ids = v.clone();
+        }
+        if let Some(v) = patch.workspace_natural_order.as_ref() {
+            self.workspace_natural_order = v.clone();
+        }
+        if let Some(v) = patch.browser_inactive_tab_suspend_ms {
+            self.browser_inactive_tab_suspend_ms = v;
         }
     }
 }
+
+// 需要同步到 `LogManager` 的日志字段变更集见 `adl_logging::LogSettingsChange`。
 
 impl Default for AppConfig {
     fn default() -> Self {
         Self {
             language: DEFAULT_LANGUAGE.into(),
             theme_mode: ThemeMode::System,
-            log_level: DEFAULT_LOG_LEVEL.into(),
+            log_level: LogLevel::default(),
             terminal_log_mode: LogMode::default(),
             debug_log_mode: LogMode::default(),
             max_recent_workspaces: DEFAULT_MAX_RECENT_WORKSPACES,

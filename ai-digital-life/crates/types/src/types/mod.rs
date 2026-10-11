@@ -114,7 +114,7 @@ mod tests {
                 language: "zh-CN".into(),
                 theme_mode: ThemeMode::System,
                 resolved_theme: Theme::Dark,
-                log_level: "info".into(),
+                log_level: LogLevel::Info,
                 terminal_log_mode: LogMode::default(),
                 debug_log_mode: LogMode::default(),
                 max_recent_workspaces: 10,

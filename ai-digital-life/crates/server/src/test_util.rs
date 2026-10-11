@@ -39,12 +39,23 @@ pub fn test_server_state() -> ServerState {
         &defaults,
     ));
 
+    // LogManager::init 在同一进程内重复调用是容错的（try_init 失败仅告警），
+    // 此处取默认日志配置与独立前缀，不干扰其它测试的断言。
+    let log_manager = adl_logging::LogManager::init(
+        &AppConfig::default().to_log_config(),
+        &dir.join("logs"),
+        adl_logging::SERVER_TERMINAL_PREFIX,
+    )
+    .expect("init test log manager");
+
     ServerState {
         data_dir: dir.clone(),
         storage,
         db: db.clone(),
         config: Arc::new(RwLock::new(AppConfig::default())),
         event_bus: EventBus::new(256),
+        log_manager: Arc::new(log_manager),
+        log_overrides: adl_logging::LogOverrides::default(),
         current_workspace: Arc::new(RwLock::new(None)),
         editor_dirty_paths: Arc::new(StdMutex::new(HashSet::new())),
         pty_sessions: Arc::new(AsyncSessionManager::new()),

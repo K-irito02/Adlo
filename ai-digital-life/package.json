@@ -7,6 +7,7 @@
     "dev:browser": "node ./scripts/run-project-surface.mjs browser",
     "dev:both": "node ./scripts/run-project-surface.mjs both",
     "dev:tauri": "node ./scripts/run-project-surface.mjs tauri",
+    "dev:preview": "pnpm --dir frontend run dev:preview",
     "build": "cargo tauri build",
     "frontend:dev": "pnpm --dir frontend run dev",
     "frontend:build": "pnpm --dir frontend run build",

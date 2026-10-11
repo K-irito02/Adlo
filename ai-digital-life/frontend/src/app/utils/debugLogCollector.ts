@@ -5,6 +5,7 @@
 
 import { isTauriShell } from '../../tauri-bridge';
 import { loadLocale } from '@app/i18n/i18nLoader';
+import { resolveBrowserDebugLogMode } from '@utils/debugLogMode';
 
 // ============================================
 // 类型定义
@@ -228,6 +229,30 @@ async function writeLogsToProjectFile() {
 }
 
 /**
+ * 读当前生效的调试日志模式（浏览器模式）。
+ *
+ * 优先级：CLI/env 覆盖（启动脚本注入的 `VITE_ADL_DEBUG_LOG_MODE`）→ 用户设置
+ * （`appInfo.config.debugLogMode`）→ 默认 `overwrite`。此前读取的
+ * `localStorage['adl_log_mode_debug']` 全仓库无人写入，设置项因此恒不生效。
+ */
+async function resolveEffectiveDebugLogMode(): Promise<string> {
+  return resolveBrowserDebugLogMode(
+    import.meta.env.VITE_ADL_DEBUG_LOG_MODE,
+    await readAppInfoDebugLogMode(),
+  );
+}
+
+/** 延迟 import store：避免 utils → stores 的模块级循环依赖。 */
+async function readAppInfoDebugLogMode(): Promise<string | undefined> {
+  try {
+    const { useAppStore } = await import('@stores/slicedStore');
+    return useAppStore.getState().appInfo?.config.debugLogMode;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * 写入日志到项目目录（浏览器模式）
  */
 async function writeLogsToProjectFileBrowser(content: string) {
@@ -236,9 +261,7 @@ async function writeLogsToProjectFileBrowser(content: string) {
     return;
   }
 
-  const mode =
-    (typeof localStorage !== 'undefined' ? localStorage.getItem('adl_log_mode_debug') : null) ??
-    'overwrite';
+  const mode = await resolveEffectiveDebugLogMode();
 
   const controller = new AbortController();
   const fetchTimeout = setTimeout(() => controller.abort(), 3000);

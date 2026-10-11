@@ -119,19 +119,6 @@ export interface DigitalLifeBridge {
    * @see mock-bridge.ts → subscribeSessionPartEvents
    */
   subscribeSessionPartEvents: (listener: (event: SseWireEvent) => void) => () => void;
-  /**
-   * 设置日志模式
-   * @param target 'terminal' | 'debug'
-   * @param mode 'overwrite' | 'append' | 'multi'
-   * @command app_set_log_mode
-   * @see tauri-bridge.ts → setLogMode
-   * @see mock-bridge.ts → setLogMode
-   * @see preview-bridge/index.ts → setLogMode
-   */
-  setLogMode: (
-    target: 'terminal' | 'debug',
-    mode: 'overwrite' | 'append' | 'multi',
-  ) => Promise<void>;
   /** 窗口控制子模块 */
   window: WindowBridge;
   /** 应用信息与健康状态子模块 */

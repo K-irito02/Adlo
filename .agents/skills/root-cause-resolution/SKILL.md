@@ -205,7 +205,7 @@ description: 系统化根因调试技能。在修复前强制完成代码探索�
 - 如果无法复现：
   - 在疑似触发点添加日志埋点
   - 检查环境问题（操作系统、Node 版本、配置差异）
-  - 查看调试日志：`debug-logs.txt`（Tauri）或 `debug-logs-browser.txt`（浏览器）
+  - 查看调试日志：`<仓库根>/.adl-logs/debug-logs*.txt`（Tauri 桌面壳）或 `<仓库根>/.adl-logs/debug-logs-browser*.txt`（浏览器模式）
   - 使用控制台工具：`__clearDebugLogs()` 清除旧日志，`__exportDebugLogs()` 手动导出
   - **不要猜测** — 收集更多数据直到能复现或隔离触发条件
 
@@ -421,7 +421,7 @@ Phase 2A 中已添加日志则跳过此步。若未添加，按以下格式在�
 
 用户确认测试完成后，分析日志文件。注意 `.adl-logs/` 位于 `.gitignore` 中：
 
-**只分析最新日志：** 目录中可能存在多个日志文件，其中大部分是历史旧日志。必须按 `LastWriteTime` 找到**最新**的一个日志文件进行分析，忽略其余旧文件。`.adl-logs/`、`debug-logs.txt`、`debug-logs-browser.txt` 均为同名覆盖式文件时直接分析；存在多个按时间命名/生成的日志时，先 `LS` 列出并按最后写入时间取最新。
+**只分析最新日志：** 目录中可能存在多个日志文件，其中大部分是历史旧日志。必须按 `LastWriteTime` 找到**最新**的一个日志文件进行分析，忽略其余旧文件。固定名覆盖式文件（`terminal-logs.txt`、`debug-logs.txt`、`debug-logs-browser.txt`、`adl-server-logs.txt`）直接读取；`multi` 模式的 `*-<时间戳>.txt` 会话文件先 `LS` 列出并按最后写入时间取最新。注意有两处 `.adl-logs/`：壳与浏览器前端在 `<仓库根>/.adl-logs/`，adl-server 在 `<仓库根>/ai-digital-life/.adl-logs/`。
 
 | 工具 | 可用？ | 说明 |
 |------|--------|------|
@@ -429,7 +429,7 @@ Phase 2A 中已添加日志则跳过此步。若未添加，按以下格式在�
 | `RunCommand` | 是 | Shell 不遵守 `.gitignore` |
 | `Glob` / `Grep` / `SearchCodebase` | **否** | 遵守 `.gitignore`，会遗漏日志 |
 
-**也检查运行时调试日志：** `debug-logs.txt`（Tauri）和 `debug-logs-browser.txt`（浏览器）— 同样只取最新（与当前测试环境匹配的那一份）
+**也检查运行时调试日志：** `<仓库根>/.adl-logs/debug-logs*.txt`（Tauri 桌面壳）与 `<仓库根>/.adl-logs/debug-logs-browser*.txt`（浏览器模式）；后端引擎另有 `<仓库根>/ai-digital-life/.adl-logs/adl-server-logs*.txt` — 同样只取最新（与当前测试环境匹配的那一份）
 
 **检查要点：** 预期日志条目 → 确认修复生效；错误条目 → 边界情况；缺失条目 → 代码路径未触发；意外模式 → 与假设不符
 

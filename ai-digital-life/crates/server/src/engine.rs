@@ -115,14 +115,27 @@ pub async fn init_server_state(
     let log_dir =
         adl_kernel::storage::resolve_log_dir(storage.paths(), dev_project_root.as_deref());
     std::fs::create_dir_all(&log_dir).ok();
-    let log_config = adl_logging::LogConfig {
-        terminal_log_mode: adl_logging::LogMode::default(),
-        debug_log_mode: adl_logging::LogMode::default(),
-    };
+    // 日志设置真源 = config.json；CLI/env 会话级覆盖（不落盘）随后叠加。
+    eprintln!("[ad-server] loading config...");
+    let mut config = adl_config::load_from(&storage.paths().config_dir)
+        .map_err(|e| AppError::Internal(format!("Config load failed: {e}")))?;
+    let log_overrides = adl_logging::LogOverrides::from_env();
+    if log_overrides.any() {
+        config.apply_log_overrides(&log_overrides);
+    }
     eprintln!("[ad-server] initializing LogManager...");
-    let _log_manager = LogManager::init(&log_config, &log_dir)
-        .map_err(|e| AppError::Internal(format!("LogManager init failed: {e}")))?;
-    eprintln!("[ad-server] LogManager initialized");
+    let log_manager =
+        LogManager::init(&config.to_log_config(), &log_dir, adl_logging::SERVER_TERMINAL_PREFIX)
+            .map_err(|e| AppError::Internal(format!("LogManager init failed: {e}")))?;
+    eprintln!(
+        "[ADL-LOG] logger ready level={} prefix={} dir={}",
+        config.log_level,
+        adl_logging::SERVER_TERMINAL_PREFIX,
+        log_dir.display()
+    );
+    if log_overrides.any() {
+        eprintln!("[ADL-CLI] {} (session override, not persisted)", log_overrides.summary());
+    }
 
     let db_path = storage.paths().data_db.clone();
     eprintln!("[ad-server] opening database at {}...", db_path.display());
@@ -150,9 +163,6 @@ pub async fn init_server_state(
         );
     }
 
-    eprintln!("[ad-server] loading config...");
-    let config = adl_config::load_from(&storage.paths().config_dir)
-        .map_err(|e| AppError::Internal(format!("Config load failed: {e}")))?;
     eprintln!("[ad-server] config loaded");
 
     let event_bus = EventBus::new(256);
@@ -181,6 +191,8 @@ pub async fn init_server_state(
         db,
         config: Arc::new(RwLock::new(config)),
         event_bus,
+        log_manager: Arc::new(log_manager),
+        log_overrides,
         current_workspace,
         editor_dirty_paths,
         pty_sessions,

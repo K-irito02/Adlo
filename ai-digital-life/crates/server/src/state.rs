@@ -20,6 +20,10 @@ pub struct ServerState {
     pub db: Database,
     pub config: Arc<RwLock<AppConfig>>,
     pub event_bus: EventBus,
+    /// adl-server 进程自身的日志管理器（`/app/preferences` 运行时切换级别/模式用）。
+    pub log_manager: Arc<adl_logging::LogManager>,
+    /// 本次进程的会话级日志覆盖（CLI/env）；`/app/preferences` 不覆盖被其锁定的字段。
+    pub log_overrides: adl_logging::LogOverrides,
     pub current_workspace: Arc<RwLock<Option<WorkspaceMeta>>>,
     pub editor_dirty_paths: Arc<StdMutex<HashSet<String>>>,
     pub pty_sessions: Arc<AsyncSessionManager>,

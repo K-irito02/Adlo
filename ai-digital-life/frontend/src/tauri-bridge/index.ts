@@ -1,4 +1,3 @@
-import { invoke } from '@tauri-apps/api/core';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';
 import type {
   StorageApplyResult,
@@ -27,7 +26,7 @@ import { invokeIpc } from './tauri-shared';
  * `ad-server` (the desktop's base URL is discovered via `app_get_server_info`),
  * while the system/shell capabilities stay on Tauri invoke: `window`, `app`,
  * `browser`, `reserved`, `workspace.pickDirectory` / `revealInFileManager` /
- * `onFileChanged` and `setLogMode`. The stream subscriptions use the httpBridge
+ * `onFileChanged`. The stream subscriptions use the httpBridge
  * SSE `/event`
  * (the three v1-mapped `subscribe*` plus the raw `subscribeSessionPartEvents`
  * for the S2 PartStore) and the shared `/pty` WebSocket client — identical to
@@ -70,10 +69,6 @@ export function createTauriBridge(baseUrl?: string): DigitalLifeBridge {
     // the same socket. No Tauri `pty_*` invoke commands remain (Task 10).
     pty: ptyWs.pty,
     subscribePtyOutput: (listener) => ptyWs.subscribePtyOutput(listener),
-
-    setLogMode: async (target: 'terminal' | 'debug', mode: 'overwrite' | 'append' | 'multi') => {
-      await invoke('app_set_log_mode', { target, mode });
-    },
 
     // dsh 无专属视图：进程拉起/终止走 ad-server HTTP `/dsh/*`，承载页是普通浏览器
     // 中心标签，其 WebView 归浏览器池所有（见 tauri-dsh.ts）。

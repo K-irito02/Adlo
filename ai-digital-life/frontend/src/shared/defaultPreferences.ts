@@ -10,7 +10,7 @@ import { DEFAULT_COMMANDS } from '../app/commands/defaultCommands';
  */
 export const DEFAULT_LANGUAGE = 'system';
 export const DEFAULT_THEME_MODE = 'system' as const;
-export const DEFAULT_LOG_LEVEL = 'info';
+export const DEFAULT_LOG_LEVEL = 'info' as const;
 export const DEFAULT_TERMINAL_LOG_MODE = 'overwrite' as const;
 export const DEFAULT_DEBUG_LOG_MODE = 'overwrite' as const;
 export const DEFAULT_KEYBINDS: Record<string, string> = Object.fromEntries(

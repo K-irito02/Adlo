@@ -26,6 +26,31 @@ alwaysApply: true
 1. 开发阶段：先用 `pnpm run dev:browser` 在浏览器中快速迭代（方便 Agent 测试）
 2. 验证阶段：用 `pnpm run dev:both` 同时验证两种模式的一致性
 
+## 开发阶段日志 CLI 覆盖（session-only）
+
+在启动命令后用 `--` 透传日志 flag，可在本次运行中覆盖「日志级别 / 终端日志模式 / 调试日志模式」，**不写回 `config.json`**：
+
+```powershell
+pnpm dev:tauri   -- --log-level trace --terminal-log-mode multi --debug-log-mode append
+pnpm dev:browser -- --log-level debug
+pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个模式
+```
+
+| flag | 环境变量 | 取值 |
+|------|----------|------|
+| `--log-level` | `ADL_LOG_LEVEL` | `error` / `warn` / `info` / `debug` / `trace` |
+| `--terminal-log-mode` | `ADL_TERMINAL_LOG_MODE` | `overwrite` / `append` / `multi` |
+| `--debug-log-mode` | `ADL_DEBUG_LOG_MODE` | `overwrite` / `append` / `multi` |
+| `--log-mode` | `ADL_CLI_LOG_MODE` | 同时设终端与调试 |
+
+- 优先级：CLI flag > `RUST_LOG` > `ADL_*` env > `config.json` > 默认
+- **传递通道只有 env**：flag 由启动脚本转成 `ADL_*` 环境变量（`cargo tauri dev` 会把 `--` 之后的参数当成 cargo 参数而报错，不依赖 argv 透传）
+- 运行期同步：桌面 UI 改设置 → 壳生效并落盘 + 推送 adl-server `/app/log-settings`（仅运行时）；浏览器模式经 `/app/preferences`（含落盘）
+- `--log-level` 控制 stdout；**文件层下限恒为 `debug`**（可调高到 trace，不会低于 debug）
+- 启动自证行：`[ADL-LOG] logger ready level=… prefix=…` / `[ADL-CLI] … (session override, not persisted)`
+- 日志文件按进程分离：shell → `terminal-logs*.txt`，adl-server → `adl-server-logs*.txt`
+- 浏览器模式（`dev:browser`，无 ad-server）下 `--log-level` / `--terminal-log-mode` 无后端可作用；需完整后端日志请用 `dev:preview` / `dev:tauri` / `dev:both`
+
 ## 测试命令
 
 | 命令 | 用途 |

@@ -10,7 +10,6 @@ commands.allow = [
   "app_get_server_info",
   "write_debug_logs",
   "write_debug_logs_to_project",
-  "app_set_log_mode",
   "workspace_pick_directory",
   "workspace_reveal_in_file_manager",
   "workspace_open_in_file_manager",

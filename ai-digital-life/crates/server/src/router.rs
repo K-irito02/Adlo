@@ -34,6 +34,10 @@ async fn cors_layer(request: axum::http::Request<Body>, next: Next) -> Response<
 pub fn app_router(_state: ServerState) -> Router<ServerState> {
     Router::new()
         .route("/health", get(health::health))
+        // App / preferences domain (browser-mode mirror of the shell app commands)
+        .route("/app/info", get(handlers::app::get_info))
+        .route("/app/preferences", post(handlers::app::update_preferences))
+        .route("/app/log-settings", post(handlers::app::apply_log_settings))
         // Workspace domain
         .route("/workspace/open", post(handlers::workspace::open))
         .route("/workspace/current", get(handlers::workspace::get_current))
