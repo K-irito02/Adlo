@@ -560,9 +560,7 @@
   user-select: none;
   -webkit-app-region: no-drag;
   /* 拖拽排序（B·滑动让位）：其余标签用 transform 让位（token 过渡保证跟手平滑）。 */
-  transition:
-    var(--transition-transform),
-    var(--transition-colors);
+  transition: var(--transition-transform), var(--transition-colors);
 }
 
 .adl-center-tab:hover {

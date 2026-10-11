@@ -7,7 +7,11 @@ import type { GitHubBridge } from '../shared/ipc/github';
 import type { ReferenceBridge } from '../shared/ipc/reference';
 import type { RetrievalBridge } from '../shared/ipc/retrieval';
 import type { SnapshotBridge } from '../shared/ipc/snapshot';
-import type { ClipboardBridge, ClipboardSaveToFileRequest, ClipboardSaveToFileResult } from '../shared/ipc/clipboard';
+import type {
+  ClipboardBridge,
+  ClipboardSaveToFileRequest,
+  ClipboardSaveToFileResult,
+} from '../shared/ipc/clipboard';
 import type { SystemMonitorBridge } from '../shared/ipc/system_monitor';
 import type { StorageBridge } from '../shared/ipc/storage';
 import type { DigitalLifeBridge } from '../shared/ipc/digital-life';

@@ -326,7 +326,7 @@ describe('openMediaFileGeneric', () => {
       'clip.mp4',
       getNextFileRequestSeq(),
       {
-                workspaceId: 'ws-1',
+        workspaceId: 'ws-1',
         readMediaFile: () => Promise.resolve({ ok: true, data: media }) as never,
       },
     );
@@ -352,7 +352,7 @@ describe('openMediaFileGeneric', () => {
       'huge.mp4',
       getNextFileRequestSeq(),
       {
-                workspaceId: 'ws-1',
+        workspaceId: 'ws-1',
         readMediaFile: () =>
           Promise.resolve({
             ok: false,
@@ -446,7 +446,7 @@ describe('cross-type open race', () => {
       'fast.mp4',
       getNextFileRequestSeq(),
       {
-                workspaceId: 'ws-1',
+        workspaceId: 'ws-1',
         readMediaFile: () => mediaGate.promise as never,
       },
     );
@@ -485,7 +485,7 @@ describe('fileMediaLoading flag', () => {
       'clip.mp4',
       getNextFileRequestSeq(),
       {
-                workspaceId: 'ws-1',
+        workspaceId: 'ws-1',
         readMediaFile: () => gate.promise as never,
       },
     );
