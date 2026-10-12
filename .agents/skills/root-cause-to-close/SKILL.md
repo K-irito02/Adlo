@@ -222,20 +222,11 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 
 1. **按手册启动：** 先读 `docs/development/log-system-manual.md` §1，用 CLI 启动对应模式并调高日志：桌面 `pnpm dev:tauri -- --log-level trace --terminal-log-mode multi` / 浏览器 `pnpm dev:preview -- --log-level trace --terminal-log-mode multi` / 双端 `pnpm dev:both -- ...`（`--` 不可省；设过 `RUST_LOG` 先 unset，它是硬顶、CLI 顶不开）。启动后先断言 `[ADL-LOG]` / `[ADL-CLI]` 行确认覆盖生效（`session-only`，重启即失效，不要误判为 bug）。
 2. **触发埋点（二选一）：**
-   - A. 有自动化操作能力（选型见下表）→ 自己驱动触发，复现后按日志协议读最新文件断言。
+   - A. 有自动化操作能力（浏览器模式用 `playwright-cli`，见相关技能与 `notes/playwright-cli-experience.md`）→ 自己驱动触发，复现后按日志协议读最新文件断言。
    - B. 无能力 → 用户充当"手"：给出编号步骤（启动哪个模式 → 打开哪个地址/窗口 → 点击哪里 → 看什么），并声明预期日志文件与关键标记；等用户回复"操作完成"后再读日志分析。
 3. **能力现状（2026-10-13 已验证）：** `playwright-cli` 已安装并通过真机实测，浏览器模式走 A（详见 `notes/playwright-cli-experience.md`）；桌面壳点击无自动化能力，仍走 B。每次在进度文件记录"本次用 A / B 触发"。
 
-### 自动化 Skill 选型（2026-10 调研）
-
-| Skill | 专业（机制） | 通俗（一句话） | 优点 | 缺点与注意事项 | 推荐度 |
-|-------|-------------|---------------|------|---------------|--------|
-| Playwright CLI（`@playwright/cli`，`playwright-cli install --skills`） | 面向 coding agent 的 token-efficient CLI，用快照/引用定位元素，驱动 Chromium/Firefox/WebKit | 给 AI 配的"遥控器"，用文字版页面结构代替看截图，省 token | 官方维护；trace/video/codegen/录制齐全；与代码会话同处，成本低；**本仓库已安装验证**（见 `notes/playwright-cli-experience.md`） | 需 Node 20+ 并安装包与浏览器；只到浏览器，够不到 Tauri 壳 | ⭐ 浏览器模式首选（已落地） |
-| Playwright MCP Server（`npx @playwright/mcp`） | MCP 服务端，把浏览器能力暴露为结构化无障碍快照工具调用，agent 迭代推理 | "代驾模式"，AI 一步步看路况自己开 | 探索式/长会话自主性强；各 MCP 客户端通用 | 常驻上下文开销大于 CLI；需 MCP 客户端支持；同样只到浏览器 | 次选：长会话探索用 |
-| WebdriverIO `@wdio/tauri-service`（Tauri 官方推荐） | W3C WebDriver 协议驱动真实 Tauri 窗口，默认 embedded 免外部 driver，支持 IPC mock 与前后端日志捕获 | 桌面 App 的"机械手"，能点真实窗口 | 官方推荐；跨 Win/Linux/mac；可断言 IPC 参数 | 要搭工程（配 appBinaryPath、装插件、build 二进制），重，不宜随手触发 | 桌面模式唯一正道（重验证用） |
-| `run-project-surfaces`（本仓库现有） | 包装脚本探测端口、起 Vite/Tauri，输出可点击 URL | "点火器"，只负责把车发动 | 零成本；端口与双端一致 | 明确不代开页面，无操作能力 | 启动器，与上三者组合用 |
-
-组合示例：`run-project-surfaces` 起 preview → Playwright CLI 打开其打印的 URL 触发埋点 → 按日志协议读 `debug-logs-browser*.txt` 最新文件断言。**"UI 动了" ≠ "日志写了"，两者都要断言**（只看其一会得出错误结论）。引入上表其余外部 Skill 属于新增依赖/工具链变化，按 P4e 规则先与用户确认，并按 P5 同步文档。
+组合示例：`run-project-surfaces` 起 preview → Playwright CLI 打开其打印的 URL 触发埋点 → 按日志协议读 `debug-logs-browser*.txt` 最新文件断言。**"UI 动了" ≠ "日志写了"，两者都要断言**（只看其一会得出错误结论）。
 
 ---
 
@@ -268,7 +259,7 @@ UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更�
 
 ## P6：清理 + 总结
 
-**清理**（`read` 确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/` 超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；`test-artifacts/` 超 3 天临时文件；删除 `.review-diffs/` 全部快照。
+**清理**（`read` 确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/` 超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；`test-artifacts/` 超 3 天临时文件；删除 `.review-diffs/` 全部快照。用过 `playwright-cli` 则一并清理其测试产物：关闭残留浏览器会话（`close-all`），删除仓库内 `.playwright-cli/` 目录（快照/trace/录像）与测试截图；产物若在 Temp 目录则整批删除。
 
 **总结**（只读进度文件生成，禁凭记忆）：
 
