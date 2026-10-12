@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { HeatmapChart } from './heatmap-chart';
-import { computeHeatmapDimensions } from './heatmap-layout';
+import { computeHeatmapDimensions } from './heatmap-utils';
 import type { HeatmapColumn } from './heatmap-context';
 
 vi.mock('motion/react', () => ({
@@ -122,5 +122,90 @@ describe('computeHeatmapDimensions min/max clamp', () => {
     expect(dims.binWidth).toBeGreaterThanOrEqual(10);
     expect(dims.binWidth).toBeLessThanOrEqual(14);
     expect(dims.width).toBe(600);
+  });
+
+  it('caps cell size at maxBinSize on a wide container and keeps the SVG at container width', () => {
+    const dims = computeHeatmapDimensions({
+      width: 1200,
+      parentHeight: 200,
+      margin,
+      columnCount: 53,
+      rowCount: 7,
+      binSize: 0,
+      layout: 'fluid',
+      separator: null,
+      minBinSize: 10,
+      maxBinSize: 14,
+    });
+    expect(dims.binWidth).toBe(14);
+    expect(dims.width).toBe(1200);
+  });
+
+  it('clamps a fixed binSize into [minBinSize, maxBinSize]', () => {
+    const dims = computeHeatmapDimensions({
+      width: 600,
+      parentHeight: 200,
+      margin,
+      columnCount: 20,
+      rowCount: 7,
+      binSize: 30,
+      layout: 'fluid',
+      separator: null,
+      minBinSize: 14,
+      maxBinSize: 20,
+    });
+    expect(dims.binWidth).toBe(20);
+    // Fixed-size fluid charts always expand the SVG to fit the whole plot.
+    expect(dims.width).toBe(margin.left + 20 * 20 + margin.right);
+  });
+
+  it('normalizes an inverted min/max pair instead of pinning to the smaller value', () => {
+    const dims = computeHeatmapDimensions({
+      width: 600,
+      parentHeight: 200,
+      margin,
+      columnCount: 20,
+      rowCount: 7,
+      binSize: 0,
+      layout: 'fluid',
+      separator: null,
+      minBinSize: 20,
+      maxBinSize: 10,
+    });
+    // min>max is swapped → effective range [10, 20]; (600 - 56) / 20 = 27.2 → 20.
+    expect(dims.binWidth).toBe(20);
+  });
+
+  it('defaults (no clamp) reproduce the container width for a fitting fluid grid', () => {
+    const dims = computeHeatmapDimensions({
+      width: 600,
+      parentHeight: 200,
+      margin,
+      columnCount: 10,
+      rowCount: 7,
+      binSize: 0,
+      layout: 'fluid',
+      separator: null,
+    });
+    expect(dims.width).toBe(600);
+    expect(dims.binWidth).toBeCloseTo((600 - 56) / 10, 5);
+  });
+
+  it('does not divide by zero for degenerate column/row counts', () => {
+    const dims = computeHeatmapDimensions({
+      width: 600,
+      parentHeight: 200,
+      margin,
+      columnCount: 0,
+      rowCount: 0,
+      binSize: 0,
+      layout: 'fluid',
+      separator: null,
+      minBinSize: 10,
+      maxBinSize: 14,
+    });
+    expect(Number.isFinite(dims.binWidth)).toBe(true);
+    expect(Number.isFinite(dims.width)).toBe(true);
+    expect(dims.binWidth).toBe(14);
   });
 });

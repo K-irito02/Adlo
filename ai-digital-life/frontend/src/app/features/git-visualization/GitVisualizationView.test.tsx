@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
-import { render, cleanup, fireEvent } from '@testing-library/react';
+import { render, cleanup, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import { GitVisualizationView } from './GitVisualizationView';
+import { GIT_VIS_CHART_IDS } from './chartIds';
 
 beforeAll(() => {
   (window as any).digitalLife = {
@@ -17,8 +18,12 @@ afterEach(() => {
   mockGitSnapshots = { 'workspace-1': { isRepo: true, branches: [], conflicts: [] } };
   mockChangesTreeLoading = {};
   mockChangesTreeErrors = {};
+  mockGitVisData = {};
+  mockGitVisStale = {};
+  mockGitVisLoading = {};
   mockLoadGitSnapshot.mockClear();
   mockSetActiveWorkspaceTab.mockClear();
+  mockRefreshWorkspace.mockClear();
 });
 
 function createMotionValue(initial = 0) {
@@ -119,46 +124,54 @@ let mockGitSnapshots: Record<string, unknown> = {
 };
 let mockChangesTreeLoading: Record<string, boolean> = {};
 let mockChangesTreeErrors: Record<string, string | undefined> = {};
+let mockGitVisData: Record<string, Record<string, unknown> | null> = {};
+let mockGitVisStale: Record<string, boolean> = {};
+let mockGitVisLoading: Record<string, Record<string, boolean>> = {};
 const mockLoadGitSnapshot = vi.fn(() => Promise.resolve());
 const mockSetActiveWorkspaceTab = vi.fn();
+const mockRefreshWorkspace = vi.fn(() => Promise.resolve());
+const mockRefreshChart = vi.fn(() => Promise.resolve());
 
 vi.mock('./hooks/useYearBounds', () => ({
   useYearBounds: () => ({ yearBounds: { min: 2020, max: 2026 }, loading: false }),
 }));
 
-vi.mock('@stores/slicedStore', () => ({
-  useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      activeHeatmapTab: 'calendar',
-      setActiveHeatmapTab: vi.fn(),
-      activeWorkspaceTab: mockActiveWorkspaceTab,
-      setActiveWorkspaceTab: mockSetActiveWorkspaceTab,
-      chartColorPreset: 'bklit-default',
-      recentWorkspaces: mockRecentWorkspaces,
-      gitVisData: {},
-      gitVisLoading: {},
-      gitVisErrors: {},
-      gitVisTimeRange: {
-        'workspace-1': {
-          heatmap: { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
-          'contributor-modules': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
-          'code-line-evolution': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
-          'commit-timeline': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
-          'file-hotspots': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
-        },
+vi.mock('@stores/slicedStore', () => {
+  const buildState = () => ({
+    activeHeatmapTab: 'calendar',
+    setActiveHeatmapTab: vi.fn(),
+    activeWorkspaceTab: mockActiveWorkspaceTab,
+    setActiveWorkspaceTab: mockSetActiveWorkspaceTab,
+    chartColorPreset: 'bklit-default',
+    recentWorkspaces: mockRecentWorkspaces,
+    gitVisData: mockGitVisData,
+    gitVisLoading: mockGitVisLoading,
+    gitVisErrors: {},
+    gitVisStale: mockGitVisStale,
+    gitVisTimeRange: {
+      'workspace-1': {
+        heatmap: { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+        'contributor-modules': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+        'code-line-evolution': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+        'commit-timeline': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
+        'file-hotspots': { preset: 'year', since: '2026-01-01', until: '2026-12-31' },
       },
-      gitSnapshots: mockGitSnapshots,
-      workspaceChangesTreeLoading: mockChangesTreeLoading,
-      workspaceChangesTreeErrors: mockChangesTreeErrors,
-      loadGitSnapshot: mockLoadGitSnapshot,
-      setGitVisData: vi.fn(),
-      setGitVisLoading: vi.fn(),
-      setGitVisError: vi.fn(),
-      setGitVisTimeRange: vi.fn(),
-    }),
-}));
+    },
+    gitSnapshots: mockGitSnapshots,
+    workspaceChangesTreeLoading: mockChangesTreeLoading,
+    workspaceChangesTreeErrors: mockChangesTreeErrors,
+    loadGitSnapshot: mockLoadGitSnapshot,
+    setGitVisData: vi.fn(),
+    setGitVisLoading: vi.fn(),
+    setGitVisError: vi.fn(),
+    setGitVisTimeRange: vi.fn(),
+  });
+  const useAppStore = (selector: (s: Record<string, unknown>) => unknown) => selector(buildState());
+  useAppStore.getState = () => buildState();
+  return { useAppStore };
+});
 
-vi.mock('../hooks/useBklitTheme', () => ({
+vi.mock('./hooks/useBklitTheme', () => ({
   useBklitTheme: () => ({
     accent: '#3b82f6',
     muted: '#94a3b8',
@@ -251,10 +264,10 @@ vi.mock('@i18n/useTCopy', () => ({
   })),
 }));
 
-vi.mock('../hooks/useGitVisRefresh', () => ({
+vi.mock('./hooks/useGitVisRefresh', () => ({
   useGitVisRefresh: () => ({
-    refreshWorkspace: vi.fn(() => Promise.resolve()),
-    refreshChart: vi.fn(() => Promise.resolve()),
+    refreshWorkspace: mockRefreshWorkspace,
+    refreshChart: mockRefreshChart,
   }),
 }));
 
@@ -371,5 +384,62 @@ describe('GitVisualizationView', () => {
     expect(container.querySelector('.adl-git-vis__snapshot-error')).toBeTruthy();
     const retry = container.querySelector('.adl-git-vis__snapshot-error-retry button');
     expect(retry).toBeTruthy();
+  });
+
+  it('skips the automatic workspace refresh when every chart is already cached', { timeout: 30000 }, () => {
+    mockGitVisData = {
+      'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+    };
+    mockRefreshWorkspace.mockClear();
+    vi.useFakeTimers();
+    render(<GitVisualizationView />);
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    vi.useRealTimers();
+    expect(mockRefreshWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('auto-loads the workspace on first visit when no charts are cached', { timeout: 30000 }, () => {
+    mockGitVisData = {};
+    mockRefreshWorkspace.mockClear();
+    vi.useFakeTimers();
+    render(<GitVisualizationView />);
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    vi.useRealTimers();
+    expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-fetches even with a full cache when the workspace is marked stale', { timeout: 30000 }, () => {
+    mockGitVisData = {
+      'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+    };
+    mockGitVisStale = { 'workspace-1': true };
+    mockRefreshWorkspace.mockClear();
+    vi.useFakeTimers();
+    render(<GitVisualizationView />);
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    vi.useRealTimers();
+    expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-fetches a stale workspace even while a per-chart refresh is in flight', { timeout: 30000 }, () => {
+    mockGitVisData = {
+      'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+    };
+    mockGitVisStale = { 'workspace-1': true };
+    mockGitVisLoading = { 'workspace-1': { heatmap: true } };
+    mockRefreshWorkspace.mockClear();
+    vi.useFakeTimers();
+    render(<GitVisualizationView />);
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+    vi.useRealTimers();
+    expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
   });
 });

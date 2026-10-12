@@ -31,12 +31,20 @@ export interface GitVisSlice {
   gitVisErrors: Record<string, Record<string, string | undefined>>;
   gitVisTimeRange: Record<string, Record<string, TimeRangeState>>;
   gitVisLoadedPhases: Record<string, 'high' | 'medium' | 'low' | undefined>;
+  /**
+   * Workspaces whose cached chart data is known to be out of date (a commit
+   * HEAD or branch changed). While set, the workspace's auto-refresh guard
+   * re-fetches even though a full cache is present, so the stale data keeps
+   * rendering until fresh data lands instead of flashing empty.
+   */
+  gitVisStale: Record<string, boolean>;
 
   setGitVisData: (workspaceId: string, chartId: string, data: unknown) => void;
   setGitVisDataBatch: (updates: { workspaceId: string; chartId: string; data: unknown }[]) => void;
   setGitVisLoading: (workspaceId: string, chartId: string, loading: boolean) => void;
   setGitVisError: (workspaceId: string, chartId: string, error: string | undefined) => void;
   setGitVisTimeRange: (workspaceId: string, chartId: string, range: TimeRangeState) => void;
+  markGitVisStale: (workspaceId: string, stale: boolean) => void;
   clearWorkspaceGitVisData: (workspaceId: string) => void;
   setGitVisLoadedPhases: (phases: Record<string, 'high' | 'medium' | 'low' | undefined>) => void;
 }
@@ -58,6 +66,7 @@ export const createGitVisSlice = (
     gitVisErrors: {},
     gitVisTimeRange: persisted,
     gitVisLoadedPhases: {},
+    gitVisStale: {},
 
     setGitVisData: (workspaceId, chartId, data) =>
       set((s) => ({
@@ -97,18 +106,22 @@ export const createGitVisSlice = (
         persistTimeRange(next);
         return { gitVisTimeRange: next };
       }),
+    markGitVisStale: (workspaceId, stale) =>
+      set((s) => ({ gitVisStale: { ...s.gitVisStale, [workspaceId]: stale } })),
     clearWorkspaceGitVisData: (workspaceId) =>
       set((s) => {
         const { [workspaceId]: _, ...restData } = s.gitVisData;
         const { [workspaceId]: __, ...restLoading } = s.gitVisLoading;
         const { [workspaceId]: ___, ...restErrors } = s.gitVisErrors;
         const { [workspaceId]: ____, ...restTimeRange } = s.gitVisTimeRange;
+        const { [workspaceId]: _____, ...restStale } = s.gitVisStale;
         persistTimeRange(restTimeRange);
         return {
           gitVisData: restData,
           gitVisLoading: restLoading,
           gitVisErrors: restErrors,
           gitVisTimeRange: restTimeRange,
+          gitVisStale: restStale,
         };
       }),
     setGitVisLoadedPhases: (phases) => set({ gitVisLoadedPhases: phases }),

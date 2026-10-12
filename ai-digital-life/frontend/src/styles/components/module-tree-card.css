@@ -1,7 +1,7 @@
 .adl-module-tree-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
   z-index: calc(var(--z-popover) + 10);
   min-width: 280px;

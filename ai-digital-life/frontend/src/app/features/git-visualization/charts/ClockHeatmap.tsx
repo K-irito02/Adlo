@@ -109,8 +109,6 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
         margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
         gap={2}
         binSize={30}
-        minBinSize={14}
-        maxBinSize={30}
         animate={true}
         fillScale={customFillScale}
       >
@@ -131,8 +129,6 @@ export const ClockHeatmap = React.memo(function ClockHeatmap({
       margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
       gap={2}
       binSize={30}
-      minBinSize={14}
-      maxBinSize={30}
       animate={true}
       fillScale={customFillScale}
     >

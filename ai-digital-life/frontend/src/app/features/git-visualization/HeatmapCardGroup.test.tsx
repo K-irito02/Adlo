@@ -121,17 +121,20 @@ const mockRecentWorkspaces = [
   },
 ];
 
-vi.mock('@stores/slicedStore', () => ({
-  useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      activeHeatmapTab: mockActiveHeatmapTab,
-      setActiveHeatmapTab: mockSetActiveHeatmapTab,
-      activeWorkspaceTab: 'workspace-1',
-      recentWorkspaces: mockRecentWorkspaces,
-      showToast: vi.fn(),
-      setGitVisTimeRange: vi.fn(),
-    }),
-}));
+vi.mock('@stores/slicedStore', () => {
+  const buildState = () => ({
+    activeHeatmapTab: mockActiveHeatmapTab,
+    setActiveHeatmapTab: mockSetActiveHeatmapTab,
+    activeWorkspaceTab: 'workspace-1',
+    recentWorkspaces: mockRecentWorkspaces,
+    showToast: vi.fn(),
+    setGitVisTimeRange: vi.fn(),
+    gitVisData: {},
+  });
+  const useAppStore = (selector: (s: Record<string, unknown>) => unknown) => selector(buildState());
+  useAppStore.getState = () => buildState();
+  return { useAppStore };
+});
 
 beforeAll(() => {
   (window as any).digitalLife = {

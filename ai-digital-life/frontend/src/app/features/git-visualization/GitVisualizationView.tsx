@@ -19,6 +19,7 @@ import { WorkspaceTabBar } from './WorkspaceTabBar';
 import { useGitVisRefresh } from './hooks/useGitVisRefresh';
 import { useChartData } from './hooks/useChartData';
 import { useYearBounds } from './hooks/useYearBounds';
+import { hasGitVisWorkspaceData, isGitVisWorkspaceLoading } from './gitVisCache';
 import { RefreshButton } from './RefreshButton';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { HintCardTrigger } from '../../components/HintCard';
@@ -136,6 +137,8 @@ const TimeRangeAwareCard = React.memo(function TimeRangeAwareCard({
 });
 
 const SCROLLBAR_DEBOUNCE_MS = 400;
+/** Defers the active-workspace auto-refresh so a tab/breadcrumb burst settles first. */
+const WORKSPACE_REFRESH_DEBOUNCE_MS = 100;
 
 export const GitVisualizationView = React.memo(function GitVisualizationView() {
   const { t } = useTCopy();
@@ -157,6 +160,9 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   // an unrelated workspace's stage/unstage/branch change must not re-render the
   // entire visualization. Zustand re-runs only when this slot's reference changes.
   const activeWsGitSnapshot = useAppStore((s) => s.gitSnapshots[s.activeWorkspaceTab]);
+  // True once the workspace's cached charts are known stale (commit / branch
+  // change); the auto-refresh guard then re-fetches even with a full cache.
+  const gitVisStaleForActiveWs = useAppStore((s) => !!s.gitVisStale?.[s.activeWorkspaceTab]);
   // Snapshot load bookkeeping lives on the changes-tree keys (loadGitSnapshot /
   // refreshGitSnapshot use workspaceChangesTreeLoading/Errors); a missing slot
   // with no loader in flight means we should trigger a lazy load ourselves.
@@ -272,34 +278,35 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
   }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load active workspace data — uses ref to avoid stale time range closure.
-  // Session cache guard: skip the automatic workspace refresh when this
-  // workspace already has chart data cached in the store (remount after
-  // toggling the visualization, or breadcrumb switch back to a visited
-  // workspace). Manual RefreshButtons still force a fetch. A workspace with
-  // no cached charts (first visit) always loads.
+  // Session cache guard: skip the automatic workspace refresh once this
+  // workspace's chart slot is fully cached AND not marked stale (a commit or
+  // branch change marks it stale so the view re-fetches). While stale the fetch
+  // is forced even if a per-chart refresh is in flight — otherwise a narrow race
+  // would leave the other charts stale. The in-flight guard only dedupes the
+  // non-stale auto-refresh when the effect remounts within the debounce window.
+  // Manual RefreshButtons still force a fetch; a workspace with missing charts
+  // (first visit or a partially failed load) still auto-loads.
   const refreshWorkspaceRef = useRef(refreshWorkspace);
   refreshWorkspaceRef.current = refreshWorkspace;
   useEffect(() => {
     if (!rootPath) {
       return;
     }
-    let hasCached = false;
-    try {
-      const getState = (
-        useAppStore as unknown as { getState?: () => { gitVisData?: Record<string, unknown> } }
-      ).getState;
-      const cached =
-        typeof getState === 'function' ? getState().gitVisData?.[activeWorkspaceTab] : undefined;
-      hasCached = !!cached && typeof cached === 'object' && Object.keys(cached).length > 0;
-    } catch {
-      hasCached = false;
-    }
-    if (hasCached) {
-      return;
-    }
-    const timer = setTimeout(() => void refreshWorkspaceRef.current(), 100);
+    const timer = setTimeout(() => {
+      const state = useAppStore.getState();
+      const stale = !!state.gitVisStale?.[activeWorkspaceTab];
+      if (!stale) {
+        if (hasGitVisWorkspaceData(state.gitVisData, activeWorkspaceTab)) {
+          return;
+        }
+        if (isGitVisWorkspaceLoading(state.gitVisLoading, activeWorkspaceTab)) {
+          return;
+        }
+      }
+      void refreshWorkspaceRef.current();
+    }, WORKSPACE_REFRESH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [rootPath, activeWorkspaceTab]);
+  }, [rootPath, activeWorkspaceTab, gitVisStaleForActiveWs]);
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),

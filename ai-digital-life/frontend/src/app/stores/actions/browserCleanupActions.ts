@@ -14,8 +14,8 @@ export function createBrowserCleanupActions(
   return {
     /**
      * [cleanupRemovedWorkspaceTree - 清理已移除工作区的状态缓存]
-     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.recentWorkspaces, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserActiveTabId, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab（另有 applyWorkspaceRemoved 读取全部按工作区隔离的登记条目）
-     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserActiveTabId, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange, uiSlice.activeWorkspaceTab（另有 applyWorkspaceRemoved 写回全部按工作区隔离的登记条目）
+     * @reads workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, workspaceSlice.recentWorkspaces, browserSlice.browserTabs, browserSlice.browserTabFolders, browserSlice.browserActiveTabId, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange/gitVisStale, uiSlice.activeWorkspaceTab（另有 applyWorkspaceRemoved 读取全部按工作区隔离的登记条目）
+     * @writes workspaceSlice.workspaceTrees, workspaceSlice.workspaceTreeLoading, workspaceSlice.workspaceTreeErrors, browserSlice.browserTabs, browserSlice.browserTabsById, browserSlice.browserTabFolders, browserSlice.browserActiveTabId, gitVisSlice.gitVisData/gitVisLoading/gitVisErrors/gitVisTimeRange/gitVisStale, uiSlice.activeWorkspaceTab（另有 applyWorkspaceRemoved 写回全部按工作区隔离的登记条目）
      * @see — 无桥接调用 (本地内存清理)
      */
     cleanupRemovedWorkspaceTree: (workspaceId: WorkspaceID) => {

@@ -13,6 +13,7 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
   const setLoading = useAppStore((s) => s.setGitVisLoading);
   const setError = useAppStore((s) => s.setGitVisError);
   const setData = useAppStore((s) => s.setGitVisData);
+  const setGitVisStale = useAppStore((s) => s.markGitVisStale);
 
   // Per-chart request sequence: a refresh only commits its result if it is the
   // latest request for that chart. Rapid time-range changes therefore always
@@ -94,7 +95,16 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         }
       },
     );
-  }, [workspaceId, rootPath, setLoading, setError, setData, seqKeyFor]);
+    // A full workspace refresh settles every chart, so this is the point where
+    // the workspace's staleness mark (set by a commit/branch change) is
+    // resolved. Clear it only when no chart failed: a failed refresh stays
+    // stale and re-runs on the next trigger instead of silently keeping old
+    // data. Per-chart refreshes deliberately never clear it.
+    const errors = useAppStore.getState().gitVisErrors[workspaceId];
+    if (!errors || !Object.values(errors).some(Boolean)) {
+      setGitVisStale(workspaceId, false);
+    }
+  }, [workspaceId, rootPath, setLoading, setError, setData, setGitVisStale, seqKeyFor]);
 
   const handleRefreshChart = useCallback(
     async (chartId: string) => {

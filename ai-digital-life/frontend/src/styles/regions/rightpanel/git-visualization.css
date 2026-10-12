@@ -142,7 +142,6 @@
 
 .adl-branch-graph__row:hover {
   background: var(--bg-hover);
-  border-radius: 4px;
 }
 
 .adl-branch-graph__row:hover .adl-branch-graph__info-btn {
@@ -1040,7 +1039,7 @@
   z-index: 100;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
   min-width: 140px;
 }
@@ -1081,7 +1080,7 @@
   z-index: 101;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
   width: 220px;
   padding: var(--space-3) var(--space-2) var(--space-2);
@@ -1823,7 +1822,7 @@
 
 .adl-branch-graph__skeleton-table-header {
   display: grid;
-  grid-template-columns: 80px 1fr 120px 100px;
+  grid-template-columns: 80px minmax(0, 1fr) 120px 100px;
   gap: 8px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--border-subtle);
@@ -1831,7 +1830,7 @@
 
 .adl-branch-graph__skeleton-row {
   display: grid;
-  grid-template-columns: 80px 1fr 120px 100px;
+  grid-template-columns: 80px minmax(0, 1fr) 120px 100px;
   gap: 8px;
   align-items: center;
   padding: 0 8px;

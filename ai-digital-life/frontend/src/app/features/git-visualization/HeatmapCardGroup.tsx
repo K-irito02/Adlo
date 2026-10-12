@@ -20,6 +20,7 @@ import { RefreshButton } from './RefreshButton';
 import { UnderlineTabs } from '../../components/UnderlineTabs';
 import { TimeRangeSelector } from './TimeRangeSelector';
 import { CHART_IDS } from './chartIds';
+import { hasGitVisChart } from './gitVisCache';
 import { resolveTimeRangeForFetch } from './timeRangeUtils';
 import { GitNotRepoHint } from './GitNotRepoHint';
 
@@ -132,32 +133,29 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     return onRefreshRef.current?.() ?? Promise.resolve();
   }, []);
 
-  // Tab-switch cache guard: only the first visit to a tab fetches. Once the
-  // tab's chart data is cached for the active workspace, later switches reuse
-  // it without a reload flash. Explicit time-range changes and the card's
-  // RefreshButton still force a fetch via refreshCurrentTab/handleTimeRangeChange.
-  const refreshForTabIfNeeded = useCallback(
+  // Tab-switch cache guard: skip the re-fetch only when the target tab's chart
+  // is already cached FOR THE SAME TIME RANGE. calendar/clock/activity share the
+  // HEATMAP chart but keep independent per-tab ranges, so a bare "is the chart
+  // cached?" check would reuse data fetched for a different range. Explicit
+  // range changes and the card's RefreshButton still force a fetch.
+  const isTabRefreshUnnecessary = useCallback(
     (tab: HeatmapTab) => {
       const chartId = tab === 'module' ? CHART_IDS.CONTRIBUTOR_MODULES : CHART_IDS.HEATMAP;
-      try {
-        const getState = (
-          useAppStore as unknown as {
-            getState?: () => { gitVisData?: Record<string, Record<string, unknown>> };
-          }
-        ).getState;
-        const cached =
-          typeof getState === 'function'
-            ? getState().gitVisData?.[activeWorkspaceTab]?.[chartId]
-            : undefined;
-        if (cached !== undefined) {
-          return Promise.resolve();
-        }
-      } catch {
-        // Store mock without getState (unit tests) → fall through to refresh.
+      const state = useAppStore.getState();
+      if (!hasGitVisChart(state.gitVisData, activeWorkspaceTab, chartId)) {
+        return false;
       }
-      return refreshForTab(tab);
+      const cachedRange = state.gitVisTimeRange?.[activeWorkspaceTab]?.[chartId];
+      if (!cachedRange) {
+        return false;
+      }
+      const targetRange = tabRangesRef.current[tab];
+      return (
+        JSON.stringify(resolveTimeRangeForFetch(cachedRange)) ===
+        JSON.stringify(resolveTimeRangeForFetch(targetRange))
+      );
     },
-    [activeWorkspaceTab, refreshForTab],
+    [activeWorkspaceTab],
   );
 
   const refreshCurrentTab = useCallback(
@@ -182,20 +180,39 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
 
   const tabChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Clear a pending tab-switch refresh timer on unmount so a deferred tab
+  // refresh never fires against an unmounted component.
+  useEffect(
+    () => () => {
+      if (tabChangeTimerRef.current) {
+        clearTimeout(tabChangeTimerRef.current);
+      }
+    },
+    [],
+  );
+
   const handleTabChange = useCallback(
     (tab: HeatmapTab) => {
       if (tabChangeTimerRef.current) {
         clearTimeout(tabChangeTimerRef.current);
       }
-      syncRangeForTab(tab, tabRangesRef.current[tab]);
+      // Decide before syncing: syncing overwrites the store range, which is the
+      // reference the guard compares the cached data against.
+      const skip = isTabRefreshUnnecessary(tab);
+      if (!skip) {
+        syncRangeForTab(tab, tabRangesRef.current[tab]);
+      }
       setActiveHeatmapTab(tab);
+      if (skip) {
+        return;
+      }
       tabChangeTimerRef.current = setTimeout(() => {
         // Refresh errors are surfaced through setError in the refresh actions;
         // swallow the rejection here to avoid an unhandled promise rejection.
-        void refreshForTabIfNeeded(tab).catch(() => {});
+        void refreshForTab(tab).catch(() => {});
       }, 0);
     },
-    [setActiveHeatmapTab, syncRangeForTab, refreshForTabIfNeeded],
+    [setActiveHeatmapTab, syncRangeForTab, refreshForTab, isTabRefreshUnnecessary],
   );
 
   const persistTabRanges = useCallback(() => {

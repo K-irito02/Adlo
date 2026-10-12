@@ -76,8 +76,6 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
         margin={{ top: 42, right: 16, bottom: 0, left: 80 }}
         gap={2}
         binSize={22}
-        minBinSize={12}
-        maxBinSize={22}
         animate={true}
         fillScale={customFillScale}
       >
@@ -99,8 +97,6 @@ export const ContributorActivityHeatmap = React.memo(function ContributorActivit
       margin={{ top: 42, right: 16, bottom: 0, left: 80 }}
       gap={2}
       binSize={22}
-      minBinSize={12}
-      maxBinSize={22}
       animate={true}
       fillScale={customFillScale}
     >

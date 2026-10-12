@@ -58,8 +58,6 @@ import {
   rotateHeatmapColumnBins,
 } from './heatmap-utils';
 
-export type { HeatmapLayout } from './heatmap-layout';
-
 export interface HeatmapChartProps {
   /** Column data — one entry per week (or category) with row bins inside. */
   data: HeatmapColumn[];
@@ -84,7 +82,8 @@ export interface HeatmapChartProps {
   /**
    * Minimum cell edge in pixels. Clamps both fluid-computed and fixed binSize
    * cells so a narrow container scrolls horizontally instead of shrinking
-   * cells into an unreadable dense mass. Default: 0 (no clamp).
+   * cells into an unreadable dense mass. Should be greater than `gap` so a
+   * clamped cell still renders a positive rect. Default: 0 (no clamp).
    */
   minBinSize?: number;
   /**
@@ -330,7 +329,6 @@ function HeatmapChartInner({
       columnLabels: resolvedColumnLabels,
       rowLabels,
       brushYScale,
-      isReady: chartWidth >= 10 && height >= 10,
       colorScale,
       fillScale,
       levelStyles,

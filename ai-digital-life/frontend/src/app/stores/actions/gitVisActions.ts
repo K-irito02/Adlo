@@ -1,16 +1,14 @@
 import type { DigitalLifeBridge } from '@shared/ipc/digital-life';
 import type { RecentWorkspaceEntry } from '@ai-digital-life/kernel';
-import { CHART_IDS } from '../../features/git-visualization/chartIds';
+import { CHART_IDS, GIT_VIS_CHART_IDS } from '../../features/git-visualization/chartIds';
 import { computeLoadPhases } from './workspaceLoadOrder';
 
-export const HEATMAP_TABS = [
-  CHART_IDS.HEATMAP,
-  CHART_IDS.BRANCH_GRAPH,
-  CHART_IDS.FILE_HOTSPOTS,
-  CHART_IDS.CODE_LINE_EVO,
-  CHART_IDS.COMMIT_TIMELINE,
-  CHART_IDS.CONTRIBUTOR_MODULES,
-] as const;
+/**
+ * Charts a workspace refresh fetches together. Single-sourced from
+ * `GIT_VIS_CHART_IDS` so the refresh set and the client-side "is this
+ * workspace fully cached?" guard can never drift apart.
+ */
+const WORKSPACE_CHART_IDS = GIT_VIS_CHART_IDS;
 
 /**
  * Minimum time a chart's loading state must remain visible before the fetched
@@ -79,14 +77,14 @@ export async function refreshWorkspace(
 ): Promise<void> {
   const startedAt = performance.now();
   // Clear errors and flag loading before fetching
-  for (const chartId of HEATMAP_TABS) {
+  for (const chartId of WORKSPACE_CHART_IDS) {
     setError(chartId, undefined);
     setLoading(chartId, true);
   }
 
   // Fetch all charts in parallel
   const results = await Promise.allSettled(
-    HEATMAP_TABS.map(async (chartId) => {
+    WORKSPACE_CHART_IDS.map(async (chartId) => {
       const tr = timeRanges[chartId] || {};
       try {
         const data = await fetchChartData(

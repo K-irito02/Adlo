@@ -2,6 +2,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import React from 'react';
 import { HeatmapCardGroup } from './HeatmapCardGroup';
+import { defaultTimeRange } from '@stores/slices/gitVisSlice';
+import { CHART_IDS } from './chartIds';
 
 vi.mock('motion/react', () => ({
   motion: new Proxy(
@@ -94,22 +96,30 @@ vi.mock('@i18n/useTCopy', () => ({
 const mockSetActiveHeatmapTab = vi.fn();
 const mockSetGitVisTimeRange = vi.fn();
 let mockActiveHeatmapTab = 'module';
+let mockGitVisData: Record<string, Record<string, unknown>> = {};
+let mockGitVisTimeRange: Record<string, Record<string, unknown>> = {};
 
-vi.mock('@stores/slicedStore', () => ({
-  useAppStore: (selector: (s: Record<string, unknown>) => unknown) =>
-    selector({
-      activeHeatmapTab: mockActiveHeatmapTab,
-      setActiveHeatmapTab: mockSetActiveHeatmapTab,
-      activeWorkspaceTab: 'workspace-1',
-      recentWorkspaces: [],
-      showToast: vi.fn(),
-      setGitVisTimeRange: mockSetGitVisTimeRange,
-    }),
-}));
+vi.mock('@stores/slicedStore', () => {
+  const buildState = () => ({
+    activeHeatmapTab: mockActiveHeatmapTab,
+    setActiveHeatmapTab: mockSetActiveHeatmapTab,
+    activeWorkspaceTab: 'workspace-1',
+    recentWorkspaces: [],
+    showToast: vi.fn(),
+    setGitVisTimeRange: mockSetGitVisTimeRange,
+    gitVisData: mockGitVisData,
+    gitVisTimeRange: mockGitVisTimeRange,
+  });
+  const useAppStore = (selector: (s: Record<string, unknown>) => unknown) => selector(buildState());
+  useAppStore.getState = () => buildState();
+  return { useAppStore };
+});
 
 afterEach(() => {
   cleanup();
   mockActiveHeatmapTab = 'module';
+  mockGitVisData = {};
+  mockGitVisTimeRange = {};
   window.localStorage.clear();
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -216,5 +226,89 @@ describe('HeatmapCardGroup module tab refresh', () => {
     expect(contributorModulesCalls.length).toBeGreaterThan(0);
     expect(onRefreshContributorModules).toHaveBeenCalledTimes(1);
     expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('skips the refresh when switching to a tab whose chart is already cached for the same range', () => {
+    vi.useFakeTimers();
+    mockActiveHeatmapTab = 'calendar';
+    mockGitVisData = { 'workspace-1': { 'contributor-modules': {} } };
+    mockGitVisTimeRange = { 'workspace-1': { 'contributor-modules': defaultTimeRange() } };
+    const onRefresh = vi.fn(() => Promise.resolve());
+    const onRefreshContributorModules = vi.fn(() => Promise.resolve());
+    const { container } = render(
+      <HeatmapCardGroup
+        onRefresh={onRefresh}
+        onRefreshContributorModules={onRefreshContributorModules}
+      />,
+    );
+    const moduleTab = Array.from(container.querySelectorAll('.adl-git-vis__heatmap-tab')).find(
+      (el) => el.textContent === 'Module',
+    ) as HTMLButtonElement;
+    fireEvent.click(moduleTab);
+    vi.advanceTimersByTime(0);
+    vi.useRealTimers();
+
+    expect(onRefreshContributorModules).not.toHaveBeenCalled();
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('refreshes when the cached chart was fetched for a different time range', () => {
+    vi.useFakeTimers();
+    mockActiveHeatmapTab = 'calendar';
+    mockGitVisData = { 'workspace-1': { 'contributor-modules': {} } };
+    // Cached under a "past week" range while the target tab's range is the
+    // default year → must re-fetch instead of showing mismatched-range data.
+    mockGitVisTimeRange = {
+      'workspace-1': {
+        'contributor-modules': { preset: 'week', since: '2026-01-01', until: '2026-01-07' },
+      },
+    };
+    const onRefresh = vi.fn(() => Promise.resolve());
+    const onRefreshContributorModules = vi.fn(() => Promise.resolve());
+    const { container } = render(
+      <HeatmapCardGroup
+        onRefresh={onRefresh}
+        onRefreshContributorModules={onRefreshContributorModules}
+      />,
+    );
+    const moduleTab = Array.from(container.querySelectorAll('.adl-git-vis__heatmap-tab')).find(
+      (el) => el.textContent === 'Module',
+    ) as HTMLButtonElement;
+    fireEvent.click(moduleTab);
+    vi.advanceTimersByTime(0);
+    vi.useRealTimers();
+
+    expect(onRefreshContributorModules).toHaveBeenCalledTimes(1);
+    expect(onRefresh).not.toHaveBeenCalled();
+  });
+
+  it('re-fetches the shared HEATMAP chart when switching between calendar and clock with different ranges', () => {
+    vi.useFakeTimers();
+    mockActiveHeatmapTab = 'calendar';
+    // Calendar cached the HEATMAP chart under a "past week" range.
+    mockGitVisData = { 'workspace-1': { [CHART_IDS.HEATMAP]: {} } };
+    mockGitVisTimeRange = {
+      'workspace-1': {
+        [CHART_IDS.HEATMAP]: { preset: 'week', since: '2026-01-01', until: '2026-01-07' },
+      },
+    };
+    const onRefresh = vi.fn(() => Promise.resolve());
+    const onRefreshContributorModules = vi.fn(() => Promise.resolve());
+    const { container } = render(
+      <HeatmapCardGroup
+        onRefresh={onRefresh}
+        onRefreshContributorModules={onRefreshContributorModules}
+      />,
+    );
+    const clockTab = Array.from(container.querySelectorAll('.adl-git-vis__heatmap-tab')).find(
+      (el) => el.textContent === 'Hours',
+    ) as HTMLButtonElement;
+    fireEvent.click(clockTab);
+    vi.advanceTimersByTime(0);
+    vi.useRealTimers();
+
+    // Clock's own range is the default year → must not reuse the week-range data.
+    expect(onRefresh).toHaveBeenCalledTimes(1);
+    expect(onRefreshContributorModules).not.toHaveBeenCalled();
   });
 });

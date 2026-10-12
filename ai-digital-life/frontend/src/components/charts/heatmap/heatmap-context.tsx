@@ -80,7 +80,6 @@ export interface HeatmapContextValue {
   rowLabels?: string[];
   columnLabels?: string[];
   brushYScale: HeatmapLinearScale;
-  isReady: boolean;
   colorScale: (count: number | null | undefined) => string;
   fillScale: (count: number | null | undefined) => string;
   levelStyles: HeatmapLevelStyles;

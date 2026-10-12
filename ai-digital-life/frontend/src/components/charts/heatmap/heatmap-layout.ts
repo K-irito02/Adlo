@@ -660,6 +660,16 @@ export function computeHeatmapDimensions({
   minBinSize?: number;
   maxBinSize?: number;
 }) {
+  // Defensive normalization for a public helper: a caller may pass degenerate
+  // dimensions or swapped bounds. Cells must never divide by zero, and an
+  // inverted min/max pair would otherwise silently resolve to min forever.
+  const cols = Math.max(columnCount, 1);
+  const rows = Math.max(rowCount, 1);
+  const lo = minBinSize > 0 ? minBinSize : 0;
+  const hi = maxBinSize > 0 ? maxBinSize : 0;
+  const minClamp = lo > 0 && hi > 0 ? Math.min(lo, hi) : lo;
+  const maxClamp = lo > 0 && hi > 0 ? Math.max(lo, hi) : hi;
+
   const innerWidth = Math.max(width - margin.left - margin.right, 0);
   const availableHeight = Math.max(parentHeight - margin.top - margin.bottom, 0);
   const separatorCount = separator ? getHeatmapSeparatorCount(separator) : 0;
@@ -667,11 +677,11 @@ export function computeHeatmapDimensions({
 
   const clampCell = (size: number): number => {
     let clamped = size;
-    if (minBinSize > 0) {
-      clamped = Math.max(clamped, minBinSize);
+    if (minClamp > 0) {
+      clamped = Math.max(clamped, minClamp);
     }
-    if (maxBinSize > 0) {
-      clamped = Math.max(Math.min(clamped, maxBinSize), minBinSize > 0 ? minBinSize : 0);
+    if (maxClamp > 0) {
+      clamped = Math.min(clamped, maxClamp);
     }
     return clamped;
   };
@@ -684,19 +694,19 @@ export function computeHeatmapDimensions({
     binWidth = clamped;
     binHeight = clamped;
   } else if (layout === 'fluid') {
-    const cellSize = clampCell(Math.max((innerWidth - totalSpacing) / columnCount, 0));
+    const cellSize = clampCell(Math.max((innerWidth - totalSpacing) / cols, 0));
     binWidth = cellSize;
     binHeight = cellSize;
   } else {
     const cellSize = clampCell(
-      Math.min(Math.max((innerWidth - totalSpacing) / columnCount, 0), availableHeight / rowCount),
+      Math.min(Math.max((innerWidth - totalSpacing) / cols, 0), availableHeight / rows),
     );
     binWidth = cellSize;
     binHeight = cellSize;
   }
 
-  const plotInnerWidth = getHeatmapPlotInnerWidth(columnCount, binWidth, separator);
-  const innerHeight = rowCount * binHeight;
+  const plotInnerWidth = getHeatmapPlotInnerWidth(cols, binWidth, separator);
+  const innerHeight = rows * binHeight;
   const height =
     layout === 'fluid'
       ? margin.top + innerHeight + margin.bottom

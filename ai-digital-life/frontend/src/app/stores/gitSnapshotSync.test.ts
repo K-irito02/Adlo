@@ -158,4 +158,47 @@ describe('buildGitSnapshotSyncPatch', () => {
     expect(patch).not.toHaveProperty('gitSnapshot');
     expect(patch).not.toHaveProperty('appInfo');
   });
+
+  it('marks the workspace git-visualization cache stale when the commit HEAD changes, keeping the data', () => {
+    const s = {
+      appInfo: undefined,
+      gitSnapshots: { 'ws-1': snapshot({ head: 'aaa' }) },
+      gitVisStale: {},
+      gitVisData: { 'ws-1': { heatmap: {} } },
+    } as never;
+    const patch = buildGitSnapshotSyncPatch(s, {
+      workspaceId: 'ws-1',
+      snapshot: snapshot({ head: 'bbb' }),
+    }) as { gitVisStale: Record<string, boolean> };
+    expect(patch.gitVisStale['ws-1']).toBe(true);
+    // Data is preserved so the charts can keep rendering until fresh data lands.
+    expect(patch).not.toHaveProperty('gitVisData');
+    expect(patch).not.toHaveProperty('gitVisLoading');
+  });
+
+  it('marks the workspace git-visualization cache stale on a branch switch', () => {
+    const s = {
+      appInfo: undefined,
+      gitSnapshots: { 'ws-1': snapshot({ branch: 'main', head: 'aaa' }) },
+      gitVisStale: {},
+    } as never;
+    const patch = buildGitSnapshotSyncPatch(s, {
+      workspaceId: 'ws-1',
+      snapshot: snapshot({ branch: 'feature', head: 'ccc' }),
+    }) as { gitVisStale: Record<string, boolean> };
+    expect(patch.gitVisStale['ws-1']).toBe(true);
+  });
+
+  it('leaves staleness untouched when only staged/unstaged change (same branch and HEAD)', () => {
+    const s = {
+      appInfo: undefined,
+      gitSnapshots: { 'ws-1': snapshot({ branch: 'main', head: 'aaa', staged: [] }) },
+      gitVisStale: { 'ws-1': false },
+    } as never;
+    const patch = buildGitSnapshotSyncPatch(s, {
+      workspaceId: 'ws-1',
+      snapshot: snapshot({ branch: 'main', head: 'aaa', staged: ['a.ts'] }),
+    });
+    expect(patch).not.toHaveProperty('gitVisStale');
+  });
 });

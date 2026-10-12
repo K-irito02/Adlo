@@ -483,25 +483,13 @@ const CommitTableRows = React.memo(
             borderBottom: `1px solid ${theme.grid}`,
           }}
         >
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {t.gitVisHash}
-          </span>
-          <span
-            style={{
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              minWidth: 0,
-            }}
-          >
-            {t.gitVisMessage}
-          </span>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {t.gitVisAuthor}
-          </span>
-          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {t.gitVisDate}
-          </span>
+          {/* Single-line + ellipsis is enforced by `.adl-branch-graph__header > span`
+              (git-visualization.css); `title` keeps the full label readable on hover
+              when a narrow panel truncates it. */}
+          <span title={t.gitVisHash}>{t.gitVisHash}</span>
+          <span title={t.gitVisMessage}>{t.gitVisMessage}</span>
+          <span title={t.gitVisAuthor}>{t.gitVisAuthor}</span>
+          <span title={t.gitVisDate}>{t.gitVisDate}</span>
         </div>
         {visibleRows.map((row) => {
           const owner = ownership.get(row.node.id);
@@ -530,7 +518,6 @@ const CommitTableRows = React.memo(
                 fontSize: 12,
                 lineHeight: ROW_HEIGHT - 8 + 'px',
                 cursor: 'default',
-                borderRadius: 4,
                 opacity: isFiltered ? 0.25 : 1,
                 minHeight: ROW_HEIGHT,
               }}
@@ -620,10 +607,17 @@ const CommitTableRows = React.memo(
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 4,
+                  minWidth: 0,
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 <AuthorAvatar name={row.node.author} email={row.node.authorEmail} />
-                {row.node.author}
+                <span
+                  style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                >
+                  {row.node.author}
+                </span>
                 <TooltipSimple
                   content={
                     <CommitTooltipCard
@@ -648,7 +642,7 @@ const CommitTableRows = React.memo(
                   </button>
                 </TooltipSimple>
               </span>
-              <span style={{ color: theme.muted }}>
+              <span style={{ color: theme.muted, whiteSpace: 'nowrap' }}>
                 {formatDate(row.node.date, locale, 'table')}
               </span>
             </div>
