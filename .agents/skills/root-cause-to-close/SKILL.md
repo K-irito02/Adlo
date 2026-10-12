@@ -245,8 +245,8 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 
 | 类别 | 路径 | 检查内容 |
 |------|------|---------|
-| 规则 | `.agents/rules/`（真源）→ `.trae/rules/` | 编码、架构、工具链变化 |
-| 技能 | `.opencode/skills/`（真源）→ `.agents/skills/`、`.trae/skills/` | 指令/触发条件变化；改后 `Get-FileHash` 三路比对 |
+| 规则 | `.agents/rules/`（真源）→ `.opencode/rules/`、`.trae/rules/` | 编码、架构、工具链变化 |
+| 技能 | `.agents/skills/`（真源）→ `.opencode/skills/`、`.trae/skills/` | 指令/触发条件变化；改后 `Get-FileHash` 三路比对 |
 | 治理 | `AGENTS.md`、`CONTEXT.md` | 术语、功能、架构层级 |
 | 架构/流程 | `docs/architecture/`、`docs/development/` | 决策与流程变更 |
 | 沉淀 | `docs/knowledge-base/` | 经验教训 |

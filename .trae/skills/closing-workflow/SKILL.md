@@ -110,7 +110,7 @@ powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf
 powershell -File "ai-digital-life\.cargo\clean-target.ps1"
 ```
 
-> `.agents/skills/`、`.trae/skills/` 的 `closing-workflow/SKILL.md` 为同步副本，修改真源 `.opencode/skills/` 后需同步（见 Step 4c）。
+> `.opencode/skills/`、`.trae/skills/` 的 `closing-workflow/SKILL.md` 为同步副本，修改真源 `.agents/skills/` 后需同步（见 Step 4c）。
 
 ---
 
@@ -330,8 +330,8 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 
 | 类别 | 路径 | 检查内容 |
 |------|------|----------|
-| 规则文件 | `.agents/rules/`、`.trae/rules/` | 编码规范、架构模式、工具链变化 |
-| 技能文件 | `.opencode/skills/`、`.agents/skills/`、`.trae/skills/` | 技能指令或触发条件变化 |
+| 规则文件 | `.agents/rules/`、`.opencode/rules/`、`.trae/rules/` | 编码规范、架构模式、工具链变化 |
+| 技能文件 | `.agents/skills/`、`.opencode/skills/`、`.trae/skills/` | 技能指令或触发条件变化 |
 | 治理文档 | `AGENTS.md`、`CONTEXT.md` | 新增术语、功能、架构层级 |
 | 架构文档 | `docs/architecture/`、`docs/development/` | 架构决策或开发流程变更 |
 | 知识沉淀 | `docs/knowledge-base/` | 值得记录的经验教训 |
@@ -339,10 +339,10 @@ cargo fmt --all; cargo clippy --workspace --all-targets --fix -- -D warnings; ca
 
 ### 4c. 同步规则
 
-- 规则更新：以 `.agents/rules/` 为真源，同步到 `.trae/rules/`
-- 技能更新：以 `.opencode/skills/` 为真源，同步到 `.agents/skills/`、`.trae/skills/`
+- 规则更新：以 `.agents/rules/` 为真源，同步到 `.opencode/rules/`、`.trae/rules/`
+- 技能更新：以 `.agents/skills/` 为真源，同步到 `.opencode/skills/`、`.trae/skills/`
 - 同步后检查 `.gitignore` 确保必要文件被 Git 跟踪
-- 三副本一致性校验（Closing L11）：改任一 `commands.md`/`dev-rules.md`（或任一技能副本）后，用 `Get-FileHash` 比对三路哈希，不一致即未同步 complete：`.agents/rules/` ↔ `.opencode/rules/` ↔ `.trae/rules/`，`.opencode/skills/` ↔ `.agents/skills/` ↔ `.trae/skills/`
+- 三副本一致性校验（Closing L11）：改任一 `commands.md`/`dev-rules.md`（或任一技能副本）后，用 `Get-FileHash` 比对三路哈希，不一致即未同步 complete：`.agents/rules/` ↔ `.opencode/rules/` ↔ `.trae/rules/`，`.agents/skills/` ↔ `.opencode/skills/` ↔ `.trae/skills/`
 
 ### 4d. 设计规范提取
 
