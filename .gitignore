@@ -60,3 +60,5 @@ references/bklit-ui/
 
 # CodeGraph local knowledge graph (SQLite, regenerable via `codegraph init`)
 .codegraph/
+# Playwright CLI output (may contain credentials)
+.playwright-cli/
