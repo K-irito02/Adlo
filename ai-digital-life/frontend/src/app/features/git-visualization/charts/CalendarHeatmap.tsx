@@ -116,6 +116,8 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
         rowLabels={dayLabels}
         margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
         gap={2}
+        minBinSize={10}
+        maxBinSize={14}
         animate={true}
         fillScale={defaultFillScale}
       >
@@ -135,6 +137,8 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
       rowLabels={dayLabels}
       margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
       gap={2}
+      minBinSize={10}
+      maxBinSize={14}
       animate={true}
       fillScale={customFillScale}
     >

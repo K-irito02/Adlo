@@ -48,18 +48,17 @@ import {
 import { HeatmapPatternDefs } from './heatmap-pattern-defs';
 import { resolveHeatmapSeparatorConfigWithData } from './heatmap-resolve-separator';
 import {
+  computeHeatmapDimensions,
   filterHeatmapColumns,
   getHeatmapColumnXOffset,
-  getHeatmapPlotInnerWidth,
-  getHeatmapSeparatorCount,
   getHeatmapTimeExtent,
-  type HeatmapSeparatorLayout,
+  type HeatmapLayout,
   type HeatmapSeparatorParsedConfig,
   type HeatmapWeekStartDay,
   rotateHeatmapColumnBins,
 } from './heatmap-utils';
 
-export type HeatmapLayout = 'fluid' | 'fill';
+export type { HeatmapLayout } from './heatmap-layout';
 
 export interface HeatmapChartProps {
   /** Column data — one entry per week (or category) with row bins inside. */
@@ -82,6 +81,17 @@ export interface HeatmapChartProps {
   binSize?: number;
   /** Gap between cells in pixels. Default: 2 */
   gap?: number;
+  /**
+   * Minimum cell edge in pixels. Clamps both fluid-computed and fixed binSize
+   * cells so a narrow container scrolls horizontally instead of shrinking
+   * cells into an unreadable dense mass. Default: 0 (no clamp).
+   */
+  minBinSize?: number;
+  /**
+   * Maximum cell edge in pixels. Prevents oversized cells on wide containers.
+   * Default: 0 (no clamp).
+   */
+  maxBinSize?: number;
   /** Override the default color scale. */
   colorScale?: (count: number | null | undefined) => string;
   /** Override the default fill scale (cell fill color). */
@@ -136,68 +146,6 @@ export interface HeatmapChartProps {
 
 const DEFAULT_MARGIN: Margin = { top: 28, right: 16, bottom: 0, left: 40 };
 
-function computeHeatmapDimensions({
-  width,
-  parentHeight,
-  margin,
-  columnCount,
-  rowCount,
-  binSize,
-  layout,
-  separator,
-}: {
-  width: number;
-  parentHeight: number;
-  margin: Margin;
-  columnCount: number;
-  rowCount: number;
-  binSize: number;
-  layout: HeatmapLayout;
-  separator: Pick<HeatmapSeparatorLayout, 'spacing' | 'atColumns'> | null;
-}) {
-  const innerWidth = Math.max(width - margin.left - margin.right, 0);
-  const availableHeight = Math.max(parentHeight - margin.top - margin.bottom, 0);
-  const separatorCount = separator ? getHeatmapSeparatorCount(separator) : 0;
-  const totalSpacing = separatorCount * (separator?.spacing ?? 0);
-
-  let binWidth: number;
-  let binHeight: number;
-
-  if (binSize > 0) {
-    binWidth = binSize;
-    binHeight = binSize;
-  } else if (layout === 'fluid') {
-    const cellSize = Math.max((innerWidth - totalSpacing) / columnCount, 0);
-    binWidth = cellSize;
-    binHeight = cellSize;
-  } else {
-    const cellSize = Math.min(
-      Math.max((innerWidth - totalSpacing) / columnCount, 0),
-      availableHeight / rowCount,
-    );
-    binWidth = cellSize;
-    binHeight = cellSize;
-  }
-
-  const plotInnerWidth = getHeatmapPlotInnerWidth(columnCount, binWidth, separator);
-  const innerHeight = rowCount * binHeight;
-  const height =
-    layout === 'fluid'
-      ? margin.top + innerHeight + margin.bottom
-      : Math.max(parentHeight, margin.top + innerHeight + margin.bottom);
-  const chartWidth =
-    binSize > 0 && layout === 'fluid' ? margin.left + plotInnerWidth + margin.right : width;
-
-  return {
-    binWidth,
-    binHeight,
-    innerWidth: plotInnerWidth,
-    innerHeight,
-    height,
-    width: chartWidth,
-  };
-}
-
 interface HeatmapChartInnerProps {
   width: number;
   height: number;
@@ -207,6 +155,8 @@ interface HeatmapChartInnerProps {
   margin: Margin;
   binSize: number;
   gap: number;
+  minBinSize: number;
+  maxBinSize: number;
   layout: HeatmapLayout;
   colorScale: (count: number | null | undefined) => string;
   fillScale: (count: number | null | undefined) => string;
@@ -242,6 +192,8 @@ function HeatmapChartInner({
   margin,
   binSize,
   gap,
+  minBinSize,
+  maxBinSize,
   layout,
   colorScale,
   fillScale,
@@ -306,8 +258,21 @@ function HeatmapChartInner({
         binSize,
         layout,
         separator: separatorLayout,
+        minBinSize,
+        maxBinSize,
       }),
-    [binSize, columnCount, layout, margin, parentHeight, rowCount, separatorLayout, width],
+    [
+      binSize,
+      columnCount,
+      layout,
+      margin,
+      maxBinSize,
+      minBinSize,
+      parentHeight,
+      rowCount,
+      separatorLayout,
+      width,
+    ],
   );
 
   const xScale = useMemo(
@@ -608,6 +573,8 @@ export function HeatmapChart({
   margin: marginProp,
   binSize = 0,
   gap = 2,
+  minBinSize = 0,
+  maxBinSize = 0,
   colorScale: colorScaleProp,
   fillScale: fillScaleProp,
   levelColors,
@@ -669,6 +636,8 @@ export function HeatmapChart({
             animateCells={animateCells}
             animationDuration={animationDuration}
             binSize={binSize}
+            minBinSize={minBinSize}
+            maxBinSize={maxBinSize}
             chartPhase={chartPhase}
             chartStatus={status}
             colorScale={colorScale}

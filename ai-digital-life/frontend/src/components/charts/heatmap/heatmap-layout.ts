@@ -1,4 +1,5 @@
 import type { HeatmapBin, HeatmapColumn } from './heatmap-context';
+import type { Margin } from '../chart-context';
 
 export const HEATMAP_MONTHS_ONE_YEAR = 12;
 
@@ -632,4 +633,88 @@ export function resolveHeatmapDisplayRange(columns: HeatmapColumn[]): HeatmapDis
   }
 
   return { start: null, end: null };
+}
+
+export type HeatmapLayout = 'fluid' | 'fill';
+
+export function computeHeatmapDimensions({
+  width,
+  parentHeight,
+  margin,
+  columnCount,
+  rowCount,
+  binSize,
+  layout,
+  separator,
+  minBinSize = 0,
+  maxBinSize = 0,
+}: {
+  width: number;
+  parentHeight: number;
+  margin: Margin;
+  columnCount: number;
+  rowCount: number;
+  binSize: number;
+  layout: HeatmapLayout;
+  separator: Pick<HeatmapSeparatorLayout, 'spacing' | 'atColumns'> | null;
+  minBinSize?: number;
+  maxBinSize?: number;
+}) {
+  const innerWidth = Math.max(width - margin.left - margin.right, 0);
+  const availableHeight = Math.max(parentHeight - margin.top - margin.bottom, 0);
+  const separatorCount = separator ? getHeatmapSeparatorCount(separator) : 0;
+  const totalSpacing = separatorCount * (separator?.spacing ?? 0);
+
+  const clampCell = (size: number): number => {
+    let clamped = size;
+    if (minBinSize > 0) {
+      clamped = Math.max(clamped, minBinSize);
+    }
+    if (maxBinSize > 0) {
+      clamped = Math.max(Math.min(clamped, maxBinSize), minBinSize > 0 ? minBinSize : 0);
+    }
+    return clamped;
+  };
+
+  let binWidth: number;
+  let binHeight: number;
+
+  if (binSize > 0) {
+    const clamped = clampCell(binSize);
+    binWidth = clamped;
+    binHeight = clamped;
+  } else if (layout === 'fluid') {
+    const cellSize = clampCell(Math.max((innerWidth - totalSpacing) / columnCount, 0));
+    binWidth = cellSize;
+    binHeight = cellSize;
+  } else {
+    const cellSize = clampCell(
+      Math.min(Math.max((innerWidth - totalSpacing) / columnCount, 0), availableHeight / rowCount),
+    );
+    binWidth = cellSize;
+    binHeight = cellSize;
+  }
+
+  const plotInnerWidth = getHeatmapPlotInnerWidth(columnCount, binWidth, separator);
+  const innerHeight = rowCount * binHeight;
+  const height =
+    layout === 'fluid'
+      ? margin.top + innerHeight + margin.bottom
+      : Math.max(parentHeight, margin.top + innerHeight + margin.bottom);
+  // A min clamp can push the plot wider than the container (e.g. the calendar
+  // with 53 week columns in a narrow panel). The SVG must then expand past the
+  // container width so horizontal scroll reveals the cells — otherwise the SVG
+  // viewport clips them and the scrolled region renders blank.
+  const naturalWidth = margin.left + plotInnerWidth + margin.right;
+  const chartWidth =
+    binSize > 0 && layout === 'fluid' ? naturalWidth : Math.max(width, naturalWidth);
+
+  return {
+    binWidth,
+    binHeight,
+    innerWidth: plotInnerWidth,
+    innerHeight,
+    height,
+    width: chartWidth,
+  };
 }

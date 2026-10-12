@@ -474,7 +474,7 @@ const CommitTableRows = React.memo(
           className="adl-branch-graph__header"
           style={{
             display: 'grid',
-            gridTemplateColumns: '80px 1fr 120px 100px',
+            gridTemplateColumns: '80px minmax(0, 1fr) 120px 100px',
             gap: 8,
             padding: '4px 8px',
             fontSize: 11,
@@ -483,10 +483,25 @@ const CommitTableRows = React.memo(
             borderBottom: `1px solid ${theme.grid}`,
           }}
         >
-          <span>{t.gitVisHash}</span>
-          <span>{t.gitVisMessage}</span>
-          <span>{t.gitVisAuthor}</span>
-          <span>{t.gitVisDate}</span>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {t.gitVisHash}
+          </span>
+          <span
+            style={{
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              minWidth: 0,
+            }}
+          >
+            {t.gitVisMessage}
+          </span>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {t.gitVisAuthor}
+          </span>
+          <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {t.gitVisDate}
+          </span>
         </div>
         {visibleRows.map((row) => {
           const owner = ownership.get(row.node.id);
@@ -509,7 +524,7 @@ const CommitTableRows = React.memo(
               onMouseLeave={() => onRowHover(null)}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '80px 1fr 120px 100px',
+                gridTemplateColumns: '80px minmax(0, 1fr) 120px 100px',
                 gap: 8,
                 padding: '4px 8px',
                 fontSize: 12,

@@ -289,6 +289,15 @@
   user-select: none;
 }
 
+/* 表头单元格强制单行横排：窄窗下中文不得逐字竖排换行，否则行高变化
+   会导致左侧泳道链表节点与表格行错位。 */
+.adl-branch-graph__header > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
 /* ── Branch Graph Panels Layout ── */
 .adl-branch-graph__body {
   flex: 1;
@@ -1031,7 +1040,7 @@
   z-index: 100;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: 2px;
   box-shadow: var(--shadow-lg);
   min-width: 140px;
 }
@@ -1067,12 +1076,12 @@
 /* ── Custom date sub-card (hover) ── */
 .adl-git-vis__timerange-subcard {
   position: absolute;
-  left: calc(100% + 1px);
+  left: calc(100% + 2px);
   top: 0;
   z-index: 101;
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 0;
+  border-radius: 2px;
   box-shadow: var(--shadow-lg);
   width: 220px;
   padding: var(--space-3) var(--space-2) var(--space-2);

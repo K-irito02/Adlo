@@ -271,16 +271,35 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
     );
   }, [recentWorkspaces, appInfo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load active workspace data — uses ref to avoid stale time range closure
+  // Load active workspace data — uses ref to avoid stale time range closure.
+  // Session cache guard: skip the automatic workspace refresh when this
+  // workspace already has chart data cached in the store (remount after
+  // toggling the visualization, or breadcrumb switch back to a visited
+  // workspace). Manual RefreshButtons still force a fetch. A workspace with
+  // no cached charts (first visit) always loads.
   const refreshWorkspaceRef = useRef(refreshWorkspace);
   refreshWorkspaceRef.current = refreshWorkspace;
   useEffect(() => {
     if (!rootPath) {
       return;
     }
+    let hasCached = false;
+    try {
+      const getState = (
+        useAppStore as unknown as { getState?: () => { gitVisData?: Record<string, unknown> } }
+      ).getState;
+      const cached =
+        typeof getState === 'function' ? getState().gitVisData?.[activeWorkspaceTab] : undefined;
+      hasCached = !!cached && typeof cached === 'object' && Object.keys(cached).length > 0;
+    } catch {
+      hasCached = false;
+    }
+    if (hasCached) {
+      return;
+    }
     const timer = setTimeout(() => void refreshWorkspaceRef.current(), 100);
     return () => clearTimeout(timer);
-  }, [rootPath]);
+  }, [rootPath, activeWorkspaceTab]);
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),

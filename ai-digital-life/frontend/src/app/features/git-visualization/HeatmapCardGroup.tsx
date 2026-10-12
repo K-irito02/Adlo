@@ -132,6 +132,34 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
     return onRefreshRef.current?.() ?? Promise.resolve();
   }, []);
 
+  // Tab-switch cache guard: only the first visit to a tab fetches. Once the
+  // tab's chart data is cached for the active workspace, later switches reuse
+  // it without a reload flash. Explicit time-range changes and the card's
+  // RefreshButton still force a fetch via refreshCurrentTab/handleTimeRangeChange.
+  const refreshForTabIfNeeded = useCallback(
+    (tab: HeatmapTab) => {
+      const chartId = tab === 'module' ? CHART_IDS.CONTRIBUTOR_MODULES : CHART_IDS.HEATMAP;
+      try {
+        const getState = (
+          useAppStore as unknown as {
+            getState?: () => { gitVisData?: Record<string, Record<string, unknown>> };
+          }
+        ).getState;
+        const cached =
+          typeof getState === 'function'
+            ? getState().gitVisData?.[activeWorkspaceTab]?.[chartId]
+            : undefined;
+        if (cached !== undefined) {
+          return Promise.resolve();
+        }
+      } catch {
+        // Store mock without getState (unit tests) → fall through to refresh.
+      }
+      return refreshForTab(tab);
+    },
+    [activeWorkspaceTab, refreshForTab],
+  );
+
   const refreshCurrentTab = useCallback(
     () => refreshForTab(activeHeatmapTab),
     [activeHeatmapTab, refreshForTab],
@@ -164,10 +192,10 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       tabChangeTimerRef.current = setTimeout(() => {
         // Refresh errors are surfaced through setError in the refresh actions;
         // swallow the rejection here to avoid an unhandled promise rejection.
-        void refreshForTab(tab).catch(() => {});
+        void refreshForTabIfNeeded(tab).catch(() => {});
       }, 0);
     },
-    [setActiveHeatmapTab, syncRangeForTab, refreshForTab],
+    [setActiveHeatmapTab, syncRangeForTab, refreshForTabIfNeeded],
   );
 
   const persistTabRanges = useCallback(() => {

@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
 import React from 'react';
 import { HeatmapChart } from './heatmap-chart';
+import { computeHeatmapDimensions } from './heatmap-layout';
 import type { HeatmapColumn } from './heatmap-context';
 
 vi.mock('motion/react', () => ({
@@ -77,5 +78,49 @@ describe('HeatmapChart', () => {
       </HeatmapChart>,
     );
     expect(container.querySelector('svg')).toBeInTheDocument();
+  });
+});
+
+describe('computeHeatmapDimensions min/max clamp', () => {
+  const margin = { top: 24, right: 16, bottom: 0, left: 40 };
+
+  it('expands the SVG width past the container when the min clamp overflows (calendar narrow-window case)', () => {
+    // 53 week columns in a 300px container: unclamped cell ≈ 4.6px, min 10px
+    // forces a 530px plot — the SVG must expand so horizontal scroll reveals
+    // cells instead of clipping them to blank.
+    const dims = computeHeatmapDimensions({
+      width: 300,
+      parentHeight: 200,
+      margin,
+      columnCount: 53,
+      rowCount: 7,
+      binSize: 0,
+      layout: 'fluid',
+      separator: null,
+      minBinSize: 10,
+      maxBinSize: 14,
+    });
+    expect(dims.binWidth).toBe(10);
+    expect(dims.width).toBeGreaterThan(300);
+    expect(dims.width).toBe(margin.left + 53 * 10 + margin.right);
+  });
+
+  it('keeps the SVG at container width when cells fit without clamping', () => {
+    const dims = computeHeatmapDimensions({
+      width: 600,
+      parentHeight: 200,
+      margin,
+      columnCount: 53,
+      rowCount: 7,
+      binSize: 0,
+      layout: 'fluid',
+      separator: null,
+      minBinSize: 10,
+      maxBinSize: 14,
+    });
+    // (600 - 56) / 53 ≈ 10.26 — inside [10, 14], no overflow.
+    expect(dims.binWidth).toBeGreaterThanOrEqual(10);
+    expect(dims.binWidth).toBeLessThanOrEqual(14);
+    expect(dims.width).toBe(600);
   });
 });

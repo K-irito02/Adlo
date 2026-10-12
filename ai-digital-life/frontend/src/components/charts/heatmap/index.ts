@@ -16,7 +16,7 @@ export {
   resolveHeatmapEnterFadeDurationSec,
 } from './heatmap-animation';
 export { HeatmapCells, type HeatmapCellsProps } from './heatmap-cells';
-export { HeatmapChart, type HeatmapChartProps, type HeatmapLayout } from './heatmap-chart';
+export { HeatmapChart, type HeatmapChartProps } from './heatmap-chart';
 export { HeatmapYearHint } from './heatmap-year-hint';
 export { HeatmapChartLoading, type HeatmapChartLoadingProps } from './heatmap-chart-loading';
 export {
@@ -67,6 +67,7 @@ export {
   buildHeatmapQuarterSeparatorGroups,
   buildHeatmapRowOpacity,
   buildHeatmapSeparatorGradientStops,
+  computeHeatmapDimensions,
   countHeatmapWeekDaysOnOrAfter,
   filterHeatmapColumns,
   findHeatmapColumnIndexForDate,
@@ -100,6 +101,7 @@ export {
   HEATMAP_WEEKS_ONE_YEAR,
   type HeatmapDisplayRange,
   type HeatmapHoverStyleParams,
+  type HeatmapLayout,
   type HeatmapSeparatorGradient,
   type HeatmapSeparatorGradientStop,
   type HeatmapSeparatorGroup,
