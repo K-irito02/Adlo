@@ -297,7 +297,13 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       const stale = !!state.gitVisStale?.[activeWorkspaceTab];
       if (!stale) {
         if (hasGitVisWorkspaceData(state.gitVisData, activeWorkspaceTab)) {
-          return;
+          // A full cache whose last round had failing charts still serves old
+          // data behind an error banner; re-entering the view retries rather
+          // than silently reusing it.
+          const errors = state.gitVisErrors?.[activeWorkspaceTab];
+          if (!errors || !Object.values(errors).some(Boolean)) {
+            return;
+          }
         }
         if (isGitVisWorkspaceLoading(state.gitVisLoading, activeWorkspaceTab)) {
           return;
@@ -306,7 +312,17 @@ export const GitVisualizationView = React.memo(function GitVisualizationView() {
       void refreshWorkspaceRef.current();
     }, WORKSPACE_REFRESH_DEBOUNCE_MS);
     return () => clearTimeout(timer);
-  }, [rootPath, activeWorkspaceTab, gitVisStaleForActiveWs]);
+    // Re-run when the workspace head/branch changes too: a second commit that
+    // lands while a stale-triggered refresh is already in flight re-marks
+    // gitVisStale (which is already true, so the flag alone would not notify),
+    // and the effect must re-arm to retry with the newest head.
+  }, [
+    rootPath,
+    activeWorkspaceTab,
+    gitVisStaleForActiveWs,
+    activeWsGitSnapshot?.head,
+    activeWsGitSnapshot?.branch,
+  ]);
 
   const handleRefreshBranchGraph = useCallback(
     () => refreshChart(CHART_IDS.BRANCH_GRAPH),

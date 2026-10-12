@@ -65,8 +65,34 @@ afterEach(() => {
     gitVisLoading: {},
     gitVisErrors: {},
     gitVisTimeRange: {},
+    gitVisStale: {},
   }));
 });
+
+function mockAllWorkspaceChartsSuccessfully(bridge: Bridge) {
+  bridge.workspace.gitVisCommitStats.mockResolvedValue({
+    ok: true,
+    data: {
+      dailyCommits: [],
+      hourlyDistribution: [],
+      contributorActivity: [],
+      commitTimeline: [],
+    },
+  });
+  bridge.workspace.gitVisBranchGraph.mockResolvedValue({
+    ok: true,
+    data: { nodes: [], edges: [], branches: [] },
+  });
+  bridge.workspace.gitVisFileHotspots.mockResolvedValue({
+    ok: true,
+    data: { tree: { children: [] }, files: [] },
+  });
+  bridge.workspace.gitVisCodeEvolution.mockResolvedValue({ ok: true, data: { days: [] } });
+  bridge.workspace.gitVisContributorModules.mockResolvedValue({
+    ok: true,
+    data: { matrix: [], allPaths: [] },
+  });
+}
 
 describe('useGitVisRefresh latest-wins', () => {
   it('commits only the newest per-chart refresh when results resolve out of order', async () => {
@@ -608,5 +634,178 @@ describe('useGitVisRefresh relative preset re-resolution', () => {
     // request is coming, so the workspace refresh still owns clearing it.
     expect(useAppStore.getState().gitVisData[workspaceId]?.[CHART_ID]).toBeUndefined();
     expect(useAppStore.getState().gitVisLoading[workspaceId]?.[CHART_ID]).toBe(false);
+  });
+});
+
+describe('useGitVisRefresh stale lifecycle', () => {
+  it('clears the staleness mark when a full workspace refresh succeeds', async () => {
+    const workspaceId = 'ws-stale-ok';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    act(() => {
+      useAppStore.getState().setGitVisStale(workspaceId, true);
+    });
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    mockAllWorkspaceChartsSuccessfully(bridge);
+
+    await act(async () => {
+      await result.current.refreshWorkspace();
+    });
+    expect(useAppStore.getState().gitVisStale[workspaceId]).toBeUndefined();
+  });
+
+  it('keeps the workspace stale when any chart of the round fails', async () => {
+    const workspaceId = 'ws-stale-fail';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    act(() => {
+      useAppStore.getState().setGitVisStale(workspaceId, true);
+    });
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    mockAllWorkspaceChartsSuccessfully(bridge);
+    bridge.workspace.gitVisBranchGraph.mockResolvedValueOnce({
+      ok: false,
+      error: { message: 'graph boom' },
+    } as never);
+
+    await act(async () => {
+      await result.current.refreshWorkspace();
+    });
+    expect(useAppStore.getState().gitVisStale[workspaceId]).toBe(true);
+  });
+
+  it('never clears staleness from a per-chart refresh (workspace-scoped signal)', async () => {
+    const workspaceId = 'ws-stale-chart';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    act(() => {
+      useAppStore.getState().setGitVisStale(workspaceId, true);
+      useAppStore.getState().setGitVisTimeRange(workspaceId, CHART_ID, {
+        preset: 'custom',
+        since: '2026-07-01',
+        until: '2026-07-31',
+      });
+    });
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    bridge.workspace.gitVisCodeEvolution.mockResolvedValue({ ok: true, data: { days: [] } });
+
+    await act(async () => {
+      await result.current.refreshChart(CHART_ID);
+    });
+    expect(useAppStore.getState().gitVisStale[workspaceId]).toBe(true);
+  });
+
+  it('leaves the staleness mark untouched when no bridge is present', async () => {
+    const workspaceId = 'ws-stale-nobridge';
+    (window as unknown as { digitalLife: unknown }).digitalLife = null;
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    act(() => {
+      useAppStore.getState().setGitVisStale(workspaceId, true);
+    });
+
+    await act(async () => {
+      await result.current.refreshWorkspace();
+    });
+    expect(useAppStore.getState().gitVisStale[workspaceId]).toBe(true);
+  });
+
+  it('keeps the staleness mark when the git head moves while the refresh is in flight', async () => {
+    vi.useFakeTimers();
+    const workspaceId = 'ws-head-move';
+    const { result } = renderHook(() => useGitVisRefresh(workspaceId, '/repo'));
+    act(() => {
+      useAppStore.getState().setGitVisStale(workspaceId, true);
+    });
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    mockAllWorkspaceChartsSuccessfully(bridge);
+
+    let p: Promise<void> | undefined;
+    act(() => {
+      p = result.current.refreshWorkspace();
+    });
+    await act(async () => {});
+    // A commit lands mid-flight: the snapshot sync records a new head (and
+    // re-marks stale). This round is fetching pre-commit data, so settling
+    // must not clear the newer mark.
+    act(() => {
+      useAppStore.setState((s) => ({
+        gitSnapshots: {
+          ...s.gitSnapshots,
+          [workspaceId]: {
+            isRepo: true,
+            branch: 'main',
+            head: 'bbb',
+            staged: [],
+            unstaged: [],
+            untracked: [],
+            conflicts: [],
+            capturedAt: Date.now(),
+          },
+        },
+      }));
+    });
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    await act(async () => {
+      await p;
+    });
+    vi.useRealTimers();
+    expect(useAppStore.getState().gitVisStale[workspaceId]).toBe(true);
+  });
+});
+
+describe('useGitVisRefresh workspace-level supersede', () => {
+  it('does not supersede another workspace in-flight round when the hook switches workspace', async () => {
+    vi.useFakeTimers();
+    const bridge = (window as unknown as { digitalLife: Bridge }).digitalLife;
+    // Base resolutions for every chart, then two queued rounds so each hook
+    // instance's calls resolve with its own round's data. (gitVisCommitStats
+    // serves both HEATMAP and COMMIT_TIMELINE — two calls per round.)
+    mockAllWorkspaceChartsSuccessfully(bridge);
+    const aRound = deferred();
+    const bRound = deferred();
+    bridge.workspace.gitVisCommitStats
+      .mockReturnValueOnce(aRound.promise)
+      .mockReturnValueOnce(bRound.promise);
+    bridge.workspace.gitVisBranchGraph
+      .mockReturnValueOnce(aRound.promise)
+      .mockReturnValueOnce(bRound.promise);
+    bridge.workspace.gitVisFileHotspots
+      .mockReturnValueOnce(aRound.promise)
+      .mockReturnValueOnce(bRound.promise);
+    bridge.workspace.gitVisCodeEvolution
+      .mockReturnValueOnce(aRound.promise)
+      .mockReturnValueOnce(bRound.promise);
+    bridge.workspace.gitVisContributorModules
+      .mockReturnValueOnce(aRound.promise)
+      .mockReturnValueOnce(bRound.promise);
+
+    const { result, rerender } = renderHook(({ ws }) => useGitVisRefresh(ws, '/repo'), {
+      initialProps: { ws: 'ws-a' },
+    });
+    let pA: Promise<void> | undefined;
+    act(() => {
+      pA = result.current.refreshWorkspace();
+    });
+    await act(async () => {});
+
+    // The user switches to another workspace, which triggers its own load.
+    rerender({ ws: 'ws-b' });
+    let pB: Promise<void> | undefined;
+    act(() => {
+      pB = result.current.refreshWorkspace();
+    });
+    await act(async () => {});
+
+    bRound.resolve({ ok: true, data: { days: [] } });
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    aRound.resolve({ ok: true, data: { days: [] } });
+    await vi.advanceTimersByTimeAsync(CHART_LOADING_MIN_VISIBLE_MS + 50);
+    await act(async () => {
+      await pA;
+      await pB;
+    });
+    vi.useRealTimers();
+
+    // ws-a's round was never superseded — its data landed and loading cleared.
+    expect(useAppStore.getState().gitVisData['ws-a']?.[CHART_ID]).toEqual({ days: [] });
+    expect(useAppStore.getState().gitVisLoading['ws-a']?.[CHART_ID]).toBe(false);
+    expect(useAppStore.getState().gitVisData['ws-b']?.[CHART_ID]).toEqual({ days: [] });
   });
 });

@@ -118,6 +118,31 @@ describe('BranchGraph', () => {
     expect(rows.length).toBe(31);
   });
 
+  it('locks the table header to single-line labels and the shared column template', () => {
+    // Narrow panels must keep every header on one line (a wrapped CJK header
+    // changes the row height and desyncs the fixed-height lane SVG). The four
+    // full-label titles give truncated headers a hover fallback, and the
+    // CSS-variable template keeps the header, rows and skeleton in lockstep.
+    const { container } = render(<BranchGraph data={mockData} />);
+    const header = container.querySelector('.adl-branch-graph__header')!;
+    const headerSpans = Array.from(header.querySelectorAll('span'));
+    // Exactly four headers — asserting the count keeps the title list from
+    // silently drifting out of sync with the columns.
+    expect(headerSpans).toHaveLength(4);
+    expect(headerSpans.map((s) => s.getAttribute('title'))).toEqual([
+      'HASH',
+      'MESSAGE',
+      'AUTHOR',
+      'DATE',
+    ]);
+    expect((header as HTMLElement).style.gridTemplateColumns).toBe(
+      'var(--adl-branch-graph-table-cols)',
+    );
+    // Data rows share the same template so header and lanes stay aligned.
+    const row = container.querySelector('.adl-branch-graph__row') as HTMLElement;
+    expect(row.style.gridTemplateColumns).toBe('var(--adl-branch-graph-table-cols)');
+  });
+
   it('renders SVG lanes container', () => {
     const { container } = render(<BranchGraph data={mockData} />);
     const svg = container.querySelector('.adl-branch-graph__svg');

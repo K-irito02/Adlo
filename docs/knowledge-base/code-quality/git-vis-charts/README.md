@@ -15,3 +15,4 @@ Git 可视化面板图表（热力图、折线、缩略条等）的实现、迁�
 | [git-vis-time-range-tooltip-fixes-2026-07-26.md](./git-vis-time-range-tooltip-fixes-2026-07-26.md) | 时间范围与 Tooltip 修复（Zustand 闭包、`Map` 构造、缓存键 `until`） |
 | [heatmap-chart-generalization-2026-07-16.md](./heatmap-chart-generalization-2026-07-16.md) | HeatmapChart 泛化重构（i18n 单复数、列标签派生、tick 密度） |
 | [heatmap-x-axis-label-fixes-2026-07-27.md](./heatmap-x-axis-label-fixes-2026-07-27.md) | 热力图 x 轴标签被裁剪的两个独立 CSS 根因修复 |
+| [git-vis-cache-guard-review-loop-lessons-2026-10-13.md](./git-vis-cache-guard-review-loop-lessons-2026-10-13.md) | Git 可视化缓存守卫/失效四轮收尾审查 7 条教训（refresh 门控锚原始测量值、React.memo 零 props rerender 跳过、store mock 缺 getState 静默生效、mock 图表数据 null 而非 {}、工作区级失效标记清除粒度、overflow-hidden 裁 absolute 子卡、修复须同等审查） |

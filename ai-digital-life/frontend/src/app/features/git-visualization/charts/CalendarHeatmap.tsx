@@ -13,6 +13,14 @@ import {
 } from '@/components/charts/heatmap';
 import { commitStatsToHeatmapColumns } from '../adapters/chartDataAdapters';
 
+/**
+ * Commit-calendar cell bounds. 53 week columns keep the grid readable from a
+ * ~530px container down (min) without growing past the GitHub-style look on
+ * wide panels (max). Loading and ready branches share these so the skeleton
+ * never jumps in size when the real data arrives.
+ */
+const CALENDAR_CELL_BOUNDS = { min: 10, max: 14 } as const;
+
 function expandToFullYear(
   dailyCommits: { date: string; count: number }[],
   year: number,
@@ -116,8 +124,8 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
         rowLabels={dayLabels}
         margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
         gap={2}
-        minBinSize={10}
-        maxBinSize={14}
+        minBinSize={CALENDAR_CELL_BOUNDS.min}
+        maxBinSize={CALENDAR_CELL_BOUNDS.max}
         animate={true}
         fillScale={defaultFillScale}
       >
@@ -137,8 +145,8 @@ export const CalendarHeatmap = React.memo(function CalendarHeatmap({
       rowLabels={dayLabels}
       margin={{ top: 24, right: 16, bottom: 0, left: 40 }}
       gap={2}
-      minBinSize={10}
-      maxBinSize={14}
+      minBinSize={CALENDAR_CELL_BOUNDS.min}
+      maxBinSize={CALENDAR_CELL_BOUNDS.max}
       animate={true}
       fillScale={customFillScale}
     >

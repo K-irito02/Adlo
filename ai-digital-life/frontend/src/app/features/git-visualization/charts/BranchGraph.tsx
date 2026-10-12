@@ -474,7 +474,7 @@ const CommitTableRows = React.memo(
           className="adl-branch-graph__header"
           style={{
             display: 'grid',
-            gridTemplateColumns: '80px minmax(0, 1fr) 120px 100px',
+            gridTemplateColumns: 'var(--adl-branch-graph-table-cols)',
             gap: 8,
             padding: '4px 8px',
             fontSize: 11,
@@ -512,7 +512,7 @@ const CommitTableRows = React.memo(
               onMouseLeave={() => onRowHover(null)}
               style={{
                 display: 'grid',
-                gridTemplateColumns: '80px minmax(0, 1fr) 120px 100px',
+                gridTemplateColumns: 'var(--adl-branch-graph-table-cols)',
                 gap: 8,
                 padding: '4px 8px',
                 fontSize: 12,
@@ -642,7 +642,15 @@ const CommitTableRows = React.memo(
                   </button>
                 </TooltipSimple>
               </span>
-              <span style={{ color: theme.muted, whiteSpace: 'nowrap' }}>
+              <span
+                style={{
+                  color: theme.muted,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  minWidth: 0,
+                }}
+              >
                 {formatDate(row.node.date, locale, 'table')}
               </span>
             </div>

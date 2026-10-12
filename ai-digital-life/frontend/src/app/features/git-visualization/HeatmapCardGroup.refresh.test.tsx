@@ -98,6 +98,8 @@ const mockSetGitVisTimeRange = vi.fn();
 let mockActiveHeatmapTab = 'module';
 let mockGitVisData: Record<string, Record<string, unknown>> = {};
 let mockGitVisTimeRange: Record<string, Record<string, unknown>> = {};
+let mockGitVisStale: Record<string, boolean> = {};
+let mockGitVisErrors: Record<string, Record<string, string | undefined>> = {};
 
 vi.mock('@stores/slicedStore', () => {
   const buildState = () => ({
@@ -109,6 +111,8 @@ vi.mock('@stores/slicedStore', () => {
     setGitVisTimeRange: mockSetGitVisTimeRange,
     gitVisData: mockGitVisData,
     gitVisTimeRange: mockGitVisTimeRange,
+    gitVisStale: mockGitVisStale,
+    gitVisErrors: mockGitVisErrors,
   });
   const useAppStore = (selector: (s: Record<string, unknown>) => unknown) => selector(buildState());
   useAppStore.getState = () => buildState();
@@ -120,6 +124,8 @@ afterEach(() => {
   mockActiveHeatmapTab = 'module';
   mockGitVisData = {};
   mockGitVisTimeRange = {};
+  mockGitVisStale = {};
+  mockGitVisErrors = {};
   window.localStorage.clear();
   vi.useRealTimers();
   vi.clearAllMocks();
@@ -310,5 +316,62 @@ describe('HeatmapCardGroup module tab refresh', () => {
     // Clock's own range is the default year → must not reuse the week-range data.
     expect(onRefresh).toHaveBeenCalledTimes(1);
     expect(onRefreshContributorModules).not.toHaveBeenCalled();
+  });
+
+  it('re-fetches a same-range tab switch when the workspace cache is marked stale', () => {
+    // A commit invalidated the cache but the workspace-level re-fetch failed,
+    // leaving stale=true. Switching between same-range tabs must not reuse the
+    // pre-commit data — there would be no auto-recovery path.
+    vi.useFakeTimers();
+    mockActiveHeatmapTab = 'calendar';
+    mockGitVisData = { 'workspace-1': { [CHART_IDS.CONTRIBUTOR_MODULES]: {} } };
+    mockGitVisTimeRange = {
+      'workspace-1': { [CHART_IDS.CONTRIBUTOR_MODULES]: defaultTimeRange() },
+    };
+    mockGitVisStale = { 'workspace-1': true };
+    const onRefresh = vi.fn(() => Promise.resolve());
+    const onRefreshContributorModules = vi.fn(() => Promise.resolve());
+    const { container } = render(
+      <HeatmapCardGroup
+        onRefresh={onRefresh}
+        onRefreshContributorModules={onRefreshContributorModules}
+      />,
+    );
+    const moduleTab = Array.from(container.querySelectorAll('.adl-git-vis__heatmap-tab')).find(
+      (el) => el.textContent === 'Module',
+    ) as HTMLButtonElement;
+    fireEvent.click(moduleTab);
+    vi.advanceTimersByTime(0);
+    vi.useRealTimers();
+
+    expect(onRefreshContributorModules).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-fetches a same-range tab switch when the chart last failed', () => {
+    // A range change whose fetch errored left old data behind an error banner;
+    // a tab switch must not reuse those stale numbers silently.
+    vi.useFakeTimers();
+    mockActiveHeatmapTab = 'calendar';
+    mockGitVisData = { 'workspace-1': { [CHART_IDS.CONTRIBUTOR_MODULES]: {} } };
+    mockGitVisTimeRange = {
+      'workspace-1': { [CHART_IDS.CONTRIBUTOR_MODULES]: defaultTimeRange() },
+    };
+    mockGitVisErrors = { 'workspace-1': { [CHART_IDS.CONTRIBUTOR_MODULES]: 'fetch failed' } };
+    const onRefresh = vi.fn(() => Promise.resolve());
+    const onRefreshContributorModules = vi.fn(() => Promise.resolve());
+    const { container } = render(
+      <HeatmapCardGroup
+        onRefresh={onRefresh}
+        onRefreshContributorModules={onRefreshContributorModules}
+      />,
+    );
+    const moduleTab = Array.from(container.querySelectorAll('.adl-git-vis__heatmap-tab')).find(
+      (el) => el.textContent === 'Module',
+    ) as HTMLButtonElement;
+    fireEvent.click(moduleTab);
+    vi.advanceTimersByTime(0);
+    vi.useRealTimers();
+
+    expect(onRefreshContributorModules).toHaveBeenCalledTimes(1);
   });
 });

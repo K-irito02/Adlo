@@ -21,9 +21,13 @@ afterEach(() => {
   mockGitVisData = {};
   mockGitVisStale = {};
   mockGitVisLoading = {};
+  mockGitVisErrors = {};
   mockLoadGitSnapshot.mockClear();
   mockSetActiveWorkspaceTab.mockClear();
   mockRefreshWorkspace.mockClear();
+  // The fake-timer guard tests restore real timers inline; this guards against
+  // an assertion throwing before they reach that line.
+  vi.useRealTimers();
 });
 
 function createMotionValue(initial = 0) {
@@ -127,6 +131,7 @@ let mockChangesTreeErrors: Record<string, string | undefined> = {};
 let mockGitVisData: Record<string, Record<string, unknown> | null> = {};
 let mockGitVisStale: Record<string, boolean> = {};
 let mockGitVisLoading: Record<string, Record<string, boolean>> = {};
+let mockGitVisErrors: Record<string, Record<string, string | undefined>> = {};
 const mockLoadGitSnapshot = vi.fn(() => Promise.resolve());
 const mockSetActiveWorkspaceTab = vi.fn();
 const mockRefreshWorkspace = vi.fn(() => Promise.resolve());
@@ -146,7 +151,7 @@ vi.mock('@stores/slicedStore', () => {
     recentWorkspaces: mockRecentWorkspaces,
     gitVisData: mockGitVisData,
     gitVisLoading: mockGitVisLoading,
-    gitVisErrors: {},
+    gitVisErrors: mockGitVisErrors,
     gitVisStale: mockGitVisStale,
     gitVisTimeRange: {
       'workspace-1': {
@@ -386,60 +391,133 @@ describe('GitVisualizationView', () => {
     expect(retry).toBeTruthy();
   });
 
-  it('skips the automatic workspace refresh when every chart is already cached', { timeout: 30000 }, () => {
-    mockGitVisData = {
-      'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
-    };
-    mockRefreshWorkspace.mockClear();
-    vi.useFakeTimers();
-    render(<GitVisualizationView />);
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-    vi.useRealTimers();
-    expect(mockRefreshWorkspace).not.toHaveBeenCalled();
-  });
+  // The four guard tests render the full view (5 chart cards); under a fully
+  // parallel vitest run that alone can approach the 5s default, so they carry
+  // an explicit timeout like the other full-render tests in this file.
+  it(
+    'skips the automatic workspace refresh when every chart is already cached',
+    { timeout: 30000 },
+    () => {
+      mockGitVisData = {
+        'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+      };
+      mockRefreshWorkspace.mockClear();
+      vi.useFakeTimers();
+      render(<GitVisualizationView />);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      vi.useRealTimers();
+      expect(mockRefreshWorkspace).not.toHaveBeenCalled();
+    },
+  );
 
-  it('auto-loads the workspace on first visit when no charts are cached', { timeout: 30000 }, () => {
-    mockGitVisData = {};
-    mockRefreshWorkspace.mockClear();
-    vi.useFakeTimers();
-    render(<GitVisualizationView />);
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-    vi.useRealTimers();
-    expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
-  });
+  it(
+    'auto-loads the workspace on first visit when no charts are cached',
+    { timeout: 30000 },
+    () => {
+      mockGitVisData = {};
+      mockRefreshWorkspace.mockClear();
+      vi.useFakeTimers();
+      render(<GitVisualizationView />);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      vi.useRealTimers();
+      expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
+    },
+  );
 
-  it('re-fetches even with a full cache when the workspace is marked stale', { timeout: 30000 }, () => {
-    mockGitVisData = {
-      'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
-    };
-    mockGitVisStale = { 'workspace-1': true };
-    mockRefreshWorkspace.mockClear();
-    vi.useFakeTimers();
-    render(<GitVisualizationView />);
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-    vi.useRealTimers();
-    expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
-  });
+  it(
+    're-fetches even with a full cache when the workspace is marked stale',
+    { timeout: 30000 },
+    () => {
+      mockGitVisData = {
+        'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+      };
+      mockGitVisStale = { 'workspace-1': true };
+      mockRefreshWorkspace.mockClear();
+      vi.useFakeTimers();
+      render(<GitVisualizationView />);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      vi.useRealTimers();
+      expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
+    },
+  );
 
-  it('re-fetches a stale workspace even while a per-chart refresh is in flight', { timeout: 30000 }, () => {
-    mockGitVisData = {
-      'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
-    };
-    mockGitVisStale = { 'workspace-1': true };
-    mockGitVisLoading = { 'workspace-1': { heatmap: true } };
-    mockRefreshWorkspace.mockClear();
-    vi.useFakeTimers();
-    render(<GitVisualizationView />);
-    act(() => {
-      vi.advanceTimersByTime(200);
-    });
-    vi.useRealTimers();
-    expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
-  });
+  it(
+    're-fetches a stale workspace even while a per-chart refresh is in flight',
+    { timeout: 30000 },
+    () => {
+      mockGitVisData = {
+        'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+      };
+      mockGitVisStale = { 'workspace-1': true };
+      mockGitVisLoading = { 'workspace-1': { heatmap: true } };
+      mockRefreshWorkspace.mockClear();
+      vi.useFakeTimers();
+      render(<GitVisualizationView />);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      vi.useRealTimers();
+      expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it(
+    're-arms the auto-refresh when a second commit lands after the view is open',
+    { timeout: 30000 },
+    () => {
+      // A second commit re-marks the workspace stale while the flag is already
+      // true (so the boolean subscription alone would not notify); the snapshot
+      // head/branch deps must re-arm the effect to retry with the newest head.
+      // The store mock has no subscriptions, so a version prop pierces the
+      // component's React.memo to force a re-render, re-evaluating the deps
+      // exactly like a real zustand notify would.
+      const VersionedView = GitVisualizationView as React.ComponentType<{ v?: number }>;
+      mockGitVisData = {
+        'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+      };
+      mockGitVisStale = { 'workspace-1': true };
+      mockRefreshWorkspace.mockClear();
+      vi.useFakeTimers();
+      const { rerender } = render(<VersionedView v={1} />);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      mockGitSnapshots = {
+        'workspace-1': { isRepo: true, branches: [], conflicts: [], head: 'bbb', branch: 'main' },
+      };
+      rerender(<VersionedView v={2} />);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      vi.useRealTimers();
+      expect(mockRefreshWorkspace).toHaveBeenCalledTimes(2);
+    },
+  );
+
+  it(
+    're-fetches a full cache that has a failing chart instead of reusing it',
+    { timeout: 30000 },
+    () => {
+      // A failed round leaves old data behind an error banner; re-entering the
+      // view must retry rather than silently serve the previous round's numbers.
+      mockGitVisData = {
+        'workspace-1': Object.fromEntries(GIT_VIS_CHART_IDS.map((id) => [id, null])),
+      };
+      mockGitVisErrors = { 'workspace-1': { heatmap: 'fetch failed' } };
+      mockRefreshWorkspace.mockClear();
+      vi.useFakeTimers();
+      render(<GitVisualizationView />);
+      act(() => {
+        vi.advanceTimersByTime(200);
+      });
+      vi.useRealTimers();
+      expect(mockRefreshWorkspace).toHaveBeenCalledTimes(1);
+    },
+  );
 });

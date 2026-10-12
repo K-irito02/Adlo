@@ -4,13 +4,6 @@ import { CHART_IDS, GIT_VIS_CHART_IDS } from '../../features/git-visualization/c
 import { computeLoadPhases } from './workspaceLoadOrder';
 
 /**
- * Charts a workspace refresh fetches together. Single-sourced from
- * `GIT_VIS_CHART_IDS` so the refresh set and the client-side "is this
- * workspace fully cached?" guard can never drift apart.
- */
-const WORKSPACE_CHART_IDS = GIT_VIS_CHART_IDS;
-
-/**
  * Minimum time a chart's loading state must remain visible before the fetched
  * data can replace it. Without this, a fast fetch (cached data / quick backend)
  * lets React batch setLoading(true) and setLoading(false) into a single frame,
@@ -77,14 +70,16 @@ export async function refreshWorkspace(
 ): Promise<void> {
   const startedAt = performance.now();
   // Clear errors and flag loading before fetching
-  for (const chartId of WORKSPACE_CHART_IDS) {
+  // GIT_VIS_CHART_IDS is both the fetch set here and the "fully cached" guard
+  // list on the client, so the two can never drift apart.
+  for (const chartId of GIT_VIS_CHART_IDS) {
     setError(chartId, undefined);
     setLoading(chartId, true);
   }
 
   // Fetch all charts in parallel
   const results = await Promise.allSettled(
-    WORKSPACE_CHART_IDS.map(async (chartId) => {
+    GIT_VIS_CHART_IDS.map(async (chartId) => {
       const tr = timeRanges[chartId] || {};
       try {
         const data = await fetchChartData(

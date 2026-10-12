@@ -13,7 +13,7 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
   const setLoading = useAppStore((s) => s.setGitVisLoading);
   const setError = useAppStore((s) => s.setGitVisError);
   const setData = useAppStore((s) => s.setGitVisData);
-  const setGitVisStale = useAppStore((s) => s.markGitVisStale);
+  const setGitVisStale = useAppStore((s) => s.setGitVisStale);
 
   // Per-chart request sequence: a refresh only commits its result if it is the
   // latest request for that chart. Rapid time-range changes therefore always
@@ -21,6 +21,13 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
   // refresh of a superseded range. Keys are workspace-scoped so switching
   // workspaces never bumps another workspace's in-flight sequence.
   const latestRequestSeqRef = useRef<Record<string, number>>({});
+  // Workspace-level sequence: a stale-triggered refresh can overlap a first
+  // visit load (e.g. a commit lands while the initial fetch is still in
+  // flight). The superseded round must not clear the newer round's loading
+  // flags or overwrite its data, so every round's callbacks bail out once a
+  // newer workspace refresh has started. Keyed per workspace so switching A→B
+  // never supersedes A's still-valid in-flight round.
+  const workspaceSeqRef = useRef<Record<string, number>>({});
   // Charts with a per-chart refresh currently in flight. A workspace refresh
   // must not clear the loading flag of such a chart, otherwise it would
   // prematurely end the per-chart request's visible loading state.
@@ -65,12 +72,28 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
       }
       return true;
     };
+    const seq = (workspaceSeqRef.current[workspaceId] =
+      (workspaceSeqRef.current[workspaceId] ?? 0) + 1);
+    const isSuperseded = () => workspaceSeqRef.current[workspaceId] !== seq;
+    // Settlement ledger for THIS round: tracks chart fetches that failed here,
+    // independent of store gating (an error suppressed because the range changed
+    // mid-flight still counts as an incomplete round for staleness purposes).
+    const failedCharts = new Set<string>();
+    // Snapshot the git head this round is fetching for. A commit that lands
+    // while the round is in flight marks the workspace stale again — settling
+    // must not clear that newer mark with pre-commit data.
+    const snapshotAtStart = useAppStore.getState().gitSnapshots[workspaceId];
+    const headAtStart = snapshotAtStart?.head;
+    const branchAtStart = snapshotAtStart?.branch;
     await refreshWorkspace(
       bridge,
       workspaceId,
       rootPath,
       resolvedTimeRanges,
       (chartId, loading) => {
+        if (isSuperseded()) {
+          return;
+        }
         // Setting loading=true is always safe (workspace owns it). Clearing
         // must be gated on the stored range only: a midnight rollover changes
         // the resolved bounds but not the stored range, and no newer request is
@@ -85,23 +108,30 @@ export function useGitVisRefresh(workspaceId: string, rootPath: string) {
         }
       },
       (chartId, error) => {
-        if (isResolvedBoundsCurrent(chartId)) {
+        if (error) {
+          failedCharts.add(chartId);
+        }
+        if (!isSuperseded() && isResolvedBoundsCurrent(chartId)) {
           setError(workspaceId, chartId, error);
         }
       },
       (chartId, data) => {
-        if (isResolvedBoundsCurrent(chartId)) {
+        if (!isSuperseded() && isResolvedBoundsCurrent(chartId)) {
           setData(workspaceId, chartId, data);
         }
       },
     );
     // A full workspace refresh settles every chart, so this is the point where
     // the workspace's staleness mark (set by a commit/branch change) is
-    // resolved. Clear it only when no chart failed: a failed refresh stays
-    // stale and re-runs on the next trigger instead of silently keeping old
-    // data. Per-chart refreshes deliberately never clear it.
-    const errors = useAppStore.getState().gitVisErrors[workspaceId];
-    if (!errors || !Object.values(errors).some(Boolean)) {
+    // resolved. Clear it only when no chart of THIS round failed AND the git
+    // head did not move underneath the round (a commit mid-flight already
+    // re-marked stale with pre-commit data in hand). Per-chart refreshes
+    // deliberately never clear it, and a superseded round never decides for
+    // the newer one.
+    const snapshotAtEnd = useAppStore.getState().gitSnapshots[workspaceId];
+    const gitUnchangedDuringRound =
+      snapshotAtEnd?.head === headAtStart && snapshotAtEnd?.branch === branchAtStart;
+    if (!isSuperseded() && failedCharts.size === 0 && gitUnchangedDuringRound) {
       setGitVisStale(workspaceId, false);
     }
   }, [workspaceId, rootPath, setLoading, setError, setData, setGitVisStale, seqKeyFor]);

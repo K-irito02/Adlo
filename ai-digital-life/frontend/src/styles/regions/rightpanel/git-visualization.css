@@ -298,6 +298,18 @@
 }
 
 /* ── Branch Graph Panels Layout ── */
+/* Single source for the commit-table column template: the live header/rows
+   (inline styles in BranchGraph.tsx) and the loading skeleton below must stay
+   in lockstep, or the columns visibly jump when loading resolves. The header
+   keeps hash/author/date on fixed tracks and lets the message column absorb
+   all remaining width while being shrinkable to zero (minmax(0, 1fr)) — the
+   zero floor is what stops CJK headers from wrapping one glyph per line and
+   breaking the fixed 36px row height the lane SVG assumes. */
+.adl-branch-graph__body,
+.adl-branch-graph__skeleton-body {
+  --adl-branch-graph-table-cols: 80px minmax(0, 1fr) 120px 100px;
+}
+
 .adl-branch-graph__body {
   flex: 1;
   display: flex;
@@ -1040,8 +1052,26 @@
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  /* NOT overflow: hidden — the custom-range sub-card is absolutely positioned
+     outside this box (left: calc(100% + 2px)) and a clipping ancestor would
+     hide it entirely. The square hover fill of the first/last item is clipped
+     by per-item radii below instead. */
   box-shadow: var(--shadow-lg);
   min-width: 140px;
+}
+/* Clip the square hover fill of the flush first/last items to the card's
+   rounded corners (the menus have no padding, so items sit on the edge).
+   The year menu is also a scroll container whose own border-radius clamps
+   content while scrolling, so the per-item radii reinforce the resting state. */
+.adl-git-vis__timerange-menu-item:first-child,
+.adl-git-vis__year-menu-item:first-child {
+  border-top-left-radius: var(--radius-sm);
+  border-top-right-radius: var(--radius-sm);
+}
+.adl-git-vis__timerange-menu-item:last-child,
+.adl-git-vis__year-menu-item:last-child {
+  border-bottom-left-radius: var(--radius-sm);
+  border-bottom-right-radius: var(--radius-sm);
 }
 .adl-git-vis__timerange-menu-item {
   display: flex;
@@ -1822,7 +1852,7 @@
 
 .adl-branch-graph__skeleton-table-header {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr) 120px 100px;
+  grid-template-columns: var(--adl-branch-graph-table-cols);
   gap: 8px;
   padding: 4px 8px;
   border-bottom: 1px solid var(--border-subtle);
@@ -1830,7 +1860,7 @@
 
 .adl-branch-graph__skeleton-row {
   display: grid;
-  grid-template-columns: 80px minmax(0, 1fr) 120px 100px;
+  grid-template-columns: var(--adl-branch-graph-table-cols);
   gap: 8px;
   align-items: center;
   padding: 0 8px;

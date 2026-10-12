@@ -145,6 +145,18 @@ export const HeatmapCardGroup = React.memo(function HeatmapCardGroup({
       if (!hasGitVisChart(state.gitVisData, activeWorkspaceTab, chartId)) {
         return false;
       }
+      // Stale cache (a commit invalidated it) must never be reused: if the
+      // workspace-level re-fetch failed, same-range tab switches would otherwise
+      // keep serving pre-commit data with no auto-recovery path.
+      if (state.gitVisStale?.[activeWorkspaceTab]) {
+        return false;
+      }
+      // A failed fetch for this chart (e.g. a range change whose fetch errored)
+      // leaves old data in place with an error shown; reusing it on a tab
+      // switch would silently serve the previous range's numbers.
+      if (state.gitVisErrors?.[activeWorkspaceTab]?.[chartId]) {
+        return false;
+      }
       const cachedRange = state.gitVisTimeRange?.[activeWorkspaceTab]?.[chartId];
       if (!cachedRange) {
         return false;

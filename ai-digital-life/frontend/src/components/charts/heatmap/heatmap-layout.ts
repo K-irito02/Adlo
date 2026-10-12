@@ -662,7 +662,8 @@ export function computeHeatmapDimensions({
 }) {
   // Defensive normalization for a public helper: a caller may pass degenerate
   // dimensions or swapped bounds. Cells must never divide by zero, and an
-  // inverted min/max pair would otherwise silently resolve to min forever.
+  // inverted min/max pair would otherwise collapse to the smaller bound (the
+  // `maxBinSize` value) forever.
   const cols = Math.max(columnCount, 1);
   const rows = Math.max(rowCount, 1);
   const lo = minBinSize > 0 ? minBinSize : 0;

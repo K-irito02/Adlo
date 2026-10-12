@@ -83,11 +83,16 @@ export interface HeatmapChartProps {
    * Minimum cell edge in pixels. Clamps both fluid-computed and fixed binSize
    * cells so a narrow container scrolls horizontally instead of shrinking
    * cells into an unreadable dense mass. Should be greater than `gap` so a
-   * clamped cell still renders a positive rect. Default: 0 (no clamp).
+   * clamped cell still renders a positive rect. Note: the overflow-expands-so-
+   * it-scrolls behaviour is a `fluid`-layout contract — a `fill` surface does
+   * not widen with the chart, so clamped overflow there draws beyond the
+   * container instead. The host container must also provide `overflow-x: auto`
+   * for that horizontal scroll to be reachable. Default: 0 (no clamp).
    */
   minBinSize?: number;
   /**
    * Maximum cell edge in pixels. Prevents oversized cells on wide containers.
+   * If both bounds are provided inverted (min > max) they are swapped.
    * Default: 0 (no clamp).
    */
   maxBinSize?: number;
@@ -390,7 +395,14 @@ function HeatmapChartInner({
     ],
   );
 
-  if (chartWidth < 10 || height < 10) {
+  // Gate on the RAW measured width (pre-clamp) but the COMPUTED height. Anchoring
+  // the width half on the computed chart width let a minBinSize clamp expand a
+  // 0×0 pre-measurement frame into a full-size chart; the raw width keeps the
+  // "don't render until measured" invariant. The height half must stay computed:
+  // for the `fluid` layout the chart is content-sized and the parent height is
+  // itself driven by this element (`height: 100%` against auto-height
+  // ancestors), so gating on the raw parent height would never unblock.
+  if (width < 10 || height < 10) {
     return null;
   }
 

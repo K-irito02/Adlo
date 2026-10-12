@@ -34,9 +34,15 @@ export function buildGitSnapshotSyncPatch(
   // Mark this workspace's cached git-visualization data stale when the commit
   // HEAD or branch changes (new commit / branch switch). The cached data is
   // kept so the charts keep rendering until fresh data lands (no empty flash);
-  // the visualization's auto-refresh guard re-fetches while stale, and writing
-  // fresh data clears the flag. Plain file edits (only staged/unstaged/untracked
-  // change) leave the cache fresh, so re-navigation stays flash-free.
+  // the visualization's auto-refresh guard re-fetches while stale, and a
+  // successful full workspace refresh clears the flag (useGitVisRefresh).
+  // Plain file edits (only staged/unstaged/untracked change) leave the cache
+  // fresh, so re-navigation stays flash-free.
+  // Detection boundary (product decision, 2026-10-13): only snapshot writes that
+  // flow through this sync point count — i.e. in-app git operations (branch
+  // switch/create, patch apply, editor-save refresh, Changes panel refresh,
+  // bootstrap). Commits made outside the app (e.g. a terminal) are not watched;
+  // they are picked up by the manual refresh buttons.
   const prev = state.gitSnapshots[workspaceId];
   if (prev && (prev.branch !== snapshot.branch || prev.head !== snapshot.head)) {
     patch.gitVisStale = { ...(state.gitVisStale ?? {}), [workspaceId]: true };

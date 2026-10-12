@@ -44,7 +44,7 @@ export interface GitVisSlice {
   setGitVisLoading: (workspaceId: string, chartId: string, loading: boolean) => void;
   setGitVisError: (workspaceId: string, chartId: string, error: string | undefined) => void;
   setGitVisTimeRange: (workspaceId: string, chartId: string, range: TimeRangeState) => void;
-  markGitVisStale: (workspaceId: string, stale: boolean) => void;
+  setGitVisStale: (workspaceId: string, stale: boolean) => void;
   clearWorkspaceGitVisData: (workspaceId: string) => void;
   setGitVisLoadedPhases: (phases: Record<string, 'high' | 'medium' | 'low' | undefined>) => void;
 }
@@ -106,8 +106,14 @@ export const createGitVisSlice = (
         persistTimeRange(next);
         return { gitVisTimeRange: next };
       }),
-    markGitVisStale: (workspaceId, stale) =>
-      set((s) => ({ gitVisStale: { ...s.gitVisStale, [workspaceId]: stale } })),
+    setGitVisStale: (workspaceId, stale) =>
+      set((s) => {
+        if (!stale) {
+          const { [workspaceId]: _, ...rest } = s.gitVisStale;
+          return { gitVisStale: rest };
+        }
+        return { gitVisStale: { ...s.gitVisStale, [workspaceId]: true } };
+      }),
     clearWorkspaceGitVisData: (workspaceId) =>
       set((s) => {
         const { [workspaceId]: _, ...restData } = s.gitVisData;

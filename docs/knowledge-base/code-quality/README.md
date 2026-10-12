@@ -43,6 +43,7 @@ Git 可视化图表、热力图、echarts/visx 迁移、ChartBrush。
 | [bklit-ui-component-port-and-cache-key-bump-2026-07-31.md](./git-vis-charts/bklit-ui-component-port-and-cache-key-bump-2026-07-31.md) | bklit-ui 组件移植与缓存 key 提升 |
 | [chart-brush-portal-overlay-2026-08-02.md](./git-vis-charts/chart-brush-portal-overlay-2026-08-02.md) | ChartBrush 门户 Overlay 与 CSS 级联陷阱（backdrop-filter 不可靠、createPortal、jsdom 无 PointerEvent） |
 | [bklit-ui-loading-skeleton-var-y-domain-2026-08-04.md](./git-vis-charts/bklit-ui-loading-skeleton-var-y-domain-2026-08-04.md) | bklit-ui 加载骨架与 CSS 变量作用域 |
+| [git-vis-cache-guard-review-loop-lessons-2026-10-13.md](./git-vis-charts/git-vis-cache-guard-review-loop-lessons-2026-10-13.md) | Git 可视化缓存守卫/失效四轮收尾审查 7 条教训（refresh 门控锚原始测量值、React.memo 零 props rerender 跳过、store mock 缺 getState 静默生效、mock 图表数据 null 而非 `{}`、工作区级失效标记的清除粒度、overflow-hidden 裁掉 absolute 子卡、修复本身须同等审查） |
 
 ### [toolchain-lint/](./toolchain-lint/)
 
