@@ -1,10 +1,12 @@
 # 编码模式分析 — AI Digital Life
 
+> 本目录为**索引型快照**：各文件仅保留阅读地图与实现备注，规范性约束以 `.agents/rules/` 为准。
+
 AI Digital Life 前端与后端的编码模式与规范文档。
 
 ## Files
 
-- [react-patterns.md](./react-patterns.md) — React 编码模式（组件拆分阈值、Hooks 规范）
-- [rust-patterns.md](./rust-patterns.md) — Rust 后端编码模式（crate 依赖方向、模块组织）
-- [testing.md](./testing.md) — 测试模式（测试层级、策略与惯例）
-- [zustand-patterns.md](./zustand-patterns.md) — Zustand 状态管理模式（架构概览、slice 模式）
+- [react-patterns.md](./react-patterns.md) — React 编码模式索引（规范见 `component-architecture.md`）
+- [rust-patterns.md](./rust-patterns.md) — Rust 后端编码模式索引（规范见 `rust-patterns.md` 等规则）
+- [testing.md](./testing.md) — 测试模式索引（规范见 `mandatory-testing.md`、`quality-gates.md`）
+- [zustand-patterns.md](./zustand-patterns.md) — Zustand 状态管理模式索引（规范见规则，计数见 ai-digital-life/AGENTS.md）

@@ -5,7 +5,7 @@
 
 ## 项目定位
 
-AI 数字生命（AI Digital Life）是一个 **AI 编码代理桌面应用**，基于 Rust + Tauri 2.x 构建，对标参考实现的能力集。当前已完成 Phase 2 全部 18 项缺失能力实现。
+AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿主**，基于 Rust + Tauri 2.x 构建。当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**（不分阶段，见 `AGENTS.md#项目形态`）。Agent 对话、模型接入与编排能力由第三方 harness 提供，本仓库仅负责宿主集成。
 
 | 特征 | 说明 |
 |------|------|
@@ -26,7 +26,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 编码代理桌面应用**，
 | 后端 | Rust stable + tokio | 异步运行时 |
 | 数据库 | SQLite (rusqlite) | 本地持久化 |
 | 前端 | React 19 + Vite 8 | UI 层 |
-| 状态管理 | Zustand 5 | 切片合并模式（24 切片 + 12 action） |
+| 状态管理 | Zustand 5 | 切片合并模式（31 切片 + 17 action，见 ai-digital-life/AGENTS.md） |
 | 编辑器 | CodeMirror 6 (@uiw/react-codemirror) | 代码显示/编辑 |
 | 终端 | xterm.js 6 + node-pty | 伪终端 |
 | 类型 | TypeScript 5.6 | 严格模式 |
@@ -40,23 +40,20 @@ AI 数字生命（AI Digital Life）是一个 **AI 编码代理桌面应用**，
 |------|------|
 | Rust Crates | 22 |
 | Tauri Commands | 33 |
-| Zustand 切片 | 24 |
-| Action 模块 | 12 |
-| 前端功能域 | 26 |
-| IPC 接口域 | 30 |
-| i18n 文件 | 52（中英各 26） |
-| Rust 测试 | 508 |
-| 前端测试 | 431 |
+| Zustand 切片 | 31（见 ai-digital-life/AGENTS.md） |
+| Action 模块 | 17（见 ai-digital-life/AGENTS.md） |
+| 前端功能域 | 约 25（见 `frontend/src/app/features/`） |
+| IPC 接口域 | 约 30（见 `frontend/src/shared/ipc/`） |
+| i18n 文件 | 约 46（中英各约 23，以实现为准） |
+| Rust 测试 | 616（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
+| 前端测试 | 1947（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
 | 重构轮次 | 93 |
 
-## Phase 演进
+> 快照数字可能滞后，当前准确计数以源码与 `ai-digital-life/AGENTS.md` 为准。
 
-| Phase | 状态 | 范围 |
-|-------|------|------|
-| Phase 0 | ✅ 已完成 | 架构底座、桌面壳层、安全边界、基础设施 |
-| Phase 1 | ✅ 已完成 | 交互式 MVP、模型接入、上下文、变更预览 |
-| Phase 2 | ✅ 已完成 | 18 项缺失能力（多 Agent/MCP/多 Provider/Compaction/Snapshot/...） |
-| Phase 2 增强 | ✅ 已完成 | Provider 动态注册 + SSE 流式传输 + ModelPicker |
+## 项目形态（完整形态，不分阶段）
+
+本项目不做分阶段规划，"Phase 0/1/2" 为历史阶段表述。当前实现即完整形态（桌面应用宿主 + 第三方 Agent harness 集成），范围边界见 `.agents/rules/phase-boundary.md`。
 
 ## 仓库工作区结构
 
@@ -133,9 +130,9 @@ ai-digital-life/
 
 ## 关键设计理念
 
-1. **Zustand 切片合并**：功能拆分为 24 切片 + 12 action 模块，通过 `slicedStore.ts` 合并导出
+1. **Zustand 切片合并**：功能拆分为 31 切片 + 17 action 模块，通过 `slicedStore.ts` 合并导出（见 ai-digital-life/AGENTS.md）
 2. **IPC 三桥接一致性**：Tauri/preview/mock 三桥接层必须保持接口一致
 3. **Crate 分离与依赖倒置**：每个 crate 有明确边界，通过 traits 解耦
 4. **Rust 错误统一**：通过 `AppError` 枚举跨 crate 传播，`captureTypedError` 前端消费
 5. **设计 Token 驱动**：`tokens.ts` 定义完整设计 Token，`theme.ts` 驱动主题切换
-6. **i18n 全覆盖**：所有 UI 文本使用 i18n key，中英双语各 26 域文件
+6. **i18n 全覆盖**：所有 UI 文本使用 i18n key，中英双语各约 23 域文件（以实现为准）

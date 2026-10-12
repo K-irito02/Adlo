@@ -1,5 +1,7 @@
 # Development
 
+> **定位**：工程约束与操作手册。其中 `project-engineering-constraints.md` 为治理级约束，与 `.agents/rules/` 重叠处以规则文件为准（见 governance-audit Tier 1）。
+
 工程约束、Agent 架构、Hook 策略与开发规范。
 
 ## 文件索引

@@ -9,7 +9,7 @@ The renderer currently supports:
 
 Language selection is owned by the Rust backend, persisted in `config/config.json`, and exposed to the WebView only through typed Tauri Commands.
 
-Current i18n coverage: **~932 keys across 13 domains** (common, menu, workspace, conversation, file, changes, terminal, browser, approval, models, CI, communicate).
+Current i18n coverage: **约 23 域文件（中英对称），key 数以实现为准**。硬约束见 `docs/development/project-engineering-constraints.md`（国际化规则）与 `.agents/rules/`（i18n 相关规则）。
 
 All UI text types are covered: buttons, tooltips, card content, aria-labels, placeholders, empty states, loading states, error messages, filter labels, relative time strings, date formatting.
 

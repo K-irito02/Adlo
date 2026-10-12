@@ -1,5 +1,7 @@
 # 内置浏览器
 
+> **体裁**：实现快照（crate 结构与模块职责，可能滞后）。设计决策见 [architecture/features/builtin-browser.md](../../../architecture/features/builtin-browser.md)，经验教训见 `docs/knowledge-base/browser/`。
+
 ## browser crate（WebView2）
 
 > 路径: `crates/browser/`

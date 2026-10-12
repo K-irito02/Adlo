@@ -3,6 +3,8 @@
 > 源码路径：`ai-digital-life/`
 > 版本：0.1.0 | 许可：MIT
 > 前端：React 19 + Vite + TypeScript | 后端：Rust + Tauri 2.x
+>
+> **快照说明**：本目录为实现快照（只读索引），数字可能滞后；当前准确计数见 [ai-digital-life/AGENTS.md](../../../ai-digital-life/AGENTS.md)（31 切片 + 17 action 模块），规范约束见 `.agents/rules/`。
 
 ## 使用指南
 
@@ -59,7 +61,7 @@ Rust 后端:
   frontend/src/app/
     ├── features/   → 26 个功能域模块
     ├── components/ → 通用组件（9 子目录）
-    ├── stores/     → Zustand（24 切片 + 12 action）
+    ├── stores/     → Zustand（31 切片 + 17 action，见 ai-digital-life/AGENTS.md）
     ├── hooks/      → 通用 Hook
     ├── i18n/       → 国际化（中英双语）
     ├── regions/    → 布局区域（StatusBar/Sidebar/Panel）

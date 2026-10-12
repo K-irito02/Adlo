@@ -1,11 +1,10 @@
-# Phase 0 And Phase 2 Thin Slice Overview (Rust + Tauri)
+# System Overview (Rust + Tauri)
+
+> **项目形态**：当前实现即所规划的完整形态（桌面应用宿主 + 第三方 Agent harness 集成，不分阶段）。下文 "Phase 0 / Phase 2 thin slice" 为历史阶段表述，保留作演进记录；范围边界以 `.agents/rules/phase-boundary.md` 与根 `AGENTS.md` 为准。
 
 ## Purpose
 
-This codebase targets two layers of runnable scope on top of **Rust + Tauri 2.x**:
-
-- Phase 0 foundation
-- Phase 2 single-agent thin slice
+This codebase is the runnable **desktop host + third-party Agent harness integration** on top of **Rust + Tauri 2.x** (foundation shell, workspace, terminal, editor, browser, storage governance, system capabilities; Agent capabilities provided by the harnessed third party).
 
 ## Implemented Backend Thin Slice
 
