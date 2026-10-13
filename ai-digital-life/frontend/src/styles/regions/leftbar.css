@@ -1,8 +1,6 @@
 /* ---------------- LeftSidebar ---------------- */
 
 @import './context-menu.css';
-@import './leftbar-workspace.css';
-@import './leftbar-session.css';
 
 .adl-leftbar {
   display: flex;

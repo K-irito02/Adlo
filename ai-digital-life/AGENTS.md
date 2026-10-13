@@ -54,7 +54,7 @@
 - 第三方 harness 宿主集成（当前为 deepseek dsh）：进程托管与拉起（`crates/webapp-host`）、内嵌版本管理（`crates/dsh-bundle`）与系统版本检测/升级回退（`crates/dsh-version`）、下载源与镜像配置（`crates/download-source`）、中间区多标签宿主渲染（统一入口页 CenterEntryPage：deepseek harness / 浏览器 / 终端三入口；dsh 版本管理位于设置面板「DSH」组版本管理块 / 浏览器视图 / 终端视图，标题栏标签条切换/拖拽排序；dsh 作为普通浏览器标签承载，`location='center'`；Tauri 双宿主 WebView2 / 浏览器 iframe + 嵌入被拒外部打开兜底）
 - 存储治理：`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组（见上文"存储路径解析"）
 - 系统能力：剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储（keyring + 加密文件降级）
-- Zustand 切片模式（31 切片 + 17 action 模块）+ 模块化分层（features/ + regions/）
+- Zustand 切片模式（32 切片 + 18 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（22 领域，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
 
@@ -107,13 +107,18 @@ app/stores/
 ├── storageHelpers.ts            # localStorage 读写工具
 ├── cacheHelpers.ts              # 缓存系统（TTL/LRU）、请求序列
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 31 个独立切片（含 8 浏览器 + 3 GitHub）
-│   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts
+├── slices/                      # 32 个独立切片（含 8 浏览器 + 3 GitHub，以 slicedStore.ts 实测为准）
+│   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts（含 gitVisSlice）
 │   ├── editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts
-│   ├── commandSlice.ts / clipboardSlice.ts / terminalSlice.ts
+│   ├── clipboardSlice.ts（含 clipboardHistorySlice）/ terminalSlice.ts
+│   ├── centerTabsSlice.ts           # 中间区标签
+│   ├── dshSlice.ts                  # dsh 宿主
 │   ├── ciSlice.ts                   # CI 状态（轮询、快照、Section 切换）
 │   ├── communicateSlice.ts          # 通信面板共享状态
+│   ├── referenceSlice.ts            # 引用管理
+│   ├── systemMonitorSlice.ts        # 系统监视器
+│   ├── notificationSlice.ts / errorToastSlice.ts / toastSlice.ts / fileOpNoticeSlice.ts
 │   ├── githubSlice.ts               # GitHub 面板核心
 │   ├── githubRepoSlice.ts           # GitHub 仓库配置（Token、CRUD、Pin/Unpin）
 │   ├── githubTreeSlice.ts           # GitHub 树形目录
@@ -122,12 +127,16 @@ app/stores/
 │   ├── browserBookmarkSlice.ts      # 浏览器书签
 │   ├── browserHistorySlice.ts       # 浏览器历史记录
 │   ├── browserFoldersSlice.ts       # 浏览器标签文件夹
-│   └── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
-└── actions/                     # 17 个跨切片 action 模块
-    ├── workspaceActions.ts（448 行） / editorActions.ts
-    ├── patchActions.ts / gitActions.ts / fetchActions.ts
-    ├── streamActions.ts / generalActions.ts / searchActions.ts
-    ├── commandActions.ts / browserCleanupActions.ts（112 行）
+│   ├── browserLandingSlice.ts       # 浏览器着陆页（快捷站点、端口、背景）
+│   ├── browserSearchEnginesSlice.ts # 搜索引擎管理
+│   └── browserDownloadsSlice.ts     # 下载记录与设置
+└── actions/                     # 18 个跨切片 action 模块（*Actions.ts，+ helpers/类型文件）
+    ├── workspaceActions.ts / workspaceLifecycleActions.ts / workspaceTreeActions.ts
+    ├── editorActions.ts / patchActions.ts
+    ├── gitActions.ts / gitBranchActions.ts / gitFileOpsActions.ts / gitSnapshotActions.ts / gitVisActions.ts
+    ├── fetchActions.ts / generalActions.ts / searchActions.ts
+    ├── referenceActions.ts / utilitiesActions.ts
+    ├── centerActions.ts / dshActions.ts / browserCleanupActions.ts
 ```
 
 ### 关键文件
@@ -154,7 +163,7 @@ app/stores/
 | 复制按钮 | 页面右上角可拖拽"复制调试日志"按钮 |
 | 自动写入 | `.adl-logs/`（debug 构建）；Tauri 桌面壳 `debug-logs*.txt`、浏览器模式 `debug-logs-browser*.txt` |
 | 后端命令 | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project` |
-| 浏览器后端 | `frontend/dev/previewWorkspaceService.ts` → `writeDebugLogs` |
+| 浏览器后端 | `frontend/dev/previewWorkspaceService/`（目录，`logging.ts` → `writeDebugLogs`） |
 
 **优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#调试工具)。
 

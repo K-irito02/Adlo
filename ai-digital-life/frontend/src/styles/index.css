@@ -18,8 +18,6 @@
 @import './base.css';
 @import './components.css';
 @import './regions/leftbar.css';
-@import './regions/leftbar-workspace.css';
-@import './regions/leftbar-session.css';
 @import './regions/leftbar-clipboard.css';
 @import './regions/system-monitor.css';
 @import './regions/center.css';

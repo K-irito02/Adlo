@@ -82,6 +82,7 @@ export const DURATION_TOKENS = [
   'duration-150',
   'duration-200',
   'duration-300',
+  'duration-350',
   'duration-500',
   'duration-700',
   'duration-1000',
