@@ -27,7 +27,7 @@ alwaysApply: true
 - **Rust crate 分层**：依赖方向固定 `kernel → errors/events → config/fs-ops/storage → business → business`，禁止反向；crate 统一 `adl-` 前缀；20+ workspace members（types/kernel/errors/storage/workspace/pty/change-engine/server/credential/...）。详见 [rust-patterns.md](./rust-patterns.md)、[rust-crate-adl-prefix-convention.md](./rust-crate-adl-prefix-convention.md)。
 - **前端分层**：`components/` + `hooks/` + `stores/`(slices+actions) + `features/` + `regions/`（region 布局壳）。
 - **共享纯逻辑层（依赖注入）**：被多处复用的「执行序列」下沉到 `shared/` 的纯模块（如 `shared/settings-reset/`），**禁止 import React / `@i18n` / `@stores`**，store action 与桥能力一律以参数注入；UI 组件与聚合编排器共用同一实现。约束来源：`stores → shared` 已存在运行时依赖，shared 反向 import stores 会成环。类型契约（step 码、deps 形状）集中声明在层内，消费方不得就地复写。
-- **状态**：Zustand 切片合并模式（31 切片 + 17 action 模块），选择器用 `useShallow`。详见 [zustand-patterns.md](./zustand-patterns.md)、[region-layout-shell-architecture.md](./region-layout-shell-architecture.md)。
+- **状态**：Zustand 切片合并模式（32 切片 + 18 action 模块），选择器用 `useShallow`。详见 [zustand-patterns.md](./zustand-patterns.md)、[region-layout-shell-architecture.md](./region-layout-shell-architecture.md)。
 - **桥接**：`DigitalLifeBridge` 域拆分子接口 + Tauri/Preview/Mock 三实现一致。详见 [bridge-three-implementation-pattern.md](./bridge-three-implementation-pattern.md)。
 - **harness 集成**：进程托管与拉起（`crates/webapp-host`）、内嵌版本管理（`crates/dsh-bundle`）+ 系统版本检测/升级回退（`crates/dsh-version`）、下载源/镜像（`crates/download-source`）。
 

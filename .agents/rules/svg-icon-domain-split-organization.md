@@ -1,3 +1,9 @@
+---
+description: Domain-split SVG icon organization with make factory family and barrel exports
+globs: ai-digital-life/frontend/src/app/icons/**
+alwaysApply: false
+---
+
 ## SVG 图标领域拆分组织模式
 
 ### 规则描述

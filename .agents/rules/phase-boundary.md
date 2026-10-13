@@ -5,9 +5,9 @@ alwaysApply: true
 
 # 项目形态与范围边界
 
-> 本项目不分阶段规划。当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入、多 Agent 编排及其配套能力不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、下载源/镜像、宿主渲染）。
+> 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入、多 Agent 编排及其配套能力不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、下载源/镜像、宿主渲染）。
 
-## 已实现范围（完整形态）
+## 已实现范围
 
 - 架构底座：Rust + Tauri 2.x 桌面壳、SQLite 持久化、安全边界（capability 白名单）、双端一致（Tauri / 浏览器预览 / mock 三桥接）
 - 工作区：多工作区管理、文件树、大纲解析、搜索、Git 可视化、补丁预览/应用/回滚、快照
@@ -48,9 +48,9 @@ alwaysApply: true
 - [ ] 是否需要新增持久化存储？
 - [ ] 是否需要同步文档更新？
 
-详见 [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md)（未来想法清单，不分阶段、不承诺）
+详见 [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md)（未来想法清单，不承诺）
 
 ## 相关文件
 
 - [AGENTS.md](../../AGENTS.md)
-- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
+- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法

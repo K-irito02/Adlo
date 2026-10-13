@@ -61,6 +61,10 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | `pnpm --dir frontend run test:watch` | 前端测试 watch 模式（开发时使用） |
 | `pnpm --dir frontend run coverage` | 前端覆盖率收集 |
 | `pnpm --dir frontend run typecheck` | 前端类型检查 |
+| `pnpm --dir frontend run typecheck:dev` | 前端 dev 工具链类型检查（CI 门禁） |
+| `pnpm --dir frontend run lint` | 前端 Lint 检查（修复用 `lint:fix`） |
+| `pnpm --dir frontend run format:check` | 前端格式检查（修复用 `format`） |
+| `pnpm --dir frontend run check:i18n` | 前端 i18n 覆盖检查（CI 门禁） |
 | `cargo test --workspace` | Rust 全量测试 |
 | `cargo test -p <crate>` | Rust 指定 crate 测试 |
 | `cargo test <test_name>` | Rust 模糊匹配测试名称 |
@@ -126,6 +130,7 @@ $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
 | 命令 | 用途 |
 |------|------|
 | `cargo check --workspace` | 编译检查（无二进制输出） |
+| `cargo fmt --all -- --check` | Rust 格式检查（修复用 `cargo fmt --all`） |
 | `cargo test --workspace` | 运行所有 Rust 测试 |
 | `cargo build --workspace` | 完整编译（首次/新增依赖时较慢） |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Lint 检查 |

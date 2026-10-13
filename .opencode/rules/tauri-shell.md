@@ -27,18 +27,18 @@ alwaysApply: false
 |------|------|
 | `frontend/src/shared/ipc/digital-life.ts` | `DigitalLifeBridge` 类型定义（域拆分见 `shared/ipc/*.ts`，共 25 个文件） |
 | `src-tauri/src/commands/*.rs` | `#[tauri::command]` 处理 |
-| `src-tauri/capabilities/*.json` | Command 白名单 |
+| `src-tauri/capabilities/*.json` | Command 白名单（经 `permissions/digital-life.toml` 的 `digital-life-commands` 集合引用） |
 | `crates/kernel` | `serde` 契约类型 |
 | `frontend/dev/previewWorkspaceService/` | 浏览器开发态服务端 API 目录（镜像 Tauri Command 能力） |
 | `frontend/dev/previewTerminalService.ts` | 浏览器开发态终端服务（镜像 Tauri PTY Command，使用 Node.js `child_process.spawn`） |
-| `shared/ipc/pty.ts` + `pty-ws.ts` | PTY 通道（旧 `src-tauri/src/commands/pty_commands.rs` 已移除，经 adl-server/壳提供） |
+| `shared/ipc/pty.ts` + `pty-ws.ts` | PTY 通道（经 adl-server/壳提供） |
 | `crates/pty/` | PTY 进程管理（伪终端生命周期、Shell 解析、会话管理） |
 
 ## 事件通道
 
 | 通道 | 用途 |
 |------|------|
-| `digital-life://terminal-stream` | 终端流式输出（旧命令执行） |
+| `digital-life://terminal-stream` | 终端流式输出 |
 | `digital-life://pty-output` | PTY 终端输出（会话对应） |
 | `digital-life://workspace-file-changed` | 工作区文件变更 |
 | `digital-life://browser-url-changed` | 浏览器 WebView URL 变更（Tauri 模式，通过 `on_navigation` 回调） |

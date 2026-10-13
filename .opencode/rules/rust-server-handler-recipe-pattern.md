@@ -1,3 +1,9 @@
+---
+description: Unified four-step recipe for ad-server HTTP handlers with blocking I/O isolation and IpcResult wrapping
+globs: ai-digital-life/crates/server/**/*.rs
+alwaysApply: false
+---
+
 ## Rust 服务端 Handler 统一配方模式
 
 ### 规则描述

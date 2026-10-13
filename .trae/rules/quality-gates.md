@@ -23,10 +23,12 @@ alwaysApply: false
 
 | 检查项 | 命令 |
 |--------|------|
-| 前端 Lint + 格式 | `pnpm --dir frontend run lint:fix` + `pnpm --dir frontend run format` |
+| 前端 Lint + 格式 | `pnpm --dir frontend run lint` + `pnpm --dir frontend run format:check`（检查模式；修复用 `lint:fix` + `format`） |
 | 前端类型 | `pnpm --dir frontend run typecheck` |
+| 前端类型（dev 工具链） | `pnpm --dir frontend run typecheck:dev` |
+| 前端 i18n 覆盖 | `pnpm --dir frontend run check:i18n` |
 | 前端测试 | `pnpm --dir frontend run test` |
-| Rust 格式 | `cargo fmt --all` |
+| Rust 格式 | `cargo fmt --all -- --check`（检查模式；修复用 `cargo fmt --all`） |
 | Rust Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
 | Rust 编译 | `cargo check --workspace` |
 | Rust 测试 | `cargo test --workspace` |

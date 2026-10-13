@@ -1,5 +1,6 @@
 ---
 description: 跨语言常量契约：TS/Rust 双写常量必须两侧钉值测试 + 交叉引用注释，任一侧单独改动即失败
+globs: ai-digital-life/frontend/src/shared/**,ai-digital-life/crates/**/constant*.rs,ai-digital-life/crates/**/config*.rs
 alwaysApply: false
 ---
 

@@ -68,5 +68,5 @@ Rust 后端:
   frontend/src/shared/ipc/ → 25 个 IPC 域接口文件
   frontend/src/design-system/ → 设计系统（tokens.ts 真源）
   frontend/src/styles/ → CSS 样式（tokens.css/themes.css + components/regions/ 分散文件）
-  frontend/src/preview-bridge/ → 浏览器模式桥接（12 实现文件 + index）
+  frontend/src/preview-bridge/ → 浏览器模式桥接（11 实现文件 + 入口 index.ts）
 ```

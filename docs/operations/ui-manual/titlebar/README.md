@@ -16,6 +16,7 @@
 |------|------|------|------|
 | [1] | Hamburger Menu | [hamburger-menu.md](./hamburger-menu.md) | 汉堡菜单（文件/视图/帮助） |
 | [2] | Center Tabs | [center-tabs.md](./center-tabs.md) | 中心标签条（切换/关闭/拖拽排序/溢出滚动） |
+| [3] | Brand | [brand.md](./brand.md) | 品牌 Logo 悬停 Tooltip（编号 [3] 历史缺失，现补 brand 行） |
 | [4] | Theme Toggle | [actions.md](./actions.md#主题切换) | 主题切换按钮 |
 | [5] | Language Toggle | [actions.md](./actions.md#语言切换) | 语言切换按钮 |
 | [6] | Settings | [actions.md](./actions.md#设置按钮) | 设置按钮 |

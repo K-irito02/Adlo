@@ -1,7 +1,6 @@
 import type {
   AppInfo,
   GitSnapshot,
-  ModelGatewayHealthSnapshot,
   RecentWorkspaceEntry,
   WorkspaceChangePreview,
   WorkspaceMeta,
@@ -264,7 +263,7 @@ export function buildMockWorkspaceMeta(workspacePath: string): WorkspaceMeta {
     createdAt: Date.now(),
     updatedAt: Date.now(),
     lastOpenedAt: Date.now(),
-    gitSnapshot: {
+      gitSnapshot: {
       ...emptyGitSnapshot(),
       isRepo: true,
       branch: "main",
@@ -273,19 +272,3 @@ export function buildMockWorkspaceMeta(workspacePath: string): WorkspaceMeta {
     }
   };
 }
-
-export const modelHealth: ModelGatewayHealthSnapshot = {
-  checkedAt: now,
-  providers: [
-    {
-      providerId: "deepseek",
-      healthy: true,
-      detail: "Provider responded successfully."
-    },
-    {
-      providerId: "minimax",
-      healthy: true,
-      detail: "Provider responded successfully."
-    }
-  ]
-};

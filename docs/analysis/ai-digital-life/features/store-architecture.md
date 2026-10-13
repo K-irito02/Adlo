@@ -58,22 +58,32 @@ export const useAppStore = useSlicedAppStore;
 | `createErrorToastSlice` / `createToastSlice` | `slices/errorToastSlice.ts` / `slices/toastSlice.ts` |
 | `createFileOpNoticeSlice` | `slices/fileOpNoticeSlice.ts` |
 
-## 18 个 Action 模块（`stores/actions/`）
+## 18 个 Action 模块（`stores/actions/`，`*Actions.ts`）
 
 | 模块 | 文件 |
 |------|------|
-| Workspace 系 | `workspaceActions.ts`、`workspaceLifecycleActions.ts`、`workspaceTreeActions.ts`、`workspaceTreeRename.ts`、`workspaceLoadOrder.ts`、`workspaceNaturalOrderSync.ts` |
-| Editor | `editorActions.ts`（+ editorActionsHelpers） |
+| Workspace 系 | `workspaceActions.ts`、`workspaceLifecycleActions.ts`、`workspaceTreeActions.ts` |
+| Editor | `editorActions.ts` |
 | Patch | `patchActions.ts` |
 | Git 系 | `gitActions.ts`、`gitBranchActions.ts`、`gitFileOpsActions.ts`、`gitSnapshotActions.ts`、`gitVisActions.ts` |
 | Search | `searchActions.ts` |
 | Fetch/通用 | `fetchActions.ts`、`generalActions.ts` |
-| Browser | `browserCleanupActions.ts`（+ browserCleanupHelpers） |
+| Browser | `browserCleanupActions.ts` |
 | Center | `centerActions.ts` |
 | Dsh | `dshActions.ts` |
 | Reference | `referenceActions.ts` |
 | Utilities | `utilitiesActions.ts` |
-| 偏好合并 | `preferencePatchMerge.ts` |
+
+## helpers/类型与顺序文件（`stores/actions/`，非 `*Actions` 模块）
+
+| 文件 | 说明 |
+|------|------|
+| `editorActionsHelpers.ts` | Editor action 辅助函数 |
+| `browserCleanupHelpers.ts` | Browser 清理辅助函数 |
+| `workspaceTreeRename.ts` | 工作区树重命名顺序/工具 |
+| `workspaceLoadOrder.ts` | 工作区加载顺序 |
+| `workspaceNaturalOrderSync.ts` | 工作区自然顺序同步 |
+| `preferencePatchMerge.ts` | 偏好合并类型/工具 |
 
 ## cacheHelpers.ts 模式
 

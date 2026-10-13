@@ -44,7 +44,6 @@ function setupWindowDigitalLife() {
         ok: false,
         error: { code: 'WARMUP_TEST_EARLY_EXIT', message: 'bootstrap short-circuit' },
       }),
-      getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
     },
     workspace: {
       listRecent: vi.fn().mockResolvedValue({ ok: true, data: [] }),

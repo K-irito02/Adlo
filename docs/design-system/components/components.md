@@ -1,6 +1,6 @@
 # Components
 
-> `render*` helpers in `design-system/components.ts` are **legacy string renderers** （仅设计约束参考；React 消费端以 `Toast`/`Tooltip` 等组件为准，`styles/index.css` 亦注明 `renderNavItem`/`renderStatTile` 为历史遗留）。
+> `render*` helpers in `design-system/components.ts` 仅作设计约束参考；React 消费端以 `Toast`/`Tooltip` 等组件为准。
 
 Source of truth: `[frontend/src/styles/components.css](../../../ai-digital-life/frontend/src/styles/components.css)` (visual rules) and `[frontend/src/design-system/components.ts](../../../ai-digital-life/frontend/src/design-system/components.ts)` (renderer helpers).
 

@@ -3,7 +3,6 @@ import type {
   AppPreferencePatch,
   HealthSnapshot,
   IpcResult,
-  ModelGatewayHealthSnapshot,
   RuntimeDiagnosticsSnapshot,
   SettingItem,
   SettingsGroupId,
@@ -15,7 +14,6 @@ export type {
   AppPreferencePatch,
   HealthSnapshot,
   IpcResult,
-  ModelGatewayHealthSnapshot,
   RuntimeDiagnosticsSnapshot,
   SettingItem,
   SettingsGroupId,
@@ -24,8 +22,8 @@ export type {
 
 /**
  * 应用信息与健康状态桥接能力
- * 用于: 获取应用名称、版本、配置、当前工作区、健康状态、诊断信息、模型网关状态
- * Tauri 命令: app_get_info / app_get_health / app_get_diagnostics / app_get_model_health / app_update_preferences
+ * 用于: 获取应用名称、版本、配置、当前工作区、健康状态、诊断信息
+ * Tauri 命令: app_get_info / app_get_health / app_get_diagnostics / app_update_preferences
  * 浏览器模式: 返回静态 mock 数据
  */
 export interface AppBridge {
@@ -56,15 +54,6 @@ export interface AppBridge {
    * @see preview-bridge/index.ts → app.getDiagnostics
    */
   getDiagnostics: () => Promise<IpcResult<RuntimeDiagnosticsSnapshot>>;
-  /**
-   * 获取模型网关健康状态
-   * @returns 模型服务提供商的可用性与延迟信息
-   * @command app_get_model_health
-   * @see tauri-bridge.ts → app.getModelHealth
-   * @see mock-bridge.ts → app.getModelHealth
-   * @see preview-bridge/index.ts → app.getModelHealth
-   */
-  getModelHealth: () => Promise<IpcResult<ModelGatewayHealthSnapshot>>;
   /**
    * 更新应用偏好设置
    * @param patch 对现有配置的增量修改

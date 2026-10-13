@@ -37,7 +37,6 @@ export {
   buildMockChangePreview,
   ensureRecentWorkspace,
   buildMockWorkspaceMeta,
-  modelHealth,
 } from "./mock-shared-workspace";
 
 // Patch sets, agent runs, send

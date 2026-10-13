@@ -66,7 +66,7 @@ frontend/src/app/
 | 工作区设置 | `features/workspace-settings/` |
 | 工作区终端 | `features/workspace-terminal/` |
 
-> 历史注记：`conversation`、`mcp`、`lsp-panel`、`provider-manager`、`permission-settings`、`plugin-manager`、`custom-agent`、`reference-manager`、`session-fork`、`web-search`、`command-editor` 等目录已不存在，相关能力由第三方 harness（dsh）提供或已下线。
+> 以下目录不存在，相关能力由第三方 harness（dsh）提供或已下线：`conversation`、`mcp`、`lsp-panel`、`provider-manager`、`permission-settings`、`plugin-manager`、`custom-agent`、`reference-manager`、`session-fork`、`web-search`、`command-editor`。
 
 ## 布局区域 (regions/)
 

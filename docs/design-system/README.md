@@ -1,5 +1,7 @@
 # Design System
 
+> 定位：本目录为 AI Digital Life 桌面渲染器的设计系统实现契约（中英双语：canonical design-system reference + implementation contract）。
+
 This is the canonical design-system reference for the **AI Digital Life** desktop renderer.
 
 This folder is the **implementation contract**: anything the renderer ships must match the rules below, and any spec change must update both.
@@ -54,7 +56,7 @@ frontend/src/
 │   ├── base.css           # 3. Resets, focus, scrollbar
 │   ├── components.css     # 4. Buttons, cards, pills, modal, ...
 │   ├── components/        # 5. Per-component styles (~30 files)
-│   ├── regions/           # 6. Shell region styles (titlebar/leftbar/center/statusbar/...)
+│   ├── regions/           # 6. Shell region styles (rightpanel/)
 │   ├── testing/           # 7. Test-only styles
 │   ├── utilities.css      # 8. sr-only, skip link, gap helpers
 │   ├── tailwind.css       # 9. Tailwind entry
@@ -64,7 +66,7 @@ frontend/src/
     ├── html.ts            # html`` template + escape + classNames
     ├── icons.ts           # SVG icon registry (currentColor, no emoji)
     ├── theme.ts           # ThemeController (setTheme({ mode }) + subscribe/dispose/getState)
-    ├── components.ts      # Legacy string renderers (renderButton/renderCard/…，仅设计约束参考)
+    ├── components.ts      # string renderers (renderButton/renderCard/…，仅设计约束参考)
     ├── __tests__/        # icons/theme tests
     └── index.ts           # Single import surface
 ```

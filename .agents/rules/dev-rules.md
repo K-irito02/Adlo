@@ -132,7 +132,7 @@ Agent 在完成任何代码修改、Bug 修复、新功能实现或重构后，�
 
 ## 磁盘清理与 target 治理
 
-`ai-digital-life/target/debug` 依赖全量 debug 符号曾膨胀至 130+ GB。遵循以下规范：
+构建产物由 `.cargo/config.toml` 统一治理（第三方依赖 `debug=1`，自有 crate 白名单 `debug=2`）。遵循以下规范：
 
 1. 收尾流程（closing-workflow Step 0）执行 `powershell -File "ai-digital-life\.cargo\clean-target.ps1" -WhatIf` 干跑检查
 2. 空间阈值触发全量清理：`target/debug` 超 30 GB → 执行 `clean-target.ps1` 全量 `cargo clean`（不按时间窗口判断）

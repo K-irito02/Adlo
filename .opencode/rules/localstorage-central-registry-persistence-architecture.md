@@ -1,8 +1,14 @@
+---
+description: Central-registry localStorage persistence architecture with single write entry and construction-time hydration
+globs: ai-digital-life/frontend/src/app/stores/**
+alwaysApply: false
+---
+
 # 中心登记表驱动的 localStorage 持久化架构
 
 ## 规则描述
 
-所有前端 UI 状态的 localStorage 持久化必须收敛到 `stores/persisted/` 的中心登记表（registry）架构，禁止各 slice/组件自建去抖写入器或直接调用 `localStorage.setItem`。该架构取代旧有的逐 slice `requestIdleCallback` 惰性水合方案（该旧方案已废弃，其 `_defaultsHydrated` 守卫不再使用）。
+所有前端 UI 状态的 localStorage 持久化必须收敛到 `stores/persisted/` 的中心登记表（registry）架构，禁止各 slice/组件自建去抖写入器或直接调用 `localStorage.setItem`。
 
 ## 架构组成
 

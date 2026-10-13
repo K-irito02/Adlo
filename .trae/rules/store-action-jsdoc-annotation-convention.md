@@ -1,3 +1,9 @@
+---
+description: Standardized JSDoc annotations for store actions with reads writes and IPC see references
+globs: ai-digital-life/frontend/src/app/stores/actions/**
+alwaysApply: false
+---
+
 ## Store Action 方法标准化 JSDoc 注释约定
 
 ### 规则描述

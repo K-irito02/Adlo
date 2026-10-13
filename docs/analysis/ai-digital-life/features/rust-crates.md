@@ -207,9 +207,3 @@
 |------|-----|
 | 路径 | `crates/tauri-runtime-wry-patched/` |
 | 用途 | Tauri 运行时补丁（wry 相关） |
-
-## 历史注记（已移除的 crate）
-
-以下 crate 已不存在，相关能力由第三方 harness（deepseek dsh）提供，本仓库仅做宿主集成（历史深潜文档已随之删除）。
-
-- `agent-runtime`、`model-gateway`、`subagent`、`mcp-client`、`lsp-client`、`conversation`、`command`、`task`、`context`

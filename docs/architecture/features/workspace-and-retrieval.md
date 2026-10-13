@@ -14,16 +14,6 @@ Workspace state now includes:
 
 Retrieval remains worker-owned and continues to store only externally visible status and repo-map metadata.
 
-## Conversation Scope（历史注记）
-
-> 以下"conversation-only 会话 / 全局会话组 / composer"描述已失效：前端无 composer/message 消息流类，Agent 对话由第三方 harness（dsh）提供。保留原文备查，现状以 `AGENTS.md` 为准。
-
-- ~~Conversation scope supports both active-workspace sessions and conversation-only sessions.~~
-- ~~Conversation-only sessions persist under the internal workspace sentinel `__global__`; the WebView still presents them as a standalone “global conversation” group instead of a real workspace.~~
-- ~~Selecting “conversation-only mode” clears the active workspace context, disables workspace-bound Git actions, and keeps the composer available.~~
-- ~~Selecting a brand-new workspace path from the status bar does not immediately create a workspace/session sidebar row; it is stored as a pending workspace binding and is materialized only when the next message is sent.~~
-- ~~If the user binds a pending workspace from conversation-only mode and the active draft session is still empty, the draft is replaced by a workspace-scoped session instead of leaving behind an empty global session row.~~
-
 ## Branch Operations
 
 - Workspace Git branch actions are owned by the workspace domain and exposed through typed Tauri Commands; the WebView never shells out to Git directly.

@@ -6,7 +6,7 @@ The design system ships with layered coverage. **No public helper may land witho
 
 Location: `frontend/src/design-system/__tests__/` (`icons.test.ts`、`theme.test.ts`) + `frontend/src/styles/*.test.ts`（brush-tokens/center-reveal/resize-handle 等）. Real renderer integration coverage lives with the app (`frontend/src/**/*.test.ts(x)`).
 
-## 3. Right-panel editor regressions
+## 2. Right-panel editor regressions
 
 The file / diff viewers, outline navigation, and shared custom scroll shells rely on CodeMirror and product-owned layout behavior that is easy to break with innocent-looking layout changes. The following targeted tests are part of the required regression net:
 
@@ -29,7 +29,7 @@ pnpm --dir frontend test -- --run \
   src/app/regions/right-panel/outlinePanelWiring.test.ts
 ```
 
-## 4. Build verification
+## 3. Build verification
 
 `pnpm --dir frontend run build` validates that:
 
@@ -38,7 +38,7 @@ pnpm --dir frontend test -- --run \
 
 `pnpm --dir frontend run typecheck` covers the WebView frontend; `cargo check --workspace` covers the Rust backend.
 
-## 5. Visual regression
+## 4. Visual regression
 
 Visual regression 尚未自动化（未来想法，未立项）。以 `quality-gates.md` / `mandatory-testing.md` 的红绿测试与双端验证为准。
 

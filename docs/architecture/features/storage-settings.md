@@ -33,7 +33,7 @@
 4. **白名单是迁移与清理的唯一依据**：base-aware 判定（相对基目录结构），凭据回退仅 `<service>.<account>.enc` 形态；`preflight` 在设置时与启动迁移前各执行一次。
 5. **浏览器模式无重启能力**：`restartApp` 返回 `NOT_SUPPORTED`，"立即迁移"退化为写 pending + 提示下次启动生效。
 6. **路径分类（Plan C）**：10 条可迁移路径（`database`、`downloads_db`、`site_meta_db`、`tree_cache`、`config`、`clipboard`、`snapshot`、`dsh`、`logs`、`credentials_fallback`）+ 1 个设置值路径（`downloads_default`，仅记录不迁移）+ 6 项不可移动（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存，UI 附原因说明）。
-7. **快照路径收敛**：补丁快照路径由旧硬编码收敛到 adl-server 的 `storage.paths().snapshot_dir`；遗留目录旧快照不自动迁移。
+7. **快照路径**：补丁快照路径为 adl-server 的 `storage.paths().snapshot_dir`；默认目录外的旧快照不自动迁移。
 
 ## 经验教训（根因复盘摘要）
 

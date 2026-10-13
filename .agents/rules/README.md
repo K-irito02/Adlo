@@ -25,7 +25,7 @@ alwaysApply: true
 | `desktop-ui-verification.md` | 桌面端 UI 验证流程、双端验证清单 | 修改 UI |
 | `dev-rules.md` | 代理交互与执行规则（询问卡片、终端命令、代码修改、问题排查、编码风格） | 始终应用 |
 | `mandatory-testing.md` | 结束验收流程、强制红绿测试、测试材料管理 | 始终应用 |
-| `ui-patterns.md` | UI 模式速查：对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树、Tooltip、Toast 等 22 类模式 | 始终应用 |
+| `ui-patterns.md` | UI 模式速查：对话框、菜单、悬停、点击、颜色、Hint Card、按钮、文件树、Tooltip、Toast 等 27 类模式 | 始终应用 |
 | `tauri-command-ipc-wrapper-pattern.md` | Tauri 命令统一使用 ipc()/ipc_try() 包装器 | Tauri Command 变更 |
 | `tagged-enum-camelcase-serde-pattern.md` | Rust↔TS 共享类型 serde 序列化规范 | 新增共享类型 |
 | `usetcopy-i18n-context-pattern.md` | 前端 i18n useTCopy() 上下文模式实现 | 前端 UI 开发 |
@@ -46,13 +46,19 @@ alwaysApply: true
 | `serde-default-rename-all-convention.md` | 跨 IPC 边界 Rust 类型的 serde 双注解约定 | 新增共享类型 |
 | `cross-language-constant-contract.md` | 跨语言常量契约：TS/Rust 双写常量两侧钉值测试 + 交叉引用注释 | 涉及双端共享数值常量 |
 | `ts-rs-type-generation-barrel-import.md` | Rust→TypeScript 自动类型生成及 kernel 桶导入规范 | 类型生成变更 |
+| `css-adl-prefix-private-variable-naming.md` | CSS 私有变量 `--adl-` 前缀命名规范 | CSS/样式变更 |
+| `react-ref-mirror-latest-pattern.md` | React 可变 Ref 镜像最新值模式（effect/事件/观察者回调读取最新 props/state，避免闭包过期） | 前端 UI 开发 |
+| `rust-server-handler-recipe-pattern.md` | ad-server HTTP handler 统一四步配方（State 获取、Body 解析、阻塞隔离、IpcResult 封装） | Rust 服务端变更 |
+| `store-action-jsdoc-annotation-convention.md` | Store Action 方法标准化 JSDoc 注释约定（reads/writes/see IPC 引用） | Store / 状态变更 |
+| `svg-icon-domain-split-organization.md` | SVG 图标按领域拆分组织（make 工厂家族 + index.ts 桶导出） | UI/图标变更 |
+| `tauri-event-subscription-lifecycle-pattern.md` | Tauri 事件订阅生命周期（挂载订阅、异步 unlisten 竞态、状态机守卫） | Tauri 事件/订阅变更 |
 
 ## 新增规则
 
 > 真源目录为 `.agents/rules/`，同步到 `.opencode/rules/` 和 `.trae/rules/`。新增/修改规则在 `.agents/rules/` 操作，再同步。
 
 1. 在 `.agents/rules/` 新增 `*.md` 文件
-2. YAML 头部必填：`description`（英文）+ 触发方式（二选一）：
+2. YAML 头部必填：`description`（英文优先，中英双语可接受）+ 触发方式（二选一）：
    - `alwaysApply: true` — 始终应用（全局规则）
    - `globs: <path-pattern>` — 仅匹配路径时应用（作用域规则，同时设 `alwaysApply: false`）
 3. 在上表「规则文件」增加一行
@@ -93,13 +99,20 @@ alwaysApply: true
 | 类型生成/桶导入规范变更 | `ts-rs-type-generation-barrel-import.md` |
 | 多维度架构变更 | `multi-dimensional-architecture-design.md` |
 | 领域 ID 名义类型变更 | `branded-nominal-type-id.md` |
+| 跨语言常量契约变更 | `cross-language-constant-contract.md` |
+| CSS 私有变量命名变更 | `css-adl-prefix-private-variable-naming.md` |
+| React Ref 镜像模式变更 | `react-ref-mirror-latest-pattern.md` |
+| 服务端 Handler 配方变更 | `rust-server-handler-recipe-pattern.md` |
+| Store Action 注释约定变更 | `store-action-jsdoc-annotation-convention.md` |
+| SVG 图标组织变更 | `svg-icon-domain-split-organization.md` |
+| Tauri 事件订阅生命周期变更 | `tauri-event-subscription-lifecycle-pattern.md` |
 
 ## 规则层级
 
 | 层级 | 覆盖范围 | 规则文件 |
 |------|----------|----------|
 | 项目总览 | 全局架构 | `multi-dimensional-architecture-design.md`, `project-overview.md`, `phase-boundary.md`, `codebase-map.md` |
-| 语言/Framework | 特定技术栈 | `rust-patterns.md`, `zustand-patterns.md`, `component-architecture.md`, `css-architecture.md` |
+| 语言/Framework | 特定技术栈 | `rust-patterns.md`, `zustand-patterns.md`, `component-architecture.md`, `css-architecture.md`, `css-adl-prefix-private-variable-naming.md`, `react-ref-mirror-latest-pattern.md`, `rust-server-handler-recipe-pattern.md`, `store-action-jsdoc-annotation-convention.md`, `svg-icon-domain-split-organization.md`, `tauri-event-subscription-lifecycle-pattern.md`, `usetcopy-i18n-context-pattern.md`, `frontend-at-alias-convention.md`, `frontend-test-tests-co-location.md`, `i18n-dictionary-domain-split-organization.md`, `region-layout-shell-architecture.md`, `rust-command-domain-action-naming.md`, `rust-crate-adl-prefix-convention.md`, `rust-crate-lib-barrel-export-pattern.md`, `rust-inline-cfg-test-pattern.md`, `rust-use-statement-ordering-convention.md`, `serde-default-rename-all-convention.md`, `tagged-enum-camelcase-serde-pattern.md`, `tauri-command-ipc-wrapper-pattern.md`, `ts-rs-type-generation-barrel-import.md`, `cross-language-constant-contract.md`, `bridge-three-implementation-pattern.md`, `createlazyloader-factory-pattern.md`, `branded-nominal-type-id.md`, `localstorage-central-registry-persistence-architecture.md` |
 | 质量保障 | 测试/门禁 | `quality-gates.md`, `mandatory-testing.md`, `error-handling.md` |
 | 操作指南 | 命令/工具 | `commands.md`, `desktop-ui-verification.md` |
 | 专项领域 | 安全/设计 | `tauri-shell.md`, `design-system.md`, `ui-patterns.md` |

@@ -114,9 +114,9 @@ PatchProposal {
     → 用快照内容覆盖工作区文件
 ```
 
-## 补丁/快照通道（旧 `patch.rs`/`snapshot.rs` 已移除）
+## 补丁/快照通道
 
-> 历史注记：旧 `src-tauri/src/commands/patch.rs`（apply/rollback/set_hunk_decision/apply_patch_set_and_snapshot）与 `snapshot.rs`（create/list/restore）已不存在。现行补丁/快照经 `change-engine` crate + `shared/ipc/patch.ts` + `snapshot.ts` 通道，前端状态 `patchSlice.ts` + `patchActions.ts`。
+> 补丁/快照经 `change-engine` crate + `shared/ipc/patch.ts` + `snapshot.ts` 通道，前端状态 `patchSlice.ts` + `patchActions.ts`。
 
 ### IPC 接口 (`shared/ipc/patch.ts`)
 

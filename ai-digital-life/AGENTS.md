@@ -22,7 +22,7 @@
 
 - 所有应用数据路径由 `adl-kernel::storage` 的 `StoragePaths` 统一解析；locator 文件为 `<dirs::config_dir()>/ai-digital-life/storage-locator.json`（Plan A 阶段只读，缺失时回退默认；Plan B 起由启动期迁移写入指针切换结果），默认统一根 = 优先「与安装目录同级的 `&lt;安装目录名&gt;-data`」，该路径不可写（如 Windows 拦截的 Program Files 只读位置）时回退系统用户数据目录（壳层 `app_data_dir()`，见 `src-tauri/src/setup.rs::default_data_root`）。
 - 日志目录：debug（dev）构建写仓库根 `.adl-logs`，release 构建写 `<root>/logs`。
-- **已知行为修正**：补丁快照路径由硬编码（旧 `dirs::data_dir()/ai-digital-life/snapshot`）收敛到 adl-server 的 `storage.paths().snapshot_dir`；遗留目录下的旧快照不自动迁移，需手动移动（Plan B 只处理用户发起的路径变更）。
+- **已知行为**：补丁快照路径为 adl-server 的 `storage.paths().snapshot_dir`；默认目录外的旧快照不自动迁移，需手动移动（Plan B 只处理用户发起的路径变更）。
 
 #### 启动期存储迁移（Plan B）
 
@@ -36,14 +36,14 @@
 #### 存储设置组（Plan C）
 
 - 设置面板新增「存储」组：统一根 / 每类独立两种模式；浏览器默认下载路径已搬入该组统一管理，行为不变。
-- 双端实现策略：Tauri 经 `storage_*` 命令直写 locator 并可 `app_restart` 立即迁移；浏览器（preview/http + mock 四端 `StorageBridge` 方法集一致，见 `frontend/src/shared/ipc/__tests__/storage-parity.test.ts`）手输路径，`restartApp` 返回 `NOT_SUPPORTED` 并提示下次启动生效。
+- 双端实现策略：Tauri 经 `storage_*` 命令直写 locator 并可 `app_restart` 立即迁移；浏览器（preview/http + mock 四端 `StorageBridge` 方法集一致——Tauri/Preview/Mock 三实现 + HTTP preview 传输形态，见 `frontend/src/shared/ipc/__tests__/storage-parity.test.ts`）手输路径，`restartApp` 返回 `NOT_SUPPORTED` 并提示下次启动生效。
 - 可配置 10 条可迁移路径（`database`、`downloads_db`、`site_meta_db`、`tree_cache`、`config`、`clipboard`、`snapshot`、`dsh`、`logs`、`credentials_fallback`，顺序与 `StorageCategory::key()` 一致）+ 1 个设置值路径（`downloads_default` 为用户文件落点，仅记录浏览器默认下载目录，不迁移、不统计占用、不扫描外部文件）与不可移动 6 项（keyring、机器身份、localStorage、IndexedDB、WebView2、工作区缓存）在 UI 中全部列出并附原因说明。
 - 磁盘空间分歧（已接受）：服务端 `freeBytes` 恒为 0（"unknown"）；UI 不渲染空间 verdict，`freeBytes == 0` 即视为未知并跳过空间判定（与壳层 `free_bytes > 0` 门控同约定）。
 - 预检非纯只读（B7）：`preflight` 会创建目标父目录并写入 `.adl-write-probe` 探测文件，供 UI 预检目标可写性。
 
-## 项目形态（完整形态，不分阶段）
+## 项目形态
 
-本项目不做分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入、多 Agent 编排及其配套能力（MCP / Compaction / Session Fork / 自定义命令 / 权限 Ruleset / Custom Agent 等）不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、下载源/镜像、宿主渲染）：
+当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入、多 Agent 编排及其配套能力（MCP / Compaction / Session Fork / 自定义命令 / 权限 Ruleset / Custom Agent 等）不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、下载源/镜像、宿主渲染）：
 
 - Tauri 桌面壳、SQLite 状态
 - 工作区管理、补丁预览/应用/回滚、快照
@@ -61,10 +61,6 @@
 > 截至 2026-09-15（存储功能 Plan A/B/C + 根因修复落地后实测）：工具链 rustc 1.97.1，616 Rust 测试通过（60 套件，0 失败）、1947 前端测试通过（234 文件）。最新计数请运行 `cargo test --workspace` 与 `pnpm --dir frontend run test`。
 >
 > 质量检查：`cargo clippy --workspace --all-targets -- -D warnings`（0 警告）、`pnpm --dir frontend run lint`（0 errors，若干 pre-existing warnings）。
-
-### 重构历史
-
-共完成 **93 轮**迭代重构，完整记录见 [根目录 AGENTS.md](../AGENTS.md#重构历史)。
 
 ## 安全边界
 
@@ -165,7 +161,7 @@ app/stores/
 | 后端命令 | `src-tauri/src/commands/app.rs` → `write_debug_logs_to_project` |
 | 浏览器后端 | `frontend/dev/previewWorkspaceService/`（目录，`logging.ts` → `writeDebugLogs`） |
 
-**优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#调试工具)。
+**优先级**：调试日志收起器是最高优先级的调试手段，遇到 UI/交互问题时优先使用。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查与调试)。
 
 ### 开发阶段日志 CLI 覆盖（session-only）
 
@@ -193,7 +189,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 - **传递通道只有 env**：flag 由启动脚本转成 `ADL_*` 环境变量后注入子进程。**不要**把 flag 透传给 `cargo tauri dev`——实测它会把 `--` 之后的参数当作 cargo 自身的参数并报 `unexpected argument '--log-level'`
 - **运行期同步**：桌面 UI 改设置 → 壳立即生效并落盘，同时 POST 到 adl-server 的 `/app/log-settings`（仅运行时、**不落盘**，避免用 server 的旧内存快照覆盖壳刚写的其它字段）；浏览器模式经 `/app/preferences`（含落盘）
 - **会话覆盖锁定**：CLI/env 锁定的字段，UI 改后运行期保持 CLI 值、仅落盘（下次无覆盖启动生效），前端弹顶部提示"下次启动生效"；落盘失败会回滚运行期
-- **浏览器模式失败即失败**：ad-server 不可达时 `app` 域不再回退 mock，直接以错误卡呈现（静默 mock 曾掩盖"后端没起来"的真实故障）；设置面板另有"未连接后端"离线标识
+- **浏览器模式失败即失败**：ad-server 不可达时 `app` 域不再回退 mock，直接以错误卡呈现；设置面板另有"未连接后端"离线标识
 
 ### 日志文件落点（debug 构建；实证 2026-10-11）
 
@@ -211,7 +207,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 
 ## 问题排查规范
 
-排查问题时**先定位根本原因**，不急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [仓库根 AGENTS.md](../AGENTS.md#问题排查规范)。
+排查问题时**先定位根本原因**，不急于添加预防措施/防御性代码/解决方案。无法定位根因时，使用调试日志收起器（最高优先级）、复制调试日志按钮等调试手段，**禁止凭空猜测**。详见 [dev-rules.md](../../.agents/rules/dev-rules.md#问题排查规范)。
 
 ## 未发布阶段禁止兼容性代码
 
@@ -220,17 +216,17 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 ## 相关文件
 
 - [仓库根 AGENTS.md](../AGENTS.md) — 项目治理规则
-- [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
+- [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) — 未来想法
 - [docs/analysis/ai-digital-life/](../docs/analysis/ai-digital-life/) — ADL 源码地图（本项目的渐进式索引）
 
 ## 磁盘空间管理
 
 ### target/debug 成因与现状
 
-`target/debug/deps` 曾达 **~126 GB**：`.pdb`（Windows 调试符号）97 GB 为主力 —— `[profile.dev]` 默认 `debug=2`（全量类型调试信息）为每个 exe/测试二进制生成约 300MB PDB。已通过 `.cargo/config.toml` 治理：
+`target/debug/deps` 以 `.pdb`（Windows 调试符号）为主 —— `[profile.dev]` 默认 `debug=2`（全量类型调试信息）为每个 exe/测试二进制生成约 300MB PDB。已通过 `.cargo/config.toml` 治理：
 
 - 第三方依赖 `debug=1`（行号级）+ `opt-level=1`
-- 自己 26 个包 `[profile.dev.package.X]` 白名单保留 `debug=2`（可断点查变量类型）
+- 自己 16 个包 `[profile.dev.package.X]` 白名单保留 `debug=2`（可断点查变量类型，见 `.cargo/config.toml` 白名单实测 16 个）
 - 重开增量编译（`incremental=false` 已移除，ICE 于 1.97.1 修复）
 
 ### 清理策略（空间阈值触发全量清理）
@@ -240,6 +236,8 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 | 空间 | `target/debug` > 30 GB | 超过即执行 `cargo clean` 全量删除 |
 
 不再按时间窗口判断；超过 30 GB 直接全量清理。
+
+> CI（`quality-gates.yml`）每次无条件调用 `clean-target.ps1`，30GB 阈值判断在脚本内部（`$Threshold = 30`，未超阈即跳过），CI 层不做条件判断。
 
 > 所有删除均为**永久删除**：`cargo clean`（及 `clean-target.ps1`）直接物理删除构建产物，**不进入回收站/垃圾箱**，删除后无需清空回收站。
 

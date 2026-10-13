@@ -318,9 +318,7 @@ crates/adl-logging/            # 统一日志 crate
 日志 flag **只经环境变量**传递，不再作为 argv 透传给 `cargo tauri dev`。若仍复现，检查启动脚本是否为当前版本。
 
 ### Q: 浏览器模式界面空白（只有"复制调试日志"按钮）
-历史上有启动脚本找不到后端产物的问题（命名沿革：启动脚本/日志前缀沿用 `ad-server`，Cargo 包·二进制·日志文件为 `adl-server*`），已修复并加命名契约测试。现在的语义是**失败即失败**：`app` 域
-不再回退 mock（静默 mock 曾掩盖"后端没起来"的真实故障），
-`getInfo` 失败即以错误卡响亮呈现。
+浏览器模式语义为**失败即失败**：`app` 域不再回退 mock，`getInfo` 失败即以错误卡呈现。
 
 排查：看 `debug-logs-browser*.txt`。
 - 出现 `[adl-bridge] using ad-server at http://127.0.0.1:<端口>` → 已连上后端 ✅

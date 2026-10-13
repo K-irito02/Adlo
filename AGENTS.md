@@ -18,19 +18,15 @@
 |------|------|
 | 源码地图 (ADL) | [docs/analysis/ai-digital-life/](./docs/analysis/ai-digital-life/)（本项目的渐进式索引） |
 
-> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（项目根 `.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，详见技能 [`codegraph-knowledge-graph`](./.opencode/skills/codegraph-knowledge-graph/SKILL.md)。
+> **代码知识图谱**：`ai-digital-life/` 配置了 [CodeGraph](https://github.com/colbymchenry/codegraph)（MIT 许可）本地知识图谱（实现工作区根 `ai-digital-life/.codegraph/`，SQLite）。查询、检索代码时优先使用 `codegraph_*` MCP 工具或 `codegraph` CLI，详见技能 [`codegraph-knowledge-graph`](./.opencode/skills/codegraph-knowledge-graph/SKILL.md)。
 >
 > 参考代码直接复用需遵守 MIT 许可要求，并在代码注释中标注来源。
 
-## 项目形态（完整形态，不分阶段）
+## 项目形态
 
-本项目不做分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入与编排能力不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染）。
+当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**。Agent 对话、模型接入与编排能力不由本仓库实现，交由接入的第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成（进程托管、版本管理、宿主渲染）。
 
-技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。范围边界与排除项见 [phase-boundary.md](.agents/rules/phase-boundary.md)。
-
-## 重构历史
-
-共完成 **93 轮**迭代重构，完整记录见 [REFACTORING_PROGRESS_REPORT.md](./docs/refactoring-insight/report/progress/REFACTORING_PROGRESS_REPORT.md)。
+技术栈详情与已实现功能清单见 [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md)。范围边界与排除项见 [phase-boundary.md](.agents/rules/phase-boundary.md).
 
 ## 问题排查与调试
 
@@ -40,7 +36,7 @@
 
 ## 磁盘空间
 
-`ai-digital-life/target/debug` 曾因依赖 `debug=2` 全量调试符号累积至 **130+ GB**（`.pdb` 97 GB），现已治理：第三方依赖 `debug=1`（自己 crate 白名单保留 `debug=2` 可断点调试）。
+第三方依赖 `debug=1`（自己 crate 白名单保留 `debug=2` 可断点调试）。
 
 **清理策略（空间阈值触发全量清理，见 [ai-digital-life/AGENTS.md#磁盘空间管理](./ai-digital-life/AGENTS.md#磁盘空间管理)）：**
 - 空间条件：`ai-digital-life/target/debug` 超过 30 GB → 全量清理
@@ -105,7 +101,7 @@ TypeScript/Rust 风格指南、Commit 规范详见 [dev-rules.md](.agents/rules/
 ## 相关文档
 
 - [ai-digital-life/AGENTS.md](./ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Stores 架构）
-- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
+- [FUTURE-ROADMAP.md](./FUTURE-ROADMAP.md) — 未来想法
 - [CONTRIBUTING.md](./CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](./CONTEXT.md) — 领域术语表
 - [SECURITY.md](./SECURITY.md) — 安全策略

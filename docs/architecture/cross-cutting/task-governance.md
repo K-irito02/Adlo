@@ -1,6 +1,6 @@
 # Task Governance
 
-> 本项目不分阶段；下文按领域描述现状。"Phase/Tranche"为历史表述。
+> 下文按领域描述现状。
 
 ## Persisted Scope
 

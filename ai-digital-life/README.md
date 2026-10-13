@@ -2,8 +2,6 @@
 
 该工作区托管 `AI Digital Life` 桌面应用的 **Rust + Tauri 2.x** 实现。
 
-> 旧版 Electron / TypeScript 实现已废弃。
-
 ## 快速开始
 
 ```bash
@@ -24,8 +22,9 @@ ai-digital-life/
 ├── src-tauri/          # Tauri 入口（commands、capabilities）
 ├── crates/             # Rust 业务 crate
 ├── frontend/           # WebView 前端（React + Vite）
-└── docs/               # architecture / design-system
 ```
+
+> 设计与治理文档位于仓库根 `docs/`（architecture / design-system / analysis），本工作区内无 `docs/` 目录。
 
 ## 关键文档
 

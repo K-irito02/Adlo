@@ -3,7 +3,6 @@ import type {
   AppInfo,
   AppPreferencePatch,
   HealthSnapshot,
-  ModelGatewayHealthSnapshot,
   RuntimeDiagnosticsSnapshot,
   UpdatePreferencesResult,
 } from '@ai-digital-life/kernel';
@@ -14,7 +13,6 @@ export function createTauriAppBridge(): AppBridge {
     getInfo: () => invokeIpc<AppInfo>('app_get_info'),
     getHealth: () => invokeIpc<HealthSnapshot>('app_get_health'),
     getDiagnostics: () => invokeIpc<RuntimeDiagnosticsSnapshot>('app_get_diagnostics'),
-    getModelHealth: () => invokeIpc<ModelGatewayHealthSnapshot>('app_get_model_health'),
     updatePreferences: (patch: AppPreferencePatch) =>
       invokeIpc<UpdatePreferencesResult>('app_update_preferences', { patch }),
   };

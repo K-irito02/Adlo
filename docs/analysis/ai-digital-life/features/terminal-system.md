@@ -89,9 +89,9 @@ ShellKind:
   - Cmd
 ```
 
-## PTY 通道（`pty_commands.rs` 已移除）
+## PTY 通道
 
-> 历史注记：旧 `src-tauri/src/commands/pty_commands.rs`（create/write/resize/kill/list 五命令）已不存在。现行 PTY 经 `shared/ipc/pty.ts` + `pty-ws.ts`（WebSocket 通道）由 adl-server/壳提供，浏览器模式经 `preview-bridge/preview-pty-bridge.ts`（轮询 1000ms）。
+> PTY 经 `shared/ipc/pty.ts` + `pty-ws.ts`（WebSocket 通道）由 adl-server/壳提供，浏览器模式经 `preview-bridge/preview-pty-bridge.ts`（轮询 1000ms）。
 
 | 命令 | 参数 | 返回 | 说明 |
 |------|------|------|------|

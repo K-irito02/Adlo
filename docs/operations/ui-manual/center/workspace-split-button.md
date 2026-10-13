@@ -1,6 +1,6 @@
 # 工作区操作按钮（WorkspaceSplitButton）
 
-> 实现：`frontend/src/app/components/WorkspaceSplitButton.tsx`（`.adl-split-btn`）。旧内联状态栏/模型/分支/临时会话文档已删除（对应类全仓零命中）。
+> 实现：`frontend/src/app/components/WorkspaceSplitButton.tsx`（`.adl-split-btn`）。
 
 ## 三种操作模式
 

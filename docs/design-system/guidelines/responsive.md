@@ -11,8 +11,6 @@ The desktop renderer is a single window app; it is therefore tuned for **resizab
 | ≤ 960 px | statusbar 相关适配 |
 | ≤ 640 px | 最小宽度：`form-layout` 等单列回退，保证可读 |
 
-> 历史注记：旧 `grid--dashboard`/`grid--cols-3`、`container/container--wide/container--narrow`、`data-density` 均不存在，已删除相关章节。
-
 ## Touch & hover
 
 The renderer uses `:hover` for affordances but never relies on it for required interactions, so it remains usable on touch hardware where pointer hover does not exist.

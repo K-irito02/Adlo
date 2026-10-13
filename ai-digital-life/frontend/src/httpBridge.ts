@@ -33,7 +33,6 @@ import type {
   FileOutlineItem,
   HealthSnapshot,
   IpcResult,
-  ModelGatewayHealthSnapshot,
   ModelTokenUsage,
   RuntimeDiagnosticsSnapshot,
   SystemSnapshot,
@@ -807,7 +806,6 @@ export function createHttpBridge({
       getInfo: () => call<AppInfo>(baseUrl, '/app/info', { method: 'GET' }),
       getHealth: () => taskNotSupported<HealthSnapshot>('app.getHealth'),
       getDiagnostics: () => taskNotSupported<RuntimeDiagnosticsSnapshot>('app.getDiagnostics'),
-      getModelHealth: () => taskNotSupported<ModelGatewayHealthSnapshot>('app.getModelHealth'),
       updatePreferences: (patch: AppPreferencePatch) =>
         call<UpdatePreferencesResult>(baseUrl, '/app/preferences', {
           method: 'POST',

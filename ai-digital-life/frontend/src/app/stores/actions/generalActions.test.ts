@@ -39,7 +39,6 @@ function setupWindowDigitalLife() {
   (window as unknown as { digitalLife: unknown }).digitalLife = {
     app: {
       updatePreferences: mockUpdatePreferences,
-      getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
     },
   };
 }
@@ -424,7 +423,6 @@ describe('workspace load cascade ordering', () => {
             currentWorkspace: { id: 'ws-1', path: '/fake', rootPath: '/fake', name: 'ws-1' },
           },
         }),
-        getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
       },
       workspace: {
         listRecent: vi.fn().mockResolvedValue({
@@ -539,7 +537,6 @@ describe('workspace load cascade ordering', () => {
             currentWorkspace: null,
           },
         }),
-        getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
       },
       workspace: {
         listRecent: vi.fn().mockResolvedValue({
@@ -622,7 +619,6 @@ describe('workspace load cascade ordering', () => {
             currentWorkspace: { id: 'ws-ok', path: '/fake', rootPath: '/fake', name: 'ws-ok' },
           },
         }),
-        getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
       },
       workspace: {
         listRecent: vi.fn().mockResolvedValue({
@@ -761,7 +757,6 @@ describe('loadBatch stale-first + silent calibration (T7)', () => {
             },
           },
         }),
-        getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
       },
       workspace: {
         listRecent: vi.fn().mockResolvedValue({ ok: true, data: ids.map(workspaceEntry) }),

@@ -72,11 +72,13 @@ ai-digital-life/
 | `app/utils/` | 纯函数（含 tooltipPosition、clipboard、preferencesMerger） |
 | `app/stores/` | Zustand 状态管理（切片合并模式 + actions/ 领域模块） |
 | `app/features/` | 按功能域分层的模块化组件（含 terminal/ 中 3 个子 hook、tree/ 中 MultiTreeEntryShell 共享骨架） |
-| `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane，App.tsx 由 447 行缩减至 203 行，抽出 5 个新 hook；right-panel 7 个 barrel 文件已删除，新增 7 个 per-panel prop hooks 集中到 hooks/ 目录） |
+| `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane；per-panel prop hooks 集中到 hooks/ 目录） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
 | `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等） |
 
 ## Stores 架构（Zustand 切片合并模式）
+
+> 切片与 action 的权威清单以 [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md) Stores 树为准（32 切片 + 18 action 模块，以 `slicedStore.ts` 实测为准）；此处仅保留目录结构说明，不重复维护逐项清单。
 
 ```
 app/stores/
@@ -90,7 +92,7 @@ app/stores/
 ├── conversationUtils.ts         # 会话工具函数
 ├── index.ts                     # 模块索引
 │
-├── slices/                      # 35 个切片及其辅助文件（含 5 浏览器子切片 + 3 GitHub 子切片）
+├── slices/                      # 32 个切片及其辅助文件（以 slicedStore.ts 实测为准，含 8 浏览器 + 3 GitHub，权威清单见 ai-digital-life/AGENTS.md）
 │   ├── uiSlice.ts               # UI 状态（侧边栏、工具栏）
 │   ├── workspaceSlice.ts        # 工作区状态
 │   ├── gitSlice.ts              # Git 状态
@@ -115,7 +117,7 @@ app/stores/
 │   ├── browserFoldersSlice.ts   # 浏览器标签文件夹（TabFolderState.tabs: BookmarkTabItem[] = { tabId, url, title }）
 │   └── browserLandingSlice.ts   # 浏览器着陆页（快捷站点、端口、背景）
 │
-├── actions/                     # 31 个跨切片 action 模块
+├── actions/                     # 18 个跨切片 action 模块（*Actions.ts，+ helpers/类型文件，权威清单见 ai-digital-life/AGENTS.md）
 │   ├── workspaceActions.ts      # 工作区操作
 │   ├── sessionActions.ts        # 会话操作
 │   ├── editorActions.ts         # 编辑器操作
@@ -139,7 +141,7 @@ frontend/src/
 ├── tauri-bridge/           # Tauri 桥接子模块（27 个子文件，tauri-*.ts 按 IPC 域拆分）
 ├── mock-bridge.ts          # 纯内存回退入口（委托到 mock/ 子模块）
 ├── mock/                   # mock 桥接子模块（31 个文件，mock-*.ts + mock-shared-*.ts 可变状态）
-└── preview-bridge/         # 浏览器模式桥接模块（13 个子模块 + index.ts 组合入口）
+└── preview-bridge/         # 浏览器模式桥接模块（11 个实现文件 + index.ts 组合入口）
     ├── preview-pty-bridge.ts    # PTY 轮询（1000ms：/pty/list + /pty/output-since）
     ├── preview-workspace.ts     # 工作区核心 + 文件 CRUD + 检索
     ├── preview-git.ts           # Git 操作

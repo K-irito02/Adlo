@@ -40,7 +40,6 @@ beforeEach(() => {
         ok: true,
         data: { info: null, sessionLockedFields: [] },
       }),
-      getModelHealth: vi.fn().mockResolvedValue({ ok: true, data: [] }),
     },
   };
   useAppStore.setState({

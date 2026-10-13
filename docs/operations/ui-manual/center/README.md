@@ -1,8 +1,6 @@
 # 中心面板区域
 
-> 中心面板为中间区多标签宿主（`CenterPane`，`adl-center adl-center--tab-host`），经 `CenterTabStrip` 切换标签；无标签时显示统一入口页 `CenterEntryPage`（`adl-center-entry`，三入口：deepseek harness / 浏览器 / 终端）与缺 tab 提示（`adl-center__empty` + `adl-welcome__empty`）。
->
-> 历史注记：旧消息流/Composer 文档已删除；内联状态栏文档（`statusbar.md`）模型/分支两节已删除，工作区节待按实现重写。下文选择器均为现行实现。
+> 中心面板为中间区多标签宿主（`CenterPane`，`adl-center adl-center--tab-host`），经 `CenterTabStrip` 切换标签；无标签时显示统一入口页 `CenterEntryPage`（`adl-center-entry`，三入口：deepseek harness / 浏览器 / 终端）与缺 tab 提示（`adl-center__empty` + `adl-welcome__empty`）。下文选择器均为现行实现。
 
 ## 布局结构
 
@@ -27,7 +25,7 @@
 
 ## 相关文档
 
-- [statusbar.md](./statusbar.md) — 旧内联状态栏（工作区节待按 `WorkspaceSplitButton` 实现重写）
+- [workspace-split-button.md](./workspace-split-button.md) — 工作区操作按钮（`WorkspaceSplitButton`）
 - [../titlebar/center-tabs.md](../titlebar/center-tabs.md) — 标签条操作细节
 
 ## 容器选择器

@@ -8,7 +8,7 @@
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | aria-label | `[aria-label="砚"]` (Tooltip 内容) |
+| 1 | aria-label | 待核实选择器（原 `[aria-label="砚"]` 在 `TitleBar.tsx`/`HamburgerMenu.tsx` 无命中；"砚"仅见 `zh-CN/common.ts` 的 `brandHoverName`，经 `useAppStartup.ts` 用于窗口标题，非 aria-label，不编造新选择器） |
 | 2 | CSS | `.adl-titlebar__brand` |
 | 3 | CSS | `.adl-titlebar__logo` |
 

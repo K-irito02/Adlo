@@ -33,7 +33,7 @@
 | 后端 | Rust (Tauri IPC) | adl-server（http 优先，可回退） | 无后端 |
 | 调用方式 | `invoke()` | HTTP Fetch → adl-server | 直接内存操作 |
 | 事件订阅 | `listen()` (Tauri Event) | 轮询 / 模拟 | 直接回调 |
-| 文件路径 | `tauri-bridge.ts`（入口，重导出 `tauri-bridge/` 8 领域） | `preview-bridge/`（12 实现文件 + 入口 `index.ts`） | `mock-bridge.ts`（入口 + `mock/` 按域模块） |
+| 文件路径 | `tauri-bridge.ts`（入口，重导出 `tauri-bridge/` 8 领域） | `preview-bridge/`（11 实现文件 + 入口 `index.ts`） | `mock-bridge.ts`（入口 + `mock/` 按域模块） |
 | 能力覆盖 | 全部 IPC 方法 | 真实等效（非空实现）+ 回退 | 全部 IPC 方法 |
 
 ## 接口定义层 (`shared/ipc/`，25 个文件)

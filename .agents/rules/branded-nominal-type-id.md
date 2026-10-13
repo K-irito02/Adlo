@@ -1,3 +1,9 @@
+---
+description: Branded nominal types for domain IDs with centralized asXxxID narrowing at IPC boundaries
+globs: ai-digital-life/frontend/src/shared/**,ai-digital-life/frontend/src/**/*.ts
+alwaysApply: false
+---
+
 # Branded 名义类型保护领域 ID（Branded<T, B>）
 
 ## 规则描述

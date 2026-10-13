@@ -69,5 +69,5 @@ alwaysApply: true
 - [CONTRIBUTING.md](../../CONTRIBUTING.md) — 贡献指南
 - [CONTEXT.md](../../CONTEXT.md) — 领域术语表
 - [SECURITY.md](../../SECURITY.md) — 安全策略
-- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）
+- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法
 - [commands.md](./commands.md) — 常用命令速查

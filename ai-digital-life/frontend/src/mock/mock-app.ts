@@ -1,6 +1,6 @@
 import type { AppBridge } from "../shared/ipc";
 import { applyPreferencePatch } from "../shared/preferencesMerger";
-import { appInfo, currentWorkspaceMeta, modelHealth, onMockStateChange } from "./mock-shared";
+import { appInfo, currentWorkspaceMeta, onMockStateChange } from "./mock-shared";
 
 export const mockApp: AppBridge = {
   getInfo: async () => ({
@@ -64,7 +64,6 @@ export const mockApp: AppBridge = {
       recentErrors: [],
     },
   }),
-  getModelHealth: async () => ({ ok: true, data: modelHealth }),
   updatePreferences: async (patch) => {
     const nextConfig = applyPreferencePatch(appInfo.config, patch);
     appInfo.config = nextConfig;

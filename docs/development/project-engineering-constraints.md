@@ -15,9 +15,9 @@
 
 当前阶段边界：
 
-- 本项目不做分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**（见根 `AGENTS.md#项目形态` 与 `.agents/rules/phase-boundary.md`）
+- 当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**（见根 `AGENTS.md#项目形态` 与 `.agents/rules/phase-boundary.md`）
 - Agent 对话、模型接入与编排由第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成
-- "Phase 0/1/2" 为历史阶段表述；未来想法见 `FUTURE-ROADMAP.md`（未立项）
+- 未来想法见 `FUTURE-ROADMAP.md`（未立项）
 - 未经显式决策，不得把未立项的复杂能力伪装成当前必需项
 
 ## 总体工程原则
@@ -306,7 +306,7 @@
 
 若变更同时影响阶段边界，还必须同步：
 
-- [AGENTS.md](../../AGENTS.md)（注：阶段表述以"完整形态不分阶段"为准）
+- [AGENTS.md](../../AGENTS.md)
 
 ## 禁止项补充清单
 

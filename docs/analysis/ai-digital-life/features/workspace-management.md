@@ -98,9 +98,9 @@ GitSnapshot {
 | `remove_workspace` | 移除工作区（从最近列表） |
 | `get_app_info` | 获取应用信息 |
 
-### Git/侧边栏命令（旧 `workspace_git.rs` / `workspace_sidebar.rs` 已移除）
+### Git/侧边栏命令
 
-> 历史注记：旧命令文件已合并入 `workspace.rs`。现行 Git/树/搜索/大纲命令经 `shared/ipc/workspace.ts` + `github.ts` 通道。下表命令名为 IPC 方法快照（以 `shared/ipc/` 为准）。
+> Git/树/搜索/大纲命令经 `shared/ipc/workspace.ts` + `github.ts` 通道。下表命令名为 IPC 方法快照（以 `shared/ipc/` 为准）。
 
 | 命令 | 说明 |
 |------|------|

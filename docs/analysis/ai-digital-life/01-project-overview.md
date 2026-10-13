@@ -5,7 +5,7 @@
 
 ## 项目定位
 
-AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿主**，基于 Rust + Tauri 2.x 构建。当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**（不分阶段，见 `AGENTS.md#项目形态`）。Agent 对话、模型接入与编排能力由第三方 harness 提供，本仓库仅负责宿主集成。
+AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿主**，基于 Rust + Tauri 2.x 构建。当前形态：**桌面应用宿主 + 第三方 Agent harness 集成**（见 `AGENTS.md#项目形态`）。Agent 对话、模型接入与编排能力由第三方 harness 提供，本仓库仅负责宿主集成。
 
 | 特征 | 说明 |
 |------|------|
@@ -40,7 +40,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 | 指标 | 数量 |
 |------|------|
 | Rust Crates | 22 |
-| Tauri Commands | 33 |
+| Tauri Commands | 见源码 `src-tauri/src/commands/`（约 74 个，截至 2026-10-13，按 `#[tauri::command]` 标注口径） |
 | Zustand 切片 | 32（slicedStore.ts 实测，AGENTS.md 已同步） |
 | Action 模块 | 18（AGENTS.md 已同步） |
 | 前端功能域 | 25（见 `frontend/src/app/features/`） |
@@ -48,13 +48,12 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 | i18n 文件 | 约 46（中英各约 23，以实现为准） |
 | Rust 测试 | 616（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
 | 前端测试 | 1947（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
-| 重构轮次 | 93 |
 
 > 快照数字可能滞后，当前准确计数以源码与 `ai-digital-life/AGENTS.md` 为准。
 
-## 项目形态（完整形态，不分阶段）
+## 项目形态
 
-本项目不做分阶段规划，"Phase 0/1/2" 为历史阶段表述。当前实现即完整形态（桌面应用宿主 + 第三方 Agent harness 集成），范围边界见 `.agents/rules/phase-boundary.md`。
+当前形态：桌面应用宿主 + 第三方 Agent harness 集成，范围边界见 `.agents/rules/phase-boundary.md`。
 
 ## 仓库工作区结构
 
@@ -105,7 +104,7 @@ ai-digital-life/
 │       ├── design-system/ # 设计系统（tokens.ts 真源）
 │       ├── styles/        # CSS 样式
 │       ├── tauri-bridge/  # Tauri 桥接（8 领域）
-│       ├── preview-bridge/ # 浏览器桥接（12 实现文件）
+│       ├── preview-bridge/ # 浏览器桥接（11 实现文件 + 入口 index.ts）
 │       └── mock-bridge.ts # 纯内存模拟（+ mock/）
 └── pnpm-workspace.yaml    # pnpm 工作区
 ```
