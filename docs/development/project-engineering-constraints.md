@@ -4,10 +4,10 @@
 
 本文件定义 `AI数字生命` 桌面应用的项目级工程规则，适用于：
 
-- 当前规划与设计仓库中的架构、规范、实施方案
-- 未来真实代码仓中的实现、测试、打包与发布流程
+- `ai-digital-life/` 实现工作区（Rust + Tauri 2.x）中的实现、测试、打包与发布流程
+- 仓库根目录中的架构、规范、实施方案
 
-本文件是对 [AGENTS.md](../../AGENTS.md) 中 Agent 治理规则的补充，聚焦产品与工程落地约束，而不是开发协作拓扑本身。
+本文件是对 [AGENTS.md](../../AGENTS.md) 中项目治理规则的补充，聚焦产品与工程落地约束。优先级：根 `AGENTS.md`（项目治理）> `ai-digital-life/AGENTS.md`（实现工作区）> `.agents/rules/`（Agent 执行规则）；与规则文件重叠处以规则文件为准。
 
 ## 技术与阶段基线
 
@@ -15,15 +15,15 @@
 
 当前阶段边界：
 
-- `Phase 0` 底座完成：桌面壳层、安全边界、配置与持久化、工作区、检索、任务审批、恢复与迁移
-- `Phase 1` 完成：在 `Phase 0` 基础上增加交互式 AI MVP 闭环
-- `Phase 2` 完成：18 项缺失能力（多 Agent / MCP / 多 Provider / Compaction / Snapshot-Revert / WebFetch-WebSearch / 自定义命令 / 权限 Ruleset / Session Fork / LSP / Plugin / Reference / Custom Agent / Hot Reload / Durable Session）
-- 未经显式决策，不得把 `Phase 3+` 的复杂能力伪装成当前阶段必需项
+- 本项目不做分阶段规划，当前实现即所规划的完整形态：**桌面应用宿主 + 第三方 Agent harness 集成**（见根 `AGENTS.md#项目形态` 与 `.agents/rules/phase-boundary.md`）
+- Agent 对话、模型接入与编排由第三方 harness（当前为 deepseek dsh）提供，本仓库仅负责宿主集成
+- "Phase 0/1/2" 为历史阶段表述；未来想法见 `FUTURE-ROADMAP.md`（未立项）
+- 未经显式决策，不得把未立项的复杂能力伪装成当前必需项
 
 ## 总体工程原则
 
 - 桌面优先，工作区优先，任务优先
-- **双端一致性优先：所有功能必须在 Tauri 桌面和浏览器开发模式（`preview-bridge.ts`）下保持一致**
+- **双端一致性优先：所有功能必须在 Tauri 桌面和浏览器预览模式（`preview-bridge/` + adl-server 真实后端）下保持功能行为一致**
 - 默认本地优先与离线可降级，不把核心能力绑定到远端服务可用性
 - 默认可恢复、可回滚、可审计，不接受只考虑"成功路径"的设计
 - 默认最小权限，不以开发便利为由扩大 Renderer、IPC 或文件系统权限
@@ -37,18 +37,18 @@
 
 | 模式 | 桥接层 | 数据来源 | 测试价值 |
 |------|--------|----------|----------|
-| Tauri 桌面 | `tauri-bridge.ts` | Rust 后端 + SQLite | 生产环境真实行为 |
-| 浏览器开发 | `preview-bridge.ts` | Vite Preview API + mock 数据 | 快速迭代 + Agent 测试 |
+| Tauri 桌面 | `tauri-bridge/`（+ 入口 `tauri-bridge.ts`） | Rust 后端 + SQLite | 生产环境真实行为 |
+| 浏览器预览 | `preview-bridge/`（http 优先，可回退） | adl-server 真实后端 | 快速迭代 + Agent 测试 |
 
 **必须遵守的一致性规则：**
-1. 新增 Tauri Command 时，必须同步实现 `preview-bridge.ts` 的对应实现
+1. 新增 Tauri Command 时，必须同步实现 `tauri-bridge/`、`preview-bridge/`、`mock-bridge.ts`（+ `mock/`）三端（新增清单见 `ai-digital-life/CONTRIBUTING.md`）
 2. UI 组件的条件渲染只允许以下 4 种平台差异：
    - 窗口控制按钮（仅 Tauri）
    - 标题栏拖拽（仅 Tauri）
    - 窗口图标同步（仅 Tauri）
    - 目录选择器（Tauri 原生，浏览器 Preview API）
 3. 所有其他功能必须在两种模式下**功能行为一致**
-4. 建议使用 `npm run dev:both` 同时验证两种模式
+4. 使用 `pnpm run dev:both`（在 `ai-digital-life/` 目录执行）同时验证两种模式
 
 **实现策略差异原则：**
 
@@ -59,7 +59,7 @@
 3. **存储后端可不同**：Tauri 模式可使用 SQLite/文件系统，浏览器模式可使用 IndexedDB/localStorage
 4. **系统能力可降级**：浏览器模式无法使用的能力（如原生对话框、keyring）应有合理的 Web API 替代
 
-> **示例**：终端输出持久化 — Tauri 模式通过 `TauriTerminalStore` 写入 SQLite，浏览器模式通过 `BrowserTerminalStore` 写入 IndexedDB。两者实现同一个 `TerminalOutputStore` 接口，功能行为完全一致。
+> **示例**：终端输出持久化 — Tauri 模式写入 SQLite，浏览器模式写入 IndexedDB。两者实现同一个 `TerminalOutputStore` 接口（示意），功能行为完全一致。
 
 ## 分层与边界
 
@@ -69,8 +69,8 @@
 - `Tauri Commands` 是 WebView 与后端的唯一桥接面：类型化、capability 白名单、结构化错误返回
 - `WebView Frontend (React)` 负责界面、交互编排和表现层状态，不直接触达系统能力
 - 后台任务通过 `tokio::spawn`（或专用线程）承载索引、检索、长耗时计算，不直接承担 UI 状态
-- 应用服务层（业务 crate）负责任务流、配置流、恢复流、审批流等业务编排
-- 基础设施层（`storage` / `logger` / `config` / `errors` 等 crate）负责实现细节
+- dsh 宿主集成（`webapp-host`/`dsh-bundle`/`dsh-version`/`download-source`）负责第三方 harness 的进程托管、版本管理、下载源与宿主渲染
+- 基础设施（`adl-kernel::storage` 路径解析 / `adl-logging` / `errors` 等）负责实现细节
 
 明确禁止：
 
@@ -104,7 +104,7 @@
 
 - 所有用户可见文案必须通过 i18n 资源提供，不允许在组件、store、IPC 返回值中硬编码展示文案
 - 文案 key 必须稳定、语义化，不允许以中文句子本身作为 key
-- 默认语言与回退链必须明确，推荐 `zh-CN`，缺失时回退到 `en-US`
+- 默认语言与回退链必须明确：默认 `system`（跟随 OS：中文→`zh-CN`，其余→`en-US`，见 `resolveLanguage.ts`）
 - 语言切换必须为运行时可切换能力，不要求重启应用
 - 数字、日期、时间、相对时间、货币、列表拼接必须走 locale-aware 格式化
 - 错误消息分离为"内部错误码/诊断信息"和"用户可见文案"，避免把内部英文异常直接展示给用户
@@ -114,7 +114,7 @@
 
 ### i18n 上下文机制
 
-- 所有组件通过 `useTCopy()` hook 获取翻译字典 `t` 和格式化函数 `formatT`
+- 所有组件通过 `useTCopy()` hook 获取翻译字典 `t` 和格式化函数 `formatT`（`formatT` 亦可从 `@i18n/formatT` 单独导入；无 Provider 即抛错）
 - 禁止 `t: CopyDict` prop drilling — `App.tsx` 通过 `<TCopyProvider>` 注入全局上下文
 - `formatT(t, key, vars)` 支持模板插值（如 `"共 {count} 个标签"`），缺失 key 时回退显示 key 名称
 - 新组件直接调用 `const { t, formatT } = useTCopy();`
@@ -157,6 +157,7 @@
 - 主题值与解析后的实际主题值分离存储，至少区分 `themeMode` 和 `resolvedTheme`
 - 颜色、阴影、边框、层级、间距状态色必须通过设计令牌或 CSS 变量驱动，不允许在组件中散落十六进制常量作为长期方案
 - 默认视觉基调必须采用淡色、低饱和度 token；常规文本、背景、边框、悬停态和大多数状态提示优先使用 `text-secondary` / `text-muted`、`surface-*`、`*-soft`、`*-subtle` 一类变量，除非更强对比度是可访问性或高风险反馈的必要条件
+- 提示色规范：拖拽手柄/分界线悬停等提示场景禁用 `var(--accent)` 系蓝色，一律白/灰/黑中性色；未经用户允许不得用蓝色系作特殊提示/警醒/填充（见 `.agents/rules/hint-color-usage.md`）
 - 主题切换不能只覆盖页面背景和文字颜色，交互态、悬停态、选中态、禁用态、危险态、焦点态都必须成体系定义
 - 图标、插图、代码高亮、滚动条、空状态、图表等非文本区域必须验证主题兼容性
 - 不允许把“深色主题”当作默认视觉假设；浅色主题必须一等支持
@@ -205,7 +206,7 @@
 必须遵守：
 
 - SQLite schema 变更必须附带迁移脚本、版本号和回滚/恢复说明
-- 数据访问层（`storage` crate）必须集中管理，不允许 WebView 拼接 SQL
+- 数据访问以 `adl-kernel::storage`（`StoragePaths` 统一路径解析，locator 文件 `storage-locator.json`，dev/test 可用 `ADL_STORAGE_LOCATOR_PATH` 覆盖）为真相源，不允许 WebView 拼接 SQL
 - 所有查询参数必须使用 `rusqlite` 命名/位置参数绑定，禁止字符串拼接 SQL
 - 审计、任务、索引、缓存、设置等数据域应分表或分边界管理，不使用无边界的「万能表」
 - 缓存数据与用户关键数据必须区分，清理策略不能互相污染
@@ -224,7 +225,7 @@
 - Tauri Command 采用 capability 白名单（`src-tauri/capabilities/*.json`）、类型化 contract 和显式输入校验
 - WebView 发起的危险动作必须进入审批、确认或风险分级流程
 - 密钥、令牌、凭据必须通过 `crates/credential/` 存储（keyring 优先，加密文件降级），不得进入普通配置、快照或日志
-- `tauri-plugin-fs` / `tauri-plugin-shell` / `tauri-plugin-http` 必须配置 scope 限制，禁止 `"all"` / `"**"` 通配
+- `tauri-plugin-shell` / `tauri-plugin-dialog`（现行仅有的两个插件依赖）必须配置 scope 限制，禁止 `"all"` / `"**"` 通配（注：`tauri.conf.json` 的 `"targets": "all"` 为打包目标，不是权限通配）
 - 文件系统写入必须显式限定作用域，禁止无边界任意路径写入
 - 命令执行能力必须最小化、可审计、可拒绝、可回放上下文
 - 任何扩权设计都必须同时更新测试、文档、风险说明和审计要求
@@ -280,8 +281,8 @@
 最低要求：
 
 - 单测（`cargo test` 内 `#[cfg(test)] mod tests`）覆盖纯业务规则、格式化逻辑、状态机和配置解析
-- 集成测试（`tests/integration/`）覆盖 Tauri Command、持久化、迁移、恢复和工作区关键链路
-- E2E（`tauri-driver` / WebDriver）或验收矩阵覆盖首批双语、三态主题、首次启动、升级迁移、异常恢复
+- 集成测试（`crates/server/tests/`，`common/mod.rs` helpers）覆盖 Tauri Command、持久化、迁移、恢复和工作区关键链路
+- 验收矩阵覆盖首批双语、三态主题、首次启动、升级迁移、异常恢复
 
 发布前必须验证：
 
@@ -289,9 +290,11 @@
 - `light`、`dark`、`system` 在主要页面和高风险对话框上表现一致
 - Windows 主路径正常；其他平台不因路径、字体或主题监听假设而结构性失败
 
+门禁命令以 CI（`.github/workflows/quality-gates.yml`）为准：`cargo fmt --all -- --check`、`cargo clippy --workspace --all-targets -- -D warnings`、`cargo test --workspace`、前端 `lint` / `typecheck` / `typecheck:dev` / `format:check` / `check:i18n` / `test`。
+
 ## 文档与治理同步
 
-以下变化必须同步更新本文件及相关开发文档：
+以下变化必须同步更新本文件及相关开发文档（同步清单以 `ai-digital-life/CONTRIBUTING.md` Must-Sync 为准：`docs/architecture/*`、CSP/capability 基线、SQLite/恢复策略、Workspace/Retrieval 边界、主题/i18n/真相源、双端三桥、Tauri 新增清单）：
 
 - 技术基线变化
 - 国际化策略变化
@@ -301,13 +304,13 @@
 - 权限边界、Tauri Command / capability 基线或审计要求变化
 - 测试门禁或发布检查变化
 
-若变更同时影响 Agent 路由、hook 策略或阶段边界，还必须同步：
+若变更同时影响阶段边界，还必须同步：
 
-- [AGENTS.md](../../AGENTS.md)
+- [AGENTS.md](../../AGENTS.md)（注：阶段表述以"完整形态不分阶段"为准）
 
 ## 禁止项补充清单
 
-明确禁止以下做法：
+明确禁止以下做法（完整禁止项以根 `AGENTS.md#禁止项` 为准，本节为工程侧补充）：
 
 - 用硬编码中文文案替代 i18n 资源
 - 用组件内散落颜色常量替代主题令牌
@@ -319,6 +322,10 @@
 - 用平台特例代码直接渗透到业务层
 - 在 capability 文件中使用 `"all"` 或 `"**"` 通配权限
 - 在 Rust 中使用未注释的 `unsafe` 代码块
+- WebView URL 变化被动触发 navigate（必须由前端显式调用发起）
+- 错误/状态提示常驻显示；调试日志（`console.log`/`[ADL-DEBUG]`）遗留生产代码
+- 未经用户允许用蓝色（含 `var(--accent)` 系）作特殊提示/警醒/填充
+- 未发布阶段添加数据格式兼容/旧版本迁移代码或向后兼容重导出（发布后需先与用户确认）
 
 ## 执行建议
 
@@ -329,6 +336,6 @@
 - Tauri Command 类型检查（`serde` 派生）与输入校验
 - 配置 schema 校验与迁移测试
 - SQLite 迁移验收脚本
-- `cargo clippy --workspace -- -D warnings` 与 `cargo fmt --check` 阻断
-- `pnpm --dir frontend run lint` 与 `pnpm --dir frontend run format:check` 阻断
+- `cargo clippy --workspace --all-targets -- -D warnings` 与 `cargo fmt --all -- --check` 阻断
+- 前端 `lint`、`typecheck`（+ `typecheck:dev`）、`format:check`、`check:i18n`、`test` 阻断（见 CI）
 - 发布前双语与三态主题 smoke checklist

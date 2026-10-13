@@ -1,111 +1,45 @@
 # 中心面板区域
 
-> 中心面板包含消息流、输入区域和内联状态栏。
+> 中心面板为中间区多标签宿主（`CenterPane`，`adl-center adl-center--tab-host`），经 `CenterTabStrip` 切换标签；无标签时显示统一入口页 `CenterEntryPage`（`adl-center-entry`，三入口：deepseek harness / 浏览器 / 终端）与缺 tab 提示（`adl-center__empty` + `adl-welcome__empty`）。
+>
+> 历史注记：旧消息流/Composer 文档已删除；内联状态栏文档（`statusbar.md`）模型/分支两节已删除，工作区节待按实现重写。下文选择器均为现行实现。
 
 ## 布局结构
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│ [15] Message Stream                                        │
-│                                                            │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │ User: 你好                                            │ │
-│  └──────────────────────────────────────────────────────┘ │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │ Assistant: 你好！有什么可以帮助你的？                  │ │
-│  │ [Run Summary]                                         │ │
-│  └──────────────────────────────────────────────────────┘ │
-│                                                            │
+│ CenterTabStrip（标题栏标签条：切换/真关闭/移回面板/拖拽排序）  │
 ├────────────────────────────────────────────────────────────┤
-│ [16] Composer                                              │
-│  ┌──────────────────────────────────────────────────────┐ │
-│  │ [16a] Context Chips: [计划] [文件:xxx]                │ │
-│  ├──────────────────────────────────────────────────────┤ │
-│  │ [16b] Input Area              │ [16c] Actions        │ │
-│  │ 向 AI 助手提问或下达任务...    │ 🎤 📤               │ │
-│  └──────────────────────────────────────────────────────┘ │
-│  │ [16d] Status Bar (inline)                             │ │
-│  │ 工作区: xxx | 模型: GPT-4 | 分支: main               │ │
-│  └──────────────────────────────────────────────────────┘ │
+│ CenterPane（adl-center--tab-host）                           │
+│  ├─ 有标签：dsh / 浏览器 / 终端视图（location='center'）      │
+│  └─ 无标签：CenterEntryPage（三入口）+ adl-center__empty 提示 │
 └────────────────────────────────────────────────────────────┘
 ```
 
 ## 元素索引
 
-| 编号 | 名称 | 文档 | 说明 |
-|------|------|------|------|
-| [15] | Message Stream | [message-stream.md](./message-stream.md) | 消息流区域 |
-| [16] | Composer | [composer.md](./composer.md) | 输入区域 |
-| [16a] | Context Chips | [composer.md](./composer.md#上下文标签) | 上下文标签 |
-| [16b] | Input Area | [composer.md](./composer.md#输入框) | 文本输入框 |
-| [16c] | Actions | [composer.md](./composer.md#操作按钮) | 操作按钮组 |
-| [16d] | Status Bar | [statusbar.md](./statusbar.md) | 内联状态栏 |
+| 名称 | 文档 | 说明 |
+|------|------|------|
+| 中间区标签条 | [../titlebar/center-tabs.md](../titlebar/center-tabs.md) | 切换/关闭/拖拽排序 |
+| dsh 视图 | `features/dsh/` | deepseek harness 宿主渲染（进程托管 + 版本管理见设置 DSH 组） |
+| 浏览器视图 | [../rightpanel/tools/browser.md](../rightpanel/tools/browser.md) | 双模式浏览器（面板↔中心为同一 WebView 位置移动） |
+| 终端视图 | [../rightpanel/tools/terminal.md](../rightpanel/tools/terminal.md) | xterm.js 多窗格 |
+
+## 相关文档
+
+- [statusbar.md](./statusbar.md) — 旧内联状态栏（工作区节待按 `WorkspaceSplitButton` 实现重写）
+- [../titlebar/center-tabs.md](../titlebar/center-tabs.md) — 标签条操作细节
 
 ## 容器选择器
 
 | 选择器 | 说明 |
 |--------|------|
-| `.adl-center` | 中心面板容器 |
-| `.adl-center__body` | 消息流区域 |
-| `.adl-center__body--empty` | 空消息状态 |
-| `.adl-composer` | 输入区域容器 |
-
-## 快速操作
-
-### 发送消息
-
-```javascript
-// 输入消息
-await page.fill('[data-testid="composer-input"]', '你好');
-
-// 点击发送按钮
-await page.click('[data-testid="composer-send"]');
-
-// 等待助手响应
-await page.waitForSelector('.adl-message--assistant');
-```
-
-### 停止生成
-
-```javascript
-// 点击停止按钮
-await page.click('[data-testid="composer-send"]'); // 此时按钮为停止状态
-```
-
-### 添加上下文
-
-```javascript
-// 点击添加上下文按钮
-await page.click('.adl-composer__left button[aria-label*="添加"]');
-
-// 等待上下文弹出框
-await page.waitForSelector('.adl-context-popover');
-
-// 选择上下文类型
-await page.click('.adl-context-item:has-text("引用文件")');
-```
-
-## 状态
-
-### 消息流状态
-
-| 状态 | CSS 类名 | 说明 |
-|------|----------|------|
-| 空消息 | `.adl-center__body--empty` | 显示欢迎页 |
-| 有消息 | - | 显示消息列表 |
-
-### Composer 状态
-
-| 状态 | 说明 |
-|------|------|
-| 可发送 | 输入框有内容，发送按钮可用 |
-| 生成中 | 发送按钮变为停止按钮 |
-| 错误 | 发送按钮变为重试按钮 |
-| 禁用 | 输入框为空，发送按钮禁用 |
+| `.adl-center.adl-center--tab-host` | 中心宿主容器（`CenterPane.tsx`） |
+| `.adl-center-entry` | 统一入口页（`CenterEntryPage.tsx`） |
+| `.adl-center__empty` + `.adl-welcome__empty` | 缺 tab 提示 |
 
 ## 注意事项
 
-1. **消息流自动滚动**：新消息出现时自动滚动到底部
-2. **流式输出**：助手消息支持流式输出，消息会逐步更新
-3. **上下文标签**：支持添加多种上下文（模式、文件、技能等）
-4. **状态栏内联**：状态栏嵌入在 Composer 底部
+1. dsh 标签作为普通浏览器标签承载（`location='center'` + `isDsh`）；关闭 dsh 标签即彻底退出进程，不跨重启持久化
+2. 面板↔中心为同一原生 WebView 的位置移动，而非两个实例
+3. 面板的破坏性操作（关闭/清空/删除）跳过 `location === 'center'` 的标签

@@ -1,13 +1,13 @@
 # Theming
 
-The full visual contract lives in the `[docs/design-system/](../../design-system/README.md)` folder. This page only documents the architectural rules — i.e. **who owns what** between the Rust backend and the WebView frontend.
+The full visual contract lives in the [docs/design-system/](../../design-system/README.md) folder. This page only documents the architectural rules — i.e. **who owns what** between the Rust backend and the WebView frontend.
 
 ## Ownership
 
-- The **Rust backend** owns the persisted appearance preferences (`language`, `themeMode`, `logLevel`, …) and writes them to `config/config.json` via the `config` crate.
+- The **Rust backend** owns the persisted appearance preferences (`language`, `themeMode`, `logLevel`, …) and exposes them via typed Tauri Commands (`AppInfo`).
   - `themeMode` is `"light" | "dark" | "system"`.
-  - When `system`, the backend resolves the active theme via Tauri's window theme APIs and exposes `resolvedTheme` to the WebView.
-- The **WebView** never mutates `data-theme` directly. It calls `themeController.setTheme({ mode, resolvedTheme })` which centralises all DOM mutation.
+  - `system` resolution is frontend-owned: `ResolvedTheme` is derived via `systemPrefersDark()` (never read `appInfo.config.resolvedTheme` directly, never call `window.matchMedia` directly).
+- `themeController.setTheme()` 只传 `mode`（不需要 `resolvedTheme`，Controller 内部解析）；它是唯一允许的 `document.documentElement.dataset` 修改者，并同步 DOM + localStorage 缓存（`adl-theme-mode`/`adl-resolved-theme`，启动闪烁消除 + 内联脚本预涂）。
 - The **WebView** never mutates persisted `themeMode` directly. It calls the `app_update_preferences` Tauri Command and rebuilds from the returned `AppInfo`.
 
 ## DOM contract
@@ -26,7 +26,7 @@ The full visual contract lives in the `[docs/design-system/](../../design-system
 - All component styles MUST live under `frontend/src/styles/` (see [Design System README](../../design-system/README.md)).
 - Switching `themeMode` to `system` re-subscribes to `prefers-color-scheme: dark` and updates `data-theme` reactively without a Tauri Command round-trip.
 - Theme tokens default to a restrained, low-saturation look. Prefer neutral text and soft/subtle semantic variants (`--text-secondary`, `--text-muted`, `--surface-hover`, `--accent-soft`, `--success-soft`, `--warning-soft`, `--danger-soft`) unless stronger emphasis is required for accessibility, critical feedback, or a primary call to action.
-- Saturated semantic base colors (`--accent`, `--success`, `--warning`, `--danger`) are reserved for narrow emphasis zones such as focus rings, destructive confirmations, hard errors, or other states where a softer variant would weaken clarity.
+- Saturated semantic base colors (`--accent`, `--success`, `--warning`, `--danger`) are reserved for narrow emphasis zones such as focus rings, destructive confirmations, hard errors, or other states where a softer variant would weaken clarity. `--accent` 系蓝色禁止擅自用作提示/警醒/填充色（拖拽手柄/分界线悬停等一律白/灰/黑中性色），见 [hint-color-usage.md](../../../.agents/rules/hint-color-usage.md)。
 - Third-party or embedded renderers that cannot read CSS custom properties directly must derive their programmatic theme from the same resolved light/dark state and the documented shell background baseline rather than inventing an independent palette.
 - When a third-party renderer needs a programmatic theme object, the renderer layer MUST resolve semantic tokens to concrete color literals before registration. Passing raw CSS values such as `var(--surface)` or keyword values such as `transparent` into the third-party theme API is forbidden because those APIs may treat invalid tokens as error colors or fallback markers.
 - CodeMirror editors and merge previews must keep gutter and line-number backgrounds visually subordinate to the content surface. Product-owned content-row and minimap overlays may use resolved diff token families for insert/delete depth, but those highlights must not be applied by turning the gutter into a second status rail.

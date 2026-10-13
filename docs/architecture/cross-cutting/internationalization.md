@@ -7,9 +7,9 @@ The renderer currently supports:
 - `zh-CN`
 - `en-US`
 
-Language selection is owned by the Rust backend, persisted in `config/config.json`, and exposed to the WebView only through typed Tauri Commands.
+Language selection is owned by the Rust backend (default `system`, OS-following), persisted via the unified storage layer, and exposed to the WebView only through typed Tauri Commands.
 
-Current i18n coverage: **约 23 域文件（中英对称），key 数以实现为准**。硬约束见 `docs/development/project-engineering-constraints.md`（国际化规则）与 `.agents/rules/`（i18n 相关规则）。
+Current i18n coverage: **22 domains × zh-CN/en-US** (`frontend/src/app/i18n/{zh-CN,en-US}/`, 23 files each incl. `index.ts`).硬约束见 `docs/development/project-engineering-constraints.md`（国际化规则）与 `.agents/rules/`（i18n 相关规则）。
 
 All UI text types are covered: buttons, tooltips, card content, aria-labels, placeholders, empty states, loading states, error messages, filter labels, relative time strings, date formatting.
 
@@ -37,19 +37,6 @@ All UI text types are covered: buttons, tooltips, card content, aria-labels, pla
 
 ## Domain Coverage
 
-| Domain | File | Approx Keys |
-|--------|------|-------------|
-| Common | `zh-CN/common.ts` | 137 |
-| Menu | `zh-CN/menu.ts` | 23 |
-| Workspace | `zh-CN/workspace.ts` | 86 |
-| Conversation | `zh-CN/conversation.ts` | 123 |
-| File | `zh-CN/file.ts` | 68 |
-| Changes | `zh-CN/changes.ts` | 86 |
-| Terminal | `zh-CN/terminal.ts` | 56 |
-| Browser | `zh-CN/browser.ts` | 134 |
-| Approval | `zh-CN/approval.ts` | 24 |
-| Models | `zh-CN/models.ts` | 34 |
-| CI (GitHub) | `zh-CN/ci.ts` | 249 |
-| Communication | `zh-CN/communicate.ts` | 23 |
+22 domains under `frontend/src/app/i18n/{zh-CN,en-US}/` (see [frontend-structure.md](../../analysis/ai-digital-life/features/frontend-structure.md)). Dictionary organization (per-domain files + barrel) see [i18n-dictionary-domain-split-organization.md](../../../.agents/rules/i18n-dictionary-domain-split-organization.md).
 
-Later phases can extend this to richer formatting, pluralization, and validation automation.
+Richer formatting/pluralization ideas are unscoped future thoughts (see `FUTURE-ROADMAP.md`), not planned phases.

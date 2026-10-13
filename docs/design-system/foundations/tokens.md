@@ -1,6 +1,6 @@
 # Design Tokens
 
-Source of truth: `[frontend/src/styles/tokens.css](../../../ai-digital-life/frontend/src/styles/tokens.css)`（除行级 Source 另注者外；Hint 节 token 定义于 `themes.css`）。
+Source of truth: 类型真源 [`frontend/src/design-system/tokens.ts`](../../../ai-digital-life/frontend/src/design-system/tokens.ts)（`SpacingToken/ShadowToken/…`），CSS 变量值真源 [`frontend/src/styles/tokens.css`](../../../ai-digital-life/frontend/src/styles/tokens.css)（除行级 Source 另注者外；Hint 节 token 定义于 `themes.css`）。
 
 Tokens are the only acceptable way to express atomic design decisions in the codebase. Components MUST refer to them via CSS custom properties — `color: #fff` is forbidden, `color: var(--text-on-accent)` is required.
 
@@ -12,7 +12,9 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 | `--space-px`  | 1 px  |
 | `--space-0-5` | 2 px  |
 | `--space-1`   | 4 px  |
+| `--space-1-5` | 6 px  |
 | `--space-2`   | 8 px  |
+| `--space-2-5` | 10 px |
 | `--space-3`   | 12 px |
 | `--space-4`   | 16 px |
 | `--space-5`   | 20 px |
@@ -29,7 +31,7 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 
 - Family: `--font-sans` (Inter + system stack), `--font-mono` (JetBrains Mono / Fira Code), `--font-display` (alias of sans), `--font-serif` (Georgia / Times New Roman system stack — settings panel section titles only, no webfont bundled).
 - Size scale: `--text-xs` (12 px) → `--text-5xl` (48 px) on a 1.25 ratio.
-- Weights: `--font-light` (300) → `--font-extrabold` (800).
+- Weights: `--font-light` (300), `--font-normal` (400), `--font-medium` (500), `--font-semibold` (600), `--font-bold` (700), `--font-extrabold` (800).
 - Line heights: `--leading-none` (1) → `--leading-relaxed` (1.625).
 - Tracking: `--tracking-tight` (-0.025em) → `--tracking-widest` (0.1em).
 
@@ -39,14 +41,14 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 
 ## Shadow
 
-`--shadow-sm`, `--shadow`, `--shadow-md`, `--shadow-lg`, `--shadow-xl`, `--shadow-2xl`, `--shadow-inner`, plus `--shadow-soft` (theme-aware ambient).
+`--shadow-none`, `--shadow-sm`, `--shadow`, `--shadow-md`, `--shadow-lg`, `--shadow-xl`, `--shadow-2xl`, `--shadow-inner`, `--shadow-inset-highlight`, `--shadow-panel`, `--shadow-panel-sm`, `--shadow-divider`, plus `--shadow-soft` (theme-aware ambient).
 
 ## Motion
 
 
 | Group     | Tokens                                                                                                               |
 | --------- | -------------------------------------------------------------------------------------------------------------------- |
-| Duration  | `--duration-75` … `--duration-1000`, `--duration-editorial` (600 ms)                                                 |
+| Duration  | `--duration-75` … `--duration-1000`（含 `--duration-350`，tooltip enter 用），`--duration-editorial` (600 ms) |
 | Easing    | `--ease-default` (220 emphasis), `--ease-enter`, `--ease-exit`, `--ease-spring`, `--ease-snap`, `--ease-linear`, `--ease-editorial` |
 | Composite | `--transition-colors`, `--transition-shadow`, `--transition-transform`, `--transition-opacity`, `--transition-modal` |
 
@@ -57,7 +59,7 @@ Tokens are the only acceptable way to express atomic design decisions in the cod
 
 Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 
-`--z-base` (0), `--z-raised` (10), `--z-dropdown` (20), `--z-sticky` (30), `--z-overlay` (40), `--z-modal-backdrop` (50), `--z-modal` (60), `--z-popover` (70), `--z-toast` (80), `--z-tooltip` (90), `--z-max` (9999).
+`--z-base` (0), `--z-raised` (10), `--z-dropdown` (20), `--z-sticky` (30), `--z-overlay` (40), `--z-modal-backdrop` (50), `--z-modal` (60), `--z-popover` (70), `--z-toast` (80), `--z-tooltip` (90), `--z-toast-top` (99999), `--z-max` (9999).
 
 ## Icons
 
@@ -66,9 +68,10 @@ Strict layering tokens — nothing else may declare arbitrary z-index numbers:
 ## Layout
 
 - `--titlebar-height` (36 px), `--statusbar-height` (28 px)
-- `--sidebar-width` (248 px), `--sidebar-width-collapsed` (64 px)
+- `--sidebar-width` (248 px), `--sidebar-width-collapsed` (48 px)
+- `--right-panel-width` (30%), `--right-panel-width-min` (280 px), `--right-panel-width-max` (50%)
+- `--activity-bar-width` (48 px), `--tool-sidebar-width` (48 px), `--tool-sidebar-width-expanded` (200 px)
 - `--content-max-width` (1440 px)
-- `--adl-editor-minimap-width` (84 px) - Minimap 宽度，用于编辑器内容区域的右侧 padding
 
 ## Surface (interactive)
 

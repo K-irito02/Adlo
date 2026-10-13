@@ -10,13 +10,14 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 | 特征 | 说明 |
 |------|------|
 | 桌面原生 | Rust + Tauri 2.x，原生性能与系统能力 |
-| 双端架构 | Tauri 桌面 + 浏览器预览双模式 |
-| 模型无关 | 支持 7+ Provider（Anthropic/OpenAI/Google/Azure/xAI/Local...） |
-| MCP 集成 | Stdio/SSE/StreamableHTTP 3 Transport + OAuth |
-| LSP 集成 | 完整 LSP 客户端（诊断/符号/定义/引用） |
-| 多 Agent | 7 内置 Agent + 自定义 Agent + 子代理 |
-| 多工作区 | 同时管理多个工作区目录 |
-| 内置浏览器 | 基于 Tauri WebView2 的内置浏览器 |
+| 双端架构 | Tauri 桌面 + 浏览器预览双模式（功能行为一致） |
+| 第三方 harness 集成 | deepseek dsh：进程托管（webapp-host）、版本管理（dsh-bundle/dsh-version）、下载源与镜像（download-source）、中间区多标签宿主渲染 |
+| 工作区 | 多工作区管理、Git 操作、文件树、大纲解析、搜索 |
+| 终端 | xterm.js 交互式终端（多会话 PTY + 单标签多窗格布局） |
+| 编辑器 | CodeMirror 6 + 文件预览 + 差异查看器 |
+| 内置浏览器 | Tauri WebView / iframe 双模式 + 网站元数据缓存 |
+| 存储治理 | adl-kernel::storage 统一路径解析 + 启动期迁移 + 设置面板存储组 |
+| 系统能力 | 剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储 |
 
 ## 技术栈
 
@@ -26,7 +27,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 | 后端 | Rust stable + tokio | 异步运行时 |
 | 数据库 | SQLite (rusqlite) | 本地持久化 |
 | 前端 | React 19 + Vite 8 | UI 层 |
-| 状态管理 | Zustand 5 | 切片合并模式（31 切片 + 17 action，见 ai-digital-life/AGENTS.md） |
+| 状态管理 | Zustand 5 | 切片合并模式（32 切片 + 18 action，见 ai-digital-life/AGENTS.md） |
 | 编辑器 | CodeMirror 6 (@uiw/react-codemirror) | 代码显示/编辑 |
 | 终端 | xterm.js 6 + node-pty | 伪终端 |
 | 类型 | TypeScript 5.6 | 严格模式 |
@@ -40,10 +41,10 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 |------|------|
 | Rust Crates | 22 |
 | Tauri Commands | 33 |
-| Zustand 切片 | 31（见 ai-digital-life/AGENTS.md） |
-| Action 模块 | 17（见 ai-digital-life/AGENTS.md） |
-| 前端功能域 | 约 25（见 `frontend/src/app/features/`） |
-| IPC 接口域 | 约 30（见 `frontend/src/shared/ipc/`） |
+| Zustand 切片 | 32（slicedStore.ts 实测，AGENTS.md 已同步） |
+| Action 模块 | 18（AGENTS.md 已同步） |
+| 前端功能域 | 25（见 `frontend/src/app/features/`） |
+| IPC 接口域 | 25 个文件（见 `frontend/src/shared/ipc/`） |
 | i18n 文件 | 约 46（中英各约 23，以实现为准） |
 | Rust 测试 | 616（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
 | 前端测试 | 1947（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
@@ -61,47 +62,51 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 ai-digital-life/
 ├── Cargo.toml              # Rust 工作区（22 crate）
 ├── crates/                 # 独立 crate
-│   ├── kernel/             # 核心类型与常量
+│   ├── kernel/             # 共享内核（app_info/config/events/storage/types）
+│   ├── types/              # 共享类型
 │   ├── errors/             # AppError 枚举
 │   ├── storage/            # SQLite 持久化
-│   ├── agent-runtime/      # Agent 运行时
-│   ├── model-gateway/      # 模型网关
-│   ├── conversation/       # 会话管理
+│   ├── adl-logging/        # 日志系统
+│   ├── migration/          # 数据库迁移
 │   ├── workspace/          # 工作区
-│   ├── command/            # 命令执行
 │   ├── pty/                # 伪终端
-│   ├── mcp-client/         # MCP 客户端
-│   ├── lsp-client/         # LSP 客户端
-│   ├── browser/            # 内置浏览器
-│   ├── change-engine/      # 变更引擎
-│   ├── subagent/           # 子代理
-│   ├── task/               # 任务状态机
-│   ├── context/            # 上下文
 │   ├── fs-ops/             # 文件系统操作
+│   ├── outline/            # 大纲解析
 │   ├── credential/         # 凭据存储
 │   ├── ci-status/          # CI 状态
-│   ├── outline/            # 大纲解析
-│   ├── adl-logging/        # 日志系统
-│   └── migration/          # 数据库迁移
+│   ├── clipboard/          # 剪贴板历史
+│   ├── sysmon/             # 系统监视器
+│   ├── change-engine/      # 变更引擎
+│   ├── server/             # adl-server 后端引擎
+│   ├── webapp-host/        # dsh 进程托管
+│   ├── dsh-bundle/         # 内置 dsh 包
+│   ├── dsh-version/        # dsh 版本管理
+│   ├── download-source/    # 下载源与镜像
+│   └── tauri-runtime-wry-patched/ # Tauri 运行时补丁
 ├── src-tauri/              # Tauri 入口
-│   ├── src/lib.rs          # 应用入口
-│   ├── src/commands/       # 33 命令模块
-│   ├── src/events/         # 事件定义
-│   └── src/capabilities/   # 权限能力
+│   ├── src/main.rs          # 主函数
+│   ├── src/lib.rs           # 应用入口
+│   ├── src/setup.rs         # 启动流程（含存储迁移）
+│   ├── src/state.rs         # AppState
+│   ├── src/commands/        # 13 文件（12 领域 + mod.rs）
+│   ├── src/capabilities/    # 权限能力（default.json + browser-remote.json）
+│   └── tauri.conf.json      # Tauri 配置
 ├── frontend/               # React 前端
 │   └── src/
 │       ├── app/            # 应用主体
-│       │   ├── features/  # 26 功能域
+│       │   ├── features/  # 25 功能域（含 center 中间区宿主、dsh、storage-settings）
 │       │   ├── components/ # 通用组件
-│       │   ├── stores/    # Zustand 状态
+│       │   ├── stores/    # Zustand 状态（32 切片，slicedStore.ts）
 │       │   ├── hooks/     # 自定义 Hook
-│       │   ├── regions/   # 布局区域
-│       │   ├── i18n/      # 国际化
+│       │   ├── regions/   # 布局区域（TitleBar/CenterPane/LeftSidebar/RightPanel）
+│       │   ├── i18n/      # 国际化（22 领域 × 中英）
 │       │   └── App.tsx    # 根组件
-│       ├── shared/        # 共享类型与 IPC
-│       ├── design-system/ # 设计系统
+│       ├── shared/ipc/    # IPC 接口（25 文件）
+│       ├── design-system/ # 设计系统（tokens.ts 真源）
 │       ├── styles/        # CSS 样式
-│       └── preview-bridge/ # 浏览器桥接
+│       ├── tauri-bridge/  # Tauri 桥接（8 领域）
+│       ├── preview-bridge/ # 浏览器桥接（12 实现文件）
+│       └── mock-bridge.ts # 纯内存模拟（+ mock/）
 └── pnpm-workspace.yaml    # pnpm 工作区
 ```
 
@@ -118,7 +123,8 @@ ai-digital-life/
 ├─────────────────────────────────────────────┤
 │  Backend (Rust + Tokio)                      │
 │  ├─ Tauri Binary: 窗口/命令/capabilities     │
-│  ├─ Domain Crates: 12 领域服务               │
+│  ├─ 宿主集成 Crates: webapp-host/dsh-bundle/dsh-version/download-source │
+│  ├─ 领域服务: workspace/pty/fs-ops/outline/credential/ci-status/clipboard/sysmon/change-engine/server │
 │  └─ Infrastructure: storage/logger/errors   │
 └─────────────────────────────────────────────┘
 
@@ -130,7 +136,7 @@ ai-digital-life/
 
 ## 关键设计理念
 
-1. **Zustand 切片合并**：功能拆分为 31 切片 + 17 action 模块，通过 `slicedStore.ts` 合并导出（见 ai-digital-life/AGENTS.md）
+1. **Zustand 切片合并**：功能拆分为 32 切片 + 18 action 模块，通过 `slicedStore.ts` 合并导出
 2. **IPC 三桥接一致性**：Tauri/preview/mock 三桥接层必须保持接口一致
 3. **Crate 分离与依赖倒置**：每个 crate 有明确边界，通过 traits 解耦
 4. **Rust 错误统一**：通过 `AppError` 枚举跨 crate 传播，`captureTypedError` 前端消费

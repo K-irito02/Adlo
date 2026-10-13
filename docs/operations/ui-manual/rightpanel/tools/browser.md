@@ -16,7 +16,7 @@
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | CSS | `.adl-tool-context--files` |
+| 1 | CSS | `.adl-tool-context--browser` |
 
 ### 操作
 

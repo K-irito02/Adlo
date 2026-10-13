@@ -8,10 +8,10 @@
 
 | 优先级 | 类型        | 格式                            | 稳定性 | 说明                           |
 | ------ | ----------- | ------------------------------- | ------ | ------------------------------ |
-| 1      | aria-label  | `[aria-label="发送"]`           | ⭐⭐⭐ | 无障碍属性，语义明确，推荐首选 |
-| 2      | data-testid | `[data-testid="composer-send"]` | ⭐⭐⭐ | 测试专用属性，稳定可靠         |
-| 3      | role + name | `button[aria-label="发送"]`     | ⭐⭐   | 语义化组合                     |
-| 4      | CSS 类名    | `.adl-action-btn--primary`      | ⭐     | 样式类名，可能随重构变化       |
+| 1      | aria-label  | `[aria-label="设置"]`           | ⭐⭐⭐ | 无障碍属性，语义明确，推荐首选 |
+| 2      | data-testid | `[data-testid="editor-shell"]` | ⭐⭐⭐ | 测试专用属性，稳定可靠         |
+| 3      | role + name | `button[aria-label="设置"]`     | ⭐⭐   | 语义化组合                     |
+| 4      | CSS 类名    | `.adl-hamburger__trigger`      | ⭐     | 样式类名，可能随重构变化       |
 
 ## 选择器类型详解
 
@@ -35,22 +35,25 @@ a[aria-label="帮助"]
 **注意**：
 
 - aria-label 值可能随语言切换变化（中/英）
-- 建议使用包含关系：`[aria-label*="发送"]` 或精确匹配
+- 建议使用包含关系：`[aria-label*="设置"]` 或精确匹配
 
 ### 2. data-testid 属性
 
 测试专用属性，需要在代码中预先添加。
 
 ```css
-[data-testid="composer-send"]
-[data-testid="composer-input"]
-[data-testid="session-item"]
+[data-testid="editor-shell"]
+[data-testid="changes-preview-shell"]
+[data-testid="patch-apply"]
+[data-testid="files-sticky-context"]
 ```
 
 **当前已添加的 data-testid**：
 
-- `composer-send` - 发送/停止按钮
-- `composer-input` - 输入框
+- `editor-shell` - 文件编辑器外壳（`FilesPanel.tsx`）
+- `changes-preview-shell` - 变更预览外壳（`DiffEditorSection.tsx`）
+- `patch-apply` - 补丁应用（`PatchReviewSection.tsx`）
+- `files-sticky-context` - 文件吸顶上下文（`EditorSurfaceShell.tsx`）
 
 ### 3. role + aria 组合
 
@@ -67,7 +70,7 @@ a[aria-label="帮助"]
 [role="dialog"][aria-label="设置"]
 
 /* 列表项 */
-[role="listitem"][aria-label="会话项"]
+[role="listitem"][aria-label="工作区"]
 ```
 
 ### 4. CSS 类名
@@ -82,9 +85,8 @@ a[aria-label="帮助"]
 .adl-rightpanel
 
 /* 组件类名 */
-.adl-icon-btn
-.adl-action-btn
-.adl-session-item
+.adl-hamburger__trigger
+.adl-tool-switcher__tab
 
 /* 状态修饰符 */
 .adl-icon-btn:disabled
@@ -101,18 +103,18 @@ a[aria-label="帮助"]
 /* 标题栏内的按钮 */
 .adl-titlebar button[aria-label="设置"]
 
-/* 左侧边栏内的会话项 */
-.adl-leftbar .adl-session-item
+/* 左侧边栏内的剪切看板 */
+.adl-leftbar .adl-clipboard-history
 
-/* 中心面板内的消息 */
-.adl-center .adl-message
+/* 中心宿主内的入口页 */
+.adl-center .adl-center-entry
 ```
 
 ### 按状态筛选
 
 ```css
 /* 激活状态 */
-.adl-session-item.is-active
+.adl-tool-switcher__tab.is-active
 
 /* 禁用状态 */
 .adl-icon-btn:disabled
@@ -145,28 +147,19 @@ a[aria-label="帮助"]
 ### 左侧边栏
 
 | 元素         | 选择器                              |
-| ------------ | ----------------------------------- | ------------------------------------- |
+| ------------ | ----------------------------------- |
 | 左侧边栏容器 | `.adl-leftbar`                      |
-| 剪切看板     | `.adl-clipboard-history` / ClipboardHistoryList |
-| 系统资源查看 | `.adl-system-monitor` / SystemMonitorPanel |
-| 右侧工具面板 | `.adl-rightpanel`                   |
-| 调整手柄     | `.adl-leftbar__resize-handle`       | ⚠️ 仅最右侧 3px `::before` 区域可拖拽 |
+| 剪切看板     | `.adl-clipboard`（`__list` 列表） |
+| 系统资源查看 | `.adl-sysmon` |
+| 调整手柄     | `.adl-leftbar__resize-handle`       |
 
-### 中心面板
+### 中心面板（多标签宿主）
 
 | 元素         | 选择器                                                     |
 | ------------ | ---------------------------------------------------------- |
-| 中心面板容器 | `.adl-center`                                              |
-| 消息流       | `.adl-message-stream`                                      |
-| 用户消息     | `.adl-message--user`                                       |
-| 助手消息     | `.adl-message--assistant`                                  |
-| 流式消息     | `.adl-message--streaming`                                  |
-| Composer     | `.adl-composer`                                            |
-| 上下文标签   | `.adl-composer__chips .adl-chip`                           |
-| 输入框       | `[data-testid="composer-input"]` 或 `.adl-composer__input` |
-| 发送按钮     | `[data-testid="composer-send"]`                            |
-| 停止按钮     | `[data-testid="composer-send"]` (状态变化)                 |
-| 内联状态栏   | `.adl-composer .adl-statusbar`                             |
+| 中心宿主容器 | `.adl-center.adl-center--tab-host`                         |
+| 统一入口页   | `.adl-center-entry`（dsh/浏览器/终端三入口）                |
+| 缺 tab 提示  | `.adl-center__empty` + `.adl-welcome__empty`                |
 
 ### 右侧面板
 
@@ -179,15 +172,14 @@ a[aria-label="帮助"]
 | 文件面板     | `#files-panel` 或 `[aria-labelledby*="files"]`       |
 | 变更面板     | `#changes-panel` 或 `[aria-labelledby*="changes"]`   |
 | 浏览器面板   | `#browser-panel` 或 `[aria-labelledby*="browser"]`   |
-| 终端面板     | `#terminal-panel` 或 `[aria-labelledby*="terminal"]` |
-| 审计面板     | `#audit-panel` 或 `[aria-labelledby*="audit"]`       |
-| 模型面板     | `#models-panel` 或 `[aria-labelledby*="models"]`     |
+| 终端面板     | `#terminal-panel` 或 `[aria-labelledby*="terminal"]`   |
+| 通信面板     | `CommunicationPanel`（保留 ToolId，当前切换器未展示） |
 | 设置面板     | `#settings-panel` 或 `[aria-labelledby*="settings"]` |
 | 调整手柄     | `.adl-rightpanel__resize-handle`                     | ⚠️ 仅 3px `::before` 线可拖拽（容器不吃指针，层级低于弹层遮罩） |
 
 ## 注意事项
 
-1. **语言敏感性**：aria-label 值会随语言切换变化，建议使用部分匹配 `[aria-label*="发送"]`
+1. **语言敏感性**：aria-label 值会随语言切换变化，建议使用部分匹配 `[aria-label*="设置"]`
 2. **动态 ID**：部分元素 ID 使用 React `useId()` 生成，每次渲染可能变化，避免依赖
 3. **状态变化**：同一元素在不同状态下可能有不同的 aria-label（如最大化/还原按钮）
 4. **异步渲染**：部分元素在操作后才渲染（如菜单下拉），需要等待出现后再定位

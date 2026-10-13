@@ -14,10 +14,7 @@ The renderer targets **WCAG 2.1 AA** out of the box. This document captures the 
 
 ## Screen Reader Friendly Markup
 
-- `app-shell__titlebar` → `role="banner"`, `aria-label`.
-- `app-shell__sidebar` + inner `<nav>` → `aria-label`.
-- `app-shell__main` → semantic `<main>` with `aria-label`.
-- `app-shell__statusbar` → `role="contentinfo"`, `aria-label`.
+- Title bar / sidebars / center / panels expose `role` + `aria-label` landmarks (TitleBar/CenterPane/LeftSidebar/RightPanel).
 - Card containers expose `aria-label` so they show up as discoverable landmarks.
 - Decorative icons are `aria-hidden="true" focusable="false"`. Meaningful icons require a `title` (rendered as `aria-label`).
 - Visually-hidden form labels use the `.sr-only` utility, never inline `style="display:none"` (which would also hide them from AT).
@@ -49,5 +46,4 @@ The renderer targets **WCAG 2.1 AA** out of the box. This document captures the 
 
 ## Known follow-ups
 
-- Tooltips currently have no automated focus-trap helper; drop-in patterns will land alongside the dropdown / menu primitives later in the stage.
-- Dialog-focus-trap helper is still pending (Phase 0 dialog set is small enough that direct manipulation suffices).
+- Tooltip 已有完整 React 实现（provider/trigger/content/simple，`maxWidth` 默认 240，`data-side` 定位）；Dialog focus-trap 待办单列。

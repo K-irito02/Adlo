@@ -10,7 +10,7 @@
 
 | 文档 | 内容 |
 |------|------|
-| [system-overview.md](./core/system-overview.md) | 系统整体架构概览（Phase 0 + Phase 2 薄切片） |
+| [system-overview.md](./core/system-overview.md) | 系统整体架构概览（桌面宿主 + dsh harness 集成） |
 | [tech-stack-alignment.md](./core/tech-stack-alignment.md) | 技术栈对齐方案 |
 
 ### features/ — 功能实现
@@ -20,6 +20,7 @@
 | [builtin-browser.md](./features/builtin-browser.md) | 内置浏览器实现方案 |
 | [workspace-and-retrieval.md](./features/workspace-and-retrieval.md) | 工作区与检索架构 |
 | [run-activity-and-run-summary.md](./features/run-activity-and-run-summary.md) | 运行活动与运行摘要 |
+| [storage-settings.md](./features/storage-settings.md) | 存储设置与数据迁移 |
 
 ### cross-cutting/ — 横向治理
 
@@ -34,3 +35,6 @@
 - [设计系统](../design-system/) — UI 设计系统规范
 - [开发规范](../development/) — 工程约束与治理规则
 - [知识沉淀](../knowledge-base/) — 实施过程中的经验教训
+- [ai-digital-life/AGENTS.md](../../ai-digital-life/AGENTS.md) — 实现工作区治理（技术栈、功能清单、Store 架构）
+- [phase-boundary.md](../../.agents/rules/phase-boundary.md) — 项目形态与范围边界
+- [FUTURE-ROADMAP.md](../../FUTURE-ROADMAP.md) — 未来想法（非分阶段规划）

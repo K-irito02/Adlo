@@ -44,8 +44,7 @@
 │                Tauri 命令层                                    │
 │                                                                │
 │  src-tauri/src/commands/                                       │
-│  ├── patch.rs                   ← 补丁应用/回滚/决策           │
-│  └── snapshot.rs                ← 快照创建/列表/恢复           │
+│  └── （补丁/快照经 change-engine + workspace 通道，旧 patch.rs/snapshot.rs 已移除） │
 └────────────────────────────────────────────────────────────────┘
                         │
 ┌────────────────────────────────────────────────────────────────┐
@@ -115,24 +114,9 @@ PatchProposal {
     → 用快照内容覆盖工作区文件
 ```
 
-## Tauri 命令
+## 补丁/快照通道（旧 `patch.rs`/`snapshot.rs` 已移除）
 
-### patch.rs
-
-| 命令 | 说明 |
-|------|------|
-| `apply_patch_set` | 应用补丁集到工作区文件 |
-| `rollback_patch_set` | 回滚补丁集 |
-| `set_hunk_decision` | 设置补丁块的接受/拒绝/待定决策 |
-| `apply_patch_set_and_snapshot` | 应用补丁并创建快照（原子操作） |
-
-### snapshot.rs
-
-| 命令 | 说明 |
-|------|------|
-| `create_snapshot` | 创建 Git 快照（检查点） |
-| `list_snapshots` | 列出工作区快照列表 |
-| `restore_snapshot` | 恢复到指定快照 |
+> 历史注记：旧 `src-tauri/src/commands/patch.rs`（apply/rollback/set_hunk_decision/apply_patch_set_and_snapshot）与 `snapshot.rs`（create/list/restore）已不存在。现行补丁/快照经 `change-engine` crate + `shared/ipc/patch.ts` + `snapshot.ts` 通道，前端状态 `patchSlice.ts` + `patchActions.ts`。
 
 ### IPC 接口 (`shared/ipc/patch.ts`)
 
@@ -258,12 +242,8 @@ PatchSlice {
 | `crates/change-engine/src/validation.rs` | 补丁验证 |
 | `crates/change-engine/src/language.rs` | 语言检测 |
 | `crates/change-engine/Cargo.toml` | change-engine 依赖 |
-| `src-tauri/src/commands/patch.rs` | 补丁 Tauri 命令 |
-| `src-tauri/src/commands/snapshot.rs` | 快照 Tauri 命令 |
 | `frontend/src/app/stores/slices/patchSlice.ts` | 补丁状态切片 |
 | `frontend/src/app/stores/actions/patchActions.ts` | 补丁 Action |
-| `frontend/src/app/stores/actions/snapshotActions.ts` | 快照 Action |
-| `frontend/src/app/stores/changesSelectors.ts` | 变更选择器 |
 | `frontend/src/app/features/diff-viewer/DiffViewer.tsx` | 统一差异查看器 |
 | `frontend/src/app/features/diff-viewer/SideBySideDiffViewer.tsx` | 并排差异查看器 |
 | `frontend/src/app/features/diff-viewer/InlineDiffViewer.tsx` | 内联差异查看器 |

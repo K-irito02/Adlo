@@ -57,7 +57,7 @@
 | `browser_clear_cookies` | `tab_id` | 清除 Cookie |
 | `browser_set_color_scheme` | `scheme` | 设置颜色方案 |
 
-## 前端 Store 切片（6 个）
+## 前端 Store 切片（8 个）
 
 > 路径前缀: `frontend/src/app/stores/slices/`
 
@@ -76,8 +76,6 @@
 |------|------|
 | 关键字段 | `bookmarks: BrowserBookmark[]`, `workspaceBookmarks: Record<string, WorkspaceBookmarkEntry>` |
 | 用途 | 书签 CRUD、工作区书签管理 |
-
-辅助文件: `slices/browserBookmarkHelpers.ts`
 
 ### 3. BrowserHistorySlice
 
@@ -108,6 +106,20 @@
 |------|------|
 | 关键字段 | `navigatorWidth`, `navigatorCollapsed`, `navigateInPlace` |
 | 用途 | 浏览器导航栏状态（宽度、折叠）、导航模式 |
+
+### 7. BrowserSearchEnginesSlice
+
+| 文件 | `slices/browserSearchEnginesSlice.ts` |
+|------|------|
+| 关键字段 | `searchEngines: SearchEngine[]`（含内置引擎表） |
+| 用途 | 搜索引擎管理 |
+
+### 8. BrowserDownloadsSlice
+
+| 文件 | `slices/browserDownloadsSlice.ts` |
+|------|------|
+| 关键字段 | `DownloadRecord`、`DownloadSettings`、`DownloadProgress` |
+| 用途 | 下载记录与下载设置 |
 
 ### 共享定义
 

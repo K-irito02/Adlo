@@ -14,7 +14,7 @@
 
 | 编号 | 名称 | 文档 | 说明 |
 |------|------|------|------|
-| [1] | Hamburger Menu | [hamburger-menu.md](./hamburger-menu.md) | 汉堡菜单（文件/视图/帮助/命令面板） |
+| [1] | Hamburger Menu | [hamburger-menu.md](./hamburger-menu.md) | 汉堡菜单（文件/视图/帮助） |
 | [2] | Center Tabs | [center-tabs.md](./center-tabs.md) | 中心标签条（切换/关闭/拖拽排序/溢出滚动） |
 | [4] | Theme Toggle | [actions.md](./actions.md#主题切换) | 主题切换按钮 |
 | [5] | Language Toggle | [actions.md](./actions.md#语言切换) | 语言切换按钮 |
@@ -22,6 +22,8 @@
 | [7] | Panel Controls | [panels.md](./panels.md) | 面板控制按钮组 |
 | [8] | Window Controls | [window.md](./window.md) | 窗口控制按钮组 |
 | [9] | Drag Region | - | 窗口拖拽区域（不可交互） |
+
+子文档：[brand.md](./brand.md)（品牌 Logo 悬停 Tooltip）、[center-tabs.md](./center-tabs.md)、[actions.md](./actions.md)、[panels.md](./panels.md)、[window.md](./window.md)、[menus/](./menus/README.md)。
 
 ## 容器选择器
 

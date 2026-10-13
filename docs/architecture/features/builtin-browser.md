@@ -23,23 +23,23 @@
 | `crates/browser/src/lib.rs` | BrowserManager 实现（8 个方法 + on_navigation 事件） |
 | `Cargo.toml`（根） | workspace.members 增加 `crates/browser` |
 | `src-tauri/Cargo.toml` | 引用 adl-browser，tauri 启用 unstable feature |
-| `src-tauri/tauri.conf.json` | CSP 放宽支持外部资源 |
-| `src-tauri/capabilities/default.json` | 注册 browser IPC 命令权限 |
-| `src-tauri/permissions/digital-life.toml` | 8 个 browser 命令白名单 |
+| `src-tauri/tauri.conf.json` | 显式 CSP（含 frame-src 指令增量） |
+| `src-tauri/capabilities/default.json` + `browser-remote.json` | 注册 browser IPC 命令权限（仅有的两个 capability 文件，禁 `"all"`/`"**"`） |
+| `src-tauri/permissions/digital-life.toml` | browser 命令白名单 |
 | `src-tauri/src/state.rs` | AppState 增加 browser_manager 字段 |
 | `src-tauri/src/setup.rs` | 初始化 BrowserManager |
 | `src-tauri/src/commands/mod.rs` | 注册 browser 模块 |
 | `src-tauri/src/main.rs` | invoke_handler 注册 8 个 browser 命令 |
-| `frontend/src/shared/ipc.ts` | 新增 BrowserBridge 接口 |
-| `frontend/src/tauri-bridge.ts` | 实现 browser.* 桥接方法 |
-| `frontend/src/preview-bridge/index.ts` | 实现 browser.* no-op 桥接 |
-| `frontend/src/mock-bridge.ts` | 实现 browser.* no-op 桥接 |
+| `frontend/src/shared/ipc/browser.ts` | 新增 BrowserBridge 接口（`DigitalLifeBridge` 的 `browser` 域） |
+| `frontend/src/tauri-bridge/` | 实现 browser.* 桥接方法 |
+| `frontend/src/preview-bridge/` | browser.* 真实等效实现（iframe + 前端历史栈，禁空实现） |
+| `frontend/src/mock-bridge.ts` + `mock/` | browser.* 内存模拟 |
 | `frontend/src/app/regions/right-panel/panels/BrowserPanel.tsx` | 核心重构：双模式 navigator + iframe + 历史栈 |
 | `frontend/src/app/regions/right-panel/types.ts` | 清理 browserWebViewAvailable |
 | `frontend/src/app/regions/right-panel/hooks/useBrowserPanelProps.ts` | 同步 prop 变更 |
 | `frontend/src/app/regions/right-panel/hooks/useRightPanelViewProps.ts` | 同步 prop 变更 |
-| `frontend/src/app/copy.ts` | 新增浏览器文案、更新状态说明、新增外部浏览器按钮翻译 |
-| `frontend/src/styles/regions/rightpanel/browser-panel.css` | 新增 iframe 样式、外部浏览器按钮样式 |
+| `frontend/src/app/i18n/{zh-CN,en-US}/browser.ts` | 浏览器文案（i18n 领域拆分） |
+| `frontend/src/styles/regions/` + `rightpanel.css` | 浏览器面板样式（已分散，无单体 browser-panel.css） |
 
 ## 双模式架构
 
@@ -55,16 +55,7 @@
 
 ## 状态管理
 
-浏览器状态存储在 `useUiStore`（Zustand）中，通过 localStorage 持久化：
-
-| 状态 | 类型 | localStorage key |
-|------|------|------------------|
-| `browserTabs` | `BrowserTabState[]` | `adl-ui:browser-tabs` |
-| `browserActiveTabId` | `string` | `adl-ui:browser-active-tab` |
-| `browserBookmarks` | `BrowserBookmark[]` | `adl-ui:browser-bookmarks` |
-| `browserHistory` | `BrowserHistoryEntry[]` | `adl-ui:browser-history` |
-| `browserNavigatorWidth` | `number` | `adl-ui:browser-navigator-width` |
-| `browserNavigateInPlace` | `boolean` | `adl-ui:browser-navigate-in-place` |
+浏览器状态位于 8 个 browser 切片（`browser/tabs/bookmark/history/folders/landing/searchEngines/downloads`），经 `stores/persisted/registry.ts` 中心登记表持久化（`adl:ui.*` 键，唯一写盘入口；禁止 slice 自建 localStorage 写入）：`browserTabs`、`browserActiveTabId`、`browserBookmarks`、`browserHistory`、`browserNavigatorWidth`、`browserNavigateInPlace` 等。
 
 ## 快捷键
 
@@ -81,8 +72,8 @@
 |------|----------|
 | iframe 受 `X-Frame-Options` 限制 | 浏览器预览模式约 80% 网站无法内嵌显示 |
 | Cookie/登录态不支持 | 全局限制，需要登录的网站无法正常交互 |
-| DevTools 未集成 | 后续版本 |
-| Cookie/缓存治理未实现 | 后续版本 |
+| DevTools 未集成 | 未实现（未来想法，未立项） |
+| Cookie/缓存治理未实现 | 未实现（未来想法，未立项） |
 
 ## 经验教训（已迁移至 knowledge-base）
 

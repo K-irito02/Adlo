@@ -8,7 +8,6 @@
 |--------|--------|------|----------|
 | 新建工作空间 | `Ctrl+N` | 创建新的工作空间 | [新建工作空间](#新建工作空间) |
 | 打开文件夹 | `Ctrl+O` | 打开现有文件夹作为工作空间 | [打开文件夹](#打开文件夹) |
-| 新建临时会话 | `Ctrl+Shift+N` | 创建不绑定工作区的临时会话 | [新建临时会话](#新建临时会话) |
 | ────────── | - | 分隔线 | - |
 | 退出 | `Alt+F4`（macOS `⌘Q`） | 关闭应用 | [退出](#退出) |
 
@@ -16,8 +15,8 @@
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | aria-label | `.adl-menu[data-menu-id="file"] .adl-menu__trigger` |
-| 2 | CSS | `.adl-menu[data-menu-id="file"]` |
+| 1 | aria-label | `.adl-hamburger__trigger` |
+| 2 | CSS | `.adl-hamburger__dropdown` / `.adl-hamburger__item` |
 
 ## 操作详情
 
@@ -25,7 +24,7 @@
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "新建工作空间" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "新建工作空间" 文本) |
 | 快捷键 | `Ctrl+N` |
 
 #### 前置条件
@@ -36,9 +35,9 @@
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="file"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="file"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("新建工作空间")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("新建工作空间")');
 
 // 方式2：通过快捷键
 await page.keyboard.down('Control');
@@ -54,13 +53,13 @@ await page.keyboard.up('Control');
 #### 预期结果
 
 - 如果选择了有效路径，创建新工作空间并打开
-- 左侧边栏显示新工作空间
+- 右面板 multi-tree（`.adl-multitree`）显示新工作空间
 
 #### 等待条件
 
 ```javascript
 // 等待工作空间创建
-await page.waitForSelector('.adl-workspace-item.is-current');
+await page.waitForSelector('.adl-multitree');
 ```
 
 ---
@@ -69,7 +68,7 @@ await page.waitForSelector('.adl-workspace-item.is-current');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "打开文件夹" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "打开文件夹" 文本) |
 | 快捷键 | `Ctrl+O` |
 
 #### 前置条件
@@ -80,9 +79,9 @@ await page.waitForSelector('.adl-workspace-item.is-current');
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="file"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="file"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("打开文件夹")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("打开文件夹")');
 
 // 方式2：通过快捷键
 await page.keyboard.down('Control');
@@ -97,60 +96,16 @@ await page.keyboard.up('Control');
 #### 预期结果
 
 - 选择文件夹后，打开该文件夹作为工作空间
-- 左侧边栏显示工作空间
+- 右面板 multi-tree（`.adl-multitree`）显示工作空间
 - 右侧面板加载文件树
 
 #### 等待条件
 
 ```javascript
 // 等待工作空间加载
-await page.waitForSelector('.adl-workspace-item.is-current');
+await page.waitForSelector('.adl-multitree');
 // 等待文件树加载
-await page.waitForSelector('.adl-file-tree');
-```
-
----
-
-### 新建临时会话
-
-> 以下为既有文档（与本轮菜单调整无关，原样保留）。
-
-| 属性 | 值 |
-|------|-----|
-| 快捷键 | `Ctrl+Shift+N` |
-
-#### 前置条件
-
-- [x] 无特殊条件
-
-#### 操作
-
-```javascript
-// 通过快捷键
-await page.keyboard.down('Control');
-await page.keyboard.down('Shift');
-await page.keyboard.press('N');
-await page.keyboard.up('Shift');
-await page.keyboard.up('Control');
-```
-
-#### 状态变化
-
-- 弹出「新建临时会话」对话框
-- 对话框包含名称输入框
-- 输入框默认聚焦
-
-#### 预期结果
-
-- 对话框显示
-- 输入框为空或包含自动生成的名称
-- 点击「创建会话」按钮后，左侧边栏「临时会话」区域出现新的会话标签
-
-#### 等待条件
-
-```javascript
-// 等待对话框出现
-await page.waitForSelector('.adl-prompt-modal');
+await page.waitForSelector('.adl-multitree .adl-filetree__row');
 ```
 
 ---
@@ -165,7 +120,7 @@ await page.waitForSelector('.adl-prompt-modal');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "退出" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "退出" 文本) |
 | 快捷键 | `Alt+F4` |
 
 #### 前置条件
@@ -176,9 +131,9 @@ await page.waitForSelector('.adl-prompt-modal');
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="file"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="file"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("退出")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("退出")');
 
 // 方式2：通过快捷键
 await page.keyboard.down('Alt');

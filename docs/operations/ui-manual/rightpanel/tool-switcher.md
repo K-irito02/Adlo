@@ -31,9 +31,9 @@
 | 变更 | "变更" | `changes-panel` |
 | 浏览器 | "浏览器" | `browser-panel` |
 | 终端 | "终端" | `terminal-panel` |
-| 审计 | "审计" | `audit-panel` |
-| 模型 | "模型" | `models-panel` |
 | 设置 | "设置" | `settings-panel` |
+
+> `communicate` 为保留 ToolId（当前切换器仅展示以上 5 项）；`audit`、`models` 非 ToolId（`models-panel` 不存在）。
 
 ### 状态
 
@@ -53,7 +53,6 @@
 | 变更 | Git 变更数 |
 | 浏览器 | 打开的标签数 |
 | 终端 | 打开的标签数 |
-| 审计 | 审计条目数 |
 
 ### 操作
 

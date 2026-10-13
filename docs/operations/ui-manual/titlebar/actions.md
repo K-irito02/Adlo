@@ -175,7 +175,7 @@ await page.click('button[aria-label*="语言"]');
 ```javascript
 // 等待语言切换（检查某个文本变化）
 await page.waitForFunction(() => {
-  const menuText = document.querySelector('.adl-menu__trigger')?.textContent;
+  const menuText = document.querySelector('.adl-hamburger__trigger')?.textContent;
   return menuText === 'File' || menuText === '文件';
 });
 ```
@@ -240,11 +240,13 @@ await page.waitForSelector('#settings-panel.is-active');
 
 | 快捷键 | 功能 |
 |--------|------|
-| `Ctrl+,` | 打开设置 |
+| `Ctrl+Shift+Comma` | 打开设置（`settings.open` 默认键，见 `defaultCommands.ts`） |
 
 ```javascript
 await page.keyboard.down('Control');
+await page.keyboard.down('Shift');
 await page.keyboard.press(',');
+await page.keyboard.up('Shift');
 await page.keyboard.up('Control');
 ```
 

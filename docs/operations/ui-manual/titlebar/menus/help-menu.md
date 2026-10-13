@@ -13,8 +13,8 @@
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | aria-label | `.adl-menu[data-menu-id="help"] .adl-menu__trigger` |
-| 2 | CSS | `.adl-menu[data-menu-id="help"]` |
+| 1 | aria-label | `.adl-hamburger__trigger` |
+| 2 | CSS | `.adl-hamburger` |
 
 ## 操作详情
 
@@ -22,15 +22,15 @@
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "键盘快捷键" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "键盘快捷键" 文本) |
 | 快捷键 | 未分配（`settings.shortcuts` 命令，可在设置 → 快捷键中绑定） |
 
 #### 操作
 
 ```javascript
-await page.click('.adl-menu[data-menu-id="help"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="help"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("键盘快捷键")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("键盘快捷键")');
 ```
 
 #### 预期结果
@@ -43,15 +43,15 @@ await page.click('.adl-menu__item:has-text("键盘快捷键")');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "查看许可证" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "查看许可证" 文本) |
 | 状态 | **未实现** |
 
 #### 操作
 
 ```javascript
-await page.click('.adl-menu[data-menu-id="help"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="help"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("查看许可证")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("查看许可证")');
 ```
 
 #### 预期结果

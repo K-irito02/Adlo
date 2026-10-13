@@ -7,7 +7,7 @@
 ```
 ┌────────────────────────────────────────┐
 │ [14] Tool Switcher                     │
-│ [文件|变更|浏览器|终端|审计|设置]     │
+│ [文件|变更|浏览器|终端|设置]           │
 ├────────────────────────────────────────┤
 │ [17] Tool Panel Content                │
 │                                        │
@@ -34,9 +34,10 @@
 | `changes` | 变更 | [tools/changes.md](./tools/changes.md) | Git 变更、补丁预览 |
 | `browser` | 浏览器 | [tools/browser.md](./tools/browser.md) | 内嵌浏览器 |
 | `terminal` | 终端 | [tools/terminal.md](./tools/terminal.md) | 命令执行终端 |
-| `audit` | 审计 | [tools/audit.md](./tools/audit.md) | 操作审计日志 |
-| `settings` | 设置 | [tools/settings.md](./tools/settings.md) | 应用设置（含"模型"组：两区式供应商卡片 + 已启用模型列表） |
-| `communicate` | 通信 | [tools/communicate.md](./tools/communicate.md) | 多平台消息集成（GitHub CI / 飞书 / QQ / 微信 / 邮箱） |
+| `settings` | 设置 | [tools/settings.md](./tools/settings.md) | 应用设置（通用/工作区/存储/快捷键/浏览器/DSH，无模型组） |
+| `communicate` | 通信 | [tools/communicate.md](./tools/communicate.md) | 多平台消息集成（GitHub CI / 飞书 / QQ / 微信 / 邮箱；保留 ToolId，当前切换器展示 5 项） |
+
+> `audit`、`models` 非 ToolId（审计面板与模型面板均不存在；模型经设置 DSH 组管理）。
 
 ## 容器选择器
 

@@ -1,4 +1,4 @@
-# Run Activity And Run Summary (Phase 2 Thin Slice)
+# Run Activity And Run Summary
 
 This note documents the **run-level transparency surface** used by the WebView shell during development and debugging.
 

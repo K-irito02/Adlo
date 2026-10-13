@@ -65,7 +65,7 @@ pnpm dev:tauri -- --log-level debug
 - 非法取值会打印 `[ADL-CLI] ignoring invalid …` 并**忽略该项**（不会阻断启动）
 - 缺值（如 `--log-level --log-mode multi`）同样只告警并跳过
 - 重复 flag 取**最后一次**（与 Rust 侧一致）
-- 不要透传 `--host` / `--port` 给启动脚本（端口由脚本统一分配；重复 flag 的胜出语义未锁定，实际监听端口可能偏离脚本打印的地址）
+- 不要把日志 flag 透传给 `cargo tauri dev`：日志 flag 只转 `ADL_*` 环境变量（唯一通道）；`--` 后的其余参数（如 vite 的 `--host`/`--port`）由启动脚本管理，透传可能与脚本拼装的参数冲突（端口以脚本打印的实际地址为准）
 
 ### 2.2 优先级（高 → 低）
 
@@ -315,17 +315,16 @@ crates/adl-logging/            # 统一日志 crate
 3. 若设过 `RUST_LOG`，它是**硬顶**：先 unset 再重测（CLI 顶不开它）
 
 ### Q: `pnpm dev:tauri -- --log-level trace` 报 `cargo run … unexpected argument '--log-level'`
-已修复（v2026-10-12）：日志 flag **只经环境变量**传递，不再作为 argv 透传给 `cargo tauri dev`。若仍复现，说明脚本不是最新版。
+日志 flag **只经环境变量**传递，不再作为 argv 透传给 `cargo tauri dev`。若仍复现，检查启动脚本是否为当前版本。
 
 ### Q: 浏览器模式界面空白（只有"复制调试日志"按钮）
-历史上有启动脚本找不到后端产物的问题（曾误用 `ad-server` 名字，实际是
-`adl-server`），已修复并加命名契约测试。现在的语义是**失败即失败**：`app` 域
-不再回退 mock（用户决策 2026-10-12 —— 静默 mock 曾掩盖"后端没起来"的真实故障），
+历史上有启动脚本找不到后端产物的问题（命名沿革：启动脚本/日志前缀沿用 `ad-server`，Cargo 包·二进制·日志文件为 `adl-server*`），已修复并加命名契约测试。现在的语义是**失败即失败**：`app` 域
+不再回退 mock（静默 mock 曾掩盖"后端没起来"的真实故障），
 `getInfo` 失败即以错误卡响亮呈现。
 
 排查：看 `debug-logs-browser*.txt`。
 - 出现 `[adl-bridge] using ad-server at http://127.0.0.1:<端口>` → 已连上后端 ✅
-- 出现 `… at http://127.0.0.1:61234 is not reachable` → 该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（常见原因：浏览器打开的是上次遗留的 5173，而不是脚本本次打印的地址）
+- 出现 `… at http://127.0.0.1:61234 is not reachable` → 常见原因之一：该页面来自**未注入 `VITE_ADL_SERVER_URL` 的 Vite 实例**（如浏览器打开的是上次遗留的 5173，而不是脚本本次打印的地址）
 
 ### Q: 用 `Y` 中断后，右下角不断弹出"网络错误"卡片
 后端退出后，轮询类调用会持续失败。去重键为 `(silent, scope, code, 归一化 detail)`：
@@ -335,7 +334,7 @@ crates/adl-logging/            # 统一日志 crate
 那是不同故障源，需要按模块单独排查。
 
 ### Q: `.adl-logs/terminal-logs.txt` 为空
-确认文件层过滤器未被 `RUST_LOG` 收紧到 `error` 以上；并且 `OpenOptions` 带 `.write(true)`（`.append(false)` 不隐含写权限）。
+先确认文件层过滤器未被 `RUST_LOG` 收紧到 `error` 以上；若仍为空，按文件写入权限方向排查（如 `OpenOptions` 是否带写权限）。
 
 ### Q: 日志里出现 `[2m` `[32m` 之类的乱码
 ANSI 颜色码。文件层已 `.with_ansi(false)`；若仍出现请检查该层是否确实调用了它。

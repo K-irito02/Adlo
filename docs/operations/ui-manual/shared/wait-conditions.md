@@ -8,13 +8,13 @@
 
 ```javascript
 // 等待元素出现
-await page.waitForSelector('.adl-message--assistant', { timeout: 10000 });
+await page.waitForSelector('.adl-center-entry', { timeout: 10000 });
 
 // 等待元素消失
-await page.waitForSelector('.adl-loading', { hidden: true, timeout: 5000 });
+await page.waitForSelector('.adl-hamburger__dropdown', { hidden: true, timeout: 5000 });
 
 // 等待元素可见
-await page.waitForSelector('.adl-menu__dropdown', { visible: true, timeout: 3000 });
+await page.waitForSelector('.adl-hamburger__dropdown', { visible: true, timeout: 3000 });
 ```
 
 ### 2. 状态变化
@@ -23,14 +23,14 @@ await page.waitForSelector('.adl-menu__dropdown', { visible: true, timeout: 3000
 // 等待元素变为可用
 await page.waitForFunction(
   selector => !document.querySelector(selector)?.disabled,
-  '[data-testid="composer-send"]',
+  '[data-testid="editor-shell"]',
   { timeout: 5000 }
 );
 
 // 等待元素变为激活
 await page.waitForFunction(
   selector => document.querySelector(selector)?.classList.contains('is-active'),
-  '.adl-session-item',
+  '.adl-tool-switcher__tab',
   { timeout: 3000 }
 );
 ```
@@ -41,15 +41,15 @@ await page.waitForFunction(
 // 等待文本出现
 await page.waitForFunction(
   (selector, text) => document.querySelector(selector)?.textContent?.includes(text),
-  '.adl-message--assistant p',
+  '.adl-center-entry p',
   '完成',
   { timeout: 30000 }
 );
 
-// 等待输入框清空
+// 等待面板内容就绪
 await page.waitForFunction(
-  selector => document.querySelector(selector)?.textContent === '',
-  '.adl-composer__input',
+  selector => document.querySelector(selector)?.children.length > 0,
+  '.adl-multitree',
   { timeout: 3000 }
 );
 ```
@@ -57,9 +57,9 @@ await page.waitForFunction(
 ### 4. 网络请求
 
 ```javascript
-// 等待响应完成（需要监听网络事件）
-await page.waitForResponse(response => 
-  response.url().includes('/api/chat') && response.status() === 200,
+// 等待响应完成（需要监听网络事件；浏览器模式后端为 adl-server）
+await page.waitForResponse(response =>
+  response.url().includes('127.0.0.1') && response.status() === 200,
   { timeout: 60000 }
 );
 ```
@@ -70,38 +70,33 @@ await page.waitForResponse(response =>
 
 | 操作 | 等待条件 | 超时建议 |
 |------|----------|----------|
-| 打开菜单 | `.adl-menu__dropdown` 可见 | 1000ms |
+| 打开菜单 | `.adl-hamburger__dropdown` 可见 | 1000ms |
 | 切换主题 | `:root` 的 `data-theme` 属性变化 | 1000ms |
 | 切换语言 | 文本内容变化 | 1000ms |
-| 打开工作区 | `.adl-leftbar` 不再是 `.adl-leftbar--empty` | 5000ms |
+| 打开工作区 | `.adl-multitree` 内容出现 | 5000ms |
 
 ### 左侧边栏操作
 
 | 操作 | 等待条件 | 超时建议 |
 |------|----------|----------|
-| 展开工作区 | `.adl-session-list` 在工作区项内可见 | 1000ms |
-| 切换会话 | `.adl-session-item.is-active` 更新 | 1000ms |
-| 创建会话 | 新 `.adl-session-item` 出现 | 3000ms |
-| 归档会话 | 会话项从列表消失 | 2000ms |
+| 剪切看板加载 | `.adl-clipboard__list` 内容出现 | 1000ms |
+| 系统监控加载 | `.adl-sysmon` 内容出现 | 1000ms |
 | 拖拽排序 | `.is-dragging` 类出现/消失 | 500ms |
 
-### 中心面板操作
+### 中心宿主操作
 
 | 操作 | 等待条件 | 超时建议 |
 |------|----------|----------|
-| 发送消息 | `.adl-message--user` 出现 | 2000ms |
-| 开始响应 | `.adl-message--assistant.adl-message--streaming` 出现 | 10000ms |
-| 响应完成 | `.adl-message--streaming` 类消失 | 60000ms+ |
-| 停止生成 | 发送按钮从 `.adl-action-btn--danger` 变为 `.adl-action-btn--primary` | 2000ms |
-| 错误提示 | `.adl-action-btn--warning` 出现 | 5000ms |
+| 入口页出现 | `.adl-center-entry` 出现 | 2000ms |
+| 标签切换 | 中心标签 `.is-active` 更新 | 2000ms |
 
 ### 右侧面板操作
 
 | 操作 | 等待条件 | 超时建议 |
 |------|----------|----------|
 | 切换工具 | `[role="tabpanel"].is-active` 更新 | 1000ms |
-| 加载文件树 / 文档大纲 | `.adl-filetree, .adl-outline-tree` 内容出现 | 3000ms |
-| 加载文件内容 | Monaco editor 模型加载 | 5000ms |
+| 加载文件树 / 文档大纲 | `.adl-multitree .adl-filetree__row` 内容出现 | 3000ms |
+| 加载文件内容 | CodeMirror 编辑器内容就绪 | 5000ms |
 | 执行命令 | 终端输出更新 | 10000ms+ |
 
 ## 等待函数模板
@@ -151,41 +146,6 @@ async function waitForNotClass(selector, className, timeout = 5000) {
 }
 ```
 
-### 等待消息流
-
-```javascript
-/**
- * 等待助手响应开始
- */
-async function waitForAssistantResponse(timeout = 10000) {
-  return waitFor(
-    () => document.querySelector('.adl-message--assistant.adl-message--streaming'),
-    timeout
-  );
-}
-
-/**
- * 等待助手响应完成
- */
-async function waitForAssistantResponseComplete(timeout = 60000) {
-  return waitFor(
-    () => !document.querySelector('.adl-message--streaming'),
-    timeout
-  );
-}
-
-/**
- * 等待新消息出现
- * @param {number} currentCount - 当前消息数量
- */
-async function waitForNewMessage(currentCount, timeout = 10000) {
-  return waitFor(
-    () => document.querySelectorAll('.adl-message').length > currentCount,
-    timeout
-  );
-}
-```
-
 ### 等待面板状态
 
 ```javascript
@@ -211,7 +171,7 @@ async function waitForRightpanelExpanded(timeout = 2000) {
 
 /**
  * 等待工具面板激活
- * @param {string} toolId - 工具 ID (files/changes/browser/terminal/audit/models/settings)
+ * @param {string} toolId - 工具 ID (files/changes/browser/terminal/settings/communicate)
  */
 async function waitForToolActive(toolId, timeout = 3000) {
   return waitFor(
@@ -231,8 +191,8 @@ async function waitForToolActive(toolId, timeout = 3000) {
 async function waitForMenuOpen(menuId, timeout = 2000) {
   return waitFor(
     () => {
-      const menu = document.querySelector(`.adl-menu[data-menu-id="${menuId}"]`);
-      return menu?.querySelector('.adl-menu__dropdown') !== null;
+      // 汉堡菜单为单一 dropdown（无 data-menu-id 分区）
+      return document.querySelector('.adl-hamburger__dropdown') !== null;
     },
     timeout
   );
@@ -243,7 +203,7 @@ async function waitForMenuOpen(menuId, timeout = 2000) {
  */
 async function waitForAllMenusClosed(timeout = 2000) {
   return waitFor(
-    () => document.querySelectorAll('.adl-menu__dropdown').length === 0,
+    () => document.querySelectorAll('.adl-hamburger__dropdown').length === 0,
     timeout
   );
 }
@@ -252,28 +212,17 @@ async function waitForAllMenusClosed(timeout = 2000) {
 ### 9. 错误通知（error toast）
 
 ```javascript
-// 等待错误通知出现（右下角 .error-toast-region）
-await page.waitForSelector('.error-toast:not(.error-toast--summary)', { timeout: 5000 });
+// 等待错误通知出现（右下角 .toast-card-region__group）
+await page.waitForSelector('.toast-card-region__group .toast-card:not(.toast-card--summary)', { timeout: 5000 });
 
-// 等待指定级别的错误通知出现
-await page.waitForSelector('.error-toast--error', { timeout: 5000 });
-await page.waitForSelector('.error-toast--warning', { timeout: 5000 });
-await page.waitForSelector('.error-toast--info', { timeout: 5000 });
+// 等待摘要出现（超过 5 条）
+await page.waitForSelector('.toast-card--summary', { timeout: 3000 });
 
 // 等待错误通知消失（被关闭或清空）
 await page.waitForFunction(
-  () => document.querySelectorAll('.error-toast:not(.error-toast--summary)').length === 0,
+  () => document.querySelectorAll('.toast-card-region__group .toast-card:not(.toast-card--summary)').length === 0,
   { timeout: 5000 }
 );
-
-// 等待错误通知展开（显示完整 detail）
-await page.waitForFunction(
-  () => document.querySelector('.error-toast.is-expanded'),
-  { timeout: 3000 }
-);
-
-// 等待摘要出现（超过 5 条）
-await page.waitForSelector('.error-toast--summary', { timeout: 3000 });
 ```
 
 ## 超时建议
@@ -281,10 +230,9 @@ await page.waitForSelector('.error-toast--summary', { timeout: 3000 });
 | 操作类型 | 建议超时 | 说明 |
 |----------|----------|------|
 | UI 动画 | 500-1000ms | 展开/折叠、过渡动画 |
-| 本地操作 | 1000-3000ms | 切换面板、创建会话 |
+| 本地操作 | 1000-3000ms | 切换面板、切换标签 |
 | 文件系统 | 3000-5000ms | 读取文件、加载树 |
-| 网络请求 | 10000-30000ms | API 调用、模型响应 |
-| 流式响应 | 60000ms+ | 长文本生成 |
+| 网络请求 | 10000-30000ms | API 调用、后端可达 |
 
 ## 注意事项
 

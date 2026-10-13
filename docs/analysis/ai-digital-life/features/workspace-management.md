@@ -39,8 +39,6 @@
 │                                                                │
 │  src-tauri/src/commands/                                       │
 │  ├── workspace.rs             ← 工作区 CRUD                    │
-│  ├── workspace_git.rs         ← 工作区 Git 操作               │
-│  └── workspace_sidebar.rs     ← 工作区侧边栏                   │
 └────────────────────────────────────────────────────────────────┘
                         │
 ┌────────────────────────────────────────────────────────────────┐
@@ -49,9 +47,11 @@
 │  crates/workspace/src/                                         │
 │  ├── detect.rs     ← 工作区检测与打开                          │
 │  ├── fs.rs         ← 文件系统操作（CRUD）                      │
-│  ├── git.rs        ← Git 快照/分支/变更检测                    │
-│  ├── search.rs     ← 文本搜索                                  │
-│  ├── tree.rs       ← 文件树构建                                │
+│  ├── git.rs + git/ ← Git 快照/分支/变更检测                    │
+│  ├── gitignore.rs  ← .gitignore 链解析                         │
+│  ├── search.rs     ← 文本搜索（SearchWindow 分页）              │
+│  ├── tree.rs + tree_cache_store.rs ← 文件树构建与缓存           │
+│  ├── watch.rs      ← 文件变更监听                              │
 │  └── preview.rs    ← 变更预览读取                              │
 └────────────────────────────────────────────────────────────────┘
 ```
@@ -98,7 +98,9 @@ GitSnapshot {
 | `remove_workspace` | 移除工作区（从最近列表） |
 | `get_app_info` | 获取应用信息 |
 
-### workspace_git.rs
+### Git/侧边栏命令（旧 `workspace_git.rs` / `workspace_sidebar.rs` 已移除）
+
+> 历史注记：旧命令文件已合并入 `workspace.rs`。现行 Git/树/搜索/大纲命令经 `shared/ipc/workspace.ts` + `github.ts` 通道。下表命令名为 IPC 方法快照（以 `shared/ipc/` 为准）。
 
 | 命令 | 说明 |
 |------|------|
@@ -108,8 +110,6 @@ GitSnapshot {
 | `switch_git_branch` | 切换 Git 分支 |
 | `create_git_branch` | 创建 Git 分支 |
 | `git_has_local_changes` | 检查是否有本地变更 |
-
-### workspace_sidebar.rs
 
 | 命令 | 说明 |
 |------|------|
@@ -233,8 +233,7 @@ GitSlice {
 | `crates/workspace/src/preview.rs` | 变更预览读取 |
 | `crates/workspace/Cargo.toml` | workspace crate 依赖 |
 | `src-tauri/src/commands/workspace.rs` | 工作区 Tauri 命令 |
-| `src-tauri/src/commands/workspace_git.rs` | Git Tauri 命令 |
-| `src-tauri/src/commands/workspace_sidebar.rs` | 侧边栏 Tauri 命令 |
+| `src-tauri/src/commands/workspace.rs` | 工作区命令（旧 workspace_git.rs/workspace_sidebar.rs 已合并入） |
 | `frontend/src/app/stores/slices/workspaceSlice.ts` | 工作区状态切片 |
 | `frontend/src/app/stores/slices/gitSlice.ts` | Git 状态切片 |
 | `frontend/src/app/stores/actions/workspaceActions.ts` | 工作区 Action |

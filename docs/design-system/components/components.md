@@ -1,5 +1,7 @@
 # Components
 
+> `render*` helpers in `design-system/components.ts` are **legacy string renderers** （仅设计约束参考；React 消费端以 `Toast`/`Tooltip` 等组件为准，`styles/index.css` 亦注明 `renderNavItem`/`renderStatTile` 为历史遗留）。
+
 Source of truth: `[frontend/src/styles/components.css](../../../ai-digital-life/frontend/src/styles/components.css)` (visual rules) and `[frontend/src/design-system/components.ts](../../../ai-digital-life/frontend/src/design-system/components.ts)` (renderer helpers).
 
 All renderer helpers return `RawHtml` from the `[html](../../../ai-digital-life/frontend/src/design-system/html.ts)` tagged template, so they compose safely with each other while interpolated user data is automatically HTML-escaped.
@@ -130,7 +132,7 @@ renderNavItem({
 });
 ```
 
-Renders as `<a class="nav__item">` with `aria-current="page"` when `current` is `true`. The label automatically collapses on small screens (controlled by `nav__item-label` in `layout.css`).
+Renders as `<a class="nav__item">` with `aria-current="page"` when `current` is `true`. The label automatically collapses on small screens.
 
 ## Segmented control
 
@@ -146,45 +148,16 @@ renderSegmentedControl({
 });
 ```
 
-Each generated button carries `data-segmented-name` + `data-segmented-value`, so a single delegated click handler in `main.ts` can route the change.
+Each generated button carries `data-segmented-name` + `data-segmented-value`, so a single delegated click handler can route the change.
 
 ## Icon strip
 
-Source of truth: `[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)` via
-`.adl-iconstrip`, `.adl-iconstrip__button`, `.adl-iconstrip__button--label`, `.adl-iconstrip__button--labelwide`, `.adl-iconstrip__button--window`,
-`.adl-iconstrip__separator`, `.adl-iconstrip__badge`.
+Source of truth: `frontend/src/styles/regions/tool-switcher.css` (`.adl-iconstrip` 系列） + `titlebar.css` + `leftbar.css`（已分散，无单体 `regions.css`）。
 
 This is the application-specific compact icon switcher language extracted from the right-panel tool switcher so future shell surfaces can
 reuse the same visual grammar instead of re-inventing local toolbar styles. It is now also the shared style language for the desktop titlebar.
 
-## Context menu (Minimap scrollbar)
-
-Source of truth: `[frontend/src/app/regions/right-panel/cmMinimap.ts](../../frontend/src/app/regions/right-panel/cmMinimap.ts)` (component logic) and
-`[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)` (visual rules, lines ~5883).
-
-The minimap scrollbar right-click menu uses CSS `.adl-cm-minimap-context-menu` and its sub-components:
-
-| Sub-component | CSS class | Description |
-|--------------|-----------|-------------|
-| Segmented control | `.adl-cm-minimap-menu-segmented` | Underline tabs — "缩略图 / 标准" |
-| Group label | `.adl-cm-minimap-menu-group-label` | Uppercase group headers |
-| Menu item | `.adl-cm-minimap-menu-item` | Flat button with `::before` left indicator line |
-| Active item | `.adl-cm-minimap-menu-item--active` | Active state: darker bg + solid left indicator |
-| Separator | `.adl-cm-minimap-menu-separator` | Horizontal divider |
-
-The visual design is 方案 C · 极简线条风: underline segmented control + `::before` left indicator bar + right-angle backgrounds + highlight-only selection (no checkmark).
-
-```tsx
-<div className="adl-iconstrip" role="tablist" aria-label="Tools">
-  <button className="adl-iconstrip__button is-active" type="button" aria-label="Files" />
-  <span className="adl-iconstrip__separator is-visible" aria-hidden="true" />
-  <button className="adl-iconstrip__button" type="button" aria-label="Browser">
-    <span className="adl-iconstrip__badge">1</span>
-  </button>
-</div>
-```
-
-Design rules:
+Design rules (icon strip):
 
 - Icon-only buttons by default; visible labels remain optional and are usually hidden while `aria-label` stays required.
 - Selected and hovered buttons share the same neutral grey fill; no accent-colored active chrome is used inside the strip.
@@ -210,21 +183,21 @@ Customisation is done with CSS variables on the container:
 
 Source of truth:
 
-- `[frontend/src/app/regions/right-panel/stickyContext.ts](../../frontend/src/app/regions/right-panel/stickyContext.ts)`
-- `[frontend/src/app/regions/right-panel/stickyContextView.tsx](../../frontend/src/app/regions/right-panel/stickyContextView.tsx)`
-- `[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)`
+- `frontend/src/app/regions/right-panel/editor-support/stickyContext.ts`
+- `frontend/src/app/regions/right-panel/editor-support/stickyContextView.tsx`
+- `frontend/src/styles/regions/rightpanel/editor-surface.css`（`.adl-sticky-context`）
 
 This is the shared sticky navigation layer for the right-panel file viewer surfaces used by `文件` and `变更`.
 
 Design rules:
 
-- Sticky rows are rendered **inside the editor surface**, not above the entire panel shell, so Monaco layout and scroll math stay anchored to the real editor viewport.
-- The sticky block must reserve the right-side minimap gutter (`--adl-editor-minimap-width`) and may never paint over or capture space from the minimap column.
+- Sticky rows are rendered **inside the editor surface**, not above the entire panel shell, so CodeMirror layout and scroll math stay anchored to the real editor viewport.
+- The sticky block must reserve the right-side minimap gutter and may never paint over or capture space from the minimap column.
 - The first sticky row is a full-width "回到顶部 / 文件顶部" action, but it only appears when the real first line of the current file is no longer visible in the viewport.
 - Total sticky height is adaptive with a hard cap of **4 rows**. The optional top row counts toward that cap.
 - Context rows follow the current/modified side in diff-backed views and may carry lightweight insert / delete / modified rails, but navigation still targets the current readable side only.
 - Sticky surfaces must use existing theme tokens (`--surface`, `--surface-hover`, `--border-*`, `--text-*`) rather than local hard-coded colors.
-- Hover and active states must remain obvious in both light and dark themes without relying on native `title` tooltips.
+- Hover and active states must remain obvious in both light and dark themes.（自定义 Tooltip 与原生 `title` 均可使用，具体方案开发时由用户决策。）
 
 Interaction rules:
 
@@ -261,54 +234,6 @@ renderIcon("alert-triangle", { size: "lg", title: "Warning" });
 - All icons share `viewBox="0 0 24 24"` and inherit `currentColor`.
 
 To register a new icon, append a path string to `ICON_PATHS` in `icons.ts` and extend the `IconName` union — TypeScript will warn on every invalid usage.
-
-## File-type badge icons
-
-Source of truth: `[frontend/src/app/icons/badges.tsx](../../frontend/src/app/icons/badges.tsx)` (icon components), `[frontend/src/app/features/file-tree/fileTreeVisuals.ts](../../frontend/src/app/features/file-tree/fileTreeVisuals.ts)` (tone→icon mapping).
-
-File-type badge icons render inside the file tree's `adl-filetree__file-icon` slot (20×18 px area). Unlike the generic icon system, badge icons are **semantic**: each file type or language gets a distinct shape paired with its tone color.
-
-### Icon catalogue
-
-| Variant | Shape | Semantic | Example tones | Used by |
-|---------|-------|----------|---------------|---------|
-| `typescript` | Shield | Type safety | `typescript` (blue) | `.ts`, `.tsx`, `.mts`, `.cts` |
-| `javascript` | Diamond | Dynamic / versatile | `javascript` (amber) | `.js`, `.jsx`, `.mjs`, `.cjs` |
-| `python` | Double wave | Python's snake | `python` (green) | `.py`, `.ipynb` |
-| `systems` | Concentric circles | Core / fundamental | `rust`, `go`, `java`, `cfamily`, … | Compiled / JVM / systems languages |
-| `markup` | Angle brackets `<>` | HTML tags | `markup` (orange) | `.html`, `.xml`, `.vue`, `.svelte` |
-| `style` | Hash `#` | CSS selector | `stylesheet` (blue) | `.css`, `.scss`, `.less` |
-| `data` | Curly braces `{}` | JSON / serialization | `json` (amber) | `.json`, `.jsonc` |
-| `script` | Prompt `>` | Terminal | `shell` (green), `powershell` (blue) | `.sh`, `.ps1`, `.bat` |
-| `config` | Slider control | Settings | `config`, `node`, `yaml` | `.toml`, `.ini`, `package.json`, … |
-| `doc` | Page with fold | Document | `doc` (gray), `pdf` (red), `markdown` (blue) | `.pdf`, `.docx`, `.md`, … |
-| `text` | Page with lines | Plain text | `text` (gray) | `.txt`, `.log` |
-| `sheet` | Grid | Spreadsheet | `sheet` (green) | `.csv`, `.xlsx`, `.ods` |
-| `slide` | Screen + stand | Presentation | `slide` (amber) | `.ppt`, `.odp` |
-| `image` | Mountain + sun | Visual media | `image` (pink), `vector` (purple) | `.png`, `.jpg`, `.svg` |
-| `audio` | Eighth note | Audio | `audio` (teal) | `.mp3`, `.wav`, `.flac` |
-| `video` | Play triangle | Video | `video` (amber) | `.mp4`, `.mov` |
-| `archive` | Box + dividers | Compressed | `archive` (amber) | `.zip`, `.rar`, `.7z` |
-| `database` | Cylinder | Database | `database` (teal) | `.sql`, `.db`, `.sqlite` |
-| `font` | Letter A | Font | `font` (purple) | `.ttf`, `.otf`, `.woff` |
-| `badge` | Document + line | Fallback | `default` (gray) | Unknown / uncategorised |
-
-### Tone → icon mapping
-
-Defined in `TONE_TO_ICON` (`fileTreeVisuals.ts:53`). Each `FileTreeVisualTone` maps to a `FileBadgeVariant`. The tone also determines the CSS colour via `--adl-file-badge-ink-*` tokens in `themes.css`.
-
-### Adding a new badge variant
-
-1. Add a new icon component via `make()` in `badges.tsx`.
-2. Append the variant string to the `FileBadgeVariant` type union.
-3. Register it in the `ICON_MAP` constant.
-4. Add the tone→icon mapping in `TONE_TO_ICON` (`fileTreeVisuals.ts`).
-
-Visual design rules:
-- All badge icons use `viewBox="0 0 24 24"`, `fill="none"`, `stroke="currentColor"`, `strokeWidth=2`, round caps/joins.
-- Shapes must be recognisable at 14 px rendering (the standard badge size).
-- Each variant should have a visually distinct silhouette from other variants.
-- The `badge` variant (document + line) serves as the universal fallback.
 
 ## Component catalogue (CSS only)
 
@@ -347,7 +272,7 @@ React API: `Toast` and `ToastContainer` from `frontend/src/app/components/Toast.
 | Type | Icon | Color | Use Case |
 |------|------|-------|----------|
 | `success` | Circle + checkmark (`check-circle`) | `var(--color-success)` (green) | Success confirmations |
-| `warning` | Circle + exclamation (`check-circle` with custom SVG) | `var(--color-warning)` (orange) | Warnings, prompts |
+| `warning` | Triangle (`alert-triangle`) | `var(--color-warning)` (orange) | Warnings, prompts |
 | `error` | Circle + cross (`x-circle`) | `var(--color-danger)` (red) | Error messages |
 
 ### Design Specifications
@@ -372,10 +297,10 @@ React API: `Toast` and `ToastContainer` from `frontend/src/app/components/Toast.
 
 | Parameter | Value |
 |-----------|-------|
-| Base top | 24px |
-| Toast height | ~40px |
-| Gap between toasts | 8px |
-| Calculation | `top = 24 + position * (40 + 8)` |
+| Base top | 24px (`TOAST_BASE_TOP`) |
+| Toast height | 36px (`TOAST_HEIGHT`) |
+| Gap between toasts | 8px (`TOAST_GAP`) |
+| Calculation | `top = 24 + position * (36 + 8)`; `position` prop 按 source 分组 |
 
 **Source-based Stacking Logic:**
 - Toasts with the same `source` value stay at the same fixed position
@@ -405,58 +330,14 @@ showToast('Terminal ready', 'success', 'terminal') // position 2
 | Border radius | `var(--tooltip-radius)` (7px) |
 | Border | None (depth from inner/outer shadows only) |
 | Shadow | `var(--tooltip-shadow)` (top inner highlight + bottom inner shade + contact/ambient projection) |
-| Animation | Slide-in `opacity + translateY(8px→0)` (350ms expo enter / 150ms exit, no scale) |
+| Animation | Slide-in `opacity + translateY(8px→0)` (350ms expo enter / 200ms exit (`TOOLTIP_EXIT_MS`), no scale) |
 | Arrow | None (removed; `data-side` kept for positioning only) |
 | Wrapping | `overflow-wrap: anywhere`; width via `maxWidth` prop (default 240) |
 | Placement | `data-side="top\|bottom\|left\|right"` (viewport flip/clamp + Webview2 avoid-rects + cross-axis slide) |
 
 React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../../ai-digital-life/frontend/src/app/components/Tooltip.tsx)`.
 
-Fold gutter tooltips use `FoldTooltipOverlay` (CodeMirror 6 extension, portal to `document.body`): `[FoldTooltipOverlay.tsx](../../frontend/src/app/regions/right-panel/FoldTooltipOverlay.tsx)`.
-
-## StatusBar menus
-
-Source of truth: `[frontend/src/app/regions/StatusBar.tsx](../../frontend/src/app/regions/StatusBar.tsx)` and `[frontend/src/styles/regions.css](../../frontend/src/styles/regions.css)`.
-
-Applies to the inline StatusBar menus:
-
-- `.adl-statusbar__menu` base container
-- `.adl-statusbar__menu--workspace` (workspace binding / recent list)
-- `.adl-statusbar__menu--branch` (git branch switch/create)
-- `.adl-statusbar__menu--model` (model selection)
-
-### Layout + container
-
-- Menu uses a popover card style: `--surface-raised` background, `--border` outline, `--radius-lg` rounding, `--shadow-lg` shadow.
-- Width is constrained to a safe minimum for dense statusbars (`--model` intentionally narrower than other menus).
-- Sections (`.adl-statusbar__menu-section`) are separated with a subtle top border (`--border-subtle`).
-
-### Option rows
-
-- `.adl-statusbar__menu-option` is the shared row primitive for menu list items.
-- Active + hover states use **background only** (`--surface-hover`); **no visible border outline** in these menus (workspace/branch/model) to keep the card clean and consistent.
-- `:focus-visible` removes default outlines and relies on the same background emphasis as hover to avoid "double focus rings" inside the card.
-
-### Inputs
-
-- `.adl-statusbar__input` uses a minimal chrome style (no visible border by default).
-- On hover or focus, inputs show a subtle grey background emphasis, and return to transparent when the pointer leaves and the input is not focused.
-
-### Actions
-
-- `.adl-statusbar__menu-actions` buttons are equal-width and centered within their own halves for a stable layout.
-- Actions use `--surface-subtle` backgrounds by default and `--surface-hover` on hover/focus, with icon + text inheriting `currentColor`.
-
-### Additional rules
-
-- **No blue chrome**: avoid `adl-btn--primary` in these menus; use `ghost` + a neutral background instead.
-- **Consistent action surfaces**: buttons inside `.adl-statusbar__menu-actions` always show the same neutral background, even when disabled.
-- **Muted action tone**: action buttons use `color: var(--text-secondary)` so icon + label read as a unified light grey.
-- **Workspace bind actions are two-column**: `.adl-statusbar__menu--workspace .adl-statusbar__menu-actions` uses a 2× grid so "选择文件夹 / 绑定该路径" split evenly and center within their cells.
-- **Global mode row**: use `.adl-statusbar__menu-option--global` for the "对话模式 / 不用绑定工作空间" row to pin a default subtle background and a slightly stronger title weight.
-- **Branch create row**: use `.adl-statusbar__menu-row` (e.g. `adl-statusbar__menu-row--branch-create`) to put "新建分支名称输入框 + 基于当前分支选择" on the same line.
-- **Branch base selector is a cascading submenu**: use `.adl-statusbar__submenu-trigger` with a right-chevron and open a sibling `.adl-statusbar__submenu` card aligned to the right, matching the same menu surface tokens.
-- **Model menu stays compact**: `.adl-statusbar__menu--model` uses a narrower width; model selection updates provider priority to avoid ties so switching always takes effect.
+Fold gutter tooltips use `FoldTooltipOverlay` (React portal to `document.body`, 实位 `frontend/src/app/features/editor/FoldTooltipOverlay.tsx`).
 
 ## State coverage matrix
 

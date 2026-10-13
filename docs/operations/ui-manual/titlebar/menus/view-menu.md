@@ -22,8 +22,8 @@
 
 | 优先级 | 类型 | 选择器 |
 |--------|------|--------|
-| 1 | aria-label | `.adl-menu[data-menu-id="view"] .adl-menu__trigger` |
-| 2 | CSS | `.adl-menu[data-menu-id="view"]` |
+| 1 | aria-label | `.adl-hamburger__trigger` |
+| 2 | CSS | `.adl-hamburger` |
 
 ## 操作详情
 
@@ -31,16 +31,16 @@
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 文件面板" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "打开 · 文件面板" 文本) |
 | 快捷键 | `Ctrl+Shift+E`（可在设置 → 快捷键中改绑 `view.files`） |
 
 #### 操作
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("打开 · 文件面板")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("打开 · 文件面板")');
 
 // 方式2：通过快捷键（默认绑定）
 await page.keyboard.down('Control');
@@ -71,15 +71,15 @@ await page.waitForSelector('#files-panel.is-active');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 变更面板" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "打开 · 变更面板" 文本) |
 | 快捷键 | `Ctrl+Shift+G`（`view.changes`） |
 
 #### 操作
 
 ```javascript
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("打开 · 变更面板")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("打开 · 变更面板")');
 ```
 
 #### 状态变化
@@ -103,15 +103,15 @@ await page.waitForSelector('#changes-panel.is-active');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 浏览器面板" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "打开 · 浏览器面板" 文本) |
 | 快捷键 | `Ctrl+Shift+B`（`view.browser`） |
 
 #### 操作
 
 ```javascript
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("打开 · 浏览器面板")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("打开 · 浏览器面板")');
 ```
 
 #### 状态变化
@@ -134,15 +134,15 @@ await page.waitForSelector('#browser-panel.is-active');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "打开 · 终端面板" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "打开 · 终端面板" 文本) |
 | 快捷键 | `` Ctrl+Shift+` ``（`view.terminal`） |
 
 #### 操作
 
 ```javascript
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("打开 · 终端面板")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("打开 · 终端面板")');
 ```
 
 #### 状态变化
@@ -165,16 +165,16 @@ await page.waitForSelector('#terminal-panel.is-active');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "放大" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "放大" 文本) |
 | 快捷键 | `Ctrl+Shift+Plus`（`zoom.in`，可在设置 → 快捷键中改绑） |
 
 #### 操作
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("放大")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("放大")');
 
 // 方式2：通过快捷键（默认绑定）
 await page.keyboard.down('Control');
@@ -206,16 +206,16 @@ console.log('Current zoom:', zoom); // 如 "1.1"
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "缩小" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "缩小" 文本) |
 | 快捷键 | `Ctrl+-` |
 
 #### 操作
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("缩小")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("缩小")');
 
 // 方式2：通过快捷键
 await page.keyboard.down('Control');
@@ -238,16 +238,16 @@ await page.keyboard.up('Control');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "重置缩放" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "重置缩放" 文本) |
 | 快捷键 | `Ctrl+0` |
 
 #### 操作
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("重置缩放")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("重置缩放")');
 
 // 方式2：通过快捷键
 await page.keyboard.down('Control');
@@ -269,16 +269,16 @@ await page.keyboard.up('Control');
 
 | 属性 | 值 |
 |------|-----|
-| 菜单项选择器 | `.adl-menu__item` (包含 "设置" 文本) |
+| 菜单项选择器 | `.adl-hamburger__item` (包含 "设置" 文本) |
 | 快捷键 | `Ctrl+Shift+Comma`（`settings.open`） |
 
 #### 操作
 
 ```javascript
 // 方式1：通过菜单
-await page.click('.adl-menu[data-menu-id="view"] .adl-menu__trigger');
-await page.waitForSelector('.adl-menu[data-menu-id="view"] .adl-menu__dropdown');
-await page.click('.adl-menu__item:has-text("设置")');
+await page.click('.adl-hamburger__trigger');
+await page.waitForSelector('.adl-hamburger__dropdown');
+await page.click('.adl-hamburger__item:has-text("设置")');
 
 // 方式2：通过快捷键（默认绑定）
 await page.keyboard.down('Control');

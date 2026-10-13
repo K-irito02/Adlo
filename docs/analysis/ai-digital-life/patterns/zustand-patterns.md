@@ -1,6 +1,6 @@
 # Zustand 状态管理模式（索引）
 
-> **体裁变更**：本文件原为实现快照，现已精简为索引。规范性约束以 `.agents/rules/` 为准；当前准确计数（31 切片 + 17 action 模块）见 `ai-digital-life/AGENTS.md`。
+> **体裁变更**：本文件原为实现快照，现已精简为索引。规范性约束以 `.agents/rules/` 为准；当前准确计数（32 切片 + 18 action 模块）见 `ai-digital-life/AGENTS.md`。
 > 源码路径：`ai-digital-life/frontend/src/app/stores/`
 
 ## 阅读地图

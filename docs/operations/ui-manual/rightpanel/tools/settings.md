@@ -198,6 +198,19 @@ await page.fill('.adl-settings-row__control input', 'value');
 
 ---
 
+## 存储设置组
+
+> 统一根 / 每类独立两种模式（`features/storage-settings/StorageSettings.tsx`）。10 条可迁移路径 + 1 个设置值路径（`downloads_default`，仅记录浏览器默认下载目录，不迁移）+ 6 项不可移动（keyring/机器身份/localStorage/IndexedDB/WebView2/工作区缓存，UI 附原因说明）。
+>
+> - 迁移二选一：立即迁移并重启（Tauri 经 `storage_*` 命令直写 locator + `app_restart`），或下次启动生效（浏览器模式 `restartApp` 返回 `NOT_SUPPORTED` 并提示）
+> - 预检非纯只读：`preflight` 创建目标父目录并写 `.adl-write-probe` 探测文件
+> - 空间未知：服务端 `freeBytes` 恒为 0 时 UI 跳过空间判定（不渲染 verdict）
+> - 恢复全部默认时存储排最后（可能触发迁移与重启），见上文聚合确认框
+
+## 日志设置
+
+> 通用组：日志级别（`error/warn/info/debug/trace`）+ 终端日志模式 / 调试日志模式（`overwrite/append/multi`）。CLI/env 启动覆盖为 session-only（运行期保持 CLI 值、仅落盘并提示"下次启动生效"，落盘失败回滚运行期）；`RUST_LOG` 为硬顶。详见 [log-system-manual](../../../../development/log-system-manual.md)。
+
 ## DSH 设置
 
 > DeepSeek Harness 下载源、代理设置与版本管理。四块结构（下载源 / 代理设置 / 测试连接 / 版本管理）：

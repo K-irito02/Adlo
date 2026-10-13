@@ -33,23 +33,20 @@
                         ▼ IPC (tauri-bridge / preview-bridge / mock-bridge)
                         │
 ┌───────────────────────────────────────────────────────┐
-│                Tauri 命令层                             │
+│                PTY 通道                                   │
 │                                                        │
-│  src-tauri/src/commands/pty_commands.rs                 │
-│  ├── create_pty_session()    → 创建 PTY 会话            │
-│  ├── write_pty_input()       → 写入输入                 │
-│  ├── resize_pty()            → 调整终端大小             │
-│  ├── kill_pty_session()      → 终止会话                 │
-│  └── list_pty_sessions()     → 列出会话                 │
+│  旧 src-tauri/src/commands/pty_commands.rs 已移除；     │
+│  现经 shared/ipc/pty.ts + pty-ws.ts（adl-server/壳）     │
 └───────────────────────────────────────────────────────┘
                         │
 ┌───────────────────────────────────────────────────────┐
 │                pty Crate（Rust）                        │
 │                                                        │
 │  crates/pty/src/                                       │
-│  ├── pty.rs               ← node-pty 进程管理           │
-│  ├── session_manager.rs   ← 会话管理器                  │
-│  └── shell_resolver.rs    ← Shell 解析器                │
+│  ├── traits.rs            ← PTY 抽象 trait                     │
+│  ├── rust_pty_impl.rs     ← Rust PTY 实现                      │
+│  ├── session_manager/     ← 会话管理器                          │
+│  └── shell_resolver.rs    ← Shell 解析器                        │
 └───────────────────────────────────────────────────────┘
 ```
 
@@ -57,8 +54,8 @@
 
 | 文件 | 说明 |
 |------|------|
-| `pty.rs` | 核心 PTY 实现：`PtyConfig`、`PtySession`、`PtyStatus`。封装 node-pty 库，管理子进程的 stdio 通道 |
-| `session_manager.rs` | 会话管理器：`SessionManager`、`PtySessionHandle`、`PtySessionInfo`、`PtyEventEmitter`。管理多个 PTY 会话的生命周期 |
+| `traits.rs` + `rust_pty_impl.rs` | PTY 核心实现（Rust 原生，非 node-pty） |
+| `session_manager/` | 会话管理器：管理多个 PTY 会话的生命周期 |
 | `shell_resolver.rs` | Shell 解析器：`ShellResolver`、`ShellKind`、`ShellResolution`、`ShellNotFound`、`is_shell_available()`。检测系统中可用的 Shell（PowerShell / Bash / CMD） |
 
 ### 数据结构
@@ -92,7 +89,9 @@ ShellKind:
   - Cmd
 ```
 
-## Tauri 命令 (`pty_commands.rs`)
+## PTY 通道（`pty_commands.rs` 已移除）
+
+> 历史注记：旧 `src-tauri/src/commands/pty_commands.rs`（create/write/resize/kill/list 五命令）已不存在。现行 PTY 经 `shared/ipc/pty.ts` + `pty-ws.ts`（WebSocket 通道）由 adl-server/壳提供，浏览器模式经 `preview-bridge/preview-pty-bridge.ts`（轮询 1000ms）。
 
 | 命令 | 参数 | 返回 | 说明 |
 |------|------|------|------|
@@ -227,17 +226,16 @@ terminalSelectors.ts
 | 路径 | 说明 |
 |------|------|
 | `crates/pty/src/lib.rs` | pty crate 入口，导出所有公共类型 |
-| `crates/pty/src/pty.rs` | PTY 核心实现（PtyConfig/PtySession/PtyStatus） |
-| `crates/pty/src/session_manager.rs` | 会话管理器（SessionManager/PtySessionHandle） |
+| `crates/pty/src/traits.rs` + `rust_pty_impl.rs` | PTY 核心实现（Rust 原生） |
+| `crates/pty/src/session_manager/` | 会话管理器 |
 | `crates/pty/src/shell_resolver.rs` | Shell 解析器（ShellResolver/ShellKind） |
 | `crates/pty/Cargo.toml` | pty crate 依赖配置 |
 | `crates/pty/tests/windows_compat.rs` | Windows 兼容性测试 |
-| `src-tauri/src/commands/pty_commands.rs` | Tauri PTY 命令 |
+| `shared/ipc/pty.ts` + `pty-ws.ts` | PTY IPC 接口与 WebSocket 通道 |
 | `frontend/src/app/stores/slices/terminalSlice.ts` | 终端状态切片 |
 | `frontend/src/app/stores/slices/terminalSliceTypes.ts` | 终端类型定义与常量 |
 | `frontend/src/app/stores/terminalSelectors.ts` | 终端选择器 |
 | `frontend/src/app/features/terminal/TerminalPanel.tsx` | 终端面板主组件 |
-| `frontend/src/app/features/terminal/TerminalEmptyState.tsx` | 终端空状态 |
 | `frontend/src/app/features/terminal/TerminalTabBar.tsx` | 终端标签栏 |
 | `frontend/src/app/features/terminal/TerminalShellSelector.tsx` | Shell 选择器 |
 | `frontend/src/app/features/terminal/TerminalNavigator.tsx` | 终端导航器 |

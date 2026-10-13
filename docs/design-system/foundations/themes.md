@@ -2,7 +2,7 @@
 
 Source of truth: `[frontend/src/styles/themes.css](../../../ai-digital-life/frontend/src/styles/themes.css)` and `[frontend/src/design-system/theme.ts](../../../ai-digital-life/frontend/src/design-system/theme.ts)`.
 
-The desktop renderer ships **2 appearance modes (light / dark)**. The Tauri backend additionally exposes `system` mode that resolves to either light or dark based on the OS preference.
+The desktop renderer ships **2 appearance modes (light / dark)** plus `system` mode, which is resolved frontend-side via `systemPrefersDark()` (never by the backend, never by direct `window.matchMedia`).
 
 ## DOM contract
 
@@ -20,7 +20,7 @@ Every component reads only semantic tokens (`--text-primary`, `--accent`, …) s
 
 ## Semantic tokens (provided per theme)
 
-Background: `--bg`, `--bg-strong`, `--bg-elevated`, `--bg-muted`, `--bg-overlay`
+Background: `--bg`, `--bg-strong`, `--bg-elevated`, `--bg-muted`, `--bg-overlay`, `--bg-input`, `--bg-input-translucent`, `--bg-card`
 Surface: `--surface`, `--surface-elevated`, `--surface-raised`, `--surface-sunken`, `--surface-hover`, `--surface-active`
 Text: `--text-primary`, `--text-secondary`, `--text-muted`, `--text-disabled`, `--text-inverse`, `--text-on-accent`
 Border: `--border-subtle`, `--border-default`, `--border-strong`
@@ -38,7 +38,7 @@ Misc: `--focus-ring`, `--shadow-soft`, `--shadow-inset-highlight`, `--shadow-pan
 
 ## Embedded editor surfaces
 
-- Embedded editors that do not consume CSS custom properties directly, such as Monaco, must still resolve against the same shell background baseline.
+- Embedded editors that do not consume CSS custom properties directly (e.g. CodeMirror extensions) must still resolve against the same shell background baseline.
 - The default editor canvas, gutter, and minimap background should use `rgb(248, 248, 248)` in light mode and `rgb(20, 20, 20)` in dark mode unless a documented product requirement overrides it.
 - Inline change-preview diff colors are editor semantic tokens, not hard-coded Monaco colors. The content row uses `--editor-diff-insert-bg` / `--editor-diff-remove-bg` as the line-level background, and `--editor-diff-insert-gutter-bg` / `--editor-diff-remove-gutter-bg` for the gutter line-number area. Content-area background is intentionally lighter than gutter to maintain visual hierarchy (content 18-20%, gutter 28-30%). The line-level background via `:has()` on `.cm-line` covers all diff modes (side-by-side A/B, inline deleted chunks). Character-level changes use a diagonal stripe pattern on `.cm-changedText`.
 - Change-preview minimap diff indicators reuse the same `--editor-diff-insert-bg` / `--editor-diff-remove-bg` token family as content rows, and should size to the changed content width instead of filling the whole minimap track.
@@ -57,7 +57,7 @@ function resolveThemeMode(mode: ThemeMode, prefersDark: boolean): "light" | "dar
 }
 ```
 
-- `themeMode` and `language` are persisted by the **Tauri backend** and surfaced to the WebView bridge.
+- `themeMode` and `language` are backend-authoritative (persisted via typed Tauri Commands), with a `localStorage` cache (`adl-theme-mode`/`adl-resolved-theme`) for startup pre-paint + an inline script in `index.html`; `useThemeSync(appInfo)` reconciles backend values at runtime.
 - When `themeMode === "system"`, the renderer subscribes to `prefers-color-scheme: dark` and updates `data-theme` on the fly without an IPC round-trip.
 
 ## ThemeController API
@@ -65,13 +65,12 @@ function resolveThemeMode(mode: ThemeMode, prefersDark: boolean): "light" | "dar
 ```ts
 const controller = new ThemeController({ root, systemDarkQuery });
 
-controller.hydrate();                                    // apply attributes once
-controller.setTheme({ mode: "dark", resolvedTheme: "dark" });
+controller.setTheme({ mode: "dark" });                  // 只传 mode；resolvedTheme 内部解析
 controller.subscribe((state) => console.log(state));     // listen for changes
 controller.dispose();                                    // remove media listener
 ```
 
-The controller is the **only** place that touches `document.documentElement.dataset`. Tests can pass a fake `MediaQueryList` to verify behavior in jsdom (see `[tests/unit/design-system/theme.test.ts](../../tests/unit/design-system/theme.test.ts)`).
+The controller is the **only** place that touches `document.documentElement.dataset`. Tests can pass a fake `MediaQueryList` to verify behavior in jsdom (see `frontend/src/design-system/__tests__/theme.test.ts`).
 
 ## Contrast targets
 
