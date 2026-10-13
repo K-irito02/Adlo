@@ -7,7 +7,7 @@
 
 - `npm i -g @playwright/cli@latest`；`playwright-cli install-browser chromium`（约 120 MB，落 `ms-playwright/`）。
 - `playwright-cli install --skills=agents` 落到 `.agents/skills/playwright-cli/`，并自动给 `.gitignore` 追加 `.playwright-cli/`（快照/trace 可能含敏感信息，**保留这条忽略**）。
-- 本仓库规范以 `.agents/skills` 为真源：`playwright-cli install --skills=agents` 落点即真源，复制同步到 `.opencode/skills/playwright-cli/`、`.trae/skills/`。
+- 本仓库规范以 `.agents/skills` 为真源：`playwright-cli install --skills=agents` 落点即真源，复制同步到 `.opencode/skills/playwright-cli/`、`.trae/skills/playwright-cli/`。
 
 ## 2. 保命规则（违反必翻车）
 

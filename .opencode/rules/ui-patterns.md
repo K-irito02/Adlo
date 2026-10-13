@@ -330,10 +330,15 @@ alwaysApply: true
 
 - WebView2 是 OS 级渲染表面，任何 DOM（含 Tooltip）都盖不住它，`z-index` 无效。
 - 策略是 Tooltip 自己让路（不动 WebView，避免页面闪烁）：`computePosition` 接收
-  `avoidRects`，按"首选边 → 对侧 → 其余边"试算，第一个"视口内 + 不重叠"胜出；
+  `avoidRects`，按"首选边 → 对侧 → 其余边"试算，第一个"视口内 + 不与任何避让矩形重叠"胜出；
   主轴放下但横向压住时先沿横轴滑移到最近空位；四边全堵才回退老逻辑（可能被盖，属已接受的降级）。
-- 矩形来源：`getWebViewAvoidRects()`（仅 Tauri，采集 `#dsh-host-region` 与
-  `.adl-tool-primary--browser`，与 `setTabBounds` 容器同源；浏览器模式返回空）。
+- 首选侧差一点放不下（仅被视口边缘裁切几个像素）时**钳进视口留在该侧、不翻边**
+  （事项 9：翻下去常落进 WebView 覆盖区）；滑移后与原位边沿间距超过
+  `MAX_SLIDE_DETACH_PX`（200px）即拒绝并继续换边（事项 9：拒绝被甩到矩形远缘）。
+  无避让矩形时（浏览器模式）走老逻辑：真裁切仍翻边（底边槽可见，翻边无害）。
+- 矩形来源：`getWebViewAvoidRects()`（仅 Tauri，采集
+  `.adl-tool-primary--browser` 与 `.adl-center-browser__content[data-webview-active]`，
+  与 `setTabBounds` 容器同源；浏览器模式返回空）。
 - 经验：[tooltip-webview-avoidance-2026-10-01.md](file:///e:/AI-DIGITAL-LIFE/SourceWorkspace/docs/knowledge-base/interaction/tooltip-webview-avoidance-2026-10-01.md)
 
 ### 折叠 Tooltip

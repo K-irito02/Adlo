@@ -1,6 +1,6 @@
 ---
 name: root-cause-to-close
-description: Use when fixing bugs, resolving test failures, handling unexpected behavior, optimizing performance, or closing out a completed development session with review, verification, and archiving.
+description: Root-cause-first lifecycle for fixing bugs and closing a session, including investigation, fix, verification, multi-agent review, doc sync, and cleanup. Use when debugging bugs, test failures, unexpected behavior, or performance issues, or ending a development session. Not for new-feature design or every small edit.
 ---
 
 # Root Cause to Close（根因排查 → 收尾归档全生命周期）
@@ -8,6 +8,8 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 ## Overview
 
 本技能是**单一全生命周期流程**：意图确认 → 根因调查 → 修复 → 验证 → 审查 → 质量检测 → 文档同步 → 清理总结。
+
+> **铁律：未完成根因调查前，禁止提出或实施修复。**
 
 **核心原则：**
 
@@ -25,18 +27,20 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 - Bug、测试失败、意外行为、性能退化 → 走全流程。
 - 本轮开发工作完成、准备结束会话 → 从 P4 进入（P0–P3 已有结论则复用，不重做）。
 - 用户明确要求收尾 → 同上。
-- 不要在每次代码编辑后触发收尾部分；编辑后只做分级测试（见测试协议）。
+- 不要在每次代码编辑后触发收尾部分；编辑后只做分级测试（见「测试协议」）。
 
-## Tool Mapping（OpenCode 工具对照）
+## 工具对照（Trae / OpenCode）
 
-| 本技能用语 | OpenCode 工具 | 禁用场景 |
-|-----------|--------------|---------|
-| Read / LS | `read`（目录与文件，绝对路径） | — |
-| Grep / Glob | `grep` / `glob` | 禁止用于 `.gitignore` 内的日志（`.adl-logs/`、`diagnostic-logs/`） |
-| RunCommand / bash | `bash`（git、cargo、pnpm、PowerShell） | 子代理审查时禁止自行 `git diff`（只能读快照） |
-| Task / 子代理 | `task` | — |
-| AskUserQuestion | `question` | — |
-| 记录/索引 | `read` + `edit`/`write` | 禁止"稍后一起记" |
+`.agents/skills/` 为真源；各 harness 以本表对应工具，未列出版本按语义就近对应。
+
+| 本技能用语 | Trae | OpenCode | 限制 |
+|-----------|------|----------|------|
+| Read / LS | `Read` | `read`（目录与文件，绝对路径） | — |
+| Grep / Glob | `Grep` / `Glob` | `grep` / `glob` | 禁止用于 `.gitignore` 内的日志（`.adl-logs/`、`diagnostic-logs/`） |
+| RunCommand / bash | `Shell` | `bash`（git、cargo、pnpm、PowerShell） | 子代理审查时禁止自行 `git diff`（只能读快照） |
+| Task / 子代理 | `Agent` | `task` | — |
+| AskUserQuestion | `AskUserQuestion` | `question` | — |
+| 记录/索引 | `Read` + `Edit`/`Write` | `read` + `edit`/`write` | 禁止"稍后一起记" |
 
 ---
 
@@ -46,7 +50,7 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 
 | 类型 | 特征 | 处理 |
 |------|------|------|
-| 需求相关 | 新功能、新组件、行为变更（"做新东西"） | 先记进度文件，再调 `brainstorming`；其 space 与实施计划阶段必须同时覆盖附带的解决/优化/调整问题 |
+| 需求相关 | 新功能、新组件、行为变更（"做新东西"） | 先记进度文件（见「记录协议」），再调 `brainstorming`；其 space 与实施计划阶段必须同时覆盖附带的解决/优化/调整问题 |
 | 解决/优化/调整 | Bug、性能、结构、行为修正（"改已有东西"） | 走本技能 P0–P6 |
 | 混合 | 两者都有 | 同一进度文件记录两部分，审查与文档同步均覆盖两类 |
 | 不确定 | 无法判定 | 用 `question` 问用户是"新需求"还是"解决问题"，禁止直接开工 |
@@ -64,9 +68,9 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 
 ---
 
-## 记录协议（贯穿全程）
+## 通用协议（贯穿全程）
 
-### 记录文件（唯一真实来源）
+### 记录协议：进度文件（唯一真实来源）
 
 - **目录：** `docs/root-cause-to-close/YYYY-MM/`（不存在则创建）。
 - **文件名：** `progress-YYYY-MM-DD-HHmmss.md`（精确到秒）。
@@ -83,8 +87,6 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 - 审查报告：`.review-diffs/...`（转写摘要 + 索引路径）
 ```
 
-### 更新规则
-
 | 时机 | 操作 |
 |------|------|
 | 开工前 | 建文件，列出全部事项（含中途新增），初始 `待处理` |
@@ -93,11 +95,41 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 | 上下文压缩前 | 确认关键信息已落盘 |
 | P6 前 | 通读文件确认事项状态 |
 
-### 子代理报告规则
-
-任何 `task` 子代理必须把完整报告写入独立文件（`.review-diffs/<对象>-rev<N>-report.md`），自包含输入（快照路径、任务描述）、输出（逐项结论、severity、建议修复）、依据。返回消息只给路径 + 摘要。主代理收到后**同时**做两件事：正文转写关键信息、正文索引报告路径（缺一不可）。
+**子代理报告规则：** 任何 `task` 子代理必须把完整报告写入独立文件（`.review-diffs/<对象>-rev<N>-report.md`），自包含输入（快照路径、任务描述）、输出（逐项结论、severity、建议修复）、依据。返回消息只给路径 + 摘要。主代理收到后**同时**做两件事：正文转写关键信息、正文索引报告路径（缺一不可）。
 
 > 实测（2026-08-15）：主代理读不到子代理上下文，只能拿到最终返回消息，故必须落盘报告文件。
+
+### 日志协议
+
+`.adl-logs/` 等被 `.gitignore` 排除，**只能用 `read`（LS/Read）按绝对路径操作，禁用 `glob`/`grep`**。
+
+| 检查项 | 路径 |
+|-------|------|
+| 桌面壳 + 浏览器前端 | `<仓库根>/.adl-logs/terminal-logs*.txt`、`debug-logs*.txt`、`debug-logs-browser*.txt` |
+| 后端引擎 | `<仓库根>/ai-digital-life/.adl-logs/adl-server-logs*.txt` |
+| 本地运行/诊断 | `<仓库根>/ai-digital-life/.run-logs/`、`/diagnostic-logs/` |
+| 发布态 | `<数据根>/logs/`（无 `.adl-logs`） |
+
+规则：逐项检查，缺项跳过不 block；`multi` 会话文件（`*-<时间戳>.txt`）先按 `LastWriteTime` 取**最新一个**，覆盖式同名文件直接读；分析标准 P0 崩溃堆栈 / P1 功能错误（IPC 失败等）必须修或记录，P2 警告评估，P3 信息忽略。**完成条件：无未解 P0/P1。**
+
+### 调试埋点触发与自动化验证（能力边界）
+
+凡在 P0 / P2 / P3 加了调试日志或埋点，加完必须触发一次产生日志再下结论，禁止"加完即认为生效"。
+
+1. **按手册启动：** 先读 `docs/development/log-system-manual.md` §1，用 CLI 启动对应模式并调高日志：桌面 `pnpm dev:tauri -- --log-level trace --terminal-log-mode multi` / 浏览器 `pnpm dev:preview -- --log-level trace --terminal-log-mode multi` / 双端 `pnpm dev:both -- ...`（`--` 不可省；设过 `RUST_LOG` 先 unset，它是硬顶、CLI 顶不开）。启动后先断言 `[ADL-LOG]` / `[ADL-CLI]` 行确认覆盖生效（`session-only`，重启即失效，不要误判为 bug）。
+2. **触发埋点（二选一）：**
+   - A. 有自动化操作能力（浏览器模式用 `playwright-cli`，见相关技能与 `notes/playwright-cli-experience.md`）→ 自己驱动触发，复现后按日志协议读最新文件断言。
+   - B. 无能力 → 用户充当"手"：给出编号步骤（启动哪个模式 → 打开哪个地址/窗口 → 点击哪里 → 看什么），并声明预期日志文件与关键标记；等用户回复"操作完成"后再读日志分析。
+3. **能力现状（2026-10-13 已验证）：** `playwright-cli` 已安装并通过真机实测，浏览器模式走 A（详见 `notes/playwright-cli-experience.md`）；桌面壳点击无自动化能力，仍走 B。每次在进度文件记录"本次用 A / B 触发"。
+
+组合示例：`run-project-surfaces` 起 preview → Playwright CLI 打开其打印的 URL 触发埋点 → 按日志协议读 `debug-logs-browser*.txt` 最新文件断言。**"UI 动了" ≠ "日志写了"，两者都要断言**（只看其一会得出错误结论）。
+
+### 测试协议（分级执行）
+
+- **定位受影响范围：** `git diff --name-only` → Rust 按 crate（`cargo test -p <crate>`）、前端按 `__tests__/` 相关文件（`vitest run <文件>`）；同时保持 clippy/tsc 通过（`cargo check` 不单跑，clippy 已覆盖编译）。
+- **默认只跑受影响部分**（修复后、每轮审查后、收尾均同）。全量命令（如 `cargo test --workspace` / 前端全量 `test`）仅在变更面广、或分级已通过但需最终兜底时，经用户同意才执行；前后端两组同一条消息并行跑，禁串行。
+- 仅修工具报告的问题；自动修复引入新变更则重跑类型检查；3 次不通过 → 停并报告等指示。
+- flaky 判定：疑似用例连跑 5 次，≤2 败视为 flaky（验收排除并记录），>2 败视为真失败。
 
 ---
 
@@ -110,7 +142,11 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 5. **数据流追踪** — 从表象向上追到源头，在源头修。前端用 `new Error().stack` + `console.error`；Rust 用 `tracing::error!` / `dbg!`；在危险操作**前**记录。
 6. **模式分析** — 找可工作的相似功能，逐项列出差异；列出该功能依赖的组件/配置/环境。
 7. **假设验证（一次一变量）** — 写下单一假设并记入进度文件 → 做最小诊断性改动（验证用，非修复）→ 成立则进 P1/P2A，不成立则还原后换新假设，不叠加改动。
-8. **外部调研（触发即做，不得硬试）** — 触发：无方案、无候选、知识盲区、多次失败、方案分歧、直觉有更好做法。通道并行：最新资料搜索（查询词带年份如 2026，读原文不只看摘要）+ 官方文档（版本与项目对齐）+ 社区（区分"提议"与"已落地"）+ 同类产品对标（2–3 个）。复用前过适配表：技术栈、运行环境（双端一致？）、项目治理约束（分层/i18n/权限/安全）、许可与维护、复杂度。多方案产出：先对比总表，再逐套给专业讲述 + 一句话类比 + 优点/缺点/注意事项（不得美化省略）+ 来源链接 + 推荐项，然后 `question` 等用户决策。
+8. **外部调研（触发即做，不得硬试）**
+   - **触发**：无方案、无候选、知识盲区、多次失败、方案分歧、直觉有更好做法。
+   - **通道（并行）**：最新资料搜索（查询词带年份如 2026，读原文不只看摘要）+ 官方文档（版本与项目对齐）+ 社区（区分"提议"与"已落地"）+ 同类产品对标（2–3 个）。
+   - **适配（复用前必过）**：技术栈、运行环境（双端一致？）、项目治理约束（分层/i18n/权限/安全）、许可与维护、复杂度。
+   - **多方案产出**：先对比总表 → 逐套给专业讲述 + 一句话类比 + 优点/缺点/注意事项（不得美化省略）+ 来源链接 + 推荐项 → `question` 等用户决策。
 
 **Exit criteria：** 能说出候选根因及其证据链，或已穷尽手段并记录每条路为何走不通（进 P1 判 B）。
 
@@ -137,7 +173,7 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 
 ### P2B：预防性措施（无根因）
 
-按覆盖范围 / 复杂度 / 副作用 / 可维护性 / 误判风险 / 可逆性评估候选 → 多方案用 P0-8 产出格式经 `question` 等决策 → 实施并记录 → 进 P3。
+按六维评估候选（覆盖范围 / 复杂度 / 副作用 / 可维护性 / 误判风险 / 可逆性）→ 多方案按 P0-8 产出格式经 `question` 等决策 → 实施并记录 → 进 P3。
 
 ---
 
@@ -170,12 +206,12 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 两类都无变更 → 跳过 P4 审查部分。否则：
 
 1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。
-2. 按文件拆快照：`git diff --name-only` 取列表 → 每文件 `git diff HEAD -- <路径>`（追加未推送部分）→ `<路径下划线>-rev<N>.diff`；同步写 `changed-files-rev<N>.txt`。
+2. 按文件拆快照：文件列表 = `git diff --name-only HEAD` ∪（存在时）`git diff --name-only origin/HEAD..HEAD`；每文件把两来源的 diff 拼接为 `<路径下划线>-rev<N>.diff`；同步写 `changed-files-rev<N>.txt`。
 3. 子代理只读快照，禁止终端 `git diff`；每轮修复后 rev 递增**全量重生成**，复审看最新完整 diff（禁只看增量/复用旧快照）。
 
 ### 4c. 并行审查（两轮）
 
-- **第 1 轮（正确性）**：按事项数派发（1 事项→1 Agent；>5 时合并 <50 行小事项），同一条消息并行 `task`（可写文件子代理，仅允许写指定报告文件，源码只读）。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。每项给文件+行号、severity（critical/high/medium/low）、类别、描述、建议修复。
+- **第 1 轮（正确性）**：按事项数派发（1 事项→1 子代理；>5 时合并 <50 行小事项），同一条消息并行派发（可写文件子代理，仅允许写指定报告文件，源码只读）。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。每项给文件+行号、severity（critical/high/medium/low）、类别、描述、建议修复。
 - **第 2 轮（清理，仅第 1 轮通过后）**：死代码、冗余守卫、根因修后多余的防御、应删/降级的诊断日志。不标：正当错误处理、系统边界验证、生产 warn/error 日志。
 - **合并：** 去重（同文件同行同类留最详者）→ severity 降序。
 
@@ -198,44 +234,6 @@ description: Use when fixing bugs, resolving test failures, handling unexpected 
 - 每轮修完重跑审查（不可自判跳过）；同一问题 3 轮未解 → 停并向用户报告等指示。
 
 **Exit criteria：** 最新一轮零问题 + 分级测试通过。
-
----
-
-## 日志协议
-
-`.adl-logs/` 等被 `.gitignore` 排除，**只能用 `read`（LS/Read）按绝对路径操作，禁用 `glob`/`grep`**。
-
-| 检查项 | 路径 |
-|-------|------|
-| 桌面壳 + 浏览器前端 | `<仓库根>/.adl-logs/terminal-logs*.txt`、`debug-logs*.txt`、`debug-logs-browser*.txt` |
-| 后端引擎 | `<仓库根>/ai-digital-life/.adl-logs/adl-server-logs*.txt` |
-| 本地运行/诊断 | `<workspace_root>/ai-digital-life/.run-logs/`、`/diagnostic-logs/` |
-| 发布态 | `<数据根>/logs/`（无 `.adl-logs`） |
-
-规则：逐项检查，缺项跳过不 block；`multi` 会话文件（`*-<时间戳>.txt`）先按 `LastWriteTime` 取**最新一个**，覆盖式同名文件直接读；分析标准 P0 崩溃堆栈 / P1 功能错误（IPC 失败等）必须修或记录，P2 警告评估，P3 信息忽略。**完成条件：无未解 P0/P1。**
-
----
-
-## 调试埋点触发与自动化验证（能力边界）
-
-凡在 P0 / P2 / P3 加了调试日志或埋点，加完必须触发一次产生日志再下结论，禁止"加完即认为生效"。
-
-1. **按手册启动：** 先读 `docs/development/log-system-manual.md` §1，用 CLI 启动对应模式并调高日志：桌面 `pnpm dev:tauri -- --log-level trace --terminal-log-mode multi` / 浏览器 `pnpm dev:preview -- --log-level trace --terminal-log-mode multi` / 双端 `pnpm dev:both -- ...`（`--` 不可省；设过 `RUST_LOG` 先 unset，它是硬顶、CLI 顶不开）。启动后先断言 `[ADL-LOG]` / `[ADL-CLI]` 行确认覆盖生效（`session-only`，重启即失效，不要误判为 bug）。
-2. **触发埋点（二选一）：**
-   - A. 有自动化操作能力（浏览器模式用 `playwright-cli`，见相关技能与 `notes/playwright-cli-experience.md`）→ 自己驱动触发，复现后按日志协议读最新文件断言。
-   - B. 无能力 → 用户充当"手"：给出编号步骤（启动哪个模式 → 打开哪个地址/窗口 → 点击哪里 → 看什么），并声明预期日志文件与关键标记；等用户回复"操作完成"后再读日志分析。
-3. **能力现状（2026-10-13 已验证）：** `playwright-cli` 已安装并通过真机实测，浏览器模式走 A（详见 `notes/playwright-cli-experience.md`）；桌面壳点击无自动化能力，仍走 B。每次在进度文件记录"本次用 A / B 触发"。
-
-组合示例：`run-project-surfaces` 起 preview → Playwright CLI 打开其打印的 URL 触发埋点 → 按日志协议读 `debug-logs-browser*.txt` 最新文件断言。**"UI 动了" ≠ "日志写了"，两者都要断言**（只看其一会得出错误结论）。
-
----
-
-## 测试协议（分级执行）
-
-- **定位受影响范围：** `git diff --name-only` → Rust 按 crate（`cargo test -p <crate>`）、前端按 `__tests__/` 相关文件（`vitest run <文件>`）；同时保持 clippy/tsc 通过（`cargo check` 不单跑，clippy 已覆盖编译）。
-- **默认只跑受影响部分**（修复后、每轮审查后、收尾均同）。全量命令（如 `cargo test --workspace` / 前端全量 `test`）仅在变更面广、或分级已通过但需最终兜底时，经用户同意才执行；前后端两组同一条消息并行跑，禁串行。
-- 仅修工具报告的问题；自动修复引入新变更则重跑类型检查；3 次不通过 → 停并报告等指示。
-- flaky 判定：疑似用例连跑 5 次，≤2 败视为 flaky（验收排除并记录），>2 败视为真失败。
 
 ---
 
@@ -283,10 +281,10 @@ UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更�
 | 未分类/未确认意图就调查或修复；凭提示词未读代码下结论 | 预检 |
 | 需求类型未进 brainstorming 或未记进度；混合任务只覆盖一类 | 预检 |
 | "试试改 X 看行不行"、多变量同改、无失败测试/验证日志先修 | P0 |
-| 未穷尽调查就进预防性；2 次失败不回 P0；≥3 次失败不停不停质疑架构 | P0/P1 |
+| 未穷尽调查就进预防性；2 次失败不回 P0；≥3 次失败不停质疑架构 | P0/P1 |
 | 用 `glob`/`grep` 读日志；分析旧日志而非最新 | 日志协议 |
 | 加埋点不触发就下结论；只看 UI 变化不看日志（或反之） | 调试埋点触发节 |
-| playwright 会话命令 pipe 截断输出；在仓库根跑浏览器测试污染仓库；route mock 后不清理 | notes/playwright-cli-experience.md |
+| playwright 会话命令 pipe 截断输出；在仓库根跑浏览器测试污染仓库；route mock 后不清理 | `notes/playwright-cli-experience.md` |
 | 跑全量测试替代分级；工具失败未分析直接重试；修完不重审 | 测试协议/P4 |
 | 子代理改源码 / 自行 `git diff` / 只看增量复审 / 串行派发 / 结果未去重排序 | P4 |
 | 未验证真实性就修；无用防御/偷懒兼容被保留；"不修"未查优化空间；预存问题被放过 | P4d |
@@ -306,13 +304,13 @@ UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更�
 | P1 | 全条件判定 A（修根因）/ B（预防） | 路径明确 |
 | P2 | 失败测试→单点修→查同类→加日志；失败 3 次停 | 改在源头 |
 | P3 | 补日志→触发验证（自动优先/用户为手）→最新日志分析→分流；3 轮上限 | 双确认通过 |
-| 触发 | 按手册启动→驱动/编号步骤触发→读最新日志断言（细节见 notes/playwright-cli-experience.md） | 日志与断言对上 |
-| P4 | 前置检查→快照→并行两轮审查→验证→修复循环 | 零问题 |
-| 测试 | `git diff` 定位受影响，clippy/tsc + 分级 test | 零警告错误 |
+| P4 | 前置检查→快照（未提交 ∪ 未推送）→并行两轮审查→验证→修复循环 | 零问题 |
 | P5 | 七类文档逐项表态 + 三目录同步 + README 索引 | 列出更新 |
 | P6 | 按龄清理 + 读进度文件总结 | 用户知晓结果 |
+| 测试（全程分级） | `git diff` 定位受影响，clippy/tsc + 分级 test，禁全量替代 | 零警告错误 |
+| 埋点触发（P0/P2/P3 加埋点后） | 按手册启动→驱动/编号步骤触发→读最新日志断言 | 日志与断言对上 |
 
-## 相关技能
+## 相关技能与规则
 
 - `brainstorming` — 需求类型的设计（space 与计划须覆盖附带的问题类事项）
 - `codegraph-knowledge-graph` — P0/预检的代码探索
@@ -320,7 +318,7 @@ UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更�
 - `systematic-debugging` — P0 方法论补充
 - `refactoring-insight` — 架构质疑时评估
 - `verification-before-completion` — 宣告成功前验证
-- `mandatory-testing` — 验收流程（与本技能测试协议互补：前者每次变更触发轻量验证，后者收尾兜底）
 - `run-project-surfaces` — 按手册启动 Tauri / 浏览器 / 双端（启动器，不代操作；与自动化 Skill 组合用）
 - `playwright-cli` — 浏览器模式自动化触发（快照 refs 定位、eval 断言、console/requests 排障、route mock；经验见 `notes/playwright-cli-experience.md`）
+- 规则 `mandatory-testing`（`.agents/rules/mandatory-testing.md`）— 每次变更触发的验收流程；与本技能测试协议互补（前者轻量、后者收尾兜底）
 - 外部可选（引入前先与用户确认）：Playwright MCP（长会话探索）、WebdriverIO `@wdio/tauri-service`（桌面点击唯一正道）
