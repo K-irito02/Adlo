@@ -1,13 +1,13 @@
 ---
 name: root-cause-to-close
-description: Root-cause-first lifecycle for fixing bugs and closing a session, including investigation, fix, verification, multi-agent review, doc sync, and cleanup. Use when debugging bugs, test failures, unexpected behavior, or performance issues, or ending a development session. Not for new-feature design or every small edit.
+description: Root-cause-first lifecycle for fixing bugs and closing a session, including investigation, fix, verification, multi-agent review, doc sync, and cleanup. Always invoke this skill when debugging bugs, test failures, unexpected behavior, or performance issues, and when wrapping up a development session or asked to close out work. Not for new-feature design or every small edit.
 ---
 
 # Root Cause to Close（根因排查 → 收尾归档全生命周期）
 
 ## Overview
 
-本技能是**单一全生命周期流程**：意图确认 → 根因调查 → 修复 → 验证 → 审查 → 质量检测 → 文档同步 → 清理总结。
+本技能是**单一全生命周期流程**：意图确认 → 根因调查 → 修复 → 验证 → 审查 → 文档同步 → 清理总结（测试协议贯穿全程，质量结论汇总于 P6）。
 
 > **铁律：未完成根因调查前，禁止提出或实施修复。**
 
@@ -97,7 +97,7 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 
 **子代理报告规则：** 任何 `task` 子代理必须把完整报告写入独立文件（`.review-diffs/<对象>-rev<N>-report.md`），自包含输入（快照路径、任务描述）、输出（逐项结论、severity、建议修复）、依据。返回消息只给路径 + 摘要。主代理收到后**同时**做两件事：正文转写关键信息、正文索引报告路径（缺一不可）。
 
-> 实测（2026-08-15）：主代理读不到子代理上下文，只能拿到最终返回消息，故必须落盘报告文件。
+> 主代理只能拿到子代理最终返回消息，故必须落盘报告文件。
 
 ### 日志协议
 
@@ -120,7 +120,7 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 2. **触发埋点（二选一）：**
    - A. 有自动化操作能力（浏览器模式用 `playwright-cli`，见相关技能与 `notes/playwright-cli-experience.md`）→ 自己驱动触发，复现后按日志协议读最新文件断言。
    - B. 无能力 → 用户充当"手"：给出编号步骤（启动哪个模式 → 打开哪个地址/窗口 → 点击哪里 → 看什么），并声明预期日志文件与关键标记；等用户回复"操作完成"后再读日志分析。
-3. **能力现状（2026-10-13 已验证）：** `playwright-cli` 已安装并通过真机实测，浏览器模式走 A（详见 `notes/playwright-cli-experience.md`）；桌面壳点击无自动化能力，仍走 B。每次在进度文件记录"本次用 A / B 触发"。
+3. **能力现状：** 浏览器模式走 A（见 `notes/playwright-cli-experience.md`）；桌面壳点击走 B。每次在进度文件记录"本次用 A / B 触发"。
 
 组合示例：`run-project-surfaces` 起 preview → Playwright CLI 打开其打印的 URL 触发埋点 → 按日志协议读 `debug-logs-browser*.txt` 最新文件断言。**"UI 动了" ≠ "日志写了"，两者都要断言**（只看其一会得出错误结论）。
 
@@ -193,7 +193,7 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 ### 4a. 前置检查
 
 - `git branch --show-current`、`git status --short`；未跟踪文件判定是否为本次产物。
-- git 在仓库根执行；`cargo`/`pnpm` 在 `ai-digital-life/` 执行；命令前按 `commands.md` 设 PATH。
+- git 在仓库根执行；`cargo`/`pnpm` 在 `ai-digital-life/` 执行；命令前按规则 `commands.md` 设 PATH。
 - 磁盘（可选）：`clean-target.ps1 -WhatIf` 干跑后问用户；`target/debug` 超 30 GB 才全量 `cargo clean`（**永久删除**，不进回收站）。
 
 ### 4b. 采集变更 + 快照预生成
@@ -203,17 +203,25 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 | 未提交（含暂存） | `git diff HEAD` | — |
 | 已提交未推送 | `git diff origin/HEAD..HEAD`（`origin/HEAD` 不存在则跳过） | 已推送的不审 |
 
-两类都无变更 → 跳过 P4 审查部分。否则：
+两类都无变更 → 跳过 P4 审查部分（进度文件记理由）。有变更则 4c 两轮必跑。否则：
 
 1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。
 2. 按文件拆快照：文件列表 = `git diff --name-only HEAD` ∪（存在时）`git diff --name-only origin/HEAD..HEAD`；每文件把两来源的 diff 拼接为 `<路径下划线>-rev<N>.diff`；同步写 `changed-files-rev<N>.txt`。
 3. 子代理只读快照，禁止终端 `git diff`；每轮修复后 rev 递增**全量重生成**，复审看最新完整 diff（禁只看增量/复用旧快照）。
 
-### 4c. 并行审查（两轮）
+### 4c. 两轮循环审查（顺序门控，两轮皆不可跳过）
 
-- **第 1 轮（正确性）**：按事项数派发（1 事项→1 子代理；>5 时合并 <50 行小事项），同一条消息并行派发（可写文件子代理，仅允许写指定报告文件，源码只读）。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。每项给文件+行号、severity（critical/high/medium/low）、类别、描述、建议修复。
-- **第 2 轮（清理，仅第 1 轮通过后）**：死代码、冗余守卫、根因修后多余的防御、应删/降级的诊断日志。不标：正当错误处理、系统边界验证、生产 warn/error 日志。
-- **合并：** 去重（同文件同行同类留最详者）→ severity 降序。
+**门控铁律（违反即 Red Flag，见底部表格）：**
+
+1. 两轮都必须跑（有变更时；无变更按 4b 跳过并记理由），且每轮至少一次完整的子代理派发：禁止以"自判已干净""上一轮已删日志/死代码""改动小""看起来没问题"等任何理由跳过 R1、R2 或其中任意一次复审。**自判 ≠ 审查通过**，只有子代理返回的"零问题"才算通过。
+2. 顺序门控：R2 禁止与 R1 并行、禁止提前启动。只有 R1 循环达到"本轮零问题"并记入进度文件后，才允许进入 R2；只有 R2 循环达到"本轮零问题"，才允许退出 P4。
+3. 每轮都是循环：`审查（本轮范围）→ 4d 验证 → 4e 修复 → rev 递增全量重生成快照 → 同范围复审`，直到本轮零问题。禁止"每轮只审一次就放行"。
+
+**本轮零问题的定义：** 该轮最新一次子代理审查结果，经 4d 逐项验证后，无"需修复"项残留（误报 / 有据保留已记理由、且下一轮复审子代理无异议）。只要还有需修复项，或"不修"被子代理成功异议，就不算零问题，继续本轮循环。
+
+- **R1 循环（正确性，不通过不进 R2）**：按事项数派发（1 事项→1 子代理；>5 事项时 <50 行小事项合并、大事项仍逐项），同一条消息并行派发（可写文件子代理，仅允许写指定报告文件，源码只读）。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。每项给文件+行号、severity（critical/high/medium/low）、类别、描述、建议修复。修完 rev 递增后，**仍用 R1 范围**复审，循环至 R1 零问题。
+- **R2 循环（清理，仅 R1 零问题后进入，同样循环至零问题）**：即使 R1 修时已删日志/死代码，仍必须完整派发一次，不可省略。覆盖：死代码、冗余守卫、根因修后多余的防御、应删/降级的诊断日志。不标：正当错误处理、系统边界验证、生产 warn/error 日志。修完 rev 递增后，**仍用 R2 范围**复审，循环至 R2 零问题。
+- **合并（每轮独立做一次）：** 去重（同文件同行同类留最详者）→ severity 降序。
 
 ### 4d. 主代理问题验证（修复前置，逐项必做并记进度文件）
 
@@ -231,9 +239,9 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 
 - 需 `question` 的情形（满足任一）：动核心架构/大重构/破兼容、业务决策无法自判、多套可行方案、新依赖或安全策略变更、无法判定是否用户特殊设计。卡片给 2–4 方案 + 优缺点风险 + 推荐项。
 - 约束：只修验证通过的问题，守 `.agents/rules/` 与双端一致、i18n、无硬编码文本等治理；不带无关变更。
-- 每轮修完重跑审查（不可自判跳过）；同一问题 3 轮未解 → 停并向用户报告等指示。
+- 每轮修完必须 rev 递增全量重生成快照，并重跑**本轮同范围**审查（不可自判跳过本轮复审、不可跳轮、不可用"只看增量/复用旧快照"代替）；同一问题 3 轮未解 → 停并向用户报告等指示。
 
-**Exit criteria：** 最新一轮零问题 + 分级测试通过。
+**Exit criteria：** R1 循环零问题 **且** R2 循环零问题（两轮先后达标，有进度文件记录） + 分级测试通过。任一轮未跑、未循环至零问题，都不算 P4 完成。
 
 ---
 
@@ -243,21 +251,23 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 
 | 类别 | 路径 | 检查内容 |
 |------|------|---------|
-| 规则 | `.agents/rules/`（真源）→ `.opencode/rules/`、`.trae/rules/` | 编码、架构、工具链变化 |
-| 技能 | `.agents/skills/`（真源）→ `.opencode/skills/`、`.trae/skills/` | 指令/触发条件变化；改后 `Get-FileHash` 三路比对 |
-| 治理 | `AGENTS.md`、`CONTEXT.md` | 术语、功能、架构层级 |
-| 架构/流程 | `docs/architecture/`、`docs/development/` | 决策与流程变更 |
+| 规则 | `.agents/rules/`（真源）→ `.opencode/rules/`、`.trae/rules/` | 编码、架构、工具链变化；增删规则同步 `.agents/rules/README.md` 登记 |
+| 技能 | `.agents/skills/`（真源）→ `.opencode/skills/`、`.trae/skills/` | 指令/触发条件变化；改后按子目录递归 `Get-FileHash` 三路比对 |
+| 治理 | `AGENTS.md`、`ai-digital-life/AGENTS.md`、`CONTEXT.md` | 术语、功能、架构层级 |
+| 根文档 | `README.md`、`ai-digital-life/README.md`、`CONTRIBUTING.md`、`ai-digital-life/CONTRIBUTING.md`、`SECURITY.md`、`FUTURE-ROADMAP.md`、`docs/development/project-engineering-constraints.md` | 安装使用、协作流程、安全策略、后续规划、工程约束 |
+| 架构/开发/分析 | `docs/architecture/`、`docs/development/`（上行点名文件除外）、`docs/analysis/` | 决策、流程、分析结论 |
+| 设计/运维 | `docs/design-system/`、`docs/operations/`（UI 交互落 `ui-manual/`） | 可复用 UI 模式、运维手册 |
 | 沉淀 | `docs/knowledge-base/` | 经验教训 |
-| 手册 | `docs/operations/ui-manual/` | UI 交互变更 |
+| 工程基线 | `.github/workflows/quality-gates.yml`、`ai-digital-life/src-tauri/capabilities/*.json`、`ai-digital-life/src-tauri/tauri.conf.json`、`ai-digital-life/.cargo/config.toml`、`ai-digital-life/clippy.toml`、`ai-digital-life/rustfmt.toml`、根 `.editorconfig` | 触及 CI 命令 / 新增 Command 登记与通配 / CSP 与 `withGlobalTauri` / 构建基线时同步；未触及表态无需 |
 | 本技能归档 | `docs/root-cause-to-close/YYYY-MM/README.md` | 追加 `progress-...md` 链接（最新在最后）；用过 brainstorming 则确认设计文档（`docs/superpowers/specs/`）已索引 |
 
-UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更新对应文档。
+UI 引入可复用模式或修正规范时，提取为标准并更新 `docs/design-system/` 与对应手册。
 
 ---
 
 ## P6：清理 + 总结
 
-**清理**（`read` 确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/` 超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；`test-artifacts/` 超 3 天临时文件；删除 `.review-diffs/` 全部快照。用过 `playwright-cli` 则一并清理其测试产物：关闭残留浏览器会话（`close-all`），删除仓库内 `.playwright-cli/` 目录（快照/trace/录像）与测试截图；产物若在 Temp 目录则整批删除。
+**清理**（`read` 确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/`（仓库根与 `ai-digital-life/`）超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；根 `test-artifacts/` 超 3 天临时文件；删除 `.review-diffs/` 全部快照。用过 `playwright-cli` 则一并清理其测试产物：关闭残留浏览器会话（`close-all`），删除仓库内 `.playwright-cli/` 目录（快照/trace/录像）与测试截图；产物若在 Temp 目录则整批删除。
 
 **总结**（只读进度文件生成，禁凭记忆）：
 
@@ -265,7 +275,7 @@ UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更�
 ## 收尾完成
 | 步骤 | 结果 |
 | 预检/调查/修复/验证 | ✅（事项数）/ 说明 |
-| 审查 | ✅ 零问题（N Agent，M 轮）/ ⚠️ 经用户确认 M 项 |
+| 审查 | ✅ R1 x 轮 + R2 y 轮零问题（N Agent）/ ⚠️ 经用户确认 M 项 |
 | 日志 | ✅ 无 P0/P1 / ⚠️ 已修复 / ⏭️ 无日志 |
 | 质量检测 | ✅ 通过（受影响范围）/ ⚠️ 全量兜底结果 |
 | 文档同步 | ✅ 更新 N 个（列出）/ 无需更新（理由） |
@@ -286,9 +296,9 @@ UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更�
 | 加埋点不触发就下结论；只看 UI 变化不看日志（或反之） | 调试埋点触发节 |
 | playwright 会话命令 pipe 截断输出；在仓库根跑浏览器测试污染仓库；route mock 后不清理 | `notes/playwright-cli-experience.md` |
 | 跑全量测试替代分级；工具失败未分析直接重试；修完不重审 | 测试协议/P4 |
-| 子代理改源码 / 自行 `git diff` / 只看增量复审 / 串行派发 / 结果未去重排序 | P4 |
+| 子代理改源码 / 自行 `git diff` / 只看增量复审 / 复用旧快照 / 串行派发 / 结果未去重排序 / R1 只审一次就放行 / 自判干净跳过 R2 或任一次复审 / R1 未零问题提前启动 R2 | P4 |
 | 未验证真实性就修；无用防御/偷懒兼容被保留；"不修"未查优化空间；预存问题被放过 | P4d |
-| 跳过文档逐项检查；规则/技能未同步三目录；以小变更为由跳过 | P5 |
+| 跳过文档逐项检查；规则/技能未同步三目录；增删规则未登记索引；触及工程基线未查；以小变更为由跳过 | P5 |
 | 某阶段完成未立即落盘；子代理无独立报告；总结凭记忆；进度关卡未过先进收尾 | 记录协议 |
 | 破坏性 git 操作；未经确认提交/清理（`cargo clean` 为永久删除） | 全程 |
 
@@ -304,8 +314,8 @@ UI/UX 若引入可复用新模式或实质修正规范，提取为标准并更�
 | P1 | 全条件判定 A（修根因）/ B（预防） | 路径明确 |
 | P2 | 失败测试→单点修→查同类→加日志；失败 3 次停 | 改在源头 |
 | P3 | 补日志→触发验证（自动优先/用户为手）→最新日志分析→分流；3 轮上限 | 双确认通过 |
-| P4 | 前置检查→快照（未提交 ∪ 未推送）→并行两轮审查→验证→修复循环 | 零问题 |
-| P5 | 七类文档逐项表态 + 三目录同步 + README 索引 | 列出更新 |
+| P4 | 前置检查→快照（未提交 ∪ 未推送）→R1 循环至零问题→R2 循环至零问题（两轮顺序、每轮循环、皆不可跳过）→验证→修复循环 | R1 与 R2 先后零问题 |
+| P5 | 九类文档逐项表态 + 三目录同步 + 索引登记 | 列出更新 |
 | P6 | 按龄清理 + 读进度文件总结 | 用户知晓结果 |
 | 测试（全程分级） | `git diff` 定位受影响，clippy/tsc + 分级 test，禁全量替代 | 零警告错误 |
 | 埋点触发（P0/P2/P3 加埋点后） | 按手册启动→驱动/编号步骤触发→读最新日志断言 | 日志与断言对上 |

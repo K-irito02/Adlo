@@ -1,6 +1,6 @@
 # playwright-cli 使用注意事项与经验教训
 
-> 来源：2026-10-13 真机实测（TodoMVC demo + 本地 `dev:preview` 实战），非文档复述。
+> 来源：真机实测（TodoMVC demo + 本地 `dev:preview` 实战），非文档复述。
 > 对应技能正文：`SKILL.md` → 调试埋点触发与自动化验证。
 
 ## 1. 安装（一次即可）
@@ -27,7 +27,7 @@
 - 健康基线：console 应出现 `[adl-bridge] using ad-server at http://127.0.0.1:<port>`（手册 §9 标记）；favicon 404 是常态噪音，忽略。
 - **"UI 动了" ≠ "日志写了"，两者都要断言**：实测点击"打开浏览器"后快照 diff 证明新标签页已建，但 `debug-logs-browser` 行数未增（该路径本就不写埋点）。只看其一会得出错误结论。
 
-## 4. 能力边界（已验证）
+## 4. 能力边界
 
 - 能：快照 refs 定位、fill/click/check、eval 断言、console/requests 排障、route mock、tracing、screenshot。
 - 不能：触达 Tauri 桌面壳（只到浏览器，桌面点击仍需 WebdriverIO 方案）；`run-project-surfaces` 只启动不代开页面，需与本技能组合。
