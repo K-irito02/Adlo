@@ -123,6 +123,9 @@ export const changesEn = {
   changesValidationSkipped: 'Validation skipped',
   changesUnstage: 'Unstage',
   changesDiscard: 'Discard',
+  changesDiscardDirConfirm: 'Discard changes in this directory',
+  changesDiscardDirMessage:
+    'This recursively discards changes to all tracked files under this directory and deletes untracked files inside it. This cannot be undone.',
   gitVisualization: 'Git Visualization',
   gitVisModuleFrontend: 'Frontend',
   gitVisModuleBackend: 'Backend',

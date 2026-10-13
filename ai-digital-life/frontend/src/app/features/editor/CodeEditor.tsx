@@ -90,7 +90,14 @@ export function CodeEditor({
     };
   }, [language]);
 
-  const foldMarkerState = useFoldMarkerAutoHide(wrapperRef, fileKey ?? value, editorView);
+  // plaintext 无解析器→永无 fold 标记，跳过 useFoldMarkerAutoHide 的
+  // 100ms×60 forceParsing + gutter 重配轮询（复审 H1；变更面板重型 plain 走此路）。
+  const foldMarkerState = useFoldMarkerAutoHide(
+    wrapperRef,
+    fileKey ?? value,
+    editorView,
+    language === 'plaintext',
+  );
 
   const cmPhrases = useMemo(
     () => ({

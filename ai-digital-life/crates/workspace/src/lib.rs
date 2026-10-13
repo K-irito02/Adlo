@@ -52,8 +52,10 @@ use adl_types::WorkspaceMediaDocument;
 use base64::Engine as _;
 use std::path::Path;
 
-/// 检索/树扫描/变更预览/大纲共用门限（1MB）：语义是"后台批量通道上限"，
+/// 检索/树扫描/大纲共用门限（1MB）：语义是"后台批量通道上限"，
 /// 不要把它也提到 8MB；用户主动开文件走下面的 TEXT/MEDIA 常量。
+/// 变更预览的 current/base 双侧同样走 8MB（事项3）：读到之后是否渲染由前端
+/// HeavyPreviewGate（1M 字符确认门）决定，后端不再先于确认门拒掉。
 pub(crate) const DEFAULT_MAX_FILE_BYTES: u64 = 1024 * 1024;
 /// 媒体/办公二进制读取上限（50 MiB）：图片/文档通常远小于此值；
 /// 大视频超限时返回 InvalidInput，前端展示居中友好错误（含重试与体积说明）。
@@ -389,6 +391,48 @@ mod tests {
         assert!(!preview.current_exists);
         assert!(preview.base_content.contains("resume"));
         assert!(preview.current_content.is_empty());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // 事项3：变更预览与用户主动开文件对齐到 8MB（此前 current/base 双双卡 1MB，
+    // 超限直接 InvalidInput，前端 HeavyPreviewGate 根本到不了）。
+    // 2MB 样本：1MB 门下被拒，8MB 门下放行。
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn reads_large_untracked_change_preview_up_to_text_limit() {
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-large-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        let big = "x".repeat(2 * 1024 * 1024);
+        std::fs::write(dir.join("big.json"), &big).unwrap();
+
+        let preview = read_change_preview(&dir, "big.json").unwrap();
+        assert_eq!(preview.change_kind, WorkspaceChangeKind::Added);
+        assert_eq!(preview.current_content.len(), big.len());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn reads_large_base_blob_change_preview_up_to_text_limit() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-workspace-change-preview-large-base-{}",
+            uuid::Uuid::new_v4()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        let big = "y".repeat(2 * 1024 * 1024);
+        std::fs::write(dir.join("big.json"), &big).unwrap();
+        run_git_test(&dir, &["add", "big.json"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+        std::fs::write(dir.join("big.json"), "small").unwrap();
+
+        let preview = read_change_preview(&dir, "big.json").unwrap();
+        assert_eq!(preview.base_content.len(), big.len());
+        assert_eq!(preview.current_content, "small");
 
         let _ = std::fs::remove_dir_all(dir);
     }

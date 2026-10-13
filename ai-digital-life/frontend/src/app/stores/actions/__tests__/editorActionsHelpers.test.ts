@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
-import { openFileGeneric, openMediaFileGeneric } from '../editorActionsHelpers';
-import { getNextFileRequestSeq } from '../../cacheHelpers';
+import {
+  openFileGeneric,
+  openMediaFileGeneric,
+  openChangePreviewGeneric,
+} from '../editorActionsHelpers';
+import { getNextFileRequestSeq, getNextChangePreviewRequestSeq } from '../../cacheHelpers';
+import { pendingChangePreviewPath, getCachedChangePreview } from '../../cacheHelpers';
 import type { StoreState } from '../../StoreState';
+import type { WorkspaceChangePreview } from '@ai-digital-life/kernel';
 
 interface Snap {
   selectedFilePath?: string;
@@ -9,6 +15,9 @@ interface Snap {
   fileOpenError?: { path: string; code: string; message: string } | null;
   openTabs: { path: string }[];
   outline?: unknown;
+  selectedChangePreviewPath?: string;
+  changePreview?: WorkspaceChangePreview;
+  changePreviewLoading?: boolean;
 }
 
 function setup(initial: Partial<Snap>) {
@@ -497,5 +506,204 @@ describe('fileMediaLoading flag', () => {
     });
     await pending;
     expect((get() as unknown as { fileMediaLoading: boolean }).fileMediaLoading).toBe(false);
+  });
+});
+
+describe('openChangePreviewGeneric failure (事项3：门被旧预览侵占）', () => {
+  function preview(path: string, currentContent: string): WorkspaceChangePreview {
+    return {
+      path,
+      changeKind: 'modified',
+      status: 'modified',
+      baseExists: true,
+      currentExists: true,
+      baseContent: 'base',
+      currentContent,
+    };
+  }
+
+  it('失败时清掉旧预览（选中切到目标，不残留上一个文件的内容）', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+      selectedChangePreviewPath: 'small.ts',
+      changePreview: preview('small.ts', 'small content'),
+      changePreviewLoading: false,
+    });
+    mockReportError(get);
+
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'big.json',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: `change-fail-${Date.now()}`,
+        workspaceId: 'ws-1',
+        getPreview: () =>
+          Promise.resolve({
+            ok: false,
+            error: { code: 'INVALID_INPUT', message: 'file exceeds configured read limit' },
+          }) as never,
+      },
+    );
+
+    // 选中切到目标，但旧预览必须清除（此前保留 small.ts 导致"门出不来、内容仍是旧文件"）
+    const state = get() as unknown as Snap;
+    expect(state.selectedChangePreviewPath).toBe('big.json');
+    expect(state.changePreview).toBeUndefined();
+    expect(state.changePreviewLoading).toBe(false);
+  });
+
+  it('失败后重试成功可正常展示（清掉的状态不影响后续成功）', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+      selectedChangePreviewPath: 'small.ts',
+      changePreview: preview('small.ts', 'small content'),
+      changePreviewLoading: false,
+    });
+    mockReportError(get);
+    const key = `change-fail-then-ok-${Date.now()}`;
+
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'big.json',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: key,
+        workspaceId: 'ws-1',
+        getPreview: () =>
+          Promise.resolve({
+            ok: false,
+            error: { code: 'INVALID_INPUT', message: 'too large' },
+          }) as never,
+      },
+    );
+    expect((get() as unknown as Snap).changePreview).toBeUndefined();
+
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'big.json',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: key,
+        workspaceId: 'ws-1',
+        getPreview: () =>
+          Promise.resolve({ ok: true, data: preview('big.json', 'big content') }) as never,
+      },
+    );
+    const state = get() as unknown as Snap;
+    expect(state.changePreview?.path).toBe('big.json');
+    expect(state.changePreview?.currentContent).toBe('big content');
+    expect(state.changePreviewLoading).toBe(false);
+  });
+
+  it('pending 期选中与内容保持旧值（就绪才切换，大切小不再闪门）', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+      selectedChangePreviewPath: 'huge.json',
+      changePreview: preview('huge.json', 'huge content'),
+      changePreviewLoading: false,
+    });
+    mockReportError(get);
+    let resolvePreview!: (
+      v: { ok: true; data: WorkspaceChangePreview } | { ok: false; error: unknown },
+    ) => void;
+    const gate = new Promise<
+      { ok: true; data: WorkspaceChangePreview } | { ok: false; error: unknown }
+    >((r) => {
+      resolvePreview = r;
+    });
+
+    const pending = openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'small.ts',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: `change-pending-${Date.now()}`,
+        workspaceId: 'ws-2',
+        getPreview: () => gate as never,
+      },
+    );
+    // 同步前缀执行后：选中仍是旧文件（门 key 不错配），内容仍是旧预览
+    const mid = get() as unknown as Snap;
+    expect(mid.selectedChangePreviewPath).toBe('huge.json');
+    expect(mid.changePreview?.path).toBe('huge.json');
+    expect(mid.changePreviewLoading).toBe(true);
+
+    resolvePreview({ ok: true, data: preview('small.ts', 'small content') });
+    await pending;
+    const after = get() as unknown as Snap;
+    expect(after.selectedChangePreviewPath).toBe('small.ts');
+    expect(after.changePreview?.path).toBe('small.ts');
+    expect(after.changePreviewLoading).toBe(false);
+  });
+
+  it('pending 期登记 pendingChangePreviewPath，落定后清除（复审 H2 守卫依据）', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+      selectedChangePreviewPath: 'huge.json',
+      changePreview: preview('huge.json', 'huge'),
+      changePreviewLoading: false,
+    });
+    mockReportError(get);
+    let resolvePreview!: (v: { ok: true; data: WorkspaceChangePreview }) => void;
+    const gate = new Promise<{ ok: true; data: WorkspaceChangePreview }>((r) => {
+      resolvePreview = r;
+    });
+
+    const pending = openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'big.json',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: `pending-track-${Date.now()}`,
+        workspaceId: 'ws-1',
+        getPreview: () => gate as never,
+      },
+    );
+    expect(pendingChangePreviewPath).toBe('big.json');
+    resolvePreview({ ok: true, data: preview('big.json', 'big') });
+    await pending;
+    expect(pendingChangePreviewPath).toBeUndefined();
+  });
+
+  it('重型预览不入缓存（复审 M3，与开文件重型不入缓存同例）', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    mockReportError(get);
+    const key = `heavy-nocache-${Date.now()}`;
+    const { TEXT_HEAVY_PREVIEW_CHARS } =
+      await import('../../../regions/right-panel/heavyPreviewLimits');
+    const huge = 'x'.repeat(TEXT_HEAVY_PREVIEW_CHARS + 16);
+
+    await openChangePreviewGeneric(
+      set as never,
+      get as never,
+      'huge.json',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: key,
+        workspaceId: 'ws-1',
+        getPreview: () =>
+          Promise.resolve({ ok: true, data: preview('huge.json', huge) }) as never,
+      },
+    );
+    expect((get() as unknown as Snap).changePreview?.path).toBe('huge.json');
+    expect(getCachedChangePreview(key)).toBeUndefined();
   });
 });

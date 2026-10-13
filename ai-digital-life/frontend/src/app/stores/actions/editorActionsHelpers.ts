@@ -25,6 +25,7 @@ import {
   setCachedFileDocument,
   getCachedChangePreview,
   setCachedChangePreview,
+  setPendingChangePreviewPath,
 } from '../shared';
 import { clearError, captureError } from '../cacheHelpers';
 import type {
@@ -317,26 +318,38 @@ export async function openChangePreviewGeneric(
     return;
   }
 
-  set({
-    selectedChangePreviewPath: relativePath,
-    selectedChangePreviewWorkspaceId: config.workspaceId,
-  });
-
+  // 就绪才切换（与 openFileGeneric 同语义）：pending 期 selected/内容保持旧值，
+  // 成功/失败终态再原子切换。此前请求开始即切 selected，导致跨工作区切换时
+  // 确认门 key（新选中工作区 + 旧内容路径）错配，大切小必闪一次门。
+  // 登记 pending 目标：后台 fetchGitStatus 刷新据此让路，避免作废本请求（复审 H2）。
+  setPendingChangePreviewPath(relativePath);
   const result = await config.getPreview();
   if (requestSeq !== changePreviewRequestSeq) {
+    // 已被更新的请求取代：pending 目标归新请求所有，不在此清除。
     return;
   }
+  setPendingChangePreviewPath(undefined);
   if (!result.ok) {
     captureError(get, result.error, SCOPE);
     set({
       selectedChangePreviewPath: relativePath,
       selectedChangePreviewWorkspaceId: config.workspaceId,
       changePreviewLoading: false,
-      changePreview: get().changePreview?.path === relativePath ? undefined : get().changePreview,
+      // 失败是终态：清掉旧预览，不回退显示旧文件内容（与 openFileGeneric 的
+      // submitOpenFailure 同语义）。此前保留旧预览，切到超限大文件时内容区仍是
+      // 上一个文件、重型门也出不来（事项3"被侵占"）。
+      changePreview: undefined,
     });
     return;
   }
-  setCachedChangePreview(config.cacheKey, result.data);
+  // 重型预览不入缓存（复审 M3，与 openFileGeneric 重型不入文本缓存同例）：
+  // 上限抬到 8MB 后单条 base+current 最坏约 16MB，32 条 LRU 最坏 ~512MB 常驻。
+  const isHeavyPreview =
+    result.data.baseContent.length > TEXT_HEAVY_PREVIEW_CHARS ||
+    result.data.currentContent.length > TEXT_HEAVY_PREVIEW_CHARS;
+  if (!isHeavyPreview) {
+    setCachedChangePreview(config.cacheKey, result.data);
+  }
   set({
     selectedChangePreviewPath: relativePath,
     selectedChangePreviewWorkspaceId: config.workspaceId,

@@ -18,6 +18,7 @@ import {
   COLLAPSE_UNCHANGED_CONFIG,
 } from './sharedExtensions';
 import { buildCollapsedUnchangedRanges, getMergeChunks } from './diffViewerUtils';
+import { isHeavyDiffContent } from '../../regions/right-panel/heavyPreviewLimits';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { cn } from '@/lib/utils';
 
@@ -51,11 +52,14 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 }) {
   const { t } = useTCopy();
+  // 重型差异降级（方案A）：任一侧超限即重型（与确认门同阈值），挂载时关高开销选项。
+  // 只读预览里 chunk 合并按钮（接受/拒绝）落不了盘，纯摆设，重型下一并关闭。
+  const isHeavy = isHeavyDiffContent(original, modified);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const [editorView, setEditorView] = useState<EditorView | null>(null);
   const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
-    getLanguageExtensionSync(language),
+    isHeavy ? [] : getLanguageExtensionSync(language),
   );
   const [editorReady, setEditorReady] = useState(false);
   const expandedCollapsedLinesRef = useRef<Set<number>>(new Set());
@@ -64,6 +68,8 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     wrapperRef,
     fileKey ?? original + modified,
     editorView,
+    // 重型 plaintext 下 fold 标记永不出现，跳过 100ms×60 轮询风暴（方案A）。
+    isHeavy,
   );
 
   const onMountRef = useRef(onMount);
@@ -71,8 +77,13 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
   const onCollapsedRef = useRef(onCollapsedUnchangedRangesChange);
   onCollapsedRef.current = onCollapsedUnchangedRangesChange;
 
-  // 先加载语言扩展，完成后才允许创建编辑器
+  // 先加载语言扩展，完成后才允许创建编辑器；重型直接 plaintext，不解析巨型文档。
   useEffect(() => {
+    if (isHeavy) {
+      setLangExtensions([]);
+      setEditorReady(true);
+      return;
+    }
     let cancelled = false;
     getLanguageExtension(language)
       .then((exts) => {
@@ -88,7 +99,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [language]);
+  }, [language, isHeavy]);
 
   const cmPhrases = useMemo(
     () => ({
@@ -100,7 +111,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     [t],
   );
 
-  // 扩展配置 - 语言扩展直接包含在内
+  // 扩展配置 - 语言扩展直接包含在内；重型传空（plaintext，见上）。
   const staticExtensions = useMemo<Extension[]>(() => {
     const base = buildSharedExtensions(
       language,
@@ -109,7 +120,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       lineNumbersEnabled,
       wordWrap,
       cmPhrases,
-      langExtensions,
+      isHeavy ? [] : langExtensions,
     );
     return [
       ...base,
@@ -141,9 +152,10 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       }),
       unifiedMergeView({
         original,
-        highlightChanges: true,
-        gutter: true,
-        mergeControls: true,
+        highlightChanges: !isHeavy,
+        gutter: !isHeavy,
+        mergeControls: isHeavy && readOnly ? false : true,
+        syntaxHighlightDeletions: !isHeavy,
         collapseUnchanged: collapseUnchanged ? COLLAPSE_UNCHANGED_CONFIG : undefined,
       }),
     ];
@@ -154,6 +166,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     lineNumbersEnabled,
     wordWrap,
     cmPhrases,
+    isHeavy,
     langExtensions,
     original,
     collapseUnchanged,
@@ -211,7 +224,7 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
       setEditorView(null);
       onCollapsedRef.current?.([]);
     };
-  }, [editorReady, language, original, modified, staticExtensions, collapseUnchanged]);
+  }, [editorReady, language, original, modified, staticExtensions, collapseUnchanged, isHeavy]);
 
   useEffect(() => {
     const view = viewRef.current;
@@ -227,6 +240,35 @@ export const InlineDiffViewer = memo(function InlineDiffViewer({
     });
     view.requestMeasure();
   }, [lineNumbersEnabled, wordWrap]);
+
+  // 容器尺寸变化（窗口最大化/还原、面板拖拽）后重测量（方案A）：
+  // 此前只在挂载与行号/换行切换时 requestMeasure，陈旧尺寸导致
+  // "最大化仍按小尺寸渲染 / 还原被裁剪"，数秒后才被附带事务纠正。
+  // rAF 节流：拖拽中 RO 高频触发，逐帧重测会把缩放拖成幻灯片。
+  const measureRafRef = useRef(0);
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (typeof requestAnimationFrame === 'undefined') {
+        viewRef.current?.requestMeasure();
+        return;
+      }
+      cancelAnimationFrame(measureRafRef.current);
+      measureRafRef.current = requestAnimationFrame(() => {
+        viewRef.current?.requestMeasure();
+      });
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (typeof cancelAnimationFrame !== 'undefined') {
+        cancelAnimationFrame(measureRafRef.current);
+      }
+    };
+  }, [editorView]);
 
   return (
     <div

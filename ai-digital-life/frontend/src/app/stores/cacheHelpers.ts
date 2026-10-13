@@ -15,6 +15,18 @@ export let sessionRequestSeq = 0;
 export let fileRequestSeq = 0;
 export let changePreviewRequestSeq = 0;
 
+/**
+ * 用户发起的变更预览请求正在进行时的目标路径（事项3 复审 H2）。
+ * 后台 `fetchGitStatus` 落定后会按 selected 刷新预览，而"就绪才切换"使
+ * pending 期 selected 仍是旧文件——若不设防，后台刷新会推进全局 seq 并
+ * 作废用户刚点击的请求（点击被静默吞掉）。刷新入口据此守卫。
+ */
+export let pendingChangePreviewPath: string | undefined;
+
+export function setPendingChangePreviewPath(path: string | undefined): void {
+  pendingChangePreviewPath = path;
+}
+
 /** 缓存类型定义 */
 export interface CachedFileDocument {
   content: string;

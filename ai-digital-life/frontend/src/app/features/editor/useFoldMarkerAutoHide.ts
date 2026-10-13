@@ -41,6 +41,11 @@ export function useFoldMarkerAutoHide(
   containerRef: React.RefObject<HTMLElement | null>,
   fileKey: string,
   editorView?: EditorView | null,
+  /**
+   * 重型差异降级（方案A）：plaintext 下无解析器→永无 fold 标记，
+   * 100ms×60 的 forceParsing + 重配轮询纯属无用功且阻塞主线程，直接全跳过。
+   */
+  disabled = false,
 ): FoldMarkerState {
   const [state, setState] = useState<FoldMarkerState>('hidden');
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -105,6 +110,13 @@ export function useFoldMarkerAutoHide(
   }, []);
 
   useEffect(() => {
+    if (disabled) {
+      // 收敛状态（复审 L1）：disabled 早返回时清残留，避免普通→重型切换后
+      // 带着上一次的 visible / isHovering 渲染。
+      isHoveringRef.current = false;
+      setState('hidden');
+      return;
+    }
     setState('visible');
     revealingRef.current = false;
     pollCountRef.current = 0;
@@ -174,9 +186,12 @@ export function useFoldMarkerAutoHide(
       markerObserver?.disconnect();
       clearTimers();
     };
-  }, [fileKey, containerRef, editorView, clearTimers, startRevealTimer]);
+  }, [fileKey, containerRef, editorView, clearTimers, startRevealTimer, disabled]);
 
   useEffect(() => {
+    if (disabled) {
+      return;
+    }
     const el = containerRef.current;
     if (!el) {
       return;
@@ -224,7 +239,7 @@ export function useFoldMarkerAutoHide(
         listenerCleanupRef.current = null;
       }
     };
-  }, [containerRef, fileKey, show, scheduleHide]);
+  }, [containerRef, fileKey, show, scheduleHide, disabled]);
 
   return state;
 }

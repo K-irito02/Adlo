@@ -29,6 +29,47 @@ export function isHeavyTextCategory(category: FileCategory): boolean {
 }
 
 /**
+ * 变更预览的重型体积（字符数）：取 base/current 两侧较大者。
+ * 事项3：此前门条件只看 current，删除型（current 为空、base 巨大）绕过确认门
+ * 直挂 DiffViewer，大文档解析+布局阻塞主线程 → 最小化还原黑屏、缩放卡顿。
+ * base/current 语义见 read_change_preview（新增型 base 空、删除型 current 空）。
+ */
+export function heavyChangePreviewLength(baseContent: string, currentContent: string): number {
+  return Math.max(baseContent.length, currentContent.length);
+}
+
+/**
+ * 重型差异内容判定（方案A：重型差异降级渲染）。
+ * 与确认门同阈值（`>`），供差异视图挂载时选择低成本选项：
+ * base/current 任一超限即重型（删除型 current 为空不能作为"不重"依据）。
+ */
+export function isHeavyDiffContent(original: string, modified: string): boolean {
+  return heavyChangePreviewLength(original, modified) > TEXT_HEAVY_PREVIEW_CHARS;
+}
+
+/**
+ * 重型确认后的 plain 展示分 pane（方案A-2）。
+ * 日志实证：MergeView 挂载 5.6MB original 即占 1.3~1.5s（11.5k 行非虚拟化
+ * widget DOM），plain CodeEditor 只挂可视行。删除型展 base、新增型展 current、
+ * 双侧重型双 pane 独立滚动；双侧都空返回 [] 由调用端回退原有渲染。
+ */
+export type HeavyPreviewPane = 'base' | 'current';
+
+export function getHeavyPreviewPanes(
+  baseContent: string,
+  currentContent: string,
+): HeavyPreviewPane[] {
+  const panes: HeavyPreviewPane[] = [];
+  if (baseContent.length > 0) {
+    panes.push('base');
+  }
+  if (currentContent.length > 0) {
+    panes.push('current');
+  }
+  return panes;
+}
+
+/**
  * 重型门确认记忆（Phase 4 审查 F2）：模块级 Set，多重型文件往返不重复打扰；
  * 路径字符串常驻内存可忽略。确认后调用端自行触发重渲染。
  * key 含工作区隔离（rev3 复审 N2）：同相对路径在不同工作区是不同文件。

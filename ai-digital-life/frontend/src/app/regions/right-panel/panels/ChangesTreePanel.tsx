@@ -50,6 +50,9 @@ interface TreeCallbacks {
   getContextMenuItems: (node: ChangeTreeNode) => FileTreeContextMenuItem<ChangeTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
+  onRequestDiscardConfirm?: (path: string, workspacePath: string) => void;
   renderMeta: (node: WorkspaceTreeNode) => React.ReactNode;
   renderCount?: (node: WorkspaceTreeNode) => React.ReactNode;
   onToggleAllDirectories: () => void;
@@ -115,6 +118,9 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
     getContextMenuItems,
     contextMenuPersistRef,
     clearMenuHighlightRef,
+    setRenamingWorkspacePath,
+    setDeleteWorkspacePath,
+    onRequestDiscardConfirm,
     renderMeta,
     renderCount,
     changesNavigatorMode,
@@ -227,6 +233,9 @@ export function ChangesTreePanel(props: ChangesTreePanelProps) {
             }
             contextMenuPersistRef={contextMenuPersistRef}
             clearMenuHighlightRef={clearMenuHighlightRef}
+            setRenamingWorkspacePath={setRenamingWorkspacePath}
+            setDeleteWorkspacePath={setDeleteWorkspacePath}
+            onRequestDiscardConfirm={onRequestDiscardConfirm}
             renderMeta={renderMeta}
             renderCount={renderCount}
           />

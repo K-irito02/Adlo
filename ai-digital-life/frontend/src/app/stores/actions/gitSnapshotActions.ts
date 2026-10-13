@@ -1,7 +1,7 @@
 import type { StoreState } from '../StoreState';
 import type { GitSnapshot } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
-import { createLazyLoader } from '../shared';
+import { createLazyLoader, pendingChangePreviewPath } from '../shared';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 
 function moveInSnapshot(
@@ -140,6 +140,12 @@ export function createGitSnapshotActions(
         // wrongly close or refresh it. Guard on the request-time id; the new
         // workspace's preview consistency is handled by its own bootstrap/fetch.
         if (get().appInfo?.currentWorkspace?.id !== workspaceId) {
+          return;
+        }
+        // 用户发起的预览请求在途时让路（复审 H2）："就绪才切换"使 pending 期
+        // selected 仍是旧文件，此处若按 selected 重开预览会推进全局 seq 并作废
+        // 用户刚点击的请求。下次 fetch 再收敛即可。
+        if (pendingChangePreviewPath !== undefined) {
           return;
         }
         const selectedChangePreviewPath = get().selectedChangePreviewPath;

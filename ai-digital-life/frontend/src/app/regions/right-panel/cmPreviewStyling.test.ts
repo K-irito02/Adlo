@@ -86,7 +86,8 @@ describe('CodeMirror preview styling', () => {
   it('renders diff state with quiet line backgrounds instead of vertical status rails', () => {
     expect(cmThemeSource).toContain('.cm-deletedLine');
     expect(cmThemeSource).toContain('.cm-insertedLine');
-    expect(sideBySideSource).toContain('gutter: true');
+    // 方案A：常规文件仍开合并标记 gutter，重型（>1M 字符）才关闭以保流畅。
+    expect(sideBySideSource).toContain('gutter: !isHeavy');
     expect(diffViewerSource).not.toContain('gutter: false');
     expect(cmThemeSource).not.toContain('inset 3px 0 0');
     expect(diffCssSource).not.toContain('inset 3px 0 0');

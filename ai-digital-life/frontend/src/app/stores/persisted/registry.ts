@@ -521,6 +521,29 @@ export const registry = {
     read: readClickedNodeRecord,
     prune: pruneByWorkspaceId,
   }),
+  // ─────────────────────────────────────────────────────────────
+  // 面板"选中工作区"持久化（事项1 方案A）：点击工作区根/树节点只写会话态，
+  // 重启后回退 derivedActive（后端 current_workspace）导致高亮恒落最新打开。
+  // fallback 用 null 而非 undefined（registrySelfCheck 的 32KB 断言对 fallback
+  // 做 JSON.stringify，undefined 会抛；约定与 adl:session.lastFile 同理）。
+  // scope 为 global 且无 prune —— 陈旧 id（工作区已移除）由 FileNavigatorShell /
+  // useChangesFilters 按 recentWorkspaces 做派生式回退，不写回 store，避免构造期
+  // 清单为空时误删（规格 §3.5.1）。
+  // ─────────────────────────────────────────────────────────────
+  'adl:files.activeWorkspace': defineEntry<string | null>({
+    key: 'adl:files.activeWorkspace',
+    field: 'fileNavigatorActiveWorkspaceId',
+    fallback: null,
+    scope: 'global',
+    read: (raw) => (raw === null ? null : readString(raw)),
+  }),
+  'adl:changes.activeWorkspace': defineEntry<string | null>({
+    key: 'adl:changes.activeWorkspace',
+    field: 'changesNavigatorActiveWorkspaceId',
+    fallback: null,
+    scope: 'global',
+    read: (raw) => (raw === null ? null : readString(raw)),
+  }),
   'adl:files.searchFlags': defineEntry<SearchFlags>({
     key: 'adl:files.searchFlags',
     field: 'searchFlags',

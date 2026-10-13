@@ -138,7 +138,9 @@ pub(crate) fn git_show_file(root: &Path, relative_path: &str) -> Result<Option<S
         .output()
         .map_err(|error| AppError::Workspace(format!("failed to execute git: {error}")))?;
     if output.status.success() {
-        if output.stdout.len() as u64 > crate::DEFAULT_MAX_FILE_BYTES {
+        // 事项3：与变更预览 current 侧对齐到 8MB（此前 1MB；base 侧同样不应先于
+        // 前端 HeavyPreviewGate 拒掉，是否渲染由前端确认门决定）。
+        if output.stdout.len() as u64 > crate::DEFAULT_MAX_TEXT_FILE_BYTES {
             return Err(AppError::Workspace(format!(
                 "git blob is too large to preview: {relative_path}"
             )));

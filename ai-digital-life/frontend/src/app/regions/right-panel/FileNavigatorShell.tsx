@@ -180,24 +180,31 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   // 输入框草稿（searchQuery prop）仅控制输入值与回车提交，未回车不触发结果变化。
   const committedSearchQuery = useAppStore((s) => s.searchQuery);
 
+  const visibleWorkspaces = useMemo(
+    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available),
+    [recentWorkspaces],
+  );
+
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-  // 文件导航器"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载），
+  // 文件导航器"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载，
+  // 事项1 起落盘 `adl:files.activeWorkspace`，重启后仍在），
   // 未选中时回退到后端当前激活工作区。
+  // 陈旧 id（工作区已移除/隐藏）派生式回退，不写回 store。
   const derivedActiveWorkspaceId = appInfo?.currentWorkspace?.path
     ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
     : undefined;
-  const activeWorkspaceId = fileNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
+  const storedActiveWorkspaceId =
+    fileNavigatorActiveWorkspaceId &&
+    visibleWorkspaces.some((w) => w.id === fileNavigatorActiveWorkspaceId)
+      ? fileNavigatorActiveWorkspaceId
+      : undefined;
+  const activeWorkspaceId = storedActiveWorkspaceId ?? derivedActiveWorkspaceId;
 
   const handleSelectWorkspace = useCallback(
     (workspaceId: string) => {
       setFileNavigatorActiveWorkspace(workspaceId);
     },
     [setFileNavigatorActiveWorkspace],
-  );
-
-  const visibleWorkspaces = useMemo(
-    () => recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available),
-    [recentWorkspaces],
   );
 
   // 重启还原回退（Task 22）：会话选中（扁平字段）重启即空，此时以上次持久化选中补位，

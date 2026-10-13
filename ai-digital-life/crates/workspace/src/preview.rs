@@ -33,7 +33,9 @@ pub fn read_change_preview(
 
     let current_exists = absolute_path.is_file();
     let current_content = if current_exists {
-        adl_fs_ops::read_text_file(root, &normalized_path, crate::DEFAULT_MAX_FILE_BYTES)?
+        // 事项3：与用户主动开文件对齐到 8MB（此前 1MB，超限直接 InvalidInput，
+        // 前端 HeavyPreviewGate 根本到不了）。读到之后是否渲染由前端 1M 字符确认门决定。
+        adl_fs_ops::read_text_file(root, &normalized_path, crate::DEFAULT_MAX_TEXT_FILE_BYTES)?
     } else {
         String::new()
     };

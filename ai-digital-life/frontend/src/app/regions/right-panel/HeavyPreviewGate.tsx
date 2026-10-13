@@ -1,4 +1,5 @@
 import { useTCopy } from '@i18n/useTCopy';
+import type { CopyKey } from '@i18n/types';
 
 export interface HeavyPreviewGateProps {
   /** 文件工作区相对路径（展示用） */
@@ -7,13 +8,18 @@ export interface HeavyPreviewGateProps {
   sizeText: string;
   /** 确认回调：调用端记忆确认态并重渲染 */
   onConfirm: () => void;
+  /**
+   * 提示文案 key（方案A）：差异门用 `heavyPreviewHintDiff` 说明简化渲染，
+   * 缺省沿用通用 `heavyPreviewHint`（文件面板等全量渲染路径）。
+   */
+  hintKey?: Extract<CopyKey, 'heavyPreviewHint' | 'heavyPreviewHintDiff'>;
 }
 
 /**
  * 大文件确认门（收尾 M1 抽取，EditorSurfaceShell/FilePreviewRenderers 共用）：
  * 居中图标 + 标题 + 体积说明 + “仍然打开”按钮，统一样式与无障碍语义。
  */
-export function HeavyPreviewGate({ name, sizeText, onConfirm }: HeavyPreviewGateProps) {
+export function HeavyPreviewGate({ name, sizeText, onConfirm, hintKey }: HeavyPreviewGateProps) {
   const { t, formatT } = useTCopy();
   return (
     <div className="adl-unsupported-preview" role="status">
@@ -33,7 +39,7 @@ export function HeavyPreviewGate({ name, sizeText, onConfirm }: HeavyPreviewGate
       </svg>
       <span className="adl-unsupported-preview__text">{t.heavyPreviewTitle as string}</span>
       <span className="adl-unsupported-preview__hint">
-        {formatT(t, 'heavyPreviewHint', { name, size: sizeText })}
+        {formatT(t, hintKey ?? 'heavyPreviewHint', { name, size: sizeText })}
       </span>
       <button type="button" className="adl-unsupported-preview__action" onClick={onConfirm}>
         {t.heavyPreviewOpen as string}

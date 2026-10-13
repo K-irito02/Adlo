@@ -11,6 +11,7 @@ import type { StoreState } from '../StoreState';
 import type { EditorTabState } from '@utils/editorTabs';
 import type { PersistedViewport } from '../persisted/viewport';
 import { persistField } from '../persisted/apply';
+import { persist } from '../persisted/persist';
 
 /** 文件树选中节点（按工作区隔离的持久化记录，`adl:files.clickedNode`，Task 22） */
 export interface FileTreeClickedNode {
@@ -86,9 +87,14 @@ export interface EditorSlice {
   changesTreeClickedKind?: 'directory' | 'file';
   /** 点击"工作区顶级目录"（根目录）时记录 */
   changesTreeClickedWorkspaceRoot?: string;
-  fileNavigatorActiveWorkspaceId?: string;
-  /** Changes 面板"选中工作区"（与 Files 面板 fileNavigatorActiveWorkspaceId 隔离） */
-  changesNavigatorActiveWorkspaceId?: string;
+  /**
+   * 面板"选中工作区"（事项1 方案A 起落盘 `adl:files.activeWorkspace`）。
+   * 可为 `null`：水合对"从未写过"的键写入 registry fallback `null`，
+   * 消费端一律用真值判断 / `??` 回退（见 FileNavigatorShell / useChangesFilters）。
+   */
+  fileNavigatorActiveWorkspaceId?: string | null;
+  /** Changes 面板"选中工作区"（与 Files 面板 fileNavigatorActiveWorkspaceId 隔离，规则同上） */
+  changesNavigatorActiveWorkspaceId?: string | null;
   /**
    * 文件树选中节点（按工作区隔离，`adl:files.clickedNode`，Task 22）。
    * 与上方四个扁平字段互为镜像：扁平字段是"当前会话选中"（重启即空），
@@ -231,6 +237,9 @@ export const createEditorSlice = (
         [workspaceId]: { path, kind },
       }),
     });
+    // 事项1 方案A：选中工作区同步落盘（只用 persist 语句，不进 set 补丁；
+    // store 内可为 null——水合层对未写过的键写入 fallback null，见字段注释）。
+    persist('adl:files.activeWorkspace', workspaceId);
   },
   setFileTreeClickedWorkspaceRoot: (workspaceId) => {
     const current = get();
@@ -271,6 +280,7 @@ export const createEditorSlice = (
       fileNavigatorActiveWorkspaceId: undefined,
       ...persistField('adl:files.clickedNode', nextClicked),
     });
+    persist('adl:files.activeWorkspace', null);
   },
   setFilesOutlineExpanded: (workspaceId, ids) =>
     set((state) =>
@@ -279,7 +289,7 @@ export const createEditorSlice = (
         [workspaceId]: [...ids],
       }),
     ),
-  setChangesTreeClickedNode: (workspaceId, path, kind) =>
+  setChangesTreeClickedNode: (workspaceId, path, kind) => {
     set({
       changesTreeClickedWorkspaceId: workspaceId,
       changesTreeClickedPath: path,
@@ -288,16 +298,20 @@ export const createEditorSlice = (
       // 点击 Changes 树节点时，把"选中工作区"同步为该节点所属工作区，使顶部工作区高亮
       // （左侧蓝条 + 蓝底）始终跟随用户实际正在操作的工作区，与 Files 面板行为一致。
       changesNavigatorActiveWorkspaceId: workspaceId,
-    }),
-  setChangesTreeClickedWorkspaceRoot: (workspaceId) =>
+    });
+    persist('adl:changes.activeWorkspace', workspaceId);
+  },
+  setChangesTreeClickedWorkspaceRoot: (workspaceId) => {
     set({
       changesTreeClickedWorkspaceId: workspaceId,
       changesTreeClickedPath: undefined,
       changesTreeClickedKind: undefined,
       changesTreeClickedWorkspaceRoot: workspaceId,
       changesNavigatorActiveWorkspaceId: workspaceId,
-    }),
-  clearChangesTreeClickedNode: () =>
+    });
+    persist('adl:changes.activeWorkspace', workspaceId);
+  },
+  clearChangesTreeClickedNode: () => {
     set({
       changesTreeClickedPath: undefined,
       changesTreeClickedWorkspaceId: undefined,
@@ -305,12 +319,18 @@ export const createEditorSlice = (
       changesTreeClickedWorkspaceRoot: undefined,
       // 与 Files 面板一致：清除选中态时同步清空"选中工作区"，使回退分支可重新触达。
       changesNavigatorActiveWorkspaceId: undefined,
-    }),
-  setFileNavigatorActiveWorkspace: (fileNavigatorActiveWorkspaceId) =>
-    set({ fileNavigatorActiveWorkspaceId }),
-  setChangesNavigatorActiveWorkspace: (changesNavigatorActiveWorkspaceId) =>
-    set({ changesNavigatorActiveWorkspaceId }),
-  clearEditorState: () =>
+    });
+    persist('adl:changes.activeWorkspace', null);
+  },
+  setFileNavigatorActiveWorkspace: (fileNavigatorActiveWorkspaceId) => {
+    set({ fileNavigatorActiveWorkspaceId });
+    persist('adl:files.activeWorkspace', fileNavigatorActiveWorkspaceId ?? null);
+  },
+  setChangesNavigatorActiveWorkspace: (changesNavigatorActiveWorkspaceId) => {
+    set({ changesNavigatorActiveWorkspaceId });
+    persist('adl:changes.activeWorkspace', changesNavigatorActiveWorkspaceId ?? null);
+  },
+  clearEditorState: () => {
     set({
       openTabs: [],
       selectedFilePath: undefined,
@@ -338,5 +358,9 @@ export const createEditorSlice = (
       changesTreeClickedWorkspaceRoot: undefined,
       fileNavigatorActiveWorkspaceId: undefined,
       changesNavigatorActiveWorkspaceId: undefined,
-    }),
+    });
+    // 清内存同时清盘（复审 1-2）：否则重启后旧选中会"复活"。
+    persist('adl:files.activeWorkspace', null);
+    persist('adl:changes.activeWorkspace', null);
+  },
 });

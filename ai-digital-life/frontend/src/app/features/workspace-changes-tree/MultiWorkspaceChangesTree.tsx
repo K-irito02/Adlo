@@ -33,6 +33,9 @@ export interface MultiWorkspaceChangesTreeProps {
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
+  onRequestDiscardConfirm?: (path: string, workspacePath: string) => void;
   renderMeta?: (node: WorkspaceTreeNode) => React.ReactNode;
   renderCount?: (node: WorkspaceTreeNode) => React.ReactNode;
 }
@@ -64,6 +67,9 @@ export function MultiWorkspaceChangesTree({
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
+  setRenamingWorkspacePath,
+  setDeleteWorkspacePath,
+  onRequestDiscardConfirm,
   renderMeta,
   renderCount,
 }: MultiWorkspaceChangesTreeProps) {
@@ -98,6 +104,9 @@ export function MultiWorkspaceChangesTree({
             getContextMenuItems={getContextMenuItems}
             contextMenuPersistRef={contextMenuPersistRef}
             clearMenuHighlightRef={clearMenuHighlightRef}
+            setRenamingWorkspacePath={setRenamingWorkspacePath}
+            setDeleteWorkspacePath={setDeleteWorkspacePath}
+            onRequestDiscardConfirm={onRequestDiscardConfirm}
             expandLabel={t.expandDetails as string}
             collapseLabel={t.collapseDetails as string}
             t={t}
@@ -131,6 +140,9 @@ export function MultiWorkspaceChangesTree({
       getContextMenuItems,
       contextMenuPersistRef,
       clearMenuHighlightRef,
+      setRenamingWorkspacePath,
+      setDeleteWorkspacePath,
+      onRequestDiscardConfirm,
       t,
       renderMeta,
       renderCount,

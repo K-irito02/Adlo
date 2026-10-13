@@ -119,6 +119,9 @@ export const changesZh = {
   changesValidationSkipped: '跳过校验',
   changesUnstage: '取消暂存',
   changesDiscard: '放弃更改',
+  changesDiscardDirConfirm: '确认放弃该目录的更改',
+  changesDiscardDirMessage:
+    '将递归放弃该目录下所有已跟踪文件的更改，并删除其中的未跟踪文件。此操作不可撤销。',
   gitVisualization: 'Git 可视化',
   gitVisModuleFrontend: '前端',
   gitVisModuleBackend: '后端',

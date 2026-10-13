@@ -34,6 +34,12 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
   );
   const workspaceTrees = useAppStore(useShallow((s) => s.workspaceTrees));
   const activeWorkspaceId = useAppStore((s) => s.fileNavigatorActiveWorkspaceId);
+  // 陈旧 id 派生回退（复审 M2）：该字段事项1 起跨重启持久化，被移除/隐藏的
+  // 工作区 id 会一直留在盘上，直接当初始选中会指向不可见工作区。
+  const validActiveWorkspaceId =
+    activeWorkspaceId && visibleWorkspaces.some((w) => w.id === activeWorkspaceId)
+      ? activeWorkspaceId
+      : undefined;
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | undefined>(undefined);
   // 草稿态：弹窗内一切修改只写草稿，点"保存"才落盘（关闭/取消即丢弃）。
@@ -52,7 +58,7 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     if (open) {
       setTab('ignore');
       const store = useAppStore.getState();
-      setSelectedWorkspaceId(activeWorkspaceId ?? visibleWorkspaces[0]?.id);
+      setSelectedWorkspaceId(validActiveWorkspaceId ?? visibleWorkspaces[0]?.id);
       const ignored: Record<string, string[]> = {};
       const gitignore: Record<string, boolean> = {};
       for (const ws of visibleWorkspaces) {
@@ -100,8 +106,8 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     if (selectedWorkspaceId && visibleWorkspaces.some((w) => w.id === selectedWorkspaceId)) {
       return selectedWorkspaceId;
     }
-    return activeWorkspaceId ?? visibleWorkspaces[0]?.id;
-  }, [selectedWorkspaceId, activeWorkspaceId, visibleWorkspaces]);
+    return validActiveWorkspaceId ?? visibleWorkspaces[0]?.id;
+  }, [selectedWorkspaceId, validActiveWorkspaceId, visibleWorkspaces]);
   const currentNodes = useMemo(
     () => (currentWorkspaceId ? (workspaceTrees[currentWorkspaceId] ?? []) : []),
     [workspaceTrees, currentWorkspaceId],

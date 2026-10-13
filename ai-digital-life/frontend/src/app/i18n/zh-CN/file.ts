@@ -131,6 +131,8 @@ export const fileZh = {
   fileMediaLoading: '正在加载文件…',
   heavyPreviewTitle: '文件较大，暂未直接打开',
   heavyPreviewHint: '{name}（{size}）渲染可能较慢，甚至导致界面卡顿。',
+  heavyPreviewHintDiff:
+    '{name}（{size}）过大。为保持流畅，差异以简化模式渲染（无语法高亮、逐字标红与合并按钮），增删行完整可审。',
   heavyPreviewOpen: '仍然打开',
   sessionLastFileMissing: '上次打开的文件已不存在',
   searchHitStale: '已失效',

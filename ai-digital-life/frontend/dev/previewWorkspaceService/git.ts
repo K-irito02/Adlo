@@ -3,7 +3,7 @@ import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import type { GitSnapshot, GitBranchSummary, WorkspaceGitBranchSwitchInput, WorkspaceGitBranchCreateInput, WorkspaceChangePreview } from '../../src/kernel/index';
-import { resolveWorkspacePath, normalizePath, relativePath, detectWorkspaceRoot, inferWorkspaceType, createWorkspaceId, nowMs, DEFAULT_MAX_FILE_BYTES } from './files';
+import { resolveWorkspacePath, normalizePath, relativePath, detectWorkspaceRoot, inferWorkspaceType, createWorkspaceId, nowMs, DEFAULT_MAX_TEXT_FILE_BYTES } from './files';
 
 const GIT_TIMEOUT_MS = 30_000;
 const GIT_CANDIDATE_PATHS = process.platform === 'win32'
@@ -113,7 +113,9 @@ async function gitHeadFileExists(rootPath: string, relativeTarget: string): Prom
 
 async function gitShowFile(rootPath: string, relativeTarget: string): Promise<string | undefined> {
   const stdout = await runGitBytes(rootPath, ['show', `HEAD:${normalizePath(relativeTarget)}`]);
-  if (stdout && stdout.byteLength > DEFAULT_MAX_FILE_BYTES) {
+  // 事项3：与 Rust read_change_preview / 用户主动开文件对齐到 8MB（此前 1MB，
+  // 超限先于前端 HeavyPreviewGate 拒掉）。是否渲染由前端 1M 字符确认门决定。
+  if (stdout && stdout.byteLength > DEFAULT_MAX_TEXT_FILE_BYTES) {
     throw new Error(`git blob is too large to preview: ${normalizePath(relativeTarget)}`);
   }
   return stdout ? stdout.toString('utf8') : undefined;
@@ -146,6 +148,11 @@ export async function readChangePreview(rootPath: string, relativeTarget: string
   if (stats?.isDirectory()) throw new Error(`change preview requires a file path: ${normalizedTarget}`);
 
   const currentExists = stats?.isFile() ?? false;
+  // 与 Rust read_change_preview 对齐（复审 3-1）：current 侧同样受 8MB 文本上限，
+  // 超限即失败，由前端确认门承担"读到之后是否渲染"（此前直接整读无上限）。
+  if (currentExists && (stats?.size ?? 0) > DEFAULT_MAX_TEXT_FILE_BYTES) {
+    throw new Error(`file exceeds configured read limit: ${normalizedTarget}`);
+  }
   const currentContent = currentExists ? await fs.readFile(absolutePath, 'utf8') : '';
   const baseContent = await gitShowFile(rootPath, normalizedTarget);
   const baseExists = typeof baseContent === 'string' ? true : await gitHeadFileExists(rootPath, normalizedTarget);

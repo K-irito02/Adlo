@@ -7,6 +7,9 @@ import { categorizeFile, isMediaFileCategory } from '../fileTypeRouter';
 import {
   TEXT_HEAVY_PREVIEW_CHARS,
   confirmHeavyPreview,
+  getHeavyPreviewPanes,
+  heavyChangePreviewLength,
+  isHeavyDiffContent,
   isHeavyPreviewConfirmed,
 } from '../heavyPreviewLimits';
 import { HeavyPreviewGate } from '../HeavyPreviewGate';
@@ -103,7 +106,9 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   const outline = useMemo(
     () =>
-      changePreview
+      changePreview &&
+      // 重型跳过：5.6MB 级全文 walk 生成大纲本身即主线程块（与开文件重型跳过同例）。
+      !isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent)
         ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
         : [],
     [changePreview],
@@ -247,11 +252,17 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   // 大变更确认门（收尾 R34-H2）：markdown 预览 whole-document 解析与 DiffViewer
   // 全量 diff 计算同样怕巨型内容，与 Files 文本门同阈值（字符数近似即可）。
+  // 事项3：体积取 base/current 较大者——删除型 current 为空，只看 current 会放行
+  // 巨型 base 直渲染（白屏/卡顿源头）；确认后渲染，不强制限制（用户仍可"仍然打开"）。
+  const heavyContentLength = heavyChangePreviewLength(
+    changePreview.baseContent,
+    changePreview.currentContent,
+  );
   if (
     (changePreviewCategory === 'markdown' ||
       changePreviewCategory === 'code' ||
       changePreviewCategory === 'text') &&
-    changePreview.currentContent.length > TEXT_HEAVY_PREVIEW_CHARS &&
+    heavyContentLength > TEXT_HEAVY_PREVIEW_CHARS &&
     !isHeavyPreviewConfirmed(selectedChangePreviewWorkspaceId, changePreview.path)
   ) {
     return (
@@ -265,12 +276,73 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
           <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
             <HeavyPreviewGate
               name={changePreview.path}
-              sizeText={formatBytes(changePreview.currentContent.length)}
+              sizeText={formatBytes(heavyContentLength)}
+              hintKey="heavyPreviewHintDiff"
               onConfirm={() => {
                 confirmHeavyPreview(selectedChangePreviewWorkspaceId, changePreview.path);
                 setChangeConfirmTick((tick) => tick + 1);
               }}
             />
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // 方案A-2（白屏根治）：重型确认后不走 MergeView。日志实证 new EditorView 即占
+  // 1.3~1.5s（11.5k 行非虚拟化 widget DOM）；plain CodeEditor 只挂可视行。
+  // 删除型展 base、新增型展 current、双侧重型双 pane 独立滚动；增删语义由门文案承担。
+  const heavyConfirmed =
+    (changePreviewCategory === 'markdown' ||
+      changePreviewCategory === 'code' ||
+      changePreviewCategory === 'text') &&
+    heavyContentLength > TEXT_HEAVY_PREVIEW_CHARS &&
+    isHeavyPreviewConfirmed(selectedChangePreviewWorkspaceId, changePreview.path);
+  const heavyPanes = heavyConfirmed
+    ? getHeavyPreviewPanes(changePreview.baseContent, changePreview.currentContent)
+    : [];
+  if (heavyConfirmed && heavyPanes.length > 0) {
+    return (
+      <>
+        {validationBanner}
+        <div
+          ref={setPreviewShellRef}
+          className="adl-tool-editor adl-tool-editor--changes"
+          data-testid="changes-preview-shell"
+        >
+          <div
+            className="adl-tool-editor__surface"
+            style={
+              heavyPanes.length > 1
+                ? { display: 'flex', flexDirection: 'row', height: '100%' }
+                : undefined
+            }
+          >
+            {heavyPanes.map((pane) => (
+              <div
+                key={pane}
+                style={
+                  heavyPanes.length > 1
+                    ? { flex: '1 1 0', minWidth: 0, height: '100%' }
+                    : { height: '100%' }
+                }
+              >
+                <Suspense fallback={null}>
+                  <CodeEditor
+                    value={
+                      pane === 'base' ? changePreview.baseContent : changePreview.currentContent
+                    }
+                    language="plaintext"
+                    theme={changePreviewTheme}
+                    readOnly={true}
+                    lineNumbers={lineNumbersEnabled}
+                    wordWrap={wordWrapEnabled}
+                    onMount={handleEditorMount}
+                    fileKey={`${changePreview.path}#${pane}`}
+                  />
+                </Suspense>
+              </div>
+            ))}
           </div>
         </div>
       </>
@@ -324,6 +396,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
                 readOnly={true}
                 lineNumbers={lineNumbersEnabled}
                 wordWrap={wordWrapEnabled}
+                fileKey={changePreview.path}
                 onMount={handleEditorMount}
                 extensions={diffExtensions}
                 onCollapsedUnchangedRangesChange={setCollapsedUnchangedDiffRanges}

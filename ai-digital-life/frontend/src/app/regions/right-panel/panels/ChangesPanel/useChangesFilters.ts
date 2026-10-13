@@ -10,6 +10,7 @@ import type {
 import { buildChangeEntries, buildChangeTree } from '@regions/right-panel/changesTree';
 import { collectDirectoryPaths } from '@features/file-tree';
 import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '@features/outline';
+import { isHeavyDiffContent } from '@regions/right-panel/heavyPreviewLimits';
 import { summarizePatchSet } from '@features/patch-review';
 import { joinPathSegments } from '@app/utils/workspacePaths';
 import type { TreeExpansion } from '@stores/slices/uiSliceTypes';
@@ -71,16 +72,30 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
   const treeNodes = useMemo(() => buildChangeTree(filteredChangeEntries), [filteredChangeEntries]);
   const directoryPaths = useMemo(() => collectDirectoryPaths(treeNodes), [treeNodes]);
   const navigatorSelectedPath = selectedPatchFilePath ?? selectedChangePreviewPath;
-  // Changes 面板"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载），
+  // Changes 面板"选中工作区"：优先取用户点击选中的工作区（轻量前端态，不触发重载，
+  // 事项1 起落盘 `adl:changes.activeWorkspace`，重启后仍在），
   // 未选中时回退到后端当前激活工作区。与 Files 面板 fileNavigatorActiveWorkspaceId 行为一致。
   // （位置提前：下方大纲回填 effect 与 persist 回调在词法上先出现，须先声明避 TDZ。）
+  // 可见工作区同样提前：陈旧选中 id（已移除/隐藏）派生式回退，不写回 store。
+  const visibleWorkspaces = useMemo(
+    () => computeVisibleWorkspaces(recentWorkspaces),
+    [recentWorkspaces],
+  );
   const derivedActiveWorkspaceId = appInfo?.currentWorkspace?.path
     ? recentWorkspaces.find((w) => w.path === appInfo.currentWorkspace?.path)?.id
     : undefined;
-  const activeWorkspaceId = changesNavigatorActiveWorkspaceId ?? derivedActiveWorkspaceId;
+  const storedActiveWorkspaceId =
+    changesNavigatorActiveWorkspaceId &&
+    visibleWorkspaces.some((w) => w.id === changesNavigatorActiveWorkspaceId)
+      ? changesNavigatorActiveWorkspaceId
+      : undefined;
+  const activeWorkspaceId = storedActiveWorkspaceId ?? derivedActiveWorkspaceId;
   const changeOutline = useMemo(
     () =>
-      changePreview
+      changePreview &&
+      // 重型跳过：巨型 current 全文 walk 生成大纲本身即主线程块（方案A-2，
+      // 与 DiffEditorSection 本地大纲、开文件重型跳过同例）。
+      !isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent)
         ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
         : [],
     [changePreview],
@@ -146,11 +161,6 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
   const hasExpandedDirectories = useMemo(
     () => computeHasExpandedDirectories(directoryPaths, expandedPaths),
     [directoryPaths, expandedPaths],
-  );
-
-  const visibleWorkspaces = useMemo(
-    () => computeVisibleWorkspaces(recentWorkspaces),
-    [recentWorkspaces],
   );
 
   const changesTreeData = useMemo(

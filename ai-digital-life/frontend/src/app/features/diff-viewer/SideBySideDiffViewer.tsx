@@ -23,6 +23,7 @@ import {
   syncScrollPosition,
   getMergeChunks,
 } from './diffViewerUtils';
+import { isHeavyDiffContent } from '../../regions/right-panel/heavyPreviewLimits';
 import { setupDiffResizer } from './useDiffResizer';
 import { useTCopy } from '@app/i18n/useTCopy';
 import { cn } from '@/lib/utils';
@@ -57,6 +58,8 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   onCollapsedUnchangedRangesChange?: (ranges: PreviewDiffCollapsedRange[]) => void;
 }) {
   const { t } = useTCopy();
+  // 重型差异降级（方案A）：任一侧超限即重型（与确认门同阈值），双 pane 双倍成本。
+  const isHeavy = isHeavyDiffContent(original, modified);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mergeViewRef = useRef<MergeView | null>(null);
   const mergeViewARef = useRef<EditorView | null>(null);
@@ -73,9 +76,11 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     wrapperRef,
     fileKey ?? original + modified,
     editorViewA || editorViewB,
+    // 重型 plaintext 下 fold 标记永不出现，跳过 100ms×60 轮询风暴（方案A）。
+    isHeavy,
   );
   const [langExtensions, setLangExtensions] = useState<Extension[]>(() =>
-    getLanguageExtensionSync(language),
+    isHeavy ? [] : getLanguageExtensionSync(language),
   );
   const [editorReady, setEditorReady] = useState(false);
 
@@ -84,8 +89,13 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
   const onCollapsedRef = useRef(onCollapsedUnchangedRangesChange);
   onCollapsedRef.current = onCollapsedUnchangedRangesChange;
 
-  // 先加载语言扩展，完成后才允许创建编辑器
+  // 先加载语言扩展，完成后才允许创建编辑器；重型直接 plaintext，不解析巨型文档。
   useEffect(() => {
+    if (isHeavy) {
+      setLangExtensions([]);
+      setEditorReady(true);
+      return;
+    }
     let cancelled = false;
     getLanguageExtension(language)
       .then((exts) => {
@@ -101,7 +111,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [language]);
+  }, [language, isHeavy]);
 
   const cmPhrases = useMemo(
     () => ({
@@ -113,7 +123,7 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     [t],
   );
 
-  // 扩展配置 - 语言扩展直接包含在内
+  // 扩展配置 - 语言扩展直接包含在内；重型传空（plaintext，见上）。
   const sharedExts = useMemo(
     () =>
       buildSharedExtensions(
@@ -123,9 +133,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
         lineNumbersEnabled,
         wordWrap,
         cmPhrases,
-        langExtensions,
+        isHeavy ? [] : langExtensions,
       ),
-    [language, theme, readOnly, lineNumbersEnabled, wordWrap, cmPhrases, langExtensions],
+    [language, theme, readOnly, lineNumbersEnabled, wordWrap, cmPhrases, isHeavy, langExtensions],
   );
 
   const emitCollapsedUnchangedRanges = useCallback(
@@ -185,8 +195,8 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
       b: { doc: modified, extensions: bExts },
       parent: containerRef.current,
       collapseUnchanged: collapseUnchanged ? COLLAPSE_UNCHANGED_CONFIG : undefined,
-      gutter: true,
-      highlightChanges: true,
+      gutter: !isHeavy,
+      highlightChanges: !isHeavy,
     });
 
     const handleScrollA = () => {
@@ -261,6 +271,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     extraExtensions,
     collapseUnchanged,
     emitCollapsedUnchangedRanges,
+    // isHeavy 经 sharedExts 间接覆盖，此处显式声明以满足 exhaustive-deps
+    // （重型↔普通切换必须重建 MergeView，否则新旧选项混用）。
+    isHeavy,
   ]);
 
   useEffect(() => {
@@ -288,8 +301,9 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
 
   // Also force-parse syntax tree and reconfigure fold gutter for the right panel (view B).
   // (view A is handled by useFoldMarkerAutoHide's internal poll loop.)
+  // 重型跳过：plaintext 下无解析器，且整篇 forceParsing（2000ms 预算）本身即主线程块。
   useEffect(() => {
-    if (!editorViewB) {
+    if (!editorViewB || isHeavy) {
       return;
     }
     let cancelled = false;
@@ -308,7 +322,36 @@ export const SideBySideDiffViewer = memo(function SideBySideDiffViewer({
     return () => {
       cancelled = true;
     };
-  }, [editorViewB, lineNumbersEnabled]);
+  }, [editorViewB, lineNumbersEnabled, isHeavy]);
+
+  // 容器尺寸变化（窗口最大化/还原、面板拖拽）后重测量（方案A，同 inline 理由）。
+  // rAF 节流：拖拽中 RO 高频触发，逐帧重测会把缩放拖成幻灯片。
+  const measureRafRef = useRef(0);
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') {
+      return;
+    }
+    const observer = new ResizeObserver(() => {
+      if (typeof requestAnimationFrame === 'undefined') {
+        mergeViewRef.current?.a.requestMeasure();
+        mergeViewRef.current?.b.requestMeasure();
+        return;
+      }
+      cancelAnimationFrame(measureRafRef.current);
+      measureRafRef.current = requestAnimationFrame(() => {
+        mergeViewRef.current?.a.requestMeasure();
+        mergeViewRef.current?.b.requestMeasure();
+      });
+    });
+    observer.observe(el);
+    return () => {
+      observer.disconnect();
+      if (typeof cancelAnimationFrame !== 'undefined') {
+        cancelAnimationFrame(measureRafRef.current);
+      }
+    };
+  }, [editorViewA, editorViewB]);
 
   return (
     <div

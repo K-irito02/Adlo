@@ -2,6 +2,7 @@ import React from 'react';
 import type { ChangesPanelProps } from '../types';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
+import { ConfirmDialog } from '@components/ConfirmDialog';
 import { RenameDialog } from '@components/RenameDialog';
 import { ChangesTreePanel } from './ChangesTreePanel';
 import { PatchReviewSection } from './PatchReviewSection';
@@ -73,8 +74,14 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     changesRenameDialogOpen,
     changesRenamingPath,
     changesDeleteConfirmPath,
+    changesDiscardConfirm,
     changesContextMenuPersistRef,
     changesClearMenuHighlightRef,
+    setChangesRenamingWorkspacePath,
+    setChangesDeleteWorkspacePath,
+    requestChangesDiscardConfirm,
+    onChangesDiscardConfirm,
+    onChangesDiscardCancel,
     handleChangesRenameConfirm,
     handleChangesRenameCancel,
     handleChangesDeleteConfirm,
@@ -151,6 +158,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           getContextMenuItems={getContextMenuItems}
           contextMenuPersistRef={changesContextMenuPersistRef}
           clearMenuHighlightRef={changesClearMenuHighlightRef}
+          setRenamingWorkspacePath={setChangesRenamingWorkspacePath}
+          setDeleteWorkspacePath={setChangesDeleteWorkspacePath}
+          onRequestDiscardConfirm={requestChangesDiscardConfirm}
           renderMeta={renderNavigatorMeta}
           renderCount={renderNavigatorCount}
           onToggleAllDirectories={handleToggleAllDirectories}
@@ -235,6 +245,15 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         changesDeleteConfirmPath={changesDeleteConfirmPath}
         onDeleteConfirm={handleChangesDeleteConfirm}
         onDeleteCancel={handleChangesDeleteCancel}
+      />
+      <ConfirmDialog
+        open={!!changesDiscardConfirm}
+        title={t.changesDiscardDirConfirm as string}
+        message={t.changesDiscardDirMessage as string}
+        confirmLabel={t.changesDiscard as string}
+        cancelLabel={t.cancel as string}
+        onConfirm={onChangesDiscardConfirm}
+        onCancel={onChangesDiscardCancel}
       />
       {changesRenameDialogOpen && changesRenamingPath ? (
         <RenameDialog

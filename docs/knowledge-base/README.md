@@ -17,7 +17,7 @@
 | [interaction](./interaction/) | 跨功能面板交互/UX 修复（GitHub 面板、终端、检索、Git 可视化、指针事件、toast） | 45 |
 | [refactoring](./refactoring/) | 重构方法论、执行记录与架构改进（process / store-ui / architecture） | 25 |
 | [code-quality](./code-quality/) | 代码质量检测与修复、工具链门禁（diff-viewer / git-vis-charts / toolchain-lint / 审计） | 31 |
-| [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 13 |
+| [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 14 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离） | 7 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON 等后端经验 | 8 |
 | [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust 等） | 4 |
@@ -79,6 +79,7 @@
 | [file-selection-fix.md](./multi-workspace/file-selection-fix.md) | 文件选择修复经验 |
 | [file-tree.md](./multi-workspace/file-tree.md) | 多工作区文件树 11 条经验 |
 | [interactive-terminal.md](./multi-workspace/interactive-terminal.md) | 交互式终端讨论总结 |
+| [large-file-diff-degradation-2026-10-14.md](./multi-workspace/large-file-diff-degradation-2026-10-14.md) | 超大变更文件差异渲染：挂载成本、双侧取大门、plain 降级、fold 轮询风暴 |
 | [stats-fix.md](./multi-workspace/stats-fix.md) | 多工作区统计修复经验 |
 | [terminal-binding.md](./multi-workspace/terminal-binding.md) | 终端工作区绑定改进经验 |
 | [terminal-profile.md](./multi-workspace/terminal-profile.md) | 终端默认配置修复（PTY 通信、SSE 同步、配置持久化） |

@@ -132,6 +132,8 @@ export const fileEn = {
   fileMediaLoading: 'Loading file...',
   heavyPreviewTitle: 'This file is large, so it was not opened directly',
   heavyPreviewHint: '{name} ({size}) may render slowly or freeze the interface.',
+  heavyPreviewHintDiff:
+    '{name} ({size}) is very large. To stay responsive, the diff renders in simplified mode (no syntax highlighting, per-character marks, or merge controls); all added/removed lines remain reviewable.',
   heavyPreviewOpen: 'Open anyway',
   sessionLastFileMissing: 'The file opened last time no longer exists',
   searchHitStale: 'Outdated',

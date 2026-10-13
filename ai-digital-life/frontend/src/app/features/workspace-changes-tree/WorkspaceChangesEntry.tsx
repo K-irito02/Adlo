@@ -41,6 +41,9 @@ export interface WorkspaceChangesEntryProps {
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
   contextMenuPersistRef: React.MutableRefObject<boolean>;
   clearMenuHighlightRef: React.MutableRefObject<(() => void) | undefined>;
+  setRenamingWorkspacePath?: (path: string | undefined) => void;
+  setDeleteWorkspacePath?: (path: string | undefined) => void;
+  onRequestDiscardConfirm?: (path: string, workspacePath: string) => void;
   expandLabel: string;
   collapseLabel: string;
   t: CopyDict;
@@ -73,6 +76,9 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   getContextMenuItems,
   contextMenuPersistRef,
   clearMenuHighlightRef,
+  setRenamingWorkspacePath,
+  setDeleteWorkspacePath,
+  onRequestDiscardConfirm,
   expandLabel,
   collapseLabel,
   t,
@@ -103,6 +109,9 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
     onRefreshTree,
     getContextMenuItems,
     onWorkspaceRootClick,
+    setRenamingWorkspacePath,
+    setDeleteWorkspacePath,
+    onRequestDiscardConfirm,
   });
 
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
