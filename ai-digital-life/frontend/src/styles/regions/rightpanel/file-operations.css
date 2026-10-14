@@ -244,7 +244,8 @@
   color: var(--text-primary);
 }
 
-.adl-multitree-entry__menu-item.is-danger:hover {
+.adl-multitree-entry__menu-item.is-danger:hover,
+.adl-multitree-entry__menu-item.is-danger:focus-visible {
   background: var(--danger-soft);
   color: var(--danger);
 }
@@ -296,6 +297,7 @@
   align-items: center;
   flex-shrink: 0;
   margin-left: calc(var(--space-2) * -1 + 2px);
+  margin-right: 0;
   padding: 0 4px;
   border: 1px solid var(--border-subtle);
   border-radius: 999px;
@@ -305,6 +307,12 @@
   font-weight: var(--font-medium);
   line-height: 1.5;
   white-space: nowrap;
+}
+
+/* ! 说明标记（绝对定位右侧）在徽章之后时预留避让位，防窄宽覆盖徽章尾；
+   无 ! 时徽章为末子则贴边（R1 G2）。带徽章条目当前恒带 !，此规则兜底未来无 ! 项。 */
+.adl-menu-item__badge:not(:last-child) {
+  margin-right: 16px;
 }
 
 .adl-multitree-entry__menu-sep {

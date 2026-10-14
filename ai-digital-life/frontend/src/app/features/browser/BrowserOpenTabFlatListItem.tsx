@@ -89,11 +89,22 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
           items={[
             {
               id: 'refresh',
-              label: t.browserRefresh,
+              // 语义如实：复用的是元数据刷新（图标与标题），不重载页面（R1）。
+              label: t.browserRefreshMeta,
+              hint: t.browserRefreshMetaHint,
               icon: <IconRefreshCw size={14} decorative />,
               disabled: !tab.url || !onRefreshTab,
               action: () => {
-                onRefreshTab?.(tab.id, tab.url);
+                try {
+                  const result = onRefreshTab?.(tab.id, tab.url) as unknown;
+                  if (result instanceof Promise) {
+                    result.catch((err) => {
+                      console.warn('browser open-tab refresh failed', err);
+                    });
+                  }
+                } catch (err) {
+                  console.warn('browser open-tab refresh failed', err);
+                }
                 setContextMenu(null);
               },
             },

@@ -59,7 +59,12 @@ export function useBrowserTreeEntryMenu({
   const { openUrlInCenter, moveTabToCenter } = useOpenInCenterAction();
 
   // 两处 portal 菜单视口钳制（事项 15）：底部行右键不再被应用下边缘裁剪。
-  const entryMenuClamp = useClampedMenuPosition(menuPosition);
+  const entryMenuPosition = useMemo(
+    () => (menuOpen && menuPosition ? { top: menuPosition.top, left: menuPosition.left } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制，对象整体入 deps 会每渲染换身份
+    [menuOpen, menuPosition?.top, menuPosition?.left],
+  );
+  const entryMenuClamp = useClampedMenuPosition(entryMenuPosition);
   const tabMenuPosition = useMemo(
     () => (contextMenuForTab ? { top: contextMenuForTab.y, left: contextMenuForTab.x } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制，对象整体入 deps 会每渲染换身份
@@ -173,7 +178,7 @@ export function useBrowserTreeEntryMenu({
   }, [contextMenuForTab, setContextMenuForTab, hideHint]);
 
   const entryMenuSlot =
-    menuOpen && menuPosition && entryMenuClamp.adjusted
+    menuOpen && entryMenuPosition && entryMenuClamp.adjusted
       ? createPortal(
           <>
             <div
@@ -353,26 +358,36 @@ export function useBrowserTreeEntryMenu({
                   setContextMenuForTab(null);
                 },
               },
-            ].map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
-                role="menuitem"
-                onClick={handleTabMenuAction(item.action)}
-              >
-                <span>{item.label}</span>
-                {item.hint ? (
-                  <span
-                    className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
-                    onMouseEnter={(e) => handleShowHint(e, item.hint!)}
-                    onMouseLeave={scheduleHide}
-                  >
-                    !
-                  </span>
-                ) : null}
-              </button>
-            ))}
+            ].map(
+              (item: {
+                id: string;
+                label: string;
+                badge?: string;
+                danger?: boolean;
+                hint?: string;
+                action: () => void;
+              }) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`adl-multitree-entry__menu-item${item.danger ? ' is-danger' : ''}`}
+                  role="menuitem"
+                  onClick={handleTabMenuAction(item.action)}
+                >
+                  <span>{item.label}</span>
+                  {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
+                  {item.hint ? (
+                    <span
+                      className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
+                      onMouseEnter={(e) => handleShowHint(e, item.hint!)}
+                      onMouseLeave={scheduleHide}
+                    >
+                      !
+                    </span>
+                  ) : null}
+                </button>
+              ),
+            )}
           </div>
           <HintCard {...hintCardProps} placement="right">
             {hintState?.content}

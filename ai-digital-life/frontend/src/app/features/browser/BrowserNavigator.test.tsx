@@ -52,6 +52,8 @@ const t = {
   search: 'Search',
   searchNoResults: 'No results',
   searchBookmarkHistoryHint: 'Search bookmarks and history',
+  searchBookmarksHint: 'Search saved tabs',
+  searchHistoryHint: 'Search history tabs',
   resizeLabel: 'Resize',
   cancel: 'Cancel',
   confirm: 'Confirm',
@@ -104,7 +106,10 @@ function makeActions(overrides: Partial<BrowserPanelActions> = {}): BrowserPanel
   };
 }
 
-function makeState(navigatorMode: BrowserPanelState['navigatorMode']): BrowserPanelState {
+function makeState(
+  navigatorMode: BrowserPanelState['navigatorMode'],
+  searchScope: BrowserPanelState['searchScope'] = 'all',
+): BrowserPanelState {
   return {
     t,
     isBrowserVisible: true,
@@ -116,7 +121,7 @@ function makeState(navigatorMode: BrowserPanelState['navigatorMode']): BrowserPa
     tabTreeExpanded: {},
     allTreeExpanded: false,
     navigatorQuery: '',
-    searchScope: 'all',
+    searchScope,
     searchResults: [],
     browserMenuOpen: false,
     browserMenuRef: createRef<HTMLDivElement>(),
@@ -159,6 +164,7 @@ function makeState(navigatorMode: BrowserPanelState['navigatorMode']): BrowserPa
 function renderNavigator(
   navigatorMode: BrowserPanelState['navigatorMode'],
   actions = makeActions(),
+  searchScope: BrowserPanelState['searchScope'] = 'all',
 ) {
   useAppStore.setState({
     browserBookmarks: [],
@@ -171,7 +177,7 @@ function renderNavigator(
 
   render(
     <TCopyProvider t={t} locale="en-US">
-      <BrowserPanelStateCtx.Provider value={makeState(navigatorMode)}>
+      <BrowserPanelStateCtx.Provider value={makeState(navigatorMode, searchScope)}>
         <BrowserPanelActionsCtx.Provider value={actions}>
           <BrowserNavigator />
         </BrowserPanelActionsCtx.Provider>
@@ -217,5 +223,23 @@ describe('BrowserNavigator bookmark delete confirmation', () => {
 
     expect(actions.handleCloseAllTabs).toHaveBeenCalledTimes(1);
     expect(screen.queryByRole('dialog', { name: 'Confirm delete bookmarks' })).toBeNull();
+  });
+
+  it.each([
+    ['bookmarks', 'Search saved tabs'],
+    ['history', 'Search history tabs'],
+    ['all', 'Search bookmarks and history'],
+  ] as const)('shows scope hint "%s" for empty search query', (scope, hint) => {
+    renderNavigator('search', makeActions(), scope);
+
+    expect(screen.getByText(hint)).toBeInTheDocument();
+  });
+
+  it('toggles active bookmarks scope back to all on repeat click', () => {
+    const actions = renderNavigator('search', makeActions(), 'bookmarks');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bookmarks' }));
+
+    expect(actions.setSearchScope).toHaveBeenCalledWith('all');
   });
 });

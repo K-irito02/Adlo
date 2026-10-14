@@ -144,19 +144,38 @@ export function BrowserNavSearchMode({
     if (!contextMenu) {
       return [];
     }
-    return getTabContextMenuItems(
-      contextMenu.node,
-      sectionCallbacks,
-      t,
-      contextMenu.bookmarked,
-    ).map((item) => ({
-      id: item.id,
-      label: item.label,
-      badge: item.badge,
-      danger: item.danger,
-      hint: item.hint,
-      action: item.action,
-    }));
+    const { node } = contextMenu;
+    const isLive = !!node.associatedTabId;
+    const isHistoryKind = node.nodeType === 'history';
+    // 按归属裁剪死菜单（R1）：无 tabId 的行仅保留 url/name 级动作；
+    // 在当前标签打开仅对存活标签有效；编辑对纯历史行无写入（对话框空转）。
+    const keep = (id: string): boolean => {
+      switch (id) {
+        case 'open-new':
+        case 'copy-link':
+        case 'bookmark-toggle':
+          return true;
+        case 'open-current':
+          return isLive;
+        case 'refresh':
+        case 'delete':
+          return !!node.tabId;
+        case 'edit':
+          return !!node.tabId && !(isHistoryKind && !isLive);
+        default:
+          return true;
+      }
+    };
+    return getTabContextMenuItems(node, sectionCallbacks, t, contextMenu.bookmarked)
+      .filter((item) => keep(item.id))
+      .map((item) => ({
+        id: item.id,
+        label: item.label,
+        badge: item.badge,
+        danger: item.danger,
+        hint: item.hint,
+        action: item.action,
+      }));
   }, [contextMenu, sectionCallbacks, t]);
 
   return (

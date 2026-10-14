@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import { filterBrowserItems, mergeSearchResults } from './browserUrlUtils';
+import { mergeSearchResults } from './browserUrlUtils';
 import { useTCopy } from '@i18n/useTCopy';
 
 export type BrowserSearchScope = 'bookmarks' | 'history' | 'all';
@@ -93,7 +93,7 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
   }, [browserBookmarks, browserHistory, browserTabs, quickLinks]);
 
   const searchResults = useMemo(() => {
-    const results = mergeSearchResults({
+    return mergeSearchResults({
       query: navigatorQuery,
       scope: searchScope,
       bookmarks: browserBookmarks,
@@ -105,21 +105,6 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
         openTabs: t.browserOpenTabs,
       },
     });
-    // [ADL-DEBUG] 事项10排查用：用户 Tauri 实测收藏/历史域搜标题网址无结果。
-    // 待用户复现贴日志后定真 bug 还是 scope 语义问题，定案后删除本日志。
-    console.debug(
-      '[ADL-DEBUG] [browser::useBrowserSearch] searchResults recompute — query=%s scope=%s bookmarks=%d history=%d openTabs=%d filtered=(%d,%d,%d) results=%d',
-      JSON.stringify(navigatorQuery),
-      searchScope,
-      browserBookmarks.length,
-      browserHistory.length,
-      browserTabs.length,
-      filterBrowserItems(browserBookmarks, navigatorQuery).length,
-      filterBrowserItems(browserHistory, navigatorQuery).length,
-      filterBrowserItems(browserTabs, navigatorQuery).length,
-      results.length,
-    );
-    return results;
   }, [
     navigatorQuery,
     browserBookmarks,

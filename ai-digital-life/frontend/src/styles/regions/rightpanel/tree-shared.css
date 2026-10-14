@@ -221,10 +221,11 @@
   padding: var(--space-3);
 }
 
-/* 空态基座：全仓 .adl-empty-hint 默认小字、水平居中、适度纵向留白。
-   此前仅 search-panel 等局部覆盖，浏览器“已打开标签页”等空态回落为默认 <p>
-   大字左对齐。作用域为全局基座，各面板仍可用更具体的选择器覆盖。 */
-.adl-empty-hint {
+/* 空态基座：段落空态默认小字、水平居中、适度纵向留白。此前仅 search-panel
+   等局部覆盖，浏览器“已打开标签页”等空态回落为默认 <p> 大字左对齐。
+   限定 p 标签：行内 <span> 空态（GitHubTreeEntry / MultiTreeEntryShell）保持
+   原行内观感，不被块级居中污染（R1）。各面板仍可用更具体的选择器覆盖。 */
+p.adl-empty-hint {
   display: block;
   margin: 0;
   padding: var(--space-4) var(--space-2);
@@ -241,7 +242,7 @@
   padding: var(--space-2) 0;
 }
 
-.adl-multitree__empty .adl-empty-hint {
+.adl-multitree__empty p.adl-empty-hint {
   padding: var(--space-4) var(--space-2);
 }
 

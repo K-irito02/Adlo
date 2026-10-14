@@ -1810,3 +1810,9 @@
   background: var(--bg-hover);
   color: var(--danger);
 }
+
+.adl-settings-search-history__remove:focus-visible {
+  opacity: 1;
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+}

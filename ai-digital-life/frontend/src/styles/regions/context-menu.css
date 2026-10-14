@@ -40,7 +40,8 @@
   color: var(--text-primary);
 }
 
-.adl-sidebar-menu__item.is-danger:hover {
+.adl-sidebar-menu__item.is-danger:hover,
+.adl-sidebar-menu__item.is-danger:focus-visible {
   background: var(--danger-soft);
   color: var(--danger);
 }

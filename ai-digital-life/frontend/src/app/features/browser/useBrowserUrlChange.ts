@@ -231,7 +231,13 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       // 导致全部池导航事件被吞（粘贴网址无历史、跨域重定向/音频关联全链路断流，
       // 事项 13）。未知 tabId（DSH 独立子窗口等非池 WebView）仍丢弃，避免其导航
       // 在面板创建幻影标签/劫持活动标签（9c9199dc 原意保留）；无 tabId 走既有分支。
-      if (!isPoolTabEvent(tabId, useAppStore.getState().browserTabs)) {
+      // 新建 tab 豁免（R1）：显式导航刚创建、store 尚未落盘的竞态窗口内，期望引用
+      // 仍可证明归属，不因时序丢历史。期望 tabId 为 null（面板为空的瞬态，
+      // 同 tick 内即被重绑真实 id）时不豁免——null 从不与真实 id 相等，天然无放行。
+      if (
+        !isPoolTabEvent(tabId, useAppStore.getState().browserTabs) &&
+        expectedNavigationUrlRef.current?.tabId !== tabId
+      ) {
         return;
       }
 
@@ -257,16 +263,6 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const missingHistoryEntry = eventTab
         ? !state.browserHistory.some((h) => historyDedupKey(h.url) === identityKey)
         : false;
-
-      // [ADL-DEBUG] 事项13排查用：粘贴网址回车无历史。定案后删除本日志。
-      console.debug(
-        '[ADL-DEBUG] [browser::onUrlChanged] tabId=%s url=%s eventTab=%s urlChanged=%s missingHistory=%s',
-        tabId ?? '',
-        url,
-        eventTab ? eventTab.id : '',
-        urlChanged,
-        missingHistoryEntry,
-      );
 
       if (noTabExists || urlChanged || missingHistoryEntry) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {

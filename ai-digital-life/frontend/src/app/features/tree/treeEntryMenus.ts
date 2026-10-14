@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 /**
  * Shared menu item type used by both BrowserTreeEntry and GitHubTreeEntry child menus.
@@ -37,6 +37,12 @@ export function useClampedMenuPosition(
   adjusted: MenuViewportPosition | null;
 } {
   const [adjusted, setAdjusted] = useState<MenuViewportPosition | null>(position);
+
+  // position 变化即同步（菜单复开/换点）：否则 adjusted 停留旧值，首开门控永假死锁（R1）。
+  // 用 layout effect：paint 前同步，无首帧旧坐标闪位（R1 G1）。
+  useLayoutEffect(() => {
+    setAdjusted(position);
+  }, [position]);
 
   const menuRef = useCallback(
     (el: HTMLDivElement | null) => {

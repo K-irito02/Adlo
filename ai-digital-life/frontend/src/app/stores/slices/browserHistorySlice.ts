@@ -50,8 +50,6 @@ export const createBrowserHistorySlice = (
   browserHistory: [],
 
   browserAddToHistory: (url: string, title: string) => {
-    // [ADL-DEBUG] 事项13排查用：历史写入 choke 点。定案后删除本日志。
-    console.debug('[ADL-DEBUG] [browser::browserAddToHistory] url=%s title=%s', url, title);
     set((state) => {
       const now = Date.now();
       const today = getDateKey(now);

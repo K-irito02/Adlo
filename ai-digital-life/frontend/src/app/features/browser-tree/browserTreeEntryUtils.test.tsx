@@ -122,6 +122,7 @@ const t = {
   browserContextRename: '重命名',
   browserContextMore: '更多',
   browserContextDeleteAllTabs: '删除全部',
+  nestedBadge: '嵌套',
   browserContextDeleteSelfTabs: '删除自身',
   browserContextDeleteDir: '删除目录',
   browserDeleteAllTabsHint: 'h',
@@ -147,6 +148,14 @@ describe('getEntryMoreMenuItems', () => {
     expect(item).toBeDefined();
     item.action();
     expect(callbacks.onCreateTab).toHaveBeenCalledWith(undefined, 'f1');
+  });
+
+  it('delete-all-tabs carries nested badge instead of [嵌套] suffix (事项 5)', () => {
+    const callbacks = makeCallbacks();
+    const items = getEntryMoreMenuItems('folder', 'userFolder', 'folder:f1', callbacks, t);
+    const item = items.find((i) => i.id === 'delete-all-tabs')!;
+    expect(item.label).not.toContain('[嵌套]');
+    expect(item.badge).toBe('嵌套');
   });
 });
 

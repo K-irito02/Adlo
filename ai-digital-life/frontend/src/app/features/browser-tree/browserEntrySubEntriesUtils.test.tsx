@@ -28,6 +28,7 @@ const t = {
   browserContextOpenAllNewTabs: '全部打开',
   browserContextRename: '重命名',
   browserContextDeleteAllTabs: '删除全部',
+  nestedBadge: '嵌套',
   browserContextDeleteSelfTabs: '删除自身',
   browserContextDeleteDir: '删除目录',
   browserDeleteAllTabsHint: 'h',
@@ -67,6 +68,14 @@ describe('getChildNodeMoreMenuItems', () => {
     const items = getChildNodeMoreMenuItems('day', 'history', 'history:2026-08', callbacks, t);
     const item = items.find((i) => i.id === 'create-bookmark');
     expect(item).toBeUndefined();
+  });
+
+  it('delete-all-tabs carries nested badge instead of [嵌套] suffix (事项 5)', () => {
+    const callbacks = makeCallbacks();
+    const items = getChildNodeMoreMenuItems('folder', 'userFolder', 'folder:f1', callbacks, t);
+    const item = items.find((i) => i.id === 'delete-all-tabs')!;
+    expect(item.label).not.toContain('[嵌套]');
+    expect(item.badge).toBe('嵌套');
   });
 });
 

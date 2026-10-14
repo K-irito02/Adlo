@@ -713,13 +713,28 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     searchInputRef.current?.focus();
   }, [clearSearchHistory]);
 
-  /** 删除单条搜索历史：删空后卡片自动收起（同上）。 */
+  /** 删除单条搜索历史：仅当删的是预览项才撤销预览；焦点留在列表内
+   *（滑入该位置的行），删空才回输入框（R1 R-1/R-2）。 */
   const handleRemoveSearchHistoryItem = useCallback(
     (value: string) => {
+      const idx = searchHistory.indexOf(value);
       removeSearchHistoryItem(value);
-      setPreviewQuery(null);
+      if (previewQuery === value) {
+        setPreviewQuery(null);
+      }
+      requestAnimationFrame(() => {
+        const rows = historyCardRef.current?.querySelectorAll(
+          '.adl-settings-search-history__remove',
+        );
+        const target = rows?.[Math.min(idx, (rows?.length ?? 1) - 1)];
+        if (target instanceof HTMLElement) {
+          target.focus();
+        } else {
+          searchInputRef.current?.focus();
+        }
+      });
     },
-    [removeSearchHistoryItem],
+    [removeSearchHistoryItem, searchHistory, previewQuery],
   );
 
   /** 清除当前落点高亮（含移除定时器）：下一次跳转前与面板卸载时调用。
