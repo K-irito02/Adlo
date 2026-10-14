@@ -121,6 +121,21 @@ export function ensureProtocol(input: string): string {
 }
 
 /**
+ * 池事件归属判定（事项 13）：Rust 发出的是 browser-xxx 形态的标签 id（WebView
+ * label 才带 adl-browser-view- 前缀）。未知 tabId（DSH 独立子窗口等非池
+ * WebView）丢弃，避免其导航在面板创建幻影标签/劫持活动标签；无 tabId 走既有分支。
+ */
+export function isPoolTabEvent(
+  tabId: string | undefined,
+  tabs: Pick<{ id: string }, 'id'>[],
+): boolean {
+  if (!tabId) {
+    return true;
+  }
+  return tabs.some((t) => t.id === tabId);
+}
+
+/**
  * 从搜索结果 URL 中提取用户查询文本。
  * 匹配已知搜索引擎的 URL 模板，返回解码后的查询词；
  * 非搜索 URL 返回空字符串。

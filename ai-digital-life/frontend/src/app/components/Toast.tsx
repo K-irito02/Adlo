@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { renderIcon, type IconName } from '../../design-system/icons';
 
@@ -38,6 +38,11 @@ export function Toast({
   onClose,
 }: ToastProps) {
   const [isVisible, setIsVisible] = useState(false);
+  // onClose 经 ToastContainer 内联传递，每次父渲染身份都变；若直接入 deps，
+  // 任意 store 更新触发的重渲染都会清掉计时器重走（toast 常驻 + 入场动画反复跳动）。
+  // 经 ref 解耦：计时器只按 duration 跑，关闭时读最新回调。
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     requestAnimationFrame(() => setIsVisible(true));
@@ -45,7 +50,7 @@ export function Toast({
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const timer = setTimeout(() => {
       setIsVisible(false);
-      hideTimer = setTimeout(onClose, 300);
+      hideTimer = setTimeout(() => onCloseRef.current(), 300);
     }, duration);
 
     return () => {
@@ -54,7 +59,7 @@ export function Toast({
         clearTimeout(hideTimer);
       }
     };
-  }, [duration, onClose]);
+  }, [duration]);
 
   const iconHtml = renderIcon(TOAST_ICONS[type], { size: 'sm', decorative: true }).value;
   const top = TOAST_BASE_TOP + position * (TOAST_HEIGHT + TOAST_GAP);

@@ -122,29 +122,46 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
   );
 
   const searchResults = useMemo(() => {
+    let results: { title: string; url: string; source: string }[];
     if (searchScope === 'bookmarks') {
-      return filteredBookmarks.map((item) => ({ ...item, source: t.browserSavedTabs }));
-    }
-    if (searchScope === 'history') {
-      return filteredHistory.map((item) => ({ ...item, source: t.browserHistoryTabs }));
-    }
-    const merged = new Map<string, { title: string; url: string; source: string }>();
-    for (const item of filteredBookmarks) {
-      merged.set(`bookmark:${item.url}`, { ...item, source: t.browserSavedTabs });
-    }
-    for (const item of filteredHistory) {
-      const key = `history:${item.url}:${item.title}`;
-      merged.set(key, { ...item, source: t.browserHistoryTabs });
-    }
-    // 已打开标签同样参与"全部"检索（仅按 URL 去重，保留标签来源标注）：
-    // 此前仅合并且收藏/历史，输入标签标题/网址时无结果。
-    for (const item of filteredOpenTabs) {
-      const key = `opentab:${item.url}`;
-      if (!merged.has(key)) {
-        merged.set(key, { title: item.title, url: item.url, source: t.browserOpenTabs });
+      results = filteredBookmarks.map((item) => ({ ...item, source: t.browserSavedTabs }));
+    } else if (searchScope === 'history') {
+      results = filteredHistory.map((item) => ({ ...item, source: t.browserHistoryTabs }));
+    } else {
+      const merged = new Map<string, { title: string; url: string; source: string }>();
+      for (const item of filteredBookmarks) {
+        merged.set(`bookmark:${item.url}`, { ...item, source: t.browserSavedTabs });
       }
+      for (const item of filteredHistory) {
+        const key = `history:${item.url}:${item.title}`;
+        merged.set(key, { ...item, source: t.browserHistoryTabs });
+      }
+      // 已打开标签同样参与"全部"检索（仅按 URL 去重，保留标签来源标注）：
+      // 此前仅合并且收藏/历史，输入标签标题/网址时无结果。
+      for (const item of filteredOpenTabs) {
+        const key = `opentab:${item.url}`;
+        if (!merged.has(key)) {
+          merged.set(key, { title: item.title, url: item.url, source: t.browserOpenTabs });
+        }
+      }
+      results = [...merged.values()];
     }
-    return [...merged.values()];
+    // [ADL-DEBUG] 事项10排查用：用户 Tauri 实测收藏/历史域搜标题网址无结果。
+    // 待用户复现贴日志后定真 bug 还是 scope 语义问题，定案后删除本日志。
+    console.debug(
+      '[ADL-DEBUG] [browser::useBrowserSearch] searchResults recompute — query=%s scope=%s bookmarks=%d history=%d openTabs=%d filtered=(%d,%d,%d) results=%d',
+      JSON.stringify(navigatorQuery),
+      searchScope,
+      browserBookmarks.length,
+      browserHistory.length,
+      browserTabs.length,
+      filteredBookmarks.length,
+      filteredHistory.length,
+      filteredOpenTabs.length,
+      results.length,
+    );
+    return results;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 日志读 navigatorQuery/三列表长度与 filtered 同源变化，刻意不入 deps 防重复触发
   }, [
     filteredBookmarks,
     filteredHistory,

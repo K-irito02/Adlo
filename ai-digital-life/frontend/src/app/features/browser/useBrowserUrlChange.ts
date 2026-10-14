@@ -8,6 +8,7 @@ import {
   normalizeUrlForCompare,
   isProbablySameSite,
   extractSearchQueryFromUrl,
+  isPoolTabEvent,
 } from './browserUrlUtils';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
 import {
@@ -225,10 +226,12 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
         return;
       }
 
-      // Filter out non-browser WebView events (e.g. DSH standalone WebView2
-      // sub-window). These WebViews are not registered with BrowserManager and
-      // should never trigger browser tab creation.
-      if (tabId && !tabId.startsWith('adl-browser-view')) {
+      // 只放行归属已知浏览器标签的池事件：Rust 实际发出的是 browser-xxx 形态的
+      // 标签 id（WebView label 才带 adl-browser-view- 前缀），原前缀判断恒不命中，
+      // 导致全部池导航事件被吞（粘贴网址无历史、跨域重定向/音频关联全链路断流，
+      // 事项 13）。未知 tabId（DSH 独立子窗口等非池 WebView）仍丢弃，避免其导航
+      // 在面板创建幻影标签/劫持活动标签（9c9199dc 原意保留）；无 tabId 走既有分支。
+      if (!isPoolTabEvent(tabId, useAppStore.getState().browserTabs)) {
         return;
       }
 
@@ -254,6 +257,16 @@ export function useBrowserUrlChange(options: UseBrowserUrlChangeOptions) {
       const missingHistoryEntry = eventTab
         ? !state.browserHistory.some((h) => historyDedupKey(h.url) === identityKey)
         : false;
+
+      // [ADL-DEBUG] 事项13排查用：粘贴网址回车无历史。定案后删除本日志。
+      console.debug(
+        '[ADL-DEBUG] [browser::onUrlChanged] tabId=%s url=%s eventTab=%s urlChanged=%s missingHistory=%s',
+        tabId ?? '',
+        url,
+        eventTab ? eventTab.id : '',
+        urlChanged,
+        missingHistoryEntry,
+      );
 
       if (noTabExists || urlChanged || missingHistoryEntry) {
         if (noTabExists && pendingPrefetchRef.current.has(normalizedUrl)) {

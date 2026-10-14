@@ -433,9 +433,6 @@ export function BrowserPanel(props: BrowserPanelProps) {
     addressExpanded,
     setAddressExpanded,
     addressSearchRef,
-    navigatorMode,
-    setNavigatorMode,
-    navigatorSearchRef,
   });
 
   const evictedTabIds = useMemo(() => {

@@ -5,7 +5,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useTabTitleRename } from '../hooks/useTabTitleRename';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { TooltipSimple } from '@components/Tooltip';
-import { IconClose, IconNewTabPage, IconPanelRight, IconPlus, IconTerminal } from '@icons';
+import { IconClose, IconNewTabPage, IconMoveToCenter, IconPlus, IconTerminal } from '@icons';
 import { TerminalProfileIcon } from '@features/terminal/TerminalProfileIcon';
 import { terminalPtyRuntime } from '@features/terminal/terminalPtyRuntime';
 import { removeSiteMetaIfUnreferenced } from '@features/browser/siteMetaCleanup';
@@ -607,7 +607,7 @@ export const CenterTabStrip = React.memo(function CenterTabStrip() {
                           }}
                           aria-label={showInPanelLabel}
                         >
-                          <IconPanelRight size={12} decorative />
+                          <IconMoveToCenter size={12} decorative />
                         </button>
                       </TooltipSimple>
                     )}

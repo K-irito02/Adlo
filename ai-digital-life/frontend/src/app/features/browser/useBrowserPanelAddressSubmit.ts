@@ -150,6 +150,12 @@ export function useBrowserPanelAddressSubmit({
         .browserAddToHistory(finalUrl, `${searchInfo.engineName}: ${searchInfo.query}`);
     }
     if (useAppStore.getState().isTauri) {
+      // [ADL-DEBUG] 事项13排查用：粘贴网址回车无历史。定案后删除本日志。
+      console.debug(
+        '[ADL-DEBUG] [browser::submitAddress] tauri submit — finalUrl=%s hasSearchInfo=%s',
+        finalUrl,
+        Boolean(searchInfo),
+      );
       // 面板归属显式导航：更新 tab.url/新建面板 tab，并对已入池 tab 补一次
       // navigateTabInPool（均在传入的 wrapper 内用最新 id 完成）。
       browserNavigatePanelTab(

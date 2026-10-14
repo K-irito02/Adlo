@@ -7,7 +7,6 @@ import {
 } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
-import type { BrowserNavigatorMode } from './useBrowserTabs';
 import { extractSearchQueryFromUrl } from './browserUrlUtils';
 
 interface IframeHistoryState {
@@ -27,10 +26,6 @@ interface UseBrowserPanelEffectsParams {
   addressExpanded: boolean;
   setAddressExpanded: Dispatch<SetStateAction<boolean>>;
   addressSearchRef: RefObject<HTMLLabelElement | null>;
-  navigatorMode: BrowserNavigatorMode;
-  // 同上收窄（Task 24）：内部只调用 setNavigatorMode('tabs') 具体值。
-  setNavigatorMode: (mode: BrowserNavigatorMode) => void;
-  navigatorSearchRef: RefObject<HTMLDivElement | null>;
 }
 
 export function useBrowserPanelEffects({
@@ -45,9 +40,6 @@ export function useBrowserPanelEffects({
   addressExpanded,
   setAddressExpanded,
   addressSearchRef,
-  navigatorMode,
-  setNavigatorMode,
-  navigatorSearchRef,
 }: UseBrowserPanelEffectsParams): void {
   useEffect(() => {
     const url = activeTab?.url ?? '';
@@ -83,8 +75,10 @@ export function useBrowserPanelEffects({
     addressSubmittedForTabRef,
   ]);
 
+  // 外部点击收起：仅收菜单与地址栏展开。搜索模式不再自动切回 tabs——
+  // 用户明确要求点击空白区/它处保持当前模式，离開搜索只经模式按钮手动切换。
   useEffect(() => {
-    if (!browserMenuOpen && !addressExpanded && navigatorMode !== 'search') {
+    if (!browserMenuOpen && !addressExpanded) {
       return;
     }
     const handlePointerDown = (event: MouseEvent) => {
@@ -95,14 +89,6 @@ export function useBrowserPanelEffects({
       if (!addressSearchRef.current?.contains(target)) {
         setAddressExpanded(false);
       }
-      if (navigatorMode === 'search' && !navigatorSearchRef.current?.contains(target)) {
-        const isModeBtn = (target as HTMLElement).closest(
-          '.adl-tool-navigator__context--secondary .adl-tool-context__iconbtn',
-        );
-        if (!isModeBtn) {
-          setNavigatorMode('tabs');
-        }
-      }
     };
     document.addEventListener('mousedown', handlePointerDown);
     return () => document.removeEventListener('mousedown', handlePointerDown);
@@ -111,10 +97,7 @@ export function useBrowserPanelEffects({
     browserMenuOpen,
     browserMenuRef,
     addressSearchRef,
-    navigatorMode,
-    navigatorSearchRef,
     setBrowserMenuOpen,
     setAddressExpanded,
-    setNavigatorMode,
   ]);
 }
