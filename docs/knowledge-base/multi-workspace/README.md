@@ -11,7 +11,8 @@ Lessons and fixes related to multi-workspace terminal, panel, and UI alignment f
 - [file-selection-fix.md](./file-selection-fix.md) — File selection fix
 - [file-tree.md](./file-tree.md) — File tree implementation
 - [interactive-terminal.md](./interactive-terminal.md) — Interactive terminal implementation
-- [large-file-diff-degradation-2026-10-14.md](./large-file-diff-degradation-2026-10-14.md) — 超大变更文件差异渲染：MergeView 挂载成本、双侧取大的门、plain 降级、fold 轮询风暴、就绪才切换的连带
+- [large-file-diff-degradation-2026-10-14.md](./large-file-diff-degradation-2026-10-14.md) — 超大变更文件差异渲染：挂载成本、双侧取大门、plain 降级、fold 轮询风暴、就绪才切换
+- [search-workspace-binding-2026-10-14.md](./search-workspace-binding-2026-10-14.md) — 文件检索工作区绑定、命中显式打开、ripgrep 式大文件检索、覆盖锚重定
 - [stats-fix.md](./stats-fix.md) — Stats display fix
 - [terminal-binding.md](./terminal-binding.md) — Terminal binding implementation
 - [terminal-history-live-separation-2026-09-13.md](./terminal-history-live-separation-2026-09-13.md) — Terminal history/live separation: ConPTY-xterm coordinate misalignment root cause, SerializeAddon semantics, xterm pitfalls, lifecycle guards
