@@ -333,11 +333,23 @@ showToast('Terminal ready', 'success', 'terminal') // position 2
 | Animation | Slide-in `opacity + translateY(8px→0)` (350ms expo enter / 200ms exit (`TOOLTIP_EXIT_MS`), no scale) |
 | Arrow | None (removed; `data-side` kept for positioning only) |
 | Wrapping | `overflow-wrap: anywhere`; width via `maxWidth` prop (default 240) |
+| Single-line modifier | `.tooltip--single-line` forces `.tooltip__content` to `nowrap` (for short icon-button labels; long hints go through `HintCardTrigger`, never Tooltip) |
 | Placement | `data-side="top\|bottom\|left\|right"` (viewport flip/clamp + Webview2 avoid-rects + cross-axis slide) |
 
 React API entry points: `Tooltip` (provider), `TooltipTrigger` (event wiring), `TooltipContent` (portal surface), `TooltipSimple` (one-shot wrapper). Source: `[Tooltip.tsx](../../../ai-digital-life/frontend/src/app/components/Tooltip.tsx)`.
 
 Fold gutter tooltips use `FoldTooltipOverlay` (React portal to `document.body`, 实位 `frontend/src/app/features/editor/FoldTooltipOverlay.tsx`).
+
+### Context menu
+
+Right-click menus (`.adl-sidebar-menu`, `.adl-multitree-entry__menu`) share four standards:
+
+| Standard | Rule |
+|----------|------|
+| Danger hover-only | `.is-danger` items render in default text color; red text + `var(--danger-soft)` background apply on `:hover`/`:focus-visible` only — never persistently red |
+| Nested badge | Scope suffixes like `[嵌套]` must not be baked into i18n copy; render `.adl-menu-item__badge` capsule after the label (`t.nestedBadge`) |
+| Viewport clamp | Portal menus clamp to viewport with 8px margin (shared `useClampedMenuPosition`; `ContextMenu` has the same logic built in) — bottom rows flip upward instead of clipping |
+| Hint marker | `!` marker (`.adl-menu-item__hint`) opens a `HintCard` on hover; danger variant follows the hover-only rule |
 
 ## State coverage matrix
 
