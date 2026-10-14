@@ -4,6 +4,7 @@ import {
   buildSearchUrl,
   ensureProtocol,
   normalizeUrlForCompare,
+  mergeSearchResults,
 } from '../browserUrlUtils';
 import type { SearchEngine } from '../browserUrlUtils';
 
@@ -75,5 +76,71 @@ describe('normalizeUrlForCompare modal_id', () => {
   });
   it('leaves urls without modal_id unchanged', () => {
     expect(normalizeUrlForCompare('https://a.com/p?a=1&b=2')).toBe('https://a.com/p?a=1&b=2');
+  });
+});
+
+describe('mergeSearchResults（事项 10-c）', () => {
+  const labels = { savedTabs: '收藏标签', historyTabs: '历史标签', openTabs: '已打开标签页' };
+  const yt = { title: 'YouTube', url: 'https://www.youtube.com/' };
+  const bk = { title: 'Bklit UI', url: 'https://example.com/ui' };
+
+  it('空查询直接返回空（点域不再默认列出全域）', () => {
+    expect(
+      mergeSearchResults({
+        query: '  ',
+        scope: 'all',
+        bookmarks: [yt],
+        history: [yt],
+        openTabs: [yt],
+        labels,
+      }),
+    ).toEqual([]);
+  });
+
+  it('全部域同网址三源只留一行且已打开优先', () => {
+    const results = mergeSearchResults({
+      query: 'you',
+      scope: 'all',
+      bookmarks: [yt],
+      history: [yt],
+      openTabs: [yt],
+      labels,
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].source).toBe('已打开标签页');
+  });
+
+  it('全部域仅收藏命中时保留收藏来源', () => {
+    const results = mergeSearchResults({
+      query: 'bklit',
+      scope: 'all',
+      bookmarks: [bk],
+      history: [],
+      openTabs: [],
+      labels,
+    });
+    expect(results).toHaveLength(1);
+    expect(results[0].source).toBe('收藏标签');
+  });
+
+  it('收藏域只搜收藏、历史域只搜历史', () => {
+    const inBookmarks = mergeSearchResults({
+      query: 'bklit',
+      scope: 'bookmarks',
+      bookmarks: [bk],
+      history: [yt],
+      openTabs: [yt],
+      labels,
+    });
+    expect(inBookmarks.map((r) => r.url)).toEqual(['https://example.com/ui']);
+    const inHistory = mergeSearchResults({
+      query: 'you',
+      scope: 'history',
+      bookmarks: [bk],
+      history: [yt],
+      openTabs: [yt],
+      labels,
+    });
+    expect(inHistory.map((r) => r.url)).toEqual(['https://www.youtube.com/']);
   });
 });

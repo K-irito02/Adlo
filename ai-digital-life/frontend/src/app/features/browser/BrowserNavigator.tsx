@@ -385,7 +385,19 @@ export function BrowserNavigator() {
           {searchResults.length > 0 ? (
             <BrowserNavSearchMode
               searchResults={searchResults}
+              browserTabs={browserTabs}
+              browserHistory={browserHistory}
+              browserBookmarks={browserBookmarks}
+              browserTabFolders={browserTabFolders}
+              browserWorkspaceBookmarks={browserWorkspaceBookmarks}
               onSelectResult={(url) => handleOpenTabFromTree(url)}
+              onRefreshTab={handleRefreshTab}
+              onEditTab={handleEditTab}
+              onDeleteTab={handleDeleteTab}
+              onCopyTabLink={handleCopyTabLink}
+              onOpenTabInNewTab={handleOpenTabInNewTab}
+              onOpenTabInCurrentTab={handleOpenTabInCurrentTab}
+              onRemoveBookmarkTab={onRemoveBookmarkTab}
             />
           ) : navigatorQuery.trim() ? (
             <div className="adl-multitree__empty">

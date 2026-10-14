@@ -1,24 +1,10 @@
 import { useMemo, useRef, useState } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
+import { filterBrowserItems, mergeSearchResults } from './browserUrlUtils';
 import { useTCopy } from '@i18n/useTCopy';
 
 export type BrowserSearchScope = 'bookmarks' | 'history' | 'all';
-
-function filterBrowserItems<T extends { title: string; url: string }>(
-  items: T[],
-  query: string,
-): T[] {
-  const normalizedQuery = query.trim().toLowerCase();
-  if (!normalizedQuery) {
-    return items;
-  }
-  return items.filter((item) => {
-    const title = item.title.toLowerCase();
-    const url = item.url.toLowerCase();
-    return title.includes(normalizedQuery) || url.includes(normalizedQuery);
-  });
-}
 
 export function findInBrowserLookupIndex(
   browserLookupIndex: { title: string; url: string }[],
@@ -106,46 +92,19 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
     );
   }, [browserBookmarks, browserHistory, browserTabs, quickLinks]);
 
-  const filteredBookmarks = useMemo(
-    () => filterBrowserItems(browserBookmarks, navigatorQuery),
-    [browserBookmarks, navigatorQuery],
-  );
-
-  const filteredHistory = useMemo(
-    () => filterBrowserItems(browserHistory, navigatorQuery),
-    [browserHistory, navigatorQuery],
-  );
-
-  const filteredOpenTabs = useMemo(
-    () => filterBrowserItems(browserTabs, navigatorQuery),
-    [browserTabs, navigatorQuery],
-  );
-
   const searchResults = useMemo(() => {
-    let results: { title: string; url: string; source: string }[];
-    if (searchScope === 'bookmarks') {
-      results = filteredBookmarks.map((item) => ({ ...item, source: t.browserSavedTabs }));
-    } else if (searchScope === 'history') {
-      results = filteredHistory.map((item) => ({ ...item, source: t.browserHistoryTabs }));
-    } else {
-      const merged = new Map<string, { title: string; url: string; source: string }>();
-      for (const item of filteredBookmarks) {
-        merged.set(`bookmark:${item.url}`, { ...item, source: t.browserSavedTabs });
-      }
-      for (const item of filteredHistory) {
-        const key = `history:${item.url}:${item.title}`;
-        merged.set(key, { ...item, source: t.browserHistoryTabs });
-      }
-      // 已打开标签同样参与"全部"检索（仅按 URL 去重，保留标签来源标注）：
-      // 此前仅合并且收藏/历史，输入标签标题/网址时无结果。
-      for (const item of filteredOpenTabs) {
-        const key = `opentab:${item.url}`;
-        if (!merged.has(key)) {
-          merged.set(key, { title: item.title, url: item.url, source: t.browserOpenTabs });
-        }
-      }
-      results = [...merged.values()];
-    }
+    const results = mergeSearchResults({
+      query: navigatorQuery,
+      scope: searchScope,
+      bookmarks: browserBookmarks,
+      history: browserHistory,
+      openTabs: browserTabs,
+      labels: {
+        savedTabs: t.browserSavedTabs,
+        historyTabs: t.browserHistoryTabs,
+        openTabs: t.browserOpenTabs,
+      },
+    });
     // [ADL-DEBUG] 事项10排查用：用户 Tauri 实测收藏/历史域搜标题网址无结果。
     // 待用户复现贴日志后定真 bug 还是 scope 语义问题，定案后删除本日志。
     console.debug(
@@ -155,17 +114,17 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
       browserBookmarks.length,
       browserHistory.length,
       browserTabs.length,
-      filteredBookmarks.length,
-      filteredHistory.length,
-      filteredOpenTabs.length,
+      filterBrowserItems(browserBookmarks, navigatorQuery).length,
+      filterBrowserItems(browserHistory, navigatorQuery).length,
+      filterBrowserItems(browserTabs, navigatorQuery).length,
       results.length,
     );
     return results;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- 日志读 navigatorQuery/三列表长度与 filtered 同源变化，刻意不入 deps 防重复触发
   }, [
-    filteredBookmarks,
-    filteredHistory,
-    filteredOpenTabs,
+    navigatorQuery,
+    browserBookmarks,
+    browserHistory,
+    browserTabs,
     searchScope,
     t.browserHistoryTabs,
     t.browserOpenTabs,
@@ -181,8 +140,6 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
     navigatorSearchInputRef,
     quickLinks,
     browserLookupIndex,
-    filteredBookmarks,
-    filteredHistory,
     searchResults,
   };
 }

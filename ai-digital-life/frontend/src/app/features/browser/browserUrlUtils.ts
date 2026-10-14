@@ -59,6 +59,7 @@ export function isProbablySameSite(expected: string, actual: string): boolean {
 }
 
 import type { SearchEngine } from '../../stores/slices/browserSearchEnginesSlice';
+import { historyDedupKey } from '@utils/browserDisplayUtils';
 
 export type { SearchEngine } from '../../stores/slices/browserSearchEnginesSlice';
 
@@ -133,6 +134,76 @@ export function isPoolTabEvent(
     return true;
   }
   return tabs.some((t) => t.id === tabId);
+}
+
+export interface BrowserSearchItem {
+  title: string;
+  url: string;
+}
+
+export interface BrowserSearchResult extends BrowserSearchItem {
+  source: string;
+}
+
+export type BrowserSearchScopeKind = 'bookmarks' | 'history' | 'all';
+
+export function filterBrowserItems<T extends BrowserSearchItem>(items: T[], query: string): T[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return items;
+  }
+  return items.filter((item) => {
+    const title = item.title.toLowerCase();
+    const url = item.url.toLowerCase();
+    return title.includes(normalizedQuery) || url.includes(normalizedQuery);
+  });
+}
+
+/**
+ * 搜索标签结果合并（事项 10-c）：空查询直接返回空（点域按钮不再默认列出全域）；
+ * '全部'域跨源按 URL 去重——高优先级先行占位（已打开 > 收藏 > 历史），
+ * 行操作锚定最鲜活的归属，展示顺序同样最可操作的在前。
+ */
+export function mergeSearchResults(args: {
+  query: string;
+  scope: BrowserSearchScopeKind;
+  bookmarks: BrowserSearchItem[];
+  history: BrowserSearchItem[];
+  openTabs: BrowserSearchItem[];
+  labels: { savedTabs: string; historyTabs: string; openTabs: string };
+}): BrowserSearchResult[] {
+  const { query, scope, bookmarks, history, openTabs, labels } = args;
+  // 空查询不再默认列出全域标签：仅输入后出结果。
+  if (!query.trim()) {
+    return [];
+  }
+  const filteredBookmarks = filterBrowserItems(bookmarks, query);
+  const filteredHistory = filterBrowserItems(history, query);
+  const filteredOpenTabs = filterBrowserItems(openTabs, query);
+  if (scope === 'bookmarks') {
+    return filteredBookmarks.map((item) => ({ ...item, source: labels.savedTabs }));
+  }
+  if (scope === 'history') {
+    return filteredHistory.map((item) => ({ ...item, source: labels.historyTabs }));
+  }
+  const merged = new Map<string, BrowserSearchResult>();
+  const put = (item: BrowserSearchItem, source: string) => {
+    const key = `url:${historyDedupKey(item.url)}`;
+    if (!merged.has(key)) {
+      merged.set(key, { ...item, source });
+    }
+  };
+  // 已打开标签同样参与"全部"检索：此前仅合并且收藏/历史，输入标签标题/网址时无结果。
+  for (const item of filteredOpenTabs) {
+    put(item, labels.openTabs);
+  }
+  for (const item of filteredBookmarks) {
+    put(item, labels.savedTabs);
+  }
+  for (const item of filteredHistory) {
+    put(item, labels.historyTabs);
+  }
+  return [...merged.values()];
 }
 
 /**
