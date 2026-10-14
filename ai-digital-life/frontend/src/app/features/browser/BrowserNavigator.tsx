@@ -405,7 +405,13 @@ export function BrowserNavigator() {
             </div>
           ) : (
             <div className="adl-multitree__empty">
-              <p className="adl-empty-hint">{t.searchBookmarkHistoryHint}</p>
+              <p className="adl-empty-hint">
+                {searchScope === 'bookmarks'
+                  ? t.searchBookmarksHint
+                  : searchScope === 'history'
+                    ? t.searchHistoryHint
+                    : t.searchBookmarkHistoryHint}
+              </p>
             </div>
           )}
         </div>

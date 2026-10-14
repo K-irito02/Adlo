@@ -1,9 +1,10 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppStore } from '@stores/slicedStore';
 import { useOpenInCenterAction } from '@features/browser/useOpenInCenterAction';
 import { handleBookmarkToggle } from './browserEntrySubEntriesUtils';
 import { useHintCard, HintCard } from '../../components/HintCard';
+import { useClampedMenuPosition } from '@features/tree/treeEntryMenus';
 import type { BrowserTreeNode } from './types';
 import type { SectionCallbacks } from './BrowserCategorySection';
 import type { CopyDict } from '@i18n';
@@ -56,6 +57,15 @@ export function useBrowserTreeEntryMenu({
   } = useHintCard();
 
   const { openUrlInCenter, moveTabToCenter } = useOpenInCenterAction();
+
+  // 两处 portal 菜单视口钳制（事项 15）：底部行右键不再被应用下边缘裁剪。
+  const entryMenuClamp = useClampedMenuPosition(menuPosition);
+  const tabMenuPosition = useMemo(
+    () => (contextMenuForTab ? { top: contextMenuForTab.y, left: contextMenuForTab.x } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制，对象整体入 deps 会每渲染换身份
+    [contextMenuForTab?.x, contextMenuForTab?.y],
+  );
+  const tabMenuClamp = useClampedMenuPosition(tabMenuPosition);
 
   const showNodeInCenter = useCallback(
     (target: BrowserTreeNode) => {
@@ -163,14 +173,15 @@ export function useBrowserTreeEntryMenu({
   }, [contextMenuForTab, setContextMenuForTab, hideHint]);
 
   const entryMenuSlot =
-    menuOpen && menuPosition
+    menuOpen && menuPosition && entryMenuClamp.adjusted
       ? createPortal(
           <>
             <div
+              ref={entryMenuClamp.menuRef}
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id={menuId}
-              style={{ top: menuPosition.top, left: menuPosition.left }}
+              style={{ top: entryMenuClamp.adjusted.top, left: entryMenuClamp.adjusted.left }}
             >
               {[
                 ...entryMenuItems,
@@ -192,9 +203,7 @@ export function useBrowserTreeEntryMenu({
                   onClick={handleMenuItemClick(item.action)}
                 >
                   <span>{item.label}</span>
-                  {item.badge ? (
-                    <span className="adl-menu-item__badge">{item.badge}</span>
-                  ) : null}
+                  {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
                   {item.hint ? (
                     <span
                       className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}
@@ -219,10 +228,15 @@ export function useBrowserTreeEntryMenu({
     ? createPortal(
         <>
           <div
+            ref={tabMenuClamp.menuRef}
             className="adl-multitree-entry__menu"
             role="menu"
             data-menu-id="browser-tab-context-menu"
-            style={{ top: contextMenuForTab.y, left: contextMenuForTab.x }}
+            style={
+              tabMenuClamp.adjusted
+                ? { top: tabMenuClamp.adjusted.top, left: tabMenuClamp.adjusted.left }
+                : { top: contextMenuForTab.y, left: contextMenuForTab.x }
+            }
           >
             {[
               {

@@ -123,6 +123,8 @@ export const commonEn = {
   settings: 'Settings',
   searchNoResults: 'No matching results found',
   searchBookmarkHistoryHint: 'Search bookmarks and history by keyword',
+  searchBookmarksHint: 'Search saved tabs by keyword',
+  searchHistoryHint: 'Search history tabs by keyword',
   clearAllOpenTabs: 'Clear all open tabs',
   deleteAllTabDirs: 'Delete all workspace and custom directory tabs (keep directory structure)',
   newTabPage: 'New tab page',
