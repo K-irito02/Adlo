@@ -384,10 +384,13 @@ describe('files search mode wiring', () => {
   });
 
   it('follows the highlighted workspace on entry in follow mode (事项 3 跟随)', () => {
-    // 跟随模式每次进入检索都绑定当前高亮；固定模式绑定持久化 pinned。
+    // 跟随模式每次进入检索都绑定当前高亮；目标变化而会话陈旧时作废旧会话
+    //（清旧结果留检索词、取消在途，重开会话），否则旧结果顶新名、watcher 标错仓。
     expect(shellSource).toContain('searchFollowWorkspace');
     expect(shellSource).toContain('searchPinnedWorkspaceId');
-    expect(shellSource).toContain('setSearchTargetWorkspaceId(activeWorkspaceId)');
+    expect(shellSource).toContain('setSearchTargetWorkspaceId(next)');
+    expect(shellSource).toContain('st.cancelPendingSearch()');
+    expect(shellSource).toContain('st.beginSearchSession(next)');
   });
 
   it('shows the workspace name before the search word in the input placeholder (事项 3-D)', () => {

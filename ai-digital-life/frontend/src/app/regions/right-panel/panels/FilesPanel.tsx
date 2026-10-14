@@ -213,19 +213,23 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     nonce: number;
     /** 点击时刻的检索词快照：内容到达后补校验（未打开文件的 stale 标记，事项 45 Phase 4 1.4） */
     query: { text: string; matchCase: boolean; wholeWord: boolean; useRegex: boolean };
+    /** 点击时刻的检索工作区：内容到达后判定预览/编辑器分支用（P4-R1-F6）。 */
+    workspaceId: string | undefined;
   } | null>(null);
   /** 编辑器链路的事后校验：文件打开后内容到达时验证命中是否仍在（已揭示无法撤回，只标 stale/纠正落点）。 */
   const pendingSearchValidateRef = useRef<{
     path: string;
     line: number;
-    nonce: number;
     query: { text: string; matchCase: boolean; wholeWord: boolean; useRegex: boolean };
     /** 显式工作区打开后内容到达即揭示（不限于行号纠正时，事项 9 后续）。 */
     forceNavigate?: boolean;
+    /** 点击时刻的检索工作区：同上（P4-R1-F6）。 */
+    workspaceId: string | undefined;
   } | null>(null);
   // 预览块级锚点由懒加载预览渲染后出现，故按"重试直到锚点就绪"处理（上限 2.5s）
   const previewRevealTimerRef = useRef<number | undefined>(undefined);
-  const searchValidateNonceRef = useRef(0);
+  // （P4-R1-F10：searchValidate 侧 nonce 只写不读，单槽 ref + 路径门已足够，删除以免
+  // 误导为竞态保护；preview 侧 nonce 仍在消费处比对，保留。）
   // pending 辨识 nonce 用单调计数器（Date.now 同毫秒连点可碰撞，事项 45 Phase 4 2.5）。
   const previewRevealNonceRef = useRef(0);
 
@@ -341,6 +345,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
             baseline: state.fileContent,
             nonce: (previewRevealNonceRef.current += 1),
             query: querySnap,
+            workspaceId: state.searchWorkspaceId,
           };
           // 预览模式只打开文件，行定位由内容到达后的 pendingPreview effect 接管。
           void useAppStore
@@ -362,9 +367,9 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         pendingSearchValidateRef.current = {
           path: relativePath,
           line: explicitLine,
-          nonce: (searchValidateNonceRef.current += 1),
           query: querySnap,
           forceNavigate: true,
+          workspaceId: state.searchWorkspaceId,
         };
         void useAppStore
           .getState()
@@ -400,6 +405,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           baseline: state.fileContent,
           nonce: (previewRevealNonceRef.current += 1),
           query: querySnap,
+          workspaceId: state.searchWorkspaceId,
         };
         // 预览模式不挂编辑器：只打开文件，行定位交给 revealInPreview
         // （若走 onOpenFileAtLine，会在隐藏/陈旧的编辑器上做一次无意义的揭示）
@@ -411,8 +417,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         pendingSearchValidateRef.current = {
           path: relativePath,
           line: targetLine,
-          nonce: (searchValidateNonceRef.current += 1),
           query: querySnap,
+          workspaceId: state.searchWorkspaceId,
         };
         onOpenFileAtLine(relativePath, targetLine);
       } else {
@@ -441,7 +447,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     if (fileContent === undefined) {
       return;
     }
-    if (!isPreviewModeForPath(pending.path)) {
+    if (!isPreviewModeForPath(pending.path, pending.workspaceId)) {
       pendingPreviewRevealRef.current = null;
       return;
     }
@@ -451,7 +457,9 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       findLineForQuery(content, pending.query.text, pending.query, pending.line);
     const settleStale = () => {
       const state = useAppStore.getState();
-      state.markSearchHitStale(pending.path, pending.line, state.searchWorkspaceId);
+      // P4-R1-R1：用点击时刻的工作区（pending 捕获），而非到达时刻的会话 id；
+      // 重绑定+重搜发生在点击与到达之间时，避免误标新会话的同路径命中。
+      state.markSearchHitStale(pending.path, pending.line, pending.workspaceId ?? state.searchWorkspaceId);
       pendingPreviewRevealRef.current = null;
     };
     if (fileContent === pending.baseline) {
@@ -470,7 +478,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
             );
             if (relocated === null) {
               const state = useAppStore.getState();
-              state.markSearchHitStale(current.path, current.line, state.searchWorkspaceId);
+              state.markSearchHitStale(current.path, current.line, current.workspaceId ?? state.searchWorkspaceId);
               return;
             }
             current.line = relocated;
@@ -497,7 +505,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     if (!validating || selectedFilePath !== validating.path || fileContent === undefined) {
       return;
     }
-    if (isPreviewModeForPath(validating.path)) {
+    if (isPreviewModeForPath(validating.path, validating.workspaceId)) {
       pendingSearchValidateRef.current = null;
       return;
     }
@@ -510,7 +518,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     );
     const state = useAppStore.getState();
     if (relocated === null) {
-      state.markSearchHitStale(validating.path, validating.line, state.searchWorkspaceId);
+      // 同上：用点击时刻工作区，避免误标重绑定后新会话的同路径命中。
+      state.markSearchHitStale(validating.path, validating.line, validating.workspaceId ?? state.searchWorkspaceId);
       return;
     }
     // 显式工作区打开（事项 9 后续）内容到达即揭示；原有链路仅在行号纠正时揭示。

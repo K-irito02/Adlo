@@ -290,9 +290,8 @@ describe('CenterEntryPage narrow-width clipping (事项 4)', () => {
     expect(css).not.toMatch(/\.adl-launcher-entry\s*\{[^}]*white-space:\s*normal/);
   });
 
-  it('aligns icons in a fixed gutter while centering text (事项 8)', () => {
-    // 图标固定列 + 文本弹性居中：等宽按钮 + 居中文本保证无翻转跳动，
-    // 固定 gutter 保证图标纵向对齐（两者兼得）。
+  it('aligns icons in a fixed gutter while left-aligning text (事项 8)', () => {
+    // 图标固定列纵向对齐 + 文本左对齐贴图标：等宽按钮无翻转跳动（P4-R1-R2-1）。
     const css = readFileSync(
       join(process.cwd(), 'src/styles/regions/center-entry.css'),
       'utf8',

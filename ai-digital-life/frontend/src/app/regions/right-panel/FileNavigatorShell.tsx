@@ -275,7 +275,11 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
   >({});
   useEffect(() => {
     let cancelled = false;
-    const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
+    // 与文件名命中同源（P4-R1-F1）：按检索目标工作区加载，否则固定模式下
+    // 被检索工作区的 gitignore 判定器缺失，名单过滤被静默跳过。
+    const targetIds = effectiveSearchWorkspaceId
+      ? [effectiveSearchWorkspaceId]
+      : visibleWorkspaces.map((w) => w.id);
     void (async () => {
       const next: Record<string, ((path: string, isDir: boolean) => boolean) | undefined> = {};
       for (const wsId of targetIds) {
@@ -327,7 +331,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     return () => {
       cancelled = true;
     };
-  }, [workspaceTrees, activeWorkspaceId, visibleWorkspaces, recentWorkspaces]);
+  }, [workspaceTrees, effectiveSearchWorkspaceId, visibleWorkspaces, recentWorkspaces]);
   const searchEntriesCount = useAppStore((s) => s.searchEntries.length);
   const loadMoreSearchResults = useAppStore((s) => s.loadMoreSearchResults);
   const showAllSearchResults = useAppStore((s) => s.showAllSearchResults);
@@ -409,6 +413,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       if (!ws) {
         return;
       }
+      // P4-R1-F11 结论：工作区 id 由 path 派生（同 path 即同根），且本组件的
+      // appInfo prop 类型无 id 字段，故仅按 path 判定已充分且类型安全。
       const backendPath = appInfo?.currentWorkspace?.path;
       if (backendPath && ws.path === backendPath) {
         onOpenFile(hit.path);
@@ -611,18 +617,22 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       return;
     }
     const st = useAppStore.getState();
+    let next: string | undefined;
     if (st.searchFollowWorkspace) {
-      if (st.searchTargetWorkspaceId !== activeWorkspaceId) {
-        setSearchTargetWorkspaceId(activeWorkspaceId);
-      }
-      return;
+      next = activeWorkspaceId;
+    } else {
+      const pinned = st.searchPinnedWorkspaceId;
+      next = pinned && visibleWorkspaces.some((w) => w.id === pinned) ? pinned : activeWorkspaceId;
     }
-    const pinned = st.searchPinnedWorkspaceId;
-    const pinnedValid =
-      pinned && visibleWorkspaces.some((w) => w.id === pinned) ? pinned : undefined;
-    const next = pinnedValid ?? activeWorkspaceId;
     if (st.searchTargetWorkspaceId !== next) {
       setSearchTargetWorkspaceId(next);
+    }
+    // 目标工作区变化而会话仍指向旧工作区时，旧命中/会话一律失效（P4-R1-F4/F5）：
+    // 清空旧结果（保留检索词供回车重搜）、取消在途，重开会话。否则旧结果会顶着
+    // 新工作区的名字显示，且 watcher 重算会把新根命中标成旧工作区。
+    if (next !== st.searchWorkspaceId) {
+      st.cancelPendingSearch();
+      st.beginSearchSession(next);
     }
   }, [navigatorMode, activeWorkspaceId, visibleWorkspaces, setSearchTargetWorkspaceId]);
 

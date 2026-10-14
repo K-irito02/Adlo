@@ -176,17 +176,18 @@ export function selectSearchFilter(
 }
 
 /**
- * 解析本次检索的目标工作区：优先显式选中的 `searchTargetWorkspaceId`（须在当前
- * 最近工作区列表中），否则回退后端当前激活工作区（按 path 匹配）。二者均未命中时
- * `id`/`path` 为 undefined，由调用方再回退到 `appInfo.currentWorkspace`（不传
- * `workspacePath` 时后端本就落到当前激活工作区）。
+ * 解析本次检索的目标工作区：优先显式选中的 `searchTargetWorkspaceId`，否则回退
+ * 后端当前激活工作区（按 path 匹配）。只在可见工作区（未移除且可用）中解析，
+ * 与 UI 各 lane（高亮/入口/设置）同口径；陈旧 id 落空，由调用方再回退到
+ * `appInfo.currentWorkspace`（不传 `workspacePath` 时后端本就落到当前激活工作区）。
+ * （P4-R1-F2：不过滤会导致隐藏工作区被检索而 UI 显示高亮，范围分歧。）
  */
 export function resolveSearchWorkspace(
   recentWorkspaces: RecentWorkspaceEntry[] | undefined,
   targetWorkspaceId: string | undefined,
   backendPath: string | undefined,
 ): { id: string | undefined; path: string | undefined } {
-  const workspaces = recentWorkspaces ?? [];
+  const workspaces = (recentWorkspaces ?? []).filter((w) => !w.removedFromSidebar && w.available);
   const target = targetWorkspaceId ? workspaces.find((w) => w.id === targetWorkspaceId) : undefined;
   const fallback =
     !target && backendPath ? workspaces.find((w) => w.path === backendPath) : undefined;

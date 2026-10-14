@@ -518,6 +518,11 @@ export async function collectTextFiles(
   currentPath: string,
   results: string[],
 ): Promise<void> {
+  // ripgrep-style C（仅检索调用）：不设总大小上限、不预读内容探可读性；
+  // 体积/二进制判定下沉到扫描期（NUL 即停）与单行护栏。此处只做目录/链接/数量过滤。
+  // 有意与 Rust 不完全一致（P4-R1-R3，dev-preview 限定）：
+  // Rust 枚举仍用扩展名 deny-list + 全量 ignored_dirs 预过滤，本函数不过滤扩展名、
+  // 忽略目录集更小——二进制靠扫描期 NUL 拦截，结果等价，仅多几次无害 open。
   let entries;
   try {
     entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -533,19 +538,7 @@ export async function collectTextFiles(
       continue;
     }
     if (!entry.isFile()) continue;
-    let stats;
-    try {
-      stats = await fs.stat(entryPath);
-    } catch {
-      continue;
-    }
-    if (stats.size > DEFAULT_MAX_FILE_BYTES) continue;
-    try {
-      await fs.readFile(entryPath, 'utf8');
-      results.push(entryPath);
-    } catch {
-      continue;
-    }
+    results.push(entryPath);
   }
 }
 

@@ -147,6 +147,9 @@ export function useRightPanelLayout(collapsed: boolean) {
       // overlay_full 是"模式不变式"：占满 shell（width := rightMaxWidth），不再由宽度反推。
       const maximized = options?.maximized ?? maximizedRef.current;
       const targetWidth = maximized ? metrics.rightMaxWidth : width;
+      // P4-R1-F5 注：超宽 shell（rightMaxWidth > 4096 token 上限）下 maximized 仍被
+      // 钳到 4096 存盘，而 CSS 按 100% 渲染为全宽——显示一致，仅存量值有偏；
+      // 正常硬件到不了该量级，有意不做分支（ upcoming 硬件若常态化再提上限）。
       const nextWidth = Math.max(
         RIGHT_PANEL_WIDTH_MIN,
         Math.min(Math.min(RIGHT_PANEL_WIDTH_MAX, metrics.rightMaxWidth), targetWidth),
@@ -210,11 +213,20 @@ export function useRightPanelLayout(collapsed: boolean) {
   // 还原时回到拖拽起始宽度）；未到占满则按自由宽度提交。startWidth 取拖拽起始的 store 宽。
   const finalizeDragWidth = useCallback(
     (latestWidth: number, startWidth: number) => {
+      // 空点（无位移）：只重算几何，不动还原点（P4-R1-F1；否则一次误触即丢还原宽度）。
+      if (latestWidth === startWidth) {
+        const { nextWidth } = applyPanelGeometry(latestWidth, { maximized: false });
+        setRightPanelWidth(nextWidth);
+        return nextWidth;
+      }
       const metrics = readLayoutMetrics();
       const fillsShell =
         latestWidth >= metrics.rightMaxWidth - 1 && metrics.rightMaxWidth <= RIGHT_PANEL_WIDTH_MAX;
       if (fillsShell) {
-        lastRestorableWidthRef.current = clampPanelWidthToShell(startWidth);
+        // 起始已占满（扩大后未动即点）：还原点保持，不用满宽覆盖（同上）。
+        if (startWidth < metrics.rightMaxWidth - 1) {
+          lastRestorableWidthRef.current = clampPanelWidthToShell(startWidth);
+        }
         const { nextWidth } = applyPanelGeometry(metrics.rightMaxWidth, { maximized: true });
         setRightPanelWidth(nextWidth);
         return nextWidth;
@@ -311,7 +323,9 @@ export function useRightPanelLayout(collapsed: boolean) {
         return;
       }
       const { nextWidth, nextMode } = applyPanelGeometry(rightPanelWidth, {
-        commitRestorable: !maximizedRef.current,
+        // 被动同步永不动还原点（P4-R1-F2）：还原点只在显式拖拽收尾/切换扩大时移动；
+        // 否则窗口/左栏变化会污染用户存的还原宽度（含拖拽中逐帧 persist 写盘）。
+        commitRestorable: false,
         // 用户主动扩大（overlay_full）→ 模式不变式：任何布局变化都按新 rightMaxWidth
         // 补满（左栏展开/收起、窗口 resize 后仍占满）；非扩大则按自由宽度钳制。
         maximized: maximizedRef.current,

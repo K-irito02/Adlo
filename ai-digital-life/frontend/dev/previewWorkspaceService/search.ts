@@ -16,8 +16,10 @@ import {
 
 /** 单批路径上限（DoS 护栏，与服务端 search-in-files 同级）。 */
 const MAX_SEARCH_PATHS = 2000;
-/** 单文件体积上限（与 Rust 全量检索 1MB 同级，超限跳过不读入内存）。 */
-const MAX_FILE_BYTES = 1024 * 1024;
+/** 流式读缓冲（与 Rust SEARCH_READ_BUFFER_BYTES 同值）。 */
+const SEARCH_READ_CHUNK = 64 * 1024;
+/** 单行匹配上限（与 Rust MAX_SEARCH_LINE_BYTES 同值，病态单行护栏）。 */
+const MAX_SEARCH_LINE_BYTES = 8 * 1024 * 1024;
 /** 单次检索最多读取的 `.gitignore` 文件数（DoS 护栏：超深嵌套仓库裁剪）。 */
 const MAX_GITIGNORE_FILES = 64;
 /** 单个 `.gitignore` 体积上限（与 Rust `MAX_GITIGNORE_BYTES` 同值，超限跳过）。 */
@@ -99,6 +101,87 @@ async function resolveGitignore(
   return createGitignoreMatcher(await loadGitignoreChain(rootPath));
 }
 
+/**
+ * 流式扫描单文件（ripgrep-style C，与 Rust search.rs 同语义）：
+ * 无总大小上限（内存恒 O(行)）；NUL 即停扫该文件但保留已得命中；
+ * 超 8MB 单行截断匹配；非 UTF-8 按 lossy（Buffer.toString 默认替换）尽力匹配；
+ * CRLF 按 \n 分行再去尾 \r（与 Rust strip 同语义）。
+ * @returns true 表示已达 ceiling（调用方直接分页返回）。
+ */
+async function scanFileHits(
+  absolutePath: string,
+  displayPath: string,
+  needle: string,
+  ceiling: number,
+  hits: WorkspaceSearchHit[],
+): Promise<boolean> {
+  let fh: fs.FileHandle | undefined;
+  try {
+    fh = await fs.open(absolutePath, 'r');
+  } catch {
+    return false;
+  }
+  try {
+    let filePos = 0;
+    let lineNumber = 0;
+    const chunk = Buffer.allocUnsafe(SEARCH_READ_CHUNK);
+    for (;;) {
+      // 读一个逻辑行（至多存 cap；超长丢弃但消费对齐；NUL 仅判到本行）。
+      const parts: Buffer[] = [];
+      let stored = 0;
+      let sawNul = false;
+      let eof = false;
+      let ok = true;
+      for (;;) {
+        let bytesRead = 0;
+        try {
+          ({ bytesRead } = await fh.read(chunk, 0, chunk.length, filePos));
+        } catch {
+          ok = false;
+          break;
+        }
+        if (bytesRead === 0) {
+          eof = true;
+          break;
+        }
+        const avail = chunk.subarray(0, bytesRead);
+        const nl = avail.indexOf(10);
+        if (nl !== -1) {
+          const end = nl + 1;
+          if (avail.subarray(0, end).includes(0)) sawNul = true;
+          const take = Math.min(end, MAX_SEARCH_LINE_BYTES - stored);
+          if (take > 0) parts.push(Buffer.from(avail.subarray(0, take))) // copy: subarray is a view, re-read would clobber it;
+          stored += take;
+          filePos += end;
+          break;
+        }
+        if (avail.includes(0)) sawNul = true;
+        const take = Math.min(avail.length, MAX_SEARCH_LINE_BYTES - stored);
+        if (take > 0) parts.push(Buffer.from(avail.subarray(0, take))) // copy: subarray is a view, re-read would clobber it;
+        stored += take;
+        filePos += avail.length;
+      }
+      if (!ok) break;
+      if (sawNul) break;
+      if (parts.length === 0) break; // EOF 且无残留（空文件/尾换行后），无行可匹配。
+      lineNumber += 1;
+      let text = Buffer.concat(parts).toString('utf8');
+      if (text.endsWith('\n')) text = text.slice(0, -1);
+      if (text.endsWith('\r')) text = text.slice(0, -1);
+      if (text.toLowerCase().includes(needle)) {
+        hits.push({ path: displayPath, line: lineNumber, preview: text.trim().slice(0, 240) });
+        if (hits.length >= ceiling) return true;
+      }
+      // 尾行（无换行）已处理：eof 即结束（否则下轮读到空才出，多一次 syscall）。
+      // 无换行且非 eof 不可能（内循环读到换行/EOF 才出）。
+      if (eof) break;
+    }
+    return false;
+  } finally {
+    await fh.close().catch(() => {});
+  }
+}
+
 export async function searchText(
   rootPath: string,
   query: string,
@@ -121,30 +204,10 @@ export async function searchText(
     if (!allowed(workspaceRelativePath)) {
       continue;
     }
-    // 与 `searchInFiles`/Rust 同形：单文件 TOCTOU/超限/二进制即跳过，
-    // 不能让一个文件拖垮整轮检索（事项 H2/M3）。
-    let content: string;
-    try {
-      if (statSync(filePath).size > MAX_FILE_BYTES) {
-        continue;
-      }
-      content = await fs.readFile(filePath, 'utf8');
-    } catch {
-      continue;
-    }
-    const lines = content.split(/\r?\n/);
-    for (let index = 0; index < lines.length; index += 1) {
-      if (!lines[index].toLowerCase().includes(needle)) {
-        continue;
-      }
-      hits.push({
-        path: workspaceRelativePath,
-        line: index + 1,
-        preview: lines[index].trim().slice(0, 240),
-      });
-      if (hits.length >= ceiling) {
-        return paginateSearchHits(hits, window);
-      }
+    // ripgrep-style C（与 Rust 同形）：流式扫描，无总大小上限；单文件读错/
+    // 二进制即跳过（scanFileHits 内部处理），不能让一个文件拖垮整轮检索。
+    if (await scanFileHits(filePath, workspaceRelativePath, needle, ceiling, hits)) {
+      return paginateSearchHits(hits, window);
     }
   }
   return paginateSearchHits(hits, window);
@@ -180,33 +243,14 @@ export async function searchInFiles(
     if (!allowed(normalizePath(rel))) {
       continue;
     }
-    let content: string;
-    try {
-      if (!existsSync(absolute)) {
-        continue;
-      }
-      if (statSync(absolute).size > MAX_FILE_BYTES) {
-        continue;
-      }
-      content = await fs.readFile(absolute, 'utf8');
-    } catch {
-      // TOCTOU 删除/无权限/二进制：单文件跳过，不拖垮整批。
+    // ripgrep-style C：流式扫描（不存在/无权限/二进制由 scanFileHits 内部跳过）。
+    if (!existsSync(absolute)) {
       continue;
     }
-    const lines = content.split(/\r?\n/);
-    for (let index = 0; index < lines.length; index += 1) {
-      if (!lines[index].toLowerCase().includes(needle)) {
-        continue;
-      }
-      hits.push({
-        path: candidatePath,
-        line: index + 1,
-        preview: lines[index].trim().slice(0, 240),
-      });
-      if (hits.length >= ceiling) {
-        return paginateSearchHits(hits, window);
-      }
+    if (await scanFileHits(absolute, candidatePath, needle, ceiling, hits)) {
+      return paginateSearchHits(hits, window);
     }
   }
   return paginateSearchHits(hits, window);
 }
+

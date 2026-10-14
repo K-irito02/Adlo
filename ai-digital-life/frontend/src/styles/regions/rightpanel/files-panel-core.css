@@ -14,8 +14,7 @@
     color var(--duration-200) var(--ease-default);
 }
 
-.adl-rightpanel--overlay-active,
-.adl-rightpanel--overlay-expanded {
+.adl-rightpanel--overlay-active {
   position: absolute;
   top: 0;
   right: 0;
@@ -24,15 +23,20 @@
   z-index: 4;
 }
 
-.adl-shell__body.is-left-collapsed .adl-rightpanel--overlay-active,
-.adl-shell__body.is-left-collapsed .adl-rightpanel--overlay-expanded {
+.adl-shell__body.is-left-collapsed .adl-rightpanel--overlay-active {
   width: min(var(--rightpanel-width), 100%);
 }
 
 /* overlay_full 是"占满"模式不变式：宽度恒等于 shell 减左栏（不再依赖 --rightpanel-width），
-   左栏展开/收起时自动跟随，无需等待 store 宽度同步（否则左栏收起后中间区会重现）。 */
+   左栏展开/收起时自动跟随，无需等待 store 宽度同步（否则左栏收起后中间区会重现）。
+   与 overlay-active 分规则书写（P4-R1-F3），不依赖选择器顺序取胜。 */
 .adl-rightpanel--overlay-expanded {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   width: calc(100% - var(--leftbar-width));
+  z-index: 4;
 }
 
 .adl-shell__body.is-left-collapsed .adl-rightpanel--overlay-expanded {

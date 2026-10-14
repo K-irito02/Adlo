@@ -176,16 +176,21 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     const isWorkspace = tab === 'workspace';
     if (isWorkspace) {
       // 绑定设置：模式与固定目标均持久化；会话目标同步为本次选择后重搜。
+      // （P4-R1-F3：只在固定模式写 pinned，跟随模式不动它；陈旧 pinned 保留不置 null。
+      //  P4-R1-F8：跟随无有效高亮时回退首个可见工作区，与打开初始化同口径。）
       store.setSearchFollowWorkspace(draftFollow);
-      const pinned =
-        !draftFollow && draftPinnedId && visibleWorkspaces.some((w) => w.id === draftPinnedId)
-          ? draftPinnedId
-          : null;
-      store.setSearchPinnedWorkspaceId(pinned);
-      // 跟随→当前高亮（无有效高亮时置 undefined，由入口 effect 与后端回退承接）；
+      let pinned: string | null = null;
+      if (!draftFollow) {
+        pinned =
+          draftPinnedId && visibleWorkspaces.some((w) => w.id === draftPinnedId)
+            ? draftPinnedId
+            : store.searchPinnedWorkspaceId;
+        store.setSearchPinnedWorkspaceId(pinned);
+      }
+      // 跟随→当前高亮（无则首个可见；仍无则由入口/回退承接）；
       // 固定→pinned（陈旧则回退高亮）。
       const nextTarget = draftFollow
-        ? validActiveWorkspaceId
+        ? (validActiveWorkspaceId ?? visibleWorkspaces[0]?.id)
         : (pinned ?? validActiveWorkspaceId ?? visibleWorkspaces[0]?.id);
       store.setSearchTargetWorkspaceId(nextTarget);
     } else if (!isLimits) {
@@ -313,22 +318,25 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
         <div className="adl-prompt-modal__header">
           <span className="adl-search-settings__title">
             {t.searchSettingsTitle as string}
-            {/* 说明图标搬到标题右侧；内容仍按当前 tab 切换 */}
-            <HintCardTrigger
-              content={tab === 'ignore' ? <SearchIgnoreHelpCard /> : <SearchLimitsHelpCard />}
-            >
-              <button
-                type="button"
-                className="adl-icon-button adl-icon-button--info"
-                aria-label={
-                  (tab === 'ignore'
-                    ? t.searchSettingsIgnoreHintTitle
-                    : t.searchSettingsLimitsHintTitle) as string
-                }
+            {/* 说明图标搬到标题右侧；绑定 tab 正文已有说明行，此处不重复
+               （P4-R1-F7：此前误弹限制卡）。 */}
+            {tab === 'workspace' ? null : (
+              <HintCardTrigger
+                content={tab === 'ignore' ? <SearchIgnoreHelpCard /> : <SearchLimitsHelpCard />}
               >
-                <IconCircleHelp size={14} decorative />
-              </button>
-            </HintCardTrigger>
+                <button
+                  type="button"
+                  className="adl-icon-button adl-icon-button--info"
+                  aria-label={
+                    (tab === 'ignore'
+                      ? t.searchSettingsIgnoreHintTitle
+                      : t.searchSettingsLimitsHintTitle) as string
+                  }
+                >
+                  <IconCircleHelp size={14} decorative />
+                </button>
+              </HintCardTrigger>
+            )}
           </span>
           <button
             type="button"

@@ -111,6 +111,8 @@ pub fn search_text(
     }
     // ripgrep-style C：检索枚举不设总大小上限（u64::MAX = 仅扩展名预过滤）；
     // 体积/二进制判定下沉到流式扫描（NUL 即停该文件）与单行护栏。
+    // 注意（P4-R1-B4）：无命中扫描会流式读完每个候选文件（窗口早退只在命中时触发），
+    // 后续性能工作（如并行扫描、预剪枝）从此处入手。
     let files = crate::tree::collect_text_files(root, u64::MAX)?;
     let matcher = filter.matcher_for(root);
     search_text_in_files(&files, root, query, window, filter, matcher.as_ref(), &|| false)
@@ -172,7 +174,8 @@ pub async fn search_text_async(
 /// - 至多存 `cap` 字节；超长行超出部分仍消费丢弃（保持行对齐），但丢弃段仍做 NUL
 ///   扫描，确保二进制检出不漏。
 /// - 返回 `(hit_newline, eof, saw_nul)`。NUL 只判定到本行换行符为止（前视超出的
-///   NUL 属后续行，不得导致本行命中被丢弃；ripgrep 语义：保留 NUL 之前的命中）。
+///   NUL 属后续行，不得导致本行命中被丢弃）。含 NUL 的本行整行不参与匹配、
+///   仅保留此前行已得命中（行级粒度的保守二进制策略；P4-R1-B2）。
 fn read_capped_line(
     reader: &mut BufReader<fs::File>,
     buf: &mut Vec<u8>,
@@ -222,6 +225,9 @@ fn search_text_in_files(
     let mut hits: Vec<WorkspaceSearchHit> = Vec::new();
     let mut skipped = 0usize;
     let mut has_more = false;
+    // P4-R1-B5：行缓冲提到文件循环外复用（病态文件后容量可达 8MB，避免逐文件释放重建）。
+    // read_capped_line 入口即 clear，无跨文件残留。
+    let mut line_buf: Vec<u8> = Vec::new();
 
     'files: for file in files {
         if is_cancelled() {
@@ -251,17 +257,19 @@ fn search_text_in_files(
             },
         };
         let mut reader = BufReader::with_capacity(SEARCH_READ_BUFFER_BYTES, handle);
-        let mut line_buf: Vec<u8> = Vec::new();
         let mut line_number: usize = 0;
         loop {
-            let (_newline_hit, eof, saw_nul) =
-                match read_capped_line(&mut reader, &mut line_buf, MAX_SEARCH_LINE_BYTES) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        tracing::warn!(path = %file.display(), error = %e, "failed to read file during search");
-                        break;
-                    }
-                };
+            let (_newline_hit, eof, saw_nul) = match read_capped_line(
+                &mut reader,
+                &mut line_buf,
+                MAX_SEARCH_LINE_BYTES,
+            ) {
+                Ok(v) => v,
+                Err(e) => {
+                    tracing::warn!(path = %file.display(), error = %e, "failed to read file during search");
+                    break;
+                },
+            };
             if saw_nul {
                 break;
             }
@@ -639,11 +647,7 @@ mod search_in_files_tests {
 
         let hits = search_in_files(
             &tmp,
-            &[
-                "target/built.txt".to_string(),
-                "huge.txt".to_string(),
-                "mixed.txt".to_string(),
-            ],
+            &["target/built.txt".to_string(), "huge.txt".to_string(), "mixed.txt".to_string()],
             "needle",
             SearchWindow::default(),
             &SearchFilter::default(),
@@ -719,6 +723,77 @@ mod search_in_files_tests {
         .hits;
         assert_eq!(hits.len(), 1, "prefix hit must survive truncation, got {hits:?}");
         assert_eq!(hits[0].line, 1);
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_skips_same_line_nul_match() {
+        // 行级粒度的保守策略（P4-R1-B2）：含 NUL 的本行整行不参与匹配，
+        // 仅此前行已得命中保留。
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("nul.txt"), b"needle \x00 tail\nsecond\n").unwrap();
+
+        let hits = search_in_files(
+            &tmp,
+            &["nul.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
+        assert!(hits.is_empty(), "NUL line must not match, got {hits:?}");
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_misses_beyond_line_guard() {
+        // 护栏反向用例：8MB 之外的命中不得返回（否则护栏名存实亡）。
+        let tmp = unique_tmp_dir();
+        let mut line = vec![b'y'; 9 * 1024 * 1024];
+        line[8_500_000..8_500_006].copy_from_slice(b"needle");
+        line.push(b'\n');
+        std::fs::write(tmp.join("wide2.txt"), &line).unwrap();
+
+        let hits = search_in_files(
+            &tmp,
+            &["wide2.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
+        assert!(hits.is_empty(), "beyond-guard hit must not match, got {hits:?}");
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_numbers_crlf_like_lf() {
+        let tmp = unique_tmp_dir();
+        std::fs::write(tmp.join("dos.txt"), b"needle\r\nsecond\r\n").unwrap();
+
+        let hits = search_in_files(
+            &tmp,
+            &["dos.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].line, 1);
+        let hits2 = search_in_files(
+            &tmp,
+            &["dos.txt".to_string()],
+            "second",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
+        assert_eq!(hits2[0].line, 2);
         cleanup(&tmp);
     }
 

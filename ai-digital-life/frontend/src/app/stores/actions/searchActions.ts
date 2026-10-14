@@ -354,7 +354,10 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
 
     /** [markSearchHitStale - 点击校验失败时标记该命中失效] */
     markSearchHitStale: (path: string, line?: number, workspaceId?: string) => {
-      set({ searchEntries: markHitsStale(get().searchEntries, path, line, workspaceId) });
+      // P4-R1-F9：undefined 不再透传为"匹配全工作区"（markHitsStale 的通配语义），
+      // 而是收敛到 ''（无会话戳记的条目所用哨兵）；有会话 id 时行为不变。
+      // 跨仓同名文件不再被无关校验误标。
+      set({ searchEntries: markHitsStale(get().searchEntries, path, line, workspaceId ?? '') });
     },
 
     /**

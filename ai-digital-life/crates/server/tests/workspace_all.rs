@@ -546,6 +546,60 @@ async fn search_with_explicit_workspace_path_scans_that_workspace() {
     let _ = std::fs::remove_dir_all(other);
 }
 
+/// `/workspace/search-in-files` 同样接受显式 `workspacePath`（P4-R1-B3）；
+/// 不存在的根返回空页（warn + empty，与 search 的 read_dir 错误不对称，此处钉住）。
+#[tokio::test]
+async fn search_in_files_with_explicit_workspace_path() {
+    let state = common::state("ws-sif-target").await;
+    let active = common::make_workspace("ws-sif-active");
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({ "workspacePath": active.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(body["ok"], true, "open body: {body}");
+
+    let other = common::temp_dir("ws-sif-other");
+    std::fs::write(other.join("target.txt"), "needle-other-marker\n").unwrap();
+
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search-in-files",
+        Some(serde_json::json!({
+            "paths": ["target.txt"],
+            "query": "needle-other-marker",
+            "workspacePath": other.to_string_lossy(),
+        })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "search-in-files body: {body}");
+    let hits = body["data"]["hits"].as_array().expect("hits");
+    assert_eq!(hits.len(), 1, "hits: {hits:?}");
+    assert_eq!(hits[0]["path"], "target.txt");
+
+    // 不存在的根：空页（与 search 的错误回包不对称，属预存行为，此处仅钉住）。
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search-in-files",
+        Some(serde_json::json!({
+            "paths": ["target.txt"],
+            "query": "needle-other-marker",
+            "workspacePath": other.join("no-such-dir").to_string_lossy(),
+        })),
+    )
+    .await;
+    assert_eq!(body["data"]["hits"].as_array().unwrap().len(), 0, "body: {body}");
+
+    let (_, _) =
+        common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
+    let _ = std::fs::remove_dir_all(active);
+    let _ = std::fs::remove_dir_all(other);
+}
+
 /// 缺失 `query` 字段 → INVALID_INPUT（而不是 500）。
 #[tokio::test]
 async fn search_in_files_requires_query_string() {
