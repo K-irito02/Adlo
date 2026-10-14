@@ -64,13 +64,13 @@ export function useBrowserTreeEntryMenu({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制，对象整体入 deps 会每渲染换身份
     [menuOpen, menuPosition?.top, menuPosition?.left],
   );
-  const entryMenuClamp = useClampedMenuPosition(entryMenuPosition);
+  const entryMenuClamp = useClampedMenuPosition(entryMenuPosition, 8, 'entry');
   const tabMenuPosition = useMemo(
     () => (contextMenuForTab ? { top: contextMenuForTab.y, left: contextMenuForTab.x } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制，对象整体入 deps 会每渲染换身份
     [contextMenuForTab?.x, contextMenuForTab?.y],
   );
-  const tabMenuClamp = useClampedMenuPosition(tabMenuPosition);
+  const tabMenuClamp = useClampedMenuPosition(tabMenuPosition, 8, 'tab');
 
   const showNodeInCenter = useCallback(
     (target: BrowserTreeNode) => {

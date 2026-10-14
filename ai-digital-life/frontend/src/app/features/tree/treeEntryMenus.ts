@@ -32,6 +32,7 @@ export interface MenuViewportPosition {
 export function useClampedMenuPosition(
   position: MenuViewportPosition | null,
   margin = 8,
+  slot = 'menu',
 ): {
   menuRef: (el: HTMLDivElement | null) => void;
   adjusted: MenuViewportPosition | null;
@@ -60,11 +61,24 @@ export function useClampedMenuPosition(
       if (top + rect.height > vh - margin) {
         top = Math.max(margin, vh - rect.height - margin);
       }
+      // [ADL-DEBUG] 事项16排查用：底部行右键菜单仍被裁。定案后删除本日志。
+      console.debug(
+        '[ADL-DEBUG] [menu::clamp] slot=%s raw=(%d,%d) rect=%dx%d viewport=%dx%d adjusted=(%d,%d)',
+        slot,
+        position.top,
+        position.left,
+        Math.round(rect.width),
+        Math.round(rect.height),
+        vw,
+        vh,
+        top,
+        left,
+      );
       setAdjusted((prev) =>
         prev && prev.top === top && prev.left === left ? prev : { top, left },
       );
     },
-    [position, margin],
+    [position, margin, slot],
   );
 
   return { menuRef, adjusted };
