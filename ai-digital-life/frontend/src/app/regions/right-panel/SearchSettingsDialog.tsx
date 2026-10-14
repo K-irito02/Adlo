@@ -18,7 +18,7 @@ import {
   SEARCH_PAGE_SIZE_MIN,
 } from '../../../shared/ipc/searchWindow';
 
-type SearchSettingsTab = 'ignore' | 'limits';
+type SearchSettingsTab = 'ignore' | 'limits' | 'workspace';
 
 interface SearchSettingsDialogProps {
   open: boolean;
@@ -42,6 +42,9 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
       : undefined;
 
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | undefined>(undefined);
+  // 绑定草稿（绑定 tab；点"保存"才落盘并重搜）：跟随/固定模式 + 固定目标。
+  const [draftFollow, setDraftFollow] = useState(true);
+  const [draftPinnedId, setDraftPinnedId] = useState<string | undefined>(undefined);
   // 草稿态：弹窗内一切修改只写草稿，点"保存"才落盘（关闭/取消即丢弃）。
   const [draftIgnored, setDraftIgnored] = useState<Record<string, string[]>>({});
   const [draftGitignore, setDraftGitignore] = useState<Record<string, boolean>>({});
@@ -59,6 +62,13 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
       setTab('ignore');
       const store = useAppStore.getState();
       setSelectedWorkspaceId(validActiveWorkspaceId ?? visibleWorkspaces[0]?.id);
+      setDraftFollow(store.searchFollowWorkspace);
+      const pinnedValid =
+        store.searchPinnedWorkspaceId &&
+        visibleWorkspaces.some((w) => w.id === store.searchPinnedWorkspaceId)
+          ? store.searchPinnedWorkspaceId
+          : undefined;
+      setDraftPinnedId(pinnedValid ?? validActiveWorkspaceId ?? visibleWorkspaces[0]?.id);
       const ignored: Record<string, string[]> = {};
       const gitignore: Record<string, boolean> = {};
       for (const ws of visibleWorkspaces) {
@@ -162,8 +172,23 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     setSaveState('saving');
     const startedAt = Date.now();
     const store = useAppStore.getState();
-    const isLimits = tab !== 'ignore';
-    if (!isLimits) {
+    const isLimits = tab === 'limits';
+    const isWorkspace = tab === 'workspace';
+    if (isWorkspace) {
+      // 绑定设置：模式与固定目标均持久化；会话目标同步为本次选择后重搜。
+      store.setSearchFollowWorkspace(draftFollow);
+      const pinned =
+        !draftFollow && draftPinnedId && visibleWorkspaces.some((w) => w.id === draftPinnedId)
+          ? draftPinnedId
+          : null;
+      store.setSearchPinnedWorkspaceId(pinned);
+      // 跟随→当前高亮（无有效高亮时置 undefined，由入口 effect 与后端回退承接）；
+      // 固定→pinned（陈旧则回退高亮）。
+      const nextTarget = draftFollow
+        ? validActiveWorkspaceId
+        : (pinned ?? validActiveWorkspaceId ?? visibleWorkspaces[0]?.id);
+      store.setSearchTargetWorkspaceId(nextTarget);
+    } else if (!isLimits) {
       // 弹窗打开期间新增的工作区不在 draft 快照里：保存时按 id 补齐，
       // 默认读 store 现值（而非空），避免覆盖弹窗期已到达的持久化名单（事项 N2）。
       const wsIds = new Set([
@@ -208,9 +233,8 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     }
     if (store.searchQuery.trim()) {
       try {
-        if (isLimits) {
-          // 新检索语义：窗口重置为新步长（`searchFiles` 内部取最新 store 值），
-          // 结果区直接按新设置显示，无需再点加载更多。
+        if (isLimits || isWorkspace) {
+          // 新检索语义：窗口重置、或按新目标工作区重跑。
           await store.searchFiles(store.searchQuery);
         } else {
           await store.refreshSearchResults();
@@ -232,9 +256,12 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     tab,
     draftIgnored,
     draftGitignore,
+    draftFollow,
+    draftPinnedId,
     pageSizeDraft,
     maxResultsDraft,
     visibleWorkspaces,
+    validActiveWorkspaceId,
   ]);
 
   const checkLabel = useCallback(
@@ -248,6 +275,7 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
     () => [
       { id: 'ignore' as SearchSettingsTab, label: t.searchSettingsIgnoreTab as string },
       { id: 'limits' as SearchSettingsTab, label: t.searchSettingsLimitsTab as string },
+      { id: 'workspace' as SearchSettingsTab, label: t.searchSettingsWorkspaceTab as string },
     ],
     [t],
   );
@@ -359,7 +387,7 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
               <p className="adl-empty-hint">{t.searchNoWorkspace as string}</p>
             )}
           </div>
-        ) : (
+        ) : tab === 'limits' ? (
           <div className="adl-search-settings__body">
             <div className="adl-search-settings__field">
               <label htmlFor="adl-search-settings-pagesize">
@@ -395,6 +423,51 @@ function SearchSettingsDialog({ open, onClose }: SearchSettingsDialogProps) {
               <p className="adl-search-settings__warn" role="status">
                 {formatT(t, 'searchSettingsOverLimitWarn', { warnAt: SEARCH_MAX_RESULTS })}
               </p>
+            ) : null}
+          </div>
+        ) : (
+          <div className="adl-search-settings__body">
+            <p className="adl-search-settings__tip">{t.searchSettingsWorkspaceHint as string}</p>
+            <div
+              className="adl-search-settings__workspaces adl-search-settings__workspaces--center"
+              role="group"
+            >
+              <button
+                type="button"
+                className={`adl-tool-context__toggle-btn${draftFollow ? ' is-active' : ''}`}
+                aria-pressed={draftFollow ? 'true' : 'false'}
+                onClick={() => setDraftFollow(true)}
+              >
+                {t.searchSettingsBindFollow as string}
+              </button>
+              <button
+                type="button"
+                className={`adl-tool-context__toggle-btn${!draftFollow ? ' is-active' : ''}`}
+                aria-pressed={!draftFollow ? 'true' : 'false'}
+                onClick={() => setDraftFollow(false)}
+              >
+                {t.searchSettingsBindPinned as string}
+              </button>
+            </div>
+            {!draftFollow ? (
+              visibleWorkspaces.length > 0 ? (
+                <div className="adl-search-settings__workspaces" role="group">
+                  {visibleWorkspaces.map((ws) => (
+                    <button
+                      key={ws.id}
+                      type="button"
+                      className={`adl-tool-context__toggle-btn${ws.id === draftPinnedId ? ' is-active' : ''}`}
+                      aria-pressed={ws.id === draftPinnedId ? 'true' : 'false'}
+                      onClick={() => setDraftPinnedId(ws.id)}
+                      title={ws.path}
+                    >
+                      {ws.name || ws.path}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="adl-empty-hint">{t.searchNoWorkspace as string}</p>
+              )
             ) : null}
           </div>
         )}

@@ -412,81 +412,85 @@ const SearchIgnoreTree = React.memo(function SearchIgnoreTree({
 
   return (
     <div className="adl-search-ignore">
-      {/* 左侧=调用方扩展（检索设置里放 gitignore 开关），右侧=展开/折叠全部 */}
-      <div className="adl-search-ignore__toolbar">
-        {toolbarExtra ? (
-          <div className="adl-search-ignore__toolbar-group">{toolbarExtra}</div>
-        ) : null}
-        <div className="adl-search-ignore__toolbar-group">
-          <TooltipSimple content={allExpanded ? collapseLabel : expandLabel} placement="top">
-            <button
-              type="button"
-              className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
-              onClick={allExpanded ? handleCollapseAll : handleExpandAll}
-              aria-label={(allExpanded ? collapseLabel : expandLabel) as string}
-              disabled={allDirPaths.length === 0}
-            >
-              {allExpanded ? (
-                <IconFoldVertical size={14} decorative />
-              ) : (
-                <IconUnfoldVertical size={14} decorative />
-              )}
-            </button>
-          </TooltipSimple>
-        </div>
-      </div>
       {isEmpty ? (
+        // 空工作区只显示提示文案：gitignore 开关与展开/折叠按钮在无树时无意义，
+        // 显示只会造成视觉混乱与误触（事项 3-C）。
         <p className="adl-empty-hint">{emptyHint}</p>
       ) : (
-        <CustomScrollArea
-          shellClassName="adl-search-ignore__scroll"
-          scrollClassName="adl-search-ignore__scroll-area"
-          scrollbarClassName="adl-multitree-scrollbar"
-          thumbClassName="adl-multitree-scrollbar__thumb"
-          onScroll={handleScroll}
-          scrollRef={scrollElRef}
-        >
-          <ul className="adl-search-ignore__tree" role="tree">
-            {windowStart > 0 ? (
-              <li
-                className="adl-search-ignore__spacer"
-                style={{ height: windowStart * ROW_HEIGHT }}
-                aria-hidden="true"
-              />
+        <>
+          {/* 左侧=调用方扩展（检索设置里放 gitignore 开关），右侧=展开/折叠全部 */}
+          <div className="adl-search-ignore__toolbar">
+            {toolbarExtra ? (
+              <div className="adl-search-ignore__toolbar-group">{toolbarExtra}</div>
             ) : null}
-            {flatRows.slice(windowStart, windowEnd).map(({ node, depth, posInSet, setSize }) => {
-              const isDir = node.kind === 'directory';
-              return (
-                <IgnoreTreeNode
-                  key={node.path}
-                  node={node}
-                  depth={depth}
-                  state={ignoreCheckStateOf(node.path, ignoredPaths)}
-                  expanded={isDir && expanded.has(node.path)}
-                  expandLabel={expandLabel}
-                  collapseLabel={collapseLabel}
-                  checkAriaLabel={checkLabel(node.name)}
-                  onToggleDir={handleToggleDir}
-                  onToggleCheck={handleToggleCheck}
-                  toggleHighlighted={
-                    hoveredPath !== null &&
-                    (node.path === hoveredPath || node.path.startsWith(`${hoveredPath}/`))
-                  }
-                  onHover={handleHover}
-                  posInSet={posInSet}
-                  setSize={setSize}
+            <div className="adl-search-ignore__toolbar-group">
+              <TooltipSimple content={allExpanded ? collapseLabel : expandLabel} placement="top">
+                <button
+                  type="button"
+                  className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"
+                  onClick={allExpanded ? handleCollapseAll : handleExpandAll}
+                  aria-label={(allExpanded ? collapseLabel : expandLabel) as string}
+                  disabled={allDirPaths.length === 0}
+                >
+                  {allExpanded ? (
+                    <IconFoldVertical size={14} decorative />
+                  ) : (
+                    <IconUnfoldVertical size={14} decorative />
+                  )}
+                </button>
+              </TooltipSimple>
+            </div>
+          </div>
+          <CustomScrollArea
+            shellClassName="adl-search-ignore__scroll"
+            scrollClassName="adl-search-ignore__scroll-area"
+            scrollbarClassName="adl-multitree-scrollbar"
+            thumbClassName="adl-multitree-scrollbar__thumb"
+            onScroll={handleScroll}
+            scrollRef={scrollElRef}
+          >
+            <ul className="adl-search-ignore__tree" role="tree">
+              {windowStart > 0 ? (
+                <li
+                  className="adl-search-ignore__spacer"
+                  style={{ height: windowStart * ROW_HEIGHT }}
+                  aria-hidden="true"
                 />
-              );
-            })}
-            {windowEnd < flatRows.length ? (
-              <li
-                className="adl-search-ignore__spacer"
-                style={{ height: (flatRows.length - windowEnd) * ROW_HEIGHT }}
-                aria-hidden="true"
-              />
-            ) : null}
-          </ul>
-        </CustomScrollArea>
+              ) : null}
+              {flatRows.slice(windowStart, windowEnd).map(({ node, depth, posInSet, setSize }) => {
+                const isDir = node.kind === 'directory';
+                return (
+                  <IgnoreTreeNode
+                    key={node.path}
+                    node={node}
+                    depth={depth}
+                    state={ignoreCheckStateOf(node.path, ignoredPaths)}
+                    expanded={isDir && expanded.has(node.path)}
+                    expandLabel={expandLabel}
+                    collapseLabel={collapseLabel}
+                    checkAriaLabel={checkLabel(node.name)}
+                    onToggleDir={handleToggleDir}
+                    onToggleCheck={handleToggleCheck}
+                    toggleHighlighted={
+                      hoveredPath !== null &&
+                      (node.path === hoveredPath || node.path.startsWith(`${hoveredPath}/`))
+                    }
+                    onHover={handleHover}
+                    posInSet={posInSet}
+                    setSize={setSize}
+                  />
+                );
+              })}
+              {windowEnd < flatRows.length ? (
+                <li
+                  className="adl-search-ignore__spacer"
+                  style={{ height: (flatRows.length - windowEnd) * ROW_HEIGHT }}
+                  aria-hidden="true"
+                />
+              ) : null}
+            </ul>
+          </CustomScrollArea>
+        </>
       )}
     </div>
   );

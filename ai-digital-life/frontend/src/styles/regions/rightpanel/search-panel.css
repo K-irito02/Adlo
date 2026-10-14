@@ -83,6 +83,18 @@
   gap: var(--space-1);
 }
 
+/* 结果区空态提示：右面板窄列中默认 <p> 观感过大且左对齐，统一为小字、水平居中，
+   并给适度纵向留白。作用域限定在检索面板内，避免影响其它面板的空态文案。 */
+.adl-search-panel .adl-empty-hint {
+  display: block;
+  margin: 0;
+  padding: var(--space-4) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  text-align: center;
+}
+
 /* 加载态：纵向布局（动画上、文字下），在结果区居中 */
 .adl-search-loading {
   display: flex;

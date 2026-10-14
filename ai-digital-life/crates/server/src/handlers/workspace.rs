@@ -303,6 +303,9 @@ struct SearchBody {
     /// `.gitignore` 开关（可选）：缺省启用，与前端 `selectSearchFilter` 缺省一致。
     #[serde(default = "default_true")]
     use_gitignore: bool,
+    /// 显式检索根（工作区绝对路径，可选）：缺省用后端当前激活工作区。
+    #[serde(default)]
+    workspace_path: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -508,8 +511,8 @@ pub async fn search(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     if let Err(e) = reject_oversized_filter(&input.excluded_paths) {
@@ -551,6 +554,9 @@ struct SearchFilesBody {
     /// `.gitignore` 开关（可选）：缺省启用。
     #[serde(default = "default_true")]
     use_gitignore: bool,
+    /// 显式检索根（工作区绝对路径，可选）：缺省用后端当前激活工作区。
+    #[serde(default)]
+    workspace_path: Option<String>,
 }
 
 /// 拒绝路径穿越输入：绝对路径或含 `..` 成分的相对路径一律 `INVALID_INPUT`，
@@ -610,8 +616,8 @@ pub async fn search_in_files(
             input.paths.len()
         ))));
     }
-    let root_path = match current_workspace(&state) {
-        Ok(ws) => ws.root_path,
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
     if let Err(e) = reject_oversized_filter(&input.excluded_paths) {

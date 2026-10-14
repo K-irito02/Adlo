@@ -167,7 +167,12 @@ export const mockWorkspace: WorkspaceBridge = {
       data: buildMockChangePreview(relativePath),
     };
   },
-  search: async (query: string, window?: WorkspaceSearchWindow, filter?: WorkspaceSearchFilter) => {
+  search: async (
+    query: string,
+    window?: WorkspaceSearchWindow,
+    filter?: WorkspaceSearchFilter,
+    _workspacePath?: string,
+  ) => {
     // 与其余三端对齐：空查询直接返回空页（`''.includes` 恒真，否则会全量刷屏）。
     if (!query.trim()) {
       return { ok: true as const, data: { hits: [] as WorkspaceSearchHit[], hasMore: false } };
@@ -193,7 +198,13 @@ export const mockWorkspace: WorkspaceBridge = {
     // 与后端同语义：窗口切片 + 精确 hasMore（`paginateSearchHits` 是前端单一来源）。
     return { ok: true, data: paginateSearchHits(all, window) };
   },
-  searchInFiles: async (paths: string[], query: string, window?: WorkspaceSearchWindow, filter?: WorkspaceSearchFilter) => {
+  searchInFiles: async (
+    paths: string[],
+    query: string,
+    window?: WorkspaceSearchWindow,
+    filter?: WorkspaceSearchFilter,
+    _workspacePath?: string,
+  ) => {
     // 与其余三端对齐：空查询返回 []（`''.includes` 恒真，旧代码会全量刷屏）。
     if (!query.trim()) {
       return { ok: true as const, data: { hits: [] as WorkspaceSearchHit[], hasMore: false } };

@@ -4,10 +4,9 @@ import { persist } from '@stores/persisted/persist';
 import {
   applyRightPanelMode,
   applyRightPanelLastRestorableWidth,
-  OVERLAY_FULL_EPSILON_PX,
   readCachedRightPanelMode,
   readCachedRightPanelLastRestorableWidth,
-  shouldPreserveOverlayFull,
+  resolveOverlayAnchorWidth,
   shouldSkipPassiveLayoutSync,
 } from '../rightPanelLayout';
 import { useAppStore } from '@stores/slicedStore';
@@ -58,6 +57,12 @@ export function useRightPanelLayout(collapsed: boolean) {
   const overlayAnchorWidthRef = useRef<number | undefined>(undefined);
   const initialMode = readPersistedRightPanelMode();
   const rightPanelModeRef = useRef<RightPanelMode>(initialMode);
+  // overlay_full 是"用户主动扩大"的模式不变式（不再由宽度反推）：该位决定被动同步
+  // 是否恒按 rightMaxWidth 补满，从而在左栏展开/收起、窗口变化后始终占满。
+  const maximizedRef = useRef(initialMode === 'overlay_full');
+  // 左栏离散切换追踪：切换时把覆盖锚重定到实时阈值（事项 8），否则后续覆盖→停靠
+  // 翻转瞬间网格中心宽跳变（旧锚 vs 新阈值之差）。连续变化（窗口/拖拽）不重定。
+  const prevLeftCollapsedRef = useRef(leftCollapsed);
   const [rightPanelMode, setRightPanelMode] = useState<RightPanelMode>(initialMode);
 
   const syncOverlayClasses = useCallback(
@@ -102,11 +107,11 @@ export function useRightPanelLayout(collapsed: boolean) {
     };
   }, [leftCollapsed]);
 
+  // 宽度只导出 docked / overlay_partial；overlay_full 是显式模式（见 applyPanelGeometry
+  // 的 maximized 位），不再由"宽度≈上限"反推——否则左栏切换致 rightMaxWidth 变化时，
+  // 用户主动扩大的 full 会被误降级为 partial、中间区重现。
   const deriveRightPanelMode = useCallback(
     (width: number, metrics: RightPanelLayoutMetrics): RightPanelMode => {
-      if (width >= metrics.rightMaxWidth - OVERLAY_FULL_EPSILON_PX) {
-        return 'overlay_full';
-      }
       if (width >= metrics.overlayThreshold) {
         return 'overlay_partial';
       }
@@ -130,25 +135,33 @@ export function useRightPanelLayout(collapsed: boolean) {
   const applyPanelGeometry = useCallback(
     (
       width: number,
-      options?: { commitRestorable?: boolean; preserveFull?: boolean; updateState?: boolean },
+      options?: {
+        commitRestorable?: boolean;
+        maximized?: boolean;
+        updateState?: boolean;
+        /** 左栏离散切换时把锚重定到实时阈值（事项 8），连续变化不传。 */
+        rebaseAnchor?: boolean;
+      },
     ) => {
       const metrics = readLayoutMetrics();
-      const targetWidth = options?.preserveFull ? metrics.rightMaxWidth : width;
+      // overlay_full 是"模式不变式"：占满 shell（width := rightMaxWidth），不再由宽度反推。
+      const maximized = options?.maximized ?? maximizedRef.current;
+      const targetWidth = maximized ? metrics.rightMaxWidth : width;
       const nextWidth = Math.max(
         RIGHT_PANEL_WIDTH_MIN,
         Math.min(Math.min(RIGHT_PANEL_WIDTH_MAX, metrics.rightMaxWidth), targetWidth),
       );
       const previousMode = rightPanelModeRef.current;
-      const nextMode = deriveRightPanelMode(nextWidth, metrics);
-      let nextAnchorWidth: number | undefined = overlayAnchorWidthRef.current;
-
-      if (previousMode === 'docked' && nextMode !== 'docked') {
-        nextAnchorWidth = metrics.overlayThreshold;
-      } else if (nextMode === 'docked') {
-        nextAnchorWidth = undefined;
-      } else if (nextAnchorWidth === undefined) {
-        nextAnchorWidth = metrics.overlayThreshold;
-      }
+      const nextMode: RightPanelMode = maximized
+        ? 'overlay_full'
+        : deriveRightPanelMode(nextWidth, metrics);
+      const nextAnchorWidth = resolveOverlayAnchorWidth(
+        previousMode,
+        nextMode,
+        overlayAnchorWidthRef.current,
+        metrics.overlayThreshold,
+        options?.rebaseAnchor ?? false,
+      );
 
       const effectiveAnchorWidth =
         nextAnchorWidth === undefined
@@ -176,13 +189,14 @@ export function useRightPanelLayout(collapsed: boolean) {
 
       overlayAnchorWidthRef.current = effectiveAnchorWidth;
       rightPanelModeRef.current = nextMode;
+      maximizedRef.current = nextMode === 'overlay_full';
       syncOverlayClasses(nextMode, metrics.shellBody);
 
       if (options?.updateState !== false) {
         setRightPanelMode((current) => (current === nextMode ? current : nextMode));
       }
 
-      if (options?.commitRestorable && nextMode !== 'overlay_full') {
+      if (options?.commitRestorable && !maximized) {
         lastRestorableWidthRef.current = nextWidth;
         writePersistedLastRestorableWidth(nextWidth);
       }
@@ -192,9 +206,31 @@ export function useRightPanelLayout(collapsed: boolean) {
     [deriveRightPanelMode, readLayoutMetrics, syncOverlayClasses],
   );
 
+  // 拖拽收尾（事项 1-B）：把右面板拖到占满即等同点击"扩大"（进入 maximized 不变式，
+  // 还原时回到拖拽起始宽度）；未到占满则按自由宽度提交。startWidth 取拖拽起始的 store 宽。
+  const finalizeDragWidth = useCallback(
+    (latestWidth: number, startWidth: number) => {
+      const metrics = readLayoutMetrics();
+      const fillsShell =
+        latestWidth >= metrics.rightMaxWidth - 1 && metrics.rightMaxWidth <= RIGHT_PANEL_WIDTH_MAX;
+      if (fillsShell) {
+        lastRestorableWidthRef.current = clampPanelWidthToShell(startWidth);
+        const { nextWidth } = applyPanelGeometry(metrics.rightMaxWidth, { maximized: true });
+        setRightPanelWidth(nextWidth);
+        return nextWidth;
+      }
+      const { nextWidth } = applyPanelGeometry(latestWidth, { commitRestorable: true });
+      setRightPanelWidth(nextWidth);
+      return nextWidth;
+    },
+    [applyPanelGeometry, clampPanelWidthToShell, readLayoutMetrics, setRightPanelWidth],
+  );
+
   const handleResizeStart = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
       event.preventDefault();
+      // 手动拖拽即放弃"扩大"不变式：拖拽改的是自由宽度（docked/partial）。
+      maximizedRef.current = false;
       const target = event.currentTarget;
       target.setPointerCapture(event.pointerId);
       const startX = event.clientX;
@@ -229,8 +265,7 @@ export function useRightPanelLayout(collapsed: boolean) {
           window.cancelAnimationFrame(resizeFrameRef.current);
           resizeFrameRef.current = null;
         }
-        const { nextWidth } = applyPanelGeometry(latestWidth, { commitRestorable: true });
-        setRightPanelWidth(nextWidth);
+        finalizeDragWidth(latestWidth, startWidth);
         target.releasePointerCapture(endEvent.pointerId);
         target.removeEventListener('pointermove', handleMove);
         target.removeEventListener('pointerup', cleanup);
@@ -245,22 +280,25 @@ export function useRightPanelLayout(collapsed: boolean) {
     },
     [
       applyPanelGeometry,
+      finalizeDragWidth,
       clampPanelWidthToShell,
       readLayoutMetrics,
       rightPanelWidth,
-      setRightPanelWidth,
     ],
   );
 
   useEffect(() => {
-    const syncWidthToLayout = () => {
+    // 本轮 effect 是否由左栏收起/展开切换触发（事项 8）：是则本次直接同步带上
+    // 锚重定；rAF 队列与可见性恢复走连续路径，不重定。
+    const leftToggled = leftCollapsed !== prevLeftCollapsedRef.current;
+    prevLeftCollapsedRef.current = leftCollapsed;
+    const syncWidthToLayout = (rebaseAnchor: boolean) => {
       if (draggingRef.current) {
         return;
       }
       // 最小化/窗口被遮挡时视口瞬时坍缩（hidden、shell ≈ 0，或 Windows 最小化
       // 过渡态 inner≈144x19 而 shell 矩形滞后）：此时按 rightMaxWidth 收窄会把
-      // 面板宽度错误地钳小并提交（恢复后右面板变窄），或把模式误判为 overlay_full
-      // 并在恢复后被 preserveFull 锁死为全宽。退化时跳过被动同步，待恢复再补算。
+      // 面板宽度错误地钳小并提交（恢复后右面板变窄）。退化时跳过被动同步，待恢复再补算。
       const metrics = readLayoutMetrics();
       if (
         shouldSkipPassiveLayoutSync(
@@ -273,19 +311,19 @@ export function useRightPanelLayout(collapsed: boolean) {
         return;
       }
       const { nextWidth, nextMode } = applyPanelGeometry(rightPanelWidth, {
-        commitRestorable: rightPanelMode !== 'overlay_full',
-        // overlay_full 可能只是"窗口/侧栏曾更窄时宽度被钳满"的残留状态：若当前
-        // 宽度并未真正填满 shell（rightMaxW），窗口恢复/变宽后不能再按全宽保留，
-        // 否则会把中间区整块盖住（本次最小化→恢复回归的根因）。仅当面板确实
-        // 占据整个 shell（宽度 ≈ rightMaxW）时才保留 full。
-        preserveFull: shouldPreserveOverlayFull(
-          rightPanelMode,
-          rightPanelWidth,
-          metrics.rightMaxWidth,
-        ),
+        commitRestorable: !maximizedRef.current,
+        // 用户主动扩大（overlay_full）→ 模式不变式：任何布局变化都按新 rightMaxWidth
+        // 补满（左栏展开/收起、窗口 resize 后仍占满）；非扩大则按自由宽度钳制。
+        maximized: maximizedRef.current,
+        rebaseAnchor,
       });
       if (nextWidth !== rightPanelWidth) {
-        setRightPanelWidth(nextWidth);
+        // 拖拽进行中（shellBody.is-resizing）时 store 写入会触发 App 重渲染，把拖拽中
+        // 直写的 --leftbar-width 预览复位回 store 旧值（事项 1-A"无反应"的另一半）。
+        // 拖拽结束由拖拽方显式 commit，此处只跟 DOM 几何（面板跟随），不写 store。
+        if (!metrics.shellBody?.classList.contains('is-resizing')) {
+          setRightPanelWidth(nextWidth);
+        }
       } else if (nextMode !== rightPanelMode) {
         setRightPanelMode(nextMode);
       }
@@ -297,11 +335,11 @@ export function useRightPanelLayout(collapsed: boolean) {
       }
       syncFrameRef.current = window.requestAnimationFrame(() => {
         syncFrameRef.current = null;
-        syncWidthToLayout();
+        syncWidthToLayout(false);
       });
     };
 
-    syncWidthToLayout();
+    syncWidthToLayout(leftToggled);
     // 可见性恢复时直接同步：隐藏期间挂起的 rAF 可能被浏览器暂停而不触发，
     // 不能把恢复寄托在它身上；先取消挂起帧再同步，保证恢复必算一次。
     // resize 与 visibility 同时触发时由 syncFrame 合并与 sync 幂等消化。
@@ -314,7 +352,7 @@ export function useRightPanelLayout(collapsed: boolean) {
         window.cancelAnimationFrame(syncFrameRef.current);
         syncFrameRef.current = null;
       }
-      syncWidthToLayout();
+      syncWidthToLayout(false);
     };
     window.addEventListener('resize', queueSyncWidthToLayout);
     document.addEventListener('visibilitychange', onVisibilityChange);
@@ -367,15 +405,22 @@ export function useRightPanelLayout(collapsed: boolean) {
     writePersistedRightPanelMode(rightPanelMode);
   }, [rightPanelMode]);
 
+  // 供分隔线桥接条拖拽起始时清除"扩大"不变式（拖拽即自由宽度）。
+  const clearMaximized = useCallback(() => {
+    maximizedRef.current = false;
+  }, []);
+
   return {
     panelRef,
     handleResizeStart,
     rightPanelMode,
     rightPanelWidth,
     applyPanelGeometry,
+    finalizeDragWidth,
     lastRestorableWidthRef,
     readLayoutMetrics,
     clampPanelWidthToShell,
     setRightPanelWidth,
+    clearMaximized,
   };
 }

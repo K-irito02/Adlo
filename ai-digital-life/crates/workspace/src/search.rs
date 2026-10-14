@@ -1,6 +1,7 @@
 use adl_errors::AppError;
 use adl_types::{WorkspaceSearchHit, WorkspaceSearchPage};
 use std::fs;
+use std::io::{BufRead, BufReader};
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -23,7 +24,14 @@ pub const MAX_SEARCH_RESULTS_UNLIMITED: usize = 5000;
 /// **跨语言契约**：必须与前端 `searchWindow.ts` 的 `SEARCH_HARD_MAX_RESULTS` 同值；
 /// 两侧单测均把该值钉到 20000。
 pub const MAX_SEARCH_RESULTS_HARD_CAP: usize = 20000;
-const CANCEL_CHECK_INTERVAL: usize = 100;
+
+/// ripgrep-style C：单行匹配上限（病态行护栏）。
+/// 文本文件不再设总大小上限；超长单行只匹配其前缀（预览本就截断 240 字符）。
+/// 取 8MB（与"可打开"上限 `DEFAULT_MAX_TEXT_FILE_BYTES` 对齐），正常文件无影响；
+/// 内存占用恒为 O(行)，与文件总大小无关。
+const MAX_SEARCH_LINE_BYTES: usize = 8 * 1024 * 1024;
+/// 流式行扫描的读缓冲（64KB）。
+const SEARCH_READ_BUFFER_BYTES: usize = 64 * 1024;
 
 /// 检索过滤器：手动忽略名单（工作区相对路径，目录隐含全部后代）与
 /// `.gitignore` 开关。两者为并集关系——命中任一即跳过该文件；
@@ -101,7 +109,9 @@ pub fn search_text(
     if query.trim().is_empty() {
         return Ok(WorkspaceSearchPage { hits: vec![], has_more: false });
     }
-    let files = crate::tree::collect_text_files(root, crate::DEFAULT_MAX_FILE_BYTES)?;
+    // ripgrep-style C：检索枚举不设总大小上限（u64::MAX = 仅扩展名预过滤）；
+    // 体积/二进制判定下沉到流式扫描（NUL 即停该文件）与单行护栏。
+    let files = crate::tree::collect_text_files(root, u64::MAX)?;
     let matcher = filter.matcher_for(root);
     search_text_in_files(&files, root, query, window, filter, matcher.as_ref(), &|| false)
 }
@@ -126,7 +136,8 @@ pub async fn search_text_async(
     // Move collect_text_files INSIDE spawn_blocking — it does heavy I/O
     // (directory walk + metadata probes) and must not block the async runtime.
     let search_task = tokio::task::spawn_blocking(move || {
-        let files = crate::tree::collect_text_files(&root_owned, crate::DEFAULT_MAX_FILE_BYTES)?;
+        // ripgrep-style C：同上，无总大小上限。
+        let files = crate::tree::collect_text_files(&root_owned, u64::MAX)?;
         let matcher = filter_owned.matcher_for(&root_owned);
         let cancelled_fn = move || cancelled_clone.load(Ordering::Relaxed);
         search_text_in_files(
@@ -154,6 +165,44 @@ pub async fn search_text_async(
         result = search_task => {
             result.map_err(|e| AppError::Io(e.to_string()))?
         }
+    }
+}
+
+/// 从 `reader` 读一个逻辑行到 `buf`（复用，避免逐行分配）。
+/// - 至多存 `cap` 字节；超长行超出部分仍消费丢弃（保持行对齐），但丢弃段仍做 NUL
+///   扫描，确保二进制检出不漏。
+/// - 返回 `(hit_newline, eof, saw_nul)`。NUL 只判定到本行换行符为止（前视超出的
+///   NUL 属后续行，不得导致本行命中被丢弃；ripgrep 语义：保留 NUL 之前的命中）。
+fn read_capped_line(
+    reader: &mut BufReader<fs::File>,
+    buf: &mut Vec<u8>,
+    cap: usize,
+) -> std::io::Result<(bool, bool, bool)> {
+    buf.clear();
+    let mut saw_nul = false;
+    loop {
+        let available = reader.fill_buf()?;
+        if available.is_empty() {
+            return Ok((false, true, saw_nul));
+        }
+        if let Some(nl) = available.iter().position(|&b| b == b'\n') {
+            let end = nl + 1;
+            if available[..end].contains(&0) {
+                saw_nul = true;
+            }
+            let take = end.min(cap.saturating_sub(buf.len()));
+            buf.extend_from_slice(&available[..take]);
+            reader.consume(end);
+            return Ok((true, false, saw_nul));
+        }
+        // 无换行：整块都属本行（含丢弃段），全量做 NUL 判定。
+        if available.contains(&0) {
+            saw_nul = true;
+        }
+        let take = available.len().min(cap.saturating_sub(buf.len()));
+        buf.extend_from_slice(&available[..take]);
+        let consumed = available.len();
+        reader.consume(consumed);
     }
 }
 
@@ -191,22 +240,53 @@ fn search_text_in_files(
                 continue;
             }
         }
-        let content = match fs::read_to_string(file) {
-            Ok(c) => c,
+        // ripgrep-style C：流式行扫描（无总大小上限；内存恒为 O(行)）。
+        // - 二进制（NUL）即停扫该文件，已得命中保留；
+        // - 超长单行截断匹配（病态护栏）；非 UTF-8 按 lossy 尽力匹配，不再整文件跳过。
+        let handle = match fs::File::open(file) {
+            Ok(f) => f,
             Err(e) => {
-                tracing::warn!(path = %file.display(), error = %e, "failed to read file during search");
-                String::new()
+                tracing::warn!(path = %file.display(), error = %e, "failed to open file during search");
+                continue;
             },
         };
-
-        for (index, line) in content.lines().enumerate() {
+        let mut reader = BufReader::with_capacity(SEARCH_READ_BUFFER_BYTES, handle);
+        let mut line_buf: Vec<u8> = Vec::new();
+        let mut line_number: usize = 0;
+        loop {
+            let (_newline_hit, eof, saw_nul) =
+                match read_capped_line(&mut reader, &mut line_buf, MAX_SEARCH_LINE_BYTES) {
+                    Ok(v) => v,
+                    Err(e) => {
+                        tracing::warn!(path = %file.display(), error = %e, "failed to read file during search");
+                        break;
+                    }
+                };
+            if saw_nul {
+                break;
+            }
+            if line_buf.is_empty() {
+                // EOF 且无残留（空文件或尾换行后）：无行可匹配。
+                // 空行（仅 "\n"）的 buf 为 [b'\n'] 非空，会正常进入匹配（恒不命中非空 query）。
+                break;
+            }
+            line_number += 1;
+            // 去行尾 \n / \r（与 str::lines 同语义），lossy 解码后匹配。
+            let mut line_bytes = line_buf.as_slice();
+            if let Some(stripped) = line_bytes.strip_suffix(b"\n") {
+                line_bytes = stripped;
+            }
+            if let Some(stripped) = line_bytes.strip_suffix(b"\r") {
+                line_bytes = stripped;
+            }
+            let line = String::from_utf8_lossy(line_bytes);
             if line.to_lowercase().contains(&query_lower) {
                 if skipped < window.offset {
                     skipped += 1;
                 } else if hits.len() < window.limit {
                     hits.push(WorkspaceSearchHit {
                         path: relative.clone(),
-                        line: index + 1,
+                        line: line_number,
                         preview: line.trim().chars().take(240).collect(),
                     });
                 } else {
@@ -215,8 +295,11 @@ fn search_text_in_files(
                     break 'files;
                 }
             }
-            if index % CANCEL_CHECK_INTERVAL == 0 && is_cancelled() {
-                // 同上：取消 = 截断，保守上报还有更多。
+            if eof {
+                break;
+            }
+            if is_cancelled() {
+                // 取消 = 截断，保守上报还有更多。
                 has_more = true;
                 break 'files;
             }
@@ -272,7 +355,9 @@ pub fn search_in_files(
                 continue;
             }
         }
-        if !crate::tree::is_text_file(root, &normalized, crate::DEFAULT_MAX_FILE_BYTES) {
+        // ripgrep-style C：显式路径同样不设总大小上限（仅扩展名预过滤）；
+        // 二进制由扫描期 NUL 检出。
+        if !crate::tree::is_text_file(root, &normalized, u64::MAX) {
             continue;
         }
         files.push(absolute);
@@ -541,18 +626,24 @@ mod search_in_files_tests {
     }
 
     #[test]
-    fn search_in_files_skips_ignored_and_oversized_files() {
+    fn search_in_files_scans_large_text_but_skips_binary() {
         let tmp = unique_tmp_dir();
         std::fs::create_dir_all(tmp.join("target")).unwrap();
         std::fs::write(tmp.join("target").join("built.txt"), b"needle built").unwrap();
-        std::fs::write(tmp.join("big.txt"), b"needle big").unwrap();
-        // 2MB payload exceeds the 1MB text-file gate.
-        let big = vec![b'x'; 2 * 1024 * 1024];
+        // ripgrep-style C：2MB 文本不再跳过（旧 1MB 门已移除），必须命中。
+        let mut big = vec![b'x'; 2 * 1024 * 1024];
+        big[1_000_000..1_000_006].copy_from_slice(b"needle");
         std::fs::write(tmp.join("huge.txt"), &big).unwrap();
+        // 含 NUL 的文件按二进制处理：NUL 之前的命中保留，NUL 处停扫该文件。
+        std::fs::write(tmp.join("mixed.txt"), b"needle first\n\x00needle second\n").unwrap();
 
         let hits = search_in_files(
             &tmp,
-            &["target/built.txt".to_string(), "big.txt".to_string(), "huge.txt".to_string()],
+            &[
+                "target/built.txt".to_string(),
+                "huge.txt".to_string(),
+                "mixed.txt".to_string(),
+            ],
             "needle",
             SearchWindow::default(),
             &SearchFilter::default(),
@@ -560,9 +651,74 @@ mod search_in_files_tests {
         .unwrap()
         .hits;
         let paths: Vec<&str> = hits.iter().map(|h| h.path.as_str()).collect();
-        assert!(paths.contains(&"big.txt"), "normal file must hit, got {paths:?}");
         assert!(!paths.iter().any(|p| p.starts_with("target/")), "ignored dir must skip");
-        assert!(!paths.contains(&"huge.txt"), "oversized file must skip");
+        assert!(paths.contains(&"huge.txt"), "large text must hit, got {paths:?}");
+        let mixed: Vec<&WorkspaceSearchHit> =
+            hits.iter().filter(|h| h.path == "mixed.txt").collect();
+        assert_eq!(mixed.len(), 1, "only pre-NUL hit kept, got {mixed:?}");
+        assert_eq!(mixed[0].line, 1);
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_text_scans_large_text_file() {
+        // 全量检索枚举同样不设大小上限：2MB 文件必须命中（事项 9 的用户场景）。
+        let tmp = unique_tmp_dir();
+        let mut big = vec![b'x'; 2 * 1024 * 1024];
+        big[500_000..500_006].copy_from_slice(b"needle");
+        std::fs::write(tmp.join("large.json"), &big).unwrap();
+
+        let hits = search_text(&tmp, "needle", SearchWindow::default(), &SearchFilter::default())
+            .unwrap()
+            .hits;
+        assert_eq!(hits.len(), 1, "large text must hit, got {hits:?}");
+        assert_eq!(hits[0].path, "large.json");
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_matches_non_utf8_lossy() {
+        // 非 UTF-8 不再整文件跳过（旧 read_to_string 直接 Err）：按 lossy 尽力匹配。
+        let tmp = unique_tmp_dir();
+        let mut content = b"prefix needle ".to_vec();
+        content.extend_from_slice(&[0xFF, 0xFE, 0xFD]);
+        content.extend_from_slice(b" suffix\n");
+        std::fs::write(tmp.join("latin.bin.txt"), &content).unwrap();
+
+        let hits = search_in_files(
+            &tmp,
+            &["latin.bin.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
+        assert_eq!(hits.len(), 1, "lossy match must hit, got {hits:?}");
+        assert_eq!(hits[0].line, 1);
+        cleanup(&tmp);
+    }
+
+    #[test]
+    fn search_in_files_truncates_pathological_single_line() {
+        // 病态单行护栏：超 8MB 的单行只匹配前缀（内存恒为 O(行)），前缀内命中仍有效。
+        let tmp = unique_tmp_dir();
+        let mut line = vec![b'y'; 9 * 1024 * 1024];
+        line[100..106].copy_from_slice(b"needle");
+        line.push(b'\n');
+        std::fs::write(tmp.join("wide.txt"), &line).unwrap();
+
+        let hits = search_in_files(
+            &tmp,
+            &["wide.txt".to_string()],
+            "needle",
+            SearchWindow::default(),
+            &SearchFilter::default(),
+        )
+        .unwrap()
+        .hits;
+        assert_eq!(hits.len(), 1, "prefix hit must survive truncation, got {hits:?}");
+        assert_eq!(hits[0].line, 1);
         cleanup(&tmp);
     }
 

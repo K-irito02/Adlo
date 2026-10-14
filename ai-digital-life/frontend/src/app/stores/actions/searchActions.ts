@@ -4,10 +4,11 @@ import { captureError, clearError } from '../cacheHelpers';
 import {
   markHitsStale,
   replaceFileHits,
+  resolveSearchWorkspace,
   selectSearchFilter,
   toHitEntries,
 } from '../slices/searchSlice';
-import type { WorkspaceFilesChangedBatch } from '@ai-digital-life/kernel';
+import type { WorkspaceFilesChangedBatch, WorkspaceSearchFilter } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 const SCOPE = 'search';
 
@@ -33,6 +34,12 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
       return;
     }
     const activeWorkspaceId = state.searchWorkspaceId;
+    // 检索目标工作区（可与后端当前激活工作区不同）：局部重算必须扫同一根。
+    const { path: searchWorkspacePath } = resolveSearchWorkspace(
+      state.recentWorkspaces,
+      state.searchTargetWorkspaceId,
+      state.appInfo?.currentWorkspace?.path,
+    );
     const presentPaths = new Set(
       state.searchEntries
         .filter((entry) => entry.workspaceId === activeWorkspaceId)
@@ -70,6 +77,13 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
         state.searchUseGitignore,
         activeWorkspaceId,
       );
+      // 缺省保持旧调用形状：仅当确有 workspacePath 时才补 filter 占位（位置参数不能跳）。
+      const fileTrailing: [WorkspaceSearchFilter?, string?] =
+        searchWorkspacePath !== undefined
+          ? [filter, searchWorkspacePath]
+          : filter !== undefined
+            ? [filter]
+            : [];
       result = await window.digitalLife.workspace.searchInFiles(
         toSearch,
         query,
@@ -77,8 +91,7 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
           offset: 0,
           limit: get().searchLimit,
         },
-        // 过滤器缺省时保持旧调用形状（与 runContentSearch 同理）。
-        ...(filter === undefined ? [] : [filter]),
+        ...fileTrailing,
       );
     } catch (error) {
       // IPC 直接抛异常：回填 pending 供下次批次重试 + 入队错误 toast（与 !ok 分支同语义），
@@ -199,21 +212,33 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
    */
   const runContentSearch = async (query: string, limit: number, keepEntries: boolean) => {
     const state = get();
-    const workspaceId = state.appInfo?.currentWorkspace?.id;
+    // 目标工作区（检索设置可切换，缺省跟随文件面板高亮）：显式传其 path 给后端，
+    // 否则后端落到 current_workspace，与实际显示的工作区不一致。
+    const resolved = resolveSearchWorkspace(
+      state.recentWorkspaces,
+      state.searchTargetWorkspaceId,
+      state.appInfo?.currentWorkspace?.path,
+    );
+    const workspaceId = resolved.id ?? state.appInfo?.currentWorkspace?.id;
     const sessionId = get().beginSearchSession(workspaceId, { keepEntries });
     set({ searching: true, searchLimit: limit });
     const filter = selectSearchFilter(
       get().searchIgnoredPaths,
       get().searchUseGitignore,
-      get().appInfo?.currentWorkspace?.id,
+      workspaceId,
     );
     try {
-      // 过滤器缺省时保持旧调用形状（query, window），避免透传 `undefined`
-      // 占位——后端字段缺失即默认行为，与旧请求体完全一致。
+      // 缺省保持旧调用形状：仅当确有 workspacePath 时才补 filter 占位（位置参数不能跳）。
+      const searchTrailing: [WorkspaceSearchFilter?, string?] =
+        resolved.path !== undefined
+          ? [filter, resolved.path]
+          : filter !== undefined
+            ? [filter]
+            : [];
       const result = await window.digitalLife.workspace.search(
         query,
         { offset: 0, limit },
-        ...(filter === undefined ? [] : [filter]),
+        ...searchTrailing,
       );
       if (get().searchQuery !== query || get().searchSessionId !== sessionId) {
         return;

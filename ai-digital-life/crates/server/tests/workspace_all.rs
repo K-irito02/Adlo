@@ -494,6 +494,58 @@ async fn search_in_files_rejects_oversized_path_list() {
     let _ = std::fs::remove_dir_all(ws);
 }
 
+/// `/workspace/search` 显式 `workspacePath` 覆盖后端当前激活工作区：多工作区下
+/// 检索目标可偏离"最后打开的工作区"（事项 3）。
+#[tokio::test]
+async fn search_with_explicit_workspace_path_scans_that_workspace() {
+    let state = common::state("ws-search-target").await;
+    // 当前激活工作区 A：不含命中标记。
+    let active = common::make_workspace("ws-search-active");
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/open",
+        Some(serde_json::json!({ "workspacePath": active.to_string_lossy() })),
+    )
+    .await;
+    assert_eq!(body["ok"], true, "open body: {body}");
+
+    // 另一工作区 B：命中标记仅存在于 B。
+    let other = common::temp_dir("ws-search-other");
+    std::fs::write(other.join("target.txt"), "needle-other-marker\n").unwrap();
+
+    // 显式 workspacePath=B → 命中来自 B。
+    let (status, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search",
+        Some(serde_json::json!({
+            "query": "needle-other-marker",
+            "workspacePath": other.to_string_lossy(),
+        })),
+    )
+    .await;
+    assert_eq!(status, axum::http::StatusCode::OK, "search body: {body}");
+    let hits = body["data"]["hits"].as_array().expect("hits");
+    assert_eq!(hits.len(), 1, "hits: {hits:?}");
+    assert_eq!(hits[0]["path"], "target.txt");
+
+    // 缺省（不带 workspacePath）→ 落在当前激活工作区 A，命中为空。
+    let (_, body) = common::send_request(
+        state.clone(),
+        Method::POST,
+        "/workspace/search",
+        Some(serde_json::json!({ "query": "needle-other-marker" })),
+    )
+    .await;
+    assert_eq!(body["data"]["hits"].as_array().unwrap().len(), 0, "body: {body}");
+
+    let (_, _) =
+        common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
+    let _ = std::fs::remove_dir_all(active);
+    let _ = std::fs::remove_dir_all(other);
+}
+
 /// 缺失 `query` 字段 → INVALID_INPUT（而不是 500）。
 #[tokio::test]
 async fn search_in_files_requires_query_string() {

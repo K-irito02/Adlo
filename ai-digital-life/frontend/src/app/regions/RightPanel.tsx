@@ -175,6 +175,8 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
     readLayoutMetrics,
     clampPanelWidthToShell,
     setRightPanelWidth,
+    clearMaximized,
+    finalizeDragWidth,
   } = useRightPanelLayout(collapsed);
 
   const leftCollapsed = useAppStore((s) => s.leftCollapsed);
@@ -185,7 +187,13 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
     rightPanelWidth,
     rightPanelMode,
     leftCollapsed,
-    layout: { applyPanelGeometry, clampPanelWidthToShell, setRightPanelWidth },
+    layout: {
+      applyPanelGeometry,
+      clampPanelWidthToShell,
+      setRightPanelWidth,
+      clearMaximized,
+      finalizeDragWidth,
+    },
   });
 
   const filesProps = useFilesPanelProps(panelProps, diffSideBySide, onSetDiffLayout);
@@ -202,7 +210,10 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
     const metrics = readLayoutMetrics();
     if (rightPanelMode === 'overlay_full') {
       const restoredWidth = clampPanelWidthToShell(lastRestorableWidthRef.current);
-      const { nextWidth } = applyPanelGeometry(restoredWidth, { commitRestorable: true });
+      const { nextWidth } = applyPanelGeometry(restoredWidth, {
+        commitRestorable: true,
+        maximized: false,
+      });
       setRightPanelWidth(nextWidth);
       return;
     }
@@ -211,7 +222,7 @@ const RightPanel = React.memo(function RightPanel(panelProps: RightPanelProps) {
         ? rightPanelWidth
         : clampPanelWidthToShell(rightPanelWidth);
     lastRestorableWidthRef.current = clampPanelWidthToShell(entryWidth);
-    const { nextWidth } = applyPanelGeometry(metrics.rightMaxWidth);
+    const { nextWidth } = applyPanelGeometry(metrics.rightMaxWidth, { maximized: true });
     setRightPanelWidth(nextWidth);
   }, [
     rightPanelMode,

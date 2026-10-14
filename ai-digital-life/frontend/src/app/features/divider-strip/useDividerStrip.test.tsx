@@ -39,6 +39,8 @@ const layout = {
   })),
   clampPanelWidthToShell: vi.fn((w: number) => w),
   setRightPanelWidth: vi.fn(),
+  clearMaximized: vi.fn(),
+  finalizeDragWidth: vi.fn(),
 };
 
 type StripOptions = Parameters<typeof useDividerStrip>[0];

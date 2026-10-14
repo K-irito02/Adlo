@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   deriveRightPanelOverlayState,
-  shouldPreserveOverlayFull,
+  resolveOverlayAnchorWidth,
   shouldSkipPassiveLayoutSync,
 } from './rightPanelLayout';
 
@@ -52,26 +52,42 @@ describe('shouldSkipPassiveLayoutSync', () => {
   });
 });
 
-describe('shouldPreserveOverlayFull', () => {
-  it('does not preserve a stale full mode whose width does not fill the shell', () => {
-    // 窗口曾更窄（rightMaxWidth≈1100）时被钳成 overlay_full，窗口变宽后
-    // rightMaxWidth=1740 但宽度仍是 1100 —— 不得补满（否则盖住中间区）。
-    expect(shouldPreserveOverlayFull('overlay_full', 1100, 1740)).toBe(false);
+describe('resolveOverlayAnchorWidth (事项 8)', () => {
+  it('clears the anchor when docked', () => {
+    expect(
+      resolveOverlayAnchorWidth('overlay_partial', 'docked', 1380, 1400, false),
+    ).toBeUndefined();
+    expect(resolveOverlayAnchorWidth('overlay_full', 'docked', 1380, 1400, true)).toBeUndefined();
   });
 
-  it('preserves full only when the panel actually fills the shell', () => {
-    expect(shouldPreserveOverlayFull('overlay_full', 1740, 1740)).toBe(true);
-    expect(shouldPreserveOverlayFull('overlay_full', 1739, 1740)).toBe(true);
+  it('sets the live threshold on docked-to-overlay entry', () => {
+    expect(resolveOverlayAnchorWidth('docked', 'overlay_partial', undefined, 1380, false)).toBe(
+      1380,
+    );
+    expect(resolveOverlayAnchorWidth('docked', 'overlay_full', 500, 1380, false)).toBe(1380);
   });
 
-  it('pins the epsilon from both sides and locks the safe direction', () => {
-    // 距满宽 2px 即视为非满（-1 tolerance 两侧钉死），退化 rightMaxWidth 一律不保留。
-    expect(shouldPreserveOverlayFull('overlay_full', 1738, 1740)).toBe(false);
-    expect(shouldPreserveOverlayFull('overlay_full', 1100, Number.NaN)).toBe(false);
+  it('keeps a set anchor across continuous overlay changes', () => {
+    // 窗口 resize / 拖拽不重定（编辑器换行稳定优先）。
+    expect(resolveOverlayAnchorWidth('overlay_partial', 'overlay_partial', 1380, 1500, false)).toBe(
+      1380,
+    );
+    expect(resolveOverlayAnchorWidth('overlay_full', 'overlay_partial', 1380, 1500, false)).toBe(
+      1380,
+    );
   });
 
-  it('never preserves when not in full mode', () => {
-    expect(shouldPreserveOverlayFull('docked', 1740, 1740)).toBe(false);
-    expect(shouldPreserveOverlayFull('overlay_partial', 1740, 1740)).toBe(false);
+  it('falls back to the live threshold when no anchor is stored', () => {
+    expect(
+      resolveOverlayAnchorWidth('overlay_partial', 'overlay_partial', undefined, 1500, false),
+    ).toBe(1500);
+  });
+
+  it('rebases the anchor to the live threshold on left-sidebar toggle', () => {
+    // 左栏 260→0 后阈值 1380→1640：不重定则后续翻转瞬间中心宽跳变 260px（事项 8 跳动）。
+    expect(resolveOverlayAnchorWidth('overlay_full', 'overlay_full', 1380, 1640, true)).toBe(1640);
+    expect(resolveOverlayAnchorWidth('overlay_partial', 'overlay_partial', 1380, 1640, true)).toBe(
+      1640,
+    );
   });
 });

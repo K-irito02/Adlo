@@ -34,9 +34,14 @@
 }
 
 .adl-launcher-entry {
-  display: inline-flex;
+  /* 网格双列（事项 8 终版，图标对齐与居中兼得）：图标固定 24px gutter 纵向对齐，
+     文本弹性列居中。按钮恒等宽（容器全宽），文本恒居中，几何连续无翻转跳变；
+     窄到放不下时文本在弹性列内对称硬裁剪（不换行竖排、不省略号）。 */
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
   align-items: center;
   gap: var(--space-2);
+  width: 100%;
   max-width: 100%;
   padding: var(--space-2) var(--space-4);
   background: transparent;
@@ -45,9 +50,23 @@
   color: var(--text-primary);
   font-size: var(--text-sm);
   font-weight: var(--font-semibold);
-  white-space: normal;
+  overflow: hidden;
   cursor: pointer;
   transition: var(--theme-transition);
+}
+
+.adl-launcher-entry > svg {
+  justify-self: center;
+}
+
+.adl-launcher-entry > span {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  /* 文字左对齐、贴图标（事项 8）：与图标 gutter 固定搭配，图标纵向对齐；
+     窄时右侧硬裁剪（卷帘门式）。等宽按钮无翻转，不断裂居中跳动。 */
+  text-align: left;
+  text-overflow: clip;
 }
 
 .adl-launcher-entry:hover:not(:disabled) {

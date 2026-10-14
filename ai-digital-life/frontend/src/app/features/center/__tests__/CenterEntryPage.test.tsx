@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CenterEntryPage } from '../CenterEntryPage';
 import { CenterPane } from '@regions/CenterPane';
@@ -271,5 +273,32 @@ describe('CenterPane 调度', () => {
     expect(screen.getByText('浏览器标签不可用')).toBeTruthy();
     // 空工具栏的地址栏 input 不得出现。
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+});
+
+describe('CenterEntryPage narrow-width clipping (事项 4)', () => {
+  it('keeps entry labels single-line with hard clipping instead of vertical wrapping', () => {
+    // jsdom 下 import.meta.url 非 file 协议，改用 cwd（vitest root = frontend）定位 CSS。
+    const css = readFileSync(
+      join(process.cwd(), 'src/styles/regions/center-entry.css'),
+      'utf8',
+    );
+    expect(css).toContain('.adl-launcher-entry > span');
+    expect(css).toContain('white-space: nowrap');
+    // 卷帘门式硬裁剪（非省略号），且按钮本体不再允许换行。
+    expect(css).toContain('text-overflow: clip');
+    expect(css).not.toMatch(/\.adl-launcher-entry\s*\{[^}]*white-space:\s*normal/);
+  });
+
+  it('aligns icons in a fixed gutter while centering text (事项 8)', () => {
+    // 图标固定列 + 文本弹性居中：等宽按钮 + 居中文本保证无翻转跳动，
+    // 固定 gutter 保证图标纵向对齐（两者兼得）。
+    const css = readFileSync(
+      join(process.cwd(), 'src/styles/regions/center-entry.css'),
+      'utf8',
+    );
+    expect(css).toContain('grid-template-columns: 24px minmax(0, 1fr)');
+    expect(css).toContain('.adl-launcher-entry > svg');
+    expect(css).toContain('text-align: left');
   });
 });

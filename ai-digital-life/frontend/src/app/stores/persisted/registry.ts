@@ -949,6 +949,24 @@ export const registry = {
     read: readSearchUseGitignore,
     prune: pruneByWorkspaceId,
   }),
+  // 检索绑定模式（事项 3 双模式）：follow 缺省 true（跟随文件面板高亮）；pinned 存固定
+  // 工作区 id（null 合法值，与 adl:files.activeWorkspace 同约定；陈旧 id 由消费端
+  // 派生回退，不写回、不 prune，保证重启后固定绑定仍在）。
+  // ─────────────────────────────────────────────────────────────
+  'adl:search.followWorkspace': defineEntry<boolean>({
+    key: 'adl:search.followWorkspace',
+    field: 'searchFollowWorkspace',
+    fallback: true,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:search.pinnedWorkspaceId': defineEntry<string | null>({
+    key: 'adl:search.pinnedWorkspaceId',
+    field: 'searchPinnedWorkspaceId',
+    fallback: null,
+    scope: 'global',
+    read: (raw) => (raw === null ? null : readString(raw)),
+  }),
 
   // ─────────────────────────────────────────────────────────────
   // 会话恢复（Task 26）：上次打开的文件（单文件级全局）。

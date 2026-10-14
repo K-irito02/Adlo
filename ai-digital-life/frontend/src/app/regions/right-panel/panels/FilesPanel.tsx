@@ -220,6 +220,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     line: number;
     nonce: number;
     query: { text: string; matchCase: boolean; wholeWord: boolean; useRegex: boolean };
+    /** 显式工作区打开后内容到达即揭示（不限于行号纠正时，事项 9 后续）。 */
+    forceNavigate?: boolean;
   } | null>(null);
   // 预览块级锚点由懒加载预览渲染后出现，故按"重试直到锚点就绪"处理（上限 2.5s）
   const previewRevealTimerRef = useRef<number | undefined>(undefined);
@@ -291,6 +293,85 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const handleOpenSearchResultAtLine = useCallback(
     (relativePath: string, line: number) => {
       const state = useAppStore.getState();
+      const querySnap = {
+        text: state.searchQuery,
+        matchCase: state.searchFlags.matchCase,
+        wholeWord: state.searchFlags.matchWholeWord,
+        useRegex: state.searchFlags.useRegex,
+      };
+      // 检索命中归属检索工作区；当它与后端当前工作区不一致（id 或 path 任一不同）
+      // 时，必须用显式工作区打开，否则会解析到错误的根（事项 9 后续：搜到但打不开，
+      // "failed to resolve workspace root"）。一致时走原后端当前链路（零改动）。
+      const searchWs = state.searchWorkspaceId
+        ? state.recentWorkspaces.find(
+            (w) => w.id === state.searchWorkspaceId && !w.removedFromSidebar && w.available,
+          )
+        : undefined;
+      const backendWs = state.appInfo?.currentWorkspace;
+      if (
+        searchWs !== undefined &&
+        (searchWs.id !== backendWs?.id || searchWs.path !== backendWs?.path)
+      ) {
+        const searchWsId = searchWs.id;
+        const searchWsPath = searchWs.path;
+        const explicitLive =
+          state.selectedFilePath === relativePath &&
+          state.selectedFileWorkspaceId === searchWsId &&
+          state.fileContent !== undefined
+            ? state.fileContent
+            : undefined;
+        let explicitLine = line;
+        if (explicitLive !== undefined) {
+          const relocated = findLineForQuery(explicitLive, querySnap.text, querySnap, line);
+          if (relocated === null) {
+            state.markSearchHitStale(relativePath, line, state.searchWorkspaceId);
+            return;
+          }
+          explicitLine = relocated;
+        }
+        if (isPreviewModeForPath(relativePath, state.searchWorkspaceId)) {
+          if (explicitLive !== undefined) {
+            revealInPreview(explicitLine);
+            return;
+          }
+          pendingPreviewRevealRef.current = {
+            path: relativePath,
+            line: explicitLine,
+            from: state.selectedFilePath,
+            baseline: state.fileContent,
+            nonce: (previewRevealNonceRef.current += 1),
+            query: querySnap,
+          };
+          // 预览模式只打开文件，行定位由内容到达后的 pendingPreview effect 接管。
+          void useAppStore
+            .getState()
+            .openFileForWorkspace(searchWsId, searchWsPath, relativePath)
+            .catch(() => {
+              // 打开失败已由 store 置 fileOpenError + 错误卡。
+            });
+          return;
+        }
+        if (explicitLive !== undefined) {
+          // 已打开：直接揭示（事项 10；重开只会拿到相同内容，不触发变更，
+          // 等内容到达的 pending 永不触发）。点击处理是同步的，闭包内容即最新。
+          handleNavigateLine(explicitLine);
+          return;
+        }
+        // 未打开：显式打开后，由内容到达的 pendingSearchValidate effect 揭示
+        //（forceNavigate）。
+        pendingSearchValidateRef.current = {
+          path: relativePath,
+          line: explicitLine,
+          nonce: (searchValidateNonceRef.current += 1),
+          query: querySnap,
+          forceNavigate: true,
+        };
+        void useAppStore
+          .getState()
+          .openFileForWorkspace(searchWsId, searchWsPath, relativePath)
+          .catch(() => {});
+        return;
+      }
       // 点击校验/重定位（事项 45）：live 内容可用时先校验，命中消失则标失效并停止，
       // 重定位成功则后续流程使用重定位后的行号。
       const liveContent =
@@ -298,12 +379,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           ? state.fileContent
           : undefined;
       let targetLine = line;
-      const querySnap = {
-        text: state.searchQuery,
-        matchCase: state.searchFlags.matchCase,
-        wholeWord: state.searchFlags.matchWholeWord,
-        useRegex: state.searchFlags.useRegex,
-      };
       if (liveContent !== undefined) {
         const relocated = findLineForQuery(liveContent, querySnap.text, querySnap, line);
         if (relocated === null) {
@@ -339,10 +414,14 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
           nonce: (searchValidateNonceRef.current += 1),
           query: querySnap,
         };
+        onOpenFileAtLine(relativePath, targetLine);
+      } else {
+        // 已打开：直接揭示，不走 open 链（open 对已打开文件无内容变更，
+        // pending 揭示永不触发；事项 10，大文件门确认后点片段即此情形）。
+        handleNavigateLine(targetLine);
       }
-      onOpenFileAtLine(relativePath, targetLine);
     },
-    [isPreviewModeForPath, onOpenFile, onOpenFileAtLine, revealInPreview],
+    [isPreviewModeForPath, onOpenFile, onOpenFileAtLine, revealInPreview, handleNavigateLine],
   );
 
   useEffect(() => {
@@ -434,7 +513,8 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       state.markSearchHitStale(validating.path, validating.line, state.searchWorkspaceId);
       return;
     }
-    if (relocated !== validating.line) {
+    // 显式工作区打开（事项 9 后续）内容到达即揭示；原有链路仅在行号纠正时揭示。
+    if (validating.forceNavigate || relocated !== validating.line) {
       handleNavigateLine(relocated);
     }
   }, [selectedFilePath, fileContent, isPreviewModeForPath, handleNavigateLine]);

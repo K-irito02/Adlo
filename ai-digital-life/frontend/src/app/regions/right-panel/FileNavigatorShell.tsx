@@ -150,6 +150,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     fileTreeClickedRecord,
     fileNavigatorActiveWorkspaceId,
     setFileNavigatorActiveWorkspace,
+    searchTargetWorkspaceId,
+    setSearchTargetWorkspaceId,
   } = useAppStore(
     useShallow((s) => ({
       navigatorMode: s.filesNavigatorMode,
@@ -170,6 +172,8 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       fileTreeClickedRecord: s.fileTreeClicked,
       fileNavigatorActiveWorkspaceId: s.fileNavigatorActiveWorkspaceId,
       setFileNavigatorActiveWorkspace: s.setFileNavigatorActiveWorkspace,
+      searchTargetWorkspaceId: s.searchTargetWorkspaceId,
+      setSearchTargetWorkspaceId: s.setSearchTargetWorkspaceId,
     })),
   );
   const expandedPaths = useAppStore(useShallow((s) => s.expandedFileTreePaths));
@@ -199,6 +203,13 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       ? fileNavigatorActiveWorkspaceId
       : undefined;
   const activeWorkspaceId = storedActiveWorkspaceId ?? derivedActiveWorkspaceId;
+
+  // 检索目标工作区：显式选择（检索设置可切换）优先；缺省/陈旧时跟随文件面板高亮
+  // （事项 3：默认绑定"高亮竖线 + 常驻灰色背景"的工作区，且与高亮相互独立）。
+  const effectiveSearchWorkspaceId =
+    searchTargetWorkspaceId && visibleWorkspaces.some((w) => w.id === searchTargetWorkspaceId)
+      ? searchTargetWorkspaceId
+      : activeWorkspaceId;
 
   const handleSelectWorkspace = useCallback(
     (workspaceId: string) => {
@@ -339,7 +350,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       return [] as FileNameHit[];
     }
     const needle = searchMatchCase ? committedSearchQuery : committedSearchQuery.toLowerCase();
-    const targetIds = activeWorkspaceId ? [activeWorkspaceId] : visibleWorkspaces.map((w) => w.id);
+    const targetIds = effectiveSearchWorkspaceId
+      ? [effectiveSearchWorkspaceId]
+      : visibleWorkspaces.map((w) => w.id);
     // 与后端过滤同语义：复用共享匹配器（含分隔符归一化，事项 F7 去手写版）。
     // 文件名范围同样叠加 `.gitignore`（与内容检索一致，事项 M-2）。
     const isIgnored = (wsId: string, path: string, isDir: boolean) => {
@@ -385,7 +398,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     searchIgnoredPaths,
     searchUseGitignoreMap,
     gitignoreMatchers,
-    activeWorkspaceId,
+    effectiveSearchWorkspaceId,
     visibleWorkspaces,
     workspaceTrees,
   ]);
@@ -406,12 +419,11 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     [recentWorkspaces, appInfo?.currentWorkspace?.path, onOpenFile, onOpenFileForWorkspace],
   );
 
-  // 检索范围展示名：内容检索以后端当前激活工作区为准；文件检索优先显示点击选中的工作区。
+  // 检索范围展示名：统一取"检索目标工作区"（设置可切换，缺省跟随高亮；无则回退后端）。
   const searchScopeWorkspaceName =
-    filesSearchScope === 'file' && activeWorkspaceId
-      ? (visibleWorkspaces.find((w) => w.id === activeWorkspaceId)?.name ??
-        appInfo?.currentWorkspace?.name)
-      : appInfo?.currentWorkspace?.name;
+    (effectiveSearchWorkspaceId
+      ? visibleWorkspaces.find((w) => w.id === effectiveSearchWorkspaceId)?.name
+      : undefined) ?? appInfo?.currentWorkspace?.name;
 
   // 搜索框占位提示“检索 xxx”（xxx = 所要检索的工作区名）；无工作区时回退通用文案。
   const searchInputPlaceholder = searchScopeWorkspaceName
@@ -434,8 +446,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
         order.push(result.path);
       }
     }
-    const backendPath = appInfo?.currentWorkspace?.path;
-    const wsId = recentWorkspaces.find((w) => w.path === backendPath)?.id ?? 'search-active';
+    const wsId = effectiveSearchWorkspaceId ?? 'search-active';
     const files: SearchResultFile[] = order.map((path) => {
       const hits = map.get(path) ?? [];
       const firstLine = hits[0]?.line ?? 1;
@@ -462,8 +473,7 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
     filesSearchScope,
     committedSearchQuery,
     filteredSearchResults,
-    recentWorkspaces,
-    appInfo?.currentWorkspace?.path,
+    effectiveSearchWorkspaceId,
     searchScopeWorkspaceName,
     onOpenFileAtLine,
     selectedFilePath,
@@ -593,6 +603,28 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
       return () => window.clearTimeout(timer);
     }
   }, [navigatorMode]);
+
+  // 进入检索模式的绑定（事项 3 双模式）：跟随模式每次进入都绑定当前高亮（实时跟随，
+  // 修"切换到 B 后仍固定绑定旧目标"）；固定模式绑定持久化的 pinned（陈旧则回退高亮）。
+  useEffect(() => {
+    if (navigatorMode !== 'search') {
+      return;
+    }
+    const st = useAppStore.getState();
+    if (st.searchFollowWorkspace) {
+      if (st.searchTargetWorkspaceId !== activeWorkspaceId) {
+        setSearchTargetWorkspaceId(activeWorkspaceId);
+      }
+      return;
+    }
+    const pinned = st.searchPinnedWorkspaceId;
+    const pinnedValid =
+      pinned && visibleWorkspaces.some((w) => w.id === pinned) ? pinned : undefined;
+    const next = pinnedValid ?? activeWorkspaceId;
+    if (st.searchTargetWorkspaceId !== next) {
+      setSearchTargetWorkspaceId(next);
+    }
+  }, [navigatorMode, activeWorkspaceId, visibleWorkspaces, setSearchTargetWorkspaceId]);
 
   // 选中文件变化时展开其祖先链（无任何视觉提示；手动折叠的祖先保持折叠，
   // 由 expandFileTreePathChain 的 blocked 语义保证，见 T12）。
@@ -918,7 +950,9 @@ const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNav
                 </p>
               )
             ) : !committedSearchQuery.trim() ? (
-              <p className="adl-empty-hint">{t.searchPlaceholder as string}</p>
+              <p className="adl-empty-hint">
+                {(searchQuery.trim() ? t.searchPressEnter : t.searchPlaceholder) as string}
+              </p>
             ) : activeSections.length > 0 ? (
               <>
                 {staleCount > 0 ? (

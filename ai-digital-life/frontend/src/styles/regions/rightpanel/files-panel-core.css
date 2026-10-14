@@ -29,6 +29,16 @@
   width: min(var(--rightpanel-width), 100%);
 }
 
+/* overlay_full 是"占满"模式不变式：宽度恒等于 shell 减左栏（不再依赖 --rightpanel-width），
+   左栏展开/收起时自动跟随，无需等待 store 宽度同步（否则左栏收起后中间区会重现）。 */
+.adl-rightpanel--overlay-expanded {
+  width: calc(100% - var(--leftbar-width));
+}
+
+.adl-shell__body.is-left-collapsed .adl-rightpanel--overlay-expanded {
+  width: 100%;
+}
+
 .adl-rightpanel--overlay-expanded {
   box-shadow: var(--shadow-panel);
 }

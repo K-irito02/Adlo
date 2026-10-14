@@ -49,12 +49,14 @@ export function createPreviewSearchBridge(ctx: PreviewSearchContext) {
       query: string,
       window?: WorkspaceSearchWindow,
       filter?: WorkspaceSearchFilter,
+      workspacePath?: string,
     ) => {
-      if (!ctx.currentWorkspace) {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
         return { ok: true as const, data: emptyPage() };
       }
       const params = new URLSearchParams({
-        rootPath: ctx.currentWorkspace.rootPath,
+        rootPath: root,
         query,
         ...windowParams(window),
         ...filterParams(filter),
@@ -66,11 +68,13 @@ export function createPreviewSearchBridge(ctx: PreviewSearchContext) {
       query: string,
       window?: WorkspaceSearchWindow,
       filter?: WorkspaceSearchFilter,
+      workspacePath?: string,
     ) => {
-      if (!ctx.currentWorkspace) {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
         return { ok: true as const, data: emptyPage() };
       }
-      const params = new URLSearchParams({ rootPath: ctx.currentWorkspace.rootPath });
+      const params = new URLSearchParams({ rootPath: root });
       // 与 `search` 对称：窗口先规范化再进 body（NaN/负数/超大不直接上路）。
       const normalized = normalizeSearchWindow(window);
       return requestPreviewApi<WorkspaceSearchPage>(

@@ -382,4 +382,41 @@ describe('files search mode wiring', () => {
   it('disables wholeWord/regex toggles in file scope (事项 45 Phase 4 4.2)', () => {
     expect(shellSource).toContain("disabled={filesSearchScope === 'file'}");
   });
+
+  it('follows the highlighted workspace on entry in follow mode (事项 3 跟随)', () => {
+    // 跟随模式每次进入检索都绑定当前高亮；固定模式绑定持久化 pinned。
+    expect(shellSource).toContain('searchFollowWorkspace');
+    expect(shellSource).toContain('searchPinnedWorkspaceId');
+    expect(shellSource).toContain('setSearchTargetWorkspaceId(activeWorkspaceId)');
+  });
+
+  it('shows the workspace name before the search word in the input placeholder (事项 3-D)', () => {
+    expect(fileZh.searchInputPlaceholder.indexOf('{name}')).toBeLessThan(
+      fileZh.searchInputPlaceholder.indexOf('检索'),
+    );
+    expect(fileEn.searchInputPlaceholder.indexOf('{name}')).toBeLessThan(
+      fileEn.searchInputPlaceholder.toLowerCase().indexOf('search'),
+    );
+  });
+
+  it('commits the clear when the input is emptied (事项 6)', () => {
+    // 输入框清空即提交清空：否则草稿空而提交词仍旧，设置保存按旧词重跑、
+    // 空输入下冒出"检索中..."。
+    const propsSource = readFileSync(
+      new URL('./hooks/useFilesPanelProps.ts', import.meta.url),
+      'utf8',
+    );
+    expect(propsSource).toContain('onSearchChange: handleSearchChange');
+    expect(propsSource).toContain("void actions.searchFiles('')");
+  });
+
+  it('opens search hits via the explicit search workspace on mismatch (事项 9 后续)', () => {
+    // 检索命中归属检索工作区；与后端当前不一致时必须用显式根打开，
+    // 否则解析到错误根（"failed to resolve workspace root"）。
+    expect(filesPanelSource).toContain(
+      'openFileForWorkspace(searchWsId, searchWsPath, relativePath)',
+    );
+    expect(filesPanelSource).toContain('searchWs.id !== backendWs?.id');
+    expect(filesPanelSource).toContain('forceNavigate');
+  });
 });

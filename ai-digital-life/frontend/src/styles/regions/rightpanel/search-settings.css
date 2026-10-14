@@ -47,6 +47,11 @@
   gap: 4px;
 }
 
+/* 绑定模式行（跟随/固定两按钮）在卡片中水平居中（事项 5）。 */
+.adl-search-settings__workspaces--center {
+  justify-content: center;
+}
+
 .adl-search-settings__field {
   display: flex;
   align-items: center;
@@ -88,6 +93,18 @@
   font-size: var(--text-xs);
   line-height: 1.5;
   color: var(--text-tertiary);
+}
+
+/* 设置卡片内空态提示（如空工作区的"暂无文件树"）：小字、水平居中、适度留白，
+   与检索结果区空态同观感（事项 3-C）。作用域限设置卡片，不影响其它面板。 */
+.adl-search-settings__body .adl-empty-hint {
+  display: block;
+  margin: 0;
+  padding: var(--space-3) var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  text-align: center;
 }
 
 /* --- 内嵌忽略树：自定义行（不用 adl-filetree__row——它是 full-bleed 设计，

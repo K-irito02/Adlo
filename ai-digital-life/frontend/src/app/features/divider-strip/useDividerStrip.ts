@@ -20,10 +20,14 @@ import {
 interface DividerStripLayout {
   applyPanelGeometry: (
     width: number,
-    options?: { commitRestorable?: boolean; preserveFull?: boolean; updateState?: boolean },
+    options?: { commitRestorable?: boolean; maximized?: boolean; updateState?: boolean },
   ) => { nextWidth: number; nextMode: RightPanelMode; effectiveAnchorWidth: number | undefined };
   clampPanelWidthToShell: (width: number) => number;
   setRightPanelWidth: (width: number) => void;
+  /** 拖拽起始：清除"扩大"不变式（拖拽即自由宽度，退出 overlay_full）。 */
+  clearMaximized: () => void;
+  /** 拖拽收尾：到占满即等同点击"扩大"，否则按自由宽度提交。 */
+  finalizeDragWidth: (latestWidth: number, startWidth: number) => void;
 }
 
 interface StripDragPayload {
@@ -347,6 +351,8 @@ export function useDividerStrip(options: {
         drag.startWidth = widthRef.current;
         drag.totalDx = 0;
         drag.latestWidth = drag.startWidth;
+        // 拖拽即放弃"扩大"不变式（面板从 overlay_full 退为自由宽度）。
+        layoutRef.current.clearMaximized();
         setResizing(true);
         return;
       }
@@ -394,10 +400,8 @@ export function useDividerStrip(options: {
         drag.totalDx,
         layoutRef.current.clampPanelWidthToShell,
       );
-      const { nextWidth } = layoutRef.current.applyPanelGeometry(drag.latestWidth, {
-        commitRestorable: true,
-      });
-      layoutRef.current.setRightPanelWidth(nextWidth);
+      // 到占满即等同"扩大"，否则自由宽度提交（事项 1-B）。
+      layoutRef.current.finalizeDragWidth(drag.latestWidth, drag.startWidth);
       setResizing(false);
     });
   }, [computeBounds, panelRef]);

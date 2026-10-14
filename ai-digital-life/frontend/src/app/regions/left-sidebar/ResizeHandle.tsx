@@ -56,11 +56,26 @@ export function ResizeHandle() {
       rafRef.current = requestAnimationFrame(() => {
         rafRef.current = 0;
         const delta = moveEvent.clientX - startX;
-        const rightWidth = shellBody.classList.contains('is-right-collapsed')
-          ? 0
-          : parseFloat(getComputedStyle(shellBody).getPropertyValue('--rightpanel-width')) || 0;
+        // 网格实际预留的右侧宽度：docked 用面板宽（真实网格列，必须预留否则挤出视口）；
+        // overlay（含部分/全覆盖）不预留——面板绝对定位不占网格，锚列是固定值，
+        // 若按它预留会把左栏钉死在进入覆盖时的宽度（事项 7）。左栏 token 范围仅
+        // 80px（180–260），最大增量远小于中心下限 360，网格不会溢出，由中心吸收；
+        // 全覆盖时中心隐藏故连中心下限也不保留；右栏收起为 0。
+        // （事项 1-A 修过用面板绝对宽度导致的钉死；事项 7 修 overlay 下仍用锚列宽
+        // 导致的钉死。docked 下仍按面板宽+中心下限保护，此为预期行为。）
+        let reservedRight = 0;
+        let centerReserve = centerMinWidth;
+        if (!shellBody.classList.contains('is-right-collapsed')) {
+          if (shellBody.classList.contains('is-rightpanel-overlay-expanded')) {
+            reservedRight = 0;
+            centerReserve = 0;
+          } else if (!shellBody.classList.contains('is-rightpanel-overlay-active')) {
+            reservedRight =
+              parseFloat(getComputedStyle(shellBody).getPropertyValue('--rightpanel-width')) || 0;
+          }
+        }
         const shellWidth = shellBody.getBoundingClientRect().width;
-        const allowedMax = Math.max(minWidth, shellWidth - rightWidth - centerMinWidth);
+        const allowedMax = Math.max(minWidth, shellWidth - reservedRight - centerReserve);
         const newWidth = Math.min(
           Math.min(maxWidth, allowedMax),
           Math.max(minWidth, startWidth + delta),

@@ -148,6 +148,31 @@ describe('search settings dialog wiring', () => {
     expect(searchSliceSource).toContain('Math.max(SEARCH_PAGE_SIZE, _get().searchPageSize)');
   });
 
+  it('binds the search workspace in follow or pinned mode (事项 3 双模式)', () => {
+    expect(dialogSource).toContain('searchSettingsWorkspaceTab');
+    expect(dialogSource).toContain('searchSettingsBindFollow');
+    expect(dialogSource).toContain('searchSettingsBindPinned');
+    expect(dialogSource).toContain('draftFollow');
+    expect(dialogSource).toContain('draftPinnedId');
+    expect(dialogSource).toContain('setSearchFollowWorkspace');
+    expect(dialogSource).toContain('setSearchPinnedWorkspaceId');
+    expect(dialogSource).toContain('setSearchTargetWorkspaceId');
+    expect(searchSliceSource).toContain('searchFollowWorkspace');
+    expect(searchSliceSource).toContain('searchPinnedWorkspaceId');
+    expect(fileZh.searchSettingsWorkspaceTab).toBe('绑定设置');
+  });
+
+  it('hides the ignore toolbar when the workspace tree is empty (事项 3-C)', () => {
+    // 空态只剩提示文案：工具栏（gitignore 开关 + 展开/折叠）只在非空分支渲染。
+    const emptyIdx = treeSource.indexOf('{isEmpty ? (');
+    expect(emptyIdx).toBeGreaterThan(-1);
+    const toolbarIdx = treeSource.indexOf('adl-search-ignore__toolbar');
+    expect(toolbarIdx).toBeGreaterThan(emptyIdx);
+    const emptyBranch = treeSource.slice(emptyIdx, toolbarIdx);
+    expect(emptyBranch).toContain('adl-empty-hint');
+    expect(emptyBranch).not.toContain('toolbarExtra');
+  });
+
   it('keeps every new label in i18n (zh + en parity)', () => {
     const keys = [
       'searchShort',
@@ -185,6 +210,10 @@ describe('search settings dialog wiring', () => {
       'searchSettingsSave',
       'searchSettingsIgnoreHintTitle',
       'searchSettingsLimitsHintTitle',
+      'searchSettingsWorkspaceTab',
+      'searchSettingsWorkspaceHint',
+      'searchSettingsBindFollow',
+      'searchSettingsBindPinned',
     ];
     for (const key of keys) {
       expect(fileZh[key as keyof typeof fileZh], `zh missing ${key}`).toBeTruthy();

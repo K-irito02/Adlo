@@ -1,4 +1,8 @@
-import type { WorkspaceSearchFilter, WorkspaceSearchHit } from '@ai-digital-life/kernel';
+import type {
+  RecentWorkspaceEntry,
+  WorkspaceSearchFilter,
+  WorkspaceSearchHit,
+} from '@ai-digital-life/kernel';
 import type { StoreState } from '../StoreState';
 import {
   SEARCH_HARD_MAX_RESULTS,
@@ -43,6 +47,22 @@ export interface SearchSlice {
   /** 本次检索发生时的活动工作区 */
   searchWorkspaceId: string | undefined;
   /**
+   * 检索目标工作区（会话态，不持久化）：进入检索模式时默认取"文件面板高亮工作区"，
+   * 可在检索设置中切换；与文件面板高亮相互独立。内容检索与文件名检索均以它为准，
+   * 缺省回退后端当前激活工作区。
+   */
+  searchTargetWorkspaceId: string | undefined;
+  /**
+   * 检索绑定模式（持久化 `adl:search.followWorkspace`，缺省 true）：
+   * true = 跟随工作区（进入检索即绑定文件面板高亮）；false = 固定工作区（用 pinned）。
+   */
+  searchFollowWorkspace: boolean;
+  /**
+   * 固定绑定的工作区（持久化 `adl:search.pinnedWorkspaceId`，null 合法值）。
+   * 陈旧 id 由消费端派生回退，不写回。
+   */
+  searchPinnedWorkspaceId: string | null;
+  /**
    * 检索选项三开关（大小写/全词/正则，上提到 store：点击校验/重定位必须与检索时选项一致）。
    * 单对象持有、一次落盘（`adl:files.searchFlags`，Task 22）。
    */
@@ -73,6 +93,12 @@ export interface SearchSlice {
   setSearching: (searching: boolean) => void;
   setSearchEntries: (entries: SearchHitEntry[]) => void;
   setSearchFlags: (flags: SearchFlags) => void;
+  /** 切换本次检索的目标工作区（会话态；检索设置的工作区 tab 调用）。 */
+  setSearchTargetWorkspaceId: (workspaceId: string | undefined) => void;
+  /** 切换检索绑定模式（持久化；检索设置的绑定 tab 调用）。 */
+  setSearchFollowWorkspace: (follow: boolean) => void;
+  /** 设置固定绑定的工作区（持久化，可 null；检索设置的绑定 tab 调用）。 */
+  setSearchPinnedWorkspaceId: (workspaceId: string | null) => void;
   setSearchPageSize: (value: number) => void;
   setSearchMaxResults: (value: number) => void;
   setSearchIgnoredPaths: (workspaceId: string, paths: string[]) => void;
@@ -149,6 +175,25 @@ export function selectSearchFilter(
   return { excludedPaths: excluded, useGitignore: gitignore };
 }
 
+/**
+ * 解析本次检索的目标工作区：优先显式选中的 `searchTargetWorkspaceId`（须在当前
+ * 最近工作区列表中），否则回退后端当前激活工作区（按 path 匹配）。二者均未命中时
+ * `id`/`path` 为 undefined，由调用方再回退到 `appInfo.currentWorkspace`（不传
+ * `workspacePath` 时后端本就落到当前激活工作区）。
+ */
+export function resolveSearchWorkspace(
+  recentWorkspaces: RecentWorkspaceEntry[] | undefined,
+  targetWorkspaceId: string | undefined,
+  backendPath: string | undefined,
+): { id: string | undefined; path: string | undefined } {
+  const workspaces = recentWorkspaces ?? [];
+  const target = targetWorkspaceId ? workspaces.find((w) => w.id === targetWorkspaceId) : undefined;
+  const fallback =
+    !target && backendPath ? workspaces.find((w) => w.path === backendPath) : undefined;
+  const ws = target ?? fallback;
+  return { id: ws?.id, path: ws?.path };
+}
+
 export const createSearchSlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
@@ -168,6 +213,9 @@ export const createSearchSlice = (
     // 初值对齐持久化步长（而非常量 200），最终由 searchComposite 在水合期产出（事项 L5）。
     searchLimit: initialPageSize,
     searchWorkspaceId: undefined,
+    searchTargetWorkspaceId: undefined,
+    searchFollowWorkspace: true,
+    searchPinnedWorkspaceId: null,
     searchFlags: { matchCase: false, matchWholeWord: false, useRegex: false },
     searchPageSize: initialPageSize,
     searchMaxResults: initialMaxResults,
@@ -178,6 +226,10 @@ export const createSearchSlice = (
     setSearching: (searching) => set({ searching }),
     setSearchEntries: (entries) => set({ searchEntries: entries }),
     setSearchFlags: (flags) => set(persistField('adl:files.searchFlags', flags)),
+    setSearchTargetWorkspaceId: (workspaceId) => set({ searchTargetWorkspaceId: workspaceId }),
+    setSearchFollowWorkspace: (follow) => set(persistField('adl:search.followWorkspace', follow)),
+    setSearchPinnedWorkspaceId: (workspaceId) =>
+      set(persistField('adl:search.pinnedWorkspaceId', workspaceId)),
     setSearchPageSize: (value) => {
       // 非有限输入直接丢弃：clamp(NaN) 恒为 NaN，会污染 store + 落盘（事项 F4）。
       if (!Number.isFinite(value)) {

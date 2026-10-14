@@ -91,10 +91,30 @@ export const MINIMIZED_VIEWPORT_WIDTH_GUARD = 320;
 export const MINIMIZED_VIEWPORT_HEIGHT_GUARD = 240;
 
 /**
- * 判定"面板占满 shell"的容差（px）：`deriveRightPanelMode`（hook 内）与
- * `shouldPreserveOverlayFull` 共用，避免两处漂移重演"陈旧 full 锁死"回归。
+ * 解析覆盖态锚列宽（纯函数，可单测）。
+ *
+ * 锚列是网格第三列在覆盖态的预留宽度（docked 边界），作用是进出覆盖时网格不跳变。
+ * 它在进入覆盖时按当时阈值设定，之后保持稳定（窗口连续变化时不跟随，保证编辑器
+ * 换行稳定）。但左栏收起/展开是离散的布局基变更，阈值随之跳变；若锚不跟进，
+ * 后续覆盖→停靠翻转瞬间网格中心宽会跳变（旧锚 vs 新阈值之差，左栏 260px 即 260px
+ * 跳变 → 中间区按钮整体瞬移，事项 8）。因此左栏切换时必须用 `rebaseAnchor` 把锚
+ * 重定到实时阈值；连续变化（窗口/拖拽）不 rebase。
  */
-export const OVERLAY_FULL_EPSILON_PX = 1;
+export function resolveOverlayAnchorWidth(
+  previousMode: RightPanelMode,
+  nextMode: RightPanelMode,
+  currentAnchorWidth: number | undefined,
+  overlayThreshold: number,
+  rebaseAnchor: boolean,
+): number | undefined {
+  if (nextMode === 'docked') {
+    return undefined;
+  }
+  if (rebaseAnchor || previousMode === 'docked' || currentAnchorWidth === undefined) {
+    return overlayThreshold;
+  }
+  return currentAnchorWidth;
+}
 
 export function shouldSkipPassiveLayoutSync(
   hidden: boolean,
@@ -117,20 +137,4 @@ export function shouldSkipPassiveLayoutSync(
     return true;
   }
   return false;
-}
-
-/**
- * 被动几何同步时是否应保留 `overlay_full`（按新 shell 宽度补满）。
- *
- * `overlay_full` 可能只是"窗口/侧栏曾更窄时宽度被钳满"的残留状态：此时
- * `width` 远小于当前 `rightMaxWidth`。窗口恢复/变宽后若仍按全宽保留，会把
- * 中间区整块盖住（2026-09-30 最小化→恢复回归根因）。仅当面板确实占据整个
- * shell（`width` ≈ `rightMaxWidth`）时才保留 full。
- */
-export function shouldPreserveOverlayFull(
-  mode: RightPanelMode,
-  width: number,
-  rightMaxWidth: number,
-): boolean {
-  return mode === 'overlay_full' && width >= rightMaxWidth - OVERLAY_FULL_EPSILON_PX;
 }

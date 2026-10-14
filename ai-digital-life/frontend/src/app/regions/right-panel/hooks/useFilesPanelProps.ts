@@ -130,6 +130,19 @@ export function useFilesPanelProps(
     [actions],
   );
 
+  // 输入框被清空即提交清空（事项 6）：否则草稿空而提交词仍是旧非空值，
+  // 设置保存会按旧提交词重跑，空输入下冒出"检索中..."。仅在"变为空"且提交词
+  // 仍非空时触发一次（输入 onChange 只在值变化时 firing，不会重复提交）。
+  const handleSearchChange = useCallback(
+    (value: string) => {
+      setLocalSearchQuery(value);
+      if (!value.trim() && useAppStore.getState().searchQuery.trim()) {
+        void actions.searchFiles('');
+      }
+    },
+    [actions],
+  );
+
   const handleRefreshWorkspaceTree = useCallback(() => {
     void actions.refreshWorkspaceTree();
   }, [actions]);
@@ -241,7 +254,7 @@ export function useFilesPanelProps(
       onOpenFileAtLine,
       onDiffMount,
       onSearch: handleSearch,
-      onSearchChange: setLocalSearchQuery,
+      onSearchChange: handleSearchChange,
       onRefreshWorkspaceTree: handleRefreshWorkspaceTree,
       onExpandAll: handleExpandAll,
       onCollapseAll: handleCollapseAll,
@@ -291,7 +304,7 @@ export function useFilesPanelProps(
       onOpenFileAtLine,
       onDiffMount,
       handleSearch,
-      setLocalSearchQuery,
+      handleSearchChange,
       handleRefreshWorkspaceTree,
       handleExpandAll,
       handleCollapseAll,

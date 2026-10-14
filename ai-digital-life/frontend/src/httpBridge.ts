@@ -944,22 +944,39 @@ export function createHttpBridge({
               : {},
           ),
         ),
-      search: (query: string, window?: WorkspaceSearchWindow, filter?: WorkspaceSearchFilter) =>
+      search: (
+        query: string,
+        window?: WorkspaceSearchWindow,
+        filter?: WorkspaceSearchFilter,
+        workspacePath?: string,
+      ) =>
         call<WorkspaceSearchPage>(
           baseUrl,
           '/workspace/search',
-          POST({ query, ...window, ...filterBody(filter) }),
+          POST({
+            query,
+            ...window,
+            ...filterBody(filter),
+            ...(workspacePath ? { workspacePath } : {}),
+          }),
         ),
       searchInFiles: (
         paths: string[],
         query: string,
         window?: WorkspaceSearchWindow,
         filter?: WorkspaceSearchFilter,
+        workspacePath?: string,
       ) =>
         call<WorkspaceSearchPage>(
           baseUrl,
           '/workspace/search-in-files',
-          POST({ paths, query, ...window, ...filterBody(filter) }),
+          POST({
+            paths,
+            query,
+            ...window,
+            ...filterBody(filter),
+            ...(workspacePath ? { workspacePath } : {}),
+          }),
         ),
       outline: (relativePath: string) =>
         call<FileOutlineItem[]>(baseUrl, '/workspace/outline', POST({ relativePath })),
