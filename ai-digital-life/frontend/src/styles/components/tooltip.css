@@ -54,6 +54,18 @@
   white-space: pre-line;
 }
 
+/* 单行模式：图标按钮等短文案 Tooltip 强制单行显示，避免窄触发点下换行。
+   长 Hint 走 HintCardTrigger，不经此处，故全局默认仍保留 pre-line。 */
+.tooltip--single-line {
+  max-width: none;
+}
+
+.tooltip--single-line .tooltip__content {
+  white-space: nowrap;
+  overflow-wrap: normal;
+  word-break: keep-all;
+}
+
 .tooltip__content :not(:last-child) {
   margin-bottom: var(--space-1);
 }

@@ -147,6 +147,7 @@ export const BrowserToolbar = React.memo(function BrowserToolbar() {
         <TooltipSimple
           content={browserNavigateInPlace ? t.browserNavigateInPlace : t.browserNavigateNewTab}
           placement="top"
+          className="tooltip--single-line"
         >
           <BrowserNavModeSwitch
             checked={browserNavigateInPlace}

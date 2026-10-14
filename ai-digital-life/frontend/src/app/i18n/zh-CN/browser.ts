@@ -49,6 +49,7 @@ export const browserZh = {
   browserCreateDirHint:
     '· 当选中某个目录时，点击此按钮会在该目录下新建子目录。\n· 当未选中任何目录时，会在"非工作区目录"分类下新建顶级目录。',
   browserNoContent: '暂无内容',
+  browserOpenTabsEmpty: '还没有打开的标签页',
   browserTabDir: '标签目录',
   browserRenamePrompt: '重命名',
 
@@ -170,8 +171,8 @@ export const browserZh = {
   browserBookmarkToFolderTitle: '收藏标签',
   browserAddToFolder: '加入此目录',
   browserBookmarkAddedToast: '收藏成功',
-  browserNavigateInPlace: '当前标签：侧栏/地址栏链接在当前标签页打开',
-  browserNavigateNewTab: '新建标签：侧栏/地址栏链接在新标签页打开',
+  browserNavigateInPlace: '在当前标签页打开链接',
+  browserNavigateNewTab: '在新标签页打开链接',
   browserFetchingPageMeta: '正在获取页面信息...',
   browserMute: '静音',
   browserUnmute: '取消静音',
@@ -196,7 +197,7 @@ export const browserZh = {
   // 搜索引擎
   browserSearchEngineSettings: '搜索引擎设置',
   browserSearchEngineManage: '自定义管理搜索引擎',
-  browserSearchEngineBuiltIn: '内置引擎',
+  browserSearchEngineBuiltIn: '切换搜索引擎',
   browserSearchEngineCustom: '自定义引擎',
   browserSearchEngineAdd: '添加搜索引擎',
   browserSearchEngineEdit: '编辑',

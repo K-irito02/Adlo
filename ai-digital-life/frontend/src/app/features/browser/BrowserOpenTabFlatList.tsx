@@ -23,7 +23,7 @@ export function BrowserOpenTabFlatList({
   if (browserTabs.length === 0) {
     return (
       <div className="adl-multitree__empty">
-        <p className="adl-empty-hint">{t.noContent}</p>
+        <p className="adl-empty-hint">{t.browserOpenTabsEmpty}</p>
       </div>
     );
   }

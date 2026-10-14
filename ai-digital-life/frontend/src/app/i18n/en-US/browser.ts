@@ -55,6 +55,7 @@ export const browserEn = {
   browserDeleteHistoryMonthLabel: 'Delete all history · Month',
   browserDeleteHistoryDayLabel: 'Delete all history · Day',
   browserNoContent: 'No content',
+  browserOpenTabsEmpty: 'No open tabs yet',
   browserTabDir: 'Tab Directory',
   browserRenamePrompt: 'Rename',
 
@@ -179,8 +180,8 @@ export const browserEn = {
   browserBookmarkToFolderTitle: 'Bookmark Tab',
   browserAddToFolder: 'Add to this folder',
   browserBookmarkAddedToast: 'Bookmarked to current folder',
-  browserNavigateInPlace: 'Current tab: sidebar/address bar links open in active tab',
-  browserNavigateNewTab: 'New tab: sidebar/address bar links open in new tabs',
+  browserNavigateInPlace: 'Open links in current tab',
+  browserNavigateNewTab: 'Open links in new tab',
   browserFetchingPageMeta: 'Fetching page info...',
   browserMute: 'Mute',
   browserUnmute: 'Unmute',
@@ -208,7 +209,7 @@ export const browserEn = {
   // Search Engines
   browserSearchEngineSettings: 'Search Engine Settings',
   browserSearchEngineManage: 'Manage Custom Search Engines',
-  browserSearchEngineBuiltIn: 'Built-in Engines',
+  browserSearchEngineBuiltIn: 'Switch Search Engine',
   browserSearchEngineCustom: 'Custom Engines',
   browserSearchEngineAdd: 'Add Search Engine',
   browserSearchEngineEdit: 'Edit',
