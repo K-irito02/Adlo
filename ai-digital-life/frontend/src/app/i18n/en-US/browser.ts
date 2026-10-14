@@ -137,7 +137,7 @@ export const browserEn = {
   browserContextDelete: 'Delete',
   browserContextMore: 'More actions',
   browserContextCreateBookmark: 'New bookmark',
-  browserContextDeleteAllTabs: 'Delete all tabs [nested]',
+  browserContextDeleteAllTabs: 'Delete all tabs',
   browserDeleteAllTabsHint:
     'Delete child tabs under this directory, including nested directories, but keep the directory structure.',
   browserContextDeleteSelfTabs: 'Delete own child tabs',

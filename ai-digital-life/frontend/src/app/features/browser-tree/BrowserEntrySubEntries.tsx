@@ -277,6 +277,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
       return items.map((item) => ({
         id: item.id,
         label: item.label,
+        badge: item.badge,
         danger: item.danger,
         hint: item.hint,
         action: () => item.action(),
@@ -360,6 +361,7 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
               onClick={() => handleChildMenuClick(item.action)}
             >
               <span>{item.label}</span>
+              {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
               {item.hint ? (
                 <span
                   className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}

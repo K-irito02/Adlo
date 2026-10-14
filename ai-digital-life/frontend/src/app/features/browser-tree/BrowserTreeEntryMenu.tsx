@@ -21,6 +21,7 @@ interface UseBrowserTreeEntryMenuInput {
   entryMenuItems: {
     id: string;
     label: string;
+    badge?: string;
     danger?: boolean;
     hint?: string;
     action: () => void;
@@ -191,6 +192,9 @@ export function useBrowserTreeEntryMenu({
                   onClick={handleMenuItemClick(item.action)}
                 >
                   <span>{item.label}</span>
+                  {item.badge ? (
+                    <span className="adl-menu-item__badge">{item.badge}</span>
+                  ) : null}
                   {item.hint ? (
                     <span
                       className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}

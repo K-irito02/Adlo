@@ -377,6 +377,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
             id: item.id,
             label: item.label,
             icon: item.icon,
+            badge: item.badge,
             disabled: item.disabled,
             danger: item.danger,
             separator: item.separator,

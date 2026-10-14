@@ -12,6 +12,7 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> =
       id: string;
       label?: string;
       icon?: React.ReactNode;
+      badge?: string;
       disabled?: boolean;
       danger?: boolean;
       hasHint?: boolean;
@@ -23,6 +24,7 @@ export type FileTreeContextMenuItem<T extends FileTreeRenderableNode> =
       id: string;
       label: string;
       icon?: React.ReactNode;
+      badge?: string;
       disabled?: boolean;
       danger?: boolean;
       hasHint?: boolean;

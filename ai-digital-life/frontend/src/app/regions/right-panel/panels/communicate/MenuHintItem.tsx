@@ -2,13 +2,14 @@ import { useHintCard, HintCard } from '../../../../components/HintCard';
 
 interface MenuHintItemProps {
   label: string;
+  badge?: string;
   hint: string;
   onClick: () => void;
   danger?: boolean;
   icon?: React.ReactNode;
 }
 
-export function MenuHintItem({ label, hint, onClick, danger, icon }: MenuHintItemProps) {
+export function MenuHintItem({ label, badge, hint, onClick, danger, icon }: MenuHintItemProps) {
   const { hintState, showHint: showHintCard, scheduleHide, hintCardProps } = useHintCard();
 
   return (
@@ -21,6 +22,7 @@ export function MenuHintItem({ label, hint, onClick, danger, icon }: MenuHintIte
       >
         {icon}
         <span className="adl-multitree-entry__menu-item-content">{label}</span>
+        {badge ? <span className="adl-menu-item__badge">{badge}</span> : null}
         <span
           className={`adl-menu-item__hint${danger ? ' is-danger' : ''}`}
           onMouseEnter={(e) => {

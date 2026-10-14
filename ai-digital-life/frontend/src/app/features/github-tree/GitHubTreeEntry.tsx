@@ -277,6 +277,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                 <MenuHintItem
                   key={item.id}
                   label={item.label!}
+                  badge={item.badge}
                   hint={item.hint}
                   onClick={() => handleMenuClick(item.action!)}
                   danger={item.danger}
@@ -290,6 +291,7 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
                   onClick={() => handleMenuClick(item.action!)}
                 >
                   {item.label!}
+                  {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
                 </button>
               );
             })}

@@ -115,6 +115,7 @@ export const commonEn = {
   pin: 'Pin',
   unpin: 'Unpin',
   deleteAll: 'Delete all',
+  nestedBadge: 'nested',
   noContent: 'No content',
   bookmark: 'Bookmark tab',
   unbookmark: 'Unbookmark',

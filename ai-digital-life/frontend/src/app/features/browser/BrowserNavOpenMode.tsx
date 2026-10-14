@@ -7,6 +7,8 @@ export interface BrowserNavOpenModeProps {
   evictedTabIds?: ReadonlySet<string>;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onRefreshTab?: (tabId: string, url: string) => void;
+  onCopyTabLink?: (url: string) => void;
 }
 
 export function BrowserNavOpenMode({
@@ -15,6 +17,8 @@ export function BrowserNavOpenMode({
   evictedTabIds,
   onSelectTab,
   onCloseTab,
+  onRefreshTab,
+  onCopyTabLink,
 }: BrowserNavOpenModeProps) {
   return (
     <BrowserOpenTabFlatList
@@ -22,6 +26,8 @@ export function BrowserNavOpenMode({
       activeTabId={activeTabId}
       onSelectTab={onSelectTab}
       onCloseTab={onCloseTab}
+      onRefreshTab={onRefreshTab}
+      onCopyTabLink={onCopyTabLink}
       evictedTabIds={evictedTabIds}
     />
   );

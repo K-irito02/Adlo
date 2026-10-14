@@ -149,6 +149,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
         return {
           id: item.id,
           label: item.label,
+          badge: item.badge,
           danger: item.danger,
           action: () => item.action(),
           hasHint: item.hasHint,
@@ -205,6 +206,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
               <MenuHintItem
                 key={item.id}
                 label={item.label}
+                badge={item.badge}
                 hint={item.hint}
                 onClick={() => handleChildMenuClick(item.action)}
                 danger={item.danger}
@@ -218,6 +220,7 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
                 onClick={() => handleChildMenuClick(item.action)}
               >
                 {item.label}
+                {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
               </button>
             );
           })}

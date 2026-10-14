@@ -8,6 +8,8 @@ interface BrowserOpenTabFlatListProps {
   activeTabId: string;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onRefreshTab?: (tabId: string, url: string) => void;
+  onCopyTabLink?: (url: string) => void;
   evictedTabIds?: ReadonlySet<string>;
 }
 
@@ -16,6 +18,8 @@ export function BrowserOpenTabFlatList({
   activeTabId,
   onSelectTab,
   onCloseTab,
+  onRefreshTab,
+  onCopyTabLink,
   evictedTabIds,
 }: BrowserOpenTabFlatListProps) {
   const { t } = useTCopy();
@@ -45,6 +49,8 @@ export function BrowserOpenTabFlatList({
               isEvicted={evictedTabIds?.has(tab.id) ?? false}
               onSelectTab={onSelectTab}
               onCloseTab={onCloseTab}
+              onRefreshTab={onRefreshTab}
+              onCopyTabLink={onCopyTabLink}
             />
           ))}
         </ul>

@@ -223,9 +223,9 @@ export const ciEn = {
   ciDeleteConfig: 'Delete CI config',
   ciDeleteData: 'Delete data',
   ciDeleteConfigAndData: 'Delete CI config and data',
-  ciDeleteNestedConfig: 'Delete CI config [nested]',
-  ciDeleteNestedData: 'Delete data [nested]',
-  ciDeleteNestedAll: 'Delete CI config and data [nested]',
+  ciDeleteNestedConfig: 'Delete CI config',
+  ciDeleteNestedData: 'Delete data',
+  ciDeleteNestedAll: 'Delete CI config and data',
   ciDeleteDirHint:
     'Delete this directory and all nested subdirectories, along with all CI config and data.',
   ciDeleteNestedConfigHint:

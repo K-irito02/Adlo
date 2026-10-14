@@ -112,7 +112,7 @@ export function getEntryMoreMenuItems(
   nodePath: string,
   callbacks: SectionCallbacks,
   t: CopyDict,
-): { id: string; label: string; danger?: boolean; hint?: string; action: () => void }[] {
+): { id: string; label: string; badge?: string; danger?: boolean; hint?: string; action: () => void }[] {
   if (categoryType === 'history') {
     return [
       {
@@ -149,6 +149,7 @@ export function getEntryMoreMenuItems(
   const items: {
     id: string;
     label: string;
+    badge?: string;
     danger?: boolean;
     hint?: string;
     action: () => void;
@@ -192,6 +193,7 @@ export function getEntryMoreMenuItems(
   items.push({
     id: 'delete-all-tabs',
     label: t.browserContextDeleteAllTabs,
+    badge: t.nestedBadge,
     danger: true,
     hint: t.browserDeleteAllTabsHint,
     action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),

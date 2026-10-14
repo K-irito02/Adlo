@@ -249,6 +249,8 @@ export function BrowserNavigator() {
             browserSelectTab(tabId);
           }}
           onCloseTab={(tabId) => handleCloseTab(tabId)}
+          onRefreshTab={handleRefreshTab}
+          onCopyTabLink={handleCopyTabLink}
         />
       ) : navigatorMode === 'tabs' ? (
         <BrowserNavTabsMode
@@ -341,7 +343,7 @@ export function BrowserNavigator() {
               <button
                 type="button"
                 className={`adl-tool-navigator__summary-stat${searchScope === 'bookmarks' ? ' is-active' : ''}`}
-                onClick={() => setSearchScope('bookmarks')}
+                onClick={() => setSearchScope(searchScope === 'bookmarks' ? 'all' : 'bookmarks')}
                 aria-pressed={searchScope === 'bookmarks'}
                 aria-label={t.browserSearchBookmarks}
               >
@@ -352,7 +354,7 @@ export function BrowserNavigator() {
               <button
                 type="button"
                 className={`adl-tool-navigator__summary-stat${searchScope === 'history' ? ' is-active' : ''}`}
-                onClick={() => setSearchScope('history')}
+                onClick={() => setSearchScope(searchScope === 'history' ? 'all' : 'history')}
                 aria-pressed={searchScope === 'history'}
                 aria-label={t.browserSearchHistory}
               >

@@ -116,6 +116,11 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
     [browserHistory, navigatorQuery],
   );
 
+  const filteredOpenTabs = useMemo(
+    () => filterBrowserItems(browserTabs, navigatorQuery),
+    [browserTabs, navigatorQuery],
+  );
+
   const searchResults = useMemo(() => {
     if (searchScope === 'bookmarks') {
       return filteredBookmarks.map((item) => ({ ...item, source: t.browserSavedTabs }));
@@ -131,8 +136,24 @@ export function useBrowserSearch(options: UseBrowserSearchOptions) {
       const key = `history:${item.url}:${item.title}`;
       merged.set(key, { ...item, source: t.browserHistoryTabs });
     }
+    // 已打开标签同样参与"全部"检索（仅按 URL 去重，保留标签来源标注）：
+    // 此前仅合并且收藏/历史，输入标签标题/网址时无结果。
+    for (const item of filteredOpenTabs) {
+      const key = `opentab:${item.url}`;
+      if (!merged.has(key)) {
+        merged.set(key, { title: item.title, url: item.url, source: t.browserOpenTabs });
+      }
+    }
     return [...merged.values()];
-  }, [filteredBookmarks, filteredHistory, searchScope, t.browserHistoryTabs, t.browserSavedTabs]);
+  }, [
+    filteredBookmarks,
+    filteredHistory,
+    filteredOpenTabs,
+    searchScope,
+    t.browserHistoryTabs,
+    t.browserOpenTabs,
+    t.browserSavedTabs,
+  ]);
 
   return {
     navigatorQuery,

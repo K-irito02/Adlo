@@ -6,7 +6,7 @@ import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
 import { useTCopy } from '@i18n/useTCopy';
 import { ShimmeringText } from '@/components/shimmering-text';
 import { useAppStore } from '@stores/slicedStore';
-import { IconClose } from '@icons';
+import { IconClose, IconCopy, IconMoveToCenter, IconRefreshCw } from '@icons';
 import { useOpenInCenterAction } from './useOpenInCenterAction';
 import type { BrowserTabState } from '@stores/slices/browserSlice';
 
@@ -16,6 +16,8 @@ interface BrowserOpenTabFlatListItemProps {
   isEvicted: boolean;
   onSelectTab: (tabId: string) => void;
   onCloseTab: (tabId: string) => void;
+  onRefreshTab?: (tabId: string, url: string) => void;
+  onCopyTabLink?: (url: string) => void;
 }
 
 export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlatListItem({
@@ -24,6 +26,8 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
   isEvicted,
   onSelectTab,
   onCloseTab,
+  onRefreshTab,
+  onCopyTabLink,
 }: BrowserOpenTabFlatListItemProps) {
   const { t } = useTCopy();
   const { moveTabToCenter } = useOpenInCenterAction();
@@ -84,10 +88,41 @@ export const BrowserOpenTabFlatListItem = React.memo(function BrowserOpenTabFlat
         <ContextMenu
           items={[
             {
+              id: 'refresh',
+              label: t.browserRefresh,
+              icon: <IconRefreshCw size={14} decorative />,
+              disabled: !tab.url || !onRefreshTab,
+              action: () => {
+                onRefreshTab?.(tab.id, tab.url);
+                setContextMenu(null);
+              },
+            },
+            {
+              id: 'copy-link',
+              label: t.browserContextCopyLink,
+              icon: <IconCopy size={14} decorative />,
+              disabled: !tab.url || !onCopyTabLink,
+              action: () => {
+                onCopyTabLink?.(tab.url);
+                setContextMenu(null);
+              },
+            },
+            {
               id: 'show-in-center',
               label: t.centerTabShowInCenter,
+              icon: <IconMoveToCenter size={14} decorative />,
               action: () => {
                 moveTabToCenter(tab.id);
+                setContextMenu(null);
+              },
+            },
+            { id: 'sep-close', separator: true },
+            {
+              id: 'close',
+              label: t.browserClose,
+              icon: <IconClose size={14} decorative />,
+              action: () => {
+                onCloseTab(tab.id);
                 setContextMenu(null);
               },
             },

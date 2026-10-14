@@ -115,6 +115,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     setSearchQuery,
     searchHistory,
     recordSearchHistory,
+    clearSearchHistory,
+    removeSearchHistoryItem,
     updatePreferences,
     showToast,
     navigatorCollapsed,
@@ -137,6 +139,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
       setSearchQuery: s.setSettingsSearchQuery,
       searchHistory: s.settingsSearchHistory,
       recordSearchHistory: s.recordSettingsSearch,
+      clearSearchHistory: s.clearSettingsSearchHistory,
+      removeSearchHistoryItem: s.removeSettingsSearchHistoryItem,
       updatePreferences: s.updatePreferences,
       showToast: s.showToast,
       navigatorCollapsed: s.navigatorCollapsedByTool.settings,
@@ -702,6 +706,22 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     searchInputRef.current?.focus();
   }, []);
 
+  /** 一键清空全部搜索历史：historyVisible 要求 length > 0，清空后卡片自动收起。 */
+  const handleClearSearchHistory = useCallback(() => {
+    clearSearchHistory();
+    setPreviewQuery(null);
+    searchInputRef.current?.focus();
+  }, [clearSearchHistory]);
+
+  /** 删除单条搜索历史：删空后卡片自动收起（同上）。 */
+  const handleRemoveSearchHistoryItem = useCallback(
+    (value: string) => {
+      removeSearchHistoryItem(value);
+      setPreviewQuery(null);
+    },
+    [removeSearchHistoryItem],
+  );
+
   /** 清除当前落点高亮（含移除定时器）：下一次跳转前与面板卸载时调用。
    *  仅摘除本跳转补加的 `tabindex`（既有属性不动），不留永久可脚本聚焦的语义残留；
    *  高亮条交给共享实现收起（宿主取记录里的那份 —— 卸载清理时 ref 已置空）。 */
@@ -1077,6 +1097,8 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
             cardRef={historyCardRef}
             onHoverItem={setPreviewQuery}
             onPick={handlePickHistory}
+            onClearAll={handleClearSearchHistory}
+            onRemoveItem={handleRemoveSearchHistoryItem}
             onClose={handleCloseHistory}
           />
         )}

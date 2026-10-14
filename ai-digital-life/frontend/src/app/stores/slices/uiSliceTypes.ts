@@ -236,6 +236,10 @@ export interface UISlice {
   setSettingsSearchQuery: (query: string) => void;
   /** 记入一次设置搜索历史（去重置顶 + 截断到上限；空白串与「已在首位」为无变化，不写盘）。 */
   recordSettingsSearch: (query: string) => void;
+  /** 清空设置搜索历史（已为空为无变化，不写盘）。 */
+  clearSettingsSearchHistory: () => void;
+  /** 删除单条设置搜索历史（不存在为无变化，不写盘）。 */
+  removeSettingsSearchHistoryItem: (item: string) => void;
   /** 置位组级恢复待处理（幂等：已 pending 再点保持 true）。 */
   requestStorageGroupReset: () => void;
   /** 消费组级恢复待处理（承接方开框前/丢弃信号时调用）。 */

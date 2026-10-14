@@ -125,6 +125,7 @@ export const commonZh = {
   pin: '置顶',
   unpin: '取消置顶',
   deleteAll: '删除全部',
+  nestedBadge: '嵌套',
   noContent: '暂无内容',
   bookmark: '收藏标签',
   unbookmark: '取消收藏',

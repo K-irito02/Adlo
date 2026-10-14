@@ -93,6 +93,7 @@ export {
   IconResetDefaults,
   IconKeyboard,
   IconReplace,
+  IconMoveToCenter,
   IconBack,
   IconMoreVertical,
   IconPin,

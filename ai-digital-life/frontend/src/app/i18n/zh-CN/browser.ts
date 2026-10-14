@@ -130,7 +130,7 @@ export const browserZh = {
   browserContextDelete: '删除',
   browserContextMore: '更多操作',
   browserContextCreateBookmark: '新建书签',
-  browserContextDeleteAllTabs: '删除所有标签[嵌套]',
+  browserContextDeleteAllTabs: '删除所有标签',
   browserDeleteAllTabsHint:
     '删除自身目录下的子标签，并且包括嵌套目录下的子标签，但保留所有目录结构。',
   browserContextDeleteSelfTabs: '删除自身目录标签',

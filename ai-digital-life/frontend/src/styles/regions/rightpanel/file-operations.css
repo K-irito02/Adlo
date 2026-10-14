@@ -239,12 +239,14 @@
   background: var(--bg-hover);
 }
 
+/* 危险项标准：平时与默认项一致，仅悬停时变红（文字红 + 浅红底）。 */
 .adl-multitree-entry__menu-item.is-danger {
-  color: var(--danger);
+  color: var(--text-primary);
 }
 
 .adl-multitree-entry__menu-item.is-danger:hover {
   background: var(--danger-soft);
+  color: var(--danger);
 }
 
 /* Hint icon ("!" button) styles - 固定在右侧 */
@@ -276,14 +278,33 @@
   color: var(--text-primary);
 }
 
-/* Danger variant for hint icon - red text with separate background */
+/* Danger variant for hint icon - 随整项标准：平时弱化，仅悬停时变红 */
 .adl-menu-item__hint.is-danger {
-  color: var(--danger);
+  color: var(--text-muted);
 }
 
 .adl-menu-item__hint.is-danger:hover {
   background: var(--danger-soft);
   color: var(--danger);
+}
+
+/* 角标徽章：替代写死在文案内的 "[嵌套]" 等后缀。胶囊形态、中性底色，
+   亮暗主题均经 --surface-subtle / --text-secondary / --border-subtle 适配。
+   贴合字形：横向内边距收紧、负左外边距抵掉按钮 gap 的一半，紧贴功能选项名称。 */
+.adl-menu-item__badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: calc(var(--space-2) * -1 + 2px);
+  padding: 0 4px;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  color: var(--text-secondary);
+  font-size: 10px;
+  font-weight: var(--font-medium);
+  line-height: 1.5;
+  white-space: nowrap;
 }
 
 .adl-multitree-entry__menu-sep {

@@ -69,6 +69,7 @@ export function getChildNodeMoreMenuItems(
 ): {
   id: string;
   label: string;
+  badge?: string;
   danger?: boolean;
   hint?: string;
   action: () => void;
@@ -118,6 +119,7 @@ export function getChildNodeMoreMenuItems(
       {
         id: 'delete-all-tabs',
         label: t.browserContextDeleteAllTabs,
+        badge: t.nestedBadge,
         danger: true,
         hint: t.browserDeleteAllTabsHint,
         action: () => callbacks.onDeleteAllChildTabs(categoryType, nodePath),
@@ -164,6 +166,7 @@ export function getTabContextMenuItems(
 ): {
   id: string;
   label: string;
+  badge?: string;
   danger?: boolean;
   hint?: string;
   action: () => void;

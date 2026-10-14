@@ -17,6 +17,7 @@ export type { ChildMenuItem } from '../tree/treeEntryMenus';
 export interface MainMenuItem {
   id: string;
   label?: string;
+  badge?: string;
   danger?: boolean;
   action?: () => void;
   hasHint?: boolean;
@@ -138,6 +139,7 @@ export function getChildNodeMoreMenuItems(
     items.push({
       id: 'delete-config-recursive',
       label: t.ciDeleteNestedConfig,
+      badge: t.nestedBadge,
       danger: true as const,
       hasHint: true,
       hint: t.ciDeleteNestedConfigHint,
@@ -146,6 +148,7 @@ export function getChildNodeMoreMenuItems(
     items.push({
       id: 'delete-data-recursive',
       label: t.ciDeleteNestedData,
+      badge: t.nestedBadge,
       danger: true as const,
       hasHint: true,
       hint: t.ciDeleteNestedDataHint,
@@ -154,6 +157,7 @@ export function getChildNodeMoreMenuItems(
     items.push({
       id: 'delete-config-and-data-recursive',
       label: t.ciDeleteNestedAll,
+      badge: t.nestedBadge,
       danger: true as const,
       hasHint: true,
       hint: t.ciDeleteNestedAllHint,

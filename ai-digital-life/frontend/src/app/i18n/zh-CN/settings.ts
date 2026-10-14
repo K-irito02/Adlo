@@ -82,6 +82,9 @@ export const settingsZh = {
   settingsToggleVisibility: '切换可见性',
   settingsSearchLabel: '搜索设置',
   settingsSearchHistory: '搜索历史',
+  settingsSearchHistoryClear: '清空',
+  settingsSearchHistoryRemoveLabel: '删除 {name}',
+  settingsSearchHistoryRemoveTitle: '删除记录',
 
   // 存储
   storageTitle: '存储',

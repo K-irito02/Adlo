@@ -255,6 +255,7 @@ export function buildDeleteRecursiveMenuItems(params: MenuBuilderParams): MainMe
     items.push({
       id: 'delete-config-recursive',
       label: t.ciDeleteNestedConfig,
+      badge: t.nestedBadge,
       danger: true as const,
       hasHint: true,
       hint: t.ciDeleteNestedConfigHint,
@@ -265,6 +266,7 @@ export function buildDeleteRecursiveMenuItems(params: MenuBuilderParams): MainMe
     items.push({
       id: 'delete-data-recursive',
       label: t.ciDeleteNestedData,
+      badge: t.nestedBadge,
       danger: true as const,
       hasHint: true,
       hint: t.ciDeleteNestedDataHint,
@@ -275,6 +277,7 @@ export function buildDeleteRecursiveMenuItems(params: MenuBuilderParams): MainMe
     items.push({
       id: 'delete-config-and-data-recursive',
       label: t.ciDeleteNestedAll,
+      badge: t.nestedBadge,
       danger: true as const,
       hasHint: true,
       hint: t.ciDeleteNestedAllHint,

@@ -35,12 +35,14 @@
   background: var(--bg-hover);
 }
 
+/* 危险项标准：平时与默认项一致，仅悬停时变红（文字红 + 浅红底）。 */
 .adl-sidebar-menu__item.is-danger {
-  color: var(--danger);
+  color: var(--text-primary);
 }
 
 .adl-sidebar-menu__item.is-danger:hover {
   background: var(--danger-soft);
+  color: var(--danger);
 }
 
 .adl-sidebar-menu__icon {

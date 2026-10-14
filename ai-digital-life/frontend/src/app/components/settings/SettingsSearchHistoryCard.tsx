@@ -1,6 +1,7 @@
 import type { CSSProperties, RefObject } from 'react';
-import { IconClose } from '../../icons';
+import { IconClose, IconTrash } from '../../icons';
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '../../i18n/formatT';
 import { useRevealScrollbar } from '../../hooks/useRevealScrollbar';
 import { RevealScrollbar } from '../RevealScrollbar';
 
@@ -18,6 +19,10 @@ export interface SettingsSearchHistoryCardProps {
   onHoverItem: (value: string | null) => void;
   /** 点击某条记录：以该串重新发起搜索。 */
   onPick: (value: string) => void;
+  /** 一键清空全部搜索历史。 */
+  onClearAll: () => void;
+  /** 删除单条搜索历史。 */
+  onRemoveItem: (value: string) => void;
   /** 收起卡片：仅收起，不删除历史、不清空查询。 */
   onClose: () => void;
 }
@@ -51,6 +56,8 @@ export function SettingsSearchHistoryCard({
   cardRef,
   onHoverItem,
   onPick,
+  onClearAll,
+  onRemoveItem,
   onClose,
 }: SettingsSearchHistoryCardProps) {
   const { t } = useTCopy();
@@ -96,15 +103,20 @@ export function SettingsSearchHistoryCard({
     >
       <div className="adl-settings-search-history__header">
         <span className="adl-settings-search-history__title">{t.settingsSearchHistory}</span>
-        <button
-          type="button"
-          className="adl-settings-search-history__close"
-          aria-label={t.close}
-          title={t.close}
-          onClick={onClose}
-        >
-          <IconClose size={12} decorative />
-        </button>
+        <span className="adl-settings-search-history__header-actions">
+          <button type="button" className="adl-settings-search-history__clear" onClick={onClearAll}>
+            {t.settingsSearchHistoryClear}
+          </button>
+          <button
+            type="button"
+            className="adl-settings-search-history__close"
+            aria-label={t.close}
+            title={t.close}
+            onClick={onClose}
+          >
+            <IconClose size={12} decorative />
+          </button>
+        </span>
       </div>
       {/* `adl-reveal-scrollbar-host`：共享的滚动条定位宿主（position: relative），与全项目口径一致。 */}
       <div className="adl-settings-search-history__scroll-host adl-reveal-scrollbar-host">
@@ -116,7 +128,7 @@ export function SettingsSearchHistoryCard({
           ref={scrollbar.scrollRef as unknown as RefObject<HTMLUListElement>}
         >
           {items.map((item) => (
-            <li key={item}>
+            <li key={item} className="adl-settings-search-history__row">
               <button
                 type="button"
                 className="adl-settings-search-history__item"
@@ -128,6 +140,18 @@ export function SettingsSearchHistoryCard({
                 onClick={() => onPick(item)}
               >
                 {item}
+              </button>
+              <button
+                type="button"
+                className="adl-settings-search-history__remove"
+                title={t.settingsSearchHistoryRemoveTitle}
+                aria-label={formatT(t, 'settingsSearchHistoryRemoveLabel', { name: item })}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onRemoveItem(item);
+                }}
+              >
+                <IconTrash size={12} decorative />
               </button>
             </li>
           ))}

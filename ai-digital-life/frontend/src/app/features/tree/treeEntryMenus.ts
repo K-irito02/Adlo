@@ -8,6 +8,7 @@ export type ChildMenuItem =
   | {
       id: string;
       label: string;
+      badge?: string;
       danger?: boolean;
       action: () => void;
       hasHint?: boolean;

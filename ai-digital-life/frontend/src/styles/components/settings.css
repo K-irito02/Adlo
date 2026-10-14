@@ -1679,6 +1679,31 @@
   color: var(--text-secondary);
 }
 
+/* 头部右侧动作组：清空文字按钮 + 关闭键横排 */
+.adl-settings-search-history__header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-shrink: 0;
+}
+
+/* 清空文字按钮：默认弱化，悬停提亮（与关闭键同规格圆角）。 */
+.adl-settings-search-history__clear {
+  padding: 2px 4px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  transition: var(--transition-colors);
+}
+
+.adl-settings-search-history__clear:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
 /* 关闭键：与项目既有对话框右上角关闭图标同规格
    （20×20 命中区、border-radius: --radius-sm、悬停 --bg-hover + 文字提亮）。 */
 .adl-settings-search-history__close {
@@ -1713,7 +1738,8 @@
   flex-direction: column;
   gap: var(--space-px);
   margin: 0;
-  padding: 0;
+  /* 左右留白与头部一致：行内删除键（20px + 右侧留白）与头部关闭键同垂直线。 */
+  padding: 0 var(--space-1);
   list-style: none;
   /* 上限 20 条（SETTINGS_SEARCH_HISTORY_MAX）在窄面板/小窗口下仍可能超高：
      滚动与滚动条沿用共享口径 —— `adl-reveal-scroll`（隐藏原生条）+ `RevealScrollbar`（悬停显现），
@@ -1723,7 +1749,8 @@
 
 .adl-settings-search-history__item {
   display: block;
-  width: 100%;
+  flex: 1;
+  min-width: 0;
   padding: var(--space-1) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
@@ -1742,4 +1769,44 @@
 .adl-settings-search-history__item:hover,
 .adl-settings-search-history__item:focus-visible {
   background: var(--surface-hover);
+}
+
+/* 历史行：文本按钮占满整行（悬停灰底不断裂）；删除键绝对定位浮于灰底之上。 */
+.adl-settings-search-history__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* 单条删除键：平时隐藏，行悬停/行内聚焦时出现；键盘 Tab 进删除键时
+   li 处于 :focus-within，故纯键盘同样可见可达。 */
+.adl-settings-search-history__remove {
+  position: absolute;
+  right: var(--space-1);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition: var(--transition-colors);
+}
+
+.adl-settings-search-history__row:hover .adl-settings-search-history__remove,
+.adl-settings-search-history__row:focus-within .adl-settings-search-history__remove {
+  opacity: 1;
+}
+
+.adl-settings-search-history__remove:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
 }

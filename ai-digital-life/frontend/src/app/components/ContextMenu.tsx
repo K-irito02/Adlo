@@ -6,6 +6,8 @@ export interface ContextMenuItem {
   id: string;
   label?: string;
   icon?: React.ReactNode;
+  /** 角标徽章（如"嵌套"）：渲染在文案右侧，替代写死在 label 内的 "[xxx]" 后缀。 */
+  badge?: string;
   disabled?: boolean;
   danger?: boolean;
   separator?: boolean;
@@ -121,6 +123,7 @@ export function ContextMenu({ items, position, onClose }: ContextMenuProps) {
             >
               {item.icon ? <span className="adl-sidebar-menu__icon">{item.icon}</span> : null}
               <span>{item.label}</span>
+              {item.badge ? <span className="adl-menu-item__badge">{item.badge}</span> : null}
               {item.hint ? (
                 <span
                   className={`adl-menu-item__hint${item.danger ? ' is-danger' : ''}`}

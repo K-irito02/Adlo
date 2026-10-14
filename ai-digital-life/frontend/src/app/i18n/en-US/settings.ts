@@ -88,6 +88,9 @@ export const settingsEn = {
   settingsToggleVisibility: 'Toggle visibility',
   settingsSearchLabel: 'Search settings',
   settingsSearchHistory: 'Search history',
+  settingsSearchHistoryClear: 'Clear',
+  settingsSearchHistoryRemoveLabel: 'Remove {name}',
+  settingsSearchHistoryRemoveTitle: 'Remove entry',
 
   // Storage
   storageTitle: 'Storage',

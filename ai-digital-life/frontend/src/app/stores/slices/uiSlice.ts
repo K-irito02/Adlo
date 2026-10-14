@@ -188,6 +188,25 @@ export const createUISlice = (
       ].slice(0, SETTINGS_SEARCH_HISTORY_MAX);
       set(persistField('adl:ui.settingsSearchHistory', next));
     },
+    clearSettingsSearchHistory: () => {
+      // 已为空即无变化：避免空点一次写一次盘。
+      if (get().settingsSearchHistory.length === 0) {
+        return;
+      }
+      set(persistField('adl:ui.settingsSearchHistory', []));
+    },
+    removeSettingsSearchHistoryItem: (item) => {
+      // 不存在即无变化：避免无效写盘。
+      if (!get().settingsSearchHistory.includes(item)) {
+        return;
+      }
+      set(
+        persistField(
+          'adl:ui.settingsSearchHistory',
+          get().settingsSearchHistory.filter((entry) => entry !== item),
+        ),
+      );
+    },
     requestStorageGroupReset: () => set({ storageGroupResetPending: true }),
     consumeStorageGroupReset: () => set({ storageGroupResetPending: false }),
     setStorageBlocksAtDefault: (value) => {
