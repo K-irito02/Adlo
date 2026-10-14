@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 /**
  * Shared menu item type used by both BrowserTreeEntry and GitHubTreeEntry child menus.
@@ -32,18 +32,15 @@ export interface MenuViewportPosition {
 export function useClampedMenuPosition(
   position: MenuViewportPosition | null,
   margin = 8,
-  slot = 'menu',
 ): {
   menuRef: (el: HTMLDivElement | null) => void;
   adjusted: MenuViewportPosition | null;
 } {
   const [adjusted, setAdjusted] = useState<MenuViewportPosition | null>(position);
 
-  // position 变化即同步（菜单复开/换点）：否则 adjusted 停留旧值，首开门控永假死锁（R1）。
-  // 用 layout effect：paint 前同步，无首帧旧坐标闪位（R1 G1）。
-  useLayoutEffect(() => {
-    setAdjusted(position);
-  }, [position]);
+  // 注意：禁止在此加"position 变化即同步 adjusted"的 effect——ref 回调量测后入队
+  // 的钳制值会被 effect 后入队的原始值覆盖，导致菜单恒绘于原坐标（事项 16 真因）。
+  // 也不存在首开死锁：position 每次打开都是新身份（调用方均已 memo），ref 必重触发量测。
 
   const menuRef = useCallback(
     (el: HTMLDivElement | null) => {
@@ -61,24 +58,11 @@ export function useClampedMenuPosition(
       if (top + rect.height > vh - margin) {
         top = Math.max(margin, vh - rect.height - margin);
       }
-      // [ADL-DEBUG] 事项16排查用：底部行右键菜单仍被裁。定案后删除本日志。
-      console.debug(
-        '[ADL-DEBUG] [menu::clamp] slot=%s raw=(%d,%d) rect=%dx%d viewport=%dx%d adjusted=(%d,%d)',
-        slot,
-        position.top,
-        position.left,
-        Math.round(rect.width),
-        Math.round(rect.height),
-        vw,
-        vh,
-        top,
-        left,
-      );
       setAdjusted((prev) =>
         prev && prev.top === top && prev.left === left ? prev : { top, left },
       );
     },
-    [position, margin, slot],
+    [position, margin],
   );
 
   return { menuRef, adjusted };

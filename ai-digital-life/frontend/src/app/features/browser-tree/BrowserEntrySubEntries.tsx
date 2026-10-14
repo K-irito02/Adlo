@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { FileTree } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@i18n/useTCopy';
-import { useMenuCloseOnOutsideClick } from '@features/tree/treeEntryMenus';
+import { useClampedMenuPosition, useMenuCloseOnOutsideClick } from '@features/tree/treeEntryMenus';
 import { useHintCard, HintCard } from '../../components/HintCard';
 import { BrowserFavicon } from '@components/BrowserFavicon';
 import { BrowserAudioIndicator } from '@components/BrowserAudioIndicator';
@@ -57,6 +57,15 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
     setChildMenuState(null);
     hideHint();
   });
+
+  // 子菜单视口钳制（事项 16）：悬停"更多操作"按钮打开的 portal 菜单此前用原始
+  // 按钮坐标，底部行会被应用下边缘裁剪。与 EntryMenu 两槽同口径。
+  const childMenuPosition = useMemo(
+    () => (childMenuState ? { top: childMenuState.y, left: childMenuState.x } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制
+    [childMenuState?.x, childMenuState?.y],
+  );
+  const childMenuClamp = useClampedMenuPosition(childMenuPosition);
 
   const handleShowChildHint = useCallback(
     (e: React.MouseEvent, hintText: string) => {
@@ -329,10 +338,15 @@ export const BrowserEntrySubEntries = React.memo(function BrowserEntrySubEntries
   const childMenuSlot = childMenuState
     ? createPortal(
         <div
+          ref={childMenuClamp.menuRef}
           className="adl-multitree-entry__menu"
           role="menu"
           data-menu-id="browser-child-menu"
-          style={{ top: childMenuState.y, left: childMenuState.x }}
+          style={
+            childMenuClamp.adjusted
+              ? { top: childMenuClamp.adjusted.top, left: childMenuClamp.adjusted.left }
+              : { top: childMenuState.y, left: childMenuState.x }
+          }
         >
           {(childMenuState.node &&
           (childMenuState.nodeType === 'tab' || childMenuState.nodeType === 'history')

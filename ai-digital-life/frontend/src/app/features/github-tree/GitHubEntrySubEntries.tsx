@@ -4,7 +4,7 @@ import { FileTree } from '../file-tree';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { useTCopy } from '@i18n/useTCopy';
-import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
+import { useClampedMenuPosition, useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
 import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
 import type { GitHubTreeNode, GitHubCategoryType } from './types';
 import type { SectionCallbacks } from './GitHubCategorySection';
@@ -66,6 +66,14 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
   } | null>(null);
 
   useMenuCloseOnOutsideClick(!!childMenuState, 'github-child-menu', () => setChildMenuState(null));
+
+  // 子菜单视口钳制（事项 16 同类）：底部行不再被应用下边缘裁剪。
+  const childMenuPosition = useMemo(
+    () => (childMenuState ? { top: childMenuState.y, left: childMenuState.x } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制
+    [childMenuState?.x, childMenuState?.y],
+  );
+  const childMenuClamp = useClampedMenuPosition(childMenuPosition);
 
   const pinnedFolderIds = useMemo(
     () => new Set(gitHubCiFolders.filter((f) => f.pinnedOrder !== undefined).map((f) => f.id)),
@@ -186,15 +194,25 @@ export const GitHubEntrySubEntries = React.memo(function GitHubEntrySubEntries({
   const childMenuSlot = childMenuState
     ? createPortal(
         <div
+          ref={childMenuClamp.menuRef}
           className="adl-multitree-entry__menu"
           role="menu"
           data-menu-id="github-child-menu"
-          style={{
-            position: 'fixed',
-            top: childMenuState.y,
-            left: childMenuState.x,
-            zIndex: 'var(--z-max)',
-          }}
+          style={
+            childMenuClamp.adjusted
+              ? {
+                  position: 'fixed',
+                  top: childMenuClamp.adjusted.top,
+                  left: childMenuClamp.adjusted.left,
+                  zIndex: 'var(--z-max)',
+                }
+              : {
+                  position: 'fixed',
+                  top: childMenuState.y,
+                  left: childMenuState.x,
+                  zIndex: 'var(--z-max)',
+                }
+          }
         >
           {buildMenuItems(childMenuState.childNode, '').map((item) => {
             if ('separator' in item) {

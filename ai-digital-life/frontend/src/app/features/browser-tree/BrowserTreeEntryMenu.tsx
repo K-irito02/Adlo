@@ -64,13 +64,13 @@ export function useBrowserTreeEntryMenu({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制，对象整体入 deps 会每渲染换身份
     [menuOpen, menuPosition?.top, menuPosition?.left],
   );
-  const entryMenuClamp = useClampedMenuPosition(entryMenuPosition, 8, 'entry');
+  const entryMenuClamp = useClampedMenuPosition(entryMenuPosition);
   const tabMenuPosition = useMemo(
     () => (contextMenuForTab ? { top: contextMenuForTab.y, left: contextMenuForTab.x } : null),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制，对象整体入 deps 会每渲染换身份
     [contextMenuForTab?.x, contextMenuForTab?.y],
   );
-  const tabMenuClamp = useClampedMenuPosition(tabMenuPosition, 8, 'tab');
+  const tabMenuClamp = useClampedMenuPosition(tabMenuPosition);
 
   const showNodeInCenter = useCallback(
     (target: BrowserTreeNode) => {
@@ -178,7 +178,7 @@ export function useBrowserTreeEntryMenu({
   }, [contextMenuForTab, setContextMenuForTab, hideHint]);
 
   const entryMenuSlot =
-    menuOpen && entryMenuPosition && entryMenuClamp.adjusted
+    menuOpen && entryMenuPosition
       ? createPortal(
           <>
             <div
@@ -186,7 +186,11 @@ export function useBrowserTreeEntryMenu({
               className="adl-multitree-entry__menu"
               role="menu"
               data-menu-id={menuId}
-              style={{ top: entryMenuClamp.adjusted.top, left: entryMenuClamp.adjusted.left }}
+              style={
+                entryMenuClamp.adjusted
+                  ? { top: entryMenuClamp.adjusted.top, left: entryMenuClamp.adjusted.left }
+                  : { top: entryMenuPosition.top, left: entryMenuPosition.left }
+              }
             >
               {[
                 ...entryMenuItems,

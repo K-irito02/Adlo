@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { IconSettings, IconRefreshCw, IconMoreVertical } from '@icons';
 import { GitHubEntrySubEntries } from './GitHubEntrySubEntries';
@@ -13,7 +13,7 @@ import type { GitHubTreeNode, GitHubCategoryType } from './types';
 import { asWorkspaceID } from '@shared/branded';
 import type { SectionCallbacks } from './GitHubCategorySection';
 import { MultiTreeEntryShell } from '../tree/MultiTreeEntryShell';
-import { useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
+import { useClampedMenuPosition, useMenuCloseOnOutsideClick } from '../tree/treeEntryMenus';
 import { getMainEntryMenuItems, type MainMenuItem } from './GitHubEntryMenus';
 
 interface GitHubTreeEntryProps {
@@ -130,6 +130,14 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   }, []);
 
   useMenuCloseOnOutsideClick(menuOpen, menuId, () => setMenuOpen(false));
+
+  // 入口菜单视口钳制（事项 16 同类）：底部行不再被应用下边缘裁剪。
+  const entryMenuPosition = useMemo(
+    () => (menuOpen && menuPosition ? { top: menuPosition.top, left: menuPosition.left } : null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- 仅坐标参与钳制
+    [menuOpen, menuPosition?.top, menuPosition?.left],
+  );
+  const entryMenuClamp = useClampedMenuPosition(entryMenuPosition);
 
   const folderId = node.path.replace('github-folder:', '');
   const workspaceId =
@@ -254,16 +262,17 @@ export const GitHubTreeEntry = React.memo(function GitHubTreeEntry({
   );
 
   const entryMenuSlot =
-    menuOpen && menuPosition && menuItems.length > 0
+    menuOpen && entryMenuPosition && menuItems.length > 0
       ? createPortal(
           <div
+            ref={entryMenuClamp.menuRef}
             className="adl-multitree-entry__menu"
             role="menu"
             data-menu-id={menuId}
             style={{
               position: 'fixed',
-              top: menuPosition.top,
-              left: menuPosition.left,
+              top: entryMenuClamp.adjusted?.top ?? entryMenuPosition.top,
+              left: entryMenuClamp.adjusted?.left ?? entryMenuPosition.left,
               zIndex: 'var(--z-max)',
             }}
           >
