@@ -36,6 +36,13 @@ jobs:
         with:
           workspaces: ai-digital-life
 
+      # tauri::generate_context!() requires build.frontendDist (../frontend/dist) to exist.
+      # clippy/test compile the src-tauri shell but never run the frontend build, so stub it.
+      - name: Create frontend dist placeholder
+        run: |
+          New-Item -ItemType Directory -Force -Path frontend/dist | Out-Null
+          Set-Content -Path frontend/dist/index.html -Value '<!doctype html><title>ci</title>'
+
       - name: cargo fmt
         run: cargo fmt --all -- --check
 
