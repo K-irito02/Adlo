@@ -15,6 +15,9 @@ import {
   clearError,
   captureError,
 } from '../shared';
+import { workspaceZh } from '../../i18n/zh-CN/workspace';
+import { workspaceEn } from '../../i18n/en-US/workspace';
+import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 
 const SCOPE = 'workspace';
 
@@ -33,7 +36,14 @@ export function createWorkspaceLifecycleActions(
      */
     openWorkspace: async (workspacePath: string) => {
       // 切工作区前落盘脏缓冲（自动保存语义），避免脏内容留在旧工作区。
-      await get().saveDirtyEditors();
+      // P4 N5：落盘失败即中止（与分支切换同口径），草稿按键保留可重试。
+      const flush = await get().saveDirtyEditors();
+      if (flush.failed > 0) {
+        const locale = resolveAppLanguage(get().appInfo?.config?.language);
+        const dict = locale === 'en-US' ? workspaceEn : workspaceZh;
+        get().showToast(dict.workspaceSwitchAbortedOnSaveFail, 'error');
+        return { ok: false, error: 'saveDirtyEditors failed' };
+      }
       const requestSeq = getNextWorkspaceRequestSeq();
       clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
       getNextFileRequestSeq();
@@ -64,6 +74,8 @@ export function createWorkspaceLifecycleActions(
      * @see preview-bridge/index.ts → workspace.clearCurrent
      */
     clearWorkspaceContext: async () => {
+      // P4 F3：与 openWorkspace 对齐，先落盘脏缓冲再清上下文。
+      await get().saveDirtyEditors();
       const requestSeq = getNextWorkspaceRequestSeq();
       clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
       getNextFileRequestSeq();

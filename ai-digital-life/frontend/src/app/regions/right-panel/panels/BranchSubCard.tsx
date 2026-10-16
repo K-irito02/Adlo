@@ -31,6 +31,7 @@ interface ModeFlow {
   branch: string;
   step: 'choose' | 'confirmRemote' | 'confirmStash';
   mode: GitSwitchMode;
+  divergeStatus?: GitBranchSummary['divergeStatus'];
 }
 
 function needsModeChoice(branch: GitBranchSummary): boolean {
@@ -60,6 +61,8 @@ export function BranchSubCard({
   const [remoteFilterActive, setRemoteFilterActive] = useState(false);
   const [modeFlow, setModeFlow] = useState<ModeFlow | null>(null);
   const [busyBranch, setBusyBranch] = useState<string | null>(null);
+  // P4 N1：state 提交异步，同 tick 双击看不到 busy——ref 级同步锁双保险。
+  const busyRef = useRef(false);
 
   const storeBranches = useAppStore((s) => s.gitBranches);
   const ensureBranchWorktree = useAppStore((s) => s.ensureBranchWorktree);
@@ -106,8 +109,24 @@ export function BranchSubCard({
       setIsLoadingBranches(false);
       setModeFlow(null);
       setBusyBranch(null);
+      busyRef.current = false;
     }
   }, [isOpen]);
+
+  // P4 F6：确认面板打开时 Escape 等价取消（焦点由 autoFocus 送入批准按钮）。
+  useEffect(() => {
+    if (!modeFlow || modeFlow.step === 'choose') {
+      return;
+    }
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setModeFlow(null);
+      }
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [modeFlow]);
 
   const localCount = useMemo(() => gitBranches.filter((b) => b.local).length, [gitBranches]);
   const remoteCount = useMemo(() => gitBranches.filter((b) => b.remote).length, [gitBranches]);
@@ -135,6 +154,10 @@ export function BranchSubCard({
 
   const doEnsure = useCallback(
     async (branchName: string, mode: GitSwitchMode, allowStash: boolean) => {
+      if (busyRef.current) {
+        return;
+      }
+      busyRef.current = true;
       setBusyBranch(branchName);
       try {
         const path = await ensureBranchWorktree({ branchName, mode, allowStash }, workspacePath);
@@ -144,13 +167,16 @@ export function BranchSubCard({
           onOpenChange(false);
           return;
         }
-        // 失败已进 errorToasts；仅 Dirty 可重试（目标 worktree 脏），其余保持列表可视。
+        // 失败已进 errorToasts；仅 Dirty 可重试，其余保持列表可视。
+        // P4 F3：worktree 流程不碰源目录，Dirty 只可能是目标 worktree（大小写无关匹配；
+        // 后端文案若改写/i18n 化，此重试即失效，届时需结构化错误码——见注释，不静默。
         const toasts = useAppStore.getState().errorToasts;
         const lastGitError = [...toasts].reverse().find((entry) => entry.scope === 'git');
-        if (lastGitError?.detail.includes('Dirty worktree')) {
+        if (lastGitError?.detail.toLowerCase().includes('dirty worktree')) {
           setModeFlow({ branch: branchName, step: 'confirmStash', mode });
         }
       } finally {
+        busyRef.current = false;
         setBusyBranch(null);
       }
     },
@@ -163,7 +189,12 @@ export function BranchSubCard({
         return;
       }
       if (needsModeChoice(branch)) {
-        setModeFlow({ branch: branch.name, step: 'choose', mode: 'local' });
+        setModeFlow({
+          branch: branch.name,
+          step: 'choose',
+          mode: 'local',
+          divergeStatus: branch.divergeStatus,
+        });
         return;
       }
       void doEnsure(branch.name, 'local', false);
@@ -267,21 +298,33 @@ export function BranchSubCard({
               {branch.name === currentBranch ? <IconCheck size={14} decorative /> : null}
               {branch.divergeStatus === 'ahead' ? (
                 <TooltipSimple content={divergeHint(branch)} placement="top">
-                  <span className="adl-changes-branch-diverge">
+                  <span
+                    className="adl-changes-branch-diverge"
+                    role="img"
+                    aria-label={divergeHint(branch)}
+                  >
                     <IconBranchAhead size={14} decorative />
                   </span>
                 </TooltipSimple>
               ) : null}
               {branch.divergeStatus === 'behind' ? (
                 <TooltipSimple content={divergeHint(branch)} placement="top">
-                  <span className="adl-changes-branch-diverge">
+                  <span
+                    className="adl-changes-branch-diverge"
+                    role="img"
+                    aria-label={divergeHint(branch)}
+                  >
                     <IconBranchBehind size={14} decorative />
                   </span>
                 </TooltipSimple>
               ) : null}
               {branch.divergeStatus === 'diverged' ? (
                 <TooltipSimple content={divergeHint(branch)} placement="top">
-                  <span className="adl-changes-branch-diverge">
+                  <span
+                    className="adl-changes-branch-diverge"
+                    role="img"
+                    aria-label={divergeHint(branch)}
+                  >
                     <IconBranchDiverged size={14} decorative />
                   </span>
                 </TooltipSimple>
@@ -298,7 +341,18 @@ export function BranchSubCard({
                   }
                   placement="top"
                 >
-                  <span className="adl-icon-pending-commit">
+                  <span
+                    className="adl-icon-pending-commit"
+                    role="img"
+                    aria-label={
+                      branch.hasStash
+                        ? (t.changesBranchStashCount as string).replace(
+                            '{count}',
+                            String(branch.stashCount ?? 1),
+                          )
+                        : (t.changesPendingCommit as string)
+                    }
+                  >
                     <IconPendingCommit size={14} decorative />
                   </span>
                 </TooltipSimple>
@@ -315,7 +369,11 @@ export function BranchSubCard({
               ) : null}
               {branch.worktreePath ? (
                 <TooltipSimple content={t.changesBranchWorktree as string} placement="top">
-                  <span className="adl-changes-branch-badge adl-changes-branch-badge--worktree">
+                  <span
+                    className="adl-changes-branch-badge adl-changes-branch-badge--worktree"
+                    role="img"
+                    aria-label={t.changesBranchWorktree as string}
+                  >
                     <IconGitBranch size={12} decorative />
                   </span>
                 </TooltipSimple>
@@ -328,12 +386,16 @@ export function BranchSubCard({
       {modeFlow?.step === 'choose' ? (
         <div className="adl-changes-branch-mode">
           <p>
-            {modeFlow.branch} · {t.changesBranchDiverged as string}
+            {modeFlow.branch} ·{' '}
+            {modeFlow.divergeStatus === 'behind'
+              ? (t.changesBranchBehind as string)
+              : (t.changesBranchDiverged as string)}
           </p>
           <div className="adl-changes-branch-mode-actions">
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--sm"
+              disabled={busyBranch !== null}
               onClick={() => void doEnsure(modeFlow.branch, 'local', false)}
             >
               {t.changesBranchSwitchLocal as string}
@@ -341,6 +403,7 @@ export function BranchSubCard({
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--sm"
+              disabled={busyBranch !== null}
               onClick={() => setModeFlow({ ...modeFlow, step: 'confirmRemote', mode: 'remote' })}
             >
               {t.changesBranchSwitchRemote as string}
@@ -348,6 +411,7 @@ export function BranchSubCard({
             <button
               type="button"
               className="adl-btn adl-btn--ghost adl-btn--sm"
+              disabled={busyBranch !== null}
               onClick={() => void doEnsure(modeFlow.branch, 'sync', false)}
             >
               {t.changesBranchSwitchSync as string}
@@ -365,12 +429,19 @@ export function BranchSubCard({
         </div>
       ) : null}
       {modeFlow?.step === 'confirmRemote' ? (
-        <div className="adl-changes-branch-confirm">
+        <div
+          className="adl-changes-branch-confirm"
+          role="alertdialog"
+          aria-modal="false"
+          aria-label={t.changesBranchRemoteConfirm as string}
+        >
           <p>{t.changesBranchRemoteConfirm as string}</p>
           <div className="adl-changes-branch-confirm-actions">
             <button
               type="button"
               className="adl-btn adl-btn--primary adl-btn--sm"
+              disabled={busyBranch !== null}
+              autoFocus
               onClick={() => void doEnsure(modeFlow.branch, 'remote', false)}
             >
               {t.approve as string}
@@ -386,12 +457,19 @@ export function BranchSubCard({
         </div>
       ) : null}
       {modeFlow?.step === 'confirmStash' ? (
-        <div className="adl-changes-branch-confirm">
+        <div
+          className="adl-changes-branch-confirm"
+          role="alertdialog"
+          aria-modal="false"
+          aria-label={t.changesBranchTargetStashConfirm as string}
+        >
           <p>{t.changesBranchTargetStashConfirm as string}</p>
           <div className="adl-changes-branch-confirm-actions">
             <button
               type="button"
               className="adl-btn adl-btn--primary adl-btn--sm"
+              disabled={busyBranch !== null}
+              autoFocus
               onClick={() => void doEnsure(modeFlow.branch, modeFlow.mode, true)}
             >
               {t.approve as string}

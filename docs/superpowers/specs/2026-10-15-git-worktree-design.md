@@ -58,3 +58,4 @@ Git-Test-Remote.git/            ← bare 远端（本地模拟 origin）
 3. **离线行为**：remote/sync 模式需联网 fetch；失败时本次新建的 worktree 目录会被自动回滚删除（只删自己建的），经典切换则停在目标分支本地内容 + 报错，不丢数据。
 4. **stash 同名堆积**：同一分支多次 stash（如 remote-reset 后又切走）都会保留，分支行显示 `自动暂存 ×N`；取回永远拿最新一条，旧的可 `git stash list` 自行认领。
 5. **永远不自动 push**：同步 = fetch + merge（ff 优先，否则 `--no-edit` 合并，冲突 abort）。push 永远手动。
+6. **sync 无二次确认（产品决策）**：sync 只做"拉取合入"，不丢弃任何本地提交（ff 或可回退的 merge，冲突 abort 不留痕），故一键直发； destructive 的只有 remote（reset），它有二次确认。

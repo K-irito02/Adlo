@@ -168,6 +168,11 @@ export function createGitSnapshotActions(
         }
         await get().openChangePreview(selectedChangePreviewPath);
       }
+      // P4 F5：失败记静默诊断（与 fetchGitBranches silent 分支同口径），
+      // 不再无声吞掉——保存/切换后的跟手失败可观测。
+      if (!result.ok) {
+        get().reportSilentError(result.error.code, result.error.message, 'git');
+      }
     },
 
     /**

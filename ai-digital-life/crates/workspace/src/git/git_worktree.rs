@@ -186,10 +186,19 @@ pub fn prune_worktrees(root: &Path) -> Result<(), AppError> {
     Ok(())
 }
 
-/// Fetch `origin/<branch>` (or the resolved remote-tracking ref) into `path`.
+/// Upstream-aware remote ref (P4 R9)：优先该分支配置的 upstream，
+/// 无配置才回退首个同名远端跟踪分支（与 divergence / 图谱同口径）。
+pub(crate) fn preferred_remote_ref(root: &Path, branch_name: &str) -> Option<String> {
+    if let Some(upstream) = branch_upstreams(root).get(branch_name) {
+        return Some(upstream.clone());
+    }
+    remote_tracking_ref(root, branch_name)
+}
+
+/// Fetch the branch's upstream (or the resolved remote-tracking ref) into `path`.
 fn fetch_branch(path: &Path, branch_name: &str) -> Result<String, AppError> {
     let remote_ref =
-        remote_tracking_ref(path, branch_name).ok_or_else(|| {
+        preferred_remote_ref(path, branch_name).ok_or_else(|| {
             AppError::Workspace(format!("no remote branch found for: {branch_name}"))
         })?;
     let Some((remote, _)) = remote_ref.split_once('/') else {
@@ -285,16 +294,28 @@ pub fn ensure_branch_worktree(
     }
 
     let local = has_local_branch(root, branch_name);
-    let remote_ref = remote_tracking_ref(root, branch_name);
+    let remote_ref = preferred_remote_ref(root, branch_name);
     if !local && remote_ref.is_none() {
         return Err(AppError::Workspace(format!(
             "branch not found locally or on remotes: {branch_name}"
         )));
     }
-    if matches!(mode, GitSwitchMode::Remote) && remote_ref.is_none() {
-        return Err(AppError::Workspace(format!(
-            "no remote branch to reset from: {branch_name}"
-        )));
+    if matches!(mode, GitSwitchMode::Remote) {
+        let Some(remote) = remote_ref.clone() else {
+            return Err(AppError::Workspace(format!(
+                "no remote branch to reset from: {branch_name}"
+            )));
+        };
+        // P4 R2：`-B` 会静默搬走本地 tip；本地领先时直接拒绝（先推送或改用 Sync），
+        // 不制造仅剩 reflog 的不可达提交。
+        if local {
+            let ahead = divergence_counts(root, branch_name, &remote).map(|(a, _)| a).unwrap_or(0);
+            if ahead > 0 {
+                return Err(AppError::InvalidInput(format!(
+                    "local branch is ahead of {remote} by {ahead} commit(s); push first or use sync mode: {branch_name}"
+                )));
+            }
+        }
     }
 
     // Fresh sibling directory (recompute after prune so stale dirs are skipped).
@@ -364,7 +385,12 @@ pub fn remove_worktree(root: &Path, branch_name: &str, force: bool) -> Result<()
             "no worktree found for branch: {branch_name}"
         )));
     };
-    if worktrees.first().is_some_and(|main| main.path == path.to_string_lossy()) {
+    // P4 R8：按条目自身的 is_main 判定，不依赖"首位即主"的列表顺序。
+    if worktrees
+        .iter()
+        .find(|entry| entry.path == path.to_string_lossy())
+        .is_some_and(|entry| entry.is_main)
+    {
         return Err(AppError::InvalidInput(
             "cannot remove the main worktree; remove the sibling directory instead".into(),
         ));

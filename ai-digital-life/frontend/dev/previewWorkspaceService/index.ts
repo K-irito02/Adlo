@@ -593,7 +593,10 @@ const routes: Route[] = [
       try {
         return ok(await files.updateFileContent(b.rootPath.trim(), b.relativePath.trim(), b.content));
       } catch (error) {
-        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+        // P4 D2：PreviewServiceError 透传 code（与顶层 dispatch 同规则），其余 INVALID_INPUT。
+        const code =
+          error instanceof files.PreviewServiceError ? error.code : 'INVALID_INPUT';
+        return fail(error instanceof Error ? error.message : String(error), code);
       }
     },
   },

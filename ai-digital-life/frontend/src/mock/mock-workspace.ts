@@ -111,6 +111,11 @@ export const mockWorkspace: WorkspaceBridge = {
     };
   },
   updateFileContent: async (relativePath: string, content: string, _workspacePath?: string) => {
+    // mock 与真实端同上限（8MB，按 utf8 字节计）；分隔符归一化沿用 createFile 的
+    // 原样键行为（调用方统一传 `/` 路径），此处不另做。
+    if (new TextEncoder().encode(content).byteLength > 8 * 1024 * 1024) {
+      return { ok: false, error: { code: "INVALID_INPUT", message: `file exceeds configured write limit: ${relativePath}` } };
+    }
     if (!documents.has(relativePath)) {
       return { ok: false, error: { code: "NOT_FOUND", message: `file not found: ${relativePath}` } };
     }
@@ -370,7 +375,8 @@ export const mockWorkspace: WorkspaceBridge = {
     };
     return { ok: true, data: result };
   },
-    listWorktrees: async () => ({ ok: true, data: [] as WorktreeInfo[] }),
+    // mock 无真实 worktree：恒空，ensure 见下（调用方走 openWorkspace 全量刷新）。
+  listWorktrees: async () => ({ ok: true, data: [] as WorktreeInfo[] }),
     ensureWorktree: async (input: WorkspaceWorktreeEnsureInput) => {
       if (!currentWorkspaceMeta) {
         return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };

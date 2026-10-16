@@ -398,7 +398,9 @@ export async function updateFileContent(
   } catch {
     stats = undefined;
   }
-  if (!stats?.isFile()) throw new Error(`file not found: ${relativeTarget}`);
+  // P4 D2：与 Rust `AppError::NotFound` / mock `NOT_FOUND` 同码。
+  if (!stats) throw new PreviewServiceError(`file not found: ${relativeTarget}`, 'NOT_FOUND');
+  if (!stats.isFile()) throw new PreviewServiceError(`not a file: ${relativeTarget}`, 'INVALID_INPUT');
   if (Buffer.byteLength(content, 'utf8') > DEFAULT_MAX_TEXT_FILE_BYTES) {
     throw new Error(`file exceeds configured write limit: ${relativeTarget}`);
   }

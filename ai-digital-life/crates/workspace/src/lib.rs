@@ -226,7 +226,11 @@ mod tests {
         assert_eq!(std::fs::read_to_string(dir.join("note.txt")).unwrap(), "v2\n");
 
         let missing = update_file(&dir, "ghost.txt", "x");
-        assert!(matches!(missing, Err(AppError::Workspace(_))));
+        assert!(matches!(missing, Err(AppError::NotFound(_))));
+
+        std::fs::create_dir_all(dir.join("subdir")).unwrap();
+        let dir_target = update_file(&dir, "subdir", "x");
+        assert!(matches!(dir_target, Err(AppError::InvalidInput(_))));
 
         let _ = std::fs::remove_dir_all(dir);
     }

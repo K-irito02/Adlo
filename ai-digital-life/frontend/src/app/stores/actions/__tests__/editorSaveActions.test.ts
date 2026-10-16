@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'zustand';
 import { createEditorActions, handleExternalBatch } from '../editorActions';
-import { clearWorkspaceCaches } from '../../shared';
+import { clearWorkspaceCaches, dropPendingEditorText } from '../../shared';
 
 function makeStore() {
   const reportError = vi.fn(() => 'toast-id');
@@ -49,6 +49,7 @@ function bridge() {
 describe('saveFile', () => {
   beforeEach(() => {
     clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
     vi.stubGlobal('digitalLife', {
       workspace: {
         updateFileContent: vi.fn(),
@@ -126,6 +127,7 @@ describe('saveFile', () => {
 describe('reconcileSelectedFile', () => {
   beforeEach(() => {
     clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
     vi.stubGlobal('digitalLife', {
       workspace: {
         updateFileContent: vi.fn(),
@@ -203,6 +205,7 @@ describe('reconcileSelectedFile', () => {
 describe('markExternalFileChange 方案A 跟手', () => {
   beforeEach(() => {
     clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
     vi.useFakeTimers();
     vi.stubGlobal('digitalLife', {
       workspace: {
@@ -217,7 +220,7 @@ describe('markExternalFileChange 方案A 跟手', () => {
     vi.unstubAllGlobals();
   });
 
-  it('干净文件外部变更：防抖后自动重读（一次 toast）', async () => {
+  it('干净文件外部变更：防抖后自动重读（静默无 toast，P4 F7）', async () => {
     const { store, showToast, refreshGitSnapshot } = makeStore();
     bridge().readFile.mockResolvedValue({
       ok: true,
@@ -232,8 +235,26 @@ describe('markExternalFileChange 方案A 跟手', () => {
     await vi.advanceTimersByTimeAsync(500);
     expect(bridge().readFile).toHaveBeenCalledWith('note.txt');
     expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('v-ext\n');
-    expect(showToast).toHaveBeenCalledTimes(1);
+    expect(showToast).not.toHaveBeenCalled();
     expect(refreshGitSnapshot).toHaveBeenCalledWith('ws-1', '/repo', { silent: true });
+  });
+
+  it('脏文件外部变更：提示一次但不覆盖草稿（P4 F7）', async () => {
+    const { store, showToast } = makeStore();
+    store.setState({ dirtyEditorPaths: ['note.txt'] });
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v-ext\n', lastModifiedAt: 2 },
+    });
+    (
+      store.getState() as unknown as {
+        markExternalFileChange: (e: { path: string; lastModifiedAt: number }) => void;
+      }
+    ).markExternalFileChange({ path: 'note.txt', lastModifiedAt: 2 });
+    expect(showToast).toHaveBeenCalledTimes(1);
+    expect(showToast).toHaveBeenCalledWith(expect.any(String), 'warning');
+    await vi.advanceTimersByTimeAsync(500);
+    expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('v1\n');
   });
 
   it('外部变更不打蓝点（脏点只属于用户输入，防自动保存回写覆盖）', async () => {
@@ -281,28 +302,12 @@ describe('markExternalFileChange 方案A 跟手', () => {
     expect(showToast).not.toHaveBeenCalled();
     expect(refreshGitSnapshot).toHaveBeenCalledTimes(1);
   });
-
-  it('脏文件外部变更：提示但不覆盖草稿', async () => {
-    const { store, showToast } = makeStore();
-    store.setState({ dirtyEditorPaths: ['note.txt'] });
-    bridge().readFile.mockResolvedValue({
-      ok: true,
-      data: { path: 'note.txt', content: 'v-ext\n', lastModifiedAt: 2 },
-    });
-    (
-      store.getState() as unknown as {
-        markExternalFileChange: (e: { path: string; lastModifiedAt: number }) => void;
-      }
-    ).markExternalFileChange({ path: 'note.txt', lastModifiedAt: 2 });
-    await vi.advanceTimersByTimeAsync(500);
-    expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('v1\n');
-    expect(showToast).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
   beforeEach(() => {
     clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
     vi.useFakeTimers();
     vi.stubGlobal('digitalLife', {
       workspace: {
@@ -347,9 +352,121 @@ describe('handleExternalBatch 批次跟手（Tauri 主通道）', () => {
   });
 });
 
+describe('跨工作区定向 (P4 F1/F14)', () => {
+  beforeEach(() => {
+    clearWorkspaceCaches('ws-1');
+    clearWorkspaceCaches('ws-2');
+    dropPendingEditorText('ws-1');
+    dropPendingEditorText('ws-2');
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        updateFileContent: vi.fn(),
+        readFile: vi.fn(),
+        setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
+      },
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('选中非当前工作区文件：保存写进所属工作区', async () => {
+    const { store } = makeStore();
+    store.setState({
+      appInfo: { currentWorkspace: { id: 'ws-1', path: '/repo1' } },
+      recentWorkspaces: [
+        { id: 'ws-1', path: '/repo1' },
+        { id: 'ws-2', path: '/repo2' },
+      ],
+      selectedFilePath: 'a.txt',
+      selectedFileWorkspaceId: 'ws-2',
+    });
+    const state = store.getState() as unknown as {
+      noteEditorText: (p: string, t: string, ws?: string) => void;
+      saveFile: () => Promise<boolean>;
+    };
+    state.noteEditorText('a.txt', 'cross\n', 'ws-2');
+    bridge().updateFileContent.mockResolvedValue({
+      ok: true,
+      data: { path: 'a.txt', content: 'cross\n', lastModifiedAt: 7 },
+    });
+    const ok = await state.saveFile();
+    expect(ok).toBe(true);
+    expect(bridge().updateFileContent).toHaveBeenCalledWith('a.txt', 'cross\n', '/repo2');
+  });
+
+  it('跨工作区对账：经所属工作区重读', async () => {
+    const { store } = makeStore();
+    store.setState({
+      appInfo: { currentWorkspace: { id: 'ws-1', path: '/repo1' } },
+      recentWorkspaces: [
+        { id: 'ws-1', path: '/repo1' },
+        { id: 'ws-2', path: '/repo2' },
+      ],
+      selectedFilePath: 'a.txt',
+      selectedFileWorkspaceId: 'ws-2',
+      fileContent: 'old\n',
+    });
+    const readForWorkspace = vi.fn(async () => ({
+      ok: true,
+      data: { path: 'a.txt', content: 'new\n', lastModifiedAt: 8 },
+    }));
+    (
+      window as unknown as {
+        digitalLife: { workspace: { readFileForWorkspace: unknown } };
+      }
+    ).digitalLife.workspace.readFileForWorkspace = readForWorkspace;
+    await (
+      store.getState() as unknown as { reconcileSelectedFile: () => Promise<void> }
+    ).reconcileSelectedFile();
+    expect(readForWorkspace).toHaveBeenCalledWith('/repo2', 'a.txt');
+    expect((store.getState() as unknown as { fileContent: string }).fileContent).toBe('new\n');
+    expect(bridge().readFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveDirtyEditors 计数语义 (P4 F4/F14)', () => {
+  beforeEach(() => {
+    clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        updateFileContent: vi.fn(),
+        readFile: vi.fn(),
+        setEditorDirtyPaths: vi.fn(async () => ({ ok: true, data: true })),
+      },
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('只计真写盘；失败计数；过期标记清理不计', async () => {
+    const { store } = makeStore();
+    const state = store.getState() as unknown as {
+      noteEditorText: (p: string, t: string) => void;
+      saveDirtyEditors: () => Promise<{ saved: number; failed: number }>;
+    };
+    state.noteEditorText('a.txt', 'A\n');
+    state.noteEditorText('b.txt', 'B\n');
+    bridge().updateFileContent.mockImplementation(async (path: string) =>
+      path === 'a.txt'
+        ? { ok: true, data: { path, content: 'A\n', lastModifiedAt: 1 } }
+        : { ok: false, error: { code: 'IO_ERROR', message: 'boom' } },
+    );
+    store.setState({ dirtyEditorPaths: ['a.txt', 'b.txt', 'stale.txt'] });
+    const result = await state.saveDirtyEditors();
+    expect(result).toEqual({ saved: 1, failed: 1 });
+    expect(
+      (store.getState() as unknown as { dirtyEditorPaths: string[] }).dirtyEditorPaths,
+    ).toEqual(['b.txt']);
+  });
+});
+
 describe('reconcileSelectedFile 草稿优先', () => {
   beforeEach(() => {
     clearWorkspaceCaches('ws-1');
+    dropPendingEditorText('ws-1');
     vi.stubGlobal('digitalLife', {
       workspace: {
         updateFileContent: vi.fn(),

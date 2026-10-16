@@ -95,4 +95,6 @@ export const workspaceZh = {
   moveDown: '下移',
   removeWorkspace: '移除 {name}',
   optional: '可选',
+  workspaceUnsavedDiscardedOnRemove: '移除工作区时有未保存的更改，已丢弃',
+  workspaceSwitchAbortedOnSaveFail: '有文件保存失败，已中止工作区切换',
 } as const;

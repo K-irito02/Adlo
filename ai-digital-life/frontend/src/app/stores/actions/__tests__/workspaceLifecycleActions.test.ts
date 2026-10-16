@@ -2,10 +2,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { createWorkspaceLifecycleActions } from '../workspaceLifecycleActions';
 import type { StoreState } from '../../StoreState';
 
-function setup() {
+function setup(flush: { saved: number; failed: number } = { saved: 0, failed: 0 }) {
   const cancelPendingSearch = vi.fn();
   const bootstrap = vi.fn().mockResolvedValue(undefined);
-  const saveDirtyEditors = vi.fn().mockResolvedValue(0);
+  const saveDirtyEditors = vi.fn().mockResolvedValue(flush);
+  const showToast = vi.fn(() => 'toast-id');
   const state = {
     appInfo: { currentWorkspace: { id: 'ws-old', path: '/old' } },
     errorToasts: [],
@@ -13,6 +14,7 @@ function setup() {
     cancelPendingSearch,
     bootstrap,
     saveDirtyEditors,
+    showToast,
   } as unknown as StoreState;
   const get = () => state;
   const set = vi.fn();
@@ -23,7 +25,7 @@ function setup() {
     },
   };
   const actions = createWorkspaceLifecycleActions(set as never, get as never);
-  return { actions, cancelPendingSearch, bootstrap, saveDirtyEditors };
+  return { actions, cancelPendingSearch, bootstrap, saveDirtyEditors, showToast };
 }
 
 describe('workspaceLifecycleActions search hygiene (事项 45 Phase 4)', () => {
@@ -38,6 +40,14 @@ describe('workspaceLifecycleActions search hygiene (事项 45 Phase 4)', () => {
     const { actions, saveDirtyEditors } = setup();
     await actions.openWorkspace('/new');
     expect(saveDirtyEditors).toHaveBeenCalledTimes(1);
+  });
+
+  it('openWorkspace aborts on flush failure without bootstrap or toast-less switch (P4 L1)', async () => {
+    const { actions, bootstrap, showToast } = setup({ saved: 0, failed: 1 });
+    const result = await actions.openWorkspace('/new');
+    expect(result).toEqual({ ok: false, error: 'saveDirtyEditors failed' });
+    expect(bootstrap).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(expect.any(String), 'error');
   });
 
   it('clearWorkspaceContext cancels pending search before bootstrap', async () => {

@@ -1,6 +1,7 @@
 import type { StoreState } from '../StoreState';
 import { asWorkspaceID } from '../../../shared/branded';
 import { clearError, captureError, invalidateCachedPathTree } from '../shared';
+import { dropPendingEditorText } from '../cacheHelpers';
 import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
@@ -253,7 +254,6 @@ export function createWorkspaceActions(
           },
         });
       }
-      const currentPath = get().selectedFilePath;
       const result = await window.digitalLife.workspace.deleteFile(relativePath, workspacePath);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
@@ -272,25 +272,59 @@ export function createWorkspaceActions(
       set({
         openTabs: get().openTabs.filter((t) => !isUnderDeleted(t.path)),
       });
+      // P4 F2/F12：删暂存草稿 + 脏标记（防下次 flush 复活文件）；
+      // 选中/外部态按同一后代边界清理（P4 F12，归一化比较）。
+      // P4 N3/L5：回落链——显式工作区 > 被删即选中文件所属 > 当前（未知条目不再默认清当前区）；
+      // 缓存失效与暂存清理共用同一 dropWsId（此前两段回落不一致）。
+      const selectedNow = get().selectedFilePath;
+      const dropWsId =
+        ws?.id ??
+        (selectedNow !== undefined && normalizeWorkspaceRelativePath(selectedNow) === normDeleted
+          ? get().selectedFileWorkspaceId
+          : undefined) ??
+        get().appInfo?.currentWorkspace?.id;
       // 失效被删路径（含后代）的文件/预览缓存，防旧内容复活。
-      invalidateCachedPathTree(
-        ws?.id ?? get().appInfo?.currentWorkspace?.id ?? 'global',
-        relativePath,
-      );
-      if (currentPath === relativePath) {
-        set({
-          selectedFilePath: undefined,
-          fileContent: undefined,
-          fileMedia: null,
-          fileMediaLoading: false,
-        });
-      }
+      invalidateCachedPathTree(dropWsId ?? 'global', relativePath);
       // 删除成功后：剔除被删路径自身及其子孙的展开态（内存 + 落盘），
       // 否则内存与磁盘分叉、重启后回落旧路径（与重命名搬运同一不变量）。
       if (workspaceId && ws) {
         get().dropExpandedPathsUnder(workspaceId, relativePath);
         get().dropChangesExpandedPathsUnder(ws.id, relativePath);
       }
+      if (dropWsId) {
+        dropPendingEditorText(dropWsId, relativePath);
+      }
+      set((state: StoreState) => {
+        const nextDirty = state.dirtyEditorPaths.filter((p) => !isUnderDeleted(p));
+        let nextExternal = state.externalFileChange;
+        if (nextExternal && isUnderDeleted(nextExternal.path)) {
+          nextExternal = undefined;
+        }
+        const selectedGone =
+          state.selectedFilePath !== undefined && isUnderDeleted(state.selectedFilePath);
+        if (
+          nextDirty.length === state.dirtyEditorPaths.length &&
+          nextExternal === state.externalFileChange &&
+          !selectedGone
+        ) {
+          return state;
+        }
+        void window.digitalLife.workspace.setEditorDirtyPaths(nextDirty);
+        return {
+          dirtyEditorPaths: nextDirty,
+          ...(selectedGone
+            ? {
+                selectedFilePath: undefined,
+                fileContent: undefined,
+                fileMedia: null,
+                fileMediaLoading: false,
+                fileLastModifiedAt: undefined,
+                outline: [],
+              }
+            : {}),
+          externalFileChange: nextExternal,
+        };
+      });
       await refreshTreeByWorkspacePath(get, workspacePath);
     },
 

@@ -85,21 +85,19 @@ pub fn has_auto_stash(root: &Path, branch_name: &str) -> bool {
 }
 
 /// Resolve the newest `stash@{n}` ref whose message matches this branch's
-/// auto-stash marker, or `None` when absent.
+/// auto-stash marker, or `None` when absent. `git stash list` enumerates
+/// newest-first (`stash@{0}` is latest), so the FIRST match wins (P4 R5).
 fn find_auto_stash_ref(root: &Path, needle: &str) -> Result<Option<String>, adl_errors::AppError> {
     let stash_list = run_git_required(root, &["stash", "list", "--format=%gd %s"])?;
-    let mut found: Option<String> = None;
     for line in stash_list.lines() {
         let Some((reference, message)) = line.split_once(' ') else {
             continue;
         };
         if message.contains(needle) {
-            // `stash list` enumerates newest-last by index order; keep the last
-            // match so concurrent newer stashes for the same branch win.
-            found = Some(reference.trim().to_string());
+            return Ok(Some(reference.trim().to_string()));
         }
     }
-    Ok(found)
+    Ok(None)
 }
 
 pub fn pop_auto_stash(root: &Path, target_branch: &str) -> Result<bool, adl_errors::AppError> {

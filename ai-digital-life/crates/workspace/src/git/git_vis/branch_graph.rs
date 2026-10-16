@@ -131,9 +131,19 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
 
     let mut branch_progress: HashMap<String, BranchProgress> = HashMap::new();
 
+    // P4 R10：只为本地分支算 progress（`origin/*`/`upstream/*`/`github/*`
+    // 这类远端跟踪引用跳过；本地名含 `/` 如 feature/x 不受影响）。
+    let local_branches: HashSet<String> = super::super::git_helpers::run_git_with_timeout(
+        root,
+        &["branch", "--format=%(refname:short)"],
+    )
+    .await
+    .map(|output| output.lines().map(|line| line.trim().to_string()).collect())
+    .unwrap_or_default();
+
     let mut js = JoinSet::new();
     for branch in &branch_set {
-        if branch.starts_with("origin/") || branch == "HEAD" {
+        if branch == "HEAD" || !local_branches.contains(branch) {
             continue;
         }
         let remote = format!("origin/{}", branch);

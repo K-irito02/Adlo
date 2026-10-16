@@ -44,9 +44,15 @@ pub fn update_file(
     relative_path: &str,
     content: &str,
 ) -> Result<WorkspaceFileDocument, AppError> {
-    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    // 与读通道同级：最终文件 canonicalize + 界内校验，拒绝指向界外的 symlink；
+    // mtime 同样走 canonical 路径，与 read_file 同信任链（P4 R1/R11）。
+    let path = adl_fs_ops::resolve_workspace_file(root, relative_path)
+        .map_err(|error| match error {
+            AppError::Io(_) => AppError::NotFound(format!("file not found: {relative_path}")),
+            other => other,
+        })?;
     if !path.is_file() {
-        return Err(AppError::Workspace(format!("file not found: {relative_path}")));
+        return Err(AppError::InvalidInput(format!("not a file: {relative_path}")));
     }
     if content.len() as u64 > crate::DEFAULT_MAX_TEXT_FILE_BYTES {
         return Err(AppError::InvalidInput(format!(

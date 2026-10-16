@@ -1,8 +1,11 @@
 import type { StoreApi } from 'zustand';
 import type { StoreState } from '../StoreState';
 import type { WorkspaceID } from '../../../shared/branded';
-import { clearError, captureError } from '../shared';
+import { clearError, captureError, dropPendingEditorText } from '../shared';
 import { persist } from '../persisted/persist';
+import { workspaceZh } from '../../i18n/zh-CN/workspace';
+import { workspaceEn } from '../../i18n/en-US/workspace';
+import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 import { applyWorkspaceRemoved } from '../persisted/pruneWiring';
 import { stripWorkspaceFromBrowserState } from './browserCleanupHelpers';
 const SCOPE = 'browser';
@@ -78,6 +81,16 @@ export function createBrowserCleanupActions(
      */
     removeWorkspaceFromSidebar: async (workspaceId: WorkspaceID) => {
       clearError(get, SCOPE);
+      // P4 F3：移除前先落盘（当前工作区才有活视图；非当前目标的残留草稿随后丢弃），
+      // 再删该工作区的暂存，避免泄漏与复活。
+      const flush = await get().saveDirtyEditors();
+      // P4 N4：落盘失败的草稿随移除丢弃，给一条说明（工作区已不在，无处重试）。
+      if (flush.failed > 0) {
+        const locale = resolveAppLanguage(get().appInfo?.config?.language);
+        const dict = locale === 'en-US' ? workspaceEn : workspaceZh;
+        get().showToast(dict.workspaceUnsavedDiscardedOnRemove, 'warning');
+      }
+      dropPendingEditorText(workspaceId as string);
       const result = await window.digitalLife.workspace.removeFromSidebar(workspaceId as string);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);

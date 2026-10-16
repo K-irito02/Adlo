@@ -108,12 +108,6 @@ export async function openFileGeneric(
   // 落盘读若在等待中被更新的意图超车，落地时作废。
   const gen = nextFileGen(config.cacheKey);
   const cachedDocument = getCachedFileDocument(config.cacheKey);
-  console.log('[ADL-EXTFOLLOW] openFileGeneric', {
-    relativePath,
-    cacheKey: config.cacheKey,
-    cacheHit: !!cachedDocument,
-    cachedLength: cachedDocument?.content.length,
-  });
 
   const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
     // 重型文本（超阈值）跳过大纲解析：大文件大纲 walk 是确认前卡顿来源之一，
@@ -220,6 +214,8 @@ export async function openMediaFileGeneric(
   requestSeq: number,
   config: OpenMediaFileConfig,
 ): Promise<boolean> {
+  // P4 F11：媒体链同享代际守卫（独立 `media:` 命名空间，不与文本代际串扰）。
+  const mediaGen = nextFileGen(`media:${config.workspaceId ?? ''}:${relativePath}`);
   beginFileOpen(set, get, relativePath);
   set({ fileMediaLoading: true });
 
@@ -274,6 +270,9 @@ export async function openMediaFileGeneric(
   if (requestSeq !== fileRequestSeq) {
     // 过期返回不碰 fileMediaLoading：新请求拥有该 flag 的后续状态，
     // 此处清零会熄灭仍在 pending 的新请求的骨架。
+    return false;
+  }
+  if (!isCurrentFileGen(`media:${config.workspaceId ?? ''}:${relativePath}`, mediaGen)) {
     return false;
   }
   if (!mediaResult.ok) {
@@ -338,9 +337,14 @@ export async function openChangePreviewGeneric(
   // 确认门 key（新选中工作区 + 旧内容路径）错配，大切小必闪一次门。
   // 登记 pending 目标：后台 fetchGitStatus 刷新据此让路，避免作废本请求（复审 H2）。
   setPendingChangePreviewPath(relativePath);
+  // P4 F11：预览链同享代际守卫（独立 `preview:` 命名空间，不与文件代际串扰）。
+  const previewGen = nextFileGen(`preview:${config.cacheKey}`);
   const result = await config.getPreview();
   if (requestSeq !== changePreviewRequestSeq) {
     // 已被更新的请求取代：pending 目标归新请求所有，不在此清除。
+    return;
+  }
+  if (!isCurrentFileGen(`preview:${config.cacheKey}`, previewGen)) {
     return;
   }
   setPendingChangePreviewPath(undefined);

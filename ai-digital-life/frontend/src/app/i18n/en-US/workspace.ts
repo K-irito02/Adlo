@@ -98,4 +98,6 @@ export const workspaceEn = {
   moveDown: 'Move down',
   removeWorkspace: 'Remove {name}',
   optional: 'optional',
+  workspaceUnsavedDiscardedOnRemove: 'Unsaved changes were discarded with the removed workspace',
+  workspaceSwitchAbortedOnSaveFail: 'Workspace switch aborted: some files failed to save',
 } as const;

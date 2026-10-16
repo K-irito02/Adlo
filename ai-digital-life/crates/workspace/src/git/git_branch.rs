@@ -18,6 +18,8 @@ fn parse_remote_branch_names(output: &str) -> std::collections::HashSet<String> 
         .lines()
         .map(str::trim)
         .filter(|line| !line.is_empty())
+        // P4 附：过滤 `origin/HEAD -> origin/main` 这类 symref 行（与 worktree 侧一致）。
+        .filter(|line| !line.contains("->"))
         .filter_map(|line| line.split_once('/').map(|(_, name)| name.to_string()))
         .collect()
 }
@@ -191,6 +193,15 @@ pub fn switch_git_branch(
         stash_workspace_changes(root, &previous_branch.clone().unwrap_or_default())?;
     }
 
+    // P4 R4：Remote/Sync 先预检远端存在性，校验失败不改变 HEAD（拒绝"切了一半"）。
+    if !matches!(mode, adl_types::GitSwitchMode::Local)
+        && super::git_worktree::preferred_remote_ref(root, branch_name).is_none()
+    {
+        return Err(AppError::Workspace(format!(
+            "no remote branch found for: {branch_name}"
+        )));
+    }
+
     match mode {
         adl_types::GitSwitchMode::Local => {
             run_git_required(root, &["switch", branch_name])?;
@@ -199,11 +210,11 @@ pub fn switch_git_branch(
             // Switch first (cheap), then reset the fresh checkout to remote.
             // Stash above already isolated dirty state.
             run_git_required(root, &["switch", branch_name])?;
-            reset_worktree_to_remote(root, branch_name, true)?;
+            reset_worktree_to_remote(root, branch_name, allow_stash)?;
         }
         adl_types::GitSwitchMode::Sync => {
             run_git_required(root, &["switch", branch_name])?;
-            sync_worktree_with_remote(root, branch_name, true)?;
+            sync_worktree_with_remote(root, branch_name, allow_stash)?;
         }
     }
 

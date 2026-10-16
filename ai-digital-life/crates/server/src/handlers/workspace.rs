@@ -374,12 +374,17 @@ pub async fn update_file(
         Ok(p) => p,
         Err(e) => return ipc::to_response(Err(e)),
     };
+    // P4 R3：写必须显式带 content（缺失即 400），不以 "" 静默截断文件。
+    let Some(content) = input.content.clone() else {
+        return ipc::to_response(Err(AppError::InvalidInput(
+            "content is required".into(),
+        )));
+    };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
-        let content = input.content.as_deref().unwrap_or("");
         let doc = adl_workspace::update_file(
             PathBuf::from(root_path).as_path(),
             &input.relative_path,
-            content,
+            &content,
         )?;
         Ok(serde_json::to_value(doc)?)
     })

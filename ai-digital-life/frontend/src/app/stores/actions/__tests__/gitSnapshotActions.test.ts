@@ -17,9 +17,11 @@ interface TestStore {
     workspacePath: string,
     options?: { silent?: boolean },
   ) => Promise<void>;
+  reportSilentError: (...args: unknown[]) => string;
 }
 
 function makeStore(opts?: { appInfo?: TestStore['appInfo'] }) {
+  const reportSilentError = vi.fn(() => 'silent-id');
   const store = createStore<TestStore>((set, get) => {
     const actions = createGitSnapshotActions(set as never, () => get() as never);
     return {
@@ -29,10 +31,11 @@ function makeStore(opts?: { appInfo?: TestStore['appInfo'] }) {
       workspaceChangesTreeErrors: {},
       changesTreeRefreshing: {},
       appInfo: opts?.appInfo,
+      reportSilentError,
       ...actions,
     } as TestStore;
   });
-  return store;
+  return { store, reportSilentError };
 }
 
 const snapshotData = { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 };
@@ -58,7 +61,7 @@ describe('refreshGitSnapshot', () => {
       ok: true,
       data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
     });
-    const store = makeStore();
+    const { store } = makeStore();
     const p = store.getState().refreshGitSnapshot('ws-1', '/p');
     expect(store.getState().changesTreeRefreshing['ws-1']).toBe(true);
     await p;
@@ -77,7 +80,7 @@ describe('refreshGitSnapshot', () => {
       ok: true,
       data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
     });
-    const store = makeStore();
+    const { store } = makeStore();
     await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
     expect(store.getState().changesTreeRefreshing['ws-1']).toBeUndefined();
   });
@@ -87,7 +90,7 @@ describe('refreshGitSnapshot', () => {
       ok: false,
       error: { message: 'boom' },
     });
-    const store = makeStore();
+    const { store } = makeStore();
     await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
     expect(store.getState().workspaceChangesTreeErrors['ws-1']).toBe('boom');
     expect(store.getState().changesTreeRefreshing['ws-1']).toBeUndefined();
@@ -98,7 +101,7 @@ describe('refreshGitSnapshot', () => {
       ok: true,
       data: { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 0 },
     });
-    const store = makeStore();
+    const { store } = makeStore();
     store.setState({
       workspaceChangesTreeErrors: {
         ...store.getState().workspaceChangesTreeErrors,
@@ -128,7 +131,7 @@ describe('fetchGitStatus', () => {
       ok: true,
       data: { ...snapshotData, capturedAt: 42, staged: ['a.txt'] },
     });
-    const store = makeStore({ appInfo: currentWsAppInfo as never });
+    const { store } = makeStore({ appInfo: currentWsAppInfo as never });
     await store.getState().fetchGitStatus();
     const st = store.getState();
     expect(st.gitSnapshot).toEqual({ ...snapshotData, capturedAt: 42, staged: ['a.txt'] });
@@ -148,7 +151,7 @@ describe('fetchGitStatus', () => {
       data: snapshotData,
     });
     const unrelated = { marker: 'keep' };
-    const store = makeStore({ appInfo: currentWsAppInfo as never });
+    const { store } = makeStore({ appInfo: currentWsAppInfo as never });
     store.setState({
       gitSnapshots: { 'ws-other': unrelated },
     });
@@ -158,10 +161,21 @@ describe('fetchGitStatus', () => {
   });
 
   it('clears the singleton when no current workspace is present', async () => {
-    const store = makeStore();
+    const { store } = makeStore();
     store.setState({ gitSnapshot: { staged: ['x'] } as never });
     await store.getState().fetchGitStatus();
     expect(store.getState().gitSnapshot).toBeUndefined();
     expect(window.digitalLife.workspace.getGitStatus).not.toHaveBeenCalled();
+  });
+
+  it('失败记静默诊断（P4 F5），不弹全局提示', async () => {
+    const { store, reportSilentError } = makeStore({ appInfo: currentWsAppInfo as never });
+    (window.digitalLife.workspace.getGitStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: false,
+      error: { code: 'WORKSPACE_ERROR', message: 'git gone' },
+    });
+    await store.getState().fetchGitStatus();
+    expect(reportSilentError).toHaveBeenCalledWith('WORKSPACE_ERROR', 'git gone', 'git');
+    expect(store.getState().gitSnapshot).toBeUndefined();
   });
 });

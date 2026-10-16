@@ -458,7 +458,7 @@ async function syncWorktreeWithRemote(workPath: string, branchName: string, allo
   const merged = await runGit(workPath, ['merge', '--no-edit', remoteRef]);
   if (merged === undefined) {
     await runGit(workPath, ['merge', '--abort']);
-    throw new Error(`sync conflict on ${branchName}: merge aborted, resolve manually against ${remoteRef}`);
+    throw new Error(`sync conflict on ${branchName}: merge aborted, resolve manually in ${remoteRef}`);
   }
   return stashed;
 }
@@ -471,7 +471,7 @@ export async function ensureBranchWorktree(rootPath: string, input: WorkspaceWor
   const snapshot = await captureGitSnapshot(rootPath);
   if (!snapshot.isRepo) throw new Error('active workspace is not a Git repository');
   const branchName = input.branchName.trim();
-  if (!branchName) throw new Error('branchName is required');
+  if (!branchName) throw new Error('branch name is required');
   const mode: GitSwitchMode = input.mode ?? 'local';
   await runGit(rootPath, ['worktree', 'prune']);
 
@@ -522,7 +522,7 @@ export async function ensureBranchWorktree(rootPath: string, input: WorkspaceWor
 
 export async function removeBranchWorktree(rootPath: string, input: WorkspaceWorktreeRemoveInput): Promise<void> {
   const branchName = input.branchName.trim();
-  if (!branchName) throw new Error('branchName is required');
+  if (!branchName) throw new Error('branch name is required');
   const worktrees = await listWorktrees(rootPath);
   const target = worktrees.find((entry) => entry.branch === branchName)?.path;
   if (!target) throw new Error(`no worktree found for branch: ${branchName}`);
@@ -558,7 +558,7 @@ export async function switchGitBranch(rootPath: string, input: WorkspaceGitBranc
   const snapshot = await captureGitSnapshot(rootPath);
   if (!snapshot.isRepo) throw new Error('active workspace is not a Git repository');
   const branchName = input.branchName.trim();
-  if (!branchName) throw new Error('branchName is required');
+  if (!branchName) throw new Error('branch name is required');
   const mode = resolveSwitchMode(input);
   const stashedChanges = hasLocalGitChanges(snapshot);
   if (stashedChanges && !input.allowStash) throw new Error('Dirty worktree requires explicit stash confirmation.');
@@ -582,7 +582,7 @@ export async function createGitBranch(rootPath: string, input: WorkspaceGitBranc
   const snapshot = await captureGitSnapshot(rootPath);
   if (!snapshot.isRepo) throw new Error('active workspace is not a Git repository');
   const branchName = input.branchName.trim();
-  if (!branchName) throw new Error('branchName is required');
+  if (!branchName) throw new Error('branch name is required');
   const currentBranch = snapshot.branch;
   if (!currentBranch) throw new Error('failed to resolve current branch');
   const baseBranch = input.baseBranch?.trim() || currentBranch;

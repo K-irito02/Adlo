@@ -123,6 +123,79 @@ export function invalidateCachedFileDocument(key: string): void {
   fileDocumentCache.delete(key);
 }
 
+/**
+ * 编辑器未落盘文本缓冲（P4 F1/F2：键自带工作区归属 `工作区ID:归一化路径`。
+ * 模块级，不进 React 状态，避免每次键入重渲染；删除/移除工作区时按前缀清理）。
+ */
+const pendingEditorText = new Map<string, string>();
+
+export function setPendingEditorText(key: string, text: string): void {
+  pendingEditorText.set(key, text);
+}
+
+export function peekPendingEditorTextByKey(key: string): string | undefined {
+  return pendingEditorText.get(key);
+}
+
+export function pendingEditorTextKeys(): string[] {
+  return [...pendingEditorText.keys()];
+}
+
+/** 最近一次落盘成功的时刻（P4 F8：批次回声在此窗口内到达即跳过重载）。 */
+const lastSavedAt = new Map<string, number>();
+const LAST_SAVED_MAP_LIMIT = 1000;
+
+export function markSavedAt(key: string, now: number = Date.now()): void {
+  // P4 N2：FIFO 上限（回声窗口只读 1s 新鲜度，旧条目纯占内存）。
+  if (!lastSavedAt.has(key) && lastSavedAt.size >= LAST_SAVED_MAP_LIMIT) {
+    const oldest = lastSavedAt.keys().next();
+    if (!oldest.done) {
+      lastSavedAt.delete(oldest.value);
+    }
+  }
+  lastSavedAt.set(key, now);
+}
+
+export function lastSavedAtOf(key: string): number | undefined {
+  return lastSavedAt.get(key);
+}
+
+/**
+ * 按工作区丢弃暂存草稿与落盘时刻（P4 F2/F3/F10：删除文件、移除工作区时调用）。
+ * 路径精确 + 后代前缀双边界；只传工作区时清整区。
+ */
+export function dropPendingEditorText(workspaceId: string, relativePath?: string): void {
+  if (relativePath === undefined) {
+    const boundary = `${workspaceId}:`;
+    for (const key of [...pendingEditorText.keys()]) {
+      if (key.startsWith(boundary)) {
+        pendingEditorText.delete(key);
+      }
+    }
+    for (const key of [...lastSavedAt.keys()]) {
+      if (key.startsWith(boundary)) {
+        lastSavedAt.delete(key);
+      }
+    }
+    return;
+  }
+  const norm = normalizeWorkspaceRelativePath(relativePath);
+  const exact = scopedFileKey(workspaceId, norm);
+  const prefix = `${exact}/`;
+  for (const key of [...pendingEditorText.keys()]) {
+    if (key === exact || key.startsWith(prefix)) {
+      pendingEditorText.delete(key);
+    }
+  }
+  // P4 L4：savedAt 同边界清理（文件夹后代不泄漏）。
+  lastSavedAt.delete(exact);
+  for (const key of [...lastSavedAt.keys()]) {
+    if (key.startsWith(prefix)) {
+      lastSavedAt.delete(key);
+    }
+  }
+}
+
 /** 精确失效单个变更预览缓存 */
 export function invalidateCachedChangePreview(key: string): void {
   changePreviewCache.delete(key);
@@ -159,8 +232,16 @@ export function scopedFileKey(workspaceId: string | undefined, relativePath: str
  * 读在落地时作废。
  */
 const fileGenMap = new Map<string, number>();
+const FILE_GEN_MAP_LIMIT = 1000;
 
 export function nextFileGen(key: string): number {
+  // P4 F10：FIFO 淘汰最旧键防无界膨胀（在途键都是最近写入，淘汰不到它们）。
+  if (!fileGenMap.has(key) && fileGenMap.size >= FILE_GEN_MAP_LIMIT) {
+    const oldest = fileGenMap.keys().next();
+    if (!oldest.done) {
+      fileGenMap.delete(oldest.value);
+    }
+  }
   const next = (fileGenMap.get(key) ?? 0) + 1;
   fileGenMap.set(key, next);
   return next;
@@ -182,15 +263,16 @@ export function getWorkspaceScopedCacheKey(
   return scopedFileKey(appInfo?.currentWorkspace?.id, relativePath);
 }
 
-/** 清理指定工作区的缓存条目 */
+/** 清理指定工作区的缓存条目（P4 F10：按 `${id}:` 边界匹配，`ws-1` 不误伤 `ws-10`）。 */
 export function clearWorkspaceCaches(workspacePrefix: string) {
+  const boundary = `${workspacePrefix}:`;
   for (const key of fileDocumentCache.keys()) {
-    if (key.startsWith(workspacePrefix)) {
+    if (key.startsWith(boundary)) {
       fileDocumentCache.delete(key);
     }
   }
   for (const key of changePreviewCache.keys()) {
-    if (key.startsWith(workspacePrefix)) {
+    if (key.startsWith(boundary)) {
       changePreviewCache.delete(key);
     }
   }

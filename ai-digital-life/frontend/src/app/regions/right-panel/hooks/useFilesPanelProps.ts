@@ -98,8 +98,13 @@ export function useFilesPanelProps(
       if (!pathAtEdit) {
         return;
       }
+      // P4 F13/N1：击键时刻锁定文件所属工作区（含路径，供自动保存显式传递，
+      // 跨工作区同名文件场景下守卫、键、落盘目标都不漂移）。
+      const wsIdAtEdit = selectedFileWorkspaceId;
+      const wsPathAtEdit =
+        recentWorkspaces.find((w) => w.id === wsIdAtEdit)?.path ?? appInfo?.currentWorkspace?.path;
       // 存盘链内容来源：typing 文本同步暂存（Ctrl+S / 自动保存消费）。
-      actions.noteEditorText(pathAtEdit, value ?? '');
+      actions.noteEditorText(pathAtEdit, value ?? '', wsIdAtEdit);
       window.clearTimeout(editorDirtyTimerRef.current);
       editorDirtyTimerRef.current = window.setTimeout(() => {
         const state = useAppStore.getState();
@@ -108,21 +113,20 @@ export function useFilesPanelProps(
         }
         // 脏比较读现值（事项 13 收敛）：闭包旧值在保存移动基线后会误判，
         // 以暂存缓冲里的最新击键文本为准。
-        const current =
-          peekPendingEditorText(pathAtEdit, state.appInfo?.currentWorkspace?.id) ?? value ?? '';
+        const current = peekPendingEditorText(pathAtEdit, wsIdAtEdit) ?? value ?? '';
         const baseline = state.fileContent ?? '';
         actions.notifyEditorBufferDirty(pathAtEdit, current !== baseline);
       }, 300);
-      // 空闲自动保存（默认开启）：停顿 1s 落盘，蓝点即清。
+      // 空闲自动保存（默认开启）：停顿 1s 落盘，蓝点即清；工作区显式传递（P4 N1）。
       window.clearTimeout(editorAutosaveTimerRef.current);
       editorAutosaveTimerRef.current = window.setTimeout(() => {
         if (useAppStore.getState().selectedFilePath !== pathAtEdit) {
           return;
         }
-        void actions.saveFile(pathAtEdit);
+        void actions.saveFile(pathAtEdit, wsPathAtEdit);
       }, 1000);
     },
-    [actions, selectedFilePath],
+    [actions, selectedFilePath, selectedFileWorkspaceId, recentWorkspaces, appInfo],
   );
 
   const handleOpenFile = useCallback(
@@ -240,7 +244,14 @@ export function useFilesPanelProps(
     [actions],
   );
 
-  useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
+  useEffect(
+    () => () => {
+      // P4 F13：切文件时两个定时器都清（此前只清脏定时器，自动保存靠守卫拦截）。
+      window.clearTimeout(editorDirtyTimerRef.current);
+      window.clearTimeout(editorAutosaveTimerRef.current);
+    },
+    [selectedFilePath],
+  );
 
   // 关闭前 best-effort 落盘：异步桥接未必写完才退出，日常由空闲自动保存兜底。
   useEffect(() => {

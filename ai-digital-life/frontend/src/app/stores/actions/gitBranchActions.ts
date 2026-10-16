@@ -113,8 +113,13 @@ export function createGitBranchActions(
      */
     switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
       clearError(get, SCOPE);
-      // 切分支前落盘脏缓冲（自动保存语义），再 stash/切换。
-      await get().saveDirtyEditors();
+      // 切分支前落盘脏缓冲（自动保存语义）；落盘失败即中止（P4 F4），
+      // 否则 stash 带走旧盘内容而草稿留在旧分支，后续保存会写串分支。
+      const flush = await get().saveDirtyEditors();
+      if (flush.failed > 0) {
+        get().showToast(branchDict(get).changesBranchSwitchAbortedOnSaveFail, 'error');
+        return;
+      }
       const result = await window.digitalLife.workspace.switchGitBranch(input);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
@@ -199,7 +204,11 @@ export function createGitBranchActions(
           return registered.path;
         }
         get().showToast(fill(dict.changesBranchAlreadyAdded, { branch: branchName }), 'success');
-        await get().openWorkspace(registered.path);
+        // P4 N5：聚焦失败（落盘失败中止等）即停，不移出源工作区。
+        const focused = await get().openWorkspace(registered.path);
+        if (!focused.ok) {
+          return undefined;
+        }
         targetPath = registered.path;
       } else {
         const result = await window.digitalLife.workspace.ensureWorktree(input, rootPath);
@@ -207,7 +216,10 @@ export function createGitBranchActions(
           captureError(get, result.error, SCOPE);
           return undefined;
         }
-        await get().openWorkspace(result.data.path);
+        const focused = await get().openWorkspace(result.data.path);
+        if (!focused.ok) {
+          return undefined;
+        }
         targetPath = result.data.path;
       }
       // 替换式（事项 5）：移出源工作区（目标已聚焦，不触发 clearWorkspaceContext），
@@ -253,7 +265,11 @@ export function createGitBranchActions(
 
     createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
       clearError(get, SCOPE);
-      await get().saveDirtyEditors();
+      const flush = await get().saveDirtyEditors();
+      if (flush.failed > 0) {
+        get().showToast(branchDict(get).changesBranchCreateAbortedOnSaveFail, 'error');
+        return;
+      }
       const result = await window.digitalLife.workspace.createGitBranch(input);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);

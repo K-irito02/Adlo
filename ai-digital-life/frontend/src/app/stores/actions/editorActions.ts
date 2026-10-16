@@ -11,6 +11,11 @@ import {
   scopedFileKey,
   nextFileGen,
   isCurrentFileGen,
+  setPendingEditorText,
+  peekPendingEditorTextByKey,
+  pendingEditorTextKeys,
+  lastSavedAtOf,
+  markSavedAt,
 } from '../shared';
 import type { StoreApi } from 'zustand';
 import {
@@ -19,6 +24,7 @@ import {
   invalidateCachedChangePreview,
   invalidateCachedFileDocument,
   setCachedFileDocument,
+  dropPendingEditorText,
 } from '../cacheHelpers';
 import { persistField } from '../persisted/apply';
 import {
@@ -36,13 +42,15 @@ import { fileEn } from '../../i18n/en-US/file';
 import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 const SCOPE = 'editor';
 
-/** 编辑器未落盘文本缓冲（模块级，不进 React 状态，避免每次键入重渲染）。 */
-const pendingEditorText = new Map<string, string>();
-
 /** 供脏判断定时器读取最新击键文本（不读闭包旧值）。 */
-export function peekPendingEditorText(relativePath: string, workspaceId?: string): string | undefined {
-  return pendingEditorText.get(scopedFileKey(workspaceId, relativePath));
+export function peekPendingEditorText(
+  relativePath: string,
+  workspaceId?: string,
+): string | undefined {
+  return peekPendingEditorTextByKey(scopedFileKey(workspaceId, relativePath));
 }
+
+const SAVE_ECHO_QUIET_MS = 1000;
 
 /** 清掉指定路径的过期脏标记（无暂存配套时调用）。 */
 function clearStaleDirtyMark(set: StoreApi<StoreState>['setState'], norm: string): void {
@@ -76,8 +84,18 @@ async function refreshOpenPreviewIfSelected(
   ) {
     return;
   }
-  extDebugLog('refreshing open change preview', { relativePath });
-  await get().openChangePreview(relativePath);
+  const previewWsId = get().selectedChangePreviewWorkspaceId;
+  const previewWs =
+    (get().recentWorkspaces ?? []).find((w) => w.id === previewWsId) ??
+    get().appInfo?.currentWorkspace;
+  if (!previewWs) {
+    return;
+  }
+  if (previewWs.id === get().appInfo?.currentWorkspace?.id) {
+    await get().openChangePreview(relativePath);
+  } else {
+    await get().openChangePreviewForWorkspace(previewWs.path, relativePath);
+  }
 }
 
 /** 外部变更跟手防抖（方案 A）：日志类高频写入合并为一次重载/刷新。 */
@@ -95,13 +113,26 @@ function scheduleExternalFollow(get: () => StoreState, key: string, run: () => v
   );
 }
 
-function scheduleSelectedAutoReload(get: () => StoreState): void {
+function scheduleSelectedAutoReload(get: () => StoreState, eventPath?: string): void {
   const selected = get().selectedFilePath;
   const workspaceId = get().appInfo?.currentWorkspace?.id;
   if (!selected || !workspaceId) {
     return;
   }
-  scheduleExternalFollow(get, `reload:${workspaceId}:${selected}`, () => {
+  // P4 F9：闭包锁定事件时刻的归一化路径，触发时若选中已变则跳过；
+  // 键同样归一化，斜杠/大小写变体不并存多定时器。
+  const captured = normalizeWorkspaceRelativePath(eventPath ?? selected);
+  const key = scopedFileKey(workspaceId, captured);
+  scheduleExternalFollow(get, `reload:${key}`, () => {
+    const current = get().selectedFilePath;
+    if (!current || normalizeWorkspaceRelativePath(current) !== captured) {
+      return;
+    }
+    // P4 F8：本次保存 1s 内的回声跳过重载（git 跟手照常），防自写自读抖动。
+    const savedAt = lastSavedAtOf(key);
+    if (savedAt !== undefined && Date.now() - savedAt < SAVE_ECHO_QUIET_MS) {
+      return;
+    }
     void get().reconcileSelectedFile();
   });
 }
@@ -114,7 +145,6 @@ function scheduleGitFollowQuietly(get: () => StoreState): void {
   const workspaceId = currentWorkspace.id;
   const workspacePath = currentWorkspace.path;
   scheduleExternalFollow(get, `git:${workspaceId}`, () => {
-    console.log('[ADL-EXTFOLLOW] git follow firing', { workspaceId });
     void get().refreshGitSnapshot(workspaceId, workspacePath, { silent: true });
   });
 }
@@ -124,30 +154,21 @@ function scheduleGitFollowQuietly(get: () => StoreState): void {
  * 唯一活路是 onFilesChanged 批次。命中选中文件即走同一调度器
  * （防抖 + 草稿保护 + 回声无害：重载/刷新均为只读，无循环）。
  */
-function extDebugLog(message: string, detail?: unknown): void {
-  console.log(`[ADL-EXTFOLLOW] ${message}`, detail ?? '');
-}
-
 export function handleExternalBatch(
   get: () => StoreState,
   batch: { changed: string[]; removed: string[] },
 ): void {
   const selected = get().selectedFilePath;
   const workspaceId = get().appInfo?.currentWorkspace?.id;
-  extDebugLog('batch received', {
-    changed: batch.changed,
-    removed: batch.removed,
-    selected,
-  });
   if (!selected || !workspaceId) {
     return;
   }
   const norm = normalizeWorkspaceRelativePath(selected);
-  const hit = [...batch.changed, ...batch.removed].some(
+  const hitPath = [...batch.changed, ...batch.removed].find(
     (p) => normalizeWorkspaceRelativePath(p) === norm,
   );
-  if (hit) {
-    scheduleSelectedAutoReload(get);
+  if (hitPath !== undefined) {
+    scheduleSelectedAutoReload(get, hitPath);
   }
   if (batch.changed.length > 0 || batch.removed.length > 0) {
     scheduleGitFollowQuietly(get);
@@ -230,11 +251,6 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      */
     openFile: async (relativePath: string) => {
       // 切文件前落盘脏缓冲（自动保存语义），再读新文件。
-      extDebugLog('openFile start', {
-        relativePath,
-        dirty: get().dirtyEditorPaths,
-        pendingKeys: [...pendingEditorText.keys()],
-      });
       await get().saveDirtyEditors();
       const workspaceId = get().appInfo?.currentWorkspace?.id;
       const category = categorizeFile(relativePath);
@@ -490,12 +506,6 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       path: string;
       lastModifiedAt: number;
     }) => {
-      extDebugLog('single event received', {
-        path,
-        lastModifiedAt,
-        selected: get().selectedFilePath,
-        baselineMtime: get().fileLastModifiedAt,
-      });
       const selected = normalizeWorkspaceRelativePath(get().selectedFilePath ?? '');
       const incoming = normalizeWorkspaceRelativePath(path);
       if (!selected || selected !== incoming) {
@@ -514,18 +524,24 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
        * 旧逻辑把外部变更也标脏，导致两害：①自动重载被"草稿优先"挡掉；
        * ② saveDirtyEditors 会用旧基线回写，覆盖外部新内容。外部态只走
        * externalFileChange（树上有独立标识），与脏点解耦。 */
-      const hadExternal = get().externalFileChange?.path === path;
+      const prevExternal = get().externalFileChange?.path;
+      const hadExternal =
+        prevExternal !== undefined && normalizeWorkspaceRelativePath(prevExternal) === incoming;
       set({
         externalFileChange: { path, lastModifiedAt },
       });
-      if (!hadExternal) {
-        // 脏则只提示一次（方案 A）：草稿优先，不断用户打字。
+      // P4 F7：仅真有脏草稿时提示一次（干净文件静默重载，对标 VSCode）；
+      // hadExternal 归一化比较，斜杠/大小写变体不重复弹。
+      const hasDraft = get().dirtyEditorPaths.some(
+        (p) => normalizeWorkspaceRelativePath(p) === incoming,
+      );
+      if (hasDraft && !hadExternal) {
         const locale = resolveAppLanguage(get().appInfo?.config?.language);
         const dict = locale === 'en-US' ? fileEn : fileZh;
         get().showToast(dict.fileExternalChangedWhileDirty, 'warning');
       }
       // 方案 A：干净即重载（防抖；触发时若用户刚开始打字，reconcile 按草稿跳过）。
-      scheduleSelectedAutoReload(get);
+      scheduleSelectedAutoReload(get, path);
       scheduleGitFollowQuietly(get);
     },
 
@@ -550,9 +566,11 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      * typing 只进 CodeMirror 内部 state；本缓冲是存盘链唯一内容来源
      * （Ctrl+S / 空闲自动保存 / 切换前 flush 均消费它）。
      */
-    noteEditorText: (relativePath: string, text: string) => {
-      const key = scopedFileKey(get().appInfo?.currentWorkspace?.id, relativePath);
-      pendingEditorText.set(key, text);
+    noteEditorText: (relativePath: string, text: string, workspaceId?: string) => {
+      // P4 F1：键跟文件所属工作区走（跨工作区选中文件时用 selectedFileWorkspaceId），
+      // 不再一律按当前工作区，避免草稿写入错误工作区的同名文件。
+      const key = scopedFileKey(workspaceId ?? get().appInfo?.currentWorkspace?.id, relativePath);
+      setPendingEditorText(key, text);
     },
 
     /**
@@ -564,26 +582,26 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
      */
     saveFile: async (relativePath?: string, workspacePath?: string) => {
       const currentWorkspace = get().appInfo?.currentWorkspace;
-      const rootPath = workspacePath ?? currentWorkspace?.path;
       const targetPath = relativePath ?? get().selectedFilePath;
-      if (!rootPath || !targetPath) {
+      if (!targetPath) {
+        return true;
+      }
+      // P4 F1：目标工作区按"显式路径 > 选中文件所属 > 当前"解析，键与落盘同目标。
+      const selectedWsId = get().selectedFileWorkspaceId;
+      const allWorkspaces = get().recentWorkspaces ?? [];
+      const targetWs =
+        (workspacePath ? allWorkspaces.find((w) => w.path === workspacePath) : undefined) ??
+        (relativePath === undefined || targetPath === get().selectedFilePath
+          ? allWorkspaces.find((w) => w.id === selectedWsId)
+          : undefined) ??
+        currentWorkspace;
+      const rootPath = workspacePath ?? targetWs?.path ?? currentWorkspace?.path;
+      if (!rootPath || !targetWs) {
         return true;
       }
       const norm = normalizeWorkspaceRelativePath(targetPath);
-      // 跨工作区保存时钥匙跟目标工作区走（与 openFileForWorkspace 同口径）。
-      const targetWsId = workspacePath
-        ? (get().recentWorkspaces.find((w) => w.path === workspacePath)?.id ??
-          currentWorkspace?.id)
-        : currentWorkspace?.id;
-      const key = scopedFileKey(targetWsId, targetPath);
-      const pending = pendingEditorText.get(key);
-      extDebugLog('saveFile attempt', {
-        targetPath,
-        key,
-        hasPending: pending !== undefined,
-        pendingLength: pending?.length,
-        baselineLength: get().fileContent?.length,
-      });
+      const key = scopedFileKey(targetWs.id, targetPath);
+      const pending = peekPendingEditorTextByKey(key);
       if (pending === undefined) {
         // 脏而无暂存 = 过期标记（旧定时器闭包/重启恢复）：只清标记，绝不拿基线回写。
         clearStaleDirtyMark(set, norm);
@@ -591,17 +609,20 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       }
       const content = pending;
       clearError(get, SCOPE);
+      const bridgeWsPath =
+        workspacePath ?? (targetWs.id !== currentWorkspace?.id ? targetWs.path : undefined);
       const result = await window.digitalLife.workspace.updateFileContent(
         targetPath,
         content,
-        workspacePath,
+        bridgeWsPath,
       );
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
         return false;
       }
-      pendingEditorText.delete(key);
-      // 落定即推进代际：在途的旧读落地时作废（存读互斥）。
+      // 精确删本条暂存（保留 savedAt 供回声窗口），落定推进代际。
+      dropPendingEditorText(targetWs.id, targetPath);
+      markSavedAt(key);
       nextFileGen(key);
       setCachedFileDocument(key, {
         content: result.data.content,
@@ -610,7 +631,6 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       // diff 预览缓存同失效，否则变更面板的 diff 停在旧内容（60s TTL 缓存优先）。
       invalidateCachedChangePreview(key);
       // 落盘即跟手（报告 2）：本次保存的变更立刻进变更面板，不等 watcher 回声。
-      extDebugLog('saveFile ok, refreshing git status', { targetPath });
       await postMutationRefresh(get);
       set((state: StoreState) => {
         const nextDirty = state.dirtyEditorPaths.filter(
@@ -639,18 +659,47 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
 
     /**
      * [saveDirtyEditors - 保存全部脏文件]
-     * 切换文件/分支/工作区前的 flush 点；单个失败不阻断其余（错误已上报）。
-     * @returns 成功保存的文件数
+     * 切换文件/分支/工作区前的 flush 点；按暂存键（工作区归属明确）逐个落盘，
+     * 单个失败不阻断其余（错误已上报），调用方按 failed 决定是否继续切换。
+     * @returns {saved, failed}（saved 仅计真正写盘成功的；过期标记清理不计）
      */
     saveDirtyEditors: async () => {
-      const dirty = [...get().dirtyEditorPaths];
+      // P4 F1：按 pending 键（自带工作区归属）而非裸 dirty 路径遍历，避免跨工作区误定向。
       let saved = 0;
-      for (const path of dirty) {
-        if (await get().saveFile(path)) {
+      let failed = 0;
+      for (const key of pendingEditorTextKeys()) {
+        const separator = key.indexOf(':');
+        if (separator < 0) {
+          continue;
+        }
+        const wsId = key.slice(0, separator);
+        const relPath = key.slice(separator + 1);
+        const ws =
+          (get().recentWorkspaces ?? []).find((w) => w.id === wsId) ??
+          get().appInfo?.currentWorkspace;
+        const hadPending = peekPendingEditorTextByKey(key) !== undefined;
+        const ok = await get().saveFile(
+          relPath,
+          ws && ws.id !== get().appInfo?.currentWorkspace?.id ? ws.path : undefined,
+        );
+        if (!ok) {
+          failed += 1;
+        } else if (hadPending && peekPendingEditorTextByKey(key) === undefined) {
+          // 暂存被消费 = 真正落盘一次；no-op 路径（并发已存）不计。
           saved += 1;
         }
       }
-      return saved;
+      // 无暂存配套的脏标记（过期/重启残留）一并清掉；有暂存的一律保留（含刚失败的）。
+      const liveRelPaths = new Set(
+        pendingEditorTextKeys().map((key) => key.slice(key.indexOf(':') + 1)),
+      );
+      for (const dirtyPath of [...get().dirtyEditorPaths]) {
+        const norm = normalizeWorkspaceRelativePath(dirtyPath);
+        if (!liveRelPaths.has(norm)) {
+          clearStaleDirtyMark(set, norm);
+        }
+      }
+      return { saved, failed };
     },
 
     /**
@@ -662,19 +711,26 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     reconcileSelectedFile: async () => {
       const selected = get().selectedFilePath;
       const currentWorkspace = get().appInfo?.currentWorkspace;
-      extDebugLog('reconcile start', { selected, workspaceId: currentWorkspace?.id });
       if (!selected || !currentWorkspace) {
         return;
       }
+      // P4 F1：对账跟文件所属工作区走（跨工作区选中经 readFileForWorkspace），
+      // 不再一律读当前工作区。
+      const selectedWsId = get().selectedFileWorkspaceId;
+      const targetWs =
+        (get().recentWorkspaces ?? []).find((w) => w.id === selectedWsId) ?? currentWorkspace;
       const norm = normalizeWorkspaceRelativePath(selected);
       const hasDraft = get().dirtyEditorPaths.some(
         (p) => normalizeWorkspaceRelativePath(p) === norm,
       );
-      const key = getWorkspaceScopedCacheKey(get().appInfo, selected);
+      const key = scopedFileKey(targetWs.id, selected);
       invalidateCachedFileDocument(key);
       clearError(get, SCOPE);
       const gen = nextFileGen(key);
-      const result = await window.digitalLife.workspace.readFile(selected);
+      const result =
+        targetWs.id === currentWorkspace.id
+          ? await window.digitalLife.workspace.readFile(selected)
+          : await window.digitalLife.workspace.readFileForWorkspace(targetWs.path, selected);
       if (!isCurrentFileGen(key, gen)) {
         // 对账读等待中被更新的意图超车（新保存/新打开）：旧回复丢弃。
         return;
@@ -697,22 +753,28 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
             path: selected,
             code: 'NOT_FOUND',
             message: result.error.message,
-            workspaceId: currentWorkspace.id,
-            workspacePath: currentWorkspace.path,
+            workspaceId: targetWs.id,
+            workspacePath: targetWs.path,
           },
         });
+        return;
+      }
+      if (hasDraft) {
+        // P4 F6：草稿优先且不污染缓存——该读仅用于"还在不在"的判断，
+        // 基线/缓存/视图一律不动。
         return;
       }
       setCachedFileDocument(key, {
         content: result.data.content,
         lastModifiedAt: result.data.lastModifiedAt,
       });
-      if (hasDraft) {
-        // 草稿优先：基线不动（脏比较口径不变），视图里的草稿不受影响。
-        return;
-      }
       const baseline = get().fileContent ?? '';
       if (baseline !== result.data.content) {
+        // 预览缓存键跟预览所属工作区走（与文件所属可能不同），两边都失效。
+        const previewWsId = get().selectedChangePreviewWorkspaceId;
+        if (previewWsId && previewWsId !== targetWs.id) {
+          invalidateCachedChangePreview(scopedFileKey(previewWsId, selected));
+        }
         set({
           fileContent: result.data.content,
           fileLastModifiedAt: result.data.lastModifiedAt,
