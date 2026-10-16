@@ -4,10 +4,15 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const TEST_SERVICE: &str = "adl-integration-test";
 const TEST_ACCOUNT: &str = "test-provider";
 
+// 本 binary 内多测试并行共用 test_dir：pid + nanos 同 tick 会共名，结尾
+// remove_dir_all 误删他人目录 → flake；单调计数保证每次调用唯一。
+static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
 fn test_dir() -> PathBuf {
     let ts = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_nanos();
     let pid = std::process::id();
-    std::env::temp_dir().join(format!("adl_cred_int_{}_{}", pid, ts))
+    let n = SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    std::env::temp_dir().join(format!("adl_cred_int_{}_{}_{}", pid, ts, n))
 }
 
 #[test]

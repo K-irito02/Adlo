@@ -198,11 +198,18 @@ pub(crate) fn file_modified_at(path: &Path) -> i64 {
 mod tests {
     use super::*;
 
+    // 并行测试同 tick 拿到相同 nanos 会共名同一目录，结尾 remove_dir_all
+    // 抽走他人目录 → 路径边界误报 flake；单调计数保证每次调用唯一
+    //（同 `adl-server` test_util.rs 的 COUNTER 范式）。
+    static SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
     fn temp_root() -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
-            "adl-ws-fs-test-{}-{}",
+            "adl-ws-fs-test-{}-{}-{:?}-{}",
             std::process::id(),
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos(),
+            std::thread::current().id(),
+            SEQ.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
         ));
         fs::create_dir_all(&dir).unwrap();
         dir
