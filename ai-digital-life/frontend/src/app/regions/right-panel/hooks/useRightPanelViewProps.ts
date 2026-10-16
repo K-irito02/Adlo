@@ -14,11 +14,10 @@ function readDiffSideBySidePreference(): boolean {
 }
 
 export function useRightPanelViewProps() {
-  const { activeRightTool, setActiveRightTool, ciSnapshot } = useAppStore(
+  const { activeRightTool, setActiveRightTool } = useAppStore(
     useShallow((state) => ({
       activeRightTool: state.activeRightTool,
       setActiveRightTool: state.setActiveRightTool,
-      ciSnapshot: state.ciSnapshot,
     })),
   );
   const browserTabs = useAppStore(useShallow((state) => state.browserTabs));
@@ -38,14 +37,6 @@ export function useRightPanelViewProps() {
     }
   }, []);
 
-  const communicateBadge = useMemo(() => {
-    if (!ciSnapshot?.latestRun) {
-      return 0;
-    }
-    const c = ciSnapshot.latestRun.conclusion;
-    return c === 'failure' || c === 'cancelled' ? 1 : 0;
-  }, [ciSnapshot]);
-
   const badges = useMemo(
     () => ({
       files: dirtyEditorPaths.length,
@@ -53,9 +44,6 @@ export function useRightPanelViewProps() {
       browser: browserTabs.length,
       terminal: terminalTabs.length,
       settings: 0,
-      // 通信面板发布前隐藏，但 badges 必须保留 communicate 键（Record<ToolId, number> 类型要求），
-      // 恢复显示时徽标逻辑（ciSnapshot 失败/取消 → 1）可直接复用，无需改动。
-      communicate: communicateBadge,
     }),
     [
       dirtyEditorPaths.length,
@@ -63,7 +51,6 @@ export function useRightPanelViewProps() {
       appInfoForBadges?.currentWorkspace?.gitSnapshot,
       browserTabs.length,
       terminalTabs.length,
-      communicateBadge,
     ],
   );
 

@@ -1,6 +1,5 @@
 import type {
   AppInfo,
-  CiStatusSnapshot,
   FileOutlineItem,
   FilePatch,
   WorkspaceChangePreview,
@@ -230,17 +229,6 @@ export interface BrowserPanelProps {
 }
 
 export type SettingsPanelProps = Pick<RightPanelViewProps, 'settings' | 'onChangeSetting'>;
-
-export interface CIPanelProps {
-  config: { owner: string; repo: string; branch: string };
-  accessToken: string;
-  loading: boolean;
-  error: string | null;
-  snapshot: CiStatusSnapshot | null;
-  onRefresh: () => void;
-  onConfigChange: (owner: string, repo: string, branch: string, token: string) => void;
-  onClearToken: () => void;
-}
 
 export function countGitChanges(snapshot?: GitSnapshot): number {
   if (!snapshot) {

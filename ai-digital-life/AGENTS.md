@@ -53,7 +53,7 @@
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 4模式导航栏（open/tabs/list/search）+ SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效 + 已打开标签过滤（filterTabIds）+ 多 iframe 状态保持（activatedTabIdsRef）+ 悬停关闭按钮（danger-hover）+ Flat 模式 ::after 渐变蒙版 + text-overflow: clip + 网站元数据持久化缓存（favicon data-URI + 标题，三层：Rust SQLite `site_meta_cache.rs` / preview JSON `.adl-cache/` / 前端 `siteMetaCache.ts`，预载门控 + 成功才写 + 引用计数删除）+ 标签加载状态（favicon 加载中 spinner + 标题未结算时"新建标签页"扫光动效，`titleResolved` 状态机 + `isRealTitle` 统一判定）+ 跨域重定向 favicon/标题兜底（方案 A 历史 URL 回写 `browserUpdateHistoryUrl` + 方案 B 会话级 `redirectMap`，`expectedNavigationUrlRef={url,at,tabId}` 显式导航检测 + 10s 新鲜度 + 发起 tab 绑定，参考 Chrome/Edge 重定向链消化语义 + Chromium `page_url_type`）+ 分隔线透明桥接条（dsh↔浏览器 WebView 零间隙贴边时 6px 透明子窗口夺回拖拽命中权，`divider_strip_*` 命令 + `siblingWebviewNonce` z-order 重建））
 - 第三方 harness 宿主集成（当前为 deepseek dsh）：进程托管与拉起（`crates/webapp-host`）、内嵌版本管理（`crates/dsh-bundle`）与系统版本检测/升级回退（`crates/dsh-version`）、下载源与镜像配置（`crates/download-source`）、中间区多标签宿主渲染（统一入口页 CenterEntryPage：deepseek harness / 浏览器 / 终端三入口；dsh 版本管理位于设置面板「DSH」组版本管理块 / 浏览器视图 / 终端视图，标题栏标签条切换/拖拽排序；dsh 作为普通浏览器标签承载，`location='center'`；Tauri 双宿主 WebView2 / 浏览器 iframe + 嵌入被拒外部打开兜底）
 - 存储治理：`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组（见上文"存储路径解析"）
-- 系统能力：剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储（keyring + 加密文件降级）
+- 系统能力：剪贴板历史、系统监视器、凭据存储（keyring + 加密文件降级）（通信/CI/GitHub 面板已随 remove-communicate-panel 删除，能力面 bridge/IPC 保留）
 - Zustand 切片模式（32 切片 + 18 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条
 - i18n 国际化（22 领域，TCopyContext + useTCopy 上下文驱动，TypeScript satisfies 类型安全）
@@ -103,21 +103,16 @@ app/stores/
 ├── storageHelpers.ts            # localStorage 读写工具
 ├── cacheHelpers.ts              # 缓存系统（TTL/LRU）、请求序列
 ├── selectors.ts                 # 性能选择器（useShallow）
-├── slices/                      # 32 个独立切片（含 8 浏览器 + 3 GitHub，以 slicedStore.ts 实测为准）
+├── slices/                      # 27 个独立切片（含 8 浏览器，以 slicedStore.ts 实测为准）
 │   ├── uiSlice.ts / workspaceSlice.ts / gitSlice.ts（含 gitVisSlice）
 │   ├── editorSlice.ts / patchSlice.ts
 │   ├── searchSlice.ts / diagnosticSlice.ts
 │   ├── clipboardSlice.ts（含 clipboardHistorySlice）/ terminalSlice.ts
 │   ├── centerTabsSlice.ts           # 中间区标签
 │   ├── dshSlice.ts                  # dsh 宿主
-│   ├── ciSlice.ts                   # CI 状态（轮询、快照、Section 切换）
-│   ├── communicateSlice.ts          # 通信面板共享状态
 │   ├── referenceSlice.ts            # 引用管理
 │   ├── systemMonitorSlice.ts        # 系统监视器
 │   ├── notificationSlice.ts / errorToastSlice.ts / toastSlice.ts / fileOpNoticeSlice.ts
-│   ├── githubSlice.ts               # GitHub 面板核心
-│   ├── githubRepoSlice.ts           # GitHub 仓库配置（Token、CRUD、Pin/Unpin）
-│   ├── githubTreeSlice.ts           # GitHub 树形目录
 │   ├── browserSlice.ts              # 浏览器核心（导航布局、持久化、跨领域）
 │   ├── browserTabsSlice.ts          # 浏览器标签页
 │   ├── browserBookmarkSlice.ts      # 浏览器书签

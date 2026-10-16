@@ -149,7 +149,6 @@
 | 编辑器 | `features/editor/`（CodeMirror + FoldTooltipOverlay） |
 | 文件树 | `features/file-tree/` |
 | Git 可视化 | `features/git-visualization/` |
-| GitHub 树 | `features/github-tree/` |
 | 多工作区 | `features/multi-workspace/` |
 | 大纲 | `features/outline/` |
 | 补丁审查 | `features/patch-review/` |
@@ -177,9 +176,6 @@
 | `diagnosticSlice` | `slices/diagnosticSlice.ts` |
 | `terminalSlice` 系列 | `slices/terminalSlice.ts`（+ terminalSliceTypes） |
 | `clipboardSlice` 系列 | `slices/clipboardSlice.ts`（+ clipboardHistorySlice） |
-| `ciSlice` | `slices/ciSlice.ts` |
-| `communicateSlice` | `slices/communicateSlice.ts` |
-| `githubSlice` 系列 | `slices/githubSlice.ts`（+ helpers；githubRepoSlice 系列；githubTreeSlice） |
 | `browserSlice` 系列 | `slices/browserSlice.ts`（+ browserTabs/bookmark/history/folders/landing/searchEngines/downloads；browserSliceShared/browserTypes） |
 | `browserFoldersSlice` 系列 | `slices/browserFoldersSlice.ts`（+ browserFoldersDeletion/Types/Utils） |
 | `centerTabsSlice` 系列 | `slices/centerTabsSlice.ts`（+ centerTabsTypes/tabLocation） |

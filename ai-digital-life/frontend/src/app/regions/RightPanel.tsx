@@ -17,20 +17,6 @@ const TerminalPanel = lazy(() =>
 const SettingsPanel = lazy(() =>
   import('../components/settings/SettingsPanel').then((m) => ({ default: m.SettingsPanel })),
 );
-// ── 通信面板（发布前隐藏，可恢复） ─────────────────────────────────────────
-// 隐藏原因：通信面板还有很多功能没有实现，发布产品时暂不对外展示，
-// 以后考虑好后会再恢复实现与完善，所以这里只注释、不删除代码。
-// 恢复方法（共 3 处，缺一不可）：
-// 1. 取消下面 CommunicationPanel 懒加载的注释；
-// 2. 恢复下方 ActiveToolPanel 中 communicate 面板 div 的注释；
-// 3. 恢复 ToolSwitcher.tsx TAB_META 中的 communicate 配置块注释。
-// 注意：i18n（communicate.ts）、communicateSlice、CSS 均完整保留，恢复后即刻可用；
-// 持久化的 activeRightTool 若为旧值（如 'communicate'），注册表的 readStringEnum 会回落到 'files'，无需迁移。
-// const CommunicationPanel = lazy(() =>
-//   import('./right-panel/panels/CommunicationPanel').then((m) => ({
-//     default: m.CommunicationPanel,
-//   })),
-// );
 import type {
   FilesPanelProps,
   ChangesPanelProps,
@@ -148,13 +134,6 @@ const ActiveToolPanel = React.memo(function ActiveToolPanel({
           />
         </Suspense>
       </div>
-      {/* ── 通信面板（发布前隐藏，可恢复）：隐藏原因与恢复方法见文件顶部懒加载处的注释。
-          面板组件、i18n、slice、CSS 均完整保留；恢复时取消本段注释即可。 */}
-      {/* <div hidden={activeTool !== 'communicate'} style={{ height: '100%', minHeight: 0 }}>
-        <Suspense fallback={<PanelSkeleton />}>
-          <CommunicationPanel />
-        </Suspense>
-      </div> */}
     </div>
   );
 }, areActiveToolPanelPropsEqual);

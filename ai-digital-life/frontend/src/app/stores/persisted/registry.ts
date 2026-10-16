@@ -20,11 +20,6 @@ import {
   readBooleanPropRecord,
   readDirExpansionRecord,
   readSessionLastFile,
-  readCiRepoConfig,
-  readCiSnapshots,
-  readCiLogCaches,
-  readGitHubWorkspaceConfigs,
-  readGitHubCiFolders,
   isPlainRecord,
 } from './parsers';
 import {
@@ -116,10 +111,6 @@ import {
 } from '../../features/terminal/terminalPaneLayout';
 import type { SearchFlags } from '../slices/searchSlice';
 import type { FileTreeClickedNode, SessionLastFile } from '../slices/editorSlice';
-import type { PlatformId } from '../slices/communicateSlice';
-import type { GitHubSection } from '../slices/githubSliceHelpers';
-import type { GitWorkspaceCiConfig, GitHubCiFolderState } from '../slices/githubRepoSliceTypes';
-import type { CiRepoConfig, CiStatusSnapshot } from '../../../shared/ipc/github';
 import { applyPersistedScrollTop, MAX_SCROLL_TOP } from '../../hooks/usePersistedScrollTop';
 import {
   applyRightPanelMode,
@@ -450,7 +441,7 @@ export const registry = {
     field: 'activeRightTool',
     fallback: 'files',
     scope: 'global',
-    // 旧值 'communicate'（已隐藏面板）不在白名单内，readStringEnum 回落 fallback 'files'。
+    // 旧值 'communicate'（已删除面板）的本地残留不在白名单内，readStringEnum 回落 fallback 'files'。
     read: readStringEnum<ToolId>(['files', 'changes', 'browser', 'terminal', 'settings'] as const),
   }),
   'adl:files.navigatorMode': defineEntry<FilesNavigatorMode>({
@@ -997,22 +988,10 @@ export const registry = {
   }),
 
   // ─────────────────────────────────────────────────────────────
-  // 其余右侧面板工具（Task 29）：CI / GitHub / 通信 / 系统监控 / 剪贴板 / 右侧布局。
-  // 取代散落在 ciSlice / githubSlice(+Helpers) / githubRepoSlice(+Helpers) /
-  // communicateSlice / systemMonitorSlice / ChangesPanel/utils /
-  // useRightPanelLayout / usePersistedScrollTop 中的 adl-ui:* 遗留键。
-  // 全部写盘走 persist()/persistField()，读取走 hydrateAll()；各 slice 的
-  // 构造期遗留读取与私有去抖写入器随本任务删除（CI 令牌的 bridge 只写不回读
-  // 路径与 Tauri 钥匙串路径不受影响，原样保留）。
-  //
-  // 体积预检（代表性夹具实测）：ciLogCaches ~336KB、ciSnapshots ~21KB（4 工作区，
-  // 约 5KB/工作区，7+ 工作区即超 32KB 同步读准入线）→ 二者 sync:false，
-  // 构造期跳过、由 githubSlice 延迟加载按需读取（旧代码本就延迟加载，语义不变）；
-  // ciFolders ~1.2KB、workspaceConfigs ~715B → 同步。
-  //
-  // 未登记项（有意）：adl-ui:github-access-token 在生产代码中不存在（仅 mock-ci
-  // 的一处注释，ledger F 已证伪），无 store 字段与读写路径可搬迁；为其新建状态
-  // 会分裂当前与 ci token 同键共享的语义，属安全红线禁止的变更，故只更新注释。
+  // 其余右侧面板工具：变更 / 系统监控 / 剪贴板 / 右侧布局。
+  // CI / GitHub / 通信面板已随分支 remove-communicate-panel 彻底删除，
+  // 其登记条目同步移除；用户本地残留旧键由 cleanupUnregisteredKeys 在启动时清理，无需迁移。
+  // 全部写盘走 persist()/persistField()，读取走 hydrateAll()。
   // ─────────────────────────────────────────────────────────────
   'adl:changes.branch': defineEntry<string>({
     key: 'adl:changes.branch',
@@ -1020,90 +999,6 @@ export const registry = {
     fallback: '',
     scope: 'global',
     read: readString,
-  }),
-  'adl:browser.githubSection': defineEntry<GitHubSection>({
-    key: 'adl:browser.githubSection',
-    field: 'activeGitHubSection',
-    fallback: 'overview',
-    scope: 'global',
-    // 白名单与旧 hydrateCiStatusDefaults 的接受集一致（无 'logs'）：存过 'logs'
-    // 的用户重启后回退 'overview'，与旧行为逐字相同（类型成员多于接受集是现状）。
-    read: readStringEnum<GitHubSection>([
-      'overview',
-      'workflows',
-      'jobs',
-      'settings',
-      'help',
-    ] as const),
-  }),
-  'adl:browser.ciFolders': defineEntry<GitHubCiFolderState[]>({
-    key: 'adl:browser.ciFolders',
-    field: 'gitHubCiFolders',
-    fallback: [],
-    scope: 'global',
-    read: readGitHubCiFolders,
-  }),
-  'adl:browser.workspaceConfigs': defineEntry<Record<string, GitWorkspaceCiConfig>>({
-    key: 'adl:browser.workspaceConfigs',
-    field: 'gitHubWorkspaceConfigs',
-    fallback: {},
-    scope: 'byWorkspaceId',
-    read: readGitHubWorkspaceConfigs,
-    prune: pruneByWorkspaceId,
-  }),
-  'adl:browser.ciAccessToken': defineEntry<string>({
-    key: 'adl:browser.ciAccessToken',
-    field: 'ciAccessToken',
-    fallback: '',
-    scope: 'global',
-    // 浏览器模式的本地镜像，原样搬迁：Tauri 钥匙串路径与 bridge 只写不回读不变。
-    read: readString,
-  }),
-  'adl:browser.ciConfig': defineEntry<CiRepoConfig>({
-    key: 'adl:browser.ciConfig',
-    field: 'ciConfig',
-    fallback: { owner: '', repo: '', branch: 'main', workflowId: null, accessToken: null },
-    scope: 'global',
-    read: readCiRepoConfig,
-  }),
-  'adl:browser.ciSnapshots': defineEntry<Record<string, CiStatusSnapshot>>({
-    key: 'adl:browser.ciSnapshots',
-    field: 'ciSnapshots',
-    fallback: {},
-    scope: 'global',
-    read: readCiSnapshots,
-    sync: false,
-  }),
-  'adl:browser.ciLogCaches': defineEntry<
-    Record<string, { selectedJobId: number | null; logs: Record<number, string> }>
-  >({
-    key: 'adl:browser.ciLogCaches',
-    field: 'ciLogCaches',
-    fallback: {},
-    scope: 'global',
-    read: readCiLogCaches,
-    sync: false,
-  }),
-  'adl:browser.ciAutoRefreshOnPush': defineEntry<boolean>({
-    key: 'adl:browser.ciAutoRefreshOnPush',
-    field: 'ciAutoRefreshOnPush',
-    fallback: true,
-    scope: 'global',
-    read: readFlag,
-  }),
-  'adl:ui.communicatePlatform': defineEntry<PlatformId>({
-    key: 'adl:ui.communicatePlatform',
-    field: 'activePlatform',
-    fallback: 'github',
-    scope: 'global',
-    read: readStringEnum<PlatformId>(['github', 'feishu', 'qq', 'wechat', 'email'] as const),
-  }),
-  'adl:ui.communicateNavigatorCollapsed': defineEntry<boolean>({
-    key: 'adl:ui.communicateNavigatorCollapsed',
-    field: 'communicateNavigatorCollapsed',
-    fallback: false,
-    scope: 'global',
-    read: readFlag,
   }),
   'adl:ui.sysmonCollapsed': defineEntry<boolean>({
     key: 'adl:ui.sysmonCollapsed',

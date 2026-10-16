@@ -4,7 +4,7 @@ import type { GitSnapshot, RecentWorkspaceEntry } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import { IconCopy, IconEyeOff, IconFolderOpen } from '@icons';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
-import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
+import { MenuHintItem } from '@components/MenuHintItem';
 
 export interface WorkspaceChangesMenuProps {
   menuOpen: boolean;

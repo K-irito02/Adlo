@@ -1,13 +1,20 @@
 import { useCallback, useRef } from 'react';
 import { useAppStore } from '@stores/slicedStore';
+import type { DigitalLifeBridge } from '@shared/ipc/digital-life';
 import {
   CHART_LOADING_MIN_VISIBLE_MS,
   fetchChartData,
   holdLoadingForMin,
   refreshWorkspace,
 } from '@stores/actions/gitVisActions';
-import { getBridge } from '@stores/slices/githubSliceHelpers';
 import { resolveTimeRangeForFetch } from '../timeRangeUtils';
+
+function getBridge(): DigitalLifeBridge | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  return (window as unknown as { digitalLife: DigitalLifeBridge | undefined }).digitalLife ?? null;
+}
 
 export function useGitVisRefresh(workspaceId: string, rootPath: string) {
   const setLoading = useAppStore((s) => s.setGitVisLoading);

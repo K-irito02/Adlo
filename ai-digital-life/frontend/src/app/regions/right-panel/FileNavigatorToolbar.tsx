@@ -100,7 +100,7 @@ const FileNavigatorToolbar = React.memo(function FileNavigatorToolbar({
           {workspaceCount > 0 ? (
             <span className="adl-tool-navigator__context-count">{workspaceCount}</span>
           ) : null}
-          <TooltipSimple content={t.communicateRefreshAll} placement="top">
+          <TooltipSimple content={t.fileRefresh} placement="top">
             <button
               type="button"
               className="adl-tool-context__iconbtn adl-tool-navigator__context-btn"

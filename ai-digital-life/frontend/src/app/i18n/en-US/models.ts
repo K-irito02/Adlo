@@ -14,7 +14,6 @@ export const modelsEn = {
   modelTestConnection: 'Test connection',
   tokenBudget: 'Token budget',
   toolSettings: 'Settings',
-  toolCommunicate: 'Communication',
   modelSettingsProvidersZone: 'Providers',
   modelSettingsEnabledModelsZone: 'Enabled Models',
   modelProviderEnableAria: 'Enable {provider}',

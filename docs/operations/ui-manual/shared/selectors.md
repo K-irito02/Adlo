@@ -173,7 +173,6 @@ a[aria-label="帮助"]
 | 变更面板     | `#changes-panel` 或 `[aria-labelledby*="changes"]`   |
 | 浏览器面板   | `#browser-panel` 或 `[aria-labelledby*="browser"]`   |
 | 终端面板     | `#terminal-panel` 或 `[aria-labelledby*="terminal"]`   |
-| 通信面板     | `CommunicationPanel`（保留 ToolId，当前切换器未展示） |
 | 设置面板     | `#settings-panel` 或 `[aria-labelledby*="settings"]` |
 | 调整手柄     | `.adl-rightpanel__resize-handle`                     | ⚠️ 仅 3px `::before` 线可拖拽（容器不吃指针，层级低于弹层遮罩） |
 

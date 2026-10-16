@@ -230,9 +230,8 @@
 }
 
 /* Mid-segment subtle separator between the leading navigator toggle and its
-   right neighbor — intentionally mirrors .adl-communicate__header-separator
-   (same 1px/16px/border metrics). Kept as a separate class (vs the 18px
-   .adl-tool-context__divider) so the communicate look stays byte-identical;
+   right neighbor (same 1px/16px/border metrics). Kept as a separate class
+   (vs the 18px .adl-tool-context__divider);
    shared from here by all tool panels (no CSS code-splitting in this bundle). */
 .adl-tool-context__separator {
   width: 1px;

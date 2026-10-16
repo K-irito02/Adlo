@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { persistField } from '../apply';
 import { persist } from '../persist';
 import { hydrateAll, resetHydrationForTest } from '../hydrate';
-import { flushCrossSliceWrites, readJson } from '../../storageHelpers';
-import { registry, registryEntries } from '../registry';
+import { flushCrossSliceWrites } from '../../storageHelpers';
+import { registryEntries } from '../registry';
 import {
   applyRightPanelMode,
   readCachedRightPanelMode,
@@ -19,30 +19,19 @@ import {
 } from '@hooks/usePersistedScrollTop';
 
 /**
- * Task 29：范围外右侧面板工具的持久化往返（CI / GitHub / 通信 / 系统监控 / 剪贴板 / 右侧布局）。
+ * 范围外右侧面板工具的持久化往返（变更 / 系统监控 / 剪贴板 / 右侧布局）。
+ *
+ * CI / GitHub / 通信面板已随分支 remove-communicate-panel 彻底删除，
+ * 其登记条目与本文件对应 legacy 映射、用例同步移除；用户本地残留旧键由
+ * cleanupUnregisteredKeys 在启动时清理。
  *
  * 每条用例都是"写入 → flush（模拟关窗落盘）→ resetHydration（模拟重启）→ 读回一致"。
- * 体积预检结论（node 实测代表性夹具）：ciLogCaches ~336KB、ciSnapshots ~21KB（4 工作区，
- * 约 5KB/工作区，7+ 工作区即超 32KB 同步读准入线）→ 二者 sync:false，构造期跳过、
- * 由 githubSlice 的延迟加载按需读取；ciFolders ~1.2KB、workspaceConfigs ~715B → sync。
  */
 
-// [legacy, registryKey]：V2 盘点（ledger B1）的 15 个未覆盖键 + T22 收编的 2 个布局键，
-// 共 17 个遗留键；其中 adl-ui:github-access-token 在生产代码中不存在（仅 mock-ci
-// 的一处注释，ledger F 已证伪），无 store 字段、无读写路径可搬迁，故不登记、
-// 仅把注释中的示例改为新式键名——此处断言其余 16 个全部已登记。
+// [legacy, registryKey]：V2 盘点（ledger B1） + T22 收编的布局键中保留下来的部分
+//（CI / GitHub / 通信的 10 个映射已随删除移除）；此处断言其余 6 个全部已登记。
 const RELOCATED: [string, string][] = [
   ['adl-ui:changes-branch', 'adl:changes.branch'],
-  ['adl-ui:active-github-section', 'adl:browser.githubSection'],
-  ['adl-ui:github-ci-folders', 'adl:browser.ciFolders'],
-  ['adl-ui:github-workspace-configs', 'adl:browser.workspaceConfigs'],
-  ['adl-ui:ci-access-token', 'adl:browser.ciAccessToken'],
-  ['adl-ui:ci-config', 'adl:browser.ciConfig'],
-  ['adl-ui:ci-snapshots', 'adl:browser.ciSnapshots'],
-  ['adl-ui:ci-log-caches', 'adl:browser.ciLogCaches'],
-  ['adl-ui:ci-auto-refresh-on-push', 'adl:browser.ciAutoRefreshOnPush'],
-  ['adl-ui:active-communicate-platform', 'adl:ui.communicatePlatform'],
-  ['adl-ui:communicate-navigator-collapsed', 'adl:ui.communicateNavigatorCollapsed'],
   ['adl-ui:sysmon-collapsed', 'adl:ui.sysmonCollapsed'],
   ['adl-ui:sysmon-scroll-top', 'adl:ui.sysmonScrollTop'],
   ['adl-ui:clipboard-scroll-top', 'adl:ui.clipboardScrollTop'],
@@ -78,144 +67,6 @@ describe('out-of-scope panels persistence (Task 29)', () => {
     flushCrossSliceWrites();
     resetHydrationForTest();
     expect(hydrateAll().patch.selectedBranch).toBe('feature/x');
-  });
-
-  it('restores browser.githubSection after a simulated restart', () => {
-    persistField('adl:browser.githubSection', 'workflows');
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.activeGitHubSection).toBe('workflows');
-  });
-
-  it("rejects the 'logs' section exactly like the previous reader (falls back to overview)", () => {
-    localStorage.setItem('adl:browser.githubSection', JSON.stringify('logs'));
-    const result = hydrateAll();
-    expect(result.patch.activeGitHubSection).toBe('overview');
-    expect(result.dirtyKeys).toContain('adl:browser.githubSection');
-  });
-
-  it('restores browser.ciFolders after a simulated restart', () => {
-    const folders = [
-      {
-        id: 'f1',
-        name: 'folder 1',
-        createdAt: 1726800000000,
-        ciConfig: {
-          owner: 'o',
-          repo: 'r',
-          branch: 'main',
-          workflowId: null,
-          accessToken: null,
-          configured: true,
-        },
-      },
-    ];
-    persistField('adl:browser.ciFolders', folders);
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.gitHubCiFolders).toEqual(folders);
-  });
-
-  it('restores browser.workspaceConfigs after a simulated restart', () => {
-    const configs = {
-      'ws-1': {
-        owner: 'octocat',
-        repo: 'hello',
-        branch: 'main',
-        workflowId: null,
-        accessToken: null,
-        configured: true,
-      },
-    };
-    persistField('adl:browser.workspaceConfigs', configs);
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.gitHubWorkspaceConfigs).toEqual(configs);
-  });
-
-  it('restores browser.ciAccessToken after a simulated restart (browser-mode mirror, as-is)', () => {
-    persistField('adl:browser.ciAccessToken', 'ghp_test');
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.ciAccessToken).toBe('ghp_test');
-  });
-
-  it('round-trips an empty ciAccessToken (clear path writes empty, not removeItem)', () => {
-    persistField('adl:browser.ciAccessToken', 'ghp_test');
-    flushCrossSliceWrites();
-    persistField('adl:browser.ciAccessToken', '');
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.ciAccessToken).toBe('');
-  });
-
-  it('restores browser.ciConfig after a simulated restart', () => {
-    const config = {
-      owner: 'octocat',
-      repo: 'hello',
-      branch: 'main',
-      workflowId: null,
-      accessToken: null,
-    };
-    persistField('adl:browser.ciConfig', config);
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.ciConfig).toEqual(config);
-  });
-
-  it('keeps bulky ciSnapshots out of construction hydration (sync:false, lazy load)', () => {
-    expect(registry['adl:browser.ciSnapshots'].sync).toBe(false);
-    const snapshots = {
-      'ws-1': {
-        repo: 'o/r',
-        branch: 'main',
-        latestRun: null,
-        jobs: [],
-        logs: null,
-        capturedAtMs: 1,
-        error: null,
-      },
-    };
-    persist('adl:browser.ciSnapshots', snapshots);
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    const hydrated = hydrateAll();
-    expect((hydrated.patch as Record<string, unknown>).ciSnapshots).toBeUndefined();
-    const read = registry['adl:browser.ciSnapshots'].read;
-    expect(read?.(readJson('adl:browser.ciSnapshots', undefined))).toEqual(snapshots);
-  });
-
-  it('keeps bulky ciLogCaches out of construction hydration (sync:false, lazy load)', () => {
-    expect(registry['adl:browser.ciLogCaches'].sync).toBe(false);
-    const caches = { 'dir-1': { selectedJobId: 7, logs: { 7: 'line1\nline2\n' } } };
-    persist('adl:browser.ciLogCaches', caches);
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    const hydrated = hydrateAll();
-    expect((hydrated.patch as Record<string, unknown>).ciLogCaches).toBeUndefined();
-    const read = registry['adl:browser.ciLogCaches'].read;
-    expect(read?.(readJson('adl:browser.ciLogCaches', undefined))).toEqual(caches);
-  });
-
-  it('restores browser.ciAutoRefreshOnPush after a simulated restart', () => {
-    persistField('adl:browser.ciAutoRefreshOnPush', false);
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.ciAutoRefreshOnPush).toBe(false);
-  });
-
-  it('restores ui.communicatePlatform after a simulated restart', () => {
-    persistField('adl:ui.communicatePlatform', 'feishu');
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.activePlatform).toBe('feishu');
-  });
-
-  it('restores ui.communicateNavigatorCollapsed after a simulated restart', () => {
-    persistField('adl:ui.communicateNavigatorCollapsed', true);
-    flushCrossSliceWrites();
-    resetHydrationForTest();
-    expect(hydrateAll().patch.communicateNavigatorCollapsed).toBe(true);
   });
 
   it('restores ui.sysmonCollapsed after a simulated restart', () => {

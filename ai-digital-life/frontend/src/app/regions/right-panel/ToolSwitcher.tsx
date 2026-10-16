@@ -61,31 +61,6 @@ const TAB_META: {
     icon: <IconSettings size={16} decorative />,
     labelKey: 'toolSettings',
   },
-  // ── 通信面板（发布前隐藏，可恢复） ─────────────────────────────────────
-  // 隐藏原因：通信面板还有很多功能没有实现，发布产品时暂不对外展示，
-  // 以后考虑好后会再恢复实现与完善，所以这里只注释、不删除代码。
-  // 恢复方法（共 3 处，缺一不可）：
-  // 1. 取消下面整个 communicate 配置块的注释；
-  // 2. 恢复 RightPanel.tsx 中的 CommunicationPanel 懒加载 import 与面板 div；
-  // 3. 确认 ToolId（stores/types.ts）仍保留 'communicate'（已保留，无需改动）。
-  // 注意：badges 仍保留 communicate 键（useRightPanelViewProps），恢复后徽标自动生效；
-  // 持久化的 activeRightTool 若为旧值（如 'communicate'），注册表的 readStringEnum 会回落到 'files'，无需迁移。
-  // {
-  //   id: 'communicate',
-  //   icon: (
-  //     <svg
-  //       viewBox="0 0 16 16"
-  //       width="16"
-  //       height="16"
-  //       fill="currentColor"
-  //       style={{ display: 'block' }}
-  //     >
-  //       <path d="M2 4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-3 3v-3H4a2 2 0 0 1-2-2V4zm2-1a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1h3v2.5L9.5 10H12a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H4z" />
-  //       <path d="M5 5.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 0 1h-1a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5z" />
-  //     </svg>
-  //   ),
-  //   labelKey: 'toolCommunicate',
-  // },
 ];
 
 export const ToolSwitcher = React.memo(function ToolSwitcher({

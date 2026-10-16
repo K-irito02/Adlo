@@ -14,7 +14,6 @@ export const modelsZh = {
   modelTestConnection: '测试连接',
   tokenBudget: 'Token 预算',
   toolSettings: '设置',
-  toolCommunicate: '通信',
   modelSettingsProvidersZone: '供应商',
   modelSettingsEnabledModelsZone: '已启用模型',
   modelProviderEnableAria: '启用 {provider}',

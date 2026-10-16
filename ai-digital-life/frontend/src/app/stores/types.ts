@@ -1,9 +1,5 @@
-// 右侧面板工具 ID。注意：'communicate'（通信面板）为发布前隐藏状态，
-// 前端入口（ToolSwitcher + RightPanel）已注释隐藏，但类型必须保留：
-// 1. 兼容用户本地持久化的旧 activeRightTool 值（readRightTool 会自动回落到 files）；
-// 2. 以后恢复时只需取消两处注释，无需改类型与迁移数据。
-// 切勿删除本联合成员，i18n / slice / CSS 同样完整保留。
-export type ToolId = 'files' | 'changes' | 'browser' | 'terminal' | 'settings' | 'communicate';
+// 右侧面板工具 ID（通信面板已彻底删除，见分支 remove-communicate-panel，需要时从 Git 恢复）。
+export type ToolId = 'files' | 'changes' | 'browser' | 'terminal' | 'settings';
 export type ChatMode = 'plan' | 'debug' | 'ask';
 export type TerminalProfile = 'powershell' | 'bash' | 'cmd';
 export type FilesNavigatorMode = 'tree' | 'search' | 'outline';

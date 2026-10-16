@@ -16,7 +16,7 @@ import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { useAppStore } from '@stores/slicedStore';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
-import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
+import { MenuHintItem } from '@components/MenuHintItem';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { joinPathSegments } from '@app/utils/workspacePaths';
 

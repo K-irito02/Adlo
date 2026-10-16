@@ -171,7 +171,7 @@ async function waitForRightpanelExpanded(timeout = 2000) {
 
 /**
  * 等待工具面板激活
- * @param {string} toolId - 工具 ID (files/changes/browser/terminal/settings/communicate)
+ * @param {string} toolId - 工具 ID (files/changes/browser/terminal/settings)
  */
 async function waitForToolActive(toolId, timeout = 3000) {
   return waitFor(

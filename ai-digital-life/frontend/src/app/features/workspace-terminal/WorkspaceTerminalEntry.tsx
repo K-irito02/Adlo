@@ -16,7 +16,7 @@ import {
   IconChevronRight,
 } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
-import { MenuHintItem } from '@regions/right-panel/panels/communicate/MenuHintItem';
+import { MenuHintItem } from '@components/MenuHintItem';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { TerminalTabBar } from '../terminal/TerminalTabBar';
 import { TerminalContextMenu } from '../terminal/TerminalContextMenu';

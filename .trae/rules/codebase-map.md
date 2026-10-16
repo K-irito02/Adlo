@@ -105,11 +105,6 @@ app/stores/
 │   ├── commandSlice.ts          # 命令状态
 │   ├── clipboardSlice.ts        # 剪贴板状态
 │   ├── terminalSlice.ts         # 终端会话管理
-│   ├── ciSlice.ts               # CI 状态（轮询、快照、Section 切换）
-│   ├── communicateSlice.ts      # 通信面板共享状态
-│   ├── githubSlice.ts           # GitHub 面板核心
-│   ├── githubRepoSlice.ts       # GitHub 仓库配置（Token、CRUD、Pin/Unpin）
-│   ├── githubTreeSlice.ts       # GitHub 树形目录
 │   ├── browserSlice.ts          # 浏览器核心（导航布局、持久化）
 │   ├── browserTabsSlice.ts      # 浏览器标签页
 │   ├── browserBookmarkSlice.ts  # 浏览器书签（含 browserWorkspaceBookmarks 工作区书签）

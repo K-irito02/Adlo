@@ -12,8 +12,8 @@
 │          │                                               │ [14] Tool Switcher │
 │  [10]    │         [15] Center Tab Host                  │ (files/changes/   │
 │  Left    │         (CenterEntryPage: dsh / 浏览器 / 终端)  │  browser/terminal/ │
-│  Sidebar │                                               │  settings/         │
-│ (剪切看板 │                                               │  communicate)      │
+│  Sidebar │                                               │  settings)         │
+│ (剪切看板 │                                               │                    │
 │ +系统监控)│                                               │                    │
 │          │                                               │   [17] Tool Panel  │
 │          │                                               │       Content      │

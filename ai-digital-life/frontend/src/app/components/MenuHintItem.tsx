@@ -1,4 +1,4 @@
-import { useHintCard, HintCard } from '../../../../components/HintCard';
+import { useHintCard, HintCard } from './HintCard';
 
 interface MenuHintItemProps {
   label: string;

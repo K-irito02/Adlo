@@ -169,4 +169,9 @@ export const commonZh = {
   validationWarnings: '警告',
   validationPassed: '通过',
   browserNewFolderName: '新建目录',
+  // ======== Relative time (utils/relativeTime) ========
+  relativeTimeJustNow: '刚刚',
+  relativeTimeMinutesAgo: '{n} 分钟前',
+  relativeTimeHoursAgo: '{n} 小时前',
+  relativeTimeDaysAgo: '{n} 天前',
 } as const;

@@ -82,7 +82,6 @@ frontend/src/app/features/dsh/                  # dsh 版本管理与宿主渲�
 frontend/src/app/features/editor/               # CodeMirror 编辑器（含 FoldTooltipOverlay）
 frontend/src/app/features/file-tree/            # 文件树
 frontend/src/app/features/git-visualization/    # Git 可视化
-frontend/src/app/features/github-tree/          # GitHub 仓库树
 frontend/src/app/features/multi-workspace/      # 多工作区容器
 frontend/src/app/features/outline/              # 大纲树
 frontend/src/app/features/patch-review/         # 补丁审查
@@ -137,7 +136,7 @@ frontend/src/app/stores/storageHelpers.ts # localStorage 读写工具（经中�
 frontend/src/app/stores/persisted/registry.ts # 持久化中心登记表（adl:ui.*，唯一写盘入口）
 frontend/src/app/stores/constants.ts      # 常量
 frontend/src/app/stores/actions/          # 18 个跨切片 action 模块
-frontend/src/app/stores/slices/           # 状态切片（含 browser*/centerTabs/ci/clipboard*/communicate/diagnostic/dsh/editor/errorToast/fileOpNotice/git*/github*/notification/patch/reference/search/systemMonitor/terminal/toast/ui/workspace）
+frontend/src/app/stores/slices/           # 状态切片（含 browser*/centerTabs/clipboard*/diagnostic/dsh/editor/errorToast/fileOpNotice/git*/notification/patch/reference/search/systemMonitor/terminal/toast/ui/workspace；ci/communicate/github 系列已随 remove-communicate-panel 删除）
 ```
 
 ### IPC 桥接（三端对齐）

@@ -25,7 +25,6 @@ const badges: Record<ToolId, number> = {
   browser: 0,
   terminal: 0,
   settings: 0,
-  communicate: 0,
 };
 
 afterEach(cleanup);
@@ -57,9 +56,10 @@ describe('ToolSwitcher', () => {
     for (const label of labels) {
       expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
     }
+    expect(screen.getAllByRole('tab')).toHaveLength(5);
   });
 
-  it('hides the communicate tab before release (restorable, see ToolSwitcher TAB_META comment)', () => {
+  it('renders five tool tabs and no removed communicate tab', () => {
     renderSwitcher();
     expect(screen.queryByRole('tab', { name: 'toolCommunicate' })).not.toBeInTheDocument();
   });

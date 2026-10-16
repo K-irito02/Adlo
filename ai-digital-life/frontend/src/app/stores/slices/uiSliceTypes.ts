@@ -103,7 +103,6 @@ export function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
     browser: false,
     terminal: false,
     settings: false,
-    communicate: false,
   };
 }
 

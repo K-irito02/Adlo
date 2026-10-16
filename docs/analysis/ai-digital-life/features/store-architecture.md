@@ -46,9 +46,6 @@ export const useAppStore = useSlicedAppStore;
 | `createDiagnosticSlice` | `slices/diagnosticSlice.ts` |
 | `createTerminalSlice` | `slices/terminalSlice.ts`（+ terminalSliceTypes） |
 | `createClipboardSlice` / `createClipboardHistorySlice` | `slices/clipboardSlice.ts` / `slices/clipboardHistorySlice.ts` |
-| `createCiSlice` | `slices/ciSlice.ts` |
-| `createCommunicateSlice` | `slices/communicateSlice.ts` |
-| `createGitHubSlice` / `createGitHubRepoSlice` / `createGitHubTreeSlice` | `slices/githubSlice.ts`（+ helpers）/ `githubRepoSlice.ts`（+ helpers/types）/ `githubTreeSlice.ts` |
 | `createBrowserSlice` / `createBrowserTabsSlice` / `createBrowserBookmarkSlice` / `createBrowserHistorySlice` / `createBrowserFoldersSlice` / `createBrowserLandingSlice` / `createBrowserSearchEnginesSlice` / `createBrowserDownloadsSlice` | `slices/browser*.ts`（+ browserSliceShared/browserTypes/browserFoldersDeletion/Types/Utils） |
 | `createCenterTabsSlice` | `slices/centerTabsSlice.ts`（+ centerTabsTypes/tabLocation） |
 | `createDshSlice` | `slices/dshSlice.ts` |

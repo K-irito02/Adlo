@@ -67,10 +67,13 @@ alwaysApply: false
 当两个相邻按钮同时处于悬停或激活态时，中间显示垂直分割线：
 
 ```css
-.adl-communicate__platform-separator::before {
-  top: 7px;
-  bottom: 7px;
+.adl-iconstrip__separator::before {
+  top: var(--adl-iconstrip-separator-inset); /* 7px */
+  bottom: var(--adl-iconstrip-separator-inset);
   width: 1px;
+  background: transparent;
+}
+.adl-iconstrip__separator.is-visible::before {
   background: var(--border-strong);
 }
 ```
@@ -85,7 +88,7 @@ const shouldShowSeparator =
   (activeTab === nextTab.id || hoveredTab === nextTab.id);
 ```
 
-详见 [tool-switcher.css](../../ai-digital-life/frontend/src/styles/regions/rightpanel/tool-switcher.css) 和 [communication-panel.css](../../ai-digital-life/frontend/src/styles/regions/rightpanel/communication-panel.css)。
+详见 [tool-switcher.css](../../ai-digital-life/frontend/src/styles/regions/rightpanel/tool-switcher.css)（`.adl-iconstrip__separator`）。
 
 ## CodeMirror 编辑器集成
 

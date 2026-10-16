@@ -101,7 +101,6 @@ function navigatorCollapsedFor(browser: boolean) {
     files: false,
     changes: false,
     settings: false,
-    communicate: false,
   };
 }
 

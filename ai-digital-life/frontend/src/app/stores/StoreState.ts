@@ -25,11 +25,6 @@ import type { BrowserFoldersSlice } from './slices/browserFoldersSlice';
 import type { BrowserLandingSlice } from './slices/browserLandingSlice';
 import type { BrowserSearchEnginesSlice } from './slices/browserSearchEnginesSlice';
 import type { BrowserSlice } from './slices/browserSlice';
-import type { CiSlice } from './slices/ciSlice';
-import type { CommunicateSlice } from './slices/communicateSlice';
-import type { GitHubRepoSlice } from './slices/githubRepoSlice';
-import type { GitHubTreeSlice } from './slices/githubTreeSlice';
-import type { GitHubSlice as GitHubSliceType } from './slices/githubSlice';
 import type { ReferenceSlice } from './slices/referenceSlice';
 import type { ToastSlice } from './slices/toastSlice';
 import type { ErrorToastSlice } from './slices/errorToastSlice';
@@ -117,11 +112,6 @@ type AllSlices = [
   BrowserLandingSlice,
   BrowserSearchEnginesSlice,
   BrowserSlice,
-  CiSlice,
-  CommunicateSlice,
-  GitHubRepoSlice,
-  GitHubTreeSlice,
-  GitHubSliceType,
   ReferenceSlice,
   ToastSlice,
   ErrorToastSlice,

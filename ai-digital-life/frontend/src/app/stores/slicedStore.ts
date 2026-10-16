@@ -26,11 +26,6 @@ import {
   createBrowserLandingSlice,
   createBrowserSearchEnginesSlice,
   createBrowserSlice,
-  createCiSlice,
-  createCommunicateSlice,
-  createGitHubRepoSlice,
-  createGitHubTreeSlice,
-  createGitHubSlice,
   createReferenceSlice,
   createToastSlice,
   createErrorToastSlice,
@@ -90,11 +85,6 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createBrowserLandingSlice(set, get), // 浏览器落地页（快捷站点、端口、背景）
   ...createBrowserSearchEnginesSlice(set, get), // 浏览器搜索引擎配置
   ...createBrowserSlice(set, get), // 浏览器核心状态（导航栏、视图模式、持久化）
-  ...createCiSlice(set, get), // CI 状态（GitHub Actions）
-  ...createCommunicateSlice(set, get), // 通信状态（多平台）
-  ...createGitHubRepoSlice(set, get), // GitHub 仓库 CRUD（工作区配置、CI 目录管理、Pin/Unpin）
-  ...createGitHubTreeSlice(set, get), // GitHub 树导航（展开/折叠、路径选择）
-  ...createGitHubSlice(set, get), // GitHub CI 配置 + 状态（分支/提交/远程操作）
   ...createReferenceSlice(set, get), // 参考代码仓库管理
   ...createToastSlice(set, get), // 全局 Toast 通知
   ...createErrorToastSlice(set, get), // 报错 Toast 队列（右下角持久）

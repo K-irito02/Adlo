@@ -7,8 +7,6 @@ import { browserEn } from './browser';
 import { approvalEn } from './approval';
 import { modelsEn } from './models';
 import { commonEn } from './common';
-import { ciEn } from './ci';
-import { communicateEn } from './communicate';
 import { mcpEn } from './mcp';
 import { webSearchEn } from './webSearch';
 import { lspEn } from './lsp';
@@ -30,8 +28,6 @@ export const enUS = {
   ...approvalEn,
   ...modelsEn,
   ...commonEn,
-  ...ciEn,
-  ...communicateEn,
   ...mcpEn,
   ...webSearchEn,
   ...lspEn,

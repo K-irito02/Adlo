@@ -133,7 +133,7 @@ CSS 兄弟选择器 `~` 无法跨越扁平列表的兄弟节点。目录悬停�
 - 必须给父元素设置 `z-index: 0`（而非仅 `position: relative`），否则 `::after` 的 `z-index: -1` 在根层叠上下文中会绘制在普通流元素（含卡片背景）之后，导致背景不可见
 - `left`/`right` 的负值必须累加从目标元素到卡片边界的全部 padding/margin
 - `border-radius: 0` 确保直角延伸无缝隙
-- 参考实现：`communication-panel.css` 中 `.adl-github-timeline__step:hover::after`
+- 参考实现：暂缺（原 `communication-panel.css` 示例已随通信面板删除）；新增同类实现时须按本节三条约束自证（层叠上下文、负值累加、直角无缝隙）
 
 ## 对话框按钮组防溢出（长文案语言）
 

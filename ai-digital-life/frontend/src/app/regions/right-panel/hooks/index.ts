@@ -17,6 +17,3 @@ export { useFilesPanelProps } from './useFilesPanelProps';
 export { useChangesPanelProps } from './useChangesPanelProps';
 export { useBrowserPanelProps } from './useBrowserPanelProps';
 export { useSettingsPanelProps } from './useSettingsPanelProps';
-export { useCIPanelProps } from './useCIPanelProps';
-export { useCommunicationPanelProps } from './useCommunicationPanelProps';
-export type { CommunicationPanelProps } from './useCommunicationPanelProps';

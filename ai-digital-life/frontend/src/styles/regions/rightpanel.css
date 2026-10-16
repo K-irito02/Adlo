@@ -18,9 +18,4 @@
 @import './rightpanel/browser-toolbar.css';
 @import './rightpanel/browser-webview.css';
 @import './rightpanel/terminal-panel.css';
-@import './rightpanel/communication-panel.css';
-@import './rightpanel/communication-overview.css';
-@import './rightpanel/communication-workflows.css';
-@import './rightpanel/communication-jobs.css';
-@import './rightpanel/communication-settings.css';
 @import './rightpanel/git-visualization.css';

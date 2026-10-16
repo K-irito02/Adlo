@@ -99,35 +99,6 @@ export {
 // 浏览器切片 — 核心层（组合所有子切片）
 export { type BrowserSlice, createBrowserSlice } from './slices/browserSlice';
 
-// CI 切片
-export { type CiSlice, createCiSlice } from './slices/ciSlice';
-
-// 通信切片
-export {
-  type CommunicateSlice,
-  type PlatformId,
-  createCommunicateSlice,
-} from './slices/communicateSlice';
-
-// GitHub Repo 切片（工作区配置、CI 目录管理、Pin/Unpin）
-export {
-  type GitHubRepoSlice,
-  type GitWorkspaceCiConfig,
-  type GitHubCiFolderState,
-  createGitHubRepoSlice,
-} from './slices/githubRepoSlice';
-
-// GitHub Tree 切片（树导航、展开/折叠）
-export {
-  type GitHubTreeSlice,
-  type GitHubTreeNodeType,
-  type GitHubTreeNode,
-  createGitHubTreeSlice,
-} from './slices/githubTreeSlice';
-
-// GitHub 切片（CI 配置 + CI 状态、分支/提交/远程操作）
-export { type GitHubSlice, type GitHubSection, createGitHubSlice } from './slices/githubSlice';
-
 // Reference 切片
 export { type ReferenceSlice, createReferenceSlice } from './slices/referenceSlice';
 

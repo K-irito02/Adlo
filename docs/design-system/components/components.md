@@ -96,7 +96,7 @@ When rows inside a card need a hover background that extends to the card's left/
 
 **Key constraint**: `z-index: 0` on the row creates a local stacking context. Without it, `z-index: -1` on `::after` paints behind the card's background in the root stacking context and becomes invisible.
 
-Reference implementation: `communication-panel.css` → `.adl-github-timeline__step:hover::after`.
+Reference implementation:暂缺（原 `communication-panel.css` 示例已随通信面板删除）；新增同类实现时须按上节约束自证层叠上下文与负值累加。
 
 ## Banner / Inline alert
 

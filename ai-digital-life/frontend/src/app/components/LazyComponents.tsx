@@ -12,12 +12,6 @@ export const LazyEditorSurface = React.lazy(() =>
   })),
 );
 
-export const LazyGitHubPanel = React.lazy(() =>
-  import('@regions/right-panel/panels/communicate/GitHubPanel').then((m) => ({
-    default: m.GitHubPanel,
-  })),
-);
-
 export const LazyGitVisualizationView = React.lazy(() =>
   import('@features/git-visualization').then((m) => ({
     default: m.GitVisualizationView,

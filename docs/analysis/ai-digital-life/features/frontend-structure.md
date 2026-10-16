@@ -51,7 +51,6 @@ frontend/src/app/
 | 编辑器 | `features/editor/`（CodeMirror + FoldTooltipOverlay） |
 | 文件树 | `features/file-tree/` |
 | Git 可视化 | `features/git-visualization/` |
-| GitHub 树 | `features/github-tree/` |
 | 多工作区 | `features/multi-workspace/` |
 | 大纲 | `features/outline/` |
 | 补丁审查 | `features/patch-review/` |
@@ -75,21 +74,21 @@ App.tsx
 ├── TitleBar                # 自定义标题栏（HamburgerMenu.adl-hamburger__* + CenterTabStrip + WindowControls）
 ├── LeftSidebar             # 左侧边栏（ClipboardHistoryList + SystemMonitorPanel + ResizeHandle）
 ├── CenterPane              # 中央多标签宿主（CenterEntryPage + adl-center__empty 缺 tab 提示）
-├── RightPanel              # 右侧面板（6 工具切换：files/changes/browser/terminal/settings/communicate）
+├── RightPanel              # 右侧面板（5 工具切换：files/changes/browser/terminal/settings；communicate 已删除）
 │   ├── editor-support/     # 编辑器支持（stickyContext.ts/stickyContextView.tsx 已迁入）
-│   ├── panels/             # 子面板实现（BrowserPanel/ChangesPanel/FilesPanel/CommunicationPanel…）
+│   ├── panels/             # 子面板实现（BrowserPanel/ChangesPanel/FilesPanel…）
 │   ├── hooks/              # 右侧面板 Hook（useBrowserPanelProps/useRightPanelViewProps…）
-│   ├── ToolSwitcher.tsx    # 工具切换（ToolId 六项）
+│   ├── ToolSwitcher.tsx    # 工具切换（ToolId 五项）
 │   └── types.ts
 └── （无底部 StatusBar.tsx；状态信息位于各面板与标题栏）
 ```
 
-## 国际化 (i18n/，22 领域 × 中英)
+## 国际化 (i18n/，20 领域 × 中英）
 
 ```
 i18n/
-├── en-US/                  # 英文（23 文件含 index.ts）
-├── zh-CN/                  # 中文（23 文件含 index.ts）
+├── en-US/                  # 英文（21 文件含 index.ts）
+├── zh-CN/                  # 中文（21 文件含 index.ts）
 ├── TCopyContext.tsx        # TCopyProvider 上下文
 ├── useTCopy.ts             # useTCopy() hook（无 Provider 即抛错）
 ├── formatT.ts              # 模板插值（可单独导入）
@@ -100,16 +99,14 @@ i18n/
 └── types.ts
 ```
 
-### 22 个翻译域
+### 20 个翻译域
 
 | 域 | 说明 |
 |----|------|
 | approval | 审批流程文案 |
 | browser | 浏览器面板文案 |
 | changes | 变更面板文案 |
-| ci | CI 状态文案 |
 | common | 通用文案 |
-| communicate | 通讯面板文案 |
 | customAgent | 自定义 Agent 文案 |
 | dsh | dsh 宿主文案 |
 | durable | 持久会话文案 |

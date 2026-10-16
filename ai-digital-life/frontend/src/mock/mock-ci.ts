@@ -2,15 +2,12 @@ import type { GitHubBridge, CiRepoConfig, CiStatusSnapshot } from "../shared/ipc
 import type { IpcResult } from "@ai-digital-life/kernel";
 
 /**
- * Shared token management for CI and GitHub domains.
+ * Mock GitHub bridge（mock-bridge 用）。
  *
- * Both `ci` and `github` domains originally used the same localStorage token key.
- * To preserve existing behavior (no logic change during the split), both domains
- * continue to use the same key here (relocated to `'adl:browser.ciAccessToken'`
- * by Task 29, shared with the store).
- *
- * Concern: github likely should use its own key (e.g. `'adl:browser.githubAccessToken'`)
- * so CI and GitHub tokens don't overwrite each other. See task-3-report.md.
+ * token 三方法（set/clear/hasAccessToken）仅为满足 GitHubBridge 接口形状而保留；
+ * store 侧的 CI/GitHub 状态已随 remove-communicate-panel 删除，全仓已无调用方。
+ * localStorage 键 'adl:browser.ciAccessToken' 已退出 persist registry（启动即被清理），
+ * 此处仅作 mock 内部往返，不再与任何 store 共享语义。
  *
  * NOTE: mock bridge keeps synchronous direct localStorage IO on purpose —
  * `hasAccessToken` must observe `setAccessToken` immediately, which the shared

@@ -7,8 +7,6 @@ import { browserZh } from './browser';
 import { approvalZh } from './approval';
 import { modelsZh } from './models';
 import { commonZh } from './common';
-import { ciZh } from './ci';
-import { communicateZh } from './communicate';
 import { mcpZh } from './mcp';
 import { webSearchZh } from './webSearch';
 import { lspZh } from './lsp';
@@ -30,8 +28,6 @@ export const zhCN = {
   ...approvalZh,
   ...modelsZh,
   ...commonZh,
-  ...ciZh,
-  ...communicateZh,
   ...mcpZh,
   ...webSearchZh,
   ...lspZh,

@@ -159,4 +159,9 @@ export const commonEn = {
   validationWarnings: 'Warnings',
   validationPassed: 'Passed',
   browserNewFolderName: 'New folder',
+  // ======== Relative time (utils/relativeTime) ========
+  relativeTimeJustNow: 'Just now',
+  relativeTimeMinutesAgo: '{n} min ago',
+  relativeTimeHoursAgo: '{n} hr ago',
+  relativeTimeDaysAgo: '{n} days ago',
 } as const;

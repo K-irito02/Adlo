@@ -45,14 +45,6 @@ describe('i18n en-US namespace keys', () => {
     expect(enUS).toHaveProperty('approvals');
   });
 
-  it('includes ci domain keys', () => {
-    expect(enUS).toHaveProperty('ciPanelTitle');
-  });
-
-  it('includes communicate domain keys', () => {
-    expect(enUS).toHaveProperty('toolCommunicate');
-  });
-
   it('includes webSearch domain keys', () => {
     expect(enUS).toHaveProperty('webFetchPlaceholder');
   });

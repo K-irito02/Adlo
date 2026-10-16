@@ -62,7 +62,7 @@ App.tsx (根组件，TCopyProvider 注入)
 │   ├── TitleBar            # 标题栏（含汉堡菜单/中间区标签条/窗口控制）
 │   ├── CenterPane          # 中央多标签宿主（CenterEntryPage：dsh/浏览器/终端）
 │   ├── LeftSidebar         # 左侧边栏（剪切看板 + 系统监控）
-│   └── RightPanel          # 右侧面板（6 工具切换：files/changes/browser/terminal/settings/communicate）
+  │   └── RightPanel          # 右侧面板（5 工具切换：files/changes/browser/terminal/settings；communicate 已删除）
 │
 ├── [Features] (25 功能域)  # 按功能域组织的面板，详见 00-quick-reference.md
 │   ├── browser/            # 内置浏览器
@@ -87,8 +87,6 @@ slicedStore.ts (合并入口，32 切片)
 ├── 面板切片 (UI 面板)
 │   ├── browserSlice 系列    # 浏览器（8 切片：browser/tabs/bookmark/history/folders/landing/searchEngines/downloads）
 │   ├── terminalSlice        # 终端
-│   ├── ciSlice              # CI 状态
-│   ├── githubSlice 系列     # GitHub（3 切片：github/repo/tree）
 │   ├── centerTabsSlice      # 中间区标签
 │   └── dshSlice             # dsh 宿主
 │
@@ -97,7 +95,6 @@ slicedStore.ts (合并入口，32 切片)
 │   ├── searchSlice          # 搜索
 │   ├── diagnosticSlice      # 诊断
 │   ├── clipboardSlice 系列  # 剪贴板
-│   ├── communicateSlice     # 通信面板
 │   ├── referenceSlice       # 引用管理
 │   └── systemMonitorSlice   # 系统监视器
 │
