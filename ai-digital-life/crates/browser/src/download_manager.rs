@@ -2220,14 +2220,14 @@ fn copy_dir_all(src: &Path, dst: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// 路径比较键：优先 canonicalize（消 `..`/符号链接/相对），失败回退词法原样。
+/// 路径比较键：优先 canonicalize（消 `..`/符号链接/相对/8.3 短名），失败回退词法原样。
 /// Windows 关键点：
 /// 1. canonicalize 返回 `\\?\C:\...`（UNC 为 `\\?\UNC\...`），词法回退路径没有该前缀——
 ///    不剥则同一目录产生两种键，相等/前缀比较必失败，故统一剥离；
 /// 2. 统一分隔符并小写折叠——大小写/分隔符别名必须得到同一键，
 ///    否则 overlap/相等判断可被绕过（Windows 大小写不敏感）。
 fn normalize_path_key(path: &Path) -> String {
-    let resolved = path.canonicalize().unwrap_or_else(|_| lexical_normalize(path));
+    let resolved = resolve_for_compare(path);
     let mut s = resolved.to_string_lossy().into_owned();
     #[cfg(windows)]
     {
@@ -2239,6 +2239,39 @@ fn normalize_path_key(path: &Path) -> String {
         s = s.replace('/', "\\").to_lowercase();
     }
     s
+}
+
+/// 解析用于比较的规范路径：能整条 canonicalize 就整条解析；否则把「最深的已存在祖先」
+/// canonicalize 后再拼回剩余分量。
+/// 两侧必须同源：若一方 canonicalize 成功（Windows 会把 8.3 短名展开成长名，如
+/// `RUNNER~1` → `runneradmin`）、另一方因目标尚不存在而退回词法（保留短名），
+/// 前缀比较失配 → overlap 漏判、目标被搬进源内部（CI 短 TEMP 环境实测）。
+fn resolve_for_compare(path: &Path) -> PathBuf {
+    if let Ok(resolved) = path.canonicalize() {
+        return resolved;
+    }
+    let lex = lexical_normalize(path);
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    let mut prefix = lex.clone();
+    loop {
+        if let Ok(resolved) = prefix.canonicalize() {
+            let mut out = resolved;
+            for seg in tail.iter().rev() {
+                out.push(seg);
+            }
+            return out;
+        }
+        match prefix.file_name() {
+            Some(name) => {
+                tail.push(name.to_os_string());
+                if !prefix.pop() {
+                    break;
+                }
+            },
+            None => break,
+        }
+    }
+    lex
 }
 
 /// 纯词法归一（不依赖文件系统存在性）：消解 `.`/`..` 分量。
