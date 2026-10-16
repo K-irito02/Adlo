@@ -15,6 +15,7 @@
 | [i18n-mock-assertion-and-floating-promise-pitfalls-2026-09-29.md](./i18n-mock-assertion-and-floating-promise-pitfalls-2026-09-29.md) | i18n mock 键名断言恒过陷阱（查渲染文本+注释回退依赖）、`void` async 入口 rejection 归属（catch 关框+回归测试先红后绿） |
 | [vitest-dynamic-import-mock-flake-2026-10-11.md](./vitest-dynamic-import-mock-flake-2026-10-11.md) | 同一文件多次动态 import 时 vi.mock 偶发失效（堆栈定位真实模块求值）+ 条件挂载 canvas 首屏竞态（单例加载器 + 绘制 effect 补画） |
 | [editor-single-source-of-truth-2026-10-16.md](./editor-single-source-of-truth-2026-10-16.md) | 编辑器五账本不同步致内容覆盖/复活（缓存双钥匙、脏读旧闭包、事件通道无人 emit）：统一钥匙、保存只认暂存、读写代际守卫 |
+| [windows-short-path-tempdir-pitfalls-2026-10-17.md](./toolchain-lint/windows-short-path-tempdir-pitfalls-2026-10-17.md) | Windows 8.3 短名致路径比较失配（canonical/词法混用）与并行测试临时目录共名 flake（最深已存在祖先归一 + 原子计数唯一命名 + 短 TEMP 复现技巧） |
 
 ## 子主题
 
