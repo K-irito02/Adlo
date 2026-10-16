@@ -45,7 +45,11 @@ async fn get_current_returns_active_workspace() {
         common::send_request(state.clone(), Method::GET, "/workspace/current", None).await;
     assert_eq!(status, axum::http::StatusCode::OK, "body: {body}");
     assert_eq!(body["data"]["id"], id, "body: {body}");
-    assert_eq!(body["data"]["rootPath"], ws.to_string_lossy().to_string(), "body: {body}");
+    // open_workspace 落库的是 canonicalize + 去 verbatim 前缀后的规范路径；
+    // TEMP 含 8.3 短名（如 CI 的 RUNNER~1）时与原始输入字面不等，按同配方归一后再比。
+    let canon = std::fs::canonicalize(&ws).expect("workspace dir must canonicalize");
+    let expected = adl_workspace::strip_verbatim_prefix(&canon.to_string_lossy());
+    assert_eq!(body["data"]["rootPath"], expected, "body: {body}");
 
     let (status, body) =
         common::send_request(state.clone(), Method::POST, "/workspace/clear-current", None).await;
