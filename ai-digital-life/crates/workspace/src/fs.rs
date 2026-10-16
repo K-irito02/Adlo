@@ -36,6 +36,32 @@ pub fn create_file(
     })
 }
 
+/// Overwrite an existing workspace file with new text content (the save path
+/// for Ctrl+S / autosave). Path traversal guarded by the same resolver as
+/// reads; writes above the 8MB text limit are rejected like reads.
+pub fn update_file(
+    root: &Path,
+    relative_path: &str,
+    content: &str,
+) -> Result<WorkspaceFileDocument, AppError> {
+    let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
+    if !path.is_file() {
+        return Err(AppError::Workspace(format!("file not found: {relative_path}")));
+    }
+    if content.len() as u64 > crate::DEFAULT_MAX_TEXT_FILE_BYTES {
+        return Err(AppError::InvalidInput(format!(
+            "file exceeds configured write limit: {relative_path}"
+        )));
+    }
+    adl_fs_ops::atomic_write(root, relative_path, content)?;
+    crate::tree::invalidate_tree_cache(root);
+    Ok(WorkspaceFileDocument {
+        path: relative_path.replace('\\', "/"),
+        content: content.to_string(),
+        last_modified_at: file_modified_at(&path),
+    })
+}
+
 pub fn create_folder(root: &Path, relative_path: &str) -> Result<bool, AppError> {
     let path = adl_fs_ops::resolve_workspace_path(root, relative_path)?;
     if path.exists() {

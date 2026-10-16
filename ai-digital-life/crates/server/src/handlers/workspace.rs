@@ -360,6 +360,33 @@ pub async fn create_file(
     ipc::to_response(result)
 }
 
+/// POST `/workspace/update-file` — overwrite a workspace file with new text
+/// content (the save path for Ctrl+S / autosave). Returns the fresh document.
+pub async fn update_file(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: FileOpsBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root_path = match workspace_root(&state, input.workspace_path) {
+        Ok(p) => p,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
+        let content = input.content.as_deref().unwrap_or("");
+        let doc = adl_workspace::update_file(
+            PathBuf::from(root_path).as_path(),
+            &input.relative_path,
+            content,
+        )?;
+        Ok(serde_json::to_value(doc)?)
+    })
+    .await;
+    ipc::to_response(result)
+}
+
 /// POST `/workspace/folder` — create a folder in the active workspace.
 pub async fn create_folder(
     State(state): State<ServerState>,

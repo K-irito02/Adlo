@@ -1,6 +1,6 @@
 import type { StoreState } from '../StoreState';
 import { asWorkspaceID } from '../../../shared/branded';
-import { clearError, captureError } from '../shared';
+import { clearError, captureError, invalidateCachedPathTree } from '../shared';
 import type { StoreApi } from 'zustand';
 import { createBrowserCleanupActions } from './browserCleanupActions';
 import { createWorkspaceTreeActions } from './workspaceTreeActions';
@@ -272,6 +272,11 @@ export function createWorkspaceActions(
       set({
         openTabs: get().openTabs.filter((t) => !isUnderDeleted(t.path)),
       });
+      // 失效被删路径（含后代）的文件/预览缓存，防旧内容复活。
+      invalidateCachedPathTree(
+        ws?.id ?? get().appInfo?.currentWorkspace?.id ?? 'global',
+        relativePath,
+      );
       if (currentPath === relativePath) {
         set({
           selectedFilePath: undefined,

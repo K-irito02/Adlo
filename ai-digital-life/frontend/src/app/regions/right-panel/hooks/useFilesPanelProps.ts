@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { captureError } from '@stores/cacheHelpers';
+import { peekPendingEditorText } from '@stores/actions/editorActions';
 import { useAppActions } from '@hooks/useAppActions';
 import { findPatchFileByPath } from '@features/patch-review';
 import { filterDiagnosticsForPath, detectEditorLanguage } from '@utils/workspacePaths';
@@ -54,6 +55,7 @@ export function useFilesPanelProps(
 
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const editorDirtyTimerRef = useRef<number | undefined>(undefined);
+  const editorAutosaveTimerRef = useRef<number | undefined>(undefined);
 
   const allExpanded = useMemo(() => {
     const visible = recentWorkspaces.filter((w) => !w.removedFromSidebar && w.available);
@@ -96,15 +98,29 @@ export function useFilesPanelProps(
       if (!pathAtEdit) {
         return;
       }
+      // 存盘链内容来源：typing 文本同步暂存（Ctrl+S / 自动保存消费）。
+      actions.noteEditorText(pathAtEdit, value ?? '');
       window.clearTimeout(editorDirtyTimerRef.current);
       editorDirtyTimerRef.current = window.setTimeout(() => {
+        const state = useAppStore.getState();
+        if (state.selectedFilePath !== pathAtEdit) {
+          return;
+        }
+        // 脏比较读现值（事项 13 收敛）：闭包旧值在保存移动基线后会误判，
+        // 以暂存缓冲里的最新击键文本为准。
+        const current =
+          peekPendingEditorText(pathAtEdit, state.appInfo?.currentWorkspace?.id) ?? value ?? '';
+        const baseline = state.fileContent ?? '';
+        actions.notifyEditorBufferDirty(pathAtEdit, current !== baseline);
+      }, 300);
+      // 空闲自动保存（默认开启）：停顿 1s 落盘，蓝点即清。
+      window.clearTimeout(editorAutosaveTimerRef.current);
+      editorAutosaveTimerRef.current = window.setTimeout(() => {
         if (useAppStore.getState().selectedFilePath !== pathAtEdit) {
           return;
         }
-        const baseline = useAppStore.getState().fileContent ?? '';
-        const dirty = (value ?? '') !== baseline;
-        actions.notifyEditorBufferDirty(pathAtEdit, dirty);
-      }, 300);
+        void actions.saveFile(pathAtEdit);
+      }, 1000);
     },
     [actions, selectedFilePath],
   );
@@ -144,7 +160,10 @@ export function useFilesPanelProps(
   );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
-    void actions.refreshWorkspaceTree();
+    void (async () => {
+      await actions.refreshWorkspaceTree();
+      await actions.reconcileSelectedFile();
+    })();
   }, [actions]);
 
   const handleExpandAll = useCallback(() => {
@@ -164,6 +183,7 @@ export function useFilesPanelProps(
         if (useAppStore.getState().filesNavigatorMode === 'search') {
           await actions.refreshSearchResults();
         }
+        await actions.reconcileSelectedFile();
       } catch (error) {
         // 双 await 结构上不抛（allSettled＋runContentSearch 内建 catch），此处仅满足
         // error-handling.md“Promise 链必须有 .catch()”的硬性规则。
@@ -176,7 +196,10 @@ export function useFilesPanelProps(
     (workspaceId: string) => {
       const ws = recentWorkspaces.find((r) => r.id === workspaceId);
       if (ws) {
-        void actions.refreshOneWorkspaceTree(asWorkspaceID(workspaceId), ws.path);
+        void (async () => {
+          await actions.refreshOneWorkspaceTree(asWorkspaceID(workspaceId), ws.path);
+          await actions.reconcileSelectedFile();
+        })();
       }
     },
     [recentWorkspaces, actions],
@@ -218,6 +241,20 @@ export function useFilesPanelProps(
   );
 
   useEffect(() => () => window.clearTimeout(editorDirtyTimerRef.current), [selectedFilePath]);
+
+  // 关闭前 best-effort 落盘：异步桥接未必写完才退出，日常由空闲自动保存兜底。
+  useEffect(() => {
+    const onBeforeUnload = () => {
+      window.clearTimeout(editorDirtyTimerRef.current);
+      window.clearTimeout(editorAutosaveTimerRef.current);
+      void useAppStore.getState().saveDirtyEditors();
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      window.clearTimeout(editorAutosaveTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setLocalSearchQuery(searchQuery);

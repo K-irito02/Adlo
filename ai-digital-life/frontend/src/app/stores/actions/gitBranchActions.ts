@@ -7,7 +7,7 @@ import type {
 } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 import type { GitSnapshot } from '@ai-digital-life/kernel';
-import { clearError, captureError, postMutationRefresh } from '../shared';
+import { clearError, captureError, postMutationRefresh, clearWorkspaceCaches } from '../shared';
 import { asWorkspaceID } from '../../../shared/branded';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 // Store 侧提示文案取静态语言包（与 generalActions sessionOverrideNotice 同模式，不走 hook）。
@@ -55,18 +55,18 @@ function isExpectedNonGitError(error: unknown): boolean {
 
 async function refreshAfterBranchChange(get: () => StoreState) {
   // 双面板联动：git 快照（变更面板）+ 文件树（文件面板）+ 分支列表（子卡片）
-  // 同刷，任一入口切换后两处都变化；最后重开选中文件保持编辑器同步。
+  // 同刷，任一入口切换后两处都变化。文件文档缓存按工作区整清（旧分支内容
+  // 不得复活），再对账选中文件（绕过缓存重读；文件在新分支不存在则清为空状态）。
   await postMutationRefresh(get);
   await get().fetchGitBranches({ silent: true });
   const currentWorkspace = get().appInfo?.currentWorkspace;
   if (currentWorkspace) {
+    clearWorkspaceCaches(currentWorkspace.id);
     await get().refreshOneWorkspaceTree(asWorkspaceID(currentWorkspace.id), currentWorkspace.path, {
       silent: true,
     });
   }
-  if (get().selectedFilePath) {
-    await get().openFile(get().selectedFilePath!);
-  }
+  await get().reconcileSelectedFile();
 }
 
 export function createGitBranchActions(
@@ -113,6 +113,8 @@ export function createGitBranchActions(
      */
     switchGitBranch: async (input: WorkspaceGitBranchSwitchInput) => {
       clearError(get, SCOPE);
+      // 切分支前落盘脏缓冲（自动保存语义），再 stash/切换。
+      await get().saveDirtyEditors();
       const result = await window.digitalLife.workspace.switchGitBranch(input);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
@@ -251,6 +253,7 @@ export function createGitBranchActions(
 
     createGitBranch: async (input: WorkspaceGitBranchCreateInput) => {
       clearError(get, SCOPE);
+      await get().saveDirtyEditors();
       const result = await window.digitalLife.workspace.createGitBranch(input);
       if (!result.ok) {
         captureError(get, result.error, SCOPE);

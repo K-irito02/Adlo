@@ -450,6 +450,16 @@ export interface WorkspaceBridge {
     input: WorkspaceGitBranchCreateInput,
   ) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
   /**
+   * 覆盖写文件文本内容（Ctrl+S / 自动保存的落盘通道）
+   * @returns 写后文档（含新 mtime）
+   * @command workspace_update_file
+   */
+  updateFileContent: (
+    relativePath: string,
+    content: string,
+    workspacePath?: string,
+  ) => Promise<IpcResult<WorkspaceFileDocument>>;
+  /**
    * 列出仓库的 worktree（主 + sibling 链接）
    * @param rootPath 可选 — 指定仓库路径，默认当前活动工作区
    * @command workspace_list_worktrees

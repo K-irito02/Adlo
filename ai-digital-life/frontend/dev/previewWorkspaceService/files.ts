@@ -386,6 +386,26 @@ export async function createFile(
   return readFile(rootPath, relativeTarget);
 }
 
+export async function updateFileContent(
+  rootPath: string,
+  relativeTarget: string,
+  content: string,
+): Promise<import('../src/kernel/index').WorkspaceFileDocument> {
+  const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
+  let stats;
+  try {
+    stats = await fs.stat(absolutePath);
+  } catch {
+    stats = undefined;
+  }
+  if (!stats?.isFile()) throw new Error(`file not found: ${relativeTarget}`);
+  if (Buffer.byteLength(content, 'utf8') > DEFAULT_MAX_TEXT_FILE_BYTES) {
+    throw new Error(`file exceeds configured write limit: ${relativeTarget}`);
+  }
+  await fs.writeFile(absolutePath, content, 'utf8');
+  return readFile(rootPath, relativeTarget);
+}
+
 export async function createFolder(rootPath: string, relativeTarget: string): Promise<boolean> {
   const absolutePath = resolveWorkspacePath(rootPath, relativeTarget);
   let stats;

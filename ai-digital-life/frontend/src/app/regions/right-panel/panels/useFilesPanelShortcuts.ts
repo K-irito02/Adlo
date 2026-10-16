@@ -16,6 +16,7 @@ export interface FilesPanelShortcutDeps {
     setLineNumbersEnabled: (v: boolean | ((p: boolean) => boolean)) => void;
   };
   handleCopyPath: (value?: string) => void;
+  handleSaveFile: () => void;
   keybinds: Record<string, string | undefined>;
 }
 
@@ -35,6 +36,7 @@ export function useFilesPanelShortcuts(deps: FilesPanelShortcutDeps): void {
     selectedAbsolutePath,
     editorOptions,
     handleCopyPath,
+    handleSaveFile,
     keybinds,
   } = deps;
 
@@ -44,13 +46,20 @@ export function useFilesPanelShortcuts(deps: FilesPanelShortcutDeps): void {
       if (!panel || !(event.target instanceof Node) || !panel.contains(event.target)) {
         return;
       }
-      if (isEditableTarget(event.target)) {
-        return;
-      }
       // 只匹配 file 组命令：用户把 file 命令绑到全局 chord 上时，
       // 以 file 语义优先（菜单展示即此语义），不静默吞掉。
       const match = findMatchingCommand(event, FILE_COMMANDS, keybinds);
       if (!match || !FILE_COMMAND_IDS.has(match.id)) {
+        return;
+      }
+      // file.save 是唯一允许在编辑器内触发的面板命令（Ctrl+S 存盘）：
+      // 先匹配后排除可编辑目标，其余 file 命令保持原有排除语义。
+      if (match.id === 'file.save') {
+        event.preventDefault();
+        handleSaveFile();
+        return;
+      }
+      if (isEditableTarget(event.target)) {
         return;
       }
       event.preventDefault();
@@ -77,5 +86,13 @@ export function useFilesPanelShortcuts(deps: FilesPanelShortcutDeps): void {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [panelRef, selectedFilePath, selectedAbsolutePath, editorOptions, handleCopyPath, keybinds]);
+  }, [
+    panelRef,
+    selectedFilePath,
+    selectedAbsolutePath,
+    editorOptions,
+    handleCopyPath,
+    handleSaveFile,
+    keybinds,
+  ]);
 }

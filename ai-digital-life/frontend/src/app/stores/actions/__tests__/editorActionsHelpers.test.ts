@@ -64,6 +64,39 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
+describe('openFileGeneric generation guard (事项 13 收敛)', () => {
+  it('迟到的旧读被新意图作废：不写缓存不进主区', async () => {
+    const { set, get } = setup({
+      selectedFilePath: 'old.md',
+      fileContent: 'old content',
+      openTabs: [{ path: 'old.md' }],
+    });
+    const cacheKey = `gen-test-${Date.now()}`;
+    const slow = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+    const fast = deferred<{ ok: true; data: { content: string; lastModifiedAt: number } }>();
+    // 同一 seq：排除全局文件序号守卫，只测同路径代际守卫（如保存 bump 代际的场景）。
+    const seq = getNextFileRequestSeq();
+
+    const first = openFileGeneric(set as never, get as never, 'same.md', seq, {
+      cacheKey,
+      workspaceId: 'ws-1',
+      readFile: () => slow.promise as never,
+    });
+    const second = openFileGeneric(set as never, get as never, 'same.md', seq, {
+      cacheKey,
+      workspaceId: 'ws-1',
+      readFile: () => fast.promise as never,
+    });
+    fast.resolve({ ok: true, data: { content: 'new content', lastModifiedAt: 2 } });
+    await second;
+    // 旧读后落地：必须被丢弃，主区保持新内容
+    slow.resolve({ ok: true, data: { content: 'stale content', lastModifiedAt: 1 } });
+    await first;
+    expect(get().fileContent).toBe('new content');
+    expect(get().selectedFilePath).toBe('same.md');
+  });
+});
+
 describe('openFileGeneric hold-until-ready (事项 46 调整项)', () => {
   it('does not switch the visible file until content resolves on cache miss', async () => {
     const { set, get, snapshots } = setup({
@@ -699,8 +732,7 @@ describe('openChangePreviewGeneric failure (事项3：门被旧预览侵占）',
       {
         cacheKey: key,
         workspaceId: 'ws-1',
-        getPreview: () =>
-          Promise.resolve({ ok: true, data: preview('huge.json', huge) }) as never,
+        getPreview: () => Promise.resolve({ ok: true, data: preview('huge.json', huge) }) as never,
       },
     );
     expect((get() as unknown as Snap).changePreview?.path).toBe('huge.json');

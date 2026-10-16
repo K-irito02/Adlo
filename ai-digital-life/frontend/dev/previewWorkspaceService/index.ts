@@ -584,6 +584,21 @@ const routes: Route[] = [
   },
   {
     method: 'POST',
+    pathname: makePath('/workspace/update-file'),
+    handler: async (_req, body) => {
+      const b =
+        body as { rootPath?: string; relativePath?: string; content?: string } | undefined;
+      if (!b?.rootPath?.trim() || !b?.relativePath?.trim() || b?.content === undefined)
+        return fail('rootPath, relativePath, and content are required', 'INVALID_INPUT');
+      try {
+        return ok(await files.updateFileContent(b.rootPath.trim(), b.relativePath.trim(), b.content));
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
+    },
+  },
+  {
+    method: 'POST',
     pathname: makePath('/workspace/create-folder'),
     handler: async (_req, body) => {
       const b = body as { rootPath?: string; relativePath?: string } | undefined;

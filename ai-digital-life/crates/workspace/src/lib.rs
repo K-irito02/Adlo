@@ -13,7 +13,9 @@ mod watch;
 pub use detect::{
     detect_root, open_workspace, stable_workspace_id, strip_verbatim_prefix, workspace_type,
 };
-pub use fs::{create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry};
+pub use fs::{
+    create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry, update_file,
+};
 pub use git::git_vis::{
     capture_branch_graph, capture_code_evolution, capture_commit_stats,
     capture_contributor_modules, capture_file_hotspots,
@@ -208,6 +210,24 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(dir.join("Cargo.toml"), "[package]\nname='x'").unwrap();
         assert_eq!(workspace_type(&dir), WorkspaceType::Rust);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn update_file_overwrites_and_reports_mtime() {
+        let dir =
+            std::env::temp_dir().join(format!("adl-workspace-update-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("note.txt"), "v1\n").unwrap();
+
+        let doc = update_file(&dir, "note.txt", "v2\n").unwrap();
+        assert_eq!(doc.path, "note.txt");
+        assert_eq!(doc.content, "v2\n");
+        assert_eq!(std::fs::read_to_string(dir.join("note.txt")).unwrap(), "v2\n");
+
+        let missing = update_file(&dir, "ghost.txt", "x");
+        assert!(matches!(missing, Err(AppError::Workspace(_))));
+
         let _ = std::fs::remove_dir_all(dir);
     }
 

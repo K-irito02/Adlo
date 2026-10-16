@@ -167,6 +167,10 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     }
   }, []);
 
+  const handleSaveFile = useCallback(() => {
+    void useAppStore.getState().saveFile();
+  }, []);
+
   const handleNavigateLine = useCallback(
     (line: number, options?: { flash?: boolean }) => {
       // For markdown preview mode, use DOM-based scrolling directly
@@ -571,6 +575,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     selectedAbsolutePath,
     editorOptions,
     handleCopyPath,
+    handleSaveFile,
     keybinds,
   });
 

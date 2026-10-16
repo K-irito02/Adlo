@@ -110,6 +110,21 @@ export const mockWorkspace: WorkspaceBridge = {
       }
     };
   },
+  updateFileContent: async (relativePath: string, content: string, _workspacePath?: string) => {
+    if (!documents.has(relativePath)) {
+      return { ok: false, error: { code: "NOT_FOUND", message: `file not found: ${relativePath}` } };
+    }
+    documents.set(relativePath, content);
+    fileVersions.set(relativePath, Date.now());
+    return {
+      ok: true,
+      data: {
+        path: relativePath,
+        content,
+        lastModifiedAt: fileVersions.get(relativePath) ?? Date.now()
+      }
+    };
+  },
   createFolder: async (relativePath: string, _workspacePath?: string) => {
     emptyDirectories.add(relativePath.replace(/\\/g, "/").replace(/^\/+|\/+$/g, ""));
     return { ok: true, data: true };

@@ -164,6 +164,18 @@ export function createPreviewWorkspaceBridge(
             }),
           }),
       )(relativePath, content, workspacePath),
+    updateFileContent: (relativePath: string, content: string, workspacePath?: string) =>
+      withWorkspace<WorkspaceFileDocument, [string, string, string?]>(
+        async (rootPath, rp, c, wsPath) =>
+          requestPreviewApi<WorkspaceFileDocument>('/workspace/update-file', {
+            method: 'POST',
+            body: JSON.stringify({
+              rootPath: wsPath ?? rootPath,
+              relativePath: rp,
+              content: c,
+            }),
+          }),
+      )(relativePath, content, workspacePath),
     createFolder: withWorkspace<boolean, [string, string?]>(
       async (rootPath, relativePath, wsPath) =>
         requestPreviewApi<boolean>('/workspace/create-folder', {

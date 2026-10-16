@@ -327,6 +327,8 @@
   flex-wrap: nowrap;
   overflow-x: auto;
   overflow-y: hidden;
+  /* 嵌套滚动隔离：标签横滑不连带图表纵滚（与原生 wheel 吞没双保险） */
+  overscroll-behavior-x: contain;
   scrollbar-width: none;
   -ms-overflow-style: none;
   gap: 4px;

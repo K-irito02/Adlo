@@ -10,6 +10,7 @@ import {
 } from '../slices/searchSlice';
 import type { WorkspaceFilesChangedBatch, WorkspaceSearchFilter } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
+import { handleExternalBatch } from './editorActions';
 const SCOPE = 'search';
 
 const debouncedSearch = createDebouncedSearch(300);
@@ -375,7 +376,12 @@ export function createSearchActions(set: StoreApi<StoreState>['setState'], get: 
 
     /** [subscribeWorkspaceFilesChanged - 订阅后端 watcher 批次并调度局部重算] */
     subscribeWorkspaceFilesChanged: () => {
-      const unsubscribe = window.digitalLife.workspace.onFilesChanged(scheduleRecompute);
+      const unsubscribe = window.digitalLife.workspace.onFilesChanged((batch) => {
+        scheduleRecompute(batch);
+        // 编辑器跟手（事项 13）：同一批次顺带驱动选中文件重载 + git 静默跟手。
+        // 检索重算与编辑器对账互不干扰（均为读操作，无循环）。
+        handleExternalBatch(get, batch);
+      });
       return () => {
         unsubscribe();
         resetRecomputePending();

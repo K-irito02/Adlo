@@ -141,9 +141,19 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
         let branch_name = branch.clone();
 
         js.spawn(async move {
+            // 与分支子卡片一致：优先该分支配置的 upstream（如 github/*），
+            // 无 upstream 才回退 origin/<branch>，再无则按本地独有计数。
+            let upstream = super::super::git_helpers::run_git_with_timeout(
+                &root,
+                &["rev-parse", "--abbrev-ref", "--verify", &format!("{branch_name}@{{upstream}}")],
+            )
+            .await
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .unwrap_or(remote);
             let remote_ok = super::super::git_helpers::run_git_with_timeout(
                 &root,
-                &["rev-parse", "--verify", &remote],
+                &["rev-parse", "--verify", &upstream],
             )
             .await;
 
@@ -158,11 +168,11 @@ pub async fn capture_branch_graph(root: &Path) -> Result<GitVisBranchGraph, AppE
                 return (branch_name, BranchProgress { ahead, behind: 0, merge_base: None });
             }
 
-            let ahead_range = format!("{}..{}", remote, branch_name);
-            let behind_range = format!("{}..{}", branch_name, remote);
+            let ahead_range = format!("{}..{}", upstream, branch_name);
+            let behind_range = format!("{}..{}", branch_name, upstream);
             let ahead_args = vec!["rev-list", "--count", &ahead_range];
             let behind_args = vec!["rev-list", "--count", &behind_range];
-            let merge_args = vec!["merge-base", &branch_name, &remote];
+            let merge_args = vec!["merge-base", &branch_name, &upstream];
             let (a, b, mb) = tokio::join!(
                 super::super::git_helpers::run_git_with_timeout(&root, &ahead_args),
                 super::super::git_helpers::run_git_with_timeout(&root, &behind_args),

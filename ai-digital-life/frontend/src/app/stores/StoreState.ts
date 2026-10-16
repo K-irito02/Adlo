@@ -198,6 +198,24 @@ interface EditorActions {
   openChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
   markExternalFileChange: (input: { path: string; lastModifiedAt: number }) => void;
   notifyEditorBufferDirty: (relativePath: string, isDirty: boolean) => void;
+  /**
+   * 暂存编辑器未落盘文本（typing 缓冲；Ctrl+S / 自动保存消费）。
+   * @see saveFile / saveDirtyEditors
+   */
+  noteEditorText: (relativePath: string, text: string) => void;
+  /**
+   * 保存文件（Ctrl+S / 自动保存入口）。无待存内容即 no-op。
+   * @returns true=已保存或无须保存，false=失败（错误已进 errorToasts）
+   */
+  saveFile: (relativePath?: string, workspacePath?: string) => Promise<boolean>;
+  /** 依次保存当前工作区全部脏文件（切换文件/分支/工作区前的 flush 点）。 */
+  saveDirtyEditors: () => Promise<number>;
+  /**
+   * 对账当前选中文件与磁盘（绕过缓存重读）：内容变了就更新基线；
+   * 文件没了且无未存草稿则清为空状态（复用 fileOpenError 友好视图），
+   * 有草稿则保留并警告。供刷新按钮/分支切换后调用。
+   */
+  reconcileSelectedFile: () => Promise<void>;
 }
 
 interface GitActions {

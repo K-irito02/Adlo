@@ -26,6 +26,8 @@ import {
   getCachedChangePreview,
   setCachedChangePreview,
   setPendingChangePreviewPath,
+  nextFileGen,
+  isCurrentFileGen,
 } from '../shared';
 import { clearError, captureError } from '../cacheHelpers';
 import type {
@@ -102,7 +104,16 @@ export async function openFileGeneric(
   requestSeq: number,
   config: OpenFileConfig,
 ): Promise<boolean> {
+  // 同路径读写排队：占号；缓存命中是同步意图，直接推进代际；
+  // 落盘读若在等待中被更新的意图超车，落地时作废。
+  const gen = nextFileGen(config.cacheKey);
   const cachedDocument = getCachedFileDocument(config.cacheKey);
+  console.log('[ADL-EXTFOLLOW] openFileGeneric', {
+    relativePath,
+    cacheKey: config.cacheKey,
+    cacheHit: !!cachedDocument,
+    cachedLength: cachedDocument?.content.length,
+  });
 
   const applyDocument = (document: CachedFileDocument, outlineOverride?: FileOutlineItem[]) => {
     // 重型文本（超阈值）跳过大纲解析：大文件大纲 walk 是确认前卡顿来源之一，
@@ -160,6 +171,10 @@ export async function openFileGeneric(
     return false;
   }
   if (requestSeq !== fileRequestSeq) {
+    return false;
+  }
+  if (!isCurrentFileGen(config.cacheKey, gen)) {
+    // 已被更新的同路径意图（新打开/新保存）超车：旧回复丢弃，不写缓存不进主区。
     return false;
   }
   if (!fileResult.ok) {

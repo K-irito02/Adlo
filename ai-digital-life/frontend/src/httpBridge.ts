@@ -1000,6 +1000,12 @@ export function createHttpBridge({
         call<string>(baseUrl, '/workspace/absolute-path', POST({ relativePath, workspacePath })),
       moveFile: (relativePath: string, newPath: string, workspacePath?: string) =>
         call<boolean>(baseUrl, '/workspace/move', POST({ relativePath, newPath, workspacePath })),
+      updateFileContent: (relativePath: string, content: string, workspacePath?: string) =>
+        call<WorkspaceFileDocument>(
+          baseUrl,
+          '/workspace/update-file',
+          POST({ relativePath, content, workspacePath }),
+        ),
       onFileChanged: (_listener: (event: WorkspaceFileChangedEvent) => void) => {
         console.warn(
           '[httpBridge] workspace.onFileChanged is deferred to Task 8 (SSE event bridge); no-op for now.',

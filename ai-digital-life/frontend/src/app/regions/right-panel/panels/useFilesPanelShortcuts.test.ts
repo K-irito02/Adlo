@@ -26,6 +26,7 @@ describe('useFilesPanelShortcuts', () => {
           setLineNumbersEnabled: vi.fn(),
         },
         handleCopyPath,
+        handleSaveFile: vi.fn(),
         keybinds: {},
       });
     });
@@ -56,6 +57,7 @@ describe('useFilesPanelShortcuts', () => {
           setLineNumbersEnabled: vi.fn(),
         },
         handleCopyPath,
+        handleSaveFile: vi.fn(),
         keybinds: {},
       });
     });
@@ -85,6 +87,7 @@ describe('useFilesPanelShortcuts', () => {
           setLineNumbersEnabled: vi.fn(),
         },
         handleCopyPath: vi.fn(),
+        handleSaveFile: vi.fn(),
         keybinds: {},
       });
     });
@@ -118,6 +121,7 @@ describe('useFilesPanelShortcuts', () => {
           setLineNumbersEnabled: vi.fn(),
         },
         handleCopyPath: vi.fn(),
+        handleSaveFile: vi.fn(),
         keybinds: {},
       });
     });
@@ -145,6 +149,7 @@ describe('useFilesPanelShortcuts', () => {
           setLineNumbersEnabled: vi.fn(),
         },
         handleCopyPath,
+        handleSaveFile: vi.fn(),
         keybinds: { 'file.copy-relative': 'none' },
       });
     });
@@ -172,11 +177,74 @@ describe('useFilesPanelShortcuts', () => {
           setLineNumbersEnabled,
         },
         handleCopyPath: vi.fn(),
+        handleSaveFile: vi.fn(),
         keybinds: { 'file.toggle-line-numbers': 'alt+l' },
       });
     });
     dispatchKey('l', { altKey: true }, container);
     expect(setLineNumbersEnabled).toHaveBeenCalledTimes(1);
+    unmount();
+    container.remove();
+  });
+
+  it('saves on Ctrl+S even inside CodeMirror editable surface', () => {
+    const handleSaveFile = vi.fn();
+    const container = document.createElement('div');
+    const editor = document.createElement('div');
+    editor.className = 'cm-editor';
+    const content = document.createElement('div');
+    content.setAttribute('contenteditable', 'true');
+    editor.appendChild(content);
+    container.appendChild(editor);
+    document.body.appendChild(container);
+    const { unmount } = renderHook(() => {
+      const panelRef = useRef<HTMLDivElement | null>(null);
+      (panelRef as { current: HTMLDivElement | null }).current = container;
+      return useFilesPanelShortcuts({
+        panelRef,
+        selectedFilePath: 'a/b.ts',
+        selectedAbsolutePath: '/root/a/b.ts',
+        editorOptions: {
+          wordWrapEnabled: false,
+          setWordWrapEnabled: vi.fn(),
+          lineNumbersEnabled: true,
+          setLineNumbersEnabled: vi.fn(),
+        },
+        handleCopyPath: vi.fn(),
+        handleSaveFile,
+        keybinds: {},
+      });
+    });
+    dispatchKey('s', { ctrlKey: true }, content);
+    expect(handleSaveFile).toHaveBeenCalledTimes(1);
+    unmount();
+    container.remove();
+  });
+
+  it('respects file.save set to none', () => {
+    const handleSaveFile = vi.fn();
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const { unmount } = renderHook(() => {
+      const panelRef = useRef<HTMLDivElement | null>(null);
+      (panelRef as { current: HTMLDivElement | null }).current = container;
+      return useFilesPanelShortcuts({
+        panelRef,
+        selectedFilePath: 'a/b.ts',
+        selectedAbsolutePath: '/root/a/b.ts',
+        editorOptions: {
+          wordWrapEnabled: false,
+          setWordWrapEnabled: vi.fn(),
+          lineNumbersEnabled: true,
+          setLineNumbersEnabled: vi.fn(),
+        },
+        handleCopyPath: vi.fn(),
+        handleSaveFile,
+        keybinds: { 'file.save': 'none' },
+      });
+    });
+    dispatchKey('s', { ctrlKey: true }, container);
+    expect(handleSaveFile).not.toHaveBeenCalled();
     unmount();
     container.remove();
   });
@@ -199,6 +267,7 @@ describe('useFilesPanelShortcuts', () => {
           setLineNumbersEnabled: vi.fn(),
         },
         handleCopyPath,
+        handleSaveFile: vi.fn(),
         keybinds: {},
       });
     });

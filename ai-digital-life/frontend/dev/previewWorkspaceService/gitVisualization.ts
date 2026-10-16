@@ -302,7 +302,11 @@ async function computeBranchProgress(
   const tasks = branches
     .filter(b => !b.startsWith('origin/') && b !== 'HEAD')
     .map(async (branch) => {
-      const remote = `origin/${branch}`;
+      // 与分支子卡片一致：优先该分支配置的 upstream，无 upstream 才回退 origin/<branch>。
+      const configured =
+        (await runGit(rootPath, ['rev-parse', '--abbrev-ref', '--verify', `${branch}@{upstream}`]))?.trim() ||
+        '';
+      const remote = configured || `origin/${branch}`;
       const remoteCheck = await runGit(rootPath, ['rev-parse', '--verify', remote]);
       if (!remoteCheck) {
         const count = (await runGit(rootPath, ['rev-list', '--count', branch, '--not', '--all'])) || '0';

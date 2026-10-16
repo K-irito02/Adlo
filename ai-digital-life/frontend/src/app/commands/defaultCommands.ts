@@ -70,6 +70,7 @@ export const DEFAULT_COMMANDS: CommandMeta[] = [
   },
   { id: 'file.toggle-word-wrap', titleKey: 'fileWordWrap', group: 'file', defaultKeybind: 'alt+z' },
   { id: 'file.toggle-line-numbers', titleKey: 'fileLineNumbers', group: 'file' },
+  { id: 'file.save', titleKey: 'fileSave', group: 'file', defaultKeybind: 'mod+s' },
 ];
 
 export function defaultKeybindOf(id: string): string | undefined {

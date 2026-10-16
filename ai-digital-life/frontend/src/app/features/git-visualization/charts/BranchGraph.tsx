@@ -698,19 +698,26 @@ const TagRow = React.memo(function TagRow({
 }: TagRowProps) {
   const tagRowRef = useRef<HTMLDivElement>(null);
   const [hoveredLabel, setHoveredLabel] = useState<string | null>(null);
-  const handleTagRowWheelInner = useCallback((e: React.WheelEvent) => {
+  // 嵌套滚动隔离：React onWheel 是被动监听（preventDefault 无效），改用原生
+  // 非被动监听接管标签行的纵滚→横滚，并在行内消化事件，不冒泡到图表纵滚。
+  useEffect(() => {
     const el = tagRowRef.current;
     if (!el) {
       return;
     }
-    const maxScroll = el.scrollWidth - el.clientWidth;
-    if (maxScroll <= 0) {
-      return;
-    }
-    e.preventDefault();
-    const absDx = Math.abs(e.deltaX);
-    const absDy = Math.abs(e.deltaY);
-    el.scrollLeft += absDx > absDy ? e.deltaX : e.deltaY;
+    const onWheel = (e: WheelEvent) => {
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (maxScroll <= 0) {
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      const absDx = Math.abs(e.deltaX);
+      const absDy = Math.abs(e.deltaY);
+      el.scrollLeft += absDx > absDy ? e.deltaX : e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
   }, []);
 
   const labelByOrder = useMemo(() => {
@@ -721,11 +728,7 @@ const TagRow = React.memo(function TagRow({
   }, [branchLabels, tagRowOrder]);
 
   return (
-    <div
-      ref={tagRowRef}
-      className="adl-branch-graph__tag-row--sticky"
-      onWheel={handleTagRowWheelInner}
-    >
+    <div ref={tagRowRef} className="adl-branch-graph__tag-row--sticky">
       {labelByOrder.map((label) => {
         const itemId = `br:${label.name}`;
         const isActive = selectedLabels.has(itemId);

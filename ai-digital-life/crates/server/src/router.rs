@@ -43,6 +43,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/workspace/current", get(handlers::workspace::get_current))
         .route("/workspace/clear-current", post(handlers::workspace::clear_current))
         .route("/workspace/file", post(handlers::workspace::create_file))
+        .route("/workspace/update-file", post(handlers::workspace::update_file))
         .route("/workspace/folder", post(handlers::workspace::create_folder))
         .route("/workspace/read", post(handlers::workspace::read_file))
         .route("/workspace/read-media", post(handlers::workspace::read_media_file))

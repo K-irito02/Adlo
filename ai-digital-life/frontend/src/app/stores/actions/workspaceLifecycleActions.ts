@@ -32,6 +32,8 @@ export function createWorkspaceLifecycleActions(
      * @see preview-bridge/index.ts → workspace.open
      */
     openWorkspace: async (workspacePath: string) => {
+      // 切工作区前落盘脏缓冲（自动保存语义），避免脏内容留在旧工作区。
+      await get().saveDirtyEditors();
       const requestSeq = getNextWorkspaceRequestSeq();
       clearWorkspaceCaches(getWorkspaceCachePrefix(get().appInfo));
       getNextFileRequestSeq();

@@ -118,6 +118,58 @@ export function setCachedChangePreview(key: string, value: CachedChangePreview):
   setCachedLruTTL(changePreviewCache, key, value, CHANGE_PREVIEW_CACHE_LIMIT, CHANGE_PREVIEW_TTL);
 }
 
+/** 精确失效单个文件文档缓存（保存/删除/外部变更后调用，防旧内容复活） */
+export function invalidateCachedFileDocument(key: string): void {
+  fileDocumentCache.delete(key);
+}
+
+/** 精确失效单个变更预览缓存 */
+export function invalidateCachedChangePreview(key: string): void {
+  changePreviewCache.delete(key);
+}
+
+/**
+ * 失效某工作区下指定路径（含后代，用于删除文件夹场景）。
+ * 按 `${workspaceId}:${归一化路径}` 前缀 + `/` 边界匹配，避免 `foo` 误伤 `foobar`。
+ */
+export function invalidateCachedPathTree(workspaceId: string, relativePath: string): void {
+  const norm = normalizeWorkspaceRelativePath(relativePath);
+  const exact = `${workspaceId}:${norm}`;
+  const prefix = `${exact}/`;
+  for (const key of [...fileDocumentCache.keys()]) {
+    if (key === exact || key.startsWith(prefix)) {
+      fileDocumentCache.delete(key);
+    }
+  }
+  for (const key of [...changePreviewCache.keys()]) {
+    if (key === exact || key.startsWith(prefix)) {
+      changePreviewCache.delete(key);
+    }
+  }
+}
+
+/** 单真相源钥匙（事项 13 收敛）：文件/预览缓存只认这一种键。 */
+export function scopedFileKey(workspaceId: string | undefined, relativePath: string): string {
+  return `${workspaceId ?? 'global'}:${normalizeWorkspaceRelativePath(relativePath)}`;
+}
+
+/**
+ * 文件读写 generation 守卫（事项 13 收敛）：同一路径的并发读/写按号排队，
+ * 迟到的旧回复直接丢弃，不覆盖新鲜状态。保存落定即 bump，使其之前起飞的
+ * 读在落地时作废。
+ */
+const fileGenMap = new Map<string, number>();
+
+export function nextFileGen(key: string): number {
+  const next = (fileGenMap.get(key) ?? 0) + 1;
+  fileGenMap.set(key, next);
+  return next;
+}
+
+export function isCurrentFileGen(key: string, gen: number): boolean {
+  return (fileGenMap.get(key) ?? 0) === gen;
+}
+
 /** 缓存键生成 */
 export function getWorkspaceCachePrefix(appInfo?: AppInfo): string {
   return appInfo?.currentWorkspace?.id ?? 'global';
@@ -127,7 +179,7 @@ export function getWorkspaceScopedCacheKey(
   appInfo: AppInfo | undefined,
   relativePath: string,
 ): string {
-  return `${getWorkspaceCachePrefix(appInfo)}:${normalizeWorkspaceRelativePath(relativePath)}`;
+  return scopedFileKey(appInfo?.currentWorkspace?.id, relativePath);
 }
 
 /** 清理指定工作区的缓存条目 */

@@ -88,7 +88,10 @@ export function useChangesPanelProps(
   );
 
   const handleRefreshWorkspaceTree = useCallback(() => {
-    void actions.refreshWorkspaceTree();
+    void (async () => {
+      await actions.refreshWorkspaceTree();
+      await actions.reconcileSelectedFile();
+    })();
   }, [actions]);
 
   const handleHideFromRightPanels = useCallback(
