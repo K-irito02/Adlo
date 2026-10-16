@@ -1,9 +1,13 @@
 use adl_errors::AppError;
-use adl_types::GitBranchSummary;
+use adl_types::{GitBranchSummary, GitDivergeStatus};
 use std::path::Path;
 
 use super::git_helpers::{first_non_empty_line, run_git_required, stash_workspace_changes};
 use super::git_snapshot::{capture_git_snapshot, git_has_local_changes, pop_auto_stash};
+use super::git_worktree::{
+    branch_upstreams, divergence_counts, list_worktrees, reset_worktree_to_remote,
+    sync_worktree_with_remote, worktree_for_branch,
+};
 
 fn parse_local_branches(output: &str) -> Vec<String> {
     output.lines().map(str::trim).filter(|line| !line.is_empty()).map(|s| s.to_string()).collect()
@@ -32,39 +36,99 @@ fn parse_stashed_branches(output: &str) -> std::collections::HashSet<String> {
         .collect()
 }
 
-fn build_branch_summaries(
+fn diverge_status_for(ahead: Option<i32>, behind: Option<i32>) -> Option<GitDivergeStatus> {
+    match (ahead, behind) {
+        (Some(0), Some(0)) => Some(GitDivergeStatus::Synced),
+        (Some(a), Some(0)) if a > 0 => Some(GitDivergeStatus::Ahead),
+        (Some(0), Some(b)) if b > 0 => Some(GitDivergeStatus::Behind),
+        (Some(a), Some(b)) if a > 0 && b > 0 => Some(GitDivergeStatus::Diverged),
+        _ => None,
+    }
+}
+
+/// Pure merge of local/remote/stash sets (no git I/O) — unit-test seam.
+fn merge_branch_names(
     local_branches: Vec<String>,
-    remote_branches: std::collections::HashSet<String>,
+    remote_branches: &std::collections::HashSet<String>,
     stashed_branches: &std::collections::HashSet<String>,
     current_branch: &str,
-) -> Vec<GitBranchSummary> {
+) -> Vec<(String, bool, bool, bool, bool)> {
     let mut seen = std::collections::HashSet::new();
-    let mut branches: Vec<GitBranchSummary> = Vec::new();
+    let mut merged: Vec<(String, bool, bool, bool, bool)> = Vec::new();
 
     for name in local_branches {
         let is_current = name == current_branch;
         let remote = remote_branches.contains(&name);
         let has_stash = stashed_branches.contains(name.as_str());
         seen.insert(name.clone());
-        branches.push(GitBranchSummary { name, is_current, local: true, remote, has_stash });
+        merged.push((name, is_current, true, remote, has_stash));
     }
 
     for name in remote_branches {
-        if !seen.contains(&name) {
+        if !seen.contains(name) {
             let has_stash = stashed_branches.contains(name.as_str());
+            merged.push((name.clone(), false, false, true, has_stash));
+        }
+    }
+
+    merged.sort_by(|left, right| {
+        right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0))
+    });
+    merged
+}
+
+fn build_branch_summaries(
+    root: &Path,
+    local_branches: Vec<String>,
+    remote_branches: std::collections::HashSet<String>,
+    stashed_branches: &std::collections::HashSet<String>,
+    current_branch: &str,
+) -> Vec<GitBranchSummary> {
+    let mut branches: Vec<GitBranchSummary> = Vec::new();
+    let upstreams = branch_upstreams(root);
+    let worktrees = list_worktrees(root).unwrap_or_default();
+
+    for (name, is_current, local, remote, has_stash) in
+        merge_branch_names(local_branches, &remote_branches, stashed_branches, current_branch)
+    {
+        if local {
+            let upstream = upstreams.get(&name).cloned();
+            let (ahead, behind) = upstream
+                .as_deref()
+                .and_then(|upstream_ref| divergence_counts(root, &name, upstream_ref))
+                .map(|(ahead, behind)| (Some(ahead), Some(behind)))
+                .unwrap_or((None, None));
+            let diverge_status = diverge_status_for(ahead, behind);
+            let worktree_path = worktree_for_branch(&worktrees, &name)
+                .map(|path| path.to_string_lossy().to_string());
             branches.push(GitBranchSummary {
                 name,
-                is_current: false,
-                local: false,
-                remote: true,
+                is_current,
+                local,
+                remote,
                 has_stash,
+                upstream,
+                ahead,
+                behind,
+                diverge_status,
+                worktree_path,
+            });
+        } else {
+            branches.push(GitBranchSummary {
+                name,
+                is_current,
+                local,
+                remote,
+                has_stash,
+                upstream: None,
+                ahead: None,
+                behind: None,
+                diverge_status: None,
+                worktree_path: None,
             });
         }
     }
 
-    branches.sort_by(|left, right| {
-        right.is_current.cmp(&left.is_current).then_with(|| left.name.cmp(&right.name))
-    });
     branches
 }
 
@@ -88,13 +152,20 @@ pub fn list_git_branches(root: &Path) -> Result<Vec<GitBranchSummary>, AppError>
     let stash_list = run_git_required(root, &["stash", "list", "--format=%s"]).unwrap_or_default();
     let stashed_branches = parse_stashed_branches(&stash_list);
 
-    Ok(build_branch_summaries(local_branches, remote_branches, &stashed_branches, &current_branch))
+    Ok(build_branch_summaries(
+        root,
+        local_branches,
+        remote_branches,
+        &stashed_branches,
+        &current_branch,
+    ))
 }
 
 pub fn switch_git_branch(
     root: &Path,
     branch_name: &str,
     allow_stash: bool,
+    mode: adl_types::GitSwitchMode,
 ) -> Result<(adl_types::GitSnapshot, bool, Option<String>, bool), AppError> {
     let snapshot = capture_git_snapshot(root);
     if !snapshot.is_repo {
@@ -112,7 +183,21 @@ pub fn switch_git_branch(
         stash_workspace_changes(root, &previous_branch.clone().unwrap_or_default())?;
     }
 
-    run_git_required(root, &["switch", branch_name])?;
+    match mode {
+        adl_types::GitSwitchMode::Local => {
+            run_git_required(root, &["switch", branch_name])?;
+        }
+        adl_types::GitSwitchMode::Remote => {
+            // Switch first (cheap), then reset the fresh checkout to remote.
+            // Stash above already isolated dirty state.
+            run_git_required(root, &["switch", branch_name])?;
+            reset_worktree_to_remote(root, branch_name, true)?;
+        }
+        adl_types::GitSwitchMode::Sync => {
+            run_git_required(root, &["switch", branch_name])?;
+            sync_worktree_with_remote(root, branch_name, true)?;
+        }
+    }
 
     let has_restored = pop_auto_stash(root, branch_name)?;
 
@@ -249,27 +334,27 @@ mod tests {
             ["develop".to_string()].into_iter().collect();
         let current = "main";
 
-        let summaries = build_branch_summaries(local, remote, &stashed, current);
+        let summaries = merge_branch_names(local, &remote, &stashed, current);
 
         assert_eq!(summaries.len(), 3);
 
-        let main = summaries.iter().find(|s| s.name == "main").unwrap();
-        assert!(main.is_current);
-        assert!(main.local);
-        assert!(main.remote);
-        assert!(!main.has_stash);
+        let main = summaries.iter().find(|s| s.0 == "main").unwrap();
+        assert!(main.1);
+        assert!(main.2);
+        assert!(main.3);
+        assert!(!main.4);
 
-        let develop = summaries.iter().find(|s| s.name == "develop").unwrap();
-        assert!(!develop.is_current);
-        assert!(develop.local);
-        assert!(!develop.remote);
-        assert!(develop.has_stash);
+        let develop = summaries.iter().find(|s| s.0 == "develop").unwrap();
+        assert!(!develop.1);
+        assert!(develop.2);
+        assert!(!develop.3);
+        assert!(develop.4);
 
-        let release = summaries.iter().find(|s| s.name == "release").unwrap();
-        assert!(!release.is_current);
-        assert!(!release.local);
-        assert!(release.remote);
-        assert!(!release.has_stash);
+        let release = summaries.iter().find(|s| s.0 == "release").unwrap();
+        assert!(!release.1);
+        assert!(!release.2);
+        assert!(release.3);
+        assert!(!release.4);
     }
 
     #[test]
@@ -279,11 +364,20 @@ mod tests {
         let stashed = std::collections::HashSet::new();
         let current = "main";
 
-        let summaries = build_branch_summaries(local, remote, &stashed, current);
+        let summaries = merge_branch_names(local, &remote, &stashed, current);
 
-        assert_eq!(summaries[0].name, "main");
-        assert!(summaries[0].is_current);
-        assert_eq!(summaries[1].name, "alpha");
-        assert_eq!(summaries[2].name, "zebra");
+        assert_eq!(summaries[0].0, "main");
+        assert!(summaries[0].1);
+        assert_eq!(summaries[1].0, "alpha");
+        assert_eq!(summaries[2].0, "zebra");
+    }
+
+    #[test]
+    fn diverge_status_for_maps_counts() {
+        assert_eq!(diverge_status_for(Some(0), Some(0)), Some(GitDivergeStatus::Synced));
+        assert_eq!(diverge_status_for(Some(2), Some(0)), Some(GitDivergeStatus::Ahead));
+        assert_eq!(diverge_status_for(Some(0), Some(3)), Some(GitDivergeStatus::Behind));
+        assert_eq!(diverge_status_for(Some(1), Some(1)), Some(GitDivergeStatus::Diverged));
+        assert_eq!(diverge_status_for(None, Some(0)), None);
     }
 }

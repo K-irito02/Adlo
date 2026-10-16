@@ -40,6 +40,24 @@ pub struct GitSnapshot {
     pub captured_at: TimestampMs,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum GitDivergeStatus {
+    Synced,
+    Ahead,
+    Behind,
+    Diverged,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, TS)]
+#[serde(rename_all = "lowercase")]
+pub enum GitSwitchMode {
+    #[default]
+    Local,
+    Remote,
+    Sync,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
 #[serde(rename_all = "camelCase")]
 pub struct GitBranchSummary {
@@ -48,6 +66,28 @@ pub struct GitBranchSummary {
     pub local: bool,
     pub remote: bool,
     pub has_stash: bool,
+    #[serde(default)]
+    pub upstream: Option<String>,
+    #[serde(default)]
+    pub ahead: Option<i32>,
+    #[serde(default)]
+    pub behind: Option<i32>,
+    #[serde(default)]
+    pub diverge_status: Option<GitDivergeStatus>,
+    #[serde(default)]
+    pub worktree_path: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct WorktreeInfo {
+    pub branch: Option<String>,
+    pub path: String,
+    pub is_main: bool,
+    pub locked: bool,
+    pub prunable: bool,
+    #[serde(default)]
+    pub head: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]
@@ -55,6 +95,24 @@ pub struct GitBranchSummary {
 pub struct WorkspaceGitBranchSwitchInput {
     pub branch_name: String,
     pub allow_stash: bool,
+    #[serde(default)]
+    pub mode: GitSwitchMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceWorktreeEnsureInput {
+    pub branch_name: String,
+    pub allow_stash: bool,
+    #[serde(default)]
+    pub mode: GitSwitchMode,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct WorkspaceWorktreeRemoveInput {
+    pub branch_name: String,
+    pub force: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, TS)]

@@ -3,6 +3,7 @@ import type { WorkspaceBridge } from "../shared/ipc";
 import type {
   GitBranchSummary,
   GitSnapshot,
+  WorktreeInfo,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceGitBranchChangeResult,
@@ -11,7 +12,10 @@ import type {
   WorkspaceMeta,
   WorkspaceSearchFilter,
   WorkspaceSearchHit,
-  WorkspaceSearchWindow
+  WorkspaceSearchWindow,
+  WorkspaceWorktreeEnsureInput,
+  WorkspaceWorktreeEnsureResult,
+  WorkspaceWorktreeRemoveInput
 } from "@ai-digital-life/kernel";
 import { paginateSearchHits } from "../shared/ipc/searchWindow";
 import { isSearchPathExcluded } from "../shared/ipc/searchIgnore";
@@ -351,6 +355,23 @@ export const mockWorkspace: WorkspaceBridge = {
     };
     return { ok: true, data: result };
   },
+    listWorktrees: async () => ({ ok: true, data: [] as WorktreeInfo[] }),
+    ensureWorktree: async (input: WorkspaceWorktreeEnsureInput) => {
+      if (!currentWorkspaceMeta) {
+        return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };
+      }
+      // Mock/demo：无真实 worktree，直接以当前工作区路径充当目标，
+      // 调用方仍走 openWorkspace 全量刷新，行为一致。
+      const result: WorkspaceWorktreeEnsureResult = {
+        path: currentWorkspaceMeta.rootPath,
+        created: false,
+        branch: input.branchName,
+        gitSnapshot: currentWorkspaceMeta.gitSnapshot ?? emptyGitSnapshot()
+      };
+      return { ok: true, data: result };
+    },
+    removeWorktree: async (_input: WorkspaceWorktreeRemoveInput) => ({ ok: true, data: undefined }),
+    pruneWorktrees: async () => ({ ok: true, data: undefined }),
     stageFile: async (relativePath: string, _workspacePath?: string) => {
       if (!currentWorkspaceMeta) {
         return { ok: false, error: { code: "NOT_FOUND", message: "active workspace" } };

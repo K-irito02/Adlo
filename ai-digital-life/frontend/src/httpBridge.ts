@@ -58,6 +58,7 @@ import type {
   RecentWorkspaceEntry,
   RepoMapNode,
   RetrievalSnapshot,
+  WorktreeInfo,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
@@ -67,6 +68,9 @@ import type {
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
+  WorkspaceWorktreeEnsureInput,
+  WorkspaceWorktreeEnsureResult,
+  WorkspaceWorktreeRemoveInput,
   WorkspaceSearchPage,
   WorkspaceSearchFilter,
   WorkspaceSearchWindow,
@@ -1021,6 +1025,18 @@ export function createHttpBridge({
         call<void>(baseUrl, '/workspace/git/unstage', POST({ relativePath, workspacePath })),
       discardFile: (relativePath: string, workspacePath?: string) =>
         call<void>(baseUrl, '/workspace/git/discard', POST({ relativePath, workspacePath })),
+      listWorktrees: (workspacePath?: string) =>
+        call<WorktreeInfo[]>(baseUrl, '/workspace/git/worktrees', POST({ workspacePath })),
+      ensureWorktree: (input: WorkspaceWorktreeEnsureInput, workspacePath?: string) =>
+        call<WorkspaceWorktreeEnsureResult>(
+          baseUrl,
+          '/workspace/git/worktree-ensure',
+          POST({ input, workspacePath }),
+        ),
+      removeWorktree: (input: WorkspaceWorktreeRemoveInput, workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/worktree-remove', POST({ input, workspacePath })),
+      pruneWorktrees: (workspacePath?: string) =>
+        call<void>(baseUrl, '/workspace/git/worktree-prune', POST({ workspacePath })),
       gitVisCommitStats: (rootPath: string, since?: string, until?: string) =>
         call<GitVisCommitStats>(
           baseUrl,

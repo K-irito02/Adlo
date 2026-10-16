@@ -73,17 +73,54 @@ export interface GitSnapshot {
   capturedAt: number;
 }
 
+export type GitDivergeStatus = 'synced' | 'ahead' | 'behind' | 'diverged';
+
+export type GitSwitchMode = 'local' | 'remote' | 'sync';
+
 export interface GitBranchSummary {
   name: string;
   isCurrent: boolean;
   local: boolean;
   remote: boolean;
   hasStash: boolean;
+  upstream?: string;
+  ahead?: number;
+  behind?: number;
+  divergeStatus?: GitDivergeStatus;
+  worktreePath?: string;
+}
+
+export interface WorktreeInfo {
+  branch?: string;
+  path: string;
+  isMain: boolean;
+  locked: boolean;
+  prunable: boolean;
+  head?: string;
 }
 
 export interface WorkspaceGitBranchSwitchInput {
   branchName: string;
   allowStash: boolean;
+  mode?: GitSwitchMode;
+}
+
+export interface WorkspaceWorktreeEnsureInput {
+  branchName: string;
+  allowStash: boolean;
+  mode?: GitSwitchMode;
+}
+
+export interface WorkspaceWorktreeEnsureResult {
+  path: string;
+  created: boolean;
+  branch: string;
+  gitSnapshot: GitSnapshot;
+}
+
+export interface WorkspaceWorktreeRemoveInput {
+  branchName: string;
+  force: boolean;
 }
 
 export interface WorkspaceGitBranchCreateInput {

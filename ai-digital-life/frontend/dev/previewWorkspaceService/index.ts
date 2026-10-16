@@ -781,22 +781,93 @@ const routes: Route[] = [
     method: 'POST',
     pathname: makePath('/workspace/git-switch'),
     handler: async (_req, body, searchParams) => {
-      const rootPath = searchParams.get('rootPath');
+      const b = body as { rootPath?: string; input?: unknown } | undefined;
+      const rootPath = searchParams.get('rootPath') ?? b?.rootPath;
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
-      const input = body as Record<string, unknown> | undefined;
+      const input = (b?.input ?? b) as Record<string, unknown> | undefined;
       if (!input) return fail('branch switch payload is required', 'INVALID_INPUT');
-      return ok(await git.switchGitBranch(rootPath, input as any));
+      try {
+        return ok(await git.switchGitBranch(rootPath, input as any));
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
     },
   },
   {
     method: 'POST',
     pathname: makePath('/workspace/git-create-branch'),
     handler: async (_req, body, searchParams) => {
+      const b = body as { rootPath?: string; input?: unknown } | undefined;
+      const rootPath = searchParams.get('rootPath') ?? b?.rootPath;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const input = (b?.input ?? b) as Record<string, unknown> | undefined;
+      if (!input) return fail('branch creation payload is required', 'INVALID_INPUT');
+      try {
+        return ok(await git.createGitBranch(rootPath, input as any));
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
+    },
+  },
+  {
+    method: 'GET',
+    pathname: makePath('/workspace/git-worktrees'),
+    handler: async (_req, _body, searchParams) => {
       const rootPath = searchParams.get('rootPath');
       if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
-      const input = body as Record<string, unknown> | undefined;
-      if (!input) return fail('branch creation payload is required', 'INVALID_INPUT');
-      return ok(await git.createGitBranch(rootPath, input as any));
+      try {
+        return ok(await git.listWorktrees(rootPath));
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-worktree-ensure'),
+    handler: async (_req, body, searchParams) => {
+      const b = body as { rootPath?: string; input?: unknown } | undefined;
+      const rootPath = searchParams.get('rootPath') ?? b?.rootPath;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const input = (b?.input ?? b) as Record<string, unknown> | undefined;
+      if (!input) return fail('worktree ensure payload is required', 'INVALID_INPUT');
+      try {
+        return ok(await git.ensureBranchWorktree(rootPath, input as any));
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-worktree-remove'),
+    handler: async (_req, body, searchParams) => {
+      const b = body as { rootPath?: string; input?: unknown } | undefined;
+      const rootPath = searchParams.get('rootPath') ?? b?.rootPath;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      const input = (b?.input ?? b) as Record<string, unknown> | undefined;
+      if (!input) return fail('worktree remove payload is required', 'INVALID_INPUT');
+      try {
+        await git.removeBranchWorktree(rootPath, input as any);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
+    },
+  },
+  {
+    method: 'POST',
+    pathname: makePath('/workspace/git-worktree-prune'),
+    handler: async (_req, body, searchParams) => {
+      const b = body as { rootPath?: string } | undefined;
+      const rootPath = searchParams.get('rootPath') ?? b?.rootPath;
+      if (!rootPath?.trim()) return fail('rootPath is required', 'INVALID_INPUT');
+      try {
+        await git.pruneWorktrees(rootPath);
+        return ok(true);
+      } catch (error) {
+        return fail(error instanceof Error ? error.message : String(error), 'INVALID_INPUT');
+      }
     },
   },
   {

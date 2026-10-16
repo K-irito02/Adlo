@@ -10,7 +10,8 @@ use adl_errors::AppError;
 use adl_storage::EntityTable;
 use adl_types::{
     GitBranchSummary, GitSnapshot, WorkspaceGitBranchChangeResult, WorkspaceGitBranchCreateInput,
-    WorkspaceGitBranchSwitchInput, WorkspaceMeta, WorkspaceStatus, now_ms,
+    WorkspaceGitBranchSwitchInput, WorkspaceMeta, WorkspaceStatus, WorkspaceWorktreeEnsureInput,
+    WorkspaceWorktreeRemoveInput, now_ms,
 };
 use axum::extract::State;
 use axum::response::IntoResponse;
@@ -104,12 +105,14 @@ pub async fn switch_git_branch(
     }
     let root_path = workspace.root_path.clone();
     let allow_stash = input.input.allow_stash;
+    let mode = input.input.mode;
     let branch_for_closure = branch_name.clone();
     let git_result = tokio::task::spawn_blocking(move || {
         adl_workspace::switch_git_branch(
             PathBuf::from(root_path).as_path(),
             &branch_for_closure,
             allow_stash,
+            mode,
         )
     })
     .await
@@ -282,6 +285,144 @@ pub async fn git_unstage_file(
     body: axum::body::Bytes,
 ) -> impl IntoResponse {
     ipc::to_response(run_git_file_op(&state, body, adl_workspace::unstage_file).await)
+}
+
+/// POST `/workspace/git/worktrees` — list linked worktrees of a repository
+/// (covers `WorkspaceBridge.listWorktrees`).
+pub async fn list_worktrees(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let body_val: serde_json::Value = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let workspace_path = body_val.get("workspacePath").and_then(|v| v.as_str()).map(String::from);
+    let root = match git_root(&state, workspace_path) {
+        Ok(r) => r,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
+        let worktrees: Vec<adl_types::WorktreeInfo> =
+            adl_workspace::list_worktrees(root.as_path())?;
+        Ok(serde_json::to_value(&worktrees)?)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")));
+    ipc::to_response(result.and_then(|r| r))
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorktreeEnsureBody {
+    workspace_path: Option<String>,
+    input: WorkspaceWorktreeEnsureInput,
+}
+
+/// POST `/workspace/git/worktree-ensure` — ensure a sibling worktree for a
+/// branch and apply the switch mode (covers `WorkspaceBridge.ensureWorktree`).
+/// Returns the worktree path; focusing (openWorkspace) stays client-side so
+/// file/changes panels refresh through the normal bootstrap.
+pub async fn ensure_worktree(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: WorktreeEnsureBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root = match git_root(&state, input.workspace_path) {
+        Ok(r) => r,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let branch_name = input.input.branch_name.trim().to_string();
+    if branch_name.is_empty() {
+        return ipc::to_response(Err(AppError::InvalidInput("branch name is required".into())));
+    }
+    let mode = input.input.mode;
+    let allow_stash = input.input.allow_stash;
+    let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
+        let (path, created) = adl_workspace::ensure_branch_worktree(
+            root.as_path(),
+            &branch_name,
+            mode,
+            allow_stash,
+        )?;
+        let git_snapshot = adl_workspace::capture_git_snapshot(&path);
+        let result = WorkspaceWorktreeEnsureResultCompat {
+            path: path.to_string_lossy().to_string(),
+            created,
+            branch: branch_name,
+            git_snapshot,
+        };
+        Ok(serde_json::to_value(&result)?)
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")));
+    ipc::to_response(result.and_then(|r| r))
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct WorktreeRemoveBody {
+    workspace_path: Option<String>,
+    input: WorkspaceWorktreeRemoveInput,
+}
+
+/// POST `/workspace/git/worktree-remove` — remove a branch's sibling worktree.
+pub async fn remove_worktree(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: WorktreeRemoveBody = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root = match git_root(&state, input.workspace_path) {
+        Ok(r) => r,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let branch_name = input.input.branch_name.trim().to_string();
+    let force = input.input.force;
+    let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::remove_worktree(root.as_path(), &branch_name, force)?;
+        Ok(serde_json::json!(null))
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")));
+    ipc::to_response(result.and_then(|r| r))
+}
+
+/// POST `/workspace/git/worktree-prune` — prune stale worktree metadata.
+pub async fn prune_worktrees(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let body_val: serde_json::Value = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let workspace_path = body_val.get("workspacePath").and_then(|v| v.as_str()).map(String::from);
+    let root = match git_root(&state, workspace_path) {
+        Ok(r) => r,
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
+        adl_workspace::prune_worktrees(root.as_path())?;
+        Ok(serde_json::json!(null))
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")));
+    ipc::to_response(result.and_then(|r| r))
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WorkspaceWorktreeEnsureResultCompat {
+    path: String,
+    created: bool,
+    branch: String,
+    git_snapshot: GitSnapshot,
 }
 
 /// POST `/workspace/git/discard` — discard a file's changes (covers

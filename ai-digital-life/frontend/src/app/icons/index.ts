@@ -158,6 +158,9 @@ export {
   IconVolumeX,
   IconBell,
   IconPendingCommit,
+  IconBranchAhead,
+  IconBranchBehind,
+  IconBranchDiverged,
   IconCircleHelp,
 } from './status';
 export { IconTerminalDirectory, IconClearDisplay } from './terminal-nav';

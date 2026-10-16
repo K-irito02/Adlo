@@ -2,7 +2,7 @@ import { spawn } from 'node:child_process';
 import fsSync from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import type { GitSnapshot, GitBranchSummary, WorkspaceGitBranchSwitchInput, WorkspaceGitBranchCreateInput, WorkspaceChangePreview } from '../../src/kernel/index';
+import type { GitSnapshot, GitBranchSummary, GitDivergeStatus, GitSwitchMode, WorktreeInfo, WorkspaceGitBranchSwitchInput, WorkspaceGitBranchCreateInput, WorkspaceWorktreeEnsureInput, WorkspaceWorktreeEnsureResult, WorkspaceWorktreeRemoveInput, WorkspaceChangePreview } from '../../src/kernel/index';
 import { resolveWorkspacePath, normalizePath, relativePath, detectWorkspaceRoot, inferWorkspaceType, createWorkspaceId, nowMs, DEFAULT_MAX_TEXT_FILE_BYTES } from './files';
 
 const GIT_TIMEOUT_MS = 30_000;
@@ -170,18 +170,214 @@ export async function readChangePreview(rootPath: string, relativeTarget: string
   };
 }
 
+function divergeStatusFor(ahead?: number, behind?: number): GitDivergeStatus | undefined {
+  if (ahead === undefined || behind === undefined) return undefined;
+  if (ahead === 0 && behind === 0) return 'synced';
+  if (ahead > 0 && behind === 0) return 'ahead';
+  if (ahead === 0 && behind > 0) return 'behind';
+  if (ahead > 0 && behind > 0) return 'diverged';
+  return undefined;
+}
+
+async function branchUpstreams(rootPath: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const output = await runGit(rootPath, ['for-each-ref', '--format=%(refname:short)%09%(upstream:short)', 'refs/heads']);
+  if (!output) return map;
+  for (const line of output.split(/\r?\n/)) {
+    const tab = line.indexOf('\t');
+    if (tab < 0) continue;
+    const branch = line.slice(0, tab).trim();
+    const upstream = line.slice(tab + 1).trim();
+    if (branch && upstream) map.set(branch, upstream);
+  }
+  return map;
+}
+
+async function stashedBranches(rootPath: string): Promise<Set<string>> {
+  const set = new Set<string>();
+  const output = await runGit(rootPath, ['stash', 'list', '--format=%s']);
+  if (!output) return set;
+  for (const line of output.split(/\r?\n/)) {
+    const marker = 'adl-auto-stash:';
+    const pos = line.indexOf(marker);
+    if (pos < 0) continue;
+    const rest = line.slice(pos + marker.length);
+    const end = rest.indexOf(':');
+    const branch = (end < 0 ? rest : rest.slice(0, end)).trim();
+    if (branch) set.add(branch);
+  }
+  return set;
+}
+
+async function divergenceCounts(rootPath: string, local: string, upstream: string): Promise<[number, number] | undefined> {
+  const output = await runGit(rootPath, ['rev-list', '--left-right', '--count', `${local}...${upstream}`]);
+  if (!output) return undefined;
+  const parts = output.split(/\s+/);
+  if (parts.length < 2) return undefined;
+  const ahead = Number(parts[0]);
+  const behind = Number(parts[1]);
+  if (!Number.isFinite(ahead) || !Number.isFinite(behind)) return undefined;
+  return [ahead, behind];
+}
+
+interface ParsedWorktree {
+  branch?: string;
+  path: string;
+  isMain: boolean;
+  locked: boolean;
+  prunable: boolean;
+  head?: string;
+}
+
+function parseWorktreeList(output: string): ParsedWorktree[] {
+  const entries: ParsedWorktree[] = [];
+  let current: ParsedWorktree | undefined;
+  const flush = () => {
+    if (current) {
+      current.isMain = entries.length === 0;
+      entries.push(current);
+      current = undefined;
+    }
+  };
+  for (const rawLine of output.split(/\r?\n/)) {
+    const line = rawLine.trimEnd();
+    if (!line) {
+      flush();
+      continue;
+    }
+    if (line.startsWith('worktree ')) {
+      flush();
+      // Git 输出恒用 `/`，Node/前端用系统分隔符：归一化后比较/聚焦才对得上。
+      const rawPath = line.slice('worktree '.length).trim();
+      current = { path: path.normalize(rawPath), isMain: false, locked: false, prunable: false };
+    } else if (line.startsWith('HEAD ') && current) {
+      current.head = line.slice('HEAD '.length).trim();
+    } else if (line.startsWith('branch ') && current) {
+      const ref = line.slice('branch '.length).trim();
+      current.branch = ref.startsWith('refs/heads/') ? ref.slice('refs/heads/'.length) : ref;
+    } else if (line === 'detached' && current) {
+      current.branch = undefined;
+    } else if (line.startsWith('locked') && current) {
+      current.locked = true;
+    } else if (line.startsWith('prunable') && current) {
+      current.prunable = true;
+    }
+  }
+  flush();
+  return entries;
+}
+
+export async function listWorktrees(rootPath: string): Promise<WorktreeInfo[]> {
+  const output = await runGitRequired(rootPath, ['worktree', 'list', '--porcelain']);
+  return parseWorktreeList(output);
+}
+
+function worktreeForBranch(worktrees: ParsedWorktree[], branchName: string): string | undefined {
+  return worktrees.find((entry) => entry.branch === branchName)?.path;
+}
+
+async function remoteTrackingRef(rootPath: string, branchName: string): Promise<string | undefined> {
+  const output = await runGit(rootPath, ['branch', '-r', '--format=%(refname:short)']);
+  if (!output) return undefined;
+  for (const line of output.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.includes('->')) continue;
+    const slash = trimmed.indexOf('/');
+    if (slash > 0 && trimmed.slice(slash + 1) === branchName) return trimmed;
+  }
+  return undefined;
+}
+
+async function hasLocalBranch(rootPath: string, branchName: string): Promise<boolean> {
+  const output = await runGit(rootPath, ['show-ref', '--verify', '--quiet', `refs/heads/${branchName}`]);
+  // show-ref --quiet prints nothing on success; runGit resolves undefined on failure.
+  // Success path still needs an explicit check: use branch --list as fallback.
+  if (output !== undefined) return true;
+  const list = await runGit(rootPath, ['branch', '--list', branchName, '--format=%(refname:short)']);
+  return (list ?? '').split(/\r?\n/).map((line) => line.trim()).includes(branchName);
+}
+
+export function sanitizeBranchDir(branchName: string): string {
+  const sanitized = branchName.trim().replace(/[/\\:<>\"|?*.\u0000-\u001F]/g, '-').replace(/^[- .]+|[- .]+$/g, '');
+  return sanitized || 'branch';
+}
+
+export function siblingWorktreeDir(rootPath: string, branchName: string): string {
+  const base = sanitizeBranchDir(branchName);
+  const parent = path.dirname(path.resolve(rootPath));
+  const rootName = path.basename(path.resolve(rootPath)) || 'workspace';
+  const container = path.join(parent, `${rootName}-worktrees`);
+  let candidate = path.join(container, base);
+  let index = 2;
+  while (fsSync.existsSync(candidate)) {
+    candidate = path.join(container, `${base}-${index}`);
+    index += 1;
+  }
+  return candidate;
+}
+
 export async function listGitBranches(rootPath: string): Promise<GitBranchSummary[]> {
-  const [currentBranch, branchesOutput] = await Promise.all([
+  const [currentBranch, branchesOutput, remoteOutput, upstreams, worktrees, stashed] = await Promise.all([
     runGit(rootPath, ['branch', '--show-current']),
     runGit(rootPath, ['branch', '--format=%(refname:short)']),
+    runGit(rootPath, ['branch', '-r', '--format=%(refname:short)']),
+    branchUpstreams(rootPath),
+    listWorktrees(rootPath).catch(() => [] as ParsedWorktree[]),
+    stashedBranches(rootPath),
   ]);
   const current = currentBranch?.trim();
-  const branches = (branchesOutput ?? '')
+  const localNames = (branchesOutput ?? '')
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter(Boolean)
-    .map((name) => ({ name, isCurrent: name === current }));
-  if (!branches.length) throw new Error('no local branches found');
+    .filter(Boolean);
+  if (!localNames.length) throw new Error('no local branches found');
+  const remoteNames = new Set(
+    (remoteOutput ?? '')
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.includes('->'))
+      .map((line) => {
+        const slash = line.indexOf('/');
+        return slash > 0 ? line.slice(slash + 1) : line;
+      })
+      .filter(Boolean),
+  );
+  const seen = new Set<string>();
+  const branches: GitBranchSummary[] = [];
+  for (const name of localNames) {
+    seen.add(name);
+    const upstream = upstreams.get(name);
+    const counts = upstream ? await divergenceCounts(rootPath, name, upstream) : undefined;
+    const ahead = counts?.[0];
+    const behind = counts?.[1];
+    branches.push({
+      name,
+      isCurrent: name === current,
+      local: true,
+      remote: remoteNames.has(name),
+      hasStash: stashed.has(name),
+      upstream,
+      ahead,
+      behind,
+      divergeStatus: divergeStatusFor(ahead, behind),
+      worktreePath: worktreeForBranch(worktrees, name),
+    });
+  }
+  for (const name of remoteNames) {
+    if (seen.has(name)) continue;
+    branches.push({
+      name,
+      isCurrent: false,
+      local: false,
+      remote: true,
+      hasStash: false,
+      upstream: undefined,
+      ahead: undefined,
+      behind: undefined,
+      divergeStatus: undefined,
+      worktreePath: undefined,
+    });
+  }
   branches.sort((left, right) => Number(right.isCurrent) - Number(left.isCurrent) || left.name.localeCompare(right.name));
   return branches;
 }
@@ -196,8 +392,123 @@ function hasLocalGitChanges(snapshot: GitSnapshot): boolean {
   return snapshot.staged.length > 0 || snapshot.unstaged.length > 0 || snapshot.untracked.length > 0;
 }
 
-async function stashWorkspaceChanges(rootPath: string): Promise<void> {
-  await runGitRequired(rootPath, ['stash', 'push', '--include-untracked', '--message', `adl-preview-auto-stash-${Date.now()}`]);
+async function stashWorkspaceChanges(rootPath: string, branchName: string): Promise<void> {
+  await runGitRequired(rootPath, ['stash', 'push', '--include-untracked', '--message', `adl-auto-stash:${branchName}:${Date.now()}`]);
+}
+
+async function popAutoStash(rootPath: string, branchName: string): Promise<boolean> {
+  const output = await runGit(rootPath, ['stash', 'list', '--format=%s']);
+  if (!output) return true;
+  const needle = `adl-auto-stash:${branchName}:`;
+  const lines = output.split(/\r?\n/);
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    if (lines[i].includes(needle)) {
+      const popped = await runGit(rootPath, ['stash', 'pop', '--index', `stash@{${i}}`]);
+      return popped !== undefined;
+    }
+  }
+  return true;
+}
+
+async function fetchBranchRef(workPath: string, branchName: string): Promise<string> {
+  const remoteRef = await remoteTrackingRef(workPath, branchName);
+  if (!remoteRef) throw new Error(`no remote branch found for: ${branchName}`);
+  const slash = remoteRef.indexOf('/');
+  const remote = slash > 0 ? remoteRef.slice(0, slash) : 'origin';
+  await runGitRequired(workPath, ['fetch', remote, branchName]);
+  return remoteRef;
+}
+
+async function stashGate(workPath: string, branchName: string, allowStash: boolean): Promise<boolean> {
+  const snapshot = await captureGitSnapshot(workPath);
+  if (!snapshot.isRepo) throw new Error('target is not a Git repository');
+  const dirty = hasLocalGitChanges(snapshot);
+  if (dirty && !allowStash) throw new Error('Dirty worktree requires explicit stash confirmation.');
+  if (dirty) await stashWorkspaceChanges(workPath, branchName);
+  return dirty;
+}
+
+async function resetWorktreeToRemote(workPath: string, branchName: string, allowStash: boolean): Promise<boolean> {
+  const stashed = await stashGate(workPath, branchName, allowStash);
+  const remoteRef = await fetchBranchRef(workPath, branchName);
+  await runGitRequired(workPath, ['reset', '--hard', remoteRef]);
+  return stashed;
+}
+
+async function syncWorktreeWithRemote(workPath: string, branchName: string, allowStash: boolean): Promise<boolean> {
+  const stashed = await stashGate(workPath, branchName, allowStash);
+  const remoteRef = await fetchBranchRef(workPath, branchName);
+  const fastForward = await runGit(workPath, ['merge', '--ff-only', remoteRef]);
+  if (fastForward !== undefined) return stashed;
+  const merged = await runGit(workPath, ['merge', '--no-edit', remoteRef]);
+  if (merged === undefined) {
+    await runGit(workPath, ['merge', '--abort']);
+    throw new Error(`sync conflict on ${branchName}: merge aborted, resolve manually against ${remoteRef}`);
+  }
+  return stashed;
+}
+
+function resolveSwitchMode(input: WorkspaceGitBranchSwitchInput): GitSwitchMode {
+  return input.mode ?? 'local';
+}
+
+export async function ensureBranchWorktree(rootPath: string, input: WorkspaceWorktreeEnsureInput): Promise<WorkspaceWorktreeEnsureResult> {
+  const snapshot = await captureGitSnapshot(rootPath);
+  if (!snapshot.isRepo) throw new Error('active workspace is not a Git repository');
+  const branchName = input.branchName.trim();
+  if (!branchName) throw new Error('branchName is required');
+  const mode: GitSwitchMode = input.mode ?? 'local';
+  await runGit(rootPath, ['worktree', 'prune']);
+
+  const existing = await listWorktrees(rootPath).catch(() => [] as WorktreeInfo[]);
+  const reused = existing.find((entry) => entry.branch === branchName)?.path;
+  if (reused) {
+    if (mode === 'remote') await resetWorktreeToRemote(reused, branchName, input.allowStash);
+    if (mode === 'sync') await syncWorktreeWithRemote(reused, branchName, input.allowStash);
+    return { path: reused, created: false, branch: branchName, gitSnapshot: await captureGitSnapshot(reused) };
+  }
+
+  const local = await hasLocalBranch(rootPath, branchName);
+  const remoteRef = await remoteTrackingRef(rootPath, branchName);
+  if (!local && !remoteRef) throw new Error(`branch not found locally or on remotes: ${branchName}`);
+  if (mode === 'remote' && !remoteRef) throw new Error(`no remote branch to reset from: ${branchName}`);
+
+  const target = siblingWorktreeDir(rootPath, branchName);
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  const addArgs =
+    mode === 'remote' && remoteRef
+      ? ['worktree', 'add', '-B', branchName, target, remoteRef]
+      : local
+        ? ['worktree', 'add', target, branchName]
+        : ['worktree', 'add', '-b', branchName, target, remoteRef!];
+  const added = await runGit(rootPath, addArgs);
+  let finalPath = target;
+  if (added === undefined) {
+    const relisted = await listWorktrees(rootPath).catch(() => [] as WorktreeInfo[]);
+    const raced = relisted.find((entry) => entry.branch === branchName)?.path;
+    if (!raced) throw new Error(`git command failed: git ${addArgs.join(' ')}`);
+    finalPath = raced;
+  }
+  if (mode === 'remote') await resetWorktreeToRemote(finalPath, branchName, input.allowStash);
+  if (mode === 'sync') await syncWorktreeWithRemote(finalPath, branchName, input.allowStash);
+  return { path: finalPath, created: added !== undefined, branch: branchName, gitSnapshot: await captureGitSnapshot(finalPath) };
+}
+
+export async function removeBranchWorktree(rootPath: string, input: WorkspaceWorktreeRemoveInput): Promise<void> {
+  const branchName = input.branchName.trim();
+  if (!branchName) throw new Error('branchName is required');
+  const worktrees = await listWorktrees(rootPath);
+  const target = worktrees.find((entry) => entry.branch === branchName)?.path;
+  if (!target) throw new Error(`no worktree found for branch: ${branchName}`);
+  if (worktrees.length > 0 && worktrees[0].path === target) {
+    throw new Error('cannot remove the main worktree; remove the sibling directory instead');
+  }
+  const args = input.force ? ['worktree', 'remove', '--force', target] : ['worktree', 'remove', target];
+  await runGitRequired(rootPath, args);
+}
+
+export async function pruneWorktrees(rootPath: string): Promise<void> {
+  await runGitRequired(rootPath, ['worktree', 'prune']);
 }
 
 async function updateWorkspaceMetaForBranchChange(rootPath: string): Promise<import('../src/kernel/index').WorkspaceMeta> {
@@ -222,10 +533,14 @@ export async function switchGitBranch(rootPath: string, input: WorkspaceGitBranc
   if (!snapshot.isRepo) throw new Error('active workspace is not a Git repository');
   const branchName = input.branchName.trim();
   if (!branchName) throw new Error('branchName is required');
+  const mode = resolveSwitchMode(input);
   const stashedChanges = hasLocalGitChanges(snapshot);
   if (stashedChanges && !input.allowStash) throw new Error('Dirty worktree requires explicit stash confirmation.');
-  if (stashedChanges) await stashWorkspaceChanges(rootPath);
+  if (stashedChanges) await stashWorkspaceChanges(rootPath, snapshot.branch ?? branchName);
   await runGitRequired(rootPath, ['switch', branchName]);
+  if (mode === 'remote') await resetWorktreeToRemote(rootPath, branchName, true);
+  if (mode === 'sync') await syncWorktreeWithRemote(rootPath, branchName, true);
+  const hasRestored = await popAutoStash(rootPath, branchName);
   const workspace = await updateWorkspaceMetaForBranchChange(rootPath);
   return {
     workspace,
@@ -233,6 +548,7 @@ export async function switchGitBranch(rootPath: string, input: WorkspaceGitBranc
     previousBranch: snapshot.branch,
     currentBranch: workspace.gitSnapshot?.branch ?? branchName,
     stashedChanges,
+    hasRestored,
   };
 }
 
@@ -246,7 +562,7 @@ export async function createGitBranch(rootPath: string, input: WorkspaceGitBranc
   const baseBranch = input.baseBranch?.trim() || currentBranch;
   const stashedChanges = baseBranch !== currentBranch && hasLocalGitChanges(snapshot);
   if (stashedChanges && !input.allowStash) throw new Error('Dirty worktree requires explicit stash confirmation.');
-  if (stashedChanges) await stashWorkspaceChanges(rootPath);
+  if (stashedChanges) await stashWorkspaceChanges(rootPath, currentBranch);
   if (baseBranch !== currentBranch) await runGitRequired(rootPath, ['switch', baseBranch]);
   await runGitRequired(rootPath, ['switch', '-c', branchName]);
   const workspace = await updateWorkspaceMetaForBranchChange(rootPath);
@@ -256,5 +572,6 @@ export async function createGitBranch(rootPath: string, input: WorkspaceGitBranc
     previousBranch: snapshot.branch,
     currentBranch: workspace.gitSnapshot?.branch ?? branchName,
     stashedChanges,
+    hasRestored: false,
   };
 }

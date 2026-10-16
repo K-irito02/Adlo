@@ -7,10 +7,14 @@ import type {
   GitVisBranchGraph,
   GitVisFileHotspots,
   IpcResult,
+  WorktreeInfo,
   WorkspaceGitBranchChangeResult,
   WorkspaceGitBranchCreateInput,
   WorkspaceGitBranchSwitchInput,
   WorkspaceMeta,
+  WorkspaceWorktreeEnsureInput,
+  WorkspaceWorktreeEnsureResult,
+  WorkspaceWorktreeRemoveInput,
 } from '@ai-digital-life/kernel';
 import { IpcErrorCode } from '../shared/ipc/shared';
 import { requestPreviewApi } from '../shared/ipc/preview-api';
@@ -99,6 +103,50 @@ export function createPreviewGitBridge(
         setMockActiveWorkspace(result.data.workspace);
       }
       return result;
+    },
+    listWorktrees: async (rootPath?: string): Promise<IpcResult<WorktreeInfo[]>> => {
+      const root = rootPath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      const params = new URLSearchParams({ rootPath: root });
+      return requestPreviewApi<WorktreeInfo[]>(`/workspace/git-worktrees?${params.toString()}`);
+    },
+    ensureWorktree: async (
+      input: WorkspaceWorktreeEnsureInput,
+      workspacePath?: string,
+    ): Promise<IpcResult<WorkspaceWorktreeEnsureResult>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<WorkspaceWorktreeEnsureResult>('/workspace/git-worktree-ensure', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root, input }),
+      });
+    },
+    removeWorktree: async (
+      input: WorkspaceWorktreeRemoveInput,
+      workspacePath?: string,
+    ): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-worktree-remove', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root, input }),
+      });
+    },
+    pruneWorktrees: async (workspacePath?: string): Promise<IpcResult<void>> => {
+      const root = workspacePath ?? ctx.currentWorkspace?.rootPath;
+      if (!root) {
+        return { ok: false, error: { code: 'NOT_FOUND', message: 'no workspace' } };
+      }
+      return requestPreviewApi<void>('/workspace/git-worktree-prune', {
+        method: 'POST',
+        body: JSON.stringify({ rootPath: root }),
+      });
     },
     stageFile: async (relativePath: string, workspacePath?: string): Promise<IpcResult<void>> => {
       const root = workspacePath ?? ctx.currentWorkspace?.rootPath;

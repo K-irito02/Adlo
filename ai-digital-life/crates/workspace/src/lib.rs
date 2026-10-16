@@ -20,8 +20,9 @@ pub use git::git_vis::{
 };
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, discard_file_changes,
-    git_has_local_changes, has_auto_stash, list_git_branches, pop_auto_stash, stage_file,
-    switch_git_branch, unstage_file,
+    ensure_branch_worktree, git_has_local_changes, has_auto_stash, list_worktrees,
+    list_git_branches, pop_auto_stash, prune_worktrees, remove_worktree, sibling_worktree_dir,
+    stage_file, switch_git_branch, unstage_file, worktree_for_branch,
 };
 pub use gitignore::{GitignoreMatcher, GitignoreRuleSet, load_gitignore_chain};
 pub use preview::read_change_preview;
@@ -662,6 +663,9 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("adl-ws-branches-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
+        std::fs::write(dir.join("README.md"), "# Test").unwrap();
+        run_git_test(&dir, &["add", "README.md"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
 
         let branches = list_git_branches(&dir).unwrap();
         assert!(!branches.is_empty());

@@ -1,13 +1,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { IconCheck, IconChevronRight, IconGitBranch, IconPendingCommit } from '@icons';
+import {
+  IconCheck,
+  IconChevronRight,
+  IconGitBranch,
+  IconPendingCommit,
+  IconBranchAhead,
+  IconBranchBehind,
+  IconBranchDiverged,
+} from '@icons';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
 import { SearchInput } from '@components/SearchInput';
 import { TooltipSimple } from '@components/Tooltip';
 import { CopyButton } from '@components/CopyButton';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
-import { useStashConfirm } from '@hooks/useStashConfirm';
-import type { GitBranchSummary } from '@ai-digital-life/kernel';
+import type { GitBranchSummary, GitSwitchMode } from '@ai-digital-life/kernel';
 
 interface BranchSubCardProps {
   subRef: React.RefObject<HTMLDivElement | null>;
@@ -18,6 +25,20 @@ interface BranchSubCardProps {
   onSubEnter?: () => void;
   onSubLeave?: () => void;
   isRepo?: boolean;
+}
+
+interface ModeFlow {
+  branch: string;
+  step: 'choose' | 'confirmRemote' | 'confirmStash';
+  mode: GitSwitchMode;
+}
+
+function needsModeChoice(branch: GitBranchSummary): boolean {
+  return (
+    branch.local &&
+    branch.remote &&
+    (branch.divergeStatus === 'behind' || branch.divergeStatus === 'diverged')
+  );
 }
 
 export function BranchSubCard({
@@ -37,32 +58,19 @@ export function BranchSubCard({
   const [isLoadingBranches, setIsLoadingBranches] = useState(false);
   const [localFilterActive, setLocalFilterActive] = useState(false);
   const [remoteFilterActive, setRemoteFilterActive] = useState(false);
+  const [modeFlow, setModeFlow] = useState<ModeFlow | null>(null);
+  const [busyBranch, setBusyBranch] = useState<string | null>(null);
 
   const storeBranches = useAppStore((s) => s.gitBranches);
-  const switchGitBranch = useAppStore((s) => s.switchGitBranch);
+  const ensureBranchWorktree = useAppStore((s) => s.ensureBranchWorktree);
   const fetchGitBranches = useAppStore((s) => s.fetchGitBranches);
   const gitSnapshot = useAppStore((s) => s.gitSnapshot);
   const currentBranch = gitSnapshot?.branch ?? '';
-  const openWorkspace = useAppStore((s) => s.openWorkspace);
-  const currentWorkspacePath = useAppStore((s) => s.appInfo?.currentWorkspace?.path);
 
   const hasDirtyChanges =
     (gitSnapshot?.staged.length ?? 0) > 0 ||
     (gitSnapshot?.unstaged.length ?? 0) > 0 ||
     (gitSnapshot?.untracked.length ?? 0) > 0;
-
-  const { needsConfirm, confirm, cancel, initiateSwitch } = useStashConfirm({
-    snapshot: gitSnapshot,
-    onConfirm: async (action) => {
-      if (action.kind === 'switch') {
-        if (workspacePath && workspacePath !== currentWorkspacePath) {
-          await openWorkspace(workspacePath);
-        }
-        await switchGitBranch(action.input);
-      }
-      onOpenChange(false);
-    },
-  });
 
   const gitBranches = useMemo(
     () => (workspacePath ? (localBranches ?? []) : (localBranches ?? storeBranches)),
@@ -96,6 +104,8 @@ export function BranchSubCard({
       setBranchSearch('');
       setLocalBranches(null);
       setIsLoadingBranches(false);
+      setModeFlow(null);
+      setBusyBranch(null);
     }
   }, [isOpen]);
 
@@ -123,12 +133,62 @@ export function BranchSubCard({
 
   const isRepo = isRepoProp ?? (gitBranches.length > 0 || !!currentBranch);
 
-  const handleSelect = useCallback(
-    async (branchName: string) => {
-      onSelect?.(branchName);
-      initiateSwitch({ branchName, allowStash: false });
+  const doEnsure = useCallback(
+    async (branchName: string, mode: GitSwitchMode, allowStash: boolean) => {
+      setBusyBranch(branchName);
+      try {
+        const path = await ensureBranchWorktree({ branchName, mode, allowStash }, workspacePath);
+        if (path) {
+          onSelect?.(branchName);
+          setModeFlow(null);
+          onOpenChange(false);
+          return;
+        }
+        // 失败已进 errorToasts；仅 Dirty 可重试（目标 worktree 脏），其余保持列表可视。
+        const toasts = useAppStore.getState().errorToasts;
+        const lastGitError = [...toasts].reverse().find((entry) => entry.scope === 'git');
+        if (lastGitError?.detail.includes('Dirty worktree')) {
+          setModeFlow({ branch: branchName, step: 'confirmStash', mode });
+        }
+      } finally {
+        setBusyBranch(null);
+      }
     },
-    [onSelect, initiateSwitch],
+    [ensureBranchWorktree, workspacePath, onSelect, onOpenChange],
+  );
+
+  const handleSelect = useCallback(
+    (branch: GitBranchSummary) => {
+      if (branch.name === currentBranch || busyBranch) {
+        return;
+      }
+      if (needsModeChoice(branch)) {
+        setModeFlow({ branch: branch.name, step: 'choose', mode: 'local' });
+        return;
+      }
+      void doEnsure(branch.name, 'local', false);
+    },
+    [currentBranch, busyBranch, doEnsure],
+  );
+
+  const divergeHint = useCallback(
+    (branch: GitBranchSummary): string => {
+      const ahead = branch.ahead ?? 0;
+      const behind = branch.behind ?? 0;
+      switch (branch.divergeStatus) {
+        case 'ahead':
+          return `${t.changesBranchAhead as string} ↑${ahead}`;
+        case 'behind':
+          return `${t.changesBranchBehind as string} ↓${behind}`;
+        case 'diverged':
+          return `${t.changesBranchDiverged as string} ↑${ahead} ↓${behind}`;
+        case 'synced':
+          return t.changesBranchSynced as string;
+        default:
+          return branch.upstream ?? branch.name;
+      }
+    },
+    [t],
   );
 
   if (!isOpen) {
@@ -199,11 +259,33 @@ export function BranchSubCard({
               role="menuitemradio"
               aria-checked={branch.name === currentBranch}
               className={`adl-changes-branch-item${branch.name === currentBranch ? ' is-current' : ''}`}
-              onClick={() => handleSelect(branch.name)}
+              onClick={() => handleSelect(branch)}
               title={branch.name}
+              disabled={busyBranch !== null}
             >
               <span className="adl-changes-branch-item-name">{branch.name}</span>
               {branch.name === currentBranch ? <IconCheck size={14} decorative /> : null}
+              {branch.divergeStatus === 'ahead' ? (
+                <TooltipSimple content={divergeHint(branch)} placement="top">
+                  <span className="adl-changes-branch-diverge">
+                    <IconBranchAhead size={14} decorative />
+                  </span>
+                </TooltipSimple>
+              ) : null}
+              {branch.divergeStatus === 'behind' ? (
+                <TooltipSimple content={divergeHint(branch)} placement="top">
+                  <span className="adl-changes-branch-diverge">
+                    <IconBranchBehind size={14} decorative />
+                  </span>
+                </TooltipSimple>
+              ) : null}
+              {branch.divergeStatus === 'diverged' ? (
+                <TooltipSimple content={divergeHint(branch)} placement="top">
+                  <span className="adl-changes-branch-diverge">
+                    <IconBranchDiverged size={14} decorative />
+                  </span>
+                </TooltipSimple>
+              ) : null}
               {branch.hasStash || (branch.name === currentBranch && hasDirtyChanges) ? (
                 <TooltipSimple content={t.changesPendingCommit as string} placement="top">
                   <span className="adl-icon-pending-commit">
@@ -221,24 +303,95 @@ export function BranchSubCard({
                   {t.changesBranchRemote}
                 </span>
               ) : null}
+              {branch.worktreePath ? (
+                <TooltipSimple content={t.changesBranchWorktree as string} placement="top">
+                  <span className="adl-changes-branch-badge adl-changes-branch-badge--worktree">
+                    <IconGitBranch size={12} decorative />
+                  </span>
+                </TooltipSimple>
+              ) : null}
               <CopyButton text={branch.name} size={12} />
             </button>
           ))
         )}
       </div>
-      {needsConfirm ? (
+      {modeFlow?.step === 'choose' ? (
+        <div className="adl-changes-branch-mode">
+          <p>
+            {modeFlow.branch} · {t.changesBranchDiverged as string}
+          </p>
+          <div className="adl-changes-branch-mode-actions">
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--sm"
+              onClick={() => void doEnsure(modeFlow.branch, 'local', false)}
+            >
+              {t.changesBranchSwitchLocal as string}
+            </button>
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--sm"
+              onClick={() => setModeFlow({ ...modeFlow, step: 'confirmRemote', mode: 'remote' })}
+            >
+              {t.changesBranchSwitchRemote as string}
+            </button>
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--sm"
+              onClick={() => void doEnsure(modeFlow.branch, 'sync', false)}
+            >
+              {t.changesBranchSwitchSync as string}
+            </button>
+          </div>
+          <div className="adl-changes-branch-mode-row">
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--sm"
+              onClick={() => setModeFlow(null)}
+            >
+              {t.cancel as string}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {modeFlow?.step === 'confirmRemote' ? (
         <div className="adl-changes-branch-confirm">
-          <p>{t.changesBranchStashConfirm}</p>
+          <p>{t.changesBranchRemoteConfirm as string}</p>
           <div className="adl-changes-branch-confirm-actions">
             <button
               type="button"
               className="adl-btn adl-btn--primary adl-btn--sm"
-              onClick={confirm}
+              onClick={() => void doEnsure(modeFlow.branch, 'remote', false)}
             >
-              {t.approve}
+              {t.approve as string}
             </button>
-            <button type="button" className="adl-btn adl-btn--ghost adl-btn--sm" onClick={cancel}>
-              {t.cancel}
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--sm"
+              onClick={() => setModeFlow({ ...modeFlow, step: 'choose', mode: 'local' })}
+            >
+              {t.cancel as string}
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {modeFlow?.step === 'confirmStash' ? (
+        <div className="adl-changes-branch-confirm">
+          <p>{t.changesBranchTargetStashConfirm as string}</p>
+          <div className="adl-changes-branch-confirm-actions">
+            <button
+              type="button"
+              className="adl-btn adl-btn--primary adl-btn--sm"
+              onClick={() => void doEnsure(modeFlow.branch, modeFlow.mode, true)}
+            >
+              {t.approve as string}
+            </button>
+            <button
+              type="button"
+              className="adl-btn adl-btn--ghost adl-btn--sm"
+              onClick={() => setModeFlow(null)}
+            >
+              {t.cancel as string}
             </button>
           </div>
         </div>

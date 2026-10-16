@@ -49,15 +49,29 @@ interface ReferenceConfig {
   enabled: boolean;
 }
 
+type GitSwitchMode = 'local' | 'remote' | 'sync';
+
 interface WorkspaceGitBranchSwitchInput {
   branchName: string;
   allowStash: boolean;
+  mode?: GitSwitchMode;
 }
 
 interface WorkspaceGitBranchCreateInput {
   branchName: string;
   baseBranch?: string;
   allowStash: boolean;
+}
+
+interface WorkspaceWorktreeEnsureInput {
+  branchName: string;
+  allowStash: boolean;
+  mode?: GitSwitchMode;
+}
+
+interface WorkspaceWorktreeRemoveInput {
+  branchName: string;
+  force: boolean;
 }
 
 type UnionToIntersection<U> = (U extends unknown ? (k: U) => void : never) extends (
@@ -200,6 +214,19 @@ interface GitActions {
   fetchGitBranches: (options?: { silent?: boolean }) => Promise<void>;
   switchGitBranch: (input: WorkspaceGitBranchSwitchInput) => Promise<void>;
   createGitBranch: (input: WorkspaceGitBranchCreateInput) => Promise<void>;
+  /**
+   * 确保分支的 sibling worktree 并聚焦（openWorkspace 全量刷新双面板）。
+   * @returns worktree 路径；失败返回 undefined（错误已进 errorToasts）。
+   */
+  ensureBranchWorktree: (
+    input: WorkspaceWorktreeEnsureInput,
+    workspacePath?: string,
+  ) => Promise<string | undefined>;
+  removeBranchWorktree: (
+    input: WorkspaceWorktreeRemoveInput,
+    workspacePath?: string,
+  ) => Promise<void>;
+  pruneWorktrees: (workspacePath?: string) => Promise<void>;
   stageWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
   unstageWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;
   discardWorkspaceFile: (relativePath: string, workspacePath?: string) => Promise<void>;

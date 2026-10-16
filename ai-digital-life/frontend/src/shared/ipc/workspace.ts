@@ -11,6 +11,7 @@ import type {
   GitVisFileHotspots,
   IpcResult,
   RecentWorkspaceEntry,
+  WorktreeInfo,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
@@ -25,6 +26,9 @@ import type {
   WorkspaceSearchWindow,
   WorkspaceTreeNode,
   WorkspaceTreePayload,
+  WorkspaceWorktreeEnsureInput,
+  WorkspaceWorktreeEnsureResult,
+  WorkspaceWorktreeRemoveInput,
 } from '@ai-digital-life/kernel';
 
 export type {
@@ -40,6 +44,7 @@ export type {
   GitVisFileHotspots,
   IpcResult,
   RecentWorkspaceEntry,
+  WorktreeInfo,
   WorkspaceChangePreview,
   WorkspaceFileChangedEvent,
   WorkspaceFileDocument,
@@ -54,6 +59,9 @@ export type {
   WorkspaceSearchWindow,
   WorkspaceTreeNode,
   WorkspaceTreePayload,
+  WorkspaceWorktreeEnsureInput,
+  WorkspaceWorktreeEnsureResult,
+  WorkspaceWorktreeRemoveInput,
 };
 
 /**
@@ -441,6 +449,39 @@ export interface WorkspaceBridge {
   createGitBranch: (
     input: WorkspaceGitBranchCreateInput,
   ) => Promise<IpcResult<WorkspaceGitBranchChangeResult>>;
+  /**
+   * 列出仓库的 worktree（主 + sibling 链接）
+   * @param rootPath 可选 — 指定仓库路径，默认当前活动工作区
+   * @command workspace_list_worktrees
+   * @see httpBridge.ts → workspace.listWorktrees
+   * @see mock-bridge.ts → workspace.listWorktrees
+   * @see preview-bridge/preview-git.ts → workspace.listWorktrees
+   */
+  listWorktrees: (rootPath?: string) => Promise<IpcResult<WorktreeInfo[]>>;
+  /**
+   * 确保分支的 sibling worktree 存在并应用切换模式
+   * @param input 分支名 + 模式(local/remote/sync) + stash 确认
+   * @param workspacePath 可选 — 主仓路径，默认当前活动工作区
+   * @returns worktree 路径（聚焦/openWorkspace 由调用方完成，走正常 bootstrap 全量刷新）
+   * @command workspace_ensure_worktree
+   * @see httpBridge.ts → workspace.ensureWorktree
+   * @see mock-bridge.ts → workspace.ensureWorktree
+   * @see preview-bridge/preview-git.ts → workspace.ensureWorktree
+   */
+  ensureWorktree: (
+    input: WorkspaceWorktreeEnsureInput,
+    workspacePath?: string,
+  ) => Promise<IpcResult<WorkspaceWorktreeEnsureResult>>;
+  /**
+   * 删除分支的 sibling worktree（主 worktree 拒绝删除）
+   * @command workspace_remove_worktree
+   */
+  removeWorktree: (
+    input: WorkspaceWorktreeRemoveInput,
+    workspacePath?: string,
+  ) => Promise<IpcResult<void>>;
+  /** 清理失效的 worktree 元数据（prune） */
+  pruneWorktrees: (workspacePath?: string) => Promise<IpcResult<void>>;
   /**
    * 暂存文件的更改
    * @param relativePath 相对于工作区的文件路径

@@ -344,6 +344,30 @@ export const IconPendingCommit = make(
   </>,
 );
 
+// Branch divergence (local vs remote): ahead ↑ / behind ↓ / diverged ⇕.
+export const IconBranchAhead = make(
+  <>
+    <path d="M12 19V5" />
+    <path d="m5 12 7-7 7 7" />
+  </>,
+);
+
+export const IconBranchBehind = make(
+  <>
+    <path d="M12 5v14" />
+    <path d="m19 12-7 7-7-7" />
+  </>,
+);
+
+export const IconBranchDiverged = make(
+  <>
+    <path d="M7 4v6" />
+    <path d="m4 7 3-3 3 3" />
+    <path d="M17 20v-6" />
+    <path d="m14 17 3 3 3-3" />
+  </>,
+);
+
 // Models/Tech
 export const IconCpu = make(
   <>
