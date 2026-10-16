@@ -1,5 +1,12 @@
 // @vitest-environment node
-import { mkdtempSync, writeFileSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import {
+  mkdtempSync,
+  writeFileSync,
+  rmSync,
+  readFileSync,
+  existsSync,
+  realpathSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname, basename } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -27,7 +34,7 @@ function initRepo(root: string) {
 
 /** 主仓 + 本地 bare 远端，构造 ahead/behind/diverged/synced 四态矩阵。 */
 function setupMatrix(tag: string): { root: string; cleanup: () => void } {
-  const base = mkdtempSync(join(tmpdir(), `adl-preview-wt-${tag}-`));
+  const base = realpathSync.native(mkdtempSync(join(tmpdir(), `adl-preview-wt-${tag}-`)));
   const remote = join(base, 'remote.git');
   const root = join(base, 'repo');
   execFileSync('git', ['init', '--bare', remote]);
@@ -238,9 +245,17 @@ describe('preview stash count', () => {
     const { root, cleanup } = setupMatrix('stashcount');
     try {
       writeFileSync(join(root, 'scratch-a.txt'), 'a\n');
-      execFileSync('git', ['stash', 'push', '--include-untracked', '--message', 'adl-auto-stash:main:1'], { cwd: root });
+      execFileSync(
+        'git',
+        ['stash', 'push', '--include-untracked', '--message', 'adl-auto-stash:main:1'],
+        { cwd: root },
+      );
       writeFileSync(join(root, 'scratch-b.txt'), 'b\n');
-      execFileSync('git', ['stash', 'push', '--include-untracked', '--message', 'adl-auto-stash:main:2'], { cwd: root });
+      execFileSync(
+        'git',
+        ['stash', 'push', '--include-untracked', '--message', 'adl-auto-stash:main:2'],
+        { cwd: root },
+      );
       const branches = await listGitBranches(root);
       const main = branches.find((b) => b.name === 'main');
       expect(main?.hasStash).toBe(true);
@@ -260,7 +275,10 @@ describe('preview worktree path helpers', () => {
   });
 
   it('siblingWorktreeDir 落在父目录同级', () => {
-    const dir = siblingWorktreeDir(join('E:', 'AI-DIGITAL-LIFE', 'Git-Test-Repository'), 'feature/x');
+    const dir = siblingWorktreeDir(
+      join('E:', 'AI-DIGITAL-LIFE', 'Git-Test-Repository'),
+      'feature/x',
+    );
     expect(dirname(dir)).toBe(join('E:', 'AI-DIGITAL-LIFE', 'Git-Test-Repository-worktrees'));
     expect(basename(dir)).toBe('feature-x');
   });
