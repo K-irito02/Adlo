@@ -83,6 +83,7 @@ export interface GitBranchSummary {
   local: boolean;
   remote: boolean;
   hasStash: boolean;
+  stashCount?: number;
   upstream?: string;
   ahead?: number;
   behind?: number;

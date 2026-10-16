@@ -50,3 +50,11 @@ Git-Test-Remote.git/            ← bare 远端（本地模拟 origin）
 ## 验证
 
 本地矩阵断言：聚焦零重写、脏隔离、计数正确、删主仓后 prune、冲突即停。
+
+## 边界与注意事项（安全审计结论）
+
+1. **ignored 文件不跟随切换**：`stash --include-untracked` 按 git 语义不含被忽略文件；各分支的构建产物、`.log` 等 ignored 文件会原地残留。这是 git 原生行为，不是 bug；如某分支构建异常，先清构建目录。
+2. **`remove --force` 故意不暴露 UI**：删除 worktree 会丢弃其未提交内容且不可逆；桥方法保留供未来带脏确认的 UI 使用，当前子卡片不提供删除入口。
+3. **离线行为**：remote/sync 模式需联网 fetch；失败时本次新建的 worktree 目录会被自动回滚删除（只删自己建的），经典切换则停在目标分支本地内容 + 报错，不丢数据。
+4. **stash 同名堆积**：同一分支多次 stash（如 remote-reset 后又切走）都会保留，分支行显示 `自动暂存 ×N`；取回永远拿最新一条，旧的可 `git stash list` 自行认领。
+5. **永远不自动 push**：同步 = fetch + merge（ff 优先，否则 `--no-edit` 合并，冲突 abort）。push 永远手动。

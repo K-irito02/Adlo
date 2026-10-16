@@ -55,6 +55,7 @@ export const changesZh = {
   changesBranchTargetStashConfirm: '目标分支的工作区有未提交变更，将暂存后继续，是否继续？',
   changesBranchWorktreeFailed: '分支 worktree 准备失败',
   changesBranchAlreadyAdded: '分支 {branch} 的工作区已在列表中，无需重复切换',
+  changesBranchStashCount: '自动暂存 ×{count}',
   changesBranchReplaced: '已切换到分支 {branch}，原工作区已移出',
   changesBranchDirtyKept: '分支 {branch} 有 {count} 个未提交变更，已保留在其工作区中',
   changesRefresh: '刷新',

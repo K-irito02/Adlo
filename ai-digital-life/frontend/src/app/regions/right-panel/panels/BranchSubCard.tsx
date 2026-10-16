@@ -287,7 +287,17 @@ export function BranchSubCard({
                 </TooltipSimple>
               ) : null}
               {branch.hasStash || (branch.name === currentBranch && hasDirtyChanges) ? (
-                <TooltipSimple content={t.changesPendingCommit as string} placement="top">
+                <TooltipSimple
+                  content={
+                    branch.hasStash
+                      ? (t.changesBranchStashCount as string).replace(
+                          '{count}',
+                          String(branch.stashCount ?? 1),
+                        )
+                      : (t.changesPendingCommit as string)
+                  }
+                  placement="top"
+                >
                   <span className="adl-icon-pending-commit">
                     <IconPendingCommit size={14} decorative />
                   </span>

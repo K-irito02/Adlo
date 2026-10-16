@@ -22,18 +22,22 @@ fn parse_remote_branch_names(output: &str) -> std::collections::HashSet<String> 
         .collect()
 }
 
-fn parse_stashed_branches(output: &str) -> std::collections::HashSet<String> {
-    output
-        .lines()
-        .filter_map(|line| {
-            let trimmed = line.trim();
-            let marker = "adl-auto-stash:";
-            trimmed.find(marker).and_then(|pos| {
-                let after_marker = &trimmed[pos + marker.len()..];
-                after_marker.split(':').next().map(|s| s.to_string())
-            })
-        })
-        .collect()
+fn parse_stashed_branches(output: &str) -> std::collections::HashMap<String, usize> {
+    let mut counts = std::collections::HashMap::new();
+    for line in output.lines() {
+        let trimmed = line.trim();
+        let marker = "adl-auto-stash:";
+        let Some(pos) = trimmed.find(marker) else {
+            continue;
+        };
+        let after_marker = &trimmed[pos + marker.len()..];
+        if let Some(name) = after_marker.split(':').next().map(str::to_string) {
+            if !name.is_empty() {
+                *counts.entry(name).or_insert(0) += 1;
+            }
+        }
+    }
+    counts
 }
 
 fn diverge_status_for(ahead: Option<i32>, behind: Option<i32>) -> Option<GitDivergeStatus> {
@@ -47,27 +51,28 @@ fn diverge_status_for(ahead: Option<i32>, behind: Option<i32>) -> Option<GitDive
 }
 
 /// Pure merge of local/remote/stash sets (no git I/O) — unit-test seam.
+/// Tuple: (name, is_current, local, remote, stash_count).
 fn merge_branch_names(
     local_branches: Vec<String>,
     remote_branches: &std::collections::HashSet<String>,
-    stashed_branches: &std::collections::HashSet<String>,
+    stashed_branches: &std::collections::HashMap<String, usize>,
     current_branch: &str,
-) -> Vec<(String, bool, bool, bool, bool)> {
+) -> Vec<(String, bool, bool, bool, usize)> {
     let mut seen = std::collections::HashSet::new();
-    let mut merged: Vec<(String, bool, bool, bool, bool)> = Vec::new();
+    let mut merged: Vec<(String, bool, bool, bool, usize)> = Vec::new();
 
     for name in local_branches {
         let is_current = name == current_branch;
         let remote = remote_branches.contains(&name);
-        let has_stash = stashed_branches.contains(name.as_str());
+        let stash_count = stashed_branches.get(name.as_str()).copied().unwrap_or(0);
         seen.insert(name.clone());
-        merged.push((name, is_current, true, remote, has_stash));
+        merged.push((name, is_current, true, remote, stash_count));
     }
 
     for name in remote_branches {
         if !seen.contains(name) {
-            let has_stash = stashed_branches.contains(name.as_str());
-            merged.push((name.clone(), false, false, true, has_stash));
+            let stash_count = stashed_branches.get(name.as_str()).copied().unwrap_or(0);
+            merged.push((name.clone(), false, false, true, stash_count));
         }
     }
 
@@ -81,16 +86,17 @@ fn build_branch_summaries(
     root: &Path,
     local_branches: Vec<String>,
     remote_branches: std::collections::HashSet<String>,
-    stashed_branches: &std::collections::HashSet<String>,
+    stashed_branches: &std::collections::HashMap<String, usize>,
     current_branch: &str,
 ) -> Vec<GitBranchSummary> {
     let mut branches: Vec<GitBranchSummary> = Vec::new();
     let upstreams = branch_upstreams(root);
     let worktrees = list_worktrees(root).unwrap_or_default();
 
-    for (name, is_current, local, remote, has_stash) in
+    for (name, is_current, local, remote, stash_count) in
         merge_branch_names(local_branches, &remote_branches, stashed_branches, current_branch)
     {
+        let has_stash = stash_count > 0;
         if local {
             let upstream = upstreams.get(&name).cloned();
             let (ahead, behind) = upstream
@@ -107,6 +113,7 @@ fn build_branch_summaries(
                 local,
                 remote,
                 has_stash,
+                stash_count: stash_count as i32,
                 upstream,
                 ahead,
                 behind,
@@ -120,6 +127,7 @@ fn build_branch_summaries(
                 local,
                 remote,
                 has_stash,
+                stash_count: stash_count as i32,
                 upstream: None,
                 ahead: None,
                 behind: None,
@@ -313,9 +321,18 @@ mod tests {
     fn parse_stashed_branches_extracts_adl_auto_stash_markers() {
         let output = "adl-auto-stash:main:WIP on main\nadl-auto-stash:feature:WIP on feature\nstash@{2}: other stash";
         let stashed = parse_stashed_branches(output);
-        assert!(stashed.contains("main"));
-        assert!(stashed.contains("feature"));
+        assert!(stashed.contains_key("main"));
+        assert!(stashed.contains_key("feature"));
         assert_eq!(stashed.len(), 2);
+    }
+
+    #[test]
+    fn parse_stashed_branches_counts_repeated_markers() {
+        let output =
+            "adl-auto-stash:main:first\nadl-auto-stash:main:second\nadl-auto-stash:feature:only";
+        let stashed = parse_stashed_branches(output);
+        assert_eq!(stashed.get("main"), Some(&2));
+        assert_eq!(stashed.get("feature"), Some(&1));
     }
 
     #[test]
@@ -330,8 +347,8 @@ mod tests {
         let local: Vec<String> = vec!["main".to_string(), "develop".to_string()];
         let remote: std::collections::HashSet<String> =
             ["main".to_string(), "release".to_string()].into_iter().collect();
-        let stashed: std::collections::HashSet<String> =
-            ["develop".to_string()].into_iter().collect();
+        let stashed: std::collections::HashMap<String, usize> =
+            [("develop".to_string(), 2)].into_iter().collect();
         let current = "main";
 
         let summaries = merge_branch_names(local, &remote, &stashed, current);
@@ -342,26 +359,26 @@ mod tests {
         assert!(main.1);
         assert!(main.2);
         assert!(main.3);
-        assert!(!main.4);
+        assert_eq!(main.4, 0);
 
         let develop = summaries.iter().find(|s| s.0 == "develop").unwrap();
         assert!(!develop.1);
         assert!(develop.2);
         assert!(!develop.3);
-        assert!(develop.4);
+        assert_eq!(develop.4, 2);
 
         let release = summaries.iter().find(|s| s.0 == "release").unwrap();
         assert!(!release.1);
         assert!(!release.2);
         assert!(release.3);
-        assert!(!release.4);
+        assert_eq!(release.4, 0);
     }
 
     #[test]
     fn build_branch_summaries_sorts_current_first_then_alphabetical() {
         let local: Vec<String> = vec!["zebra".to_string(), "alpha".to_string(), "main".to_string()];
         let remote = std::collections::HashSet::new();
-        let stashed = std::collections::HashSet::new();
+        let stashed = std::collections::HashMap::new();
         let current = "main";
 
         let summaries = merge_branch_names(local, &remote, &stashed, current);

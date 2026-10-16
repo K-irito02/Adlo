@@ -66,6 +66,9 @@ pub struct GitBranchSummary {
     pub local: bool,
     pub remote: bool,
     pub has_stash: bool,
+    /// 该分支名下的自动 stash 条数（`adl-auto-stash:<分支>:` 前缀计数）。
+    #[serde(default)]
+    pub stash_count: i32,
     #[serde(default)]
     pub upstream: Option<String>,
     #[serde(default)]

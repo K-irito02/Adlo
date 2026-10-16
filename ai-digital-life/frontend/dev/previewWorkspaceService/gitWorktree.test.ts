@@ -233,6 +233,25 @@ describe('preview switch modes', () => {
   });
 });
 
+describe('preview stash count', () => {
+  it('同分支多次自动 stash 显示计数', { timeout: 120_000 }, async () => {
+    const { root, cleanup } = setupMatrix('stashcount');
+    try {
+      writeFileSync(join(root, 'scratch-a.txt'), 'a\n');
+      execFileSync('git', ['stash', 'push', '--include-untracked', '--message', 'adl-auto-stash:main:1'], { cwd: root });
+      writeFileSync(join(root, 'scratch-b.txt'), 'b\n');
+      execFileSync('git', ['stash', 'push', '--include-untracked', '--message', 'adl-auto-stash:main:2'], { cwd: root });
+      const branches = await listGitBranches(root);
+      const main = branches.find((b) => b.name === 'main');
+      expect(main?.hasStash).toBe(true);
+      expect(main?.stashCount).toBe(2);
+      expect(branches.find((b) => b.name === 'feature-ahead')?.stashCount ?? 0).toBe(0);
+    } finally {
+      cleanup();
+    }
+  });
+});
+
 describe('preview worktree path helpers', () => {
   it('sanitizeBranchDir 替换分隔符与保留字', () => {
     expect(sanitizeBranchDir('feature/foo')).toBe('feature-foo');

@@ -84,22 +84,48 @@ pub fn has_auto_stash(root: &Path, branch_name: &str) -> bool {
     stash_list.lines().any(|line| line.contains(&needle))
 }
 
-pub fn pop_auto_stash(root: &Path, target_branch: &str) -> Result<bool, adl_errors::AppError> {
-    let stash_list = run_git_required(root, &["stash", "list", "--format=%s"])?;
-    let needle = format!("adl-auto-stash:{}:", target_branch);
-    let lines: Vec<&str> = stash_list.lines().collect();
-    for (i, line) in lines.iter().rev().enumerate() {
-        if line.contains(&needle) {
-            let index = lines.len() - 1 - i;
-            let stash_ref = format!("stash@{{{}}}", index);
-            let pop_result = run_git_required(root, &["stash", "pop", "--index", &stash_ref]);
-            match pop_result {
-                Ok(_) => return Ok(true),
-                Err(_) => return Ok(false),
-            }
+/// Resolve the newest `stash@{n}` ref whose message matches this branch's
+/// auto-stash marker, or `None` when absent.
+fn find_auto_stash_ref(root: &Path, needle: &str) -> Result<Option<String>, adl_errors::AppError> {
+    let stash_list = run_git_required(root, &["stash", "list", "--format=%gd %s"])?;
+    let mut found: Option<String> = None;
+    for line in stash_list.lines() {
+        let Some((reference, message)) = line.split_once(' ') else {
+            continue;
+        };
+        if message.contains(needle) {
+            // `stash list` enumerates newest-last by index order; keep the last
+            // match so concurrent newer stashes for the same branch win.
+            found = Some(reference.trim().to_string());
         }
     }
-    Ok(true)
+    Ok(found)
+}
+
+pub fn pop_auto_stash(root: &Path, target_branch: &str) -> Result<bool, adl_errors::AppError> {
+    let needle = format!("adl-auto-stash:{}:", target_branch);
+    for _ in 0..2 {
+        let Some(stash_ref) = find_auto_stash_ref(root, &needle)? else {
+            return Ok(true);
+        };
+        // Verify the ref still carries our marker: the list may have shifted
+        // between resolve and pop (user stashing concurrently). On mismatch
+        // re-resolve once; only a genuine pop failure keeps the entry.
+        let verify = run_git_required(root, &["stash", "list", "--format=%gd %s"])?;
+        let still_ours = verify.lines().any(|line| {
+            line.split_once(' ')
+                .is_some_and(|(reference, message)| reference.trim() == stash_ref && message.contains(&needle))
+        });
+        if !still_ours {
+            continue;
+        }
+        let pop_result = run_git_required(root, &["stash", "pop", "--index", &stash_ref]);
+        match pop_result {
+            Ok(_) => return Ok(true),
+            Err(_) => return Ok(false),
+        }
+    }
+    Ok(false)
 }
 
 #[cfg(test)]

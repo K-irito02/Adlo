@@ -193,10 +193,10 @@ async function branchUpstreams(rootPath: string): Promise<Map<string, string>> {
   return map;
 }
 
-async function stashedBranches(rootPath: string): Promise<Set<string>> {
-  const set = new Set<string>();
+async function stashedBranches(rootPath: string): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
   const output = await runGit(rootPath, ['stash', 'list', '--format=%s']);
-  if (!output) return set;
+  if (!output) return counts;
   for (const line of output.split(/\r?\n/)) {
     const marker = 'adl-auto-stash:';
     const pos = line.indexOf(marker);
@@ -204,9 +204,9 @@ async function stashedBranches(rootPath: string): Promise<Set<string>> {
     const rest = line.slice(pos + marker.length);
     const end = rest.indexOf(':');
     const branch = (end < 0 ? rest : rest.slice(0, end)).trim();
-    if (branch) set.add(branch);
+    if (branch) counts.set(branch, (counts.get(branch) ?? 0) + 1);
   }
-  return set;
+  return counts;
 }
 
 async function divergenceCounts(rootPath: string, local: string, upstream: string): Promise<[number, number] | undefined> {
@@ -355,7 +355,8 @@ export async function listGitBranches(rootPath: string): Promise<GitBranchSummar
       isCurrent: name === current,
       local: true,
       remote: remoteNames.has(name),
-      hasStash: stashed.has(name),
+      hasStash: (stashed.get(name) ?? 0) > 0,
+      stashCount: stashed.get(name) ?? 0,
       upstream,
       ahead,
       behind,
@@ -396,18 +397,32 @@ async function stashWorkspaceChanges(rootPath: string, branchName: string): Prom
   await runGitRequired(rootPath, ['stash', 'push', '--include-untracked', '--message', `adl-auto-stash:${branchName}:${Date.now()}`]);
 }
 
-async function popAutoStash(rootPath: string, branchName: string): Promise<boolean> {
-  const output = await runGit(rootPath, ['stash', 'list', '--format=%s']);
-  if (!output) return true;
-  const needle = `adl-auto-stash:${branchName}:`;
-  const lines = output.split(/\r?\n/);
-  for (let i = lines.length - 1; i >= 0; i -= 1) {
-    if (lines[i].includes(needle)) {
-      const popped = await runGit(rootPath, ['stash', 'pop', '--index', `stash@{${i}}`]);
-      return popped !== undefined;
-    }
+async function findAutoStashRef(rootPath: string, needle: string): Promise<string | undefined> {
+  const output = await runGit(rootPath, ['stash', 'list', '--format=%gd %s']);
+  if (!output) return undefined;
+  let found: string | undefined;
+  for (const line of output.split(/\r?\n/)) {
+    const space = line.indexOf(' ');
+    if (space < 0) continue;
+    // 列表按索引升序：保留最后一个命中（与 Rust 端一致，并发新 stash 优先）。
+    if (line.slice(space + 1).includes(needle)) found = line.slice(0, space).trim();
   }
-  return true;
+  return found || undefined;
+}
+
+async function popAutoStash(rootPath: string, branchName: string): Promise<boolean> {
+  const needle = `adl-auto-stash:${branchName}:`;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const ref = await findAutoStashRef(rootPath, needle);
+    if (!ref) return true;
+    // 校验该索引仍是我们的条目（list 与 pop 之间列表可能被并发改动），
+    // 失配重查一次；仍失配按未恢复处理（条目保留，不丢数据）。
+    const verify = await findAutoStashRef(rootPath, needle);
+    if (verify !== ref) continue;
+    const popped = await runGit(rootPath, ['stash', 'pop', '--index', ref]);
+    return popped !== undefined;
+  }
+  return false;
 }
 
 async function fetchBranchRef(workPath: string, branchName: string): Promise<string> {
@@ -483,15 +498,26 @@ export async function ensureBranchWorktree(rootPath: string, input: WorkspaceWor
         : ['worktree', 'add', '-b', branchName, target, remoteRef!];
   const added = await runGit(rootPath, addArgs);
   let finalPath = target;
-  if (added === undefined) {
+  const created = added !== undefined;
+  if (!created) {
     const relisted = await listWorktrees(rootPath).catch(() => [] as WorktreeInfo[]);
     const raced = relisted.find((entry) => entry.branch === branchName)?.path;
     if (!raced) throw new Error(`git command failed: git ${addArgs.join(' ')}`);
     finalPath = raced;
   }
-  if (mode === 'remote') await resetWorktreeToRemote(finalPath, branchName, input.allowStash);
-  if (mode === 'sync') await syncWorktreeWithRemote(finalPath, branchName, input.allowStash);
-  return { path: finalPath, created: added !== undefined, branch: branchName, gitSnapshot: await captureGitSnapshot(finalPath) };
+  // 本轮新建的目录若在应用模式时失败（典型：离线 fetch 不通），回滚删掉；
+  // 只删自己建的，不碰旧的。
+  try {
+    if (mode === 'remote') await resetWorktreeToRemote(finalPath, branchName, input.allowStash);
+    if (mode === 'sync') await syncWorktreeWithRemote(finalPath, branchName, input.allowStash);
+  } catch (error) {
+    if (created) {
+      await removeBranchWorktree(rootPath, { branchName, force: true }).catch(() => {});
+      await pruneWorktrees(rootPath).catch(() => {});
+    }
+    throw error;
+  }
+  return { path: finalPath, created, branch: branchName, gitSnapshot: await captureGitSnapshot(finalPath) };
 }
 
 export async function removeBranchWorktree(rootPath: string, input: WorkspaceWorktreeRemoveInput): Promise<void> {

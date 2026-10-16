@@ -327,6 +327,7 @@ pub fn ensure_branch_worktree(
             "branch not found locally or on remotes: {branch_name}"
         ))),
     };
+    let created = add_result.is_ok();
     if let Err(error) = add_result {
         // Lost race: another caller materialized it (or it was already in use).
         let worktrees = list_worktrees(root)?;
@@ -337,17 +338,23 @@ pub fn ensure_branch_worktree(
         }
     }
 
-    match mode {
-        GitSwitchMode::Local => Ok((target, true)),
-        GitSwitchMode::Remote => {
-            reset_worktree_to_remote(&target, branch_name, allow_stash)?;
-            Ok((target, true))
+    // 本轮新建的目录若在应用模式时失败（典型：离线 fetch 不通），
+    // 回滚删掉，避免留半截 worktree；只删自己建的，不碰旧的。
+    let apply_mode = |path: &Path| -> Result<(), AppError> {
+        match mode {
+            GitSwitchMode::Local => Ok(()),
+            GitSwitchMode::Remote => reset_worktree_to_remote(path, branch_name, allow_stash).map(|_| ()),
+            GitSwitchMode::Sync => sync_worktree_with_remote(path, branch_name, allow_stash).map(|_| ()),
         }
-        GitSwitchMode::Sync => {
-            sync_worktree_with_remote(&target, branch_name, allow_stash)?;
-            Ok((target, true))
+    };
+    if let Err(error) = apply_mode(&target) {
+        if created {
+            let _ = remove_worktree(root, branch_name, true);
+            let _ = prune_worktrees(root);
         }
+        return Err(error);
     }
+    Ok((target, created))
 }
 
 pub fn remove_worktree(root: &Path, branch_name: &str, force: bool) -> Result<(), AppError> {

@@ -56,6 +56,7 @@ export const changesEn = {
     'The target branch worktree has uncommitted changes. Stash and continue?',
   changesBranchWorktreeFailed: 'Failed to prepare branch worktree',
   changesBranchAlreadyAdded: 'Branch {branch} workspace is already listed — no switch needed',
+  changesBranchStashCount: 'Auto-stashed ×{count}',
   changesBranchReplaced: 'Switched to branch {branch}; the previous workspace was removed',
   changesBranchDirtyKept: 'Branch {branch} keeps {count} uncommitted changes in its workspace',
   changesRefresh: 'Refresh',
