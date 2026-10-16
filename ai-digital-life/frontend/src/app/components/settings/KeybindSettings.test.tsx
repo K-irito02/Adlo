@@ -184,7 +184,7 @@ describe('KeybindSettings', () => {
     );
 
     const rowResets = screen.getAllByLabelText('settingsShortcutsResetOneFor');
-    expect(rowResets.length).toBe(15);
+    expect(rowResets.length).toBe(16);
   });
 
   it('filters commands by keybind text (raw mod+n)', () => {

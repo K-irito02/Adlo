@@ -111,8 +111,9 @@ pub fn pop_auto_stash(root: &Path, target_branch: &str) -> Result<bool, adl_erro
         // re-resolve once; only a genuine pop failure keeps the entry.
         let verify = run_git_required(root, &["stash", "list", "--format=%gd %s"])?;
         let still_ours = verify.lines().any(|line| {
-            line.split_once(' ')
-                .is_some_and(|(reference, message)| reference.trim() == stash_ref && message.contains(&needle))
+            line.split_once(' ').is_some_and(|(reference, message)| {
+                reference.trim() == stash_ref && message.contains(&needle)
+            })
         });
         if !still_ours {
             continue;

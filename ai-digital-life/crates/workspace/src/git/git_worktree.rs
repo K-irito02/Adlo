@@ -21,11 +21,7 @@ pub(crate) fn sanitize_branch_dir(branch: &str) -> String {
         }
     }
     let trimmed = out.trim_matches(['-', ' ', '.']).to_string();
-    if trimmed.is_empty() {
-        "branch".to_string()
-    } else {
-        trimmed
-    }
+    if trimmed.is_empty() { "branch".to_string() } else { trimmed }
 }
 
 /// Sibling directory for a branch worktree:
@@ -115,10 +111,7 @@ pub fn list_worktrees(root: &Path) -> Result<Vec<WorktreeInfo>, AppError> {
     Ok(parse_worktree_list(&output))
 }
 
-pub fn worktree_for_branch(
-    worktrees: &[WorktreeInfo],
-    branch_name: &str,
-) -> Option<PathBuf> {
+pub fn worktree_for_branch(worktrees: &[WorktreeInfo], branch_name: &str) -> Option<PathBuf> {
     worktrees
         .iter()
         .find(|entry| entry.branch.as_deref() == Some(branch_name))
@@ -127,8 +120,11 @@ pub fn worktree_for_branch(
 
 /// Local branch existence check (exact short name match).
 pub(crate) fn has_local_branch(root: &Path, branch_name: &str) -> bool {
-    run_git_required(root, &["show-ref", "--verify", "--quiet", &format!("refs/heads/{branch_name}")])
-        .is_ok()
+    run_git_required(
+        root,
+        &["show-ref", "--verify", "--quiet", &format!("refs/heads/{branch_name}")],
+    )
+    .is_ok()
 }
 
 /// Remote-tracking ref existence: returns the full ref (e.g. `origin/foo`) if any.
@@ -166,14 +162,12 @@ pub(crate) fn branch_upstreams(root: &Path) -> HashMap<String, String> {
 }
 
 /// `(ahead, behind)` of `local...upstream` (None when unresolvable).
-pub(crate) fn divergence_counts(
-    root: &Path,
-    local: &str,
-    upstream: &str,
-) -> Option<(i32, i32)> {
-    let output =
-        run_git_required(root, &["rev-list", "--left-right", "--count", &format!("{local}...{upstream}")])
-            .ok()?;
+pub(crate) fn divergence_counts(root: &Path, local: &str, upstream: &str) -> Option<(i32, i32)> {
+    let output = run_git_required(
+        root,
+        &["rev-list", "--left-right", "--count", &format!("{local}...{upstream}")],
+    )
+    .ok()?;
     let mut parts = output.split_whitespace();
     let (Some(ahead), Some(behind)) = (parts.next(), parts.next()) else {
         return None;
@@ -197,10 +191,8 @@ pub(crate) fn preferred_remote_ref(root: &Path, branch_name: &str) -> Option<Str
 
 /// Fetch the branch's upstream (or the resolved remote-tracking ref) into `path`.
 fn fetch_branch(path: &Path, branch_name: &str) -> Result<String, AppError> {
-    let remote_ref =
-        preferred_remote_ref(path, branch_name).ok_or_else(|| {
-            AppError::Workspace(format!("no remote branch found for: {branch_name}"))
-        })?;
+    let remote_ref = preferred_remote_ref(path, branch_name)
+        .ok_or_else(|| AppError::Workspace(format!("no remote branch found for: {branch_name}")))?;
     let Some((remote, _)) = remote_ref.split_once('/') else {
         return Err(AppError::Workspace(format!("invalid remote ref: {remote_ref}")));
     };
@@ -285,11 +277,11 @@ pub fn ensure_branch_worktree(
             GitSwitchMode::Remote => {
                 reset_worktree_to_remote(&path, branch_name, allow_stash)?;
                 return Ok((path, false));
-            }
+            },
             GitSwitchMode::Sync => {
                 sync_worktree_with_remote(&path, branch_name, allow_stash)?;
                 return Ok((path, false));
-            }
+            },
         }
     }
 
@@ -330,20 +322,20 @@ pub fn ensure_branch_worktree(
         ));
     }
     if let Some(parent) = target.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|error| AppError::Workspace(format!("failed to create worktree dir: {error}")))?;
+        std::fs::create_dir_all(parent).map_err(|error| {
+            AppError::Workspace(format!("failed to create worktree dir: {error}"))
+        })?;
     }
 
     let target_str = target.to_string_lossy().to_string();
     let add_result = match (&mode, local, remote_ref.clone()) {
         (GitSwitchMode::Remote, _, Some(remote)) => {
             run_git_required(root, &["worktree", "add", "-B", branch_name, &target_str, &remote])
-        }
+        },
         (_, true, _) => run_git_required(root, &["worktree", "add", &target_str, branch_name]),
-        (_, false, Some(remote)) => run_git_required(
-            root,
-            &["worktree", "add", "-b", branch_name, &target_str, &remote],
-        ),
+        (_, false, Some(remote)) => {
+            run_git_required(root, &["worktree", "add", "-b", branch_name, &target_str, &remote])
+        },
         (_, false, None) => Err(AppError::Workspace(format!(
             "branch not found locally or on remotes: {branch_name}"
         ))),
@@ -364,8 +356,12 @@ pub fn ensure_branch_worktree(
     let apply_mode = |path: &Path| -> Result<(), AppError> {
         match mode {
             GitSwitchMode::Local => Ok(()),
-            GitSwitchMode::Remote => reset_worktree_to_remote(path, branch_name, allow_stash).map(|_| ()),
-            GitSwitchMode::Sync => sync_worktree_with_remote(path, branch_name, allow_stash).map(|_| ()),
+            GitSwitchMode::Remote => {
+                reset_worktree_to_remote(path, branch_name, allow_stash).map(|_| ())
+            },
+            GitSwitchMode::Sync => {
+                sync_worktree_with_remote(path, branch_name, allow_stash).map(|_| ())
+            },
         }
     };
     if let Err(error) = apply_mode(&target) {
@@ -381,9 +377,7 @@ pub fn ensure_branch_worktree(
 pub fn remove_worktree(root: &Path, branch_name: &str, force: bool) -> Result<(), AppError> {
     let worktrees = list_worktrees(root)?;
     let Some(path) = worktree_for_branch(&worktrees, branch_name) else {
-        return Err(AppError::Workspace(format!(
-            "no worktree found for branch: {branch_name}"
-        )));
+        return Err(AppError::Workspace(format!("no worktree found for branch: {branch_name}")));
     };
     // P4 R8：按条目自身的 is_main 判定，不依赖"首位即主"的列表顺序。
     if worktrees
@@ -432,10 +426,7 @@ mod tests {
     fn sibling_worktree_dir_is_next_to_root() {
         let root = Path::new("E:/AI-DIGITAL-LIFE/Git-Test-Repository");
         let dir = sibling_worktree_dir(root, "feature/x");
-        assert_eq!(
-            dir,
-            Path::new("E:/AI-DIGITAL-LIFE/Git-Test-Repository-worktrees/feature-x")
-        );
+        assert_eq!(dir, Path::new("E:/AI-DIGITAL-LIFE/Git-Test-Repository-worktrees/feature-x"));
     }
 
     #[test]

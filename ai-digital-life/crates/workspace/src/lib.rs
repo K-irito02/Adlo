@@ -14,7 +14,8 @@ pub use detect::{
     detect_root, open_workspace, stable_workspace_id, strip_verbatim_prefix, workspace_type,
 };
 pub use fs::{
-    create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry, update_file,
+    create_file, create_folder, delete_entry, duplicate_entry, move_entry, rename_entry,
+    update_file,
 };
 pub use git::git_vis::{
     capture_branch_graph, capture_code_evolution, capture_commit_stats,
@@ -22,8 +23,8 @@ pub use git::git_vis::{
 };
 pub use git::{
     capture_git_snapshot, capture_git_snapshot_async, create_git_branch, discard_file_changes,
-    ensure_branch_worktree, git_has_local_changes, has_auto_stash, list_worktrees,
-    list_git_branches, pop_auto_stash, prune_worktrees, remove_worktree, sibling_worktree_dir,
+    ensure_branch_worktree, git_has_local_changes, has_auto_stash, list_git_branches,
+    list_worktrees, pop_auto_stash, prune_worktrees, remove_worktree, sibling_worktree_dir,
     stage_file, switch_git_branch, unstage_file, worktree_for_branch,
 };
 pub use gitignore::{GitignoreMatcher, GitignoreRuleSet, load_gitignore_chain};
@@ -443,10 +444,8 @@ mod tests {
     #[test]
     #[ignore = "requires git in PATH"]
     fn reads_large_base_blob_change_preview_up_to_text_limit() {
-        let dir = std::env::temp_dir().join(format!(
-            "adl-workspace-change-preview-large-base-{}",
-            uuid::Uuid::new_v4()
-        ));
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-large-base-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
         let big = "y".repeat(2 * 1024 * 1024);

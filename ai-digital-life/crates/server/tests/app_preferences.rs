@@ -113,10 +113,8 @@ async fn update_preferences_does_not_leak_session_overrides_to_disk() {
     // Closing M1：无关补丁保存时，被锁且补丁未提供的字段不得把 CLI 值写进 config.json。
     use adl_types::types::config::LogLevel;
     let mut st = state("app-prefs-no-leak").await;
-    st.log_overrides = adl_logging::LogOverrides {
-        log_level: Some(LogLevel::Trace),
-        ..Default::default()
-    };
+    st.log_overrides =
+        adl_logging::LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
     {
         let mut cfg = st.config.write().expect("config lock");
         cfg.apply_log_overrides(&st.log_overrides);
@@ -128,12 +126,8 @@ async fn update_preferences_does_not_leak_session_overrides_to_disk() {
         })
         .expect("seed runtime level");
 
-    let (status, body) = send_post(
-        st.clone(),
-        "/app/preferences",
-        Some(json!({ "language": "en-US" })),
-    )
-    .await;
+    let (status, body) =
+        send_post(st.clone(), "/app/preferences", Some(json!({ "language": "en-US" }))).await;
 
     assert_eq!(status, StatusCode::OK, "unexpected: {body}");
     // 磁盘：CLI 值未泄漏，仍是旧持久化值。

@@ -46,8 +46,8 @@ pub fn update_file(
 ) -> Result<WorkspaceFileDocument, AppError> {
     // 与读通道同级：最终文件 canonicalize + 界内校验，拒绝指向界外的 symlink；
     // mtime 同样走 canonical 路径，与 read_file 同信任链（P4 R1/R11）。
-    let path = adl_fs_ops::resolve_workspace_file(root, relative_path)
-        .map_err(|error| match error {
+    let path =
+        adl_fs_ops::resolve_workspace_file(root, relative_path).map_err(|error| match error {
             AppError::Io(_) => AppError::NotFound(format!("file not found: {relative_path}")),
             other => other,
         })?;

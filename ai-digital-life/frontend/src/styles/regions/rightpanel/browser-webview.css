@@ -95,7 +95,9 @@
   white-space: nowrap;
 }
 
-.adl-tool-panel--browser .adl-tool-navigator__summary-stat.is-active .adl-tool-navigator__summary-label {
+.adl-tool-panel--browser
+  .adl-tool-navigator__summary-stat.is-active
+  .adl-tool-navigator__summary-label {
   color: var(--text-primary);
   font-weight: var(--font-semibold);
 }

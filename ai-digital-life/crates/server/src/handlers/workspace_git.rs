@@ -342,12 +342,8 @@ pub async fn ensure_worktree(
     let mode = input.input.mode;
     let allow_stash = input.input.allow_stash;
     let result = tokio::task::spawn_blocking(move || -> Result<serde_json::Value, AppError> {
-        let (path, created) = adl_workspace::ensure_branch_worktree(
-            root.as_path(),
-            &branch_name,
-            mode,
-            allow_stash,
-        )?;
+        let (path, created) =
+            adl_workspace::ensure_branch_worktree(root.as_path(), &branch_name, mode, allow_stash)?;
         let git_snapshot = adl_workspace::capture_git_snapshot(&path);
         let result = WorkspaceWorktreeEnsureResultCompat {
             path: path.to_string_lossy().to_string(),

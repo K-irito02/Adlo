@@ -463,7 +463,11 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
       const state = useAppStore.getState();
       // P4-R1-R1：用点击时刻的工作区（pending 捕获），而非到达时刻的会话 id；
       // 重绑定+重搜发生在点击与到达之间时，避免误标新会话的同路径命中。
-      state.markSearchHitStale(pending.path, pending.line, pending.workspaceId ?? state.searchWorkspaceId);
+      state.markSearchHitStale(
+        pending.path,
+        pending.line,
+        pending.workspaceId ?? state.searchWorkspaceId,
+      );
       pendingPreviewRevealRef.current = null;
     };
     if (fileContent === pending.baseline) {
@@ -482,7 +486,11 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
             );
             if (relocated === null) {
               const state = useAppStore.getState();
-              state.markSearchHitStale(current.path, current.line, current.workspaceId ?? state.searchWorkspaceId);
+              state.markSearchHitStale(
+                current.path,
+                current.line,
+                current.workspaceId ?? state.searchWorkspaceId,
+              );
               return;
             }
             current.line = relocated;
@@ -523,7 +531,11 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
     const state = useAppStore.getState();
     if (relocated === null) {
       // 同上：用点击时刻工作区，避免误标重绑定后新会话的同路径命中。
-      state.markSearchHitStale(validating.path, validating.line, validating.workspaceId ?? state.searchWorkspaceId);
+      state.markSearchHitStale(
+        validating.path,
+        validating.line,
+        validating.workspaceId ?? state.searchWorkspaceId,
+      );
       return;
     }
     // 显式工作区打开（事项 9 后续）内容到达即揭示；原有链路仅在行号纠正时揭示。

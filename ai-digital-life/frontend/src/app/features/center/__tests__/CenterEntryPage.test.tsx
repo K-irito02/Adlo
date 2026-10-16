@@ -279,10 +279,7 @@ describe('CenterPane 调度', () => {
 describe('CenterEntryPage narrow-width clipping (事项 4)', () => {
   it('keeps entry labels single-line with hard clipping instead of vertical wrapping', () => {
     // jsdom 下 import.meta.url 非 file 协议，改用 cwd（vitest root = frontend）定位 CSS。
-    const css = readFileSync(
-      join(process.cwd(), 'src/styles/regions/center-entry.css'),
-      'utf8',
-    );
+    const css = readFileSync(join(process.cwd(), 'src/styles/regions/center-entry.css'), 'utf8');
     expect(css).toContain('.adl-launcher-entry > span');
     expect(css).toContain('white-space: nowrap');
     // 卷帘门式硬裁剪（非省略号），且按钮本体不再允许换行。
@@ -292,10 +289,7 @@ describe('CenterEntryPage narrow-width clipping (事项 4)', () => {
 
   it('aligns icons in a fixed gutter while left-aligning text (事项 8)', () => {
     // 图标固定列纵向对齐 + 文本左对齐贴图标：等宽按钮无翻转跳动（P4-R1-R2-1）。
-    const css = readFileSync(
-      join(process.cwd(), 'src/styles/regions/center-entry.css'),
-      'utf8',
-    );
+    const css = readFileSync(join(process.cwd(), 'src/styles/regions/center-entry.css'), 'utf8');
     expect(css).toContain('grid-template-columns: 24px minmax(0, 1fr)');
     expect(css).toContain('.adl-launcher-entry > svg');
     expect(css).toContain('text-align: left');

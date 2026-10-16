@@ -261,10 +261,8 @@ mod tests {
     fn apply_log_overrides_only_overwrites_provided_fields() {
         // 原 `LogOverrides::apply` 的等价网（Phase 4 D5 去重后唯一实现即此）。
         let mut config = AppConfig::default();
-        let overrides = adl_logging::LogOverrides {
-            log_level: Some(LogLevel::Debug),
-            ..Default::default()
-        };
+        let overrides =
+            adl_logging::LogOverrides { log_level: Some(LogLevel::Debug), ..Default::default() };
         config.apply_log_overrides(&overrides);
         assert_eq!(config.log_level, LogLevel::Debug);
         assert_eq!(config.terminal_log_mode, LogMode::default());
@@ -276,10 +274,8 @@ mod tests {
         // Closing M1：无关补丁保存时，被锁且补丁未提供的字段恢复磁盘值。
         let disk = AppConfig::default();
         let mut memory = AppConfig::default();
-        let overrides = adl_logging::LogOverrides {
-            log_level: Some(LogLevel::Trace),
-            ..Default::default()
-        };
+        let overrides =
+            adl_logging::LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
         memory.apply_log_overrides(&overrides);
         assert_eq!(memory.log_level, LogLevel::Trace);
 
@@ -298,10 +294,8 @@ mod tests {
         // 被锁且补丁内提供的字段按用户选择落盘（下次启动生效）。
         let disk = AppConfig::default();
         let mut memory = AppConfig::default();
-        let overrides = adl_logging::LogOverrides {
-            log_level: Some(LogLevel::Trace),
-            ..Default::default()
-        };
+        let overrides =
+            adl_logging::LogOverrides { log_level: Some(LogLevel::Trace), ..Default::default() };
         memory.apply_log_overrides(&overrides);
         let patch = AppPreferencePatch { log_level: Some(LogLevel::Warn), ..Default::default() };
         memory.apply_patch(&patch);

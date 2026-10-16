@@ -112,7 +112,14 @@ export function getEntryMoreMenuItems(
   nodePath: string,
   callbacks: SectionCallbacks,
   t: CopyDict,
-): { id: string; label: string; badge?: string; danger?: boolean; hint?: string; action: () => void }[] {
+): {
+  id: string;
+  label: string;
+  badge?: string;
+  danger?: boolean;
+  hint?: string;
+  action: () => void;
+}[] {
   if (categoryType === 'history') {
     return [
       {

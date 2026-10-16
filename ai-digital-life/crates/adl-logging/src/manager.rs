@@ -778,7 +778,10 @@ mod tests {
             config,
             log_dir: dir.clone(),
             terminal_prefix: SHELL_TERMINAL_PREFIX.to_string(),
-            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, SHELL_TERMINAL_PREFIX))),
+            terminal_sessions: Arc::new(Mutex::new(SessionTracker::new(
+                &dir,
+                SHELL_TERMINAL_PREFIX,
+            ))),
             debug_sessions: Arc::new(Mutex::new(SessionTracker::new(&dir, DEBUG_LOG_PREFIX))),
             level_cell: level_cell.clone(),
             terminal_file: Arc::new(Mutex::new(None)),

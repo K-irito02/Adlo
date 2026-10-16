@@ -78,9 +78,7 @@ fn merge_branch_names(
         }
     }
 
-    merged.sort_by(|left, right| {
-        right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0))
-    });
+    merged.sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
     merged
 }
 
@@ -197,25 +195,23 @@ pub fn switch_git_branch(
     if !matches!(mode, adl_types::GitSwitchMode::Local)
         && super::git_worktree::preferred_remote_ref(root, branch_name).is_none()
     {
-        return Err(AppError::Workspace(format!(
-            "no remote branch found for: {branch_name}"
-        )));
+        return Err(AppError::Workspace(format!("no remote branch found for: {branch_name}")));
     }
 
     match mode {
         adl_types::GitSwitchMode::Local => {
             run_git_required(root, &["switch", branch_name])?;
-        }
+        },
         adl_types::GitSwitchMode::Remote => {
             // Switch first (cheap), then reset the fresh checkout to remote.
             // Stash above already isolated dirty state.
             run_git_required(root, &["switch", branch_name])?;
             reset_worktree_to_remote(root, branch_name, allow_stash)?;
-        }
+        },
         adl_types::GitSwitchMode::Sync => {
             run_git_required(root, &["switch", branch_name])?;
             sync_worktree_with_remote(root, branch_name, allow_stash)?;
-        }
+        },
     }
 
     let has_restored = pop_auto_stash(root, branch_name)?;

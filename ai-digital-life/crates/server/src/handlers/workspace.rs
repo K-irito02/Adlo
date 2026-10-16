@@ -376,9 +376,7 @@ pub async fn update_file(
     };
     // P4 R3：写必须显式带 content（缺失即 400），不以 "" 静默截断文件。
     let Some(content) = input.content.clone() else {
-        return ipc::to_response(Err(AppError::InvalidInput(
-            "content is required".into(),
-        )));
+        return ipc::to_response(Err(AppError::InvalidInput("content is required".into())));
     };
     let result = run_blocking(move || -> Result<serde_json::Value, AppError> {
         let doc = adl_workspace::update_file(

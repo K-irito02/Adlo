@@ -209,8 +209,7 @@ pub async fn app_update_preferences(
     //    会话覆盖锁定的字段跳过运行期（仅落盘，下次启动生效；与 server 同语义）。
     //    顺序语义：日志字段先行校验，失败则整个补丁被拒绝（含无关字段）。
     //    apply_change 失败仅 poison 可触发（锁损坏即进程状态不可信），不回滚。
-    let locked_fields =
-        adl_logging::session_locked_field_names(&patch, &state.log_overrides);
+    let locked_fields = adl_logging::session_locked_field_names(&patch, &state.log_overrides);
     let full_change = adl_logging::LogSettingsChange::from_patch(&patch);
     let log_change = adl_logging::lock_out_session_overrides(&full_change, &state.log_overrides);
     // 回滚锚点：落盘失败时把运行期恢复到补丁前的值（best-effort，Phase 4 F1）。
