@@ -11,6 +11,7 @@ import { FileNavigatorShell } from '../FileNavigatorShell';
 import { LazyEditorSurface, SuspenseWrapper } from '@components/LazyComponents';
 import { warmRightPanelEditors } from '@components/warmRightPanelEditors';
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from '../FileContextMenu';
+import { MarkdownThemeSelector } from '../MarkdownThemeSelector';
 import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
 import { useTCopy } from '@i18n/useTCopy';
@@ -654,6 +655,7 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         </div>
 
         <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+          {fileCategory === 'markdown' && selectedFilePath ? <MarkdownThemeSelector /> : null}
           <div className="adl-tool-context__divider" />
           <TooltipSimple content={previewEnabled ? t.filePreview : t.fileEdit} placement="top">
             <button

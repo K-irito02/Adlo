@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { IconCheck, IconEye, IconMoreVertical, IconPanelLeft, IconPanelLeftClose } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
 import { useTCopy } from '@i18n/useTCopy';
+import { MarkdownThemeSelector } from '../MarkdownThemeSelector';
 
 export interface ChangesMenuItem {
   id: string;
@@ -22,6 +23,8 @@ export interface ChangesTopToolbarProps {
   previewEnabled: boolean;
   onTogglePreview: () => void;
   changesMenuItems: ChangesMenuItem[];
+  /** 变更文件为 markdown 时展示主题切换（文件面板同款位置：预览按钮左侧分隔线之左）。 */
+  showMarkdownTheme?: boolean;
 }
 
 export function ChangesTopToolbar({
@@ -34,6 +37,7 @@ export function ChangesTopToolbar({
   previewEnabled,
   onTogglePreview,
   changesMenuItems,
+  showMarkdownTheme = false,
 }: ChangesTopToolbarProps) {
   const { t } = useTCopy();
   const [changesMenuOpen, setChangesMenuOpen] = useState(false);
@@ -105,6 +109,12 @@ export function ChangesTopToolbar({
         ) : null}
       </div>
       <div className="adl-tool-context__group adl-tool-context__group--files-actions">
+        {showMarkdownTheme ? (
+          <>
+            <MarkdownThemeSelector />
+            <div className="adl-tool-context__divider" aria-hidden="true" />
+          </>
+        ) : null}
         <TooltipSimple content={previewEnabled ? t.filePreview : t.fileEdit} placement="top">
           <button
             type="button"

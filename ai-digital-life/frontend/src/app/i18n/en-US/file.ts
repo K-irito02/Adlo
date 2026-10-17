@@ -1,6 +1,13 @@
 export const fileEn = {
   filePreview: 'File Preview',
   fileEdit: 'Edit File',
+  markdownThemeTooltip: 'Markdown theme',
+  markdownThemeLight: 'Light',
+  markdownThemeLightColorblind: 'Light colorblind',
+  markdownThemeDark: 'Dark',
+  markdownThemeDarkDimmed: 'Dark dimmed',
+  markdownThemeDarkHighContrast: 'Dark high contrast',
+  markdownThemeDarkColorblind: 'Dark colorblind',
   currentFilePath: 'Current file path',
   search: 'Search Files',
   searchPlaceholder: 'Search…',

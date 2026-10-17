@@ -227,7 +227,7 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
         ref={editorSurfaceRef}
         className="adl-tool-editor__surface adl-tool-editor__surface--preview"
       >
-        <LazyMarkdownPreviewWrapper content={fileContent ?? ''} theme={theme} />
+        <LazyMarkdownPreviewWrapper content={fileContent ?? ''} />
         {/* 检索跳转落点高亮：视口夹层裁剪溢出，高亮条铺满预览面并与左右边缘贴合 */}
         <RevealHighlightLayers />
       </div>

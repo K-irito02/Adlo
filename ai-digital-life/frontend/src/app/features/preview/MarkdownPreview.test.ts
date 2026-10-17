@@ -14,7 +14,7 @@ function collectRanges(html: string): [number, number][] {
 
 describe('MarkdownPreview', () => {
   it('adds source-line anchors to rendered headings', () => {
-    const html = renderMarkdownPreviewHtml('# 标题\n\n## 重复\n\n## 重复', 'light');
+    const html = renderMarkdownPreviewHtml('# 标题\n\n## 重复\n\n## 重复');
 
     expect(html).toContain('data-source-line="1"');
     expect(html).toContain('id="adl-heading-1"');
@@ -38,7 +38,7 @@ describe('MarkdownPreview', () => {
       'const a = 1;',
       '```',
     ].join('\n');
-    const html = renderMarkdownPreviewHtml(content, 'light');
+    const html = renderMarkdownPreviewHtml(content);
 
     // 单行块：start === end
     expect(html).toContain('data-source-line-start="1" data-source-line-end="1"');

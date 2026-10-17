@@ -59,6 +59,7 @@ export {
   IconImagePlus,
   IconFileBadge,
   IconFileTree,
+  IconMarkdownTheme,
   IconNewFile,
   IconNewFolder,
   IconNewFolderBrowser,

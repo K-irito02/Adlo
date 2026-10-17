@@ -20,6 +20,9 @@ export type {
   FilePreviewModeState,
   HeatmapTab,
   ChartColorPreset,
+  LightMarkdownTheme,
+  DarkMarkdownTheme,
+  MarkdownTheme,
   UISlice,
 } from './uiSliceTypes';
 export {
@@ -70,6 +73,8 @@ export const createUISlice = (
     activeHeatmapTab: 'calendar',
     activeWorkspaceTab: 'workspace-1',
     chartColorPreset: 'bklit-default',
+    lightMarkdownTheme: 'light',
+    darkMarkdownTheme: 'dark',
     startupOverlayHidden: false,
     hamburgerOpen: false,
     hoveredMenuCategory: null,
@@ -147,6 +152,12 @@ export const createUISlice = (
     },
     setChartColorPreset: (preset) => {
       set(persistField('adl:changes.chartColorPreset', preset));
+    },
+    setLightMarkdownTheme: (theme) => {
+      set(persistField('adl:files.markdownThemeLight', theme));
+    },
+    setDarkMarkdownTheme: (theme) => {
+      set(persistField('adl:files.markdownThemeDark', theme));
     },
     setStartupOverlayHidden: (hidden) => set({ startupOverlayHidden: hidden }),
     setChangesNavigatorMode: (mode) => {

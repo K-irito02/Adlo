@@ -824,6 +824,12 @@
 
 .adl-git-vis__preset-item-label {
   flex: 1;
+  /* 长标签（如 Dark high contrast）被右侧打勾图标挤压时单行省略，不换行
+     （flex 子项默认 min-width:auto 不收缩，必须置 0；图表/ Markdown 主题菜单共用）。 */
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .adl-git-vis__preset-item .adl-icon {

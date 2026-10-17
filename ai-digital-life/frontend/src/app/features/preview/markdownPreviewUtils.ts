@@ -1,58 +1,46 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { escapeHtml } from '../../../design-system/html';
 import MarkdownIt from 'markdown-it';
-import hljs from 'highlight.js/lib/core';
-import typescript from 'highlight.js/lib/languages/typescript';
-import bash from 'highlight.js/lib/languages/bash';
-import json from 'highlight.js/lib/languages/json';
-import python from 'highlight.js/lib/languages/python';
-import rust from 'highlight.js/lib/languages/rust';
-import yaml from 'highlight.js/lib/languages/yaml';
-import sql from 'highlight.js/lib/languages/sql';
-import xml from 'highlight.js/lib/languages/xml';
-import css from 'highlight.js/lib/languages/css';
-
-hljs.registerLanguage('typescript', typescript);
-hljs.registerLanguage('javascript', typescript);
-hljs.registerLanguage('bash', bash);
-hljs.registerLanguage('shell', bash);
-hljs.registerLanguage('sh', bash);
-hljs.registerLanguage('json', json);
-hljs.registerLanguage('python', python);
-hljs.registerLanguage('rust', rust);
-hljs.registerLanguage('yaml', yaml);
-hljs.registerLanguage('sql', sql);
-hljs.registerLanguage('xml', xml);
-hljs.registerLanguage('html', xml);
-hljs.registerLanguage('css', css);
+import {
+  ensureStarryNight,
+  highlightWithStarry,
+  isStarryReady,
+  subscribeStarryReady,
+} from './starryNight';
 
 export interface MarkdownPreviewProps {
   content: string;
-  theme?: 'light' | 'dark';
 }
 
-function createMdInstance(): MarkdownIt {
+/**
+ * 代码高亮（官方推荐 starry-night，见 `starryNight.ts`）。
+ * - starry 就绪后：同步输出 `pl-*` span（`highlight` 本身是同步的，仅实例创建是异步）。
+ * - 未就绪/未知语言/异常：HTML 转义纯文本，保证永不白屏。
+ * - 始终以 `<div class="adl-md-code-header">` 开头：markdown-it 仅当高亮结果不以 `<pre`
+ *   开头时才包一层带 token 属性（含块级源行映射 `data-source-line-start/end`）的
+ *   `<pre><code>`；以 `<pre>` 开头会丢掉跳转锚点（回归：首屏回退曾丢 fence 块锚点）。
+ * - `pre` 统一用 `adl-md-code`（首屏回退与高亮后类名一致，避免布局跳变；
+ *   旧 `hljs` 类已随 highlight.js 移除，样式见 `markdown-preview.css`）。
+ */
+function highlightCode(str: string, lang: string, starryEnabled: boolean): string {
+  const header = `<div class="adl-md-code-header"><span class="adl-md-code-lang">${escapeHtml(lang)}</span></div>`;
+  if (starryEnabled) {
+    const highlighted = highlightWithStarry(str, lang);
+    if (highlighted !== null) {
+      return header + `<pre class="adl-md-code"><code>${highlighted}</code></pre>`;
+    }
+  }
+  const escaped = escapeHtml(str);
+  return header + `<pre class="adl-md-code"><code>${escaped}</code></pre>`;
+}
+
+function createMdInstance(starryEnabled: boolean): MarkdownIt {
   const md = new MarkdownIt({
     html: false,
     linkify: true,
     typographer: true,
     highlight(str: string, lang: string): string {
-      if (lang && hljs.getLanguage(lang)) {
-        try {
-          const highlighted = hljs.highlight(str, {
-            language: lang,
-            ignoreIllegals: true,
-          }).value;
-          return (
-            `<div class="adl-md-code-header"><span class="adl-md-code-lang">${escapeHtml(lang)}</span></div>` +
-            `<pre class="hljs"><code>${highlighted}</code></pre>`
-          );
-        } catch {
-          // fallback
-        }
-      }
-      const escaped = escapeHtml(str);
-      return `<pre class="hljs"><code>${escaped}</code></pre>`;
+      return highlightCode(str, lang, starryEnabled);
     },
   });
 
@@ -86,14 +74,25 @@ function createMdInstance(): MarkdownIt {
   return md;
 }
 
-export function renderMarkdownPreviewHtml(
-  content: string,
-  _theme: 'light' | 'dark' = 'dark',
-): string {
-  return createMdInstance().render(content);
+/** 同步渲染（回退纯文本代码块）：测试与首屏用，不等待 starry-night WASM。 */
+export function renderMarkdownPreviewHtml(content: string): string {
+  return createMdInstance(false).render(content);
 }
 
-export function useMarkdownPreviewHtml(content: string, _theme: 'light' | 'dark'): string {
-  const md = useMemo(() => createMdInstance(), []);
+/**
+ * 两段式渲染：首屏同步回退（零等待），starry-night 就绪后重渲一次带上高亮。
+ * starry 加载失败则永远停留在回退态（`subscribeStarryReady` 永不触发）。
+ */
+export function useMarkdownPreviewHtml(content: string): string {
+  const [starryTick, setStarryTick] = useState(() => (isStarryReady() ? 1 : 0));
+  useEffect(() => {
+    if (isStarryReady()) {
+      return undefined;
+    }
+    const unsubscribe = subscribeStarryReady(() => setStarryTick(1));
+    void ensureStarryNight();
+    return unsubscribe;
+  }, []);
+  const md = useMemo(() => createMdInstance(starryTick > 0), [starryTick]);
   return useMemo(() => md.render(content), [content, md]);
 }

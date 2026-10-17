@@ -22,6 +22,10 @@ const diffViewerUtilsSource = readFileSync(
   new URL('../../features/diff-viewer/diffViewerUtils.ts', import.meta.url),
   'utf8',
 );
+const gitVisCssSource = readFileSync(
+  new URL('../../../../src/styles/regions/rightpanel/git-visualization.css', import.meta.url),
+  'utf8',
+);
 const sideBySideSource = readFileSync(
   new URL('../../features/diff-viewer/SideBySideDiffViewer.tsx', import.meta.url),
   'utf8',
@@ -40,7 +44,6 @@ const regionsCssSource = [
   'editor-surface.css',
   'editor-content.css',
   'markdown-preview.css',
-  'highlightjs-theme.css',
   'diff-viewer.css',
   'diff-inline.css',
   'diff-side-by-side.css',
@@ -95,9 +98,41 @@ describe('CodeMirror preview styling', () => {
 
   it('keeps CodeMirror editor and diff surfaces independent from legacy Monaco selectors', () => {
     expect(regionsCssSource).toContain('.adl-cm-diff-viewer .cm-editor');
-    expect(regionsCssSource).toContain('.adl-markdown-preview .adl-md-code-header + pre.hljs');
+    expect(regionsCssSource).toContain(
+      '.adl-markdown-preview .adl-md-code-header + pre.adl-md-code',
+    );
     expect(regionsCssSource).not.toContain('.monaco-diff-editor');
     expect(regionsCssSource).not.toContain('.monaco-editor');
+  });
+
+  it('keeps preset menu labels single-line with ellipsis beside the check icon', () => {
+    const labelBlock = extractCssBlock(gitVisCssSource, '.adl-git-vis__preset-item-label {\n');
+    expect(labelBlock).toContain('min-width: 0;');
+    expect(labelBlock).toContain('white-space: nowrap;');
+    expect(labelBlock).toContain('overflow: hidden;');
+    expect(labelBlock).toContain('text-overflow: ellipsis;');
+  });
+
+  it('keeps the markdown theme var-driven: six var blocks, parameterized body, no hardcoded theme colors', () => {
+    const varsSource = readFileSync(
+      new URL('../../../../src/styles/vendor/markdown-theme-vars.css', import.meta.url),
+      'utf8',
+    );
+    for (const id of [
+      'light',
+      'light-colorblind',
+      'dark',
+      'dark-dimmed',
+      'dark-high-contrast',
+      'dark-colorblind',
+    ]) {
+      expect(varsSource).toContain(`.adl-markdown-preview[data-md-theme="${id}"]`);
+    }
+    // 规则体只用变量，不直接写主题色
+    expect(varsSource).toContain('.markdown-body h1 {');
+    expect(varsSource).toContain('color: var(--md-fg-default);');
+    expect(varsSource).toContain('background-color: var(--md-canvas-default);');
+    expect(varsSource).toContain('color-scheme: var(--md-color-scheme);');
   });
 
   it('keeps agent annotations in the content area without an extra gutter column', () => {

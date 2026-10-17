@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import type { ChangesPanelProps } from '../types';
+import { categorizeFile } from '../fileTypeRouter';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
 import { ConfirmDialog } from '@components/ConfirmDialog';
@@ -124,6 +125,12 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     return () => window.clearTimeout(timer);
   }, []);
 
+  // markdown 变更才展示主题切换（与文件面板同款位置）。
+  const showMarkdownTheme = useMemo(
+    () => (changePreview ? categorizeFile(changePreview.path) === 'markdown' : false),
+    [changePreview],
+  );
+
   return (
     <div className="adl-tool-panel adl-tool-panel--changes">
       <ChangesToolbar
@@ -137,6 +144,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
         previewEnabled={previewEnabled}
         onTogglePreview={() => setPreviewEnabled(!previewEnabled)}
         changesMenuItems={changesMenuItems}
+        showMarkdownTheme={showMarkdownTheme}
       />
 
       <div

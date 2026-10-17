@@ -90,7 +90,12 @@ import type {
   FilesSearchScope,
   TerminalProfile,
 } from '../types';
-import type { HeatmapTab, ChartColorPreset } from '../slices/uiSliceTypes';
+import type {
+  HeatmapTab,
+  ChartColorPreset,
+  LightMarkdownTheme,
+  DarkMarkdownTheme,
+} from '../slices/uiSliceTypes';
 import {
   isTerminalProfile,
   readTerminalProfile,
@@ -588,6 +593,25 @@ export const registry = {
       'cool-ocean',
       'warm-sunset',
       'high-contrast',
+    ] as const),
+  }),
+  'adl:files.markdownThemeLight': defineEntry<LightMarkdownTheme>({
+    key: 'adl:files.markdownThemeLight',
+    field: 'lightMarkdownTheme',
+    fallback: 'light',
+    scope: 'global',
+    read: readStringEnum<LightMarkdownTheme>(['light', 'light-colorblind'] as const),
+  }),
+  'adl:files.markdownThemeDark': defineEntry<DarkMarkdownTheme>({
+    key: 'adl:files.markdownThemeDark',
+    field: 'darkMarkdownTheme',
+    fallback: 'dark',
+    scope: 'global',
+    read: readStringEnum<DarkMarkdownTheme>([
+      'dark',
+      'dark-dimmed',
+      'dark-high-contrast',
+      'dark-colorblind',
     ] as const),
   }),
   // ─────────────────────────────────────────────────────────────

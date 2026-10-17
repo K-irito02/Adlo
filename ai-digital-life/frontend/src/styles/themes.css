@@ -304,15 +304,6 @@ html:not(.no-transition) [data-theme] {
   --editor-gutter-bg: var(--bg-elevated);
   --editor-lineHighlight-border: rgba(0, 0, 0, 0.06);
   --editor-fold-placeholder: rgba(0, 0, 0, 0.08);
-  --md-hljs-default: #1e1e1e;
-  --md-hljs-comment: #6a737d;
-  --md-hljs-keyword: #a626a4;
-  --md-hljs-string: #50a14f;
-  --md-hljs-number: #986801;
-  --md-hljs-builtin: #c18401;
-  --md-hljs-function: #4078f2;
-  --md-hljs-variable: #e45649;
-  --md-hljs-meta: #6a737d;
 
   /* === Border Alias (unified) === */
   --border: var(--border-default);
@@ -567,15 +558,6 @@ html:not(.no-transition) [data-theme] {
   --editor-gutter-bg: var(--bg-elevated);
   --editor-lineHighlight-border: rgba(255, 255, 255, 0.07);
   --editor-fold-placeholder: rgba(255, 255, 255, 0.1);
-  --md-hljs-default: #d4d4d4;
-  --md-hljs-comment: #6b7b8d;
-  --md-hljs-keyword: #c678dd;
-  --md-hljs-string: #98c379;
-  --md-hljs-number: #d19a66;
-  --md-hljs-builtin: #e5c07b;
-  --md-hljs-function: #61afef;
-  --md-hljs-variable: #e06c75;
-  --md-hljs-meta: #6b7b8d;
 
   /* === Border Alias (unified) === */
   --border: var(--border-default);

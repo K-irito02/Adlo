@@ -1,6 +1,13 @@
 export const fileZh = {
   filePreview: '文件预览',
   fileEdit: '编辑文件',
+  markdownThemeTooltip: 'Markdown 主题',
+  markdownThemeLight: '浅色',
+  markdownThemeLightColorblind: '浅色色盲友好',
+  markdownThemeDark: '深色',
+  markdownThemeDarkDimmed: '深色柔和',
+  markdownThemeDarkHighContrast: '深色高对比',
+  markdownThemeDarkColorblind: '深色色盲友好',
   currentFilePath: '当前文件路径',
   search: '检索文件',
   searchPlaceholder: '输入关键词…',

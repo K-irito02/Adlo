@@ -95,6 +95,11 @@ export type HeatmapTab = 'calendar' | 'clock' | 'activity' | 'module';
 
 export type ChartColorPreset = 'bklit-default' | 'cool-ocean' | 'warm-sunset' | 'high-contrast';
 
+/** Markdown 预览主题（github-markdown-css 官方 7 主题去 auto 后按亮暗分组，不混用）。 */
+export type LightMarkdownTheme = 'light' | 'light-colorblind';
+export type DarkMarkdownTheme = 'dark' | 'dark-dimmed' | 'dark-high-contrast' | 'dark-colorblind';
+export type MarkdownTheme = LightMarkdownTheme | DarkMarkdownTheme;
+
 /** 各导航器折叠态的默认（全展开）。同时作为注册表 `adl:ui.navigatorCollapsed` 的 fallback。 */
 export function defaultNavigatorCollapsed(): Record<ToolId, boolean> {
   return {
@@ -130,6 +135,8 @@ export interface UISlice {
   activeHeatmapTab: HeatmapTab;
   activeWorkspaceTab: string;
   chartColorPreset: ChartColorPreset;
+  lightMarkdownTheme: LightMarkdownTheme;
+  darkMarkdownTheme: DarkMarkdownTheme;
   startupOverlayHidden: boolean;
   hamburgerOpen: boolean;
   hoveredMenuCategory: 'file' | 'view' | 'help' | null;
@@ -222,6 +229,8 @@ export interface UISlice {
   setActiveHeatmapTab: (tab: HeatmapTab) => void;
   setActiveWorkspaceTab: (tab: string) => void;
   setChartColorPreset: (preset: ChartColorPreset) => void;
+  setLightMarkdownTheme: (theme: LightMarkdownTheme) => void;
+  setDarkMarkdownTheme: (theme: DarkMarkdownTheme) => void;
   setStartupOverlayHidden: (hidden: boolean) => void;
   setChangesNavigatorMode: (mode: ChangesNavigatorMode) => void;
   setChangesTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;

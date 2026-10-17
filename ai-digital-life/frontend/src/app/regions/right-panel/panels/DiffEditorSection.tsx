@@ -356,10 +356,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       >
         {changePreviewCategory === 'markdown' && previewEnabled ? (
           <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-            <LazyMarkdownPreviewWrapper
-              content={changePreview.currentContent}
-              theme={changePreviewTheme}
-            />
+            <LazyMarkdownPreviewWrapper content={changePreview.currentContent} />
             {/* 不渲染落点高亮覆盖层：变更面板无检索模式，大纲导航按设计只定位不闪烁 */}
           </div>
         ) : previewEnabled ? (

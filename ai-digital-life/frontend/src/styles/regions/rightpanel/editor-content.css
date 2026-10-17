@@ -1,5 +1,7 @@
 @import './markdown-preview.css';
-@import './highlightjs-theme.css';
+
+/* 代码高亮走 starry-night（`pl-*` 类 + 按主题动态装载的官方 CSS），
+   旧 highlight.js 主题文件已随 hljs 移除。 */
 
 /* ---------------- Editor Content Area ---------------- */
 
