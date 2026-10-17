@@ -1,6 +1,6 @@
 ---
 name: root-cause-to-close
-description: Root-cause-first lifecycle for fixing bugs and closing a session, including investigation, fix, verification, multi-agent review, doc sync, and cleanup. Always invoke this skill when debugging bugs, test failures, unexpected behavior, or performance issues, and when wrapping up a development session or asked to close out work. Not for new-feature design or every small edit.
+description: Root-cause-first bug-fix and session-close lifecycle — investigate, fix, verify, review, doc sync, cleanup. Use for bugs, test failures, or wrap-up. Not for new features or trivial edits.
 ---
 
 # Root Cause to Close（根因排查 → 收尾归档全生命周期）
@@ -31,6 +31,8 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 - 用户明确要求收尾 → 同上。
 - 不要在每次代码编辑后触发收尾部分；编辑后只做分级测试（见「测试协议」）。
 
+**单一主线（避免重复触发）：** 同一会话只走一条主线、只建一套进度文件（见「记录协议」），不并行启动与本技能功能重叠的其它根因/收尾流程。
+
 ## 工具对照（Trae / OpenCode）
 
 `.agents/skills/` 为真源；各 harness 以本表对应工具，未列出版本按语义就近对应。
@@ -43,6 +45,8 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 | Task / 子代理 | `Agent` | `task` | — |
 | AskUserQuestion | `AskUserQuestion` | `question` | — |
 | 记录/索引 | `Read` + `Edit`/`Write` | `read` + `edit`/`write` | 禁止"稍后一起记" |
+
+> 下文凡写 `question`，一律指"向用户弹询问卡片"这一动作（Trae 工具名 `AskUserQuestion`，OpenCode 为 `question`）；`RunCommand` 同理指各端 shell 工具（Trae `Shell` / OpenCode `bash`）。
 
 ---
 
@@ -66,7 +70,7 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 
 向用户确认三句话：问题/任务是什么、涉及哪片代码、计划按什么方向排查。用户确认前禁止进入 P0（需求类型先记进度再进 brainstorming 例外）。
 
-**Exit criteria：** 类型已定、代码区域已定位、用户已明确说同意方向。
+**Exit criteria：** 类型已定、代码区域已定位、用户已明确说同意方向，且进度文件已按「记录协议」建好并列出全部事项（解决/优化/调整类型同样必须在进入 P0 前建好，不得延后到 P0 中途补建）。
 
 ---
 
@@ -137,9 +141,9 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 
 1. **按手册启动：** 先读 `docs/development/log-system-manual.md` §1，用 CLI 启动对应模式并调高日志：桌面 `pnpm dev:tauri -- --log-level trace --terminal-log-mode multi` / 浏览器 `pnpm dev:preview -- --log-level trace --terminal-log-mode multi` / 双端 `pnpm dev:both -- ...`（`--` 不可省；设过 `RUST_LOG` 先 unset，它是硬顶、CLI 顶不开）。启动后先断言 `[ADL-LOG]` / `[ADL-CLI]` 行确认覆盖生效（`session-only`，重启即失效，不要误判为 bug）。
 2. **触发埋点（二选一）：**
-   - A. 有自动化操作能力（浏览器模式用 `playwright-cli`，见相关技能与 `notes/playwright-cli-experience.md`）→ 自己驱动触发，复现后按日志协议读最新文件断言。
+   - A. 有自动化操作能力（浏览器模式用 `playwright-cli`，见相关技能与 `references/playwright-cli-experience.md`）→ 自己驱动触发，复现后按日志协议读最新文件断言。
    - B. 无能力 → 用户充当"手"：给出编号步骤（启动哪个模式 → 打开哪个地址/窗口 → 点击哪里 → 看什么），并声明预期日志文件与关键标记；等用户回复"操作完成"后再读日志分析。
-3. **能力现状：** 浏览器模式走 A（见 `notes/playwright-cli-experience.md`）；桌面壳点击走 B。每次在进度文件记录"本次用 A / B 触发"。
+3. **能力现状：** 浏览器模式走 A（见 `references/playwright-cli-experience.md`）；桌面壳点击走 B。每次在进度文件记录"本次用 A / B 触发"。
 
 组合示例：`run-project-surfaces` 起 preview → Playwright CLI 打开其打印的 URL 触发埋点 → 按日志协议读 `debug-logs-browser*.txt` 最新文件断言。**"UI 动了" ≠ "日志写了"，两者都要断言**（只看其一会得出错误结论）。
 
@@ -222,7 +226,7 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 | 未提交（含暂存） | `git diff HEAD` | — |
 | 已提交未推送 | `git diff origin/HEAD..HEAD`（`origin/HEAD` 不存在则跳过） | 已推送的不审 |
 
-两类都无变更 → 跳过 P4 审查部分（进度文件记理由）。有变更则 4c 两轮必跑。否则：
+两类都无变更 → 跳过 4c–4e（进度文件记理由），仅保留 Exit criteria 中的分级测试。有变更时按下述建快照，再进 4c 两轮必跑：
 
 1. 建 `.review-diffs/`（已在 `.gitignore`，P6 删除）。
 2. 按文件拆快照：文件列表 = `git diff --name-only HEAD` ∪（存在时）`git diff --name-only origin/HEAD..HEAD`；每文件把两来源的 diff 拼接为 `<路径下划线>-rev<N>.diff`；同步写 `changed-files-rev<N>.txt`。
@@ -238,9 +242,9 @@ description: Root-cause-first lifecycle for fixing bugs and closing a session, i
 
 **本轮零问题的定义：** 该轮最新一次子代理审查结果，经 4d 逐项验证后，无"需修复"项残留（误报 / 有据保留已记理由、且下一轮复审子代理无异议）。只要还有需修复项，或"不修"被子代理成功异议，就不算零问题，继续本轮循环。
 
-- **R1 循环（正确性，不通过不进 R2）**：按事项数派发（1 事项→1 子代理；>5 事项时 <50 行小事项合并、大事项仍逐项），同一条消息并行派发（可写文件子代理，仅允许写指定报告文件，源码只读）。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。每项给文件+行号、severity（critical/high/medium/low）、类别、描述、建议修复。修完 rev 递增后，**仍用 R1 范围**复审，循环至 R1 零问题。
+- **R1 循环（正确性，不通过不进 R2）**：按事项数派发（默认 1 事项 → 1 子代理；事项 >5 时把 <50 行的小事项合并、大事项仍逐项），同一条消息并行派发（可写文件子代理，仅允许写指定报告文件，源码只读）。覆盖：根因与正确性、设计质量、副作用与安全、预存问题、优化机会。每项给文件+行号、severity（critical/high/medium/low）、类别、描述、建议修复。修完 rev 递增后，**仍用 R1 范围**复审，循环至 R1 零问题。
 - **R2 循环（清理，仅 R1 零问题后进入，同样循环至零问题）**：即使 R1 修时已删日志/死代码，仍必须完整派发一次，不可省略。覆盖：死代码、冗余守卫、根因修后多余的防御、应删/降级的诊断日志。不标：正当错误处理、系统边界验证、生产 warn/error 日志。修完 rev 递增后，**仍用 R2 范围**复审，循环至 R2 零问题。
-- **合并（每轮独立做一次）：** 去重（同文件同行同类留最详者）→ severity 降序。
+- **合并（主代理执行，每轮各做一次）：** 去重（同文件同行同类留最详者）→ severity 降序。
 
 ### 4d. 主代理问题验证（修复前置，逐项必做并记进度文件）
 
@@ -288,7 +292,9 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 
 ## P6：清理 + 总结
 
-**清理**（`read` 确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/`（仓库根与 `ai-digital-life/`）超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；根 `test-artifacts/` 超 3 天临时文件；删除 `.review-diffs/` 全部快照。用过 `playwright-cli` 则一并清理其测试产物：关闭残留浏览器会话（`close-all`），删除仓库内 `.playwright-cli/` 目录（快照/trace/录像）与测试截图；产物若在 Temp 目录则整批删除。
+**清理（预授权范围，无需再问用户）**（`read` 确认存在再删，年龄按 `LastWriteTime`）：两处 `.adl-logs/`（仓库根与 `ai-digital-life/`）超 7 天文件；`debug-logs*.txt`、`debug-logs-browser*.txt`、`adl-server-logs*.txt` 运行残留；根 `test-artifacts/` 超 3 天临时文件；删除 `.review-diffs/` 全部快照。用过 `playwright-cli` 则一并清理其测试产物：关闭残留浏览器会话（`close-all`），删除仓库内 `.playwright-cli/` 目录（快照/trace/录像）与测试截图；产物若在 Temp 目录则整批删除。
+
+**清理范围边界：** 上述"本技能自有临时产物"才属预授权。删除未提交源码/他人改动/被跟踪文件、或执行 `cargo clean` 等破坏性操作前，必须先向用户询问（对应底部 Red Flag"未经确认的清理"）。
 
 **总结**（只读进度文件生成，禁凭记忆）：
 
@@ -315,7 +321,7 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 | 未穷尽调查就进预防性；2 次失败不回 P0；≥3 次失败不停质疑架构 | P0/P1 |
 | 用 `glob`/`grep` 读日志；分析旧日志而非最新 | 日志协议 |
 | 加埋点不触发就下结论；只看 UI 变化不看日志（或反之） | 调试埋点触发节 |
-| playwright 会话命令 pipe 截断输出；在仓库根跑浏览器测试污染仓库；route mock 后不清理 | `notes/playwright-cli-experience.md` |
+| playwright 会话命令 pipe 截断输出；在仓库根跑浏览器测试污染仓库；route mock 后不清理 | `references/playwright-cli-experience.md` |
 | 跑全量测试替代分级；工具失败未分析直接重试；修完不重审 | 测试协议/P4 |
 | 子代理改源码 / 自行 `git diff` / 只看增量复审 / 复用旧快照 / 串行派发 / 结果未去重排序 / R1 只审一次就放行 / 自判干净跳过 R2 或任一次复审 / R1 未零问题提前启动 R2 | P4 |
 | 未验证真实性就修；无用防御/偷懒兼容被保留；"不修"未查优化空间；预存问题被放过 | P4d |
@@ -344,6 +350,8 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 | 埋点触发（P0/P2/P3 加埋点后） | 按手册启动→驱动/编号步骤触发→读最新日志断言 | 日志与断言对上 |
 | 决策（调研/多方案/P2B/P4e） | 正文先完整输出分析（总表/逐套/来源/推荐）→ 再弹 `question`（只放短选项） | 用户先看到完整内容再选择 |
 
+> **三处"3"是各自独立的计数，互不折算：** P2A 同一根因修复失败 3 次 → 停并质疑架构；P3 用户报告未解决满 3 轮 → 升级报告；P4 同一审查问题修复 3 轮未解 → 停并请示用户。
+
 ## 相关技能与规则
 
 - `brainstorming` — 需求类型的设计（space 与计划须覆盖附带的问题类事项）
@@ -353,6 +361,6 @@ P5 逐项表态完成后直接进 P6（阶段之间不停留；结算性工作�
 - `refactoring-insight` — 架构质疑时评估
 - `verification-before-completion` — 宣告成功前验证
 - `run-project-surfaces` — 按手册启动 Tauri / 浏览器 / 双端（启动器，不代操作；与自动化 Skill 组合用）
-- `playwright-cli` — 浏览器模式自动化触发（快照 refs 定位、eval 断言、console/requests 排障、route mock；经验见 `notes/playwright-cli-experience.md`）
+- `playwright-cli` — 浏览器模式自动化触发（快照 refs 定位、eval 断言、console/requests 排障、route mock；经验见 `references/playwright-cli-experience.md`）
 - 规则 `mandatory-testing`（`.agents/rules/mandatory-testing.md`）— 每次变更触发的验收流程；与本技能测试协议互补（前者轻量、后者收尾兜底）
 - 外部可选（引入前先与用户确认）：Playwright MCP（长会话探索）、WebdriverIO `@wdio/tauri-service`（桌面点击唯一正道）
