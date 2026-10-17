@@ -8,6 +8,7 @@ import type {
 import type { StoreApi } from 'zustand';
 import type { GitSnapshot } from '@ai-digital-life/kernel';
 import { clearError, captureError, postMutationRefresh, clearWorkspaceCaches } from '../shared';
+import { clearChangePreviewForWorkspace } from './gitSnapshotActions';
 import { asWorkspaceID } from '../../../shared/branded';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 // Store 侧提示文案取静态语言包（与 generalActions sessionOverrideNotice 同模式，不走 hook）。
@@ -231,6 +232,12 @@ export function createGitBranchActions(
         if (sourceEntry) {
           await get().removeWorkspaceFromSidebar(asWorkspaceID(sourceEntry.id));
         }
+        // 事项5-R2：源移除后悬空选中必须在新上下文重读（openWorkspace 时源尚在，
+        // 那里的对账走了"源仍在"分支）。缺失则清空为空。
+        await get().reconcileSelectedFileAfterWorkspaceSwitch();
+        // 变更面板同 clearing（事项5-R3）：预览归属被移除工作区则清空内容区，
+        // 不归属的不动（跨工作区合法预览保留）。
+        clearChangePreviewForWorkspace(get, set, sourceEntry?.id);
         get().showToast(fill(dict.changesBranchReplaced, { branch: branchName }), 'success');
       }
       // 脏保留提醒（事项 6）：只提示，不自动 push；分叉由行图标 + 同步选项解决。

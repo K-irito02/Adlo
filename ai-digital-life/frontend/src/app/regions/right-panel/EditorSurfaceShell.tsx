@@ -18,6 +18,7 @@ import type { PatchHunkSummary } from '@features/patch-review';
 import { useStickyContext, useWrapColumn, useEditorStateCache } from './hooks';
 import type { UseEditorOptionsResult } from './hooks';
 import { IconChevronDown, IconChevronRight } from '@icons';
+import { ChunkLoadingFallback } from '@components/LazyComponents';
 import type { RightPanelViewProps } from './types';
 import { useTCopy } from '@i18n/useTCopy';
 import { useDiffStickyRanges } from './useDiffStickyRanges';
@@ -345,7 +346,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
           {stickyContextModel ? (
             <StickyContext data-testid="files-sticky-context" model={stickyContextModel} />
           ) : null}
-          <Suspense fallback={null}>
+          <Suspense fallback={<ChunkLoadingFallback />}>
             <DiffViewer
               original={filePatch.beforeContent}
               modified={filePatch.afterContent}
@@ -408,7 +409,7 @@ const EditorSurfaceShell = React.memo(function EditorSurfaceShell(props: EditorS
       {stickyContextModel ? (
         <StickyContext data-testid="files-sticky-context" model={stickyContextModel} />
       ) : null}
-      <Suspense fallback={null}>
+      <Suspense fallback={<ChunkLoadingFallback />}>
         <CodeEditor
           value={fileContent ?? ''}
           language={editorLanguage}

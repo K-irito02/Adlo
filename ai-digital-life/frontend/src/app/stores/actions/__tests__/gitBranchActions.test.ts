@@ -20,6 +20,7 @@ interface TestStore {
   fetchGitBranches: (options?: { silent?: boolean }) => Promise<void>;
   openWorkspace: (path: string) => Promise<unknown>;
   removeWorkspaceFromSidebar: (id: string) => Promise<void>;
+  reconcileSelectedFileAfterWorkspaceSwitch: () => Promise<void>;
   showToast: (message: string, type?: string) => string;
   saveDirtyEditors?: () => Promise<{ saved: number; failed: number }>;
   clearErrorToasts: (scope?: string) => void;
@@ -34,6 +35,7 @@ function makeStore() {
   const reportSilentError = vi.fn(() => 'silent-id');
   const openWorkspace = vi.fn(async () => ({ ok: true }));
   const removeWorkspaceFromSidebar = vi.fn(async () => {});
+  const reconcileSelectedFileAfterWorkspaceSwitch = vi.fn(async () => {});
   const showToast = vi.fn(() => 'toast-id');
   const clearErrorToasts = vi.fn();
   const store = createStore<TestStore>((set, get) => {
@@ -48,6 +50,7 @@ function makeStore() {
       errorToasts: [],
       openWorkspace,
       removeWorkspaceFromSidebar,
+      reconcileSelectedFileAfterWorkspaceSwitch,
       showToast,
       clearErrorToasts,
       ...actions,
@@ -401,6 +404,12 @@ describe('ensureBranchWorktree', () => {
       },
     });
     const { store, openWorkspace, removeWorkspaceFromSidebar, showToast } = makeStore();
+    store.setState({
+      selectedChangePreviewPath: 'old.md',
+      selectedChangePreviewWorkspaceId: 'ws-1',
+      changePreview: { path: 'old.md' } as never,
+      changePreviewLoading: false,
+    } as never);
     const path = await store.getState().ensureBranchWorktree({
       branchName: 'feature-ahead',
       allowStash: false,
@@ -412,6 +421,18 @@ describe('ensureBranchWorktree', () => {
     );
     expect(openWorkspace).toHaveBeenCalledWith('/repo-worktrees/feature-ahead');
     expect(removeWorkspaceFromSidebar).toHaveBeenCalledWith('ws-1');
+    expect(
+      (
+        store.getState() as unknown as {
+          reconcileSelectedFileAfterWorkspaceSwitch: ReturnType<typeof vi.fn>;
+        }
+      ).reconcileSelectedFileAfterWorkspaceSwitch,
+    ).toHaveBeenCalledTimes(1);
+    // 事项5-R3：被移除工作区的变更预览同步清空
+    expect(
+      (store.getState() as unknown as { selectedChangePreviewPath?: string })
+        .selectedChangePreviewPath,
+    ).toBeUndefined();
     expect(showToast).toHaveBeenCalled();
   });
 

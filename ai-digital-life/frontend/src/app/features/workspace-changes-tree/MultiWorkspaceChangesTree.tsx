@@ -27,6 +27,7 @@ export interface MultiWorkspaceChangesTreeProps {
   onHideFromRightPanels: (workspaceId: string) => void;
   onToggleFileTreePath: (workspaceId: string, path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
+  onHoverChangePreview?: (workspacePath: string, relativePath: string) => void;
   onNodeClicked: (workspaceId: string, path: string, kind: 'directory' | 'file') => void;
   onWorkspaceRootClick: (workspaceId: string) => void;
   onClearSelection: () => void;
@@ -61,6 +62,7 @@ export function MultiWorkspaceChangesTree({
   onHideFromRightPanels,
   onToggleFileTreePath,
   onOpenChangePreview,
+  onHoverChangePreview,
   onNodeClicked,
   onWorkspaceRootClick,
   onClearSelection,
@@ -99,6 +101,7 @@ export function MultiWorkspaceChangesTree({
             onRefreshTree={() => onRefreshOne(workspace.id)}
             onToggleFileTreePath={(path) => onToggleFileTreePath(workspace.id, path)}
             onOpenChangePreview={onOpenChangePreview}
+            onHoverChangePreview={onHoverChangePreview}
             onNodeClicked={(path, kind) => onNodeClicked(workspace.id, path, kind)}
             onWorkspaceRootClick={() => onWorkspaceRootClick(workspace.id)}
             getContextMenuItems={getContextMenuItems}
@@ -135,6 +138,7 @@ export function MultiWorkspaceChangesTree({
       changeCounts,
       onToggleFileTreePath,
       onOpenChangePreview,
+      onHoverChangePreview,
       onNodeClicked,
       onWorkspaceRootClick,
       getContextMenuItems,

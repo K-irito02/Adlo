@@ -61,6 +61,9 @@ export function createWorkspaceLifecycleActions(
       // 工作区切换：旧搜索会话（含待发防抖/重算 timer）不得写入新上下文。
       get().cancelPendingSearch();
       await get().bootstrap();
+      // 切换后对账（事项5）：worktree 替换式等场景下源工作区已不在，
+      // 悬空选中文件在新上下文重读，缺失则清空为空（bootstrap 本身不碰选中态）。
+      await get().reconcileSelectedFileAfterWorkspaceSwitch();
 
       return { ok: true };
     },

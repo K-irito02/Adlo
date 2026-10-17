@@ -209,6 +209,19 @@ interface EditorActions {
    * 有草稿则保留并警告。供刷新按钮/分支切换后调用。
    */
   reconcileSelectedFile: () => Promise<void>;
+  /**
+   * 工作区切换后对账选中文件（事项5）：源已不在则新上下文重读，
+   * 缺失清空为空（无错误卡），命中归属新工作区；有草稿则不动。
+   * 供 openWorkspace 在 bootstrap 后调用。
+   */
+  reconcileSelectedFileAfterWorkspaceSwitch: () => Promise<void>;
+  /**
+   * hover 意图预取变更预览（事项4）：只写缓存，不碰选择态/加载态。
+   */
+  prefetchChangePreviewForWorkspace: (
+    workspacePath: string,
+    relativePath: string,
+  ) => Promise<void>;
 }
 
 interface GitActions {

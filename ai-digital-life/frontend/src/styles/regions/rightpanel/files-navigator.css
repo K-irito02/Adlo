@@ -337,7 +337,10 @@
 }
 
 .adl-filetree__dirty-dot {
-  color: var(--accent);
+  width: 6px;
+  height: 6px;
+  flex: none;
+  color: var(--text-secondary);
   fill: currentColor;
   stroke: currentColor;
 }

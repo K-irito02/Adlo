@@ -49,6 +49,11 @@ export interface FileTreeProps<T extends FileTreeRenderableNode> {
   externalChangePath?: string;
   onToggle: (path: string) => void;
   onOpenFile: (relativePath: string) => void;
+  /**
+   * 文件悬停通知（事项4 hover 预取用）：悬停落到文件节点时触发，
+   * 目录不触发。缺省不传则无任何行为（文件面板等不启用预取）。
+   */
+  onHoverFile?: (relativePath: string) => void;
   renderMeta?: (node: T) => React.ReactNode;
   renderCount?: (node: T) => React.ReactNode;
   renderIconBefore?: (node: T) => React.ReactNode;

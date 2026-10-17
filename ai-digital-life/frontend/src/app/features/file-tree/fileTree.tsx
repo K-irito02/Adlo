@@ -202,6 +202,7 @@ export function FileTree<T extends FileTreeRenderableNode>({
   collapseLabel = 'Collapse',
   flat,
   flipAnimation = false,
+  onHoverFile,
 }: FileTreeProps<T>) {
   const [contextMenuState, setContextMenuState] = useState<{
     x: number;
@@ -255,6 +256,19 @@ export function FileTree<T extends FileTreeRenderableNode>({
 
   const { hoveredPath, hoveredDescendantPaths, onMouseOver, onMouseOut } =
     useFileTreeHover<T>(flatNodes);
+
+  // 悬停文件通知（事项4）：只对文件节点触发，目录不触发；无订阅者时零开销。
+  const hoverFileRef = useRef(onHoverFile);
+  hoverFileRef.current = onHoverFile;
+  useEffect(() => {
+    if (!hoveredPath) {
+      return;
+    }
+    const hit = flatNodes.find((flatNode) => flatNode.node.path === hoveredPath);
+    if (hit && hit.node.kind !== 'directory') {
+      hoverFileRef.current?.(hit.node.path);
+    }
+  }, [hoveredPath, flatNodes]);
 
   const handleToggleDirectory = useCallback(
     (path: string) => {

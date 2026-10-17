@@ -36,6 +36,46 @@ function moveInSnapshot(
   };
 }
 
+function snapshotPaths(snapshot: GitSnapshot): Set<string> {
+  return new Set([
+    ...snapshot.staged,
+    ...snapshot.unstaged,
+    ...snapshot.untracked,
+    ...snapshot.conflicts,
+  ]);
+}
+
+/**
+ * 陈旧变更预览对账（事项2）：快照刷新/文件丢弃后，若选中的变更预览已不在
+ * 新快照中（已推送/删除），清空内容区，避免树已无文件但内容区仍显示旧 diff。
+ * 仅在"预览所属工作区一致且路径消失"时清空；路径仍在则不动（由调用方重开）。
+ */
+function clearStaleChangePreview(
+  get: () => StoreState,
+  set: StoreApi<StoreState>['setState'],
+  workspaceId: string,
+  snapshot: GitSnapshot,
+) {
+  const state = get();
+  const selected = state.selectedChangePreviewPath;
+  if (!selected) {
+    return;
+  }
+  const previewWorkspaceId =
+    state.selectedChangePreviewWorkspaceId ?? state.appInfo?.currentWorkspace?.id;
+  if (previewWorkspaceId !== workspaceId) {
+    return;
+  }
+  if (!snapshotPaths(snapshot).has(selected)) {
+    set({
+      selectedChangePreviewPath: undefined,
+      selectedChangePreviewWorkspaceId: undefined,
+      changePreview: undefined,
+      changePreviewLoading: false,
+    });
+  }
+}
+
 export function applyGitOperation(
   get: () => StoreState,
   set: StoreApi<StoreState>['setState'],
@@ -75,12 +115,45 @@ export function applyGitOperation(
   if (!base) {
     return;
   }
+  const next = moveInSnapshot(base, relativePath, operation);
   set((s: StoreState) =>
     buildGitSnapshotSyncPatch(s, {
       workspaceId: targetId,
-      snapshot: moveInSnapshot(base, relativePath, operation),
+      snapshot: next,
     }),
   );
+  // 丢弃即移除：被丢弃的正是选中预览则清空内容区（stage/unstage 只 lean 列表间移动，
+  // helper 内路径仍在即不动，故仅 discard 需要显式调用）。
+  if (operation === 'discard') {
+    clearStaleChangePreview(get, set, targetId, next);
+  }
+}
+
+/**
+ * 清空归属指定工作区的选中变更预览（事项5-R3）：worktree 替换式移除源工作区后，
+ * 其预览在新上下文永无刷新路径（各刷新入口均按工作区归属对账），必须在此清掉，
+ * 否则内容区永久残留旧 diff。不归属该工作区的预览不动。
+ */
+export function clearChangePreviewForWorkspace(
+  get: () => StoreState,
+  set: StoreApi<StoreState>['setState'],
+  workspaceId: string | undefined,
+) {
+  if (!workspaceId) {
+    return;
+  }
+  const state = get();
+  if (
+    state.selectedChangePreviewWorkspaceId === workspaceId &&
+    state.selectedChangePreviewPath !== undefined
+  ) {
+    set({
+      selectedChangePreviewPath: undefined,
+      selectedChangePreviewWorkspaceId: undefined,
+      changePreview: undefined,
+      changePreviewLoading: false,
+    });
+  }
 }
 
 export function createGitSnapshotActions(
@@ -193,13 +266,31 @@ export function createGitSnapshotActions(
         workspaceChangesTreeLoading: { ...g().workspaceChangesTreeLoading, [id]: true },
         workspaceChangesTreeErrors: { ...g().workspaceChangesTreeErrors, [id]: undefined },
       }),
-      (g, id, data) => ({
-        // Route through the sync helper so that when the lazily-loaded workspace
-        // IS the current one, A (gitSnapshot) and C are kept in lockstep — not
-        // just B. For a non-current workspace only B is touched.
-        ...buildGitSnapshotSyncPatch(g(), { workspaceId: id, snapshot: data }),
-        workspaceChangesTreeLoading: { ...g().workspaceChangesTreeLoading, [id]: false },
-      }),
+      (g, id, data) => {
+        // 懒加载落盘同样对账（事项2）：首刷即发现选中预览已消失时直接清空，
+        // 否则内容区残留旧 diff。与 refreshGitSnapshot / fetchGitStatus 同语义。
+        const st = g();
+        const selected = st.selectedChangePreviewPath;
+        const previewWorkspaceId =
+          st.selectedChangePreviewWorkspaceId ?? st.appInfo?.currentWorkspace?.id;
+        const previewGone =
+          selected !== undefined && previewWorkspaceId === id && !snapshotPaths(data).has(selected);
+        return {
+          // Route through the sync helper so that when the lazily-loaded workspace
+          // IS the current one, A (gitSnapshot) and C are kept in lockstep — not
+          // just B. For a non-current workspace only B is touched.
+          ...buildGitSnapshotSyncPatch(st, { workspaceId: id, snapshot: data }),
+          workspaceChangesTreeLoading: { ...st.workspaceChangesTreeLoading, [id]: false },
+          ...(previewGone
+            ? {
+                selectedChangePreviewPath: undefined,
+                selectedChangePreviewWorkspaceId: undefined,
+                changePreview: undefined,
+                changePreviewLoading: false,
+              }
+            : {}),
+        };
+      },
       (g, id, message) => ({
         workspaceChangesTreeLoading: { ...g().workspaceChangesTreeLoading, [id]: false },
         workspaceChangesTreeErrors: { ...g().workspaceChangesTreeErrors, [id]: message },
@@ -257,6 +348,9 @@ export function createGitSnapshotActions(
           [workspaceId]: undefined,
         },
       }));
+      // 刷新后对账（事项2）：选中预览已不在新快照中（已推送/删除）则清空内容区，
+      // 与 fetchGitStatus 的选中预览同步同语义（多工作区刷新路径此前缺失）。
+      clearStaleChangePreview(get, set, workspaceId, result.data);
     },
   };
 }

@@ -9,7 +9,7 @@ import type {
 } from '@ai-digital-life/kernel';
 import { buildChangeEntries, buildChangeTree } from '@regions/right-panel/changesTree';
 import { collectDirectoryPaths } from '@features/file-tree';
-import { buildOutlineFromContent, getDefaultExpandedOutlineIds } from '@features/outline';
+import { getDefaultExpandedOutlineIds, outlineForChangePreview } from '@features/outline';
 import { isHeavyDiffContent } from '@regions/right-panel/heavyPreviewLimits';
 import { summarizePatchSet } from '@features/patch-review';
 import { joinPathSegments } from '@app/utils/workspacePaths';
@@ -92,11 +92,13 @@ export function useChangesFilters(params: UseChangesFiltersParams) {
   const activeWorkspaceId = storedActiveWorkspaceId ?? derivedActiveWorkspaceId;
   const changeOutline = useMemo(
     () =>
-      changePreview &&
-      // 重型跳过：巨型 current 全文 walk 生成大纲本身即主线程块（方案A-2，
-      // 与 DiffEditorSection 本地大纲、开文件重型跳过同例）。
-      !isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent)
-        ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
+      // 大纲去重（事项4）：与 DiffEditorSection 本地大纲同输入，WeakMap 共享一次 walk。
+      // 重型跳过语义不变（方案A-2：巨型 current 全文 walk 本身即主线程块）。
+      changePreview
+        ? outlineForChangePreview(
+            changePreview,
+            isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent),
+          )
         : [],
     [changePreview],
   );

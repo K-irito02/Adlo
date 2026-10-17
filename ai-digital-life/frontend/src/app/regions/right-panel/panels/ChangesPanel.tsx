@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { ChangesPanelProps } from '../types';
 import { ChangesToolbar } from './ChangesToolbar';
 import { ChangesConfirmDialogs } from './ChangesConfirmDialogs';
@@ -11,6 +11,7 @@ import {
   LazyGitVisualizationView,
   SuspenseWrapper,
 } from '@components/LazyComponents';
+import { warmRightPanelEditors } from '@components/warmRightPanelEditors';
 import { useChangesPanelState } from './ChangesPanel/useChangesPanelState';
 
 const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) {
@@ -51,9 +52,9 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     changesTreeClickedPath,
     changesTreeClickedWorkspaceId,
     handleChangesNodeClicked,
+    handleHoverChangePreview,
     handleChangesWorkspaceRootClick,
-    handleChangesClearSelection,
-    snapshot,
+    handleChangesClearSelection,    snapshot,
     lineNumbersEnabled,
     wordWrapEnabled,
     changesPreviewContainerRef,
@@ -111,6 +112,16 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     handleRefreshAllChanges,
   } = useChangesPanelState(props);
 
+  // 编辑器 chunk 空闲预热（事项4）：挂载后即预取，首切不再付懒加载代价。
+  useEffect(() => {
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(() => warmRightPanelEditors());
+      return () => cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(() => warmRightPanelEditors(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
   return (
     <div className="adl-tool-panel adl-tool-panel--changes">
       <ChangesToolbar
@@ -152,6 +163,7 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
           onHideFromRightPanels={onHideFromRightPanels}
           onToggleFileTreePath={handleToggleFileTreePath}
           onOpenChangePreview={handleSelectNavigatorNode}
+          onHoverChangePreview={handleHoverChangePreview}
           onNodeClicked={handleChangesNodeClicked}
           onWorkspaceRootClick={handleChangesWorkspaceRootClick}
           onClearSelection={handleChangesClearSelection}

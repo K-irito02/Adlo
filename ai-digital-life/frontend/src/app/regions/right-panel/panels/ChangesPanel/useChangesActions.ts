@@ -1,4 +1,4 @@
-import { useCallback, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, type MutableRefObject } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import type { RecentWorkspaceEntry, WorkspaceChangePreview } from '@ai-digital-life/kernel';
 import type { EditorRef, DiffEditorRef } from '@stores/types';
@@ -144,6 +144,17 @@ export function useChangesActions(params: UseChangesActionsParams) {
     [collapsedPatchHunkIds, onSelectPatchFile],
   );
 
+  // hover 意图预取（事项4）：悬停 150ms 未移走才预取变更预览进缓存，
+  // 点击时命中缓存即同步渲染；只写缓存，不碰选择态/加载态。
+  const hoverPrefetchTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(hoverPrefetchTimer.current), []);
+  const onHoverChangePreview = useCallback((workspacePath: string, relativePath: string) => {
+    window.clearTimeout(hoverPrefetchTimer.current);
+    hoverPrefetchTimer.current = window.setTimeout(() => {
+      void useAppStore.getState().prefetchChangePreviewForWorkspace(workspacePath, relativePath);
+    }, 150);
+  }, []);
+
   const onToggleExpand = useCallback(
     (workspaceId: string) => {
       toggleWorkspaceExpand(workspaceId, recentWorkspaces, (id, p) =>
@@ -189,6 +200,7 @@ export function useChangesActions(params: UseChangesActionsParams) {
     handleToggleAllDirectories,
     handleToggleAllOutlineItems,
     onSelectNavigatorNode,
+    onHoverChangePreview,
     onToggleExpand,
     onRefreshOne,
     handleToggleFileTreePath,

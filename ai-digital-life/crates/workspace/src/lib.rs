@@ -461,6 +461,123 @@ mod tests {
         let _ = std::fs::remove_dir_all(dir);
     }
 
+    // 事项4-R2：per-file 快路径与全量路径 parity（混合状态逐项一致）。
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn change_preview_fast_path_matches_full_for_mixed_statuses() {
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-parity-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        // modified
+        std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
+        run_git_test(&dir, &["add", "a.txt"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+        std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
+        // staged
+        std::fs::write(dir.join("b.txt"), "b1\n").unwrap();
+        run_git_test(&dir, &["add", "b.txt"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+        std::fs::write(dir.join("b.txt"), "b2\n").unwrap();
+        run_git_test(&dir, &["add", "b.txt"]);
+        // untracked
+        std::fs::write(dir.join("c.txt"), "c1\n").unwrap();
+        // staged-new
+        std::fs::write(dir.join("d.txt"), "d1\n").unwrap();
+        run_git_test(&dir, &["add", "d.txt"]);
+        // untracked inside a brand-new directory
+        std::fs::create_dir_all(dir.join("newdir")).unwrap();
+        std::fs::write(dir.join("newdir/f.md"), "f1\n").unwrap();
+
+        for path in ["a.txt", "b.txt", "c.txt", "d.txt", "newdir/f.md"] {
+            let fast = read_change_preview(&dir, path);
+            let full = crate::preview::read_change_preview_full(&dir, path);
+            assert_eq!(format!("{fast:?}"), format!("{full:?}"), "fast/full parity for {path}");
+        }
+        assert_eq!(
+            read_change_preview(&dir, "a.txt").unwrap().status,
+            WorkspaceChangeStatus::Modified
+        );
+        assert_eq!(
+            read_change_preview(&dir, "b.txt").unwrap().status,
+            WorkspaceChangeStatus::Staged
+        );
+        assert_eq!(
+            read_change_preview(&dir, "c.txt").unwrap().status,
+            WorkspaceChangeStatus::Untracked
+        );
+        assert_eq!(
+            read_change_preview(&dir, "d.txt").unwrap().change_kind,
+            WorkspaceChangeKind::Added
+        );
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // 事项4-R2：删除型与冲突型的快路径 parity。
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn change_preview_fast_path_matches_full_for_deleted_and_conflicted() {
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-parity-dc-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("gone.txt"), "gone\n").unwrap();
+        std::fs::write(dir.join("fight.txt"), "base\n").unwrap();
+        run_git_test(&dir, &["add", "."]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+        std::fs::remove_file(dir.join("gone.txt")).unwrap();
+        run_git_test(&dir, &["checkout", "-b", "side"]);
+        std::fs::write(dir.join("fight.txt"), "side\n").unwrap();
+        run_git_test(&dir, &["commit", "-am", "side"]);
+        run_git_test(&dir, &["checkout", "-"]);
+        std::fs::write(dir.join("fight.txt"), "main\n").unwrap();
+        run_git_test(&dir, &["commit", "-am", "main"]);
+        // 合并冲突时 git merge 退出码非零：不断言成功，只要求冲突态形成。
+        let _ = Command::new("git").args(["merge", "side"]).current_dir(&dir).status();
+
+        for path in ["gone.txt", "fight.txt"] {
+            let fast = read_change_preview(&dir, path);
+            let full = crate::preview::read_change_preview_full(&dir, path);
+            assert_eq!(format!("{fast:?}"), format!("{full:?}"), "fast/full parity for {path}");
+        }
+        assert_eq!(
+            read_change_preview(&dir, "fight.txt").unwrap().status,
+            WorkspaceChangeStatus::Conflicted
+        );
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // 事项4-R2：未变更与非仓库的错误语义 parity。
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn change_preview_fast_path_matches_full_errors() {
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-parity-err-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("clean.txt"), "clean\n").unwrap();
+        run_git_test(&dir, &["add", "."]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+
+        let fast = read_change_preview(&dir, "clean.txt");
+        let full = crate::preview::read_change_preview_full(&dir, "clean.txt");
+        assert!(matches!(fast, Err(AppError::NotFound(_))));
+        assert!(matches!(full, Err(AppError::NotFound(_))));
+
+        let plain = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-parity-plain-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&plain).unwrap();
+        let fast = read_change_preview(&plain, "x.txt");
+        let full = crate::preview::read_change_preview_full(&plain, "x.txt");
+        assert!(matches!(fast, Err(AppError::Workspace(_))));
+        assert!(matches!(full, Err(AppError::Workspace(_))));
+
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(plain);
+    }
+
     #[test]
     fn guess_media_mime_covers_common_types() {
         assert_eq!(guess_media_mime("a.png"), "image/png");

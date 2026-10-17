@@ -59,7 +59,7 @@ describe('outline panel wiring', () => {
 
   it('uses the shared outline tree and outline mode in the changes panel', () => {
     expect(changesTreePanelSource).toContain('MultiWorkspaceChangesTree');
-    expect(changesFiltersSource).toContain('buildOutlineFromContent(changePreview.currentContent');
+    expect(changesFiltersSource).toContain('outlineForChangePreview(');
     expect(changesPanelStateSource).toContain('handleRevealOutlineLine');
     expect(changesPanelStateSource).toContain('handleToggleAllOutlineItems');
   });

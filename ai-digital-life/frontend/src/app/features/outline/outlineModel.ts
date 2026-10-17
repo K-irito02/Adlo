@@ -1,5 +1,5 @@
 import type { FileOutlineItem } from '@shared/ipc';
-import { buildOutlineFromContent } from '@shared/outline';
+import { buildOutlineFromContent, outlineForChangePreview } from '@shared/outline';
 
 export type OutlineNode = FileOutlineItem & {
   children: OutlineNode[];
@@ -11,7 +11,7 @@ export interface VisibleOutlineNode {
   hasChildren: boolean;
 }
 
-export { buildOutlineFromContent };
+export { buildOutlineFromContent, outlineForChangePreview };
 
 export function buildOutlineTree(items: FileOutlineItem[]): OutlineNode[] {
   const roots: OutlineNode[] = [];

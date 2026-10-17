@@ -14,6 +14,7 @@ function setup(flush: { saved: number; failed: number } = { saved: 0, failed: 0 
     cancelPendingSearch,
     bootstrap,
     saveDirtyEditors,
+    reconcileSelectedFileAfterWorkspaceSwitch: vi.fn().mockResolvedValue(undefined),
     showToast,
   } as unknown as StoreState;
   const get = () => state;

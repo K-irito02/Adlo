@@ -9,6 +9,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useEditorOptions, useFileHistory } from '../hooks';
 import { FileNavigatorShell } from '../FileNavigatorShell';
 import { LazyEditorSurface, SuspenseWrapper } from '@components/LazyComponents';
+import { warmRightPanelEditors } from '@components/warmRightPanelEditors';
 import { FileContextMenu, type FileMenuItem, type FileMenuDivider } from '../FileContextMenu';
 import { FileHistoryNav } from '../FileHistoryNav';
 import type { FilesPanelProps } from '../types';
@@ -84,8 +85,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const panelRef = useRef<HTMLDivElement | null>(null);
   const editorSurfaceRef = useRef<HTMLDivElement | null>(null);
   const cmViewRef = useRef<EditorView | null>(null);
-  // 会话恢复的瞬态提示（Task 26）：仅在活跃错误状态下可见，打开任意文件即清空
-  const sessionRestoreNotice = useAppStore((s) => s.sessionRestoreNotice);
 
   const localDiffEditorRef = useRef<DiffEditorRef | EditorRef | null>(null);
 
@@ -109,6 +108,16 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
 
   const editorOptions = useEditorOptions();
   const fileHistory = useFileHistory(selectedFilePath, onOpenFile);
+
+  // 编辑器 chunk 空闲预热（事项4）：挂载后即预取，首切不再付懒加载代价。
+  useEffect(() => {
+    if (typeof requestIdleCallback === 'function') {
+      const id = requestIdleCallback(() => warmRightPanelEditors());
+      return () => cancelIdleCallback(id);
+    }
+    const timer = window.setTimeout(() => warmRightPanelEditors(), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const hasActivePatch = !!(filePatch && filePatch.relativePath === selectedFilePath);
 
@@ -697,13 +706,6 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
         />
 
         <div className="adl-tool-primary">
-          {editorHint ? <p className="adl-tool-hint">{editorHint}</p> : null}
-          {sessionRestoreNotice === 'sessionLastFileMissing' ? (
-            <p className="adl-tool-hint" role="status">
-              {t.sessionLastFileMissing}
-            </p>
-          ) : null}
-
           <div ref={editorShellRef} className="adl-tool-editor" data-testid="editor-shell">
             <SuspenseWrapper>
               <LazyEditorSurface

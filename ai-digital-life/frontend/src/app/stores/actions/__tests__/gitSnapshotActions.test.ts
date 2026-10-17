@@ -1,6 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createStore } from 'zustand';
-import { createGitSnapshotActions } from '../gitSnapshotActions';
+import {
+  applyGitOperation,
+  clearChangePreviewForWorkspace,
+  createGitSnapshotActions,
+} from '../gitSnapshotActions';
 
 interface TestStore {
   gitSnapshot?: unknown;
@@ -177,5 +181,182 @@ describe('fetchGitStatus', () => {
     await store.getState().fetchGitStatus();
     expect(reportSilentError).toHaveBeenCalledWith('WORKSPACE_ERROR', 'git gone', 'git');
     expect(store.getState().gitSnapshot).toBeUndefined();
+  });
+});
+
+describe('陈旧变更预览对账（事项2：推送/删除后内容区清空）', () => {
+  beforeEach(() => {
+    vi.stubGlobal('digitalLife', {
+      workspace: {
+        listGitStatusForWorkspace: vi.fn(),
+        getGitStatus: vi.fn(),
+        getChangePreview: vi.fn(),
+      },
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const emptySnapshot = { staged: [], unstaged: [], untracked: [], conflicts: [], capturedAt: 1 };
+
+  function seedPreview(
+    store: ReturnType<typeof makeStore>['store'],
+    workspaceId: string,
+    relativePath: string,
+  ) {
+    store.setState({
+      selectedChangePreviewPath: relativePath,
+      selectedChangePreviewWorkspaceId: workspaceId,
+      changePreview: { path: relativePath } as never,
+      changePreviewLoading: false,
+    } as never);
+  }
+
+  function readPreview(store: ReturnType<typeof makeStore>['store']) {
+    return store.getState() as unknown as {
+      selectedChangePreviewPath?: string;
+      selectedChangePreviewWorkspaceId?: string;
+      changePreview?: unknown;
+      changePreviewLoading?: boolean;
+    };
+  }
+
+  it('refreshGitSnapshot：选中预览已不在新快照中则清空', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: emptySnapshot,
+    });
+    const { store } = makeStore();
+    seedPreview(store, 'ws-1', 'gone.md');
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    const st = readPreview(store);
+    expect(st.selectedChangePreviewPath).toBeUndefined();
+    expect(st.changePreview).toBeUndefined();
+    expect(st.changePreviewLoading).toBe(false);
+  });
+
+  it('refreshGitSnapshot：刷新其它工作区不碰当前选中预览', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: emptySnapshot,
+    });
+    const { store } = makeStore();
+    seedPreview(store, 'ws-2', 'other.md');
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(readPreview(store).selectedChangePreviewPath).toBe('other.md');
+  });
+
+  it('discardWorkspaceFile：丢弃的正是选中预览则清空', () => {
+    const { store } = makeStore();
+    store.setState({
+      recentWorkspaces: [{ id: 'ws-1', path: '/p' }],
+      gitSnapshots: {
+        'ws-1': {
+          staged: [],
+          unstaged: ['gone.md'],
+          untracked: [],
+          conflicts: [],
+          capturedAt: 0,
+        },
+      },
+    } as never);
+    seedPreview(store, 'ws-1', 'gone.md');
+    applyGitOperation(
+      () => store.getState() as never,
+      store.setState as never,
+      '/p',
+      'gone.md',
+      'discard',
+    );
+    const st = readPreview(store);
+    expect(st.selectedChangePreviewPath).toBeUndefined();
+    expect(st.changePreview).toBeUndefined();
+  });
+
+  it('discardWorkspaceFile：丢弃其它文件时保留选中预览', () => {
+    const { store } = makeStore();
+    store.setState({
+      recentWorkspaces: [{ id: 'ws-1', path: '/p' }],
+      gitSnapshots: {
+        'ws-1': {
+          staged: [],
+          unstaged: ['keep.md', 'drop.md'],
+          untracked: [],
+          conflicts: [],
+          capturedAt: 0,
+        },
+      },
+    } as never);
+    seedPreview(store, 'ws-1', 'keep.md');
+    applyGitOperation(
+      () => store.getState() as never,
+      store.setState as never,
+      '/p',
+      'drop.md',
+      'discard',
+    );
+    expect(readPreview(store).selectedChangePreviewPath).toBe('keep.md');
+  });
+});
+
+describe('clearChangePreviewForWorkspace（事项5-R3：worktree 替换后变更内容区清空）', () => {
+  function seedPreview(
+    store: ReturnType<typeof makeStore>['store'],
+    workspaceId: string,
+    relativePath: string,
+  ) {
+    store.setState({
+      selectedChangePreviewPath: relativePath,
+      selectedChangePreviewWorkspaceId: workspaceId,
+      changePreview: { path: relativePath } as never,
+      changePreviewLoading: false,
+    } as never);
+  }
+
+  function readPreview(store: ReturnType<typeof makeStore>['store']) {
+    return store.getState() as unknown as {
+      selectedChangePreviewPath?: string;
+      selectedChangePreviewWorkspaceId?: string;
+      changePreview?: unknown;
+      changePreviewLoading?: boolean;
+    };
+  }
+
+  it('预览归属被移除工作区 → 清空', () => {
+    const { store } = makeStore();
+    seedPreview(store, 'ws-old', 'gone.md');
+    clearChangePreviewForWorkspace(
+      () => store.getState() as never,
+      store.setState as never,
+      'ws-old',
+    );
+    const st = readPreview(store);
+    expect(st.selectedChangePreviewPath).toBeUndefined();
+    expect(st.selectedChangePreviewWorkspaceId).toBeUndefined();
+    expect(st.changePreview).toBeUndefined();
+    expect(st.changePreviewLoading).toBe(false);
+  });
+
+  it('预览归属其它工作区 → 保留', () => {
+    const { store } = makeStore();
+    seedPreview(store, 'ws-other', 'keep.md');
+    clearChangePreviewForWorkspace(
+      () => store.getState() as never,
+      store.setState as never,
+      'ws-old',
+    );
+    expect(readPreview(store).selectedChangePreviewPath).toBe('keep.md');
+  });
+
+  it('workspaceId 为空 → 不动', () => {
+    const { store } = makeStore();
+    seedPreview(store, 'ws-old', 'gone.md');
+    clearChangePreviewForWorkspace(
+      () => store.getState() as never,
+      store.setState as never,
+      undefined,
+    );
+    expect(readPreview(store).selectedChangePreviewPath).toBe('gone.md');
   });
 });

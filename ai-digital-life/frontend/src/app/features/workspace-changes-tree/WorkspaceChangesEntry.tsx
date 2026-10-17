@@ -37,6 +37,7 @@ export interface WorkspaceChangesEntryProps {
   onRefreshTree: () => void;
   onToggleFileTreePath: (path: string) => void;
   onOpenChangePreview: (workspacePath: string, relativePath: string) => void;
+  onHoverChangePreview?: (workspacePath: string, relativePath: string) => void;
   onNodeClicked: (path: string, kind: 'directory' | 'file') => void;
   onWorkspaceRootClick?: () => void;
   getContextMenuItems: (node: WorkspaceTreeNode) => FileTreeContextMenuItem<WorkspaceTreeNode>[];
@@ -72,6 +73,7 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   onRefreshTree,
   onToggleFileTreePath,
   onOpenChangePreview,
+  onHoverChangePreview,
   onNodeClicked,
   onWorkspaceRootClick,
   getContextMenuItems,
@@ -257,6 +259,11 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
                 onNodeClicked(path, 'file');
                 onOpenChangePreview(workspace.path, path);
               }}
+              onHoverFile={
+                onHoverChangePreview
+                  ? (path) => onHoverChangePreview(workspace.path, path)
+                  : undefined
+              }
               getContextMenuItems={wrappedGetContextMenuItems}
               contextMenuPersistRef={contextMenuPersistRef}
               clearMenuHighlightRef={clearMenuHighlightRef}

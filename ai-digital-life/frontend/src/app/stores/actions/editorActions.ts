@@ -23,6 +23,8 @@ import {
   captureError,
   invalidateCachedChangePreview,
   invalidateCachedFileDocument,
+  getCachedChangePreview,
+  setCachedChangePreview,
   setCachedFileDocument,
   dropPendingEditorText,
 } from '../cacheHelpers';
@@ -401,6 +403,37 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         getPreview: () =>
           window.digitalLife.workspace.getChangePreviewForWorkspace(workspacePath, relativePath),
       });
+    },
+
+    /**
+     * [prefetchChangePreviewForWorkspace - hover 意图预取变更预览]
+     * 只写缓存，不碰选择态/加载态，不推进全局请求 seq（与点击的 open 链无竞态，
+     * 点击已在途或加载中时直接跳过）。重型预览不入缓存。
+     * @see shared/ipc.ts → workspace.getChangePreviewForWorkspace
+     */
+    prefetchChangePreviewForWorkspace: async (workspacePath: string, relativePath: string) => {
+      const state = get();
+      if (state.changePreviewLoading || pendingChangePreviewPath !== undefined) {
+        return;
+      }
+      const workspaceId = state.recentWorkspaces.find((w) => w.path === workspacePath)?.id;
+      const cacheKey = scopedFileKey(workspaceId, relativePath);
+      if (getCachedChangePreview(cacheKey)) {
+        return;
+      }
+      const result = await window.digitalLife.workspace.getChangePreviewForWorkspace(
+        workspacePath,
+        relativePath,
+      );
+      if (!result.ok) {
+        return;
+      }
+      const isHeavy =
+        result.data.baseContent.length > TEXT_HEAVY_PREVIEW_CHARS ||
+        result.data.currentContent.length > TEXT_HEAVY_PREVIEW_CHARS;
+      if (!isHeavy) {
+        setCachedChangePreview(cacheKey, result.data);
+      }
     },
 
     /**
@@ -788,6 +821,75 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         invalidateCachedChangePreview(key);
         await refreshOpenPreviewIfSelected(get, selected);
       }
+    },
+
+    /**
+     * [reconcileSelectedFileAfterWorkspaceSwitch - 工作区切换后对账选中文件]
+     * 供 openWorkspace 在 bootstrap 后调用（worktree 替换式分支切换等场景）。
+     * 源工作区仍在侧栏 → 归属明确，走常规 reconcile 保鲜（错误卡语义不变）；
+     * 源已不在 → 在新上下文重读，缺失则清空为空（事项5，不挂错误卡），
+     * 命中则归属到新工作区；有未存草稿则一律不动（切前已落盘，此处为兜底）。
+     */
+    reconcileSelectedFileAfterWorkspaceSwitch: async () => {
+      const selected = get().selectedFilePath;
+      const currentWorkspace = get().appInfo?.currentWorkspace;
+      if (!selected || !currentWorkspace) {
+        return;
+      }
+      const norm = normalizeWorkspaceRelativePath(selected);
+      const hasDraft = get().dirtyEditorPaths.some(
+        (p) => normalizeWorkspaceRelativePath(p) === norm,
+      );
+      if (hasDraft) {
+        return;
+      }
+      const selectedWsId = get().selectedFileWorkspaceId;
+      const sourceListed = (get().recentWorkspaces ?? []).some(
+        (w) => w.id === selectedWsId && !w.removedFromSidebar && w.available,
+      );
+      if (sourceListed) {
+        await get().reconcileSelectedFile();
+        return;
+      }
+      const key = scopedFileKey(currentWorkspace.id, selected);
+      invalidateCachedFileDocument(key);
+      clearError(get, SCOPE);
+      const gen = nextFileGen(key);
+      const result = await window.digitalLife.workspace.readFile(selected);
+      if (!isCurrentFileGen(key, gen)) {
+        return;
+      }
+      if (!result.ok) {
+        set({
+          selectedFilePath: undefined,
+          selectedFileWorkspaceId: undefined,
+          fileContent: undefined,
+          fileMedia: null,
+          fileMediaLoading: false,
+          fileLastModifiedAt: undefined,
+          fileOpenError: null,
+          outline: [],
+          positioningPath: null,
+        });
+        return;
+      }
+      setCachedFileDocument(key, {
+        content: result.data.content,
+        lastModifiedAt: result.data.lastModifiedAt,
+      });
+      set({
+        selectedFileWorkspaceId: currentWorkspace.id,
+        fileContent: result.data.content,
+        fileMedia: null,
+        fileMediaLoading: false,
+        fileLastModifiedAt: result.data.lastModifiedAt,
+        fileOpenError: null,
+        outline:
+          result.data.content.length > TEXT_HEAVY_PREVIEW_CHARS
+            ? []
+            : buildOutlineFromContent(result.data.content, selected),
+      });
+      get().rememberLastOpenedFile(currentWorkspace.id, selected);
     },
   };
 }

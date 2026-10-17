@@ -167,3 +167,27 @@ export function buildOutlineFromContent(content: string, relativePath: string): 
 
   return finalizeItems(drafts, relativePath, totalLines);
 }
+
+/**
+ * 变更预览大纲去重入口（事项4）：变更面板一次切换会触发两次同输入全文 walk
+ *（导航大纲 + 内容区 sticky 各一次）。以 preview 对象标识做 WeakMap 缓存，
+ * 第二次直接复用；preview 对象丢弃后条目随之回收，无需手动清理。
+ * 重型（heavy=true）直接返回空数组，与两处调用点原有跳过语义一致。
+ */
+const changePreviewOutlineCache = new WeakMap<object, FileOutlineItem[]>();
+
+export function outlineForChangePreview(
+  preview: { baseContent: string; currentContent: string; path: string },
+  heavy: boolean,
+): FileOutlineItem[] {
+  if (heavy) {
+    return [];
+  }
+  const hit = changePreviewOutlineCache.get(preview);
+  if (hit) {
+    return hit;
+  }
+  const built = buildOutlineFromContent(preview.currentContent, preview.path);
+  changePreviewOutlineCache.set(preview, built);
+  return built;
+}

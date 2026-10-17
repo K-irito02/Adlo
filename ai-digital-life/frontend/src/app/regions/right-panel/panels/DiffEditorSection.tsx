@@ -19,8 +19,8 @@ import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
 import { LazyMarkdownPreviewWrapper } from '@features/preview';
 import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
-import { buildOutlineFromContent } from '@features/outline';
-import { ChangesEmptyState } from './ChangesEmptyState';
+import { outlineForChangePreview } from '@features/outline';
+import { ChunkLoadingFallback } from '@components/LazyComponents';
 import { useAppStore } from '@stores/slicedStore';
 import { useTCopy } from '@i18n/useTCopy';
 import { resolveAppLanguage } from '@i18n/resolveLanguage';
@@ -58,8 +58,6 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   diffSideBySide,
   latestPatchApplication,
   appInfo,
-  totalChangeCount,
-  visibleWorkspacesLength,
   previewEnabled,
   lineNumbersEnabled,
   wordWrapEnabled,
@@ -106,10 +104,12 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   const outline = useMemo(
     () =>
-      changePreview &&
-      // 重型跳过：5.6MB 级全文 walk 生成大纲本身即主线程块（与开文件重型跳过同例）。
-      !isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent)
-        ? buildOutlineFromContent(changePreview.currentContent, changePreview.path)
+      // 大纲去重（事项4）：与导航大纲同输入，WeakMap 共享一次 walk。
+      changePreview
+        ? outlineForChangePreview(
+            changePreview,
+            isHeavyDiffContent(changePreview.baseContent, changePreview.currentContent),
+          )
         : [],
     [changePreview],
   );
@@ -159,12 +159,11 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   const stickyContextModel = useStickyContext(stickyContextInput);
   const diffExtensions = useMemo(() => [], []);
 
+  // 内容区无预览时直接留空（事项1）：不渲染"当前没有检测到文件变更"等空态文字。
+  // 加载期给骨架反馈而非纯空白（事项4 感知优化）。
   if (!changePreview) {
     if (changePreviewLoading) {
-      return null;
-    }
-    if (totalChangeCount === 0) {
-      return <ChangesEmptyState hasWorkspaces={visibleWorkspacesLength > 0} />;
+      return <ChunkLoadingFallback />;
     }
     return null;
   }
@@ -327,7 +326,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
                     : { height: '100%' }
                 }
               >
-                <Suspense fallback={null}>
+                <Suspense fallback={<ChunkLoadingFallback />}>
                   <CodeEditor
                     value={
                       pane === 'base' ? changePreview.baseContent : changePreview.currentContent
@@ -367,7 +366,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
           </div>
         ) : previewEnabled ? (
           <div className="adl-tool-editor__surface">
-            <Suspense fallback={null}>
+            <Suspense fallback={<ChunkLoadingFallback />}>
               <CodeEditor
                 value={changePreview.currentContent}
                 language={changePreviewLanguage}
@@ -384,7 +383,7 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
             {stickyContextModel ? (
               <StickyContext data-testid="changes-sticky-context" model={stickyContextModel} />
             ) : null}
-            <Suspense fallback={null}>
+            <Suspense fallback={<ChunkLoadingFallback />}>
               <DiffViewer
                 original={changePreview.baseContent}
                 modified={changePreview.currentContent}
