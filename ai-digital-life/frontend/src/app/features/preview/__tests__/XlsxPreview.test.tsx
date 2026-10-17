@@ -70,4 +70,22 @@ describe('XlsxPreview', () => {
       expect(screen.getByText('workbook is empty')).toBeTruthy();
     });
   });
+
+  it('does not rewrite table DOM on theme-only rerenders (scroll anchoring regression)', async () => {
+    const data = new ArrayBuffer(8);
+    const { container, rerender } = render(<XlsxPreview data={data} theme="dark" />);
+    await waitFor(() => {
+      expect(screen.getByText('A1')).toBeTruthy();
+    });
+    const table = container.querySelector('.adl-xlsx-preview__table');
+    const firstChildBefore = table?.firstChild;
+    expect(firstChildBefore).not.toBeNull();
+    // 同一份 data（引用不变）：不触发重载，仅 theme 变化
+    rerender(<XlsxPreview data={data} theme="light" />);
+    await waitFor(() => {
+      expect(container.querySelector('.adl-xlsx-preview--light')).not.toBeNull();
+    });
+    // 同内容下包装对象恒等 → React 跳过 innerHTML 写入，子节点引用不变
+    expect(container.querySelector('.adl-xlsx-preview__table')?.firstChild).toBe(firstChildBefore);
+  });
 });

@@ -102,6 +102,10 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
   };
 
   const sanitizedHtml = useMemo(() => DOMPurify.sanitize(html), [html]);
+  // 包装对象必须按内容 memo：React 对 dangerouslySetInnerHTML 按包装对象恒等比较，
+  // 内联字面量每次渲染都是新对象 → 每次重写 innerHTML（即使字符串相同），
+  // 在可滚动表格区引发滚动锚定抖动（与 MarkdownPreview 事项 9 同根因）。
+  const innerHtml = useMemo(() => ({ __html: sanitizedHtml }), [sanitizedHtml]);
 
   if (unreadable) {
     return (
@@ -154,7 +158,7 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
         ) : (
           <div
             className="adl-xlsx-preview__table"
-            dangerouslySetInnerHTML={{ __html: sanitizedHtml }}
+            dangerouslySetInnerHTML={innerHtml}
           />
         )}
       </div>

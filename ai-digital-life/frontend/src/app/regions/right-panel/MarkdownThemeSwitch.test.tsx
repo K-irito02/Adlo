@@ -111,6 +111,31 @@ describe('MarkdownPreview theme wiring', () => {
     expect(themeStyle()?.textContent).toBe(before);
     expect(themeStyleCount()).toBe(1);
   });
+
+  it('does not rewrite innerHTML on theme-only switches (scroll anchoring regression,事项 9)', async () => {
+    const { container } = render(
+      <TestProvider>
+        <MarkdownPreview content="# Hi" />
+      </TestProvider>,
+    );
+    const preview = container.querySelector('.adl-markdown-preview');
+    const firstChildBefore = preview?.firstChild;
+    expect(firstChildBefore).not.toBeNull();
+    const appTheme = themeController.getState().resolvedTheme;
+    const target = appTheme === 'light' ? 'light-colorblind' : 'dark-dimmed';
+    if (appTheme === 'light') {
+      useAppStore.getState().setLightMarkdownTheme('light-colorblind');
+    } else {
+      useAppStore.getState().setDarkMarkdownTheme('dark-dimmed');
+    }
+    await waitFor(() =>
+      expect(container.querySelector('.adl-markdown-preview')?.getAttribute('data-md-theme')).toBe(
+        target,
+      ),
+    );
+    // React 内联 {__html} 对象恒等比较：同内容不触发 setProp → 子节点零改写
+    expect(container.querySelector('.adl-markdown-preview')?.firstChild).toBe(firstChildBefore);
+  });
 });
 
 describe('MarkdownThemeSelector', () => {
