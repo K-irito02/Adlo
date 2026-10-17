@@ -133,6 +133,24 @@ describe('CodeMirror preview styling', () => {
     expect(varsSource).toContain('color: var(--md-fg-default);');
     expect(varsSource).toContain('background-color: var(--md-canvas-default);');
     expect(varsSource).toContain('color-scheme: var(--md-color-scheme);');
+    // N3：高对比覆盖必须是同元素限定（后代组合恒不命中，overrideSelector 退化即 fail）；
+    // 计数精确断言：恰好 4 条覆盖规则，不多不少（防静默增删）。
+    const overrideSelectors =
+      varsSource.match(/\.markdown-body\[data-md-theme="[^"]+"\] [^{]+\{/g) ?? [];
+    expect(overrideSelectors).toHaveLength(4);
+    for (const sel of [
+      '.markdown-body[data-md-theme="dark-high-contrast"] h1',
+      '.markdown-body[data-md-theme="dark-high-contrast"] h2',
+      '.markdown-body[data-md-theme="dark-high-contrast"] hr',
+      '.markdown-body[data-md-theme="dark-high-contrast"] table tr',
+    ]) {
+      expect(varsSource).toContain(`${sel} {`);
+    }
+  });
+
+  it('keeps the clipboard zoom hook above official typography (F1 regression guard)', () => {
+    const zoomBlock = extractCssBlock(regionsCssSource, '.adl-markdown-preview.markdown-body {\n');
+    expect(zoomBlock).toContain('font-size: var(--text-base, 16px);');
   });
 
   it('keeps agent annotations in the content area without an extra gutter column', () => {

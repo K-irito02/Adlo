@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useLayoutEffect, useMemo } from 'react';
 import type { MarkdownPreviewProps } from './markdownPreviewUtils';
 import { useMarkdownPreviewHtml } from './markdownPreviewUtils';
 import { ensureMarkdownThemeCss, useResolvedMarkdownTheme } from './markdownTheme';
@@ -14,7 +14,8 @@ export function MarkdownPreview({ content }: MarkdownPreviewProps) {
   const innerHtml = useMemo(() => ({ __html: sanitizedHtml }), [sanitizedHtml]);
 
   // 单一样式表常驻，切换只翻容器 data-md-theme（变量重算，原子同步，事项 8 方案 A）。
-  useEffect(() => {
+  // useLayoutEffect（R1-F5）：首屏挂载即注入，避免绘制后再插 <style> 闪一下无样式帧。
+  useLayoutEffect(() => {
     ensureMarkdownThemeCss();
   }, []);
 

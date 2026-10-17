@@ -796,9 +796,9 @@ export function ClipboardItemViewer({ item, onClose }: ClipboardItemViewerProps)
                   // markdown-it html:false），顺带让本分支也走外层自绘滚动条。
                   // 关闭自动换行时继承 `white-space: pre`（段落不再折行），溢出由外层
                   // 自绘滚动条 + 横向点态条承载；换行态保持原生渲染，不注入。
-                  // 字号缩放经 `--text-base` 变量跟随：`.adl-markdown-preview` 自设
-                  // `font-size: var(--text-base, 15px)`，包层写 `font-size` 会被该声明
-                  // 覆盖而无效；改变量则容器与 em 子级整体等比缩放。
+                  // 字号缩放经 `--text-base` 变量跟随：`.adl-markdown-preview.markdown-body`
+                  // 自设 `font-size: var(--text-base, 16px)`（见 markdown-preview.css 缩放钩子），
+                  // 包层改 `font-size` 会被该声明覆盖而无效；改变量则容器与 em 子级整体等比缩放。
                   <div
                     className="adl-clipboard-viewer__markdown"
                     hidden={editing || !previewing}

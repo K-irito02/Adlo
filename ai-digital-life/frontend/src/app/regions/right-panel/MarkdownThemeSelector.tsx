@@ -5,7 +5,7 @@ import { useTCopy } from '@i18n/useTCopy';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 import { IconCheck, IconMarkdownTheme } from '@icons';
 import { TooltipSimple } from '@components/Tooltip';
-import { DARK_MARKDOWN_THEMES, LIGHT_MARKDOWN_THEMES } from '@features/preview/markdownTheme';
+import { useMarkdownThemeOptions, useResolvedMarkdownTheme } from '@features/preview/markdownTheme';
 import type {
   DarkMarkdownTheme,
   LightMarkdownTheme,
@@ -75,19 +75,22 @@ function MarkdownThemeSwatch({ theme }: { theme: MarkdownTheme }) {
 export const MarkdownThemeSelector = React.memo(function MarkdownThemeSelector() {
   const { t } = useTCopy();
   const appTheme = useResolvedTheme();
-  const { lightMarkdownTheme, darkMarkdownTheme, setLightMarkdownTheme, setDarkMarkdownTheme } =
-    useAppStore(
-      useShallow((s) => ({
-        lightMarkdownTheme: s.lightMarkdownTheme,
-        darkMarkdownTheme: s.darkMarkdownTheme,
-        setLightMarkdownTheme: s.setLightMarkdownTheme,
-        setDarkMarkdownTheme: s.setDarkMarkdownTheme,
-      })),
-    );
+  const { setLightMarkdownTheme, setDarkMarkdownTheme } = useAppStore(
+    useShallow((s) => ({
+      setLightMarkdownTheme: s.setLightMarkdownTheme,
+      setDarkMarkdownTheme: s.setDarkMarkdownTheme,
+    })),
+  );
 
-  const options: readonly MarkdownTheme[] =
-    appTheme === 'light' ? LIGHT_MARKDOWN_THEMES : DARK_MARKDOWN_THEMES;
-  const current: MarkdownTheme = appTheme === 'light' ? lightMarkdownTheme : darkMarkdownTheme;
+  // 分组真源在 markdownTheme.ts（resolveMarkdownTheme / useMarkdownThemeOptions），不在此内联重复。
+  const options = useMarkdownThemeOptions();
+  const current = useResolvedMarkdownTheme();
+  const currentRef = useRef(current);
+  // render 期不写 ref（R1-F4 并发隐患）：提交后同步，供 open 锚点读取（声明顺序保证先执行）。
+  useEffect(() => {
+    currentRef.current = current;
+  });
+  // 打开时锚定已确认值（读 ref = 最新已提交值），hover 守卫 + 恢复测试覆盖。
   // 菜单只列本组主题，id 与组类型一致，分支内转换安全。
   const applyTheme = useCallback(
     (id: MarkdownTheme) => {
@@ -105,8 +108,6 @@ export const MarkdownThemeSelector = React.memo(function MarkdownThemeSelector()
   const containerRef = useRef<HTMLDivElement>(null);
   const confirmedRef = useRef(confirmed);
   const hoverGuardRef = useRef(false);
-  const currentRef = useRef(current);
-  currentRef.current = current;
 
   useEffect(() => {
     if (open) {

@@ -17,4 +17,32 @@ describe('starryNight integration', () => {
     expect(highlighted).toContain('pl-');
     expect(highlightWithStarry('x', 'unknown-xyz-lang')).toBeNull();
   });
+
+  it('resolves tsx/mts/cts aliases to TypeScript (R1-F1)', async () => {
+    await ensureStarryNight();
+    for (const lang of ['tsx', 'mts', 'cts']) {
+      const highlighted = highlightWithStarry('<A x={1} />;', lang);
+      expect(highlighted).not.toBeNull();
+      expect(highlighted).toContain('pl-');
+    }
+  });
+
+  it('never throws on prototype-chain or odd language names (R1 rev3 medium)', async () => {
+    await ensureStarryNight();
+    for (const lang of [
+      'constructor',
+      '__proto__',
+      'toString',
+      'hasOwnProperty',
+      'TSX',
+      'TypeScript',
+    ]) {
+      expect(() => highlightWithStarry('x = 1;', lang)).not.toThrow();
+    }
+    expect(highlightWithStarry('x = 1;', 'constructor')).toBeNull();
+    // 大写走归一化后仍命中别名表（R1 rev4终轮 C2：不断言非空则归一化回归不可见）
+    const upper = highlightWithStarry('<A x={1} />;', 'TSX');
+    expect(upper).not.toBeNull();
+    expect(upper).toContain('pl-');
+  });
 });

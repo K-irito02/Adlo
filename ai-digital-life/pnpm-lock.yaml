@@ -177,7 +177,7 @@ importers:
         specifier: ^3.4.12
         version: 3.4.12
       github-markdown-css:
-        specifier: ^5.9.0
+        specifier: 5.9.0
         version: 5.9.0
       hast-util-to-html:
         specifier: ^9.0.5

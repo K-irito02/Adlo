@@ -5,6 +5,8 @@ type StarryNightInstance = Awaited<ReturnType<typeof createStarryNight>>;
 
 let pending: Promise<StarryNightInstance | null> | null = null;
 let readyInstance: StarryNightInstance | null = null;
+/** 全量失败锁存（R1-F2）：离线等场景下每打开一个 md 都重试两次取数；锁存后直接回退纯文本。 */
+let failedPermanently = false;
 const listeners = new Set<() => void>();
 
 function notifyReady(): void {
@@ -34,12 +36,17 @@ export function ensureStarryNight(): Promise<StarryNightInstance | null> {
   if (readyInstance) {
     return Promise.resolve(readyInstance);
   }
+  if (failedPermanently) {
+    return Promise.resolve(null);
+  }
   if (!pending) {
     const options =
       typeof window === 'undefined'
         ? undefined
         : {
-            getOnigurumaUrlFetch: () => new URL('vendor/onig.wasm', document.baseURI),
+            // 构建 base 锚定（R1-F3）：子路径部署下相对 baseURI 会 404
+            getOnigurumaUrlFetch: () =>
+              new URL(`${import.meta.env.BASE_URL}vendor/onig.wasm`, document.baseURI),
           };
     // 本地 vendor 优先（离线可用）；失败回退默认加载器（Node fs / esm.sh），
     // 再失败返回 null，调用方保持纯文本回退（首屏与降级都不白屏）。
@@ -54,6 +61,7 @@ export function ensureStarryNight(): Promise<StarryNightInstance | null> {
         },
         () => {
           pending = null;
+          failedPermanently = true;
           return null;
         },
       );
@@ -61,19 +69,33 @@ export function ensureStarryNight(): Promise<StarryNightInstance | null> {
   return pending;
 }
 
+/** 常见别名映射（R1-F1）：starry-night 的 flagToScope 不认 tsx 等变体。 */
+const LANGUAGE_ALIASES: Record<string, string> = {
+  tsx: 'typescript',
+  mts: 'typescript',
+  cts: 'typescript',
+};
 /**
  * starry-night 就绪后的同步高亮（`createStarryNight` 之后 `highlight` 本身是同步的）。
- * 未就绪或未知语言返回 null，调用方回退 HTML 转义纯文本。
+ * 未就绪/未知语言返回 null，调用方回退 HTML 转义纯文本。
+ * 防御：`in` 会命中原型链（如 ```constructor 代码块），且语言名大小写不敏感——
+ * 先归一化小写 + hasOwnProperty 白名单，整体再包 try，任何异常都回退纯文本，
+ * 永不把异常抛给渲染层。
  */
 export function highlightWithStarry(code: string, lang: string): string | null {
   if (!readyInstance) {
     return null;
   }
-  const scope = readyInstance.flagToScope(lang);
-  if (!scope) {
-    return null;
-  }
   try {
+    const normalized = lang.toLowerCase();
+    const alias = Object.hasOwn(LANGUAGE_ALIASES, normalized)
+      ? LANGUAGE_ALIASES[normalized as keyof typeof LANGUAGE_ALIASES]
+      : undefined;
+    const scope =
+      readyInstance.flagToScope(lang) ?? (alias ? readyInstance.flagToScope(alias) : undefined);
+    if (!scope) {
+      return null;
+    }
     return toHtml(readyInstance.highlight(code, scope));
   } catch {
     return null;

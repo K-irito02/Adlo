@@ -419,6 +419,14 @@
   overflow-wrap: break-word;
 }
 
+/* 字号缩放钩子（F1 回归修复）：剪贴板查看器经 `--text-base` 变量缩放
+   （见 ClipboardItemViewer.tsx:799 注释）。双 class 特异性 0-2-0 恒胜于
+   官方 `.markdown-body`（0-1-0），与注入顺序无关；默认值 16px 与官方一致
+   （全局 `--text-base` 同为 16px，见 tokens.css），文件/变更面板观感不变。 */
+.adl-markdown-preview.markdown-body {
+  font-size: var(--text-base, 16px);
+}
+
 /* 检索跳转落点高亮（视口夹层 + 高亮条）已提取为共享实现：
    样式见 styles/components/reveal-highlight.css，播放逻辑见 @components/RevealHighlight。 */
 

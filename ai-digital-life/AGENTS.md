@@ -7,7 +7,7 @@
 | 层级 | 技术 |
 |------|------|
 | 后端 | Rust stable + Tauri 2.x + tokio + rusqlite + serde + tracing |
-| 前端 | React 19 + Vite + Zustand + TypeScript + CodeMirror 6 + xterm.js |
+| 前端 | React 19 + Vite + Zustand + TypeScript + CodeMirror 6 + xterm.js；Markdown 预览 markdown-it + starry-night（语法高亮）+ github-markdown-css（变量驱动单表，见 `frontend/scripts/generate-md-theme-vars.mjs`） |
 | 桥接 | `#[tauri::command]` + `@tauri-apps/api` |
 | 打包 | `cargo tauri build` |
 | 包管理 | pnpm（前端）/ Cargo（Rust） |
@@ -53,6 +53,7 @@
 - 内置浏览器（Tauri WebView / iframe 双模式 + 新建标签对话框 + 收藏标签目录选择对话框 + 工作区顶级目录书签 + 4模式导航栏（open/tabs/list/search）+ SafeIframe 嵌入检查 + checkEmbed LRU 缓存 + Guard Effect 双路径验证 + 导航模式切换：就地导航/新建标签 + @radix-ui/react-switch + motion 动效 + 已打开标签过滤（filterTabIds）+ 多 iframe 状态保持（activatedTabIdsRef）+ 悬停关闭按钮（danger-hover）+ Flat 模式 ::after 渐变蒙版 + text-overflow: clip + 网站元数据持久化缓存（favicon data-URI + 标题，三层：Rust SQLite `site_meta_cache.rs` / preview JSON `.adl-cache/` / 前端 `siteMetaCache.ts`，预载门控 + 成功才写 + 引用计数删除）+ 标签加载状态（favicon 加载中 spinner + 标题未结算时"新建标签页"扫光动效，`titleResolved` 状态机 + `isRealTitle` 统一判定）+ 跨域重定向 favicon/标题兜底（方案 A 历史 URL 回写 `browserUpdateHistoryUrl` + 方案 B 会话级 `redirectMap`，`expectedNavigationUrlRef={url,at,tabId}` 显式导航检测 + 10s 新鲜度 + 发起 tab 绑定，参考 Chrome/Edge 重定向链消化语义 + Chromium `page_url_type`）+ 分隔线透明桥接条（dsh↔浏览器 WebView 零间隙贴边时 6px 透明子窗口夺回拖拽命中权，`divider_strip_*` 命令 + `siblingWebviewNonce` z-order 重建））
 - 第三方 harness 宿主集成（当前为 deepseek dsh）：进程托管与拉起（`crates/webapp-host`）、内嵌版本管理（`crates/dsh-bundle`）与系统版本检测/升级回退（`crates/dsh-version`）、下载源与镜像配置（`crates/download-source`）、中间区多标签宿主渲染（统一入口页 CenterEntryPage：deepseek harness / 浏览器 / 终端三入口；dsh 版本管理位于设置面板「DSH」组版本管理块 / 浏览器视图 / 终端视图，标题栏标签条切换/拖拽排序；dsh 作为普通浏览器标签承载，`location='center'`；Tauri 双宿主 WebView2 / 浏览器 iframe + 嵌入被拒外部打开兜底）
 - 存储治理：`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组（见上文"存储路径解析"）
+- Markdown 预览主题（文件/变更面板）：github-markdown-css 变量驱动单表（`frontend/scripts/generate-md-theme-vars.mjs` 生成 + 自校验，切换只翻容器 `data-md-theme`，零取数零闪烁）+ 6 主题按亮暗分组跟随应用主题并持久化（`adl:files.markdownTheme{Light,Dark}`）+ 工具栏主题按钮（水滴图标，交互同图表主题选择器：悬停即时预览/离开恢复/点击打勾确认）+ starry-night 语法高亮（common 约 35 语言，本地 `onig.wasm` 优先、失败回落纯文本）
 - 系统能力：剪贴板历史、系统监视器、凭据存储（keyring + 加密文件降级）（通信/CI/GitHub 面板已随 remove-communicate-panel 删除，能力面 bridge/IPC 保留）
 - Zustand 切片模式（32 切片 + 18 action 模块）+ 模块化分层（features/ + regions/）
 - CSS 设计 Token 亮暗主题 + 自定义 Tooltip + 自定义滚动条

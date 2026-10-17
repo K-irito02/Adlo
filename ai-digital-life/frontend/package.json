@@ -76,7 +76,7 @@
     "d3-shape": "^3.2.0",
     "docx-preview": "^0.4.1",
     "dompurify": "^3.4.12",
-    "github-markdown-css": "^5.9.0",
+    "github-markdown-css": "5.9.0",
     "hast-util-to-html": "^9.0.5",
     "lucide-animated": "^1.0.4",
     "markdown-it": "^14.1.1",

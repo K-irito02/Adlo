@@ -46,3 +46,19 @@ useEffect(() => {
 - 键盘/全局事件监听、ResizeObserver 回调、requestAnimationFrame 回调中需要读最新 props/state。
 - 向 `React.memo` 子组件或订阅型 Hook 传函数对象字面量时。
 - 参考实现：`useKeyboardShortcuts.ts`、`useKeyCapture.ts`、`useBrowserViewHost.ts`、`SafeIframe.tsx`、`ToastCard.tsx`。
+
+## 例外：读取方是同一次提交内的被动 effect 时，改用提交后同步
+
+渲染阶段写 ref 是**非纯操作**，React 官方建议不在渲染期读写 ref（并发渲染下被放弃的那次渲染可能写入错误值）。当唯一读取方是**同一次提交中的另一个 `useEffect`**（而非任意时刻可能触发的事件回调）时，把镜像改为**提交后同步**更安全且行为等价：
+
+```tsx
+const currentRef = useRef(current);
+useEffect(() => {
+  currentRef.current = current; // 无依赖：每次提交后同步
+}); // 声明顺序在读取它的 effect 之前 → 同一次提交内先同步后读取，无陈旧值
+```
+
+判定要点：**「一帧延迟」只在读取方可能于渲染与被动 effect 之间被触发时才有害**（事件监听/观察者回调等）。若读取方本身也是被动 effect，二者在同一次提交按声明顺序执行，不存在窗口期。
+
+- 参考实现：`MarkdownThemeSelector.tsx`（`currentRef` 的读取方是「打开菜单」effect，故用提交后同步）。
+- 反之，若读取方是长生命周期事件回调（本文件首节的标准场景），仍按上文在**渲染阶段**镜像。

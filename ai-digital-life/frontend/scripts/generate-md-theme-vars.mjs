@@ -141,8 +141,9 @@ const SLOT_VAR = {
 
 /**
  * 主题专属覆盖（高对比在同选择器下用了不同语义的值，无法共用变量）。
- * 键：主题 id → 选择器 → prop → 已参数化的值（用 var(--md-*) 书写）。
- * 生成时追加在主体之后（更高特异度），校验时对命中项改用覆盖值比对。
+ * 键：主题 id → 基选择器（须与主体规则的选择器字面一致，供校验定位） → prop → 已参数化的值。
+ * 生成时以前缀 `.markdown-body[data-md-theme="<id>"]` 限定同元素（容器本身双 class，
+ * 后代组合恒不命中——F2 教训），特异度 0-2-1 恒胜主体 0-1-1。
  */
 const THEME_OVERRIDES = {
   'dark-high-contrast': {
@@ -152,6 +153,10 @@ const THEME_OVERRIDES = {
     '.markdown-body table tr': { 'border-top': '1px solid var(--md-border-default)' },
   },
 };
+
+function overrideSelector(themeId, selector) {
+  return selector.replace(/^\.markdown-body\b/, `.markdown-body[data-md-theme="${themeId}"]`);
+}
 
 /** 官方 Primer 变量 → 本文件变量（源码里 `var(--X)` 的语义归属）。 */
 const PRIMER_VAR = {
@@ -253,7 +258,6 @@ function parameterizeValue(slotKey, value) {
     }
     return value;
   }
-  if (varName === null) return value;
   // 先归一官方 Primer 引用（避免后一步把刚插入的 var(--md-*) 当 Primer 解析）
   PRIMER_RE.lastIndex = 0;
   const primed = value.replace(PRIMER_RE, (m, primer) => {
@@ -280,6 +284,19 @@ function parameterizePrimerOnly(slotKey, value) {
 function main() {
   const baseCss = fs.readFileSync(path.join(pkgDir, 'github-markdown-light.css'), 'utf8');
   const rules = parseRules(baseCss);
+  // N2 守卫：SLOT_VAR 的键若在基文件中一次都匹配不上，判定为键拼写错误。
+  // （比"允许跳过名单"更精准：Primer-only 槽位天然有官方声明与之对应。）
+  {
+    const baseKeys = new Set();
+    for (const r of rules) {
+      for (const d of r.decls) baseKeys.add(r.selector + ' || ' + d.prop);
+    }
+    for (const slotKey of Object.keys(SLOT_VAR)) {
+      if (!baseKeys.has(slotKey)) {
+        throw new Error('SLOT_VAR key matches no base declaration (typo?): ' + slotKey);
+      }
+    }
+  }
   const body = [];
   for (const { selector, decls } of rules) {
     const out = [];
@@ -325,16 +342,32 @@ function main() {
  */`;
   fs.writeFileSync(outFile, `${header}\n\n${varBlocks.join('\n\n')}\n\n${body.join('\n\n')}\n`);
 
-  // 主题专属覆盖块（更高特异度，见 THEME_OVERRIDES）
+  // 主题专属覆盖块（同元素限定选择器，特异度 0-2-1 恒胜主体 0-1-1）。
+  // N3 守卫：发射文本必须精确匹配预期形态，否则 fail（防 overrideSelector 退化）。
   const overrideBlocks = [];
+  const emittedOverrideSelectors = [];
   for (const [themeId, selectors] of Object.entries(THEME_OVERRIDES)) {
     for (const [selector, props] of Object.entries(selectors)) {
       const decls = Object.entries(props)
         .map(([p, v]) => `  ${p}: ${v};`)
         .join('\n');
-      overrideBlocks.push(
-        `.adl-markdown-preview[data-md-theme="${themeId}"] ${selector} {\n${decls}\n}`,
-      );
+      const emitted = `${overrideSelector(themeId, selector)} {\n${decls}\n}`;
+      if (!/^\.markdown-body\[data-md-theme="[^"]+"\] [a-z][\w .:>#[\]="-]*\{\n/.test(emitted)) {
+        throw new Error(`unexpected override selector shape: ${emitted.split('\n')[0]}`);
+      }
+      emittedOverrideSelectors.push(emitted.split(' {')[0]);
+      overrideBlocks.push(emitted);
+    }
+  }
+  const expectedOverrides = [
+    '.markdown-body[data-md-theme="dark-high-contrast"] h1',
+    '.markdown-body[data-md-theme="dark-high-contrast"] h2',
+    '.markdown-body[data-md-theme="dark-high-contrast"] hr',
+    '.markdown-body[data-md-theme="dark-high-contrast"] table tr',
+  ];
+  for (const want of expectedOverrides) {
+    if (!emittedOverrideSelectors.includes(want)) {
+      throw new Error(`missing expected override selector: ${want}`);
     }
   }
   fs.appendFileSync(outFile, `\n${overrideBlocks.join('\n\n')}\n`);
@@ -409,6 +442,47 @@ function main() {
     // 变量块完整性：每个主题的每个变量都有值
     for (const name of Object.keys(VAR_VALUE)) {
       if (VAR_VALUE[name][ti] === undefined) failures.push(`${themeId}: missing value ${name}`);
+    }
+  }
+
+  // —— 自校验 2：值级比对（F3：手抄 VAR_VALUE 错一位 hex 也能抓到）。
+  // 对每个有映射的槽位，从官方文件取该槽全部字面量断言 VAR_VALUE 收敛其一；
+  // 官方值纯 Primer 引用的槽位跳过字面比对（语义一致性由 pass 1 变量形比对保证，
+  // 唯一例外 `--md-border-muted@dark-high-contrast=#3d444d`：该值在 6 文件中无字面量出处，
+  // 取自 Primer 高对比 scale，与同文件 `.pl-sg` 字面量 `#3d444d` 及 dimmed 系 b3 同色相印证）。
+  // N2 守卫见生成前（基文件键集合校验）：键拼写错误在生成前即 fail，比事后名单更精准。
+  {
+    const officialRules = THEMES.map((t) =>
+      parseRules(fs.readFileSync(path.join(pkgDir, t.file), 'utf8')),
+    );
+    const normColor = (c) => c.replace(/\s+/g, '').toLowerCase();
+    for (const [slotKey, varName] of Object.entries(SLOT_VAR)) {
+      if (!varName) continue;
+      for (let ti = 0; ti < THEMES.length; ti++) {
+        const lits = [];
+        for (const { selector, decls } of officialRules[ti]) {
+          for (const d of decls) {
+            if (`${selector} || ${d.prop}` !== slotKey) continue;
+            COLOR_RE.lastIndex = 0;
+            for (const m of d.value.match(COLOR_RE) || []) {
+              if (m.replace(/\s+/g, '') !== 'rgba(0,0,0,0)' && m !== 'transparent') {
+                lits.push(m);
+              }
+            }
+          }
+        }
+        if (lits.length === 0) continue;
+        const expected = VAR_VALUE[varName]?.[ti];
+        if (expected === undefined) {
+          failures.push(`${THEMES[ti].id}: missing value ${varName}`);
+          continue;
+        }
+        if (!lits.some((c) => normColor(c) === normColor(expected))) {
+          failures.push(
+            `${THEMES[ti].id}: value mismatch ${varName} slot=${slotKey} official=[${lits.join(', ')}] table=${expected}`,
+          );
+        }
+      }
     }
   }
   if (failures.length > 0) {

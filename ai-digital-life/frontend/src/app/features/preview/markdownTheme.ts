@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useShallow } from 'zustand/react/shallow';
 import { useAppStore } from '@stores/slicedStore';
 import { useResolvedTheme } from '@hooks/useResolvedTheme';
 import type {
@@ -36,9 +35,10 @@ export function resolveMarkdownTheme(
 /** 当前生效的 markdown 主题（应用主题 × 对应组持久化值），文件/变更两面板共用。 */
 export function useResolvedMarkdownTheme(): MarkdownTheme {
   const appTheme = useResolvedTheme();
-  return useAppStore(
-    useShallow((s) => resolveMarkdownTheme(appTheme, s.lightMarkdownTheme, s.darkMarkdownTheme)),
-  );
+  // R1-F6：原始值用两个稳定订阅（useShallow 只对对象/数组选择器有意义），在外层按组取值。
+  const light = useAppStore((s) => s.lightMarkdownTheme);
+  const dark = useAppStore((s) => s.darkMarkdownTheme);
+  return resolveMarkdownTheme(appTheme, light, dark);
 }
 
 /**

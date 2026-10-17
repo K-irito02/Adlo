@@ -156,10 +156,7 @@ export function XlsxPreview({ data, theme = 'dark', fileName }: XlsxPreviewProps
         {loaded && (sheetNames.length === 0 || html.trim() === '') ? (
           <p className="adl-xlsx-preview__empty">{t.spreadsheetEmpty as string}</p>
         ) : (
-          <div
-            className="adl-xlsx-preview__table"
-            dangerouslySetInnerHTML={innerHtml}
-          />
+          <div className="adl-xlsx-preview__table" dangerouslySetInnerHTML={innerHtml} />
         )}
       </div>
     </div>

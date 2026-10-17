@@ -74,7 +74,9 @@ ai-digital-life/
 | `app/features/` | 按功能域分层的模块化组件（含 terminal/ 中 3 个子 hook、tree/ 中 MultiTreeEntryShell 共享骨架） |
 | `app/regions/` | 区域布局组件（left-sidebar / right-panel(panels+editor-support+hooks) / center-pane；per-panel prop hooks 集中到 hooks/ 目录） |
 | `design-system/` | 设计 Token 类型定义（tokens.ts / theme.ts / icons.ts） |
-| `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等） |
+| `styles/` | CSS 样式文件（themes.css / tokens.css / regions/*.css 等）；`styles/vendor/` 存**生成**的第三方主题变量表（如 `markdown-theme-vars.css`，由脚本生成，勿手改） |
+| `scripts/` | 构建期/开发辅助脚本（如 `generate-md-theme-vars.mjs`：从 `github-markdown-css` 生成变量驱动单表，自带自校验） |
+| `public/vendor/` | 随包发布的运行时静态资源（如 `onig.wasm`：starry-night 语法高亮 WASM），运行时按 `import.meta.env.BASE_URL` 拼 URL 加载 |
 
 ## Stores 架构（Zustand 切片合并模式）
 
