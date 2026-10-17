@@ -5,6 +5,12 @@ import {
   clearChangePreviewForWorkspace,
   createGitSnapshotActions,
 } from '../gitSnapshotActions';
+import { pendingChangePreviewPath, setPendingChangePreviewPath } from '../../cacheHelpers';
+import {
+  getNextChangePreviewRequestSeq,
+  scopedFileKey,
+} from '../../cacheHelpers';
+import { openChangePreviewGeneric } from '../editorActionsHelpers';
 
 interface TestStore {
   gitSnapshot?: unknown;
@@ -172,6 +178,49 @@ describe('fetchGitStatus', () => {
     expect(window.digitalLife.workspace.getGitStatus).not.toHaveBeenCalled();
   });
 
+  it('无工作区时连带清空预览归属（P4-R1-F3）', async () => {
+    const { store } = makeStore();
+    store.setState({
+      gitSnapshot: { staged: ['x'] } as never,
+      selectedChangePreviewPath: 'gone.md',
+      selectedChangePreviewWorkspaceId: 'ws-old',
+      changePreview: { path: 'gone.md' } as never,
+      changePreviewLoading: false,
+    } as never);
+    await store.getState().fetchGitStatus();
+    const st = store.getState() as unknown as {
+      selectedChangePreviewPath?: string;
+      selectedChangePreviewWorkspaceId?: string;
+      changePreview?: unknown;
+    };
+    expect(st.selectedChangePreviewPath).toBeUndefined();
+    expect(st.selectedChangePreviewWorkspaceId).toBeUndefined();
+    expect(st.changePreview).toBeUndefined();
+  });
+
+  it('选中预览已不在快照中则清空归属（P4-R1-F3）', async () => {
+    (window as any).digitalLife.workspace.getGitStatus.mockResolvedValue({
+      ok: true,
+      data: snapshotData,
+    });
+    const { store } = makeStore({ appInfo: currentWsAppInfo as never });
+    store.setState({
+      selectedChangePreviewPath: 'gone.md',
+      selectedChangePreviewWorkspaceId: 'ws-current',
+      changePreview: { path: 'gone.md' } as never,
+      changePreviewLoading: false,
+    } as never);
+    await store.getState().fetchGitStatus();
+    const st = store.getState() as unknown as {
+      selectedChangePreviewPath?: string;
+      selectedChangePreviewWorkspaceId?: string;
+      changePreview?: unknown;
+    };
+    expect(st.selectedChangePreviewPath).toBeUndefined();
+    expect(st.selectedChangePreviewWorkspaceId).toBeUndefined();
+    expect(st.changePreview).toBeUndefined();
+  });
+
   it('失败记静默诊断（P4 F5），不弹全局提示', async () => {
     const { store, reportSilentError } = makeStore({ appInfo: currentWsAppInfo as never });
     (window.digitalLife.workspace.getGitStatus as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -245,6 +294,145 @@ describe('陈旧变更预览对账（事项2：推送/删除后内容区清空�
     seedPreview(store, 'ws-2', 'other.md');
     await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
     expect(readPreview(store).selectedChangePreviewPath).toBe('other.md');
+  });
+
+  it('清空同时取消在途 open（P4-R1-F2：落定不复活已清选中）', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: emptySnapshot,
+    });
+    const { store } = makeStore();
+    seedPreview(store, 'ws-1', 'gone.md');
+    setPendingChangePreviewPath('gone.md');
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(pendingChangePreviewPath).toBeUndefined();
+    expect(readPreview(store).selectedChangePreviewPath).toBeUndefined();
+    setPendingChangePreviewPath(undefined);
+  });
+
+  it('在途 open 落定不复活已清选中（P4-R1-N4 全链路）', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: emptySnapshot,
+    });
+    const { store } = makeStore();
+    store.setState({
+      appInfo: { currentWorkspace: { id: 'ws-1', path: '/p' } },
+      selectedChangePreviewPath: 'gone.md',
+      selectedChangePreviewWorkspaceId: 'ws-1',
+      changePreview: { path: 'gone.md', currentContent: 'old' } as never,
+      changePreviewLoading: false,
+    } as never);
+    let resolvePreview!: (v: { ok: true; data: unknown }) => void;
+    const gate = new Promise<{ ok: true; data: unknown }>((r) => {
+      resolvePreview = r;
+    });
+    const pending = openChangePreviewGeneric(
+      store.setState as never,
+      () => store.getState() as never,
+      'gone.md',
+      getNextChangePreviewRequestSeq(),
+      {
+        cacheKey: scopedFileKey('ws-1', 'gone.md'),
+        workspaceId: 'ws-1',
+        getPreview: () => gate as never,
+      },
+    );
+    // 刷新先落定：选中清空 + 在途被取消
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(readPreview(store).selectedChangePreviewPath).toBeUndefined();
+    // 旧请求后落定：必须被丢弃，不复活
+    resolvePreview({
+      ok: true,
+      data: {
+        path: 'gone.md',
+        changeKind: 'modified',
+        status: 'modified',
+        baseExists: true,
+        currentExists: true,
+        baseContent: 'base',
+        currentContent: 'stale',
+      },
+    });
+    await pending;
+    const st = readPreview(store);
+    expect(st.selectedChangePreviewPath).toBeUndefined();
+    expect(st.changePreview).toBeUndefined();
+    expect(st.changePreviewLoading).toBe(false);
+    setPendingChangePreviewPath(undefined);
+  });
+
+  it('未归属预览回退当前工作区判定（P4-R1-F4）', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: emptySnapshot,
+    });
+    const { store } = makeStore();
+    store.setState({
+      appInfo: { currentWorkspace: { id: 'ws-1', path: '/p' } },
+      selectedChangePreviewPath: 'gone.md',
+      selectedChangePreviewWorkspaceId: undefined,
+      changePreview: { path: 'gone.md' } as never,
+      changePreviewLoading: false,
+    } as never);
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(readPreview(store).selectedChangePreviewPath).toBeUndefined();
+  });
+
+  it('无归属且无当前工作区 → 保留（P4-R1-F5  pin）', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: emptySnapshot,
+    });
+    const { store } = makeStore();
+    store.setState({
+      selectedChangePreviewPath: 'gone.md',
+      selectedChangePreviewWorkspaceId: undefined,
+      changePreview: { path: 'gone.md' } as never,
+      changePreviewLoading: false,
+    } as never);
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(readPreview(store).selectedChangePreviewPath).toBe('gone.md');
+  });
+
+  it('反斜杠快照路径仍命中（P4-R1-F10），不误删', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: { staged: ['sub\\gone.md'], unstaged: [], untracked: [], conflicts: [], capturedAt: 1 },
+    });
+    const { store } = makeStore();
+    store.setState({
+      appInfo: { currentWorkspace: { id: 'ws-1', path: '/p' } },
+      selectedChangePreviewPath: 'sub/gone.md',
+      selectedChangePreviewWorkspaceId: 'ws-1',
+      changePreview: { path: 'sub/gone.md' } as never,
+      changePreviewLoading: false,
+    } as never);
+    await store.getState().refreshGitSnapshot('ws-1', '/p', { silent: true });
+    expect(readPreview(store).selectedChangePreviewPath).toBe('sub/gone.md');
+  });
+
+  it('loadGitSnapshot 落盘后选中预览消失则清空', async () => {
+    (window as any).digitalLife.workspace.listGitStatusForWorkspace.mockResolvedValue({
+      ok: true,
+      data: emptySnapshot,
+    });
+    const { store } = makeStore();
+    store.setState({
+      appInfo: { currentWorkspace: { id: 'ws-1', path: '/p' } },
+      selectedChangePreviewPath: 'gone.md',
+      selectedChangePreviewWorkspaceId: 'ws-1',
+      changePreview: { path: 'gone.md' } as never,
+      changePreviewLoading: false,
+    } as never);
+    await (
+      store.getState() as unknown as {
+        loadGitSnapshot: (id: string, path: string) => Promise<void>;
+      }
+    ).loadGitSnapshot('ws-1', '/p');
+    const st = readPreview(store);
+    expect(st.selectedChangePreviewPath).toBeUndefined();
+    expect(st.changePreview).toBeUndefined();
   });
 
   it('discardWorkspaceFile：丢弃的正是选中预览则清空', () => {

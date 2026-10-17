@@ -24,6 +24,7 @@ import {
   invalidateCachedChangePreview,
   invalidateCachedFileDocument,
   getCachedChangePreview,
+  previewCancelEpoch,
   setCachedChangePreview,
   setCachedFileDocument,
   dropPendingEditorText,
@@ -421,11 +422,24 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
       if (getCachedChangePreview(cacheKey)) {
         return;
       }
+      // 纪元快照（P4-R1-N3）：等待期间若发生过预览清空，落定即放弃写缓存，
+      // 避免把刚失效的旧 diff 又种回去（选择态不受影响）。
+      const cancelEpoch = previewCancelEpoch;
       const result = await window.digitalLife.workspace.getChangePreviewForWorkspace(
         workspacePath,
         relativePath,
       );
       if (!result.ok) {
+        return;
+      }
+      // 落定再校验（P4-R1-F1）：点击已在途则其落定写新鲜值，此处跳过；
+      // 已有缓存（点击先落定）同样跳过，避免旧预取覆盖新鲜缓存。
+      // 清空纪元已推进（其间发生过清空）同样跳过（N3）。
+      if (
+        pendingChangePreviewPath !== undefined ||
+        getCachedChangePreview(cacheKey) ||
+        previewCancelEpoch !== cancelEpoch
+      ) {
         return;
       }
       const isHeavy =
@@ -826,9 +840,11 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
     /**
      * [reconcileSelectedFileAfterWorkspaceSwitch - 工作区切换后对账选中文件]
      * 供 openWorkspace 在 bootstrap 后调用（worktree 替换式分支切换等场景）。
+     * 选中无归属（workspaceId 为空）→ 无法判定家园，不动（P4-R1-F7）；
      * 源工作区仍在侧栏 → 归属明确，走常规 reconcile 保鲜（错误卡语义不变）；
      * 源已不在 → 在新上下文重读，缺失则清空为空（事项5，不挂错误卡），
-     * 命中则归属到新工作区；有未存草稿则一律不动（切前已落盘，此处为兜底）。
+     * 命中则内存归属到新工作区（不写 lastFile，避免巧合重名污染重启恢复）；
+     * 有未存草稿则一律不动（切前已落盘，此处为兜底）。
      */
     reconcileSelectedFileAfterWorkspaceSwitch: async () => {
       const selected = get().selectedFilePath;
@@ -844,6 +860,9 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
         return;
       }
       const selectedWsId = get().selectedFileWorkspaceId;
+      if (selectedWsId === undefined) {
+        return;
+      }
       const sourceListed = (get().recentWorkspaces ?? []).some(
         (w) => w.id === selectedWsId && !w.removedFromSidebar && w.available,
       );
@@ -889,7 +908,7 @@ export function createEditorActions(set: StoreApi<StoreState>['setState'], get: 
             ? []
             : buildOutlineFromContent(result.data.content, selected),
       });
-      get().rememberLastOpenedFile(currentWorkspace.id, selected);
+      // 内存归属即可，不写 lastFile（P4-R1-F6）：跨仓重名巧合不应污染重启恢复。
     },
   };
 }

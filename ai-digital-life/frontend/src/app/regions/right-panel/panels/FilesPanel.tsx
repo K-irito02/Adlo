@@ -110,9 +110,10 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   const fileHistory = useFileHistory(selectedFilePath, onOpenFile);
 
   // 编辑器 chunk 空闲预热（事项4）：挂载后即预取，首切不再付懒加载代价。
+  // timeout 兜底：主线程饱和时 idle 回调也最多等 2s（P4-R1-F05）。
   useEffect(() => {
     if (typeof requestIdleCallback === 'function') {
-      const id = requestIdleCallback(() => warmRightPanelEditors());
+      const id = requestIdleCallback(() => warmRightPanelEditors(), { timeout: 2000 });
       return () => cancelIdleCallback(id);
     }
     const timer = window.setTimeout(() => warmRightPanelEditors(), 0);

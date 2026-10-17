@@ -2,6 +2,8 @@ import type { StoreState } from '../StoreState';
 import type { GitSnapshot } from '@ai-digital-life/kernel';
 import type { StoreApi } from 'zustand';
 import { createLazyLoader, pendingChangePreviewPath } from '../shared';
+import { cancelPreviewLanding, scopedFileKey } from '../cacheHelpers';
+import { normalizeWorkspaceRelativePath } from '@utils/workspacePaths';
 import { buildGitSnapshotSyncPatch } from '../gitSnapshotSync';
 
 function moveInSnapshot(
@@ -37,12 +39,13 @@ function moveInSnapshot(
 }
 
 function snapshotPaths(snapshot: GitSnapshot): Set<string> {
-  return new Set([
-    ...snapshot.staged,
-    ...snapshot.unstaged,
-    ...snapshot.untracked,
-    ...snapshot.conflicts,
-  ]);
+  // 双端归一化（P4-R1-F10）：反斜杠变体仍能命中，避免误删仍在的预览。
+  // 注意：归一化仅处理分隔符，不折叠大小写（git 路径大小写敏感），大小写变体不命中。
+  return new Set(
+    [...snapshot.staged, ...snapshot.unstaged, ...snapshot.untracked, ...snapshot.conflicts].map(
+      (p) => normalizeWorkspaceRelativePath(p),
+    ),
+  );
 }
 
 /**
@@ -66,7 +69,8 @@ function clearStaleChangePreview(
   if (previewWorkspaceId !== workspaceId) {
     return;
   }
-  if (!snapshotPaths(snapshot).has(selected)) {
+  if (!snapshotPaths(snapshot).has(normalizeWorkspaceRelativePath(selected))) {
+    cancelPreviewLanding(scopedFileKey(previewWorkspaceId, selected), selected);
     set({
       selectedChangePreviewPath: undefined,
       selectedChangePreviewWorkspaceId: undefined,
@@ -143,10 +147,14 @@ export function clearChangePreviewForWorkspace(
     return;
   }
   const state = get();
-  if (
-    state.selectedChangePreviewWorkspaceId === workspaceId &&
-    state.selectedChangePreviewPath !== undefined
-  ) {
+  // 未归属预览（id 为空）回退到当前工作区判定（P4-R1-F4），与 clearStaleChangePreview 同口径。
+  const previewWorkspaceId =
+    state.selectedChangePreviewWorkspaceId ?? state.appInfo?.currentWorkspace?.id;
+  if (previewWorkspaceId === workspaceId && state.selectedChangePreviewPath !== undefined) {
+    cancelPreviewLanding(
+      scopedFileKey(previewWorkspaceId, state.selectedChangePreviewPath),
+      state.selectedChangePreviewPath,
+    );
     set({
       selectedChangePreviewPath: undefined,
       selectedChangePreviewWorkspaceId: undefined,
@@ -172,9 +180,15 @@ export function createGitSnapshotActions(
     fetchGitStatus: async () => {
       const currentWorkspace = get().appInfo?.currentWorkspace;
       if (!currentWorkspace) {
+        const st = get();
+        cancelPreviewLanding(
+          scopedFileKey(st.selectedChangePreviewWorkspaceId, st.selectedChangePreviewPath ?? ''),
+          st.selectedChangePreviewPath,
+        );
         set({
           gitSnapshot: undefined,
           selectedChangePreviewPath: undefined,
+          selectedChangePreviewWorkspaceId: undefined,
           changePreview: undefined,
           changePreviewLoading: false,
         });
@@ -225,15 +239,15 @@ export function createGitSnapshotActions(
         if (!selectedChangePreviewPath) {
           return;
         }
-        const changedPaths = new Set([
-          ...result.data.staged,
-          ...result.data.unstaged,
-          ...result.data.untracked,
-          ...result.data.conflicts,
-        ]);
-        if (!changedPaths.has(selectedChangePreviewPath)) {
+        const changedPaths = snapshotPaths(result.data);
+        if (!changedPaths.has(normalizeWorkspaceRelativePath(selectedChangePreviewPath))) {
+          cancelPreviewLanding(
+            scopedFileKey(workspaceId, selectedChangePreviewPath),
+            selectedChangePreviewPath,
+          );
           set({
             selectedChangePreviewPath: undefined,
+            selectedChangePreviewWorkspaceId: undefined,
             changePreview: undefined,
             changePreviewLoading: false,
           });
@@ -274,7 +288,13 @@ export function createGitSnapshotActions(
         const previewWorkspaceId =
           st.selectedChangePreviewWorkspaceId ?? st.appInfo?.currentWorkspace?.id;
         const previewGone =
-          selected !== undefined && previewWorkspaceId === id && !snapshotPaths(data).has(selected);
+          selected !== undefined &&
+          previewWorkspaceId === id &&
+          !snapshotPaths(data).has(normalizeWorkspaceRelativePath(selected));
+        // 清空同时取消在途 open landing，避免旧请求落定后复活已清的选中（P4-R1-F2）。
+        if (previewGone) {
+          cancelPreviewLanding(scopedFileKey(id, selected), selected);
+        }
         return {
           // Route through the sync helper so that when the lazily-loaded workspace
           // IS the current one, A (gitSnapshot) and C are kept in lockstep — not

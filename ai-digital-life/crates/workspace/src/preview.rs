@@ -8,7 +8,7 @@ use std::process::Command;
 /// 一次 `git status --porcelain=v1 -z -- <path>` 调用替代全量 snapshot 的
 /// 6 次顺序 git 派生（branch/rev-parse/4×diff-ls），Windows 下每次派生约数十毫秒。
 #[derive(Debug, PartialEq, Eq)]
-enum PorcelainStatus {
+pub(crate) enum PorcelainStatus {
     Conflicted,
     Untracked,
     Modified,
@@ -17,15 +17,6 @@ enum PorcelainStatus {
 
 fn is_porcelain_code(byte: u8) -> bool {
     matches!(byte, b' ' | b'M' | b'A' | b'D' | b'R' | b'C' | b'T' | b'U' | b'?' | b'!')
-}
-
-fn strip_quotes(value: &str) -> &str {
-    let trimmed = value.trim();
-    if trimmed.len() >= 2 && trimmed.starts_with('"') && trimmed.ends_with('"') {
-        &trimmed[1..trimmed.len() - 1]
-    } else {
-        trimmed
-    }
 }
 
 fn classify_porcelain(x: u8, y: u8) -> Option<PorcelainStatus> {
@@ -59,43 +50,52 @@ fn classify_porcelain(x: u8, y: u8) -> Option<PorcelainStatus> {
     None
 }
 
-/// 解析单文件 porcelain：只认与目标归一化路径精确匹配的条目
-///（重命名条目的新旧两侧都参与匹配，顺序无关）。
-/// 无匹配 → None（调用方回退全量路径，保留一切历史 quirks 与 NotFound 语义）。
-fn porcelain_status_for_file(root: &Path, normalized_path: &str) -> Option<PorcelainStatus> {
+/// 位置式解析单文件 porcelain（P4-R1-F2）：单路径 pathspec 下至多一个条目，
+/// 字段 0 恒为 `XY path` 头；R/C 重命名多带一个旧路径延续字段（消费但永不匹配，
+/// 与全量 `--name-only` 只列新路径同口径，P4-R1-F1）。其他形状一律回退。
+/// `-z` 输出永不加引号（NUL 分隔的意义正在于此），故只做原文比较 + 反斜杠归一，
+/// 不 trim 不去引号（P4-R1-F4）。
+fn parse_porcelain_entry(stdout: &[u8]) -> Option<((u8, u8), String)> {
+    let mut fields = stdout.split(|byte| *byte == 0).filter(|field| !field.is_empty());
+    let header = fields.next()?;
+    if header.len() < 4
+        || header[2] != b' '
+        || !is_porcelain_code(header[0])
+        || !is_porcelain_code(header[1])
+    {
+        return None;
+    }
+    let rest: Vec<&[u8]> = fields.collect();
+    // R/C 恰带一个延续字段；其他条目不应有延续；再多一律视为异常回退。
+    let allowed = if header[0] == b'R' || header[0] == b'C' { 1 } else { 0 };
+    if rest.len() > allowed {
+        return None;
+    }
+    let candidate = String::from_utf8_lossy(&header[3..]).replace('\\', "/");
+    Some(((header[0], header[1]), candidate))
+}
+
+/// 解析单文件 porcelain：只认头字段的新路径精确匹配。无匹配 → None
+///（调用方回退全量路径，保留一切历史 quirks 与 NotFound 语义）。
+/// `pub(crate)` 供 parity 测试做 fast-hit 断言（P4-R1-R2-N1）。
+pub(crate) fn porcelain_status_for_file(
+    root: &Path,
+    normalized_path: &str,
+) -> Option<PorcelainStatus> {
+    // `:(literal)` 让 git 做精确匹配，文件名含 *?[] 等魔术字符时仍走快路径（P4-R1-F3）。
+    let spec = format!(":(literal){normalized_path}");
     let output = Command::new("git")
-        .args(["status", "--porcelain=v1", "-z", "--", normalized_path])
+        .args(["status", "--porcelain=v1", "-z", "--", &spec])
         .current_dir(root)
         .output()
         .ok()?;
     if !output.status.success() {
         return None;
     }
-    let mut current: Option<(u8, u8)> = None;
-    let mut matched: Option<(u8, u8)> = None;
-    for field in output.stdout.split(|byte| *byte == 0) {
-        if field.is_empty() {
-            continue;
-        }
-        if field.len() >= 4
-            && field[2] == b' '
-            && is_porcelain_code(field[0])
-            && is_porcelain_code(field[1])
-        {
-            current = Some((field[0], field[1]));
-            let candidate = String::from_utf8_lossy(&field[3..]).replace('\\', "/");
-            if strip_quotes(candidate.trim()) == normalized_path {
-                matched = current;
-            }
-        } else if let Some(xy) = current {
-            // 重命名旧路径等延续字段：归属当前条目。
-            let candidate = String::from_utf8_lossy(field).replace('\\', "/");
-            if strip_quotes(candidate.trim()) == normalized_path {
-                matched = Some(xy);
-            }
-        }
+    let ((x, y), candidate) = parse_porcelain_entry(&output.stdout)?;
+    if candidate != normalized_path {
+        return None;
     }
-    let (x, y) = matched?;
     classify_porcelain(x, y)
 }
 
@@ -241,4 +241,75 @@ pub(crate) fn read_change_preview_full(
         base_content,
         current_content,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // P4-R1-F7：XY 分类矩阵（纯单测，无需 git，CI 常跑）。
+    #[test]
+    fn classify_porcelain_matrix() {
+        // 未合并 → Conflicted
+        for xy in [
+            (b'D', b'D'),
+            (b'A', b'U'),
+            (b'U', b'D'),
+            (b'U', b'A'),
+            (b'D', b'U'),
+            (b'A', b'A'),
+            (b'U', b'U'),
+        ] {
+            assert_eq!(classify_porcelain(xy.0, xy.1), Some(PorcelainStatus::Conflicted));
+        }
+        // 未跟踪 / 忽略
+        assert_eq!(classify_porcelain(b'?', b'?'), Some(PorcelainStatus::Untracked));
+        assert_eq!(classify_porcelain(b'!', b'!'), None);
+        // 工作区有改（含 AM/MM/RM 等混合）→ Modified，优先于暂存侧
+        for xy in [
+            (b' ', b'M'),
+            (b' ', b'D'),
+            (b' ', b'T'),
+            (b'M', b'M'),
+            (b'A', b'M'),
+            (b'R', b'M'),
+            (b'A', b'D'),
+        ] {
+            assert_eq!(classify_porcelain(xy.0, xy.1), Some(PorcelainStatus::Modified));
+        }
+        // 仅暂存侧 → Staged
+        for xy in
+            [(b'M', b' '), (b'A', b' '), (b'D', b' '), (b'R', b' '), (b'C', b' '), (b'T', b' ')]
+        {
+            assert_eq!(classify_porcelain(xy.0, xy.1), Some(PorcelainStatus::Staged));
+        }
+        // 空条目 → None（回退）
+        assert_eq!(classify_porcelain(b' ', b' '), None);
+    }
+
+    // P4-R1-F7：位置式 -z 解析固件（纯单测，无需 git）。
+    #[test]
+    fn parse_porcelain_entry_fixtures() {
+        // 普通条目
+        assert_eq!(parse_porcelain_entry(b"M  a.txt\0"), Some(((b'M', b' '), "a.txt".to_string())));
+        // 重命名：头为新路径 + 一个延续旧路径（消费但只认头）
+        assert_eq!(
+            parse_porcelain_entry(b"R  new.txt\0old.txt\0"),
+            Some(((b'R', b' '), "new.txt".to_string()))
+        );
+        // 空输出 → None
+        assert_eq!(parse_porcelain_entry(b""), None);
+        assert_eq!(parse_porcelain_entry(b"\0"), None);
+        // 非头字段开头 → None
+        assert_eq!(parse_porcelain_entry(b"garbage\0"), None);
+        // 非 R/C 却带延续字段 → None（异常回退）
+        assert_eq!(parse_porcelain_entry(b"M  a.txt\0extra\0"), None);
+        // 续超两个字段 → None
+        assert_eq!(parse_porcelain_entry(b"R  new.txt\0old.txt\0junk\0"), None);
+        // 含空格文件名原文保留（不 trim）
+        assert_eq!(
+            parse_porcelain_entry(b"?? my file.txt\0"),
+            Some(((b'?', b'?'), "my file.txt".to_string()))
+        );
+    }
 }

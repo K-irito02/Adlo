@@ -63,6 +63,10 @@ export function createWorkspaceLifecycleActions(
       await get().bootstrap();
       // 切换后对账（事项5）：worktree 替换式等场景下源工作区已不在，
       // 悬空选中文件在新上下文重读，缺失则清空为空（bootstrap 本身不碰选中态）。
+      // 接受项（P4-R1-N5/F8）：此处固定多一次文件读（含大纲），换取切换后即时新鲜；
+      // worktree 替换路径会再付一次（源移除后那次才是生效的），分支切换低频可接受。
+      // 预览保留约定（P4-R1-N5/F9）：变更预览按所属工作区归属保留，不随文件选中联动；
+      // 切后树与预览可能分属不同工作区，属多工作区模型的既定行为（导航弱选中可辨归属）。
       await get().reconcileSelectedFileAfterWorkspaceSwitch();
 
       return { ok: true };

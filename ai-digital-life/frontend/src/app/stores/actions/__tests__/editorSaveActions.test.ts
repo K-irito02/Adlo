@@ -322,6 +322,42 @@ describe('reconcileSelectedFileAfterWorkspaceSwitch（事项5）', () => {
       'note.txt',
     );
   });
+
+  it('归属新工作区时不写 lastFile（P4-R1-F6：巧合重名不污染重启恢复）', async () => {
+    const { store } = makeStore();
+    seedSwitch(store, {
+      currentId: 'ws-new',
+      currentPath: '/new',
+      selectedWsId: 'ws-old',
+      listed: [{ id: 'ws-new', path: '/new' }],
+    });
+    store.setState({ lastOpenedFile: { workspaceId: 'ws-old', relativePath: 'note.txt' } });
+    bridge().readFile.mockResolvedValue({
+      ok: true,
+      data: { path: 'note.txt', content: 'v-new\n', lastModifiedAt: 9 },
+    });
+    await switchAction(store).reconcileSelectedFileAfterWorkspaceSwitch();
+    expect((store.getState() as unknown as { lastOpenedFile: unknown }).lastOpenedFile).toEqual({
+      workspaceId: 'ws-old',
+      relativePath: 'note.txt',
+    });
+  });
+
+  it('选中无归属 → 不动（P4-R1-F7：不猜家园）', async () => {
+    const { store } = makeStore();
+    store.setState({
+      appInfo: { currentWorkspace: { id: 'ws-new', path: '/new' } },
+      selectedFileWorkspaceId: undefined,
+      recentWorkspaces: [
+        { id: 'ws-new', path: '/new', removedFromSidebar: false, available: true },
+      ],
+    });
+    await switchAction(store).reconcileSelectedFileAfterWorkspaceSwitch();
+    expect(bridge().readFile).not.toHaveBeenCalled();
+    expect((store.getState() as unknown as { selectedFilePath: string }).selectedFilePath).toBe(
+      'note.txt',
+    );
+  });
 });
 
 describe('prefetchChangePreviewForWorkspace（事项4 hover 预取）', () => {
@@ -364,7 +400,7 @@ describe('prefetchChangePreviewForWorkspace（事项4 hover 预取）', () => {
     };
   }
 
-  function previewData(path: string) {
+  function previewData(path: string): Record<string, unknown> {
     return {
       path,
       changeKind: 'modified',
@@ -373,7 +409,7 @@ describe('prefetchChangePreviewForWorkspace（事项4 hover 预取）', () => {
       currentExists: true,
       baseContent: 'base\n',
       currentContent: 'current\n',
-    } as never;
+    };
   }
 
   it('未缓存 → 拉取并写缓存，重复调用不再调桥', async () => {
@@ -415,6 +451,20 @@ describe('prefetchChangePreviewForWorkspace（事项4 hover 预取）', () => {
       prefetchAction(store).prefetchChangePreviewForWorkspace('/repo', rel),
     ).resolves.toBeUndefined();
     prefetchBridge().mockResolvedValue({ ok: true, data: previewData(rel) });
+    await prefetchAction(store).prefetchChangePreviewForWorkspace('/repo', rel);
+    expect(prefetchBridge()).toHaveBeenCalledTimes(2);
+  });
+
+  it('重型预览不入缓存（P4-R1-F11）', async () => {
+    const { store } = makeStore();
+    seedWorkspace(store);
+    const rel = `hover-heavy-${Date.now()}.md`;
+    const big = 'x'.repeat(1024 * 1024 + 1);
+    prefetchBridge().mockResolvedValue({
+      ok: true,
+      data: { ...previewData(rel), baseContent: big, currentContent: big },
+    });
+    await prefetchAction(store).prefetchChangePreviewForWorkspace('/repo', rel);
     await prefetchAction(store).prefetchChangePreviewForWorkspace('/repo', rel);
     expect(prefetchBridge()).toHaveBeenCalledTimes(2);
   });

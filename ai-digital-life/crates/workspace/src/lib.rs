@@ -187,7 +187,6 @@ pub fn get_absolute_path(root: &Path, relative_path: &str) -> Result<String, App
 mod tests {
     use super::*;
     use adl_types::{WorkspaceChangeKind, WorkspaceChangeStatus, WorkspaceType};
-    use std::path::Path;
     use std::process::Command;
 
     fn run_git_test(dir: &Path, args: &[&str]) {
@@ -469,15 +468,15 @@ mod tests {
             .join(format!("adl-workspace-change-preview-parity-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         init_git_repo(&dir);
-        // modified
-        std::fs::write(dir.join("a.txt"), "a1\n").unwrap();
-        run_git_test(&dir, &["add", "a.txt"]);
+        // 先把基线全部提交，再统一制造工作区状态（避免中间 commit 吞掉已暂存变更）。
+        for name in ["a.txt", "b.txt", "mm.txt", "sd.txt", "ro.txt"] {
+            std::fs::write(dir.join(name), "v1\n").unwrap();
+            run_git_test(&dir, &["add", name]);
+        }
         run_git_test(&dir, &["commit", "-m", "init"]);
+        // modified
         std::fs::write(dir.join("a.txt"), "a2\n").unwrap();
         // staged
-        std::fs::write(dir.join("b.txt"), "b1\n").unwrap();
-        run_git_test(&dir, &["add", "b.txt"]);
-        run_git_test(&dir, &["commit", "-m", "init"]);
         std::fs::write(dir.join("b.txt"), "b2\n").unwrap();
         run_git_test(&dir, &["add", "b.txt"]);
         // untracked
@@ -488,8 +487,43 @@ mod tests {
         // untracked inside a brand-new directory
         std::fs::create_dir_all(dir.join("newdir")).unwrap();
         std::fs::write(dir.join("newdir/f.md"), "f1\n").unwrap();
+        // AM: staged-new + worktree edit → Modified on both
+        std::fs::write(dir.join("am.txt"), "am1\n").unwrap();
+        run_git_test(&dir, &["add", "am.txt"]);
+        std::fs::write(dir.join("am.txt"), "am2\n").unwrap();
+        // MM: staged + unstaged edit → Modified on both
+        std::fs::write(dir.join("mm.txt"), "mm2\n").unwrap();
+        run_git_test(&dir, &["add", "mm.txt"]);
+        std::fs::write(dir.join("mm.txt"), "mm3\n").unwrap();
+        // staged delete
+        run_git_test(&dir, &["rm", "sd.txt"]);
+        // staged rename: query by NEW path → Staged on both
+        run_git_test(&dir, &["mv", "ro.txt", "rn.txt"]);
+        // intent-to-add → Modified on both
+        std::fs::write(dir.join("ita.txt"), "ita1\n").unwrap();
+        run_git_test(&dir, &["add", "-N", "ita.txt"]);
+        // space in name
+        std::fs::write(dir.join("my file.txt"), "sp1\n").unwrap();
 
-        for path in ["a.txt", "b.txt", "c.txt", "d.txt", "newdir/f.md"] {
+        for path in [
+            "a.txt",
+            "b.txt",
+            "c.txt",
+            "d.txt",
+            "newdir/f.md",
+            "am.txt",
+            "mm.txt",
+            "sd.txt",
+            "rn.txt",
+            "ita.txt",
+            "my file.txt",
+        ] {
+            // fast-hit 断言（P4-R1-R2-N1）：parity 比较之前先证快路径确实命中，
+            // 否则断言只能证明"回退与全量一致"。
+            assert!(
+                crate::preview::porcelain_status_for_file(&dir, path).is_some(),
+                "fast path hit for {path}"
+            );
             let fast = read_change_preview(&dir, path);
             let full = crate::preview::read_change_preview_full(&dir, path);
             assert_eq!(format!("{fast:?}"), format!("{full:?}"), "fast/full parity for {path}");
@@ -510,6 +544,52 @@ mod tests {
             read_change_preview(&dir, "d.txt").unwrap().change_kind,
             WorkspaceChangeKind::Added
         );
+        assert_eq!(
+            read_change_preview(&dir, "am.txt").unwrap().status,
+            WorkspaceChangeStatus::Modified
+        );
+        assert_eq!(
+            read_change_preview(&dir, "mm.txt").unwrap().status,
+            WorkspaceChangeStatus::Modified
+        );
+        assert_eq!(
+            read_change_preview(&dir, "sd.txt").unwrap().status,
+            WorkspaceChangeStatus::Staged
+        );
+        assert_eq!(
+            read_change_preview(&dir, "rn.txt").unwrap().status,
+            WorkspaceChangeStatus::Staged
+        );
+        assert_eq!(
+            read_change_preview(&dir, "ita.txt").unwrap().status,
+            WorkspaceChangeStatus::Modified
+        );
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    // 事项4-R2 / P4-R1-F1：staged 重命名按 OLD 路径查询的分歧备案。
+    // 全量按 `--name-only` 只列新路径 → NotFound；快路径 status 对旧路径报 `D ` → Ok。
+    // 该查询经 UI 不可达（变更树只列新路径，点击/预取永不问旧路径），故保留快行为，
+    // 此测试将分歧钉死，防止未来"修复"时无声改变任一侧。
+    #[test]
+    #[ignore = "requires git in PATH"]
+    fn change_preview_rename_old_path_divergence_is_pinned() {
+        let dir = std::env::temp_dir()
+            .join(format!("adl-workspace-change-preview-parity-ro-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        init_git_repo(&dir);
+        std::fs::write(dir.join("ro.txt"), "ro1\n").unwrap();
+        run_git_test(&dir, &["add", "ro.txt"]);
+        run_git_test(&dir, &["commit", "-m", "init"]);
+        run_git_test(&dir, &["mv", "ro.txt", "rn.txt"]);
+
+        let fast = read_change_preview(&dir, "ro.txt");
+        let full = crate::preview::read_change_preview_full(&dir, "ro.txt");
+        assert!(matches!(full, Err(AppError::NotFound(_))));
+        let preview = fast.expect("fast path answers rename-old queries directly");
+        assert_eq!(preview.status, WorkspaceChangeStatus::Staged);
+        assert_eq!(preview.change_kind, WorkspaceChangeKind::Deleted);
 
         let _ = std::fs::remove_dir_all(dir);
     }

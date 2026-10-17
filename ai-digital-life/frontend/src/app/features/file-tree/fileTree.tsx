@@ -258,14 +258,21 @@ export function FileTree<T extends FileTreeRenderableNode>({
     useFileTreeHover<T>(flatNodes);
 
   // 悬停文件通知（事项4）：只对文件节点触发，目录不触发；无订阅者时零开销。
+  // 同路径重复通知跳过（P4-R1-F04）：树刷新重建 flatNodes 时防抖 timer 不被无谓重置。
   const hoverFileRef = useRef(onHoverFile);
   hoverFileRef.current = onHoverFile;
+  const lastNotifiedHoverRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     if (!hoveredPath) {
+      lastNotifiedHoverRef.current = undefined;
+      return;
+    }
+    if (hoveredPath === lastNotifiedHoverRef.current) {
       return;
     }
     const hit = flatNodes.find((flatNode) => flatNode.node.path === hoveredPath);
     if (hit && hit.node.kind !== 'directory') {
+      lastNotifiedHoverRef.current = hit.node.path;
       hoverFileRef.current?.(hit.node.path);
     }
   }, [hoveredPath, flatNodes]);

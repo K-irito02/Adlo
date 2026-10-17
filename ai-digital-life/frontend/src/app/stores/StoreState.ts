@@ -218,10 +218,7 @@ interface EditorActions {
   /**
    * hover 意图预取变更预览（事项4）：只写缓存，不碰选择态/加载态。
    */
-  prefetchChangePreviewForWorkspace: (
-    workspacePath: string,
-    relativePath: string,
-  ) => Promise<void>;
+  prefetchChangePreviewForWorkspace: (workspacePath: string, relativePath: string) => Promise<void>;
 }
 
 interface GitActions {

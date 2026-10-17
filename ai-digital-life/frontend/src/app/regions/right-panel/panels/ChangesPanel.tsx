@@ -54,7 +54,8 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
     handleChangesNodeClicked,
     handleHoverChangePreview,
     handleChangesWorkspaceRootClick,
-    handleChangesClearSelection,    snapshot,
+    handleChangesClearSelection,
+    snapshot,
     lineNumbersEnabled,
     wordWrapEnabled,
     changesPreviewContainerRef,
@@ -113,9 +114,10 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
   } = useChangesPanelState(props);
 
   // 编辑器 chunk 空闲预热（事项4）：挂载后即预取，首切不再付懒加载代价。
+  // timeout 兜底：主线程饱和时 idle 回调也最多等 2s（P4-R1-F05）。
   useEffect(() => {
     if (typeof requestIdleCallback === 'function') {
-      const id = requestIdleCallback(() => warmRightPanelEditors());
+      const id = requestIdleCallback(() => warmRightPanelEditors(), { timeout: 2000 });
       return () => cancelIdleCallback(id);
     }
     const timer = window.setTimeout(() => warmRightPanelEditors(), 0);
@@ -239,8 +241,6 @@ const ChangesPanel = React.memo(function ChangesPanel(props: ChangesPanelProps) 
                 diffSideBySide={props.diffSideBySide}
                 latestPatchApplication={latestPatchApplication}
                 appInfo={appInfo}
-                totalChangeCount={totalChangeCount}
-                visibleWorkspacesLength={visibleWorkspaces.length}
                 previewEnabled={previewEnabled}
                 lineNumbersEnabled={lineNumbersEnabled}
                 wordWrapEnabled={wordWrapEnabled}

@@ -44,8 +44,6 @@ interface DiffEditorSectionProps extends Pick<
   | 'onOpenFile'
   | 'selectedChangePreviewWorkspaceId'
 > {
-  totalChangeCount: number;
-  visibleWorkspacesLength: number;
   previewEnabled: boolean;
   lineNumbersEnabled: boolean;
   wordWrapEnabled: boolean;

@@ -146,6 +146,8 @@ export function useChangesActions(params: UseChangesActionsParams) {
 
   // hover 意图预取（事项4）：悬停 150ms 未移走才预取变更预览进缓存，
   // 点击时命中缓存即同步渲染；只写缓存，不碰选择态/加载态。
+  // 说明（P4-R1-F03）：鼠标直接离树不取消已武装的 timer，一次多余预取无害
+  //（纯写缓存、重型不入，点击链不受影响），故不另铺 onHoverEnd 通道。
   const hoverPrefetchTimer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(hoverPrefetchTimer.current), []);
   const onHoverChangePreview = useCallback((workspacePath: string, relativePath: string) => {

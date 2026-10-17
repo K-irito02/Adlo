@@ -27,6 +27,27 @@ export function setPendingChangePreviewPath(path: string | undefined): void {
   pendingChangePreviewPath = path;
 }
 
+/**
+ * 预览取消纪元（P4-R1-N3）：每次清空选中预览即推进；只写缓存的预取凭此作废，
+ * 避免清空后落定的预取把刚失效的旧 diff 又种回缓存。
+ */
+export let previewCancelEpoch = 0;
+
+/**
+ * 取消在途变更预览 landing（P4-R1-F2/N1）：只清与被清空路径同名的 pending 槽，
+ * 并推进被清空键的 `preview:` 代际（open landing 凭代际失配丢弃，不复活已清选中；
+ * 作用域限定在被清空的键，不误伤其他工作区的在途打开）。
+ * 同时失效被清空路径的缓存条目（N3）。
+ */
+export function cancelPreviewLanding(cacheKey: string, clearedPath: string | undefined): void {
+  if (clearedPath !== undefined && pendingChangePreviewPath === clearedPath) {
+    pendingChangePreviewPath = undefined;
+  }
+  nextFileGen(`preview:${cacheKey}`);
+  invalidateCachedChangePreview(cacheKey);
+  previewCancelEpoch += 1;
+}
+
 /** 缓存类型定义 */
 export interface CachedFileDocument {
   content: string;

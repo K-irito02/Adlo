@@ -6,6 +6,7 @@ function setup(flush: { saved: number; failed: number } = { saved: 0, failed: 0 
   const cancelPendingSearch = vi.fn();
   const bootstrap = vi.fn().mockResolvedValue(undefined);
   const saveDirtyEditors = vi.fn().mockResolvedValue(flush);
+  const reconcileSelectedFileAfterWorkspaceSwitch = vi.fn().mockResolvedValue(undefined);
   const showToast = vi.fn(() => 'toast-id');
   const state = {
     appInfo: { currentWorkspace: { id: 'ws-old', path: '/old' } },
@@ -14,7 +15,7 @@ function setup(flush: { saved: number; failed: number } = { saved: 0, failed: 0 
     cancelPendingSearch,
     bootstrap,
     saveDirtyEditors,
-    reconcileSelectedFileAfterWorkspaceSwitch: vi.fn().mockResolvedValue(undefined),
+    reconcileSelectedFileAfterWorkspaceSwitch,
     showToast,
   } as unknown as StoreState;
   const get = () => state;
@@ -26,7 +27,14 @@ function setup(flush: { saved: number; failed: number } = { saved: 0, failed: 0 
     },
   };
   const actions = createWorkspaceLifecycleActions(set as never, get as never);
-  return { actions, cancelPendingSearch, bootstrap, saveDirtyEditors, showToast };
+  return {
+    actions,
+    cancelPendingSearch,
+    bootstrap,
+    saveDirtyEditors,
+    reconcileSelectedFileAfterWorkspaceSwitch,
+    showToast,
+  };
 }
 
 describe('workspaceLifecycleActions search hygiene (事项 45 Phase 4)', () => {
@@ -37,6 +45,13 @@ describe('workspaceLifecycleActions search hygiene (事项 45 Phase 4)', () => {
     expect(bootstrap).toHaveBeenCalledTimes(1);
   });
 
+  it('openWorkspace reconciles selection after bootstrap (P4-R1-N5)', async () => {
+    const { actions, bootstrap, reconcileSelectedFileAfterWorkspaceSwitch } = setup();
+    await actions.openWorkspace('/new');
+    expect(bootstrap).toHaveBeenCalledTimes(1);
+    expect(reconcileSelectedFileAfterWorkspaceSwitch).toHaveBeenCalledTimes(1);
+  });
+
   it('openWorkspace flushes dirty editors before switching', async () => {
     const { actions, saveDirtyEditors } = setup();
     await actions.openWorkspace('/new');
@@ -44,10 +59,14 @@ describe('workspaceLifecycleActions search hygiene (事项 45 Phase 4)', () => {
   });
 
   it('openWorkspace aborts on flush failure without bootstrap or toast-less switch (P4 L1)', async () => {
-    const { actions, bootstrap, showToast } = setup({ saved: 0, failed: 1 });
+    const { actions, bootstrap, showToast, reconcileSelectedFileAfterWorkspaceSwitch } = setup({
+      saved: 0,
+      failed: 1,
+    });
     const result = await actions.openWorkspace('/new');
     expect(result).toEqual({ ok: false, error: 'saveDirtyEditors failed' });
     expect(bootstrap).not.toHaveBeenCalled();
+    expect(reconcileSelectedFileAfterWorkspaceSwitch).not.toHaveBeenCalled();
     expect(showToast).toHaveBeenCalledWith(expect.any(String), 'error');
   });
 
