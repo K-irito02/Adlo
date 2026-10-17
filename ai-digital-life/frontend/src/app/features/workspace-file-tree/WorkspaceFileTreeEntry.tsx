@@ -292,7 +292,7 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
   const handleRequestBranchOpen = useCallback(() => {
     closeMenu();
     setBranchSubOpen(true);
-  }, [closeMenu]);
+  }, [closeMenu, setBranchSubOpen]);
 
   const handleConfirmRemove = useCallback(() => {
     setConfirmRemoveOpen(false);

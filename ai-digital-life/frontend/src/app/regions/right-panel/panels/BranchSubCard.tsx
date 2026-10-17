@@ -28,8 +28,6 @@ interface BranchSubCardProps {
   onOpenChange: (open: boolean) => void;
   onSelect?: (branchName: string) => void;
   workspacePath?: string;
-  onSubEnter?: () => void;
-  onSubLeave?: () => void;
   isRepo?: boolean;
 }
 
@@ -54,8 +52,6 @@ export function BranchSubCard({
   onOpenChange,
   onSelect,
   workspacePath,
-  onSubEnter,
-  onSubLeave,
   isRepo: isRepoProp,
 }: BranchSubCardProps) {
   const { t } = useTCopy();
@@ -119,20 +115,30 @@ export function BranchSubCard({
     }
   }, [isOpen]);
 
-  // P4 F6：确认面板打开时 Escape 等价取消（焦点由 autoFocus 送入批准按钮）。
+  // Escape 单一监听（R1：双监听同 target 不互斥）：确认态优先退回（与各取消按钮同语义），
+  // 否则关闭整卡。P4 F6 确认态 Escape 等价取消（焦点由 autoFocus 送入批准按钮）。
   useEffect(() => {
-    if (!modeFlow || modeFlow.step === 'choose') {
+    if (!isOpen) {
       return;
     }
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        setModeFlow(null);
+      if (event.key !== 'Escape') {
+        return;
       }
+      event.stopPropagation();
+      if (modeFlow) {
+        if (modeFlow.step === 'confirmRemote') {
+          setModeFlow({ ...modeFlow, step: 'choose', mode: 'local' });
+        } else {
+          setModeFlow(null);
+        }
+        return;
+      }
+      onOpenChange(false);
     };
     window.addEventListener('keydown', onKeyDown, true);
     return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [modeFlow]);
+  }, [isOpen, modeFlow, onOpenChange]);
 
   const localCount = useMemo(() => gitBranches.filter((b) => b.local).length, [gitBranches]);
   const remoteCount = useMemo(() => gitBranches.filter((b) => b.remote).length, [gitBranches]);
@@ -191,11 +197,12 @@ export function BranchSubCard({
 
   const handleSelect = useCallback(
     (branch: GitBranchSummary) => {
-      if (busyBranch) {
+      // 同步锁读 ref（R1-03）：state 同 tick 未提交，双击可穿透。
+      if (busyRef.current) {
         return;
       }
       // 已处当前分支仍允许再选：仅当需要选态（本地/远程已分叉或远程超前）时
-      // 打开底部三选项，支持切到该分支的另一种状态；同态仍走 AlreadyAdded 提示。
+      // 打开底部三选项，支持切到该分支的另一种状态；同态（无另一态可切）静默忽略。
       if (branch.name === currentBranch && !needsModeChoice(branch)) {
         return;
       }
@@ -210,7 +217,7 @@ export function BranchSubCard({
       }
       void doEnsure(branch.name, 'local', false);
     },
-    [currentBranch, busyBranch, doEnsure],
+    [currentBranch, doEnsure],
   );
 
   const divergeHint = useCallback(
@@ -233,20 +240,17 @@ export function BranchSubCard({
     [t],
   );
 
-  // 居中大卡：Escape 关闭整卡（确认态优先退回上一步，保持 P4 F6 语义）。
+  // 居中模态：打开时锁背景滚动，关闭恢复（R1-06）。
   useEffect(() => {
     if (!isOpen) {
       return;
     }
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation();
-        onOpenChange(false);
-      }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
     };
-    window.addEventListener('keydown', onKeyDown, true);
-    return () => window.removeEventListener('keydown', onKeyDown, true);
-  }, [isOpen, onOpenChange]);
+  }, [isOpen]);
 
   if (!isOpen) {
     return null;
@@ -301,8 +305,6 @@ export function BranchSubCard({
         role="dialog"
         aria-modal="true"
         aria-label={t.changesBranchSwitch as string}
-        onMouseEnter={onSubEnter}
-        onMouseLeave={onSubLeave}
       >
         <div className="adl-changes-branch-header">
           <span className="adl-changes-branch-header__title">
@@ -379,8 +381,7 @@ export function BranchSubCard({
               <button
                 key={branch.name}
                 type="button"
-                role="menuitemradio"
-                aria-checked={branch.name === currentBranch}
+                aria-current={branch.name === currentBranch ? 'true' : undefined}
                 className={`adl-changes-branch-item${branch.name === currentBranch ? ' is-current' : ''}`}
                 onClick={() => handleSelect(branch)}
                 title={branch.name}
@@ -524,7 +525,6 @@ export function BranchSubCard({
           <div
             className="adl-changes-branch-confirm"
             role="alertdialog"
-            aria-modal="false"
             aria-label={t.changesBranchRemoteConfirmTitle as string}
           >
             <p className="adl-changes-branch-confirm__title">
@@ -557,7 +557,6 @@ export function BranchSubCard({
           <div
             className="adl-changes-branch-confirm"
             role="alertdialog"
-            aria-modal="false"
             aria-label={t.changesBranchTargetStashConfirm as string}
           >
             <p className="adl-changes-branch-confirm__body">
@@ -585,8 +584,12 @@ export function BranchSubCard({
         ) : null}
         {busyBranch !== null ? (
           <div className="adl-changes-branch-loading-mask" role="status" aria-live="polite">
-            <Spinner size="md" speed="normal" />
-            <span>{formatT(t, 'changesBranchSwitching', { branch: busyBranch })}</span>
+            <span aria-hidden="true" className="adl-changes-branch-loading-mask__spinner">
+              <Spinner size="md" speed="normal" />
+            </span>
+            <span className="adl-changes-branch-loading-mask__text" title={busyBranch}>
+              {formatT(t, 'changesBranchSwitching', { branch: busyBranch })}
+            </span>
           </div>
         ) : null}
       </div>
