@@ -47,6 +47,15 @@ Misc: `--focus-ring`, `--shadow-soft`, `--shadow-inset-highlight`, `--shadow-pan
 - Transparent editor states should be expressed using the target API's accepted transparent literal, not by assuming browser CSS parsing rules apply inside the programmatic theme layer.
 - Fold gutter tooltips use `FoldTooltipOverlay` (a React portal component) to render tooltip content to `document.body`. Fold events use capture-phase `document.addEventListener` to bypass CodeMirror MergeView's internal `stopPropagation()`. Gutter hover highlights use a `position: fixed` overlay covering the full gutter width, driven by `mousemove` + `requestAnimationFrame`.
 
+## Third-party preview themes (Markdown)
+
+Rendered Markdown previews are a **separate theme axis** from the app chrome tokens above:
+
+- The app chrome (`--bg`, `--text-*`, …) always follows `data-theme` on `<html>`. Markdown previews instead use GitHub's own palettes (`github-markdown-css`), driven by a **generated, variable-parameterized single stylesheet** (`frontend/src/styles/vendor/markdown-theme-vars.css`, produced by `frontend/scripts/generate-md-theme-vars.mjs`) — see the CSS architecture rule for the convention.
+- Themes are grouped by appearance: **light group** (`light`, `light-colorblind`) and **dark group** (`dark`, `dark-dimmed`, `dark-high-contrast`, `dark-colorblind`). Only the group matching the resolved app theme is offered; flipping the app theme auto-switches groups. Light and dark selections persist independently (`adl:files.markdownTheme{Light,Dark}`).
+- Switching is a single container attribute flip (`data-md-theme` on `.adl-markdown-preview.markdown-body`); no stylesheet reload. Preview surfaces therefore change in lockstep with the rest of the interface.
+- Preview typography and colors come entirely from the generated theme sheet — the app does **not** re-declare heading/list/table/quote styles for previews (only layout, the code-block frame, and the font-size zoom hook for the clipboard viewer). Reusable UI pattern for the theme picker: the `ChartColorPresetSelector` dropdown (hover-to-preview / leave-to-restore / check-on-confirm).
+
 ## Mode resolution
 
 ```ts

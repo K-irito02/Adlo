@@ -54,7 +54,7 @@ frontend/src/app/
 | 多工作区 | `features/multi-workspace/` |
 | 大纲 | `features/outline/` |
 | 补丁审查 | `features/patch-review/` |
-| 文件预览 | `features/preview/` |
+| 文件预览 | `features/preview/`（Markdown：`markdownTheme.ts` 主题解析/注入 + `starryNight.ts` 高亮单例 + `markdownPreviewUtils.ts` 渲染；docx/pdf/xlsx/pptx/媒体各自组件） |
 | 存储设置 | `features/storage-settings/` |
 | 系统监视器 | `features/system-monitor/` |
 | 终端 | `features/terminal/` |

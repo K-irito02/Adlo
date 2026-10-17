@@ -16,7 +16,7 @@
 | [browser](./browser/) | 内置浏览器实现与修复（导航、标签、书签、下载、favicon/元数据、历史、WebView 嵌入） | 54 |
 | [interaction](./interaction/) | 跨功能面板交互/UX 修复（GitHub 面板、终端、检索、Git 可视化、指针事件、toast） | 46 |
 | [refactoring](./refactoring/) | 重构方法论、执行记录与架构改进（process / store-ui / architecture） | 25 |
-| [code-quality](./code-quality/) | 代码质量检测与修复、工具链门禁（diff-viewer / git-vis-charts / toolchain-lint / 审计） | 32 |
+| [code-quality](./code-quality/) | 代码质量检测与修复、工具链门禁（diff-viewer / git-vis-charts / toolchain-lint / 审计） | 33 |
 | [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 15 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离） | 7 |
 | [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON 等后端经验 | 8 |
@@ -67,6 +67,7 @@
 - `git-vis-charts/` — 图表/热力图/echarts-visx 迁移/ChartBrush（9）
 - `toolchain-lint/` — ESLint/Prettier/Clippy/rustfmt 门禁与工具链（6）
 - `opencode-phase2-audit/` — 参考实现对照与 Phase 2 审计修复（6）
+- 根目录 — [frontend-render-pitfalls-2026-10-18.md](./code-quality/frontend-render-pitfalls-2026-10-18.md)（`dangerouslySetInnerHTML` 内联字面量导致每次渲染重写 DOM / 变量驱动主题换肤 / 诊断纪律）
 
 ### Multi-workspace
 
