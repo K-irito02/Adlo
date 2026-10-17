@@ -35,6 +35,21 @@ export const changesZh = {
   changesApplied: '已应用',
   changesListView: '文件列表',
   changesBranchSwitch: '切换分支',
+  changesBranchMenuHint:
+    '点击后在窗口中央打开分支列表，可搜索、按本地/远程筛选后切换。\n· 平时显示当前分支名，鼠标悬停时显示“切换分支”。\n· 只有点击本行才会打开，悬停不会弹出。',
+  changesBranchHelpTitle: '切换分支说明',
+  changesBranchHelpSearchTitle: '找分支',
+  changesBranchHelpSearchBody:
+    '顶部可搜索分支名；点“本地/远程”可只看本地或远程分支。分支很多时，列表可上下滚动。',
+  changesBranchHelpModeTitle: '三种切法',
+  changesBranchHelpModeBody:
+    '· 切换为本地分支：保留本地样子直接切。\n· 切换为远程分支：用远程的样子重置本地，本地独有的提交会先暂存起来，不会丢。\n· 同步并切换：先把两边合在一起再切，适合两边都有新提交时用。',
+  changesBranchHelpDivergeTitle: '图标含义',
+  changesBranchHelpDivergeBody:
+    '↑ 本地超前（本地有新提交）、↓ 远程超前（远程有新提交）、⇕ 两边已分叉。L 为本地、R 为远程。',
+  changesBranchHelpSafeTitle: '变更处理',
+  changesBranchHelpSafeBody:
+    '切换前会自动检查未保存的改动，必要时会先暂存。已在当前分支时也可再点，方便换到它的另一种状态。点右上角 × 或按 Esc 可关闭。',
   changesBranchSearch: '搜索分支…',
   changesBranchLocal: '本地',
   changesBranchRemote: '远程',
@@ -50,7 +65,9 @@ export const changesZh = {
   changesBranchSwitchRemote: '切换为远程分支',
   changesBranchSwitchSync: '同步并切换',
   changesBranchRemoteConfirm:
-    '将以远程分支重置本地分支，本地独有提交会被移出工作区（已暂存），是否继续？',
+    '用远程分支覆盖本地分支：本地独有的提交会先自动暂存（可在之后找回），再把本地重置成和远程一模一样。确定要继续吗？',
+  changesBranchRemoteConfirmTitle: '切换为远程分支前请确认',
+  changesBranchSwitching: '正在切换到 {branch}…',
   changesBranchTargetStashConfirm: '目标分支的工作区有未提交变更，将暂存后继续，是否继续？',
   changesBranchAlreadyAdded: '分支 {branch} 的工作区已在列表中，无需重复切换',
   changesBranchStashCount: '自动暂存 ×{count}',

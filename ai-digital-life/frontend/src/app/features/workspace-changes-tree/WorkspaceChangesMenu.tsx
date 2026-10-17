@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import type { GitSnapshot, RecentWorkspaceEntry } from '@shared/ipc';
 import type { CopyDict } from '@i18n';
 import { IconCopy, IconEyeOff, IconFolderOpen } from '@icons';
 import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
@@ -10,11 +9,8 @@ export interface WorkspaceChangesMenuProps {
   menuOpen: boolean;
   menuPosition: { top: number; left: number } | null;
   menuId: string;
-  branchSubOpen: boolean;
-  setBranchSubOpen: (open: boolean) => void;
-  workspace: RecentWorkspaceEntry;
-  gitSnapshot: GitSnapshot | undefined;
   currentBranch: string;
+  onRequestBranchOpen: () => void;
   t: CopyDict;
   onHideFromRightPanels: () => void;
   onRevealInFileManager: () => void;
@@ -27,11 +23,8 @@ export const WorkspaceChangesMenu = React.memo(function WorkspaceChangesMenu({
   menuOpen,
   menuPosition,
   menuId,
-  branchSubOpen,
-  setBranchSubOpen,
-  workspace,
-  gitSnapshot,
   currentBranch,
+  onRequestBranchOpen,
   t,
   onHideFromRightPanels,
   onRevealInFileManager,
@@ -84,13 +77,7 @@ export const WorkspaceChangesMenu = React.memo(function WorkspaceChangesMenu({
       data-menu-id={menuId}
       style={{ top: menuPosition.top, left: menuPosition.left }}
     >
-      <BranchMenuItem
-        isSubOpen={branchSubOpen}
-        onSubOpenChange={setBranchSubOpen}
-        workspacePath={workspace.path}
-        currentBranch={currentBranch}
-        isRepo={gitSnapshot?.isRepo ?? false}
-      />
+      <BranchMenuItem currentBranch={currentBranch} onRequestOpen={onRequestBranchOpen} />
       <div className="adl-multitree-entry__menu-sep" role="separator" />
       <button type="button" className="adl-multitree-entry__menu-item" role="menuitem" disabled>
         {t.changesStageAll}

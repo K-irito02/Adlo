@@ -35,6 +35,21 @@ export const changesEn = {
   changesApplied: 'applied',
   changesListView: 'File list',
   changesBranchSwitch: 'Switch Branch',
+  changesBranchMenuHint:
+    'Click to open the branch list centered on screen, then search or filter by Local/Remote before switching.\n· The row shows the current branch; hovering shows “Switch Branch”.\n· Hovering never opens the dialog — only a click does.',
+  changesBranchHelpTitle: 'About switching branches',
+  changesBranchHelpSearchTitle: 'Find a branch',
+  changesBranchHelpSearchBody:
+    'Search by name at the top; toggle Local/Remote to narrow the list. The list scrolls when there are many branches.',
+  changesBranchHelpModeTitle: 'Three ways to switch',
+  changesBranchHelpModeBody:
+    '· Switch to local branch: keep the local shape and switch directly.\n· Switch to remote branch: reset local to match remote; local-only commits are stashed first so nothing is lost.\n· Sync and switch: combine both sides first, best when both sides have new commits.',
+  changesBranchHelpDivergeTitle: 'What the icons mean',
+  changesBranchHelpDivergeBody:
+    '↑ local ahead (local has new commits), ↓ remote ahead (remote has new commits), ⇕ diverged. L means local, R means remote.',
+  changesBranchHelpSafeTitle: 'Change handling',
+  changesBranchHelpSafeBody:
+    'Unsaved changes are checked before switching and stashed when needed. You can click the current branch again to pick its other state. Click × or press Esc to close.',
   changesBranchSearch: 'Search branches…',
   changesBranchLocal: 'Local',
   changesBranchRemote: 'Remote',
@@ -50,7 +65,9 @@ export const changesEn = {
   changesBranchSwitchRemote: 'Switch to remote branch',
   changesBranchSwitchSync: 'Sync and switch',
   changesBranchRemoteConfirm:
-    'The local branch will be reset to the remote branch; local-only commits leave the worktree (stashed). Continue?',
+    'Reset the local branch to match the remote branch: local-only commits are auto-stashed first (recoverable later), then local becomes exactly like remote. Continue?',
+  changesBranchRemoteConfirmTitle: 'Confirm switching to the remote branch',
+  changesBranchSwitching: 'Switching to {branch}…',
   changesBranchTargetStashConfirm:
     'The target branch worktree has uncommitted changes. Stash and continue?',
   changesBranchAlreadyAdded: 'Branch {branch} workspace is already listed — no switch needed',

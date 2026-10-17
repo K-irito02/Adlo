@@ -15,7 +15,7 @@ import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { useAppStore } from '@stores/slicedStore';
-import { BranchMenuItem } from '@regions/right-panel/panels/BranchSubCard';
+import { BranchMenuItem, BranchSubCard } from '@regions/right-panel/panels/BranchSubCard';
 import { MenuHintItem } from '@components/MenuHintItem';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
 import { joinPathSegments } from '@app/utils/workspacePaths';
@@ -287,6 +287,13 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
     setConfirmRemoveOpen(true);
   }, [closeMenu]);
 
+  // 点击“切换分支”行：先关父菜单（与其余选项一致），再开居中大卡。
+  // 大卡上提到本组件根（自带 portal），不受父菜单外点监听影响。
+  const handleRequestBranchOpen = useCallback(() => {
+    closeMenu();
+    setBranchSubOpen(true);
+  }, [closeMenu]);
+
   const handleConfirmRemove = useCallback(() => {
     setConfirmRemoveOpen(false);
     onHideFromRightPanels(workspace.id);
@@ -397,11 +404,8 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
               }}
             >
               <BranchMenuItem
-                isSubOpen={branchSubOpen}
-                onSubOpenChange={setBranchSubOpen}
-                workspacePath={workspace.path}
                 currentBranch={currentBranch}
-                isRepo={gitSnapshot?.isRepo ?? false}
+                onRequestOpen={handleRequestBranchOpen}
               />
               <div className="adl-multitree-entry__menu-sep" role="separator" />
               <MenuHintItem
@@ -448,6 +452,13 @@ export const WorkspaceFileTreeEntry = React.memo(function WorkspaceFileTreeEntry
         workspaceName={workspace.name}
         onConfirm={handleConfirmRemove}
         onCancel={() => setConfirmRemoveOpen(false)}
+      />
+
+      <BranchSubCard
+        isOpen={branchSubOpen}
+        onOpenChange={setBranchSubOpen}
+        workspacePath={workspace.path}
+        isRepo={gitSnapshot?.isRepo ?? false}
       />
 
       {isExpanded ? (

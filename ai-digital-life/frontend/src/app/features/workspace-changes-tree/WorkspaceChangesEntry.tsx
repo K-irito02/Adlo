@@ -13,6 +13,7 @@ import { FileTree, type FileTreeContextMenuItem } from '@features/file-tree';
 import { TooltipSimple } from '@components/Tooltip';
 import { LoadingRow, EmptyRow } from '@components/LoadingRow';
 import { WorkspaceRemoveConfirmDialog } from '@components/WorkspaceRemoveConfirmDialog';
+import { BranchSubCard } from '@regions/right-panel/panels/BranchSubCard';
 import { useWorkspaceChangesActions } from './WorkspaceChangesActions';
 import { WorkspaceChangesMenu } from './WorkspaceChangesMenu';
 
@@ -115,6 +116,11 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
   });
 
   const [confirmRemoveOpen, setConfirmRemoveOpen] = useState(false);
+  // 点击“切换分支”行：先关父菜单（与其余选项一致），再开居中大卡。
+  const handleRequestBranchOpen = useCallback(() => {
+    closeMenu();
+    setBranchSubOpen(true);
+  }, [closeMenu, setBranchSubOpen]);
   const handleRequestRemove = useCallback(() => {
     closeMenu();
     setConfirmRemoveOpen(true);
@@ -208,11 +214,8 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
         menuOpen={menuOpen}
         menuPosition={menuPosition}
         menuId={menuId}
-        branchSubOpen={branchSubOpen}
-        setBranchSubOpen={setBranchSubOpen}
-        workspace={workspace}
-        gitSnapshot={gitSnapshot}
         currentBranch={currentBranch}
+        onRequestBranchOpen={handleRequestBranchOpen}
         t={t}
         onHideFromRightPanels={handleRequestRemove}
         onRevealInFileManager={handleRevealInFileManager}
@@ -226,6 +229,13 @@ export const WorkspaceChangesEntry = React.memo(function WorkspaceChangesEntry({
         workspaceName={workspace.name}
         onConfirm={handleConfirmRemove}
         onCancel={() => setConfirmRemoveOpen(false)}
+      />
+
+      <BranchSubCard
+        isOpen={branchSubOpen}
+        onOpenChange={setBranchSubOpen}
+        workspacePath={workspace.path}
+        isRepo={gitSnapshot?.isRepo ?? false}
       />
 
       {isExpanded ? (
