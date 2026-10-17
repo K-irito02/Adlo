@@ -408,14 +408,6 @@
   white-space: nowrap;
 }
 
-/* Branch loading spinner */
-.adl-changes-branch-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: var(--space-4);
-}
-
 /* Branch menu dropdown — portal-rendered with position:fixed to escape overflow clipping */
 .adl-branch-menu__dropdown {
   position: fixed;

@@ -23,10 +23,8 @@ import { useHintCard, HintCard } from '@components/HintCard';
 import type { GitBranchSummary, GitSwitchMode } from '@ai-digital-life/kernel';
 
 interface BranchSubCardProps {
-  subRef?: React.RefObject<HTMLDivElement | null>;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect?: (branchName: string) => void;
   workspacePath?: string;
   isRepo?: boolean;
 }
@@ -47,10 +45,8 @@ function needsModeChoice(branch: GitBranchSummary): boolean {
 }
 
 export function BranchSubCard({
-  subRef,
   isOpen,
   onOpenChange,
-  onSelect,
   workspacePath,
   isRepo: isRepoProp,
 }: BranchSubCardProps) {
@@ -174,7 +170,6 @@ export function BranchSubCard({
       try {
         const path = await ensureBranchWorktree({ branchName, mode, allowStash }, workspacePath);
         if (path) {
-          onSelect?.(branchName);
           setModeFlow(null);
           onOpenChange(false);
           return;
@@ -192,7 +187,7 @@ export function BranchSubCard({
         setBusyBranch(null);
       }
     },
-    [ensureBranchWorktree, workspacePath, onSelect, onOpenChange],
+    [ensureBranchWorktree, workspacePath, onOpenChange],
   );
 
   const handleSelect = useCallback(
@@ -300,7 +295,6 @@ export function BranchSubCard({
       }}
     >
       <div
-        ref={subRef}
         className="adl-changes-branch-submenu adl-changes-branch-submenu--centered"
         role="dialog"
         aria-modal="true"
@@ -655,19 +649,10 @@ export function BranchMenuItem({
         className="adl-menu-item__hint"
         onMouseEnter={(e) => {
           e.stopPropagation();
-          const buttonEl = (e.target as HTMLElement).closest(
-            '.adl-multitree-entry__menu-item--with-sub',
+          showHintCard(
+            t.changesBranchMenuHint as string,
+            (e.currentTarget as HTMLElement).getBoundingClientRect(),
           );
-          const originalTitle = buttonEl?.getAttribute('title');
-          if (originalTitle) {
-            buttonEl?.setAttribute('data-original-title', originalTitle);
-            buttonEl?.removeAttribute('title');
-          }
-          const hintEl = e.currentTarget as HTMLElement;
-          const rect = hintEl.getBoundingClientRect();
-          if (rect) {
-            showHintCard(t.changesBranchMenuHint as string, rect);
-          }
         }}
         onMouseLeave={(e) => {
           e.stopPropagation();
