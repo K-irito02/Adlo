@@ -49,8 +49,8 @@ describe('useFileTreeRevealOnRequest', () => {
     });
     expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest' });
   });
-
-  it('does nothing when no row matches (no throw, no scroll)', () => {    document.body.innerHTML =
+  it('does nothing when no row matches (no throw, no scroll)', () => {
+    document.body.innerHTML =
       '<div data-workspace-id="ws-other"><div data-path="docs/a.md">other</div></div>';
     const scrollSpy = vi.fn();
     (window.HTMLElement.prototype as unknown as Record<string, unknown>).scrollIntoView = scrollSpy;
@@ -59,6 +59,8 @@ describe('useFileTreeRevealOnRequest', () => {
       useAppStore.getState().requestFileTreeReveal('ws1', 'docs/a.md');
     });
     expect(scrollSpy).not.toHaveBeenCalled();
+    // 行始终未出现：耗尽重试后同样消费掉，不留过期请求给以后 remount。
+    expect(useAppStore.getState().fileTreeRevealRequest).toBeNull();
     delete (window.HTMLElement.prototype as unknown as Record<string, unknown>).scrollIntoView;
   });
 

@@ -89,7 +89,9 @@ impl std::str::FromStr for LinkOpenMethod {
             "middle" => Ok(Self::Middle),
             "panel" => Ok(Self::Panel),
             "external" => Ok(Self::External),
-            other => Err(format!("Invalid LinkOpenMethod: {other}. Expected middle|panel|external")),
+            other => {
+                Err(format!("Invalid LinkOpenMethod: {other}. Expected middle|panel|external"))
+            },
         }
     }
 }

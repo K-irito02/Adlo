@@ -532,7 +532,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  min-width: 240px;
+  min-width: min(240px, 100%);
   max-width: 100%;
 }
 
@@ -651,7 +651,7 @@
 /* 「打开方式」组的两个下拉触发器保持等宽，不随当前选项文字长度变化。 */
 .adl-settings-dropdown--open-method {
   width: 200px;
-  min-width: 200px;
+  min-width: min(200px, 100%);
   max-width: 100%;
 }
 

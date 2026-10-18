@@ -65,20 +65,50 @@ describe('MarkdownPreview link delegation', () => {
     expect(onOpenFile).toHaveBeenCalledWith('other.md');
   });
 
-  it('routes file:// links through onOpenFile handler, not openExternal', () => {    const onOpenFile = vi.fn();
+  it('routes file:// links through onOpenFile handler, not openExternal', () => {
+    const onOpenFile = vi.fn();
     const openExternal = vi.fn();
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       window: { openExternal },
     };
     const { container } = render(<MarkdownPreview content={''} linkHandlers={{ onOpenFile }} />);
-    // markdown-it（及 DOMPurify）会过滤 file: 协议，故预览正文不会产出该锚点；
-    // 这里直接向预览 DOM 注入 file:// 锚点，专测点击委托的路由分支。
+    // 直接向预览 DOM 注入 file:// 锚点，专测点击委托的路由分支
+    // （正文渲染链另有「file: 保留」单测覆盖端到端）。
     const preview = container.querySelector('.adl-markdown-preview')!;
     preview.innerHTML = '<a href="file:///C:/ws/a.md">doc</a>';
     fireEvent.click(preview.querySelector('a')!);
     expect(onOpenFile).toHaveBeenCalledWith('file:///C:/ws/a.md');
     expect(openExternal).not.toHaveBeenCalled();
     delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+  });
+
+  it('keeps file:// links through sanitize so they reach click delegation', () => {
+    // 复审 N1：DOMPurify 默认剥掉 file: 协议；此处放行 file: 后正文 file://
+    // 链接必须保留为可点击锚点（点击仍走 preventDefault + 内部路由）。
+    const onOpenFile = vi.fn();
+    const { container } = render(
+      <MarkdownPreview content={'[doc](file:///C:/ws/a.md)'} linkHandlers={{ onOpenFile }} />,
+    );
+    const anchor = container.querySelector('a[href^="file:"]');
+    expect(anchor).not.toBeNull();
+    fireEvent.click(anchor!);
+    expect(onOpenFile).toHaveBeenCalledWith('file:///C:/ws/a.md');
+  });
+
+  it('matches anchors case- and space-insensitively in the slug fallback', () => {
+    const { container } = render(
+      <MarkdownPreview content={'# Foo\n\n[go](#Foo)\n\n# Hello World\n\n[go](#Hello%20World)'} />,
+    );
+    const spies = [...container.querySelectorAll('h1')].map((h) => {
+      const spy = vi.fn();
+      (h as HTMLElement).scrollIntoView = spy;
+      return spy;
+    });
+    const anchors = container.querySelectorAll('a');
+    fireEvent.click(anchors[0]!);
+    expect(spies[0]).toHaveBeenCalled();
+    fireEvent.click(anchors[1]!);
+    expect(spies[1]).toHaveBeenCalled();
   });
 
   it('routes case-variant mailto/tel and protocol-relative links externally', () => {

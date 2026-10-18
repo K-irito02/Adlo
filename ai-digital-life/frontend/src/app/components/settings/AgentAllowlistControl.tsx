@@ -74,9 +74,12 @@ export function AgentAllowlistControl({ item, t, onChange }: AgentAllowlistContr
     setDialogOpen(false);
   }, [alias, entries, onChange, siteUrl, t]);
 
+  // Enter 仅在文本框内确认：焦点落在取消/确认按钮上时，按钮原生 click
+  // 已能完成对应动作，不再经冒泡重复触发（事项 5 复审 R2-02：否则在取消按钮
+  // 上按 Enter 会同时走确认分支把条目加上）。Escape 保持全局关闭。
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (e.key === 'Enter') {
+      if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
         handleConfirm();
       } else if (e.key === 'Escape') {
         handleCancel();
@@ -117,7 +120,7 @@ export function AgentAllowlistControl({ item, t, onChange }: AgentAllowlistContr
                 className="adl-btn adl-btn--ghost adl-btn--square adl-settings-allowlist__remove"
                 onClick={() => handleRemove(entry.origin)}
                 disabled={item.disabled}
-                aria-label={`${t.settingsAgentAllowRemove} ${entry.alias ?? entry.origin}`}
+                aria-label={`${t.settingsAgentAllowRemove} ${entry.alias ? `${entry.alias} ${entry.origin}` : entry.origin}`}
               >
                 {t.settingsAgentAllowRemove}
               </button>

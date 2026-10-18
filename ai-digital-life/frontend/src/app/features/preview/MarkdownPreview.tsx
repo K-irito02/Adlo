@@ -7,7 +7,17 @@ import DOMPurify from 'dompurify';
 export function MarkdownPreview({ content, linkHandlers }: MarkdownPreviewProps) {
   const mdTheme = useResolvedMarkdownTheme();
   const html = useMarkdownPreviewHtml(content);
-  const sanitizedHtml = useMemo(() => DOMPurify.sanitize(html), [html]);
+  // DOMPurify 默认会剥掉 `file:` 协议的 href（见 sanitize 处的 ALLOWED_URI_REGEXP）：
+  // 此处注入 `file:` 白名单，`file://` 链接才能到达点击委托走内部打开。
+  // 点击一律 preventDefault + 内部路由，不会触发 file: 导航，安全。
+  const sanitizedHtml = useMemo(
+    () =>
+      DOMPurify.sanitize(html, {
+        ALLOWED_URI_REGEXP:
+          /^(?:(?:(?:f|ht)tps?|file|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      }),
+    [html],
+  );
   // 包装对象必须按内容 memo：React 对 dangerouslySetInnerHTML 按包装对象恒等比较，
   // 内联字面量每次渲染都是新对象 → React 每次都重写 innerHTML（即使字符串相同），
   // 触发滚动锚定抖动（事项 9：悬停换肤内容逐次下移）。memo 后同内容零 DOM 写入。
@@ -46,9 +56,11 @@ export function MarkdownPreview({ content, linkHandlers }: MarkdownPreviewProps)
         if (!el && root && headings) {
           // Spec §7.2 slug-miss fallback: the anchor targets a heading whose id
           // differs (or is missing) — match the first heading whose slugified
-          // text equals the anchor id.
+          // text equals the slugified anchor id (both sides 同归一：
+          // `#Foo`、`#Hello%20World` 这类大小写/空格变体也要命中，复审 N7)。
+          const want = slugify(id);
           for (const heading of headings) {
-            if (slugify(heading.textContent ?? '') === id) {
+            if (slugify(heading.textContent ?? '') === want) {
               el = heading;
               break;
             }

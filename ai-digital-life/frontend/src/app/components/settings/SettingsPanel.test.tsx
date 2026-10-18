@@ -1790,7 +1790,10 @@ describe('SettingsPanel open-method group', () => {
         />
       </TestProvider>,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowRemove 工作台' }));
+    // 可访问名称恒含 origin（同名别称可区分，复审 R2-03）。
+    fireEvent.click(
+      screen.getByRole('button', { name: 'settingsAgentAllowRemove 工作台 http://127.0.0.1:3080' }),
+    );
     expect(appliedPatch).toHaveBeenCalledWith({ agentSiteWhitelist: [] });
     envState.tauri = false;
   });

@@ -325,7 +325,7 @@ impl BrowserManager {
                     );
                     failures += 1;
                     continue;
-                }
+                },
                 Err(e) => {
                     tracing::warn!(
                         tab_id = tab_id,
@@ -334,7 +334,7 @@ impl BrowserManager {
                     );
                     failures += 1;
                     continue;
-                }
+                },
             };
             if let Err(e) = handle.eval_js(&js) {
                 tracing::warn!(

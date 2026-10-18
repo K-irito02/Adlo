@@ -15,7 +15,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 | 工作区 | 多工作区管理、Git 操作、文件树、大纲解析、搜索 |
 | 终端 | xterm.js 交互式终端（多会话 PTY + 单标签多窗格布局） |
 | 编辑器 | CodeMirror 6 + 文件预览 + 差异查看器 |
-| 内置浏览器 | Tauri WebView / iframe 双模式 + 网站元数据缓存 |
+| 内置浏览器 | Tauri WebView / iframe 双模式 + 网站元数据缓存 + 智能体站点链接拦截（白名单 origin 整站匹配，仅 WebView2 可注入） |
 | 存储治理 | adl-kernel::storage 统一路径解析 + 启动期迁移 + 设置面板存储组 |
 | 系统能力 | 剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储 |
 

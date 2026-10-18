@@ -81,6 +81,11 @@ describe('openFileByMethod', () => {
     openFileByMethod('C:/ws/src/a.md');
     expect(openExternal).toHaveBeenCalledWith('file:///C:/ws/src/a.md');
   });
+  it('builds a well-formed file:// URL for UNC network paths', () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'external' };
+    openFileByMethod('\\\\server\\share\\x.md');
+    expect(openExternal).toHaveBeenCalledWith('file://server/share/x.md');
+  });
   it('opens in the file-owning workspace instead of the current one', () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
     recentWorkspaces = [{ id: 'ws2', path: 'C:/ws2', rootPath: 'C:/ws2' }];
@@ -258,6 +263,14 @@ describe('openMarkdownFileLink', () => {
     openMarkdownFileLink('ws1', 'a.md', 'newdir/');
     // 树未加载 → revealWorkspaceDirectory 为 false，但尾部分隔符表明是目录：
     // 只做目录揭示，不调文件读取。
+    expect(setFileTreeClickedNode).toHaveBeenCalledWith('ws1', 'newdir', 'directory');
+    expect(openFileForWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('still reveals as directory when the link carries a query string', () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    trees = {};
+    openMarkdownFileLink('ws1', 'a.md', 'newdir/?raw=true');
     expect(setFileTreeClickedNode).toHaveBeenCalledWith('ws1', 'newdir', 'directory');
     expect(openFileForWorkspace).not.toHaveBeenCalled();
   });

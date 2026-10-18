@@ -346,15 +346,13 @@ mod tests {
 
     #[test]
     fn agent_link_url_kind_accepts_http_and_https() {
-        let https = agent_link_from_message(
-            r#"{"type":"adl-agent-link","kind":"url","url":"https://x"}"#,
-        )
-        .unwrap();
+        let https =
+            agent_link_from_message(r#"{"type":"adl-agent-link","kind":"url","url":"https://x"}"#)
+                .unwrap();
         assert_eq!(https.url, "https://x");
-        let http = agent_link_from_message(
-            r#"{"type":"adl-agent-link","kind":"url","url":"HTTP://x/y"}"#,
-        )
-        .unwrap();
+        let http =
+            agent_link_from_message(r#"{"type":"adl-agent-link","kind":"url","url":"HTTP://x/y"}"#)
+                .unwrap();
         assert_eq!(http.url, "HTTP://x/y");
     }
 

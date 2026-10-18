@@ -207,9 +207,9 @@ pub fn resolve_persisted_config(
     out
 }
 
-/// 白名单条目落盘前清洗（事项 5 审查 R-F14）：别名/origin 去空白，空 origin
-/// 与非法条目丢弃，origin 去重保序。与前端 `normalizeAgentSiteEntries` 同语义
-/// （前端负责 URL 合法性校验，此处只做空值/重复的最后一道清洗）。
+/// 白名单条目落盘/加载前清洗（事项 5 审查 R-F14/复审 N2）：别名/origin 去空白，
+/// 空 origin 丢弃，origin 去重保序。与前端 `normalizeAgentSiteEntries` 同语义
+/// （URL 合法性校验只在前端保存路径做，此处只做空值/重复的最后一道清洗）。
 fn normalize_allowlist(entries: &[AgentSiteAllowEntry]) -> Vec<AgentSiteAllowEntry> {
     let mut out = Vec::with_capacity(entries.len());
     for entry in entries {
@@ -264,12 +264,19 @@ pub fn load_from(config_dir: &Path) -> Result<AppConfig, AppError> {
     }
     let content = std::fs::read_to_string(&path)
         .map_err(|e| AppError::Config(format!("Failed to read config: {e}")))?;
-    serde_json::from_str(&content).map_err(|e| {
-        AppError::Config(format!(
-            "Failed to parse config; falling back requires a valid rewrite \
+    serde_json::from_str(&content)
+        .map(|mut cfg: AppConfig| {
+            // 落盘前的清洗只发生在补丁路径：手写/旧文件直接加载时同样归一，
+            // 脏条目不进内存与注入层（事项 5 复审 N2）。
+            cfg.agent_site_whitelist = normalize_allowlist(&cfg.agent_site_whitelist);
+            cfg
+        })
+        .map_err(|e| {
+            AppError::Config(format!(
+                "Failed to parse config; falling back requires a valid rewrite \
              (note: agent_site_whitelist must be [{{origin, alias?}}] objects if present): {e}"
-        ))
-    })
+            ))
+        })
 }
 
 pub fn save_to(config_dir: &Path, config: &AppConfig) -> Result<(), AppError> {

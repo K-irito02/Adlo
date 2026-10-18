@@ -76,6 +76,16 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
   // 不再可点，需要的话请写全协议。
   md.linkify.set({ fuzzyLink: false });
 
+  // 显式 `[doc](file:///…)` 链接需要可点击（走内部文件打开链）：markdown-it
+  // 默认 validateLink 拦截 file: 协议，此处仅追加 file: 白名单，其余口径不变。
+  const defaultValidateLink = md.validateLink.bind(md);
+  md.validateLink = (url: string): boolean => {
+    if (url.trim().toLowerCase().startsWith('file:')) {
+      return true;
+    }
+    return defaultValidateLink(url);
+  };
+
   const defaultHeadingOpen =
     md.renderer.rules.heading_open ??
     ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));

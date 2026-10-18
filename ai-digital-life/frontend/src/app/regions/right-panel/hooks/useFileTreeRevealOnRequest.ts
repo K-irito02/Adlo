@@ -47,6 +47,10 @@ export function useFileTreeRevealOnRequest(): void {
       attempts += 1;
       if (attempts < MAX_ATTEMPTS) {
         raf = requestAnimationFrame(tick);
+      } else {
+        // 行始终未出现（文件已删/树被过滤）：同样消费掉，避免以后 remount
+        // 时用过期请求误滚（事项 6 复审 N4）。
+        consume();
       }
     };
     raf = requestAnimationFrame(tick);

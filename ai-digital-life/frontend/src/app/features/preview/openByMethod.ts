@@ -92,7 +92,11 @@ function normalizeAbsolutePath(absPath: string): string | null {
 /** 本地绝对路径转 `file://` URL（外部打开兜底用：只传良构 URL，不传裸 Windows 路径）。 */
 function toFileUrl(absPath: string): string {
   const forward = toForwardSlashes(absPath);
-  // 盘符路径补前导 `/` 得 `file:///C:/…`；UNC `//server/share` 即为合法 `file://` host 形。
+  // UNC `//server/share` 本身即合法 file URL 的 host 形：`file:` + 原样拼接
+  // 得 `file://server/share`（复审 N3）；盘符路径补前导 `/` 得 `file:///C:/…`。
+  if (forward.startsWith('//')) {
+    return `file:${forward}`;
+  }
   const withSlash = /^[a-zA-Z]:\//.test(forward) ? `/${forward}` : forward;
   return `file://${withSlash}`;
 }
@@ -208,17 +212,21 @@ export function revealWorkspaceDirectory(workspaceId: string, relPath: string): 
   const segments = norm.split('/');
   let nodes: WorkspaceTreeNode[] = roots;
   let node: WorkspaceTreeNode | undefined;
+  // 收集树中节点的规范大小写：链接大小写与树不一致时（Windows 盘常见），
+  // 后续展开/选中用树自身的规范路径，避免展开键失配（复审 N8）。
+  const canonical: string[] = [];
   for (const segment of segments) {
     node = nodes.find((candidate) => candidate.name.toLowerCase() === segment.toLowerCase());
     if (!node || node.kind !== 'directory') {
       return false;
     }
+    canonical.push(node.name);
     nodes = node.children ?? [];
   }
   if (!node) {
     return false;
   }
-  revealInFileTree(workspaceId, norm, 'directory');
+  revealInFileTree(workspaceId, canonical.join('/'), 'directory');
   return true;
 }
 
@@ -249,7 +257,8 @@ export function openMarkdownFileLink(
   }
   // 目录形链接（尾部分隔符，如 `docs/`）只做文件树定位，不按文件去读
   // （事项 6 审查 P-F3：树未加载时也按目录揭示，不误标 kind:'file'）。
-  const hashless = href.split('#', 1)[0].trim();
+  // 判定前先剥掉 `#fragment` 与 `?query` 后缀：`newdir/?raw=true` 仍是目录（复审 N2）。
+  const hashless = href.split('#', 1)[0].split('?', 1)[0].trim();
   if (/[\\/]$/.test(hashless)) {
     revealInFileTree(target.id, rel, 'directory');
     return;
