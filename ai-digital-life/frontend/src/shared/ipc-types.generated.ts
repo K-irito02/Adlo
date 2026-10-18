@@ -10,6 +10,8 @@ export type ThemeMode = "light" | "dark" | "system";
 export type Theme = "light" | "dark";
 export type ModelCapability = "text" | "vision" | "tooluse" | "streaming" | "reasoning";
 export type ModelTier = "free" | "lowcost" | "standard" | "premium";
+export type LinkOpenMethod = "middle" | "panel" | "external";
+export type FileOpenMethod = "panel" | "external";
 
 export interface ModelDefinition {
   id: string;
@@ -69,6 +71,10 @@ export interface AppPreferencePatch {
   workspaceDeferredIds?: string[];
   workspaceNaturalOrder?: string[];
   browserInactiveTabSuspendMs?: number;
+  linkOpenMethod?: LinkOpenMethod;
+  fileOpenMethod?: FileOpenMethod;
+  agentLinkIntercept?: boolean;
+  agentSiteWhitelist?: string[];
 }
 
 export interface ConfigSnapshot {
@@ -87,4 +93,8 @@ export interface ConfigSnapshot {
   workspaceDeferredIds: string[];
   workspaceNaturalOrder: string[];
   browserInactiveTabSuspendMs: number;
+  linkOpenMethod: LinkOpenMethod;
+  fileOpenMethod: FileOpenMethod;
+  agentLinkIntercept: boolean;
+  agentSiteWhitelist: string[];
 }

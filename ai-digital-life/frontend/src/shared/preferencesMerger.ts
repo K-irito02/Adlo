@@ -81,6 +81,18 @@ export function applyPreferencePatch(
   if (patch.browserInactiveTabSuspendMs !== undefined) {
     nextConfig.browserInactiveTabSuspendMs = patch.browserInactiveTabSuspendMs;
   }
+  if (patch.linkOpenMethod !== undefined) {
+    nextConfig.linkOpenMethod = patch.linkOpenMethod;
+  }
+  if (patch.fileOpenMethod !== undefined) {
+    nextConfig.fileOpenMethod = patch.fileOpenMethod;
+  }
+  if (patch.agentLinkIntercept !== undefined) {
+    nextConfig.agentLinkIntercept = patch.agentLinkIntercept;
+  }
+  if (patch.agentSiteWhitelist !== undefined) {
+    nextConfig.agentSiteWhitelist = patch.agentSiteWhitelist;
+  }
 
   return nextConfig;
 }

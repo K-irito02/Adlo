@@ -23,6 +23,10 @@ const baseConfig: ConfigSnapshot = {
   workspaceDeferredIds: [],
   workspaceNaturalOrder: [],
   browserInactiveTabSuspendMs: 3_600_000,
+  linkOpenMethod: 'panel',
+  fileOpenMethod: 'panel',
+  agentLinkIntercept: false,
+  agentSiteWhitelist: [],
 };
 
 describe('applyPreferencePatch', () => {
@@ -184,5 +188,19 @@ describe('applyPreferencePatch', () => {
     // 无默认命令不残留显式 key，有默认命令回到默认串。
     expect('file.toggle-line-numbers' in (result.keybinds ?? {})).toBe(false);
     expect(result.keybinds?.['workspace.new']).toBe('mod+n');
+  });
+
+  it('merges open-method and agent-intercept fields', () => {
+    const base = { ...baseConfig };
+    const merged = applyPreferencePatch(base, {
+      linkOpenMethod: 'external',
+      fileOpenMethod: 'external',
+      agentLinkIntercept: true,
+      agentSiteWhitelist: ['http://127.0.0.1:3080'],
+    });
+    expect(merged.linkOpenMethod).toBe('external');
+    expect(merged.fileOpenMethod).toBe('external');
+    expect(merged.agentLinkIntercept).toBe(true);
+    expect(merged.agentSiteWhitelist).toEqual(['http://127.0.0.1:3080']);
   });
 });

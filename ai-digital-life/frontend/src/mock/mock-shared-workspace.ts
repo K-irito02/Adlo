@@ -121,6 +121,10 @@ export const appInfo: AppInfo = {
     workspaceDeferredIds: [],
     workspaceNaturalOrder: [],
     browserInactiveTabSuspendMs: 900_000,
+    linkOpenMethod: "panel",
+    fileOpenMethod: "panel",
+    agentLinkIntercept: false,
+    agentSiteWhitelist: [],
   },
   currentWorkspace: {
     id: "workspace-mock-1",

@@ -36,6 +36,11 @@ export const DEFAULT_WORKSPACE_NATURAL_ORDER: string[] = [];
 // 跨语言漂移由 Rust 字面量断言 + 本文件钉值测试捕获。
 export const DEFAULT_BROWSER_SUSPEND_MS = 900_000;
 
+export const DEFAULT_LINK_OPEN_METHOD = 'panel' as const;
+export const DEFAULT_FILE_OPEN_METHOD = 'panel' as const;
+export const DEFAULT_AGENT_LINK_INTERCEPT = false;
+export const DEFAULT_AGENT_SITE_WHITELIST: string[] = [];
+
 // 下载模式产品默认（自动保存；Rust 侧 DownloadMode::Auto 同步）。
 // downloadSettings 走独立桥而非偏好 patch，此常量仅作恢复目标单一真源。
 export const DEFAULT_DOWNLOAD_MODE = 'auto' as const;
@@ -56,6 +61,10 @@ export function getDefaultPreferences(): AppPreferencePatch {
     // 但「恢复全部默认」仍重置加载顺序 —— 两重置作用域分歧是有意的（Phase 4 R1-1.1 记录）。
     workspaceNaturalOrder: [...DEFAULT_WORKSPACE_NATURAL_ORDER],
     browserInactiveTabSuspendMs: DEFAULT_BROWSER_SUSPEND_MS,
+    linkOpenMethod: DEFAULT_LINK_OPEN_METHOD,
+    fileOpenMethod: DEFAULT_FILE_OPEN_METHOD,
+    agentLinkIntercept: DEFAULT_AGENT_LINK_INTERCEPT,
+    agentSiteWhitelist: [...DEFAULT_AGENT_SITE_WHITELIST],
   };
 }
 
@@ -83,6 +92,14 @@ export function getDefaultForSetting(id: string): string | boolean | number | st
       return DEFAULT_WORKSPACE_NATURAL_ORDER;
     case 'browserInactiveTabSuspendMs':
       return DEFAULT_BROWSER_SUSPEND_MS;
+    case 'linkOpenMethod':
+      return DEFAULT_LINK_OPEN_METHOD;
+    case 'fileOpenMethod':
+      return DEFAULT_FILE_OPEN_METHOD;
+    case 'agentLinkIntercept':
+      return DEFAULT_AGENT_LINK_INTERCEPT;
+    case 'openMethod:agentSiteWhitelist':
+      return DEFAULT_AGENT_SITE_WHITELIST;
     case 'font:ui':
     case 'font:code':
     case 'font:terminal':
