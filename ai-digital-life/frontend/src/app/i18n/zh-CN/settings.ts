@@ -282,4 +282,25 @@ export const settingsZh = {
   commandWorkspaceNew: '新建工作区',
   commandWorkspaceOpen: '打开工作区',
   commandSettingsOpen: '打开设置',
+
+  // 打开方式
+  settingsOpenMethod: '打开方式',
+  settingsLinkOpenMethod: '网址链接打开方式',
+  settingsLinkOpenMethodDesc:
+    '点击网址链接时的打开位置（Markdown 预览与智能体站点拦截链接统一生效）',
+  settingsLinkOpenMiddle: '中间区打开',
+  settingsLinkOpenPanel: '右侧浏览器面板打开',
+  settingsLinkOpenExternal: '外部浏览器打开',
+  settingsFileOpenMethod: '文件打开方式',
+  settingsFileOpenMethodDesc: '点击文件链接（如 Markdown 预览中的文件索引）时的打开方式',
+  settingsFileOpenPanel: '右侧文件面板打开',
+  settingsFileOpenExternal: '系统默认应用打开',
+  settingsAgentIntercept: '智能体站点链接拦截',
+  settingsAgentInterceptDesc:
+    '启用后，白名单内智能体网站正文中的网址链接、本地文件链接将按本项目设置打开；关闭则保持网站自身行为（浏览器模式不支持，仅桌面可用）',
+  settingsAgentWhitelist: '智能体网址白名单',
+  settingsAgentWhitelistDesc:
+    '每行一个站点 origin，整站匹配（不要带路径）。示例：http://127.0.0.1:3080 或 https://my-agent.example.com',
+  settingsAgentWhitelistPlaceholder: 'http://127.0.0.1:3080\nhttps://my-agent.example.com',
+  settingsAgentWhitelistInvalid: '存在无法识别的行（需为 http/https 的 scheme://host:port）',
 } as const;

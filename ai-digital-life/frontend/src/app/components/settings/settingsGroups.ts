@@ -25,6 +25,7 @@ export const SETTINGS_GROUPS: { id: SettingsGroupId; labelKey: keyof CopyDict }[
   { id: 'storage', labelKey: 'storageTitle' },
   { id: 'shortcuts', labelKey: 'settingsShortcuts' },
   { id: 'browser', labelKey: 'settingsBrowser' },
+  { id: 'openMethod', labelKey: 'settingsOpenMethod' },
   { id: 'dsh', labelKey: 'settingsDsh' },
 ];
 
@@ -70,6 +71,12 @@ export const GROUP_RESET_PATCHES: Partial<Record<SettingsGroupId, () => AppPrefe
   }),
   shortcuts: () => ({
     keybinds: { ...DEFAULT_KEYBINDS },
+  }),
+  openMethod: () => ({
+    linkOpenMethod: 'panel',
+    fileOpenMethod: 'panel',
+    agentLinkIntercept: false,
+    agentSiteWhitelist: [],
   }),
 };
 

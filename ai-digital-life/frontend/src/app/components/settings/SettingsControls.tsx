@@ -5,6 +5,7 @@ import type { CopyDict } from '../../i18n';
 import { IconEye, IconEyeOff, IconResetDefaults } from '../../icons';
 import { FontControl } from './FontControl';
 import { SettingsSelect } from './SettingsSelect';
+import { OriginListControl } from './OriginListControl';
 import { getDefaultForSetting } from '../../../shared/defaultPreferences';
 import { isStringArrayEqual } from './settingsGroups';
 import { anchorFor } from './settingsSearchIndex';
@@ -199,6 +200,9 @@ export function SettingsControls({ items, onChange }: SettingsControlsProps) {
                     onChange={(v) => onChange(item.id, v)}
                     t={t}
                   />
+                )}
+                {item.type === 'originlist' && (
+                  <OriginListControl item={item} t={t} onChange={(v) => onChange(item.id, v)} />
                 )}
               </div>
             </div>

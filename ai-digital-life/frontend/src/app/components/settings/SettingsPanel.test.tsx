@@ -1,12 +1,16 @@
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import type { SettingItem } from '@shared/ipc';
+import type { AppInfo, SettingItem } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { SettingsPanel } from './SettingsPanel';
 import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
+import {
+  buildSettingsItems,
+  preferencePatchFromSettingChange,
+} from '../../utils/settingsViewModel';
 import {
   resetStorageSettingsCache,
   setCachedStorageStatus,
@@ -808,12 +812,13 @@ describe('SettingsPanel group reset', () => {
       | undefined;
     expect(factories, 'GROUP_RESET_PATCHES missing').toBeDefined();
     expect(new Set(Object.keys(factories!))).toEqual(
-      new Set(['general', 'workspace', 'shortcuts']),
+      new Set(['general', 'workspace', 'shortcuts', 'openMethod']),
     );
     // 访问器口径：工厂组返回 patch，storage/browser/dsh 返回 null（调用方走自有流程）。
     expect(groups.getGroupResetPatch('general')).toBeDefined();
     expect(groups.getGroupResetPatch('workspace')).toBeDefined();
     expect(groups.getGroupResetPatch('shortcuts')).toBeDefined();
+    expect(groups.getGroupResetPatch('openMethod')).toBeDefined();
     expect(groups.getGroupResetPatch('storage')).toBeNull();
     expect(groups.getGroupResetPatch('browser')).toBeNull();
     expect(groups.getGroupResetPatch('dsh')).toBeNull();
@@ -823,6 +828,7 @@ describe('SettingsPanel group reset', () => {
     expect(groups.RESETTABLE_GROUPS.has('dsh')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('general')).toBe(true);
     expect(groups.RESETTABLE_GROUPS.has('workspace')).toBe(true);
+    expect(groups.RESETTABLE_GROUPS.has('openMethod')).toBe(true);
   });
 
   it('存储组级重置切组并发信号，不弹通用确认框、不调 updatePreferences（含首跳集成）', async () => {
@@ -1227,12 +1233,12 @@ describe('SettingsPanel group reset', () => {
     }
   });
 
-  // 顶部「恢复全部默认」按钮禁用口径：六组全默认才禁用（与侧边栏行同源聚合）。
+  // 顶部「恢复全部默认」按钮禁用口径：七组全默认才禁用（与侧边栏行同源聚合）。
   function topResetDisabled(): boolean {
     return (screen.getByRole('button', { name: 'settingsResetAll' }) as HTMLButtonElement).disabled;
   }
 
-  it('六组全默认时顶部恢复全部默认按钮禁用', () => {
+  it('七组全默认时顶部恢复全部默认按钮禁用', () => {
     setupStore();
     const prevAppInfo = useAppStore.getState().appInfo;
     const prevStorage = useAppStore.getState().storageBlocksAtDefault;
@@ -1606,6 +1612,90 @@ describe('SettingsPanel cross-group search', () => {
       // 焦点随落点走（a11y 把焦点交给落点元素）→ 以此观测「落到哪一行」。
       expect(document.activeElement).toBe(row);
       expect(highlightOverlay()?.classList.contains('is-active')).toBe(true);
+    });
+  });
+});
+
+describe('SettingsPanel open-method group', () => {
+  afterEach(() => {
+    cleanup();
+    useAppStore.setState((s) => ({
+      settingsSearchQuery: '',
+      settingsSearchHistory: [],
+      activeSettingsGroup: 'general',
+      navigatorCollapsedByTool: { ...s.navigatorCollapsedByTool, settings: false },
+    }));
+  });
+
+  /** 含新字段的完整 config（ConfigSnapshot）：走真实 buildSettingsItems 派生路径。 */
+  function openMethodAppInfo(overrides: Partial<AppInfo['config']> = {}): AppInfo {
+    return {
+      appName: 'test',
+      version: '0.0.0',
+      config: {
+        language: 'en-US',
+        themeMode: 'system',
+        resolvedTheme: 'light',
+        logLevel: 'info',
+        terminalLogMode: 'overwrite',
+        debugLogMode: 'overwrite',
+        maxRecentWorkspaces: 10,
+        modelPreferences: { providers: {} },
+        keybinds: {},
+        fonts: {},
+        maxConcurrentWorkspaces: 6,
+        workspacePriorityIds: [],
+        workspaceDeferredIds: [],
+        workspaceNaturalOrder: [],
+        browserInactiveTabSuspendMs: 900_000,
+        linkOpenMethod: 'panel',
+        fileOpenMethod: 'panel',
+        agentLinkIntercept: false,
+        agentSiteWhitelist: [],
+        ...overrides,
+      },
+      currentWorkspace: undefined,
+      recentLogs: [],
+    } as AppInfo;
+  }
+
+  it('renders open-method group items and writes a whitelist change', () => {
+    setupStore();
+    const appliedPatch = vi.fn(async (_patch: unknown) => true);
+    const appInfo = openMethodAppInfo();
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    // 与 useSettingsPanelProps 同法接线：原始变更经 preferencePatchFromSettingChange 落为偏好 patch。
+    const onChangeSetting = (id: string, value: string | boolean | number) => {
+      const patch = preferencePatchFromSettingChange(id, value);
+      if (patch) {
+        void appliedPatch(patch);
+      }
+    };
+    render(
+      <TestProvider>
+        <SettingsPanel
+          settings={buildSettingsItems(mockT, appInfo)}
+          onChangeSetting={onChangeSetting}
+        />
+      </TestProvider>,
+    );
+
+    for (const anchor of [
+      'openMethod:linkOpenMethod',
+      'openMethod:fileOpenMethod',
+      'openMethod:agentLinkIntercept',
+      // 白名单项 id 自带 `openMethod:` 前缀（Task 2 约定，viewModel/defaultPreferences/测试三处一致），
+      // 故 anchorFor('openMethod', id) 的 DOM 锚点为双前缀。
+      'openMethod:openMethod:agentSiteWhitelist',
+    ]) {
+      expect(document.querySelector(`[data-settings-anchor="${anchor}"]`), anchor).not.toBeNull();
+    }
+
+    fireEvent.change(screen.getByPlaceholderText('settingsAgentWhitelistPlaceholder'), {
+      target: { value: 'http://127.0.0.1:3080\nnot-a-url' },
+    });
+    expect(appliedPatch).toHaveBeenCalledWith({
+      agentSiteWhitelist: ['http://127.0.0.1:3080'],
     });
   });
 });

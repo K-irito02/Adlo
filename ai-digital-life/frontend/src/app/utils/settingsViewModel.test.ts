@@ -112,6 +112,46 @@ describe('buildSettingsItems', () => {
     expect(uiItem).toBeDefined();
     expect(uiItem?.value).toBe('');
   });
+
+  it('includes the four openMethod group items with correct types and values', () => {
+    const items = buildSettingsItems(mockT, mockAppInfo);
+
+    const link = items.find((i) => i.id === 'linkOpenMethod');
+    expect(link?.groupId).toBe('openMethod');
+    expect(link?.type).toBe('select');
+    expect(link?.value).toBe('panel');
+    expect(link?.options?.map((o) => o.value)).toEqual(['middle', 'panel', 'external']);
+
+    const file = items.find((i) => i.id === 'fileOpenMethod');
+    expect(file?.groupId).toBe('openMethod');
+    expect(file?.type).toBe('select');
+    expect(file?.value).toBe('panel');
+    expect(file?.options?.map((o) => o.value)).toEqual(['panel', 'external']);
+
+    const intercept = items.find((i) => i.id === 'agentLinkIntercept');
+    expect(intercept?.groupId).toBe('openMethod');
+    expect(intercept?.type).toBe('toggle');
+    expect(intercept?.value).toBe(false);
+
+    const whitelist = items.find((i) => i.id === 'openMethod:agentSiteWhitelist');
+    expect(whitelist?.groupId).toBe('openMethod');
+    expect(whitelist?.type).toBe('originlist');
+    expect(whitelist?.value).toBe('');
+  });
+
+  it('joins agentSiteWhitelist origins into newline-separated text', () => {
+    const appInfo: AppInfo = {
+      ...mockAppInfo,
+      config: {
+        ...mockAppInfo.config,
+        agentSiteWhitelist: ['http://127.0.0.1:3080', 'https://my-agent.example.com'],
+      },
+    };
+    const whitelist = buildSettingsItems(mockT, appInfo).find(
+      (i) => i.id === 'openMethod:agentSiteWhitelist',
+    );
+    expect(whitelist?.value).toBe('http://127.0.0.1:3080\nhttps://my-agent.example.com');
+  });
 });
 
 describe('preferencePatchFromSettingChange', () => {
@@ -177,5 +217,42 @@ describe('preferencePatchFromSettingChange', () => {
   it('converts font:terminal change to fonts patch with only terminalFont', () => {
     const patch = preferencePatchFromSettingChange('font:terminal', 'Cascadia Code');
     expect(patch?.fonts).toEqual({ terminalFont: 'Cascadia Code' });
+  });
+
+  it('converts linkOpenMethod change to patch and rejects invalid values', () => {
+    expect(preferencePatchFromSettingChange('linkOpenMethod', 'middle')).toEqual({
+      linkOpenMethod: 'middle',
+    });
+    expect(preferencePatchFromSettingChange('linkOpenMethod', 'external')).toEqual({
+      linkOpenMethod: 'external',
+    });
+    expect(preferencePatchFromSettingChange('linkOpenMethod', 'nope')).toBeUndefined();
+  });
+
+  it('converts fileOpenMethod change to patch and rejects invalid values', () => {
+    expect(preferencePatchFromSettingChange('fileOpenMethod', 'external')).toEqual({
+      fileOpenMethod: 'external',
+    });
+    expect(preferencePatchFromSettingChange('fileOpenMethod', 'middle')).toBeUndefined();
+  });
+
+  it('converts agentLinkIntercept change to patch', () => {
+    expect(preferencePatchFromSettingChange('agentLinkIntercept', true)).toEqual({
+      agentLinkIntercept: true,
+    });
+    expect(preferencePatchFromSettingChange('agentLinkIntercept', false)).toEqual({
+      agentLinkIntercept: false,
+    });
+  });
+
+  it('parses agentSiteWhitelist text into a normalized origin array', () => {
+    expect(
+      preferencePatchFromSettingChange(
+        'openMethod:agentSiteWhitelist',
+        'http://127.0.0.1:3080\nhttps://my-agent.example.com/foo\nnot-a-url',
+      ),
+    ).toEqual({
+      agentSiteWhitelist: ['http://127.0.0.1:3080', 'https://my-agent.example.com'],
+    });
   });
 });

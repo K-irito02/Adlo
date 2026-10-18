@@ -165,7 +165,7 @@ const CONDITIONAL_ROW_MARKERS: string[] = [
   'dshSettingsProxyNoProxy',
 ];
 
-// 六组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。
+// 七组各一个渲染用例：索引中属于该组的每个锚点都必须在该组渲染容器内命中。
 const CASES: { group: SettingsGroupId; render: () => ReturnType<typeof render> }[] = [
   {
     group: 'general',
@@ -173,6 +173,18 @@ const CASES: { group: SettingsGroupId; render: () => ReturnType<typeof render> }
       render(
         <TestProvider>
           <SettingsControls items={buildGeneralItems()} onChange={() => {}} />
+        </TestProvider>,
+      ),
+  },
+  {
+    group: 'openMethod',
+    render: () =>
+      render(
+        <TestProvider>
+          <SettingsControls
+            items={buildGeneralItems().filter((item) => item.groupId === 'openMethod')}
+            onChange={() => {}}
+          />
         </TestProvider>,
       ),
   },
@@ -246,8 +258,8 @@ describe('settings search anchors', () => {
   });
 
   it('索引中每组的锚点都能在对应组 DOM 命中', async () => {
-    // 防空洞通过：用例必须覆盖全部六组，缺组即失败（不允许测试断言为空）。
-    expect(CASES).toHaveLength(6);
+    // 防空洞通过：用例必须覆盖全部七组，缺组即失败（不允许测试断言为空）。
+    expect(CASES).toHaveLength(7);
 
     const index = buildSettingsSearchIndex({
       t: mockT,

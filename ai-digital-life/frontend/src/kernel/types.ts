@@ -440,14 +440,15 @@ export type SettingsGroupId =
   | 'terminal'
   | 'browser'
   | 'dsh'
-  | 'storage';
+  | 'storage'
+  | 'openMethod';
 
 export interface SettingItem {
   id: string;
   groupId: SettingsGroupId;
   label: string;
   description?: string;
-  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly' | 'font';
+  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly' | 'font' | 'originlist';
   value: string | boolean | number;
   options?: { value: string; label: string }[];
   cssVar?: '--font-sans-custom' | '--font-mono-custom';

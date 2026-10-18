@@ -192,6 +192,16 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     if (isKeybindsAtDefault(keybinds)) {
       disabled.add('shortcuts');
     }
+    const openMethodPatch = getGroupResetPatch('openMethod');
+    if (
+      openMethodPatch &&
+      isPatchSatisfied(
+        config as unknown as Record<string, unknown>,
+        openMethodPatch as unknown as Record<string, unknown>,
+      )
+    ) {
+      disabled.add('openMethod');
+    }
     if (storageBlocksAtDefault === true) {
       disabled.add('storage');
     }
@@ -204,7 +214,7 @@ export function SettingsPanel({ settings, onChangeSetting }: SettingsPanelProps)
     return disabled;
   }, [config, storageBlocksAtDefault, browserBlocksAtDefault, dshBlocksAtDefault]);
 
-  // 六组全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
+  // 七组全默认 → 顶部「恢复全部默认」禁用（口径与侧边栏行 disabled 同源）。
   const allGroupsAtDefault = disabledResetGroups.size === SETTINGS_GROUPS.length;
 
   const updateDownloadSettings = useAppStore((s) => s.updateDownloadSettings);

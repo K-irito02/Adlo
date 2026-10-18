@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_FONTS } from '../../../shared/defaultPreferences';
-import { isPatchSatisfied } from './settingsGroups';
+import { getGroupResetPatch, isPatchSatisfied } from './settingsGroups';
 
 describe('isPatchSatisfied', () => {
   it('treats null/undefined as empty-string default (事项 12a)', () => {
@@ -31,5 +31,16 @@ describe('isPatchSatisfied', () => {
     // 数字 0 / false 缺失不放宽（仅空串放宽）。
     expect(isPatchSatisfied({ n: null }, { n: 0 })).toBe(false);
     expect(isPatchSatisfied({ b: null }, { b: false })).toBe(false);
+  });
+});
+
+describe('getGroupResetPatch(openMethod)', () => {
+  it('restores the four open-method defaults', () => {
+    expect(getGroupResetPatch('openMethod')).toEqual({
+      linkOpenMethod: 'panel',
+      fileOpenMethod: 'panel',
+      agentLinkIntercept: false,
+      agentSiteWhitelist: [],
+    });
   });
 });

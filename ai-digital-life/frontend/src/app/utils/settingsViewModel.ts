@@ -2,6 +2,7 @@ import type { AppPreferencePatch, LogLevel, ThemeMode } from '../../shared/ipc-t
 import { isLogMode } from './debugLogMode';
 import type { AppInfo, SettingItem } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
+import { parseWhitelistLines } from '@shared/originWhitelist';
 
 const LOG_LEVELS: readonly string[] = ['error', 'warn', 'info', 'debug', 'trace'];
 
@@ -93,6 +94,51 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
     options: logModeOptions,
   });
 
+  items.push({
+    id: 'linkOpenMethod',
+    groupId: 'openMethod',
+    label: t.settingsLinkOpenMethod,
+    description: t.settingsLinkOpenMethodDesc,
+    type: 'select',
+    value: config.linkOpenMethod,
+    options: [
+      { value: 'middle', label: t.settingsLinkOpenMiddle },
+      { value: 'panel', label: t.settingsLinkOpenPanel },
+      { value: 'external', label: t.settingsLinkOpenExternal },
+    ],
+  });
+
+  items.push({
+    id: 'fileOpenMethod',
+    groupId: 'openMethod',
+    label: t.settingsFileOpenMethod,
+    description: t.settingsFileOpenMethodDesc,
+    type: 'select',
+    value: config.fileOpenMethod,
+    options: [
+      { value: 'panel', label: t.settingsFileOpenPanel },
+      { value: 'external', label: t.settingsFileOpenExternal },
+    ],
+  });
+
+  items.push({
+    id: 'agentLinkIntercept',
+    groupId: 'openMethod',
+    label: t.settingsAgentIntercept,
+    description: t.settingsAgentInterceptDesc,
+    type: 'toggle',
+    value: config.agentLinkIntercept,
+  });
+
+  items.push({
+    id: 'openMethod:agentSiteWhitelist',
+    groupId: 'openMethod',
+    label: t.settingsAgentWhitelist,
+    description: t.settingsAgentWhitelistDesc,
+    type: 'originlist',
+    value: config.agentSiteWhitelist.join('\n'),
+  });
+
   if (config.fonts) {
     items.push({
       id: 'font:ui',
@@ -155,6 +201,20 @@ export function preferencePatchFromSettingChange(
   }
   if (id === 'font:terminal') {
     return { fonts: { terminalFont: value as string } };
+  }
+  if (id === 'linkOpenMethod') {
+    return value === 'middle' || value === 'panel' || value === 'external'
+      ? { linkOpenMethod: value }
+      : undefined;
+  }
+  if (id === 'fileOpenMethod') {
+    return value === 'panel' || value === 'external' ? { fileOpenMethod: value } : undefined;
+  }
+  if (id === 'agentLinkIntercept') {
+    return { agentLinkIntercept: value === true };
+  }
+  if (id === 'openMethod:agentSiteWhitelist') {
+    return { agentSiteWhitelist: parseWhitelistLines(String(value)).origins };
   }
   if (id === 'maxConcurrentWorkspaces') {
     return { maxConcurrentWorkspaces: value as number };

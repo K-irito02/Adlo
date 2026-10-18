@@ -315,4 +315,25 @@ export const settingsEn = {
   commandWorkspaceNew: 'New Workspace',
   commandWorkspaceOpen: 'Open Workspace',
   commandSettingsOpen: 'Open Settings',
+
+  // Open method
+  settingsOpenMethod: 'Open Method',
+  settingsLinkOpenMethod: 'URL Link Open Method',
+  settingsLinkOpenMethodDesc:
+    'Where URL links open (applies to Markdown preview and intercepted agent-site links)',
+  settingsLinkOpenMiddle: 'Open in center',
+  settingsLinkOpenPanel: 'Open in right browser panel',
+  settingsLinkOpenExternal: 'Open in external browser',
+  settingsFileOpenMethod: 'File Open Method',
+  settingsFileOpenMethodDesc: 'How file links open (e.g. file index links in Markdown preview)',
+  settingsFileOpenPanel: 'Open in right file panel',
+  settingsFileOpenExternal: 'Open with system default app',
+  settingsAgentIntercept: 'Intercept agent-site links',
+  settingsAgentInterceptDesc:
+    'When enabled, URL and local-file links in whitelisted agent sites open via this app\u2019s settings; when off, the site\u2019s own behavior is kept (desktop only; not supported in browser mode)',
+  settingsAgentWhitelist: 'Agent site allowlist',
+  settingsAgentWhitelistDesc:
+    'One site origin per line, whole-site match (no path). Examples: http://127.0.0.1:3080 or https://my-agent.example.com',
+  settingsAgentWhitelistPlaceholder: 'http://127.0.0.1:3080\nhttps://my-agent.example.com',
+  settingsAgentWhitelistInvalid: 'Some lines are invalid (expected http/https scheme://host:port)',
 } as const;
