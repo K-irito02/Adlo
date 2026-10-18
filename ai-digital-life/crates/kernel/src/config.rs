@@ -81,7 +81,7 @@ pub struct AppConfig {
     pub agent_link_intercept: bool,
     /// 需拦截的智能体站点白名单（别称选填 + 整站匹配 origin）。
     #[serde(default)]
-    pub agent_site_whitelist: Vec<adl_types::types::config::AgentSiteAllowEntry>,
+    pub agent_site_whitelist: Vec<AgentSiteAllowEntry>,
 }
 
 impl AppConfig {

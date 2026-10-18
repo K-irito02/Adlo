@@ -227,13 +227,12 @@ pub fn agent_link_from_message(json: &str) -> Option<AgentLink> {
     if url.is_empty() {
         return None;
     }
-    let scheme_ok = match kind {
-        "url" => {
-            let lower = url.to_ascii_lowercase();
-            lower.starts_with("http://") || lower.starts_with("https://")
-        },
-        "file" => is_file_like_path(url),
-        _ => false,
+    // kind 已在上方收敛为 url|file，此处 if/else 穷尽，无需兜底分支（R2 清理）。
+    let scheme_ok = if kind == "url" {
+        let lower = url.to_ascii_lowercase();
+        lower.starts_with("http://") || lower.starts_with("https://")
+    } else {
+        is_file_like_path(url)
     };
     if !scheme_ok {
         return None;
