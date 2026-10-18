@@ -190,11 +190,30 @@ pub struct AgentLink {
     pub url: String,
 }
 
+/// Whether a `kind:'file'` payload looks like a local file destination:
+/// a `file://` URL, a Windows drive path (`C:\` / `C:/`), a POSIX/root-absolute
+/// path (leading `/`), or a UNC path (`\\`).
+fn is_file_like_path(url: &str) -> bool {
+    if url.to_ascii_lowercase().starts_with("file://") {
+        return true;
+    }
+    if url.starts_with("\\\\") || url.starts_with('/') {
+        return true;
+    }
+    let bytes = url.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
+}
+
 /// Pure parse of an `{type:'adl-agent-link', kind:'url'|'file', url}` postMessage.
 ///
-/// `kind` only accepts `url`/`file`; `url` must be non-empty. The origin
-/// whitelist is trusted from the injection side (the injected branch only runs
-/// on whitelisted sites), so this only re-checks the message shape as a backstop.
+/// `kind` only accepts `url`/`file`; `url` must be non-empty **and** pass a
+/// scheme backstop mirroring `open_new_tab_url_from_message`: `url` requires an
+/// http/https scheme, `file` requires a `file://` prefix or an absolute local
+/// path form. The origin whitelist is trusted from the injection side (the
+/// injected branch only runs on whitelisted sites), so this is a shape backstop.
 pub fn agent_link_from_message(json: &str) -> Option<AgentLink> {
     let value: serde_json::Value = serde_json::from_str(json).ok()?;
     if value.get("type").and_then(|t| t.as_str()) != Some("adl-agent-link") {
@@ -206,6 +225,17 @@ pub fn agent_link_from_message(json: &str) -> Option<AgentLink> {
     }
     let url = value.get("url").and_then(|v| v.as_str())?;
     if url.is_empty() {
+        return None;
+    }
+    let scheme_ok = match kind {
+        "url" => {
+            let lower = url.to_ascii_lowercase();
+            lower.starts_with("http://") || lower.starts_with("https://")
+        },
+        "file" => is_file_like_path(url),
+        _ => false,
+    };
+    if !scheme_ok {
         return None;
     }
     Some(AgentLink { kind: kind.to_string(), url: url.to_string() })
@@ -256,6 +286,55 @@ mod tests {
         assert!(
             agent_link_from_message(r#"{"type":"adl-agent-link","kind":"x","url":"u"}"#).is_none()
         );
+    }
+
+    #[test]
+    fn agent_link_url_kind_rejects_non_http_scheme() {
+        assert!(
+            agent_link_from_message(
+                r#"{"type":"adl-agent-link","kind":"url","url":"javascript:alert(1)"}"#
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn agent_link_file_kind_rejects_non_file_scheme() {
+        assert!(
+            agent_link_from_message(
+                r#"{"type":"adl-agent-link","kind":"file","url":"mailto:a@b"}"#
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn agent_link_accepts_file_url_and_windows_drive_paths() {
+        let file_url = agent_link_from_message(
+            r#"{"type":"adl-agent-link","kind":"file","url":"file:///C:/ws/a.md"}"#,
+        )
+        .unwrap();
+        assert_eq!(file_url.kind, "file");
+
+        let drive_back = agent_link_from_message(
+            r#"{"type":"adl-agent-link","kind":"file","url":"C:\\ws\\a.md"}"#,
+        )
+        .unwrap();
+        assert_eq!(drive_back.kind, "file");
+    }
+
+    #[test]
+    fn agent_link_url_kind_accepts_http_and_https() {
+        let https = agent_link_from_message(
+            r#"{"type":"adl-agent-link","kind":"url","url":"https://x"}"#,
+        )
+        .unwrap();
+        assert_eq!(https.url, "https://x");
+        let http = agent_link_from_message(
+            r#"{"type":"adl-agent-link","kind":"url","url":"HTTP://x/y"}"#,
+        )
+        .unwrap();
+        assert_eq!(http.url, "HTTP://x/y");
     }
 
     #[test]
