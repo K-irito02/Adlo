@@ -48,12 +48,32 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
     md.renderer.rules.heading_open ??
     ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options));
 
+  // GitHub 风格标题 slug 计数（每次渲染重置，见下方 adl-source-map core 规则）。
+  const slugCounts = new Map<string, number>();
+  function slugify(text: string): string {
+    // 先去标点再转空格：标点类包含 `-`，若先转空格会把刚生成的连字符一并删掉。
+    return text
+      .trim()
+      .toLowerCase()
+      .replace(/[!-/:-@[-`{-~。，、；：？！“”‘’（）《》【】…—]/g, '')
+      .replace(/[\s]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
   md.renderer.rules.heading_open = (tokens, idx, options, env, self) => {
     const token = tokens[idx]!;
     const sourceLine = typeof token.map?.[0] === 'number' ? token.map[0] + 1 : undefined;
     if (sourceLine) {
       token.attrSet('data-source-line', String(sourceLine));
-      token.attrSet('id', `adl-heading-${sourceLine}`);
+      const headingText = tokens[idx + 1]?.content ?? '';
+      let slug = slugify(headingText) || `section-${sourceLine}`;
+      const seen = slugCounts.get(slug) ?? 0;
+      slugCounts.set(slug, seen + 1);
+      if (seen > 0) {
+        slug = `${slug}-${seen}`;
+      }
+      token.attrSet('id', slug);
     }
     return defaultHeadingOpen(tokens, idx, options, env, self);
   };
@@ -63,6 +83,8 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
   // 语义：start = map[0] + 1（首行行号），end = map[1]（闭区间末行号，单行块 start === end）。
   // 仅标题仍保留 data-source-line（文档大纲依赖它）。
   md.core.ruler.push('adl-source-map', (state) => {
+    // 每次渲染重置 slug 计数：md 实例跨内容变化复用，计数不得跨渲染累积。
+    slugCounts.clear();
     for (const token of state.tokens) {
       if (token.map && token.type !== 'inline') {
         token.attrSet('data-source-line-start', String(token.map[0] + 1));

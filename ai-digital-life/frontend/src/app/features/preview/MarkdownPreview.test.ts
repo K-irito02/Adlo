@@ -17,11 +17,23 @@ describe('MarkdownPreview', () => {
     const html = renderMarkdownPreviewHtml('# 标题\n\n## 重复\n\n## 重复');
 
     expect(html).toContain('data-source-line="1"');
-    expect(html).toContain('id="adl-heading-1"');
+    expect(html).toContain('id="标题"');
     expect(html).toContain('data-source-line="3"');
-    expect(html).toContain('id="adl-heading-3"');
+    expect(html).toContain('id="重复"');
     expect(html).toContain('data-source-line="5"');
-    expect(html).toContain('id="adl-heading-5"');
+    expect(html).toContain('id="重复-1"');
+  });
+
+  it('folds duplicate heading text into github-style suffixed slugs', () => {
+    const html = renderMarkdownPreviewHtml('# x\n\n# x\n\n# x');
+    expect(html).toContain('id="x"');
+    expect(html).toContain('id="x-1"');
+    expect(html).toContain('id="x-2"');
+  });
+
+  it('slugifies latin headings (lowercase, spaces to hyphens, strip punctuation)', () => {
+    const html = renderMarkdownPreviewHtml('# Hello, World!');
+    expect(html).toContain('id="hello-world"');
   });
 
   it('maps source line ranges on every block element (jump to arbitrary line)', () => {
