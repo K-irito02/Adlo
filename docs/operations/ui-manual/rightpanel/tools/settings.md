@@ -32,6 +32,7 @@
 | `storage` | 存储 | 核心数据路径、树缓存、终端预算、浏览器下载路径、不可移动项 |
 | `shortcuts` | 快捷键 | 键盘快捷键配置 |
 | `browser` | 浏览器 | 挂起时长、下载模式、下载路径 |
+| `openMethod` | 打开方式 | 网址/文件默认打开落点 + 智能体站点链接拦截与白名单 |
 | `dsh` | DSH | 下载源和代理设置 |
 
 > 组顺序与标签的单一真源为 `frontend/src/app/components/settings/settingsGroups.ts` 的 `SETTINGS_GROUPS`。
@@ -47,7 +48,7 @@
 
 ## 搜索设置
 
-> 首行工具栏左侧。跨**全部 6 个组**检索设置项；结果按组分组，点击跳转到该设置项。
+> 首行工具栏左侧。跨**全部 7 个组**检索设置项；结果按组分组，点击跳转到该设置项。
 
 ### 定位选择器
 
@@ -279,6 +280,30 @@ await page.click('.adl-dsh-settings__version-menu-item-revert:has-text("1.0.0")'
 ```
 
 > 组级恢复默认经侧栏触发；该流程会**取消在途的自动保存防抖并立即落盘**，避免旧快照补写。
+
+---
+
+## 打开方式设置组
+
+> 网址链接 / 文件的默认打开落点，以及智能体站点正文链接拦截（`features/preview/openByMethod.ts` 统一执行；Markdown 预览链接与智能体站点拦截链接同消费该设置）。
+
+| 设置项 | 说明 |
+|--------|------|
+| 网址链接 | 三选一：中间区 / 右侧浏览器面板 / 外部浏览器；两处下拉触发器等宽（`.adl-settings-dropdown--open-method`） |
+| 文件 | 二选一：右侧文件面板 / 系统默认应用 |
+| 智能体站点链接拦截 | 默认关闭（opt-in）；关闭时白名单行隐藏且两行间无分隔线（同一视觉组） |
+| 智能体网址白名单 | 仅拦截开启时显示；卡片式新增（别称选填、站点必填归一为整站 origin）；浏览器模式整行置灰（跨域 iframe 不可注入） |
+
+### 定位选择器
+
+| 选择器 | 说明 |
+|--------|------|
+| `[data-settings-anchor="openMethod:linkOpenMethod"]` | 网址链接下拉行 |
+| `[data-settings-anchor="openMethod:fileOpenMethod"]` | 文件下拉行 |
+| `[data-settings-anchor="openMethod:agentLinkIntercept"]` | 拦截开关行 |
+| `[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"]` | 白名单行（拦截开启时） |
+| `.adl-settings-allowlist` | 白名单列表控件（条目支持按 origin 移除） |
+| `.adl-prompt-modal`（Portal 挂 body） | 添加卡片对话框（别称/站点输入 + 取消/添加） |
 
 ---
 
