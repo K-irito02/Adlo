@@ -45,6 +45,10 @@ export function MarkdownPreview({ content, linkHandlers }: MarkdownPreviewProps)
         )(href);
         return;
       }
+      if (/^file:\/\//i.test(href)) {
+        linkHandlers?.onOpenFile?.(href);
+        return;
+      }
       if (href.includes('://') || href.startsWith('mailto:') || href.startsWith('tel:')) {
         void window.digitalLife?.window?.openExternal(href);
         return;

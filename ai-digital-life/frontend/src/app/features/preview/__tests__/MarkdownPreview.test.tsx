@@ -40,4 +40,21 @@ describe('MarkdownPreview link delegation', () => {
     fireEvent.click(container.querySelector('a')!);
     expect(onOpenFile).toHaveBeenCalledWith('other.md');
   });
+
+  it('routes file:// links through onOpenFile handler, not openExternal', () => {
+    const onOpenFile = vi.fn();
+    const openExternal = vi.fn();
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      window: { openExternal },
+    };
+    const { container } = render(<MarkdownPreview content={''} linkHandlers={{ onOpenFile }} />);
+    // markdown-it（及 DOMPurify）会过滤 file: 协议，故预览正文不会产出该锚点；
+    // 这里直接向预览 DOM 注入 file:// 锚点，专测点击委托的路由分支。
+    const preview = container.querySelector('.adl-markdown-preview')!;
+    preview.innerHTML = '<a href="file:///C:/ws/a.md">doc</a>';
+    fireEvent.click(preview.querySelector('a')!);
+    expect(onOpenFile).toHaveBeenCalledWith('file:///C:/ws/a.md');
+    expect(openExternal).not.toHaveBeenCalled();
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+  });
 });
