@@ -120,8 +120,17 @@ describe('buildSettingsItems', () => {
     expect(uiItem?.value).toBe('');
   });
 
-  it('includes the four openMethod group items with correct types and values', () => {
+  it('hides the agent whitelist while link interception is off', () => {
     const items = buildSettingsItems(mockT, mockAppInfo);
+    expect(items.find((i) => i.id === 'openMethod:agentSiteWhitelist')).toBeUndefined();
+  });
+
+  it('includes the four openMethod group items with correct types and values', () => {
+    const openAppInfo: AppInfo = {
+      ...mockAppInfo,
+      config: { ...mockAppInfo.config, agentLinkIntercept: true },
+    };
+    const items = buildSettingsItems(mockT, openAppInfo);
 
     const link = items.find((i) => i.id === 'linkOpenMethod');
     expect(link?.groupId).toBe('openMethod');
@@ -138,26 +147,33 @@ describe('buildSettingsItems', () => {
     const intercept = items.find((i) => i.id === 'agentLinkIntercept');
     expect(intercept?.groupId).toBe('openMethod');
     expect(intercept?.type).toBe('toggle');
-    expect(intercept?.value).toBe(false);
+    expect(intercept?.value).toBe(true);
 
     const whitelist = items.find((i) => i.id === 'openMethod:agentSiteWhitelist');
     expect(whitelist?.groupId).toBe('openMethod');
-    expect(whitelist?.type).toBe('originlist');
-    expect(whitelist?.value).toBe('');
+    expect(whitelist?.type).toBe('allowlist');
+    expect(whitelist?.value).toEqual([]);
   });
 
-  it('joins agentSiteWhitelist origins into newline-separated text', () => {
+  it('exposes agentSiteWhitelist entries for the allowlist control', () => {
     const appInfo: AppInfo = {
       ...mockAppInfo,
       config: {
         ...mockAppInfo.config,
-        agentSiteWhitelist: ['http://127.0.0.1:3080', 'https://my-agent.example.com'],
+        agentLinkIntercept: true,
+        agentSiteWhitelist: [
+          { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+          { origin: 'https://my-agent.example.com' },
+        ],
       },
     };
     const whitelist = buildSettingsItems(mockT, appInfo).find(
       (i) => i.id === 'openMethod:agentSiteWhitelist',
     );
-    expect(whitelist?.value).toBe('http://127.0.0.1:3080\nhttps://my-agent.example.com');
+    expect(whitelist?.value).toEqual([
+      { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+      { origin: 'https://my-agent.example.com' },
+    ]);
   });
 });
 
@@ -166,15 +182,13 @@ describe('buildSettingsItems agent-link availability', () => {
     envState.tauri = false;
   });
 
-  it('disables agent intercept + whitelist and appends the desktop-only hint in browser mode', () => {
+  it('hides the whitelist while interception is off and keeps the toggle disabled in browser mode', () => {
     envState.tauri = false;
     const items = buildSettingsItems(mockT, mockAppInfo);
     const intercept = items.find((i) => i.id === 'agentLinkIntercept');
-    const whitelist = items.find((i) => i.id === 'openMethod:agentSiteWhitelist');
     expect(intercept?.disabled).toBe(true);
-    expect(whitelist?.disabled).toBe(true);
     expect(intercept?.description).toContain('settingsAgentDesktopOnlyHint');
-    expect(whitelist?.description).toContain('settingsAgentDesktopOnlyHint');
+    expect(items.find((i) => i.id === 'openMethod:agentSiteWhitelist')).toBeUndefined();
   });
 
   it('leaves URL/file open-method items enabled in browser mode', () => {
@@ -186,7 +200,11 @@ describe('buildSettingsItems agent-link availability', () => {
 
   it('enables agent intercept + whitelist and omits the hint in Tauri', () => {
     envState.tauri = true;
-    const items = buildSettingsItems(mockT, mockAppInfo);
+    const openAppInfo: AppInfo = {
+      ...mockAppInfo,
+      config: { ...mockAppInfo.config, agentLinkIntercept: true },
+    };
+    const items = buildSettingsItems(mockT, openAppInfo);
     const intercept = items.find((i) => i.id === 'agentLinkIntercept');
     const whitelist = items.find((i) => i.id === 'openMethod:agentSiteWhitelist');
     expect(intercept?.disabled).toBe(false);
@@ -287,14 +305,22 @@ describe('preferencePatchFromSettingChange', () => {
     });
   });
 
-  it('parses agentSiteWhitelist text into a normalized origin array', () => {
+  it('normalizes agentSiteWhitelist entries and drops invalid origins', () => {
     expect(
-      preferencePatchFromSettingChange(
-        'openMethod:agentSiteWhitelist',
-        'http://127.0.0.1:3080\nhttps://my-agent.example.com/foo\nnot-a-url',
-      ),
+      preferencePatchFromSettingChange('openMethod:agentSiteWhitelist', [
+        { alias: ' 工作台 ', origin: 'http://127.0.0.1:3080/chat/1' },
+        { origin: 'https://my-agent.example.com/foo' },
+        { alias: '', origin: 'http://127.0.0.1:3080' },
+        { alias: '坏', origin: 'not-a-url' },
+      ]),
     ).toEqual({
-      agentSiteWhitelist: ['http://127.0.0.1:3080', 'https://my-agent.example.com'],
+      agentSiteWhitelist: [
+        { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+        { origin: 'https://my-agent.example.com' },
+      ],
+    });
+    expect(preferencePatchFromSettingChange('openMethod:agentSiteWhitelist', 'nope')).toEqual({
+      agentSiteWhitelist: [],
     });
   });
 });

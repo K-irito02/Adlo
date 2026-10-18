@@ -35,6 +35,17 @@ describe('directory expansion intent', () => {
     });
   });
 
+  it('issues file-tree reveal requests with increasing nonces', () => {
+    useAppStore.setState({ fileTreeRevealRequest: null });
+    useAppStore.getState().requestFileTreeReveal('ws-1', 'docs/a.md');
+    const first = useAppStore.getState().fileTreeRevealRequest;
+    expect(first).toMatchObject({ workspaceId: 'ws-1', path: 'docs/a.md' });
+    expect(typeof first?.nonce).toBe('number');
+    useAppStore.getState().requestFileTreeReveal('ws-1', 'docs/a.md');
+    const second = useAppStore.getState().fileTreeRevealRequest;
+    expect(second?.nonce).toBeGreaterThan(first?.nonce ?? 0);
+  });
+
   it('manual expand clears the manual intent', () => {
     useAppStore.getState().setFileTreePathExpanded(WS, 'src/legacy', false);
     useAppStore.getState().setFileTreePathExpanded(WS, 'src/legacy', true);

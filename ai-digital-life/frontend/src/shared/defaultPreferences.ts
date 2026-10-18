@@ -1,4 +1,4 @@
-import type { AppPreferencePatch } from './ipc-types.generated';
+import type { AgentSiteAllowEntry, AppPreferencePatch } from './ipc-types.generated';
 import { DEFAULT_COMMANDS } from '../app/commands/defaultCommands';
 
 /**
@@ -39,7 +39,7 @@ export const DEFAULT_BROWSER_SUSPEND_MS = 900_000;
 export const DEFAULT_LINK_OPEN_METHOD = 'panel' as const;
 export const DEFAULT_FILE_OPEN_METHOD = 'panel' as const;
 export const DEFAULT_AGENT_LINK_INTERCEPT = false;
-export const DEFAULT_AGENT_SITE_WHITELIST: string[] = [];
+export const DEFAULT_AGENT_SITE_WHITELIST: AgentSiteAllowEntry[] = [];
 
 // 下载模式产品默认（自动保存；Rust 侧 DownloadMode::Auto 同步）。
 // downloadSettings 走独立桥而非偏好 patch，此常量仅作恢复目标单一真源。
@@ -70,7 +70,9 @@ export function getDefaultPreferences(): AppPreferencePatch {
 
 /** 行/组设置项的默认值查询。注意：`language` 返回 `'system'`（用户基线），
  * 它不是合法 `Locale`——消费前必须经 `resolveAppLanguage` 解析（Phase 4 R1-1.3）。 */
-export function getDefaultForSetting(id: string): string | boolean | number | string[] | undefined {
+export function getDefaultForSetting(
+  id: string,
+): string | boolean | number | string[] | AgentSiteAllowEntry[] | undefined {
   switch (id) {
     case 'language':
       return DEFAULT_LANGUAGE;

@@ -17,11 +17,7 @@ import { formatBytes } from '@root/design-system/html';
 import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
 import { LazyMarkdownPreviewWrapper } from '@features/preview';
-import {
-  openFileByMethod,
-  openUrlByMethod,
-  resolveMarkdownFileLink,
-} from '@features/preview/openByMethod';
+import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
 import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
 import { outlineForChangePreview } from '@features/outline';
@@ -162,21 +158,17 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
   const stickyContextModel = useStickyContext(stickyContextInput);
   const diffExtensions = useMemo(() => [], []);
 
-  // 变更面板 markdown 预览的链接点击：与文件面板同源解析（changePreview.path 为工作区相对路径）。
+  // 变更面板 markdown 预览的链接点击：与文件面板同源（changePreview.path 为其
+  // 所属工作区相对路径，用变更预览自身的工作区而非当前工作区，见事项 6）。
   const markdownLinkHandlers = useMemo(
     () => ({
       onOpenUrl: openUrlByMethod,
       onOpenFile: (href: string) => {
-        const ws = useAppStore.getState().appInfo?.currentWorkspace;
-        const root = ws?.rootPath ?? ws?.path;
-        const rel = changePreview?.path;
-        if (!root || !rel) {
-          return;
-        }
-        const abs = resolveMarkdownFileLink(root, rel, href);
-        if (abs) {
-          openFileByMethod(abs);
-        }
+        openMarkdownFileLink(
+          useAppStore.getState().selectedChangePreviewWorkspaceId,
+          changePreview?.path,
+          href,
+        );
       },
     }),
     [changePreview?.path],

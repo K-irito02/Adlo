@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+export interface FileHistoryEntry {
+  path: string;
+  workspaceId: string | undefined;
+}
+
 export interface FileHistoryState {
   canGoBack: boolean;
   canGoForward: boolean;
@@ -9,9 +14,10 @@ export interface FileHistoryState {
 
 function useFileHistory(
   currentFilePath: string | undefined,
-  onOpenFile: (path: string) => void,
+  currentWorkspaceId: string | undefined,
+  onNavigate: (entry: FileHistoryEntry) => void,
 ): FileHistoryState {
-  const [fileHistory, setFileHistory] = useState<string[]>([]);
+  const [fileHistory, setFileHistory] = useState<FileHistoryEntry[]>([]);
   const [fileHistoryIndex, setFileHistoryIndex] = useState(-1);
   const isNavigatingRef = useRef(false);
 
@@ -25,14 +31,15 @@ function useFileHistory(
     }
     setFileHistory((current) => {
       const base = fileHistoryIndex >= 0 ? current.slice(0, fileHistoryIndex + 1) : current;
-      if (base[base.length - 1] === currentFilePath) {
+      const last = base[base.length - 1];
+      if (last && last.path === currentFilePath && last.workspaceId === currentWorkspaceId) {
         return current;
       }
-      const next = [...base, currentFilePath];
+      const next = [...base, { path: currentFilePath, workspaceId: currentWorkspaceId }];
       setFileHistoryIndex(next.length - 1);
       return next;
     });
-  }, [currentFilePath, fileHistoryIndex]);
+  }, [currentFilePath, currentWorkspaceId, fileHistoryIndex]);
 
   const canGoBack = fileHistoryIndex > 0;
   const canGoForward = fileHistoryIndex >= 0 && fileHistoryIndex < fileHistory.length - 1;
@@ -40,15 +47,15 @@ function useFileHistory(
   const navigate = useCallback(
     (direction: 'back' | 'forward') => {
       const nextIndex = direction === 'back' ? fileHistoryIndex - 1 : fileHistoryIndex + 1;
-      const nextPath = fileHistory[nextIndex];
-      if (!nextPath) {
+      const nextEntry = fileHistory[nextIndex];
+      if (!nextEntry) {
         return;
       }
       isNavigatingRef.current = true;
       setFileHistoryIndex(nextIndex);
-      onOpenFile(nextPath);
+      onNavigate(nextEntry);
     },
-    [fileHistory, fileHistoryIndex, onOpenFile],
+    [fileHistory, fileHistoryIndex, onNavigate],
   );
 
   return {

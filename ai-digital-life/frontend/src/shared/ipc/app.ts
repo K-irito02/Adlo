@@ -1,4 +1,5 @@
 import type {
+  AgentSiteAllowEntry,
   AppInfo,
   AppPreferencePatch,
   HealthSnapshot,
@@ -6,10 +7,12 @@ import type {
   RuntimeDiagnosticsSnapshot,
   SettingItem,
   SettingsGroupId,
+  SettingValue,
   UpdatePreferencesResult,
 } from '@ai-digital-life/kernel';
 
 export type {
+  AgentSiteAllowEntry,
   AppInfo,
   AppPreferencePatch,
   HealthSnapshot,
@@ -17,6 +20,7 @@ export type {
   RuntimeDiagnosticsSnapshot,
   SettingItem,
   SettingsGroupId,
+  SettingValue,
   UpdatePreferencesResult,
 };
 

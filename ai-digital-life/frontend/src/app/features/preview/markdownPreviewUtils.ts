@@ -69,6 +69,11 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
       return highlightCode(str, lang, starryEnabled);
     },
   });
+  // 裸域名不自动成链（如 `AGENTS.md` 会被当成网址）：`md` 是合法顶级域，
+  // linkify 的 fuzzy 匹配会把正文里的文件名误判为链接（事项 6 用户反馈）。
+  // 仅保留带协议（http/https/mailto/…）与邮箱的自动链接；裸 `www.`/`example.com`
+  // 不再可点，需要的话请写全协议。
+  md.linkify.set({ fuzzyLink: false });
 
   const defaultHeadingOpen =
     md.renderer.rules.heading_open ??

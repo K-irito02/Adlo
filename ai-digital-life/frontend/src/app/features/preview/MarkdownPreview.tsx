@@ -32,14 +32,21 @@ export function MarkdownPreview({ content, linkHandlers }: MarkdownPreviewProps)
       }
       e.preventDefault();
       if (href.startsWith('#')) {
-        const id = href.slice(1);
+        // markdown-it 会把非 ASCII 锚点 percent-encode（如中文标题），而标题 id
+        // 是原始 Unicode slug；比对前必须先解码，否则永远命中不了。
+        let id = href.slice(1);
+        try {
+          id = decodeURIComponent(id);
+        } catch {
+          id = href.slice(1);
+        }
         const root = rootRef.current;
+        const headings = root?.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6');
         let el = root?.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
-        if (!el && root) {
+        if (!el && root && headings) {
           // Spec §7.2 slug-miss fallback: the anchor targets a heading whose id
           // differs (or is missing) — match the first heading whose slugified
           // text equals the anchor id.
-          const headings = root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6');
           for (const heading of headings) {
             if (slugify(heading.textContent ?? '') === id) {
               el = heading;

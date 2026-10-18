@@ -4,6 +4,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { useTCopy } from '@i18n/useTCopy';
 import { buildSettingsItems, preferencePatchFromSettingChange } from '@utils/settingsViewModel';
+import type { SettingValue } from '@shared/ipc';
 import type { SettingsPanelProps } from '../types';
 import type { RightPanelProps } from '@regions/RightPanel';
 
@@ -15,7 +16,7 @@ export function useSettingsPanelProps(_panelProps: RightPanelProps): SettingsPan
   const settings = useMemo(() => buildSettingsItems(t, appInfo), [appInfo, t]);
 
   const handleChangeSetting = useCallback(
-    (id: string, value: string | boolean | number) => {
+    (id: string, value: SettingValue) => {
       const patch = preferencePatchFromSettingChange(id, value);
       if (patch) {
         void actions.updatePreferences(patch);

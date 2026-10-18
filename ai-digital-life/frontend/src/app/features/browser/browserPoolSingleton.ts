@@ -1,4 +1,5 @@
 import { isTauriShell } from '@shared/env';
+import { allowlistOrigins } from '@shared/originWhitelist';
 import { useAppStore } from '@stores/slicedStore';
 
 /**
@@ -96,7 +97,7 @@ async function createForTab(
           url,
           colorScheme,
           location,
-          config?.agentSiteWhitelist ?? [],
+          allowlistOrigins(config?.agentSiteWhitelist ?? []),
           config?.agentLinkIntercept ?? false,
         );
         // 新建原生子窗口盖在最上层，通知透明桥接条重建回到最上层。

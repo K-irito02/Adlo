@@ -6,11 +6,23 @@ const openExternal = vi.fn();
 const openFile = vi.fn();
 const openFileForWorkspace = vi.fn();
 let config: { linkOpenMethod: string; fileOpenMethod: string };
+let recentWorkspaces: { id: string; path: string; rootPath: string }[] = [];
+let trees: Record<string, { name: string; path: string; kind: string; children: unknown[] }[]> = {};
+const expandFileTreePathChain = vi.fn();
+const setFileTreeClickedNode = vi.fn();
+const requestFileTreeReveal = vi.fn();
+const setFileTreePathExpanded = vi.fn();
 
 vi.mock('@stores/slicedStore', () => ({
   useAppStore: {
     getState: () => ({
       appInfo: { config, currentWorkspace: { id: 'ws1', path: 'C:/ws', rootPath: 'C:/ws' } },
+      recentWorkspaces,
+      workspaceTrees: trees,
+      expandFileTreePathChain,
+      setFileTreeClickedNode,
+      requestFileTreeReveal,
+      setFileTreePathExpanded,
       browserOpenTab,
       centerShowBrowserTab,
       openFile,
@@ -23,9 +35,20 @@ vi.mock('@stores/slicedStore', () => ({
 vi.mock('@shared/env', () => ({ isTauriShell: () => true }));
 vi.stubGlobal('window', { digitalLife: { window: { openExternal } } });
 
-import { openFileByMethod, openUrlByMethod, resolveMarkdownFileLink } from '../openByMethod';
+import {
+  openFileByMethod,
+  openMarkdownFileLink,
+  openUrlByMethod,
+  resolveLinkWorkspace,
+  resolveMarkdownFileLink,
+  revealWorkspaceDirectory,
+} from '../openByMethod';
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  recentWorkspaces = [];
+  trees = {};
+});
 
 describe('openUrlByMethod', () => {
   it('opens in center', () => {
@@ -57,6 +80,25 @@ describe('openFileByMethod', () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'external' };
     openFileByMethod('C:/ws/src/a.md');
     expect(openExternal).toHaveBeenCalledWith('C:/ws/src/a.md');
+  });
+  it('opens in the file-owning workspace instead of the current one', () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    recentWorkspaces = [{ id: 'ws2', path: 'C:/ws2', rootPath: 'C:/ws2' }];
+    openFileByMethod('C:/ws2/src/a.md', 'ws2');
+    expect(openFileForWorkspace).toHaveBeenCalledWith('ws2', 'C:/ws2', 'src/a.md');
+    recentWorkspaces = [];
+  });
+});
+
+describe('resolveLinkWorkspace', () => {
+  it('prefers the file-owning workspace over the current one', () => {
+    recentWorkspaces = [{ id: 'ws2', path: 'C:/ws2', rootPath: 'C:/ws2' }];
+    expect(resolveLinkWorkspace('ws2')).toEqual({ id: 'ws2', root: 'C:/ws2' });
+    recentWorkspaces = [];
+  });
+  it('falls back to the current workspace for unknown ids', () => {
+    expect(resolveLinkWorkspace('nope')).toEqual({ id: 'ws1', root: 'C:/ws' });
+    expect(resolveLinkWorkspace(undefined)).toEqual({ id: 'ws1', root: 'C:/ws' });
   });
 });
 
@@ -97,7 +139,99 @@ describe('resolveMarkdownFileLink', () => {
   it('treats a leading slash as workspace-root relative', () => {
     expect(resolveMarkdownFileLink('C:\\ws', 'docs/a.md', '/src/x.md')).toBe('C:\\ws\\src\\x.md');
   });
+  it('strips hash fragments from relative file links', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'docs/a.md', 'other.md#sec')).toBe(
+      'C:\\ws\\docs\\other.md',
+    );
+  });
+
+  it('strips hash fragments from absolute file links', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'a.md', 'C:/ws/src/x.md#sec')).toBe(
+      'C:\\ws\\src\\x.md',
+    );
+  });
+
   it('returns null for an empty href', () => {
     expect(resolveMarkdownFileLink('C:\\ws', 'a.md', '   ')).toBeNull();
+  });
+});
+
+describe('revealWorkspaceDirectory', () => {
+  const dirTree = {
+    ws1: [
+      {
+        name: 'docs',
+        path: 'docs',
+        kind: 'directory',
+        children: [
+          {
+            name: 'analysis',
+            path: 'docs/analysis',
+            kind: 'directory',
+            children: [
+              {
+                name: 'ai-digital-life',
+                path: 'docs/analysis/ai-digital-life',
+                kind: 'directory',
+                children: [],
+              },
+            ],
+          },
+        ],
+      },
+      { name: 'README.md', path: 'README.md', kind: 'file', children: [] },
+    ],
+  };
+
+  it('expands and selects a known directory without opening a file', () => {
+    trees = dirTree;
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    expect(revealWorkspaceDirectory('ws1', 'docs/analysis/ai-digital-life')).toBe(true);
+    expect(setFileTreePathExpanded).toHaveBeenCalledWith('ws1', 'docs', true);
+    expect(setFileTreePathExpanded).toHaveBeenCalledWith('ws1', 'docs/analysis', true);
+    expect(setFileTreeClickedNode).toHaveBeenCalledWith(
+      'ws1',
+      'docs/analysis/ai-digital-life',
+      'directory',
+    );
+    expect(openFileForWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('returns false for files and unknown paths', () => {
+    trees = dirTree;
+    expect(revealWorkspaceDirectory('ws1', 'README.md')).toBe(false);
+    expect(revealWorkspaceDirectory('ws1', 'docs/missing')).toBe(false);
+    expect(revealWorkspaceDirectory('ws1', '')).toBe(false);
+    expect(expandFileTreePathChain).not.toHaveBeenCalled();
+    expect(setFileTreeClickedNode).not.toHaveBeenCalled();
+    expect(requestFileTreeReveal).not.toHaveBeenCalled();
+  });
+});
+
+describe('openMarkdownFileLink', () => {
+  it('reveals a known directory link instead of reading it as a file', () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    trees = {
+      ws1: [
+        {
+          name: 'docs',
+          path: 'docs',
+          kind: 'directory',
+          children: [],
+        },
+      ],
+    };
+    openMarkdownFileLink('ws1', 'a.md', 'docs/');
+    expect(setFileTreeClickedNode).toHaveBeenCalledWith('ws1', 'docs', 'directory');
+    expect(requestFileTreeReveal).toHaveBeenCalledWith('ws1', 'docs');
+    expect(openFileForWorkspace).not.toHaveBeenCalled();
+  });
+
+  it('opens a file link through the owning workspace', () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    openMarkdownFileLink('ws1', 'docs/a.md', 'other.md');
+    expect(openFileForWorkspace).toHaveBeenCalledWith('ws1', 'C:/ws', 'docs/other.md');
+    expect(setFileTreeClickedNode).toHaveBeenCalledWith('ws1', 'docs/other.md', 'file');
+    expect(requestFileTreeReveal).toHaveBeenCalledWith('ws1', 'docs/other.md');
   });
 });

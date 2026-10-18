@@ -86,7 +86,7 @@ export function MultiWorkspaceFileTree({
       };
 
       return (
-        <div key={workspace.id} className="adl-multitree-entry">
+        <div key={workspace.id} className="adl-multitree-entry" data-workspace-id={workspace.id}>
           <WorkspaceFileTreeEntry
             workspace={workspace}
             isCurrent={workspace.id === activeWorkspaceId}

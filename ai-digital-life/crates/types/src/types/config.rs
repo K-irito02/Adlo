@@ -191,7 +191,17 @@ pub struct AppPreferencePatch {
     #[ts(optional)]
     pub agent_link_intercept: Option<bool>,
     #[ts(optional)]
-    pub agent_site_whitelist: Option<Vec<String>>,
+    pub agent_site_whitelist: Option<Vec<AgentSiteAllowEntry>>,
+}
+
+/// Agent-site allowlist entry: optional display alias plus a normalized origin.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TS)]
+#[serde(rename_all = "camelCase")]
+pub struct AgentSiteAllowEntry {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
+    pub alias: Option<String>,
+    pub origin: String,
 }
 
 /// User-defined font preferences. All fields optional — `None` means "use default".
@@ -235,7 +245,7 @@ pub struct ConfigSnapshot {
     #[serde(default)]
     pub agent_link_intercept: bool,
     #[serde(default)]
-    pub agent_site_whitelist: Vec<String>,
+    pub agent_site_whitelist: Vec<AgentSiteAllowEntry>,
 }
 
 fn default_max_concurrent_workspaces_snapshot() -> usize {

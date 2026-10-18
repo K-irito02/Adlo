@@ -4,11 +4,12 @@ import type { APP_STATE_SCHEMA_VERSION } from './constants';
 // Config / Preferences
 // ════════════════════════════════════════════════════════
 
-// 本地导入 ConfigSnapshot 供手写 AppInfo 接口引用（re-export 不会把类型引入本地作用域）
-import type { ConfigSnapshot } from '../shared/ipc-types.generated';
+// 本地导入 ConfigSnapshot/AgentSiteAllowEntry 供手写接口引用（re-export 不会把类型引入本地作用域）
+import type { AgentSiteAllowEntry, ConfigSnapshot } from '../shared/ipc-types.generated';
 
 // 废弃手写类型，统一使用 ts-rs 生成类型作为真源
 export type {
+  AgentSiteAllowEntry,
   AppPreferencePatch,
   ConfigSnapshot,
   ModelCapability,
@@ -443,13 +444,15 @@ export type SettingsGroupId =
   | 'storage'
   | 'openMethod';
 
+export type SettingValue = string | boolean | number | AgentSiteAllowEntry[];
+
 export interface SettingItem {
   id: string;
   groupId: SettingsGroupId;
   label: string;
   description?: string;
-  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly' | 'font' | 'originlist';
-  value: string | boolean | number;
+  type: 'toggle' | 'select' | 'input' | 'password' | 'readonly' | 'font' | 'allowlist';
+  value: SettingValue;
   options?: { value: string; label: string }[];
   cssVar?: '--font-sans-custom' | '--font-mono-custom';
   disabled?: boolean;

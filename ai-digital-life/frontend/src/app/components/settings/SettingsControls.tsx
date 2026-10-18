@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef, useMemo, type ChangeEvent } from 'react';
-import type { SettingItem } from '@shared/ipc';
+import type { SettingItem, SettingValue } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import type { CopyDict } from '../../i18n';
 import { IconEye, IconEyeOff, IconResetDefaults } from '../../icons';
 import { FontControl } from './FontControl';
 import { SettingsSelect } from './SettingsSelect';
-import { OriginListControl } from './OriginListControl';
+import { AgentAllowlistControl } from './AgentAllowlistControl';
 import { getDefaultForSetting } from '../../../shared/defaultPreferences';
 import { isStringArrayEqual } from './settingsGroups';
 import { anchorFor } from './settingsSearchIndex';
 
 interface SettingsControlsProps {
   items: SettingItem[];
-  onChange: (id: string, value: string | boolean | number) => void;
+  onChange: (id: string, value: SettingValue) => void;
 }
 
 /** 当前值是否已等于默认值：等于则行级恢复按钮禁用。
@@ -46,7 +46,15 @@ function ToggleControl({ item, onChange }: { item: SettingItem; onChange: (v: bo
   );
 }
 
-function SelectControl({ item, onChange }: { item: SettingItem; onChange: (v: string) => void }) {
+function SelectControl({
+  item,
+  onChange,
+  className,
+}: {
+  item: SettingItem;
+  onChange: (v: string) => void;
+  className?: string;
+}) {
   // options 身份稳定，避免下游 SettingsSelect 订阅 effect 每渲染重绑监听。
   const options = useMemo(
     () => (item.options ?? []).map((opt) => ({ value: opt.value, label: opt.label })),
@@ -58,6 +66,7 @@ function SelectControl({ item, onChange }: { item: SettingItem; onChange: (v: st
       options={options}
       onChange={onChange}
       label={item.label}
+      className={className}
     />
   );
 }
@@ -152,14 +161,20 @@ export function SettingsControls({ items, onChange }: SettingsControlsProps) {
   return (
     <div className="adl-settings-card adl-settings-controls-wrap">
       <div className="adl-settings-controls">
-        {items.map((item) => {
+        {items.map((item, index) => {
           const defaultValue = getDefaultForSetting(item.id);
           const canReset = item.type !== 'readonly' && defaultValue !== undefined;
           const isDefault = canReset && isDefaultValue(item.value, defaultValue);
+          // 拦截开关联动的白名单与拦截行视为同一组：白名单存在时去掉拦截行的底部分隔线。
+          const nextId = items[index + 1]?.id;
+          const rowClassName =
+            item.id === 'agentLinkIntercept' && nextId === 'openMethod:agentSiteWhitelist'
+              ? 'adl-settings-row adl-settings-row--no-divider'
+              : 'adl-settings-row';
           return (
             <div
               key={item.id}
-              className="adl-settings-row"
+              className={rowClassName}
               data-settings-anchor={anchorFor(item.groupId, item.id)}
             >
               <div className="adl-settings-row__label">
@@ -171,7 +186,7 @@ export function SettingsControls({ items, onChange }: SettingsControlsProps) {
                       aria-label={t.settingsResetToDefault}
                       title={t.settingsResetToDefault}
                       disabled={isDefault}
-                      onClick={() => onChange(item.id, defaultValue as string | boolean | number)}
+                      onClick={() => onChange(item.id, defaultValue as SettingValue)}
                     >
                       <IconResetDefaults size={14} decorative />
                     </button>
@@ -185,7 +200,15 @@ export function SettingsControls({ items, onChange }: SettingsControlsProps) {
                   <ToggleControl item={item} onChange={(v) => onChange(item.id, v)} />
                 )}
                 {item.type === 'select' && (
-                  <SelectControl item={item} onChange={(v) => onChange(item.id, v)} />
+                  <SelectControl
+                    item={item}
+                    onChange={(v) => onChange(item.id, v)}
+                    className={
+                      item.id === 'linkOpenMethod' || item.id === 'fileOpenMethod'
+                        ? 'adl-settings-dropdown--open-method'
+                        : undefined
+                    }
+                  />
                 )}
                 {item.type === 'input' && (
                   <InputControl item={item} onChange={(v) => onChange(item.id, v)} />
@@ -202,8 +225,8 @@ export function SettingsControls({ items, onChange }: SettingsControlsProps) {
                     t={t}
                   />
                 )}
-                {item.type === 'originlist' && (
-                  <OriginListControl item={item} t={t} onChange={(v) => onChange(item.id, v)} />
+                {item.type === 'allowlist' && (
+                  <AgentAllowlistControl item={item} t={t} onChange={(v) => onChange(item.id, v)} />
                 )}
               </div>
             </div>

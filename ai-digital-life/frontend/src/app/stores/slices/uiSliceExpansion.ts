@@ -74,10 +74,15 @@ function expandTreePathChainInState(
   return { next, blocked };
 }
 
+/** 文件树定位滚动请求的单调序号：连续两次相同定位也能各触发一次消费。 */
+let fileTreeRevealNonce = 0;
+
 export type UIExpansionSlice = Pick<
   UISlice,
   | 'expandedFileTreePaths'
   | 'expandedChangesTreePaths'
+  | 'fileTreeRevealRequest'
+  | 'requestFileTreeReveal'
   | 'setFileTreePathExpanded'
   | 'toggleFileTreePath'
   | 'expandFileTreePathChain'
@@ -94,6 +99,11 @@ export function createUIExpansionSlice(
   return {
     expandedFileTreePaths: {},
     expandedChangesTreePaths: {},
+    fileTreeRevealRequest: null,
+    requestFileTreeReveal: (workspaceId, path) => {
+      fileTreeRevealNonce += 1;
+      set({ fileTreeRevealRequest: { workspaceId, path, nonce: fileTreeRevealNonce } });
+    },
 
     setFileTreePathExpanded: (workspaceId, path, expanded) =>
       set((state) => {

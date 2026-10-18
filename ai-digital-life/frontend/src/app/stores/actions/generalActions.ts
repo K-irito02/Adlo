@@ -18,6 +18,7 @@ import type { StoreApi } from 'zustand';
 import { settingsZh } from '../../i18n/zh-CN/settings';
 import { settingsEn } from '../../i18n/en-US/settings';
 import { resolveAppLanguage } from '../../i18n/resolveLanguage';
+import { allowlistOrigins } from '@shared/originWhitelist';
 const SCOPE = 'general';
 
 /**
@@ -223,7 +224,7 @@ async function sendPreferencePatch(
     if (patch.agentLinkIntercept !== undefined || patch.agentSiteWhitelist !== undefined) {
       const config = result.data.info.config;
       void window.digitalLife?.browser?.setAgentIntercept?.(
-        config.agentSiteWhitelist ?? [],
+        allowlistOrigins(config.agentSiteWhitelist ?? []),
         config.agentLinkIntercept ?? false,
       );
     }

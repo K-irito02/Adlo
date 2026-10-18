@@ -89,6 +89,16 @@ export interface TreeExpansion {
 }
 export type FileTreeExpansionState = Record<string, TreeExpansion>;
 export type ChangesTreeExpansionState = Record<string, TreeExpansion>;
+
+/**
+ * 文件树定位滚动请求（瞬态，不落盘）：由 Markdown 预览链接跳转等程序化
+ * 导航发起，文件导航器消费后滚动到对应行。`nonce` 区分连续两次相同的定位。
+ */
+export interface FileTreeRevealRequest {
+  workspaceId: string;
+  path: string;
+  nonce: number;
+}
 export type FilePreviewModeState = Record<string, Record<string, boolean>>;
 
 export type HeatmapTab = 'calendar' | 'clock' | 'activity' | 'module';
@@ -125,6 +135,8 @@ export interface UISlice {
   isFetching: Record<string, boolean>;
   expandedFileTreePaths: FileTreeExpansionState;
   expandedChangesTreePaths: ChangesTreeExpansionState;
+  /** 文件树定位滚动请求（瞬态，不落盘；消费方见 useFileTreeRevealOnRequest）。 */
+  fileTreeRevealRequest: FileTreeRevealRequest | null;
   filesNavigatorMode: FilesNavigatorMode;
   changesNavigatorMode: ChangesNavigatorMode;
   filesSearchView: FilesSearchViewMode;
@@ -219,6 +231,8 @@ export interface UISlice {
   setFileTreePathExpanded: (workspaceId: string, path: string, expanded: boolean) => void;
   toggleFileTreePath: (workspaceId: string, path: string) => void;
   expandFileTreePathChain: (workspaceId: string, path: string) => { blocked: string[] };
+  /** 发起一次文件树定位滚动（瞬态，不落盘；nonce 保证连续相同定位可重复触发）。 */
+  requestFileTreeReveal: (workspaceId: string, path: string) => void;
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
   setFilesSearchView: (view: FilesSearchViewMode) => void;
   setFilesSearchScope: (scope: FilesSearchScope) => void;

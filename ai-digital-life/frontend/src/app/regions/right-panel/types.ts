@@ -10,6 +10,7 @@ import type {
   RecentWorkspaceEntry,
   RepoMapNode,
   SettingItem,
+  SettingValue,
   WorkspaceTreeNode,
 } from '@ai-digital-life/kernel';
 import type { SearchHitEntry } from '@stores/slices/searchSlice';
@@ -126,7 +127,7 @@ export interface RightPanelViewProps {
   gitSnapshot?: GitSnapshot;
   gitSnapshots: Record<string, GitSnapshot>;
   workspaceChangesExpanded: Record<string, boolean>;
-  onChangeSetting: (id: string, value: string | boolean | number) => void;
+  onChangeSetting: (id: string, value: SettingValue) => void;
 }
 
 export type FilesPanelProps = Pick<

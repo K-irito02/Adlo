@@ -36,6 +36,17 @@ describe('MarkdownPreview link delegation', () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  it('decodes percent-encoded anchors before matching heading ids', () => {
+    const { container } = render(
+      <MarkdownPreview content={'# 重复小节\n\n[go](#%E9%87%8D%E5%A4%8D%E5%B0%8F%E8%8A%82)'} />,
+    );
+    const heading = container.querySelector('h1') as HTMLElement;
+    const spy = vi.fn();
+    heading.scrollIntoView = spy;
+    fireEvent.click(container.querySelector('a')!);
+    expect(spy).toHaveBeenCalled();
+  });
+
   it('routes http links through onOpenUrl handler', () => {
     const onOpenUrl = vi.fn();
     const { container } = render(

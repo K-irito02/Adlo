@@ -26,6 +26,7 @@ import {
   type GitignoreRuleSet,
 } from '../../../shared/ipc/searchIgnore';
 import { useFileCreation, useSearchPanel } from './hooks';
+import { useFileTreeRevealOnRequest } from './hooks/useFileTreeRevealOnRequest';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import type { SearchHitEntry } from '@stores/slices/searchSlice';
@@ -99,6 +100,8 @@ interface FileNavigatorShellProps {
 
 const FileNavigatorShell = React.memo(function FileNavigatorShell(props: FileNavigatorShellProps) {
   const { t, formatT } = useTCopy();
+  // 程序化定位滚动（Markdown 预览链接跳转等）：对应行挂载后滚入可视区。
+  useFileTreeRevealOnRequest();
   const {
     selectedFilePath,
     selectedFileWorkspaceId,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeOrigin, parseWhitelistLines } from './originWhitelist';
+import { allowlistOrigins, normalizeAgentSiteEntries, normalizeOrigin } from './originWhitelist';
 
 describe('normalizeOrigin', () => {
   it('accepts scheme://host:port and strips path', () => {
@@ -16,12 +16,34 @@ describe('normalizeOrigin', () => {
   });
 });
 
-describe('parseWhitelistLines', () => {
-  it('splits, normalizes, dedups and reports invalid lines', () => {
-    const r = parseWhitelistLines(
-      'http://127.0.0.1:3080\n\nhttps://a.com/x\nhttp://127.0.0.1:3080\nbad',
-    );
-    expect(r.origins).toEqual(['http://127.0.0.1:3080', 'https://a.com']);
-    expect(r.invalid).toEqual(['bad']);
+describe('normalizeAgentSiteEntries', () => {
+  it('trims aliases, normalizes origins, drops invalid rows and dedups by origin', () => {
+    expect(
+      normalizeAgentSiteEntries([
+        { alias: '  工作台 ', origin: 'http://127.0.0.1:3080/chat/1' },
+        { origin: 'https://my-agent.example.com/x' },
+        { alias: '', origin: 'http://127.0.0.1:3080' },
+        { alias: '坏', origin: 'not-a-url' },
+        null,
+      ]),
+    ).toEqual([
+      { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+      { origin: 'https://my-agent.example.com' },
+    ]);
+  });
+
+  it('rejects non-array input', () => {
+    expect(normalizeAgentSiteEntries('http://127.0.0.1:3080')).toEqual([]);
+  });
+});
+
+describe('allowlistOrigins', () => {
+  it('returns origins for injection/create calls', () => {
+    expect(
+      allowlistOrigins([
+        { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+        { origin: 'https://a.com' },
+      ]),
+    ).toEqual(['http://127.0.0.1:3080', 'https://a.com']);
   });
 });

@@ -1,8 +1,13 @@
-import type { AppPreferencePatch, LogLevel, ThemeMode } from '../../shared/ipc-types.generated';
+import type {
+  AgentSiteAllowEntry,
+  AppPreferencePatch,
+  LogLevel,
+  ThemeMode,
+} from '../../shared/ipc-types.generated';
 import { isLogMode } from './debugLogMode';
 import type { AppInfo, SettingItem } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
-import { parseWhitelistLines } from '@shared/originWhitelist';
+import { normalizeAgentSiteEntries } from '@shared/originWhitelist';
 import { isTauriShell } from '@shared/env';
 
 const LOG_LEVELS: readonly string[] = ['error', 'warn', 'info', 'debug', 'trace'];
@@ -136,15 +141,18 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
     disabled: !agentInterceptAvailable,
   });
 
-  items.push({
-    id: 'openMethod:agentSiteWhitelist',
-    groupId: 'openMethod',
-    label: t.settingsAgentWhitelist,
-    description: `${t.settingsAgentWhitelistDesc}${agentDesktopOnlyHint}`,
-    type: 'originlist',
-    value: config.agentSiteWhitelist.join('\n'),
-    disabled: !agentInterceptAvailable,
-  });
+  // 拦截关闭时隐藏白名单：不仅避免误配，也让拦截行与白名单行自然无需分隔线。
+  if (config.agentLinkIntercept) {
+    items.push({
+      id: 'openMethod:agentSiteWhitelist',
+      groupId: 'openMethod',
+      label: t.settingsAgentWhitelist,
+      description: `${t.settingsAgentWhitelistDesc}${agentDesktopOnlyHint}`,
+      type: 'allowlist',
+      value: config.agentSiteWhitelist,
+      disabled: !agentInterceptAvailable,
+    });
+  }
 
   if (config.fonts) {
     items.push({
@@ -181,7 +189,7 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
 
 export function preferencePatchFromSettingChange(
   id: string,
-  value: string | boolean | number,
+  value: string | boolean | number | AgentSiteAllowEntry[],
 ): AppPreferencePatch | undefined {
   if (id === 'language') {
     return { language: value as string };
@@ -221,7 +229,7 @@ export function preferencePatchFromSettingChange(
     return { agentLinkIntercept: value === true };
   }
   if (id === 'openMethod:agentSiteWhitelist') {
-    return { agentSiteWhitelist: parseWhitelistLines(String(value)).origins };
+    return { agentSiteWhitelist: normalizeAgentSiteEntries(value) };
   }
   if (id === 'maxConcurrentWorkspaces') {
     return { maxConcurrentWorkspaces: value as number };

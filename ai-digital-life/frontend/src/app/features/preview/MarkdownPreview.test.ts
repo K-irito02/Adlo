@@ -46,6 +46,16 @@ describe('MarkdownPreview', () => {
     expect(renderMarkdownPreviewHtml('# 一、二')).toContain('id="一二"');
   });
 
+  it('does not autolink bare domain-like text such as AGENTS.md', () => {
+    const html = renderMarkdownPreviewHtml('已同步 AGENTS.md 文件');
+    expect(html).not.toContain('<a href');
+  });
+
+  it('still autolinks explicit http(s) URLs', () => {
+    const html = renderMarkdownPreviewHtml('详见 http://example.com/a 页');
+    expect(html).toContain('<a href="http://example.com/a">');
+  });
+
   it('maps source line ranges on every block element (jump to arbitrary line)', () => {
     const content = [
       '# 标题',

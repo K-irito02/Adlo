@@ -8,12 +8,7 @@ import {
   LazyPptxPreviewWrapper,
 } from '@features/preview';
 import { base64ToArrayBuffer } from '@features/preview/mediaBlob';
-import {
-  openFileByMethod,
-  openUrlByMethod,
-  resolveMarkdownFileLink,
-} from '@features/preview/openByMethod';
-import { useAppStore } from '@stores/slicedStore';
+import { openMarkdownFileLink, openUrlByMethod } from '@features/preview/openByMethod';
 import { RevealHighlightLayers } from '@components/RevealHighlight';
 import { HeavyPreviewGate } from './HeavyPreviewGate';
 import { formatBytes } from '@root/design-system/html';
@@ -168,24 +163,16 @@ const FilePreviewRenderers = React.memo(function FilePreviewRenderers({
 }: FilePreviewRenderersProps) {
   const { t } = useTCopy();
 
-  // Markdown 正文链接点击：http(s) 走「网址打开方式」，文件链接基于当前 md 文件所在目录
-  // 解析为工作区内绝对路径（filePath 为工作区相对路径，与 selectedFilePath 一致）。
+  // Markdown 正文链接点击：http(s) 走「网址打开方式」，文件链接统一走
+  // openMarkdownFileLink（按文件所属工作区解析；目录形链接在文件树定位）。
   const markdownLinkHandlers = useMemo(
     () => ({
       onOpenUrl: openUrlByMethod,
       onOpenFile: (href: string) => {
-        const ws = useAppStore.getState().appInfo?.currentWorkspace;
-        const root = ws?.rootPath ?? ws?.path;
-        if (!root || !filePath) {
-          return;
-        }
-        const abs = resolveMarkdownFileLink(root, filePath, href);
-        if (abs) {
-          openFileByMethod(abs);
-        }
+        openMarkdownFileLink(workspaceId, filePath, href);
       },
     }),
-    [filePath],
+    [filePath, workspaceId],
   );
 
   // 大文件确认门：超过分类阈值时先显示友好提示，用户点"仍然打开"才渲染。

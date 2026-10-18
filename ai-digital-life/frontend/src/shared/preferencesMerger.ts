@@ -91,7 +91,13 @@ export function applyPreferencePatch(
     nextConfig.agentLinkIntercept = patch.agentLinkIntercept;
   }
   if (patch.agentSiteWhitelist !== undefined) {
-    nextConfig.agentSiteWhitelist = patch.agentSiteWhitelist;
+    nextConfig.agentSiteWhitelist = patch.agentSiteWhitelist.map((entry) => {
+      const alias = typeof entry.alias === 'string' ? entry.alias.trim() : '';
+      return {
+        ...(alias ? { alias } : {}),
+        origin: entry.origin,
+      };
+    });
   }
 
   return nextConfig;

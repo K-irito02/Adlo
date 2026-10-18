@@ -27,7 +27,7 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 | 后端 | Rust stable + tokio | 异步运行时 |
 | 数据库 | SQLite (rusqlite) | 本地持久化 |
 | 前端 | React 19 + Vite 8 | UI 层 |
-| 状态管理 | Zustand 5 | 切片合并模式（32 切片 + 18 action，见 ai-digital-life/AGENTS.md） |
+| 状态管理 | Zustand 5 | 切片合并模式（32 切片 + 18 action，见 `ai-digital-life/AGENTS.md`） |
 | 编辑器 | CodeMirror 6 (@uiw/react-codemirror) | 代码显示/编辑 |
 | 终端 | xterm.js 6 + node-pty | 伪终端 |
 | 类型 | TypeScript 5.6 | 严格模式 |
@@ -41,12 +41,12 @@ AI 数字生命（AI Digital Life）是一个 **AI 数字生命桌面应用宿�
 |------|------|
 | Rust Crates | 22 |
 | Tauri Commands | 见源码 `src-tauri/src/commands/`（约 74 个，截至 2026-10-13，按 `#[tauri::command]` 标注口径） |
-| Zustand 切片 | 32（slicedStore.ts 实测，AGENTS.md 已同步） |
-| Action 模块 | 18（AGENTS.md 已同步） |
+| Zustand 切片 | 32（slicedStore.ts 实测，`AGENTS.md` 已同步） |
+| Action 模块 | 18（`AGENTS.md` 已同步） |
 | 前端功能域 | 25（见 `frontend/src/app/features/`） |
 | IPC 接口域 | 25 个文件（见 `frontend/src/shared/ipc/`） |
 | i18n 文件 | 约 46（中英各约 23，以实现为准） |
-| Rust 测试 | 616（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
+| Rust 测试 | 616（截至 2026-09-15，见 `ai-digital-life/AGENTS.md`） |
 | 前端测试 | 1947（截至 2026-09-15，见 ai-digital-life/AGENTS.md） |
 
 > 快照数字可能滞后，当前准确计数以源码与 `ai-digital-life/AGENTS.md` 为准。

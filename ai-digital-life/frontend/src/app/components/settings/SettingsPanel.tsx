@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState, useCallback, useEffect, useLayoutEffect } from 'react';
-import type { SettingItem, SettingsGroupId } from '@shared/ipc';
+import type { SettingItem, SettingsGroupId, SettingValue } from '@shared/ipc';
 import { useTCopy } from '../../i18n/useTCopy';
 import { formatT } from '../../i18n/formatT';
 import { IconSearch, IconPanelLeft, IconPanelLeftClose } from '../../icons';
@@ -76,7 +76,7 @@ import {
 
 interface SettingsPanelProps {
   settings: SettingItem[];
-  onChangeSetting: (id: string, value: string | boolean | number) => void;
+  onChangeSetting: (id: string, value: SettingValue) => void;
 }
 
 const SETTINGS_COMPONENTS: Partial<Record<SettingsGroupId, React.ComponentType>> = {

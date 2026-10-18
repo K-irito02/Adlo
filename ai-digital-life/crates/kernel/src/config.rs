@@ -77,9 +77,9 @@ pub struct AppConfig {
     /// 智能体站点正文链接拦截开关。
     #[serde(default)]
     pub agent_link_intercept: bool,
-    /// 需拦截的智能体站点 origin 白名单（整站匹配）。
+    /// 需拦截的智能体站点白名单（别称选填 + 整站匹配 origin）。
     #[serde(default)]
-    pub agent_site_whitelist: Vec<String>,
+    pub agent_site_whitelist: Vec<adl_types::types::config::AgentSiteAllowEntry>,
 }
 
 impl AppConfig {
@@ -355,19 +355,28 @@ mod tests {
 
     #[test]
     fn apply_patch_sets_open_method_and_agent_fields() {
-        use adl_types::types::config::{FileOpenMethod, LinkOpenMethod};
+        use adl_types::types::config::{AgentSiteAllowEntry, FileOpenMethod, LinkOpenMethod};
         let mut c = AppConfig::default();
         c.apply_patch(&AppPreferencePatch {
             link_open_method: Some(LinkOpenMethod::External),
             file_open_method: Some(FileOpenMethod::External),
             agent_link_intercept: Some(true),
-            agent_site_whitelist: Some(vec!["http://127.0.0.1:3080".into()]),
+            agent_site_whitelist: Some(vec![AgentSiteAllowEntry {
+                alias: Some("本地智能体".to_string()),
+                origin: "http://127.0.0.1:3080".to_string(),
+            }]),
             ..Default::default()
         });
         assert_eq!(c.link_open_method, LinkOpenMethod::External);
         assert_eq!(c.file_open_method, FileOpenMethod::External);
         assert!(c.agent_link_intercept);
-        assert_eq!(c.agent_site_whitelist, vec!["http://127.0.0.1:3080".to_string()]);
+        assert_eq!(
+            c.agent_site_whitelist,
+            vec![AgentSiteAllowEntry {
+                alias: Some("本地智能体".to_string()),
+                origin: "http://127.0.0.1:3080".to_string(),
+            }]
+        );
     }
 
     #[test]

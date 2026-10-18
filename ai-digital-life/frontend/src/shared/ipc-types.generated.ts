@@ -53,6 +53,11 @@ export interface FontPreferences {
   terminalFont?: string;
 }
 
+export interface AgentSiteAllowEntry {
+  alias?: string;
+  origin: string;
+}
+
 export interface ModelPreferences {
   providers: Record<string, ModelProviderPreference>;
 }
@@ -74,7 +79,7 @@ export interface AppPreferencePatch {
   linkOpenMethod?: LinkOpenMethod;
   fileOpenMethod?: FileOpenMethod;
   agentLinkIntercept?: boolean;
-  agentSiteWhitelist?: string[];
+  agentSiteWhitelist?: AgentSiteAllowEntry[];
 }
 
 export interface ConfigSnapshot {
@@ -96,5 +101,5 @@ export interface ConfigSnapshot {
   linkOpenMethod: LinkOpenMethod;
   fileOpenMethod: FileOpenMethod;
   agentLinkIntercept: boolean;
-  agentSiteWhitelist: string[];
+  agentSiteWhitelist: AgentSiteAllowEntry[];
 }

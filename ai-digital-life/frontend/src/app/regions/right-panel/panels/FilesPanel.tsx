@@ -108,7 +108,25 @@ const FilesPanel = React.memo(function FilesPanel(props: FilesPanelProps) {
   );
 
   const editorOptions = useEditorOptions();
-  const fileHistory = useFileHistory(selectedFilePath, onOpenFile);
+  // 后退/前进按条目归属的工作区打开，而非当前工作区（事项 6：跨工作区浏览时，
+  // 否则会把 A 工作区的路径拿到 B 工作区下去读，报 entity not found）。
+  const handleHistoryNavigate = useCallback(
+    (entry: { path: string; workspaceId: string | undefined }) => {
+      const ws = recentWorkspaces.find((w) => w.id === entry.workspaceId);
+      const wsPath = ws?.rootPath ?? ws?.path;
+      if (ws && wsPath) {
+        onOpenFileForWorkspace(ws.id, wsPath, entry.path);
+        return;
+      }
+      onOpenFile(entry.path);
+    },
+    [recentWorkspaces, onOpenFile, onOpenFileForWorkspace],
+  );
+  const fileHistory = useFileHistory(
+    selectedFilePath,
+    selectedFileWorkspaceId,
+    handleHistoryNavigate,
+  );
 
   // 编辑器 chunk 空闲预热（事项4）：挂载后即预取，首切不再付懒加载代价。
   // timeout 兜底：主线程饱和时 idle 回调也最多等 2s（P4-R1-F05）。

@@ -196,11 +196,13 @@ describe('applyPreferencePatch', () => {
       linkOpenMethod: 'external',
       fileOpenMethod: 'external',
       agentLinkIntercept: true,
-      agentSiteWhitelist: ['http://127.0.0.1:3080'],
+      agentSiteWhitelist: [{ alias: '工作台', origin: 'http://127.0.0.1:3080' }],
     });
     expect(merged.linkOpenMethod).toBe('external');
     expect(merged.fileOpenMethod).toBe('external');
     expect(merged.agentLinkIntercept).toBe(true);
-    expect(merged.agentSiteWhitelist).toEqual(['http://127.0.0.1:3080']);
+    expect(merged.agentSiteWhitelist).toEqual([
+      { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+    ]);
   });
 });

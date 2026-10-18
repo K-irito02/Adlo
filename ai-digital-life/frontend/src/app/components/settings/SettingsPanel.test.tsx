@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/react';
-import type { AppInfo, SettingItem } from '@shared/ipc';
+import type { AppInfo, SettingItem, SettingValue } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
@@ -1663,13 +1663,76 @@ describe('SettingsPanel open-method group', () => {
     } as AppInfo;
   }
 
-  it('renders open-method group items and writes a whitelist change', () => {
+  it('renders open-method rows and hides the whitelist while interception is off', () => {
     setupStore();
-    const appliedPatch = vi.fn(async (_patch: unknown) => true);
     const appInfo = openMethodAppInfo();
     useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    render(
+      <TestProvider>
+        <SettingsPanel settings={buildSettingsItems(mockT, appInfo)} onChangeSetting={() => {}} />
+      </TestProvider>,
+    );
+
+    for (const anchor of [
+      'openMethod:linkOpenMethod',
+      'openMethod:fileOpenMethod',
+      'openMethod:agentLinkIntercept',
+    ]) {
+      expect(document.querySelector(`[data-settings-anchor="${anchor}"]`), anchor).not.toBeNull();
+    }
+    expect(
+      document.querySelector('[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"]'),
+    ).toBeNull();
+  });
+
+  it('adds an allowlist entry through the card dialog', () => {
+    setupStore();
+    envState.tauri = true;
+    const appliedPatch = vi.fn(async (_patch: unknown) => true);
+    const appInfo = openMethodAppInfo({ agentLinkIntercept: true });
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
     // 与 useSettingsPanelProps 同法接线：原始变更经 preferencePatchFromSettingChange 落为偏好 patch。
-    const onChangeSetting = (id: string, value: string | boolean | number) => {
+    const onChangeSetting = (id: string, value: SettingValue) => {
+      const patch = preferencePatchFromSettingChange(id, value);
+      if (patch) {
+        void appliedPatch(patch);
+      }
+    };
+    render(
+      <TestProvider>
+        <SettingsPanel
+          settings={buildSettingsItems(mockT, appInfo)}
+          onChangeSetting={onChangeSetting}
+        />
+      </TestProvider>,
+    );
+    expect(
+      document.querySelector('[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"]'),
+    ).not.toBeNull();
+    expect(screen.getByText('settingsAgentAllowEmpty')).not.toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowAdd' }));
+    fireEvent.change(screen.getByPlaceholderText('settingsAgentAllowAliasPlaceholder'), {
+      target: { value: '工作台' },
+    });
+    fireEvent.change(screen.getByPlaceholderText('settingsAgentAllowOriginPlaceholder'), {
+      target: { value: 'http://127.0.0.1:3080/chat/1' },
+    });
+    const confirmButtons = screen.getAllByRole('button', { name: 'settingsAgentAllowAdd' });
+    fireEvent.click(confirmButtons[confirmButtons.length - 1]);
+    expect(appliedPatch).toHaveBeenCalledWith({
+      agentSiteWhitelist: [{ alias: '工作台', origin: 'http://127.0.0.1:3080' }],
+    });
+    envState.tauri = false;
+  });
+
+  it('requires and validates the site URL in the allowlist card', () => {
+    setupStore();
+    envState.tauri = true;
+    const appliedPatch = vi.fn(async (_patch: unknown) => true);
+    const appInfo = openMethodAppInfo({ agentLinkIntercept: true });
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    const onChangeSetting = (id: string, value: SettingValue) => {
       const patch = preferencePatchFromSettingChange(id, value);
       if (patch) {
         void appliedPatch(patch);
@@ -1684,29 +1747,54 @@ describe('SettingsPanel open-method group', () => {
       </TestProvider>,
     );
 
-    for (const anchor of [
-      'openMethod:linkOpenMethod',
-      'openMethod:fileOpenMethod',
-      'openMethod:agentLinkIntercept',
-      // 白名单项 id 自带 `openMethod:` 前缀（Task 2 约定，viewModel/defaultPreferences/测试三处一致），
-      // 故 anchorFor('openMethod', id) 的 DOM 锚点为双前缀。
-      'openMethod:openMethod:agentSiteWhitelist',
-    ]) {
-      expect(document.querySelector(`[data-settings-anchor="${anchor}"]`), anchor).not.toBeNull();
-    }
-
-    fireEvent.change(screen.getByPlaceholderText('settingsAgentWhitelistPlaceholder'), {
-      target: { value: 'http://127.0.0.1:3080\nnot-a-url' },
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowAdd' }));
+    const confirm = () => {
+      const buttons = screen.getAllByRole('button', { name: 'settingsAgentAllowAdd' });
+      return buttons[buttons.length - 1];
+    };
+    fireEvent.click(confirm());
+    expect(screen.getByText('settingsAgentAllowOriginRequired')).not.toBeNull();
+    expect(appliedPatch).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByPlaceholderText('settingsAgentAllowOriginPlaceholder'), {
+      target: { value: 'not-a-url' },
     });
-    expect(appliedPatch).toHaveBeenCalledWith({
-      agentSiteWhitelist: ['http://127.0.0.1:3080'],
-    });
+    fireEvent.click(confirm());
+    expect(screen.getByText('settingsAgentAllowOriginInvalid')).not.toBeNull();
+    expect(appliedPatch).not.toHaveBeenCalled();
+    envState.tauri = false;
   });
 
-  it('disables the agent intercept toggle + whitelist outside Tauri and enables them in Tauri', () => {
+  it('removes an allowlist entry', () => {
     setupStore();
-    const appInfo = openMethodAppInfo();
-    const renderOpenMethod = () => {
+    envState.tauri = true;
+    const appliedPatch = vi.fn(async (_patch: unknown) => true);
+    const appInfo = openMethodAppInfo({
+      agentLinkIntercept: true,
+      agentSiteWhitelist: [{ alias: '工作台', origin: 'http://127.0.0.1:3080' }],
+    });
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    const onChangeSetting = (id: string, value: SettingValue) => {
+      const patch = preferencePatchFromSettingChange(id, value);
+      if (patch) {
+        void appliedPatch(patch);
+      }
+    };
+    render(
+      <TestProvider>
+        <SettingsPanel
+          settings={buildSettingsItems(mockT, appInfo)}
+          onChangeSetting={onChangeSetting}
+        />
+      </TestProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowRemove 工作台' }));
+    expect(appliedPatch).toHaveBeenCalledWith({ agentSiteWhitelist: [] });
+    envState.tauri = false;
+  });
+
+  it('hides the whitelist while interception is off; gates it by environment when on', () => {
+    setupStore();
+    const renderOpenMethod = (appInfo: AppInfo) => {
       useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
       render(
         <TestProvider>
@@ -1718,25 +1806,34 @@ describe('SettingsPanel open-method group', () => {
       document.querySelector(
         '[data-settings-anchor="openMethod:agentLinkIntercept"] [role="switch"]',
       ) as HTMLButtonElement;
-    const whitelist = () =>
-      document.querySelector(
-        '[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"] textarea',
-      ) as HTMLTextAreaElement;
+    const whitelistRow = () =>
+      document.querySelector('[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"]');
+    const addButton = () =>
+      whitelistRow()?.querySelector('.adl-settings-allowlist > button') as HTMLButtonElement | null;
 
+    // 拦截关闭：白名单行不渲染（无论是否 Tauri）。
     envState.tauri = false;
-    renderOpenMethod();
+    renderOpenMethod(openMethodAppInfo({ agentLinkIntercept: false }));
     expect(toggle().disabled).toBe(true);
-    expect(whitelist().disabled).toBe(true);
+    expect(whitelistRow()).toBeNull();
     // 可见提示：非 Tauri 下描述追加「仅桌面」说明（i18n 键，非硬编码）。
     expect(
       document.querySelector('[data-settings-anchor="openMethod:agentLinkIntercept"]')?.textContent,
     ).toContain('settingsAgentDesktopOnlyHint');
     cleanup();
 
+    // 拦截开启 + 浏览器模式：白名单出现但添加按钮保持禁用。
+    renderOpenMethod(openMethodAppInfo({ agentLinkIntercept: true }));
+    expect(toggle().disabled).toBe(true);
+    expect(whitelistRow()).not.toBeNull();
+    expect(addButton()?.disabled).toBe(true);
+    cleanup();
+
+    // 拦截开启 + 桌面模式：两者可用且不再追加提示。
     envState.tauri = true;
-    renderOpenMethod();
+    renderOpenMethod(openMethodAppInfo({ agentLinkIntercept: true }));
     expect(toggle().disabled).toBe(false);
-    expect(whitelist().disabled).toBe(false);
+    expect(addButton()?.disabled).toBe(false);
     expect(
       document.querySelector('[data-settings-anchor="openMethod:agentLinkIntercept"]')?.textContent,
     ).not.toContain('settingsAgentDesktopOnlyHint');

@@ -1,6 +1,7 @@
 import { useAppStore } from '@stores/slicedStore';
 import { isTauriShell } from '@shared/env';
 import { joinPathSegments } from '@utils/workspacePaths';
+import type { WorkspaceTreeNode } from '../../../kernel/types-workspace-files';
 
 function openExternal(url: string): void {
   if (isTauriShell()) {
@@ -94,7 +95,7 @@ function parentDirectory(currentRelPath: string): string {
   return lastSeparator >= 0 ? currentRelPath.slice(0, lastSeparator) : '';
 }
 
-/** 按「网址链接打开方式」设置打开一个 URL。中间区/右面板均为新建标签，绕过就地/新建双态开关。 */
+/** 按「网址链接」设置打开一个 URL。中间区/右面板均为新建标签，绕过就地/新建双态开关。 */
 export function openUrlByMethod(url: string): void {
   const state = useAppStore.getState();
   const method = state.appInfo?.config?.linkOpenMethod ?? 'panel';
@@ -111,26 +112,138 @@ export function openUrlByMethod(url: string): void {
   }
 }
 
-/** 按「文件打开方式」设置打开一个本地绝对路径。 */
-export function openFileByMethod(absPath: string): void {
+export interface LinkWorkspaceTarget {
+  id: string;
+  root: string;
+}
+
+/**
+ * 链接归属工作区：优先用文件/预览自身的工作区（跨工作区预览时与当前工作区
+ * 可能不同，见事项 6：必须按文件所属工作区解析相对路径），找不到时回退
+ * 当前工作区；都没有则返回 null（调用方回退外部打开）。
+ */
+export function resolveLinkWorkspace(workspaceId?: string): LinkWorkspaceTarget | null {
+  const state = useAppStore.getState();
+  if (workspaceId) {
+    const owned = state.recentWorkspaces?.find((w) => w.id === workspaceId);
+    const ownedRoot = owned?.rootPath ?? owned?.path;
+    if (owned && ownedRoot) {
+      return { id: owned.id, root: ownedRoot };
+    }
+  }
+  const current = state.appInfo?.currentWorkspace;
+  const root = current?.rootPath ?? current?.path;
+  if (!current || !root) {
+    return null;
+  }
+  return { id: current.id, root };
+}
+
+/** 按「文件」设置打开一个本地绝对路径。 */
+export function openFileByMethod(absPath: string, workspaceId?: string): void {
   const state = useAppStore.getState();
   const method = state.appInfo?.config?.fileOpenMethod ?? 'panel';
   if (method === 'external') {
     openExternal(absPath);
     return;
   }
-  const ws = state.appInfo?.currentWorkspace;
-  const root = ws?.rootPath ?? ws?.path;
-  if (!ws || !root) {
+  const target = resolveLinkWorkspace(workspaceId);
+  if (!target) {
     openExternal(absPath);
     return;
   }
-  const rel = workspaceRelative(root, absPath);
+  const rel = workspaceRelative(target.root, absPath);
   if (!rel) {
     openExternal(absPath);
     return;
   }
-  void state.openFileForWorkspace(ws.id, root, rel);
+  void state.openFileForWorkspace(target.id, target.root, rel);
+}
+
+/**
+ * 链接跳转在文件树中定位：强制展开祖先链（覆盖本次链路上的手动折叠，
+ * 不改通用自动展开的 blocked 语义）并选中节点，与用鼠标在树中点开一致。
+ */
+export function revealInFileTree(
+  workspaceId: string,
+  relPath: string,
+  kind: 'file' | 'directory',
+): void {
+  const state = useAppStore.getState();
+  const norm = relPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  if (!norm) {
+    return;
+  }
+  const segments = norm.split('/').filter(Boolean);
+  for (let index = 1; index < segments.length; index += 1) {
+    state.setFileTreePathExpanded(workspaceId, segments.slice(0, index).join('/'), true);
+  }
+  state.setFileTreeClickedNode(workspaceId, norm, kind);
+  // 滚动跟随由文件导航器消费（useFileTreeRevealOnRequest），此处只负责发出请求。
+  state.requestFileTreeReveal(workspaceId, norm);
+}
+
+/**
+ * 在工作区文件树中定位已知目录：树中有该目录节点时展开并选中，返回 true；
+ * 树未加载或路径未知时返回 false（调用方走读文件链，缺失则友好报错）。
+ */
+export function revealWorkspaceDirectory(workspaceId: string, relPath: string): boolean {
+  const state = useAppStore.getState();
+  const roots = state.workspaceTrees?.[workspaceId];
+  if (!roots || roots.length === 0) {
+    return false;
+  }
+  const norm = relPath.replace(/\\/g, '/').replace(/\/+$/, '');
+  if (!norm) {
+    return false;
+  }
+  const segments = norm.split('/');
+  let nodes: WorkspaceTreeNode[] = roots;
+  let node: WorkspaceTreeNode | undefined;
+  for (const segment of segments) {
+    node = nodes.find(
+      (candidate) =>
+        candidate.name === segment || candidate.name.toLowerCase() === segment.toLowerCase(),
+    );
+    if (!node || node.kind !== 'directory') {
+      return false;
+    }
+    nodes = node.children ?? [];
+  }
+  if (!node) {
+    return false;
+  }
+  revealInFileTree(workspaceId, norm, 'directory');
+  return true;
+}
+
+/**
+ * Markdown 正文文件链接统一入口：解析为工作区内绝对路径后，
+ * 若目标是文件树中的已知目录则在文件树定位展开，否则按「文件」设置打开。
+ */
+export function openMarkdownFileLink(
+  workspaceId: string | undefined,
+  currentRelPath: string | undefined,
+  href: string,
+): void {
+  const target = resolveLinkWorkspace(workspaceId);
+  if (!target || !currentRelPath) {
+    return;
+  }
+  const abs = resolveMarkdownFileLink(target.root, currentRelPath, href);
+  if (!abs) {
+    return;
+  }
+  const rel = workspaceRelative(target.root, abs);
+  if (!rel) {
+    openFileByMethod(abs, workspaceId);
+    return;
+  }
+  if (revealWorkspaceDirectory(target.id, rel)) {
+    return;
+  }
+  revealInFileTree(target.id, rel, 'file');
+  openFileByMethod(abs, workspaceId);
 }
 
 /**
@@ -142,7 +255,10 @@ export function resolveMarkdownFileLink(
   currentRelPath: string,
   href: string,
 ): string | null {
-  const raw = href.trim();
+  // 文件链接里的 `#...` 是行内锚点/章节定位，不属于文件路径本身：
+  // 先剥掉再解析，否则会被当成文件名的一部分去读文件（事项6 根因B）。
+  const hashIndex = href.indexOf('#');
+  const raw = (hashIndex >= 0 ? href.slice(0, hashIndex) : href).trim();
   if (!raw) {
     return null;
   }
