@@ -65,6 +65,35 @@ function fromFileUrl(raw: string): string | null {
   }
 }
 
+/** 归一化盘符绝对路径：消除 `.`/`..`；上溢出盘符根时返回 null。 */
+function normalizeAbsolutePath(absPath: string): string | null {
+  const match = /^([a-zA-Z]:)(\/.*)?$/.exec(toForwardSlashes(absPath));
+  if (!match) {
+    return null;
+  }
+  const resolved: string[] = [];
+  for (const segment of (match[2] ?? '').split('/')) {
+    if (segment === '' || segment === '.') {
+      continue;
+    }
+    if (segment === '..') {
+      if (resolved.length === 0) {
+        return null;
+      }
+      resolved.pop();
+      continue;
+    }
+    resolved.push(segment);
+  }
+  return `${match[1]}/${resolved.join('/')}`;
+}
+
+/** 取路径的父目录（去掉最后一个分隔符之后的部分）；无分隔符时返回 ''。 */
+function parentDirectory(currentRelPath: string): string {
+  const lastSeparator = Math.max(currentRelPath.lastIndexOf('/'), currentRelPath.lastIndexOf('\\'));
+  return lastSeparator >= 0 ? currentRelPath.slice(0, lastSeparator) : '';
+}
+
 /** 按「网址链接打开方式」设置打开一个 URL。中间区/右面板均为新建标签，绕过就地/新建双态开关。 */
 export function openUrlByMethod(url: string): void {
   const state = useAppStore.getState();
@@ -119,22 +148,24 @@ export function resolveMarkdownFileLink(
   }
 
   if (/^file:\/\//i.test(raw)) {
-    const path = fromFileUrl(raw);
-    if (!path || !isWithinRoot(workspaceRoot, path)) {
+    const fromUrl = fromFileUrl(raw);
+    const normalized = fromUrl ? normalizeAbsolutePath(fromUrl) : null;
+    if (!normalized || !isWithinRoot(workspaceRoot, normalized)) {
       return null;
     }
-    return toWindowsPath(toForwardSlashes(path));
+    return toWindowsPath(normalized);
   }
 
   if (/^[a-zA-Z]:[\\/]/.test(raw)) {
-    if (!isWithinRoot(workspaceRoot, raw)) {
+    const normalized = normalizeAbsolutePath(raw);
+    if (!normalized || !isWithinRoot(workspaceRoot, normalized)) {
       return null;
     }
-    return toWindowsPath(toForwardSlashes(raw));
+    return toWindowsPath(normalized);
   }
 
   const isRootRelative = raw.startsWith('/') || raw.startsWith('\\');
-  const baseDir = isRootRelative ? '' : currentRelPath.replace(/[\\/][^\\/]*$/, '');
+  const baseDir = isRootRelative ? '' : parentDirectory(currentRelPath);
   const joined = baseDir ? `${baseDir}/${raw.replace(/^[\\/]+/, '')}` : raw;
   const resolved = resolveRelativeSegments(joined);
   if (!resolved) {

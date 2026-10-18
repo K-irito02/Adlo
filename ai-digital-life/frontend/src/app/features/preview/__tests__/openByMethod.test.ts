@@ -66,6 +66,9 @@ describe('resolveMarkdownFileLink', () => {
       'C:\\ws\\docs\\other.md',
     );
   });
+  it('resolves a relative link for a workspace-root file', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'readme.md', 'other.md')).toBe('C:\\ws\\other.md');
+  });
   it('resolves a parent-directory link with ..', () => {
     expect(resolveMarkdownFileLink('C:\\ws', 'docs/sub/a.md', '../b.md')).toBe(
       'C:\\ws\\docs\\b.md',
@@ -80,10 +83,16 @@ describe('resolveMarkdownFileLink', () => {
   it('returns null for an absolute path outside the workspace', () => {
     expect(resolveMarkdownFileLink('C:\\ws', 'a.md', 'D:/other/x.md')).toBeNull();
   });
+  it('returns null for an absolute path that escapes the workspace via ..', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'a.md', 'C:/ws/../x.md')).toBeNull();
+  });
   it('resolves a file:// URL inside the workspace', () => {
     expect(resolveMarkdownFileLink('C:\\ws', 'a.md', 'file:///C:/ws/src/x.md')).toBe(
       'C:\\ws\\src\\x.md',
     );
+  });
+  it('returns null for a file:// URL that escapes the workspace via ..', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'a.md', 'file:///C:/ws/../x.md')).toBeNull();
   });
   it('treats a leading slash as workspace-root relative', () => {
     expect(resolveMarkdownFileLink('C:\\ws', 'docs/a.md', '/src/x.md')).toBe('C:\\ws\\src\\x.md');
