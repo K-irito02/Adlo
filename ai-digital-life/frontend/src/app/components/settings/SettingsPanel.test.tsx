@@ -1729,6 +1729,37 @@ describe('SettingsPanel open-method group', () => {
     envState.tauri = false;
   });
 
+  it('does not confirm when Enter is pressed outside text inputs', () => {
+    setupStore();
+    envState.tauri = true;
+    const appliedPatch = vi.fn(async (_patch: unknown) => true);
+    const appInfo = openMethodAppInfo({ agentLinkIntercept: true });
+    useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+    const onChangeSetting = (id: string, value: SettingValue) => {
+      const patch = preferencePatchFromSettingChange(id, value);
+      if (patch) {
+        void appliedPatch(patch);
+      }
+    };
+    render(
+      <TestProvider>
+        <SettingsPanel
+          settings={buildSettingsItems(mockT, appInfo)}
+          onChangeSetting={onChangeSetting}
+        />
+      </TestProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'settingsAgentAllowAdd' }));
+    fireEvent.change(screen.getByPlaceholderText('settingsAgentAllowOriginPlaceholder'), {
+      target: { value: 'https://a.example.com/x' },
+    });
+    // 焦点在取消按钮上按 Enter：只应是取消（原生 click），不得冒泡触发确认
+    // （复审 R2-02：否则有效站点会被“取消”进去）。
+    fireEvent.keyDown(screen.getByRole('button', { name: 'cancel' }), { key: 'Enter' });
+    expect(appliedPatch).not.toHaveBeenCalled();
+    envState.tauri = false;
+  });
+
   it('requires and validates the site URL in the allowlist card', () => {
     setupStore();
     envState.tauri = true;

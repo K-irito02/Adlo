@@ -79,6 +79,10 @@ export function AgentAllowlistControl({ item, t, onChange }: AgentAllowlistContr
   // 上按 Enter 会同时走确认分支把条目加上）。Escape 保持全局关闭。
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
+      // IME 组字中（中文别名输入）的 Enter 是组字确认，不是表单确认。
+      if (e.nativeEvent.isComposing) {
+        return;
+      }
       if (e.key === 'Enter' && (e.target as HTMLElement).tagName === 'INPUT') {
         handleConfirm();
       } else if (e.key === 'Escape') {
