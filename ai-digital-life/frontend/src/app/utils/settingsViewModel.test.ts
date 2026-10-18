@@ -1,7 +1,11 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import { buildSettingsItems, preferencePatchFromSettingChange } from './settingsViewModel';
 import type { AppInfo } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
+
+const envState = vi.hoisted(() => ({ tauri: false }));
+
+vi.mock('@shared/env', () => ({ isTauriShell: () => envState.tauri }));
 
 const mockAppInfo: AppInfo = {
   appName: 'AI Digital Life',
@@ -40,6 +44,9 @@ const mockT = {
   settingsLanguage: '语言',
   settingsTheme: '主题',
   settingsLogLevel: '日志级别',
+  settingsAgentInterceptDesc: 'settingsAgentInterceptDesc',
+  settingsAgentWhitelistDesc: 'settingsAgentWhitelistDesc',
+  settingsAgentDesktopOnlyHint: 'settingsAgentDesktopOnlyHint',
 } as unknown as CopyDict;
 
 describe('buildSettingsItems', () => {
@@ -151,6 +158,41 @@ describe('buildSettingsItems', () => {
       (i) => i.id === 'openMethod:agentSiteWhitelist',
     );
     expect(whitelist?.value).toBe('http://127.0.0.1:3080\nhttps://my-agent.example.com');
+  });
+});
+
+describe('buildSettingsItems agent-link availability', () => {
+  afterEach(() => {
+    envState.tauri = false;
+  });
+
+  it('disables agent intercept + whitelist and appends the desktop-only hint in browser mode', () => {
+    envState.tauri = false;
+    const items = buildSettingsItems(mockT, mockAppInfo);
+    const intercept = items.find((i) => i.id === 'agentLinkIntercept');
+    const whitelist = items.find((i) => i.id === 'openMethod:agentSiteWhitelist');
+    expect(intercept?.disabled).toBe(true);
+    expect(whitelist?.disabled).toBe(true);
+    expect(intercept?.description).toContain('settingsAgentDesktopOnlyHint');
+    expect(whitelist?.description).toContain('settingsAgentDesktopOnlyHint');
+  });
+
+  it('leaves URL/file open-method items enabled in browser mode', () => {
+    envState.tauri = false;
+    const items = buildSettingsItems(mockT, mockAppInfo);
+    expect(items.find((i) => i.id === 'linkOpenMethod')?.disabled).toBeUndefined();
+    expect(items.find((i) => i.id === 'fileOpenMethod')?.disabled).toBeUndefined();
+  });
+
+  it('enables agent intercept + whitelist and omits the hint in Tauri', () => {
+    envState.tauri = true;
+    const items = buildSettingsItems(mockT, mockAppInfo);
+    const intercept = items.find((i) => i.id === 'agentLinkIntercept');
+    const whitelist = items.find((i) => i.id === 'openMethod:agentSiteWhitelist');
+    expect(intercept?.disabled).toBe(false);
+    expect(whitelist?.disabled).toBe(false);
+    expect(intercept?.description).not.toContain('settingsAgentDesktopOnlyHint');
+    expect(whitelist?.description).not.toContain('settingsAgentDesktopOnlyHint');
   });
 });
 

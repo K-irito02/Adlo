@@ -3,6 +3,7 @@ import { isLogMode } from './debugLogMode';
 import type { AppInfo, SettingItem } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
 import { parseWhitelistLines } from '@shared/originWhitelist';
+import { isTauriShell } from '@shared/env';
 
 const LOG_LEVELS: readonly string[] = ['error', 'warn', 'info', 'debug', 'trace'];
 
@@ -121,22 +122,28 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
     ],
   });
 
+  // Agent 链接拦截依赖 Tauri WebView 注入，浏览器模式无法实现（Task 10）。
+  const agentInterceptAvailable = isTauriShell();
+  const agentDesktopOnlyHint = agentInterceptAvailable ? '' : ` ${t.settingsAgentDesktopOnlyHint}`;
+
   items.push({
     id: 'agentLinkIntercept',
     groupId: 'openMethod',
     label: t.settingsAgentIntercept,
-    description: t.settingsAgentInterceptDesc,
+    description: `${t.settingsAgentInterceptDesc}${agentDesktopOnlyHint}`,
     type: 'toggle',
     value: config.agentLinkIntercept,
+    disabled: !agentInterceptAvailable,
   });
 
   items.push({
     id: 'openMethod:agentSiteWhitelist',
     groupId: 'openMethod',
     label: t.settingsAgentWhitelist,
-    description: t.settingsAgentWhitelistDesc,
+    description: `${t.settingsAgentWhitelistDesc}${agentDesktopOnlyHint}`,
     type: 'originlist',
     value: config.agentSiteWhitelist.join('\n'),
+    disabled: !agentInterceptAvailable,
   });
 
   if (config.fonts) {

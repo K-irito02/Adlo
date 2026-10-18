@@ -297,7 +297,8 @@ export const settingsZh = {
   settingsFileOpenExternal: '系统默认应用打开',
   settingsAgentIntercept: '智能体站点链接拦截',
   settingsAgentInterceptDesc:
-    '启用后，白名单内智能体网站正文中的网址链接、本地文件链接将按本项目设置打开；关闭则保持网站自身行为（浏览器模式不支持，仅桌面可用）',
+    '启用后，白名单内智能体网站正文中的网址链接、本地文件链接将按本项目设置打开；关闭则保持网站自身行为',
+  settingsAgentDesktopOnlyHint: '——仅桌面模式可用（浏览器模式不支持）',
   settingsAgentWhitelist: '智能体网址白名单',
   settingsAgentWhitelistDesc:
     '每行一个站点 origin，整站匹配（不要带路径）。示例：http://127.0.0.1:3080 或 https://my-agent.example.com',

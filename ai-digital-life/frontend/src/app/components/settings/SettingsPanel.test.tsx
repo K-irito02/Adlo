@@ -28,6 +28,10 @@ import {
   getDefaultPreferences,
 } from '../../../shared/defaultPreferences';
 
+const envState = vi.hoisted(() => ({ tauri: false }));
+
+vi.mock('@shared/env', () => ({ isTauriShell: () => envState.tauri }));
+
 // 组文案配含 {group} 的真模板，使 formatT 插值得以被覆盖（裸 key 回退测不到插值）。
 const GROUP_TEMPLATES: Record<string, string> = {
   settingsResetGroupToDefault: 'Reset {group} all defaults',
@@ -1697,5 +1701,45 @@ describe('SettingsPanel open-method group', () => {
     expect(appliedPatch).toHaveBeenCalledWith({
       agentSiteWhitelist: ['http://127.0.0.1:3080'],
     });
+  });
+
+  it('disables the agent intercept toggle + whitelist outside Tauri and enables them in Tauri', () => {
+    setupStore();
+    const appInfo = openMethodAppInfo();
+    const renderOpenMethod = () => {
+      useAppStore.setState({ appInfo, activeSettingsGroup: 'openMethod' });
+      render(
+        <TestProvider>
+          <SettingsPanel settings={buildSettingsItems(mockT, appInfo)} onChangeSetting={() => {}} />
+        </TestProvider>,
+      );
+    };
+    const toggle = () =>
+      document.querySelector(
+        '[data-settings-anchor="openMethod:agentLinkIntercept"] [role="switch"]',
+      ) as HTMLButtonElement;
+    const whitelist = () =>
+      document.querySelector(
+        '[data-settings-anchor="openMethod:openMethod:agentSiteWhitelist"] textarea',
+      ) as HTMLTextAreaElement;
+
+    envState.tauri = false;
+    renderOpenMethod();
+    expect(toggle().disabled).toBe(true);
+    expect(whitelist().disabled).toBe(true);
+    // 可见提示：非 Tauri 下描述追加「仅桌面」说明（i18n 键，非硬编码）。
+    expect(
+      document.querySelector('[data-settings-anchor="openMethod:agentLinkIntercept"]')?.textContent,
+    ).toContain('settingsAgentDesktopOnlyHint');
+    cleanup();
+
+    envState.tauri = true;
+    renderOpenMethod();
+    expect(toggle().disabled).toBe(false);
+    expect(whitelist().disabled).toBe(false);
+    expect(
+      document.querySelector('[data-settings-anchor="openMethod:agentLinkIntercept"]')?.textContent,
+    ).not.toContain('settingsAgentDesktopOnlyHint');
+    envState.tauri = false;
   });
 });

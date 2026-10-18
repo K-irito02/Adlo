@@ -35,6 +35,7 @@ function ToggleControl({ item, onChange }: { item: SettingItem; onChange: (v: bo
       type="button"
       role="switch"
       aria-checked={checked}
+      disabled={item.disabled}
       className={`adl-settings-toggle${checked ? ' is-on' : ''}`}
       onClick={() => onChange(!checked)}
     >

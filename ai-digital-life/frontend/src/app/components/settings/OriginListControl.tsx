@@ -21,6 +21,7 @@ export function OriginListControl({ item, t, onChange }: OriginListControlProps)
         value={String(item.value ?? '')}
         placeholder={t.settingsAgentWhitelistPlaceholder}
         spellCheck={false}
+        disabled={item.disabled}
         onChange={(e) => onChange(e.target.value)}
       />
       {invalid.length > 0 && (

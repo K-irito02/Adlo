@@ -330,7 +330,8 @@ export const settingsEn = {
   settingsFileOpenExternal: 'Open with system default app',
   settingsAgentIntercept: 'Intercept agent-site links',
   settingsAgentInterceptDesc:
-    'When enabled, URL and local-file links in whitelisted agent sites open via this app\u2019s settings; when off, the site\u2019s own behavior is kept (desktop only; not supported in browser mode)',
+    'When enabled, URL and local-file links in whitelisted agent sites open via this app\u2019s settings; when off, the site\u2019s own behavior is kept',
+  settingsAgentDesktopOnlyHint: '\u2014 Desktop mode only (not available in browser mode)',
   settingsAgentWhitelist: 'Agent site allowlist',
   settingsAgentWhitelistDesc:
     'One site origin per line, whole-site match (no path). Examples: http://127.0.0.1:3080 or https://my-agent.example.com',

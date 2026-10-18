@@ -452,6 +452,7 @@ export interface SettingItem {
   value: string | boolean | number;
   options?: { value: string; label: string }[];
   cssVar?: '--font-sans-custom' | '--font-mono-custom';
+  disabled?: boolean;
 }
 
 export type GitFileStatus =
