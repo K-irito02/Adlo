@@ -8,8 +8,17 @@ import {
   subscribeStarryReady,
 } from './starryNight';
 
+export interface MarkdownLinkHandlers {
+  /** http/https 链接：按「网址打开方式」设置打开（默认走 openUrlByMethod）。 */
+  onOpenUrl?: (url: string) => void;
+  /** 工作区内的相对/绝对文件链接：收到原始 href，由调用方解析为绝对路径后打开。 */
+  onOpenFile?: (rawHref: string) => void;
+}
+
 export interface MarkdownPreviewProps {
   content: string;
+  /** 链接点击委托（可选）：不传时正文内链接仍可识别，但仅做默认兜底。 */
+  linkHandlers?: MarkdownLinkHandlers;
 }
 
 /**

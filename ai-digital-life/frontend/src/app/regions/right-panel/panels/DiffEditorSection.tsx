@@ -17,6 +17,11 @@ import { formatBytes } from '@root/design-system/html';
 import { computePreviewDiffVisualRanges } from '@features/diff-viewer';
 import type { PreviewDiffCollapsedRange } from '@features/diff-viewer';
 import { LazyMarkdownPreviewWrapper } from '@features/preview';
+import {
+  openFileByMethod,
+  openUrlByMethod,
+  resolveMarkdownFileLink,
+} from '@features/preview/openByMethod';
 import { StickyContext } from '../editor-support/stickyContextView';
 import { useStickyContext } from '../hooks';
 import { outlineForChangePreview } from '@features/outline';
@@ -156,6 +161,26 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   const stickyContextModel = useStickyContext(stickyContextInput);
   const diffExtensions = useMemo(() => [], []);
+
+  // 变更面板 markdown 预览的链接点击：与文件面板同源解析（changePreview.path 为工作区相对路径）。
+  const markdownLinkHandlers = useMemo(
+    () => ({
+      onOpenUrl: openUrlByMethod,
+      onOpenFile: (href: string) => {
+        const ws = useAppStore.getState().appInfo?.currentWorkspace;
+        const root = ws?.rootPath ?? ws?.path;
+        const rel = changePreview?.path;
+        if (!root || !rel) {
+          return;
+        }
+        const abs = resolveMarkdownFileLink(root, rel, href);
+        if (abs) {
+          openFileByMethod(abs);
+        }
+      },
+    }),
+    [changePreview?.path],
+  );
 
   // 内容区无预览时直接留空（事项1）：不渲染"当前没有检测到文件变更"等空态文字。
   // 加载期给骨架反馈而非纯空白（事项4 感知优化）。
@@ -356,7 +381,10 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
       >
         {changePreviewCategory === 'markdown' && previewEnabled ? (
           <div className="adl-tool-editor__surface adl-tool-editor__surface--preview">
-            <LazyMarkdownPreviewWrapper content={changePreview.currentContent} />
+            <LazyMarkdownPreviewWrapper
+              content={changePreview.currentContent}
+              linkHandlers={markdownLinkHandlers}
+            />
             {/* 不渲染落点高亮覆盖层：变更面板无检索模式，大纲导航按设计只定位不闪烁 */}
           </div>
         ) : previewEnabled ? (
