@@ -2,7 +2,7 @@ use adl_errors::AppError;
 use adl_logging::LogMode;
 use adl_types::CommandConfig;
 use adl_types::types::ThemeMode;
-use adl_types::types::config::{AppPreferencePatch, LogLevel};
+use adl_types::types::config::{AppPreferencePatch, FileOpenMethod, LinkOpenMethod, LogLevel};
 use adl_types::types::reference::ReferenceConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -68,6 +68,18 @@ pub struct AppConfig {
     /// Browser 标签页空闲挂起阈值（毫秒）。默认 15 分钟（900_000），供 tab suspend 调度器读取。
     #[serde(default = "default_browser_inactive_tab_suspend_ms")]
     pub browser_inactive_tab_suspend_ms: u64,
+    /// 网址链接默认打开落点（提前/相对于面板/外部浏览器）。
+    #[serde(default)]
+    pub link_open_method: LinkOpenMethod,
+    /// 本地文件默认打开方式（文件面板/系统默认应用）。
+    #[serde(default)]
+    pub file_open_method: FileOpenMethod,
+    /// 智能体站点正文链接拦截开关。
+    #[serde(default)]
+    pub agent_link_intercept: bool,
+    /// 需拦截的智能体站点 origin 白名单（整站匹配）。
+    #[serde(default)]
+    pub agent_site_whitelist: Vec<String>,
 }
 
 impl AppConfig {
@@ -151,6 +163,18 @@ impl AppConfig {
         if let Some(v) = patch.browser_inactive_tab_suspend_ms {
             self.browser_inactive_tab_suspend_ms = v;
         }
+        if let Some(v) = patch.link_open_method {
+            self.link_open_method = v;
+        }
+        if let Some(v) = patch.file_open_method {
+            self.file_open_method = v;
+        }
+        if let Some(v) = patch.agent_link_intercept {
+            self.agent_link_intercept = v;
+        }
+        if let Some(v) = patch.agent_site_whitelist.as_ref() {
+            self.agent_site_whitelist = v.clone();
+        }
     }
 }
 
@@ -199,6 +223,10 @@ impl Default for AppConfig {
             workspace_deferred_ids: Vec::new(),
             workspace_natural_order: Vec::new(),
             browser_inactive_tab_suspend_ms: default_browser_inactive_tab_suspend_ms(),
+            link_open_method: LinkOpenMethod::default(),
+            file_open_method: FileOpenMethod::default(),
+            agent_link_intercept: false,
+            agent_site_whitelist: Vec::new(),
         }
     }
 }
@@ -313,6 +341,45 @@ mod tests {
         assert!(config_path_for(&cfg_dir).exists());
         let loaded = load_from(&cfg_dir).unwrap();
         assert_eq!(loaded.language, DEFAULT_LANGUAGE);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn open_method_and_agent_defaults() {
+        let c = AppConfig::default();
+        assert_eq!(c.link_open_method, adl_types::types::config::LinkOpenMethod::Panel);
+        assert_eq!(c.file_open_method, adl_types::types::config::FileOpenMethod::Panel);
+        assert!(!c.agent_link_intercept);
+        assert!(c.agent_site_whitelist.is_empty());
+    }
+
+    #[test]
+    fn apply_patch_sets_open_method_and_agent_fields() {
+        use adl_types::types::config::{FileOpenMethod, LinkOpenMethod};
+        let mut c = AppConfig::default();
+        c.apply_patch(&AppPreferencePatch {
+            link_open_method: Some(LinkOpenMethod::External),
+            file_open_method: Some(FileOpenMethod::External),
+            agent_link_intercept: Some(true),
+            agent_site_whitelist: Some(vec!["http://127.0.0.1:3080".into()]),
+            ..Default::default()
+        });
+        assert_eq!(c.link_open_method, LinkOpenMethod::External);
+        assert_eq!(c.file_open_method, FileOpenMethod::External);
+        assert!(c.agent_link_intercept);
+        assert_eq!(c.agent_site_whitelist, vec!["http://127.0.0.1:3080".to_string()]);
+    }
+
+    #[test]
+    fn old_config_without_open_method_fields_loads_with_defaults() {
+        let dir = temp_dir().join("adl-config-open-method-old");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("config")).unwrap();
+        let old_json = r#"{"language":"zh-CN","theme_mode":"system","log_level":"info","terminal_log_mode":"overwrite","debug_log_mode":"overwrite","max_recent_workspaces":10}"#;
+        std::fs::write(config_path_for(&dir), old_json).unwrap();
+        let loaded = load_from(&dir).unwrap();
+        assert_eq!(loaded.link_open_method, adl_types::types::config::LinkOpenMethod::Panel);
+        assert!(loaded.agent_site_whitelist.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

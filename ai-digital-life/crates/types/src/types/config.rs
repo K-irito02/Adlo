@@ -61,6 +61,25 @@ pub enum Theme {
     Dark,
 }
 
+/// 网址链接的默认打开落点。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum LinkOpenMethod {
+    Middle,
+    #[default]
+    Panel,
+    External,
+}
+
+/// 本地文件的默认打开方式。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum FileOpenMethod {
+    #[default]
+    Panel,
+    External,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "kebab-case")]
 pub enum LanguageCode {
@@ -165,6 +184,14 @@ pub struct AppPreferencePatch {
     pub workspace_natural_order: Option<Vec<String>>,
     #[ts(optional)]
     pub browser_inactive_tab_suspend_ms: Option<u64>,
+    #[ts(optional)]
+    pub link_open_method: Option<LinkOpenMethod>,
+    #[ts(optional)]
+    pub file_open_method: Option<FileOpenMethod>,
+    #[ts(optional)]
+    pub agent_link_intercept: Option<bool>,
+    #[ts(optional)]
+    pub agent_site_whitelist: Option<Vec<String>>,
 }
 
 /// User-defined font preferences. All fields optional — `None` means "use default".
@@ -201,6 +228,14 @@ pub struct ConfigSnapshot {
     pub workspace_natural_order: Vec<String>,
     #[serde(default = "default_browser_inactive_tab_suspend_ms")]
     pub browser_inactive_tab_suspend_ms: u64,
+    #[serde(default)]
+    pub link_open_method: LinkOpenMethod,
+    #[serde(default)]
+    pub file_open_method: FileOpenMethod,
+    #[serde(default)]
+    pub agent_link_intercept: bool,
+    #[serde(default)]
+    pub agent_site_whitelist: Vec<String>,
 }
 
 fn default_max_concurrent_workspaces_snapshot() -> usize {

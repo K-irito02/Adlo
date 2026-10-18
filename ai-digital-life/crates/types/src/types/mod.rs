@@ -126,6 +126,10 @@ mod tests {
                 workspace_natural_order: vec![],
                 // 任意非默认值（序列化透传冒烟，非产品默认断言）。
                 browser_inactive_tab_suspend_ms: 3_600_000,
+                link_open_method: Default::default(),
+                file_open_method: Default::default(),
+                agent_link_intercept: false,
+                agent_site_whitelist: vec![],
             },
             current_workspace: None,
             recent_logs: vec![],

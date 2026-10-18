@@ -111,6 +111,10 @@ mod tests {
             workspace_natural_order: vec![],
             // 任意非默认值（非产品默认断言；产品默认见 default_browser_inactive_tab_suspend_ms）。
             browser_inactive_tab_suspend_ms: 3_600_000,
+            link_open_method: Default::default(),
+            file_open_method: Default::default(),
+            agent_link_intercept: false,
+            agent_site_whitelist: vec![],
         }
     }
 

@@ -37,6 +37,10 @@ pub fn build(config: &AppConfig, current_workspace: Option<WorkspaceMeta>) -> Ap
             workspace_deferred_ids: config.workspace_deferred_ids.clone(),
             workspace_natural_order: config.workspace_natural_order.clone(),
             browser_inactive_tab_suspend_ms: config.browser_inactive_tab_suspend_ms,
+            link_open_method: config.link_open_method,
+            file_open_method: config.file_open_method,
+            agent_link_intercept: config.agent_link_intercept,
+            agent_site_whitelist: config.agent_site_whitelist.clone(),
         },
         current_workspace,
         recent_logs: vec![LogEntrySummary {

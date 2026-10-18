@@ -478,6 +478,10 @@ mod workspace_loading_tests {
             workspace_deferred_ids: vec!["b".into()],
             workspace_natural_order: vec!["c".into()],
             browser_inactive_tab_suspend_ms: 3_600_000,
+            link_open_method: Default::default(),
+            file_open_method: Default::default(),
+            agent_link_intercept: false,
+            agent_site_whitelist: vec![],
         };
         let json = serde_json::to_string(&snap).unwrap();
         assert!(json.contains("\"maxConcurrentWorkspaces\":4"));
