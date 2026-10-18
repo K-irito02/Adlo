@@ -40,7 +40,3 @@ export function parseWhitelistLines(text: string): { origins: string[]; invalid:
   }
   return { origins, invalid };
 }
-
-export function whitelistToText(origins: string[]): string {
-  return origins.join('\n');
-}

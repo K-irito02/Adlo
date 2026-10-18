@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeOrigin, parseWhitelistLines, whitelistToText } from './originWhitelist';
+import { normalizeOrigin, parseWhitelistLines } from './originWhitelist';
 
 describe('normalizeOrigin', () => {
   it('accepts scheme://host:port and strips path', () => {
@@ -23,11 +23,5 @@ describe('parseWhitelistLines', () => {
     );
     expect(r.origins).toEqual(['http://127.0.0.1:3080', 'https://a.com']);
     expect(r.invalid).toEqual(['bad']);
-  });
-});
-
-describe('whitelistToText', () => {
-  it('joins with newlines', () => {
-    expect(whitelistToText(['http://a', 'https://b'])).toBe('http://a\nhttps://b');
   });
 });

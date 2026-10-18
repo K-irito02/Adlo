@@ -36,6 +36,16 @@ describe('MarkdownPreview', () => {
     expect(html).toContain('id="hello-world"');
   });
 
+  it('preserves hyphens and underscores in slugs (github fidelity)', () => {
+    expect(renderMarkdownPreviewHtml('# my-file')).toContain('id="my-file"');
+    expect(renderMarkdownPreviewHtml('# foo_bar')).toContain('id="foo_bar"');
+  });
+
+  it('preserves CJK heading text while stripping CJK punctuation', () => {
+    expect(renderMarkdownPreviewHtml('# 中文标题')).toContain('id="中文标题"');
+    expect(renderMarkdownPreviewHtml('# 一、二')).toContain('id="一二"');
+  });
+
   it('maps source line ranges on every block element (jump to arbitrary line)', () => {
     const content = [
       '# 标题',

@@ -272,12 +272,14 @@ describe('init_script.js agent-link interception', () => {
     w.__adlAgentInterceptEnabled = enabled;
   }
 
-  function clickAnchor(href: string) {
+  function clickAnchor(href: string): MouseEvent {
     const a = document.createElement('a');
     a.href = href;
     document.body.appendChild(a);
-    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    a.dispatchEvent(event);
     a.remove();
+    return event;
   }
 
   function agentLinks(): Record<string, unknown>[] {
@@ -298,6 +300,20 @@ describe('init_script.js agent-link interception', () => {
     expect(agentLinks()).toEqual([
       { type: 'adl-agent-link', kind: 'file', url: 'file:///C:/ws/a.md' },
     ]);
+  });
+
+  it('does NOT intercept a mailto: link (native action must proceed)', () => {
+    setAgent([window.location.origin], true);
+    const event = clickAnchor('mailto:a@b.example');
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
+  });
+
+  it('does NOT intercept a same-document #hash link (native in-page scroll)', () => {
+    setAgent([window.location.origin], true);
+    const event = clickAnchor('#section');
+    expect(agentLinks()).toHaveLength(0);
+    expect(event.defaultPrevented).toBe(false);
   });
 
   it('does not intercept when the feature toggle is off', () => {

@@ -45,6 +45,20 @@
         return typeof href === 'string' && href.indexOf('blob:') === 0;
     }
 
+    // Local-file-destination check, mirroring the Rust backstop `is_file_like_path`
+    // (crates/browser/src/webview2_postmessage.rs): only `file://`, a Windows drive
+    // path (`C:\` / `C:/`), a UNC path (`\\`), or a root-absolute local path
+    // (leading `/`) qualify. Everything else (mailto:, tel:, javascript:, data:,
+    // ...) must fall through to the native default action instead of being sent as
+    // kind:'file' and rejectDefault'd into a dead link.
+    function isFileLikeHref(href) {
+        if (!href || typeof href !== 'string') return false;
+        if (href.toLowerCase().indexOf('file://') === 0) return true;
+        if (href.indexOf('\\\\') === 0) return true;
+        if (href.indexOf('/') === 0) return true;
+        return /^[A-Za-z]:[\\/]/.test(href);
+    }
+
     // Download-URL extensions shared across the stack. Keep in sync with
     // src-tauri/src/commands/browser_webview_setup.rs (Rust is_download_url) and
     // frontend/src/app/utils/downloadUrl.ts (TS isDownloadUrl).
@@ -268,6 +282,18 @@
                     return;
                 }
 
+                // Same-document hash link (#section): target.href is absolute
+                // (http://host/page#section) and would otherwise match the http(s)
+                // branch below and open a NEW TAB. Return without preventDefault so
+                // the browser performs the in-page scroll natively.
+                if (href.indexOf('#') !== -1) {
+                    var hrefNoHash = href.split('#')[0];
+                    var locationNoHash = location.href.split('#')[0];
+                    if (hrefNoHash === locationNoHash) {
+                        return;
+                    }
+                }
+
                 if (isValidWebUrl(href) && __adlIsAgentHost() && __adlSendAgentLink('url', href)) {
                     event.preventDefault();
                     return;
@@ -286,7 +312,7 @@
                         window.__startNavGuard(href);
                     }
                     return;
-                } else if (__adlIsAgentHost() && __adlSendAgentLink('file', href)) {
+                } else if (__adlIsAgentHost() && isFileLikeHref(href) && __adlSendAgentLink('file', href)) {
                     event.preventDefault();
                     return;
                 } else {

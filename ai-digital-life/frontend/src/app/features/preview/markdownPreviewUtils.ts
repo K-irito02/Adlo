@@ -43,6 +43,23 @@ function highlightCode(str: string, lang: string, starryEnabled: boolean): strin
   return header + `<pre class="adl-md-code"><code>${escaped}</code></pre>`;
 }
 
+/**
+ * GitHub-style heading slug: lowercase, strip punctuation (PRESERVING `-` and
+ * `_`, matching GitHub anchors so `my-file` stays `my-file`), turn whitespace
+ * runs into `-`, collapse repeated `-`, trim leading/trailing `-`. Stripping is
+ * Unicode-aware — CJK (and every other letter script) is preserved; only
+ * ASCII punctuation plus the CJK/typographic punctuation set is removed.
+ */
+export function slugify(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[!-,\.\/:-@\[-\^`\{-~。，、；：？！“”‘’（）《》【】…—]/g, '')
+    .replace(/[\s]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function createMdInstance(starryEnabled: boolean): MarkdownIt {
   const md = new MarkdownIt({
     html: false,
@@ -59,16 +76,6 @@ function createMdInstance(starryEnabled: boolean): MarkdownIt {
 
   // GitHub 风格标题 slug 计数（每次渲染重置，见下方 adl-source-map core 规则）。
   const slugCounts = new Map<string, number>();
-  function slugify(text: string): string {
-    // 先去标点再转空格：标点类包含 `-`，若先转空格会把刚生成的连字符一并删掉。
-    return text
-      .trim()
-      .toLowerCase()
-      .replace(/[!-/:-@[-`{-~。，、；：？！“”‘’（）《》【】…—]/g, '')
-      .replace(/[\s]+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '');
-  }
 
   md.renderer.rules.heading_open = (tokens, idx, options, env, self) => {
     const token = tokens[idx]!;

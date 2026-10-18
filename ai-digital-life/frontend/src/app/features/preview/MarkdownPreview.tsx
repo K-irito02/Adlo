@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useMemo, useRef } from 'react';
 import type { MarkdownPreviewProps } from './markdownPreviewUtils';
-import { useMarkdownPreviewHtml } from './markdownPreviewUtils';
+import { slugify, useMarkdownPreviewHtml } from './markdownPreviewUtils';
 import { ensureMarkdownThemeCss, useResolvedMarkdownTheme } from './markdownTheme';
 import DOMPurify from 'dompurify';
 
@@ -33,7 +33,20 @@ export function MarkdownPreview({ content, linkHandlers }: MarkdownPreviewProps)
       e.preventDefault();
       if (href.startsWith('#')) {
         const id = href.slice(1);
-        const el = rootRef.current?.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
+        const root = rootRef.current;
+        let el = root?.querySelector<HTMLElement>(`[id="${CSS.escape(id)}"]`);
+        if (!el && root) {
+          // Spec §7.2 slug-miss fallback: the anchor targets a heading whose id
+          // differs (or is missing) — match the first heading whose slugified
+          // text equals the anchor id.
+          const headings = root.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6');
+          for (const heading of headings) {
+            if (slugify(heading.textContent ?? '') === id) {
+              el = heading;
+              break;
+            }
+          }
+        }
         el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
         return;
       }

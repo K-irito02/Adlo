@@ -23,6 +23,19 @@ describe('MarkdownPreview link delegation', () => {
     expect(spy).toHaveBeenCalled();
   });
 
+  it('falls back to heading-text slug match when no element id matches the anchor', () => {
+    const { container } = render(<MarkdownPreview content={''} />);
+    const preview = container.querySelector('.adl-markdown-preview')!;
+    // Heading carries no id (querySelector('[id=...]') misses) — the fallback
+    // must match it by slugified text per spec §7.2.
+    preview.innerHTML = '<h2>Deep Link</h2><a href="#deep-link">go</a>';
+    const heading = preview.querySelector('h2') as HTMLElement;
+    const spy = vi.fn();
+    heading.scrollIntoView = spy;
+    fireEvent.click(preview.querySelector('a')!);
+    expect(spy).toHaveBeenCalled();
+  });
+
   it('routes http links through onOpenUrl handler', () => {
     const onOpenUrl = vi.fn();
     const { container } = render(
