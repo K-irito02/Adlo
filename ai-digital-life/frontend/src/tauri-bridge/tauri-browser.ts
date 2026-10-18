@@ -10,12 +10,16 @@ export function createTauriBrowserBridge(): BrowserBridge {
       url: string,
       colorScheme?: 'light' | 'dark',
       location?: 'panel' | 'center',
+      agentOrigins?: string[],
+      agentInterceptEnabled?: boolean,
     ) =>
       invokeIpc<string | null>('browser_create_for_tab', {
         tabId,
         url,
         colorScheme,
         location,
+        agentOrigins,
+        agentInterceptEnabled,
       }).then((r) => (r.ok ? r.data : null)),
     activateTab: (tabId: string) =>
       invokeIpc<void>('browser_activate_tab', { tabId }).then(() => undefined),
@@ -138,6 +142,34 @@ export function createTauriBrowserBridge(): BrowserBridge {
         void Promise.resolve(ul?.()).catch(() => {});
       };
     },
+    onAgentLink: (listener: (payload: { kind: 'url' | 'file'; url: string }) => void) => {
+      let active = true;
+      let ul: UnlistenFn | undefined;
+      void listen<{ kind: 'url' | 'file'; url: string }>(
+        'digital-life://browser-agent-link',
+        (event) => {
+          if (active) {
+            listener({ kind: event.payload.kind, url: event.payload.url });
+          }
+        },
+      ).then((unlisten) => {
+        if (active) {
+          ul = unlisten;
+        } else {
+          /* unlisten() is typed () => void but actually async; catch rejection via wrapper */
+          void Promise.resolve(unlisten()).catch(() => {});
+        }
+      });
+      return () => {
+        active = false;
+        void Promise.resolve(ul?.()).catch(() => {});
+      };
+    },
+    setAgentIntercept: (origins: string[], enabled: boolean) =>
+      invoke<void>('browser_set_agent_intercept', { origins, enabled }).then(
+        () => undefined,
+        () => undefined,
+      ),
     onAudioStateChanged: (
       listener: (payload: { tabId: string; isPlaying: boolean; isMuted: boolean }) => void,
     ) => {

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 
 /**
  * C1 回归测试：验证注入到 WebView2 的 `init_script.js` 中的两个纯函数
@@ -234,5 +234,87 @@ describe('init_script.js new-tab interception markers', () => {
     expect(clickSection).toContain("if (linkTarget === '_blank')");
     expect(clickSection).toContain("origOpen.call(window, href, '_blank')");
     expect(clickSection).not.toContain("target.target = '_self'");
+  });
+});
+
+describe('init_script.js agent-link interception', () => {
+  const posted: Record<string, unknown>[] = [];
+
+  beforeAll(() => {
+    (window as unknown as Record<string, unknown>).chrome = {
+      webview: {
+        postMessage: (raw: string) => {
+          try {
+            posted.push(JSON.parse(raw) as Record<string, unknown>);
+          } catch {
+            /* ignore non-JSON payloads */
+          }
+        },
+      },
+    };
+    try {
+      // Execute the injected script once into the jsdom document. The click
+      // delegation listener is registered before any WebView2-only API is
+      // touched, so later jsdom gaps cannot disable the interception branch.
+      new Function(initScript)();
+    } catch {
+      /* jsdom may lack a WebView2-only API; the click listener is already live */
+    }
+  });
+
+  beforeEach(() => {
+    posted.length = 0;
+  });
+
+  function setAgent(origins: string[], enabled: boolean) {
+    const w = window as unknown as Record<string, unknown>;
+    w.__adlAgentOrigins = origins;
+    w.__adlAgentInterceptEnabled = enabled;
+  }
+
+  function clickAnchor(href: string) {
+    const a = document.createElement('a');
+    a.href = href;
+    document.body.appendChild(a);
+    a.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 }));
+    a.remove();
+  }
+
+  function agentLinks(): Record<string, unknown>[] {
+    return posted.filter((m) => m.type === 'adl-agent-link');
+  }
+
+  it('intercepts an http link on a whitelisted agent host as kind=url', () => {
+    setAgent([window.location.origin], true);
+    clickAnchor('https://example.com/x');
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'url', url: 'https://example.com/x' },
+    ]);
+  });
+
+  it('intercepts a file:// link on a whitelisted agent host as kind=file', () => {
+    setAgent([window.location.origin], true);
+    clickAnchor('file:///C:/ws/a.md');
+    expect(agentLinks()).toEqual([
+      { type: 'adl-agent-link', kind: 'file', url: 'file:///C:/ws/a.md' },
+    ]);
+  });
+
+  it('does not intercept when the feature toggle is off', () => {
+    setAgent([window.location.origin], false);
+    clickAnchor('file:///C:/ws/a.md');
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('does not intercept when the site origin is not whitelisted', () => {
+    setAgent(['https://other.example'], true);
+    clickAnchor('file:///C:/ws/a.md');
+    expect(agentLinks()).toHaveLength(0);
+  });
+
+  it('defines the agent-link helper and postMessage payload', () => {
+    expect(initScript).toContain('__adlIsAgentHost');
+    expect(initScript).toContain('__adlSendAgentLink');
+    expect(initScript).toContain("type: 'adl-agent-link'");
   });
 });

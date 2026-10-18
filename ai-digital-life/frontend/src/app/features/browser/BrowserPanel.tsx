@@ -27,6 +27,7 @@ import { useBrowserToast } from './useBrowserToast';
 import { useBrowserPanelHandlers } from './useBrowserPanelHandlers';
 import { useBrowserPanelMetaWiring } from './useBrowserPanelMetaWiring';
 import { useBrowserNewTabSubscription } from './useBrowserNewTabSubscription';
+import { useBrowserAgentLinkSubscription } from './useBrowserAgentLinkSubscription';
 import { useBrowserDownloads } from './useBrowserDownloads';
 import { BrowserPanelActionsCtx } from './BrowserPanelActionsContext';
 import { BrowserPanelStateCtx } from './BrowserPanelStateContext';
@@ -383,6 +384,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
   });
 
   useBrowserDownloads();
+
+  useBrowserAgentLinkSubscription();
 
   const { submitAddress } = useBrowserPanelAddressSubmit({
     address,

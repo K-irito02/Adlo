@@ -109,6 +109,8 @@ describe('useBrowserViewHost', () => {
       'https://example.com',
       expect.any(String),
       'panel',
+      [],
+      false,
     );
     expect(browser.activateTab).toHaveBeenCalledWith('tab-1');
 

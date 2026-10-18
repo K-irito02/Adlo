@@ -213,6 +213,8 @@ describe('createTauriBridge system-capability domains stay on Tauri', () => {
       url: 'https://example.com',
       colorScheme: undefined,
       location: undefined,
+      agentOrigins: undefined,
+      agentInterceptEnabled: undefined,
     });
     expect(res).toBe('tab-1');
   });
@@ -227,6 +229,8 @@ describe('createTauriBridge system-capability domains stay on Tauri', () => {
       url: 'https://example.com',
       colorScheme: 'light',
       location: 'center',
+      agentOrigins: undefined,
+      agentInterceptEnabled: undefined,
     });
   });
 });

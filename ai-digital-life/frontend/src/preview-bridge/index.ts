@@ -195,6 +195,8 @@ export async function setupPreviewBridge(): Promise<void> {
         _url: string,
         _colorScheme?: 'light' | 'dark',
         _location?: 'panel' | 'center',
+        _agentOrigins?: string[],
+        _agentInterceptEnabled?: boolean,
       ) => Promise.resolve(null),
       activateTab: (_tabId: string) => Promise.resolve(),
       destroyTab: (_tabId: string) => {
@@ -225,6 +227,9 @@ export async function setupPreviewBridge(): Promise<void> {
       onMetaChanged: (_listener: (tabId: string, meta: PageMeta) => void) => () => {},
       onPageReady: (_listener: (tabId: string) => void) => () => {},
       onOpenNewTab: (_listener: (url: string) => void) => () => {},
+      onAgentLink:
+        (_listener: (payload: { kind: 'url' | 'file'; url: string }) => void) => () => {},
+      setAgentIntercept: (_origins: string[], _enabled: boolean) => Promise.resolve(),
       muteTab: (tabId: string, muted: boolean) => {
         audioMonitor.setMuted(tabId, muted);
         return Promise.resolve();

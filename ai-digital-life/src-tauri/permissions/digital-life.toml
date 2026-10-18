@@ -25,6 +25,7 @@ commands.allow = [
   "browser_reload_tab",
   "browser_mute_tab",
   "browser_set_color_scheme",
+  "browser_set_agent_intercept",
   "browser_set_zoom",
   "browser_clear_cookies",
   "browser_clear_cache",

@@ -87,7 +87,18 @@ async function createForTab(
     if (isTauriShell()) {
       const bridge = window.digitalLife?.browser;
       if (bridge) {
-        rustEvicted = await bridge.createForTab(tabId, url, colorScheme, location);
+        // Agent-site link interception is baked into the WebView's init script at
+        // creation time; pass the current settings so a freshly created tab
+        // intercepts from its first navigation.
+        const config = useAppStore.getState().appInfo?.config;
+        rustEvicted = await bridge.createForTab(
+          tabId,
+          url,
+          colorScheme,
+          location,
+          config?.agentSiteWhitelist ?? [],
+          config?.agentLinkIntercept ?? false,
+        );
         // 新建原生子窗口盖在最上层，通知透明桥接条重建回到最上层。
         useAppStore.getState().bumpSiblingWebviewNonce();
       }

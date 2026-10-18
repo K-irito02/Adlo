@@ -26,6 +26,25 @@ pub fn init_script_with_background(color_scheme: &str) -> String {
     )
 }
 
+/// Generate the init script with the background color **and** the agent-site
+/// link-interception parameters baked into an injected prefix.
+///
+/// The prefix sets `window.__adlAgentOrigins` / `window.__adlAgentInterceptEnabled`
+/// before `init_script.js` runs, so the first click on a whitelisted agent site
+/// is intercepted without waiting for a runtime refresh.
+pub fn init_script_with_background_and_agent(
+    color_scheme: &str,
+    agent_origins: &[String],
+    agent_intercept_enabled: bool,
+) -> String {
+    let origins = serde_json::to_string(agent_origins).unwrap_or_else(|_| "[]".to_string());
+    let prefix = format!(
+        "(function() {{ window.__adlAgentOrigins = {origins}; window.__adlAgentInterceptEnabled = {enabled}; }})();\n",
+        enabled = agent_intercept_enabled,
+    );
+    format!("{prefix}{}", init_script_with_background(color_scheme))
+}
+
 pub fn resolve_url(raw: &str) -> Result<Url, AppError> {
     let trimmed = raw.trim();
     if trimmed.is_empty() || trimmed.eq_ignore_ascii_case("about:blank") {

@@ -27,6 +27,8 @@ pub async fn browser_create_for_tab(
     url: String,
     color_scheme: Option<String>,
     location: Option<String>,
+    agent_origins: Vec<String>,
+    agent_intercept_enabled: bool,
 ) -> Result<IpcResult<Option<String>>, CommandError> {
     let (tx, rx) = tokio::sync::oneshot::channel();
     let app_inner = app.clone();
@@ -67,8 +69,16 @@ pub async fn browser_create_for_tab(
             // UDF 隔离：中心宿主走独立用户数据目录，与面板/默认会话隔离，
             // 新建控制器不再触碰另一宿主的 PreferredColorScheme。
             let data_directory = webview_data_directory(&app_inner, location.as_deref());
-            let builder =
-                build_webview_builder(&label, &tab_id, blank_url, app_inner.clone(), &cs, false);
+            let builder = build_webview_builder(
+                &label,
+                &tab_id,
+                blank_url,
+                app_inner.clone(),
+                &cs,
+                false,
+                &agent_origins,
+                agent_intercept_enabled,
+            );
             let webview_builder = match data_directory {
                 Some(dir) => builder.data_directory(dir),
                 None => builder,
@@ -1001,6 +1011,20 @@ pub fn browser_set_color_scheme(
 ) -> Result<IpcResult<()>, CommandError> {
     tracing::info!(color_scheme, "browser_set_color_scheme command invoked");
     Ok(ipc(state.browser_manager.set_color_scheme_for_all(&color_scheme)))
+}
+
+#[tauri::command]
+pub fn browser_set_agent_intercept(
+    state: State<'_, AppState>,
+    origins: Vec<String>,
+    enabled: bool,
+) -> Result<(), adl_errors::AppError> {
+    tracing::info!(
+        origin_count = origins.len(),
+        enabled,
+        "browser_set_agent_intercept command invoked"
+    );
+    state.browser_manager.set_agent_intercept_for_all(&origins, enabled)
 }
 
 #[tauri::command]

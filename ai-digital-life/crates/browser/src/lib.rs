@@ -27,7 +27,9 @@ pub mod webview_handle;
 
 pub use browser_events::navigation_handler;
 pub use browser_meta::PageMeta;
-pub use browser_navigation::{INIT_SCRIPT, init_script_with_background, resolve_url};
+pub use browser_navigation::{
+    INIT_SCRIPT, init_script_with_background, init_script_with_background_and_agent, resolve_url,
+};
 pub use browser_pool::BrowserPool;
 pub use browser_webview::{BROWSER_WEBVIEW_LABEL, BrowserManager, webview_label};
 pub use meta_cache_bridge::CachedMetaBridge;

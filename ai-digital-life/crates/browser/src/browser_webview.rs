@@ -299,6 +299,27 @@ impl BrowserManager {
         Ok(())
     }
 
+    /// Refresh the agent-site link-interception parameters on every registered
+    /// tab's WebView. Existing (already-loaded) pages read the values
+    /// dynamically, so re-assigning the globals takes effect immediately.
+    pub fn set_agent_intercept_for_all(
+        &self,
+        origins: &[String],
+        enabled: bool,
+    ) -> Result<(), AppError> {
+        let origins_json = serde_json::to_string(origins)
+            .map_err(|e| AppError::Internal(format!("serialize origins: {e}")))?;
+        let js = format!(
+            "window.__adlAgentOrigins = {origins_json}; window.__adlAgentInterceptEnabled = {enabled};"
+        );
+        for tab_id in self.pool.tab_ids() {
+            if let Some(handle) = self.try_handle(&tab_id)? {
+                let _ = handle.eval_js(&js);
+            }
+        }
+        Ok(())
+    }
+
     pub fn mute_tab(&self, tab_id: &str, muted: bool) -> Result<(), AppError> {
         self.with_handle(tab_id, |handle| handle.mute(muted))
     }

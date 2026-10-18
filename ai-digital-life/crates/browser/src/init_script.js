@@ -13,6 +13,28 @@
         } catch(e) {}
     }
 
+    // ---- AGENT-SITE LINK INTERCEPTION (Tauri/WebView2 only) ----
+    // Whitelisted agent sites route their links through the app's open-method
+    // settings instead of navigating the WebView. Origins + enabled flag are
+    // baked into the injected prefix (`window.__adlAgentOrigins` /
+    // `window.__adlAgentInterceptEnabled`) and read dynamically so runtime
+    // updates via `browser_set_agent_intercept` take effect on loaded pages.
+    function __adlIsAgentHost() {
+        try {
+            var origins = window.__adlAgentOrigins || [];
+            return window.__adlAgentInterceptEnabled === true && origins.indexOf(location.origin) !== -1;
+        } catch (e) { return false; }
+    }
+    function __adlSendAgentLink(kind, url) {
+        try {
+            if (window.chrome && chrome.webview && chrome.webview.postMessage) {
+                chrome.webview.postMessage(JSON.stringify({ type: 'adl-agent-link', kind: kind, url: url }));
+                return true;
+            }
+        } catch (e) {}
+        return false;
+    }
+
     // 检查是否是有效的网页 URL
     function isValidWebUrl(href) {
         if (!href || typeof href !== 'string') return false;
@@ -246,6 +268,11 @@
                     return;
                 }
 
+                if (isValidWebUrl(href) && __adlIsAgentHost() && __adlSendAgentLink('url', href)) {
+                    event.preventDefault();
+                    return;
+                }
+
                 if (isValidWebUrl(href)) {
                     var forcedNewTab = event.ctrlKey || event.metaKey || event.shiftKey || event.button === 1;
                     if (forcedNewTab) {
@@ -258,6 +285,9 @@
                     if (window.__startNavGuard) {
                         window.__startNavGuard(href);
                     }
+                    return;
+                } else if (__adlIsAgentHost() && __adlSendAgentLink('file', href)) {
+                    event.preventDefault();
                     return;
                 } else {
                     // 点击路径诊断：只需在 devtools 的 Verbose 级按需查看（生产默认级别不可见），
@@ -333,6 +363,9 @@
                 console.log('[ADL-DL-JS] window.open: download URL -> same-document native DownloadStarting:', resolvedUrl);
                 __adlSendLog('info', 'window.open: download URL routed to same-document native DownloadStarting', { url: resolvedUrl, rawUrl: rawUrl });
                 window.location.assign(resolvedUrl);
+                return null;
+            }
+            if (__adlIsAgentHost() && __adlSendAgentLink('url', resolvedUrl)) {
                 return null;
             }
             console.log('[ADL-DL-JS] window.open: non-download URL, delegating to origOpen:', resolvedUrl);

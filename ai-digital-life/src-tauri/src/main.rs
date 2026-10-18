@@ -142,6 +142,7 @@ fn main() {
             commands::browser::browser_reload_tab,
             commands::browser::browser_mute_tab,
             commands::browser::browser_set_color_scheme,
+            commands::browser::browser_set_agent_intercept,
             commands::browser::browser_set_zoom,
             commands::browser::browser_clear_cookies,
             commands::browser::browser_clear_cache,

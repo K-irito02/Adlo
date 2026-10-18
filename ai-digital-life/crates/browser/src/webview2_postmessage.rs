@@ -83,6 +83,15 @@ mod imp {
                             return Ok(());
                         }
 
+                        if let Some(link) = super::agent_link_from_message(&json_str) {
+                            bridge_for_handler.emit_agent_link(
+                                &tab_id_for_handler,
+                                &link.kind,
+                                &link.url,
+                            );
+                            return Ok(());
+                        }
+
                         if let Some(url) = super::open_new_tab_url_from_message(&json_str) {
                             bridge_for_handler.emit_open_new_tab(&url);
                             return Ok(());
@@ -174,6 +183,34 @@ mod imp {
 
 pub use imp::setup_webview2_messaging;
 
+/// Parsed `{type:'adl-agent-link', kind:'url'|'file', url}` postMessage emitted
+/// by `init_script.js` when a whitelisted agent-site link is clicked.
+pub struct AgentLink {
+    pub kind: String,
+    pub url: String,
+}
+
+/// Pure parse of an `{type:'adl-agent-link', kind:'url'|'file', url}` postMessage.
+///
+/// `kind` only accepts `url`/`file`; `url` must be non-empty. The origin
+/// whitelist is trusted from the injection side (the injected branch only runs
+/// on whitelisted sites), so this only re-checks the message shape as a backstop.
+pub fn agent_link_from_message(json: &str) -> Option<AgentLink> {
+    let value: serde_json::Value = serde_json::from_str(json).ok()?;
+    if value.get("type").and_then(|t| t.as_str()) != Some("adl-agent-link") {
+        return None;
+    }
+    let kind = value.get("kind").and_then(|v| v.as_str())?;
+    if kind != "url" && kind != "file" {
+        return None;
+    }
+    let url = value.get("url").and_then(|v| v.as_str())?;
+    if url.is_empty() {
+        return None;
+    }
+    Some(AgentLink { kind: kind.to_string(), url: url.to_string() })
+}
+
 /// Pure parse of an `{type:'open-new-tab', url}` postMessage payload.
 ///
 /// Returns the URL only when the message type matches and the URL uses an
@@ -194,7 +231,32 @@ pub fn open_new_tab_url_from_message(json: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::open_new_tab_url_from_message;
+    use super::{agent_link_from_message, open_new_tab_url_from_message};
+
+    #[test]
+    fn agent_link_parses_valid_payload() {
+        let json = r#"{"type":"adl-agent-link","kind":"url","url":"https://a.com/x"}"#;
+        let parsed = agent_link_from_message(json).unwrap();
+        assert_eq!(parsed.kind, "url");
+        assert_eq!(parsed.url, "https://a.com/x");
+    }
+
+    #[test]
+    fn agent_link_accepts_file_kind_with_path() {
+        let json = r#"{"type":"adl-agent-link","kind":"file","url":"file:///C:/ws/a.md"}"#;
+        let parsed = agent_link_from_message(json).unwrap();
+        assert_eq!(parsed.kind, "file");
+    }
+
+    #[test]
+    fn agent_link_rejects_unknown_kind_and_type() {
+        assert!(
+            agent_link_from_message(r#"{"type":"other","kind":"url","url":"https://a"}"#).is_none()
+        );
+        assert!(
+            agent_link_from_message(r#"{"type":"adl-agent-link","kind":"x","url":"u"}"#).is_none()
+        );
+    }
 
     #[test]
     fn open_new_tab_http_url_returns_some() {

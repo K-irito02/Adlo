@@ -217,6 +217,16 @@ async function sendPreferencePatch(
     const lockedFields = result.data.sessionLockedFields ?? [];
     const lockedNotice = lockedFields.length > 0 ? sessionOverrideNotice(get, patch) : null;
     set({ appInfo: result.data.info });
+    // Agent-site link interception is baked into live WebViews via an injected
+    // prefix; refresh it whenever the whitelist/enable flag changed so already
+    // loaded agent pages pick up the new settings (Tauri only; no-op elsewhere).
+    if (patch.agentLinkIntercept !== undefined || patch.agentSiteWhitelist !== undefined) {
+      const config = result.data.info.config;
+      void window.digitalLife?.browser?.setAgentIntercept?.(
+        config.agentSiteWhitelist ?? [],
+        config.agentLinkIntercept ?? false,
+      );
+    }
     // 会话级 CLI/env 覆盖锁定的字段：已落盘但运行期保持 CLI 值 → 顶部提示
     // "下次启动生效"，消除静默分歧（Phase 4 F3，用户决策）。
     if (lockedNotice) {

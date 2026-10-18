@@ -77,6 +77,12 @@ pub trait WebView2EventBridge: Send + Sync {
     /// injected `init_script.js` when the page targets `_blank` or calls
     /// `window.open` (postMessage `{type:'open-new-tab', url}`).
     fn emit_open_new_tab(&self, url: &str);
+    /// Emit an intercepted agent-site link click. Triggered by `init_script.js`
+    /// only for whitelisted agent sites (postMessage `{type:'adl-agent-link', ...}`).
+    ///
+    /// Default no-op so implementers that never host visible agent tabs (e.g. the
+    /// silent meta bridge) need not handle it.
+    fn emit_agent_link(&self, _tab_id: &str, _kind: &str, _url: &str) {}
 }
 
 /// Type alias for an optional shared event bridge reference.

@@ -36,6 +36,10 @@ export interface BrowserBridge {
     colorScheme?: 'light' | 'dark',
     /** 宿主分组：Tauri 按此选择 WebView2 用户数据目录（UDF 隔离主题回退）；缺省按面板处理。 */
     location?: 'panel' | 'center',
+    /** 智能体站点白名单 origin 列表（注入 WebView2 链接拦截；缺省不拦截）。 */
+    agentOrigins?: string[],
+    /** 是否启用智能体站点链接拦截。 */
+    agentInterceptEnabled?: boolean,
   ) => Promise<string | null>;
   // 注：非 Tauri 宿主（mock/preview/http）当前忽略 location（无原生 WebView2/UDF
   // 概念），签名保留以便将来按宿主分区前端缓存时直接复用。
@@ -98,6 +102,14 @@ export interface BrowserBridge {
   onAudioStateChanged: (listener: (payload: AudioStatePayload) => void) => () => void;
   /** Subscribe to new-window requests (`target="_blank"` / `window.open`); open a new tab. */
   onOpenNewTab: (listener: (url: string) => void) => () => void;
+  /** 订阅被拦截的智能体站点链接点击（仅 Tauri；白名单站点）。 */
+  onAgentLink: (listener: (payload: { kind: 'url' | 'file'; url: string }) => void) => () => void;
+  /**
+   * Refresh the agent-site link-interception parameters on all live browser
+   * WebViews (Tauri only; no-op in mock/preview/http). Called after settings
+   * change so already-loaded agent pages pick up the new whitelist.
+   */
+  setAgentIntercept: (origins: string[], enabled: boolean) => Promise<void>;
   /** Set the preferred color scheme on all browser WebViews (Tauri mode) */
   setBrowserColorScheme: (resolvedTheme: 'light' | 'dark') => Promise<void>;
   /** Set zoom level for a specific tab's WebView */

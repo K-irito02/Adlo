@@ -47,6 +47,13 @@ impl WebView2EventBridge for TauriWebView2EventBridge {
             self.app.emit("digital-life://browser-open-new-tab", serde_json::json!({ "url": url }));
     }
 
+    fn emit_agent_link(&self, tab_id: &str, kind: &str, url: &str) {
+        let _ = self.app.emit(
+            "digital-life://browser-agent-link",
+            serde_json::json!({ "tabId": tab_id, "kind": kind, "url": url }),
+        );
+    }
+
     fn spawn_spa_fallback(&self, label: &str, url: &str) {
         let app = self.app.clone();
         let label = label.to_string();
