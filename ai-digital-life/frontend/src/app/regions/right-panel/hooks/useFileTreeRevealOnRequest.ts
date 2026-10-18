@@ -9,11 +9,12 @@ function findRowElement(workspaceId: string, relPath: string): HTMLElement | nul
   if (!scope) {
     return null;
   }
-  const want = relPath.replace(/\\/g, '/');
+  // 文件树匹配段不区分大小写（与 revealWorkspaceDirectory 同口径），滚动查找同理。
+  const want = relPath.replace(/\\/g, '/').toLowerCase();
   const rows = scope.querySelectorAll<HTMLElement>('[data-path]');
   for (const row of rows) {
     const actual = row.getAttribute('data-path');
-    if (actual && actual.replace(/\\/g, '/') === want) {
+    if (actual && actual.replace(/\\/g, '/').toLowerCase() === want) {
       return row;
     }
   }
@@ -26,6 +27,7 @@ function findRowElement(workspaceId: string, relPath: string): HTMLElement | nul
  */
 export function useFileTreeRevealOnRequest(): void {
   const request = useAppStore((s) => s.fileTreeRevealRequest);
+  const consume = useAppStore((s) => s.consumeFileTreeReveal);
 
   useEffect(() => {
     if (!request) {
@@ -38,6 +40,8 @@ export function useFileTreeRevealOnRequest(): void {
       const el = findRowElement(workspaceId, path);
       if (el && typeof el.scrollIntoView === 'function') {
         el.scrollIntoView({ block: 'nearest' });
+        // 消费成功后清掉一次性请求：后续 remount 不再重放，避免无端滚动。
+        consume();
         return;
       }
       attempts += 1;
@@ -49,5 +53,5 @@ export function useFileTreeRevealOnRequest(): void {
     return () => {
       cancelAnimationFrame(raf);
     };
-  }, [request]);
+  }, [request, consume]);
 }

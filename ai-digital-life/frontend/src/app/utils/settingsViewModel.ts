@@ -1,11 +1,6 @@
-import type {
-  AgentSiteAllowEntry,
-  AppPreferencePatch,
-  LogLevel,
-  ThemeMode,
-} from '../../shared/ipc-types.generated';
+import type { AppPreferencePatch, LogLevel, ThemeMode } from '../../shared/ipc-types.generated';
 import { isLogMode } from './debugLogMode';
-import type { AppInfo, SettingItem } from '../../kernel/types';
+import type { AppInfo, SettingItem, SettingValue } from '../../kernel/types';
 import type { CopyDict } from '../i18n';
 import { normalizeAgentSiteEntries } from '@shared/originWhitelist';
 import { isTauriShell } from '@shared/env';
@@ -189,7 +184,7 @@ export function buildSettingsItems(t: CopyDict, appInfo?: AppInfo): SettingItem[
 
 export function preferencePatchFromSettingChange(
   id: string,
-  value: string | boolean | number | AgentSiteAllowEntry[],
+  value: SettingValue,
 ): AppPreferencePatch | undefined {
   if (id === 'language') {
     return { language: value as string };
@@ -229,6 +224,11 @@ export function preferencePatchFromSettingChange(
     return { agentLinkIntercept: value === true };
   }
   if (id === 'openMethod:agentSiteWhitelist') {
+    // 非法输入直接拒绝（与 link/file 打开方式 invalid → undefined 同语义），
+    // 禁止把脏值归一为空数组落盘清空用户白名单（见事项 5 审查 S-F9）。
+    if (!Array.isArray(value)) {
+      return undefined;
+    }
     return { agentSiteWhitelist: normalizeAgentSiteEntries(value) };
   }
   if (id === 'maxConcurrentWorkspaces') {

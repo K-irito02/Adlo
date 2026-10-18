@@ -1623,6 +1623,9 @@ describe('SettingsPanel cross-group search', () => {
 describe('SettingsPanel open-method group', () => {
   afterEach(() => {
     cleanup();
+    // envState.tauri 是模块级可变单例：用例内改为 true 后必须复位，
+    // 否则断言中途抛错会把 true 漏到后续用例（顺序耦合）。
+    envState.tauri = false;
     useAppStore.setState((s) => ({
       settingsSearchQuery: '',
       settingsSearchHistory: [],

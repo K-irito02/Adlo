@@ -4,6 +4,7 @@ import type {
   ModelProviderPreference,
 } from './ipc-types.generated';
 import { resolveCurrentTheme } from './resolveTheme';
+import { normalizeAgentSiteEntries } from './originWhitelist';
 
 export function applyPreferencePatch(
   config: ConfigSnapshot,
@@ -91,13 +92,9 @@ export function applyPreferencePatch(
     nextConfig.agentLinkIntercept = patch.agentLinkIntercept;
   }
   if (patch.agentSiteWhitelist !== undefined) {
-    nextConfig.agentSiteWhitelist = patch.agentSiteWhitelist.map((entry) => {
-      const alias = typeof entry.alias === 'string' ? entry.alias.trim() : '';
-      return {
-        ...(alias ? { alias } : {}),
-        origin: entry.origin,
-      };
-    });
+    // 与设置变更路径同源归一（去 path/query、去非法、去重），后端推送/批量恢复
+    // 的脏数据不在此落盘（见事项 5 审查 S-F3）。
+    nextConfig.agentSiteWhitelist = normalizeAgentSiteEntries(patch.agentSiteWhitelist);
   }
 
   return nextConfig;

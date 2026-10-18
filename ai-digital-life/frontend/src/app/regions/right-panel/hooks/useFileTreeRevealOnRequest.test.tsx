@@ -50,8 +50,7 @@ describe('useFileTreeRevealOnRequest', () => {
     expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest' });
   });
 
-  it('does nothing when no row matches (no throw, no scroll)', () => {
-    document.body.innerHTML =
+  it('does nothing when no row matches (no throw, no scroll)', () => {    document.body.innerHTML =
       '<div data-workspace-id="ws-other"><div data-path="docs/a.md">other</div></div>';
     const scrollSpy = vi.fn();
     (window.HTMLElement.prototype as unknown as Record<string, unknown>).scrollIntoView = scrollSpy;
@@ -61,5 +60,41 @@ describe('useFileTreeRevealOnRequest', () => {
     });
     expect(scrollSpy).not.toHaveBeenCalled();
     delete (window.HTMLElement.prototype as unknown as Record<string, unknown>).scrollIntoView;
+  });
+
+  it('clears the request after a successful scroll (no stale replay on remount)', () => {
+    document.body.innerHTML =
+      '<div data-workspace-id="ws1"><div data-path="docs/a.md" id="row">x</div></div>';
+    const row = document.getElementById('row') as unknown as HTMLElement & {
+      scrollIntoView: (...args: unknown[]) => void;
+    };
+    row.scrollIntoView = vi.fn();
+    const { unmount } = render(<Harness />);
+    act(() => {
+      useAppStore.getState().requestFileTreeReveal('ws1', 'docs/a.md');
+    });
+    expect(row.scrollIntoView).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(useAppStore.getState().fileTreeRevealRequest).toBeNull();
+    unmount();
+    // 卸载后重挂载不再重放已消费的请求。
+    const replaySpy = vi.fn();
+    row.scrollIntoView = replaySpy;
+    render(<Harness />);
+    expect(replaySpy).not.toHaveBeenCalled();
+  });
+
+  it('matches rows case-insensitively like the tree walk', () => {
+    document.body.innerHTML =
+      '<div data-workspace-id="ws1"><div data-path="Docs/A.md" id="row">x</div></div>';
+    const row = document.getElementById('row') as unknown as HTMLElement & {
+      scrollIntoView: (...args: unknown[]) => void;
+    };
+    const scrollSpy = vi.fn();
+    row.scrollIntoView = scrollSpy;
+    render(<Harness />);
+    act(() => {
+      useAppStore.getState().requestFileTreeReveal('ws1', 'docs/a.md');
+    });
+    expect(scrollSpy).toHaveBeenCalledWith({ block: 'nearest' });
   });
 });

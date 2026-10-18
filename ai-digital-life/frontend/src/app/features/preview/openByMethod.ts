@@ -89,6 +89,14 @@ function normalizeAbsolutePath(absPath: string): string | null {
   return `${match[1]}/${resolved.join('/')}`;
 }
 
+/** 本地绝对路径转 `file://` URL（外部打开兜底用：只传良构 URL，不传裸 Windows 路径）。 */
+function toFileUrl(absPath: string): string {
+  const forward = toForwardSlashes(absPath);
+  // 盘符路径补前导 `/` 得 `file:///C:/…`；UNC `//server/share` 即为合法 `file://` host 形。
+  const withSlash = /^[a-zA-Z]:\//.test(forward) ? `/${forward}` : forward;
+  return `file://${withSlash}`;
+}
+
 /** 取路径的父目录（去掉最后一个分隔符之后的部分）；无分隔符时返回 ''。 */
 function parentDirectory(currentRelPath: string): string {
   const lastSeparator = Math.max(currentRelPath.lastIndexOf('/'), currentRelPath.lastIndexOf('\\'));
@@ -144,17 +152,17 @@ export function openFileByMethod(absPath: string, workspaceId?: string): void {
   const state = useAppStore.getState();
   const method = state.appInfo?.config?.fileOpenMethod ?? 'panel';
   if (method === 'external') {
-    openExternal(absPath);
+    openExternal(toFileUrl(absPath));
     return;
   }
   const target = resolveLinkWorkspace(workspaceId);
   if (!target) {
-    openExternal(absPath);
+    openExternal(toFileUrl(absPath));
     return;
   }
   const rel = workspaceRelative(target.root, absPath);
   if (!rel) {
-    openExternal(absPath);
+    openExternal(toFileUrl(absPath));
     return;
   }
   void state.openFileForWorkspace(target.id, target.root, rel);
@@ -201,10 +209,7 @@ export function revealWorkspaceDirectory(workspaceId: string, relPath: string): 
   let nodes: WorkspaceTreeNode[] = roots;
   let node: WorkspaceTreeNode | undefined;
   for (const segment of segments) {
-    node = nodes.find(
-      (candidate) =>
-        candidate.name === segment || candidate.name.toLowerCase() === segment.toLowerCase(),
-    );
+    node = nodes.find((candidate) => candidate.name.toLowerCase() === segment.toLowerCase());
     if (!node || node.kind !== 'directory') {
       return false;
     }
@@ -242,6 +247,13 @@ export function openMarkdownFileLink(
   if (revealWorkspaceDirectory(target.id, rel)) {
     return;
   }
+  // 目录形链接（尾部分隔符，如 `docs/`）只做文件树定位，不按文件去读
+  // （事项 6 审查 P-F3：树未加载时也按目录揭示，不误标 kind:'file'）。
+  const hashless = href.split('#', 1)[0].trim();
+  if (/[\\/]$/.test(hashless)) {
+    revealInFileTree(target.id, rel, 'directory');
+    return;
+  }
   revealInFileTree(target.id, rel, 'file');
   openFileByMethod(abs, workspaceId);
 }
@@ -262,9 +274,27 @@ export function resolveMarkdownFileLink(
   if (!raw) {
     return null;
   }
+  // `?query` 同理不是文件名（如 `file.md?raw=true`），与 #fragment 同处理。
+  const queryIndex = raw.indexOf('?');
+  const noQuery = (queryIndex >= 0 ? raw.slice(0, queryIndex) : raw).trim();
+  if (!noQuery) {
+    return null;
+  }
+  // markdown-it 会把空格/CJK 等 percent-encode；解析前解码（失败回退原文，
+  // 与 MarkdownPreview 锚点解码同模式）。
+  let decoded = noQuery;
+  try {
+    decoded = decodeURIComponent(noQuery);
+  } catch {
+    decoded = noQuery;
+  }
+  // UNC（`\\server\share`）是网络路径：禁止重写进工作区（事项 6 审查 P-F12）。
+  if (/^(\\\\|\/\/)/.test(decoded)) {
+    return null;
+  }
 
-  if (/^file:\/\//i.test(raw)) {
-    const fromUrl = fromFileUrl(raw);
+  if (/^file:\/\//i.test(decoded)) {
+    const fromUrl = fromFileUrl(decoded);
     const normalized = fromUrl ? normalizeAbsolutePath(fromUrl) : null;
     if (!normalized || !isWithinRoot(workspaceRoot, normalized)) {
       return null;
@@ -272,17 +302,17 @@ export function resolveMarkdownFileLink(
     return toWindowsPath(normalized);
   }
 
-  if (/^[a-zA-Z]:[\\/]/.test(raw)) {
-    const normalized = normalizeAbsolutePath(raw);
+  if (/^[a-zA-Z]:[\\/]/.test(decoded)) {
+    const normalized = normalizeAbsolutePath(decoded);
     if (!normalized || !isWithinRoot(workspaceRoot, normalized)) {
       return null;
     }
     return toWindowsPath(normalized);
   }
 
-  const isRootRelative = raw.startsWith('/') || raw.startsWith('\\');
+  const isRootRelative = decoded.startsWith('/') || decoded.startsWith('\\');
   const baseDir = isRootRelative ? '' : parentDirectory(currentRelPath);
-  const joined = baseDir ? `${baseDir}/${raw.replace(/^[\\/]+/, '')}` : raw;
+  const joined = baseDir ? `${baseDir}/${decoded.replace(/^[\\/]+/, '')}` : decoded;
   const resolved = resolveRelativeSegments(joined);
   if (!resolved) {
     return null;

@@ -312,10 +312,44 @@ impl BrowserManager {
         let js = format!(
             "window.__adlAgentOrigins = {origins_json}; window.__adlAgentInterceptEnabled = {enabled};"
         );
+        // 单 tab 缺失/刷新失败不中断其余 tab（事项 5 审查 R-F5）：逐个 warn 留痕，
+        // 有失败仅汇总告警，仍返回 Ok（部分成功即生效）。
+        let mut failures = 0usize;
         for tab_id in self.pool.tab_ids() {
-            if let Some(handle) = self.try_handle(&tab_id)? {
-                let _ = handle.eval_js(&js);
+            let handle = match self.try_handle(&tab_id) {
+                Ok(Some(handle)) => handle,
+                Ok(None) => {
+                    tracing::warn!(
+                        tab_id = tab_id,
+                        "browser webview handle missing; skipping agent-intercept refresh"
+                    );
+                    failures += 1;
+                    continue;
+                }
+                Err(e) => {
+                    tracing::warn!(
+                        tab_id = tab_id,
+                        error = %e,
+                        "failed to resolve browser webview handle; skipping agent-intercept refresh"
+                    );
+                    failures += 1;
+                    continue;
+                }
+            };
+            if let Err(e) = handle.eval_js(&js) {
+                tracing::warn!(
+                    tab_id = tab_id,
+                    error = %e,
+                    "failed to refresh agent-intercept globals on tab"
+                );
+                failures += 1;
             }
+        }
+        if failures > 0 {
+            tracing::warn!(
+                failures = failures,
+                "agent-intercept refresh partially failed; see per-tab warnings above"
+            );
         }
         Ok(())
     }

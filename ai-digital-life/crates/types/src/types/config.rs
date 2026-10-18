@@ -61,8 +61,10 @@ pub enum Theme {
     Dark,
 }
 
-/// 网址链接的默认打开落点。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+/// 网址链接的默认打开落点：`middle` = 中间区新标签，`panel` = 右侧浏览器面板新标签，
+/// `external` = 系统默认浏览器（外部打开）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, Default)]
+// 注：`rename_all` 现仅约束序列化（反序列化走下方手写 `Deserialize`，与 LogLevel 同口径）。
 #[serde(rename_all = "lowercase")]
 pub enum LinkOpenMethod {
     Middle,
@@ -71,13 +73,54 @@ pub enum LinkOpenMethod {
     External,
 }
 
-/// 本地文件的默认打开方式。
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS, Default)]
+// 手写反序列化（复用大小写不敏感的 `FromStr`）：手写/历史 `config.json` 中的
+// `"Panel"` / `"EXTERNAL"` 不应导致整份配置加载失败。序列化仍为全小写。
+impl<'de> serde::Deserialize<'de> for LinkOpenMethod {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+impl std::str::FromStr for LinkOpenMethod {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "middle" => Ok(Self::Middle),
+            "panel" => Ok(Self::Panel),
+            "external" => Ok(Self::External),
+            other => Err(format!("Invalid LinkOpenMethod: {other}. Expected middle|panel|external")),
+        }
+    }
+}
+
+/// 本地文件的默认打开方式：`panel` = 右侧文件面板，`external` = 系统默认应用。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, TS, Default)]
+// 注：`rename_all` 现仅约束序列化（反序列化走下方手写 `Deserialize`，与 LogLevel 同口径）。
 #[serde(rename_all = "lowercase")]
 pub enum FileOpenMethod {
     #[default]
     Panel,
     External,
+}
+
+// 手写反序列化（大小写不敏感，理由同 LinkOpenMethod）。
+impl<'de> serde::Deserialize<'de> for FileOpenMethod {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(d)?;
+        s.parse().map_err(serde::de::Error::custom)
+    }
+}
+
+impl std::str::FromStr for FileOpenMethod {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "panel" => Ok(Self::Panel),
+            "external" => Ok(Self::External),
+            other => Err(format!("Invalid FileOpenMethod: {other}. Expected panel|external")),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
@@ -338,5 +381,27 @@ mod tests {
         assert_eq!(serde_json::from_str::<LogMode>("\"Multi\"").unwrap(), LogMode::Multi);
         assert_eq!(serde_json::to_string(&LogMode::Append).unwrap(), "\"append\"");
         assert!("rotate".parse::<LogMode>().is_err());
+    }
+
+    #[test]
+    fn open_methods_from_str_and_serde_accept_mixed_case() {
+        // 与 LogLevel/LogMode 同口径：手写 config.json 的大小写不应导致
+        // 整份配置加载失败（事项 5 审查 R-F2）。
+        assert_eq!("Panel".parse::<LinkOpenMethod>().unwrap(), LinkOpenMethod::Panel);
+        assert_eq!("EXTERNAL".parse::<LinkOpenMethod>().unwrap(), LinkOpenMethod::External);
+        assert_eq!(" Middle ".parse::<LinkOpenMethod>().unwrap(), LinkOpenMethod::Middle);
+        assert_eq!(
+            serde_json::from_str::<LinkOpenMethod>("\"Panel\"").unwrap(),
+            LinkOpenMethod::Panel
+        );
+        assert_eq!(serde_json::to_string(&LinkOpenMethod::Panel).unwrap(), "\"panel\"");
+        assert!("center".parse::<LinkOpenMethod>().is_err());
+        assert_eq!("EXTERNAL".parse::<FileOpenMethod>().unwrap(), FileOpenMethod::External);
+        assert_eq!(
+            serde_json::from_str::<FileOpenMethod>("\"Panel\"").unwrap(),
+            FileOpenMethod::Panel
+        );
+        assert_eq!(serde_json::to_string(&FileOpenMethod::Panel).unwrap(), "\"panel\"");
+        assert!("middle".parse::<FileOpenMethod>().is_err());
     }
 }

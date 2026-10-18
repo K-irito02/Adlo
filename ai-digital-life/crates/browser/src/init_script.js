@@ -48,14 +48,15 @@
     // Local-file-destination check, mirroring the Rust backstop `is_file_like_path`
     // (crates/browser/src/webview2_postmessage.rs): only `file://`, a Windows drive
     // path (`C:\` / `C:/`), a UNC path (`\\`), or a root-absolute local path
-    // (leading `/`) qualify. Everything else (mailto:, tel:, javascript:, data:,
-    // ...) must fall through to the native default action instead of being sent as
-    // kind:'file' and rejectDefault'd into a dead link.
+    // (leading `/`, excluding protocol-relative `//host`) qualify. Anything else
+    // (mailto:, tel:, javascript:, data:, ...) must fall through to the native
+    // default action instead of being sent as kind:'file' and rejectDefault'd
+    // into a dead link.
     function isFileLikeHref(href) {
         if (!href || typeof href !== 'string') return false;
         if (href.toLowerCase().indexOf('file://') === 0) return true;
         if (href.indexOf('\\\\') === 0) return true;
-        if (href.indexOf('/') === 0) return true;
+        if (href.indexOf('/') === 0 && href.indexOf('//') !== 0) return true;
         return /^[A-Za-z]:[\\/]/.test(href);
     }
 

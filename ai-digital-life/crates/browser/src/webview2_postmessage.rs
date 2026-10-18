@@ -192,12 +192,12 @@ pub struct AgentLink {
 
 /// Whether a `kind:'file'` payload looks like a local file destination:
 /// a `file://` URL, a Windows drive path (`C:\` / `C:/`), a POSIX/root-absolute
-/// path (leading `/`), or a UNC path (`\\`).
+/// path (leading `/`, but not protocol-relative `//host`), or a UNC path (`\\`).
 fn is_file_like_path(url: &str) -> bool {
     if url.to_ascii_lowercase().starts_with("file://") {
         return true;
     }
-    if url.starts_with("\\\\") || url.starts_with('/') {
+    if url.starts_with("\\\\") || (url.starts_with('/') && !url.starts_with("//")) {
         return true;
     }
     let bytes = url.as_bytes();
@@ -306,6 +306,27 @@ mod tests {
             )
             .is_none()
         );
+    }
+
+    #[test]
+    fn agent_link_file_kind_rejects_protocol_relative_url() {
+        // `//evil.com/x` 是网络 URL（非本地文件）：Rust 与 init_script.js 的
+        // isFileLikeHref 必须同口径拒绝，否则后端会把网络 URL 当文件打开。
+        assert!(
+            agent_link_from_message(
+                r#"{"type":"adl-agent-link","kind":"file","url":"//evil.com/x"}"#
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn agent_link_file_kind_still_accepts_root_absolute_path() {
+        let parsed = agent_link_from_message(
+            r#"{"type":"adl-agent-link","kind":"file","url":"/docs/a.md"}"#,
+        )
+        .unwrap();
+        assert_eq!(parsed.kind, "file");
     }
 
     #[test]

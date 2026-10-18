@@ -233,6 +233,8 @@ export interface UISlice {
   expandFileTreePathChain: (workspaceId: string, path: string) => { blocked: string[] };
   /** 发起一次文件树定位滚动（瞬态，不落盘；nonce 保证连续相同定位可重复触发）。 */
   requestFileTreeReveal: (workspaceId: string, path: string) => void;
+  /** 消费（清除）定位滚动请求：成功滚动后调用，避免 remount 重放。 */
+  consumeFileTreeReveal: () => void;
   setFilesNavigatorMode: (mode: FilesNavigatorMode) => void;
   setFilesSearchView: (view: FilesSearchViewMode) => void;
   setFilesSearchScope: (scope: FilesSearchScope) => void;

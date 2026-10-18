@@ -76,10 +76,10 @@ describe('openFileByMethod', () => {
     openFileByMethod('C:/ws/src/a.md');
     expect(openFileForWorkspace).toHaveBeenCalledWith('ws1', 'C:/ws', 'src/a.md');
   });
-  it('opens externally', () => {
+  it('opens externally as a file:// URL, not a raw Windows path', () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'external' };
     openFileByMethod('C:/ws/src/a.md');
-    expect(openExternal).toHaveBeenCalledWith('C:/ws/src/a.md');
+    expect(openExternal).toHaveBeenCalledWith('file:///C:/ws/src/a.md');
   });
   it('opens in the file-owning workspace instead of the current one', () => {
     config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
@@ -154,6 +154,22 @@ describe('resolveMarkdownFileLink', () => {
   it('returns null for an empty href', () => {
     expect(resolveMarkdownFileLink('C:\\ws', 'a.md', '   ')).toBeNull();
   });
+  it('decodes percent-encoded relative file links', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'docs/a.md', 'my%20file.md')).toBe(
+      'C:\\ws\\docs\\my file.md',
+    );
+  });
+  it('strips query strings from file links', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'docs/a.md', 'other.md?raw=true')).toBe(
+      'C:\\ws\\docs\\other.md',
+    );
+  });
+  it('rejects UNC network paths instead of rewriting them into the workspace', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'a.md', '\\\\server\\share\\x.md')).toBeNull();
+  });
+  it('rejects protocol-relative network URLs instead of resolving them as files', () => {
+    expect(resolveMarkdownFileLink('C:\\ws', 'a.md', '//cdn.example.com/x.md')).toBeNull();
+  });
 });
 
 describe('revealWorkspaceDirectory', () => {
@@ -202,7 +218,8 @@ describe('revealWorkspaceDirectory', () => {
     expect(revealWorkspaceDirectory('ws1', 'README.md')).toBe(false);
     expect(revealWorkspaceDirectory('ws1', 'docs/missing')).toBe(false);
     expect(revealWorkspaceDirectory('ws1', '')).toBe(false);
-    expect(expandFileTreePathChain).not.toHaveBeenCalled();
+    // 实现走 setFileTreePathExpanded 逐层展开：断言该函数未被调用，而非无关函数。
+    expect(setFileTreePathExpanded).not.toHaveBeenCalled();
     expect(setFileTreeClickedNode).not.toHaveBeenCalled();
     expect(requestFileTreeReveal).not.toHaveBeenCalled();
   });
@@ -233,5 +250,15 @@ describe('openMarkdownFileLink', () => {
     expect(openFileForWorkspace).toHaveBeenCalledWith('ws1', 'C:/ws', 'docs/other.md');
     expect(setFileTreeClickedNode).toHaveBeenCalledWith('ws1', 'docs/other.md', 'file');
     expect(requestFileTreeReveal).toHaveBeenCalledWith('ws1', 'docs/other.md');
+  });
+
+  it('reveals an unloaded directory-shaped link without reading it as a file', () => {
+    config = { linkOpenMethod: 'panel', fileOpenMethod: 'panel' };
+    trees = {};
+    openMarkdownFileLink('ws1', 'a.md', 'newdir/');
+    // 树未加载 → revealWorkspaceDirectory 为 false，但尾部分隔符表明是目录：
+    // 只做目录揭示，不调文件读取。
+    expect(setFileTreeClickedNode).toHaveBeenCalledWith('ws1', 'newdir', 'directory');
+    expect(openFileForWorkspace).not.toHaveBeenCalled();
   });
 });

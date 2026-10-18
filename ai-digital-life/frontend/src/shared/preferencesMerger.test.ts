@@ -205,4 +205,20 @@ describe('applyPreferencePatch', () => {
       { alias: '工作台', origin: 'http://127.0.0.1:3080' },
     ]);
   });
+
+  it('normalizes allowlist entries at the merger just like the settings path', () => {
+    const base = { ...baseConfig };
+    const merged = applyPreferencePatch(base, {
+      agentSiteWhitelist: [
+        { alias: ' 工作台 ', origin: 'http://127.0.0.1:3080/chat/1' },
+        { origin: 'https://a.com/x' },
+        { origin: 'http://127.0.0.1:3080' },
+        { origin: 'not-a-url' },
+      ],
+    });
+    expect(merged.agentSiteWhitelist).toEqual([
+      { alias: '工作台', origin: 'http://127.0.0.1:3080' },
+      { origin: 'https://a.com' },
+    ]);
+  });
 });

@@ -83,6 +83,7 @@ export type UIExpansionSlice = Pick<
   | 'expandedChangesTreePaths'
   | 'fileTreeRevealRequest'
   | 'requestFileTreeReveal'
+  | 'consumeFileTreeReveal'
   | 'setFileTreePathExpanded'
   | 'toggleFileTreePath'
   | 'expandFileTreePathChain'
@@ -103,6 +104,9 @@ export function createUIExpansionSlice(
     requestFileTreeReveal: (workspaceId, path) => {
       fileTreeRevealNonce += 1;
       set({ fileTreeRevealRequest: { workspaceId, path, nonce: fileTreeRevealNonce } });
+    },
+    consumeFileTreeReveal: () => {
+      set({ fileTreeRevealRequest: null });
     },
 
     setFileTreePathExpanded: (workspaceId, path, expanded) =>

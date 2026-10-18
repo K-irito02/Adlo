@@ -444,7 +444,7 @@ export type SettingsGroupId =
   | 'storage'
   | 'openMethod';
 
-export type SettingValue = string | boolean | number | AgentSiteAllowEntry[];
+export type SettingValue = string | boolean | number | string[] | AgentSiteAllowEntry[];
 
 export interface SettingItem {
   id: string;

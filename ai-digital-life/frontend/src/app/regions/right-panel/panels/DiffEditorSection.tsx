@@ -160,18 +160,15 @@ const DiffEditorSection = React.memo(function DiffEditorSection({
 
   // 变更面板 markdown 预览的链接点击：与文件面板同源（changePreview.path 为其
   // 所属工作区相对路径，用变更预览自身的工作区而非当前工作区，见事项 6）。
+  // 工作区取 props（调用方已订阅），不 direct getState，保证 memo 依赖完备。
   const markdownLinkHandlers = useMemo(
     () => ({
       onOpenUrl: openUrlByMethod,
       onOpenFile: (href: string) => {
-        openMarkdownFileLink(
-          useAppStore.getState().selectedChangePreviewWorkspaceId,
-          changePreview?.path,
-          href,
-        );
+        openMarkdownFileLink(selectedChangePreviewWorkspaceId, changePreview?.path, href);
       },
     }),
-    [changePreview?.path],
+    [changePreview?.path, selectedChangePreviewWorkspaceId],
   );
 
   // 内容区无预览时直接留空（事项1）：不渲染"当前没有检测到文件变更"等空态文字。

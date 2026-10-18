@@ -533,6 +533,16 @@
   flex-direction: column;
   gap: var(--space-2);
   min-width: 240px;
+  max-width: 100%;
+}
+
+/* 白名单添加卡片的字段说明：块级 label，替代行内样式（主题/暗色统一走变量）。 */
+.adl-settings-allowlist__label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
 }
 
 .adl-settings-allowlist__empty {
@@ -642,6 +652,7 @@
 .adl-settings-dropdown--open-method {
   width: 200px;
   min-width: 200px;
+  max-width: 100%;
 }
 
 .adl-settings-dropdown__trigger {

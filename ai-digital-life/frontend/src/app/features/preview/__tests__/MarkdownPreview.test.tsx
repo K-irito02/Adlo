@@ -65,8 +65,7 @@ describe('MarkdownPreview link delegation', () => {
     expect(onOpenFile).toHaveBeenCalledWith('other.md');
   });
 
-  it('routes file:// links through onOpenFile handler, not openExternal', () => {
-    const onOpenFile = vi.fn();
+  it('routes file:// links through onOpenFile handler, not openExternal', () => {    const onOpenFile = vi.fn();
     const openExternal = vi.fn();
     (window as unknown as { digitalLife: unknown }).digitalLife = {
       window: { openExternal },
@@ -79,6 +78,23 @@ describe('MarkdownPreview link delegation', () => {
     fireEvent.click(preview.querySelector('a')!);
     expect(onOpenFile).toHaveBeenCalledWith('file:///C:/ws/a.md');
     expect(openExternal).not.toHaveBeenCalled();
+    delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+  });
+
+  it('routes case-variant mailto/tel and protocol-relative links externally', () => {
+    const onOpenFile = vi.fn();
+    const openExternal = vi.fn();
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      window: { openExternal },
+    };
+    const { container } = render(<MarkdownPreview content={''} linkHandlers={{ onOpenFile }} />);
+    const preview = container.querySelector('.adl-markdown-preview')!;
+    preview.innerHTML =
+      '<a href="MAILTO:a@b.com">m</a><a href="Tel:+123">t</a><a href="//cdn.example.com/x">p</a>';
+    const anchors = preview.querySelectorAll('a');
+    anchors.forEach((a) => fireEvent.click(a));
+    expect(openExternal).toHaveBeenCalledTimes(3);
+    expect(onOpenFile).not.toHaveBeenCalled();
     delete (window as unknown as { digitalLife?: unknown }).digitalLife;
   });
 });

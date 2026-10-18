@@ -46,6 +46,14 @@ describe('directory expansion intent', () => {
     expect(second?.nonce).toBeGreaterThan(first?.nonce ?? 0);
   });
 
+  it('consumeFileTreeReveal clears a pending reveal request', () => {
+    useAppStore.setState({ fileTreeRevealRequest: null });
+    useAppStore.getState().requestFileTreeReveal('ws-1', 'docs/a.md');
+    expect(useAppStore.getState().fileTreeRevealRequest).not.toBeNull();
+    useAppStore.getState().consumeFileTreeReveal();
+    expect(useAppStore.getState().fileTreeRevealRequest).toBeNull();
+  });
+
   it('manual expand clears the manual intent', () => {
     useAppStore.getState().setFileTreePathExpanded(WS, 'src/legacy', false);
     useAppStore.getState().setFileTreePathExpanded(WS, 'src/legacy', true);

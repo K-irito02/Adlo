@@ -2,7 +2,9 @@ use adl_errors::AppError;
 use adl_logging::LogMode;
 use adl_types::CommandConfig;
 use adl_types::types::ThemeMode;
-use adl_types::types::config::{AppPreferencePatch, FileOpenMethod, LinkOpenMethod, LogLevel};
+use adl_types::types::config::{
+    AgentSiteAllowEntry, AppPreferencePatch, FileOpenMethod, LinkOpenMethod, LogLevel,
+};
 use adl_types::types::reference::ReferenceConfig;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
@@ -173,7 +175,7 @@ impl AppConfig {
             self.agent_link_intercept = v;
         }
         if let Some(v) = patch.agent_site_whitelist.as_ref() {
-            self.agent_site_whitelist = v.clone();
+            self.agent_site_whitelist = normalize_allowlist(v);
         }
     }
 }
@@ -201,6 +203,26 @@ pub fn resolve_persisted_config(
     }
     if patch.debug_log_mode.is_none() && overrides.debug_log_mode.is_some() {
         out.debug_log_mode = disk.debug_log_mode;
+    }
+    out
+}
+
+/// 白名单条目落盘前清洗（事项 5 审查 R-F14）：别名/origin 去空白，空 origin
+/// 与非法条目丢弃，origin 去重保序。与前端 `normalizeAgentSiteEntries` 同语义
+/// （前端负责 URL 合法性校验，此处只做空值/重复的最后一道清洗）。
+fn normalize_allowlist(entries: &[AgentSiteAllowEntry]) -> Vec<AgentSiteAllowEntry> {
+    let mut out = Vec::with_capacity(entries.len());
+    for entry in entries {
+        let origin = entry.origin.trim();
+        if origin.is_empty() || out.iter().any(|e: &AgentSiteAllowEntry| e.origin == origin) {
+            continue;
+        }
+        let alias = entry.alias.as_deref().unwrap_or("").trim();
+        out.push(if alias.is_empty() {
+            AgentSiteAllowEntry { alias: None, origin: origin.to_string() }
+        } else {
+            AgentSiteAllowEntry { alias: Some(alias.to_string()), origin: origin.to_string() }
+        });
     }
     out
 }
@@ -244,7 +266,8 @@ pub fn load_from(config_dir: &Path) -> Result<AppConfig, AppError> {
         .map_err(|e| AppError::Config(format!("Failed to read config: {e}")))?;
     serde_json::from_str(&content).map_err(|e| {
         AppError::Config(format!(
-            "Failed to parse config; falling back requires a valid rewrite: {e}"
+            "Failed to parse config; falling back requires a valid rewrite \
+             (note: agent_site_whitelist must be [{{origin, alias?}}] objects if present): {e}"
         ))
     })
 }
@@ -390,6 +413,34 @@ mod tests {
         assert_eq!(loaded.link_open_method, adl_types::types::config::LinkOpenMethod::Panel);
         assert!(loaded.agent_site_whitelist.is_empty());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn apply_patch_normalizes_allowlist_entries() {
+        // 事项 5 审查 R-F14：别名/origin 去空白、空 origin 丢弃、origin 去重保序。
+        let mut config = AppConfig::default();
+        let patch = AppPreferencePatch {
+            agent_site_whitelist: Some(vec![
+                AgentSiteAllowEntry {
+                    alias: Some(" 工作台 ".to_string()),
+                    origin: "http://127.0.0.1:3080".to_string(),
+                },
+                AgentSiteAllowEntry { alias: None, origin: "  ".to_string() },
+                AgentSiteAllowEntry {
+                    alias: Some("重复".to_string()),
+                    origin: "http://127.0.0.1:3080".to_string(),
+                },
+            ]),
+            ..Default::default()
+        };
+        config.apply_patch(&patch);
+        assert_eq!(
+            config.agent_site_whitelist,
+            vec![AgentSiteAllowEntry {
+                alias: Some("工作台".to_string()),
+                origin: "http://127.0.0.1:3080".to_string(),
+            }]
+        );
     }
 }
 

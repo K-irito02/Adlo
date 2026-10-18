@@ -21,7 +21,8 @@ export function normalizeOrigin(input: string): string | null {
   return url.origin;
 }
 
-/** 结构化白名单归一：别名去空白（空即省略），站点归一为 origin，去重保序。 */
+/** 结构化白名单归一：别名去空白（空即省略），站点归一为 origin，去重保序。
+ * 兼容裸字符串条目（手写配置/旧形状残留）：视为无别称条目归一，避免展示层丢数据。 */
 export function normalizeAgentSiteEntries(value: unknown): AgentSiteAllowEntry[] {
   if (!Array.isArray(value)) {
     return [];
@@ -29,6 +30,15 @@ export function normalizeAgentSiteEntries(value: unknown): AgentSiteAllowEntry[]
   const entries: AgentSiteAllowEntry[] = [];
   const seen = new Set<string>();
   for (const item of value) {
+    if (typeof item === 'string') {
+      const origin = normalizeOrigin(item);
+      if (!origin || seen.has(origin)) {
+        continue;
+      }
+      seen.add(origin);
+      entries.push({ origin });
+      continue;
+    }
     if (!item || typeof item !== 'object') {
       continue;
     }

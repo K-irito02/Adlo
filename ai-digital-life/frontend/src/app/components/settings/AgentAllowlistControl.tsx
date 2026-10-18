@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { AgentSiteAllowEntry, SettingItem } from '@shared/ipc';
 import type { CopyDict } from '../../i18n';
-import { normalizeOrigin } from '@shared/originWhitelist';
+import { normalizeAgentSiteEntries, normalizeOrigin } from '@shared/originWhitelist';
 
 interface AgentAllowlistControlProps {
   item: SettingItem;
@@ -10,25 +10,9 @@ interface AgentAllowlistControlProps {
   onChange: (value: AgentSiteAllowEntry[]) => void;
 }
 
+/** 设置行展示用的白名单：与保存路径同源归一（字符串残留不丢、path/query 变体不重复渲染）。 */
 function asAllowlist(value: SettingItem['value']): AgentSiteAllowEntry[] {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  const entries: AgentSiteAllowEntry[] = [];
-  for (const entry of value) {
-    if (typeof entry !== 'object' || entry === null) {
-      continue;
-    }
-    const origin = (entry as { origin?: unknown }).origin;
-    if (typeof origin !== 'string' || !origin) {
-      continue;
-    }
-    const alias = (entry as { alias?: unknown }).alias;
-    entries.push(
-      typeof alias === 'string' && alias.trim() ? { alias: alias.trim(), origin } : { origin },
-    );
-  }
-  return entries;
+  return normalizeAgentSiteEntries(value);
 }
 
 /**
@@ -48,10 +32,12 @@ export function AgentAllowlistControl({ item, t, onChange }: AgentAllowlistContr
       setAlias('');
       setSiteUrl('');
       setError('');
-      requestAnimationFrame(() => {
+      const raf = requestAnimationFrame(() => {
         siteRef.current?.focus();
       });
+      return () => cancelAnimationFrame(raf);
     }
+    return undefined;
   }, [dialogOpen]);
 
   const handleOpen = useCallback(() => {
@@ -169,17 +155,11 @@ export function AgentAllowlistControl({ item, t, onChange }: AgentAllowlistContr
               </div>
               <div className="adl-prompt-modal__body adl-prompt-modal__body--compact">
                 <div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: 'var(--text-secondary)',
-                      marginBottom: 4,
-                    }}
-                  >
+                  <label className="adl-settings-allowlist__label" htmlFor="adl-allow-alias">
                     {t.settingsAgentAllowAlias}
-                  </div>
+                  </label>
                   <input
+                    id="adl-allow-alias"
                     className="adl-prompt-modal__input"
                     type="text"
                     value={alias}
@@ -188,17 +168,11 @@ export function AgentAllowlistControl({ item, t, onChange }: AgentAllowlistContr
                   />
                 </div>
                 <div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: 'var(--text-secondary)',
-                      marginBottom: 4,
-                    }}
-                  >
+                  <label className="adl-settings-allowlist__label" htmlFor="adl-allow-site">
                     {t.settingsAgentAllowOrigin}
-                  </div>
+                  </label>
                   <input
+                    id="adl-allow-site"
                     ref={siteRef}
                     className="adl-prompt-modal__input"
                     type="text"

@@ -87,11 +87,11 @@ export function getDefaultForSetting(
     case 'maxConcurrentWorkspaces':
       return DEFAULT_MAX_CONCURRENT_WORKSPACES;
     case 'workspacePriorityIds':
-      return DEFAULT_WORKSPACE_PRIORITY_IDS;
+      return [...DEFAULT_WORKSPACE_PRIORITY_IDS];
     case 'workspaceDeferredIds':
-      return DEFAULT_WORKSPACE_DEFERRED_IDS;
+      return [...DEFAULT_WORKSPACE_DEFERRED_IDS];
     case 'workspaceNaturalOrder':
-      return DEFAULT_WORKSPACE_NATURAL_ORDER;
+      return [...DEFAULT_WORKSPACE_NATURAL_ORDER];
     case 'browserInactiveTabSuspendMs':
       return DEFAULT_BROWSER_SUSPEND_MS;
     case 'linkOpenMethod':
@@ -101,7 +101,7 @@ export function getDefaultForSetting(
     case 'agentLinkIntercept':
       return DEFAULT_AGENT_LINK_INTERCEPT;
     case 'openMethod:agentSiteWhitelist':
-      return DEFAULT_AGENT_SITE_WHITELIST;
+      return [...DEFAULT_AGENT_SITE_WHITELIST];
     case 'font:ui':
     case 'font:code':
     case 'font:terminal':

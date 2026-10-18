@@ -17,7 +17,8 @@ export interface MarkdownLinkHandlers {
 
 export interface MarkdownPreviewProps {
   content: string;
-  /** 链接点击委托（可选）：不传时正文内链接仍可识别，但仅做默认兜底。 */
+  /** 链接点击委托（可选）：不传时 http(s) 链接走外部打开兜底，
+   * 文件链接保持静默（调用方必须注入 onOpenFile 才能打开工作区文件）。 */
   linkHandlers?: MarkdownLinkHandlers;
 }
 

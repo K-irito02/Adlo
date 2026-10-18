@@ -69,7 +69,7 @@ export function MarkdownPreview({ content, linkHandlers }: MarkdownPreviewProps)
         linkHandlers?.onOpenFile?.(href);
         return;
       }
-      if (href.includes('://') || href.startsWith('mailto:') || href.startsWith('tel:')) {
+      if (href.includes('://') || href.startsWith('//') || /^(mailto|tel):/i.test(href)) {
         void window.digitalLife?.window?.openExternal(href);
         return;
       }
