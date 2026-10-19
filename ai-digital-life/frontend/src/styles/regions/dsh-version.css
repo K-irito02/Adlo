@@ -295,6 +295,8 @@
   transition: var(--transition-colors);
   flex-shrink: 0;
   justify-content: space-between;
+  /* 同行时把右侧按钮组推到最右；换行后按钮组另起一行贴左（事项 8 用户要求）。 */
+  margin-right: auto;
 }
 
 .adl-dsh-settings__version-picker:hover:not(:disabled) {
@@ -364,7 +366,6 @@
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-1);
-  margin-left: auto;
 }
 
 /* 宽度测量尺：脱离布局但保留渲染（visibility 非 display），用于实测最长选项宽度。
@@ -388,13 +389,14 @@
   flex: none;
 }
 
-/* 说明文字内嵌链接：用户明确要求蓝色字体（2026-10-19 事项调整已确认），
-   用主题 --info token 兼顾亮暗主题；平时无下划线，悬停才出现，跟随「打开方式」网址落点跳转。 */
+/* 说明文字内嵌链接：与标题同色（var(--text-primary，与行标题 span 一致，
+   用户 2026-10-19 明确要求取消蓝色/灰色特殊色），无下划线；
+   点击跟随「打开方式」网址落点跳转。保留 focus 描边保证键盘可达性。 */
 .adl-dsh-settings__inline-link {
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--info);
+  color: var(--text-primary);
   font: inherit;
   text-decoration: none;
   cursor: pointer;
