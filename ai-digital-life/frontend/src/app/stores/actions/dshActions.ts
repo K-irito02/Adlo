@@ -240,6 +240,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         result = await window.digitalLife.dsh.getVersionCatalog();
       } catch (e) {
         debugVer('fetchVersionCatalog: bridge threw', { error: String(e) });
+        get().setVersionCatalogFailed(true);
         if (!silent) {
           captureError(get, e, SCOPE);
         }
@@ -253,9 +254,11 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
           latestPrerelease: result.data.latestPrerelease,
         });
         get().setDshVersionCatalog(result.data);
+        get().setVersionCatalogFailed(false);
         return true;
       }
       debugVer('fetchVersionCatalog: not ok', { error: result.error });
+      get().setVersionCatalogFailed(true);
       if (!silent) {
         captureError(get, result.error, SCOPE);
       }
@@ -273,7 +276,15 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     installDshVersion: async (version: string): Promise<boolean> => {
       clearError(get, SCOPE);
       debugVer('installDshVersion: start', { version });
-      const result = await window.digitalLife.dsh.installVersion(version);
+      // 桥调用可能抛异常（与 fetch 系列同口径兜底），避免未处理的 promise rejection。
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.installVersion>>;
+      try {
+        result = await window.digitalLife.dsh.installVersion(version);
+      } catch (e) {
+        debugVer('installDshVersion: bridge threw', { version, error: String(e) });
+        captureError(get, e, SCOPE);
+        return false;
+      }
       if (!result.ok) {
         debugVer('installDshVersion: failed', { version, error: result.error });
         captureError(get, result.error, SCOPE);

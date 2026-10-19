@@ -15,6 +15,8 @@ const MOCK_STATUS: DshVersionStatus = {
   hasUpdate: true,
   prereleaseAvailable: "0.2.1-rc.2",
   hasPrereleaseUpdate: true,
+  // mock 为静态桩：目录接口恒返回上述固定数据，不模拟版本登记后的 installed 变化。
+  prereleaseUnknown: false,
 };
 
 const MOCK_CATALOG: DshVersionCatalog = {

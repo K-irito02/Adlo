@@ -56,6 +56,7 @@ interface VersionStatus {
   installed: string[];
   prereleaseAvailable: string | null;
   hasPrereleaseUpdate: boolean;
+  prereleaseUnknown: boolean;
 }
 
 function seed(status: Partial<VersionStatus>) {
@@ -67,9 +68,11 @@ function seed(status: Partial<VersionStatus>) {
       installed: [],
       prereleaseAvailable: null,
       hasPrereleaseUpdate: false,
+      prereleaseUnknown: false,
       ...status,
     },
     versionCatalog: null,
+    versionCatalogFailed: false,
     sourceStatus: null,
   });
 }
@@ -110,6 +113,7 @@ beforeEach(() => {
   useAppStore.setState({
     versionStatus: null,
     versionCatalog: null,
+    versionCatalogFailed: false,
     sourceStatus: null,
     showToast: vi.fn(),
   });
@@ -152,9 +156,11 @@ describe('DshVersionManagement', () => {
       installed: ['1.0.0'],
     });
     seedCatalog(['1.1.0', '1.0.0']);
-    renderBlock();
-    // 检查更新行只剩检查按钮，不再有升级按钮。
-    expect(screen.queryByRole('button', { name: 'dshUpdateTo' })).toBeNull();
+    const { container } = renderBlock();
+    // 检查更新行只剩检查按钮，不再有升级类按钮（升级走正式版列表行内安装）。
+    // 注：行内问号提示也是 button，只统计操作按钮。
+    const checkRow = container.querySelector('[data-settings-row="dshCheckUpdate"]')!;
+    expect(checkRow.querySelectorAll('.adl-dsh-settings__action-btn')).toHaveLength(1);
     expect(screen.getByText('dshHasUpdate')).toBeTruthy();
     // 下拉框默认选中当前版本；打开菜单选 1.1.0 后出现安装按钮。
     fireEvent.click(screen.getByRole('button', { name: '1.0.0' }));
@@ -197,6 +203,7 @@ describe('DshVersionManagement', () => {
           installed: ['1.0.0'],
           prereleaseAvailable: null,
           hasPrereleaseUpdate: false,
+          prereleaseUnknown: false,
         },
       });
       return true;
@@ -429,6 +436,7 @@ describe('DshVersionManagement', () => {
           installed: ['1.0.0'],
           prereleaseAvailable: null,
           hasPrereleaseUpdate: false,
+          prereleaseUnknown: false,
         },
       });
       return true;
@@ -544,6 +552,15 @@ describe('DshVersionManagement', () => {
     expect(openUrlByMethod).toHaveBeenCalledWith(
       'https://github.com/deepseek-ai/deepseek-harness/releases',
     );
+  });
+
+  it('目录拉取失败时展示“未知”而非“暂无”（未知与无版本可区分）', () => {
+    seed({ currentSelected: null, installed: [] });
+    useAppStore.setState({ versionCatalog: null, versionCatalogFailed: true });
+    const { container } = renderBlock();
+    // 未知态文本出现且无“暂无”误导。
+    expect(container.textContent).toContain('dshVersionListUnknown');
+    expect(container.textContent).not.toContain('dshOfficialStableEmpty');
   });
 
   it('预发布分区渲染版本与单行说明，已装预发布可切换', async () => {

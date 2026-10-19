@@ -23,6 +23,72 @@ pub const DSH_URL_MARKER: &str = "dsh web:";
 /// 未来其它站点新增指纹时追加到 `is_auth_required_body` 的匹配表即可。
 pub const DSH_AUTH_REQUIRED_BODY: &str = "dsh web authentication required";
 
+/// 去掉 ANSI 转义序列（如 `\x1b[0m`），避免残留控制字符进日志。
+fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // 跳过 CSI 序列：ESC [ 参数… 中间字节… 最终字节。
+            let mut it = chars.by_ref().peekable();
+            if it.peek() == Some(&'[') {
+                it.next();
+                for nc in it.by_ref() {
+                    if ('\x40'..='\x7e').contains(&nc) {
+                        break;
+                    }
+                }
+                continue;
+            }
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// 日志脱敏：去掉 URL 的 query 与 fragment 再记录。
+/// 启动打印的真实入口 URL 常含一次性认证参数（如 `?token=xxx`），属凭据，
+/// 禁止进普通日志（R1-H1；调试日志收起器会收录 stdout 明文）。
+/// 脱敏后仅保留 origin + path，定位问题足够（端口/落点仍可见）。
+pub fn redact_url_for_log(url: &str) -> String {
+    let stripped = strip_ansi(url);
+    let mut out = String::with_capacity(stripped.len());
+    for c in stripped.chars() {
+        if c == '?' || c == '#' {
+            break;
+        }
+        out.push(c);
+    }
+    // 尾随标点与引号是打印格式残留，非 URL 本体。
+    out.trim_end_matches(['.', ',', ';', '!', '?', ':', '。', '，', '；', '"', '\'', ')', ']', '}'])
+        .to_string()
+}
+
+/// 日志行脱敏：把 `token=<值>` 的参数值替换为 `<redacted>`（值到空白/引号/括号为止）。
+/// stdout 整行 debug 记录前调用；解析仍用原始行。
+/// URL/参数值截断符：空白、半角/全角引号与括号（\u 转义，避免源码编码歧义）。
+const TOKEN_TERMINATORS: &[char] = &[
+    '"', '\'', ')', ']', '}', '>', '\u{201c}', '\u{201d}', '\u{2018}', '\u{2019}', '\u{00ab}',
+    '\u{00bb}',
+];
+
+pub fn redact_token_param(line: &str) -> String {
+    let cleaned = strip_ansi(line);
+    let mut out = String::with_capacity(cleaned.len());
+    let mut rest = cleaned.as_str();
+    while let Some(idx) = rest.find("token=") {
+        out.push_str(&rest[..idx + "token=".len()]);
+        out.push_str("<redacted>");
+        let after = &rest[idx + "token=".len()..];
+        let skip = after
+            .find(|c: char| c.is_whitespace() || TOKEN_TERMINATORS.contains(&c))
+            .unwrap_or(after.len());
+        rest = &after[skip..];
+    }
+    out.push_str(rest);
+    out
+}
+
 /// 判断 401 正文是否为“需认证，先打开打印出的 URL”的已知本地应用指纹。
 /// 调用方（如运行态探测）据此把“进程在运行但需认证”与“进程未运行”区分开，
 /// 避免误判未运行而重复 spawn 撞上 `EADDRINUSE`。
@@ -39,20 +105,70 @@ pub struct HostedProcess {
 
 /// 从一行 stdout 中提取打印出的真实入口 URL（通用层）。
 ///
-/// 约定：`marker` 行内第一个 `http(s)://…` 即 loopback 真实入口
+/// 约定：`marker` 行内优先取首个 loopback 真实入口
 ///（含一次性 `?token=` 等认证参数，LAN 地址在括号内会被自然忽略，
-/// 因为只取第一个）。裸地址会 401 的站点必须用此 URL 打开
+/// 因为 loopback 项排在前面；若无 loopback 项则回退首个 URL）。
+/// 裸地址会 401 的站点必须用此 URL 打开
 ///（首次访问种 HttpOnly cookie，后续靠 cookie）。
 pub fn extract_launch_url(line: &str, marker: &str) -> Option<String> {
     let idx = line.find(marker)?;
-    let rest = &line[idx + marker.len()..];
-    let start = rest.find("http://").or_else(|| rest.find("https://"))?;
-    let url_part = &rest[start..];
-    let end = url_part
-        .find(|c: char| c.is_whitespace() || c == ')' || c == '"' || c == '\'')
-        .unwrap_or(url_part.len());
-    let url = url_part[..end].trim_end_matches(['.', ',', ';']).to_string();
-    if url.is_empty() { None } else { Some(url) }
+    let mut rest = &line[idx + marker.len()..];
+    let mut first: Option<String> = None;
+    loop {
+        let http = rest.find("http://");
+        let https = rest.find("https://");
+        let Some(start) = (match (http, https) {
+            (Some(a), Some(b)) => Some(a.min(b)),
+            (Some(a), None) | (None, Some(a)) => Some(a),
+            // 无更多 URL：回退首个（可能非 loopback），都没有则为 None。
+            (None, None) => None,
+        }) else {
+            return first;
+        };
+        let url_part = &rest[start..];
+        let end = url_part
+            .find(|c: char| c.is_whitespace() || TOKEN_TERMINATORS.contains(&c))
+            .unwrap_or(url_part.len());
+        let url = url_part[..end]
+            .trim_end_matches(['.', ',', ';', '!', '?', ':'])
+            .trim_end_matches(['。', '，', '；', '\u{201c}', '\u{201d}'])
+            .to_string();
+        rest = &url_part[end..];
+        if url.is_empty() {
+            continue;
+        }
+        if first.is_none() {
+            first = Some(url.clone());
+        }
+        if is_loopback_url(&url) {
+            return Some(url);
+        }
+    }
+}
+
+/// 粗判 loopback 地址（127/8、localhost、IPv6 回环，括号内外两种写法）。
+///
+/// 解析顺序必须先处理方括号再处理端口：
+/// `[::1]:3080` 须先取括号内主体 `::1`；若先按 `:port` 切分，
+/// `localhost:3080` 会被误判为纯 IPv6 字面量（R1 复审发现的真 bug）。
+fn is_loopback_url(url: &str) -> bool {
+    let after_scheme = url.split_once("://").map(|(_, r)| r).unwrap_or(url);
+    let authority = after_scheme.split(['/', '?', '#']).next().unwrap_or(after_scheme);
+    let host_port = authority.rsplit_once('@').map(|(_, h)| h).unwrap_or(authority);
+    // 方括号 IPv6 字面量：`[v6]` 或 `[v6]:port`，取括号内主体。
+    // 非括号 host：恰好 1 个冒号即 `host:port` 去端口；0 个即 host 本体；
+    // 多个冒号即无括号 IPv6 字面量（URL 内无端口写法），整体即 host。
+    let host_no_port = if let Some(rest) = host_port.strip_prefix('[') {
+        rest.split(']').next().unwrap_or(rest)
+    } else if host_port.chars().filter(|&c| c == ':').count() == 1 {
+        host_port.split_once(':').map(|(h, _)| h).unwrap_or(host_port)
+    } else {
+        host_port
+    };
+    host_no_port.eq_ignore_ascii_case("localhost") || host_no_port == "::1" || {
+        let parts: Vec<&str> = host_no_port.split('.').collect();
+        parts.len() == 4 && parts[0] == "127" && parts.iter().all(|p| p.parse::<u8>().is_ok())
+    }
 }
 
 /// 共享的 URL 槽：stdout 读取任务写入，spawn 轮询读取。
@@ -61,9 +177,11 @@ type UrlSlot = Arc<StdMutex<Option<String>>>;
 /// spawn 子进程并持续 drain stdout/stderr（避免管道填满阻塞子进程），
 /// 同时从 stdout 中解析打印出的真实入口 URL（`marker` 由调用方按应用指定，
 /// dsh 传 `DSH_URL_MARKER`；未来其它站点传各自 marker，复用同一管线）。
+/// marker 为 `&'static str`：调用方传模块级常量即可（dsh 见 `DSH_URL_MARKER`）。
 fn spawn_capturing(
     program: &str,
     args: &[String],
+    marker: &'static str,
 ) -> Result<(tokio::process::Child, UrlSlot), AppError> {
     use tokio::process::Command as TokioCommand;
     let slot: UrlSlot = Arc::new(StdMutex::new(None));
@@ -89,7 +207,7 @@ fn spawn_capturing(
                         .stdout(Stdio::piped())
                         .stderr(Stdio::piped());
                     match fallback.spawn() {
-                        Ok(child) => return drain_and_watch(child, slot),
+                        Ok(child) => return drain_and_watch(child, slot, marker),
                         Err(e2) => {
                             return Err(AppError::Io(format!(
                                 "spawn {program} failed ({e}); fallback {cmd_program} also failed: {e2}"
@@ -101,28 +219,33 @@ fn spawn_capturing(
             return Err(AppError::Io(format!("spawn {program} failed: {e}")));
         },
     };
-    drain_and_watch(child, slot)
+    drain_and_watch(child, slot, marker)
 }
 
 /// 接管已 spawn 子进程的 stdout/stderr：drain 防阻塞 + 解析真实入口 URL。
+/// 日志一律脱敏后记录（`?token=` 等认证参数属凭据，见 `redact_*`）。
 fn drain_and_watch(
     mut child: tokio::process::Child,
     slot: UrlSlot,
+    marker: &'static str,
 ) -> Result<(tokio::process::Child, UrlSlot), AppError> {
     if let Some(stdout) = child.stdout.take() {
         let slot_clone = slot.clone();
         tokio::spawn(async move {
             let mut reader = BufReader::new(stdout).lines();
             while let Ok(Some(line)) = reader.next_line().await {
-                if let Some(url) = extract_launch_url(&line, DSH_URL_MARKER) {
-                    tracing::info!(%url, "webapp-host: captured launch URL");
+                if let Some(url) = extract_launch_url(&line, marker) {
+                    tracing::info!(
+                        redacted_url = %redact_url_for_log(&url),
+                        "webapp-host: captured launch URL"
+                    );
                     if let Ok(mut guard) = slot_clone.lock() {
                         if guard.is_none() {
                             *guard = Some(url);
                         }
                     }
                 }
-                tracing::debug!(target: "host-stdout", "{line}");
+                tracing::debug!(target: "host-stdout", "{}", redact_token_param(&line));
             }
         });
     }
@@ -130,8 +253,8 @@ fn drain_and_watch(
         tokio::spawn(async move {
             let mut reader = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = reader.next_line().await {
-                // stderr 仅 drain + debug 记录，避免误解析 URL。
-                tracing::debug!(target: "host-stderr", "{line}");
+                // stderr 仅 drain + debug 记录；同 stdout 做脱敏（子进程可能把 URL 打到 stderr）。
+                tracing::debug!(target: "host-stderr", "{}", redact_token_param(&line));
             }
         });
     }
@@ -175,7 +298,7 @@ pub async fn spawn_and_wait_ready(
     let port = pick_free_port()?;
     let url = format!("http://127.0.0.1:{port}");
     tracing::info!(?program, ?args, ?port, ?url, "spawn_and_wait_ready: starting process");
-    let (mut child, url_slot) = spawn_capturing(program, args)?;
+    let (mut child, url_slot) = spawn_capturing(program, args, DSH_URL_MARKER)?;
 
     // 记录子进程PID
     if let Some(pid) = child.id() {
@@ -192,8 +315,8 @@ pub async fn spawn_and_wait_ready(
     loop {
         if tokio::time::Instant::now() >= deadline {
             tracing::error!(?program, ?port, ?check_count, "spawn_and_wait_ready: timeout");
-            // stdout/stderr 已由后台任务持续 drain（防管道阻塞），此处仅记录已捕获的 URL 状态。
-            tracing::error!(?program, captured_url = ?resolve_url_slot(&url_slot, ""), "spawn_and_wait_ready: captured URL at timeout");
+            // stdout/stderr 已由后台任务持续 drain（防管道阻塞），此处仅记录已捕获的 URL 状态（脱敏）。
+            tracing::error!(?program, captured_url = %redact_url_for_log(&resolve_url_slot(&url_slot, "")), "spawn_and_wait_ready: captured URL at timeout");
             if let Err(e) = child.kill().await {
                 tracing::error!(?program, "spawn_and_wait_ready: failed to kill on timeout: {e}");
             }
@@ -208,7 +331,7 @@ pub async fn spawn_and_wait_ready(
                 wait_for_authenticated_url(&url_slot, &default_url, Duration::from_secs(5)).await;
             tracing::info!(
                 ?program,
-                ?final_url,
+                redacted_url = %redact_url_for_log(&final_url),
                 ?check_count,
                 elapsed_ms = check_start.elapsed().as_millis(),
                 total_elapsed_ms = spawn_start.elapsed().as_millis(),
@@ -223,7 +346,7 @@ pub async fn spawn_and_wait_ready(
                 wait_for_authenticated_url(&url_slot, &url, Duration::from_secs(5)).await;
             tracing::info!(
                 ?program,
-                ?final_url,
+                redacted_url = %redact_url_for_log(&final_url),
                 ?port,
                 ?check_count,
                 elapsed_ms = check_start.elapsed().as_millis(),
@@ -264,7 +387,7 @@ pub async fn spawn_node_direct(
     args.extend_from_slice(extra_args);
 
     tracing::info!(?node_bin, ?script_path, ?port, ?url, "spawn_node_direct: starting process");
-    let (mut child, url_slot) = spawn_capturing(node_bin, &args)?;
+    let (mut child, url_slot) = spawn_capturing(node_bin, &args, DSH_URL_MARKER)?;
 
     if let Some(pid) = child.id() {
         tracing::info!(?node_bin, ?pid, "spawn_node_direct: child process started");
@@ -277,7 +400,7 @@ pub async fn spawn_node_direct(
     loop {
         if tokio::time::Instant::now() >= deadline {
             tracing::error!(?node_bin, ?port, ?check_count, "spawn_node_direct: timeout");
-            tracing::error!(?node_bin, captured_url = ?resolve_url_slot(&url_slot, ""), "spawn_node_direct: captured URL at timeout");
+            tracing::error!(?node_bin, captured_url = %redact_url_for_log(&resolve_url_slot(&url_slot, "")), "spawn_node_direct: captured URL at timeout");
             if let Err(e) = child.kill().await {
                 tracing::error!(?node_bin, "spawn_node_direct: failed to kill on timeout: {e}");
             }
@@ -292,7 +415,7 @@ pub async fn spawn_node_direct(
                 wait_for_authenticated_url(&url_slot, &default_url, Duration::from_secs(5)).await;
             tracing::info!(
                 ?node_bin,
-                ?final_url,
+                redacted_url = %redact_url_for_log(&final_url),
                 ?check_count,
                 elapsed_ms = check_start.elapsed().as_millis(),
                 total_elapsed_ms = spawn_start.elapsed().as_millis(),
@@ -307,7 +430,7 @@ pub async fn spawn_node_direct(
                 wait_for_authenticated_url(&url_slot, &url, Duration::from_secs(5)).await;
             tracing::info!(
                 ?node_bin,
-                ?final_url,
+                redacted_url = %redact_url_for_log(&final_url),
                 ?port,
                 ?check_count,
                 elapsed_ms = check_start.elapsed().as_millis(),
@@ -351,6 +474,24 @@ mod tests {
         let _ = std::mem::size_of::<HostedProcess>();
     }
 
+    #[tokio::test]
+    async fn wait_for_authenticated_url_returns_captured_immediately() {
+        let slot: UrlSlot = Arc::new(StdMutex::new(Some("http://127.0.0.1:3080/?token=x".into())));
+        let got =
+            wait_for_authenticated_url(&slot, "http://127.0.0.1:3080/", Duration::from_secs(5))
+                .await;
+        assert_eq!(got, "http://127.0.0.1:3080/?token=x");
+    }
+
+    #[tokio::test]
+    async fn wait_for_authenticated_url_falls_back_to_bare_on_timeout() {
+        let slot: UrlSlot = Arc::new(StdMutex::new(None));
+        let got =
+            wait_for_authenticated_url(&slot, "http://127.0.0.1:3080/", Duration::from_millis(50))
+                .await;
+        assert_eq!(got, "http://127.0.0.1:3080/");
+    }
+
     #[test]
     fn extract_launch_url_parses_dsh_authenticated_url() {
         let line = "dsh web: http://127.0.0.1:3080/?token=abc123 (LAN: http://192.168.1.2:3080/?token=abc123)";
@@ -379,11 +520,91 @@ mod tests {
     }
 
     #[test]
+    fn extract_launch_url_prefers_loopback_over_lan() {
+        // LAN 在前、loopback 在后也应选中 loopback（dsh 实际先打印 loopback，此处覆盖顺序变化）。
+        let line =
+            "dsh web: http://192.168.1.2:3080/?token=x (loopback http://127.0.0.1:3080/?token=x)";
+        assert_eq!(
+            extract_launch_url(line, DSH_URL_MARKER).as_deref(),
+            Some("http://127.0.0.1:3080/?token=x")
+        );
+        // 无 loopback 时回退首个 URL。
+        let line = "dsh web: http://10.0.0.5:3080/";
+        assert_eq!(
+            extract_launch_url(line, DSH_URL_MARKER).as_deref(),
+            Some("http://10.0.0.5:3080/")
+        );
+    }
+
+    #[test]
+    fn extract_launch_url_trims_punctuation_and_brackets() {
+        let line = "dsh web: <http://127.0.0.1:3080/?token=abc123>,";
+        assert_eq!(
+            extract_launch_url(line, DSH_URL_MARKER).as_deref(),
+            Some("http://127.0.0.1:3080/?token=abc123")
+        );
+        let line = "dsh web: “http://127.0.0.1:3080/?token=abc”。";
+        assert_eq!(
+            extract_launch_url(line, DSH_URL_MARKER).as_deref(),
+            Some("http://127.0.0.1:3080/?token=abc")
+        );
+    }
+
+    #[test]
+    fn redact_url_for_log_strips_query_and_fragment() {
+        assert_eq!(
+            redact_url_for_log("http://127.0.0.1:3080/?token=abc123"),
+            "http://127.0.0.1:3080/"
+        );
+        assert_eq!(
+            redact_url_for_log("http://127.0.0.1:3080/?token=abc#frag"),
+            "http://127.0.0.1:3080/"
+        );
+        // 裸地址原样返回（仅去尾随标点）。
+        assert_eq!(redact_url_for_log("http://127.0.0.1:3080/."), "http://127.0.0.1:3080/");
+    }
+
+    #[test]
+    fn redact_token_param_masks_value_only() {
+        assert_eq!(
+            redact_token_param("dsh web: http://127.0.0.1:3080/?token=abc123 (LAN: x)"),
+            "dsh web: http://127.0.0.1:3080/?token=<redacted> (LAN: x)"
+        );
+        // 无 token 行原文返回。
+        assert_eq!(redact_token_param("listening on 3080"), "listening on 3080");
+    }
+
+    #[test]
     fn is_auth_required_body_matches_known_fingerprints() {
         assert!(is_auth_required_body(
             "dsh web authentication required; reopen the URL printed by dsh web."
         ));
         assert!(!is_auth_required_body("hello world"));
         assert!(!is_auth_required_body(""));
+    }
+
+    #[test]
+    fn is_loopback_url_handles_bracket_and_port_forms() {
+        // R1 复审回归：localhost:port 与 [::1]:port 曾被误判为非 loopback。
+        for url in [
+            "http://127.0.0.1:3080/",
+            "http://127.0.0.1/",
+            "http://localhost:3080/?token=x",
+            "http://LOCALHOST:3080/",
+            "http://[::1]:3080/",
+            "http://[::1]/",
+            "http://user:pw@127.0.0.1:3080/",
+            "http://127.0.0.2:1/",
+        ] {
+            assert!(is_loopback_url(url), "{url}");
+        }
+        for url in [
+            "http://192.168.1.10:3080/",
+            "http://example.com:3080/",
+            "http://[2001:db8::1]:3080/",
+            "not a url",
+        ] {
+            assert!(!is_loopback_url(url), "{url}");
+        }
     }
 }

@@ -75,14 +75,12 @@ export const dshEn = {
   dshPrereleaseDesc: 'Try new features early; prereleases may be unstable',
   dshPrereleaseHint:
     'Prereleases are upcoming versions you can try early. They may still have undiscovered issues, or later versions may introduce incompatible breaking changes.',
-  dshUpdateTo: 'Upgrade to {version}',
   dshReinstallVersion: 'Reinstall {version}',
-  dshInstallVersion: 'Install {version}',
   dshInstallAction: 'Install',
   dshSwitchToVersion: 'Switch to this version',
   dshInstallSuccess: 'Installed {version}; takes effect next time dsh opens',
   dshInstallFailed: 'Failed to install version',
-  dshCatalogFailed: 'Failed to load version list',
+  dshVersionListUnknown: 'Unknown, retry later',
   dshEffectiveRunning: 'Running ({url}), not under version management',
   dshEffectiveSystem: 'System install ({path}), not under version management',
   dshEffectiveBundled: 'Bundled v{version}, not under version management',
@@ -90,7 +88,6 @@ export const dshEn = {
   dshOfficialStableEmpty: 'No stable releases published yet',
   dshPrereleaseTitle: 'Prerelease versions',
   dshPrereleaseUpdateAvailable: 'New prerelease {version} available to try',
-  dshPublishedAt: 'Published {date}',
   dshOfficialLinksLabel: 'Official release info',
   dshOfficialLinksDesc:
     'Full version history, publish dates and changelogs live on the official pages:',

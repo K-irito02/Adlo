@@ -28,13 +28,17 @@ fn registry_base(data_dir: &Path) -> Result<String, AppError> {
 pub struct VersionStatus {
     pub current_selected: Option<String>,
     pub installed: Vec<String>,
+    /// 最新正式版（catalog 正式版桶最大；失败回退时为 dist-tag `latest`，可能为预发布）。
     pub latest_available: Option<String>,
+    /// 是否有更新的正式版（统一走 semver 比较，不再用忽略 pre 后缀的 tokens 口径）。
     pub has_update: bool,
     /// 最新预发布版本（registry `next` 标签，缺失时回退为 semver 最大的预发布号）。
-    /// `None` 表示查询失败或官方暂无预发布。
+    /// `None` 表示官方暂无预发布或查询失败（见 `prerelease_unknown` 区分）。
     pub prerelease_available: Option<String>,
-    /// 当前选中版本是否有更新的预发布可尝试（尝鲜通道提示用；稳定更新仍看 `has_update`）。
+    /// 当前选中版本是否有更新的预发布可尝试（尝鲜通道提示用）。
     pub has_prerelease_update: bool,
+    /// 预发布通道是否未知（catalog 拉取失败；此时不得按“暂无预发布”展示）。
+    pub prerelease_unknown: bool,
 }
 
 /// 官方已发布版本条目（catalog 行）。
@@ -127,6 +131,7 @@ fn latest_is_newer(cur: &[u64], latest: &[u64]) -> bool {
 
 /// 只读查询 registry 返回 dsh 最新可用版本（不下载）。
 /// 按用户下载源配置走镜像（此前硬编码官方源，见 `registry_base` 注释）。
+/// 返回 dist-tag `latest` 的指向（注意：它本身可能是 rc；正式版口径见 catalog）。
 pub async fn latest_available(data_dir: &Path) -> Result<Option<String>, AppError> {
     let base = registry_base(data_dir)?;
     let download_config = adl_download_source::load(data_dir)?;
@@ -139,6 +144,10 @@ pub async fn latest_available(data_dir: &Path) -> Result<Option<String>, AppErro
         .send()
         .await
         .map_err(|e| AppError::Network(format!("query dsh latest failed: {e}")))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(AppError::Network(format!("query dsh latest failed: HTTP {status}")));
+    }
     let json: serde_json::Value = resp
         .json()
         .await
@@ -222,6 +231,10 @@ pub async fn fetch_catalog(data_dir: &Path) -> Result<VersionCatalog, AppError> 
         .send()
         .await
         .map_err(|e| AppError::Network(format!("query dsh catalog failed: {e}")))?;
+    let status = resp.status();
+    if !status.is_success() {
+        return Err(AppError::Network(format!("query dsh catalog failed: HTTP {status}")));
+    }
     let json: serde_json::Value = resp
         .json()
         .await
@@ -244,46 +257,79 @@ fn semver_is_newer(current: Option<&str>, latest: Option<&str>) -> bool {
     }
 }
 
-/// 聚合查询版本目录状态（当前选中、已装列表、最新可用、是否有更新，含预发布通道）。
+/// 从 catalog 解析出“最新正式版”（纯函数，便于离线单测）。
+/// 优先 catalog 正式版桶最大；桶为空时，若 dist-tag `latest` 本身是正式版则回退用它，
+/// 否则为 None（调用方如实展示“暂无正式版”，升级入口隐藏）。
+fn resolve_stable_latest(
+    catalog: &VersionCatalog,
+    dist_tag_latest: Option<&str>,
+) -> Option<String> {
+    if let Some(s) = &catalog.latest_stable {
+        return Some(s.clone());
+    }
+    match dist_tag_latest {
+        Some(t) if semver::Version::parse(t).is_ok_and(|v| v.pre.is_empty()) => Some(t.to_string()),
+        _ => None,
+    }
+}
+
+/// 聚合查询版本目录状态（当前选中、已装列表、最新正式版/预发布、是否有更新）。
+///
+/// catalog 拉取成功时：`latest_available` = 最新正式版，`has_update` 走 semver 全量比较，
+/// 预发布通道同理，`prerelease_unknown = false`。
+/// catalog 拉取失败时（如断网/镜像不可达）：稳定通道回退旧口径（dist-tag + tokens 比较），
+/// 预发布通道置“未知”（`prerelease_available=None + prerelease_unknown=true`，
+/// 调用方不得展示“暂无”）。两路皆失败时返回 `Err(Network)`（保留旧离线契约）。
 pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionStatus, AppError> {
     let current_selected = read_selected(root)?;
     let installed = list_installed(root)?;
-    let latest = latest_available(data_dir).await?;
-    let has_update = match (&current_selected, &latest) {
-        (Some(cur), Some(latest)) => {
-            let cur_tokens = ver_tokens(cur);
-            let lat_tokens = ver_tokens(latest);
-            latest_is_newer(&cur_tokens, &lat_tokens)
-        },
-        (None, Some(_)) => true,
-        _ => false,
-    };
-    // 预发布通道：catalog 失败（断网）时回退为“未知”（None/false），
-    // 调用方须把“未知”与“无更新”区分展示，不得误报“已是最新”。
-    let (prerelease_available, has_prerelease_update) = match fetch_catalog(data_dir).await {
+    let dist_latest = latest_available(data_dir).await.ok().flatten();
+    match fetch_catalog(data_dir).await {
         Ok(catalog) => {
+            let latest = resolve_stable_latest(&catalog, dist_latest.as_deref());
+            let has_update = semver_is_newer(current_selected.as_deref(), latest.as_deref());
             let pre = catalog.latest_prerelease.clone();
-            let has = semver_is_newer(current_selected.as_deref(), pre.as_deref());
+            let has_pre = semver_is_newer(current_selected.as_deref(), pre.as_deref());
             tracing::debug!(
+                ?latest,
+                has_update,
                 ?pre,
-                has_prerelease_update = has,
-                "dsh-version: prerelease channel resolved"
+                has_prerelease_update = has_pre,
+                "dsh-version: version status resolved"
             );
-            (pre, has)
+            Ok(VersionStatus {
+                current_selected,
+                installed,
+                latest_available: latest,
+                has_update,
+                prerelease_available: pre,
+                has_prerelease_update: has_pre,
+                prerelease_unknown: false,
+            })
         },
         Err(e) => {
-            tracing::debug!(error = %e, "dsh-version: catalog unavailable, prerelease unknown");
-            (None, false)
+            tracing::debug!(error = %e, "dsh-version: catalog unavailable");
+            match dist_latest {
+                Some(latest) => {
+                    // 降级口径（旧逻辑）：tokens 比较，忽略 pre 后缀。
+                    let has_update = match &current_selected {
+                        Some(cur) => latest_is_newer(&ver_tokens(cur), &ver_tokens(&latest)),
+                        None => true,
+                    };
+                    Ok(VersionStatus {
+                        current_selected,
+                        installed,
+                        latest_available: Some(latest),
+                        has_update,
+                        prerelease_available: None,
+                        has_prerelease_update: false,
+                        prerelease_unknown: true,
+                    })
+                },
+                None => Err(AppError::Network(format!("version status unavailable: {e}"))),
+            }
         },
-    };
-    Ok(VersionStatus {
-        current_selected,
-        installed,
-        latest_available: latest,
-        has_update,
-        prerelease_available,
-        has_prerelease_update,
-    })
+    }
 }
 
 /// 登记指定版本为已装并选中（“安装”的宿主侧语义）。
@@ -303,13 +349,20 @@ async fn register_version(root: &Path, version: &str) -> Result<String, AppError
     Ok(version.to_string())
 }
 
-/// 升级：把最新版本登记为已装版本目录并写入 selected。
+/// 升级：把最新正式版登记为已装版本目录并写入 selected。
+/// 正式版取自 catalog（`latest` dist-tag 可能指向 rc，不能直接当稳定版用）；
+/// catalog 不可达时回退 dist-tag（旧行为），两者皆无则报错。
 pub async fn update(root: &Path, data_dir: &Path) -> Result<String, AppError> {
-    let latest = latest_available(data_dir)
-        .await?
-        .ok_or_else(|| AppError::Network("no latest version available".into()))?;
-    tracing::debug!(%latest, "dsh-version: update to latest");
-    register_version(root, &latest).await
+    let target = match fetch_catalog(data_dir).await {
+        Ok(catalog) => resolve_stable_latest(&catalog, None),
+        Err(e) => {
+            tracing::debug!(error = %e, "dsh-version: update falls back to dist-tag latest");
+            latest_available(data_dir).await.ok().flatten()
+        },
+    }
+    .ok_or_else(|| AppError::NotFound("no stable release published upstream".into()))?;
+    tracing::debug!(%target, "dsh-version: update to latest stable");
+    register_version(root, &target).await
 }
 
 /// 安装指定版本（正式版或预发布均可）：先校验版本号合法且官方确已发布，
@@ -319,6 +372,7 @@ pub async fn install_version(
     data_dir: &Path,
     version: &str,
 ) -> Result<String, AppError> {
+    let version = version.trim();
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     let catalog = fetch_catalog(data_dir).await?;
@@ -670,7 +724,24 @@ mod tests {
         assert!(!semver_is_newer(Some("bogus"), Some("0.1.0")));
     }
 
-    /// 非法版本号在触网前即被拒绝（离线可测）。
+    #[test]
+    fn resolve_stable_latest_prefers_catalog_bucket() {
+        let catalog = parse_catalog(&catalog_fixture());
+        // 正式版桶首（0.2.0），即使 dist-tag latest 指向同一版本也一致。
+        assert_eq!(resolve_stable_latest(&catalog, Some("0.2.0")).as_deref(), Some("0.2.0"));
+        // dist-tag 指向 rc 时不被采用（须落在正式版桶）。
+        assert_eq!(resolve_stable_latest(&catalog, Some("0.2.1-rc.2")).as_deref(), Some("0.2.0"));
+        // 桶空 + dist-tag 为正式版 → 回退采用。
+        let mut empty = parse_catalog(&catalog_fixture());
+        empty.stable.clear();
+        empty.latest_stable = None;
+        assert_eq!(resolve_stable_latest(&empty, Some("0.2.0")).as_deref(), Some("0.2.0"));
+        // 桶空 + dist-tag 为 rc/缺失 → 无正式版。
+        assert_eq!(resolve_stable_latest(&empty, Some("0.2.1-rc.2")), None);
+        assert_eq!(resolve_stable_latest(&empty, None), None);
+    }
+
+    /// 非法版本号在触网前即被拒绝（离线可测；首尾空格先 trim 再判）。
     #[tokio::test]
     async fn install_version_rejects_invalid_semver_offline() {
         let root = fresh_root("install_bad");
@@ -678,6 +749,80 @@ mod tests {
         let err =
             install_version(&root, &data_dir, "not-a-version").await.expect_err("should error");
         assert!(matches!(err, AppError::InvalidInput(_)));
+        let err = install_version(&root, &data_dir, "  bogus!!  ").await.expect_err("should error");
+        assert!(matches!(err, AppError::InvalidInput(_)));
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    /// catalog 拉取失败但 dist-tag 成功时预发布通道标记未知（离线可测：本地 stub）。
+    /// 代理显式关闭（proxy.mode=none），不依赖机器代理环境。
+    #[tokio::test]
+    async fn get_version_status_catalog_failure_marks_prerelease_unknown() {
+        use tokio::io::{AsyncReadExt, AsyncWriteExt};
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.expect("bind stub");
+        let port = listener.local_addr().expect("addr").port();
+        let server = tokio::spawn(async move {
+            for _ in 0..2 {
+                let Ok((mut socket, _)) = listener.accept().await else { break };
+                let mut buf = vec![0u8; 4096];
+                let n = socket.read(&mut buf).await.unwrap_or(0);
+                let first = String::from_utf8_lossy(&buf[..n])
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_string();
+                if first.contains("/latest") {
+                    let body = r#"{"version":"0.2.0"}"#;
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\ncontent-type: application/json\r\ncontent-length: {}\r\nconnection: close\r\n\r\n{body}",
+                        body.len()
+                    );
+                    socket.write_all(resp.as_bytes()).await.ok();
+                } else {
+                    socket
+                        .write_all(b"HTTP/1.1 404 Not Found\r\ncontent-length: 0\r\nconnection: close\r\n\r\n")
+                        .await
+                        .ok();
+                }
+            }
+        });
+        let root = fresh_root("status_partial");
+        let data_dir = fresh_root("status_partial_data");
+        std::fs::create_dir_all(data_dir.join("config")).expect("mkdir config");
+        std::fs::write(
+            data_dir.join("config").join("download-sources.json"),
+            format!(
+                r#"{{"npm_registry": "http://127.0.0.1:{port}", "proxy": {{"mode": "none", "http_proxy": null, "https_proxy": null, "no_proxy": null}}}}"#
+            ),
+        )
+        .expect("write config");
+        let status = get_version_status(&root, &data_dir).await.expect("dist-tag ok");
+        assert_eq!(status.latest_available.as_deref(), Some("0.2.0"));
+        // 降级口径：catalog 失败时稳定通道回退旧 tokens 比较（当前未选 → 有更新）。
+        assert!(status.has_update);
+        assert_eq!(status.prerelease_available, None);
+        assert!(!status.has_prerelease_update);
+        assert!(status.prerelease_unknown);
+        server.abort();
+        let _ = std::fs::remove_dir_all(&root);
+        let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    /// registry 不可达时状态查询整体失败（离线可测：指向本地闭合端口）。
+    /// latest_available 与 catalog 双双失败 → 保留旧离线契约 Err(Network)。
+    #[tokio::test]
+    async fn get_version_status_offline_marks_unknown() {
+        let root = fresh_root("status_unknown");
+        let data_dir = fresh_root("status_unknown_data");
+        std::fs::create_dir_all(data_dir.join("config")).expect("mkdir config");
+        std::fs::write(
+            data_dir.join("config").join("download-sources.json"),
+            r#"{"npm_registry": "http://127.0.0.1:1/", "proxy": {"mode": "none", "http_proxy": null, "https_proxy": null, "no_proxy": null}}"#,
+        )
+        .expect("write config");
+        let err = get_version_status(&root, &data_dir).await.expect_err("both fetches fail");
+        assert!(matches!(err, AppError::Network(_)));
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&data_dir);
     }

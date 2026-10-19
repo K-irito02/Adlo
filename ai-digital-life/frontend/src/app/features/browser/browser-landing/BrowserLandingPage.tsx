@@ -12,7 +12,7 @@ import { BackgroundSettingsDialog } from './BackgroundSettingsDialog';
 import { PortConfigDialog } from './PortConfigDialog';
 import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
 import { ContextMenu } from '@components/ContextMenu';
-import { getAuthRequiredPort } from './localAuthPorts';
+import { routeLocalUrl } from './localAuthPorts';
 import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {
@@ -82,17 +82,8 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
     processError: string | null;
   } | null>(null);
 
-  const handleOpenUrl = useCallback(
+  const openFallback = useCallback(
     (url: string) => {
-      // 需认证本地端口分流（通用层，见 localAuthPorts.ts）：
-      // 命中集合的 loopback 端口一律走其 opener 拿真实入口 URL
-      // （dsh 即 openDsh，后端返回 stdout 打印的 `?token=` 地址并种 cookie），
-      // 而非直接打开裸地址，避免 "authentication required" 401。
-      // 扩展点：有第二个需认证站点时，按端口查表选 opener（当前仅 dsh）。
-      if (getAuthRequiredPort(url) !== null) {
-        void useAppStore.getState().openDsh();
-        return;
-      }
       if (onOpenUrl) {
         onOpenUrl(url);
         return;
@@ -100,6 +91,35 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
       browserOpenTab(url, undefined, undefined);
     },
     [browserOpenTab, onOpenUrl],
+  );
+
+  const handleOpenUrl = useCallback(
+    (url: string) => {
+      // 需认证本地端口分流（通用层，见 localAuthPorts.ts）：
+      // 按分发表路由到对应 opener 拿真实入口 URL
+      // （dsh 即 openDsh：已运行时复用（不重复 spawn），否则拉起并返回
+      // stdout 打印的 `?token=` 地址，首次访问种 cookie，后续靠 cookie），
+      // 而非直接打开裸地址，避免 "authentication required" 401。
+      // opener 拉起失败时回退裸开（用户仍可看到服务本身或 dsh 的 401 指引页）。
+      const routed = routeLocalUrl(url);
+      if (routed !== null) {
+        if (routed.opener === 'dsh') {
+          void (async () => {
+            try {
+              const result = await useAppStore.getState().openDsh();
+              if (!result) {
+                openFallback(url);
+              }
+            } catch {
+              openFallback(url);
+            }
+          })();
+          return;
+        }
+      }
+      openFallback(url);
+    },
+    [openFallback],
   );
 
   const { openUrlInCenter } = useOpenInCenterAction();

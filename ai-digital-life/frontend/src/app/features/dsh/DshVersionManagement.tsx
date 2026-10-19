@@ -101,6 +101,7 @@ export function DshVersionManagement() {
   const actions = useAppActions();
   const versionStatus = useAppStore((s) => s.versionStatus);
   const versionCatalog = useAppStore((s) => s.versionCatalog);
+  const versionCatalogFailed = useAppStore((s) => s.versionCatalogFailed);
   const dshSourceStatus = useAppStore((s) => s.sourceStatus);
   const showToast = useAppStore((s) => s.showToast);
   const stableVersions = useMemo(() => versionCatalog?.stable ?? EMPTY_VERSIONS, [versionCatalog]);
@@ -112,14 +113,14 @@ export function DshVersionManagement() {
   const [uninstallConfirm, setUninstallConfirm] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [reinstalling, setReinstalling] = useState(false);
-  const [reverting, setReverting] = useState(false);
+  const [revertingVersion, setRevertingVersion] = useState<string | null>(null);
   const [installingVersion, setInstallingVersion] = useState<string | null>(null);
   const [showVersionMenu, setShowVersionMenu] = useState(false);
   const [uninstallingVersion, setUninstallingVersion] = useState<string | null>(null);
   const [menuGeometry, setMenuGeometry] = useState<MenuGeometry | null>(null);
   const checkingRef = useRef(false);
   const reinstallingRef = useRef(false);
-  const revertingRef = useRef(false);
+  const revertingRef = useRef<string | null>(null);
   const installingRef = useRef<string | null>(null);
   const uninstallingRef = useRef<string | null>(null);
   const versionMenuPanelRef = useRef<HTMLDivElement>(null);
@@ -193,7 +194,7 @@ export function DshVersionManagement() {
   const versionBusy =
     checkingUpdate ||
     reinstalling ||
-    reverting ||
+    revertingVersion !== null ||
     installingVersion !== null ||
     uninstallingVersion !== null;
 
@@ -214,9 +215,11 @@ export function DshVersionManagement() {
       if (!el) {
         return null;
       }
-      // 卡片内边距（左右 space-1）计入，保证内容不挤压换行；钳制视口避免超宽。
-      const raw = Math.ceil(el.scrollWidth) + 8;
-      return Math.min(raw, window.innerWidth - 2 * VIEWPORT_MARGIN);
+      // 卡片内边距（左右 space-1）计入，保证内容不挤压换行；钳制非负与视口。
+      return Math.max(
+        0,
+        Math.min(Math.ceil(el.scrollWidth) + 8, window.innerWidth - 2 * VIEWPORT_MARGIN),
+      );
     };
     const next = {
       stable: measure(stableSizerRef),
@@ -287,8 +290,8 @@ export function DshVersionManagement() {
     const rect = anchor.getBoundingClientRect();
     const measured = menuSection === 'prerelease' ? menuWidths.prerelease : menuWidths.stable;
     const target = measured ?? rect.width;
-    // 与触发下拉框同宽（事项 7 用户要求）；超出视口才收缩。
-    const width = Math.min(target, window.innerWidth - 2 * VIEWPORT_MARGIN);
+    // 与触发下拉框同宽（事项 7 用户要求）；超出视口才收缩，极端窄视口下限钳制为 0。
+    const width = Math.max(0, Math.min(target, window.innerWidth - 2 * VIEWPORT_MARGIN));
     const left = Math.max(
       VIEWPORT_MARGIN,
       Math.min(rect.right - width, window.innerWidth - width - VIEWPORT_MARGIN),
@@ -410,20 +413,23 @@ export function DshVersionManagement() {
       if (revertingRef.current || version === currentSelected) {
         return;
       }
-      revertingRef.current = true;
-      setReverting(true);
+      revertingRef.current = version;
+      setRevertingVersion(version);
       setShowVersionMenu(false);
+      debugVer('revert: start', { version });
       try {
         const ok = await actions.revertDsh(version);
         if (ok) {
+          debugVer('revert: ok', { version });
           showToast(t.dshRevertedTo.replace('{version}', version), 'success');
         }
       } catch {
         // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
+        debugVer('revert: threw', { version });
         showToast(t.dshRevertFailed, 'error');
       } finally {
-        revertingRef.current = false;
-        setReverting(false);
+        revertingRef.current = null;
+        setRevertingVersion(null);
       }
     },
     [actions, currentSelected, showToast, t],
@@ -597,7 +603,7 @@ export function DshVersionManagement() {
           style={fixedWidth != null ? { width: fixedWidth } : undefined}
           onClick={(e) => handleOpenPicker(section, e.currentTarget)}
           disabled={versionBusy}
-          aria-expanded={showVersionMenu}
+          aria-expanded={showVersionMenu && menuSection === section}
           aria-label={v}
         >
           <span className="adl-dsh-settings__version-picker-label">
@@ -660,8 +666,9 @@ export function DshVersionManagement() {
               className="adl-dsh-settings__action-btn"
               onClick={() => void handleRevertToVersion(v)}
               disabled={versionBusy}
+              aria-label={revertingVersion === v ? t.dshSwitchToVersion : undefined}
             >
-              {reverting ? <Spinner size="sm" speed="normal" /> : t.dshSwitchToVersion}
+              {revertingVersion === v ? <Spinner size="sm" speed="normal" /> : t.dshSwitchToVersion}
             </button>
           ) : null}
         </div>
@@ -671,6 +678,9 @@ export function DshVersionManagement() {
 
   // 官方列表只展示下拉框选中的版本（默认跟随当前选中/分区最新）；
   // 全部版本在下拉框菜单卡片中选择。
+  // 空态区分“暂无”与“未知”：目录拉取失败（或后端 catalog 不可用）时展示未知，
+  // 不得误导为“官方暂无”。注意：后端 prerelease_unknown 为 true 时 catalog
+  // 必然拉取失败，前端以 versionCatalogFailed 为准即可覆盖两通道。
   const renderVersionList = (
     infos: { version: string; publishedAt: string | null }[],
     section: 'stable' | 'prerelease',
@@ -679,6 +689,13 @@ export function DshVersionManagement() {
     const effective = section === 'prerelease' ? prereleaseEffective : stableEffective;
     const hit = effective ? infos.find((i) => i.version === effective) : undefined;
     if (!effective || !hit) {
+      if (versionCatalogFailed || versionStatus?.prereleaseUnknown === true) {
+        return (
+          <span className="adl-dsh-settings__version-value is-empty">
+            {t.dshVersionListUnknown}
+          </span>
+        );
+      }
       return <span className="adl-dsh-settings__version-value is-empty">{emptyText}</span>;
     }
     const v = hit.version;
@@ -843,13 +860,12 @@ export function DshVersionManagement() {
                 ref={menuScrollbar.scrollRef as unknown as React.Ref<HTMLDivElement>}
                 style={
                   menuGeometry.maxHeight != null
-                    ? { maxHeight: menuGeometry.maxHeight - 8 }
+                    ? { maxHeight: Math.max(0, menuGeometry.maxHeight - 8) }
                     : undefined
                 }
               >
                 {menuVersions.map((info) => {
                   const v = info.version;
-                  const isCurrent = v === currentSelected;
                   const isInstalled = installed.includes(v);
                   const isPicked = v === menuEffective;
                   const time = formatPublishedAt(info.publishedAt);
@@ -878,7 +894,7 @@ export function DshVersionManagement() {
                             {t.dshInstalledVersions}
                           </span>
                         ) : null}
-                        {isPicked || isCurrent ? (
+                        {isPicked ? (
                           <span className="adl-dsh-settings__version-menu-item-check">
                             <CheckIcon />
                           </span>

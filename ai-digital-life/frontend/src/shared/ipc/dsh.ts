@@ -130,10 +130,12 @@ export interface DshVersionStatus {
   installed: string[];
   latestAvailable: string | null;
   hasUpdate: boolean;
-  /** 最新预发布版本（registry `next` 标签；查询失败或暂无则为 null） */
+  /** 最新预发布版本（registry `next` 标签；查询失败或官方暂无则为 null） */
   prereleaseAvailable: string | null;
   /** 当前是否有更新的预发布可尝试（尝鲜通道提示用） */
   hasPrereleaseUpdate: boolean;
+  /** 预发布通道是否未知（目录拉取失败；此时不得按“暂无预发布”展示） */
+  prereleaseUnknown: boolean;
 }
 
 /**

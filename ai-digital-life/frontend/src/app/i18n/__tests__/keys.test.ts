@@ -305,15 +305,13 @@ describe('i18n en-US namespace keys', () => {
       // 事项调整：版本操作行改为纯检查更新行；行内操作移入正式版/预发布列表。
       'dshCheckUpdateDesc',
       'dshCheckUpdateHint',
-      // 事项 5：带版本号按钮 + 官方列表 + 预发布分区 + 官网跳转。
-      'dshUpdateTo',
+      // 事项 5：官方列表 + 预发布分区 + 官网跳转（死键已清理）。
       'dshReinstallVersion',
-      'dshInstallVersion',
       'dshInstallAction',
       'dshSwitchToVersion',
       'dshInstallSuccess',
       'dshInstallFailed',
-      'dshCatalogFailed',
+      'dshVersionListUnknown',
       'dshEffectiveRunning',
       'dshEffectiveSystem',
       'dshEffectiveBundled',
@@ -325,7 +323,6 @@ describe('i18n en-US namespace keys', () => {
       'dshPrereleaseDesc',
       'dshPrereleaseHint',
       'dshPrereleaseUpdateAvailable',
-      'dshPublishedAt',
       'dshOfficialLinksLabel',
       'dshOfficialLinksDesc',
       'dshNpmPage',
