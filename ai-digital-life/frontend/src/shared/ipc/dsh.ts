@@ -62,10 +62,21 @@ export interface DshBridge {
    */
   open: () => Promise<IpcResult<DshOpenResult>>;
   /**
-   * 查询 dsh 版本目录状态（当前选中/已装列表/最新可用/是否有更新）
+   * 查询 dsh 版本目录状态（当前选中/已装列表/最新可用/是否有更新，含预发布通道）
    * @see httpBridge.ts → dsh.getVersionStatus (/dsh/get-version-status)
    */
   getVersionStatus: () => Promise<IpcResult<DshVersionStatus>>;
+  /**
+   * 查询官方版本目录（正式版/预发布分桶 + 各自最新 + 发布时间）
+   * @see httpBridge.ts → dsh.getVersionCatalog (/dsh/version-catalog)
+   */
+  getVersionCatalog: () => Promise<IpcResult<DshVersionCatalog>>;
+  /**
+   * 安装指定版本（正式版或预发布均可，需官方确已发布），返回该版本串；
+   * 下次 open 即按该版本启动
+   * @see httpBridge.ts → dsh.installVersion (/dsh/install-version)
+   */
+  installVersion: (version: string) => Promise<IpcResult<string>>;
   /**
    * 升级 dsh 到最新可用版本，返回新版本串
    * @see httpBridge.ts → dsh.update (/dsh/update)
@@ -119,4 +130,27 @@ export interface DshVersionStatus {
   installed: string[];
   latestAvailable: string | null;
   hasUpdate: boolean;
+  /** 最新预发布版本（registry `next` 标签；查询失败或暂无则为 null） */
+  prereleaseAvailable: string | null;
+  /** 当前是否有更新的预发布可尝试（尝鲜通道提示用） */
+  hasPrereleaseUpdate: boolean;
+}
+
+/**
+ * 官方已发布版本条目（与 Rust `adl_dsh_version::VersionInfo` 对齐）
+ */
+export interface DshVersionInfo {
+  version: string;
+  /** 发布时间（RFC3339），缺失为 null */
+  publishedAt: string | null;
+}
+
+/**
+ * 官方版本目录（与 Rust `adl_dsh_version::VersionCatalog` 对齐）
+ */
+export interface DshVersionCatalog {
+  stable: DshVersionInfo[];
+  prerelease: DshVersionInfo[];
+  latestStable: string | null;
+  latestPrerelease: string | null;
 }

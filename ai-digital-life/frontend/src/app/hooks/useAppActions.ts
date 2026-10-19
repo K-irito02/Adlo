@@ -50,6 +50,8 @@ export function useAppActions() {
       revertDsh: state.revertDsh,
       uninstallDsh: state.uninstallDsh,
       reinstallDsh: state.reinstallDsh,
+      fetchVersionCatalog: state.fetchVersionCatalog,
+      installDshVersion: state.installDshVersion,
       fetchSourceStatus: state.fetchSourceStatus,
       saveSourceConfig: state.saveSourceConfig,
       testSource: state.testSource,

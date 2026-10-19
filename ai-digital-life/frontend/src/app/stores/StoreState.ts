@@ -301,11 +301,13 @@ interface UtilitiesActions {
 
 interface DshActions {
   openDsh: () => Promise<DshOpenResult | null>;
-  fetchDshVersionStatus: () => Promise<boolean>;
+  fetchDshVersionStatus: (silent?: boolean) => Promise<boolean>;
   updateDsh: () => Promise<boolean>;
   revertDsh: (version: string) => Promise<boolean>;
   uninstallDsh: (version: string) => Promise<boolean>;
   reinstallDsh: () => Promise<boolean>;
+  fetchVersionCatalog: (silent?: boolean) => Promise<boolean>;
+  installDshVersion: (version: string) => Promise<boolean>;
   fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
   saveSourceConfig: (config: DshSourceConfig, silent?: boolean) => Promise<boolean>;
   testSource: (url: string, silent?: boolean) => Promise<DshTestResult | null>;

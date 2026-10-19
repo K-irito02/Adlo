@@ -10,14 +10,16 @@ import type { DshSourceStatus } from '../../../shared/ipc/dsh';
 const fetchSourceStatus = vi.fn();
 const testSource = vi.fn();
 const saveSourceConfig = vi.fn();
-// 版本管理块（DshVersionManagement）挂载即拉取版本状态：静默桩。
-// update/revert/uninstall/reinstall 仅由点击处理器调用（本套件不触发），
+// 版本管理块（DshVersionManagement）挂载即拉取版本状态 + 目录 + 下载源状态：静默桩。
+// update/revert/uninstall/reinstall/install 仅由点击处理器调用（本套件不触发），
 // 保留以维持 useAppActions mock 形状完整。
 const fetchDshVersionStatus = vi.fn();
+const fetchVersionCatalog = vi.fn();
 const updateDsh = vi.fn();
 const revertDsh = vi.fn();
 const uninstallDsh = vi.fn();
 const reinstallDsh = vi.fn();
+const installDshVersion = vi.fn();
 
 vi.mock('../../hooks/useAppActions', () => ({
   useAppActions: () => ({
@@ -25,10 +27,12 @@ vi.mock('../../hooks/useAppActions', () => ({
     testSource: (...args: unknown[]) => testSource(...args),
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
     fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
+    fetchVersionCatalog: (...args: unknown[]) => fetchVersionCatalog(...args),
     updateDsh: (...args: unknown[]) => updateDsh(...args),
     revertDsh: (...args: unknown[]) => revertDsh(...args),
     uninstallDsh: (...args: unknown[]) => uninstallDsh(...args),
     reinstallDsh: (...args: unknown[]) => reinstallDsh(...args),
+    installDshVersion: (...args: unknown[]) => installDshVersion(...args),
   }),
 }));
 
@@ -114,14 +118,15 @@ describe('DshSettings', () => {
       'span.adl-settings-row__reset--static[aria-hidden="true"]',
     );
     expect(staticIcon).not.toBeNull();
-    // 第四块（版本管理）：装饰图标 + 一张 settings 卡（当前版本 + 版本操作两行）。
+    // 第四块（版本管理）：装饰图标 + 一张 settings 卡
+    //（当前版本 + 检查更新 + 正式版 + 预发布 + 官方版本信息五行）。
     expect(headers[3]?.textContent).toContain('dshVersionManagement');
     expect(headers[3]?.querySelector('button')).toBeNull();
     expect(
       headers[3]?.querySelector('span.adl-settings-row__reset--static[aria-hidden="true"]'),
     ).not.toBeNull();
-    // 版本操作行渲染文字按钮（设置组操作按钮样式）且带行内提示说明图标。
-    const versionRow = root?.querySelector('[data-settings-row="dshVersionActions"]');
+    // 检查更新行渲染文字按钮（设置组操作按钮样式）且带行内提示说明图标。
+    const versionRow = root?.querySelector('[data-settings-row="dshCheckUpdate"]');
     expect(versionRow).not.toBeNull();
     expect(versionRow?.querySelector('.adl-dsh-settings__action-btn')).not.toBeNull();
     expect(versionRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
@@ -131,7 +136,8 @@ describe('DshSettings', () => {
 
   it('挂载即拉取 sourceStatus（预存缺陷修复：fetchSourceStatus 此前无调用点）', () => {
     renderSettings();
-    expect(fetchSourceStatus).toHaveBeenCalledTimes(1);
+    // DshSettings 自身 1 次 + 内嵌版本管理块为解析有效版本来源再拉 1 次（事项 5）。
+    expect(fetchSourceStatus).toHaveBeenCalledTimes(2);
   });
 
   it('sourceStatus 未知（拉取失败/延迟）时下拉保持可用（fail-open 回归）', () => {

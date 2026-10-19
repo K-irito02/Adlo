@@ -81,6 +81,7 @@ import type { SnapshotRecord, RevertResult } from './shared/ipc/snapshot';
 import type { ReferenceConfig } from './shared/ipc/reference';
 import type {
   DshOpenResult,
+  DshVersionCatalog,
   DshVersionStatus,
   DshSourceStatus,
   DshSourceConfig,
@@ -1098,6 +1099,9 @@ export function createHttpBridge({
     dsh: {
       open: () => call<DshOpenResult>(baseUrl, '/dsh/open', POST({})),
       getVersionStatus: () => call<DshVersionStatus>(baseUrl, '/dsh/get-version-status', POST({})),
+      getVersionCatalog: () => call<DshVersionCatalog>(baseUrl, '/dsh/version-catalog', POST({})),
+      installVersion: (version: string) =>
+        call<string>(baseUrl, '/dsh/install-version', POST({ version })),
       update: () => call<string>(baseUrl, '/dsh/update', POST({})),
       revert: (version: string) => call<string>(baseUrl, '/dsh/revert', POST({ version })),
       uninstall: (version: string) => call<boolean>(baseUrl, '/dsh/uninstall', POST({ version })),

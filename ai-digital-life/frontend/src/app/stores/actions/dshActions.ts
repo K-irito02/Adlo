@@ -5,6 +5,15 @@ import { captureError, clearError } from '../shared';
 const SCOPE = 'dsh';
 
 /**
+ * 版本管理调试埋点（临时）：用户在 Tauri 桌面实测后，凭此前缀在
+ * `.adl-logs/debug-logs*.txt` 中定位版本链路日志，核对排查后再删除。
+ * 移除义务已登记在 `docs/root-cause-to-close/2026-10/progress-2026-10-19-095312.md`（事项 5）。
+ */
+function debugVer(message: string, detail?: Record<string, unknown>) {
+  console.debug('[ADL-DSH-VER]', message, detail ?? {});
+}
+
+/**
  * 两个 URL 是否指向同一个本地服务（**按 origin，含端口**）。
  *
  * 不能复用 `historyDedupKey`——它只用 hostname（**忽略端口**），会把
@@ -91,28 +100,48 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     },
 
     /**
-     * [fetchDshVersionStatus - 拉取 dsh 版本目录状态（当前选中/已装/最新/是否有更新）]
-     * @returns true=成功；false=失败（已记录全局错误卡片）
+     * [fetchDshVersionStatus - 拉取 dsh 版本目录状态（当前选中/已装/最新/是否有更新，含预发布通道）]
+     * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
+     * @param silent 启动自检等后台同步传 true：不碰错误卡片（事项 5：启动每次静默查一次，
+     * 设置项内徽章展示结果，不 toast 打扰）
      * @reads 无
      * @writes dshSlice.versionStatus
      * @see httpBridge.ts → dsh.getVersionStatus (/dsh/get-version-status)
      * @see mock-bridge.ts → mockDsh.getVersionStatus
      */
-    fetchDshVersionStatus: async (): Promise<boolean> => {
-      clearError(get, SCOPE);
-      // 桥调用可能抛异常（与 fetchSourceStatus/saveSourceConfig/testSource 同口径兜底），
+    fetchDshVersionStatus: async (silent = false): Promise<boolean> => {
+      if (!silent) {
+        clearError(get, SCOPE);
+      }
+      debugVer('fetchDshVersionStatus: start', { silent });
+      // 桥调用可能抛异常（与 fetchSourceStatus 同口径兜底），
       // 避免挂载路径产生未处理的 promise rejection。
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getVersionStatus>>;
       try {
         result = await window.digitalLife.dsh.getVersionStatus();
-      } catch {
+      } catch (e) {
+        debugVer('fetchDshVersionStatus: bridge threw', { error: String(e) });
+        if (!silent) {
+          captureError(get, e, SCOPE);
+        }
         return false;
       }
       if (result.ok) {
+        debugVer('fetchDshVersionStatus: ok', {
+          currentSelected: result.data.currentSelected,
+          installed: result.data.installed,
+          latestAvailable: result.data.latestAvailable,
+          hasUpdate: result.data.hasUpdate,
+          prereleaseAvailable: result.data.prereleaseAvailable,
+          hasPrereleaseUpdate: result.data.hasPrereleaseUpdate,
+        });
         get().setDshVersionStatus(result.data);
         return true;
       }
-      captureError(get, result.error, SCOPE);
+      debugVer('fetchDshVersionStatus: not ok', { error: result.error });
+      if (!silent) {
+        captureError(get, result.error, SCOPE);
+      }
       return false;
     },
 
@@ -174,7 +203,8 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     },
 
     /**
-     * [reinstallDsh - 重装 dsh 最新可用版本，并刷新版本状态]
+     * [reinstallDsh - 按当前选中版本重新登记并选中（校验官方仍在发布），并刷新版本状态]
+     * 语义为“修当前版本”，不是“升到最新”（升级走 updateDsh）。
      * @returns true=成功；false=失败（已记录全局错误卡片）
      * @reads 无
      * @writes dshSlice.versionStatus
@@ -188,6 +218,68 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         captureError(get, result.error, SCOPE);
         return false;
       }
+      await refreshVersionStatusSilently(get);
+      return true;
+    },
+
+    /**
+     * [fetchVersionCatalog - 拉取官方版本目录（正式版/预发布分桶 + 发布时间）]
+     * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
+     * @param silent 后台同步传 true：不碰错误卡片，由调用方决定提示
+     * @reads 无
+     * @writes dshSlice.versionCatalog
+     * @see httpBridge.ts → dsh.getVersionCatalog (/dsh/version-catalog)
+     */
+    fetchVersionCatalog: async (silent = false): Promise<boolean> => {
+      if (!silent) {
+        clearError(get, SCOPE);
+      }
+      debugVer('fetchVersionCatalog: start', { silent });
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getVersionCatalog>>;
+      try {
+        result = await window.digitalLife.dsh.getVersionCatalog();
+      } catch (e) {
+        debugVer('fetchVersionCatalog: bridge threw', { error: String(e) });
+        if (!silent) {
+          captureError(get, e, SCOPE);
+        }
+        return false;
+      }
+      if (result.ok) {
+        debugVer('fetchVersionCatalog: ok', {
+          stable: result.data.stable.length,
+          prerelease: result.data.prerelease.length,
+          latestStable: result.data.latestStable,
+          latestPrerelease: result.data.latestPrerelease,
+        });
+        get().setDshVersionCatalog(result.data);
+        return true;
+      }
+      debugVer('fetchVersionCatalog: not ok', { error: result.error });
+      if (!silent) {
+        captureError(get, result.error, SCOPE);
+      }
+      return false;
+    },
+
+    /**
+     * [installDshVersion - 安装指定版本（正式版或预发布均可，需官方确已发布），并刷新版本状态]
+     * 后端登记并选中该版本，下次 open 即按该版本启动。
+     * @returns true=成功；false=失败（已记录全局错误卡片）
+     * @reads 无
+     * @writes dshSlice.versionStatus
+     * @see httpBridge.ts → dsh.installVersion (/dsh/install-version)
+     */
+    installDshVersion: async (version: string): Promise<boolean> => {
+      clearError(get, SCOPE);
+      debugVer('installDshVersion: start', { version });
+      const result = await window.digitalLife.dsh.installVersion(version);
+      if (!result.ok) {
+        debugVer('installDshVersion: failed', { version, error: result.error });
+        captureError(get, result.error, SCOPE);
+        return false;
+      }
+      debugVer('installDshVersion: ok', { version: result.data });
       await refreshVersionStatusSilently(get);
       return true;
     },

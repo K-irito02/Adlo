@@ -12,6 +12,7 @@ import { BackgroundSettingsDialog } from './BackgroundSettingsDialog';
 import { PortConfigDialog } from './PortConfigDialog';
 import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
 import { ContextMenu } from '@components/ContextMenu';
+import { getAuthRequiredPort } from './localAuthPorts';
 import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {
@@ -83,6 +84,15 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
 
   const handleOpenUrl = useCallback(
     (url: string) => {
+      // 需认证本地端口分流（通用层，见 localAuthPorts.ts）：
+      // 命中集合的 loopback 端口一律走其 opener 拿真实入口 URL
+      // （dsh 即 openDsh，后端返回 stdout 打印的 `?token=` 地址并种 cookie），
+      // 而非直接打开裸地址，避免 "authentication required" 401。
+      // 扩展点：有第二个需认证站点时，按端口查表选 opener（当前仅 dsh）。
+      if (getAuthRequiredPort(url) !== null) {
+        void useAppStore.getState().openDsh();
+        return;
+      }
       if (onOpenUrl) {
         onOpenUrl(url);
         return;

@@ -210,7 +210,7 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     ],
   },
   {
-    // 「版本管理」块：块内两行——「当前版本」信息行与「版本操作」行。
+    // 「版本管理」块内五行：当前版本行、检查更新行、正式版本行、预发布行、官方版本信息行。
     group: 'dsh',
     anchorId: 'version',
     labelKey: 'dshVersionManagement',
@@ -220,8 +220,20 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
         hintKeys: ['dshCurrentVersionDesc', 'dshCurrentVersionHint'],
       },
       {
-        labelKey: 'dshVersionActions',
-        hintKeys: ['dshVersionActionsDesc', 'dshVersionActionsHint'],
+        labelKey: 'dshCheckUpdate',
+        hintKeys: ['dshCheckUpdateDesc', 'dshCheckUpdateHint'],
+      },
+      {
+        labelKey: 'dshOfficialStable',
+        hintKeys: ['dshOfficialStableDesc', 'dshOfficialStableHint'],
+      },
+      {
+        labelKey: 'dshPrereleaseTitle',
+        hintKeys: ['dshPrereleaseDesc', 'dshPrereleaseHint'],
+      },
+      {
+        labelKey: 'dshOfficialLinksLabel',
+        hintKeys: ['dshOfficialLinksDesc'],
       },
     ],
   },

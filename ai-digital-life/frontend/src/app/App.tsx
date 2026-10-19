@@ -171,6 +171,14 @@ export function App() {
     setStartupOverlayHidden(overlayHidden);
   }, [overlayHidden, setStartupOverlayHidden]);
 
+  // 启动自检（事项 5）：每次启动静默拉一次 dsh 版本状态（含预发布通道），
+  // 只写 store 供设置项内徽章/行提示展示，不弹 toast、不记错误卡。
+  const fetchDshVersionStatus = useAppStore((s) => s.fetchDshVersionStatus);
+  useEffect(() => {
+    console.debug('[ADL-DSH-VER]', 'startup: silent version check');
+    void fetchDshVersionStatus(true);
+  }, [fetchDshVersionStatus]);
+
   // Guard: wait for i18n before rendering (safe to return after all hooks)
   if (!t) {
     return (

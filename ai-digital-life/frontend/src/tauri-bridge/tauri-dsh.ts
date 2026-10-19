@@ -15,6 +15,8 @@ export function createTauriDshBridge(httpDsh: DshBridge): DshBridge {
   return {
     open: () => httpDsh.open(),
     getVersionStatus: httpDsh.getVersionStatus,
+    getVersionCatalog: httpDsh.getVersionCatalog,
+    installVersion: httpDsh.installVersion,
     update: httpDsh.update,
     revert: httpDsh.revert,
     uninstall: httpDsh.uninstall,

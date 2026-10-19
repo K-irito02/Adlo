@@ -139,40 +139,30 @@
 }
 
 /* 版本下拉菜单：经 Portal 挂到 body（fixed 定位，坐标由 JS 计算），
-   不受设置面板滚动容器裁剪。 */
+   不受设置面板滚动容器裁剪。与 SettingsSelect 下拉菜单同视觉口径：
+   四角偏直角（radius-sm）、卡片内 padding 让悬停灰底不贴左右边缘、
+   菜单宽度由 JS 设为与触发下拉框实时一致。 */
 .adl-dsh-settings__version-menu {
   position: fixed;
   z-index: var(--z-overlay);
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
-  overflow: hidden;
+  padding: var(--space-1);
 }
 
 .adl-dsh-settings__version-menu-list {
   max-height: 280px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-default) transparent;
-  padding: var(--space-1) 0;
-}
-
-.adl-dsh-settings__version-menu-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.adl-dsh-settings__version-menu-list::-webkit-scrollbar-thumb {
-  background: var(--border-default);
-  border-radius: 3px;
-}
-
-.adl-dsh-settings__version-menu-list::-webkit-scrollbar-thumb:hover {
-  background: var(--text-muted);
-}
-
-.adl-dsh-settings__version-menu-list::-webkit-scrollbar-track {
-  background: transparent;
+  /* 原生滚动条由 `adl-reveal-scroll` 隐藏，滚动指示用项目 RevealScrollbar
+    （overlay 悬停显现式，与 SettingsSelect 下拉菜单同源；悬停灰底可与
+     滚动条重叠显示，无需为滚动条区域预留）。 */
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* hover 灰底与 overlay 滚动条重叠：不做右侧内缩。 */
 }
 
 .adl-dsh-settings__version-menu-item {
@@ -181,19 +171,18 @@
   gap: var(--space-2);
   width: 100%;
   padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
   color: var(--text-primary);
   font-size: var(--text-xs);
   transition: background 120ms;
+  white-space: nowrap;
 }
 
 .adl-dsh-settings__version-menu-item:hover {
   background: var(--bg-hover);
 }
 
-.adl-dsh-settings__version-menu-item--current {
-  background: var(--accent-soft);
-  color: var(--accent);
-}
+/* 选中项不高亮背景（事项 7 用户要求）：仅保留勾选图标，打勾即代表选中。 */
 
 /* 回退动作按钮：占据行的信息区（版本 + 时间），与右侧徽标/卸载并列的原生按钮。 */
 .adl-dsh-settings__version-menu-item-revert {
@@ -236,8 +225,10 @@
 .adl-dsh-settings__version-menu-item-check {
   width: 16px;
   height: 16px;
-  color: var(--accent);
+  /* 继承文字颜色，不使用蓝色（事项 7 用户要求：选中态无蓝色）。 */
+  color: inherit;
   flex-shrink: 0;
+  display: inline-flex;
 }
 
 .adl-dsh-settings__version-menu-item-installed {
@@ -250,35 +241,173 @@
   white-space: nowrap;
 }
 
-.adl-dsh-settings__version-menu-item-uninstall {
+.adl-dsh-settings__version-menu-item-check svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 官方版本列表（正式版 / 预发布行内列表）：纵向排列，单行左版本右操作。 */
+.adl-dsh-settings__version-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: stretch;
+  min-width: 0;
+}
+
+.adl-dsh-settings__version-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.adl-dsh-settings__version-list-item--current {
+  color: var(--accent);
+}
+
+.adl-dsh-settings__version-list-item-version {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.adl-dsh-settings__version-list-item-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 版本选择下拉框按钮：展示版本号 + 已装徽标 + 当前勾 + 下拉箭头，固定行内最左；
+   宽度由 JS 设为分区最长选项实测值（菜单同宽，菜单内单行不换行）。 */
+.adl-dsh-settings__version-picker {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border: none;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background: var(--bg-muted);
+  border: 1px solid transparent;
   border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--text-muted);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
   cursor: pointer;
+  transition: var(--transition-colors);
   flex-shrink: 0;
-  transition: var(--theme-transition);
+  justify-content: space-between;
 }
 
-.adl-dsh-settings__version-menu-item-uninstall:hover:not(:disabled) {
-  background: var(--danger-soft);
-  color: var(--danger);
+.adl-dsh-settings__version-picker:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-strong);
 }
 
-.adl-dsh-settings__version-menu-item-uninstall:disabled {
+.adl-dsh-settings__version-picker:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.adl-dsh-settings__version-picker:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.adl-dsh-settings__version-menu-item-uninstall svg {
+.adl-dsh-settings__version-picker-version {
+  font-family: var(--font-mono);
+  font-weight: var(--font-semibold);
+  white-space: nowrap;
+}
+
+/* 下拉框左侧内容组：版本号 + 徽章 + 勾选贴在一起，右侧只剩下拉箭头
+   （按钮 space-between，组占左、箭头占右；事项 8 用户要求徽章靠近版本号）。 */
+.adl-dsh-settings__version-picker-label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.adl-dsh-settings__version-picker-chevron {
+  display: inline-flex;
   width: 14px;
   height: 14px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.adl-dsh-settings__version-picker-chevron svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* 正式版 / 预发布行：标签在上、控件独占下一行整宽（事项 6）。
+   行内最多 5 个控件（4 文字按钮 + 下拉框），与标题副标题同行时过宽；
+   整体换行后提示文案独占一行、控件行左对齐，充分利用卡片宽度且中英皆美观。 */
+.adl-dsh-settings .adl-dsh-settings__row--stack {
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+}
+
+.adl-dsh-settings .adl-dsh-settings__row--stack > .adl-settings-row__control {
+  width: 100%;
+}
+
+.adl-dsh-settings__version-list-item {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}
+
+/* 行内动态按钮组：固定同行最右（下拉框固定最左后，中间剩余空间由它隔开）。 */
+.adl-dsh-settings__version-list-actions {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin-left: auto;
+}
+
+/* 宽度测量尺：脱离布局但保留渲染（visibility 非 display），用于实测最长选项宽度。
+   关键：测量项必须用 inline-flex 收缩包裹内容——块级 flex 盒会自动拉伸到
+   容器（卡片内容区）宽度，量到的就是卡片宽度而非内容宽度（事项 8 根因）。
+   width:auto 覆盖菜单项的 width:100%。 */
+.adl-dsh-settings__version-sizer {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.adl-dsh-settings__version-sizer-item {
+  display: inline-flex;
+  width: auto;
+}
+
+/* 测量时内层不参与空闲空间瓜分，保证收缩宽度即内容宽度。 */
+.adl-dsh-settings__version-sizer-item .adl-dsh-settings__version-menu-item-revert {
+  flex: none;
+}
+
+/* 说明文字内嵌链接：用户明确要求蓝色字体（2026-10-19 事项调整已确认），
+   用主题 --info token 兼顾亮暗主题；平时无下划线，悬停才出现，跟随「打开方式」网址落点跳转。 */
+.adl-dsh-settings__inline-link {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--info);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.adl-dsh-settings__inline-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.adl-dsh-settings__inline-link:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 /* 窄档：操作行改为纵向堆叠时，按钮组左对齐（换行后不再贴右），读数同档左对齐。

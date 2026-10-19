@@ -28,9 +28,10 @@ import { SETTINGS_ROW_ATTRIBUTE } from './settingsRowLocate';
 const fetchSourceStatus = vi.fn();
 const testSource = vi.fn();
 const saveSourceConfig = vi.fn();
-// 版本管理块挂载即拉取版本状态；其余版本动作仅由点击处理器调用（本套件不触发），
+// 版本管理块挂载即拉取版本状态 + 目录；其余版本动作仅由点击处理器调用（本套件不触发），
 // 保留以维持 action mock 形状完整。
 const fetchDshVersionStatus = vi.fn();
+const fetchVersionCatalog = vi.fn();
 
 vi.mock('@hooks/useAppActions', () => ({
   useAppActions: () => ({
@@ -38,10 +39,12 @@ vi.mock('@hooks/useAppActions', () => ({
     testSource: (...args: unknown[]) => testSource(...args),
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
     fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
+    fetchVersionCatalog: (...args: unknown[]) => fetchVersionCatalog(...args),
     updateDsh: vi.fn(),
     revertDsh: vi.fn(),
     uninstallDsh: vi.fn(),
     reinstallDsh: vi.fn(),
+    installDshVersion: vi.fn(),
   }),
 }));
 
