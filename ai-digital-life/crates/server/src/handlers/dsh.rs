@@ -494,12 +494,39 @@ pub async fn uninstall(
     ipc::to_response(result)
 }
 
-/// POST `/dsh/reinstall` — 按当前选中版本重装最新可用版本，返回新版本串。
+/// POST `/dsh/reinstall` — 按当前选中版本重新登记并选中（校验官方仍在发布），返回该版本串。
 pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
     let result = adl_dsh_version::reinstall(&root, &state.storage.paths().root)
         .await
         .map(|v| serde_json::json!(v));
+    ipc::to_response(result)
+}
+
+/// POST `/dsh/version-catalog` — 查询官方版本目录（正式版/预发布分桶 + 各自最新）。
+pub async fn get_version_catalog(State(state): State<ServerState>) -> impl IntoResponse {
+    let result = match adl_dsh_version::fetch_catalog(&state.storage.paths().root).await {
+        Ok(v) => serde_json::to_value(&v).map_err(|e| AppError::Internal(e.to_string())),
+        Err(e) => Err(e),
+    };
+    ipc::to_response(result)
+}
+
+/// POST `/dsh/install-version` — 安装指定版本（正式版或预发布均可，需官方确已发布）。
+/// body: `{ version }`，成功返回该版本串；下次 `open` 即按该版本启动。
+pub async fn install_version(
+    State(state): State<ServerState>,
+    body: axum::body::Bytes,
+) -> impl IntoResponse {
+    let input: VersionInput = match ipc::json_body(body).await {
+        Ok(v) => v,
+        Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
+    };
+    let root = dsh_root(&state);
+    let result =
+        adl_dsh_version::install_version(&root, &state.storage.paths().root, &input.version)
+            .await
+            .map(|v| serde_json::json!(v));
     ipc::to_response(result)
 }
 
@@ -686,6 +713,54 @@ mod tests {
     fn version_input_camelcase_deserializes() {
         let v: VersionInput = serde_json::from_str(r#"{ "version": "1.2.3" }"#).unwrap();
         assert_eq!(v.version, "1.2.3");
+    }
+
+    /// `install-version` 对非法 body 直接 InvalidInput（离线可测，不触网）。
+    #[tokio::test]
+    async fn install_version_rejects_malformed_body() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-dsh-install-bad-{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let state = crate::engine::init_server_state(
+            &dir,
+            crate::engine::storage_from_locator(
+                &adl_kernel::storage::StorageLocator::default(),
+                &dir,
+            ),
+        )
+        .await
+        .unwrap();
+        let resp = install_version(State(state), axum::body::Bytes::from(r#"{ "nope": 1 }"#)).await;
+        let body = axum::body::to_bytes(resp.into_response().into_body(), 1024).await.unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(value.get("ok").and_then(|v| v.as_bool()), Some(false));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// `install-version` 对非法 semver 在触网前拒绝（离线可测）。
+    #[tokio::test]
+    async fn install_version_rejects_invalid_semver_offline() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-dsh-install-semver-{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let state = crate::engine::init_server_state(
+            &dir,
+            crate::engine::storage_from_locator(
+                &adl_kernel::storage::StorageLocator::default(),
+                &dir,
+            ),
+        )
+        .await
+        .unwrap();
+        let resp =
+            install_version(State(state), axum::body::Bytes::from(r#"{ "version": "bogus!!" }"#))
+                .await;
+        let body = axum::body::to_bytes(resp.into_response().into_body(), 4096).await.unwrap();
+        let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
+        assert_eq!(value.get("ok").and_then(|v| v.as_bool()), Some(false));
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// save_source_config：source_mode 写入、registry 写入、proxy 字段 null 清空。

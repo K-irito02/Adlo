@@ -101,6 +101,8 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/dsh/revert", post(handlers::dsh::revert))
         .route("/dsh/uninstall", post(handlers::dsh::uninstall))
         .route("/dsh/reinstall", post(handlers::dsh::reinstall))
+        .route("/dsh/version-catalog", post(handlers::dsh::get_version_catalog))
+        .route("/dsh/install-version", post(handlers::dsh::install_version))
         .route("/dsh/source-status", post(handlers::dsh::get_source_status))
         .route("/dsh/source-config", post(handlers::dsh::save_source_config))
         .route("/dsh/test-source", post(handlers::dsh::test_source))
