@@ -574,24 +574,33 @@ pub async fn detect_system_dsh() -> Option<SystemDshInfo> {
     Some(SystemDshInfo { path, version })
 }
 
-/// 会话级缓存的系统 dsh 版本号（`None` 外层 = 未检测过；内层 `None` = 检测过但未知）。
-/// 缓存键为进程级：`dsh --version` 只反映 PATH 上第一个 dsh，更换需重启应用
-/// （与 `dsh_source_cache` 的来源缓存同粒度，见 `server/handlers/dsh.rs`）。
-static SYSTEM_DSH_VERSION_CACHE: std::sync::OnceLock<tokio::sync::Mutex<Option<Option<String>>>> =
-    std::sync::OnceLock::new();
+/// 会话级缓存的系统 dsh 版本号：探测到的 path 配其版本（`None` = 该 path
+/// 检测过但未知）；整体 `None` = 未检测过。
+/// 缓存键带 path：同一会话内 PATH 变化导致 `where dsh` 首行改变时重探，
+/// 避免“新 path 配旧版本”的错配展示（R1-M1）。
+type SystemVersionCache =
+    std::sync::OnceLock<tokio::sync::Mutex<Option<(PathBuf, Option<String>)>>>;
+static SYSTEM_DSH_VERSION_CACHE: SystemVersionCache = std::sync::OnceLock::new();
 
 async fn cached_system_dsh_version(path: &Path) -> Option<String> {
     let slot = SYSTEM_DSH_VERSION_CACHE.get_or_init(|| tokio::sync::Mutex::new(None));
     {
         let cached = slot.lock().await;
-        if cached.is_some() {
-            tracing::debug!("dsh-version: system version cache HIT");
-            return cached.clone().flatten();
+        if let Some((cached_path, version)) = cached.as_ref() {
+            if cached_path == path {
+                tracing::debug!("dsh-version: system version cache HIT");
+                return version.clone();
+            }
+            tracing::debug!(
+                cached_path = %cached_path.display(),
+                probed_path = %path.display(),
+                "dsh-version: system path changed — re-probing dsh --version",
+            );
         }
     }
     tracing::debug!("dsh-version: system version cache MISS — probing dsh --version");
     let probed = probe_dsh_version(path).await;
-    *slot.lock().await = Some(probed.clone());
+    *slot.lock().await = Some((path.to_path_buf(), probed.clone()));
     probed
 }
 
@@ -634,6 +643,9 @@ async fn probe_dsh_version(path: &Path) -> Option<String> {
             return parsed;
         }
     }
+    // 全候选失败（未安装/超时/不可解析/193 全灭）：warn 汇总，调用方按未知展示。
+    // 会话缓存限频（同 path 每进程只到这里一次），不会刷屏（R1-L3）。
+    tracing::warn!(path = %path.display(), "dsh-version: dsh --version probe failed for all candidates");
     None
 }
 
@@ -1121,8 +1133,9 @@ mod tests {
         assert_eq!(parse_dsh_version_output("not a version"), None);
     }
 
+    #[cfg(target_os = "windows")]
     #[test]
-    fn system_probe_candidates_cmd_fallback() {
+    fn system_probe_candidates_cmd_fallback_windows() {
         // Windows：无后缀 shim 优先，`.cmd` 兜底（与 webapp-host spawn 同口径）。
         let cands = system_probe_candidates(Path::new(r"D:\nodejs-v22\node_global\dsh"));
         assert_eq!(cands.len(), 2);
@@ -1130,6 +1143,15 @@ mod tests {
         // 已是 .cmd 不再追加。
         let cands = system_probe_candidates(Path::new(r"D:\x\dsh.cmd"));
         assert_eq!(cands, vec![PathBuf::from(r"D:\x\dsh.cmd")]);
+    }
+
+    #[test]
+    fn system_probe_candidates_single_or_fallback() {
+        // 全平台：首候选恒为原 path（Windows 上为 [原, 原.cmd]，其它平台仅 [原]）。
+        let cands = system_probe_candidates(Path::new("dsh"));
+        assert!(!cands.is_empty());
+        assert_eq!(cands[0], PathBuf::from("dsh"));
+        assert!(cands.len() <= 2);
     }
 
     #[test]

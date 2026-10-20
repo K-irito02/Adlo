@@ -41,10 +41,22 @@ pub(crate) fn from_connection_for_test(conn: Connection) -> SiteMetaCacheStore {
     SiteMetaCacheStore { db: Mutex::new(conn) }
 }
 
-/// 与前端 `normalizeUrlForCache` 同构：去 hash、去尾部多余斜杠。
+/// 与前端 `normalizeUrlForCache` 同构：去 hash、去尾部多余斜杠、去一次性认证参数。
+/// `token`（如 dsh `?token=`）绝不是页面身份，且属凭据：去之既防 token 轮换分裂
+/// 缓存行，也防凭据进 SQLite 落盘（R1-Medium；抓取仍用原始 URL，不走本函数）。
 pub fn normalize_cache_key(url: &str) -> String {
     if let Ok(mut u) = url::Url::parse(url) {
         u.set_fragment(None);
+        // 字符串级剔除（不重编码其余参数，保持与前端同字节口径）。
+        // 全 owned 中转（E0716：query 借用与 set_query 可变借用 + 临时 join 串的
+        // 生命周期三者冲突，一律先落盘为局部 owned 再写回）。
+        if let Some(q) = u.query().map(str::to_owned) {
+            let kept: Vec<&str> =
+                q.split('&').filter(|p| p.split('=').next().unwrap_or("") != "token").collect();
+            let new_query: Option<String> =
+                if kept.is_empty() { None } else { Some(kept.join("&")) };
+            u.set_query(new_query.as_deref());
+        }
         let mut path = u.path().to_string();
         if path.len() > 1 && path.ends_with('/') {
             while path.len() > 1 && path.ends_with('/') {
@@ -332,6 +344,21 @@ mod tests {
         assert_eq!(normalize_cache_key("https://a.com/path/#sec"), "https://a.com/path");
         assert_eq!(normalize_cache_key("https://a.com/path//"), "https://a.com/path");
         assert_eq!(normalize_cache_key("https://a.com"), "https://a.com/");
+    }
+
+    #[test]
+    fn normalize_cache_key_strips_auth_token() {
+        // 一次性认证参数不进缓存键（R1-Medium；与前端 siteMetaCache.test.ts 同断言）。
+        assert_eq!(
+            normalize_cache_key("http://127.0.0.1:3080/?token=abc"),
+            "http://127.0.0.1:3080/"
+        );
+        assert_eq!(
+            normalize_cache_key("https://a.com/p?x=1&token=abc&y=2"),
+            "https://a.com/p?x=1&y=2"
+        );
+        // 非 token 参数不受影响。
+        assert_eq!(normalize_cache_key("https://a.com/p?x=1"), "https://a.com/p?x=1");
     }
 
     #[test]
