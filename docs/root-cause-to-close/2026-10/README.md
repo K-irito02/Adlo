@@ -15,3 +15,4 @@
 | [progress-2026-10-17-000000.md](./progress-2026-10-17-000000.md) | Markdown 预览改造：github-markdown-css 变量驱动单表 + 6 主题切换（亮暗分组跟随应用）+ starry-night 替换 highlight.js + 工具栏主题按钮与图标 + 悬停换肤滚动漂移根因修复（`dangerouslySetInnerHTML` 恒等）+ 同类写法核查，事项 1–10，P0–P6 全流程 |
 | [progress-2026-10-18-150423.md](./progress-2026-10-18-150423.md) | 打开方式设置组 + Markdown 预览链接可点击（事项 1–2）与设置文案/白名单卡片/预览章节导航与文件索引/后退前进/adl-server 启动失败修复（事项 3–7），P0–P6 全流程 |
 | [progress-2026-10-19-095312.md](./progress-2026-10-19-095312.md) | dsh 更新到 0.2.0-rc.2 + 401 认证根因修复（authenticated URL 捕获）+ 通用化 + DSH 版本管理重做（官方列表/预发布/启动自检/官网跳转）及三轮调整，事项 1–8，P0–P6 全流程 |
+| [progress-2026-10-20-001712.md](./progress-2026-10-20-001712.md) | DSH 版本来源三态 + 真安装/卸载/重装/切换 + 进度取消（事项 1–8）与 Tauri 卡死根因（storage 同步命令堵 UI 线程，cdb 取证）及修复（事项 9），P0–P6 全流程 |

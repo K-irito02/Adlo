@@ -98,7 +98,7 @@
 
 #### `dsh-version` — dsh 版本管理
 - **路径**：`crates/dsh-version/src/`
-- **职责**：已安装版本列表/切换/npm 仓库查询/智能源选择
+- **职责**：已安装版本列表/切换/npm 仓库查询/智能源选择/真安装引擎（`install.rs`）/任务进度与取消（`task.rs`）
 
 #### `download-source` — 下载源
 - **路径**：`crates/download-source/src/`

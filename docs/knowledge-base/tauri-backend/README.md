@@ -11,3 +11,4 @@ Lessons learned from Tauri backend development and synchronization fixes.
 - [third-party-api-casing-and-preview-parity-2026-08-07.md](./third-party-api-casing-and-preview-parity-2026-08-07.md) — 第三方 API 响应字段大小写（Google camelCase serde）+ 浏览器 preview 双端一致：fetchProviderModelsLive 按 provider 镜像 Tauri 适配器鉴权/解析/成功判据
 - [dsh-port-reclaim-and-process-kill-2026-09-06.md](./dsh-port-reclaim-and-process-kill-2026-09-06.md) — 托管 Web 应用固定端口 + 残留进程释放：netstat 精确解析/PID 去重/kill 失败不中断/端口轮询判空闲/独立 start-lock + IPC 结构三桥同步
 - [dsh-authenticated-url-and-version-catalog-2026-10-19.md](./dsh-authenticated-url-and-version-catalog-2026-10-19.md) — dsh 0.2.x 一次性 token 认证：stdout authenticated URL 捕获 + 401 指纹复用判定 + token 日志脱敏 + dist-tag 可能指向 rc（升级取正式版桶）+ pwsh 快照管线 GBK 解码坑
+- [storage-status-ui-thread-hang-2026-10-20.md](./storage-status-ui-thread-hang-2026-10-20.md) — 设置面板打开即卡死：storage 同步命令在 UI 线程遍历 6 万文件（cdb 行号定位）+ 诊断心跳重 arm 防抖致零落盘

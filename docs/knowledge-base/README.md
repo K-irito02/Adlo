@@ -19,7 +19,7 @@
 | [code-quality](./code-quality/) | 代码质量检测与修复、工具链门禁（diff-viewer / git-vis-charts / toolchain-lint / 审计） | 33 |
 | [multi-workspace](./multi-workspace/) | 多工作区开发中的变更面板、文件树、终端、布局等经验 | 15 |
 | [ci-monitoring](./ci-monitoring/) | GitHub Actions CI 状态监控模块经验（按目录独立绑定、Token 持久化、日志隔离） | 7 |
-| [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON 等后端经验 | 8 |
+| [tauri-backend](./tauri-backend/) | Tauri 命令性能、Rust 异步模式、主线程阻塞、serde JSON 等后端经验 | 9 |
 | [toolchain](./toolchain/) | 开发工具链与环境配置经验（Git、Node、Rust 等） | 4 |
 | [logging](./logging/) | 日志系统统一改造经验（OpenOptions 权限、ANSI 控制、双端一致性） | 2 |
 
@@ -109,6 +109,7 @@
 | [dsh-port-reclaim-and-process-kill-2026-09-06.md](./tauri-backend/dsh-port-reclaim-and-process-kill-2026-09-06.md) | dsh 端口回收与进程清理 |
 | [branch-graph-lane-algorithm.md](./tauri-backend/branch-graph-lane-algorithm.md) | 分支图泳道算法 |
 | [handwritten-json-key-casing-2026-09-26.md](./tauri-backend/handwritten-json-key-casing-2026-09-26.md) | 手写 JSON 键名必须与 TS 类型逐键对齐（附键名存在性断言测试） |
+| [storage-status-ui-thread-hang-2026-10-20.md](./tauri-backend/storage-status-ui-thread-hang-2026-10-20.md) | 设置面板打开即卡死：storage 同步命令在 UI 线程遍历 6 万文件 + 诊断心跳重 arm 防抖 |
 
 ### Toolchain
 
