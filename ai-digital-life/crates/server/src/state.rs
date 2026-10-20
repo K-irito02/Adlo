@@ -13,6 +13,13 @@ use std::sync::atomic::AtomicU16;
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 
+/// 宿主持有的一次 dsh 拉起：子进程句柄 + 本次 spawn 的来源版本。
+/// （`HostedProcess` 未实现 `Debug`，此处不派生；需打印时逐字段记。）
+pub struct ManagedDsh {
+    pub process: HostedProcess,
+    pub version: Option<String>,
+}
+
 #[derive(Clone)]
 pub struct ServerState {
     pub data_dir: PathBuf,
@@ -35,7 +42,10 @@ pub struct ServerState {
     /// dsh 宿主壳运行时状态：当前被拉起的 dsh 进程（`None` 表示未运行）。
     /// 用 tokio AsyncMutex 共享，`HostedProcess` 内含
     /// `tokio::process::Child` 不能 Clone，故整体包在 Option 中由锁保护。
-    pub dsh_state: Arc<AsyncMutex<Option<HostedProcess>>>,
+    /// `version` 记录本次 spawn 的来源版本（事项 2026-10-20/1：运行中显示真实版
+    /// 本用；外部复用进程无 Child 可持有，不写入此锁，`source-status` 据此区分
+    /// “宿主拉起（版本已知）”与“外部运行（版本未知）”）。
+    pub dsh_state: Arc<AsyncMutex<Option<ManagedDsh>>>,
     /// 串行化 dsh 启动（free_stale + spawn）的独立锁：与 `dsh_state` 分离，
     /// 使 close/revert/uninstall 在启动期间不被阻塞，同时避免两个并发
     /// `/dsh/open` 各自 spawn、或第二个的 free-stale 误杀第一个刚起的进程。

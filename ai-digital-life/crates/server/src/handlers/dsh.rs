@@ -2,19 +2,19 @@
 //!
 //! 遵循 retrieval 域配方：`State(state): State<ServerState>` 提取状态，
 //! 结果用 [`crate::ipc::to_response`] 包装为 `IpcResult<T>`。dsh 进程宿主在
-//! [`ServerState::dsh_state`]（`Arc<AsyncMutex<Option<HostedProcess>>>`）；
+//! [`ServerState::dsh_state`]（`Arc<AsyncMutex<Option<ManagedDsh>>>`）；
 //! 由于 `HostedProcess` 内含 `tokio::process::Child` 不可 Clone，运行状态由锁内
 //! `Option` 持有，handler 一律用 async `lock().await` 直写（不在 `spawn_blocking`
 //! 内持有 tokio Mutex）。
-
+//!
 use crate::ServerState;
 use crate::ipc;
+use crate::state::ManagedDsh;
 use adl_download_source;
 use adl_dsh_bundle;
 use adl_dsh_version;
 use adl_errors::AppError;
 use adl_webapp_host::DSH_DEFAULT_PORT;
-use adl_webapp_host::HostedProcess;
 use adl_webapp_host::spawn_and_wait_ready;
 use adl_webapp_host::spawn_node_direct;
 use axum::extract::State;
@@ -46,9 +46,9 @@ async fn stop_running_dsh(state: &ServerState) -> bool {
         let _guard = state.dsh_start_lock.lock().await;
         {
             let mut guard = state.dsh_state.lock().await;
-            if let Some(mut hp) = guard.take() {
-                let _ = hp.child.kill().await;
-                let _ = hp.child.wait().await;
+            if let Some(mut managed) = guard.take() {
+                let _ = managed.process.child.kill().await;
+                let _ = managed.process.child.wait().await;
                 stopped = true;
             }
         }
@@ -364,7 +364,7 @@ fn dsh_web_args(patch: &Path) -> Vec<String> {
 }
 
 async fn run_open(
-    dsh_guard: Arc<AsyncMutex<Option<HostedProcess>>>,
+    dsh_guard: Arc<AsyncMutex<Option<ManagedDsh>>>,
     start_lock: Arc<AsyncMutex<()>>,
     version_lock: Arc<AsyncMutex<()>>,
     paths: &adl_kernel::storage::StoragePaths,
@@ -375,12 +375,12 @@ async fn run_open(
     // 快速路径：已运行则直接返回（不加 start_lock）。
     {
         let guard = dsh_guard.lock().await;
-        if let Some(ref hp) = *guard {
+        if let Some(ref managed) = *guard {
             tracing::info!(
                 elapsed_ms = start_time.elapsed().as_millis(),
                 "dsh::run_open: fast path - already running"
             );
-            return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
+            return Ok(serde_json::json!({ "url": managed.process.url, "freedPort": false }));
         }
     }
 
@@ -393,12 +393,12 @@ async fn run_open(
     let _start_guard = start_lock.lock().await;
     {
         let guard = dsh_guard.lock().await;
-        if let Some(ref hp) = *guard {
+        if let Some(ref managed) = *guard {
             tracing::info!(
                 elapsed_ms = start_time.elapsed().as_millis(),
                 "dsh::run_open: acquired lock - already running"
             );
-            return Ok(serde_json::json!({ "url": hp.url, "freedPort": false }));
+            return Ok(serde_json::json!({ "url": managed.process.url, "freedPort": false }));
         }
     }
 
@@ -496,6 +496,15 @@ async fn run_open(
 
     let timeout = std::time::Duration::from_secs(60);
     let spawn_start = std::time::Instant::now();
+    // 本次 spawn 的来源版本（事项 2026-10-20/1：运行中显示真实版本用）：
+    // host 取选中版、system 取现查版、bundled 取内置版；复用/无来源走上游
+    // early-return，此处不可达。
+    let spawn_version = match &source {
+        adl_dsh_version::DshSource::HostInstalled { version, .. } => Some(version.clone()),
+        adl_dsh_version::DshSource::System { info } => info.version.clone(),
+        adl_dsh_version::DshSource::Bundled { bundled } => Some(bundled.version.clone()),
+        adl_dsh_version::DshSource::ReuseRunning { .. } | adl_dsh_version::DshSource::None => None,
+    };
     let hp = match source {
         adl_dsh_version::DshSource::ReuseRunning { url, port } => {
             tracing::info!(?url, ?port, "dsh::run_open: reusing running instance");
@@ -537,7 +546,7 @@ async fn run_open(
     // 持锁写入（start_lock 已保证串行，无并发方抢先写入）。
     let mut guard = dsh_guard.lock().await;
     let url = hp.url.clone();
-    *guard = Some(hp);
+    *guard = Some(ManagedDsh { process: hp, version: spawn_version });
     tracing::info!(total_elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: completed");
     Ok(serde_json::json!({ "url": url, "freedPort": freed }))
 }
@@ -557,10 +566,11 @@ pub async fn pre_start_dsh(state: &ServerState) {
     .await
     {
         Ok(val) => {
+            // 凭据红线：真实入口 URL 含一次性 `?token=`，禁止进普通日志（事项 2026-10-20/4）。
             let url = val.get("url").and_then(|v| v.as_str()).unwrap_or("unknown");
             tracing::info!(
                 elapsed_ms = start.elapsed().as_millis(),
-                url,
+                url = %adl_webapp_host::redact_url_for_log(url),
                 "dsh::pre_start: dsh ready"
             );
         },
@@ -691,11 +701,11 @@ async fn run_restart(state: &ServerState) -> Result<serde_json::Value, AppError>
         let had_process = {
             let mut guard = state.dsh_state.lock().await;
             match guard.take() {
-                Some(mut hp) => {
-                    if let Err(e) = hp.child.kill().await {
+                Some(mut managed) => {
+                    if let Err(e) = managed.process.child.kill().await {
                         tracing::warn!(error = %e, "dsh::restart: kill hosted process failed");
                     }
-                    let _ = hp.child.wait().await;
+                    let _ = managed.process.child.wait().await;
                     true
                 },
                 None => false,
@@ -806,10 +816,19 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
         })
     });
 
-    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await.map(|info| {
+    let running_detected = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
+    // 宿主持有 Child 即本次会话拉起（版本精确已知）；锁内只读版本即释放，
+    // 使 `running.version` 恒为“宿主拉起版”、外部复用恒为未知（事项 2026-10-20/1）。
+    let (managed, managed_version) = {
+        let guard = state.dsh_state.lock().await;
+        (guard.is_some(), guard.as_ref().and_then(|m| m.version.clone()))
+    };
+    let running = running_detected.map(|info| {
         serde_json::json!({
             "url": info.url,
             "port": info.port,
+            "managed": managed,
+            "version": managed_version,
         })
     });
 

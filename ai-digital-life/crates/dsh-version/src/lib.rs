@@ -550,7 +550,10 @@ pub fn is_dsh_http_response(status: u16, body: &str) -> bool {
 /// - Windows: `where dsh`
 /// - Unix: `which dsh`
 ///
-/// 当前**不**检测版本号（`dsh --version` 约 1.5s，仅用于展示），故 `version` 恒为 `None`。
+/// 版本号经 `dsh --version` 懒检测（本机实测约 0.3s；2.5s 超时，失败/超时则为 `None`，
+/// UI 按“版本未知”诚实展示，不编造）。结果按进程缓存一次：系统级安装在会话内几乎
+/// 不变，每次 `source-status` 都重跑子进程纯属浪费；测试进程如需隔离，改调纯函数
+/// `parse_dsh_version_output`（见单测），不要依赖此缓存。
 pub async fn detect_system_dsh() -> Option<SystemDshInfo> {
     let which_result = if cfg!(target_os = "windows") {
         TokioCommand::new("where").arg("dsh").output().await
@@ -567,8 +570,90 @@ pub async fn detect_system_dsh() -> Option<SystemDshInfo> {
     let first_line = stdout.lines().next()?.trim();
     let path = PathBuf::from(first_line);
 
-    // 不检测版本（见函数文档），version 恒为 None。
-    Some(SystemDshInfo { path, version: None })
+    let version = cached_system_dsh_version(&path).await;
+    Some(SystemDshInfo { path, version })
+}
+
+/// 会话级缓存的系统 dsh 版本号（`None` 外层 = 未检测过；内层 `None` = 检测过但未知）。
+/// 缓存键为进程级：`dsh --version` 只反映 PATH 上第一个 dsh，更换需重启应用
+/// （与 `dsh_source_cache` 的来源缓存同粒度，见 `server/handlers/dsh.rs`）。
+static SYSTEM_DSH_VERSION_CACHE: std::sync::OnceLock<tokio::sync::Mutex<Option<Option<String>>>> =
+    std::sync::OnceLock::new();
+
+async fn cached_system_dsh_version(path: &Path) -> Option<String> {
+    let slot = SYSTEM_DSH_VERSION_CACHE.get_or_init(|| tokio::sync::Mutex::new(None));
+    {
+        let cached = slot.lock().await;
+        if cached.is_some() {
+            tracing::debug!("dsh-version: system version cache HIT");
+            return cached.clone().flatten();
+        }
+    }
+    tracing::debug!("dsh-version: system version cache MISS — probing dsh --version");
+    let probed = probe_dsh_version(path).await;
+    *slot.lock().await = Some(probed.clone());
+    probed
+}
+
+/// `--version` 探测候选（纯函数，便于单测）：Windows 上 npm 系安装首行常为无后缀
+/// shim（如 `…\node_global\dsh`），直接 spawn 报 193（`%1 不是有效的 Win32 应用程序`）；
+/// 与 `webapp-host::spawn_capturing` 同口径追加 `.cmd` 回退。去重保序，原 path 优先。
+pub fn system_probe_candidates(path: &Path) -> Vec<PathBuf> {
+    let mut out = vec![path.to_path_buf()];
+    #[cfg(target_os = "windows")]
+    {
+        let raw = path.to_string_lossy();
+        if !raw.ends_with(".cmd") {
+            let fallback = PathBuf::from(format!("{raw}.cmd"));
+            if fallback != out[0] {
+                out.push(fallback);
+            }
+        }
+    }
+    out
+}
+
+/// 逐候选跑一次 `dsh --version` 并解析（每候选 2.5s 超时；全部失败一律 `None`，
+/// 调用方按未知展示）。不直接复用 PATH：显式用探测到的 `path` 派生候选，
+/// 避免 `where` 与执行时解析到不同副本。
+async fn probe_dsh_version(path: &Path) -> Option<String> {
+    for candidate in system_probe_candidates(path) {
+        let output = tokio::time::timeout(
+            std::time::Duration::from_millis(2500),
+            TokioCommand::new(&candidate).arg("--version").output(),
+        )
+        .await;
+        let parsed = match output {
+            Ok(Ok(o)) if o.status.success() => {
+                parse_dsh_version_output(&String::from_utf8_lossy(&o.stdout))
+            },
+            _ => None,
+        };
+        tracing::debug!(candidate = %candidate.display(), parsed = ?parsed, "dsh-version: system version probed");
+        if parsed.is_some() {
+            return parsed;
+        }
+    }
+    None
+}
+
+/// 解析 `dsh --version` 输出（纯函数，便于离线单测）。
+/// 实测为裸版本号（如 `0.2.0-rc.2`）；兼容 `dsh vX.Y.Z` / `X.Y.Z ...` 等前后缀形态：
+/// 整串 trim 后先整体试 semver，不成则按空白切 token 逐个试，首个合法即返回原文 token。
+pub fn parse_dsh_version_output(output: &str) -> Option<String> {
+    let trimmed = output.trim();
+    let whole = trimmed.strip_prefix('v').unwrap_or(trimmed);
+    if semver::Version::parse(whole).is_ok() {
+        return Some(whole.to_string());
+    }
+    for token in trimmed.split_whitespace() {
+        let t = token.trim();
+        let candidate = t.strip_prefix('v').unwrap_or(t).trim_end_matches([',', ';', ')']);
+        if semver::Version::parse(candidate).is_ok() {
+            return Some(candidate.to_string());
+        }
+    }
+    None
 }
 
 /// Detect whether a dsh server is already running on `port`.
@@ -1021,6 +1106,30 @@ mod tests {
         assert!(!is_dsh_http_response(200, "<title>Some Dev Server</title>"));
         assert!(!is_dsh_http_response(404, "DeepSeek Harness"));
         assert!(!is_dsh_http_response(200, ""));
+    }
+
+    #[test]
+    fn parse_dsh_version_output_table() {
+        // 本机实测：裸版本号。
+        assert_eq!(parse_dsh_version_output("0.2.0-rc.2\n"), Some("0.2.0-rc.2".into()));
+        assert_eq!(parse_dsh_version_output("0.2.0"), Some("0.2.0".into()));
+        // 兼容前后缀形态。
+        assert_eq!(parse_dsh_version_output("dsh v0.2.0"), Some("0.2.0".into()));
+        assert_eq!(parse_dsh_version_output("v1.2.3, extra"), Some("1.2.3".into()));
+        // 非法输出一律 None（调用方按未知展示，不编造）。
+        assert_eq!(parse_dsh_version_output(""), None);
+        assert_eq!(parse_dsh_version_output("not a version"), None);
+    }
+
+    #[test]
+    fn system_probe_candidates_cmd_fallback() {
+        // Windows：无后缀 shim 优先，`.cmd` 兜底（与 webapp-host spawn 同口径）。
+        let cands = system_probe_candidates(Path::new(r"D:\nodejs-v22\node_global\dsh"));
+        assert_eq!(cands.len(), 2);
+        assert_eq!(cands[1], PathBuf::from(r"D:\nodejs-v22\node_global\dsh.cmd"));
+        // 已是 .cmd 不再追加。
+        let cands = system_probe_candidates(Path::new(r"D:\x\dsh.cmd"));
+        assert_eq!(cands, vec![PathBuf::from(r"D:\x\dsh.cmd")]);
     }
 
     #[test]
