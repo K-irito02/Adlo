@@ -121,11 +121,23 @@ pnpm --dir frontend run test:watch
 ## Rust 编译
 
 执行 Rust 命令前必须设置 PATH:
-> ⚠ **重要**：执行 Rust 命令前必须设置 PATH，否则 `cargo` 命令不可用。
+> ⚠ **重要**：执行 Rust 命令前必须设置 PATH，否则 `cargo` 命令不可用；且 MSVC `link.exe` 必须排在 msys64/Git 的 coreutils `link.exe` 之前，否则链接失败。
 
 ```powershell
 $env:Path = "$env:USERPROFILE\.cargo\bin;$env:Path"
+# MSVC 工具链（BuildTools 主体在 D:\VSBuildTools；WinSDK 按微软约定在 C，改不了）：
+$msvc = 'D:\VSBuildTools\VC\Tools\MSVC\14.44.35207' # 版本号以实际安装为准
+$sdk = 'C:\Program Files (x86)\Windows Kits\10'; $sdkv = '10.0.22621.0'
+$env:Path = "$msvc\bin\Hostx64\x64;" + $env:Path
+$env:INCLUDE = "$msvc\include;$sdk\Include\$sdkv\um;$sdk\Include\$sdkv\shared;$sdk\Include\$sdkv\ucrt;$sdk\Include\$sdkv\winrt;$sdk\Include\$sdkv\cppwinrt"
+$env:LIB = "$msvc\lib\x64;$sdk\Lib\$sdkv\um\x64;$sdk\Lib\$sdkv\ucrt\x64"
+# 自证：cmd /c where link.exe 首行须为 MSVC link.exe
 ```
+
+| 现象 | 原因 | 处理 |
+|------|------|------|
+| `link: missing operand` / `extra operand 'symbols.o'` | `link` 解析到了 coreutils，而非 MSVC | 按上设会话 PATH（MSVC 在前） |
+| 已卸载 VS 的残留 PATH 条目 | 指向不存在的目录 | 从系统 PATH 删除（需管理员） |
 
 | 命令 | 用途 |
 |------|------|
