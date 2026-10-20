@@ -5,6 +5,7 @@ import {
   InvalidInputError,
   NetworkError,
   InternalError,
+  CancelledError,
   fromIpcErrorCode,
 } from '../typedErrors';
 
@@ -44,7 +45,13 @@ describe('Typed error classes', () => {
     expect(err.message).toBe('Internal error: something broke');
   });
 
-  it('fromIpcErrorCode maps all 16 known codes', () => {
+  it('fromIpcErrorCode maps CANCELLED to CancelledError', () => {
+    const err = fromIpcErrorCode('CANCELLED', 'version operation cancelled');
+    expect(err).toBeInstanceOf(CancelledError);
+    expect(err.code).toBe('CANCELLED');
+  });
+
+  it('fromIpcErrorCode maps all 17 known codes', () => {
     const codes = [
       'NOT_FOUND',
       'INVALID_INPUT',
@@ -62,6 +69,7 @@ describe('Typed error classes', () => {
       'NETWORK_ERROR',
       'INVOKE_ERROR',
       'PREVIEW_API_ERROR',
+      'CANCELLED',
     ];
     for (const code of codes) {
       const err = fromIpcErrorCode(code, 'test');

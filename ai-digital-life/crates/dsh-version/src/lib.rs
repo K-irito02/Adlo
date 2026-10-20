@@ -7,6 +7,11 @@ use serde::{Deserialize, Serialize};
 
 use adl_errors::AppError;
 
+pub mod install;
+pub mod task;
+
+pub use task::{TaskReporter, VersionTask, VersionTaskKind, VersionTaskPhase};
+
 /// npm registry 上 @deepseek-ai/dsh 最新版本元数据端点（默认官方源）。
 pub const REGISTRY_LATEST: &str = "https://registry.npmjs.org/@deepseek-ai/dsh/latest";
 
@@ -25,6 +30,7 @@ fn registry_base(data_dir: &Path) -> Result<String, AppError> {
 /// 作用域硬边界：只读写宿主版本目录 `<root>`（`selected.txt` + `installed/<version>/`），
 /// 绝不写入/改动 dsh 自身的会话/配置/插件目录。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct VersionStatus {
     pub current_selected: Option<String>,
     pub installed: Vec<String>,
@@ -43,6 +49,7 @@ pub struct VersionStatus {
 
 /// 官方已发布版本条目（catalog 行）。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct VersionInfo {
     pub version: String,
     /// registry `time` 表中的发布时间（RFC3339），缺失为 None。
@@ -53,6 +60,7 @@ pub struct VersionInfo {
 /// 注意：当前 registry 的 `latest` 标签指向的也可能是 rc（如 `0.2.0-rc.2`），
 /// 正式版桶可能为空——调用方须如实展示“暂无”，不得硬凑。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
 pub struct VersionCatalog {
     pub stable: Vec<VersionInfo>,
     pub prerelease: Vec<VersionInfo>,
@@ -60,12 +68,28 @@ pub struct VersionCatalog {
     pub latest_prerelease: Option<String>,
 }
 
-fn selected_file(root: &Path) -> PathBuf {
+pub(crate) fn selected_file(root: &Path) -> PathBuf {
     root.join("selected.txt")
 }
 
-fn installed_dir(root: &Path) -> PathBuf {
+pub(crate) fn installed_dir(root: &Path) -> PathBuf {
     root.join("installed")
+}
+
+/// 宿主版本可执行入口（真安装后的 bin.js）。
+pub fn host_bin(root: &Path, version: &str) -> PathBuf {
+    installed_dir(root)
+        .join(version)
+        .join("node_modules")
+        .join("@deepseek-ai")
+        .join("dsh")
+        .join("lib")
+        .join("bin.js")
+}
+
+/// 宿主版本是否完整安装（以 bin.js 存在为准；空目录不算已安装）。
+pub fn is_host_version_installed(root: &Path, version: &str) -> bool {
+    host_bin(root, version).is_file()
 }
 
 /// 读取当前选中的版本号。
@@ -80,7 +104,7 @@ pub fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
     Ok((!v.is_empty()).then_some(v))
 }
 
-fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
+pub(crate) fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
     let dir = installed_dir(root);
     if !dir.exists() {
         return Ok(vec![]);
@@ -96,6 +120,7 @@ fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
         })
         .map(|e| e.file_name().to_string_lossy().into_owned())
         .filter(|v| semver::Version::parse(v).is_ok())
+        .filter(|v| is_host_version_installed(root, v))
         .collect();
     versions.sort_by(|a, b| {
         let na = semver::Version::parse(a)
@@ -105,6 +130,18 @@ fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
         nb.cmp(&na)
     });
     Ok(versions)
+}
+
+/// 已装版本中的最高语义版本（不依赖 `list_installed` 的排序方向，
+/// 调用方不得用 `.next()` 隐含假设顺序）。
+pub(crate) fn highest_installed(root: &Path) -> Result<Option<String>, AppError> {
+    Ok(list_installed(root)?.into_iter().max_by(|a, b| {
+        let na = semver::Version::parse(a)
+            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
+        let nb = semver::Version::parse(b)
+            .unwrap_or_else(|_| semver::Version::parse("0.0.0").expect("0.0.0 parses"));
+        na.cmp(&nb)
+    }))
 }
 
 /// 把版本字符串拆成主/次/补丁数值段；忽略 `-` 之后的 pre-release 后缀。
@@ -332,27 +369,18 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
     }
 }
 
-/// 登记指定版本为已装并选中（“安装”的宿主侧语义）。
-///
-/// 诚实边界：本函数只“登记版本目录 + 记账”（创建 `installed/<version>/` 并写入 selected），
-/// 实际的 dsh 程序体在下次 `open` 时由 `npx @deepseek-ai/dsh@<version>` 按需拉取，
-/// 不做二进制下载/解压。调用前须确认版本在官方确已存在（`install_version` 已做），
-/// 避免登记一个拉不起来的版本号。
-async fn register_version(root: &Path, version: &str) -> Result<String, AppError> {
-    let dir = installed_dir(root).join(version);
-    tokio::fs::create_dir_all(&dir)
-        .await
-        .map_err(|e| AppError::Io(format!("create {}: {e}", dir.display())))?;
-    tokio::fs::write(selected_file(root), format!("{version}\n"))
-        .await
-        .map_err(|e| AppError::Io(format!("write selected: {e}")))?;
-    Ok(version.to_string())
-}
-
-/// 升级：把最新正式版登记为已装版本目录并写入 selected。
+/// 升级：安装最新正式版并选中。
 /// 正式版取自 catalog（`latest` dist-tag 可能指向 rc，不能直接当稳定版用）；
 /// catalog 不可达时回退 dist-tag（旧行为），两者皆无则报错。
 pub async fn update(root: &Path, data_dir: &Path) -> Result<String, AppError> {
+    update_with_task(root, data_dir, &TaskReporter::new()).await
+}
+
+pub async fn update_with_task(
+    root: &Path,
+    data_dir: &Path,
+    task: &TaskReporter,
+) -> Result<String, AppError> {
     let target = match fetch_catalog(data_dir).await {
         Ok(catalog) => resolve_stable_latest(&catalog, None),
         Err(e) => {
@@ -362,34 +390,34 @@ pub async fn update(root: &Path, data_dir: &Path) -> Result<String, AppError> {
     }
     .ok_or_else(|| AppError::NotFound("no stable release published upstream".into()))?;
     tracing::debug!(%target, "dsh-version: update to latest stable");
-    register_version(root, &target).await
+    task.set_version(&target);
+    install::install(root, data_dir, &target, task).await
 }
 
-/// 安装指定版本（正式版或预发布均可）：先校验版本号合法且官方确已发布，
-/// 再登记并选中。`open` 下次拉起即按该版本启动。
+/// 安装指定版本（正式版或预发布均可）：校验版本号与官方发布状态，
+/// 真下载到 `installed/<version>/` 并选中。
 pub async fn install_version(
     root: &Path,
     data_dir: &Path,
     version: &str,
 ) -> Result<String, AppError> {
-    let version = version.trim();
-    semver::Version::parse(version)
-        .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
-    let catalog = fetch_catalog(data_dir).await?;
-    let published = catalog.stable.iter().any(|i| i.version == version)
-        || catalog.prerelease.iter().any(|i| i.version == version);
-    if !published {
-        return Err(AppError::NotFound(format!("version {version} is not published upstream")));
-    }
-    tracing::debug!(%version, "dsh-version: installing published version");
-    register_version(root, version).await
+    install_version_with_task(root, data_dir, version, &TaskReporter::new()).await
 }
 
-/// 回退：校验版本号并确认已安装后，把该版本写入 selected。
+pub async fn install_version_with_task(
+    root: &Path,
+    data_dir: &Path,
+    version: &str,
+    task: &TaskReporter,
+) -> Result<String, AppError> {
+    install::install(root, data_dir, version, task).await
+}
+
+/// 回退/切换：校验版本号并确认已完整安装后，把该版本写入 selected。
 pub async fn revert(root: &Path, version: &str) -> Result<String, AppError> {
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
-    if !installed_dir(root).join(version).is_dir() {
+    if !is_host_version_installed(root, version) {
         return Err(AppError::NotFound(format!("version {version} not installed")));
     }
     tokio::fs::write(selected_file(root), format!("{version}\n"))
@@ -398,29 +426,34 @@ pub async fn revert(root: &Path, version: &str) -> Result<String, AppError> {
     Ok(version.to_string())
 }
 
-/// 卸载：删除 installed/<version>/ 目录；若恰好是当前选中版本则清空 selected。
+/// 卸载：删除 `installed/<version>/`；若恰好是当前选中版本，
+/// 自动改选剩余最高版本，没有剩余则清空 selected。
 pub async fn uninstall(root: &Path, version: &str) -> Result<(), AppError> {
-    let dir = installed_dir(root).join(version);
-    if !dir.is_dir() {
-        return Err(AppError::NotFound(format!("version {version} not installed")));
-    }
-    tokio::fs::remove_dir_all(&dir)
-        .await
-        .map_err(|e| AppError::Io(format!("remove {}: {e}", dir.display())))?;
-    if read_selected(root)? == Some(version.to_string()) {
-        tokio::fs::write(selected_file(root), "")
-            .await
-            .map_err(|e| AppError::Io(format!("clear selected: {e}")))?;
-    }
-    Ok(())
+    uninstall_with_task(root, version, &TaskReporter::new()).await
 }
 
-/// 重装：按当前选中版本重新登记并选中（校验官方仍在发布；版本已下架则报错）。
+pub async fn uninstall_with_task(
+    root: &Path,
+    version: &str,
+    task: &TaskReporter,
+) -> Result<(), AppError> {
+    install::uninstall(root, version, task).await
+}
+
+/// 重装：真重新安装当前选中版本，保持选中状态。
 /// 语义为“修当前版本”，不是“升到最新”（升级走 `update`）。
 pub async fn reinstall(root: &Path, data_dir: &Path) -> Result<String, AppError> {
+    reinstall_with_task(root, data_dir, &TaskReporter::new()).await
+}
+
+pub async fn reinstall_with_task(
+    root: &Path,
+    data_dir: &Path,
+    task: &TaskReporter,
+) -> Result<String, AppError> {
     let selected =
         read_selected(root)?.ok_or_else(|| AppError::NotFound("no selected version".into()))?;
-    install_version(root, data_dir, &selected).await
+    install::install(root, data_dir, &selected, task).await
 }
 
 // ---------------------------------------------------------------------------
@@ -442,9 +475,74 @@ pub struct RunningDshInfo {
 #[derive(Debug, Clone)]
 pub enum DshSource {
     ReuseRunning { url: String, port: u16 },
+    HostInstalled { version: String, bin: PathBuf },
     System { info: SystemDshInfo },
     Bundled { bundled: adl_dsh_bundle::BundledDsh },
-    Download { version: Option<String> },
+    None,
+}
+
+/// 解析后的实际来源（供 UI 展示与来源选择）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum EffectiveSource {
+    Running,
+    Host,
+    System,
+    Bundled,
+    None,
+}
+
+/// 来源优先级解析（纯函数，便于离线单测）。
+///
+/// `running` 恒优先：3080 上已有经指纹验证的 dsh 时无法再起第二个，只能复用。
+/// 其余来源按用户偏好决定；`auto` 为 宿主 > 系统 > 内置 > 无。
+pub fn resolve_effective_source(
+    mode: adl_download_source::VersionSourceMode,
+    has_running: bool,
+    has_host: bool,
+    has_system: bool,
+    has_bundled: bool,
+) -> EffectiveSource {
+    use adl_download_source::VersionSourceMode as Mode;
+    if has_running {
+        return EffectiveSource::Running;
+    }
+    match mode {
+        Mode::System => {
+            if has_system {
+                EffectiveSource::System
+            } else {
+                EffectiveSource::None
+            }
+        },
+        Mode::Host => {
+            if has_host {
+                EffectiveSource::Host
+            } else {
+                EffectiveSource::None
+            }
+        },
+        Mode::Auto => {
+            if has_host {
+                EffectiveSource::Host
+            } else if has_system {
+                EffectiveSource::System
+            } else if has_bundled {
+                EffectiveSource::Bundled
+            } else {
+                EffectiveSource::None
+            }
+        },
+    }
+}
+
+/// dsh 响应指纹：401 鉴权文案，或已鉴权页面的产品标题。
+/// 取舍说明（有意设计）：2xx 要求精确标题串，误判普通页面（旧事故）已消除，
+/// 代价是 dsh 改版标题即漏检；漏检后果可控——调用方会尝试重起并撞端口，
+/// 端口占用路径（free_stale + freedPort 提示）会自愈，不会静默双跑。
+pub fn is_dsh_http_response(status: u16, body: &str) -> bool {
+    (status == 401 && adl_webapp_host::is_auth_required_body(body))
+        || ((200..300).contains(&status) && body.contains("DeepSeek Harness"))
 }
 
 /// Scan the system PATH for a `dsh` command.
@@ -504,56 +602,55 @@ pub async fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
         .ok()?;
 
     let resp = client.get(&url).send().await.ok()?;
-    let status = resp.status();
+    let status = resp.status().as_u16();
     let body = resp.text().await.ok()?;
-    // 需认证的本地应用在未带 token/cookie 的裸 `/` 上返回 401 + 指纹文案
-    //（dsh 见 `adl_webapp_host::DSH_AUTH_REQUIRED_BODY`），此时进程确实在运行
-    //（已就绪），必须视为 running，否则每次都会误判为未运行而重复 spawn
-    // 撞上 EADDRINUSE。指纹匹配表由 `adl_webapp_host::is_auth_required_body` 统一维护，
-    // 未来其它站点追加指纹时此处无需改动。
-    if status == reqwest::StatusCode::UNAUTHORIZED && adl_webapp_host::is_auth_required_body(&body)
-    {
-        return Some(RunningDshInfo { url, port });
-    }
-    if !status.is_success() {
-        return None;
-    }
-
-    if body.is_empty() {
+    if !is_dsh_http_response(status, &body) {
         return None;
     }
 
     Some(RunningDshInfo { url, port })
 }
 
-const DSH_DEFAULT_PORT: u16 = 3080;
-
-/// Select the best available dsh source, in priority order:
+/// 按来源偏好与已检测到的库存选择实际来源。
 ///
-/// 1. Already running (port 3080)
-/// 2. System-installed (`dsh` on PATH)
-/// 3. Bundled (via `adl-dsh-bundle`)
-/// 4. Download (fallback — no local copy available)
-pub async fn select_dsh_source(
+/// 顺序：运行中（恒优先）→ 宿主 → 系统 → 内置 → 无。
+pub fn select_dsh_source(
     data_dir: &Path,
     bundled: Option<&adl_dsh_bundle::BundledDsh>,
+    mode: adl_download_source::VersionSourceMode,
+    running: Option<RunningDshInfo>,
+    system: Option<SystemDshInfo>,
 ) -> DshSource {
-    if let Some(running) = detect_running_dsh(DSH_DEFAULT_PORT).await {
-        return DshSource::ReuseRunning { url: running.url, port: running.port };
-    }
-
-    if let Some(info) = detect_system_dsh().await {
-        return DshSource::System { info };
-    }
-
-    if let Some(b) = bundled {
-        return DshSource::Bundled { bundled: b.clone() };
-    }
-
-    // Read selected version from dsh-versions directory
     let root = data_dir.join("dsh-versions");
-    let version = read_selected(&root).ok().flatten();
-    DshSource::Download { version }
+    let host_version = read_selected(&root)
+        .ok()
+        .flatten()
+        .filter(|version| is_host_version_installed(&root, version));
+    let effective = resolve_effective_source(
+        mode,
+        running.is_some(),
+        host_version.is_some(),
+        system.is_some(),
+        bundled.is_some(),
+    );
+    match effective {
+        EffectiveSource::Running => {
+            let running = running.expect("running source requires running info");
+            DshSource::ReuseRunning { url: running.url, port: running.port }
+        },
+        EffectiveSource::Host => {
+            let version = host_version.expect("host source requires installed version");
+            let bin = host_bin(&root, &version);
+            DshSource::HostInstalled { version, bin }
+        },
+        EffectiveSource::System => {
+            DshSource::System { info: system.expect("system source requires system info") }
+        },
+        EffectiveSource::Bundled => DshSource::Bundled {
+            bundled: bundled.expect("bundled source requires bundled info").clone(),
+        },
+        EffectiveSource::None => DshSource::None,
+    }
 }
 
 #[cfg(test)]
@@ -595,9 +692,26 @@ mod tests {
     #[tokio::test]
     async fn revert_installed_writes_selected() {
         let root = fresh_root("revert_installed");
-        std::fs::create_dir_all(installed_dir(&root).join("1.2.3")).expect("mkdir");
+        let lib = root.join("installed").join("1.2.3").join("node_modules/@deepseek-ai/dsh/lib");
+        std::fs::create_dir_all(&lib).expect("mkdir");
+        std::fs::write(lib.join("bin.js"), "").expect("write bin");
         revert(&root, "1.2.3").await.expect("revert ok");
         assert_eq!(read_selected(&root).expect("read").as_deref(), Some("1.2.3"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[tokio::test]
+    async fn uninstall_current_selects_highest_remaining() {
+        let root = fresh_root("uninstall_pick");
+        for version in ["1.0.0", "2.0.0"] {
+            let lib =
+                root.join("installed").join(version).join("node_modules/@deepseek-ai/dsh/lib");
+            std::fs::create_dir_all(&lib).expect("mkdir");
+            std::fs::write(lib.join("bin.js"), "").expect("write bin");
+        }
+        std::fs::write(selected_file(&root), "2.0.0\n").expect("write selected");
+        uninstall(&root, "2.0.0").await.expect("uninstall ok");
+        assert_eq!(read_selected(&root).expect("read").as_deref(), Some("1.0.0"));
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -825,5 +939,100 @@ mod tests {
         assert!(matches!(err, AppError::Network(_)));
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&data_dir);
+    }
+
+    #[test]
+    fn version_status_serializes_camel_case() {
+        let status = VersionStatus {
+            current_selected: Some("0.2.0".into()),
+            installed: vec!["0.2.0".into()],
+            latest_available: None,
+            has_update: false,
+            prerelease_available: Some("0.2.1-rc.2".into()),
+            has_prerelease_update: true,
+            prerelease_unknown: false,
+        };
+        let json = serde_json::to_value(&status).unwrap();
+        assert_eq!(json["currentSelected"], "0.2.0");
+        assert!(json["latestAvailable"].is_null());
+        assert_eq!(json["prereleaseAvailable"], "0.2.1-rc.2");
+        assert_eq!(json["hasPrereleaseUpdate"], true);
+        assert_eq!(json["prereleaseUnknown"], false);
+        assert!(json.get("current_selected").is_none());
+    }
+
+    #[test]
+    fn version_catalog_serializes_camel_case() {
+        let catalog = VersionCatalog {
+            stable: vec![VersionInfo {
+                version: "0.2.0".into(),
+                published_at: Some("2026-09-29T09:56:27.000Z".into()),
+            }],
+            prerelease: vec![],
+            latest_stable: Some("0.2.0".into()),
+            latest_prerelease: None,
+        };
+        let json = serde_json::to_value(&catalog).unwrap();
+        assert_eq!(json["stable"][0]["publishedAt"], "2026-09-29T09:56:27.000Z");
+        assert_eq!(json["latestStable"], "0.2.0");
+        assert!(json["latestPrerelease"].is_null());
+        assert!(json.get("latest_stable").is_none());
+    }
+
+    #[test]
+    fn resolve_source_modes() {
+        use adl_download_source::VersionSourceMode::{Auto, Host, System};
+        assert_eq!(
+            resolve_effective_source(Auto, true, true, true, true),
+            EffectiveSource::Running
+        );
+        assert_eq!(resolve_effective_source(Auto, false, true, true, true), EffectiveSource::Host);
+        assert_eq!(
+            resolve_effective_source(Auto, false, false, true, true),
+            EffectiveSource::System
+        );
+        assert_eq!(
+            resolve_effective_source(Auto, false, false, false, true),
+            EffectiveSource::Bundled
+        );
+        assert_eq!(
+            resolve_effective_source(Auto, false, false, false, false),
+            EffectiveSource::None
+        );
+        assert_eq!(
+            resolve_effective_source(System, false, true, true, true),
+            EffectiveSource::System
+        );
+        assert_eq!(
+            resolve_effective_source(System, false, true, false, true),
+            EffectiveSource::None
+        );
+        assert_eq!(resolve_effective_source(Host, false, true, true, true), EffectiveSource::Host);
+        assert_eq!(resolve_effective_source(Host, false, false, true, true), EffectiveSource::None);
+    }
+
+    #[test]
+    fn dsh_response_fingerprint() {
+        assert!(is_dsh_http_response(
+            401,
+            "dsh web authentication required; reopen the URL printed by dsh web."
+        ));
+        assert!(is_dsh_http_response(200, "<title>DeepSeek Harness</title>"));
+        assert!(!is_dsh_http_response(200, "<title>Some Dev Server</title>"));
+        assert!(!is_dsh_http_response(404, "DeepSeek Harness"));
+        assert!(!is_dsh_http_response(200, ""));
+    }
+
+    #[test]
+    fn host_installed_requires_bin_js() {
+        let root = fresh_root("host_complete");
+        let version = root.join("installed").join("1.0.0");
+        std::fs::create_dir_all(&version).expect("mkdir");
+        assert!(!is_host_version_installed(&root, "1.0.0"));
+        let bin = version.join("node_modules").join("@deepseek-ai").join("dsh").join("lib");
+        std::fs::create_dir_all(&bin).expect("mkdir bin");
+        std::fs::write(bin.join("bin.js"), "").expect("write bin");
+        assert!(is_host_version_installed(&root, "1.0.0"));
+        let _ = std::fs::remove_dir_all(&root);
     }
 }

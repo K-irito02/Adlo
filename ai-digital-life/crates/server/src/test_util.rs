@@ -66,6 +66,8 @@ pub fn test_server_state() -> ServerState {
         sysmon: Arc::new(StdMutex::new(SystemMonitor::new())),
         dsh_state: Arc::new(AsyncMutex::new(None)),
         dsh_start_lock: Arc::new(AsyncMutex::new(())),
+        dsh_version_lock: Arc::new(AsyncMutex::new(())),
+        dsh_version_task: adl_dsh_version::TaskReporter::new(),
         dsh_source_cache: Arc::new(RwLock::new(None)),
         workspace_watcher: Arc::new(StdMutex::new(None)),
     }

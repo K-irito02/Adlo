@@ -34,7 +34,12 @@ import type { BrowserDownloadsSlice } from './slices/browserDownloadsSlice';
 import type { CenterTabsSlice } from './slices/centerTabsSlice';
 import type { AppPreferencePatch } from '@shared/ipc-types.generated';
 import type { WorkspaceID } from '../../shared/branded';
-import type { DshOpenResult, DshSourceConfig, DshTestResult } from '../../shared/ipc/dsh';
+import type {
+  DshOpenResult,
+  DshRestartResult,
+  DshSourceConfig,
+  DshTestResult,
+} from '../../shared/ipc/dsh';
 
 interface ReferenceConfig {
   name: string;
@@ -301,6 +306,9 @@ interface UtilitiesActions {
 
 interface DshActions {
   openDsh: () => Promise<DshOpenResult | null>;
+  restartDsh: () => Promise<DshRestartResult & { failed: boolean }>;
+  fetchVersionTask: () => Promise<void>;
+  cancelVersionTask: () => Promise<boolean>;
   fetchDshVersionStatus: (silent?: boolean) => Promise<boolean>;
   updateDsh: () => Promise<boolean>;
   revertDsh: (version: string) => Promise<boolean>;

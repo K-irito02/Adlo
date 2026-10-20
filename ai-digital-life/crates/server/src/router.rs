@@ -96,6 +96,7 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/sysmon/snapshot", get(handlers::system_monitor::snapshot))
         // Dsh-harness domain
         .route("/dsh/open", post(handlers::dsh::open))
+        .route("/dsh/restart", post(handlers::dsh::restart))
         .route("/dsh/get-version-status", post(handlers::dsh::get_version_status))
         .route("/dsh/update", post(handlers::dsh::update))
         .route("/dsh/revert", post(handlers::dsh::revert))
@@ -103,6 +104,8 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/dsh/reinstall", post(handlers::dsh::reinstall))
         .route("/dsh/version-catalog", post(handlers::dsh::get_version_catalog))
         .route("/dsh/install-version", post(handlers::dsh::install_version))
+        .route("/dsh/version-task", post(handlers::dsh::get_version_task))
+        .route("/dsh/cancel-version-task", post(handlers::dsh::cancel_version_task))
         .route("/dsh/source-status", post(handlers::dsh::get_source_status))
         .route("/dsh/source-config", post(handlers::dsh::save_source_config))
         .route("/dsh/test-source", post(handlers::dsh::test_source))

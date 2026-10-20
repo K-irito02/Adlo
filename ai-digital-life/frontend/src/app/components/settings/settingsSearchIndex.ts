@@ -216,6 +216,10 @@ const GROUP_BLOCK_ENTRIES: BlockEntry[] = [
     labelKey: 'dshVersionManagement',
     rows: [
       {
+        labelKey: 'dshVersionSource',
+        hintKeys: ['dshVersionSourceDesc', 'dshVersionSourceHint'],
+      },
+      {
         labelKey: 'dshCurrentVersionLabel',
         hintKeys: ['dshCurrentVersionDesc', 'dshCurrentVersionHint'],
       },

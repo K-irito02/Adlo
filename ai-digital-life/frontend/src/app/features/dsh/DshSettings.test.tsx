@@ -15,6 +15,8 @@ const saveSourceConfig = vi.fn();
 // 保留以维持 useAppActions mock 形状完整。
 const fetchDshVersionStatus = vi.fn();
 const fetchVersionCatalog = vi.fn();
+const fetchVersionTask = vi.fn();
+const cancelVersionTask = vi.fn();
 const updateDsh = vi.fn();
 const revertDsh = vi.fn();
 const uninstallDsh = vi.fn();
@@ -28,6 +30,8 @@ vi.mock('../../hooks/useAppActions', () => ({
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
     fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
     fetchVersionCatalog: (...args: unknown[]) => fetchVersionCatalog(...args),
+    fetchVersionTask: (...args: unknown[]) => fetchVersionTask(...args),
+    cancelVersionTask: (...args: unknown[]) => cancelVersionTask(...args),
     updateDsh: (...args: unknown[]) => updateDsh(...args),
     revertDsh: (...args: unknown[]) => revertDsh(...args),
     uninstallDsh: (...args: unknown[]) => uninstallDsh(...args),
@@ -56,10 +60,12 @@ function makeStatus(patch: Partial<DshSourceStatus['config']> = {}): DshSourceSt
     bundled: null,
     system: null,
     running: null,
+    versionSource: { mode: 'auto', effective: 'host', hostVersion: '0.1.0' },
     config: {
       npm_registry: NPMJS_URL,
       dsh_mirror: null,
       source_mode: 'manual',
+      version_source: 'auto',
       proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
       ...patch,
     },
@@ -476,6 +482,7 @@ describe('DshSettings', () => {
       expect(saveSourceConfig).toHaveBeenCalledWith(
         {
           source_mode: 'auto',
+          version_source: 'auto',
           npm_registry: NPMJS_URL,
           proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
         },
@@ -667,6 +674,7 @@ describe('DshSettings', () => {
       expect(saveSourceConfig).toHaveBeenCalledWith(
         {
           source_mode: 'auto',
+          version_source: 'auto',
           npm_registry: NPMJS_URL,
           proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
         },
@@ -708,6 +716,7 @@ describe('DshSettings', () => {
     expect(saveSourceConfig).toHaveBeenCalledWith(
       {
         source_mode: 'auto',
+        version_source: 'auto',
         npm_registry: NPMJS_URL,
         proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
       },

@@ -28,10 +28,10 @@ async fn detect_running_dsh_is_async_safe_inside_runtime() {
                     break;
                 }
             }
-            let body = b"hi";
+            let body = b"<title>DeepSeek Harness</title>";
             let _ = write!(
                 s,
-                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: text/plain\r\n\r\n",
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: text/html\r\n\r\n",
                 body.len()
             );
             let _ = s.write_all(body);
@@ -43,6 +43,36 @@ async fn detect_running_dsh_is_async_safe_inside_runtime() {
     let info = running.expect("listening port must be detected");
     assert_eq!(info.port, port);
     assert_eq!(info.url, format!("http://127.0.0.1:{port}/"));
+}
+
+/// 普通网页占用同一端口时不得被误判为 dsh。
+#[tokio::test]
+async fn detect_running_dsh_rejects_unrelated_web_page() {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind dummy server");
+    let port = listener.local_addr().expect("addr").port();
+    std::thread::spawn(move || {
+        for mut s in listener.incoming().flatten() {
+            let clone = s.try_clone().expect("clone stream");
+            let mut reader = BufReader::new(clone);
+            let mut line = String::new();
+            loop {
+                line.clear();
+                if reader.read_line(&mut line).unwrap_or(0) == 0 || line == "\r\n" {
+                    break;
+                }
+            }
+            let body = b"<title>Some Dev Server</title>";
+            let _ = write!(
+                s,
+                "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nContent-Type: text/html\r\n\r\n",
+                body.len()
+            );
+            let _ = s.write_all(body);
+            let _ = s.flush();
+        }
+    });
+
+    assert!(adl_dsh_version::detect_running_dsh(port).await.is_none());
 }
 
 /// 端口空闲时快速返回 `None`（不创建 HTTP 客户端）。

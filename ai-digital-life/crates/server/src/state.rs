@@ -40,6 +40,10 @@ pub struct ServerState {
     /// 使 close/revert/uninstall 在启动期间不被阻塞，同时避免两个并发
     /// `/dsh/open` 各自 spawn、或第二个的 free-stale 误杀第一个刚起的进程。
     pub dsh_start_lock: Arc<AsyncMutex<()>>,
+    /// 串行化版本目录变更（安装/卸载/切换/重装），避免并发写入同一目录。
+    pub dsh_version_lock: Arc<AsyncMutex<()>>,
+    /// 当前版本任务进度（安装/卸载/重装的真实进度与取消标志）。
+    pub dsh_version_task: adl_dsh_version::TaskReporter,
     /// dsh 来源缓存：避免每次打开 dsh 时都重新检测来源
     pub dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
     /// 活动工作区文件监听器（warn+降级：启动失败时保持 `None`，功能退化为无自动刷新）

@@ -5,10 +5,15 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { Spinner } from '@components/Spinner';
 import { SettingsHintButton } from '@components/settings/SettingsHintButton';
+import { SettingsSelect } from '@components/settings/SettingsSelect';
 import { RevealScrollbar } from '@components/RevealScrollbar';
 import { useRevealScrollbar } from '@hooks/useRevealScrollbar';
 import { openUrlByMethod } from '@features/preview/openByMethod';
-import type { DshVersionInfo } from '../../../shared/ipc/dsh';
+import type {
+  DshVersionInfo,
+  DshVersionSourceMode,
+  DshVersionTaskKind,
+} from '../../../shared/ipc/dsh';
 
 /** 空列表单例：避免 `?? []` 每渲染新建数组导致下游 useCallback 依赖抖动。 */
 const EMPTY_VERSIONS: DshVersionInfo[] = [];
@@ -16,7 +21,6 @@ const EMPTY_VERSIONS: DshVersionInfo[] = [];
 /** 官方信息外链（事项 5）：npm 包页 + GitHub Releases，经 openExternal 双端跳转。 */
 const NPM_PACKAGE_URL = 'https://www.npmjs.com/package/@deepseek-ai/dsh';
 const GITHUB_RELEASES_URL = 'https://github.com/deepseek-ai/deepseek-harness/releases';
-
 /**
  * 版本管理调试埋点（临时）：用户在 Tauri 桌面实测后，凭此前缀在
  * `.adl-logs/debug-logs*.txt` 中定位版本块日志，核对排查后再删除。
@@ -102,6 +106,7 @@ export function DshVersionManagement() {
   const versionStatus = useAppStore((s) => s.versionStatus);
   const versionCatalog = useAppStore((s) => s.versionCatalog);
   const versionCatalogFailed = useAppStore((s) => s.versionCatalogFailed);
+  const versionTask = useAppStore((s) => s.versionTask);
   const dshSourceStatus = useAppStore((s) => s.sourceStatus);
   const showToast = useAppStore((s) => s.showToast);
   const stableVersions = useMemo(() => versionCatalog?.stable ?? EMPTY_VERSIONS, [versionCatalog]);
@@ -122,6 +127,7 @@ export function DshVersionManagement() {
   const reinstallingRef = useRef(false);
   const revertingRef = useRef<string | null>(null);
   const installingRef = useRef<string | null>(null);
+  const cancelRequestedRef = useRef(false);
   const uninstallingRef = useRef<string | null>(null);
   const versionMenuPanelRef = useRef<HTMLDivElement>(null);
   // 版本选择下拉框的锚点 + 所属分区：点击哪行的下拉框，菜单就定位在哪行下方，
@@ -146,6 +152,17 @@ export function DshVersionManagement() {
   const prereleaseAvailable = versionStatus?.prereleaseAvailable ?? null;
   const hasPrereleaseUpdate = versionStatus?.hasPrereleaseUpdate ?? false;
   const installed = versionStatus?.installed ?? [];
+  const versionSource = dshSourceStatus?.versionSource ?? null;
+  const sourceMode: DshVersionSourceMode =
+    versionSource?.mode ?? dshSourceStatus?.config.version_source ?? 'auto';
+  const effectiveSystem = versionSource?.effective === 'system';
+  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
+  const [sourceDialogBusy, setSourceDialogBusy] = useState(false);
+  const deferredSource = useAppStore((s) => s.dshVersionSourceDeferred);
+  const setDeferredSource = useAppStore((s) => s.setDshVersionSourceDeferred);
+  const systemManaged = effectiveSystem && !deferredSource;
+  const autoSwitchedRef = useRef(false);
+  const sourceDialogCancelRef = useRef<HTMLButtonElement | null>(null);
 
   // 各分区下拉框选中的版本（null = 自动跟随：当前选中在该分区则显示它，否则显示该分区最新）。
   const [stablePick, setStablePick] = useState<string | null>(null);
@@ -238,27 +255,6 @@ export function DshVersionManagement() {
     menuGeometry !== null,
   ]);
 
-  // 当前版本有效展示：selected → 运行中 → 系统安装 → 内置 → 未安装。
-  // 背景：版本管理只跟踪宿主目录 selected.txt；用户装有系统全局 dsh 时
-  // selected 为空但 dsh 实际可用，旧文案“一律未安装”会误导（事项 5）。
-  const effectiveSource = currentSelected
-    ? null
-    : dshSourceStatus?.running
-      ? {
-          kind: 'running' as const,
-          text: t.dshEffectiveRunning.replace('{url}', dshSourceStatus.running.url),
-        }
-      : dshSourceStatus?.system
-        ? {
-            kind: 'system' as const,
-            text: t.dshEffectiveSystem.replace('{path}', dshSourceStatus.system.path),
-          }
-        : dshSourceStatus?.bundled
-          ? {
-              kind: 'bundled' as const,
-              text: t.dshEffectiveBundled.replace('{version}', dshSourceStatus.bundled.version),
-            }
-          : null;
   useEffect(() => {
     debugVer('render: effective version', {
       currentSelected,
@@ -273,6 +269,27 @@ export function DshVersionManagement() {
   useEffect(() => {
     setUninstallConfirm(false);
   }, [currentSelected]);
+
+  useEffect(() => {
+    if (sourceMode !== 'auto') {
+      autoSwitchedRef.current = false;
+    }
+  }, [sourceMode]);
+
+  useEffect(() => {
+    if (!versionSource || versionSource.mode !== 'auto' || versionSource.effective !== 'none') {
+      return;
+    }
+    if (!versionStatus || installed.length > 0) {
+      return;
+    }
+    if (autoSwitchedRef.current) {
+      return;
+    }
+    autoSwitchedRef.current = true;
+    debugVer('source: auto resolved none, switching to host', {});
+    void actions.saveSourceConfig({ version_source: 'host' }, true);
+  }, [versionSource, versionStatus, installed.length, actions]);
 
   /**
    * 版本菜单几何：菜单经 Portal 挂到 body（fixed），不受设置面板滚动容器
@@ -393,10 +410,22 @@ export function DshVersionManagement() {
       // latest 为 null 说明查询失败（断网/镜像不可达），此时 hasUpdate 恒 false，
       // 不得误报“已是最新版本”，必须报检查失败（事项 5 确认的 Bug）。
       if (!status?.latestAvailable) {
-        showToast(t.dshCheckUpdateFailed, 'error');
+        if (status?.hasPrereleaseUpdate && status.prereleaseAvailable) {
+          showToast(
+            t.dshCheckUpdatePrerelease.replace('{version}', status.prereleaseAvailable),
+            'success',
+          );
+        } else {
+          showToast(t.dshCheckUpdateNoStable, 'warning');
+        }
+        void actions.fetchVersionCatalog(true);
         return;
       }
-      showToast(status.hasUpdate ? t.dshHasUpdate : t.dshNoUpdate, 'success');
+      if (status.hasUpdate) {
+        showToast(t.dshCheckUpdateFound.replace('{version}', status.latestAvailable), 'success');
+      } else {
+        showToast(t.dshNoUpdate, 'success');
+      }
       // 检查更新顺带静默刷新官方目录，供下方正式版/预发布列表展示。
       void actions.fetchVersionCatalog(true);
     } catch {
@@ -421,7 +450,18 @@ export function DshVersionManagement() {
         const ok = await actions.revertDsh(version);
         if (ok) {
           debugVer('revert: ok', { version });
-          showToast(t.dshRevertedTo.replace('{version}', version), 'success');
+          const restart = await actions.restartDsh();
+          await actions.fetchSourceStatus(true);
+          if (restart.failed) {
+            showToast(t.dshRestartFailed, 'error');
+          } else {
+            showToast(
+              restart.restarted
+                ? t.dshSwitchedRestarted.replace('{version}', version)
+                : t.dshSwitchedOnly.replace('{version}', version),
+              'success',
+            );
+          }
         }
       } catch {
         // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
@@ -449,17 +489,42 @@ export function DshVersionManagement() {
       try {
         const ok = await actions.uninstallDsh(version);
         if (ok) {
-          showToast(t.dshUninstallSuccess.replace('{version}', version), 'success');
+          const next = useAppStore.getState().versionStatus?.currentSelected ?? null;
+          if (version === currentSelected) {
+            const restart = await actions.restartDsh();
+            await actions.fetchSourceStatus(true);
+            if (restart.failed) {
+              showToast(t.dshRestartFailed, 'error');
+            } else {
+              showToast(
+                next
+                  ? t.dshUninstalledSwitched.replace('{version}', version).replace('{next}', next)
+                  : t.dshUninstalledNoVersion.replace('{version}', version),
+                'success',
+              );
+            }
+          } else {
+            await actions.fetchSourceStatus(true);
+            showToast(t.dshUninstallSuccess.replace('{version}', version), 'success');
+          }
+        } else if (cancelRequestedRef.current) {
+          showToast(t.dshVersionCancelled, 'warning');
         }
       } catch {
         // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
-        showToast(t.dshUninstallFailed, 'error');
+        if (cancelRequestedRef.current) {
+          showToast(t.dshVersionCancelled, 'warning');
+        } else {
+          showToast(t.dshUninstallFailed, 'error');
+        }
       } finally {
+        cancelRequestedRef.current = false;
+        void actions.fetchVersionTask();
         uninstallingRef.current = null;
         setUninstallingVersion(null);
       }
     },
-    [actions, showToast, t],
+    [actions, currentSelected, showToast, t],
   );
 
   const handleReinstall = useCallback(async () => {
@@ -473,18 +538,33 @@ export function DshVersionManagement() {
       const ok = await actions.reinstallDsh();
       if (ok) {
         debugVer('reinstall: ok', { currentSelected });
-        showToast(
-          currentSelected
-            ? t.dshReinstallVersion.replace('{version}', currentSelected)
-            : t.dshReinstall,
-          'success',
-        );
+        const restart = await actions.restartDsh();
+        await actions.fetchSourceStatus(true);
+        if (restart.failed) {
+          showToast(t.dshRestartFailed, 'error');
+        } else {
+          const version = currentSelected ?? '';
+          showToast(
+            restart.restarted
+              ? t.dshReinstalledRestarted.replace('{version}', version)
+              : t.dshReinstalledOnly.replace('{version}', version),
+            'success',
+          );
+        }
+      } else if (cancelRequestedRef.current) {
+        showToast(t.dshVersionCancelled, 'warning');
       }
     } catch {
       // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
       debugVer('reinstall: threw', {});
-      showToast(t.dshReinstallFailed, 'error');
+      if (cancelRequestedRef.current) {
+        showToast(t.dshVersionCancelled, 'warning');
+      } else {
+        showToast(t.dshReinstallFailed, 'error');
+      }
     } finally {
+      cancelRequestedRef.current = false;
+      void actions.fetchVersionTask();
       reinstallingRef.current = false;
       setReinstalling(false);
     }
@@ -506,18 +586,147 @@ export function DshVersionManagement() {
         const ok = await actions.installDshVersion(version);
         if (ok) {
           debugVer('installVersion: ok', { version });
-          showToast(t.dshInstallSuccess.replace('{version}', version), 'success');
+          const restart = await actions.restartDsh();
+          await actions.fetchSourceStatus(true);
+          if (restart.failed) {
+            showToast(t.dshRestartFailed, 'error');
+          } else {
+            showToast(
+              restart.restarted
+                ? t.dshInstalledRestarted.replace('{version}', version)
+                : t.dshInstallSuccess.replace('{version}', version),
+              'success',
+            );
+          }
+        } else if (cancelRequestedRef.current) {
+          showToast(t.dshVersionCancelled, 'warning');
         }
       } catch {
         debugVer('installVersion: threw', { version });
-        showToast(t.dshInstallFailed, 'error');
+        if (cancelRequestedRef.current) {
+          showToast(t.dshVersionCancelled, 'warning');
+        } else {
+          showToast(t.dshInstallFailed, 'error');
+        }
       } finally {
+        cancelRequestedRef.current = false;
+        void actions.fetchVersionTask();
         installingRef.current = null;
         setInstallingVersion(null);
       }
     },
     [actions, showToast, t],
   );
+
+  const sourceOptions = useMemo(
+    () => [
+      { value: 'auto', label: t.dshVersionSourceAuto },
+      { value: 'system', label: t.dshVersionSourceSystem },
+      { value: 'host', label: t.dshVersionSourceHost },
+    ],
+    [t],
+  );
+
+  const saveVersionSource = useCallback(
+    async (mode: DshVersionSourceMode): Promise<boolean> => {
+      const ok = await actions.saveSourceConfig({ version_source: mode }, true);
+      if (!ok) {
+        showToast(t.dshSettingsSaveFailed, 'error');
+        return false;
+      }
+      await actions.fetchSourceStatus(true);
+      return true;
+    },
+    [actions, showToast, t],
+  );
+
+  const handleSourceChange = useCallback(
+    async (value: string) => {
+      const mode = value as DshVersionSourceMode;
+      debugVer('source: change', { mode });
+      if (mode === 'system') {
+        if (!dshSourceStatus?.system) {
+          showToast(t.dshSystemMissing, 'error');
+          return;
+        }
+        if (dshSourceStatus?.running) {
+          setSourceDialogOpen(true);
+          return;
+        }
+        if (await saveVersionSource('system')) {
+          setDeferredSource(false);
+        }
+        return;
+      }
+      setDeferredSource(false);
+      await saveVersionSource(mode);
+    },
+    [
+      dshSourceStatus?.running,
+      dshSourceStatus?.system,
+      setDeferredSource,
+      saveVersionSource,
+      showToast,
+      t,
+    ],
+  );
+
+  const handleSystemDialogChoice = useCallback(
+    async (choice: 'next' | 'now' | 'cancel') => {
+      if (sourceDialogBusy) {
+        return;
+      }
+      setSourceDialogBusy(true);
+      try {
+        if (choice === 'cancel') {
+          setDeferredSource(false);
+          await saveVersionSource('host');
+          return;
+        }
+        if (!(await saveVersionSource('system'))) {
+          return;
+        }
+        if (choice === 'next') {
+          setDeferredSource(true);
+          showToast(t.dshVersionSourceNextLaunchSaved, 'success');
+          return;
+        }
+        setDeferredSource(false);
+        const restart = await actions.restartDsh();
+        await actions.fetchSourceStatus(true);
+        showToast(
+          restart.failed ? t.dshRestartFailed : t.dshVersionSourceSwitched,
+          restart.failed ? 'error' : 'success',
+        );
+      } finally {
+        setSourceDialogBusy(false);
+        setSourceDialogOpen(false);
+      }
+    },
+    [actions, setDeferredSource, saveVersionSource, showToast, sourceDialogBusy, t],
+  );
+
+  useEffect(() => {
+    if (!sourceDialogOpen) {
+      return;
+    }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || sourceDialogBusy) {
+        return;
+      }
+      // Escape 仅关闭对话框，不做任何写入：用户"先不做决定"不应被记为"取消回退 host"。
+      event.preventDefault();
+      setSourceDialogOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sourceDialogBusy, sourceDialogOpen]);
+
+  useEffect(() => {
+    if (sourceDialogOpen) {
+      sourceDialogCancelRef.current?.focus();
+    }
+  }, [sourceDialogOpen]);
 
   /** 官方版本信息外链：跟随「打开方式」设置的网址落点（面板/中间区/外部浏览器）。 */
   const handleOpenOfficial = useCallback((url: string) => {
@@ -587,6 +796,36 @@ export function DshVersionManagement() {
     void actions.fetchVersionCatalog();
   }, [actions]);
 
+  useEffect(() => {
+    void actions.fetchVersionTask();
+    if (!versionBusy) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      void actions.fetchVersionTask();
+    }, 400);
+    return () => window.clearInterval(id);
+  }, [versionBusy, actions]);
+
+  const handleCancelTask = useCallback(async () => {
+    cancelRequestedRef.current = true;
+    const ok = await actions.cancelVersionTask();
+    if (!ok) {
+      cancelRequestedRef.current = false;
+      showToast(t.dshVersionCancelFailed, 'error');
+    }
+  }, [actions, showToast, t]);
+
+  const taskCancelLabel = useCallback(
+    (kind: DshVersionTaskKind) =>
+      kind === 'uninstall'
+        ? t.dshCancelUninstall
+        : kind === 'reinstall'
+          ? t.dshCancelReinstall
+          : t.dshCancelInstall,
+    [t],
+  );
+
   // 官方列表行布局：版本选择下拉框固定最左，其它动态按钮固定同行最右。
   // 可见性规则：已装→卸载+重装；未装→安装；已装非当前→加切换；当前→无安装/切换。
   // 安装按钮不带版本号（下拉框按钮已展示版本号 + 已装徽章）。
@@ -624,54 +863,94 @@ export function DshVersionManagement() {
           </span>
         </button>
         {time ? <span className="adl-dsh-settings__version-list-item-time">{time}</span> : null}
-        <div className="adl-dsh-settings__version-list-actions">
-          {isInstalled ? (
-            <button
-              type="button"
-              className={`adl-dsh-settings__action-btn${
-                isCurrent && uninstallConfirm ? ' adl-dsh-settings__action-btn--danger' : ''
+        {versionTask?.version === v ? (
+          <div className="adl-dsh-settings__version-task">
+            <div
+              className={`adl-dsh-settings__progress${
+                versionTask.percent == null ? ' is-indeterminate' : ''
               }`}
-              onClick={() => void handleUninstallRow(v)}
-              disabled={versionBusy}
-              aria-label={uninstallingVersion === v ? t.dshUninstall : undefined}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={versionTask.percent ?? undefined}
             >
-              {uninstallingVersion === v ? <Spinner size="sm" speed="normal" /> : t.dshUninstall}
-            </button>
-          ) : null}
-          {isInstalled ? (
-            <button
-              type="button"
-              className="adl-dsh-settings__action-btn"
-              onClick={() => void handleReinstallRow(v)}
-              disabled={versionBusy}
-              aria-label={reinstalling ? t.dshReinstall : undefined}
-            >
-              {reinstalling ? <Spinner size="sm" speed="normal" /> : t.dshReinstall}
-            </button>
-          ) : null}
-          {!isInstalled ? (
-            <button
-              type="button"
-              className="adl-dsh-settings__action-btn"
-              onClick={() => void handleInstallVersion(v)}
-              disabled={versionBusy}
-              aria-label={installingVersion === v ? t.dshInstallAction : undefined}
-            >
-              {installingVersion === v ? <Spinner size="sm" speed="normal" /> : t.dshInstallAction}
-            </button>
-          ) : null}
-          {isInstalled && !isCurrent ? (
-            <button
-              type="button"
-              className="adl-dsh-settings__action-btn"
-              onClick={() => void handleRevertToVersion(v)}
-              disabled={versionBusy}
-              aria-label={revertingVersion === v ? t.dshSwitchToVersion : undefined}
-            >
-              {revertingVersion === v ? <Spinner size="sm" speed="normal" /> : t.dshSwitchToVersion}
-            </button>
-          ) : null}
-        </div>
+              <div className="adl-dsh-settings__progress-bar">
+                <div
+                  className="adl-dsh-settings__progress-fill"
+                  style={
+                    versionTask.percent == null ? undefined : { width: `${versionTask.percent}%` }
+                  }
+                />
+              </div>
+            </div>
+            {versionTask.cancellable ? (
+              <button
+                type="button"
+                className="adl-dsh-settings__action-btn"
+                onClick={() => void handleCancelTask()}
+              >
+                {taskCancelLabel(versionTask.kind)}
+              </button>
+            ) : null}
+          </div>
+        ) : (
+          <div className="adl-dsh-settings__version-list-actions">
+            {isInstalled ? (
+              <button
+                type="button"
+                className={`adl-dsh-settings__action-btn${
+                  isCurrent && uninstallConfirm ? ' adl-dsh-settings__action-btn--danger' : ''
+                }`}
+                onClick={() => void handleUninstallRow(v)}
+                disabled={versionBusy}
+                aria-label={uninstallingVersion === v ? t.dshUninstall : undefined}
+              >
+                {uninstallingVersion === v ? <Spinner size="sm" speed="normal" /> : t.dshUninstall}
+              </button>
+            ) : null}
+            {isInstalled ? (
+              <button
+                type="button"
+                className="adl-dsh-settings__action-btn"
+                onClick={() => void handleReinstallRow(v)}
+                disabled={versionBusy}
+                aria-label={reinstalling ? t.dshReinstall : undefined}
+              >
+                {reinstalling ? <Spinner size="sm" speed="normal" /> : t.dshReinstall}
+              </button>
+            ) : null}
+            {!isInstalled ? (
+              <button
+                type="button"
+                className="adl-dsh-settings__action-btn"
+                onClick={() => void handleInstallVersion(v)}
+                disabled={versionBusy}
+                aria-label={installingVersion === v ? t.dshInstallAction : undefined}
+              >
+                {installingVersion === v ? (
+                  <Spinner size="sm" speed="normal" />
+                ) : (
+                  t.dshInstallAction
+                )}
+              </button>
+            ) : null}
+            {isInstalled && !isCurrent ? (
+              <button
+                type="button"
+                className="adl-dsh-settings__action-btn"
+                onClick={() => void handleRevertToVersion(v)}
+                disabled={versionBusy}
+                aria-label={revertingVersion === v ? t.dshSwitchToVersion : undefined}
+              >
+                {revertingVersion === v ? (
+                  <Spinner size="sm" speed="normal" />
+                ) : (
+                  t.dshSwitchToVersion
+                )}
+              </button>
+            ) : null}
+          </div>
+        )}
       </>
     );
   };
@@ -715,8 +994,88 @@ export function DshVersionManagement() {
     );
   };
 
+  const readout = useMemo(() => {
+    if (versionSource) {
+      switch (versionSource.effective) {
+        case 'host':
+          return { text: versionSource.hostVersion ?? currentSelected ?? '', empty: false };
+        case 'running':
+          return {
+            text: t.dshEffectiveRunning.replace('{url}', dshSourceStatus?.running?.url ?? ''),
+            empty: true,
+          };
+        case 'system':
+          return {
+            text: t.dshEffectiveSystem.replace('{path}', dshSourceStatus?.system?.path ?? ''),
+            empty: true,
+          };
+        case 'bundled':
+          return {
+            text: t.dshEffectiveBundled.replace(
+              '{version}',
+              dshSourceStatus?.bundled?.version ?? '',
+            ),
+            empty: true,
+          };
+        default:
+          return { text: t.dshCurrentVersionNone, empty: true };
+      }
+    }
+    if (currentSelected) {
+      return { text: currentSelected, empty: false };
+    }
+    if (dshSourceStatus?.running) {
+      return {
+        text: t.dshEffectiveRunning.replace('{url}', dshSourceStatus.running.url),
+        empty: true,
+      };
+    }
+    if (dshSourceStatus?.system) {
+      return {
+        text: t.dshEffectiveSystem.replace('{path}', dshSourceStatus.system.path),
+        empty: true,
+      };
+    }
+    if (dshSourceStatus?.bundled) {
+      return {
+        text: t.dshEffectiveBundled.replace('{version}', dshSourceStatus.bundled.version),
+        empty: true,
+      };
+    }
+    return { text: t.dshCurrentVersionNone, empty: true };
+  }, [versionSource, currentSelected, dshSourceStatus, t]);
+
   return (
     <div className="adl-settings-card">
+      {/* 行0：版本来源（自动检测 / 系统安装 / 宿主安装）。 */}
+      <div className="adl-settings-row" data-settings-row={t.dshVersionSource}>
+        <div className="adl-settings-row__label">
+          <div className="adl-settings-row__label-text">
+            <SettingsHintButton content={t.dshVersionSourceHint} />
+            <span>{t.dshVersionSource}</span>
+          </div>
+          <small>{t.dshVersionSourceDesc}</small>
+          {systemManaged ? (
+            <small className="adl-dsh-settings__row-warn">{t.dshSystemManagedNote}</small>
+          ) : null}
+          {deferredSource ? (
+            <small className="adl-dsh-settings__row-warn">{t.dshVersionSourceDeferredNote}</small>
+          ) : null}
+          {!systemManaged && versionSource?.effective === 'none' ? (
+            <small className="adl-dsh-settings__row-warn">{t.dshNoSourceNote}</small>
+          ) : null}
+        </div>
+        <div className="adl-settings-row__control">
+          <SettingsSelect
+            value={sourceMode}
+            options={sourceOptions}
+            onChange={handleSourceChange}
+            label={t.dshVersionSource}
+            disabled={versionBusy || sourceDialogBusy}
+          />
+        </div>
+      </div>
+
       {/* 行1：当前版本（副标题 + 提示图标；右侧版本号 + 状态徽标 + 最新可用版本）。 */}
       <div className="adl-settings-row" data-settings-row={t.dshCurrentVersionLabel}>
         <div className="adl-settings-row__label">
@@ -728,7 +1087,7 @@ export function DshVersionManagement() {
           {uninstallConfirm && isCurrentSelected ? (
             <small className="adl-dsh-settings__row-warn">{t.dshUninstallCurrentHint}</small>
           ) : null}
-          {hasPrereleaseUpdate && prereleaseAvailable ? (
+          {!systemManaged && hasPrereleaseUpdate && prereleaseAvailable ? (
             <small className="adl-dsh-settings__row-warn">
               {t.dshPrereleaseUpdateAvailable.replace('{version}', prereleaseAvailable)}
             </small>
@@ -736,27 +1095,21 @@ export function DshVersionManagement() {
         </div>
         <div className="adl-settings-row__control">
           <div className="adl-dsh-settings__version-readout">
-            {currentSelected ? (
+            {readout.empty ? (
+              <span className="adl-dsh-settings__version-value is-empty">{readout.text}</span>
+            ) : (
               <span className="adl-dsh-settings__version-value">
-                {currentSelected}
+                {readout.text}
                 {hasUpdate ? (
                   <span className="adl-dsh-settings__badge adl-dsh-settings__badge--update">
                     {t.dshHasUpdate}
                   </span>
-                ) : (
+                ) : latestAvailable ? (
                   <span className="adl-dsh-settings__badge">{t.dshNoUpdate}</span>
-                )}
-              </span>
-            ) : effectiveSource ? (
-              <span className="adl-dsh-settings__version-value is-empty">
-                {effectiveSource.text}
-              </span>
-            ) : (
-              <span className="adl-dsh-settings__version-value is-empty">
-                {t.dshCurrentVersionNone}
+                ) : null}
               </span>
             )}
-            {latestAvailable ? (
+            {latestAvailable && !systemManaged ? (
               <small className="adl-dsh-settings__version-latest">
                 {t.dshLatest.replace('{version}', latestAvailable)}
               </small>
@@ -766,26 +1119,28 @@ export function DshVersionManagement() {
       </div>
 
       {/* 行2：检查更新（仅检查；安装/切换/卸载/重装在下方正式版/预发布行内按行操作）。 */}
-      <div className="adl-settings-row" data-settings-row={t.dshCheckUpdate}>
-        <div className="adl-settings-row__label">
-          <div className="adl-settings-row__label-text">
-            <SettingsHintButton content={t.dshCheckUpdateHint} />
-            <span>{t.dshCheckUpdate}</span>
+      {!systemManaged ? (
+        <div className="adl-settings-row" data-settings-row={t.dshCheckUpdate}>
+          <div className="adl-settings-row__label">
+            <div className="adl-settings-row__label-text">
+              <SettingsHintButton content={t.dshCheckUpdateHint} />
+              <span>{t.dshCheckUpdate}</span>
+            </div>
+            <small>{t.dshCheckUpdateDesc}</small>
           </div>
-          <small>{t.dshCheckUpdateDesc}</small>
+          <div className="adl-settings-row__control adl-dsh-settings__version-actions">
+            <button
+              type="button"
+              className="adl-dsh-settings__action-btn"
+              onClick={handleCheckUpdate}
+              disabled={versionBusy}
+              aria-label={checkingUpdate ? t.dshCheckUpdate : undefined}
+            >
+              {checkingUpdate ? <Spinner size="sm" speed="normal" /> : t.dshCheckUpdate}
+            </button>
+          </div>
         </div>
-        <div className="adl-settings-row__control adl-dsh-settings__version-actions">
-          <button
-            type="button"
-            className="adl-dsh-settings__action-btn"
-            onClick={handleCheckUpdate}
-            disabled={versionBusy}
-            aria-label={checkingUpdate ? t.dshCheckUpdate : undefined}
-          >
-            {checkingUpdate ? <Spinner size="sm" speed="normal" /> : t.dshCheckUpdate}
-          </button>
-        </div>
-      </div>
+      ) : null}
 
       {/* 宽度测量尺（隐藏）：取分区最长选项实测宽度，下拉框与菜单卡片同宽，
           保证菜单内“版本号 + 徽章”全部单行。结构与真实菜单项一致
@@ -914,44 +1269,45 @@ export function DshVersionManagement() {
           )
         : null}
 
-      {/* 行3：正式版本（单版本展示 + 行内操作；全部版本在下拉框菜单中选择）。
-          有版本时整体堆叠（标签在上、控件独占下一行）；无版本时保持常规行布局，
-          空态文案与 label 同行居右（事项 7 用户要求）。 */}
-      <div
-        className={`adl-settings-row${stableVersions.length > 0 ? ' adl-dsh-settings__row--stack' : ''}`}
-        data-settings-row={t.dshOfficialStable}
-      >
-        <div className="adl-settings-row__label">
-          <div className="adl-settings-row__label-text">
-            <SettingsHintButton content={t.dshOfficialStableHint} />
-            <span>{t.dshOfficialStable}</span>
+      {!systemManaged ? (
+        <>
+          {/* 行3：正式版本（单版本展示 + 行内操作；全部版本在下拉框菜单中选择）。 */}
+          <div
+            className={`adl-settings-row${stableVersions.length > 0 ? ' adl-dsh-settings__row--stack' : ''}`}
+            data-settings-row={t.dshOfficialStable}
+          >
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <SettingsHintButton content={t.dshOfficialStableHint} />
+                <span>{t.dshOfficialStable}</span>
+              </div>
+              <small>{t.dshOfficialStableDesc}</small>
+            </div>
+            <div className="adl-settings-row__control">
+              {renderVersionList(stableVersions, 'stable', t.dshOfficialStableEmpty)}
+            </div>
           </div>
-          <small>{t.dshOfficialStableDesc}</small>
-        </div>
-        <div className="adl-settings-row__control">
-          {renderVersionList(stableVersions, 'stable', t.dshOfficialStableEmpty)}
-        </div>
-      </div>
 
-      {/* 行4：预发布版本（尝鲜通道分区 + 特殊说明；单版本展示 + 行内操作）。
-          有版本时整体堆叠；无版本时保持常规行布局（同正式版行）。 */}
-      <div
-        className={`adl-settings-row${prereleaseVersions.length > 0 ? ' adl-dsh-settings__row--stack' : ''}`}
-        data-settings-row={t.dshPrereleaseTitle}
-      >
-        <div className="adl-settings-row__label">
-          <div className="adl-settings-row__label-text">
-            <SettingsHintButton content={t.dshPrereleaseHint} />
-            <span>{t.dshPrereleaseTitle}</span>
+          {/* 行4：预发布版本（尝鲜通道分区 + 特殊说明；单版本展示 + 行内操作）。 */}
+          <div
+            className={`adl-settings-row${prereleaseVersions.length > 0 ? ' adl-dsh-settings__row--stack' : ''}`}
+            data-settings-row={t.dshPrereleaseTitle}
+          >
+            <div className="adl-settings-row__label">
+              <div className="adl-settings-row__label-text">
+                <SettingsHintButton content={t.dshPrereleaseHint} />
+                <span>{t.dshPrereleaseTitle}</span>
+              </div>
+              <small>{t.dshPrereleaseDesc}</small>
+            </div>
+            <div className="adl-settings-row__control">
+              {renderVersionList(prereleaseVersions, 'prerelease', t.dshOfficialPrereleaseEmpty)}
+            </div>
           </div>
-          <small>{t.dshPrereleaseDesc}</small>
-        </div>
-        <div className="adl-settings-row__control">
-          {renderVersionList(prereleaseVersions, 'prerelease', t.dshOfficialPrereleaseEmpty)}
-        </div>
-      </div>
+        </>
+      ) : null}
 
-      {/* 行5：官方版本信息（说明文字内嵌蓝色链接，跟随「打开方式」网址落点跳转）。 */}
+      {/* 行5：官方版本信息（说明文字内嵌与标题同色的链接，跟随「打开方式」网址落点跳转）。 */}
       <div className="adl-settings-row" data-settings-row={t.dshOfficialLinksLabel}>
         <div className="adl-settings-row__label">
           <div className="adl-settings-row__label-text">
@@ -976,6 +1332,62 @@ export function DshVersionManagement() {
           </small>
         </div>
       </div>
+
+      {sourceDialogOpen
+        ? createPortal(
+            <div
+              className="adl-confirm-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-label={t.dshVersionSourceSystemDialogTitle}
+              onClick={sourceDialogBusy ? undefined : () => setSourceDialogOpen(false)}
+            >
+              <div className="adl-confirm-dialog" onClick={(event) => event.stopPropagation()}>
+                <div className="adl-confirm-dialog__header">
+                  <h3 className="adl-confirm-dialog__title">
+                    {t.dshVersionSourceSystemDialogTitle}
+                  </h3>
+                </div>
+                <div className="adl-confirm-dialog__body">
+                  <p className="adl-confirm-dialog__message adl-dsh-source-dialog__message">
+                    {t.dshVersionSourceSystemDialogMessage.replace(
+                      '{path}',
+                      dshSourceStatus?.system?.path ?? '',
+                    )}
+                  </p>
+                </div>
+                <div className="adl-confirm-dialog__footer">
+                  <button
+                    ref={sourceDialogCancelRef}
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={sourceDialogBusy}
+                    onClick={() => void handleSystemDialogChoice('cancel')}
+                  >
+                    {t.cancel}
+                  </button>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={sourceDialogBusy}
+                    onClick={() => void handleSystemDialogChoice('next')}
+                  >
+                    {t.dshVersionSourceApplyNextLaunch}
+                  </button>
+                  <button
+                    type="button"
+                    className="adl-btn adl-btn--secondary"
+                    disabled={sourceDialogBusy}
+                    onClick={() => void handleSystemDialogChoice('now')}
+                  >
+                    {t.dshVersionSourceApplyNow}
+                  </button>
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

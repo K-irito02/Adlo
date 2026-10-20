@@ -20,6 +20,8 @@ pub enum ErrorKind {
     AuthError,
     Network,
     Internal,
+    /// 用户主动取消（正常意图，非错误输入；前端据此静默处理，不弹错）。
+    Cancelled,
 }
 
 impl ErrorKind {
@@ -42,6 +44,7 @@ impl ErrorKind {
             Self::AuthError => "AUTH_ERROR",
             Self::Network => "NETWORK_ERROR",
             Self::Internal => "INTERNAL_ERROR",
+            Self::Cancelled => "CANCELLED",
         }
     }
 }
@@ -98,6 +101,9 @@ pub enum AppError {
 
     #[error("Internal error: {0}")]
     Internal(String),
+
+    #[error("Cancelled: {0}")]
+    Cancelled(String),
 }
 
 impl AppError {
@@ -124,6 +130,7 @@ impl AppError {
             Self::AuthError(_) => ErrorKind::AuthError,
             Self::Network(_) => ErrorKind::Network,
             Self::Internal(_) => ErrorKind::Internal,
+            Self::Cancelled(_) => ErrorKind::Cancelled,
         }
     }
 }
@@ -164,6 +171,7 @@ mod tests {
         assert_eq!(AppError::Internal("".into()).error_code(), "INTERNAL_ERROR");
         assert_eq!(AppError::AuthError("".into()).error_code(), "AUTH_ERROR");
         assert_eq!(AppError::Timeout("".into()).error_code(), "TIMEOUT");
+        assert_eq!(AppError::Cancelled("".into()).error_code(), "CANCELLED");
     }
 
     #[test]

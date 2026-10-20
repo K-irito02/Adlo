@@ -20,6 +20,10 @@ const revertDsh = vi.fn();
 const uninstallDsh = vi.fn();
 const reinstallDsh = vi.fn();
 const installDshVersion = vi.fn();
+const restartDsh = vi.fn();
+const saveSourceConfig = vi.fn();
+const fetchVersionTask = vi.fn();
+const cancelVersionTask = vi.fn();
 
 vi.mock('@hooks/useAppActions', () => {
   // 单例对象：保持 useAppActions 返回引用稳定（真实实现经 useShallow 也稳定），
@@ -33,6 +37,10 @@ vi.mock('@hooks/useAppActions', () => {
     uninstallDsh: (...args: unknown[]) => uninstallDsh(...args),
     reinstallDsh: (...args: unknown[]) => reinstallDsh(...args),
     installDshVersion: (...args: unknown[]) => installDshVersion(...args),
+    restartDsh: (...args: unknown[]) => restartDsh(...args),
+    saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
+    fetchVersionTask: (...args: unknown[]) => fetchVersionTask(...args),
+    cancelVersionTask: (...args: unknown[]) => cancelVersionTask(...args),
   };
   return { useAppActions: () => actions };
 });
@@ -102,6 +110,12 @@ function seedCatalog(stable: string[] = ['0.2.0', '0.1.0'], prerelease: string[]
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionStorage.clear();
+  useAppStore.setState({
+    versionTask: null,
+    versionTaskCancelRequested: false,
+    dshVersionSourceDeferred: false,
+  });
   fetchDshVersionStatus.mockResolvedValue(true);
   fetchSourceStatus.mockResolvedValue(true);
   fetchVersionCatalog.mockResolvedValue(true);
@@ -110,6 +124,14 @@ beforeEach(() => {
   uninstallDsh.mockResolvedValue(true);
   reinstallDsh.mockResolvedValue(true);
   installDshVersion.mockResolvedValue(true);
+  restartDsh.mockResolvedValue({
+    restarted: true,
+    url: 'http://127.0.0.1:3080/?token=t',
+    failed: false,
+  });
+  saveSourceConfig.mockResolvedValue(true);
+  fetchVersionTask.mockResolvedValue(undefined);
+  cancelVersionTask.mockResolvedValue(true);
   useAppStore.setState({
     versionStatus: null,
     versionCatalog: null,
@@ -177,7 +199,7 @@ describe('DshVersionManagement', () => {
     fireEvent.click(menuPick);
     fireEvent.click(screen.getByRole('button', { name: 'dshInstallAction' }));
     await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('1.1.0'));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshInstallSuccess', 'success'));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshInstalledRestarted', 'success'));
   });
 
   it('检查更新：无更新时提示已是最新', async () => {
@@ -211,7 +233,7 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', latestAvailable: '1.0.0', installed: ['1.0.0'] });
     renderBlock();
     fireEvent.click(screen.getByRole('button', { name: 'dshCheckUpdate' }));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshHasUpdate', 'success'));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshCheckUpdateFound', 'success'));
   });
 
   it('重新安装按钮调用 reinstallDsh', async () => {
@@ -444,7 +466,9 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', latestAvailable: '1.0.0', installed: ['1.0.0'] });
     renderBlock();
     fireEvent.click(screen.getByRole('button', { name: 'dshCheckUpdate' }));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshCheckUpdateFailed', 'error'));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith('dshCheckUpdateNoStable', 'warning'),
+    );
     expect(showToast).not.toHaveBeenCalledWith('dshNoUpdate', expect.anything());
   });
 
@@ -455,10 +479,12 @@ describe('DshVersionManagement', () => {
         bundled: null,
         system: null,
         running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        versionSource: { mode: 'auto', effective: 'running', hostVersion: null },
         config: {
           npm_registry: 'https://registry.npmjs.org',
           dsh_mirror: null,
           source_mode: 'auto',
+          version_source: 'auto',
           proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
         },
       },
@@ -511,7 +537,7 @@ describe('DshVersionManagement', () => {
     fireEvent.click(menuPick);
     fireEvent.click(screen.getByRole('button', { name: 'dshInstallAction' }));
     await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('0.2.0'));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshInstallSuccess', 'success'));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshInstalledRestarted', 'success'));
   });
 
   it('已装非当前行重装走登记并选中（installDshVersion），无二次弹窗', async () => {
@@ -539,7 +565,7 @@ describe('DshVersionManagement', () => {
     await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('0.2.0'));
   });
 
-  it('官方版本信息行内嵌蓝色链接，点击跟随打开方式跳转', () => {
+  it('官方版本信息行内嵌与标题同色的链接，点击跟随打开方式跳转', () => {
     seed({ currentSelected: null, installed: [] });
     renderBlock();
     const links = Array.from(
@@ -581,10 +607,273 @@ describe('DshVersionManagement', () => {
     });
     renderBlock();
     expect(screen.getByText('dshPrereleaseTitle')).toBeTruthy();
-    // 单行说明（原特殊说明行已合并，不再单独成行）。
+    // 分区说明：原独立说明行已合并进分区标题行内。
     expect(screen.getByText('dshPrereleaseDesc')).toBeTruthy();
     expect(screen.queryByText('dshPrereleaseNote')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'dshSwitchToVersion' }));
     await waitFor(() => expect(revertDsh).toHaveBeenCalledWith('0.2.1-rc.2'));
+  });
+
+  it('实际来源为系统安装时隐藏管理项并显示说明', () => {
+    seed({ currentSelected: null, installed: [] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: null,
+        versionSource: { mode: 'auto', effective: 'system', hostVersion: null },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    expect(screen.queryByText('dshCheckUpdate')).toBeNull();
+    expect(screen.queryByText('dshOfficialStable')).toBeNull();
+    expect(screen.queryByText('dshPrereleaseTitle')).toBeNull();
+    expect(screen.getByText('dshSystemManagedNote')).toBeTruthy();
+  });
+
+  it('自动检测无来源时把版本来源切换为宿主安装', async () => {
+    seed({ currentSelected: null, installed: [] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: null,
+        running: null,
+        versionSource: { mode: 'auto', effective: 'none', hostVersion: null },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    await waitFor(() =>
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'host' }, true),
+    );
+  });
+
+  it('检查更新：只有预发布更新时提示预发布版本', async () => {
+    const showToast = vi.fn();
+    useAppStore.setState({ showToast });
+    fetchDshVersionStatus.mockImplementation(async () => {
+      useAppStore.setState({
+        versionStatus: {
+          currentSelected: '1.0.0',
+          latestAvailable: null,
+          hasUpdate: false,
+          installed: ['1.0.0'],
+          prereleaseAvailable: '1.1.0-rc.1',
+          hasPrereleaseUpdate: true,
+          prereleaseUnknown: false,
+        },
+      });
+      return true;
+    });
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshCheckUpdate' }));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith('dshCheckUpdatePrerelease', 'success'),
+    );
+  });
+
+  it('版本管理块渲染版本来源选择器', () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    renderBlock();
+    expect(screen.getByText('dshVersionSource')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'dshVersionSource' })).toBeTruthy();
+  });
+
+  it('选择系统安装且助手运行中：弹出三选项对话框', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'host',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    expect(await screen.findByText('dshVersionSourceSystemDialogTitle')).toBeTruthy();
+    expect(screen.getByText('dshVersionSourceApplyNextLaunch')).toBeTruthy();
+    expect(screen.getByText('dshVersionSourceApplyNow')).toBeTruthy();
+  });
+
+  it('对话框选择立即生效：保存系统安装并重启助手', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'host',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    fireEvent.click(await screen.findByText('dshVersionSourceApplyNow'));
+    await waitFor(() =>
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'system' }, true),
+    );
+    await waitFor(() => expect(restartDsh).toHaveBeenCalled());
+  });
+
+  it('对话框选择下次启动生效：保存但不立即隐藏管理项', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'host',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    fireEvent.click(await screen.findByText('dshVersionSourceApplyNextLaunch'));
+    await waitFor(() =>
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'system' }, true),
+    );
+    expect(screen.getByText('dshVersionSourceDeferredNote')).toBeTruthy();
+    expect(screen.getByText('dshOfficialStable')).toBeTruthy();
+  });
+
+  it('对话框选择取消：回退为宿主安装且不隐藏管理项', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    fireEvent.click(await screen.findByRole('button', { name: 'cancel' }));
+    await waitFor(() =>
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'host' }, true),
+    );
+    expect(screen.getByText('dshOfficialStable')).toBeTruthy();
+  });
+
+  it('对话框按 Escape 仅关闭不写入配置', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    await screen.findByRole('dialog');
+    saveSourceConfig.mockClear();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(saveSourceConfig).not.toHaveBeenCalled();
+  });
+
+  it('对话框点遮罩仅关闭不写入配置', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    await screen.findByRole('dialog');
+    saveSourceConfig.mockClear();
+    fireEvent.click(screen.getByRole('dialog'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    expect(saveSourceConfig).not.toHaveBeenCalled();
+  });
+
+  it('版本任务在对应行显示进度条与取消按钮', async () => {
+    seed({ currentSelected: '0.2.0', installed: ['0.2.0'] });
+    seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
+    useAppStore.setState({
+      versionTask: {
+        kind: 'install',
+        version: '0.2.0',
+        phase: 'installing',
+        percent: 42,
+        done: 10,
+        total: 20,
+        cancellable: true,
+      },
+    });
+    renderBlock();
+    const bars = screen.getAllByRole('progressbar');
+    expect(bars).toHaveLength(1);
+    expect(bars[0].getAttribute('aria-valuenow')).toBe('42');
+    expect(screen.getByText('dshCancelInstall')).toBeTruthy();
+    fireEvent.click(screen.getByText('dshCancelInstall'));
+    await waitFor(() => expect(cancelVersionTask).toHaveBeenCalled());
   });
 });

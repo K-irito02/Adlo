@@ -7,6 +7,7 @@ export const NPMJS_URL = 'https://registry.npmjs.org';
 /** DSH 组恢复默认的目标配置（与 DshSettings 组级恢复同源）。 */
 export const DSH_RESET_PAYLOAD: DshSourceConfig = {
   source_mode: 'auto',
+  version_source: 'auto',
   npm_registry: NPMJS_URL,
   proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
 };

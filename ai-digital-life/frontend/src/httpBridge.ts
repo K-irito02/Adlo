@@ -86,6 +86,8 @@ import type {
   DshSourceStatus,
   DshSourceConfig,
   DshTestResult,
+  DshRestartResult,
+  DshVersionTaskResult,
 } from './shared/ipc/dsh';
 import type { DurableSessionState } from './shared/ipc/durable';
 import type { ClipboardBridge, ClipboardSaveToFileResult } from './shared/ipc/clipboard';
@@ -1098,6 +1100,9 @@ export function createHttpBridge({
     // ── dsh 宿主壳 domain (/dsh/*, crates/server handlers/dsh.rs).
     dsh: {
       open: () => call<DshOpenResult>(baseUrl, '/dsh/open', POST({})),
+      restart: () => call<DshRestartResult>(baseUrl, '/dsh/restart', POST({})),
+      getVersionTask: () => call<DshVersionTaskResult>(baseUrl, '/dsh/version-task', POST({})),
+      cancelVersionTask: () => call<boolean>(baseUrl, '/dsh/cancel-version-task', POST({})),
       getVersionStatus: () => call<DshVersionStatus>(baseUrl, '/dsh/get-version-status', POST({})),
       getVersionCatalog: () => call<DshVersionCatalog>(baseUrl, '/dsh/version-catalog', POST({})),
       installVersion: (version: string) =>

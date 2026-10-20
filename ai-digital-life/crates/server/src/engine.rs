@@ -183,6 +183,8 @@ pub async fn init_server_state(
     let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
     let dsh_state = Arc::new(AsyncMutex::new(None));
     let dsh_start_lock = Arc::new(AsyncMutex::new(()));
+    let dsh_version_lock = Arc::new(AsyncMutex::new(()));
+    let dsh_version_task = adl_dsh_version::TaskReporter::new();
     let dsh_source_cache = Arc::new(RwLock::new(None));
 
     let state = ServerState {
@@ -203,6 +205,8 @@ pub async fn init_server_state(
         sysmon,
         dsh_state,
         dsh_start_lock,
+        dsh_version_lock,
+        dsh_version_task,
         dsh_source_cache,
         workspace_watcher: Arc::new(StdMutex::new(None)),
     };

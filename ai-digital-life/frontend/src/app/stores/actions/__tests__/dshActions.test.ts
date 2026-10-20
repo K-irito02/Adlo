@@ -15,7 +15,11 @@ interface DshTestStore {
   bumpSiblingWebviewNonce: () => void;
   fetchDshVersionStatus: () => Promise<boolean>;
   openDsh: () => Promise<DshOpenResult | null>;
+  restartDsh: () => Promise<{ restarted: boolean; url: string | null; failed: boolean }>;
   updateDsh: () => Promise<boolean>;
+  versionTaskCancelRequested: boolean;
+  setVersionTaskCancelRequested: (requested: boolean) => void;
+  cancelVersionTask: () => Promise<boolean>;
   /** 普通浏览器标签 + 中心标签的最小真实语义（供 openDsh 断言） */
   browserTabs: {
     id: string;
@@ -27,6 +31,8 @@ interface DshTestStore {
   centerTabs: { id: string; kind: string; refId: string | null }[];
   centerActiveTabId: string;
   browserOpenTab: (url?: string, title?: string) => void;
+  browserUpdateTab: (tabId: string, patch: { url?: string }) => void;
+  browserCloseTab: (tabId: string) => void;
   centerShowBrowserTab: (browserTabId: string) => void;
   centerSelectTab: (centerTabId: string) => void;
 }
@@ -35,7 +41,7 @@ function makeStore() {
   const store = createStore<DshTestStore>((set, get) => {
     const dshActions = createDshActions(set as never, () => get() as never) as unknown as Pick<
       DshTestStore,
-      'openDsh' | 'fetchDshVersionStatus' | 'updateDsh'
+      'openDsh' | 'restartDsh' | 'fetchDshVersionStatus' | 'updateDsh' | 'cancelVersionTask'
     >;
     return {
       versionStatus: null,
@@ -68,6 +74,15 @@ function makeStore() {
             browserActiveTabId: id,
           };
         }),
+      browserCloseTab: (tabId) =>
+        set((s) => ({
+          browserTabs: s.browserTabs.filter((t) => t.id !== tabId),
+          centerTabs: s.centerTabs.filter((c) => c.refId !== tabId),
+        })),
+      browserUpdateTab: (tabId, patch) =>
+        set((s) => ({
+          browserTabs: s.browserTabs.map((t) => (t.id === tabId ? { ...t, ...patch } : t)),
+        })),
       centerShowBrowserTab: (browserTabId) =>
         set((s) => {
           const centerId = `c${s.centerTabs.length + 1}`;
@@ -80,6 +95,8 @@ function makeStore() {
           };
         }),
       centerSelectTab: (centerTabId) => set({ centerActiveTabId: centerTabId }),
+      versionTaskCancelRequested: false,
+      setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
       ...dshActions,
     } as DshTestStore;
   });
@@ -315,5 +332,77 @@ describe('dshActions mutators (updateDsh 示例：boolean + 静默刷新语义)'
     // 静默刷新失败不记录卡片（不覆盖成功语义）。
     expect(store.getState().errorToasts).toEqual([]);
     expect(store.getState().versionStatus).toBeNull();
+  });
+});
+describe('dshActions.restartDsh', () => {
+  beforeEach(() => {
+    vi.stubGlobal('digitalLife', { dsh: { restart: vi.fn() } });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('重启成功后把同源标签导航到新地址', async () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080/?token=old', 'dsh');
+    (window as any).digitalLife.dsh.restart.mockResolvedValue({
+      ok: true,
+      data: { restarted: true, url: 'http://127.0.0.1:3080/?token=new' },
+    });
+    const result = await store.getState().restartDsh();
+    expect(result).toEqual({
+      restarted: true,
+      url: 'http://127.0.0.1:3080/?token=new',
+      failed: false,
+    });
+    expect(store.getState().browserTabs[0].url).toBe('http://127.0.0.1:3080/?token=new');
+  });
+
+  it('重启失败标记 failed 且不动标签', async () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080/?token=old', 'dsh');
+    (window as any).digitalLife.dsh.restart.mockResolvedValue({
+      ok: false,
+      error: { code: 'IO', message: 'boom' },
+    });
+    const result = await store.getState().restartDsh();
+    expect(result).toEqual({ restarted: false, url: null, failed: true });
+    expect(store.getState().browserTabs[0].url).toBe('http://127.0.0.1:3080/?token=old');
+  });
+});
+
+describe('dshActions.cancelVersionTask', () => {
+  beforeEach(() => {
+    vi.stubGlobal('digitalLife', { dsh: { cancelVersionTask: vi.fn() } });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('取消送达返回 true 且保持取消标记', async () => {
+    const store = makeStore();
+    (window as any).digitalLife.dsh.cancelVersionTask.mockResolvedValue({ ok: true, data: true });
+    const result = await store.getState().cancelVersionTask();
+    expect(result).toBe(true);
+    expect(store.getState().versionTaskCancelRequested).toBe(true);
+  });
+
+  it('取消未送达（!ok）返回 false 且复位标记，避免后续真错误被吞', async () => {
+    const store = makeStore();
+    (window as any).digitalLife.dsh.cancelVersionTask.mockResolvedValue({
+      ok: false,
+      error: { code: 'IO_ERROR', message: 'boom' },
+    });
+    const result = await store.getState().cancelVersionTask();
+    expect(result).toBe(false);
+    expect(store.getState().versionTaskCancelRequested).toBe(false);
+  });
+
+  it('桥抛异常返回 false 且复位标记', async () => {
+    const store = makeStore();
+    (window as any).digitalLife.dsh.cancelVersionTask.mockRejectedValue(new Error('down'));
+    const result = await store.getState().cancelVersionTask();
+    expect(result).toBe(false);
+    expect(store.getState().versionTaskCancelRequested).toBe(false);
   });
 });

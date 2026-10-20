@@ -763,10 +763,12 @@ describe('SettingsPanel group reset', () => {
         bundled: null,
         system: null,
         running: null,
+        versionSource: { mode: 'auto', effective: 'host', hostVersion: '0.1.0' },
         config: {
           npm_registry: 'https://registry.npmjs.org',
           dsh_mirror: null,
           source_mode: 'auto',
+          version_source: 'auto',
           proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
         },
       },

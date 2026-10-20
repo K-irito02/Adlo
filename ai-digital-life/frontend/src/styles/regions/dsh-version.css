@@ -13,6 +13,14 @@
 /* 右侧控件与下拉框同宽：下拉框定宽 160px（含 min-width 锁定意图），测试按钮同宽；
    输入框保持现状（200px）不动。过长结果文案省略显示（复用共享
    `.adl-settings-dropdown__value` 的省略规则），title 透出全文。 */
+.adl-dsh-settings {
+  --dsh-note-fg: #80b0f5;
+}
+
+.adl-dsh-source-dialog__message {
+  white-space: pre-line;
+}
+
 .adl-dsh-settings .adl-settings-dropdown {
   width: 160px;
   min-width: 160px;
@@ -97,6 +105,50 @@
   align-items: center;
 }
 
+.adl-dsh-settings__version-task {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.adl-dsh-settings__progress {
+  width: 96px;
+}
+
+.adl-dsh-settings__progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--border-subtle);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.adl-dsh-settings__progress-fill {
+  height: 100%;
+  background: var(--text-secondary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.adl-dsh-settings__progress.is-indeterminate .adl-dsh-settings__progress-bar {
+  position: relative;
+}
+
+.adl-dsh-settings__progress.is-indeterminate .adl-dsh-settings__progress-fill {
+  position: absolute;
+  width: 40%;
+  animation: adl-dsh-progress-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes adl-dsh-progress-indeterminate {
+  0% {
+    left: -40%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
 /* 版本操作按钮：与其它设置块控件同构——常驻灰底、无边框线、radius-sm 近直角；
    悬停时加边框线。 */
 .adl-dsh-settings__action-btn {
@@ -134,8 +186,8 @@
 
 /* 卸载确认警告文案：`.adl-settings-row__label small`（0-1-1）会覆盖颜色，
    用复合选择器（0-2-1）提权，避免 !important（同 settings.css 状态 pill 约定）。 */
-.adl-settings-row__label small.adl-dsh-settings__row-warn {
-  color: var(--warning);
+.adl-dsh-settings .adl-settings-row__label small.adl-dsh-settings__row-warn {
+  color: var(--dsh-note-fg);
 }
 
 /* 版本下拉菜单：经 Portal 挂到 body（fixed 定位，坐标由 JS 计算），

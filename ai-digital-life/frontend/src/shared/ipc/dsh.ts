@@ -9,11 +9,19 @@ export interface DshSourceStatus {
   bundled: { version: string; path: string } | null;
   system: { path: string; version: string | null } | null;
   running: { url: string; port: number } | null;
+  /** 版本来源偏好与实际生效来源（后端解析，UI 据此显隐管理项）。 */
+  versionSource: {
+    mode: DshVersionSourceMode;
+    effective: DshEffectiveSource;
+    hostVersion: string | null;
+  };
   config: {
     npm_registry: string;
     dsh_mirror: string | null;
     /** 下载源选择模式：auto=自动检测（延迟实测选优），manual=用户手选 */
     source_mode: 'auto' | 'manual';
+    /** 版本来源偏好：auto=自动检测，system=系统安装，host=宿主安装 */
+    version_source: DshVersionSourceMode;
     /** 代理模式（后端 ProxyMode snake_case 封闭值域：auto | manual | none） */
     proxy: {
       mode: 'auto' | 'manual' | 'none';
@@ -24,6 +32,34 @@ export interface DshSourceStatus {
   };
 }
 
+export type DshVersionSourceMode = 'auto' | 'system' | 'host';
+export type DshEffectiveSource = 'running' | 'host' | 'system' | 'bundled' | 'none';
+
+/** `/dsh/restart` 结果：是否重启过、重启后的地址。 */
+export interface DshRestartResult {
+  restarted: boolean;
+  url: string | null;
+}
+
+export type DshVersionTaskKind = 'install' | 'uninstall' | 'reinstall';
+export type DshVersionTaskPhase = 'preparing' | 'installing' | 'removing' | 'finalizing';
+
+/** 版本任务（安装/卸载/重装）真实进度。 */
+export interface DshVersionTask {
+  kind: DshVersionTaskKind;
+  version: string;
+  phase: DshVersionTaskPhase;
+  /** 0–100；null 表示总量未知（不确定进度条）。 */
+  percent: number | null;
+  done: number;
+  total: number;
+  cancellable: boolean;
+}
+
+export interface DshVersionTaskResult {
+  task: DshVersionTask | null;
+}
+
 /**
  * dsh 下载源配置（可选字段，PATCH 语义）
  */
@@ -32,6 +68,8 @@ export interface DshSourceConfig {
   dsh_mirror?: string | null;
   /** 下载源选择模式（PATCH：缺省不修改） */
   source_mode?: 'auto' | 'manual';
+  /** 版本来源偏好（PATCH：缺省不修改） */
+  version_source?: DshVersionSourceMode;
   proxy?: {
     mode?: 'auto' | 'manual' | 'none';
     http_proxy?: string | null;
@@ -61,6 +99,18 @@ export interface DshBridge {
    * @see httpBridge.ts → dsh.open (/dsh/open)
    */
   open: () => Promise<IpcResult<DshOpenResult>>;
+  /**
+   * 重启正在运行的 dsh（本应用托管或经验证的外部进程），返回新地址
+   */
+  restart: () => Promise<IpcResult<DshRestartResult>>;
+  /**
+   * 查询当前版本任务进度（安装/卸载/重装）
+   */
+  getVersionTask: () => Promise<IpcResult<DshVersionTaskResult>>;
+  /**
+   * 请求取消当前版本任务
+   */
+  cancelVersionTask: () => Promise<IpcResult<boolean>>;
   /**
    * 查询 dsh 版本目录状态（当前选中/已装列表/最新可用/是否有更新，含预发布通道）
    * @see httpBridge.ts → dsh.getVersionStatus (/dsh/get-version-status)

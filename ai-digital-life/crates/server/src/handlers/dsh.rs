@@ -19,7 +19,7 @@ use adl_webapp_host::spawn_and_wait_ready;
 use adl_webapp_host::spawn_node_direct;
 use axum::extract::State;
 use axum::response::IntoResponse;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -33,6 +33,86 @@ fn dsh_root_dir(paths: &adl_kernel::storage::StoragePaths) -> PathBuf {
     paths.dsh_versions_dir.clone()
 }
 
+fn clear_source_cache(state: &ServerState) {
+    if let Ok(mut cache) = state.dsh_source_cache.write() {
+        *cache = None;
+    }
+}
+
+/// 版本目录变更前停止正在运行的 dsh，避免 Windows 下文件占用导致替换/删除失败。
+async fn stop_running_dsh(state: &ServerState) -> bool {
+    let mut stopped = false;
+    {
+        let _guard = state.dsh_start_lock.lock().await;
+        {
+            let mut guard = state.dsh_state.lock().await;
+            if let Some(mut hp) = guard.take() {
+                let _ = hp.child.kill().await;
+                let _ = hp.child.wait().await;
+                stopped = true;
+            }
+        }
+        match free_stale_dsh_on_default_port().await {
+            Ok(true) => stopped = true,
+            Ok(false) => {},
+            Err(e) => tracing::warn!(error = %e, "dsh: stop before version mutation failed"),
+        }
+    }
+    clear_source_cache(state);
+    stopped
+}
+
+fn is_cancelled_error<T>(result: &Result<T, AppError>) -> bool {
+    matches!(result, Err(AppError::Cancelled(_)))
+}
+
+/// 版本变更收尾（update/uninstall/reinstall/install_version 共用）：
+/// 先放版本锁再按需重开（restore 内部 run_open 同样取 version_lock，
+/// async Mutex 不可重入，同任务重复加锁会死锁），随后 finish 任务、
+/// 成功则清来源缓存。调用方传 owned guard，所有权移入即释放时机明确。
+async fn finish_version_mutation(
+    state: &ServerState,
+    guard: tokio::sync::OwnedMutexGuard<()>,
+    was_running: bool,
+    result: &Result<serde_json::Value, AppError>,
+) {
+    if was_running && is_cancelled_error(result) {
+        drop(guard);
+        restore_after_cancel(state).await;
+    }
+    state.dsh_version_task.finish();
+    if result.is_ok() {
+        clear_source_cache(state);
+    }
+}
+
+/// 版本任务占位（四变更端点共用）：已有任务在跑则拒绝，避免并发变更。
+fn try_begin_version_task(
+    state: &ServerState,
+    kind: adl_dsh_version::VersionTaskKind,
+    version: &str,
+) -> Result<(), AppError> {
+    if state.dsh_version_task.begin(kind, version) {
+        Ok(())
+    } else {
+        Err(AppError::InvalidInput("another version task is running".into()))
+    }
+}
+
+async fn restore_after_cancel(state: &ServerState) {
+    if let Err(e) = run_open(
+        state.dsh_state.clone(),
+        state.dsh_start_lock.clone(),
+        state.dsh_version_lock.clone(),
+        state.storage.paths(),
+        state.dsh_source_cache.clone(),
+    )
+    .await
+    {
+        tracing::warn!(error = %e, "dsh: restore after cancel failed, assistant left stopped");
+    }
+}
+
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct VersionInput {
@@ -44,6 +124,7 @@ pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_open(
         state.dsh_state.clone(),
         state.dsh_start_lock.clone(),
+        state.dsh_version_lock.clone(),
         state.storage.paths(),
         state.dsh_source_cache.clone(),
     )
@@ -96,6 +177,15 @@ async fn pids_listening_on(port: u16) -> Result<Vec<u32>, AppError> {
         .map_err(|e| AppError::Io(format!("netstat failed: {e}")))?;
     let text = String::from_utf8_lossy(&out.stdout);
     Ok(parse_netstat_listening_pids(&text, port))
+}
+
+/// 本次启动的回环覆盖参数：生成宿主保留 patch 文件并拼 `--patch` 参数。
+/// 只在真正 spawn 的分支调用，ReuseRunning/None 不碰文件。
+async fn loopback_web_args(
+    paths: &adl_kernel::storage::StoragePaths,
+) -> Result<Vec<String>, AppError> {
+    let loopback_patch = ensure_loopback_patch(paths).await?;
+    Ok(dsh_web_args(&loopback_patch))
 }
 
 /// 非 Windows：尝试 lsof 解析占用端口的 PID；lsof 缺失则视为无法识别占用者（返回空）。
@@ -233,9 +323,50 @@ async fn free_stale_dsh_on_default_port() -> Result<bool, AppError> {
     )))
 }
 
+async fn detect_source(
+    paths: &adl_kernel::storage::StoragePaths,
+    bundled: Option<&adl_dsh_bundle::BundledDsh>,
+    mode: adl_download_source::VersionSourceMode,
+) -> adl_dsh_version::DshSource {
+    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
+    let system = adl_dsh_version::detect_system_dsh().await;
+    adl_dsh_version::select_dsh_source(&paths.root, bundled, mode, running, system)
+}
+
+const DSH_LOOPBACK_PATCH: &str =
+    "- id: webserver\n  config:\n    host: '127.0.0.1'\n    port: 3080\n";
+
+async fn ensure_loopback_patch(
+    paths: &adl_kernel::storage::StoragePaths,
+) -> Result<PathBuf, AppError> {
+    let dir = paths.dsh_versions_dir.clone();
+    tokio::fs::create_dir_all(&dir)
+        .await
+        .map_err(|e| AppError::Io(format!("create {}: {e}", dir.display())))?;
+    let path = dir.join("loopback.patch.yml");
+    let existing = tokio::fs::read_to_string(&path).await.ok();
+    if existing.as_deref() != Some(DSH_LOOPBACK_PATCH) {
+        tokio::fs::write(&path, DSH_LOOPBACK_PATCH)
+            .await
+            .map_err(|e| AppError::Io(format!("write {}: {e}", path.display())))?;
+    }
+    Ok(path)
+}
+
+fn dsh_web_args(patch: &Path) -> Vec<String> {
+    vec![
+        "--profile".to_string(),
+        "web".to_string(),
+        "--patch".to_string(),
+        patch.to_string_lossy().into_owned(),
+        "--no-open".to_string(),
+    ]
+}
+
 async fn run_open(
     dsh_guard: Arc<AsyncMutex<Option<HostedProcess>>>,
     start_lock: Arc<AsyncMutex<()>>,
+    version_lock: Arc<AsyncMutex<()>>,
     paths: &adl_kernel::storage::StoragePaths,
     dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
 ) -> Result<serde_json::Value, AppError> {
@@ -254,6 +385,11 @@ async fn run_open(
     }
 
     // 串行化启动：free_stale + spawn 持独立锁，close/revert/uninstall 不被阻塞。
+    // 版本目录变更（install/uninstall/reinstall/update）持 version_lock：
+    // 此处先取 version_lock 再取 start_lock，与变更路径的嵌套顺序一致
+    // （version 外层 → stop 内取 start_lock），无锁序反转；避免 detect 选中
+    // 半写入版本并 spawn。快速路径（已运行）不取任何写锁。
+    let _version_guard = version_lock.lock().await;
     let _start_guard = start_lock.lock().await;
     {
         let guard = dsh_guard.lock().await;
@@ -303,7 +439,8 @@ async fn run_open(
                         }
                         let detect_start = std::time::Instant::now();
                         let new_source =
-                            adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref()).await;
+                            detect_source(paths, bundled.as_ref(), download_config.version_source)
+                                .await;
                         tracing::info!(
                             detect_ms = detect_start.elapsed().as_millis(),
                             source = ?new_source,
@@ -327,7 +464,7 @@ async fn run_open(
         } else {
             let detect_start = std::time::Instant::now();
             let new_source =
-                adl_dsh_version::select_dsh_source(&paths.root, bundled.as_ref()).await;
+                detect_source(paths, bundled.as_ref(), download_config.version_source).await;
             tracing::info!(
                 detect_ms = detect_start.elapsed().as_millis(),
                 source = ?new_source,
@@ -349,6 +486,7 @@ async fn run_open(
     let freed_start = std::time::Instant::now();
     let freed = match &source {
         adl_dsh_version::DshSource::ReuseRunning { .. } => false,
+        adl_dsh_version::DshSource::None => false,
         _ => free_stale_dsh_on_default_port().await?,
     };
     tracing::info!(
@@ -367,38 +505,28 @@ async fn run_open(
         },
         adl_dsh_version::DshSource::System { info } => {
             tracing::info!(path = %info.path.display(), version = ?info.version, "dsh::run_open: using system dsh");
-            let args = vec!["--profile".to_string(), "web".to_string(), "--no-open".to_string()];
+            let args = loopback_web_args(paths).await?;
             spawn_and_wait_ready(&info.path.to_string_lossy(), &args, timeout).await?
         },
         adl_dsh_version::DshSource::Bundled { bundled } => {
             tracing::info!(version = %bundled.version, path = %bundled.path.display(), "dsh::run_open: using bundled dsh");
             let (node_bin, script_args) = adl_dsh_bundle::launch_command(&bundled);
-            spawn_node_direct(&node_bin, &script_args[0], &script_args[1..], timeout).await?
+            // launch_command 返回 [bin.js, --profile, web, --no-open]：首元是脚本，
+            // 余下参数必须透传（旧实现即此语义），再追加本次回环覆盖参数。
+            let mut args: Vec<String> = script_args[1..].to_vec();
+            args.extend(loopback_web_args(paths).await?);
+            spawn_node_direct(&node_bin, &script_args[0], &args, timeout).await?
         },
-        adl_dsh_version::DshSource::Download { version } => {
-            let root = paths.dsh_versions_dir.clone();
-            let selected_version = adl_dsh_version::read_selected(&root)?;
-            let package_spec = match selected_version {
-                Some(v) => format!("@deepseek-ai/dsh@{v}"),
-                None => "@deepseek-ai/dsh@latest".to_string(),
-            };
-            let registry = adl_download_source::resolve_registry(&download_config);
-            tracing::info!(
-                ?package_spec,
-                ?registry,
-                ?version,
-                "dsh::run_open: using download source"
-            );
-            let mut args = Vec::new();
-            // 传递注册表配置给 npx（必须在 package spec 之前）
-            if registry != "https://registry.npmjs.org" {
-                args.push(format!("--registry={registry}"));
-            }
-            args.push(package_spec);
-            args.push("--profile".to_string());
-            args.push("web".to_string());
-            args.push("--no-open".to_string());
-            spawn_and_wait_ready("npx", &args, timeout).await?
+        adl_dsh_version::DshSource::HostInstalled { version, bin } => {
+            tracing::info!(%version, path = %bin.display(), "dsh::run_open: using host-installed dsh");
+            let args = loopback_web_args(paths).await?;
+            spawn_node_direct("node", &bin.to_string_lossy(), &args, timeout).await?
+        },
+        adl_dsh_version::DshSource::None => {
+            tracing::warn!("dsh::run_open: no dsh source available");
+            return Err(AppError::NotFound(
+                "no dsh source available; install a version in settings".into(),
+            ));
         },
     };
     tracing::info!(
@@ -422,6 +550,7 @@ pub async fn pre_start_dsh(state: &ServerState) {
     match run_open(
         state.dsh_state.clone(),
         state.dsh_start_lock.clone(),
+        state.dsh_version_lock.clone(),
         state.storage.paths(),
         state.dsh_source_cache.clone(),
     )
@@ -458,10 +587,22 @@ pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoRe
 
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
 pub async fn update(State(state): State<ServerState>) -> impl IntoResponse {
+    if let Err(e) =
+        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Update, "latest")
+    {
+        return ipc::to_response(Err(e));
+    }
+    let guard = state.dsh_version_lock.clone().lock_owned().await;
+    let was_running = stop_running_dsh(&state).await;
     let root = dsh_root(&state);
-    let result = adl_dsh_version::update(&root, &state.storage.paths().root)
-        .await
-        .map(|v| serde_json::json!(v));
+    let result = adl_dsh_version::update_with_task(
+        &root,
+        &state.storage.paths().root,
+        &state.dsh_version_task,
+    )
+    .await
+    .map(|v| serde_json::json!(v));
+    finish_version_mutation(&state, guard, was_running, &result).await;
     ipc::to_response(result)
 }
 
@@ -474,8 +615,12 @@ pub async fn revert(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
+    let _guard = state.dsh_version_lock.lock().await;
     let root = dsh_root(&state);
     let result = adl_dsh_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
+    if result.is_ok() {
+        clear_source_cache(&state);
+    }
     ipc::to_response(result)
 }
 
@@ -488,19 +633,99 @@ pub async fn uninstall(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
+    if let Err(e) =
+        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Uninstall, &input.version)
+    {
+        return ipc::to_response(Err(e));
+    }
+    let guard = state.dsh_version_lock.clone().lock_owned().await;
     let root = dsh_root(&state);
+    let is_current =
+        adl_dsh_version::read_selected(&root).ok().flatten().as_deref() == Some(&input.version);
+    let was_running = if is_current { stop_running_dsh(&state).await } else { false };
     let result =
-        adl_dsh_version::uninstall(&root, &input.version).await.map(|()| serde_json::json!(true));
+        adl_dsh_version::uninstall_with_task(&root, &input.version, &state.dsh_version_task)
+            .await
+            .map(|()| serde_json::json!(true));
+    finish_version_mutation(&state, guard, was_running, &result).await;
     ipc::to_response(result)
 }
 
-/// POST `/dsh/reinstall` — 按当前选中版本重新登记并选中（校验官方仍在发布），返回该版本串。
+/// POST `/dsh/reinstall` — 真重新安装当前选中版本并选中，返回该版本串。
 pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let root = dsh_root(&state);
-    let result = adl_dsh_version::reinstall(&root, &state.storage.paths().root)
-        .await
-        .map(|v| serde_json::json!(v));
+    let selected = match adl_dsh_version::read_selected(&root) {
+        Ok(Some(version)) => version,
+        Ok(None) => {
+            return ipc::to_response(Err(AppError::NotFound("no selected version".into())));
+        },
+        Err(e) => return ipc::to_response(Err(e)),
+    };
+    if let Err(e) =
+        try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Reinstall, &selected)
+    {
+        return ipc::to_response(Err(e));
+    }
+    let guard = state.dsh_version_lock.clone().lock_owned().await;
+    let was_running = stop_running_dsh(&state).await;
+    let result = adl_dsh_version::reinstall_with_task(
+        &root,
+        &state.storage.paths().root,
+        &state.dsh_version_task,
+    )
+    .await
+    .map(|v| serde_json::json!(v));
+    finish_version_mutation(&state, guard, was_running, &result).await;
     ipc::to_response(result)
+}
+
+/// POST `/dsh/restart` — 重启正在运行的 dsh（含经指纹/命令行验证的外部进程）。
+pub async fn restart(State(state): State<ServerState>) -> impl IntoResponse {
+    let result = run_restart(&state).await;
+    ipc::to_response(result)
+}
+
+async fn run_restart(state: &ServerState) -> Result<serde_json::Value, AppError> {
+    let (had_process, freed_external) = {
+        let _guard = state.dsh_start_lock.lock().await;
+        let had_process = {
+            let mut guard = state.dsh_state.lock().await;
+            match guard.take() {
+                Some(mut hp) => {
+                    if let Err(e) = hp.child.kill().await {
+                        tracing::warn!(error = %e, "dsh::restart: kill hosted process failed");
+                    }
+                    let _ = hp.child.wait().await;
+                    true
+                },
+                None => false,
+            }
+        };
+        let freed_external = free_stale_dsh_on_default_port().await?;
+        (had_process, freed_external)
+    };
+
+    if !had_process && !freed_external {
+        return Ok(serde_json::json!({ "restarted": false, "url": null }));
+    }
+
+    clear_source_cache(state);
+    let opened = run_open(
+        state.dsh_state.clone(),
+        state.dsh_start_lock.clone(),
+        state.dsh_version_lock.clone(),
+        state.storage.paths(),
+        state.dsh_source_cache.clone(),
+    )
+    .await;
+    match opened {
+        Ok(value) => Ok(serde_json::json!({
+            "restarted": true,
+            "url": value.get("url").cloned(),
+        })),
+        Err(AppError::NotFound(_)) => Ok(serde_json::json!({ "restarted": false, "url": null })),
+        Err(e) => Err(e),
+    }
 }
 
 /// POST `/dsh/version-catalog` — 查询官方版本目录（正式版/预发布分桶 + 各自最新）。
@@ -523,11 +748,42 @@ pub async fn install_version(
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
     let root = dsh_root(&state);
-    let result =
-        adl_dsh_version::install_version(&root, &state.storage.paths().root, &input.version)
-            .await
-            .map(|v| serde_json::json!(v));
+    // Install/Reinstall 分类只影响进度条 kind 标签：判定在锁外，结果可能与
+    // 实际执行略有出入（并发变更），正确性不受影响，故接受此近似。
+    let kind = if adl_dsh_version::is_host_version_installed(&root, input.version.trim()) {
+        adl_dsh_version::VersionTaskKind::Reinstall
+    } else {
+        adl_dsh_version::VersionTaskKind::Install
+    };
+    if let Err(e) = try_begin_version_task(&state, kind, input.version.trim()) {
+        return ipc::to_response(Err(e));
+    }
+    let guard = state.dsh_version_lock.clone().lock_owned().await;
+    let current = adl_dsh_version::read_selected(&root).ok().flatten();
+    let is_current = current.as_deref() == Some(input.version.trim());
+    let was_running = if is_current { stop_running_dsh(&state).await } else { false };
+    let result = adl_dsh_version::install_version_with_task(
+        &root,
+        &state.storage.paths().root,
+        &input.version,
+        &state.dsh_version_task,
+    )
+    .await
+    .map(|v| serde_json::json!(v));
+    finish_version_mutation(&state, guard, was_running, &result).await;
     ipc::to_response(result)
+}
+
+/// POST `/dsh/version-task` — 当前版本任务进度（无任务时为 null）。
+pub async fn get_version_task(State(state): State<ServerState>) -> impl IntoResponse {
+    let task = state.dsh_version_task.snapshot();
+    ipc::to_response(Ok(serde_json::json!({ "task": task })))
+}
+
+/// POST `/dsh/cancel-version-task` — 请求取消当前版本任务。
+pub async fn cancel_version_task(State(state): State<ServerState>) -> impl IntoResponse {
+    state.dsh_version_task.cancel();
+    ipc::to_response(Ok(serde_json::json!(true)))
 }
 
 /// POST `/dsh/source-status` — 获取下载源状态（bundled/system/running/config）。
@@ -539,8 +795,9 @@ pub async fn get_source_status(State(state): State<ServerState>) -> impl IntoRes
 async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
     let data_dir = &state.storage.paths().root;
 
-    let bundled = adl_dsh_bundle::detect(data_dir)?
-        .map(|b| serde_json::json!({ "version": b.version, "path": b.path }));
+    let bundled_info = adl_dsh_bundle::detect(data_dir)?;
+    let bundled =
+        bundled_info.as_ref().map(|b| serde_json::json!({ "version": b.version, "path": b.path }));
 
     let system = adl_dsh_version::detect_system_dsh().await.map(|info| {
         serde_json::json!({
@@ -557,6 +814,21 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     });
 
     let config = adl_download_source::load(data_dir)?;
+    let root = dsh_root(state);
+    let host_version = adl_dsh_version::read_selected(&root)?
+        .filter(|version| adl_dsh_version::is_host_version_installed(&root, version));
+    let effective = adl_dsh_version::resolve_effective_source(
+        config.version_source,
+        running.is_some(),
+        host_version.is_some(),
+        system.is_some(),
+        bundled_info.is_some(),
+    );
+    let version_source = serde_json::json!({
+        "mode": config.version_source,
+        "effective": effective,
+        "hostVersion": host_version,
+    });
     let config_value =
         serde_json::to_value(&config).map_err(|e| AppError::Internal(e.to_string()))?;
 
@@ -564,6 +836,7 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
         "bundled": bundled,
         "system": system,
         "running": running,
+        "versionSource": version_source,
         "config": config_value,
     }))
 }
@@ -621,6 +894,24 @@ async fn save_source_config_inner(
             },
         }
     }
+    if let Some(mode) = input.get("version_source") {
+        match mode {
+            serde_json::Value::String(s) => {
+                config.version_source = match s.as_str() {
+                    "auto" => adl_download_source::VersionSourceMode::Auto,
+                    "system" => adl_download_source::VersionSourceMode::System,
+                    "host" => adl_download_source::VersionSourceMode::Host,
+                    _ => {
+                        return Err(AppError::InvalidInput(format!("invalid version source: {s}")));
+                    },
+                };
+            },
+            serde_json::Value::Null => {},
+            _ => {
+                return Err(AppError::InvalidInput("version_source must be string or null".into()));
+            },
+        }
+    }
     if let Some(proxy) = input.get("proxy") {
         // proxy 本体非对象（null 除外）直接拒绝，避免整体静默 no-op 误导调用方。
         if !proxy.is_object() && !proxy.is_null() {
@@ -663,6 +954,7 @@ async fn save_source_config_inner(
     }
 
     adl_download_source::save(&state.storage.paths().root, &config)?;
+    clear_source_cache(state);
     Ok(serde_json::json!(true))
 }
 
@@ -698,6 +990,14 @@ mod tests {
     use super::*;
 
     /// dsh_root 返回 storage 的 dsh-versions 目录。
+    #[test]
+    fn dsh_web_args_use_loopback_patch_before_app_args() {
+        let args = dsh_web_args(Path::new("/tmp/loopback.patch.yml"));
+        assert!(args.windows(2).any(|w| w == ["--profile", "web"]));
+        assert!(args.windows(2).any(|w| w == ["--patch", "/tmp/loopback.patch.yml"]));
+        assert_eq!(args.last().map(String::as_str), Some("--no-open"));
+    }
+
     #[test]
     fn dsh_root_returns_storage_dsh_versions_dir() {
         let dir = PathBuf::from("/tmp/data");
@@ -760,6 +1060,36 @@ mod tests {
         let body = axum::body::to_bytes(resp.into_response().into_body(), 4096).await.unwrap();
         let value: serde_json::Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(value.get("ok").and_then(|v| v.as_bool()), Some(false));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn save_source_config_writes_version_source() {
+        let dir = std::env::temp_dir().join(format!(
+            "adl-dsh-version-source-{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let state = crate::engine::init_server_state(
+            &dir,
+            crate::engine::storage_from_locator(
+                &adl_kernel::storage::StorageLocator::default(),
+                &dir,
+            ),
+        )
+        .await
+        .unwrap();
+
+        let body = serde_json::json!({ "version_source": "host" });
+        save_source_config_inner(&state, axum::body::Bytes::from(body.to_string())).await.unwrap();
+        let config = adl_download_source::load(&dir).unwrap();
+        assert_eq!(config.version_source, adl_download_source::VersionSourceMode::Host);
+
+        let bad = serde_json::json!({ "version_source": "bogus" });
+        let err = save_source_config_inner(&state, axum::body::Bytes::from(bad.to_string()))
+            .await
+            .expect_err("invalid version source");
+        assert!(matches!(err, AppError::InvalidInput(_)));
+
         let _ = std::fs::remove_dir_all(&dir);
     }
 

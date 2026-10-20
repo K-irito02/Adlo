@@ -79,4 +79,29 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     expect(hover).not.toBeNull();
     expect(hover).toContain('background: transparent');
   });
+
+  it('uses the dsh note token for row warnings in scope (no raw color)', () => {
+    const token = ruleBody(dshCss, '.adl-dsh-settings');
+    expect(token).not.toBeNull();
+    expect(token).toContain('--dsh-note-fg: #80b0f5');
+    // 作用域限定：token 定义在 .adl-dsh-settings 上，使用处必须同在子树内，
+    // 否则其它面板的 row-warn 会丢色（用全局 var(--warning) 的原规则无此问题）。
+    const warn = ruleBody(
+      dshCss,
+      '.adl-dsh-settings .adl-settings-row__label small.adl-dsh-settings__row-warn',
+    );
+    expect(warn).not.toBeNull();
+    expect(warn).toContain('color: var(--dsh-note-fg)');
+    expect(warn).not.toContain('#80b0f5');
+  });
+
+  it('renders the version task progress bar as a 3px neutral track', () => {
+    const bar = ruleBody(dshCss, '.adl-dsh-settings__progress-bar');
+    expect(bar).not.toBeNull();
+    expect(bar).toContain('height: 3px');
+    expect(bar).toContain('var(--border-subtle)');
+    const fill = ruleBody(dshCss, '.adl-dsh-settings__progress-fill');
+    expect(fill).not.toBeNull();
+    expect(fill).toContain('var(--text-secondary)');
+  });
 });

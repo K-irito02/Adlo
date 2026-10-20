@@ -118,6 +118,13 @@ export class PreviewApiError extends AppError {
   }
 }
 
+export class CancelledError extends AppError {
+  readonly code = 'CANCELLED';
+  constructor(detail: string) {
+    super(`Cancelled: ${detail}`);
+  }
+}
+
 export const errorCodeMap: Record<string, new (detail: string) => AppError> = {
   NOT_FOUND: NotFoundError,
   INVALID_INPUT: InvalidInputError,
@@ -135,6 +142,7 @@ export const errorCodeMap: Record<string, new (detail: string) => AppError> = {
   NETWORK_ERROR: NetworkError,
   INVOKE_ERROR: InvokeError,
   PREVIEW_API_ERROR: PreviewApiError,
+  CANCELLED: CancelledError,
 };
 
 export function fromIpcErrorCode(code: string, message: string): AppError {

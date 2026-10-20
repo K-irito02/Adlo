@@ -304,9 +304,18 @@ export function DshSettings() {
   // （未知 → false → 侧边栏启用，本来就是 fail-open）。
   const sourceAtDefault = sourceType === 'auto';
   const proxyAtDefault = proxyMode === 'auto';
+  const versionSourceAtDefault = (sourceStatus?.config.version_source ?? 'auto') === 'auto';
   useEffect(() => {
-    setDshBlocksAtDefault(sourceStatus !== null && sourceAtDefault && proxyAtDefault);
-  }, [sourceStatus, sourceAtDefault, proxyAtDefault, setDshBlocksAtDefault]);
+    setDshBlocksAtDefault(
+      sourceStatus !== null && sourceAtDefault && proxyAtDefault && versionSourceAtDefault,
+    );
+  }, [
+    sourceStatus,
+    sourceAtDefault,
+    proxyAtDefault,
+    versionSourceAtDefault,
+    setDshBlocksAtDefault,
+  ]);
 
   /**
    * 组级恢复对话框打开（承接 pending 信号）：守卫先行——组框/任一块框已开/

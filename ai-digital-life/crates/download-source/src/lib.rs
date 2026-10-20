@@ -20,6 +20,8 @@ pub struct DownloadSourceConfig {
     /// 下载源选择模式：auto=自动检测（延迟实测选优，前端负责解析写回 registry）；
     /// manual=用户手选（npm_registry 即所选值）。
     pub source_mode: SourceMode,
+    /// 版本来源偏好：auto=自动检测，system=只用系统安装，host=只用宿主安装。
+    pub version_source: VersionSourceMode,
 }
 
 impl Default for DownloadSourceConfig {
@@ -31,8 +33,18 @@ impl Default for DownloadSourceConfig {
             proxy: ProxyConfig::default(),
             prefer_offline: DEFAULT_PREFER_OFFLINE,
             source_mode: SourceMode::Auto,
+            version_source: VersionSourceMode::Auto,
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum VersionSourceMode {
+    #[default]
+    Auto,
+    System,
+    Host,
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -219,6 +231,23 @@ mod tests {
         assert!(json.contains(r#""source_mode":"manual""#));
         let decoded: DownloadSourceConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(decoded.source_mode, SourceMode::Manual);
+    }
+
+    #[test]
+    fn version_source_defaults_to_auto_and_serializes_snake_case() {
+        let config = DownloadSourceConfig::default();
+        assert_eq!(config.version_source, VersionSourceMode::Auto);
+        let json = serde_json::to_string(&config).unwrap();
+        assert!(json.contains(r#""version_source":"auto""#));
+        let decoded: DownloadSourceConfig = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.version_source, VersionSourceMode::Auto);
+    }
+
+    #[test]
+    fn missing_version_source_defaults_to_auto() {
+        let json = r#"{ "npm_registry": "https://registry.npmmirror.com" }"#;
+        let config: DownloadSourceConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(config.version_source, VersionSourceMode::Auto);
     }
 
     #[test]
