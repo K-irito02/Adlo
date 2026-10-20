@@ -190,8 +190,28 @@
   gap: var(--space-0-5);
   list-style: none;
   margin: 0;
-  /* 横向 0：行悬停背景贴合滚动区左右边缘 */
+  /* 左右 0：避免悬停背景被左/右内边距切掉 */
   padding: var(--space-1) 0 var(--space-2);
+}
+
+.adl-clipboard__load-more {
+  padding: var(--space-1-5) 0;
+  text-align: center;
+}
+
+.adl-clipboard__load-more-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+}
+
+.adl-clipboard__load-more-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
 .adl-clipboard-row {
@@ -201,8 +221,11 @@
   align-items: center;
   width: 100%;
   min-width: 0;
-  /* 固定行高：不随文本行数 / 图片尺寸变化（完整内容由放大查看承载） */
+  /* 固定行高：避免文本长度 / 图片尺寸变化引发布局抖动（放大查看另开层）。 */
   height: var(--adl-clipboard-row-height);
+  /* 200 条历史 + 长文本时跳过视口外行的布局/绘制，避免 WebView2 主线程被长列表拖死。 */
+  content-visibility: auto;
+  contain-intrinsic-size: auto var(--adl-clipboard-row-height);
   /* 右内边距移交给 __body（悬停时其 padding-right 换成按钮列宽以截断内容） */
   padding: 0 0 0 var(--space-1-5);
   box-sizing: border-box;

@@ -13,6 +13,13 @@ interface ClipboardItemRowProps {
   onZoom: (item: ClipboardItem) => void;
 }
 
+const PREVIEW_MAX_CHARS = 240;
+
+function previewText(content: string | null | undefined): string {
+  const raw = content ?? '';
+  return raw.length > PREVIEW_MAX_CHARS ? `${raw.slice(0, PREVIEW_MAX_CHARS)}…` : raw;
+}
+
 /**
  * 单行剪贴板历史条目（固定行高，不随内容多少 / 图片大小变化）。
  * - kind==='text'：单行截断的内容预览
@@ -88,7 +95,7 @@ export const ClipboardItemRow = memo(function ClipboardItemRow({
               )}
             </span>
           ) : (
-            <span className="adl-clipboard-row__preview">{item.content ?? ''}</span>
+            <span className="adl-clipboard-row__preview">{previewText(item.content)}</span>
           )}
           <span className="adl-clipboard-row__meta">
             <span className="adl-clipboard-row__badge">{getClipboardKindLabel(item.kind, t)}</span>

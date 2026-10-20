@@ -609,6 +609,34 @@ fn destroy_silent_webview(app: &tauri::AppHandle, tab_id: &str) {
     }
 }
 
+/// 静默抓取只接受公网 http(s)：盘符伪主机（历史坏数据 `https://c/Users/...`）会让
+/// WebView2 在主线程创建/导航时卡死（实测 AppHang），必须在建 WebView 前拦截。
+/// 判定口径（与前端 `sanitizeRestoredBrowserUrl` 同源）：
+/// - 扩展名检查作用于 path 而非 host（`https://agents.md/` 是真域名，不得误杀）；
+/// - 单字母主机一律拒绝（盘符混淆）；
+/// - 其余单标签主机（`http://nas/` 类内网）同样跳过静默抓取：手动打开不受影响，
+///   仅后台元数据预热降级为空（有意设计，见 F9）。
+fn silent_fetch_url_allowed(value: &str) -> bool {
+    let Ok(parsed) = url::Url::parse(value) else {
+        return false;
+    };
+    if parsed.scheme() != "http" && parsed.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = parsed.host_str() else {
+        return false;
+    };
+    // IPv6 host_str 带方括号（`[::1]`），先剥掉再做 IP 判定。
+    let host = host.trim_start_matches('[').trim_end_matches(']');
+    if host.eq_ignore_ascii_case("localhost") || host.parse::<std::net::IpAddr>().is_ok() {
+        return true;
+    }
+    if host.len() == 1 && host.as_bytes()[0].is_ascii_alphabetic() {
+        return false;
+    }
+    host.contains('.')
+}
+
 /// 静默 WebView 渲染抓取核心流程（spawn_blocking 创建 → 轮询 → 主线程销毁），
 /// 返回已写缓存的结果 `PageMeta`，不广播。（DRY：`browser_page_meta_get_silent` /
 /// `browser_page_meta_get` / `browser_page_meta_refresh` 三个命令共用。）
@@ -622,6 +650,10 @@ async fn fetch_silent_meta(
     state: &AppState,
     url: &str,
 ) -> Result<PageMeta, AppError> {
+    if !silent_fetch_url_allowed(url) {
+        tracing::warn!(%url, "fetch_silent_meta: invalid URL, skip silent webview");
+        return Ok(PageMeta { url: url.to_string(), ..PageMeta::default() });
+    }
     let app_owned = app.clone();
     let url_owned = url.to_string();
     // 创建本身也可能被主线程阻塞（WebView2 初始化慢/UI 忙），`create_silent_webview`
@@ -1366,6 +1398,30 @@ fn spawn_favicon_download(
         }
         favicon_downloading().lock().unwrap_or_else(|e| e.into_inner()).remove(&favicon_url);
     });
+}
+
+#[cfg(test)]
+mod silent_url_tests {
+    use super::*;
+
+    #[test]
+    fn rejects_drive_letter_pseudo_hosts() {
+        assert!(!silent_fetch_url_allowed("https://c/Users/31432/AppData/Local/Temp/x.html"));
+        assert!(!silent_fetch_url_allowed("http://AGENTS"));
+        assert!(!silent_fetch_url_allowed("file:///C:/x.html"));
+        assert!(!silent_fetch_url_allowed("about:blank"));
+    }
+
+    #[test]
+    fn accepts_public_and_loopback_hosts() {
+        // agents.md 是真域名（扩展名检查不得作用于 host）。
+        assert!(silent_fetch_url_allowed("https://agents.md/"));
+        assert!(silent_fetch_url_allowed("http://AGENTS.md/"));
+        assert!(silent_fetch_url_allowed("https://www.bilibili.com/video"));
+        assert!(silent_fetch_url_allowed("http://127.0.0.1:3080/"));
+        assert!(silent_fetch_url_allowed("http://localhost:5173/"));
+        assert!(silent_fetch_url_allowed("http://[::1]:3080/"));
+    }
 }
 
 #[cfg(test)]

@@ -139,6 +139,30 @@ pub fn patch_to_selection(patch: &StoragePathPatch) -> Result<st::StorageSelecti
     })
 }
 
+/// 状态快照纯构造（`storage_get_status` 的重活部分）。
+///
+/// 必须在 blocking 线程执行 —— Tauri 同步命令在调用线程（WebView2 UI 线程）
+/// 内联执行，全部分类目录遍历（dsh-versions 下 6 万级文件）会把窗口卡成
+/// "未响应"（事项 9 根因：cdb 取证主线程停在 `dir_usage_limited` 的 `metadata`）。
+/// 命令层只做 `spawn_blocking` 转发，本函数保持纯同步以便单测。
+fn build_status_snapshot(svc: &st::StorageService) -> StorageStatus {
+    let locator = st::load_locator();
+    StorageStatus {
+        mode: match locator.selection.mode {
+            st::StorageMode::Unified => "unified".into(),
+            st::StorageMode::PerCategory => "per_category".into(),
+        },
+        root: svc.paths().root.to_string_lossy().to_string(),
+        default_root: svc.default_root().to_string_lossy().to_string(),
+        categories: category_statuses(svc),
+        locator_path: st::locator_path().to_string_lossy().to_string(),
+        pending: locator
+            .pending_migration
+            .as_ref()
+            .map(|p| PendingDto { failed: p.failed, error: p.error.clone() }),
+        last_report: locator.last_report.as_ref().map(report_dto),
+    }
+}
 fn category_statuses(svc: &st::StorageService) -> Vec<StorageCategoryStatus> {
     let paths = svc.paths();
     let foreign = st::scan_foreign(paths);
@@ -191,62 +215,69 @@ fn report_dto(r: &st::MigrationReport) -> StorageReportDto {
 }
 
 #[tauri::command]
-pub fn storage_get_status(
+pub async fn storage_get_status(
     state: State<'_, AppState>,
 ) -> Result<IpcResult<StorageStatus>, AppError> {
-    let locator = st::load_locator();
+    // 重活进 blocking 线程（见 build_status_snapshot 文档）。
     let svc = state.storage.clone();
-    let status = StorageStatus {
-        mode: match locator.selection.mode {
-            st::StorageMode::Unified => "unified".into(),
-            st::StorageMode::PerCategory => "per_category".into(),
-        },
-        root: svc.paths().root.to_string_lossy().to_string(),
-        default_root: svc.default_root().to_string_lossy().to_string(),
-        categories: category_statuses(&svc),
-        locator_path: st::locator_path().to_string_lossy().to_string(),
-        pending: locator
-            .pending_migration
-            .as_ref()
-            .map(|p| PendingDto { failed: p.failed, error: p.error.clone() }),
-        last_report: locator.last_report.as_ref().map(report_dto),
-    };
+    let status = tokio::task::spawn_blocking(move || build_status_snapshot(&svc))
+        .await
+        .map_err(|e| AppError::Internal(format!("storage status join failed: {e}")))?;
     ok_ipc(status)
 }
 
 #[tauri::command]
-pub fn storage_scan_foreign_cmd(
+pub async fn storage_scan_foreign_cmd(
     state: State<'_, AppState>,
 ) -> Result<IpcResult<Vec<ForeignScanDto>>, AppError> {
-    ok_ipc(
-        st::scan_foreign(state.storage.paths())
+    // 同 `storage_get_status`：全树扫描进 blocking 线程，不占 UI 线程。
+    let paths = state.storage.paths().clone();
+    let out = tokio::task::spawn_blocking(move || {
+        st::scan_foreign(&paths)
             .into_iter()
             .map(|f| ForeignScanDto {
                 category: f.category.key().to_string(),
                 root: f.root.to_string_lossy().to_string(),
                 foreign_files: f.foreign_files,
             })
-            .collect(),
-    )
+            .collect::<Vec<_>>()
+    })
+    .await
+    .map_err(|e| AppError::Internal(format!("storage foreign-scan join failed: {e}")))?;
+    ok_ipc(out)
 }
 
 #[tauri::command]
-pub fn storage_preflight_cmd(
+pub async fn storage_preflight_cmd(
     state: State<'_, AppState>,
     patch: StoragePathPatch,
 ) -> Result<IpcResult<PreflightDto>, AppError> {
     let selection = patch_to_selection(&patch)?;
-    ok_ipc(preflight_inner(&state, &selection)?)
+    ok_ipc(run_preflight_off_thread(&state, selection).await?)
 }
 
 /// 预检核心（命令与内部调用共用，避免 `IpcResult` 解包/重包）。
+/// 输入全为 owned 快照：调用方在命令线程取值，目录 walks 在 blocking 线程执行。
 /// 接收已解析的 `selection`，调用方只解析一次。
-fn preflight_inner(
+async fn run_preflight_off_thread(
     state: &AppState,
-    selection: &st::StorageSelection,
+    selection: st::StorageSelection,
 ) -> Result<PreflightDto, AppError> {
     let defaults = state.storage_defaults.clone();
     let from = state.storage.paths().clone();
+    let dl = state.download_manager.clone();
+    tokio::task::spawn_blocking(move || preflight_snapshot(defaults, from, dl, &selection))
+        .await
+        .map_err(|e| AppError::Internal(format!("storage preflight join failed: {e}")))?
+}
+
+/// 预检快照纯构造：`from`/`to` 全树 walks，必须在 blocking 线程执行。
+fn preflight_snapshot(
+    defaults: st::StorageDefaults,
+    from: st::StoragePaths,
+    dl: std::sync::Arc<adl_browser::download_manager::DownloadManager>,
+    selection: &st::StorageSelection,
+) -> Result<PreflightDto, AppError> {
     let to = st::StoragePaths::resolve(selection, &defaults);
     let report = st::preflight(&from, &to);
     let mut errors = Vec::new();
@@ -261,7 +292,7 @@ fn preflight_inner(
             st::Severity::Warning => warnings.push(dto),
         }
     }
-    let free_bytes = state.download_manager.available_space_bytes(&to.root).unwrap_or(0);
+    let free_bytes = dl.available_space_bytes(&to.root).unwrap_or(0);
     if free_bytes > 0
         && report.total_bytes > 0
         && free_bytes < report.total_bytes + report.total_bytes / 10
@@ -288,14 +319,14 @@ fn preflight_inner(
 // 可用空间经 `DownloadManager::available_space_bytes`（B3）获取，见 `storage_preflight_cmd`。
 
 #[tauri::command]
-pub fn storage_set_paths(
+pub async fn storage_set_paths(
     state: State<'_, AppState>,
     patch: StoragePathPatch,
     apply_now: bool,
 ) -> Result<IpcResult<StorageApplyResult>, AppError> {
     let to = patch_to_selection(&patch)?;
     // 预检（含磁盘空间）；有硬错误则拒绝写入（直接调核心，不经 IpcResult 解包）。
-    let preflight = preflight_inner(&state, &to)?;
+    let preflight = run_preflight_off_thread(&state, to.clone()).await?;
     if !preflight.ok {
         return ok_ipc(StorageApplyResult { restart_required: false, preflight });
     }
@@ -462,5 +493,31 @@ mod tests {
         // 其它分类仍正常统计，证明只是该分类被短路。
         assert_eq!(st::category_usage(adl_kernel::storage::StorageCategory::Config, &dir), (13, 1));
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn build_status_snapshot_counts_dsh_fixture() {
+        // 事项 9 根因回归：快照构造是纯函数（blocking 线程执行），给定 fixture
+        // 必须精确统计。dsh-versions 下 2 文件共 12 字节。
+        let base =
+            std::env::temp_dir().join(format!("adl-shell-storage-snap-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let root = base.join("root");
+        let dsh = root.join("dsh-versions");
+        std::fs::create_dir_all(dsh.join("sub")).unwrap();
+        std::fs::write(dsh.join("a.bin"), [0u8; 5]).unwrap();
+        std::fs::write(dsh.join("sub").join("b.bin"), [0u8; 7]).unwrap();
+        let defaults = st::StorageDefaults {
+            root: root.clone(),
+            credentials_dir: base.join("cred"),
+            downloads_dir: base.join("dl"),
+        };
+        let mut loc = st::StorageLocator::default();
+        loc.selection.root = Some(root);
+        let svc = st::StorageService::from_locator(&loc, &defaults);
+        let snap = build_status_snapshot(&svc);
+        let dsh_status = snap.categories.iter().find(|c| c.key == "dsh").expect("dsh status");
+        assert_eq!((dsh_status.bytes, dsh_status.files), (12, 2));
+        let _ = std::fs::remove_dir_all(&base);
     }
 }

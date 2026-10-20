@@ -118,7 +118,38 @@ export function ensureProtocol(input: string): string {
   if (/^about:/i.test(trimmed)) {
     return trimmed;
   }
+  if (/^[a-zA-Z]:[\\/]/.test(trimmed)) {
+    return `file:///${trimmed.replace(/\\/g, '/')}`;
+  }
   return `https://${trimmed}`;
+}
+
+/**
+ * 修复历史持久化中的坏 URL：`https://c/Users/...` 这类“盘符被当成主机名”的地址
+ * 会让 WebView2 在静默抓取/创建时卡死。与壳层 `silent_fetch_url_allowed` 同源：
+ * - 仅盘符形态的单字母主机回落 about:blank（确证的坏模式）；
+ * - 其余单标签主机（`http://nas/` 类内网）保留原 URL（只跳过静默抓取/预热，
+ *   不改写标签，避免永久丢标签）；
+ * - http(s) 之外的 scheme（file/about 等）与空串原样保留（空串即新建标签页，
+ *   与 `about:blank` 同生命周期语义，见 useWebViewLifecycle）。
+ */
+export function sanitizeRestoredBrowserUrl(url: string): string {
+  if (url === '') {
+    return url;
+  }
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return url;
+    }
+    const host = parsed.hostname;
+    if (/^[a-z]$/i.test(host)) {
+      return 'about:blank';
+    }
+    return url;
+  } catch {
+    return url;
+  }
 }
 
 /**

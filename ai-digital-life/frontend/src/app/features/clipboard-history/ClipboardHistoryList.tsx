@@ -14,6 +14,8 @@ import { buildClipboardFilterInput, filterClipboardItems } from './clipboardFilt
 const REFRESH_INTERVAL_MS = 10000;
 const CHANGE_THROTTLE_MS = 100;
 const CLIPBOARD_SCROLL_TOP_KEY = 'adl:ui.clipboardScrollTop';
+const INITIAL_VISIBLE_ROWS = 30;
+const LOAD_MORE_STEP = 30;
 
 /**
  * 剪贴板历史主列表容器。
@@ -45,6 +47,7 @@ export function ClipboardHistoryList() {
   const changeThrottleRef = useRef<number | undefined>(undefined);
   const changeTrailingPendingRef = useRef(false);
   const [viewerItem, setViewerItem] = useState<ClipboardItem | null>(null);
+  const [visibleCount, setVisibleCount] = useState(INITIAL_VISIBLE_ROWS);
   // 弹窗展示走 store 实时条目而非打开时快照：编辑保存后 `replaceClipboardHistoryItem`
   // 原位替换列表项，快照会让弹窗的 prop 永远停在旧内容（默认浏览态不刷新、重进编辑
   // 甚至用旧草稿覆盖新存档）；找不到（条目已删）则沿用快照，保持弹窗不闪退。
@@ -147,6 +150,19 @@ export function ClipboardHistoryList() {
     ],
   );
 
+  useEffect(() => {
+    setVisibleCount(INITIAL_VISIBLE_ROWS);
+  }, [
+    clipboardSearch,
+    clipboardKindFilter,
+    clipboardSearchOpen,
+    clipboardMatchCase,
+    clipboardMatchWholeWord,
+    clipboardUseRegex,
+  ]);
+
+  const visibleItems = filtered.slice(0, visibleCount);
+
   // 内容异步加载：条目就绪后回填上次滚动位置（用户手动滚动后不再回填）。
   useEffect(() => {
     if (!clipboardHistoryLoading && filtered.length > 0) {
@@ -226,9 +242,20 @@ export function ClipboardHistoryList() {
           thumbClassName="adl-clipboard__scrollbar-thumb"
         >
           <ul className="adl-clipboard__list" role="list">
-            {filtered.map((item) => (
+            {visibleItems.map((item) => (
               <ClipboardItemRow key={item.id} item={item} onZoom={handleZoom} />
             ))}
+            {visibleItems.length < filtered.length ? (
+              <li className="adl-clipboard__load-more">
+                <button
+                  type="button"
+                  className="adl-clipboard__load-more-btn"
+                  onClick={() => setVisibleCount((count) => count + LOAD_MORE_STEP)}
+                >
+                  {t.searchLoadMore}
+                </button>
+              </li>
+            ) : null}
           </ul>
         </CustomScrollArea>
       )}

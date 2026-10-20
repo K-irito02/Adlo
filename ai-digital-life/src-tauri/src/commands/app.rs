@@ -303,13 +303,19 @@ pub fn build_app_info(
     Ok(adl_kernel::app_info::build(&config, current_workspace))
 }
 
-/// 写入调试日志到项目目录（委托 LogManager，按当前模式处理）
+/// 写入调试日志到项目目录（委托 LogManager，按当前模式处理）。
+/// 文件 I/O 与配置锁读取都放到 blocking 线程，避免阻塞 Tauri 主线程（sync command
+/// 在主线程执行，大日志/锁竞争会把窗口卡成“未响应”）。
 #[tauri::command]
-pub fn write_debug_logs_to_project(
-    state: tauri::State<AppState>,
+pub async fn write_debug_logs_to_project(
+    state: tauri::State<'_, AppState>,
     content: String,
 ) -> Result<IpcResult<()>, CommandError> {
-    state.log_manager.write_debug_logs(&content).map_err(|e| AppError::Internal(e.to_string()))?;
+    let log_manager = state.log_manager.clone();
+    tokio::task::spawn_blocking(move || log_manager.write_debug_logs(&content))
+        .await
+        .map_err(|e| AppError::Internal(format!("spawn_blocking failed: {e}")))?
+        .map_err(|e| AppError::Internal(e.to_string()))?;
     Ok(ipc(Ok(())))
 }
 

@@ -5,6 +5,7 @@ import {
   ensureProtocol,
   normalizeUrlForCompare,
   mergeSearchResults,
+  sanitizeRestoredBrowserUrl,
 } from '../browserUrlUtils';
 import type { SearchEngine } from '../browserUrlUtils';
 
@@ -142,5 +143,35 @@ describe('mergeSearchResults（事项 10-c）', () => {
       labels,
     });
     expect(inHistory.map((r) => r.url)).toEqual(['https://www.youtube.com/']);
+  });
+});
+
+describe('sanitizeRestoredBrowserUrl', () => {
+  it('blanks drive-letter pseudo hosts (proven-bad pattern)', () => {
+    expect(sanitizeRestoredBrowserUrl('https://c/Users/31432/x.html')).toBe('about:blank');
+    expect(sanitizeRestoredBrowserUrl('https://D/docs/readme')).toBe('about:blank');
+  });
+  it('keeps single-label intranet hosts (no data loss; silent fetch skips them separately)', () => {
+    expect(sanitizeRestoredBrowserUrl('http://nas/')).toBe('http://nas/');
+    expect(sanitizeRestoredBrowserUrl('http://myserver:8080/app')).toBe('http://myserver:8080/app');
+  });
+  it('keeps extension-like real domains', () => {
+    expect(sanitizeRestoredBrowserUrl('https://agents.md/')).toBe('https://agents.md/');
+    expect(sanitizeRestoredBrowserUrl('https://example.com/readme.md')).toBe(
+      'https://example.com/readme.md',
+    );
+  });
+  it('passes through non-http(s), about:blank and empty (new-tab lifecycle)', () => {
+    expect(sanitizeRestoredBrowserUrl('')).toBe('');
+    expect(sanitizeRestoredBrowserUrl('about:blank')).toBe('about:blank');
+    expect(sanitizeRestoredBrowserUrl('file:///C:/x.html')).toBe('file:///C:/x.html');
+    expect(sanitizeRestoredBrowserUrl('not a url at all')).toBe('not a url at all');
+  });
+  it('keeps normal public/localhost/IP hosts', () => {
+    expect(sanitizeRestoredBrowserUrl('https://www.bilibili.com/video')).toBe(
+      'https://www.bilibili.com/video',
+    );
+    expect(sanitizeRestoredBrowserUrl('http://127.0.0.1:3080/')).toBe('http://127.0.0.1:3080/');
+    expect(sanitizeRestoredBrowserUrl('http://localhost:5173/')).toBe('http://localhost:5173/');
   });
 });

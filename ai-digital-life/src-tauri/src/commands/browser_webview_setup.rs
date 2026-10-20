@@ -209,12 +209,11 @@ pub(super) fn build_webview_builder(
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     let app_nav = app_handle.clone();
     let tab_id_owned = tab_id.to_string();
-    let init_script =
-        adl_browser::init_script_with_background_and_agent(
-            color_scheme,
-            agent_origins,
-            agent_intercept_enabled,
-        );
+    let init_script = adl_browser::init_script_with_background_and_agent(
+        color_scheme,
+        agent_origins,
+        agent_intercept_enabled,
+    );
     let (r, g, b) = adl_browser::theme_to_rgb(color_scheme);
     tracing::debug!(color_scheme, "build_webview_builder: generated init_script with background");
 
@@ -884,8 +883,7 @@ pub(super) fn build_silent_webview_builder(
 ) -> tauri::webview::WebviewBuilder<tauri::Wry> {
     // Silent/background webviews never render agent sites to the user, so agent
     // link interception is always off for them (`&[]` / `false`).
-    let init_script =
-        adl_browser::init_script_with_background_and_agent(color_scheme, &[], false);
+    let init_script = adl_browser::init_script_with_background_and_agent(color_scheme, &[], false);
     tracing::debug!(
         color_scheme,
         "build_silent_webview_builder: generated init_script with background"

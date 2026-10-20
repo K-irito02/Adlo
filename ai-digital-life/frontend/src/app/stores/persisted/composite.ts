@@ -1,4 +1,5 @@
 import { isRealTitle } from '@utils/browserDisplayUtils';
+import { sanitizeRestoredBrowserUrl } from '@features/browser/browserUrlUtils';
 import type { StoreState } from '../StoreState';
 import type { BrowserTabState } from '../slices/browserSliceShared';
 import type { WorkspaceBookmarkEntry } from '../slices/browserTypes';
@@ -100,6 +101,14 @@ function readArrayRecordInput<T>(
   return raw === undefined ? {} : readObjectArrayRecord<T>(isItem)(raw);
 }
 
+/** 恢复期统一清洗：坏 URL（盘符伪主机）回落，其余原样保留引用同一性。 */
+function sanitizeTabs<T extends { url: string }>(tabs: T[]): T[] {
+  return tabs.map((tab) => {
+    const url = sanitizeRestoredBrowserUrl(tab.url);
+    return url === tab.url ? tab : { ...tab, url };
+  });
+}
+
 /** 缺失 → {}；否则按登记表的字符串映射读取器（任一值非字符串 ⇒ 整值拒绝） */
 function readStringMapInput(raw: unknown): Record<string, string> | undefined {
   return raw === undefined ? {} : readStringRecord(raw);
@@ -114,7 +123,7 @@ export const compositeHydrators: CompositeHydrator[] = [
         return {};
       }
       // dsh 标签是普通浏览器标签，跨重启持久化（其承载的 dsh 进程由应用启动期重新拉起）。
-      const tabs = markResolvedTitles(persistedTabs);
+      const tabs = sanitizeTabs(markResolvedTitles(persistedTabs));
       const persistedActiveTabId = readString(read('adl:browser.activeTabId'));
       const activeTabId =
         persistedActiveTabId && tabs.some((tab) => tab.id === persistedActiveTabId)
@@ -130,7 +139,8 @@ export const compositeHydrators: CompositeHydrator[] = [
   {
     name: 'browserTabIdUrlMap',
     build: (read) => {
-      const tabs = readArrayInput<BrowserTabState>(isBrowserTab, read('adl:browser.tabs'));
+      const rawTabs = readArrayInput<BrowserTabState>(isBrowserTab, read('adl:browser.tabs'));
+      const tabs = rawTabs === undefined ? undefined : sanitizeTabs(rawTabs);
       const workspaceBookmarks = readArrayRecordInput<WorkspaceBookmarkEntry>(
         isBookmarkTabItem,
         read('adl:browser.workspaceBookmarks'),

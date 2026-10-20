@@ -110,4 +110,17 @@ describe('ClipboardItemRow', () => {
     fireEvent.click(screen.getByRole('button', { name: '复制' }));
     await waitFor(() => expect(writeClipboardItem).toHaveBeenCalledWith('c1'));
   });
+
+  it('truncates long text previews to keep the list light', () => {
+    const { container } = render(
+      <TCopyProvider t={mockT as never} locale="zh-CN">
+        <ul>
+          <ClipboardItemRow item={makeItem({ content: 'x'.repeat(500) })} onZoom={vi.fn()} />
+        </ul>
+      </TCopyProvider>,
+    );
+    const preview = container.querySelector('.adl-clipboard-row__preview');
+    expect(preview?.textContent).toHaveLength(241);
+    expect(preview?.textContent?.endsWith('…')).toBe(true);
+  });
 });
