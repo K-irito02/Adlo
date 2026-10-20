@@ -1,11 +1,13 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
 import { useAppStore } from '@stores/slicedStore';
 import { findInBrowserLookupIndex } from './useBrowserSearch';
+import { routeLocalUrl } from './browser-landing/localAuthPorts';
 import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from './browserUrlUtils';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
 import { pageMetaClient } from '@utils/pageMetaClient';
+import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
 
 interface UseBrowserPanelAddressSubmitParams {
   address: string;
@@ -23,6 +25,8 @@ interface UseBrowserPanelAddressSubmitParams {
   addressSubmittedForTabRef: MutableRefObject<string>;
   submitVersionRef: MutableRefObject<number>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
+  /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
+  t?: Record<string, string>;
 }
 
 export function useBrowserPanelAddressSubmit({
@@ -40,6 +44,7 @@ export function useBrowserPanelAddressSubmit({
   addressSubmittedForTabRef,
   submitVersionRef,
   validatedUrlsRef,
+  t,
 }: UseBrowserPanelAddressSubmitParams): { submitAddress: () => Promise<void> } {
   const submitAddress = useCallback(async () => {
     const input = address.trim();
@@ -79,8 +84,25 @@ export function useBrowserPanelAddressSubmit({
 
     const version = ++submitVersionRef.current;
 
+    // 需认证本地端口分流（事项 2）：裸 3080 必 401，先经后端取真实入口
+    // （含 `?token=`，首次访问种 cookie）。命中则就地面板 tab 导航到真实
+    // 地址（面板归属，不劫持到中间区），并跳过 checkEmbed 预检——HEAD 不带
+    // cookie 会 401 误判为“被拦截”。未命中保持原同步行为。
+    let targetUrl = finalUrl;
+    let authed: { url: string; freedPort: boolean } | null = null;
+    if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
+      authed = await resolveDshAuthUrl(finalUrl);
+      if (submitVersionRef.current !== version) {
+        return;
+      }
+      if (authed?.freedPort && t) {
+        notifyDshFreedPort(t);
+      }
+      targetUrl = authed?.url ?? finalUrl;
+    }
+
     if (!useAppStore.getState().isTauri) {
-      const cached = isEmbedBlocked(finalUrl);
+      const cached = authed ? false : isEmbedBlocked(targetUrl);
       if (cached !== undefined) {
         if (submitVersionRef.current !== version) {
           return;
@@ -89,17 +111,17 @@ export function useBrowserPanelAddressSubmit({
           setIframeBlockedDetected(true);
           setIframeLoadError(true);
         } else {
-          validatedUrlsRef.current.add(finalUrl);
+          validatedUrlsRef.current.add(targetUrl);
         }
         if (!cached) {
-          navigateBrowser(finalUrl);
+          navigateBrowser(targetUrl);
         }
       } else {
         // 中心提交同序：checkEmbed 走网络预检，失败（离线/代理异常）不得阻断导航，
         // 按"未拦截"继续，避免回车无响应 + unhandled rejection。
         let blocked: boolean;
         try {
-          blocked = await checkEmbed(finalUrl);
+          blocked = await checkEmbed(targetUrl);
         } catch (e) {
           console.warn('[addressSubmit] checkEmbed failed, treating as embeddable:', e);
           blocked = false;
@@ -112,17 +134,17 @@ export function useBrowserPanelAddressSubmit({
           setIframeBlockedDetected(true);
           setIframeLoadError(true);
         } else {
-          validatedUrlsRef.current.add(finalUrl);
+          validatedUrlsRef.current.add(targetUrl);
         }
 
         if (!blocked) {
-          navigateBrowser(finalUrl);
+          navigateBrowser(targetUrl);
         }
       }
     }
 
     // Always defer tab creation until real title arrives via handlePageMeta
-    handleNavigationStart(finalUrl);
+    handleNavigationStart(targetUrl);
     // 显式导航入口：记录期望导航 URL，供 onUrlChanged 检测跨域重定向
     // （Chrome/Edge 重定向链消化语义）。绑定目标 tab id：地址栏提交导航的是
     // 面板归属 tab（无面板 tab 时 browserNavigatePanelTab 会新建，绝不碰中心标签），
@@ -134,7 +156,7 @@ export function useBrowserPanelAddressSubmit({
     const panelBindTab =
       panelTabsForBind.find((t) => t.id === panelState.browserActiveTabId) ?? panelTabsForBind[0];
     expectedNavigationUrlRef.current = {
-      url: finalUrl,
+      url: targetUrl,
       at: Date.now(),
       tabId: panelBindTab?.id ?? null,
     };
@@ -143,17 +165,17 @@ export function useBrowserPanelAddressSubmit({
     } else {
       setSearchQueryDisplay('');
     }
-    setAddress(finalUrl);
+    setAddress(targetUrl);
     if (searchInfo) {
       useAppStore
         .getState()
-        .browserAddToHistory(finalUrl, `${searchInfo.engineName}: ${searchInfo.query}`);
+        .browserAddToHistory(targetUrl, `${searchInfo.engineName}: ${searchInfo.query}`);
     }
     if (useAppStore.getState().isTauri) {
       // 面板归属显式导航：更新 tab.url/新建面板 tab，并对已入池 tab 补一次
       // navigateTabInPool（均在传入的 wrapper 内用最新 id 完成）。
       browserNavigatePanelTab(
-        finalUrl,
+        targetUrl,
         searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined,
       );
       // O3：无活动 tab 时初始期望 tabId 为 null（任意 tab 事件都可能消费）。
@@ -161,22 +183,22 @@ export function useBrowserPanelAddressSubmit({
       // 避免后台 tab 事件在窗口内抢先消费（与树点击 F7 的行为一致）。
       const createdTabId = useAppStore.getState().browserActiveTabId;
       if (createdTabId) {
-        expectedNavigationUrlRef.current = { url: finalUrl, at: Date.now(), tabId: createdTabId };
+        expectedNavigationUrlRef.current = { url: targetUrl, at: Date.now(), tabId: createdTabId };
       }
     }
 
-    if (!useAppStore.getState().isTauri && finalUrl) {
-      pageMetaClient.get(finalUrl).then((meta) => {
+    if (!useAppStore.getState().isTauri && targetUrl) {
+      pageMetaClient.get(targetUrl).then((meta) => {
         if (!meta) {
-          useAppStore.getState().browserAddToHistory(finalUrl, finalUrl);
+          useAppStore.getState().browserAddToHistory(targetUrl, targetUrl);
           return;
         }
         handlePageMeta(
           {
-            title: meta.title || finalUrl,
+            title: meta.title || targetUrl,
             favicon: meta.favicon || '',
             faviconDataUri: meta.faviconDataUri || '',
-            url: finalUrl,
+            url: targetUrl,
             // 透传 get 返回的真实来源：否则 effectiveSource 回退硬编码 'http'，
             // com 权威条目被冻结（R3 回归）。
             source: (meta as { source?: MetaSource }).source,
@@ -200,6 +222,7 @@ export function useBrowserPanelAddressSubmit({
     addressSubmittedForTabRef,
     submitVersionRef,
     validatedUrlsRef,
+    t,
   ]);
 
   return { submitAddress };

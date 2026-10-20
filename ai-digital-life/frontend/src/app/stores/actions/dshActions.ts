@@ -35,6 +35,9 @@ function sameServiceOrigin(a: string, b: string): boolean {
  */
 let openDshInFlight: Promise<DshOpenResult | null> | null = null;
 
+/** applyPendingVersionSource 并发重入守卫（StrictMode 双 effect 安全）。 */
+let applyPendingInFlight: Promise<boolean> | null = null;
+
 /** 变异成功后的版本状态刷新：best-effort 静默，不记录错误卡片（主操作已成功）。 */
 async function refreshVersionStatusSilently(get: () => StoreState): Promise<void> {
   const result = await window.digitalLife.dsh.getVersionStatus();
@@ -43,9 +46,17 @@ async function refreshVersionStatusSilently(get: () => StoreState): Promise<void
   }
 }
 
-/** 重启后重建 dsh 标签（旧地址的 token 已失效）：关闭同源旧标签，按新地址新建并居中。 */
+/**
+ * 重启后重建 dsh 标签（旧地址的 token 已失效）：关闭同源旧标签，按新地址新建并居中。
+ * 用户没开 dsh 标签时不自动新建（事项 2026-10-20/5：对话框“立即生效”重启
+ * 不得在中间区凭空开标签；用户需要时自己点开，openDsh 会复用新进程）。
+ */
 function syncDshTab(get: () => StoreState, url: string): void {
   const stale = get().browserTabs.filter((tab) => sameServiceOrigin(tab.url, url));
+  if (stale.length === 0) {
+    debugVer('syncDshTab: skipped (no dsh tab open)', {});
+    return;
+  }
   for (const tab of stale) {
     get().browserCloseTab(tab.id);
   }
@@ -130,7 +141,12 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         debugVer('restartDsh: failed', { error: result.error });
         return { restarted: false, url: null, failed: true };
       }
-      debugVer('restartDsh: ok', { ...result.data });
+      // 凭据红线：真实入口 URL 含一次性 `?token=`，埋点只记到 query 之前
+      // （本文件其它埋点均不带 URL；调试日志收起器会收录 stdout 明文）。
+      debugVer('restartDsh: ok', {
+        ...result.data,
+        url: result.data.url?.split('?')[0] ?? null,
+      });
       if (result.data.url) {
         syncDshTab(get, result.data.url);
       }
@@ -450,6 +466,55 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         get().setDshSourceStatus(statusResult.data);
       }
       return true;
+    },
+
+    /**
+     * [applyPendingVersionSource - 启动期应用“下次启动生效”的版本来源]
+     *
+     * 对话框“下次启动生效”只记 pending（localStorage）不写配置，选择器保持显示
+     * 当前生效来源；下次启动由 App 挂载时调一次本 action 落盘并静默重启生效。
+     * 无 pending 返回 false；并发重入复用同一 promise（StrictMode 双 effect 安全）。
+     * @returns true=消费过 pending（无论落盘成败）；false=无 pending
+     * @writes dshSlice.dshVersionSourcePending/dshVersionSourceDeferred/sourceStatus
+     */
+    applyPendingVersionSource: async (): Promise<boolean> => {
+      if (applyPendingInFlight) {
+        return applyPendingInFlight;
+      }
+      applyPendingInFlight = (async () => {
+        const pending = get().dshVersionSourcePending;
+        if (!pending) {
+          return false;
+        }
+        debugVer('pending: applying at startup', { pending });
+        const target = pending;
+        if (target === get().sourceStatus?.config?.version_source) {
+          get().setDshVersionSourcePending(null);
+          get().setDshVersionSourceDeferred(false);
+          return true;
+        }
+        const ok = await get().saveSourceConfig({ version_source: target }, true);
+        if (!ok) {
+          // 落盘失败：pending 保留，下次启动重试（本次不打扰用户）。
+          debugVer('pending: save failed, will retry next launch', { target });
+          return true;
+        }
+        get().setDshVersionSourcePending(null);
+        get().setDshVersionSourceDeferred(false);
+        // 静默重启（事项 2026-10-20/5：不自动开标签，无 tab 时 syncDshTab 直接跳过）；
+        // 失败只记埋点（启动期不弹 toast 打扰；配置已落盘，用户手动重启即生效）。
+        const restart = await get().restartDsh();
+        await get().fetchSourceStatus(true);
+        if (restart.failed) {
+          debugVer('pending: restart failed after save', { target });
+        }
+        return true;
+      })();
+      try {
+        return await applyPendingInFlight;
+      } finally {
+        applyPendingInFlight = null;
+      }
     },
 
     /**

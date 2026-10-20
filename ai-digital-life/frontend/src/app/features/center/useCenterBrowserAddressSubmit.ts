@@ -2,8 +2,10 @@ import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction 
 import { useAppStore } from '@stores/slicedStore';
 import { isRealTitle } from '@utils/browserDisplayUtils';
 import { findInBrowserLookupIndex } from '@features/browser/useBrowserSearch';
+import { routeLocalUrl } from '@features/browser/browser-landing/localAuthPorts';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from '@features/browser/browserUrlUtils';
+import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
 
 interface UseCenterBrowserAddressSubmitParams {
   /** 被中心宿主承载的浏览器标签 id（导航目标）。 */
@@ -20,6 +22,8 @@ interface UseCenterBrowserAddressSubmitParams {
   setIframeLoadError: Dispatch<SetStateAction<boolean>>;
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
+  /** 全量文案（调用点传入中心 `t`）：仅用于残留端口释放告知，缺省不提示。 */
+  t?: Record<string, string>;
 }
 
 /**
@@ -47,6 +51,7 @@ export function useCenterBrowserAddressSubmit({
   setIframeLoadError,
   setIframeBlockedDetected,
   validatedUrlsRef,
+  t,
 }: UseCenterBrowserAddressSubmitParams): { submitAddress: () => Promise<void> } {
   const submitAddress = useCallback(async () => {
     const state = useAppStore.getState();
@@ -79,15 +84,28 @@ export function useCenterBrowserAddressSubmit({
       finalUrl = ensureProtocol(input);
     }
 
+    // 需认证本地端口分流（事项 2）：裸 3080 必 401，先经后端取真实入口
+    // （含 `?token=`，首次访问种 cookie）。命中则跳过 checkEmbed 预检——
+    // HEAD 不带 cookie 会 401 误判为“被拦截”。未命中保持原行为。
+    let targetUrl = finalUrl;
+    let authed: { url: string; freedPort: boolean } | null = null;
+    if (routeLocalUrl(finalUrl)?.opener === 'dsh') {
+      authed = await resolveDshAuthUrl(finalUrl);
+      if (authed?.freedPort && t) {
+        notifyDshFreedPort(t);
+      }
+      targetUrl = authed?.url ?? finalUrl;
+    }
+
     let blocked = false;
     if (!state.isTauri) {
-      const cached = isEmbedBlocked(finalUrl);
+      const cached = authed ? false : isEmbedBlocked(targetUrl);
       if (cached !== undefined) {
         blocked = cached;
       } else {
         // checkEmbed 走网络预检：失败（离线/代理异常）不得阻断导航，按"未拦截"继续。
         try {
-          blocked = await checkEmbed(finalUrl);
+          blocked = await checkEmbed(targetUrl);
         } catch (e) {
           console.warn('[centerBrowser] checkEmbed failed, treating as embeddable:', e);
           blocked = false;
@@ -95,23 +113,23 @@ export function useCenterBrowserAddressSubmit({
       }
     }
 
-    setAddress(finalUrl);
+    setAddress(targetUrl);
     setSearchQueryDisplay(searchInfo ? searchInfo.query : '');
     const title = searchInfo ? `${searchInfo.engineName}: ${searchInfo.query}` : undefined;
 
     if (searchInfo) {
-      state.browserAddToHistory(finalUrl, title!);
+      state.browserAddToHistory(targetUrl, title!);
     }
 
     // 中心恒就地：直接更新当前中心标签并导航其 WebView/iframe，不新建标签。
     useAppStore.getState().browserUpdateTab(browserTabId, {
-      url: finalUrl,
-      ...(title ? { title, titleResolved: isRealTitle(title, finalUrl) } : {}),
+      url: targetUrl,
+      ...(title ? { title, titleResolved: isRealTitle(title, targetUrl) } : {}),
     });
 
     if (state.isTauri) {
       if (isTabInPool(browserTabId)) {
-        await navigateTabInPool(browserTabId, finalUrl).catch((err) => {
+        await navigateTabInPool(browserTabId, targetUrl).catch((err) => {
           console.warn('[centerAddressSubmit] navigateTabInPool failed:', err);
         });
       }
@@ -123,8 +141,8 @@ export function useCenterBrowserAddressSubmit({
       setIframeLoadError(true);
       return;
     }
-    validatedUrlsRef.current.add(finalUrl);
-    navigateBrowser(finalUrl);
+    validatedUrlsRef.current.add(targetUrl);
+    navigateBrowser(targetUrl);
   }, [
     address,
     browserTabId,
@@ -137,6 +155,7 @@ export function useCenterBrowserAddressSubmit({
     setAddress,
     setSearchQueryDisplay,
     validatedUrlsRef,
+    t,
   ]);
 
   return { submitAddress };

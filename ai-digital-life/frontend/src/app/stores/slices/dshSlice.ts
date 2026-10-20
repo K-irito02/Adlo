@@ -3,8 +3,18 @@ import type {
   DshVersionStatus,
   DshSourceStatus,
   DshVersionTask,
+  DshVersionSourceMode,
 } from '../../../shared/ipc/dsh';
 import type { StoreState } from '../StoreState';
+import { readJson, writeJson } from '../storageHelpers';
+
+/** “下次启动生效”的待应用版本来源（localStorage 持久化，重启后由启动逻辑消费）。 */
+const PENDING_SOURCE_KEY = 'adl:dsh.versionSourcePending';
+
+function readPendingSource(): DshVersionSourceMode | null {
+  const raw = readJson<unknown>(PENDING_SOURCE_KEY, null);
+  return raw === 'auto' || raw === 'system' || raw === 'host' ? raw : null;
+}
 
 export interface DshSlice {
   /** dsh 版本目录状态（当前选中/已装/最新/是否有更新，含预发布通道） */
@@ -21,6 +31,11 @@ export interface DshSlice {
   versionTaskCancelRequested: boolean;
   /** 版本来源“下次启动生效”延迟标记（仅内存态；应用重启后按持久化来源生效） */
   dshVersionSourceDeferred: boolean;
+  /**
+   * “下次启动生效”待应用的版本来源（localStorage 持久化，重启后由启动逻辑
+   * `applyPendingVersionSource` 落盘并重启生效；会话内选择器仍显示当前生效来源）。
+   */
+  dshVersionSourcePending: DshVersionSourceMode | null;
 
   setDshVersionStatus: (status: DshVersionStatus | null) => void;
   setDshVersionCatalog: (catalog: DshVersionCatalog | null) => void;
@@ -29,6 +44,7 @@ export interface DshSlice {
   setDshVersionTask: (task: DshVersionTask | null) => void;
   setVersionTaskCancelRequested: (requested: boolean) => void;
   setDshVersionSourceDeferred: (deferred: boolean) => void;
+  setDshVersionSourcePending: (mode: DshVersionSourceMode | null) => void;
 }
 
 export const createDshSlice = (
@@ -42,6 +58,7 @@ export const createDshSlice = (
   versionTask: null,
   versionTaskCancelRequested: false,
   dshVersionSourceDeferred: false,
+  dshVersionSourcePending: readPendingSource(),
 
   setDshVersionStatus: (status) => set({ versionStatus: status }),
   setDshVersionCatalog: (catalog) => set({ versionCatalog: catalog }),
@@ -50,4 +67,8 @@ export const createDshSlice = (
   setDshVersionTask: (task) => set({ versionTask: task }),
   setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
   setDshVersionSourceDeferred: (deferred) => set({ dshVersionSourceDeferred: deferred }),
+  setDshVersionSourcePending: (mode) => {
+    set({ dshVersionSourcePending: mode });
+    writeJson(PENDING_SOURCE_KEY, mode);
+  },
 });

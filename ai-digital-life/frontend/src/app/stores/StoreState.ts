@@ -319,6 +319,7 @@ interface DshActions {
   fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
   saveSourceConfig: (config: DshSourceConfig, silent?: boolean) => Promise<boolean>;
   testSource: (url: string, silent?: boolean) => Promise<DshTestResult | null>;
+  applyPendingVersionSource: () => Promise<boolean>;
 }
 
 interface CenterActions {

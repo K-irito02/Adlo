@@ -80,4 +80,42 @@ describe('useBrowserPanelHandlers.handleOpenTabFromTree (regression)', () => {
     act(() => result.current.handleOpenTabFromTree('https://x.com', 'tab-1'));
     expect(expectedNavigationUrlRef.current).toBeNull();
   });
+
+  it('裸 3080 树点击走后端真实入口并保持面板归属（事项 2）', async () => {
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      dsh: {
+        open: vi.fn(async () => ({
+          ok: true,
+          data: { url: 'http://127.0.0.1:3080/?token=tree1', freedPort: false },
+        })),
+      },
+    };
+    try {
+      const expectedNavigationUrlRef: {
+        current: { url: string; at: number; tabId: string | null } | null;
+      } = { current: null };
+      const browserNavigatePanelTab = vi.fn();
+      const { result } = renderHook(() =>
+        useBrowserPanelHandlers({
+          browserOpenTab: vi.fn(),
+          browserNavigatePanelTab,
+          browserSelectTab: vi.fn(),
+          browserNavigateInPlace: true,
+          setBrowserNavigateInPlace: vi.fn(),
+          getActiveTabId: () => 'tab-active',
+          expectedNavigationUrlRef,
+          t: { dshPortFreed: 'FREED' },
+        }),
+      );
+
+      await act(async () => {
+        result.current.handleOpenTabFromTree('http://127.0.0.1:3080');
+      });
+
+      expect(browserNavigatePanelTab).toHaveBeenCalledWith('http://127.0.0.1:3080/?token=tree1');
+      expect(expectedNavigationUrlRef.current?.url).toBe('http://127.0.0.1:3080/?token=tree1');
+    } finally {
+      delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    }
+  });
 });

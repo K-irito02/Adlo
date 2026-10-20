@@ -176,6 +176,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     setBrowserNavigateInPlace,
     getActiveTabId: () => useAppStore.getState().browserActiveTabId,
     expectedNavigationUrlRef,
+    // 事项 2：残留端口释放告知用（dshPortFreed 全量 copy 必存在）。
+    t,
   });
 
   const { zoomLevel, setZoomLevel } = useBrowserZoomState({ activeTabId: activeTab?.id });
@@ -402,6 +404,8 @@ export function BrowserPanel(props: BrowserPanelProps) {
     addressSubmittedForTabRef,
     submitVersionRef,
     validatedUrlsRef,
+    // 事项 2：残留端口释放告知用（dshPortFreed 全量 copy 必存在）。
+    t,
   });
 
   const activeTabUrl =

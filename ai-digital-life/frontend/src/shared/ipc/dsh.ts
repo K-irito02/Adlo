@@ -8,7 +8,13 @@ export type { IpcResult };
 export interface DshSourceStatus {
   bundled: { version: string; path: string } | null;
   system: { path: string; version: string | null } | null;
-  running: { url: string; port: number } | null;
+  /**
+   * running 详情（事项 2026-10-20/1 精确版本用）。
+   * `managed` 为 true 表示该进程是本应用本次会话拉起并持有 Child 的，
+   * `version` 即本次 spawn 的来源版本；外部复用（无 Child 可持有）一律
+   * `managed=false` + `version=null`，UI 按未知展示、不猜版本。
+   */
+  running: { url: string; port: number; managed: boolean; version: string | null } | null;
   /** 版本来源偏好与实际生效来源（后端解析，UI 据此显隐管理项）。 */
   versionSource: {
     mode: DshVersionSourceMode;

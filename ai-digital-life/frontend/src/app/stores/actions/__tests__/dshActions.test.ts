@@ -35,13 +35,27 @@ interface DshTestStore {
   browserCloseTab: (tabId: string) => void;
   centerShowBrowserTab: (browserTabId: string) => void;
   centerSelectTab: (centerTabId: string) => void;
+  sourceStatus: { config: { version_source: string } } | null;
+  setDshSourceStatus: (status: unknown) => void;
+  dshVersionSourcePending: string | null;
+  setDshVersionSourcePending: (mode: string | null) => void;
+  setDshVersionSourceDeferred: (deferred: boolean) => void;
+  saveSourceConfig: (config: unknown, silent?: boolean) => Promise<boolean>;
+  fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
+  applyPendingVersionSource: () => Promise<boolean>;
+  showToast: (message: string, type?: string) => string;
 }
 
 function makeStore() {
   const store = createStore<DshTestStore>((set, get) => {
     const dshActions = createDshActions(set as never, () => get() as never) as unknown as Pick<
       DshTestStore,
-      'openDsh' | 'restartDsh' | 'fetchDshVersionStatus' | 'updateDsh' | 'cancelVersionTask'
+      | 'openDsh'
+      | 'restartDsh'
+      | 'fetchDshVersionStatus'
+      | 'updateDsh'
+      | 'cancelVersionTask'
+      | 'applyPendingVersionSource'
     >;
     return {
       versionStatus: null,
@@ -97,6 +111,14 @@ function makeStore() {
       centerSelectTab: (centerTabId) => set({ centerActiveTabId: centerTabId }),
       versionTaskCancelRequested: false,
       setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
+      sourceStatus: null,
+      setDshSourceStatus: (status) => set({ sourceStatus: status as never }),
+      dshVersionSourcePending: null,
+      setDshVersionSourcePending: (mode) => set({ dshVersionSourcePending: mode }),
+      setDshVersionSourceDeferred: () => {},
+      saveSourceConfig: async () => true,
+      fetchSourceStatus: async () => true,
+      showToast: () => 'toast',
       ...dshActions,
     } as DshTestStore;
   });
@@ -368,6 +390,86 @@ describe('dshActions.restartDsh', () => {
     const result = await store.getState().restartDsh();
     expect(result).toEqual({ restarted: false, url: null, failed: true });
     expect(store.getState().browserTabs[0].url).toBe('http://127.0.0.1:3080/?token=old');
+  });
+
+  it('无 dsh 标签时重启不自动新建标签（事项 2026-10-20/5）', async () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('https://example.com', 'other');
+    (window as any).digitalLife.dsh.restart.mockResolvedValue({
+      ok: true,
+      data: { restarted: true, url: 'http://127.0.0.1:3080/?token=new' },
+    });
+    const result = await store.getState().restartDsh();
+    expect(result.failed).toBe(false);
+    expect(store.getState().browserTabs).toHaveLength(1);
+    expect(store.getState().browserTabs[0].url).toBe('https://example.com');
+  });
+});
+
+describe('dshActions.applyPendingVersionSource', () => {
+  beforeEach(() => {
+    vi.stubGlobal('digitalLife', {
+      dsh: { saveSourceConfig: vi.fn(), restart: vi.fn(), getSourceStatus: vi.fn() },
+    });
+  });
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('无 pending 返回 false 且不碰后端', async () => {
+    const store = makeStore();
+    await expect(store.getState().applyPendingVersionSource()).resolves.toBe(false);
+    expect((window as any).digitalLife.dsh.saveSourceConfig).not.toHaveBeenCalled();
+  });
+
+  it('pending 与已持久化一致时直接消费，不重启', async () => {
+    const store = makeStore();
+    store.setState({
+      dshVersionSourcePending: 'system',
+      sourceStatus: { config: { version_source: 'system' } },
+    });
+    await expect(store.getState().applyPendingVersionSource()).resolves.toBe(true);
+    expect((window as any).digitalLife.dsh.saveSourceConfig).not.toHaveBeenCalled();
+    expect((window as any).digitalLife.dsh.restart).not.toHaveBeenCalled();
+    expect(store.getState().dshVersionSourcePending).toBeNull();
+  });
+
+  it('pending 落盘 + 静默重启 + 消费（事项 2026-10-20/5）', async () => {
+    const store = makeStore();
+    store.setState({
+      dshVersionSourcePending: 'system',
+      sourceStatus: { config: { version_source: 'host' } },
+    });
+    (window as any).digitalLife.dsh.saveSourceConfig.mockResolvedValue({ ok: true, data: true });
+    (window as any).digitalLife.dsh.restart.mockResolvedValue({
+      ok: true,
+      data: { restarted: true, url: 'http://127.0.0.1:3080/?token=t' },
+    });
+    (window as any).digitalLife.dsh.getSourceStatus.mockResolvedValue({
+      ok: true,
+      data: { config: { version_source: 'system' } },
+    });
+    await expect(store.getState().applyPendingVersionSource()).resolves.toBe(true);
+    expect((window as any).digitalLife.dsh.saveSourceConfig).toHaveBeenCalledWith({
+      version_source: 'system',
+    });
+    expect((window as any).digitalLife.dsh.restart).toHaveBeenCalled();
+    expect(store.getState().dshVersionSourcePending).toBeNull();
+  });
+
+  it('落盘失败保留 pending，下次启动重试', async () => {
+    const store = makeStore();
+    store.setState({
+      dshVersionSourcePending: 'system',
+      sourceStatus: { config: { version_source: 'host' } },
+    });
+    (window as any).digitalLife.dsh.saveSourceConfig.mockResolvedValue({
+      ok: false,
+      error: { message: 'down' },
+    });
+    await expect(store.getState().applyPendingVersionSource()).resolves.toBe(true);
+    expect((window as any).digitalLife.dsh.restart).not.toHaveBeenCalled();
+    expect(store.getState().dshVersionSourcePending).toBe('system');
   });
 });
 

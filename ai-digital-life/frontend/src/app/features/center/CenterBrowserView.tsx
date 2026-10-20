@@ -190,6 +190,8 @@ export function CenterBrowserView({ browserTabId }: CenterBrowserViewProps) {
     setIframeLoadError,
     setIframeBlockedDetected,
     validatedUrlsRef,
+    // 事项 2：残留端口释放告知用（dshPortFreed 全量 copy 必存在）。
+    t,
   });
 
   const activeTabUrl = activeTab?.url && activeTab.url !== 'about:blank' ? activeTab.url : '';

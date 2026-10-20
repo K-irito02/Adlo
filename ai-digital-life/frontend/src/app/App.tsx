@@ -174,10 +174,14 @@ export function App() {
   // 启动自检（事项 5）：每次启动静默拉一次 dsh 版本状态（含预发布通道），
   // 只写 store 供设置项内徽章/行提示展示，不弹 toast、不记错误卡。
   const fetchDshVersionStatus = useAppStore((s) => s.fetchDshVersionStatus);
+  const applyPendingVersionSource = useAppStore((s) => s.applyPendingVersionSource);
   useEffect(() => {
     console.debug('[ADL-DSH-VER]', 'startup: silent version check');
     void fetchDshVersionStatus(true);
-  }, [fetchDshVersionStatus]);
+    // “下次启动生效”在此兑现：有 pending 先落盘 + 静默重启，再让出给常规自检
+    // （事项 2026-10-20/5；并发重入由 action 内守卫合并）。
+    void applyPendingVersionSource();
+  }, [fetchDshVersionStatus, applyPendingVersionSource]);
 
   // Guard: wait for i18n before rendering (safe to return after all hooks)
   if (!t) {

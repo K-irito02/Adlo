@@ -13,6 +13,7 @@ import { PortConfigDialog } from './PortConfigDialog';
 import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
 import { ContextMenu } from '@components/ContextMenu';
 import { routeLocalUrl } from './localAuthPorts';
+import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
 import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {
@@ -95,31 +96,31 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
 
   const handleOpenUrl = useCallback(
     (url: string) => {
-      // 需认证本地端口分流（通用层，见 localAuthPorts.ts）：
-      // 按分发表路由到对应 opener 拿真实入口 URL
-      // （dsh 即 openDsh：已运行时复用（不重复 spawn），否则拉起并返回
-      // stdout 打印的 `?token=` 地址，首次访问种 cookie，后续靠 cookie），
+      // 需认证本地端口分流（事项 2，见 dshAuthUrl.ts）：
+      // 取后端返回的真实入口 URL（含 `?token=`，首次访问种 cookie，后续靠 cookie）
+      // 再走调用方的归属落点（中心就地导航当前标签 / 面板新建面板标签），
       // 而非直接打开裸地址，避免 "authentication required" 401。
-      // opener 拉起失败时回退裸开（用户仍可看到服务本身或 dsh 的 401 指引页）。
-      const routed = routeLocalUrl(url);
-      if (routed !== null) {
-        if (routed.opener === 'dsh') {
-          void (async () => {
-            try {
-              const result = await useAppStore.getState().openDsh();
-              if (!result) {
-                openFallback(url);
-              }
-            } catch {
-              openFallback(url);
-            }
-          })();
+      // 取真实地址失败时回退裸开（用户仍可看到服务本身或 dsh 的 401 指引页）。
+      // 注意：此处刻意不用 openDsh——它会把标签劫持到中间区并聚焦，
+      // 面板欢迎页点击会显得“没有任何反应”。
+      // 非分发表 URL 保持原同步行为（回归测试同步断言依赖）。
+      if (routeLocalUrl(url)?.opener !== 'dsh') {
+        openFallback(url);
+        return;
+      }
+      void (async () => {
+        const authed = await resolveDshAuthUrl(url);
+        if (!authed) {
+          openFallback(url);
           return;
         }
-      }
-      openFallback(url);
+        if (authed.freedPort) {
+          notifyDshFreedPort(t);
+        }
+        openFallback(authed.url);
+      })();
     },
-    [openFallback],
+    [openFallback, t],
   );
 
   const { openUrlInCenter } = useOpenInCenterAction();

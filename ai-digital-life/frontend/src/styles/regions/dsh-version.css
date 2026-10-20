@@ -185,9 +185,17 @@
 }
 
 /* 卸载确认警告文案：`.adl-settings-row__label small`（0-1-1）会覆盖颜色，
-   用复合选择器（0-2-1）提权，避免 !important（同 settings.css 状态 pill 约定）。 */
+   用复合选择器（0-2-1）提权，避免 !important（同 settings.css 状态 pill 约定）。
+   多行说明（蓝色管理提示等）按原文换行呈现：基础 small 无 pre-line 会把
+   `\n·` 压成一段，且 5 行 clamp 会在窄面板下截断后续分项，故此处按原文
+   换行（pre-line）+ 解除 clamp（块级 + 可见溢出，靠列宽自然换行，不挤占右侧控件）。 */
 .adl-dsh-settings .adl-settings-row__label small.adl-dsh-settings__row-warn {
   color: var(--dsh-note-fg);
+  display: block;
+  white-space: pre-line;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  overflow: visible;
 }
 
 /* 版本下拉菜单：经 Portal 挂到 body（fixed 定位，坐标由 JS 计算），

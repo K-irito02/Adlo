@@ -155,12 +155,25 @@ export function DshVersionManagement() {
   const versionSource = dshSourceStatus?.versionSource ?? null;
   const sourceMode: DshVersionSourceMode =
     versionSource?.mode ?? dshSourceStatus?.config.version_source ?? 'auto';
-  const effectiveSystem = versionSource?.effective === 'system';
+  // 显隐条件（或语义，任一成立即隐藏；defer 期间切换尚未生效，保持显示 + 提示行）：
+  // ① mode=system：用户配了系统来源，running 恒优先会使 system 进程在跑时
+  // effective=running，只看 effective 就永远藏不住（用户实测 2026-10-20）；
+  // ② effective=system：自动检测下本应用内无可用版本、实际落在系统安装上
+  // （预存回归：`实际来源为系统安装时隐藏管理项并显示说明`）。
+  const modeIsSystem = sourceMode === 'system';
+  const effectiveIsSystem = versionSource?.effective === 'system';
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [sourceDialogBusy, setSourceDialogBusy] = useState(false);
+  // 对话框目标：切向 system 走系统文案，离开 system（→host/auto）走通用切换文案。
+  const [pendingMode, setPendingMode] = useState<DshVersionSourceMode | null>(null);
   const deferredSource = useAppStore((s) => s.dshVersionSourceDeferred);
   const setDeferredSource = useAppStore((s) => s.setDshVersionSourceDeferred);
-  const systemManaged = effectiveSystem && !deferredSource;
+  const pendingSource = useAppStore((s) => s.dshVersionSourcePending);
+  const setPendingSource = useAppStore((s) => s.setDshVersionSourcePending);
+  // 显隐：配置为系统（mode）或实际落在系统（effective）或待切换为系统（pending）
+  // 任一成立即隐藏。defer 期间选择器仍显示当前生效来源，另有 deferred 提示行说明。
+  const pendingIsSystem = pendingSource === 'system';
+  const systemManaged = modeIsSystem || effectiveIsSystem || pendingIsSystem;
   const autoSwitchedRef = useRef(false);
   const sourceDialogCancelRef = useRef<HTMLButtonElement | null>(null);
 
@@ -255,15 +268,6 @@ export function DshVersionManagement() {
     menuGeometry !== null,
   ]);
 
-  useEffect(() => {
-    debugVer('render: effective version', {
-      currentSelected,
-      running: dshSourceStatus?.running?.url ?? null,
-      system: dshSourceStatus?.system?.path ?? null,
-      bundled: dshSourceStatus?.bundled?.version ?? null,
-    });
-  }, [currentSelected, dshSourceStatus]);
-
   // 目标版本变化（切换/回退/卸载完成）时清除卸载确认态，避免残留的 danger 样式
   // 指向新的当前版本。
   useEffect(() => {
@@ -288,8 +292,15 @@ export function DshVersionManagement() {
     }
     autoSwitchedRef.current = true;
     debugVer('source: auto resolved none, switching to host', {});
-    void actions.saveSourceConfig({ version_source: 'host' }, true);
-  }, [versionSource, versionStatus, installed.length, actions]);
+    void (async () => {
+      const ok = await actions.saveSourceConfig({ version_source: 'host' }, true);
+      if (ok) {
+        // 直接落盘即“本次生效”，清掉可能残留的下次启动 pending。
+        setPendingSource(null);
+        setDeferredSource(false);
+      }
+    })();
+  }, [versionSource, versionStatus, installed.length, actions, setPendingSource, setDeferredSource]);
 
   /**
    * 版本菜单几何：菜单经 Portal 挂到 body（fixed），不受设置面板滚动容器
@@ -634,22 +645,37 @@ export function DshVersionManagement() {
         showToast(t.dshSettingsSaveFailed, 'error');
         return false;
       }
+      // 直接落盘即“本次生效”，清掉可能残留的下次启动 pending（事项 2026-10-20/5）。
+      setPendingSource(null);
+      setDeferredSource(false);
       await actions.fetchSourceStatus(true);
       return true;
     },
-    [actions, showToast, t],
+    [actions, setPendingSource, setDeferredSource, showToast, t],
   );
 
   const handleSourceChange = useCallback(
     async (value: string) => {
       const mode = value as DshVersionSourceMode;
       debugVer('source: change', { mode });
+      // 决策前现查一次：挂载时拉取的快照在预拉起完成前 `running` 为 null，
+      // 直接存会跳过确认对话框；现查约数百毫秒，误判代价远大于等待
+      // （用户实测切源无弹窗即此 stale 快照所致）。
+      await actions.fetchSourceStatus(true);
+      const fresh = useAppStore.getState().sourceStatus;
+      debugVer('source: change probed', {
+        running: fresh?.running?.url ?? null,
+        system: fresh?.system?.path ?? null,
+      });
+      const currentMode: DshVersionSourceMode =
+        fresh?.versionSource?.mode ?? fresh?.config?.version_source ?? 'auto';
       if (mode === 'system') {
-        if (!dshSourceStatus?.system) {
+        if (!fresh?.system) {
           showToast(t.dshSystemMissing, 'error');
           return;
         }
-        if (dshSourceStatus?.running) {
+        if (fresh?.running) {
+          setPendingMode('system');
           setSourceDialogOpen(true);
           return;
         }
@@ -658,40 +684,51 @@ export function DshVersionManagement() {
         }
         return;
       }
+      // 离开 system（→host/auto）且有运行中：同样确认，否则旧进程继续服务、
+      // 当前版本恒显旧版（用户实测 system→host 无弹窗 + 版本错即此缺口）。
+      if (currentMode === 'system' && fresh?.running) {
+        setPendingMode(mode);
+        setSourceDialogOpen(true);
+        return;
+      }
       setDeferredSource(false);
       await saveVersionSource(mode);
     },
-    [
-      dshSourceStatus?.running,
-      dshSourceStatus?.system,
-      setDeferredSource,
-      saveVersionSource,
-      showToast,
-      t,
-    ],
+    [actions, setDeferredSource, saveVersionSource, showToast, t],
   );
 
+  // 确认对话框三选项（目标由 pendingMode 承载）：
+  // · 下次启动生效：只记 pending（localStorage）+ deferred 标记，不写配置，
+  //   选择器保持显示当前生效来源，下次启动由 `applyPendingVersionSource` 兑现
+  //   （事项 2026-10-20/5：此前直接落盘导致“本次仍使用当前来源”与显示矛盾）。
+  // · 立即生效：落盘 + 清 pending + 重启（无 dsh 标签时不自动新建）。
+  // · 取消：切向 system 时回退宿主（历史行为保持）；离开 system 时保持 system 不写盘。
   const handleSystemDialogChoice = useCallback(
     async (choice: 'next' | 'now' | 'cancel') => {
       if (sourceDialogBusy) {
         return;
       }
       setSourceDialogBusy(true);
+      const target: DshVersionSourceMode = pendingMode ?? 'system';
+      debugVer('source: dialog choice', { choice, target });
       try {
         if (choice === 'cancel') {
           setDeferredSource(false);
-          await saveVersionSource('host');
-          return;
-        }
-        if (!(await saveVersionSource('system'))) {
+          if (target === 'system') {
+            await saveVersionSource('host');
+          }
           return;
         }
         if (choice === 'next') {
+          setPendingSource(target);
           setDeferredSource(true);
+          debugVer('source: deferred to next launch', { target });
           showToast(t.dshVersionSourceNextLaunchSaved, 'success');
           return;
         }
-        setDeferredSource(false);
+        if (!(await saveVersionSource(target))) {
+          return;
+        }
         const restart = await actions.restartDsh();
         await actions.fetchSourceStatus(true);
         showToast(
@@ -701,9 +738,19 @@ export function DshVersionManagement() {
       } finally {
         setSourceDialogBusy(false);
         setSourceDialogOpen(false);
+        setPendingMode(null);
       }
     },
-    [actions, setDeferredSource, saveVersionSource, showToast, sourceDialogBusy, t],
+    [
+      actions,
+      setPendingSource,
+      setDeferredSource,
+      saveVersionSource,
+      showToast,
+      sourceDialogBusy,
+      t,
+      pendingMode,
+    ],
   );
 
   useEffect(() => {
@@ -717,6 +764,7 @@ export function DshVersionManagement() {
       // Escape 仅关闭对话框，不做任何写入：用户"先不做决定"不应被记为"取消回退 host"。
       event.preventDefault();
       setSourceDialogOpen(false);
+      setPendingMode(null);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -994,20 +1042,65 @@ export function DshVersionManagement() {
     );
   };
 
+  // 当前版本读数（事项 1）：任何 effective 都优先显示真实版本号，大字为主。
+  // running 只认后端登记的 spawn 来源版本（`running.version`，宿主拉起时精确已知，
+  // 切源重启后即新来源版本）；外部复用（`managed=false`）一律未知，不猜宿主版本
+  // （事项 4 文案承诺一致）。system 用后端 `dsh --version` 现查版。
+  // 徽章（发现新版本/已是最新）只在主行版本号确为宿主当前选中时才挂，避免
+  // system 版与宿主选中不一致时误导。
+  const runningReadout = useCallback(
+    (running: { url: string; version: string | null } | null | undefined) => {
+      const url = running?.url ?? '';
+      const known = running?.version ?? null;
+      if (known) {
+        return {
+          text: known,
+          sub: t.dshEffectiveRunning.replace('{url}', url),
+          empty: false,
+        };
+      }
+      return {
+        text: t.dshEffectiveRunning.replace('{url}', url),
+        sub: t.dshVersionUnknown,
+        empty: true,
+      };
+    },
+    [t],
+  );
+  const systemReadout = useCallback(
+    (path: string, version: string | null) => {
+      if (version) {
+        return {
+          text: version,
+          sub: t.dshEffectiveSystem.replace('{path}', path),
+          empty: false,
+        };
+      }
+      return {
+        text: t.dshEffectiveSystem.replace('{path}', path),
+        sub: t.dshVersionUnknown,
+        empty: true,
+      };
+    },
+    [t],
+  );
   const readout = useMemo(() => {
     if (versionSource) {
       switch (versionSource.effective) {
         case 'host':
-          return { text: versionSource.hostVersion ?? currentSelected ?? '', empty: false };
-        case 'running':
           return {
-            text: t.dshEffectiveRunning.replace('{url}', dshSourceStatus?.running?.url ?? ''),
-            empty: true,
+            text: versionSource.hostVersion ?? currentSelected ?? '',
+            sub: null as string | null,
+            empty: false,
           };
+        case 'running':
+          return { ...runningReadout(dshSourceStatus?.running) };
         case 'system':
           return {
-            text: t.dshEffectiveSystem.replace('{path}', dshSourceStatus?.system?.path ?? ''),
-            empty: true,
+            ...systemReadout(
+              dshSourceStatus?.system?.path ?? '',
+              dshSourceStatus?.system?.version ?? null,
+            ),
           };
         case 'bundled':
           return {
@@ -1015,35 +1108,59 @@ export function DshVersionManagement() {
               '{version}',
               dshSourceStatus?.bundled?.version ?? '',
             ),
+            sub: null as string | null,
             empty: true,
           };
         default:
-          return { text: t.dshCurrentVersionNone, empty: true };
+          return { text: t.dshCurrentVersionNone, sub: null as string | null, empty: true };
       }
     }
     if (currentSelected) {
-      return { text: currentSelected, empty: false };
+      return { text: currentSelected, sub: null as string | null, empty: false };
     }
     if (dshSourceStatus?.running) {
-      return {
-        text: t.dshEffectiveRunning.replace('{url}', dshSourceStatus.running.url),
-        empty: true,
-      };
+      return { ...runningReadout(dshSourceStatus.running) };
     }
     if (dshSourceStatus?.system) {
       return {
-        text: t.dshEffectiveSystem.replace('{path}', dshSourceStatus.system.path),
-        empty: true,
+        ...systemReadout(dshSourceStatus.system.path, dshSourceStatus.system.version ?? null),
       };
     }
     if (dshSourceStatus?.bundled) {
       return {
         text: t.dshEffectiveBundled.replace('{version}', dshSourceStatus.bundled.version),
+        sub: null as string | null,
         empty: true,
       };
     }
-    return { text: t.dshCurrentVersionNone, empty: true };
-  }, [versionSource, currentSelected, dshSourceStatus, t]);
+    return { text: t.dshCurrentVersionNone, sub: null as string | null, empty: true };
+  }, [versionSource, currentSelected, dshSourceStatus, t, runningReadout, systemReadout]);
+  // 主行版本号确为宿主当前选中才挂更新徽章（事项 1：system/外部 running 版本与宿主
+  // 选中不一致时挂徽章会误导，故收紧）。
+  const showVersionBadges =
+    !readout.empty &&
+    (versionSource?.effective === 'host' ||
+      versionSource == null ||
+      readout.text === currentSelected);
+
+  useEffect(() => {
+    // 事项 5 埋点：用户实测后凭此前缀核对当前版本读数（effective/主行/小字/空态）。
+    debugVer('render: effective version', {
+      effective: versionSource?.effective ?? null,
+      mode: versionSource?.mode ?? null,
+      hostVersion: versionSource?.hostVersion ?? null,
+      currentSelected,
+      readoutText: readout.text,
+      readoutSub: readout.sub,
+      readoutEmpty: readout.empty,
+      running: dshSourceStatus?.running?.url ?? null,
+      runningManaged: dshSourceStatus?.running?.managed ?? null,
+      runningVersion: dshSourceStatus?.running?.version ?? null,
+      system: dshSourceStatus?.system?.path ?? null,
+      systemVersion: dshSourceStatus?.system?.version ?? null,
+      bundled: dshSourceStatus?.bundled?.version ?? null,
+    });
+  }, [versionSource, currentSelected, readout, dshSourceStatus]);
 
   return (
     <div className="adl-settings-card">
@@ -1100,15 +1217,20 @@ export function DshVersionManagement() {
             ) : (
               <span className="adl-dsh-settings__version-value">
                 {readout.text}
-                {hasUpdate ? (
-                  <span className="adl-dsh-settings__badge adl-dsh-settings__badge--update">
-                    {t.dshHasUpdate}
-                  </span>
-                ) : latestAvailable ? (
-                  <span className="adl-dsh-settings__badge">{t.dshNoUpdate}</span>
+                {showVersionBadges ? (
+                  hasUpdate ? (
+                    <span className="adl-dsh-settings__badge adl-dsh-settings__badge--update">
+                      {t.dshHasUpdate}
+                    </span>
+                  ) : latestAvailable ? (
+                    <span className="adl-dsh-settings__badge">{t.dshNoUpdate}</span>
+                  ) : null
                 ) : null}
               </span>
             )}
+            {readout.sub ? (
+              <small className="adl-dsh-settings__version-latest">{readout.sub}</small>
+            ) : null}
             {latestAvailable && !systemManaged ? (
               <small className="adl-dsh-settings__version-latest">
                 {t.dshLatest.replace('{version}', latestAvailable)}
@@ -1339,21 +1461,39 @@ export function DshVersionManagement() {
               className="adl-confirm-overlay"
               role="dialog"
               aria-modal="true"
-              aria-label={t.dshVersionSourceSystemDialogTitle}
-              onClick={sourceDialogBusy ? undefined : () => setSourceDialogOpen(false)}
+              aria-label={
+                pendingMode === 'system' || pendingMode == null
+                  ? t.dshVersionSourceSystemDialogTitle
+                  : t.dshVersionSourceSwitchDialogTitle
+              }
+              onClick={
+                sourceDialogBusy
+                  ? undefined
+                  : () => {
+                      setSourceDialogOpen(false);
+                      setPendingMode(null);
+                    }
+              }
             >
               <div className="adl-confirm-dialog" onClick={(event) => event.stopPropagation()}>
                 <div className="adl-confirm-dialog__header">
                   <h3 className="adl-confirm-dialog__title">
-                    {t.dshVersionSourceSystemDialogTitle}
+                    {pendingMode === 'system' || pendingMode == null
+                      ? t.dshVersionSourceSystemDialogTitle
+                      : t.dshVersionSourceSwitchDialogTitle}
                   </h3>
                 </div>
                 <div className="adl-confirm-dialog__body">
                   <p className="adl-confirm-dialog__message adl-dsh-source-dialog__message">
-                    {t.dshVersionSourceSystemDialogMessage.replace(
-                      '{path}',
-                      dshSourceStatus?.system?.path ?? '',
-                    )}
+                    {pendingMode === 'system' || pendingMode == null
+                      ? t.dshVersionSourceSystemDialogMessage.replace(
+                          '{path}',
+                          dshSourceStatus?.system?.path ?? '',
+                        )
+                      : t.dshVersionSourceSwitchDialogMessage.replace(
+                          '{target}',
+                          pendingMode === 'host' ? t.dshVersionSourceHost : t.dshVersionSourceAuto,
+                        )}
                   </p>
                 </div>
                 <div className="adl-confirm-dialog__footer">
@@ -1379,8 +1519,13 @@ export function DshVersionManagement() {
                     className="adl-btn adl-btn--secondary"
                     disabled={sourceDialogBusy}
                     onClick={() => void handleSystemDialogChoice('now')}
+                    aria-label={sourceDialogBusy ? t.dshVersionSourceApplyNow : undefined}
                   >
-                    {t.dshVersionSourceApplyNow}
+                    {sourceDialogBusy ? (
+                      <Spinner size="sm" speed="normal" />
+                    ) : (
+                      t.dshVersionSourceApplyNow
+                    )}
                   </button>
                 </div>
               </div>

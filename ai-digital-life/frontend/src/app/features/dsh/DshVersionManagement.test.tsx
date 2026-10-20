@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
 import { render, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
+import type { DshSourceStatus } from '../../../shared/ipc/dsh';
 import { TCopyProvider } from '../../i18n/TCopyContext';
 import { useAppStore } from '../../stores/slicedStore';
 import { DshVersionManagement } from './DshVersionManagement';
@@ -478,7 +479,7 @@ describe('DshVersionManagement', () => {
       sourceStatus: {
         bundled: null,
         system: null,
-        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: null },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: null },
         config: {
           npm_registry: 'https://registry.npmjs.org',
@@ -492,6 +493,82 @@ describe('DshVersionManagement', () => {
     renderBlock();
     expect(screen.queryByText('dshCurrentVersionNone')).toBeNull();
     expect(screen.getByText('dshEffectiveRunning')).toBeTruthy();
+  });
+
+  it('宿主拉起的运行中显示 spawn 来源版本 + 小字运行地址（事项 1）', () => {
+    seed({ currentSelected: '0.2.1-rc.2', installed: ['0.2.1-rc.2'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: null,
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          version: '0.2.1-rc.2',
+        },
+        versionSource: { mode: 'auto', effective: 'running', hostVersion: '0.2.1-rc.2' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    // 主行版本号（非灰空态）+ 小字运行地址（mockT 下 key 名即文案）。
+    expect(screen.getByText('0.2.1-rc.2')).toBeTruthy();
+    expect(screen.getByText('dshEffectiveRunning')).toBeTruthy();
+    expect(screen.queryByText('dshVersionUnknown')).toBeNull();
+  });
+
+  it('外部运行中不借用宿主版本：主行保持运行地址 + 未知小字（事项 1/4）', () => {
+    seed({ currentSelected: '0.2.1-rc.2', installed: ['0.2.1-rc.2'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: null,
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: null },
+        versionSource: { mode: 'auto', effective: 'running', hostVersion: '0.2.1-rc.2' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'auto',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    expect(screen.getByText('dshEffectiveRunning')).toBeTruthy();
+    expect(screen.getByText('dshVersionUnknown')).toBeTruthy();
+    // 宿主虽装有 0.2.1-rc.2，外部运行也不得借用（managed=false 即未知）。
+    expect(screen.queryByText('0.2.1-rc.2')).toBeNull();
+  });
+
+  it('系统安装有版本号时主行显示版本 + 小字安装路径（事项 1）', () => {
+    seed({ currentSelected: null, installed: [] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'C:\\tools\\dsh', version: '0.2.0-rc.2' },
+        running: null,
+        versionSource: { mode: 'system', effective: 'system', hostVersion: null },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'system',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    expect(screen.getByText('0.2.0-rc.2')).toBeTruthy();
+    expect(screen.getByText('dshEffectiveSystem')).toBeTruthy();
+    expect(screen.queryByText('dshVersionUnknown')).toBeNull();
   });
 
   it('预发布有更新时在当前版本行给出尝鲜提示', () => {
@@ -699,7 +776,7 @@ describe('DshVersionManagement', () => {
       sourceStatus: {
         bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
         config: {
           npm_registry: 'https://registry.npmjs.org',
@@ -724,7 +801,7 @@ describe('DshVersionManagement', () => {
       sourceStatus: {
         bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
         config: {
           npm_registry: 'https://registry.npmjs.org',
@@ -745,13 +822,73 @@ describe('DshVersionManagement', () => {
     await waitFor(() => expect(restartDsh).toHaveBeenCalled());
   });
 
-  it('对话框选择下次启动生效：保存但不立即隐藏管理项', async () => {
+  it('切系统安装前现查快照：stale 无运行也会弹对话框（事项 2 回归）', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    const stale: DshSourceStatus = {
+      bundled: null,
+      system: { path: 'D:\\nodejs\\dsh', version: null },
+      running: null,
+      versionSource: { mode: 'host', effective: 'host', hostVersion: '1.0.0' },
+      config: {
+        npm_registry: 'https://registry.npmjs.org',
+        dsh_mirror: null,
+        source_mode: 'auto',
+        version_source: 'host',
+        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+      },
+    };
+    const fresh: DshSourceStatus = {
+      ...stale,
+      running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+    };
+    useAppStore.setState({ sourceStatus: stale });
+    // 模拟现查：fetch 后 store 出现 running（预拉起刚完成）。
+    fetchSourceStatus.mockImplementation(async () => {
+      useAppStore.setState({ sourceStatus: fresh });
+      return true;
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    // 现查发现运行中 → 必须弹三选项对话框，而非直接保存。
+    expect(await screen.findByText('dshVersionSourceSystemDialogTitle')).toBeTruthy();
+  });
+
+  it('立即启用在途时按钮内显示加载圈（用户需求）', async () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
         bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'host',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    // 重启悬而不决，卡住 busy 态以便断言圈。
+    restartDsh.mockImplementation(() => new Promise(() => {}));
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceSystem'));
+    fireEvent.click(await screen.findByText('dshVersionSourceApplyNow'));
+    const applyNow = await screen.findByRole('button', { name: 'dshVersionSourceApplyNow' });
+    await waitFor(() => expect(applyNow.querySelector('svg')).not.toBeNull());
+  });
+
+  it('对话框选择下次启动生效：只记 pending 不落盘，选择器保持当前来源（事项 2026-10-20/5）', async () => {
+    const toast = useAppStore.getState().showToast;
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
         config: {
           npm_registry: 'https://registry.npmjs.org',
@@ -767,10 +904,14 @@ describe('DshVersionManagement', () => {
     fireEvent.click(screen.getByText('dshVersionSourceSystem'));
     fireEvent.click(await screen.findByText('dshVersionSourceApplyNextLaunch'));
     await waitFor(() =>
-      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'system' }, true),
+      expect(toast).toHaveBeenCalledWith('dshVersionSourceNextLaunchSaved', 'success'),
     );
+    // 不写配置：选择器仍显示当前生效来源，管理项按待切换隐藏 + 提示行。
+    expect(saveSourceConfig).not.toHaveBeenCalled();
+    expect(useAppStore.getState().dshVersionSourcePending).toBe('system');
     expect(screen.getByText('dshVersionSourceDeferredNote')).toBeTruthy();
-    expect(screen.getByText('dshOfficialStable')).toBeTruthy();
+    expect(screen.queryByText('dshCheckUpdate')).toBeNull();
+    expect(screen.queryByText('dshOfficialStable')).toBeNull();
   });
 
   it('对话框选择取消：回退为宿主安装且不隐藏管理项', async () => {
@@ -779,7 +920,7 @@ describe('DshVersionManagement', () => {
       sourceStatus: {
         bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
         config: {
           npm_registry: 'https://registry.npmjs.org',
@@ -800,13 +941,102 @@ describe('DshVersionManagement', () => {
     expect(screen.getByText('dshOfficialStable')).toBeTruthy();
   });
 
+  it('已是系统安装时管理行按配置隐藏（运行中也不显示，事项 1 回归）', () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: '0.2.0-rc.2' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          version: '0.2.0-rc.2',
+        },
+        versionSource: { mode: 'system', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'system',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    const { container } = renderBlock();
+    // 三行按 mode 隐藏（effective 虽为 running 也不显示）。
+    expect(container.querySelector('[data-settings-row="dshCheckUpdate"]')).toBeNull();
+    expect(container.querySelector('[data-settings-row="dshOfficialStable"]')).toBeNull();
+    expect(container.querySelector('[data-settings-row="dshPrereleaseTitle"]')).toBeNull();
+    expect(screen.getByText('dshSystemManagedNote')).toBeTruthy();
+  });
+
+  it('从系统安装切到宿主安装且运行中：弹切换确认对话框（事项 2 回归）', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: '0.2.0-rc.2' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          version: '0.2.0-rc.2',
+        },
+        versionSource: { mode: 'system', effective: 'running', hostVersion: '1.0.0' },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'system',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceHost'));
+    expect(await screen.findByText('dshVersionSourceSwitchDialogTitle')).toBeTruthy();
+    fireEvent.click(await screen.findByText('dshVersionSourceApplyNow'));
+    await waitFor(() =>
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'host' }, true),
+    );
+    await waitFor(() => expect(restartDsh).toHaveBeenCalled());
+  });
+
+  it('从系统安装切到宿主且无运行时：直接保存不弹窗', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    useAppStore.setState({
+      sourceStatus: {
+        bundled: null,
+        system: { path: 'D:\\nodejs\\dsh', version: null },
+        running: null,
+        versionSource: { mode: 'system', effective: 'system', hostVersion: null },
+        config: {
+          npm_registry: 'https://registry.npmjs.org',
+          dsh_mirror: null,
+          source_mode: 'auto',
+          version_source: 'system',
+          proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+        },
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceHost'));
+    await waitFor(() =>
+      expect(saveSourceConfig).toHaveBeenCalledWith({ version_source: 'host' }, true),
+    );
+    expect(screen.queryByRole('dialog')).toBeNull();
+  });
+
   it('对话框按 Escape 仅关闭不写入配置', async () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
         bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
         config: {
           npm_registry: 'https://registry.npmjs.org',
@@ -833,7 +1063,7 @@ describe('DshVersionManagement', () => {
       sourceStatus: {
         bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080 },
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
         config: {
           npm_registry: 'https://registry.npmjs.org',

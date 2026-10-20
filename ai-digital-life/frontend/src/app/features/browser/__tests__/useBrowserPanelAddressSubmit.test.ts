@@ -131,4 +131,105 @@ describe('useBrowserPanelAddressSubmit', () => {
     expect(checkEmbed).not.toHaveBeenCalled();
     expect(useAppStore.getState().browserTabsById['c1'].url).toBe('https://center.example.com');
   });
+
+  it('裸 3080 在面板就地导航到后端真实入口（事项 2，Tauri）', async () => {
+    useAppStore.setState({
+      browserTabs: [],
+      browserTabsById: {},
+      browserActiveTabId: '',
+      browserHistory: [],
+      isTauri: true,
+      toasts: [],
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      dsh: {
+        open: vi.fn(async () => ({
+          ok: true,
+          data: { url: 'http://127.0.0.1:3080/?token=tok123', freedPort: false },
+        })),
+      },
+    };
+    try {
+      const browserNavigatePanelTab = vi.fn();
+      const setAddress = vi.fn();
+      const expectedNavigationUrlRef: {
+        current: { url: string; at: number; tabId: string | null } | null;
+      } = { current: null };
+      const { result } = renderHook(() =>
+        useBrowserPanelAddressSubmit({
+          address: 'http://127.0.0.1:3080',
+          setAddress,
+          setSearchQueryDisplay: vi.fn(),
+          browserLookupIndex: [],
+          handleNavigationStart: vi.fn(),
+          expectedNavigationUrlRef,
+          navigateBrowser: vi.fn(),
+          browserNavigatePanelTab,
+          setIframeLoadError: vi.fn(),
+          setIframeBlockedDetected: vi.fn(),
+          handlePageMeta: vi.fn(),
+          addressSubmittedForTabRef: { current: '' },
+          submitVersionRef: { current: 0 },
+          validatedUrlsRef: { current: new Set<string>() },
+          t: { dshPortFreed: 'FREED' },
+        }),
+      );
+
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+
+      // 面板归属：真实入口进面板 tab，地址栏同步 token 地址，不碰裸地址。
+      expect(browserNavigatePanelTab).toHaveBeenCalledWith(
+        'http://127.0.0.1:3080/?token=tok123',
+        undefined,
+      );
+      expect(setAddress).toHaveBeenCalledWith('http://127.0.0.1:3080/?token=tok123');
+      expect(expectedNavigationUrlRef.current?.url).toBe('http://127.0.0.1:3080/?token=tok123');
+    } finally {
+      delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    }
+  });
+
+  it('裸 3080 后端失败时回退裸开（事项 2）', async () => {
+    useAppStore.setState({
+      browserTabs: [],
+      browserTabsById: {},
+      browserActiveTabId: '',
+      browserHistory: [],
+      isTauri: true,
+    });
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      dsh: { open: vi.fn(async () => ({ ok: false, error: { message: 'down' } })) },
+    };
+    try {
+      const browserNavigatePanelTab = vi.fn();
+      const { result } = renderHook(() =>
+        useBrowserPanelAddressSubmit({
+          address: 'http://127.0.0.1:3080',
+          setAddress: vi.fn(),
+          setSearchQueryDisplay: vi.fn(),
+          browserLookupIndex: [],
+          handleNavigationStart: vi.fn(),
+          expectedNavigationUrlRef: { current: null },
+          navigateBrowser: vi.fn(),
+          browserNavigatePanelTab,
+          setIframeLoadError: vi.fn(),
+          setIframeBlockedDetected: vi.fn(),
+          handlePageMeta: vi.fn(),
+          addressSubmittedForTabRef: { current: '' },
+          submitVersionRef: { current: 0 },
+          validatedUrlsRef: { current: new Set<string>() },
+        }),
+      );
+
+      await act(async () => {
+        await result.current.submitAddress();
+      });
+
+      expect(browserNavigatePanelTab).toHaveBeenCalledWith('http://127.0.0.1:3080', undefined);
+    } finally {
+      delete (window as unknown as { digitalLife?: unknown }).digitalLife;
+    }
+  });
 });

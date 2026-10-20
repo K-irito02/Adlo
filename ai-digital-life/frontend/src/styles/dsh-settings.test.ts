@@ -93,6 +93,9 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     expect(warn).not.toBeNull();
     expect(warn).toContain('color: var(--dsh-note-fg)');
     expect(warn).not.toContain('#80b0f5');
+    // 多行蓝色提示按原文换行（事项 2026-10-20/5）：pre-line + 解除 5 行 clamp。
+    expect(warn).toContain('white-space: pre-line');
+    expect(warn).toContain('line-clamp: unset');
   });
 
   it('renders the version task progress bar as a 3px neutral track', () => {
