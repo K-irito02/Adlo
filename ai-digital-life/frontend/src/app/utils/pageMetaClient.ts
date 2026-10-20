@@ -17,6 +17,17 @@ export interface PageMetaClient {
 
 const EVENT = 'digital-life://page-meta-updated';
 
+/** 调试日志里的 URL 剥离一次性认证参数（R1-Medium：`getSilent` 日志进收起器落盘）。 */
+function redactUrlForLog(url: string): string {
+  const idx = url.indexOf('?');
+  if (idx < 0) {
+    return url;
+  }
+  const [base, query] = [url.slice(0, idx), url.slice(idx + 1)];
+  const kept = query.split('&').filter((p) => p.split('=')[0] !== 'token');
+  return kept.length > 0 ? `${base}?${kept.join('&')}` : base;
+}
+
 export const pageMetaClient: PageMetaClient = isTauriShell()
   ? {
       peek: (url) => getCachedSiteMeta(url),
@@ -49,7 +60,10 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
             faviconLen: null,
           };
         }
-        console.info('[page-meta] getSilent(TAURI-branch)', { url, ...logEntry });
+        console.info('[page-meta] getSilent(TAURI-branch)', {
+          url: redactUrlForLog(url),
+          ...logEntry,
+        });
         return r.ok && r.data ? r.data : null;
       },
       report: async (meta, source) => {
@@ -123,7 +137,10 @@ export const pageMetaClient: PageMetaClient = isTauriShell()
             faviconLen: null,
           };
         }
-        console.info('[page-meta] getSilent(PREVIEW-branch/http-crawler)', { url, ...logEntry });
+        console.info('[page-meta] getSilent(PREVIEW-branch/http-crawler)', {
+          url: redactUrlForLog(url),
+          ...logEntry,
+        });
         return r.ok && r.data ? r.data : null;
       },
       report: async (meta, source) => {

@@ -1,4 +1,5 @@
 import { useCallback, useRef } from 'react';
+import type { CopyDict } from '@i18n';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
 import { routeLocalUrl } from './browser-landing/localAuthPorts';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
@@ -13,7 +14,7 @@ export interface UseBrowserPanelHandlersParams {
   getActiveTabId: () => string;
   expectedNavigationUrlRef: ExpectedNavigationRef;
   /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Record<string, string>;
+  t?: Pick<CopyDict, 'dshPortFreed'>;
 }
 
 export interface UseBrowserPanelHandlersResult {

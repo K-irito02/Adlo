@@ -1,4 +1,5 @@
 import { useAppStore } from '@stores/slicedStore';
+import type { CopyDict } from '@i18n';
 import { routeLocalUrl } from '@features/browser/browser-landing/localAuthPorts';
 
 export interface DshAuthUrl {
@@ -48,8 +49,12 @@ export async function resolveDshAuthUrl(inputUrl: string): Promise<DshAuthUrl | 
 
 /**
  * 残留端口释放告知（与入口页 `DSH_FREED_PORT` 卡片同义的 toast 轻量版）。
- * `t` 由各调用点传入（均为全量 copy，`dshPortFreed` 必存在；禁止硬编码文案）。
+ * 类型收紧为所需单 key（R1-LOW）：调用方传全量 copy 即满足，缺 key 时直接
+ * 跳过，避免 `undefined` 进 toast；禁止硬编码文案。
  */
-export function notifyDshFreedPort(t: Record<string, string>) {
+export function notifyDshFreedPort(t: Pick<CopyDict, 'dshPortFreed'>) {
+  if (!t.dshPortFreed) {
+    return;
+  }
   useAppStore.getState().showToast(t.dshPortFreed, 'warning');
 }

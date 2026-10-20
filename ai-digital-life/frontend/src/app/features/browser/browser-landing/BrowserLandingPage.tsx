@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import type { CopyDict } from '@i18n';
 import { useAppStore } from '@stores/slicedStore';
 import { useShallow } from 'zustand/react/shallow';
 import { invokeIpc } from '../../../../tauri-bridge/tauri-shared';
@@ -17,7 +18,7 @@ import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl'
 import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {
-  t: Record<string, string>;
+  t: CopyDict;
   /**
    * 覆盖默认的「打开为新标签」回调：中心浏览器宿主用它把新标签移入中心
    * （`browserOpenTab` 后 `centerShowBrowserTab`）。缺省保持面板行为不变。

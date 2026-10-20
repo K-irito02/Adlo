@@ -171,16 +171,18 @@ export function App() {
     setStartupOverlayHidden(overlayHidden);
   }, [overlayHidden, setStartupOverlayHidden]);
 
-  // 启动自检（事项 5）：每次启动静默拉一次 dsh 版本状态（含预发布通道），
-  // 只写 store 供设置项内徽章/行提示展示，不弹 toast、不记错误卡。
+  // 启动自检（事项 5）：每次启动先兑现“下次启动生效”（落盘 + 静默重启），
+  // 再静默拉一次 dsh 版本状态（含预发布通道）；只写 store 供设置项内徽章/行提示
+  // 展示，不弹 toast、不记错误卡片。串行是刻意的：自检读到的徽章/来源才是兑现后
+  // 的终态，避免先自检旧源再被兑现刷新导致的闪烁（R1-Medium）。
   const fetchDshVersionStatus = useAppStore((s) => s.fetchDshVersionStatus);
   const applyPendingVersionSource = useAppStore((s) => s.applyPendingVersionSource);
   useEffect(() => {
     console.debug('[ADL-DSH-VER]', 'startup: silent version check');
-    void fetchDshVersionStatus(true);
-    // “下次启动生效”在此兑现：有 pending 先落盘 + 静默重启，再让出给常规自检
-    // （事项 2026-10-20/5；并发重入由 action 内守卫合并）。
-    void applyPendingVersionSource();
+    void (async () => {
+      await applyPendingVersionSource();
+      await fetchDshVersionStatus(true);
+    })();
   }, [fetchDshVersionStatus, applyPendingVersionSource]);
 
   // Guard: wait for i18n before rendering (safe to return after all hooks)

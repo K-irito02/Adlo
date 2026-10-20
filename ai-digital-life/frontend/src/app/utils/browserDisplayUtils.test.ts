@@ -337,4 +337,17 @@ describe('historyDocumentKey', () => {
       historyDocumentKey('https://search.com/?keyword=dog'),
     );
   });
+
+  it('treats one-time auth token as non-identity (R1-Medium)', () => {
+    // dsh `?token=` 轮换不得分裂历史身份；其它身份参数仍参与区分。
+    expect(historyDocumentKey('http://127.0.0.1:3080/?token=abc')).toBe(
+      historyDocumentKey('http://127.0.0.1:3080/?token=def'),
+    );
+    expect(historyDocumentKey('http://127.0.0.1:3080/?token=abc')).toBe(
+      historyDocumentKey('http://127.0.0.1:3080/'),
+    );
+    expect(historyDocumentKey('https://a.com/p?x=1&token=abc')).toBe(
+      historyDocumentKey('https://a.com/p?x=1'),
+    );
+  });
 });

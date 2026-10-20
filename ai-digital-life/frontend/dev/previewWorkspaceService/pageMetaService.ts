@@ -40,14 +40,22 @@ const WARMUP_CONCURRENCY = 8;
 // --- 合并引擎纯函数（与 Rust meta_merge.rs 逐函数同构）---
 
 /**
- * 缓存键归一化：去 hash、去路径尾部多余斜杠。
+ * 缓存键归一化：去 hash、去路径尾部多余斜杠、去一次性认证参数。
  * 与 Rust `site_meta_cache.rs::normalize_cache_key`（及前端
- * `siteMetaCache.ts::normalizeUrlForCache`）同构。
+ * `siteMetaCache.ts::normalizeUrlForCache`）同构：`token` 绝不是缓存身份，
+ * 且属凭据（R1-Medium；抓取仍用原始 URL）。
  */
 export function normalizeCacheKey(url: string): string {
   try {
     const u = new URL(url);
     u.hash = '';
+    if (u.search) {
+      const kept = u.search
+        .slice(1)
+        .split('&')
+        .filter((p) => p.split('=')[0] !== 'token');
+      u.search = kept.length > 0 ? `?${kept.join('&')}` : '';
+    }
     if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
       u.pathname = u.pathname.replace(/\/+$/, '');
     }

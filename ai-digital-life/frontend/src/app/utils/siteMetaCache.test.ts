@@ -120,6 +120,17 @@ describe('siteMetaCache memory layer', () => {
     expect(mod.normalizeUrlForCache('https://a.com/path/')).toBe('https://a.com/path');
   });
 
+  it('normalizeUrlForCache strips one-time auth token (R1-Medium)', async () => {
+    const mod = await import('./siteMetaCache');
+    expect(mod.normalizeUrlForCache('http://127.0.0.1:3080/?token=abc')).toBe(
+      'http://127.0.0.1:3080/',
+    );
+    expect(mod.normalizeUrlForCache('https://a.com/p?x=1&token=abc&y=2')).toBe(
+      'https://a.com/p?x=1&y=2',
+    );
+    expect(mod.normalizeUrlForCache('https://a.com/p?x=1')).toBe('https://a.com/p?x=1');
+  });
+
   it('mirror upsert stores full entry (title/faviconUrl/faviconDataUri/fetchedAt)', async () => {
     const mod = await import('./siteMetaCache');
     mod.setSiteMetaBackendForTest(mod.createMockSiteMetaBackend());

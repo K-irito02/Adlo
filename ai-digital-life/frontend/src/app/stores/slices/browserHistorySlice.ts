@@ -43,13 +43,33 @@ function getDateKey(ts: number): string {
   return `${y}-${m}-${dy}`;
 }
 
+/**
+ * 凭据剥离（R1-Medium）：`token` 是一次性认证参数（如 dsh `?token=`），绝不能
+ * 进持久化 history（localStorage 落盘）。去重键（含 token 轮换合并）与常规去重
+ * 自动受益；导航/标签页仍用完整 URL（401 需要 token），互不干扰。
+ */
+function stripTokenParam(url: string): string {
+  try {
+    const u = new URL(url);
+    if (!u.searchParams.has('token')) {
+      return url;
+    }
+    u.searchParams.delete('token');
+    return u.toString();
+  } catch {
+    return url;
+  }
+}
+
 export const createBrowserHistorySlice = (
   set: (partial: Partial<StoreState> | ((state: StoreState) => Partial<StoreState>)) => void,
   _get: () => StoreState,
 ): BrowserHistorySlice => ({
   browserHistory: [],
 
-  browserAddToHistory: (url: string, title: string) => {
+  browserAddToHistory: (rawUrl: string, title: string) => {
+    // 入口即剥离 token（见 stripTokenParam）：存量、去重键、标题回退一律用净化后地址。
+    const url = stripTokenParam(rawUrl);
     set((state) => {
       const now = Date.now();
       const today = getDateKey(now);
@@ -151,7 +171,9 @@ export const createBrowserHistorySlice = (
    * 缓存，避免"永久 spinner/兜底字母"。按 dedupKey 匹配旧 URL，保留原有标题
    * 与访问时间（与 browserAddToHistory 的去重语义一致）。
    */
-  browserUpdateHistoryUrl: (oldUrl: string, newUrl: string) => {
+  browserUpdateHistoryUrl: (oldUrl: string, rawNewUrl: string) => {
+    // 回写同样剥离 token（见 stripTokenParam）：重定向目标不把凭据写进历史。
+    const newUrl = stripTokenParam(rawNewUrl);
     if (!oldUrl || !newUrl || oldUrl === newUrl) {
       return;
     }

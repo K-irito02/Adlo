@@ -300,7 +300,14 @@ export function DshVersionManagement() {
         setDeferredSource(false);
       }
     })();
-  }, [versionSource, versionStatus, installed.length, actions, setPendingSource, setDeferredSource]);
+  }, [
+    versionSource,
+    versionStatus,
+    installed.length,
+    actions,
+    setPendingSource,
+    setDeferredSource,
+  ]);
 
   /**
    * 版本菜单几何：菜单经 Portal 挂到 body（fixed），不受设置面板滚动容器
@@ -661,10 +668,12 @@ export function DshVersionManagement() {
       // 决策前现查一次：挂载时拉取的快照在预拉起完成前 `running` 为 null，
       // 直接存会跳过确认对话框；现查约数百毫秒，误判代价远大于等待
       // （用户实测切源无弹窗即此 stale 快照所致）。
+      // fail-open 说明（R1-LOW）：现查失败（后端不可达）时沿用 stale 快照继续决策，
+      // 后续落盘/重启失败自有错误 toast，不在此处另弹打断用户。
       await actions.fetchSourceStatus(true);
       const fresh = useAppStore.getState().sourceStatus;
       debugVer('source: change probed', {
-        running: fresh?.running?.url ?? null,
+        running: fresh?.running?.url?.split('?')[0] ?? null,
         system: fresh?.system?.path ?? null,
       });
       const currentMode: DshVersionSourceMode =
@@ -1153,7 +1162,9 @@ export function DshVersionManagement() {
       readoutText: readout.text,
       readoutSub: readout.sub,
       readoutEmpty: readout.empty,
-      running: dshSourceStatus?.running?.url ?? null,
+      // 凭据红线：running.url 恒为裸基址（detect 探测）或 token 入口（宿主拉起），
+      // 埋点一律剥离 query 后再记（R1-INFO，后续与 restartDsh 同口径）。
+      running: dshSourceStatus?.running?.url?.split('?')[0] ?? null,
       runningManaged: dshSourceStatus?.running?.managed ?? null,
       runningVersion: dshSourceStatus?.running?.version ?? null,
       system: dshSourceStatus?.system?.path ?? null,
@@ -1506,6 +1517,8 @@ export function DshVersionManagement() {
                   >
                     {t.cancel}
                   </button>
+                  {/* 次选项为同步记 pending（无异步过程），busy 仅禁用不转圈：
+                       圈只属于真正走异步重启的“立即生效”（R1-LOW，有据保留）。 */}
                   <button
                     type="button"
                     className="adl-btn adl-btn--secondary"

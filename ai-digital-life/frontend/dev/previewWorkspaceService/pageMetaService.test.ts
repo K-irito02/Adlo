@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createPreviewPageMetaService } from './pageMetaService';
+import { createPreviewPageMetaService, normalizeCacheKey } from './pageMetaService';
 import { readSiteMetaCache, upsertSiteMetaCache } from './siteMetaCache';
 import type { PageMeta } from '../../src/shared/ipc/browser';
 
@@ -346,5 +346,17 @@ describe('preview pageMetaService (isomorphic to Rust PageMetaService)', () => {
     expect(metas.length).toBe(12);
     expect(metas[0]?.title).toBe('T-https://warmup0.example/');
     expect(metas[0]?.url).toBe('https://warmup0.example/');
+  });
+});
+
+describe('normalizeCacheKey strips one-time auth token (R1-Medium)', () => {
+  it('drops token param but keeps other params (isomorphic to Rust normalize_cache_key)', () => {
+    expect(normalizeCacheKey('http://127.0.0.1:3080/?token=abc')).toBe(
+      'http://127.0.0.1:3080/',
+    );
+    expect(normalizeCacheKey('https://a.com/p?x=1&token=abc&y=2')).toBe(
+      'https://a.com/p?x=1&y=2',
+    );
+    expect(normalizeCacheKey('https://a.com/p?x=1')).toBe('https://a.com/p?x=1');
   });
 });

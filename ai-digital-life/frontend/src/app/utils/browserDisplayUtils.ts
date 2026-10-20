@@ -166,6 +166,11 @@ function isNonIdentityParam(key: string, value: string): boolean {
   if (TRACKING_PARAM_PATTERN.test(key)) {
     return true;
   }
+  // 一次性认证参数（R1-Medium）：`token` 绝不是页面身份（如 dsh `?token=` 轮换），
+  // 不得参与历史身份去重（否则每次轮换都分裂出新条目），更不得以它区分内容。
+  if (key === 'token') {
+    return true;
+  }
   if (key === 'start_radio') {
     return true;
   }

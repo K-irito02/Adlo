@@ -3,6 +3,7 @@ import { useAppStore } from '@stores/slicedStore';
 import { isRealTitle } from '@utils/browserDisplayUtils';
 import { findInBrowserLookupIndex } from '@features/browser/useBrowserSearch';
 import { routeLocalUrl } from '@features/browser/browser-landing/localAuthPorts';
+import type { CopyDict } from '@i18n';
 import { checkEmbed, isEmbedBlocked } from '@features/browser/checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from '@features/browser/browserUrlUtils';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
@@ -23,7 +24,7 @@ interface UseCenterBrowserAddressSubmitParams {
   setIframeBlockedDetected: Dispatch<SetStateAction<boolean>>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
   /** 全量文案（调用点传入中心 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Record<string, string>;
+  t?: Pick<CopyDict, 'dshPortFreed'>;
 }
 
 /**
@@ -122,6 +123,9 @@ export function useCenterBrowserAddressSubmit({
     }
 
     // 中心恒就地：直接更新当前中心标签并导航其 WebView/iframe，不新建标签。
+    // 注：此处刻意不用 submitVersionRef 丢弃过期提交（面板侧有）——中心提交恒以
+    // 当前中心标签为目标，用户连击即“后一次覆盖前一次”，last-wins 本身就是正确语义
+    // （R1-LOW，有据保留）。
     useAppStore.getState().browserUpdateTab(browserTabId, {
       url: targetUrl,
       ...(title ? { title, titleResolved: isRealTitle(title, targetUrl) } : {}),

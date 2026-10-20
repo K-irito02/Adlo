@@ -164,6 +164,28 @@ describe('browserHistorySlice — redirect URL rewrite (方案 A)', () => {
     expect(history[0].title).toBe('Marginalia: 和平');
   });
 
+  it('strips one-time auth token before persisting (R1-Medium)', () => {
+    // dsh `?token=` 轮换：落盘必须去 token，否则凭据进 localStorage 且每次轮换分裂新条目。
+    const { get } = createMockStore();
+    const s = get() as unknown as BrowserHistorySlice;
+    s.browserAddToHistory('http://127.0.0.1:3080/?token=abc', 'dsh');
+    s.browserAddToHistory('http://127.0.0.1:3080/?token=def', 'dsh');
+    const history = (get() as unknown as BrowserHistorySlice).browserHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].url).toBe('http://127.0.0.1:3080/');
+    expect(history[0].url).not.toContain('token');
+  });
+
+  it('strips token on redirect rewrite target', () => {
+    const { get } = createMockStore();
+    const s = get() as unknown as BrowserHistorySlice;
+    s.browserAddToHistory('http://127.0.0.1:3080/', 'dsh');
+    s.browserUpdateHistoryUrl('http://127.0.0.1:3080/', 'http://127.0.0.1:3080/?token=xyz');
+    const history = (get() as unknown as BrowserHistorySlice).browserHistory;
+    expect(history).toHaveLength(1);
+    expect(history[0].url).toBe('http://127.0.0.1:3080/');
+  });
+
   it('only rewrites the newest matching entry, leaving older-date visits untouched', () => {
     // 最新条目被改写为最终 URL，更早的同 dedupKey 旧访问保留原始 URL。
     const { get: getState } = createMockStore();

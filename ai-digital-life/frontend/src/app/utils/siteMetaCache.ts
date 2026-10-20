@@ -12,6 +12,15 @@ export function normalizeUrlForCache(url: string): string {
   try {
     const u = new URL(url);
     u.hash = '';
+    // 一次性认证参数（如 dsh `?token=`）绝不是缓存身份：字符串级剔除
+    // （不重编码其余参数，与后端 `normalize_cache_key` 同字节口径；R1-Medium）。
+    if (u.search) {
+      const kept = u.search
+        .slice(1)
+        .split('&')
+        .filter((p) => p.split('=')[0] !== 'token');
+      u.search = kept.length > 0 ? `?${kept.join('&')}` : '';
+    }
     if (u.pathname.length > 1 && u.pathname.endsWith('/')) {
       u.pathname = u.pathname.replace(/\/+$/, '');
     }

@@ -6,6 +6,7 @@ import { checkEmbed, isEmbedBlocked } from './checkEmbed';
 import { isSearchQuery, buildSearchUrl, ensureProtocol } from './browserUrlUtils';
 import type { ExpectedNavigationRef } from './browserUrlUtils';
 import type { MetaSource, PageMeta } from '@shared/ipc/browser';
+import type { CopyDict } from '@i18n';
 import { pageMetaClient } from '@utils/pageMetaClient';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
 
@@ -26,7 +27,7 @@ interface UseBrowserPanelAddressSubmitParams {
   submitVersionRef: MutableRefObject<number>;
   validatedUrlsRef: MutableRefObject<Set<string>>;
   /** 全量文案（调用点传入面板 `t`）：仅用于残留端口释放告知，缺省不提示。 */
-  t?: Record<string, string>;
+  t?: Pick<CopyDict, 'dshPortFreed'>;
 }
 
 export function useBrowserPanelAddressSubmit({
