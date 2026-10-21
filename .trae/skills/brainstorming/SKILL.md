@@ -93,6 +93,8 @@ your path and complete them in order.
 4. **Get approval** — STOP and wait for an explicit yes; presenting the design and starting in the same breath is skipping the gate
 5. **Implement** — proceed with the normal development workflow (TDD applies); no plan document
 
+**执行顺序铁律（防正文不可见）：** 上述第 3 步“Present short design in chat”必须先单独发送一条完整的正文消息（设计内容全部在正文区可见），确认正文已发出后，再在下一步请求批准（询问卡片/提问工具只放一句问题 + 2–4 个短选项）。禁止纯工具轮次（无正文、只发提问工具调用）：这种轮次在用户界面只渲染卡片、正文区无任何输出，用户即等同于没看到设计，视为跳过批准门控的违规。设计内容也不得只写进问题选项里。
+
 **Architectural:**
 1. **Explore project context** — check files, docs, recent commits
 2. **Offer the visual companion just-in-time** — NOT upfront. The first time a question would genuinely be clearer shown than described, offer it then (its own message); on approval its browser tab opens for you. If no visual question ever arises, never offer it. See the Visual Companion section below.
