@@ -7,10 +7,13 @@ import type {
 
 const MOCK_VERSION = "0.1.0-rc.8";
 const MOCK_VERSION_PREV = "0.1.0-rc.7";
+/** 内置包版本：演示「已内置」徽章与免重装（刻意与已装版本不同，便于对照）。 */
+const MOCK_BUNDLED_VERSION = "0.2.0";
 
 const status: DshVersionStatus = {
   currentSelected: MOCK_VERSION,
   installed: [MOCK_VERSION, MOCK_VERSION_PREV],
+  bundledVersion: MOCK_BUNDLED_VERSION,
   latestAvailable: "0.2.0",
   hasUpdate: true,
   prereleaseAvailable: "0.2.1-rc.2",
@@ -29,7 +32,6 @@ const MOCK_CATALOG: DshVersionCatalog = {
 };
 
 const sourceStatus: DshSourceStatus = {
-  bundled: { version: MOCK_VERSION, path: "/mock/bundled/dsh" },
   system: { path: "/usr/local/bin/dsh", version: MOCK_VERSION_PREV },
   running: null,
   versionSource: {
@@ -58,7 +60,9 @@ function syncEffective(): void {
   // 与真实后端 resolve_effective_source 的 none 落点对齐）。
   const effective =
     mode === "host"
-      ? "host"
+      ? hasHost
+        ? "host"
+        : "none"
       : mode === "system"
         ? "system"
         : hasHost
@@ -71,7 +75,6 @@ function syncEffective(): void {
     effective,
     hostVersion: hasHost ? status.currentSelected : null,
   };
-  sourceStatus.bundled = { version: MOCK_VERSION, path: "/mock/bundled/dsh" };
   sourceStatus.system = { path: "/usr/local/bin/dsh", version: MOCK_VERSION_PREV };
 }
 
@@ -109,13 +112,23 @@ export const mockDsh: DshBridge = {
   },
   uninstall: async (version) => {
     status.installed = status.installed.filter((v) => v !== version);
+    // 内置只是「来源记录」：该版本卸载后不再算内置（与后端 bundled.txt 语义一致）。
+    if (status.bundledVersion === version) {
+      status.bundledVersion = null;
+    }
     if (status.currentSelected === version) {
       status.currentSelected = status.installed[0] ?? null;
     }
     syncEffective();
     return { ok: true, data: true };
   },
-  reinstall: async () => ({ ok: true, data: status.currentSelected ?? MOCK_VERSION }),
+  reinstall: async () => {
+    // 重装会覆盖该版本内容 → 不再算内置（与后端 marker 清除一致）。
+    if (status.bundledVersion && status.bundledVersion === status.currentSelected) {
+      status.bundledVersion = null;
+    }
+    return { ok: true, data: status.currentSelected ?? MOCK_VERSION };
+  },
   getSourceStatus: async () => ({
     ok: true,
     data: {

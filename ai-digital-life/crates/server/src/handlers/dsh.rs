@@ -341,12 +341,11 @@ async fn free_stale_dsh_on_default_port() -> Result<bool, AppError> {
 
 async fn detect_source(
     paths: &adl_kernel::storage::StoragePaths,
-    bundled: Option<&adl_dsh_bundle::BundledDsh>,
     mode: adl_download_source::VersionSourceMode,
 ) -> adl_dsh_version::DshSource {
     let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
     let system = adl_dsh_version::detect_system_dsh().await;
-    adl_dsh_version::select_dsh_source(&paths.root, bundled, mode, running, system)
+    adl_dsh_version::select_dsh_source(&paths.root, mode, running, system)
 }
 
 const DSH_LOOPBACK_PATCH: &str =
@@ -419,10 +418,9 @@ async fn run_open(
     }
 
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
-    // 加载配置与检测 bundled
+    // 加载下载源配置（内置包已在服务启动时收编为普通宿主版本，此处不再涉内置）。
     let config_start = std::time::Instant::now();
     let download_config = adl_download_source::load(&paths.root)?;
-    let bundled = adl_dsh_bundle::detect(&paths.root)?;
     tracing::info!(elapsed_ms = config_start.elapsed().as_millis(), "dsh::run_open: config loaded");
 
     // 智能选择 dsh 来源（在 free_stale 之前，避免误杀用户正在运行的 dsh）
@@ -455,7 +453,7 @@ async fn run_open(
                         }
                         let detect_start = std::time::Instant::now();
                         let new_source =
-                            detect_source(paths, bundled.as_ref(), download_config.version_source)
+                            detect_source(paths, download_config.version_source)
                                 .await;
                         tracing::info!(
                             detect_ms = detect_start.elapsed().as_millis(),
@@ -480,7 +478,7 @@ async fn run_open(
         } else {
             let detect_start = std::time::Instant::now();
             let new_source =
-                detect_source(paths, bundled.as_ref(), download_config.version_source).await;
+                detect_source(paths, download_config.version_source).await;
             tracing::info!(
                 detect_ms = detect_start.elapsed().as_millis(),
                 source = ?new_source,
@@ -512,13 +510,12 @@ async fn run_open(
 
     let timeout = std::time::Duration::from_secs(60);
     let spawn_start = std::time::Instant::now();
-    // 本次 spawn 的来源版本（事项 2026-10-20/1：运行中显示真实版本用）：
-    // host 取选中版、system 取现查版、bundled 取内置版；复用/无来源走上游
-    // early-return，此处不可达。
+    // 本次 spawn 的来源版本（事项 2026-10-20/1：运行中显示真实版本用）：host 取选中版、
+    // system 取现查版；复用/无来源走上游 early-return，此处不可达。
+    // 2026-10-22：内置预置版本已是普通宿主版本，不再有独立来源/启动分支。
     let spawn_version = match &source {
         adl_dsh_version::DshSource::HostInstalled { version, .. } => Some(version.clone()),
         adl_dsh_version::DshSource::System { info } => info.version.clone(),
-        adl_dsh_version::DshSource::Bundled { bundled } => Some(bundled.version.clone()),
         adl_dsh_version::DshSource::ReuseRunning { .. } | adl_dsh_version::DshSource::None => None,
     };
     let hp = match source {
@@ -532,15 +529,6 @@ async fn run_open(
             tracing::info!(path = %info.path.display(), version = ?info.version, "dsh::run_open: using system dsh");
             let args = loopback_web_args(paths).await?;
             spawn_and_wait_ready(&info.path.to_string_lossy(), &args, timeout).await?
-        },
-        adl_dsh_version::DshSource::Bundled { bundled } => {
-            tracing::info!(version = %bundled.version, path = %bundled.path.display(), "dsh::run_open: using bundled dsh");
-            let (node_bin, script_args) = adl_dsh_bundle::launch_command(&bundled);
-            // launch_command 返回 [bin.js, --profile, web, --no-open]：首元是脚本，
-            // 余下参数必须透传（旧实现即此语义），再追加本次回环覆盖参数。
-            let mut args: Vec<String> = script_args[1..].to_vec();
-            args.extend(loopback_web_args(paths).await?);
-            spawn_node_direct(&node_bin, &script_args[0], &args, timeout).await?
         },
         adl_dsh_version::DshSource::HostInstalled { version, bin } => {
             tracing::info!(%version, path = %bin.display(), "dsh::run_open: using host-installed dsh");
@@ -565,6 +553,45 @@ async fn run_open(
     *guard = Some(ManagedDsh { process: hp, version: spawn_version });
     tracing::info!(total_elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: completed");
     Ok(serde_json::json!({ "url": url, "freedPort": freed }))
+}
+
+/// 内置包收编（服务启动、预拉起之前调用一次）。
+///
+/// 安装器投放的 `<数据根>/dsh-bundle/` 会被搬成 `installed/<version>/` 下的一条
+/// **普通宿主版本**，并记录来源（`bundled.txt`）；内置包目录随后删除，磁盘上只留
+/// 一份。收编之后启动、切换、重装、卸载全走普通版本链路，没有任何内置特例。
+pub async fn adopt_bundled_version(state: &ServerState) {
+    let data_dir = state.storage.paths().root.clone();
+    let root = dsh_root(state);
+    let adopt_root = root.clone();
+    let adopted =
+        tokio::task::spawn_blocking(move || adl_dsh_bundle::adopt(&data_dir, &adopt_root)).await;
+    let version = match adopted {
+        Ok(Ok(Some(version))) => version,
+        Ok(Ok(None)) => return,
+        Ok(Err(e)) => {
+            tracing::warn!(error = %e, "dsh::adopt_bundle: failed, bundled package left untouched");
+            return;
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "dsh::adopt_bundle: blocking task failed");
+            return;
+        },
+    };
+    if let Err(e) = adl_dsh_version::set_bundled_version(&root, &version).await {
+        tracing::warn!(error = %e, version = %version, "dsh::adopt_bundle: marker write failed");
+    }
+    // 预置即「装上即用」：没有选中版本时直接选中它；已有选中则不打扰用户。
+    match adl_dsh_version::read_selected(&root) {
+        Ok(None) => {
+            if let Err(e) = adl_dsh_version::revert(&root, &version).await {
+                tracing::warn!(error = %e, version = %version, "dsh::adopt_bundle: auto-select failed");
+            }
+        },
+        Ok(Some(_)) => {},
+        Err(e) => tracing::warn!(error = %e, "dsh::adopt_bundle: read selected failed"),
+    }
+    tracing::info!(version = %version, "dsh::adopt_bundle: bundled version adopted as host version");
 }
 
 /// Pre-start dsh in background. Called from `serve()` after server is ready.
@@ -644,7 +671,8 @@ pub async fn revert(
     tracing::debug!(version = %input.version, "dsh::revert: request");
     let _guard = state.dsh_version_lock.lock().await;
     let root = dsh_root(&state);
-    let result = adl_dsh_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
+    let result =
+        adl_dsh_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
     match &result {
         Ok(_) => tracing::debug!(version = %input.version, "dsh::revert: ok"),
         Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::revert: failed"),
@@ -656,6 +684,7 @@ pub async fn revert(
 }
 
 /// POST `/dsh/uninstall` — 卸载指定版本。body: `{ version }`，成功返回 `true`。
+/// 内置预置版本同样按普通版本卸载（删除版本目录 + 来源记录）。
 pub async fn uninstall(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -672,6 +701,7 @@ pub async fn uninstall(
     }
     let guard = state.dsh_version_lock.clone().lock_owned().await;
     let root = dsh_root(&state);
+    // 卸载当前选中版本需要先停进程（Windows 下文件占用会导致删除失败）。
     let is_current =
         adl_dsh_version::read_selected(&root).ok().flatten().as_deref() == Some(&input.version);
     tracing::debug!(version = %input.version, is_current, "dsh::uninstall: task begun");
@@ -679,8 +709,8 @@ pub async fn uninstall(
     tracing::debug!(version = %input.version, was_running, "dsh::uninstall: invoking kernel");
     let result =
         adl_dsh_version::uninstall_with_task(&root, &input.version, &state.dsh_version_task)
-            .await
-            .map(|()| serde_json::json!(true));
+    .await
+    .map(|()| serde_json::json!(true));
     match &result {
         Ok(_) => tracing::debug!(version = %input.version, "dsh::uninstall: ok"),
         Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::uninstall: failed"),
@@ -849,7 +879,7 @@ pub async fn cancel_version_task(State(state): State<ServerState>) -> impl IntoR
     ipc::to_response(Ok(serde_json::json!(true)))
 }
 
-/// POST `/dsh/source-status` — 获取下载源状态（bundled/system/running/config）。
+/// POST `/dsh/source-status` — 获取下载源状态（system/running/config）。
 pub async fn get_source_status(State(state): State<ServerState>) -> impl IntoResponse {
     let result = get_source_status_inner(&state).await;
     ipc::to_response(result)
@@ -857,10 +887,6 @@ pub async fn get_source_status(State(state): State<ServerState>) -> impl IntoRes
 
 async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
     let data_dir = &state.storage.paths().root;
-
-    let bundled_info = adl_dsh_bundle::detect(data_dir)?;
-    let bundled =
-        bundled_info.as_ref().map(|b| serde_json::json!({ "version": b.version, "path": b.path }));
 
     let system = adl_dsh_version::detect_system_dsh().await.map(|info| {
         serde_json::json!({
@@ -870,7 +896,7 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     });
 
     let running_detected = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
-    // 宿主持有 Child 即本次会话拉起（版本精确已知）；锁内只读版本即释放，
+    // 宿主持有 Child 即本次会话拉起（版本精确已知）；锁内只读即释放，
     // 使 `running.version` 恒为“宿主拉起版”、外部复用恒为未知（事项 2026-10-20/1）。
     let (managed, managed_version) = {
         let guard = state.dsh_state.lock().await;
@@ -887,6 +913,8 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
 
     let config = adl_download_source::load(data_dir)?;
     let root = dsh_root(state);
+    // 宿主「当前可用」版本：选中且完整安装。内置预置版本就是普通已装版本，
+    // 是否内置由 `get-version-status` 的 `bundledVersion` 记录回答，与此处无关。
     let host_version = adl_dsh_version::read_selected(&root)?
         .filter(|version| adl_dsh_version::is_host_version_installed(&root, version));
     let effective = adl_dsh_version::resolve_effective_source(
@@ -894,7 +922,6 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
         running.is_some(),
         host_version.is_some(),
         system.is_some(),
-        bundled_info.is_some(),
     );
     let version_source = serde_json::json!({
         "mode": config.version_source,
@@ -905,7 +932,6 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
         serde_json::to_value(&config).map_err(|e| AppError::Internal(e.to_string()))?;
 
     Ok(serde_json::json!({
-        "bundled": bundled,
         "system": system,
         "running": running,
         "versionSource": version_source,

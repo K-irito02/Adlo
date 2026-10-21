@@ -760,7 +760,6 @@ describe('SettingsPanel group reset', () => {
     setNavConfig();
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: null,
         running: null,
         versionSource: { mode: 'auto', effective: 'host', hostVersion: '0.1.0' },
@@ -937,7 +936,6 @@ describe('SettingsPanel group reset', () => {
         getSourceStatus: vi.fn().mockResolvedValue({
           ok: true,
           data: {
-            bundled: null,
             system: null,
             running: null,
             config: {

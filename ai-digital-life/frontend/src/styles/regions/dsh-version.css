@@ -13,8 +13,23 @@
 /* 右侧控件与下拉框同宽：下拉框定宽 160px（含 min-width 锁定意图），测试按钮同宽；
    输入框保持现状（200px）不动。过长结果文案省略显示（复用共享
    `.adl-settings-dropdown__value` 的省略规则），title 透出全文。 */
-.adl-dsh-settings {
-  --dsh-note-fg: #80b0f5;
+/* 块内统一的「压暗蓝」文字色：提示小字（row-warn）、当前版本行、当前版本徽章共用同一个值，
+   保证同一块里所有蓝色文字观感一致（用户 2026-10-22：提示小字比徽章更亮，要求对齐）。
+   做法：正文蓝 `--accent` 与次级文字色混合压一档；暗色主题混 `--text-muted` 再压一档
+   （`#60a5fa`/`#80b0f5` 本身亮度高，单一混合比压不住暗色下的亮度）。
+
+   **必须同时定义在 Portal 菜单面板上**：版本下拉菜单通过 `createPortal` 挂到 `<body>`，
+   不在 `.adl-dsh-settings` 子树内，只定义在后者时 token 在菜单里取不到值、徽章退回
+   继承色，于是「菜单卡片里的当前版本徽章」与「按钮上的当前版本徽章」不同色
+   （用户 2026-10-22 反馈，根因即此）。 */
+.adl-dsh-settings,
+.adl-dsh-settings__version-menu {
+  --dsh-note-fg: color-mix(in srgb, var(--accent) 72%, var(--text-secondary));
+}
+
+[data-theme='dark'] .adl-dsh-settings,
+[data-theme='dark'] .adl-dsh-settings__version-menu {
+  --dsh-note-fg: color-mix(in srgb, var(--accent) 62%, var(--text-muted));
 }
 
 .adl-dsh-source-dialog__message {
@@ -209,7 +224,7 @@
 
 /* 卸载确认警告文案：`.adl-settings-row__label small`（0-1-1）会覆盖颜色，
    用复合选择器（0-2-1）提权，避免 !important（同 settings.css 状态 pill 约定）。
-   多行说明（蓝色管理提示等）按原文换行呈现：基础 small 无 pre-line 会把
+   多行说明（蓝色提示小字等）按原文换行呈现：基础 small 无 pre-line 会把
    `\n·` 压成一段，且 5 行 clamp 会在窄面板下截断后续分项，故此处按原文
    换行（pre-line）+ 解除 clamp（块级 + 可见溢出，靠列宽自然换行，不挤占右侧控件）。 */
 .adl-dsh-settings .adl-settings-row__label small.adl-dsh-settings__row-warn {
@@ -314,6 +329,11 @@
   display: inline-flex;
 }
 
+/* 版本状态徽章（「当前版本」/「已装版本」/「已内置」）：共用同一套胶囊样式，
+   用户要求 UI 一致。菜单卡片内三者**互斥**，按 当前版本 > 已内置 > 已装版本
+   取一个（已内置必然已装，只标更具体的）。
+   勾号槽位常驻（未选中时留空 16px），所以徽章不会因为勾号出现而左移
+   （用户 2026-10-22 明确纠正：让位 = 预留位置，不是隐藏徽章）。 */
 .adl-dsh-settings__version-menu-item-installed {
   padding: 1px 6px;
   border-radius: var(--radius-full);
@@ -322,6 +342,18 @@
   background: var(--bg-muted);
   color: var(--text-secondary);
   white-space: nowrap;
+}
+
+/* 当前版本徽章与「当前版本」行：文字色统一取块级 token `--dsh-note-fg`
+   （定义见文件头 .adl-dsh-settings），与提示小字完全同色。 */
+.adl-dsh-settings__version-menu-item-current,
+.adl-dsh-settings__version-list-item--current {
+  color: var(--dsh-note-fg);
+}
+
+/* 「当前版本」徽章的底色比 `--accent-soft` 更淡（文字色见上方共用规则）。 */
+.adl-dsh-settings__version-menu-item-current {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 .adl-dsh-settings__version-menu-item-check svg {
@@ -345,10 +377,6 @@
   min-width: 0;
 }
 
-.adl-dsh-settings__version-list-item--current {
-  color: var(--accent);
-}
-
 .adl-dsh-settings__version-list-item-version {
   font-family: var(--font-mono);
   font-weight: var(--font-semibold);
@@ -362,8 +390,8 @@
   white-space: nowrap;
 }
 
-/* 版本选择下拉框按钮：展示版本号 + 已装徽标 + 当前勾 + 下拉箭头，固定行内最左；
-   宽度由 JS 设为分区最长选项实测值（菜单同宽，菜单内单行不换行）。 */
+/* 版本选择下拉框按钮：展示版本号 + 来源徽标（已装版本/已内置）+ 当前勾 + 下拉箭头，
+   固定行内最左；宽度由 JS 设为分区最长选项实测值（菜单同宽，菜单内单行不换行）。 */
 .adl-dsh-settings__version-picker {
   display: inline-flex;
   align-items: center;

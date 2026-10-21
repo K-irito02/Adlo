@@ -3,10 +3,9 @@ import type { IpcResult } from '@ai-digital-life/kernel';
 export type { IpcResult };
 
 /**
- * dsh 下载源状态（bundled / system / running / config）
+ * dsh 下载源状态（system / running / config）
  */
 export interface DshSourceStatus {
-  bundled: { version: string; path: string } | null;
   system: { path: string; version: string | null } | null;
   /**
    * running 详情（事项 2026-10-20/1 精确版本用）。
@@ -19,6 +18,7 @@ export interface DshSourceStatus {
   versionSource: {
     mode: DshVersionSourceMode;
     effective: DshEffectiveSource;
+    /** 宿主当前选中且完整安装的版本号（无可用宿主版本为 null）。 */
     hostVersion: string | null;
   };
   config: {
@@ -39,7 +39,8 @@ export interface DshSourceStatus {
 }
 
 export type DshVersionSourceMode = 'auto' | 'system' | 'host';
-export type DshEffectiveSource = 'running' | 'host' | 'system' | 'bundled' | 'none';
+/** 实际生效来源。内置版本已收编为普通宿主版本，不存在独立来源。 */
+export type DshEffectiveSource = 'running' | 'host' | 'system' | 'none';
 
 /** `/dsh/restart` 结果：是否重启过、重启后的地址。 */
 export interface DshRestartResult {
@@ -145,7 +146,7 @@ export interface DshBridge {
    */
   revert: (version: string) => Promise<IpcResult<string>>;
   /**
-   * 卸载指定版本
+   * 卸载指定版本（内置预置版本同样是普通版本，删除目录后不再算内置）
    * @see httpBridge.ts → dsh.uninstall (/dsh/uninstall)
    */
   uninstall: (version: string) => Promise<IpcResult<boolean>>;
@@ -155,7 +156,7 @@ export interface DshBridge {
    */
   reinstall: () => Promise<IpcResult<string>>;
   /**
-   * 获取 dsh 下载源状态（bundled / system / running / config）
+   * 获取 dsh 下载源状态（system / running / config）
    * @see httpBridge.ts → dsh.getSourceStatus (/dsh/source-status)
    */
   getSourceStatus: () => Promise<IpcResult<DshSourceStatus>>;
@@ -184,7 +185,14 @@ export interface DshOpenResult {
  */
 export interface DshVersionStatus {
   currentSelected: string | null;
+  /** 真实安装到应用数据目录的版本（不含仅由内置包提供的版本）。 */
   installed: string[];
+  /**
+   * 内置预置版本号：安装包投放的内置包在启动时被收编成普通已装版本，此字段只是
+   * 「该版本当初由安装包预置」的来源记录（`bundled.txt`），供 UI 标「已内置/内置」。
+   * 该版本被卸载或重装覆盖后即变回 null（不再算内置）。
+   */
+  bundledVersion: string | null;
   latestAvailable: string | null;
   hasUpdate: boolean;
   /** 最新预发布版本（registry `next` 标签；查询失败或官方暂无则为 null） */

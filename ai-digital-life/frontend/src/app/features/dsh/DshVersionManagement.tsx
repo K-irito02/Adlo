@@ -86,6 +86,7 @@ function maxWidth(a: number | null, b: number | null): number | null {
   return Math.max(a, b);
 }
 
+
 /** 版本下拉菜单几何（Portal + fixed 定位），与 SettingsSelect 同口径。 */
 interface MenuGeometry {
   /** 向下打开：菜单顶边相对视口（与 bottom 互斥） */
@@ -138,12 +139,19 @@ function ChevronDownIcon() {
  *
  * 由设置面板「DSH」设置组的「版本管理」块承载：与下载源/代理/测试连接三块同构，
  * 块头（`SettingsHeader`）在卡外，块体为一张 `adl-settings-card`（五行）——
- * 「当前版本」行右侧为版本读数（版本号 + 状态徽标 + 最新可用版本 + 预发布提示），
+ * 「当前版本」行右侧为版本读数（版本号 + 来源徽标 + 最新可用版本 + 预发布提示），
  * 「检查更新」行右侧为单个检查按钮，
  * 「正式版本」/「预发布版本」行右侧为单版本行（发布时间 + 按状态显示的
  * 卸载/重装/安装/切换按钮 + 版本选择下拉框；下拉框菜单列出本分区全部版本），
- * 「官方版本信息」行在说明文字内嵌蓝色外链（跟随「打开方式」网址落点跳转）。
+ * 「官方版本信息」行在说明文字内嵌外链（正文色、非蓝色——用户 2026-10-19 要求取消链接特殊色；
+ * 点击跟随「打开方式」网址落点跳转）。
  * 两行副标题左侧带行内「?」提示图标（`SettingsHintButton`）。
+ *
+ * 内置版本（用户 2026-10-22）：安装包投放的 `dsh-bundle/` 在服务启动时被收编成
+ * `installed/<version>/` 下的一条**普通已装版本**，之后与其它版本行为完全一致
+ * （可切换/重装/卸载，无任何特例）；`bundledVersion` 只是「它当初由安装包预置」的
+ * 来源记录，用于在菜单标「已内置」、当前版本号旁标「内置」，与同版本号的系统安装
+ * 区分。该版本被卸载或重装覆盖后记录即失效，徽章随之消失。
  *
  * 调用方契约：本组件只渲染行卡片，不自建页面地标，也不渲染块头。
  */
@@ -162,7 +170,9 @@ export function DshVersionManagement() {
     [versionCatalog],
   );
 
-  const [uninstallConfirm, setUninstallConfirm] = useState(false);
+  // 卸载二次确认的目标版本（null = 未武装）：当前选中版本、内置版本这两类
+  // 「删了就影响在用的助手或删掉应用自带副本」的版本，需要点两次才执行。
+  const [uninstallConfirmVersion, setUninstallConfirmVersion] = useState<string | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [reinstalling, setReinstalling] = useState(false);
   const [revertingVersion, setRevertingVersion] = useState<string | null>(null);
@@ -198,6 +208,9 @@ export function DshVersionManagement() {
   const prereleasePickerSizerRef = useRef<HTMLDivElement>(null);
 
   const currentSelected = versionStatus?.currentSelected ?? null;
+  // 内置包版本（随应用提供）：与 installed 并列构成「宿主可用版本」，
+  // 与已装副本可能同版本号，故徽章按来源分开标注。
+  const bundledVersion = versionStatus?.bundledVersion ?? null;
   const latestAvailable = versionStatus?.latestAvailable ?? null;
   const hasUpdate = versionStatus?.hasUpdate ?? false;
   const prereleaseAvailable = versionStatus?.prereleaseAvailable ?? null;
@@ -321,7 +334,11 @@ export function DshVersionManagement() {
     [prereleaseVersions],
   );
 
-  const isCurrentSelected = snapInstalled.includes(snapCurrent ?? '') && snapCurrent !== null;
+  /**
+   * 「该版本正被使用」= 当前选中版本。内置预置版本已是普通已装版本，没有额外情形；
+   * 供行内「当前」勾选、卸载二次确认与卸载后重启判定共用。
+   */
+  const isVersionInUse = useCallback((version: string) => version === snapCurrent, [snapCurrent]);
 
   // 当前分区菜单的版本列表（随下拉框所属分区切换）。
   const menuVersions = menuSection === 'prerelease' ? prereleaseVersions : stableVersions;
@@ -333,7 +350,8 @@ export function DshVersionManagement() {
   // 关键：被测量的 sizer 项必须用 inline-flex 收缩包裹内容——块级 flex 盒会自动
   // 拉伸到容器（卡片内容区）宽度，量到的就是卡片宽度而非内容宽度（事项 8 根因，
   // 见 `.adl-dsh-settings__version-sizer-item`）。
-  // 徽章文案随语言变化，故依赖徽章文案重测。
+  // 徽章文案随语言变化，故依赖徽章文案重测。来源徽章二者互斥且「已装版本」
+  // 恒为更宽的那个，测量尺按它 + 勾号的最宽情形量一次即可。
   const installedBadgeText = t.dshInstalledVersions;
   useLayoutEffect(() => {
     const measure = (ref: { current: HTMLDivElement | null }) => {
@@ -364,11 +382,11 @@ export function DshVersionManagement() {
     menuGeometry !== null,
   ]);
 
-  // 目标版本变化（切换/回退/卸载完成）时清除卸载确认态，避免残留的 danger 样式
-  // 指向新的当前版本。
+  // 选中版本或内置包变化（切换/回退/卸载完成）时清除卸载确认态，避免残留的
+  // danger 样式指向新的目标版本。
   useEffect(() => {
-    setUninstallConfirm(false);
-  }, [currentSelected]);
+    setUninstallConfirmVersion(null);
+  }, [currentSelected, bundledVersion]);
 
   useEffect(() => {
     if (sourceMode !== 'auto') {
@@ -679,10 +697,12 @@ export function DshVersionManagement() {
       setUninstallingVersion(version);
       // 卸载到空后关标签用：操作前记下运行中 URL（操作后 running 即无，从新状态读不到）。
       const preRunningUrl = useAppStore.getState().sourceStatus?.running?.url ?? null;
+      // 被卸载的是当前选中版本 → 必须重启（这是唯一需要重启的情形）。
+      const inUse = isVersionInUse(version);
       debugVer('uninstall: start', {
         version,
         section,
-        isCurrent: version === currentSelected,
+        inUse,
         currentSelected,
         installed: useAppStore.getState().versionStatus?.installed ?? [],
       });
@@ -691,7 +711,7 @@ export function DshVersionManagement() {
         if (ok) {
           const next = useAppStore.getState().versionStatus?.currentSelected ?? null;
           debugVer('uninstall: ok', { version, section, nextSelected: next });
-          if (version === currentSelected) {
+          if (inUse) {
             const restart = await actions.restartDsh();
             debugVer('uninstall: restarted', {
               version,
@@ -751,7 +771,7 @@ export function DshVersionManagement() {
         setUninstallingVersion(null);
       }
     },
-    [actions, currentSelected, ensureDshRunning, showToast, t],
+    [actions, currentSelected, ensureDshRunning, isVersionInUse, showToast, t],
   );
 
   const handleReinstall = useCallback(async () => {
@@ -1071,8 +1091,9 @@ export function DshVersionManagement() {
   }, []);
 
   /**
-   * 行内卸载：当前版本需二次确认（danger 态武装，再点执行），非当前直接执行。
-   * 确认态文案挂在当前版本行下方（`dshUninstallCurrentHint`）。
+   * 行内卸载：当前选中版本需二次确认（danger 态武装，再点执行），其余版本直接执行。
+   * 内置预置版本也是普通版本，按同一规则处理。
+   * 确认态文案挂在「当前版本」行下方。
    */
   const handleUninstallRow = useCallback(
     async (version: string, section: 'stable' | 'prerelease') => {
@@ -1084,20 +1105,20 @@ export function DshVersionManagement() {
         });
         return;
       }
-      if (version === currentSelected && !uninstallConfirm) {
+      if (version === currentSelected && uninstallConfirmVersion !== version) {
         debugVer('uninstall: arm confirm', { version, section });
-        setUninstallConfirm(true);
+        setUninstallConfirmVersion(version);
         return;
       }
       debugVer('uninstall: confirmed start', {
         version,
         section,
-        wasConfirmArmed: uninstallConfirm,
+        wasConfirmArmed: uninstallConfirmVersion === version,
       });
-      setUninstallConfirm(false);
+      setUninstallConfirmVersion(null);
       await runUninstall(version, section);
     },
-    [currentSelected, uninstallConfirm, runUninstall],
+    [currentSelected, uninstallConfirmVersion, runUninstall],
   );
 
   /**
@@ -1122,17 +1143,25 @@ export function DshVersionManagement() {
   /** 行内版本选择下拉框：以该行为锚点打开本分区版本菜单（列出该分区全部版本供选择）。 */
   const handleOpenPicker = useCallback(
     (section: 'stable' | 'prerelease', anchor: HTMLElement, rowVersion: string | null) => {
-      debugVer('picker: open menu', {
+      // 同一个触发器再点一次 = 收起。外部点击监听刻意放行触发器内的点击
+      // （否则 mousedown 关、click 又开），所以开关必须在这里显式切换
+      // ——此前无条件置 true，菜单打开后点按钮关不掉（用户 2026-10-22）。
+      const toggleOff = showVersionMenu && menuAnchorEl === anchor;
+      debugVer(toggleOff ? 'picker: close menu (same trigger)' : 'picker: open menu', {
         section,
         rowVersion,
         totalInSection:
           section === 'prerelease' ? prereleaseVersions.length : stableVersions.length,
       });
+      if (toggleOff) {
+        setShowVersionMenu(false);
+        return;
+      }
       setMenuSection(section);
       setMenuAnchorEl(anchor);
       setShowVersionMenu(true);
     },
-    [prereleaseVersions.length, stableVersions.length],
+    [menuAnchorEl, prereleaseVersions.length, showVersionMenu, stableVersions.length],
   );
 
   /** 菜单内选择版本：只切换本分区的下拉框展示，关闭菜单；实际安装/切换走行内按钮。 */
@@ -1262,12 +1291,16 @@ export function DshVersionManagement() {
         : [t.dshTaskStageFinalizing, ''];
 
   // 官方列表行布局：版本选择下拉框固定最左，其它动态按钮固定同行最右。
-  // 可见性规则：已装→卸载+重装；未装→安装；已装非当前→加切换；当前→无安装/切换。
-  // 安装按钮不带版本号（下拉框按钮已展示版本号 + 已装徽章）。
+  // 可见性规则（与普通已装版本完全一致，内置预置版本没有特例）：
+  // 已装 → 卸载 + 重装；未装 → 安装；已装非当前 → 再加「切换到该版本」；
+  // 当前版本 → 无安装/切换。
+  // 徽章：每行一个状态徽章（当前版本 > 已内置 > 已装版本），同款胶囊样式；
+  // 「当前版本」用主题蓝；勾号槽位常驻，保证徽章不因勾号出现而位移（用户要求）。
   // 下拉框固定为分区最长选项宽度（实测），打开的菜单同宽。
   const renderVersionRowAction = (v: string, section: 'stable' | 'prerelease', time: string) => {
-    const isCurrent = v === snapCurrent;
+    const isCurrent = isVersionInUse(v);
     const isInstalled = snapInstalled.includes(v);
+    const isBundled = v === bundledVersion;
     const fixedWidth = section === 'prerelease' ? menuWidths.prerelease : menuWidths.stable;
     return (
       <>
@@ -1282,16 +1315,23 @@ export function DshVersionManagement() {
         >
           <span className="adl-dsh-settings__version-picker-label">
             <span className="adl-dsh-settings__version-picker-version">{v}</span>
-            {isInstalled ? (
+            {/* 与菜单卡片同一口径：当前版本 > 已内置 > 已装版本，单徽章互斥。 */}
+            {isCurrent ? (
+              <span className="adl-dsh-settings__version-menu-item-installed adl-dsh-settings__version-menu-item-current">
+                {t.dshCurrentVersionBadge}
+              </span>
+            ) : isBundled ? (
+              <span className="adl-dsh-settings__version-menu-item-installed">
+                {t.dshBundledVersions}
+              </span>
+            ) : isInstalled ? (
               <span className="adl-dsh-settings__version-menu-item-installed">
                 {t.dshInstalledVersions}
               </span>
             ) : null}
-            {isCurrent ? (
-              <span className="adl-dsh-settings__version-menu-item-check">
-                <CheckIcon />
-              </span>
-            ) : null}
+            <span className="adl-dsh-settings__version-menu-item-check" aria-hidden={!isCurrent}>
+              {isCurrent ? <CheckIcon /> : null}
+            </span>
           </span>
           <span className="adl-dsh-settings__version-picker-chevron">
             <ChevronDownIcon />
@@ -1324,7 +1364,7 @@ export function DshVersionManagement() {
               <button
                 type="button"
                 className={`adl-dsh-settings__action-btn${
-                  isCurrent && uninstallConfirm ? ' adl-dsh-settings__action-btn--danger' : ''
+                  uninstallConfirmVersion === v ? ' adl-dsh-settings__action-btn--danger' : ''
                 }`}
                 onClick={() => void handleUninstallRow(v, section)}
                 disabled={displayFrozen}
@@ -1404,7 +1444,7 @@ export function DshVersionManagement() {
     }
     const v = hit.version;
     const time = formatPublishedAt(hit.publishedAt);
-    const isCurrent = v === currentSelected;
+    const isCurrent = isVersionInUse(v);
     return (
       <div className="adl-dsh-settings__version-list">
         <div
@@ -1425,8 +1465,10 @@ export function DshVersionManagement() {
   // （事项 4 文案承诺一致）。system 用后端 `dsh --version` 现查版。
   // 徽章（发现新版本/已是最新）只在主行版本号确为宿主当前选中时才挂，避免
   // system 版与宿主选中不一致时误导。
+  // 内置版本（用户 2026-10-22）不再显示整句「内置版本 x」，而是与已装版本同构：
+  // 版本号 + 来源胶囊徽章（`bundled`），便于和同版本号的系统安装区分。
   const runningReadout = useCallback(
-    (running: { url: string; version: string | null } | null | undefined) => {
+    (running: { url: string; version: string | null } | null | undefined, bundled: boolean) => {
       const url = running?.url ?? '';
       const known = running?.version ?? null;
       if (known) {
@@ -1434,12 +1476,15 @@ export function DshVersionManagement() {
           text: known,
           sub: t.dshEffectiveRunning.replace('{url}', url),
           empty: false,
+          bundled,
         };
       }
       return {
         text: t.dshEffectiveRunning.replace('{url}', url),
         sub: t.dshVersionUnknown,
         empty: true,
+        // 版本未知时不挂来源徽章：徽章贴着版本号才有意义。
+        bundled: false,
       };
     },
     [t],
@@ -1451,12 +1496,15 @@ export function DshVersionManagement() {
           text: version,
           sub: t.dshEffectiveSystem.replace('{path}', path),
           empty: false,
+          // 系统安装是用户自己装的那份，不是内置版本。
+          bundled: false,
         };
       }
       return {
         text: t.dshEffectiveSystem.replace('{path}', path),
         sub: t.dshVersionUnknown,
         empty: true,
+        bundled: false,
       };
     },
     [t],
@@ -1465,53 +1513,77 @@ export function DshVersionManagement() {
     const snapSource = snap.versionSource;
     const snapStatus = snap.sourceStatus;
     const snapSelected = snap.currentSelected;
+    // 内置判定：只认「当前版本号 == 安装包预置记录」，且这份版本确由宿主提供。
+    // 系统安装同版本号不标内置（那份不是我们预置的）；外部复用的进程来源未知，也不标。
+    const hostBundled = bundledVersion !== null && snapSource?.hostVersion === bundledVersion;
+    // 运行中：只有「宿主拉起的那一份」可能来自预置版本；版本来源偏好为系统安装时
+    // 跑的是用户自己的 dsh，即便版本号相同也不标内置。
+    const runningBundled =
+      bundledVersion !== null &&
+      snapSource?.mode !== 'system' &&
+      snapStatus?.running?.managed === true &&
+      snapStatus.running.version === bundledVersion;
     if (snapSource) {
       switch (snapSource.effective) {
         case 'host':
           return {
             text: snapSource.hostVersion ?? snapSelected ?? '',
-            sub: null as string | null,
+            // 内置预置版本补一行来源说明（版本号自身已由徽章标注）。
+            sub: hostBundled ? t.dshBundledSourceNote : null,
             empty: false,
+            bundled: hostBundled,
           };
         case 'running':
-          return { ...runningReadout(snapStatus?.running) };
+          return { ...runningReadout(snapStatus?.running, runningBundled) };
         case 'system':
           return {
             ...systemReadout(snapStatus?.system?.path ?? '', snapStatus?.system?.version ?? null),
           };
-        case 'bundled':
+        default:
           return {
-            text: t.dshEffectiveBundled.replace('{version}', snapStatus?.bundled?.version ?? ''),
+            text: t.dshCurrentVersionNone,
             sub: null as string | null,
             empty: true,
+            bundled: false,
           };
-        default:
-          return { text: t.dshCurrentVersionNone, sub: null as string | null, empty: true };
       }
     }
     if (snapSelected) {
-      return { text: snapSelected, sub: null as string | null, empty: false };
+      return {
+        text: snapSelected,
+        sub: null as string | null,
+        empty: false,
+        bundled: bundledVersion === snapSelected,
+      };
     }
     if (snapStatus?.running) {
-      return { ...runningReadout(snapStatus.running) };
+      return { ...runningReadout(snapStatus.running, runningBundled) };
     }
     if (snapStatus?.system) {
       return {
         ...systemReadout(snapStatus.system.path, snapStatus.system.version ?? null),
       };
     }
-    if (snapStatus?.bundled) {
+    if (bundledVersion) {
+      // 来源状态尚未到达时的兜底：内置预置版本仍可如实展示版本号 + 内置徽章。
       return {
-        text: t.dshEffectiveBundled.replace('{version}', snapStatus.bundled.version),
-        sub: null as string | null,
-        empty: true,
+        text: bundledVersion,
+        sub: t.dshBundledSourceNote,
+        empty: false,
+        bundled: true,
       };
     }
-    return { text: t.dshCurrentVersionNone, sub: null as string | null, empty: true };
+    return {
+      text: t.dshCurrentVersionNone,
+      sub: null as string | null,
+      empty: true,
+      bundled: false,
+    };
   }, [
     snap.versionSource,
     snap.sourceStatus,
     snap.currentSelected,
+    bundledVersion,
     t,
     runningReadout,
     systemReadout,
@@ -1531,9 +1603,11 @@ export function DshVersionManagement() {
       mode: versionSource?.mode ?? null,
       hostVersion: versionSource?.hostVersion ?? null,
       currentSelected,
+      bundledVersion,
       readoutText: readout.text,
       readoutSub: readout.sub,
       readoutEmpty: readout.empty,
+      readoutBundled: readout.bundled,
       // 凭据红线：running.url 恒为裸基址（detect 探测）或 token 入口（宿主拉起），
       // 埋点一律剥离 query 后再记（R1-INFO，后续与 restartDsh 同口径）。
       running: dshSourceStatus?.running?.url?.split('?')[0] ?? null,
@@ -1541,9 +1615,8 @@ export function DshVersionManagement() {
       runningVersion: dshSourceStatus?.running?.version ?? null,
       system: dshSourceStatus?.system?.path ?? null,
       systemVersion: dshSourceStatus?.system?.version ?? null,
-      bundled: dshSourceStatus?.bundled?.version ?? null,
     });
-  }, [versionSource, currentSelected, readout, dshSourceStatus]);
+  }, [versionSource, currentSelected, bundledVersion, readout, dshSourceStatus]);
 
   return (
     <div className="adl-settings-card">
@@ -1584,7 +1657,7 @@ export function DshVersionManagement() {
             <span>{t.dshCurrentVersionLabel}</span>
           </div>
           <small>{t.dshCurrentVersionDesc}</small>
-          {uninstallConfirm && isCurrentSelected ? (
+          {uninstallConfirmVersion !== null ? (
             <small className="adl-dsh-settings__row-warn">{t.dshUninstallCurrentHint}</small>
           ) : null}
           {!systemManaged && hasPrereleaseUpdate && prereleaseAvailable ? (
@@ -1606,6 +1679,11 @@ export function DshVersionManagement() {
             ) : (
               <span className="adl-dsh-settings__version-value">
                 {readout.text}
+                {readout.bundled ? (
+                  <span className="adl-dsh-settings__version-menu-item-installed">
+                    {t.dshBundledBadge}
+                  </span>
+                ) : null}
                 {showVersionBadges ? (
                   hasUpdate ? (
                     <span className="adl-dsh-settings__badge adl-dsh-settings__badge--update">
@@ -1777,7 +1855,9 @@ export function DshVersionManagement() {
                 {menuVersions.map((info) => {
                   const v = info.version;
                   const isInstalled = installed.includes(v);
+                  const isBundled = v === bundledVersion;
                   const isPicked = v === menuEffective;
+                  const isCurrent = isVersionInUse(v);
                   const time = formatPublishedAt(info.publishedAt);
                   return (
                     <div
@@ -1799,16 +1879,28 @@ export function DshVersionManagement() {
                         ) : null}
                       </button>
                       <div className="adl-dsh-settings__version-menu-item-badges">
-                        {isInstalled ? (
+                        {/* 每行最多一个状态徽章，优先级：当前版本 > 已内置 > 已装版本。
+                            已内置本身即已装，只标更具体的那个；当前版本用蓝色以便一眼识别。
+                            勾号槽位**常驻**（未选中时留空）：徽章不会因勾号出现而左移。 */}
+                        {isCurrent ? (
+                          <span className="adl-dsh-settings__version-menu-item-installed adl-dsh-settings__version-menu-item-current">
+                            {t.dshCurrentVersionBadge}
+                          </span>
+                        ) : isBundled ? (
+                          <span className="adl-dsh-settings__version-menu-item-installed">
+                            {t.dshBundledVersions}
+                          </span>
+                        ) : isInstalled ? (
                           <span className="adl-dsh-settings__version-menu-item-installed">
                             {t.dshInstalledVersions}
                           </span>
                         ) : null}
-                        {isPicked ? (
-                          <span className="adl-dsh-settings__version-menu-item-check">
-                            <CheckIcon />
-                          </span>
-                        ) : null}
+                        <span
+                          className="adl-dsh-settings__version-menu-item-check"
+                          aria-hidden={!isPicked}
+                        >
+                          {isPicked ? <CheckIcon /> : null}
+                        </span>
                       </div>
                     </div>
                   );

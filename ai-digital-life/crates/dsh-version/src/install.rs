@@ -485,6 +485,8 @@ pub async fn install(
         tracing::debug!(%version, "dsh install: rejected (incomplete after swap)");
         return Err(AppError::Io(format!("installed {version} is incomplete")));
     }
+    // 内容已被覆盖：若该版本号原本是内置预置的，从此刻起不再算内置（用户 2026-10-22）。
+    crate::clear_bundled_version_if(root, version)?;
 
     if select {
         tokio::fs::write(selected_file(root), format!("{version}\n"))
@@ -570,6 +572,9 @@ async fn remove_dir_with_progress(dir: &Path, task: &TaskReporter) {
     task.update(VersionTaskPhase::Removing, Some(100), total, total, false);
 }
 
+/// 卸载指定版本：删除 `installed/<version>/`。
+///
+/// 内置预置版本也是普通已装版本，走同一条路径（来源记录由调用方清除）。
 pub async fn uninstall(root: &Path, version: &str, task: &TaskReporter) -> Result<(), AppError> {
     tracing::debug!(%version, "dsh uninstall: request");
     let dir = installed_dir(root).join(version);
@@ -807,6 +812,21 @@ mod tests {
         uninstall(&root, "3.0.0", &task).await.expect("uninstall ok");
         assert_eq!(read_selected(&root).unwrap().as_deref(), Some("2.0.0"));
         assert!(!is_host_version_installed(&root, "3.0.0"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 内置预置版本按普通版本卸载，且来源记录随之清除（之后不再算内置）。
+    #[tokio::test]
+    async fn uninstall_bundled_version_clears_marker() {
+        let root = fresh_root("uninstall_bundled");
+        std::fs::create_dir_all(&root).unwrap();
+        make_complete_version(&root, "2.0.0");
+        std::fs::write(root.join("bundled.txt"), "2.0.0\n").unwrap();
+        let task = TaskReporter::new();
+        task.begin(crate::task::VersionTaskKind::Uninstall, "2.0.0");
+        crate::uninstall_with_task(&root, "2.0.0", &task).await.expect("uninstall ok");
+        assert!(!is_host_version_installed(&root, "2.0.0"));
+        assert!(!root.join("bundled.txt").exists());
         let _ = std::fs::remove_dir_all(&root);
     }
 }

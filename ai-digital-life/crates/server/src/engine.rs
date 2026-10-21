@@ -306,6 +306,10 @@ pub fn start_background_services(state: &ServerState) {
 pub async fn serve(state: ServerState, port: u16) -> u16 {
     start_background_services(&state);
 
+    // 内置包收编：把安装器投放的内置包变成一条普通宿主版本（一次性，收编后
+    // 该目录即删除）。必须早于预拉起，否则预拉起会看不到这份预置版本。
+    crate::handlers::dsh::adopt_bundled_version(&state).await;
+
     // Pre-start dsh in background — by the time the splash screen ends (~3.5-8s),
     // dsh should already be running, making the user's click instant.
     let pre_start_state = state.clone();

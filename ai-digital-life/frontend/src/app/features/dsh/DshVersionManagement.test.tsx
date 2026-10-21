@@ -63,6 +63,7 @@ interface VersionStatus {
   latestAvailable: string | null;
   hasUpdate: boolean;
   installed: string[];
+  bundledVersion: string | null;
   prereleaseAvailable: string | null;
   hasPrereleaseUpdate: boolean;
   prereleaseUnknown: boolean;
@@ -75,6 +76,7 @@ function seed(status: Partial<VersionStatus>) {
       latestAvailable: null,
       hasUpdate: false,
       installed: [],
+      bundledVersion: null,
       prereleaseAvailable: null,
       hasPrereleaseUpdate: false,
       prereleaseUnknown: false,
@@ -105,6 +107,42 @@ function seedCatalog(stable: string[] = ['0.2.0', '0.1.0'], prerelease: string[]
       })),
       latestStable: stable[0] ?? null,
       latestPrerelease: prerelease[0] ?? null,
+    },
+  });
+}
+
+const MOCK_CONFIG: DshSourceStatus['config'] = {
+  npm_registry: 'https://registry.npmjs.org',
+  dsh_mirror: null,
+  source_mode: 'auto',
+  version_source: 'auto',
+  proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+};
+
+/** 播种宿主来源（选中版本已完整安装）。 */
+function seedHostSource(version: string) {
+  useAppStore.setState({
+    sourceStatus: {
+      system: null,
+      running: null,
+      versionSource: { mode: 'auto', effective: 'host', hostVersion: version },
+      config: MOCK_CONFIG,
+    },
+  });
+}
+
+/** 播种「宿主拉起的运行中」来源（mode 决定跑的是宿主那份还是系统那份）。 */
+function seedRunningSource(version: string, mode: 'auto' | 'system' | 'host' = 'auto') {
+  useAppStore.setState({
+    sourceStatus: {
+      system: null,
+      running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version },
+      versionSource: {
+        mode,
+        effective: 'running',
+        hostVersion: mode === 'system' ? null : version,
+      },
+      config: { ...MOCK_CONFIG, version_source: mode },
     },
   });
 }
@@ -226,6 +264,7 @@ describe('DshVersionManagement', () => {
           latestAvailable: '1.1.0',
           hasUpdate: true,
           installed: ['1.0.0'],
+          bundledVersion: null,
           prereleaseAvailable: null,
           hasPrereleaseUpdate: false,
           prereleaseUnknown: false,
@@ -258,6 +297,143 @@ describe('DshVersionManagement', () => {
     expect(btn.className).toContain('adl-dsh-settings__action-btn--danger');
     fireEvent.click(btn);
     await waitFor(() => expect(uninstallDsh).toHaveBeenCalledWith('1.0.0'));
+  });
+
+  it('内置版本只多一个「已内置」徽章，按钮与其它已装版本完全一致', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
+    seedCatalog(['1.1.0', '1.0.0']);
+    seedHostSource('1.0.0');
+    const { container } = renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: '1.0.0' }));
+    const menuPick = await waitFor(() => {
+      // 必须限定在 Portal 菜单内：sizer（隐藏测量尺）用的是同一批类名。
+      const item = Array.from(
+        document
+          .querySelector('.adl-dsh-settings__version-menu')
+          ?.querySelectorAll('.adl-dsh-settings__version-menu-item') ?? [],
+      ).find((el) => el.textContent?.includes('1.1.0'));
+      expect(item).toBeTruthy();
+      // 菜单卡片内：内置版本挂「已内置」徽章。
+      expect(item!.textContent).toContain('dshBundledVersions');
+      return item!.querySelector('.adl-dsh-settings__version-menu-item-revert') as HTMLButtonElement;
+    });
+    fireEvent.click(menuPick);
+    await waitFor(() => expect(screen.getByRole('button', { name: '1.1.0' })).toBeTruthy());
+    const row = container.querySelectorAll('.adl-dsh-settings__version-list-item')[0] as HTMLElement;
+    // 来源徽章互斥：已内置优先，不再同时挂「已装版本」。
+    expect(row.textContent).toContain('dshBundledVersions');
+    expect(row.textContent).not.toContain('dshInstalledVersions');
+    // 与普通已装版本一致：卸载 + 重装 + 切换，只是多了「已内置」徽章。
+    expect(within(row).getByRole('button', { name: 'dshUninstall' })).toBeTruthy();
+    expect(within(row).getByRole('button', { name: 'dshReinstall' })).toBeTruthy();
+    expect(within(row).getByRole('button', { name: 'dshSwitchToVersion' })).toBeTruthy();
+    expect(within(row).queryByRole('button', { name: 'dshInstallAction' })).toBeNull();
+  });
+
+  it('菜单卡片：徽章互斥（当前版本 > 已内置 > 已装版本），勾号槽位常驻不挤徽章', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
+    seedCatalog(['1.1.0', '1.0.0']);
+    seedHostSource('1.0.0');
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: '1.0.0' }));
+    const items = await waitFor(() => {
+      const list = Array.from(
+        document
+          .querySelector('.adl-dsh-settings__version-menu')
+          ?.querySelectorAll('.adl-dsh-settings__version-menu-item') ?? [],
+      );
+      expect(list.length).toBe(2);
+      return list as HTMLElement[];
+    });
+    const currentItem = items.find((el) => el.textContent?.includes('1.0.0'))!;
+    const bundledItem = items.find((el) => el.textContent?.includes('1.1.0'))!;
+    // 当前在用的版本：徽章文案换成「当前版本」（蓝色），不再显示「已装版本」。
+    expect(currentItem.textContent).toContain('dshCurrentVersionBadge');
+    expect(currentItem.textContent).not.toContain('dshInstalledVersions');
+    expect(
+      currentItem.querySelector('.adl-dsh-settings__version-menu-item-current'),
+    ).toBeTruthy();
+    // 同时「已装 + 已内置」：只显示更具体的「已内置」。
+    expect(bundledItem.textContent).toContain('dshBundledVersions');
+    expect(bundledItem.textContent).not.toContain('dshInstalledVersions');
+    // 勾号槽位两行都常驻（未选中行留空），保证徽章不因勾号出现而左移。
+    expect(
+      currentItem.querySelectorAll('.adl-dsh-settings__version-menu-item-check'),
+    ).toHaveLength(1);
+    expect(bundledItem.querySelectorAll('.adl-dsh-settings__version-menu-item-check')).toHaveLength(
+      1,
+    );
+    expect(currentItem.querySelector('.adl-dsh-settings__version-menu-item-check svg')).toBeTruthy();
+    expect(bundledItem.querySelector('.adl-dsh-settings__version-menu-item-check svg')).toBeNull();
+  });
+
+  it('再次点击同一个下拉框按钮会收起菜单（此前只开不关）', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    seedCatalog(['1.0.0', '0.9.0']);
+    seedHostSource('1.0.0');
+    renderBlock();
+    const picker = screen.getByRole('button', { name: '1.0.0' });
+    fireEvent.click(picker);
+    await waitFor(() =>
+      expect(document.querySelector('.adl-dsh-settings__version-menu')).toBeTruthy(),
+    );
+    fireEvent.click(picker);
+    await waitFor(() =>
+      expect(document.querySelector('.adl-dsh-settings__version-menu')).toBeNull(),
+    );
+  });
+
+  it('内置版本非当前时卸载直接执行（二次确认只留给当前版本）', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
+    seedCatalog(['1.1.0', '1.0.0']);
+    seedHostSource('1.0.0');
+    const { container } = renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: '1.0.0' }));
+    const menuPick = await waitFor(() => {
+      const item = Array.from(
+        document
+          .querySelector('.adl-dsh-settings__version-menu')
+          ?.querySelectorAll('.adl-dsh-settings__version-menu-item') ?? [],
+      ).find((el) => el.textContent?.includes('1.1.0'));
+      return item!.querySelector('.adl-dsh-settings__version-menu-item-revert') as HTMLButtonElement;
+    });
+    fireEvent.click(menuPick);
+    await waitFor(() => expect(screen.getByRole('button', { name: '1.1.0' })).toBeTruthy());
+    const row = container.querySelectorAll('.adl-dsh-settings__version-list-item')[0] as HTMLElement;
+    const btn = within(row).getByRole('button', { name: 'dshUninstall' });
+    fireEvent.click(btn);
+    await waitFor(() => expect(uninstallDsh).toHaveBeenCalledWith('1.1.0'));
+    expect(btn.className).not.toContain('adl-dsh-settings__action-btn--danger');
+  });
+
+  it('当前版本由内置包提供时，版本号旁显示「内置」徽章', () => {
+    seed({ currentSelected: '1.1.0', installed: [], bundledVersion: '1.1.0' });
+    seedHostSource('1.1.0');
+    const { container } = renderBlock();
+    const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
+    expect(readout.textContent).toContain('1.1.0');
+    expect(within(readout).getByText('dshBundledBadge')).toBeTruthy();
+    // 宿主命中内置包时补一行来源说明。
+    expect(screen.getByText('dshBundledSourceNote')).toBeTruthy();
+  });
+
+  it('宿主拉起的运行中若是预置版本则标「内置」；系统安装同版本号不标', () => {
+    seed({ currentSelected: null, installed: [], bundledVersion: '1.1.0' });
+    seedRunningSource('1.1.0');
+    const { container, unmount } = renderBlock();
+    const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
+    expect(within(readout).getByText('dshBundledBadge')).toBeTruthy();
+    unmount();
+    cleanup();
+    // 同版本号但来源偏好是系统安装（跑的是用户自己的那份）：不得挂「内置」徽章。
+    seed({ currentSelected: null, installed: [], bundledVersion: '1.1.0' });
+    seedRunningSource('1.1.0', 'system');
+    const second = renderBlock();
+    const readout2 = second.container.querySelector(
+      '.adl-dsh-settings__version-readout',
+    ) as HTMLElement;
+    expect(readout2.textContent).toContain('1.1.0');
+    expect(within(readout2).queryByText('dshBundledBadge')).toBeNull();
   });
 
   it('行内按钮按所选版本状态显示：当前行有卸载+重装+下拉框，无安装/切换', () => {
@@ -459,6 +635,7 @@ describe('DshVersionManagement', () => {
           latestAvailable: null,
           hasUpdate: false,
           installed: ['1.0.0'],
+          bundledVersion: null,
           prereleaseAvailable: null,
           hasPrereleaseUpdate: false,
           prereleaseUnknown: false,
@@ -479,7 +656,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: null, installed: [] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: null,
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: null },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: null },
@@ -501,7 +677,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '0.2.1-rc.2', installed: ['0.2.1-rc.2'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: null,
         running: {
           url: 'http://127.0.0.1:3080/',
@@ -530,7 +705,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '0.2.1-rc.2', installed: ['0.2.1-rc.2'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: null,
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: null },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: '0.2.1-rc.2' },
@@ -554,7 +728,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: null, installed: [] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'C:\\tools\\dsh', version: '0.2.0-rc.2' },
         running: null,
         versionSource: { mode: 'system', effective: 'system', hostVersion: null },
@@ -705,7 +878,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: null, installed: [] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: null,
         versionSource: { mode: 'auto', effective: 'system', hostVersion: null },
@@ -729,7 +901,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: null, installed: [] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: null,
         running: null,
         versionSource: { mode: 'auto', effective: 'none', hostVersion: null },
@@ -758,6 +929,7 @@ describe('DshVersionManagement', () => {
           latestAvailable: null,
           hasUpdate: false,
           installed: ['1.0.0'],
+          bundledVersion: null,
           prereleaseAvailable: '1.1.0-rc.1',
           hasPrereleaseUpdate: true,
           prereleaseUnknown: false,
@@ -784,7 +956,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
@@ -809,7 +980,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
@@ -835,7 +1005,6 @@ describe('DshVersionManagement', () => {
   it('切系统安装前现查快照：stale 无运行也会弹对话框（事项 2 回归）', async () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     const stale: DshSourceStatus = {
-      bundled: null,
       system: { path: 'D:\\nodejs\\dsh', version: null },
       running: null,
       versionSource: { mode: 'host', effective: 'host', hostVersion: '1.0.0' },
@@ -868,7 +1037,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
@@ -896,7 +1064,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'host', effective: 'running', hostVersion: '1.0.0' },
@@ -928,7 +1095,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
@@ -955,7 +1121,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: '0.2.0-rc.2' },
         running: {
           url: 'http://127.0.0.1:3080/',
@@ -985,7 +1150,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: '0.2.0-rc.2' },
         running: {
           url: 'http://127.0.0.1:3080/',
@@ -1018,7 +1182,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: null,
         versionSource: { mode: 'system', effective: 'system', hostVersion: null },
@@ -1044,7 +1207,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },
@@ -1071,7 +1233,6 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     useAppStore.setState({
       sourceStatus: {
-        bundled: null,
         system: { path: 'D:\\nodejs\\dsh', version: null },
         running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
         versionSource: { mode: 'auto', effective: 'running', hostVersion: '1.0.0' },

@@ -57,7 +57,6 @@ const NPMMIRROR_URL = 'https://registry.npmmirror.com';
 
 function makeStatus(patch: Partial<DshSourceStatus['config']> = {}): DshSourceStatus {
   return {
-    bundled: null,
     system: null,
     running: null,
     versionSource: { mode: 'auto', effective: 'host', hostVersion: '0.1.0' },

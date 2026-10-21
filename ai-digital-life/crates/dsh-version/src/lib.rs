@@ -27,13 +27,21 @@ fn registry_base(data_dir: &Path) -> Result<String, AppError> {
 
 /// 宿主管理的 dsh cli 版本目录的版本管理：已装版本列表、查最新、回退、卸载、升级、重装。
 ///
-/// 作用域硬边界：只读写宿主版本目录 `<root>`（`selected.txt` + `installed/<version>/`），
-/// 绝不写入/改动 dsh 自身的会话/配置/插件目录。
+/// 作用域硬边界：只读写宿主版本目录 `<root>`（`selected.txt` + `installed/<version>/`
+/// + `bundled.txt`），绝不写入/改动 dsh 自身的会话/配置/插件目录。
+///
+/// 内置版本没有独立概念：安装包投放的内置包在服务启动时被收编成 `installed/<version>/`
+/// 下的一条普通版本（见 `adl_dsh_bundle::adopt`），`bundled.txt` 只记录「它当初是
+/// 内置预置的」这一来源事实，其余行为与其它已装版本完全一致。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionStatus {
     pub current_selected: Option<String>,
+    /// 已安装到 `installed/<version>/` 的版本（含安装包预置、之后被收编的那一份）。
     pub installed: Vec<String>,
+    /// 内置预置版本号（来源记录 `bundled.txt`）；该版本被卸载或重装后即消失。
+    /// 仅供 UI 标「已内置 / 内置」徽章，不参与任何来源判定。
+    pub bundled_version: Option<String>,
     /// 最新正式版（catalog 正式版桶最大；失败回退时为 dist-tag `latest`，可能为预发布）。
     pub latest_available: Option<String>,
     /// 是否有更新的正式版（统一走 semver 比较，不再用忽略 pre 后缀的 tokens 口径）。
@@ -102,6 +110,46 @@ pub fn read_selected(root: &Path) -> Result<Option<String>, AppError> {
     };
     let v = raw.trim().to_string();
     Ok((!v.is_empty()).then_some(v))
+}
+
+/// 内置来源记录文件名（位于版本目录根，与 `selected.txt` 同级）。
+///
+/// 只记「这个版本号当初是由安装包预置的」；它是 UI「已内置/内置」徽章的唯一依据。
+/// 用户卸载该版本、或重装/重新安装覆盖其内容后即删除记录——之后它只是一条普通
+/// 宿主版本，不再算内置（用户 2026-10-22 要求）。
+const BUNDLED_FILE: &str = "bundled.txt";
+
+/// 读取内置来源记录；该版本已不完整存在时视为无记录。
+pub fn read_bundled_version(root: &Path) -> Result<Option<String>, AppError> {
+    let path = root.join(BUNDLED_FILE);
+    let Ok(raw) = std::fs::read_to_string(&path) else {
+        return Ok(None);
+    };
+    let version = raw.trim().to_string();
+    if version.is_empty() || !is_host_version_installed(root, &version) {
+        return Ok(None);
+    }
+    Ok(Some(version))
+}
+
+/// 写入内置来源记录（收编内置包时调用一次）。
+pub async fn set_bundled_version(root: &Path, version: &str) -> Result<(), AppError> {
+    tokio::fs::create_dir_all(root)
+        .await
+        .map_err(|e| AppError::Io(format!("create version root: {e}")))?;
+    tokio::fs::write(root.join(BUNDLED_FILE), format!("{version}\n"))
+        .await
+        .map_err(|e| AppError::Io(format!("write bundled marker: {e}")))
+}
+
+/// 内容被覆盖（重装/重新安装）或版本被卸载时清除来源记录：内置状态随之结束。
+pub fn clear_bundled_version_if(root: &Path, version: &str) -> Result<(), AppError> {
+    let path = root.join(BUNDLED_FILE);
+    match std::fs::read_to_string(&path) {
+        Ok(raw) if raw.trim() == version => std::fs::remove_file(&path)
+            .map_err(|e| AppError::Io(format!("remove bundled marker: {e}"))),
+        _ => Ok(()),
+    }
 }
 
 pub(crate) fn list_installed(root: &Path) -> Result<Vec<String>, AppError> {
@@ -320,6 +368,9 @@ fn resolve_stable_latest(
 pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionStatus, AppError> {
     let current_selected = read_selected(root)?;
     let installed = list_installed(root)?;
+    // 内置仅表示「该版本号由安装包预置」：记录存在且版本仍完整安装才算，
+    // 卸载或重装覆盖后记录即被清除（不再算内置）。
+    let bundled_version = read_bundled_version(root)?;
     let dist_latest = latest_available(data_dir).await.ok().flatten();
     match fetch_catalog(data_dir).await {
         Ok(catalog) => {
@@ -332,11 +383,13 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
                 has_update,
                 ?pre,
                 has_prerelease_update = has_pre,
+                ?bundled_version,
                 "dsh-version: version status resolved"
             );
             Ok(VersionStatus {
                 current_selected,
                 installed,
+                bundled_version,
                 latest_available: latest,
                 has_update,
                 prerelease_available: pre,
@@ -356,6 +409,7 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
                     Ok(VersionStatus {
                         current_selected,
                         installed,
+                        bundled_version,
                         latest_available: Some(latest),
                         has_update,
                         prerelease_available: None,
@@ -431,19 +485,17 @@ pub async fn revert(root: &Path, version: &str) -> Result<String, AppError> {
     Ok(version.to_string())
 }
 
-/// 卸载：删除 `installed/<version>/`；若恰好是当前选中版本，
-/// 自动改选剩余最高版本，没有剩余则清空 selected。
-pub async fn uninstall(root: &Path, version: &str) -> Result<(), AppError> {
-    uninstall_with_task(root, version, &TaskReporter::new()).await
-}
-
+/// 卸载：删除 `installed/<version>/`；若恰好是当前选中版本，自动改选剩余最高
+/// 已装版本，没有剩余则清空 selected。该版本若是内置预置的，来源记录一并删除
+/// （卸载后它不再算内置）。
 pub async fn uninstall_with_task(
     root: &Path,
     version: &str,
     task: &TaskReporter,
 ) -> Result<(), AppError> {
     tracing::debug!(%version, "dsh-version::uninstall: delegating to kernel");
-    install::uninstall(root, version, task).await
+    install::uninstall(root, version, task).await?;
+    clear_bundled_version_if(root, version)
 }
 
 /// 重装：真重新安装当前选中版本，保持选中状态。
@@ -484,31 +536,32 @@ pub enum DshSource {
     ReuseRunning { url: String, port: u16 },
     HostInstalled { version: String, bin: PathBuf },
     System { info: SystemDshInfo },
-    Bundled { bundled: adl_dsh_bundle::BundledDsh },
     None,
 }
 
 /// 解析后的实际来源（供 UI 展示与来源选择）。
+///
+/// 内置版本不单列：它由安装包预置成一条普通宿主版本（见 [`adopt`] 的收编契约），
+/// 归属与其它已装版本完全相同，「是否内置」只由 [`read_bundled_version`] 的
+/// 来源记录决定，与启动链路无关。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EffectiveSource {
     Running,
     Host,
     System,
-    Bundled,
     None,
 }
 
 /// 来源优先级解析（纯函数，便于离线单测）。
 ///
 /// `running` 恒优先：3080 上已有经指纹验证的 dsh 时无法再起第二个，只能复用。
-/// 其余来源按用户偏好决定；`auto` 为 宿主 > 系统 > 内置 > 无。
+/// 其余来源按用户偏好决定；`auto` 为 宿主 > 系统 > 无。
 pub fn resolve_effective_source(
     mode: adl_download_source::VersionSourceMode,
     has_running: bool,
     has_host: bool,
     has_system: bool,
-    has_bundled: bool,
 ) -> EffectiveSource {
     use adl_download_source::VersionSourceMode as Mode;
     if has_running {
@@ -534,8 +587,6 @@ pub fn resolve_effective_source(
                 EffectiveSource::Host
             } else if has_system {
                 EffectiveSource::System
-            } else if has_bundled {
-                EffectiveSource::Bundled
             } else {
                 EffectiveSource::None
             }
@@ -717,10 +768,10 @@ pub async fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
 
 /// 按来源偏好与已检测到的库存选择实际来源。
 ///
-/// 顺序：运行中（恒优先）→ 宿主 → 系统 → 内置 → 无。
+/// 顺序：运行中（恒优先）→ 宿主（选中且完整安装）→ 系统 → 无。
+/// 内置版本已是普通宿主版本，故此处没有任何内置特例分支。
 pub fn select_dsh_source(
     data_dir: &Path,
-    bundled: Option<&adl_dsh_bundle::BundledDsh>,
     mode: adl_download_source::VersionSourceMode,
     running: Option<RunningDshInfo>,
     system: Option<SystemDshInfo>,
@@ -730,13 +781,8 @@ pub fn select_dsh_source(
         .ok()
         .flatten()
         .filter(|version| is_host_version_installed(&root, version));
-    let effective = resolve_effective_source(
-        mode,
-        running.is_some(),
-        host_version.is_some(),
-        system.is_some(),
-        bundled.is_some(),
-    );
+    let effective =
+        resolve_effective_source(mode, running.is_some(), host_version.is_some(), system.is_some());
     match effective {
         EffectiveSource::Running => {
             let running = running.expect("running source requires running info");
@@ -749,9 +795,6 @@ pub fn select_dsh_source(
         },
         EffectiveSource::System => {
             DshSource::System { info: system.expect("system source requires system info") }
-        },
-        EffectiveSource::Bundled => DshSource::Bundled {
-            bundled: bundled.expect("bundled source requires bundled info").clone(),
         },
         EffectiveSource::None => DshSource::None,
     }
@@ -774,6 +817,28 @@ mod tests {
         let root = fresh_root("empty_list");
         let versions = list_installed(&root).expect("no error on missing dir");
         assert!(versions.is_empty());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 内置只是「来源记录」：记录存在且版本完整安装时才对外报告为内置。
+    #[test]
+    fn bundled_marker_requires_complete_install_and_clears_on_match() {
+        let root = fresh_root("bundled_marker");
+        std::fs::create_dir_all(&root).expect("mkdir root");
+        // 记录在、版本不存在 → 视为无内置。
+        std::fs::write(root.join("bundled.txt"), "2.0.0\n").expect("write marker");
+        assert_eq!(read_bundled_version(&root).expect("read"), None);
+        // 版本完整安装 → 报告为内置。
+        let lib = root.join("installed").join("2.0.0").join("node_modules/@deepseek-ai/dsh/lib");
+        std::fs::create_dir_all(&lib).expect("mkdir");
+        std::fs::write(lib.join("bin.js"), "").expect("write bin");
+        assert_eq!(read_bundled_version(&root).expect("read").as_deref(), Some("2.0.0"));
+        // 其它版本被覆盖/卸载不影响本记录。
+        clear_bundled_version_if(&root, "1.0.0").expect("clear other");
+        assert_eq!(read_bundled_version(&root).expect("read").as_deref(), Some("2.0.0"));
+        // 命中记录 → 清除（重装覆盖 / 卸载后不再算内置）。
+        clear_bundled_version_if(&root, "2.0.0").expect("clear");
+        assert_eq!(read_bundled_version(&root).expect("read"), None);
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -814,7 +879,9 @@ mod tests {
             std::fs::write(lib.join("bin.js"), "").expect("write bin");
         }
         std::fs::write(selected_file(&root), "2.0.0\n").expect("write selected");
-        uninstall(&root, "2.0.0").await.expect("uninstall ok");
+        uninstall_with_task(&root, "2.0.0", &TaskReporter::new())
+            .await
+            .expect("uninstall ok");
         assert_eq!(read_selected(&root).expect("read").as_deref(), Some("1.0.0"));
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -824,7 +891,9 @@ mod tests {
         let root = fresh_root("uninstall_current");
         std::fs::create_dir_all(installed_dir(&root).join("1.0.0")).expect("mkdir");
         std::fs::write(selected_file(&root), "1.0.0\n").expect("write selected");
-        uninstall(&root, "1.0.0").await.expect("uninstall ok");
+        uninstall_with_task(&root, "1.0.0", &TaskReporter::new())
+            .await
+            .expect("uninstall ok");
         assert_eq!(read_selected(&root).expect("read"), None);
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -832,7 +901,9 @@ mod tests {
     #[tokio::test]
     async fn uninstall_missing_is_not_found() {
         let root = fresh_root("uninstall_missing");
-        let err = uninstall(&root, "9.9.9").await.expect_err("should error");
+        let err = uninstall_with_task(&root, "9.9.9", &TaskReporter::new())
+            .await
+            .expect_err("should error");
         assert!(matches!(err, AppError::NotFound(_)));
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -1050,6 +1121,7 @@ mod tests {
         let status = VersionStatus {
             current_selected: Some("0.2.0".into()),
             installed: vec!["0.2.0".into()],
+            bundled_version: Some("0.2.0".into()),
             latest_available: None,
             has_update: false,
             prerelease_available: Some("0.2.1-rc.2".into()),
@@ -1058,6 +1130,7 @@ mod tests {
         };
         let json = serde_json::to_value(&status).unwrap();
         assert_eq!(json["currentSelected"], "0.2.0");
+        assert_eq!(json["bundledVersion"], "0.2.0");
         assert!(json["latestAvailable"].is_null());
         assert_eq!(json["prereleaseAvailable"], "0.2.1-rc.2");
         assert_eq!(json["hasPrereleaseUpdate"], true);
@@ -1086,33 +1159,15 @@ mod tests {
     #[test]
     fn resolve_source_modes() {
         use adl_download_source::VersionSourceMode::{Auto, Host, System};
-        assert_eq!(
-            resolve_effective_source(Auto, true, true, true, true),
-            EffectiveSource::Running
-        );
-        assert_eq!(resolve_effective_source(Auto, false, true, true, true), EffectiveSource::Host);
-        assert_eq!(
-            resolve_effective_source(Auto, false, false, true, true),
-            EffectiveSource::System
-        );
-        assert_eq!(
-            resolve_effective_source(Auto, false, false, false, true),
-            EffectiveSource::Bundled
-        );
-        assert_eq!(
-            resolve_effective_source(Auto, false, false, false, false),
-            EffectiveSource::None
-        );
-        assert_eq!(
-            resolve_effective_source(System, false, true, true, true),
-            EffectiveSource::System
-        );
-        assert_eq!(
-            resolve_effective_source(System, false, true, false, true),
-            EffectiveSource::None
-        );
-        assert_eq!(resolve_effective_source(Host, false, true, true, true), EffectiveSource::Host);
-        assert_eq!(resolve_effective_source(Host, false, false, true, true), EffectiveSource::None);
+        assert_eq!(resolve_effective_source(Auto, true, true, true), EffectiveSource::Running);
+        assert_eq!(resolve_effective_source(Auto, false, true, true), EffectiveSource::Host);
+        assert_eq!(resolve_effective_source(Auto, false, false, true), EffectiveSource::System);
+        assert_eq!(resolve_effective_source(Auto, false, false, false), EffectiveSource::None);
+        assert_eq!(resolve_effective_source(System, false, true, true), EffectiveSource::System);
+        assert_eq!(resolve_effective_source(System, false, true, false), EffectiveSource::None);
+        // 宿主可用版本含内置包，故 mode=host 只要宿主有货（含内置）即命中 Host。
+        assert_eq!(resolve_effective_source(Host, false, true, true), EffectiveSource::Host);
+        assert_eq!(resolve_effective_source(Host, false, false, true), EffectiveSource::None);
     }
 
     #[test]
