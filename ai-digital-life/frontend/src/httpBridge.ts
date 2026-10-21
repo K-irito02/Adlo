@@ -1105,8 +1105,8 @@ export function createHttpBridge({
       cancelVersionTask: () => call<boolean>(baseUrl, '/dsh/cancel-version-task', POST({})),
       getVersionStatus: () => call<DshVersionStatus>(baseUrl, '/dsh/get-version-status', POST({})),
       getVersionCatalog: () => call<DshVersionCatalog>(baseUrl, '/dsh/version-catalog', POST({})),
-      installVersion: (version: string) =>
-        call<string>(baseUrl, '/dsh/install-version', POST({ version })),
+      installVersion: (version: string, select?: boolean) =>
+        call<string>(baseUrl, '/dsh/install-version', POST({ version, select })),
       update: () => call<string>(baseUrl, '/dsh/update', POST({})),
       revert: (version: string) => call<string>(baseUrl, '/dsh/revert', POST({ version })),
       uninstall: (version: string) => call<boolean>(baseUrl, '/dsh/uninstall', POST({ version })),

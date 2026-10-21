@@ -98,13 +98,19 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     expect(warn).toContain('line-clamp: unset');
   });
 
-  it('renders the version task progress bar as a 3px neutral track', () => {
-    const bar = ruleBody(dshCss, '.adl-dsh-settings__progress-bar');
-    expect(bar).not.toBeNull();
-    expect(bar).toContain('height: 3px');
-    expect(bar).toContain('var(--border-subtle)');
-    const fill = ruleBody(dshCss, '.adl-dsh-settings__progress-fill');
-    expect(fill).not.toBeNull();
-    expect(fill).toContain('var(--text-secondary)');
+  it('renders the version task as stage text with shimmer (no progress bar)', () => {
+    // 任务行已改为纯阶段文案＋取消按钮（用户明确要求去掉进度条/百分比/时间戳）：
+    // 旧 progress 体系必须整体消失，否则悬空样式无人用。
+    expect(dshCss).not.toContain('.adl-dsh-settings__progress');
+    const stage = ruleBody(dshCss, '.adl-dsh-settings__version-task-stage');
+    expect(stage).not.toBeNull();
+    expect(stage).toContain('white-space: nowrap');
+    // 扫光只作用于文字：background-clip:text + 透明字色，中性灰两端保证亮暗主题可见。
+    const shimmer = ruleBody(dshCss, '.adl-dsh-settings__version-task-shimmer');
+    expect(shimmer).not.toBeNull();
+    expect(shimmer).toContain('background-clip: text');
+    expect(shimmer).toContain('color: transparent');
+    const count = ruleBody(dshCss, '.adl-dsh-settings__version-task-count');
+    expect(count).not.toBeNull();
   });
 });

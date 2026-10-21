@@ -391,17 +391,17 @@ pub async fn update_with_task(
     .ok_or_else(|| AppError::NotFound("no stable release published upstream".into()))?;
     tracing::debug!(%target, "dsh-version: update to latest stable");
     task.set_version(&target);
-    install::install(root, data_dir, &target, task).await
+    install::install(root, data_dir, &target, task, true).await
 }
 
 /// 安装指定版本（正式版或预发布均可）：校验版本号与官方发布状态，
-/// 真下载到 `installed/<version>/` 并选中。
+/// 真下载到 `installed/<version>/`；select=true 时并选中（默认语义）。
 pub async fn install_version(
     root: &Path,
     data_dir: &Path,
     version: &str,
 ) -> Result<String, AppError> {
-    install_version_with_task(root, data_dir, version, &TaskReporter::new()).await
+    install_version_with_task(root, data_dir, version, &TaskReporter::new(), true).await
 }
 
 pub async fn install_version_with_task(
@@ -409,20 +409,25 @@ pub async fn install_version_with_task(
     data_dir: &Path,
     version: &str,
     task: &TaskReporter,
+    select: bool,
 ) -> Result<String, AppError> {
-    install::install(root, data_dir, version, task).await
+    tracing::debug!(%version, select, "dsh-version::install_version: delegating to kernel");
+    install::install(root, data_dir, version, task, select).await
 }
 
 /// 回退/切换：校验版本号并确认已完整安装后，把该版本写入 selected。
 pub async fn revert(root: &Path, version: &str) -> Result<String, AppError> {
+    tracing::debug!(%version, "dsh-version::revert: request");
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     if !is_host_version_installed(root, version) {
+        tracing::debug!(%version, "dsh-version::revert: rejected (not installed)");
         return Err(AppError::NotFound(format!("version {version} not installed")));
     }
     tokio::fs::write(selected_file(root), format!("{version}\n"))
         .await
         .map_err(|e| AppError::Io(format!("write selected: {e}")))?;
+    tracing::debug!(%version, "dsh-version::revert: selected written");
     Ok(version.to_string())
 }
 
@@ -437,6 +442,7 @@ pub async fn uninstall_with_task(
     version: &str,
     task: &TaskReporter,
 ) -> Result<(), AppError> {
+    tracing::debug!(%version, "dsh-version::uninstall: delegating to kernel");
     install::uninstall(root, version, task).await
 }
 
@@ -453,7 +459,8 @@ pub async fn reinstall_with_task(
 ) -> Result<String, AppError> {
     let selected =
         read_selected(root)?.ok_or_else(|| AppError::NotFound("no selected version".into()))?;
-    install::install(root, data_dir, &selected, task).await
+    tracing::debug!(version = %selected, "dsh-version::reinstall: reinstalling selected");
+    install::install(root, data_dir, &selected, task, true).await
 }
 
 // ---------------------------------------------------------------------------

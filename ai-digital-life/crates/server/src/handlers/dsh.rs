@@ -41,6 +41,7 @@ fn clear_source_cache(state: &ServerState) {
 
 /// 版本目录变更前停止正在运行的 dsh，避免 Windows 下文件占用导致替换/删除失败。
 async fn stop_running_dsh(state: &ServerState) -> bool {
+    tracing::debug!("dsh::stop_before_mutation: start");
     let mut stopped = false;
     {
         let _guard = state.dsh_start_lock.lock().await;
@@ -50,15 +51,20 @@ async fn stop_running_dsh(state: &ServerState) -> bool {
                 let _ = managed.process.child.kill().await;
                 let _ = managed.process.child.wait().await;
                 stopped = true;
+                tracing::debug!("dsh::stop_before_mutation: hosted process killed");
             }
         }
         match free_stale_dsh_on_default_port().await {
-            Ok(true) => stopped = true,
+            Ok(true) => {
+                stopped = true;
+                tracing::debug!("dsh::stop_before_mutation: stale process on default port freed");
+            },
             Ok(false) => {},
             Err(e) => tracing::warn!(error = %e, "dsh: stop before version mutation failed"),
         }
     }
     clear_source_cache(state);
+    tracing::debug!(stopped, "dsh::stop_before_mutation: done");
     stopped
 }
 
@@ -77,10 +83,15 @@ async fn finish_version_mutation(
     result: &Result<serde_json::Value, AppError>,
 ) {
     if was_running && is_cancelled_error(result) {
+        tracing::debug!("dsh::finish_mutation: cancelled, restoring stopped dsh");
         drop(guard);
         restore_after_cancel(state).await;
     }
     state.dsh_version_task.finish();
+    match result {
+        Ok(_) => tracing::debug!("dsh::finish_mutation: ok, source cache cleared"),
+        Err(e) => tracing::debug!(error = %e, "dsh::finish_mutation: failed"),
+    }
     if result.is_ok() {
         clear_source_cache(state);
     }
@@ -95,6 +106,7 @@ fn try_begin_version_task(
     if state.dsh_version_task.begin(kind, version) {
         Ok(())
     } else {
+        tracing::debug!(?kind, %version, "dsh::version_task: begin rejected (another task running)");
         Err(AppError::InvalidInput("another version task is running".into()))
     }
 }
@@ -117,6 +129,10 @@ async fn restore_after_cancel(state: &ServerState) {
 #[serde(rename_all = "camelCase")]
 struct VersionInput {
     version: String,
+    /// 仅 install-version 用：false=只修目录不改选中（行内“重装非当前”）；
+    /// 缺省 true（安装即选中，兼容旧客户端）。
+    #[serde(default)]
+    select: Option<bool>,
 }
 
 /// POST `/dsh/open` — 拉起 dsh 进程（若已运行返回已有 URL）。返回 `{ url, freedPort }`。
@@ -625,9 +641,14 @@ pub async fn revert(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
+    tracing::debug!(version = %input.version, "dsh::revert: request");
     let _guard = state.dsh_version_lock.lock().await;
     let root = dsh_root(&state);
     let result = adl_dsh_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
+    match &result {
+        Ok(_) => tracing::debug!(version = %input.version, "dsh::revert: ok"),
+        Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::revert: failed"),
+    }
     if result.is_ok() {
         clear_source_cache(&state);
     }
@@ -643,6 +664,7 @@ pub async fn uninstall(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
+    tracing::debug!(version = %input.version, "dsh::uninstall: request");
     if let Err(e) =
         try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Uninstall, &input.version)
     {
@@ -652,11 +674,17 @@ pub async fn uninstall(
     let root = dsh_root(&state);
     let is_current =
         adl_dsh_version::read_selected(&root).ok().flatten().as_deref() == Some(&input.version);
+    tracing::debug!(version = %input.version, is_current, "dsh::uninstall: task begun");
     let was_running = if is_current { stop_running_dsh(&state).await } else { false };
+    tracing::debug!(version = %input.version, was_running, "dsh::uninstall: invoking kernel");
     let result =
         adl_dsh_version::uninstall_with_task(&root, &input.version, &state.dsh_version_task)
             .await
             .map(|()| serde_json::json!(true));
+    match &result {
+        Ok(_) => tracing::debug!(version = %input.version, "dsh::uninstall: ok"),
+        Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::uninstall: failed"),
+    }
     finish_version_mutation(&state, guard, was_running, &result).await;
     ipc::to_response(result)
 }
@@ -667,10 +695,15 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     let selected = match adl_dsh_version::read_selected(&root) {
         Ok(Some(version)) => version,
         Ok(None) => {
+            tracing::debug!("dsh::reinstall: rejected (no selected version)");
             return ipc::to_response(Err(AppError::NotFound("no selected version".into())));
         },
-        Err(e) => return ipc::to_response(Err(e)),
+        Err(e) => {
+            tracing::debug!(error = %e, "dsh::reinstall: read selected failed");
+            return ipc::to_response(Err(e));
+        },
     };
+    tracing::debug!(version = %selected, "dsh::reinstall: request");
     if let Err(e) =
         try_begin_version_task(&state, adl_dsh_version::VersionTaskKind::Reinstall, &selected)
     {
@@ -678,6 +711,7 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     }
     let guard = state.dsh_version_lock.clone().lock_owned().await;
     let was_running = stop_running_dsh(&state).await;
+    tracing::debug!(version = %selected, was_running, "dsh::reinstall: invoking kernel");
     let result = adl_dsh_version::reinstall_with_task(
         &root,
         &state.storage.paths().root,
@@ -685,11 +719,18 @@ pub async fn reinstall(State(state): State<ServerState>) -> impl IntoResponse {
     )
     .await
     .map(|v| serde_json::json!(v));
+    match &result {
+        Ok(_) => tracing::debug!(version = %selected, "dsh::reinstall: ok"),
+        Err(e) => tracing::debug!(version = %selected, error = %e, "dsh::reinstall: failed"),
+    }
     finish_version_mutation(&state, guard, was_running, &result).await;
     ipc::to_response(result)
 }
 
-/// POST `/dsh/restart` — 重启正在运行的 dsh（含经指纹/命令行验证的外部进程）。
+/// POST `/dsh/restart` — 确保 dsh 处于运行状态并返回其地址（用户 2026-10-21 完成态定义）。
+/// 正在运行（含经指纹/命令行验证的外部进程）则重启；未运行但有可用来源
+/// （刚安装/切换/重装完）则直接拉起——不建标签（建标签是前端 openDsh 的事）。
+/// 无可用来源返回 `{ restarted:false, url:null }`（调用方负责关残留标签）。
 pub async fn restart(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_restart(&state).await;
     ipc::to_response(result)
@@ -715,10 +756,10 @@ async fn run_restart(state: &ServerState) -> Result<serde_json::Value, AppError>
         (had_process, freed_external)
     };
 
-    if !had_process && !freed_external {
-        return Ok(serde_json::json!({ "restarted": false, "url": null }));
-    }
-
+    // had_process/freed_external 仅用于诊断：无论之前是否有进程，只要有可用
+    // 来源就确保拉起（安装/切换/重装后的“完成后即运行”语义）；无可用来源时
+    // run_open 返回 NotFound，下方统一折为 restarted:false。
+    tracing::debug!(had_process, freed_external, "dsh::run_restart: ensuring dsh is running");
     clear_source_cache(state);
     let opened = run_open(
         state.dsh_state.clone(),
@@ -748,7 +789,8 @@ pub async fn get_version_catalog(State(state): State<ServerState>) -> impl IntoR
 }
 
 /// POST `/dsh/install-version` — 安装指定版本（正式版或预发布均可，需官方确已发布）。
-/// body: `{ version }`，成功返回该版本串；下次 `open` 即按该版本启动。
+/// body: `{ version, select? }`，成功返回该版本串；select 缺省 true（登记并选中，
+/// 下次 `open` 即按该版本启动），false 则只修目录、保持原选中（行内“重装非当前”）。
 pub async fn install_version(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -757,6 +799,8 @@ pub async fn install_version(
         Ok(v) => v,
         Err((_, msg)) => return ipc::to_response(Err(AppError::InvalidInput(msg))),
     };
+    let select = input.select.unwrap_or(true);
+    tracing::debug!(version = %input.version, select, "dsh::install_version: request");
     let root = dsh_root(&state);
     // Install/Reinstall 分类只影响进度条 kind 标签：判定在锁外，结果可能与
     // 实际执行略有出入（并发变更），正确性不受影响，故接受此近似。
@@ -771,15 +815,24 @@ pub async fn install_version(
     let guard = state.dsh_version_lock.clone().lock_owned().await;
     let current = adl_dsh_version::read_selected(&root).ok().flatten();
     let is_current = current.as_deref() == Some(input.version.trim());
+    tracing::debug!(version = %input.version, ?kind, ?current, is_current, "dsh::install_version: task begun");
     let was_running = if is_current { stop_running_dsh(&state).await } else { false };
+    tracing::debug!(version = %input.version, was_running, select, "dsh::install_version: invoking kernel");
     let result = adl_dsh_version::install_version_with_task(
         &root,
         &state.storage.paths().root,
         &input.version,
         &state.dsh_version_task,
+        select,
     )
     .await
     .map(|v| serde_json::json!(v));
+    match &result {
+        Ok(_) => tracing::debug!(version = %input.version, "dsh::install_version: ok"),
+        Err(e) => {
+            tracing::debug!(version = %input.version, error = %e, "dsh::install_version: failed")
+        },
+    }
     finish_version_mutation(&state, guard, was_running, &result).await;
     ipc::to_response(result)
 }

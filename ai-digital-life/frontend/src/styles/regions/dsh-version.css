@@ -76,6 +76,34 @@
   color: var(--text-muted);
 }
 
+/* 当前版本读数加载态（用户实测 2026-10-21：后端真实切换十几秒，读数行显示旧值
+   造成“延迟感”；同版本重装同样在途）：圆弧胶囊 + 水平波浪扫过，中性灰，
+   不引入强调色；亮暗主题均可见（固定 rgba，不依赖主题变量对比度）。 */
+.adl-dsh-settings__version-loading {
+  display: inline-block;
+  width: 148px;
+  height: 20px;
+  border-radius: var(--radius-full);
+  background-color: var(--bg-muted);
+  background-image: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(128, 128, 128, 0.4) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: adl-dsh-skeleton-wave 2.6s ease-in-out infinite;
+}
+
+@keyframes adl-dsh-skeleton-wave {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 /* 状态徽标（已是最新 / 发现新版本）——无边框。 */
 .adl-dsh-settings__badge {
   display: inline-flex;
@@ -111,49 +139,44 @@
   gap: var(--space-2);
 }
 
-.adl-dsh-settings__progress {
-  width: 96px;
+/* 任务阶段文案（外部调研结论：阶段＋真实计数，不伪造进度；弱化，不抢按钮）。 */
+.adl-dsh-settings__version-task-stage {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
 }
 
-.adl-dsh-settings__progress-bar {
-  width: 100%;
-  height: 3px;
-  background: var(--border-subtle);
-  border-radius: 2px;
-  overflow: hidden;
+/* 阶段文案扫光（中性灰，亮暗主题均可见；计数部分保持静止，用户明确要求）。 */
+.adl-dsh-settings__version-task-shimmer {
+  background: linear-gradient(100deg, #8a8a8a 30%, #d4d4d4 50%, #8a8a8a 70%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: adl-dsh-task-shimmer 2.6s ease-in-out infinite;
 }
 
-.adl-dsh-settings__progress-fill {
-  height: 100%;
-  background: var(--text-secondary);
-  border-radius: 2px;
-  transition: width 0.3s ease;
-}
-
-.adl-dsh-settings__progress.is-indeterminate .adl-dsh-settings__progress-bar {
-  position: relative;
-}
-
-.adl-dsh-settings__progress.is-indeterminate .adl-dsh-settings__progress-fill {
-  position: absolute;
-  width: 40%;
-  animation: adl-dsh-progress-indeterminate 1.2s ease-in-out infinite;
-}
-
-@keyframes adl-dsh-progress-indeterminate {
+@keyframes adl-dsh-task-shimmer {
   0% {
-    left: -40%;
+    background-position: 200% 0;
   }
   100% {
-    left: 100%;
+    background-position: -200% 0;
   }
+}
+
+.adl-dsh-settings__version-task-count {
+  margin-left: 0.25em;
 }
 
 /* 版本操作按钮：与其它设置块控件同构——常驻灰底、无边框线、radius-sm 近直角；
-   悬停时加边框线。 */
+   悬停时加边框线。统宽 + 内容居中：spinner 替换文案时按钮不变形
+   （用户实测 2026-10-21：切换按钮加载态忽大忽小）。 */
 .adl-dsh-settings__action-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: 3.5rem;
   padding: var(--space-1) var(--space-2);
   background: var(--bg-muted);
   border: 1px solid transparent;

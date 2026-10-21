@@ -7,6 +7,7 @@ import { CenterPane } from '@regions/CenterPane';
 import { TCopyProvider } from '@i18n/TCopyContext';
 import { useAppStore } from '@stores/slicedStore';
 import type { CopyDict } from '@i18n/types';
+import type { DshSourceStatus } from '@shared/ipc/dsh';
 
 // 新建入口页只渲染三入口（dsh 版本管理已移入设置面板「DSH」组）。
 
@@ -19,6 +20,8 @@ const t = {
   centerLauncherOpenTerminal: '打开终端',
   dshPortFreed: '端口已释放并重新启动',
   dshOpenFailed: '打开失败',
+  dshOpenNoVersion: '暂无可用版本',
+  dshVersionBusyRetry: '稍候再试',
 } as unknown as CopyDict;
 
 function renderLauncher(centerTabId = 'c1') {
@@ -38,6 +41,8 @@ beforeEach(() => {
     browserActiveTabId: '',
     errorToasts: [],
     toasts: [],
+    // 守卫用例会写入 sourceStatus（effective none）；此处复位，避免污染后续用例的守卫判定。
+    sourceStatus: null,
   });
 });
 
@@ -166,6 +171,32 @@ describe('CenterEntryPage', () => {
     await vi.waitFor(() => expect(showToast).toHaveBeenCalledWith('打开失败', 'error'));
   });
 
+  it('源状态确认无可用版本时拦截打开并 toast 提示，不调桥不建标签', async () => {
+    const open = vi.fn(async () => ({
+      ok: true,
+      data: { url: 'http://127.0.0.1:3080', freedPort: false },
+    }));
+    const getSourceStatus = vi.fn(async () => ({ ok: false, error: { code: 'X', message: 'x' } }));
+    (window as unknown as { digitalLife: unknown }).digitalLife = {
+      dsh: { open, getSourceStatus },
+    };
+    useAppStore.setState({
+      sourceStatus: {
+        versionSource: { mode: 'host', effective: 'none', hostVersion: null },
+      } as unknown as DshSourceStatus,
+    });
+    // spyOn（afterEach restoreAllMocks 复位）而非 setState 覆写，避免污染后续用例。
+    const showToast = vi.spyOn(useAppStore.getState(), 'showToast');
+
+    renderLauncher();
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
+
+    await vi.waitFor(() => expect(showToast).toHaveBeenCalledWith('暂无可用版本', 'warning'));
+    expect(open).not.toHaveBeenCalled();
+    expect(useAppStore.getState().centerTabs.some((c) => c.id === 'c1')).toBe(true);
+    expect(useAppStore.getState().browserTabs).toHaveLength(0);
+  });
+
   it('浏览器标签未激活时保留入口页标签（!newId 守卫）', () => {
     // browserOpenTab 未激活任何标签（异常/边界）：不得就地转换、不得抛错。
     vi.spyOn(useAppStore.getState(), 'browserOpenTab').mockImplementation(() => {
@@ -179,7 +210,7 @@ describe('CenterEntryPage', () => {
     expect(center?.kind).toBe('launcher');
   });
 
-  it('openDsh 在途时禁用三个入口并置 aria-busy', async () => {
+  it('openDsh 在途不禁用任何入口（重复点击给 busy 提示，迟到完成不误删）', async () => {
     let resolveOpen: (v: unknown) => void = () => {};
     const open = vi.fn(
       () =>
@@ -188,21 +219,35 @@ describe('CenterEntryPage', () => {
         }),
     );
     (window as unknown as { digitalLife: unknown }).digitalLife = { dsh: { open } };
+    const showToast = vi.spyOn(useAppStore.getState(), 'showToast');
 
     const { container } = renderLauncher();
     fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
 
+    // 在途只置 aria-busy，不禁用任何按钮（用户明确要求：永不灰化）。
     await vi.waitFor(() => {
+      expect(container.querySelector('.adl-launcher-entries')?.getAttribute('aria-busy')).toBe(
+        'true',
+      );
       for (const button of screen.getAllByRole('button')) {
-        expect((button as HTMLButtonElement).disabled).toBe(true);
+        expect((button as HTMLButtonElement).disabled).toBe(false);
       }
     });
-    expect(container.querySelector('.adl-launcher-entries')?.getAttribute('aria-busy')).toBe(
-      'true',
-    );
+    // 在途重复点击：走 in-flight 复用，不重复拉起，给 busy 提示。
+    fireEvent.click(screen.getByRole('button', { name: /deepseek harness/i }));
+    await vi.waitFor(() => expect(showToast).toHaveBeenCalledWith('稍候再试', 'warning'));
+    expect(open).toHaveBeenCalledTimes(1);
+    // 在途时点开浏览器就地转换：迟到完成的 openDsh 不得移除已转换标签。
+    fireEvent.click(screen.getByRole('button', { name: '打开浏览器' }));
+    expect(useAppStore.getState().centerTabs.find((c) => c.id === 'c1')?.kind).toBe('browser');
 
     // 收尾：放行在途 promise，避免遗留未处理任务。
     resolveOpen({ ok: true, data: { url: 'http://127.0.0.1:3080', freedPort: false } });
+    // 迟到完成后标签仍是用户转换出的 browser（未被误删）。
+    await vi.waitFor(() => {
+      const center = useAppStore.getState().centerTabs.find((c) => c.id === 'c1');
+      expect(center?.kind).toBe('browser');
+    });
   });
 });
 

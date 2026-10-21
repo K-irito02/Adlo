@@ -199,8 +199,10 @@ describe('DshVersionManagement', () => {
     });
     fireEvent.click(menuPick);
     fireEvent.click(screen.getByRole('button', { name: 'dshInstallAction' }));
-    await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('1.1.0'));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshInstalledRestarted', 'success'));
+    await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('1.1.0', true));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith('dshInstalledRestarted', 'success', undefined, 5000),
+    );
   });
 
   it('检查更新：无更新时提示已是最新', async () => {
@@ -613,13 +615,17 @@ describe('DshVersionManagement', () => {
     });
     fireEvent.click(menuPick);
     fireEvent.click(screen.getByRole('button', { name: 'dshInstallAction' }));
-    await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('0.2.0'));
-    await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshInstalledRestarted', 'success'));
+    await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('0.2.0', true));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith('dshInstalledRestarted', 'success', undefined, 5000),
+    );
   });
 
-  it('已装非当前行重装走登记并选中（installDshVersion），无二次弹窗', async () => {
+  it('已装非当前行重装只修目录不改选中（installDshVersion select=false），提示已重新安装', async () => {
     seed({ currentSelected: '0.1.0', installed: ['0.1.0', '0.2.0'] });
     seedCatalog(['0.2.0', '0.1.0']);
+    const showToast = vi.fn();
+    useAppStore.setState({ showToast });
     const { container } = renderBlock();
     // 下拉框默认选中当前版本 0.1.0；打开菜单选 0.2.0。
     fireEvent.click(screen.getByRole('button', { name: '0.1.0' }));
@@ -634,12 +640,16 @@ describe('DshVersionManagement', () => {
       return target;
     });
     fireEvent.click(menuPick);
-    // 0.2.0 行：卸载 + 重装 + 切换 + 下拉框；点重装应登记选中该版本。
+    // 0.2.0 行：卸载 + 重装 + 切换 + 下拉框；点重装只修该版本目录，不切换选中。
     const row = Array.from(
       container.querySelectorAll('.adl-dsh-settings__version-list-item'),
     )[0]! as HTMLElement;
     fireEvent.click(within(row).getByRole('button', { name: 'dshReinstall' }));
-    await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('0.2.0'));
+    await waitFor(() => expect(installDshVersion).toHaveBeenCalledWith('0.2.0', false));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith('dshReinstalledOnly', 'success', undefined, 5000),
+    );
+    expect(restartDsh).not.toHaveBeenCalled();
   });
 
   it('官方版本信息行内嵌与标题同色的链接，点击跟随打开方式跳转', () => {
@@ -1084,7 +1094,7 @@ describe('DshVersionManagement', () => {
     expect(saveSourceConfig).not.toHaveBeenCalled();
   });
 
-  it('版本任务在对应行显示进度条与取消按钮', async () => {
+  it('版本任务在对应行显示阶段文案与取消按钮（无进度条；计数口径一致）', async () => {
     seed({ currentSelected: '0.2.0', installed: ['0.2.0'] });
     seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
     useAppStore.setState({
@@ -1099,11 +1109,56 @@ describe('DshVersionManagement', () => {
       },
     });
     renderBlock();
-    const bars = screen.getAllByRole('progressbar');
-    expect(bars).toHaveLength(1);
-    expect(bars[0].getAttribute('aria-valuenow')).toBe('42');
+    // 阶段文案行（扫光文字＋素计数），不渲染进度条/百分比。
+    expect(screen.queryByRole('progressbar')).toBeNull();
+    expect(screen.getByText('dshTaskStageInstalling')).toBeTruthy();
+    expect(screen.getByText('10/20')).toBeTruthy();
     expect(screen.getByText('dshCancelInstall')).toBeTruthy();
     fireEvent.click(screen.getByText('dshCancelInstall'));
     await waitFor(() => expect(cancelVersionTask).toHaveBeenCalled());
+  });
+
+  it('下载盲区（total 为 0）显示“正在下载”而非计数', async () => {
+    seed({ currentSelected: '0.2.0', installed: ['0.2.0'] });
+    seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
+    useAppStore.setState({
+      versionTask: {
+        kind: 'install',
+        version: '0.2.0',
+        phase: 'installing',
+        percent: null,
+        done: 0,
+        total: 0,
+        cancellable: true,
+      },
+    });
+    renderBlock();
+    expect(screen.getByText('dshTaskStageDownloading')).toBeTruthy();
+  });
+
+  it('任务结束但重启在途时行内保持收尾中任务行（不闪回禁用安装按钮）', async () => {
+    seed({ currentSelected: '0.2.0', installed: ['0.2.0'] });
+    seedCatalog(['0.2.0'], ['0.2.1-rc.2']);
+    useAppStore.setState({
+      versionTask: {
+        kind: 'install',
+        version: '0.2.0',
+        phase: 'installing',
+        percent: 95,
+        done: 650,
+        total: 683,
+        cancellable: true,
+      },
+    });
+    const { container } = renderBlock();
+    await waitFor(() =>
+      expect(container.querySelector('.adl-dsh-settings__version-task')).not.toBeNull(),
+    );
+    // 后端任务结束、重启在途中：沿用快照但文案统一为收尾，取消按钮禁用。
+    useAppStore.setState({ versionTask: null, dshRestarting: true });
+    await waitFor(() => expect(screen.getByText('dshTaskStageFinalizing')).toBeTruthy());
+    expect(container.querySelector('.adl-dsh-settings__version-task')).not.toBeNull();
+    const cancelBtn = screen.getByRole('button', { name: 'dshCancelInstall' });
+    expect((cancelBtn as HTMLButtonElement).disabled).toBe(true);
   });
 });

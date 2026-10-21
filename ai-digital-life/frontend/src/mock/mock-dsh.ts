@@ -85,11 +85,13 @@ export const mockDsh: DshBridge = {
   cancelVersionTask: async () => ({ ok: true, data: true }),
   getVersionStatus: async () => ({ ok: true, data: { ...status, installed: [...status.installed] } }),
   getVersionCatalog: async () => ({ ok: true, data: MOCK_CATALOG }),
-  installVersion: async (version) => {
+  installVersion: async (version, select = true) => {
     if (!status.installed.includes(version)) {
       status.installed = [version, ...status.installed];
     }
-    status.currentSelected = version;
+    if (select) {
+      status.currentSelected = version;
+    }
     syncEffective();
     return { ok: true, data: version };
   },

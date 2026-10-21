@@ -138,27 +138,65 @@ fn parse_dry_run_total(stdout: &[u8]) -> u64 {
         .unwrap_or(0)
 }
 
+/// 文件树 walk 护栏（计数与删除共用）：跳过链接/重解析点（防跟随出界），
+/// 递归设深度与条目上限（防恶意包造环卡死）。
+const WALK_MAX_DEPTH: usize = 12;
+const WALK_MAX_ENTRIES: u64 = 200_000;
+
+/// 是否链接（含 Windows junction/reparse point）：一律按叶子删，
+/// 删链接本身，不跟随目标。
+fn is_link(path: &Path) -> bool {
+    let Ok(md) = std::fs::symlink_metadata(path) else {
+        return false;
+    };
+    if md.file_type().is_symlink() {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0400;
+        if md.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0 {
+            return true;
+        }
+    }
+    false
+}
+
 fn count_installed_packages(root: &Path) -> u64 {
-    // 与 dry-run total（传递依赖总数）同口径：递归计数全部包目录，
-    // 否则分子（顶层数十）/分母（数百）下进度长期贴 5% 后跳变。
-    fn walk(dir: &Path, count: &mut u64) {
+    // 与 dry-run total（npm `added` 包数）尽量同口径：只计持有 package.json 的
+    // 目录（= 一个逻辑包），不计嵌套展开的中间目录。真实树仍可能大于干跑预测
+    //（如 bundleDependencies 随包附带，不计入 `added`——用户确认保留真实计数，
+    // N 可大于 M，含义见界面问号文案）。
+    fn walk(dir: &Path, depth: usize, count: &mut u64) {
+        if depth > WALK_MAX_DEPTH || *count >= WALK_MAX_ENTRIES {
+            return;
+        }
         let Ok(entries) = std::fs::read_dir(dir) else {
             return;
         };
         for entry in entries.flatten() {
+            if *count >= WALK_MAX_ENTRIES {
+                return;
+            }
             let name = entry.file_name().to_string_lossy().into_owned();
             if name.starts_with('.') {
                 continue;
             }
             let path = entry.path();
+            if is_link(&path) {
+                continue;
+            }
             if path.is_dir() {
-                *count += 1;
-                walk(&path, count);
+                if path.join("package.json").is_file() {
+                    *count += 1;
+                }
+                walk(&path, depth + 1, count);
             }
         }
     }
     let mut count = 0u64;
-    walk(&root.join("node_modules"), &mut count);
+    walk(&root.join("node_modules"), 0, &mut count);
     count
 }
 
@@ -208,6 +246,14 @@ async fn dry_run_total(
     .map_err(|_| AppError::Timeout("npm dry-run timed out".into()))??;
     let stdout = stdout_task.await.unwrap_or_default();
     if !status.success() {
+        // 失败即 total=0（调用方 unwrap_or(0)），此处留痕以便定位（曾因 prefix
+        // 目录不存在恒 ENOENT，用户实测 2026-10-21）。
+        tracing::debug!(
+            %version,
+            %status,
+            tail = %tail(&String::from_utf8_lossy(&stdout), 500),
+            "dsh install: dry-run failed, total falls back to 0"
+        );
         return Ok(0);
     }
     Ok(parse_dry_run_total(&stdout))
@@ -254,8 +300,22 @@ async fn run_npm_with_progress(
         buf
     });
     let mut ticker = tokio::time::interval(Duration::from_millis(400));
+    // 取消快速通道（用户实测 2026-10-26：第一次取消 11 秒无响应）：
+    // 同步 walk 在大树上曾阻塞本任务数秒，连带饿死取消检查。
+    // walk 已搬进 spawn_blocking（见下），此 100ms 分支只做取消检查、
+    // 不碰文件系统，双保险保证取消在 1 拍内生效。
+    let mut cancel_tick = tokio::time::interval(Duration::from_millis(100));
+    // 自适应计数节流：walk 耗时按 2 倍计入下次间隔（400ms～5s），
+    // 大树下不饿死事件循环；百分比停顿时由 UI 扫光＋阶段文案说明在干活。
+    let mut next_count_at = tokio::time::Instant::now();
     loop {
         tokio::select! {
+            _ = cancel_tick.tick() => {
+                if task.is_cancelled() {
+                    kill_npm_tree(&mut child).await;
+                    return Err(cancelled());
+                }
+            }
             status = child.wait() => {
                 let status = status.map_err(|e| AppError::Io(format!("npm wait failed: {e}")))?;
                 let stdout = stdout_task.await.unwrap_or_default();
@@ -279,7 +339,20 @@ async fn run_npm_with_progress(
                     kill_npm_tree(&mut child).await;
                     return Err(cancelled());
                 }
-                let done = count_installed_packages(tmp);
+                if tokio::time::Instant::now() < next_count_at {
+                    continue;
+                }
+                // 同步 walk 必须在 blocking 池跑：直接在 select 任务里走大树
+                // 会饿死同一任务的取消分支（用户实测 2026-10-26 第一次取消
+                // 11 秒无响应）。搬出去后，取消只取决于 100ms 快检分支。
+                let started = tokio::time::Instant::now();
+                let tmp_owned = tmp.to_path_buf();
+                let done = tokio::task::spawn_blocking(move || count_installed_packages(&tmp_owned))
+                    .await
+                    .unwrap_or(0);
+                let cost = started.elapsed();
+                next_count_at =
+                    started + cost.mul_f32(2.0).clamp(Duration::from_millis(400), Duration::from_secs(5));
                 task.update(
                     VersionTaskPhase::Installing,
                     install_percent(done, total),
@@ -323,12 +396,15 @@ pub async fn install(
     data_dir: &Path,
     version: &str,
     task: &TaskReporter,
+    select: bool,
 ) -> Result<String, AppError> {
     let version = version.trim();
+    tracing::debug!(%version, "dsh install: request (trimmed)");
     task.update(VersionTaskPhase::Preparing, None, 0, 0, true);
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     if task.is_cancelled() {
+        tracing::debug!(%version, "dsh install: cancelled before catalog");
         return Err(cancelled());
     }
 
@@ -336,9 +412,11 @@ pub async fn install(
     let published = catalog.stable.iter().any(|i| i.version == version)
         || catalog.prerelease.iter().any(|i| i.version == version);
     if !published {
+        tracing::debug!(%version, "dsh install: rejected (not published upstream)");
         return Err(AppError::NotFound(format!("version {version} is not published upstream")));
     }
     if task.is_cancelled() {
+        tracing::debug!(%version, "dsh install: cancelled after catalog");
         return Err(cancelled());
     }
 
@@ -353,10 +431,21 @@ pub async fn install(
     if tmp.exists() {
         let _ = tokio::fs::remove_dir_all(&tmp).await;
     }
+    // dry-run 要求 prefix 目录事先存在（npm 不会自动创建，不存在即 ENOENT 失败，
+    // total 回退为 0 → 进度恒为不确定态；用户实测 2026-10-21 定位）。
+    if let Err(e) = tokio::fs::create_dir_all(&tmp).await {
+        let _ = tokio::fs::remove_dir_all(&tmp).await;
+        return Err(AppError::Io(format!("create {}: {e}", tmp.display())));
+    }
 
     // dry_run_total 首行即刷 Preparing，此处不再重复。
+    // 分母恒用 dry-run 预测（npm `added` 理想树计数）；真实树可能更大
+    //（如 bundleDependencies 随包附带，不计入预测——用户确认保留真实计数、
+    // N 可大于 M，含义见界面文案）。
     let total = dry_run_total(&tmp, version, registry, &config, task).await.unwrap_or(0);
+    tracing::debug!(%version, %registry, %total, "dsh install: dry-run done");
     if task.is_cancelled() {
+        tracing::debug!(%version, "dsh install: cancelled after dry-run, tmp removed");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
         return Err(cancelled());
     }
@@ -365,10 +454,12 @@ pub async fn install(
     tracing::info!(%version, %registry, %total, "dsh install: npm install start");
     task.update(VersionTaskPhase::Installing, install_percent(0, total), 0, total, true);
     if let Err(e) = run_npm_with_progress(&args, &config, &tmp, total, task, registry).await {
+        tracing::debug!(%version, error = %e, "dsh install: npm failed, tmp removed");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
         return Err(e);
     }
     if task.is_cancelled() {
+        tracing::debug!(%version, "dsh install: cancelled after npm, tmp removed");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
         return Err(cancelled());
     }
@@ -376,68 +467,103 @@ pub async fn install(
     let tmp_bin =
         tmp.join("node_modules").join("@deepseek-ai").join("dsh").join("lib").join("bin.js");
     if !tmp_bin.is_file() {
+        tracing::debug!(%version, "dsh install: rejected (installed without bin.js)");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
         return Err(AppError::Io(format!("installed {version} without bin.js")));
     }
 
     task.update(VersionTaskPhase::Finalizing, Some(98), total, total, false);
     let final_dir = installed_dir(root).join(version);
-    swap_into_place(&tmp, &final_dir).await?;
+    tracing::debug!(%version, path = %final_dir.display(), "dsh install: swapping into place");
+    if let Err(e) = swap_into_place(&tmp, &final_dir).await {
+        // 与 npm 失败路径同构：swap 失败也要清 tmp（此前直接 `?` 传播会残留）。
+        let _ = tokio::fs::remove_dir_all(&tmp).await;
+        return Err(e);
+    }
 
     if !is_host_version_installed(root, version) {
+        tracing::debug!(%version, "dsh install: rejected (incomplete after swap)");
         return Err(AppError::Io(format!("installed {version} is incomplete")));
     }
 
-    tokio::fs::write(selected_file(root), format!("{version}\n"))
-        .await
-        .map_err(|e| AppError::Io(format!("write selected: {e}")))?;
+    if select {
+        tokio::fs::write(selected_file(root), format!("{version}\n"))
+            .await
+            .map_err(|e| AppError::Io(format!("write selected: {e}")))?;
+        tracing::debug!(%version, "dsh install: selected written");
+    } else {
+        // 非当前重装（行内“重装”）：只修该版本目录，保持原选中不变，
+        // 切换仍需用户手动点“切换到该版本”。
+        tracing::debug!(%version, "dsh install: select=false, keeping previous selected");
+    }
     task.update(VersionTaskPhase::Finalizing, Some(100), total, total, false);
     tracing::info!(%version, bin = %host_bin(root, version).display(), "dsh install: completed");
     Ok(version.to_string())
 }
 
-async fn remove_dir_with_progress(dir: &Path, task: &TaskReporter) {
-    let node_modules = dir.join("node_modules");
-    let total = count_installed_packages(dir);
-    task.update(VersionTaskPhase::Removing, Some(10), 0, total, false);
-    let Ok(mut entries) = tokio::fs::read_dir(&node_modules).await else {
-        let _ = tokio::fs::remove_dir_all(dir).await;
+/// 收集待删除的全部条目（后序：子项在前，父目录在后；根目录自身不计入，
+/// 最后整体删——此时已空，很快）。
+/// 只深入“真实落在此次删除范围内的目录”：链接/重解析点一律按叶子处理，
+/// 防止跟随外部目标误删（npm 树内可能含 junction/链接）。
+/// 与计数 walk 同口径的深度/条目上限（防恶意包造环卡死；超限部分由最后的
+/// 整体 `remove_dir_all` 兜底删除）。
+fn collect_for_removal(dir: &Path, root_canon: &Path, out: &mut Vec<PathBuf>) {
+    collect_into(dir, root_canon, 0, out);
+}
+
+fn collect_into(dir: &Path, root_canon: &Path, depth: usize, out: &mut Vec<PathBuf>) {
+    if depth > WALK_MAX_DEPTH || out.len() as u64 >= WALK_MAX_ENTRIES {
+        return;
+    }
+    let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
-    let mut done = 0u64;
-    let mut children: Vec<PathBuf> = Vec::new();
-    while let Ok(Some(entry)) = entries.next_entry().await {
-        let name = entry.file_name().to_string_lossy().into_owned();
-        if name.starts_with('.') {
-            continue;
+    for entry in entries.flatten() {
+        if out.len() as u64 >= WALK_MAX_ENTRIES {
+            return;
         }
         let path = entry.path();
-        if name.starts_with('@') {
-            if let Ok(mut scoped) = tokio::fs::read_dir(&path).await {
-                while let Ok(Some(child)) = scoped.next_entry().await {
-                    children.push(child.path());
-                }
-            }
-        } else if path.is_dir() {
-            children.push(path);
+        let dominated = !is_link(&path)
+            && path.canonicalize().map(|c| c.starts_with(root_canon)).unwrap_or(false);
+        if dominated && path.is_dir() {
+            collect_into(&path, root_canon, depth + 1, out);
         }
+        out.push(path);
     }
-    for child in children {
-        // 删除阶段不可取消（调用方已报 cancellable=false，UI 隐藏取消按钮）：
-        // 此处只把静默吞错改为留痕，不改变取消语义，避免半删状态。
-        match tokio::fs::remove_dir_all(&child).await {
-            Ok(()) => {
-                done += 1;
-                let percent = done
-                    .min(total)
-                    .checked_mul(88)
-                    .and_then(|v| v.checked_div(total))
-                    .map(|v| (10 + v).min(100) as u8);
-                task.update(VersionTaskPhase::Removing, percent, done, total, false);
-            },
-            Err(e) => {
-                tracing::warn!(path = %child.display(), error = %e, "dsh uninstall: remove child failed");
-            },
+}
+
+async fn remove_dir_with_progress(dir: &Path, task: &TaskReporter) {
+    // 旧逻辑只对顶层子项计数并逐个整体删，最后 `remove_dir_all` 原子收尾，
+    // 进度长期停在 ~20% 后瞬间 100%（用户实测 2026-10-21）。改为全量收集后
+    // 逐个删除、按条目数线性上报（外部调研结论：阶段文案＋真实计数，不伪造）。
+    // 收集是同步全树 walk（大 node_modules 可达数秒），必须搬进 blocking 池，
+    // 否则堵住本 async 任务的取消检查与进度（与 install 侧 H1 同类问题）。
+    let root_canon = dir.canonicalize().unwrap_or_else(|_| dir.to_path_buf());
+    let dir_owned = dir.to_path_buf();
+    let entries: Vec<PathBuf> = tokio::task::spawn_blocking(move || {
+        let mut out = Vec::new();
+        collect_for_removal(&dir_owned, &root_canon, &mut out);
+        out
+    })
+    .await
+    .unwrap_or_default();
+    let total = entries.len() as u64;
+    task.update(VersionTaskPhase::Removing, Some(5), 0, total, false);
+    let mut done = 0u64;
+    for path in entries {
+        let ok = if is_link(&path) || path.is_file() {
+            tokio::fs::remove_file(&path).await.is_ok()
+        } else {
+            tokio::fs::remove_dir(&path).await.is_ok()
+        };
+        if !ok {
+            // 顽固条目留痕不断链：最后整体删会再试一次。
+            tracing::warn!(path = %path.display(), "dsh uninstall: remove entry failed, will retry with whole dir");
+        }
+        done += 1;
+        if done % 16 == 0 || done == total {
+            let percent = 5 + (90 * done.min(total) / total.max(1)).min(90);
+            task.update(VersionTaskPhase::Removing, Some(percent as u8), done, total, false);
         }
     }
     let _ = tokio::fs::remove_dir_all(dir).await;
@@ -445,17 +571,21 @@ async fn remove_dir_with_progress(dir: &Path, task: &TaskReporter) {
 }
 
 pub async fn uninstall(root: &Path, version: &str, task: &TaskReporter) -> Result<(), AppError> {
+    tracing::debug!(%version, "dsh uninstall: request");
     let dir = installed_dir(root).join(version);
     if !dir.is_dir() {
+        tracing::debug!(%version, "dsh uninstall: rejected (not installed)");
         return Err(AppError::NotFound(format!("version {version} not installed")));
     }
     task.update(VersionTaskPhase::Removing, Some(2), 0, 0, true);
     if task.is_cancelled() {
+        tracing::debug!(%version, "dsh uninstall: cancelled before move-to-trash");
         return Err(cancelled());
     }
 
     let trash = dir.with_file_name(format!(".removing-{version}-{}", nonce()));
     let was_selected = read_selected(root)? == Some(version.to_string());
+    tracing::debug!(%version, was_selected, "dsh uninstall: moving to trash");
     tokio::fs::rename(&dir, &trash)
         .await
         .map_err(|e| AppError::Io(format!("remove {}: {e}", dir.display())))?;
@@ -464,6 +594,7 @@ pub async fn uninstall(root: &Path, version: &str, task: &TaskReporter) -> Resul
     for _ in 0..10 {
         tokio::time::sleep(Duration::from_millis(100)).await;
         if task.is_cancelled() {
+            tracing::debug!(%version, "dsh uninstall: cancelled during grace window, restored");
             let _ = tokio::fs::rename(&trash, &dir).await;
             return Err(cancelled());
         }
@@ -471,6 +602,7 @@ pub async fn uninstall(root: &Path, version: &str, task: &TaskReporter) -> Resul
 
     if was_selected {
         let next = crate::highest_installed(root)?;
+        tracing::debug!(%version, next = ?next, "dsh uninstall: was selected, reselecting");
         let body = next.map(|v| format!("{v}\n")).unwrap_or_default();
         tokio::fs::write(selected_file(root), body)
             .await
@@ -478,6 +610,7 @@ pub async fn uninstall(root: &Path, version: &str, task: &TaskReporter) -> Resul
     }
 
     remove_dir_with_progress(&trash, task).await;
+    tracing::info!(%version, was_selected, "dsh uninstall: completed");
     Ok(())
 }
 
@@ -520,16 +653,20 @@ mod tests {
     }
 
     #[test]
-    fn count_installed_packages_counts_recursively_like_dry_run_total() {
-        // 与 dry-run total（传递依赖总数）同口径：递归计数，跳过点文件。
+    fn count_installed_packages_counts_package_json_holders_like_dry_run_added() {
+        // 与 dry-run total（npm `added` 包数）同口径：只计持有 package.json 的目录
+        // （= 一个逻辑包），跳过点文件与链接；无 package.json 的中间目录不计。
         let root = fresh_root("count");
         let nm = root.join("node_modules");
         std::fs::create_dir_all(nm.join("a").join("nested")).unwrap();
         std::fs::create_dir_all(nm.join("@scope").join("b")).unwrap();
         std::fs::create_dir_all(nm.join("@scope").join("c")).unwrap();
         std::fs::create_dir_all(nm.join(".bin")).unwrap();
-        // a, a/nested, @scope, @scope/b, @scope/c（.bin 跳过）
-        assert_eq!(count_installed_packages(&root), 5);
+        std::fs::write(nm.join("a").join("package.json"), "{}").unwrap();
+        std::fs::write(nm.join("a").join("nested").join("package.json"), "{}").unwrap();
+        std::fs::write(nm.join("@scope").join("b").join("package.json"), "{}").unwrap();
+        // a, a/nested, @scope/b（@scope/c 无 package.json 不计，.bin 跳过）
+        assert_eq!(count_installed_packages(&root), 3);
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -561,7 +698,7 @@ mod tests {
         let root = fresh_root("bad");
         let data = fresh_root("bad_data");
         let task = TaskReporter::new();
-        let err = install(&root, &data, "bogus!!", &task).await.expect_err("should fail");
+        let err = install(&root, &data, "bogus!!", &task, true).await.expect_err("should fail");
         assert!(matches!(err, AppError::InvalidInput(_)));
         let _ = std::fs::remove_dir_all(&root);
         let _ = std::fs::remove_dir_all(&data);
@@ -587,6 +724,40 @@ mod tests {
     fn tail_keeps_last_chars() {
         assert_eq!(tail("abcdef", 3), "def");
         assert_eq!(tail("abc", 10), "abc");
+    }
+
+    #[test]
+    fn collect_for_removal_caps_depth_and_skips_out_of_scope() {
+        // 20 层链（每层带 package.json）：收集在 WALK_MAX_DEPTH 处截断，
+        // 更深部分由最后的整体 remove_dir_all 兜底删除（不无限递归）。
+        // 断言结构性质而非精确条数（截断边界层的子项不展开）。
+        let root = fresh_root("collect_cap");
+        let mut d = root.join("trash");
+        std::fs::create_dir_all(&d).unwrap();
+        for i in 0..20 {
+            d = d.join(format!("n{i}"));
+            std::fs::create_dir_all(&d).unwrap();
+            std::fs::write(d.join("package.json"), "{}").unwrap();
+        }
+        let trash = root.join("trash");
+        let canon = trash.canonicalize().unwrap();
+        let mut out: Vec<std::path::PathBuf> = Vec::new();
+        collect_for_removal(&trash, &canon, &mut out);
+        // 全量应为 40 项（20 目录 + 20 文件）；截断后必须显著更少。
+        assert!(out.len() < 40, "walk should be capped, got {}", out.len());
+        // n13 及更深不得被收集。
+        for deep in 13..20 {
+            let name = format!("n{deep}");
+            assert!(
+                !out.iter()
+                    .any(|p| p.components().any(|c| c.as_os_str() == std::ffi::OsStr::new(&name))),
+                "deep level {name} must not be collected"
+            );
+        }
+        // 浅层必须在：n0 目录与其 package.json 都在。
+        assert!(out.iter().any(|p| p.ends_with("trash/n0")));
+        assert!(out.iter().any(|p| p.ends_with("trash/n0/package.json")));
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

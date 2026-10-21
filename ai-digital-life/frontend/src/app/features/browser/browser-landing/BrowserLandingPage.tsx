@@ -15,6 +15,7 @@ import type { ShortcutSite, LocalPort } from '@stores/slices/browserSlice';
 import { ContextMenu } from '@components/ContextMenu';
 import { routeLocalUrl } from './localAuthPorts';
 import { resolveDshAuthUrl, notifyDshFreedPort } from '@features/dsh/dshAuthUrl';
+import { isDshBusySnap, isDshConfirmedUnusable } from '@features/dsh/dshOpenGuard';
 import './BrowserLandingPage.css';
 
 interface BrowserLandingPageProps {
@@ -110,6 +111,18 @@ export function BrowserLandingPage({ t, onOpenUrl }: BrowserLandingPageProps) {
         return;
       }
       void (async () => {
+        // 版本操作在途守卫（用户实测 2026-10-21）：安装/切换/重装/卸载及其重启
+        // 长尾完成前拦截，toast 提示稍候，不建标签（判定逻辑与入口页共用）。
+        if (isDshBusySnap()) {
+          useAppStore.getState().showToast(t.dshVersionBusyRetry, 'warning');
+          return;
+        }
+        // 无可用版本守卫（用户实测 2026-10-21）：宿主无任何可用版本时不解析、
+        // 不建标签，直接 toast（fail-open：源状态未知时放行，由后端裁决）。
+        if (await isDshConfirmedUnusable()) {
+          useAppStore.getState().showToast(t.dshOpenNoVersion, 'warning');
+          return;
+        }
         const authed = await resolveDshAuthUrl(url);
         if (!authed) {
           openFallback(url);

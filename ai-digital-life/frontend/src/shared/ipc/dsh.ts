@@ -129,10 +129,11 @@ export interface DshBridge {
   getVersionCatalog: () => Promise<IpcResult<DshVersionCatalog>>;
   /**
    * 安装指定版本（正式版或预发布均可，需官方确已发布），返回该版本串；
-   * 下次 open 即按该版本启动
+   * select 缺省 true（登记并选中，下次 open 即按该版本启动），false 则只修
+   * 目录、保持原选中（行内“重装非当前”）。
    * @see httpBridge.ts → dsh.installVersion (/dsh/install-version)
    */
-  installVersion: (version: string) => Promise<IpcResult<string>>;
+  installVersion: (version: string, select?: boolean) => Promise<IpcResult<string>>;
   /**
    * 升级 dsh 到最新可用版本，返回新版本串
    * @see httpBridge.ts → dsh.update (/dsh/update)

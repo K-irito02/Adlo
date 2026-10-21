@@ -37,6 +37,10 @@ interface DshTestStore {
   centerSelectTab: (centerTabId: string) => void;
   sourceStatus: { config: { version_source: string } } | null;
   setDshSourceStatus: (status: unknown) => void;
+  dshLastUrl: string | null;
+  setDshLastUrl: (url: string | null) => void;
+  dshRestarting: boolean;
+  setDshRestarting: (restarting: boolean) => void;
   dshVersionSourcePending: string | null;
   setDshVersionSourcePending: (mode: string | null) => void;
   setDshVersionSourceDeferred: (deferred: boolean) => void;
@@ -113,6 +117,10 @@ function makeStore() {
       setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
       sourceStatus: null,
       setDshSourceStatus: (status) => set({ sourceStatus: status as never }),
+      dshLastUrl: null,
+      setDshLastUrl: (url) => set({ dshLastUrl: url }),
+      dshRestarting: false,
+      setDshRestarting: (restarting) => set({ dshRestarting: restarting }),
       dshVersionSourcePending: null,
       setDshVersionSourcePending: (mode) => set({ dshVersionSourcePending: mode }),
       setDshVersionSourceDeferred: () => {},
@@ -364,7 +372,7 @@ describe('dshActions.restartDsh', () => {
     vi.unstubAllGlobals();
   });
 
-  it('重启成功后把同源标签导航到新地址', async () => {
+  it('重启成功后同源旧标签按原位置重建（先开后关，不多入口页）', async () => {
     const store = makeStore();
     store.getState().browserOpenTab('http://127.0.0.1:3080/?token=old', 'dsh');
     (window as any).digitalLife.dsh.restart.mockResolvedValue({
@@ -377,7 +385,43 @@ describe('dshActions.restartDsh', () => {
       url: 'http://127.0.0.1:3080/?token=new',
       failed: false,
     });
+    // 旧标签被关闭且仅剩一个新标签（先开后关，中间区永不为空）。
+    expect(store.getState().browserTabs).toHaveLength(1);
     expect(store.getState().browserTabs[0].url).toBe('http://127.0.0.1:3080/?token=new');
+  });
+
+  it('面板 dsh 标签重建后仍留在面板（不被劫持到中间区）', async () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080/?token=old', 'dsh');
+    (window as any).digitalLife.dsh.restart.mockResolvedValue({
+      ok: true,
+      data: { restarted: true, url: 'http://127.0.0.1:3080/?token=new' },
+    });
+    await store.getState().restartDsh();
+    const tabs = store.getState().browserTabs;
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0].location).not.toBe('center');
+    expect(store.getState().centerTabs).toHaveLength(0);
+  });
+
+  it('中间区 dsh 标签重建后仍在中间区且不产生入口页', async () => {
+    const store = makeStore();
+    store.getState().browserOpenTab('http://127.0.0.1:3080/?token=old', 'dsh');
+    const oldId = store.getState().browserActiveTabId;
+    store.getState().centerShowBrowserTab(oldId);
+    (window as any).digitalLife.dsh.restart.mockResolvedValue({
+      ok: true,
+      data: { restarted: true, url: 'http://127.0.0.1:3080/?token=new' },
+    });
+    await store.getState().restartDsh();
+    const tabs = store.getState().browserTabs;
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0].url).toBe('http://127.0.0.1:3080/?token=new');
+    expect(tabs[0].location).toBe('center');
+    // 中心仅剩重建后的 dsh 标签，无多余入口页。
+    expect(store.getState().centerTabs).toHaveLength(1);
+    expect(store.getState().centerTabs[0].kind).toBe('browser');
+    expect(store.getState().centerTabs[0].refId).toBe(tabs[0].id);
   });
 
   it('重启失败标记 failed 且不动标签', async () => {

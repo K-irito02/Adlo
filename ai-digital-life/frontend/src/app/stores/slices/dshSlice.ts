@@ -36,6 +36,17 @@ export interface DshSlice {
    * `applyPendingVersionSource` 落盘并重启生效；会话内选择器仍显示当前生效来源）。
    */
   dshVersionSourcePending: DshVersionSourceMode | null;
+  /**
+   * 最近一次成功拉起/重启的 dsh 入口 URL（仅内存态，不持久化）。
+   * 卸载到空时运行中 URL 已无处可查（sourceStatus.running 为 null），用它按
+   * origin 同源关闭残留 dsh 标签；query 剥离后再记（凭据红线）。
+   */
+  dshLastUrl: string | null;
+  /**
+   * dsh 重启进行中（版本操作后的重启长尾也覆盖；入口页/欢迎页据此拦截提前打开，
+   * toast 提示稍候——用户实测 2026-10-21：安装后立即点开会被灰掉几秒）。
+   */
+  dshRestarting: boolean;
 
   setDshVersionStatus: (status: DshVersionStatus | null) => void;
   setDshVersionCatalog: (catalog: DshVersionCatalog | null) => void;
@@ -45,6 +56,15 @@ export interface DshSlice {
   setVersionTaskCancelRequested: (requested: boolean) => void;
   setDshVersionSourceDeferred: (deferred: boolean) => void;
   setDshVersionSourcePending: (mode: DshVersionSourceMode | null) => void;
+  setDshLastUrl: (url: string | null) => void;
+  setDshRestarting: (restarting: boolean) => void;
+  /**
+   * 版本变更操作进行中（安装/切换/重装/卸载，已含重启长尾；由 UI 层各 handler
+   * 在操作开始时同步置 true、结束时复位——store 级同步标志，无 action 异步间隙）。
+   * 入口守卫据此拦截提前打开（轮询到 versionTask 前约一拍的窗口也覆盖）。
+   */
+  dshOpBusy: boolean;
+  setDshOpBusy: (busy: boolean) => void;
 }
 
 export const createDshSlice = (
@@ -59,6 +79,9 @@ export const createDshSlice = (
   versionTaskCancelRequested: false,
   dshVersionSourceDeferred: false,
   dshVersionSourcePending: readPendingSource(),
+  dshLastUrl: null,
+  dshRestarting: false,
+  dshOpBusy: false,
 
   setDshVersionStatus: (status) => set({ versionStatus: status }),
   setDshVersionCatalog: (catalog) => set({ versionCatalog: catalog }),
@@ -71,4 +94,7 @@ export const createDshSlice = (
     set({ dshVersionSourcePending: mode });
     writeJson(PENDING_SOURCE_KEY, mode);
   },
+  setDshLastUrl: (url) => set({ dshLastUrl: url }),
+  setDshRestarting: (restarting) => set({ dshRestarting: restarting }),
+  setDshOpBusy: (busy) => set({ dshOpBusy: busy }),
 });

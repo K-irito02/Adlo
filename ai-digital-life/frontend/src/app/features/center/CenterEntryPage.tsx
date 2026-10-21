@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { useAppStore } from '@stores/slicedStore';
+import { isDshBusySnap, isDshConfirmedUnusable } from '@features/dsh/dshOpenGuard';
 import { IconDeepSeek, IconGlobe, IconTerminal } from '@icons';
 
 interface CenterEntryPageProps {
@@ -27,13 +28,35 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
   const centerRemoveTab = useAppStore((s) => s.centerRemoveTab);
   const reportError = useAppStore((s) => s.reportError);
   const showToast = useAppStore((s) => s.showToast);
-  // openDsh 在途标志：拉起进程可能耗时数秒，期间禁用三个入口，避免用户在入口页
-  // 就地转换本标签（浏览器/终端）后，dsh 迟到完成时误删用户刚打开的标签。
+  // openDsh 在途标志：拉起进程可能耗时数秒；入口按钮保持可用，
+  // 重复点击走 in-flight 复用＋busy 提示。dsh 迟到完成时仅当本标签仍为
+  // launcher 才移除（stillLauncher 守卫），不会误删已转换的标签。
   const [openingDsh, setOpeningDsh] = useState(false);
 
   const handleOpenDsh = useCallback(async () => {
+    // 在途复用不灰按钮（用户明确要求：入口按钮永不灰化禁用）。
+    // 并发安全由 action 内 openDshInFlight 复用同一 promise 保证，不会重复拉起；
+    // 重复点击给 busy 提示而非静默无反应。
+    if (openingDsh) {
+      showToast(t.dshVersionBusyRetry, 'warning');
+      return;
+    }
+    // 版本操作在途守卫（用户实测 2026-10-21）：
+    // 安装/切换/重装/卸载及其重启长尾完成前拦截，toast 提示稍候，不建标签。
+    if (isDshBusySnap()) {
+      console.debug('[ADL-DSH-VER]', 'openDsh entry: blocked (busy)', {});
+      showToast(t.dshVersionBusyRetry, 'warning');
+      return;
+    }
     setOpeningDsh(true);
     try {
+      // 无可用版本守卫（用户实测 2026-10-21）：宿主无任何可用版本时不调桥、
+      // 不建标签，直接 toast，由 isDshConfirmedUnusable 新鲜判定（fail-open）。
+      if (await isDshConfirmedUnusable()) {
+        console.debug('[ADL-DSH-VER]', 'openDsh entry: blocked (no version)', {});
+        showToast(t.dshOpenNoVersion, 'warning');
+        return;
+      }
       const result = await openDsh();
       if (!result) {
         // openDsh 失败时已由 action 记录全局错误卡片，此处不重复提示。
@@ -57,8 +80,11 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
     } finally {
       setOpeningDsh(false);
     }
-  }, [openDsh, reportError, showToast, centerRemoveTab, centerTabId, t]);
+  }, [openDsh, openingDsh, reportError, showToast, centerRemoveTab, centerTabId, t]);
 
+  // 入口按钮永不灰化禁用（用户明确要求）：在途重复点击给 busy 提示；
+  // dsh 迟到完成时仅当本标签仍为 launcher 才移除（见下 stillLauncher 守卫），
+  // 不会误删用户已就地转换出的浏览器/终端标签。
   const handleOpenBrowser = useCallback(() => {
     browserOpenTab();
     const newId = useAppStore.getState().browserActiveTabId;
@@ -67,8 +93,8 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
     }
     browserSetLocation(newId, 'center');
     centerUpdateTab(centerTabId, { kind: 'browser', refId: newId });
-    // 位置排他：新标签已转中心，`browserOpenTab` 曾把它设为面板活动标签；
-    // 面板按 id 挂载（无 location 过滤），必须重夹，否则同一 session 双挂载
+    // 位置排他：新标签曾被设为面板活动标签；面板按 id 挂载（无 location 过滤），
+    // 必须重夹，否则同一 session 双挂载
     // （与 centerActions.clampPanelActiveTab 的规范路径一致）。
     useAppStore.getState().clampPanelActiveTab();
   }, [browserOpenTab, browserSetLocation, centerUpdateTab, centerTabId]);
@@ -80,30 +106,15 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
   return (
     <section className="adl-center-entry" aria-label={t.centerLauncherLabel}>
       <div className="adl-launcher-entries" aria-busy={openingDsh}>
-        <button
-          type="button"
-          className="adl-launcher-entry"
-          onClick={handleOpenDsh}
-          disabled={openingDsh}
-        >
+        <button type="button" className="adl-launcher-entry" onClick={handleOpenDsh}>
           <IconDeepSeek size={16} decorative />
           <span>{t.centerLauncherOpenDsh}</span>
         </button>
-        <button
-          type="button"
-          className="adl-launcher-entry"
-          onClick={handleOpenBrowser}
-          disabled={openingDsh}
-        >
+        <button type="button" className="adl-launcher-entry" onClick={handleOpenBrowser}>
           <IconGlobe size={16} decorative />
           <span>{t.centerLauncherOpenBrowser}</span>
         </button>
-        <button
-          type="button"
-          className="adl-launcher-entry"
-          onClick={handleOpenTerminal}
-          disabled={openingDsh}
-        >
+        <button type="button" className="adl-launcher-entry" onClick={handleOpenTerminal}>
           <IconTerminal size={16} decorative />
           <span>{t.centerLauncherOpenTerminal}</span>
         </button>
