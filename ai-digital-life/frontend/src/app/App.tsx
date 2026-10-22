@@ -178,7 +178,6 @@ export function App() {
   const fetchDshVersionStatus = useAppStore((s) => s.fetchDshVersionStatus);
   const applyPendingVersionSource = useAppStore((s) => s.applyPendingVersionSource);
   useEffect(() => {
-    console.debug('[ADL-DSH-VER]', 'startup: silent version check');
     void (async () => {
       await applyPendingVersionSource();
       await fetchDshVersionStatus(true);

@@ -409,15 +409,15 @@ async fn run_open(
     let start_time = std::time::Instant::now();
 
     // 快速路径：已运行则直接返回（不加 start_lock）。
-    {
-        let guard = dsh_guard.lock().await;
-        if let Some(ref managed) = *guard {
-            tracing::info!(
-                elapsed_ms = start_time.elapsed().as_millis(),
-                "dsh::run_open: fast path - already running"
-            );
-            return Ok(serde_json::json!({ "url": managed.process.url, "freedPort": false }));
-        }
+    // 持锁复查前先做 try_wait 收割：托管子进程可能已退出（崩溃/被外部杀掉），
+    // 此时必须按“未运行”继续走 spawn 流程，不得返回指向已死进程的 stale 地址
+    //（M1：与 managed_snapshot 读路径对称，共用同一锁内实现）。
+    if let Some(managed) = managed_snapshot_inner(&dsh_guard).await {
+        tracing::info!(
+            elapsed_ms = start_time.elapsed().as_millis(),
+            "dsh::run_open: fast path - already running"
+        );
+        return Ok(serde_json::json!({ "url": managed.url, "freedPort": false }));
     }
 
     // 串行化启动：free_stale + spawn 持独立锁，close/revert/uninstall 不被阻塞。
@@ -427,15 +427,17 @@ async fn run_open(
     // 半写入版本并 spawn。快速路径（已运行）不取任何写锁。
     let _version_guard = version_lock.lock().await;
     let _start_guard = start_lock.lock().await;
-    {
-        let guard = dsh_guard.lock().await;
-        if let Some(ref managed) = *guard {
-            tracing::info!(
-                elapsed_ms = start_time.elapsed().as_millis(),
-                "dsh::run_open: acquired lock - already running"
-            );
-            return Ok(serde_json::json!({ "url": managed.process.url, "freedPort": false }));
-        }
+    // 拉起中标志（L1）：取锁成功即置位，覆盖来源探测 + free_stale + spawn 全窗口；
+    // ReuseRunning / None 路径随各自 early-return 自动复位（Drop），前端短暂骨架可接受。
+    let _starting = StartingGuard::arm(&dsh_starting);
+    // 持锁复查：同样先 try_wait 收割已退出的托管子进程（与快速路径同一语义），
+    // 避免并发 open 在 spawn 窗口外拿到 stale 句柄。
+    if let Some(managed) = managed_snapshot_inner(&dsh_guard).await {
+        tracing::info!(
+            elapsed_ms = start_time.elapsed().as_millis(),
+            "dsh::run_open: acquired lock - already running"
+        );
+        return Ok(serde_json::json!({ "url": managed.url, "freedPort": false }));
     }
 
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
@@ -513,13 +515,9 @@ async fn run_open(
         }
     };
 
-    // 真正要 spawn 时标记「拉起中」：覆盖 free_stale + spawn + 写入 dsh_state 的窗口。
-    // 前端读数在此期间显示骨架胶囊，避免「未知/旧值 → 真实版本」的可见跳变。
-    let _starting = match &source {
-        adl_dsh_version::DshSource::HostInstalled { .. }
-        | adl_dsh_version::DshSource::System { .. } => Some(StartingGuard::arm(&dsh_starting)),
-        _ => None,
-    };
+    // 真正要 spawn 时才需要「拉起中」之外的动作：ReuseRunning / None 在上游
+    // early-return，此处只剩 HostInstalled / System 两个实际拉起分支。
+    // （_starting 已在取锁成功时置位，覆盖来源探测窗口；此处不再重复 arm。）
 
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
     // 仅在需要启动新进程时才执行 free_stale（ReuseRunning 跳过）
@@ -969,32 +967,54 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     }))
 }
 
+/// 托管快照：「本次会话拉起」的三元组（地址 + 版本 + 来源）。
+/// 写路径（`run_open` 快速/复查分支）与读路径（source-status / running）共用，
+/// 保证已退出的托管子进程不被当成仍在运行。
+struct ManagedSnapshot {
+    url: String,
+    version: Option<String>,
+    source: &'static str,
+}
+
 /// 宿主托管状态快照。`try_wait` 发现子进程已退出时清空 `dsh_state` 并返回
 /// `None`（不再算本次会话拉起）；探测失败则保守地保持托管判定。
-async fn managed_snapshot(state: &ServerState) -> Option<(Option<String>, &'static str)> {
-    let mut guard = state.dsh_state.lock().await;
+async fn managed_snapshot(state: &ServerState) -> Option<ManagedSnapshot> {
+    managed_snapshot_inner(&state.dsh_state).await
+}
+
+/// `managed_snapshot` 的锁内实现：直接操作 `dsh_state` 句柄，供不持有
+/// `&ServerState` 的写路径（`run_open`）复用，避免读写判定不对称。
+async fn managed_snapshot_inner(
+    dsh_state: &Arc<AsyncMutex<Option<ManagedDsh>>>,
+) -> Option<ManagedSnapshot> {
+    let mut guard = dsh_state.lock().await;
     let managed = guard.as_mut()?;
+    let snapshot = || ManagedSnapshot {
+        url: managed.process.url.clone(),
+        version: managed.version.clone(),
+        source: managed.source.as_str(),
+    };
     match managed.process.child.try_wait() {
         Ok(Some(_)) => {
             tracing::debug!("dsh: managed child already exited; clearing hosted state");
             *guard = None;
             None
         },
-        Ok(None) => Some((managed.version.clone(), managed.source.as_str())),
+        Ok(None) => Some(snapshot()),
         Err(e) => {
             tracing::warn!(error = %e, "dsh: try_wait failed; keeping managed state");
-            Some((managed.version.clone(), managed.source.as_str()))
+            Some(snapshot())
         },
     }
 }
 
-/// 运行中进程 payload：托管时带 spawn 版本与来源，否则按外部进程（版本未知）。
+/// 运行中进程 payload：托管时带 spawn 地址/版本与来源，否则按外部进程（版本未知）。
 fn running_payload(
     info: adl_dsh_version::RunningDshInfo,
-    managed: Option<(Option<String>, &'static str)>,
+    managed: Option<ManagedSnapshot>,
 ) -> serde_json::Value {
     let (is_managed, version, source) = match managed {
-        Some((version, source)) => (true, version, source),
+        Some(managed) => (true, managed.version, managed.source),
         None => (false, None, "external"),
     };
     serde_json::json!({
@@ -1071,9 +1091,30 @@ pub async fn get_settings_snapshot(State(state): State<ServerState>) -> impl Int
 }
 
 async fn get_settings_snapshot_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
-    // source-status 与 version-status 互不依赖，并行取；catalog 走缓存/网络，单独随后。
-    let (source, version) =
-        tokio::try_join!(get_source_status_inner(state), get_version_status_value(state))?;
+    // source-status 与 version-status 互不依赖，并行取；任一腿失败只降级该腿为
+    // null（前端保留旧值），不再全有全无，避免一腿抖动拖垮整个首屏（L2）。
+    let (source_result, version_result) =
+        tokio::join!(get_source_status_inner(state), get_version_status_value(state));
+    let source = match source_result {
+        Ok(source) => source,
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "dsh::settings_snapshot: source leg failed; degrading to null"
+            );
+            serde_json::Value::Null
+        },
+    };
+    let version = match version_result {
+        Ok(version) => version,
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "dsh::settings_snapshot: version leg failed; degrading to null"
+            );
+            serde_json::Value::Null
+        },
+    };
     let catalog = match load_catalog_cached(state).await {
         Some(catalog) => {
             serde_json::to_value(&catalog).map_err(|e| AppError::Internal(e.to_string()))?
@@ -1488,12 +1529,26 @@ mod tests {
     fn running_payload_distinguishes_managed_source_and_external() {
         let info =
             adl_dsh_version::RunningDshInfo { url: "http://127.0.0.1:3080/".into(), port: 3080 };
-        let managed = running_payload(info.clone(), Some((Some("0.2.1".into()), "host")));
+        let managed = running_payload(
+            info.clone(),
+            Some(ManagedSnapshot {
+                url: "http://127.0.0.1:3080/".into(),
+                version: Some("0.2.1".into()),
+                source: "host",
+            }),
+        );
         assert_eq!(managed.get("managed").and_then(|v| v.as_bool()), Some(true));
         assert_eq!(managed.get("source").and_then(|v| v.as_str()), Some("host"));
         assert_eq!(managed.get("version").and_then(|v| v.as_str()), Some("0.2.1"));
 
-        let system = running_payload(info.clone(), Some((None, "system")));
+        let system = running_payload(
+            info.clone(),
+            Some(ManagedSnapshot {
+                url: "http://127.0.0.1:3080/".into(),
+                version: None,
+                source: "system",
+            }),
+        );
         assert_eq!(system.get("source").and_then(|v| v.as_str()), Some("system"));
         assert!(system.get("version").is_some_and(|v| v.is_null()));
 

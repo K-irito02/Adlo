@@ -26,14 +26,6 @@ const EMPTY_INSTALLED: string[] = [];
 /** 官方信息外链（事项 5）：npm 包页 + GitHub Releases，经 openExternal 双端跳转。 */
 const NPM_PACKAGE_URL = 'https://www.npmjs.com/package/@deepseek-ai/dsh';
 const GITHUB_RELEASES_URL = 'https://github.com/deepseek-ai/deepseek-harness/releases';
-/**
- * 版本管理调试埋点（临时）：用户在 Tauri 桌面实测后，凭此前缀在
- * `.adl-logs/debug-logs*.txt` 中定位版本块日志，核对排查后再删除。
- * 移除义务已登记在 `docs/root-cause-to-close/2026-10/progress-2026-10-19-095312.md`（事项 5）。
- */
-function debugVer(message: string, detail?: Record<string, unknown>) {
-  console.debug('[ADL-DSH-VER]', message, detail ?? {});
-}
 
 /** 版本四操作成功 toast 展示时长（默认 3000ms 用户实测中曾错过，见事项 1 注记）。 */
 const VERSION_TOAST_MS = 5000;
@@ -45,13 +37,11 @@ const VERSION_TOAST_MS = 5000;
  */
 function closeDshTabsByUrl(url: string | null): number {
   if (!url) {
-    debugVer('closeDshTabs: skipped (no running or last url)', {});
     return 0;
   }
   const st = useAppStore.getState();
   const doomed = st.browserTabs.filter((tab) => sameServiceOrigin(tab.url, url));
   if (doomed.length === 0) {
-    debugVer('closeDshTabs: no same-origin tab', { running: url.split('?')[0] });
     return 0;
   }
   const ids = new Set(doomed.map((t) => t.id));
@@ -63,7 +53,6 @@ function closeDshTabsByUrl(url: string | null): number {
       st.centerRemoveTab(ct.id);
     }
   }
-  debugVer('closeDshTabs: closed', { origin: url.split('?')[0], count: doomed.length });
   return doomed.length;
 }
 
@@ -266,8 +255,8 @@ export function DshVersionManagement() {
   // 对话框目标：切向 system 走系统文案，离开 system（→host/auto）走通用切换文案。
   const [pendingMode, setPendingMode] = useState<DshVersionSourceMode | null>(null);
   // 目标来源在忽略 running 下解析为空：对话框需追加「切换后无版本可用」的后果说明。
-  const pendingTargetEmpty =
-    pendingMode !== null && versionSource?.resolvedByMode?.[pendingMode] === 'none';
+  // 打开时冻结，避免切源流程中 resolvedByMode 变化导致文案中途翻转（S4）。
+  const [pendingTargetEmpty, setPendingTargetEmpty] = useState(false);
   // 打开对话框时的当前来源解析为空（如空宿主）：改用「从无版本恢复为可用来源」文案。
   // 打开时冻结，避免「立即生效」落盘后 sourceMode 翻转而文案跳变。
   const [pendingFromEmpty, setPendingFromEmpty] = useState(false);
@@ -413,7 +402,6 @@ export function DshVersionManagement() {
     setMenuWidths((prev) =>
       prev.stable === next.stable && prev.prerelease === next.prerelease ? prev : next,
     );
-    debugVer('measure: menu widths', { stable: next.stable, prerelease: next.prerelease });
   }, [stableVersions, prereleaseVersions, installedBadgeText]);
 
   const menuScrollbar = useRevealScrollbar([
@@ -445,7 +433,6 @@ export function DshVersionManagement() {
       return;
     }
     autoSwitchedRef.current = true;
-    debugVer('source: auto resolved none, switching to host', {});
     void (async () => {
       const ok = await actions.saveSourceConfig({ version_source: 'host' }, true);
       if (ok) {
@@ -589,16 +576,13 @@ export function DshVersionManagement() {
       }
       const effective = st.sourceStatus?.versionSource?.effective ?? null;
       if (effective === 'none') {
-        const closed = closeDshTabsByUrl(fallbackUrl ?? st.dshLastUrl ?? null);
-        debugVer('ensureDshRunning: no source, closed stale tabs', { why, closed });
+        closeDshTabsByUrl(fallbackUrl ?? st.dshLastUrl ?? null);
         return null;
       }
-      debugVer('ensureDshRunning: spawning backend dsh (no tab will be created)', { why });
       st.setDshRestarting(true);
       try {
         const r = await actions.restartDsh();
         await actions.fetchSourceStatus(true);
-        debugVer('ensureDshRunning: done', { why, restarted: r.restarted, failed: r.failed });
         return r;
       } finally {
         useAppStore.getState().setDshRestarting(false);
@@ -613,21 +597,13 @@ export function DshVersionManagement() {
     }
     checkingRef.current = true;
     setCheckingUpdate(true);
-    debugVer('checkUpdate: start', {});
     try {
       const ok = await actions.fetchDshVersionStatus();
       if (!ok) {
         // 失败已由 action 记录全局错误卡片，不再重复弹 toast。
-        debugVer('checkUpdate: fetch failed (error card shown)', {});
         return;
       }
       const status = useAppStore.getState().versionStatus;
-      debugVer('checkUpdate: result', {
-        latestAvailable: status?.latestAvailable ?? null,
-        hasUpdate: status?.hasUpdate ?? false,
-        prereleaseAvailable: status?.prereleaseAvailable ?? null,
-        hasPrereleaseUpdate: status?.hasPrereleaseUpdate ?? false,
-      });
       // latest 为 null 说明查询失败（断网/镜像不可达），此时 hasUpdate 恒 false，
       // 不得误报“已是最新版本”，必须报检查失败（事项 5 确认的 Bug）。
       if (!status?.latestAvailable) {
@@ -650,7 +626,6 @@ export function DshVersionManagement() {
       // 检查更新顺带静默刷新官方目录，供下方正式版/预发布列表展示。
       void actions.fetchVersionCatalog(true);
     } catch {
-      debugVer('checkUpdate: threw', {});
       showToast(t.dshCheckUpdateFailed, 'error');
     } finally {
       checkingRef.current = false;
@@ -659,38 +634,19 @@ export function DshVersionManagement() {
   }, [actions, showToast, t]);
 
   const handleRevertToVersion = useCallback(
-    async (version: string, section: 'stable' | 'prerelease') => {
+    async (version: string, _section: 'stable' | 'prerelease') => {
       if (revertingRef.current || version === currentSelected) {
-        debugVer('revert: guard reject', {
-          version,
-          section,
-          inFlight: revertingRef.current,
-          currentSelected,
-        });
         return;
       }
       revertingRef.current = version;
       useAppStore.getState().setDshOpBusy(true);
       setRevertingVersion(version);
       setShowVersionMenu(false);
-      debugVer('revert: start', {
-        version,
-        section,
-        currentSelected,
-        installed: useAppStore.getState().versionStatus?.installed ?? [],
-      });
       try {
         const ok = await actions.revertDsh(version);
         if (ok) {
-          debugVer('revert: ok', { version, section });
           const restart = await actions.restartDsh();
-          debugVer('revert: restarted', {
-            version,
-            restarted: restart.restarted,
-            failed: restart.failed,
-          });
-          const statusOk = await actions.fetchSourceStatus(true);
-          debugVer('revert: source refreshed', { version, statusOk });
+          await actions.fetchSourceStatus(true);
           let fin = restart;
           if (!fin.restarted) {
             fin = (await ensureDshRunning('revert')) ?? fin;
@@ -707,12 +663,9 @@ export function DshVersionManagement() {
               VERSION_TOAST_MS,
             );
           }
-        } else {
-          debugVer('revert: failed (error card shown)', { version, section });
         }
-      } catch (e) {
+      } catch {
         // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
-        debugVer('revert: threw', { version, section, error: String(e) });
         showToast(t.dshRevertFailed, 'error');
       } finally {
         revertingRef.current = null;
@@ -729,13 +682,8 @@ export function DshVersionManagement() {
    * 状态快照一律在点击时刻经 `getState()` 现读，避免闭包旧值。
    */
   const runUninstall = useCallback(
-    async (version: string, section: 'stable' | 'prerelease') => {
+    async (version: string, _section: 'stable' | 'prerelease') => {
       if (uninstallingRef.current) {
-        debugVer('uninstall: guard reject (in flight)', {
-          version,
-          section,
-          inFlight: uninstallingRef.current,
-        });
         return;
       }
       uninstallingRef.current = version;
@@ -745,27 +693,13 @@ export function DshVersionManagement() {
       const preRunningUrl = useAppStore.getState().sourceStatus?.running?.url ?? null;
       // 被卸载的是当前选中版本 → 必须重启（这是唯一需要重启的情形）。
       const inUse = isVersionInUse(version);
-      debugVer('uninstall: start', {
-        version,
-        section,
-        inUse,
-        currentSelected,
-        installed: useAppStore.getState().versionStatus?.installed ?? [],
-      });
       try {
         const ok = await actions.uninstallDsh(version);
         if (ok) {
           const next = useAppStore.getState().versionStatus?.currentSelected ?? null;
-          debugVer('uninstall: ok', { version, section, nextSelected: next });
           if (inUse) {
             const restart = await actions.restartDsh();
-            debugVer('uninstall: restarted', {
-              version,
-              restarted: restart.restarted,
-              failed: restart.failed,
-            });
-            const statusOk = await actions.fetchSourceStatus(true);
-            debugVer('uninstall: source refreshed', { version, statusOk });
+            await actions.fetchSourceStatus(true);
             // 无可用版本兜底并入 ensure（含 preRunningUrl 回退；幂等只关一次），
             // 并以最终结果 toast（ensure 可能把失败的 restart 又拉起来）。
             let finUninstall = restart;
@@ -785,8 +719,7 @@ export function DshVersionManagement() {
               );
             }
           } else {
-            const statusOk = await actions.fetchSourceStatus(true);
-            debugVer('uninstall: source refreshed (non-current)', { version, statusOk });
+            await actions.fetchSourceStatus(true);
             showToast(
               t.dshUninstallSuccess.replace('{version}', version),
               'success',
@@ -795,18 +728,13 @@ export function DshVersionManagement() {
             );
           }
         } else if (cancelRequestedRef.current) {
-          debugVer('uninstall: cancelled by user', { version, section });
           showToast(t.dshVersionCancelled, 'warning');
-        } else {
-          debugVer('uninstall: failed (error card shown)', { version, section });
         }
-      } catch (e) {
+      } catch {
         // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
         if (cancelRequestedRef.current) {
-          debugVer('uninstall: threw after cancel', { version, section, error: String(e) });
           showToast(t.dshVersionCancelled, 'warning');
         } else {
-          debugVer('uninstall: threw', { version, section, error: String(e) });
           showToast(t.dshUninstallFailed, 'error');
         }
       } finally {
@@ -817,33 +745,21 @@ export function DshVersionManagement() {
         setUninstallingVersion(null);
       }
     },
-    [actions, currentSelected, ensureDshRunning, isVersionInUse, showToast, t],
+    [actions, ensureDshRunning, isVersionInUse, showToast, t],
   );
 
   const handleReinstall = useCallback(async () => {
     if (reinstallingRef.current) {
-      debugVer('reinstall: guard reject (in flight)', { currentSelected });
       return;
     }
     reinstallingRef.current = true;
     useAppStore.getState().setDshOpBusy(true);
     setReinstalling(true);
-    debugVer('reinstall: start', {
-      currentSelected,
-      installed: useAppStore.getState().versionStatus?.installed ?? [],
-    });
     try {
       const ok = await actions.reinstallDsh();
       if (ok) {
-        debugVer('reinstall: ok', { currentSelected });
         const restart = await actions.restartDsh();
-        debugVer('reinstall: restarted', {
-          currentSelected,
-          restarted: restart.restarted,
-          failed: restart.failed,
-        });
-        const statusOk = await actions.fetchSourceStatus(true);
-        debugVer('reinstall: source refreshed', { currentSelected, statusOk });
+        await actions.fetchSourceStatus(true);
         let finReinstall = restart;
         if (!finReinstall.restarted) {
           finReinstall = (await ensureDshRunning('reinstall')) ?? finReinstall;
@@ -862,14 +778,10 @@ export function DshVersionManagement() {
           );
         }
       } else if (cancelRequestedRef.current) {
-        debugVer('reinstall: cancelled by user', { currentSelected });
         showToast(t.dshVersionCancelled, 'warning');
-      } else {
-        debugVer('reinstall: failed (error card shown)', { currentSelected });
       }
-    } catch (e) {
+    } catch {
       // 意外异常兜底；常规失败已由 action 记录全局错误卡片。
-      debugVer('reinstall: threw', { currentSelected, error: String(e) });
       if (cancelRequestedRef.current) {
         showToast(t.dshVersionCancelled, 'warning');
       } else {
@@ -891,33 +803,18 @@ export function DshVersionManagement() {
    * 与 handleReinstallRow 非当前分支共用同一流程（R2-D1 去重）。
    */
   const handleInstallVersion = useCallback(
-    async (version: string, section: 'stable' | 'prerelease', select = true) => {
+    async (version: string, _section: 'stable' | 'prerelease', select = true) => {
       if (installingRef.current) {
-        debugVer('installVersion: guard reject (in flight)', {
-          version,
-          section,
-          inFlight: installingRef.current,
-        });
         return;
       }
       installingRef.current = version;
       useAppStore.getState().setDshOpBusy(true);
       setInstallingVersion(version);
-      const snapInstalled = useAppStore.getState().versionStatus?.installed ?? [];
-      debugVer('installVersion: start', {
-        version,
-        section,
-        select,
-        currentSelected,
-        installed: snapInstalled,
-        isInstalled: snapInstalled.includes(version),
-      });
       try {
         const ok = await actions.installDshVersion(version, select);
         if (ok) {
           if (!select) {
             // 非当前重装：只修该版本目录，保持原选中；运行中版本未动，无需重启。
-            debugVer('installVersion: repair ok, selection unchanged', { version, section });
             showToast(
               t.dshReinstalledOnly.replace('{version}', version),
               'success',
@@ -926,15 +823,8 @@ export function DshVersionManagement() {
             );
             return;
           }
-          debugVer('installVersion: ok', { version, section });
           const restart = await actions.restartDsh();
-          debugVer('installVersion: restarted', {
-            version,
-            restarted: restart.restarted,
-            failed: restart.failed,
-          });
-          const statusOk = await actions.fetchSourceStatus(true);
-          debugVer('installVersion: source refreshed', { version, statusOk });
+          await actions.fetchSourceStatus(true);
           let finInstall = restart;
           if (!finInstall.restarted) {
             finInstall = (await ensureDshRunning('install')) ?? finInstall;
@@ -952,13 +842,9 @@ export function DshVersionManagement() {
             );
           }
         } else if (cancelRequestedRef.current) {
-          debugVer('installVersion: cancelled by user', { version, section });
           showToast(t.dshVersionCancelled, 'warning');
-        } else {
-          debugVer('installVersion: failed (error card shown)', { version, section });
         }
-      } catch (e) {
-        debugVer('installVersion: threw', { version, section, error: String(e) });
+      } catch {
         if (cancelRequestedRef.current) {
           showToast(t.dshVersionCancelled, 'warning');
         } else {
@@ -972,7 +858,7 @@ export function DshVersionManagement() {
         setInstallingVersion(null);
       }
     },
-    [actions, currentSelected, ensureDshRunning, showToast, t],
+    [actions, ensureDshRunning, showToast, t],
   );
 
   const sourceOptions = useMemo(
@@ -1003,7 +889,6 @@ export function DshVersionManagement() {
   const handleSourceChange = useCallback(
     async (value: string) => {
       const mode = value as DshVersionSourceMode;
-      debugVer('source: change', { mode });
       // 决策前现查一次：挂载时拉取的快照在预拉起完成前 `running` 为 null，
       // 直接存会跳过确认对话框；现查约数百毫秒，误判代价远大于等待
       // （用户实测切源无弹窗即此 stale 快照所致）。
@@ -1011,10 +896,6 @@ export function DshVersionManagement() {
       // 后续落盘/重启失败自有错误 toast，不在此处另弹打断用户。
       await actions.fetchSourceStatus(true);
       const fresh = useAppStore.getState().sourceStatus;
-      debugVer('source: change probed', {
-        running: fresh?.running?.url?.split('?')[0] ?? null,
-        system: fresh?.system?.path ?? null,
-      });
       const currentMode: DshVersionSourceMode =
         fresh?.versionSource?.mode ?? fresh?.config?.version_source ?? 'auto';
       if (mode === 'system' && !fresh?.system) {
@@ -1033,6 +914,7 @@ export function DshVersionManagement() {
       const sourceChanges = targetResolved !== currentResolved;
       if (sourceChanges) {
         setPendingFromEmpty(currentResolved === 'none');
+        setPendingTargetEmpty(targetResolved === 'none');
         setPendingMode(mode);
         setSourceDialogOpen(true);
         return;
@@ -1058,7 +940,6 @@ export function DshVersionManagement() {
       }
       setSourceDialogBusy(true);
       const target: DshVersionSourceMode = pendingMode ?? 'system';
-      debugVer('source: dialog choice', { choice, target });
       try {
         if (choice === 'cancel') {
           setDeferredSource(false);
@@ -1073,15 +954,17 @@ export function DshVersionManagement() {
         if (choice === 'next') {
           setPendingSource(target);
           setDeferredSource(true);
-          debugVer('source: deferred to next launch', { target });
           showToast(t.dshVersionSourceNextLaunchSaved, 'success');
           return;
         }
         // 切到空来源要关闭已打开的 dsh 标签：重启后 running 归零，提前记下地址。
-        const preSwitchUrl =
+        // 捕获即剥离 query（一次性 token 只属于 bridge 返回到建标签的最短路径，
+        // 不应存入局部变量；S1 纵深防御）。
+        const rawPreSwitchUrl =
           useAppStore.getState().sourceStatus?.running?.url ??
           useAppStore.getState().dshLastUrl ??
           null;
+        const preSwitchUrl = rawPreSwitchUrl?.split('?')[0] ?? null;
         if (!(await saveVersionSource(target))) {
           return;
         }
@@ -1090,17 +973,10 @@ export function DshVersionManagement() {
         const targetResolved =
           useAppStore.getState().sourceStatus?.versionSource?.resolvedByMode?.[target] ?? 'none';
         const restart = await actions.restartDsh();
-        const statusOk = await actions.fetchSourceStatus(true);
+        await actions.fetchSourceStatus(true);
         if (targetResolved === 'none') {
-          const closed = closeDshTabsByUrl(preSwitchUrl);
-          debugVer('source: target empty after restart, closed tabs', { target, closed });
+          closeDshTabsByUrl(preSwitchUrl);
         }
-        debugVer('source: dialog restart done', {
-          target,
-          restarted: restart.restarted,
-          failed: restart.failed,
-          statusOk,
-        });
         showToast(
           restart.failed ? t.dshRestartFailed : t.dshVersionSourceSwitched,
           restart.failed ? 'error' : 'success',
@@ -1109,6 +985,9 @@ export function DshVersionManagement() {
         setSourceDialogBusy(false);
         setSourceDialogOpen(false);
         setPendingMode(null);
+        // 对话框关闭时同步复位冻结态（S2）：避免残留 stale 值误导后续新增消费点。
+        setPendingFromEmpty(false);
+        setPendingTargetEmpty(false);
       }
     },
     [
@@ -1136,6 +1015,8 @@ export function DshVersionManagement() {
       event.preventDefault();
       setSourceDialogOpen(false);
       setPendingMode(null);
+      setPendingFromEmpty(false);
+      setPendingTargetEmpty(false);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -1149,7 +1030,6 @@ export function DshVersionManagement() {
 
   /** 官方版本信息外链：跟随「打开方式」设置的网址落点（面板/中间区/外部浏览器）。 */
   const handleOpenOfficial = useCallback((url: string) => {
-    debugVer('openOfficial: start', { url });
     openUrlByMethod(url);
   }, []);
 
@@ -1160,23 +1040,12 @@ export function DshVersionManagement() {
   const handleUninstallRow = useCallback(
     async (version: string, section: 'stable' | 'prerelease') => {
       if (uninstallingRef.current) {
-        debugVer('uninstall: row guard reject (in flight)', {
-          version,
-          section,
-          inFlight: uninstallingRef.current,
-        });
         return;
       }
       if (version === currentSelected && uninstallConfirmVersion !== version) {
-        debugVer('uninstall: arm confirm', { version, section });
         setUninstallConfirmVersion(version);
         return;
       }
-      debugVer('uninstall: confirmed start', {
-        version,
-        section,
-        wasConfirmArmed: uninstallConfirmVersion === version,
-      });
       setUninstallConfirmVersion(null);
       await runUninstall(version, section);
     },
@@ -1192,11 +1061,9 @@ export function DshVersionManagement() {
   const handleReinstallRow = useCallback(
     async (version: string, section: 'stable' | 'prerelease') => {
       if (version === currentSelected) {
-        debugVer('reinstallRow: current branch (true reinstall)', { version, section });
         await handleReinstall();
         return;
       }
-      debugVer('reinstallRow: non-current branch (repair only, no select)', { version, section });
       await handleInstallVersion(version, section, false);
     },
     [currentSelected, handleInstallVersion, handleReinstall],
@@ -1204,17 +1071,11 @@ export function DshVersionManagement() {
 
   /** 行内版本选择下拉框：以该行为锚点打开本分区版本菜单（列出该分区全部版本供选择）。 */
   const handleOpenPicker = useCallback(
-    (section: 'stable' | 'prerelease', anchor: HTMLElement, rowVersion: string | null) => {
+    (section: 'stable' | 'prerelease', anchor: HTMLElement, _rowVersion: string | null) => {
       // 同一个触发器再点一次 = 收起。外部点击监听刻意放行触发器内的点击
       // （否则 mousedown 关、click 又开），所以开关必须在这里显式切换
       // ——此前无条件置 true，菜单打开后点按钮关不掉（用户 2026-10-22）。
       const toggleOff = showVersionMenu && menuAnchorEl === anchor;
-      debugVer(toggleOff ? 'picker: close menu (same trigger)' : 'picker: open menu', {
-        section,
-        rowVersion,
-        totalInSection:
-          section === 'prerelease' ? prereleaseVersions.length : stableVersions.length,
-      });
       if (toggleOff) {
         setShowVersionMenu(false);
         return;
@@ -1223,13 +1084,12 @@ export function DshVersionManagement() {
       setMenuAnchorEl(anchor);
       setShowVersionMenu(true);
     },
-    [menuAnchorEl, prereleaseVersions.length, showVersionMenu, stableVersions.length],
+    [menuAnchorEl, showVersionMenu],
   );
 
   /** 菜单内选择版本：只切换本分区的下拉框展示，关闭菜单；实际安装/切换走行内按钮。 */
   const handlePickVersion = useCallback(
-    (section: 'stable' | 'prerelease', version: string, isInstalled: boolean) => {
-      debugVer('picker: pick version', { section, version, isInstalled });
+    (section: 'stable' | 'prerelease', version: string, _isInstalled: boolean) => {
       if (section === 'prerelease') {
         setPrereleasePick(version);
       } else {
@@ -1243,7 +1103,6 @@ export function DshVersionManagement() {
   useEffect(() => {
     // 首屏一次原子快照：source-status + version-status + catalog 同一次提交，
     // 避免三路请求分段到货导致块内行数/读数跳动。
-    debugVer('mount: fetching settings snapshot (atomic)', {});
     void actions.fetchDshSettingsSnapshot();
   }, [actions]);
 
@@ -1272,15 +1131,10 @@ export function DshVersionManagement() {
     if (!versionBusy) {
       return;
     }
-    debugVer('taskPoll: busy start, polling every 400ms', {
-      kind: versionTask?.kind ?? null,
-      version: versionTask?.version ?? null,
-    });
     const id = window.setInterval(() => {
       void actions.fetchVersionTask();
     }, 400);
     return () => {
-      debugVer('taskPoll: busy end, stop polling', {});
       window.clearInterval(id);
     };
   }, [versionBusy, actions, versionTask?.kind, versionTask?.version]);
@@ -1306,16 +1160,8 @@ export function DshVersionManagement() {
   const shownTask = versionTask ?? (opBusy || dshRestarting ? lastTaskRef.current : null);
 
   const handleCancelTask = useCallback(async () => {
-    const task = useAppStore.getState().versionTask;
-    debugVer('taskCancel: click', {
-      kind: task?.kind ?? null,
-      version: task?.version ?? null,
-      phase: task?.phase ?? null,
-      cancellable: task?.cancellable ?? null,
-    });
     cancelRequestedRef.current = true;
     const ok = await actions.cancelVersionTask();
-    debugVer('taskCancel: request sent', { delivered: ok });
     if (!ok) {
       cancelRequestedRef.current = false;
       showToast(t.dshVersionCancelFailed, 'error');
@@ -1618,6 +1464,8 @@ export function DshVersionManagement() {
     },
     [t],
   );
+  // 首屏快照 source 腿失败且无任何可用数据时读数区切错误态（S3）。
+  const snapshotFailed = useAppStore((s) => s.settingsSnapshotFailed);
   const readout = useMemo(() => {
     const snapSource = snap.versionSource;
     const snapStatus = snap.sourceStatus;
@@ -1634,7 +1482,17 @@ export function DshVersionManagement() {
       snapStatus.running.version === snapBundled;
     // 首次快照未到：如实显示中性「状态读取中」，不得拿 currentSelected 顶替实际来源
     //（P3：那会展示一个并未生效的宿主版本，快照持续失败时误导会一直存在）。
+    // 快照 source 腿失败且无任何可用数据：显示错误态，不再无限骨架（S3）。
     if (!snapSource) {
+      if (snapshotFailed) {
+        return {
+          text: t.dshVersionStateFailed,
+          sub: null as string | null,
+          empty: true,
+          bundled: false,
+          title: null as string | null,
+        };
+      }
       return {
         text: t.dshVersionStateReading,
         sub: null as string | null,
@@ -1673,13 +1531,16 @@ export function DshVersionManagement() {
     snap.sourceStatus,
     snap.currentSelected,
     snapBundled,
+    snapshotFailed,
     t,
     runningReadout,
     systemReadout,
   ]);
   // 读数骨架态：首次快照未到、版本操作在途、拉起中/重启长尾时，整块右侧（版本号 +
   // 来源副行 + 最新版本行）统一显示现有骨架胶囊波浪动画，不展示中途值。
-  const readoutLoading = applyingVersion !== null || dshFastPoll || snap.versionSource === null;
+  // 快照失败错误态不进骨架（S3）：错误文本即最终展示。
+  const readoutLoading =
+    !snapshotFailed && (applyingVersion !== null || dshFastPoll || snap.versionSource === null);
   // 主行版本号确为宿主当前选中才挂更新徽章（事项 1：system/外部 running 版本与宿主
   // 选中不一致时挂徽章会误导，故收紧；busy 期间沿用冻结快照，与读数同翻转）。
   const showVersionBadges =
@@ -1687,31 +1548,6 @@ export function DshVersionManagement() {
     (snap.versionSource?.effective === 'host' ||
       snap.versionSource == null ||
       readout.text === snapCurrent);
-
-  useEffect(() => {
-    // 事项 5 埋点：用户实测后凭此前缀核对当前版本读数（effective/主行/小字/空态）。
-    debugVer('render: effective version', {
-      effective: versionSource?.effective ?? null,
-      mode: versionSource?.mode ?? null,
-      hostVersion: versionSource?.hostVersion ?? null,
-      currentSelected,
-      bundledVersion,
-      readoutText: readout.text,
-      readoutSub: readout.sub,
-      readoutEmpty: readout.empty,
-      readoutBundled: readout.bundled,
-      readoutLoading,
-      sourceStarting: dshSourceStatus?.starting === true,
-      // 凭据红线：running.url 恒为裸基址（detect 探测）或 token 入口（宿主拉起），
-      // 埋点一律剥离 query 后再记（R1-INFO，后续与 restartDsh 同口径）。
-      running: dshSourceStatus?.running?.url?.split('?')[0] ?? null,
-      runningManaged: dshSourceStatus?.running?.managed ?? null,
-      runningSource: dshSourceStatus?.running?.source ?? null,
-      runningVersion: dshSourceStatus?.running?.version ?? null,
-      system: dshSourceStatus?.system?.path ?? null,
-      systemVersion: dshSourceStatus?.system?.version ?? null,
-    });
-  }, [versionSource, currentSelected, bundledVersion, readout, readoutLoading, dshSourceStatus]);
 
   return (
     <div className="adl-settings-card">
@@ -2101,6 +1937,8 @@ export function DshVersionManagement() {
                   : () => {
                       setSourceDialogOpen(false);
                       setPendingMode(null);
+                      setPendingFromEmpty(false);
+                      setPendingTargetEmpty(false);
                     }
               }
             >

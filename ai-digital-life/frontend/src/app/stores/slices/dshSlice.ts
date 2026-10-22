@@ -25,6 +25,11 @@ export interface DshSlice {
   versionCatalog: DshVersionCatalog | null;
   /** 官方版本目录上次拉取是否失败（用于区分“暂无版本”与“未知”） */
   versionCatalogFailed: boolean;
+  /**
+   * 首屏快照 source 腿失败且无任何可用来源数据（S3）：
+   * true 时读数区显示错误态，不再无限骨架；成功腿到达即清除。
+   */
+  settingsSnapshotFailed: boolean;
   /** dsh 下载源状态（bundled / system / running / config） */
   sourceStatus: DshSourceStatus | null;
   /** 当前版本任务真实进度（无任务为 null） */
@@ -80,6 +85,7 @@ export const createDshSlice = (
   versionStatus: null,
   versionCatalog: null,
   versionCatalogFailed: false,
+  settingsSnapshotFailed: false,
   sourceStatus: null,
   versionTask: null,
   versionTaskCancelRequested: false,
@@ -95,11 +101,14 @@ export const createDshSlice = (
   setDshSourceStatus: (status) => set({ sourceStatus: status }),
   setDshSettingsSnapshot: (snapshot) =>
     set((state) => ({
-      sourceStatus: snapshot.sourceStatus,
-      versionStatus: snapshot.versionStatus,
+      // L2 按腿降级：失败腿为 null 时保留旧值，不清空已有读数。
+      sourceStatus: snapshot.sourceStatus ?? state.sourceStatus,
+      versionStatus: snapshot.versionStatus ?? state.versionStatus,
       // catalog 为 null 表示本次拉取失败：保留旧列表（若有），仅标记未知态。
       versionCatalog: snapshot.catalog ?? state.versionCatalog,
       versionCatalogFailed: snapshot.catalog === null,
+      // 快照 source 腿失败且无任何可用来源数据：读数区切错误态，不再无限骨架（S3）。
+      settingsSnapshotFailed: snapshot.sourceStatus === null && state.sourceStatus === null,
     })),
   setDshRunning: (running, starting) =>
     set((state) => {

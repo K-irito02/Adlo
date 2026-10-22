@@ -233,6 +233,7 @@ beforeEach(() => {
     versionCatalog: null,
     versionCatalogFailed: false,
     sourceStatus: null,
+    settingsSnapshotFailed: false,
     showToast: vi.fn(),
   });
 });
@@ -275,6 +276,48 @@ describe('DshVersionManagement', () => {
     const { container } = renderBlock();
     expect(container.querySelector('.adl-dsh-settings__version-loading')).not.toBeNull();
     expect(screen.queryByText('dshVersionStateReading')).toBeNull();
+  });
+
+  it('首屏快照失败且无来源数据时显示错误态（而非无限骨架，S3）', () => {
+    useAppStore.setState({ settingsSnapshotFailed: true });
+    const { container } = renderBlock();
+    expect(container.querySelector('.adl-dsh-settings__version-loading')).toBeNull();
+    expect(screen.getByText('dshVersionStateFailed')).toBeTruthy();
+    expect(screen.queryByText('dshVersionStateReading')).toBeNull();
+  });
+
+  it('快照按腿降级：失败腿为 null 时保留旧值并记错误态（L2+S3）', () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    const before = useAppStore.getState().sourceStatus;
+    const version = useAppStore.getState().versionStatus;
+    if (!before || !version) {
+      throw new Error('seed should provide source and version status');
+    }
+    useAppStore.getState().setDshSettingsSnapshot({
+      sourceStatus: null,
+      versionStatus: null,
+      catalog: null,
+    });
+    // 失败腿保留旧值；无旧值才记错误态（此处有旧值，不记）。
+    expect(useAppStore.getState().sourceStatus).toBe(before);
+    expect(useAppStore.getState().versionStatus).toBe(version);
+    expect(useAppStore.getState().settingsSnapshotFailed).toBe(false);
+    // 首屏即失败（无旧值）：记错误态，读数区切错误展示。
+    useAppStore.setState({ sourceStatus: null });
+    useAppStore.getState().setDshSettingsSnapshot({
+      sourceStatus: null,
+      versionStatus: null,
+      catalog: null,
+    });
+    expect(useAppStore.getState().settingsSnapshotFailed).toBe(true);
+    // 成功腿到达即清除错误态。
+    useAppStore.getState().setDshSettingsSnapshot({
+      sourceStatus: before,
+      versionStatus: version,
+      catalog: null,
+    });
+    expect(useAppStore.getState().settingsSnapshotFailed).toBe(false);
+    expect(useAppStore.getState().sourceStatus).toBe(before);
   });
 
   it('拉起中显示骨架胶囊，结束后显示真实版本（P2 抗跳变）', async () => {
@@ -1777,6 +1820,52 @@ describe('DshVersionManagement', () => {
     fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
     fireEvent.click(screen.getByText('dshVersionSourceHost'));
     expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.getByText('dshVersionSourceSwitchDialogEmpty')).toBeTruthy();
+  });
+
+  it('切源对话框的目标为空提示在中途刷新后保持冻结（S4）', async () => {
+    seed({ currentSelected: null, installed: [] });
+    useAppStore.setState({
+      sourceStatus: {
+        system: { path: 'D:\\nodejs\\dsh', version: '0.2.0-rc.2' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'system',
+          version: '0.2.0-rc.2',
+        },
+        versionSource: {
+          mode: 'auto',
+          effective: 'running',
+          resolvedByMode: resolvedByMode(null, true),
+          hostVersion: null,
+        },
+        config: MOCK_CONFIG,
+      },
+    });
+    renderBlock();
+    fireEvent.click(screen.getByRole('button', { name: 'dshVersionSource' }));
+    fireEvent.click(screen.getByText('dshVersionSourceHost'));
+    expect(await screen.findByRole('dialog')).toBeTruthy();
+    expect(screen.getByText('dshVersionSourceSwitchDialogEmpty')).toBeTruthy();
+    // 中途刷新：宿主出现可用版本（resolvedByMode 翻转），对话框后果提示保持冻结。
+    act(() => {
+      const current = useAppStore.getState().sourceStatus;
+      if (!current) {
+        throw new Error('dialog should have source status');
+      }
+      useAppStore.setState({
+        sourceStatus: {
+          ...current,
+          versionSource: {
+            ...current.versionSource,
+            resolvedByMode: resolvedByMode('1.0.0', true),
+            hostVersion: '1.0.0',
+          },
+        },
+      });
+    });
     expect(screen.getByText('dshVersionSourceSwitchDialogEmpty')).toBeTruthy();
   });
 

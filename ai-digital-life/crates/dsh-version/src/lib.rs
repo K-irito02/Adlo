@@ -729,6 +729,21 @@ pub fn parse_dsh_version_output(output: &str) -> Option<String> {
     None
 }
 
+/// 本机 loopback 探测共用客户端：连接池/TLS 会话复用，5s 轮询不再每次新建
+///（L3）。`Client::clone` 为廉价的 Arc 克隆，每次调用方各取一份。
+fn loopback_client() -> reqwest::Client {
+    static LOOPBACK_CLIENT: std::sync::OnceLock<reqwest::Client> = std::sync::OnceLock::new();
+    LOOPBACK_CLIENT
+        .get_or_init(|| {
+            reqwest::Client::builder()
+                .no_proxy()
+                .timeout(std::time::Duration::from_millis(500))
+                .build()
+                .unwrap_or_else(|_| reqwest::Client::new())
+        })
+        .clone()
+}
+
 /// Detect whether a dsh server is already running on `port`.
 ///
 /// 1. Probe `TcpStream::connect` to confirm the port is listening.
@@ -752,12 +767,8 @@ pub async fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
 
     let url = format!("http://{addr}/");
     // 探测目标是本机 loopback：显式禁用代理（含系统代理），避免配置了系统代理的环境
-    // 把 127.0.0.1 请求路由到代理而误判 dsh 未运行。
-    let client = reqwest::Client::builder()
-        .no_proxy()
-        .timeout(std::time::Duration::from_millis(500))
-        .build()
-        .ok()?;
+    // 把 127.0.0.1 请求路由到代理而误判 dsh 未运行。客户端全局复用，不再每次新建。
+    let client = loopback_client();
 
     let resp = client.get(&url).send().await.ok()?;
     let status = resp.status().as_u16();

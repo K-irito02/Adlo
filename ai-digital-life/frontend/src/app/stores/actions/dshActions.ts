@@ -5,15 +5,6 @@ import { captureError, clearError } from '../shared';
 const SCOPE = 'dsh';
 
 /**
- * 版本管理调试埋点（临时）：用户在 Tauri 桌面实测后，凭此前缀在
- * `.adl-logs/debug-logs*.txt` 中定位版本链路日志，核对排查后再删除。
- * 移除义务已登记在 `docs/root-cause-to-close/2026-10/progress-2026-10-19-095312.md`（事项 5）。
- */
-function debugVer(message: string, detail?: Record<string, unknown>) {
-  console.debug('[ADL-DSH-VER]', message, detail ?? {});
-}
-
-/**
  * 两个 URL 是否指向同一个本地服务（**按 origin，含端口**）。
  *
  * 不能复用 `historyDedupKey`——它只用 hostname（**忽略端口**），会把
@@ -45,17 +36,11 @@ let lastVersionTaskSig: string | null = null;
 
 /** 变异成功后的版本状态刷新：best-effort 静默，不记录错误卡片（主操作已成功）。 */
 async function refreshVersionStatusSilently(get: () => StoreState): Promise<void> {
-  debugVer('refreshVersionStatus: start', {});
   const result = await window.digitalLife.dsh.getVersionStatus();
   if (result.ok) {
-    debugVer('refreshVersionStatus: updated', {
-      currentSelected: result.data.currentSelected,
-      installed: result.data.installed,
-    });
     get().setDshVersionStatus(result.data);
     return;
   }
-  debugVer('refreshVersionStatus: skipped (not ok)', { error: result.error });
 }
 
 /**
@@ -72,27 +57,22 @@ async function refreshVersionStatusSilently(get: () => StoreState): Promise<void
 function syncDshTab(get: () => StoreState, url: string): void {
   const stale = get().browserTabs.filter((tab) => sameServiceOrigin(tab.url, url));
   if (stale.length === 0) {
-    debugVer('syncDshTab: skipped (no dsh tab open)', {});
     return;
   }
   // 先开后关、严格逐个配对：每个旧标签先开出替代者再关旧者。
   // 开辟失败（browserOpenTab 未返回新 id，理论上不可达）则保留旧标签，
   // 宁可留一个待手动刷新的旧标签，也不静默丢标签。
-  let rebuilt = 0;
   for (const tab of stale) {
     get().browserOpenTab(url);
     const newId = get().browserActiveTabId;
     if (!newId) {
-      debugVer('syncDshTab: open returned no tab, keeping stale one', { stale: tab.id });
       continue;
     }
     if (tab.location === 'center') {
       get().centerShowBrowserTab(newId);
     }
     get().browserCloseTab(tab.id);
-    rebuilt += 1;
   }
-  debugVer('syncDshTab: rebuilt stale tabs in place', { stale: stale.length, rebuilt });
 }
 
 export function createDshActions(set: StoreApi<StoreState>['setState'], get: () => StoreState) {
@@ -112,25 +92,18 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     openDsh: async (): Promise<DshOpenResult | null> => {
       // 并发重入（快速双击）：复用进行中的调用，避免拉起两个进程/创建两个标签。
       if (openDshInFlight) {
-        debugVer('openDsh: reusing in-flight call', {});
         return openDshInFlight;
       }
       openDshInFlight = (async () => {
         clearError(get, SCOPE);
-        debugVer('openDsh: start', {});
         // 桥调用不吞异常：意外抛错沿旧语义抛给调用方（组件兜底 toast），finally 照常复位在途标记。
         const result = await window.digitalLife.dsh.open();
         if (!result.ok) {
-          debugVer('openDsh: failed (error card shown)', { error: result.error });
           captureError(get, result.error, SCOPE);
           return null;
         }
         const data: DshOpenResult = result.data ?? { url: null, freedPort: false };
         const url = data.url?.trim() ?? '';
-        debugVer('openDsh: ok, routing tab', {
-          hasUrl: url !== '',
-          freedPort: data.freedPort,
-        });
         if (url) {
           // 记录最近入口（卸载到空后按 origin 同源关残留标签用；token 入口只记到 query 之前）。
           get().setDshLastUrl(url.split('?')[0]);
@@ -167,27 +140,20 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * @see httpBridge.ts → dsh.restart (/dsh/restart)
      */
     restartDsh: async () => {
-      debugVer('restartDsh: start', {});
       get().setDshRestarting(true);
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.restart>>;
       try {
         result = await window.digitalLife.dsh.restart();
-      } catch (e) {
-        debugVer('restartDsh: threw', { error: String(e) });
+      } catch {
         get().setDshRestarting(false);
         return { restarted: false, url: null, failed: true };
       }
       if (!result.ok) {
-        debugVer('restartDsh: failed', { error: result.error });
         get().setDshRestarting(false);
         return { restarted: false, url: null, failed: true };
       }
-      // 凭据红线：真实入口 URL 含一次性 `?token=`，埋点只记到 query 之前
-      // （本文件其它埋点均不带 URL；调试日志收起器会收录 stdout 明文）。
-      debugVer('restartDsh: ok', {
-        ...result.data,
-        url: result.data.url?.split('?')[0] ?? null,
-      });
+      // 凭据红线：真实入口 URL 含一次性 `?token=`，入库（dshLastUrl）剥离 query；
+      // 建标签必须用完整真实入口（含 token，否则 dsh 401），见 openDsh 同口径。
       if (result.data.url) {
         get().setDshLastUrl(result.data.url.split('?')[0]);
         syncDshTab(get, result.data.url);
@@ -207,8 +173,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getVersionTask>>;
       try {
         result = await window.digitalLife.dsh.getVersionTask();
-      } catch (e) {
-        debugVer('fetchVersionTask: bridge threw', { error: String(e) });
+      } catch {
         return;
       }
       if (result.ok) {
@@ -217,13 +182,11 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
           ? `${task.kind}@${task.version}:${task.phase}:${task.percent ?? 'na'}`
           : 'null';
         if (sig !== lastVersionTaskSig) {
-          debugVer('fetchVersionTask: transition', { from: lastVersionTaskSig, to: sig });
           lastVersionTaskSig = sig;
         }
         get().setDshVersionTask(task);
         return;
       }
-      debugVer('fetchVersionTask: not ok', { error: result.error });
     },
 
     /**
@@ -233,19 +196,14 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      */
     cancelVersionTask: async () => {
       get().setVersionTaskCancelRequested(true);
-      debugVer('cancelVersionTask: requested', {});
       try {
         const result = await window.digitalLife.dsh.cancelVersionTask();
         if (!result.ok) {
           // 取消请求未送达：复位标记，否则后续真实错误会被误判为"用户已取消"而吞卡片。
-          debugVer('cancelVersionTask: not ok, flag reset', { error: result.error });
           get().setVersionTaskCancelRequested(false);
-        } else {
-          debugVer('cancelVersionTask: delivered', { delivered: result.data });
         }
         return result.ok;
-      } catch (e) {
-        debugVer('cancelVersionTask: bridge threw, flag reset', { error: String(e) });
+      } catch {
         get().setVersionTaskCancelRequested(false);
         return false;
       }
@@ -265,32 +223,21 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       if (!silent) {
         clearError(get, SCOPE);
       }
-      debugVer('fetchDshVersionStatus: start', { silent });
       // 桥调用可能抛异常（与 fetchSourceStatus 同口径兜底），
       // 避免挂载路径产生未处理的 promise rejection。
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getVersionStatus>>;
       try {
         result = await window.digitalLife.dsh.getVersionStatus();
       } catch (e) {
-        debugVer('fetchDshVersionStatus: bridge threw', { error: String(e) });
         if (!silent) {
           captureError(get, e, SCOPE);
         }
         return false;
       }
       if (result.ok) {
-        debugVer('fetchDshVersionStatus: ok', {
-          currentSelected: result.data.currentSelected,
-          installed: result.data.installed,
-          latestAvailable: result.data.latestAvailable,
-          hasUpdate: result.data.hasUpdate,
-          prereleaseAvailable: result.data.prereleaseAvailable,
-          hasPrereleaseUpdate: result.data.hasPrereleaseUpdate,
-        });
         get().setDshVersionStatus(result.data);
         return true;
       }
-      debugVer('fetchDshVersionStatus: not ok', { error: result.error });
       if (!silent) {
         captureError(get, result.error, SCOPE);
       }
@@ -326,25 +273,17 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      */
     revertDsh: async (version: string): Promise<boolean> => {
       clearError(get, SCOPE);
-      debugVer('revertDsh: start', {
-        version,
-        currentSelected: get().versionStatus?.currentSelected ?? null,
-        installed: get().versionStatus?.installed ?? [],
-      });
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.revert>>;
       try {
         result = await window.digitalLife.dsh.revert(version);
       } catch (e) {
-        debugVer('revertDsh: bridge threw', { version, error: String(e) });
         captureError(get, e, SCOPE);
         return false;
       }
       if (!result.ok) {
-        debugVer('revertDsh: failed', { version, error: result.error });
         captureError(get, result.error, SCOPE);
         return false;
       }
-      debugVer('revertDsh: ok', { version, selected: result.data });
       await refreshVersionStatusSilently(get);
       return true;
     },
@@ -361,16 +300,10 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     uninstallDsh: async (version: string): Promise<boolean> => {
       clearError(get, SCOPE);
       get().setVersionTaskCancelRequested(false);
-      debugVer('uninstallDsh: start', {
-        version,
-        currentSelected: get().versionStatus?.currentSelected ?? null,
-        installed: get().versionStatus?.installed ?? [],
-      });
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.uninstall>>;
       try {
         result = await window.digitalLife.dsh.uninstall(version);
       } catch (e) {
-        debugVer('uninstallDsh: bridge threw', { version, error: String(e) });
         if (!get().versionTaskCancelRequested) {
           captureError(get, e, SCOPE);
         }
@@ -378,20 +311,12 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       }
       if (!result.ok) {
         if (get().versionTaskCancelRequested) {
-          debugVer('uninstallDsh: cancelled', { version, error: result.error });
         } else {
-          debugVer('uninstallDsh: failed', { version, error: result.error });
           captureError(get, result.error, SCOPE);
         }
         return false;
       }
-      debugVer('uninstallDsh: ok', { version });
       await refreshVersionStatusSilently(get);
-      debugVer('uninstallDsh: refreshed', {
-        version,
-        currentSelected: get().versionStatus?.currentSelected ?? null,
-        installed: get().versionStatus?.installed ?? [],
-      });
       return true;
     },
 
@@ -407,13 +332,10 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     reinstallDsh: async (): Promise<boolean> => {
       clearError(get, SCOPE);
       get().setVersionTaskCancelRequested(false);
-      const current = get().versionStatus?.currentSelected ?? null;
-      debugVer('reinstallDsh: start', { currentSelected: current });
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.reinstall>>;
       try {
         result = await window.digitalLife.dsh.reinstall();
       } catch (e) {
-        debugVer('reinstallDsh: bridge threw', { currentSelected: current, error: String(e) });
         if (!get().versionTaskCancelRequested) {
           captureError(get, e, SCOPE);
         }
@@ -421,14 +343,11 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       }
       if (!result.ok) {
         if (get().versionTaskCancelRequested) {
-          debugVer('reinstallDsh: cancelled', { currentSelected: current, error: result.error });
         } else {
-          debugVer('reinstallDsh: failed', { currentSelected: current, error: result.error });
           captureError(get, result.error, SCOPE);
         }
         return false;
       }
-      debugVer('reinstallDsh: ok', { currentSelected: current, reinstalled: result.data });
       await refreshVersionStatusSilently(get);
       return true;
     },
@@ -445,12 +364,10 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
       if (!silent) {
         clearError(get, SCOPE);
       }
-      debugVer('fetchVersionCatalog: start', { silent });
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getVersionCatalog>>;
       try {
         result = await window.digitalLife.dsh.getVersionCatalog();
       } catch (e) {
-        debugVer('fetchVersionCatalog: bridge threw', { error: String(e) });
         get().setVersionCatalogFailed(true);
         if (!silent) {
           captureError(get, e, SCOPE);
@@ -458,17 +375,10 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         return false;
       }
       if (result.ok) {
-        debugVer('fetchVersionCatalog: ok', {
-          stable: result.data.stable.length,
-          prerelease: result.data.prerelease.length,
-          latestStable: result.data.latestStable,
-          latestPrerelease: result.data.latestPrerelease,
-        });
         get().setDshVersionCatalog(result.data);
         get().setVersionCatalogFailed(false);
         return true;
       }
-      debugVer('fetchVersionCatalog: not ok', { error: result.error });
       get().setVersionCatalogFailed(true);
       if (!silent) {
         captureError(get, result.error, SCOPE);
@@ -488,26 +398,22 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     installDshVersion: async (version: string, select = true): Promise<boolean> => {
       clearError(get, SCOPE);
       get().setVersionTaskCancelRequested(false);
-      debugVer('installDshVersion: start', { version, select });
       // 桥调用可能抛异常（与 fetch 系列同口径兜底），避免未处理的 promise rejection。
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.installVersion>>;
       try {
         result = await window.digitalLife.dsh.installVersion(version, select);
       } catch (e) {
-        debugVer('installDshVersion: bridge threw', { version, select, error: String(e) });
         if (!get().versionTaskCancelRequested) {
           captureError(get, e, SCOPE);
         }
         return false;
       }
       if (!result.ok) {
-        debugVer('installDshVersion: failed', { version, select, error: result.error });
         if (!get().versionTaskCancelRequested) {
           captureError(get, result.error, SCOPE);
         }
         return false;
       }
-      debugVer('installDshVersion: ok', { version, select, installed: result.data });
       await refreshVersionStatusSilently(get);
       return true;
     },
@@ -518,39 +424,29 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
      * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
      * @param silent 后台同步传 true：不碰错误卡片
      * @reads 无
-     * @writes dshSlice.sourceStatus/versionStatus/versionCatalog/versionCatalogFailed
+     * @writes dshSlice.sourceStatus/versionStatus/versionCatalog/versionCatalogFailed/settingsSnapshotFailed
      * @see httpBridge.ts → dsh.getSettingsSnapshot (/dsh/settings-snapshot)
      */
     fetchDshSettingsSnapshot: async (silent = false): Promise<boolean> => {
       if (!silent) {
         clearError(get, SCOPE);
       }
-      debugVer('fetchDshSettingsSnapshot: start', { silent });
       let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getSettingsSnapshot>>;
       try {
         result = await window.digitalLife.dsh.getSettingsSnapshot();
       } catch (e) {
-        debugVer('fetchDshSettingsSnapshot: bridge threw', { error: String(e) });
         if (!silent) {
           captureError(get, e, SCOPE);
         }
         return false;
       }
       if (!result.ok) {
-        debugVer('fetchDshSettingsSnapshot: not ok', { error: result.error });
         if (!silent) {
           captureError(get, result.error, SCOPE);
         }
         return false;
       }
       get().setDshSettingsSnapshot(result.data);
-      debugVer('fetchDshSettingsSnapshot: committed atomically', {
-        effective: result.data.sourceStatus.versionSource.effective,
-        mode: result.data.sourceStatus.versionSource.mode,
-        running: result.data.sourceStatus.running?.source ?? null,
-        currentSelected: result.data.versionStatus.currentSelected,
-        catalog: result.data.catalog === null ? null : result.data.catalog.stable.length,
-      });
       return true;
     },
 
@@ -674,7 +570,6 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         if (!pending) {
           return false;
         }
-        debugVer('pending: applying at startup', { pending });
         const target = pending;
         if (target === get().sourceStatus?.config?.version_source) {
           get().setDshVersionSourcePending(null);
@@ -684,18 +579,14 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         const ok = await get().saveSourceConfig({ version_source: target }, true);
         if (!ok) {
           // 落盘失败：pending 保留，下次启动重试（本次不打扰用户）。
-          debugVer('pending: save failed, will retry next launch', { target });
           return true;
         }
         get().setDshVersionSourcePending(null);
         get().setDshVersionSourceDeferred(false);
         // 静默重启（事项 2026-10-20/5：不自动开标签，无 tab 时 syncDshTab 直接跳过）；
-        // 失败只记埋点（启动期不弹 toast 打扰；配置已落盘，用户手动重启即生效）。
-        const restart = await get().restartDsh();
+        // 重启失败不阻断兑现（配置已落盘，用户手动打开即按新来源拉起）。
+        await get().restartDsh();
         await get().fetchSourceStatus(true);
-        if (restart.failed) {
-          debugVer('pending: restart failed after save', { target });
-        }
         return true;
       })();
       try {

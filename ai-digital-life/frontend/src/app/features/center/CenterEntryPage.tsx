@@ -44,7 +44,6 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
     // 版本操作在途守卫（用户实测 2026-10-21）：
     // 安装/切换/重装/卸载及其重启长尾完成前拦截，toast 提示稍候，不建标签。
     if (isDshBusySnap()) {
-      console.debug('[ADL-DSH-VER]', 'openDsh entry: blocked (busy)', {});
       showToast(t.dshVersionBusyRetry, 'warning');
       return;
     }
@@ -53,7 +52,6 @@ export function CenterEntryPage({ centerTabId }: CenterEntryPageProps) {
       // 无可用版本守卫（用户实测 2026-10-21）：宿主无任何可用版本时不调桥、
       // 不建标签，直接 toast，由 isDshConfirmedUnusable 新鲜判定（fail-open）。
       if (await isDshConfirmedUnusable()) {
-        console.debug('[ADL-DSH-VER]', 'openDsh entry: blocked (no version)', {});
         showToast(t.dshOpenNoVersion, 'warning');
         return;
       }

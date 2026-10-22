@@ -82,12 +82,14 @@ export interface DshRunningResult {
 
 /**
  * `/dsh/settings-snapshot` 结果：版本管理块首屏原子快照。
- * 三份数据一次提交，避免分段到货导致的块内跳动；`catalog` 为 null 表示
+ * 三份数据一次返回，store 单次提交，避免分段到货导致的块内跳动；`catalog` 为 null 表示
  * 官方目录当前不可得（服务端无缓存且拉取失败）。
+ * `sourceStatus` / `versionStatus` 任一腿失败时该腿为 null（L2 按腿降级，不再全有全无）：
+ * 前端保留该腿旧值，无旧值时读数区切错误态。
  */
 export interface DshSettingsSnapshot {
-  sourceStatus: DshSourceStatus;
-  versionStatus: DshVersionStatus;
+  sourceStatus: DshSourceStatus | null;
+  versionStatus: DshVersionStatus | null;
   catalog: DshVersionCatalog | null;
 }
 

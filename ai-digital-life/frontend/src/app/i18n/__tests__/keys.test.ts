@@ -314,6 +314,7 @@ describe('i18n en-US namespace keys', () => {
       'dshVersionListUnknown',
       'dshVersionUnknown',
       'dshVersionStateReading',
+      'dshVersionStateFailed',
       'dshEffectiveRunning',
       'dshEffectiveRunningSystem',
       'dshRunningExternalNote',
@@ -389,6 +390,28 @@ describe('i18n en-US namespace keys', () => {
     }
   });
 
+  it('keeps dsh placeholder counts identical across locales (no {taget}-style drift)', () => {
+    const countOf = (text: unknown, placeholder: string) =>
+      typeof text === 'string' ? text.split(placeholder).length - 1 : -1;
+    // [key, placeholder, 期望出现次数]：中英必须同数，否则渲染残留占位符。
+    const cases: [string, string, number][] = [
+      ['dshVersionSourceSwitchDialogMessage', '{target}', 1],
+      ['dshVersionSourceSystemDialogMessage', '{path}', 1],
+      ['dshVersionSourceSwitchDialogEmpty', '{target}', 2],
+      ['dshVersionSourceSwitchDialogFromEmpty', '{target}', 1],
+      ['dshEffectiveRunning', '{url}', 1],
+      ['dshEffectiveRunningSystem', '{url}', 1],
+      ['dshRunningExternalNote', '{url}', 1],
+      ['dshEffectiveSystem', '{path}', 1],
+    ];
+    for (const [key, placeholder, expected] of cases) {
+      const en = (enUS as Record<string, unknown>)[key];
+      const zh = (zhCN as Record<string, unknown>)[key];
+      expect(countOf(en, placeholder), `en:${key} ${placeholder}`).toBe(expected);
+      expect(countOf(zh, placeholder), `zh:${key} ${placeholder}`).toBe(expected);
+    }
+  });
+
   it('retires the dsh close-dialog / legacy open-button copy (no consumers)', () => {
     // 关闭对话框已随 dsh 统一为普通浏览器标签而退役；旧打开按钮/欢迎空态亦无调用方。
     for (const key of [
@@ -421,6 +444,8 @@ describe('i18n en-US namespace keys', () => {
       'dshEffectiveBundled',
       // 2026-10-22：内置版本按普通版本卸载（确认只针对当前版本），专属提示文案退役。
       'dshUninstallBundledHint',
+      // 2026-10-22：无可用来源提示按来源拆分为 host/auto 两条，旧通用文案退役（不得复活）。
+      'dshNoSourceNote',
     ] as const) {
       expect(enUS, `en:${key}`).not.toHaveProperty(key);
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);

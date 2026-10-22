@@ -7,11 +7,6 @@ export interface DshAuthUrl {
   freedPort: boolean;
 }
 
-/** 调试埋点（事项 5）：用户实测后凭此前缀在 `debug-logs*.txt` 过滤分流链路，移除义务见进度文件。 */
-function debugAuth(message: string, detail?: Record<string, unknown>) {
-  console.debug('[ADL-DSH-VER]', message, detail ?? {});
-}
-
 /**
  * 需认证本地端口取真实入口（事项 2 通用分流源）。
  *
@@ -26,23 +21,18 @@ export async function resolveDshAuthUrl(inputUrl: string): Promise<DshAuthUrl | 
   if (routed?.opener !== 'dsh') {
     return null;
   }
-  debugAuth('authUrl: routed to dsh, resolving via backend', { inputUrl });
   try {
     const res = await window.digitalLife.dsh.open();
     if (!res.ok) {
-      debugAuth('authUrl: backend open failed', {});
       return null;
     }
     const url = res.data?.url?.trim() ?? '';
     if (!url) {
-      debugAuth('authUrl: backend returned empty url', {});
       return null;
     }
     const freedPort = res.data?.freedPort ?? false;
-    debugAuth('authUrl: resolved', { freedPort });
     return { url, freedPort };
-  } catch (e) {
-    debugAuth('authUrl: threw', { error: String(e) });
+  } catch {
     return null;
   }
 }

@@ -94,8 +94,23 @@ function syncEffective(): void {
 function cloneSourceStatus(): DshSourceStatus {
   return {
     ...sourceStatus,
+    system: sourceStatus.system ? { ...sourceStatus.system } : null,
     config: { ...sourceStatus.config, proxy: { ...sourceStatus.config.proxy } },
-    versionSource: { ...sourceStatus.versionSource },
+    versionSource: {
+      ...sourceStatus.versionSource,
+      // resolvedByMode 与 running 按值拷贝：调用方原地修改返回体不得污染
+      // mock 内部单例，避免测试间别名污染。
+      resolvedByMode: { ...sourceStatus.versionSource.resolvedByMode },
+    },
+    running: sourceStatus.running ? { ...sourceStatus.running } : null,
+  };
+}
+
+function cloneCatalog(): DshVersionCatalog {
+  return {
+    ...MOCK_CATALOG,
+    stable: MOCK_CATALOG.stable.map((hit) => ({ ...hit })),
+    prerelease: MOCK_CATALOG.prerelease.map((hit) => ({ ...hit })),
   };
 }
 
@@ -108,7 +123,7 @@ export const mockDsh: DshBridge = {
   getVersionTask: async () => ({ ok: true, data: { task: null } }),
   cancelVersionTask: async () => ({ ok: true, data: true }),
   getVersionStatus: async () => ({ ok: true, data: { ...status, installed: [...status.installed] } }),
-  getVersionCatalog: async () => ({ ok: true, data: MOCK_CATALOG }),
+  getVersionCatalog: async () => ({ ok: true, data: cloneCatalog() }),
   installVersion: async (version, select = true) => {
     if (!status.installed.includes(version)) {
       status.installed = [version, ...status.installed];
@@ -160,14 +175,17 @@ export const mockDsh: DshBridge = {
   }),
   getRunning: async () => ({
     ok: true,
-    data: { running: sourceStatus.running, starting: sourceStatus.starting ?? false },
+    data: {
+      running: sourceStatus.running ? { ...sourceStatus.running } : null,
+      starting: sourceStatus.starting ?? false,
+    },
   }),
   getSettingsSnapshot: async () => ({
     ok: true,
     data: {
       sourceStatus: cloneSourceStatus(),
       versionStatus: { ...status, installed: [...status.installed] },
-      catalog: MOCK_CATALOG,
+      catalog: cloneCatalog(),
     },
   }),
   saveSourceConfig: async (config) => {
