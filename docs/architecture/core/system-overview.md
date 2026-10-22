@@ -11,7 +11,7 @@ This codebase is the runnable **desktop host + third-party Agent harness integra
 - xterm.js 交互式终端 + CodeMirror 编辑器 + 内置浏览器
 - 存储治理（`adl-kernel::storage` 统一路径解析 + 启动期迁移 + 设置面板存储组）
 - 系统能力（剪贴板历史、系统监视器、CI 状态、GitHub 面板、凭据存储）
-- 第三方 harness 宿主集成（当前为 deepseek dsh）：进程托管与拉起（`crates/webapp-host`）、内嵌版本管理（`crates/dsh-bundle`）与系统版本检测/升级回退（`crates/dsh-version`）、下载源与镜像配置（`crates/download-source`）、中间区多标签宿主渲染（`CenterEntryPage`，`location='center'`）
+- 第三方 harness 宿主集成（当前为 deepseek dsh）：进程托管与拉起（`crates/webapp-host`）、内置预置包收编（`crates/dsh-bundle`）与系统版本检测/升级回退（`crates/dsh-version`）、下载源与镜像配置（`crates/download-source`）、中间区多标签宿主渲染（`CenterEntryPage`，`location='center'`）
 
 Agent 对话、模型接入与编排由第三方 harness 提供，本仓库不实现内置单 Agent 运行时与 Provider 路由。
 

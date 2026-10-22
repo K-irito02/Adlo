@@ -150,19 +150,19 @@
 | 路径 | `crates/webapp-host/` |
 | 用途 | 第三方 harness（deepseek dsh）进程拉起与托管 |
 
-## 18. dsh-bundle（内置 dsh 包）
+## 18. dsh-bundle（内置 dsh 包收编）
 
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/dsh-bundle/` |
-| 用途 | 内置 dsh 预安装包（manifest + package 目录），离线可用 |
+| 用途 | 安装器投放的一次性预置包（`manifest.json` + `package/`）；服务启动时 `adopt()` 把它搬成 `dsh-versions/installed/<v>/` 下的一条普通已装版本并删除本目录，不留副本 |
 
 ## 19. dsh-version（dsh 版本管理）
 
 | 项目 | 值 |
 |------|-----|
 | 路径 | `crates/dsh-version/` |
-| 用途 | 已安装版本列表/切换/npm 仓库查询/智能源选择（已运行 > 系统安装 > 内置 > 下载） |
+| 用途 | 已安装版本列表/切换/npm 仓库查询/智能源选择（已运行 > 宿主安装 > 系统安装 > 下载）；内置版本收编后即普通宿主版本，无独立来源分支 |
 
 ## 20. download-source（下载源）
 
