@@ -7,6 +7,36 @@ import { readFileSync } from 'node:fs';
 const dshCss = readFileSync(new URL('./regions/dsh-version.css', import.meta.url), 'utf-8');
 const settingsCss = readFileSync(new URL('./components/settings.css', import.meta.url), 'utf-8');
 
+/**
+ * 收集所有「声明了 needle 的规则」的选择器组文本（已剥离注释）。
+ * 分组规则（`.a,\n.b { ... }`）会整组返回，避免用字面量锁死换行与顺序。
+ */
+function selectorGroupsWith(css: string, needle: string): string[] {
+  const stripped = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  const out: string[] = [];
+  let prev = 0;
+  for (let i = 0; i < stripped.length; i += 1) {
+    if (stripped[i] !== '}') {
+      continue;
+    }
+    const block = stripped.slice(prev, i);
+    const brace = block.indexOf('{');
+    if (brace !== -1 && block.slice(brace).includes(needle)) {
+      out.push(block.slice(0, brace).trim());
+    }
+    prev = i + 1;
+  }
+  return out;
+}
+
+/** 分组选择器文本是否**精确**包含某个选择器（按 `,` 拆开后 trim 比较，避免子串误判）。 */
+function groupHasSelector(group: string, selector: string): boolean {
+  return group
+    .split(',')
+    .map((part) => part.trim())
+    .includes(selector);
+}
+
 function ruleBody(css: string, selector: string): string | null {
   const start = css.indexOf(`${selector} {`);
   if (start === -1) {
@@ -88,14 +118,25 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     expect(token).not.toBeNull();
     expect(token).toContain('--dsh-note-fg: color-mix(');
     expect(token).toContain('var(--accent)');
-    // Portal 菜单面板必须与块根共用同一组 token 定义：菜单挂在 <body> 下，不在
+    // Portal 菜单面板必须与块根共用同一份 token 定义：菜单挂在 <body> 下，不在
     // `.adl-dsh-settings` 子树内，漏一处则菜单里的徽章取不到变量、退回继承色
     // （用户 2026-10-22 实测「菜单卡片徽章与按钮徽章不同色」）。
-    expect(dshCss).toContain('.adl-dsh-settings,\n.adl-dsh-settings__version-menu {');
-    // 暗色主题单独再压一档（`--accent` 在暗色下亮度高，单一混合比压不住）。
-    const darkToken = ruleBody(dshCss, "[data-theme='dark'] .adl-dsh-settings__version-menu");
-    expect(darkToken).not.toBeNull();
-    expect(darkToken).toContain('--dsh-note-fg: color-mix(');
+    // 精确按选择器比对（不能用子串：`.adl-dsh-settings__version-menu` 也以
+    // `.adl-dsh-settings` 开头，子串判定会在删掉块根后仍然通过 —— R1 rev2 N-02）。
+    const lightScopes = selectorGroupsWith(dshCss, '--dsh-note-fg:');
+    expect(lightScopes.some((g) => groupHasSelector(g, '.adl-dsh-settings'))).toBe(true);
+    expect(lightScopes.some((g) => groupHasSelector(g, '.adl-dsh-settings__version-menu'))).toBe(
+      true,
+    );
+    // 暗色主题单独再压一档（`--accent` 在暗色下亮度高，单一混合比压不住），同样两处都覆盖。
+    const darkScopes = selectorGroupsWith(dshCss, '--dsh-note-fg:').filter((g) =>
+      groupHasSelector(g, "[data-theme='dark'] .adl-dsh-settings"),
+    );
+    expect(darkScopes).toHaveLength(1);
+    expect(groupHasSelector(darkScopes[0]!, "[data-theme='dark'] .adl-dsh-settings")).toBe(true);
+    expect(
+      groupHasSelector(darkScopes[0]!, "[data-theme='dark'] .adl-dsh-settings__version-menu"),
+    ).toBe(true);
     // 作用域限定：token 定义在 .adl-dsh-settings 上，使用处必须同在子树内，
     // 否则其它面板的 row-warn 会丢色（用全局 var(--warning) 的原规则无此问题）。
     const warn = ruleBody(
@@ -110,11 +151,13 @@ describe('dsh settings styles (control widths + test button centering)', () => {
     expect(warn).toContain('line-clamp: unset');
   });
 
-  it('paints the current-version badge and row with the same note token', () => {
-    // 徽章与当前版本行共用 token（不能各自写一份 color-mix，否则又会不同色）。
-    const rule = ruleBody(dshCss, '.adl-dsh-settings__version-list-item--current');
-    expect(rule).not.toBeNull();
-    expect(rule).toContain('color: var(--dsh-note-fg)');
+  it('paints the current-version badge with the shared note token', () => {
+    // 徽章必须精确出现在「使用 --dsh-note-fg 的分组」里（删掉该选择器 → 徽章退回
+    // --text-secondary，正是「菜单徽章与按钮不同色」的复发路径 —— R1 rev2 N-01）。
+    const groups = selectorGroupsWith(dshCss, 'color: var(--dsh-note-fg)');
+    expect(
+      groups.some((g) => groupHasSelector(g, '.adl-dsh-settings__version-menu-item-current')),
+    ).toBe(true);
     // 文件内不得再有裸 `color: var(--accent)` 的蓝色文字。
     expect(dshCss).not.toMatch(/color:\s*var\(--accent\)/);
   });

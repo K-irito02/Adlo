@@ -316,7 +316,7 @@ describe('i18n en-US namespace keys', () => {
       'dshEffectiveRunning',
       'dshEffectiveSystem',
       // 2026-10-22：内置版本改「版本号 + 来源徽章」（整句 dshEffectiveBundled 退役），
-      // 并新增内置专属的卸载二次确认提示。
+      // 「当前版本」状态徽章、来源说明与「内置」读数徽章为新增文案（内置版本没有专属提示）。
       'dshInstalledVersions',
       'dshBundledVersions',
       'dshBundledBadge',
@@ -413,6 +413,8 @@ describe('i18n en-US namespace keys', () => {
       'dshStatusRunning',
       // 2026-10-22：内置版本改为「版本号 + 内置徽章」，整句读数文案退役（不得复活）。
       'dshEffectiveBundled',
+      // 2026-10-22：内置版本按普通版本卸载（确认只针对当前版本），专属提示文案退役。
+      'dshUninstallBundledHint',
     ] as const) {
       expect(enUS, `en:${key}`).not.toHaveProperty(key);
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);

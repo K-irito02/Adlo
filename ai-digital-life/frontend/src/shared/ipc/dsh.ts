@@ -185,7 +185,7 @@ export interface DshOpenResult {
  */
 export interface DshVersionStatus {
   currentSelected: string | null;
-  /** 真实安装到应用数据目录的版本（不含仅由内置包提供的版本）。 */
+  /** 已装到应用数据目录的版本（含被收编的安装包预置版本；它与其它版本同一条链路）。 */
   installed: string[];
   /**
    * 内置预置版本号：安装包投放的内置包在启动时被收编成普通已装版本，此字段只是

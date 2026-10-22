@@ -486,7 +486,10 @@ pub async fn install(
         return Err(AppError::Io(format!("installed {version} is incomplete")));
     }
     // 内容已被覆盖：若该版本号原本是内置预置的，从此刻起不再算内置（用户 2026-10-22）。
-    crate::clear_bundled_version_if(root, version)?;
+    // 记录清除失败不该让整次安装报错（版本内容已就位），只留痕。
+    if let Err(e) = crate::clear_bundled_version_if(root, version) {
+        tracing::warn!(%version, error = %e, "dsh install: clear bundled marker failed");
+    }
 
     if select {
         tokio::fs::write(selected_file(root), format!("{version}\n"))

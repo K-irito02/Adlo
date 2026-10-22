@@ -315,11 +315,15 @@ describe('DshVersionManagement', () => {
       expect(item).toBeTruthy();
       // 菜单卡片内：内置版本挂「已内置」徽章。
       expect(item!.textContent).toContain('dshBundledVersions');
-      return item!.querySelector('.adl-dsh-settings__version-menu-item-revert') as HTMLButtonElement;
+      return item!.querySelector(
+        '.adl-dsh-settings__version-menu-item-revert',
+      ) as HTMLButtonElement;
     });
     fireEvent.click(menuPick);
     await waitFor(() => expect(screen.getByRole('button', { name: '1.1.0' })).toBeTruthy());
-    const row = container.querySelectorAll('.adl-dsh-settings__version-list-item')[0] as HTMLElement;
+    const row = container.querySelectorAll(
+      '.adl-dsh-settings__version-list-item',
+    )[0] as HTMLElement;
     // 来源徽章互斥：已内置优先，不再同时挂「已装版本」。
     expect(row.textContent).toContain('dshBundledVersions');
     expect(row.textContent).not.toContain('dshInstalledVersions');
@@ -328,14 +332,30 @@ describe('DshVersionManagement', () => {
     expect(within(row).getByRole('button', { name: 'dshReinstall' })).toBeTruthy();
     expect(within(row).getByRole('button', { name: 'dshSwitchToVersion' })).toBeTruthy();
     expect(within(row).queryByRole('button', { name: 'dshInstallAction' })).toBeNull();
+    // 行内下拉框按钮：非当前版本 → 「已内置」徽章 + 常驻（空）勾号槽。
+    expect(row.textContent).toContain('dshBundledVersions');
+    expect(row.querySelectorAll('.adl-dsh-settings__version-menu-item-check')).toHaveLength(1);
+  });
+
+  it('行内下拉框按钮：当前版本标「当前版本」徽章且勾号槽显示勾号', () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    seedCatalog(['1.0.0']);
+    seedHostSource('1.0.0');
+    const { container } = renderBlock();
+    const row = container.querySelector('.adl-dsh-settings__version-list-item') as HTMLElement;
+    expect(row.textContent).toContain('dshCurrentVersionBadge');
+    expect(row.textContent).not.toContain('dshInstalledVersions');
+    expect(row.querySelector('.adl-dsh-settings__version-menu-item-check svg')).toBeTruthy();
   });
 
   it('菜单卡片：徽章互斥（当前版本 > 已内置 > 已装版本），勾号槽位常驻不挤徽章', async () => {
-    seed({ currentSelected: '1.0.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
+    // 关键 fixture：当前在用的版本**同时**是预置版本，用来验证「当前版本」优先级高于
+    // 「已内置」（换掉三元顺序此断言必挂）；第三行是普通已装版本，覆盖最低优先级。
+    seed({ currentSelected: '1.1.0', installed: ['1.0.0', '1.1.0'], bundledVersion: '1.1.0' });
     seedCatalog(['1.1.0', '1.0.0']);
-    seedHostSource('1.0.0');
+    seedHostSource('1.1.0');
     renderBlock();
-    fireEvent.click(screen.getByRole('button', { name: '1.0.0' }));
+    fireEvent.click(screen.getByRole('button', { name: '1.1.0' }));
     const items = await waitFor(() => {
       const list = Array.from(
         document
@@ -345,26 +365,27 @@ describe('DshVersionManagement', () => {
       expect(list.length).toBe(2);
       return list as HTMLElement[];
     });
-    const currentItem = items.find((el) => el.textContent?.includes('1.0.0'))!;
-    const bundledItem = items.find((el) => el.textContent?.includes('1.1.0'))!;
-    // 当前在用的版本：徽章文案换成「当前版本」（蓝色），不再显示「已装版本」。
+    const currentItem = items.find((el) => el.textContent?.includes('1.1.0'))!;
+    const plainItem = items.find((el) => el.textContent?.includes('1.0.0'))!;
+    // 当前版本 + 预置：只标「当前版本」（蓝色类），不再显示「已装版本」/「已内置」。
     expect(currentItem.textContent).toContain('dshCurrentVersionBadge');
     expect(currentItem.textContent).not.toContain('dshInstalledVersions');
-    expect(
-      currentItem.querySelector('.adl-dsh-settings__version-menu-item-current'),
-    ).toBeTruthy();
-    // 同时「已装 + 已内置」：只显示更具体的「已内置」。
-    expect(bundledItem.textContent).toContain('dshBundledVersions');
-    expect(bundledItem.textContent).not.toContain('dshInstalledVersions');
+    expect(currentItem.textContent).not.toContain('dshBundledVersions');
+    expect(currentItem.querySelector('.adl-dsh-settings__version-menu-item-current')).toBeTruthy();
+    // 普通已装版本：标「已装版本」。
+    expect(plainItem.textContent).toContain('dshInstalledVersions');
+    expect(plainItem.textContent).not.toContain('dshBundledVersions');
     // 勾号槽位两行都常驻（未选中行留空），保证徽章不因勾号出现而左移。
-    expect(
-      currentItem.querySelectorAll('.adl-dsh-settings__version-menu-item-check'),
-    ).toHaveLength(1);
-    expect(bundledItem.querySelectorAll('.adl-dsh-settings__version-menu-item-check')).toHaveLength(
+    expect(currentItem.querySelectorAll('.adl-dsh-settings__version-menu-item-check')).toHaveLength(
       1,
     );
-    expect(currentItem.querySelector('.adl-dsh-settings__version-menu-item-check svg')).toBeTruthy();
-    expect(bundledItem.querySelector('.adl-dsh-settings__version-menu-item-check svg')).toBeNull();
+    expect(plainItem.querySelectorAll('.adl-dsh-settings__version-menu-item-check')).toHaveLength(
+      1,
+    );
+    expect(
+      currentItem.querySelector('.adl-dsh-settings__version-menu-item-check svg'),
+    ).toBeTruthy();
+    expect(plainItem.querySelector('.adl-dsh-settings__version-menu-item-check svg')).toBeNull();
   });
 
   it('再次点击同一个下拉框按钮会收起菜单（此前只开不关）', async () => {
@@ -395,19 +416,24 @@ describe('DshVersionManagement', () => {
           .querySelector('.adl-dsh-settings__version-menu')
           ?.querySelectorAll('.adl-dsh-settings__version-menu-item') ?? [],
       ).find((el) => el.textContent?.includes('1.1.0'));
-      return item!.querySelector('.adl-dsh-settings__version-menu-item-revert') as HTMLButtonElement;
+      return item!.querySelector(
+        '.adl-dsh-settings__version-menu-item-revert',
+      ) as HTMLButtonElement;
     });
     fireEvent.click(menuPick);
     await waitFor(() => expect(screen.getByRole('button', { name: '1.1.0' })).toBeTruthy());
-    const row = container.querySelectorAll('.adl-dsh-settings__version-list-item')[0] as HTMLElement;
+    const row = container.querySelectorAll(
+      '.adl-dsh-settings__version-list-item',
+    )[0] as HTMLElement;
+    // 非当前版本一次点击即卸载（二次确认只留给当前选中版本，见上一用例）。
     const btn = within(row).getByRole('button', { name: 'dshUninstall' });
     fireEvent.click(btn);
     await waitFor(() => expect(uninstallDsh).toHaveBeenCalledWith('1.1.0'));
-    expect(btn.className).not.toContain('adl-dsh-settings__action-btn--danger');
   });
 
   it('当前版本由内置包提供时，版本号旁显示「内置」徽章', () => {
-    seed({ currentSelected: '1.1.0', installed: [], bundledVersion: '1.1.0' });
+    // 不变式：bundledVersion ≠ null ⟹ 该版本必在 installed 里（收编后就是普通已装版本）。
+    seed({ currentSelected: '1.1.0', installed: ['1.1.0'], bundledVersion: '1.1.0' });
     seedHostSource('1.1.0');
     const { container } = renderBlock();
     const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
@@ -417,8 +443,8 @@ describe('DshVersionManagement', () => {
     expect(screen.getByText('dshBundledSourceNote')).toBeTruthy();
   });
 
-  it('宿主拉起的运行中若是预置版本则标「内置」；系统安装同版本号不标', () => {
-    seed({ currentSelected: null, installed: [], bundledVersion: '1.1.0' });
+  it('宿主拉起的运行中若是预置版本则标「内置」；系统安装/外部复用同版本号不标', () => {
+    seed({ currentSelected: null, installed: ['1.1.0'], bundledVersion: '1.1.0' });
     seedRunningSource('1.1.0');
     const { container, unmount } = renderBlock();
     const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
@@ -426,7 +452,7 @@ describe('DshVersionManagement', () => {
     unmount();
     cleanup();
     // 同版本号但来源偏好是系统安装（跑的是用户自己的那份）：不得挂「内置」徽章。
-    seed({ currentSelected: null, installed: [], bundledVersion: '1.1.0' });
+    seed({ currentSelected: null, installed: ['1.1.0'], bundledVersion: '1.1.0' });
     seedRunningSource('1.1.0', 'system');
     const second = renderBlock();
     const readout2 = second.container.querySelector(
@@ -434,6 +460,22 @@ describe('DshVersionManagement', () => {
     ) as HTMLElement;
     expect(readout2.textContent).toContain('1.1.0');
     expect(within(readout2).queryByText('dshBundledBadge')).toBeNull();
+  });
+
+  it('外部复用（managed=false）的运行中进程即便版本号相同也不标「内置」', () => {
+    seed({ currentSelected: null, installed: ['1.1.0'], bundledVersion: '1.1.0' });
+    // 外部复用：没有 Child 可持有，版本来源未知（managed=false + version 由探测给出）。
+    useAppStore.setState({
+      sourceStatus: {
+        system: null,
+        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: '1.1.0' },
+        versionSource: { mode: 'auto', effective: 'running', hostVersion: null },
+        config: { ...MOCK_CONFIG },
+      },
+    });
+    const { container } = renderBlock();
+    const readout = container.querySelector('.adl-dsh-settings__version-readout') as HTMLElement;
+    expect(within(readout).queryByText('dshBundledBadge')).toBeNull();
   });
 
   it('行内按钮按所选版本状态显示：当前行有卸载+重装+下拉框，无安装/切换', () => {

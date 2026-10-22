@@ -86,7 +86,6 @@ function maxWidth(a: number | null, b: number | null): number | null {
   return Math.max(a, b);
 }
 
-
 /** 版本下拉菜单几何（Portal + fixed 定位），与 SettingsSelect 同口径。 */
 interface MenuGeometry {
   /** 向下打开：菜单顶边相对视口（与 bottom 互斥） */
@@ -170,8 +169,8 @@ export function DshVersionManagement() {
     [versionCatalog],
   );
 
-  // 卸载二次确认的目标版本（null = 未武装）：当前选中版本、内置版本这两类
-  // 「删了就影响在用的助手或删掉应用自带副本」的版本，需要点两次才执行。
+  // 卸载二次确认的目标版本（null = 未武装）：只有「当前选中版本」需要点两次
+  //（内置预置版本也是普通版本，按同样规则处理，没有专属确认）。
   const [uninstallConfirmVersion, setUninstallConfirmVersion] = useState<string | null>(null);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [reinstalling, setReinstalling] = useState(false);
@@ -208,8 +207,8 @@ export function DshVersionManagement() {
   const prereleasePickerSizerRef = useRef<HTMLDivElement>(null);
 
   const currentSelected = versionStatus?.currentSelected ?? null;
-  // 内置包版本（随应用提供）：与 installed 并列构成「宿主可用版本」，
-  // 与已装副本可能同版本号，故徽章按来源分开标注。
+  // 内置预置版本号：它已经是 installed 里的一条普通版本，这里只是「当初由安装包
+  // 预置」的来源记录（bundledVersion ≠ null ⟹ 必然在 installed 里），仅用于徽章标注。
   const bundledVersion = versionStatus?.bundledVersion ?? null;
   const latestAvailable = versionStatus?.latestAvailable ?? null;
   const hasUpdate = versionStatus?.hasUpdate ?? false;
@@ -263,6 +262,7 @@ export function DshVersionManagement() {
   const committedRef = useRef({
     currentSelected,
     installed,
+    bundledVersion,
     versionSource,
     sourceStatus: dshSourceStatus,
   });
@@ -271,16 +271,18 @@ export function DshVersionManagement() {
       committedRef.current = {
         currentSelected,
         installed,
+        bundledVersion,
         versionSource,
         sourceStatus: dshSourceStatus,
       };
     }
-  }, [displayFrozen, currentSelected, installed, versionSource, dshSourceStatus]);
+  }, [displayFrozen, currentSelected, installed, bundledVersion, versionSource, dshSourceStatus]);
   const snap = displayFrozen
     ? committedRef.current
-    : { currentSelected, installed, versionSource, sourceStatus: dshSourceStatus };
+    : { currentSelected, installed, bundledVersion, versionSource, sourceStatus: dshSourceStatus };
   const snapCurrent = snap.currentSelected;
   const snapInstalled = snap.installed;
+  const snapBundled = snap.bundledVersion;
   /**
    * 后端真实切换在途版本（用户实测 2026-10-21：读数行在 restart 完成前显示
    * 旧值造成“延迟感”；同版本重装同样覆盖——版本号不变但同样在途）。
@@ -434,6 +436,12 @@ export function DshVersionManagement() {
   const updateMenuGeometry = useCallback(() => {
     const anchor = menuAnchorEl;
     if (!anchor) {
+      return;
+    }
+    // 触发器被卸载/重建（行按版本 key 重渲染）后 rect 全 0，菜单会贴到左上角：
+    // 直接收起，比画在一个不存在的位置更合理。
+    if (!anchor.isConnected) {
+      setShowVersionMenu(false);
       return;
     }
     const rect = anchor.getBoundingClientRect();
@@ -1091,9 +1099,8 @@ export function DshVersionManagement() {
   }, []);
 
   /**
-   * 行内卸载：当前选中版本需二次确认（danger 态武装，再点执行），其余版本直接执行。
-   * 内置预置版本也是普通版本，按同一规则处理。
-   * 确认态文案挂在「当前版本」行下方。
+   * 行内卸载：当前选中版本需二次确认（danger 态武装，再点执行），其余版本直接执行
+   *（内置预置版本也是普通版本，按同一规则处理）。确认态文案挂在「当前版本」行下方。
    */
   const handleUninstallRow = useCallback(
     async (version: string, section: 'stable' | 'prerelease') => {
@@ -1300,7 +1307,7 @@ export function DshVersionManagement() {
   const renderVersionRowAction = (v: string, section: 'stable' | 'prerelease', time: string) => {
     const isCurrent = isVersionInUse(v);
     const isInstalled = snapInstalled.includes(v);
-    const isBundled = v === bundledVersion;
+    const isBundled = v === snapBundled;
     const fixedWidth = section === 'prerelease' ? menuWidths.prerelease : menuWidths.stable;
     return (
       <>
@@ -1311,7 +1318,20 @@ export function DshVersionManagement() {
           onClick={(e) => handleOpenPicker(section, e.currentTarget, v)}
           disabled={displayFrozen}
           aria-expanded={showVersionMenu && menuSection === section}
+          aria-haspopup="listbox"
           aria-label={v}
+          title={[
+            v,
+            isCurrent
+              ? t.dshCurrentVersionBadge
+              : isBundled
+                ? t.dshBundledVersions
+                : isInstalled
+                  ? t.dshInstalledVersions
+                  : null,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
         >
           <span className="adl-dsh-settings__version-picker-label">
             <span className="adl-dsh-settings__version-picker-version">{v}</span>
@@ -1515,14 +1535,14 @@ export function DshVersionManagement() {
     const snapSelected = snap.currentSelected;
     // 内置判定：只认「当前版本号 == 安装包预置记录」，且这份版本确由宿主提供。
     // 系统安装同版本号不标内置（那份不是我们预置的）；外部复用的进程来源未知，也不标。
-    const hostBundled = bundledVersion !== null && snapSource?.hostVersion === bundledVersion;
+    const hostBundled = snapBundled !== null && snapSource?.hostVersion === snapBundled;
     // 运行中：只有「宿主拉起的那一份」可能来自预置版本；版本来源偏好为系统安装时
     // 跑的是用户自己的 dsh，即便版本号相同也不标内置。
     const runningBundled =
-      bundledVersion !== null &&
+      snapBundled !== null &&
       snapSource?.mode !== 'system' &&
       snapStatus?.running?.managed === true &&
-      snapStatus.running.version === bundledVersion;
+      snapStatus.running.version === snapBundled;
     if (snapSource) {
       switch (snapSource.effective) {
         case 'host':
@@ -1553,7 +1573,7 @@ export function DshVersionManagement() {
         text: snapSelected,
         sub: null as string | null,
         empty: false,
-        bundled: bundledVersion === snapSelected,
+        bundled: snapBundled === snapSelected,
       };
     }
     if (snapStatus?.running) {
@@ -1564,15 +1584,9 @@ export function DshVersionManagement() {
         ...systemReadout(snapStatus.system.path, snapStatus.system.version ?? null),
       };
     }
-    if (bundledVersion) {
-      // 来源状态尚未到达时的兜底：内置预置版本仍可如实展示版本号 + 内置徽章。
-      return {
-        text: bundledVersion,
-        sub: t.dshBundledSourceNote,
-        empty: false,
-        bundled: true,
-      };
-    }
+    // 走到这里说明既没有选中版本、也没有检测到运行中/系统安装：如实报「未安装」。
+    // （不能拿 `bundledVersion` 顶替——那只是“这一版当初由安装包预置”的来源记录，
+    // 不代表它正在被使用；选中缺失时 dsh 根本起不来。）
     return {
       text: t.dshCurrentVersionNone,
       sub: null as string | null,
@@ -1583,7 +1597,7 @@ export function DshVersionManagement() {
     snap.versionSource,
     snap.sourceStatus,
     snap.currentSelected,
-    bundledVersion,
+    snapBundled,
     t,
     runningReadout,
     systemReadout,
@@ -1834,6 +1848,8 @@ export function DshVersionManagement() {
             <div
               ref={versionMenuPanelRef}
               className="adl-dsh-settings__version-menu"
+              role="listbox"
+              aria-label={menuSection === 'prerelease' ? t.dshPrereleaseTitle : t.dshOfficialStable}
               style={{
                 top: menuGeometry.top,
                 bottom: menuGeometry.bottom,
@@ -1854,22 +1870,21 @@ export function DshVersionManagement() {
               >
                 {menuVersions.map((info) => {
                   const v = info.version;
-                  const isInstalled = installed.includes(v);
-                  const isBundled = v === bundledVersion;
+                  const isInstalled = snapInstalled.includes(v);
+                  const isBundled = v === snapBundled;
                   const isPicked = v === menuEffective;
                   const isCurrent = isVersionInUse(v);
                   const time = formatPublishedAt(info.publishedAt);
                   return (
                     <div
                       key={v}
-                      className={`adl-dsh-settings__version-menu-item${
-                        isPicked ? ' adl-dsh-settings__version-menu-item--current' : ''
-                      }`}
+                      className="adl-dsh-settings__version-menu-item"
+                      role="option"
+                      aria-selected={isPicked}
                     >
                       <button
                         type="button"
                         className="adl-dsh-settings__version-menu-item-revert"
-                        aria-current={isPicked ? 'true' : undefined}
                         onClick={() => handlePickVersion(menuSection, v, isInstalled)}
                         disabled={displayFrozen}
                       >

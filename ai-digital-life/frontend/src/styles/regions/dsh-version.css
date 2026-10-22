@@ -344,10 +344,11 @@
   white-space: nowrap;
 }
 
-/* 当前版本徽章与「当前版本」行：文字色统一取块级 token `--dsh-note-fg`
-   （定义见文件头 .adl-dsh-settings），与提示小字完全同色。 */
-.adl-dsh-settings__version-menu-item-current,
-.adl-dsh-settings__version-list-item--current {
+/* 「当前版本」徽章文字色取块级 token `--dsh-note-fg`（定义见文件头），与提示小字同色。
+   注：曾把行容器 `.adl-dsh-settings__version-list-item--current` 也放进本组，但该行
+   所有子元素（picker/时间/按钮/徽章）都自带颜色，`color` 无继承落点、实为零效果规则，
+   故移除（R1 rev2 L3）。 */
+.adl-dsh-settings__version-menu-item-current {
   color: var(--dsh-note-fg);
 }
 
@@ -375,13 +376,6 @@
   align-items: center;
   gap: var(--space-2);
   min-width: 0;
-}
-
-.adl-dsh-settings__version-list-item-version {
-  font-family: var(--font-mono);
-  font-weight: var(--font-semibold);
-  font-size: var(--text-sm);
-  white-space: nowrap;
 }
 
 .adl-dsh-settings__version-list-item-time {

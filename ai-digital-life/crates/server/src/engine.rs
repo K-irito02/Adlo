@@ -306,8 +306,10 @@ pub fn start_background_services(state: &ServerState) {
 pub async fn serve(state: ServerState, port: u16) -> u16 {
     start_background_services(&state);
 
-    // 内置包收编：把安装器投放的内置包变成一条普通宿主版本（一次性，收编后
-    // 该目录即删除）。必须早于预拉起，否则预拉起会看不到这份预置版本。
+    // 内置包收编：把安装器投放的内置包变成一条普通宿主版本（一次性，收编后该目录即删除）。
+    // 必须在端口监听之前同步完成——否则 /dsh/open、/dsh/source-status 可能在收编进行中
+    // 先看到「无可用来源」，而结果又被 `dsh_source_cache` 缓存住，直到重启才恢复。
+    // 常规情形只是一次同卷 rename（O(1)）；只有跨卷时才退化为复制，属首次启动的一次性开销。
     crate::handlers::dsh::adopt_bundled_version(&state).await;
 
     // Pre-start dsh in background — by the time the splash screen ends (~3.5-8s),

@@ -31,7 +31,7 @@ fn registry_base(data_dir: &Path) -> Result<String, AppError> {
 /// + `bundled.txt`），绝不写入/改动 dsh 自身的会话/配置/插件目录。
 ///
 /// 内置版本没有独立概念：安装包投放的内置包在服务启动时被收编成 `installed/<version>/`
-/// 下的一条普通版本（见 `adl_dsh_bundle::adopt`），`bundled.txt` 只记录「它当初是
+/// 下的一条普通版本（收编逻辑在 `adl-dsh-bundle` crate），`bundled.txt` 只记录「它当初是
 /// 内置预置的」这一来源事实，其余行为与其它已装版本完全一致。
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -495,7 +495,11 @@ pub async fn uninstall_with_task(
 ) -> Result<(), AppError> {
     tracing::debug!(%version, "dsh-version::uninstall: delegating to kernel");
     install::uninstall(root, version, task).await?;
-    clear_bundled_version_if(root, version)
+    // 版本已删成功：来源记录清不掉不该让卸载报错（否则 UI 显示失败但磁盘已改）。
+    if let Err(e) = clear_bundled_version_if(root, version) {
+        tracing::warn!(%version, error = %e, "dsh-version::uninstall: clear bundled marker failed");
+    }
+    Ok(())
 }
 
 /// 重装：真重新安装当前选中版本，保持选中状态。
@@ -541,9 +545,8 @@ pub enum DshSource {
 
 /// 解析后的实际来源（供 UI 展示与来源选择）。
 ///
-/// 内置版本不单列：它由安装包预置成一条普通宿主版本（见 [`adopt`] 的收编契约），
-/// 归属与其它已装版本完全相同，「是否内置」只由 [`read_bundled_version`] 的
-/// 来源记录决定，与启动链路无关。
+/// 内置版本不单列：它由安装包预置并收编成一条普通宿主版本，归属与其它已装版本
+/// 完全相同，「是否内置」只由 [`read_bundled_version`] 的来源记录决定，与启动链路无关。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum EffectiveSource {
@@ -771,16 +774,15 @@ pub async fn detect_running_dsh(port: u16) -> Option<RunningDshInfo> {
 /// 顺序：运行中（恒优先）→ 宿主（选中且完整安装）→ 系统 → 无。
 /// 内置版本已是普通宿主版本，故此处没有任何内置特例分支。
 pub fn select_dsh_source(
-    data_dir: &Path,
+    root: &Path,
     mode: adl_download_source::VersionSourceMode,
     running: Option<RunningDshInfo>,
     system: Option<SystemDshInfo>,
 ) -> DshSource {
-    let root = data_dir.join("dsh-versions");
-    let host_version = read_selected(&root)
+    let host_version = read_selected(root)
         .ok()
         .flatten()
-        .filter(|version| is_host_version_installed(&root, version));
+        .filter(|version| is_host_version_installed(root, version));
     let effective =
         resolve_effective_source(mode, running.is_some(), host_version.is_some(), system.is_some());
     match effective {
@@ -790,7 +792,7 @@ pub fn select_dsh_source(
         },
         EffectiveSource::Host => {
             let version = host_version.expect("host source requires installed version");
-            let bin = host_bin(&root, &version);
+            let bin = host_bin(root, &version);
             DshSource::HostInstalled { version, bin }
         },
         EffectiveSource::System => {
@@ -1165,7 +1167,7 @@ mod tests {
         assert_eq!(resolve_effective_source(Auto, false, false, false), EffectiveSource::None);
         assert_eq!(resolve_effective_source(System, false, true, true), EffectiveSource::System);
         assert_eq!(resolve_effective_source(System, false, true, false), EffectiveSource::None);
-        // 宿主可用版本含内置包，故 mode=host 只要宿主有货（含内置）即命中 Host。
+        // mode=host 只要宿主有选中且完整安装的版本即命中 Host（预置版本收编后就在其中，无特例）。
         assert_eq!(resolve_effective_source(Host, false, true, true), EffectiveSource::Host);
         assert_eq!(resolve_effective_source(Host, false, false, true), EffectiveSource::None);
     }

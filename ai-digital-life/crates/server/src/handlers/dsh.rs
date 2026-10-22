@@ -345,7 +345,9 @@ async fn detect_source(
 ) -> adl_dsh_version::DshSource {
     let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
     let system = adl_dsh_version::detect_system_dsh().await;
-    adl_dsh_version::select_dsh_source(&paths.root, mode, running, system)
+    // 版本目录取 StoragePaths 的正式口径（`dsh-versions` 可被存储设置覆盖），
+    // 不能再用 data_dir 硬拼，否则收编/安装的版本在覆盖场景下对启动不可见。
+    adl_dsh_version::select_dsh_source(&paths.dsh_versions_dir, mode, running, system)
 }
 
 const DSH_LOOPBACK_PATCH: &str =
@@ -561,16 +563,19 @@ async fn run_open(
 /// **普通宿主版本**，并记录来源（`bundled.txt`）；内置包目录随后删除，磁盘上只留
 /// 一份。收编之后启动、切换、重装、卸载全走普通版本链路，没有任何内置特例。
 pub async fn adopt_bundled_version(state: &ServerState) {
-    let data_dir = state.storage.paths().root.clone();
+    // 两侧目录都取 StoragePaths 的正式口径（均可被存储设置覆盖）。
+    let paths = state.storage.paths();
+    let bundle_dir = paths.dsh_bundle_dir.clone();
     let root = dsh_root(state);
     let adopt_root = root.clone();
+    // 收编含目录移动/复制（跨卷时可能是几百 MB），必须放 blocking 池，别堵运行时。
     let adopted =
-        tokio::task::spawn_blocking(move || adl_dsh_bundle::adopt(&data_dir, &adopt_root)).await;
+        tokio::task::spawn_blocking(move || adl_dsh_bundle::adopt(&bundle_dir, &adopt_root)).await;
     let version = match adopted {
         Ok(Ok(Some(version))) => version,
         Ok(Ok(None)) => return,
         Ok(Err(e)) => {
-            tracing::warn!(error = %e, "dsh::adopt_bundle: failed, bundled package left untouched");
+            tracing::warn!(error = %e, "dsh::adopt_bundle: failed, bundled package left for later retry");
             return;
         },
         Err(e) => {

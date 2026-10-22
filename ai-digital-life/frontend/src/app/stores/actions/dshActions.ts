@@ -315,7 +315,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     },
 
     /**
-     * [revertDsh - 回退到指定可用版本（已装副本或内置包），并刷新版本状态]
+     * [revertDsh - 回退到指定的已装版本，并刷新版本状态]
      * @returns true=成功；false=失败（已记录全局错误卡片）
      * @reads 无
      * @writes dshSlice.versionStatus
@@ -349,8 +349,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
 
     /**
      * [uninstallDsh - 卸载 dsh 指定版本，并刷新版本状态]
-     * 仅由内置包提供的版本会删除内置包（内置版本允许用户卸载）；同版本双副本时
-     * 后端先删真实安装副本，内置包留待再次卸载。
+     * 内置预置版本同样是普通已装版本：删除版本目录即可，后端同时清掉「内置」来源记录。
      * @returns true=成功；false=失败（已记录全局错误卡片）
      * @reads 无
      * @writes dshSlice.versionStatus

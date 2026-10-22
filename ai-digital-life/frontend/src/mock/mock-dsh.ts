@@ -7,14 +7,15 @@ import type {
 
 const MOCK_VERSION = "0.1.0-rc.8";
 const MOCK_VERSION_PREV = "0.1.0-rc.7";
-/** 内置包版本：演示「已内置」徽章与免重装（刻意与已装版本不同，便于对照）。 */
+/** 内置预置版本（演示「已内置」徽章；刻意与当前选中版本不同，便于对照）。 */
 const MOCK_BUNDLED_VERSION = "0.2.0";
 
 const status: DshVersionStatus = {
   currentSelected: MOCK_VERSION,
-  installed: [MOCK_VERSION, MOCK_VERSION_PREV],
+  // 预置版本收编后就是一条普通已装版本，因此必须出现在 installed 里。
+  installed: [MOCK_VERSION, MOCK_VERSION_PREV, MOCK_BUNDLED_VERSION],
   bundledVersion: MOCK_BUNDLED_VERSION,
-  latestAvailable: "0.2.0",
+  latestAvailable: "0.2.1-rc.2",
   hasUpdate: true,
   prereleaseAvailable: "0.2.1-rc.2",
   hasPrereleaseUpdate: true,
@@ -92,6 +93,10 @@ export const mockDsh: DshBridge = {
     if (!status.installed.includes(version)) {
       status.installed = [version, ...status.installed];
     }
+    // 覆盖该版本内容 → 不再算内置（与后端 install 里清 bundled.txt 一致）。
+    if (status.bundledVersion === version) {
+      status.bundledVersion = null;
+    }
     if (select) {
       status.currentSelected = version;
     }
@@ -123,8 +128,8 @@ export const mockDsh: DshBridge = {
     return { ok: true, data: true };
   },
   reinstall: async () => {
-    // 重装会覆盖该版本内容 → 不再算内置（与后端 marker 清除一致）。
-    if (status.bundledVersion && status.bundledVersion === status.currentSelected) {
+    // 重装会覆盖“当前选中版本”的内容 → 若它正是预置版本，则不再算内置（与后端一致）。
+    if (status.bundledVersion === status.currentSelected) {
       status.bundledVersion = null;
     }
     return { ok: true, data: status.currentSelected ?? MOCK_VERSION };
