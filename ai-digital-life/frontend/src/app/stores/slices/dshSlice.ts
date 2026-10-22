@@ -56,8 +56,8 @@ export interface DshSlice {
   setDshSourceStatus: (status: DshSourceStatus | null) => void;
   /** 首屏原子快照：三份数据同一次提交，避免分段渲染导致块内跳动。 */
   setDshSettingsSnapshot: (snapshot: DshSettingsSnapshot) => void;
-  /** 轻量轮询：只更新 sourceStatus.running（sourceStatus 未就绪时为空操作）。 */
-  setDshRunning: (running: DshRunningInfo | null) => void;
+  /** 轻量轮询：更新 running 与「拉起中」标志（sourceStatus 未就绪时为空操作）。 */
+  setDshRunning: (running: DshRunningInfo | null, starting: boolean) => void;
   setDshVersionTask: (task: DshVersionTask | null) => void;
   setVersionTaskCancelRequested: (requested: boolean) => void;
   setDshVersionSourceDeferred: (deferred: boolean) => void;
@@ -101,7 +101,7 @@ export const createDshSlice = (
       versionCatalog: snapshot.catalog ?? state.versionCatalog,
       versionCatalogFailed: snapshot.catalog === null,
     })),
-  setDshRunning: (running) =>
+  setDshRunning: (running, starting) =>
     set((state) => {
       if (!state.sourceStatus) {
         return {};
@@ -114,6 +114,7 @@ export const createDshSlice = (
         sourceStatus: {
           ...state.sourceStatus,
           running,
+          starting,
           versionSource: { ...versionSource, effective },
         },
       };

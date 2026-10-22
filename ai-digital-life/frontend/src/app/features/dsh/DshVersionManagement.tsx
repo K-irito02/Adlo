@@ -1247,22 +1247,25 @@ export function DshVersionManagement() {
     void actions.fetchDshSettingsSnapshot();
   }, [actions]);
 
+  // 拉起中/重启长尾：用更密的轻量轮询尽快结束骨架态；其余时间 5s 一次。
+  const dshFastPoll = useAppStore((s) => s.dshRestarting || s.sourceStatus?.starting === true);
+
   useEffect(() => {
     // 轻量运行状态轮询（外部进程无法发事件，只能低频兜底）：
-    // 面板可见时每 5s 只探端口 + 宿主托管，不跑 where/版本探测；页面隐藏时暂停。
+    // 只探端口 + 宿主托管/拉起标志，不跑 where/版本探测；页面隐藏时暂停。
     const tick = () => {
       if (document.hidden) {
         return;
       }
       void actions.fetchDshRunning(true);
     };
-    const id = window.setInterval(tick, 5000);
+    const id = window.setInterval(tick, dshFastPoll ? 1000 : 5000);
     document.addEventListener('visibilitychange', tick);
     return () => {
       window.clearInterval(id);
       document.removeEventListener('visibilitychange', tick);
     };
-  }, [actions]);
+  }, [actions, dshFastPoll]);
 
   useEffect(() => {
     void actions.fetchVersionTask();
@@ -1674,6 +1677,9 @@ export function DshVersionManagement() {
     runningReadout,
     systemReadout,
   ]);
+  // 读数骨架态：首次快照未到、版本操作在途、拉起中/重启长尾时，整块右侧（版本号 +
+  // 来源副行 + 最新版本行）统一显示现有骨架胶囊波浪动画，不展示中途值。
+  const readoutLoading = applyingVersion !== null || dshFastPoll || snap.versionSource === null;
   // 主行版本号确为宿主当前选中才挂更新徽章（事项 1：system/外部 running 版本与宿主
   // 选中不一致时挂徽章会误导，故收紧；busy 期间沿用冻结快照，与读数同翻转）。
   const showVersionBadges =
@@ -1694,6 +1700,8 @@ export function DshVersionManagement() {
       readoutSub: readout.sub,
       readoutEmpty: readout.empty,
       readoutBundled: readout.bundled,
+      readoutLoading,
+      sourceStarting: dshSourceStatus?.starting === true,
       // 凭据红线：running.url 恒为裸基址（detect 探测）或 token 入口（宿主拉起），
       // 埋点一律剥离 query 后再记（R1-INFO，后续与 restartDsh 同口径）。
       running: dshSourceStatus?.running?.url?.split('?')[0] ?? null,
@@ -1703,7 +1711,7 @@ export function DshVersionManagement() {
       system: dshSourceStatus?.system?.path ?? null,
       systemVersion: dshSourceStatus?.system?.version ?? null,
     });
-  }, [versionSource, currentSelected, bundledVersion, readout, dshSourceStatus]);
+  }, [versionSource, currentSelected, bundledVersion, readout, readoutLoading, dshSourceStatus]);
 
   return (
     <div className="adl-settings-card">
@@ -1757,11 +1765,11 @@ export function DshVersionManagement() {
         </div>
         <div className="adl-settings-row__control">
           <div className="adl-dsh-settings__version-readout">
-            {applyingVersion ? (
+            {readoutLoading ? (
               <span
                 className="adl-dsh-settings__version-loading"
                 role="status"
-                aria-label={applyingVersion}
+                aria-label={applyingVersion ?? t.dshVersionStateReading}
               />
             ) : readout.empty ? (
               <span className="adl-dsh-settings__version-value is-empty">{readout.text}</span>
@@ -1784,7 +1792,7 @@ export function DshVersionManagement() {
                 ) : null}
               </span>
             )}
-            {readout.sub ? (
+            {!readoutLoading && readout.sub ? (
               // 完整运行地址（已剥离一次性 token query）只在悬停提示里展示。
               <small
                 className="adl-dsh-settings__version-latest"

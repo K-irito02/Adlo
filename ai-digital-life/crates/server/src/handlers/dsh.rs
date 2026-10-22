@@ -114,6 +114,7 @@ fn try_begin_version_task(
 async fn restore_after_cancel(state: &ServerState) {
     if let Err(e) = run_open(
         state.dsh_state.clone(),
+        state.dsh_starting.clone(),
         state.dsh_start_lock.clone(),
         state.dsh_version_lock.clone(),
         state.storage.paths(),
@@ -139,6 +140,7 @@ struct VersionInput {
 pub async fn open(State(state): State<ServerState>) -> impl IntoResponse {
     let result = run_open(
         state.dsh_state.clone(),
+        state.dsh_starting.clone(),
         state.dsh_start_lock.clone(),
         state.dsh_version_lock.clone(),
         state.storage.paths(),
@@ -380,8 +382,25 @@ fn dsh_web_args(patch: &Path) -> Vec<String> {
     ]
 }
 
+/// 拉起进行中标志的 RAII 守卫：spawn 成功写入 `dsh_state` 或任何失败路径离开时自动复位。
+struct StartingGuard(Arc<std::sync::atomic::AtomicBool>);
+
+impl StartingGuard {
+    fn arm(flag: &Arc<std::sync::atomic::AtomicBool>) -> Self {
+        flag.store(true, std::sync::atomic::Ordering::Relaxed);
+        Self(flag.clone())
+    }
+}
+
+impl Drop for StartingGuard {
+    fn drop(&mut self) {
+        self.0.store(false, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
 async fn run_open(
     dsh_guard: Arc<AsyncMutex<Option<ManagedDsh>>>,
+    dsh_starting: Arc<std::sync::atomic::AtomicBool>,
     start_lock: Arc<AsyncMutex<()>>,
     version_lock: Arc<AsyncMutex<()>>,
     paths: &adl_kernel::storage::StoragePaths,
@@ -494,6 +513,14 @@ async fn run_open(
         }
     };
 
+    // 真正要 spawn 时标记「拉起中」：覆盖 free_stale + spawn + 写入 dsh_state 的窗口。
+    // 前端读数在此期间显示骨架胶囊，避免「未知/旧值 → 真实版本」的可见跳变。
+    let _starting = match &source {
+        adl_dsh_version::DshSource::HostInstalled { .. }
+        | adl_dsh_version::DshSource::System { .. } => Some(StartingGuard::arm(&dsh_starting)),
+        _ => None,
+    };
+
     // 固定 dsh 默认端口：若被残留 dsh 占用则先释放（用户选择"仅杀 dsh 残留进程"）。
     // 仅在需要启动新进程时才执行 free_stale（ReuseRunning 跳过）
     let freed_start = std::time::Instant::now();
@@ -600,6 +627,7 @@ pub async fn pre_start_dsh(state: &ServerState) {
     let start = std::time::Instant::now();
     match run_open(
         state.dsh_state.clone(),
+        state.dsh_starting.clone(),
         state.dsh_start_lock.clone(),
         state.dsh_version_lock.clone(),
         state.storage.paths(),
@@ -785,6 +813,7 @@ async fn run_restart(state: &ServerState) -> Result<serde_json::Value, AppError>
     clear_source_cache(state);
     let opened = run_open(
         state.dsh_state.clone(),
+        state.dsh_starting.clone(),
         state.dsh_start_lock.clone(),
         state.dsh_version_lock.clone(),
         state.storage.paths(),
@@ -933,6 +962,8 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     Ok(serde_json::json!({
         "system": system,
         "running": running,
+        // 拉起中：前端读数据此显示骨架胶囊，避免半途值跳变。
+        "starting": state.dsh_starting.load(std::sync::atomic::Ordering::Relaxed),
         "versionSource": version_source,
         "config": config_value,
     }))
@@ -982,7 +1013,10 @@ pub async fn get_running(State(state): State<ServerState>) -> impl IntoResponse 
     let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT)
         .await
         .map(|info| running_payload(info, managed));
-    ipc::to_response(Ok::<serde_json::Value, AppError>(serde_json::json!({ "running": running })))
+    let starting = state.dsh_starting.load(std::sync::atomic::Ordering::Relaxed);
+    ipc::to_response(Ok::<serde_json::Value, AppError>(
+        serde_json::json!({ "running": running, "starting": starting }),
+    ))
 }
 
 /// 官方版本目录缓存有效期：设置面板反复进入/轮询不重复打 registry。

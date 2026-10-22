@@ -182,6 +182,7 @@ pub async fn init_server_state(
         Arc::new(adl_clipboard::ClipboardStore::new(db.clone(), &storage.paths().clipboard_dir));
     let sysmon = Arc::new(StdMutex::new(adl_sysmon::SystemMonitor::new()));
     let dsh_state = Arc::new(AsyncMutex::new(None));
+    let dsh_starting = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let dsh_start_lock = Arc::new(AsyncMutex::new(()));
     let dsh_version_lock = Arc::new(AsyncMutex::new(()));
     let dsh_version_task = adl_dsh_version::TaskReporter::new();
@@ -205,6 +206,7 @@ pub async fn init_server_state(
         clipboard_store,
         sysmon,
         dsh_state,
+        dsh_starting,
         dsh_start_lock,
         dsh_version_lock,
         dsh_version_task,

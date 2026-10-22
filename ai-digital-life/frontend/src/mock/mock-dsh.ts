@@ -35,6 +35,7 @@ const MOCK_CATALOG: DshVersionCatalog = {
 const sourceStatus: DshSourceStatus = {
   system: { path: "/usr/local/bin/dsh", version: MOCK_VERSION_PREV },
   running: null,
+  starting: false,
   versionSource: {
     mode: "auto",
     effective: "host",
@@ -157,7 +158,10 @@ export const mockDsh: DshBridge = {
     ok: true,
     data: cloneSourceStatus(),
   }),
-  getRunning: async () => ({ ok: true, data: { running: sourceStatus.running } }),
+  getRunning: async () => ({
+    ok: true,
+    data: { running: sourceStatus.running, starting: sourceStatus.starting ?? false },
+  }),
   getSettingsSnapshot: async () => ({
     ok: true,
     data: {

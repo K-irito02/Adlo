@@ -26,6 +26,11 @@ export interface DshSourceStatus {
   system: { path: string; version: string | null } | null;
   running: DshRunningInfo | null;
   /**
+   * 宿主正在拉起 dsh（spawn 进行中）。前端读数据此显示骨架胶囊，避免
+   * 「未知/旧值 → 真实版本」的可见跳变；缺省按 false 处理。
+   */
+  starting?: boolean;
+  /**
    * 版本来源偏好与实际生效来源。
    * - `effective`：运行时实际来源（可能为 `running`），用于当前版本读数与运行状态。
    * - `resolvedByMode`：三种模式在忽略 running 下的偏好解析结果，用于管理项显隐、
@@ -71,6 +76,8 @@ export interface DshRestartResult {
 /** `/dsh/running` 结果：轻量运行状态（不触发 where/版本探测）。 */
 export interface DshRunningResult {
   running: DshRunningInfo | null;
+  /** 宿主是否正在拉起 dsh（spawn 进行中）。 */
+  starting: boolean;
 }
 
 /**

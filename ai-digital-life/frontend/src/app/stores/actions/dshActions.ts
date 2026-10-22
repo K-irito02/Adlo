@@ -193,6 +193,8 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         syncDshTab(get, result.data.url);
       }
       get().setDshRestarting(false);
+      // 重启结束立刻轻量刷新运行状态/拉起标志：避免读数在轮询间隔内停留在旧值。
+      void get().fetchDshRunning(true);
       return { ...result.data, failed: false };
     },
 
@@ -580,7 +582,7 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
         }
         return false;
       }
-      get().setDshRunning(result.data.running);
+      get().setDshRunning(result.data.running, result.data.starting);
       return true;
     },
 

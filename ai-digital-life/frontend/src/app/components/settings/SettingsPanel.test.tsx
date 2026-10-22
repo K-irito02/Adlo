@@ -995,7 +995,9 @@ describe('SettingsPanel group reset', () => {
             catalog: null,
           },
         }),
-        getRunning: vi.fn().mockResolvedValue({ ok: true, data: { running: null } }),
+        getRunning: vi
+          .fn()
+          .mockResolvedValue({ ok: true, data: { running: null, starting: false } }),
         saveSourceConfig: vi.fn().mockResolvedValue({ ok: true, data: true }),
         testSource: vi.fn().mockResolvedValue({
           ok: true,

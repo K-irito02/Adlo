@@ -9,7 +9,7 @@ use adl_types::WorkspaceMeta;
 use adl_webapp_host::HostedProcess;
 use std::collections::HashSet;
 use std::path::PathBuf;
-use std::sync::atomic::AtomicU16;
+use std::sync::atomic::{AtomicBool, AtomicU16};
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 
@@ -66,6 +66,9 @@ pub struct ServerState {
     /// 本用；外部复用进程无 Child 可持有，不写入此锁，`source-status` 据此区分
     /// “宿主拉起（版本已知）”与“外部运行（版本未知）”）。
     pub dsh_state: Arc<AsyncMutex<Option<ManagedDsh>>>,
+    /// 本次是否正在拉起 dsh（spawn 进行中）：前端据此在读数位置显示骨架胶囊，
+    /// 避免「未知/旧值 → 真实版本」的可见跳变。spawn 结束或失败即复位。
+    pub dsh_starting: Arc<AtomicBool>,
     /// 串行化 dsh 启动（free_stale + spawn）的独立锁：与 `dsh_state` 分离，
     /// 使 close/revert/uninstall 在启动期间不被阻塞，同时避免两个并发
     /// `/dsh/open` 各自 spawn、或第二个的 free-stale 误杀第一个刚起的进程。

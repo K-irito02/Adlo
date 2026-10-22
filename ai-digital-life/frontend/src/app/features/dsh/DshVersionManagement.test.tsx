@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
-import { render, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { render, cleanup, fireEvent, screen, waitFor, within, act } from '@testing-library/react';
 import type { CopyDict } from '../../i18n';
 import type { DshSourceStatus } from '../../../shared/ipc/dsh';
 import { TCopyProvider } from '../../i18n/TCopyContext';
@@ -208,6 +208,7 @@ beforeEach(() => {
     versionTask: null,
     versionTaskCancelRequested: false,
     dshVersionSourceDeferred: false,
+    dshRestarting: false,
   });
   fetchDshVersionStatus.mockResolvedValue(true);
   fetchSourceStatus.mockResolvedValue(true);
@@ -254,17 +255,42 @@ describe('DshVersionManagement', () => {
   it('轻量轮询：running 出现 → effective=running；消失 → 回退偏好解析（P2）', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     const store = useAppStore.getState();
-    store.setDshRunning({
-      url: 'http://127.0.0.1:3080/',
-      port: 3080,
-      managed: false,
-      source: 'external',
-      version: null,
-    });
+    store.setDshRunning(
+      {
+        url: 'http://127.0.0.1:3080/',
+        port: 3080,
+        managed: false,
+        source: 'external',
+        version: null,
+      },
+      false,
+    );
     expect(useAppStore.getState().sourceStatus?.versionSource.effective).toBe('running');
-    store.setDshRunning(null);
+    store.setDshRunning(null, false);
     // 回退值来自后端 resolvedByMode，而不是前端复制的优先级。
     expect(useAppStore.getState().sourceStatus?.versionSource.effective).toBe('host');
+  });
+
+  it('首屏快照未到时显示骨架胶囊（不暴露中途值）', () => {
+    const { container } = renderBlock();
+    expect(container.querySelector('.adl-dsh-settings__version-loading')).not.toBeNull();
+    expect(screen.queryByText('dshVersionStateReading')).toBeNull();
+  });
+
+  it('拉起中显示骨架胶囊，结束后显示真实版本（P2 抗跳变）', async () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    const current = useAppStore.getState().sourceStatus;
+    if (!current) {
+      throw new Error('seed should provide sourceStatus');
+    }
+    useAppStore.setState({ sourceStatus: { ...current, starting: true } });
+    const { container } = renderBlock();
+    expect(container.querySelector('.adl-dsh-settings__version-loading')).not.toBeNull();
+    expect(screen.queryByText('1.0.0')).toBeNull();
+    act(() => {
+      useAppStore.getState().setDshRunning(null, false);
+    });
+    await waitFor(() => expect(screen.getByText('1.0.0')).toBeTruthy());
   });
 
   it('渲染当前版本 + 已是最新徽标 + 最新可用版本', () => {
