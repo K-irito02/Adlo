@@ -881,9 +881,7 @@ mod tests {
             std::fs::write(lib.join("bin.js"), "").expect("write bin");
         }
         std::fs::write(selected_file(&root), "2.0.0\n").expect("write selected");
-        uninstall_with_task(&root, "2.0.0", &TaskReporter::new())
-            .await
-            .expect("uninstall ok");
+        uninstall_with_task(&root, "2.0.0", &TaskReporter::new()).await.expect("uninstall ok");
         assert_eq!(read_selected(&root).expect("read").as_deref(), Some("1.0.0"));
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -893,9 +891,7 @@ mod tests {
         let root = fresh_root("uninstall_current");
         std::fs::create_dir_all(installed_dir(&root).join("1.0.0")).expect("mkdir");
         std::fs::write(selected_file(&root), "1.0.0\n").expect("write selected");
-        uninstall_with_task(&root, "1.0.0", &TaskReporter::new())
-            .await
-            .expect("uninstall ok");
+        uninstall_with_task(&root, "1.0.0", &TaskReporter::new()).await.expect("uninstall ok");
         assert_eq!(read_selected(&root).expect("read"), None);
         let _ = std::fs::remove_dir_all(&root);
     }

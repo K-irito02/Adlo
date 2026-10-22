@@ -38,6 +38,11 @@ const sourceStatus: DshSourceStatus = {
   versionSource: {
     mode: "auto",
     effective: "host",
+    resolvedByMode: {
+      auto: "host",
+      host: "host",
+      system: "system",
+    },
     hostVersion: MOCK_VERSION,
   },
   config: {
@@ -57,15 +62,16 @@ const sourceStatus: DshSourceStatus = {
 function syncEffective(): void {
   const mode = sourceStatus.config.version_source;
   const hasHost = status.currentSelected !== null && status.installed.includes(status.currentSelected);
-  // auto 且宿主/系统皆无（mock 默认恒有 system，此分支常闭；保留语义完整，
-  // 与真实后端 resolve_effective_source 的 none 落点对齐）。
-  const effective =
-    mode === "host"
+  // 偏好解析（忽略 running，mock 不模拟运行中进程）：与后端 resolve_effective_source 对齐。
+  const resolveMode = (target: typeof mode) =>
+    target === "host"
       ? hasHost
         ? "host"
         : "none"
-      : mode === "system"
-        ? "system"
+      : target === "system"
+        ? sourceStatus.system
+          ? "system"
+          : "none"
         : hasHost
           ? "host"
           : sourceStatus.system
@@ -73,7 +79,12 @@ function syncEffective(): void {
             : "none";
   sourceStatus.versionSource = {
     mode,
-    effective,
+    effective: resolveMode(mode),
+    resolvedByMode: {
+      auto: resolveMode("auto"),
+      host: resolveMode("host"),
+      system: resolveMode("system"),
+    },
     hostVersion: hasHost ? status.currentSelected : null,
   };
   sourceStatus.system = { path: "/usr/local/bin/dsh", version: MOCK_VERSION_PREV };

@@ -36,6 +36,11 @@
   white-space: pre-line;
 }
 
+/* 换到空来源时的后果提示（对话框为 Portal，无法取块内 --dsh-note-fg）。 */
+.adl-dsh-source-dialog__message--warn {
+  color: var(--warning);
+}
+
 .adl-dsh-settings .adl-settings-dropdown {
   width: 160px;
   min-width: 160px;

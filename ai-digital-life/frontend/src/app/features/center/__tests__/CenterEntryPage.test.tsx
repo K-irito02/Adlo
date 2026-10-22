@@ -182,7 +182,12 @@ describe('CenterEntryPage', () => {
     };
     useAppStore.setState({
       sourceStatus: {
-        versionSource: { mode: 'host', effective: 'none', hostVersion: null },
+        versionSource: {
+          mode: 'host',
+          effective: 'none',
+          resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+          hostVersion: null,
+        },
       } as unknown as DshSourceStatus,
     });
     // spyOn（afterEach restoreAllMocks 复位）而非 setState 覆写，避免污染后续用例。

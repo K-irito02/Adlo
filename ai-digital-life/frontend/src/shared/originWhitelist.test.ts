@@ -37,9 +37,9 @@ describe('normalizeAgentSiteEntries', () => {
   });
 
   it('accepts legacy bare-string entries as alias-less origins', () => {
-    expect(
-      normalizeAgentSiteEntries(['http://127.0.0.1:3080/chat/1', 'not-a-url']),
-    ).toEqual([{ origin: 'http://127.0.0.1:3080' }]);
+    expect(normalizeAgentSiteEntries(['http://127.0.0.1:3080/chat/1', 'not-a-url'])).toEqual([
+      { origin: 'http://127.0.0.1:3080' },
+    ]);
   });
 });
 

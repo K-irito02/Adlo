@@ -320,7 +320,9 @@ describe('preferencePatchFromSettingChange', () => {
       ],
     });
     // 非数组脏值直接拒绝（undefined），禁止落盘空数组清空用户白名单。
-    expect(preferencePatchFromSettingChange('openMethod:agentSiteWhitelist', 'nope')).toBeUndefined();
+    expect(
+      preferencePatchFromSettingChange('openMethod:agentSiteWhitelist', 'nope'),
+    ).toBeUndefined();
     // 空数组是合法清空意图，仍返回空 patch。
     expect(preferencePatchFromSettingChange('openMethod:agentSiteWhitelist', [])).toEqual({
       agentSiteWhitelist: [],

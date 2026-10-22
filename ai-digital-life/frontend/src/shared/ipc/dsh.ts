@@ -14,10 +14,17 @@ export interface DshSourceStatus {
    * `managed=false` + `version=null`，UI 按未知展示、不猜版本。
    */
   running: { url: string; port: number; managed: boolean; version: string | null } | null;
-  /** 版本来源偏好与实际生效来源（后端解析，UI 据此显隐管理项）。 */
+  /**
+   * 版本来源偏好与实际生效来源。
+   * - `effective`：运行时实际来源（可能为 `running`），用于当前版本读数与运行状态。
+   * - `resolvedByMode`：三种模式在忽略 running 下的偏好解析结果，用于管理项显隐、
+   *   切源确认与无可用来源提示。running 可能是应用自启或用户外部手动拉起，
+   *   不应遮蔽来源偏好。
+   */
   versionSource: {
     mode: DshVersionSourceMode;
     effective: DshEffectiveSource;
+    resolvedByMode: Record<DshVersionSourceMode, DshResolvedSource>;
     /** 宿主当前选中且完整安装的版本号（无可用宿主版本为 null）。 */
     hostVersion: string | null;
   };
@@ -41,6 +48,8 @@ export interface DshSourceStatus {
 export type DshVersionSourceMode = 'auto' | 'system' | 'host';
 /** 实际生效来源。内置版本已收编为普通宿主版本，不存在独立来源。 */
 export type DshEffectiveSource = 'running' | 'host' | 'system' | 'none';
+/** 忽略 running 后的偏好解析来源（管理项显隐 / 切源判定的唯一依据）。 */
+export type DshResolvedSource = 'host' | 'system' | 'none';
 
 /** `/dsh/restart` 结果：是否重启过、重启后的地址。 */
 export interface DshRestartResult {

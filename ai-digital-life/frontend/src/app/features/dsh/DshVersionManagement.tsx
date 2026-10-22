@@ -232,22 +232,40 @@ export function DshVersionManagement() {
   // 显隐条件（或语义，任一成立即隐藏；defer 期间切换尚未生效，保持显示 + 提示行）：
   // ① mode=system：用户配了系统来源，running 恒优先会使 system 进程在跑时
   // effective=running，只看 effective 就永远藏不住（用户实测 2026-10-20）；
-  // ② effective=system：自动检测下本应用内无可用版本、实际落在系统安装上
-  // （预存回归：`实际来源为系统安装时隐藏管理项并显示说明`）。
+  // ② 偏好解析来源=system：自动检测在宿主无可用版本时落到系统安装，同样隐藏。
+  // 显隐/切源判定只消费后端 `resolvedByMode`（忽略 running 的偏好解析）：
+  // running 既可能是应用自启，也可能是用户外部手动拉起，都不应遮蔽来源偏好
+  //（用户实测 2026-10-22：auto + 系统安装，重启预拉起后管理项错误显现）。
   const modeIsSystem = sourceMode === 'system';
-  const effectiveIsSystem = versionSource?.effective === 'system';
+  const resolvedByMode = versionSource?.resolvedByMode ?? null;
+  const resolvedSource = resolvedByMode?.[sourceMode] ?? null;
+  // source-status 返回前（首帧）不渲染管理项，避免按「未知」先显示再隐藏的闪烁。
+  const sourceReady = resolvedByMode !== null;
   const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
   const [sourceDialogBusy, setSourceDialogBusy] = useState(false);
   // 对话框目标：切向 system 走系统文案，离开 system（→host/auto）走通用切换文案。
   const [pendingMode, setPendingMode] = useState<DshVersionSourceMode | null>(null);
+  // 目标来源在忽略 running 下解析为空：对话框需追加「切换后无版本可用」的后果说明。
+  const pendingTargetEmpty =
+    pendingMode !== null && versionSource?.resolvedByMode?.[pendingMode] === 'none';
+  // 打开对话框时的当前来源解析为空（如空宿主）：改用「从无版本恢复为可用来源」文案。
+  // 打开时冻结，避免「立即生效」落盘后 sourceMode 翻转而文案跳变。
+  const [pendingFromEmpty, setPendingFromEmpty] = useState(false);
+  const pendingTargetLabel =
+    pendingMode === 'system'
+      ? t.dshVersionSourceSystem
+      : pendingMode === 'host'
+        ? t.dshVersionSourceHost
+        : t.dshVersionSourceAuto;
   const deferredSource = useAppStore((s) => s.dshVersionSourceDeferred);
   const setDeferredSource = useAppStore((s) => s.setDshVersionSourceDeferred);
   const pendingSource = useAppStore((s) => s.dshVersionSourcePending);
   const setPendingSource = useAppStore((s) => s.setDshVersionSourcePending);
-  // 显隐：配置为系统（mode）或实际落在系统（effective）或待切换为系统（pending）
-  // 任一成立即隐藏。defer 期间选择器仍显示当前生效来源，另有 deferred 提示行说明。
+  // 显隐：配置为系统（mode）或偏好解析落在系统（resolvedByMode）或待切换为系统
+  //（pending）任一成立即隐藏。defer 期间选择器仍显示当前生效来源，另有提示行说明。
   const pendingIsSystem = pendingSource === 'system';
-  const systemManaged = modeIsSystem || effectiveIsSystem || pendingIsSystem;
+  const systemManaged = modeIsSystem || resolvedSource === 'system' || pendingIsSystem;
+  const manageVisible = sourceReady && !systemManaged;
   const autoSwitchedRef = useRef(false);
   const sourceDialogCancelRef = useRef<HTMLButtonElement | null>(null);
 
@@ -979,28 +997,28 @@ export function DshVersionManagement() {
       });
       const currentMode: DshVersionSourceMode =
         fresh?.versionSource?.mode ?? fresh?.config?.version_source ?? 'auto';
-      if (mode === 'system') {
-        if (!fresh?.system) {
-          showToast(t.dshSystemMissing, 'error');
-          return;
-        }
-        if (fresh?.running) {
-          setPendingMode('system');
-          setSourceDialogOpen(true);
-          return;
-        }
-        if (await saveVersionSource('system')) {
-          setDeferredSource(false);
-        }
+      if (mode === 'system' && !fresh?.system) {
+        showToast(t.dshSystemMissing, 'error');
         return;
       }
-      // 离开 system（→host/auto）且有运行中：同样确认，否则旧进程继续服务、
-      // 当前版本恒显旧版（用户实测 system→host 无弹窗 + 版本错即此缺口）。
-      if (currentMode === 'system' && fresh?.running) {
+      // 确认对话框只在「切换会真正改变可用来源」时出现：用后端 resolvedByMode
+      //（忽略 running 的偏好解析）比较当前与目标。
+      // · 目标与当前解析一致（auto 落到当前来源、或切到正是真实来源）→ 无需确认；
+      // · 解析结果确实不同 → 一律确认，让用户自行决定「立即生效」还是「下次启动生效」。
+      //   有运行中进程要重启；目标为空会关闭已打开的 dsh 标签；无进程时“立即生效”
+      //   才会真正切到目标来源（否则本会话仍是当前来源）。不再按 running 静默落盘
+      //   （用户裁决 2026-10-22：有版本 → 另一个有版本且无运行中进程也要弹框）。
+      const currentResolved = fresh?.versionSource?.resolvedByMode?.[currentMode] ?? 'none';
+      const targetResolved = fresh?.versionSource?.resolvedByMode?.[mode] ?? 'none';
+      const sourceChanges = targetResolved !== currentResolved;
+      if (sourceChanges) {
+        setPendingFromEmpty(currentResolved === 'none');
         setPendingMode(mode);
         setSourceDialogOpen(true);
         return;
       }
+      // 解析结果不变（如 auto→system 而 auto 本就在系统）→ 只更新模式偏好，不弹框。
+      // 此时可用来源未变、无进程需重启，也不需要关闭任何 dsh 标签。
       setDeferredSource(false);
       await saveVersionSource(mode);
     },
@@ -1024,7 +1042,10 @@ export function DshVersionManagement() {
       try {
         if (choice === 'cancel') {
           setDeferredSource(false);
-          if (target === 'system') {
+          // 历史行为：切向 system 取消时回退宿主。但当前来源解析为空时，选择器与
+          // 配置本就未变，再写 host 会静默改配置（如 auto 全空 → 取消后变 host），
+          // 故该场景取消必须是纯 no-op。
+          if (target === 'system' && !pendingFromEmpty) {
             await saveVersionSource('host');
           }
           return;
@@ -1036,11 +1057,24 @@ export function DshVersionManagement() {
           showToast(t.dshVersionSourceNextLaunchSaved, 'success');
           return;
         }
+        // 切到空来源要关闭已打开的 dsh 标签：重启后 running 归零，提前记下地址。
+        const preSwitchUrl =
+          useAppStore.getState().sourceStatus?.running?.url ??
+          useAppStore.getState().dshLastUrl ??
+          null;
         if (!(await saveVersionSource(target))) {
           return;
         }
+        // 目标解析为空：重启只会停掉旧进程（run_open 返回 NotFound，restarted=false），
+        // 标签仍冻结在旧页面 —— 按切换前地址同源关闭（用户实测 2026-10-22 标签不关）。
+        const targetResolved =
+          useAppStore.getState().sourceStatus?.versionSource?.resolvedByMode?.[target] ?? 'none';
         const restart = await actions.restartDsh();
         const statusOk = await actions.fetchSourceStatus(true);
+        if (targetResolved === 'none') {
+          const closed = closeDshTabsByUrl(preSwitchUrl);
+          debugVer('source: target empty after restart, closed tabs', { target, closed });
+        }
         debugVer('source: dialog restart done', {
           target,
           restarted: restart.restarted,
@@ -1066,6 +1100,7 @@ export function DshVersionManagement() {
       sourceDialogBusy,
       t,
       pendingMode,
+      pendingFromEmpty,
     ],
   );
 
@@ -1648,8 +1683,10 @@ export function DshVersionManagement() {
           {deferredSource ? (
             <small className="adl-dsh-settings__row-warn">{t.dshVersionSourceDeferredNote}</small>
           ) : null}
-          {!systemManaged && versionSource?.effective === 'none' ? (
-            <small className="adl-dsh-settings__row-warn">{t.dshNoSourceNote}</small>
+          {!systemManaged && resolvedSource === 'none' ? (
+            <small className="adl-dsh-settings__row-warn">
+              {sourceMode === 'host' ? t.dshNoSourceHostNote : t.dshNoSourceAutoNote}
+            </small>
           ) : null}
         </div>
         <div className="adl-settings-row__control">
@@ -1674,7 +1711,7 @@ export function DshVersionManagement() {
           {uninstallConfirmVersion !== null ? (
             <small className="adl-dsh-settings__row-warn">{t.dshUninstallCurrentHint}</small>
           ) : null}
-          {!systemManaged && hasPrereleaseUpdate && prereleaseAvailable ? (
+          {manageVisible && hasPrereleaseUpdate && prereleaseAvailable ? (
             <small className="adl-dsh-settings__row-warn">
               {t.dshPrereleaseUpdateAvailable.replace('{version}', prereleaseAvailable)}
             </small>
@@ -1712,7 +1749,7 @@ export function DshVersionManagement() {
             {readout.sub ? (
               <small className="adl-dsh-settings__version-latest">{readout.sub}</small>
             ) : null}
-            {latestAvailable && !systemManaged ? (
+            {manageVisible && latestAvailable ? (
               <small className="adl-dsh-settings__version-latest">
                 {t.dshLatest.replace('{version}', latestAvailable)}
               </small>
@@ -1722,7 +1759,7 @@ export function DshVersionManagement() {
       </div>
 
       {/* 行2：检查更新（仅检查；安装/切换/卸载/重装在下方正式版/预发布行内按行操作）。 */}
-      {!systemManaged ? (
+      {manageVisible ? (
         <div className="adl-settings-row" data-settings-row={t.dshCheckUpdate}>
           <div className="adl-settings-row__label">
             <div className="adl-settings-row__label-text">
@@ -1931,7 +1968,7 @@ export function DshVersionManagement() {
           )
         : null}
 
-      {!systemManaged ? (
+      {manageVisible ? (
         <>
           {/* 行3：正式版本（单版本展示 + 行内操作；全部版本在下拉框菜单中选择）。 */}
           <div
@@ -2025,16 +2062,29 @@ export function DshVersionManagement() {
                 </div>
                 <div className="adl-confirm-dialog__body">
                   <p className="adl-confirm-dialog__message adl-dsh-source-dialog__message">
-                    {pendingMode === 'system' || pendingMode == null
-                      ? t.dshVersionSourceSystemDialogMessage.replace(
-                          '{path}',
-                          dshSourceStatus?.system?.path ?? '',
-                        )
-                      : t.dshVersionSourceSwitchDialogMessage.replace(
+                    {pendingFromEmpty
+                      ? t.dshVersionSourceSwitchDialogFromEmpty.replaceAll(
                           '{target}',
-                          pendingMode === 'host' ? t.dshVersionSourceHost : t.dshVersionSourceAuto,
-                        )}
+                          pendingTargetLabel,
+                        )
+                      : pendingMode === 'system' || pendingMode == null
+                        ? t.dshVersionSourceSystemDialogMessage.replace(
+                            '{path}',
+                            dshSourceStatus?.system?.path ?? '',
+                          )
+                        : t.dshVersionSourceSwitchDialogMessage.replaceAll(
+                            '{target}',
+                            pendingTargetLabel,
+                          )}
                   </p>
+                  {pendingTargetEmpty ? (
+                    <p className="adl-confirm-dialog__message adl-dsh-source-dialog__message adl-dsh-source-dialog__message--warn">
+                      {t.dshVersionSourceSwitchDialogEmpty.replaceAll(
+                        '{target}',
+                        pendingTargetLabel,
+                      )}
+                    </p>
+                  ) : null}
                 </div>
                 <div className="adl-confirm-dialog__footer">
                   <button

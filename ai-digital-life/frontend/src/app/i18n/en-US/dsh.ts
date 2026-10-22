@@ -80,16 +80,16 @@ export const dshEn = {
   dshVersionSource: 'Version source',
   dshVersionSourceDesc: 'Choose where the assistant version comes from',
   dshVersionSourceHint:
-    'Decides which assistant to prefer. Auto detect first looks for a running assistant, then a version this app has installed (including the one pre-provisioned at install time — both count as a “host install”), then a version installed on your computer.\n· This selector always shows your chosen preference (Auto detect / System install / Host install) and never changes it to match whatever is actually in effect; the “Current version” row tells you what is really in effect — and whether it is the pre-provisioned one.\n· Whether the three rows below (“Check for updates”, “Stable releases”, “Prerelease versions”) are visible tells if this app manages versions: visible means you can install, switch or uninstall here; hidden means the system install is actually in use and you maintain it yourself (always hidden with “Version source” set to “System install”; also hidden under “Auto detect” when this app has nothing usable and falls back to the system install; a note row then tells you to switch back to “Host install” to manage versions here).',
+    'Decides which assistant to prefer. Auto detect first looks for a running assistant, then a version this app has installed (including the one pre-provisioned at install time — both count as a “host install”), then a version installed on your computer.\n· This selector always shows your chosen preference (Auto detect / System install / Host install) and never changes it to match whatever is actually in effect; the “Current version” row tells you what is really in effect — and whether it is the pre-provisioned one.\n· Whether the three rows below (“Check for updates”, “Stable releases”, “Prerelease versions”) are visible tells if this app manages versions: visible means you can install, switch or uninstall here; hidden means the system install is actually in use and you maintain it yourself (always hidden with “Version source” set to “System install”; also hidden under “Auto detect” when “Host install” has no usable version and the resolved source is the system install; a note row then tells you to switch back to “Host install” to manage versions here).',
   dshVersionSourceSwitchDialogTitle: 'Switch version source',
   dshVersionSourceSwitchDialogMessage:
-    'An assistant is currently running; switching to “{target}” needs a restart:\n· Apply now: close and restart the assistant right away using the new source.\n· Apply next launch: keep the current source for this session and switch the next time this app starts.\n· Cancel: stay on “System install” and change nothing.',
+    'Switching to “{target}” changes where the assistant version comes from:\n· Apply now: switch immediately; the assistant restarts if it is running, or starts from the new source if it is not.\n· Apply next launch: keep the current source for this session and switch the next time this app starts.\n· Cancel: keep the current source and change nothing.',
   dshVersionSourceAuto: 'Auto detect',
   dshVersionSourceSystem: 'System install',
   dshVersionSourceHost: 'Host install',
   dshVersionSourceSystemDialogTitle: 'Switch to system install',
   dshVersionSourceSystemDialogMessage:
-    'System install detected: {path}\n\nAfter switching, the assistant will use the copy installed on your computer, and this app will hide install, switch and uninstall controls.\n\nAn assistant is currently running:\n· Apply now: close and restart the assistant immediately using the system install.\n· Apply next launch: keep the current source for this session and switch the next time this app starts.\n· Cancel: keep "Host install" and change nothing.',
+    'System install detected: {path}\n\nAfter switching, the assistant will use the copy installed on your computer, and this app will hide install, switch and uninstall controls.\n\n· Apply now: switch immediately; the assistant restarts if it is running, or starts from the system install if it is not.\n· Apply next launch: keep the current source for this session and switch the next time this app starts.\n· Cancel: keep the current source and change nothing.',
   dshVersionSourceApplyNextLaunch: 'Apply next launch',
   dshVersionSourceApplyNow: 'Apply now',
   dshVersionSourceNextLaunchSaved: 'Will apply next launch',
@@ -98,9 +98,15 @@ export const dshEn = {
     'Will apply next launch; the current source is still in use this session.',
   dshSystemMissing: 'No system install found; cannot switch to system install.',
   dshSystemManagedNote:
-    'The assistant currently in use was installed by you (system install), and this app will not modify it.\n· To install, switch or uninstall versions here, change “Version source” from “System install” to “Host install”; a confirm dialog appears if an assistant is running.\n· “Apply now” restarts and switches immediately, bringing the management rows back; “Apply next launch” keeps things as they are for this session, and the management rows stay hidden until the next launch completes the switch.',
-  dshNoSourceNote:
-    'No assistant version was found. Switched to "Host install" — pick a version below to install.',
+    'The assistant currently in use was installed by you (system install), and this app will not modify it.\n· To install, switch or uninstall versions here, change “Version source” from “System install” to “Host install”; every source switch opens a confirm dialog where you choose apply now or apply next launch.\n· “Apply now” switches immediately (restarting the assistant if it is running), bringing the management rows back; “Apply next launch” keeps things as they are for this session, and the management rows stay hidden until the next launch completes the switch.',
+  dshNoSourceHostNote:
+    'No assistant version is available under “Host install”, so the assistant cannot start. Install or pick a version below, or switch “Version source” back to a source that has one.',
+  dshNoSourceAutoNote:
+    'No host version is available and no system install was detected, so the assistant cannot start. Switch to “Host install” to install a version.',
+  dshVersionSourceSwitchDialogEmpty:
+    'Note: “{target}” has no available version, and switching will close any open dsh browser tabs. You can install a version under “{target}”, switch to an installed version, or switch back to a source that has one.',
+  dshVersionSourceSwitchDialogFromEmpty:
+    'The current source has no available assistant version. After switching to “{target}”, the assistant will be provided by that source:\n· Apply now: start the assistant immediately from the new source (restarts it if already running).\n· Apply next launch: record your choice now and switch the next time this app opens.\n· Cancel: keep the current source and change nothing.',
   dshCancelInstall: 'Cancel install',
   dshCancelUninstall: 'Cancel uninstall',
   dshCancelReinstall: 'Cancel reinstall',

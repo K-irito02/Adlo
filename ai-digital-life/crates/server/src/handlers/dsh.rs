@@ -454,9 +454,7 @@ async fn run_open(
                             *cache = None;
                         }
                         let detect_start = std::time::Instant::now();
-                        let new_source =
-                            detect_source(paths, download_config.version_source)
-                                .await;
+                        let new_source = detect_source(paths, download_config.version_source).await;
                         tracing::info!(
                             detect_ms = detect_start.elapsed().as_millis(),
                             source = ?new_source,
@@ -479,8 +477,7 @@ async fn run_open(
             }
         } else {
             let detect_start = std::time::Instant::now();
-            let new_source =
-                detect_source(paths, download_config.version_source).await;
+            let new_source = detect_source(paths, download_config.version_source).await;
             tracing::info!(
                 detect_ms = detect_start.elapsed().as_millis(),
                 source = ?new_source,
@@ -676,8 +673,7 @@ pub async fn revert(
     tracing::debug!(version = %input.version, "dsh::revert: request");
     let _guard = state.dsh_version_lock.lock().await;
     let root = dsh_root(&state);
-    let result =
-        adl_dsh_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
+    let result = adl_dsh_version::revert(&root, &input.version).await.map(|v| serde_json::json!(v));
     match &result {
         Ok(_) => tracing::debug!(version = %input.version, "dsh::revert: ok"),
         Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::revert: failed"),
@@ -714,8 +710,8 @@ pub async fn uninstall(
     tracing::debug!(version = %input.version, was_running, "dsh::uninstall: invoking kernel");
     let result =
         adl_dsh_version::uninstall_with_task(&root, &input.version, &state.dsh_version_task)
-    .await
-    .map(|()| serde_json::json!(true));
+            .await
+            .map(|()| serde_json::json!(true));
     match &result {
         Ok(_) => tracing::debug!(version = %input.version, "dsh::uninstall: ok"),
         Err(e) => tracing::debug!(version = %input.version, error = %e, "dsh::uninstall: failed"),
@@ -928,10 +924,27 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
         host_version.is_some(),
         system.is_some(),
     );
+    // 偏好解析（忽略 running）：管理项显隐与切源确认只认这份结果。running 是
+    // 「运行时事实」，来源可能是应用自启也可能是用户外部手动拉起，不应遮蔽
+    // 用户选择的来源偏好（否则 auto+系统安装 在进程运行时被误判为宿主能力）。
+    let resolve_by_mode = |mode: adl_download_source::VersionSourceMode| {
+        adl_dsh_version::resolve_effective_source(
+            mode,
+            false,
+            host_version.is_some(),
+            system.is_some(),
+        )
+    };
+    let resolved_by_mode = serde_json::json!({
+        "auto": resolve_by_mode(adl_download_source::VersionSourceMode::Auto),
+        "host": resolve_by_mode(adl_download_source::VersionSourceMode::Host),
+        "system": resolve_by_mode(adl_download_source::VersionSourceMode::System),
+    });
     let version_source = serde_json::json!({
         "mode": config.version_source,
         "effective": effective,
         "hostVersion": host_version,
+        "resolvedByMode": resolved_by_mode,
     });
     let config_value =
         serde_json::to_value(&config).map_err(|e| AppError::Internal(e.to_string()))?;

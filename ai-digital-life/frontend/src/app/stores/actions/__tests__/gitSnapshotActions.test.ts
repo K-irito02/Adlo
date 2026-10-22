@@ -6,10 +6,7 @@ import {
   createGitSnapshotActions,
 } from '../gitSnapshotActions';
 import { pendingChangePreviewPath, setPendingChangePreviewPath } from '../../cacheHelpers';
-import {
-  getNextChangePreviewRequestSeq,
-  scopedFileKey,
-} from '../../cacheHelpers';
+import { getNextChangePreviewRequestSeq, scopedFileKey } from '../../cacheHelpers';
 import { openChangePreviewGeneric } from '../editorActionsHelpers';
 
 interface TestStore {
