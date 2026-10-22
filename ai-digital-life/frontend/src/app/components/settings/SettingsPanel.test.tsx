@@ -961,6 +961,41 @@ describe('SettingsPanel group reset', () => {
             installed: [],
           },
         }),
+        // 首屏原子快照（版本块挂载只发这一路请求）。
+        getSettingsSnapshot: vi.fn().mockResolvedValue({
+          ok: true,
+          data: {
+            sourceStatus: {
+              system: null,
+              running: null,
+              versionSource: {
+                mode: 'auto',
+                effective: 'none',
+                resolvedByMode: { auto: 'none', host: 'none', system: 'none' },
+                hostVersion: null,
+              },
+              config: {
+                npm_registry: 'https://registry.npmjs.org',
+                dsh_mirror: null,
+                source_mode: 'manual',
+                version_source: 'auto',
+                proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+              },
+            },
+            versionStatus: {
+              currentSelected: null,
+              installed: [],
+              bundledVersion: null,
+              latestAvailable: null,
+              hasUpdate: false,
+              prereleaseAvailable: null,
+              hasPrereleaseUpdate: false,
+              prereleaseUnknown: false,
+            },
+            catalog: null,
+          },
+        }),
+        getRunning: vi.fn().mockResolvedValue({ ok: true, data: { running: null } }),
         saveSourceConfig: vi.fn().mockResolvedValue({ ok: true, data: true }),
         testSource: vi.fn().mockResolvedValue({
           ok: true,

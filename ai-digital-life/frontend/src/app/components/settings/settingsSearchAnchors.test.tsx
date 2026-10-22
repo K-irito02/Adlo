@@ -40,6 +40,8 @@ vi.mock('@hooks/useAppActions', () => ({
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
     fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
     fetchVersionCatalog: (...args: unknown[]) => fetchVersionCatalog(...args),
+    fetchDshSettingsSnapshot: vi.fn(async () => true),
+    fetchDshRunning: vi.fn(async () => true),
     fetchVersionTask: vi.fn(),
     cancelVersionTask: vi.fn(),
     restartDsh: vi.fn(async () => ({ restarted: false, url: null, failed: true })),
@@ -104,7 +106,25 @@ function seedStore() {
     downloadSettings: { mode: 'ask', default_path: '', auto_migrate_on_path_change: false },
     downloadSettingsLoaded: true,
     isLoadingSettings: false,
-    sourceStatus: null,
+    // 版本管理块的管理行以「偏好解析来源非 system」为显示条件；种子给宿主可用，
+    // 使检查更新/正式/预发布行在默认渲染下真实存在（进而参与行定位断言）。
+    sourceStatus: {
+      system: null,
+      running: null,
+      versionSource: {
+        mode: 'auto',
+        effective: 'host',
+        resolvedByMode: { auto: 'host', host: 'host', system: 'none' },
+        hostVersion: '0.1.0',
+      },
+      config: {
+        npm_registry: 'https://registry.npmjs.org',
+        dsh_mirror: null,
+        source_mode: 'manual',
+        version_source: 'auto',
+        proxy: { mode: 'auto', http_proxy: null, https_proxy: null, no_proxy: null },
+      },
+    },
   });
 }
 

@@ -107,6 +107,8 @@ pub fn app_router(_state: ServerState) -> Router<ServerState> {
         .route("/dsh/version-task", post(handlers::dsh::get_version_task))
         .route("/dsh/cancel-version-task", post(handlers::dsh::cancel_version_task))
         .route("/dsh/source-status", post(handlers::dsh::get_source_status))
+        .route("/dsh/settings-snapshot", post(handlers::dsh::get_settings_snapshot))
+        .route("/dsh/running", post(handlers::dsh::get_running))
         .route("/dsh/source-config", post(handlers::dsh::save_source_config))
         .route("/dsh/test-source", post(handlers::dsh::test_source))
         // CI / GitHub domain

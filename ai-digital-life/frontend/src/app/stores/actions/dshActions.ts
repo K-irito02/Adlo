@@ -511,6 +511,80 @@ export function createDshActions(set: StoreApi<StoreState>['setState'], get: () 
     },
 
     /**
+     * [fetchDshSettingsSnapshot - 版本管理块首屏原子快照（source + version + catalog 一次提交）]
+     * 三份数据由后端一次返回，store 单次 set：避免分段到货导致块内行数/读数跳动。
+     * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
+     * @param silent 后台同步传 true：不碰错误卡片
+     * @reads 无
+     * @writes dshSlice.sourceStatus/versionStatus/versionCatalog/versionCatalogFailed
+     * @see httpBridge.ts → dsh.getSettingsSnapshot (/dsh/settings-snapshot)
+     */
+    fetchDshSettingsSnapshot: async (silent = false): Promise<boolean> => {
+      if (!silent) {
+        clearError(get, SCOPE);
+      }
+      debugVer('fetchDshSettingsSnapshot: start', { silent });
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getSettingsSnapshot>>;
+      try {
+        result = await window.digitalLife.dsh.getSettingsSnapshot();
+      } catch (e) {
+        debugVer('fetchDshSettingsSnapshot: bridge threw', { error: String(e) });
+        if (!silent) {
+          captureError(get, e, SCOPE);
+        }
+        return false;
+      }
+      if (!result.ok) {
+        debugVer('fetchDshSettingsSnapshot: not ok', { error: result.error });
+        if (!silent) {
+          captureError(get, result.error, SCOPE);
+        }
+        return false;
+      }
+      get().setDshSettingsSnapshot(result.data);
+      debugVer('fetchDshSettingsSnapshot: committed atomically', {
+        effective: result.data.sourceStatus.versionSource.effective,
+        mode: result.data.sourceStatus.versionSource.mode,
+        running: result.data.sourceStatus.running?.source ?? null,
+        currentSelected: result.data.versionStatus.currentSelected,
+        catalog: result.data.catalog === null ? null : result.data.catalog.stable.length,
+      });
+      return true;
+    },
+
+    /**
+     * [fetchDshRunning - 轻量刷新运行状态（仅端口探测 + 宿主托管，不走 where/版本探测）]
+     * 设置面板可见时 5s 轮询；只更新 sourceStatus.running，不动其它读数。
+     * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
+     * @param silent 轮询传 true：失败静默（下一轮自愈），不打扰用户
+     * @reads 无
+     * @writes dshSlice.sourceStatus.running
+     * @see httpBridge.ts → dsh.getRunning (/dsh/running)
+     */
+    fetchDshRunning: async (silent = false): Promise<boolean> => {
+      if (!silent) {
+        clearError(get, SCOPE);
+      }
+      let result: Awaited<ReturnType<typeof window.digitalLife.dsh.getRunning>>;
+      try {
+        result = await window.digitalLife.dsh.getRunning();
+      } catch (e) {
+        if (!silent) {
+          captureError(get, e, SCOPE);
+        }
+        return false;
+      }
+      if (!result.ok) {
+        if (!silent) {
+          captureError(get, result.error, SCOPE);
+        }
+        return false;
+      }
+      get().setDshRunning(result.data.running);
+      return true;
+    },
+
+    /**
      * [fetchSourceStatus - 拉取 dsh 下载源状态（bundled / system / running / config）]
      * @returns true=成功；false=失败（非 silent 时已记录全局错误卡片）
      * @param silent 后台同步（设置页挂载拉取）传 true：不碰错误卡片（既不记新的，

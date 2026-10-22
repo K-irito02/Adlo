@@ -186,6 +186,7 @@ pub async fn init_server_state(
     let dsh_version_lock = Arc::new(AsyncMutex::new(()));
     let dsh_version_task = adl_dsh_version::TaskReporter::new();
     let dsh_source_cache = Arc::new(RwLock::new(None));
+    let dsh_catalog_cache = Arc::new(RwLock::new(None));
 
     let state = ServerState {
         data_dir: data_dir.to_path_buf(),
@@ -208,6 +209,7 @@ pub async fn init_server_state(
         dsh_version_lock,
         dsh_version_task,
         dsh_source_cache,
+        dsh_catalog_cache,
         workspace_watcher: Arc::new(StdMutex::new(None)),
     };
     if let Some(root) = restored_root.as_ref() {
@@ -317,6 +319,12 @@ pub async fn serve(state: ServerState, port: u16) -> u16 {
     let pre_start_state = state.clone();
     tokio::spawn(async move {
         crate::handlers::dsh::pre_start_dsh(&pre_start_state).await;
+    });
+
+    // 官方版本目录预热：首屏聚合快照通常直接命中缓存（不阻塞启动）。
+    let prewarm_state = state.clone();
+    tokio::spawn(async move {
+        crate::handlers::dsh::prewarm_catalog(&prewarm_state).await;
     });
 
     let app = crate::router::app_router(state.clone()).with_state(state.clone());

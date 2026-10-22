@@ -3,17 +3,28 @@ import type { IpcResult } from '@ai-digital-life/kernel';
 export type { IpcResult };
 
 /**
+ * 运行中 dsh 进程信息。
+ * `managed` 为 true 表示该进程是本应用本次会话拉起并持有 Child 的，
+ * `version` 即本次 spawn 的来源版本；外部复用一律 `managed=false` +
+ * `version=null`，UI 按未知展示、不猜版本。
+ * `source` 记录拉起来源：`host`/`system` 为宿主拉起，`external` 为外部进程。
+ */
+export interface DshRunningInfo {
+  url: string;
+  port: number;
+  managed: boolean;
+  version: string | null;
+  source: DshRunningSource;
+}
+
+export type DshRunningSource = 'host' | 'system' | 'external';
+
+/**
  * dsh 下载源状态（system / running / config）
  */
 export interface DshSourceStatus {
   system: { path: string; version: string | null } | null;
-  /**
-   * running 详情（事项 2026-10-20/1 精确版本用）。
-   * `managed` 为 true 表示该进程是本应用本次会话拉起并持有 Child 的，
-   * `version` 即本次 spawn 的来源版本；外部复用（无 Child 可持有）一律
-   * `managed=false` + `version=null`，UI 按未知展示、不猜版本。
-   */
-  running: { url: string; port: number; managed: boolean; version: string | null } | null;
+  running: DshRunningInfo | null;
   /**
    * 版本来源偏好与实际生效来源。
    * - `effective`：运行时实际来源（可能为 `running`），用于当前版本读数与运行状态。
@@ -55,6 +66,22 @@ export type DshResolvedSource = 'host' | 'system' | 'none';
 export interface DshRestartResult {
   restarted: boolean;
   url: string | null;
+}
+
+/** `/dsh/running` 结果：轻量运行状态（不触发 where/版本探测）。 */
+export interface DshRunningResult {
+  running: DshRunningInfo | null;
+}
+
+/**
+ * `/dsh/settings-snapshot` 结果：版本管理块首屏原子快照。
+ * 三份数据一次提交，避免分段到货导致的块内跳动；`catalog` 为 null 表示
+ * 官方目录当前不可得（服务端无缓存且拉取失败）。
+ */
+export interface DshSettingsSnapshot {
+  sourceStatus: DshSourceStatus;
+  versionStatus: DshVersionStatus;
+  catalog: DshVersionCatalog | null;
 }
 
 export type DshVersionTaskKind = 'install' | 'uninstall' | 'reinstall';
@@ -169,6 +196,16 @@ export interface DshBridge {
    * @see httpBridge.ts → dsh.getSourceStatus (/dsh/source-status)
    */
   getSourceStatus: () => Promise<IpcResult<DshSourceStatus>>;
+  /**
+   * 轻量运行状态（仅探测端口 + 宿主托管，不跑 where/版本探测）；设置面板轮询用
+   * @see httpBridge.ts → dsh.getRunning (/dsh/running)
+   */
+  getRunning: () => Promise<IpcResult<DshRunningResult>>;
+  /**
+   * 版本管理块首屏原子快照（source-status + version-status + catalog 一次返回）
+   * @see httpBridge.ts → dsh.getSettingsSnapshot (/dsh/settings-snapshot)
+   */
+  getSettingsSnapshot: () => Promise<IpcResult<DshSettingsSnapshot>>;
   /**
    * 保存 dsh 下载源配置（npm registry / mirror / proxy）
    * @see httpBridge.ts → dsh.saveSourceConfig (/dsh/source-config)

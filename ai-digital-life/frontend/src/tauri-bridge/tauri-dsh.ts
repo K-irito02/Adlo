@@ -25,6 +25,8 @@ export function createTauriDshBridge(httpDsh: DshBridge): DshBridge {
     uninstall: httpDsh.uninstall,
     reinstall: httpDsh.reinstall,
     getSourceStatus: httpDsh.getSourceStatus,
+    getRunning: httpDsh.getRunning,
+    getSettingsSnapshot: httpDsh.getSettingsSnapshot,
     saveSourceConfig: httpDsh.saveSourceConfig,
     testSource: httpDsh.testSource,
   };

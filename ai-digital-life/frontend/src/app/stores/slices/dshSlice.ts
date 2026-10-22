@@ -4,6 +4,8 @@ import type {
   DshSourceStatus,
   DshVersionTask,
   DshVersionSourceMode,
+  DshRunningInfo,
+  DshSettingsSnapshot,
 } from '../../../shared/ipc/dsh';
 import type { StoreState } from '../StoreState';
 import { readJson, writeJson } from '../storageHelpers';
@@ -52,6 +54,10 @@ export interface DshSlice {
   setDshVersionCatalog: (catalog: DshVersionCatalog | null) => void;
   setVersionCatalogFailed: (failed: boolean) => void;
   setDshSourceStatus: (status: DshSourceStatus | null) => void;
+  /** 首屏原子快照：三份数据同一次提交，避免分段渲染导致块内跳动。 */
+  setDshSettingsSnapshot: (snapshot: DshSettingsSnapshot) => void;
+  /** 轻量轮询：只更新 sourceStatus.running（sourceStatus 未就绪时为空操作）。 */
+  setDshRunning: (running: DshRunningInfo | null) => void;
   setDshVersionTask: (task: DshVersionTask | null) => void;
   setVersionTaskCancelRequested: (requested: boolean) => void;
   setDshVersionSourceDeferred: (deferred: boolean) => void;
@@ -87,6 +93,31 @@ export const createDshSlice = (
   setDshVersionCatalog: (catalog) => set({ versionCatalog: catalog }),
   setVersionCatalogFailed: (failed) => set({ versionCatalogFailed: failed }),
   setDshSourceStatus: (status) => set({ sourceStatus: status }),
+  setDshSettingsSnapshot: (snapshot) =>
+    set((state) => ({
+      sourceStatus: snapshot.sourceStatus,
+      versionStatus: snapshot.versionStatus,
+      // catalog 为 null 表示本次拉取失败：保留旧列表（若有），仅标记未知态。
+      versionCatalog: snapshot.catalog ?? state.versionCatalog,
+      versionCatalogFailed: snapshot.catalog === null,
+    })),
+  setDshRunning: (running) =>
+    set((state) => {
+      if (!state.sourceStatus) {
+        return {};
+      }
+      const versionSource = state.sourceStatus.versionSource;
+      // 运行状态变化后同步 effective：running 出现恒优先；消失则回退到后端给出的
+      // 偏好解析（resolvedByMode[mode]），不在前端复制来源优先级。
+      const effective = running ? 'running' : versionSource.resolvedByMode[versionSource.mode];
+      return {
+        sourceStatus: {
+          ...state.sourceStatus,
+          running,
+          versionSource: { ...versionSource, effective },
+        },
+      };
+    }),
   setDshVersionTask: (task) => set({ versionTask: task }),
   setVersionTaskCancelRequested: (requested) => set({ versionTaskCancelRequested: requested }),
   setDshVersionSourceDeferred: (deferred) => set({ dshVersionSourceDeferred: deferred }),

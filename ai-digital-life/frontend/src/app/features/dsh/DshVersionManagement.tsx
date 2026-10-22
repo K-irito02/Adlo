@@ -11,6 +11,7 @@ import { RevealScrollbar } from '@components/RevealScrollbar';
 import { useRevealScrollbar } from '@hooks/useRevealScrollbar';
 import { openUrlByMethod } from '@features/preview/openByMethod';
 import type {
+  DshRunningInfo,
   DshVersionInfo,
   DshVersionSourceMode,
   DshVersionTask,
@@ -73,6 +74,25 @@ function formatPublishedAt(publishedAt: string | null): string {
   }
   const m = publishedAt.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/);
   return m ? `${m[1]} ${m[2]}` : publishedAt;
+}
+
+/** 运行地址的展示端点（host:port）：读数副行只放端点，完整地址放 title。 */
+function displayEndpoint(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+}
+
+/** 完整地址去凭据：剥离 query（dsh 入口可能带一次性 token）。 */
+function displayUrl(url: string): string {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return url.split('?')[0];
+  }
 }
 
 /** 两处实测取最大（任一缺席则取另一方，都缺席为 null）。 */
@@ -1221,10 +1241,27 @@ export function DshVersionManagement() {
   );
 
   useEffect(() => {
-    debugVer('mount: fetching version status + catalog', {});
-    void actions.fetchDshVersionStatus();
-    void actions.fetchSourceStatus(true);
-    void actions.fetchVersionCatalog();
+    // 首屏一次原子快照：source-status + version-status + catalog 同一次提交，
+    // 避免三路请求分段到货导致块内行数/读数跳动。
+    debugVer('mount: fetching settings snapshot (atomic)', {});
+    void actions.fetchDshSettingsSnapshot();
+  }, [actions]);
+
+  useEffect(() => {
+    // 轻量运行状态轮询（外部进程无法发事件，只能低频兜底）：
+    // 面板可见时每 5s 只探端口 + 宿主托管，不跑 where/版本探测；页面隐藏时暂停。
+    const tick = () => {
+      if (document.hidden) {
+        return;
+      }
+      void actions.fetchDshRunning(true);
+    };
+    const id = window.setInterval(tick, 5000);
+    document.addEventListener('visibilitychange', tick);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', tick);
+    };
   }, [actions]);
 
   useEffect(() => {
@@ -1516,30 +1553,42 @@ export function DshVersionManagement() {
 
   // 当前版本读数（事项 1）：任何 effective 都优先显示真实版本号，大字为主。
   // running 只认后端登记的 spawn 来源版本（`running.version`，宿主拉起时精确已知，
-  // 切源重启后即新来源版本）；外部复用（`managed=false`）一律未知，不猜宿主版本
-  // （事项 4 文案承诺一致）。system 用后端 `dsh --version` 现查版。
+  // 切源重启后即新来源版本）；外部复用（`source=external`）一律未知，不猜宿主版本
+  // （事项 4 文案承诺一致）。副行按来源标注「运行中 · 系统安装 / 外部运行」，
+  // 完整地址（去 token query）放 title；正文只放 host:port，避免长 URL 撑破读数行。
   // 徽章（发现新版本/已是最新）只在主行版本号确为宿主当前选中时才挂，避免
   // system 版与宿主选中不一致时误导。
   // 内置版本（用户 2026-10-22）不再显示整句「内置版本 x」，而是与已装版本同构：
   // 版本号 + 来源胶囊徽章（`bundled`），便于和同版本号的系统安装区分。
   const runningReadout = useCallback(
-    (running: { url: string; version: string | null } | null | undefined, bundled: boolean) => {
+    (running: DshRunningInfo | null | undefined, bundled: boolean) => {
       const url = running?.url ?? '';
+      const endpoint = displayEndpoint(url);
+      const title = url ? displayUrl(url) : null;
+      const source = running?.source ?? 'external';
       const known = running?.version ?? null;
+      const subTemplate = source === 'system' ? t.dshEffectiveRunningSystem : t.dshEffectiveRunning;
       if (known) {
         return {
           text: known,
-          sub: t.dshEffectiveRunning.replace('{url}', url),
+          sub: subTemplate.replace('{url}', endpoint),
           empty: false,
           bundled,
+          title,
         };
       }
+      // 版本未知：主行如实报「版本未知」（不把“运行中”当成版本号），
+      // 副行按来源说明是外部启动还是系统安装拉起。
       return {
-        text: t.dshEffectiveRunning.replace('{url}', url),
-        sub: t.dshVersionUnknown,
+        text: t.dshVersionUnknown,
+        sub:
+          source === 'external'
+            ? t.dshRunningExternalNote.replace('{url}', endpoint)
+            : subTemplate.replace('{url}', endpoint),
         empty: true,
         // 版本未知时不挂来源徽章：徽章贴着版本号才有意义。
         bundled: false,
+        title,
       };
     },
     [t],
@@ -1553,6 +1602,7 @@ export function DshVersionManagement() {
           empty: false,
           // 系统安装是用户自己装的那份，不是内置版本。
           bundled: false,
+          title: null,
         };
       }
       return {
@@ -1560,6 +1610,7 @@ export function DshVersionManagement() {
         sub: t.dshVersionUnknown,
         empty: true,
         bundled: false,
+        title: null,
       };
     },
     [t],
@@ -1578,56 +1629,42 @@ export function DshVersionManagement() {
       snapSource?.mode !== 'system' &&
       snapStatus?.running?.managed === true &&
       snapStatus.running.version === snapBundled;
-    if (snapSource) {
-      switch (snapSource.effective) {
-        case 'host':
-          return {
-            text: snapSource.hostVersion ?? snapSelected ?? '',
-            // 内置预置版本补一行来源说明（版本号自身已由徽章标注）。
-            sub: hostBundled ? t.dshBundledSourceNote : null,
-            empty: false,
-            bundled: hostBundled,
-          };
-        case 'running':
-          return { ...runningReadout(snapStatus?.running, runningBundled) };
-        case 'system':
-          return {
-            ...systemReadout(snapStatus?.system?.path ?? '', snapStatus?.system?.version ?? null),
-          };
-        default:
-          return {
-            text: t.dshCurrentVersionNone,
-            sub: null as string | null,
-            empty: true,
-            bundled: false,
-          };
-      }
-    }
-    if (snapSelected) {
+    // 首次快照未到：如实显示中性「状态读取中」，不得拿 currentSelected 顶替实际来源
+    //（P3：那会展示一个并未生效的宿主版本，快照持续失败时误导会一直存在）。
+    if (!snapSource) {
       return {
-        text: snapSelected,
+        text: t.dshVersionStateReading,
         sub: null as string | null,
-        empty: false,
-        bundled: snapBundled === snapSelected,
+        empty: true,
+        bundled: false,
+        title: null as string | null,
       };
     }
-    if (snapStatus?.running) {
-      return { ...runningReadout(snapStatus.running, runningBundled) };
+    switch (snapSource.effective) {
+      case 'host':
+        return {
+          text: snapSource.hostVersion ?? snapSelected ?? '',
+          // 内置预置版本补一行来源说明（版本号自身已由徽章标注）。
+          sub: hostBundled ? t.dshBundledSourceNote : null,
+          empty: false,
+          bundled: hostBundled,
+          title: null,
+        };
+      case 'running':
+        return { ...runningReadout(snapStatus?.running, runningBundled) };
+      case 'system':
+        return {
+          ...systemReadout(snapStatus?.system?.path ?? '', snapStatus?.system?.version ?? null),
+        };
+      default:
+        return {
+          text: t.dshCurrentVersionNone,
+          sub: null as string | null,
+          empty: true,
+          bundled: false,
+          title: null,
+        };
     }
-    if (snapStatus?.system) {
-      return {
-        ...systemReadout(snapStatus.system.path, snapStatus.system.version ?? null),
-      };
-    }
-    // 走到这里说明既没有选中版本、也没有检测到运行中/系统安装：如实报「未安装」。
-    // （不能拿 `bundledVersion` 顶替——那只是“这一版当初由安装包预置”的来源记录，
-    // 不代表它正在被使用；选中缺失时 dsh 根本起不来。）
-    return {
-      text: t.dshCurrentVersionNone,
-      sub: null as string | null,
-      empty: true,
-      bundled: false,
-    };
   }, [
     snap.versionSource,
     snap.sourceStatus,
@@ -1661,6 +1698,7 @@ export function DshVersionManagement() {
       // 埋点一律剥离 query 后再记（R1-INFO，后续与 restartDsh 同口径）。
       running: dshSourceStatus?.running?.url?.split('?')[0] ?? null,
       runningManaged: dshSourceStatus?.running?.managed ?? null,
+      runningSource: dshSourceStatus?.running?.source ?? null,
       runningVersion: dshSourceStatus?.running?.version ?? null,
       system: dshSourceStatus?.system?.path ?? null,
       systemVersion: dshSourceStatus?.system?.version ?? null,
@@ -1747,7 +1785,13 @@ export function DshVersionManagement() {
               </span>
             )}
             {readout.sub ? (
-              <small className="adl-dsh-settings__version-latest">{readout.sub}</small>
+              // 完整运行地址（已剥离一次性 token query）只在悬停提示里展示。
+              <small
+                className="adl-dsh-settings__version-latest"
+                title={readout.title ?? undefined}
+              >
+                {readout.sub}
+              </small>
             ) : null}
             {manageVisible && latestAvailable ? (
               <small className="adl-dsh-settings__version-latest">

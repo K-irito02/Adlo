@@ -9,7 +9,7 @@
 //!
 use crate::ServerState;
 use crate::ipc;
-use crate::state::ManagedDsh;
+use crate::state::{DshSpawnSource, ManagedDsh};
 use adl_download_source;
 use adl_dsh_bundle;
 use adl_dsh_version;
@@ -509,15 +509,10 @@ async fn run_open(
 
     let timeout = std::time::Duration::from_secs(60);
     let spawn_start = std::time::Instant::now();
-    // 本次 spawn 的来源版本（事项 2026-10-20/1：运行中显示真实版本用）：host 取选中版、
-    // system 取现查版；复用/无来源走上游 early-return，此处不可达。
-    // 2026-10-22：内置预置版本已是普通宿主版本，不再有独立来源/启动分支。
-    let spawn_version = match &source {
-        adl_dsh_version::DshSource::HostInstalled { version, .. } => Some(version.clone()),
-        adl_dsh_version::DshSource::System { info } => info.version.clone(),
-        adl_dsh_version::DshSource::ReuseRunning { .. } | adl_dsh_version::DshSource::None => None,
-    };
-    let hp = match source {
+    // 本次 spawn 的来源版本与来源类型（事项 2026-10-20/1：运行中显示真实版本用；
+    // 2026-10-22：记录来源使读数能区分「宿主拉起 / 系统安装拉起 / 外部运行」）。
+    // 复用/无来源走上游 early-return，此处不可达。
+    let (hp, spawn_version, spawn_source) = match source {
         adl_dsh_version::DshSource::ReuseRunning { url, port } => {
             tracing::info!(?url, ?port, "dsh::run_open: reusing running instance");
             // 已有进程运行中，直接返回 URL。不写入 dsh_guard（进程非我们启动，无法持有 Child）。
@@ -527,12 +522,14 @@ async fn run_open(
         adl_dsh_version::DshSource::System { info } => {
             tracing::info!(path = %info.path.display(), version = ?info.version, "dsh::run_open: using system dsh");
             let args = loopback_web_args(paths).await?;
-            spawn_and_wait_ready(&info.path.to_string_lossy(), &args, timeout).await?
+            let hp = spawn_and_wait_ready(&info.path.to_string_lossy(), &args, timeout).await?;
+            (hp, info.version.clone(), DshSpawnSource::System)
         },
         adl_dsh_version::DshSource::HostInstalled { version, bin } => {
             tracing::info!(%version, path = %bin.display(), "dsh::run_open: using host-installed dsh");
             let args = loopback_web_args(paths).await?;
-            spawn_node_direct("node", &bin.to_string_lossy(), &args, timeout).await?
+            let hp = spawn_node_direct("node", &bin.to_string_lossy(), &args, timeout).await?;
+            (hp, Some(version), DshSpawnSource::Host)
         },
         adl_dsh_version::DshSource::None => {
             tracing::warn!("dsh::run_open: no dsh source available");
@@ -549,7 +546,7 @@ async fn run_open(
     // 持锁写入（start_lock 已保证串行，无并发方抢先写入）。
     let mut guard = dsh_guard.lock().await;
     let url = hp.url.clone();
-    *guard = Some(ManagedDsh { process: hp, version: spawn_version });
+    *guard = Some(ManagedDsh { process: hp, version: spawn_version, source: spawn_source });
     tracing::info!(total_elapsed_ms = start_time.elapsed().as_millis(), "dsh::run_open: completed");
     Ok(serde_json::json!({ "url": url, "freedPort": freed }))
 }
@@ -631,13 +628,7 @@ pub async fn pre_start_dsh(state: &ServerState) {
 
 /// POST `/dsh/get-version-status` — 查询 dsh 版本目录状态（`VersionStatus`）。
 pub async fn get_version_status(State(state): State<ServerState>) -> impl IntoResponse {
-    let root = dsh_root(&state);
-    let result = match adl_dsh_version::get_version_status(&root, &state.storage.paths().root).await
-    {
-        Ok(v) => serde_json::to_value(&v).map_err(|e| AppError::Internal(e.to_string())),
-        Err(e) => Err(e),
-    };
-    ipc::to_response(result)
+    ipc::to_response(get_version_status_value(&state).await)
 }
 
 /// POST `/dsh/update` — 升级 dsh 至最新可用版本，返回新版本串。
@@ -897,20 +888,10 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
     });
 
     let running_detected = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT).await;
-    // 宿主持有 Child 即本次会话拉起（版本精确已知）；锁内只读即释放，
-    // 使 `running.version` 恒为“宿主拉起版”、外部复用恒为未知（事项 2026-10-20/1）。
-    let (managed, managed_version) = {
-        let guard = state.dsh_state.lock().await;
-        (guard.is_some(), guard.as_ref().and_then(|m| m.version.clone()))
-    };
-    let running = running_detected.map(|info| {
-        serde_json::json!({
-            "url": info.url,
-            "port": info.port,
-            "managed": managed,
-            "version": managed_version,
-        })
-    });
+    // 宿主持有 Child 即本次会话拉起（版本与来源精确已知）；try_wait 过滤已退出的
+    // 子进程，避免残留句柄把外部进程误标为本次会话拉起（P5）。
+    let managed = managed_snapshot(state).await;
+    let running = running_detected.map(|info| running_payload(info, managed));
 
     let config = adl_download_source::load(data_dir)?;
     let root = dsh_root(state);
@@ -955,6 +936,128 @@ async fn get_source_status_inner(state: &ServerState) -> Result<serde_json::Valu
         "versionSource": version_source,
         "config": config_value,
     }))
+}
+
+/// 宿主托管状态快照。`try_wait` 发现子进程已退出时清空 `dsh_state` 并返回
+/// `None`（不再算本次会话拉起）；探测失败则保守地保持托管判定。
+async fn managed_snapshot(state: &ServerState) -> Option<(Option<String>, &'static str)> {
+    let mut guard = state.dsh_state.lock().await;
+    let managed = guard.as_mut()?;
+    match managed.process.child.try_wait() {
+        Ok(Some(_)) => {
+            tracing::debug!("dsh: managed child already exited; clearing hosted state");
+            *guard = None;
+            None
+        },
+        Ok(None) => Some((managed.version.clone(), managed.source.as_str())),
+        Err(e) => {
+            tracing::warn!(error = %e, "dsh: try_wait failed; keeping managed state");
+            Some((managed.version.clone(), managed.source.as_str()))
+        },
+    }
+}
+
+/// 运行中进程 payload：托管时带 spawn 版本与来源，否则按外部进程（版本未知）。
+fn running_payload(
+    info: adl_dsh_version::RunningDshInfo,
+    managed: Option<(Option<String>, &'static str)>,
+) -> serde_json::Value {
+    let (is_managed, version, source) = match managed {
+        Some((version, source)) => (true, version, source),
+        None => (false, None, "external"),
+    };
+    serde_json::json!({
+        "url": info.url,
+        "port": info.port,
+        "managed": is_managed,
+        "version": version,
+        "source": source,
+    })
+}
+
+/// POST `/dsh/running` — 轻量运行状态：只探测端口 + 宿主托管快照，
+/// 不跑 `where dsh` / `dsh --version`（设置面板 5s 轮询用）。
+pub async fn get_running(State(state): State<ServerState>) -> impl IntoResponse {
+    let managed = managed_snapshot(&state).await;
+    let running = adl_dsh_version::detect_running_dsh(DSH_DEFAULT_PORT)
+        .await
+        .map(|info| running_payload(info, managed));
+    ipc::to_response(Ok::<serde_json::Value, AppError>(serde_json::json!({ "running": running })))
+}
+
+/// 官方版本目录缓存有效期：设置面板反复进入/轮询不重复打 registry。
+const CATALOG_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(300);
+
+/// 取官方版本目录（TTL 内复用内存缓存；刷新失败时回退旧缓存）。
+pub(crate) async fn load_catalog_cached(
+    state: &ServerState,
+) -> Option<adl_dsh_version::VersionCatalog> {
+    let cached = state
+        .dsh_catalog_cache
+        .read()
+        .ok()
+        .and_then(|slot| slot.as_ref().map(|(at, catalog)| (*at, catalog.clone())));
+    if let Some((at, catalog)) = &cached {
+        if at.elapsed() < CATALOG_CACHE_TTL {
+            return Some(catalog.clone());
+        }
+    }
+    match adl_dsh_version::fetch_catalog(&state.storage.paths().root).await {
+        Ok(catalog) => {
+            if let Ok(mut slot) = state.dsh_catalog_cache.write() {
+                *slot = Some((std::time::Instant::now(), catalog.clone()));
+            }
+            Some(catalog)
+        },
+        Err(e) => {
+            tracing::warn!(
+                error = %e,
+                "dsh::settings_snapshot: catalog fetch failed; falling back to stale cache"
+            );
+            cached.map(|(_, catalog)| catalog)
+        },
+    }
+}
+
+/// 启动期预热官方版本目录：让首屏聚合快照命中缓存，避免首次进入设置面板被
+/// registry 网络请求拖慢（失败仅记日志，下次进入设置时再按需拉取）。
+pub(crate) async fn prewarm_catalog(state: &ServerState) {
+    if load_catalog_cached(state).await.is_some() {
+        tracing::debug!("dsh::catalog_prewarm: catalog cached");
+    } else {
+        tracing::debug!("dsh::catalog_prewarm: catalog unavailable; will retry on demand");
+    }
+}
+
+/// POST `/dsh/settings-snapshot` — 版本管理块首屏原子快照：一次返回
+/// source-status + version-status + catalog，前端单次提交，消除分段到货导致的跳动。
+pub async fn get_settings_snapshot(State(state): State<ServerState>) -> impl IntoResponse {
+    let result = get_settings_snapshot_inner(&state).await;
+    ipc::to_response(result)
+}
+
+async fn get_settings_snapshot_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
+    // source-status 与 version-status 互不依赖，并行取；catalog 走缓存/网络，单独随后。
+    let (source, version) =
+        tokio::try_join!(get_source_status_inner(state), get_version_status_value(state))?;
+    let catalog = match load_catalog_cached(state).await {
+        Some(catalog) => {
+            serde_json::to_value(&catalog).map_err(|e| AppError::Internal(e.to_string()))?
+        },
+        None => serde_json::Value::Null,
+    };
+    Ok(serde_json::json!({
+        "sourceStatus": source,
+        "versionStatus": version,
+        "catalog": catalog,
+    }))
+}
+
+/// `/dsh/get-version-status` 与聚合快照共用的版本状态取值。
+async fn get_version_status_value(state: &ServerState) -> Result<serde_json::Value, AppError> {
+    let root = dsh_root(state);
+    let status = adl_dsh_version::get_version_status(&root, &state.storage.paths().root).await?;
+    serde_json::to_value(&status).map_err(|e| AppError::Internal(e.to_string()))
 }
 
 /// POST `/dsh/source-config` — 保存下载源配置。
@@ -1071,6 +1174,10 @@ async fn save_source_config_inner(
 
     adl_download_source::save(&state.storage.paths().root, &config)?;
     clear_source_cache(state);
+    // 下载源/代理变化会使目录缓存可能来自旧 registry：清空，下次快照重新拉取。
+    if let Ok(mut cache) = state.dsh_catalog_cache.write() {
+        *cache = None;
+    }
     Ok(serde_json::json!(true))
 }
 
@@ -1340,5 +1447,32 @@ mod tests {
         ";
         let pids = parse_netstat_listening_pids(text, 3080);
         assert_eq!(pids, vec![1234, 9012, 3456]);
+    }
+
+    /// running payload：宿主拉起时带 spawn 来源与版本，外部进程按 unknown/external。
+    #[test]
+    fn running_payload_distinguishes_managed_source_and_external() {
+        let info =
+            adl_dsh_version::RunningDshInfo { url: "http://127.0.0.1:3080/".into(), port: 3080 };
+        let managed = running_payload(info.clone(), Some((Some("0.2.1".into()), "host")));
+        assert_eq!(managed.get("managed").and_then(|v| v.as_bool()), Some(true));
+        assert_eq!(managed.get("source").and_then(|v| v.as_str()), Some("host"));
+        assert_eq!(managed.get("version").and_then(|v| v.as_str()), Some("0.2.1"));
+
+        let system = running_payload(info.clone(), Some((None, "system")));
+        assert_eq!(system.get("source").and_then(|v| v.as_str()), Some("system"));
+        assert!(system.get("version").is_some_and(|v| v.is_null()));
+
+        let external = running_payload(info, None);
+        assert_eq!(external.get("managed").and_then(|v| v.as_bool()), Some(false));
+        assert_eq!(external.get("source").and_then(|v| v.as_str()), Some("external"));
+        assert!(external.get("version").is_some_and(|v| v.is_null()));
+    }
+
+    /// spawn 来源对外序列化封闭值域：host / system（external 只用于外部进程）。
+    #[test]
+    fn spawn_source_serializes_closed_vocabulary() {
+        assert_eq!(DshSpawnSource::Host.as_str(), "host");
+        assert_eq!(DshSpawnSource::System.as_str(), "system");
     }
 }

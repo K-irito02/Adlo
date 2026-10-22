@@ -13,11 +13,31 @@ use std::sync::atomic::AtomicU16;
 use std::sync::{Arc, Mutex as StdMutex, RwLock};
 use tokio::sync::Mutex as AsyncMutex;
 
-/// 宿主持有的一次 dsh 拉起：子进程句柄 + 本次 spawn 的来源版本。
+/// 宿主持有的一次 dsh 拉起：子进程句柄 + 本次 spawn 的来源版本与来源类型。
 /// （`HostedProcess` 未实现 `Debug`，此处不派生；需打印时逐字段记。）
 pub struct ManagedDsh {
     pub process: HostedProcess,
     pub version: Option<String>,
+    /// 本次 spawn 的来源（host=宿主安装版本 / system=系统安装命令）。
+    /// `running.source` 对外暴露 `host|system|external`，external 只用于
+    /// 非宿主持有（外部复用）进程，不会写入本结构。
+    pub source: DshSpawnSource,
+}
+
+/// 宿主持有进程的 spawn 来源（对外序列化为 `host` / `system`）。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DshSpawnSource {
+    Host,
+    System,
+}
+
+impl DshSpawnSource {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Host => "host",
+            Self::System => "system",
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -56,6 +76,10 @@ pub struct ServerState {
     pub dsh_version_task: adl_dsh_version::TaskReporter,
     /// dsh 来源缓存：避免每次打开 dsh 时都重新检测来源
     pub dsh_source_cache: Arc<RwLock<Option<adl_dsh_version::DshSource>>>,
+    /// 官方版本目录缓存（聚合快照 `/dsh/settings-snapshot` 用）：TTL 内直接复用，
+    /// 避免每次进入设置面板都走一次 registry 网络请求；拉取失败时回退旧值。
+    pub dsh_catalog_cache:
+        Arc<RwLock<Option<(std::time::Instant, adl_dsh_version::VersionCatalog)>>>,
     /// 活动工作区文件监听器（warn+降级：启动失败时保持 `None`，功能退化为无自动刷新）
     pub workspace_watcher: Arc<StdMutex<Option<adl_workspace::WorkspaceWatcher>>>,
 }

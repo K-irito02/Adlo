@@ -90,6 +90,14 @@ function syncEffective(): void {
   sourceStatus.system = { path: "/usr/local/bin/dsh", version: MOCK_VERSION_PREV };
 }
 
+function cloneSourceStatus(): DshSourceStatus {
+  return {
+    ...sourceStatus,
+    config: { ...sourceStatus.config, proxy: { ...sourceStatus.config.proxy } },
+    versionSource: { ...sourceStatus.versionSource },
+  };
+}
+
 export const mockDsh: DshBridge = {
   open: async () => ({ ok: true, data: { url: "http://127.0.0.1:61234", freedPort: false } }),
   restart: async () => ({
@@ -147,10 +155,15 @@ export const mockDsh: DshBridge = {
   },
   getSourceStatus: async () => ({
     ok: true,
+    data: cloneSourceStatus(),
+  }),
+  getRunning: async () => ({ ok: true, data: { running: sourceStatus.running } }),
+  getSettingsSnapshot: async () => ({
+    ok: true,
     data: {
-      ...sourceStatus,
-      config: { ...sourceStatus.config, proxy: { ...sourceStatus.config.proxy } },
-      versionSource: { ...sourceStatus.versionSource },
+      sourceStatus: cloneSourceStatus(),
+      versionStatus: { ...status, installed: [...status.installed] },
+      catalog: MOCK_CATALOG,
     },
   }),
   saveSourceConfig: async (config) => {

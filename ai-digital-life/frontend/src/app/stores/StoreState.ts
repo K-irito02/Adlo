@@ -317,6 +317,8 @@ interface DshActions {
   fetchVersionCatalog: (silent?: boolean) => Promise<boolean>;
   installDshVersion: (version: string, select?: boolean) => Promise<boolean>;
   fetchSourceStatus: (silent?: boolean) => Promise<boolean>;
+  fetchDshSettingsSnapshot: (silent?: boolean) => Promise<boolean>;
+  fetchDshRunning: (silent?: boolean) => Promise<boolean>;
   saveSourceConfig: (config: DshSourceConfig, silent?: boolean) => Promise<boolean>;
   testSource: (url: string, silent?: boolean) => Promise<DshTestResult | null>;
   applyPendingVersionSource: () => Promise<boolean>;

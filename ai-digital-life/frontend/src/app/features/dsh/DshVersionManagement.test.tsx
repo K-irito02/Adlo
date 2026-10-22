@@ -17,6 +17,8 @@ vi.mock('@features/preview/openByMethod', () => ({
 const fetchDshVersionStatus = vi.fn();
 const fetchSourceStatus = vi.fn();
 const fetchVersionCatalog = vi.fn();
+const fetchDshSettingsSnapshot = vi.fn();
+const fetchDshRunning = vi.fn();
 const updateDsh = vi.fn();
 const revertDsh = vi.fn();
 const uninstallDsh = vi.fn();
@@ -34,6 +36,8 @@ vi.mock('@hooks/useAppActions', () => {
     fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
     fetchSourceStatus: (...args: unknown[]) => fetchSourceStatus(...args),
     fetchVersionCatalog: (...args: unknown[]) => fetchVersionCatalog(...args),
+    fetchDshSettingsSnapshot: (...args: unknown[]) => fetchDshSettingsSnapshot(...args),
+    fetchDshRunning: (...args: unknown[]) => fetchDshRunning(...args),
     updateDsh: (...args: unknown[]) => updateDsh(...args),
     revertDsh: (...args: unknown[]) => revertDsh(...args),
     uninstallDsh: (...args: unknown[]) => uninstallDsh(...args),
@@ -179,7 +183,13 @@ function seedRunningSource(version: string, mode: 'auto' | 'system' | 'host' = '
   useAppStore.setState({
     sourceStatus: {
       system: null,
-      running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version },
+      running: {
+        url: 'http://127.0.0.1:3080/',
+        port: 3080,
+        managed: true,
+        source: mode === 'system' ? 'system' : 'host',
+        version,
+      },
       versionSource: {
         mode,
         effective: 'running',
@@ -202,6 +212,8 @@ beforeEach(() => {
   fetchDshVersionStatus.mockResolvedValue(true);
   fetchSourceStatus.mockResolvedValue(true);
   fetchVersionCatalog.mockResolvedValue(true);
+  fetchDshSettingsSnapshot.mockResolvedValue(true);
+  fetchDshRunning.mockResolvedValue(true);
   updateDsh.mockResolvedValue(true);
   revertDsh.mockResolvedValue(true);
   uninstallDsh.mockResolvedValue(true);
@@ -230,10 +242,29 @@ afterEach(() => {
 });
 
 describe('DshVersionManagement', () => {
-  it('挂载即拉取版本状态', () => {
+  it('挂载即拉取首屏原子快照（一次请求覆盖 source/version/catalog）', () => {
     seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
     renderBlock();
-    expect(fetchDshVersionStatus).toHaveBeenCalledTimes(1);
+    expect(fetchDshSettingsSnapshot).toHaveBeenCalledTimes(1);
+    expect(fetchDshVersionStatus).not.toHaveBeenCalled();
+    expect(fetchSourceStatus).not.toHaveBeenCalled();
+    expect(fetchVersionCatalog).not.toHaveBeenCalled();
+  });
+
+  it('轻量轮询：running 出现 → effective=running；消失 → 回退偏好解析（P2）', () => {
+    seed({ currentSelected: '1.0.0', installed: ['1.0.0'] });
+    const store = useAppStore.getState();
+    store.setDshRunning({
+      url: 'http://127.0.0.1:3080/',
+      port: 3080,
+      managed: false,
+      source: 'external',
+      version: null,
+    });
+    expect(useAppStore.getState().sourceStatus?.versionSource.effective).toBe('running');
+    store.setDshRunning(null);
+    // 回退值来自后端 resolvedByMode，而不是前端复制的优先级。
+    expect(useAppStore.getState().sourceStatus?.versionSource.effective).toBe('host');
   });
 
   it('渲染当前版本 + 已是最新徽标 + 最新可用版本', () => {
@@ -293,7 +324,7 @@ describe('DshVersionManagement', () => {
     seed({ currentSelected: '1.0.0', latestAvailable: '1.0.0', installed: ['1.0.0'] });
     renderBlock();
     fireEvent.click(screen.getByRole('button', { name: 'dshCheckUpdate' }));
-    await waitFor(() => expect(fetchDshVersionStatus).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(fetchDshVersionStatus).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(showToast).toHaveBeenCalledWith('dshNoUpdate', 'success'));
   });
 
@@ -512,7 +543,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: null,
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: '1.1.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: false,
+          source: 'external',
+          version: '1.1.0',
+        },
         versionSource: {
           mode: 'auto',
           effective: 'running',
@@ -748,7 +785,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: null,
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: null },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: false,
+          source: 'external',
+          version: null,
+        },
         versionSource: {
           mode: 'auto',
           effective: 'running',
@@ -766,7 +809,9 @@ describe('DshVersionManagement', () => {
     });
     renderBlock();
     expect(screen.queryByText('dshCurrentVersionNone')).toBeNull();
-    expect(screen.getByText('dshEffectiveRunning')).toBeTruthy();
+    // P4：外部进程版本未知时主行=版本未知，副行说明外部启动（不再把“运行中”当版本号）。
+    expect(screen.getByText('dshVersionUnknown')).toBeTruthy();
+    expect(screen.getByText('dshRunningExternalNote')).toBeTruthy();
   });
 
   it('宿主拉起的运行中显示 spawn 来源版本 + 小字运行地址（事项 1）', () => {
@@ -778,6 +823,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'host',
           version: '0.2.1-rc.2',
         },
         versionSource: {
@@ -802,12 +848,18 @@ describe('DshVersionManagement', () => {
     expect(screen.queryByText('dshVersionUnknown')).toBeNull();
   });
 
-  it('外部运行中不借用宿主版本：主行保持运行地址 + 未知小字（事项 1/4）', () => {
+  it('外部运行中不借用宿主版本：主行=版本未知 + 副行外部启动（P4）', () => {
     seed({ currentSelected: '0.2.1-rc.2', installed: ['0.2.1-rc.2'] });
     useAppStore.setState({
       sourceStatus: {
         system: null,
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: false, version: null },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: false,
+          source: 'external',
+          version: null,
+        },
         versionSource: {
           mode: 'auto',
           effective: 'running',
@@ -824,8 +876,9 @@ describe('DshVersionManagement', () => {
       },
     });
     renderBlock();
-    expect(screen.getByText('dshEffectiveRunning')).toBeTruthy();
     expect(screen.getByText('dshVersionUnknown')).toBeTruthy();
+    expect(screen.getByText('dshRunningExternalNote')).toBeTruthy();
+    expect(screen.queryByText('dshEffectiveRunning')).toBeNull();
     // 宿主虽装有 0.2.1-rc.2，外部运行也不得借用（managed=false 即未知）。
     expect(screen.queryByText('0.2.1-rc.2')).toBeNull();
   });
@@ -1078,7 +1131,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'host',
+          version: '1.0.0',
+        },
         versionSource: {
           mode: 'host',
           effective: 'running',
@@ -1107,7 +1166,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'host',
+          version: '1.0.0',
+        },
         versionSource: {
           mode: 'host',
           effective: 'running',
@@ -1154,7 +1219,13 @@ describe('DshVersionManagement', () => {
     };
     const fresh: DshSourceStatus = {
       ...stale,
-      running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+      running: {
+        url: 'http://127.0.0.1:3080/',
+        port: 3080,
+        managed: true,
+        source: 'host',
+        version: '1.0.0',
+      },
     };
     useAppStore.setState({ sourceStatus: stale });
     // 模拟现查：fetch 后 store 出现 running（预拉起刚完成）。
@@ -1174,7 +1245,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'host',
+          version: '1.0.0',
+        },
         versionSource: {
           mode: 'host',
           effective: 'running',
@@ -1206,7 +1283,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'host',
+          version: '1.0.0',
+        },
         versionSource: {
           mode: 'host',
           effective: 'running',
@@ -1242,7 +1325,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'host',
+          version: '1.0.0',
+        },
         versionSource: {
           mode: 'auto',
           effective: 'running',
@@ -1277,6 +1366,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'system',
           version: '0.2.0-rc.2',
         },
         versionSource: {
@@ -1311,6 +1401,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'system',
           version: '0.2.0-rc.2',
         },
         versionSource: {
@@ -1373,7 +1464,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'host',
+          version: '1.0.0',
+        },
         versionSource: {
           mode: 'auto',
           effective: 'running',
@@ -1404,7 +1501,13 @@ describe('DshVersionManagement', () => {
     useAppStore.setState({
       sourceStatus: {
         system: { path: 'D:\\nodejs\\dsh', version: null },
-        running: { url: 'http://127.0.0.1:3080/', port: 3080, managed: true, version: '1.0.0' },
+        running: {
+          url: 'http://127.0.0.1:3080/',
+          port: 3080,
+          managed: true,
+          source: 'host',
+          version: '1.0.0',
+        },
         versionSource: {
           mode: 'auto',
           effective: 'running',
@@ -1509,6 +1612,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'system',
           version: '0.2.0-rc.2',
         },
         versionSource: {
@@ -1536,6 +1640,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'host',
           version: '1.0.0',
         },
         versionSource: {
@@ -1570,6 +1675,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'system',
           version: '0.2.0-rc.2',
         },
         versionSource: {
@@ -1599,6 +1705,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'system',
           version: '0.2.0-rc.2',
         },
         versionSource: {
@@ -1628,6 +1735,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: true,
+          source: 'system',
           version: '0.2.0-rc.2',
         },
         versionSource: {
@@ -1655,6 +1763,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/',
           port: 3080,
           managed: false,
+          source: 'external',
           version: '0.2.0-rc.2',
         },
         versionSource: {
@@ -1778,6 +1887,7 @@ describe('DshVersionManagement', () => {
           url: 'http://127.0.0.1:3080/?token=t',
           port: 3080,
           managed: true,
+          source: 'system',
           version: '0.2.0-rc.2',
         },
         versionSource: {

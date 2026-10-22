@@ -15,6 +15,8 @@ const saveSourceConfig = vi.fn();
 // 保留以维持 useAppActions mock 形状完整。
 const fetchDshVersionStatus = vi.fn();
 const fetchVersionCatalog = vi.fn();
+const fetchDshSettingsSnapshot = vi.fn();
+const fetchDshRunning = vi.fn();
 const fetchVersionTask = vi.fn();
 const cancelVersionTask = vi.fn();
 const updateDsh = vi.fn();
@@ -23,13 +25,17 @@ const uninstallDsh = vi.fn();
 const reinstallDsh = vi.fn();
 const installDshVersion = vi.fn();
 
-vi.mock('../../hooks/useAppActions', () => ({
-  useAppActions: () => ({
+vi.mock('../../hooks/useAppActions', () => {
+  // 单例对象：保持 useAppActions 返回引用稳定（真实实现经 useShallow 也稳定），
+  // 否则组件挂载 effect 依赖 [actions] 会在每次重渲染时重复拉取快照。
+  const actions = {
     fetchSourceStatus: (...args: unknown[]) => fetchSourceStatus(...args),
     testSource: (...args: unknown[]) => testSource(...args),
     saveSourceConfig: (...args: unknown[]) => saveSourceConfig(...args),
     fetchDshVersionStatus: (...args: unknown[]) => fetchDshVersionStatus(...args),
     fetchVersionCatalog: (...args: unknown[]) => fetchVersionCatalog(...args),
+    fetchDshSettingsSnapshot: (...args: unknown[]) => fetchDshSettingsSnapshot(...args),
+    fetchDshRunning: (...args: unknown[]) => fetchDshRunning(...args),
     fetchVersionTask: (...args: unknown[]) => fetchVersionTask(...args),
     cancelVersionTask: (...args: unknown[]) => cancelVersionTask(...args),
     updateDsh: (...args: unknown[]) => updateDsh(...args),
@@ -37,8 +43,9 @@ vi.mock('../../hooks/useAppActions', () => ({
     uninstallDsh: (...args: unknown[]) => uninstallDsh(...args),
     reinstallDsh: (...args: unknown[]) => reinstallDsh(...args),
     installDshVersion: (...args: unknown[]) => installDshVersion(...args),
-  }),
-}));
+  };
+  return { useAppActions: () => actions };
+});
 
 const mockT = new Proxy({} as Record<string, string>, {
   get: (_, key) => (typeof key === 'string' ? key : ''),
@@ -92,11 +99,15 @@ describe('DshSettings', () => {
     testSource.mockReset();
     saveSourceConfig.mockReset();
     fetchDshVersionStatus.mockReset();
+    fetchDshSettingsSnapshot.mockReset();
+    fetchDshRunning.mockReset();
     updateDsh.mockReset();
     revertDsh.mockReset();
     uninstallDsh.mockReset();
     reinstallDsh.mockReset();
     fetchSourceStatus.mockResolvedValue(true);
+    fetchDshSettingsSnapshot.mockResolvedValue(true);
+    fetchDshRunning.mockResolvedValue(true);
     testSource.mockResolvedValue({ reachable: true, latency_ms: 12, error: null });
     saveSourceConfig.mockResolvedValue(true);
     fetchDshVersionStatus.mockResolvedValue(true);
@@ -144,10 +155,11 @@ describe('DshSettings', () => {
     expect(currentRow?.querySelector('.adl-icon-button--info')).not.toBeNull();
   });
 
-  it('挂载即拉取 sourceStatus（预存缺陷修复：fetchSourceStatus 此前无调用点）', () => {
+  it('版本管理块挂载即拉取首屏原子快照（DshSettings 不再重复拉取 sourceStatus）', () => {
     renderSettings();
-    // DshSettings 自身 1 次 + 内嵌版本管理块为解析有效版本来源再拉 1 次（事项 5）。
-    expect(fetchSourceStatus).toHaveBeenCalledTimes(2);
+    // 首屏数据由内嵌版本块的原子快照一次供给，避免两路并发返回时序造成块内跳动。
+    expect(fetchDshSettingsSnapshot).toHaveBeenCalledTimes(1);
+    expect(fetchSourceStatus).not.toHaveBeenCalled();
   });
 
   it('sourceStatus 未知（拉取失败/延迟）时下拉保持可用（fail-open 回归）', () => {

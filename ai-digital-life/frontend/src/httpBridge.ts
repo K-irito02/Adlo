@@ -87,6 +87,8 @@ import type {
   DshSourceConfig,
   DshTestResult,
   DshRestartResult,
+  DshRunningResult,
+  DshSettingsSnapshot,
   DshVersionTaskResult,
 } from './shared/ipc/dsh';
 import type { DurableSessionState } from './shared/ipc/durable';
@@ -1112,6 +1114,9 @@ export function createHttpBridge({
       uninstall: (version: string) => call<boolean>(baseUrl, '/dsh/uninstall', POST({ version })),
       reinstall: () => call<string>(baseUrl, '/dsh/reinstall', POST({})),
       getSourceStatus: () => call<DshSourceStatus>(baseUrl, '/dsh/source-status', POST({})),
+      getRunning: () => call<DshRunningResult>(baseUrl, '/dsh/running', POST({})),
+      getSettingsSnapshot: () =>
+        call<DshSettingsSnapshot>(baseUrl, '/dsh/settings-snapshot', POST({})),
       saveSourceConfig: (config: DshSourceConfig) =>
         call<boolean>(baseUrl, '/dsh/source-config', POST(config)),
       testSource: (url: string) => call<DshTestResult>(baseUrl, '/dsh/test-source', POST({ url })),

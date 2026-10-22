@@ -77,7 +77,6 @@ export function DshSettings() {
 
   const sourceTypeRef = useRef<SourceType>('npmjs');
   const initializedRef = useRef(false);
-  const fetchedRef = useRef(false);
   const formRef = useRef({ sourceType, customUrl, proxyMode, httpProxy, httpsProxy, noProxy });
   const debounceTimerRef = useRef<number | null>(null);
   const pendingSaveRef = useRef(false);
@@ -235,17 +234,8 @@ export function DshSettings() {
     [actions, showToast, t, persist],
   );
 
-  // 挂载拉取：sourceStatus 初始为 null 且 fetchSourceStatus 此前无任何调用点
-  //（预存缺陷——设置页从不反映已保存配置），此处按需补一次。后台同步静默：
-  // 失败不记全局错误卡（进组重复弹窗是回归），fail-open 表单可照常用。
-  useEffect(() => {
-    if (fetchedRef.current) {
-      return;
-    }
-    fetchedRef.current = true;
-    void actions.fetchSourceStatus(true);
-  }, [actions]);
-
+  // 挂载拉取：由内嵌版本管理块的首屏原子快照（source + version + catalog 一次提交）
+  // 统一供给 sourceStatus，此处不再重复请求（避免两路并发返回时序造成块内跳动）。
   // 首次拿到 sourceStatus 时播种表单：按 source_mode + registry URL 往返映射
   //（旧实现只认 dsh_mirror 分支，npmmirror 会被误判为自定义）。
   useEffect(() => {

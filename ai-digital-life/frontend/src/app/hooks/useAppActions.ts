@@ -56,6 +56,8 @@ export function useAppActions() {
       fetchVersionCatalog: state.fetchVersionCatalog,
       installDshVersion: state.installDshVersion,
       fetchSourceStatus: state.fetchSourceStatus,
+      fetchDshSettingsSnapshot: state.fetchDshSettingsSnapshot,
+      fetchDshRunning: state.fetchDshRunning,
       saveSourceConfig: state.saveSourceConfig,
       testSource: state.testSource,
     })),

@@ -69,6 +69,7 @@ pub fn test_server_state() -> ServerState {
         dsh_version_lock: Arc::new(AsyncMutex::new(())),
         dsh_version_task: adl_dsh_version::TaskReporter::new(),
         dsh_source_cache: Arc::new(RwLock::new(None)),
+        dsh_catalog_cache: Arc::new(RwLock::new(None)),
         workspace_watcher: Arc::new(StdMutex::new(None)),
     }
 }

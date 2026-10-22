@@ -71,6 +71,7 @@ export const dshEn = {
   dshCurrentVersionHint:
     'Shows the version of the assistant actually in use right now, and where it comes from.\n· In-app version: installed and managed by this app; you can switch, reinstall or uninstall it at any time.\n· Bundled version: shipped inside the app installer and adopted at startup into an ordinary in-app version on your machine. From then on it behaves exactly like a version you installed yourself — switch, reinstall or uninstall it freely. The “Bundled” badge in the menu and next to the current version number only reminds you it shipped with the app (so it is never confused with a system install of the same version); once you uninstall or reinstall it, those badges stop showing.\n· System install: a version you installed yourself; this app only uses it and never modifies it. The version is probed at startup (about half a second); if the probe fails it honestly shows “Version unknown”.\n· Running: an assistant is already running on this computer; this app connects to it directly.\n· Only one assistant runs at a time: it always uses port 3080. On launch or open, this app probes 3080 first — if a verified assistant is already listening there (no matter who started it), it simply connects, never starts a second one; only when 3080 is free does it launch one for the current version source, and if another program holds the port it reports an error for you to handle. Cleaning up a blocking stale dsh touches only processes whose command line identifies them as dsh, never anything else. Background pre-start follows exactly this probing logic (using the available host version, ready in about ten seconds), so seeing “Running” before you ever clicked open is normal — the version shown is then the available host version.\n· If that running assistant was started externally by you (not by this app), its version cannot be detected and “Version unknown” is shown instead of a made-up number.\nAfter installing, switching or uninstalling, the assistant restarts automatically — no need to restart the app.',
   dshVersionUnknown: 'Version unknown',
+  dshVersionStateReading: 'Reading state',
   dshCheckUpdateDesc: 'See if a newer version is out',
   dshCheckUpdateHint:
     'Checks the official source once. A newer release is marked on the Current version row, and newer prereleases are flagged too. If the check cannot reach the network, it tells you the check failed.',
@@ -140,6 +141,8 @@ export const dshEn = {
   dshInstallFailed: 'Failed to install version',
   dshVersionListUnknown: 'Unknown, retry later',
   dshEffectiveRunning: 'Running ({url})',
+  dshEffectiveRunningSystem: 'Running · system install ({url})',
+  dshRunningExternalNote: 'Running ({url}, started externally)',
   dshEffectiveSystem: 'System install ({path})',
   dshOfficialStable: 'Stable releases',
   dshOfficialStableEmpty: 'No stable releases published yet',
