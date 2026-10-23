@@ -104,6 +104,7 @@ name = "adl-dsh-bundle"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
+ "adl-hosted",
  "semver",
  "serde",
  "serde_json",
@@ -116,6 +117,7 @@ version = "0.1.0"
 dependencies = [
  "adl-download-source",
  "adl-errors",
+ "adl-hosted",
  "adl-webapp-host",
  "reqwest",
  "semver",
@@ -241,6 +243,7 @@ dependencies = [
  "adl-dsh-version",
  "adl-errors",
  "adl-fs-ops",
+ "adl-hosted",
  "adl-kernel",
  "adl-logging",
  "adl-migration",
@@ -308,6 +311,7 @@ name = "adl-webapp-host"
 version = "0.1.0"
 dependencies = [
  "adl-errors",
+ "adl-hosted",
  "reqwest",
  "tokio",
  "tracing",
