@@ -17,6 +17,7 @@ pub enum BashKind {
     GitBundled,
     Wsl,
     Msys2,
+    /// Caller-supplied (Task 11 set-custom-path), not produced by `detect()`.
     Manual,
 }
 
@@ -56,9 +57,12 @@ pub fn candidates_from_snapshot(snap: &EnvSnapshot) -> Vec<BashCandidate> {
 }
 
 /// Hosted bash rides the hosted git dir (spec §4.2: no independent hosted
-/// dir): `<data>/env-hosted/git/<v>/bin/bash.exe`.
+/// dir). Delegates to the layout owner so the `installed/` segment stays in
+/// one place: `<data>/env-hosted/git/installed/<v>/bin/bash.exe`.
 pub fn host_bash_path(data_dir: &Path, git_version: &str) -> PathBuf {
-    data_dir.join("env-hosted/git").join(git_version).join("bin/bash.exe")
+    adl_hosted::HostedVersions::open(data_dir, "env-hosted/git", "cmd/git.exe")
+        .version_dir(git_version)
+        .join("bin/bash.exe")
 }
 
 /// Fixed Git-bundled candidates: `Program Files` + `Program Files (x86)`
@@ -112,7 +116,7 @@ mod tests {
     #[test]
     fn ranking_prefers_host_mingit_over_system() {
         let snap = EnvSnapshot {
-            host_mingit: Some(PathBuf::from("D:/d/env-hosted/git/2.47.1/bin/bash.exe")),
+            host_mingit: Some(PathBuf::from("D:/d/env-hosted/git/installed/2.47.1/bin/bash.exe")),
             git_bundled: Some(PathBuf::from("C:/Program Files/Git/bin/bash.exe")),
             wsl: Some(PathBuf::from("C:/Windows/System32/wsl.exe")),
             msys2: Some(PathBuf::from("C:/msys64/usr/bin/bash.exe")),

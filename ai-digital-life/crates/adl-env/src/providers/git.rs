@@ -1,6 +1,6 @@
 //! `git` provider: system detect + MinGit hosted install (Task 9).
 //!
-//! MinGit only (`{mingit_base}/MinGit-<v>-64-bit.zip`) — no third-party
+//! MinGit only (`{base}/{tag}/{asset}` verbatim tag+asset) — no third-party
 //! binaries. Reuses Task 8's shared [`super::fetch_and_stage`] zip/swap
 //! pipeline (`marker_rel = "cmd/git.exe"`).
 
@@ -43,17 +43,28 @@ pub struct Installed {
 
 /// Inputs for [`install`]: `version` travels as its own arg (Task 8 shape
 /// `install(version, registry_cfg, reporter)`); the data root, MinGit base and
-/// registry/proxy config ride together here for Task 11 callers.
+/// registry/proxy config ride together here for Task 11 callers. `mingit_tag`
+/// / `mingit_asset` are passed through verbatim (Task 11 baseline supplies
+/// both; no derivation from `version`).
 #[derive(Debug, Clone, Copy)]
 pub struct InstallConfig<'a> {
     pub data_dir: &'a Path,
     pub mingit_base: &'a str,
+    pub mingit_tag: &'a str,
+    pub mingit_asset: &'a str,
     pub download: &'a DownloadSourceConfig,
 }
 
-/// Official MinGit URL: `{base}/MinGit-<v>-64-bit.zip`.
-pub fn mingit_url(base: &str, version: &str) -> String {
-    format!("{base}/MinGit-{version}-64-bit.zip")
+/// Official MinGit URL: `{base}/{tag}/{asset}`, where `tag` includes the
+/// leading `v` (e.g. `"v2.56.0.windows.3"`) and `asset` is the full file name
+/// (e.g. `"MinGit-2.56.0.3-64-bit.zip"`).
+/// Example: `mingit_url("https://github.com/git-for-windows/git/releases/download",
+/// "v2.56.0.windows.3", "MinGit-2.56.0.3-64-bit.zip")`.
+/// Tag+asset are caller-supplied verbatim: the short semver does NOT
+/// determine the asset name (`.windows.N` build-number handling is ambiguous:
+/// N==1 omitted, N>1 appended).
+pub fn mingit_url(base: &str, tag: &str, asset: &str) -> String {
+    format!("{base}/{tag}/{asset}")
 }
 
 /// Parse `git --version` output (`git version 2.47.1.windows.1` plus trailing
@@ -139,7 +150,7 @@ pub async fn install(
     }
     reporter.begin("env-git-install", &format!("git {version}"));
     let base = if cfg.mingit_base.is_empty() { OFFICIAL_MINGIT_BASE } else { cfg.mingit_base };
-    let url = mingit_url(base, version);
+    let url = mingit_url(base, cfg.mingit_tag, cfg.mingit_asset);
     reporter.update(ProgressPhase::Installing, Some(10), 0, 100, true);
     let client = adl_download_source::build_http_client(cfg.download).inspect_err(|e| {
         reporter.set_error(&e.to_string());

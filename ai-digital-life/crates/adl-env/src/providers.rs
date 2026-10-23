@@ -119,7 +119,19 @@ mod tests {
     #[test]
     fn host_bash_derives_from_git_selection() {
         let p = bash::host_bash_path(Path::new("D:/d"), "2.47.1");
-        assert_eq!(p, PathBuf::from("D:/d/env-hosted/git/2.47.1/bin/bash.exe"));
+        assert_eq!(p, PathBuf::from("D:/d/env-hosted/git/installed/2.47.1/bin/bash.exe"));
+    }
+
+    #[test]
+    fn git_mingit_url_uses_verbatim_tag_and_asset() {
+        assert_eq!(
+            git::mingit_url(
+                git::OFFICIAL_MINGIT_BASE,
+                "v2.56.0.windows.3",
+                "MinGit-2.56.0.3-64-bit.zip"
+            ),
+            "https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.3/MinGit-2.56.0.3-64-bit.zip"
+        );
     }
 
     #[test]
