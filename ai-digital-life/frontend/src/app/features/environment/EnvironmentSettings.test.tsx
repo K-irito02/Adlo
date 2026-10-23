@@ -1,26 +1,308 @@
 import React from 'react';
-import { describe, it, expect, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { describe, it, expect, afterEach, beforeEach, vi } from 'vitest';
+import { render, cleanup, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import type { CopyDict } from '@i18n';
 import { TCopyProvider } from '@i18n/TCopyContext';
+import { useAppStore } from '@stores/slicedStore';
 import { EnvironmentSettings } from './EnvironmentSettings';
+import { resetEnvSettingsCache } from './envStatusCache';
+import type { EnvDependencyState, EnvStatus } from '../../../shared/ipc/env';
+import { openUrlByMethod } from '@features/preview/openByMethod';
+import { environmentZh } from '@i18n/zh-CN/environment';
 
-const t = {
-  settingsEnvironment: '环境',
-  environmentDesc: '运行助手所需的系统依赖，一处查看、一处安装',
-} as unknown as CopyDict;
+vi.mock('@features/preview/openByMethod', () => ({
+  openUrlByMethod: vi.fn(),
+}));
 
-describe('EnvironmentSettings shell', () => {
-  afterEach(() => {
-    cleanup();
+const fetchEnvStatus = vi.fn();
+const selectEnvSource = vi.fn();
+const installEnvDep = vi.fn();
+const setEnvCustomPath = vi.fn();
+const recheckEnv = vi.fn();
+const pollEnvTaskWhileRunning = vi.fn((): (() => void) => () => {});
+
+vi.mock('@hooks/useAppActions', () => {
+  // 单例对象：保持 useAppActions 返回引用稳定（真实实现经 useShallow 也稳定），
+  // 否则组件挂载 effect 依赖 [actions] 会在每次重渲染时重复拉取环境状态。
+  const actions = {
+    fetchEnvStatus: (...args: unknown[]) => fetchEnvStatus(...args),
+    selectEnvSource: (...args: unknown[]) => selectEnvSource(...args),
+    installEnvDep: (...args: unknown[]) => installEnvDep(...args),
+    setEnvCustomPath: (...args: unknown[]) => setEnvCustomPath(...args),
+    recheckEnv: (...args: unknown[]) => recheckEnv(...args),
+    pollEnvTaskWhileRunning: () => pollEnvTaskWhileRunning(),
+  };
+  return { useAppActions: () => actions };
+});
+
+const mockT = new Proxy({} as Record<string, string>, {
+  get: (_, key) => (typeof key === 'string' ? key : ''),
+}) as unknown as CopyDict;
+
+function TestProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <TCopyProvider t={mockT} locale="zh-CN">
+      {children}
+    </TCopyProvider>
+  );
+}
+
+function depState(patch: Partial<EnvDependencyState> = {}): EnvDependencyState {
+  return {
+    mode: 'auto',
+    effective: 'host',
+    origin: 'path',
+    installedVersion: '1.0.0',
+    baselineVersion: '1.0.0',
+    meetsBaseline: true,
+    path: 'C:/hosted/1.0.0/bin.exe',
+    ...patch,
+  };
+}
+
+/** 七段 fixture：node 缺失（测安装），其余就绪，bash 为系统来源（测三选一）。 */
+function fixture(): EnvStatus {
+  return {
+    node: depState({
+      mode: 'auto',
+      effective: 'none',
+      origin: 'path',
+      installedVersion: null,
+      baselineVersion: '22.0.0',
+      meetsBaseline: false,
+      path: null,
+    }),
+    git: depState({
+      installedVersion: '2.52.0',
+      baselineVersion: '2.52.0',
+      path: 'C:/hosted/git/2.52.0/cmd/git.exe',
+    }),
+    bash: depState({
+      mode: 'system',
+      effective: 'system',
+      installedVersion: '5.2.21',
+      baselineVersion: '5.2.21',
+      meetsBaseline: true,
+      path: 'C:/Program Files/Git/bin/bash.exe',
+    }),
+    webview2: {
+      mode: 'auto',
+      effective: 'system',
+      origin: 'registry',
+      installedVersion: '140.0.3485.94',
+      baselineVersion: '140.0.0.0',
+      meetsBaseline: true,
+      path: null,
+    },
+    adlserver: depState({
+      origin: 'bundled',
+      installedVersion: '0.1.0',
+      baselineVersion: '0.1.0',
+      path: 'C:/hosted/adlserver/adl-server.exe',
+    }),
+    netprobe: { registryOk: true, registryLatencyMs: 12, ciTokenConfigured: false },
+    task: null,
+    dshReady: false,
+  };
+}
+
+const writeText = vi.fn();
+
+function seedStore(patch: Record<string, unknown> = {}) {
+  useAppStore.setState({
+    envStatus: null,
+    envBusy: false,
+    isTauri: true,
+    toasts: [],
+    environmentGroupResetPending: false,
+    ...patch,
+  } as unknown as Parameters<typeof useAppStore.setState>[0]);
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  resetEnvSettingsCache();
+  seedStore();
+  Object.assign(navigator, { clipboard: { writeText } });
+  writeText.mockResolvedValue(undefined);
+  fetchEnvStatus.mockImplementation(async () => {
+    useAppStore.setState({ envStatus: fixture() });
+    return true;
+  });
+  selectEnvSource.mockResolvedValue(true);
+  installEnvDep.mockResolvedValue(true);
+  setEnvCustomPath.mockResolvedValue(true);
+  recheckEnv.mockResolvedValue(true);
+});
+
+afterEach(() => {
+  cleanup();
+});
+
+function renderSettings() {
+  return render(
+    <TestProvider>
+      <EnvironmentSettings />
+    </TestProvider>,
+  );
+}
+
+async function renderWithRows() {
+  const result = renderSettings();
+  // 首屏即拉取：mock 的 fetchEnvStatus 同步写 store，行随后渲染。
+  await waitFor(() => {
+    expect(fetchEnvStatus).toHaveBeenCalled();
+  });
+  for (const dep of [
+    'environmentDepNode',
+    'environmentDepGit',
+    'environmentDepBash',
+    'environmentDepWebview2',
+    'environmentDepAdlserver',
+    'environmentDepNet',
+    'environmentDepModel',
+  ]) {
+    await waitFor(() => {
+      expect(screen.getByText(dep)).not.toBeNull();
+    });
+  }
+  expect(pollEnvTaskWhileRunning).toHaveBeenCalled();
+  return result;
+}
+
+describe('EnvironmentSettings', () => {
+  it('挂载拉取状态并渲染七依赖行 + 聚合条', async () => {
+    await renderWithRows();
+    // 聚合条：就绪计数 + 重测 + 复制全部。
+    expect(screen.getByText('environmentAggregateReady')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'environmentRecheck' })).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'environmentCopyAllForAgent' })).not.toBeNull();
   });
 
-  it('挂载渲染组标题（空壳；Task 7 填充七依赖行）', () => {
-    const { getByText } = render(
-      <TCopyProvider t={t} locale="zh-CN">
+  it('Bash 系统模式下展示 Git 自带/WSL/MSYS2 三选一', async () => {
+    const { container } = await renderWithRows();
+    const bash = container.querySelector('[data-testid="env-dep-bash"]')!;
+    expect(within(bash as HTMLElement).getByText('environmentBashGitBundled')).not.toBeNull();
+    expect(within(bash as HTMLElement).getByText('environmentBashWsl')).not.toBeNull();
+    expect(within(bash as HTMLElement).getByText('environmentBashMsys2')).not.toBeNull();
+  });
+
+  it('模型行无状态灯，只有去 dsh 侧配置引导', async () => {
+    const { container } = await renderWithRows();
+    const model = container.querySelector('[data-testid="env-dep-model"]') as HTMLElement;
+    // 红绿灯（状态 pill）绝不出现在模型行。
+    expect(model.querySelector('.adl-settings-status')).toBeNull();
+    expect(within(model).getByRole('button', { name: 'environmentGoToSettings' })).not.toBeNull();
+  });
+
+  it('复制按钮把诊断 JSON 写剪贴板（payload 含 dep 与 statusJson）', async () => {
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    fireEvent.click(within(node).getByRole('button', { name: 'environmentCopyForAgentNote' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    expect(payload.dep).toBe('node');
+    expect(typeof payload.statusJson).toBe('string');
+    const section = JSON.parse(payload.statusJson as string) as { baselineVersion: string };
+    expect(section.baselineVersion).toBe('22.0.0');
+    expect(payload.baseline).toBe('22.0.0');
+    expect(payload.copyContext).toBeTruthy();
+  });
+
+  it('来源切换调用 selectEnvSource', async () => {
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    fireEvent.click(within(node).getByLabelText('environmentSwitch'));
+    fireEvent.click(screen.getByRole('option', { name: 'environmentSourceSystem' }));
+    await waitFor(() => {
+      expect(selectEnvSource).toHaveBeenCalledWith('node', 'system');
+    });
+  });
+
+  it('安装按钮走 ConfirmDialog 确认后调用 installEnvDep', async () => {
+    const { container } = await renderWithRows();
+    const node = container.querySelector('[data-testid="env-dep-node"]') as HTMLElement;
+    fireEvent.click(within(node).getByRole('button', { name: 'environmentInstall' }));
+    // 确认态两段点击：首击只弹框，不调安装。
+    expect(installEnvDep).not.toHaveBeenCalled();
+    expect(screen.getByRole('dialog')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(installEnvDep).toHaveBeenCalledWith('node');
+    });
+  });
+
+  it('聚合条重测调 recheckEnv，复制全部写整包 JSON', async () => {
+    await renderWithRows();
+    fireEvent.click(screen.getByRole('button', { name: 'environmentRecheck' }));
+    await waitFor(() => {
+      expect(recheckEnv).toHaveBeenCalledWith();
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'environmentCopyAllForAgent' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    expect(payload.dep).toBe('all');
+    expect(typeof payload.statusJson).toBe('string');
+  });
+
+  it('组级重置 pending 打开确认框，确认后来源回自动并清空手动路径', async () => {
+    fetchEnvStatus.mockImplementation(async () => {
+      const status = fixture();
+      status.node = depState({
+        mode: 'system',
+        effective: 'system',
+        installedVersion: '22.0.0',
+        baselineVersion: '22.0.0',
+        meetsBaseline: true,
+        path: 'C:/custom/node.exe',
+        customPath: 'C:/custom/node.exe',
+      });
+      useAppStore.setState({ envStatus: status });
+      return true;
+    });
+    seedStore({ environmentGroupResetPending: true });
+    await renderWithRows();
+    expect(screen.getByRole('dialog')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(selectEnvSource).toHaveBeenCalledWith('node', 'auto');
+    });
+    expect(setEnvCustomPath).toHaveBeenCalledWith('node', '');
+    expect(recheckEnv).toHaveBeenCalledWith();
+    expect(openUrlByMethod).not.toHaveBeenCalled();
+  });
+
+  it('聚合条就绪计数只计可检测项（模型引导行不计入）', async () => {
+    // fixture：node 缺失 + 其余四依赖就绪 + 注册表通 = 5/6。
+    const hybridT = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
+    }) as unknown as CopyDict;
+    seedStore({ envStatus: fixture() });
+    render(
+      <TCopyProvider t={hybridT} locale="zh-CN">
         <EnvironmentSettings />
       </TCopyProvider>,
     );
-    expect(getByText('环境')).not.toBeNull();
+    expect(await screen.findByText('5/6 就绪')).not.toBeNull();
+  });
+
+  it('浏览器模式：系统级行变更控件置灰并追加仅桌面说明', async () => {
+    seedStore({ isTauri: false, envStatus: fixture() });
+    const { container } = renderSettings();
+    const node = (await waitFor(() => {
+      const el = container.querySelector('[data-testid="env-dep-node"]');
+      expect(el).not.toBeNull();
+      return el as HTMLElement;
+    })) as HTMLElement;
+    expect(
+      (within(node).getByRole('button', { name: 'environmentInstall' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(node.textContent).toContain('settingsAgentDesktopOnlyHint');
   });
 });

@@ -36,6 +36,14 @@ const saveSourceConfig = vi.fn();
 // 保留以维持 action mock 形状完整。
 const fetchDshVersionStatus = vi.fn();
 const fetchVersionCatalog = vi.fn();
+// 环境组挂载即拉取全量状态 + 启动任务轮询；状态不写 store（本套件不断言行内容，
+// loading 态仍带锚点），只保留 mock 形状使挂载 effect 可跑。
+const fetchEnvStatus = vi.fn();
+const selectEnvSource = vi.fn();
+const installEnvDep = vi.fn();
+const setEnvCustomPath = vi.fn();
+const recheckEnv = vi.fn();
+const pollEnvTaskWhileRunning = vi.fn();
 
 vi.mock('@hooks/useAppActions', () => ({
   useAppActions: () => ({
@@ -54,6 +62,12 @@ vi.mock('@hooks/useAppActions', () => ({
     uninstallDsh: vi.fn(),
     reinstallDsh: vi.fn(),
     installDshVersion: vi.fn(),
+    fetchEnvStatus: (...args: unknown[]) => fetchEnvStatus(...args),
+    selectEnvSource: (...args: unknown[]) => selectEnvSource(...args),
+    installEnvDep: (...args: unknown[]) => installEnvDep(...args),
+    setEnvCustomPath: (...args: unknown[]) => setEnvCustomPath(...args),
+    recheckEnv: (...args: unknown[]) => recheckEnv(...args),
+    pollEnvTaskWhileRunning: (...args: unknown[]) => pollEnvTaskWhileRunning(...args),
   }),
 }));
 
@@ -301,6 +315,12 @@ describe('settings search anchors', () => {
     testSource.mockReset().mockResolvedValue({ reachable: true, latency_ms: 12, error: null });
     saveSourceConfig.mockReset().mockResolvedValue(true);
     fetchDshVersionStatus.mockReset().mockResolvedValue(true);
+    fetchEnvStatus.mockReset().mockResolvedValue(true);
+    selectEnvSource.mockReset().mockResolvedValue(true);
+    installEnvDep.mockReset().mockResolvedValue(true);
+    setEnvCustomPath.mockReset().mockResolvedValue(true);
+    recheckEnv.mockReset().mockResolvedValue(true);
+    pollEnvTaskWhileRunning.mockReset().mockReturnValue(() => {});
   });
 
   afterEach(() => {
@@ -391,8 +411,14 @@ describe('settings search anchors', () => {
     // 都能译出文案，且同组内文案值两两不同（单 locale 撞车会让该语言下跳转静默落到
     // 同组第一行，另一 locale 的断言拦不住）。
     const localeCopies: [string, Record<string, string>][] = [
-      ['zh-CN', { ...settingsZh, ...browserZh, ...dshZh, ...environmentZh } as Record<string, string>],
-      ['en-US', { ...settingsEn, ...browserEn, ...dshEn, ...environmentEn } as Record<string, string>],
+      [
+        'zh-CN',
+        { ...settingsZh, ...browserZh, ...dshZh, ...environmentZh } as Record<string, string>,
+      ],
+      [
+        'en-US',
+        { ...settingsEn, ...browserEn, ...dshEn, ...environmentEn } as Record<string, string>,
+      ],
     ];
     for (const [locale, dict] of localeCopies) {
       for (const group of ['workspace', 'storage', 'browser', 'dsh', 'environment'] as const) {

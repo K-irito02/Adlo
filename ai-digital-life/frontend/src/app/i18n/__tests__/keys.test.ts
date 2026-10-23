@@ -509,6 +509,49 @@ describe('i18n en-US namespace keys', () => {
       'environmentInstallSuccess',
       'environmentInstallFailed',
       'environmentInstallProgress',
+      // 环境行组 UI（Task 7：七依赖行 + 聚合条 + 复制 + 重置）
+      'environmentAggregateReady',
+      'environmentCopyAllForAgent',
+      'environmentCopyForAgentNote',
+      'environmentDepNode',
+      'environmentDepGit',
+      'environmentDepBash',
+      'environmentDepWebview2',
+      'environmentDepAdlserver',
+      'environmentDepNet',
+      'environmentDepModel',
+      'environmentDepNodeDesc',
+      'environmentDepGitDesc',
+      'environmentDepBashDesc',
+      'environmentDepWebview2Desc',
+      'environmentDepAdlserverDesc',
+      'environmentDepNetDesc',
+      'environmentDepModelDesc',
+      'environmentFieldVersion',
+      'environmentFieldPath',
+      'environmentFieldSource',
+      'environmentBashVariant',
+      'environmentBashHostedNote',
+      'environmentCustomPathLabel',
+      'environmentCustomPathPlaceholder',
+      'environmentAdvanced',
+      'environmentFixedVersion',
+      'environmentFixedVersionManagedNote',
+      'environmentNetRegistry',
+      'environmentNetLatency',
+      'environmentNetRegistryDown',
+      'environmentNetModelApi',
+      'environmentNetFollowDsh',
+      'environmentCredentialAvailable',
+      'environmentOfficialSite',
+      'environmentInstallConfirmTitle',
+      'environmentInstallConfirmMessage',
+      'environmentResetSource',
+      'environmentLoading',
+      'environmentTaskPhasePreparing',
+      'environmentTaskPhaseInstalling',
+      'environmentTaskPhaseRemoving',
+      'environmentTaskPhaseFinalizing',
       // 网络域：组 labelKey（供 Task 4 注册）+ 组标题/副标题/状态灯/重试
       // （RULING：DSH 旧键不迁移，NetworkSettings 复用 dsh.* 旧 key，新文案才用 network 域）
       'settingsNetwork',
@@ -528,10 +571,18 @@ describe('i18n en-US namespace keys', () => {
       'environmentInstallStarted',
       'environmentInstallFailed',
       'environmentInstallProgress',
+      'environmentInstallConfirmTitle',
+      'environmentInstallConfirmMessage',
     ] as const) {
       expect(String(enUS[key]), `en:${key}`).toContain('{dep}');
       expect(String(zhCN[key]), `zh:${key}`).toContain('{dep}');
     }
+    expect(String(enUS.environmentAggregateReady)).toContain('{ready}');
+    expect(String(zhCN.environmentAggregateReady)).toContain('{ready}');
+    expect(String(enUS.environmentAggregateReady)).toContain('{total}');
+    expect(String(zhCN.environmentAggregateReady)).toContain('{total}');
+    expect(String(enUS.environmentNetLatency)).toContain('{ms}');
+    expect(String(zhCN.environmentNetLatency)).toContain('{ms}');
     expect(String(enUS.environmentInstallSuccess)).toContain('{dep}');
     expect(String(zhCN.environmentInstallSuccess)).toContain('{dep}');
     expect(String(enUS.environmentInstallSuccess)).toContain('{version}');

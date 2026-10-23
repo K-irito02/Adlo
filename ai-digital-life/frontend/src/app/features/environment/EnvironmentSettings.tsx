@@ -1,39 +1,409 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
+import { formatT } from '@i18n/formatT';
 import { useAppStore } from '@stores/slicedStore';
+import { useAppActions } from '@hooks/useAppActions';
+import { openUrlByMethod } from '@features/preview/openByMethod';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
+import { ConfirmDialog } from '@components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
+import { EnvDepRow, type EnvDepKey, type EnvDepRowActions } from './EnvDepRow';
+import { getCachedEnvStatus, isWellFormedEnvStatus, setCachedEnvStatus } from './envStatusCache';
+import type { EnvSourceMode, EnvStatus } from '../../../shared/ipc/env';
+
+/** 七依赖行渲染顺序（与 wire 的 node/git/bash/webview2/adlserver/netprobe + 模型引导行对应）。 */
+const DEP_ORDER: EnvDepKey[] = ['node', 'git', 'bash', 'webview2', 'adlserver', 'net', 'model'];
+
+/** 可改来源的依赖（与 EnvDepRow.OPERABLE_DEPS 同口径，组级重置只动这三行）。 */
+const SOURCE_DEPS = ['node', 'git', 'bash'] as const;
 
 /**
- * 「环境」设置组空壳（Task 4 注册与接线；Task 7 填充七依赖行）。
+ * 聚合条就绪计数分母：5 个 version 信号（node/git/bash/webview2/adlserver
+ * meetsBaseline）+ netprobe registryOk = 6。模型行是纯引导（无就绪信号，
+ * 把 ciTokenConfigured 计入会冒充模型就绪——Phase 1 parked 红线），不计入。
+ */
+const READY_TOTAL = 6;
+
+function depPayload(
+  dep: EnvDepKey | 'all',
+  status: EnvStatus,
+): { dep: string; statusJson: string; baseline: string | null } {
+  if (dep === 'all') {
+    return { dep, statusJson: JSON.stringify(status), baseline: null };
+  }
+  if (dep === 'net') {
+    return { dep, statusJson: JSON.stringify(status.netprobe), baseline: null };
+  }
+  if (dep === 'model') {
+    return {
+      dep,
+      statusJson: JSON.stringify({
+        ciTokenConfigured: status.netprobe.ciTokenConfigured,
+        dshReady: status.dshReady,
+      }),
+      baseline: null,
+    };
+  }
+  const section = status[dep];
+  return { dep, statusJson: JSON.stringify(section), baseline: section.baselineVersion };
+}
+
+function writeTextFallback(text: string): boolean {
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function copyTextToClipboard(text: string): Promise<boolean> {
+  // 照抄 CopyButton 双通道：clipboard API 优先，失败/缺失降级 execCommand。
+  if (navigator.clipboard?.writeText !== undefined) {
+    return navigator.clipboard
+      .writeText(text)
+      .then(() => true)
+      .catch(() => writeTextFallback(text));
+  }
+  return Promise.resolve(writeTextFallback(text));
+}
+
+/**
+ * 「环境」设置组（Task 7 实装：七依赖行 + 顶部聚合条 + 组级重置自助流）。
  *
- * 单锚点（deps）与搜索索引同源；七个操作行（安装/切换/卸载/重装/重测/
- * 复制/前往配置）已按索引登记、属条件行（Task 7 渲染时带同名
- * `data-settings-row` 标记），空壳期卡内无行。
- * pending 消费照抄 DshSettings 挂载行为：开框即清 + 卸载兜底，避免侧边栏
- * pending 悬空。环境不进 ResetAll 自动序列：其组级重置仅侧边栏自助，
- * 故本组无 ResetAll 腿、无聚合信号。
+ * - 挂载即拉取全量状态（非静默：首屏 loading + 失败错误卡）；命中进场缓存时先瞬显
+ *   快照，后台再验证（照抄 storage-settings 方案 B，写回点唯一在此处）。
+ * - 安装任务进行中才轮询（`pollEnvTaskWhileRunning`，挂载启动 + 卸载清理，
+ *   install 成功后 action 侧另行启动）。
+ * - 组级重置仅侧边栏自助（不进 ResetAll 自动序列）：来源全回自动 + 清空手动路径，
+ *   不卸载已装版本（spec §7.2）。
  */
 export function EnvironmentSettings() {
-  const { t } = useTCopy();
+  const { t, locale } = useTCopy();
+  const actions = useAppActions();
+  const isTauri = useAppStore((s) => s.isTauri);
+  const envBusy = useAppStore((s) => s.envBusy);
+  const showToast = useAppStore((s) => s.showToast);
+  const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
   const environmentGroupResetPending = useAppStore((s) => s.environmentGroupResetPending);
   const consumeEnvironmentGroupReset = useAppStore((s) => s.consumeEnvironmentGroupReset);
 
+  const [cachedStatus] = useState<EnvStatus | null>(() => getCachedEnvStatus());
+  const storeStatus = useAppStore((s) => s.envStatus);
+  const status = storeStatus ?? cachedStatus;
+
+  const [installConfirmDep, setInstallConfirmDep] = useState<string | null>(null);
+  const [blockResetDep, setBlockResetDep] = useState<string | null>(null);
+  const [groupResetOpen, setGroupResetOpen] = useState(false);
+  const [groupResetBusy, setGroupResetBusy] = useState(false);
+
   useEffect(() => {
-    if (environmentGroupResetPending) {
-      consumeEnvironmentGroupReset();
-    }
+    void actions.fetchEnvStatus();
+    const stopPolling = actions.pollEnvTaskWhileRunning();
     return () => {
-      useAppStore.getState().consumeEnvironmentGroupReset();
+      stopPolling();
     };
-  }, [environmentGroupResetPending, consumeEnvironmentGroupReset]);
+  }, [actions]);
+
+  // 缓存写回唯一点：成功渲染的快照才入缓存（失败/畸形不入，见 envStatusCache）。
+  useEffect(() => {
+    if (storeStatus !== null && isWellFormedEnvStatus(storeStatus)) {
+      setCachedEnvStatus(storeStatus);
+    }
+  }, [storeStatus]);
+
+  /**
+   * 组级恢复对话框打开（承接 pending 信号）：守卫先行——组框/任一块框已开/
+   * 执行中 → 不消费 pending（信号保留，框关闭后 effect 重试），避免重置意图被
+   * 静默吞掉（照抄 NetworkSettings 事项 11 Phase 4 A1-L1）。
+   */
+  const openGroupResetDialog = useCallback(() => {
+    if (groupResetOpen || groupResetBusy || installConfirmDep !== null || blockResetDep !== null) {
+      return;
+    }
+    consumeEnvironmentGroupReset();
+    setGroupResetOpen(true);
+  }, [
+    consumeEnvironmentGroupReset,
+    groupResetOpen,
+    groupResetBusy,
+    installConfirmDep,
+    blockResetDep,
+  ]);
+
+  useEffect(() => {
+    if (!environmentGroupResetPending) {
+      return;
+    }
+    openGroupResetDialog();
+  }, [environmentGroupResetPending, openGroupResetDialog]);
+
+  // 卸载兜底：pending 置位后若组件在消费前卸载，清信号避免下次挂载"迟到弹窗"。
+  useEffect(
+    () => () => {
+      useAppStore.getState().consumeEnvironmentGroupReset();
+    },
+    [],
+  );
+
+  const copyForAgent = useCallback(
+    async (dep: EnvDepKey | 'all') => {
+      if (status === null) {
+        return;
+      }
+      // runbook 全文 Phase 3 追加；此处载荷契约 = { dep, statusJson, baseline, copyContext }。
+      const payload = {
+        ...depPayload(dep, status),
+        copyContext: {
+          source: 'environment-settings',
+          bridge: isTauri ? 'tauri' : 'browser',
+          locale,
+          copiedAt: new Date().toISOString(),
+        },
+      };
+      const ok = await copyTextToClipboard(JSON.stringify(payload));
+      showToast(ok ? t.copySuccessClipboard : t.operationFailed, ok ? 'success' : 'error');
+    },
+    [status, isTauri, locale, showToast, t],
+  );
+
+  const rowActions: EnvDepRowActions = {
+    selectSource: (dep, mode: EnvSourceMode) => actions.selectEnvSource(dep, mode),
+    requestInstall: (dep) => setInstallConfirmDep(dep),
+    setCustomPath: (dep, path) => actions.setEnvCustomPath(dep, path),
+    copyForAgent,
+    requestBlockReset: (dep) => setBlockResetDep(dep),
+    goGroup: (group) => setActiveSettingsGroup(group),
+    openExternal: (url) => openUrlByMethod(url),
+  };
+
+  const handleInstallConfirm = useCallback(() => {
+    const dep = installConfirmDep;
+    setInstallConfirmDep(null);
+    if (dep === null) {
+      return;
+    }
+    showToast(formatT(t, 'environmentInstallStarted', { dep }), 'success');
+    void actions.installEnvDep(dep);
+  }, [installConfirmDep, showToast, t, actions]);
+
+  /** 单行来源恢复默认：来源回自动（已是自动则跳过）+ 清空手动路径（无则跳过）。 */
+  const resetOneDepSource = useCallback(
+    async (dep: 'node' | 'git' | 'bash'): Promise<boolean> => {
+      if (status === null) {
+        return false;
+      }
+      const section = status[dep];
+      if (section.mode !== 'auto') {
+        if (!(await actions.selectEnvSource(dep, 'auto'))) {
+          return false;
+        }
+      }
+      if (section.customPath !== undefined && section.customPath !== '') {
+        if (!(await actions.setEnvCustomPath(dep, ''))) {
+          return false;
+        }
+      }
+      return true;
+    },
+    [status, actions],
+  );
+
+  /** 单行恢复默认：来源恢复 + 单行重测。 */
+  const resetOneDep = useCallback(
+    async (dep: string): Promise<boolean> => {
+      if (status === null) {
+        return false;
+      }
+      if (dep !== 'node' && dep !== 'git' && dep !== 'bash') {
+        return actions.recheckEnv(dep);
+      }
+      if (!(await resetOneDepSource(dep))) {
+        return false;
+      }
+      return actions.recheckEnv(dep);
+    },
+    [status, actions, resetOneDepSource],
+  );
+
+  const handleBlockResetConfirm = useCallback(() => {
+    const dep = blockResetDep;
+    setBlockResetDep(null);
+    if (dep === null) {
+      return;
+    }
+    void (async () => {
+      if (await resetOneDep(dep)) {
+        showToast(t.settingsResetComplete, 'success');
+      }
+    })();
+  }, [blockResetDep, resetOneDep, showToast, t]);
+
+  /** 组级恢复默认：三行来源全回自动 + 清空手动路径 + 全量重测，不卸载。 */
+  const handleGroupConfirm = useCallback(() => {
+    if (groupResetBusy) {
+      return;
+    }
+    setGroupResetBusy(true);
+    setGroupResetOpen(false);
+    void (async () => {
+      try {
+        let ok = true;
+        for (const dep of SOURCE_DEPS) {
+          if (!(await resetOneDepSource(dep))) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) {
+          ok = await actions.recheckEnv();
+        }
+        if (ok) {
+          showToast(t.settingsResetComplete, 'success');
+        }
+      } finally {
+        setGroupResetBusy(false);
+      }
+    })();
+  }, [groupResetBusy, resetOneDepSource, actions, showToast, t]);
+
+  const handleGroupCancel = useCallback(() => {
+    setGroupResetOpen(false);
+  }, []);
+
+  const readyCount =
+    status === null
+      ? 0
+      : (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) => {
+          const section = status[dep];
+          return (
+            section.installedVersion !== null &&
+            section.meetsBaseline &&
+            section.effective !== 'none'
+          );
+        }).length + (status.netprobe.registryOk ? 1 : 0);
+
+  const blockResetDepTitle =
+    blockResetDep === 'node'
+      ? t.environmentDepNode
+      : blockResetDep === 'git'
+        ? t.environmentDepGit
+        : t.environmentDepBash;
 
   return (
     <div className="adl-settings-section adl-environment-settings">
-      <SettingsHeader title={t.settingsEnvironment} description={t.environmentDesc} />
       <div data-settings-anchor={anchorFor('environment', 'deps')}>
-        <div className="adl-settings-card" />
+        <SettingsHeader title={t.settingsEnvironment} description={t.environmentDesc} />
+        {status === null ? (
+          <div className="adl-settings-card">
+            <div className="adl-settings-row">
+              <div className="adl-settings-row__label">
+                <div className="adl-settings-row__label-text">
+                  <span>{t.environmentLoading}</span>
+                </div>
+              </div>
+              <div className="adl-settings-row__control">
+                <button
+                  type="button"
+                  className="adl-dsh-settings__action-btn"
+                  disabled={envBusy}
+                  onClick={() => {
+                    void actions.fetchEnvStatus();
+                  }}
+                >
+                  {t.environmentRecheck}
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="adl-settings-card" data-testid="env-aggregate">
+              <div className="adl-settings-row">
+                <div className="adl-settings-row__label">
+                  <div className="adl-settings-row__label-text">
+                    <span>
+                      {formatT(t, 'environmentAggregateReady', {
+                        ready: readyCount,
+                        total: READY_TOTAL,
+                      })}
+                    </span>
+                  </div>
+                </div>
+                <div className="adl-settings-row__control adl-settings-row__control--inline">
+                  <button
+                    type="button"
+                    className="adl-dsh-settings__action-btn"
+                    data-settings-row={t.environmentRecheck}
+                    disabled={envBusy}
+                    onClick={() => {
+                      void actions.recheckEnv();
+                    }}
+                  >
+                    {t.environmentRecheck}
+                  </button>
+                  <button
+                    type="button"
+                    className="adl-dsh-settings__action-btn"
+                    data-settings-row={t.environmentCopyForAgent}
+                    disabled={envBusy}
+                    onClick={() => {
+                      void copyForAgent('all');
+                    }}
+                  >
+                    {t.environmentCopyAllForAgent}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="adl-settings-card">
+              {DEP_ORDER.map((dep) => (
+                <EnvDepRow
+                  key={dep}
+                  dep={dep}
+                  status={status}
+                  busy={envBusy}
+                  isTauri={isTauri}
+                  actions={rowActions}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={installConfirmDep !== null}
+        title={formatT(t, 'environmentInstallConfirmTitle', { dep: installConfirmDep ?? '' })}
+        message={formatT(t, 'environmentInstallConfirmMessage', { dep: installConfirmDep ?? '' })}
+        confirmLabel={t.confirm}
+        cancelLabel={t.cancel}
+        onConfirm={handleInstallConfirm}
+        onCancel={() => setInstallConfirmDep(null)}
+      />
+      <ConfirmDialog
+        open={blockResetDep !== null}
+        title={formatT(t, 'settingsResetGroupConfirmTitle', { group: blockResetDepTitle })}
+        message={formatT(t, 'settingsResetGroupConfirmMessage', { group: blockResetDepTitle })}
+        confirmLabel={t.confirm}
+        cancelLabel={t.cancel}
+        onConfirm={handleBlockResetConfirm}
+        onCancel={() => setBlockResetDep(null)}
+      />
+      <ConfirmDialog
+        open={groupResetOpen}
+        title={formatT(t, 'settingsResetGroupConfirmTitle', { group: t.environmentTitle })}
+        message={formatT(t, 'settingsResetGroupConfirmMessage', { group: t.environmentTitle })}
+        confirmLabel={t.confirm}
+        cancelLabel={t.cancel}
+        onConfirm={handleGroupConfirm}
+        onCancel={handleGroupCancel}
+      />
     </div>
   );
 }
