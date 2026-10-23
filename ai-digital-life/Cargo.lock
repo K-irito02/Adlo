@@ -144,6 +144,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "adl-hosted"
+version = "0.1.0"
+dependencies = [
+ "adl-errors",
+ "semver",
+]
+
+[[package]]
 name = "adl-kernel"
 version = "0.1.0"
 dependencies = [
