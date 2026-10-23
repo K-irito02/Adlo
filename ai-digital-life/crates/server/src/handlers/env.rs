@@ -20,6 +20,7 @@ use std::path::Path;
 
 use adl_env::providers::{adlserver, bash, git, node, webview2};
 use adl_env::{DependencyState, EffectiveSource, Origin, resolve};
+use adl_hosted::ProgressPhase;
 
 /// Parse a dependency key; anything outside [`adl_env::ENV_DEPS`] is
 /// `InvalidInput` (4xx, never a silent no-op).
@@ -626,9 +627,15 @@ async fn uninstall_inner(
         None => selected_hosted_version(&root, dep)?
             .ok_or_else(|| AppError::InvalidInput("no-selected-version".into()))?,
     };
-    try_begin_env_task(state, &format!("env-{dep}-uninstall"), &version)?;
+    try_begin_env_task(state, &uninstall_kind(dep), &version)?;
     spawn_uninstall(state, dep, version);
     Ok(serde_json::json!({ "started": true }))
+}
+
+/// Task kind for the background uninstall (`env-{dep}-uninstall`); pinned in
+/// tests so the frontend's polling filter cannot silently drift.
+fn uninstall_kind(dep: &str) -> String {
+    format!("env-{dep}-uninstall")
 }
 
 /// Selected hosted version for an uninstall-eligible dep (provider-owned
@@ -650,10 +657,13 @@ fn spawn_uninstall(state: &ServerState, dep: &'static str, version: String) {
     tokio::spawn(async move {
         let _guard = task_state.env_install_lock.clone().lock_owned().await;
         let root = task_state.storage.paths().root.clone();
+        // `/env/status` should show removing while the provider works.
+        task_state.env_task.update(ProgressPhase::Removing, Some(0), 0, 0, true);
         // `remove_dir_all` is blocking IO — keep it off the runtime.
         let result = tokio::task::spawn_blocking(move || match dep {
             "node" => node::uninstall(&root, &version).map(|_| ()),
-            _ => git::uninstall(&root, &version).map(|_| ()),
+            "git" => git::uninstall(&root, &version).map(|_| ()),
+            _ => unreachable!("whitelist guarantees node|git"),
         })
         .await;
         match result {
@@ -813,8 +823,10 @@ struct RecheckInput {
 mod tests {
     use super::{
         EnvStatus, NetprobeState, SelectInput, UninstallInput, meets_dotted, meets_semver,
-        parse_dep, parse_mode, select_source_inner, uninstall_inner, validate_uninstall,
+        parse_dep, parse_mode, select_source_inner, selected_hosted_version, uninstall_inner,
+        uninstall_kind, validate_uninstall,
     };
+    use adl_env::providers::node;
     use adl_env::{DependencyState, EffectiveSource, Origin, SourceMode};
     use adl_errors::AppError;
 
@@ -933,6 +945,29 @@ mod tests {
             matches!(err, AppError::InvalidInput(ref m) if m == "bash-follows-git"),
             "unexpected error: {err}"
         );
+    }
+
+    /// 缺省 version 走 selected 分支：从托管根读到 `selected.txt` 的版本；
+    /// 同时钉住任务 kind（前端按 `env-{dep}-uninstall` 过滤轮询）。
+    #[test]
+    fn selected_hosted_version_reads_selected_and_kind_is_pinned() {
+        let root = std::env::temp_dir().join(format!(
+            "adl-server-env-uninstall-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        let hv = adl_hosted::HostedVersions::open(&root, node::HOSTED_NAME, node::MARKER_REL);
+        hv.mark_installed("22.14.0").expect("mark installed");
+        hv.write_selected("22.14.0").expect("write selected");
+        assert_eq!(
+            selected_hosted_version(&root, "node").expect("selected"),
+            Some("22.14.0".to_string())
+        );
+        assert_eq!(uninstall_kind("node"), "env-node-uninstall");
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     /// 缺省 version 且该 dep 没有 selected 托管版本 → 4xx，不启动后台任务。
