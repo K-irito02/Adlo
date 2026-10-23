@@ -9,6 +9,9 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Hosted-install providers (`node` now; `git`/`bash`/… arrive in Tasks 9-10).
+pub mod providers;
+
 /// Well-known environment dependency keys, in canonical order.
 pub const ENV_DEPS: [&str; 6] = ["node", "git", "bash", "webview2", "adlserver", "netprobe"];
 

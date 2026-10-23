@@ -71,6 +71,7 @@ tokio-stream = { version = "0.1", features = ["sync"] }
 tokio-util = { version = "0.7", features = ["rt"] }
 indexmap = "2"
 base64 = "0.22"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [profile.dev]
 opt-level = 0
