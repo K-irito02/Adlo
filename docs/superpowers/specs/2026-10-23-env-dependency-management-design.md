@@ -134,7 +134,8 @@ trait DependencyProvider {
 - `webviewInstallMode: embedBootstrapper`（+约 2MB，安装包保持轻量；
   有网静默装好，无网跳过由应用内向导兜底）。`offlineInstaller`（+150MB）
   留作企业离线发行版分支。
-- `bundleVCRuntime: true`（MSVC 运行时顺手配）。
+- 不设 `bundleVCRuntime`：该字段不在 Tauri 2.x 配置 schema 内（会触发
+  `bundle > windows` 校验失败）；Rust MSVC 默认静态链接 VC 运行时，无需随包。
 - Node/Git **不进 NSIS**：用户级工具无需提权（提权装会污染全机 PATH）；
   NSIS 脚本难调试，版本比对写两遍必漂移。NSIS 只读注册表做 WebView2 粗检
   （有/无），精细版本比对留给 Rust。

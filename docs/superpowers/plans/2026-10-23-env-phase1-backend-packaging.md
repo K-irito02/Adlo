@@ -46,7 +46,7 @@ ai-digital-life/crates/server/src/
   handlers/env.rs                            # NEW
 ai-digital-life/src-tauri/
   src/adl_server.rs                          # 相对 current_exe() 解析随包 adl-server（dev 回退 target/）
-  tauri.conf.json                            # bundle.windows: embedBootstrapper + bundleVCRuntime; externalBin; beforeBundleCommand
+  tauri.conf.json                            # bundle.windows: embedBootstrapper; externalBin; beforeBundleCommand
   binaries/.gitkeep                         # externalBin 落点（构建期 copy 进入，git 不追踪 exe）
 ```
 
@@ -618,7 +618,7 @@ git commit -m "feat(rust): add env config baseline and /env routes"
 ### Task 12: adl-server 随包 + NSIS（WebView2/VC++）
 
 **Files:**
-- Modify: `ai-digital-life/src-tauri/tauri.conf.json`（`bundle.windows += { webviewInstallMode: {type:"embedBootstrapper",silent:true}, bundleVCRuntime: true }`；`bundle.externalBin: ["binaries/adl-server"]`；`bundle.beforeBundleCommand`？Tauri 无此字段——正确做法：`build.beforeBundleCommand: "powershell -File ../scripts/copy-adl-server-sidecar.ps1 -Profile release"`）、Create: `ai-digital-life/scripts/copy-adl-server-sidecar.ps1`（`target/release/adl-server.exe` → `src-tauri/binaries/adl-server-x86_64-pc-windows-msvc.exe`；缺失则报错中断打包）、`src-tauri/binaries/.gitkeep`、Modify: `ai-digital-life/src-tauri/src/adl_server.rs`（`resolve_ad_server_binary` 改为：① `current_exe()` 同级 `adl-server-x86_64-pc-windows-msvc.exe` ② dev 回退现有 workspace target 逻辑；新增单测覆盖“同级存在即选中”）
+- Modify: `ai-digital-life/src-tauri/tauri.conf.json`（`bundle.windows += { webviewInstallMode: {type:"embedBootstrapper",silent:true} }（勿加 bundleVCRuntime：Tauri 2.x 无此字段，会致校验失败；MSVC 默认静态链 VC 运行时）`；`bundle.externalBin: ["binaries/adl-server"]`；`bundle.beforeBundleCommand`？Tauri 无此字段——正确做法：`build.beforeBundleCommand: "powershell -File ../scripts/copy-adl-server-sidecar.ps1 -Profile release"`）、Create: `ai-digital-life/scripts/copy-adl-server-sidecar.ps1`（`target/release/adl-server.exe` → `src-tauri/binaries/adl-server-x86_64-pc-windows-msvc.exe`；缺失则报错中断打包）、`src-tauri/binaries/.gitkeep`、Modify: `ai-digital-life/src-tauri/src/adl_server.rs`（`resolve_ad_server_binary` 改为：① `current_exe()` 同级 `adl-server-x86_64-pc-windows-msvc.exe` ② dev 回退现有 workspace target 逻辑；新增单测覆盖“同级存在即选中”）
 
 **Interfaces:**
 - Consumes: Task 11（无其它依赖，可与 Task 7–11 并行， sole 共享编辑 `tauri.conf.json`——与 Task 11 同文件冲突，顺序执行）
