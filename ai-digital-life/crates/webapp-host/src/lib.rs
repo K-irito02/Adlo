@@ -392,12 +392,14 @@ pub async fn spawn_node_direct(
 /// 快速检查端口是否可达（TCP 连接检查，带超时）。
 pub async fn check_port_fast(port: u16) -> bool {
     use tokio::net::TcpStream;
-    tokio::time::timeout(
-        Duration::from_millis(100),
-        TcpStream::connect(format!("127.0.0.1:{port}")),
+    matches!(
+        tokio::time::timeout(
+            Duration::from_millis(100),
+            TcpStream::connect(format!("127.0.0.1:{port}")),
+        )
+        .await,
+        Ok(Ok(_))
     )
-    .await
-    .is_ok()
 }
 
 #[cfg(test)]
@@ -409,6 +411,17 @@ mod tests {
     #[test]
     fn hosted_process_fields_exist() {
         let _ = std::mem::size_of::<HostedProcess>();
+    }
+
+    #[tokio::test]
+    async fn check_port_fast_true_when_listening_and_false_when_refused() {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        let live = listener.local_addr().expect("local_addr").port();
+        assert!(check_port_fast(live).await, "listening port should read live");
+        let refused_listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind loopback");
+        let refused = refused_listener.local_addr().expect("local_addr").port();
+        drop(refused_listener);
+        assert!(!check_port_fast(refused).await, "refused port must not read live");
     }
 
     #[tokio::test]
