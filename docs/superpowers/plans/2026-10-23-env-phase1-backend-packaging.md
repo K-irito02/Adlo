@@ -4,7 +4,7 @@
 
 **Goal:** 建成通用托管层 `adl-hosted`、新 crate `adl-env`（Node/Git/Bash/WebView2/adl-server/netprobe 六 provider + `/env/*` 接口）与安装包改动（adl-server 随包 + WebView2 embedBootstrapper），dsh 迁移到通用层且行为不变。
 
-**Architecture:** 先抽通用层（HostedVersions/AtomicSwap/adopt/ProcHost/ProgressTask/InstallLock），dsh 原地迁移验证；再建 `adl-env`（统一 Provider trait + 六实现 + `env-sources.json` + `env-baseline.json` resource）；最后接 server 路由与打包。测试全离线可跑（网络探测用本地桩）。
+**Architecture:** 先抽通用层（HostedVersions/AtomicSwap/ProcHost/ProgressTask/InstallLock），dsh 原地迁移验证；再建 `adl-env`（统一 Provider trait + 六实现 + `env-sources.json` + `env-baseline.json` resource）；最后接 server 路由与打包。测试全离线可跑（网络探测用本地桩）。
 
 **Tech Stack:** Rust stable 1.85+ / edition 2024 / tokio / axum 0.7 / serde (camelCase DTO) / semver / reqwest（复用 `download-source::build_http_client`）/ Tauri 2.x bundler。
 
@@ -30,7 +30,6 @@ ai-digital-life/crates/adl-hosted/          # NEW 通用托管层（Task 1–5�
   src/lib.rs                                 # 重导出 + HostedVersions
   src/hosted_versions.rs                     # 布局/installed/<v>/marker + selected.txt + 回落选择
   src/atomic_swap.rs                          # .tmp → 原子改名 → 清旧版；失败保旧清 tmp
-  src/adopt.rs                                # 一次性预置包收编（单副本不变式）
   src/proc_host.rs                            # HostedProcess + spawn_capturing（marker 参数化）+ 端口轮询
   src/progress.rs                             # ProgressTask（kind: String + 通用 phase）
   src/lock.rs                                 # InstallLock = Arc<AsyncMutex<()>> 别名 + new()
@@ -233,36 +232,15 @@ git commit -m "feat(rust): add adl-hosted atomic swap"
 
 ---
 
-### Task 3: `adl-hosted::adopt`（预置包收编，泛化 dsh-bundle）
+### Task 3: `adl-hosted::adopt` — 已移除（未使用抽象，pre-release 删除）
 
-**Files:**
-- Create: `ai-digital-life/crates/adl-hosted/src/adopt.rs`
-- Modify: `ai-digital-life/crates/adl-hosted/src/lib.rs`
+**Status:** 已移除。实现期确认 `adopt_bundle` 没有任何调用方，按「未发布阶段不留死抽象」规则直接删除，不再作为交付物。
 
-**Interfaces:**
-- Consumes: Task 1–2
-- Produces: `adopt_bundle(bundle_dir, versions: &HostedVersions, manifest_version: &str, marker_rel: &str) -> Result<Option<String>, AppError>`（版本非法/semver 拒绝；目标已存在完整副本则只删源返回 None；收编成功删源目录）
+**Files:** 无（`adl-hosted/src/adopt.rs` 从未落地；若历史分支存在该文件，直接删除）。
 
-- [ ] **Step 1: Write the failing test**（照抄 `dsh-bundle::adopt_moves_package...` 语义，marker 换成 `bin/node.exe` 泛化版）：bundle 含 marker → adopt 后目标 `installed/<v>/<marker>` 存在且源目录删除；目标已存在副本 → 返回 None 且用户副本保留。
-
-- [ ] **Step 2: Run test to verify it fails**
-
-Run: `cargo test -p adl-hosted adopt 2>&1 | Select-Object -Last 3`
-Expected: FAIL（无 `adopt` 模块）
-
-- [ ] **Step 3: Write minimal implementation** — 逻辑逐行搬 `dsh-bundle::adopt`（detect 双文件存在 → 版本 semver 校验 → 目标存在则删源回 None → `swap_rename_or_copy` 搬移 → 删源），marker 路径与版本号改为参数。
-
-- [ ] **Step 4: Run test to verify it passes**
-
-Run: `cargo test -p adl-hosted 2>&1 | Select-Object -Last 3`
-Expected: PASS
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add ai-digital-life/crates/adl-hosted
-git commit -m "feat(rust): add adl-hosted bundle adopt"
-```
+**说明:**
+- 原计划本任务泛化 `dsh-bundle::adopt` 为 `adopt_bundle(bundle_dir, versions, manifest_version, marker_rel)`；实际 `dsh-bundle::adopt` 改为直接复用 Task 2 的 `adl_hosted::swap_into_place`（deep layout 语义），无需通用封装。
+- 任务编号保留以维持后续任务引用稳定；实现与验证由 Task 2 + Task 6 覆盖（见 Task 6 的「已批准偏离」注记）。
 
 ---
 
@@ -367,7 +345,7 @@ git commit -m "feat(rust): add adl-hosted progress task and install lock"
 - Consumes: Task 1–5
 - Produces: dsh 全链路行为不变（wire DTO 不动，前端零改）
 
-> **已批准偏离（实现期确认）**：`adl_hosted::adopt_bundle` 因无调用方而被移除；`dsh-bundle::adopt` 改为复用 `adl_hosted::swap_into_place` 的深层布局（deep layout）语义，不再走通用 adopt 封装。
+> **已批准偏离（实现期确认，Task 3 已按此改写）**：`adl_hosted::adopt_bundle` 因无调用方而被移除；`dsh-bundle::adopt` 改为复用 `adl_hosted::swap_into_place` 的深层布局（deep layout）语义，不再走通用 adopt 封装。
 
 - [ ] **Step 1: Write the failing test** — 本任务无新行为测试；门控 = 现有回归集。先跑基线并记录：
 
@@ -620,7 +598,7 @@ git commit -m "feat(rust): add env config baseline and /env routes"
 ### Task 12: adl-server 随包 + NSIS（WebView2）
 
 **Files:**
-- Modify: `ai-digital-life/src-tauri/tauri.conf.json`（`$schema` → `https://schema.tauri.app/config/2`；`bundle.windows += { webviewInstallMode: {type:"embedBootstrapper",silent:true} }`；**勿加 `bundleVCRuntime`**——当前固定工具链 tauri-cli 2.10.1 / tauri-utils 2.9.3 不支持该键，上游 tauri-utils ≥2.10 才支持。`bundle.externalBin: ["binaries/adl-server"]`；Tauri 钩子的 cwd 是应用目录 `ai-digital-life/`（**不是** `src-tauri/`），因此路径写 `scripts/...`、前端写 `--dir frontend`：`build.beforeBuildCommand: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile release && pnpm --dir frontend run build"`、`build.beforeBundleCommand: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/copy-adl-server-sidecar.ps1 -Profile release"`）、Create: `ai-digital-life/scripts/build-stage-sidecar.ps1`（先 `$env:RUSTFLAGS += "-C target-feature=+crt-static"`，再 `cargo build -p adl-server`（`--release` 或默认 dev——`-Profile debug` 映射默认 dev，输出 `target/debug`；cargo 拒绝 `--profile debug`，debug 是保留名），最后调 `copy-adl-server-sidecar.ps1` 落盘；sidecar 在 tauri-build 之外编译，不加静态 CRT 会动态依赖 `VCRUNTIME140.dll`）、`ai-digital-life/scripts/copy-adl-server-sidecar.ps1`（`target/<profile>/adl-server.exe` → `src-tauri/binaries/adl-server-x86_64-pc-windows-msvc.exe`；缺失则报错中断打包）、`src-tauri/binaries/.gitkeep`、Modify: `ai-digital-life/src-tauri/src/adl_server.rs`（`resolve_ad_server_binary` 改为：① `current_exe()` 同级 `adl-server.exe`（三元组名仅用于构建期 staging，运行时由 Tauri 去掉三元组改名）② dev 回退现有 workspace target 逻辑；新增单测覆盖“同级存在即选中”）
+- Modify: `ai-digital-life/src-tauri/tauri.conf.json`（`$schema` → `https://schema.tauri.app/config/2`；`bundle.windows += { webviewInstallMode: {type:"embedBootstrapper",silent:true} }`；**勿加 `bundleVCRuntime`**——当前固定工具链 tauri-cli 2.10.1 / tauri-utils 2.9.3 不支持该键，上游 tauri-utils ≥2.10 才支持。`bundle.externalBin: ["binaries/adl-server"]`；Tauri 钩子的 cwd 是应用目录 `ai-digital-life/`（**不是** `src-tauri/`），因此路径写 `scripts/...`、前端写 `--dir frontend`：`build.beforeDevCommand: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile debug"`、`build.beforeBuildCommand: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile release && pnpm --dir frontend run build"`、`build.beforeBundleCommand: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/copy-adl-server-sidecar.ps1 -Profile release"`）、Create: `ai-digital-life/scripts/build-stage-sidecar.ps1`（先 `$env:RUSTFLAGS += "-C target-feature=+crt-static"`，再 `cargo build -p adl-server`（`--release` 或默认 dev——`-Profile debug` 映射默认 dev，输出 `target/debug`；cargo 拒绝 `--profile debug`，debug 是保留名），最后调 `copy-adl-server-sidecar.ps1` 落盘；sidecar 在 tauri-build 之外编译，不加静态 CRT 会动态依赖 `VCRUNTIME140.dll`；幂等：staged exe 比 `crates/**` + `src-tauri/Cargo.toml` 新时跳过，`-Force` 强制重建）、`ai-digital-life/scripts/copy-adl-server-sidecar.ps1`（`target/<profile>/adl-server.exe` → `src-tauri/binaries/adl-server-x86_64-pc-windows-msvc.exe`；缺失则报错中断打包）、`src-tauri/binaries/.gitkeep`、Modify: `ai-digital-life/package.json`（`stage:sidecar: "powershell ... -Profile debug"`，并置于 `cargo:check`/`cargo:clippy`/`cargo:test` 之前，保证干净检出的首个 `pnpm run cargo:*` 可用）、`ai-digital-life/CONTRIBUTING.md`（首次检出命令收敛为 `pnpm run stage:sidecar`）、`ai-digital-life/src-tauri/src/adl_server.rs`（`resolve_ad_server_binary` 改为：① `current_exe()` 同级 `adl-server.exe`（三元组名仅用于构建期 staging，运行时由 Tauri 去掉三元组改名）② dev 回退现有 workspace target 逻辑；新增单测覆盖“同级存在即选中”）
 
 **Interfaces:**
 - Consumes: Task 11（无其它依赖，可与 Task 7–11 并行， sole 共享编辑 `tauri.conf.json`——与 Task 11 同文件冲突，顺序执行）
@@ -646,7 +624,7 @@ Expected: FAIL（无 `resolve_in`）
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p ai-digital-life 2>&1 | Select-Object -Last 3`，再 `cargo check -p ai-digital-life 2>&1 | Select-Object -Last 3`
+Run: `pnpm run stage:sidecar`（干净检出或 `src-tauri/binaries/` 为空时必须先 staging，否则 tauri-build 因 `externalBin` 缺失直接失败），再 `cargo test -p ai-digital-life 2>&1 | Select-Object -Last 3`，再 `cargo check -p ai-digital-life 2>&1 | Select-Object -Last 3`
 Expected: PASS（不跑完整 `tauri build`——CI 级验证留 Phase 3）。注意 `Get-Content tauri.conf.json | ConvertFrom-Json` 只验证 JSON 语法，抓不到 schema 违规与钩子路径错误，必须用 `cargo check -p ai-digital-life` 让 tauri-build 真正解析配置。
 
 - [ ] **Step 5: Commit**
@@ -664,12 +642,12 @@ git commit -m "feat(deps): bundle adl-server sidecar and embedBootstrapper"
 
 - [ ] **Step 1: Run full workspace tests**
 
-Run: `cargo test --workspace 2>&1 | Select-Object -Last 10`
+Run: `pnpm run stage:sidecar`（先 staging sidecar；`cargo test --workspace` 会构建 src-tauri，`externalBin` 缺失即失败），再 `cargo test --workspace 2>&1 | Select-Object -Last 10`
 Expected: 616+ 用例全绿（基线 616，新增约 40+；精确数以输出为准，红则修）
 
 - [ ] **Step 2: Run clippy + fmt**
 
-Run: `cargo clippy --workspace --all-targets -- -D warnings 2>&1 | Select-Object -Last 3; cargo fmt --all -- --check`
+Run: `pnpm run stage:sidecar`，再 `cargo clippy --workspace --all-targets -- -D warnings 2>&1 | Select-Object -Last 3; cargo fmt --all -- --check`
 Expected: 零警告、无 diff
 
 - [ ] **Step 3: dsh 手动回归（Tauri 桌面，沿用 2026-10-20 spec §206 手动清单 1–5）**
@@ -696,7 +674,7 @@ git log --oneline -3  # 确认 Phase 1 tasks 1–12 已合入，无额外提交
 
 **2. Placeholder scan:** 无 TBD/TODO/“类似 Task N”（Task 9 复用处已写明抽 `fetch_and_stage` 共享函数位置；Task 11 测试取舍已明确写出）。版本号（node stable/git stable/webview2 minimum）标为“实现时按发版日核对”，属外部事实非占位——Task 11/12 步骤内已要求核对源。
 
-**3. Type consistency:** `HostedVersions::open(root, name, marker_rel)`（Task 1）→ Task 8 调用 `open(data_dir, "env-hosted/node", "node.exe")` 一致；`swap_into_place(staging, target)`（Task 2）→ Task 3/8/9 同签名；`ProgressTask::begin(kind: &str, label: &str)`（Task 5）→ Task 11 kind=`"env-{dep}-install"`；`InstallLock` 别名（Task 5）→ Task 6/11 state 字段类型一致；`HostedProcess` 重导出（Task 4→6）→ `state.rs ManagedDsh.process` 类型不变。
+**3. Type consistency:** `HostedVersions::open(root, name, marker_rel)`（Task 1）→ Task 8 调用 `open(data_dir, "env-hosted/node", "node.exe")` 一致；`swap_into_place(staging, target)`（Task 2）→ Task 6/8/9 同签名；`ProgressTask::begin(kind: &str, label: &str)`（Task 5）→ Task 11 kind=`"env-{dep}-install"`；`InstallLock` 别名（Task 5）→ Task 6/11 state 字段类型一致；`HostedProcess` 重导出（Task 4→6）→ `state.rs ManagedDsh.process` 类型不变。
 
 ---
 

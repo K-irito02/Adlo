@@ -15,16 +15,21 @@
 # i.e. this script lives at `scripts/build-stage-sidecar.ps1` from there.
 #
 # Usage (run from `ai-digital-life/`):
-#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 [-Profile release]
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 [-Profile release] [-Force]
 #
 # The staged file must exist before ANY cargo build of src-tauri (dev, test,
 # clippy included): tauri-build copies `externalBin` entries in its build
 # script and fails the build when the file is missing. So local dev and CI
 # must stage once first (this script does the build AND the copy).
+#
+# Idempotent: when the staged exe is newer than every `crates/**` source and
+# `src-tauri/Cargo.toml`, the build+copy is skipped so dev restarts stay fast.
+# Pass `-Force` to rebuild the sidecar unconditionally.
 
 param(
     [ValidateSet("debug", "release")]
-    [string]$Profile = "release"
+    [string]$Profile = "release",
+    [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,6 +39,19 @@ $Manifest = Join-Path $WorkspaceRoot "Cargo.toml"
 # `debug` maps to cargo's default dev profile (output dir `target/debug`);
 # `--profile debug` is rejected by cargo because "debug" is reserved.
 $ProfileArgs = if ($Profile -eq "release") { @("--release") } else { @() }
+
+$Staged = Join-Path $WorkspaceRoot "src-tauri\binaries\adl-server-x86_64-pc-windows-msvc.exe"
+
+if (-not $Force -and (Test-Path -LiteralPath $Staged)) {
+    $StagedTime = (Get-Item -LiteralPath $Staged).LastWriteTimeUtc
+    $SourceFiles = @(Get-ChildItem -LiteralPath (Join-Path $WorkspaceRoot "crates") -Recurse -File -ErrorAction SilentlyContinue)
+    $SourceFiles += Get-Item -LiteralPath (Join-Path $WorkspaceRoot "src-tauri\Cargo.toml") -ErrorAction SilentlyContinue
+    $NewestSourceTime = ($SourceFiles | Measure-Object -Property LastWriteTimeUtc -Maximum).Maximum
+    if ($StagedTime -ge $NewestSourceTime) {
+        Write-Host "Sidecar up to date (staged $StagedTime >= sources $NewestSourceTime); skipping rebuild. Use -Force to rebuild."
+        exit 0
+    }
+}
 
 # Preserve any caller-provided flags (e.g. CI's `-D warnings`) and append the
 # static CRT requirement.
@@ -46,7 +64,6 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-$Staged = Join-Path $WorkspaceRoot "src-tauri\binaries\adl-server-x86_64-pc-windows-msvc.exe"
 & (Join-Path $PSScriptRoot "copy-adl-server-sidecar.ps1") -Profile $Profile
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Staging the sidecar failed (profile: $Profile)"
