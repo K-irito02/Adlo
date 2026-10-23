@@ -17,6 +17,7 @@ import {
   createClipboardSlice,
   createClipboardHistorySlice,
   createDshSlice,
+  createEnvSlice,
   createSystemMonitorSlice,
   createTerminalSlice,
   createBrowserTabsSlice,
@@ -49,6 +50,7 @@ import {
   createReferenceActions,
   createUtilitiesActions,
   createDshActions,
+  createEnvActions,
 } from './actions';
 
 export {
@@ -75,6 +77,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createDiagnosticSlice(set, get), // 诊断/索引（indexingStatus, repoMap）
   ...createClipboardSlice(set, get), // 剪贴板
   ...createDshSlice(set, get), // dsh 宿主壳
+  ...createEnvSlice(set, get), // 环境依赖状态 + 引导完成态
   ...createClipboardHistorySlice(set, get), // 剪贴板历史（系统剪贴板）
   ...createSystemMonitorSlice(set, get), // 系统监控（CPU/内存/磁盘/网络/进程）
   ...createTerminalSlice(set, get), // 终端会话管理
@@ -117,6 +120,7 @@ export const useSlicedAppStore = create<StoreState>((set, get) => ({
   ...createReferenceActions(set, get), // 参考代码仓库操作
   ...createUtilitiesActions(set, get), // 系统工具操作（剪贴板历史、系统监控）
   ...createDshActions(set, get), // dsh 宿主壳操作（打开/关闭/版本管理）
+  ...createEnvActions(set, get), // 环境依赖操作（拉取/切换/安装/路径/重检/任务轮询）
   ...createCenterActions(set, get), // 中心标签宿主编排（移入中心/移回面板）
 }));
 

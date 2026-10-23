@@ -15,6 +15,7 @@ import type { SearchSlice } from './slices/searchSlice';
 import type { DiagnosticSlice } from './slices/diagnosticSlice';
 import type { ClipboardSlice } from './slices/clipboardSlice';
 import type { DshSlice } from './slices/dshSlice';
+import type { EnvSlice } from './slices/envSlice';
 import type { ClipboardHistorySlice } from './slices/clipboardHistorySlice';
 import type { SystemMonitorSlice } from './slices/systemMonitorSlice';
 import type { TerminalSlice } from './slices/terminalSlice';
@@ -40,6 +41,7 @@ import type {
   DshSourceConfig,
   DshTestResult,
 } from '../../shared/ipc/dsh';
+import type { EnvSourceMode } from '../../shared/ipc/env';
 
 interface ReferenceConfig {
   name: string;
@@ -108,6 +110,7 @@ type AllSlices = [
   ClipboardSlice,
   DshSlice,
   ClipboardHistorySlice,
+  EnvSlice,
   SystemMonitorSlice,
   TerminalSlice,
   BrowserTabsSlice,
@@ -331,6 +334,15 @@ interface CenterActions {
   centerReturnToPanel: (centerTabId: string) => void;
 }
 
+interface EnvActions {
+  fetchEnvStatus: (silent?: boolean) => Promise<boolean>;
+  selectEnvSource: (dep: string, mode: EnvSourceMode) => Promise<boolean>;
+  installEnvDep: (dep: string, version?: string) => Promise<boolean>;
+  setEnvCustomPath: (dep: string, path: string) => Promise<boolean>;
+  recheckEnv: (dep?: string) => Promise<boolean>;
+  pollEnvTaskWhileRunning: () => () => void;
+}
+
 type AllActions = [
   WorkspaceActions,
   EditorActions,
@@ -342,6 +354,7 @@ type AllActions = [
   UtilitiesActions,
   DshActions,
   CenterActions,
+  EnvActions,
 ];
 
 export type StoreState = StoreStateRootFields &

@@ -60,6 +60,12 @@ export function useAppActions() {
       fetchDshRunning: state.fetchDshRunning,
       saveSourceConfig: state.saveSourceConfig,
       testSource: state.testSource,
+      fetchEnvStatus: state.fetchEnvStatus,
+      selectEnvSource: state.selectEnvSource,
+      installEnvDep: state.installEnvDep,
+      setEnvCustomPath: state.setEnvCustomPath,
+      recheckEnv: state.recheckEnv,
+      pollEnvTaskWhileRunning: state.pollEnvTaskWhileRunning,
     })),
   );
 }

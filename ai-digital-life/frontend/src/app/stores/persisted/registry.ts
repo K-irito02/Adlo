@@ -1086,6 +1086,26 @@ export const registry = {
     scope: 'global',
     read: readString,
   }),
+  // ─────────────────────────────────────────────────────────────
+  // 环境依赖引导（Task 2 定义字段 + 读写器，Task 8 消费）：
+  // wizardDone = 引导已完成；wizardSkippedAt = 跳过时间戳（ms，null = 未跳过）。
+  // 读写一律走 persistField（唯一写盘通道），读取走 hydrateAll 构造期同步水合。
+  // ─────────────────────────────────────────────────────────────
+  'adl:env.wizardDone': defineEntry<boolean>({
+    key: 'adl:env.wizardDone',
+    field: 'envWizardDone',
+    fallback: false,
+    scope: 'global',
+    read: readFlag,
+  }),
+  'adl:env.wizardSkippedAt': defineEntry<number | null>({
+    key: 'adl:env.wizardSkippedAt',
+    field: 'envWizardSkippedAt',
+    fallback: null,
+    scope: 'global',
+    read: (raw: unknown) =>
+      raw === null ? null : readNumberInRange(0, Number.MAX_SAFE_INTEGER)(raw),
+  }),
 } as const;
 
 export type Registry = typeof registry;

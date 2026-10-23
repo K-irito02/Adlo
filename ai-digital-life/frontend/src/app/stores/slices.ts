@@ -43,6 +43,9 @@ export { type ClipboardSlice, createClipboardSlice } from './slices/clipboardSli
 // dsh 宿主壳切片
 export { type DshSlice, createDshSlice } from './slices/dshSlice';
 
+// 环境依赖切片（node/git/bash/webview2/adlserver 全量状态 + 引导完成态）
+export { type EnvSlice, createEnvSlice } from './slices/envSlice';
+
 // 剪贴板历史切片
 export {
   type ClipboardHistorySlice,
