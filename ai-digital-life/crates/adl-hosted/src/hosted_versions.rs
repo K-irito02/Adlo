@@ -33,19 +33,24 @@ impl HostedVersions {
             .map_err(|e| AppError::Io(format!("create {}: {e}", m.display())))?;
         std::fs::write(&m, "").map_err(|e| AppError::Io(format!("write {}: {e}", m.display())))
     }
+    /// Installed versions sorted ascending by `semver::Version` (not
+    /// lexicographically: `9.0.0` < `10.0.0`, and `24.22.1-rc.1` < `24.22.1`).
     pub fn installed_versions(&self) -> Vec<String> {
-        let mut out: Vec<String> = Vec::new();
         let Ok(entries) = std::fs::read_dir(self.installed_dir()) else {
-            return out;
+            return Vec::new();
         };
+        let mut parsed: Vec<(semver::Version, String)> = Vec::new();
         for e in entries.flatten() {
             let n = e.file_name().to_string_lossy().into_owned();
-            if semver_check(&n) && self.is_installed(&n) {
-                out.push(n);
+            if !self.is_installed(&n) {
+                continue;
+            }
+            if let Ok(v) = semver::Version::parse(&n) {
+                parsed.push((v, n));
             }
         }
-        out.sort();
-        out
+        parsed.sort_by(|a, b| a.0.cmp(&b.0));
+        parsed.into_iter().map(|(_, v)| v).collect()
     }
     pub fn best_fallback(&self, except: Option<&str>) -> Option<String> {
         self.installed_versions().into_iter().rev().find(|v| Some(v.as_str()) != except)
@@ -61,6 +66,10 @@ impl HostedVersions {
         let raw = std::fs::read_to_string(&p)
             .map_err(|e| AppError::Io(format!("read {}: {e}", p.display())))?;
         let v = raw.trim().to_string();
+        // 选中值是磁盘上的不可信输入：非 semver（含 `..`/分隔符）一律视为未选中。
+        if !semver_check(&v) {
+            return Ok(None);
+        }
         Ok(if self.is_installed(&v) { Some(v) } else { None })
     }
     pub fn write_selected(&self, v: &str) -> Result<(), AppError> {
@@ -107,5 +116,46 @@ mod tests {
     fn selected_file_path_lands_under_name_dir() {
         let hv = HostedVersions::open(Path::new("D:/d"), "env-hosted/node", "node.exe");
         assert_eq!(hv.selected_file_path(), PathBuf::from("D:/d/env-hosted/node/selected.txt"));
+    }
+
+    fn temp_hv(tag: &str) -> (std::path::PathBuf, HostedVersions) {
+        let tmp = std::env::temp_dir().join(format!(
+            "adl_hv_{tag}_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ));
+        let hv = HostedVersions::open(&tmp, "node", ".installed-ok");
+        (tmp, hv)
+    }
+
+    #[test]
+    fn installed_versions_sorts_by_semver_not_lexicographic() {
+        let (tmp, hv) = temp_hv("semver_sort");
+        hv.mark_installed("10.0.0").expect("mark 10");
+        hv.mark_installed("9.0.0").expect("mark 9");
+        assert_eq!(hv.installed_versions(), vec!["9.0.0".to_string(), "10.0.0".to_string()]);
+        assert_eq!(hv.best_fallback(None).as_deref(), Some("10.0.0"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn stable_outranks_prerelease_but_prerelease_sorts_first() {
+        let (tmp, hv) = temp_hv("pre_sort");
+        hv.mark_installed("24.22.1-rc.1").expect("mark rc");
+        hv.mark_installed("24.22.1").expect("mark stable");
+        assert_eq!(
+            hv.installed_versions(),
+            vec!["24.22.1-rc.1".to_string(), "24.22.1".to_string()]
+        );
+        assert_eq!(hv.best_fallback(None).as_deref(), Some("24.22.1"));
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn read_selected_rejects_non_semver_values() {
+        let (tmp, hv) = temp_hv("bad_selected");
+        std::fs::create_dir_all(tmp.join("node")).expect("mkdir");
+        std::fs::write(hv.selected_file_path(), "../../evil\n").expect("write selected");
+        assert_eq!(hv.read_selected().expect("read"), None);
+        let _ = std::fs::remove_dir_all(&tmp);
     }
 }

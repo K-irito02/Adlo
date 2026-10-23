@@ -46,6 +46,16 @@ pub fn parse_mode(mode: &str) -> Result<adl_env::SourceMode, AppError> {
     }
 }
 
+/// `host` mode requires a hosted provider. `webview2`/`adlserver`/`netprobe`
+/// have no hosted install root, so selecting `host` is a machine-coded 4xx
+/// (`no-hosted-source`) rather than a silently ineffective preference.
+pub fn validate_hosted_source(dep: &str, mode: adl_env::SourceMode) -> Result<(), AppError> {
+    if mode == adl_env::SourceMode::Host && matches!(dep, "webview2" | "adlserver" | "netprobe") {
+        return Err(AppError::InvalidInput("no-hosted-source".into()));
+    }
+    Ok(())
+}
+
 /// Whitelist deps that own a hosted install root for uninstall: `node|git`.
 /// `bash` ships inside the hosted git dir; `webview2`/`adlserver`/`netprobe`
 /// are not managed through hosted version dirs. Machine codes (not prose) so
@@ -735,6 +745,7 @@ async fn select_source_inner(
     // 校验全部发生在落盘前：非法 dep/mode 直接 4xx，不污染已存配置。
     let dep = parse_dep(&input.dep)?;
     let mode = parse_mode(&input.mode)?;
+    validate_hosted_source(dep, mode)?;
     let root = state.storage.paths().root.clone();
     let mut config = adl_env::config::load(&root)?;
     adl_env::config::apply_select(dep, mode, &mut config)?;
@@ -859,7 +870,7 @@ mod tests {
     use super::{
         EnvStatus, NetprobeState, SelectInput, UninstallInput, meets_dotted, meets_semver,
         parse_dep, parse_mode, select_source_inner, selected_hosted_version, uninstall_inner,
-        uninstall_kind, validate_uninstall,
+        uninstall_kind, validate_hosted_source, validate_uninstall,
     };
     use adl_env::providers::node;
     use adl_env::{DependencyState, EffectiveSource, Origin, SourceMode};
@@ -932,6 +943,39 @@ mod tests {
         let input = SelectInput { dep: "bogus".into(), mode: "auto".into() };
         let err = select_source_inner(&state, input).await.expect_err("unknown dep must fail");
         assert!(matches!(err, AppError::InvalidInput(_)), "unexpected error: {err}");
+    }
+
+    /// `host` 仅对拥有托管安装根的三类依赖有效；无托管来源返回机器码 4xx。
+    #[test]
+    fn select_source_rejects_host_for_deps_without_hosted_provider() {
+        for dep in ["webview2", "adlserver", "netprobe"] {
+            let err = validate_hosted_source(dep, SourceMode::Host).expect_err("no hosted source");
+            assert!(
+                matches!(err, AppError::InvalidInput(ref m) if m == "no-hosted-source"),
+                "{dep}: unexpected error: {err}"
+            );
+        }
+        for dep in ["webview2", "adlserver", "netprobe"] {
+            assert!(validate_hosted_source(dep, SourceMode::Auto).is_ok());
+            assert!(validate_hosted_source(dep, SourceMode::System).is_ok());
+        }
+        for dep in ["node", "git", "bash"] {
+            assert!(validate_hosted_source(dep, SourceMode::Host).is_ok());
+        }
+    }
+
+    /// handler 层同样拒绝，且不落盘（test state 用临时目录）。
+    #[tokio::test]
+    async fn select_source_inner_rejects_host_without_persisting() {
+        let state = crate::test_util::test_server_state();
+        let input = SelectInput { dep: "webview2".into(), mode: "host".into() };
+        let err = select_source_inner(&state, input).await.expect_err("no hosted source");
+        assert!(
+            matches!(err, AppError::InvalidInput(ref m) if m == "no-hosted-source"),
+            "unexpected error: {err}"
+        );
+        let config = adl_env::config::load(&state.storage.paths().root).unwrap();
+        assert_eq!(config.webview2.mode, SourceMode::Auto);
     }
 
     /// select-source 合法写入落盘（test state 用临时目录，不污染真实数据）。

@@ -6,12 +6,19 @@ use tokio::process::Command as TokioCommand;
 use serde::{Deserialize, Serialize};
 
 use adl_errors::AppError;
-use adl_hosted::HostedVersions;
+use adl_hosted::{HostedVersions, ProgressTask};
 
 pub mod install;
-pub mod task;
 
-pub use task::{TaskReporter, VersionTask, VersionTaskKind, VersionTaskPhase};
+/// `ProgressTask::begin(kind, ...)` 的 kind 命名空间（dsh 版本任务）。
+/// 纯字符串常量，不是旧的枚举/别名层；线装值必须与前端轮询过滤保持一致。
+pub mod task_kind {
+    pub const INSTALL: &str = "dsh-install";
+    pub const UNINSTALL: &str = "dsh-uninstall";
+    pub const REINSTALL: &str = "dsh-reinstall";
+    /// 升级到最新（与“安装指定版本”区分展示/埋点）。
+    pub const UPDATE: &str = "dsh-update";
+}
 
 /// npm registry 上 @deepseek-ai/dsh 最新版本元数据端点（默认官方源）。
 pub const REGISTRY_LATEST: &str = "https://registry.npmjs.org/@deepseek-ai/dsh/latest";
@@ -411,13 +418,13 @@ pub async fn get_version_status(root: &Path, data_dir: &Path) -> Result<VersionS
 /// 正式版取自 catalog（`latest` dist-tag 可能指向 rc，不能直接当稳定版用）；
 /// catalog 不可达时回退 dist-tag（旧行为），两者皆无则报错。
 pub async fn update(root: &Path, data_dir: &Path) -> Result<String, AppError> {
-    update_with_task(root, data_dir, &TaskReporter::new()).await
+    update_with_task(root, data_dir, &ProgressTask::new()).await
 }
 
 pub async fn update_with_task(
     root: &Path,
     data_dir: &Path,
-    task: &TaskReporter,
+    task: &ProgressTask,
 ) -> Result<String, AppError> {
     let target = match fetch_catalog(data_dir).await {
         Ok(catalog) => resolve_stable_latest(&catalog, None),
@@ -439,14 +446,14 @@ pub async fn install_version(
     data_dir: &Path,
     version: &str,
 ) -> Result<String, AppError> {
-    install_version_with_task(root, data_dir, version, &TaskReporter::new(), true).await
+    install_version_with_task(root, data_dir, version, &ProgressTask::new(), true).await
 }
 
 pub async fn install_version_with_task(
     root: &Path,
     data_dir: &Path,
     version: &str,
-    task: &TaskReporter,
+    task: &ProgressTask,
     select: bool,
 ) -> Result<String, AppError> {
     tracing::debug!(%version, select, "dsh-version::install_version: delegating to kernel");
@@ -475,7 +482,7 @@ pub async fn revert(root: &Path, version: &str) -> Result<String, AppError> {
 pub async fn uninstall_with_task(
     root: &Path,
     version: &str,
-    task: &TaskReporter,
+    task: &ProgressTask,
 ) -> Result<(), AppError> {
     tracing::debug!(%version, "dsh-version::uninstall: delegating to kernel");
     install::uninstall(root, version, task).await?;
@@ -489,13 +496,13 @@ pub async fn uninstall_with_task(
 /// 重装：真重新安装当前选中版本，保持选中状态。
 /// 语义为“修当前版本”，不是“升到最新”（升级走 `update`）。
 pub async fn reinstall(root: &Path, data_dir: &Path) -> Result<String, AppError> {
-    reinstall_with_task(root, data_dir, &TaskReporter::new()).await
+    reinstall_with_task(root, data_dir, &ProgressTask::new()).await
 }
 
 pub async fn reinstall_with_task(
     root: &Path,
     data_dir: &Path,
-    task: &TaskReporter,
+    task: &ProgressTask,
 ) -> Result<String, AppError> {
     let selected =
         read_selected(root)?.ok_or_else(|| AppError::NotFound("no selected version".into()))?;
@@ -809,6 +816,15 @@ mod tests {
         root
     }
 
+    /// 任务 kind 是前后端线装契约，值不得漂移。
+    #[test]
+    fn task_kind_constants_pin_wire_values() {
+        assert_eq!(task_kind::INSTALL, "dsh-install");
+        assert_eq!(task_kind::UNINSTALL, "dsh-uninstall");
+        assert_eq!(task_kind::REINSTALL, "dsh-reinstall");
+        assert_eq!(task_kind::UPDATE, "dsh-update");
+    }
+
     #[test]
     fn list_installed_missing_dir_returns_empty() {
         let root = fresh_root("empty_list");
@@ -876,7 +892,7 @@ mod tests {
             std::fs::write(lib.join("bin.js"), "").expect("write bin");
         }
         std::fs::write(selected_file(&root), "2.0.0\n").expect("write selected");
-        uninstall_with_task(&root, "2.0.0", &TaskReporter::new()).await.expect("uninstall ok");
+        uninstall_with_task(&root, "2.0.0", &ProgressTask::new()).await.expect("uninstall ok");
         assert_eq!(read_selected(&root).expect("read").as_deref(), Some("1.0.0"));
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -886,7 +902,7 @@ mod tests {
         let root = fresh_root("uninstall_current");
         std::fs::create_dir_all(installed_dir(&root).join("1.0.0")).expect("mkdir");
         std::fs::write(selected_file(&root), "1.0.0\n").expect("write selected");
-        uninstall_with_task(&root, "1.0.0", &TaskReporter::new()).await.expect("uninstall ok");
+        uninstall_with_task(&root, "1.0.0", &ProgressTask::new()).await.expect("uninstall ok");
         assert_eq!(read_selected(&root).expect("read"), None);
         let _ = std::fs::remove_dir_all(&root);
     }
@@ -894,7 +910,7 @@ mod tests {
     #[tokio::test]
     async fn uninstall_missing_is_not_found() {
         let root = fresh_root("uninstall_missing");
-        let err = uninstall_with_task(&root, "9.9.9", &TaskReporter::new())
+        let err = uninstall_with_task(&root, "9.9.9", &ProgressTask::new())
             .await
             .expect_err("should error");
         assert!(matches!(err, AppError::NotFound(_)));

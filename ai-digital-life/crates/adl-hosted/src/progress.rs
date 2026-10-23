@@ -13,7 +13,7 @@ pub enum ProgressPhase {
     Finalizing,
 }
 
-/// 通用进度快照：字段/形状与 `dsh-version::VersionTask` 对齐，
+/// 通用进度快照：字段/形状与 dsh 版本任务的原 DTO 对齐，
 /// 仅 `kind` 由枚举泛化为 `String`（调用方传 `"dsh-install"` /
 /// `"env-{dep}-install"`），另增 `error` 供失败原因展示。
 /// 线装 camelCase 由各调用方 DTO 负责，本结构保持 snake_case。

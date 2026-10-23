@@ -138,7 +138,6 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
- "tokio",
  "tracing",
  "zip",
 ]

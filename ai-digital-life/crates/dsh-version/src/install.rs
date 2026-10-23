@@ -4,13 +4,11 @@ use std::time::Duration;
 
 use adl_download_source::ProxyMode;
 use adl_errors::AppError;
+use adl_hosted::{ProgressPhase, ProgressTask};
 use tokio::io::AsyncReadExt;
 use tokio::process::{Child, Command as TokioCommand};
 
-use crate::task::{TaskReporter, VersionTaskPhase};
-use crate::{
-    fetch_catalog, host_bin, installed_dir, is_host_version_installed, read_selected, selected_file,
-};
+use crate::{fetch_catalog, host_bin, installed_dir, is_host_version_installed, selected_file};
 
 pub fn npm_install_args(tmp: &Path, version: &str, registry: &str) -> Vec<String> {
     vec![
@@ -45,6 +43,28 @@ fn nonce() -> u128 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or_default()
+}
+
+/// Lexically normalize a path (resolve `.`/`..` without touching the filesystem):
+/// lets us verify a joined version dir still stays inside the install root even
+/// when the input contains traversal segments (belt-and-braces with semver parse).
+fn normalize_path(path: &Path) -> PathBuf {
+    use std::path::Component;
+    let mut out = PathBuf::new();
+    for comp in path.components() {
+        match comp {
+            Component::CurDir => {},
+            Component::ParentDir => {
+                if !out.pop() {
+                    out.push("..");
+                }
+            },
+            Component::Prefix(p) => out.push(p.as_os_str()),
+            Component::RootDir => out.push(comp.as_os_str()),
+            Component::Normal(s) => out.push(s),
+        }
+    }
+    out
 }
 
 fn tail(text: &str, max_chars: usize) -> String {
@@ -212,9 +232,9 @@ async fn dry_run_total(
     version: &str,
     registry: &str,
     config: &adl_download_source::DownloadSourceConfig,
-    task: &TaskReporter,
+    task: &ProgressTask,
 ) -> Result<u64, AppError> {
-    task.update(VersionTaskPhase::Preparing, None, 0, 0, true);
+    task.update(ProgressPhase::Preparing, None, 0, 0, true);
     let args = npm_dry_run_args(tmp, version, registry);
     let mut child = spawn_npm(&args, config).await?;
     // dry-run 同样可取消：180s 总超时内每 100ms 检查取消，取消即杀进程树。
@@ -279,7 +299,7 @@ async fn run_npm_with_progress(
     config: &adl_download_source::DownloadSourceConfig,
     tmp: &Path,
     total: u64,
-    task: &TaskReporter,
+    task: &ProgressTask,
     registry: &str,
 ) -> Result<(), AppError> {
     let mut child = spawn_npm(args, config).await?;
@@ -354,7 +374,7 @@ async fn run_npm_with_progress(
                 next_count_at =
                     started + cost.mul_f32(2.0).clamp(Duration::from_millis(400), Duration::from_secs(5));
                 task.update(
-                    VersionTaskPhase::Installing,
+                    ProgressPhase::Installing,
                     install_percent(done, total),
                     done,
                     total,
@@ -369,12 +389,12 @@ pub async fn install(
     root: &Path,
     data_dir: &Path,
     version: &str,
-    task: &TaskReporter,
+    task: &ProgressTask,
     select: bool,
 ) -> Result<String, AppError> {
     let version = version.trim();
     tracing::debug!(%version, "dsh install: request (trimmed)");
-    task.update(VersionTaskPhase::Preparing, None, 0, 0, true);
+    task.update(ProgressPhase::Preparing, None, 0, 0, true);
     semver::Version::parse(version)
         .map_err(|_| AppError::InvalidInput(format!("invalid version {version}")))?;
     if task.is_cancelled() {
@@ -426,7 +446,7 @@ pub async fn install(
 
     let args = npm_install_args(&tmp, version, registry);
     tracing::info!(%version, %registry, %total, "dsh install: npm install start");
-    task.update(VersionTaskPhase::Installing, install_percent(0, total), 0, total, true);
+    task.update(ProgressPhase::Installing, install_percent(0, total), 0, total, true);
     if let Err(e) = run_npm_with_progress(&args, &config, &tmp, total, task, registry).await {
         tracing::debug!(%version, error = %e, "dsh install: npm failed, tmp removed");
         let _ = tokio::fs::remove_dir_all(&tmp).await;
@@ -446,7 +466,7 @@ pub async fn install(
         return Err(AppError::Io(format!("installed {version} without bin.js")));
     }
 
-    task.update(VersionTaskPhase::Finalizing, Some(98), total, total, false);
+    task.update(ProgressPhase::Finalizing, Some(98), total, total, false);
     let final_dir = installed_dir(root).join(version);
     tracing::debug!(%version, path = %final_dir.display(), "dsh install: swapping into place");
     // 原子换位收敛至 hosted（同卷 rename，跨卷复制后删源；失败尽力恢复旧版）。
@@ -476,7 +496,7 @@ pub async fn install(
         // 切换仍需用户手动点“切换到该版本”。
         tracing::debug!(%version, "dsh install: select=false, keeping previous selected");
     }
-    task.update(VersionTaskPhase::Finalizing, Some(100), total, total, false);
+    task.update(ProgressPhase::Finalizing, Some(100), total, total, false);
     tracing::info!(%version, bin = %host_bin(root, version).display(), "dsh install: completed");
     Ok(version.to_string())
 }
@@ -512,7 +532,7 @@ fn collect_into(dir: &Path, root_canon: &Path, depth: usize, out: &mut Vec<PathB
     }
 }
 
-async fn remove_dir_with_progress(dir: &Path, task: &TaskReporter) {
+async fn remove_dir_with_progress(dir: &Path, task: &ProgressTask) {
     // 旧逻辑只对顶层子项计数并逐个整体删，最后 `remove_dir_all` 原子收尾，
     // 进度长期停在 ~20% 后瞬间 100%（用户实测 2026-10-21）。改为全量收集后
     // 逐个删除、按条目数线性上报（外部调研结论：阶段文案＋真实计数，不伪造）。
@@ -528,7 +548,7 @@ async fn remove_dir_with_progress(dir: &Path, task: &TaskReporter) {
     .await
     .unwrap_or_default();
     let total = entries.len() as u64;
-    task.update(VersionTaskPhase::Removing, Some(5), 0, total, false);
+    task.update(ProgressPhase::Removing, Some(5), 0, total, false);
     let mut done = 0u64;
     for path in entries {
         let ok = if is_link(&path) || path.is_file() {
@@ -543,37 +563,53 @@ async fn remove_dir_with_progress(dir: &Path, task: &TaskReporter) {
         done += 1;
         if done % 16 == 0 || done == total {
             let percent = 5 + (90 * done.min(total) / total.max(1)).min(90);
-            task.update(VersionTaskPhase::Removing, Some(percent as u8), done, total, false);
+            task.update(ProgressPhase::Removing, Some(percent as u8), done, total, false);
         }
     }
     let _ = tokio::fs::remove_dir_all(dir).await;
-    task.update(VersionTaskPhase::Removing, Some(100), total, total, false);
+    task.update(ProgressPhase::Removing, Some(100), total, total, false);
 }
 
 /// 卸载指定版本：删除 `installed/<version>/`。
 ///
 /// 内置预置版本也是普通已装版本，走同一条路径（来源记录由调用方清除）。
-pub async fn uninstall(root: &Path, version: &str, task: &TaskReporter) -> Result<(), AppError> {
+pub async fn uninstall(root: &Path, version: &str, task: &ProgressTask) -> Result<(), AppError> {
+    let version = version.trim();
     tracing::debug!(%version, "dsh uninstall: request");
-    let dir = installed_dir(root).join(version);
+    // 版本号会拼进安装目录并被 rename/remove_dir_all 使用：先按 semver 拒绝
+    // `..`/绝对路径/非版本串（与 env providers 同一口径），再做规范化包含校验。
+    semver::Version::parse(version)
+        .map_err(|_| AppError::InvalidInput("invalid-version".into()))?;
+    let installed = installed_dir(root);
+    let dir = installed.join(version);
+    if !normalize_path(&dir).starts_with(normalize_path(&installed)) {
+        tracing::debug!(%version, "dsh uninstall: rejected (invalid-version, escapes install root)");
+        return Err(AppError::InvalidInput("invalid-version".into()));
+    }
     if !dir.is_dir() {
         tracing::debug!(%version, "dsh uninstall: rejected (not installed)");
         return Err(AppError::NotFound(format!("version {version} not installed")));
     }
-    task.update(VersionTaskPhase::Removing, Some(2), 0, 0, true);
+    task.update(ProgressPhase::Removing, Some(2), 0, 0, true);
     if task.is_cancelled() {
         tracing::debug!(%version, "dsh uninstall: cancelled before move-to-trash");
         return Err(cancelled());
     }
 
     let trash = dir.with_file_name(format!(".removing-{version}-{}", nonce()));
-    let was_selected = read_selected(root)? == Some(version.to_string());
+    // 直接从 selected.txt 读原始值（不经过 marker 过滤）：选中的版本可能自身
+    // 不完整，卸载它同样必须改写/清空选中，否则会留下悬空指针。
+    let selected_path = crate::selected_file(root);
+    let was_selected = std::fs::read_to_string(&selected_path)
+        .ok()
+        .map(|raw| raw.trim() == version)
+        .unwrap_or(false);
     tracing::debug!(%version, was_selected, "dsh uninstall: moving to trash");
     tokio::fs::rename(&dir, &trash)
         .await
         .map_err(|e| AppError::Io(format!("remove {}: {e}", dir.display())))?;
 
-    task.update(VersionTaskPhase::Removing, Some(5), 0, 0, true);
+    task.update(ProgressPhase::Removing, Some(5), 0, 0, true);
     for _ in 0..10 {
         tokio::time::sleep(Duration::from_millis(100)).await;
         if task.is_cancelled() {
@@ -600,6 +636,7 @@ pub async fn uninstall(root: &Path, version: &str, task: &TaskReporter) -> Resul
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::read_selected;
 
     fn fresh_root(tag: &str) -> PathBuf {
         let root = std::env::temp_dir().join(format!("dshinstall-{}-{tag}", std::process::id()));
@@ -661,9 +698,9 @@ mod tests {
         std::fs::write(lib.join("bin.js"), "").unwrap();
         std::fs::write(selected_file(&root), "1.0.0\n").unwrap();
 
-        let reporter = TaskReporter::new();
+        let reporter = ProgressTask::new();
         let task_reporter = reporter.clone();
-        reporter.begin(crate::task::VersionTaskKind::UNINSTALL, "1.0.0");
+        reporter.begin(crate::task_kind::UNINSTALL, "1.0.0");
         let root_for_task = root.clone();
         let handle =
             tokio::spawn(async move { uninstall(&root_for_task, "1.0.0", &task_reporter).await });
@@ -680,7 +717,7 @@ mod tests {
     async fn install_rejects_invalid_semver_offline() {
         let root = fresh_root("bad");
         let data = fresh_root("bad_data");
-        let task = TaskReporter::new();
+        let task = ProgressTask::new();
         let err = install(&root, &data, "bogus!!", &task, true).await.expect_err("should fail");
         assert!(matches!(err, AppError::InvalidInput(_)));
         let _ = std::fs::remove_dir_all(&root);
@@ -786,11 +823,51 @@ mod tests {
             make_complete_version(&root, v);
         }
         std::fs::write(selected_file(&root), "3.0.0\n").unwrap();
-        let task = TaskReporter::new();
-        task.begin(crate::task::VersionTaskKind::UNINSTALL, "3.0.0");
+        let task = ProgressTask::new();
+        task.begin(crate::task_kind::UNINSTALL, "3.0.0");
         uninstall(&root, "3.0.0", &task).await.expect("uninstall ok");
         assert_eq!(read_selected(&root).unwrap().as_deref(), Some("2.0.0"));
         assert!(!is_host_version_installed(&root, "3.0.0"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 非 semver/越界版本号必须在触碰磁盘前被拒绝（`..`、绝对路径、`./` 前缀）。
+    #[tokio::test]
+    async fn uninstall_rejects_path_traversal_and_leaves_disk_untouched() {
+        let root = fresh_root("uninstall_traversal");
+        make_complete_version(&root, "1.0.0");
+        std::fs::write(selected_file(&root), "1.0.0\n").unwrap();
+        let task = ProgressTask::new();
+        task.begin(crate::task_kind::UNINSTALL, "1.0.0");
+        let missing = root.join("does-not-exist");
+        for bad in ["../../evil", "/absolute/evil", "C:\\absolute\\evil", "./1.0.0"] {
+            let err = uninstall(&root, bad, &task).await.expect_err("must reject");
+            assert!(
+                matches!(err, AppError::InvalidInput(ref m) if m == "invalid-version"),
+                "{bad}: unexpected error: {err}"
+            );
+            assert!(is_host_version_installed(&root, "1.0.0"), "{bad}: source must stay");
+            assert_eq!(
+                std::fs::read_to_string(selected_file(&root)).unwrap().trim(),
+                "1.0.0",
+                "{bad}: selection must stay"
+            );
+            assert!(!missing.exists());
+        }
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// 选中版本目录不完整（无 marker）时，卸载仍须清空 selected（原始值读取）。
+    #[tokio::test]
+    async fn uninstall_selected_but_incomplete_version_clears_selection() {
+        let root = fresh_root("uninstall_incomplete_selected");
+        std::fs::create_dir_all(installed_dir(&root).join("1.0.0")).unwrap();
+        std::fs::write(selected_file(&root), "1.0.0\n").unwrap();
+        let task = ProgressTask::new();
+        task.begin(crate::task_kind::UNINSTALL, "1.0.0");
+        uninstall(&root, "1.0.0", &task).await.expect("uninstall ok");
+        assert_eq!(read_selected(&root).expect("read"), None);
+        assert_eq!(std::fs::read_to_string(selected_file(&root)).unwrap_or_default().trim(), "");
         let _ = std::fs::remove_dir_all(&root);
     }
 
@@ -801,8 +878,8 @@ mod tests {
         std::fs::create_dir_all(&root).unwrap();
         make_complete_version(&root, "2.0.0");
         std::fs::write(root.join("bundled.txt"), "2.0.0\n").unwrap();
-        let task = TaskReporter::new();
-        task.begin(crate::task::VersionTaskKind::UNINSTALL, "2.0.0");
+        let task = ProgressTask::new();
+        task.begin(crate::task_kind::UNINSTALL, "2.0.0");
         crate::uninstall_with_task(&root, "2.0.0", &task).await.expect("uninstall ok");
         assert!(!is_host_version_installed(&root, "2.0.0"));
         assert!(!root.join("bundled.txt").exists());

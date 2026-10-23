@@ -33,9 +33,13 @@ debug = 2
 debug = 2
 [profile.dev.package.adl-credential]
 debug = 2
+[profile.dev.package.adl-env]
+debug = 2
 [profile.dev.package.adl-errors]
 debug = 2
 [profile.dev.package.adl-fs-ops]
+debug = 2
+[profile.dev.package.adl-hosted]
 debug = 2
 [profile.dev.package.adl-kernel]
 debug = 2

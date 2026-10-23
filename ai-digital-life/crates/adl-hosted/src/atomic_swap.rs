@@ -3,15 +3,34 @@ use std::path::Path;
 
 pub fn swap_into_place(staging: &Path, target: &Path) -> Result<(), AppError> {
     let io = |ctx: &str, e: std::io::Error| AppError::Io(format!("{ctx}: {e}"));
+    // 目标父目录不存在时 rename/copy 都会失败；调用方（安装流程）可能尚未建好
+    // 版本根，这里统一保证父目录存在（IO 错误如实上抛）。
+    if let Some(parent) = target.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| io(&format!("create {}", parent.display()), e))?;
+    }
     if target.exists() {
         let old = target.with_extension(format!("old-{}", nonce()));
         std::fs::rename(target, &old).map_err(|e| io("backup old", e))?;
         let r = swap_rename_or_copy(staging, target);
         if r.is_err() {
-            let _ = std::fs::rename(&old, target); // 尽力恢复旧版
+            if let Err(e) = std::fs::rename(&old, target) {
+                tracing::warn!(
+                    from = %old.display(),
+                    to = %target.display(),
+                    error = %e,
+                    "swap: restore old version failed"
+                );
+            }
             return r;
         }
-        let _ = std::fs::remove_dir_all(&old); // 清旧失败只告警，不丢新版
+        if let Err(e) = std::fs::remove_dir_all(&old) {
+            tracing::warn!(
+                path = %old.display(),
+                error = %e,
+                "swap: remove backup failed (new version kept)"
+            );
+        }
     } else {
         swap_rename_or_copy(staging, target)?;
     }
@@ -32,11 +51,24 @@ pub(crate) fn swap_rename_or_copy(staging: &Path, target: &Path) -> Result<(), A
     // 跨卷 rename 失败退化为递归复制后删源；复制中途失败清半成品 target，
     // 此时源 staging 仍在，不丢数据。
     if let Err(e) = copy_dir(staging, target) {
-        let _ = std::fs::remove_dir_all(target);
+        if let Err(cleanup) = std::fs::remove_dir_all(target) {
+            tracing::warn!(
+                path = %target.display(),
+                error = %cleanup,
+                "swap: remove half-copied target failed"
+            );
+        }
         return Err(e);
     }
-    std::fs::remove_dir_all(staging)
-        .map_err(|e| AppError::Io(format!("remove {}: {e}", staging.display())))
+    // 复制已完成，target 内容完整；删 staging 失败只留残渣，不得让安装误报失败。
+    if let Err(e) = std::fs::remove_dir_all(staging) {
+        tracing::warn!(
+            path = %staging.display(),
+            error = %e,
+            "swap: remove staging failed after successful copy (target complete)"
+        );
+    }
+    Ok(())
 }
 
 /// 递归复制目录（照抄 `dsh-bundle::copy_dir`；链接/junction 遇错直接报错，不静默丢文件）。
@@ -106,6 +138,20 @@ mod tests {
         swap_into_place(&staging, &target).expect("swap");
         assert!(target.join("lib").join("new.txt").is_file());
         assert!(!staging.exists(), "staging must be gone");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn swap_creates_missing_target_parent() {
+        let tmp = std::env::temp_dir().join(format!("adl_sw_parent_{}", nanos()));
+        let target = tmp.join("nested").join("created").join("1.0.0");
+        let staging = tmp.join(".tmp-1.0.0-x");
+        std::fs::create_dir_all(staging.join("lib")).unwrap();
+        std::fs::write(staging.join("lib").join("new.txt"), "new").unwrap();
+        assert!(!target.parent().expect("parent").exists(), "parent must start absent");
+        swap_into_place(&staging, &target).expect("swap with missing parent");
+        assert!(target.join("lib").join("new.txt").is_file());
+        assert!(!staging.exists(), "rename path must consume staging");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }

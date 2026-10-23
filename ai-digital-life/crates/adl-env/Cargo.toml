@@ -11,7 +11,6 @@ workspace = true
 adl-errors = { path = "../errors" }
 adl-hosted = { path = "../adl-hosted" }
 adl-download-source = { path = "../download-source" }
-tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 semver = "1"

@@ -222,7 +222,7 @@ pnpm dev:preview -- --log-mode multi          # 兼容简写：同时设两个�
 `target/debug/deps` 以 `.pdb`（Windows 调试符号）为主 —— `[profile.dev]` 默认 `debug=2`（全量类型调试信息）为每个 exe/测试二进制生成约 300MB PDB。已通过 `.cargo/config.toml` 治理：
 
 - 第三方依赖 `debug=1`（行号级）+ `opt-level=1`
-- 自己 16 个包 `[profile.dev.package.X]` 白名单保留 `debug=2`（可断点查变量类型，见 `.cargo/config.toml` 白名单实测 16 个）
+- 自己 18 个包 `[profile.dev.package.X]` 白名单保留 `debug=2`（可断点查变量类型，见 `.cargo/config.toml` 白名单实测 18 个）
 - 重开增量编译（`incremental=false` 已移除，ICE 于 1.97.1 修复）
 
 ### 清理策略（空间阈值触发全量清理）

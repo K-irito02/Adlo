@@ -49,11 +49,26 @@ pub fn load(data_dir: &Path) -> Result<EnvSourcesConfig, AppError> {
     }
     let content = std::fs::read_to_string(&path)
         .map_err(|e| AppError::Io(format!("Failed to read {}: {e}", path.display())))?;
-    serde_json::from_str(&content)
-        .map_err(|e| AppError::Config(format!("Failed to parse env sources config: {e}")))
+    // 单个坏文件不得让整个 env 端点不可用：解析失败降级为默认配置并留痕。
+    match serde_json::from_str(&content) {
+        Ok(config) => Ok(config),
+        Err(e) => {
+            tracing::warn!(
+                path = %path.display(),
+                error = %e,
+                "env sources config is invalid; falling back to defaults"
+            );
+            Ok(EnvSourcesConfig::default())
+        },
+    }
 }
 
-/// Persist the config (pretty JSON, parent dirs created on demand).
+/// Persist the config atomically (pretty JSON, parent dirs created on demand).
+///
+/// Writes `<data_dir>/env-sources.json.tmp`, flushes/syncs it, then renames it
+/// over the target. `std::fs::rename` maps to `MoveFileEx(...REPLACE_EXISTING)`
+/// on Windows, so an existing target is replaced atomically; if that ever
+/// fails, fall back to copy+remove so a valid file still lands.
 pub fn save(data_dir: &Path, config: &EnvSourcesConfig) -> Result<(), AppError> {
     let path = config_path(data_dir);
     if let Some(parent) = path.parent() {
@@ -62,8 +77,27 @@ pub fn save(data_dir: &Path, config: &EnvSourcesConfig) -> Result<(), AppError> 
     }
     let content = serde_json::to_string_pretty(config)
         .map_err(|e| AppError::Internal(format!("Failed to serialize env sources: {e}")))?;
-    std::fs::write(&path, content)
-        .map_err(|e| AppError::Io(format!("Failed to write {}: {e}", path.display())))?;
+    let tmp = path.with_file_name(format!("{ENV_SOURCES_FILE}.tmp"));
+    {
+        use std::io::Write;
+        let mut file = std::fs::File::create(&tmp)
+            .map_err(|e| AppError::Io(format!("Failed to create {}: {e}", tmp.display())))?;
+        file.write_all(content.as_bytes())
+            .and_then(|()| file.flush())
+            .and_then(|()| file.sync_all())
+            .map_err(|e| AppError::Io(format!("Failed to write {}: {e}", tmp.display())))?;
+    }
+    if let Err(e) = std::fs::rename(&tmp, &path) {
+        tracing::warn!(
+            from = %tmp.display(),
+            to = %path.display(),
+            error = %e,
+            "env sources config rename failed; falling back to copy"
+        );
+        std::fs::copy(&tmp, &path)
+            .map_err(|e| AppError::Io(format!("Failed to write {}: {e}", path.display())))?;
+        let _ = std::fs::remove_file(&tmp);
+    }
     Ok(())
 }
 
@@ -154,12 +188,16 @@ mod tests {
         assert!(custom_path_supported("bogus").is_err());
     }
 
+    fn temp_dir(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!(
+            "adl_env_cfg_{tag}_{}",
+            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
+        ))
+    }
+
     #[test]
     fn load_missing_file_gives_all_auto_and_roundtrips() {
-        let tmp = std::env::temp_dir().join(format!(
-            "adl_env_cfg_{}",
-            std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
-        ));
+        let tmp = temp_dir("roundtrip");
         let cfg = load(&tmp).unwrap();
         assert_eq!(cfg.node.mode, SourceMode::Auto);
         assert!(cfg.node.custom_path.is_none());
@@ -168,6 +206,20 @@ mod tests {
         save(&tmp, &updated).unwrap();
         let reloaded = load(&tmp).unwrap();
         assert_eq!(reloaded.node.mode, SourceMode::Host);
+        assert!(
+            !tmp.join(format!("{}.tmp", super::ENV_SOURCES_FILE)).exists(),
+            "atomic save must not leave a .tmp residue"
+        );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn corrupt_config_falls_back_to_defaults() {
+        let tmp = temp_dir("corrupt");
+        std::fs::create_dir_all(&tmp).unwrap();
+        std::fs::write(tmp.join(super::ENV_SOURCES_FILE), "{not valid json").unwrap();
+        let cfg = load(&tmp).expect("corrupt file must not error");
+        assert_eq!(cfg, super::EnvSourcesConfig::default());
         let _ = std::fs::remove_dir_all(&tmp);
     }
 }
