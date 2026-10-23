@@ -1,11 +1,15 @@
 //! Hosted-install providers for environment dependencies (Tasks 8-9).
 //!
-//! `node`/`git`/`bash` ship now; Task 10 appends
-//! `webview2`/`adlserver`/`netprobe` declarations here.
+//! `node`/`git`/`bash` are hosted-install providers; `webview2`/`adlserver`
+//! are detect-only (registry / bundled binary) and `netprobe` is a
+//! registry-reachability probe.
 
+pub mod adlserver;
 pub mod bash;
 pub mod git;
+pub mod netprobe;
 pub mod node;
+pub mod webview2;
 
 use std::path::{Path, PathBuf};
 
@@ -113,8 +117,23 @@ fn nonce() -> u128 {
 
 #[cfg(test)]
 mod tests {
-    use super::{bash, git};
+    use super::{bash, git, webview2};
     use std::path::{Path, PathBuf};
+
+    #[test]
+    fn parses_reg_query_pv_line() {
+        let out = "    pv    REG_SZ    140.0.3485.94";
+        assert_eq!(webview2::parse_pv(out), Some("140.0.3485.94".into()));
+        assert_eq!(webview2::parse_pv(""), None);
+    }
+
+    #[test]
+    fn picks_highest_of_hklm_hkcu() {
+        assert_eq!(
+            webview2::pick_highest(Some("139.0.0.0"), Some("140.0.0.0")),
+            Some("140.0.0.0".into())
+        );
+    }
 
     #[test]
     fn host_bash_derives_from_git_selection() {
