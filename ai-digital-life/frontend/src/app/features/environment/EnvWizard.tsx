@@ -6,7 +6,13 @@ import { useAppStore } from '@stores/slicedStore';
 import { useAppActions } from '@hooks/useAppActions';
 import { openUrlByMethod } from '@features/preview/openByMethod';
 import { ConfirmDialog } from '@components/ConfirmDialog';
-import { EnvDepRow, isEnvDepReady, type EnvDepKey, type EnvDepRowActions } from './EnvDepRow';
+import {
+  EnvDepRow,
+  OPERABLE_DEPS,
+  isEnvDepReady,
+  type EnvDepKey,
+  type EnvDepRowActions,
+} from './EnvDepRow';
 import {
   ENV_READY_TOTAL,
   countEnvReadyDeps,
@@ -18,9 +24,6 @@ export type EnvWizardStep = 'welcome' | 'detecting' | 'items' | 'done';
 
 /** 向导逐项卡片顺序（与设置组七行同序，单文件常量，不复刻行逻辑）。 */
 const WIZARD_DEPS: EnvDepKey[] = ['node', 'git', 'bash', 'webview2', 'adlserver', 'net', 'model'];
-
-/** 可填手动路径的依赖（向导 compact 行隐藏输入，入口保留为跳设置组链接）。 */
-const OPERABLE_DEPS = ['node', 'git', 'bash'] as const;
 
 export interface EnvWizardProps {
   /** 关闭覆盖层（App 侧独立 showEnvWizard state；flag 落盘由向导内部负责）。 */
@@ -52,12 +55,15 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
   const [installConfirmDep, setInstallConfirmDep] = useState<string | null>(null);
 
   // detecting 步：单次拉取全量状态，落盘后进逐项卡片（失败也进，items 空态兜底重测）。
+  // 仅订阅所用的稳定函数（useShallow 下 actions 对象已稳定，解构后依赖更窄，
+  // actions 引用若未来变不稳定也不会触发重复拉取）。
+  const { fetchEnvStatus } = actions;
   useEffect(() => {
     if (step !== 'detecting') {
       return;
     }
     let cancelled = false;
-    void actions.fetchEnvStatus().finally(() => {
+    void fetchEnvStatus().finally(() => {
       if (!cancelled) {
         setStep('items');
       }
@@ -65,7 +71,7 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
     return () => {
       cancelled = true;
     };
-  }, [step, actions]);
+  }, [step, fetchEnvStatus]);
 
   const handleSkip = useCallback(() => {
     setEnvWizardDone(true);
@@ -75,8 +81,10 @@ export function EnvWizard({ onClose }: EnvWizardProps) {
 
   const handleFinish = useCallback(() => {
     setEnvWizardDone(true);
+    // 跳过→继续→完成：清掉 skippedAt，设置组 resume 横幅不再认领。
+    setEnvWizardSkippedAt(null);
     onClose();
-  }, [setEnvWizardDone, onClose]);
+  }, [setEnvWizardDone, setEnvWizardSkippedAt, onClose]);
 
   const handleInstallConfirm = useCallback(() => {
     const dep = installConfirmDep;

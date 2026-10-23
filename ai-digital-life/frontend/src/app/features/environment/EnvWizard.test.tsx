@@ -186,6 +186,21 @@ describe('EnvWizard', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('跳过→继续→完成：skippedAt 被清空，横幅不再认领', async () => {
+    await renderWizardAtItems(fixture());
+    fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: 'environmentWizardEnter' })).not.toBeNull();
+    });
+    useAppStore.setState({ envWizardSkippedAt: 123456 } as unknown as Parameters<
+      typeof useAppStore.setState
+    >[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'environmentWizardEnter' }));
+    expect(useAppStore.getState().envWizardDone).toBe(true);
+    expect(useAppStore.getState().envWizardSkippedAt).toBeNull();
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('全就绪 → 不渲染（返回 null）', () => {
     seedStore({ envStatus: allReadyFixture() });
     const { container } = renderWizard();

@@ -15,8 +15,9 @@ export type EnvDepKey = 'node' | 'git' | 'bash' | 'webview2' | 'adlserver' | 'ne
 
 /** 可安装宿主版本的依赖（后端 `/env/install` 仅支持 node/git）。 */
 const INSTALLABLE_DEPS: ReadonlySet<string> = new Set(['node', 'git']);
-/** 可切换来源 + 填手动路径的依赖（与后端 `custom_path_supported` 同口径）。 */
-const OPERABLE_DEPS: ReadonlySet<string> = new Set(['node', 'git', 'bash']);
+/** 可切换来源 + 填手动路径的依赖（与后端 `custom_path_supported` 同口径；向导/设置组共用同一真源）。 */
+export const OPERABLE_DEPS = ['node', 'git', 'bash'] as const;
+const OPERABLE_DEP_SET: ReadonlySet<string> = new Set<string>(OPERABLE_DEPS);
 
 const OFFICIAL_URLS: Record<string, string> = {
   node: 'https://nodejs.org/',
@@ -149,7 +150,7 @@ export function EnvDepRow({
   const section = depSection(status, dep);
   // 浏览器模式：系统级行（node/git/bash）的变更类控件置灰 + 追加仅桌面说明
   //（照抄智能体拦截开关模式）；检测展示（重测/复制）与 net/model 行不受影响。
-  const browserGated = !isTauri && OPERABLE_DEPS.has(dep);
+  const browserGated = !isTauri && OPERABLE_DEP_SET.has(dep);
   const controlsDisabled = busy || browserGated;
 
   const depTitle =
@@ -321,7 +322,7 @@ export function EnvDepRow({
           <div className="adl-settings-row__label-text">
             <span>{depTitle}</span>
             {section !== null ? <EnvDepPill dep={dep} section={section} /> : null}
-            {OPERABLE_DEPS.has(dep) && !compact ? (
+            {OPERABLE_DEP_SET.has(dep) && !compact ? (
               <button
                 type="button"
                 className="adl-settings-row__reset"
@@ -343,7 +344,7 @@ export function EnvDepRow({
           {showBashVariant && !compact ? (
             <small>{formatT(t, 'environmentBashVariantNote', { variant: bashVariantLabel })}</small>
           ) : null}
-          {OPERABLE_DEPS.has(dep) && !compact ? (
+          {OPERABLE_DEP_SET.has(dep) && !compact ? (
             <small>
               <label>
                 {t.environmentCustomPathLabel}{' '}
@@ -381,9 +382,9 @@ export function EnvDepRow({
             </small>
           ) : null}
         </div>
-        {(OPERABLE_DEPS.has(dep) && section !== null) || showInstall || showOfflineCopy ? (
+        {(OPERABLE_DEP_SET.has(dep) && section !== null) || showInstall || showOfflineCopy ? (
           <div className="adl-settings-row__control">
-            {OPERABLE_DEPS.has(dep) && section !== null ? (
+            {OPERABLE_DEP_SET.has(dep) && section !== null ? (
               <span data-settings-row={t.environmentSwitch}>
                 <SettingsSelect
                   value={section.mode}
@@ -407,6 +408,7 @@ export function EnvDepRow({
                 {t.environmentInstall}
               </button>
             ) : null}
+            {/* 离线复制刻意仅 busy 门控（不限 browserGated）：浏览器模式下复制诊断信息仍可用。 */}
             {showOfflineCopy ? (
               <button
                 type="button"

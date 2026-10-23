@@ -8,15 +8,12 @@ import { openUrlByMethod } from '@features/preview/openByMethod';
 import { SettingsHeader } from '@components/settings/SettingsHeader';
 import { ConfirmDialog } from '@components/ConfirmDialog';
 import { anchorFor } from '@components/settings/settingsSearchIndex';
-import { EnvDepRow, type EnvDepKey, type EnvDepRowActions } from './EnvDepRow';
+import { EnvDepRow, OPERABLE_DEPS, type EnvDepKey, type EnvDepRowActions } from './EnvDepRow';
 import { getCachedEnvStatus, isWellFormedEnvStatus, setCachedEnvStatus } from './envStatusCache';
 import type { EnvSourceMode, EnvStatus } from '../../../shared/ipc/env';
 
 /** 七依赖行渲染顺序（与 wire 的 node/git/bash/webview2/adlserver/netprobe + 模型引导行对应）。 */
 const DEP_ORDER: EnvDepKey[] = ['node', 'git', 'bash', 'webview2', 'adlserver', 'net', 'model'];
-
-/** 可改来源的依赖（与 EnvDepRow.OPERABLE_DEPS 同口径，组级重置只动这三行）。 */
-const SOURCE_DEPS = ['node', 'git', 'bash'] as const;
 
 /**
  * 聚合条就绪计数分母：5 个 version 信号（node/git/bash/webview2/adlserver
@@ -258,7 +255,7 @@ export function EnvironmentSettings() {
     })();
   }, [blockResetDep, resetOneDep, showToast, t]);
 
-  /** 组级恢复默认：三行来源全回自动 + 清空手动路径 + 全量重测，不卸载。 */
+  /** 组级恢复默认：可操作三行（OPERABLE_DEPS 真源）来源全回自动 + 清空手动路径 + 全量重测，不卸载。 */
   const handleGroupConfirm = useCallback(() => {
     if (groupResetBusy) {
       return;
@@ -268,7 +265,7 @@ export function EnvironmentSettings() {
     void (async () => {
       try {
         let ok = true;
-        for (const dep of SOURCE_DEPS) {
+        for (const dep of OPERABLE_DEPS) {
           if (!(await resetOneDepSource(dep))) {
             ok = false;
             break;
