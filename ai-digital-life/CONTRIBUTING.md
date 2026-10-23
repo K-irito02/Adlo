@@ -50,6 +50,7 @@ rustup target add x86_64-pc-windows-msvc
 - `minimal` profile 足够支撑 `cargo check` / `cargo test --workspace`；`rustfmt` 与 `clippy` 可在工具链恢复后单独安装。
 - `vcvars64.bat` / `VsDevCmd.bat` 报错本身不构成失败结论；以 `cargo test --workspace`、`cargo check --workspace` 的实际结果为准。
 - 若需要额外确认 MSVC 编译器可见性，再检查 `where cl` 与 `where link`。
+- 首次检出（或 `src-tauri/binaries/` 为空）时先运行 `cargo build -p adl-server` + `powershell -File scripts/copy-adl-server-sidecar.ps1 -Profile debug`，再执行任何触及 src-tauri 的 `cargo tauri dev` / `cargo test` / `cargo clippy`；原因是 `bundle.externalBin` 由 tauri-build 构建脚本在每次构建时校验，缺失即直接失败。
 
 ## Must-Sync Docs
 
