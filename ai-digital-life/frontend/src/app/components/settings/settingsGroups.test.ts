@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import type { SettingsGroupId } from '@shared/ipc';
 import { DEFAULT_FONTS } from '../../../shared/defaultPreferences';
-import { GROUP_RESET_PATCHES, RESETTABLE_GROUPS, getGroupResetPatch, isPatchSatisfied } from './settingsGroups';
+import {
+  GROUP_RESET_PATCHES,
+  RESETTABLE_GROUPS,
+  getGroupResetPatch,
+  isPatchSatisfied,
+} from './settingsGroups';
 
 describe('isPatchSatisfied', () => {
   it('treats null/undefined as empty-string default (事项 12a)', () => {
@@ -53,9 +58,7 @@ describe('settings registry single source (Task 4)', () => {
       expect(RESETTABLE_GROUPS.has(key as SettingsGroupId)).toBe(true);
     }
     const diff = [...RESETTABLE_GROUPS].filter((group) => !factoryKeys.has(group));
-    expect(new Set(diff)).toEqual(
-      new Set(['storage', 'browser', 'dsh', 'network', 'environment']),
-    );
+    expect(new Set(diff)).toEqual(new Set(['storage', 'browser', 'dsh', 'network', 'environment']));
   });
 
   it('network/environment 走自有流程：getGroupResetPatch 返回 null', () => {
