@@ -17,6 +17,7 @@ const RightPanel = lazy(() =>
   import('./regions/RightPanel').then((m) => ({ default: m.RightPanel })),
 );
 import { CreateWorkspaceModal } from './components/CreateWorkspaceModal';
+import { EnvWizard } from './features/environment/EnvWizard';
 import { ToastContainer } from './components/Toast';
 import { ToastRegion } from './components/ToastRegion';
 import { ConflictModal } from './components/ConflictModal';
@@ -175,14 +176,30 @@ export function App() {
   // 再静默拉一次 dsh 版本状态（含预发布通道）；只写 store 供设置项内徽章/行提示
   // 展示，不弹 toast、不记错误卡片。串行是刻意的：自检读到的徽章/来源才是兑现后
   // 的终态，避免先自检旧源再被兑现刷新导致的闪烁（R1-Medium）。
+  // Task 8 追加：同串行内再静默拉一次 env 全量状态，随后判定首启向导
+  //（`!envWizardDone` 才展示；overlayHidden 逻辑外独立 showEnvWizard，避免闪烁）。
   const fetchDshVersionStatus = useAppStore((s) => s.fetchDshVersionStatus);
   const applyPendingVersionSource = useAppStore((s) => s.applyPendingVersionSource);
+  const fetchEnvStatus = useAppStore((s) => s.fetchEnvStatus);
+  const envWizardDone = useAppStore((s) => s.envWizardDone);
+  const [envWizardResolved, setEnvWizardResolved] = useState(false);
+  const [showEnvWizard, setShowEnvWizard] = useState(false);
   useEffect(() => {
     void (async () => {
       await applyPendingVersionSource();
       await fetchDshVersionStatus(true);
+      await fetchEnvStatus(true);
+      setEnvWizardResolved(true);
     })();
-  }, [fetchDshVersionStatus, applyPendingVersionSource]);
+  }, [fetchDshVersionStatus, applyPendingVersionSource, fetchEnvStatus]);
+
+  // 首启向导展示：串行自检完成后，若引导未完成则打开；设置组 resume 横幅把
+  // envWizardDone 置回 false 即可重新打开（向导关闭恒落盘 done=true）。
+  useEffect(() => {
+    if (envWizardResolved && !envWizardDone) {
+      setShowEnvWizard(true);
+    }
+  }, [envWizardResolved, envWizardDone]);
 
   // Guard: wait for i18n before rendering (safe to return after all hooks)
   if (!t) {
@@ -301,6 +318,7 @@ export function App() {
         {activeNotification && (
           <ConflictModal notification={activeNotification} onDismiss={dismissPopup} />
         )}
+        {showEnvWizard && <EnvWizard onClose={() => setShowEnvWizard(false)} />}
       </TCopyProvider>
       <StartupOverlayWrapper visible={!overlayHidden} />
     </ErrorBoundary>

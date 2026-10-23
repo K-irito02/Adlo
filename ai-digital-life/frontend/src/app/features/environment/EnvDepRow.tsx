@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
@@ -55,8 +56,8 @@ function depSection(status: EnvStatus, dep: EnvDepKey): EnvDependencyState | nul
   return status[dep];
 }
 
-/** 依赖就绪判定：有版本 + 达基线 + 来源非空。 */
-function isDepReady(section: EnvDependencyState): boolean {
+/** 依赖就绪判定：有版本 + 达基线 + 来源非空（向导复用此口径挑未就绪项）。 */
+export function isEnvDepReady(section: EnvDependencyState): boolean {
   return section.installedVersion !== null && section.meetsBaseline && section.effective !== 'none';
 }
 
@@ -214,8 +215,22 @@ export function EnvDepRow({
     section !== null && status.task !== null && status.task.kind === `env-${dep}-install`
       ? status.task
       : null;
+  // 断网降级（spec §6.2）：下载源不可达时安装必失败，安装按钮由复制按钮
+  // 替代（复制诊断 JSON 给 agent，手动装后重测）；精简/全量模式共用同一行逻辑，
+  // 向导（compact）与设置组同时生效，无需向导侧重复实现。
+  const offline = !status.netprobe.registryOk;
   const showInstall =
-    section !== null && INSTALLABLE_DEPS.has(dep) && !isDepReady(section) && taskForDep === null;
+    section !== null &&
+    INSTALLABLE_DEPS.has(dep) &&
+    !isEnvDepReady(section) &&
+    taskForDep === null &&
+    !offline;
+  const showOfflineCopy =
+    section !== null &&
+    INSTALLABLE_DEPS.has(dep) &&
+    !isEnvDepReady(section) &&
+    taskForDep === null &&
+    offline;
 
   const bashVariant = dep === 'bash' && section !== null ? bashVariantOf(section) : null;
   const showBashVariant = bashVariant !== null && section?.mode === 'system';
@@ -321,7 +336,7 @@ export function EnvDepRow({
           </div>
           <small>{descText}</small>
           {renderStatusLine()}
-          {dep === 'bash' && section !== null && !isDepReady(section) && !compact ? (
+          {dep === 'bash' && section !== null && !isEnvDepReady(section) && !compact ? (
             <small>{t.environmentBashHostedNote}</small>
           ) : null}
           {renderTaskProgress()}
@@ -366,7 +381,7 @@ export function EnvDepRow({
             </small>
           ) : null}
         </div>
-        {(OPERABLE_DEPS.has(dep) && section !== null) || showInstall ? (
+        {(OPERABLE_DEPS.has(dep) && section !== null) || showInstall || showOfflineCopy ? (
           <div className="adl-settings-row__control">
             {OPERABLE_DEPS.has(dep) && section !== null ? (
               <span data-settings-row={t.environmentSwitch}>
@@ -390,6 +405,19 @@ export function EnvDepRow({
                 onClick={() => actions.requestInstall(dep)}
               >
                 {t.environmentInstall}
+              </button>
+            ) : null}
+            {showOfflineCopy ? (
+              <button
+                type="button"
+                className="adl-dsh-settings__action-btn"
+                data-settings-row={t.environmentCopyForAgent}
+                disabled={busy}
+                onClick={() => {
+                  void actions.copyForAgent(dep);
+                }}
+              >
+                {t.environmentCopyForAgent}
               </button>
             ) : null}
           </div>

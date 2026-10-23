@@ -115,6 +115,8 @@ function seedStore(patch: Record<string, unknown> = {}) {
     isTauri: true,
     toasts: [],
     environmentGroupResetPending: false,
+    envWizardDone: false,
+    envWizardSkippedAt: null,
     ...patch,
   } as unknown as Parameters<typeof useAppStore.setState>[0]);
 }
@@ -305,5 +307,44 @@ describe('EnvironmentSettings', () => {
         .disabled,
     ).toBe(true);
     expect(node.textContent).toContain('settingsAgentDesktopOnlyHint');
+  });
+
+  it('resume 横幅：skippedAt + 未就绪 → 显示 N 项，继续向导置回 done=false', async () => {
+    // fixture：node 缺失 + 其余就绪 + 注册表通 = 1 项未就绪。
+    const hybridT = new Proxy({} as Record<string, string>, {
+      get: (_, key) =>
+        typeof key === 'string' ? ((environmentZh as Record<string, string>)[key] ?? key) : '',
+    }) as unknown as CopyDict;
+    seedStore({ envStatus: fixture(), envWizardDone: true, envWizardSkippedAt: 123 });
+    render(
+      <TCopyProvider t={hybridT} locale="zh-CN">
+        <EnvironmentSettings />
+      </TCopyProvider>,
+    );
+    expect(await screen.findByText('上次跳过了 1 项')).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '继续向导' }));
+    expect(useAppStore.getState().envWizardDone).toBe(false);
+  });
+
+  it('resume 横幅：skippedAt + 全就绪 → 不显示', async () => {
+    const ready = fixture();
+    ready.node = depState({
+      mode: 'auto',
+      effective: 'host',
+      installedVersion: '22.0.0',
+      baselineVersion: '22.0.0',
+      meetsBaseline: true,
+      path: 'C:/hosted/node/22.0.0/node.exe',
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: ready });
+      return true;
+    });
+    seedStore({ envWizardSkippedAt: 123 });
+    const { container } = renderSettings();
+    await waitFor(() => {
+      expect(screen.getByTestId('env-aggregate')).not.toBeNull();
+    });
+    expect(container.querySelector('[data-testid="env-wizard-resume"]')).toBeNull();
   });
 });

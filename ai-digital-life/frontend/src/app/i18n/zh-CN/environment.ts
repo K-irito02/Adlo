@@ -28,6 +28,8 @@ export const environmentZh = {
   environmentWizardDetecting: '检测中…',
   environmentWizardSkip: '跳过',
   environmentWizardEnter: '进入应用',
+  environmentWizardResumeBanner: '上次跳过了 {count} 项',
+  environmentWizardResume: '继续向导',
   environmentInstallStarted: '开始安装 {dep}…',
   environmentInstallSuccess: '已安装 {dep} {version}',
   environmentInstallFailed: '安装 {dep} 失败',

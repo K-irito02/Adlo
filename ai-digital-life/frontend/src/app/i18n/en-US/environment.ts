@@ -28,6 +28,8 @@ export const environmentEn = {
   environmentWizardDetecting: 'Detecting…',
   environmentWizardSkip: 'Skip',
   environmentWizardEnter: 'Enter app',
+  environmentWizardResumeBanner: 'Skipped {count} items last time',
+  environmentWizardResume: 'Resume wizard',
   environmentInstallStarted: 'Starting install of {dep}…',
   environmentInstallSuccess: 'Installed {dep} {version}',
   environmentInstallFailed: 'Failed to install {dep}',

@@ -504,6 +504,9 @@ describe('i18n en-US namespace keys', () => {
       'environmentWizardDetecting',
       'environmentWizardSkip',
       'environmentWizardEnter',
+      // wizard resume 横幅（Task 8：跳过记账后仍有未就绪项时置顶）
+      'environmentWizardResumeBanner',
+      'environmentWizardResume',
       // 安装 toast（Task 2 review 遗留：envActions 不再复用 dsh key）
       'environmentInstallStarted',
       'environmentInstallSuccess',
@@ -591,6 +594,8 @@ describe('i18n en-US namespace keys', () => {
     expect(String(zhCN.environmentInstallProgress)).toContain('{done}');
     expect(String(enUS.environmentInstallProgress)).toContain('{total}');
     expect(String(zhCN.environmentInstallProgress)).toContain('{total}');
+    expect(String(enUS.environmentWizardResumeBanner)).toContain('{count}');
+    expect(String(zhCN.environmentWizardResumeBanner)).toContain('{count}');
   });
 });
 

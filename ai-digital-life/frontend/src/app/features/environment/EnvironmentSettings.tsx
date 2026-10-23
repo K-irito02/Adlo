@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import { useCallback, useEffect, useState } from 'react';
 import { useTCopy } from '@i18n/useTCopy';
 import { formatT } from '@i18n/formatT';
@@ -22,9 +23,20 @@ const SOURCE_DEPS = ['node', 'git', 'bash'] as const;
  * meetsBaseline）+ netprobe registryOk = 6。模型行是纯引导（无就绪信号，
  * 把 ciTokenConfigured 计入会冒充模型就绪——Phase 1 parked 红线），不计入。
  */
-const READY_TOTAL = 6;
+export const ENV_READY_TOTAL = 6;
 
-function depPayload(
+/** 就绪项计数（聚合条与向导完成步/跳过横幅共用同一口径）。 */
+export function countEnvReadyDeps(status: EnvStatus): number {
+  const versionReady = (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) => {
+    const section = status[dep];
+    return (
+      section.installedVersion !== null && section.meetsBaseline && section.effective !== 'none'
+    );
+  }).length;
+  return versionReady + (status.netprobe.registryOk ? 1 : 0);
+}
+
+export function depPayload(
   dep: EnvDepKey | 'all',
   status: EnvStatus,
 ): { dep: string; statusJson: string; baseline: string | null } {
@@ -62,7 +74,7 @@ function writeTextFallback(text: string): boolean {
   }
 }
 
-function copyTextToClipboard(text: string): Promise<boolean> {
+export function copyTextToClipboard(text: string): Promise<boolean> {
   // 照抄 CopyButton 双通道：clipboard API 优先，失败/缺失降级 execCommand。
   if (navigator.clipboard?.writeText !== undefined) {
     return navigator.clipboard
@@ -90,6 +102,8 @@ export function EnvironmentSettings() {
   const envBusy = useAppStore((s) => s.envBusy);
   const showToast = useAppStore((s) => s.showToast);
   const setActiveSettingsGroup = useAppStore((s) => s.setActiveSettingsGroup);
+  const envWizardSkippedAt = useAppStore((s) => s.envWizardSkippedAt);
+  const setEnvWizardDone = useAppStore((s) => s.setEnvWizardDone);
   const environmentGroupResetPending = useAppStore((s) => s.environmentGroupResetPending);
   const consumeEnvironmentGroupReset = useAppStore((s) => s.consumeEnvironmentGroupReset);
 
@@ -276,17 +290,8 @@ export function EnvironmentSettings() {
     setGroupResetOpen(false);
   }, []);
 
-  const readyCount =
-    status === null
-      ? 0
-      : (['node', 'git', 'bash', 'webview2', 'adlserver'] as const).filter((dep) => {
-          const section = status[dep];
-          return (
-            section.installedVersion !== null &&
-            section.meetsBaseline &&
-            section.effective !== 'none'
-          );
-        }).length + (status.netprobe.registryOk ? 1 : 0);
+  const readyCount = status === null ? 0 : countEnvReadyDeps(status);
+  const unmetCount = status === null ? 0 : ENV_READY_TOTAL - readyCount;
 
   const blockResetDepTitle =
     blockResetDep === 'node'
@@ -323,6 +328,36 @@ export function EnvironmentSettings() {
           </div>
         ) : (
           <>
+            {/*
+             * 首启向导 resume 横幅（Task 8）：跳过记账后仍有未就绪项时置顶，
+             * “继续向导”把 envWizardDone 置回 false，App 侧 effect 重新打开向导
+             *（向导关闭恒写 done=true，故此处不直接碰 skippedAt，横幅随修复消失）。
+             */}
+            {envWizardSkippedAt !== null && unmetCount > 0 ? (
+              <div className="adl-settings-card" data-testid="env-wizard-resume">
+                <div className="adl-settings-row">
+                  <div className="adl-settings-row__label">
+                    <div className="adl-settings-row__label-text">
+                      <span>
+                        {formatT(t, 'environmentWizardResumeBanner', { count: unmetCount })}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="adl-settings-row__control">
+                    <button
+                      type="button"
+                      className="adl-dsh-settings__action-btn"
+                      data-settings-row={t.environmentWizardResume}
+                      onClick={() => {
+                        setEnvWizardDone(false);
+                      }}
+                    >
+                      {t.environmentWizardResume}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
             <div className="adl-settings-card" data-testid="env-aggregate">
               <div className="adl-settings-row">
                 <div className="adl-settings-row__label">
@@ -330,7 +365,7 @@ export function EnvironmentSettings() {
                     <span>
                       {formatT(t, 'environmentAggregateReady', {
                         ready: readyCount,
-                        total: READY_TOTAL,
+                        total: ENV_READY_TOTAL,
                       })}
                     </span>
                   </div>
