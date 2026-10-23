@@ -61,28 +61,74 @@ fn redact_url_for_log(url: &str) -> String {
         .to_string()
 }
 
-/// 日志行脱敏：把 `token=<值>` 的参数值替换为 `<redacted>`（值到空白/引号/括号为止）。
-/// stdout 整行 debug 记录前调用；解析仍用原始行。
 /// URL/参数值截断符：空白、半角/全角引号与括号（\u 转义，避免源码编码歧义）。
 const TOKEN_TERMINATORS: &[char] = &[
     '"', '\'', ')', ']', '}', '>', '\u{201c}', '\u{201d}', '\u{2018}', '\u{2019}', '\u{00ab}',
     '\u{00bb}',
 ];
 
-fn redact_token_param(line: &str) -> String {
-    let cleaned = strip_ansi(line);
+/// 参数名（`name=value` 形式）命中即脱敏；覆盖 `?token=`/`&key=` 等内嵌写法。
+const SENSITIVE_PARAM_KEYS: &[&str] = &["token=", "key=", "secret=", "password=", "authorization="];
+
+/// 独立参数名（值在下一个 argv）——命中后下一个参数整体脱敏。
+const SENSITIVE_ARG_FLAGS: &[&str] =
+    &["--token", "--key", "--secret", "--password", "--authorization"];
+
+/// 文本脱敏：把敏感参数（`token=`/`key=`/`secret=`/`password=`/`authorization=`）
+/// 的值替换为 `<redacted>`（值到空白/引号/括号/`&` 为止，大小写不敏感）。
+/// stdout/stderr 整行 debug 记录前调用；解析仍用原始行。
+fn redact_secret_params(text: &str) -> String {
+    let cleaned = strip_ansi(text);
+    let lower = cleaned.to_ascii_lowercase();
     let mut out = String::with_capacity(cleaned.len());
-    let mut rest = cleaned.as_str();
-    while let Some(idx) = rest.find("token=") {
-        out.push_str(&rest[..idx + "token=".len()]);
-        out.push_str("<redacted>");
-        let after = &rest[idx + "token=".len()..];
-        let skip = after
-            .find(|c: char| c.is_whitespace() || TOKEN_TERMINATORS.contains(&c))
-            .unwrap_or(after.len());
-        rest = &after[skip..];
+    let mut i = 0;
+    while i < cleaned.len() {
+        let hit = SENSITIVE_PARAM_KEYS.iter().find(|key| lower[i..].starts_with(*key));
+        if let Some(key) = hit {
+            out.push_str(&cleaned[i..i + key.len()]);
+            out.push_str("<redacted>");
+            i += key.len();
+            let rest = &cleaned[i..];
+            i += rest
+                .find(|c: char| c.is_whitespace() || c == '&' || TOKEN_TERMINATORS.contains(&c))
+                .unwrap_or(rest.len());
+        } else {
+            let ch = cleaned[i..].chars().next().expect("in-bounds char");
+            out.push(ch);
+            i += ch.len_utf8();
+        }
     }
-    out.push_str(rest);
+    out
+}
+
+/// argv 脱敏：`--token value` 遮蔽下一个值，`--key=value`/`token=value`
+/// 遮蔽等号后的值；其余参数保持原样（仅内嵌敏感参数做文本脱敏）。
+fn redact_args_for_log(args: &[String]) -> Vec<String> {
+    let mut out = Vec::with_capacity(args.len());
+    let mut redact_next = false;
+    for arg in args {
+        if redact_next {
+            out.push("<redacted>".to_string());
+            redact_next = false;
+            continue;
+        }
+        let lower = arg.to_ascii_lowercase();
+        if SENSITIVE_ARG_FLAGS.contains(&lower.as_str()) {
+            out.push(arg.clone());
+            redact_next = true;
+            continue;
+        }
+        if let Some((name, _)) = arg.split_once('=') {
+            let name_lower = name.to_ascii_lowercase();
+            let sensitive = SENSITIVE_ARG_FLAGS.iter().any(|flag| name_lower == *flag)
+                || SENSITIVE_PARAM_KEYS.iter().any(|key| name_lower == key.trim_end_matches('='));
+            if sensitive {
+                out.push(format!("{name}=<redacted>"));
+                continue;
+            }
+        }
+        out.push(redact_secret_params(arg));
+    }
     out
 }
 
@@ -225,7 +271,7 @@ fn drain_and_watch(
                         }
                     }
                 }
-                tracing::debug!(target: "host-stdout", "{}", redact_token_param(&line));
+                tracing::debug!(target: "host-stdout", "{}", redact_secret_params(&line));
             }
         });
     }
@@ -234,7 +280,7 @@ fn drain_and_watch(
             let mut reader = BufReader::new(stderr).lines();
             while let Ok(Some(line)) = reader.next_line().await {
                 // stderr 仅 drain + debug 记录；同 stdout 做脱敏（子进程可能把 URL 打到 stderr）。
-                tracing::debug!(target: "host-stderr", "{}", redact_token_param(&line));
+                tracing::debug!(target: "host-stderr", "{}", redact_secret_params(&line));
             }
         });
     }
@@ -294,7 +340,13 @@ pub async fn spawn_with_marker(
         return Err(AppError::InvalidInput("spawn_with_marker: ports must not be empty".into()));
     }
     let fallbacks: Vec<String> = ports.iter().map(|p| format!("http://127.0.0.1:{p}")).collect();
-    tracing::info!(?program, ?args, ?ports, "spawn_with_marker: starting process");
+    tracing::info!(
+        ?program,
+        arg_count = args.len(),
+        redacted_args = ?redact_args_for_log(args),
+        ?ports,
+        "spawn_with_marker: starting process"
+    );
     let (mut child, url_slot) = spawn_capturing(program, args, marker)?;
 
     // 记录子进程PID
@@ -365,6 +417,49 @@ mod tests {
         let refused_port = dropped.local_addr().unwrap().port();
         drop(dropped);
         assert!(!check_port_fast(refused_port).await);
+    }
+
+    /// L5：argv 记录前必须脱敏 `--token value` / `--key=value` / `token=` /
+    /// `key=`，普通参数保持原样。
+    #[test]
+    fn redacts_sensitive_argv_values() {
+        let args: Vec<String> = [
+            "--token",
+            "abc",
+            "--key=xyz",
+            "--authorization",
+            "Bearer secret",
+            "token=inline",
+            "https://host/path?token=t&key=k",
+            "--port",
+            "8080",
+        ]
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
+        let redacted = redact_args_for_log(&args);
+        assert_eq!(
+            redacted,
+            vec![
+                "--token".to_string(),
+                "<redacted>".to_string(),
+                "--key=<redacted>".to_string(),
+                "--authorization".to_string(),
+                "<redacted>".to_string(),
+                "token=<redacted>".to_string(),
+                "https://host/path?token=<redacted>&key=<redacted>".to_string(),
+                "--port".to_string(),
+                "8080".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn redacts_secret_params_case_insensitively() {
+        assert_eq!(
+            redact_secret_params("x?Token=abc&KEY=def&plain=1"),
+            "x?Token=<redacted>&KEY=<redacted>&plain=1"
+        );
     }
 
     #[cfg(windows)]

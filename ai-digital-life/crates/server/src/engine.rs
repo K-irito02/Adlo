@@ -187,6 +187,7 @@ pub async fn init_server_state(
     let dsh_version_lock = adl_hosted::InstallLock::new();
     let dsh_version_task = adl_hosted::ProgressTask::new();
     let env_install_lock = adl_hosted::InstallLock::new();
+    let env_config_lock = Arc::new(AsyncMutex::new(()));
     let env_task = adl_hosted::ProgressTask::new();
     let env_status_cache = Arc::new(AsyncMutex::new(None));
     let env_probe_client = Arc::new(AsyncMutex::new(None));
@@ -215,6 +216,7 @@ pub async fn init_server_state(
         dsh_version_lock,
         dsh_version_task,
         env_install_lock,
+        env_config_lock,
         env_task,
         env_status_cache,
         env_probe_client,
@@ -222,6 +224,20 @@ pub async fn init_server_state(
         dsh_catalog_cache,
         workspace_watcher: Arc::new(StdMutex::new(None)),
     };
+    // 启动清理：崩溃可能留下 `*.old-<nonce>` 完整旧副本（env 版本目录，
+    // dsh 的 `installed/<v>/node_modules/@deepseek-ai` 下一层）。
+    let root = state.storage.paths().root.clone();
+    adl_hosted::cleanup_stale_backups(&root.join("env-hosted/node/installed"));
+    adl_hosted::cleanup_stale_backups(&root.join("env-hosted/git/installed"));
+    let dsh_installed = state.storage.paths().dsh_versions_dir.join("installed");
+    adl_hosted::cleanup_stale_backups(&dsh_installed);
+    if let Ok(entries) = std::fs::read_dir(&dsh_installed) {
+        for entry in entries.flatten() {
+            adl_hosted::cleanup_stale_backups(
+                &entry.path().join("node_modules").join("@deepseek-ai"),
+            );
+        }
+    }
     if let Some(root) = restored_root.as_ref() {
         restart_workspace_watcher(&state, Path::new(root));
     }

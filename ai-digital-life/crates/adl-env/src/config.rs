@@ -51,7 +51,10 @@ pub fn load(data_dir: &Path) -> Result<EnvSourcesConfig, AppError> {
         .map_err(|e| AppError::Io(format!("Failed to read {}: {e}", path.display())))?;
     // 单个坏文件不得让整个 env 端点不可用：解析失败降级为默认配置并留痕。
     match serde_json::from_str(&content) {
-        Ok(config) => Ok(config),
+        Ok(mut config) => {
+            normalize_hostless(&mut config, &path);
+            Ok(config)
+        },
         Err(e) => {
             tracing::warn!(
                 path = %path.display(),
@@ -63,13 +66,39 @@ pub fn load(data_dir: &Path) -> Result<EnvSourcesConfig, AppError> {
     }
 }
 
+/// Deps with no hosted install root: a persisted `host` mode can only resolve
+/// to `none`, so it is reset to `auto` on load (with a warning naming the dep).
+fn normalize_hostless(config: &mut EnvSourcesConfig, path: &Path) {
+    let slots = [
+        ("bash", &mut config.bash),
+        ("webview2", &mut config.webview2),
+        ("adlserver", &mut config.adlserver),
+        ("netprobe", &mut config.netprobe),
+    ];
+    for (dep, slot) in slots {
+        if slot.mode == SourceMode::Host {
+            slot.mode = SourceMode::Auto;
+            tracing::warn!(
+                dep,
+                path = %path.display(),
+                "env sources: host mode has no hosted source; reset to auto"
+            );
+        }
+    }
+}
+
+/// Serializes writes within the process so two saves cannot race on the same
+/// temp file (each save also uses a unique temp name).
+static SAVE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Persist the config atomically (pretty JSON, parent dirs created on demand).
 ///
-/// Writes `<data_dir>/env-sources.json.tmp`, flushes/syncs it, then renames it
+/// Writes a unique `<data_dir>/env-sources.<nonce>.tmp`, flushes/syncs it, then renames it
 /// over the target. `std::fs::rename` maps to `MoveFileEx(...REPLACE_EXISTING)`
 /// on Windows, so an existing target is replaced atomically; if that ever
 /// fails, fall back to copy+remove so a valid file still lands.
 pub fn save(data_dir: &Path, config: &EnvSourcesConfig) -> Result<(), AppError> {
+    let _guard = SAVE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let path = config_path(data_dir);
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
@@ -77,7 +106,11 @@ pub fn save(data_dir: &Path, config: &EnvSourcesConfig) -> Result<(), AppError> 
     }
     let content = serde_json::to_string_pretty(config)
         .map_err(|e| AppError::Internal(format!("Failed to serialize env sources: {e}")))?;
-    let tmp = path.with_file_name(format!("{ENV_SOURCES_FILE}.tmp"));
+    let nonce = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or_default();
+    let tmp = path.with_file_name(format!("{ENV_SOURCES_FILE}.{nonce}.tmp"));
     {
         use std::io::Write;
         let mut file = std::fs::File::create(&tmp)
@@ -210,6 +243,35 @@ mod tests {
             !tmp.join(format!("{}.tmp", super::ENV_SOURCES_FILE)).exists(),
             "atomic save must not leave a .tmp residue"
         );
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    /// 持久化的 `host` 对无托管来源的依赖无效：加载时归一为 `auto`，
+    /// 拥有托管来源的 node/git 保持原值。
+    #[test]
+    fn load_normalizes_host_mode_for_deps_without_hosted_source() {
+        let tmp = temp_dir("normalize_host");
+        std::fs::create_dir_all(&tmp).unwrap();
+        let path = tmp.join(super::ENV_SOURCES_FILE);
+        std::fs::write(
+            &path,
+            r#"{
+                "node": { "mode": "host" },
+                "git": { "mode": "host" },
+                "bash": { "mode": "host" },
+                "webview2": { "mode": "host" },
+                "adlserver": { "mode": "host" },
+                "netprobe": { "mode": "host" }
+            }"#,
+        )
+        .unwrap();
+        let cfg = load(&tmp).expect("load");
+        assert_eq!(cfg.node.mode, SourceMode::Host);
+        assert_eq!(cfg.git.mode, SourceMode::Host);
+        assert_eq!(cfg.bash.mode, SourceMode::Auto);
+        assert_eq!(cfg.webview2.mode, SourceMode::Auto);
+        assert_eq!(cfg.adlserver.mode, SourceMode::Auto);
+        assert_eq!(cfg.netprobe.mode, SourceMode::Auto);
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

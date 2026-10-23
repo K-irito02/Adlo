@@ -123,6 +123,16 @@ impl ProgressTask {
         self.state.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
 
+    /// Drop a finished-but-failed snapshot (e.g. an explicit `/env/recheck`)
+    /// without touching a running task. An errored snapshot is terminal, so
+    /// clearing it lets the next status request probe again.
+    pub fn clear_errored(&self) {
+        let mut guard = self.state.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.as_ref().is_some_and(|task| task.error.is_some()) {
+            *guard = None;
+        }
+    }
+
     pub fn finish(&self) {
         let mut guard = self.state.lock().unwrap_or_else(|e| e.into_inner());
         *guard = None;
@@ -200,6 +210,21 @@ mod tests {
         assert_eq!(json["kind"], "env-node-install");
         assert_eq!(json["phase"], "preparing");
         assert_eq!(json["version"], "node 22.14.0");
+    }
+
+    #[test]
+    fn clear_errored_only_drops_failed_snapshots() {
+        let task = ProgressTask::new();
+        assert!(task.begin_with("env-node-install", "node 22.14.0", false));
+        task.clear_errored();
+        assert!(task.snapshot().is_some(), "running task must stay");
+
+        task.set_error("boom");
+        task.clear_errored();
+        assert!(task.snapshot().is_none(), "errored snapshot must be cleared");
+
+        task.clear_errored();
+        assert!(task.snapshot().is_none(), "no-op when empty");
     }
 
     #[test]

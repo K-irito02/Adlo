@@ -81,6 +81,9 @@ pub struct ServerState {
     /// 串行化 env 依赖安装（node/git MinGit），避免并发写入同一宿主目录。
     /// 与 `dsh_version_lock` 同模式：`InstallLock::new()` 一次构造出共享 Arc。
     pub env_install_lock: Arc<AsyncMutex<()>>,
+    /// 串行化 `env-sources.json` 的读取-修改-写入（select-source /
+    /// set-custom-path），避免并发保存互相覆盖；`config::save` 另有进程内写锁。
+    pub env_config_lock: Arc<AsyncMutex<()>>,
     /// 当前 env 安装任务进度（`env-{dep}-install` kind；结构体内部持 Arc）。
     pub env_task: adl_hosted::ProgressTask,
     /// `/env/status` 序列化快照缓存（2s TTL）：安装期间前端每 3s 轮询，

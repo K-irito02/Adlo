@@ -1,6 +1,29 @@
 use adl_errors::AppError;
 use std::path::Path;
 
+/// Remove leftover `*.old-<nonce>` backups directly inside `dir`
+/// (startup cleanup: a crash between backup and restore/removal leaves a full
+/// old copy next to the live one until a later swap of the same version).
+pub fn cleanup_stale_backups(dir: &Path) {
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        if !name.contains(".old-") {
+            continue;
+        }
+        let path = entry.path();
+        if let Err(e) = std::fs::remove_dir_all(&path) {
+            tracing::warn!(
+                path = %path.display(),
+                error = %e,
+                "swap: remove stale backup failed"
+            );
+        }
+    }
+}
+
 pub fn swap_into_place(staging: &Path, target: &Path) -> Result<(), AppError> {
     let io = |ctx: &str, e: std::io::Error| AppError::Io(format!("{ctx}: {e}"));
     // 目标父目录不存在时 rename/copy 都会失败；调用方（安装流程）可能尚未建好
@@ -117,7 +140,7 @@ fn is_link(path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::swap_into_place;
+    use super::{cleanup_stale_backups, swap_into_place};
 
     fn nanos() -> u128 {
         std::time::SystemTime::now()
@@ -138,6 +161,20 @@ mod tests {
         swap_into_place(&staging, &target).expect("swap");
         assert!(target.join("lib").join("new.txt").is_file());
         assert!(!staging.exists(), "staging must be gone");
+        let _ = std::fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn cleanup_stale_backups_removes_old_residue_only() {
+        let tmp = std::env::temp_dir().join(format!("adl_sw_stale_{}", nanos()));
+        let live = tmp.join("1.0.0");
+        let stale = tmp.join("1.0.old-123");
+        std::fs::create_dir_all(live.join("lib")).unwrap();
+        std::fs::create_dir_all(stale.join("lib")).unwrap();
+        std::fs::write(stale.join("lib").join("old.txt"), "old").unwrap();
+        cleanup_stale_backups(&tmp);
+        assert!(live.is_dir(), "live version must stay");
+        assert!(!stale.exists(), "stale backup must be removed");
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

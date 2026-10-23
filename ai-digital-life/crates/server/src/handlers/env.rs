@@ -46,11 +46,14 @@ pub fn parse_mode(mode: &str) -> Result<adl_env::SourceMode, AppError> {
     }
 }
 
-/// `host` mode requires a hosted provider. `webview2`/`adlserver`/`netprobe`
-/// have no hosted install root, so selecting `host` is a machine-coded 4xx
-/// (`no-hosted-source`) rather than a silently ineffective preference.
+/// `host` mode requires a hosted provider. `bash` (hosted Git is MinGit, which
+/// ships no bash), `webview2`/`adlserver`/`netprobe` have no hosted install
+/// root, so selecting `host` is a machine-coded 4xx (`no-hosted-source`)
+/// rather than a silently ineffective preference.
 pub fn validate_hosted_source(dep: &str, mode: adl_env::SourceMode) -> Result<(), AppError> {
-    if mode == adl_env::SourceMode::Host && matches!(dep, "webview2" | "adlserver" | "netprobe") {
+    if mode == adl_env::SourceMode::Host
+        && matches!(dep, "bash" | "webview2" | "adlserver" | "netprobe")
+    {
         return Err(AppError::InvalidInput("no-hosted-source".into()));
     }
     Ok(())
@@ -160,11 +163,19 @@ const STATUS_CACHE_TTL: std::time::Duration = std::time::Duration::from_secs(2);
 /// registry 探测请求超时：轮询端点绝不能等共享 client 的 30s。
 const PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(2);
 
+/// A task is "running" only while it has no terminal error. An errored
+/// snapshot is finished-but-failed (kept for polling), so it must not suppress
+/// probing/caching or block `/env/recheck`.
+fn task_is_running(snapshot: Option<&adl_hosted::ProgressSnapshot>) -> bool {
+    snapshot.is_some_and(|task| task.error.is_none())
+}
+
 async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError> {
     // 活动任务期间不走缓存（task 快照必须新鲜）且绝不触网：安装进度轮询
-    // 不能被 registry 探测阻塞。
+    // 不能被 registry 探测阻塞。错误快照是已结束任务，照常探测/缓存。
     let task = state.env_task.snapshot();
-    if task.is_none() {
+    let running = task_is_running(task.as_ref());
+    if !running {
         if let Some(cached) = cache_get(&state.env_status_cache, STATUS_CACHE_TTL).await {
             return Ok(cached);
         }
@@ -203,7 +214,7 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
     .await
     .unwrap_or(false);
 
-    let netprobe = if task.is_some() {
+    let netprobe = if running {
         // 有任务在跑：只报上次已知的 registry 结果（未知时 false），不探测。
         let (registry_ok, registry_latency_ms) = last_known_registry(state).await;
         NetprobeState { registry_ok, registry_latency_ms, ci_token_configured }
@@ -237,7 +248,7 @@ async fn status_inner(state: &ServerState) -> Result<serde_json::Value, AppError
         dsh_ready,
     };
     let value = serde_json::to_value(&status).map_err(|e| AppError::Internal(e.to_string()))?;
-    if status.task.is_none() {
+    if !running {
         cache_put(&state.env_status_cache, value.clone()).await;
     }
     Ok(value)
@@ -573,7 +584,8 @@ fn adlserver_state(sources: &adl_env::config::EnvSourcesConfig, exe_dir: &Path) 
 
 /// POST `/env/install` — install `{ dep, version? }` (missing version means
 /// the baseline stable). Accepted installs run in the background; the
-/// response is `{ accepted: true }` and progress is polled via `status`.
+/// response is `{ started: true }` (same shape as `/env/uninstall`) and
+/// progress is polled via `status`.
 pub async fn install(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -591,6 +603,12 @@ struct InstallInput {
     dep: String,
     #[serde(default)]
     version: Option<String>,
+}
+
+/// Started-trigger response shared by `/env/install`, `/env/uninstall` and
+/// `/env/recheck`: the call kicks off work/refresh, progress comes from status.
+fn started_payload() -> serde_json::Value {
+    serde_json::json!({ "started": true })
 }
 
 /// Env 任务占位（安装/卸载共用 `env_task`，已有任务在跑则拒绝）。错误快照是
@@ -622,7 +640,7 @@ async fn install_inner(
                 .map_err(|_| AppError::InvalidInput(format!("bad node version {version}")))?;
             try_begin_env_task(state, "env-node-install", &format!("node {version}"))?;
             spawn_node_install(state, version.clone(), baseline.node.dist_base.clone());
-            Ok(serde_json::json!({ "accepted": true, "dep": "node", "version": version }))
+            Ok(started_payload())
         },
         "git" => {
             let version = input.version.unwrap_or_else(|| baseline.git.stable.clone());
@@ -642,12 +660,12 @@ async fn install_inner(
                 baseline.git.tag.clone(),
                 baseline.git.asset.clone(),
             );
-            Ok(serde_json::json!({ "accepted": true, "dep": "git", "version": version }))
+            Ok(started_payload())
         },
         // WebView2 由安装器管理：provider 直接返回机器码引导错误（4xx）。
         "webview2" => {
             webview2::install()?;
-            Ok(serde_json::json!(true))
+            Ok(started_payload())
         },
         // bash 无宿主安装（宿主 Git 是 MinGit，不含 bash）：引导系统来源。
         "bash" => Err(AppError::InvalidInput(
@@ -758,7 +776,7 @@ async fn uninstall_inner(
     tracing::info!(dep, %version, "env: uninstall accepted");
     try_begin_env_task(state, &uninstall_kind(dep), &version)?;
     spawn_uninstall(state, dep, version);
-    Ok(serde_json::json!({ "started": true }))
+    Ok(started_payload())
 }
 
 /// Task kind for the background uninstall (`env-{dep}-uninstall`); pinned in
@@ -853,9 +871,12 @@ async fn select_source_inner(
     let mode = parse_mode(&input.mode)?;
     validate_hosted_source(dep, mode)?;
     let root = state.storage.paths().root.clone();
+    let _config_guard = state.env_config_lock.lock().await;
     let mut config = adl_env::config::load(&root)?;
     adl_env::config::apply_select(dep, mode, &mut config)?;
     adl_env::config::save(&root, &config)?;
+    // 立即失效状态缓存：前端保存后马上取 status，不能返回旧 mode/effective。
+    cache_clear(&state.env_status_cache).await;
     Ok(serde_json::json!(true))
 }
 
@@ -903,6 +924,7 @@ async fn set_custom_path_inner(
         }
     }
     let root = state.storage.paths().root.clone();
+    let _config_guard = state.env_config_lock.lock().await;
     let mut config = adl_env::config::load(&root)?;
     adl_env::config::set_custom_path(
         &mut config,
@@ -910,6 +932,7 @@ async fn set_custom_path_inner(
         if path.is_empty() { None } else { Some(path) },
     )?;
     adl_env::config::save(&root, &config)?;
+    cache_clear(&state.env_status_cache).await;
     Ok(serde_json::json!(true))
 }
 
@@ -939,9 +962,10 @@ async fn check_custom_version_bin(bin: &str, dep: &str) -> Result<(), AppError> 
     }
 }
 
-/// POST `/env/recheck` — fresh detection snapshot (`{ dep? }` optional;
-/// unknown dep is 4xx). Detection itself is live, but `/env/status` responses
-/// are TTL-cached, so recheck explicitly invalidates that cache first.
+/// POST `/env/recheck` — trigger a fresh detection (`{ dep? }` optional;
+/// unknown dep is 4xx). The response is `{ started: true }`; the refreshed
+/// snapshot is read via `/env/status`. Recheck clears a stale errored task and
+/// invalidates the status cache before probing.
 pub async fn recheck(
     State(state): State<ServerState>,
     body: axum::body::Bytes,
@@ -962,8 +986,11 @@ async fn recheck_inner(
             parse_dep(dep)?;
         }
     }
+    // 失败任务是终态：recheck 清掉它，下一次 status 才会重新探测/缓存。
+    state.env_task.clear_errored();
     cache_clear(&state.env_status_cache).await;
-    status_inner(state).await
+    status_inner(state).await?;
+    Ok(started_payload())
 }
 
 #[derive(serde::Deserialize)]
@@ -975,9 +1002,10 @@ struct RecheckInput {
 #[cfg(test)]
 mod tests {
     use super::{
-        EnvStatus, NetprobeState, RunGuard, STATUS_CACHE_TTL, SelectInput, UninstallInput,
-        bash_state_from_candidates, cache_clear, cache_get, cache_put, meets_dotted, meets_semver,
-        parse_dep, parse_mode, select_source_inner, selected_hosted_version, try_begin_env_task,
+        CustomPathInput, EnvStatus, NetprobeState, RunGuard, STATUS_CACHE_TTL, SelectInput,
+        UninstallInput, bash_state_from_candidates, cache_clear, cache_get, cache_put,
+        meets_dotted, meets_semver, parse_dep, parse_mode, recheck_inner, select_source_inner,
+        selected_hosted_version, set_custom_path_inner, task_is_running, try_begin_env_task,
         uninstall_inner, uninstall_kind, validate_hosted_source, validate_uninstall,
     };
     use adl_env::providers::{bash, node};
@@ -1053,21 +1081,22 @@ mod tests {
         assert!(matches!(err, AppError::InvalidInput(_)), "unexpected error: {err}");
     }
 
-    /// `host` 仅对拥有托管安装根的三类依赖有效；无托管来源返回机器码 4xx。
+    /// `host` 仅对拥有托管安装根的两类依赖有效；bash 已无托管来源（MinGit
+    /// 不含 bash），与 webview2/adlserver/netprobe 一样返回机器码 4xx。
     #[test]
     fn select_source_rejects_host_for_deps_without_hosted_provider() {
-        for dep in ["webview2", "adlserver", "netprobe"] {
+        for dep in ["bash", "webview2", "adlserver", "netprobe"] {
             let err = validate_hosted_source(dep, SourceMode::Host).expect_err("no hosted source");
             assert!(
                 matches!(err, AppError::InvalidInput(ref m) if m == "no-hosted-source"),
                 "{dep}: unexpected error: {err}"
             );
         }
-        for dep in ["webview2", "adlserver", "netprobe"] {
+        for dep in ["bash", "webview2", "adlserver", "netprobe"] {
             assert!(validate_hosted_source(dep, SourceMode::Auto).is_ok());
             assert!(validate_hosted_source(dep, SourceMode::System).is_ok());
         }
-        for dep in ["node", "git", "bash"] {
+        for dep in ["node", "git"] {
             assert!(validate_hosted_source(dep, SourceMode::Host).is_ok());
         }
     }
@@ -1086,6 +1115,20 @@ mod tests {
         assert_eq!(config.webview2.mode, SourceMode::Auto);
     }
 
+    /// bash 的 `host` 同样被拒且不落盘（hosted bash 已随 MinGit 移除）。
+    #[tokio::test]
+    async fn select_source_inner_rejects_bash_host_without_persisting() {
+        let state = crate::test_util::test_server_state();
+        let input = SelectInput { dep: "bash".into(), mode: "host".into() };
+        let err = select_source_inner(&state, input).await.expect_err("no hosted source");
+        assert!(
+            matches!(err, AppError::InvalidInput(ref m) if m == "no-hosted-source"),
+            "unexpected error: {err}"
+        );
+        let config = adl_env::config::load(&state.storage.paths().root).unwrap();
+        assert_eq!(config.bash.mode, SourceMode::Auto);
+    }
+
     /// select-source 合法写入落盘（test state 用临时目录，不污染真实数据）。
     #[tokio::test]
     async fn select_source_inner_persists_mode() {
@@ -1094,6 +1137,56 @@ mod tests {
         select_source_inner(&state, input).await.unwrap();
         let config = adl_env::config::load(&state.storage.paths().root).unwrap();
         assert_eq!(config.node.mode, SourceMode::Host);
+    }
+
+    /// N2：保存 source 后必须立即失效状态缓存，否则前端保存后的首次 status
+    /// 会重绘旧 mode/effective（2s TTL 内）。
+    #[tokio::test]
+    async fn select_source_inner_invalidates_status_cache() {
+        let state = crate::test_util::test_server_state();
+        cache_put(&state.env_status_cache, serde_json::json!({ "stale": true })).await;
+        let input = SelectInput { dep: "node".into(), mode: "system".into() };
+        select_source_inner(&state, input).await.unwrap();
+        assert!(
+            cache_get(&state.env_status_cache, STATUS_CACHE_TTL).await.is_none(),
+            "select-source must invalidate the status cache"
+        );
+    }
+
+    /// N2：自定义路径保存同样立即失效状态缓存。
+    #[tokio::test]
+    async fn set_custom_path_inner_invalidates_status_cache() {
+        let state = crate::test_util::test_server_state();
+        cache_put(&state.env_status_cache, serde_json::json!({ "stale": true })).await;
+        let input = CustomPathInput { dep: "node".into(), path: String::new() };
+        set_custom_path_inner(&state, input).await.unwrap();
+        assert!(
+            cache_get(&state.env_status_cache, STATUS_CACHE_TTL).await.is_none(),
+            "set-custom-path must invalidate the status cache"
+        );
+    }
+
+    /// N1：错误快照是已结束任务，不能再被当作 running（否则 status 停止探测/
+    /// 缓存，recheck 也无法恢复 registry 灯）。
+    #[test]
+    fn errored_task_is_not_treated_as_running() {
+        let state = crate::test_util::test_server_state();
+        assert!(!task_is_running(state.env_task.snapshot().as_ref()));
+        assert!(state.env_task.begin_with("env-node-install", "node 22.14.0", false));
+        assert!(task_is_running(state.env_task.snapshot().as_ref()));
+        state.env_task.set_error("boom");
+        assert!(!task_is_running(state.env_task.snapshot().as_ref()));
+    }
+
+    /// L9：recheck 只触发刷新，返回 `{started:true}`（状态经 /env/status 读取）。
+    /// 用运行中任务避免真实 registry 探测（该分支不触网）。
+    #[tokio::test]
+    async fn recheck_returns_started_true() {
+        let state = crate::test_util::test_server_state();
+        assert!(state.env_task.begin_with("env-node-install", "node 22.14.0", false));
+        let value = recheck_inner(&state, axum::body::Bytes::new()).await.unwrap();
+        assert_eq!(value, serde_json::json!({ "started": true }));
+        state.env_task.finish();
     }
 
     /// `/env/uninstall` 白名单：仅 node/git 拥有托管版本目录。
