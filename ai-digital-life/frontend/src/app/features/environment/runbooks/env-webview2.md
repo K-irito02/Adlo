@@ -1,7 +1,7 @@
 ---
 dep: webview2
 baseline: 140.0.0.0
-detect: reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv ; reg query "HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+detect: reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv ; reg query "HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv ; reg query "HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
 ---
 
 # WebView2 运行时（env-webview2）
@@ -15,11 +15,12 @@ detect: reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017
 
 ```powershell
 reg query "HKLM\SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
+reg query "HKLM\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
 reg query "HKCU\SOFTWARE\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}" /v pv
 ```
 
-- 机器级安装看第一条，用户级安装看第二条；`pv` 即已装版本。
-- 两条都报「找不到指定的注册表项」= 未安装。版本与设置组行内基线对比。
+- 前两条是机器级安装（32 位 / 64 位注册表视图），第三条是用户级安装；`pv` 即已装版本。
+- 三条都报「找不到指定的注册表项」= 未安装。版本与设置组行内基线对比。
 
 ## 安装步骤
 

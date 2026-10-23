@@ -36,13 +36,20 @@
 4. `装后回填`
 5. `回滚`
 
+## Bash 来源（MinGit 不含 Bash）
+
+宿主内置的 Git 资产是 **MinGit**，不含 `bash.exe`。Bash 只能来自：系统完整
+Git for Windows（`<Git>\bin\bash.exe`）、WSL、MSYS2，或用户在设置组手动填写的路径。
+runbook 与设置组文案不得声称「Bash 随宿主 Git 一起安装」。
+
 ## 复制载荷
 
 「复制给助手」输出 JSON，完整形状为
 `{ dep, statusJson, baseline, runbook, dataDir, copyContext }`：
 
 - `statusJson: string` — 单依赖行（`dep = "all"` 时为整包 `EnvStatus`）的 JSON 文本。
-- `baseline: string | null` — 该依赖的基线版本；`net` / `model` / `all` 为 `null`。
+- `baseline: string | null` — 该依赖的基线版本；版本无关项（`bash` / `net` / `model`）
+  与 `all` 聚合为 `null`（wire 上是空串，载荷归一为 `null`）。
 - `runbook: string | null` — 该依赖对应的 runbook 全文。
 - `dataDir: string` — 环境检测使用的数据根（`EnvStatus.dataDir`），助手可据此定位
   `env-hosted/`、配置与日志。

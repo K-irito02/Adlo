@@ -1,10 +1,13 @@
-//! `bash` provider: three-way system detection + hosted-MinGit path (Task 9).
+//! `bash` provider: system-side detection (Task 9).
 //!
-//! No `adl-pty` dependency: the three fixed-path probes (Git-bundled,
-//! WSL, MSYS2) are re-implemented here as pure path constructors plus the
-//! pure ranking function [`candidates_from_snapshot`]; only the thin
-//! [`detect`] wrapper touches the real filesystem. `adl-pty` stays
-//! zero-change.
+//! The hosted Git asset is **MinGit**, which does not ship `bash.exe`, so
+//! there is no hosted bash source. Candidates come from the full system Git
+//! for Windows install, WSL, MSYS2, or an explicit manual path.
+//!
+//! No `adl-pty` dependency: the fixed-path probes are re-implemented here as
+//! pure path constructors plus the pure ranking function
+//! [`candidates_from_snapshot`]; only the thin [`detect`] wrapper touches the
+//! real filesystem. `adl-pty` stays zero-change.
 
 use std::path::{Path, PathBuf};
 
@@ -13,7 +16,6 @@ use serde::{Deserialize, Serialize};
 /// Bash source, in priority order (highest first).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum BashKind {
-    HostMinGit,
     GitBundled,
     Wsl,
     Msys2,
@@ -33,17 +35,15 @@ pub struct BashCandidate {
 /// machine. Real PATH/registry reads live in [`detect`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct EnvSnapshot {
-    pub host_mingit: Option<PathBuf>,
     pub git_bundled: Option<PathBuf>,
     pub wsl: Option<PathBuf>,
     pub msys2: Option<PathBuf>,
     pub manual: Option<PathBuf>,
 }
 
-/// Rank present snapshot entries: HostMinGit > Git自带 > WSL > MSYS2 > Manual.
+/// Rank present snapshot entries: Git自带 > WSL > MSYS2 > Manual.
 pub fn candidates_from_snapshot(snap: &EnvSnapshot) -> Vec<BashCandidate> {
     [
-        (BashKind::HostMinGit, &snap.host_mingit),
         (BashKind::GitBundled, &snap.git_bundled),
         (BashKind::Wsl, &snap.wsl),
         (BashKind::Msys2, &snap.msys2),
@@ -54,15 +54,6 @@ pub fn candidates_from_snapshot(snap: &EnvSnapshot) -> Vec<BashCandidate> {
         path.as_ref().map(|p| BashCandidate { kind, path: p.to_string_lossy().into_owned() })
     })
     .collect()
-}
-
-/// Hosted bash rides the hosted git dir (spec §4.2: no independent hosted
-/// dir). Delegates to the layout owner so the `installed/` segment stays in
-/// one place: `<data>/env-hosted/git/installed/<v>/bin/bash.exe`.
-pub fn host_bash_path(data_dir: &Path, git_version: &str) -> PathBuf {
-    adl_hosted::HostedVersions::open(data_dir, "env-hosted/git", "cmd/git.exe")
-        .version_dir(git_version)
-        .join("bin/bash.exe")
 }
 
 /// Fixed Git-bundled candidates: `Program Files` + `Program Files (x86)`
@@ -78,8 +69,6 @@ pub fn msys2_candidates() -> [PathBuf; 2] {
 
 /// Detect usable bashes on this machine: probe the fixed paths (`Git`-bundled,
 /// MSYS2) and `PATH` (`bash`, `wsl`), build a snapshot, and rank it.
-/// The hosted-MinGit entry needs a data dir + selected git version, so it is
-/// `None` here — callers prepend [`host_bash_path`] when hosted git is selected.
 pub fn detect() -> Vec<BashCandidate> {
     let program_files = std::env::var_os("ProgramFiles")
         .map_or_else(|| PathBuf::from("C:/Program Files"), PathBuf::from);
@@ -87,7 +76,6 @@ pub fn detect() -> Vec<BashCandidate> {
         .map_or_else(|| PathBuf::from("C:/Program Files (x86)"), PathBuf::from);
     let bundled = git_bundled_candidates(&program_files, &program_files_x86);
     candidates_from_snapshot(&EnvSnapshot {
-        host_mingit: None,
         git_bundled: first_existing(&bundled).or_else(|| where_first("bash")),
         wsl: where_first("wsl"),
         msys2: first_existing(&msys2_candidates()),
@@ -114,9 +102,8 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn ranking_prefers_host_mingit_over_system() {
+    fn ranking_prefers_system_git_over_wsl_and_msys2() {
         let snap = EnvSnapshot {
-            host_mingit: Some(PathBuf::from("D:/d/env-hosted/git/installed/2.47.1/bin/bash.exe")),
             git_bundled: Some(PathBuf::from("C:/Program Files/Git/bin/bash.exe")),
             wsl: Some(PathBuf::from("C:/Windows/System32/wsl.exe")),
             msys2: Some(PathBuf::from("C:/msys64/usr/bin/bash.exe")),
@@ -124,9 +111,19 @@ mod tests {
         };
         let kinds: Vec<BashKind> =
             candidates_from_snapshot(&snap).into_iter().map(|c| c.kind).collect();
-        assert_eq!(
-            kinds,
-            vec![BashKind::HostMinGit, BashKind::GitBundled, BashKind::Wsl, BashKind::Msys2]
-        );
+        assert_eq!(kinds, vec![BashKind::GitBundled, BashKind::Wsl, BashKind::Msys2]);
+    }
+
+    #[test]
+    fn manual_path_is_ranked_last() {
+        let snap = EnvSnapshot {
+            git_bundled: None,
+            wsl: Some(PathBuf::from("C:/Windows/System32/wsl.exe")),
+            msys2: None,
+            manual: Some(PathBuf::from("D:/tools/bash.exe")),
+        };
+        let kinds: Vec<BashKind> =
+            candidates_from_snapshot(&snap).into_iter().map(|c| c.kind).collect();
+        assert_eq!(kinds, vec![BashKind::Wsl, BashKind::Manual]);
     }
 }

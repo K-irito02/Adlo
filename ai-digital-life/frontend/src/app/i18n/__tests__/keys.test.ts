@@ -483,7 +483,7 @@ describe('i18n en-US namespace keys', () => {
       'environmentSourceAuto',
       'environmentSourceSystem',
       'environmentSourceHost',
-      // Bash 三选一 + 手动路径
+      // Bash 来源（系统 Git / WSL / MSYS2）+ 手动路径
       'environmentBashGitBundled',
       'environmentBashWsl',
       'environmentBashMsys2',
@@ -534,7 +534,7 @@ describe('i18n en-US namespace keys', () => {
       'environmentFieldVersion',
       'environmentFieldPath',
       'environmentFieldSource',
-      'environmentBashHostedNote',
+      'environmentBashSetupHint',
       'environmentCustomPathLabel',
       'environmentCustomPathPlaceholder',
       'environmentAdvanced',

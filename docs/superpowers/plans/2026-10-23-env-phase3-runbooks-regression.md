@@ -200,7 +200,7 @@ Expected: FAIL
 - Test: `EnvironmentSettings.test.tsx`（复制载荷 JSON 含 `runbook` 非空、含症状/检测命令标题）、`runbooks.test.ts`（6 份均非空且含固定五段标题；禁止出现凭据样式字符串如 `sk-`、`ghp_`）
 
 **Interfaces:**
-- Consumes: 复制按钮既有载荷契约 `{dep, statusJson, baseline, copyContext}`
+- Consumes: 复制按钮既有载荷契约 `{dep, statusJson, baseline, dataDir, copyContext}`（`dataDir` = `EnvStatus.dataDir`，助手据此定位 `env-hosted/`、配置与日志）
 - Produces: `{...existing, runbook: string | null}`（Phase 2 声明的冻结契约扩展）
 
 - [ ] **Step 1: Write failing test** — runbook 结构守卫（五段标题存在）+ 载荷含 runbook；`sk-`/`ghp_`/`C:\Users\` 禁止断言。
@@ -210,7 +210,7 @@ Expected: FAIL（无文件）
 
 - [ ] **Step 3: Write runbooks（内容要求，逐份五段）**：
   1. `env-node.md`：症状（助手起不来 / 提示需要 Node）→ 检测（`node --version`、`where node`）→ 安装（官方 LTS zip 链接 + SHA256 校验）→ 装后回填（设置组「重新检测」或填路径）→ 回滚（删除 `env-hosted/node/installed/<v>`）。
-  2. `env-git-bash.md`：症状（Git 面板空 / bash 不可选）→ 检测（`git --version`、`where git`、`bash --version`、WSL/MSYS2 路径）→ 安装（MinGit 官方链接 + 校验）→ 回填 → 回滚。
+  2. `env-git-bash.md`：症状（Git 面板空 / bash 不可选）→ 检测（`git --version`、`where git`、`bash --version`、WSL/MSYS2 路径）→ 安装（MinGit 官方链接 + 校验；**注意 MinGit 不含 Bash**，Bash 需系统完整 Git for Windows / WSL / MSYS2 / 手动路径）→ 回填 → 回滚。
   3. `env-webview2.md`：症状（窗口空白/起不来）→ 检测（注册表 `Clients{pv}` 与 `reg query` 命令）→ 安装（微软官方 Evergreen 下载页）→ 回填（重开应用）→ 回滚（不适用，说明由微软维护）。
   4. `env-adlserver.md`：症状（业务功能不可用/仅系统能力）→ 检测（安装目录 sidecar 文件）→ 安装（重装应用，勿手工替换）→ 回填 → 回滚（重装）。
   5. `env-net-download.md`：症状（安装失败 EAI_AGAIN/超时）→ 检测（`/env/status` netprobe、registry 连通性）→ 处置（设置组改镜像/代理，或系统代理）→ 回填（重新检测）→ 回滚（回自动）。

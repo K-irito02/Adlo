@@ -20,25 +20,33 @@ bash --version
 where.exe bash
 ```
 
-Bash 的三类来源可这样辨认：
+Bash 的可用来源（**MinGit 不含 Bash**，宿主一键安装只装 Git）：
 
-- Git for Windows 自带：`<Git 安装目录>\bin\bash.exe`
+- 系统完整 Git for Windows（完整安装包自带）：`<Git 安装目录>\bin\bash.exe`
 - WSL：`%SystemRoot%\System32\bash.exe`
 - MSYS2：`<MSYS2 安装目录>\usr\bin\bash.exe`
+- 手动路径：用户自备的任意 `bash.exe`
 
 输出与设置组行内基线对比，低于基线或找不到命令即未就绪。
 
 ## 安装步骤
 
-优先走宿主自动安装：在 Git 行点「安装」并确认。Bash 随 Git 共生，无需单独安装。
+优先走宿主自动安装：在 Git 行点「安装」并确认。宿主安装的是 **MinGit**，只提供
+Git，**不含 Bash**；需要 Bash 时请从下面三种真实来源选一种：
 
-需要手工安装时只使用官方包：
+1. 安装**完整** Git for Windows（`Git-*-64-bit.exe`，非 MinGit），用其自带
+   `<Git 目录>\bin\bash.exe`。
+2. 启用 WSL（`wsl --install`），用 `%SystemRoot%\System32\bash.exe`。
+3. 安装 MSYS2，用 `<MSYS2 安装目录>\usr\bin\bash.exe`。
+
+需要手工安装 Git 时只使用官方包：
 
 1. 打开 Git for Windows 官方发布页 https://github.com/git-for-windows/git/releases 。
-2. 下载 `MinGit-*-64-bit.zip`（轻量，够用）或 `Git-*-64-bit.exe`（完整安装包）。
+2. 下载 `MinGit-*-64-bit.zip`（轻量，只有 Git）或 `Git-*-64-bit.exe`（完整安装包，含 Bash）。
 3. 校验完整性：发布页附带 `.sha256` 文件，执行
    `certutil -hashfile "<下载文件>" SHA256`，与清单比对。
-4. 解压或安装到自选目录，记下 `cmd\git.exe` 与 `bin\bash.exe` 的完整路径。
+4. 解压或安装到自选目录，记下 `cmd\git.exe` 的完整路径；只有完整安装包才有
+   `bin\bash.exe`（MinGit 没有）。
 
 ## 装后回填
 

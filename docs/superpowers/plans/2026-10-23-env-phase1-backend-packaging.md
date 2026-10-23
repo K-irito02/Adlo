@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 建成通用托管层 `adl-hosted`、新 crate `adl-env`（Node/Git/Bash/WebView2/adl-server/netprobe 六 provider + `/env/*` 接口）与安装包改动（adl-server 随包 + WebView2 embedBootstrapper + VC++），dsh 迁移到通用层且行为不变。
+**Goal:** 建成通用托管层 `adl-hosted`、新 crate `adl-env`（Node/Git/Bash/WebView2/adl-server/netprobe 六 provider + `/env/*` 接口）与安装包改动（adl-server 随包 + WebView2 embedBootstrapper），dsh 迁移到通用层且行为不变。
 
 **Architecture:** 先抽通用层（HostedVersions/AtomicSwap/adopt/ProcHost/ProgressTask/InstallLock），dsh 原地迁移验证；再建 `adl-env`（统一 Provider trait + 六实现 + `env-sources.json` + `env-baseline.json` resource）；最后接 server 路由与打包。测试全离线可跑（网络探测用本地桩）。
 
@@ -361,11 +361,13 @@ git commit -m "feat(rust): add adl-hosted progress task and install lock"
 ### Task 6: dsh 迁移到 `adl-hosted`（行为不变回归）
 
 **Files:**
-- Modify: `ai-digital-life/crates/dsh-version/Cargo.toml`（+ `adl-hosted`；`install.rs` 的 npm 流程保留，目录操作改调 `HostedVersions`/`swap_into_place`；`task.rs` 改为 `pub use adl_hosted::ProgressTask` 重导出 + 旧名别名 `TaskReporter = ProgressTask`、`VersionTaskKind` 常量字符串化，保持 handler 可用）、`ai-digital-life/crates/dsh-version/src/lib.rs`（`host_bin/is_host_version_installed/read_selected` 转调 `HostedVersions::open(root,"dsh-versions","node_modules/@deepseek-ai/dsh/lib/bin.js")`；`select_dsh_source` 逻辑不动）、`ai-digital-life/crates/webapp-host/src/lib.rs`（`HostedProcess` 改为 `pub use adl_hosted::HostedProcess`，`spawn_node_direct` 转调 `spawn_with_marker` 传 `["<pick_free>", 3080]` 候选）、`ai-digital-life/crates/dsh-bundle/src/lib.rs`（`adopt` 转调 `adl_hosted::adopt_bundle`）、`ai-digital-life/crates/server/src/state.rs`（`dsh_version_lock: adl_hosted::InstallLock`，`dsh_version_task: adl_hosted::ProgressTask`——字段名不变，只换类型；`dsh_state` 的 `ManagedDsh.process` 类型经重导出不变）、`ai-digital-life/crates/server/Cargo.toml`（+ `adl-hosted`）
+- Modify: `ai-digital-life/crates/dsh-version/Cargo.toml`（+ `adl-hosted`；`install.rs` 的 npm 流程保留，目录操作改调 `HostedVersions`/`swap_into_place`；`task.rs` 改为 `pub use adl_hosted::ProgressTask` 重导出 + 旧名别名 `TaskReporter = ProgressTask`、`VersionTaskKind` 常量字符串化，保持 handler 可用）、`ai-digital-life/crates/dsh-version/src/lib.rs`（`host_bin/is_host_version_installed/read_selected` 转调 `HostedVersions::open(root,"dsh-versions","node_modules/@deepseek-ai/dsh/lib/bin.js")`；`select_dsh_source` 逻辑不动）、`ai-digital-life/crates/webapp-host/src/lib.rs`（`HostedProcess` 改为 `pub use adl_hosted::HostedProcess`，`spawn_node_direct` 转调 `spawn_with_marker` 传 `["<pick_free>", 3080]` 候选）、`ai-digital-life/crates/dsh-bundle/src/lib.rs`（`adopt` 复用 `adl_hosted::swap_into_place` 的深层布局语义；通用 `adopt_bundle` 已按批准偏离移除）、`ai-digital-life/crates/server/src/state.rs`（`dsh_version_lock: adl_hosted::InstallLock`，`dsh_version_task: adl_hosted::ProgressTask`——字段名不变，只换类型；`dsh_state` 的 `ManagedDsh.process` 类型经重导出不变）、`ai-digital-life/crates/server/Cargo.toml`（+ `adl-hosted`）
 
 **Interfaces:**
 - Consumes: Task 1–5
 - Produces: dsh 全链路行为不变（wire DTO 不动，前端零改）
+
+> **已批准偏离（实现期确认）**：`adl_hosted::adopt_bundle` 因无调用方而被移除；`dsh-bundle::adopt` 改为复用 `adl_hosted::swap_into_place` 的深层布局（deep layout）语义，不再走通用 adopt 封装。
 
 - [ ] **Step 1: Write the failing test** — 本任务无新行为测试；门控 = 现有回归集。先跑基线并记录：
 
@@ -496,15 +498,15 @@ git commit -m "feat(rust): add adl-env node provider"
 
 **Interfaces:**
 - Consumes: Task 7–8；`adl-pty` 不依赖（只复用探测路径常量思想：`Program Files/Git/bin/bash.exe`、`%ProgramFiles(x86)%` 变体、WSL `wsl.exe`、MSYS2 注册表/固定路径——本任务内重新实现为纯函数，保持 pty 零改动）
-- Produces: `git::detect()`（PATH `git --version`）；`git::install()`（MinGit zip：`{mingit_base}/MinGit-<v>-64-bit.zip`，marker `cmd/git.exe`）；`bash::detect() -> Vec<BashCandidate { kind: GitBundled|Wsl|Msys2|HostMinGit|Manual, path }>`（按优先级排序：HostMinGit > Git自带 > WSL > MSYS2）；`bash::host_bash_path(data_dir, git_selected) -> PathBuf`（= `env-hosted/git/<v>/bin/bash.exe`，spec §4.2 口径）
+- Produces: `git::detect()`（PATH `git --version`）；`git::install()`（MinGit zip：`{mingit_base}/MinGit-<v>-64-bit.zip`，marker `cmd/git.exe`）；`bash::detect() -> Vec<BashCandidate { kind: GitBundled|Wsl|Msys2|Manual, path }>`（按优先级排序：Git自带 > WSL > MSYS2；宿主资产是 MinGit、不含 Bash，故无 host 来源，也无 `host_bash_path`）
 
 - [ ] **Step 1: Write the failing test**
 
 ```rust
 #[test]
-fn host_bash_derives_from_git_selection() {
-    let p = bash::host_bash_path(Path::new("D:/d"), "2.47.1");
-    assert_eq!(p, PathBuf::from("D:/d/env-hosted/git/2.47.1/bin/bash.exe"));
+fn ranking_prefers_system_git_over_wsl_and_msys2() {
+    // snapshot: git_bundled + wsl + msys2 → [GitBundled, Wsl, Msys2]；
+    // MinGit 不含 Bash，快照里没有 host 来源。
 }
 
 #[test]
@@ -615,14 +617,14 @@ git commit -m "feat(rust): add env config baseline and /env routes"
 
 ---
 
-### Task 12: adl-server 随包 + NSIS（WebView2/VC++）
+### Task 12: adl-server 随包 + NSIS（WebView2）
 
 **Files:**
-- Modify: `ai-digital-life/src-tauri/tauri.conf.json`（`bundle.windows += { webviewInstallMode: {type:"embedBootstrapper",silent:true} }（勿加 bundleVCRuntime：Tauri 2.x 无此字段，会致校验失败；MSVC 默认静态链 VC 运行时）`；`bundle.externalBin: ["binaries/adl-server"]`；`bundle.beforeBundleCommand`？Tauri 无此字段——正确做法：`build.beforeBundleCommand: "powershell -File ../scripts/copy-adl-server-sidecar.ps1 -Profile release"`）、Create: `ai-digital-life/scripts/copy-adl-server-sidecar.ps1`（`target/release/adl-server.exe` → `src-tauri/binaries/adl-server-x86_64-pc-windows-msvc.exe`；缺失则报错中断打包）、`src-tauri/binaries/.gitkeep`、Modify: `ai-digital-life/src-tauri/src/adl_server.rs`（`resolve_ad_server_binary` 改为：① `current_exe()` 同级 `adl-server-x86_64-pc-windows-msvc.exe` ② dev 回退现有 workspace target 逻辑；新增单测覆盖“同级存在即选中”）
+- Modify: `ai-digital-life/src-tauri/tauri.conf.json`（`$schema` → `https://schema.tauri.app/config/2`；`bundle.windows += { webviewInstallMode: {type:"embedBootstrapper",silent:true} }`；**勿加 `bundleVCRuntime`**——当前固定工具链 tauri-cli 2.10.1 / tauri-utils 2.9.3 不支持该键，上游 tauri-utils ≥2.10 才支持。`bundle.externalBin: ["binaries/adl-server"]`；Tauri 钩子的 cwd 是应用目录 `ai-digital-life/`（**不是** `src-tauri/`），因此路径写 `scripts/...`、前端写 `--dir frontend`：`build.beforeBuildCommand: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile release && pnpm --dir frontend run build"`、`build.beforeBundleCommand: "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/copy-adl-server-sidecar.ps1 -Profile release"`）、Create: `ai-digital-life/scripts/build-stage-sidecar.ps1`（先 `$env:RUSTFLAGS += "-C target-feature=+crt-static"`，再 `cargo build -p adl-server`（`--release` 或默认 dev——`-Profile debug` 映射默认 dev，输出 `target/debug`；cargo 拒绝 `--profile debug`，debug 是保留名），最后调 `copy-adl-server-sidecar.ps1` 落盘；sidecar 在 tauri-build 之外编译，不加静态 CRT 会动态依赖 `VCRUNTIME140.dll`）、`ai-digital-life/scripts/copy-adl-server-sidecar.ps1`（`target/<profile>/adl-server.exe` → `src-tauri/binaries/adl-server-x86_64-pc-windows-msvc.exe`；缺失则报错中断打包）、`src-tauri/binaries/.gitkeep`、Modify: `ai-digital-life/src-tauri/src/adl_server.rs`（`resolve_ad_server_binary` 改为：① `current_exe()` 同级 `adl-server.exe`（三元组名仅用于构建期 staging，运行时由 Tauri 去掉三元组改名）② dev 回退现有 workspace target 逻辑；新增单测覆盖“同级存在即选中”）
 
 **Interfaces:**
 - Consumes: Task 11（无其它依赖，可与 Task 7–11 并行， sole 共享编辑 `tauri.conf.json`——与 Task 11 同文件冲突，顺序执行）
-- Produces: `cargo tauri build` 产物含 sidecar + embedBootstrapper；dev 行为不变
+- Produces: `cargo tauri build` 产物含 sidecar + embedBootstrapper；sidecar 为静态 CRT（无 `VCRUNTIME140.dll` 依赖）；dev 行为不变
 
 - [ ] **Step 1: Write the failing test** — `adl_server.rs` 单元测试：
 
@@ -640,12 +642,12 @@ fn prefers_sibling_sidecar_over_target_dir() {
 Run: `cargo test -p ai-digital-life adl_server 2>&1 | Select-Object -Last 3`
 Expected: FAIL（无 `resolve_in`）
 
-- [ ] **Step 3: Write minimal implementation** — 抽纯函数 + 双路径解析 + ps1 拷贝脚本 + tauri.conf 三处配置。注意 `externalBin` 命名：Tauri 按 `adl-server-x86_64-pc-windows-msvc.exe` 查找（文档 pattern `binary-name{-target-triple}{.system-extension}`），脚本输出文件名必须精确匹配；`binaries/` 加入 `.gitignore`（仅保留 `.gitkeep`）。
+- [ ] **Step 3: Write minimal implementation** — 抽纯函数 + 双路径解析 + ps1 构建/拷贝脚本 + tauri.conf 三处配置（schema、钩子、externalBin）。`externalBin` 命名：Tauri 按 `adl-server-x86_64-pc-windows-msvc.exe` 查找（文档 pattern `binary-name{-target-triple}{.system-extension}`），脚本输出文件名必须精确匹配；运行时二进制名为 `adl-server.exe`（Tauri 安装时去掉三元组）。**不加 `bundleVCRuntime`**，改用 `-C target-feature=+crt-static` 构建 sidecar（tauri-build 之外的编译不继承静态 CRT 设置）；`binaries/` 加入 `.gitignore`（仅保留 `.gitkeep`）。
 
 - [ ] **Step 4: Run test to verify it passes**
 
-Run: `cargo test -p ai-digital-life 2>&1 | Select-Object -Last 3`
-Expected: PASS（不跑完整 `tauri build`——CI 级验证留 Phase 3；本任务断言配置 JSON 合法：`Get-Content tauri.conf.json | ConvertFrom-Json` 无错）
+Run: `cargo test -p ai-digital-life 2>&1 | Select-Object -Last 3`，再 `cargo check -p ai-digital-life 2>&1 | Select-Object -Last 3`
+Expected: PASS（不跑完整 `tauri build`——CI 级验证留 Phase 3）。注意 `Get-Content tauri.conf.json | ConvertFrom-Json` 只验证 JSON 语法，抓不到 schema 违规与钩子路径错误，必须用 `cargo check -p ai-digital-life` 让 tauri-build 真正解析配置。
 
 - [ ] **Step 5: Commit**
 

@@ -60,18 +60,18 @@ interface DependencyState {
 |---|---|---|---|---|---|
 | Node.js | ✅ | PATH `node` | ✅ 官方便携包 → `env-hosted/node/<v>/` | ✅ | LTS 主版本（基线文件定） |
 | Git | ✅ | PATH `git` | ✅ MinGit 便携版 | ✅ | 近期稳定版（如 ≥2.4x） |
-| Bash | ✅ | 三选一：Git 自带 / WSL / MSYS2 | ✅ 随 MinGit 共生（不单独装） | ✅ 填 `bash.exe` | 无独立基线，跟提供方 |
+| Bash | ✅ | 四选一：系统 Git（完整 Git for Windows）/ WSL / MSYS2 / 手动路径 | ❌ MinGit 不含 Bash | ✅ 填 `bash.exe` | 无独立基线，跟提供方 |
 | WebView2 | ✅ | Evergreen（注册表探测） | ⚠️ FixedVersion（默认关闭，仅离线/企业场景） | 官网引导（只读） | `minimumWebview2Version`（匹配 `ICoreWebView2_15` 需求） |
 | adl-server | — | — | 随包 `externalBin`（无切换） | — | 与应用版本一致 |
 | dsh | 已有版本管理组 | —— | —— | —— | 新组仅显示前置就绪（Node 是否 OK） |
 | 网络+凭据 | — | — | — | — | 只读三灯：registry 通 / 模型 API 通 / 凭据已配 + 引导 |
 
-已确认的三条判定：Bash 不独立安装；WebView2 宿主内置默认关闭；
+已确认的三条判定：Bash 不随宿主安装（MinGit 不含 Bash）；WebView2 宿主内置默认关闭；
 基线由 `env-baseline.json`（随包内置、可在线刷新）定义，非写死。
 
-> Bash 宿主来源实现口径：复用 Git 的宿主托管目录，
-> 即 `env-hosted/git/<selected>/bin/bash.exe`（MinGit 自带），bash provider
-> 不设独立托管目录；`resolve` 时读 git provider 的选中版本。
+> Bash 宿主实现口径：宿主 Git 资产是 **MinGit**，不包含 `bash.exe`，因此宿主侧
+> **不提供 Bash**。Bash 只来自系统完整 Git for Windows（`<Git>\bin\bash.exe`）、
+> WSL、MSYS2 或手动路径；bash provider 不设宿主托管目录，也不读 git 的选中版本。
 
 ## 5. 后端设计
 
@@ -108,7 +108,7 @@ trait DependencyProvider {
 
 - providers：`node | git | bash | webview2 | adlserver | netprobe`。
 - 迁移复用：Node 安装复用既有 npm 流程；Bash 探测复用
-  `pty/shell_resolver.rs` 三路 + 补“宿主 MinGit”一路；WebView2 探测复用
+  `pty/shell_resolver.rs` 的系统侧三路；WebView2 探测复用
   `wry::webview_version()` + 注册表读版本。
 - 托管布局：`<数据根>/env-hosted/<name>/<version>/` + `selected.txt`，
   与 dsh-versions 同构；Node 便携包 / MinGit 解压即用，无需提权。
@@ -134,8 +134,7 @@ trait DependencyProvider {
 - `webviewInstallMode: embedBootstrapper`（+约 2MB，安装包保持轻量；
   有网静默装好，无网跳过由应用内向导兜底）。`offlineInstaller`（+150MB）
   留作企业离线发行版分支。
-- 不设 `bundleVCRuntime`：该字段不在 Tauri 2.x 配置 schema 内（会触发
-  `bundle > windows` 校验失败）；Rust MSVC 默认静态链接 VC 运行时，无需随包。
+- 不设 `bundleVCRuntime`：当前固定工具链（tauri-cli 2.10.1 / tauri-utils 2.9.3）不支持该键；上游 tauri-utils ≥2.10 已支持，升级后可重新评估。sidecar 必须用 `-C target-feature=+crt-static` 构建（否则动态依赖 VCRUNTIME140.dll）。
 - Node/Git **不进 NSIS**：用户级工具无需提权（提权装会污染全机 PATH）；
   NSIS 脚本难调试，版本比对写两遍必漂移。NSIS 只读注册表做 WebView2 粗检
   （有/无），精细版本比对留给 Rust。
@@ -186,8 +185,9 @@ trait DependencyProvider {
 
 ## 8. agent runbook 与兜底
 
-- `docs/runbooks/env-<name>.md` 共 6 份（node / git-bash / webview2 /
-  adlserver / net-download / model-credential），固定五段：
+- runbook 正文唯一真源：`ai-digital-life/frontend/src/app/features/environment/runbooks/env-<name>.md`
+  共 6 份（node / git-bash / webview2 / adlserver / net-download / model-credential）；
+  `docs/runbooks/README.md` 只是索引（指向前端目录，不含正文），固定五段：
   症状 → 检测命令（精确到注册表路径/`--version`）→ 安装步骤（官方 release
   链接 + 哈希校验要求）→ 装后回填 → 回滚；头部 frontmatter 机器可读
   （dep key、基线版本、检测命令）。
@@ -234,7 +234,7 @@ trait DependencyProvider {
 本 spec 体量超出单一实现计划，按依赖顺序拆三期，每期独立可验证：
 
 - **Phase 1（后端 + 打包）**：`adl-hosted` 提取 + `adl-env` + `/env/*` 接口 +
-  `adl-server` 随包 + NSIS（embedBootstrapper + VC++）+ `env-baseline.json`。
+  `adl-server` 随包 + NSIS（embedBootstrapper）+ `env-baseline.json`。
   验收：全新数据目录下 `/env/status` 七项状态正确。
 - **Phase 2（前端）**：network 组拆分 + environment 组 + 首次启动向导 +
   三桥 parity + i18n。验收：双端红绿测试。
@@ -246,9 +246,10 @@ trait DependencyProvider {
 - 新增：`ai-digital-life/crates/adl-hosted/`、`ai-digital-life/crates/adl-env/`、
   `ai-digital-life/frontend/src/app/features/environment/EnvironmentSettings.tsx`、
   `ai-digital-life/frontend/src/app/features/network/NetworkSettings.tsx`、
-  `docs/runbooks/env-*.md`（6 份）、`env-baseline.json`。
+  `ai-digital-life/frontend/src/app/features/environment/runbooks/env-*.md`（6 份，正文唯一真源）、
+  `docs/runbooks/README.md`（索引）、`env-baseline.json`。
 - 改动：`crates/dsh-version`、`crates/webapp-host`、`crates/dsh-bundle`
-  （迁入 `adl-hosted`）、`crates/pty/shell_resolver.rs`（补宿主 MinGit 一路）、
+  （迁入 `adl-hosted`）、`crates/pty/shell_resolver.rs`（复用系统侧探测路径）、
   `crates/server`（`/env/*` 路由 + state）、`src-tauri`（`adl_server.rs` 解析、
   `tauri.conf.json` windows 段、`capabilities/*.json`）、`settingsGroups.ts`、
   `SettingsPanel.tsx`（预取+pending）、`DshSettings.tsx`（三块搬迁+摘要行）、

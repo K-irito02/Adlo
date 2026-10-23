@@ -52,9 +52,7 @@ jobs:
       # tauri-build copies it in its build script and fails the build when
       # the staged file is missing — so stage a dev-built sidecar first.
       - name: Stage adl-server sidecar
-        run: |
-          cargo build -p adl-server
-          powershell -NoProfile -File scripts/copy-adl-server-sidecar.ps1 -Profile debug
+        run: powershell -NoProfile -File scripts/build-stage-sidecar.ps1 -Profile debug
 
       - name: cargo fmt
         run: cargo fmt --all -- --check
@@ -91,9 +89,7 @@ jobs:
 
       # Same externalBin prerequisite as rust-clippy (see comment there).
       - name: Stage adl-server sidecar
-        run: |
-          cargo build -p adl-server
-          powershell -NoProfile -File scripts/copy-adl-server-sidecar.ps1 -Profile debug
+        run: powershell -NoProfile -File scripts/build-stage-sidecar.ps1 -Profile debug
 
       - name: cargo test
         run: cargo test --workspace

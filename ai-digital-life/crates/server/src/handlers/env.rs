@@ -57,9 +57,10 @@ pub fn validate_hosted_source(dep: &str, mode: adl_env::SourceMode) -> Result<()
 }
 
 /// Whitelist deps that own a hosted install root for uninstall: `node|git`.
-/// `bash` ships inside the hosted git dir; `webview2`/`adlserver`/`netprobe`
-/// are not managed through hosted version dirs. Machine codes (not prose) so
-/// the frontend can branch on them.
+/// `bash` has no hosted install (the hosted Git asset is MinGit, which does not
+/// ship bash); `webview2`/`adlserver`/`netprobe` are not managed through
+/// hosted version dirs. Machine codes (not prose) so the frontend can branch
+/// on them.
 pub fn validate_uninstall(dep: &str) -> Result<&'static str, AppError> {
     let dep = parse_dep(dep)?;
     match dep {
@@ -350,7 +351,7 @@ fn collect_states(
     DetectedStates {
         node: node_state(root, sources, &baseline.node.stable),
         git: git_state(root, sources, baseline),
-        bash: bash_state(root, sources),
+        bash: bash_state(sources),
         webview2: webview2_state(sources, &baseline.webview2.minimum),
         adlserver: adlserver_state(sources, exe_dir),
     }
@@ -477,38 +478,18 @@ fn git_state(
     }
 }
 
-fn bash_state(root: &Path, sources: &adl_env::config::EnvSourcesConfig) -> DependencyState {
-    bash_state_from_candidates(root, sources, bash::detect())
+fn bash_state(sources: &adl_env::config::EnvSourcesConfig) -> DependencyState {
+    bash_state_from_candidates(sources, bash::detect())
 }
 
 /// Candidate-ranking half of [`bash_state`] (pure w.r.t. real machine probes so
 /// tests can inject a fake detected candidate).
 fn bash_state_from_candidates(
-    root: &Path,
     sources: &adl_env::config::EnvSourcesConfig,
     mut candidates: Vec<bash::BashCandidate>,
 ) -> DependencyState {
     let mode = sources.bash.mode;
     let custom = sources.bash.custom_path.clone().filter(|p| !p.is_empty());
-    let git_host = adl_hosted::HostedVersions::open(root, git::HOSTED_NAME, git::MARKER_REL)
-        .read_selected()
-        .ok()
-        .flatten();
-    // 宿主 bash 挂在宿主 git 目录下（`host_bash_path`）：选中 git 且文件存在才算 host 侧可用。
-    let mut host_version: Option<String> = None;
-    if let Some(git_version) = git_host {
-        let host_bash = bash::host_bash_path(root, &git_version);
-        if host_bash.is_file() {
-            candidates.insert(
-                0,
-                bash::BashCandidate {
-                    kind: bash::BashKind::HostMinGit,
-                    path: host_bash.to_string_lossy().into_owned(),
-                },
-            );
-            host_version = Some(git_version);
-        }
-    }
     // 显式自定义路径是 `Manual`，在 system 侧优先于探测到的候选（不得排到末尾）。
     if let Some(p) = custom.as_deref() {
         if Path::new(p).is_file() {
@@ -519,23 +500,17 @@ fn bash_state_from_candidates(
             );
         }
     }
-    // manual 显式路径计入 system 侧可用（`mode: system + origin: manual` 语义）。
-    let sys_available = candidates.iter().any(|c| !matches!(c.kind, bash::BashKind::HostMinGit));
-    let effective = resolve(mode, sys_available, host_version).effective;
+    // 宿主 Git 资产是 MinGit，不含 `bash.exe`：Bash 只有系统侧来源，host 侧恒不可用。
+    let sys_available = !candidates.is_empty();
+    let effective = resolve(mode, sys_available, None).effective;
     let pick = match effective {
-        EffectiveSource::Host => {
-            candidates.iter().find(|c| matches!(c.kind, bash::BashKind::HostMinGit))
-        },
-        EffectiveSource::System => {
-            candidates.iter().find(|c| !matches!(c.kind, bash::BashKind::HostMinGit))
-        },
-        EffectiveSource::None => None,
+        EffectiveSource::Host => None,
+        EffectiveSource::System | EffectiveSource::None => candidates.into_iter().next(),
     };
     let (path, origin) = match pick {
         Some(c) => (
-            Some(c.path.clone()),
+            Some(c.path),
             match c.kind {
-                bash::BashKind::HostMinGit => Origin::Bundled,
                 bash::BashKind::Manual => Origin::Manual,
                 _ => Origin::Path,
             },
@@ -674,9 +649,10 @@ async fn install_inner(
             webview2::install()?;
             Ok(serde_json::json!(true))
         },
-        // bash 无独立宿主目录，随宿主 git 一起装。
+        // bash 无宿主安装（宿主 Git 是 MinGit，不含 bash）：引导系统来源。
         "bash" => Err(AppError::InvalidInput(
-            "bash ships with the hosted git installation; install git instead".into(),
+            "bash is not host-installed; use system Git for Windows / WSL / MSYS2 and set the path"
+                .into(),
         )),
         _ => Err(AppError::InvalidInput(format!("{dep} cannot be installed"))),
     }
@@ -1148,7 +1124,7 @@ mod tests {
         }
     }
 
-    /// bash 随宿主 git 一起装 → 机器码 `bash-follows-git`。
+    /// bash 无宿主安装 → 机器码 `bash-follows-git`。
     #[test]
     fn validate_uninstall_points_bash_at_git() {
         let err = validate_uninstall("bash").expect_err("bash follows git");
@@ -1309,7 +1285,7 @@ mod tests {
             kind: bash::BashKind::GitBundled,
             path: "C:/Program Files/Git/bin/bash.exe".into(),
         };
-        let state = bash_state_from_candidates(&dir, &sources, vec![detected]);
+        let state = bash_state_from_candidates(&sources, vec![detected]);
         assert_eq!(state.effective, EffectiveSource::System);
         assert_eq!(state.origin, Origin::Manual);
         assert_eq!(state.path, Some(manual));

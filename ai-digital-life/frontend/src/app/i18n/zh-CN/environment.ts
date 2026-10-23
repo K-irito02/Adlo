@@ -45,8 +45,9 @@ export const environmentZh = {
   environmentDepNet: '网络与凭据',
   environmentDepModel: '模型凭据',
   environmentDepNodeDesc: 'JavaScript 运行环境，dsh 与工具链的前置依赖',
-  environmentDepGitDesc: '版本管理工具，宿主版本附带 Bash（可一键安装）',
-  environmentDepBashDesc: '终端与脚本的 shell 环境（随宿主 Git 共生，无独立安装）',
+  environmentDepGitDesc: '版本管理工具，宿主版本为 MinGit（可一键安装，不含 Bash）',
+  environmentDepBashDesc:
+    '终端与脚本的 shell 环境（宿主不提供；用系统 Git / WSL / MSYS2 或手动路径）',
   environmentDepWebview2Desc: '桌面端内嵌网页视图的系统运行时（随安装包引导安装）',
   environmentDepAdlserverDesc: '随应用发布的本地后端服务（无来源切换）',
   environmentDepNetDesc: '下载源连通性、凭据存储状态与模型凭据去向',
@@ -55,7 +56,8 @@ export const environmentZh = {
   environmentFieldPath: '路径',
   environmentFieldSource: '来源',
   environmentBashVariantNote: '当前归属：{variant}（自动识别，暂不支持切换）',
-  environmentBashHostedNote: '随宿主 Git 一起安装，无需单独安装',
+  environmentBashSetupHint:
+    '宿主 Git 仅提供 Git（MinGit 不含 Bash）；Bash 请使用系统 Git for Windows / WSL / MSYS2 或手动填路径',
   environmentCustomPathLabel: '手动路径',
   environmentCustomPathPlaceholder: '粘贴完整可执行文件路径，失焦保存（清空即清除）',
   environmentAdvanced: '高级',

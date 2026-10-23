@@ -131,8 +131,7 @@ fn nonce() -> u128 {
 
 #[cfg(test)]
 mod tests {
-    use super::{bash, git, webview2};
-    use std::path::{Path, PathBuf};
+    use super::{git, webview2};
 
     #[test]
     fn parses_reg_query_pv_line() {
@@ -171,12 +170,6 @@ mod tests {
             webview2::pick_highest(machine_best.as_deref(), Some("140.0.0.0")),
             Some("155.0.4283.62".into())
         );
-    }
-
-    #[test]
-    fn host_bash_derives_from_git_selection() {
-        let p = bash::host_bash_path(Path::new("D:/d"), "2.47.1");
-        assert_eq!(p, PathBuf::from("D:/d/env-hosted/git/installed/2.47.1/bin/bash.exe"));
     }
 
     #[test]

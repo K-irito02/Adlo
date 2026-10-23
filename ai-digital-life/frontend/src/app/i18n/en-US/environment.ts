@@ -45,9 +45,9 @@ export const environmentEn = {
   environmentDepNet: 'Network & credentials',
   environmentDepModel: 'Model credentials',
   environmentDepNodeDesc: 'JavaScript runtime required by dsh and the toolchain',
-  environmentDepGitDesc: 'Version control; the hosted build ships Bash (one-click install)',
+  environmentDepGitDesc: 'Version control; the hosted build is MinGit (one-click install, no Bash)',
   environmentDepBashDesc:
-    'Shell for terminals and scripts (ships with hosted Git; no standalone install)',
+    'Shell for terminals and scripts (not provided by the host; use system Git / WSL / MSYS2 or a custom path)',
   environmentDepWebview2Desc:
     'System runtime for embedded web views on desktop (installed via bootstrapper)',
   environmentDepAdlserverDesc: 'Local backend service bundled with the app (no source switching)',
@@ -60,7 +60,8 @@ export const environmentEn = {
   environmentFieldSource: 'Source',
   environmentBashVariantNote:
     'Current source: {variant} (auto-detected, switching not supported yet)',
-  environmentBashHostedNote: 'Ships with the hosted Git installation; no standalone install needed',
+  environmentBashSetupHint:
+    'Hosted Git only provides Git (MinGit has no Bash); use system Git for Windows / WSL / MSYS2, or enter a custom path',
   environmentCustomPathLabel: 'Custom path',
   environmentCustomPathPlaceholder:
     'Paste the full executable path; saves on blur (clear to remove)',

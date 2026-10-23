@@ -7,15 +7,14 @@
 # Fails loudly when the source binary is missing so packaging never ships a
 # bundle without its engine sidecar.
 #
-# Usage:
-#   powershell -File ../scripts/copy-adl-server-sidecar.ps1 [-Profile release]
+# Usage (run from `ai-digital-life/`; hooks use that cwd too):
+#   powershell -File scripts/copy-adl-server-sidecar.ps1 [-Profile release]
 #
 # The staged file must exist before ANY cargo build of src-tauri (dev, test,
 # clippy included): tauri-build copies `externalBin` entries in its build
-# script and fails the build when the file is missing. So local dev and CI
-# must stage once first:
-#   cargo build -p adl-server
-#   powershell -File scripts/copy-adl-server-sidecar.ps1 -Profile debug
+# script and fails the build when the file is missing. Local dev and CI stage
+# it with the wrapper that also builds with a static CRT:
+#   powershell -File scripts/build-stage-sidecar.ps1 -Profile debug
 
 param(
     [ValidateSet("debug", "release")]

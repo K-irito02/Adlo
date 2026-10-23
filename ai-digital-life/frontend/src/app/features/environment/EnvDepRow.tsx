@@ -136,8 +136,8 @@ function taskPhaseText(t: ReturnType<typeof useTCopy>['t'], phase: EnvTask['phas
 /**
  * 环境依赖行（四段式：块头 → 状态行 → 操作行 → 兜底层）。
  *
- * - Node/Git 可操作（来源下拉 + 安装 + 手动路径）；Bash 可操作但无独立安装
- *   （缺失时随宿主 Git 共生，行内给出去装 Git 的引导）；
+ * - Node/Git 可操作（来源下拉 + 安装 + 手动路径）；Bash 可操作但宿主不提供
+ *   （宿主 Git 是 MinGit、不含 Bash；缺失时行内引导系统 Git / WSL / MSYS2 / 手动路径）；
  * - WebView2/adlserver 只读（版本+状态+引导；WebView2 另有高级折叠区，
  *   FixedVersion 开关暂无后端支撑故禁用并注明由系统安装程序管理）；
  * - net+凭据只读：registry 灯为真实信号；模型 API 通无后端信号，只给
@@ -400,7 +400,7 @@ export function EnvDepRow({
           <small>{descText}</small>
           {renderStatusLine()}
           {dep === 'bash' && section !== null && !isEnvDepReady(section) && !compact ? (
-            <small>{t.environmentBashHostedNote}</small>
+            <small>{t.environmentBashSetupHint}</small>
           ) : null}
           {renderTaskProgress()}
           {showBashVariant && !compact ? (
