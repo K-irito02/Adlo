@@ -14,6 +14,8 @@ import { referenceEn } from './reference';
 import { customAgentEn } from './customAgent';
 import { durableEn } from './durable';
 import { dshEn } from './dsh';
+import { environmentEn } from './environment';
+import { networkEn } from './network';
 import { settingsEn } from './settings';
 import { notificationEn } from './notification';
 import { errorsEn } from './errors';
@@ -35,6 +37,8 @@ export const enUS = {
   ...customAgentEn,
   ...durableEn,
   ...dshEn,
+  ...environmentEn,
+  ...networkEn,
   ...settingsEn,
   ...notificationEn,
   ...errorsEn,

@@ -413,7 +413,7 @@ describe('i18n en-US namespace keys', () => {
   });
 
   it('retires the dsh close-dialog / legacy open-button copy (no consumers)', () => {
-    // 关闭对话框已随 dsh 统一为普通浏览器标签而退役；旧打开按钮/欢迎空态亦无调用方。
+    // 关闭对话框已随 dsh 统一为普通浏览器标签而退役；旧打开按钮/欢迎空态亦无调用方.
     for (const key of [
       'dshOpenButton',
       'dshOpenButtonHint',
@@ -450,6 +450,82 @@ describe('i18n en-US namespace keys', () => {
       expect(enUS, `en:${key}`).not.toHaveProperty(key);
       expect(zhCN, `zh:${key}`).not.toHaveProperty(key);
     }
+  });
+
+  it('includes the environment + network domains in both locales (Phase 2 Task 3)', () => {
+    const keys = [
+      // 环境域：组 labelKey（供 Task 4 注册）+ 组标题/副标题
+      'settingsEnvironment',
+      'environmentTitle',
+      'environmentDesc',
+      // 状态灯五态
+      'environmentStatusReady',
+      'environmentStatusNeedInstall',
+      'environmentStatusNeedManual',
+      'environmentStatusMissing',
+      'environmentStatusTooOld',
+      // 来源三态
+      'environmentSourceAuto',
+      'environmentSourceSystem',
+      'environmentSourceHost',
+      // Bash 三选一 + 手动路径
+      'environmentBashGitBundled',
+      'environmentBashWsl',
+      'environmentBashMsys2',
+      'environmentBashCustom',
+      // 按钮行
+      'environmentInstall',
+      'environmentSwitch',
+      'environmentUninstall',
+      'environmentReinstall',
+      'environmentRecheck',
+      'environmentCopyForAgent',
+      'environmentGoToSettings',
+      // 引导
+      'environmentWebview2DownloadPage',
+      'environmentAdlserverReinstall',
+      'environmentDshCredentialNote',
+      // wizard 四键
+      'environmentWizardWelcome',
+      'environmentWizardDetecting',
+      'environmentWizardSkip',
+      'environmentWizardEnter',
+      // 安装 toast（Task 2 review 遗留：envActions 不再复用 dsh key）
+      'environmentInstallStarted',
+      'environmentInstallSuccess',
+      'environmentInstallFailed',
+      'environmentInstallProgress',
+      // 网络域：组 labelKey（供 Task 4 注册）+ 组标题/副标题/状态灯/重试
+      // （RULING：DSH 旧键不迁移，NetworkSettings 复用 dsh.* 旧 key，新文案才用 network 域）
+      'settingsNetwork',
+      'networkTitle',
+      'networkDesc',
+      'networkStatusOk',
+      'networkStatusUnstable',
+      'networkStatusOffline',
+      'networkRetry',
+    ] as const;
+    for (const key of keys) {
+      expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
+      expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
+    }
+    // 插值占位符两侧一致（install 文案带 {dep}，成功另带 {version}；进度带 {dep}/{done}/{total}）。
+    for (const key of [
+      'environmentInstallStarted',
+      'environmentInstallFailed',
+      'environmentInstallProgress',
+    ] as const) {
+      expect(String(enUS[key]), `en:${key}`).toContain('{dep}');
+      expect(String(zhCN[key]), `zh:${key}`).toContain('{dep}');
+    }
+    expect(String(enUS.environmentInstallSuccess)).toContain('{dep}');
+    expect(String(zhCN.environmentInstallSuccess)).toContain('{dep}');
+    expect(String(enUS.environmentInstallSuccess)).toContain('{version}');
+    expect(String(zhCN.environmentInstallSuccess)).toContain('{version}');
+    expect(String(enUS.environmentInstallProgress)).toContain('{done}');
+    expect(String(zhCN.environmentInstallProgress)).toContain('{done}');
+    expect(String(enUS.environmentInstallProgress)).toContain('{total}');
+    expect(String(zhCN.environmentInstallProgress)).toContain('{total}');
   });
 });
 

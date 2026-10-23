@@ -3,12 +3,12 @@ import type { StoreState } from '../StoreState';
 import type { EnvSourceMode } from '../../../shared/ipc/env';
 import { captureError, clearError } from '../shared';
 // Store 侧提示文案取静态语言包（与 gitBranchActions 同模式，不走 hook）：
-// 失败走通用 `common.operationFailed`，安装完成复用已有的 `dsh.dshInstallSuccess`
-// （`已安装 {version}`；environment.* 新文案归 Task 3，此处不新增 key）。
+// 非安装变异失败走通用 `common.operationFailed`，安装相关走 `environment.*`
+// 域文案（`environmentInstallSuccess/Failed`，带 {dep}/{version} 插值）。
 import { commonZh } from '../../i18n/zh-CN/common';
 import { commonEn } from '../../i18n/en-US/common';
-import { dshZh } from '../../i18n/zh-CN/dsh';
-import { dshEn } from '../../i18n/en-US/dsh';
+import { environmentZh } from '../../i18n/zh-CN/environment';
+import { environmentEn } from '../../i18n/en-US/environment';
 import { resolveAppLanguage } from '../../i18n/resolveLanguage';
 
 const SCOPE = 'env';
@@ -33,7 +33,8 @@ function envDict(get: () => StoreState) {
   const locale = resolveAppLanguage(get().appInfo?.config?.language);
   return {
     failure: (locale === 'en-US' ? commonEn : commonZh).operationFailed,
-    installSuccess: (locale === 'en-US' ? dshEn : dshZh).dshInstallSuccess,
+    installSuccess: (locale === 'en-US' ? environmentEn : environmentZh).environmentInstallSuccess,
+    installFailed: (locale === 'en-US' ? environmentEn : environmentZh).environmentInstallFailed,
   };
 }
 
@@ -43,6 +44,14 @@ function fill(template: string, vars: Record<string, string | number>): string {
     out = out.replace(`{${key}}`, String(value));
   }
   return out;
+}
+
+/**
+ * 从任务 kind（`env-{dep}-{install|uninstall|reinstall}`，见 shared/ipc/env.ts
+ * EnvTaskKind）反解依赖名，供安装 toast 的 {dep} 插值。
+ */
+function depOfTaskKind(kind: string): string {
+  return kind.replace(/^env-/, '').replace(/-(install|uninstall|reinstall)$/, '');
 }
 
 /** 变异成功后的状态刷新：best-effort 静默，不记录错误卡片（主操作已成功）。 */
@@ -146,13 +155,13 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         result = await window.digitalLife.env.install(dep, version);
       } catch (e) {
         captureError(get, e, SCOPE);
-        get().showToast(envDict(get).failure, 'error');
+        get().showToast(fill(envDict(get).installFailed, { dep }), 'error');
         get().setEnvBusy(false);
         return false;
       }
       if (!result.ok) {
         captureError(get, result.error, SCOPE);
-        get().showToast(envDict(get).failure, 'error');
+        get().showToast(fill(envDict(get).installFailed, { dep }), 'error');
         get().setEnvBusy(false);
         return false;
       }
@@ -228,7 +237,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      * 持续失败熔断（防 stale busy）：连续失败达
      * `ENV_POLL_MAX_CONSECUTIVE_FAILURES`（10 tick ≈ 30s）或自启动起
      * 超过 `ENV_POLL_MAX_ELAPSED_MS`（10min），清定时器 + envBusy 复位 +
-     * 单次节流 error toast（复用通用 `common.operationFailed`，不新增 key）。
+     * 单次节流 error toast（安装任务相关，走 `environment.environmentInstallFailed`）。
      * 成功 tick 重置连续失败计数、刷新状态。
      *
      * 清除契约：返回清除函数，调用方必须在 useEffect 返回里调用
@@ -245,6 +254,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         return () => {};
       }
       const version = started.version;
+      const dep = depOfTaskKind(started.kind);
       const pollStart = Date.now();
       let consecutiveFailures = 0;
       let capToastShown = false;
@@ -253,7 +263,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         get().setEnvBusy(false);
         if (!capToastShown) {
           capToastShown = true;
-          get().showToast(envDict(get).failure, 'error');
+          get().showToast(fill(envDict(get).installFailed, { dep }), 'error');
         }
       };
       const tick = async (): Promise<void> => {
@@ -287,7 +297,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
         if (result.data.task === null) {
           clearEnvPollTimer();
           get().setEnvBusy(false);
-          get().showToast(fill(envDict(get).installSuccess, { version }), 'success');
+          get().showToast(fill(envDict(get).installSuccess, { dep, version }), 'success');
         }
       };
       envPollTimer = window.setInterval(() => {

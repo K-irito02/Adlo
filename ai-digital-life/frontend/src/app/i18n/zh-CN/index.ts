@@ -14,6 +14,8 @@ import { referenceZh } from './reference';
 import { customAgentZh } from './customAgent';
 import { durableZh } from './durable';
 import { dshZh } from './dsh';
+import { environmentZh } from './environment';
+import { networkZh } from './network';
 import { settingsZh } from './settings';
 import { notificationZh } from './notification';
 import { errorsZh } from './errors';
@@ -35,6 +37,8 @@ export const zhCN = {
   ...customAgentZh,
   ...durableZh,
   ...dshZh,
+  ...environmentZh,
+  ...networkZh,
   ...settingsZh,
   ...notificationZh,
   ...errorsZh,

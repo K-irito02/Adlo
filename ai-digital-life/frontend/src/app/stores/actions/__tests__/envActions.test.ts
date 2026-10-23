@@ -185,6 +185,8 @@ describe('envActions installEnvDep', () => {
     const ok = await store.getState().installEnvDep('node');
     expect(ok).toBe(false);
     expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'error');
+    // Task 3：安装失败走 environment 域文案（含 dep），不再是通用 operationFailed。
+    expect(mockShowToast).toHaveBeenCalledWith(expect.stringContaining('node'), 'error');
     expect(store.getState().envStatus).toBe(old);
     expect(store.getState().envBusy).toBe(false);
   });
@@ -217,6 +219,11 @@ describe('envActions installEnvDep', () => {
     expect(store.getState().envStatus?.task).toBeNull();
     expect(store.getState().envBusy).toBe(false);
     expect(mockShowToast).toHaveBeenCalledWith(expect.any(String), 'success');
+    // Task 3：成功 toast 用 environment 域文案（含 dep + version），不再复用 dsh.dshInstallSuccess。
+    const successCalls = mockShowToast.mock.calls.filter(([, type]) => type === 'success');
+    expect(successCalls).toHaveLength(1);
+    expect(String(successCalls[0][0])).toContain('node');
+    expect(String(successCalls[0][0])).toContain('24.22.1');
     const callsAfterStop = mockGetStatus.mock.calls.length;
     // 已停止：再推进两个周期也不再拉取。
     await vi.advanceTimersByTimeAsync(ENV_POLL_INTERVAL_MS * 2);
