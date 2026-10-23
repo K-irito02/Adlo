@@ -363,6 +363,11 @@ describe('i18n en-US namespace keys', () => {
       'dshCancelInstall',
       'dshCancelUninstall',
       'dshCancelReinstall',
+      // DSH 组顶部摘要行：当前源 + 自动/手动模式标签 + 跳转按钮。
+      'dshSourceSummary',
+      'dshSourceSummaryManual',
+      'dshSourceSummaryUnknown',
+      'dshSourceSummaryGoModify',
       'dshVersionCancelled',
       'dshVersionCancelFailed',
       'dshSwitchedOnly',
@@ -388,6 +393,13 @@ describe('i18n en-US namespace keys', () => {
       expect((enUS as Record<string, unknown>)[key], `en:${key}`).toBeTruthy();
       expect((zhCN as Record<string, unknown>)[key], `zh:${key}`).toBeTruthy();
     }
+    // 摘要行延迟字段退役（DshSourceStatus 无 latency，常驻“—”是劣质 UX）；mode 占位符中英一致。
+    expect(enUS, 'en:dshSourceSummaryLatencyMs').not.toHaveProperty('dshSourceSummaryLatencyMs');
+    expect(zhCN, 'zh:dshSourceSummaryLatencyMs').not.toHaveProperty('dshSourceSummaryLatencyMs');
+    expect(String(enUS.dshSourceSummary)).toContain('{registry}');
+    expect(String(enUS.dshSourceSummary)).toContain('{mode}');
+    expect(String(zhCN.dshSourceSummary)).toContain('{registry}');
+    expect(String(zhCN.dshSourceSummary)).toContain('{mode}');
   });
 
   it('keeps dsh placeholder counts identical across locales (no {taget}-style drift)', () => {
@@ -403,6 +415,8 @@ describe('i18n en-US namespace keys', () => {
       ['dshEffectiveRunningSystem', '{url}', 1],
       ['dshRunningExternalNote', '{url}', 1],
       ['dshEffectiveSystem', '{path}', 1],
+      ['dshSourceSummary', '{registry}', 1],
+      ['dshSourceSummary', '{mode}', 1],
     ];
     for (const [key, placeholder, expected] of cases) {
       const en = (enUS as Record<string, unknown>)[key];

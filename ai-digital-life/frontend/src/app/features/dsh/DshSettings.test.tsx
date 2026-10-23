@@ -61,12 +61,14 @@ function TestProvider({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * 摘要行用真实中文模板（mockT 按 key 原样返回，`formatT` 占位符渲不出 registry）；
+ * 摘要行用真实中文模板（mockT 按 key 原样返回，`formatT` 占位符渲不出 registry/mode）；
  * 其余键保持 key 形态以便按 key 选中元素（照抄 DshVersionManagement.test 的 emptyNoteT）。
+ * 自动检测标签（dshSettingsSourceAuto）同样取真实中文，否则 mode 位只剩 key。
  */
 const summaryT = new Proxy({} as Record<string, string>, {
   get: (_, key) =>
-    typeof key === 'string' && key.startsWith('dshSourceSummary')
+    typeof key === 'string' &&
+    (key.startsWith('dshSourceSummary') || key === 'dshSettingsSourceAuto')
       ? ((dshZh as Record<string, string>)[key] ?? key)
       : typeof key === 'string'
         ? key
@@ -270,17 +272,26 @@ describe('DshSettings', () => {
   it('顶部摘要行只读展示当前源，点击前往修改跳转网络组', () => {
     useAppStore.setState({ sourceStatus: makeStatus(), activeSettingsGroup: 'dsh' });
     renderSettingsWithSummary();
-    // 只读：registry 来自 sourceStatus.config；延迟无常驻数据源，恒为未知。
-    expect(screen.getByText(`当前源：${NPMJS_URL}（延迟 —）`)).not.toBeNull();
+    // 只读：registry 来自 sourceStatus.config；mode 按 source_mode 取自动检测/手动选择标签。
+    expect(screen.getByText(`当前源：${NPMJS_URL}（手动选择）`)).not.toBeNull();
     expect(saveSourceConfig).not.toHaveBeenCalled();
     expect(fetchSourceStatus).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole('button', { name: '前往修改' }));
     expect(useAppStore.getState().activeSettingsGroup).toBe('network');
   });
 
+  it('摘要行 source_mode 为 auto 时展示自动检测标签', () => {
+    useAppStore.setState({
+      sourceStatus: makeStatus({ source_mode: 'auto' }),
+      activeSettingsGroup: 'dsh',
+    });
+    renderSettingsWithSummary();
+    expect(screen.getByText(`当前源：${NPMJS_URL}（自动检测）`)).not.toBeNull();
+  });
+
   it('摘要行 sourceStatus 未知时 fail-open 显示未知符', () => {
     useAppStore.setState({ sourceStatus: null });
     renderSettingsWithSummary();
-    expect(screen.getByText('当前源：—（延迟 —）')).not.toBeNull();
+    expect(screen.getByText('当前源：—（—）')).not.toBeNull();
   });
 });

@@ -133,9 +133,15 @@ export function DshSettings() {
     setActiveSettingsGroup('network');
   }, [setActiveSettingsGroup]);
 
+  const sourceMode = sourceStatus?.config.source_mode;
   const summaryText = formatT(t, 'dshSourceSummary', {
     registry: sourceStatus?.config.npm_registry ?? t.dshSourceSummaryUnknown,
-    latency: t.dshSourceSummaryUnknown,
+    mode:
+      sourceMode === 'auto'
+        ? t.dshSettingsSourceAuto
+        : sourceMode === 'manual'
+          ? t.dshSourceSummaryManual
+          : t.dshSourceSummaryUnknown,
   });
 
   return (
