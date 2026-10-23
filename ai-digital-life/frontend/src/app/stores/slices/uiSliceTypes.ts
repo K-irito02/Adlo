@@ -189,7 +189,7 @@ export interface UISlice {
   dshGroupResetPending: boolean;
   /**
    * DSH 组版本块是否默认的聚合信号（transient，不持久化）：
-   * DshSettings 挂载时按 `sourceStatus.config.version_source` 判定写入并在卸载时清 null，
+   * DshSettings 挂载时按 `sourceStatus.config.version_source` 判定写入，卸载保留，
    * 供侧边栏 DSH 行 disabled 用。null = 未知 → 启用（fail-open）。
    * 源/代理两块 Task 5 起归网络组（`networkBlocksAtDefault`）。
    */
@@ -202,7 +202,7 @@ export interface UISlice {
   networkGroupResetPending: boolean;
   /**
    * 网络两块（下载源/代理设置）是否全默认的聚合信号（transient，不持久化）：
-   * NetworkSettings 挂载时按本地选项判定（`sourceStatus` 仅作未知门）写入并在卸载时清 null，
+   * NetworkSettings 挂载时按本地选项判定（`sourceStatus` 仅作未知门）写入，卸载保留，
    * 供侧边栏网络行 disabled 用。null = 未知 → 启用（fail-open）。
    */
   networkBlocksAtDefault: boolean | null;
@@ -299,13 +299,13 @@ export interface UISlice {
   requestDshGroupReset: () => void;
   /** 消费 DSH 组级恢复待处理（DshSettings 开框前/入口守卫丢弃时调用）。 */
   consumeDshGroupReset: () => void;
-  /** 设置 DSH 版本块是否默认的聚合信号（DshSettings 挂载维护，卸载清 null）。 */
+  /** 设置 DSH 版本块是否默认的聚合信号（DshSettings 挂载维护，卸载保留）。 */
   setDshBlocksAtDefault: (value: boolean | null) => void;
   /** 置位网络组级恢复待处理（幂等：已 pending 再点保持 true）。 */
   requestNetworkGroupReset: () => void;
   /** 消费网络组级恢复待处理（NetworkSettings 开框前/入口守卫丢弃时调用）。 */
   consumeNetworkGroupReset: () => void;
-  /** 设置网络两块全默认聚合信号（NetworkSettings 挂载维护，卸载清 null）。 */
+  /** 设置网络两块全默认聚合信号（NetworkSettings 挂载维护，卸载保留）。 */
   setNetworkBlocksAtDefault: (value: boolean | null) => void;
   /** 置位环境组级恢复待处理（幂等：已 pending 再点保持 true）。 */
   requestEnvironmentGroupReset: () => void;
