@@ -1,10 +1,15 @@
 use adl_errors::AppError;
 use std::path::Path;
 
-/// Remove leftover `*.old-<nonce>` backups directly inside `dir`
-/// (startup cleanup: a crash between backup and restore/removal leaves a full
-/// old copy next to the live one until a later swap of the same version).
-pub fn cleanup_stale_backups(dir: &Path) {
+/// Report leftover `*.old-<nonce>` backups directly inside `dir`.
+///
+/// Deletion is deliberately NOT performed here: `swap_into_place` renames the
+/// live target to `*.old-<nonce>` before installing the staging copy, so a crash
+/// in that window (or a failed restore) leaves the backup as the only surviving
+/// copy of the installed version. Startup cleanup that deletes it would turn a
+/// recoverable state into permanent data loss. The warning lets a human inspect
+/// and restore the backup instead.
+pub fn warn_stale_backups(dir: &Path) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
     };
@@ -14,13 +19,10 @@ pub fn cleanup_stale_backups(dir: &Path) {
             continue;
         }
         let path = entry.path();
-        if let Err(e) = std::fs::remove_dir_all(&path) {
-            tracing::warn!(
-                path = %path.display(),
-                error = %e,
-                "swap: remove stale backup failed"
-            );
-        }
+        tracing::warn!(
+            path = %path.display(),
+            "swap: leftover backup found (kept for manual recovery; not deleted)"
+        );
     }
 }
 
@@ -140,7 +142,7 @@ fn is_link(path: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use super::{cleanup_stale_backups, swap_into_place};
+    use super::{swap_into_place, warn_stale_backups};
 
     fn nanos() -> u128 {
         std::time::SystemTime::now()
@@ -165,16 +167,17 @@ mod tests {
     }
 
     #[test]
-    fn cleanup_stale_backups_removes_old_residue_only() {
+    fn warn_stale_backups_keeps_old_residue() {
         let tmp = std::env::temp_dir().join(format!("adl_sw_stale_{}", nanos()));
         let live = tmp.join("1.0.0");
         let stale = tmp.join("1.0.old-123");
         std::fs::create_dir_all(live.join("lib")).unwrap();
         std::fs::create_dir_all(stale.join("lib")).unwrap();
         std::fs::write(stale.join("lib").join("old.txt"), "old").unwrap();
-        cleanup_stale_backups(&tmp);
+        warn_stale_backups(&tmp);
         assert!(live.is_dir(), "live version must stay");
-        assert!(!stale.exists(), "stale backup must be removed");
+        assert!(stale.is_dir(), "leftover backup must not be deleted");
+        assert!(stale.join("lib").join("old.txt").is_file());
         let _ = std::fs::remove_dir_all(&tmp);
     }
 

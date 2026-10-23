@@ -58,6 +58,7 @@ export const environmentZh = {
   environmentBashVariantNote: '当前归属：{variant}（自动识别，暂不支持切换）',
   environmentBashSetupHint:
     '宿主 Git 仅提供 Git（MinGit 不含 Bash）；Bash 请使用系统 Git for Windows / WSL / MSYS2 或手动填路径',
+  environmentInstallDesktopOnlyHint: '——安装/卸载需桌面模式',
   environmentCustomPathLabel: '手动路径',
   environmentCustomPathPlaceholder: '粘贴完整可执行文件路径，失焦保存（清空即清除）',
   environmentAdvanced: '高级',

@@ -74,6 +74,21 @@ const SENSITIVE_PARAM_KEYS: &[&str] = &["token=", "key=", "secret=", "password="
 const SENSITIVE_ARG_FLAGS: &[&str] =
     &["--token", "--key", "--secret", "--password", "--authorization"];
 
+/// 参数名是否为敏感名：精确命中经典旗标，或 `--`/`-` 前缀下的词尾命中
+/// （`--api-key`、`--access-token`、`--auth-token`、`--client-secret` 等）。
+fn is_sensitive_arg_name(name: &str) -> bool {
+    let name = name.to_ascii_lowercase();
+    if SENSITIVE_ARG_FLAGS.contains(&name.as_str()) {
+        return true;
+    }
+    let bare = name.trim_start_matches('-');
+    ["key", "token", "secret", "password", "authorization"].iter().any(|suffix| {
+        bare == *suffix
+            || bare.ends_with(&format!("-{suffix}"))
+            || bare.ends_with(&format!("_{suffix}"))
+    })
+}
+
 /// 文本脱敏：把敏感参数（`token=`/`key=`/`secret=`/`password=`/`authorization=`）
 /// 的值替换为 `<redacted>`（值到空白/引号/括号/`&` 为止，大小写不敏感）。
 /// stdout/stderr 整行 debug 记录前调用；解析仍用原始行。
@@ -103,7 +118,8 @@ fn redact_secret_params(text: &str) -> String {
 
 /// argv 脱敏：`--token value` 遮蔽下一个值，`--key=value`/`token=value`
 /// 遮蔽等号后的值；其余参数保持原样（仅内嵌敏感参数做文本脱敏）。
-fn redact_args_for_log(args: &[String]) -> Vec<String> {
+/// 同时供 `webapp-host` 等 sibling crate 记录 spawn 参数前复用。
+pub fn redact_args_for_log(args: &[String]) -> Vec<String> {
     let mut out = Vec::with_capacity(args.len());
     let mut redact_next = false;
     for arg in args {
@@ -113,16 +129,13 @@ fn redact_args_for_log(args: &[String]) -> Vec<String> {
             continue;
         }
         let lower = arg.to_ascii_lowercase();
-        if SENSITIVE_ARG_FLAGS.contains(&lower.as_str()) {
+        if is_sensitive_arg_name(&lower) {
             out.push(arg.clone());
             redact_next = true;
             continue;
         }
         if let Some((name, _)) = arg.split_once('=') {
-            let name_lower = name.to_ascii_lowercase();
-            let sensitive = SENSITIVE_ARG_FLAGS.iter().any(|flag| name_lower == *flag)
-                || SENSITIVE_PARAM_KEYS.iter().any(|key| name_lower == key.trim_end_matches('='));
-            if sensitive {
+            if is_sensitive_arg_name(name) {
                 out.push(format!("{name}=<redacted>"));
                 continue;
             }
@@ -429,6 +442,9 @@ mod tests {
             "--key=xyz",
             "--authorization",
             "Bearer secret",
+            "--api-key",
+            "sk-live",
+            "--access-token=ghp_x",
             "token=inline",
             "https://host/path?token=t&key=k",
             "--port",
@@ -446,6 +462,9 @@ mod tests {
                 "--key=<redacted>".to_string(),
                 "--authorization".to_string(),
                 "<redacted>".to_string(),
+                "--api-key".to_string(),
+                "<redacted>".to_string(),
+                "--access-token=<redacted>".to_string(),
                 "token=<redacted>".to_string(),
                 "https://host/path?token=<redacted>&key=<redacted>".to_string(),
                 "--port".to_string(),

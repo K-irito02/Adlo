@@ -22,9 +22,11 @@
 # script and fails the build when the file is missing. So local dev and CI
 # must stage once first (this script does the build AND the copy).
 #
-# Idempotent: when the staged exe is newer than every `crates/**` source and
-# `src-tauri/Cargo.toml`, the build+copy is skipped so dev restarts stay fast.
-# Pass `-Force` to rebuild the sidecar unconditionally.
+# Always invokes cargo: the build is the freshness check. A mtime-based skip is
+# unsafe because the staged file name is shared by debug and release profiles,
+# so an up-to-date debug stage would silently satisfy a release build. Cargo's
+# own incremental no-op keeps repeat runs cheap. `-Force` remains accepted for
+# backwards-compatible invocation but has no additional effect.
 
 param(
     [ValidateSet("debug", "release")]
@@ -42,16 +44,9 @@ $ProfileArgs = if ($Profile -eq "release") { @("--release") } else { @() }
 
 $Staged = Join-Path $WorkspaceRoot "src-tauri\binaries\adl-server-x86_64-pc-windows-msvc.exe"
 
-if (-not $Force -and (Test-Path -LiteralPath $Staged)) {
-    $StagedTime = (Get-Item -LiteralPath $Staged).LastWriteTimeUtc
-    $SourceFiles = @(Get-ChildItem -LiteralPath (Join-Path $WorkspaceRoot "crates") -Recurse -File -ErrorAction SilentlyContinue)
-    $SourceFiles += Get-Item -LiteralPath (Join-Path $WorkspaceRoot "src-tauri\Cargo.toml") -ErrorAction SilentlyContinue
-    $NewestSourceTime = ($SourceFiles | Measure-Object -Property LastWriteTimeUtc -Maximum).Maximum
-    if ($StagedTime -ge $NewestSourceTime) {
-        Write-Host "Sidecar up to date (staged $StagedTime >= sources $NewestSourceTime); skipping rebuild. Use -Force to rebuild."
-        exit 0
-    }
-}
+# `-Force` intentionally unused: the build always runs so profile changes can
+# never be masked by a stale staged artifact.
+$null = $Force
 
 # Preserve any caller-provided flags (e.g. CI's `-D warnings`) and append the
 # static CRT requirement.

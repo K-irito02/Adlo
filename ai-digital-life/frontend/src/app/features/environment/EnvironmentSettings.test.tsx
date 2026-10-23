@@ -654,7 +654,7 @@ describe('EnvironmentSettings', () => {
       (within(node).getByRole('button', { name: 'environmentInstall' }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
-    expect(node.textContent).toContain('settingsAgentDesktopOnlyHint');
+    expect(node.textContent).toContain('environmentInstallDesktopOnlyHint');
     // 本地配置（来源选择 + 手动路径）在浏览器模式仍可用（R1-07/R1-14）。
     expect((within(node).getByLabelText('environmentSwitch') as HTMLButtonElement).disabled).toBe(
       false,
@@ -671,7 +671,7 @@ describe('EnvironmentSettings', () => {
       (within(git).getByRole('button', { name: 'environmentReinstall' }) as HTMLButtonElement)
         .disabled,
     ).toBe(true);
-    expect(git.textContent).toContain('settingsAgentDesktopOnlyHint');
+    expect(git.textContent).toContain('environmentInstallDesktopOnlyHint');
   });
 
   it('resume 横幅：skippedAt + 未就绪 → 显示 N 项，继续向导通过 nonce 重新请求', async () => {

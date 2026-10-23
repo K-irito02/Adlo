@@ -62,6 +62,7 @@ export const environmentEn = {
     'Current source: {variant} (auto-detected, switching not supported yet)',
   environmentBashSetupHint:
     'Hosted Git only provides Git (MinGit has no Bash); use system Git for Windows / WSL / MSYS2, or enter a custom path',
+  environmentInstallDesktopOnlyHint: '\u2014 install/uninstall requires desktop mode',
   environmentCustomPathLabel: 'Custom path',
   environmentCustomPathPlaceholder:
     'Paste the full executable path; saves on blur (clear to remove)',

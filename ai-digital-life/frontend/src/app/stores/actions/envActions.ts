@@ -178,9 +178,6 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      * @see httpBridge.ts → env.install (/env/install)
      */
     installEnvDep: async (dep: string, version?: string): Promise<boolean> => {
-      // 变异前快照：只有它才是「启动前已存在」的陈旧失败身份；变异窗口内新产生的
-      // 失败（含 refresh 已写回 error 的情况）必须照常提示（N-01）。
-      const initialErrorKey = taskErrorKey(get().envStatus?.task ?? null);
       clearError(get, SCOPE);
       get().setEnvBusy(true);
       let result: Awaited<ReturnType<typeof window.digitalLife.env.install>>;
@@ -207,7 +204,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
       // 静默刷新是 best-effort（内部吞错/!ok，不影响控制流）：无论成功与否都启动轮询，
       // 已接受的任务不会因刷新失败而无人跟进（busy 仍为 true，poll 不会因空闲提前退出）。
       await refreshEnvStatusSilently(get);
-      get().pollEnvTaskWhileRunning(initialErrorKey);
+      get().pollEnvTaskWhileRunning({ suppressInitialError: false });
       return true;
     },
 
@@ -218,7 +215,6 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      * @see httpBridge.ts → env.uninstall (/env/uninstall)
      */
     uninstallEnvDep: async (dep: string, version?: string): Promise<boolean> => {
-      const initialErrorKey = taskErrorKey(get().envStatus?.task ?? null);
       clearError(get, SCOPE);
       get().setEnvBusy(true);
       let result: Awaited<ReturnType<typeof window.digitalLife.env.uninstall>>;
@@ -245,7 +241,7 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
       // 静默刷新是 best-effort（内部吞错/!ok，不影响控制流）：无论成功与否都启动轮询，
       // 已接受的任务不会因刷新失败而无人跟进（busy 仍为 true，poll 不会因空闲提前退出）。
       await refreshEnvStatusSilently(get);
-      get().pollEnvTaskWhileRunning(initialErrorKey);
+      get().pollEnvTaskWhileRunning({ suppressInitialError: false });
       return true;
     },
 
@@ -316,9 +312,8 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      * 全量检测（N-03）。
      * 某次 tick 拿到 `task: null` 即停轮询 + 成功 toast（仅安装类任务）+ 复位 busy。
      * `task.error` 非空视为终态失败：停轮询、清本地 task、复位 busy、toast 域错误。
-     * 启动前就已存在的失败快照（身份键 `initialErrorKey`）只静默清除，不重放提示；
-     * 安装/卸载路径传入变异前的身份键，从而区分「陈旧快照」与「变异窗口内的新失败」
-     *（N-01）。
+     * 挂载/采纳路径启动前就存在的失败快照只静默清除、不重放；安装/卸载发起的轮询
+     * 则把首个 error 一律视为本次操作的新失败（N-F2）。
      * tick fail-open：桥抛错 / !ok 静默跳过（下一轮自愈），持续失败达
      * `ENV_POLL_MAX_CONSECUTIVE_FAILURES` 或总时长超过 `ENV_POLL_MAX_ELAPSED_MS`
      * 即熔断（停轮询 + 清本地 task + 复位 busy + 单次 error toast）。
@@ -328,37 +323,41 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
      * 只在需要时启动，终态自停）。所有 await 之后的 store 写入与 toast 都必须过
      * `active` 检查，防止已卸载组件的旧 tick 覆盖新状态。
      *
-     * @param initialErrorKey 变异前快照的失败身份键（安装/卸载传入，含 null 表示
-     *   变异前无失败）；省略表示由当前 store 快照自行推导（挂载/采纳路径）。
+     * 早退（陈旧失败/空闲）在取消旧计时器之前判定：查看路径的调用不得杀掉
+     * action-owned 的活跃轮询（N-F3）。
+     *
+     * @param options.suppressInitialError `true`（默认，挂载/采纳）：启动快照已带
+     *   error 视为陈旧失败，直接本地终态化且不起轮询；`false`（install/uninstall）：
+     *   该 error 可能是本次重试产生的新失败（文本可能完全相同），必须照常上报。
      * @returns 清除函数（幂等，可重调）
      */
-    pollEnvTaskWhileRunning: (initialErrorKey?: string | null): (() => void) => {
+    pollEnvTaskWhileRunning: (options?: { suppressInitialError?: boolean }): (() => void) => {
+      const suppressInitialError = options?.suppressInitialError ?? true;
+      const started = get().envStatus?.task ?? null;
+      const startedErrorKey = taskErrorKey(started);
+
+      // 早退必须先于取消：不得因挂载/查看路径杀掉正在运行的轮询。
+      if (suppressInitialError && startedErrorKey !== null) {
+        // 无活跃轮询时才把陈旧失败本地终态化；有活跃轮询时交给它的下个 tick。
+        if (cancelActiveEnvPoll === null) {
+          const status = get().envStatus;
+          if (status !== null) {
+            get().setEnvStatus({ ...status, task: null });
+          }
+          get().setEnvBusy(false);
+        }
+        return () => {};
+      }
+
+      // N-03：空闲挂载不启动轮询（无任务且无进行中操作），也不打断已有轮询。
+      if (started === null && !get().envBusy) {
+        return () => {};
+      }
+
+      // 确认要启动新轮询后才取消旧实例。
       cancelActiveEnvPoll?.();
       cancelActiveEnvPoll = null;
       clearEnvPollTimer();
-
-      const started = get().envStatus?.task ?? null;
-      const startedErrorKey = taskErrorKey(started);
-      const explicitInitialKey = initialErrorKey !== undefined;
-      const errorKey = explicitInitialKey ? initialErrorKey : startedErrorKey;
-
-      // 挂载/采纳路径：启动时快照已带 error 属陈旧失败，本地终态化即可。
-      // 变异路径（显式 key）不得在此提前返回——即使 refresh 失败且快照仍是旧 error，
-      // 也必须让后续 tick 取回新任务（R1-05）。
-      if (!explicitInitialKey && startedErrorKey !== null) {
-        const status = get().envStatus;
-        if (status !== null) {
-          get().setEnvStatus({ ...status, task: null });
-        }
-        get().setEnvBusy(false);
-        return () => {};
-      }
-
-      // N-03：空闲挂载不启动轮询（无任务且无进行中操作）。
-      if (started === null && !get().envBusy) {
-        get().setEnvBusy(false);
-        return () => {};
-      }
 
       // 带 error 的启动快照不是「进行中任务」：交给首个 tick 重新采纳/判定。
       const liveStarted = started !== null && startedErrorKey === null ? started : null;
@@ -473,16 +472,10 @@ export function createEnvActions(set: StoreApi<StoreState>['setState'], get: () 
           return;
         }
         if (task.error !== null && task.error !== undefined && task.error !== '') {
-          const key = taskErrorKey(task);
           // 终态失败：本地清掉 task（失败信息只留在 toast/错误卡），否则行会一直
           // 停在 "安装中" 扫光态且安装按钮不再出现（remount 由 taskForDep 兜底）。
+          // 不再按错误文本比对去重：相同文本可能是重试后的新失败（N-F2）。
           get().setEnvStatus({ ...result.data, task: null });
-          if (key !== null && key === errorKey) {
-            // 启动前就存在的同一失败快照：静默终态化，不重放 toast/错误卡。
-            get().setEnvBusy(false);
-            cleanup();
-            return;
-          }
           captureError(get, task.error, SCOPE);
           stopWithError();
         }

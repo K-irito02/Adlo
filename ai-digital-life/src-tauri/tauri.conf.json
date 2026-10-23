@@ -6,7 +6,10 @@
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://127.0.0.1:5173",
-    "beforeDevCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile debug",
+    "beforeDevCommand": {
+      "script": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile debug",
+      "wait": true
+    },
     "beforeBuildCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-stage-sidecar.ps1 -Profile release && pnpm --dir frontend run build",
     "beforeBundleCommand": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/copy-adl-server-sidecar.ps1 -Profile release"
   },

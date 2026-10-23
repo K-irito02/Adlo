@@ -205,7 +205,11 @@ export function EnvDepRow({
               : dep === 'webview2'
                 ? t.environmentDepWebview2Desc
                 : t.environmentDepAdlserverDesc;
-  const descText = browserGated ? `${depDesc} ${t.settingsAgentDesktopOnlyHint}` : depDesc;
+  // 浏览器模式：来源切换与手动路径是本地配置（可用），仅安装/卸载/重装
+  // 等变更动作置灰，因此桌面模式提示只挂在可安装行（node/git）且只描述
+  // 这类动作，不能暗示整行不可用。
+  const installGated = browserGated && (dep === 'node' || dep === 'git');
+  const descText = installGated ? `${depDesc} ${t.environmentInstallDesktopOnlyHint}` : depDesc;
 
   const sourceOptions = [
     { value: 'auto', label: t.environmentSourceAuto },

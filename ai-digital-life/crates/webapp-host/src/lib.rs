@@ -293,7 +293,13 @@ pub async fn spawn_and_wait_ready(
 ) -> Result<HostedProcess, AppError> {
     let port = pick_free_port()?;
     let url = format!("http://127.0.0.1:{port}");
-    tracing::info!(?program, ?args, ?port, ?url, "spawn_and_wait_ready: starting process");
+    tracing::info!(
+        ?program,
+        redacted_args = ?adl_hosted::redact_args_for_log(args),
+        ?port,
+        ?url,
+        "spawn_and_wait_ready: starting process"
+    );
     let (mut child, url_slot) = spawn_capturing(program, args, DSH_URL_MARKER)?;
 
     // 记录子进程PID

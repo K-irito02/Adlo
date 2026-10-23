@@ -224,18 +224,17 @@ pub async fn init_server_state(
         dsh_catalog_cache,
         workspace_watcher: Arc::new(StdMutex::new(None)),
     };
-    // 启动清理：崩溃可能留下 `*.old-<nonce>` 完整旧副本（env 版本目录，
-    // dsh 的 `installed/<v>/node_modules/@deepseek-ai` 下一层）。
+    // 启动时只报告崩溃可能留下的 `*.old-<nonce>` 完整旧副本（env 版本目录，
+    // dsh 的 `installed/<v>/node_modules/@deepseek-ai` 下一层），不删除：
+    // 备份重命名后、新版本落位前崩溃时，它可能是唯一存活副本。
     let root = state.storage.paths().root.clone();
-    adl_hosted::cleanup_stale_backups(&root.join("env-hosted/node/installed"));
-    adl_hosted::cleanup_stale_backups(&root.join("env-hosted/git/installed"));
+    adl_hosted::warn_stale_backups(&root.join("env-hosted/node/installed"));
+    adl_hosted::warn_stale_backups(&root.join("env-hosted/git/installed"));
     let dsh_installed = state.storage.paths().dsh_versions_dir.join("installed");
-    adl_hosted::cleanup_stale_backups(&dsh_installed);
+    adl_hosted::warn_stale_backups(&dsh_installed);
     if let Ok(entries) = std::fs::read_dir(&dsh_installed) {
         for entry in entries.flatten() {
-            adl_hosted::cleanup_stale_backups(
-                &entry.path().join("node_modules").join("@deepseek-ai"),
-            );
+            adl_hosted::warn_stale_backups(&entry.path().join("node_modules").join("@deepseek-ai"));
         }
     }
     if let Some(root) = restored_root.as_ref() {
