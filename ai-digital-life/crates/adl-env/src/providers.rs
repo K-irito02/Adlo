@@ -1,8 +1,10 @@
-//! Hosted-install providers for environment dependencies (Task 8).
+//! Hosted-install providers for environment dependencies (Tasks 8-9).
 //!
-//! `pub mod node;` ships now; Task 9 appends `git`/`bash`, Task 10 appends
+//! `node`/`git`/`bash` ship now; Task 10 appends
 //! `webview2`/`adlserver`/`netprobe` declarations here.
 
+pub mod bash;
+pub mod git;
 pub mod node;
 
 use std::path::{Path, PathBuf};
@@ -107,4 +109,22 @@ fn nonce() -> u128 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{bash, git};
+    use std::path::{Path, PathBuf};
+
+    #[test]
+    fn host_bash_derives_from_git_selection() {
+        let p = bash::host_bash_path(Path::new("D:/d"), "2.47.1");
+        assert_eq!(p, PathBuf::from("D:/d/env-hosted/git/2.47.1/bin/bash.exe"));
+    }
+
+    #[test]
+    fn git_version_parses() {
+        assert_eq!(git::parse_version("git version 2.47.1.windows.1"), Some("2.47.1".into()));
+        assert_eq!(git::parse_version("not git"), None);
+    }
 }
