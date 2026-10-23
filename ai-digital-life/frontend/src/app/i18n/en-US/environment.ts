@@ -57,6 +57,8 @@ export const environmentEn = {
   environmentFieldPath: 'Path',
   environmentFieldSource: 'Source',
   environmentBashVariant: 'Bash distribution',
+  environmentBashVariantNote:
+    'Current source: {variant} (auto-detected, switching not supported yet)',
   environmentBashHostedNote: 'Ships with the hosted Git installation; no standalone install needed',
   environmentCustomPathLabel: 'Custom path',
   environmentCustomPathPlaceholder:

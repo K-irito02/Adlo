@@ -179,12 +179,13 @@ describe('EnvironmentSettings', () => {
     expect(screen.getByRole('button', { name: 'environmentCopyAllForAgent' })).not.toBeNull();
   });
 
-  it('Bash 系统模式下展示 Git 自带/WSL/MSYS2 三选一', async () => {
+  it('Bash 系统模式下展示只读归属文本（非可交互三选一）', async () => {
     const { container } = await renderWithRows();
     const bash = container.querySelector('[data-testid="env-dep-bash"]')!;
-    expect(within(bash as HTMLElement).getByText('environmentBashGitBundled')).not.toBeNull();
-    expect(within(bash as HTMLElement).getByText('environmentBashWsl')).not.toBeNull();
-    expect(within(bash as HTMLElement).getByText('environmentBashMsys2')).not.toBeNull();
+    // 诚实非交互：无 radiogroup/radio 控件，只读归属文本。
+    expect(bash.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(bash.querySelector('input[type="radio"]')).toBeNull();
+    expect(within(bash as HTMLElement).getByText('environmentBashVariantNote')).not.toBeNull();
   });
 
   it('模型行无状态灯，只有去 dsh 侧配置引导', async () => {

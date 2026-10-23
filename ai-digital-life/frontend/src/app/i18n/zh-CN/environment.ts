@@ -53,6 +53,7 @@ export const environmentZh = {
   environmentFieldPath: '路径',
   environmentFieldSource: '来源',
   environmentBashVariant: 'Bash 发行版',
+  environmentBashVariantNote: '当前归属：{variant}（自动识别，暂不支持切换）',
   environmentBashHostedNote: '随宿主 Git 一起安装，无需单独安装',
   environmentCustomPathLabel: '手动路径',
   environmentCustomPathPlaceholder: '粘贴完整可执行文件路径，失焦保存（清空即清除）',

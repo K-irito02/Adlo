@@ -219,6 +219,14 @@ export function EnvDepRow({
 
   const bashVariant = dep === 'bash' && section !== null ? bashVariantOf(section) : null;
   const showBashVariant = bashVariant !== null && section?.mode === 'system';
+  const bashVariantLabel =
+    bashVariant === 'wsl'
+      ? t.environmentBashWsl
+      : bashVariant === 'msys2'
+        ? t.environmentBashMsys2
+        : bashVariant === 'manual'
+          ? t.environmentBashCustom
+          : t.environmentBashGitBundled;
 
   const renderStatusLine = () => {
     if (section !== null) {
@@ -318,22 +326,7 @@ export function EnvDepRow({
           ) : null}
           {renderTaskProgress()}
           {showBashVariant && !compact ? (
-            <small>
-              <span role="radiogroup" aria-label={t.environmentBashVariant}>
-                <label className="adl-settings-radio">
-                  <input type="radio" disabled checked={bashVariant === 'git'} readOnly />
-                  {t.environmentBashGitBundled}
-                </label>{' '}
-                <label className="adl-settings-radio">
-                  <input type="radio" disabled checked={bashVariant === 'wsl'} readOnly />
-                  {t.environmentBashWsl}
-                </label>{' '}
-                <label className="adl-settings-radio">
-                  <input type="radio" disabled checked={bashVariant === 'msys2'} readOnly />
-                  {t.environmentBashMsys2}
-                </label>
-              </span>
-            </small>
+            <small>{formatT(t, 'environmentBashVariantNote', { variant: bashVariantLabel })}</small>
           ) : null}
           {OPERABLE_DEPS.has(dep) && !compact ? (
             <small>
