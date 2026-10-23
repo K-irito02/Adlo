@@ -8,10 +8,10 @@
 ## 检测命令
 
 ```powershell
-Get-ChildItem -Path <安装目录> -Filter adl-server.exe
+Get-ChildItem -Path <安装目录> -Filter adl-server*.exe
 ```
 
-- 正常安装包里，`adl-server.exe` 与本应用主程序位于同一安装目录（sidecar）。
+- 正常安装包里，后端 sidecar 名为 `adl-server-x86_64-pc-windows-msvc.exe`，与本应用主程序位于同一安装目录。
 - 文件不存在 → 安装包不完整；文件存在但版本行不符 → 壳与 sidecar 版本不匹配。
 
 ## 安装步骤
@@ -20,7 +20,7 @@ Get-ChildItem -Path <安装目录> -Filter adl-server.exe
 
 1. 退出本应用，确认没有残留进程仍在运行。
 2. 运行当前版本的官方安装包，覆盖安装（安装程序会一并落盘 sidecar）。
-3. 不要手工从旧版本复制或替换 `adl-server.exe`：壳与后端需版本配套，手工替换会破坏签名与协议兼容。
+3. 不要手工从旧版本复制或替换 `adl-server-x86_64-pc-windows-msvc.exe`：壳与后端需版本配套，手工替换会破坏签名与协议兼容。
 
 ## 装后回填
 

@@ -9,9 +9,9 @@
 
 ```powershell
 git --version
-where git
+where.exe git
 bash --version
-where bash
+where.exe bash
 ```
 
 Bash 的三类来源可这样辨认：

@@ -9,7 +9,7 @@
 
 ```powershell
 node --version
-where node
+where.exe node
 ```
 
 把输出与设置组行内的基线版本对比：低于基线或找不到命令即未就绪。
@@ -21,8 +21,8 @@ where node
 
 需要手工安装时只使用官方包：
 
-1. 打开官方下载页 https://nodejs.org/en/download 。
-2. 选择 LTS 的 Windows x64 zip 包（`https://nodejs.org/dist/latest-v22.x/` 目录下的 `node-v*-win-x64.zip`）。
+1. 打开 Node.js 官方下载页 https://nodejs.org/en/download ，在 LTS 区选择 Windows x64 的 zip 包（`node-v*-win-x64.zip`）。
+2. 安装与应用显示的基线版本一致（当前 24.x LTS）：版本以「环境」设置组 Node 行展示的基线为准，不要凭记忆选版本。
 3. 校验完整性：在同一目录下载 `SHASUMS256.txt`，执行
    `certutil -hashfile <zip 文件> SHA256`，与清单中对应行比对。
 4. 解压到自选目录，记下其中 `node.exe` 的完整路径。

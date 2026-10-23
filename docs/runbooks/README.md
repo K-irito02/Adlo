@@ -49,7 +49,8 @@
 ## 内容红线
 
 - 中文为主，命令与路径按原样保留。
-- 只出现官方来源：nodejs.org、Git for Windows 官方发布页、微软 WebView2 官方下载页；
+- 只出现官方来源：nodejs.org、Git for Windows 官方发布页、微软 WebView2 官方下载页、
+  `registry.npmjs.org`；
   dsh 的模型配置入口按界面泛化描述，不写死内部地址。
 - 凭据一律用占位符 `<你的 Key>`；禁止真实 Key、个人目录、内网域名与本机地址。
-- 自动化守卫见 `frontend/src/app/features/environment/runbooks.test.ts`（五段标题 + 禁止字符串）。
+- 自动化守卫见 `ai-digital-life/frontend/src/app/features/environment/runbooks.test.ts`（五段标题 + 禁止字符串）。

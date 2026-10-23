@@ -339,8 +339,60 @@ describe('EnvironmentSettings', () => {
     expect(typeof payload.statusJson).toBe('string');
     // fixture 里 node 未就绪 → 全量载荷只带未就绪项 runbook。
     expect(typeof payload.runbook).toBe('string');
-    expect(payload.runbook as string).toContain('## 症状');
-    expect(payload.runbook as string).toContain('Node.js');
+    const runbook = payload.runbook as string;
+    expect(runbook).toContain('## 症状');
+    expect(runbook).toContain('Node.js');
+    // 就绪项（git/bash/webview2/adlserver/net）的 runbook 不得混入。
+    expect(runbook).not.toContain('（env-git-bash）');
+    expect(runbook).not.toContain('（env-webview2）');
+    expect(runbook).not.toContain('（env-adlserver）');
+    expect(runbook).not.toContain('（env-net-download）');
+    // 模型行无可检测就绪信号，不参与 all 聚合。
+    expect(runbook).not.toContain('（env-model-credential）');
+  });
+
+  it('全量载荷：Git 与 Bash 同时未就绪时共用 runbook 只出现一次', async () => {
+    const status = fixture();
+    status.node = depState({
+      mode: 'auto',
+      effective: 'host',
+      installedVersion: '22.0.0',
+      baselineVersion: '22.0.0',
+      meetsBaseline: true,
+      path: 'C:/hosted/node/22.0.0/node.exe',
+    });
+    status.git = depState({
+      effective: 'none',
+      installedVersion: null,
+      baselineVersion: '2.52.0',
+      meetsBaseline: false,
+      path: null,
+    });
+    status.bash = depState({
+      effective: 'none',
+      installedVersion: null,
+      baselineVersion: '5.2.21',
+      meetsBaseline: false,
+      path: null,
+    });
+    fetchEnvStatus.mockImplementation(async () => {
+      useAppStore.setState({ envStatus: status });
+      return true;
+    });
+    seedStore({ envStatus: status });
+    await renderWithRows();
+    fireEvent.click(screen.getByRole('button', { name: 'environmentCopyAllForAgent' }));
+    await waitFor(() => {
+      expect(writeText).toHaveBeenCalledTimes(1);
+    });
+    const payload = JSON.parse(writeText.mock.calls[0][0] as string) as Record<string, unknown>;
+    const runbook = payload.runbook as string;
+    expect(runbook).toContain('（env-git-bash）');
+    // git 与 bash 共用一份 → 全文只出现一次。
+    expect(runbook.split('（env-git-bash）')).toHaveLength(2);
+    // 就绪的 node 不入载荷；模型行不参与 all 聚合。
+    expect(runbook).not.toContain('（env-node）');
+    expect(runbook).not.toContain('（env-model-credential）');
   });
 
   it('全量载荷：所有可检测项就绪时 runbook 为 null', async () => {
